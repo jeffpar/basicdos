@@ -1,1 +1,20 @@
 theme: jekyll-theme-midnight
+
+title: BASICDOS
+domain: basicdos.com
+tagline: Where past, present and future intersect.
+description: "BASICDOS is like a doughnut: pointless but tasty."
+author: Jeff Parsons
+data_dir: configs
+left_brace: "{"
+right_brace: "}"
+encoding: UTF-8
+root: /tasty
+
+github:
+  owner_name: "jeffpar"
+  owner_url: https://github.com/jeffpar
+  repository_url: https://github.com/jeffpar/basicdos
+
+exclude:
+  - CNAME
