@@ -18,3 +18,5 @@ github:
 
 exclude:
   - CNAME
+  - Gemfile
+  - Gemfile.lock
