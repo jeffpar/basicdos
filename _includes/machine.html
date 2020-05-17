@@ -269,8 +269,7 @@
     <div class="pcjs-reference" style="padding-left:8px">[<a href="debugger/" onclick="pcjsOnClick(this)">Debugger</a>]</div>
   {%- endif %}
     <div class="pcjs-copyright">
-  {%- assign machine_version = site.data.machines[machine_type]['version'] | default: site.data.machines['shared']['version'] %}
-      <a href="{{ '/' | absolute_url }}" target="_blank">PCx86</a> v{{ machine_version }} © 2012-2020 by <a href="https://jeffpar.com" target="_blank">@jeffpar</a>
+      <a href="{{ '/' | absolute_url }}" target="_blank">PCx86</a> v{{ machine.machine.version }} © 2012-2020 by <a href="https://jeffpar.com" target="_blank">@jeffpar</a>
     </div>
   </div>
 </div>
