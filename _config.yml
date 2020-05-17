@@ -2,8 +2,7 @@ theme: jekyll-theme-midnight
 
 title: BASICDOS
 domain: basicdos.com
-tagline: Where past, present and future intersect.
-description: "BASICDOS is like a doughnut: pointless but tasty."
+description: "BASICDOS is like a doughnut hole: small and tasty."
 author: Jeff Parsons
 data_dir: configs
 left_brace: "{"
