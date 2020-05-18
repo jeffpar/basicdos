@@ -12,7 +12,7 @@
     "name": "PCx86",
     "version": "2.01",
     "factory": "embedPCx86",
-    "script": "/configs/pcx86/machine/pcx86.js"
+    "script": "/software/pcx86/release/pcx86.js"
   },
   "components": [
     {
@@ -29,14 +29,14 @@
       "addr": "0xf6000",
       "size": "0x08000",
       "alias": null,
-      "file": "https://www.pcjs.org/machines/pcx86/ibm/5150/rom/basic/BASIC100.json"
+      "file": "/software/pcx86/rom/BASIC100.json"
     },
     {
       "id": "romBIOS",
       "class": "rom",
       "addr": "0xfe000",
       "size": "0x02000",
-      "file": "https://www.pcjs.org/machines/pcx86/ibm/5150/rom/bios/1981-04-24/PCBIOS-REV1.json"
+      "file": "/software/pcx86/rom/PCBIOS-REV1.json"
     },
     {
       "id": "videoCGA",
@@ -47,7 +47,7 @@
       "screenColor": "black",
       "charCols": 80,
       "charRows": 25,
-      "fontROM": "https://www.pcjs.org/machines/pcx86/ibm/video/cga/IBM-CGA.json",
+      "fontROM": "/software/pcx86/rom/IBM-CGA.json",
       "flicker": 0.5,
       "overlay": true,
       "autoLock": true,
@@ -120,7 +120,7 @@
           "type": "list",
           "options": {
             "": "None",
-            "/software/pcx86/BASICDOS.json": "BASIC-DOS"
+            "/software/pcx86/disk/BASICDOS.json": "BASIC-DOS"
           }
         },
         {

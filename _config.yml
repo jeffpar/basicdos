@@ -19,3 +19,4 @@ exclude:
   - CNAME
   - Gemfile
   - Gemfile.lock
+  - .history
