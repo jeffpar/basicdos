@@ -98,7 +98,7 @@
       "id": "fdcNEC",
       "class": "fdc",
       "autoMount": {
-        "A": {"name": "PC DOS 1.00"}
+        "A": {"name": "BASIC-DOS"}
       },
       "diskettes": "",
       "server": "",
@@ -117,7 +117,11 @@
         },
         {
           "id": "listDisks",
-          "type": "list"
+          "type": "list",
+          "options": {
+            "": "None",
+            "/software/pcx86/BASICDOS.json": "BASIC-DOS"
+          }
         },
         {
           "id": "loadDisk",

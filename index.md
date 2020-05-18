@@ -1,6 +1,6 @@
 ---
 layout: default
-heading: Welcome to BASICDOS
+heading: Welcome to BASIC-DOS
 permalink: /tasty/
 machines:
   - id: ibm5150
