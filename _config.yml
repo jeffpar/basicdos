@@ -1,8 +1,8 @@
 theme: jekyll-theme-midnight
 
-title: BASICDOS
+title: BASIC-DOS
 domain: basicdos.com
-description: "BASICDOS is like a doughnut hole: small and tasty."
+description: "BASIC-DOS is like a doughnut: small and tasty."
 author: Jeff Parsons
 data_dir: configs
 left_brace: "{"
