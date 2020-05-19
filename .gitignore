@@ -2,5 +2,6 @@
 .history
 .sass-cache
 .vscode
-/_site
+_site
 archive
+node_modules

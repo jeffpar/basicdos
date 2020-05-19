@@ -126,7 +126,11 @@
         },
         {
           "id": "listDisks",
-          "type": "list"
+          "type": "list",
+          "options": {
+            "": "None",
+            "/software/pcx86/disks/BDSRC.json": "BD-SRC"
+          }
         },
         {
           "id": "loadDisk",
@@ -162,7 +166,8 @@
       "drives": [
         {
           "name": "10Mb Hard Disk",
-          "type": 3
+          "type": 3,
+          "path":"/software/pcx86/disks/PCDOS200-C400.json"
         }
       ]
     },

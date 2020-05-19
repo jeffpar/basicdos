@@ -21,3 +21,6 @@ exclude:
   - Gemfile.lock
   - .history
   - "**/archive"
+  - gulpfile.js
+  - node_modules
+  - "package*.json"
