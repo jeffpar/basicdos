@@ -8,6 +8,9 @@ machines:
     config: /configs/pcx86/machine/ibm-5160-cga-256kb.json
     autoType: $date\r$time\r
     autoStart: true
+    autoMount:
+      A: "None"
+      B: "BD-SRC"
 ---
 
 {% include machine.html id="ibm-5160-cga" %}

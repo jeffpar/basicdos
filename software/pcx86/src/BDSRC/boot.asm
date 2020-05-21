@@ -1,4 +1,5 @@
-	include	fat.inc
+	include	bios.inc
+	include	disk.inc
 
 BOOTORG	equ	7C00h
 
@@ -6,11 +7,15 @@ BOOTORG	equ	7C00h
 
 CODE    SEGMENT
 
-        ASSUME  CS:CODE,DS:CODE,ES:CODE,SS:CODE
+        ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:BOOTSTACK
 
-	jmp	start
-	db	90h
-start:
+	jmp	short start
+	nop
+	BPB	<,512,1,1,2,64,320,PC160K,1,8,1,0>
+start:	mov	ax,RBDA
+	mov	ds,ax
+	ASSUME	ds:RBDA
+loop:	jmp	loop
 
 CODE	ENDS
 

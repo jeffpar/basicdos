@@ -129,6 +129,7 @@
           "type": "list",
           "options": {
             "": "None",
+            "/software/pcx86/disks/BDBIN.json": "BD-BIN",
             "/software/pcx86/disks/BDSRC.json": "BD-SRC"
           }
         },
