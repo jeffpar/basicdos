@@ -98,7 +98,8 @@
       "id": "fdcNEC",
       "class": "fdc",
       "autoMount": {
-        "A": {"name": "BASIC-DOS"}
+        "A": {"name": "PC DOS 2.00 (Disk 1)"},
+        "B": {"name": "PC DOS 2.00 (Disk 2)"}
       },
       "diskettes": "",
       "server": "",
@@ -120,6 +121,9 @@
           "type": "list",
           "options": {
             "": "None",
+            "/software/pcx86/disks/PCDOS100.json": "PC DOS 1.00",
+            "/software/pcx86/disks/PCDOS200-DISK1.json": "PC DOS 2.00 (Disk 1)",
+            "/software/pcx86/disks/PCDOS200-DISK2.json": "PC DOS 2.00 (Disk 2)",
             "/software/pcx86/disks/BASICDOS.json": "BASIC-DOS"
           }
         },

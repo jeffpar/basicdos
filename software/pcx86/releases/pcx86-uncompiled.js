@@ -35562,6 +35562,12 @@ X86.opRETF = function()
  */
 X86.opINT3 = function()
 {
+    if (DEBUG && this.flags.running) {
+        this.printMessage("debugger halting on INT 3", DEBUGGER || this.bitsMessage);
+        if (DEBUGGER && this.dbg) this.dbg.stopCPU();
+        return;
+    }
+
     /*
      * TODO: Consider swapping out this function whenever setProtMode() changes the mode to V86-mode.
      */
@@ -64530,7 +64536,7 @@ class FDC extends Component {
 
             while (this.loadDrive(iDrive, sDiskName, sDiskPath, false, file) < 0) {
                 /*
-                 * I got tired of the "reload" warning when running locally, so I've disabled it.
+                 * I got tired of the "reload" warning when running locally, so I've disabled it there.
                  */
                 if (Web.getHostName() != "localhost" && !window.confirm("Click OK to reload the original disk and discard any changes.")) {
                     if (DEBUG) this.println("load cancelled");

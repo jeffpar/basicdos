@@ -1,10 +1,11 @@
 ;
 ; Media IDs
 ;
-PC160K		equ	0FEh
-PC320K		equ	0FFh
-PC180K		equ	0FCh
-PC360K		equ	0FDh
+MEDIA_160K	equ	0FEh
+MEDIA_320K	equ	0FFh
+MEDIA_180K	equ	0FCh
+MEDIA_360K	equ	0FDh
+MEDIA_HARD	equ	0F8h
 
 BPB		struc
 BPB_OEM		db	"PCJS.ORG"	; 03h: OEM signature
