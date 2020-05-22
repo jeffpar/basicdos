@@ -1,3 +1,6 @@
+;
+; Media IDs
+;
 PC160K		equ	0FEh
 PC320K		equ	0FFh
 PC180K		equ	0FCh

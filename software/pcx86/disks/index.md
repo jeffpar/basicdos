@@ -5,11 +5,11 @@ permalink: /tasty/dev/
 machines:
   - id: ibm-5160-cga
     type: pcx86
-    config: /configs/pcx86/machine/ibm-5160-cga-256kb.json
+    config: /configs/pcx86/machine/ibm-5160-cga-640kb.json
     autoType: $date\r$time\r
     autoStart: true
     autoMount:
-      A: "None"
+      A: "BD-BIN"
       B: "BD-SRC"
 ---
 
