@@ -1,19 +1,30 @@
-all: boot.com wboott.com
+ASM=MASM
+LINK=LINK
+EXE2BIN=EXE2BIN
 
-boot.obj: boot.asm
-	masm /iinc /l boot;
+.ASM.OBJ:
+	$(ASM) /IINC $*;
 
-boot.exe: boot.obj
-	link boot;
+.OBJ.EXE:
+	$(LINK) $**,$@,$*/MAP;
 
-boot.com: boot.exe
-	exe2bin boot.exe boot.com
+.EXE.COM:
+	$(EXE2BIN) $*.EXE $*.COM
 
-wboot.obj: wboot.asm
-	masm /iinc wboot;
+BOOT.OBJ: BOOT.ASM BIOS.INC
 
-wboot.exe: wboot.obj
-	link wboot;
+BOOT.EXE: BOOT.OBJ
 
-wboot.com: wboot.exe
-	exe2bin wboot.exe wboot.com
+BOOT.COM: BOOT.EXE
+
+WBOOT.OBJ: WBOOT.ASM
+
+WBOOT.EXE: WBOOT.OBJ
+
+WBOOT.COM: WBOOT.EXE
+
+IBMBIO.OBJ: IBMBIO.ASM
+
+IBMBIO.EXE: IBMBIO.OBJ
+
+IBMBIO.COM: IBMBIO.EXE

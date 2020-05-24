@@ -19,7 +19,7 @@ main	proc	near
 	jc	eopen
 	mov	bx,ax			; BX = file handle
 	mov	ax,4200h		; AH = 42h (SEEK), AL = 0 (FROM START)
-	mov	dx,530h 		;
+	mov	dx,BOOT_SECTOR_LO	;
 	sub	cx,cx			; CX:DX == offset
 	int	21h
 	mov	cx,512			; CX = number of bytes
@@ -55,7 +55,7 @@ mopen	db	"Unable to open BOOT.COM",13,10,'$'
 mread	db	"Unable to read BOOT.COM",13,10,'$'
 msize	db	"BOOT.COM is too large",13,10,'$'
 mwrite	db	"Unable to write BOOT.COM to boot sector",13,10,'$'
-buffer	label	byte
+buffer	db	512 dup (0)
 
 CODE	ENDS
 

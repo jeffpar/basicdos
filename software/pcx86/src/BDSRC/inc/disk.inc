@@ -17,11 +17,11 @@ BPB_CLUSSECS	db	?		; 0Ah: sectors per cluster (eg, 1)
 BPB_RESSECS	dw	?		; 0Bh: reserved sectors (before FAT)
 BPB_FATS	db	?		; 0Dh: FAT copies (eg, 2)
 BPB_DIRENTS	dw	?		; 0Eh: root directory entries
-BPB_TOTALSECS	dw	?		; 10h: number of total sectors
+BPB_DISKSECS	dw	?		; 10h: number of sectors on disk
 BPB_MEDIA	db	?		; 12h: media ID; should match FAT ID
 BPB_FATSECS	dw	?		; 13h: sectors per FAT (eg, 1)
 BPB_TRACKSECS	dw	?		; 15h: sectors per track (eg, 8)
-BPB_TOTALHEADS	dw	?		; 17h: number of heads (eg, 1)
+BPB_DRIVEHEADS	dw	?		; 17h: number of heads (eg, 1)
 BPB_HIDDENSECS	dd	?		; 19h: number of hidden sectors
 BPB_LARGESECS	dd	?		; 1Dh: if TOTALSECS is 0 (see DOS 3.31)
 ;

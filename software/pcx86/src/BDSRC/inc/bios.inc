@@ -201,19 +201,18 @@ RESET_FLAG	DW	?	; 472h: SET TO 0x1234 IF KEYBOARD RESET UNDERWAY
 LOGICAL_DRIVE	db	?		; 504h: (00h for A: or 01h for B:)
 		db	29 dup (?)	; reserved
 DPT_ACTIVE	DPT	<>		; 522h: active DPT
-		db	3 dup (?)	; padding
 ;
 ; We're going to move the boot sector from BOOT_SECTOR_HI to BOOT_SECTOR_LO,
 ; which overlaps where we'll maintain BPB_ACTIVE.
 ;
 BOOT_SECTOR_HI	equ	7C00h
-BOOT_SECTOR_LO	equ	530h
-BOOT_SECTOR	db	3 dup (?)	; 530h
-BPB_ACTIVE	BPB	<>		; 533h: active BPB
-		db	7 dup (?)	; padding
-FAT_SECTOR	db	512 dup (?)	; 560h
-DIR_SECTOR	db	512 dup (?)	; 760h
-BIOS_DATA_END	equ	960h
-
+BOOT_SECTOR_LO	equ	052Dh
+BOOT_SECTOR	db	3 dup (?)	; 52Dh
+BPB_ACTIVE	BPB	<>		; 530h: active BPB
+FAT_SECTOR	db	512 dup (?)	; 556h
+DIR_SECTOR	db	512 dup (?)	; 756h
+		dw	149 dup (?)	; 956h
+BIOS_STACK	equ	$		; A80h
+BIOS_DATA_END	equ	0A80h		; A80h (must be on a paragraph boundary)
 
 BIOS_DATA	ENDS

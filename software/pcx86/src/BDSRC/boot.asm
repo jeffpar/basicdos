@@ -3,9 +3,6 @@
 CODE    segment
 
 	org	BOOT_SECTOR_LO
-;
-; Having the stack at 30:100h is weird, but OK, whatever.
-;
         ASSUME	CS:CODE, DS:BIOS_DATA, ES:BIOS_DATA, SS:NOTHING
 
 	cld
@@ -13,7 +10,15 @@ CODE    segment
 
 mybpb:	BPB	<,512,1,1,2,64,320,MEDIA_160K,1,8,1,0,0,0,3,7>
 
-move:	mov	di,offset DPT_ACTIVE	; ES:DI -> DPT_ACTIVE
+;
+; We assume DS and ES are zero on entry; the stack is apparently at 30:100h,
+; so we move that to safer place (and in this case, changing SP first is fine).
+;
+move:	mov	sp,offset BIOS_STACK
+	push	ds
+	pop	ss
+	ASSUME	SS:BIOS_DATA
+	mov	di,offset DPT_ACTIVE	; ES:DI -> DPT_ACTIVE
 	push	es
 	push	di
 	push	ds
@@ -27,10 +32,9 @@ move:	mov	di,offset DPT_ACTIVE	; ES:DI -> DPT_ACTIVE
 	mov	[DPT_ACTIVE].DP_HEADSETTLE,0	; change head settle time to 0ms
 	pop	ds:[INT_DPT*4]
 	pop	ds:[INT_DPT*4+2]	; update INT_DPT vector
-
-	mov	si,BOOT_SECTOR_HI	; move boot sector down
+	mov	si,BOOT_SECTOR_HI	; now move boot sector down
 	mov	cx,512
-	mov	di,offset BOOT_SECTOR
+;	mov	di,offset BOOT_SECTOR	; BOOT_SECTOR now follows DPT_ACTIVE
 	rep	movsb
 	mov	ax,offset boot
 	jmp	ax
@@ -50,17 +54,7 @@ boot	proc	far
 	call	print
 	mov	ax,2 * PCJS_MULTIPLIER	; AX = 2 seconds
 	call	waitsec			; wait for key
-	test	al,al			; was a key pressed in time?
-	jnz	load			; yes
-	mov	ax,0201h		; AH = 02h (READ), AL = 1 sector
-	inc	cx			; CH = CYL 0, CL = SEC 1
-	mov	dx,0080h		; DH = HEAD 0, DL = DRIVE 80h
-	mov	bx,BOOT_SECTOR_HI	; ES:BX -> BOOT_SECTOR_HI
-	int	13h			; read it
-	jc	hderr
-	jmp	bx			; jump to the hard disk boot sector
-hderr:	mov	si,offset errmsg
-	call	print			; fall into normal diskette boot
+	jcxz	hdboot			; jump if no key pressed
 load:	mov	si,offset mybpb
 	mov	dx,[si].BPB_LBAROOT	; DX = root dir LBA
 rdir:	mov	ax,dx			; AX = LBA
@@ -76,7 +70,21 @@ rdir:	mov	ax,dx			; AX = LBA
 	jb	rdir			; not yet
 err:	mov	si,offset errmsg
 	call	print
+	call	wait
 	int	INT_REBOOT
+;
+; There's a hard disk and no response, so boot from hard disk instead.
+;
+hdboot:	mov	ax,0201h		; AH = 02h (READ), AL = 1 sector
+	inc	cx			; CH = CYL 0, CL = SEC 1
+	mov	dx,0080h		; DH = HEAD 0, DL = DRIVE 80h
+	mov	bx,BOOT_SECTOR_HI	; ES:BX -> BOOT_SECTOR_HI
+	int	13h			; read it
+	jc	err
+	jmp	bx			; jump to the hard disk boot sector
+;
+; We found the DIRENT (at BX) of BIO_FILE, so load it and launch it.
+;
 read:	mov	di,BIOS_DATA_END
 next:	mov	ax,[bx].DIR_CLN		; AX = cluster number
 	call	read_cluster		; read cluster into ES:DI
@@ -98,7 +106,7 @@ boot	endp
 ;
 ; Find DIRENT in sector at ES:DI using filename at DS:BX
 ;
-; Modifies: CX, DI
+; Modifies: BX, CX
 ;
 ; Returns: zero flag set if match (see BX), carry set if end of directory
 ;
@@ -110,9 +118,9 @@ find_dirent proc near
 	add	bx,di
 	dec	bx		; ES:BX -> end of sector data
 f1:	mov	cx,11
-;	cmp	byte ptr es:[di],0
-;	stc
-;	je	f9
+	cmp	byte ptr es:[di],0
+	stc			; more future-proofing:
+	je	f9		; 0 indicates end of allocated entries
 	repe	cmpsb
 	jz	f9
 	add	di,cx
@@ -134,11 +142,14 @@ find_dirent endp
 ; Returns: CH = cylinder, CL = sector, DH = head, DL = drive
 ;
 get_chs	proc	near
+;
+; If our BPB had a pre-computed BPB_CYLSECS, we could avoid the CX calculation.
+;
 	xchg	cx,ax
 	mov	al,byte ptr [si].BPB_TRACKSECS
-	mul	byte ptr [si].BPB_TOTALHEADS
+	mul	byte ptr [si].BPB_DRIVEHEADS
 	xchg	cx,ax		; CX = sectors per cylinder
-	cwd			; DX:AX is LBA
+	sub	dx,dx		; DX:AX is LBA
 	div	cx		; AX = cylinder, DX = remaining sectors
 	xchg	al,ah		; AH = cylinder, AL = cylinder bits 8-9
 	ror	al,1		; future-proofing: saving cylinder bits 8-9
@@ -157,24 +168,20 @@ get_chs	endp
 ;
 ; Print the null-terminated string at DS:SI
 ;
-; Modifies: None
+; Modifies: AX, BX
 ;
 ; Returns: Nothing
 ;
-print	proc	near
-	push	ax
-	push	bx
-	jmp	short pr2
-pr1:	mov	ah,VIDEO_TTYOUT
+printl	proc	near
+	mov	ah,VIDEO_TTYOUT
 	mov	bh,0
 	int	INT_VIDEO
-pr2:	lodsb
+print	label	near
+	lodsb
 	test	al,al
-	jnz	pr1
-	pop	bx
-	pop	ax
+	jnz	printl
 	ret
-print	endp
+printl	endp
 
 ;;;;;;;;
 ;
@@ -195,7 +202,11 @@ read_cluster proc near
 	add	ax,[si].BPB_LBADATA
 	call	read_sectors
 	jc	rc9
-	mov	ax,cx
+;
+; The ROM claims that, on success, AL will (normally) contain the number of
+; sectors actually read, but I'm not seeing that, so I'll just copy CL into AL.
+;
+	xchg	ax,cx
 rc9:	pop	dx
 	pop	cx
 	ret
@@ -231,14 +242,14 @@ read_sectors endp
 ;
 ; Modifies: AX, CX, DX
 ;
-; Returns: AL = key pressed (char code), 0 if none
+; Returns: CX = char code (lo), scan code (hi); 0 if no key pressed
 ;
 waitsec	proc	near
-	mov	dx,182
+	mov	dx,182		; 18.2 ticks per second
 	mul	dx		; DX:AX = ticks to wait * 10
 	mov	cx,10
 	div	cx
-	push	ax		; AX is corrected ticks to wait
+	push	ax		; AX is ticks to wait
 	mov	ah,TIME_GETTICKS
 	int	INT_TIME	; CX:DX is initial tick count
 	pop	ax
@@ -255,9 +266,8 @@ w1:	push	dx
 wait	label	near
 	mov	ah,KBD_READ
 	int	INT_KBD
-	mov	si,offset crlf
-	call	print
-	ret
+	xchg	cx,ax		; CL = char code, CH = scan code
+	jmp	short w9
 w2:	mov	ah,TIME_GETTICKS
 	int	INT_TIME	; CX:DX is updated tick count
 	pop	ax		; subtract target value on the stack
@@ -265,7 +275,9 @@ w2:	mov	ah,TIME_GETTICKS
 	pop	dx
 	sbb	cx,dx		; as long as the target value is bigger
 	jc	w1		; carry will be set
-	mov	al,0		; no key was pressed in time
+	sub	cx,cx		; no key was pressed in time
+w9:	mov	si,offset crlf
+	call	print
 	ret
 waitsec	endp
 
