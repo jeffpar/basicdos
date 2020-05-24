@@ -1,3 +1,5 @@
+	include	disk.inc	; Disk structures
+	include	macros.inc
 ;
 ; Standard PC BIOS vectors (the first few are really just 8086 vectors)
 ;
@@ -34,6 +36,7 @@ VIDEO_TTYOUT	EQU	0Eh	; AL = char, BH = display page
 ;
 ; INT_DISK functions
 ;
+DISK_READ	EQU	02h	;
 DISK_GETPARMS	EQU	08h	; DL = 80h; returns DL = # drives (if carry clear)
 
 ;
@@ -79,7 +82,7 @@ DPT		ENDS
 ; I've also made the strategic decision to NOT use segment value 40h to access
 ; ROM BIOS data, as 00h is more useful.
 ;
-BIOS		SEGMENT AT 00h
+BIOS_DATA	SEGMENT AT 00h
 IVT		DD    256 DUP(?);
 RS232_BASE	DW	4 DUP(?); 400h: ADDRESSES OF RS232 ADAPTERS
 PRINTER_BASE	DW	4 DUP(?); 408h: ADDRESSES OF PRINTERS
@@ -179,4 +182,35 @@ BIOS_BREAK	DB	?	; 471h: BIT 7 = 1 IF BREAK KEY HAS BEEN DEPRESSED
 ;
 RESET_FLAG	DW	?	; 472h: SET TO 0x1234 IF KEYBOARD RESET UNDERWAY
 
-BIOS		ENDS
+		DB    	8Ch DUP(?)
+;
+; Define BASIC-DOS low memory usage, starting at offset 500h.
+;
+; Unfortunately, there's a byte at 500h (STATUS_BYTE) used by the ROM BIOS
+; PRINT_SCREEN function, and apparently the ROM BASIC can use bytes from 510h
+; through 51Dh.  There was also a DOS convention for using the byte at 504h
+; to indicate whether the diskette drive in a single-drive system was operating
+; as drive A (00h) or drive B (01h).
+;
+; Some DOS boot sectors would read the first directory sector into 500h,
+; which would result in the starting clusters of IO.SYS and MSDOS.SYS residing
+; in 51Ah and 53Ah, respectively.  Other sectors would create an 11-byte
+; copy of the BIOS Diskette Parameters Table at 522h.  We do the latter only.
+;
+		db	4 dup (?)	; 500h: reserved
+LOGICAL_DRIVE	db	?		; 504h: (00h for A: or 01h for B:)
+		db	29 dup (?)	; reserved
+DPT_ACTIVE	DPT	<>		; 522h: active DPT
+		db	3 dup (?)	; padding
+;
+; We're going to move the boot sector here, in the same spot where we'll
+; maintain our active BPB.
+;
+BOOT_SECTOR_LOW	equ	530h
+BOOT_SECTOR	db	3 dup (?)	; 530h
+BPB_ACTIVE	BPB	<>		; 533h: active BPB
+		db	7 dup (?)	; padding
+FAT_SECTOR	db	512 dup (?)	; 560h
+DIR_SECTOR	db	512 dup (?)	; 760h
+BIOS_DATA_END	equ	960h
+BIOS_DATA	ENDS

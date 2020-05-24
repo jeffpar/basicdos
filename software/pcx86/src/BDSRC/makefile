@@ -1,7 +1,7 @@
 all: boot.com wboott.com
 
 boot.obj: boot.asm
-	masm /iinc boot;
+	masm /iinc /l boot;
 
 boot.exe: boot.obj
 	link boot;

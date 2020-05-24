@@ -17,7 +17,7 @@ main	proc	near
 	jc	eopen
 	mov	bx,ax			; BX = file handle
 	mov	ax,4200h		; AH = 42h (SEEK), AL = 0 (FROM START)
-	mov	dx,7C00h		;
+	mov	dx,530h 		;
 	sub	cx,cx			; CX:DX == offset
 	int	21h
 	mov	cx,512			; CX = number of bytes
