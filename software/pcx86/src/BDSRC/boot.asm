@@ -1,10 +1,8 @@
 	include	bios.inc
 
-BOOTORG	equ	7C00h
-
 CODE    segment
 
-	org	BOOT_SECTOR_LOW
+	org	BOOT_SECTOR_LO
 ;
 ; Having the stack at 30:100h is weird, but OK, whatever.
 ;
@@ -15,7 +13,22 @@ CODE    segment
 
 mybpb:	BPB	<,512,1,1,2,64,320,MEDIA_160K,1,8,1,0,0,0,3,7>
 
-move:	mov	si,BOOTORG		; move boot sector down
+move:	mov	di,offset DPT_ACTIVE	; ES:DI -> DPT_ACTIVE
+	push	es
+	push	di
+	push	ds
+	lds	si,ds:[INT_DPT*4]	; DS:SI -> original table (in ROM)
+	ASSUME	DS:NOTHING
+	mov	cx,size DPT
+	rep	movsb
+	pop	ds
+	ASSUME	DS:BIOS_DATA
+	mov	[DPT_ACTIVE].DP_SPECIFY1,0DFh	; change step rate to 6ms
+	mov	[DPT_ACTIVE].DP_HEADSETTLE,0	; change head settle time to 0ms
+	pop	ds:[INT_DPT*4]
+	pop	ds:[INT_DPT*4+2]	; update INT_DPT vector
+
+	mov	si,BOOT_SECTOR_HI	; move boot sector down
 	mov	cx,512
 	mov	di,offset BOOT_SECTOR
 	rep	movsb
@@ -42,7 +55,7 @@ boot	proc	far
 	mov	ax,0201h		; AH = 02h (READ), AL = 1 sector
 	inc	cx			; CH = CYL 0, CL = SEC 1
 	mov	dx,0080h		; DH = HEAD 0, DL = DRIVE 80h
-	mov	bx,BOOTORG		; ES:BX -> BOOTORG
+	mov	bx,BOOT_SECTOR_HI	; ES:BX -> BOOT_SECTOR_HI
 	int	13h			; read it
 	jc	hderr
 	jmp	bx			; jump to the hard disk boot sector
@@ -62,12 +75,6 @@ rdir:	mov	ax,dx			; AX = LBA
 	cmp	dx,[si].BPB_LBADATA	; exhausted root dir?
 	jb	rdir			; not yet
 err:	mov	si,offset errmsg
-	call	print
-	mov	si,offset prompt
-	mov	byte ptr [si+21],0
-	call	print
-	call	wait
-	mov	si,offset crlf
 	call	print
 	int	INT_REBOOT
 read:	mov	di,BIOS_DATA_END
@@ -103,9 +110,9 @@ find_dirent proc near
 	add	bx,di
 	dec	bx		; ES:BX -> end of sector data
 f1:	mov	cx,11
-	cmp	byte ptr es:[di],0
-	stc
-	je	f9
+;	cmp	byte ptr es:[di],0
+;	stc
+;	je	f9
 	repe	cmpsb
 	jz	f9
 	add	di,cx
@@ -265,9 +272,9 @@ waitsec	endp
 ;
 ; Strings
 ;
-product		db	"BASIC-DOS 1.00"
+product		db	"BASIC-DOS 0.01"
 crlf		db	13,10,0
-errmsg		db	"Disk error",13,10,0
+errmsg		db	"Unable to boot from disk",13,10,0
 prompt		db	"Press any key to boot from diskette...",0
 BIO_FILE	db	"IBMBIO  COM",0
 

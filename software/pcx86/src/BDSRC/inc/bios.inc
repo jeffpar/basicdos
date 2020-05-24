@@ -203,14 +203,17 @@ LOGICAL_DRIVE	db	?		; 504h: (00h for A: or 01h for B:)
 DPT_ACTIVE	DPT	<>		; 522h: active DPT
 		db	3 dup (?)	; padding
 ;
-; We're going to move the boot sector here, in the same spot where we'll
-; maintain our active BPB.
+; We're going to move the boot sector from BOOT_SECTOR_HI to BOOT_SECTOR_LO,
+; which overlaps where we'll maintain BPB_ACTIVE.
 ;
-BOOT_SECTOR_LOW	equ	530h
+BOOT_SECTOR_HI	equ	7C00h
+BOOT_SECTOR_LO	equ	530h
 BOOT_SECTOR	db	3 dup (?)	; 530h
 BPB_ACTIVE	BPB	<>		; 533h: active BPB
 		db	7 dup (?)	; padding
 FAT_SECTOR	db	512 dup (?)	; 560h
 DIR_SECTOR	db	512 dup (?)	; 760h
 BIOS_DATA_END	equ	960h
+
+
 BIOS_DATA	ENDS

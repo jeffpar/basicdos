@@ -4,6 +4,8 @@
 ; NOTE: The arguments to this program should be "WBOOT BOOT.COM A:",
 ; but we currently ignore any arguments and just assume the above.
 ;
+	INCLUDE	BIOS.INC
+
 CODE    SEGMENT
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
@@ -25,15 +27,20 @@ main	proc	near
 	mov	ah,3Fh			; AH = 3Fh (READ FILE)
 	int	21h
 	jc	eread
+	cmp	ax,510			; boot sector small enough?
+	ja	esize
 	mov	ah,3Eh			; AH = 3Eh (CLOSE FILE)
 	int	21h
 	mov	ax,0301h		; AH = 03h (WRITE SECTORS), AL = 1
 	mov	cx,0001h		; CH = CYL 0, CL = SEC 1
 	mov	bx,dx			; ES:BX -> buffer
+	mov	word ptr [bx+510],0AA55h
 	sub	dx,dx			; DH = HEAD 0, DL = DRIVE 0
 	int	13h
 	jnc	exit
 	mov	dx,offset mwrite
+	jmp	short msg
+esize:	mov	dx,offset msize
 	jmp	short msg
 eread:	mov	dx,offset mread
 	jmp	short msg
@@ -46,10 +53,10 @@ main	endp
 fname	db	"BOOT.COM",0
 mopen	db	"Unable to open BOOT.COM",13,10,'$'
 mread	db	"Unable to read BOOT.COM",13,10,'$'
+msize	db	"BOOT.COM is too large",13,10,'$'
 mwrite	db	"Unable to write BOOT.COM to boot sector",13,10,'$'
-buffer	db	512 DUP (?)
+buffer	label	byte
 
 CODE	ENDS
 
 	end	main
-
