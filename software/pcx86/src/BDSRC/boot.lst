@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 02:05:59
+Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 14:53:05
 
                                                             Page     1-1
                                                             
@@ -29,15 +29,15 @@
  000D  ??                    C  BPB_FATS	db	?		; 0Dh: FAT copies (eg, 2) 
  000E  ????                  C  BPB_DIRENTS	dw	?		; 0Eh: root directory entries
 				 
- 0010  ????                  C  BPB_TOTALSECS	dw	?		; 10h: number of total sect
-				ors 
+ 0010  ????                  C  BPB_DISKSECS	dw	?		; 10h: number of sectors on 
+				disk 
  0012  ??                    C  BPB_MEDIA	db	?		; 12h: media ID; should match F
 				AT ID 
  0013  ????                  C  BPB_FATSECS	dw	?		; 13h: sectors per FAT (eg, 1
 				) 
  0015  ????                  C  BPB_TRACKSECS	dw	?		; 15h: sectors per track (e
 				g, 8) 
- 0017  ????                  C  BPB_TOTALHEADS	dw	?		; 17h: number of heads (eg
+ 0017  ????                  C  BPB_DRIVEHEADS	dw	?		; 17h: number of heads (eg
 				, 1) 
  0019  ????????              C  BPB_HIDDENSECS	dd	?		; 19h: number of hidden se
 				ctors 
@@ -57,7 +57,7 @@
  0000  000B[                 C  DIR_NAME	db	11 dup (?)	; filename: 
             ??               C  
                          ]   C  
-Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 02:05:59
+Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 14:53:05
 
                                                             Page     1-2
                                                             
@@ -116,7 +116,7 @@
 				eally just 8086 vectors) 
                              C  ; 
                              C  ; Page numbers are from the first IBM 5150 Tech
-Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 02:05:59
+Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 14:53:05
 
                                                             Page     1-3
                                                             
@@ -175,7 +175,7 @@
  = 0000                      C  TIME_GETTICKS	EQU	00h	; returns CX:DX, and AL !
 				= 0 if wrapped 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 02:05:59
+Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 14:53:05
 
                                                             Page     1-4
                                                             
@@ -234,7 +234,7 @@
                          ]   C  
                              C  
  0408  0004[                 C  PRINTER_BASE	DW	4 DUP(?); 408h: ADDRESSES OF PR
-Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 02:05:59
+Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 14:53:05
 
                                                             Page     1-5
                                                             
@@ -293,7 +293,7 @@
  0419  ??                    C  ALT_INPUT	DB	?	; 419h: STORAGE FOR ALTERNATE KE
 				YPAD ENTRY 
  041A  ????                  C  BUFFER_HEAD	DW	?	; 41Ah: POINTER TO HEAD OF KEY
-Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 02:05:59
+Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 14:53:05
 
                                                             Page     1-6
                                                             
@@ -352,7 +352,7 @@
                              C  ; VIDEO DISPLAY DATA AREA 
                              C  ; 
  0449  ??                    C  CRT_MODE	DB	?	; 449h: CURRENT CRT MODE 
-Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 02:05:59
+Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 14:53:05
 
                                                             Page     1-7
                                                             
@@ -411,7 +411,7 @@
                              C  
                              C  ; 
                              C  ; Define BASIC-DOS low memory usage, starting a
-Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 02:05:59
+Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 14:53:05
 
                                                             Page     1-8
                                                             
@@ -432,8 +432,8 @@
 				rectory sector into 500h, 
                              C  ; which would result in the starting clusters o
 				f IO.SYS and MSDOS.SYS residing 
-                             C  ; in 51Ah and 53Ah, respectively.  Other sector
-				s would create an 11-byte 
+                             C  ; in 51Ah and 53Ah, respectively.  Other boot s
+				ectors would create an 11-byte 
                              C  ; copy of the BIOS Diskette Parameters Table at
 				 522h.  We do the latter only. 
                              C  ; 
@@ -459,10 +459,6 @@
  052B  ??                    C  
  052C  ??                    C  
                              C  
- 052D  0003[                 C  		db	3 dup (?)	; padding 
-            ??               C  
-                         ]   C  
-                             C  
                              C  ; 
                              C  ; We're going to move the boot sector from BOOT
 				_SECTOR_HI to BOOT_SECTOR_LO, 
@@ -470,173 +466,193 @@
 				E. 
                              C  ; 
  = 7C00                      C  BOOT_SECTOR_HI	equ	7C00h 
-Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 02:05:59
+ = 052D                      C  BOOT_SECTOR_LO	equ	052Dh 
+ 052D  0003[                 C  BOOT_SECTOR	db	3 dup (?)	; 52Dh 
+            ??               C  
+                         ]   C  
+Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 14:53:05
 
                                                             Page     1-9
                                                             
 
- = 0530                      C  BOOT_SECTOR_LO	equ	530h 
- 0530  0003[                 C  BOOT_SECTOR	db	3 dup (?)	; 530h 
-            ??               C  
-                         ]   C  
                              C  
- 0533  50 43 4A 53 2E 4F 52  C  BPB_ACTIVE	BPB	<>		; 533h: active BPB 
+ 0530  50 43 4A 53 2E 4F 52  C  BPB_ACTIVE	BPB	<>		; 530h: active BPB 
        47                    C  
+ 0538  ????                  C  
+ 053A  ??                    C  
  053B  ????                  C  
  053D  ??                    C  
  053E  ????                  C  
- 0540  ??                    C  
- 0541  ????                  C  
+ 0540  ????                  C  
+ 0542  ??                    C  
  0543  ????                  C  
- 0545  ??                    C  
- 0546  ????                  C  
- 0548  ????                  C  
- 054A  ????                  C  
- 054C  ????????              C  
- 0550  ????????              C  
- 0554  ??                    C  
- 0555  ????                  C  
- 0557  ????                  C  
+ 0545  ????                  C  
+ 0547  ????                  C  
+ 0549  ????????              C  
+ 054D  ????????              C  
+ 0551  ??                    C  
+ 0552  ????                  C  
+ 0554  ????                  C  
                              C  
- 0559  0007[                 C  		db	7 dup (?)	; padding 
+ 0556  0200[                 C  FAT_SECTOR	db	512 dup (?)	; 556h 
             ??               C  
                          ]   C  
                              C  
- 0560  0200[                 C  FAT_SECTOR	db	512 dup (?)	; 560h 
+ 0756  0200[                 C  DIR_SECTOR	db	512 dup (?)	; 756h 
             ??               C  
                          ]   C  
                              C  
- 0760  0200[                 C  DIR_SECTOR	db	512 dup (?)	; 760h 
-            ??               C  
+ 0956  EEEE                  C  		dw	0EEEEh		; 956h (random marker) 
+ 0958  0094[                 C  		dw	148 dup (?)	; 958h 
+            ????             C  
                          ]   C  
                              C  
- = 0960                      C  BIOS_DATA_END	equ	960h 
+ = 0A80                      C  BIOS_STACK	equ	$		; A80h 
+ = 0A80                      C  BIOS_DATA_END	equ	0A80h		; A80h (must be on a p
+				aragraph boundary) 
                              C   
-                             C   
- 0960                        C  BIOS_DATA	ENDS 
+ 0A80                        C  BIOS_DATA	ENDS 
                                  
                                  
  0000                           CODE    segment 
                                  
- 0530                           	org	BOOT_SECTOR_LO 
-                                ; 
-                                ; Having the stack at 30:100h is weird, but OK,
-				 whatever. 
-                                ; 
+ 052D                           	org	BOOT_SECTOR_LO 
                                         ASSUME	CS:CODE, DS:BIOS_DATA, ES:BIOS_D
 				ATA, SS:NOTHING 
                                  
- 0530  FC                       	cld 
- 0531  EB 26                    	jmp	short move 
+ 052D  FC                       	cld 
+ 052E  EB 26                    	jmp	short move 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 02:05:59
+ 0530  50 43 4A 53 2E 4F 52     mybpb:	BPB	<,512,1,1,2,64,320,MEDIA_160K,1,8,1,
+				0,0,0,3,7> 
+       47                       
+ 0538  0200                     
+ 053A  01                       
+ 053B  0001                     
+Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 14:53:05
 
                                                             Page     1-10
                                                             
 
- 0533  50 43 4A 53 2E 4F 52     mybpb:	BPB	<,512,1,1,2,64,320,MEDIA_160K,1,8,1,
-				0,0,0,3,7> 
-       47                       
- 053B  0200                     
- 053D  01                       
- 053E  0001                     
- 0540  02                       
- 0541  0040                     
- 0543  0140                     
- 0545  FE                       
- 0546  0001                     
- 0548  0008                     
- 054A  0001                     
- 054C  00 00 00 00              
- 0550  00 00 00 00              
- 0554  00                       
- 0555  0003                     
- 0557  0007                     
+ 053D  02                       
+ 053E  0040                     
+ 0540  0140                     
+ 0542  FE                       
+ 0543  0001                     
+ 0545  0008                     
+ 0547  0001                     
+ 0549  00 00 00 00              
+ 054D  00 00 00 00              
+ 0551  00                       
+ 0552  0003                     
+ 0554  0007                     
                                 
                                  
- 0559  BF 0522 R                move:	mov	di,offset DPT_ACTIVE	; ES:DI -> DPT_A
+                                ; 
+                                ; We assume DS and ES are zero on entry; the st
+				ack is apparently at 30:100h. 
+                                ; 
+ 0556  BF 0522 R                move:	mov	di,offset DPT_ACTIVE	; ES:DI -> DPT_A
 				CTIVE 
- 055C  06                       	push	es 
- 055D  57                       	push	di 
- 055E  1E                       	push	ds 
- 055F  C5 36 0078               	lds	si,ds:[INT_DPT*4]	; DS:SI -> original tabl
+ 0559  06                       	push	es 
+ 055A  57                       	push	di 
+ 055B  1E                       	push	ds 
+ 055C  C5 36 0078               	lds	si,ds:[INT_DPT*4]	; DS:SI -> original tabl
 				e (in ROM) 
                                 	ASSUME	DS:NOTHING 
- 0563  B9 000B                  	mov	cx,size DPT 
- 0566  F3/ A4                   	rep	movsb 
- 0568  1F                       	pop	ds 
+ 0560  B9 000B                  	mov	cx,size DPT 
+ 0563  F3/ A4                   	rep	movsb 
+ 0565  1F                       	pop	ds 
                                 	ASSUME	DS:BIOS_DATA 
- 0569  C6 06 0522 R DF          	mov	[DPT_ACTIVE].DP_SPECIFY1,0DFh	; change ste
+ 0566  C6 06 0522 R DF          	mov	[DPT_ACTIVE].DP_SPECIFY1,0DFh	; change ste
 				p rate to 6ms 
- 056E  C6 06 052B R 00          	mov	[DPT_ACTIVE].DP_HEADSETTLE,0	; change head
+ 056B  C6 06 052B R 00          	mov	[DPT_ACTIVE].DP_HEADSETTLE,0	; change head
 				 settle time to 0ms 
- 0573  8F 06 0078               	pop	ds:[INT_DPT*4] 
- 0577  8F 06 007A               	pop	ds:[INT_DPT*4+2]	; update INT_DPT vector 
+ 0570  8F 06 0078               	pop	ds:[INT_DPT*4] 
+ 0574  8F 06 007A               	pop	ds:[INT_DPT*4+2]	; update INT_DPT vector 
+ 0578  BE 7C00                  	mov	si,BOOT_SECTOR_HI	; now move boot sector d
+				own 
+ 057B  B9 0200                  	mov	cx,512 
+                                ;	mov	di,offset BOOT_SECTOR	; BOOT_SECTOR now f
+				ollows DPT_ACTIVE 
+ 057E  F3/ A4                   	rep	movsb 
+ 0580  B8 00A8                  	mov	ax,BIOS_DATA_END SHR 4 
+ 0583  50                       	push	ax 
+ 0584  2B C0                    	sub	ax,ax 
+ 0586  50                       	push	ax 
+ 0587  B8 058C R                	mov	ax,offset boot 
+ 058A  FF E0                    	jmp	ax 
                                  
- 057B  BE 7C00                  	mov	si,BOOT_SECTOR_HI	; move boot sector down 
- 057E  B9 0200                  	mov	cx,512 
- 0581  BF 0530 R                	mov	di,offset BOOT_SECTOR 
- 0584  F3/ A4                   	rep	movsb 
- 0586  B8 058B R                	mov	ax,offset boot 
- 0589  FF E0                    	jmp	ax 
-                                 
- 058B                           boot	proc	far 
- 058B  BE 06CF R                	mov	si,offset product 
- 058E  E8 0653 R                	call	print 
- 0591  80 3E 0545 R F8          	cmp	[mybpb].BPB_MEDIA,MEDIA_HARD 
- 0596  74 32                    	je	load			; we're a hard disk, so just boot 
- 0598  B4 08                    	mov	ah,DISK_GETPARMS	; get hard drive paramete
-				rs 
- 059A  B2 80                    	mov	dl,80h 
-Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 02:05:59
+ 058C                           boot	proc	far 
+ 058C  BE 06CE R                	mov	si,offset product 
+ 058F  E8 065D R                	call	print 
+ 0592  80 3E 0542 R F8          	cmp	[mybpb].BPB_MEDIA,MEDIA_HARD 
+ 0597  74 1A                    	je	load			; we're a hard disk, so just boot 
+Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 14:53:05
 
                                                             Page     1-11
                                                             
 
- 059C  CD 13                    	int	INT_DISK		; 
- 059E  72 2A                    	jc	load			; failed (could be an original PC) 
- 05A0  84 D2                    	test	dl,dl			; any hard drives? 
- 05A2  74 26                    	jz	load			; no 
- 05A4  BE 06FB R                	mov	si,offset prompt 
- 05A7  E8 0653 R                	call	print 
- 05AA  B8 0010                  	mov	ax,2 * PCJS_MULTIPLIER	; AX = 2 seconds 
- 05AD  E8 0694 R                	call	waitsec			; wait for key 
- 05B0  84 C0                    	test	al,al			; was a key pressed in time? 
- 05B2  75 16                    	jnz	load			; yes 
- 05B4  B8 0201                  	mov	ax,0201h		; AH = 02h (READ), AL = 1 sector
+ 0599  B4 08                    	mov	ah,DISK_GETPARMS	; get hard drive paramete
+				rs 
+ 059B  B2 80                    	mov	dl,80h 
+ 059D  CD 13                    	int	INT_DISK		; 
+ 059F  72 12                    	jc	load			; failed (could be an original PC) 
+ 05A1  84 D2                    	test	dl,dl			; any hard drives? 
+ 05A3  74 0E                    	jz	load			; no 
+ 05A5  BE 06FA R                	mov	si,offset prompt 
+ 05A8  E8 065D R                	call	print 
+ 05AB  B8 0010                  	mov	ax,2 * PCJS_MULTIPLIER	; AX = 2 seconds 
+ 05AE  E8 0691 R                	call	waitsec			; wait for key 
+ 05B1  E3 30                    	jcxz	hdboot			; jump if no key pressed 
+ 05B3  BE 0530 R                load:	mov	si,offset mybpb 
+ 05B6  BB 071E R                	mov	bx,offset BIO_FILE	; DS:BX -> file name 
+ 05B9  BD 0A80                  	mov	bp,BIOS_DATA_END	; BP -> target address 
+ 05BC  8B 54 22                 	mov	dx,[si].BPB_LBAROOT	; DX = root dir LBA 
+ 05BF  8B C2                    dir:	mov	ax,dx			; AX = LBA 
+ 05C1  B1 01                    	mov	cl,1 
+ 05C3  BF 0756 R                	mov	di,offset DIR_SECTOR 
+ 05C6  E8 067D R                	call	read_sectors		; return dir sector (ES:DI)
 				 
- 05B7  41                       	inc	cx			; CH = CYL 0, CL = SEC 1 
- 05B8  BA 0080                  	mov	dx,0080h		; DH = HEAD 0, DL = DRIVE 80h 
- 05BB  BB 7C00                  	mov	bx,BOOT_SECTOR_HI	; ES:BX -> BOOT_SECTOR_H
+ 05C9  72 0D                    	jc	err 
+ 05CB  E8 0610 R                find:	call	find_dirent		; return matching DIREN
+				T (DS:BX) 
+ 05CE  72 08                    	jc	err			; end of directory entries 
+ 05D0  74 21                    	jz	read			; match! 
+ 05D2  42                       	inc	dx			; DX = next dir LBA 
+ 05D3  3B 54 24                 	cmp	dx,[si].BPB_LBADATA	; exhausted root dir? 
+ 05D6  72 E7                    	jb	dir			; not yet 
+ 05D8  BE 06DF R                err:	mov	si,offset errmsg 
+ 05DB  E8 065D R                	call	print 
+ 05DE  E8 06B2 R                	call	wait 
+ 05E1  CD 19                    	int	INT_REBOOT 
+                                ; 
+                                ; There's a hard disk and no response, so boot 
+				from hard disk instead. 
+                                ; 
+ 05E3  B8 0201                  hdboot:	mov	ax,0201h		; AH = 02h (READ), AL = 1
+				 sector 
+ 05E6  41                       	inc	cx			; CH = CYL 0, CL = SEC 1 
+ 05E7  BA 0080                  	mov	dx,0080h		; DH = HEAD 0, DL = DRIVE 80h 
+ 05EA  BB 7C00                  	mov	bx,BOOT_SECTOR_HI	; ES:BX -> BOOT_SECTOR_H
 				I 
- 05BE  CD 13                    	int	13h			; read it 
- 05C0  72 02                    	jc	hderr 
- 05C2  FF E3                    	jmp	bx			; jump to the hard disk boot sector 
- 05C4  BE 06E0 R                hderr:	mov	si,offset errmsg 
- 05C7  E8 0653 R                	call	print			; fall into normal diskette boot 
- 05CA  BE 0533 R                load:	mov	si,offset mybpb 
- 05CD  8B 54 22                 	mov	dx,[si].BPB_LBAROOT	; DX = root dir LBA 
- 05D0  8B C2                    rdir:	mov	ax,dx			; AX = LBA 
- 05D2  B1 01                    	mov	cl,1 
- 05D4  BF 0760 R                	mov	di,offset DIR_SECTOR 
- 05D7  E8 0680 R                	call	read_sectors		; return dir sector (ES:DI)
-				 
- 05DA  BB 0722 R                	mov	bx,offset BIO_FILE	; DS:BX -> file name 
- 05DD  E8 0614 R                	call	find_dirent		; return matching DIRENT (DS
-				:BX) 
- 05E0  72 08                    	jb	err			; end of directory entries 
- 05E2  74 0E                    	jz	read			; match! 
- 05E4  42                       	inc	dx			; DX = next dir LBA 
- 05E5  3B 54 24                 	cmp	dx,[si].BPB_LBADATA	; exhausted root dir? 
- 05E8  72 E6                    	jb	rdir			; not yet 
- 05EA  BE 06E0 R                err:	mov	si,offset errmsg 
- 05ED  E8 0653 R                	call	print 
- 05F0  CD 19                    	int	INT_REBOOT 
- 05F2  BF 0960                  read:	mov	di,BIOS_DATA_END 
+ 05ED  CD 13                    	int	13h			; read it 
+ 05EF  72 E7                    	jc	err 
+ 05F1  FF E3                    	jmp	bx			; jump to the hard disk boot sector 
+                                ; 
+                                ; We found the DIRENT (at BX) of BIO_FILE, so l
+				oad it and launch it. 
+                                ; 
+ 05F3  8B FD                    read:	mov	di,bp 
  05F5  8B 47 1A                 next:	mov	ax,[bx].DIR_CLN		; AX = cluster numbe
 				r 
- 05F8  E8 0665 R                	call	read_cluster		; read cluster into ES:DI 
- 05FB  72 ED                    	jc	err 
+ 05F8  E8 0663 R                	call	read_cluster		; read cluster into ES:DI 
+Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 14:53:05
+
+                                                            Page     1-12
+                                                            
+
+ 05FB  72 DB                    	jc	err 
  05FD  F7 64 08                 	mul	[si].BPB_SECBYTES	; AX = number of sectors
 				 read 
  0600  03 F8                    	add	di,ax			; adjust next read address 
@@ -646,16 +662,9 @@
 				er 
  060A  EB E9                    	jmp	next			; (the clusters must be contiguous)
 				 
- 060C  B8 0096                  done:	mov	ax,BIOS_DATA_END SHR 4 
-Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 02:05:59
-
-                                                            Page     1-12
-                                                            
-
- 060F  50                       	push	ax 
- 0610  2B C0                    	sub	ax,ax 
- 0612  50                       	push	ax 
- 0613  CB                       	ret 
+ 060C  BA 05CB R                done:	mov	dx,offset find		; DX = entry point fo
+				r loading next file 
+ 060F  CB                       	ret 
                                 boot	endp 
                                  
                                 ;;;;;;;; 
@@ -663,33 +672,32 @@
                                 ; Find DIRENT in sector at ES:DI using filename
 				 at DS:BX 
                                 ; 
-                                ; Modifies: CX, DI 
+                                ; Modifies: AX, BX, CX 
                                 ; 
                                 ; Returns: zero flag set if match (see BX), car
 				ry set if end of directory 
                                 ; 
- 0614                           find_dirent proc near 
- 0614  56                       	push	si 
- 0615  57                       	push	di 
- 0616  87 F3                    	xchg	si,bx		; DS:SI -> filename now 
- 0618  8B 5F 08                 	mov	bx,[bx].BPB_SECBYTES 
- 061B  03 DF                    	add	bx,di 
- 061D  4B                       	dec	bx		; ES:BX -> end of sector data 
- 061E  B9 000B                  f1:	mov	cx,11 
-                                ;	cmp	byte ptr es:[di],0 
-                                ;	stc 
-                                ;	je	f9 
- 0621  F3/ A6                   	repe	cmpsb 
- 0623  74 09                    	jz	f9 
- 0625  03 F9                    	add	di,cx 
- 0627  83 C7 15                 	add	di,size DIRENT - 11 
- 062A  3B FB                    	cmp	di,bx 
- 062C  72 F0                    	jb	f1 
- 062E  8D 5D F5                 f9:	lea	bx,[di-11]	; DI is meaningless if ZF no
-				t set 
- 0631  5F                       	pop	di 
- 0632  5E                       	pop	si 
- 0633  C3                       	ret 
+ 0610                           find_dirent proc near 
+ 0610  56                       	push	si 
+ 0611  57                       	push	di 
+ 0612  8B 44 08                 	mov	ax,[si].BPB_SECBYTES 
+ 0615  03 C7                    	add	ax,di		; AX -> end of sector data 
+ 0617  80 3D 00                 f1:	cmp	byte ptr [di],0 
+ 061A  F9                       	stc			; more future-proofing: 
+ 061B  74 17                    	je	f9		; 0 indicates end of allocated entries 
+ 061D  8B F3                    	mov	si,bx 
+ 061F  B9 000B                  	mov	cx,11 
+ 0622  F3/ A6                   	repe	cmpsb 
+ 0624  74 0B                    	jz	f8 
+ 0626  03 F9                    	add	di,cx 
+ 0628  83 C7 15                 	add	di,size DIRENT - 11 
+ 062B  3B F8                    	cmp	di,ax 
+ 062D  72 E8                    	jb	f1 
+ 062F  EB 03                    	jmp	short f9 
+ 0631  8D 5D F5                 f8:	lea	bx,[di-11] 
+ 0634  5F                       f9:	pop	di 
+ 0635  5E                       	pop	si 
+ 0636  C3                       	ret 
                                 find_dirent endp 
                                  
                                 ;;;;;;;; 
@@ -698,65 +706,70 @@
                                 ; 
                                 ; Modifies: AX, CX, DX 
                                 ; 
-                                ; Returns: CH = cylinder, CL = sector, DH = hea
-				d, DL = drive 
-                                ; 
- 0634                           get_chs	proc	near 
- 0634  91                       	xchg	cx,ax 
- 0635  8A 44 15                 	mov	al,byte ptr [si].BPB_TRACKSECS 
- 0638  F6 64 17                 	mul	byte ptr [si].BPB_TOTALHEADS 
- 063B  91                       	xchg	cx,ax		; CX = sectors per cylinder 
-Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 02:05:59
+Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 14:53:05
 
                                                             Page     1-13
                                                             
 
- 063C  99                       	cwd			; DX:AX is LBA 
- 063D  F7 F1                    	div	cx		; AX = cylinder, DX = remaining sector
+                                ; Returns: CH = cylinder, CL = sector, DH = hea
+				d, DL = drive 
+                                ; 
+ 0637                           get_chs	proc	near 
+                                ; 
+                                ; If our BPB had a pre-computed BPB_CYLSECS, we
+				 could avoid the CX calculation. 
+                                ; 
+ 0637  91                       	xchg	cx,ax 
+ 0638  8A 44 15                 	mov	al,byte ptr [si].BPB_TRACKSECS 
+ 063B  F6 64 17                 	mul	byte ptr [si].BPB_DRIVEHEADS 
+ 063E  91                       	xchg	cx,ax		; CX = sectors per cylinder 
+ 063F  2B D2                    	sub	dx,dx		; DX:AX is LBA 
+ 0641  F7 F1                    	div	cx		; AX = cylinder, DX = remaining sector
 				s 
- 063F  86 C4                    	xchg	al,ah		; AH = cylinder, AL = cylinder bit
+ 0643  86 C4                    	xchg	al,ah		; AH = cylinder, AL = cylinder bit
 				s 8-9 
- 0641  D0 C8                    	ror	al,1		; future-proofing: saving cylinder b
+ 0645  D0 C8                    	ror	al,1		; future-proofing: saving cylinder b
 				its 8-9 
- 0643  D0 C8                    	ror	al,1 
- 0645  91                       	xchg	cx,ax		; CH = cylinder 
- 0646  92                       	xchg	ax,dx		; AX = remaining sectors from last
+ 0647  D0 C8                    	ror	al,1 
+ 0649  91                       	xchg	cx,ax		; CH = cylinder 
+ 064A  92                       	xchg	ax,dx		; AX = remaining sectors from last
 				 divide 
- 0647  F6 74 15                 	div	byte ptr [si].BPB_TRACKSECS 
- 064A  8A F0                    	mov	dh,al		; DH = head (quotient of last divid
+ 064B  F6 74 15                 	div	byte ptr [si].BPB_TRACKSECS 
+ 064E  8A F0                    	mov	dh,al		; DH = head (quotient of last divid
 				e) 
- 064C  0A CC                    	or	cl,ah		; CL = sector (remainder of last div
+ 0650  0A CC                    	or	cl,ah		; CL = sector (remainder of last div
 				ide) 
- 064E  41                       	inc	cx		; LBA are zero-based, sector IDs are 1
+ 0652  41                       	inc	cx		; LBA are zero-based, sector IDs are 1
 				-based 
- 064F  8A 54 21                 	mov	dl,[si].BPB_DRIVE 
- 0652  C3                       	ret 
+ 0653  8A 54 21                 	mov	dl,[si].BPB_DRIVE 
+ 0656  C3                       	ret 
                                 get_chs	endp 
                                  
                                 ;;;;;;;; 
                                 ; 
                                 ; Print the null-terminated string at DS:SI 
                                 ; 
-                                ; Modifies: None 
+                                ; Modifies: AX, BX 
                                 ; 
                                 ; Returns: Nothing 
                                 ; 
- 0653                           print	proc	near 
- 0653  50                       	push	ax 
- 0654  53                       	push	bx 
- 0655  EB 06                    	jmp	short pr2 
- 0657  B4 0E                    pr1:	mov	ah,VIDEO_TTYOUT 
+ 0657                           printl	proc	near 
+ 0657  B4 0E                    	mov	ah,VIDEO_TTYOUT 
  0659  B7 00                    	mov	bh,0 
  065B  CD 10                    	int	INT_VIDEO 
- 065D  AC                       pr2:	lodsb 
+ 065D                           print	label	near 
+ 065D  AC                       	lodsb 
  065E  84 C0                    	test	al,al 
- 0660  75 F5                    	jnz	pr1 
- 0662  5B                       	pop	bx 
- 0663  58                       	pop	ax 
- 0664  C3                       	ret 
-                                print	endp 
+ 0660  75 F5                    	jnz	printl 
+ 0662  C3                       	ret 
+                                printl	endp 
                                  
                                 ;;;;;;;; 
+Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 14:53:05
+
+                                                            Page     1-14
+                                                            
+
                                 ; 
                                 ; Read cluster AX into memory at ES:DI 
                                 ; 
@@ -765,26 +778,27 @@
                                 ; Returns: carry flag set on error (see AH), cl
 				ear otherwise (AX sectors read) 
                                 ; 
-Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 02:05:59
-
-                                                            Page     1-14
-                                                            
-
- 0665                           read_cluster proc near 
- 0665  51                       	push	cx 
- 0666  52                       	push	dx 
- 0667  2D 0002                  	sub	ax,2 
- 066A  72 11                    	jb	rc9 
- 066C  2B C9                    	sub	cx,cx 
- 066E  8A 4C 0A                 	mov	cl,[si].BPB_CLUSSECS 
- 0671  F7 E1                    	mul	cx 
- 0673  03 44 24                 	add	ax,[si].BPB_LBADATA 
- 0676  E8 0680 R                	call	read_sectors 
- 0679  72 02                    	jc	rc9 
- 067B  8B C1                    	mov	ax,cx 
- 067D  5A                       rc9:	pop	dx 
- 067E  59                       	pop	cx 
- 067F  C3                       	ret 
+ 0663                           read_cluster proc near 
+ 0663  51                       	push	cx 
+ 0664  52                       	push	dx 
+ 0665  2D 0002                  	sub	ax,2 
+ 0668  72 10                    	jb	rc9 
+ 066A  2B C9                    	sub	cx,cx 
+ 066C  8A 4C 0A                 	mov	cl,[si].BPB_CLUSSECS 
+ 066F  F7 E1                    	mul	cx 
+ 0671  03 44 24                 	add	ax,[si].BPB_LBADATA 
+ 0674  E8 067D R                	call	read_sectors 
+ 0677  72 01                    	jc	rc9 
+                                ; 
+                                ; The ROM claims that, on success, AL will (nor
+				mally) contain the number of 
+                                ; sectors actually read, but I'm not seeing tha
+				t, so I'll just copy CL into AL. 
+                                ; 
+ 0679  91                       	xchg	ax,cx 
+ 067A  5A                       rc9:	pop	dx 
+ 067B  59                       	pop	cx 
+ 067C  C3                       	ret 
                                 read_cluster endp 
                                  
                                 ;;;;;;;; 
@@ -797,20 +811,25 @@
                                 ; Returns: carry clear if successful, set if er
 				ror (see AH for reason) 
                                 ; 
- 0680                           read_sectors proc near 
- 0680  53                       	push	bx 
- 0681  51                       	push	cx 
- 0682  52                       	push	dx 
- 0683  8A D9                    	mov	bl,cl 
- 0685  E8 0634 R                	call	get_chs 
- 0688  8A C3                    	mov	al,bl 
- 068A  B4 02                    	mov	ah,DISK_READ 
- 068C  8B DF                    	mov	bx,di 
- 068E  CD 13                    	int	INT_DISK 
- 0690  5A                       	pop	dx 
- 0691  59                       	pop	cx 
- 0692  5B                       	pop	bx 
- 0693  C3                       	ret 
+ 067D                           read_sectors proc near 
+ 067D  53                       	push	bx 
+ 067E  51                       	push	cx 
+ 067F  52                       	push	dx 
+ 0680  8A D9                    	mov	bl,cl 
+ 0682  E8 0637 R                	call	get_chs 
+ 0685  8A C3                    	mov	al,bl 
+ 0687  B4 02                    	mov	ah,DISK_READ 
+ 0689  8B DF                    	mov	bx,di 
+ 068B  CD 13                    	int	INT_DISK 
+ 068D  5A                       	pop	dx 
+ 068E  59                       	pop	cx 
+ 068F  5B                       	pop	bx 
+Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 14:53:05
+
+                                                            Page     1-15
+                                                            
+
+ 0690  C3                       	ret 
                                 read_sectors endp 
                                  
                                 ;;;;;;;; 
@@ -820,82 +839,78 @@
                                 ; 
                                 ; Modifies: AX, CX, DX 
                                 ; 
-                                ; Returns: AL = key pressed (char code), 0 if n
-				one 
+                                ; Returns: CX = char code (lo), scan code (hi);
+				 0 if no key pressed 
                                 ; 
- 0694                           waitsec	proc	near 
-Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 02:05:59
-
-                                                            Page     1-15
-                                                            
-
- 0694  BA 00B6                  	mov	dx,182 
- 0697  F7 E2                    	mul	dx		; DX:AX = ticks to wait * 10 
- 0699  B9 000A                  	mov	cx,10 
- 069C  F7 F1                    	div	cx 
- 069E  50                       	push	ax		; AX is corrected ticks to wait 
- 069F  B4 00                    	mov	ah,TIME_GETTICKS 
- 06A1  CD 1A                    	int	INT_TIME	; CX:DX is initial tick count 
- 06A3  58                       	pop	ax 
- 06A4  03 C2                    	add	ax,dx		; add AX 
- 06A6  8B D1                    	mov	dx,cx 
- 06A8  83 D2 00                 	adc	dx,0		; DX:AX is target tick count 
- 06AB  52                       w1:	push	dx 
- 06AC  50                       	push	ax 
- 06AD  B4 01                    	mov	ah,KBD_CHECK 
- 06AF  CD 16                    	int	INT_KBD 
- 06B1  74 0D                    	jz	w2 
- 06B3  58                       	pop	ax 
- 06B4  5A                       	pop	dx 
- 06B5                           wait	label	near 
- 06B5  B4 00                    	mov	ah,KBD_READ 
- 06B7  CD 16                    	int	INT_KBD 
- 06B9  BE 06DD R                	mov	si,offset crlf 
- 06BC  E8 0653 R                	call	print 
- 06BF  C3                       	ret 
- 06C0  B4 00                    w2:	mov	ah,TIME_GETTICKS 
- 06C2  CD 1A                    	int	INT_TIME	; CX:DX is updated tick count 
- 06C4  58                       	pop	ax		; subtract target value on the stack 
- 06C5  2B D0                    	sub	dx,ax 
- 06C7  5A                       	pop	dx 
- 06C8  1B CA                    	sbb	cx,dx		; as long as the target value is bi
+ 0691                           waitsec	proc	near 
+ 0691  BA 00B6                  	mov	dx,182		; 18.2 ticks per second 
+ 0694  F7 E2                    	mul	dx		; DX:AX = ticks to wait * 10 
+ 0696  B9 000A                  	mov	cx,10 
+ 0699  F7 F1                    	div	cx 
+ 069B  50                       	push	ax		; AX is ticks to wait 
+ 069C  B4 00                    	mov	ah,TIME_GETTICKS 
+ 069E  CD 1A                    	int	INT_TIME	; CX:DX is initial tick count 
+ 06A0  58                       	pop	ax 
+ 06A1  03 C2                    	add	ax,dx		; add AX 
+ 06A3  8B D1                    	mov	dx,cx 
+ 06A5  83 D2 00                 	adc	dx,0		; DX:AX is target tick count 
+ 06A8  52                       w1:	push	dx 
+ 06A9  50                       	push	ax 
+ 06AA  B4 01                    	mov	ah,KBD_CHECK 
+ 06AC  CD 16                    	int	INT_KBD 
+ 06AE  74 09                    	jz	w2 
+ 06B0  58                       	pop	ax 
+ 06B1  5A                       	pop	dx 
+ 06B2                           wait	label	near 
+ 06B2  B4 00                    	mov	ah,KBD_READ 
+ 06B4  CD 16                    	int	INT_KBD 
+ 06B6  91                       	xchg	cx,ax		; CL = char code, CH = scan code 
+ 06B7  EB 0E                    	jmp	short w9 
+ 06B9  B4 00                    w2:	mov	ah,TIME_GETTICKS 
+ 06BB  CD 1A                    	int	INT_TIME	; CX:DX is updated tick count 
+ 06BD  58                       	pop	ax		; subtract target value on the stack 
+ 06BE  2B D0                    	sub	dx,ax 
+ 06C0  5A                       	pop	dx 
+ 06C1  1B CA                    	sbb	cx,dx		; as long as the target value is bi
 				gger 
- 06CA  72 DF                    	jc	w1		; carry will be set 
- 06CC  B0 00                    	mov	al,0		; no key was pressed in time 
- 06CE  C3                       	ret 
+ 06C3  72 E3                    	jc	w1		; carry will be set 
+ 06C5  2B C9                    	sub	cx,cx		; no key was pressed in time 
+ 06C7  BE 06DC R                w9:	mov	si,offset crlf 
+ 06CA  E8 065D R                	call	print 
+ 06CD  C3                       	ret 
                                 waitsec	endp 
                                  
                                 ; 
                                 ; Strings 
                                 ; 
- 06CF  42 41 53 49 43 2D 44     product		db	"BASIC-DOS 0.01" 
-       4F 53 20 30 2E 30 31     
-                                
- 06DD  0D 0A 00                 crlf		db	13,10,0 
- 06E0  55 6E 61 62 6C 65 20     errmsg		db	"Unable to boot from disk",13,10,0 
-       74 6F 20 62 6F 6F 74     
-       20 66 72 6F 6D 20 64     
-       69 73 6B 0D 0A 00        
- 06FB  50 72 65 73 73 20 61     prompt		db	"Press any key to boot from diskette
-				...",0 
-       6E 79 20 6B 65 79 20     
-       74 6F 20 62 6F 6F 74     
-       20 66 72 6F 6D 20 64     
-       69 73 6B 65 74 74 65     
-       2E 2E 2E 00              
-Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 02:05:59
+Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 14:53:05
 
                                                             Page     1-16
                                                             
 
- 0722  49 42 4D 42 49 4F 20     BIO_FILE	db	"IBMBIO  COM",0 
+ 06CE  42 41 53 49 43 2D 44     product		db	"BASIC-DOS 0.01" 
+       4F 53 20 30 2E 30 31     
+                                
+ 06DC  0D 0A 00                 crlf		db	13,10,0 
+ 06DF  55 6E 61 62 6C 65 20     errmsg		db	"Unable to boot from disk",13,10,0 
+       74 6F 20 62 6F 6F 74     
+       20 66 72 6F 6D 20 64     
+       69 73 6B 0D 0A 00        
+ 06FA  50 72 65 73 73 20 61     prompt		db	"Press any key to boot from diskette
+				",0 
+       6E 79 20 6B 65 79 20     
+       74 6F 20 62 6F 6F 74     
+       20 66 72 6F 6D 20 64     
+       69 73 6B 65 74 74 65     
+       00                       
+ 071E  49 42 4D 42 49 4F 20     BIO_FILE	db	"IBMBIO  COM",0 
        20 43 4F 4D 00           
                                  
- 072E                           CODE	ends 
+ 072A                           CODE	ends 
                                  
                                 	end 
 
-Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 02:05:59
+Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 14:53:05
 
                                                             Symbols-1
                                                              
@@ -918,11 +933,11 @@ BPB  . . . . . . . . . . . . . .  	0026	0010
   BPB_RESSECS  . . . . . . . . .  	000B
   BPB_FATS . . . . . . . . . . .  	000D
   BPB_DIRENTS  . . . . . . . . .  	000E
-  BPB_TOTALSECS  . . . . . . . .  	0010
+  BPB_DISKSECS . . . . . . . . .  	0010
   BPB_MEDIA  . . . . . . . . . .  	0012
   BPB_FATSECS  . . . . . . . . .  	0013
   BPB_TRACKSECS  . . . . . . . .  	0015
-  BPB_TOTALHEADS . . . . . . . .  	0017
+  BPB_DRIVEHEADS . . . . . . . .  	0017
   BPB_HIDDENSECS . . . . . . . .  	0019
   BPB_LARGESECS  . . . . . . . .  	001D
   BPB_DRIVE  . . . . . . . . . .  	0021
@@ -949,7 +964,7 @@ DPT  . . . . . . . . . . . . . .  	000B	000B
   DP_FILL  . . . . . . . . . . .  	0008
   DP_HEADSETTLE  . . . . . . . .  	0009
   DP_MOTORON . . . . . . . . . .  	000A
-Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 02:05:59
+Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 14:53:05
 
                                                             Symbols-2
                                                              
@@ -958,8 +973,8 @@ Segments and Groups:
 
                 N a m e         	Size	Align	Combine Class
 
-BIOS_DATA  . . . . . . . . . . .  	0960	AT	0000	
-CODE . . . . . . . . . . . . . .  	072E	PARA	NONE	
+BIOS_DATA  . . . . . . . . . . .  	0A80	AT	0000	
+CODE . . . . . . . . . . . . . .  	072A	PARA	NONE	
 
 Symbols:            
 
@@ -983,19 +998,20 @@ BAD_DMA  . . . . . . . . . . . .  	Number	0008
 BAD_NEC  . . . . . . . . . . . .  	Number	0020	
 BAD_SEEK . . . . . . . . . . . .  	Number	0040	
 BIOS_BREAK . . . . . . . . . . .  	L BYTE 	0471	BIOS_DATA
-BIOS_DATA_END  . . . . . . . . .  	Number	0960	
-BIO_FILE . . . . . . . . . . . .  	L BYTE 	0722	CODE
-BOOT . . . . . . . . . . . . . .  	F PROC	058B	CODE	Length = 0089
-BOOT_SECTOR  . . . . . . . . . .  	L BYTE 	0530	BIOS_DATA	Length = 0003
+BIOS_DATA_END  . . . . . . . . .  	Number	0A80	
+BIOS_STACK . . . . . . . . . . .  	NEAR 	0A80	BIOS_DATA
+BIO_FILE . . . . . . . . . . . .  	L BYTE 	071E	CODE
+BOOT . . . . . . . . . . . . . .  	F PROC	058C	CODE	Length = 0084
+BOOT_SECTOR  . . . . . . . . . .  	L BYTE 	052D	BIOS_DATA	Length = 0003
 BOOT_SECTOR_HI . . . . . . . . .  	Number	7C00	
-BOOT_SECTOR_LO . . . . . . . . .  	Number	0530	
-BPB_ACTIVE . . . . . . . . . . .  	L 0026	0533	BIOS_DATA
+BOOT_SECTOR_LO . . . . . . . . .  	Number	052D	
+BPB_ACTIVE . . . . . . . . . . .  	L 0026	0530	BIOS_DATA
 BUFFER_HEAD  . . . . . . . . . .  	L WORD 	041A	BIOS_DATA
 BUFFER_TAIL  . . . . . . . . . .  	L WORD 	041C	BIOS_DATA
 
 CAPS_STATE . . . . . . . . . . .  	Number	0040	
 CRC_REG  . . . . . . . . . . . .  	L WORD 	0469	BIOS_DATA
-CRLF . . . . . . . . . . . . . .  	L BYTE 	06DD	CODE
+CRLF . . . . . . . . . . . . . .  	L BYTE 	06DC	CODE
 CRT_COLS . . . . . . . . . . . .  	L WORD 	044A	BIOS_DATA
 CRT_LEN  . . . . . . . . . . . .  	L WORD 	044C	BIOS_DATA
 CRT_MODE . . . . . . . . . . . .  	L BYTE 	0449	BIOS_DATA
@@ -1006,13 +1022,14 @@ CTL_SHIFT  . . . . . . . . . . .  	Number	0004
 CURSOR_MODE  . . . . . . . . . .  	L WORD 	0460	BIOS_DATA
 CURSOR_POSN  . . . . . . . . . .  	L WORD 	0450	BIOS_DATA	Length = 0008
 
-DIRENT_SIZE  . . . . . . . . . .  	Number	0020	
-DIR_SECTOR . . . . . . . . . . .  	L BYTE 	0760	BIOS_DATA	Length = 0200
-Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 02:05:59
+DIR  . . . . . . . . . . . . . .  	L NEAR	05BF	CODE
+Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 14:53:05
 
                                                             Symbols-3
                                                              
 
+DIRENT_SIZE  . . . . . . . . . .  	Number	0020	
+DIR_SECTOR . . . . . . . . . . .  	L BYTE 	0756	BIOS_DATA	Length = 0200
 DISKETTE_STATUS  . . . . . . . .  	L BYTE 	0441	BIOS_DATA
 DISK_GETPARMS  . . . . . . . . .  	Number	0008	
 DISK_READ  . . . . . . . . . . .  	Number	0002	
@@ -1029,17 +1046,19 @@ EQ_NUM_PRINT . . . . . . . . . .  	Number	C000
 EQ_NUM_RS232 . . . . . . . . . .  	Number	0E00	
 EQ_RAM_SIZE  . . . . . . . . . .  	Number	00C0	
 EQ_VIDEO_MODE  . . . . . . . . .  	Number	0030	
-ERR  . . . . . . . . . . . . . .  	L NEAR	05EA	CODE
-ERRMSG . . . . . . . . . . . . .  	L BYTE 	06E0	CODE
+ERR  . . . . . . . . . . . . . .  	L NEAR	05D8	CODE
+ERRMSG . . . . . . . . . . . . .  	L BYTE 	06DF	CODE
 
-F1 . . . . . . . . . . . . . . .  	L NEAR	061E	CODE
-F9 . . . . . . . . . . . . . . .  	L NEAR	062E	CODE
-FAT_SECTOR . . . . . . . . . . .  	L BYTE 	0560	BIOS_DATA	Length = 0200
-FIND_DIRENT  . . . . . . . . . .  	N PROC	0614	CODE	Length = 0020
+F1 . . . . . . . . . . . . . . .  	L NEAR	0617	CODE
+F8 . . . . . . . . . . . . . . .  	L NEAR	0631	CODE
+F9 . . . . . . . . . . . . . . .  	L NEAR	0634	CODE
+FAT_SECTOR . . . . . . . . . . .  	L BYTE 	0556	BIOS_DATA	Length = 0200
+FIND . . . . . . . . . . . . . .  	L NEAR	05CB	CODE
+FIND_DIRENT  . . . . . . . . . .  	N PROC	0610	CODE	Length = 0027
 
-GET_CHS  . . . . . . . . . . . .  	N PROC	0634	CODE	Length = 001F
+GET_CHS  . . . . . . . . . . . .  	N PROC	0637	CODE	Length = 0020
 
-HDERR  . . . . . . . . . . . . .  	L NEAR	05C4	CODE
+HDBOOT . . . . . . . . . . . . .  	L NEAR	05E3	CODE
 
 INS_STATE  . . . . . . . . . . .  	Number	0080	
 INT_BASIC  . . . . . . . . . . .  	Number	0018	
@@ -1063,15 +1082,15 @@ INT_STEP . . . . . . . . . . . .  	Number	0001
 INT_TICK . . . . . . . . . . . .  	Number	001C	
 INT_TIME . . . . . . . . . . . .  	Number	001A	
 INT_VGCDATA  . . . . . . . . . .  	Number	001F	
-INT_VIDEO  . . . . . . . . . . .  	Number	0010	
-INT_VPT  . . . . . . . . . . . .  	Number	001D	
-IO_RAM_SIZE  . . . . . . . . . .  	L WORD 	0415	BIOS_DATA
-IVT  . . . . . . . . . . . . . .  	L DWORD	0000	BIOS_DATA	Length = 0100
-Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 02:05:59
+Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 14:53:05
 
                                                             Symbols-4
                                                              
 
+INT_VIDEO  . . . . . . . . . . .  	Number	0010	
+INT_VPT  . . . . . . . . . . . .  	Number	001D	
+IO_RAM_SIZE  . . . . . . . . . .  	L WORD 	0415	BIOS_DATA
+IVT  . . . . . . . . . . . . . .  	L DWORD	0000	BIOS_DATA	Length = 0100
 
 KBD_CHECK  . . . . . . . . . . .  	Number	0001	
 KBD_READ . . . . . . . . . . . .  	Number	0000	
@@ -1081,7 +1100,7 @@ KB_FLAG_1  . . . . . . . . . . .  	L BYTE 	0418	BIOS_DATA
 
 LAST_VAL . . . . . . . . . . . .  	L BYTE 	046B	BIOS_DATA
 LEFT_SHIFT . . . . . . . . . . .  	Number	0002	
-LOAD . . . . . . . . . . . . . .  	L NEAR	05CA	CODE
+LOAD . . . . . . . . . . . . . .  	L NEAR	05B3	CODE
 LOGICAL_DRIVE  . . . . . . . . .  	L BYTE 	0504	BIOS_DATA
 
 MEDIA_160K . . . . . . . . . . .  	Number	00FE	
@@ -1093,26 +1112,24 @@ MEMORY_SIZE  . . . . . . . . . .  	L WORD 	0413	BIOS_DATA
 MFG_TEST . . . . . . . . . . . .  	L BYTE 	0412	BIOS_DATA
 MOTOR_COUNT  . . . . . . . . . .  	L BYTE 	0440	BIOS_DATA
 MOTOR_STATUS . . . . . . . . . .  	L BYTE 	043F	BIOS_DATA
-MOVE . . . . . . . . . . . . . .  	L NEAR	0559	CODE
-MYBPB  . . . . . . . . . . . . .  	L NEAR	0533	CODE
+MOVE . . . . . . . . . . . . . .  	L NEAR	0556	CODE
+MYBPB  . . . . . . . . . . . . .  	L NEAR	0530	CODE
 
 NEC_STATUS . . . . . . . . . . .  	L BYTE 	0442	BIOS_DATA	Length = 0007
 NEXT . . . . . . . . . . . . . .  	L NEAR	05F5	CODE
 NUM_STATE  . . . . . . . . . . .  	Number	0020	
 
 PCJS_MULTIPLIER  . . . . . . . .  	Number	0008	
-PR1  . . . . . . . . . . . . . .  	L NEAR	0657	CODE
-PR2  . . . . . . . . . . . . . .  	L NEAR	065D	CODE
-PRINT  . . . . . . . . . . . . .  	N PROC	0653	CODE	Length = 0012
+PRINT  . . . . . . . . . . . . .  	L NEAR	065D	CODE
 PRINTER_BASE . . . . . . . . . .  	L WORD 	0408	BIOS_DATA	Length = 0004
-PRODUCT  . . . . . . . . . . . .  	L BYTE 	06CF	CODE
-PROMPT . . . . . . . . . . . . .  	L BYTE 	06FB	CODE
+PRINTL . . . . . . . . . . . . .  	N PROC	0657	CODE	Length = 000C
+PRODUCT  . . . . . . . . . . . .  	L BYTE 	06CE	CODE
+PROMPT . . . . . . . . . . . . .  	L BYTE 	06FA	CODE
 
-RC9  . . . . . . . . . . . . . .  	L NEAR	067D	CODE
-RDIR . . . . . . . . . . . . . .  	L NEAR	05D0	CODE
-READ . . . . . . . . . . . . . .  	L NEAR	05F2	CODE
-READ_CLUSTER . . . . . . . . . .  	N PROC	0665	CODE	Length = 001B
-READ_SECTORS . . . . . . . . . .  	N PROC	0680	CODE	Length = 0014
+RC9  . . . . . . . . . . . . . .  	L NEAR	067A	CODE
+READ . . . . . . . . . . . . . .  	L NEAR	05F3	CODE
+READ_CLUSTER . . . . . . . . . .  	N PROC	0663	CODE	Length = 001A
+READ_SECTORS . . . . . . . . . .  	N PROC	067D	CODE	Length = 0014
 RECORD_NOT_FND . . . . . . . . .  	Number	0004	
 RESET_FLAG . . . . . . . . . . .  	L WORD 	0472	BIOS_DATA
 RIGHT_SHIFT  . . . . . . . . . .  	Number	0001	
@@ -1124,28 +1141,29 @@ SEEK_STATUS  . . . . . . . . . .  	L BYTE 	043E	BIOS_DATA
 TIMER_HIGH . . . . . . . . . . .  	L WORD 	046E	BIOS_DATA
 TIMER_LOW  . . . . . . . . . . .  	L WORD 	046C	BIOS_DATA
 TIMER_OFL  . . . . . . . . . . .  	L BYTE 	0470	BIOS_DATA
-TIME_GETTICKS  . . . . . . . . .  	Number	0000	
-TIME_OUT . . . . . . . . . . . .  	Number	0080	
-Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 02:05:59
+Microsoft (R) Macro Assembler  Version 4.00                 5/24/20 14:53:05
 
                                                             Symbols-5
                                                              
 
+TIME_GETTICKS  . . . . . . . . .  	Number	0000	
+TIME_OUT . . . . . . . . . . . .  	Number	0080	
 
 VIDEO_TTYOUT . . . . . . . . . .  	Number	000E	
 
-W1 . . . . . . . . . . . . . . .  	L NEAR	06AB	CODE
-W2 . . . . . . . . . . . . . . .  	L NEAR	06C0	CODE
-WAIT . . . . . . . . . . . . . .  	L NEAR	06B5	CODE
-WAITSEC  . . . . . . . . . . . .  	N PROC	0694	CODE	Length = 003B
+W1 . . . . . . . . . . . . . . .  	L NEAR	06A8	CODE
+W2 . . . . . . . . . . . . . . .  	L NEAR	06B9	CODE
+W9 . . . . . . . . . . . . . . .  	L NEAR	06C7	CODE
+WAIT . . . . . . . . . . . . . .  	L NEAR	06B2	CODE
+WAITSEC  . . . . . . . . . . . .  	N PROC	0691	CODE	Length = 003D
 WRITE_PROTECT  . . . . . . . . .  	Number	0003	
 
 
-    569 Source  Lines
-    572 Total   Lines
-    203 Symbols
+    579 Source  Lines
+    582 Total   Lines
+    206 Symbols
 
-  40820 Bytes symbol space free
+  40888 Bytes symbol space free
 
       0 Warning Errors
       0 Severe  Errors

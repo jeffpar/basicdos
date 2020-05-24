@@ -11,14 +11,9 @@ CODE    segment
 mybpb:	BPB	<,512,1,1,2,64,320,MEDIA_160K,1,8,1,0,0,0,3,7>
 
 ;
-; We assume DS and ES are zero on entry; the stack is apparently at 30:100h,
-; so we move that to safer place (and in this case, changing SP first is fine).
+; We assume DS and ES are zero on entry; the stack is apparently at 30:100h.
 ;
-move:	mov	sp,offset BIOS_STACK
-	push	ds
-	pop	ss
-	ASSUME	SS:BIOS_DATA
-	mov	di,offset DPT_ACTIVE	; ES:DI -> DPT_ACTIVE
+move:	mov	di,offset DPT_ACTIVE	; ES:DI -> DPT_ACTIVE
 	push	es
 	push	di
 	push	ds
@@ -36,6 +31,10 @@ move:	mov	sp,offset BIOS_STACK
 	mov	cx,512
 ;	mov	di,offset BOOT_SECTOR	; BOOT_SECTOR now follows DPT_ACTIVE
 	rep	movsb
+	mov	ax,BIOS_DATA_END SHR 4
+	push	ax
+	sub	ax,ax
+	push	ax
 	mov	ax,offset boot
 	jmp	ax
 
@@ -56,18 +55,20 @@ boot	proc	far
 	call	waitsec			; wait for key
 	jcxz	hdboot			; jump if no key pressed
 load:	mov	si,offset mybpb
+	mov	bx,offset BIO_FILE	; DS:BX -> file name
+	mov	bp,BIOS_DATA_END	; BP -> target address
 	mov	dx,[si].BPB_LBAROOT	; DX = root dir LBA
-rdir:	mov	ax,dx			; AX = LBA
+dir:	mov	ax,dx			; AX = LBA
 	mov	cl,1
 	mov	di,offset DIR_SECTOR
 	call	read_sectors		; return dir sector (ES:DI)
-	mov	bx,offset BIO_FILE	; DS:BX -> file name
-	call	find_dirent		; return matching DIRENT (DS:BX)
-	jb	err			; end of directory entries
+	jc	err
+find:	call	find_dirent		; return matching DIRENT (DS:BX)
+	jc	err			; end of directory entries
 	jz	read			; match!
 	inc	dx			; DX = next dir LBA
 	cmp	dx,[si].BPB_LBADATA	; exhausted root dir?
-	jb	rdir			; not yet
+	jb	dir			; not yet
 err:	mov	si,offset errmsg
 	call	print
 	call	wait
@@ -85,7 +86,7 @@ hdboot:	mov	ax,0201h		; AH = 02h (READ), AL = 1 sector
 ;
 ; We found the DIRENT (at BX) of BIO_FILE, so load it and launch it.
 ;
-read:	mov	di,BIOS_DATA_END
+read:	mov	di,bp
 next:	mov	ax,[bx].DIR_CLN		; AX = cluster number
 	call	read_cluster		; read cluster into ES:DI
 	jc	err
@@ -95,10 +96,7 @@ next:	mov	ax,[bx].DIR_CLN		; AX = cluster number
 	jbe	done			; size exhausted
 	inc	[bx].DIR_CLN		; otherwise, read next cluster
 	jmp	next			; (the clusters must be contiguous)
-done:	mov	ax,BIOS_DATA_END SHR 4
-	push	ax
-	sub	ax,ax
-	push	ax
+done:	mov	dx,offset find		; DX = entry point for loading next file
 	ret
 boot	endp
 
@@ -106,29 +104,29 @@ boot	endp
 ;
 ; Find DIRENT in sector at ES:DI using filename at DS:BX
 ;
-; Modifies: BX, CX
+; Modifies: AX, BX, CX
 ;
 ; Returns: zero flag set if match (see BX), carry set if end of directory
 ;
 find_dirent proc near
 	push	si
 	push	di
-	xchg	si,bx		; DS:SI -> filename now
-	mov	bx,[bx].BPB_SECBYTES
-	add	bx,di
-	dec	bx		; ES:BX -> end of sector data
-f1:	mov	cx,11
-	cmp	byte ptr es:[di],0
+	mov	ax,[si].BPB_SECBYTES
+	add	ax,di		; AX -> end of sector data
+f1:	cmp	byte ptr [di],0
 	stc			; more future-proofing:
 	je	f9		; 0 indicates end of allocated entries
+	mov	si,bx
+	mov	cx,11
 	repe	cmpsb
-	jz	f9
+	jz	f8
 	add	di,cx
 	add	di,size DIRENT - 11
-	cmp	di,bx
+	cmp	di,ax
 	jb	f1
-f9:	lea	bx,[di-11]	; DI is meaningless if ZF not set
-	pop	di
+	jmp	short f9
+f8:	lea	bx,[di-11]
+f9:	pop	di
 	pop	si
 	ret
 find_dirent endp
@@ -287,7 +285,7 @@ waitsec	endp
 product		db	"BASIC-DOS 0.01"
 crlf		db	13,10,0
 errmsg		db	"Unable to boot from disk",13,10,0
-prompt		db	"Press any key to boot from diskette...",0
+prompt		db	"Press any key to boot from diskette",0
 BIO_FILE	db	"IBMBIO  COM",0
 
 CODE	ends

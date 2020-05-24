@@ -194,7 +194,7 @@ RESET_FLAG	DW	?	; 472h: SET TO 0x1234 IF KEYBOARD RESET UNDERWAY
 ;
 ; Some DOS boot sectors would read the first directory sector into 500h,
 ; which would result in the starting clusters of IO.SYS and MSDOS.SYS residing
-; in 51Ah and 53Ah, respectively.  Other sectors would create an 11-byte
+; in 51Ah and 53Ah, respectively.  Other boot sectors would create an 11-byte
 ; copy of the BIOS Diskette Parameters Table at 522h.  We do the latter only.
 ;
 		db	4 dup (?)	; 500h: reserved
@@ -211,7 +211,8 @@ BOOT_SECTOR	db	3 dup (?)	; 52Dh
 BPB_ACTIVE	BPB	<>		; 530h: active BPB
 FAT_SECTOR	db	512 dup (?)	; 556h
 DIR_SECTOR	db	512 dup (?)	; 756h
-		dw	149 dup (?)	; 956h
+		dw	0EEEEh		; 956h (random marker)
+		dw	148 dup (?)	; 958h
 BIOS_STACK	equ	$		; A80h
 BIOS_DATA_END	equ	0A80h		; A80h (must be on a paragraph boundary)
 
