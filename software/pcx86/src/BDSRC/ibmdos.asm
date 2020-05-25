@@ -8,24 +8,29 @@ DOS	segment word public 'CODE'
 drivers	dd	?		; head of driver chain
 
 	ASSUME	CS:DOS, DS:BIOS, ES:BIOS, SS:BIOS
+
+;;;;;;;;
 ;
 ; System initialization
 ;
-; Everything after "init" is discarded.
-;
-; The head of the driver chain is pushed on the stack.
+; Everything after "init" will be recycled.
 ;
 	public	init
 init	proc	far
-	int 3
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
+;
+; Save head of driver chain (it was passed on the stack).
+;
 	pop	[drivers].off
 	pop	[drivers].seg
+;
+; Initialize all the DOS vectors.
+;
 	mov	si,offset int_tbl
 	mov	di,INT_DOS_EXIT * 4
-i1:	lods	word ptr cs:[si]
+i1:	lodsw
 	test	ax,ax
 	jz	i9
 	stosw

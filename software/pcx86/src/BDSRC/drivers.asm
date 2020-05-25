@@ -13,8 +13,8 @@ DEV	segment word public 'CODE'
 ; Standard device drivers
 ;
 	public	NUL,KBD,SCR,CON,AUX,PRN
-	public	COM1,COM2,COM3,COM4,LPT1,LPT2,LPT3,LPT4,CLOCK
-	public	DRIVEA,DRIVEB,DRIVEC,DRIVED
+	public	COM1,COM2,COM3,COM4,LPT1,LPT2,LPT3,LPT4
+	public	CLOCK,DRIVEA,DRIVEB,DRIVEC,DRIVED
 
 NUL	DDH	<offset KBD,DDATTR_CHAR,offset ddent,offset ddint>
 	db	"NUL:    "
@@ -24,18 +24,18 @@ SCR	DDH	<offset CON,DDATTR_CHAR,offset ddent,offset ddint>
 	db	"SCR:    "
 CON	DDH	<offset AUX,DDATTR_CHAR,offset ddent,offset ddint>
 	db	"CON:    "
-AUX	DDH	<offset PRN,DDATTR_CHAR,offset ddent,offset ddint>
+AUX	DDH	<offset COM1,DDATTR_CHAR,offset ddent,offset ddint>
 	db	"AUX:    "
-PRN	DDH	<offset COM1,DDATTR_CHAR,offset ddent,offset ddint>
-	db	"PRN:    "
 COM1	DDH	<offset COM2,DDATTR_CHAR,offset ddent,offset ddint>
 	db	"COM1:   "
 COM2	DDH	<offset COM3,DDATTR_CHAR,offset ddent,offset ddint>
 	db	"COM2:   "
 COM3	DDH	<offset COM4,DDATTR_CHAR,offset ddent,offset ddint>
 	db	"COM3:   "
-COM4	DDH	<offset LPT1,DDATTR_CHAR,offset ddent,offset ddint>
+COM4	DDH	<offset PRN,DDATTR_CHAR,offset ddent,offset ddint>
 	db	"COM4:   "
+PRN	DDH	<offset LPT1,DDATTR_CHAR,offset ddent,offset ddint>
+	db	"PRN:    "
 LPT1	DDH	<offset LPT2,DDATTR_CHAR,offset ddent,offset ddint>
 	db	"LPT1:   "
 LPT2	DDH	<offset LPT3,DDATTR_CHAR,offset ddent,offset ddint>
