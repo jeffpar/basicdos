@@ -4,7 +4,7 @@
 ; NOTE: The arguments to this program should be "WBOOT BOOT.COM A:",
 ; but we currently ignore any arguments and just assume the above.
 ;
-	INCLUDE	BIOS.INC
+	include	bios.inc
 
 CODE    SEGMENT
 
@@ -38,23 +38,23 @@ main	proc	near
 	sub	dx,dx			; DH = HEAD 0, DL = DRIVE 0
 	int	13h
 	jnc	exit
-	mov	dx,offset mwrite
+	mov	dx,offset emwrite
 	jmp	short msg
-esize:	mov	dx,offset msize
+esize:	mov	dx,offset emsize
 	jmp	short msg
-eread:	mov	dx,offset mread
+eread:	mov	dx,offset emread
 	jmp	short msg
-eopen:	mov	dx,offset mopen
+eopen:	mov	dx,offset emopen
 msg:	mov	ah,9
 	int	21h
 exit:	int	20h
 main	endp
 
 fname	db	"BOOT.COM",0
-mopen	db	"Unable to open BOOT.COM",13,10,'$'
-mread	db	"Unable to read BOOT.COM",13,10,'$'
-msize	db	"BOOT.COM is too large",13,10,'$'
-mwrite	db	"Unable to write BOOT.COM to boot sector",13,10,'$'
+emopen	db	"Unable to open BOOT.COM",13,10,'$'
+emread	db	"Unable to read BOOT.COM",13,10,'$'
+emsize	db	"BOOT.COM is too large",13,10,'$'
+emwrite	db	"Unable to write BOOT.COM to boot sector",13,10,'$'
 buffer	db	512 dup (0)
 
 CODE	ENDS

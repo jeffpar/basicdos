@@ -1,4 +1,4 @@
-	include	bios.inc
+	include	driver.inc
 
 CODE    segment
 
@@ -14,25 +14,26 @@ CODE    segment
 BIOS_CODE_END	equ	$
 
 ;
-; Initialization code
+; Initialization inputs:
 ;
 ; 	SI -> BPB_ACTIVE
 ;	DX -> offset of boot.asm "find" code
+;	DS and ES == BIOS_DATA
 ;
 ; We start by switching to a safer stack (better than 30:100h anyway).
 ;
 init	proc	far
-	mov	sp,offset BIOS_STACK
 	push	ds
 	pop	ss
+	mov	sp,offset BIOS_STACK
 	ASSUME	SS:BIOS_DATA
 	mov	bx,BIOS_DATA_END
 	add	bx,offset DOS_FILE	; BIOS_DATA:BX -> filename
 	mov	di,offset DIR_SECTOR	; BIOS_DATA:DI -> DIR_SECTOR
 	mov	ax,BIOS_DATA_END
 	add	ax,offset BIOS_CODE_END
-	add	ax,15
-	and	ax,0FFF0h
+	add	ax,15			; get the next para after BIOS_CODE_END
+	and	ax,0FFF0h		; truncate to para boundary
 	mov	bp,ax			; BIOS_DATA:BP -> memory to load
 	mov	cl,4
 	shr	ax,cl

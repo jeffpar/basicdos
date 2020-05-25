@@ -1,3 +1,4 @@
+	include	macros.inc
 ;
 ; Media IDs
 ;

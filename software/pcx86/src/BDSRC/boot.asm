@@ -2,30 +2,46 @@
 
 CODE    segment
 
+;
+; We "ORG" at BOOT_SECTOR_LO rather than BOOT_SECTOR_HI,
+; because as soon as "move" finishes, we're running at BOOT_SECTOR_LO.
+;
 	org	BOOT_SECTOR_LO
-        ASSUME	CS:CODE, DS:BIOS_DATA, ES:BIOS_DATA, SS:NOTHING
-
+        ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+;
+; All we assume on entry is:
+;
+;	CS = 0
+;	IP = 7C00h
+;
+; because although the original IBM PC had these additional inputs:
+;
+;	DS = ES = 0
+;	SS:SP = 30h:100h
+;
+; that apparently didn't become a standard, because if we make any of those
+; other assumptions, we may not boot on all systems.
+;
 	cld
 	jmp	short move
 
 mybpb:	BPB	<,512,1,1,2,64,320,MEDIA_160K,1,8,1,0,0,0,3,7>
 
-;
-; We assume DS and ES are zero on entry; the stack is apparently at 30:100h.
-;
 move:	mov	di,offset DPT_ACTIVE	; ES:DI -> DPT_ACTIVE
-	push	es
+	push	cs
 	push	di
-	push	ds
-	lds	si,ds:[INT_DPT*4]	; DS:SI -> original table (in ROM)
-	ASSUME	DS:NOTHING
+	push	cs
+	pop	es
+	ASSUME	ES:BIOS_DATA
+	lds	si,es:[INT_DPT*4]	; DS:SI -> original table (in ROM)
 	mov	cx,size DPT
 	rep	movsb
+	push	cs
 	pop	ds
-	ASSUME	DS:BIOS_DATA
-	mov	[DPT_ACTIVE].DP_SPECIFY1,0DFh	; change step rate to 6ms
-	mov	[DPT_ACTIVE].DP_HEADSETTLE,0	; change head settle time to 0ms
-	pop	ds:[INT_DPT*4]
+	ASSUME	DS:BIOS_DATA		; change step rate to 6ms
+	mov	[DPT_ACTIVE].DP_SPECIFY1,0DFh
+	mov	[DPT_ACTIVE].DP_HEADSETTLE,0
+	pop	ds:[INT_DPT*4]		; and change head settle time to 0ms
 	pop	ds:[INT_DPT*4+2]	; update INT_DPT vector
 	mov	si,BOOT_SECTOR_HI	; now move boot sector down
 	mov	cx,512
@@ -38,7 +54,7 @@ move:	mov	di,offset DPT_ACTIVE	; ES:DI -> DPT_ACTIVE
 	mov	ax,offset boot
 	jmp	ax
 
-boot	proc	far
+boot	proc	far			; now running at BOOT_SECTOR_LO
 	mov	si,offset product
 	call	print
 	cmp	[mybpb].BPB_MEDIA,MEDIA_HARD
@@ -56,19 +72,19 @@ boot	proc	far
 	jcxz	hdboot			; jump if no key pressed
 load:	mov	si,offset mybpb
 	mov	bx,offset BIO_FILE	; DS:BX -> file name
-	mov	bp,BIOS_DATA_END	; BP -> target address
+	mov	bp,BIOS_DATA_END	; BP = target load address
 	mov	dx,[si].BPB_LBAROOT	; DX = root dir LBA
 dir:	mov	ax,dx			; AX = LBA
-	mov	cl,1
-	mov	di,offset DIR_SECTOR
+	mov	cl,1			; read 1 dir sector
+	mov	di,offset DIR_SECTOR	;
 	call	read_sectors		; return dir sector (ES:DI)
 	jc	err
 find:	call	find_dirent		; return matching DIRENT (DS:BX)
-	jc	err			; end of directory entries
-	jz	read			; match!
+	jc	err			; jump if end of directory entries
+	jz	read			; jump if match
 	inc	dx			; DX = next dir LBA
-	cmp	dx,[si].BPB_LBADATA	; exhausted root dir?
-	jb	dir			; not yet
+	cmp	dx,[si].BPB_LBADATA	; exhausted root directory?
+	jb	dir			; jump if not exhausted
 err:	mov	si,offset errmsg
 	call	print
 	call	wait
@@ -84,9 +100,9 @@ hdboot:	mov	ax,0201h		; AH = 02h (READ), AL = 1 sector
 	jc	err
 	jmp	bx			; jump to the hard disk boot sector
 ;
-; We found the DIRENT (at BX) of BIO_FILE, so load it and launch it.
+; We found the DIRENT (at BX) of the requested file (at BX), so load it.
 ;
-read:	mov	di,bp
+read:	mov	di,bp			; DI = target load address
 next:	mov	ax,[bx].DIR_CLN		; AX = cluster number
 	call	read_cluster		; read cluster into ES:DI
 	jc	err
@@ -185,13 +201,11 @@ printl	endp
 ;
 ; Read cluster AX into memory at ES:DI
 ;
-; Modifies: AX
+; Modifies: AX, CX, DX
 ;
 ; Returns: carry flag set on error (see AH), clear otherwise (AX sectors read)
 ;
 read_cluster proc near
-	push	cx
-	push	dx
 	sub	ax,2
 	jb	rc9
 	sub	cx,cx
@@ -205,9 +219,7 @@ read_cluster proc near
 ; sectors actually read, but I'm not seeing that, so I'll just copy CL into AL.
 ;
 	xchg	ax,cx
-rc9:	pop	dx
-	pop	cx
-	ret
+rc9:	ret
 read_cluster endp
 
 ;;;;;;;;

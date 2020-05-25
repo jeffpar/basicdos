@@ -1,5 +1,4 @@
 	include	disk.inc	; Disk structures
-	include	macros.inc
 ;
 ; Standard PC BIOS vectors (the first few are really just 8086 vectors)
 ;
