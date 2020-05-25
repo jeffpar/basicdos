@@ -4,6 +4,7 @@ CODE    segment byte public 'CODE'
 
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
+	extrn	init:near
 	extrn	tty_echo:near
 	extrn	tty_write:near
 	extrn	aux_read:near
@@ -16,6 +17,9 @@ CODE    segment byte public 'CODE'
 	extrn	tty_input:near
 	extrn	tty_status:near
 	extrn	tty_flush:near
+
+	call	init
+done:	jmp	done
 
 calltbl	dw	tty_echo, tty_write, aux_read, aux_write, prn_write, tty_io
 	dw	tty_in, tty_read, tty_print, tty_input, tty_status, tty_flush
@@ -36,14 +40,14 @@ doscall	proc	far
 	push	ds
 	push	es
 	sub	bx,bx
-	mov	ds,bp
+	mov	ds,bx
 	ASSUME	DS:BIOS_DATA
 	mov	bp,sp
 	mov	bl,ah
 	cmp	bl,(callend - calltbl) shr 1
 	jae	dc9
 	add	bx,bx
-	call	cs:calltbl[bx]
+	call	calltbl[bx]
 dc9:	pop	es
 	pop	ds
 	ASSUME	DS:NOTHING

@@ -4,21 +4,16 @@
 
 CODE    segment byte public 'CODE'
 
-	org	0000h
-
         ASSUME	CS:CODE, DS:BIOS_DATA, ES:BIOS_DATA, SS:BIOS_DATA
-
-	call	init
-done:	jmp	done
-
 ;
 ; Initialization code
 ;
+	public	init
 init	proc	near
 	int 3
 	mov	si,offset int_tbl
 	mov	di,INT_DOS_EXIT * 4
-i1:	lodsw
+i1:	lods	word ptr cs:[si]
 	test	ax,ax
 	jz	i9
 	stosw

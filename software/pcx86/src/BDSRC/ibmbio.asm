@@ -2,8 +2,6 @@
 
 CODE    segment
 
-	org	0000h
-
         ASSUME	CS:CODE, DS:BIOS_DATA, ES:BIOS_DATA, SS:NOTHING
 
 	jmp	init
@@ -16,8 +14,9 @@ BIOS_CODE_END	equ	$
 ;
 ; Initialization inputs:
 ;
+;	AX -> offset of boot.asm "find" code
+;	DX == LBA of DIR_SECTOR
 ; 	SI -> BPB_ACTIVE
-;	DX -> offset of boot.asm "find" code
 ;	DS and ES == BIOS_DATA
 ;
 ; We start by switching to a safer stack (better than 30:100h anyway).
@@ -27,25 +26,30 @@ init	proc	far
 	pop	ss
 	mov	sp,offset BIOS_STACK
 	ASSUME	SS:BIOS_DATA
+;
+; Call the "find" code in boot.asm now (at 0000:AX), with these inputs:
+;
+; 	BX -> filename
+;	DX == LBA of DIR_SECTOR
+;	SI -> BPB_ACTIVE
+;	DI -> DIR_SECTOR
+;	BP == target load address
+;
+	mov	bp,BIOS_DATA_END
+	add	bp,offset BIOS_CODE_END
+	add	bp,15			; get next para after BIOS_CODE_END
+	and	bp,0FFF0h		; BIOS_DATA:BP -> memory to load
+	mov	bx,bp
+	mov	cl,4
+	shr	bx,cl
+	push	bx			; convert BP to a SEG:0 address
+	sub	cx,cx			; that the "find" code will return to
+	push	cx
+	push	cx			; far address of "find" (BIOS_DATA:AX)
+	push	ax
 	mov	bx,BIOS_DATA_END
 	add	bx,offset DOS_FILE	; BIOS_DATA:BX -> filename
 	mov	di,offset DIR_SECTOR	; BIOS_DATA:DI -> DIR_SECTOR
-	mov	ax,BIOS_DATA_END
-	add	ax,offset BIOS_CODE_END
-	add	ax,15			; get the next para after BIOS_CODE_END
-	and	ax,0FFF0h		; truncate to para boundary
-	mov	bp,ax			; BIOS_DATA:BP -> memory to load
-	mov	cl,4
-	shr	ax,cl
-	push	ax			; convert BP to a seg:0 address
-	sub	ax,ax			; that the "find" code will return to
-	push	ax
-;
-; Call the "find" code in boot.asm now (at 0000:DX), with SI -> BPB_ACTIVE,
-; BX -> filename to find (DOS_FILE), DI -> DIR_SECTOR, and BP -> memory to load.
-;
-	push	ax
-	push	dx
 	ret
 init	endp
 
