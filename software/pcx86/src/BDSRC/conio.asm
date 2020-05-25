@@ -1,8 +1,8 @@
 	include	dos.inc
 
-CODE    segment byte public 'CODE'
+DOS	segment word public 'CODE'
 
-        ASSUME	CS:CODE, DS:BIOS_DATA, ES:NOTHING, SS:NOTHING
+	ASSUME	CS:DOS, DS:DOS, ES:BIOS, SS:NOTHING
 
 	public	tty_echo
 tty_echo proc near
@@ -64,6 +64,6 @@ tty_flush proc near
 	ret
 tty_flush endp
 
-CODE	ends
+DOS	ends
 
 	end

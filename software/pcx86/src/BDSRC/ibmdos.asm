@@ -1,16 +1,28 @@
 	include	dos.inc
 
+DOS	segment word public 'CODE'
+
 	extrn	dosexit:near, doscall:near
 
-CODE    segment byte public 'CODE'
+	public	drivers
+drivers	dd	?		; head of driver chain
 
-        ASSUME	CS:CODE, DS:BIOS_DATA, ES:BIOS_DATA, SS:BIOS_DATA
+	ASSUME	CS:DOS, DS:BIOS, ES:BIOS, SS:BIOS
 ;
-; Initialization code
+; System initialization
+;
+; Everything after "init" is discarded.
+;
+; The head of the driver chain is pushed on the stack.
 ;
 	public	init
-init	proc	near
+init	proc	far
 	int 3
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
+	pop	[drivers].off
+	pop	[drivers].seg
 	mov	si,offset int_tbl
 	mov	di,INT_DOS_EXIT * 4
 i1:	lods	word ptr cs:[si]
@@ -20,11 +32,11 @@ i1:	lods	word ptr cs:[si]
 	mov	ax,cs
 	stosw
 	jmp	i1
-i9:	ret
+i9:	jmp	i9
 init	endp
 
 int_tbl	dw	dosexit, doscall, 0
 
-CODE	ends
+DOS	ends
 
 	end

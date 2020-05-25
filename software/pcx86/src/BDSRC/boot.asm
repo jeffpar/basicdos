@@ -1,26 +1,26 @@
 	include	bios.inc
 
-CODE    segment
+BOOT	segment
 
 ;
 ; We "ORG" at BOOT_SECTOR_LO rather than BOOT_SECTOR_HI,
 ; because as soon as "move" finishes, we're running at BOOT_SECTOR_LO.
 ;
 	org	BOOT_SECTOR_LO
-        ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+        ASSUME	CS:BOOT, DS:NOTHING, ES:NOTHING, SS:NOTHING
 ;
 ; All we assume on entry is:
 ;
-;	CS == 0
-;	IP == 7C00h
+;	CS = 0
+;	IP = 7C00h
 ;
 ; because although the original IBM PC had these additional inputs:
 ;
-;	DS == ES == 0
-;	SS:SP == 30h:100h
+;	DS = ES = 0
+;	SS:SP = 30h:100h
 ;
 ; that apparently didn't become a standard, because if we make any of those
-; other assumptions, we may not boot on all systems.
+; other assumptions, we have boot failures (eg, VMware machines).
 ;
 	cld
 	jmp	short move
@@ -32,13 +32,13 @@ move:	mov	di,offset DPT_ACTIVE	; ES:DI -> DPT_ACTIVE
 	push	di
 	push	cs
 	pop	es
-	ASSUME	ES:BIOS_DATA
+	ASSUME	ES:BIOS
 	lds	si,es:[INT_DPT*4]	; DS:SI -> original table (in ROM)
 	mov	cx,size DPT
 	rep	movsb
 	push	cs
 	pop	ds
-	ASSUME	DS:BIOS_DATA		; change step rate to 6ms
+	ASSUME	DS:BIOS			; change step rate to 6ms
 	mov	[DPT_ACTIVE].DP_SPECIFY1,0DFh
 	mov	[DPT_ACTIVE].DP_HEADSETTLE,0
 	pop	ds:[INT_DPT*4]		; and change head settle time to 0ms
@@ -47,14 +47,14 @@ move:	mov	di,offset DPT_ACTIVE	; ES:DI -> DPT_ACTIVE
 	mov	cx,512
 ;	mov	di,offset BOOT_SECTOR	; BOOT_SECTOR now follows DPT_ACTIVE
 	rep	movsb
-	mov	ax,BIOS_DATA_END SHR 4
+	mov	ax,BIOS_END SHR 4
 	push	ax
 	sub	ax,ax
 	push	ax
-	mov	ax,offset boot
+	mov	ax,offset main
 	jmp	ax
 
-boot	proc	far			; now running at BOOT_SECTOR_LO
+main	proc	far			; now running at BOOT_SECTOR_LO
 	mov	si,offset product
 	call	print
 	cmp	[mybpb].BPB_MEDIA,MEDIA_HARD
@@ -67,16 +67,16 @@ boot	proc	far			; now running at BOOT_SECTOR_LO
 	jz	load			; jump if not (just boot)
 	mov	si,offset prompt
 	call	print
-	mov	ax,2 * PCJS_MULTIPLIER	; AX == 2 seconds
+	mov	ax,2 * PCJS_MULTIPLIER	; AX = 2 seconds
 	call	waitsec			; wait for key
 	jcxz	hdboot			; jump if no key pressed
 
 load:	mov	si,offset mybpb		; DS:SI -> BPB
 	mov	bx,offset BIO_FILE	; DS:BX -> file name
-	mov	dx,[si].BPB_LBAROOT	; DX == root dir LBA
-	mov	bp,BIOS_DATA_END	; BP == target load address
+	mov	dx,[si].BPB_LBAROOT	; DX = root dir LBA
+	mov	bp,BIOS_END		; BP = target load address
 
-dir:	mov	ax,dx			; AX == LBA
+dir:	mov	ax,dx			; AX = LBA
 	mov	cl,1			; read 1 dir sector
 	mov	di,offset DIR_SECTOR	;
 	call	read_sectors		; return dir sector (ES:DI)
@@ -85,7 +85,7 @@ dir:	mov	ax,dx			; AX == LBA
 find:	call	find_dirent		; return matching DIRENT (DS:BX)
 	jc	err			; jump if end of directory entries
 	jz	read			; jump if match
-	inc	dx			; DX == next dir LBA
+	inc	dx			; DX = next dir LBA
 	cmp	dx,[si].BPB_LBADATA	; exhausted root directory?
 	jb	dir			; jump if not exhausted
 err:	mov	si,offset errmsg
@@ -95,9 +95,9 @@ err:	mov	si,offset errmsg
 ;
 ; There's a hard disk and no response, so boot from hard disk instead.
 ;
-hdboot:	mov	ax,0201h		; AH == 02h (READ), AL == 1 sector
-	inc	cx			; CH == CYL 0, CL == SEC 1
-	mov	dx,0080h		; DH == HEAD 0, DL == DRIVE 80h
+hdboot:	mov	ax,0201h		; AH = 02h (READ), AL = 1 sector
+	inc	cx			; CH = CYL 0, CL = SEC 1
+	mov	dx,0080h		; DH = HEAD 0, DL = DRIVE 80h
 	mov	bx,BOOT_SECTOR_HI	; ES:BX -> BOOT_SECTOR_HI
 	int	13h			; read it
 	jc	err
@@ -105,21 +105,21 @@ hdboot:	mov	ax,0201h		; AH == 02h (READ), AL == 1 sector
 ;
 ; We found the DIRENT (at BX) of the requested file, so load it.
 ;
-read:	mov	di,bp			; DI == target load address
-next:	mov	ax,[bx].DIR_CLN		; AX == cluster number
+read:	mov	di,bp			; DI = target load address
+next:	mov	ax,[bx].DIR_CLN		; AX = cluster number
 	push	dx			; save DX (trashed by read_cluster)
 	call	read_cluster		; read cluster into ES:DI
 	jc	err
-	mul	[si].BPB_SECBYTES	; DX:AX == number of sectors read
+	mul	[si].BPB_SECBYTES	; DX:AX = number of sectors read
 	pop	dx			; restore DX
 	add	di,ax			; adjust next read address
 	sub	[bx].DIR_SIZE_L,ax	; reduce file size
 	jbe	done			; size exhausted
 	inc	[bx].DIR_CLN		; otherwise, read next cluster
 	jmp	next			; (the clusters must be contiguous)
-done:	mov	ax,offset find		; AX == entry point for loading next file
+done:	mov	ax,offset find		; AX = entry point for loading next file
 	ret
-boot	endp
+main	endp
 
 ;;;;;;;;
 ;
@@ -158,7 +158,7 @@ find_dirent endp
 ;
 ; Modifies: AX, CX, DX
 ;
-; Returns: CH == cylinder, CL == sector, DH == head, DL == drive
+; Returns: CH := cylinder, CL := sector, DH := head, DL := drive
 ;
 get_chs	proc	near
 ;
@@ -167,17 +167,17 @@ get_chs	proc	near
 	xchg	cx,ax
 	mov	al,byte ptr [si].BPB_TRACKSECS
 	mul	byte ptr [si].BPB_DRIVEHEADS
-	xchg	cx,ax		; CX == sectors per cylinder
+	xchg	cx,ax		; CX = sectors per cylinder
 	sub	dx,dx		; DX:AX is LBA
-	div	cx		; AX == cylinder, DX == remaining sectors
-	xchg	al,ah		; AH == cylinder, AL == cylinder bits 8-9
+	div	cx		; AX = cylinder, DX = remaining sectors
+	xchg	al,ah		; AH = cylinder, AL = cylinder bits 8-9
 	ror	al,1		; future-proofing: saving cylinder bits 8-9
 	ror	al,1
-	xchg	cx,ax		; CH == cylinder
-	xchg	ax,dx		; AX == remaining sectors from last divide
+	xchg	cx,ax		; CH = cylinder
+	xchg	ax,dx		; AX = remaining sectors from last divide
 	div	byte ptr [si].BPB_TRACKSECS
-	mov	dh,al		; DH == head (quotient of last divide)
-	or	cl,ah		; CL == sector (remainder of last divide)
+	mov	dh,al		; DH = head (quotient of last divide)
+	or	cl,ah		; CL = sector (remainder of last divide)
 	inc	cx		; LBA are zero-based, sector IDs are 1-based
 	mov	dl,[si].BPB_DRIVE
 	ret
@@ -257,11 +257,11 @@ read_sectors endp
 ;
 ; Modifies: AX, CX, DX
 ;
-; Returns: CX == char code (lo), scan code (hi); 0 if no key pressed
+; Returns: CX := char code (lo), scan code (hi); 0 if no key pressed
 ;
 waitsec	proc	near
 	mov	dx,182		; 18.2 ticks per second
-	mul	dx		; DX:AX == ticks to wait * 10
+	mul	dx		; DX:AX = ticks to wait * 10
 	mov	cx,10
 	div	cx
 	push	ax		; AX is ticks to wait
@@ -281,7 +281,7 @@ w1:	push	dx
 wait	label	near
 	mov	ah,KBD_READ
 	int	INT_KBD
-	xchg	cx,ax		; CL == char code, CH == scan code
+	xchg	cx,ax		; CL = char code, CH = scan code
 	jmp	short w9
 w2:	mov	ah,TIME_GETTICKS
 	int	INT_TIME	; CX:DX is updated tick count
@@ -305,6 +305,6 @@ errmsg		db	"Unable to boot from disk",13,10,0
 prompt		db	"Press any key to boot from diskette",0
 BIO_FILE	db	"IBMBIO  COM",0
 
-CODE	ends
+BOOT	ends
 
 	end

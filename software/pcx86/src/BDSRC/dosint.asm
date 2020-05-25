@@ -1,10 +1,15 @@
 	include	dos.inc
 
-CODE    segment byte public 'CODE'
+DOS	segment word public 'CODE'
 
-        ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+	ASSUME	CS:DOS, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
 	extrn	init:near
+;
+; This must be the first object module in the image.
+;
+	jmp	init
+
 	extrn	tty_echo:near
 	extrn	tty_write:near
 	extrn	aux_read:near
@@ -18,9 +23,6 @@ CODE    segment byte public 'CODE'
 	extrn	tty_status:near
 	extrn	tty_flush:near
 
-	call	init
-done:	jmp	done
-
 calltbl	dw	tty_echo, tty_write, aux_read, aux_write, prn_write, tty_io
 	dw	tty_in, tty_read, tty_print, tty_input, tty_status, tty_flush
 callend	equ	$
@@ -32,6 +34,7 @@ dosexit	endp
 
 	public	doscall
 doscall	proc	far
+	sti
 	push	ax
 	push	bx
 	push	cx
@@ -39,13 +42,17 @@ doscall	proc	far
 	push	bp
 	push	ds
 	push	es
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
 	sub	bx,bx
-	mov	ds,bx
-	ASSUME	DS:BIOS_DATA
+	mov	es,bx
+	ASSUME	ES:BIOS
 	mov	bp,sp
 	mov	bl,ah
 	cmp	bl,(callend - calltbl) shr 1
-	jae	dc9
+	cmc
+	jb	dc9
 	add	bx,bx
 	call	calltbl[bx]
 dc9:	pop	es
@@ -55,10 +62,11 @@ dc9:	pop	es
 	pop	dx
 	pop	cx
 	pop	bx
-	pop	ax
-	iret
+	inc	sp		; don't "pop ax" and don't disturb carry
+	inc	sp
+	ret	2		; don't "iret"
 doscall	endp
 
-CODE	ends
+DOS	ends
 
 	end
