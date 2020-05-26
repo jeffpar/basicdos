@@ -5,10 +5,9 @@ DEV	segment word public 'CODE'
         ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
 	public	KBD
+	extrn	SCR:dword
 
-KBD	DDH	<-1,DDATTR_CHAR,offset ddreq,offset ddint>
-	db	"KBD     "
-	dw	ddinit
+KBD	DDH	<offset SCR,,DDATTR_CHAR,offset ddreq,offset ddint,202020202044424Bh,offset ddinit>
 
 ddreq	proc	far
 	ret
@@ -18,7 +17,14 @@ ddint	proc	far
 	ret
 ddint	endp
 
-ddinit	proc	far
+;;;;;;;;
+;
+; Driver initialization
+;
+; Returns: AX = size of device driver
+;
+ddinit	proc	near
+	mov	ax,offset ddinit - offset KBD
 	ret
 ddinit	endp
 

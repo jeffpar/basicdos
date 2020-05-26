@@ -1,16 +1,14 @@
 	include	dev.inc
 ;
-; Diskette Drive (DISKDEV) Device Driver
+; Diskette Drive Device Driver
 ;
 DEV	segment word public 'CODE'
 
         ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
-	public	DDRIVE
+	public	DRIVEA
 
-DDRIVE 	DDH	<-1,DDATTR_BLOCK,offset ddreq,offset ddint>
-	db	"A:      "
-	dw	ddinit
+DRIVEA 	DDH	<offset DRIVEB,,DDATTR_BLOCK,offset ddreq,offset ddint,2020202020202041h,offset ddinit>
 
 ddreq	proc	far
 	ret
@@ -20,7 +18,18 @@ ddint	proc	far
 	ret
 ddint	endp
 
-ddinit	proc	far
+DRIVEB 	DDH	<offset DRIVEC,,DDATTR_BLOCK,offset ddreq,offset ddint,2020202020202042h,offset ddinit>
+DRIVEC 	DDH	<offset DRIVED,,DDATTR_BLOCK,offset ddreq,offset ddint,2020202020202043h,offset ddinit>
+DRIVED 	DDH	<           -1,,DDATTR_BLOCK,offset ddreq,offset ddint,2020202020202044h,offset ddinit>
+
+;;;;;;;;
+;
+; Driver initialization
+;
+; Returns: AX = size of device driver
+;
+ddinit	proc	near
+	mov	ax,offset ddinit - offset DRIVEA
 	ret
 ddinit	endp
 

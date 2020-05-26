@@ -27,20 +27,40 @@ init	proc	far
 	push	ax		; save offset of boot.asm "find"
 	push	dx		; save LBA of sector in DIR_SECTOR
 ;
-; Initialize the segments of all the device headers.
+; Initialize each device driver, by calling its "init" handler.
 ;
+	push	ds
+	push	es
 	mov	si,offset NUL
 	push	cs
-	pop	ds		; DS:SI -> NUL
-	ASSUME	DS:DEV
-i1:	mov	[si].DDH_NEXT.seg,cs
-	lds	si,[si].DDH_NEXT
+	pop	ds		; DS:SI -> NUL device
 	ASSUME	DS:NOTHING
+i1:	mov	[si].DDH_NEXT_SEG,cs
+	call	[si].DDH_INIT
+	test	ax,ax		; keep driver?
+	jnz	i2		; yes
+;
+; For now, all we do for unwanted drivers is remove the header from the
+; chain.  That means the DDH_NEXT field of the *previous* driver must be
+; changed *this* driver's DDH_NEXT field.  Since the NUL device is never
+; removed, ES:DI will always be valid if/when we get here.
+;
+	mov	ax,[si].DDH_NEXT_OFF
+	mov	es:[di].DDH_NEXT_OFF,ax
+	mov	ax,[si].DDH_NEXT_SEG
+	mov	es:[di].DDH_NEXT_SEG,ax
+	jmp	short i3
+
+i2:	push	ds
+	pop	es
+	mov	di,si		; save DS:SI in ES:DI only if we're keeping it
+
+i3:	lds	si,dword ptr [si].DDH_NEXT_OFF
 	cmp	si,-1
 	jne	i1
-	push	es
+	pop	es
 	pop	ds
-	ASSUME	DS:BIOS
+	ASSUME	DS:BIOS,ES:BIOS
 ;
 ; Restore boot sector inputs, so we can load IBMDOS.COM next.
 ;

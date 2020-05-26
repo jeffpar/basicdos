@@ -37,7 +37,9 @@ i1:	lodsw
 	mov	ax,cs
 	stosw
 	jmp	i1
-i9:	jmp	i9
+
+i9:	int 3
+	jmp	i9
 init	endp
 
 int_tbl	dw	dosexit, doscall, 0

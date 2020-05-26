@@ -1,11 +1,4 @@
 	include	dev.inc
-;
-; The NUL device.
-;
-; NOTE: This file must be named something OTHER than "NUL.ASM", because in
-; DOS, all filenames of the form "NUL.*" are ignored (ie, treated as references
-; to the "NUL" device).
-;
 
 DEV	segment word public 'CODE'
 
@@ -18,10 +11,9 @@ DEV	segment word public 'CODE'
 	jmp	init
 
 	public	NUL
+	extrn	KBD:dword
 
-NUL	DDH	<-1,DDATTR_CHAR,offset ddreq,offset ddint>
-	db	"NUL     "
-	dw	ddinit
+NUL	DDH	<offset KBD,,DDATTR_CHAR,offset ddreq,offset ddint,20202020204C554Eh,offset ddinit>
 
 ddreq	proc	far
 	ret
@@ -31,7 +23,14 @@ ddint	proc	far
 	ret
 ddint	endp
 
-ddinit	proc	far
+;;;;;;;;
+;
+; Driver initialization
+;
+; Returns: AX = size of device driver
+;
+ddinit	proc	near
+	mov	ax,offset ddinit - offset NUL
 	ret
 ddinit	endp
 
