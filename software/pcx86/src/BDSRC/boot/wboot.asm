@@ -13,8 +13,15 @@ CODE    SEGMENT
 	org	100h
 
 main	proc	near
+	mov	si,80h
+	lodsb
+	test	al,al
+	jz	eopen
+	mov	bl,al
+	mov	bh,0
+	mov	byte ptr [si+bx],0	; null-terminate file name
 	mov	ax,3D00h		; AH = 3Dh (OPEN FILE)
-	mov	dx,offset fname		; DS:DX -> file name
+	lea	dx,[si+1]		; DS:DX -> file name
 	int	21h
 	jc	eopen
 	mov	bx,ax			; BX = file handle
@@ -37,8 +44,11 @@ main	proc	near
 	mov	word ptr [bx+510],0AA55h
 	sub	dx,dx			; DH = HEAD 0, DL = DRIVE 0
 	int	13h
-	jnc	exit
-	mov	dx,offset emwrite
+	jc	ewrite
+	mov	dx,offset success
+	mov	ax,4C00h		; exit with zero return code
+	int	21h
+ewrite:	mov	dx,offset emwrite
 	jmp	short msg
 esize:	mov	dx,offset emsize
 	jmp	short msg
@@ -47,7 +57,8 @@ eread:	mov	dx,offset emread
 eopen:	mov	dx,offset emopen
 msg:	mov	ah,9
 	int	21h
-exit:	int	20h
+exit:	mov	ax,4CFFh		; exit with non-zero return code
+	int	21h
 main	endp
 
 fname	db	"BOOT.COM",0
@@ -55,6 +66,7 @@ emopen	db	"Unable to open BOOT.COM",13,10,'$'
 emread	db	"Unable to read BOOT.COM",13,10,'$'
 emsize	db	"BOOT.COM is too large",13,10,'$'
 emwrite	db	"Unable to write BOOT.COM to boot sector",13,10,'$'
+success	db	"Boot sector on drive A: updated",13,10,'$'
 buffer	db	512 dup (0)
 
 CODE	ENDS

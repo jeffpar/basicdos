@@ -3,8 +3,6 @@
 DEV	segment word public 'CODE'
 
 	extrn	NUL:dword
-	extrn	COM1:dword,COM2:dword,COM3:dword,COM4:dword
-	extrn	LPT1:dword,LPT2:dword,LPT3:dword,LPT4:dword
 
         ASSUME	CS:DEV, DS:BIOS, ES:BIOS, SS:NOTHING
 
@@ -44,22 +42,6 @@ i1:	mov	[si].DDH_NEXT.seg,cs
 	pop	ds
 	ASSUME	DS:BIOS
 ;
-; Next, let's remove drivers for any devices that don't exist.
-;
-; For now, all this means is removing their headers from the chain.
-;
-	int 3
-	mov	si,offset RS232_BASE
-	mov	cx,8		; covers both RS232_BASE and PRINTER_BASE
-	mov	bx,offset COMS
-i2:	lodsw
-	test	ax,ax
-	jnz	i3
-	call	remove		; remove device referenced by CS:BX
-i3:	inc	bx
-	inc	bx
-	loop	i2
-;
 ; Restore boot sector inputs, so we can load IBMDOS.COM next.
 ;
 	pop	dx
@@ -96,54 +78,6 @@ i3:	inc	bx
 	mov	di,offset DIR_SECTOR
 	ret
 init	endp
-
-;;;;;;;;
-;
-; Remove driver referenced by CS:BX.
-;
-; Modifies: AX
-;
-remove	proc	near
-	push	si
-	push	ds
-	mov	si,offset NUL
-	push	cs
-	pop	ds			; DS:SI -> NUL
-	ASSUME	DS:NOTHING
-
-r1:	mov	ax,[si].DDH_NEXT.off
-	cmp	ax,-1
-	je	r9
-	cmp	ax,cs:[bx]		; target device?
-	jne	r8			; no
-	mov	ax,cs
-	cmp	ax,[si].DDH_NEXT.seg	; same segment?
-	jne	r8			; no
-;
-; Get DDH_NEXT from the next header and stuff it into this header.
-;
-	push	di
-	push	es
-	les	di,[si].DDH_NEXT
-	les	di,es:[di]
-	ASSUME	ES:NOTHING
-	mov	[si].DDH_NEXT.off,di
-	mov	[si].DDH_NEXT.seg,es
-	pop	es
-	ASSUME	ES:BIOS
-	pop	di
-	jmp	short r9
-
-r8:	lds	si,[si].DDH_NEXT
-	jmp	r1
-
-r9:	pop	ds
-	pop	si
-	ret
-remove	endp
-
-COMS		dw	COM1,COM2,COM3,COM4
-LPTS		dw	LPT1,LPT2,LPT3,LPT4
 
 ;
 ; Initialization strings
