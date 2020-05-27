@@ -214,7 +214,7 @@
       "id": "cpu8088",
       "class": "cpu",
       "model": 8088,
-      "multiplier": 8,
+      "multiplier": 16,
       "controls": [
         {
           "id": "reset",

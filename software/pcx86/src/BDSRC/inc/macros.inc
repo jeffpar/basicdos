@@ -1,14 +1,22 @@
-PCJS_MULTIPLIER	EQU	8
+PCJS_MULTIPLIER EQU 16
 
 FARPTR	struc
 off	dw	?
 seg	dw	?
 FARPTR	ends
 
-ASSERTEQ	macro	v1,v2
-		IFE	v1 EQ v2
-		IF1
-		%out	v1 NE v2
-		ENDIF
-		ENDIF
-		endm
+ERROR	macro	msg
+	IF1
+	%out 	msg
+	ENDIF
+	.ERROR
+	endm
+
+ASSERT	macro	v1,op,v2
+	IFE	v1 op v2
+	ERROR	<Assertion failed: v1 op v2>
+	IF1
+	%out
+	ENDIF
+	ENDIF
+	endm

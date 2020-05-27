@@ -206,15 +206,20 @@ DPT_ACTIVE	DPT	<>		; 522h: active DPT
 ;
 BOOT_SECTOR_HI	equ	7C00h
 BOOT_SECTOR_LO	equ	0522h + size DPT
+
 BOOT_SECTOR	db	3 dup (?)	; 52Dh: 3 bytes reserved for JMP
 BPB_ACTIVE	BPB	<>		; 530h: active BPB
-FAT_SECTOR	db	512 dup (?)	; 556h
-DIR_SECTOR	db	512 dup (?)	; 756h
-		dw	0EEEEh		; 956h (random marker)
-		dw	148 dup (?)	; 958h
-BIOS_STACK	equ	$		; A80h
-BIOS_END	equ	0A80h		; A80h (must be on a paragraph boundary)
 
-		ASSERTEQ <offset IVT + BIOS_END>,<offset BIOS_STACK>
+FAT_SECTOR	db	512 dup (?)	; 558h
+
+DIR_SECTOR	db	512 dup (?)	; 758h
+DIR_SECTOR_OFF	equ	758h
+		ASSERT 	<offset IVT + DIR_SECTOR_OFF>,EQ,<offset DIR_SECTOR>
+
+		dw	0EEEEh		; 958h (random marker)
+		dw	147 dup (?)	; 95Ah
+BIOS_STACK	equ	$		; A80h
+BIOS_END	equ	0A80h
+		ASSERT	<offset IVT + BIOS_END>,EQ,<offset BIOS_STACK>
 
 BIOS		ends

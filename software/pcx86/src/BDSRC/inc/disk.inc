@@ -29,8 +29,9 @@ BPB_LARGESECS	dd	?		; 1Dh: if TOTALSECS is 0 (see DOS 3.31)
 ; Our additions to internal BPBs
 ;
 BPB_DRIVE	db	?		; 21h: physical drive #
-BPB_LBAROOT	dw	?		; 22h: LBA of 1st root dir sector
-BPB_LBADATA	dw	?		; 24h: LBA of 1st data sector
+BPB_CYLSECS	dw	?		; 22h: sectors per cylinder (eg, 8)
+BPB_LBAROOT	dw	?		; 24h: LBA of 1st root dir sector
+BPB_LBADATA	dw	?		; 26h: LBA of 1st data sector
 BPB		ends
 
 ;
@@ -58,19 +59,17 @@ DPB_MEDIA	db	?		; 16h: media ID [2.0]
 DPB		ends
 
 DIRENT		struc
-DIR_NAME	db	11 dup (?)	; filename:
-					; 1st byte = E5 -> free entry
-					;	   = 00 -> end of directory
-DIR_ATTR	db	?		; attribute bits (see below)
-DIR_PAD		db	10 dup (?)	; reserved for expansion
-DIR_TIME	dw	?		; time of last write (see below)
-DIR_DATE	dw	?		; date of last write (see below)
-DIR_CLN		dw	?		; first cluster number of file
-DIR_SIZE_L	dw	?		; low 16 bits of file size
-DIR_SIZE_H	dw	?		; high 16 bits of file size
+DIR_NAME	db	11 dup (?)	; 00h: filename (E5=free,00=end)
+DIR_ATTR	db	?		; 0Bh: attribute bits (see below)
+DIR_PAD		db	10 dup (?)	; 0Ch: reserved for expansion
+DIR_TIME	dw	?		; 16h: time of last write (see below)
+DIR_DATE	dw	?		; 18h: date of last write (see below)
+DIR_CLN		dw	?		; 1Ah: first cluster number of file
+DIR_SIZE_L	dw	?		; 1Ch: low 16 bits of file size
+DIR_SIZE_H	dw	?		; 1Eh: high 16 bits of file size
 DIRENT		ends
 
-DIRENT_SIZE	equ	(size DIRENT)	; Size of directory entry in bytes
+DIRENT_SIZE	equ	(size DIRENT)	; 20h: size of directory entry in bytes
 ;
 ;   Time:   Bits 0-4 = seconds/2, bits 5-10 = minute, 11-15 = hour
 ;   Date:   Bits 0-4 = day, bits 5-8 = month, bits 9-15 = year-1980

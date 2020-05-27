@@ -1,13 +1,12 @@
 	include	dev.inc
 
-DEV	segment word public 'CODE'
+DEV	segment para public 'CODE'
 
         ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
 	public	SCR
-	extrn	CON:dword
 
-SCR	DDH	<offset CON,,DDATTR_CHAR,offset ddreq,offset ddint,2020202020524353h,offset ddinit>
+SCR	DDH	<offset ddend,,DDATTR_CHAR,offset ddreq,offset ddint,2020202020524353h>
 
 ddreq	proc	far
 	ret
@@ -17,16 +16,7 @@ ddint	proc	far
 	ret
 ddint	endp
 
-;;;;;;;;
-;
-; Driver initialization
-;
-; Returns: AX = size of device driver
-;
-ddinit	proc	near
-	mov	ax,offset ddinit - offset SCR
-	ret
-ddinit	endp
+ddend	equ	$
 
 DEV	ends
 
