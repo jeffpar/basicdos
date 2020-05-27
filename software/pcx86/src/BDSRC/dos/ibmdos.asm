@@ -1,3 +1,12 @@
+;
+; BASIC-DOS System Initialization Code
+;
+; @author Jeff Parsons <Jeff@pcjs.org>
+; @copyright © 2012-2020 Jeff Parsons
+; @license MIT <https://www.pcjs.org/LICENSE.txt>
+;
+; This file is part of PCjs, a computer emulation software project at pcjs.org
+;
 	include	dos.inc
 
 DOS	segment word public 'CODE'
@@ -9,7 +18,7 @@ drivers	dd	?		; head of driver chain
 
 	ASSUME	CS:DOS, DS:BIOS, ES:BIOS, SS:BIOS
 
-;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; System initialization
 ;

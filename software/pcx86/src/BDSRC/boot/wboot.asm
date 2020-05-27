@@ -1,5 +1,11 @@
 ;
-; Write BOOT.COM to the boot sector of the diskette in drive A.
+; BASIC-DOS Boot Sector Updater
+;
+; @author Jeff Parsons <Jeff@pcjs.org>
+; @copyright © 2012-2020 Jeff Parsons
+; @license MIT <https://www.pcjs.org/LICENSE.txt>
+;
+; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	include	bios.inc
 
@@ -8,7 +14,12 @@ CODE    SEGMENT
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 
 	org	100h
-
+;
+; Writes BOOT.COM (or other file specified on the command-line) to the boot
+; sector of the diskette in drive A.  Any portion that exceeds the 512-byte
+; maximum will be written to a separate file (BOOT2.COM) for inclusion in the
+; first boot file.
+;
 main	proc	near
 	mov	dx,offset fname
 	mov	si,80h			; check the command-line

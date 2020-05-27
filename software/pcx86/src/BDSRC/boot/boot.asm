@@ -1,3 +1,12 @@
+;
+; BASIC-DOS Boot Code
+;
+; @author Jeff Parsons <Jeff@pcjs.org>
+; @copyright © 2012-2020 Jeff Parsons
+; @license MIT <https://www.pcjs.org/LICENSE.txt>
+;
+; This file is part of PCjs, a computer emulation software project at pcjs.org
+;
 	include	bios.inc
 
 READFAT	equ 1		; 0 to assume contiguous files, 1 to read the FAT
@@ -56,7 +65,7 @@ move:	push	cs
 	mov	ax,offset main
 	jmp	ax
 
-;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; If there's a hard disk, display a prompt.
 ;
@@ -128,7 +137,7 @@ read:	mov	bx,offset DEV_FILE
 	jmp	part2			; jump to the next part
 main	endp
 
-;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Find DIRENT in sector at DI using filename at BX
 ;
@@ -168,7 +177,7 @@ fd9:	pop	di
 	ret
 find_dirent endp
 
-;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Get CHS from LBA in AX, using BPB at SI
 ;
@@ -192,7 +201,7 @@ get_chs	proc	near
 	ret
 get_chs	endp
 
-;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Get LBA from CLN in AX, using BPB at SI
 ;
@@ -210,7 +219,7 @@ get_lba proc near
 	ret
 get_lba endp
 
-;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Read 1 sector into DI using LBA in AX and BPB at SI
 ;
@@ -231,7 +240,7 @@ read_sector proc near
 	ret
 read_sector endp
 
-;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Wait some number of ticks, or until a key is pressed.
 ;
@@ -270,7 +279,7 @@ ws9:	mov	si,offset crlf
 	ret
 twait	endp
 
-;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Print the null-terminated string at SI
 ;
@@ -310,7 +319,7 @@ PART1_END	equ	$
 ;
 	org 	DIR_SECTOR_OFF
 
-;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Part 2 of the boot process:
 ;
@@ -350,8 +359,8 @@ part2	proc	near
 	rep	movsb			; move first bit of IBMBIO
 	pop	si
 	mov	bx,offset DEV_FILE + (offset PART2_COPY - offset PART1_COPY)
-	sub	di,ax			; adjust load addr for read_more
-	call	read_more		; read the rest of IBMBIO (see BX)
+	sub	di,ax			; adjust load addr for read_data
+	call	read_data		; read the rest of IBMBIO (see BX)
 	jc	err2
 
 init:
@@ -363,7 +372,7 @@ part2	endp
 
 FATLBA	dw	0			; remembers the last FAT LBA we read
 
-;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Get CHS from LBA in AX, using BPB at SI
 ;
@@ -387,7 +396,7 @@ get_chs2 proc	near
 	ret
 get_chs2 endp
 
-;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Get LBA from CLN in AX, using BPB at SI
 ;
@@ -407,7 +416,7 @@ get_lba2 endp
 
 err2:	mov	si,offset errmsg + (offset PART2_COPY - offset PART1_COPY)
 
-;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Print the null-terminated string at SI
 ;
@@ -424,7 +433,7 @@ print2:	lodsb
 	jmp	print2
 halt2:	jmp	$			; "halt"
 
-;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; From the CLN in AX, return the next CLN in DX, using BPB at SI.
 ;
@@ -497,15 +506,15 @@ print2	 equ	print
 
 	ENDIF
 
-;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; Read file using directory info at BX and BPB at SI.
+; Read file data using directory info at BX and BPB at SI.
 ;
 ; Modifies: AX, CX, DX
 ;
 ; Returns: carry set on error (see AH), clear otherwise (AX sectors read)
 ;
-read_more proc near
+read_data proc near
 	mov	dx,1			; DX = sectors already read
 rm1:	cmp	word ptr [bx+4],0
 	jne	rm2
@@ -537,11 +546,11 @@ rm3:
 	ENDIF
 
 read_file label near
-	sub	dx,dx			; tell all subsequent read_cluster
-	jmp	rm1			; calls to read all sectors
-read_more endp
+	sub	dx,dx			; normal case: read all cluster sectors
+	jmp	rm1
+read_data endp
 
-;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Read cluster AX into memory at DI, using BPB at SI.
 ;
@@ -567,7 +576,7 @@ rc8:	add	cx,dx		; adjust total sectors read so far
 rc9:	ret
 read_cluster endp
 
-;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Read CL sectors into DI using LBA in AX and BPB at SI
 ;

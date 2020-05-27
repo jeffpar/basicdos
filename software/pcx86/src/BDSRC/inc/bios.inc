@@ -1,3 +1,12 @@
+;
+; BASIC-DOS ROM BIOS Interface and Data Area Definitions
+;
+; @author Jeff Parsons <Jeff@pcjs.org>
+; @copyright © 2012-2020 Jeff Parsons
+; @license MIT <https://www.pcjs.org/LICENSE.txt>
+;
+; This file is part of PCjs, a computer emulation software project at pcjs.org
+;
 	include	disk.inc	; Disk structures
 ;
 ; Standard PC BIOS vectors (first few are really standard 8086 vectors)

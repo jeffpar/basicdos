@@ -1,3 +1,12 @@
+;
+; BASIC-DOS Driver/Application Interfaces
+;
+; @author Jeff Parsons <Jeff@pcjs.org>
+; @copyright © 2012-2020 Jeff Parsons
+; @license MIT <https://www.pcjs.org/LICENSE.txt>
+;
+; This file is part of PCjs, a computer emulation software project at pcjs.org
+;
 	include	bios.inc
 
 INT_DOS_EXIT	equ	20h
