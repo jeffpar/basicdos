@@ -58,6 +58,9 @@ DPB_MEDIA	db	?		; 16h: media ID [2.0]
 ;
 DPB		ends
 
+CLN_BAD		equ	0FF7h
+CLN_END		equ	0FF8h
+
 DIRENT		struc
 DIR_NAME	db	11 dup (?)	; 00h: filename (E5=free,00=end)
 DIR_ATTR	db	?		; 0Bh: attribute bits (see below)

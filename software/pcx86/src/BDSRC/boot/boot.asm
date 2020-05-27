@@ -506,29 +506,32 @@ print2	 equ	print
 ; Returns: carry set on error (see AH), clear otherwise (AX sectors read)
 ;
 read_more proc near
-	mov	dx,1			; DX = number sectors already read
-
-rm1:	mov	ax,[bx+2]		; AX = CLN
+	mov	dx,1			; DX = sectors already read
+rm1:	cmp	word ptr [bx+4],0
+	jne	rm2
+	cmp	word ptr [bx+6],0
+	je	rc9			; file size is zero, carry clear
+rm2:	mov	ax,[bx+2]		; AX = CLN
+	cmp	ax,2			; too low?
+	jc	rc9			; yes
+	cmp	ax,CLN_END		; too high?
+	cmc
+	jc	rc9			; yes
 	call	read_cluster		; read cluster into DI
-	jc	rm9
+	jc	rc9			; error
 	mul	[si].BPB_SECBYTES	; DX:AX = number of sectors read
 	add	di,ax			; adjust next read address
 	sub	[bx+4],ax		; reduce file size
 	sbb	[bx+6],dx		; (DX is zero)
-	jnc	rm2			; jump if file size still positive
+	jnc	rm3			; jump if file size still positive
 	add	di,[bx+4]		; rewind next load address by
 	clc				; the amount of file size underflow
-	jmp	rm9			; and return success
-
-rm2:	cmp	[bx+4],dx
-	jne	rm3
-	cmp	[bx+6],dx
-	je	rm9			; file size is zero, all done
+	jmp	rc9			; and return success
 rm3:
 	IF	READFAT
-	mov	ax,[bx+2]
-	call	read_fat
-	mov	[bx+2],dx
+	mov	ax,[bx+2]		; AX = CLN
+	call	read_fat		; DX = next CLN
+	mov	[bx+2],dx		; update CLN
 	ELSE
 	inc	word ptr [bx+2]		; simply increment CLN
 	ENDIF
@@ -536,8 +539,6 @@ rm3:
 read_file label near
 	sub	dx,dx			; tell all subsequent read_cluster
 	jmp	rm1			; calls to read all sectors
-
-rm9:	ret
 read_more endp
 
 ;;;;;;;;
@@ -594,7 +595,6 @@ read_sectors endp
 ; Data copied from PART1
 ;
 PART2_COPY	db	(23 + 34) dup (?)
-
 	even
 PART2_END	equ	$
 
