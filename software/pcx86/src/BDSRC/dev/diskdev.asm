@@ -8,16 +8,16 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	include	dev.inc
-;
-; Diskette Drive Device Driver
-;
-DEV	segment para public 'CODE'
+
+DEV	group	CODE,DATA
+
+CODE	segment para public 'CODE'
 
         ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
 	public	DRIVEA
 
-DRIVEA 	DDH	<offset ddend,,DDATTR_BLOCK,offset ddreq,offset ddint,2020202020202041h>
+DRIVEA 	DDH	<offset DEV:ddend+16,,DDATTR_BLOCK,offset ddreq,offset ddint,2020202020202041h>
 
 ddreq	proc	far
 	ret
@@ -31,8 +31,12 @@ DRIVEB 	DDH	<-1,,DDATTR_BLOCK,offset ddreq,offset ddint,2020202020202042h>
 DRIVEC 	DDH	<-1,,DDATTR_BLOCK,offset ddreq,offset ddint,2020202020202043h>
 DRIVED 	DDH	<-1,,DDATTR_BLOCK,offset ddreq,offset ddint,2020202020202044h>
 
-ddend	equ	$
+CODE	ends
 
-DEV	ends
+DATA	segment para public 'DATA'
+
+ddend	db	16 dup(0)
+
+DATA	ends
 
 	end

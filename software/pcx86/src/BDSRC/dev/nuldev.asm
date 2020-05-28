@@ -9,10 +9,12 @@
 ;
 	include	dev.inc
 
-DEV	segment para public 'CODE'
+DEV	group	CODE,DATA
+
+CODE	segment para public 'CODE'
 
 	public	NUL
-NUL	DDH	<offset ddend,,DDATTR_CHAR,offset ddreq,offset ddint,20202020204C554Eh>
+NUL	DDH	<offset DEV:ddend+16,,DDATTR_CHAR,offset ddreq,offset ddint,20202020204C554Eh>
 
         ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
@@ -24,8 +26,12 @@ ddint	proc	far
 	ret
 ddint	endp
 
-ddend	equ	$
+CODE	ends
 
-DEV	ends
+DATA	segment para public 'DATA'
+
+ddend	db	16 dup(0)
+
+DATA	ends
 
 	end

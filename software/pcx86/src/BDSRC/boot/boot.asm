@@ -38,7 +38,11 @@ start:	cld
 
 mybpb:	BPB	<,512,1,1,2,64,320,MEDIA_160K,1,8,1,0,0,0,8,3,7>
 
-move:	push	cs
+move:	push	ds
+	pop	ss
+	mov	sp,offset BIOS_STACK
+	ASSUME	SS:BIOS
+	push	cs
 	pop	es
 	ASSUME	ES:BIOS
 	lds	si,es:[INT_DPT*4]	; DS:SI -> original table (in ROM)
@@ -133,8 +137,9 @@ read:	mov	bx,offset DEV_FILE
 	mov	ax,[bx+2]		; AX = CLN
 	call	get_lba
 	call	read_sector		; DI -> DIR_SECTOR
-	jc	err
-	jmp	part2			; jump to the next part
+err1:	jc	err
+	mov	ax,offset part2		; jump to the next part
+	jmp	ax
 main	endp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -211,7 +216,7 @@ get_chs	endp
 ;
 get_lba proc near
 	sub	ax,2
-	jb	err
+	jb	err1
 	sub	cx,cx
 	mov	cl,[si].BPB_CLUSSECS
 	mul	cx
@@ -327,24 +332,20 @@ PART1_END	equ	$
 ;	overwrite it.
 ;
 ;    2) Move the non-boot code from this sector (ie, the first chunk of
-;	IBMBIO.COM) into its final resting place (ie, BIOS_END) and save
-;	that ending address as the next load address.
+;	DEV_FILE) into its final resting place (ie, BIOS_END) and save that
+;	ending address as the next load address.
 ;
-;    3) Load the rest of IBMBIO.COM; for now, we can just assume contiguity
-;	and not bother reading the FAT.  If someday we want to read the FAT,
-;	we're ready for that: just read FAT sectors into FAT_SECTOR; but
-;	be aware that that will eliminate the first half of our boot code
-;	(ie, most of the code above), so any of that code you still want to
-;	use will have to be duplicated below.
+;    3) Load the rest of DEV_FILE; the file need not be first, nor
+;	contiguous, since we read the FAT to process the cluster chain;
+;	the downside is that any FAT sectors read will overwrite the first
+;	half of the boot code, so any code/data that must be copied between
+;	the halves should be copied above (see step 1).
 ;
-;    4) Locate IBMBIO's "init" code, which resides just beyond all the
-;	device drivers, and execute it.  It must return the next available
+;    4) Locate DEV_FILE's "init" code, which resides just beyond all the
+;	device drivers, and call it.  It must return the next available
 ;	load address.
 ;
-;    5) When it returns, load IBMDOS.COM at the next load address, and then
-;	call it.  At that point, we never return to this code.
-;
-part2	proc	near
+part2	proc	far
 	mov	ax,[si].BPB_SECBYTES
 	push	si
 	mov	si,offset PART1_COPY
@@ -360,13 +361,51 @@ part2	proc	near
 	pop	si
 	mov	bx,offset DEV_FILE + (offset PART2_COPY - offset PART1_COPY)
 	sub	di,ax			; adjust load addr for read_data
-	call	read_data		; read the rest of IBMBIO (see BX)
+	call	read_data		; read the rest of DEV_FILE (see BX)
 	jc	err2
-
-init:
-	int 3
-
+	mov	bx,offset CFG_FILE + (offset PART2_COPY - offset PART1_COPY)
+	call	read_file		; load CFG_FILE above DEV_FILE
+;
+; To find the entry point of DEV_FILE's init code, we must walk the
+; driver headers.  And since they haven't been chained together yet (that's
+; the DEV_FILE init code's job), we do this by simply "hopping" over all
+; the headers.
+;
+	mov	si,BIOS_END		; BIOS's end is DEV_FILE's beginning
+i1:	mov	ax,[si]			; AX = current driver's total size
+	cmp	ax,-1			; have we reached dd_first?
+	je	i2			; yes
+	add	si,ax
+	jmp	i1
+;
+; Everything should be paragraph-aligned, so form the SEG:OFF entry point.
+;
+i2:	mov	ax,si
+	test	ax,0Fh			; paragraph boundary?
+	jnz	err2			; no
+	push	cs
+	mov	cx,offset part3
+	push	cx			; far return address -> part3
+	mov	cx,4
+	shr	ax,cl
+	push	ax
+	push	cx			; far "call" address -> DEV_FILE
+	ret				; "call"
 part2	endp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Part 3 of the boot process:
+;
+;    1) When DEV_FILE returns, load DOS_FILE at the next load address,
+;	and then jump to it.  At that point, we never return to this code.
+;
+part3	proc	far
+	int 3
+	mov	si,offset BPB_ACTIVE
+	mov	bx,offset DOS_FILE + (offset PART2_COPY - offset PART1_COPY)
+	call	read_file		; load DOS_FILE at DI
+part3	endp
 
 	IF	READFAT
 
