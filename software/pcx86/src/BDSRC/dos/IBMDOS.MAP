@@ -3,7 +3,7 @@
 Warning: no stack segment
 
  Start  Stop   Length Name                   Class
- 00000H 0007CH 0007DH DOS                    CODE
+ 00000H 000A4H 000A5H DOS                    CODE
 
   Address         Publics by Name
 
