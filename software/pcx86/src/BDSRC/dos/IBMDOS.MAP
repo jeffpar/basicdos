@@ -1,0 +1,42 @@
+
+
+Warning: no stack segment
+
+ Start  Stop   Length Name                   Class
+ 00000H 0007CH 0007DH DOS                    CODE
+
+  Address         Publics by Name
+
+ 0000:0048       AUX_READ
+ 0000:0049       AUX_WRITE
+ 0000:001C       DOSCALL
+ 0000:001B       DOSEXIT
+ 0000:0060       DOSINIT
+ 0000:004A       PRN_WRITE
+ 0000:0046       TTY_ECHO
+ 0000:0051       TTY_FLUSH
+ 0000:004C       TTY_IN
+ 0000:004F       TTY_INPUT
+ 0000:004B       TTY_IO
+ 0000:004E       TTY_PRINT
+ 0000:004D       TTY_READ
+ 0000:0050       TTY_STATUS
+ 0000:0047       TTY_WRITE
+
+  Address         Publics by Value
+
+ 0000:001B       DOSEXIT
+ 0000:001C       DOSCALL
+ 0000:0046       TTY_ECHO
+ 0000:0047       TTY_WRITE
+ 0000:0048       AUX_READ
+ 0000:0049       AUX_WRITE
+ 0000:004A       PRN_WRITE
+ 0000:004B       TTY_IO
+ 0000:004C       TTY_IN
+ 0000:004D       TTY_READ
+ 0000:004E       TTY_PRINT
+ 0000:004F       TTY_INPUT
+ 0000:0050       TTY_STATUS
+ 0000:0051       TTY_FLUSH
+ 0000:0060       DOSINIT

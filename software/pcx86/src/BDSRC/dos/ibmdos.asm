@@ -9,7 +9,7 @@
 ;
 	include	dos.inc
 
-DOS	segment word public 'CODE'
+DOS	segment para public 'CODE'
 
 	extrn	dosexit:near, doscall:near
 
@@ -19,10 +19,10 @@ DOS	segment word public 'CODE'
 ;
 ; System initialization
 ;
-; Everything after "init" will be recycled.
+; Everything after "dosinit" will be recycled.
 ;
-	public	init
-init	proc	far
+	public	dosinit
+dosinit	proc	far
 	int 3
 	push	cs
 	pop	ds
@@ -42,7 +42,7 @@ i1:	lodsw
 
 i9:	int 3
 	jmp	i9
-init	endp
+dosinit	endp
 
 int_tbl	dw	dosexit, doscall, 0
 

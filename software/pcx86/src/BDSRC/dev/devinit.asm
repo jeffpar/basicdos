@@ -34,8 +34,8 @@ EOD	dd	-1
 ;
         ASSUME	CS:DEV, DS:BIOS, ES:BIOS, SS:BIOS
 
-	public	init
-init	proc	far
+	public	devinit
+devinit	proc	far
 ;
 ; Initialize each device driver.
 ;
@@ -106,7 +106,7 @@ i8:	add	si,dx		; SI -> next driver (after adding original size)
 
 i9:	add	sp,(size DDPI + 1) AND 0FFFEh
 	ret
-init	endp
+devinit	endp
 
 DEV	ends
 

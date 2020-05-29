@@ -13,11 +13,11 @@ DOS	segment word public 'CODE'
 
 	ASSUME	CS:DOS, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
-	extrn	init:near
+	extrn	dosinit:near
 ;
 ; This must be the first object module in the image.
 ;
-	jmp	init
+	jmp	dosinit
 
 	extrn	tty_echo:near
 	extrn	tty_write:near
