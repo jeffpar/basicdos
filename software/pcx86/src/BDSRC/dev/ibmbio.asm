@@ -46,7 +46,8 @@ init	proc	far
 	mov	[bx].DDP_UNIT,0
 	mov	[bx].DDP_CMD,DDC_INIT
 
-i1:	cmp	di,si		; reached the end of drivers?
+i1:	push	bx		; save packet address
+	cmp	di,si		; reached the end of drivers?
 	jae	i9		; yes
 	mov	dx,[di]		; DX = original size of this driver
 	mov	ax,di
@@ -70,7 +71,7 @@ i1:	cmp	di,si		; reached the end of drivers?
 ; Whereas DI was the original (paragraph-aligned) address of the driver,
 ; and DI+DX was the end of the driver, DI+BX is the new end of driver. So,
 ; if DX == BX, there's nothing to move; otherwise, we need to move everything
-; from DI+DX through SI to DI+BX, and then update SI (new end of drivers).
+; from DI+DX through SI to DI+BX, and then update DX and SI (new end of drivers).
 ;
 	cmp	dx,bx
 	je	i3
@@ -86,9 +87,9 @@ i2:	mov	cx,[di]
 	jb	i2
 	mov	si,bx		; new end of drivers
 	pop	di
-	pop	bx
+	pop	dx
 
-i3:	test	bx,bx
+i3:	test	dx,dx
 	jz	i8		; jump if driver not required
 	sub	cx,cx		; AX:CX -> driver header
 	xchg	[dd_first].off,cx
@@ -96,6 +97,7 @@ i3:	test	bx,bx
 	xchg	[dd_first].seg,ax
 	mov	[di].DDH_NEXT_SEG,ax
 i8:	add	di,dx		; DI -> next driver (after adding original size)
+	pop	bx		; BX -> packet on the stack again
 	jmp	i1
 
 i9:	add	sp,size DDPI

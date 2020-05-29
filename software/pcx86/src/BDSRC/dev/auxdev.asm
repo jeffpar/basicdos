@@ -18,7 +18,7 @@ AUX	DDH	<offset DEV:ddend+16,,DDATTR_CHAR,offset ddreq,offset ddinit,20202020205
 
 ddpkt	dd	?		; last request packet address
 
-        ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
+        ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
 ddreq	proc	far
 	mov	[ddpkt].off,bx

@@ -14,11 +14,14 @@ DEV	group	CODE1,CODE2,CODE3,CODE4,INIT,DATA
 CODE1	segment para public 'CODE'
 
 	public	COM1
-COM1	DDH	<offset DEV:COM2,,DDATTR_CHAR,offset ddreq,offset DEV:ddinit,20202020314D4F43h>
+COM1_LEN	= (((COM1_END - COM1) + 15) AND 0FFF0h)
+COM1_INIT	= (((COM1_END - COM1) + 15) AND 0FFF0h) + (((COM2_END - COM2) + 15) AND 0FFF0h) + (((COM3_END - COM3) + 15) AND 0FFF0h) + (((COM4_END - COM4) + 15) AND 0FFF0h)
+COM1	DDH	<COM1_LEN,,DDATTR_CHAR,offset DEV:ddreq,COM1_INIT,20202020314D4F43h>
 
 ddpkt	dd	?		; last request packet address
+ddfunp	dd	?		; ddfun pointer
 
-        ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
+        ASSUME	CS:CODE1, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
 ddreq	proc	far
 	mov	[ddpkt].off,bx
@@ -34,8 +37,8 @@ ddint	proc	far
 	push	di
 	push	es
 	les	di,[ddpkt]
-	; ...
-i9:	pop	es
+	call	[ddfunp]
+	pop	es
 	pop	di
 	pop	si
 	pop	cx
@@ -44,29 +47,131 @@ i9:	pop	es
 	ret
 ddint	endp
 
+ddfun	proc	far
+	ret
+ddfun	endp
+
+COM1_END equ $
+
 CODE1	ends
 
 CODE2	segment para public 'CODE'
 
-COM2_LEN	= 20h
-COM2_INIT	= (offset DEV:ddinit) + 60h
+	public	COM2
+COM2_LEN	= ((COM2_END - COM2) + 15) AND 0FFF0h
+COM2_INIT	= (((COM2_END - COM2) + 15) AND 0FFF0h) + (((COM3_END - COM3) + 15) AND 0FFF0h) + (((COM4_END - COM4) + 15) AND 0FFF0h)
 COM2	DDH	<COM2_LEN,,DDATTR_CHAR,offset DEV:ddreq,COM2_INIT,20202020324D4F43h>
+
+ddpkt2	dd	?		; last request packet address
+ddfunp2	dd	?		; ddfun pointer
+
+        ASSUME	CS:CODE2, DS:NOTHING, ES:NOTHING, SS:NOTHING
+
+ddreq2	proc	far
+	mov	[ddpkt2].off,bx
+	mov	[ddpkt2].seg,es
+	ret
+ddreq2	endp
+
+ddint2	proc	far
+	push	ax
+	push	bx
+	push	cx
+	push	si
+	push	di
+	push	es
+	les	di,[ddpkt2]
+	call	[ddfunp2]
+	pop	es
+	pop	di
+	pop	si
+	pop	cx
+	pop	bx
+	pop	ax
+	ret
+ddint2	endp
+
+COM2_END equ $
 
 CODE2	ends
 
 CODE3	segment para public 'CODE'
 
-COM3_LEN	= 20h
-COM3_INIT	= (offset DEV:ddinit) + 40h
+	public	COM3
+COM3_LEN	= (((COM3_END - COM3) + 15) AND 0FFF0h)
+COM3_INIT	= (((COM3_END - COM3) + 15) AND 0FFF0h) + (((COM4_END - COM4) + 15) AND 0FFF0h)
 COM3	DDH	<COM3_LEN,,DDATTR_CHAR,offset DEV:ddreq,COM3_INIT,20202020334D4F43h>
+
+ddpkt3	dd	?		; last request packet address
+ddfunp3	dd	?		; ddfun pointer
+
+        ASSUME	CS:CODE3, DS:NOTHING, ES:NOTHING, SS:NOTHING
+
+ddreq3	proc	far
+	mov	[ddpkt3].off,bx
+	mov	[ddpkt3].seg,es
+	ret
+ddreq3	endp
+
+ddint3	proc	far
+	push	ax
+	push	bx
+	push	cx
+	push	si
+	push	di
+	push	es
+	les	di,[ddpkt3]
+	call	[ddfunp3]
+	pop	es
+	pop	di
+	pop	si
+	pop	cx
+	pop	bx
+	pop	ax
+	ret
+ddint3	endp
+
+COM3_END equ $
 
 CODE3	ends
 
 CODE4	segment para public 'CODE'
 
-COM4_LEN	= 20h + (((ddinit_end - ddinit) + 15) AND 0FFF0h) + 16
-COM4_INIT	= (offset DEV:ddinit) + 20h
+	public	COM4
+COM4_LEN	= (((COM4_END - COM4) + 15) AND 0FFF0h) + (((ddinit_end - ddinit) + 15) AND 0FFF0h) + 16
+COM4_INIT	= (((COM4_END - COM4) + 15) AND 0FFF0h)
 COM4	DDH	<COM4_LEN,,DDATTR_CHAR,offset DEV:ddreq,COM4_INIT,20202020344D4F43h>
+
+ddpkt4	dd	?		; last request packet address
+ddfunp4	dd	?		; ddfun pointer
+
+        ASSUME	CS:CODE4, DS:NOTHING, ES:NOTHING, SS:NOTHING
+
+ddreq4	proc	far
+	mov	[ddpkt4].off,bx
+	mov	[ddpkt4].seg,es
+	ret
+ddreq4	endp
+
+ddint4	proc	far
+	push	ax
+	push	bx
+	push	cx
+	push	si
+	push	di
+	push	es
+	les	di,[ddpkt4]
+	call	[ddfunp4]
+	pop	es
+	pop	di
+	pop	si
+	pop	cx
+	pop	bx
+	pop	ax
+	ret
+ddint4	endp
+
+COM4_END equ $
 
 CODE4	ends
 
@@ -77,7 +182,6 @@ INIT	segment para public 'CODE'
 ; Driver initialization
 ;
 ; If there are no COM ports, then the offset portion of DDPI_END will be zero.
-; place a zero in DDH_NEXT_OFF.
 ;
 ; Inputs:
 ;	[ddpkt] -> DDPI
@@ -85,6 +189,8 @@ INIT	segment para public 'CODE'
 ; Output:
 ;	DDPI's DDPI_END updated
 ;
+        ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
+
 ddinit	proc	far
 	int 3
 	push	ax
@@ -94,7 +200,7 @@ ddinit	proc	far
 	push	di
 	push	ds
 	push	es
-	les	di,[ddpkt]
+	les	di,cs:[ddpkt]
 	sub	ax,ax
 	mov	ds,ax
 	ASSUME	DS:BIOS
@@ -107,10 +213,21 @@ ddinit	proc	far
 	jz	in9			; no
 	mov	ax,cs:[0].DDH_NEXT_OFF	; yes, copy over the driver length
 	cmp	bl,3			; COM4?
-	jne	in8			; no
+	jne	in7			; no
 	mov	ax,20h			; yes, just keep the header
-in8:	mov	es:[di].DDPI_END.off,ax
+in7:	mov	es:[di].DDPI_END.off,ax
+
 	mov	cs:[0].DDH_INTERRUPT,offset DEV:ddint
+
+	int 3
+	mov	[ddfunp].off,offset ddfun
+	mov	ax,cs:[ddfuns]
+	test	ax,ax
+	jnz	in8
+	mov	ax,cs
+	mov	cs:[ddfuns],ax
+in8:	mov	[ddfunp].seg,ax
+
 in9:	pop	es
 	pop	ds
 	pop	di
@@ -121,7 +238,9 @@ in9:	pop	es
 	ret
 ddinit	endp
 
-ddinit_end	equ		$
+ddfuns		dw	?
+
+ddinit_end	equ	$
 
 INIT	ends
 
