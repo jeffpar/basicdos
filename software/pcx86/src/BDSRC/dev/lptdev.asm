@@ -150,7 +150,6 @@ INIT	segment para public 'CODE'
         ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
 ddinit	proc	far
-	int 3
 	push	ax
 	push	bx
 	push	cx
@@ -164,20 +163,18 @@ ddinit	proc	far
 	ASSUME	DS:BIOS
 	mov	si,offset PRINTER_BASE
 	mov	bl,byte ptr cs:[0].DDH_NAME+3
-	and	bx,0003h
 	dec	bx
+	and	bx,0003h
+	add	bx,bx
 	mov	ax,[si+bx]		; get BIOS PRINTER port address
 	test	ax,ax			; exists?
 	jz	in9			; no
 	mov	ax,cs:[0].DDH_NEXT_OFF	; yes, copy over the driver length
 	cmp	bl,2			; LPT3?
 	jne	in7			; no
-	mov	ax,20h			; yes, just keep the header
+	mov	ax,cs:[0].DDH_INTERRUPT	; use the temporary ddint offset instead
 in7:	mov	es:[di].DDPI_END.off,ax
-
-	mov	cs:[0].DDH_INTERRUPT,offset ddint
-
-	int 3
+	mov	cs:[0].DDH_INTERRUPT,offset DEV:ddint
 	mov	[ddfunp].off,offset ddfun
 	mov	ax,cs:[ddfuns]
 	test	ax,ax
@@ -185,7 +182,6 @@ in7:	mov	es:[di].DDPI_END.off,ax
 	mov	ax,cs
 	mov	cs:[ddfuns],ax
 in8:	mov	[ddfunp].seg,ax
-
 in9:	pop	es
 	pop	ds
 	pop	di

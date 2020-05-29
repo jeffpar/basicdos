@@ -207,7 +207,8 @@ RESET_FLAG	dw	?	; 472h: SET TO 0x1234 IF KEYBOARD RESET UNDERWAY
 ;
 		db	4 dup (?)	; 500h: reserved
 LOGICAL_DRIVE	db	?		; 504h: (00h for A: or 01h for B:)
-		db	29 dup (?)	; reserved
+		db	25 dup (?)	; reserved
+DD_LIST		dd	?		; 51Eh: head of device driver list
 DPT_ACTIVE	DPT	<>		; 522h: active DPT
 ;
 ; We're going to move the boot sector from BOOT_SECTOR_HI to BOOT_SECTOR_LO,

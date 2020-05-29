@@ -13,9 +13,6 @@ DOS	segment word public 'CODE'
 
 	extrn	dosexit:near, doscall:near
 
-	public	drivers
-drivers	dd	?		; head of driver chain
-
 	ASSUME	CS:DOS, DS:BIOS, ES:BIOS, SS:BIOS
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -26,14 +23,10 @@ drivers	dd	?		; head of driver chain
 ;
 	public	init
 init	proc	far
+	int 3
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
-;
-; Save head of driver chain (it was passed on the stack).
-;
-	pop	[drivers].off
-	pop	[drivers].seg
 ;
 ; Initialize all the DOS vectors.
 ;

@@ -137,8 +137,7 @@ read:	mov	bx,offset DEV_FILE
 	call	get_lba
 	call	read_sector		; DI -> DIR_SECTOR
 err1:	jc	err
-	mov	ax,offset part2		; jump to the next part
-	jmp	ax
+	jmp	near ptr part2		; jump to the next part
 main	endp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -362,28 +361,26 @@ part2	proc	far
 	sub	di,ax			; adjust load addr for read_data
 	call	read_data		; read the rest of DEV_FILE (see BX)
 	jc	err2
-	push	di
-	mov	bx,offset CFG_FILE + (offset PART2_COPY - offset PART1_COPY)
-	call	read_file		; load CFG_FILE above DEV_FILE
-	pop	di			; DI -> CFG_FILE data
 ;
 ; To find the entry point of DEV_FILE's init code, we must walk the
 ; driver headers.  And since they haven't been chained together yet (that's
 ; the DEV_FILE init code's job), we do this by simply "hopping" over all
 ; the headers.
 ;
-	mov	si,BIOS_END		; BIOS's end is DEV_FILE's beginning
+	mov	di,BIOS_END		; BIOS's end is DEV_FILE's beginning
 	mov	cx,100			; put a limit on this loop
-i1:	mov	ax,[si]			; AX = current driver's total size
-	cmp	ax,-1			; have we reached dd_first?
+i1:	mov	ax,[di]			; AX = current driver's total size
+	cmp	ax,-1			; have we reached end of drivers?
 	je	i2			; yes
-	add	si,ax
+	add	di,ax
 	loop	i1
 	jmp	err2
 ;
-; Everything should be paragraph-aligned, so form the DEV_FILE entry point.
+; Prepare to "call" the DEV_FILE entry point, with DI -> end of drivers
+; and BX -> CFG_FILE data.
 ;
-i2:	mov	ax,si
+i2:	mov	[DD_LIST].off,ax	; initialize driver list head (to -1)
+	mov	ax,di
 	test	ax,0Fh			; paragraph boundary?
 	jnz	err2			; no
 	push	cs
@@ -392,7 +389,7 @@ i2:	mov	ax,si
 	mov	cx,4
 	shr	ax,cl
 	push	ax
-	push	cx			; far "call" address -> DEV_FILE
+	push	cx			; far "call" address -> CS:0004h
 	ret				; "call"
 part2	endp
 
@@ -404,10 +401,21 @@ part2	endp
 ;	and then jump to it.  At that point, we never return to this code.
 ;
 part3	proc	far
-	int 3
 	mov	si,offset BPB_ACTIVE
 	mov	bx,offset DOS_FILE + (offset PART2_COPY - offset PART1_COPY)
+	push	di
 	call	read_file		; load DOS_FILE at DI
+	push	di
+	mov	bx,offset CFG_FILE + (offset PART2_COPY - offset PART1_COPY)
+	call	read_file		; load CFG_FILE above DOS_FILE
+	pop	bx			; BX -> CFG_FILE data
+	pop	ax
+	mov	cx,4
+	shr	ax,cl
+	push	ax
+	sub	ax,ax
+	push	ax			; far "jmp" address -> CS:0000h
+	ret
 part3	endp
 
 	IF	READFAT
@@ -563,24 +571,23 @@ read_data proc near
 rm1:	cmp	word ptr [bx+4],0
 	jne	rm2
 	cmp	word ptr [bx+6],0
-	je	rc9			; file size is zero, carry clear
+	je	rm3			; file size is zero, carry clear
 rm2:	mov	ax,[bx+2]		; AX = CLN
 	cmp	ax,2			; too low?
-	jc	rc9			; yes
+	jc	rm3			; yes
 	cmp	ax,CLN_END		; too high?
 	cmc
-	jc	rc9			; yes
+	jc	rm3			; yes
 	call	read_cluster		; read cluster into DI
-	jc	rc9			; error
+	jc	rm3			; error
 	mul	[si].BPB_SECBYTES	; DX:AX = number of sectors read
 	add	di,ax			; adjust next read address
 	sub	[bx+4],ax		; reduce file size
 	sbb	[bx+6],dx		; (DX is zero)
-	jnc	rm3			; jump if file size still positive
+	jnc	rm3+1			; jump if file size still positive
 	add	di,[bx+4]		; rewind next load address by
 	clc				; the amount of file size underflow
-	jmp	rc9			; and return success
-rm3:
+rm3:	ret				; and return success
 	IF	READFAT
 	mov	ax,[bx+2]		; AX = CLN
 	call	read_fat		; DX = next CLN
