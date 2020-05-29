@@ -110,14 +110,13 @@ m4:	dec	cx			; reduce the # files left
 m5:	add	bx,11			; partly, skip to next filename
 	jmp	m3			; and check again
 m6:	call	find_dirent		;
-	jc	err			; jump if end of directory entries
 	jz	m4			; we found a file
-	jmp	m5			; oh well, try the next file
+	jmp	m5			; no, try the next file
 m7:	jcxz	read			; all files found, go read
 	inc	dx			; DX = next dir LBA
 	cmp	dx,[si].BPB_LBADATA	; exhausted root directory?
 	jb	m1			; jump if not exhausted
-err:	mov	si,offset errmsg
+err:	mov	si,offset errmsg1
 	call	print
 	jmp	$			; "halt"
 ;
@@ -158,8 +157,7 @@ find_dirent proc near
 	add	ax,di			; AX -> end of sector data
 	dec	ax			; ensure DI will never equal AX
 fd1:	cmp	byte ptr [di],ch
-	stc				; more future-proofing:
-	je	fd9			; 0 indicates end of allocated entries
+	je	err			; 0 indicates end of allocated entries
 	mov	si,bx
 	mov	cl,11
 	repe	cmpsb
@@ -309,8 +307,9 @@ printp	endp
 product		db	"BASIC-DOS 0.01"
 crlf		db	13,10,0
 prompt		db	"Press any key to start...",0
+errmsg1		db	"Missing system files, halted",0
+
 PART1_COPY	equ	$
-errmsg		db	"Unable to boot, halted",0
 DEV_FILE	db	"IBMBIO  COM"
 DOS_FILE	db	"IBMDOS  COM"
 CFG_FILE	db	"CONFIG  SYS"
@@ -363,8 +362,10 @@ part2	proc	far
 	sub	di,ax			; adjust load addr for read_data
 	call	read_data		; read the rest of DEV_FILE (see BX)
 	jc	err2
+	push	di
 	mov	bx,offset CFG_FILE + (offset PART2_COPY - offset PART1_COPY)
 	call	read_file		; load CFG_FILE above DEV_FILE
+	pop	di			; DI -> CFG_FILE data
 ;
 ; To find the entry point of DEV_FILE's init code, we must walk the
 ; driver headers.  And since they haven't been chained together yet (that's
@@ -372,13 +373,15 @@ part2	proc	far
 ; the headers.
 ;
 	mov	si,BIOS_END		; BIOS's end is DEV_FILE's beginning
+	mov	cx,100			; put a limit on this loop
 i1:	mov	ax,[si]			; AX = current driver's total size
 	cmp	ax,-1			; have we reached dd_first?
 	je	i2			; yes
 	add	si,ax
-	jmp	i1
+	loop	i1
+	jmp	err2
 ;
-; Everything should be paragraph-aligned, so form the SEG:OFF entry point.
+; Everything should be paragraph-aligned, so form the DEV_FILE entry point.
 ;
 i2:	mov	ax,si
 	test	ax,0Fh			; paragraph boundary?
@@ -453,7 +456,7 @@ get_lba2 proc near
 	ret
 get_lba2 endp
 
-err2:	mov	si,offset errmsg + (offset PART2_COPY - offset PART1_COPY)
+err2:	mov	si,offset errmsg2
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -538,7 +541,9 @@ read_fat endp
 
 	ELSE
 
-err2:	jmp	err
+err2:	mov	si,offset errmsg2
+	jmp	err
+
 get_chs2 equ	get_chs
 get_lba2 equ	get_lba
 print2	 equ	print
@@ -547,7 +552,7 @@ print2	 equ	print
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; Read file data using directory info at BX and BPB at SI.
+; Read file data into ES:DI using directory info at BX and BPB at SI.
 ;
 ; Modifies: AX, CX, DX
 ;
@@ -638,6 +643,8 @@ read_sectors proc near
 	pop	bx
 	ret
 read_sectors endp
+
+errmsg2		db	"Error loading system files, halted",0
 
 ;
 ; Data copied from PART1
