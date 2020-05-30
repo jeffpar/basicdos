@@ -13,65 +13,53 @@ DOS	segment word public 'CODE'
 
 	ASSUME	CS:DOS, DS:DOS, ES:BIOS, SS:NOTHING
 
-	public	tty_echo
-tty_echo proc near
+DEFPROC	tty_echo
 	ret
-tty_echo endp
+ENDPROC	tty_echo
 
-	public	tty_write
-tty_write proc near
+DEFPROC	tty_write
 	ret
-tty_write endp
+ENDPROC	tty_write
 
-	public	aux_read
-aux_read proc near
+DEFPROC	aux_read
 	ret
-aux_read endp
+ENDPROC	aux_read
 
-	public	aux_write
-aux_write proc near
+DEFPROC	aux_write
 	ret
-aux_write endp
+ENDPROC	aux_write
 
-	public	prn_write
-prn_write proc near
+DEFPROC	prn_write
 	ret
-prn_write endp
+ENDPROC	prn_write
 
-	public	tty_io
-tty_io	proc near
+DEFPROC	tty_io
 	ret
-tty_io	endp
+ENDPROC	tty_io
 
-	public	tty_in
-tty_in	proc near
+DEFPROC	tty_in
 	ret
-tty_in	endp
+ENDPROC	tty_in
 
-	public	tty_read
-tty_read proc near
+DEFPROC	tty_read
 	ret
-tty_read endp
+ENDPROC	tty_read
 
-	public	tty_print
-tty_print proc near
+DEFPROC	tty_print
 	ret
-tty_print endp
+ENDPROC	tty_print endp
 
-	public	tty_input
-tty_input proc near
+DEFPROC	tty_input
 	ret
-tty_input endp
+ENDPROC	tty_input endp
 
-	public	tty_status
-tty_status proc near
+DEFPROC	tty_status
 	ret
-tty_status endp
+ENDPROC	tty_status endp
 
-	public	tty_flush
-tty_flush proc near
+DEFPROC	tty_flush
 	ret
-tty_flush endp
+ENDPROC	tty_flush endp
 
 DOS	ends
 

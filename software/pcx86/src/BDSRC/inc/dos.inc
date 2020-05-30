@@ -29,6 +29,7 @@ DOS_TTY_FLUSH	equ	0Ch	; flush and invoke 01h, 06h, 07h, 08h, or 0Ah
 DOS_OPEN	equ	3Dh	; TBD
 
 DOS_MALLOC	equ	48h	; allocate memory
+DOS_MFREE	equ	49h	; free memory
 
 REG_FRAME	struc
 REG_ES		dw	?
@@ -73,4 +74,5 @@ ERR_MAXFILES	equ	4
 ERR_ACCDENIED	equ	5
 ERR_BADHANDLE	equ	6
 ERR_BADMCB	equ	7	; invalid MCB found
-ERR_MEMORY	equ	8	; insufficient memory
+ERR_NOMEM	equ	8	; insufficient memory
+ERR_BADADDR	equ	9	; invalid memory segment

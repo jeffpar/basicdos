@@ -25,10 +25,9 @@ DOS	segment word public 'CODE'
 ;
 	ASSUME	CS:DOS, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
-	public	dosexit
-dosexit	proc	far
+DEFPROC	dosexit,far
 	iret
-dosexit	endp
+ENDPROC	dosexit
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -42,8 +41,7 @@ dosexit	endp
 ;
 	ASSUME	CS:DOS, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
-	public	doscall
-doscall	proc	far
+DEFPROC	doscall,far
 	sti
 	cld				; we assume CLD everywhere
 	push	ax
@@ -83,7 +81,7 @@ dc9:	pop	es
 	pop	bx
 	pop	ax
 	iret
-doscall	endp
+ENDPROC	doscall
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -97,12 +95,11 @@ doscall	endp
 ;
 	ASSUME	CS:DOS, DS:DOS, ES:NOTHING, SS:NOTHING
 
-	public	dos_nop
-dos_nop	proc	near
+DEFPROC	dos_nop
 	mov	[bp].REG_AX,ERR_INVALID
 	stc
 	ret
-dos_nop	endp
+ENDPROC	dos_nop
 
 DOS	ends
 

@@ -9,37 +9,25 @@
 ;
 	include	dos.inc
 
+	EXTERNS	<sysinit>,near
+
 DOS	segment word public 'CODE'
 
-	extrn	sysinit:near
 ;
 ; This must be the first object module; we reuse the JMP as MCB_HEAD.
 ;
-	public	MCB_HEAD
-MCB_HEAD label	word
+	DEFLBL	MCB_HEAD,word
 	jmp	sysinit
 
-	even
-	public	PSP_ACTIVE
-PSP_ACTIVE	dw	1		; start with a fake system PSP
+	DEFWORD	PSP_ACTIVE,1		; start with a fake system PSP
 
-	extrn	tty_echo:near
-	extrn	tty_write:near
-	extrn	aux_read:near
-	extrn	aux_write:near
-	extrn	prn_write:near
-	extrn	tty_io:near
-	extrn	tty_in:near
-	extrn	tty_read:near
-	extrn	tty_print:near
-	extrn	tty_input:near
-	extrn	tty_status:near
-	extrn	tty_flush:near
-	extrn	mem_alloc:near
-	extrn	dos_nop:near
+	EXTERNS	<tty_echo,tty_write,aux_read,aux_write,prn_write,tty_io>,near
+	EXTERNS	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>,near
+	EXTERNS	<mem_alloc,mem_free>,near
+	EXTERNS	<dos_nop>,near
 
-	public	CALLTBL
-CALLTBL	label	word
+	DEFLBL	CALLTBL,word
+
 	; Functions 00h through 05h
 	dw	tty_echo, tty_write, aux_read, aux_write, prn_write, tty_io
 	; Functions 06h through 0Bh
@@ -65,10 +53,9 @@ CALLTBL	label	word
 	; Functions 42h through 47h
 	dw	dos_nop, dos_nop, dos_nop, dos_nop, dos_nop, dos_nop
 	; Functions 48h through 4Dh
-	dw	mem_alloc, dos_nop, dos_nop, dos_nop, dos_nop, dos_nop
+	dw	mem_alloc, mem_free, dos_nop, dos_nop, dos_nop, dos_nop
 
-	public	CALLTBL_SIZE
-CALLTBL_SIZE	equ	($ - CALLTBL) SHR 1
+	DEFABS	CALLTBL_SIZE,<($ - CALLTBL) SHR 1>
 
 DOS	ends
 
