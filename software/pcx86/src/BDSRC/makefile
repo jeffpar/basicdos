@@ -10,19 +10,20 @@
 ASM=MASM
 LINK=LINK
 EXE2BIN=EXE2BIN
+AFLAGS=/DDEBUG
 
 .ASM.COM:
-	$(ASM) /IINC $**,$*.OBJ;
+	$(ASM) $(AFLAGS) /IINC $**,$*.OBJ;
 	$(LINK) $*.OBJ,$*.EXE;
 	$(EXE2BIN) $*.EXE $@
 	DEL $*.OBJ
 	DEL $*.EXE
 
 .ASM.OBJ:
-	$(ASM) /IINC $**,$@;
+	$(ASM) $(AFLAGS) /IINC $**,$@;
 
 .ASM.LST:
-	$(ASM) /IINC $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) /IINC $**,$@,$*.LST;
 
 .OBJ.EXE:
 	$(LINK) $**,$@;

@@ -14,6 +14,9 @@ DOS	segment word public 'CODE'
 	EXTERNS	<MCB_HEAD>,word
 	EXTERNS	<dosexit,doscall>,near
 
+	DEFLBL	sysinit_beg
+	DEFWORD	cfg_size,word
+
 	ASSUME	CS:DOS, DS:BIOS, ES:BIOS, SS:BIOS
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -22,35 +25,48 @@ DOS	segment word public 'CODE'
 ;
 ; Everything after "sysinit" will be recycled.
 ;
+; Entry:
+;	BX -> CFG_FILE data, if any
+;	DX = size of CFG_FILE data, if any
+;
 DEFPROC	sysinit,far
 ;
-; First, let's move all our init code out of the way, to the top of
-; available memory.
+; Let's verify that the CFG_DATA data aligns with sysinit_end.
+;
+	IFDEF	DEBUG
+	mov	ax,cs
+	mov	cl,4
+	shl	ax,cl
+	add	ax,offset sysinit_end
+	cmp	ax,bx
+	je	i0
+	call	printError
+	jmp	$
+i0:
+	ENDIF
+;
+; Move all the init code out of the way, to the top of available memory.
 ;
 ; Size is in Kb (2^10 units), we need size in paragraphs (2^4 units), so
 ; shift left 6 bits.  Then calculate init code size in paras and subtract.
 ;
-; Example: if sysinit is 288h and sysinit_end is 2F4h, the code will
-; span 8 paras (logical paras 28h through 2fh), and if we merely rounded
-; their difference up to the next whole paragraph, that would amount to only
-; 7 paras.  So we always round up 2 paras (+ 31 before shifting) to be safe.
-;
-; It would be preferable if sysinit started on a paragraph boundary, and one
-; way to do that might be to put all "sysinit" code into its own para-aligned
-; INIT segment, which could then be GROUP'ed with the DOS segment; however,
-; my admittedly limited LINK experiments yielded unhelpful results (ie, the
-; segments were still combined with word alignment).
-;
+	mov	[cfg_size],dx
 	mov	ax,[MEMORY_SIZE]	; AX = available memory in Kb
 	mov	cl,6
 	shl	ax,cl			; AX = available memory in paras
-	mov	dx,ax			; DX = paragraph of end of memory
-	sub	ax,(offset sysinit_end - offset sysinit + 31) SHR 4
-	mov	si,offset sysinit
-	mov	bx,si
+
+	mov	bx,offset sysinit_end
+	add	bx,dx			; add size of CFG_FILE data
+	mov	si,offset sysinit_beg
+	sub	bx,si			; BX = number of bytes to move
+	lea	dx,[bx+31]
 	mov	cl,4
-	shr	bx,cl			; BX = paragraph of sysinit
-	sub	ax,bx			; AX = segment adjusted for ORG addr
+	shr	dx,cl			; DX = number of paras to move
+	sub	ax,dx			; AX = target segment
+
+	mov	dx,si
+	shr	dx,cl			; DX = paragraph of sysinit_beg
+	sub	ax,dx			; AX = segment adjusted for ORG addr
 	push	es
 	mov	es,ax
 	ASSUME	ES:NOTHING
@@ -58,7 +74,8 @@ DEFPROC	sysinit,far
 	pop	ds
 	ASSUME	DS:DOS
 	mov	di,si
-	mov	cx,(offset sysinit_end - offset sysinit) SHR 1
+	mov	cx,bx
+	shr	cx,1
 	rep	movsw
 	pop	es
 	ASSUME	ES:BIOS
@@ -106,36 +123,62 @@ i2:	mov	ax,ds
 ;
 ; Allocate some memory for an initial (test) process
 ;
-	IFDEF	TESTMEM
-	int 3
+	IFDEF	DEBUG
 	mov	ah,DOS_MALLOC
 	mov	bx,200h
 	int	21h
+	jc	printError
 	xchg	cx,ax			; CX = 1st segment
 	mov	ah,DOS_MALLOC
 	mov	bx,200h
 	int	21h
+	jc	printError
 	xchg	dx,ax			; DX = 2nd segment
 	mov	ah,DOS_MALLOC
 	mov	bx,200h
 	int	21h
+	jc	printError
 	xchg	si,ax			; SI = 3rd segment
 	mov	ah,DOS_MFREE
 	mov	es,cx			; free the 1st
 	int	21h
+	jc	printError
 	mov	ah,DOS_MFREE
 	mov	es,si
 	int	21h			; free the 3rd
+	jc	printError
 	mov	ah,DOS_MFREE
 	mov	es,dx
 	int	21h			; free the 2nd
-	int 3
+	jc	printError
 	ENDIF
 
 i9:	jmp	i9
 ENDPROC	sysinit
 
 DEFTBL	int_tbl,<dosexit,doscall,0>
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Print the null-terminated string at SI
+;
+; Modifies: AX, BX, SI
+;
+; Returns: Nothing
+;
+DEFPROC	printError
+	mov	si,offset syserr
+print:	lodsb
+	test	al,al
+	jz	p9
+	mov	ah,VIDEO_TTYOUT
+	mov	bh,0
+	int	INT_VIDEO
+	jmp	print
+p9:	ret
+ENDPROC	printError
+
+syserr	db	"System initialization error, halted",0
 
 DEFLBL	sysinit_end
 

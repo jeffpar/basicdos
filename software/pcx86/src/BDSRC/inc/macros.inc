@@ -43,7 +43,7 @@ name	label	word
 	endm
 
 DEFPROC	macro	name,type
-	db	"&name",0
+;	db	"&name",0
 	public	name
 	IFB	<type>
 name	proc	near

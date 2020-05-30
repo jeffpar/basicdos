@@ -77,7 +77,7 @@ move:	push	ds
 ; all the the required files in the root directory (starting with DEV_FILE),
 ; load the first sector of the first file, and continue booting from there.
 ;
-main	proc	far			; now at BOOT_SECTOR_LO
+DEFPROC	main,far			; now at BOOT_SECTOR_LO
 	mov	si,offset product
 	call	print
 	cmp	[mybpb].BPB_MEDIA,MEDIA_HARD
@@ -138,7 +138,7 @@ read:	mov	bx,offset DEV_FILE
 	call	read_sector		; DI -> DIR_SECTOR
 err1:	jc	err
 	jmp	near ptr part2		; jump to the next part
-main	endp
+ENDPROC	main
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -148,7 +148,7 @@ main	endp
 ;
 ; Returns: zero flag set if match (in DI), carry set if end of directory
 ;
-find_dirent proc near
+DEFPROC	find_dirent
 	push	cx			; CH is zero on entry
 	push	si
 	push	di
@@ -177,7 +177,7 @@ fd9:	pop	di
 	pop	si
 	pop	cx
 	ret
-find_dirent endp
+ENDPROC	find_dirent
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -187,7 +187,7 @@ find_dirent endp
 ;
 ; Returns: CH = cylinder #, CL = sector ID, DH = head #, DL = drive #
 ;
-get_chs	proc	near
+DEFPROC	get_chs
 	sub	dx,dx		; DX:AX is LBA
 	div	[si].BPB_CYLSECS; AX = cylinder, DX = remaining sectors
 	xchg	al,ah		; AH = cylinder, AL = cylinder bits 8-9
@@ -201,7 +201,7 @@ get_chs	proc	near
 	inc	cx		; LBA are zero-based, sector IDs are 1-based
 	mov	dl,[si].BPB_DRIVE
 	ret
-get_chs	endp
+ENDPROC	get_chs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -211,7 +211,7 @@ get_chs	endp
 ;
 ; Returns: AX = LBA, CX = sectors per cluster (or carry set if error)
 ;
-get_lba proc near
+DEFPROC	get_lba
 	sub	ax,2
 	jb	err1
 	sub	cx,cx
@@ -219,7 +219,7 @@ get_lba proc near
 	mul	cx
 	add	ax,[si].BPB_LBADATA
 	ret
-get_lba endp
+ENDPROC	get_lba
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -229,7 +229,7 @@ get_lba endp
 ;
 ; Returns: carry clear if successful, set if error (see AH for reason)
 ;
-read_sector proc near
+DEFPROC	read_sector
 	push	cx
 	push	dx
 	call	get_chs
@@ -240,7 +240,7 @@ read_sector proc near
 	pop	dx
 	pop	cx
 	ret
-read_sector endp
+ENDPROC	read_sector
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -250,7 +250,7 @@ read_sector endp
 ;
 ; Returns: CX = char code (lo), scan code (hi); 0 if no key pressed
 ;
-twait	proc	near
+DEFPROC	twait
 	mov	ah,TIME_GETTICKS
 	int	INT_TIME	; CX:DX is initial tick count
 	add	ax,91 * PCJS_MULTIPLIER
@@ -279,7 +279,7 @@ ws2:	mov	ah,TIME_GETTICKS
 ws9:	mov	si,offset crlf
 	call	print
 	ret
-twait	endp
+ENDPROC	twait
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -289,7 +289,7 @@ twait	endp
 ;
 ; Returns: Nothing
 ;
-printp	proc	near
+DEFPROC	printp
 	mov	ah,VIDEO_TTYOUT
 	mov	bh,0
 	int	INT_VIDEO
@@ -298,7 +298,7 @@ print	label	near
 	test	al,al
 	jnz	printp
 	ret
-printp	endp
+ENDPROC	printp
 
 ;
 ; Strings
@@ -343,7 +343,7 @@ PART1_END	equ	$
 ;	device drivers, and call it.  It must return the next available
 ;	load address.
 ;
-part2	proc	far
+DEFPROC	part2,far
 	mov	ax,[si].BPB_SECBYTES
 	push	si
 	mov	si,offset PART1_COPY
@@ -376,8 +376,7 @@ i1:	mov	ax,[di]			; AX = current driver's total size
 	loop	i1
 	jmp	err2
 ;
-; Prepare to "call" the DEV_FILE entry point, with DI -> end of drivers
-; and BX -> CFG_FILE data.
+; Prepare to "call" the DEV_FILE entry point, with DI -> end of drivers.
 ;
 i2:	mov	[DD_LIST].off,ax	; initialize driver list head (to -1)
 	mov	ax,di
@@ -391,7 +390,7 @@ i2:	mov	[DD_LIST].off,ax	; initialize driver list head (to -1)
 	push	ax
 	push	cx			; far "call" address -> CS:0004h
 	ret				; "call"
-part2	endp
+ENDPROC	part2
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -400,23 +399,25 @@ part2	endp
 ;    1) When DEV_FILE returns, load DOS_FILE at the next load address,
 ;	and then jump to it.  At that point, we never return to this code.
 ;
-part3	proc	far
+DEFPROC	part3,far
 	mov	si,offset BPB_ACTIVE
 	mov	bx,offset DOS_FILE + (offset PART2_COPY - offset PART1_COPY)
-	push	di
-	call	read_file		; load DOS_FILE at DI
+	push	di			; push DOS_FILE load address
+	call	read_file		; load DOS_FILE
 	push	di
 	mov	bx,offset CFG_FILE + (offset PART2_COPY - offset PART1_COPY)
+	push	[bx+4]			; push CFG_FILE size (assume < 64K)
 	call	read_file		; load CFG_FILE above DOS_FILE
-	pop	bx			; BX -> CFG_FILE data
-	pop	ax
+	pop	dx			; DX = CFG_FILE size
+	pop	bx			; BX = CFG_FILE data address
+	pop	ax			; AX = DOS_FILE load address
 	mov	cx,4
 	shr	ax,cl
 	push	ax
 	sub	ax,ax
 	push	ax			; far "jmp" address -> CS:0000h
 	ret
-part3	endp
+ENDPROC	part3
 
 	IF	READFAT
 
@@ -430,7 +431,7 @@ FATLBA	dw	0			; remembers the last FAT LBA we read
 ;
 ; Returns: CH = cylinder #, CL = sector ID, DH = head #, DL = drive #
 ;
-get_chs2 proc	near
+DEFPROC	get_chs2
 	sub	dx,dx		; DX:AX is LBA
 	div	[si].BPB_CYLSECS; AX = cylinder, DX = remaining sectors
 	xchg	al,ah		; AH = cylinder, AL = cylinder bits 8-9
@@ -444,7 +445,7 @@ get_chs2 proc	near
 	inc	cx		; LBA are zero-based, sector IDs are 1-based
 	mov	dl,[si].BPB_DRIVE
 	ret
-get_chs2 endp
+ENDPROC	get_chs2
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -454,7 +455,7 @@ get_chs2 endp
 ;
 ; Returns: AX = LBA, CX = sectors per cluster (or carry set if error)
 ;
-get_lba2 proc near
+DEFPROC	get_lba2
 	sub	ax,2
 	jb	err2
 	sub	cx,cx
@@ -462,7 +463,7 @@ get_lba2 proc near
 	mul	cx
 	add	ax,[si].BPB_LBADATA
 	ret
-get_lba2 endp
+ENDPROC	get_lba2
 
 err2:	mov	si,offset errmsg2
 
@@ -474,14 +475,16 @@ err2:	mov	si,offset errmsg2
 ;
 ; Returns: Nothing
 ;
-print2:	lodsb
+DEFPROC	printError
+	lodsb
 	test	al,al
-	jz	halt2
+	jz	pe9
 	mov	ah,VIDEO_TTYOUT
 	mov	bh,0
 	int	INT_VIDEO
-	jmp	print2
-halt2:	jmp	$			; "halt"
+	jmp	printError
+pe9:	jmp	$			; "halt"
+ENDPROC	printError
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -506,7 +509,7 @@ halt2:	jmp	$			; "halt"
 ;
 ; Returns: DX (next CLN)
 ;
-read_fat proc near
+DEFPROC	read_fat
 	push	bx
 	push	di
 	mov	bx,ax
@@ -545,7 +548,7 @@ rf8:	mov	cl,4			;
 rf9:	pop	di
 	pop	bx
 	ret
-read_fat endp
+ENDPROC	read_fat
 
 	ELSE
 
@@ -554,7 +557,6 @@ err2:	mov	si,offset errmsg2
 
 get_chs2 equ	get_chs
 get_lba2 equ	get_lba
-print2	 equ	print
 
 	ENDIF
 
@@ -566,7 +568,7 @@ print2	 equ	print
 ;
 ; Returns: carry set on error (see AH), clear otherwise (AX sectors read)
 ;
-read_data proc near
+DEFPROC	read_data
 	mov	dx,1			; DX = sectors already read
 rm1:	cmp	word ptr [bx+4],0
 	jne	rm2
@@ -599,7 +601,7 @@ rm3:	ret				; and return success
 read_file label near
 	sub	dx,dx			; normal case: read all cluster sectors
 	jmp	rm1
-read_data endp
+ENDPROC	read_data
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -609,7 +611,7 @@ read_data endp
 ;
 ; Returns: carry set on error (see AH), clear otherwise (AX sectors read)
 ;
-read_cluster proc near
+DEFPROC	read_cluster
 	push	dx		; DX = sectors this cluster already read
 	call	get_lba2	; AX = LBA, CX = sectors per cluster
 	pop	dx
@@ -625,7 +627,7 @@ rc8:	add	cx,dx		; adjust total sectors read so far
 ;
 	xchg	ax,cx
 rc9:	ret
-read_cluster endp
+ENDPROC	read_cluster
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -635,7 +637,7 @@ read_cluster endp
 ;
 ; Returns: carry clear if successful, set if error (see AH for reason)
 ;
-read_sectors proc near
+DEFPROC	read_sectors
 	push	bx
 	push	cx
 	push	dx
@@ -649,7 +651,7 @@ read_sectors proc near
 	pop	cx
 	pop	bx
 	ret
-read_sectors endp
+ENDPROC	read_sectors
 
 errmsg2		db	"Error loading system files, halted",0
 
