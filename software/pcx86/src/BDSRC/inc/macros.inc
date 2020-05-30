@@ -9,11 +9,6 @@
 ;
 PCJS_MULTIPLIER EQU 16
 
-FARPTR	struc
-off	dw	?
-seg	dw	?
-FARPTR	ends
-
 ERROR	macro	msg
 	IF1
 	%out 	msg

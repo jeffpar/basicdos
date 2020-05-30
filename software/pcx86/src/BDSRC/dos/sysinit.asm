@@ -1,5 +1,5 @@
 ;
-; BASIC-DOS System Initialization Code
+; BASIC-DOS System Initialization
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
 ; @copyright © 2012-2020 Jeff Parsons
@@ -55,8 +55,6 @@ sysinit	proc	far
 	mov	ax,offset sysinit2
 	push	ax			; push new offset on stack
 	ret				; far return to sysinit2
-sysinit2:				; now running in upper memory
-	ASSUME	CS:DOS,DS:DOS
 ;
 ; Initialize all the DOS vectors.
 ;
@@ -64,6 +62,8 @@ sysinit2:				; now running in upper memory
 ; CS is high, valid only for init code/data, and DS is low, valid only
 ; for resident code/data.
 ;
+	ASSUME	CS:DOS,DS:DOS
+sysinit2:				; now running in upper memory
 	mov	si,offset int_tbl
 	mov	di,INT_DOS_EXIT * 4
 i1:	lods	word ptr cs:[si]
@@ -83,16 +83,23 @@ i2:	mov	ax,ds
 	sub	di,di
 	ASSUME	ES:NOTHING
 	mov	al,MCB_LAST
-	stosb				; mov es:[0].MCB_SIG,MCB_LAST
+	stosb				; mov es:[MCB_SIG],MCB_LAST
 	sub	ax,ax
-	stosw				; mov es:[0].MCB_OWNER,0
+	stosw				; mov es:[MCB_OWNER],0
 	sub	dx,bx			; DX = top para minus sysinit para
 	xchg	ax,dx			; AX is now DX
 	dec	ax			; AX reduced by 1 para (for MCB_HDR)
-	stosw				; mov es:[0].MCB_PARAS,ax
+	stosw				; mov es:[MCB_PARAS],ax
 	mov	cl,size MCB_RESERVED
 	mov	al,0
 	rep	stosb
+;
+; Allocate some memory for an initial (test) process
+;
+	int 3
+	mov	ah,DOS_MALLOC
+	mov	bx,200h
+	int	21h
 
 i9:	jmp	i9
 sysinit	endp

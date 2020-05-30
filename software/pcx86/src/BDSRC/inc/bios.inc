@@ -58,6 +58,15 @@ KBD_CHECK	EQU	01h	; returns ZF set if no key
 ;
 TIME_GETTICKS	EQU	00h	; returns CX:DX, and AL != 0 if wrapped
 
+REG16	struc
+LO		db	?
+HI		db	?
+REG16	ends
+
+FARPTR	struc
+off		dw	?
+seg		dw	?
+FARPTR	ends
 
 ;
 ; Diskette Parameter Table (11 bytes pointed by INT_DSKPARMS (1Eh))

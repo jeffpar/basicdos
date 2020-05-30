@@ -28,10 +28,14 @@ DOS_TTY_FLUSH	equ	0Ch	; flush and invoke 01h, 06h, 07h, 08h, or 0Ah
 
 DOS_OPEN	equ	3Dh	; TBD
 
+DOS_MALLOC	equ	48h	; allocate memory
+
 REG_FRAME	struc
 REG_ES		dw	?
 REG_DS		dw	?
 REG_BP		dw	?
+REG_DI		dw	?
+REG_SI		dw	?
 REG_DX		dw	?
 REG_CX		dw	?
 REG_BX		dw	?
@@ -40,6 +44,17 @@ REG_IP		dw	?
 REG_CS		dw	?
 REG_FL		dw	?
 REG_FRAME	ends
+
+FL_CARRY	equ	0001h
+
+REG_AL		equ 	REG_AX + LO
+REG_AH		equ 	REG_AX + HI
+REG_BL		equ 	REG_BX + LO
+REG_BH		equ 	REG_BX + HI
+REG_CL		equ 	REG_CX + LO
+REG_CH		equ 	REG_CX + HI
+REG_DL		equ 	REG_DX + LO
+REG_DH		equ 	REG_DX + HI
 
 MCB_HDR		struc		; 16 bytes (1 paragraph)
 MCB_SIG		db	?	; 00h: either MCB_NORMAL or MCB_LAST
@@ -50,3 +65,12 @@ MCB_HDR		ends
 
 MCB_NORMAL	equ	4Dh
 MCB_LAST	equ	5Ah
+
+ERR_INVALID	equ	1
+ERR_NOFILE	equ	2
+ERR_NOPATH	equ	3
+ERR_MAXFILES	equ	4
+ERR_ACCDENIED	equ	5
+ERR_BADHANDLE	equ	6
+ERR_BADMCB	equ	7	; invalid MCB found
+ERR_MEMORY	equ	8	; insufficient memory
