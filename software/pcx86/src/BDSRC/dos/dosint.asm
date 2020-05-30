@@ -13,11 +13,14 @@ DOS	segment word public 'CODE'
 
 	ASSUME	CS:DOS, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
-	extrn	dosinit:near
+	extrn	sysinit:near
 ;
-; This must be the first object module in the image.
+; This must be the first object module in the image; we reuse the JMP space
+; as the MCB_HEAD.
 ;
-	jmp	dosinit
+	public	MCB_HEAD
+MCB_HEAD label	word
+	jmp	sysinit
 
 	extrn	tty_echo:near
 	extrn	tty_write:near
@@ -32,6 +35,7 @@ DOS	segment word public 'CODE'
 	extrn	tty_status:near
 	extrn	tty_flush:near
 
+	even
 calltbl	dw	tty_echo, tty_write, aux_read, aux_write, prn_write, tty_io
 	dw	tty_in, tty_read, tty_print, tty_input, tty_status, tty_flush
 callend	equ	$

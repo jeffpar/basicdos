@@ -40,3 +40,13 @@ REG_IP		dw	?
 REG_CS		dw	?
 REG_FL		dw	?
 REG_FRAME	ends
+
+MCB_HDR		struc		; 16 bytes (1 paragraph)
+MCB_SIG		db	?	; 00h: either MCB_NORMAL or MCB_LAST
+MCB_OWNER	dw	?	; 01h: PSP segment owner (8 if owner is DOS)
+MCB_PARAS	dw	?	; 03h: size of block in paragraphs
+MCB_RESERVED	db     11 dup(?); 05h: reserved
+MCB_HDR		ends
+
+MCB_NORMAL	equ	4Dh
+MCB_LAST	equ	5Ah
