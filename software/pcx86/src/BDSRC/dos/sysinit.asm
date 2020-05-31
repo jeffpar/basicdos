@@ -20,7 +20,7 @@ DOS	segment word public 'CODE'
 	DEFWORD	cfg_data,word
 	DEFWORD	cfg_size,word
 
-	ASSUME	CS:DOS, DS:BIOS, ES:BIOS, SS:BIOS
+	ASSUME	CS:DOS, DS:BIOS, ES:DOS, SS:BIOS
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -41,13 +41,7 @@ DEFPROC	sysinit,far
 ;
 	mov	ax,cs
 	mov	[dos_seg],ax		; save the resident DOS segment
-	mov	cl,4
-	shl	ax,cl
-	sub	bx,ax			; convert BX from BIOS to DOS offset
-	cmp	bx,offset sysinit_end
-	je	si1
-	call	sysinit_error
-si1:	mov	[cfg_data],bx		; offset of CFG data
+	mov	[cfg_data],bx		; offset of CFG data
 	mov	[cfg_size],dx		; size of CFG data
 	mov	ax,[MEMORY_SIZE]	; get available memory in Kb
 	mov	cl,6
@@ -63,9 +57,7 @@ si1:	mov	[cfg_data],bx		; offset of CFG data
 	mov	dx,si
 	shr	dx,cl			; DX = 1st paragraph of init code
 	sub	ax,dx			; AX = target segment adjusted for ORG
-
-	push	es			; begin move
-	mov	es,ax
+	mov	es,ax			; begin the move
 	ASSUME	ES:NOTHING
 	push	cs
 	pop	ds
@@ -74,16 +66,17 @@ si1:	mov	[cfg_data],bx		; offset of CFG data
 	mov	cx,bx
 	shr	cx,1
 	rep	movsw
-	pop	es
-	ASSUME	ES:BIOS
 	push	ax			; push new segment on stack
 	mov	ax,offset si2
 	push	ax			; push new offset on stack
-	ret				; far return to sysinit2
+	ret
 ;
 ; Initialize all the DOS vectors, while DS is still dos_seg and ES is BIOS.
 ;
-si2:	mov	si,offset int_tbl
+si2:	push	ss
+	pop	es
+	ASSUME	ES:BIOS
+	mov	si,offset int_tbl
 	mov	di,INT_DOS_EXIT * 4
 si3:	lodsw				; load vector offset
 	test	ax,ax

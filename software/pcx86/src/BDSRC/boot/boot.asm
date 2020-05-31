@@ -401,8 +401,16 @@ ENDPROC	part2
 ;
 DEFPROC	part3,far
 	mov	si,offset BPB_ACTIVE
+;
+; Convert ES:DI to SEG:0, and then load ES with the new segment
+;
+	add	di,15
+	mov	cl,4
+	shr	di,cl
+	mov	es,di
+	ASSUME	ES:NOTHING
+	sub	di,di			; ES:DI now converted
 	mov	bx,offset DOS_FILE + (offset PART2_COPY - offset PART1_COPY)
-	push	di			; push DOS_FILE load address
 	call	read_file		; load DOS_FILE
 	push	di
 	mov	bx,offset CFG_FILE + (offset PART2_COPY - offset PART1_COPY)
@@ -410,10 +418,7 @@ DEFPROC	part3,far
 	call	read_file		; load CFG_FILE above DOS_FILE
 	pop	dx			; DX = CFG_FILE size
 	pop	bx			; BX = CFG_FILE data address
-	pop	ax			; AX = DOS_FILE load address
-	mov	cx,4
-	shr	ax,cl
-	push	ax
+	push	es
 	sub	ax,ax
 	push	ax			; far "jmp" address -> CS:0000h
 	ret
@@ -592,7 +597,13 @@ rm2:	mov	ax,[bx+2]		; AX = CLN
 rm3:	ret				; and return success
 	IF	READFAT
 	mov	ax,[bx+2]		; AX = CLN
+	push	es
+	push	ss
+	pop	es
+	ASSUME	ES:BIOS
 	call	read_fat		; DX = next CLN
+	pop	es
+	ASSUME	ES:NOTHING
 	mov	[bx+2],dx		; update CLN
 	ELSE
 	inc	word ptr [bx+2]		; simply increment CLN
