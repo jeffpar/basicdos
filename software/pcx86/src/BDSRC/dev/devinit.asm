@@ -17,7 +17,7 @@ DEV	segment para public 'CODE'
 ; It must also be a DWORD, because the BOOT code assumes that our entry
 ; point is CS:0004.
 ;
-EOD	dd	-1
+	DEFPTR	EOD,-1
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -34,8 +34,7 @@ EOD	dd	-1
 ;
         ASSUME	CS:DEV, DS:BIOS, ES:BIOS, SS:BIOS
 
-	public	devinit
-devinit	proc	far
+DEFPROC	devinit,far
 ;
 ; Initialize each device driver.
 ;
@@ -106,7 +105,7 @@ i8:	add	si,dx		; SI -> next driver (after adding original size)
 
 i9:	add	sp,(size DDPI + 1) AND 0FFFEh
 	ret
-devinit	endp
+ENDPROC	devinit
 
 DEV	ends
 

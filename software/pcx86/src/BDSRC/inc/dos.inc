@@ -58,27 +58,39 @@ REG_DL		equ 	REG_DX + LO
 REG_DH		equ 	REG_DX + HI
 
 ;
-; Memory Control Block (MCB) Header
+; Process Control Block (PCB)
 ;
-MCB_HDR		struc		; 16 bytes (1 paragraph)
+PCB		struc
+PCB_STATE	dw	?	; 00h: TBD
+PCB_WAITID	dw	?	; 02h: Wait ID if waiting, 0 if running
+PCB_STACK	dd	?	; 02h: pointer to process stack
+PCB		ends
+
+;
+; Memory Control Block (MCB)
+;
+MCB		struc
 MCB_SIG		db	?	; 00h: either MCB_NORMAL or MCB_LAST
 MCB_OWNER	dw	?	; 01h: PSP segment owner (8 if owner is DOS)
 MCB_PARAS	dw	?	; 03h: size of block in paragraphs
 MCB_RESERVED	db     11 dup(?); 05h: reserved
-MCB_HDR		ends
+MCB		ends
 
 MCB_NORMAL	equ	4Dh
 MCB_LAST	equ	5Ah
 
 ;
-; System File Table (SFT) Entry
+; System File Block (SFB)
 ;
-SFT_ENTRY	struc
-SFT_HANDLES	db	?	; 00h: number of associated handles
-SFT_MODE	db	?	; 01h: open mode
-SFT_DRIVER	dd	?	; 02h: pointer to device driver
-SFT_CONTEXT	dw	?	; 06h: segment of device context, if any
-SFT_ENTRY	ends
+; It would be tempting to call this, say, a File Control Block, but somebody
+; already took the FCB name.
+;
+SFB		struc
+SFB_HANDLES	db	?	; 00h: number of associated handles
+SFB_MODE	db	?	; 01h: open mode
+SFB_DRIVER	dd	?	; 02h: pointer to device driver
+SFB_CONTEXT	dw	?	; 06h: segment of device context, if any
+SFB		ends
 
 ERR_INVALID	equ	1
 ERR_NOFILE	equ	2

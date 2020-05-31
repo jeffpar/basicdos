@@ -30,7 +30,21 @@ name	label	type
 DEFWORD	macro	name,value
 	even
 	public	name
+	IFB	<value>
+name	dw	?
+	ELSE
 name	dw	value
+	ENDIF
+	endm
+
+DEFPTR	macro	name,value
+	even
+	public	name
+	IFB	<value>
+name	dd	?
+	ELSE
+name	dd	value
+	ENDIF
 	endm
 
 DEFTBL	macro	name,entries
@@ -43,12 +57,16 @@ name	label	word
 	endm
 
 DEFPROC	macro	name,type
-;	db	"&name",0
 	public	name
 	IFB	<type>
 name	proc	near
 	ELSE
+	  IFIDN <type>,<DOS>
+	ASSUME	CS:DOS, DS:DOS, ES:NOTHING, SS:NOTHING
+name	proc	near
+	  ELSE
 name	proc	type
+	  ENDIF
 	ENDIF
 	endm
 

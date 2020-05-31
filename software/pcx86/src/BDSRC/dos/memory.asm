@@ -24,14 +24,12 @@ DOS	segment word public 'CODE'
 ;	On success, REG_AX = new segment
 ;	On failure, REG_AX = ERR_NOMEM, REG_BX = max paras available
 ;
-	ASSUME	CS:DOS, DS:DOS, ES:NOTHING, SS:NOTHING
-
-DEFPROC	mem_alloc
+DEFPROC	mem_alloc,DOS
 	mov	bx,[bp].REG_BX		; BX = # paras requested
 	call	malloc
-	jnc	mema9
+	jnc	mma9
 	mov	[bp].REG_BX,bx
-mema9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
+mma9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
 	ret
 ENDPROC	mem_alloc
 
@@ -46,14 +44,12 @@ ENDPROC	mem_alloc
 ;	On success, carry clear
 ;	On failure, carry set, REG_AX = ERR_BADMCD or ERR_BADADDR
 ;
-	ASSUME	CS:DOS, DS:DOS, ES:NOTHING, SS:NOTHING
-
-DEFPROC	mem_free
+DEFPROC	mem_free,DOS
 	mov	ax,[bp].REG_ES		; AX = segment to free
 	call	mfree
-	jnc	memf9
+	jnc	mmf9
 	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY set
-memf9:	ret
+mmf9:	ret
 ENDPROC	mem_free
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -61,7 +57,7 @@ ENDPROC	mem_free
 ; initmcb
 ;
 ; Inputs:
-;	ES:0 -> MCB_HDR
+;	ES:0 -> MCB
 ;	AL = SIG (eg, MCB_NORMAL)
 ;	DX = OWNER (eg, 0 or PSP_ACTIVE)
 ;	CX = PARAS
@@ -69,7 +65,7 @@ ENDPROC	mem_free
 ; Modifies:
 ;	AX, CX, DX, DI
 ;
-DEFPROC	initmcb
+DEFPROC	initmcb,DOS
 	sub	di,di
 	stosb				; mov es:[MCB_SIG],al
 	xchg	ax,dx
@@ -96,9 +92,7 @@ ENDPROC	initmcb
 ; Modifies:
 ;	AX, BX, CX, DX, DI, ES
 ;
-	ASSUME	CS:DOS, DS:DOS, ES:NOTHING, SS:NOTHING
-
-DEFPROC malloc
+DEFPROC malloc,DOS
 	mov	es,[MCB_HEAD]
 
 ma1:	mov	ax,es:[MCB_PARAS]	; AX = # paras this block
@@ -108,7 +102,7 @@ ma1:	mov	ax,es:[MCB_PARAS]	; AX = # paras this block
 	je	ma4			; just big enough, use as-is
 	jb	ma5			; no
 ;
-; Split the current block; the new MCB_HDR at the split point will
+; Split the current block; the new MCB at the split point will
 ; be marked free, and it will have the same MCB_SIG as the found block.
 ;
 	xchg	cx,ax			; CX = # paras in found block
@@ -117,9 +111,9 @@ ma1:	mov	ax,es:[MCB_PARAS]	; AX = # paras this block
 	mov	dx,es
 	add	dx,bx
 	inc	dx
-	mov	es,dx			; ES:0 -> new MCB_HDR
+	mov	es,dx			; ES:0 -> new MCB
 	sub	cx,bx			; reduce by # paras requested
-	dec	cx			; reduce by 1 for new MCB_HDR
+	dec	cx			; reduce by 1 for new MCB
 	sub	dx,dx			; no owner
 	call	initmcb
 	pop	es			; ES:0 -> back to found block
@@ -160,9 +154,7 @@ ENDPROC	malloc
 ; Modifies:
 ;	AX, BX, DX, ES
 ;
-	ASSUME	CS:DOS, DS:DOS, ES:NOTHING, SS:NOTHING
-
-DEFPROC	mfree
+DEFPROC	mfree,DOS
 ;
 ; Freeing a block requires that we merge it with any free block that
 ; immediately precedes or follows it (well, "require" is a strong word; it's
@@ -178,7 +170,7 @@ mf1:	mov	es,bx
 	cmp	bx,ax			; does current MCB match candidate?
 	jne	mf6			; no
 ;
-; If the previous block is free, add this block's paras (+1 for its MCB_HDR)
+; If the previous block is free, add this block's paras (+1 for its MCB)
 ; to the previous block's paras.
 ;
 	test	dx,dx			; is the previous block free?

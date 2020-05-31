@@ -16,19 +16,19 @@ CODE	segment para public 'CODE'
 	public	PRN
 PRN	DDH	<offset DEV:ddend+16,,DDATTR_CHAR,offset ddreq,offset ddint,20202020204E5250h>
 
-ddpkt	dd	?		; last request packet address
+	DEFPTR	ddpkt		; last request packet address
 
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
-ddreq	proc	far
+DEFPROC	ddreq,far
 	mov	[ddpkt].off,bx
 	mov	[ddpkt].seg,es
 	ret
-ddreq	endp
+ENDPROC	ddreq
 
-ddint	proc	far
+DEFPROC	ddint,far
 	ret
-ddint	endp
+ENDPROC	ddint
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -37,10 +37,10 @@ ddint	endp
 ; Inputs:
 ;	[ddpkt] -> DDPI
 ;
-; Output:
+; Outputs:
 ;	DDPI's DDPI_END updated
 ;
-ddinit	proc	far
+DEFPROC	ddinit,far
 	push	di
 	push	es
 	les	di,[ddpkt]
@@ -49,7 +49,7 @@ ddinit	proc	far
 	pop	es
 	pop	di
 	ret
-ddinit	endp
+ENDPROC	ddinit
 
 CODE	ends
 

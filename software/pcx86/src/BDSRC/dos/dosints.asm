@@ -11,7 +11,8 @@
 
 DOS	segment word public 'CODE'
 
-	extrn	CALLTBL:word, CALLTBL_SIZE:abs
+	EXTERNS	<CALLTBL>,word
+	EXTERNS	<CALLTBL_SIZE>,abs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -66,7 +67,7 @@ DEFPROC	doscall,far
 	call	CALLTBL[bx]
 	jnc	dc9
 ;
-; We'd just as soon IRET to the caller (which restores their D flag),
+; We'd just as soon IRET to the caller (which also restores their D flag),
 ; so we now update FL_CARRY on the stack (which we already cleared on entry).
 ;
 dc8:	or	[bp].REG_FL,FL_CARRY

@@ -18,18 +18,18 @@ COM1_LEN	= (((COM1_END - COM1) + 15) AND 0FFF0h)
 COM1_INIT	= (((COM1_END - COM1) + 15) AND 0FFF0h) + (((COM2_END - COM2) + 15) AND 0FFF0h) + (((COM3_END - COM3) + 15) AND 0FFF0h) + (((COM4_END - COM4) + 15) AND 0FFF0h)
 COM1	DDH	<COM1_LEN,,DDATTR_CHAR,offset DEV:ddreq,COM1_INIT,20202020314D4F43h>
 
-ddpkt	dd	?		; last request packet address
-ddfunp	dd	?		; ddfun pointer
+	DEFPTR	ddpkt		; last request packet address
+	DEFPTR	ddfunp		; ddfun pointer
 
         ASSUME	CS:CODE1, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
-ddreq	proc	far
+DEFPROC	ddreq,far
 	mov	[ddpkt].off,bx
 	mov	[ddpkt].seg,es
 	ret
-ddreq	endp
+ENDPROC	ddreq
 
-ddint	proc	far
+DEFPROC	ddint,far
 	push	ax
 	push	bx
 	push	cx
@@ -45,13 +45,13 @@ ddint	proc	far
 	pop	bx
 	pop	ax
 	ret
-ddint	endp
+ENDPROC	ddint
 
-ddfun	proc	far
+DEFPROC	ddfun,far
 	ret
-ddfun	endp
+ENDPROC	ddfun
 
-COM1_END equ $
+	DEFLBL	COM1_END
 
 CODE1	ends
 
@@ -62,18 +62,18 @@ COM2_LEN	= ((COM2_END - COM2) + 15) AND 0FFF0h
 COM2_INIT	= (((COM2_END - COM2) + 15) AND 0FFF0h) + (((COM3_END - COM3) + 15) AND 0FFF0h) + (((COM4_END - COM4) + 15) AND 0FFF0h)
 COM2	DDH	<COM2_LEN,,DDATTR_CHAR,offset DEV:ddreq,COM2_INIT,20202020324D4F43h>
 
-ddpkt2	dd	?		; last request packet address
-ddfunp2	dd	?		; ddfun pointer
+	DEFPTR	ddpkt2		; last request packet address
+	DEFPTR	ddfunp2		; ddfun pointer
 
         ASSUME	CS:CODE2, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
-ddreq2	proc	far
+DEFPROC	ddreq2,far
 	mov	[ddpkt2].off,bx
 	mov	[ddpkt2].seg,es
 	ret
-ddreq2	endp
+ENDPROC	ddreq2
 
-ddint2	proc	far
+DEFPROC	ddint2,far
 	push	ax
 	push	bx
 	push	cx
@@ -89,9 +89,9 @@ ddint2	proc	far
 	pop	bx
 	pop	ax
 	ret
-ddint2	endp
+ENDPROC	ddint2
 
-COM2_END equ $
+	DEFLBL	COM2_END
 
 CODE2	ends
 
@@ -102,18 +102,18 @@ COM3_LEN	= (((COM3_END - COM3) + 15) AND 0FFF0h)
 COM3_INIT	= (((COM3_END - COM3) + 15) AND 0FFF0h) + (((COM4_END - COM4) + 15) AND 0FFF0h)
 COM3	DDH	<COM3_LEN,,DDATTR_CHAR,offset DEV:ddreq,COM3_INIT,20202020334D4F43h>
 
-ddpkt3	dd	?		; last request packet address
-ddfunp3	dd	?		; ddfun pointer
+	DEFPTR	ddpkt3		; last request packet address
+	DEFPTR	ddfunp3		; ddfun pointer
 
         ASSUME	CS:CODE3, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
-ddreq3	proc	far
+DEFPROC	ddreq3,far
 	mov	[ddpkt3].off,bx
 	mov	[ddpkt3].seg,es
 	ret
-ddreq3	endp
+ENDPROC	ddreq3
 
-ddint3	proc	far
+DEFPROC	ddint3,far
 	push	ax
 	push	bx
 	push	cx
@@ -129,9 +129,9 @@ ddint3	proc	far
 	pop	bx
 	pop	ax
 	ret
-ddint3	endp
+ENDPROC	ddint3
 
-COM3_END equ $
+	DEFLBL	COM3_END
 
 CODE3	ends
 
@@ -142,18 +142,18 @@ COM4_LEN	= (((COM4_END - COM4) + 15) AND 0FFF0h) + (((ddinit_end - ddinit) + 15)
 COM4_INIT	= (((COM4_END - COM4) + 15) AND 0FFF0h)
 COM4	DDH	<COM4_LEN,,DDATTR_CHAR,offset DEV:ddreq,COM4_INIT,20202020344D4F43h>
 
-ddpkt4	dd	?		; last request packet address
-ddfunp4	dd	?		; ddfun pointer
+	DEFPTR	ddpkt4		; last request packet address
+	DEFPTR	ddfunp4		; ddfun pointer
 
         ASSUME	CS:CODE4, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
-ddreq4	proc	far
+DEFPROC	ddreq4,far
 	mov	[ddpkt4].off,bx
 	mov	[ddpkt4].seg,es
 	ret
-ddreq4	endp
+ENDPROC	ddreq4
 
-ddint4	proc	far
+DEFPROC	ddint4,far
 	push	ax
 	push	bx
 	push	cx
@@ -169,9 +169,9 @@ ddint4	proc	far
 	pop	bx
 	pop	ax
 	ret
-ddint4	endp
+ENDPROC	ddint4
 
-COM4_END equ $
+	DEFLBL	COM4_END
 
 CODE4	ends
 
@@ -186,12 +186,12 @@ INIT	segment para public 'CODE'
 ; Inputs:
 ;	[ddpkt] -> DDPI
 ;
-; Output:
+; Outputs:
 ;	DDPI's DDPI_END updated
 ;
         ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
-ddinit	proc	far
+DEFPROC	ddinit,far
 	push	ax
 	push	bx
 	push	cx
@@ -232,11 +232,11 @@ in9:	pop	es
 	pop	bx
 	pop	ax
 	ret
-ddinit	endp
+ENDPROC	ddinit
 
-ddfuns		dw	?
+	DEFWORD	ddfuns
 
-ddinit_end	equ	$
+	DEFLBL	ddinit_end
 
 INIT	ends
 

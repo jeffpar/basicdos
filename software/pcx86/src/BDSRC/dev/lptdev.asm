@@ -18,18 +18,18 @@ LPT1_LEN	= (((LPT1_END - LPT1) + 15) AND 0FFF0h)
 LPT1_INIT	= (((LPT1_END - LPT1) + 15) AND 0FFF0h) + (((LPT2_END - LPT2) + 15) AND 0FFF0h) + (((LPT3_END - LPT3) + 15) AND 0FFF0h)
 LPT1	DDH	<LPT1_LEN,,DDATTR_CHAR,offset DEV:ddreq,LPT1_INIT,202020203154504Ch>
 
-ddpkt	dd	?		; last request packet address
-ddfunp	dd	?		; ddfun pointer
+	DEFPTR	ddpkt		; last request packet address
+	DEFPTR	ddfunp		; ddfun pointer
 
         ASSUME	CS:CODE1, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
-ddreq	proc	far
+DEFPROC	ddreq,far
 	mov	[ddpkt].off,bx
 	mov	[ddpkt].seg,es
 	ret
-ddreq	endp
+ENDPROC	ddreq
 
-ddint	proc	far
+DEFPROC	ddint,far
 	push	ax
 	push	bx
 	push	cx
@@ -45,13 +45,13 @@ ddint	proc	far
 	pop	bx
 	pop	ax
 	ret
-ddint	endp
+ENDPROC	ddint
 
-ddfun	proc	far
+DEFPROC	ddfun,far
 	ret
-ddfun	endp
+ENDPROC	ddfun
 
-LPT1_END equ $
+	DEFLBL	LPT1_END
 
 CODE1	ends
 
@@ -61,18 +61,18 @@ LPT2_LEN	= (((LPT2_END - LPT2) + 15) AND 0FFF0h)
 LPT2_INIT	= (((LPT2_END - LPT2) + 15) AND 0FFF0h) + (((LPT3_END - LPT3) + 15) AND 0FFF0h)
 LPT2	DDH	<LPT2_LEN,,DDATTR_CHAR,offset DEV:ddreq,LPT2_INIT,202020203254504Ch>
 
-ddpkt2	dd	?		; last request packet address
-ddfunp2	dd	?		; ddfun pointer
+	DEFPTR	ddpkt2		; last request packet address
+	DEFPTR	ddfunp2		; ddfun pointer
 
         ASSUME	CS:CODE2, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
-ddreq2	proc	far
+DEFPROC	ddreq2,far
 	mov	[ddpkt2].off,bx
 	mov	[ddpkt2].seg,es
 	ret
-ddreq2	endp
+ENDPROC	ddreq2
 
-ddint2	proc	far
+DEFPROC	ddint2,far
 	push	ax
 	push	bx
 	push	cx
@@ -88,9 +88,9 @@ ddint2	proc	far
 	pop	bx
 	pop	ax
 	ret
-ddint2	endp
+ENDPROC	ddint2
 
-LPT2_END equ $
+	DEFLBL	LPT2_END
 
 CODE2	ends
 
@@ -100,18 +100,18 @@ LPT3_LEN	= (((LPT3_END - LPT3) + 15) AND 0FFF0h) + (((ddinit_end - ddinit) + 15)
 LPT3_INIT	= (((LPT3_END - LPT3) + 15) AND 0FFF0h)
 LPT3	DDH	<LPT3_LEN,,DDATTR_CHAR,offset DEV:ddreq,LPT3_INIT,202020203354504Ch>
 
-ddpkt3	dd	?		; last request packet address
-ddfunp3	dd	?		; ddfun pointer
+	DEFPTR	ddpkt3		; last request packet address
+	DEFPTR	ddfunp3		; ddfun pointer
 
         ASSUME	CS:CODE3, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
-ddreq3	proc	far
+DEFPROC	ddreq3,far
 	mov	[ddpkt3].off,bx
 	mov	[ddpkt3].seg,es
 	ret
-ddreq3	endp
+ENDPROC	ddreq3
 
-ddint3	proc	far
+DEFPROC	ddint3,far
 	push	ax
 	push	bx
 	push	cx
@@ -127,9 +127,9 @@ ddint3	proc	far
 	pop	bx
 	pop	ax
 	ret
-ddint3	endp
+ENDPROC	ddint3
 
-LPT3_END equ $
+	DEFLBL	LPT3_END
 
 CODE3	ends
 
@@ -144,12 +144,12 @@ INIT	segment para public 'CODE'
 ; Inputs:
 ;	[ddpkt] -> DDPI
 ;
-; Output:
+; Outputs:
 ;	DDPI's DDPI_END updated
 ;
         ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
-ddinit	proc	far
+DEFPROC	ddinit,far
 	push	ax
 	push	bx
 	push	cx
@@ -190,11 +190,11 @@ in9:	pop	es
 	pop	bx
 	pop	ax
 	ret
-ddinit	endp
+ENDPROC	ddinit
 
-ddfuns		dw	?
+	DEFWORD	ddfuns
 
-ddinit_end	equ	$
+	DEFLBL	ddinit_end
 
 INIT	ends
 

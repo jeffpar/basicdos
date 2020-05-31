@@ -59,9 +59,9 @@ move:	push	ds
 	mov	ds:[INT_DPT*4],si	; and change head settle time to 0ms
 	mov	ds:[INT_DPT*4+2],ds	; update INT_DPT vector
 	mov	si,BOOT_SECTOR_HI	; now move boot sector down
-	mov	cx,512
+	mov	cx,512 SHR 1
 ;	mov	di,offset BOOT_SECTOR	; BOOT_SECTOR now follows DPT_ACTIVE
-	rep	movsb
+	rep	movsw
 	mov	ax,BIOS_END SHR 4
 	push	ax
 	sub	ax,ax
@@ -144,9 +144,9 @@ ENDPROC	main
 ;
 ; Find DIRENT in sector at DI using filename at BX
 ;
-; Modifies: AX
-;
 ; Returns: zero flag set if match (in DI), carry set if end of directory
+;
+; Modifies: AX
 ;
 DEFPROC	find_dirent
 	push	cx			; CH is zero on entry
@@ -183,9 +183,9 @@ ENDPROC	find_dirent
 ;
 ; Get CHS from LBA in AX, using BPB at SI
 ;
-; Modifies: AX, CX, DX
-;
 ; Returns: CH = cylinder #, CL = sector ID, DH = head #, DL = drive #
+;
+; Modifies: AX, CX, DX
 ;
 DEFPROC	get_chs
 	sub	dx,dx		; DX:AX is LBA
@@ -207,9 +207,9 @@ ENDPROC	get_chs
 ;
 ; Get LBA from CLN in AX, using BPB at SI
 ;
-; Modifies: AX, CX, DX
-;
 ; Returns: AX = LBA, CX = sectors per cluster (or carry set if error)
+;
+; Modifies: AX, CX, DX
 ;
 DEFPROC	get_lba
 	sub	ax,2
@@ -225,9 +225,9 @@ ENDPROC	get_lba
 ;
 ; Read 1 sector into DI using LBA in AX and BPB at SI
 ;
-; Modifies: AX, BX
-;
 ; Returns: carry clear if successful, set if error (see AH for reason)
+;
+; Modifies: AX, BX
 ;
 DEFPROC	read_sector
 	push	cx
@@ -246,9 +246,9 @@ ENDPROC	read_sector
 ;
 ; Wait some number of ticks, or until a key is pressed.
 ;
-; Modifies: AX, CX, DX
-;
 ; Returns: CX = char code (lo), scan code (hi); 0 if no key pressed
+;
+; Modifies: AX, CX, DX
 ;
 DEFPROC	twait
 	mov	ah,TIME_GETTICKS
@@ -285,9 +285,9 @@ ENDPROC	twait
 ;
 ; Print the null-terminated string at SI
 ;
-; Modifies: AX, BX, SI
-;
 ; Returns: Nothing
+;
+; Modifies: AX, BX, SI
 ;
 DEFPROC	printp
 	mov	ah,VIDEO_TTYOUT
@@ -360,7 +360,7 @@ DEFPROC	part2,far
 	mov	bx,offset DEV_FILE + (offset PART2_COPY - offset PART1_COPY)
 	sub	di,ax			; adjust load addr for read_data
 	call	read_data		; read the rest of DEV_FILE (see BX)
-	jc	err2
+	jc	load_error
 ;
 ; To find the entry point of DEV_FILE's init code, we must walk the
 ; driver headers.  And since they haven't been chained together yet (that's
@@ -374,14 +374,14 @@ i1:	mov	ax,[di]			; AX = current driver's total size
 	je	i2			; yes
 	add	di,ax
 	loop	i1
-	jmp	err2
+	jmp	load_error
 ;
 ; Prepare to "call" the DEV_FILE entry point, with DI -> end of drivers.
 ;
 i2:	mov	[DD_LIST].off,ax	; initialize driver list head (to -1)
 	mov	ax,di
 	test	ax,0Fh			; paragraph boundary?
-	jnz	err2			; no
+	jnz	load_error		; no
 	push	cs
 	mov	cx,offset part3
 	push	cx			; far return address -> part3
@@ -427,9 +427,9 @@ FATLBA	dw	0			; remembers the last FAT LBA we read
 ;
 ; Get CHS from LBA in AX, using BPB at SI
 ;
-; Modifies: AX, CX, DX
-;
 ; Returns: CH = cylinder #, CL = sector ID, DH = head #, DL = drive #
+;
+; Modifies: AX, CX, DX
 ;
 DEFPROC	get_chs2
 	sub	dx,dx		; DX:AX is LBA
@@ -451,13 +451,13 @@ ENDPROC	get_chs2
 ;
 ; Get LBA from CLN in AX, using BPB at SI
 ;
-; Modifies: AX, CX, DX
-;
 ; Returns: AX = LBA, CX = sectors per cluster (or carry set if error)
+;
+; Modifies: AX, CX, DX
 ;
 DEFPROC	get_lba2
 	sub	ax,2
-	jb	err2
+	jb	load_error
 	sub	cx,cx
 	mov	cl,[si].BPB_CLUSSECS
 	mul	cx
@@ -465,26 +465,25 @@ DEFPROC	get_lba2
 	ret
 ENDPROC	get_lba2
 
-err2:	mov	si,offset errmsg2
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; Print the null-terminated string at SI
-;
-; Modifies: AX, BX, SI
+; Print load error message and "halt"
 ;
 ; Returns: Nothing
 ;
-DEFPROC	printError
+; Modifies: AX, BX, SI
+;
+DEFPROC	load_error
+	mov	si,offset errmsg2
 	lodsb
 	test	al,al
 	jz	pe9
 	mov	ah,VIDEO_TTYOUT
 	mov	bh,0
 	int	INT_VIDEO
-	jmp	printError
+	jmp	load_error
 pe9:	jmp	$			; "halt"
-ENDPROC	printError
+ENDPROC	load_error
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -505,9 +504,9 @@ ENDPROC	printError
 ; TODO: If we're serious about being sector-size-agnostic, our BPB should
 ; contain a (precalculated) LOG2 of BPB_SECBYTES, to avoid hard-coded shifts.
 ;
-; Modifies: AX, CX, DX, BP
-;
 ; Returns: DX (next CLN)
+;
+; Modifies: AX, CX, DX, BP
 ;
 DEFPROC	read_fat
 	push	bx
@@ -526,7 +525,7 @@ DEFPROC	read_fat
 	mov	[FATLBA],ax
 	mov	cl,1
 	call	read_sectors
-	jc	err2
+	jc	load_error
 rf1:	mov	bp,bx			; save nibble offset in BP
 	shr	bx,1			; BX -> byte, carry set if odd nibble
 	mov	dl,[di+bx]
@@ -536,7 +535,7 @@ rf1:	mov	bp,bx			; save nibble offset in BP
 	inc	[FATLBA]
 	mov	ax,[FATLBA]
 	call	read_sectors		; read next FAT LBA
-	jc	err2
+	jc	load_error
 	sub	bx,bx
 rf2:	mov	dh,[di+bx]
 	shr	bp,1			; was that an odd nibble again?
@@ -552,7 +551,8 @@ ENDPROC	read_fat
 
 	ELSE
 
-err2:	mov	si,offset errmsg2
+load_error:
+	mov	si,offset errmsg2
 	jmp	err
 
 get_chs2 equ	get_chs
@@ -564,9 +564,9 @@ get_lba2 equ	get_lba
 ;
 ; Read file data into ES:DI using directory info at BX and BPB at SI.
 ;
-; Modifies: AX, CX, DX
-;
 ; Returns: carry set on error (see AH), clear otherwise (AX sectors read)
+;
+; Modifies: AX, CX, DX
 ;
 DEFPROC	read_data
 	mov	dx,1			; DX = sectors already read
@@ -607,9 +607,9 @@ ENDPROC	read_data
 ;
 ; Read cluster AX into memory at DI, using BPB at SI.
 ;
-; Modifies: AX, CX
-;
 ; Returns: carry set on error (see AH), clear otherwise (AX sectors read)
+;
+; Modifies: AX, CX
 ;
 DEFPROC	read_cluster
 	push	dx		; DX = sectors this cluster already read
@@ -633,9 +633,9 @@ ENDPROC	read_cluster
 ;
 ; Read CL sectors into DI using LBA in AX and BPB at SI
 ;
-; Modifies: AX
-;
 ; Returns: carry clear if successful, set if error (see AH for reason)
+;
+; Modifies: AX
 ;
 DEFPROC	read_sectors
 	push	bx

@@ -12,12 +12,14 @@
 	EXTERNS	<sysinit>,near
 
 DOS	segment word public 'CODE'
-
 ;
 ; This must be the first object module; we reuse the JMP as MCB_HEAD.
 ;
 	DEFLBL	MCB_HEAD,word
 	jmp	sysinit
+
+	DEFWORD	PCB_TABLE,word
+	DEFWORD	SFB_TABLE,word
 
 	DEFWORD	PSP_ACTIVE,1		; start with a fake system PSP
 
