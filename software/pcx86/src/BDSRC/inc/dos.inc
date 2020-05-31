@@ -57,6 +57,9 @@ REG_CH		equ 	REG_CX + HI
 REG_DL		equ 	REG_DX + LO
 REG_DH		equ 	REG_DX + HI
 
+;
+; Memory Control Block (MCB) Header
+;
 MCB_HDR		struc		; 16 bytes (1 paragraph)
 MCB_SIG		db	?	; 00h: either MCB_NORMAL or MCB_LAST
 MCB_OWNER	dw	?	; 01h: PSP segment owner (8 if owner is DOS)
@@ -66,6 +69,16 @@ MCB_HDR		ends
 
 MCB_NORMAL	equ	4Dh
 MCB_LAST	equ	5Ah
+
+;
+; System File Table (SFT) Entry
+;
+SFT_ENTRY	struc
+SFT_HANDLES	db	?	; 00h: number of associated handles
+SFT_MODE	db	?	; 01h: open mode
+SFT_DRIVER	dd	?	; 02h: pointer to device driver
+SFT_CONTEXT	dw	?	; 06h: segment of device context, if any
+SFT_ENTRY	ends
 
 ERR_INVALID	equ	1
 ERR_NOFILE	equ	2
