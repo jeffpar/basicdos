@@ -205,16 +205,16 @@ DEFPROC	dev_request,DOS
 	pop	es		; ES:BX -> packet
 	call	dword ptr [bp-4]; far call to DDH_STRATEGY
 	call	dword ptr [bp-8]; far call to DDH_INTERRUPT
-	pop	bp		; not trying to restore BP, just bumping SP
+	pop	ax
 	pop	es		; ES restored
 	add	sp,4
 	mov	ax,[bp].DDP_STATUS
-	test	ax,DDSTAT_ERROR
-	stc
-	jnz	i9		; AL contains device error code
 	mov	dx,[bp].DDP_CONTEXT
-i9:	add	sp,(size DDP + 1) AND 0FFFEh
-	pop	bp
+	add	sp,(size DDP + 1) AND 0FFFEh
+	test	ax,DDSTAT_ERROR
+	jz	i9
+	stc			; AL contains device error code
+i9:	pop	bp
 	pop	bx
 	ret
 ENDPROC	dev_request

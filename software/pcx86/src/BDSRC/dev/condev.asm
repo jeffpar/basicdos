@@ -91,7 +91,6 @@ ENDPROC	ddint
 ;
 DEFPROC	ddcmd_open
 	ASSUME	DS:CODE
-	int 3
 	push	es
 	push	di
 	les	di,es:[di].DDP_PARMS
