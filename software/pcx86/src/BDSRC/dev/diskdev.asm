@@ -14,7 +14,7 @@ DEV	group	CODE,DATA
 CODE	segment para public 'CODE'
 
 	public	DRIVE
-DRIVE 	DDH	<offset DEV:ddend+16,,DDATTR_BLOCK,offset ddreq,offset ddint,2020202020202041h>
+DRIVE 	DDH	<offset DEV:ddend+16,,DDATTR_BLOCK,offset ddreq,offset ddinit,2020202020202041h>
 
 	DEFPTR	ddpkt		; last request packet address
 

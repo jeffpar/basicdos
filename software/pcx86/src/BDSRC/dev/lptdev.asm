@@ -14,9 +14,9 @@ DEV	group	CODE1,CODE2,CODE3,INIT,DATA
 CODE1	segment para public 'CODE'
 
 	public	LPT1
-LPT1_LEN	= (((LPT1_END - LPT1) + 15) AND 0FFF0h)
-LPT1_INIT	= (((LPT1_END - LPT1) + 15) AND 0FFF0h) + (((LPT2_END - LPT2) + 15) AND 0FFF0h) + (((LPT3_END - LPT3) + 15) AND 0FFF0h)
-LPT1	DDH	<LPT1_LEN,,DDATTR_CHAR,offset DEV:ddreq,LPT1_INIT,202020203154504Ch>
+	DEFLEN	LPT1_LEN,<LPT1>
+	DEFLEN	LPT1_INIT,<LPT1,LPT2,LPT3>
+LPT1	DDH	<LPT1_LEN,,DDATTR_OPEN+DDATTR_CHAR,offset DEV:ddreq,LPT1_INIT,202020203154504Ch>
 
 	DEFPTR	ddpkt		; last request packet address
 	DEFPTR	ddfunp		; ddfun pointer
@@ -57,8 +57,8 @@ CODE1	ends
 
 CODE2	segment para public 'CODE'
 
-LPT2_LEN	= (((LPT2_END - LPT2) + 15) AND 0FFF0h)
-LPT2_INIT	= (((LPT2_END - LPT2) + 15) AND 0FFF0h) + (((LPT3_END - LPT3) + 15) AND 0FFF0h)
+	DEFLEN	LPT2_LEN,<LPT2>
+	DEFLEN	LPT2_INIT,<LPT2,LPT3>
 LPT2	DDH	<LPT2_LEN,,DDATTR_CHAR,offset DEV:ddreq,LPT2_INIT,202020203254504Ch>
 
 	DEFPTR	ddpkt2		; last request packet address
@@ -96,8 +96,8 @@ CODE2	ends
 
 CODE3	segment para public 'CODE'
 
-LPT3_LEN	= (((LPT3_END - LPT3) + 15) AND 0FFF0h) + (((ddinit_end - ddinit) + 15) AND 0FFF0h) + 16
-LPT3_INIT	= (((LPT3_END - LPT3) + 15) AND 0FFF0h)
+	DEFLEN	LPT3_LEN,<LPT3,ddinit>,16
+	DEFLEN	LPT3_INIT,<LPT3>
 LPT3	DDH	<LPT3_LEN,,DDATTR_CHAR,offset DEV:ddreq,LPT3_INIT,202020203354504Ch>
 
 	DEFPTR	ddpkt3		; last request packet address

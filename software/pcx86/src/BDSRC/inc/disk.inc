@@ -77,8 +77,7 @@ DIR_PAD		db	10 dup (?)	; 0Ch: reserved for expansion
 DIR_TIME	dw	?		; 16h: time of last write (see below)
 DIR_DATE	dw	?		; 18h: date of last write (see below)
 DIR_CLN		dw	?		; 1Ah: first cluster number of file
-DIR_SIZE_L	dw	?		; 1Ch: low 16 bits of file size
-DIR_SIZE_H	dw	?		; 1Eh: high 16 bits of file size
+DIR_SIZE	dd	?		; 1Ch: 32-bit file size
 DIRENT		ends
 
 DIRENT_SIZE	equ	(size DIRENT)	; 20h: size of directory entry in bytes

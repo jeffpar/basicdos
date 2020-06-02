@@ -14,7 +14,7 @@ DEV	group	CODE,DATA
 CODE	segment para public 'CODE'
 
 	public	PRN
-PRN	DDH	<offset DEV:ddend+16,,DDATTR_CHAR,offset ddreq,offset ddint,20202020204E5250h>
+PRN	DDH	<offset DEV:ddend+16,,DDATTR_CHAR,offset ddreq,offset ddinit,20202020204E5250h>
 
 	DEFPTR	ddpkt		; last request packet address
 

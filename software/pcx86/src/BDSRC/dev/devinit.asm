@@ -44,9 +44,9 @@ DEFPROC	devinit,far
 ;
 	sub	sp,(size DDPI + 1) AND 0FFFEh
 	mov	bx,sp
-	mov	[bx].DDP_LEN,size DDP
-	mov	[bx].DDP_UNIT,0
+	mov	word ptr [bx].DDP_LEN,size DDP
 	mov	[bx].DDP_CMD,DDC_INIT
+	mov	[bx].DDP_STATUS,0
 
 i1:	cmp	si,di		; reached the end of drivers?
 	jae	i9		; yes

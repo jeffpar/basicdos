@@ -18,46 +18,37 @@ DOS	segment word public 'CODE'
 	DEFLBL	MCB_HEAD,word
 	jmp	sysinit
 
-	DEFWORD	PCB_TABLE,word
-	DEFWORD	SFB_TABLE,word
+	DEFTBL	<PCB_TABLE,SFB_TABLE>
 
 	DEFWORD	PSP_ACTIVE,1		; start with a fake system PSP
 
 	EXTERNS	<tty_echo,tty_write,aux_read,aux_write,prn_write,tty_io>,near
 	EXTERNS	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>,near
-	EXTERNS	<mem_alloc,mem_free>,near
-	EXTERNS	<dos_nop>,near
+	EXTERNS	<mcb_alloc,mcb_free>,near
+	EXTERNS	<util_func,dos_none>,near
 
-	DEFLBL	CALLTBL,word
-
-	; Functions 00h through 05h
-	dw	tty_echo, tty_write, aux_read, aux_write, prn_write, tty_io
-	; Functions 06h through 0Bh
-	dw	tty_in, tty_read, tty_print, tty_input, tty_status, tty_flush
-	; Functions 0Ch through 11h
-	dw	dos_nop, dos_nop, dos_nop, dos_nop, dos_nop, dos_nop
-	; Functions 12h through 17h
-	dw	dos_nop, dos_nop, dos_nop, dos_nop, dos_nop, dos_nop
-	; Functions 18h through 1Dh
-	dw	dos_nop, dos_nop, dos_nop, dos_nop, dos_nop, dos_nop
-	; Functions 1Eh through 23h
-	dw	dos_nop, dos_nop, dos_nop, dos_nop, dos_nop, dos_nop
-	; Functions 24h through 29h
-	dw	dos_nop, dos_nop, dos_nop, dos_nop, dos_nop, dos_nop
-	; Functions 2Ah through 2Fh
-	dw	dos_nop, dos_nop, dos_nop, dos_nop, dos_nop, dos_nop
-	; Functions 30h through 35h
-	dw	dos_nop, dos_nop, dos_nop, dos_nop, dos_nop, dos_nop
-	; Functions 36h through 3Bh
-	dw	dos_nop, dos_nop, dos_nop, dos_nop, dos_nop, dos_nop
-	; Functions 3Ch through 41h
-	dw	dos_nop, dos_nop, dos_nop, dos_nop, dos_nop, dos_nop
-	; Functions 42h through 47h
-	dw	dos_nop, dos_nop, dos_nop, dos_nop, dos_nop, dos_nop
-	; Functions 48h through 4Dh
-	dw	mem_alloc, mem_free, dos_nop, dos_nop, dos_nop, dos_nop
-
-	DEFABS	CALLTBL_SIZE,<($ - CALLTBL) SHR 1>
+	DEFLBL	FUNCTBL,word
+	dw	tty_echo, tty_write, aux_read, aux_write	; 00h-03h
+	dw	prn_write, tty_io, tty_in, tty_read		; 04h-07h
+	dw	tty_print, tty_input, tty_status, tty_flush	; 08h-0Bh
+	dw	dos_none, dos_none, dos_none, dos_none		; 0Ch-0Fh
+	dw	dos_none, dos_none, dos_none, dos_none		; 10h-13h
+	dw	dos_none, dos_none, dos_none, dos_none		; 14h-17h
+	dw	util_func, dos_none, dos_none, dos_none		; 18h-1Bh
+	dw	dos_none, dos_none, dos_none, dos_none		; 1Ch-1Fh
+	dw	dos_none, dos_none, dos_none, dos_none		; 20h-23h
+	dw	dos_none, dos_none, dos_none, dos_none		; 24h-27h
+	dw	dos_none, dos_none, dos_none, dos_none		; 28h-2Bh
+	dw	dos_none, dos_none, dos_none, dos_none		; 2Ch-2Fh
+	dw	dos_none, dos_none, dos_none, dos_none		; 30h-33h
+	dw	dos_none, dos_none, dos_none, dos_none		; 34h-37h
+	dw	dos_none, dos_none, dos_none, dos_none		; 38h-3Bh
+	dw	dos_none, dos_none, dos_none, dos_none		; 3Ch-3Fh
+	dw	dos_none, dos_none, dos_none, dos_none		; 40h-43h
+	dw	dos_none, dos_none, dos_none, dos_none		; 44h-47h
+	dw	mcb_alloc, mcb_free, dos_none, dos_none		; 48h-4Bh
+	dw	dos_none, dos_none				; 4Ch-4Fh
+	DEFABS	FUNCTBL_SIZE,<($ - FUNCTBL) SHR 1>
 
 DOS	ends
 

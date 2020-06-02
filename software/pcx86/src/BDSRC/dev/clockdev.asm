@@ -14,7 +14,7 @@ DEV	group	CODE,DATA
 CODE	segment para public 'CODE'
 
 	public	CLOCK
-CLOCK	DDH	<offset DEV:ddend+16,,DDATTR_CHAR,offset ddreq,offset ddint,2020244B434F4C43h>
+CLOCK	DDH	<offset DEV:ddend+16,,DDATTR_CLOCK+DDATTR_CHAR,offset ddreq,offset ddinit,2020244B434F4C43h>
 
 	DEFPTR	ddpkt		; last request packet address
 

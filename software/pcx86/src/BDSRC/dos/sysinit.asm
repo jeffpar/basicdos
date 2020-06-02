@@ -11,8 +11,10 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<MCB_HEAD,PCB_TABLE,SFB_TABLE>,word
-	EXTERNS	<dosexit,doscall>,near
+	EXTERNS	<MCB_HEAD>,word
+	EXTERNS	<PCB_TABLE,SFB_TABLE>,dword
+	EXTERNS	<dosexit,dosfunc,dos_return>,near
+	EXTERNS	<sfb_open>,near
 
 	DEFLBL	sysinit_beg
 	DEFWORD	dos_seg,word
@@ -33,17 +35,30 @@ DOS	segment word public 'CODE'
 ;	DX = size of CFG_FILE data, if any
 ;
 DEFPROC	sysinit,far
+	mov	ax,cs
+	mov	[dos_seg],ax		; save the resident DOS segment
+	mov	[cfg_data],bx		; offset of CFG data
+	mov	[cfg_size],dx		; size of CFG data
+;
+; To simplify use of the CFG data, replace all line endings with zeros.
+;
+	mov	di,bx
+	mov	cx,dx
+	mov	al,0Ah
+si0:	repne	scasb
+	jcxz	si1
+	mov	byte ptr [di-1],0
+	cmp	byte ptr [di-2],0Dh
+	jne	si0
+	cmp	byte ptr [di-2],0
+	jmp	si0
 ;
 ; Move all the init code/data out of the way, to top of available memory.
 ;
 ; Size is in Kb (2^10 units), we need size in paragraphs (2^4 units), so
 ; shift left 6 bits.  Then calculate init code size in paras and subtract.
 ;
-	mov	ax,cs
-	mov	[dos_seg],ax		; save the resident DOS segment
-	mov	[cfg_data],bx		; offset of CFG data
-	mov	[cfg_size],dx		; size of CFG data
-	mov	ax,[MEMORY_SIZE]	; get available memory in Kb
+si1:	mov	ax,[MEMORY_SIZE]	; get available memory in Kb
 	mov	cl,6
 	shl	ax,cl			; available memory in paras
 	mov	[top_seg],ax		; segment of end of memory
@@ -77,7 +92,7 @@ si2:	push	ss
 	pop	es
 	ASSUME	ES:BIOS
 	mov	si,offset int_tbl
-	mov	di,INT_DOS_EXIT * 4
+	mov	di,INT_DOSEXIT * 4
 si3:	lodsw				; load vector offset
 	test	ax,ax
 	jz	si4
@@ -85,17 +100,19 @@ si3:	lodsw				; load vector offset
 	mov	ax,ds
 	stosw				; store vector segment
 	jmp	si3
-si4:	push	cs
-	pop	ds			; DS is now the upper DOS segment
 ;
 ; Now set ES to the first available paragraph for resident DOS tables.
 ;
-	mov	ax,offset sysinit_beg
+si4:	mov	ax,offset sysinit_beg
 	test	al,0Fh			; started on a paragraph boundary?
 	jz	si5			; yes
-	inc	dx			; no, so skip to the next paragraph
-si5:	mov	es,dx
+	inc	dx			; no, so skip to next paragraph
+si5:	mov	ax,ds
+	add	ax,dx
+	mov	es,ax			; ES = first free (low) paragraph
 	ASSUME	ES:NOTHING
+	push	cs
+	pop	ds			; DS is now the upper DOS segment
 ;
 ; The first resident table (PCB_TABLE) contains our Process Control Blocks.
 ; Look for a "PCBS=" line in CFG_FILE.
@@ -103,11 +120,15 @@ si5:	mov	es,dx
 	mov	si,offset CFG_PCBS
 	call	find_cfg		; look for "PCBS="
 	jc	si6			; if not found, AX will be min value
-	call	get_decimal		; AX = new value
+	push	es
+	push	ds
+	pop	es			; ES:DI -> string, DS:SI -> validation
+	mov	ax,DOSUTIL_DECIMAL
+	int	21h			; AX = new value
+	pop	es
 si6:	mov	dx,size PCB
-	mul	dx			; AX = length of table in bytes
 	mov	bx,offset PCB_TABLE
-	call	init_table
+	call	init_table		; initialize table, update ES
 ;
 ; The next resident table (SFB_TABLE) contains our System File Blocks.
 ; Look for a "FILES=" line in CFG_FILE.
@@ -115,11 +136,15 @@ si6:	mov	dx,size PCB
 	mov	si,offset CFG_FILES
 	call	find_cfg		; look for "FILES="
 	jc	si7			; if not found, AX will be min value
-	call	get_decimal		; AX = new value
+	push	es
+	push	ds
+	pop	es			; ES:DI -> string, DS:SI -> validation
+	mov	ax,DOSUTIL_DECIMAL
+	int	21h			; AX = new value
+	pop	es
 si7:	mov	dx,size SFB
-	mul	dx			; AX = length of table in bytes
 	mov	bx,offset SFB_TABLE
-	call	init_table
+	call	init_table		; initialize table, update ES
 ;
 ; After all the resident tables have been created, initialize the MCB chain.
 ;
@@ -144,38 +169,72 @@ si7:	mov	dx,size SFB
 ; Allocate some memory for an initial (test) process
 ;
 	IFDEF	DEBUG
-	mov	ah,DOS_MALLOC
+	mov	ah,DOS_ALLOC
 	mov	bx,200h
 	int	21h
 	jc	dsierr
 	xchg	cx,ax			; CX = 1st segment
-	mov	ah,DOS_MALLOC
+	mov	ah,DOS_ALLOC
 	mov	bx,200h
 	int	21h
 	jc	dsierr
 	xchg	dx,ax			; DX = 2nd segment
-	mov	ah,DOS_MALLOC
+	mov	ah,DOS_ALLOC
 	mov	bx,200h
 	int	21h
 	jc	dsierr
 	xchg	si,ax			; SI = 3rd segment
-	mov	ah,DOS_MFREE
+	mov	ah,DOS_FREE
 	mov	es,cx			; free the 1st
 	int	21h
 	jc	dsierr
-	mov	ah,DOS_MFREE
+	mov	ah,DOS_FREE
 	mov	es,si
 	int	21h			; free the 3rd
 	jc	dsierr
-	mov	ah,DOS_MFREE
+	mov	ah,DOS_FREE
 	mov	es,dx
 	int	21h			; free the 2nd
 	jnc	si8
 dsierr:	jmp	sysinit_error
 	ENDIF
+;
+; Open CON with context.  If there's a "CON=" in CFG_FILE, use that
+; (after replacing "=" with ":"); otherwise, use CON_DEFAULT.
+;
+si8:	mov	si,offset CFG_CONSOLE
+	mov	dx,offset CON_DEFAULT
+	call	find_cfg		; look for "CONSOLE="
+	jc	si9			; not found
+	mov	dx,di
+si9:	mov	bl,MODE_ACC_BOTH
+	mov	si,dx
+	mov	ax,offset sfb_open
+	call	dos_call		; call resident function at AX
 
-si8:	jmp	si8
+si99:	jmp	si99
 ENDPROC	sysinit
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Call resident DOS procedure at AX.
+;
+DEFPROC	dos_call
+	push	es
+	push	cs
+	mov	bp,offset dc9
+	push	bp
+	mov	bp,offset dos_return
+	push	bp
+	push	[dos_seg]
+	push	ax
+	sub	ax,ax
+	mov	es,ax
+	ASSUME	ES:BIOS
+	db	0CBh			; RETF
+dc9:	pop	es
+	ret
+ENDPROC	dos_call
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -226,66 +285,38 @@ ENDPROC	find_cfg
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; Convert string at DI to decimal, then validate using values at SI.
-;
-; Returns:
-;	AX = value, DI -> 1st non-decimal digit
-;	Carry will be set if there's an error, but AX will ALWAYS be valid
-;
-; Modifies:
-;	AX, DI
-;
-DEFPROC	get_decimal
-	push	cx
-	push	dx
-	sub	ax,ax
-	cwd
-	mov	cx,10
-gd1:	mov	dl,[di]
-	sub	dl,'0'
-	jb	gd7
-	cmp	dl,cl
-	jae	gd7
-	inc	di
-	push	dx
-	mul	cx
-	pop	dx
-	add	ax,dx
-	jmp	gd1
-gd7:	cmp	ax,[si]			; too small?
-	jae	gd8			; no
-	mov	ax,[si]
-	jmp	short gd9
-gd8:	cmp	[si+2],ax		; too large?
-	jae	gd9			; no
-	mov	ax,[si+2]
-gd9:	pop	dx
-	pop	cx
-	ret
-ENDPROC get_decimal
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; Initialize table with length AX at ES:0, store ES at table segment address BX,
-; and then adjust ES.
+; Initialize table with AX entries of length DX at ES:0, store DS-relative
+; table offset at [BX], number of entries at [BX], and adjust ES.
 ;
 ; Returns: Nothing
 ;
-; Modifies: AX, DX, DI
+; Modifies: AX, CX, DX, DI
 ;
 DEFPROC	init_table
+	mul	dx			; AX = length of table in bytes
 	xchg	cx,ax			; CX = length
 	sub	di,di
 	mov	ax,di
-	rep	stosb			; initialize the table
+	rep	stosb			; zero the table
+	push	ds
+	mov	ds,[dos_seg]
+	mov	ax,es
+	mov	dx,ds
+	sub	ax,dx			; AX = distance from DS:0 in paras
+	mov	dx,ax			; save for DS overflow check
+	mov	cl,4
+	shl	ax,cl			; AX = DS-relative offset
+	mov	[bx].off,ax		; save DS-relative offset
+	add	ax,di
+	mov	[bx].seg,ax		; save DS-relative limit
+	pop	ds
 	add	di,15
 	mov	cl,4
 	shr	di,cl			; DI = length of table in paras
+	add	dx,di			; check for DS overflow
+	cmp	dx,1000h		; have we exceeded the DS 64K limit?
+	ja	sysinit_error		; yes, sadly
 	mov	ax,es
-	push	ds
-	mov	ds,[dos_seg]
-	mov	[bx],ax			; save table segment
-	pop	ds
 	add	ax,di
 	mov	es,ax			; ES = next available paragraph
 	ret
@@ -327,13 +358,18 @@ ENDPROC	sysinit_print
 ;
 ; Initialization data
 ;
-	DEFTBL	int_tbl,<dosexit,doscall,0>
+	DEFARR	int_tbl,<dosexit,dosfunc,0>
 
 CFG_PCBS	db	5,"PCBS="
-		dw	4, 16
+		dw	4,16
 
 CFG_FILES	db	6,"FILES="
-		dw	20, 256
+		dw	20,256
+
+CFG_CONSOLE	db	8,"CONSOLE=",
+		dw	4,25, 16,80
+
+CON_DEFAULT	db	"CON:25,80",0
 
 syserr	db	"System initialization error, halted",0
 

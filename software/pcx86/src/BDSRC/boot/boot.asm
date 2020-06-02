@@ -169,9 +169,9 @@ fd1:	cmp	byte ptr [di],ch
 fd8:	mov	[bx],cx
 	mov	ax,[di-11].DIR_CLN	; overwrite the filename
 	mov	[bx+2],ax		; with cluster number and size,
-	mov	ax,[di-11].DIR_SIZE_L	; since we're done with the filename
+	mov	ax,[di-11].DIR_SIZE.off	; since we're done with the filename
 	mov	[bx+4],ax
-	mov	ax,[di-11].DIR_SIZE_H
+	mov	ax,[di-11].DIR_SIZE.seg
 	mov	[bx+6],ax
 fd9:	pop	di
 	pop	si

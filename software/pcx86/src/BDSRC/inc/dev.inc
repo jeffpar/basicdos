@@ -17,9 +17,14 @@ DDH_NEXT_SEG	dw	?	; 02h: segment of next DDH
 DDH_ATTR	dw	?	; 04h: device attributes
 DDH_STRATEGY	dw	?	; 06h: strategy entry point
 DDH_INTERRUPT	dw	?	; 08h: interrupt entry point
-DDH_NAME	dq	?	; 0Ah: device name
+DDH_NAME	dq	?	; 0Ah: device name (8 characters)
 DDH		ends
 
+DDATTR_STDIN	equ	0001h
+DDATTR_STDOUT	equ	0002h
+DDATTR_NUL	equ	0004h
+DDATTR_CLOCK	equ	0008h
+DDATTR_OPEN	equ	0800h	; understands open/close
 DDATTR_CHAR	equ	8000h	; set if character device, clear if block
 DDATTR_BLOCK	equ	0000h
 
@@ -31,8 +36,31 @@ DDP_LEN		db	?	; 00h: length of packet
 DDP_UNIT	db	?	; 01h: unit # (block devices only)
 DDP_CMD		db	?	; 02h: command #
 DDP_STATUS	dw	?	; 03h: status
-DDP_RESERVED	db	8 dup(?); 04h: reserved
+DDP_RESERVED	db	?	; 05h (technically, next 8 bytes are reserved)
+DDP_CONTEXT	dw	?	; 06h: device context, if any
+DDP_PARMS	dd	?	; 08h (eg, OPEN parms)
+DDP_UNUSED	db	?	; 0Ah
 DDP		ends
+
+DDSTAT_ERROR	equ	8000h
+DDSTAT_DONE	equ	0100h
+DDSTAT_BUSY	equ	0200h
+DDSTAT_ERRCODE	equ	00FFh
+
+DDERR_WP	equ	0	; Write protect violation
+DDERR_UNKUNIT	equ	1	; Unknown unit
+DDERR_NOTREADY	equ	2	; Drive not ready
+DDERR_UNKCMD	equ	3	; Unknown command
+DDERR_CRC	equ	4	; CRC error
+DDERR_BADREQ	equ	5	; Bad drive request structure length
+DDERR_SEEK	equ	6	; Seek error
+DDERR_UNKMEDIA	equ	7	; Unknown media
+DDERR_NOSECTOR	equ	8	; Sector not found
+DDERR_NOPAPER	equ	9	; Printer out of paper
+DDERR_WRFAULT	equ	10	; Write fault
+DDERR_RDFAULT	equ	11	; Read fault
+DDERR_GENFAIL	equ	12	; General failure
+DDERR_INVDSKCHG	equ	15	; Invalid disk change
 
 ;
 ; Device driver INIT packet
@@ -68,3 +96,13 @@ DDC_OUTBUSY	equ	16	; Output Until Busy (Only called if bit 13 is set on characte
 DDC_GENIOCTL	equ	19	; Generic IOCtl Request
 DDC_GETLOGDEV	equ	23	; Get Logical Device
 DDC_SETLOGDEV	equ	24	; Set Logical Device
+
+DEFLEN	macro	symbol,vars,add
+symbol	=	0
+	IRP	var,<vars>
+symbol 	=	symbol + (((var&&_end - &&var) + 15) AND 0FFF0h)
+	ENDM
+	IFNB	<add>
+symbol	=	symbol + add
+	ENDIF
+	endm

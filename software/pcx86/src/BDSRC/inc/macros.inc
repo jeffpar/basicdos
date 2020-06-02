@@ -27,27 +27,42 @@ name	label	type
 	ENDIF
 	endm
 
-DEFWORD	macro	name,value
+DEFDATA	macro	names,size,value
 	even
+	IRP	name,<names>
 	public	name
 	IFB	<value>
-name	dw	?
+name	size	?
 	ELSE
-name	dw	value
+name	size	value
 	ENDIF
+	ENDM
 	endm
 
-DEFPTR	macro	name,value
+DEFBYTE	macro	names,value
+	DEFDATA <names>,db,value
+	endm
+
+DEFWORD	macro	names,value
+	DEFDATA <names>,dw,value
+	endm
+
+DEFPTR	macro	names,value
+	DEFDATA <names>,dd,value
+	endm
+;
+; Tables are like pointers, where .off is the offset but .seg is the limit.
+; We don't need to record the segment, because offset is always DS-relative.
+;
+DEFTBL	macro	names
 	even
+	IRP	name,<names>
 	public	name
-	IFB	<value>
-name	dd	?
-	ELSE
-name	dd	value
-	ENDIF
+name	dd	0
+	ENDM
 	endm
 
-DEFTBL	macro	name,entries
+DEFARR	macro	name,entries
 	even
 	public	name
 name	label	word
@@ -62,7 +77,7 @@ DEFPROC	macro	name,type
 name	proc	near
 	ELSE
 	  IFIDN <type>,<DOS>
-	ASSUME	CS:DOS, DS:DOS, ES:NOTHING, SS:NOTHING
+	ASSUME	CS:DOS, DS:DOS, ES:BIOS, SS:NOTHING
 name	proc	near
 	  ELSE
 name	proc	type

@@ -15,7 +15,7 @@ DOS	segment word public 'CODE'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; mem_alloc (REG_AH = 48h)
+; mcb_alloc (REG_AH = 48h)
 ;
 ; Inputs:
 ;	REG_BX = paragraphs requested
@@ -24,18 +24,18 @@ DOS	segment word public 'CODE'
 ;	On success, REG_AX = new segment
 ;	On failure, REG_AX = ERR_NOMEM, REG_BX = max paras available
 ;
-DEFPROC	mem_alloc,DOS
+DEFPROC	mcb_alloc,DOS
 	mov	bx,[bp].REG_BX		; BX = # paras requested
-	call	malloc
-	jnc	mma9
+	call	alloc
+	jnc	mca9
 	mov	[bp].REG_BX,bx
-mma9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
+mca9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
 	ret
-ENDPROC	mem_alloc
+ENDPROC	mcb_alloc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; mem_free (REG_AH = 49h)
+; mcb_free (REG_AH = 49h)
 ;
 ; Inputs:
 ;	REG_ES = segment to free
@@ -44,13 +44,13 @@ ENDPROC	mem_alloc
 ;	On success, carry clear
 ;	On failure, carry set, REG_AX = ERR_BADMCD or ERR_BADADDR
 ;
-DEFPROC	mem_free,DOS
+DEFPROC	mcb_free,DOS
 	mov	ax,[bp].REG_ES		; AX = segment to free
-	call	mfree
-	jnc	mmf9
+	call	free
+	jnc	mcf9
 	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY set
-mmf9:	ret
-ENDPROC	mem_free
+mcf9:	ret
+ENDPROC	mcb_free
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -80,7 +80,7 @@ ENDPROC	initmcb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; malloc
+; alloc
 ;
 ; Inputs:
 ;	BX = paragraphs requested (from REG_BX if via INT 21h)
@@ -92,7 +92,7 @@ ENDPROC	initmcb
 ; Modifies:
 ;	AX, BX, CX, DX, DI, ES
 ;
-DEFPROC malloc,DOS
+DEFPROC alloc,DOS
 	mov	es,[MCB_HEAD]
 
 ma1:	mov	ax,es:[MCB_PARAS]	; AX = # paras this block
@@ -138,11 +138,11 @@ ma5:	cmp	es:[MCB_SIG],MCB_LAST	; last block?
 ma8:	mov	ax,ERR_NOMEM
 	stc
 ma9:	ret
-ENDPROC	malloc
+ENDPROC	alloc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; mfree
+; free
 ;
 ; Inputs:
 ;	AX = segment to free (from REG_ES if via INT 21h)
@@ -154,11 +154,11 @@ ENDPROC	malloc
 ; Modifies:
 ;	AX, BX, DX, ES
 ;
-DEFPROC	mfree,DOS
+DEFPROC	free,DOS
 ;
 ; Freeing a block requires that we merge it with any free block that
 ; immediately precedes or follows it (well, "require" is a strong word; it's
-; only required if we want malloc to work better).  And since the MCBs are
+; only required if we want alloc to work better).  And since the MCBs are
 ; singly-linked (and there again, "linked" is a rather strong word), we must
 ; walk the chain from the head until we find the candidate block.
 ;
@@ -215,7 +215,7 @@ mf7:	add	bx,es:[MCB_PARAS]
 mf8:	mov	ax,ERR_BADADDR
 	stc
 mf9:	ret
-ENDPROC	mfree
+ENDPROC	free
 
 DOS	ends
 

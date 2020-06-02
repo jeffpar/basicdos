@@ -11,8 +11,8 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<CALLTBL>,word
-	EXTERNS	<CALLTBL_SIZE>,abs
+	EXTERNS	<FUNCTBL>,word
+	EXTERNS	<FUNCTBL_SIZE>,abs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -32,7 +32,7 @@ ENDPROC	dosexit
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; doscall (INT 21h)
+; dosfunc (INT 21h)
 ;
 ; Inputs:
 ;	Varies
@@ -42,51 +42,55 @@ ENDPROC	dosexit
 ;
 	ASSUME	CS:DOS, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
-DEFPROC	doscall,far
+DEFPROC	dosfunc,far
 	sti
 	cld				; we assume CLD everywhere
 	push	ax
 	push	bx
 	push	cx
 	push	dx
+	push	ds
 	push	si
+	push	es
 	push	di
 	push	bp
-	push	ds
-	push	es
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
+	sub	bp,bp			; not sure this is the best default
+	mov	es,bp			; for ES, but I'm going to go with it
+	ASSUME	ES:BIOS			; for now...
 	mov	bp,sp
 	and	[bp].REG_FL,NOT FL_CARRY
-	cmp	ah,CALLTBL_SIZE
+	cmp	ah,FUNCTBL_SIZE
 	jae	dc8
 	mov	bl,ah
 	mov	bh,0
 	add	bx,bx
-	call	CALLTBL[bx]
+	call	FUNCTBL[bx]
 	jnc	dc9
 ;
 ; We'd just as soon IRET to the caller (which also restores their D flag),
 ; so we now update FL_CARRY on the stack (which we already cleared on entry).
 ;
 dc8:	or	[bp].REG_FL,FL_CARRY
-dc9:	pop	es
+dc9:	pop	bp
+	pop	di
+	pop	es
+	ASSUME	ES:NOTHING
+	pop	si
 	pop	ds
 	ASSUME	DS:NOTHING
-	pop	bp
-	pop	di
-	pop	si
 	pop	dx
 	pop	cx
 	pop	bx
 	pop	ax
 	iret
-ENDPROC	doscall
+ENDPROC	dosfunc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dos_nop (handler for unimplemented DOS functions)
+; dos_none (handler for unimplemented DOS functions)
 ;
 ; Inputs:
 ;	Varies
@@ -96,11 +100,19 @@ ENDPROC	doscall
 ;
 	ASSUME	CS:DOS, DS:DOS, ES:NOTHING, SS:NOTHING
 
-DEFPROC	dos_nop
+DEFPROC	dos_none
 	mov	[bp].REG_AX,ERR_INVALID
 	stc
 	ret
-ENDPROC	dos_nop
+ENDPROC	dos_none
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Far return used by sysinit for making calls to resident code (see dos_call).
+;
+DEFPROC	dos_return,far
+	ret
+ENDPROC	dos_return
 
 DOS	ends
 
