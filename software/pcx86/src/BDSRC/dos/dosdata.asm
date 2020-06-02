@@ -20,6 +20,7 @@ DOS	segment word public 'CODE'
 
 	DEFTBL	<PCB_TABLE,SFB_TABLE>
 
+	DEFWORD	SFB_SYSCON,0		; SFB of the system console
 	DEFWORD	PSP_ACTIVE,1		; start with a fake system PSP
 
 	EXTERNS	<tty_echo,tty_write,aux_read,aux_write,prn_write,tty_io>,near

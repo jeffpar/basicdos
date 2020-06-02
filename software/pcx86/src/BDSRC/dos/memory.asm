@@ -58,7 +58,7 @@ ENDPROC	mcb_free
 ;
 ; Inputs:
 ;	ES:0 -> MCB
-;	AL = SIG (eg, MCB_NORMAL)
+;	AL = SIG (eg, MCBSIG_NEXT)
 ;	DX = OWNER (eg, 0 or PSP_ACTIVE)
 ;	CX = PARAS
 ;
@@ -95,7 +95,12 @@ ENDPROC	initmcb
 DEFPROC alloc,DOS
 	mov	es,[MCB_HEAD]
 
-ma1:	mov	ax,es:[MCB_PARAS]	; AX = # paras this block
+ma1:	mov	al,es:[MCB_SIG]
+	cmp	al,MCBSIG_NEXT
+	je	ma2
+	cmp	al,MCBSIG_LAST
+	jne	ma7
+ma2:	mov	ax,es:[MCB_PARAS]	; AX = # paras this block
 	cmp	es:[MCB_OWNER],0	; free block?
 	jne	ma5			; no
 	cmp	ax,bx			; big enough?
@@ -117,7 +122,7 @@ ma1:	mov	ax,es:[MCB_PARAS]	; AX = # paras this block
 	sub	dx,dx			; no owner
 	call	initmcb
 	pop	es			; ES:0 -> back to found block
-	mov	es:[MCB_SIG],MCB_NORMAL
+	mov	es:[MCB_SIG],MCBSIG_NEXT
 	mov	es:[MCB_PARAS],bx
 ma4:	mov	ax,[PSP_ACTIVE]
 	mov	es:[MCB_OWNER],ax
@@ -126,7 +131,7 @@ ma4:	mov	ax,[PSP_ACTIVE]
 	clc
 	jmp	short ma9
 
-ma5:	cmp	es:[MCB_SIG],MCB_LAST	; last block?
+ma5:	cmp	es:[MCB_SIG],MCBSIG_LAST; last block?
 	je	ma8			; yes, return error
 
 	mov	dx,es			; advance to the next block
@@ -135,8 +140,10 @@ ma5:	cmp	es:[MCB_SIG],MCB_LAST	; last block?
 	mov	es,dx
 	jmp	ma1
 
+ma7:	mov	ax,ERR_BADMCB
+	jmp	short maerr
 ma8:	mov	ax,ERR_NOMEM
-	stc
+maerr:	stc
 ma9:	ret
 ENDPROC	alloc
 
@@ -168,7 +175,7 @@ DEFPROC	free,DOS
 
 mf1:	mov	es,bx
 	cmp	bx,ax			; does current MCB match candidate?
-	jne	mf6			; no
+	jne	mf4			; no
 ;
 ; If the previous block is free, add this block's paras (+1 for its MCB)
 ; to the previous block's paras.
@@ -177,7 +184,11 @@ mf1:	mov	es,bx
 	jz	mf3			; no
 
 mf2:	mov	al,es:[MCB_SIG]
-	mov	cx,es:[MCB_PARAS]	; yes, merge current with previous
+	cmp	al,MCBSIG_NEXT
+	je	mf2a
+	cmp	al,MCBSIG_LAST
+	jne	mf7
+mf2a:	mov	cx,es:[MCB_PARAS]	; yes, merge current with previous
 	inc	cx
 	mov	es,dx			; ES:0 -> previous block
 	add	es:[MCB_PARAS],cx	; update its number of paras
@@ -188,7 +199,7 @@ mf2:	mov	al,es:[MCB_SIG]
 ; Mark the candidate block free, and if the next block is NOT free, we're done.
 ;
 mf3:	mov	es:[MCB_OWNER],dx	; happily, DX is zero
-	cmp	es:[MCB_SIG],MCB_LAST	; is there a next block?
+	cmp	es:[MCB_SIG],MCBSIG_LAST; is there a next block?
 	je	mf9			; no (and carry is clear)
 	mov	dx,bx			; yes, save this block as new previous
 	add	bx,es:[MCB_PARAS]
@@ -202,18 +213,20 @@ mf3:	mov	es:[MCB_OWNER],dx	; happily, DX is zero
 ;
 	jmp	mf2
 
-mf6:	cmp	es:[MCB_SIG],MCB_LAST	; continuing search: last block?
+mf4:	cmp	es:[MCB_SIG],MCBSIG_LAST; continuing search: last block?
 	je	mf8			; yes, return error
 	sub	dx,dx			; assume block is not free
 	cmp	es:[MCB_OWNER],dx	; is it free?
-	jne	mf7			; no
+	jne	mf5			; no
 	mov	dx,bx			; DX = new previous (and free) MCB
-mf7:	add	bx,es:[MCB_PARAS]
+mf5:	add	bx,es:[MCB_PARAS]
 	inc	bx
 	jmp	mf1			; check the next block
 
+mf7:	mov	ax,ERR_BADMCB
+	jmp	short mferr
 mf8:	mov	ax,ERR_BADADDR
-	stc
+mferr:	stc
 mf9:	ret
 ENDPROC	free
 

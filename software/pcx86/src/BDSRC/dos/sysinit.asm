@@ -11,12 +11,13 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<MCB_HEAD>,word
+	EXTERNS	<MCB_HEAD,SFB_SYSCON>,word
 	EXTERNS	<PCB_TABLE,SFB_TABLE>,dword
 	EXTERNS	<dosexit,dosfunc,dos_return>,near
 	EXTERNS	<sfb_open>,near
 
 	DEFLBL	sysinit_beg
+
 	DEFWORD	dos_seg,word
 	DEFWORD	top_seg,word
 	DEFWORD	cfg_data,word
@@ -148,14 +149,10 @@ si7:	mov	dx,size SFB
 ;
 ; After all the resident tables have been created, initialize the MCB chain.
 ;
-	push	ds
 	mov	bx,es
-	mov	ds,[dos_seg]		; MCB_HEAD is in resident DOS segment
-	mov	[MCB_HEAD],bx
-	pop	ds
 	sub	di,di
-	mov	al,MCB_LAST
-	stosb				; mov es:[MCB_SIG],MCB_LAST
+	mov	al,MCBSIG_LAST
+	stosb				; mov es:[MCB_SIG],MCBSIG_LAST
 	sub	ax,ax
 	stosw				; mov es:[MCB_OWNER],0
 	mov	ax,[top_seg]
@@ -165,10 +162,15 @@ si7:	mov	dx,size SFB
 	mov	cl,size MCB_RESERVED
 	mov	al,0
 	rep	stosb
+
+	mov	es,[dos_seg]		; MCB_HEAD is in resident DOS segment
+	ASSUME	ES:DOS
+	mov	es:[MCB_HEAD],bx
 ;
 ; Allocate some memory for an initial (test) process
 ;
 	IFDEF	DEBUG
+	push	es
 	mov	ah,DOS_ALLOC
 	mov	bx,200h
 	int	21h
@@ -195,12 +197,13 @@ si7:	mov	dx,size SFB
 	mov	ah,DOS_FREE
 	mov	es,dx
 	int	21h			; free the 2nd
-	jnc	si8
+	jnc	dsiend
 dsierr:	jmp	sysinit_error
+dsiend:	pop	es
 	ENDIF
 ;
-; Open CON with context.  If there's a "CON=" in CFG_FILE, use that
-; (after replacing "=" with ":"); otherwise, use CON_DEFAULT.
+; Open CON with context.  If there's a "CONSOLE=" setting in CFG_FILE,
+; use that; otherwise, use CON_DEFAULT.
 ;
 si8:	mov	si,offset CFG_CONSOLE
 	mov	dx,offset CON_DEFAULT
@@ -210,7 +213,22 @@ si8:	mov	si,offset CFG_CONSOLE
 si9:	mov	bl,MODE_ACC_BOTH
 	mov	si,dx
 	mov	ax,offset sfb_open
-	call	dos_call		; call resident function at AX
+	call	dos_call
+	jnc	si10
+	mov	si,offset conerr
+	jmp	fatal_error
+si10:	mov	es:[SFB_SYSCON],bx
+
+	IFDEF	DEBUG
+	mov	bl,MODE_ACC_BOTH
+	mov	si,offset COM1_DEFAULT
+	mov	ax,offset sfb_open
+	call	dos_call
+	mov	bl,MODE_ACC_BOTH
+	mov	si,offset COM2_DEFAULT
+	mov	ax,offset sfb_open
+	call	dos_call
+	ENDIF
 
 si99:	jmp	si99
 ENDPROC	sysinit
@@ -332,6 +350,9 @@ ENDPROC	init_table
 ;
 DEFPROC	sysinit_error
 	mov	si,offset syserr
+DEFLBL	fatal_error,near
+	call	sysinit_print
+	mov	si,offset halted
 	call	sysinit_print
 	jmp	$
 ENDPROC	sysinit_error
@@ -345,14 +366,14 @@ ENDPROC	sysinit_error
 ; Modifies: AX, BX, SI
 ;
 DEFPROC	sysinit_print
-	lodsb
+	lods	byte ptr cs:[si]
 	test	al,al
-	jz	sp9
+	jz	sip9
 	mov	ah,VIDEO_TTYOUT
 	mov	bh,0
 	int	INT_VIDEO
 	jmp	sysinit_print
-sp9:	ret
+sip9:	ret
 ENDPROC	sysinit_print
 
 ;
@@ -362,16 +383,20 @@ ENDPROC	sysinit_print
 
 CFG_PCBS	db	5,"PCBS="
 		dw	4,16
-
 CFG_FILES	db	6,"FILES="
 		dw	20,256
-
 CFG_CONSOLE	db	8,"CONSOLE=",
 		dw	4,25, 16,80
-
 CON_DEFAULT	db	"CON:25,80",0
 
-syserr	db	"System initialization error, halted",0
+	IFDEF	DEBUG
+COM1_DEFAULT	db	"COM1:9600,N,8,1",0
+COM2_DEFAULT	db	"COM2:9600,N,8,1",0
+	ENDIF
+
+syserr	db	"System initialization error",0
+conerr	db	"Unable to initialize console",0
+halted	db	", halted",0
 
 	DEFLBL	sysinit_end
 

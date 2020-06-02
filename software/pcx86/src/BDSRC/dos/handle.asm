@@ -59,23 +59,27 @@ DEFPROC	sfb_open,DOS
 	call	dev_chkname		; check for device name
 	jc	so9			; not a device name
 	mov	al,DDC_OPEN		; ES:DI -> driver
-	sub	dx,dx			; no context
+	sub	dx,dx			; no initial context
 	call	dev_request		; issue the DDC_OPEN request
 	jc	so9			; failed
 ;
 ; When looking for a matching existing SFB, all we require is that both
-; the device and the device context match.  For files, the context will be
-; the cluster number; for devices, the context is, um, the context, which
+; the device driver and device context match.  For files, the context will
+; be the cluster number; for devices, the context is, um, the context, which
 ; dev_request returned in DX.
 ;
 ; However, we relax that *slightly* for the CON device, because the first
 ; CON device opened is considered the "system console", so any other CON
 ; device *without* context will use that same SFB.
 ;
-; Traditionally, checking used SFBs means those with a non-zero HANDLES count;
+; Traditionally, checking used SFBs means those with non-zero HANDLES count;
 ; however, our SFBs are also used IFF their DRIVER seg is non-zero, so there.
 ;
 	push	si
+	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
 	mov	ax,es			; AX:DI is driver, DX is context
 	mov	cl,bl			; save mode in CL
 	mov	si,[SFB_TABLE].off
@@ -96,7 +100,6 @@ so2:	test	bx,bx			; are we still looking for a free SFB?
 so3:	add	si,size SFB
 	cmp	si,[SFB_TABLE].seg
 	jb	so1			; keep checking
-	pop	si
 
 	test	bx,bx			; was there a free SFB?
 	jz	so7			; no, tell the driver sorry
@@ -104,16 +107,19 @@ so3:	add	si,size SFB
 	mov	[bx].SFB_DRIVER.seg,es
 	mov	[bx].SFB_CONTEXT,dx
 	mov	[bx].SFB_MODE,cl
-	jmp	short so9		; return new SFB
+	jmp	short so8		; return new SFB
 
 so6:	mov	bx,si			; return matching SFB
-	pop	si
-	jmp	short so9
+	jmp	short so8
 
 so7:	mov	al,DDC_CLOSE		; ES:DI -> driver, DX = context
 	call	dev_request		; issue the DDC_CLOSE request
 	mov	ax,ERR_MAXFILES
 	stc				; return no SFB (and BX is zero)
+
+so8:	pop	ds
+	pop	si
+	ASSUME	DS:NOTHING
 so9:	ret
 ENDPROC	sfb_open
 

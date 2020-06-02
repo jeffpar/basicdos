@@ -20,6 +20,7 @@ COM1	DDH	<COM1_LEN,,DDATTR_OPEN+DDATTR_CHAR,offset DEV:ddreq,COM1_INIT,202020203
 
 	DEFPTR	ddpkt		; last request packet address
 	DEFPTR	ddfunp		; ddfun pointer
+	DEFWORD	port_base,0
 
         ASSUME	CS:CODE1, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
@@ -30,24 +31,28 @@ DEFPROC	ddreq,far
 ENDPROC	ddreq
 
 DEFPROC	ddint,far
-	push	ax
-	push	bx
-	push	cx
-	push	si
+	push	dx
 	push	di
 	push	es
 	les	di,[ddpkt]
+	mov	dx,[port_base]
 	call	[ddfunp]
 	pop	es
 	pop	di
-	pop	si
-	pop	cx
-	pop	bx
-	pop	ax
+	pop	dx
 	ret
 ENDPROC	ddint
 
 DEFPROC	ddfun,far
+	push	ax
+	push	bx
+	push	cx
+	push	si
+	;...
+	pop	si
+	pop	cx
+	pop	bx
+	pop	ax
 	ret
 ENDPROC	ddfun
 
@@ -64,6 +69,7 @@ COM2	DDH	<COM2_LEN,,DDATTR_CHAR,offset DEV:ddreq,COM2_INIT,20202020324D4F43h>
 
 	DEFPTR	ddpkt2		; last request packet address
 	DEFPTR	ddfunp2		; ddfun pointer
+	DEFWORD	port_base2,0
 
         ASSUME	CS:CODE2, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
@@ -74,20 +80,15 @@ DEFPROC	ddreq2,far
 ENDPROC	ddreq2
 
 DEFPROC	ddint2,far
-	push	ax
-	push	bx
-	push	cx
-	push	si
+	push	dx
 	push	di
 	push	es
 	les	di,[ddpkt2]
+	mov	dx,[port_base2]
 	call	[ddfunp2]
 	pop	es
 	pop	di
-	pop	si
-	pop	cx
-	pop	bx
-	pop	ax
+	pop	dx
 	ret
 ENDPROC	ddint2
 
@@ -104,6 +105,7 @@ COM3	DDH	<COM3_LEN,,DDATTR_CHAR,offset DEV:ddreq,COM3_INIT,20202020334D4F43h>
 
 	DEFPTR	ddpkt3		; last request packet address
 	DEFPTR	ddfunp3		; ddfun pointer
+	DEFWORD	port_base3,0
 
         ASSUME	CS:CODE3, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
@@ -114,20 +116,15 @@ DEFPROC	ddreq3,far
 ENDPROC	ddreq3
 
 DEFPROC	ddint3,far
-	push	ax
-	push	bx
-	push	cx
-	push	si
+	push	dx
 	push	di
 	push	es
 	les	di,[ddpkt3]
+	mov	dx,[port_base3]
 	call	[ddfunp3]
 	pop	es
 	pop	di
-	pop	si
-	pop	cx
-	pop	bx
-	pop	ax
+	pop	dx
 	ret
 ENDPROC	ddint3
 
@@ -144,6 +141,7 @@ COM4	DDH	<COM4_LEN,,DDATTR_CHAR,offset DEV:ddreq,COM4_INIT,20202020344D4F43h>
 
 	DEFPTR	ddpkt4		; last request packet address
 	DEFPTR	ddfunp4		; ddfun pointer
+	DEFWORD	port_base4,0
 
         ASSUME	CS:CODE4, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
@@ -154,20 +152,15 @@ DEFPROC	ddreq4,far
 ENDPROC	ddreq4
 
 DEFPROC	ddint4,far
-	push	ax
-	push	bx
-	push	cx
-	push	si
+	push	dx
 	push	di
 	push	es
 	les	di,[ddpkt4]
+	mov	dx,[port_base4]
 	call	[ddfunp4]
 	pop	es
 	pop	di
-	pop	si
-	pop	cx
-	pop	bx
-	pop	ax
+	pop	dx
 	ret
 ENDPROC	ddint4
 
@@ -211,19 +204,23 @@ DEFPROC	ddinit,far
 	mov	ax,[si+bx]		; get BIOS RS232 port address
 	test	ax,ax			; exists?
 	jz	in9			; no
+	mov	[port_base],ax
 	mov	ax,cs:[0].DDH_NEXT_OFF	; yes, copy over the driver length
 	cmp	bl,3			; COM4?
-	jne	in7			; no
+	jne	in1			; no
 	mov	ax,cs:[0].DDH_INTERRUPT	; use the temporary ddint offset instead
-in7:	mov	es:[di].DDPI_END.off,ax
+
+in1:	mov	es:[di].DDPI_END.off,ax
 	mov	cs:[0].DDH_INTERRUPT,offset DEV:ddint
-	mov	[ddfunp].off,offset ddfun
-	mov	ax,cs:[ddfuns]
-	test	ax,ax
-	jnz	in8
-	mov	ax,cs
-	mov	cs:[ddfuns],ax
-in8:	mov	[ddfunp].seg,ax
+
+	mov	[ddfunp].off,offset DEV:ddfun
+in2:	mov	ax,0			; this MOV will be modified
+	test	ax,ax			; on the first call to contain the CS
+	jnz	in3			; of the first driver (this is the
+	mov	ax,cs			; easiest way to communicate between
+	mov	word ptr cs:[in2+1],ax	; the otherwise fully insulated drivers)
+in3:	mov	[ddfunp].seg,ax
+
 in9:	pop	es
 	pop	ds
 	pop	di
@@ -233,8 +230,6 @@ in9:	pop	es
 	pop	ax
 	ret
 ENDPROC	ddinit
-
-	DEFWORD	ddfuns
 
 	DEFLBL	ddinit_end
 

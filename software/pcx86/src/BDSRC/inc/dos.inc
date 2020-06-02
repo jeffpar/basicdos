@@ -70,14 +70,14 @@ PCB		ends
 ; Memory Control Block (MCB)
 ;
 MCB		struc
-MCB_SIG		db	?	; 00h: either MCB_NORMAL or MCB_LAST
+MCB_SIG		db	?	; 00h: either MCBSIG_NEXT or MCBSIG_LAST
 MCB_OWNER	dw	?	; 01h: PSP segment owner (8 if owner is DOS)
 MCB_PARAS	dw	?	; 03h: size of block in paragraphs
 MCB_RESERVED	db     11 dup(?); 05h: reserved
 MCB		ends
 
-MCB_NORMAL	equ	4Dh
-MCB_LAST	equ	5Ah
+MCBSIG_NEXT	equ	4Dh
+MCBSIG_LAST	equ	5Ah
 
 ;
 ; System File Block (SFB)
