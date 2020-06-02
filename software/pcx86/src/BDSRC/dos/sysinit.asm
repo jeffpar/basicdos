@@ -14,7 +14,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<MCB_HEAD,SFB_SYSCON>,word
 	EXTERNS	<PCB_TABLE,SFB_TABLE>,dword
 	EXTERNS	<dosexit,dosfunc,dos_return>,near
-	EXTERNS	<sfb_open>,near
+	EXTERNS	<sfb_open,sfb_write>,near
 
 	DEFLBL	sysinit_beg
 
@@ -228,6 +228,13 @@ si10:	mov	es:[SFB_SYSCON],bx
 	mov	si,offset COM2_DEFAULT
 	mov	ax,offset sfb_open
 	call	dos_call
+	mov	bx,es:[SFB_SYSCON]
+	mov	si,offset con_test
+	mov	ax,DOSUTIL_STRLEN
+	int	21h
+	xchg	cx,ax
+	mov	ax,offset sfb_write
+	call	dos_call
 	ENDIF
 
 si99:	jmp	si99
@@ -392,6 +399,7 @@ CON_DEFAULT	db	"CON:25,80",0
 	IFDEF	DEBUG
 COM1_DEFAULT	db	"COM1:9600,N,8,1",0
 COM2_DEFAULT	db	"COM2:9600,N,8,1",0
+con_test	db	"This is a test of the CON device driver",13,10,0
 	ENDIF
 
 syserr	db	"System initialization error",0

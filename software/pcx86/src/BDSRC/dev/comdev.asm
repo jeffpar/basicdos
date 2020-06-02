@@ -48,7 +48,9 @@ DEFPROC	ddfun,far
 	push	bx
 	push	cx
 	push	si
+	push	ds
 	;...
+	pop	ds
 	pop	si
 	pop	cx
 	pop	bx

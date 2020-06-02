@@ -17,11 +17,10 @@ CODE	segment para public 'CODE'
 CON	DDH	<offset DEV:ddend+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_CHAR,offset ddreq,offset ddinit,20202020204E4F43h>
 
 	DEFPTR	ddpkt		; last request packet address
-	DEFWORD	frame_seg,0
 	DEFLBL	CMDTBL,word
 	dw	ddcmd_none, ddcmd_none, ddcmd_none, ddcmd_none	; 0-3
 	dw	ddcmd_none, ddcmd_none, ddcmd_none, ddcmd_none	; 4-7
-	dw	ddcmd_none, ddcmd_none, ddcmd_none, ddcmd_none	; 8-11
+	dw	ddcmd_write, ddcmd_none, ddcmd_none, ddcmd_none	; 8-11
 	dw	ddcmd_none, ddcmd_open, ddcmd_close, ddcmd_none	; 12-15
 	dw	ddcmd_none, ddcmd_none, ddcmd_none, ddcmd_none	; 16-19
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
@@ -29,6 +28,8 @@ CON	DDH	<offset DEV:ddend+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_CHAR
 	DEFLBL	CON_LIMITS,word
 	dw	4,25, 16,80	; mirrors what we put in sysinit's CFG_CONSOLE
 	dw	0,24, 0,79
+
+	DEFWORD	frame_seg,0
 
 context		struc
 buf_x		db	?
@@ -55,9 +56,6 @@ DEFPROC	ddint,far
 	push	si
 	push	di
 	push	ds
-	push	cs
-	pop	ds
-	ASSUME	DS:CODE
 	push	es
 	les	di,[ddpkt]
 	mov	bl,es:[di].DDP_CMD
@@ -70,7 +68,6 @@ DEFPROC	ddint,far
 ddi8:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_UNKCMD
 ddi9:	pop	es
 	pop	ds
-	ASSUME	DS:NOTHING
 	pop	di
 	pop	si
 	pop	cx
@@ -78,6 +75,35 @@ ddi9:	pop	es
 	pop	ax
 	ret
 ENDPROC	ddint
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcmd_write
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;
+; Outputs:
+;
+DEFPROC	ddcmd_write
+	mov	cx,es:[di].DDPRW_COUNT
+	lds	si,es:[di].DDPRW_ADDR
+	push	es
+	mov	es,es:[di].DDP_CONTEXT
+	jcxz	ddw9
+
+ddw1:	lodsb
+	;
+	; Cheating for now...
+	;
+	mov	ah,VIDEO_TTYOUT
+	mov	bh,0
+	int	INT_VIDEO
+	loop	ddw1
+
+ddw9:	pop	es
+	ret
+ENDPROC	ddcmd_write
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -120,8 +146,8 @@ DEFPROC	ddcmd_open
 ;
 	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_GENFAIL
 	jmp	short ddo9
-ddo8:	push	ds
-	mov	ds,ax
+
+ddo8:	mov	ds,ax
 	ASSUME	DS:NOTHING
 	mov	word ptr ds:[buf_x],dx
 	mov	word ptr ds:[buf_cx],cx
@@ -137,8 +163,7 @@ ddo8:	push	ds
 	pop	es
 	ASSUME	ES:NOTHING
 	mov	es:[di].DDP_CONTEXT,ds
-	pop	ds
-	ASSUME	DS:CODE
+
 ddo9:	ret
 ENDPROC	ddcmd_open
 

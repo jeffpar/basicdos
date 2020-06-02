@@ -20,6 +20,7 @@ LPT1	DDH	<LPT1_LEN,,DDATTR_OPEN+DDATTR_CHAR,offset DEV:ddreq,LPT1_INIT,202020203
 
 	DEFPTR	ddpkt		; last request packet address
 	DEFPTR	ddfunp		; ddfun pointer
+	DEFWORD	port_base,0
 
         ASSUME	CS:CODE1, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
@@ -30,24 +31,30 @@ DEFPROC	ddreq,far
 ENDPROC	ddreq
 
 DEFPROC	ddint,far
-	push	ax
-	push	bx
-	push	cx
-	push	si
+	push	dx
 	push	di
 	push	es
 	les	di,[ddpkt]
+	mov	dx,[port_base]
 	call	[ddfunp]
 	pop	es
 	pop	di
-	pop	si
-	pop	cx
-	pop	bx
-	pop	ax
+	pop	dx
 	ret
 ENDPROC	ddint
 
 DEFPROC	ddfun,far
+	push	ax
+	push	bx
+	push	cx
+	push	si
+	push	ds
+	;...
+	pop	ds
+	pop	si
+	pop	cx
+	pop	bx
+	pop	ax
 	ret
 ENDPROC	ddfun
 
@@ -63,6 +70,7 @@ LPT2	DDH	<LPT2_LEN,,DDATTR_CHAR,offset DEV:ddreq,LPT2_INIT,202020203254504Ch>
 
 	DEFPTR	ddpkt2		; last request packet address
 	DEFPTR	ddfunp2		; ddfun pointer
+	DEFWORD	port_base2,0
 
         ASSUME	CS:CODE2, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
@@ -73,20 +81,15 @@ DEFPROC	ddreq2,far
 ENDPROC	ddreq2
 
 DEFPROC	ddint2,far
-	push	ax
-	push	bx
-	push	cx
-	push	si
+	push	dx
 	push	di
 	push	es
 	les	di,[ddpkt2]
+	mov	dx,[port_base2]
 	call	[ddfunp2]
 	pop	es
 	pop	di
-	pop	si
-	pop	cx
-	pop	bx
-	pop	ax
+	pop	dx
 	ret
 ENDPROC	ddint2
 
@@ -102,6 +105,7 @@ LPT3	DDH	<LPT3_LEN,,DDATTR_CHAR,offset DEV:ddreq,LPT3_INIT,202020203354504Ch>
 
 	DEFPTR	ddpkt3		; last request packet address
 	DEFPTR	ddfunp3		; ddfun pointer
+	DEFWORD	port_base3,0
 
         ASSUME	CS:CODE3, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
@@ -112,20 +116,15 @@ DEFPROC	ddreq3,far
 ENDPROC	ddreq3
 
 DEFPROC	ddint3,far
-	push	ax
-	push	bx
-	push	cx
-	push	si
+	push	dx
 	push	di
 	push	es
 	les	di,[ddpkt3]
+	mov	dx,[port_base3]
 	call	[ddfunp3]
 	pop	es
 	pop	di
-	pop	si
-	pop	cx
-	pop	bx
-	pop	ax
+	pop	dx
 	ret
 ENDPROC	ddint3
 
@@ -169,19 +168,23 @@ DEFPROC	ddinit,far
 	mov	ax,[si+bx]		; get BIOS PRINTER port address
 	test	ax,ax			; exists?
 	jz	in9			; no
+	mov	[port_base],ax
 	mov	ax,cs:[0].DDH_NEXT_OFF	; yes, copy over the driver length
 	cmp	bl,2			; LPT3?
-	jne	in7			; no
+	jne	in1			; no
 	mov	ax,cs:[0].DDH_INTERRUPT	; use the temporary ddint offset instead
-in7:	mov	es:[di].DDPI_END.off,ax
+
+in1:	mov	es:[di].DDPI_END.off,ax
 	mov	cs:[0].DDH_INTERRUPT,offset DEV:ddint
-	mov	[ddfunp].off,offset ddfun
-	mov	ax,cs:[ddfuns]
-	test	ax,ax
-	jnz	in8
-	mov	ax,cs
-	mov	cs:[ddfuns],ax
-in8:	mov	[ddfunp].seg,ax
+
+	mov	[ddfunp].off,offset DEV:ddfun
+in2:	mov	ax,0			; this MOV will be modified
+	test	ax,ax			; on the first call to contain the CS
+	jnz	in3			; of the first driver (this is the
+	mov	ax,cs			; easiest way to communicate between
+	mov	word ptr cs:[in2+1],ax	; the otherwise fully insulated drivers)
+in3:	mov	[ddfunp].seg,ax
+
 in9:	pop	es
 	pop	ds
 	pop	di
@@ -191,8 +194,6 @@ in9:	pop	es
 	pop	ax
 	ret
 ENDPROC	ddinit
-
-	DEFWORD	ddfuns
 
 	DEFLBL	ddinit_end
 

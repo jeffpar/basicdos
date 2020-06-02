@@ -344,6 +344,10 @@ PART1_END	equ	$
 ;	load address.
 ;
 DEFPROC	part2,far
+	sub	ax,ax
+	mov	word ptr ds:[FAT_DRV],ax
+	mov	word ptr ds:[FAT_LBA],ax
+	mov	word ptr ds:[DIR_LBA],ax
 	mov	ax,[si].BPB_SECBYTES
 	push	si
 	mov	si,offset PART1_COPY
@@ -425,8 +429,6 @@ DEFPROC	part3,far
 ENDPROC	part3
 
 	IF	READFAT
-
-FATLBA	dw	0			; remembers the last FAT LBA we read
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -525,9 +527,9 @@ DEFPROC	read_fat
 	add	ax,[si].BPB_RESSECS	; AX = FAT LBA
 	and	bx,03FFh		; nibble offset (assuming 1024 nibbles)
 	mov	di,offset FAT_SECTOR
-	cmp	ax,[FATLBA]
+	cmp	ax,ds:[FAT_LBA]
 	je	rf1
-	mov	[FATLBA],ax
+	mov	ds:[FAT_LBA],ax
 	mov	cl,1
 	call	read_sectors
 	jc	load_error
@@ -537,8 +539,8 @@ rf1:	mov	bp,bx			; save nibble offset in BP
 	inc	bx
 	cmp	bp,03FFh		; at the sector boundary?
 	jb	rf2			; no
-	inc	[FATLBA]
-	mov	ax,[FATLBA]
+	inc	ds:[FAT_LBA]
+	mov	ax,ds:[FAT_LBA]
 	call	read_sectors		; read next FAT LBA
 	jc	load_error
 	sub	bx,bx

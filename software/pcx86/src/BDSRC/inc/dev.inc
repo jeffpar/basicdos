@@ -63,7 +63,18 @@ DDERR_GENFAIL	equ	12	; General failure
 DDERR_INVDSKCHG	equ	15	; Invalid disk change
 
 ;
-; Device driver INIT packet
+; Device driver packet for assorted READ/WRITE commands
+;
+DDPRW		struc
+DDPRW_HDR	db	13 dup(?)
+DDPRW_MEDIA_ID	db	?	; 0Dh: media ID byte
+DDPRW_ADDR	dd	?	; 0Eh: transfer address
+DDPRW_COUNT	dw	?	; 12h: transfer count
+DDPRW_SECTOR	dw	?	; 14h: starting sector number
+DDPRW		ends
+
+;
+; Device driver packet for the INIT command
 ;
 DDPI		struc
 DDPI_HDR	db	13 dup(?)
@@ -72,6 +83,8 @@ DDPI_END	dd	?
 DDPI_BPBPTR	dd	?
 DDPI_BLKDEV	db	?
 DDPI		ends
+
+DDP_MAXSIZE	equ	((size DDPI + 1) AND 0FFFEh)
 
 ;
 ; Device driver commands

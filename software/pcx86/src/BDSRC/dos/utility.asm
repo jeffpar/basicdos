@@ -12,7 +12,7 @@
 DOS	segment word public 'CODE'
 
 	DEFLBL	UTILTBL,word
-	dw	util_decimal					; 00h-03h
+	dw	util_strlen,util_decimal			; 00h-03h
 	DEFABS	UTILTBL_SIZE,<($ - UTILTBL) SHR 1>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -44,6 +44,30 @@ ENDPROC	util_func
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; Returns the length of the null-terminated DS:SI string in AX.
+;
+; Modifies:
+;	AX
+;
+DEFPROC	util_strlen
+	push	di
+	mov	di,si
+	push	ds
+	pop	es
+	mov	al,0
+	mov	cx,di
+	not	cx			; CX = largest possible count
+	repne	scasb
+	je	usl9
+	stc				; error if we didn't end on a match
+usl9:	sub	di,si
+	lea	ax,[di-1]		; don't count the ending null
+	pop	di
+	ret
+ENDPROC	util_strlen
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; Convert string at ES:DI to decimal, then validate using values at DS:SI.
 ;
 ; Returns:
@@ -59,28 +83,28 @@ DEFPROC	util_decimal
 	sub	ax,ax
 	cwd
 	mov	cx,10
-gd1:	mov	dl,es:[di]
+ud1:	mov	dl,es:[di]
 	sub	dl,'0'
-	jb	gd6
+	jb	ud6
 	cmp	dl,cl
-	jae	gd6
+	jae	ud6
 	inc	di
 	push	dx
 	mul	cx
 	pop	dx
 	add	ax,dx
-	jmp	gd1
-gd6:	test	dl,dl
-	jz	gd7
+	jmp	ud1
+ud6:	test	dl,dl
+	jz	ud7
 	inc	di
-gd7:	cmp	ax,[si]			; too small?
-	jae	gd8			; no
+ud7:	cmp	ax,[si]			; too small?
+	jae	ud8			; no
 	mov	ax,[si]
-	jmp	short gd9
-gd8:	cmp	[si+2],ax		; too large?
-	jae	gd9			; no
+	jmp	short ud9
+ud8:	cmp	[si+2],ax		; too large?
+	jae	ud9			; no
 	mov	ax,[si+2]
-gd9:	lea	si,[si+4]		; advance SI in case there are more
+ud9:	lea	si,[si+4]		; advance SI in case there are more
 	pop	dx
 	pop	cx
 	ret

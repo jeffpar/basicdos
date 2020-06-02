@@ -234,14 +234,19 @@ BOOT_SECTOR_LO	equ	0522h + size DPT
 BOOT_SECTOR	db	3 dup (?)	; 52Dh: 3 bytes reserved for JMP
 BPB_ACTIVE	BPB	<>		; 530h: active BPB
 
-FAT_SECTOR	db	512 dup (?)	; 558h
+FAT_DRV		db	?		; 558h: drive of FAT sector data
+DIR_DRV		db	?		; 559h: drive of DIR sector data
+FAT_LBA		dw	?		; 55Ah: LBA of FAT sector data
+DIR_LBA		dw	?		; 55Ch: LBA of DIR sector data
 
-DIR_SECTOR	db	512 dup (?)	; 758h
-DIR_SECTOR_OFF	equ	758h
+FAT_SECTOR	db	512 dup (?)	; 55Eh
+
+DIR_SECTOR	db	512 dup (?)	; 75Eh
+DIR_SECTOR_OFF	equ	75Eh
 		ASSERT 	<offset IVT + DIR_SECTOR_OFF>,EQ,<offset DIR_SECTOR>
 
-		dw	0EEEEh		; 958h (random marker)
-		dw	147 dup (?)	; 95Ah
+		dw	0EEEEh		; 95Eh (random marker)
+		dw	144 dup (?)	; 960h
 BIOS_STACK	equ	$		; A80h
 BIOS_END	equ	0A80h
 		ASSERT	<offset IVT + BIOS_END>,EQ,<offset BIOS_STACK>
