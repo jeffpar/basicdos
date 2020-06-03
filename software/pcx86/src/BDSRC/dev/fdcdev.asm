@@ -1,5 +1,5 @@
 ;
-; BASIC-DOS Floppy Diskette Drive Device Driver
+; BASIC-DOS Floppy Disk Controller Device Driver
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
 ; @copyright © 2012-2020 Jeff Parsons
@@ -13,10 +13,11 @@ DEV	group	CODE,DATA
 
 CODE	segment para public 'CODE'
 
-	public	FDD
-FDD 	DDH	<offset DEV:ddend+16,,DDATTR_BLOCK,offset ddreq,offset ddinit,2020202024444446h>
+	public	FDC
+FDC 	DDH	<offset DEV:ddend+16,,DDATTR_BLOCK,offset ddreq,offset ddinit,2020202024434446h>
 
 	DEFPTR	ddpkt		; last request packet address
+	DEFPTR	bpb_ptr,<offset BPB_ACTIVE - offset IVT>,0
 	DEFLBL	CMDTBL,word
 	dw	ddcmd_none, ddcmd_none, ddcmd_none, ddcmd_none	; 0-3
 	dw	ddcmd_read, ddcmd_none, ddcmd_none, ddcmd_none	; 4-7
@@ -43,13 +44,12 @@ DEFPROC	ddint,far
 	push	es
 	les	di,[ddpkt]
 	mov	bl,es:[di].DDP_CMD
+	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_UNKCMD
 	cmp	bl,CMDTBL_SIZE
-	jae	ddi8
+	jae	ddi9
 	mov	bh,0
 	add	bx,bx
 	call	CMDTBL[bx]
-	jmp	short ddi9
-ddi8:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_UNKCMD
 ddi9:	pop	es
 	pop	ds
 	pop	di
@@ -68,13 +68,14 @@ ENDPROC	ddint
 ;	ES:DI -> DDPRW
 ;
 ; Outputs:
+;	DDPRW updated appropriately
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DS
 ;
 DEFPROC	ddcmd_read
-	mov	cx,es:[di].DDPRW_COUNT
-	lds	si,es:[di].DDPRW_ADDR
-	push	es
-
-ddr9:	pop	es
+	mov	bl,FDC_READ
+	call	readwrite_sectors
 	ret
 ENDPROC	ddcmd_read
 
@@ -88,11 +89,8 @@ ENDPROC	ddcmd_read
 ; Outputs:
 ;
 DEFPROC	ddcmd_write
-	mov	cx,es:[di].DDPRW_COUNT
-	lds	si,es:[di].DDPRW_ADDR
-	push	es
-
-ddw9:	pop	es
+	mov	bl,FDC_WRITE
+	call	readwrite_sectors
 	ret
 ENDPROC	ddcmd_write
 
@@ -106,10 +104,77 @@ ENDPROC	ddcmd_write
 ; Outputs:
 ;
 DEFPROC	ddcmd_none
-	ASSUME	DS:CODE
-	stc
 	ret
 ENDPROC	ddcmd_none
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Get CHS from LBA in AX, using BPB at SI
+;
+; Inputs:
+;	AX = LBA
+;	DS:SI -> BPB
+;
+; Outputs:
+;	CH = cylinder #
+;	CL = sector ID
+;	DH = head #
+;	DL = drive #
+;
+; Modifies:
+;	AX, CX, DX
+;
+; TODO: Keep this in sync with BOOT.ASM (better yet, factor it out somewhere)
+;
+DEFPROC	get_chs
+	sub	dx,dx		; DX:AX is LBA
+	div	[si].BPB_CYLSECS; AX = cylinder, DX = remaining sectors
+	xchg	al,ah		; AH = cylinder, AL = cylinder bits 8-9
+	ror	al,1		; future-proofing: saving cylinder bits 8-9
+	ror	al,1
+	xchg	cx,ax		; CH = cylinder #
+	xchg	ax,dx		; AX = remaining sectors from last divide
+	div	byte ptr [si].BPB_TRACKSECS
+	mov	dh,al		; DH = head # (quotient of last divide)
+	or	cl,ah		; CL = sector # (remainder of last divide)
+	inc	cx		; LBA are zero-based, sector IDs are 1-based
+	mov	dl,[si].BPB_DRIVE
+	ret
+ENDPROC	get_chs
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Issue BIOS FDC command in BL
+;
+; Inputs:
+;	BL = FDC cmd
+;	ES:DI -> DDPRW
+;
+; Outputs:
+;	DDPRW updated appropriately
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DS
+;
+DEFPROC	readwrite_sectors
+	mov	ax,es:[di].DDPRW_SECTOR
+	lds	si,[bpb_ptr]	; convert LBA in AX to CHS in CX,DX
+	call	get_chs
+	mov	ax,es:[di].DDPRW_COUNT
+	mov	ah,bl
+	push	es
+	les	bx,es:[di].DDPRW_ADDR
+	int	INT_FDC		; AX and carry are whatever the ROM returns
+	pop	es
+	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+	jnc	rw9
+	;
+	; TODO: Map the error and set the sector count to the correct values
+	;
+	mov	es:[di].DDPRW_COUNT,0
+	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_SEEK
+rw9:	ret
+ENDPROC	readwrite_sectors
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

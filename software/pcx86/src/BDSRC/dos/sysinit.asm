@@ -18,10 +18,10 @@ DOS	segment word public 'CODE'
 
 	DEFLBL	sysinit_beg
 
-	DEFWORD	dos_seg,word
-	DEFWORD	top_seg,word
-	DEFWORD	cfg_data,word
-	DEFWORD	cfg_size,word
+	DEFWORD	dos_seg
+	DEFWORD	top_seg
+	DEFWORD	cfg_data
+	DEFWORD	cfg_size
 
 	ASSUME	CS:DOS, DS:BIOS, ES:DOS, SS:BIOS
 
@@ -125,7 +125,7 @@ si5:	mov	ax,ds
 	push	ds
 	pop	es			; ES:DI -> string, DS:SI -> validation
 	mov	ax,DOSUTIL_DECIMAL
-	int	21h			; AX = new value
+	int	INT_DOSFUNC		; AX = new value
 	pop	es
 si6:	mov	dx,size PCB
 	mov	bx,offset PCB_TABLE
@@ -141,7 +141,7 @@ si6:	mov	dx,size PCB
 	push	ds
 	pop	es			; ES:DI -> string, DS:SI -> validation
 	mov	ax,DOSUTIL_DECIMAL
-	int	21h			; AX = new value
+	int	INT_DOSFUNC		; AX = new value
 	pop	es
 si7:	mov	dx,size SFB
 	mov	bx,offset SFB_TABLE
@@ -173,30 +173,30 @@ si7:	mov	dx,size SFB
 	push	es
 	mov	ah,DOS_ALLOC
 	mov	bx,200h
-	int	21h
+	int	INT_DOSFUNC
 	jc	dsierr
 	xchg	cx,ax			; CX = 1st segment
 	mov	ah,DOS_ALLOC
 	mov	bx,200h
-	int	21h
+	int	INT_DOSFUNC
 	jc	dsierr
 	xchg	dx,ax			; DX = 2nd segment
 	mov	ah,DOS_ALLOC
 	mov	bx,200h
-	int	21h
+	int	INT_DOSFUNC
 	jc	dsierr
 	xchg	si,ax			; SI = 3rd segment
 	mov	ah,DOS_FREE
 	mov	es,cx			; free the 1st
-	int	21h
+	int	INT_DOSFUNC
 	jc	dsierr
 	mov	ah,DOS_FREE
 	mov	es,si
-	int	21h			; free the 3rd
+	int	INT_DOSFUNC		; free the 3rd
 	jc	dsierr
 	mov	ah,DOS_FREE
 	mov	es,dx
-	int	21h			; free the 2nd
+	int	INT_DOSFUNC		; free the 2nd
 	jnc	dsiend
 dsierr:	jmp	sysinit_error
 dsiend:	pop	es
@@ -231,7 +231,7 @@ si10:	mov	es:[SFB_SYSCON],bx
 	mov	bx,es:[SFB_SYSCON]
 	mov	si,offset con_test
 	mov	ax,DOSUTIL_STRLEN
-	int	21h
+	int	INT_DOSFUNC
 	xchg	cx,ax
 	mov	ax,offset sfb_write
 	call	dos_call
@@ -245,6 +245,7 @@ ENDPROC	sysinit
 ; Call resident DOS procedure at AX.
 ;
 DEFPROC	dos_call
+	push	bp
 	push	es
 	push	cs
 	mov	bp,offset dc9
@@ -258,6 +259,7 @@ DEFPROC	dos_call
 	ASSUME	ES:BIOS
 	db	0CBh			; RETF
 dc9:	pop	es
+	pop	bp
 	ret
 ENDPROC	dos_call
 
@@ -386,7 +388,7 @@ ENDPROC	sysinit_print
 ;
 ; Initialization data
 ;
-	DEFARR	int_tbl,<dosexit,dosfunc,0>
+	DEFWORD	int_tbl,<dosexit,dosfunc,0>
 
 CFG_PCBS	db	5,"PCBS="
 		dw	4,16

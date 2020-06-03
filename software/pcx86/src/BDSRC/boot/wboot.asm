@@ -60,7 +60,7 @@ open:	mov	ax,3D00h		; AH = 3Dh (OPEN FILE)
 	pop	bx
 	jc	ewrite
 	mov	ax,4200h		; AH = 42h (SEEK), AL = 0 (FROM START)
-	mov	dx,DIR_SECTOR_OFF	;
+	mov	dx,offset DIR_SECTOR	;
 	sub	cx,cx			; CX:DX = offset
 	int	21h
 	mov	cx,514			; CX = number of bytes

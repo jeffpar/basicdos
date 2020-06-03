@@ -9,8 +9,6 @@
 ;
 	include	bios.inc
 
-READFAT	equ 1		; 0 to assume contiguous files, 1 to read the FAT
-
 BOOT	segment word public 'CODE'
 
 ;
@@ -38,7 +36,7 @@ start:	cld
 
 mybpb:	BPB	<,512,1,1,2,64,320,MEDIA_160K,1,8,1,0,0,0,8,3,7>
 
-move:	push	ds
+move:	push	cs
 	pop	ss
 	mov	sp,offset BIOS_STACK
 	ASSUME	SS:BIOS
@@ -53,8 +51,8 @@ move:	push	ds
 	pop	si
 	push	cs
 	pop	ds
-	ASSUME	DS:BOOT			; change step rate to 6ms
-	mov	[si].DP_SPECIFY1,0DFh
+	ASSUME	DS:BIOS
+	mov	[si].DP_SPECIFY1,0DFh	; change step rate to 6ms
 	mov	[si].DP_HEADSETTLE,cl
 	mov	ds:[INT_DPT*4],si	; and change head settle time to 0ms
 	mov	ds:[INT_DPT*4+2],ds	; update INT_DPT vector
@@ -80,11 +78,11 @@ move:	push	ds
 DEFPROC	main,far			; now at BOOT_SECTOR_LO
 	mov	si,offset product
 	call	print
-	cmp	[mybpb].BPB_MEDIA,MEDIA_HARD
+	cmp	ds:[mybpb].BPB_MEDIA,MEDIA_HARD
 	je	find			; jump if we're a hard disk
-	mov	ah,DISK_GETPARMS	; get hard drive parameters
+	mov	ah,HDC_GETPARMS		; get hard drive parameters
 	mov	dl,80h
-	int	INT_DISK		;
+	int	INT_FDC			;
 	jc	find			; jump if call failed
 	test	dl,dl			; any hard disks?
 	jz	find			; jump if no hard disks
@@ -126,7 +124,7 @@ hard:	mov	ax,0201h		; AH = 02h (READ), AL = 1 sector
 	inc	cx			; CH = CYL 0, CL = SEC 1
 	mov	dx,0080h		; DH = HEAD 0, DL = DRIVE 80h
 	mov	bx,BOOT_SECTOR_HI	; ES:BX -> BOOT_SECTOR_HI
-	int	INT_DISK		; read it
+	int	INT_FDC			; read it
 	jc	err
 	jmp	bx			; jump to the hard disk boot sector
 ;
@@ -234,9 +232,9 @@ DEFPROC	read_sector
 	push	dx
 	call	get_chs
 	mov	al,1		; AL = 1 sector
-	mov	ah,DISK_READ
+	mov	ah,FDC_READ
 	mov	bx,di		; ES:BX = address
-	int	INT_DISK	; AX and carry are whatever the ROM returns
+	int	INT_FDC		; AX and carry are whatever the ROM returns
 	pop	dx
 	pop	cx
 	ret
@@ -344,23 +342,26 @@ PART1_END	equ	$
 ;	load address.
 ;
 DEFPROC	part2,far
-	sub	ax,ax
-	mov	word ptr ds:[FAT_DRV],ax
-	mov	word ptr ds:[FAT_LBA],ax
-	mov	word ptr ds:[DIR_LBA],ax
-	mov	ax,[si].BPB_SECBYTES
 	push	si
-	mov	si,offset PART1_COPY
+	mov	ax,[si].BPB_SECBYTES
+	mov	si,offset PART1_COPY	; copy part1 data to part2
 	mov	di,offset PART2_COPY
 	mov	cx,offset PART1_END - offset PART1_COPY
 	rep	movsb
+
+	mov	di,offset BPB_ACTIVE + size BPB
+	mov	cx,offset DIR_SECTOR	; now we can zero the area from
+	sub	cx,di			; just past BPB_ACTIVE to DIR_SECTOR
+	rep	stosb			; AL should be zero
+
 	mov	si,offset PART2_END
 	mov	di,BIOS_END
-	mov	cx,DIR_SECTOR_OFF
+	mov	cx,offset DIR_SECTOR
 	add	cx,ax
 	sub	cx,si
-	rep	movsb			; move first bit of IBMBIO
+	rep	movsb			; move first bit of DEV_FILE
 	pop	si
+
 	mov	bx,offset DEV_FILE + (offset PART2_COPY - offset PART1_COPY)
 	sub	di,ax			; adjust load addr for read_data
 	call	read_data		; read the rest of DEV_FILE (see BX)
@@ -427,8 +428,6 @@ DEFPROC	part3,far
 	push	ax			; far "jmp" address -> CS:0000h
 	ret
 ENDPROC	part3
-
-	IF	READFAT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -527,9 +526,9 @@ DEFPROC	read_fat
 	add	ax,[si].BPB_RESSECS	; AX = FAT LBA
 	and	bx,03FFh		; nibble offset (assuming 1024 nibbles)
 	mov	di,offset FAT_SECTOR
-	cmp	ax,ds:[FAT_LBA]
+	cmp	ax,[FAT_BUFHDR].BUF_LBA
 	je	rf1
-	mov	ds:[FAT_LBA],ax
+	mov	[FAT_BUFHDR].BUF_LBA,ax
 	mov	cl,1
 	call	read_sectors
 	jc	load_error
@@ -539,8 +538,8 @@ rf1:	mov	bp,bx			; save nibble offset in BP
 	inc	bx
 	cmp	bp,03FFh		; at the sector boundary?
 	jb	rf2			; no
-	inc	ds:[FAT_LBA]
-	mov	ax,ds:[FAT_LBA]
+	inc	[FAT_BUFHDR].BUF_LBA
+	mov	ax,[FAT_BUFHDR].BUF_LBA
 	call	read_sectors		; read next FAT LBA
 	jc	load_error
 	sub	bx,bx
@@ -555,17 +554,6 @@ rf9:	pop	di
 	pop	bx
 	ret
 ENDPROC	read_fat
-
-	ELSE
-
-load_error:
-	mov	si,offset errmsg2
-	jmp	err
-
-get_chs2 equ	get_chs
-get_lba2 equ	get_lba
-
-	ENDIF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -597,7 +585,6 @@ rm2:	mov	ax,[bx+2]		; AX = CLN
 	add	di,[bx+4]		; rewind next load address by
 	clc				; the amount of file size underflow
 rm3:	ret				; and return success
-	IF	READFAT
 	mov	ax,[bx+2]		; AX = CLN
 	push	es
 	push	ss
@@ -607,9 +594,6 @@ rm3:	ret				; and return success
 	pop	es
 	ASSUME	ES:NOTHING
 	mov	[bx+2],dx		; update CLN
-	ELSE
-	inc	word ptr [bx+2]		; simply increment CLN
-	ENDIF
 
 read_file label near
 	sub	dx,dx			; normal case: read all cluster sectors
@@ -657,9 +641,9 @@ DEFPROC	read_sectors
 	mov	bl,cl
 	call	get_chs2
 	mov	al,bl		; AL = # sectors (from original CL)
-	mov	ah,DISK_READ
+	mov	ah,FDC_READ
 	mov	bx,di		; ES:BX = address
-	int	INT_DISK	; AX and carry are whatever the ROM returns
+	int	INT_FDC		; AX and carry are whatever the ROM returns
 	pop	dx
 	pop	cx
 	pop	bx
@@ -671,7 +655,7 @@ errmsg2		db	"Error loading system files, halted",0
 ;
 ; Data copied from PART1
 ;
-PART2_COPY	db	(23 + 34) dup (?)
+PART2_COPY	db	34 dup (?)
 	even
 PART2_END	equ	$
 

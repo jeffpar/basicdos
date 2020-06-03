@@ -57,9 +57,9 @@ ENDPROC	hdl_open
 ;
 DEFPROC	sfb_open,DOS
 	ASSUME	DS:NOTHING
-	call	dev_chkname		; is it a device name?
+	call	chk_devname		; is it a device name?
 	jnc	so1			; yes
-	call	dsk_chkname		; is it a disk file name?
+	call	chk_filename		; is it a disk file name?
 	jnc	so2
 	jmp	short so9		; no
 
@@ -155,7 +155,7 @@ ENDPROC	sfb_write
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dsk_chkname
+; chk_filename
 ;
 ; Inputs:
 ;	DS:SI -> name
@@ -166,35 +166,36 @@ ENDPROC	sfb_write
 ; Modifies:
 ;	AX, CX, DX, DI, ES
 ;
-DEFPROC	dsk_chkname,DOS
+DEFPROC	chk_filename,DOS
 ;
 ; See if the name begins with a drive letter.  If so, convert to a drive
-; number and then skip over it; otherwise, use CURDRV as the drive number.
+; number and then skip over it; otherwise, use CUR_DRV as the drive number.
 ;
 	push	si
 	cmp	byte ptr [si+1],':'
 	mov	dl,[CUR_DRV]		; DL = drive number
-	jne	dskck1
+	jne	cf1
 	lodsb				; AL = drive letter
 	sub	al,'A'
-	jb	dskck9			; error
+	jb	cf9			; error
 	cmp	al,26
 	cmc
-	jb	dskck9
+	jb	cf9
 	inc	si
 	xchg	dx,ax			; DL = specified drive number
 ;
+; Build FILE_NAME from the string at DS:SI
 ;
-;
-dskck1:	nop
 
-dskck9:	pop	si
+cf1:	nop
+
+cf9:	pop	si
 	ret
-ENDPROC	dsk_chkname
+ENDPROC	chk_filename
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dev_chkname
+; chk_devname
 ;
 ; Inputs:
 ;	DS:SI -> name
@@ -205,38 +206,38 @@ ENDPROC	dsk_chkname
 ; Modifies:
 ;	AX, CX, DI, ES
 ;
-DEFPROC	dev_chkname,DOS
+DEFPROC	chk_devname,DOS
 	ASSUME	DS:NOTHING
 	les	di,[DD_LIST]
 	ASSUME	ES:NOTHING
-devck1:	cmp	di,-1			; end of device list?
+cd1:	cmp	di,-1			; end of device list?
 	stc
-	je	devck9			; yes, search failed
+	je	cd9			; yes, search failed
 	mov	cx,8
 	push	si
 	push	di
 	add	di,DDH_NAME
 	repe	cmpsb			; compare DS:SI to ES:DI
-	je	devck8			; match
+	je	cd8			; match
 ;
 ; This could still be a match if DS:[SI-1] is an "end of device name" character
 ; (eg, ':', '.', or ' ') and ES:[DI-1] is a space.
 ;
 	mov	al,[si-1]
 	cmp	al,':'
-	je	devck2
+	je	cd2
 	cmp	al,'.'
-	je	devck2
+	je	cd2
 	cmp	al,' '
-	jne	devck8
-devck2:	cmp	byte ptr es:[di-1],' '
-devck8:	pop	di
+	jne	cd8
+cd2:	cmp	byte ptr es:[di-1],' '
+cd8:	pop	di
 	pop	si
-	je	devck9			; jump if all our compares succeeded
+	je	cd9			; jump if all our compares succeeded
 	les	di,es:[di]		; otherwise, on to the next device
-	jmp	devck1
-devck9:	ret
-ENDPROC	dev_chkname
+	jmp	cd1
+cd9:	ret
+ENDPROC	chk_devname
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

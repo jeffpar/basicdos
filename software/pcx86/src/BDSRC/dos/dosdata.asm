@@ -23,6 +23,7 @@ DOS	segment word public 'CODE'
 	DEFWORD	SFB_SYSCON,0		; SFB of the system console
 	DEFWORD	PSP_ACTIVE,1		; start with a fake system PSP
 	DEFBYTE	CUR_DRV,0		; current drive number
+	DEFBYTE	FILE_NAME,' ',11	; buffer for 11-character filename
 
 	EXTERNS	<tty_echo,tty_write,aux_read,aux_write,prn_write,tty_io>,near
 	EXTERNS	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>,near

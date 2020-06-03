@@ -25,7 +25,7 @@ INT_PRTSC	EQU	05h	; PRINT_SCREEN (p. A-79)
 INT_VIDEO	EQU	10h	; VIDEO_IO (p. A-43)
 INT_EQUIP	EQU	11h	; EQUIPMENT_DETERMINATION (p. A-67)
 INT_MEMORY	EQU	12h	; MEMORY_SIZE_DETERMINE (p. A-67)
-INT_DISK	EQU	13h	; DISKETTE_IO (p. A-32)
+INT_FDC		EQU	13h	; DISKETTE_IO (p. A-32)
 INT_COM		EQU	14h	; RS232_IO (p. A-20)
 INT_CASSETTE	EQU	15h	; CASSETTE_IO (p. A-68)
 INT_KBD		EQU	16h	; KEYBOARD_IO (p. A-23)
@@ -45,10 +45,11 @@ INT_VGCDATA	EQU	1Fh	; VIDEO GRAPHICS CHARACTER DATA
 VIDEO_TTYOUT	EQU	0Eh	; AL=char, BH=display page
 
 ;
-; INT_DISK functions
+; INT_FDC (Floppy Disk Controller) and INT_HDC (Hard Disk Controller) functions
 ;
-DISK_READ	EQU	02h	;
-DISK_GETPARMS	EQU	08h	; DL=80h; DL:=# drives (if carry clear)
+FDC_READ	EQU	02h	;
+FDC_WRITE	EQU	03h	;
+HDC_GETPARMS	EQU	08h	; DL=80h; DL:=# drives (if carry clear)
 
 ;
 ; INT_KBD functions
@@ -233,22 +234,19 @@ BOOT_SECTOR_LO	equ	0522h + size DPT
 
 BOOT_SECTOR	db	3 dup (?)	; 52Dh: 3 bytes reserved for JMP
 BPB_ACTIVE	BPB	<>		; 530h: active BPB
+		db	(30h - size BPB) dup (?)
 
-FAT_DRV		db	?		; 558h: drive of FAT sector data
-DIR_DRV		db	?		; 559h: drive of DIR sector data
-FAT_LBA		dw	?		; 55Ah: LBA of FAT sector data
-DIR_LBA		dw	?		; 55Ch: LBA of DIR sector data
+FAT_BUFHDR	BUFHDR	<>		; 560h
+FAT_SECTOR	db	512 dup (?)	; 570h
 
-FAT_SECTOR	db	512 dup (?)	; 55Eh
-
-DIR_SECTOR	db	512 dup (?)	; 75Eh
-DIR_SECTOR_OFF	equ	75Eh
+DIR_BUFHDR	BUFHDR	<>		; 770h
+DIR_SECTOR	db	512 dup (?)	; 780h
+DIR_SECTOR_OFF	equ	780h
 		ASSERT 	<offset IVT + DIR_SECTOR_OFF>,EQ,<offset DIR_SECTOR>
 
-		dw	0EEEEh		; 95Eh (random marker)
-		dw	144 dup (?)	; 960h
-BIOS_STACK	equ	$		; A80h
-BIOS_END	equ	0A80h
+		dw	64 dup (?)	; 64-word stack (good enough for sysinit)
+BIOS_STACK	equ	$		; A00h
+BIOS_END	equ	0A00h
 		ASSERT	<offset IVT + BIOS_END>,EQ,<offset BIOS_STACK>
 
 BIOS		ends

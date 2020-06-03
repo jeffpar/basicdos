@@ -27,28 +27,47 @@ name	label	type
 	ENDIF
 	endm
 
-DEFDATA	macro	names,size,value
+DEFPTR	macro	name,off,seg
 	even
-	IRP	name,<names>
 	public	name
-	IFB	<value>
-name	size	?
+	IFB	<off>
+name	dd	0
 	ELSE
-name	size	value
+	IFB	<seg>
+name	dd	off
+	ELSE
+name	dd	(seg SHL 16) OR (off)
 	ENDIF
+	ENDIF
+	endm
+
+DEFDATA	macro	name,size,type,values,repeat
+	even
+	public	name
+	IFB	<values>
+name	size	0
+	ELSE
+	IFB	<repeat>
+name	label	type
+	IRP	value,<values>
+	size	value
 	ENDM
+	ELSE
+name	size	repeat dup (values)
+	ENDIF
+	ENDIF
 	endm
 
-DEFBYTE	macro	names,value
-	DEFDATA <names>,db,value
+DEFBYTE	macro	name,values,repeat
+	DEFDATA name,db,byte,<values>,repeat
 	endm
 
-DEFWORD	macro	names,value
-	DEFDATA <names>,dw,value
+DEFWORD	macro	name,values,repeat
+	DEFDATA name,dw,word,<values>,repeat
 	endm
 
-DEFPTR	macro	names,value
-	DEFDATA <names>,dd,value
+DEFLONG macro	name,values,repeat
+	DEFDATA name,dd,dword,<values>,repeat
 	endm
 ;
 ; Tables are like pointers, where .off is the offset but .seg is the limit.
@@ -59,15 +78,6 @@ DEFTBL	macro	names
 	IRP	name,<names>
 	public	name
 name	dd	0
-	ENDM
-	endm
-
-DEFARR	macro	name,entries
-	even
-	public	name
-name	label	word
-	IRP	entry,<entries>
-	dw	entry
 	ENDM
 	endm
 
