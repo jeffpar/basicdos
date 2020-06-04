@@ -17,6 +17,8 @@ MEDIA_180K	equ	0FCh
 MEDIA_360K	equ	0FDh
 MEDIA_HARD	equ	0F8h
 
+BPB_OFFSET	equ	3		; BPB offset within boot sector
+
 ;
 ; The venerable BPB: BIOS Parameter Block
 ;
@@ -33,15 +35,20 @@ BPB_FATSECS	dw	?		; 13h: sectors per FAT (eg, 1)
 BPB_TRACKSECS	dw	?		; 15h: sectors per track (eg, 8)
 BPB_DRIVEHEADS	dw	?		; 17h: number of heads (eg, 1)
 BPB_HIDDENSECS	dd	?		; 19h: number of hidden sectors
-BPB_LARGESECS	dd	?		; 1Dh: if TOTALSECS is 0 (see DOS 3.31)
+BPB_LARGESECS	dd	?		; 1Dh: if DISKSECS is 0 (see DOS 3.31)
 ;
-; Our additions to internal BPBs
+; Our additions to the BPB "standard"
 ;
 BPB_DRIVE	db	?		; 21h: physical drive #
 BPB_CYLSECS	dw	?		; 22h: sectors per cylinder (eg, 8)
 BPB_LBAROOT	dw	?		; 24h: LBA of 1st root dir sector
 BPB_LBADATA	dw	?		; 26h: LBA of 1st data sector
 BPB		ends
+
+BPBEX		struc			; our internal structure for BPB_TABLE
+BPB_STRUC	db	size BPB dup (?)
+BPB_TIMESTAMP	dd	?
+BPBEX		ends
 
 ;
 ; Let's compare and contrast the BPB with the DPB: Drive Parameter Block
@@ -99,5 +106,5 @@ BUF_SIZE	dw	?		; 04h: size of buffer (in bytes)
 BUF_DRV		db	?		; 06h: drive number of buffer data
 BUF_RESERVED	db	3 dup(?)	;
 BUF_LBA		dw	?		; 0Ah: LBA of buffer data
-BUF_TICKS	dd	?		; 0Ch: timestamp of buffer data
+BUF_TIMESTAMP	dd	?		; 0Ch: timestamp of buffer data
 BUFHDR		ends

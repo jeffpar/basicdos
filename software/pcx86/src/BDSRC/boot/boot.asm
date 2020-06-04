@@ -363,7 +363,7 @@ DEFPROC	part2,far
 	sub	di,ax			; adjust load addr for read_data
 	mov	si,offset PART2_COPY
 	call	read_data		; read the rest of DEV_FILE (see BX)
-	jc	load_error
+	jc	i2			; load_error
 ;
 ; To find the entry point of DEV_FILE's init code, we must walk the
 ; driver headers.  And since they haven't been chained together yet (that's
@@ -374,14 +374,14 @@ DEFPROC	part2,far
 	mov	cx,100			; put a limit on this loop
 i1:	mov	ax,[di]			; AX = current driver's total size
 	cmp	ax,-1			; have we reached end of drivers?
-	je	i2			; yes
+	je	i3			; yes
 	add	di,ax
 	loop	i1
-	jmp	load_error
+i2:	jmp	load_error
 ;
 ; Prepare to "call" the DEV_FILE entry point, with DI -> end of drivers.
 ;
-i2:	mov	[DD_LIST].off,ax	; initialize driver list head (to -1)
+i3:	mov	[DD_LIST].off,ax	; initialize driver list head (to -1)
 	mov	ax,di
 	test	ax,0Fh			; paragraph boundary?
 	jnz	load_error		; no
@@ -419,14 +419,15 @@ DEFPROC	part3,far
 	mov	bx,offset CFG_FILE + (offset PART2_COPY - offset PART1_COPY)
 	sub	dx,dx			; default CFG_FILE size is zero
 	cmp	[bx],dx			; did we find CFG_FILE?
-	jne	pt9			; no
+	jne	i9			; no
 	push	[bx+4]			; push CFG_FILE size (assume < 64K)
 	call	read_file		; load CFG_FILE above DOS_FILE
 	pop	dx			; DX = CFG_FILE size
-pt9:	pop	bx			; BX = CFG_FILE data address
+i9:	pop	bx			; BX = CFG_FILE data address
 	push	es
 	sub	ax,ax
 	push	ax			; far "jmp" address -> CS:0000h
+	mov	ax,offset PART2_COPY	; AX = offset of BPB
 	ret
 ENDPROC	part3
 
@@ -654,7 +655,7 @@ ENDPROC	read_sectors
 errmsg2		db	"Error loading system files, halted",0
 
 ;
-; Data copied from PART1
+; Data copied from PART1 (BPB and file data)
 ;
 PART2_COPY	db	(offset PART1_END - offset PART1_COPY) dup (?)
 		even

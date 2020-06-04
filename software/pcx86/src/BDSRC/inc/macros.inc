@@ -87,7 +87,7 @@ DEFPROC	macro	name,type
 name	proc	near
 	ELSE
 	  IFIDN <type>,<DOS>
-	ASSUME	CS:DOS, DS:DOS, ES:BIOS, SS:NOTHING
+	ASSUME	CS:DOS, DS:DOS, ES:DOS, SS:NOTHING
 name	proc	near
 	  ELSE
 name	proc	type

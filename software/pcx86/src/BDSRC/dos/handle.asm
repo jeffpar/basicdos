@@ -11,7 +11,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<SFB_TABLE>,dword
+	EXTERNS	<BPB_TABLE,SFB_TABLE>,dword
 	EXTERNS	<CUR_DRV,FILE_NAME>,byte
 	EXTERNS	<VALID_CHARS>,byte
 	EXTERNS	<VALID_COUNT>,abs
@@ -58,17 +58,24 @@ ENDPROC	hdl_open
 ;	AX, BX, CX, DX, DI, ES
 ;
 DEFPROC	sfb_open,DOS
-	ASSUME	DS:NOTHING
+	ASSUME	DS:NOTHING,ES:NOTHING
+	push	si
+	push	ds
 	call	chk_devname		; is it a device name?
 	jnc	so1			; yes
 	call	chk_filename		; is it a disk file name?
-	jnc	so2
-	jmp	short so9		; no
+	jc	so9a			; no
+	push	si			; yes
+	push	ds			; save DIRENT at DS:SI
+	jmp	short so2
 
-so1:	mov	al,DDC_OPEN		; ES:DI -> driver
+so1:	mov	ax,DDC_OPEN SHL 8	; ES:DI -> driver
 	sub	dx,dx			; no initial context
 	call	dev_request		; issue the DDC_OPEN request
-	jc	so9			; failed
+so1a:	jc	so9			; failed
+	sub	ax,ax			; no DIRENT for devices
+	push	ax
+	push	ax
 ;
 ; When looking for a matching existing SFB, all we require is that both
 ; the device driver and device context match.  For files, the context will
@@ -80,11 +87,9 @@ so1:	mov	al,DDC_OPEN		; ES:DI -> driver
 ; device *without* context will use that same SFB.
 ;
 ; Traditionally, checking used SFBs means those with non-zero HANDLES count;
-; however, our SFBs are also used IFF their DRIVER seg is non-zero, so there.
+; however, our SFBs are also used IFF their DRIVER seg is non-zero.
 ;
-so2:	push	si
-	push	ds
-	push	cs
+so2:	push	cs
 	pop	ds
 	ASSUME	DS:DOS
 	mov	ax,es			; AX:DI is driver, DX is context
@@ -96,9 +101,9 @@ so3:	cmp	[si].SFB_DRIVER.off,di
 	cmp	[si].SFB_DRIVER.seg,ax
 	jne	so4			; check next SFB
 	test	dx,dx			; any context?
-	jz	so6			; no, so consider this SFB a match
+	jz	so7			; no, so consider this SFB a match
 	cmp	[si].SFB_CONTEXT,dx	; context match?
-	je	so6			; match
+	je	so7			; match
 so4:	test	bx,bx			; are we still looking for a free SFB?
 	jnz	so5			; no
 	cmp	[si].SFB_DRIVER.seg,bx	; is this one free?
@@ -108,26 +113,52 @@ so5:	add	si,size SFB
 	cmp	si,[SFB_TABLE].seg
 	jb	so3			; keep checking
 
+	pop	ax
+	pop	si
 	test	bx,bx			; was there a free SFB?
-	jz	so7			; no, tell the driver sorry
-	mov	[bx].SFB_DRIVER.off,di
+	jz	so8			; no, tell the driver sorry
+
+	test	si,si			; was a DIRENT provided?
+	jz	so6			; no
+	mov	ds,ax			; DS:SI -> DIRENT
+	push	cx
+	push	di
+	push	es
+	push	cs
+	pop	es
+	ASSUME	ES:DOS
+	mov	di,bx			; ES:DI -> SFB (a superset of DIRENT)
+	mov	cx,size DIRENT SHR 1
+	rep	movsw			; copy the DIRENT into the SFB
+	pop	es
+	ASSUME	ES:NOTHING
+	pop	di
+	pop	cx
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
+
+so6:	mov	[bx].SFB_DRIVER.off,di
 	mov	[bx].SFB_DRIVER.seg,es
 	mov	[bx].SFB_CONTEXT,dx
-	mov	[bx].SFB_MODE,cl
-	jmp	short so8		; return new SFB
+	mov	ch,0			; no process handles yet
+	mov	word ptr [bx].SFB_MODE,cx
+so9a:	jmp	short so9		; return new SFB
 
-so6:	mov	bx,si			; return matching SFB
-	jmp	short so8
+so7:	pop	ax			; throw away any DIRENT on the stack
+	pop	ax
+	mov	bx,si			; return matching SFB
+	jmp	short so9
 
-so7:	mov	al,DDC_CLOSE		; ES:DI -> driver, DX = context
+so8:	mov	ax,DDC_CLOSE SHL 8	; ES:DI -> driver, DX = context
 	call	dev_request		; issue the DDC_CLOSE request
 	mov	ax,ERR_MAXFILES
 	stc				; return no SFB (and BX is zero)
 
-so8:	pop	ds
+so9:	pop	ds
 	pop	si
 	ASSUME	DS:NOTHING
-so9:	ret
+	ret
 ENDPROC	sfb_open
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -148,7 +179,7 @@ ENDPROC	sfb_open
 ;
 DEFPROC	sfb_write,DOS
 	ASSUME	DS:NOTHING
-	mov	al,DDC_WRITE
+	mov	ax,DDC_WRITE SHL 8
 	les	di,cs:[bx].SFB_DRIVER
 	mov	dx,cs:[bx].SFB_CONTEXT
 	call	dev_request		; issue the DDC_WRITE request
@@ -163,11 +194,11 @@ ENDPROC	sfb_write
 ;	DS:SI -> name
 ;
 ; Outputs:
-;	On success, ES:DI -> driver header (DDH), DX = context, carry clear
+;	On success, ES:DI -> driver header (DDH), DX = context (1st cluster)
 ;	On failure, carry set
 ;
 ; Modifies:
-;	AX, CX, DX, DI, ES
+;	AX, CX, DX, SI, DI, ES
 ;
 DEFPROC	chk_filename,DOS
 	ASSUME	DS:NOTHING
@@ -234,22 +265,32 @@ cf3:	mov	cx,VALID_COUNT
 	jmp	cf1			; ignore it
 cf4:	cmp	bx,offset FILE_NAME + 11
 	jae	cf1			; ignore it
-cf5:	mov	cs:[bx],al		; store it
+cf5:	mov	es:[bx],al		; store it
 	inc	bx
 	jmp	cf1
 ;
 ; FILE_NAME has been successfully filled in, so we're ready to search
-; directory sectors for a matching name.  This requires converting the drive
-; number to a device+unit combo.
+; directory sectors for a matching name.  This requires getting a fresh
+; BPB for the drive.
 ;
-cf6:	cmp	dl,[FDC_UNITS]		; is this an FDC drive?
-	cmc
-	jb	cf9			; no
+cf6:	push	cs
+	pop	ds
+	ASSUME	DS:DOS
+	call	get_bpb			; DL = drive #
+	jc	cf9
 ;
-; OK, it's an FDC drive, so let's make sure we have a "fresh" BPP for the
-; disk in that drive.
+; DS:DI -> BPB.  Start a directory search for FILE_NAME.
 ;
-
+	call	get_dirent
+	jc	cf9
+;
+; DS:SI -> DIRENT.  Get the cluster number as the context for the SFB.
+;
+	sub	dx,dx
+	mov	es,dx
+	ASSUME	ES:BIOS
+	les	di,[FDC_DRIVER]		; ES:DI -> driver
+	mov	dx,[si].DIR_CLN		; DX = CLN from DIRENT
 
 cf9:	pop	si
 	pop	bx
@@ -271,6 +312,9 @@ ENDPROC	chk_filename
 ;
 DEFPROC	chk_devname,DOS
 	ASSUME	DS:NOTHING
+	sub	di,di
+	mov	es,di
+	ASSUME	ES:BIOS
 	les	di,[DD_LIST]
 	ASSUME	ES:NOTHING
 cd1:	cmp	di,-1			; end of device list?
@@ -307,9 +351,15 @@ ENDPROC	chk_devname
 ; dev_request
 ;
 ; Inputs:
-;	AL = device driver command (DDC)
+;	AH = device driver command (DDC)
+;	AL = unit # (relevant for block devices only)
 ;	DX = device driver context, zero if none
 ;	ES:DI -> device driver header (DDH)
+;
+; Additionally, for read/write requests:
+;	BX = LBA (block devices only)
+;	CX = byte/sector count
+;	DS:SI -> read/write data buffer
 ;
 ; Outputs:
 ;	If carry set, then AL contains error code
@@ -324,7 +374,7 @@ DEFPROC	dev_request,DOS
 	push	bp
 	sub	sp,DDP_MAXSIZE
 	mov	bp,sp			; packet created on stack
-	cmp	al,DDC_OPEN
+	cmp	ah,DDC_OPEN
 	jne	dr2
 	mov	word ptr [bp].DDP_LEN,size DDP
 	mov	[bp].DDP_PARMS.off,si
@@ -335,8 +385,9 @@ dr2:	mov	word ptr [bp].DDP_LEN,size DDPRW
 	mov	[bp].DDPRW_ADDR.off,si
 	mov	[bp].DDPRW_ADDR.seg,ds
 	mov	[bp].DDPRW_COUNT,cx
+	mov	[bp].DDPRW_SECTOR,bx
 
-dr5:	mov	[bp].DDP_CMD,AL
+dr5:	mov	word ptr [bp].DDP_UNIT,ax; sets DDP_UNIT (AL) and DDP_CMD (AH)
 	mov	[bp].DDP_STATUS,0
 	mov	[bp].DDP_CONTEXT,dx
 	mov	bx,bp
@@ -361,6 +412,206 @@ dr9:	pop	bp
 	pop	bx
 	ret
 ENDPROC	dev_request
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_bpb
+;
+; As part of getting the BPB for the specified drive, this function presumes
+; that the request is due to an imminent I/O request; therefore, we verify
+; that the BPB is "fresh", and if it isn't, we reload it and mark it "fresh".
+;
+; Inputs:
+;	DL = drive #
+;
+; Outputs:
+;	On success, DS:DI -> BPB
+;	On failure, carry set, AX = device error code
+;
+; Modifies:
+;	AX, DX, DI
+;
+DEFPROC	get_bpb,DOS
+	mov	al,dl			; AL = drive #
+	mov	ah,size BPBEX
+	mul	ah			; AX = BPB offset
+	mov	di,[BPB_TABLE].off
+	add	di,ax
+	cmp	di,[BPB_TABLE].seg
+	cmc
+	jc	gb9			; we don't have a BPB for that drive
+
+	mov	ah,TIME_GETTICKS
+	int	INT_TIME		; CX:DX is current tick count
+	push	cx
+	push	dx
+	sub	dx,[di].BPB_TIMESTAMP.off
+	sbb	cx,[di].BPB_TIMESTAMP.seg
+	jb	gb1			; underflow unexpected, refresh the BPB
+	test	cx,cx
+	jnz	gb1			; large difference, refresh the BPB
+	cmp	dx,38
+	cmc
+	jnc	gb8			; small difference, update tick count
+;
+; We need to reload the BPB, which means reading the boot sector; for now,
+; we use the FAT_SECTOR buffer for that purpose.
+;
+gb1:	mov	al,[di].BPB_DRIVE	; AL = drive (unit) #
+	sub	bx,bx			; BX = LBA (0)
+	mov	cx,1			; CX = sector count (1)
+	push	si
+	push	ds
+	mov	ds,bx
+	ASSUME	DS:BIOS
+	call	flush_buffers		; flush all buffers for drive
+	mov	si,offset FAT_BUFHDR
+	call	read_buffer
+	jc	gb7
+;
+; Copy the BPB from the boot sector in the buffer (at DS:SI) to our BPB
+;
+	push	di
+	add	si,BPB_OFFSET
+	mov	cx,size BPB SHR 1
+	rep	movsw
+	pop	di
+
+gb7:	pop	ds
+	ASSUME	DS:DOS
+	pop	si
+	jc	gb9
+
+gb8:	pop	[di].BPB_TIMESTAMP.off
+	pop	[di].BPB_TIMESTAMP.seg
+
+gb9:	ret
+ENDPROC	get_bpb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_dirent
+;
+; Inputs:
+;	ES:DI -> BPB
+;	DS:FILE_NAME contains file name
+;
+; Outputs:
+;	On success, DS:SI -> DIRENT
+;	On failure, carry set, AX = device error code
+;
+; Modifies:
+;	AX, DX, BP, SI, DS
+;
+DEFPROC	get_dirent,DOS
+;
+; Instead of blindly starting at LBAROOT, we'll start at whatever LBA
+; directory sector we read last, if valid, and we'll stop when we 1) find
+; a match, or 2) reach that same sector again (after looping around).
+;
+	sub	bx,bx
+	mov	ds,bx
+	ASSUME	DS:BIOS
+	mov	si,offset DIR_BUFHDR
+	mov	al,es:[di].BPB_DRIVE
+	cmp	[si].BUF_DRV,al
+	jne	gd1
+	mov	bx,[si].BUF_LBA
+	test	bx,bx
+	jnz	gd2
+gd1:	mov	bx,es:[di].BPB_LBAROOT
+gd2:	mov	bp,bx			; BP = 1st LBA we'll check
+
+gd4:	mov	cx,1
+	call	read_buffer
+	jc	gd9
+
+	mov	dx,es:[di].BPB_SECBYTES
+	add	dx,si			; DX -> end of sector data
+gd5:	cmp	byte ptr [si],0
+	je	gd6			; 0 indicates end of allocated entries
+	mov	di,offset FILE_NAME
+	mov	cl,11
+	repe	cmpsb
+	je	gd9
+	add	si,cx
+	add	si,size DIRENT - 11
+	cmp	si,dx
+	jb	gd5
+;
+; Advance to next directory sector
+;
+	mov	si,offset DIR_BUFHDR
+	inc	bx
+	cmp	bx,es:[di].BPB_LBADATA
+	jb	gd7
+gd6:	mov	bx,es:[di].BPB_LBAROOT
+gd7:	cmp	bx,bp			; back to the 1st LBA again?
+	jne	gd4			; not yet
+	stc				; out of sectors, so no match
+
+gd9:	lea	si,[si-11]		; rewind SI, in case it was a match
+	ret
+ENDPROC	get_dirent
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; read_buffer
+;
+; Inputs:
+;	AL = unit #
+;	BX = LBA
+;	CX = sector count
+;	DS:SI -> BUFHDR
+;
+; Outputs:
+;	On success, DS:SI -> buffer with requested data, ES:DI -> driver
+;	On failure, carry set, AX = device error code
+;
+; Modifies:
+;	AX, DX, SI
+;
+DEFPROC	read_buffer,DOS
+	ASSUME	DS:BIOS
+	mov	[si].BUF_DRV,al
+	mov	[si].BUF_LBA,bx
+	add	si,size BUFHDR
+	mov	ah,DDC_READ
+	push	di
+	push	es
+	les	di,[FDC_DRIVER]
+	call	dev_request
+	pop	es
+	pop	di
+	ret
+ENDPROC	read_buffer
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; flush_buffers
+;
+; TODO: For now, since we haven't yet implemented a buffer cache, all we
+; have to do is zap the LBAs in the two BIOS sector buffers.
+;
+; Inputs:
+;	AL = drive #
+;
+; Outputs:
+;	Flush all buffers containing data for the specified drive
+;
+; Modifies:
+;	None
+;
+DEFPROC	flush_buffers,DOS
+	ASSUME	DS:BIOS
+	cmp	ds:[FAT_BUFHDR].BUF_DRV,al
+	jne	fb2
+	mov	ds:[FAT_BUFHDR].BUF_LBA,0
+fb2:	cmp	ds:[DIR_BUFHDR].BUF_DRV,al
+	jne	fb3
+	mov	ds:[DIR_BUFHDR].BUF_LBA,0
+fb3:	ret
+ENDPROC	flush_buffers
 
 DOS	ends
 

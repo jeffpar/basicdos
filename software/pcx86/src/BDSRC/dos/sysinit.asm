@@ -12,12 +12,13 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<MCB_HEAD,SFB_SYSCON>,word
-	EXTERNS	<PCB_TABLE,SFB_TABLE>,dword
+	EXTERNS	<BPB_TABLE,PCB_TABLE,SFB_TABLE>,dword
 	EXTERNS	<dosexit,dosfunc,dos_return>,near
 	EXTERNS	<sfb_open,sfb_write>,near
 
 	DEFLBL	sysinit_start
 
+	DEFWORD	bpb_off
 	DEFWORD	dos_seg
 	DEFWORD	top_seg
 	DEFWORD	cfg_data
@@ -32,10 +33,12 @@ DOS	segment word public 'CODE'
 ; Everything after "sysinit_start" will be recycled.
 ;
 ; Entry:
+;	AX = offset of initial BPB
 ;	DS:BX -> CFG_FILE data, if any
 ;	DX = size of CFG_FILE data, if any
 ;
 DEFPROC	sysinit,far
+	mov	[bpb_off],ax		; save boot BPB (BIOS offset)
 	mov	ax,cs
 	mov	[dos_seg],ax		; save the resident DOS segment
 	mov	[cfg_data],bx		; offset of CFG data
@@ -102,23 +105,51 @@ si3:	lodsw				; load vector offset
 	stosw				; store vector segment
 	jmp	si3
 ;
-; Now set ES to the first available paragraph for resident DOS tables.
+; Now set ES to the first available paragraph for resident DOS tables,
+; and set DS to the upper DOS segment.
 ;
 si4:	mov	ax,offset sysinit_start
 	test	al,0Fh			; started on a paragraph boundary?
 	jz	si5			; yes
 	inc	dx			; no, so skip to next paragraph
-si5:	mov	ax,ds
+si4a:	mov	ax,ds
 	add	ax,dx
 	mov	es,ax			; ES = first free (low) paragraph
 	ASSUME	ES:NOTHING
 	push	cs
-	pop	ds			; DS is now the upper DOS segment
+	pop	ds
 ;
-; The first resident table (PCB_TABLE) contains our Process Control Blocks.
+; The first resident table (BPB_TABLE) contains all the system BPBs.
+;
+	mov	al,[FDC_UNITS]
+	cbw
+	mov	dx,size BPBEX
+	mov	bx,offset BPB_TABLE
+	call	init_table		; initialize table, update ES
+	mov	si,[bpb_off]		; get the BPB the boot sector used
+	push	es
+	mov	es,[dos_seg]
+	ASSUME	ES:DOS
+	mov	al,ss:[si].BPB_DRIVE	; and copy to the appropriate BPB slot
+	mov	ah,size BPBEX
+	mul	ah
+	mov	di,es:[BPB_TABLE].off
+	add	di,ax
+	cmp	di,es:[BPB_TABLE].seg
+	jnb	si5
+	mov	cx,(size BPB) SHR 1
+	rep	movs word ptr es:[di],word ptr ss:[si]
+	mov	ah,TIME_GETTICKS
+	int	INT_TIME		; CX:DX is current tick count
+	mov	es:[di].BPB_TIMESTAMP.off,dx
+	mov	es:[di].BPB_TIMESTAMP.seg,cx
+	pop	es
+	ASSUME	ES:NOTHING
+;
+; The next resident table (PCB_TABLE) contains our Process Control Blocks.
 ; Look for a "PCBS=" line in CFG_FILE.
 ;
-	mov	si,offset CFG_PCBS
+si5:	mov	si,offset CFG_PCBS
 	call	find_cfg		; look for "PCBS="
 	jc	si6			; if not found, AX will be min value
 	push	es
@@ -254,9 +285,7 @@ DEFPROC	dos_call
 	push	bp
 	push	[dos_seg]
 	push	ax
-	sub	ax,ax
-	mov	es,ax
-	ASSUME	ES:BIOS
+	mov	es,[dos_seg]
 	db	0CBh			; RETF
 dc9:	pop	es
 	pop	bp

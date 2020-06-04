@@ -82,6 +82,8 @@ MCBSIG_LAST	equ	5Ah
 ;
 ; System File Block (SFB)
 ;
+; For files, this is a superset of the directory entry (DIRENT).
+;
 ; System file handles are indexes into the SFB_TABLE, whereas process file
 ; handles are indexes into a PSP's handle table.
 ;
@@ -90,8 +92,8 @@ SFB_NAME	db    11 dup (?); 00h: filename (E5=free,00=end)
 SFB_ATTR	db	?	; 0Bh: attribute bits (see below)
 SFB_DRIVER	dd	?	; 0Ch: driver pointer
 SFB_CONTEXT	dw	?	; 10h: driver context
-SFB_HANDLES	db	?	; 12h: number of process handles
-SFB_MODE	db	?	; 13h: open mode
+SFB_MODE	db	?	; 12h: open mode
+SFB_HANDLES	db	?	; 13h: number of process handles
 SFB_RESERVED	dw	?	; 14h
 SFB_TIME	dw	?	; 16h: time of last write (see below)
 SFB_DATE	dw	?	; 18h: date of last write (see below)

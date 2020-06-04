@@ -18,7 +18,7 @@ DOS	segment word public 'CODE'
 	DEFLBL	MCB_HEAD,word
 	jmp	sysinit
 
-	DEFTBL	<PCB_TABLE,SFB_TABLE>
+	DEFTBL	<BPB_TABLE,PCB_TABLE,SFB_TABLE>
 
 	DEFWORD	SFB_SYSCON,0		; SFB of the system console
 	DEFWORD	PSP_ACTIVE,1		; start with a fake system PSP
