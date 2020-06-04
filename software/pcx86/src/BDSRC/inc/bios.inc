@@ -228,25 +228,20 @@ FDC_DRIVER	dd	?		; 506h
 DD_LIST		dd	?		; 51Eh: head of device driver list
 DPT_ACTIVE	DPT	<>		; 522h: active DPT
 ;
-; We're going to move the boot sector from BOOT_SECTOR_HI to BOOT_SECTOR_LO,
-; which overlaps where we'll maintain BPB_ACTIVE.
+; We move the boot sector from BOOT_SECTOR to FAT_SECTOR.
 ;
-BOOT_SECTOR_HI	equ	7C00h
-BOOT_SECTOR_LO	equ	0522h + size DPT
+BOOT_SECTOR	equ	7C00h
+BOOT_SECTOR_LO	equ	540h
+		db	3 dup (?)	; paragraph padding
+FAT_BUFHDR	BUFHDR	<>		; 530h
+FAT_SECTOR	db	512 dup (?)	; 540h
 
-BOOT_SECTOR	db	3 dup (?)	; 52Dh: 3 bytes reserved for JMP
-BPB_ACTIVE	BPB	<>		; 530h: active BPB
-		db	(30h - size BPB) dup (?)
-
-FAT_BUFHDR	BUFHDR	<>		; 560h
-FAT_SECTOR	db	512 dup (?)	; 570h
-
-DIR_BUFHDR	BUFHDR	<>		; 770h
-DIR_SECTOR	db	512 dup (?)	; 780h
-DIR_SECTOR_OFF	equ	780h
+DIR_BUFHDR	BUFHDR	<>		; 740h
+DIR_SECTOR	db	512 dup (?)	; 750h
+DIR_SECTOR_OFF	equ	750h
 		ASSERT 	<offset IVT + DIR_SECTOR_OFF>,EQ,<offset DIR_SECTOR>
 
-		dw	64 dup (?)	; 64-word stack (good enough for sysinit)
+		dw	88 dup (?)	; 88-word stack (good enough for sysinit)
 BIOS_STACK	equ	$		; A00h
 BIOS_END	equ	0A00h
 		ASSERT	<offset IVT + BIOS_END>,EQ,<offset BIOS_STACK>

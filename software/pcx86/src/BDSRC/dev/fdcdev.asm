@@ -17,7 +17,7 @@ CODE	segment para public 'CODE'
 FDC 	DDH	<offset DEV:ddend+16,,DDATTR_BLOCK,offset ddreq,offset ddinit,2020202024434446h>
 
 	DEFPTR	ddpkt		; last request packet address
-	DEFPTR	bpb_ptr,<offset BPB_ACTIVE - offset IVT>,0
+	DEFPTR	bpb_ptr
 	DEFLBL	CMDTBL,word
 	dw	ddcmd_none, ddcmd_none, ddcmd_none, ddcmd_none	; 0-3
 	dw	ddcmd_read, ddcmd_none, ddcmd_none, ddcmd_none	; 4-7

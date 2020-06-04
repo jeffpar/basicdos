@@ -242,7 +242,14 @@ cf5:	mov	cs:[bx],al		; store it
 ; directory sectors for a matching name.  This requires converting the drive
 ; number to a device+unit combo.
 ;
-cf6:
+cf6:	cmp	dl,[FDC_UNITS]		; is this an FDC drive?
+	cmc
+	jb	cf9			; no
+;
+; OK, it's an FDC drive, so let's make sure we have a "fresh" BPP for the
+; disk in that drive.
+;
+
 
 cf9:	pop	si
 	pop	bx

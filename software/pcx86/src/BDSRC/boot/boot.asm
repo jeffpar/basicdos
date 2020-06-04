@@ -12,8 +12,8 @@
 BOOT	segment word public 'CODE'
 
 ;
-; We "ORG" at BOOT_SECTOR_LO rather than BOOT_SECTOR_HI,
-; because as soon as "move" finishes, we're at BOOT_SECTOR_LO.
+; We "ORG" at BOOT_SECTOR_LO rather than BOOT_SECTOR, because as soon as
+; "move" finishes, we're runing at BOOT_SECTOR_LO.
 ;
 	org	BOOT_SECTOR_LO
         ASSUME	CS:BOOT, DS:NOTHING, ES:NOTHING, SS:NOTHING
@@ -34,7 +34,15 @@ BOOT	segment word public 'CODE'
 start:	cld
 	jmp	short move
 
-mybpb:	BPB	<,512,1,1,2,64,320,MEDIA_160K,1,8,1,0,0,0,8,3,7>
+PART1_COPY	equ	$		; start of PART1 data
+
+mybpb:		BPB	<,512,1,1,2,64,320,MEDIA_160K,1,8,1,0,0,0,8,3,7>
+
+DEV_FILE	db	"IBMBIO  COM"
+DOS_FILE	db	"IBMDOS  COM"
+CFG_FILE	db	"CONFIG  SYS",-1
+
+PART1_END	equ	$		; end of PART1 data
 
 move:	push	cs
 	pop	ss
@@ -53,17 +61,13 @@ move:	push	cs
 	pop	ds
 	ASSUME	DS:BIOS
 	mov	[si].DP_SPECIFY1,0DFh	; change step rate to 6ms
-	mov	[si].DP_HEADSETTLE,cl
-	mov	ds:[INT_DPT*4],si	; and change head settle time to 0ms
+	mov	[si].DP_HEADSETTLE,cl	; and change head settle time to 0ms
+	mov	ds:[INT_DPT*4],si
 	mov	ds:[INT_DPT*4+2],ds	; update INT_DPT vector
-	mov	si,BOOT_SECTOR_HI	; now move boot sector down
-	mov	cx,512 SHR 1
-;	mov	di,offset BOOT_SECTOR	; BOOT_SECTOR now follows DPT_ACTIVE
+	mov	si,BOOT_SECTOR		; now move boot sector down
+	mov	ch,1			; mov cx,512 (aka [mybpb].BPB_SECBYTES)
+	mov	di,BOOT_SECTOR_LO
 	rep	movsw
-	mov	ax,BIOS_END SHR 4
-	push	ax
-	sub	ax,ax
-	push	ax
 	mov	ax,offset main
 	jmp	ax
 
@@ -114,6 +118,8 @@ m7:	jcxz	read			; all files found, go read
 	inc	dx			; DX = next dir LBA
 	cmp	dx,[si].BPB_LBADATA	; exhausted root directory?
 	jb	m1			; jump if not exhausted
+	cmp	cx,1
+	je	read			; it's OK if we didn't find CFG_FILE
 err:	mov	si,offset errmsg1
 	call	print
 	jmp	$			; "halt"
@@ -123,7 +129,7 @@ err:	mov	si,offset errmsg1
 hard:	mov	ax,0201h		; AH = 02h (READ), AL = 1 sector
 	inc	cx			; CH = CYL 0, CL = SEC 1
 	mov	dx,0080h		; DH = HEAD 0, DL = DRIVE 80h
-	mov	bx,BOOT_SECTOR_HI	; ES:BX -> BOOT_SECTOR_HI
+	mov	bx,BOOT_SECTOR		; ES:BX -> BOOT_SECTOR
 	int	INT_FDC			; read it
 	jc	err
 	jmp	bx			; jump to the hard disk boot sector
@@ -306,13 +312,6 @@ crlf		db	13,10,0
 prompt		db	"Press any key to start...",0
 errmsg1		db	"Missing system files, halted",0
 
-PART1_COPY	equ	$
-DEV_FILE	db	"IBMBIO  COM"
-DOS_FILE	db	"IBMDOS  COM"
-CFG_FILE	db	"CONFIG  SYS"
-		db	-1
-PART1_END	equ	$
-
 	org 	BOOT_SECTOR_LO + 510
 	dw	0AA55h
 ;
@@ -342,17 +341,16 @@ PART1_END	equ	$
 ;	load address.
 ;
 DEFPROC	part2,far
-	push	si
 	mov	ax,[si].BPB_SECBYTES
-	mov	si,offset PART1_COPY	; copy part1 data to part2
+	mov	si,offset PART1_COPY	; copy PART1 data to PART2
 	mov	di,offset PART2_COPY
 	mov	cx,offset PART1_END - offset PART1_COPY
 	rep	movsb
 
-	mov	di,offset BPB_ACTIVE + size BPB
-	mov	cx,offset DIR_SECTOR	; now we can zero the area from
-	sub	cx,di			; just past BPB_ACTIVE to DIR_SECTOR
-	rep	stosb			; AL should be zero
+	mov	di,offset FAT_BUFHDR
+	mov	cx,offset DIR_SECTOR	; now we can zero the area
+	sub	cx,di			; from FAT_BUFHDR to DIR_SECTOR
+	rep	stosb			; (AL should be zero)
 
 	mov	si,offset PART2_END
 	mov	di,BIOS_END
@@ -360,10 +358,10 @@ DEFPROC	part2,far
 	add	cx,ax
 	sub	cx,si
 	rep	movsb			; move first bit of DEV_FILE
-	pop	si
 
 	mov	bx,offset DEV_FILE + (offset PART2_COPY - offset PART1_COPY)
 	sub	di,ax			; adjust load addr for read_data
+	mov	si,offset PART2_COPY
 	call	read_data		; read the rest of DEV_FILE (see BX)
 	jc	load_error
 ;
@@ -405,7 +403,7 @@ ENDPROC	part2
 ;	and then jump to it.  At that point, we never return to this code.
 ;
 DEFPROC	part3,far
-	mov	si,offset BPB_ACTIVE
+	mov	si,offset PART2_COPY
 ;
 ; Convert ES:DI to SEG:0, and then load ES with the new segment
 ;
@@ -419,10 +417,13 @@ DEFPROC	part3,far
 	call	read_file		; load DOS_FILE
 	push	di
 	mov	bx,offset CFG_FILE + (offset PART2_COPY - offset PART1_COPY)
+	sub	dx,dx			; default CFG_FILE size is zero
+	cmp	[bx],dx			; did we find CFG_FILE?
+	jne	pt9			; no
 	push	[bx+4]			; push CFG_FILE size (assume < 64K)
 	call	read_file		; load CFG_FILE above DOS_FILE
 	pop	dx			; DX = CFG_FILE size
-	pop	bx			; BX = CFG_FILE data address
+pt9:	pop	bx			; BX = CFG_FILE data address
 	push	es
 	sub	ax,ax
 	push	ax			; far "jmp" address -> CS:0000h
@@ -655,11 +656,9 @@ errmsg2		db	"Error loading system files, halted",0
 ;
 ; Data copied from PART1
 ;
-PART2_COPY	db	34 dup (?)
-	even
+PART2_COPY	db	(offset PART1_END - offset PART1_COPY) dup (?)
+		even
 PART2_END	equ	$
-
-;	ASSERT	<offset PART1_END - offset PART1_COPY>,EQ,<offset PART2_END - offset PART2_COPY>
 
 BOOT	ends
 
