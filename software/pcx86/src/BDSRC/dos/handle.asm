@@ -12,7 +12,9 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<SFB_TABLE>,dword
-	EXTERNS	<CUR_DRV>,byte
+	EXTERNS	<CUR_DRV,FILE_NAME>,byte
+	EXTERNS	<VALID_CHARS>,byte
+	EXTERNS	<VALID_COUNT>,abs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -161,17 +163,35 @@ ENDPROC	sfb_write
 ;	DS:SI -> name
 ;
 ; Outputs:
-;	On success, ES:DI -> device driver header (DDH), DX = context
+;	On success, ES:DI -> driver header (DDH), DX = context, carry clear
+;	On failure, carry set
 ;
 ; Modifies:
 ;	AX, CX, DX, DI, ES
 ;
 DEFPROC	chk_filename,DOS
+	ASSUME	DS:NOTHING
 ;
 ; See if the name begins with a drive letter.  If so, convert to a drive
 ; number and then skip over it; otherwise, use CUR_DRV as the drive number.
 ;
+	push	bx
 	push	si
+	mov	bx,offset FILE_NAME
+	mov	di,bx
+	mov	cx,11
+	mov	al,' '
+	rep	stosb			; initialize FILE_NAME
+	mov	dh,-1			; DH = state -1
+;
+; DH determines the state:
+;
+;	state -1: consuming "non-extension" characters (up to 8)
+;	state  0: waiting for an "extension" delimiter (ie, a period)
+;	state  1: consuming "extension" characters (up to 3)
+;
+; We are initially in state -1.
+;
 	cmp	byte ptr [si+1],':'
 	mov	dl,[CUR_DRV]		; DL = drive number
 	jne	cf1
@@ -182,14 +202,50 @@ DEFPROC	chk_filename,DOS
 	cmc
 	jb	cf9
 	inc	si
-	xchg	dx,ax			; DL = specified drive number
+	mov	dl,al			; DL = specified drive number
 ;
-; Build FILE_NAME from the string at DS:SI
+; Build FILE_NAME (at CS:BX) from the string at DS:SI, making sure that all
+; characters exist within VALID_CHARS.
 ;
-
-cf1:	nop
+cf1:	lodsb				; get next char
+	test	al,al			; terminating null?
+	jz	cf6			; yes, end of name
+	test	dh,dh			; state 0?
+	jnz	cf2			; no
+	cmp	al,'.'			; period?
+	jne	cf1			; no, ignore it
+	inc	dh			; finally, a period; move to state 1
+	mov	bx,offset FILE_NAME + 8
+	jmp	cf1
+cf2:	cmp	al,'a'
+	jb	cf3
+	cmp	al,'z'
+	ja	cf3
+	sub	al,20h
+cf3:	mov	cx,VALID_COUNT
+	mov	di,offset VALID_CHARS
+	repne	scasb
+	stc
+	jne	cf9			; invalid character
+	test	dh,dh			; state -1?
+	jg	cf4			; no
+	cmp	bx,offset FILE_NAME + 8
+	jb	cf5			; store it
+	jmp	cf1			; ignore it
+cf4:	cmp	bx,offset FILE_NAME + 11
+	jae	cf1			; ignore it
+cf5:	mov	cs:[bx],al		; store it
+	inc	bx
+	jmp	cf1
+;
+; FILE_NAME has been successfully filled in, so we're ready to search
+; directory sectors for a matching name.  This requires converting the drive
+; number to a device+unit combo.
+;
+cf6:
 
 cf9:	pop	si
+	pop	bx
 	ret
 ENDPROC	chk_filename
 

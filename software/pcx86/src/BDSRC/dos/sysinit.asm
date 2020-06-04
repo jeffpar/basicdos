@@ -16,7 +16,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<dosexit,dosfunc,dos_return>,near
 	EXTERNS	<sfb_open,sfb_write>,near
 
-	DEFLBL	sysinit_beg
+	DEFLBL	sysinit_start
 
 	DEFWORD	dos_seg
 	DEFWORD	top_seg
@@ -29,7 +29,7 @@ DOS	segment word public 'CODE'
 ;
 ; System initialization
 ;
-; Everything after "sysinit_beg" will be recycled.
+; Everything after "sysinit_start" will be recycled.
 ;
 ; Entry:
 ;	DS:BX -> CFG_FILE data, if any
@@ -64,7 +64,7 @@ si1:	mov	ax,[MEMORY_SIZE]	; get available memory in Kb
 	shl	ax,cl			; available memory in paras
 	mov	[top_seg],ax		; segment of end of memory
 	add	bx,dx			; add size of CFG data
-	mov	si,offset sysinit_beg	; SI = offset of init code
+	mov	si,offset sysinit_start	; SI = offset of init code
 	sub	bx,si			; BX = number of bytes to move
 	lea	dx,[bx+31]
 	mov	cl,4
@@ -104,7 +104,7 @@ si3:	lodsw				; load vector offset
 ;
 ; Now set ES to the first available paragraph for resident DOS tables.
 ;
-si4:	mov	ax,offset sysinit_beg
+si4:	mov	ax,offset sysinit_start
 	test	al,0Fh			; started on a paragraph boundary?
 	jz	si5			; yes
 	inc	dx			; no, so skip to next paragraph

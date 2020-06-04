@@ -116,7 +116,6 @@ ENDPROC	ddcmd_write
 ; Outputs:
 ;
 DEFPROC	ddcmd_open
-	ASSUME	DS:CODE
 	push	es
 	push	di
 	les	di,es:[di].DDP_PARMS
@@ -148,7 +147,6 @@ DEFPROC	ddcmd_open
 	jmp	short ddo9
 
 ddo8:	mov	ds,ax
-	ASSUME	DS:NOTHING
 	mov	word ptr ds:[buf_x],dx
 	mov	word ptr ds:[buf_cx],cx
 	mov	word ptr ds:[buf_addr].off,0
@@ -177,7 +175,6 @@ ENDPROC	ddcmd_open
 ; Outputs:
 ;
 DEFPROC	ddcmd_close
-	ASSUME	DS:CODE
 	mov	ax,es:[di].DDP_CONTEXT
 	test	ax,ax
 	jz	ddc9
@@ -199,7 +196,6 @@ ENDPROC	ddcmd_close
 ; Outputs:
 ;
 DEFPROC	ddcmd_none
-	ASSUME	DS:CODE
 	stc
 	ret
 ENDPROC	ddcmd_none
@@ -210,35 +206,37 @@ ENDPROC	ddcmd_none
 ;
 ; Inputs:
 ;	[ddpkt] -> DDPI
-;	SS = BIOS segment (this is a valid assumption at init time only)
 ;
 ; Outputs:
 ;	DDPI's DDPI_END updated
 ;
 DEFPROC	ddinit,far
-	ASSUME	DS:NOTHING,SS:BIOS
+	push	ax
+	push	bx
 	push	di
 	push	es
+	sub	di,di
+	mov	es,di
+	ASSUME	ES:BIOS
+	mov	ax,[EQUIP_FLAG]		; AX = EQUIP_FLAG
 	les	di,[ddpkt]
 	mov	es:[di].DDPI_END.off,offset ddinit
 	mov	cs:[0].DDH_INTERRUPT,offset DEV:ddint
 ;
 ; Determine what kind of video console we're dealing with (MONO or COLOR)
-; and what the frame buffer segment is.  Don't forget to save all registers.
+; and what the frame buffer segment is.
 ;
-	push	ax
-	push	bx
 	mov	bx,0B000h
-	mov	ax,[EQUIP_FLAG]
 	and	ax,EQ_VIDEO_MODE
 	cmp	ax,EQ_VIDEO_MONO
 	je	ddin9
 	mov	bx,0B800h
 ddin9:	mov	[frame_seg],bx
+	pop	es
+	ASSUME	ES:NOTHING
+	pop	di
 	pop	bx
 	pop	ax
-	pop	es
-	pop	di
 	ret
 ENDPROC	ddinit
 

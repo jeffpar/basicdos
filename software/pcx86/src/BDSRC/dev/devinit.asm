@@ -42,7 +42,7 @@ DEFPROC	devinit,far
 ;
 ; Create a DDPI packet on the stack.
 ;
-	sub	sp,(size DDPI + 1) AND 0FFFEh
+	sub	sp,DDP_MAXSIZE
 	mov	bx,sp
 	mov	word ptr [bx].DDP_LEN,size DDP
 	mov	[bx].DDP_CMD,DDC_INIT
@@ -50,7 +50,6 @@ DEFPROC	devinit,far
 
 i1:	cmp	si,di		; reached the end of drivers?
 	jae	i9		; yes
-	push	bx		; save packet address
 	mov	dx,[si]		; DX = original size of this driver
 	mov	ax,si
 	mov	cl,4
@@ -66,44 +65,59 @@ i1:	cmp	si,di		; reached the end of drivers?
 	call	dword ptr [bp]	; far call to DDH_INTERRUPT
 	pop	ax
 	pop	ax		; recover the driver segment
-	mov	bx,[bx].DDPI_END.off
-	add	bx,15
-	and	bx,0FFF0h
+	mov	bp,[bx].DDPI_END.off
+	add	bp,15
+	and	bp,0FFF0h
 ;
 ; Whereas SI was the original (paragraph-aligned) address of the driver,
-; and SI+DX was the end of the driver, SI+BX is the new end of driver. So,
-; if DX == BX, there's nothing to move; otherwise, we need to move everything
-; from SI+DX through DI to SI+BX, and update DX and DI (new end of drivers).
+; and SI+DX was the end of the driver, SI+BP is the new end of driver. So,
+; if DX == BP, there's nothing to move; otherwise, we need to move everything
+; from SI+DX through DI to SI+BP, and update DX and DI (new end of drivers).
 ;
-	cmp	dx,bx
+	cmp	dx,bp
 	je	i4
-	push	bx
+
 	push	si
-	add	bx,si		; BX = dest address
+	mov	cx,di
+	lea	di,[si+bp]	; DI = dest address
 	add	si,dx		; SI = source address
-i2:	cmp	si,di
-	jae	i3
-	mov	cx,[si]
-	mov	[bx],cx
-	add	si,2
-	add	bx,2
-	jmp	i2
-i3:	mov	di,bx		; new end of drivers
+	sub	cx,si
+	shr	cx,1
+	rep	movsw		; DI = new end of drivers
 	pop	si
-	pop	dx
+	mov	dx,bp
 
 i4:	test	dx,dx
 	jz	i8		; jump if driver not required
+
 	sub	cx,cx		; AX:CX -> driver header
-	xchg	[DD_LIST].off,cx
+;
+; If this is the FDC driver, then we need to extract DDPI_UNITS from
+; the request packet and update FDC_UNITS and FDC_DRIVER in the BIOS segment.
+;
+; TODO: Revisit this test, because it currently relies solely on the ATTR word
+; indicating this is a block device.
+;
+	test	[si].DDH_ATTR,DDATTR_CHAR
+	jnz	i7
+	push	ax
+	mov	[FDC_DRIVER].off,cx
+	mov	[FDC_DRIVER].seg,ax
+	mov	al,[bx].DDPI_UNITS
+	mov	[FDC_UNITS],al
+	pop	ax
+;
+; Link the driver into the chain.
+;
+i7:	xchg	[DD_LIST].off,cx
 	mov	[si].DDH_NEXT_OFF,cx
 	xchg	[DD_LIST].seg,ax
 	mov	[si].DDH_NEXT_SEG,ax
+
 i8:	add	si,dx		; SI -> next driver (after adding original size)
-	pop	bx		; BX -> packet on the stack again
 	jmp	i1
 
-i9:	add	sp,(size DDPI + 1) AND 0FFFEh
+i9:	add	sp,DDP_MAXSIZE
 	ret
 ENDPROC	devinit
 

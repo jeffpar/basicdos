@@ -24,6 +24,11 @@ DOS	segment word public 'CODE'
 	DEFWORD	PSP_ACTIVE,1		; start with a fake system PSP
 	DEFBYTE	CUR_DRV,0		; current drive number
 	DEFBYTE	FILE_NAME,' ',11	; buffer for 11-character filename
+;
+; Constants
+;
+	DEFBYTE	VALID_CHARS,"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%&'()-@^_`{}~"
+	DEFABS	VALID_COUNT,<$ - VALID_CHARS>
 
 	EXTERNS	<tty_echo,tty_write,aux_read,aux_write,prn_write,tty_io>,near
 	EXTERNS	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>,near

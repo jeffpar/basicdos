@@ -184,16 +184,37 @@ ENDPROC	readwrite_sectors
 ;	[ddpkt] -> DDPI
 ;
 ; Outputs:
-;	DDPI's DDPI_END updated
+;	DDPI's DDPI_UNITS and DDPI_END updated
 ;
 DEFPROC	ddinit,far
+	push	ax
+	push	cx
 	push	di
 	push	es
+	sub	di,di
+	mov	es,di
+	ASSUME	ES:BIOS
+	mov	ax,[EQUIP_FLAG]
 	les	di,[ddpkt]
 	mov	es:[di].DDPI_END.off,offset ddinit
 	mov	cs:[0].DDH_INTERRUPT,offset DEV:ddint
+;
+; Determine how many floppy disk drives are in the system.
+;
+	sub	cx,cx
+	test	al,EQ_IPL_DRIVE
+	jz	ddin9
+	and	ax,EQ_NUM_DRIVES
+	mov	cl,6
+	shr	ax,cl
+	inc	ax
+	xchg	cx,ax
+ddin9:	mov	es:[di].DDPI_UNITS,cl
 	pop	es
+	ASSUME	ES:NOTHING
 	pop	di
+	pop	cx
+	pop	ax
 	ret
 ENDPROC	ddinit
 
