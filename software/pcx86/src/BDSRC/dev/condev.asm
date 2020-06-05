@@ -60,13 +60,14 @@ DEFPROC	ddint,far
 	les	di,[ddpkt]
 	mov	bl,es:[di].DDP_CMD
 	cmp	bl,CMDTBL_SIZE
-	jae	ddi8
+	jae	ddi9
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
 	mov	bh,0
 	add	bx,bx
 	call	CMDTBL[bx]
-	jmp	short ddi9
-ddi8:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_UNKCMD
-ddi9:	pop	es
+ddi8:	pop	es
 	pop	ds
 	pop	di
 	pop	si
@@ -74,6 +75,8 @@ ddi9:	pop	es
 	pop	bx
 	pop	ax
 	ret
+ddi9:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_UNKCMD
+	jmp	ddi8
 ENDPROC	ddint
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -85,6 +88,7 @@ ENDPROC	ddint
 ;
 ; Outputs:
 ;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcmd_write
 	mov	cx,es:[di].DDPRW_COUNT
 	lds	si,es:[di].DDPRW_ADDR
@@ -115,6 +119,7 @@ ENDPROC	ddcmd_write
 ;
 ; Outputs:
 ;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcmd_open
 	push	es
 	push	di
@@ -147,6 +152,7 @@ DEFPROC	ddcmd_open
 	jmp	short ddo9
 
 ddo8:	mov	ds,ax
+	ASSUME	DS:NOTHING
 	mov	word ptr ds:[buf_x],dx
 	mov	word ptr ds:[buf_cx],cx
 	mov	word ptr ds:[buf_addr].off,0
@@ -161,7 +167,6 @@ ddo8:	mov	ds,ax
 	pop	es
 	ASSUME	ES:NOTHING
 	mov	es:[di].DDP_CONTEXT,ds
-
 ddo9:	ret
 ENDPROC	ddcmd_open
 
@@ -174,6 +179,7 @@ ENDPROC	ddcmd_open
 ;
 ; Outputs:
 ;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcmd_close
 	mov	ax,es:[di].DDP_CONTEXT
 	test	ax,ax
@@ -195,6 +201,7 @@ ENDPROC	ddcmd_close
 ;
 ; Outputs:
 ;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcmd_none
 	stc
 	ret
@@ -210,6 +217,7 @@ ENDPROC	ddcmd_none
 ; Outputs:
 ;	DDPI's DDPI_END updated
 ;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddinit,far
 	push	ax
 	push	bx

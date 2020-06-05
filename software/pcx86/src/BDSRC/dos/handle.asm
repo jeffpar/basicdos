@@ -11,8 +11,9 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<BPB_TABLE,SFB_TABLE>,dword
-	EXTERNS	<CUR_DRV,FILE_NAME>,byte
+	EXTERNS	<bpb_table,sfb_table>,dword
+	EXTERNS	<psp_active>,word
+	EXTERNS	<cur_drv,file_name>,byte
 	EXTERNS	<VALID_CHARS>,byte
 	EXTERNS	<VALID_COUNT>,abs
 
@@ -25,22 +26,86 @@ DOS	segment word public 'CODE'
 ;	REG_DS:REG_DX -> name of device/file
 ;
 ; Outputs:
-;	On success, REG_AX = process file handle
-;	On failure, REG_AX = error
+;	On success, REG_AX = file handle, carry clear
+;	On failure, REG_AX = error, carry set
 ;
 DEFPROC	hdl_open,DOS
+	mov	es,[psp_active]		; get the current PSP
+	ASSUME	ES:NOTHING		; and if there IS a PSP
+	mov	di,es			; then find a free JFT slot
+	test	di,0FFF0h
+	jz	ho2			; no valid PSP yet
+	mov	al,0FFh
+	mov	cx,size PSP_HANDLES
+	mov	di,offset PSP_HANDLES
+	repne	scasb			; AL = 0FFh (indicates unused slot)
+	mov	ax,ERR_MAXFILES
+	stc
+	jne	ho9			; if no slot, return error w/carry set
+	dec	di			; rewind to slot
+ho2:	push	di			; save JFT offset
 	mov	bl,[bp].REG_AL		; BL = mode
-	mov	si,[bp].REG_DX		; DS:SI = name
-	mov	ds,[bp].REG_DS
+	mov	si,[bp].REG_DX
+	mov	ds,[bp].REG_DS		; DS:SI = name of device/file
 	ASSUME	DS:NOTHING
 	call	sfb_open
+	pop	di			; restore JFT offset
 	jc	ho9
-;
-; BX is the new (or possibly old) SFB address.  Convert to a process handle.
-;
+	xchg	ax,bx			; AX = SFB offset
+	sub	ax,[sfb_table].off
+	mov	cl,size SFB
+	div	cl			; AL = SFB index (from SFB offset)
+	IFDEF	DEBUG
+	test	ah,ah			; verify that the remainder is zero
+	jz	$+3
+	int 3
+	ENDIF
+	test	di,0FFF0h		; did we find a free JFT slot?
+	jz	ho9			; no
+	stosb				; store the SFB index in the JFT slot
+	sub	di,offset PSP_HANDLES + 1
+	xchg	ax,di			; AX = handle
 ho9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
 	ret
 ENDPROC	hdl_open
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; hdl_write (REG_AH = 40h)
+;
+; Inputs:
+;	REG_BX = handle
+;	REG_CX = byte count
+;	REG_DS:REG_DX -> data to write
+;
+; Outputs:
+;	On success, REG_AX = bytes written, carry clear
+;	On failure, REG_AX = error, carry set
+;
+DEFPROC	hdl_write,DOS
+	mov	es,[psp_active]
+	ASSUME	ES:NOTHING
+	mov	bx,[bp].REG_BX		; BX = handle
+	cmp	bx,size PSP_HANDLES
+	jae	hw8
+	mov	al,es:[PSP_HANDLES][bx]
+	mov	cl,size SFB
+	mul	cl
+	add	ax,[sfb_table].off
+	cmp	ax,[sfb_table].seg
+	jae	hw8
+	xchg	bx,ax			; BX -> SFB
+	mov	cx,[bp].REG_CX		; CX = byte count
+	mov	si,[bp].REG_DX
+	mov	ds,[bp].REG_DS		; DS:SI = data to write
+	ASSUME	DS:NOTHING
+	call	sfb_write
+	jmp	short hw9
+hw8:	mov	ax,ERR_BADHANDLE
+	stc
+hw9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
+	ret
+ENDPROC	hdl_write
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -55,12 +120,13 @@ ENDPROC	hdl_open
 ;	On failure, carry set, AX = error code
 ;
 ; Modifies:
-;	AX, BX, CX, DX, DI, ES
+;	AX, BX, CX, DX, DI
 ;
 DEFPROC	sfb_open,DOS
 	ASSUME	DS:NOTHING,ES:NOTHING
 	push	si
 	push	ds
+	push	es
 	call	chk_devname		; is it a device name?
 	jnc	so1			; yes
 	call	chk_filename		; is it a disk file name?
@@ -79,12 +145,8 @@ so1a:	jc	so9			; failed
 ;
 ; When looking for a matching existing SFB, all we require is that both
 ; the device driver and device context match.  For files, the context will
-; be the cluster number; for devices, the context is, um, the context, which
+; be the cluster number; for devices, the context will be whatever
 ; dev_request returned in DX.
-;
-; However, we relax that *slightly* for the CON device, because the first
-; CON device opened is considered the "system console", so any other CON
-; device *without* context will use that same SFB.
 ;
 ; Traditionally, checking used SFBs means those with non-zero HANDLES count;
 ; however, our SFBs are also used IFF their DRIVER seg is non-zero.
@@ -94,7 +156,7 @@ so2:	push	cs
 	ASSUME	DS:DOS
 	mov	ax,es			; AX:DI is driver, DX is context
 	mov	cl,bl			; save mode in CL
-	mov	si,[SFB_TABLE].off
+	mov	si,[sfb_table].off
 	sub	bx,bx			; use BX to remember a free SFB
 so3:	cmp	[si].SFB_DRIVER.off,di
 	jne	so4			; check next SFB
@@ -110,7 +172,7 @@ so4:	test	bx,bx			; are we still looking for a free SFB?
 	jne	so5			; no
 	mov	bx,si			; yes, remember it
 so5:	add	si,size SFB
-	cmp	si,[SFB_TABLE].seg
+	cmp	si,[sfb_table].seg
 	jb	so3			; keep checking
 
 	pop	ax
@@ -155,9 +217,10 @@ so8:	mov	ax,DDC_CLOSE SHL 8	; ES:DI -> driver, DX = context
 	mov	ax,ERR_MAXFILES
 	stc				; return no SFB (and BX is zero)
 
-so9:	pop	ds
+so9:	pop	es
+	pop	ds
 	pop	si
-	ASSUME	DS:NOTHING
+	ASSUME	DS:NOTHING,ES:NOTHING
 	ret
 ENDPROC	sfb_open
 
@@ -204,15 +267,15 @@ DEFPROC	chk_filename,DOS
 	ASSUME	DS:NOTHING
 ;
 ; See if the name begins with a drive letter.  If so, convert to a drive
-; number and then skip over it; otherwise, use CUR_DRV as the drive number.
+; number and then skip over it; otherwise, use cur_drv as the drive number.
 ;
 	push	bx
 	push	si
-	mov	bx,offset FILE_NAME
+	mov	bx,offset file_name
 	mov	di,bx
 	mov	cx,11
 	mov	al,' '
-	rep	stosb			; initialize FILE_NAME
+	rep	stosb			; initialize file_name
 	mov	dh,-1			; DH = state -1
 ;
 ; DH determines the state:
@@ -224,7 +287,7 @@ DEFPROC	chk_filename,DOS
 ; We are initially in state -1.
 ;
 	cmp	byte ptr [si+1],':'
-	mov	dl,[CUR_DRV]		; DL = drive number
+	mov	dl,[cur_drv]		; DL = drive number
 	jne	cf1
 	lodsb				; AL = drive letter
 	sub	al,'A'
@@ -235,7 +298,7 @@ DEFPROC	chk_filename,DOS
 	inc	si
 	mov	dl,al			; DL = specified drive number
 ;
-; Build FILE_NAME (at CS:BX) from the string at DS:SI, making sure that all
+; Build file_name (at CS:BX) from the string at DS:SI, making sure that all
 ; characters exist within VALID_CHARS.
 ;
 cf1:	lodsb				; get next char
@@ -246,7 +309,7 @@ cf1:	lodsb				; get next char
 	cmp	al,'.'			; period?
 	jne	cf1			; no, ignore it
 	inc	dh			; finally, a period; move to state 1
-	mov	bx,offset FILE_NAME + 8
+	mov	bx,offset file_name + 8
 	jmp	cf1
 cf2:	cmp	al,'a'
 	jb	cf3
@@ -260,16 +323,16 @@ cf3:	mov	cx,VALID_COUNT
 	jne	cf9			; invalid character
 	test	dh,dh			; state -1?
 	jg	cf4			; no
-	cmp	bx,offset FILE_NAME + 8
+	cmp	bx,offset file_name + 8
 	jb	cf5			; store it
 	jmp	cf1			; ignore it
-cf4:	cmp	bx,offset FILE_NAME + 11
+cf4:	cmp	bx,offset file_name + 11
 	jae	cf1			; ignore it
 cf5:	mov	es:[bx],al		; store it
 	inc	bx
 	jmp	cf1
 ;
-; FILE_NAME has been successfully filled in, so we're ready to search
+; file_name has been successfully filled in, so we're ready to search
 ; directory sectors for a matching name.  This requires getting a fresh
 ; BPB for the drive.
 ;
@@ -279,7 +342,7 @@ cf6:	push	cs
 	call	get_bpb			; DL = drive #
 	jc	cf9
 ;
-; DS:DI -> BPB.  Start a directory search for FILE_NAME.
+; DS:DI -> BPB.  Start a directory search for file_name.
 ;
 	call	get_dirent
 	jc	cf9
@@ -311,7 +374,7 @@ ENDPROC	chk_filename
 ;	AX, CX, DI, ES
 ;
 DEFPROC	chk_devname,DOS
-	ASSUME	DS:NOTHING
+	ASSUME	DS:NOTHING,ES:NOTHING
 	sub	di,di
 	mov	es,di
 	ASSUME	ES:BIOS
@@ -328,9 +391,11 @@ cd1:	cmp	di,-1			; end of device list?
 	je	cd8			; match
 ;
 ; This could still be a match if DS:[SI-1] is an "end of device name" character
-; (eg, ':', '.', or ' ') and ES:[DI-1] is a space.
+; (eg, ':', '.', ' ', or null) and ES:[DI-1] is a space.
 ;
 	mov	al,[si-1]
+	test	al,al
+	jz	cd2
 	cmp	al,':'
 	je	cd2
 	cmp	al,'.'
@@ -435,9 +500,9 @@ DEFPROC	get_bpb,DOS
 	mov	al,dl			; AL = drive #
 	mov	ah,size BPBEX
 	mul	ah			; AX = BPB offset
-	mov	di,[BPB_TABLE].off
+	mov	di,[bpb_table].off
 	add	di,ax
-	cmp	di,[BPB_TABLE].seg
+	cmp	di,[bpb_table].seg
 	cmc
 	jc	gb9			; we don't have a BPB for that drive
 
@@ -494,14 +559,14 @@ ENDPROC	get_bpb
 ;
 ; Inputs:
 ;	ES:DI -> BPB
-;	DS:FILE_NAME contains file name
+;	DS:file_name contains file name
 ;
 ; Outputs:
 ;	On success, DS:SI -> DIRENT
 ;	On failure, carry set, AX = device error code
 ;
 ; Modifies:
-;	AX, DX, BP, SI, DS
+;	AX, DX, SI, DS
 ;
 DEFPROC	get_dirent,DOS
 ;
@@ -509,6 +574,7 @@ DEFPROC	get_dirent,DOS
 ; directory sector we read last, if valid, and we'll stop when we 1) find
 ; a match, or 2) reach that same sector again (after looping around).
 ;
+	push	bp
 	sub	bx,bx
 	mov	ds,bx
 	ASSUME	DS:BIOS
@@ -530,7 +596,7 @@ gd4:	mov	cx,1
 	add	dx,si			; DX -> end of sector data
 gd5:	cmp	byte ptr [si],0
 	je	gd6			; 0 indicates end of allocated entries
-	mov	di,offset FILE_NAME
+	mov	di,offset file_name
 	mov	cl,11
 	repe	cmpsb
 	je	gd9
@@ -551,6 +617,7 @@ gd7:	cmp	bx,bp			; back to the 1st LBA again?
 	stc				; out of sectors, so no match
 
 gd9:	lea	si,[si-11]		; rewind SI, in case it was a match
+	pop	bp
 	ret
 ENDPROC	get_dirent
 

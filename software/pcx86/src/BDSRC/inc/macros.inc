@@ -86,17 +86,80 @@ DEFPROC	macro	name,type
 	IFB	<type>
 name	proc	near
 	ELSE
-	  IFIDN <type>,<DOS>
+	IFIDN <type>,<DOS>
 	ASSUME	CS:DOS, DS:DOS, ES:DOS, SS:NOTHING
 name	proc	near
-	  ELSE
-name	proc	type
-	  ENDIF
+	ELSE
+	IFIDN <type>,<DOSFAR>
+	ASSUME	CS:DOS, DS:NOTHING, ES:NOTHING, SS:NOTHING
+name	proc	far
+	ELSE
+name	proc	type	;; we'll leave whatever ASSUMEs are active in place
+	ENDIF
+	ENDIF
+	ENDIF
+	LOCBYTES = 0
+	endm
+
+;
+; For functions called from dos_func, where BP -> REG_FRAME and BP-2 -> return
+; address, a set of macro invocations like this:
+;
+;	DEFPROC function,DOS
+;	LOCVAR	lFileName,byte,11
+;	LOCVAR	lDirEntry,dword,1
+;	ENTER
+;	...
+;	LEAVE
+;	ENDPROC function
+;
+; will generate equates/code that look like this:
+;
+;	lFileName equ (byte ptr [bp-13])
+;	lDirEntry equ (dword ptr [bp-17])
+;	sub	sp,16
+;	...
+;	add	sp,16
+;
+; If you need the address of a LOCVAR variable, use LEA, as in:
+;
+;	lea	di,lFileName
+;
+; DEFPROC will define a LOCBYTES variable representing the number of LOCVAR
+; bytes that must be allocated on the stack on ENTER and then released on LEAVE.
+;
+LOCVAR	macro	name,type,len
+	IFIDN	<type>,<byte>
+	LOCBYTES = LOCBYTES + len
+	ELSE
+	IFIDN	<type>,<word>
+	LOCBYTES = LOCBYTES + (len * 2)
+	ELSE
+	IFIDN	<type>,<dword>
+	LOCBYTES = LOCBYTES + (len * 4)
+	ELSE
+	%out	Unrecognized LOCVAR parameter: type
+	ENDIF
+	ENDIF
+	ENDIF
+name	equ	type ptr [bp - LOCBYTES - 2]
+	endm
+
+ENTER	macro
+	IF LOCBYTES GT 0
+	sub	sp,LOCBYTES + (LOCBYTES AND 1)
+	ENDIF
+	endm
+
+LEAVE	macro
+	IF LOCBYTES GT 0
+	add	sp,LOCBYTES + (LOCBYTES AND 1)
 	ENDIF
 	endm
 
 ENDPROC	macro	name
 name	endp
+	LOCBYTES = 0
 	endm
 
 ERROR	macro	msg

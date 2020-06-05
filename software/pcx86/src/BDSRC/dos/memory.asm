@@ -11,7 +11,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<MCB_HEAD,PSP_ACTIVE>,word
+	EXTERNS	<mcb_head,psp_active>,word
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -93,7 +93,7 @@ ENDPROC	initmcb
 ;	AX, BX, CX, DX, DI, ES
 ;
 DEFPROC alloc,DOS
-	mov	es,[MCB_HEAD]
+	mov	es,[mcb_head]
 
 ma1:	mov	al,es:[MCB_SIG]
 	cmp	al,MCBSIG_NEXT
@@ -124,7 +124,7 @@ ma2:	mov	ax,es:[MCB_PARAS]	; AX = # paras this block
 	pop	es			; ES:0 -> back to found block
 	mov	es:[MCB_SIG],MCBSIG_NEXT
 	mov	es:[MCB_PARAS],bx
-ma4:	mov	ax,[PSP_ACTIVE]
+ma4:	mov	ax,[psp_active]
 	mov	es:[MCB_OWNER],ax
 	mov	ax,es
 	inc	ax			; return ES+1 in AX, with CARRY clear
@@ -171,7 +171,7 @@ DEFPROC	free,DOS
 ;
 	dec	ax			; AX = candidate MCB
 	sub	dx,dx			; DX = previous MCB (0 if not free)
-	mov	bx,[MCB_HEAD]		; BX tracks ES
+	mov	bx,[mcb_head]		; BX tracks ES
 
 mf1:	mov	es,bx
 	cmp	bx,ax			; does current MCB match candidate?

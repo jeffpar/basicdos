@@ -16,23 +16,17 @@ DOS	segment word public 'CODE'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dosexit (INT 20h)
+; dos_term (INT 20h)
 ;
-; Inputs:
-;	Varies
+; TODO
 ;
-; Outputs:
-;	Varies
-;
-	ASSUME	CS:DOS, DS:NOTHING, ES:NOTHING, SS:NOTHING
-
-DEFPROC	dosexit,far
+DEFPROC	dos_term,DOSFAR
 	iret
-ENDPROC	dosexit
+ENDPROC	dos_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dosfunc (INT 21h)
+; dos_func (INT 21h)
 ;
 ; Inputs:
 ;	Varies
@@ -40,9 +34,7 @@ ENDPROC	dosexit
 ; Outputs:
 ;	Varies
 ;
-	ASSUME	CS:DOS, DS:NOTHING, ES:NOTHING, SS:NOTHING
-
-DEFPROC	dosfunc,far
+DEFPROC	dos_func,DOSFAR
 	sti
 	cld				; we assume CLD everywhere
 	push	ax
@@ -62,19 +54,20 @@ DEFPROC	dosfunc,far
 	ASSUME	ES:BIOS			; for now...
 	mov	bp,sp
 	and	[bp].REG_FL,NOT FL_CARRY
-	cmp	ah,FUNCTBL_SIZE
-	jae	dc8
-	mov	bl,ah
-	mov	bh,0
-	add	bx,bx
+	mov	al,ah
+	cmp	al,FUNCTBL_SIZE
+	cmc
+	jb	dc9
+	cbw
+	add	ax,ax
+	mov	bx,ax
 	call	FUNCTBL[bx]
-	jnc	dc9
 ;
 ; We'd just as soon IRET to the caller (which also restores their D flag),
 ; so we now update FL_CARRY on the stack (which we already cleared on entry).
 ;
-dc8:	or	[bp].REG_FL,FL_CARRY
-dc9:	pop	bp
+dc9:	adc	[bp].REG_FL,0
+	pop	bp
 	pop	di
 	pop	es
 	ASSUME	ES:NOTHING
@@ -86,11 +79,81 @@ dc9:	pop	bp
 	pop	bx
 	pop	ax
 	iret
-ENDPROC	dosfunc
+ENDPROC	dos_func
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dos_none (handler for unimplemented DOS functions)
+; dos_abort (INT 22h)
+;
+; TODO
+;
+DEFPROC	dos_abort,DOSFAR
+	iret
+ENDPROC	dos_abort
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dos_ctrlc (INT 23h)
+;
+; TODO
+;
+DEFPROC	dos_ctrlc,DOSFAR
+	iret
+ENDPROC	dos_ctrlc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dos_error (INT 24h)
+;
+; TODO
+;
+DEFPROC	dos_error,DOSFAR
+	iret
+ENDPROC	dos_error
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; disk_read (INT 25h)
+;
+; TODO
+;
+DEFPROC	disk_read,DOSFAR
+	iret
+ENDPROC	disk_read
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; disk_write (INT 26h)
+;
+; TODO
+;
+DEFPROC	disk_write,DOSFAR
+	iret
+ENDPROC	disk_write
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dos_tsr (INT 27h)
+;
+; TODO
+;
+DEFPROC	dos_tsr,DOSFAR
+	iret
+ENDPROC	dos_tsr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dos_call5
+;
+; TODO
+;
+DEFPROC	dos_call5,DOSFAR
+	iret
+ENDPROC	dos_call5
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; func_none (handler for unimplemented DOS functions)
 ;
 ; Inputs:
 ;	Varies
@@ -98,21 +161,11 @@ ENDPROC	dosfunc
 ; Outputs:
 ;	REG_AX = ERR_INVALID, carry set
 ;
-	ASSUME	CS:DOS, DS:DOS, ES:NOTHING, SS:NOTHING
-
-DEFPROC	dos_none
+DEFPROC	func_none,DOS
 	mov	[bp].REG_AX,ERR_INVALID
 	stc
 	ret
-ENDPROC	dos_none
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; Far return used by sysinit for making calls to resident code (see dos_call).
-;
-DEFPROC	dos_return,far
-	ret
-ENDPROC	dos_return
+ENDPROC	func_none
 
 DOS	ends
 

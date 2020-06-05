@@ -45,7 +45,7 @@ BPB_LBAROOT	dw	?		; 24h: LBA of 1st root dir sector
 BPB_LBADATA	dw	?		; 26h: LBA of 1st data sector
 BPB		ends
 
-BPBEX		struc			; our internal structure for BPB_TABLE
+BPBEX		struc			; our internal structure for bpb_table
 BPB_STRUC	db	size BPB dup (?)
 BPB_TIMESTAMP	dd	?
 BPBEX		ends

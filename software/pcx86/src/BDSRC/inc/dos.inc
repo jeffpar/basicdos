@@ -9,8 +9,15 @@
 ;
 	include	dev.inc
 
-INT_DOSEXIT	equ	20h
+INT_DOSTERM	equ	20h
 INT_DOSFUNC	equ	21h
+INT_DOSABORT	equ	22h	; handler for program termination notification
+INT_DOSCTRLC	equ	23h	; handler for CTRL-C notification
+INT_DOSERROR	equ	24h	; handler for critical error notification
+INT_DISKREAD	equ	25h
+INT_DISKWRITE	equ	26h
+INT_DOSTSR	equ	27h	; terminate-and-stay-resident
+INT_DOSCALL5	equ	30h
 
 DOS_EXIT	equ	00h	; same function as INT 20h
 DOS_TTY_ECHO	equ	01h	; read KBD and echo (AL := char)
@@ -26,10 +33,15 @@ DOS_TTY_INPUT	equ	0Ah	; read (DS:DX) line from KBD
 DOS_TTY_STATUS	equ	0Bh	; get KBD status (AL := 0 if nothing, or FFh)
 DOS_TTY_FLUSH	equ	0Ch	; flush and invoke 01h, 06h, 07h, 08h, or 0Ah
 
+DOS_PSP_CREATE	equ	26h	; create PSP (DX = segment)
 DOS_OPEN	equ	3Dh	; open handle for device/file (DS:DX)
+DOS_WRITE	equ	40h	; write (CX) bytes of data (DS:DX) to handle (BX)
 
 DOS_ALLOC	equ	48h	; allocate memory
 DOS_FREE	equ	49h	; free memory
+
+DOS_PSP_SET	equ	50h	; set current PSP (BX)
+DOS_PSP_GET	equ	51h	; get current PSP (BX)
 
 REG_FRAME	struc
 REG_BP		dw	?
@@ -80,11 +92,53 @@ MCBSIG_NEXT	equ	4Dh
 MCBSIG_LAST	equ	5Ah
 
 ;
+; File Control Block (FCB)
+;
+FCB		struc
+FCB_DRV		db	?	; 00h
+FCB_NAME	db     11 dup(?); 01h
+FCB_CURBLK	dw	?	; 0Ch
+FCB_RECSIZE	dw	?	; 0Eh
+FCB_FILESIZE	dd	?	; 10h
+FCB_DATE	dw	?	; 14h
+FCB_TIME	dw	?	; 16h
+FCB		ends
+
+;
+; Program Segment Prefix (PSP)
+;
+PSP		struc
+PSP_EXIT	dw	?	; 00h: INT 20h
+PSP_PARAS	dw	?	; 02h: paragraphs available
+PSP_UNUSD	db	?	; 04h
+PSP_FARCALL	db	?	; 05h: far call (9Ah)
+PSP_SIZE	dw	?	; 06h: size of PSP segment
+PSP_FCSEG	dw	?	; 08h: far call segment
+PSP_INT22	dd	?	; 0Ah: INT 22h vector
+PSP_INT23	dd	?	; 0Eh: INT 23h vector
+PSP_INT24	dd	?	; 12h: INT 24h vector
+PSP_PARENT	dw	?	; 16h: PSP of parent
+PSP_HANDLES	db     20 dup(?); 18h
+PSP_ENVSEG	dw	?	; 2Ch
+PSP_STACK	dd	?	; 2Eh
+PSP_HDLFREE	dw	?	; 32h: available handles
+PSP_HDLPTR	dd	?	; 34h: initially 0FFFF:0018h
+PSP_SHAREPSP	dd	?	; 38h
+PSP_RESERVED1	db     20 dup(?); 3Ch
+PSP_DISPATCH	db	3 dup(?); 50h: INT 21h/RETF
+PSP_RESERVED2	db	9 dup(?); 53h
+PSP_FCB1	db     16 dup(?); 5Ch
+PSP_FCB2	db     16 dup(?); 6ch
+PSP_RESERVED3	db	4 dup(?); 7Ch
+PSP_CMDLINE	db    128 dup(?); 80h
+PSP		ends
+
+;
 ; System File Block (SFB)
 ;
 ; For files, this is a superset of the directory entry (DIRENT).
 ;
-; System file handles are indexes into the SFB_TABLE, whereas process file
+; System file handles are indexes into the SFB table, whereas process file
 ; handles are indexes into a PSP's handle table.
 ;
 SFB		struc
@@ -110,6 +164,15 @@ MODE_DENY_WRITE	equ	20h
 MODE_DENY_READ	equ	30h
 MODE_DENY_NONE	equ	40h
 MODE_INHERIT	equ	80h
+
+;
+; Predefined Job File Table (JFT) indexes
+;
+STDIN		equ	0
+STDOUT		equ	1
+STDERR		equ	2
+STDAUX		equ	3
+STDPRN		equ	4
 
 ERR_INVALID	equ	1
 ERR_NOFILE	equ	2

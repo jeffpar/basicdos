@@ -11,9 +11,10 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<MCB_HEAD,SFB_SYSCON>,word
-	EXTERNS	<BPB_TABLE,PCB_TABLE,SFB_TABLE>,dword
-	EXTERNS	<dosexit,dosfunc,dos_return>,near
+	EXTERNS	<mcb_head,mcb_limit,psp_active>,word
+	EXTERNS	<bpb_table,pcb_table,sfb_table>,dword
+	EXTERNS	<dos_term,dos_func,dos_abort,dos_ctrlc,dos_error>,near
+	EXTERNS	<disk_read,disk_write,dos_tsr,dos_call5>,near
 	EXTERNS	<sfb_open,sfb_write>,near
 
 	DEFLBL	sysinit_start
@@ -66,6 +67,7 @@ si1:	mov	ax,[MEMORY_SIZE]	; get available memory in Kb
 	mov	cl,6
 	shl	ax,cl			; available memory in paras
 	mov	[top_seg],ax		; segment of end of memory
+	mov	[mcb_limit],ax
 	add	bx,dx			; add size of CFG data
 	mov	si,offset sysinit_start	; SI = offset of init code
 	sub	bx,si			; BX = number of bytes to move
@@ -95,8 +97,8 @@ si1:	mov	ax,[MEMORY_SIZE]	; get available memory in Kb
 si2:	push	ss
 	pop	es
 	ASSUME	ES:BIOS
-	mov	si,offset int_tbl
-	mov	di,INT_DOSEXIT * 4
+	mov	si,offset INT_TABLE
+	mov	di,INT_DOSTERM * 4
 si3:	lodsw				; load vector offset
 	test	ax,ax
 	jz	si4
@@ -104,13 +106,20 @@ si3:	lodsw				; load vector offset
 	mov	ax,ds
 	stosw				; store vector segment
 	jmp	si3
+si3a:	mov	di,INT_DOSCALL5 * 4
+	mov	al,0EAh
+	stosb
+	mov	ax,offset dos_call5
+	stosw
+	mov	ax,ds
+	stosw
 ;
 ; Now set ES to the first available paragraph for resident DOS tables,
 ; and set DS to the upper DOS segment.
 ;
 si4:	mov	ax,offset sysinit_start
 	test	al,0Fh			; started on a paragraph boundary?
-	jz	si5			; yes
+	jz	si4a			; yes
 	inc	dx			; no, so skip to next paragraph
 si4a:	mov	ax,ds
 	add	ax,dx
@@ -119,12 +128,12 @@ si4a:	mov	ax,ds
 	push	cs
 	pop	ds
 ;
-; The first resident table (BPB_TABLE) contains all the system BPBs.
+; The first resident table (bpb_table) contains all the system BPBs.
 ;
 	mov	al,[FDC_UNITS]
 	cbw
 	mov	dx,size BPBEX
-	mov	bx,offset BPB_TABLE
+	mov	bx,offset bpb_table
 	call	init_table		; initialize table, update ES
 	mov	si,[bpb_off]		; get the BPB the boot sector used
 	push	es
@@ -133,9 +142,9 @@ si4a:	mov	ax,ds
 	mov	al,ss:[si].BPB_DRIVE	; and copy to the appropriate BPB slot
 	mov	ah,size BPBEX
 	mul	ah
-	mov	di,es:[BPB_TABLE].off
+	mov	di,es:[bpb_table].off
 	add	di,ax
-	cmp	di,es:[BPB_TABLE].seg
+	cmp	di,es:[bpb_table].seg
 	jnb	si5
 	mov	cx,(size BPB) SHR 1
 	rep	movs word ptr es:[di],word ptr ss:[si]
@@ -146,7 +155,7 @@ si4a:	mov	ax,ds
 	pop	es
 	ASSUME	ES:NOTHING
 ;
-; The next resident table (PCB_TABLE) contains our Process Control Blocks.
+; The next resident table (pcb_table) contains our Process Control Blocks.
 ; Look for a "PCBS=" line in CFG_FILE.
 ;
 si5:	mov	si,offset CFG_PCBS
@@ -159,10 +168,10 @@ si5:	mov	si,offset CFG_PCBS
 	int	INT_DOSFUNC		; AX = new value
 	pop	es
 si6:	mov	dx,size PCB
-	mov	bx,offset PCB_TABLE
+	mov	bx,offset pcb_table
 	call	init_table		; initialize table, update ES
 ;
-; The next resident table (SFB_TABLE) contains our System File Blocks.
+; The next resident table (sfb_table) contains our System File Blocks.
 ; Look for a "FILES=" line in CFG_FILE.
 ;
 	mov	si,offset CFG_FILES
@@ -175,7 +184,7 @@ si6:	mov	dx,size PCB
 	int	INT_DOSFUNC		; AX = new value
 	pop	es
 si7:	mov	dx,size SFB
-	mov	bx,offset SFB_TABLE
+	mov	bx,offset sfb_table
 	call	init_table		; initialize table, update ES
 ;
 ; After all the resident tables have been created, initialize the MCB chain.
@@ -194,13 +203,67 @@ si7:	mov	dx,size SFB
 	mov	al,0
 	rep	stosb
 
-	mov	es,[dos_seg]		; MCB_HEAD is in resident DOS segment
+	mov	es,[dos_seg]		; mcb_head is in resident DOS segment
 	ASSUME	ES:DOS
-	mov	es:[MCB_HEAD],bx
+	mov	es:[mcb_head],bx
 ;
-; Allocate some memory for an initial (test) process
+; Before we create the first PSP, open all the devices we need for the 5
+; STD handles.  We open AUX first, purely for historical reasons.
 ;
+	mov	dx,offset AUX_DEFAULT
+	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
+	int	INT_DOSFUNC
+	jc	sierr
+;
+; Next, open CON, with optional context.  If there's a "CONSOLE=" setting in
+; CFG_FILE, use that; otherwise, use CON_DEFAULT.
+;
+si8:	mov	si,offset CFG_CONSOLE
+	mov	dx,offset CON_DEFAULT
+	call	find_cfg		; look for "CONSOLE="
+	jc	si8a			; not found
+	mov	dx,di
+si8a:	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
+	int	INT_DOSFUNC
+	jnc	si9
+	mov	si,offset CONERR
+	jmp	fatal_error
+sierr:	jmp	sysinit_error
+
+si9:	mov	dx,offset PRN_DEFAULT
+	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
+	int	INT_DOSFUNC
+	jc	sierr
+;
+; Create the first PSP.  Until we have the ability to create a process from
+; a COM or EXE file, this will serve as our "shell" process.
+;
+	mov	bx,100h			; we'll start with a safe 4K for now
+	mov	ah,DOS_ALLOC
+	int	INT_DOSFUNC
+	jc	sierr			; hmmm, guess it wasn't safe after all
+
+	xchg	dx,ax			; DX = segment for new PSP
+	mov	ah,DOS_PSP_CREATE
+	int	INT_DOSFUNC
+
+	mov	bx,dx			; and of course, this PSP function
+	mov	ah,DOS_PSP_SET		; wants the segment in BX, not DX....
+	int	INT_DOSFUNC		; active PSP updated
+
+	mov	si,offset CON_TEST
+	mov	ax,DOSUTIL_STRLEN
+	int	INT_DOSFUNC
+	xchg	cx,ax			; CX = length of CON_TEST
+	mov	dx,si			; DS:DX -> CON_TEST
+	mov	bx,STDOUT		; BX = handle
+	mov	ah,DOS_WRITE
+	int	INT_DOSFUNC		; write the string to STDOUT
+
 	IFDEF	DEBUG
+	;
+	; Perform a few more simple memory ALLOC/FREE "confidence" tests
+	;
 	push	es
 	mov	ah,DOS_ALLOC
 	mov	bx,200h
@@ -228,69 +291,25 @@ si7:	mov	dx,size SFB
 	mov	ah,DOS_FREE
 	mov	es,dx
 	int	INT_DOSFUNC		; free the 2nd
-	jnc	dsiend
-dsierr:	jmp	sysinit_error
-dsiend:	pop	es
-	ENDIF
-;
-; Open CON with context.  If there's a "CONSOLE=" setting in CFG_FILE,
-; use that; otherwise, use CON_DEFAULT.
-;
-si8:	mov	si,offset CFG_CONSOLE
-	mov	dx,offset CON_DEFAULT
-	call	find_cfg		; look for "CONSOLE="
-	jc	si9			; not found
-	mov	dx,di
-si9:	mov	bl,MODE_ACC_BOTH
-	mov	si,dx
-	mov	ax,offset sfb_open
-	call	dos_call
-	jnc	si10
-	mov	si,offset conerr
-	jmp	fatal_error
-si10:	mov	es:[SFB_SYSCON],bx
-
-	IFDEF	DEBUG
-	mov	bl,MODE_ACC_BOTH
-	mov	si,offset COM1_DEFAULT
-	mov	ax,offset sfb_open
-	call	dos_call
-	mov	bl,MODE_ACC_BOTH
-	mov	si,offset COM2_DEFAULT
-	mov	ax,offset sfb_open
-	call	dos_call
-	mov	bx,es:[SFB_SYSCON]
-	mov	si,offset con_test
-	mov	ax,DOSUTIL_STRLEN
+	jc	dsierr
+	pop	es
+	mov	dx,offset COM1_DEFAULT
+	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	INT_DOSFUNC
-	xchg	cx,ax
-	mov	ax,offset sfb_write
-	call	dos_call
+	jc	dsierr
+	mov	dx,offset COM2_DEFAULT
+	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
+	int	INT_DOSFUNC
+	int 3
+	mov	dx,offset TEST_FILE
+	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
+	int	INT_DOSFUNC
+	jnc	si99
+dsierr:	jmp	sysinit_error
 	ENDIF
 
 si99:	jmp	si99
 ENDPROC	sysinit
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; Call resident DOS procedure at AX.
-;
-DEFPROC	dos_call
-	push	bp
-	push	es
-	push	cs
-	mov	bp,offset dc9
-	push	bp
-	mov	bp,offset dos_return
-	push	bp
-	push	[dos_seg]
-	push	ax
-	mov	es,[dos_seg]
-	db	0CBh			; RETF
-dc9:	pop	es
-	pop	bp
-	ret
-ENDPROC	dos_call
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -387,10 +406,10 @@ ENDPROC	init_table
 ; Modifies: AX, BX, SI
 ;
 DEFPROC	sysinit_error
-	mov	si,offset syserr
+	mov	si,offset SYSERR
 DEFLBL	fatal_error,near
 	call	sysinit_print
-	mov	si,offset halted
+	mov	si,offset HALTED
 	call	sysinit_print
 	jmp	$
 ENDPROC	sysinit_error
@@ -417,7 +436,9 @@ ENDPROC	sysinit_print
 ;
 ; Initialization data
 ;
-	DEFWORD	int_tbl,<dosexit,dosfunc,0>
+; All labels are capitalized to indicate their static (constant) nature.
+;
+	DEFWORD	INT_TABLE,<dos_term,dos_func,dos_abort,dos_ctrlc,dos_error,disk_read,disk_write,dos_tsr,0>
 
 CFG_PCBS	db	5,"PCBS="
 		dw	4,16
@@ -425,17 +446,21 @@ CFG_FILES	db	6,"FILES="
 		dw	20,256
 CFG_CONSOLE	db	8,"CONSOLE=",
 		dw	4,25, 16,80
+AUX_DEFAULT	db	"AUX",0
 CON_DEFAULT	db	"CON:25,80",0
+PRN_DEFAULT	db	"PRN",0
 
 	IFDEF	DEBUG
 COM1_DEFAULT	db	"COM1:9600,N,8,1",0
 COM2_DEFAULT	db	"COM2:9600,N,8,1",0
-con_test	db	"This is a test of the CON device driver",13,10,0
+CON_TEST	db	"This is a test of the CON device driver",13,10,0
+TEST_FILE	db	"A:CONFIG.SYS",0
+
 	ENDIF
 
-syserr	db	"System initialization error",0
-conerr	db	"Unable to initialize console",0
-halted	db	", halted",0
+SYSERR	db	"System initialization error",0
+CONERR	db	"Unable to initialize console",0
+HALTED	db	", halted",0
 
 	DEFLBL	sysinit_end
 

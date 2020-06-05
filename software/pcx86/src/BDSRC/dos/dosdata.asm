@@ -13,17 +13,17 @@
 
 DOS	segment word public 'CODE'
 ;
-; This must be the first object module; we reuse the JMP as MCB_HEAD.
+; This must be the first object module; we reuse the JMP as mcb_head.
 ;
-	DEFLBL	MCB_HEAD,word
+	DEFLBL	mcb_head,word
 	jmp	sysinit
 
-	DEFTBL	<BPB_TABLE,PCB_TABLE,SFB_TABLE>
+	DEFWORD	mcb_limit,0		; segment limit
+	DEFWORD	psp_active,1		; active PSP (0 is none, 1-15 reserved)
+	DEFBYTE	cur_drv,0		; current drive number
+	DEFBYTE	file_name,' ',11	; buffer for 11-character filename
 
-	DEFWORD	SFB_SYSCON,0		; SFB of the system console
-	DEFWORD	PSP_ACTIVE,1		; start with a fake system PSP
-	DEFBYTE	CUR_DRV,0		; current drive number
-	DEFBYTE	FILE_NAME,' ',11	; buffer for 11-character filename
+	DEFTBL	<bpb_table,pcb_table,sfb_table>
 ;
 ; Constants
 ;
@@ -32,30 +32,33 @@ DOS	segment word public 'CODE'
 
 	EXTERNS	<tty_echo,tty_write,aux_read,aux_write,prn_write,tty_io>,near
 	EXTERNS	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>,near
+	EXTERNS	<psp_create,psp_set,psp_get>,near
+	EXTERNS	<hdl_open,hdl_write>,near
 	EXTERNS	<mcb_alloc,mcb_free>,near
-	EXTERNS	<util_func,dos_none>,near
+	EXTERNS	<util_func,func_none>,near
 
 	DEFLBL	FUNCTBL,word
 	dw	tty_echo, tty_write, aux_read, aux_write	; 00h-03h
 	dw	prn_write, tty_io, tty_in, tty_read		; 04h-07h
 	dw	tty_print, tty_input, tty_status, tty_flush	; 08h-0Bh
-	dw	dos_none, dos_none, dos_none, dos_none		; 0Ch-0Fh
-	dw	dos_none, dos_none, dos_none, dos_none		; 10h-13h
-	dw	dos_none, dos_none, dos_none, dos_none		; 14h-17h
-	dw	util_func, dos_none, dos_none, dos_none		; 18h-1Bh
-	dw	dos_none, dos_none, dos_none, dos_none		; 1Ch-1Fh
-	dw	dos_none, dos_none, dos_none, dos_none		; 20h-23h
-	dw	dos_none, dos_none, dos_none, dos_none		; 24h-27h
-	dw	dos_none, dos_none, dos_none, dos_none		; 28h-2Bh
-	dw	dos_none, dos_none, dos_none, dos_none		; 2Ch-2Fh
-	dw	dos_none, dos_none, dos_none, dos_none		; 30h-33h
-	dw	dos_none, dos_none, dos_none, dos_none		; 34h-37h
-	dw	dos_none, dos_none, dos_none, dos_none		; 38h-3Bh
-	dw	dos_none, dos_none, dos_none, dos_none		; 3Ch-3Fh
-	dw	dos_none, dos_none, dos_none, dos_none		; 40h-43h
-	dw	dos_none, dos_none, dos_none, dos_none		; 44h-47h
-	dw	mcb_alloc, mcb_free, dos_none, dos_none		; 48h-4Bh
-	dw	dos_none, dos_none				; 4Ch-4Fh
+	dw	func_none, func_none, func_none, func_none	; 0Ch-0Fh
+	dw	func_none, func_none, func_none, func_none	; 10h-13h
+	dw	func_none, func_none, func_none, func_none	; 14h-17h
+	dw	util_func, func_none, func_none, func_none	; 18h-1Bh
+	dw	func_none, func_none, func_none, func_none	; 1Ch-1Fh
+	dw	func_none, func_none, func_none, func_none	; 20h-23h
+	dw	func_none, func_none, psp_create, func_none	; 24h-27h
+	dw	func_none, func_none, func_none, func_none	; 28h-2Bh
+	dw	func_none, func_none, func_none, func_none	; 2Ch-2Fh
+	dw	func_none, func_none, func_none, func_none	; 30h-33h
+	dw	func_none, func_none, func_none, func_none	; 34h-37h
+	dw	func_none, func_none, func_none, func_none	; 38h-3Bh
+	dw	func_none, hdl_open, func_none, func_none	; 3Ch-3Fh
+	dw	hdl_write, func_none, func_none, func_none	; 40h-43h
+	dw	func_none, func_none, func_none, func_none	; 44h-47h
+	dw	mcb_alloc, mcb_free, func_none, func_none	; 48h-4Bh
+	dw	func_none, func_none, func_none, func_none	; 4Ch-4Fh
+	dw	psp_set, psp_get				; 50h-51h
 	DEFABS	FUNCTBL_SIZE,<($ - FUNCTBL) SHR 1>
 
 DOS	ends
