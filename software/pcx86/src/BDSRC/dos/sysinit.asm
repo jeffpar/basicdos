@@ -12,10 +12,11 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<mcb_head,mcb_limit,psp_active>,word
+	EXTERNS	<sfh_con,sfh_aux,sfh_prn>,byte
 	EXTERNS	<bpb_table,pcb_table,sfb_table>,dword
-	EXTERNS	<dos_term,dos_func,dos_abort,dos_ctrlc,dos_error>,near
+	EXTERNS	<dos_dverr,dos_brkpt,dos_oferr>,near
+	EXTERNS	<dos_term,dos_func,dos_default>,near
 	EXTERNS	<disk_read,disk_write,dos_tsr,dos_call5>,near
-	EXTERNS	<sfb_open,sfb_write>,near
 
 	DEFLBL	sysinit_start
 
@@ -97,17 +98,20 @@ si1:	mov	ax,[MEMORY_SIZE]	; get available memory in Kb
 si2:	push	ss
 	pop	es
 	ASSUME	ES:BIOS
-	mov	si,offset INT_TABLE
-	mov	di,INT_DOSTERM * 4
+	mov	si,offset INT_TABLES
+si2a:	lodsw
+	test	ax,ax			; any more tables?
+	jz	si3a			; no
+	and	al,0FEh
+	xchg	di,ax			; DI -> first vector for table
 si3:	lodsw				; load vector offset
 	test	ax,ax
-	jz	si4
+	jz	si2a
 	stosw				; store vector offset
 	mov	ax,ds
 	stosw				; store vector segment
 	jmp	si3
-si3a:	mov	di,INT_DOSCALL5 * 4
-	mov	al,0EAh
+si3a:	mov	al,0EAh			; DI -> INT_DOSCALL5 * 4
 	stosb
 	mov	ax,offset dos_call5
 	stosw
@@ -214,6 +218,8 @@ si7:	mov	dx,size SFB
 	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	INT_DOSFUNC
 	jc	sierr
+	DEBUGEQ	<cmp es:[sfh_aux],al>
+	mov	es:[sfh_aux],al
 ;
 ; Next, open CON, with optional context.  If there's a "CONSOLE=" setting in
 ; CFG_FILE, use that; otherwise, use CON_DEFAULT.
@@ -230,10 +236,15 @@ si8a:	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
 	jmp	fatal_error
 sierr:	jmp	sysinit_error
 
-si9:	mov	dx,offset PRN_DEFAULT
+si9:	DEBUGEQ	<cmp es:[sfh_con],al>
+	mov	es:[sfh_con],al
+
+	mov	dx,offset PRN_DEFAULT
 	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	INT_DOSFUNC
 	jc	sierr
+	DEBUGEQ	<cmp es:[sfh_prn],al>
+	mov	es:[sfh_prn],al
 ;
 ; Create the first PSP.  Until we have the ability to create a process from
 ; a COM or EXE file, this will serve as our "shell" process.
@@ -438,7 +449,17 @@ ENDPROC	sysinit_print
 ;
 ; All labels are capitalized to indicate their static (constant) nature.
 ;
-	DEFWORD	INT_TABLE,<dos_term,dos_func,dos_abort,dos_ctrlc,dos_error,disk_read,disk_write,dos_tsr,0>
+	DEFLBL	INT_TABLES,word
+	dw	(INT_DV * 4) + 1	; add 1 to avoid end-of-tables signal
+	dw	dos_dverr,dos_default,0
+	dw	(INT_BP * 4)		; a few more low vectors
+	dw	dos_brkpt,dos_oferr,0
+	dw	(INT_DOSTERM * 4)	; next, all the DOS vectors
+	dw	dos_term,dos_func,dos_default,dos_default
+	dw	dos_default,disk_read,disk_write,dos_tsr
+	dw	dos_default,dos_default,dos_default,dos_default
+	dw	dos_default,dos_default,dos_default,dos_default,0
+	dw	0			; end of tables (should end at INT 30h)
 
 CFG_PCBS	db	5,"PCBS="
 		dw	4,16
@@ -455,12 +476,11 @@ COM1_DEFAULT	db	"COM1:9600,N,8,1",0
 COM2_DEFAULT	db	"COM2:9600,N,8,1",0
 CON_TEST	db	"This is a test of the CON device driver",13,10,0
 TEST_FILE	db	"A:CONFIG.SYS",0
-
 	ENDIF
 
-SYSERR	db	"System initialization error",0
-CONERR	db	"Unable to initialize console",0
-HALTED	db	", halted",0
+SYSERR		db	"System initialization error",0
+CONERR		db	"Unable to initialize console",0
+HALTED		db	", halted",0
 
 	DEFLBL	sysinit_end
 

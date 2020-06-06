@@ -12,6 +12,7 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<mcb_limit,psp_active>,word
+	EXTERNS	<sfh_con,sfh_aux,sfh_prn>,byte
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -69,24 +70,23 @@ pc1:	sub	ax,256			; AX = max available bytes this segment
 	mov	ax,[psp_active]		; 16h: PSP_PARENT
 	stosw
 ;
-; Next up: the JFT (Job File Table); the first 5 JFT slots ("handles") are
+; Next up: the PFT (Process File Table); the first 5 PFT slots ("handles") are
 ; predefined as STDIN (0), STDOUT (1), STDERR (2), STDAUX (3), and STDPRN (4),
 ; and apparently we're supposed to open an SFB for AUX first, CON second,
 ; and PRN third, so that the SFB numbers for the first five handles will always
 ; be: 1, 1, 1, 0, and 2.
 ;
-	mov	al,1
+	mov	al,[sfh_con]
 	stosb
 	stosb
 	stosb
-	dec	ax
+	mov	al,[sfh_aux]
 	stosb
-	inc	ax
-	inc	ax
+	mov	al,[sfh_prn]
 	stosb
-	sub	al,3
+	mov	al,SFH_NONE		; AL = 0FFh (indicates unused entry)
 	mov	cl,15
-	rep	stosb			; finish up PSP_HANDLES (20 bytes total)
+	rep	stosb			; finish up PSP_PFT (20 bytes total)
 	mov	cl,(100h - PSP_ENVSEG) SHR 1
 	sub	ax,ax
 	rep	stosw			; zero the rest of the PSP

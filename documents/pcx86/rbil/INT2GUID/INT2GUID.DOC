@@ -1,0 +1,119 @@
+The program INT2GUID converts the Interrupt list files into an input file
+for the TurboPower Software MAKEHELP program to create a GUIDE or POPHELP
+Popup Reference Machine database. The program is a transcription of INT2QH
+written by Kai Uwe Rommel.
+
+GUIDE is included in some versions of the Turbo Professional package, and
+POPHELP is included in the Object Professional package from TurboPower
+Software. MAKEHELP is included in both packages and compiles help files
+for its accompanying popup program.
+ 
+INT2GUID reads either the interrup.lst file or the partial interrup.a ...
+files, and other files defined in the INT2GUID and in the configuration file
+INT2GUID.CFG. The files must be located in the current directory. The
+created MakeHelp source file is written to standard output and can be
+redirected. Two temporary files topic.tmp and subtopic.tmp are created in
+the current directory during the process.
+
+The configuration file allows conditional compilation, and it is configured
+for a compilation that is acceptable by both versions of MAKEHELP. It can
+be edited for compilations optimized for GUIDE or POPHELP, see comments in
+INT2GUID.CFG.
+
+From the 2/91 list, INT2GUID creates a 1.6M source file for MAKEHELP which
+then creates a help database of about 1.3M (poor compression ratio!).
+INT2GUID executes i 1'15" on a 20 MHz 386 based machine, and MAKEHELP
+executes in 2'40".
+
+The 2/91 Interrupt list, and other files used for this help system,
+includes about 2500 topics. The topics are in general listed in 18 lines
+sub and sub-sub indices, and the sub indices are again listed in the main
+index. GUIDE and POPHELP can also pop up on a topic indicated by an
+interrupt number at the cursor's position on the screen.
+
+GUIDE is capable of handling about 4300 topics, and POPHELP can handle
+about 5000.
+
+Bent Lynggaard.
+
+
+1992-04-16. INT2GUID generates a 2.3 MB file with 3505 topics from the
+INTER29x files (February 1992), and the database file is 1.8 MB long.
+
+
+1992-12-19. The configuration file that is included with INT2GUID v. 1.07
+is optimized for POPHELP. The main reason is that the Interrrupt List has
+grown to exceed the capacity of the GUIDE program. INT2GUID can create one
+or two help files for the GUIDE program from selected parts of the Interrupt
+List. The configuration file should be edited for GUIDE optimization, see
+comments in the file. If two help files are created, the initial part of
+INTERRUP.A should be the initial part of both source files. GUIDE should
+be initialized with the file requesting more resources, so sufficient memory
+will be allocated to serve any of them, thus the proper file can be activated
+by F3 when GUIDE is active.
+
+The average topic length has been reduced since the first versions of
+INT2GUID to appr. 7.6 characters, allowing about 8600 topics in the POPHELP
+system. Facilities are included in INT2GUID v. 1.07 to include Function
+Classification characters as parts of the topic names. Function Classification
+will be introduced in the Interrupt List after release 33. This will increase
+the average length by two characters, thus reducing the maximum number of
+topics to about 6800. The facility can be enabled and disabled in the
+configuration file INT2GUID.CFG.
+
+INT2GUID generates a 3.1 MB file with 4842 topics from the Interrupt List
+files release 32 (September 1992), and the database file is 2.6 MB long.
+
+1993-04-12: Minor editings in INT2GUID.C, POPHINTS.TXT, and INT2GUID.HLP.
+Classification enabled in INT2GUID.CFG. INT2GUID.TBL updated to Interrupt
+List release 34.
+
+INT2GUID generates a 3.4 MB file with 5193 topics from the Interrupt List
+files release 34 (April 1993), it uses 350 kB disk space for temporary files
+in the current directory, and the database file created by MAKEHELP is 2.8 MB
+long.
+
+1993-07-03: Fixed a bug in INT2GUID. The bug was introduced i version 1.07
+and caused an infinite loop if the input source was a single INTERRUP.LST
+file.
+
+Ralf Brown's INTPRINT program provides an exelent filter that can reduce
+the size of the database file for POPHELP/GUIDE. New options in INTPRINT
+will keep the original divider lines (-k) and avoid paging (-l0), so the
+result can be used as input for INT2GUID. Use
+    INTPRINT -k -l0 -L1 -FINT2GUID.FLT [-sSUMMARY] -m INTERRUP.A INTERRUP.LST
+where INT2GUID.FLT is a file with filter information. The optional SUMMARY
+file eases the adjustment of the filter. An INT2GUID.FLT file is included
+in this package which filters out about 3/4 of the Interrupt List. See also
+INTPRINT.DOC for filter file formats. Notice that a filtered version of the
+Interrupt List cannot legally be publicly distributed due to copyright
+restrictions.
+
+1994-03-19: INT2GUID version 1.10 must have a parameter "-nofilter" or
+"-f<file name>" to specify in the copyright notice if the transcription is
+based on a filtered version of the Interrupt list. <file name> is the name
+of an INTPRINT filter file used to create a partial Interrupt List. If
+-f<file name> is specified, INT2GUID will include topic "Filter File" with
+the contents of file INT2GUID.RE2 followed by the contents of the specified
+file. INT2GUID will toggle MAKEHELP text attribute 1 before and after the
+included filter file. The default MAKEHELP attribute 1 (and the alternative
+attribute suggested in file POPHINTS.TXT section 4) uses an alternate
+background color, so trailing blanks appear in the output.
+
+It is legal to redistrubute also partial transcriptions of Ralf Brown's
+Interrupt List provided that it is stated in the copyright notice. INT2GUID
+does its best to include the proper information, notice however that the
+user of INT2GUID is responsible for correct copyright notices in
+redistributed transcriptions.
+
+1994-11-02: The Interrupt List has grown so big that POPHELP can no longer
+handle the whole list. Thus it is necessary to pass the list through a filter
+before compiling it. Remember to specify the filter file name to INT2GUID
+also with the -f<file name> option.
+
+1995-10-07: The filter file INT2GUID.FLT in this package filters the
+Interrupt List slightly more aggressively than the previous filter file.
+Included is also a filter file INT2G-NW.FLT which creates a network help
+file. If POPHELP is started with the larger help file (created with
+INT2GUID.FLT) you can change between the two help files using the F3
+keystroke in POPHELP.

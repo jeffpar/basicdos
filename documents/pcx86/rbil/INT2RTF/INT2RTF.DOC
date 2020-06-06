@@ -1,0 +1,116 @@
+ === Int2RTF Interrupt List Compiler v1.2 (C) 1996 Slava Gostrenko ===
+
+
+     Introduction.
+
+     This  program  converts Ralf Brown's Interrupt List into Rich Text Format
+(.RTF)  file that may be further compiled with Microsoft Help Compiler such as
+HC31.EXE or HCW.EXE to make Windows Help (.HLP) file.
+
+     Int2RTF  uses  hypertext  features of the Interrupt List. It is the first
+(and  the  only)  Interrupt  List  compiler that makes a real hypertext of the
+Interrupt  List.  It  is  made  possible due to an advanced pattern processing
+technique used in the compiler.
+
+     Not  only it creates comprehensive indexes for all the topics in the list
+but it also allows users to add their own indexes to the help file.
+
+
+     Usage.
+
+     Unpack  all the Interrupt List and Int2RTF files into one directory. Make
+sure  that  there  is  at  least 18Mb of free space left on the drive. You may
+need up to 23Mb of free space if you computer has less than 5Mb of RAM. Try to
+free  up  to 5Mb of XMS memory (BIOS provided XMS suites as well as the memory
+provided  by  himem  or any other XMS driver). The rest of the RAM may be used
+for  disk  caching  provided  by any disk cache driver or operating system you
+have.
+
+     Note  that abovelisted requirements are derived for Int2RTF.EXE itself. I
+don't  know  what  are the requirements for Microsoft Help Compiler. I usually
+run HC31.EXE with 16Mb of RAM and more than 100Mb of free hard disk space. And
+once  I've  got  a low memory error message running HC31.EXE with only 30Mb of
+free  hard  disk  space.  But  it  happened  when I was trying to run HC31.EXE
+without  preliminarily prepared key-phrase table (.PH file). I guess it should
+run  Ok  with 30Mb of free hard disk space if you use key-phrase file supplied
+with Int2RTF.
+
+     Int2RTF  is  a  protected  mode (DPMI) program. So it is assumed that you
+have  alredy  configured  RTM  (DPMI  Runtime  manager that comes with Borland
+Pascal).  In fact the actual configuration (with the help of DPMIInst program)
+is  required  if  you have a 286 class computer. Otherwise it is only required
+that RTM.EXE and DPMI16BI.OVL can be found using PATH environment variable.
+
+     Run  Int2HLP.Bat. After a while it will create IntWin.RTF file. Then this
+file  will  be  passed  to  HC31.EXE  Microsoft Help Compiler. You should have
+HC31.EXE and its related files reachable via PATH environment variable. If you
+develop  under  windows you should already have Microsoft Help Compiler. It is
+not  supplied within Int2RTF package. Microsoft Help Compiler is not nessesary
+called  HC31.EXE. Int2RTF was tested witn HC31.EXE and HCW.EXE. It is HC31.EXE
+that  is  called  from within Int2HLP.Bat. And Int2HLP_.Bat calls HCW.EXE. Use
+Int2HLP_.Bat  if  you  have HCW.EXE. Edit Int2HLP.Bat or Int2HLP_.Bat if it is
+your intention to use another version of Microsoft Help Compiler.
+
+     Microsoft  Help  Compiler should produce IntWin.HLP that is the help file
+you've been waiting for.
+
+     Before  you  start  to use newly created help file please bother yourself
+with   copying  of  HintSrch.DLL  supplied  with  Int2RTF  into  your  windows
+directory.
+
+     To use the help file in windows just double click on its name.
+
+     IntWin.RTF  file  is  not  automaticly  deleted.  Delete it yourself when
+finished with Microsoft Help Compiler.
+
+
+     Note.
+
+     Do not rename IntWin.HLP. HintSrch.DLL search engine will stop working if
+used  not  with  the file named IntWin.HLP. And it does not work with the help
+file  produced  by  HCW.EXE.  Use  Win95/WinNT  built-in help search engine to
+search within help file produced by HCW.EXE.
+
+
+     User defined idexes.
+
+     To  define  your  own  index edit Int_Keys.Txt file. It is a list of user
+defined  key  words  that  are  used  for  indexing.  Each word in the list is
+searched  in  the  Interrupt  List topics. All the topics containing given key
+word  will  be  listed  in  the  separate  index  topic. The key word used for
+indexing will be the name of the topic.
+
+     Int_Bold.Txt  file  is  the  list of the key words that will be displayed
+using bold font. You may edit this file too.
+
+
+     Technical notes.
+
+     While  running Int2RTF creates 2 temporary files. Int2RTF.Swp is the main
+swap  file  for  virtual memory. Topics.Swp is the swap file for the Interrupt
+List  topics.  Temporary  files  are  deleted on the normal termination of the
+program.
+
+     The   Incomplt.Log  file  is  a  log  of  the  ambiguous  search  pattern
+applications. Normaly you don't need this file.
+
+     While  running Int2RTF displays it's current status and may display error
+messages.  I've  debugged Int2RTF to run well on the Interrupt List Release 51
+and  added  lots  of error checks to the program to make it easier to find the
+incompatabilities  of  the  compiler's  algorithms  and  new  releases  of the
+Interrupt  List.  So  let me know if you have a newer version of the Interrupt
+List that is compiled with errors.
+
+
+     E-Mail  me  anytime  you  wish  and  don't forget to visit my homepage at
+http://sunny.aha.ru/~gw/ (read http.www file included in this package)! ;-)
+
+
+Author:  Slava Gostrenko
+E-Mail:  gw@aha.ru
+WWW:     http://sunny.aha.ru/~gw/  <- Latest versions and info are here
+FidoNet: 2:5020/201.105, 2:5020/468.105
+
+
+     You can register on my page to get automatic notifications when Interrupt
+List or Int2RTF is updated.

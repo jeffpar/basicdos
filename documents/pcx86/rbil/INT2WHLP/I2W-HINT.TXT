@@ -1,0 +1,338 @@
+This is a sort of a guide to using the INT2WHLP precompiler. INT2WHLP
+transfers Ralf Brown's Interrupt List to some RTF (Rich-Text Format) files
+which can be used as input for Microsoft's HC31 WINHELP file compiler.
+
+This text gives also some hints on using the the results of the compilation.
+
+
+COMPILATION
+
+The easy way to compile the list is this:
+
+Change to the directory where you want your INTWIN.HLP file. There should
+be at least 16 Mb free space on the disk. It can be the directory with the
+Interrupt List files (which we will call the Source Directory), but it is
+better to use a separate directory not to mess up the Source Directory. A
+subdirectory under the Source Directory would be fine. Copy the following
+files to the directory:
+	INTWIN.BAT
+	INT2WHLP.EXE
+	INT2WHLP.CFG
+	SHORTKEY.RTF (if program option -l- is used)
+	FLT_METH.RTF (if program option -f<filter> is used)
+	TABLEKWT.RTF (if program option -kt is used)
+	SECKEY.DLL   (if program option -kt is used)
+	SEL_TOPC.RTF
+	MISC_INF.RTF
+	I2W_HH.RTF
+	HS_INIT.RTF
+	INTWIN.PH    (see section COMPRESSION)
+	INTERRUP.ICO (see section ICON)
+	BAG.INI
+It is handy also to have:
+	I2W-FILE.TXT
+	I2W-HINT.TXT (this file)
+	I2W-CFG.TXT
+	I2W-OPT.TXT
+in the directory. For a partial compilation of the List, FLT_METH.RTF is
+required (see paragraph FLT_METH.RTF in I2W-FILE.TXT).
+
+Make sure that the following files are in the Source Directory:
+	INTERRUP.LST or INTERRUP.A, INTERRUP.B, ...
+	INTERRUP.1ST
+	CATEGORY.KEY
+	OVERVIEW.LST
+	INTERRUP.PRI
+	PORTS.LST
+	MEMORY.LST
+	CMOS.LST
+	GLOSSARY.LST
+where INTERRUP.LST is the concatenation of INTERRUP.A, INTERRUP.B, ... .
+
+Make sure that HC31.EXE is somewhere on the DOS path.
+
+Type
+	INTWIN
+       (INTWIN -R58 to compile a list prior to release 59 with 4-digit tables)
+at the DOS prompt to start the compilation. On a 486/33MHz computer it
+takes INT2WHLP 1 1/2 minut to precompile release 41 of the List, and it
+takes HC31 40 minutes to create the INTWIN.HLP file.
+
+Parameters to INTWIN will be passed to INT2WHLP, thus a compilation with
+only the compressed interrupt index can be made with
+	INTWIN -2-
+This will reduce the size of the resulting help file from about 5 Mb to
+about 4.85 Mb (release 44).
+
+The configuration file in release 49+ disables the long version of interrupt
+search keys, to reduce the number of keywords and enable keyword searching in
+WinHelp version 4.00 (coming with Windows 95), which has a limited keyword
+capacity. If you are using WinHelp 3.10 or 3.11, you can override the
+disabling with
+	INTWIN -L+
+
+Version 1.20 of INT2WHLP published in release 56 includes a facility that can
+conserve further space in the primary keyword table by moving table keywords
+(#nnnn) to a secondary table. This facility will not be enabled until INTWIN
+exceeds WinHelp's keyword capacity. In can, however, be invoked with
+	INTWIN -KT
+and it can be disabled if it is already invoked in the configuration file with
+	INTWIN -KT-
+
+
+PROBLEMS
+
+It has happened that the Interrupt List was changed so INT2WHLP failed to
+find aliases for some context strings. If this happens, a new INT2WHLP.CFG
+file will be included in INTERnnZ.ZIP (see COMPRESSION). If other errors
+occur during the compilation of the List, the README file in INTERnnZ.ZIP
+will give hints about how to solve the problem.
+
+November 1998: The authors will no longer compile all the interrupt list
+releases, so you cannot expect immediate fixes and hints in a INTERnnZ.ZIP
+file.
+
+
+ERROR CODES
+
+INT2WHLP returns errorlevel 240 - 245 if a fatal error occurs. It returns
+errorlevel 1 if one or more warnings are issued (inconsistent Interrupt
+List). The INTWIN batch file will let the user bail out (with ^C) if a
+warning errorlevel was returned from INT2WHLP's compilation of the List.
+It is recommended to terminate the batch file and fix the inconsistency in
+the Interrupt List, and compile again.
+
+
+CONFIGURATION
+
+The INT2WHLP program lets you personalize your INTWIN.HLP file. If you use
+high resolution graphics on a large screen, then read the comments in the
+[CONFIG] section of the INT2WHLP.CFG file. For more details, see the files
+I2W-CFG.TXT and I2W-OPT.TXT.
+
+
+ICON
+
+INT2WHLP will look for file INTERRUP.ICO in the following directories, and
+in this order:
+	The current directory (typically the user's own icon).
+	INT2WHLP's home directory.
+	The source directory (where INTERRUP.LST/INTERRUP.A ... resides)
+
+If found, it will be included as an icon in the help file. It will then be
+shown in Windows 3.1 when INTWIN.HLP is minimized. It will not have any
+effect in Windows 95 (WinHelp v. 4.00.950). To use an interrup.ico icon to
+identify intwin.hlp, it must be defined as the icon in the shortcut to
+intwin.hlp.
+
+
+COMPRESSION
+
+The HC31 program supports three levels of compression: high, medium, and
+none. Medium compressed and uncompressed files are about 15% and 100%
+longer than highly compressed files, respectively. HC31 can use an existing
+Phrases file (a .PH file with compression information), and it needs not to
+be exactly up-to-date. Compiling release 41 with a PH file from release 40
+gives a file about 4% longer than a compilation with an up-to-date PH file.
+
+Compiling the compression information file is very resource consuming. For
+Interrupt List release 41 compiled with INT2WHLP v. 1.10:
+	631 kb < required DOS RAM < 730 kB
+	27 Mb < required free disk space < 50 Mb
+The compilation of the compression info took 20 minutes, and the rest of
+the compilation took 40 minutes on a 486/33MHx computer. Actually, when
+the computer gave up due to insufficient RAM when 631 kb were available,
+it had already created an INTWIN.PH file that was identical to the final
+file.
+
+We will compile a Phrases file when a new list is released, and upload
+it to SimTel a day or two after the release of the List in file
+INTERnnZ.ZIP where nn is the List release number. See INTERRUP.1ST for
+SimTel mirror sites.
+
+November 1998: The authors will no longer supply an INTERnnZ.ZIP file.
+
+
+HIGH RESOLUTION GRAPHICS
+
+The default settings allow you to display the List on a normal 640x480 VGA
+screen without the need of horizontal scroll. If you use high resolution
+graphics on a large screen, you will want to define another size of the
+secondary window used to display the tables, see comments in the [CONFIG]
+section in file INT2WHLP.CFG.
+
+The configuration file since Interrupt List release 56 changes the setting of
+the setting of secondary help window used for tables for better compatibility
+with 800x600 screens, and it can no longer be viewed on a 640x480 screen
+without scrolling, unless the configuration file is edited.
+
+If you use a high resolution graphics on a screen with small dimensions, you
+might want to use a larger font. The file package I2W-TEST.ZIP contains files
+that let you experiment with different fonts with very short INT2WHLP and
+HC31 compilation times. Unzip the package to a subdirectory under your
+INT2WHLP directory and read its README file.
+
+Tools are availabe to edit the position and size of the table window in an
+already compiled INTWIN.HLP file, e.g. WH_wEdit in the package WH_EDxxx.ZIP
+(xxx >= 111) in SimTel directory simtelnet/win3/winhelp.
+
+
+LIMITATIONS
+
+DOS graphics characters where 176 <= code <= 223 are not converted to correct
+Windows equivalents. Horizontal and vertical single and double framing
+characters are converted to "-" and "|", and other graphics characters are
+converted to "+".
+
+INT2WHLP cannot handle more than 63 per line of other characters with code
+> 126.
+
+
+WINHELP VERSION 4.00 LIMITATIONS
+
+Version 4.00 of Microsoft's WinHelp program (coming with Windows 95) has a
+limited search index capacity. If the limit is exceeded, the search index
+window is left blank. Ways to enable keyword searching in Windows 95:
+	Complain to Microsoft about the limitaiton.
+	Use program option -L- to disable long interrupt search keys.
+	Reduce the number of extra files included in the compilation, or
+	include them as type 1 files rather than type 2 files (ports.lst and
+	memory.lst).
+	Use version 3.10/3.11 of WinHelp.exe.
+
+
+INTWIN's TOPIC SEARCH FACILITIES
+
+INTWIN facilitates seaching interrupt topics with many different keys, based
+on:
+	a. Elements in the interrupt header line.
+	b. Keys in the file CATEGORY.KEY for the appropriate interrupt
+	   category.
+	c. Combinations of interrupt number and register contents.
+	d. Category letters.
+
+For example,
+
+--------D-215E01CH00-----------------------------
+INT 21 - DOS 3.1+ network - SET MACHINE NAME
+	AX = 5E01h
+	CH = 00h undefine name (make it invalid)
+
+will be listed with the following search keys:
+
+	DOS 3.1+ network            \      a
+	SET MACHINE NAME            /
+	DOS kernal                  \ 
+	kernal (DOS)                 >     b
+	operating systems (DOS)     /
+	INT 21 AX = 5E01 CH = 00 5) \
+	INT 21 AX = 5E01         5)  \
+	INT 21 AH = 5E           5)   \
+	INT 21          1)       5)    \
+	21 5E01 CH00                    \
+	21 5E01                          > c
+	21 5E           2)              /
+	21              1)             /
+	AX = 5E01                     /
+	AH = 5E         3)           /
+	CH = 00                     /
+	D!              4)                 d
+
+1) WINHELP lists only the first 400 search hits.
+2) The short form of an interrupt using AL to specify a function has two
+   leading dashes in the function number, e.g. the short form of
+   INT 2D AL = 10 is 2D --10.
+   Two dashes can be appended to the short form of an interrupt using AH for
+   funtion number, to distinguish the string from the more general string
+   used also as keyword for interrupts with the same value in the high part
+   of the AX register, e.g. 10 00-- will give less search hits than 10 00.
+3) Use AH = nn to search for functions called with nn in AH or in the high
+   byte of AX. Use AX = nn-- to search for functions called with nn in AH and
+   no specific value in AL.
+4) Because WINHELP's search facility does not distinguish between letter case,
+   the search keys for capital letter categories are the letter followed by
+   an exclamation mark.
+5) Program option -l- and configuration file key longKeys=0 disable the long
+   interrupt search key.
+
+TABLE CROSS-REFERENCES
+
+Tables are separate topics in help files compiled with version 1.08+ of
+INT2WHLP. When referenced from a "#nnnn" hotspot, the table pops up in a
+secondary window, thus the user can easily change between the source in
+the main help window and the referenced table in the secondary window.
+However, secondary windows are less flexible than the main window: topics
+are not recorded in the history list, you cannot browse between topics (<<
+and >> pushbuttons), and the topics cannot be copied or printed from the
+secondary window. Therefore all tables have a "Copy to Main" hotspot at the
+top.
+
+The table topic titles include the interrupt number and subfunction where
+the table is defined, and there is a hotspot at the end of each table that
+pops up the appropriate interrupt in the main window.
+
+There are two search keys for each table topic: "#nnnn" where nnnn is the
+four digit table number, and the table title as given in the Interrupt List
+("Bitfields for ...", "Call ... with:", "Format of ...", "Values for ...").
+
+If option -KT is used all the #nnnn keywords are moved to a secondary
+keyword table and will not show up in the search dialog box. Use the key
+"#Table Search" to open a new dialog box and enter the table number there.
+
+
+FULL TEXT SEARCH FACILITIES
+
+WinHelp's search facility offers search for predefined words or phrases.
+Various utilities offer full text search in help files, i.e. search the help
+file for any word or phrase the user specifies. These utilities are normally
+implememted as one or more dynamic link library files (DLLs), and macros are
+inserted in the help file to invoke the text search.
+
+Oxford Computer Consultants include a special version of their FTS utility
+in the Interrupt List. To use the facility, copy HINTSRCH.DLL from Oxford
+Computer Consultants' program package HINTSRCH.ZIP to your Windows SYSTEM
+directory. INT2WHLP's configuration file inserts the proper macros in
+INTWIN.HLP. One of these macros inserts a "Find Text" pushbutton on
+WinHelp's button bar. HINTSRCH.DLL works only with INTWIN, see material in
+Oxford Computer Consultant's package for information about their products.
+
+HINTSRCH.DLL is a 16 bits program, thus it is incompatible with Windows NT's
+WinHlp32.exe program, see IntWin/Help and Hints/Windows NT Users.
+
+Also Microsoft offers an FTS kit. Microsoft's kit uses an index file causing
+the search to be extremely fast. A disadvantage is that it takes long time to
+compile the index file, and it occupies much disk space (it is 70% longer
+than INTWIN.HLP, 8.8 Mb vs. 5.2 Mb for Interrupt List release 45). For the
+benefit of those who have access to Microsoft's FTS kit and want to use it,
+INT2WHLP's configuration file inserts bag.ini as baggage in INTWIN.HLP, this
+file is required by the kit. Utilities are available that can edit the macros
+section of INTWIN.HLP to include the macros for Microsoft's kit (WH_wEdit,
+see section HIGH RESOLUTION GRAPHICS). The baggage causes no harm if it is 
+unused, and it occupies only about 100 bytes.
+
+WinHelp under Windows 95 and Windows NT includes a full test search facility,
+however, Oxford Computer Consultants' HINTSRCH has several advantages
+compared to the built-in FTS. Most important, it lets the user step through
+the hits within each topic, whereas WinHelp's facility takes you only to the
+top of topics with hits.
+
+
+HELP WINDOW PUSHBUTTONS
+
+The Help Window includes some extra shortcut pushbuttons.
+
+"Print" sends the current topic to the currently selected printer. To select
+another printer, use "Print Select..." from the "File" menu.
+
+"Copy" copies the current topic to the Cllipboard. To copy only part of the
+topic, use "Copy..." from the "Edit" menu.
+
+"Exit" closes both the main window and an open secodary (table) window.
+Selecting "Close" from the control menu or pressing Alt F4 closes only the
+main window.
+
+"Print" and "Exit" are equivalent to selecting "Print Topic" and "Exit" from
+the "File" menu.
+
+"Find Text", see FULL TEXT SEARCH FACILITIES.
+

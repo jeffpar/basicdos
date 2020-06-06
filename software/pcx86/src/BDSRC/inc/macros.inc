@@ -177,3 +177,11 @@ ASSERT	macro	v1,op,v2
 	ENDIF
 	ENDIF
 	endm
+
+DEBUGEQ	macro	op
+	IFDEF DEBUG
+	op
+	je	$+4
+	int 1
+	ENDIF
+	endm

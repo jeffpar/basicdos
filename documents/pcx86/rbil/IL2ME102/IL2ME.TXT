@@ -1,0 +1,44 @@
+
+IL2ME Version 1.02.
+-------------------
+
+Written by Dmitry Bogoroditsky
+E-mail: dima@cced.kis.ru
+
+IL2ME is a FREEWARE program for converting Ralf Brown's Interrupt List to
+Multi-Edit help format (ACI hypertext).
+
+Features:
+
+- processes "SeeAlso" and "Table" references !
+- may split help contets to specified number of files.
+- converts only interrupt.lst !
+
+Requirements:
+
+- CPU 80386 or higher
+- approximately 7 Mbytes of free disk space
+
+---------------------------------------------------------------------------
+				NO WARRANTY!
+
+BECAUSE IL2ME IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY FOR IL2ME.
+YOUR USE OF THIS SOFTWARE IS COMPLETELY AT YOUR OWN RISK.  I ASSUME NO
+LIABILITY FOR ANY DAMAGES CAUSED  BY USE OF IL2ME. YOUR USE OF THIS SOFTWARE
+MEANS THAT YOU AGREE TO ALL OF THESE TERMS.
+---------------------------------------------------------------------------
+
+Usage:
+
+IL2ME [/f=n] filename
+
+/f=n      Force to split help contents to n (max 10) files. If switch
+          missing n=5.
+filename  Source Interrupt List file name (probably interrupt.lst).
+
+After converting you have to compile all resulted *.hlp files by helpcx.exe.
+Then load IL.HLZ (the main file containing table of contents) from your
+Multi-Edit.
+
+Dmitry Bogoroditsky.
+1 October 1996. 

@@ -1,0 +1,131 @@
+IVIEW is a Freeware DOS viewer for Ralf Brown's Interrupt List.
+
+The program file is IVIEW.EXE. Version 1.02 is 1971 bytes long. It requires a 
+386 and DOS 3.0 or later.
+
+There is an, optional, configuration file called IVIEW.INI. With the INI file 
+you can customise the data file names and locations, the video mode and the 
+printer supported. A basic INI file is provided.
+
+IVIEW works with Ralf's data files of type .LST. Ralf doesn't directly supply 
+the file INTERRUP.LST but he does supply a batch file COMBINE.BAT to build it 
+from the files he does distribute. To try out the basic functions of IVIEW, 
+copy it to a directory on the computer's PATH and then run it from the 
+directory which includes the INTERRUP.LST file. The following keys work:
+
+	UP ARROW                Scroll up a line
+	PAGE UP                 Scroll up a page
+	+                       Scroll up a topic
+	DOWN ARROW              Scroll down a line
+	PAGE DOWN               Scroll down a page
+	-                       Scroll down a topic
+	HOME                    Move to first topic
+	END                     Move to last topic
+	F                       Find first occurence of ...
+	N                       Fint next occurence
+	P                       Print current topic
+	space                   Toggle viewing mode
+	ESC                     Exit viewer
+
+
+
+The two viewing modes are FULL and HEADINGS ONLY. The FULL mode displays the
+full contents of the LST file. The HEADINGS ONLY mode displays topic headings 
+only, prefixed where appropriate by the associated category, INT, AH and AL.
+
+The active line is the top line. Toggling from HEADING to FULL expands the 
+topic in the top line of the HEADING screen. Toggling from FULL to HEADING 
+reduces to the topic encompassing the top line of the FULL screen. Printing 
+prints the topic encompassing the top line of whichever screen is in view.
+
+
+
+In the FIND dialogue:
+
+ 1  The search for alpha characters is case-insensitive
+
+ 2  The character ? represents a wild character i.e. it matches anything
+
+ 3  A space matches any white space, i.e. any string of spaces, horizontal 
+    tabs, line feeds or carriage returns.
+
+
+In the FIND and NEXT processes:
+
+ 1  A beep from the computer means "not found"
+
+ 2  The search is of the FULL file. The only relevance of this is that the 
+    first 11 columns of the HEADINGS ONLY screen are derived by IVIEW. So if 
+    you want data on INT 10 with AH=10, AL=12 find  -101012  not  -10 1012.
+
+ 3  The search is topic-to-topic, i.e. when the item is found in a topic the 
+    next find is from the end of that topic.
+
+
+
+The INI file must have the same name as the viewer. It may be located in the 
+same directory as the EXE file or in the current directory. An INI file in 
+the current directory takes precedence of the one in the EXE file's 
+directory, so you can have a basic INI file with the EXE file and then any 
+number of INI files which are customised to the work carried out in the 
+individual directories in which you use IVIEW.
+
+
+The INI file must be a TEXT file of lines with the following structure:
+
+<Item Identity Word>=[<parameters>]
+
+
+The Item Identity Word is predefined and must appear as below. The optional 
+parameters are customisable. Currently defined items are:
+
+DataFile#=<the name and location of Ralf's data file, case-insensitive>
+
+VideoMode=<the hexadecimal text video mode, case-insensitive>
+
+PrintInit=<a string of hexadecimal bytes to send before a print, 
+		 case-insensitive, separated by any non-hex characters>
+
+PrintReset=<a string of hexadecimal bytes to send after a print, 
+		 case-insensitive, separated by any non-hex characters>
+
+
+As an example, the following is the INI file for my computer. It contains an 
+ATI video card where mode 33 selects 132x44 text display. It is connected to 
+an HP 4L printer. The Init string includes PCL5 escape sequences to reset the 
+printer, select 12 characters-per-inch and 8 lines-per-inch. The Reset string 
+consists of a form-feed character to eject the last page of the print and the 
+printer reset sequence.
+
+DataFile0=c:\ralf\interrup.lst
+DataFile1=c:\ralf\ports.lst
+DataFile2=c:\ralf\memory.lst
+VideoMode=33
+PrintInit=1b,45,1b,28,73,31,32,48,1b,26,6c,38,44
+PrintReset=c,1b,45
+
+
+If you don't know your EGA or VGA video codes but would like to see more than 
+25 lines, try VideoMode=ffff.
+
+
+Without the INI file the data file is assumed to be INTERRUP.LST and it is 
+assumed to be in the current directory. To invoke IVIEW with other LST files 
+edit their names into the INI file in the way shown above and launch IVIEW 
+with the corresponding digit in the command line. For example, with the data 
+above in the INI file, the command
+
+	IVIEW 0     will invoke the viewer with the file c:\ralf\interrup.lst
+	IVIEW 1     will invoke the viewer with the file c:\ralf\ports.lst
+	IVIEW 2     will invoke the viewer with the file c:\ralf\memory.lst
+	IVIEW 3 to 9 will report an error until they are defined in the INI
+
+"IVIEW" is a synonym for "IVIEW 0"; "DataFile=" is a synonym for "DataFile0="
+
+
+IVIEW was written as an exercise in the art of tight coding. Comments, be  
+they brickbats or bouquets, to John Harry Adams at adams@ds5200.gradyn.co.uk
+
+
+
+

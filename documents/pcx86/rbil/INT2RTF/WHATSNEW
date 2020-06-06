@@ -1,0 +1,25 @@
+=== Int2RTF Interrupt List Compiler (C) 1996 Slava Gostrenko ===
+
++ Added
+- Deleted/changed
+* Bug fix
+/ Explanation
+
+Version 0.9
+/ The first publicly available version
+
+Version 1.0
++ Support for MSR.LST - Model-Specific Registers (Interrupt List Release 52)
+
+Version 1.1
++ Support for headers and links like
+        --------W-20----Vx0021-----------------------
+        INT 20 P - Microsoft Windows - PageFile DEVICE - SERVICES
+                VxD = 0021h
+                ...
+
+Version 1.2
++ Support for new format of OpCodes.Lst
++ Tested with HCW.EXE help compiler
++ Now you can register on my page to get automatic notifications when
+  Interrupt List or Int2RTF is updated.

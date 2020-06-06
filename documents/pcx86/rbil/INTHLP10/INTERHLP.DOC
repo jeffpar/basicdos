@@ -1,0 +1,136 @@
+
+                                Interrupt Helper
+
+                                                             Version 1.0
+
+    by Gary Chanson
+    (C) 1994
+
+
+          INTERHLP  is Copyright  1994 by  Gary Chanson  and Starquest
+          Systems.   No  restrictions  are  placed  on the use of this
+          program.   This program and its  documentation may be copied
+          and re-distributed provided that they are not changed and no
+          fee  is  charged  for  them.   An  exception  is  granted to
+          not-for-profit user's groups, which are authorized to charge
+          a nominal fee for materials and handling.
+
+
+       ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+       ³                                                                ³
+       ³    This program is dedicated to Ralf Brown for his valuable    ³
+       ³         contribution to the DOS programming community.         ³
+       ³                                                                ³
+       ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+
+    description:
+
+        Interrupt  Helper  is  a  search  and  display  utility for Ralf
+        Brown's Interrupt List.  When INTERHLP is first run, it builds a
+        map  of the interrupt data file.  It uses this map to display an
+        index  of entries  and to  find the  selected entry for display.
+
+    installation:
+
+        Copy  all of the distribution files into a convenient directory.
+        They  must all reside in the same  directory so that they can be
+        found  by  INTERHLP.   INTERRUPT.LST  must  also  reside in this
+        directory  unless specified  as part  of the  command tail.  The
+        Interrupt List is distributed in many pieces (named INTERRUP.?).
+        These  files must  be combined  together by  running COMBINE.BAT
+        (supplied  with  most  releases  of  the  Interrupt  List) or by
+        appending them to each other using COPY.
+
+            COPY INTERRUP.A + INTERRUP.B + INTERRUP.C  INTERRUP.LST
+            COPY INTERRUP.LST + INTERRUP.D + INTERRUP.E  INTERRUP.LST
+            etc.
+
+    usage:
+
+        INTERHLP [-cX] [filename] [interrupt] ["string"]
+
+        where:  -Cx         Selects Category 'x'
+                            Note that category specifiers are case
+                            sensitive!
+
+                filename    Optional list file.  The default file name
+                            is INTERRUP.LST and the default path is the
+                            location of INTERHLP.EXE.
+
+                interrupt   Optional topic code in the form:
+                            INTERRUPT nn  FUNCTION nn  SUBFUNCTION nn
+                            All field are optional and the field
+                            specifiers can be omitted if the arguments
+                            are presented in the above order.
+
+                "string"    Optional title sub-string.
+
+        The  first time  INTERHLP is  run (and  anytime it detects a new
+        data  file), it  reads the  entire data  file (this  takes a few
+        minutes!)  and builds a  map of its  contents.  It then searches
+        for  the specified topic and displays it if found.  If the topic
+        isn't  found, or no topic is  specified, an index of the entries
+        is displayed.
+
+        Each  line of the index  display consists of a  topic ID and the
+        text of the first line of the entry.  The topic ID consists of a
+        letter   which  designates  the  category  and  a  number  which
+        designates  the interrupt and function.   To select a topic, use
+        the  cursor keys to move the hilite bar to the desired selection
+        and press the enter key or point to the selection with the mouse
+        and  click the left  button.  Topics can  also be selected using
+        the  search function.  This function  prompts the operator for a
+        search pattern which is in the form:
+
+            INTERRUPT nn  FUNCTION nn  SUBFUNCTION nn  "title_text"
+
+        All fields are optional and the field designators can be omitted
+        if the arguments are presented in this order.  Field designators
+        can  be abbreviated.  Searches  for numeric int/func/subfunc are
+        fast binary searches of the index map.  Text searches are linear
+        searches  of the  first line  of each  entry which satisfies the
+        numeric search criteria and are much slower.
+
+        While  a topic is  being displayed, the  cursor keys move up and
+        down  within the current  topic and to  the adjacent topics.  As
+        topics  are selected, they are recorded in a history queue.  The
+        operator  can  walk  back  and  forth  thru the history queue by
+        pressing  F7  and  F8.   Searches  within  the topic display are
+        simple text searches.
+
+        Many  entries  in  the  Interrupt  List have cross-references to
+        other entries in the form of lines starting with "SeeAlso:".  If
+        the  mouse pointer is positioned on  one of these lines, and the
+        left button is clicked, INTERHLP will try to find the referenced
+        entry  and display it.  Note that if a category other then "all"
+        is chosen, some references may not be found.
+
+        The  entries in the Interrupt List are grouped by category.  The
+        first  character of each topic code is a letter which designates
+        a category.  By default, INTERHLP displays all categories.  When
+        appropriate,  a category can be  selected from the CATEGORY menu
+        and  only  the  entries  in  that  category  will  be displayed.
+
+
+    ========================================================================
+
+
+            Please forward all comments and bug reports to:
+
+                Gary Chanson
+                31 Chester Avenue
+                Waltham, MA  02154
+
+                Voice:  617-899-4771
+                Email:  Gary.Chanson@Channel1.com
+
+
+                 ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+                 ³                                          ³
+                 ³    For on-line support, call our BBS!    ³
+                 ³                                          ³
+                 ³            Arcane Incantations           ³
+                 ³               617-899-6672               ³
+                 ³                                          ³
+                 ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ

@@ -1,0 +1,22 @@
+# INTPRINT Filter File for Interrupt List to GUIDE/POPHELP file conversion.
+# Network version
+# Use
+#     INTPRINT -k -l0 -L1 -FINT2G-NW.FLT -m INTERRUP.A INTERRUP.LST
+# to filter the List, and then compile with
+#     INT2GUID -FINT2G-NW.FLT>outfile
++network
++NetBIOS
++MS-NET
++LANMAN
++LAN Manager
++Novell
+-Novell DOS
+-Novell NASI/NACS
+-Novell NWCACHE
++Banyan
++LANtastic
++PC-NFS
++Workgroup
++IFSHLP
++ODIHLP
++Connection Manager

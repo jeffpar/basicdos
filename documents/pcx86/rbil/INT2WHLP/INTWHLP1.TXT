@@ -1,0 +1,56 @@
+  Interrupt List -> WinHelp converter V1.01 (c) 1994 by Christian MÅller-Planitz
+  -----------------------------------------------------------------------------
+  Author: cmuelle@eos.ncsu.edu,  cmueller@techfak.uni-bielefeld.de
+
+
+  The source and the compiled EXE-file can be freely distributed as long as
+  no changes are made without my knowledge.
+
+  --------------------------------
+  Notes:
+   The program was tested with INTLIST38 and INTLIST39 and its output
+     was successfully compiled with the MS-Help-compiler "HC31.EXE" V3.10.445.
+
+   The program needs the file "INTWHLP.DAT" in the 'source' directory.
+
+   The program converted all sourcefiles (INTERRUP.* and *.LST) to
+     13 RTF files which needed 11MB on my harddrive.
+
+   Compiling the RTF-files without compression took 13 minutes in
+     a DOS-Window under Win/NT on a 486-50 (if you run it under DOS
+     and if you have a fast hardrive cache, it might be faster).
+
+   The (uncompressed) compiled HLP-File was approximately 7MB large.
+   If you want to create a compressed HLP-file, you have to exchange the
+     comments in the generated help-project file ("RB.HPJ"). Compressing
+     reduces the size of the HLP-file to 3MB but it takes
+     *more* (?? 28MB ??)  space on your harddrive while compiling.
+     In order to speed up compiling the compressed file, I've included a
+     temporary file ("RB.PH") of the helpcompiler in this archive.
+     Copy this file into the directory containing all the RTF files
+     before starting the compiler. This file is specific for INTERLIST39, so
+     if you want to get maximal compression in future versions, remove it.
+
+   After the compilation finishes, you will find the file "RB.HLP".
+     Start Windows, create an icon in the program manager and double-click on it.
+
+
+  --------------------------------
+
+   If you find this program usefull, if it does not work or if you have ideas
+   how to expand its functionality, feel fee to write an e-mail to me.
+
+   As usual, I do not take any responsibility for possible damages done by
+   this program.
+
+
+  Two questions and their answers :
+  ---------------------------------
+   WHY is the HLP-file so large ?
+     In contrast to other programs that convert the interrupt list to
+     DOS-based hypertext systems, this program generates a large
+     index file that allows you to search for keywords.
+
+   WHY did I wrote this program in Pascal and not in C ?
+     I think Pascal is a pretty nice language for small projects.
+     Another reason is the availability of efficient string handling under Pascal.

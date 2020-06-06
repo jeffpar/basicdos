@@ -1,0 +1,54 @@
+        здбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбд©
+        цдедедададададададададададададададададададададададададададададедед╢
+        цдед╢   PROJECT      : INT2IPF - Convert all files to .IPF    цдед╢
+        цдед╢   FILE         : INT2IPF.TXT - Readme Text File         цдед╢
+        цдед╢   Last modified: 06 Apr 97                              цдед╢
+        цдедедбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдбдедед╢
+        юдадададададададададададададададададададададададададададададададады
+
+    INT2IPF - Convert INTERRUP.LST to .IFP format for the OS/2 IPF Compiler
+
+Overview:
+=========
+
+    The INT2IPF.EXE is a simple program designed to convert the text file
+INTERRUP.TXT file (the output of COMBINE.COM) into an IPF file. An IPF file
+is the source for the IPFC.EXE (Information Presentation Facility Compiler).
+IPFC.EXE is used to produce OS/2 HLP files and INF files (when used with the
+/INF option). INF files are used by the OS/2 VIEW utility to display hyper
+text information.
+
+How to run it:
+==============
+
+    COMBINE
+    INT2IPF interrup.lst interrup.ipf
+    IPFC interrup.ipf /INF
+    VIEW interrup
+
+    Note: The compile of interrup.ipf can take a considerable period of
+time.
+
+Files Included:
+===============
+
+int2ipf.c       C Source Code
+int2ipf.def     Module Definition File
+int2ipf.exe     32 bit EXE
+int2ipf.ibm     Make file for IBM CSet/2 and Visual Age C++
+int2ipf.mak     Make file for MSC V6
+int2ipf.txt     This file
+warpcomm.h      A header file that I use to take care of differences
+                between various compilers.
+
+    If you have any queries, then please do not hesistate to contact me.
+
+-Chris
+
+WarpSpeed Computers - The Graham Utilities for OS/2.
+Voice:  +61-3-9384-1060  PO Box 212   FidoNet:     3:632/344
+FAX:    +61-3-9386-9979  Brunswick    Internet:    chrisg@warpspeed.com.au
+BBS:    +61-3-9386-3104  VIC 3056     CompuServe:  100250,1645
+300-28,800  N,8,1 ANSI   Australia    Web Pages:
+                                      http://www.netins.net/showcase/spectre
+                                      http://www.warpspeed.com.au

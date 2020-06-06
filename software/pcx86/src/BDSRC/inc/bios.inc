@@ -16,11 +16,11 @@ PCJS_MULTIPLIER EQU 16		; build for machine running at this multiplier
 ;
 ; Page numbers are from the first IBM 5150 Technical Reference Manual (1981)
 ;
-INT_DIV		EQU	00h	; #DE (divide error)
-INT_STEP	EQU	01h	; #DB (debug aka single-step)
+INT_DV		EQU	00h	; #DE (divide error)
+INT_DB		EQU	01h	; #DB (debug aka single-step)
 INT_NMI		EQU	02h	; NMI
 INT_BP		EQU	03h	; #BP (breakpoint)
-INT_OV		EQU	04h	; #OF (overflow)
+INT_OF		EQU	04h	; #OF (overflow)
 INT_PRTSC	EQU	05h	; PRINT_SCREEN (p. A-79)
 INT_VIDEO	EQU	10h	; VIDEO_IO (p. A-43)
 INT_EQUIP	EQU	11h	; EQUIPMENT_DETERMINATION (p. A-67)

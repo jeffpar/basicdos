@@ -26,45 +26,21 @@ DOS	segment word public 'CODE'
 ;	REG_DS:REG_DX -> name of device/file
 ;
 ; Outputs:
-;	On success, REG_AX = file handle, carry clear
+;	On success, REG_AX = PFH (or SFH if no valid PSP), carry clear
 ;	On failure, REG_AX = error, carry set
 ;
 DEFPROC	hdl_open,DOS
-	mov	es,[psp_active]		; get the current PSP
-	ASSUME	ES:NOTHING		; and if there IS a PSP
-	mov	di,es			; then find a free JFT slot
-	test	di,0FFF0h
-	jz	ho2			; no valid PSP yet
-	mov	al,0FFh
-	mov	cx,size PSP_HANDLES
-	mov	di,offset PSP_HANDLES
-	repne	scasb			; AL = 0FFh (indicates unused slot)
-	mov	ax,ERR_MAXFILES
-	stc
-	jne	ho9			; if no slot, return error w/carry set
-	dec	di			; rewind to slot
-ho2:	push	di			; save JFT offset
+	call	get_pft_free		; DI = free handle entry
+	jc	ho9
+	push	di			; save free handle entry
 	mov	bl,[bp].REG_AL		; BL = mode
 	mov	si,[bp].REG_DX
 	mov	ds,[bp].REG_DS		; DS:SI = name of device/file
 	ASSUME	DS:NOTHING
 	call	sfb_open
-	pop	di			; restore JFT offset
+	pop	di			; restore handle entry
 	jc	ho9
-	xchg	ax,bx			; AX = SFB offset
-	sub	ax,[sfb_table].off
-	mov	cl,size SFB
-	div	cl			; AL = SFB index (from SFB offset)
-	IFDEF	DEBUG
-	test	ah,ah			; verify that the remainder is zero
-	jz	$+3
-	int 3
-	ENDIF
-	test	di,0FFF0h		; did we find a free JFT slot?
-	jz	ho9			; no
-	stosb				; store the SFB index in the JFT slot
-	sub	di,offset PSP_HANDLES + 1
-	xchg	ax,di			; AX = handle
+	call	set_pft_free		; update free handle entry
 ho9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
 	ret
 ENDPROC	hdl_open
@@ -83,26 +59,14 @@ ENDPROC	hdl_open
 ;	On failure, REG_AX = error, carry set
 ;
 DEFPROC	hdl_write,DOS
-	mov	es,[psp_active]
+	call	get_sfb
 	ASSUME	ES:NOTHING
-	mov	bx,[bp].REG_BX		; BX = handle
-	cmp	bx,size PSP_HANDLES
-	jae	hw8
-	mov	al,es:[PSP_HANDLES][bx]
-	mov	cl,size SFB
-	mul	cl
-	add	ax,[sfb_table].off
-	cmp	ax,[sfb_table].seg
-	jae	hw8
-	xchg	bx,ax			; BX -> SFB
+	jc	hw9
 	mov	cx,[bp].REG_CX		; CX = byte count
 	mov	si,[bp].REG_DX
 	mov	ds,[bp].REG_DS		; DS:SI = data to write
 	ASSUME	DS:NOTHING
 	call	sfb_write
-	jmp	short hw9
-hw8:	mov	ax,ERR_BADHANDLE
-	stc
 hw9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
 	ret
 ENDPROC	hdl_write
@@ -620,6 +584,105 @@ gd9:	lea	si,[si-11]		; rewind SI, in case it was a match
 	pop	bp
 	ret
 ENDPROC	get_dirent
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_sfb
+;
+; Inputs:
+;	REG_BX = handle
+;
+; Outputs:
+;	On success, BX -> SFB, carry clear
+;	On failure, AX = ERR_BADHANDLE, carry set
+;
+; Modifies:
+;	AX, BX, CX, ES
+;
+DEFPROC	get_sfb,DOS
+	mov	es,[psp_active]
+	ASSUME	ES:NOTHING
+	mov	bx,[bp].REG_BX		; BX = handle
+	cmp	bx,size PSP_PFT
+	cmc
+	jb	gs9
+	mov	al,es:[PSP_PFT][bx]
+	mov	cl,size SFB
+	mul	cl
+	add	ax,[sfb_table].off
+	cmp	ax,[sfb_table].seg
+	cmc
+	jb	gs9
+	xchg	bx,ax			; BX -> SFB
+	ret
+gs9:	mov	ax,ERR_BADHANDLE
+	ret
+ENDPROC	get_sfb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_pft_free
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	On success, ES:DI -> PFT, carry clear
+;	On failure, AX = ERR_MAXFILES, carry set
+;
+; Modifies:
+;	AX, BX, CX, DI, ES
+;
+DEFPROC	get_pft_free,DOS
+	mov	es,[psp_active]		; get the current PSP
+	ASSUME	ES:NOTHING		; and if there IS a PSP
+	mov	di,es			; then find a free handle entry
+	test	di,0FFF0h
+	jz	gj9			; no valid PSP yet
+	mov	al,SFH_NONE		; AL = 0FFh (indicates unused entry)
+	mov	cx,size PSP_PFT
+	mov	di,offset PSP_PFT
+	repne	scasb
+	mov	ax,ERR_MAXFILES
+	stc
+	jne	gj9			; if no entry, return error w/carry set
+	dec	di			; rewind to entry
+	clc
+gj9:	ret
+ENDPROC	get_pft_free
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; set_pft_free
+;
+; This returns a PFT # (aka PFH or Process File Handle) if get_pft_free
+; detected a valid PSP; otherwise, it returns the SFB # (aka SFH or System File
+; Handle).
+;
+; Inputs:
+;	BX -> SFB
+;	ES:DI -> PFT
+;
+; Outputs:
+;	FT updated, AX = PFH or SFH (see above), carry clear
+;
+; Modifies:
+;	AX, BX, CX, DI
+;
+DEFPROC	set_pft_free,DOS
+	ASSUME	DS:NOTHING, ES:NOTHING
+	xchg	ax,bx			; AX = SFB address
+	sub	ax,[sfb_table].off
+	mov	cl,size SFB
+	div	cl			; AL = SFB # (from SFB address)
+	DEBUGEQ	<test ah,ah>		; assert that the remainder is zero
+	test	di,0FFF0h		; did we find a free PFT entry?
+	jz	sj9			; no
+	stosb				; yes, store SFB # in the PFT entry
+	sub	di,offset PSP_PFT + 1	; convert PFT entry into PFH
+	xchg	ax,di			; AX = handle
+sj9:	ret
+ENDPROC	set_pft_free
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

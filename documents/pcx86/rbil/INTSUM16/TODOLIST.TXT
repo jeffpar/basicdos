@@ -1,0 +1,42 @@
+There are still several bugs and features that ought to be put in
+this program, if anyone wants to do so...
+
+BUGS
+====
+
+- If you scroll the reference list down until a second page is loaded
+  (somewhere around INT 15h or 16h), then scroll back to the beginning
+  of the listing, the program doesn't detect beginning_of_data, and
+  scrolls off into garbage.  I'd fixed that at one time, but somehow
+  it came back.
+
+
+FEATURES
+========
+
+- It would be nice if the search function would be expanded considerably.
+  Some requested functions:
+        - Whole-word searches
+        - Case-sensitive searches
+        - Ability to search for an interrupt number.  Right now you have to
+          guess how the desired interrupt number is represented in the 
+          reference list, and search for it as a string.
+  Of course, all these options need to be stored in INTSUM.INI!!
+
+- Have an "are you sure?" window before exiting, or maybe have two different
+  exit keys: Control-Q for no verify and Control-X for verify.
+
+- Cross-referencing would be very nice; to be able to directly follow those
+  "See Also" references...
+
+- The List display cannot scroll into subsequent/previous files, if the 
+  interrupt list is divided up into subfiles.
+
+
+NOTES
+=====
+
+This program was compiled with Microsoft C++ version 8.00c and Microsoft
+Macro Assembler version 6.11a.
+
+

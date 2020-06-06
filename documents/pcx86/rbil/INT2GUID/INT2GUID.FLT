@@ -1,0 +1,108 @@
+# INTPRINT Filter File for Interrupt List to GUIDE/POPHELP file conversion.
+# Use
+#     INTPRINT -k -l0 -L1 -FINT2GUID.FLT -m INTERRUP.A INTERRUP.LST
+# to filter the List, and then compile with
+#     INT2GUID -FINT2GUID.FLT>outfile
+# This file filters out more than 2/3 of the Interrupt List.
++ DOS 
++ MS Windows
++ Windows NT
++ OS/2 
++ DBLSPACE
++ EMM386
++ HIMEM.SYS
++EXTENDED MEMORY SPECIFICATION
++Virtual Control Program Interface
++CPU-generated
++ IRQ
++ SERIAL 
++ DISK 
++ DISKETTE 
++ FLOPPY 
++ VIDEO 
++ BIOS 
++ CASSETTE 
++ KEYBOARD 
++ PRINTER 
++ SYSTEM 
++ TIME 
++ Multiplex 
++ MS MOUSE 
++LOGITECH MOUSE
++ PC MOUSE 
++FLOATING POINT EMULATION
++ interrupt
++ LIM EMS
+-DR DOS
+-DR-DOS
+-DR Multiuser DOS
+-Concurrent DOS
+-DOS/16M
+-DOS4GX
+-DOS/4G
+-extender
+-LAN Manager
+-DECnet DOS
+-Enhancer
+-Paradise VGA
+-Eagle PC2
+-Tseng ET-4000
+-Realtek
+-CHARGEN
+-Trident
+-Cirrus Logic
+-SpeedSTAR
+- AX PC 
+-SCREENR 
+-TopView 
+-VMiX 
+-Chips & Tech
+-Video7
+-HP Vectra
+-Everex
+-TANDY 2000 only
+-DESQview
+-SOLLEX SuperVGA
+- Compaq 
+-UltraVision
+-Future Domain
+-Digiboard
+-FOSSIL
+-3com BAPI
+-IBM/Yale
+-MultiDOS Plus
+-Netroom
+-HP HIL
+-PC Paint Plus
+-(Japanese AT)
+-Alloy NTNX
+-NEC PC-9800
+-Disk Spool
+-Intel PCI BIOS
+-FlashTek X-32VM
+-10NET
+-LANtastic
+-Novell NetWare
+-DoubleDOS
+-RM386 v6.00
+-AVATAR Serial Dispatcher
+-Gammafax DOS Dispatcher
+-DPMI 0.9+
+-HP 95LX System Manager
+-Z100 - Master 8259
+-Banyan VINES
+-Topware Network
+-FGDRIVER
+-Virtual Control Program
+-Novell NASI/NACS
+-NPC NCSI EXTENDED SERIAL
+-Alloy MW386 
+-PC-MOS/386 
+-Screen Thief 
+-TANDY??? 
+-relocated by DESQview
+-relocated by IBM 3278
+-TI Professional
+-Novell DOS
+-Named Pipes
+-Linux DOSEMU

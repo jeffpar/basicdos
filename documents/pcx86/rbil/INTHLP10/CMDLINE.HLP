@@ -1,0 +1,11 @@
+ษอออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออป
+บ                      Editing Commands                       บ
+วฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤยฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤฤถ
+บ prev/next word  ^Left/^Right ณ prev/next cmd        Up/Down บ
+บ start/end of line   Home/End ณ prev/next match    PgUp/PgDn บ
+บ                              ณ prev/next file     @Up/@Down บ
+บ default cmd            ^Home ณ                              บ
+บ newest cmd              ^End ณ delete word             ^Del บ
+บ clear cmd               @Del ณ Toggle case               ^X บ
+บ save cmd                  @S ณ Literal key               @L บ
+ศออออออออออออ@:altอออออออออออออฯออออออออออออ^:ctrlออออออออออออผ

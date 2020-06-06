@@ -9,15 +9,23 @@
 ;
 	include	dev.inc
 
-INT_DOSTERM	equ	20h
-INT_DOSFUNC	equ	21h
+INT_DOSTERM	equ	20h	; terminate program
+INT_DOSFUNC	equ	21h	; DOS function interface
 INT_DOSABORT	equ	22h	; handler for program termination notification
 INT_DOSCTRLC	equ	23h	; handler for CTRL-C notification
 INT_DOSERROR	equ	24h	; handler for critical error notification
-INT_DISKREAD	equ	25h
-INT_DISKWRITE	equ	26h
+INT_DISKREAD	equ	25h	; absolute disk read
+INT_DISKWRITE	equ	26h	; absolute disk write
 INT_DOSTSR	equ	27h	; terminate-and-stay-resident
-INT_DOSCALL5	equ	30h
+INT_DOSIDLE	equ	28h	; idle notification
+INT_DOSFASTCON	equ	29h	; fast console output
+INT_DOSNET	equ	2Ah	; network check
+INT_DOSRES1	equ	2Bh	; reserved
+INT_DOSRES2	equ	2Ch	; reserved
+INT_DOSRES3	equ	2Dh	; reserved
+INT_DOSCMD	equ	2Eh	; COMMAND.COM operation
+INT_DOSMULTI	equ	2Fh	; multiplex function interface
+INT_DOSCALL5	equ	30h	; vector has FAR JMP (overwrites vector 31h too)
 
 DOS_EXIT	equ	00h	; same function as INT 20h
 DOS_TTY_ECHO	equ	01h	; read KBD and echo (AL := char)
@@ -59,6 +67,12 @@ REG_FL		dw	?
 REG_FRAME	ends
 
 FL_CARRY	equ	0001h
+FL_ZERO		equ	0040h
+FL_SIGN		equ	0080h
+FL_TRAP		equ	0100h
+FL_INTS		equ	0200h
+FL_DOWN		equ	0400h
+FL_OVFL		equ	0800h
 
 REG_AL		equ 	(REG_AX.LO)
 REG_AH		equ 	(REG_AX.HI)
@@ -118,7 +132,7 @@ PSP_INT22	dd	?	; 0Ah: INT 22h vector
 PSP_INT23	dd	?	; 0Eh: INT 23h vector
 PSP_INT24	dd	?	; 12h: INT 24h vector
 PSP_PARENT	dw	?	; 16h: PSP of parent
-PSP_HANDLES	db     20 dup(?); 18h
+PSP_PFT		db     20 dup(?); 18h: Process File Table
 PSP_ENVSEG	dw	?	; 2Ch
 PSP_STACK	dd	?	; 2Eh
 PSP_HDLFREE	dw	?	; 32h: available handles
@@ -133,13 +147,15 @@ PSP_RESERVED3	db	4 dup(?); 7Ch
 PSP_CMDLINE	db    128 dup(?); 80h
 PSP		ends
 
+SFH_NONE	equ	0FFh	; if this SFH is in a PFT entry, it's unused
+
 ;
 ; System File Block (SFB)
 ;
 ; For files, this is a superset of the directory entry (DIRENT).
 ;
-; System file handles are indexes into the SFB table, whereas process file
-; handles are indexes into a PSP's handle table.
+; System File Handles (SFH) are indexes into the SFB table, whereas Process
+; File Handles (PFH) are indexes into a PSP's Process File Table (PFT).
 ;
 SFB		struc
 SFB_NAME	db    11 dup (?); 00h: filename (E5=free,00=end)
@@ -166,7 +182,7 @@ MODE_DENY_NONE	equ	40h
 MODE_INHERIT	equ	80h
 
 ;
-; Predefined Job File Table (JFT) indexes
+; Predefined Process File Table (PFT) numbers
 ;
 STDIN		equ	0
 STDOUT		equ	1

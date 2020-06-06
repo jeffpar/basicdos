@@ -1,0 +1,97 @@
+
+----------------------------------------------------------------------------
+
+Sven B. Schreiber (sbs@orgon.com)
+Niederndorfer Hauptstr. 70
+D-91074 Herzogenaurach
+Germany
+
+----------------------------------------------------------------------------
+
+SBS ILINA Version 1.00
+The Interrupt List Navigator
+Copyright (c) 1995 Sven B. Schreiber
+
+----------------------------------------------------------------------------
+
+PLEASE READ THIS FIRST!
+
+ILINA is FreeWare. This software package may be distributed royalty-free on
+any media including electronic mail, internet services, network news, and
+bulletin board systems, provided that all files are included, no files are
+modified and no fee is charged for the software. 
+
+DISCLAIMER
+
+This software is provided "as is" and any express or implied warranties,
+including, but not limited to, the implied warranties of merchantibility and
+fitness for a particular purpose are disclaimed. In no event shall the
+author Sven B. Schreiber be liable for any direct, indirect, incidental,
+special, exemplary, or consequential damages (including, but not limited to,
+procurement of substitute goods or services; loss of use, data, or profits;
+or business interruption) however caused and on any theory of liability,
+whether in contract, strict liability, or tort (including negligence or
+otherwise) arising in any way out of the use of this software, even if
+advised of the possibility of such damage. 
+
+----------------------------------------------------------------------------
+
+1. Installing ILINA
+
+Installation of "The Interrupt List Navigator" is easy and straightforward.
+Just copy the program files ILINA.EXE and ILINA.INI to a directory of your
+choice. Then create a shortcut, pointing to ILINA.EXE. 
+
+By default, ILINA will search for a file called INTERRUP.LST in its working
+directory. This file can be built from parts of Ralf Brown's "Interrupt
+List" archives by calling COMBINE.COM, included in the Interrupt List
+archives. You can override the default directory by specifying the path to
+INTERRUP.LST on ILINA's command line. If your input file is named other than
+INTERRUP.LST, you may specify this name on the command line as well. 
+
+----------------------------------------------------------------------------
+
+2. Viewing INTERRUP.LST
+
+After startup, ILINA builds a temporary index in memory to allow fast random
+access to individual data records. This might take a couple of seconds.
+After that, ILINA pops up a dialog box with four list windows that enable
+you to navigate hierarchically through the entire list. On top level,
+there's the "Category" window, located in the upper left corner of ILINA's
+dialog box. The categories displayed there are taken from the configuration
+file ILINA.INI, which must be located in the same directory as ILINA.EXE.
+
+If you click on an entry in the "Functions" window, you will see the
+complete record of this function in the lower half of ILINA's dialog box.
+The arrow labeled buttons in the upper right corner let you scroll the text
+up and down if it exceeds the size of the window. If the record window has
+the input focus, you may use the arrow and PgUp/PgDown keys as well. 
+
+The source code of ILINA hasn't been changed since 02-10-1995. This means
+that the code has survived more than three years while lots of Interrupt
+List versions have been coming and going. This makes me quite confident that
+my parsing routines will keep on working well with future Interrupt List
+versions.
+
+----------------------------------------------------------------------------
+
+3. Searching for data
+
+ILINA contains a basic full text search module, using the fast SHIFT-AND
+search algorithm. It will allow you to search for text strings consisting of
+up to 32 characters. Case sensitivity may be turned on or off optionally, as
+well as wildcard recognition. Please note, that currently only the wildcard
+'?' is supported. In the search results window, you can highlite a hit to
+jump directly to the location in the data file where the hit occurred. 
+
+While searching, the data file will be filtered transparently. Multiple
+spaces are compressed to a single space, while any control characters,
+including all CR/LF and tabulator characters, are treated as spaces. So it
+is easy to search for groups of words which do not necessarily occur on a
+single line. Therefore, you should always separate words by no more than a
+single space. 
+
+----------------------------------------------------------------------------
+
+23.07.1998 Sven B. Schreiber
+sbs@orgon.com

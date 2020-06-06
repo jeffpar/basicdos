@@ -1,0 +1,389 @@
+{\rtf1\ansi\deff15
+\sectd \ftnbj {\fonttbl{\f15\fswiss Arial;}{\f16\fmodern Courier New;}{\f17\froman Times New Roman;}}{\stylesheet{\s0\f17\snext0 Base;}{\s1\f17\fs28\snext1 Banner Base;}{\s2\f17\fs12\li-144\sbasedon1\snext2 Button Bar;}{\s3\f16\fs20\keep\sbasedon0\snext3 Courier;}{\s4\f17\li720\fi-718\sbasedon0\snext4 Indent 0 1.27;}{\s5\f17\li567\fi-282\sbasedon0\snext5 Indent 0.5  1.0;}{\s6\f17\li360\fi-360\tx360\sbasedon0\snext6 List1;}{\s7\f17\li720\fi-360\tx720\sbasedon0\snext7 List2;}{\s8\f17\li1080\fi-360\tx1080\sbasedon0\snext8 List3;}{\s9\f17\fs20\snext9 Normal;}}\pard\plain\s1\keepn {\up $}{\footnote $ "SeeAlso:"}
+{\up #}{\footnote # hhSeeAlso}
+{\up K}{\footnote K See;SeeAlso;References;See Also;Searching;Help;Hints}
+{\up +}{\footnote + helphints:0004}
+{\plain\f17\fs28 
+}{\plain\f17\fs28 "SeeAlso:"}\par \pard\plain\s0 {\plain\f17 
+}\par 
+{\plain }{\plain\f17 INTWIN does not provide hotspots for interrupt references in "See" or "SeeAlso:" fields, as a failsafe interpretation of these references is not feasible. Rather, use INTWIN's }{\uldb {\f17 search facilities}}{\v HHsearch}{\plain\f17 , and use the short form interrupt search string. Then, from the list of hits, select the right topic. Remember that if no interrupt number is specified in the reference, it is the current interrupt number.\par 
+\par 
+}{\plain\f17 Examples and number of hits are based on release 43 of the List:\par 
+}\par 
+\pard\s3\keep {\plain\f16\fs20 }{\plain\f16\fs20 INT 03 - Columbia PCs (desktop,VP portables) - ROM DEBUGGER \par 
+}{\plain\f16\fs20 ...\par 
+}{\plain\f16\fs20 SeeAlso: INT 00"Zenith",INT 03"Realia"}\par 
+\pard\s0 {\plain\f17 \par 
+}{\plain\f17 Search on "00": 2 hits, one is "INT 00 ---- - Zenith - ROM DEBUGGER"\par 
+}{\plain\f17 Search on "03": 8 hits, one is "INT 03 ---- - Realia COBOL - DEBUGGER SUPPORT"\par 
+}\par 
+\pard\s3\keep {\plain\f16\fs20 }{\plain\f16\fs20 INT 05 - PRINT SCREEN\par 
+}{\plain\f16\fs20 ...\par 
+}{\plain\f16\fs20 SeeAlso: INT 10/AH=12h/BL=20h}\par 
+\pard\s0 {\plain\f17 \par 
+}{\plain\f17 Search on "10 12 BL20": one hit.\par 
+}\par 
+\pard\s3\keep {\plain\f16\fs20 }{\plain\f16\fs20 INT 10 - VIDEO - Paradise VGA, AT&T VDC600 - SET SPECIAL MODE\par 
+}{\plain\f16\fs20         AX = 007Eh\par 
+}{\plain\f16\fs20         BX = horizontal dimension of the mode desired\par 
+}{\plain\f16\fs20 ...\par 
+}{\plain\f16\fs20 SeeAlso: AH=00h,AX=0070h,AX=007Fh,AX=6F05h,AH=FFh"GO32"}\par 
+\pard\s0 {\plain\f17 \par 
+}{\plain\f17 Search on "10 00--": one hit.\par 
+}{\plain\f17 Search on "10 0070": one hit.\par 
+}{\plain\f17 Search on "10 007F": 9 hits, 4 begin with "INT 10 007F - VIDEO - Paradise VGA"\par 
+}{\plain\f17 Search on "10 6F05": one hit.\par 
+}{\plain\f17 Search on "10 FF--": 3 hits, one is "INT 10 FF-- - DJ GO32.EXE ..."\par 
+}\par 
+\pard\s3\keep {\plain\f16\fs20 }{\plain\f16\fs20 INT 10 - VIDEO - Paradise VGA, AT&T VDC600 - SET VGA OPERATION\par 
+}{\plain\f16\fs20         AX = 007Fh\par 
+}{\plain\f16\fs20         BH = 00h\par 
+}{\plain\f16\fs20 ...\par 
+}{\plain\f16\fs20 SeeAlso: AX=007Fh/BH=01h,AX=007Fh/BH=02h}\par 
+\pard\s0 {\plain\f17 \par 
+}{\plain\f17 Search on "10 007F BH01" and "10 007F BH02": one hit each. - In this case it is evident that the referenced topics are probably the next topics, so browsing to them (\'a0\'a0}{\plain\f17\ul >}{\plain\f17 >\'a0\'a0) is easier than searching.\par 
+}\par 
+\pard\s3\keep {\plain\f16\fs20 }{\plain\f16\fs20 INT 10 - VIDEO - SET CURSOR POSITION\par 
+}{\plain\f16\fs20         AH = 02h\par 
+}{\plain\f16\fs20 ...\par 
+}{\plain\f16\fs20 SeeAlso: AH=03h,AH=05h,INT 60/DI=030Bh}\par 
+\pard\s0 {\plain\f17 \par 
+}{\plain\f17 Search on "10 03": one hit.\par 
+}{\plain\f17 Search on "10 05": 3 hits, one is "INT 10 05-- - VIDEO -  SELECT ACTIVE DISPLAY PAGE"\par 
+}{\plain\f17 Search on "60 DI030B": one hit.\par 
+}\par 
+\pard\s3\keep {\plain\f16\fs20 }{\plain\f16\fs20 INT 88 - APL*PLUS/PC - CREATE CHARACTER SCALAR/VECTOR/MATRIX <64K IN SIZE\par 
+}{\plain\f16\fs20         AL = 01h\par 
+}{\plain\f16\fs20 ...\par 
+}{\plain\f16\fs20 SeeAlso: AL=02h,AL=08h,INT C8"APL"}\par 
+\pard\s0 {\plain\f17 \par 
+}{\plain\f17 Search on "88 --02": one hit\par 
+}{\plain\f17 Search on "88 --08": one hit\par 
+}{\plain\f17 Search on "C8": 2 hits, one is "INT C8 ---- - APL*PLUS/PC - IDENTICAL TO INT 88"\par 
+}\page \pard\plain\s1\keepn {\up $}{\footnote $ Category}
+{\up #}{\footnote # Category}
+{\up K}{\footnote K Category}
+{\up +}{\footnote + helphints:0006}
+{\plain\f17\fs28 
+}{\plain\f17\fs28 Category}\par \pard\plain\s0 {\plain\f17 
+}\par 
+{\plain }{\plain\f17 Each interrupt entry belongs to a category listed in topic }{\uldb {\f17 Categories}}{\v !JumpKeyword (qchPath, `Categories')}{\plain\f17 . Access to the interrupts belonging to a category is implemented via the search facility. An interrupt's category letter is a search keyword for the interrupt, and so is the associated text, and often additional related phrases. For example, interrupts belonging to category}\par 
+\pard\s3\keep {\plain\f16\fs20 }{\plain\f16\fs20 \tab }{\plain\f16\fs20 e - electronic mail}\par 
+\pard\s0 {\plain\f17 }{\plain\f17 are found with any of the keywords }{\uldb {\f17 e}}{\v !JumpKeyword (qchPath, `e')}{\plain\f17 , }{\uldb {\f17 electronic mail}}{\v !JumpKeyword (qchPath, `electronic mail')}{\plain\f17 , }{\uldb {\f17 e-mail}}{\v !JumpKeyword (qchPath, `e-mail')}{\plain\f17 , and }{\uldb {\f17 mail (electronic)}}{\v !JumpKeyword (qchPath, `mail (electronic)')}{\plain\f17 .\par 
+\par 
+}{\plain\f17 Because WINHELP's search facility does not distinguish between letter case, the search keys for capital letter categories are the letter followed by an exclamation mark, for example the entries in category}\par 
+\pard\s3\keep {\plain\f16\fs20 }{\plain\f16\fs20 \tab }{\plain\f16\fs20 A - applications}\par 
+\pard\s0 {\plain\f17 }{\plain\f17 are found with keywords }{\uldb {\f17 A!}}{\v !JumpKeyword (qchPath, `A!')}{\plain\f17  and }{\uldb {\f17 applications}}{\v !JumpKeyword (qchPath, `applications')}{\plain\f17 .\par 
+\par 
+}{\plain\f17 Unfortunately, WINHELP limits the number of keyword search hits to 400, so the largest categories will not show all the entries.\par 
+}\page \pard\plain\s1\keepn {\up $}{\footnote $ Compile Time Configuration}
+{\up #}{\footnote # HHcompilation}
+{\up K}{\footnote K Compilation;Options at compile time;INTWIN compile time options;Hints}
+{\up +}{\footnote + helphints:0010}
+{\plain\f17\fs28 
+}{\plain\f17\fs28 Compile Time Configuration}\par \pard\plain\s0 {\plain\f17 
+}\par 
+{\plain }{\plain\f17 Apparently this help file was already compiled. Many properties of the help file can be defined in the INT2WHLP.CFG file used by the the INT2WHLP compiler available in the DOS version of Ralf Brown's Interrupt List, see }{\uldb {\f17 INTERRUP.1ST}}{\v id1st}{\plain\f17 . After compilation, only a few of them can be changed, and only utilizing special programs, see }{\uldb {\f17 Size and Color}}{\v HHsizeColor}{\plain\f17 .\par 
+\par 
+}{\plain\f17 The following can be controlled at compile time:\par 
+\par 
+}{\plain\f17 Whether the help file has both a compressed and an expanded index, or a compressed index only.\par 
+\par 
+}{\plain\f17 Which one of the two pops up initially.\par 
+\par 
+}{\plain\f17 Whether single-entry interrupts (interrupts numbers with only one topic in the list) are referenced directly from the compressed index, or the reference in the compressed index goes to a subindex with one entry.\par 
+\par 
+}{\plain\f17 Whether the compressed index is listed in a single column with a header for each interrupt number, or in 4, 8, or 16 columns without headers, but with more entries visible simultaniously.\par 
+\par 
+}{\plain\f17 Whether or not the expanded index has headers separating the interrupt numbers.\par 
+\par 
+}{\plain\f17 Whether or not keywords (like "See also:", "Notes") are bolded.\par 
+\par 
+}{\plain\f17 Whether or not long versions of interrupt search strings are enabled (see }{\uldb {\f17 Win95 WinHelp Restrictions}}{\v HHwin95}{\plain\f17 )}{\plain\f17 .\par 
+\par 
+}{\plain\f17 Whether or not "#nnnn" table keywords are inserted in the primary keyword table or in a secondary keyword table (see }{\uldb {\f17 Win95 WinHelp Restrictions}}{\v HHwin95}{\plain\f17 )}{\plain\f17 . The dynamic link library file seckey.dll or seckey32.dll must be available if they shall be retrieved from the secondary table.\par 
+\par 
+}{\plain\f17 Whether or not there are spaces around the equal sign in interrupt search strings e.g. "INT 21 AH = 4C" or "INT 21 AH=4C".\par 
+\par 
+}{\plain\f17 The initial position and size, and the background colors of both the main and the table window.\par 
+\par 
+}{\plain\f17 The font and font size used for the headers and for the text.\par 
+\par 
+}{\plain\f17 Extra topics included in addition to Ralf Brown's Interrupt List (like this Help and Hints text).\par 
+\par 
+}{\plain\f17 See also the files (in INTERnn?.ZIP/INT2WHLP.ZIP):\par 
+}{\plain\f17 \tab }{\plain\f17 I2W-FILE.TXT\par 
+}{\plain\f17 \tab }{\plain\f17 I2W-HINT.TXT\par 
+}{\plain\f17 \tab }{\plain\f17 I2W-CFG.TXT\par 
+}{\plain\f17 \tab }{\plain\f17 I2W-OPT.TXT\par 
+}{\plain\f17 \tab }{\plain\f17 Program source files.\par 
+}{\plain\f17 \tab }{\plain\f17 I2W-TEST.ZIP\par 
+}{\plain\f17 Use the latter subpackage for experimenting with compile time options and their effects.\par 
+}\page \pard\plain\s1\keepn {\up $}{\footnote $ Copying}
+{\up #}{\footnote # HHcopy}
+{\up K}{\footnote K Copying;Copying topics;Help;Help Window Pushbuttons;Hints}
+{\up +}{\footnote + helphints:0008}
+{\plain\f17\fs28 
+}{\plain\f17\fs28 Copying}\par \pard\plain\s0 {\plain\f17 
+}\par 
+{\plain }{\plain\f17 A topic can be copied to the clipboard by clicking on the Copy pushbutton or by pressing O.\par 
+\par 
+}{\plain\f17 A selected part of a topic can be copied to the clipboard from the Edit menu's Copy... entry.\par 
+}\page \pard\plain\s1\keepn {\up $}{\footnote $ Full Text Search}
+{\up #}{\footnote # Full_Text_Search}
+{\up +}{\footnote + helphints:0005}
+{\plain\f17\fs28 
+}{\plain\f17\fs28 Full Text Search}\par \pard\plain\s0 {\plain\f17 
+}\par 
+\pard\s0\tx0 {\plain }{\plain\f17 This compilation of the Interrupt List includes a full text search facility implemented as a special version of }{\uldb {\f17 Oxford Computer Consultants' text search facility}}{\v !IfThenElse(IsMark(`HS_initialized'),`HSearcherDMExecSearch()',`JumpId(qchPath,`idHS_init')')}{\plain\f17 . To use it, copy HINTSRCH.DLL from Oxford Computer Consultants' program package HINTSRCH.ZIP to your Windows SYSTEM directory. Use the "Find Text" }{\uldb {\f17 push button}}{\v HHpushbuttons}{\plain\f17  to invoke the facility from the Interrupt List window. Search can fail in long topics after about 32 kb.\par 
+\par 
+}{\plain\f17 Thanks to Oxford Computer Consultants for supplying this program. See material in HINTSRCH.ZIP for information about Oxford Computer Consultants' products. Note that HINTSRCH.DLL will work only with the INTWIN.HLP file.\par 
+\par 
+}{\plain\f17 Oxford Computer Consultants' text search facility is pretty fast, but after all, it does take time to uncompress and search several megabytes of text (10 seconds on a 120 MHz Pentium based computer, 50 seconds on a 33 MHz 486 based, Interrupt List release 48). Microsoft offers a Full Text Search kit in the Development Network library which uses an index file for the search, so a search is a matter of an index lookup rather than a text search, and thus it is virtually instant. This compilation of the Interrupt List is prepared to use Microsoft's kit in that it includes a BAG.INI baggage file with the following contents:\par 
+}\par 
+\pard\s3\keep {\plain\f16\fs20 }{\plain\f16\fs20 \tab }{\plain\f16\fs20 [bag.ini]\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 groupcount=1\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 group1=INTWIN\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 [INTWIN]\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 Title=INTWIN Full Text Search\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 Indexfile=INTWIN.IND\par 
+}\par 
+\pard\s0 {\plain\f17 }{\plain\f17 If you have access to Microsoft's kit and want to use it for the List, you can use the WH_wEdit program (see "}{\uldb {\f17 Size and Color}}{\v HHsizeColor}{\plain\f17 ") to delete macros for the Oxford Computer Consultants text search facility and insert the macros for the Microsoft text search facility. Note that the index file you must generate is very long, about 1.7 times the size of INTWIN.HLP.\par 
+\par 
+}{\plain\f17 WinHelp v. 4.0 (coming with Windows 95) implements Full Text Search. Be aware of the following facts:}\par 
+\pard\s5\li567\fi-282 {\plain\f17 }{\plain\f17 1. WinHelp generates an index file the first time full text search is used on a help file. If you want to search for phrases (e.g. "list of lists") you must compile the list with maximum information. The size of a maximum information index file is about 2.5 times the size of intwin.hlp, and the size of a minimum information index file about 0.8 times the size of intwin.hlp. HINTSRCH can search intwin.hlp about 30 times in the same amount of time that it takes WinHelp to compile the index file.\par 
+}{\plain\f17 2. WinHelp loads the index information the first time full text search is used after a help file is opened. HINTSRCH can search intwin.hlp about three times in the same amount of time that it takes WinHelp to load the index information.\par 
+}{\plain\f17 3. WinHelp opens topics with search hits at the beginning of the topics, not at the proper position inside the topics. The search hits are not flaged in any way.}\par 
+\pard\s0 {\plain\f17 }{\plain\f17 The times above are based on intwin.hlp and a maximum information index file located on a remote drive.\par 
+}\page \pard\plain\s1\keepn {\up $}{\footnote $ Help Window Pushbuttons}
+{\up #}{\footnote # HHpushbuttons}
+{\up K}{\footnote K Copying topics;Copying;Printing;Printing topics;Help;Help Window Pushbuttons;Hints;Exit}
+{\up +}{\footnote + helphints:0009}
+{\plain\f17\fs28 
+}{\plain\f17\fs28 Help Window Pushbuttons}\par \pard\plain\s0 {\plain\f17 
+}\par 
+{\plain }{\plain\f17 The Help Window includes some extra shortcut pushbuttons.\par 
+\par 
+}{\plain\f17 "}{\plain\f17\ul P}{\plain\f17 rint" sends the current topic to the currently selected printer. See also }{\uldb {\f17 Printing}}{\v HHprint}{\plain\f17 .\par 
+\par 
+}{\plain\f17 "C}{\plain\f17\ul o}{\plain\f17 py" copies the current topic to the clipboard. See also }{\uldb {\f17 Copying}}{\v HHcopy}{\plain\f17 .\par 
+\par 
+}{\plain\f17 "E}{\plain\f17\ul x}{\plain\f17 it" closes both the main window and an open secondary (table) window. Selecting "Close" from the control menu or pressing Alt F4 close only the main window.\par 
+\par 
+}{\plain\f17 "Print" and "Exit" are equivalent to selecting "Print Topic" and "Exit" from the "File" menu.\par 
+\par 
+}{\plain\f17 "F}{\plain\f17\ul i}{\plain\f17 nd Text" invokes a }{\uldb {\f17 Full Text Search}}{\v Full_Text_Search}{\plain\f17  facility.\par 
+}\page \pard\plain\s1\keepn {\up $}{\footnote $ INTWIN Help and Hints}
+{\up #}{\footnote # idHelpHints}
+{\up K}{\footnote K Help;Hints;INTWIN;INTWIN Help and Hints;How to ...}
+{\up +}{\footnote + m:0001}
+{\plain\f17\fs28 
+}{\plain\f17\fs28 INTWIN Help and Hints}\par \pard\plain\s0 {\plain\f17 
+}\par 
+{\plain }{\uldb {\f17 Interrupts}}{\v HHinterrupts}{\plain\f17 \par 
+}{\uldb {\f17 Table Cross-References}}{\v HHtable}{\plain\f17 \par 
+}{\uldb {\f17 Search Facilities}}{\v HHsearch}{\plain\f17 \par 
+}{\uldb {\f17 "SeeAlso:"}}{\v hhSeeAlso}{\plain\f17 \par 
+}{\uldb {\f17 Full Text Search}}{\v Full_Text_Search}{\plain\f17 \par 
+}{\uldb {\f17 Category}}{\v Category}{\plain\f17 \par 
+}{\uldb {\f17 Printing}}{\v HHprint}{\plain\f17 \par 
+}{\uldb {\f17 Copying}}{\v HHcopy}{\plain\f17 \par 
+}{\uldb {\f17 Help Window Pushbuttons}}{\v HHpushbuttons}{\plain\f17 \par 
+}{\uldb {\f17 Compile Time Configuration}}{\v HHcompilation}{\plain\f17 \par 
+}{\uldb {\f17 Windows 95 WinHelp Restrictions}}{\v HHwin95}{\plain\f17 \par 
+}{\uldb {\f17 Size and Color}}{\v HHsizeColor}{\plain\f17 \par 
+}{\uldb {\f17 Remote Access}}{\v HHaccess}{\plain\f17 \par 
+}{\uldb {\f17 Windows NT Users}}{\v Windows_NT_Users}{\plain \par 
+}\page \pard\plain\s1\keepn {\up $}{\footnote $ Interrupts}
+{\up #}{\footnote # HHinterrupts}
+{\up K}{\footnote K Help;INTWIN Index;Index;Interrupts;Hints}
+{\up +}{\footnote + helphints:0001}
+{\plain\f17\fs28 
+}{\plain\f17\fs28 Interrupts}\par \pard\plain\s0 {\plain\f17 
+}\par 
+{\plain }{\plain\f17 The interrupt topics can be accessed with search keys (see }{\uldb {\f17 Search Facilities}}{\v HHsearch}{\plain\f17 ) or from the }{\uldb {\f17 main index}}{\v contents}{\plain\f17  via sub indexes.\par 
+\par 
+}{\plain\f17 The appearance of sub indexes depends on some configuration file settings and program options at compile time. The following text describes the default appearence. See }{\uldb {\f17 Compile Time Configuration}}{\v HHcompilation}{\plain\f17  for other posibilities.\par 
+\par 
+}{\plain\f17 The main index's "Interrupt Index" entry takes you to either a }{\uldb {\f17 compressed index}}{\v idInterrupts}{\plain\f17  or to an }{\uldb {\f17 expanded index}}{\v idIndex}{\plain\f17 . Each of them have a hotspot at the top causing the other one to pop up and to be the one selected from the main index.\par 
+\par 
+}{\plain\f17 The compressed index has references to a subindex for each interrupt number, for example to }{\uldb {\f17 INT 03 - CPU-generated - BREAKPOINT}}{\v 03_0}{\plain\f17 . The subindexes have references to the individual interrupt topics.\par 
+\par 
+}{\plain\f17 The expanded index has direct references to each individual interrupt topic.\par 
+\par 
+}{\plain\f17 Many interrupt topics have references to }{\uldb {\f17 tables}}{\v HHtable}{\plain\f17 , always of the form "#nnnn" where nnnn is a four digit decimal number. Clicking on these hotspots causes the table to pop up in a separate window, so it is easy to switch between the two topics. Tables can have references to other tables, and if such a hotspot is selected in the secondary (table) window, the current window is erased and the new table is drawn. To ease cross referencing between two tables, use the first table's hotspot "Copy to Main" to have it pop up in the main window before selecting the referenced table.\par 
+}\page \pard\plain\s1\keepn {\up $}{\footnote $ Printing}
+{\up #}{\footnote # HHprint}
+{\up K}{\footnote K Help;Printing;Printing topics;Help Window Pushbuttons;Hints}
+{\up +}{\footnote + helphints:0007}
+{\plain\f17\fs28 
+}{\plain\f17\fs28 Printing}\par \pard\plain\s0 {\plain\f17 
+}\par 
+{\plain }{\plain\f17 A topic can be sent to the currently selected printer by clicking on the Print pushbutton or by pressing P.\par 
+\par 
+}{\plain\f17 Another printer or printer setup can be specified using the File menu's Print setup... entry.\par 
+}\page \pard\plain\s1\keepn {\up $}{\footnote $ Remote Access}
+{\up #}{\footnote # HHaccess}
+{\up K}{\footnote K Hints;Remote Access;External access;Access to INTWIN}
+{\up +}{\footnote + helphints:0013}
+{\plain\f17\fs28 
+}{\plain\f17\fs28 Remote Access}\par \pard\plain\s0 {\plain\f17 
+}\par 
+{\plain }{\plain\f17 This file can be accessed from other help files. The interfile jump address "Identifier@drive:\\path\\intwin.hlp" or the jump macro "JumpId(`drive:\\path\\intwin.hlp',`Identifier')"  will open this file at the specified identifier - or "context string" as it is usually called in WINHELP terminology. Below is a list of identifiers used for the Interrupt List.}\par 
+\pard\s9\tx1080\tx2160\tx3240\tx4320\tx5400\tx6480\tx7560\tx8640\tx9720 {\plain\f17\fs20 }\par\trowd\trleft-140\trgaph70\cellx2057\cellx3333\cellx8293 \pard\s9\tx1080\tx2160\tx3240\tx4320\tx5400\tx6480\tx7560\tx8640\tx9720\intbl {\plain\f17\fs20 }{\plain\f17 Window Title\cell }{\plain\f17 Identifier\cell }{\plain\f17 Comment}\cell\pard\intbl\row\trowd\trleft-140\trgaph70\cellx2057\cellx3333\cellx8293 \pard\s9\tx1080\tx2160\tx3240\tx4320\tx5400\tx6480\tx7560\tx8640\tx9720\intbl {\plain\f17 \cell \cell }\cell\pard\intbl\row\trowd\trleft-140\trgaph70\cellx2057\cellx3333\cellx8293 \pard\s9\tx1080\tx2160\tx3240\tx4320\tx5400\tx6480\tx7560\tx8640\tx9720\intbl {\plain\f17 }{\plain\f17 Contents:\cell }{\plain\f17 contents\cell }{\uldb {\f17 Main index}}{\v contents}{\plain }\cell\pard\intbl\row\trowd\trleft-140\trgaph70\cellx2057\cellx3333\cellx8293 \pard\s9\tx1080\tx2160\tx3240\tx4320\tx5400\tx6480\tx7560\tx8640\tx9720\intbl {\plain }{\plain\f17 Interrupt Index\cell }{\plain\f17 idIndex\cell }{\uldb {\f17 Expanded subindex}}{\v idIndex}{\plain\f17 , if included}\cell\pard\intbl\row\trowd\trleft-140\trgaph70\cellx2057\cellx3333\cellx8293 \pard\s9\tx1080\tx2160\tx3240\tx4320\tx5400\tx6480\tx7560\tx8640\tx9720\intbl {\plain\f17 }{\plain\f17 Interrupts\cell }{\plain\f17 idInterrupts\cell }{\uldb {\f17 Compressed subindex}}{\v idInterrupts}{\plain }\cell\pard\intbl\row\trowd\trleft-140\trgaph70\cellx2057\cellx3333\cellx8293 \pard\s9\tx1080\tx2160\tx3240\tx4320\tx5400\tx6480\tx7560\tx8640\tx9720\intbl {\plain }{\plain\f17 INT NN - <title>\cell }{\plain\f17 nn_0\cell }{\plain\f17 Sub-sub index for INT NN, nn are two hex digits, e.g. }{\uldb {\f17 00_0}}{\v 00_0}{\plain\f17 , }{\uldb {\f17 03_0}}{\v 03_0}{\plain\f17 .}\cell\pard\intbl\row\trowd\trleft-140\trgaph70\cellx2057\cellx3333\cellx8293 \pard\s9\tx1080\tx2160\tx3240\tx4320\tx5400\tx6480\tx7560\tx8640\tx9720\intbl {\plain\f17 }{\plain\f17 INT NN AHAL - <title>\cell }{\plain\f17 nn_1\cell }{\plain\f17 First entry about INT NN, the following entries have consecutive identifiers ... nn_9, nn_10, ... , for example. }{\uldb {\f17 03_1}}{\v 03_1}{\plain\f17 , }{\uldb {\f17 03_2}}{\v 03_2}{\plain\f17 .\par 
+}{\plain\f17 Note: Topics selected with these identifiers can change as information is updated in new releases of Ralf Brown's Interrupt List. See also "aliases" later in this topic.}\cell\pard\intbl\row\trowd\trleft-140\trgaph70\cellx2057\cellx3333\cellx8293 \pard\s9\tx1080\tx2160\tx3240\tx4320\tx5400\tx6480\tx7560\tx8640\tx9720\intbl {\plain\f17 }{\plain\f17 Tables\cell }{\plain\f17 idTables\cell }{\uldb {\f17 Table index}}{\v idTables}{\plain\f17 .}\cell\pard\intbl\row\trowd\trleft-140\trgaph70\cellx2057\cellx3333\cellx8293 \pard\s9\tx1080\tx2160\tx3240\tx4320\tx5400\tx6480\tx7560\tx8640\tx9720\intbl {\plain\f17 }{\plain\f17 NN AHAL <table title>\cell }{\plain\f17 tnnnn\cell }{\plain\f17 Table No. nnnn, nnnn are the four decimal digits from the List.\par 
+}{\plain\f17 NN and AHAL in the title are the interrupt number and the register contents (sub function) where the table is defined.\par 
+}{\plain\f17 Examples: }{\uldb {\f17 t0001}}{\v t0001}{\plain\f17 , }{\uldb {\f17 t0002}}{\v t0002}{\plain\f17 . See note at identifier "nn_1".}\cell\pard\intbl\row\trowd\trleft-140\trgaph70\cellx2057\cellx3333\cellx8293 \pard\s9\tx1080\tx2160\tx3240\tx4320\tx5400\tx6480\tx7560\tx8640\tx9720\intbl {\plain\f17 }{\plain\f17 FILELIST\cell }{\plain\f17 1\cell }{\uldb {\f17 The initial part of the Interrrupt List}}{\v 1}{\plain\f17 .}\cell\pard\intbl\row\trowd\trleft-140\trgaph70\cellx2057\cellx3333\cellx8293 \pard\s9\tx1080\tx2160\tx3240\tx4320\tx5400\tx6480\tx7560\tx8640\tx9720\intbl {\plain\f17 }{\plain\f17 <notes>\cell }{\plain\f17 n\cell }{\plain\f17 Other notes have consecutive numbers as identifiers, e.g. }{\uldb {\f17 2}}{\v 2}{\plain\f17 , }{\uldb {\f17 3}}{\v 3}{\plain\f17 .}\cell\pard\intbl\row\trowd\trleft-140\trgaph70\cellx2057\cellx3333\cellx8293 \pard\s9\tx1080\tx2160\tx3240\tx4320\tx5400\tx6480\tx7560\tx8640\tx9720\intbl {\plain\f17 }{\plain\f17 INTERRUP.1ST File\cell }{\plain\f17 id1st\cell }{\uldb {\f17 INTERRUP.1ST}}{\v id1st}{\plain\f17  file topic.}\cell\pard\intbl\row\trowd\trleft-140\trgaph70\cellx2057\cellx3333\cellx8293 \pard\s9\tx1080\tx2160\tx3240\tx4320\tx5400\tx6480\tx7560\tx8640\tx9720\intbl {\plain\f17 }{\plain\f17 Credits\cell }{\plain\f17 idCredits\cell }{\plain\f17 The }{\uldb {\f17 Credits}}{\v idCredits}{\plain\f17  topic.}\cell\row\pard\s9\tx1080\tx2160\tx3240\tx4320\tx5400\tx6480\tx7560\tx8640\tx9720 \pard\s9\tx1080\tx2160\tx3240\tx4320\tx5400\tx6480\tx7560\tx8640\tx9720 {\plain\f17 \par 
+}{\plain\f17 The help file also uses the identifier "Compressed_Index", and partial (filtered) compilations of the list use the identifiers "idPartComp", "idFlt_file", and "idFlt_meth".\par 
+}\par 
+\pard\s0 {\plain\f17 }{\plain\f17 Aliases for Interrupt List topics can be included in the INT2WHLP configuration file and compiled with the list. As an example, the configuration file's [ALIAS] and [TABLEALIAS] sections have the lines:}\par 
+\pard\s9\tx1080\tx2160\tx3240\tx4320\tx5400\tx6480\tx7560\tx8640\tx9720 {\plain\f17\fs20 }\par 
+\pard\s3\keep {\plain\f16\fs20 }{\plain\f16\fs20 HHtest1=INT 02 ---- - external hardware - NON-MASKABLE INTERRUPT}\par 
+\pard\s0 {\plain\f17 }{\plain\f17 and}\par 
+\pard\s3\keep {\plain\f16\fs20 }{\plain\f16\fs20 HHtest2=03 0913 Format of Soft-ICE breakpoint structure:}\par 
+\pard\s9\tx1080\tx2160\tx3240\tx4320\tx5400\tx6480\tx7560\tx8640\tx9720 {\plain\f17\fs20 }\par 
+\pard\s0 {\plain\f17 }{\plain\f17 causing }{\uldb {\f17 HHtest1}}{\v HHtest1}{\plain\f17  and }{\uldb {\f17 HHtest2}}{\v HHtest2}{\plain\f17  to be alternative identifiers for the interrupt and the table specified, also available for interfile (remote) access.\par 
+\par 
+}{\plain\f17 Other identifiers can be defined by including files at compile time, for example }{\uldb {\f17 idHelpHints}}{\v idHelpHints}{\plain\f17  for the index to this part of the file, and }{\uldb {\f17 HHaccess}}{\v HHaccess}{\plain\f17  for this }{\plain\f17 topic.\par 
+}\page \pard\plain\s1\keepn {\up $}{\footnote $ Search Facilities}
+{\up #}{\footnote # HHsearch}
+{\up K}{\footnote K Search Facilities;Hints;Searching;INTWIN Search;Help}
+{\up +}{\footnote + helphints:0003}
+{\plain\f17\fs28 
+}{\plain\f17\fs28 Search Facilities}\par \pard\plain\s0 {\plain\f17 
+}\par 
+{\plain }{\plain\f17 INTWIN facilitates seaching interrupt topics with many different keys, based on:}\par 
+\pard\s5\li567\fi-282 {\plain\f17 }{\plain\f17 a. Elements in the interrupt header line.\par 
+}{\plain\f17 b. Keys in the file CATEGORY.KEY for the appropriate interrupts category.\par 
+}{\plain\f17 c. Combinations of interrupt number and register contents. These keys have a normal and a short form. The short form was introduced to ease the typing of a search string. See the examples below.\par 
+}{\plain\f17 d. Category letters.}\par 
+\pard\s0 {\plain\f17 \par 
+}{\plain\f17 For example,\par 
+}\par 
+\pard\s3\keep {\plain\f16\fs20 }{\plain\f16\fs20 --------D-215E01CH00-----------------------------\par 
+}{\plain\f16\fs20 INT 21 - DOS 3.1+ network - SET MACHINE NAME\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 AX = 5E01h\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 CH = 00h undefine name (make it invalid)}\par 
+\pard\s0 {\plain\f17 \par 
+}{\plain\f17 will be listed with the following search keys:\par 
+}\par 
+\pard\s3\keep {\plain\f16\fs20 }{\plain\f16\fs20 \tab }{\plain\f16\fs20 DOS 3.1+ network            \\      a\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 SET MACHINE NAME            /\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 DOS kernal                  \\ \par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 kernal (DOS)                 >     b\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 operating systems (DOS)     /\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 INT 21 AX = 5E01 CH = 00 5) \\\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 INT 21 AX = 5E01         5)  \\\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 INT 21 AH = 5E           5)   \\\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 INT 21          1)       5)    \\\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 21 5E01 CH00                    \\\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 21 5E01                          > c\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 21 5E           2)              /\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 21              1)             /\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 AX = 5E01                     /\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 AH = 5E         3)           /\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 CH = 00                     /\par 
+}{\plain\f16\fs20 \tab }{\plain\f16\fs20 D!              4)                 d}\par 
+\pard\s0 {\plain\f17 }\par 
+\pard\s4\li720\fi-718 {\plain\f17 }{\plain\f17 1)}{\plain\f17 \tab }{\plain\f17 WINHELP lists only the first 400 search hits.\par 
+}{\plain\f17 2)}{\plain\f17 \tab }{\plain\f17 The short form of an interrupt using AL to }{\plain\f17 specify a function has two leading dashes in the function number, e.g. the short form of INT 2D AL = 10 is 2D --10.\par 
+}{\plain\f17 \tab }{\plain\f17 Two dashes can be appended to the short form of an interrupt using AH for funtion number, to distinguish the string from the more general string used also as keyword for interrupts with the same value in the high part of the AX register, e.g. 10 00-- will give less search hits than 10 00.\par 
+}{\plain\f17 3)}{\plain\f17 \tab }{\plain\f17 Use AH = nn to search for functions called with nn in AH or in the high byte of AX. Use AX = nn-- to search for functions called with nn in AH and no specific value in AL.\par 
+}{\plain\f17 4)}{\plain\f17 \tab }{\plain\f17 Because WINHELP's search facility does not distinguish between letter case, the search keys for capital letter categories are the letter followed by an exclamation mark.\par 
+}{\plain\f17 5)}{\plain\f17 \tab }{\plain\f17 The long version of interrupt search keys can be disabled at compile time, see }{\uldb {\f17 Win95 WinHelp Restrictions}}{\v HHwin95}{\plain\f17 . In this case, topic "INT  xx Search Keys" lists examples of corresponding long and short search keys.\par 
+\par 
+}{\plain\f17 For table search facilities, see }{\uldb {\f17 Table Cross-References}}{\v HHtable}{\plain\f17 .}\par 
+\pard\s0 {\plain\f17 }\page \pard\plain\s1\keepn {\up $}{\footnote $ Size and Color}
+{\up #}{\footnote # HHsizeColor}
+{\up K}{\footnote K Size and Color;Color;Background color;Windows size;Hints}
+{\up +}{\footnote + helphints:0012}
+{\plain\f17\fs28 
+}{\plain\f17\fs28 Size and Color}\par \pard\plain\s0 {\plain\f17 
+}\par 
+{\plain }{\plain\f17 The position and size of the secondary window used for tables must be defined at compile time, and the information is stored in the INTWIN.HLP file. However, WINHELP reads the values as a fraction of the screen size, and therefore proper values depend on the graphics resolution.\par 
+\par 
+}{\plain\f17 To facilitate the use of a help file on another graphics system than it was compiled for, the program WH_wEdit can be obtained from simtel.net mirrors as WH_EDnnn.ZIP in directory simtelnet/win3/winhelp/. nnn is a version number >= 111. The simtelnet directory may be a subdirectory on some mirror sites. This program will let you edit both the position and size, and the background colors of the nonscrolling (header) and scrolling (text) areas of the screen. See }{\uldb {\f17 INTERRUP.1ST}}{\v id1st}{\plain\f17  for simtel.net mirror sites.\par 
+\par 
+}{\plain\f17 Version 1.11 (and newer) of WH_wEdit facilitates also editing of macros in help files. This can be useful if you want to use another }{\uldb {\f17 Full Text Search}}{\v Full_Text_Search}{\plain\f17  facility than the one included in this compilation, or if you want to customize IntWin for }{\uldb {\f17 Windows NT}}{\v Windows_NT_Users}{\plain\f17 .\par 
+\par 
+}{\plain\f17 WH_wEdit is a Windows application, and it is straightforward to use. It has a - very short - online help.\par 
+\par 
+}{\plain\f17 WH_wEdit is freeware. It is supplied without any warranties. Be sure to have a backup of files you want to edit with WH_wEdit.\par 
+}\page \pard\plain\s1\keepn {\up $}{\footnote $ Table Cross-References}
+{\up #}{\footnote # HHtable}
+{\up K}{\footnote K Tables;Table Cross-References;Hints;Help;Cross references;Cross-References}
+{\up +}{\footnote + helphints:0002}
+{\plain\f17\fs28 
+}{\plain\f17\fs28 Table Cross-References}\par \pard\plain\s0 {\plain\f17 
+}\par 
+{\plain }{\plain\f17 Tables are separate topics in the help file}{\plain\f17 . When referenced from a "#nnnn" hotspot, the table pops up in a secondary window, thus the user can easily change between the source in the main help window and the referenced table in the secondary window. However, secondary windows are less flexible than the main window: }\par 
+\pard\s5\li567\fi-282 {\plain\f17 }{\plain\f17 Topics are not recorded in the history list.\par 
+}{\plain\f17 You cannot browse between topics (<< and >> pushbuttons).\par 
+}{\plain\f17 The topics cannot be copied or printed from the secondary window.}\par 
+\pard\s0 {\plain\f17 }{\plain\f17 Therefore all tables have a "Copy to Main" hotspot at the top.\par 
+\par 
+}{\plain\f17 Copying a table to the main window also eases cross referencing between the table and subtables referenced from that table.\par 
+\par 
+}{\plain\f17 There are two search keys for each table topic: "#nnnn" where nnnn is the four digit table number, and the table title as given in the Interrupt List ("Bitfields for ...", "Call ... with:", "Format of ...", "Values [for | of] ..."). Optionally the "#nnnn" keywords can be saved in an alternate keyword table at compile time to conserve space in the primary keyword table, see }{\uldb {\f17 Windows 95 WinHelp Restrictions}}{\v HHwin95}{\plain\f17 . In that case}{\plain\f17 , use the keyword "#Table Search" to open a topic that can again open a dialog box where the table number can be entered.\par 
+\par 
+}{\plain\f17 There is a }{\uldb {\f17 Tables}}{\v idTables}{\plain\f17  subindex with a listing of all the tables.\par 
+\par 
+}{\plain\f17 The table topic titles include the interrupt number and subfunction where the table is defined, and there is a hotspot at the end of each table that pops up the appropriate interrupt in the main window.\par 
+\par 
+}{\plain\f17 Normally every table will be referenced from the current interrupt either directly or inderectly (from another table). If for some reason the compiler program creating the INTWIN help file fails to detect a reference to one or more table, the program inserts a "Table #nnnn" hotspot at the end of the interrupt topic for each of these tables, to ensure a path to the table.\par 
+}\page \pard\plain\s1\keepn {\up $}{\footnote $ Windows 95 WinHelp Restrictions}
+{\up #}{\footnote # HHwin95}
+{\up K}{\footnote K Win95 WinHelp Restrictions}
+{\up +}{\footnote + helphints:0011}
+{\plain\f17\fs28 
+}{\plain\f17\fs28 Windows 95 WinHelp Restrictions}\par \pard\plain\s0 {\plain\f17 
+}\par 
+{\plain }{\plain\f17 WinHelp 4.00 coming with Windows 95 has a limited capacity in its keyword index, and intwin.hlp compiled with the default configuration file in release 48 of the Interrupt List exceeded its capacity. Therefore the search index window was left empty. Since there are no warnings, this is possibly an unintended feature of WinHelp 4.00.\par 
+\par 
+}{\plain\f17 Newer experiments have shown that it is not WinHlp32.exe that causes the strange behaviour since it works fine under Windows NT 4.00. People who do not know better get the impression that there is a bug in Windows 95's kernel32.dll, user32.dll or gdi32.dll.\par 
+\par 
+}{\plain\f17 The following ways are suggested for using the search index under Windows 95:\par 
+\par 
+}{\plain\f17 1. Complain to Microsoft about the limitation (if you can find or make a breach in their walls against complains).\par 
+}\par 
+\pard\s0\tx4200 {\plain\f17 }{\plain\f17 2. Compile the Interrupt List with a limited number of keywords. Version 1.17 of int2whlp published with Interrupt List release 49 has an option to disable the long version of interrupt search keys, and version 1.20 published with Interrupt List release 56 can furthermore move the "#nnnn" table keywords to a secondary table (see }{\uldb {\f17 Compile Time Configuration}}{\v HHcompilation}{\plain\f17 , }{\uldb {\f17 Search Facilities}}{\v HHsearch}{\plain\f17  and }{\uldb {\f17 Table Cross-References}}{\v HHtable}{\plain\f17 ). This does reduce the convenience of intwin.hlp, but not the functionallity. The configuration file included in release 49 disables the long keys. The configuration file included in release 57 will probably invoke the alternative keyword table facility. Windows 3.10/3.11 and Windows NT 4.00 users can override the disabling and keyword move by compiling with}\par 
+\pard\s3\keep {\plain\f16\fs20 }{\plain\f16\fs20 \tab }{\plain\f16\fs20 INTWIN -L+ -KT-}\par 
+\pard\s0 {\plain\f17 \par 
+}{\plain\f17 3. Stick to Windows 3.10/3.11's WinHelp.exe or Windows NT's 16 bits WinHelp.exe.\par 
+\par 
+}{\plain\f17 4. Do not necessarily compile the newest version of the Interrupt List.\par 
+\par 
+}{\plain\f17 5. Compile the list with ports.lst and/or memory.lst included as type 1 files instead of type 2 files, so they do not get their own indexes and generate search keys for each individual topic. However, this significantly reduces the functionallity of intwin.hlp.\par 
+}\page \pard\plain\s1\keepn {\up $}{\footnote $ Windows NT Users}
+{\up #}{\footnote # Windows_NT_Users}
+{\up K}{\footnote K Windows NT Users}
+{\up +}{\footnote + helphints:0014}
+{\plain\f17\fs28 
+}{\plain\f17\fs28 Windows NT Users}\par \pard\plain\s0 {\plain\f17 
+}\par 
+{\plain }{\plain\f17\b Full Text Search\par 
+\par 
+}{\plain\f17 The IntWin package includes a }{\uldb {\f17 Full Text Search}}{\v Full_Text_Search}{\plain\f17  facility based on a 16 bits dynamic link library file hintsrch.dll. Because it is a 16 bits program it is incompatible with Windows NT's WinHlp32.exe program, and if the search facility is initialized, Windows NT will change to the 16 bits help program WinHelp.exe. By default, the search facility is initialized when IntWin.hlp is opened, so NT users will se an immediate shift to the 16 bits WinHelp, which they will possibly find inconvenient.\par 
+\par 
+It is easy to edit IntWin.hlp so hintsrch.dll is not initialized until you want to use it. Do the following:\par 
+}\par 
+\pard\s4\li720\fi-718 {\plain\f17 1.\tab Unpack wh_wEdit.exe from the WH_EDnnn.ZIP file included in the INTWINrr.ZIP package to your IntWin.hlp directory. "nnn" is 122 while this help topic is being edited.\par 
+2.\tab Start wh_wEdit.\par 
+3.\tab Select File/Open, open intwin.hlp in the dialog box.\par 
+4.\tab Select Edit, accept editing.\par 
+5.\tab Delete the line "SaveMark(`HS_initialized')".\par 
+6.\tab In wh_wEdit's main window select File/Save.}\par 
+\pard\s0 {\plain\f17 \par 
+Now hintsrch.dll will not initialize until the "F}{\plain\f17\ul i}{\plain\f17 nd Text" button is clicked, and only after requesting confirmation.\par 
+\par 
+}{\plain\f17\b #nnnn Table Keywords in Alternative Tables\par 
+\par 
+}{\plain\f17 Due to Windows 95's }{\uldb {\f17 limited keyword capacity}}{\v HHwin95}{\plain\f17  in help files your copy of intwin.hlp may have been compiled to store the #nnnn table keywords in an alternative keyword table in intwin.hlp to conserve space in the primary keyword table. If you never use the #nnnn keywords, don't warry, you will never notice this. If you do use #nnnn keywords and they are in an alternative table you will need seckey.dll or seckey32.dll to find them. By default seckey.dll is enabled, and it is incompatible with Windows NT's WinHlp32.exe program, so NT will switch to WinHelp.exe if you request a #nnnn search.\par 
+\par 
+You can edit intwin.hlp like explained above, substituting \'a75 with:}\par 
+\pard\s4\li720\fi-718 {\plain\f17 5.\tab Edit the line reading "RR(`seckey.dll',  `SearchSecondaryKey',`ISISSSS')" to read "RR(`seckey32.dll',`SearchSecondaryKey',`ISISSSS')". Do not forget to delete the two placeholder spaces after the comma to avoid relocation of the whole system section in intwin.hlp.}\par 
+\pard\s0 {\plain\f17 \par 
+Note however that seckey32.dll (in its current implementation) is less convenient than seckey.dll, and that hintsrch.dll and seckey32.dll are mutually incompatible, whereas hintsrch.dll and seckey.dll are mutually compatible.\par 
+\par 
+The alternative keyword facility will be enabled when intwin.hlp's keyword table exceeds Windows 95's 32k keyword limit. If there are many Windows NT users of intwin.hlp I will consider compiling an NT version with a standard keyword table, therefore NT users, drop an e-mail to Bent Lynggaard if you are interested, please find my e-mail address in the }{\uldb {\f17 Credits}}{\v idCredits}{\plain\f17  topic.\par 
+}\page }

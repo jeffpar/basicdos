@@ -1,0 +1,100 @@
+Files included in the INT2WHLP.ZIP package:
+
+INTWHLP1.TXT - The original introduction to the package.
+
+INTWHLP2.TXT - An INTWHLP1.TXT update.
+
+INTWIN.BAT - A batch file which calls INT2WHLP and HC31 to compile the
+Interrupt List.
+
+INTWIN-P.BAT - Identical to INTWIN.BAT except it calls HCP instead of HC31.
+
+INT2WHLP.CFG - Configuration file for INT2WHLP.EXE.
+
+
+INT2WHLP.EXE - The Interrupt List -> WINHELP file precompiler.
+
+INT2WHLP.PAS,
+INT2WHLP.INC - Source files for INT2WHLP.EXE
+
+
+SHORTKEY.RTF - Short keywords topic.
+
+This file is included if program option -l- or configuration file key
+longKeys=0 are used. The topic gives examples of corresponding long and
+short interrupt search key pairs.
+
+
+FLT_METH.RTF - Filter Method.
+
+This file describes Ralf Brown's INTPRINT program used as a filter program.
+The size of the Interrupt List can be reduced by passing the files through
+the INTPRINT program and specifying a filter file as a program parameter.
+
+Whenever a partial compilation of the Interrupt List is redistributed, the
+redistributed material should include information about the filtering.
+INT2WHLP will include a note about filtering if the -f<filename> parameter
+is passed to the program, or if "filterFile=<filename>" is included in the
+configuration file's OPTION section. The note will have references to the
+FLT_METH.RTF file and to the specified filter file.
+
+If another filter program is used instead of INTPRINT, FLT_METH.RTF can be
+used as a model for a method description. The file can be edited in a word
+processor program capable of importing and exporting RTF format files
+(several Windows based word processors).
+
+
+TABLEKWT.RTF,
+SECKEY.DLL,
+SECKEY32.DLL - Secondary keyword table files.
+
+The .RTF file and one of the .DLL files are needed if option -KT is used.
+
+
+SEL_TOPC.RTF - Selected Topics.
+
+This file gives access to selected topics from the Interrupt List. Entries
+in the Alias section of the configuration file are links to the List.
+
+The file can be edited - or extended - in a word processor program capable
+of RTF format import and export.
+
+
+MISC_INF.RTF - Miscellaneous Information.
+
+This file gives information about interface port pin assignments, EGA/VGA
+screen colors, scan codes, and control code acronyms.
+
+It has been automatically compiled from a file in TurboPower Software
+help text format, and edited in an ASCII text editor. Although it can be
+imported to a word processor program capable of importing RTF format files,
+it should not be exported again, because it might cause format
+incompatibilities.
+
+
+I2W_HH.RTF - INTWIN Help and Hints.
+
+The help file's Help and Hints topics.
+
+HS_INIT.RTF - HintSrch Initialize Topic.
+
+Invoked before the HintSrch facility is initialized if it is not initialized
+by a startup macro.
+
+
+I2W-FILE.TXT - This file.
+
+I2W-HINT.TXT - Compilation and usage hints.
+
+I2W-CFG.TXT - Describes the configuration file format.
+
+I2W-OPT.TXT - Describes the INT2WHLP program parameters and options.
+
+I2W-TEST.ZIP - File package easing experiments with fonts, font sizes,
+colors, windows position, index columns, etc.
+
+BAG.INI - A baggage file for Microsoft's Full Text Search engine. It is
+inserted by default in INTWIN.HLP due to commands in INT2WHLP.CFG. This
+is useful if you want to use the FTS engine, and harmless if you don't.
+
+ 

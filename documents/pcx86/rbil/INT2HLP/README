@@ -1,0 +1,52 @@
+Run MAKEHELP.BAT to convert the list into a QUICKHELP database
+    INT2HM.COM   to convert the list into an HELPMAKE input file
+    HM2HLP.BAT   to convert INT2HM output file into QUICKHELP database
+
+
+HM2HLP.BAT and MAKEHELP.BAT take as command argument the compression
+factor to use for HELPMAKE. Compression goes from 0 (NO COMPR.) to
+15 (MAX COMPR.), if no argument is inserted, NORMAL COMPRESSION will
+be used (3).
+--------------------------------------------------------------------
+                        REQUIREMENTS
+                        ^^^^^^^^^^^^
+Be sure that you have more than 4 times 'INTERRUPT.LST' size, 
+free hard disk space before running MAKEHELP, after MAKEHELP finished 
+without errors you can delete all files but INTERRUP.HLP (the
+QUICKHELP database). If you haven't enough free space, run first
+INT2HM.COM, delete all files but *.HM, then run HM2HLP.BAT .
+
+INT2HM requires these files in the current work directory for the 
+conversion:
+ þGLOSSARY.LST
+ þFARCALL.LST
+ þPORTS.LST
+ þMEMORY.LST
+ þCMOS.LST
+ þCATEGORY.KEY
+ þINTERRUP.LST (run COMBINE.BAT to build it, then delete
+                the INTERRUP.? files if you need free space)
+
+to run MAKEHELP include also:
+ þINT2HM.COM (the HELPMAKE conversion program)
+ þHELPMAKE.EXE (the .HLP builder)
+
+Hard disk cachers strongly recommended!
+--------------------------------------------------------------------
+                            INFO
+                            ^^^^
+INTERRUP.HLP includes a file selection menu (for CMOS, PORTS, MEMORY,
+INTERRUPTS and FAR CALLS) and full topic indexing on PORTS.LST and
+INTERRUP.LST with a one level index for PORTS and a two level index
+for INTERRUPTS (one for INT numbers and one for all entries for a
+specified INT number). 
+INTERRUPT entries are all classified with the searching category flag
+reported in CATEGORY.KEY and the type description included directly in 
+the list (undocumented, internal, ....) so that class searching is
+also possible with QUICKHELP searching functions.
+--------------------------------------------------------------------
+                            CONTACT
+                            ^^^^^^^
+For information, problems or suggestions e-mail to:
+
+ caimi@zeus.csr.unibo.it  (Giorgio Caimi)

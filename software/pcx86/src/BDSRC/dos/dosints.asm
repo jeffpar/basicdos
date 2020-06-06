@@ -16,6 +16,51 @@ DOS	segment word public 'CODE'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; dos_dverr (INT 00h)
+;
+; If a "divide exception" occurs, we catch it here and (eventually) do
+; something reasonable with it.
+;
+DEFPROC	dos_dverr,DOSFAR
+	iret
+ENDPROC	dos_dverr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dos_sstep (INT 01h)
+;
+; If an INT 01h instruction is executed (or the TRAP flag was enabled), and
+; no debugger is currently running, we catch it here and ignore it.
+;
+DEFPROC	dos_sstep,DOSFAR
+	int 3
+	iret
+ENDPROC	dos_sstep
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dos_brkpt (INT 03h)
+;
+; If a breakpoint instruction is executed, and no debugger is currently running,
+; we catch it here and ignore it.
+;
+DEFPROC	dos_brkpt,DOSFAR
+	iret
+ENDPROC	dos_brkpt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dos_oferr (INT 04h)
+;
+; If an "overflow exception" occurs, we catch it here and (eventually) do
+; something reasonable with it.
+;
+DEFPROC	dos_oferr,DOSFAR
+	iret
+ENDPROC	dos_oferr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; dos_term (INT 20h)
 ;
 ; TODO
@@ -83,33 +128,14 @@ ENDPROC	dos_func
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dos_abort (INT 22h)
+; dos_default (eg, INT 22h, INT 23h, INT 24h, INT 28h)
 ;
-; TODO
+; For those software interrupts used by DOS for notification purposes,
+; this provides a default handler.
 ;
-DEFPROC	dos_abort,DOSFAR
+DEFPROC	dos_default,DOSFAR
 	iret
-ENDPROC	dos_abort
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; dos_ctrlc (INT 23h)
-;
-; TODO
-;
-DEFPROC	dos_ctrlc,DOSFAR
-	iret
-ENDPROC	dos_ctrlc
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; dos_error (INT 24h)
-;
-; TODO
-;
-DEFPROC	dos_error,DOSFAR
-	iret
-ENDPROC	dos_error
+ENDPROC	dos_default
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -143,12 +169,22 @@ ENDPROC	dos_tsr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dos_call5
+; dos_call5 (INT 30h)
 ;
-; TODO
+; We typically arrive here via NEAR CALL 0005h to FAR CALL to FAR JMP in
+; vector 30h.  We should be able to transform that into an INT 21h by "simply"
+; replacing the NEAR CALL return address with current flags.
+;
+; Not being familiar with the CALL 0005h interface, whether that is actually
+; sufficient remains to be seen.
 ;
 DEFPROC	dos_call5,DOSFAR
-	iret
+	push	bp
+	mov	sp,bp
+	pushf
+	pop	[bp+4]
+	pop	bp
+	jmp	dos_func
 ENDPROC	dos_call5
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

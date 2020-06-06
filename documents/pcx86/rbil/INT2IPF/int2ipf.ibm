@@ -1,0 +1,24 @@
+# IBM Developer's Workframe/2 Make File
+
+.SUFFIXES:
+
+.SUFFIXES: .c .cpp .cxx
+
+int2ipf.exe:  \
+  int2ipf.obj \
+  int2ipf.def \
+  int2ipf.ibm
+   ICC.EXE @<<
+ /Q /B" /nologo /bat"
+ /Fe"int2ipf.exe" int2ipf.def
+int2ipf.obj
+<<
+
+{.}.c.obj:
+   ICC.EXE /Tx+ /Tm- /Gd- /Q /O /C /G3  .\$*.c
+
+{.}.cpp.obj:
+   ICC.EXE /Tx+ /Tm- /Gd- /Q /O /C /G3  .\$*.cpp
+
+{.}.cxx.obj:
+   ICC.EXE /Tx+ /Tm- /Gd- /Q /O /C /G3  .\$*.cxx

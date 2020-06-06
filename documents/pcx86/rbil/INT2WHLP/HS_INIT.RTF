@@ -1,0 +1,17 @@
+{\rtf1\ansi\deff15
+\sectd \ftnbj {\fonttbl{\f15\fswiss Arial;}{\f17\froman Times New Roman;}}{\stylesheet{\s0\sb120\snext0 Base;}{\s1\fs36\snext1 Banner Base;}{\s2\fs12\li-144\sbasedon1\snext2 Button Bar;}{\s3\li360\fi-360\sb120\tx360\sbasedon0\snext3 List1;}{\s4\li720\fi-360\sb120\tx720\sbasedon0\snext4 List2;}{\s5\li1080\fi-360\sb120\tx1080\sbasedon0\snext5 List3;}}\pard\plain\s1\keepn {\up $}{\footnote $ H-INT Search}
+{\up #}{\footnote # idHS_init}
+{\plain\fs36 
+}{\plain\f17\fs36 H-INT Search}\par \pard\plain\s0\sb120 {\plain 
+}{\plain\f17\b Specially for Windows NT users:\par 
+}{\plain\f17 The IntWin package includes a }{\uldb {\f17 Full Text Search}}{\v Full_Text_Search}{\plain\f17  facility based on a 16 bits dynamick link library file hintsrch.dll. Because it is a 16 bits program it is incompatible with Windows NT's WinHlp32.exe program, and if the search facility is initialized and used, Windows NT will change to the 16 bits help program WinHelp.exe.\par 
+}{\plain\f17\b For Windows 3.1x/Windows 95 users:\par 
+}{\plain\f17 hintsrch.dll is compatible with both Windows 3.1x and Windows 95.\par 
+}{\plain\f17\b Initialize:}\par 
+{\plain\f17 }{\uldb {\f17 Initialize hintsrch.dll to enable the Find Text button}}{\v !IfThenElse(IsMark(`HS_initialized'),`PopupId(qchPath,`hintsrch_is_initialized')',`SaveMark(`HS_initialized');HSearcherDMInit()')}{\plain\f17  (changes to WinHelp.exe and opens IntWin in the Contents topic if invoked from NT WinHlp32.exe)\par 
+}{\uldb {\f17 Back}}{\v !Back()}{\plain\f17 \par 
+}\page \pard\plain\s0\sb120 {\up $}{\footnote $ Hintsrch.dll is already initialized, and the Find Text button is active, provided that hintsrch.dll was available}
+{\up #}{\footnote # hintsrch_is_initialized}
+{\plain 
+}{\plain\f17 Hintsrch.dll is already initialized, and the Find Text button is active, provided that hintsrch.dll was available\par 
+}\page }
