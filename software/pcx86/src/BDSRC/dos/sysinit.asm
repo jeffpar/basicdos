@@ -53,10 +53,10 @@ DEFPROC	sysinit,far
 	mov	al,0Ah
 si0:	repne	scasb
 	jcxz	si1
-	mov	byte ptr [di-1],0
-	cmp	byte ptr [di-2],0Dh
+	mov	byte ptr es:[di-1],0
+	cmp	byte ptr es:[di-2],0Dh
 	jne	si0
-	cmp	byte ptr [di-2],0
+	cmp	byte ptr es:[di-2],0
 	jmp	si0
 ;
 ; Move all the init code/data out of the way, to top of available memory.

@@ -215,117 +215,6 @@ ENDPROC	sfb_write
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; chk_filename
-;
-; Inputs:
-;	DS:SI -> name
-;
-; Outputs:
-;	On success, ES:DI -> driver header (DDH), DX = context (1st cluster)
-;	On failure, carry set
-;
-; Modifies:
-;	AX, CX, DX, SI, DI, ES
-;
-DEFPROC	chk_filename,DOS
-	ASSUME	DS:NOTHING
-;
-; See if the name begins with a drive letter.  If so, convert to a drive
-; number and then skip over it; otherwise, use cur_drv as the drive number.
-;
-	push	bx
-	push	si
-	mov	bx,offset file_name
-	mov	di,bx
-	mov	cx,11
-	mov	al,' '
-	rep	stosb			; initialize file_name
-	mov	dh,-1			; DH = state -1
-;
-; DH determines the state:
-;
-;	state -1: consuming "non-extension" characters (up to 8)
-;	state  0: waiting for an "extension" delimiter (ie, a period)
-;	state  1: consuming "extension" characters (up to 3)
-;
-; We are initially in state -1.
-;
-	cmp	byte ptr [si+1],':'
-	mov	dl,[cur_drv]		; DL = drive number
-	jne	cf1
-	lodsb				; AL = drive letter
-	sub	al,'A'
-	jb	cf9			; error
-	cmp	al,26
-	cmc
-	jb	cf9
-	inc	si
-	mov	dl,al			; DL = specified drive number
-;
-; Build file_name (at CS:BX) from the string at DS:SI, making sure that all
-; characters exist within VALID_CHARS.
-;
-cf1:	lodsb				; get next char
-	test	al,al			; terminating null?
-	jz	cf6			; yes, end of name
-	test	dh,dh			; state 0?
-	jnz	cf2			; no
-	cmp	al,'.'			; period?
-	jne	cf1			; no, ignore it
-	inc	dh			; finally, a period; move to state 1
-	mov	bx,offset file_name + 8
-	jmp	cf1
-cf2:	cmp	al,'a'
-	jb	cf3
-	cmp	al,'z'
-	ja	cf3
-	sub	al,20h
-cf3:	mov	cx,VALID_COUNT
-	mov	di,offset VALID_CHARS
-	repne	scasb
-	stc
-	jne	cf9			; invalid character
-	test	dh,dh			; state -1?
-	jg	cf4			; no
-	cmp	bx,offset file_name + 8
-	jb	cf5			; store it
-	jmp	cf1			; ignore it
-cf4:	cmp	bx,offset file_name + 11
-	jae	cf1			; ignore it
-cf5:	mov	es:[bx],al		; store it
-	inc	bx
-	jmp	cf1
-;
-; file_name has been successfully filled in, so we're ready to search
-; directory sectors for a matching name.  This requires getting a fresh
-; BPB for the drive.
-;
-cf6:	push	cs
-	pop	ds
-	ASSUME	DS:DOS
-	call	get_bpb			; DL = drive #
-	jc	cf9
-;
-; DS:DI -> BPB.  Start a directory search for file_name.
-;
-	call	get_dirent
-	jc	cf9
-;
-; DS:SI -> DIRENT.  Get the cluster number as the context for the SFB.
-;
-	sub	dx,dx
-	mov	es,dx
-	ASSUME	ES:BIOS
-	les	di,[FDC_DRIVER]		; ES:DI -> driver
-	mov	dx,[si].DIR_CLN		; DX = CLN from DIRENT
-
-cf9:	pop	si
-	pop	bx
-	ret
-ENDPROC	chk_filename
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; chk_devname
 ;
 ; Inputs:
@@ -374,6 +263,105 @@ cd8:	pop	di
 	jmp	cd1
 cd9:	ret
 ENDPROC	chk_devname
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chk_filename
+;
+; Inputs:
+;	DS:SI -> name
+;
+; Outputs:
+;	On success, ES:DI -> driver header (DDH), DX = context (1st cluster)
+;	On failure, carry set
+;
+; Modifies:
+;	AX, CX, DX, SI, DI, ES
+;
+DEFPROC	chk_filename,DOS
+	ASSUME	DS:NOTHING,ES:NOTHING
+	push	cs
+	pop	es
+	ASSUME	ES:DOS
+;
+; See if the name begins with a drive letter.  If so, convert to a drive
+; number and then skip over it; otherwise, use cur_drv as the drive number.
+;
+	push	bx
+	push	si
+	sub	bx,bx			; BL is current file_name position
+	mov	dh,8			; DH is current file_name limit
+	mov	di,offset file_name
+	mov	cx,11
+	mov	al,' '
+	rep	stosb			; initialize file_name
+	cmp	byte ptr [si+1],':'	; check for drive letter
+	mov	dl,[cur_drv]		; DL = drive number
+	jne	cf1
+	lodsb				; AL = drive letter
+	sub	al,'A'
+	jb	cf9			; error
+	cmp	al,26
+	cmc
+	jb	cf9
+	inc	si
+	mov	dl,al			; DL = specified drive number
+;
+; Build file_name at ES:BX from the string at DS:SI, making sure that all
+; characters exist within VALID_CHARS.
+;
+cf1:	lodsb				; get next char
+	test	al,al			; terminating null?
+	jz	cf4			; yes, end of name
+	cmp	al,'.'			; period?
+	jne	cf2			; no
+	mov	bl,8			; BL -> file_name extension
+	mov	dh,11			; DH -> file_name limit
+	jmp	cf1
+cf2:	cmp	al,'a'
+	jb	cf3
+	cmp	al,'z'
+	ja	cf3
+	sub	al,20h
+cf3:	mov	cx,VALID_COUNT
+	mov	di,offset VALID_CHARS
+	repne	scasb
+	stc
+	jne	cf9			; invalid character
+	cmp	bl,dh
+	jae	cf1			; valid character but we're at limit
+	mov	es:[file_name][bx],al	; store it
+	inc	bx
+	jmp	cf1
+;
+; file_name has been successfully filled in, so we're ready to search
+; directory sectors for a matching name.  This requires getting a fresh
+; BPB for the drive.
+;
+cf4:	int 3
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
+	call	get_bpb			; DL = drive #
+	jc	cf9
+;
+; DS:DI -> BPB.  Start a directory search for file_name.
+;
+	call	get_dirent
+	jc	cf9
+;
+; DS:SI -> DIRENT.  Get the cluster number as the context for the SFB.
+;
+	sub	dx,dx
+	mov	es,dx
+	ASSUME	ES:BIOS
+	les	di,[FDC_DRIVER]		; ES:DI -> driver
+	mov	dx,[si].DIR_CLN		; DX = CLN from DIRENT
+
+cf9:	pop	si
+	pop	bx
+	ret
+ENDPROC	chk_filename
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
