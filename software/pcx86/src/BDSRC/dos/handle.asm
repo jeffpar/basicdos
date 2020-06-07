@@ -94,24 +94,21 @@ DEFPROC	sfb_open,DOS
 	call	chk_devname		; is it a device name?
 	jnc	so1			; yes
 	call	chk_filename		; is it a disk file name?
-	jc	so9a			; no
-	push	si			; yes
-	push	ds			; save DIRENT at DS:SI
-	int 3
-	jmp	short so2
+	jnc	so1a			; yes
+	jmp	so9			; no
 
 so1:	mov	ax,DDC_OPEN SHL 8	; ES:DI -> driver
 	sub	dx,dx			; no initial context
 	call	dev_request		; issue the DDC_OPEN request
 	jc	so9			; failed
-	sub	ax,ax			; no DIRENT for devices
-	push	ax
-	push	ax
+	mov	al,-1			; no drive # for devices
+so1a:	push	ds			;
+	push	si			; save DIRENT at DS:SI (if any)
 ;
-; When looking for a matching existing SFB, all we require is that both
-; the device driver and device context match.  For files, the context will
-; be the cluster number; for devices, the context will be whatever
-; dev_request returned in DX.
+; When looking for a matching existing SFB, all we require is that three
+; pieces of data match: the device driver (ES:DI), the drive # (AL), and the
+; device context (DX).  For files, the context will be the starting cluster
+; number; for devices, the context will be whatever dev_request returned.
 ;
 ; Traditionally, checking used SFBs means those with non-zero HANDLES count;
 ; however, our SFBs are also used IFF their DRIVER seg is non-zero.
@@ -119,13 +116,15 @@ so1:	mov	ax,DDC_OPEN SHL 8	; ES:DI -> driver
 so2:	push	cs
 	pop	ds
 	ASSUME	DS:DOS
-	mov	ax,es			; AX:DI is driver, DX is context
-	mov	cl,bl			; save mode in CL
+	mov	ah,bl			; save mode in AH
+	mov	cx,es			; CX:DI is driver, DX is context
 	mov	si,[sfb_table].off
 	sub	bx,bx			; use BX to remember a free SFB
 so3:	cmp	[si].SFB_DRIVER.off,di
 	jne	so4			; check next SFB
-	cmp	[si].SFB_DRIVER.seg,ax
+	cmp	[si].SFB_DRIVER.seg,cx
+	jne	so4			; check next SFB
+	cmp	[si].SFB_DRIVE,al
 	jne	so4			; check next SFB
 	test	dx,dx			; any context?
 	jz	so7			; no, so consider this SFB a match
@@ -140,15 +139,13 @@ so5:	add	si,size SFB
 	cmp	si,[sfb_table].seg
 	jb	so3			; keep checking
 
-	pop	ax
 	pop	si
+	pop	ds
 	test	bx,bx			; was there a free SFB?
 	jz	so8			; no, tell the driver sorry
 
-	test	si,si			; was a DIRENT provided?
-	jz	so6			; no
-	mov	ds,ax			; DS:SI -> DIRENT
-	push	cx
+	test	al,al			; was a DIRENT provided?
+	jl	so6			; no
 	push	di
 	push	es
 	push	cs
@@ -160,17 +157,16 @@ so5:	add	si,size SFB
 	pop	es
 	ASSUME	ES:NOTHING
 	pop	di
-	pop	cx
-	push	cs
+
+so6:	push	cs
 	pop	ds
 	ASSUME	DS:DOS
-
-so6:	mov	[bx].SFB_DRIVER.off,di
+	mov	[bx].SFB_DRIVER.off,di
 	mov	[bx].SFB_DRIVER.seg,es
 	mov	[bx].SFB_CONTEXT,dx
-	mov	ch,0			; no process handles yet
-	mov	word ptr [bx].SFB_MODE,cx
-so9a:	jmp	short so9		; return new SFB
+	mov	word ptr [bx].SFB_DRIVE,ax
+	mov	[bx].SFB_HANDLES,0	; no process handles yet
+	jmp	short so9		; return new SFB
 
 so7:	pop	ax			; throw away any DIRENT on the stack
 	pop	ax
@@ -242,22 +238,18 @@ cd1:	cmp	di,-1			; end of device list?
 	push	di
 	add	di,DDH_NAME
 	repe	cmpsb			; compare DS:SI to ES:DI
-	je	cd8			; match
+	je	cd3			; match
 ;
-; This could still be a match if DS:[SI-1] is an "end of device name" character
-; (eg, ':', '.', ' ', or null) and ES:[DI-1] is a space.
+; This could still be a match if DS:[SI-1] is a colon or a null, and
+; ES:[DI-1] is a space.
 ;
 	mov	al,[si-1]
 	test	al,al
 	jz	cd2
 	cmp	al,':'
-	je	cd2
-	cmp	al,'.'
-	je	cd2
-	cmp	al,' '
-	jne	cd8
+	jne	cd3
 cd2:	cmp	byte ptr es:[di-1],' '
-cd8:	pop	di
+cd3:	pop	di
 	pop	si
 	je	cd9			; jump if all our compares succeeded
 	les	di,es:[di]		; otherwise, on to the next device
@@ -273,7 +265,10 @@ ENDPROC	chk_devname
 ;	DS:SI -> name
 ;
 ; Outputs:
-;	On success, DS:SI -> DIRENT, ES:DI -> driver header (DDH),
+;	On success:
+;		AL = drive #
+;		DS:SI -> DIRENT
+;		ES:DI -> driver header (DDH)
 ;		DX = context (1st cluster)
 ;	On failure, carry set
 ;
@@ -354,6 +349,7 @@ cf4:	push	cs
 ; DS:SI -> DIRENT.  Get the cluster number as the context for the SFB.
 ;
 	les	di,[FDC_DRIVER]		; ES:DI -> driver
+	mov	al,dl			; AL = drive #
 	mov	dx,[si].DIR_CLN		; DX = CLN from DIRENT
 
 cf9:	pop	bx
@@ -463,9 +459,10 @@ ENDPROC	dev_request
 ;	On failure, AX = device error code, carry set
 ;
 ; Modifies:
-;	AX, CX, DX, DI
+;	AX, CX, DI
 ;
 DEFPROC	get_bpb,DOS
+	push	dx
 	mov	al,dl			; AL = drive #
 	mov	ah,size BPBEX
 	mul	ah			; AX = BPB offset
@@ -527,7 +524,8 @@ gb7:	pop	ds
 gb8:	pop	[di].BPB_TIMESTAMP.off
 	pop	[di].BPB_TIMESTAMP.seg
 
-gb9:	ret
+gb9:	pop	dx
+	ret
 ENDPROC	get_bpb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -551,6 +549,7 @@ DEFPROC	get_dirent,DOS
 ; directory sector we read last, if valid, and we'll stop when we 1) find
 ; a match, or 2) reach that same sector again (after looping around).
 ;
+	push	dx
 	push	bp
 	sub	bx,bx
 	mov	ds,bx
@@ -595,6 +594,7 @@ gd7:	cmp	bx,bp			; back to the 1st LBA again?
 
 gd9:	lea	si,[si-11]		; rewind SI, in case it was a match
 	pop	bp
+	pop	dx
 	ret
 ENDPROC	get_dirent
 
