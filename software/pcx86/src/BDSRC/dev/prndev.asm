@@ -14,40 +14,36 @@ DEV	group	CODE,DATA
 CODE	segment para public 'CODE'
 
 	public	PRN
-PRN	DDH	<offset DEV:ddend+16,,DDATTR_CHAR,offset ddreq,offset ddinit,20202020204E5250h>
-
-	DEFPTR	ddpkt		; last request packet address
+PRN	DDH	<offset DEV:ddend+16,,DDATTR_CHAR,offset ddinit,-1,20202020204E5250h>
 
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Driver request
+;
+; Inputs:
+;	ES:BX -> DDP
+;
+; Outputs:
+;
 DEFPROC	ddreq,far
-	mov	[ddpkt].off,bx
-	mov	[ddpkt].seg,es
 	ret
 ENDPROC	ddreq
-
-DEFPROC	ddint,far
-	ret
-ENDPROC	ddint
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Driver initialization
 ;
 ; Inputs:
-;	[ddpkt] -> DDPI
+;	ES:BX -> DDPI
 ;
 ; Outputs:
 ;	DDPI's DDPI_END updated
 ;
 DEFPROC	ddinit,far
-	push	di
-	push	es
-	les	di,[ddpkt]
-	mov	es:[di].DDPI_END.off,offset ddinit
-	mov	cs:[0].DDH_INTERRUPT,offset DEV:ddint
-	pop	es
-	pop	di
+	mov	es:[bx].DDPI_END.off,offset ddinit
+	mov	cs:[0].DDH_REQUEST,offset DEV:ddreq
 	ret
 ENDPROC	ddinit
 

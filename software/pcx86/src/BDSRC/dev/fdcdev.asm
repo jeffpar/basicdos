@@ -14,9 +14,8 @@ DEV	group	CODE,DATA
 CODE	segment para public 'CODE'
 
 	public	FDC
-FDC 	DDH	<offset DEV:ddend+16,,DDATTR_BLOCK,offset ddreq,offset ddinit,2020202024434446h>
+FDC 	DDH	<offset DEV:ddend+16,,DDATTR_BLOCK,offset ddinit,-1,2020202024434446h>
 
-	DEFPTR	ddpkt		; last request packet address
 	DEFLBL	CMDTBL,word
 	dw	ddcmd_none, ddcmd_none, ddcmd_none, ddcmd_none	; 0-3
 	dw	ddcmd_read, ddcmd_none, ddcmd_none, ddcmd_none	; 4-7
@@ -27,21 +26,23 @@ FDC 	DDH	<offset DEV:ddend+16,,DDATTR_BLOCK,offset ddreq,offset ddinit,202020202
 
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Driver request
+;
+; Inputs:
+;	ES:BX -> DDP
+;
+; Outputs:
+;
 DEFPROC	ddreq,far
-	mov	[ddpkt].off,bx
-	mov	[ddpkt].seg,es
-	ret
-ENDPROC	ddreq
-
-DEFPROC	ddint,far
 	push	ax
 	push	bx
 	push	cx
 	push	si
 	push	di
 	push	ds
-	push	es
-	les	di,[ddpkt]
+	mov	di,bx			; ES:DI -> DDP
 	mov	bl,es:[di].DDP_CMD
 	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_UNKCMD
 	cmp	bl,CMDTBL_SIZE
@@ -49,15 +50,14 @@ DEFPROC	ddint,far
 	mov	bh,0
 	add	bx,bx
 	call	CMDTBL[bx]
-ddi9:	pop	es
-	pop	ds
+ddi9:	pop	ds
 	pop	di
 	pop	si
 	pop	cx
 	pop	bx
 	pop	ax
 	ret
-ENDPROC	ddint
+ENDPROC	ddreq
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -180,7 +180,7 @@ ENDPROC	readwrite_sectors
 ; Driver initialization
 ;
 ; Inputs:
-;	[ddpkt] -> DDPI
+;	ES:BX -> DDPI
 ;
 ; Outputs:
 ;	DDPI's DDPI_UNITS and DDPI_END updated
@@ -188,15 +188,13 @@ ENDPROC	readwrite_sectors
 DEFPROC	ddinit,far
 	push	ax
 	push	cx
-	push	di
-	push	es
-	sub	di,di
-	mov	es,di
-	ASSUME	ES:BIOS
+	push	ds
+	sub	ax,ax
+	mov	ds,ax
+	ASSUME	DS:BIOS
 	mov	ax,[EQUIP_FLAG]
-	les	di,[ddpkt]
-	mov	es:[di].DDPI_END.off,offset ddinit
-	mov	cs:[0].DDH_INTERRUPT,offset DEV:ddint
+	mov	es:[bx].DDPI_END.off,offset ddinit
+	mov	cs:[0].DDH_REQUEST,offset DEV:ddreq
 ;
 ; Determine how many floppy disk drives are in the system.
 ;
@@ -208,10 +206,9 @@ DEFPROC	ddinit,far
 	shr	ax,cl
 	inc	ax
 	xchg	cx,ax
-ddin9:	mov	es:[di].DDPI_UNITS,cl
-	pop	es
-	ASSUME	ES:NOTHING
-	pop	di
+ddin9:	mov	es:[bx].DDPI_UNITS,cl
+	pop	ds
+	ASSUME	DS:NOTHING
 	pop	cx
 	pop	ax
 	ret

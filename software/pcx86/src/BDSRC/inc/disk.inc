@@ -103,7 +103,7 @@ BUFHDR		struc			; 16-byte buffer header
 BUF_PREV	dw	?		; 00h: prev buffer header paragraph
 BUF_NEXT	dw	?		; 02h: next buffer header paragraph
 BUF_SIZE	dw	?		; 04h: size of buffer (in bytes)
-BUF_DRV		db	?		; 06h: drive number of buffer data
+BUF_DRIVE	db	?		; 06h: drive number of buffer data
 BUF_RESERVED	db	3 dup(?)	;
 BUF_LBA		dw	?		; 0Ah: LBA of buffer data
 BUF_TIMESTAMP	dd	?		; 0Ch: timestamp of buffer data

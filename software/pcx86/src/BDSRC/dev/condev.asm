@@ -14,9 +14,8 @@ DEV	group	CODE,DATA
 CODE	segment para public 'CODE'
 
 	public	CON
-CON	DDH	<offset DEV:ddend+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_CHAR,offset ddreq,offset ddinit,20202020204E4F43h>
+CON	DDH	<offset DEV:ddend+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_CHAR,offset ddinit,-1,20202020204E4F43h>
 
-	DEFPTR	ddpkt		; last request packet address
 	DEFLBL	CMDTBL,word
 	dw	ddcmd_none, ddcmd_none, ddcmd_none, ddcmd_none	; 0-3
 	dw	ddcmd_none, ddcmd_none, ddcmd_none, ddcmd_none	; 4-7
@@ -43,21 +42,23 @@ context		ends
 
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Driver request
+;
+; Inputs:
+;	ES:BX -> DDP
+;
+; Outputs:
+;
 DEFPROC	ddreq,far
-	mov	[ddpkt].off,bx
-	mov	[ddpkt].seg,es
-	ret
-ENDPROC	ddreq
-
-DEFPROC	ddint,far
 	push	ax
 	push	bx
 	push	cx
 	push	si
 	push	di
 	push	ds
-	push	es
-	les	di,[ddpkt]
+	mov	di,bx			; ES:DI -> DDP
 	mov	bl,es:[di].DDP_CMD
 	cmp	bl,CMDTBL_SIZE
 	jae	ddi9
@@ -67,8 +68,7 @@ DEFPROC	ddint,far
 	mov	bh,0
 	add	bx,bx
 	call	CMDTBL[bx]
-ddi8:	pop	es
-	pop	ds
+ddi8:	pop	ds
 	pop	di
 	pop	si
 	pop	cx
@@ -77,7 +77,7 @@ ddi8:	pop	es
 	ret
 ddi9:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_UNKCMD
 	jmp	ddi8
-ENDPROC	ddint
+ENDPROC	ddreq
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -175,7 +175,7 @@ ENDPROC	ddcmd_open
 ; ddcmd_close
 ;
 ; Inputs:
-;	DS:DI -> DDP
+;	ES:DI -> DDP
 ;
 ; Outputs:
 ;
@@ -197,7 +197,7 @@ ENDPROC	ddcmd_close
 ; ddcmd_none (handler for unimplemented functions)
 ;
 ; Inputs:
-;	DS:DI -> DDP
+;	ES:DI -> DDP
 ;
 ; Outputs:
 ;
@@ -212,7 +212,7 @@ ENDPROC	ddcmd_none
 ; Driver initialization
 ;
 ; Inputs:
-;	[ddpkt] -> DDPI
+;	ES:BX -> DDPI
 ;
 ; Outputs:
 ;	DDPI's DDPI_END updated
@@ -220,30 +220,27 @@ ENDPROC	ddcmd_none
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddinit,far
 	push	ax
-	push	bx
-	push	di
-	push	es
-	sub	di,di
-	mov	es,di
-	ASSUME	ES:BIOS
+	push	dx
+	push	ds
+	sub	ax,ax
+	mov	ds,ax
+	ASSUME	DS:BIOS
 	mov	ax,[EQUIP_FLAG]		; AX = EQUIP_FLAG
-	les	di,[ddpkt]
-	mov	es:[di].DDPI_END.off,offset ddinit
-	mov	cs:[0].DDH_INTERRUPT,offset DEV:ddint
+	mov	es:[bx].DDPI_END.off,offset ddinit
+	mov	cs:[0].DDH_REQUEST,offset DEV:ddreq
 ;
 ; Determine what kind of video console we're dealing with (MONO or COLOR)
 ; and what the frame buffer segment is.
 ;
-	mov	bx,0B000h
+	mov	dx,0B000h
 	and	ax,EQ_VIDEO_MODE
 	cmp	ax,EQ_VIDEO_MONO
 	je	ddin9
-	mov	bx,0B800h
-ddin9:	mov	[frame_seg],bx
-	pop	es
-	ASSUME	ES:NOTHING
-	pop	di
-	pop	bx
+	mov	dx,0B800h
+ddin9:	mov	[frame_seg],dx
+	pop	ds
+	ASSUME	DS:NOTHING
+	pop	dx
 	pop	ax
 	ret
 ENDPROC	ddinit

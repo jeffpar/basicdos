@@ -11,12 +11,23 @@
 ;
 ; Device driver header
 ;
+; NOTE: While our drivers use traditional DOS driver headers and packets,
+; our interfaces are a bit simpler: in place of the STRATEGY handler, we have
+; a REQUEST handler, which performs the functions of both the STRATEGY and
+; INTERRUPT handlers (we currently have no use for the INTERRUPT handler).
+;
+; I appreciate that the DOS driver model was apparently designed to enable some
+; form of future multitasking, bit the fact virtually no driver was ever really
+; written to support that made the whole exercise rather pointless.  For example,
+; I've never seen a driver that implemented a "request packet queue"; instead,
+; they typically had a global variable that stored exactly ONE packet address.
+;
 DDH		struc
 DDH_NEXT_OFF	dw	?	; 00h: offset of next DDH (or FFFFh)
 DDH_NEXT_SEG	dw	?	; 02h: segment of next DDH
 DDH_ATTR	dw	?	; 04h: device attributes
-DDH_STRATEGY	dw	?	; 06h: strategy entry point
-DDH_INTERRUPT	dw	?	; 08h: interrupt entry point
+DDH_REQUEST	dw	?	; 06h: request ("strategy") entry offset
+DDH_INTERRUPT	dw	?	; 08h: unused ("interrupt") entry offset
 DDH_NAME	dq	?	; 0Ah: device name (8 characters)
 DDH		ends
 

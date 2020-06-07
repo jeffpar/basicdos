@@ -160,15 +160,15 @@ SFH_NONE	equ	0FFh	; if this SFH is in a PFT entry, it's unused
 SFB		struc
 SFB_NAME	db    11 dup (?); 00h: filename (E5=free,00=end)
 SFB_ATTR	db	?	; 0Bh: attribute bits (see below)
-SFB_DRIVER	dd	?	; 0Ch: driver pointer
-SFB_CONTEXT	dw	?	; 10h: driver context (starting cluster if file)
+SFB_DEVICE	dd	?	; 0Ch: device driver
+SFB_CONTEXT	dw	?	; 10h: device context (1st cluster if file)
 SFB_DRIVE	db	?	; 12h: drive #
 SFB_MODE	db	?	; 13h: open mode
 SFB_HANDLES	db	?	; 14h: number of process handles
 SFB_RESERVED	db	?	; 15h
 SFB_TIME	dw	?	; 16h: time of last write (see below)
 SFB_DATE	dw	?	; 18h: date of last write (see below)
-SFB_CLN		dw	?	; 1Ah: first cluster number of file
+SFB_CLN		dw	?	; 1Ah: 1st cluster number of file
 SFB_SIZE	dd	?	; 1Ch: file size
 SFB		ends
 

@@ -120,9 +120,9 @@ so2:	push	cs
 	mov	cx,es			; CX:DI is driver, DX is context
 	mov	si,[sfb_table].off
 	sub	bx,bx			; use BX to remember a free SFB
-so3:	cmp	[si].SFB_DRIVER.off,di
+so3:	cmp	[si].SFB_DEVICE.off,di
 	jne	so4			; check next SFB
-	cmp	[si].SFB_DRIVER.seg,cx
+	cmp	[si].SFB_DEVICE.seg,cx
 	jne	so4			; check next SFB
 	cmp	[si].SFB_DRIVE,al
 	jne	so4			; check next SFB
@@ -132,7 +132,7 @@ so3:	cmp	[si].SFB_DRIVER.off,di
 	je	so7			; match
 so4:	test	bx,bx			; are we still looking for a free SFB?
 	jnz	so5			; no
-	cmp	[si].SFB_DRIVER.seg,bx	; is this one free?
+	cmp	[si].SFB_DEVICE.seg,bx	; is this one free?
 	jne	so5			; no
 	mov	bx,si			; yes, remember it
 so5:	add	si,size SFB
@@ -161,9 +161,9 @@ so5:	add	si,size SFB
 so6:	push	cs
 	pop	ds
 	ASSUME	DS:DOS
-	mov	[bx].SFB_DRIVER.off,di
-	mov	[bx].SFB_DRIVER.seg,es
-	mov	[bx].SFB_CONTEXT,dx
+	mov	[bx].SFB_DEVICE.off,di
+	mov	[bx].SFB_DEVICE.seg,es
+	mov	[bx].SFB_CONTEXT,dx	; set DRIVE (AL) and MODE (AH) next
 	mov	word ptr [bx].SFB_DRIVE,ax
 	mov	[bx].SFB_HANDLES,0	; no process handles yet
 	jmp	short so9		; return new SFB
@@ -203,11 +203,15 @@ ENDPROC	sfb_open
 ;
 DEFPROC	sfb_write,DOS
 	ASSUME	DS:NOTHING
-	mov	ax,DDC_WRITE SHL 8
-	les	di,cs:[bx].SFB_DRIVER
+	cmp	cs:[bx].SFB_DRIVE,0
+	jl	sw8
+	stc				; no writes to block devices (yet)
+	jmp	short sw9
+sw8:	mov	ax,DDC_WRITE SHL 8
+	les	di,cs:[bx].SFB_DEVICE
 	mov	dx,cs:[bx].SFB_CONTEXT
 	call	dev_request		; issue the DDC_WRITE request
-	ret
+sw9:	ret
 ENDPROC	sfb_write
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -362,7 +366,7 @@ ENDPROC	chk_filename
 ;
 ; Inputs:
 ;	AH = device driver command (DDC)
-;	AL = unit # (relevant for block devices only)
+;	AL = unit # (for block devices only)
 ;	DX = device driver context, zero if none
 ;	ES:DI -> device driver header (DDH)
 ;
@@ -422,16 +426,16 @@ dr2:	mov	word ptr [bp].DDP_LEN,size DDPRW
 
 dr5:	mov	bx,bp
 	push	es
-	push	es:[di].DDH_STRATEGY
-	push	es
-	push	es:[di].DDH_INTERRUPT
+	push	es:[di].DDH_REQUEST
+	; push	es
+	; push	es:[di].DDH_INTERRUPT
 	push	ss
 	pop	es			; ES:BX -> packet
-	call	dword ptr [bp-4]	; far call to DDH_STRATEGY
-	call	dword ptr [bp-8]	; far call to DDH_INTERRUPT
+	call	dword ptr [bp-4]	; far call to DDH_REQUEST
+	; call	dword ptr [bp-8]	; far call to DDH_INTERRUPT
+	; add	sp,4
 	pop	ax
 	pop	es			; ES restored
-	add	sp,4
 	mov	ax,[bp].DDP_STATUS
 	mov	dx,[bp].DDP_CONTEXT
 	add	sp,DDP_MAXSIZE
@@ -555,8 +559,8 @@ DEFPROC	get_dirent,DOS
 	mov	ds,bx
 	ASSUME	DS:BIOS
 	mov	si,offset DIR_BUFHDR
-	mov	al,es:[di].BPB_DRIVE
-	cmp	[si].BUF_DRV,al
+	mov	al,es:[di].BPB_DRIVE	; AL = drive (unit) #
+	cmp	[si].BUF_DRIVE,al
 	jne	gd1
 	mov	bx,[si].BUF_LBA
 	test	bx,bx
@@ -716,7 +720,7 @@ ENDPROC	set_pft_free
 ;
 DEFPROC	read_buffer,DOS
 	ASSUME	DS:BIOS
-	mov	[si].BUF_DRV,al
+	mov	[si].BUF_DRIVE,al
 	mov	[si].BUF_LBA,bx
 	add	si,size BUFHDR
 	mov	ah,DDC_READ
@@ -747,10 +751,10 @@ ENDPROC	read_buffer
 ;
 DEFPROC	flush_buffers,DOS
 	ASSUME	DS:BIOS
-	cmp	ds:[FAT_BUFHDR].BUF_DRV,al
+	cmp	ds:[FAT_BUFHDR].BUF_DRIVE,al
 	jne	fb2
 	mov	ds:[FAT_BUFHDR].BUF_LBA,0
-fb2:	cmp	ds:[DIR_BUFHDR].BUF_DRV,al
+fb2:	cmp	ds:[DIR_BUFHDR].BUF_DRIVE,al
 	jne	fb3
 	mov	ds:[DIR_BUFHDR].BUF_LBA,0
 fb3:	ret
