@@ -47,6 +47,32 @@ ENDPROC	hdl_open
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; hdl_read (REG_AH = 3Fh)
+;
+; Inputs:
+;	REG_BX = handle
+;	REG_CX = byte count
+;	REG_DS:REG_DX -> data to read
+;
+; Outputs:
+;	On success, REG_AX = bytes read, carry clear
+;	On failure, REG_AX = error, carry set
+;
+DEFPROC	hdl_read,DOS
+	call	get_sfb			; BX -> SFB
+	ASSUME	ES:NOTHING
+	jc	hr9
+	mov	cx,[bp].REG_CX		; CX = byte count
+	mov	si,[bp].REG_DX
+	mov	ds,[bp].REG_DS		; DS:SI = data to write
+	ASSUME	DS:NOTHING
+	call	sfb_read
+hr9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
+	ret
+ENDPROC	hdl_read
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; hdl_write (REG_AH = 40h)
 ;
 ; Inputs:
@@ -59,7 +85,7 @@ ENDPROC	hdl_open
 ;	On failure, REG_AX = error, carry set
 ;
 DEFPROC	hdl_write,DOS
-	call	get_sfb
+	call	get_sfb			; BX -> SFB
 	ASSUME	ES:NOTHING
 	jc	hw9
 	mov	cx,[bp].REG_CX		; CX = byte count
@@ -80,7 +106,7 @@ ENDPROC	hdl_write
 ;	DS:SI -> name of device/file
 ;
 ; Outputs:
-;	On success, BX = SFB address, carry clear
+;	On success, BX -> SFB, carry clear
 ;	On failure, AX = error code, carry set
 ;
 ; Modifies:
@@ -95,12 +121,12 @@ DEFPROC	sfb_open,DOS
 	jnc	so1			; yes
 	call	chk_filename		; is it a disk file name?
 	jnc	so1a			; yes
-	jmp	so9			; no
+so9a:	jmp	so9			; no
 
 so1:	mov	ax,DDC_OPEN SHL 8	; ES:DI -> driver
 	sub	dx,dx			; no initial context
 	call	dev_request		; issue the DDC_OPEN request
-	jc	so9			; failed
+	jc	so9a			; failed
 	mov	al,-1			; no drive # for devices
 so1a:	push	ds			;
 	push	si			; save DIRENT at DS:SI (if any)
@@ -110,8 +136,8 @@ so1a:	push	ds			;
 ; device context (DX).  For files, the context will be the starting cluster
 ; number; for devices, the context will be whatever dev_request returned.
 ;
-; Traditionally, checking used SFBs means those with non-zero HANDLES count;
-; however, our SFBs are also used IFF their DRIVER seg is non-zero.
+; Traditionally, detecting unused SFBs meant those with a zero HANDLES count;
+; however, our SFBs are also unused IFF the DRIVER seg is zero.
 ;
 so2:	push	cs
 	pop	ds
@@ -165,7 +191,11 @@ so6:	push	cs
 	mov	[bx].SFB_DEVICE.seg,es
 	mov	[bx].SFB_CONTEXT,dx	; set DRIVE (AL) and MODE (AH) next
 	mov	word ptr [bx].SFB_DRIVE,ax
-	mov	[bx].SFB_HANDLES,0	; no process handles yet
+	sub	ax,ax
+	mov	[bx].SFB_HANDLES,al	; no process handles yet
+	mov	[bx].SFB_POS.off,ax	; zero the initial file position
+	mov	[bx].SFB_POS.seg,ax
+	mov	[bx].SFB_POSCLN,dx	; initial position cluster
 	jmp	short so9		; return new SFB
 
 so7:	pop	ax			; throw away any DIRENT on the stack
@@ -187,10 +217,47 @@ ENDPROC	sfb_open
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; sfb_read
+;
+; Inputs:
+;	BX -> SFB
+;	CX = byte count
+;	DS:SI -> data to read
+;
+; Outputs:
+;	On success, carry clear
+;	On failure, AX = error code, carry set
+;
+; Modifies:
+;	AX, DX, DI, ES
+;
+DEFPROC	sfb_read,DOS
+	ASSUME	DS:NOTHING
+	mov	dl,cs:[bx].SFB_DRIVE
+	test	dl,dl
+	jl	sr8			; character device
+
+	push	ds
+	call	get_bpb			; DS:DI -> BPB if no error
+	jc	sr9
+;
+; We can now begin reading clusters, starting at POSCLN.
+;
+	jmp	short sr9
+
+sr8:	mov	ax,DDC_READ SHL 8
+	les	di,cs:[bx].SFB_DEVICE
+	mov	dx,cs:[bx].SFB_CONTEXT
+	call	dev_request		; issue the DDC_READ request
+sr9:	ret
+ENDPROC	sfb_read
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; sfb_write
 ;
 ; Inputs:
-;	BX = SFB address
+;	BX -> SFB
 ;	CX = byte count
 ;	DS:SI -> data to write
 ;
@@ -415,8 +482,8 @@ DEFPROC	dev_request,DOS
 dr2:	mov	word ptr [bp].DDP_LEN,size DDPRW
 	mov	[bp].DDPRW_ADDR.off,si
 	mov	[bp].DDPRW_ADDR.seg,ds
-	mov	[bp].DDPRW_COUNT,cx
-	mov	[bp].DDPRW_SECTOR,bx
+	mov	[bp].DDPRW_LENGTH,cx
+	mov	[bp].DDPRW_LBA,bx
 
 	mov	ah,size BPBEX		; AL still contains the unit #
 	mul	ah
@@ -427,13 +494,9 @@ dr2:	mov	word ptr [bp].DDP_LEN,size DDPRW
 dr5:	mov	bx,bp
 	push	es
 	push	es:[di].DDH_REQUEST
-	; push	es
-	; push	es:[di].DDH_INTERRUPT
 	push	ss
 	pop	es			; ES:BX -> packet
 	call	dword ptr [bp-4]	; far call to DDH_REQUEST
-	; call	dword ptr [bp-8]	; far call to DDH_INTERRUPT
-	; add	sp,4
 	pop	ax
 	pop	es			; ES restored
 	mov	ax,[bp].DDP_STATUS
@@ -466,6 +529,7 @@ ENDPROC	dev_request
 ;	AX, CX, DI
 ;
 DEFPROC	get_bpb,DOS
+	push	cx
 	push	dx
 	mov	al,dl			; AL = drive #
 	mov	ah,size BPBEX
@@ -494,7 +558,6 @@ DEFPROC	get_bpb,DOS
 ;
 gb1:	mov	al,[di].BPB_DRIVE	; AL = drive (unit) #
 	sub	bx,bx			; BX = LBA (0)
-	mov	cx,1			; CX = sector count (1)
 	push	si
 	push	ds
 	mov	ds,bx
@@ -529,6 +592,7 @@ gb8:	pop	[di].BPB_TIMESTAMP.off
 	pop	[di].BPB_TIMESTAMP.seg
 
 gb9:	pop	dx
+	pop	cx
 	ret
 ENDPROC	get_bpb
 
@@ -568,8 +632,7 @@ DEFPROC	get_dirent,DOS
 gd1:	mov	bx,es:[di].BPB_LBAROOT
 gd2:	mov	bp,bx			; BP = 1st LBA we'll check
 
-gd4:	mov	cx,1
-	call	read_buffer
+gd4:	call	read_buffer
 	jc	gd9
 
 	mov	dx,es:[di].BPB_SECBYTES
@@ -577,7 +640,7 @@ gd4:	mov	cx,1
 gd5:	cmp	byte ptr [si],0
 	je	gd6			; 0 indicates end of allocated entries
 	mov	di,offset file_name
-	mov	cl,11
+	mov	cx,11
 	repe	cmpsb
 	je	gd9
 	add	si,cx
@@ -692,7 +755,7 @@ DEFPROC	set_pft_free,DOS
 	sub	ax,[sfb_table].off
 	mov	cl,size SFB
 	div	cl			; AL = SFB # (from SFB address)
-	DEBUGEQ	<test ah,ah>		; assert that the remainder is zero
+	ASSERTZ	<test ah,ah>		; assert that the remainder is zero
 	test	di,0FFF0h		; did we find a free PFT entry?
 	jz	sj9			; no
 	stosb				; yes, store SFB # in the PFT entry
@@ -708,7 +771,6 @@ ENDPROC	set_pft_free
 ; Inputs:
 ;	AL = unit #
 ;	BX = LBA
-;	CX = sector count
 ;	DS:SI -> BUFHDR
 ;
 ; Outputs:
@@ -716,12 +778,13 @@ ENDPROC	set_pft_free
 ;	On failure, AX = device error code, carry set
 ;
 ; Modifies:
-;	AX, DX, SI
+;	AX, CX, DX, SI
 ;
 DEFPROC	read_buffer,DOS
 	ASSUME	DS:BIOS
 	mov	[si].BUF_DRIVE,al
 	mov	[si].BUF_LBA,bx
+	mov	cx,[si].BUF_SIZE
 	add	si,size BUFHDR
 	mov	ah,DDC_READ
 	push	di

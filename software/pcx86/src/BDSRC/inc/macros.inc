@@ -178,7 +178,7 @@ ASSERT	macro	v1,op,v2
 	ENDIF
 	endm
 
-DEBUGEQ	macro	op
+ASSERTZ	macro	op
 	IFDEF DEBUG
 	op
 	je	$+4

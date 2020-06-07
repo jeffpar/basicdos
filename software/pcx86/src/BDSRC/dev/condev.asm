@@ -90,7 +90,7 @@ ENDPROC	ddreq
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcmd_write
-	mov	cx,es:[di].DDPRW_COUNT
+	mov	cx,es:[di].DDPRW_LENGTH
 	lds	si,es:[di].DDPRW_ADDR
 	push	es
 	mov	es,es:[di].DDP_CONTEXT

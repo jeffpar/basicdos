@@ -73,7 +73,7 @@ ENDPROC	ddreq
 ;	AX, BX, CX, DX, SI, DS
 ;
 DEFPROC	ddcmd_read
-	mov	bl,FDC_READ
+	mov	bh,FDC_READ
 	call	readwrite_sectors
 	ret
 ENDPROC	ddcmd_read
@@ -86,9 +86,13 @@ ENDPROC	ddcmd_read
 ;	ES:DI -> DDPRW
 ;
 ; Outputs:
+;	DDPRW updated appropriately
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DS
 ;
 DEFPROC	ddcmd_write
-	mov	bl,FDC_WRITE
+	mov	bh,FDC_WRITE
 	call	readwrite_sectors
 	ret
 ENDPROC	ddcmd_write
@@ -107,6 +111,64 @@ DEFPROC	ddcmd_none
 ENDPROC	ddcmd_none
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Issue BIOS FDC command in BH
+;
+; Inputs:
+;	BH = FDC cmd
+;	ES:DI -> DDPRW
+;
+; Outputs:
+;	DDPRW updated appropriately
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DS
+;
+DEFPROC	readwrite_sectors
+	push	bp
+	push	es
+	mov	ax,es:[di].DDPRW_LBA
+	mov	cx,es:[di].DDPRW_LENGTH
+	mov	dx,es:[di].DDPRW_OFFSET
+	lds	si,es:[di].DDPRW_BPB
+;
+; If the offset in DX is zero and the length in CX is a multiple of
+; [si].BPB_SECBYTES, then we can simply convert CX to a sector count and
+; call readwrite_sectors without further ado.
+;
+	test	dx,dx
+	jnz	ddr1		; no such luck
+	mov	bp,[si].BPB_SECBYTES
+	dec	bp
+	test	cx,bp
+	jz	ddr8
+
+ddr1:	int 3
+
+ddr8:	xchg	ax,cx		; AX = length (CX is saving LBA)
+	inc	bp
+	div	bp
+	xchg	cx,ax		; AX = LBA again (CL is # sectors)
+	mov	bl,cl		; BL = # sectors
+	call	get_chs		; convert LBA in AX to CHS in CX,DX
+	xchg	ax,bx		; AH = FDC cmd, AL = # sectors
+
+	les	bx,es:[di].DDPRW_ADDR
+	int	INT_FDC		; AX and carry are whatever the ROM returns
+
+	pop	es
+	pop	bp
+	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+	jnc	ddr9
+;
+; TODO: Map the error and set the sector count to the correct values
+;
+	mov	es:[di].DDPRW_LENGTH,0
+	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_SEEK
+ddr9:	ret
+ENDPROC	readwrite_sectors
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Get CHS from LBA in AX, using BPB at SI
 ;
@@ -141,41 +203,7 @@ DEFPROC	get_chs
 	ret
 ENDPROC	get_chs
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; Issue BIOS FDC command in BL
-;
-; Inputs:
-;	BL = FDC cmd
-;	ES:DI -> DDPRW
-;
-; Outputs:
-;	DDPRW updated appropriately
-;
-; Modifies:
-;	AX, BX, CX, DX, SI, DS
-;
-DEFPROC	readwrite_sectors
-	mov	ax,es:[di].DDPRW_SECTOR
-	lds	si,es:[di].DDPRW_BPB
-	call	get_chs		; convert LBA in AX to CHS in CX,DX
-	mov	al,byte ptr es:[di].DDPRW_COUNT
-	mov	ah,bl
-	push	es
-	les	bx,es:[di].DDPRW_ADDR
-	int	INT_FDC		; AX and carry are whatever the ROM returns
-	pop	es
-	mov	es:[di].DDP_STATUS,DDSTAT_DONE
-	jnc	rw9
-	;
-	; TODO: Map the error and set the sector count to the correct values
-	;
-	mov	es:[di].DDPRW_COUNT,0
-	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_SEEK
-rw9:	ret
-ENDPROC	readwrite_sectors
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Driver initialization
 ;
@@ -193,7 +221,7 @@ DEFPROC	ddinit,far
 	mov	ds,ax
 	ASSUME	DS:BIOS
 	mov	ax,[EQUIP_FLAG]
-	mov	es:[bx].DDPI_END.off,offset ddinit
+	mov	es:[bx].DDPI_END.off,offset ddinit + 512
 	mov	cs:[0].DDH_REQUEST,offset DEV:ddreq
 ;
 ; Determine how many floppy disk drives are in the system.

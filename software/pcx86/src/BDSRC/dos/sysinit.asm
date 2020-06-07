@@ -14,7 +14,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<mcb_head,mcb_limit,psp_active>,word
 	EXTERNS	<sfh_con,sfh_aux,sfh_prn>,byte
 	EXTERNS	<bpb_table,pcb_table,sfb_table>,dword
-	EXTERNS	<dos_dverr,dos_brkpt,dos_oferr>,near
+	EXTERNS	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>,near
 	EXTERNS	<dos_term,dos_func,dos_default>,near
 	EXTERNS	<disk_read,disk_write,dos_tsr,dos_call5>,near
 
@@ -118,6 +118,13 @@ si3a:	mov	al,0EAh			; DI -> INT_DOSCALL5 * 4
 	mov	ax,ds
 	stosw
 ;
+; TODO: At some point, we're going to want a buffer cache.  But for now,
+; we at least need to make sure FAT_BUFHDR and DIR_BUFHDR are initialized
+; enough to be usable.
+;
+	mov	[FAT_BUFHDR].BUF_SIZE,512
+	mov	[DIR_BUFHDR].BUF_SIZE,512
+;
 ; Now set ES to the first available paragraph for resident DOS tables,
 ; and set DS to the upper DOS segment.
 ;
@@ -220,7 +227,7 @@ si7:	mov	dx,size SFB
 	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	INT_DOSFUNC
 	jc	sierr
-	DEBUGEQ	<cmp es:[sfh_aux],al>
+	ASSERTZ	<cmp es:[sfh_aux],al>
 	mov	es:[sfh_aux],al
 ;
 ; Next, open CON, with optional context.  If there's a "CONSOLE=" setting in
@@ -238,14 +245,14 @@ si8a:	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
 	jmp	fatal_error
 sierr:	jmp	sysinit_error
 
-si9:	DEBUGEQ	<cmp es:[sfh_con],al>
+si9:	ASSERTZ	<cmp es:[sfh_con],al>
 	mov	es:[sfh_con],al
 
 	mov	dx,offset PRN_DEFAULT
 	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	INT_DOSFUNC
 	jc	sierr
-	DEBUGEQ	<cmp es:[sfh_prn],al>
+	ASSERTZ	<cmp es:[sfh_prn],al>
 	mov	es:[sfh_prn],al
 ;
 ; Create the first PSP.  Until we have the ability to create a process from
@@ -452,7 +459,7 @@ ENDPROC	sysinit_print
 ;
 	DEFLBL	INT_TABLES,word
 	dw	(INT_DV * 4) + 1	; add 1 to avoid end-of-tables signal
-	dw	dos_dverr,dos_default,0
+	dw	dos_dverr,dos_sstep,0
 	dw	(INT_BP * 4)		; a few more low vectors
 	dw	dos_brkpt,dos_oferr,0
 	dw	(INT_DOSTERM * 4)	; next, all the DOS vectors

@@ -80,9 +80,10 @@ DDPRW		struc
 DDPRW_HDR	db	13 dup(?)
 DDPRW_MEDIA_ID	db	?	; 0Dh: media ID byte
 DDPRW_ADDR	dd	?	; 0Eh: transfer address
-DDPRW_COUNT	dw	?	; 12h: transfer count
-DDPRW_SECTOR	dw	?	; 14h: starting sector number
-DDPRW_BPB	dd	?	; 16h: pointer to BPB
+DDPRW_LENGTH	dw	?	; 12h: transfer length (in bytes)
+DDPRW_LBA	dw	?	; 14h: starting sector number
+DDPRW_OFFSET	dw	?	; 16h: starting offset within sector
+DDPRW_BPB	dd	?	; 18h: pointer to BPB
 DDPRW		ends
 
 ;

@@ -82,8 +82,21 @@ i1:	cmp	si,di		; reached the end of drivers?
 	lea	di,[si+bp]	; DI = dest address
 	add	si,dx		; SI = source address
 	sub	cx,si
-	shr	cx,1
+;
+; If the driver *increased* its footprint, then we need to flip this move
+; around (start at the high address and move down to low address); otherwise,
+; we'll end up trashing some of the memory we're moving.
+;
+	cmp	di,si
+	jb	i2
+	add	si,cx
+	sub	si,2
+	add	di,cx
+	sub	di,2
+	std
+i2:	shr	cx,1
 	rep	movsw		; DI = new end of drivers
+	cld
 	pop	si
 	mov	dx,bp
 
