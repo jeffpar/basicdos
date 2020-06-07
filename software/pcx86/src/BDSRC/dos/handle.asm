@@ -80,8 +80,8 @@ ENDPROC	hdl_write
 ;	DS:SI -> name of device/file
 ;
 ; Outputs:
-;	On success, carry clear, BX = SFB address
-;	On failure, carry set, AX = error code
+;	On success, BX = SFB address, carry clear
+;	On failure, AX = error code, carry set
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, DI
@@ -97,12 +97,13 @@ DEFPROC	sfb_open,DOS
 	jc	so9a			; no
 	push	si			; yes
 	push	ds			; save DIRENT at DS:SI
+	int 3
 	jmp	short so2
 
 so1:	mov	ax,DDC_OPEN SHL 8	; ES:DI -> driver
 	sub	dx,dx			; no initial context
 	call	dev_request		; issue the DDC_OPEN request
-so1a:	jc	so9			; failed
+	jc	so9			; failed
 	sub	ax,ax			; no DIRENT for devices
 	push	ax
 	push	ax
@@ -199,7 +200,7 @@ ENDPROC	sfb_open
 ;
 ; Outputs:
 ;	On success, carry clear
-;	On failure, carry set, AX = error code
+;	On failure, AX = error code, carry set
 ;
 ; Modifies:
 ;	AX, DX, DI, ES
@@ -272,11 +273,12 @@ ENDPROC	chk_devname
 ;	DS:SI -> name
 ;
 ; Outputs:
-;	On success, ES:DI -> driver header (DDH), DX = context (1st cluster)
+;	On success, DS:SI -> DIRENT, ES:DI -> driver header (DDH),
+;		DX = context (1st cluster)
 ;	On failure, carry set
 ;
 ; Modifies:
-;	AX, CX, DX, SI, DI, ES
+;	AX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	chk_filename,DOS
 	ASSUME	DS:NOTHING,ES:NOTHING
@@ -288,7 +290,6 @@ DEFPROC	chk_filename,DOS
 ; number and then skip over it; otherwise, use cur_drv as the drive number.
 ;
 	push	bx
-	push	si
 	sub	bx,bx			; BL is current file_name position
 	mov	dh,8			; DH is current file_name limit
 	mov	di,offset file_name
@@ -338,28 +339,24 @@ cf3:	mov	cx,VALID_COUNT
 ; directory sectors for a matching name.  This requires getting a fresh
 ; BPB for the drive.
 ;
-cf4:	int 3
-	push	cs
+cf4:	push	cs
 	pop	ds
 	ASSUME	DS:DOS
 	call	get_bpb			; DL = drive #
 	jc	cf9
 ;
-; DS:DI -> BPB.  Start a directory search for file_name.
+; ES:DI -> BPB.  Start a directory search for file_name.
 ;
 	call	get_dirent
+	ASSUME	DS:BIOS
 	jc	cf9
 ;
 ; DS:SI -> DIRENT.  Get the cluster number as the context for the SFB.
 ;
-	sub	dx,dx
-	mov	es,dx
-	ASSUME	ES:BIOS
 	les	di,[FDC_DRIVER]		; ES:DI -> driver
 	mov	dx,[si].DIR_CLN		; DX = CLN from DIRENT
 
-cf9:	pop	si
-	pop	bx
+cf9:	pop	bx
 	ret
 ENDPROC	chk_filename
 
@@ -385,12 +382,29 @@ ENDPROC	chk_filename
 ; Modifies:
 ;	AX, DX
 ;
+; Notes:
+;	One of the main differences between our disk drivers and actual
+;	MS-DOS disk drivers is that the latter puts the driver in charge of
+;	allocating memory for BPBs, checking them, and rebuilding them as
+;	needed; consequently, their request packets don't need a BPB pointer.
+;
+;	However, I don't feel that BPBs really "belong" to the drivers;
+;	they are creations of DOS, describing how the DOS volume is laid out
+;	on the media.  The only reason the driver even cares about BPBs is
+;	to perform the necessary LBA-to-CHS calculations for the volume
+;	currently in the drive.
+;
 DEFPROC	dev_request,DOS
 	ASSUME	DS:NOTHING,ES:NOTHING
 	push	bx
 	push	bp
 	sub	sp,DDP_MAXSIZE
 	mov	bp,sp			; packet created on stack
+
+	mov	word ptr [bp].DDP_UNIT,ax; sets DDP_UNIT (AL) and DDP_CMD (AH)
+	mov	[bp].DDP_STATUS,0
+	mov	[bp].DDP_CONTEXT,dx
+
 	cmp	ah,DDC_OPEN
 	jne	dr2
 	mov	word ptr [bp].DDP_LEN,size DDP
@@ -404,10 +418,13 @@ dr2:	mov	word ptr [bp].DDP_LEN,size DDPRW
 	mov	[bp].DDPRW_COUNT,cx
 	mov	[bp].DDPRW_SECTOR,bx
 
-dr5:	mov	word ptr [bp].DDP_UNIT,ax; sets DDP_UNIT (AL) and DDP_CMD (AH)
-	mov	[bp].DDP_STATUS,0
-	mov	[bp].DDP_CONTEXT,dx
-	mov	bx,bp
+	mov	ah,size BPBEX		; AL still contains the unit #
+	mul	ah
+	add	ax,[bpb_table].off	; AX = BPB address
+	mov	[bp].DDPRW_BPB.off,ax	; save it in the request packet
+	mov	[bp].DDPRW_BPB.seg,cs
+
+dr5:	mov	bx,bp
 	push	es
 	push	es:[di].DDH_STRATEGY
 	push	es
@@ -442,11 +459,11 @@ ENDPROC	dev_request
 ;	DL = drive #
 ;
 ; Outputs:
-;	On success, DS:DI -> BPB
-;	On failure, carry set, AX = device error code
+;	On success, DS:DI -> BPB, carry clear
+;	On failure, AX = device error code, carry set
 ;
 ; Modifies:
-;	AX, DX, DI
+;	AX, CX, DX, DI
 ;
 DEFPROC	get_bpb,DOS
 	mov	al,dl			; AL = drive #
@@ -471,8 +488,8 @@ DEFPROC	get_bpb,DOS
 	cmc
 	jnc	gb8			; small difference, update tick count
 ;
-; We need to reload the BPB, which means reading the boot sector; for now,
-; we use the FAT_SECTOR buffer for that purpose.
+; We need to reload the BPB, which means reading the boot sector;
+; for now, we use the FAT_SECTOR buffer for that purpose.
 ;
 gb1:	mov	al,[di].BPB_DRIVE	; AL = drive (unit) #
 	sub	bx,bx			; BX = LBA (0)
@@ -498,6 +515,14 @@ gb7:	pop	ds
 	ASSUME	DS:DOS
 	pop	si
 	jc	gb9
+;
+; Get a fresh timestamp, since it took some amount of time to read the disk
+;
+	mov	ah,TIME_GETTICKS
+	int	INT_TIME		; CX:DX is current tick count
+	add	sp,4
+	push	cx
+	push	dx
 
 gb8:	pop	[di].BPB_TIMESTAMP.off
 	pop	[di].BPB_TIMESTAMP.seg
@@ -514,8 +539,8 @@ ENDPROC	get_bpb
 ;	DS:file_name contains file name
 ;
 ; Outputs:
-;	On success, DS:SI -> DIRENT
-;	On failure, carry set, AX = device error code
+;	On success, DS:SI -> DIRENT, carry clear
+;	On failure, AX = device error code, carry set
 ;
 ; Modifies:
 ;	AX, DX, SI, DS
@@ -683,8 +708,8 @@ ENDPROC	set_pft_free
 ;	DS:SI -> BUFHDR
 ;
 ; Outputs:
-;	On success, DS:SI -> buffer with requested data, ES:DI -> driver
-;	On failure, carry set, AX = device error code
+;	On success, DS:SI -> buffer with requested data, carry clear
+;	On failure, AX = device error code, carry set
 ;
 ; Modifies:
 ;	AX, DX, SI

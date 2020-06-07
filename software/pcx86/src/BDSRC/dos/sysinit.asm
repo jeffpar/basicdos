@@ -151,7 +151,9 @@ si4a:	mov	ax,ds
 	cmp	di,es:[bpb_table].seg
 	jnb	si5
 	mov	cx,(size BPB) SHR 1
+	push	di
 	rep	movs word ptr es:[di],word ptr ss:[si]
+	pop	di
 	mov	ah,TIME_GETTICKS
 	int	INT_TIME		; CX:DX is current tick count
 	mov	es:[di].BPB_TIMESTAMP.off,dx
@@ -311,7 +313,6 @@ si9:	DEBUGEQ	<cmp es:[sfh_con],al>
 	mov	dx,offset COM2_DEFAULT
 	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	INT_DOSFUNC
-	int 3
 	mov	dx,offset TEST_FILE
 	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	INT_DOSFUNC

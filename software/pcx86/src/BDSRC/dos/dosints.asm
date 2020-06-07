@@ -173,17 +173,22 @@ ENDPROC	dos_tsr
 ;
 ; We typically arrive here via NEAR CALL 0005h to FAR CALL to FAR JMP in
 ; vector 30h.  We should be able to transform that into an INT 21h by "simply"
-; replacing the NEAR CALL return address with current flags.
+; moving the NEAR CALL return address into the FAR CALL return address, and
+; then replacing the NEAR CALL return address with the current flags.
 ;
-; Not being familiar with the CALL 0005h interface, whether that is actually
+; Not being familiar with the CALL 0005h interface, whether that's actually
 ; sufficient remains to be seen.
 ;
 DEFPROC	dos_call5,DOSFAR
+	push	ax
 	push	bp
 	mov	sp,bp
-	pushf
-	pop	[bp+4]
+	mov	ax,[bp+4]
+	mov	[bp],ax
+	pushf				; since we didn't arrive here via INT,
+	pop	[bp+4]			; these flags should have interrupts on
 	pop	bp
+	pop	ax
 	jmp	dos_func
 ENDPROC	dos_call5
 

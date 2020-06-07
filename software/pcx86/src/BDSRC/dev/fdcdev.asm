@@ -17,7 +17,6 @@ CODE	segment para public 'CODE'
 FDC 	DDH	<offset DEV:ddend+16,,DDATTR_BLOCK,offset ddreq,offset ddinit,2020202024434446h>
 
 	DEFPTR	ddpkt		; last request packet address
-	DEFPTR	bpb_ptr
 	DEFLBL	CMDTBL,word
 	dw	ddcmd_none, ddcmd_none, ddcmd_none, ddcmd_none	; 0-3
 	dw	ddcmd_read, ddcmd_none, ddcmd_none, ddcmd_none	; 4-7
@@ -158,9 +157,9 @@ ENDPROC	get_chs
 ;
 DEFPROC	readwrite_sectors
 	mov	ax,es:[di].DDPRW_SECTOR
-	lds	si,[bpb_ptr]	; convert LBA in AX to CHS in CX,DX
-	call	get_chs
-	mov	ax,es:[di].DDPRW_COUNT
+	lds	si,es:[di].DDPRW_BPB
+	call	get_chs		; convert LBA in AX to CHS in CX,DX
+	mov	al,byte ptr es:[di].DDPRW_COUNT
 	mov	ah,bl
 	push	es
 	les	bx,es:[di].DDPRW_ADDR
