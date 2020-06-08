@@ -30,7 +30,8 @@ DOS	segment word public 'CODE'
 ;	On failure, REG_AX = error, carry set
 ;
 DEFPROC	hdl_open,DOS
-	call	get_pft_free		; DI = free handle entry
+	call	get_pft_free		; ES:DI = free handle entry
+	ASSUME	ES:NOTHING
 	jc	ho9
 	push	di			; save free handle entry
 	mov	bl,[bp].REG_AL		; BL = mode
@@ -60,11 +61,10 @@ ENDPROC	hdl_open
 ;
 DEFPROC	hdl_read,DOS
 	call	get_sfb			; BX -> SFB
-	ASSUME	ES:NOTHING
 	jc	hr9
 	mov	cx,[bp].REG_CX		; CX = byte count
 	mov	si,[bp].REG_DX
-	mov	ds,[bp].REG_DS		; DS:SI = data to write
+	mov	ds,[bp].REG_DS		; DS:SI = data to read
 	ASSUME	DS:NOTHING
 	call	sfb_read
 hr9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
@@ -86,7 +86,6 @@ ENDPROC	hdl_read
 ;
 DEFPROC	hdl_write,DOS
 	call	get_sfb			; BX -> SFB
-	ASSUME	ES:NOTHING
 	jc	hw9
 	mov	cx,[bp].REG_CX		; CX = byte count
 	mov	si,[bp].REG_DX
@@ -113,7 +112,7 @@ ENDPROC	hdl_write
 ;	AX, BX, CX, DX, DI
 ;
 DEFPROC	sfb_open,DOS
-	ASSUME	DS:NOTHING,ES:NOTHING
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	push	si
 	push	ds
 	push	es
@@ -232,13 +231,12 @@ ENDPROC	sfb_open
 ;	AX, DX, DI, ES
 ;
 DEFPROC	sfb_read,DOS
-	ASSUME	DS:NOTHING
+	ASSUMES	<DS,NOTHING>,<ES,DOS>
 	mov	dl,cs:[bx].SFB_DRIVE
 	test	dl,dl
 	jl	sr8			; character device
 
-	push	ds
-	call	get_bpb			; DS:DI -> BPB if no error
+	call	get_bpb			; ES:DI -> BPB if no error
 	jc	sr9
 ;
 ; We can now begin reading clusters, starting at SFB_CURCLN.
@@ -269,7 +267,7 @@ ENDPROC	sfb_read
 ;	AX, DX, DI, ES
 ;
 DEFPROC	sfb_write,DOS
-	ASSUME	DS:NOTHING
+	ASSUMES	<DS,NOTHING>,<ES,DOS>
 	cmp	cs:[bx].SFB_DRIVE,0
 	jl	sw8
 	stc				; no writes to block devices (yet)
@@ -295,7 +293,7 @@ ENDPROC	sfb_write
 ;	AX, CX, DI, ES
 ;
 DEFPROC	chk_devname,DOS
-	ASSUME	DS:NOTHING,ES:NOTHING
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	sub	di,di
 	mov	es,di
 	ASSUME	ES:BIOS
@@ -347,7 +345,7 @@ ENDPROC	chk_devname
 ;	AX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	chk_filename,DOS
-	ASSUME	DS:NOTHING,ES:NOTHING
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	push	cs
 	pop	es
 	ASSUME	ES:DOS
@@ -405,16 +403,12 @@ cf3:	mov	cx,VALID_COUNT
 ; directory sectors for a matching name.  This requires getting a fresh
 ; BPB for the drive.
 ;
-cf4:	push	cs
-	pop	ds
-	ASSUME	DS:DOS
-	call	get_bpb			; DL = drive #
+cf4:	call	get_bpb			; DL = drive #
 	jc	cf9
 ;
 ; ES:DI -> BPB.  Start a directory search for file_name.
 ;
 	call	get_dirent
-	ASSUME	DS:BIOS
 	jc	cf9
 ;
 ; DS:SI -> DIRENT.  Get the cluster number as the context for the SFB.
@@ -453,17 +447,18 @@ ENDPROC	chk_filename
 ; Notes:
 ;	One of the main differences between our disk drivers and actual
 ;	MS-DOS disk drivers is that the latter puts the driver in charge of
-;	allocating memory for BPBs, checking them, and rebuilding them as
-;	needed; consequently, their request packets don't need a BPB pointer.
+;	allocating memory for BPBs and rebuilding them as needed; consequently,
+;	they already have access to BPBs, so the request packets don't need
+;	a BPB pointer.
 ;
 ;	However, I don't feel that BPBs really "belong" to the drivers;
 ;	they are creations of DOS, describing how the DOS volume is laid out
-;	on the media.  The only reason the driver even cares about BPBs is
-;	to perform the necessary LBA-to-CHS calculations for the volume
-;	currently in the drive.
+;	on the media.  The main reason the driver needs access to a BPB is to
+;	perform the correct LBA-to-CHS calculations for the volume currently
+;	in the drive.
 ;
 DEFPROC	dev_request,DOS
-	ASSUME	DS:NOTHING,ES:NOTHING
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	push	bx
 	push	bp
 	sub	sp,DDP_MAXSIZE
@@ -524,13 +519,14 @@ ENDPROC	dev_request
 ;	DL = drive #
 ;
 ; Outputs:
-;	On success, DS:DI -> BPB, carry clear
+;	On success, ES:DI -> BPB, carry clear
 ;	On failure, AX = device error code, carry set
 ;
 ; Modifies:
 ;	AX, CX, DI
 ;
 DEFPROC	get_bpb,DOS
+	ASSUMES	<DS,NOTHING>,<ES,DOS>
 	push	cx
 	push	dx
 	mov	al,dl			; AL = drive #
@@ -546,19 +542,19 @@ DEFPROC	get_bpb,DOS
 	int	INT_TIME		; CX:DX is current tick count
 	push	cx
 	push	dx
-	sub	dx,[di].BPB_TIMESTAMP.off
-	sbb	cx,[di].BPB_TIMESTAMP.seg
+	sub	dx,es:[di].BPB_TIMESTAMP.off
+	sbb	cx,es:[di].BPB_TIMESTAMP.seg
 	jb	gb1			; underflow unexpected, refresh the BPB
 	test	cx,cx
 	jnz	gb1			; large difference, refresh the BPB
-	cmp	dx,38
+	cmp	dx,38			; less than 2 seconds of ticks?
 	cmc
-	jnc	gb8			; small difference, update tick count
+	jnc	gb8			; yes, just update the tick count
 ;
 ; We need to reload the BPB, which means reading the boot sector;
 ; for now, we use the FAT_SECTOR buffer for that purpose.
 ;
-gb1:	mov	al,[di].BPB_DRIVE	; AL = drive #
+gb1:	mov	al,es:[di].BPB_DRIVE	; AL = drive #
 	sub	bx,bx			; BX = LBA (0)
 	push	si
 	push	ds
@@ -569,7 +565,7 @@ gb1:	mov	al,[di].BPB_DRIVE	; AL = drive #
 	call	read_buffer
 	jc	gb7
 ;
-; Copy the BPB from the boot sector in the buffer (at DS:SI) to our BPB
+; Copy the BPB from the boot sector in the buffer (at DS:SI) to our BPB (ES:DI)
 ;
 	push	di
 	add	si,BPB_OFFSET
@@ -578,7 +574,7 @@ gb1:	mov	al,[di].BPB_DRIVE	; AL = drive #
 	pop	di
 
 gb7:	pop	ds
-	ASSUME	DS:DOS
+	ASSUME	DS:NOTHING
 	pop	si
 	jc	gb9
 ;
@@ -590,8 +586,8 @@ gb7:	pop	ds
 	push	cx
 	push	dx
 
-gb8:	pop	[di].BPB_TIMESTAMP.off
-	pop	[di].BPB_TIMESTAMP.seg
+gb8:	pop	es:[di].BPB_TIMESTAMP.off
+	pop	es:[di].BPB_TIMESTAMP.seg
 
 gb9:	pop	dx
 	pop	cx
@@ -614,6 +610,7 @@ ENDPROC	get_bpb
 ;	AX, DX, SI, DS
 ;
 DEFPROC	get_dirent,DOS
+	ASSUMES	<DS,NOTHING>,<ES,DOS>	; ES = DOS since BPBs are in DOS
 ;
 ; Instead of blindly starting at LBAROOT, we'll start at whatever LBA
 ; directory sector we read last, if valid, and we'll stop when we 1) find
@@ -679,26 +676,28 @@ ENDPROC	get_dirent
 ;	On failure, AX = ERR_BADHANDLE, carry set
 ;
 ; Modifies:
-;	AX, BX, CX, ES
+;	AX, BX, CX
 ;
 DEFPROC	get_sfb,DOS
-	mov	es,[psp_active]
-	ASSUME	ES:NOTHING
-	mov	bx,[bp].REG_BX		; BX = handle
-	cmp	bx,size PSP_PFT
+	push	ds
+	mov	ds,[psp_active]
+	ASSUME	DS:NOTHING
+	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
+	mov	al,ds:[PSP_PFT][bx]	; AL = SFH (we're being hopeful)
+	pop	ds
+	ASSUME	DS:DOS
+	cmp	bx,size PSP_PFT		; is the PFH within PFT bounds?
 	cmc
-	jb	gs9
-	mov	al,es:[PSP_PFT][bx]
-	mov	cl,size SFB
+	jb	gs8			; no, our hope was misplaced
+	mov	cl,size SFB		; convert SFH to SFB
 	mul	cl
 	add	ax,[sfb_table].off
-	cmp	ax,[sfb_table].seg
-	cmc
-	jb	gs9
+	cmp	ax,[sfb_table].seg	; is the SFB valid?
 	xchg	bx,ax			; BX -> SFB
-	ret
-gs9:	mov	ax,ERR_BADHANDLE
-	ret
+	cmc
+	jnb	gs9			; yes
+gs8:	mov	ax,ERR_BADHANDLE
+gs9:	ret
 ENDPROC	get_sfb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -752,7 +751,7 @@ ENDPROC	get_pft_free
 ;	AX, BX, CX, DI
 ;
 DEFPROC	set_pft_free,DOS
-	ASSUME	DS:NOTHING, ES:NOTHING
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	xchg	ax,bx			; AX = SFB address
 	sub	ax,[sfb_table].off
 	mov	cl,size SFB
@@ -765,6 +764,33 @@ DEFPROC	set_pft_free,DOS
 	xchg	ax,di			; AX = handle
 sj9:	ret
 ENDPROC	set_pft_free
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; flush_buffers
+;
+; TODO: For now, since we haven't yet implemented a buffer cache, all we
+; have to do is zap the LBAs in the two BIOS sector buffers.
+;
+; Inputs:
+;	AL = drive #
+;
+; Outputs:
+;	Flush all buffers containing data for the specified drive
+;
+; Modifies:
+;	None
+;
+DEFPROC	flush_buffers,DOS
+	ASSUMES	<DS,BIOS>,<ES,NOTHING>
+	cmp	ds:[FAT_BUFHDR].BUF_DRIVE,al
+	jne	fb2
+	mov	ds:[FAT_BUFHDR].BUF_LBA,0
+fb2:	cmp	ds:[DIR_BUFHDR].BUF_DRIVE,al
+	jne	fb3
+	mov	ds:[DIR_BUFHDR].BUF_LBA,0
+fb3:	ret
+ENDPROC	flush_buffers
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -784,7 +810,7 @@ ENDPROC	set_pft_free
 ;	AX, CX, DX, SI
 ;
 DEFPROC	read_buffer,DOS
-	ASSUME	DS:BIOS
+	ASSUMES	<DS,BIOS>,<ES,DOS>	; ES = DOS since BPBs are in DOS
 	mov	[si].BUF_DRIVE,al
 	mov	[si].BUF_LBA,bx
 	mov	cx,[si].BUF_SIZE
@@ -800,33 +826,6 @@ DEFPROC	read_buffer,DOS
 	pop	di
 	ret
 ENDPROC	read_buffer
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; flush_buffers
-;
-; TODO: For now, since we haven't yet implemented a buffer cache, all we
-; have to do is zap the LBAs in the two BIOS sector buffers.
-;
-; Inputs:
-;	AL = drive #
-;
-; Outputs:
-;	Flush all buffers containing data for the specified drive
-;
-; Modifies:
-;	None
-;
-DEFPROC	flush_buffers,DOS
-	ASSUME	DS:BIOS
-	cmp	ds:[FAT_BUFHDR].BUF_DRIVE,al
-	jne	fb2
-	mov	ds:[FAT_BUFHDR].BUF_LBA,0
-fb2:	cmp	ds:[DIR_BUFHDR].BUF_DRIVE,al
-	jne	fb3
-	mov	ds:[DIR_BUFHDR].BUF_LBA,0
-fb3:	ret
-ENDPROC	flush_buffers
 
 DOS	ends
 

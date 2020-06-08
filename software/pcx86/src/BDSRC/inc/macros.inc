@@ -181,7 +181,44 @@ ASSERT	macro	v1,op,v2
 ASSERTZ	macro	op
 	IFDEF DEBUG
 	op
-	je	$+4
+	jz	$+4
 	int 1
 	ENDIF
+	endm
+
+ASSERTNZ macro	op
+	IFDEF DEBUG
+	op
+	jnz	$+4
+	int 1
+	ENDIF
+	endm
+
+ASSUMES	macro	seg1,seg2
+	ASSUME1	seg1
+	IFNB	<seg2>
+	ASSUME1	seg2
+	ENDIF
+	endm
+
+ASSUME1	macro	segreg,segment
+	ASSUME	segreg:segment
+	push	ax
+	push	dx
+	push	segreg
+	pop	ax
+	IFIDN	<segment>,<BIOS>
+	sub	dx,dx
+	ASSERTZ <cmp ax,dx>
+	ELSE
+	push	cs
+	pop	dx
+	IFIDN	<segment>,<DOS>
+	ASSERTZ <cmp ax,dx>
+	ELSE
+	ASSERTNZ <cmp ax,dx>
+	ENDIF
+	ENDIF
+	pop	dx
+	pop	ax
 	endm
