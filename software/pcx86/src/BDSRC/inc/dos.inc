@@ -170,8 +170,8 @@ SFB_TIME	dw	?	; 16h: time of last write (see below)
 SFB_DATE	dw	?	; 18h: date of last write (see below)
 SFB_CLN		dw	?	; 1Ah: 1st cluster number of file
 SFB_SIZE	dd	?	; 1Ch: file size
-SFB_POS		dd	?	; 20h: current file position
-SFB_POSCLN	dw	?	; 24h: cluster number containing file position
+SFB_CURPOS	dd	?	; 20h: current file position
+SFB_CURCLN	dw	?	; 24h: current cluster number
 SFB		ends
 
 MODE_ACC_READ	equ	00h

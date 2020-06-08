@@ -165,6 +165,21 @@ si4a:	mov	ax,ds
 	int	INT_TIME		; CX:DX is current tick count
 	mov	es:[di].BPB_TIMESTAMP.off,dx
 	mov	es:[di].BPB_TIMESTAMP.seg,cx
+;
+; While we're here, let's initialize the BPB_DEVICE and BPB_UNIT fields
+; of all the FDC-related BPBs.
+;
+	sub	cx,cx
+	mov	di,es:[bpb_table].off
+	mov	ax,[FDC_DEVICE].off
+	mov	dx,[FDC_DEVICE].seg
+si4b:	mov	es:[di].BPB_DEVICE.off,ax
+	mov	es:[di].BPB_DEVICE.seg,dx
+	mov	es:[di].BPB_UNIT,cl
+	inc	cx
+	add	di,size BPBEX
+	cmp	di,es:[bpb_table].seg
+	jb	si4b
 	pop	es
 	ASSUME	ES:NOTHING
 ;

@@ -223,7 +223,7 @@ RESET_FLAG	dw	?	; 472h: SET TO 0x1234 IF KEYBOARD RESET UNDERWAY
 		db	4 dup (?)	; 500h: reserved
 LOGICAL_DRIVE	db	?		; 504h: (00h for A: or 01h for B:)
 FDC_UNITS	db	?		; 505h
-FDC_DRIVER	dd	?		; 506h
+FDC_DEVICE	dd	?		; 506h
 		db	20 dup (?)	; reserved
 DD_LIST		dd	?		; 51Eh: head of device driver list
 DPT_ACTIVE	DPT	<>		; 522h: active DPT

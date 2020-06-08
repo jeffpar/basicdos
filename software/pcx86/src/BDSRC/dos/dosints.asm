@@ -93,18 +93,17 @@ DEFPROC	dos_func,DOSFAR
 	push	es
 	push	di
 	push	bp
-	push	cs
-	pop	ds
-	ASSUME	DS:DOS
-	sub	bp,bp			; not sure this is the best default
-	mov	es,bp			; for ES, but I'm going to go with it
-	ASSUME	ES:BIOS			; for now...
 	mov	bp,sp
 	and	[bp].REG_FL,NOT FL_CARRY
 	mov	al,ah
 	cmp	al,FUNCTBL_SIZE
 	cmc
 	jb	dc9
+	mov	bx,cs
+	mov	ds,bx
+	ASSUME	DS:DOS
+	mov	es,bx
+	ASSUME	ES:DOS
 	cbw
 	add	ax,ax
 	mov	bx,ax

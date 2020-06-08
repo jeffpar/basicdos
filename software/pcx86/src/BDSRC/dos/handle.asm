@@ -193,9 +193,9 @@ so6:	push	cs
 	mov	word ptr [bx].SFB_DRIVE,ax
 	sub	ax,ax
 	mov	[bx].SFB_HANDLES,al	; no process handles yet
-	mov	[bx].SFB_POS.off,ax	; zero the initial file position
-	mov	[bx].SFB_POS.seg,ax
-	mov	[bx].SFB_POSCLN,dx	; initial position cluster
+	mov	[bx].SFB_CURPOS.off,ax	; zero the initial file position
+	mov	[bx].SFB_CURPOS.seg,ax
+	mov	[bx].SFB_CURCLN,dx	; initial position cluster
 	jmp	short so9		; return new SFB
 
 so7:	pop	ax			; throw away any DIRENT on the stack
@@ -241,7 +241,7 @@ DEFPROC	sfb_read,DOS
 	call	get_bpb			; DS:DI -> BPB if no error
 	jc	sr9
 ;
-; We can now begin reading clusters, starting at POSCLN.
+; We can now begin reading clusters, starting at SFB_CURCLN.
 ;
 	jmp	short sr9
 
@@ -419,7 +419,7 @@ cf4:	push	cs
 ;
 ; DS:SI -> DIRENT.  Get the cluster number as the context for the SFB.
 ;
-	les	di,[FDC_DRIVER]		; ES:DI -> driver
+	les	di,es:[di].BPB_DEVICE	; ES:DI -> driver
 	mov	al,dl			; AL = drive #
 	mov	dx,[si].DIR_CLN		; DX = CLN from DIRENT
 
@@ -433,13 +433,14 @@ ENDPROC	chk_filename
 ;
 ; Inputs:
 ;	AH = device driver command (DDC)
-;	AL = unit # (for block devices only)
+;	AL = unit # (block devices only)
 ;	DX = device driver context, zero if none
 ;	ES:DI -> device driver header (DDH)
 ;
 ; Additionally, for read/write requests:
 ;	BX = LBA (block devices only)
-;	CX = byte/sector count
+;	CX = byte count
+;	DX = offset within LBA
 ;	DS:SI -> read/write data buffer
 ;
 ; Outputs:
@@ -483,6 +484,7 @@ dr2:	mov	word ptr [bp].DDP_LEN,size DDPRW
 	mov	[bp].DDPRW_ADDR.off,si
 	mov	[bp].DDPRW_ADDR.seg,ds
 	mov	[bp].DDPRW_LENGTH,cx
+	mov	[bp].DDPRW_OFFSET,dx
 	mov	[bp].DDPRW_LBA,bx
 
 	mov	ah,size BPBEX		; AL still contains the unit #
@@ -556,7 +558,7 @@ DEFPROC	get_bpb,DOS
 ; We need to reload the BPB, which means reading the boot sector;
 ; for now, we use the FAT_SECTOR buffer for that purpose.
 ;
-gb1:	mov	al,[di].BPB_DRIVE	; AL = drive (unit) #
+gb1:	mov	al,[di].BPB_DRIVE	; AL = drive #
 	sub	bx,bx			; BX = LBA (0)
 	push	si
 	push	ds
@@ -623,7 +625,7 @@ DEFPROC	get_dirent,DOS
 	mov	ds,bx
 	ASSUME	DS:BIOS
 	mov	si,offset DIR_BUFHDR
-	mov	al,es:[di].BPB_DRIVE	; AL = drive (unit) #
+	mov	al,es:[di].BPB_DRIVE	; AL = drive #
 	cmp	[si].BUF_DRIVE,al
 	jne	gd1
 	mov	bx,[si].BUF_LBA
@@ -769,9 +771,10 @@ ENDPROC	set_pft_free
 ; read_buffer
 ;
 ; Inputs:
-;	AL = unit #
+;	AL = drive #
 ;	BX = LBA
 ;	DS:SI -> BUFHDR
+;	ES:DI -> BPB
 ;
 ; Outputs:
 ;	On success, DS:SI -> buffer with requested data, carry clear
@@ -785,11 +788,13 @@ DEFPROC	read_buffer,DOS
 	mov	[si].BUF_DRIVE,al
 	mov	[si].BUF_LBA,bx
 	mov	cx,[si].BUF_SIZE
+	sub	dx,dx
 	add	si,size BUFHDR
 	mov	ah,DDC_READ
 	push	di
 	push	es
-	les	di,[FDC_DRIVER]
+	mov	al,es:[di].BPB_UNIT
+	les	di,es:[di].BPB_DEVICE
 	call	dev_request
 	pop	es
 	pop	di

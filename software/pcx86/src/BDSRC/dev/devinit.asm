@@ -106,7 +106,7 @@ i4:	test	dx,dx
 	sub	cx,cx		; AX:CX -> driver header
 ;
 ; If this is the FDC driver, then we need to extract DDPI_UNITS from
-; the request packet and update FDC_UNITS and FDC_DRIVER in the BIOS segment.
+; the request packet and update FDC_UNITS and FDC_DEVICE in the BIOS segment.
 ;
 ; TODO: Revisit this test, because it currently relies solely on the ATTR word
 ; indicating this is a block device.
@@ -114,8 +114,8 @@ i4:	test	dx,dx
 	test	[si].DDH_ATTR,DDATTR_CHAR
 	jnz	i7
 	push	ax
-	mov	[FDC_DRIVER].off,cx
-	mov	[FDC_DRIVER].seg,ax
+	mov	[FDC_DEVICE].off,cx
+	mov	[FDC_DEVICE].seg,ax
 	mov	al,[bx].DDPI_UNITS
 	mov	[FDC_UNITS],al
 	pop	ax

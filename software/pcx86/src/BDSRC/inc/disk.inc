@@ -37,7 +37,8 @@ BPB_DRIVEHEADS	dw	?		; 17h: number of heads (eg, 1)
 BPB_HIDDENSECS	dd	?		; 19h: number of hidden sectors
 BPB_LARGESECS	dd	?		; 1Dh: if DISKSECS is 0 (see DOS 3.31)
 ;
-; Our additions to the BPB "standard"
+; Our EXTERNAL additions to the BPB, which make it easier for the boot
+; sector to do its job, among other things.
 ;
 BPB_DRIVE	db	?		; 21h: physical drive #
 BPB_CYLSECS	dw	?		; 22h: sectors per cylinder (eg, 8)
@@ -45,34 +46,41 @@ BPB_LBAROOT	dw	?		; 24h: LBA of 1st root dir sector
 BPB_LBADATA	dw	?		; 26h: LBA of 1st data sector
 BPB		ends
 
+;
+; Our INTERNAL additions to the BPB -- which we do INSTEAD of defining yet
+; another structure, like the Drive Parameter Block (DPB).
+;
 BPBEX		struc			; our internal structure for bpb_table
 BPB_STRUC	db	size BPB dup (?)
 BPB_TIMESTAMP	dd	?
+BPB_DEVICE	dd	?		; device driver
+BPB_UNIT	db	?		; unit #
+BPB_RESERVED	db	?
 BPBEX		ends
 
 ;
-; Let's compare and contrast the BPB with the DPB: Drive Parameter Block
+; Let's compare and contrast the BPB with the DPB.
 ;
-DPB		struc
-DPB_DRIVE	db	?		; 00h: drive number
-DPB_UNIT	db	?		; 01h: unit number
-DPB_SECBYTES	dw	?		; 02h: bytes per sector
-DPB_CLUSSECS_1	db	?		; 04h: sectors per cluster - 1
-DPB_CLUSLOG_2	db	?		; 05h: shift count of cluster size
-DPB_RESSECS	dw	?		; 06h: reserved (boot) sectors
-DPB_FATS	db	?		; 08h: FAT copies
-DPB_DIRENTS	dw	?		; 09h: root directory entries
-DPB_LBADATA	dw	?		; 0Bh: first data sector
-DPB_CLUSMAX	dw	?		; 0Dh: largest CLN (total clusters + 1)
-DPB_FATSECS	db	?		; 0Fh: sectors per FAT [2.0]
-DPB_LBAROOT	dw	?		; 10h: first root directory sector [2.0]
-DPB_DRIVER	dd	?		; 12h: address of device driver [2.0]
-DPB_MEDIA	db	?		; 16h: media ID [2.0]
+; DPB		struc
+; DPB_DRIVE	db	?		; 00h: drive number
+; DPB_UNIT	db	?		; 01h: unit number
+; DPB_SECBYTES	dw	?		; 02h: bytes per sector
+; DPB_CLUSSECS1	db	?		; 04h: sectors per cluster - 1
+; DPB_CLUSLOG2	db	?		; 05h: shift count of cluster size
+; DPB_RESSECS	dw	?		; 06h: reserved (boot) sectors
+; DPB_FATS	db	?		; 08h: FAT copies
+; DPB_DIRENTS	dw	?		; 09h: root directory entries
+; DPB_LBADATA	dw	?		; 0Bh: first data sector
+; DPB_CLUSMAX	dw	?		; 0Dh: largest CLN (total clusters + 1)
+; DPB_FATSECS	db	?		; 0Fh: sectors per FAT [2.0]
+; DPB_LBAROOT	dw	?		; 10h: first root directory sector [2.0]
+; DPB_DRIVER	dd	?		; 12h: address of device driver [2.0]
+; DPB_MEDIA	db	?		; 16h: media ID [2.0]
 ;
 ; DOS 2.0 added more, but let's stop here for now.  So, lots of annoying
 ; differences, which seems odd, since the DPB was first defined in DOS 1.x.
 ;
-DPB		ends
+; DPB		ends
 
 CLN_BAD		equ	0FF7h
 CLN_END		equ	0FF8h
