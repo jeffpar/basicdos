@@ -7,7 +7,7 @@
 /**
  * @define {string}
  */
-var APPVERSION = "2.01";                // this @define is overridden by the Closure Compiler with the version in machines.json
+var APPVERSION = "2.02";                // this @define is overridden by the Closure Compiler with the version in machines.json
 
 var COPYRIGHT = "Copyright © 2012-2020 Jeff Parsons <Jeff@pcjs.org>";
 
@@ -24478,7 +24478,7 @@ X86.fnIDIVb = function(dst, src)
      *      These numbers represent the most negative numbers representable using 2's complement arithmetic (equaling
      *      -32768 and -128 in decimal, respectively)."
      */
-    if (result != ((result << 24) >> 24) || this.model == X86.MODEL_8086 && result == -128) {
+    if (result != ((result << 24) >> 24) || this.model <= X86.MODEL_8088 && result == -128) {
         X86.helpDIVOverflow.call(this);
         return dst;
     }
@@ -24525,7 +24525,7 @@ X86.fnIDIVw = function(dst, src)
          *      These numbers represent the most negative numbers representable using 2's complement arithmetic (equaling
          *      -32768 and -128 in decimal, respectively)."
          */
-        if (result != ((result << 16) >> 16) || this.model == X86.MODEL_8086 && result == -32768) {
+        if (result != ((result << 16) >> 16) || this.model <= X86.MODEL_8088 && result == -32768) {
             X86.helpDIVOverflow.call(this);
             return dst;
         }
@@ -27717,7 +27717,7 @@ X86.helpDIVOverflow = function()
      *
      * TODO: Determine the proper cycle cost.
      */
-    if (this.model == X86.MODEL_8086) {
+    if (this.model <= X86.MODEL_8088) {
         X86.helpTrap.call(this, X86.EXCEPTION.DE_EXC, 2);
     } else {
         X86.helpFault.call(this, X86.EXCEPTION.DE_EXC, null, 2);

@@ -22,6 +22,7 @@ DOS	segment word public 'CODE'
 ; something reasonable with it.
 ;
 DEFPROC	dos_dverr,DOSFAR
+	int 3
 	iret
 ENDPROC	dos_dverr
 
@@ -56,6 +57,7 @@ ENDPROC	dos_brkpt
 ; something reasonable with it.
 ;
 DEFPROC	dos_oferr,DOSFAR
+	int 3
 	iret
 ENDPROC	dos_oferr
 

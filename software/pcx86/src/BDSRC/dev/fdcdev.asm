@@ -24,6 +24,9 @@ FDC 	DDH	<offset DEV:ddend+16,,DDATTR_BLOCK,offset ddinit,-1,2020202024434446h>
 	dw	ddcmd_none, ddcmd_none, ddcmd_none, ddcmd_none	; 16-19
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
+	DEFWORD	ddbuf_lba,-1
+	DEFPTR	ddbuf_ptr,<offset ddinit>
+
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -46,11 +49,11 @@ DEFPROC	ddreq,far
 	mov	bl,es:[di].DDP_CMD
 	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_UNKCMD
 	cmp	bl,CMDTBL_SIZE
-	jae	ddi9
+	jae	ddr9
 	mov	bh,0
 	add	bx,bx
 	call	CMDTBL[bx]
-ddi9:	pop	ds
+ddr9:	pop	ds
 	pop	di
 	pop	si
 	pop	cx
@@ -73,9 +76,113 @@ ENDPROC	ddreq
 ;	AX, BX, CX, DX, SI, DS
 ;
 DEFPROC	ddcmd_read
+	push	bp
+	push	es
+	mov	cx,es:[di].DDPRW_LENGTH
+	test	cx,cx		; is length zero (ie, nothing to do)?
+	jnz	dcr0		; no
+	jmp	dcr8		; yes, all done
+;
+; If the offset is zero, then there's no need to read a partial first sector.
+;
+dcr0:	lds	si,es:[di].DDPRW_BPB
+	mov	ax,es:[di].DDPRW_OFFSET
+
+	test	ax,ax
+	jz	dcr4
+
+dcr1:	int 3
+	mov	dx,es:[di].DDPRW_LBA
+	cmp	dx,[ddbuf_lba]
+	je	dcr2
+	push	es
+	les	bp,[ddbuf_ptr]	; ES:BP -> our own buffer
+	mov	bx,(FDC_READ SHL 8) OR 1
+	call	readwrite_sectors
+	pop	es
+	jc	dcr4a
+	mov	[ddbuf_lba],dx
+;
+; Reload the offset: copy bytes from ddbuf+offset to the target address.
+;
+dcr2:	mov	ax,es:[di].DDPRW_OFFSET
+	add	cx,ax
+	cmp	cx,[si].BPB_SECBYTES
+	jb	dcr3		; make sure we don't read beyond the buffer
+	mov	cx,[si].BPB_SECBYTES
+dcr3:	push	si
+	push	di
+	push	ds
+	push	es
+	lds	si,[ddbuf_ptr]	; DS:SI -> our own buffer
+	add	si,ax		; add offset
+	mov	ax,cx
+	les	di,es:[di].DDPRW_ADDR
+	rep	movsb		; transfer bytes from our own buffer
+	pop	es
+	pop	ds
+	pop	di
+	pop	si
+	inc	es:[di].DDPRW_LBA
+	add	es:[di].DDPRW_ADDR.off,ax
+	sub	es:[di].DDPRW_LENGTH,ax
+	mov	cx,es:[di].DDPRW_LENGTH
+;
+; At this point, we know that the transfer offset is now zero, so we're free to
+; transfer as many whole sectors as remain in the request.
+;
+dcr4:	xchg	ax,cx		; convert length in AX to # sectors
+	cwd
+	div	[si].BPB_SECBYTES
+	mov	cx,dx		; CX = final partial sector bytes, if any
+	mov	bl,al		; BL = # sectors
+	mov	dx,es:[di].DDPRW_LBA
+	les	bp,es:[di].DDPRW_ADDR
 	mov	bh,FDC_READ
 	call	readwrite_sectors
-	ret
+dcr4a:	jc	dcr8
+	mov	al,bl
+	cbw
+	add	es:[di].DDPRW_LBA,ax
+	mul	[si].BPB_SECBYTES
+	add	es:[di].DDPRW_ADDR.off,ax
+	sub	es:[di].DDPRW_LENGTH,ax
+;
+; And finally, the tail end of the request, if there are CX bytes remaining.
+;
+	test	cx,cx
+	jz	dcr8		; nothing remaining
+
+dcr5:	int 3
+	mov	dx,es:[di].DDPRW_LBA
+	cmp	dx,[ddbuf_lba]
+	je	dcr6
+	les	bp,[ddbuf_ptr]	; ES:BP -> our own buffer
+	mov	bx,(FDC_READ SHL 8) OR 1
+	call	readwrite_sectors
+	jc	dcr8
+	mov	[ddbuf_lba],dx
+
+dcr6:	push	di
+	lds	si,[ddbuf_ptr]	; DS:SI -> our own buffer
+	les	di,es:[di].DDPRW_ADDR
+	mov	ax,cx
+	rep	movsb		; transfer bytes from our own buffer
+	pop	di
+	add	es:[di].DDPRW_ADDR.off,ax
+	sub	es:[di].DDPRW_LENGTH,ax
+	ASSERTZ	<cmp es:[di].DDPRW_LENGTH,cx>
+
+dcr8:	pop	es
+	pop	bp
+	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+	jnc	dcr9
+;
+; TODO: Map the error and set the sector count to the correct values
+;
+	mov	es:[di].DDPRW_LENGTH,0
+	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_SEEK
+dcr9:	ret
 ENDPROC	ddcmd_read
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -92,8 +199,6 @@ ENDPROC	ddcmd_read
 ;	AX, BX, CX, DX, SI, DS
 ;
 DEFPROC	ddcmd_write
-	mov	bh,FDC_WRITE
-	call	readwrite_sectors
 	ret
 ENDPROC	ddcmd_write
 
@@ -112,60 +217,33 @@ ENDPROC	ddcmd_none
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; Issue BIOS FDC command in BH
+; Call BIOS to read/write sectors
 ;
 ; Inputs:
 ;	BH = FDC cmd
-;	ES:DI -> DDPRW
+;	BL = # sectors
+;	DX = LBA
+;	DS:SI -> BPB
+;	ES:BP -> buffer
 ;
 ; Outputs:
 ;	DDPRW updated appropriately
 ;
 ; Modifies:
-;	AX, BX, CX, DX, SI, DS
+;	AX
 ;
 DEFPROC	readwrite_sectors
-	push	bp
-	push	es
-	mov	ax,es:[di].DDPRW_LBA
-	mov	cx,es:[di].DDPRW_LENGTH
-	mov	dx,es:[di].DDPRW_OFFSET
-	lds	si,es:[di].DDPRW_BPB
-;
-; If the offset in DX is zero and the length in CX is a multiple of
-; [si].BPB_SECBYTES, then we can simply convert CX to a sector count and
-; call readwrite_sectors without further ado.
-;
-	test	dx,dx
-	jnz	ddr1		; no such luck
-	mov	bp,[si].BPB_SECBYTES
-	dec	bp
-	test	cx,bp
-	jz	ddr8
-
-ddr1:	int 3
-
-ddr8:	xchg	ax,cx		; AX = length (CX is saving LBA)
-	inc	bp
-	div	bp
-	xchg	cx,ax		; AX = LBA again (CL is # sectors)
-	mov	bl,cl		; BL = # sectors
-	call	get_chs		; convert LBA in AX to CHS in CX,DX
+	push	bx
+	push	cx
+	push	dx
+	call	get_chs		; convert LBA in DX to CHS in CX,DX
 	xchg	ax,bx		; AH = FDC cmd, AL = # sectors
-
-	les	bx,es:[di].DDPRW_ADDR
+	mov	bx,bp
 	int	INT_FDC		; AX and carry are whatever the ROM returns
-
-	pop	es
-	pop	bp
-	mov	es:[di].DDP_STATUS,DDSTAT_DONE
-	jnc	ddr9
-;
-; TODO: Map the error and set the sector count to the correct values
-;
-	mov	es:[di].DDPRW_LENGTH,0
-	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_SEEK
-ddr9:	ret
+	pop	dx
+	pop	cx
+	pop	bx
+	ret
 ENDPROC	readwrite_sectors
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -173,7 +251,7 @@ ENDPROC	readwrite_sectors
 ; Get CHS from LBA in AX, using BPB at SI
 ;
 ; Inputs:
-;	AX = LBA
+;	DX = LBA
 ;	DS:SI -> BPB
 ;
 ; Outputs:
@@ -188,6 +266,7 @@ ENDPROC	readwrite_sectors
 ; TODO: Keep this in sync with BOOT.ASM (better yet, factor it out somewhere)
 ;
 DEFPROC	get_chs
+	xchg	ax,dx
 	sub	dx,dx		; DX:AX is LBA
 	div	[si].BPB_CYLSECS; AX = cylinder, DX = remaining sectors
 	xchg	al,ah		; AH = cylinder, AL = cylinder bits 8-9
@@ -223,6 +302,7 @@ DEFPROC	ddinit,far
 	mov	ax,[EQUIP_FLAG]
 	mov	es:[bx].DDPI_END.off,offset ddinit + 512
 	mov	cs:[0].DDH_REQUEST,offset DEV:ddreq
+	mov	[ddbuf_ptr].seg,cs
 ;
 ; Determine how many floppy disk drives are in the system.
 ;
