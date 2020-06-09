@@ -185,7 +185,9 @@ ASSERT	macro	v1,op,v2
 
 ASSERTZ	macro	op
 	IFDEF DEBUG
+	IFNB	<op>
 	op
+	ENDIF
 	jz	$+4
 	int 1
 	ENDIF
@@ -193,7 +195,9 @@ ASSERTZ	macro	op
 
 ASSERTNZ macro	op
 	IFDEF DEBUG
+	IFNB	<op>
 	op
+	ENDIF
 	jnz	$+4
 	int 1
 	ENDIF

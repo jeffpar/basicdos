@@ -45,8 +45,25 @@ DEFPROC	tty_read
 	ret
 ENDPROC	tty_read
 
-DEFPROC	tty_print
-	ret
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; tty_print (REG_AH = 09h)
+;
+; Inputs:
+;	REG_DS:REG_DX -> $-terminated string to print
+;
+; Outputs:
+;	None
+;
+DEFPROC	tty_print,DOS
+	mov	si,[bp].REG_DX
+	mov	ds,[bp].REG_DS		; DS:SI -> string
+tp1:	lodsb
+	cmp	al,'$'			; end of string?
+	je	tp9			; yes
+	int	INT_FASTCON		; use INT_FASTCON to display character
+	jmp	tp1
+tp9:	ret
 ENDPROC	tty_print endp
 
 DEFPROC	tty_input

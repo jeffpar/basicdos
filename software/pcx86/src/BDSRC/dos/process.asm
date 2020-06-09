@@ -16,6 +16,20 @@ DOS	segment word public 'CODE'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; psp_quit (REG_AH = 00h)
+;
+; Inputs:
+;	REG_CS = segment of PSP
+;
+; Outputs:
+;	None
+;
+DEFPROC	psp_quit,DOS
+	ret				; TODO
+ENDPROC	psp_quit
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; psp_create (REG_AH = 26h)
 ;
 ; Inputs:

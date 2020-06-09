@@ -177,8 +177,9 @@ si4a:	mov	ax,ds
 	mov	dx,[FDC_DEVICE].seg
 	mov	es:[di].BPB_DEVICE.off,ax
 	mov	es:[di].BPB_DEVICE.seg,dx
+	mov	al,es:[di].BPB_DRIVE
+	mov	es:[di].BPB_UNIT,al
 	sub	cx,cx
-	mov	es:[di].BPB_UNIT,cl
 	mov	al,es:[di].BPB_CLUSSECS	; calculate LOG2 of CLUSSECS in CX
 	test	al,al
 	jnz	si4d			; make sure CLUSSECS is non-zero
@@ -205,7 +206,7 @@ si5:	mov	si,offset CFG_PCBS
 	push	es
 	push	ds
 	pop	es
-	mov	ax,DOSUTIL_ATOI		; DS:SI -> string, ES:DI -> validation
+	mov	ax,DOS_UTIL_ATOI	; DS:SI -> string, ES:DI -> validation
 	int	21h			; AX = new value
 	pop	es
 si6:	mov	dx,size PCB
@@ -222,7 +223,7 @@ si6:	mov	dx,size PCB
 	push	es
 	push	ds
 	pop	es
-	mov	ax,DOSUTIL_ATOI		; DS:SI -> string, ES:DI -> validation
+	mov	ax,DOS_UTIL_ATOI	; DS:SI -> string, ES:DI -> validation
 	int	21h			; AX = new value
 	pop	es
 si7:	mov	dx,size SFB
@@ -253,7 +254,7 @@ si7:	mov	dx,size SFB
 ; STD handles.  We open AUX first, purely for historical reasons.
 ;
 	mov	dx,offset AUX_DEFAULT
-	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
+	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
 	jc	sierr
 	ASSERTZ	<cmp es:[sfh_aux],al>
@@ -267,7 +268,7 @@ si8:	mov	si,offset CFG_CONSOLE
 	call	find_cfg		; look for "CONSOLE="
 	jc	si8a			; not found
 	mov	dx,di
-si8a:	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
+si8a:	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
 	jnc	si9
 	mov	si,offset CONERR
@@ -278,7 +279,7 @@ si9:	ASSERTZ	<cmp es:[sfh_con],al>
 	mov	es:[sfh_con],al
 
 	mov	dx,offset PRN_DEFAULT
-	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
+	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
 	jc	sierr
 	ASSERTZ	<cmp es:[sfh_prn],al>
@@ -288,7 +289,7 @@ si9:	ASSERTZ	<cmp es:[sfh_con],al>
 ; a COM or EXE file, this will serve as our "shell" process.
 ;
 	mov	bx,100h			; we'll start with a safe 4K for now
-	mov	ah,DOS_ALLOC
+	mov	ah,DOS_MEM_ALLOC
 	int	21h
 	jc	sierr			; hmmm, guess it wasn't safe after all
 
@@ -300,63 +301,68 @@ si9:	ASSERTZ	<cmp es:[sfh_con],al>
 	mov	ah,DOS_PSP_SET		; wants the segment in BX, not DX....
 	int	21h			; active PSP updated
 
+	IFDEF	DEBUG
+	;
+	; Perform some simple console I/O tests
+	;
 	mov	si,offset CON_TEST
-	mov	ax,DOSUTIL_STRLEN
+	mov	ax,DOS_UTIL_STRLEN
 	int	21h
 	xchg	cx,ax			; CX = length of CON_TEST
 	mov	dx,si			; DS:DX -> CON_TEST
 	mov	bx,STDOUT		; BX = handle
-	mov	ah,DOS_WRITE
+	mov	ah,DOS_HDL_WRITE
 	int	21h			; write the string to STDOUT
-
-	IFDEF	DEBUG
+	mov	dx,offset INT29_TEST
+	mov	ah,DOS_TTY_PRINT
+	int	21h
 	;
-	; Perform a few more simple memory ALLOC/FREE "confidence" tests
+	; Perform a few simple memory ALLOC/FREE "confidence" tests
 	;
 	push	es
-	mov	ah,DOS_ALLOC
+	mov	ah,DOS_MEM_ALLOC
 	mov	bx,200h
 	int	21h
 	jc	dsierr
 	xchg	cx,ax			; CX = 1st segment
-	mov	ah,DOS_ALLOC
+	mov	ah,DOS_MEM_ALLOC
 	mov	bx,200h
 	int	21h
 	jc	dsierr
 	xchg	dx,ax			; DX = 2nd segment
-	mov	ah,DOS_ALLOC
+	mov	ah,DOS_MEM_ALLOC
 	mov	bx,200h
 	int	21h
 	jc	dsierr
 	xchg	si,ax			; SI = 3rd segment
-	mov	ah,DOS_FREE
+	mov	ah,DOS_MEM_FREE
 	mov	es,cx			; free the 1st
 	int	21h
 	jc	dsierr
-	mov	ah,DOS_FREE
+	mov	ah,DOS_MEM_FREE
 	mov	es,si
 	int	21h			; free the 3rd
 	jc	dsierr
-	mov	ah,DOS_FREE
+	mov	ah,DOS_MEM_FREE
 	mov	es,dx
 	int	21h			; free the 2nd
 	jc	dsierr
 	pop	es
 	mov	dx,offset COM1_DEFAULT
-	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
+	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
 	jc	dsierr
 	mov	dx,offset COM2_DEFAULT
-	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
+	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
 	mov	dx,offset TEST_FILE
-	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
+	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
 	jc	dsierr
 	xchg	bx,ax
 	mov	dx,offset INT_TABLES
 	mov	cx,offset INT_TABLES_END - offset INT_TABLES
-	mov	ah,DOS_READ
+	mov	ah,DOS_HDL_READ
 	int	21h
 	jnc	si99
 dsierr:	jmp	sysinit_error
@@ -453,39 +459,31 @@ ENDPROC	init_table
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; Print the null-terminated string at SI and halt
+; sysinit_error (print generic error message)
 ;
-; Returns: Nothing
+; Outputs:
+;	None (system halted)
 ;
-; Modifies: AX, BX, SI
-;
-DEFPROC	sysinit_error
-	mov	si,offset SYSERR
-DEFLBL	fatal_error,near
-	call	sysinit_print
-	mov	si,offset HALTED
-	call	sysinit_print
-	jmp	$
-ENDPROC	sysinit_error
+	DEFLBL	sysinit_error,near
+	mov	dx,offset SYSERR
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; Print the null-terminated string at SI
+; fatal_error (print specified error message)
 ;
-; Returns: Nothing
+; Outputs:
+;	None (system halted)
 ;
-; Modifies: AX, BX, SI
-;
-DEFPROC	sysinit_print
-	lods	byte ptr cs:[si]
-	test	al,al
-	jz	sip9
-	mov	ah,VIDEO_TTYOUT
-	mov	bh,0
-	int	INT_VIDEO
-	jmp	sysinit_print
-sip9:	ret
-ENDPROC	sysinit_print
+DEFPROC	fatal_error,near
+	push	cs
+	pop	ds
+	mov	ah,DOS_TTY_PRINT
+	int	21h
+	mov	dx,offset HALTED
+	mov	ah,DOS_TTY_PRINT
+	int	21h
+	jmp	$
+ENDPROC	fatal_error
 
 ;
 ; Initialization data
@@ -499,9 +497,9 @@ ENDPROC	sysinit_print
 	dw	dos_brkpt,dos_oferr,0
 	dw	(INT_DOSTERM * 4)	; next, all the DOS vectors
 	dw	dos_term,dos_func,dos_default,dos_default
-	dw	dos_default,disk_read,disk_write,dos_tsr
-	dw	dos_default,dos_default,dos_default,dos_default
-	dw	dos_default,dos_default,dos_default,dos_default,0
+	dw	dos_default,disk_read,disk_write,dos_tsr,dos_default,0
+	dw	(INT_DOSNET * 4)
+	dw	dos_default,dos_default,dos_default,dos_default,dos_default,dos_default,0
 	dw	0			; end of tables (should end at INT 30h)
 	DEFLBL	INT_TABLES_END
 
@@ -519,12 +517,13 @@ PRN_DEFAULT	db	"PRN",0
 COM1_DEFAULT	db	"COM1:9600,N,8,1",0
 COM2_DEFAULT	db	"COM2:9600,N,8,1",0
 CON_TEST	db	"This is a test of the CON device driver",13,10,0
+INT29_TEST	db	"INT 29h test",13,10,'$'
 TEST_FILE	db	"A:HANDLE.ASM",0
 	ENDIF
 
-SYSERR		db	"System initialization error",0
-CONERR		db	"Unable to initialize console",0
-HALTED		db	", halted",0
+SYSERR		db	"System initialization error$"
+CONERR		db	"Unable to initialize console$"
+HALTED		db	", halted$"
 
 	DEFLBL	sysinit_end
 

@@ -18,7 +18,7 @@ INT_DISKREAD	equ	25h	; absolute disk read
 INT_DISKWRITE	equ	26h	; absolute disk write
 INT_DOSTSR	equ	27h	; terminate-and-stay-resident
 INT_DOSIDLE	equ	28h	; idle notification
-INT_DOSFASTCON	equ	29h	; fast console output
+INT_FASTCON	equ	29h	; fast console I/O (installed by CON driver)
 INT_DOSNET	equ	2Ah	; network check
 INT_DOSRES1	equ	2Bh	; reserved
 INT_DOSRES2	equ	2Ch	; reserved
@@ -27,27 +27,30 @@ INT_DOSCMD	equ	2Eh	; COMMAND.COM operation
 INT_DOSMULTI	equ	2Fh	; multiplex function interface
 INT_DOSCALL5	equ	30h	; vector has FAR JMP (overwrites vector 31h too)
 
-DOS_EXIT	equ	00h	; same function as INT 20h
-DOS_TTY_ECHO	equ	01h	; read KBD and echo (AL := char)
-DOS_TTY_WRITE	equ	02h	; write SCR (DL = char)
+DOS_PSP_QUIT	equ	00h	; same function as INT 20h
+DOS_TTY_ECHO	equ	01h	; read CON and echo (AL := char)
+DOS_TTY_WRITE	equ	02h	; write CON (DL = char)
 DOS_AUX_READ	equ	03h	; read AUX (AL := char)
 DOS_AUX_WRITE	equ	04h	; write AUX (DL = char)
 DOS_PRN_WRITE	equ	05h	; write PRN (DL = char)
-DOS_TTY_IO	equ	06h	; read KBD (AL := char) or write SCR (DL = char)
-DOS_TTY_IN	equ	07h	; read KBD (AL := char)
-DOS_TTY_READ	equ	08h	; read KBD (AL := char)
-DOS_TTY_PRINT	equ	09h	; write (DS:DX) string to SCR
-DOS_TTY_INPUT	equ	0Ah	; read (DS:DX) line from KBD
-DOS_TTY_STATUS	equ	0Bh	; get KBD status (AL := 0 if nothing, or FFh)
+DOS_TTY_IO	equ	06h	; read CON (AL := char) or write CON (DL = char)
+DOS_TTY_IN	equ	07h	; read CON (AL := char)
+DOS_TTY_READ	equ	08h	; read CON (AL := char)
+DOS_TTY_PRINT	equ	09h	; write (DS:DX) string to CON
+DOS_TTY_INPUT	equ	0Ah	; read (DS:DX) line from CON
+DOS_TTY_STATUS	equ	0Bh	; get CON status (AL := 0 if nothing, or FFh)
 DOS_TTY_FLUSH	equ	0Ch	; flush and invoke 01h, 06h, 07h, 08h, or 0Ah
 
-DOS_PSP_CREATE	equ	26h	; create PSP (DX = segment)
-DOS_OPEN	equ	3Dh	; open handle for device/file (DS:DX)
-DOS_READ	equ	3Fh	; read (CX) bytes at (DS:DX) with handle (BX)
-DOS_WRITE	equ	40h	; write (CX) bytes at (DS:DX) with handle (BX)
+DOS_UTIL_STRLEN	equ	1800h
+DOS_UTIL_ATOI	equ	1801h
 
-DOS_ALLOC	equ	48h	; allocate memory
-DOS_FREE	equ	49h	; free memory
+DOS_PSP_CREATE	equ	26h	; create PSP (DX = segment)
+DOS_HDL_OPEN	equ	3Dh	; open handle for device/file (DS:DX)
+DOS_HDL_READ	equ	3Fh	; read (CX) bytes at (DS:DX) with handle (BX)
+DOS_HDL_WRITE	equ	40h	; write (CX) bytes at (DS:DX) with handle (BX)
+
+DOS_MEM_ALLOC	equ	48h	; allocate memory
+DOS_MEM_FREE	equ	49h	; free memory
 
 DOS_PSP_SET	equ	50h	; set current PSP (BX)
 DOS_PSP_GET	equ	51h	; get current PSP (BX)
@@ -207,9 +210,3 @@ ERR_BADHANDLE	equ	6
 ERR_BADMCB	equ	7	; invalid MCB found
 ERR_NOMEM	equ	8	; insufficient memory
 ERR_BADADDR	equ	9	; invalid memory segment
-
-;
-; Utility function numbers
-;
-DOSUTIL_STRLEN	equ	1800h
-DOSUTIL_ATOI	equ	1801h

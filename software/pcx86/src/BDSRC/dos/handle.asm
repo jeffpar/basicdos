@@ -61,11 +61,12 @@ ENDPROC	hdl_open
 ;
 DEFPROC	hdl_read,DOS
 	call	get_sfb			; BX -> SFB
-	jc	hr9
+	jc	hr8
 	mov	cx,[bp].REG_CX		; CX = byte count
 	call	sfb_read
-hr9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
-	ret
+	jnc	hr9
+hr8:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
+hr9:	ret
 ENDPROC	hdl_read
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -229,6 +230,7 @@ ENDPROC	sfb_open
 ;
 DEFPROC	sfb_read,DOS
 	ASSUMES	<DS,DOS>,<ES,DOS>
+	mov	[bp].REG_AX,0		; use REG_AX to accumulate bytes read
 	mov	dl,[bx].SFB_DRIVE
 	test	dl,dl
 	jge	sr0
@@ -312,6 +314,7 @@ sr3a:	jc	sr9
 ;
 	add	[bx].SFB_CURPOS.off,dx
 	adc	[bx].SFB_CURPOS.seg,0
+	add	[bp].REG_AX,dx		; update accumulation of bytes read
 ;
 ; We're now obliged to determine whether or not we've exhausted the current
 ; cluster, because if we have, then we MUST zero SFB_CURCLN.
@@ -564,15 +567,11 @@ ENDPROC	chk_filename
 ; Notes:
 ;	One of the main differences between our disk drivers and actual
 ;	MS-DOS disk drivers is that the latter puts the driver in charge of
-;	allocating memory for BPBs and rebuilding them as needed; consequently,
-;	they already have access to BPBs, so the request packets don't need
-;	a BPB pointer.
+;	allocating memory for BPBs.  I didn't feel that was appropriate.
 ;
-;	However, I don't feel that BPBs really "belong" to the drivers;
-;	they are creations of DOS, describing how the DOS volume is laid out
-;	on the media.  The main reason the driver needs access to a BPB is to
-;	perform the correct LBA-to-CHS calculations for the volume currently
-;	in the drive.
+;	Here, DOS creates the BPBs and requests the driver to check them
+;	and rebuild them as needed.  Also, most drivers commands look up the
+;	BPB and pass it to the driver via the DDP_PARMS field.
 ;
 DEFPROC	dev_request,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
@@ -595,18 +594,18 @@ DEFPROC	dev_request,DOS
 dr2:	cmp	ah,DDC_READ
 	je	dr3
 	cmp	ah,DDC_WRITE
-	jne	dr5
+	jne	dr4
 dr3:	mov	word ptr [bp].DDP_LEN,size DDPRW
 	mov	[bp].DDPRW_ADDR.off,si
 	mov	[bp].DDPRW_ADDR.seg,ds
 	mov	[bp].DDPRW_LENGTH,cx
 	mov	[bp].DDPRW_OFFSET,dx
 	mov	[bp].DDPRW_LBA,bx
-	mov	ah,size BPBEX		; AL still contains the unit #
+dr4:	mov	ah,size BPBEX		; AL still contains the unit #
 	mul	ah
 	add	ax,[bpb_table].off	; AX = BPB address
-	mov	[bp].DDPRW_BPB.off,ax	; save it in the request packet
-	mov	[bp].DDPRW_BPB.seg,cs
+	mov	[bp].DDP_PARMS.off,ax	; save it in the request packet
+	mov	[bp].DDP_PARMS.seg,cs
 
 dr5:	mov	bx,bp
 	push	es
@@ -770,7 +769,6 @@ ENDPROC	get_cln
 ;
 DEFPROC	get_bpb,DOS
 	ASSUMES	<DS,NOTHING>,<ES,DOS>
-	push	cx
 	push	dx
 	mov	al,dl			; AL = drive #
 	mov	ah,size BPBEX
@@ -779,61 +777,22 @@ DEFPROC	get_bpb,DOS
 	add	di,ax
 	cmp	di,[bpb_table].seg
 	cmc
-	jc	gb9			; we don't have a BPB for that drive
-
-	mov	ah,TIME_GETTICKS
-	int	INT_TIME		; CX:DX is current tick count
-	push	cx
-	push	dx
-	sub	dx,es:[di].BPB_TIMESTAMP.off
-	sbb	cx,es:[di].BPB_TIMESTAMP.seg
-	jb	gb1			; underflow unexpected, refresh the BPB
-	test	cx,cx
-	jnz	gb1			; large difference, refresh the BPB
-	cmp	dx,38			; less than 2 seconds of ticks?
-	cmc
-	jnc	gb8			; yes, just update the tick count
-;
-; We need to reload the BPB, which means reading the boot sector;
-; for now, we use the FAT_SECTOR buffer for that purpose.
-;
-gb1:	mov	al,es:[di].BPB_DRIVE	; AL = drive #
-	sub	dx,dx			; DX = LBA (0)
-	push	si
-	push	ds
-	mov	ds,dx
-	ASSUME	DS:BIOS
-	call	flush_buffers		; flush all buffers for drive
-	mov	si,offset FAT_BUFHDR
-	call	read_buffer
-	jc	gb7
-;
-; Copy the BPB from the boot sector in the buffer (at DS:SI) to our BPB (ES:DI)
-;
-	push	di
-	add	si,BPB_OFFSET
-	mov	cx,size BPB SHR 1
-	rep	movsw
+	jc	gb9			; we don't have a BPB for the drive
+	push	di			; ES:DI -> BPB
+	push	es
+	les	di,es:[di].BPB_DEVICE
+	mov	ah,DDC_MEDIACHK		; perform a MEDIACHK request
+	call	dev_request
+	jc	gb8
+	test	dx,dx			; media unchanged?
+	jg	gb8			; yes
+	mov	ah,DDC_BUILDBPB		; ask the driver to rebuild our BPB
+	call	dev_request
+	jc	gb8
+	call	flush_buffers		; flush any buffers with data from drive
+gb8:	pop	es
 	pop	di
-
-gb7:	pop	ds
-	ASSUME	DS:NOTHING
-	pop	si
-	jc	gb9
-;
-; Get a fresh timestamp, since it took some amount of time to read the disk
-;
-	mov	ah,TIME_GETTICKS
-	int	INT_TIME		; CX:DX is current tick count
-	add	sp,4
-	push	cx
-	push	dx
-
-gb8:	pop	es:[di].BPB_TIMESTAMP.off
-	pop	es:[di].BPB_TIMESTAMP.seg
-
 gb9:	pop	dx
-	pop	cx
 	ret
 ENDPROC	get_bpb
 
@@ -1025,20 +984,21 @@ ENDPROC	set_pft_free
 ;	None
 ;
 DEFPROC	flush_buffers,DOS
-	ASSUMES	<DS,BIOS>,<ES,NOTHING>
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	dx
+	push	ds
+	sub	dx,dx
+	mov	ds,dx
+	ASSUME	DS:BIOS
 	cmp	ds:[FAT_BUFHDR].BUF_DRIVE,al
 	jne	fb2
 	mov	ds:[FAT_BUFHDR].BUF_LBA,0
 fb2:	cmp	ds:[DIR_BUFHDR].BUF_DRIVE,al
 	jne	fb3
 	mov	ds:[DIR_BUFHDR].BUF_LBA,0
-fb3:	push	di
-	push	es
-	les	di,es:[di].BPB_DEVICE
-	mov	ah,DDC_BUILDBPB		; our driver doesn't build BPBs,
-	call	dev_request		; but this forces it to flush itself
-	pop	es
-	pop	di
+fb3:	pop	ds
+	ASSUME	DS:NOTHING
+	pop	dx
 	ret
 ENDPROC	flush_buffers
 

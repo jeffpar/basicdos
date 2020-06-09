@@ -17,7 +17,7 @@ CODE	segment para public 'CODE'
 FDC 	DDH	<offset DEV:ddend+16,,DDATTR_BLOCK,offset ddinit,-1,2020202024434446h>
 
 	DEFLBL	CMDTBL,word
-	dw	ddcmd_none, ddcmd_none, ddcmd_buildbpb, ddcmd_none	; 0-3
+	dw	ddcmd_none, ddcmd_mediachk, ddcmd_buildbpb, ddcmd_none	; 0-3
 	dw	ddcmd_read, ddcmd_none, ddcmd_none, ddcmd_none		; 4-7
 	dw	ddcmd_write, ddcmd_none, ddcmd_none, ddcmd_none		; 8-11
 	dw	ddcmd_none, ddcmd_none, ddcmd_none, ddcmd_none		; 12-15
@@ -45,6 +45,7 @@ DEFPROC	ddreq,far
 	push	cx
 	push	si
 	push	di
+	push	bp
 	push	ds
 	push	cs
 	pop	ds
@@ -58,6 +59,7 @@ DEFPROC	ddreq,far
 	add	bx,bx
 	call	CMDTBL[bx]
 ddr9:	pop	ds
+	pop	bp
 	pop	di
 	pop	si
 	pop	cx
@@ -65,6 +67,45 @@ ddr9:	pop	ds
 	pop	ax
 	ret
 ENDPROC	ddreq
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcmd_mediachk
+;
+; Set DDPMC_STATUS in the request packet according the media status.
+;
+; Inputs:
+;	ES:DI -> DDP
+;
+; Outputs:
+;	DDP updated appropriately
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DS
+;
+DEFPROC	ddcmd_mediachk
+	ASSUME	DS:CODE
+	lds	si,es:[di].DDP_PARMS	; DS:SI -> BPB
+	ASSUME	DS:NOTHING
+	mov	ah,TIME_GETTICKS
+	int	INT_TIME		; CX:DX is current tick count
+	mov	ax,MC_UNKNOWN		; default to UNKNOWN
+	push	cx
+	push	dx
+	sub	dx,ds:[si].BPB_TIMESTAMP.off
+	sbb	cx,ds:[si].BPB_TIMESTAMP.seg
+	jb	mc1			; underflow, use default
+	test	cx,cx			; large difference?
+	jnz	mc1			; yes, use defaut
+	cmp	dx,38			; more than 2 seconds of ticks?
+	jae	mc1			; yes, use default
+	inc	ax			; change from UNKNOWN to UNCHANGED
+mc1:	pop	ds:[si].BPB_TIMESTAMP.off
+	pop	ds:[si].BPB_TIMESTAMP.seg
+	mov	es:[di].DDP_CONTEXT,ax
+	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+	ret
+ENDPROC	ddcmd_mediachk
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -81,14 +122,65 @@ ENDPROC	ddreq
 ;	DDP updated appropriately
 ;
 ; Modifies:
-;	AX, BX, CX, DX, SI, DS
+;	AX, BX, CX, DX, BP, SI, DS
 ;
 DEFPROC	ddcmd_buildbpb
 	ASSUME	DS:CODE
-	mov	[ddbuf_drv],-1
-	mov	[ddbuf_lba],-1
+	push	di
+	push	es
+	lds	si,es:[di].DDP_PARMS	; DS:SI -> BPB
+	ASSUME	DS:NOTHING
+	sub	dx,dx			; DX = LBA (0)
+	mov	al,[si].BPB_DRIVE
+	les	bp,[ddbuf_ptr]		; ES:BP -> our own buffer
+	mov	bx,(FDC_READ SHL 8) OR 1
+	call	readwrite_sectors
+	jc	bb8
+;
+; Copy the BPB from the boot sector in our buffer to the BPB provided.
+;
+	push	ds
+	pop	es
+	mov	di,si
+	push	di
+	lds	si,[ddbuf_ptr]		; DS:SI -> our own buffer
+	add	si,BPB_OFFSET
+	mov	cx,size BPB SHR 1
+	rep	movsw
+	mov	ah,TIME_GETTICKS
+	int	INT_TIME		; CX:DX is current tick count
+	xchg	ax,dx
+	stosw				; update BPB_TIMESTAMP.off
+	xchg	ax,cx
+	stosw				; update BPB_TIMESTAMP.seg
+	sub	ax,ax
+	stosw				; update BPB_DEVICE.off
+	mov	[ddbuf_lba],ax
+	mov	ax,cs
+	stosw				; update BPB_DEVICE.seg
+	pop	di
+	mov	al,es:[di].BPB_DRIVE
+	mov	es:[di].BPB_UNIT,al
+	mov	[ddbuf_drv],al
+	sub	cx,cx
+	mov	al,es:[di].BPB_CLUSSECS
+	test	al,al			; calculate LOG2 of CLUSSECS
+	ASSERTNZ			; assert that CLUSSECS is non-zero
+bb6:	shr	al,1
+	jc	bb7
+	inc	cx
+	jmp	bb6
+bb7:	ASSERTZ				; assert CLUSSECS was a power-of-two
+	mov	es:[di].BPB_CLUSLOG2,cl
+	mov	ax,es:[di].BPB_SECBYTES
+	shl	ax,cl			; use CLOSLOG2 to calculate CLUSBYTES
+	mov	es:[di].BPB_CLUSBYTES,ax
+	clc
+bb8:	pop	es
+	pop	di
+	jc	bb9
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
-	ret
+bb9:	ret
 ENDPROC	ddcmd_buildbpb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -102,11 +194,10 @@ ENDPROC	ddcmd_buildbpb
 ;	DDPRW updated appropriately
 ;
 ; Modifies:
-;	AX, BX, CX, DX, SI, DS
+;	AX, BX, CX, DX, BP, SI, DS
 ;
 DEFPROC	ddcmd_read
 	ASSUME	DS:CODE
-	push	bp
 	push	es
 	mov	cx,es:[di].DDPRW_LENGTH
 	test	cx,cx		; is length zero (ie, nothing to do)?
@@ -115,8 +206,8 @@ DEFPROC	ddcmd_read
 ;
 ; If the offset is zero, then there's no need to read a partial first sector.
 ;
-dcr1:	lds	si,es:[di].DDPRW_BPB
-	ASSUME	DS:NOTHING
+dcr1:	lds	si,es:[di].DDP_PARMS
+	ASSUME	DS:NOTHING	; DS:SI -> BPB
 	mov	ax,es:[di].DDPRW_OFFSET
 	test	ax,ax
 	jz	dcr4
@@ -234,7 +325,6 @@ dcr7:	push	di
 	ASSERTZ	<cmp es:[di].DDPRW_LENGTH,cx>
 
 dcr8:	pop	es
-	pop	bp
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	jnc	dcr9
 ;

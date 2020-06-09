@@ -17,18 +17,18 @@ CODE	segment para public 'CODE'
 CON	DDH	<offset DEV:ddend+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_CHAR,offset ddinit,-1,20202020204E4F43h>
 
 	DEFLBL	CMDTBL,word
-	dw	ddcmd_none, ddcmd_none, ddcmd_none, ddcmd_none	; 0-3
-	dw	ddcmd_none, ddcmd_none, ddcmd_none, ddcmd_none	; 4-7
-	dw	ddcmd_write, ddcmd_none, ddcmd_none, ddcmd_none	; 8-11
-	dw	ddcmd_none, ddcmd_open, ddcmd_close, ddcmd_none	; 12-15
-	dw	ddcmd_none, ddcmd_none, ddcmd_none, ddcmd_none	; 16-19
+	dw	ddcon_none, ddcon_none, ddcon_none, ddcon_none	; 0-3
+	dw	ddcon_none, ddcon_none, ddcon_none, ddcon_none	; 4-7
+	dw	ddcon_write, ddcon_none, ddcon_none, ddcon_none	; 8-11
+	dw	ddcon_none, ddcon_open, ddcon_close		; 12-14
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
 	DEFLBL	CON_LIMITS,word
-	dw	4,25, 16,80	; mirrors what we put in sysinit's CFG_CONSOLE
+	dw	4,25, 16,80	; mirrors sysinit's CFG_CONSOLE
 	dw	0,24, 0,79
 
 	DEFWORD	frame_seg,0
+	DEFWORD	syscon,0	; initialized to the system CONSOLE context
 
 context		struc
 buf_x		db	?
@@ -40,8 +40,6 @@ cur_x		db	?
 cur_y		db	?
 context		ends
 
-        ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Driver request
@@ -51,6 +49,7 @@ context		ends
 ;
 ; Outputs:
 ;
+        ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddreq,far
 	push	ax
 	push	bx
@@ -81,7 +80,7 @@ ENDPROC	ddreq
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddcmd_write
+; ddcon_write
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
@@ -89,29 +88,29 @@ ENDPROC	ddreq
 ; Outputs:
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
-DEFPROC	ddcmd_write
+DEFPROC	ddcon_write
 	mov	cx,es:[di].DDPRW_LENGTH
-	lds	si,es:[di].DDPRW_ADDR
-	push	es
-	mov	es,es:[di].DDP_CONTEXT
 	jcxz	ddw9
-
+	lds	si,es:[di].DDPRW_ADDR
+	mov	dx,es:[di].DDP_CONTEXT
+	test	dx,dx
+	jnz	ddw2
 ddw1:	lodsb
-	;
-	; Cheating for now...
-	;
-	mov	ah,VIDEO_TTYOUT
-	mov	bh,0
-	int	INT_VIDEO
+	call	ddcon_writechar
 	loop	ddw1
-
-ddw9:	pop	es
-	ret
-ENDPROC	ddcmd_write
+	jmp	short ddw9
+ddw2:	push	es
+	mov	es,dx
+dw2a:	lodsb
+	call	ddcon_writecontext
+	loop	dw2a
+	pop	es
+ddw9:	ret
+ENDPROC	ddcon_write
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddcmd_open
+; ddcon_open
 ;
 ; Inputs:
 ;	ES:DI -> DDP
@@ -120,7 +119,7 @@ ENDPROC	ddcmd_write
 ; Outputs:
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
-DEFPROC	ddcmd_open
+DEFPROC	ddcon_open
 	push	di
 	push	es
 	push	ds
@@ -130,16 +129,16 @@ DEFPROC	ddcmd_open
 	push	cs
 	pop	es
 	mov	di,offset CON_LIMITS	; ES:DI -> limits
-	mov	ax,DOSUTIL_ATOI
+	mov	ax,DOS_UTIL_ATOI
 	int	21h			; updates SI, DI, and AX
 	mov	ch,al			; CH = rows
-	mov	ax,DOSUTIL_ATOI
+	mov	ax,DOS_UTIL_ATOI
 	int	21h
 	mov	cl,al			; CL = columns
-	mov	ax,DOSUTIL_ATOI
+	mov	ax,DOS_UTIL_ATOI
 	int	21h
 	mov	dh,al			; DH = starting row
-	mov	ax,DOSUTIL_ATOI
+	mov	ax,DOS_UTIL_ATOI
 	int	21h
 	mov	dl,al			; DL = starting column
 	pop	ds
@@ -147,7 +146,7 @@ DEFPROC	ddcmd_open
 	pop	es
 	pop	di			; ES:DI -> DDP (done with DDP_PARMS)
 	mov	bx,(size context + 15) SHR 4
-	mov	ah,DOS_ALLOC
+	mov	ah,DOS_MEM_ALLOC
 	int	INT_DOSFUNC
 	jnc	ddo8
 ;
@@ -173,12 +172,15 @@ ddo8:	mov	ds,ax
 	pop	es
 	ASSUME	ES:NOTHING
 	mov	es:[di].DDP_CONTEXT,ds
+	cmp	[syscon],0		; do we have a system CONSOLE yet?
+	jne	ddo9			; yes
+	mov	[syscon],ds		; no, update the system CONSOLE context
 ddo9:	ret
-ENDPROC	ddcmd_open
+ENDPROC	ddcon_open
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddcmd_close
+; ddcon_close
 ;
 ; Inputs:
 ;	ES:DI -> DDP
@@ -186,21 +188,24 @@ ENDPROC	ddcmd_open
 ; Outputs:
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
-DEFPROC	ddcmd_close
+DEFPROC	ddcon_close
 	mov	ax,es:[di].DDP_CONTEXT
 	test	ax,ax
 	jz	ddc9
-	push	es
+	cmp	ax,[syscon]		; is this the system CONSOLE context?
+	jne	ddc1			; no
+	mov	[syscon],0		; yes, so zap that as well
+ddc1:	push	es
 	mov	es,ax
-	mov	ah,DOS_FREE
+	mov	ah,DOS_MEM_FREE
 	int	INT_DOSFUNC
 	pop	es
 ddc9:	ret
-ENDPROC	ddcmd_close
+ENDPROC	ddcon_close
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddcmd_none (handler for unimplemented functions)
+; ddcon_none (handler for unimplemented functions)
 ;
 ; Inputs:
 ;	ES:DI -> DDP
@@ -208,10 +213,82 @@ ENDPROC	ddcmd_close
 ; Outputs:
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
-DEFPROC	ddcmd_none
+DEFPROC	ddcon_none
 	stc
 	ret
-ENDPROC	ddcmd_none
+ENDPROC	ddcon_none
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_int29 (handler for INT_FASTCON: fast console I/O)
+;
+; Inputs:
+;	AL = character to display
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_int29,far
+	push	dx
+	mov	dx,[syscon]
+	test	dx,dx
+	jnz	ddfc1
+	call	ddcon_writechar
+	jmp	short ddfc9
+ddfc1:	push	es
+	mov	es,dx
+	call	ddcon_writecontext
+	pop	es
+ddfc9:	pop	dx
+	iret
+ENDPROC	ddcon_int29
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_writechar
+;
+; Inputs:
+;	AL = character to display
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_writechar
+	push	ax
+	push	bx
+	mov	ah,VIDEO_TTYOUT
+	mov	bh,0
+	int	INT_VIDEO
+	pop	bx
+	pop	ax
+	ret
+ENDPROC	ddcon_writechar
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_writecontext
+;
+; Inputs:
+;	AL = character to display
+;	ES -> CONSOLE context structure
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None
+;
+DEFPROC	ddcon_writecontext
+	jmp	ddcon_writechar		; cheating for now
+ENDPROC	ddcon_writecontext
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -231,6 +308,7 @@ DEFPROC	ddinit,far
 	sub	ax,ax
 	mov	ds,ax
 	ASSUME	DS:BIOS
+
 	mov	ax,[EQUIP_FLAG]		; AX = EQUIP_FLAG
 	mov	es:[bx].DDPI_END.off,offset ddinit
 	mov	cs:[0].DDH_REQUEST,offset DEV:ddreq
@@ -241,9 +319,17 @@ DEFPROC	ddinit,far
 	mov	dx,0B000h
 	and	ax,EQ_VIDEO_MODE
 	cmp	ax,EQ_VIDEO_MONO
-	je	ddin9
+	je	ddin1
 	mov	dx,0B800h
-ddin9:	mov	[frame_seg],dx
+ddin1:	mov	[frame_seg],dx
+;
+; Install an INT 29h ("FAST PUTCHAR") handler; I think traditionally DOS
+; installed its own handler, but that's really our responsibility, especially
+; since we eventually want all INT 29h I/O to go through our system console.
+;
+	mov	ds:[INT_FASTCON * 4].off,offset ddcon_int29
+	mov	ds:[INT_FASTCON * 4].seg,cs
+
 	pop	ds
 	ASSUME	DS:NOTHING
 	pop	dx

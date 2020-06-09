@@ -33,18 +33,19 @@ DOS	segment word public 'CODE'
 	DEFBYTE	VALID_CHARS,"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%&'()-@^_`{}~"
 	DEFABS	VALID_COUNT,<$ - VALID_CHARS>
 
+	EXTERNS	<psp_quit>,near
 	EXTERNS	<tty_echo,tty_write,aux_read,aux_write,prn_write,tty_io>,near
 	EXTERNS	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>,near
 	EXTERNS	<psp_create,psp_set,psp_get>,near
 	EXTERNS	<hdl_open,hdl_read,hdl_write>,near
-	EXTERNS	<mcb_alloc,mcb_free>,near
+	EXTERNS	<mem_alloc,mem_free>,near
 	EXTERNS	<util_func,func_none>,near
 
 	DEFLBL	FUNCTBL,word
-	dw	tty_echo, tty_write, aux_read, aux_write	; 00h-03h
-	dw	prn_write, tty_io, tty_in, tty_read		; 04h-07h
-	dw	tty_print, tty_input, tty_status, tty_flush	; 08h-0Bh
-	dw	func_none, func_none, func_none, func_none	; 0Ch-0Fh
+	dw	psp_quit, tty_echo, tty_write, aux_read		; 00h-03h
+	dw	aux_write, prn_write, tty_io, tty_in		; 04h-07h
+	dw	tty_read, tty_print, tty_input, tty_status	; 08h-0Bh
+	dw	tty_flush, func_none, func_none, func_none	; 0Ch-0Fh
 	dw	func_none, func_none, func_none, func_none	; 10h-13h
 	dw	func_none, func_none, func_none, func_none	; 14h-17h
 	dw	util_func, func_none, func_none, func_none	; 18h-1Bh
@@ -59,7 +60,7 @@ DOS	segment word public 'CODE'
 	dw	func_none, hdl_open, func_none, hdl_read	; 3Ch-3Fh
 	dw	hdl_write, func_none, func_none, func_none	; 40h-43h
 	dw	func_none, func_none, func_none, func_none	; 44h-47h
-	dw	mcb_alloc, mcb_free, func_none, func_none	; 48h-4Bh
+	dw	mem_alloc, mem_free, func_none, func_none	; 48h-4Bh
 	dw	func_none, func_none, func_none, func_none	; 4Ch-4Fh
 	dw	psp_set, psp_get				; 50h-51h
 	DEFABS	FUNCTBL_SIZE,<($ - FUNCTBL) SHR 1>

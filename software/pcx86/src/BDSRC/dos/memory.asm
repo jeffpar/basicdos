@@ -15,7 +15,7 @@ DOS	segment word public 'CODE'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; mcb_alloc (REG_AH = 48h)
+; mem_alloc (REG_AH = 48h)
 ;
 ; Inputs:
 ;	REG_BX = paragraphs requested
@@ -24,18 +24,18 @@ DOS	segment word public 'CODE'
 ;	On success, REG_AX = new segment
 ;	On failure, REG_AX = ERR_NOMEM, REG_BX = max paras available
 ;
-DEFPROC	mcb_alloc,DOS
+DEFPROC	mem_alloc,DOS
 	mov	bx,[bp].REG_BX		; BX = # paras requested
 	call	alloc
 	jnc	mca9
 	mov	[bp].REG_BX,bx
 mca9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
 	ret
-ENDPROC	mcb_alloc
+ENDPROC	mem_alloc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; mcb_free (REG_AH = 49h)
+; mem_free (REG_AH = 49h)
 ;
 ; Inputs:
 ;	REG_ES = segment to free
@@ -44,13 +44,13 @@ ENDPROC	mcb_alloc
 ;	On success, carry clear
 ;	On failure, carry set, REG_AX = ERR_BADMCD or ERR_BADADDR
 ;
-DEFPROC	mcb_free,DOS
+DEFPROC	mem_free,DOS
 	mov	ax,[bp].REG_ES		; AX = segment to free
 	call	free
 	jnc	mcf9
 	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY set
 mcf9:	ret
-ENDPROC	mcb_free
+ENDPROC	mem_free
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
