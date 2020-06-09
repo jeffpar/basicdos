@@ -12,7 +12,7 @@
 DOS	segment word public 'CODE'
 
 	DEFLBL	UTILTBL,word
-	dw	util_strlen,util_decimal			; 00h-03h
+	dw	util_strlen,util_atoi			; 00h-03h
 	DEFABS	UTILTBL_SIZE,<($ - UTILTBL) SHR 1>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -20,7 +20,7 @@ DOS	segment word public 'CODE'
 ; util_func (REG_AH = 18h)
 ;
 ; Inputs:
-;	REG_AL = utility function (eg, UTIL_DECIMAL)
+;	REG_AL = utility function (eg, UTIL_ATOI)
 ;
 ; Outputs:
 ;	Varies
@@ -43,6 +43,8 @@ dc9:	ret
 ENDPROC	util_func
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; util_strlen
 ;
 ; Returns the length of the null-terminated DS:SI string in AX.
 ;
@@ -68,27 +70,30 @@ ENDPROC	util_strlen
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; Convert string at ES:DI to decimal, then validate using values at DS:SI.
+; util_atoi
+;
+; Convert string at DS:SI to decimal, then validate using values at ES:DI.
 ;
 ; Returns:
-;	AX = value, ES:DI -> next character (after non-decimal digit)
+;	AX = value, DS:SI -> next character (after non-decimal digit)
 ;	Carry will be set if there was an error, but AX will ALWAYS be valid
 ;
 ; Modifies:
 ;	AX, SI, DI
 ;
-DEFPROC	util_decimal
+DEFPROC	util_atoi
 	push	cx
 	push	dx
 	sub	ax,ax
 	cwd
 	mov	cx,10
-ud1:	mov	dl,es:[di]
-	sub	dl,'0'
+ud1:	mov	dl,[si]
+	cmp	dl,'0'
 	jb	ud6
+	sub	dl,'0'
 	cmp	dl,cl
-	jae	ud6
-	inc	di
+	jae	ud7
+	inc	si
 	push	dx
 	mul	cx
 	pop	dx
@@ -96,19 +101,21 @@ ud1:	mov	dl,es:[di]
 	jmp	ud1
 ud6:	test	dl,dl
 	jz	ud7
-	inc	di
-ud7:	cmp	ax,[si]			; too small?
+	inc	si
+ud7:	test	di,di			; validation data provided?
+	jz	ud9a			; no
+	cmp	ax,es:[di]		; too small?
 	jae	ud8			; no
-	mov	ax,[si]
+	mov	ax,es:[di]
 	jmp	short ud9
-ud8:	cmp	[si+2],ax		; too large?
+ud8:	cmp	es:[di+2],ax		; too large?
 	jae	ud9			; no
-	mov	ax,[si+2]
-ud9:	lea	si,[si+4]		; advance SI in case there are more
-	pop	dx
+	mov	ax,es:[di+2]
+ud9:	lea	di,[di+4]		; advance DI in case there are more
+ud9a:	pop	dx
 	pop	cx
 	ret
-ENDPROC util_decimal
+ENDPROC util_atoi
 
 DOS	ends
 

@@ -121,25 +121,31 @@ ENDPROC	ddcmd_write
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcmd_open
-	push	es
 	push	di
-	les	di,es:[di].DDP_PARMS
-	add	di,4
-	mov	si,offset CON_LIMITS
-	mov	ax,DOSUTIL_DECIMAL
-	int	INT_DOSFUNC		; updates SI, DI, and AX
+	push	es
+	push	ds
+	lds	si,es:[di].DDP_PARMS
+	ASSUME	DS:NOTHING
+	add	si,4			; DS:SI -> parms
+	push	cs
+	pop	es
+	mov	di,offset CON_LIMITS	; ES:DI -> limits
+	mov	ax,DOSUTIL_ATOI
+	int	21h			; updates SI, DI, and AX
 	mov	ch,al			; CH = rows
-	mov	ax,DOSUTIL_DECIMAL
-	int	INT_DOSFUNC
+	mov	ax,DOSUTIL_ATOI
+	int	21h
 	mov	cl,al			; CL = columns
-	mov	ax,DOSUTIL_DECIMAL
-	int	INT_DOSFUNC
+	mov	ax,DOSUTIL_ATOI
+	int	21h
 	mov	dh,al			; DH = starting row
-	mov	ax,DOSUTIL_DECIMAL
-	int	INT_DOSFUNC
+	mov	ax,DOSUTIL_ATOI
+	int	21h
 	mov	dl,al			; DL = starting column
-	pop	di
-	pop	es			; ES:DI -> DDP (done with DDP_PARMS)
+	pop	ds
+	ASSUME	DS:CODE
+	pop	es
+	pop	di			; ES:DI -> DDP (done with DDP_PARMS)
 	mov	bx,(size context + 15) SHR 4
 	mov	ah,DOS_ALLOC
 	int	INT_DOSFUNC

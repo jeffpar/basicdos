@@ -201,10 +201,11 @@ si4e:	jnz	si4c			; hmm, CLUSSECS wasn't a power-of-two
 si5:	mov	si,offset CFG_PCBS
 	call	find_cfg		; look for "PCBS="
 	jc	si6			; if not found, AX will be min value
+	xchg	si,di
 	push	es
 	push	ds
-	pop	es			; ES:DI -> string, DS:SI -> validation
-	mov	ax,DOSUTIL_DECIMAL
+	pop	es
+	mov	ax,DOSUTIL_ATOI		; DS:SI -> string, ES:DI -> validation
 	int	21h			; AX = new value
 	pop	es
 si6:	mov	dx,size PCB
@@ -217,10 +218,11 @@ si6:	mov	dx,size PCB
 	mov	si,offset CFG_FILES
 	call	find_cfg		; look for "FILES="
 	jc	si7			; if not found, AX will be min value
+	xchg	si,di
 	push	es
 	push	ds
-	pop	es			; ES:DI -> string, DS:SI -> validation
-	mov	ax,DOSUTIL_DECIMAL
+	pop	es
+	mov	ax,DOSUTIL_ATOI		; DS:SI -> string, ES:DI -> validation
 	int	21h			; AX = new value
 	pop	es
 si7:	mov	dx,size SFB
@@ -351,7 +353,6 @@ si9:	ASSERTZ	<cmp es:[sfh_con],al>
 	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
 	jc	dsierr
-	int 3
 	xchg	bx,ax
 	mov	dx,offset INT_TABLES
 	mov	cx,offset INT_TABLES_END - offset INT_TABLES

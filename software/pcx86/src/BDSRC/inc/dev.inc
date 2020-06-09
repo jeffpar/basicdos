@@ -77,7 +77,7 @@ DDERR_INVDSKCHG	equ	15	; Invalid disk change
 ; Device driver packet for assorted READ/WRITE commands
 ;
 DDPRW		struc
-DDPRW_HDR	db	13 dup(?)
+DDPRW_HDR	db	size DDP dup(?)
 DDPRW_MEDIA_ID	db	?	; 0Dh: media ID byte
 DDPRW_ADDR	dd	?	; 0Eh: transfer address
 DDPRW_LENGTH	dw	?	; 12h: transfer length (in bytes)
@@ -90,14 +90,14 @@ DDPRW		ends
 ; Device driver packet for the INIT command
 ;
 DDPI		struc
-DDPI_HDR	db	13 dup(?)
+DDPI_HDR	db	size DDP dup(?)
 DDPI_UNITS	db	?	; 0Dh: # of units (ie, drives)
 DDPI_END	dd	?	; 0Eh: end of driver
 DDPI_BPBPTR	dd	?	; 12h: not used
 DDPI_BLKDEV	db	?	; 16h: not used
 DDPI		ends
 
-DDP_MAXSIZE	equ	((size DDPI + 1) AND 0FFFEh)
+DDP_MAXSIZE	equ	((size DDPRW + 1) AND 0FFFEh)
 
 ;
 ; Device driver commands

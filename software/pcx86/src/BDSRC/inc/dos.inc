@@ -212,4 +212,4 @@ ERR_BADADDR	equ	9	; invalid memory segment
 ; Utility function numbers
 ;
 DOSUTIL_STRLEN	equ	1800h
-DOSUTIL_DECIMAL	equ	1801h
+DOSUTIL_ATOI	equ	1801h

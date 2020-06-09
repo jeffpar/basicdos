@@ -130,7 +130,6 @@ dcr1:	lds	si,es:[di].DDPRW_BPB
 ; requesting an offset beyond the first sector of a multi-sector cluster (but
 ; still within the cluster).
 ;
-	int 3
 dcr1a:	cmp	ax,[si].BPB_SECBYTES
 	jb	dcr1b
 	inc	es:[di].DDPRW_LBA
@@ -182,8 +181,7 @@ dcr3:	push	si
 ; At this point, we know that the transfer offset is now zero, so we're free to
 ; transfer as many whole sectors as remain in the request.
 ;
-dcr4:	int 3
-	xchg	ax,cx		; convert length in AX to # sectors
+dcr4:	xchg	ax,cx		; convert length in AX to # sectors
 	cwd
 	div	[si].BPB_SECBYTES
 	mov	cx,dx		; CX = final partial sector bytes, if any
@@ -207,8 +205,7 @@ dcr4a:	jc	dcr8
 dcr5:	test	cx,cx
 	jz	dcr8		; nothing remaining
 
-dcr6:	int 3
-	mov	dx,es:[di].DDPRW_LBA
+dcr6:	mov	dx,es:[di].DDPRW_LBA
 	mov	al,[si].BPB_DRIVE
 	cmp	al,[ddbuf_drv]
 	jne	dcr6a
