@@ -43,7 +43,8 @@ DOS_TTY_FLUSH	equ	0Ch	; flush and invoke 01h, 06h, 07h, 08h, or 0Ah
 
 DOS_PSP_CREATE	equ	26h	; create PSP (DX = segment)
 DOS_OPEN	equ	3Dh	; open handle for device/file (DS:DX)
-DOS_WRITE	equ	40h	; write (CX) bytes of data (DS:DX) to handle (BX)
+DOS_READ	equ	3Fh	; read (CX) bytes at (DS:DX) with handle (BX)
+DOS_WRITE	equ	40h	; write (CX) bytes at (DS:DX) with handle (BX)
 
 DOS_ALLOC	equ	48h	; allocate memory
 DOS_FREE	equ	49h	; free memory
@@ -183,6 +184,10 @@ MODE_DENY_WRITE	equ	20h
 MODE_DENY_READ	equ	30h
 MODE_DENY_NONE	equ	40h
 MODE_INHERIT	equ	80h
+
+SEEK_BEG	equ	0
+SEEK_CUR	equ	1
+SEEK_END	equ	2
 
 ;
 ; Predefined Process File Table (PFT) numbers

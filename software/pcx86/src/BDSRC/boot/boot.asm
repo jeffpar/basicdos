@@ -44,6 +44,14 @@ CFG_FILE	db	"CONFIG  SYS",-1
 
 PART1_END	equ	$		; end of PART1 data
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; move (all the things)
+;
+; Move the stack to a safer location, move the DPT from ROM to RAM so we
+; can tweak a few values, and last but not least, move ourselves to low memory
+; where we'll be out of the way should we ever need/want to load more than 32K.
+;
 move:	push	cs
 	pop	ss
 	mov	sp,offset BIOS_STACK
@@ -72,6 +80,8 @@ move:	push	cs
 	jmp	ax
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; main
 ;
 ; If there's a hard disk, display a prompt.
 ;
@@ -146,6 +156,8 @@ ENDPROC	main
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; find_dirent
+;
 ; Find DIRENT in sector at DI using filename at BX
 ;
 ; Returns: zero flag set if match (in DI), carry set if end of directory
@@ -185,6 +197,8 @@ ENDPROC	find_dirent
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; get_chs
+;
 ; Get CHS from LBA in AX, using BPB at SI
 ;
 ; Returns: CH = cylinder #, CL = sector ID, DH = head #, DL = drive #
@@ -209,6 +223,8 @@ ENDPROC	get_chs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; get_lba
+;
 ; Get LBA from CLN in AX, using BPB at SI
 ;
 ; Returns: AX = LBA, CX = sectors per cluster (or carry set if error)
@@ -226,6 +242,8 @@ DEFPROC	get_lba
 ENDPROC	get_lba
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; read_sector
 ;
 ; Read 1 sector into DI using LBA in AX and BPB at SI
 ;
@@ -247,6 +265,8 @@ DEFPROC	read_sector
 ENDPROC	read_sector
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; twait (timed wait)
 ;
 ; Wait some number of ticks, or until a key is pressed.
 ;
@@ -287,7 +307,7 @@ ENDPROC	twait
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; Print the null-terminated string at SI
+; print (prints the null-terminated string at SI)
 ;
 ; Returns: Nothing
 ;
@@ -323,7 +343,7 @@ errmsg1		db	"Missing system files, halted",0
 ;
 ; Part 2 of the boot process:
 ;
-;    1) Copy critical data from PART1 to PART1, before FAT reads (if any)
+;    1) Copy critical data from PART1 to PART2, before FAT reads (if any)
 ;	overwrite it.
 ;
 ;    2) Move the non-boot code from this sector (ie, the first chunk of
@@ -339,6 +359,12 @@ errmsg1		db	"Missing system files, halted",0
 ;    4) Locate DEV_FILE's "init" code, which resides just beyond all the
 ;	device drivers, and call it.  It must return the next available
 ;	load address.
+;
+; NOTE: We currently don't include any code in the PART1-to-PART2 copy step,
+; but we could.  We could move some of the duplicated functions like get_chs,
+; get_lba, and print, for example.  However, that would make calling the code
+; a bit more complicated, and fragile, so as long we don't need the extra
+; space in the "part2" sector, there's not much point.
 ;
 DEFPROC	part2,far
 	mov	ax,[si].BPB_SECBYTES
@@ -384,7 +410,7 @@ i2:	jmp	load_error
 i3:	mov	[DD_LIST].off,ax	; initialize driver list head (to -1)
 	mov	ax,di
 	test	ax,0Fh			; paragraph boundary?
-	jnz	load_error		; no
+	jnz	i2			; no
 	push	cs
 	mov	cx,offset part3
 	push	cx			; far return address -> part3
@@ -433,6 +459,8 @@ ENDPROC	part3
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; get_chs2
+;
 ; Get CHS from LBA in AX, using BPB at SI
 ;
 ; Returns: CH = cylinder #, CL = sector ID, DH = head #, DL = drive #
@@ -457,6 +485,8 @@ ENDPROC	get_chs2
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; get_lba2
+;
 ; Get LBA from CLN in AX, using BPB at SI
 ;
 ; Returns: AX = LBA, CX = sectors per cluster (or carry set if error)
@@ -474,6 +504,8 @@ DEFPROC	get_lba2
 ENDPROC	get_lba2
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; load_error
 ;
 ; Print load error message and "halt"
 ;
@@ -494,6 +526,8 @@ pe9:	jmp	$			; "halt"
 ENDPROC	load_error
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; read_fat
 ;
 ; From the CLN in AX, return the next CLN in DX, using BPB at SI.
 ;
@@ -559,6 +593,8 @@ ENDPROC	read_fat
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; read_data
+;
 ; Read file data into ES:DI using directory info at BX and BPB at SI.
 ;
 ; Returns: carry set on error (see AH), clear otherwise (AX sectors read)
@@ -604,6 +640,8 @@ ENDPROC	read_data
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; read_cluster
+;
 ; Read cluster AX into memory at DI, using BPB at SI.
 ;
 ; Returns: carry set on error (see AH), clear otherwise (AX sectors read)
@@ -629,6 +667,8 @@ rc9:	ret
 ENDPROC	read_cluster
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; read_sectors
 ;
 ; Read CL sectors into DI using LBA in AX and BPB at SI
 ;

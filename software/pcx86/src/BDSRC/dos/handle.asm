@@ -53,7 +53,7 @@ ENDPROC	hdl_open
 ; Inputs:
 ;	REG_BX = handle
 ;	REG_CX = byte count
-;	REG_DS:REG_DX -> data to read
+;	REG_DS:REG_DX -> data buffer
 ;
 ; Outputs:
 ;	On success, REG_AX = bytes read, carry clear
@@ -63,9 +63,6 @@ DEFPROC	hdl_read,DOS
 	call	get_sfb			; BX -> SFB
 	jc	hr9
 	mov	cx,[bp].REG_CX		; CX = byte count
-	mov	si,[bp].REG_DX
-	mov	ds,[bp].REG_DS		; DS:SI = data to read
-	ASSUME	DS:NOTHING
 	call	sfb_read
 hr9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
 	ret
@@ -78,7 +75,7 @@ ENDPROC	hdl_read
 ; Inputs:
 ;	REG_BX = handle
 ;	REG_CX = byte count
-;	REG_DS:REG_DX -> data to write
+;	REG_DS:REG_DX -> data buffer
 ;
 ; Outputs:
 ;	On success, REG_AX = bytes written, carry clear
@@ -221,34 +218,154 @@ ENDPROC	sfb_open
 ; Inputs:
 ;	BX -> SFB
 ;	CX = byte count
-;	DS:SI -> data to read
+;	REG_DS:REG_DX -> data buffer
 ;
 ; Outputs:
 ;	On success, carry clear
 ;	On failure, AX = error code, carry set
 ;
 ; Modifies:
-;	AX, DX, DI, ES
+;	AX, CX, DX, SI, DI
 ;
 DEFPROC	sfb_read,DOS
-	ASSUMES	<DS,NOTHING>,<ES,DOS>
-	mov	dl,cs:[bx].SFB_DRIVE
+	ASSUMES	<DS,DOS>,<ES,DOS>
+	mov	dl,[bx].SFB_DRIVE
 	test	dl,dl
-	jl	sr8			; character device
+	jge	sr0
+	jmp	sr8			; character device
 
-	call	get_bpb			; ES:DI -> BPB if no error
+sr0:	int 3
+	call	get_bpb			; DI -> BPB if no error
+	jc	sr3a
+;
+; As a preliminary matter, make sure the requested number of bytes doesn't
+; exceed the current file size; if it does, reduce it.
+;
+	mov	ax,[bx].SFB_SIZE.off
+	mov	dx,[bx].SFB_SIZE.seg
+	sub	ax,[bx].SFB_CURPOS.off
+	sbb	dx,[bx].SFB_CURPOS.seg
+	test	dx,dx			; lots of data ahead?
+	jnz	sr1			; yes
+	cmp	cx,ax
+	jbe	sr1
+	mov	cx,ax			; CX reduced
+;
+; Next, convert CURPOS into cluster # and cluster offset.  That's simplified
+; if there's a valid CURCLN (which must be in sync with CURPOS if present);
+; otherwise, we'll have to walk the cluster chain to find the correct cluster #.
+;
+sr1:	mov	dx,[bx].SFB_CURCLN
+	test	dx,dx
+	jnz	sr1a
+	call	find_cln		; find cluster # for CURPOS
+	mov	[bx].SFB_CURCLN,dx
+
+sr1a:	mov	dx,[bx].SFB_CURPOS.off
+	mov	ax,[di].BPB_CLUSBYTES
+	dec	ax
+	and	dx,ax			; DX = offset within current cluster
+
+	push	bx			; save SFB pointer
+	push	di			; save BPB pointer
+	push	es
+
+	mov	bx,[bx].SFB_CURCLN
+	sub	bx,2
+	jb	sr3			; invalid cluster #
+	xchg	ax,cx			; save CX
+	mov	cl,[di].BPB_CLUSLOG2
+	shl	bx,cl
+	xchg	ax,cx			; restore CX
+	add	bx,[di].BPB_LBADATA	; BX = LBA
+;
+; We're almost ready to read, except for the byte count in CX, which must be
+; limited to whatever's in the current cluster.
+;
+	push	cx			; save byte count
+	mov	ax,[di].BPB_CLUSBYTES
+	sub	ax,dx			; AX = bytes available in cluster
+	cmp	cx,ax			; if CX <= AX, we're fine
+	jbe	sr2
+	mov	cx,ax			; reduce CX
+sr2:	mov	ah,DDC_READ
+	mov	al,[di].BPB_UNIT
+	les	di,[di].BPB_DEVICE
+	ASSUME	ES:NOTHING
+	push	ds
+	mov	si,[bp].REG_DX
+	mov	ds,[bp].REG_DS		; DS:SI = data buffer
+	ASSUME	DS:NOTHING
+	call	dev_request
+	pop	ds
+	ASSUME	DS:DOS
+	mov	dx,cx			; DX = bytes read (assuming no error)
+	pop	cx			; restore byte count
+
+sr3:	pop	es
+	ASSUME	ES:DOS
+	pop	di			; BPB pointer restored
+	pop	bx			; SFB pointer restored
+sr3a:	jc	sr9
+;
+; Time for some bookkeeping: adjust the SFB's CURPOS by DX.
+;
+	add	[bx].SFB_CURPOS.off,dx
+	adc	[bx].SFB_CURPOS.seg,0
+;
+; We're now obliged to determine whether or not we've exhausted the current
+; cluster, because if we have, then we MUST zero SFB_CURCLN.
+;
+	mov	ax,[di].BPB_CLUSBYTES
+	dec	ax
+	test	[bx].SFB_CURPOS.off,ax	; is CURPOS at a cluster boundary?
+	jnz	sr4			; no
+	push	dx
+	sub	dx,dx
+	xchg	dx,[bx].SFB_CURCLN	; yes, get next cluster
+	call	get_cln
+	xchg	ax,dx
+	pop	dx
 	jc	sr9
-;
-; We can now begin reading clusters, starting at SFB_CURCLN.
-;
-	jmp	short sr9
+	mov	[bx].SFB_CURCLN,ax
+sr4:	sub	cx,dx			; have we exhausted the read count yet?
+	jbe	sr9			; yes
+	jmp	sr1a			; no, keep reading clusters
 
-sr8:	mov	ax,DDC_READ SHL 8
-	les	di,cs:[bx].SFB_DEVICE
-	mov	dx,cs:[bx].SFB_CONTEXT
+sr8:	push	ds
+	push	es
+	mov	ax,DDC_READ SHL 8
+	les	di,[bx].SFB_DEVICE
+	mov	dx,[bx].SFB_CONTEXT
+	mov	si,[bp].REG_DX
+	mov	ds,[bp].REG_DS		; DS:SI = data buffer
 	call	dev_request		; issue the DDC_READ request
+	pop	es
+	pop	ds
 sr9:	ret
 ENDPROC	sfb_read
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; sfb_seek
+;
+; Inputs:
+;	BX -> SFB
+;	AL = SEEK method (eg, SEEK_CUR)
+;	CX:DX = seek value
+;
+; Outputs:
+;	On success, carry clear
+;	On failure, AX = error code, carry set
+;
+; Modifies:
+;	AX
+;
+DEFPROC	sfb_seek,DOS
+	ASSUMES	<DS,DOS>,<ES,DOS>
+
+ss9:	ret
+ENDPROC	sfb_seek
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -257,7 +374,7 @@ ENDPROC	sfb_read
 ; Inputs:
 ;	BX -> SFB
 ;	CX = byte count
-;	DS:SI -> data to write
+;	DS:SI -> data buffer
 ;
 ; Outputs:
 ;	On success, carry clear
@@ -475,13 +592,16 @@ DEFPROC	dev_request,DOS
 	mov	[bp].DDP_PARMS.seg,ds
 	jmp	short dr5
 
-dr2:	mov	word ptr [bp].DDP_LEN,size DDPRW
+dr2:	cmp	ah,DDC_READ
+	je	dr3
+	cmp	ah,DDC_WRITE
+	jne	dr5
+dr3:	mov	word ptr [bp].DDP_LEN,size DDPRW
 	mov	[bp].DDPRW_ADDR.off,si
 	mov	[bp].DDPRW_ADDR.seg,ds
 	mov	[bp].DDPRW_LENGTH,cx
 	mov	[bp].DDPRW_OFFSET,dx
 	mov	[bp].DDPRW_LBA,bx
-
 	mov	ah,size BPBEX		; AL still contains the unit #
 	mul	ah
 	add	ax,[bpb_table].off	; AX = BPB address
@@ -502,10 +622,133 @@ dr5:	mov	bx,bp
 	test	ax,DDSTAT_ERROR
 	jz	dr9
 	stc				; AL contains device error code
+
 dr9:	pop	bp
 	pop	bx
 	ret
 ENDPROC	dev_request
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; find_cln
+;
+; Find the CLN corresponding to CURPOS.
+;
+; Inputs:
+;	BX -> SFB
+;	DI -> BPB
+;
+; Outputs:
+;	On success, DX = CLN, carry clear
+;	On failure, AX = error code, carry set
+;
+; Modifies:
+;	AX, CX, DX, SI
+;
+DEFPROC	find_cln,DOS
+	ASSUMES	<DS,DOS>,<ES,DOS>
+	mov	dx,[bx].SFB_CLN
+	sub	si,si			; zero current position in CX:SI
+	sub	cx,cx
+;
+; If our current position in CX:SI, plus CLUSBYTES, is greater than CURPOS,
+; then we have reached the target cluster.
+;
+gc1:	add	si,[di].BPB_CLUSBYTES
+	adc	cx,0
+	push	cx			; save current position in CX:SI
+	push	si
+	sub	si,[bx].SFB_CURPOS.off
+	sbb	cx,[bx].SFB_CURPOS.seg
+	jnc	gc9			; we've traversed enough clusters
+	call	get_cln			; DX = next CLN
+	pop	si
+	pop	cx			; restore current position in CX:SI
+	jnc	gc1
+	jmp	short gc9a
+gc9:	pop	si
+	pop	cx
+gc9a:	ret
+ENDPROC	find_cln
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_cln
+;
+; For the CLN in DX, get the next CLN.
+;
+; Inputs:
+;	DI -> BPB
+;
+; Outputs:
+;	On success, DX = CLN, carry clear
+;	On failure, AX = error code, carry set
+;
+; Modifies:
+;	AX, DX, SI
+;
+DEFPROC	get_cln,DOS
+	push	bx
+	push	cx
+	push	ds
+	sub	ax,ax
+	mov	ds,ax
+	ASSUME	DS:BIOS
+;
+; We observe that the FAT sector # containing a 12-bit CLN is:
+;
+;	(CLN * 12) / 4096
+;
+; assuming a 512-byte sector with 4096 or 2^12 bits.  The expression
+; can be simplified to (CLN * 12) SHR 12, or (CLN * 3) SHR 10, or simply
+; (CLN + CLN + CLN) SHR 10.
+;
+; TODO: If we're serious about being sector-size-agnostic, our BPB should
+; contain a (precalculated) LOG2 of BPB_SECBYTES, to avoid hard-coded shifts.
+;
+	mov	bx,dx
+	add	dx,dx
+	add	dx,bx
+	mov	bx,dx
+	mov	cl,10
+	shr	dx,cl			; DX = FAT sector ((CLN * 3) SHR 10)
+	add	dx,es:[di].BPB_RESSECS	; DX = FAT LBA
+;
+; Next, we need the nibble offset within the sector, which is:
+;
+;	((CLN * 12) % 4096) / 4
+;
+	and	bx,03FFh		; nibble offset (assuming 1024 nibbles)
+	mov	al,es:[di].BPB_UNIT
+	mov	si,offset FAT_BUFHDR
+	call	read_buffer
+	jc	gc4
+	mov	bp,bx			; save nibble offset in BP
+	shr	bx,1			; BX -> byte, carry set if odd nibble
+	mov	dl,[si+bx]
+	inc	bx
+	cmp	bp,03FFh		; at the sector boundary?
+	jb	gc2			; no
+	inc	dx			; DX = next FAT LBA
+	mov	al,es:[di].BPB_UNIT
+	mov	si,offset FAT_BUFHDR
+	call	read_buffer
+	jc	gc4
+	sub	bx,bx
+gc2:	mov	dh,[si+bx]
+	shr	bp,1			; was that an odd nibble again?
+	jc	gc3			; yes
+	and	dx,0FFFh		; no, so make sure top 4 bits clear
+	jmp	short gc4		;
+gc3:	mov	cl,4			;
+	shr	dx,cl			; otherwise, shift all 12 bits down
+	clc
+
+gc4:	pop	ds
+	pop	cx
+	pop	bx
+	ret
+ENDPROC	get_cln
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -523,7 +766,7 @@ ENDPROC	dev_request
 ;	On failure, AX = device error code, carry set
 ;
 ; Modifies:
-;	AX, CX, DI
+;	AX, DI
 ;
 DEFPROC	get_bpb,DOS
 	ASSUMES	<DS,NOTHING>,<ES,DOS>
@@ -555,10 +798,10 @@ DEFPROC	get_bpb,DOS
 ; for now, we use the FAT_SECTOR buffer for that purpose.
 ;
 gb1:	mov	al,es:[di].BPB_DRIVE	; AL = drive #
-	sub	bx,bx			; BX = LBA (0)
+	sub	dx,dx			; DX = LBA (0)
 	push	si
 	push	ds
-	mov	ds,bx
+	mov	ds,dx
 	ASSUME	DS:BIOS
 	call	flush_buffers		; flush all buffers for drive
 	mov	si,offset FAT_BUFHDR
@@ -607,7 +850,7 @@ ENDPROC	get_bpb
 ;	On failure, AX = device error code, carry set
 ;
 ; Modifies:
-;	AX, DX, SI, DS
+;	AX, BX, SI, DS
 ;
 DEFPROC	get_dirent,DOS
 	ASSUMES	<DS,NOTHING>,<ES,DOS>	; ES = DOS since BPBs are in DOS
@@ -618,24 +861,24 @@ DEFPROC	get_dirent,DOS
 ;
 	push	dx
 	push	bp
-	sub	bx,bx
-	mov	ds,bx
+	sub	dx,dx
+	mov	ds,dx
 	ASSUME	DS:BIOS
 	mov	si,offset DIR_BUFHDR
 	mov	al,es:[di].BPB_DRIVE	; AL = drive #
 	cmp	[si].BUF_DRIVE,al
 	jne	gd1
-	mov	bx,[si].BUF_LBA
-	test	bx,bx
+	mov	dx,[si].BUF_LBA
+	test	dx,dx
 	jnz	gd2
-gd1:	mov	bx,es:[di].BPB_LBAROOT
-gd2:	mov	bp,bx			; BP = 1st LBA we'll check
+gd1:	mov	dx,es:[di].BPB_LBAROOT
+gd2:	mov	bp,dx			; BP = 1st LBA we'll check
 
-gd4:	call	read_buffer
+gd4:	call	read_buffer		; DX = LBA
 	jc	gd9
 
-	mov	dx,es:[di].BPB_SECBYTES
-	add	dx,si			; DX -> end of sector data
+	mov	bx,es:[di].BPB_SECBYTES
+	add	bx,si			; BX -> end of sector data
 gd5:	cmp	byte ptr [si],0
 	je	gd6			; 0 indicates end of allocated entries
 	mov	di,offset file_name
@@ -644,17 +887,17 @@ gd5:	cmp	byte ptr [si],0
 	je	gd9
 	add	si,cx
 	add	si,size DIRENT - 11
-	cmp	si,dx
+	cmp	si,bx
 	jb	gd5
 ;
 ; Advance to next directory sector
 ;
 	mov	si,offset DIR_BUFHDR
-	inc	bx
-	cmp	bx,es:[di].BPB_LBADATA
+	inc	dx
+	cmp	dx,es:[di].BPB_LBADATA
 	jb	gd7
-gd6:	mov	bx,es:[di].BPB_LBAROOT
-gd7:	cmp	bx,bp			; back to the 1st LBA again?
+gd6:	mov	dx,es:[di].BPB_LBAROOT
+gd7:	cmp	dx,bp			; back to the 1st LBA again?
 	jne	gd4			; not yet
 	stc				; out of sectors, so no match
 
@@ -789,7 +1032,14 @@ DEFPROC	flush_buffers,DOS
 fb2:	cmp	ds:[DIR_BUFHDR].BUF_DRIVE,al
 	jne	fb3
 	mov	ds:[DIR_BUFHDR].BUF_LBA,0
-fb3:	ret
+fb3:	push	di
+	push	es
+	les	di,es:[di].BPB_DEVICE
+	mov	ah,DDC_BUILDBPB		; our driver doesn't build BPBs,
+	call	dev_request		; but this forces it to flush itself
+	pop	es
+	pop	di
+	ret
 ENDPROC	flush_buffers
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -798,7 +1048,7 @@ ENDPROC	flush_buffers
 ;
 ; Inputs:
 ;	AL = drive #
-;	BX = LBA
+;	DX = LBA
 ;	DS:SI -> BUFHDR
 ;	ES:DI -> BPB
 ;
@@ -807,24 +1057,35 @@ ENDPROC	flush_buffers
 ;	On failure, AX = device error code, carry set
 ;
 ; Modifies:
-;	AX, CX, DX, SI
+;	AX, CX, SI
 ;
 DEFPROC	read_buffer,DOS
 	ASSUMES	<DS,BIOS>,<ES,DOS>	; ES = DOS since BPBs are in DOS
-	mov	[si].BUF_DRIVE,al
-	mov	[si].BUF_LBA,bx
-	mov	cx,[si].BUF_SIZE
-	sub	dx,dx
+	cmp	[si].BUF_DRIVE,al
+	jne	rb1
+	cmp	[si].BUF_LBA,dx
+	jne	rb1
 	add	si,size BUFHDR
+	jmp	short rb9
+rb1:	push	bx
+	push	dx
+	mov	[si].BUF_DRIVE,al	; AL = unit #
+	mov	[si].BUF_LBA,dx
+	mov	cx,[si].BUF_SIZE	; CX = byte count
+	mov	bx,dx			; BX = LBA
+	sub	dx,dx			; DX = offset (0)
+	add	si,size BUFHDR		; DS:SI -> data buffer
 	mov	ah,DDC_READ
 	push	di
 	push	es
-	mov	al,es:[di].BPB_UNIT
+	ASSERTZ <cmp al,es:[di].BPB_UNIT>
 	les	di,es:[di].BPB_DEVICE
 	call	dev_request
 	pop	es
 	pop	di
-	ret
+	pop	dx
+	pop	bx
+rb9:	ret
 ENDPROC	read_buffer
 
 DOS	ends

@@ -91,10 +91,10 @@ DDPRW		ends
 ;
 DDPI		struc
 DDPI_HDR	db	13 dup(?)
-DDPI_UNITS	db	?
-DDPI_END	dd	?
-DDPI_BPBPTR	dd	?
-DDPI_BLKDEV	db	?
+DDPI_UNITS	db	?	; 0Dh: # of units (ie, drives)
+DDPI_END	dd	?	; 0Eh: end of driver
+DDPI_BPBPTR	dd	?	; 12h: not used
+DDPI_BLKDEV	db	?	; 16h: not used
 DDPI		ends
 
 DDP_MAXSIZE	equ	((size DDPI + 1) AND 0FFFEh)

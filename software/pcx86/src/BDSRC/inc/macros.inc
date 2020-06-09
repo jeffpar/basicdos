@@ -83,6 +83,11 @@ name	dd	0
 
 DEFPROC	macro	name,type
 	public	name
+	IFDEF	DEBUG
+	IFIDN	<type>,<DOS>
+	db	"&name",0
+	ENDIF
+	ENDIF
 	IFB	<type>
 name	proc	near
 	ELSE
@@ -203,22 +208,21 @@ ASSUMES	macro	seg1,seg2
 
 ASSUME1	macro	segreg,segment
 	ASSUME	segreg:segment
+	IFDIF	<segment>,<NOTHING>
 	push	ax
 	push	dx
 	push	segreg
 	pop	ax
 	IFIDN	<segment>,<BIOS>
-	sub	dx,dx
-	ASSERTZ <cmp ax,dx>
+	ASSERTZ <test ax,ax>
 	ELSE
+	IFIDN	<segment>,<DOS>
 	push	cs
 	pop	dx
-	IFIDN	<segment>,<DOS>
 	ASSERTZ <cmp ax,dx>
-	ELSE
-	ASSERTNZ <cmp ax,dx>
 	ENDIF
 	ENDIF
 	pop	dx
 	pop	ax
+	ENDIF
 	endm

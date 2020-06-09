@@ -52,10 +52,11 @@ BPB		ends
 ;
 BPBEX		struc			; our internal structure for bpb_table
 BPB_STRUC	db	size BPB dup (?)
-BPB_TIMESTAMP	dd	?
-BPB_DEVICE	dd	?		; device driver
-BPB_UNIT	db	?		; unit #
-BPB_RESERVED	db	?
+BPB_TIMESTAMP	dd	?		; 28h; ticks
+BPB_DEVICE	dd	?		; 2Ch: device driver
+BPB_UNIT	db	?		; 30h: unit #
+BPB_CLUSLOG2	db	?		; 31h: shift count for CLUSSECS
+BPB_CLUSBYTES	dw	?		; 32h: BPB_CLUSSECS * BPB_SECBYTES
 BPBEX		ends
 
 ;

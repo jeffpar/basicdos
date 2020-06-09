@@ -36,7 +36,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<tty_echo,tty_write,aux_read,aux_write,prn_write,tty_io>,near
 	EXTERNS	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>,near
 	EXTERNS	<psp_create,psp_set,psp_get>,near
-	EXTERNS	<hdl_open,hdl_write>,near
+	EXTERNS	<hdl_open,hdl_read,hdl_write>,near
 	EXTERNS	<mcb_alloc,mcb_free>,near
 	EXTERNS	<util_func,func_none>,near
 
@@ -56,7 +56,7 @@ DOS	segment word public 'CODE'
 	dw	func_none, func_none, func_none, func_none	; 30h-33h
 	dw	func_none, func_none, func_none, func_none	; 34h-37h
 	dw	func_none, func_none, func_none, func_none	; 38h-3Bh
-	dw	func_none, hdl_open, func_none, func_none	; 3Ch-3Fh
+	dw	func_none, hdl_open, func_none, hdl_read	; 3Ch-3Fh
 	dw	hdl_write, func_none, func_none, func_none	; 40h-43h
 	dw	func_none, func_none, func_none, func_none	; 44h-47h
 	dw	mcb_alloc, mcb_free, func_none, func_none	; 48h-4Bh

@@ -46,7 +46,7 @@ DEFPROC	sysinit,far
 	mov	[cfg_data],bx		; offset of CFG data
 	mov	[cfg_size],dx		; size of CFG data
 ;
-; To simplify use of the CFG data, replace all line endings with zeros.
+; To simplify use of the CFG data, replace all line endings with nulls.
 ;
 	mov	di,bx
 	mov	cx,dx
@@ -166,20 +166,32 @@ si4a:	mov	ax,ds
 	mov	es:[di].BPB_TIMESTAMP.off,dx
 	mov	es:[di].BPB_TIMESTAMP.seg,cx
 ;
-; While we're here, let's initialize the BPB_DEVICE and BPB_UNIT fields
-; of all the FDC-related BPBs.
+; Initialize all the BPBEX fields, like BPB_DEVICE and BPB_UNIT, as well as
+; pre-calculated values like BPB_CLOSLOG2 and BPB_CLUSBYTES.
 ;
-	sub	cx,cx
-	mov	di,es:[bpb_table].off
+; TODO: Move this BPB initialization code into a DOS function that we can call
+; later, because even though we've allocated BPBs for all the FDC units, the
+; only *real* BPB among them currently is the one we booted with.
+;
 	mov	ax,[FDC_DEVICE].off
 	mov	dx,[FDC_DEVICE].seg
-si4b:	mov	es:[di].BPB_DEVICE.off,ax
+	mov	es:[di].BPB_DEVICE.off,ax
 	mov	es:[di].BPB_DEVICE.seg,dx
+	sub	cx,cx
 	mov	es:[di].BPB_UNIT,cl
+	mov	al,es:[di].BPB_CLUSSECS	; calculate LOG2 of CLUSSECS in CX
+	test	al,al
+	jnz	si4d			; make sure CLUSSECS is non-zero
+si4c:	jmp	sysinit_error
+si4d:	shr	al,1
+	jc	si4e
 	inc	cx
-	add	di,size BPBEX
-	cmp	di,es:[bpb_table].seg
-	jb	si4b
+	jmp	si4d
+si4e:	jnz	si4c			; hmm, CLUSSECS wasn't a power-of-two
+	mov	es:[di].BPB_CLUSLOG2,cl
+	mov	ax,es:[di].BPB_SECBYTES	; use that to also calculate CLUSBYTES
+	shl	ax,cl
+	mov	es:[di].BPB_CLUSBYTES,ax
 	pop	es
 	ASSUME	ES:NOTHING
 ;
@@ -193,7 +205,7 @@ si5:	mov	si,offset CFG_PCBS
 	push	ds
 	pop	es			; ES:DI -> string, DS:SI -> validation
 	mov	ax,DOSUTIL_DECIMAL
-	int	INT_DOSFUNC		; AX = new value
+	int	21h			; AX = new value
 	pop	es
 si6:	mov	dx,size PCB
 	mov	bx,offset pcb_table
@@ -209,7 +221,7 @@ si6:	mov	dx,size PCB
 	push	ds
 	pop	es			; ES:DI -> string, DS:SI -> validation
 	mov	ax,DOSUTIL_DECIMAL
-	int	INT_DOSFUNC		; AX = new value
+	int	21h			; AX = new value
 	pop	es
 si7:	mov	dx,size SFB
 	mov	bx,offset sfb_table
@@ -240,7 +252,7 @@ si7:	mov	dx,size SFB
 ;
 	mov	dx,offset AUX_DEFAULT
 	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
-	int	INT_DOSFUNC
+	int	21h
 	jc	sierr
 	ASSERTZ	<cmp es:[sfh_aux],al>
 	mov	es:[sfh_aux],al
@@ -254,7 +266,7 @@ si8:	mov	si,offset CFG_CONSOLE
 	jc	si8a			; not found
 	mov	dx,di
 si8a:	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
-	int	INT_DOSFUNC
+	int	21h
 	jnc	si9
 	mov	si,offset CONERR
 	jmp	fatal_error
@@ -265,7 +277,7 @@ si9:	ASSERTZ	<cmp es:[sfh_con],al>
 
 	mov	dx,offset PRN_DEFAULT
 	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
-	int	INT_DOSFUNC
+	int	21h
 	jc	sierr
 	ASSERTZ	<cmp es:[sfh_prn],al>
 	mov	es:[sfh_prn],al
@@ -275,25 +287,25 @@ si9:	ASSERTZ	<cmp es:[sfh_con],al>
 ;
 	mov	bx,100h			; we'll start with a safe 4K for now
 	mov	ah,DOS_ALLOC
-	int	INT_DOSFUNC
+	int	21h
 	jc	sierr			; hmmm, guess it wasn't safe after all
 
 	xchg	dx,ax			; DX = segment for new PSP
 	mov	ah,DOS_PSP_CREATE
-	int	INT_DOSFUNC
+	int	21h
 
 	mov	bx,dx			; and of course, this PSP function
 	mov	ah,DOS_PSP_SET		; wants the segment in BX, not DX....
-	int	INT_DOSFUNC		; active PSP updated
+	int	21h			; active PSP updated
 
 	mov	si,offset CON_TEST
 	mov	ax,DOSUTIL_STRLEN
-	int	INT_DOSFUNC
+	int	21h
 	xchg	cx,ax			; CX = length of CON_TEST
 	mov	dx,si			; DS:DX -> CON_TEST
 	mov	bx,STDOUT		; BX = handle
 	mov	ah,DOS_WRITE
-	int	INT_DOSFUNC		; write the string to STDOUT
+	int	21h			; write the string to STDOUT
 
 	IFDEF	DEBUG
 	;
@@ -302,42 +314,49 @@ si9:	ASSERTZ	<cmp es:[sfh_con],al>
 	push	es
 	mov	ah,DOS_ALLOC
 	mov	bx,200h
-	int	INT_DOSFUNC
+	int	21h
 	jc	dsierr
 	xchg	cx,ax			; CX = 1st segment
 	mov	ah,DOS_ALLOC
 	mov	bx,200h
-	int	INT_DOSFUNC
+	int	21h
 	jc	dsierr
 	xchg	dx,ax			; DX = 2nd segment
 	mov	ah,DOS_ALLOC
 	mov	bx,200h
-	int	INT_DOSFUNC
+	int	21h
 	jc	dsierr
 	xchg	si,ax			; SI = 3rd segment
 	mov	ah,DOS_FREE
 	mov	es,cx			; free the 1st
-	int	INT_DOSFUNC
+	int	21h
 	jc	dsierr
 	mov	ah,DOS_FREE
 	mov	es,si
-	int	INT_DOSFUNC		; free the 3rd
+	int	21h			; free the 3rd
 	jc	dsierr
 	mov	ah,DOS_FREE
 	mov	es,dx
-	int	INT_DOSFUNC		; free the 2nd
+	int	21h			; free the 2nd
 	jc	dsierr
 	pop	es
 	mov	dx,offset COM1_DEFAULT
 	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
-	int	INT_DOSFUNC
+	int	21h
 	jc	dsierr
 	mov	dx,offset COM2_DEFAULT
 	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
-	int	INT_DOSFUNC
+	int	21h
 	mov	dx,offset TEST_FILE
 	mov	ax,(DOS_OPEN SHL 8) OR MODE_ACC_BOTH
-	int	INT_DOSFUNC
+	int	21h
+	jc	dsierr
+	int 3
+	xchg	bx,ax
+	mov	dx,offset INT_TABLES
+	mov	cx,offset INT_TABLES_END - offset INT_TABLES
+	mov	ah,DOS_READ
+	int	21h
 	jnc	si99
 dsierr:	jmp	sysinit_error
 	ENDIF
@@ -483,6 +502,7 @@ ENDPROC	sysinit_print
 	dw	dos_default,dos_default,dos_default,dos_default
 	dw	dos_default,dos_default,dos_default,dos_default,0
 	dw	0			; end of tables (should end at INT 30h)
+	DEFLBL	INT_TABLES_END
 
 CFG_PCBS	db	5,"PCBS="
 		dw	4,16
@@ -498,7 +518,7 @@ PRN_DEFAULT	db	"PRN",0
 COM1_DEFAULT	db	"COM1:9600,N,8,1",0
 COM2_DEFAULT	db	"COM2:9600,N,8,1",0
 CON_TEST	db	"This is a test of the CON device driver",13,10,0
-TEST_FILE	db	"A:CONFIG.SYS",0
+TEST_FILE	db	"A:HANDLE.ASM",0
 	ENDIF
 
 SYSERR		db	"System initialization error",0
