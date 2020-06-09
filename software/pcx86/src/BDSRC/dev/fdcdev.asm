@@ -72,13 +72,11 @@ ENDPROC	ddreq
 ;
 ; ddcmd_mediachk
 ;
-; Set DDPMC_STATUS in the request packet according the media status.
-;
 ; Inputs:
 ;	ES:DI -> DDP
 ;
 ; Outputs:
-;	DDP updated appropriately
+;	DDP_CONTEXT contains the MC (media check) status code
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DS
@@ -111,15 +109,11 @@ ENDPROC	ddcmd_mediachk
 ;
 ; ddcmd_buildbpb
 ;
-; We're not in the business of allocating or managing BPBs (we leave that to
-; DOS), so for now, the only purpose of this call is to signal that we need to
-; flush our internal buffer cache.
-;
 ; Inputs:
-;	ES:DI -> DDP
+;	ES:DI -> DDP (in particular, DDP_PARMS -> BPB)
 ;
 ; Outputs:
-;	DDP updated appropriately
+;	BPB is updated
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, BP, SI, DS
@@ -228,21 +222,9 @@ dcr1a:	cmp	ax,[si].BPB_SECBYTES
 	jz	dcr4
 	jmp	dcr1a
 dcr1b:	mov	es:[di].DDPRW_OFFSET,ax
-	mov	al,[si].BPB_DRIVE
-	cmp	al,[ddbuf_drv]
-	jne	dcr1c
-	mov	dx,es:[di].DDPRW_LBA
-	cmp	dx,[ddbuf_lba]
-	je	dcr2
-dcr1c:	push	es
-	les	bp,[ddbuf_ptr]	; ES:BP -> our own buffer
-	mov	bx,(FDC_READ SHL 8) OR 1
-	call	readwrite_sectors
-	pop	es
+
+	call	read_buffer	; read DDPRW_LBA into ddbuf
 	jc	dcr4a
-	mov	al,[si].BPB_DRIVE
-	mov	[ddbuf_drv],al
-	mov	[ddbuf_lba],dx
 ;
 ; Reload the offset: copy bytes from ddbuf+offset to the target address.
 ;
@@ -293,24 +275,11 @@ dcr4a:	jc	dcr8
 ;
 ; And finally, the tail end of the request, if there are CX bytes remaining.
 ;
-dcr5:	test	cx,cx
-	jz	dcr8		; nothing remaining
+dcr5:	test	cx,cx		; anything remaining?
+	jz	dcr8		; no
 
-dcr6:	mov	dx,es:[di].DDPRW_LBA
-	mov	al,[si].BPB_DRIVE
-	cmp	al,[ddbuf_drv]
-	jne	dcr6a
-	cmp	dx,[ddbuf_lba]
-	je	dcr7
-dcr6a:	push	es
-	les	bp,[ddbuf_ptr]	; ES:BP -> our own buffer
-	mov	bx,(FDC_READ SHL 8) OR 1
-	call	readwrite_sectors
-	pop	es
+dcr6:	call	read_buffer	; read DDPRW_LBA into ddbuf
 	jc	dcr8
-	mov	al,[si].BPB_DRIVE
-	mov	[ddbuf_drv],al
-	mov	[ddbuf_lba],dx
 
 dcr7:	push	di
 	push	es
@@ -435,6 +404,39 @@ DEFPROC	get_chs
 	mov	dl,[si].BPB_DRIVE
 	ret
 ENDPROC	get_chs
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Read 1 sector into our internal buffer
+;
+; Inputs:
+;	DS:SI -> BPB (drive to read is BPB_DRIVE)
+;	ES:DI -> DDPRW (sector to read is DDPRW_LBA)
+;
+; Outputs:
+;	Carry clear if successful
+;
+; Modifies:
+;	AX, BX, DX, BP
+;
+DEFPROC	read_buffer
+	mov	dx,es:[di].DDPRW_LBA
+	mov	al,[si].BPB_DRIVE
+	cmp	al,[ddbuf_drv]
+	jne	rb1
+	cmp	dx,[ddbuf_lba]
+	je	rb9		; skipping the read (we've already got it)
+rb1:	push	es
+	les	bp,[ddbuf_ptr]	; ES:BP -> our own buffer
+	mov	bx,(FDC_READ SHL 8) OR 1
+	call	readwrite_sectors
+	pop	es
+	jc	rb9
+	mov	al,[si].BPB_DRIVE
+	mov	[ddbuf_drv],al
+	mov	[ddbuf_lba],dx
+rb9:	ret
+ENDPROC	read_buffer
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

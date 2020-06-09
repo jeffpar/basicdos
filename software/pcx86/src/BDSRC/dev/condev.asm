@@ -14,7 +14,7 @@ DEV	group	CODE,DATA
 CODE	segment para public 'CODE'
 
 	public	CON
-CON	DDH	<offset DEV:ddend+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_CHAR,offset ddinit,-1,20202020204E4F43h>
+CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_CHAR,offset ddcon_init,-1,20202020204E4F43h>
 
 	DEFLBL	CMDTBL,word
 	dw	ddcon_none, ddcon_none, ddcon_none, ddcon_none	; 0-3
@@ -50,7 +50,7 @@ context		ends
 ; Outputs:
 ;
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	ddreq,far
+DEFPROC	ddcon_req,far
 	push	ax
 	push	bx
 	push	cx
@@ -60,23 +60,23 @@ DEFPROC	ddreq,far
 	mov	di,bx			; ES:DI -> DDP
 	mov	bl,es:[di].DDP_CMD
 	cmp	bl,CMDTBL_SIZE
-	jae	ddi9
+	jae	ddq9
 	push	cs
 	pop	ds
 	ASSUME	DS:CODE
 	mov	bh,0
 	add	bx,bx
 	call	CMDTBL[bx]
-ddi8:	pop	ds
+ddq8:	pop	ds
 	pop	di
 	pop	si
 	pop	cx
 	pop	bx
 	pop	ax
 	ret
-ddi9:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_UNKCMD
-	jmp	ddi8
-ENDPROC	ddreq
+ddq9:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_UNKCMD
+	jmp	ddq8
+ENDPROC	ddcon_req
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -90,22 +90,22 @@ ENDPROC	ddreq
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_write
 	mov	cx,es:[di].DDPRW_LENGTH
-	jcxz	ddw9
+	jcxz	dcw9
 	lds	si,es:[di].DDPRW_ADDR
 	mov	dx,es:[di].DDP_CONTEXT
 	test	dx,dx
-	jnz	ddw2
-ddw1:	lodsb
+	jnz	dcw2
+dcw1:	lodsb
 	call	ddcon_writechar
-	loop	ddw1
-	jmp	short ddw9
-ddw2:	push	es
+	loop	dcw1
+	jmp	short dcw9
+dcw2:	push	es
 	mov	es,dx
-dw2a:	lodsb
+dcw3:	lodsb
 	call	ddcon_writecontext
-	loop	dw2a
+	loop	dcw3
 	pop	es
-ddw9:	ret
+dcw9:	ret
 ENDPROC	ddcon_write
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -148,15 +148,15 @@ DEFPROC	ddcon_open
 	mov	bx,(size context + 15) SHR 4
 	mov	ah,DOS_MEM_ALLOC
 	int	INT_DOSFUNC
-	jnc	ddo8
+	jnc	dco8
 ;
 ; What's up with the complete disconnect between device driver error codes
 ; and DOS error codes?
 ;
 	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_GENFAIL
-	jmp	short ddo9
+	jmp	short dco9
 
-ddo8:	mov	ds,ax
+dco8:	mov	ds,ax
 	ASSUME	DS:NOTHING
 	mov	word ptr ds:[buf_x],dx
 	mov	word ptr ds:[buf_cx],cx
@@ -173,9 +173,9 @@ ddo8:	mov	ds,ax
 	ASSUME	ES:NOTHING
 	mov	es:[di].DDP_CONTEXT,ds
 	cmp	[syscon],0		; do we have a system CONSOLE yet?
-	jne	ddo9			; yes
+	jne	dco9			; yes
 	mov	[syscon],ds		; no, update the system CONSOLE context
-ddo9:	ret
+dco9:	ret
 ENDPROC	ddcon_open
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -191,16 +191,16 @@ ENDPROC	ddcon_open
 DEFPROC	ddcon_close
 	mov	ax,es:[di].DDP_CONTEXT
 	test	ax,ax
-	jz	ddc9
+	jz	dcc9
 	cmp	ax,[syscon]		; is this the system CONSOLE context?
-	jne	ddc1			; no
+	jne	dcc1			; no
 	mov	[syscon],0		; yes, so zap that as well
-ddc1:	push	es
+dcc1:	push	es
 	mov	es,ax
 	mov	ah,DOS_MEM_FREE
 	int	INT_DOSFUNC
 	pop	es
-ddc9:	ret
+dcc9:	ret
 ENDPROC	ddcon_close
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -236,14 +236,14 @@ DEFPROC	ddcon_int29,far
 	push	dx
 	mov	dx,[syscon]
 	test	dx,dx
-	jnz	ddfc1
+	jnz	dci1
 	call	ddcon_writechar
-	jmp	short ddfc9
-ddfc1:	push	es
+	jmp	short dci9
+dci1:	push	es
 	mov	es,dx
 	call	ddcon_writecontext
 	pop	es
-ddfc9:	pop	dx
+dci9:	pop	dx
 	iret
 ENDPROC	ddcon_int29
 
@@ -301,7 +301,7 @@ ENDPROC	ddcon_writecontext
 ;	DDPI's DDPI_END updated
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	ddinit,far
+DEFPROC	ddcon_init,far
 	push	ax
 	push	dx
 	push	ds
@@ -310,8 +310,8 @@ DEFPROC	ddinit,far
 	ASSUME	DS:BIOS
 
 	mov	ax,[EQUIP_FLAG]		; AX = EQUIP_FLAG
-	mov	es:[bx].DDPI_END.off,offset ddinit
-	mov	cs:[0].DDH_REQUEST,offset DEV:ddreq
+	mov	es:[bx].DDPI_END.off,offset ddcon_init
+	mov	cs:[0].DDH_REQUEST,offset DEV:ddcon_req
 ;
 ; Determine what kind of video console we're dealing with (MONO or COLOR)
 ; and what the frame buffer segment is.
@@ -319,9 +319,9 @@ DEFPROC	ddinit,far
 	mov	dx,0B000h
 	and	ax,EQ_VIDEO_MODE
 	cmp	ax,EQ_VIDEO_MONO
-	je	ddin1
+	je	ddi1
 	mov	dx,0B800h
-ddin1:	mov	[frame_seg],dx
+ddi1:	mov	[frame_seg],dx
 ;
 ; Install an INT 29h ("FAST PUTCHAR") handler; I think traditionally DOS
 ; installed its own handler, but that's really our responsibility, especially
@@ -335,13 +335,13 @@ ddin1:	mov	[frame_seg],dx
 	pop	dx
 	pop	ax
 	ret
-ENDPROC	ddinit
+ENDPROC	ddcon_init
 
 CODE	ends
 
 DATA	segment para public 'DATA'
 
-ddend	db	16 dup(0)
+ddcon_end	db	16 dup(0)
 
 DATA	ends
 
