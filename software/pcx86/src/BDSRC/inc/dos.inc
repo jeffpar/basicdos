@@ -43,6 +43,8 @@ DOS_TTY_FLUSH	equ	0Ch	; flush and invoke 01h, 06h, 07h, 08h, or 0Ah
 
 DOS_UTIL_STRLEN	equ	1800h
 DOS_UTIL_ATOI	equ	1801h
+DOS_UTIL_ITOA	equ	1802h
+DOS_UTIL_PRINTF	equ	1803h
 DOS_UTIL_STDLEN	equ	1824h	; like STRLEN but uses 24h instead of 00h
 
 DOS_PSP_CREATE	equ	26h	; create PSP (DX = segment)

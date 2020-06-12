@@ -394,7 +394,9 @@ si12:	mov	bx,100h			; we'll start with a safe 4K for now
 dsierr:	jmp	sysinit_error
 	ENDIF
 
-si99:	PRINTF	<"hello world!",13,10>,ax,bx
+si99:	mov	ah,TIME_GETTICKS
+	int	INT_TIME		; CX:DX is tick count
+	PRINTF	<"hello world, the time is %ld",13,10>,dx,cx
 
 si199:	jmp	si199
 ENDPROC	sysinit

@@ -232,7 +232,6 @@ ASSUME1	macro	segreg,segment
 	endm
 
 PRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9
-	local	f
 	argc = 0
 	IFNB	<a9>
 	argc = argc + 1
@@ -270,10 +269,9 @@ PRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9
 	argc = argc + 1
 	push	a1
 	ENDIF
-	mov	dx,offset f
-	mov	ah,DOS_TTY_PRINT
+	mov	ax,DOS_UTIL_PRINTF
 	int	INT_DOSFUNC
-f:	db	format,0
+	db	format,0
 	IF	argc NE 0
 	add	sp,argc * 2
 	ENDIF

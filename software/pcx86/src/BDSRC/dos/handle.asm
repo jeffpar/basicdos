@@ -387,7 +387,7 @@ ENDPROC	sfb_seek
 ;	AX, DX, DI, ES
 ;
 DEFPROC	sfb_write,DOS
-	ASSUMES	<DS,NOTHING>,<ES,DOS>
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	cmp	cs:[bx].SFB_DRIVE,0
 	jl	sw8
 	stc				; no writes to block devices (yet)

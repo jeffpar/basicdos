@@ -95,8 +95,7 @@ DEFPROC	dos_func,DOSFAR
 	push	bp
 	mov	bp,sp
 	and	[bp].REG_FL,NOT FL_CARRY
-	mov	al,ah
-	cmp	al,FUNCTBL_SIZE
+	cmp	ah,FUNCTBL_SIZE
 	cmc
 	jb	dc9
 	mov	bx,cs
@@ -106,11 +105,15 @@ DEFPROC	dos_func,DOSFAR
 	ASSUME	ES:DOS
 ;
 ; While we assign DS and ES to the DOS segment on DOS function entry,
-; we do NOT require or assume that they are still set that way on exit.
+; we do NOT require or assume they will still be set that way on exit.
 ;
-	cbw				; AL = DOS function # (AH = 0)
-	mov	bx,ax
-	add	bx,ax
+	sub	bx,bx
+	mov	bl,ah
+	add	bx,bx
+;
+; For convenience, all general-purpose registers except BX, DS, and ES still
+; contain their original values.
+;
 	call	FUNCTBL[bx]
 	ASSUME	DS:NOTHING, ES:NOTHING
 ;
