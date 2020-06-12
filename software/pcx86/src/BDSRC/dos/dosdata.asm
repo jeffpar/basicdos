@@ -19,14 +19,11 @@ DOS	segment word public 'CODE'
 	jmp	sysinit
 
 	DEFWORD	mcb_limit,0		; segment limit
+	DEFWORD	scb_active,0		; offset of active SCB
 	DEFWORD	psp_active,1		; active PSP (0 is none, 1-15 reserved)
-	DEFBYTE	sfh_con,1		; default System File Handle for CON
-	DEFBYTE	sfh_aux,0		; default System File Handle for AUX
-	DEFBYTE	sfh_prn,2		; default System File Handle for PRN
-	DEFBYTE	cur_drv,0		; current drive number
 	DEFBYTE	file_name,' ',11	; buffer for 11-character filename
 
-	DEFTBL	<bpb_table,pcb_table,sfb_table>
+	DEFTBL	<bpb_table,scb_table,sfb_table>
 ;
 ; Constants
 ;

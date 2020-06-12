@@ -43,6 +43,7 @@ DOS_TTY_FLUSH	equ	0Ch	; flush and invoke 01h, 06h, 07h, 08h, or 0Ah
 
 DOS_UTIL_STRLEN	equ	1800h
 DOS_UTIL_ATOI	equ	1801h
+DOS_UTIL_STDLEN	equ	1824h	; like STRLEN but uses 24h instead of 00h
 
 DOS_PSP_CREATE	equ	26h	; create PSP (DX = segment)
 DOS_HDL_OPEN	equ	3Dh	; open handle for device/file (DS:DX)
@@ -55,11 +56,11 @@ DOS_MEM_FREE	equ	49h	; free memory
 DOS_PSP_SET	equ	50h	; set current PSP (BX)
 DOS_PSP_GET	equ	51h	; get current PSP (BX)
 
-REG_FRAME	struc
+REG_FRAME	struc		; register frame created by dos_func
 REG_BP		dw	?
-REG_DI		dw	?
+REG_DI		dw	?	; arranged for LES DI instructions
 REG_ES		dw	?
-REG_SI		dw	?
+REG_SI		dw	?	; arranged for LDS SI instructions
 REG_DS		dw	?
 REG_DX		dw	?
 REG_CX		dw	?
@@ -88,13 +89,18 @@ REG_DL		equ 	(REG_DX.LO)
 REG_DH		equ 	(REG_DX.HI)
 
 ;
-; Process Control Block (PCB)
+; Session Control Block (SCB)
 ;
-PCB		struc
-PCB_STATE	dw	?	; 00h: TBD
-PCB_WAITID	dw	?	; 02h: Wait ID if waiting, 0 if running
-PCB_STACK	dd	?	; 02h: pointer to process stack
-PCB		ends
+SCB		struc
+SCB_STATUS	db	?	; 00h: SCB status
+SCB_SFHAUX	db	?	; 01h: SFH for AUX
+SCB_SFHCON	db	?	; 02h: SFH for CON
+SCB_SFHPRN	db	?	; 03h: SFH for PRN
+SCB_CONSOLE	dw	?	; 04h: console context
+SCB_WAITID	dw	?	; 06h: wait ID if waiting, 0 if running
+SCB_STACK	dd	?	; 08h: pointer to session stack
+SCB_CURDRV	db	?	; 0Ch: current drive #
+SCB		ends
 
 ;
 ; Memory Control Block (MCB)

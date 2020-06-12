@@ -60,9 +60,6 @@ i1:	cmp	si,di		; reached the end of drivers?
 	push	[si].DDH_REQUEST
 	mov	bp,sp
 	call	dword ptr [bp]	; far call to DDH_REQUEST
-	; pop	ax
-	; push	[si].DDH_INTERRUPT
-	; call	dword ptr [bp]	; far call to DDH_INTERRUPT
 	pop	ax
 	pop	ax		; recover the driver segment
 	mov	bp,[bx].DDPI_END.off

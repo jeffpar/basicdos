@@ -17,28 +17,40 @@ CODE	segment para public 'CODE'
 CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_CHAR,offset ddcon_init,-1,20202020204E4F43h>
 
 	DEFLBL	CMDTBL,word
-	dw	ddcon_none, ddcon_none, ddcon_none, ddcon_none	; 0-3
-	dw	ddcon_none, ddcon_none, ddcon_none, ddcon_none	; 4-7
-	dw	ddcon_write, ddcon_none, ddcon_none, ddcon_none	; 8-11
-	dw	ddcon_none, ddcon_open, ddcon_close		; 12-14
+	dw	ddcon_none,  ddcon_none, ddcon_none,  ddcon_none	; 0-3
+	dw	ddcon_none,  ddcon_none, ddcon_none,  ddcon_none	; 4-7
+	dw	ddcon_write, ddcon_none, ddcon_none,  ddcon_none	; 8-11
+	dw	ddcon_none,  ddcon_open, ddcon_close			; 12-14
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
 	DEFLBL	CON_LIMITS,word
 	dw	4,25, 16,80	; mirrors sysinit's CFG_CONSOLE
 	dw	0,24, 0,79
 
+	DEFWORD	ct_head,0	; head of context chain
+	DEFWORD	ct_focus,0	; segment of context with focus
 	DEFWORD	frame_seg,0
-	DEFWORD	syscon,0	; initialized to the system CONSOLE context
-
-context		struc
-buf_x		db	?
-buf_y		db	?
-buf_cx		db	?
-buf_cy		db	?
-buf_addr	dd	?
-cur_x		db	?
-cur_y		db	?
-context		ends
+	DEFBYTE	max_rows,25	; TODO: use this for something!
+	DEFBYTE	max_cols,80	; TODO: set to correct value in ddcon_init
+;
+; A context of "25,80,0,0" with a border results in an effective WIDTH,HEIGHT
+; of 78,23.  Logical cursor positions will be allowed from 0,0 to 77,22.
+; Physical character and cursor positions will be adjusted by the offset address
+; in CT_BUFFER.
+;
+CONTEXT		struc
+CT_NEXT		dw	?	; 00h: segment of next context, 0 if end
+CT_CONW		db	?	; 02h: eg, context width (eg, 80 cols)
+CT_CONH		db	?	; 03h: eg, context height (eg, 25 rows)
+CT_CONX		db	?	; 04h: eg, content X of top left (eg, 0)
+CT_CONY		db	?	; 05h: eg, content Y of top left (eg, 0)
+CT_CURX		db	?	; 06h: eg, cursor X within context (eg, 1)
+CT_CURY		db	?	; 07h: eg, cursor Y within context (eg, 1)
+CT_MAXX		db	?	; 08h; eg, maximum X within context (eg, 79)
+CT_MAXY		db	?	; 09h: eg, maximum Y within context (eg, 24)
+CT_PORT		dw	?	; 0Ah: eg, 3D4h
+CT_BUFFER	dd	?	; 0Ch: eg, 0B800h:00A2h
+CONTEXT		ends
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -54,6 +66,8 @@ DEFPROC	ddcon_req,far
 	push	ax
 	push	bx
 	push	cx
+	push	dx
+	push	bp
 	push	si
 	push	di
 	push	ds
@@ -70,6 +84,8 @@ DEFPROC	ddcon_req,far
 ddq8:	pop	ds
 	pop	di
 	pop	si
+	pop	bp
+	pop	dx
 	pop	cx
 	pop	bx
 	pop	ax
@@ -122,6 +138,7 @@ ENDPROC	ddcon_write
 DEFPROC	ddcon_open
 	push	di
 	push	es
+
 	push	ds
 	lds	si,es:[di].DDP_PARMS
 	ASSUME	DS:NOTHING
@@ -143,40 +160,138 @@ DEFPROC	ddcon_open
 	mov	dl,al			; DL = starting column
 	pop	ds
 	ASSUME	DS:CODE
-	pop	es
-	pop	di			; ES:DI -> DDP (done with DDP_PARMS)
+
 	mov	bx,(size context + 15) SHR 4
 	mov	ah,DOS_MEM_ALLOC
 	int	INT_DOSFUNC
-	jnc	dco8
-;
-; What's up with the complete disconnect between device driver error codes
-; and DOS error codes?
-;
-	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_GENFAIL
-	jmp	short dco9
+	jnc	dco1
+	jmp	dco7
 
-dco8:	mov	ds,ax
+dco1:	mov	ds,ax
 	ASSUME	DS:NOTHING
-	mov	word ptr ds:[buf_x],dx
-	mov	word ptr ds:[buf_cx],cx
-	mov	word ptr ds:[buf_addr].off,0
+
+	mov	[ct_focus],ax		; new consoles get focus (for now)
+	xchg	[ct_head],ax
+	mov	ds:[CT_NEXT],ax
+;
+; Set context screen size (CONW,CONH) and position (CONX,CONY) based on
+; (CL,CH) and (DL,DH), and then set context cursor maximums (MAXX,MAXY) from
+; the context size.
+;
+	mov	word ptr ds:[CT_CONW],cx; set CT_CONW (CL) and CT_CONH (CH)
+	mov	word ptr ds:[CT_CONX],dx; set CT_CONX (DL) and CT_CONY (DH)
+	sub	cx,0101h
+	mov	word ptr ds:[CT_MAXX],cx; set CT_MAXX (CL) and CT_MAXY (CH)
+	mov	al,dh
+	mul	[max_cols]
+	add	ax,ax
+	mov	dh,0
+	add	dx,dx
+	add	ax,dx
+	mov	ds:[CT_BUFFER].off,ax
 	mov	ax,[frame_seg]
-	mov	word ptr ds:[buf_addr].seg,ax
-	push	es
+	mov	ds:[CT_BUFFER].seg,ax
 	sub	ax,ax
 	mov	es,ax
 	ASSUME	ES:BIOS
 	mov	ax,[CURSOR_POSN]
-	mov	word ptr ds:[cur_x],ax
-	pop	es
+	mov	word ptr ds:[CT_CURX],ax; set CT_CURX (AL) and CT_CURY (AH)
+;
+; TODO: Verify that the CURX and CURY positions we're importing are valid for
+; this context.
+;
+	mov	ax,[ADDR_6845]
+	mov	ds:[CT_PORT],ax
+;
+; OK, so if this context is supposed to have a border, draw all 4 sides now.
+;
+	mov	dx,word ptr ds:[CT_CONX]; eg, get top left X (DL), Y (DH)
+	mov	bx,dx
+	add	bx,word ptr ds:[CT_MAXX]; eg, get bottom right X (BL), Y (BH)
+	mov	cx,0C9BBh
+	call	ddcon_writevertpair
 	ASSUME	ES:NOTHING
+	mov	cx,0BABAh
+dco2:	inc	dh			; advance Y, holding X constant
+	cmp	dh,bh
+	jae	dco3
+	call	ddcon_writevertpair
+	jmp	dco2
+dco3:	mov	cx,0C8BCh
+	call	ddcon_writevertpair
+	mov	cx,0CDCDh
+dco4:	mov	dh,0
+	inc	dx			; advance X, holding Y constant
+	cmp	dl,bl
+	jae	dco6
+	call	ddcon_writehorzpair
+	jmp	dco4
+
+dco6:	mov	al,0
+	call	ddcon_scroll		; clear the interior
+	clc
+
+dco7:	pop	es
+	pop	di			; ES:DI -> DDP again
+	jc	dco8
 	mov	es:[di].DDP_CONTEXT,ds
-	cmp	[syscon],0		; do we have a system CONSOLE yet?
-	jne	dco9			; yes
-	mov	[syscon],ds		; no, update the system CONSOLE context
+	jmp	short dco9
+;
+; What's up with the complete disconnect between device driver error codes
+; and DOS error codes?
+;
+dco8:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_GENFAIL
 dco9:	ret
 ENDPROC	ddcon_open
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_writehorzpair
+;
+; Inputs:
+;	CH = top char
+;	CL = bottom char
+;	DL,DH = top X,Y
+;	BL,BH = bottom X,Y
+;
+; Modifies:
+;	DI, ES
+;
+DEFPROC	ddcon_writehorzpair
+	cmp	dl,14			; skip over 14 chars at the top
+	jbe	whp1
+	xchg	cl,ch
+	call	ddcon_writecurpos
+	xchg	cl,ch
+whp1:	xchg	dh,bh
+	call	ddcon_writecurpos
+	xchg	dh,bh
+	ret
+ENDPROC	ddcon_writehorzpair
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_writevertpair
+;
+; Inputs:
+;	CH = left char
+;	CL = right char
+;	DL,DH = left X,Y
+;	BL,BH = right X,Y
+;
+; Modifies:
+;	DI, ES
+;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_writevertpair
+	xchg	cl,ch
+	call	ddcon_writecurpos
+	xchg	dl,bl
+	xchg	cl,ch
+	call	ddcon_writecurpos
+	xchg	dl,bl
+	ret
+ENDPROC	ddcon_writevertpair
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -191,13 +306,35 @@ ENDPROC	ddcon_open
 DEFPROC	ddcon_close
 	mov	ax,es:[di].DDP_CONTEXT
 	test	ax,ax
-	jz	dcc9
-	cmp	ax,[syscon]		; is this the system CONSOLE context?
-	jne	dcc1			; no
-	mov	[syscon],0		; yes, so zap that as well
-dcc1:	push	es
-	mov	es,ax
-	mov	ah,DOS_MEM_FREE
+	jz	dcc9			; no context
+	cmp	[ct_focus],ax
+	jne	dcc0
+	mov	[ct_focus],0
+;
+; Remove the context from our chain
+;
+dcc0:	int 3
+	push	es
+	push	ds
+	mov	bx,offset ct_head	; DS:BX -> 1st context
+dcc1:	mov	cx,[bx].CT_NEXT
+	ASSERTNZ <test cx,cx>
+	jcxz	dcc2			; context not found
+	cmp	cx,ax
+	je	dcc2
+	mov	ds,cx
+	ASSUME	DS:NOTHING
+	sub	bx,bx			; DS:BX -> next context
+	jmp	dcc1			; keep looking
+dcc2:	mov	es,ax
+	mov	cx,es:[CT_NEXT]		; move this context's CT_NEXT
+	mov	[bx].CT_NEXT,cx		; to the previous context's CT_NEXT
+	pop	ds
+	ASSUME	DS:CODE
+;
+; We are now free to free the context segment in ES
+;
+dcc3:	mov	ah,DOS_MEM_FREE
 	int	INT_DOSFUNC
 	pop	es
 dcc9:	ret
@@ -234,7 +371,7 @@ ENDPROC	ddcon_none
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_int29,far
 	push	dx
-	mov	dx,[syscon]
+	mov	dx,[ct_focus]		; for now, use the context with focus
 	test	dx,dx
 	jnz	dci1
 	call	ddcon_writechar
@@ -277,8 +414,8 @@ ENDPROC	ddcon_writechar
 ; ddcon_writecontext
 ;
 ; Inputs:
-;	AL = character to display
-;	ES -> CONSOLE context structure
+;	AL = character
+;	ES -> CONSOLE context
 ;
 ; Outputs:
 ;	None
@@ -286,9 +423,184 @@ ENDPROC	ddcon_writechar
 ; Modifies:
 ;	None
 ;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_writecontext
-	jmp	ddcon_writechar		; cheating for now
+	push	ax
+	push	bx
+	push	cx
+	push	dx
+	push	ds
+	push	es
+	push	es
+	pop	ds			; DS is now the context
+;
+; Check for special characters that we don't actually have to write...
+;
+	xchg	cx,ax			; CL = char
+	mov	dx,word ptr ds:[CT_CURX]
+	cmp	cl,0Dh			; return?
+	jne	wc0
+	mov	dl,1			; emulate a RETURN (CURX = 1)
+	jmp	wc3
+wc0:	cmp	cl,0Ah
+	je	wclf			; emulate a LINEFEED
+
+	call	ddcon_writecurpos	; write CL at (DL,DH)
+;
+; Load CURX,CURY into DX, advance it, update it, and then update the cursor
+; IFF this context currently has focus.
+;
+	mov	dx,word ptr ds:[CT_CURX]
+	inc	dx
+	cmp	dl,ds:[CT_MAXX]
+	jb	wc3
+	mov	dl,1
+wclf:	inc	dh
+	cmp	dh,ds:[CT_MAXY]
+	jb	wc3
+	dec	dh
+	mov	al,1
+	call	ddcon_scroll		; scroll up 1 line
+
+wc3:	mov	word ptr ds:[CT_CURX],dx
+	mov	ax,ds
+	cmp	ax,[ct_focus]		; does this context have focus?
+	jne	wc9			; no, leave cursor alone
+	call	ddcon_getcurpos		; BX = screen offset for CURX,CURY
+	shr	bx,1			; screen offset to cell offset
+	mov	ah,14			; AH = 6845 CURSOR ADDR (HI) register
+	call	ddcon_writeport		; update cursor position using BX
+
+wc9:	pop	es
+	pop	ds
+	pop	dx
+	pop	cx
+	pop	bx
+	pop	ax
+	ret
 ENDPROC	ddcon_writecontext
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_getcurpos
+;
+; Inputs:
+;	DX = CURX (DL), CURY (DH)
+;
+; Outputs:
+;	BX -> screen buffer offset
+;
+; Modifies:
+;	AX, BX
+;
+DEFPROC	ddcon_getcurpos
+	mov	al,dh
+	mul	[max_cols]
+	add	ax,ax			; AX = offset to row
+	sub	bx,bx
+	mov	bl,dl
+	add	bx,bx
+	add	bx,ax			; BX = offset to row and col
+	ret
+ENDPROC	ddcon_getcurpos
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_scroll
+;
+; Inputs:
+;	AL = # lines (0 to clear ALL lines)
+;	DS -> CONSOLE context
+;
+; Modifies:
+;	AX, BX, CX
+;
+DEFPROC	ddcon_scroll
+;
+; We use INT 10h to do this, for now....
+;
+	push	dx
+	push	bp			; WARNING: INT 10h scrolls trash BP
+	mov	cx,word ptr ds:[CT_CONX]; CH = row, CL = col of upper left
+	mov	dx,cx
+	add	cx,0101h
+	add	dx,word ptr ds:[CT_MAXX]; DH = row, DL = col of lower right
+	sub	dx,0101h
+	mov	bh,07h			; BH = fill attribute
+	mov	ah,06h			; scroll up # lines in AL
+	int	10h
+	pop	bp
+	pop	dx
+	ret
+ENDPROC	ddcon_scroll
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_writecurpos
+;
+; Inputs:
+;	CL = character
+;	DX = CURX (DL), CURY (DH)
+;	DS -> CONSOLE context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AL, DI, ES
+;
+DEFPROC	ddcon_writecurpos
+	push	bx
+	push	dx
+	les	di,ds:[CT_BUFFER]	; ES:DI -> the frame buffer
+	call	ddcon_getcurpos		; BX = screen offset for CURX,CURY
+	mov	dx,ds:[CT_PORT]
+	add	dl,6			; DX = status port
+wc1:	in	al,dx
+	test	al,01h
+	jnz	wc1			; loop until we're OUTSIDE horz retrace
+	cli
+wc2:	in	al,dx
+	test	al,01h
+	jz	wc2			; loop until we're INSIDE horz retrace
+	mov	es:[di+bx],cl		; "write" the character
+	sti
+	pop	dx
+	pop	bx
+	ret
+ENDPROC	ddcon_writecurpos
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_writeport
+;
+; Inputs:
+;	AH = 6845 register #
+;	BX = 16-bit value to write
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AL, DX
+;
+DEFPROC	ddcon_writeport
+	mov	dx,ds:[CT_PORT]
+	mov	al,ah
+	out	dx,al			; select 6845 register
+	inc	dx
+	mov	al,bh
+	out	dx,al			; output BH
+	dec	dx
+	mov	al,ah
+	inc	ax
+	out	dx,al			; select 6845 register + 1
+	inc	dx
+	mov	al,bl
+	out	dx,al			; output BL
+	dec	dx
+	ret
+ENDPROC	ddcon_writeport
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

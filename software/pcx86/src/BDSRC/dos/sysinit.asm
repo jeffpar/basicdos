@@ -11,9 +11,8 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<mcb_head,mcb_limit,psp_active>,word
-	EXTERNS	<sfh_con,sfh_aux,sfh_prn>,byte
-	EXTERNS	<bpb_table,pcb_table,sfb_table>,dword
+	EXTERNS	<mcb_head,mcb_limit,scb_active,psp_active>,word
+	EXTERNS	<bpb_table,scb_table,sfb_table>,dword
 	EXTERNS	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>,near
 	EXTERNS	<dos_term,dos_func,dos_default>,near
 	EXTERNS	<disk_read,disk_write,dos_tsr,dos_call5>,near
@@ -46,17 +45,15 @@ DEFPROC	sysinit,far
 	mov	[cfg_data],bx		; offset of CFG data
 	mov	[cfg_size],dx		; size of CFG data
 ;
-; To simplify use of the CFG data, replace all line endings with nulls.
+; To simplify use of the CFG data, replace CRs with nulls (leave
+; the LFs alone, because find_cfg uses those to find the next line).
 ;
 	mov	di,bx
 	mov	cx,dx
-	mov	al,0Ah
+	mov	al,0Dh
 si0:	repne	scasb
 	jcxz	si1
 	mov	byte ptr es:[di-1],0
-	cmp	byte ptr es:[di-2],0Dh
-	jne	si0
-	cmp	byte ptr es:[di-2],0
 	jmp	si0
 ;
 ; Move all the init code/data out of the way, to top of available memory.
@@ -196,11 +193,11 @@ si4e:	jnz	si4c			; hmm, CLUSSECS wasn't a power-of-two
 	pop	es
 	ASSUME	ES:NOTHING
 ;
-; The next resident table (pcb_table) contains our Process Control Blocks.
-; Look for a "PCBS=" line in CFG_FILE.
+; The next resident table (scb_table) contains our Session Control Blocks.
+; Look for a "SESSIONS=" line in CFG_FILE.
 ;
-si5:	mov	si,offset CFG_PCBS
-	call	find_cfg		; look for "PCBS="
+si5:	mov	si,offset CFG_SESSIONS
+	call	find_cfg		; look for "SESSIONS="
 	jc	si6			; if not found, AX will be min value
 	xchg	si,di
 	push	es
@@ -209,8 +206,8 @@ si5:	mov	si,offset CFG_PCBS
 	mov	ax,DOS_UTIL_ATOI	; DS:SI -> string, ES:DI -> validation
 	int	21h			; AX = new value
 	pop	es
-si6:	mov	dx,size PCB
-	mov	bx,offset pcb_table
+si6:	mov	dx,size SCB
+	mov	bx,offset scb_table
 	call	init_table		; initialize table, update ES
 ;
 ; The next resident table (sfb_table) contains our System File Blocks.
@@ -249,6 +246,9 @@ si7:	mov	dx,size SFB
 	mov	es,[dos_seg]		; mcb_head is in resident DOS segment
 	ASSUME	ES:DOS
 	mov	es:[mcb_head],bx
+
+	mov	bx,es:[scb_table].off
+	mov	es:[scb_active],bx	; BX = 1st SCB (and now the active SCB)
 ;
 ; Before we create the first PSP, open all the devices we need for the 5
 ; STD handles.  We open AUX first, purely for historical reasons.
@@ -257,8 +257,7 @@ si7:	mov	dx,size SFB
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
 	jc	sierr
-	ASSERTZ	<cmp es:[sfh_aux],al>
-	mov	es:[sfh_aux],al
+	mov	es:[bx].SCB_SFHAUX,al
 ;
 ; Next, open CON, with optional context.  If there's a "CONSOLE=" setting in
 ; CFG_FILE, use that; otherwise, use CON_DEFAULT.
@@ -275,15 +274,13 @@ si8a:	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	jmp	fatal_error
 sierr:	jmp	sysinit_error
 
-si9:	ASSERTZ	<cmp es:[sfh_con],al>
-	mov	es:[sfh_con],al
+si9:	mov	es:[bx].SCB_SFHCON,al
 
 	mov	dx,offset PRN_DEFAULT
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
 	jc	sierr
-	ASSERTZ	<cmp es:[sfh_prn],al>
-	mov	es:[sfh_prn],al
+	mov	es:[bx].SCB_SFHPRN,al
 ;
 ; Create the first PSP.  Until we have the ability to create a process from
 ; a COM or EXE file, this will serve as our "shell" process.
@@ -313,7 +310,7 @@ si9:	ASSERTZ	<cmp es:[sfh_con],al>
 	mov	bx,STDOUT		; BX = handle
 	mov	ah,DOS_HDL_WRITE
 	int	21h			; write the string to STDOUT
-	mov	dx,offset INT29_TEST
+	mov	dx,offset PRINT_TEST
 	mov	ah,DOS_TTY_PRINT
 	int	21h
 	;
@@ -503,7 +500,7 @@ ENDPROC	fatal_error
 	dw	0			; end of tables (should end at INT 30h)
 	DEFLBL	INT_TABLES_END
 
-CFG_PCBS	db	5,"PCBS="
+CFG_SESSIONS	db	9,"SESSIONS="
 		dw	4,16
 CFG_FILES	db	6,"FILES="
 		dw	20,256
@@ -516,13 +513,13 @@ PRN_DEFAULT	db	"PRN",0
 	IFDEF	DEBUG
 COM1_DEFAULT	db	"COM1:9600,N,8,1",0
 COM2_DEFAULT	db	"COM2:9600,N,8,1",0
-CON_TEST	db	"This is a test of the CON device driver",13,10,0
-INT29_TEST	db	"INT 29h test",13,10,'$'
+CON_TEST	db	"CONSOLE ready",13,10,0
+PRINT_TEST	db	"DOS interfaces ready",13,10,'$'
 TEST_FILE	db	"A:HANDLE.ASM",0
 	ENDIF
 
-SYSERR		db	"System initialization error$"
-CONERR		db	"Unable to initialize console$"
+SYSERR		db	" System initialization error$"
+CONERR		db	" Unable to initialize console$"
 HALTED		db	", halted$"
 
 	DEFLBL	sysinit_end

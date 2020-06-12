@@ -84,14 +84,14 @@ ENDPROC	dos_term
 DEFPROC	dos_func,DOSFAR
 	sti
 	cld				; we assume CLD everywhere
-	push	ax
+	push	ax			; order of pushes must match REG_FRAME
 	push	bx
 	push	cx
 	push	dx
 	push	ds
-	push	si
+	push	si			; arranged for LDS SI instructions
 	push	es
-	push	di
+	push	di			; arranged for LES DI instructions
 	push	bp
 	mov	bp,sp
 	and	[bp].REG_FL,NOT FL_CARRY
@@ -104,10 +104,15 @@ DEFPROC	dos_func,DOSFAR
 	ASSUME	DS:DOS
 	mov	es,bx
 	ASSUME	ES:DOS
-	cbw
-	add	ax,ax
+;
+; While we assign DS and ES to the DOS segment on DOS function entry,
+; we do NOT require or assume that they are still set that way on exit.
+;
+	cbw				; AL = DOS function # (AH = 0)
 	mov	bx,ax
+	add	bx,ax
 	call	FUNCTBL[bx]
+	ASSUME	DS:NOTHING, ES:NOTHING
 ;
 ; We'd just as soon IRET to the caller (which also restores their D flag),
 ; so we now update FL_CARRY on the stack (which we already cleared on entry).
@@ -116,10 +121,8 @@ dc9:	adc	[bp].REG_FL,0
 	pop	bp
 	pop	di
 	pop	es
-	ASSUME	ES:NOTHING
 	pop	si
 	pop	ds
-	ASSUME	DS:NOTHING
 	pop	dx
 	pop	cx
 	pop	bx

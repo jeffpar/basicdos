@@ -12,7 +12,16 @@
 DOS	segment word public 'CODE'
 
 	DEFLBL	UTILTBL,word
-	dw	util_strlen,util_atoi			; 00h-03h
+	dw	util_strlen,util_atoi,util_none,util_none	; 00h-03h
+	dw	util_strlen,util_atoi,util_none,util_none	; 04h-07h
+	dw	util_strlen,util_atoi,util_none,util_none	; 08h-0Bh
+	dw	util_strlen,util_atoi,util_none,util_none	; 0Ch-0Fh
+	dw	util_strlen,util_atoi,util_none,util_none	; 10h-13h
+	dw	util_strlen,util_atoi,util_none,util_none	; 14h-17h
+	dw	util_strlen,util_atoi,util_none,util_none	; 18h-1Bh
+	dw	util_strlen,util_atoi,util_none,util_none	; 1Ch-1Fh
+	dw	util_strlen,util_atoi,util_none,util_none	; 20h-23h
+	dw	util_strlen					; 24h
 	DEFABS	UTILTBL_SIZE,<($ - UTILTBL) SHR 1>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -26,12 +35,13 @@ DOS	segment word public 'CODE'
 ;	Varies
 ;
 DEFPROC	util_func,DOS
-	mov	bl,[bp].REG_AL		; BL = utility function
-	cmp	bl,UTILTBL_SIZE
+	mov	al,[bp].REG_AL		; AL = utility function #
+	cmp	al,UTILTBL_SIZE
 	cmc
 	jb	dc9
-	mov	bh,0
-	add	bx,bx
+	cbw
+	mov	bx,ax
+	add	bx,ax
 	lds	si,dword ptr [bp].REG_SI
 	les	di,dword ptr [bp].REG_DI
 	ASSUME	DS:NOTHING,ES:NOTHING
@@ -44,26 +54,27 @@ ENDPROC	util_func
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_strlen
+; util_strlen (AL = 00h or 24h)
 ;
-; Returns the length of the null-terminated DS:SI string in AX.
+; Returns the length of the DS:SI string in AX, using the terminator in AL.
 ;
 ; Modifies:
-;	AX
+;	AX, CX
 ;
 DEFPROC	util_strlen
 	push	di
+	push	es
 	mov	di,si
 	push	ds
 	pop	es
-	mov	al,0
 	mov	cx,di
 	not	cx			; CX = largest possible count
 	repne	scasb
 	je	usl9
 	stc				; error if we didn't end on a match
 usl9:	sub	di,si
-	lea	ax,[di-1]		; don't count the ending null
+	lea	ax,[di-1]		; don't count the terminator character
+	pop	es
 	pop	di
 	ret
 ENDPROC	util_strlen
@@ -116,6 +127,17 @@ ud9a:	pop	dx
 	pop	cx
 	ret
 ENDPROC util_atoi
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; util_none
+;
+; Modifies:
+;	None
+;
+DEFPROC	util_none
+	ret
+ENDPROC	util_none
 
 DOS	ends
 

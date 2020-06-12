@@ -11,8 +11,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<mcb_limit,psp_active>,word
-	EXTERNS	<sfh_con,sfh_aux,sfh_prn>,byte
+	EXTERNS	<mcb_limit,scb_active,psp_active>,word
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -90,13 +89,14 @@ pc1:	sub	ax,256			; AX = max available bytes this segment
 ; and PRN third, so that the SFB numbers for the first five handles will always
 ; be: 1, 1, 1, 0, and 2.
 ;
-	mov	al,[sfh_con]
+	mov	bx,[scb_active]
+	mov	al,[bx].SCB_SFHCON
 	stosb
 	stosb
 	stosb
-	mov	al,[sfh_aux]
+	mov	al,[bx].SCB_SFHAUX
 	stosb
-	mov	al,[sfh_prn]
+	mov	al,[bx].SCB_SFHPRN
 	stosb
 	mov	al,SFH_NONE		; AL = 0FFh (indicates unused entry)
 	mov	cl,15

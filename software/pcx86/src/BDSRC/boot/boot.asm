@@ -12,8 +12,8 @@
 BOOT	segment word public 'CODE'
 
 ;
-; We "ORG" at BOOT_SECTOR_LO rather than BOOT_SECTOR, because as soon as
-; "move" finishes, we're runing at BOOT_SECTOR_LO.
+; We "ORG" at BOOT_SECTOR_LO rather than BOOT_SECTOR, because after part1
+; finishes, we're runing at BOOT_SECTOR_LO.
 ;
 	org	BOOT_SECTOR_LO
         ASSUME	CS:BOOT, DS:NOTHING, ES:NOTHING, SS:NOTHING
@@ -32,7 +32,7 @@ BOOT	segment word public 'CODE'
 ; other assumptions, we have boot failures.
 ;
 start:	cld
-	jmp	short move
+	jmp	short part1
 
 PART1_COPY	equ	$		; start of PART1 data
 
@@ -46,17 +46,13 @@ PART1_END	equ	$		; end of PART1 data
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; move (all the things)
+; part1
 ;
-; Move the stack to a safer location, move the DPT from ROM to RAM so we
-; can tweak a few values, and last but not least, move ourselves to low memory
-; where we'll be out of the way should we ever need/want to load more than 32K.
+; Move the DPT from ROM to RAM so we can tweak a few values, and then move
+; ourselves to low memory where we'll be out of the way, should we ever need
+; to load more than 32K.
 ;
-move:	push	cs
-	pop	ss
-	mov	sp,offset BIOS_STACK
-	ASSUME	SS:BIOS
-	push	cs
+part1:	push	cs
 	pop	es
 	ASSUME	ES:BIOS
 	lds	si,es:[INT_DPT*4]	; DS:SI -> original table (in ROM)
@@ -128,15 +124,18 @@ m7:	jcxz	read			; all files found, go read
 	inc	dx			; DX = next dir LBA
 	cmp	dx,[si].BPB_LBADATA	; exhausted root directory?
 	jb	m1			; jump if not exhausted
-	cmp	cx,1
-	je	read			; it's OK if we didn't find CFG_FILE
+	dec	cx			; CX == 1?
+	jz	read			; yes, it's OK if CFG_FILE is missing
 err:	mov	si,offset errmsg1
 	call	print
 	jmp	$			; "halt"
 ;
 ; There's a hard disk and no response, so boot from hard disk instead.
 ;
-hard:	mov	ax,0201h		; AH = 02h (READ), AL = 1 sector
+hard:	mov	al,[CRT_MODE]
+	cbw
+	int	10h
+	mov	ax,0201h		; AH = 02h (READ), AL = 1 sector
 	inc	cx			; CH = CYL 0, CL = SEC 1
 	mov	dx,0080h		; DH = HEAD 0, DL = DRIVE 80h
 	mov	bx,BOOT_SECTOR		; ES:BX -> BOOT_SECTOR
@@ -327,10 +326,10 @@ ENDPROC	printp
 ;
 ; Strings
 ;
-product		db	"BASIC-DOS 0.01"
-crlf		db	13,10,0
+product		db	" BASIC-DOS 0.01"
+crlf		db	13,10,' ',0
 prompt		db	"Press any key to start...",0
-errmsg1		db	"Missing system files, halted",0
+errmsg1		db	" Missing system files, halted",0
 
 	org 	BOOT_SECTOR_LO + 510
 	dw	0AA55h
@@ -367,6 +366,11 @@ errmsg1		db	"Missing system files, halted",0
 ; space in the "part2" sector, there's not much point.
 ;
 DEFPROC	part2,far
+	push	cs			; switch to a safer stack now;
+	pop	ss			; would have done it sooner, but
+	mov	sp,offset BIOS_STACK	; space in part1 is tight
+	ASSUME	SS:BIOS
+
 	mov	ax,[si].BPB_SECBYTES
 	mov	si,offset PART1_COPY	; copy PART1 data to PART2
 	mov	di,offset PART2_COPY
@@ -438,23 +442,23 @@ DEFPROC	part3,far
 	shr	di,cl
 	mov	es,di
 	ASSUME	ES:NOTHING
-	sub	di,di			; ES:DI now converted
+	sub	di,di		; ES:DI now converted
 	mov	bx,offset DOS_FILE + (offset PART2_COPY - offset PART1_COPY)
-	call	read_file		; load DOS_FILE
+	call	read_file	; load DOS_FILE
 	push	di
 	mov	bx,offset CFG_FILE + (offset PART2_COPY - offset PART1_COPY)
-	sub	dx,dx			; default CFG_FILE size is zero
-	cmp	[bx],dx			; did we find CFG_FILE?
-	jne	i9			; no
-	push	[bx+4]			; push CFG_FILE size (assume < 64K)
-	call	read_file		; load CFG_FILE above DOS_FILE
-	pop	dx			; DX = CFG_FILE size
-i9:	pop	bx			; BX = CFG_FILE data address
+	sub	dx,dx		; default CFG_FILE size is zero
+	cmp	[bx],dx		; did we find CFG_FILE?
+	jne	i9		; no
+	push	[bx+4]		; push CFG_FILE size (assume < 64K)
+	call	read_file	; load CFG_FILE above DOS_FILE
+	pop	dx		; DX = CFG_FILE size
+i9:	pop	bx		; BX = CFG_FILE data address
 	push	es
 	sub	ax,ax
-	push	ax			; far "jmp" address -> CS:0000h
-	mov	ax,offset PART2_COPY	; AX = offset of BPB
-	ret
+	push	ax		; far "jmp" address -> CS:0000h
+	mov	ax,offset PART2_COPY
+	ret			; AX = offset of BPB
 ENDPROC	part3
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -517,12 +521,11 @@ DEFPROC	load_error
 	mov	si,offset errmsg2
 	lodsb
 	test	al,al
-	jz	pe9
+	jz	$			; "halt"
 	mov	ah,VIDEO_TTYOUT
 	mov	bh,0
 	int	INT_VIDEO
 	jmp	load_error
-pe9:	jmp	$			; "halt"
 ENDPROC	load_error
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -558,9 +561,9 @@ DEFPROC	read_fat
 	add	ax,bx
 	mov	bx,ax
 	mov	cl,10
-	shr	ax,cl			; AX = FAT sector ((CLN * 3) SHR 10)
-	add	ax,[si].BPB_RESSECS	; AX = FAT LBA
-	and	bx,03FFh		; nibble offset (assuming 1024 nibbles)
+	shr	ax,cl		; AX = FAT sector ((CLN * 3) SHR 10)
+	add	ax,[si].BPB_RESSECS
+	and	bx,3FFh		; nibble offset (assuming 1024 nibbles)
 	mov	di,offset FAT_SECTOR
 	cmp	ax,[FAT_BUFHDR].BUF_LBA
 	je	rf1
@@ -568,24 +571,24 @@ DEFPROC	read_fat
 	mov	cl,1
 	call	read_sectors
 	jc	load_error
-rf1:	mov	bp,bx			; save nibble offset in BP
-	shr	bx,1			; BX -> byte, carry set if odd nibble
+rf1:	mov	bp,bx		; save nibble offset in BP
+	shr	bx,1		; BX -> byte, carry set if odd nibble
 	mov	dl,[di+bx]
 	inc	bx
-	cmp	bp,03FFh		; at the sector boundary?
-	jb	rf2			; no
+	cmp	bp,03FFh	; at the sector boundary?
+	jb	rf2		; no
 	inc	[FAT_BUFHDR].BUF_LBA
 	mov	ax,[FAT_BUFHDR].BUF_LBA
-	call	read_sectors		; read next FAT LBA
+	call	read_sectors	; read next FAT LBA
 	jc	load_error
 	sub	bx,bx
 rf2:	mov	dh,[di+bx]
-	shr	bp,1			; was that an odd nibble again?
-	jc	rf8			; yes
-	and	dx,0FFFh		; no, so make sure top 4 bits clear
+	shr	bp,1		; was that an odd nibble again?
+	jc	rf8		; yes
+	and	dx,0FFFh	; no, so make sure top 4 bits clear
 	jmp	short rf9
-rf8:	mov	cl,4			;
-	shr	dx,cl			; otherwise, shift all 12 bits down
+rf8:	mov	cl,4
+	shr	dx,cl		; otherwise, shift all 12 bits down
 rf9:	pop	di
 	pop	bx
 	ret
@@ -602,39 +605,39 @@ ENDPROC	read_fat
 ; Modifies: AX, CX, DX
 ;
 DEFPROC	read_data
-	mov	dx,1			; DX = sectors already read
+	mov	dx,1		; DX = sectors already read
 rm1:	cmp	word ptr [bx+4],0
 	jne	rm2
 	cmp	word ptr [bx+6],0
-	je	rm3			; file size is zero, carry clear
-rm2:	mov	ax,[bx+2]		; AX = CLN
-	cmp	ax,2			; too low?
-	jc	rm3			; yes
-	cmp	ax,CLN_END		; too high?
+	je	rm3		; file size is zero, carry clear
+rm2:	mov	ax,[bx+2]	; AX = CLN
+	cmp	ax,2		; too low?
+	jc	rm3		; yes
+	cmp	ax,CLN_END	; too high?
 	cmc
-	jc	rm3			; yes
-	call	read_cluster		; read cluster into DI
-	jc	rm3			; error
-	mul	[si].BPB_SECBYTES	; DX:AX = number of sectors read
-	add	di,ax			; adjust next read address
-	sub	[bx+4],ax		; reduce file size
-	sbb	[bx+6],dx		; (DX is zero)
-	jnc	rm3+1			; jump if file size still positive
-	add	di,[bx+4]		; rewind next load address by
-	clc				; the amount of file size underflow
-rm3:	ret				; and return success
-	mov	ax,[bx+2]		; AX = CLN
+	jc	rm3		; yes
+	call	read_cluster	; read cluster into DI
+	jc	rm3		; error
+	mul	[si].BPB_SECBYTES; DX:AX = number of sectors read
+	add	di,ax		; adjust next read address
+	sub	[bx+4],ax	; reduce file size
+	sbb	[bx+6],dx	; (DX is zero)
+	jnc	rm3+1		; jump if file size still positive
+	add	di,[bx+4]	; rewind next load address by
+	clc			; the amount of file size underflow
+rm3:	ret			; and return success
+	mov	ax,[bx+2]	; AX = CLN
 	push	es
 	push	ss
 	pop	es
 	ASSUME	ES:BIOS
-	call	read_fat		; DX = next CLN
+	call	read_fat	; DX = next CLN
 	pop	es
 	ASSUME	ES:NOTHING
-	mov	[bx+2],dx		; update CLN
+	mov	[bx+2],dx	; update CLN
 
 read_file label near
-	sub	dx,dx			; normal case: read all cluster sectors
+	sub	dx,dx		; normal case: read all cluster sectors
 	jmp	rm1
 ENDPROC	read_data
 
@@ -692,7 +695,7 @@ DEFPROC	read_sectors
 	ret
 ENDPROC	read_sectors
 
-errmsg2		db	"Error loading system files, halted",0
+errmsg2		db	" Error loading system files, halted",0
 
 ;
 ; Data copied from PART1 (BPB and file data)

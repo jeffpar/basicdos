@@ -11,14 +11,30 @@
 
 DOS	segment word public 'CODE'
 
+	EXTERNS	<util_strlen,get_sfb,sfb_write>,near
+
 	ASSUME	CS:DOS, DS:DOS, ES:BIOS, SS:NOTHING
 
 DEFPROC	tty_echo
 	ret
 ENDPROC	tty_echo
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; tty_write (REG_AH = 02h)
+;
+; Inputs:
+;	REG_DL = character to write
+;
+; Outputs:
+;	None
+;
 DEFPROC	tty_write
-	ret
+	lea	si,[bp].REG_DX
+	push	ss
+	pop	ds		; DS:SI -> character
+	mov	cx,1		; CX = length
+	jmp	write_tty
 ENDPROC	tty_write
 
 DEFPROC	aux_read
@@ -58,12 +74,10 @@ ENDPROC	tty_read
 DEFPROC	tty_print,DOS
 	mov	si,[bp].REG_DX
 	mov	ds,[bp].REG_DS		; DS:SI -> string
-tp1:	lodsb
-	cmp	al,'$'			; end of string?
-	je	tp9			; yes
-	int	INT_FASTCON		; use INT_FASTCON to display character
-	jmp	tp1
-tp9:	ret
+	mov	al,'$'
+	call	util_strlen
+	xchg	cx,ax			; CX = length
+	jmp	write_tty
 ENDPROC	tty_print endp
 
 DEFPROC	tty_input
@@ -77,6 +91,36 @@ ENDPROC	tty_status endp
 DEFPROC	tty_flush
 	ret
 ENDPROC	tty_flush endp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; write_tty
+;
+; Inputs:
+;	CX = length
+;	DS:SI -> string
+;
+; Outputs:
+;	Carry clear if successful, set otherwise
+;
+DEFPROC	write_tty
+	jcxz	wt9
+	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
+	mov	bx,STDOUT
+	call	get_sfb			; BX -> SFB
+	pop	ds
+	ASSUME	DS:NOTHING
+	jc	wt8
+	call	sfb_write
+	ret
+wt8:	lodsb				; we couldn't get an SFB
+	int	INT_FASTCON		; so we fallback to INT 29h
+	loop	wt8
+wt9:	ret
+ENDPROC	write_tty
 
 DOS	ends
 

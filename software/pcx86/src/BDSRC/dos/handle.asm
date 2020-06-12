@@ -12,8 +12,8 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<bpb_table,sfb_table>,dword
-	EXTERNS	<psp_active>,word
-	EXTERNS	<cur_drv,file_name>,byte
+	EXTERNS	<scb_active,psp_active>,word
+	EXTERNS	<file_name>,byte
 	EXTERNS	<VALID_CHARS>,byte
 	EXTERNS	<VALID_COUNT>,abs
 
@@ -60,13 +60,13 @@ ENDPROC	hdl_open
 ;	On failure, REG_AX = error, carry set
 ;
 DEFPROC	hdl_read,DOS
+	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
 	call	get_sfb			; BX -> SFB
-	jc	hr8
+	jc	hr9
 	mov	cx,[bp].REG_CX		; CX = byte count
 	call	sfb_read
-	jnc	hr9
-hr8:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
-hr9:	ret
+hr9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
+	ret
 ENDPROC	hdl_read
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -83,6 +83,7 @@ ENDPROC	hdl_read
 ;	On failure, REG_AX = error, carry set
 ;
 DEFPROC	hdl_write,DOS
+	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
 	call	get_sfb			; BX -> SFB
 	jc	hw9
 	mov	cx,[bp].REG_CX		; CX = byte count
@@ -236,8 +237,7 @@ DEFPROC	sfb_read,DOS
 	jge	sr0
 	jmp	sr8			; character device
 
-sr0:	int 3
-	call	get_bpb			; DI -> BPB if no error
+sr0:	call	get_bpb			; DI -> BPB if no error
 	jc	sr3a
 ;
 ; As a preliminary matter, make sure the requested number of bytes doesn't
@@ -471,17 +471,18 @@ DEFPROC	chk_filename,DOS
 	ASSUME	ES:DOS
 ;
 ; See if the name begins with a drive letter.  If so, convert to a drive
-; number and then skip over it; otherwise, use cur_drv as the drive number.
+; number and then skip over it; otherwise, use SCB_CURDRV as the drive number.
 ;
 	push	bx
-	sub	bx,bx			; BL is current file_name position
+	mov	bx,[scb_active]
+	mov	dl,[bx].SCB_CURDRV	; DL = default drive number
 	mov	dh,8			; DH is current file_name limit
+	sub	bx,bx			; BL is current file_name position
 	mov	di,offset file_name
 	mov	cx,11
 	mov	al,' '
 	rep	stosb			; initialize file_name
 	cmp	byte ptr [si+1],':'	; check for drive letter
-	mov	dl,[cur_drv]		; DL = drive number
 	jne	cf1
 	lodsb				; AL = drive letter
 	sub	al,'A'
@@ -871,28 +872,27 @@ ENDPROC	get_dirent
 ; get_sfb
 ;
 ; Inputs:
-;	REG_BX = handle
+;	BX = handle
 ;
 ; Outputs:
 ;	On success, BX -> SFB, carry clear
 ;	On failure, AX = ERR_BADHANDLE, carry set
 ;
 ; Modifies:
-;	AX, BX, CX
+;	AX, BX
 ;
 DEFPROC	get_sfb,DOS
 	push	ds
 	mov	ds,[psp_active]
 	ASSUME	DS:NOTHING
-	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
 	mov	al,ds:[PSP_PFT][bx]	; AL = SFH (we're being hopeful)
 	pop	ds
 	ASSUME	DS:DOS
 	cmp	bx,size PSP_PFT		; is the PFH within PFT bounds?
 	cmc
 	jb	gs8			; no, our hope was misplaced
-	mov	cl,size SFB		; convert SFH to SFB
-	mul	cl
+	mov	bl,size SFB		; convert SFH to SFB
+	mul	bl
 	add	ax,[sfb_table].off
 	cmp	ax,[sfb_table].seg	; is the SFB valid?
 	xchg	bx,ax			; BX -> SFB
