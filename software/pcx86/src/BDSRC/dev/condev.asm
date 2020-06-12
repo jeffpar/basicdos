@@ -24,8 +24,8 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
 	DEFLBL	CON_LIMITS,word
-	dw	4,25, 16,80	; mirrors sysinit's CFG_CONSOLE
-	dw	0,24, 0,79
+	dw	16,80,  4,25	; mirrors sysinit's default CFG_CONSOLE
+	dw	 0,79,  0,24
 
 	DEFWORD	ct_head,0	; head of context chain
 	DEFWORD	ct_focus,0	; segment of context with focus
@@ -148,16 +148,16 @@ DEFPROC	ddcon_open
 	mov	di,offset CON_LIMITS	; ES:DI -> limits
 	mov	ax,DOS_UTIL_ATOI
 	int	21h			; updates SI, DI, and AX
+	mov	cl,al			; CL = cols
+	mov	ax,DOS_UTIL_ATOI
+	int	21h
 	mov	ch,al			; CH = rows
 	mov	ax,DOS_UTIL_ATOI
 	int	21h
-	mov	cl,al			; CL = columns
+	mov	dl,al			; DL = starting col
 	mov	ax,DOS_UTIL_ATOI
 	int	21h
 	mov	dh,al			; DH = starting row
-	mov	ax,DOS_UTIL_ATOI
-	int	21h
-	mov	dl,al			; DL = starting column
 	pop	ds
 	ASSUME	DS:CODE
 
@@ -170,8 +170,10 @@ DEFPROC	ddcon_open
 dco1:	mov	ds,ax
 	ASSUME	DS:NOTHING
 
-	mov	[ct_focus],ax		; new consoles get focus (for now)
-	xchg	[ct_head],ax
+	cmp	[ct_focus],0
+	jne	dco1a
+	mov	[ct_focus],ax
+dco1a:	xchg	[ct_head],ax
 	mov	ds:[CT_NEXT],ax
 ;
 ; Set context screen size (CONW,CONH) and position (CONX,CONY) based on
@@ -205,9 +207,8 @@ dco1:	mov	ds,ax
 ;
 ; OK, so if this context is supposed to have a border, draw all 4 sides now.
 ;
-	mov	dx,word ptr ds:[CT_CONX]; eg, get top left X (DL), Y (DH)
-	mov	bx,dx
-	add	bx,word ptr ds:[CT_MAXX]; eg, get bottom right X (BL), Y (BH)
+	sub	dx,dx			; eg, get top left X (DL), Y (DH)
+	mov	bx,word ptr ds:[CT_MAXX]; eg, get bottom right X (BL), Y (BH)
 	mov	cx,0C9BBh
 	call	ddcon_writevertpair
 	ASSUME	ES:NOTHING
@@ -253,17 +254,21 @@ ENDPROC	ddcon_open
 ;	CL = bottom char
 ;	DL,DH = top X,Y
 ;	BL,BH = bottom X,Y
+;	DS -> CONSOLE context
 ;
 ; Modifies:
 ;	DI, ES
 ;
 DEFPROC	ddcon_writehorzpair
+	mov	di,ds
+	cmp	di,[ct_focus]
+	jne	whp1
 	cmp	dl,14			; skip over 14 chars at the top
-	jbe	whp1
-	xchg	cl,ch
+	jbe	whp2
+whp1:	xchg	cl,ch
 	call	ddcon_writecurpos
 	xchg	cl,ch
-whp1:	xchg	dh,bh
+whp2:	xchg	dh,bh
 	call	ddcon_writecurpos
 	xchg	dh,bh
 	ret
@@ -278,6 +283,7 @@ ENDPROC	ddcon_writehorzpair
 ;	CL = right char
 ;	DL,DH = left X,Y
 ;	BL,BH = right X,Y
+;	DS -> CONSOLE context
 ;
 ; Modifies:
 ;	DI, ES

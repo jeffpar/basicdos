@@ -253,10 +253,13 @@ si7:	mov	dx,size SFB
 ; Before we create the first PSP, open all the devices we need for the 5
 ; STD handles.  We open AUX first, purely for historical reasons.
 ;
+; And note that since we have no PSP yet, DOS_HDL_OPEN will be returning system
+; handles, not process handles.
+;
 	mov	dx,offset AUX_DEFAULT
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
-	jc	sierr
+	jc	dierr
 	mov	es:[bx].SCB_SFHAUX,al
 ;
 ; Next, open CON, with optional context.  If there's a "CONSOLE=" setting in
@@ -270,7 +273,14 @@ si8:	mov	si,offset CFG_CONSOLE
 si8a:	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
 	jnc	si9
-	mov	si,offset CONERR
+dierr:	mov	si,dx
+	mov	ax,DOS_UTIL_STRLEN
+	int	21h
+	xchg	bx,ax
+	mov	byte ptr [si+bx],'$'
+	mov	dx,si
+	call	print_error
+	mov	dx,offset DEVERR
 	jmp	fatal_error
 sierr:	jmp	sysinit_error
 
@@ -279,13 +289,32 @@ si9:	mov	es:[bx].SCB_SFHCON,al
 	mov	dx,offset PRN_DEFAULT
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
-	jc	sierr
+	jc	dierr
 	mov	es:[bx].SCB_SFHPRN,al
+;
+; See if there are any more CONSOLE contexts defined; if so, then for each
+; one, open an CON handle, and record it in the next available SCB.  If there
+; aren't enough SCBs, then we've got a configuration error.
+;
+si10:	mov	si,offset CFG_CONSOLE
+	call	find_cfg		; look for another "CONSOLE="
+	jc	si12			; no more
+	mov	dx,di
+	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
+	int	21h
+	jc	dierr
+	add	bx,size SCB
+	cmp	bx,es:[scb_table].seg
+	jb	si11
+	mov	dx,offset CONERR
+	jmp	fatal_error
+si11:	mov	es:[bx].SCB_SFHCON,al
+	jmp	si10
 ;
 ; Create the first PSP.  Until we have the ability to create a process from
 ; a COM or EXE file, this will serve as our "shell" process.
 ;
-	mov	bx,100h			; we'll start with a safe 4K for now
+si12:	mov	bx,100h			; we'll start with a safe 4K for now
 	mov	ah,DOS_MEM_ALLOC
 	int	21h
 	jc	sierr			; hmmm, guess it wasn't safe after all
@@ -365,7 +394,9 @@ si9:	mov	es:[bx].SCB_SFHCON,al
 dsierr:	jmp	sysinit_error
 	ENDIF
 
-si99:	jmp	si99
+si99:	PRINTF	<"hello world!",13,10>,ax,bx
+
+si199:	jmp	si199
 ENDPROC	sysinit
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -395,8 +426,10 @@ fc1:	lodsb				; 1st byte at SI is length
 	cbw
 	xchg	cx,ax			; CX = length of string to find
 	repe	cmpsb
-	je	fc9			; found it!
-	add	si,cx			; move SI forward to the minimum value
+	jne	fc2
+	mov	es:[di-1],cl		; zap the CFG match to prevent reuse
+	jmp	short fc9		; found it!
+fc2:	add	si,cx			; move SI forward to the minimum value
 	mov	al,0Ah			; LINEFEED
 	mov	cx,dx
 	sub	cx,di			; CX = bytes left to search
@@ -456,7 +489,26 @@ ENDPROC	init_table
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; sysinit_error (print generic error message)
+; print_error (print generic error message)
+;
+; Inputs:
+;	DX -> message
+;
+; Modifies:
+;	AX, DS
+;
+DEFPROC	print_error
+	mov	ah,DOS_TTY_PRINT
+	int	21h
+	ret
+ENDPROC	print_error
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; sysinit_error (print generic error message and halt)
+;
+; Inputs:
+;	None
 ;
 ; Outputs:
 ;	None (system halted)
@@ -466,7 +518,10 @@ ENDPROC	init_table
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; fatal_error (print specified error message)
+; fatal_error (print specified error message and halt)
+;
+; Inputs:
+;	DX -> message
 ;
 ; Outputs:
 ;	None (system halted)
@@ -474,18 +529,16 @@ ENDPROC	init_table
 DEFPROC	fatal_error,near
 	push	cs
 	pop	ds
-	mov	ah,DOS_TTY_PRINT
-	int	21h
+	call	print_error
 	mov	dx,offset HALTED
-	mov	ah,DOS_TTY_PRINT
-	int	21h
-	jmp	$
+	call	print_error
+	jmp	$			; "halt"
 ENDPROC	fatal_error
 
 ;
 ; Initialization data
 ;
-; All labels are capitalized to indicate their static (constant) nature.
+; Labels are capitalized to indicate their static (constant) nature.
 ;
 	DEFLBL	INT_TABLES,word
 	dw	(INT_DV * 4) + 1	; add 1 to avoid end-of-tables signal
@@ -505,22 +558,23 @@ CFG_SESSIONS	db	9,"SESSIONS="
 CFG_FILES	db	6,"FILES="
 		dw	20,256
 CFG_CONSOLE	db	8,"CONSOLE=",
-		dw	4,25, 16,80
+		dw	16,80, 4,25	; default CONSOLE parameters
 AUX_DEFAULT	db	"AUX",0
-CON_DEFAULT	db	"CON:25,80",0
+CON_DEFAULT	db	"CON:80,25",0	; default CONSOLE configuration
 PRN_DEFAULT	db	"PRN",0
 
 	IFDEF	DEBUG
 COM1_DEFAULT	db	"COM1:9600,N,8,1",0
 COM2_DEFAULT	db	"COM2:9600,N,8,1",0
 CON_TEST	db	"CONSOLE ready",13,10,0
-PRINT_TEST	db	"DOS interfaces ready",13,10,'$'
+PRINT_TEST	db	"DOS interface ready",13,10,'$'
 TEST_FILE	db	"A:HANDLE.ASM",0
 	ENDIF
 
-SYSERR		db	" System initialization error$"
-CONERR		db	" Unable to initialize console$"
-HALTED		db	", halted$"
+SYSERR		db	"System initialization error$"
+DEVERR		db	" device error$"
+HALTED		db	"; halted$"
+CONERR		db	"More CONSOLES than SESSIONS$"
 
 	DEFLBL	sysinit_end
 

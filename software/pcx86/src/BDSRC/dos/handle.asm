@@ -882,24 +882,26 @@ ENDPROC	get_dirent
 ;	AX, BX
 ;
 DEFPROC	get_sfb,DOS
+	mov	ax,[psp_active]
+	test	ax,0FFF0h		; if we're called by sysinit
+	jz	gs8			; there may be no valid PSP yet
 	push	ds
-	mov	ds,[psp_active]
+	mov	ds,ax
 	ASSUME	DS:NOTHING
 	mov	al,ds:[PSP_PFT][bx]	; AL = SFH (we're being hopeful)
 	pop	ds
 	ASSUME	DS:DOS
 	cmp	bx,size PSP_PFT		; is the PFH within PFT bounds?
-	cmc
-	jb	gs8			; no, our hope was misplaced
+	jae	gs8			; no, our hope was misplaced
 	mov	bl,size SFB		; convert SFH to SFB
 	mul	bl
 	add	ax,[sfb_table].off
 	cmp	ax,[sfb_table].seg	; is the SFB valid?
 	xchg	bx,ax			; BX -> SFB
-	cmc
-	jnb	gs9			; yes
+	jb	gs9			; yes
 gs8:	mov	ax,ERR_BADHANDLE
-gs9:	ret
+gs9:	cmc
+	ret
 ENDPROC	get_sfb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -917,20 +919,20 @@ ENDPROC	get_sfb
 ;	AX, BX, CX, DI, ES
 ;
 DEFPROC	get_pft_free,DOS
-	mov	es,[psp_active]		; get the current PSP
-	ASSUME	ES:NOTHING		; and if there IS a PSP
-	mov	di,es			; then find a free handle entry
-	test	di,0FFF0h
-	jz	gj9			; no valid PSP yet
+	mov	di,[psp_active]		; get the current PSP
+	test	di,0FFF0h		; if we're called by sysinit
+	jz	gj9			; there may be no valid PSP yet
+	mov	es,di
+	ASSUME	ES:NOTHING		; find a free handle entry
 	mov	al,SFH_NONE		; AL = 0FFh (indicates unused entry)
 	mov	cx,size PSP_PFT
 	mov	di,offset PSP_PFT
 	repne	scasb
-	mov	ax,ERR_MAXFILES
-	stc
-	jne	gj9			; if no entry, return error w/carry set
+	jne	gj8			; if no entry, return error w/carry set
 	dec	di			; rewind to entry
-	clc
+	jmp	short gj9
+gj8:	mov	ax,ERR_MAXFILES
+	stc
 gj9:	ret
 ENDPROC	get_pft_free
 

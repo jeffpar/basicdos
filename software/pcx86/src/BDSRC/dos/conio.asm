@@ -72,13 +72,63 @@ ENDPROC	tty_read
 ;	None
 ;
 DEFPROC	tty_print,DOS
-	mov	si,[bp].REG_DX
-	mov	ds,[bp].REG_DS		; DS:SI -> string
+	mov	ax,[bp].REG_DS		; special case: if DS:DX = CS:IP
+	mov	si,[bp].REG_DX		; INT 21h return address, then treat
+	cmp	si,[bp].REG_IP		; this as a PRINTF macro invocation
+	jne	tp1
+	cmp	ax,[bp].REG_CS
+	je	tty_printf
+tp1:	mov	ds,ax			; DS:SI -> string
 	mov	al,'$'
 	call	util_strlen
 	xchg	cx,ax			; CX = length
 	jmp	write_tty
 ENDPROC	tty_print endp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; tty_printf (REG_AH = 09h, REG_DS:REG_DX = CS:IP)
+;
+; Inputs:
+;	AX:SI -> format string following INT 21h
+;	all other printf-style parameters pushed on stack
+;
+; Outputs:
+;	# of characters printed
+;
+BUFLEN	equ	80
+DEFPROC	tty_printf,DOS
+	sub	bp,2			; align BP and SP
+	sub	sp,BUFLEN		; SP -> BUF
+	mov	di,-BUFLEN		; [BP+DI] -> BUF
+	mov	ds,ax			; DS:SI -> format string
+	push	si
+tpf1:	lodsb
+	test	al,al
+	jz	tpf8			; end of format
+	cmp	al,'%'			; format specifier?
+	je	tpf2			; yes
+tpf1a:	test	di,di
+	jz	tpf1
+	mov	[bp+di],al		; buffer the character
+	inc	di
+	jmp	tpf1
+
+tpf2:	jmp	tpf1a
+
+tpf8:	lea	cx,[di+BUFLEN]		; CX = length
+	mov	[bp+2].REG_AX,cx	; return that value in REG_AX
+	pop	dx
+	sub	si,dx
+	add	[bp+2].REG_IP,si	; skip over the format string at CS:IP
+	mov	si,sp
+	push	ss
+	pop	ds			; DS:SI -> BUF
+	call	write_tty
+	add	sp,BUFLEN
+	add	bp,2
+	ret
+ENDPROC	tty_printf endp
 
 DEFPROC	tty_input
 	ret
