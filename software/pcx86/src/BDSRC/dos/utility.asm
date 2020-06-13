@@ -135,7 +135,7 @@ ENDPROC util_atoi
 ; util_itoa (AL = 02h)
 ;
 ; Convert the value DX:SI to a string representation at ES:DI, using base BL,
-; flags BH, and length CX.
+; flags BH (see PF_*), minimum length CX (0 for no minimum).
 ;
 ; Returns:
 ;	ES:DI filled in
@@ -144,17 +144,14 @@ ENDPROC util_atoi
 ; Modifies:
 ;	AX, CX, DX, ES
 ;
-
-;
-; Assorted "print flags"
-;
-PF_HASH	equ	01h			; prefix requested (eg, 0x for hex)
-PF_ZERO	equ	02h			; zero padding requested
-PF_LONG	equ	04h			; long value (32 bits); default is 16
-PF_SIGN	equ	08h			; signed value
+PF_LEFT	equ	01h			; left-alignment requested
+PF_HASH	equ	02h			; prefix requested (eg, "0x")
+PF_ZERO	equ	04h			; zero padding requested
+PF_LONG	equ	08h			; long value (32 bits); default is 16
+PF_SIGN	equ	10h			; signed value
 
 DEFPROC	util_itoa,DOS
-	xchg	ax,si			; DX:AX is the value
+	xchg	ax,si			; DX:AX is now the value
 	mov	es,[bp].REG_ES		; ES:DI -> buffer
 	ASSUME	ES:NOTHING
 ;
@@ -175,21 +172,21 @@ DEFPROC	util_itoa,DOS
 	neg	dx			; yes, negate DX:AX
 	neg	ax
 	sbb	dx,0
-	inc	si			; SI = 1 if we must add a sign
+	inc	si			; SI += 1 if we must add a sign
 ia1:	test	bh,PF_HASH
 	jz	ia2
 	cmp	bl,16
 	jne	ia2
-	add	si,2
+	add	si,2			; SI += 2 if we must add a prefix
 
 ia2:	mov	bh,0
 	mov	bp,sp
 ia3:	mov	cx,ax			; save low dividend in CX
 	mov	ax,dx			; divide high dividend
 	sub	dx,dx			; DX:AX is new dividend
-	div	bx			; AX is high quotient (DX remainder)
+	div	bx			; AX is high quotient
 	xchg	ax,cx			; move to CX, restore low dividend
-	div	bx			; AX is low quotient (remainder is 0-N)
+	div	bx			; AX is low quotient
 	push	dx			; save remainder
 	mov	dx,cx			; new quotient in DX:AX
 	or	cx,ax			; is new quotient zero?
@@ -199,31 +196,39 @@ ia3:	mov	cx,ax			; save low dividend in CX
 	mov	bx,[bp+2]		; recover flags
 	sub	bp,sp
 	shr	bp,1			; BP = # of digits
+	sub	dx,dx			; DX = post-padding (default is none)
 	sub	cx,bp			; is space left over?
 	jle	ia4			; no
 	sub	cx,si			; subtract room for sign, if any
 	jle	ia4			; again, jump if no space left over
 ;
 ; Padding is required, but unfortunately, spaces must appear BEFORE any sign
-; and zeros must appear AFTER any sign.
+; or prefix, and zeros must appear AFTER any sign or prefix.
 ;
 	test	bh,PF_ZERO		; pad with zeros?
 	jnz	ia5			; yes
-	mov	al,' '			; no, pad with spaces
+	test	bh,PF_LEFT		; left alignment?
+	jz	ia3a			; no
+	mov	dx,cx			; yes, switch to post-padding
+	jmp	short ia4
+ia3a:	mov	al,' '			; no, pad with spaces
 	rep	stosb			; no sign, we just need to pad
 ;
 ; This takes care of any sign or prefix, and will optionally pad with as
 ; many zeros as CX specifies.
 ;
 ia4:	sub	cx,cx
-ia5:	test	si,1
-	jz	ia6
+ia5:	test	si,1			; sign required?
+	jz	ia6			; no
 	mov	al,'-'
 	stosb
-ia6:	test	si,2
-	jz	ia7
-	mov	ax,'x0'
-	stosw
+ia6:	test	si,2			; prefix required?
+	jz	ia7			; no
+	mov	ax,'x0'			; assume a hex prefix
+	cmp	bl,8			; was base 8 used?
+	jne	ia6a			; no
+	mov	ax,'o0'			; yes, use an octal prefix
+ia6a:	stosw
 ia7:	mov	al,'0'
 	rep	stosb
 
@@ -235,6 +240,10 @@ ia8:	pop	ax			; pop a digit
 ia9:	stosb				; store the digit
 	dec	bp
 	jnz	ia8
+
+	mov	cx,dx			; perform post-padding, if any
+	mov	al,' '
+	rep	stosb
 
 	add	sp,4			; discard requested length and flags
 	pop	ax
@@ -256,15 +265,7 @@ ENDPROC util_itoa
 ; skip, and the next instruction should be an "ADD SP,N*2", assuming N word
 ; parameters.
 ;
-; The code also relies on BPOFF, which must be set to the EXACT number of
-; additional bytes pushed onto the stack since REG_FRAME was created.
-; Obviously that could be calculated at run-time, but it's preferable to know
-; the value at assembly-time so that we can use constant displacements and
-; simplify register usage.
-;
-; A BPOFF value of 4 indicates there were two near-call dispatches (one in
-; dos_func and the other in util_func) and no other pushes between the creation
-; of REG_FRAME and arriving here.
+; See util_sprintf for more details.
 ;
 ; Inputs:
 ;	format string follows the INT 21h
@@ -274,80 +275,148 @@ ENDPROC util_itoa
 ;	# of characters printed
 ;
 ; Modifies:
-;	AX, BX, CX, SI, DI, DS, ES
+;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
-BUFLEN	equ	80			; arbitrary buffer limit
-BPOFF	equ	6			; # of bytes pushed since REG_FRAME
+SPF_FRAME struc
+SPF_LENGTH	dw	?		; specifier length, if any
+SPF_START	dw	?		; buffer start address
+SPF_LIMIT	dw	?		; buffer limit address
+SPF_CALLS	dw	2 dup(?)	; two near-call dispatches
+SPF_FRAME ends
+
+BUFLEN	equ	80			; stack space to use as printf buffer
 
 DEFPROC	util_printf,DOS
 	push	ss
 	pop	es
 	ASSUME	ES:NOTHING
-	push	ax			; scratch space
-	sub	bp,BPOFF		; align BP and SP
-	ASSERTZ	<cmp bp,sp>		; assert that BPOFF is correct
-	sub	sp,BUFLEN		; SP -> BUF
-	mov	di,-BUFLEN		; BP+DI -> BUF
-	mov	si,BPOFF+size REG_FRAME	; BP+SI -> 1st parameter, if any
-	mov	bx,[BP+BPOFF].REG_IP
-	mov	ds,[BP+BPOFF].REG_CS	; DS:BX -> format string
+	sub	sp,BUFLEN + offset SPF_CALLS
+	mov	cx,BUFLEN		; CX = length
+	mov	di,sp			; ES:DI -> buffer on stack
+	call	sprintf
+	mov	si,sp
+	push	ss
+	pop	ds			; DS:SI -> buffer on stack
 	ASSUME	DS:NOTHING
+	push	ax
+	xchg	cx,ax			; CX = # of characters
+	call	write_tty
+	pop	ax			; recover # of characters for caller
+	add	sp,BUFLEN + offset SPF_CALLS
+	ret
+ENDPROC	util_printf endp
 
-	push	bx
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; util_sprintf (AL = 04h)
+;
+; A semi-CDECL-style calling convention is assumed, where all parameters
+; EXCEPT for the format string are pushed from right to left, so that the
+; first (left-most) parameter is the last one pushed.  The format string
+; is stored in the CODE segment following the INT 21h, which we automatically
+; skip, and the next instruction should be an "ADD SP,N*2", assuming N word
+; parameters.
+;
+; When printing 32-bit values, list the low word first, then the high word,
+; so that the high word is pushed first.
+;
+; The code relies on SPF_FRAME, which must accurately reflect the number of
+; additional bytes pushed onto the stack since REG_FRAME was created.
+; Obviously that could be calculated at run-time, but it's preferable to know
+; the value at assembly-time so that we can use constant displacements and
+; simplify register usage.
+;
+; Inputs:
+;	ES:DI -> buffer
+;	CX = length of buffer
+;	format string follows the INT 21h
+;	all other parameters must be pushed onto the stack, right to left
+;
+; Outputs:
+;	# of characters generated
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, DS, ES
+;
+DEFPROC	util_sprintf,DOS
+	mov	es,[bp].REG_ES
+	ASSUME	ES:NOTHING
+	sub	sp,offset SPF_CALLS
+	call	sprintf
+	add	sp,offset SPF_CALLS
+	ret
+ENDPROC	util_sprintf
+
+DEFPROC	sprintf,DOS
+	ASSUME	ES:NOTHING
+	sub	bp,size SPF_FRAME
+	mov	[bp].SPF_START,di	; DI is the buffer start
+	add	cx,di
+	mov	[bp].SPF_LIMIT,cx	; CX+DI is the buffer limit
+
+	mov	si,size SPF_FRAME+size REG_FRAME
+	mov	bx,[bp+size SPF_FRAME].REG_IP
+	mov	ds,[bp+size SPF_FRAME].REG_CS
+	ASSUME	DS:NOTHING		; DS:BX -> format string
+
+	push	bx			; save original format string address
 pf1:	mov	al,[bx]			; AL = next format character
 	inc	bx
 	test	al,al
 	jz	pf1b			; end of format string
 	cmp	al,'%'			; format specifier?
 	je	pf2			; yes
-pf1a:	test	di,di			; buffer full?
-	jz	pf1			; yes, but keep consuming format chars
-	mov	[bp+di],al		; buffer the character
-	inc	di
+pf1a:	cmp	di,[bp].SPF_LIMIT	; buffer full?
+	jae	pf1			; yes, but keep consuming format chars
+	stosb				; buffer the character
 	jmp	pf1
 pf1b:	jmp	pf8
 
 pf2:	mov	cx,10			; CH = print flags, CL = base
 	mov	dx,bx			; DX = where this specifier started
-	mov	word ptr [bp],0		; use scratch for specifier length
+	mov	[bp].SPF_LENGTH,0	; initial specifier length
 pf2a:	mov	al,[bx]
 	inc	bx
-	cmp	al,'#'
+	cmp	al,'-'
 	jne	pf2b
+	or	ch,PF_LEFT
+	jmp	pf2a
+pf2b:	cmp	al,'#'
+	jne	pf2c
 	or	ch,PF_HASH
 	jmp	pf2a
-pf2b:	cmp	al,'0'
-	jne	pf2c
-	cmp	word ptr [bp],0
-	jne	pf2g
+pf2c:	cmp	al,'0'
+	jne	pf2d
+	cmp	[bp].SPF_LENGTH,0
+	jne	pf2h
 	or	ch,PF_ZERO
 	jmp	pf2a
-pf2c:	cmp	al,'l'
-	jne	pf2d
+pf2d:	cmp	al,'l'
+	jne	pf2e
 	or	ch,PF_LONG
 	jmp	pf2a
-pf2d:	cmp	al,'d'
-	jne	pf2e
+pf2e:	cmp	al,'d'
+	jne	pf2f
 	or	ch,PF_SIGN
 	jmp	short pfd
-pf2e:	cmp	al,'u'
+pf2f:	cmp	al,'u'
 	je	pfd
 	cmp	al,'x'
-	jne	pf2f
+	jne	pf2g
 	mov	cl,16			; use base 16 instead
 	jmp	short pfd
-pf2f:	cmp	al,'0'			; possible length?
+pf2g:	cmp	al,'0'			; possible length?
 	jb	pf2z			; no
 	cmp	al,'9'
 	ja	pf2z			; no
-pf2g:	sub	al,'0'
+pf2h:	sub	al,'0'
 	push	dx
 	xchg	dx,ax
-	mov	al,[bp]
+	mov	al,byte ptr [bp].SPF_LENGTH
 	mov	ah,10
 	mul	ah
 	add	al,dl
-	mov	[bp],al
+	mov	byte ptr [bp].SPF_LENGTH,al
 	pop	dx
 	jmp	pf2a
 pf2z:	mov	bx,dx			; error, didn't end with known letter
@@ -356,51 +425,47 @@ pf2z:	mov	bx,dx			; error, didn't end with known letter
 ;
 ; Process %d, %u, and %x specifications
 ;
-pfd:	mov	ax,[bp]			; if the length - DI is > 0
-	add	ax,di			; then we don't have enough space
-	jg	pf2z
+; TODO: Any specified length is a minimum, not a maximum, and if the value
+; is larger, itoa will not truncate it.  So unless we want to make worst-case
+; length estimates for all the numeric possibilities, we really need to pass
+; our buffer limit to itoa, so that it can guarantee the buffer never overflows.
+;
+; Another option would be to pass the minimum in CL and the maxiumum (LIMIT-DI)
+; in CH; however, changing itoa to honor that would be rather messy....
+;
+pfd:	mov	ax,[bp].SPF_LENGTH
+	add	ax,di
+	cmp	ax,[bp].SPF_LIMIT
+	jae	pf2z			; not enough room for specified length
 
 	mov	ax,[bp+si]		; grab a stack parameter
 	add	si,2
 	test	ch,PF_LONG
 	jnz	pfd2
-	cmp	di,-6			; room?
-	jge	pf2z			; no
 	sub	dx,dx			; DX:AX = 16-bit value
 	test	ch,PF_SIGN		; signed value?
 	jz	pfd1			; no
 	cwd				; yes, sign-extend AX to DX
 pfd1:	push	bx
 	mov	bx,cx			; set flags (BH) and base (BL)
-	push	di
-	mov	cx,[bp]			; CX = length (0 if unspecified)
-	lea	di,[bp+di]		; ES:DI -> room for number
+	mov	cx,[bp].SPF_LENGTH	; CX = length (0 if unspecified)
 	call	itoa
-	pop	di
 	add	di,ax			; adjust DI by number of digits
 	pop	bx
 	jmp	pf1
 
 pfd2:	mov	dx,[bp+si]		; grab another stack parameter
 	add	si,2			; DX:AX = 32-bit value
-	cmp	di,-12			; room?
-	jge	pf2z			; no
 	jmp	pfd1
 
-pf8:	pop	ax			; AX = original format string address
-	sub	bx,ax			; BX = length of string (incl. null)
-	add	[bp+BPOFF].REG_IP,bx	; skip over the format string at CS:IP
-	mov	si,sp
-	push	ss
-	pop	ds			; DS:SI -> BUF
-	lea	cx,[di+BUFLEN]		; CX = # of characters
-	push	cx
-	call	write_tty
-	pop	ax			; AX = # of characters
-	add	sp,BUFLEN+2
-	add	bp,BPOFF
+pf8:	pop	ax			; restore original format string address
+	sub	bx,ax			; BX = length of format string + 1
+	add	[bp+size SPF_FRAME].REG_IP,bx
+	sub	di,[bp].SPF_START
+	xchg	ax,di			; AX = # of characters
+	add	bp,size SPF_FRAME
 	ret
-ENDPROC	util_printf endp
+ENDPROC	sprintf
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
