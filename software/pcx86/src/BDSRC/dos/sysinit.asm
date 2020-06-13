@@ -396,9 +396,13 @@ dsierr:	jmp	sysinit_error
 
 si99:	mov	ah,TIME_GETTICKS
 	int	INT_TIME		; CX:DX is tick count
-	PRINTF	<"hello world, the time is [%-6ld]",13,10>,dx,cx
+	mov	bx,offset hello
+	PRINTF	<"%ls, the time is [%6ld]",13,10>,bx,cs,dx,cx
 
 si199:	jmp	si199
+
+hello	db	"hello world",0
+
 ENDPROC	sysinit
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

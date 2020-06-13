@@ -15,14 +15,14 @@ DOS	segment word public 'CODE'
 
 	DEFLBL	UTILTBL,word
 	dw	util_strlen,util_atoi,util_itoa,util_printf	; 00h-03h
-	dw	util_strlen,util_none,util_none,util_none	; 04h-07h
-	dw	util_strlen,util_none,util_none,util_none	; 08h-0Bh
-	dw	util_strlen,util_none,util_none,util_none	; 0Ch-0Fh
-	dw	util_strlen,util_none,util_none,util_none	; 10h-13h
-	dw	util_strlen,util_none,util_none,util_none	; 14h-17h
-	dw	util_strlen,util_none,util_none,util_none	; 18h-1Bh
-	dw	util_strlen,util_none,util_none,util_none	; 1Ch-1Fh
-	dw	util_strlen,util_none,util_none,util_none	; 20h-23h
+	dw	util_sprintf,util_none,util_none,util_none	; 04h-07h
+	dw	util_none,util_none,util_none,util_none		; 08h-0Bh
+	dw	util_none,util_none,util_none,util_none		; 0Ch-0Fh
+	dw	util_none,util_none,util_none,util_none		; 10h-13h
+	dw	util_none,util_none,util_none,util_none		; 14h-17h
+	dw	util_none,util_none,util_none,util_none		; 18h-1Bh
+	dw	util_none,util_none,util_none,util_none		; 1Ch-1Fh
+	dw	util_none,util_none,util_none,util_none		; 20h-23h
 	dw	util_strlen					; 24h
 	DEFABS	UTILTBL_SIZE,<($ - UTILTBL) SHR 1>
 
@@ -55,12 +55,14 @@ ENDPROC	util_func
 ; Returns the length of the REG_DS:SI string in AX, using the terminator in AL.
 ;
 ; Modifies:
-;	AX, CX, DI
+;	AX
 ;
 DEFPROC	util_strlen,DOS
 	mov	ds,[bp].REG_DS
 	ASSUME	DS:NOTHING
 	DEFLBL	strlen,near		; for internal calls (no REG_FRAME)
+	push	cx
+	push	di
 	push	es
 	push	ds
 	pop	es
@@ -73,6 +75,8 @@ DEFPROC	util_strlen,DOS
 usl9:	sub	di,si
 	lea	ax,[di-1]		; don't count the terminator character
 	pop	es
+	pop	di
+	pop	cx
 	ret
 ENDPROC	util_strlen
 
@@ -144,11 +148,13 @@ ENDPROC util_atoi
 ; Modifies:
 ;	AX, CX, DX, ES
 ;
-PF_LEFT	equ	01h			; left-alignment requested
-PF_HASH	equ	02h			; prefix requested (eg, "0x")
-PF_ZERO	equ	04h			; zero padding requested
-PF_LONG	equ	08h			; long value (32 bits); default is 16
-PF_SIGN	equ	10h			; signed value
+PF_LEFT   equ	01h			; left-alignment requested
+PF_HASH   equ	02h			; prefix requested (eg, "0x")
+PF_ZERO   equ	04h			; zero padding requested
+PF_LONG   equ	08h			; long value (32 bits); default is 16
+PF_SIGN   equ	10h			; signed value
+PF_WIDTH  equ	20h			; width encountered
+PF_PRECIS equ	40h			; precision encountered (after '.')
 
 DEFPROC	util_itoa,DOS
 	xchg	ax,si			; DX:AX is now the value
@@ -278,7 +284,8 @@ ENDPROC util_itoa
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
 SPF_FRAME struc
-SPF_LENGTH	dw	?		; specifier length, if any
+SPF_WIDTH	dw	?		; specifier width, if any
+SPF_PRECIS	dw	?		; specifier precision, if any
 SPF_START	dw	?		; buffer start address
 SPF_LIMIT	dw	?		; buffer limit address
 SPF_CALLS	dw	2 dup(?)	; two near-call dispatches
@@ -363,69 +370,89 @@ DEFPROC	sprintf,DOS
 pf1:	mov	al,[bx]			; AL = next format character
 	inc	bx
 	test	al,al
-	jz	pf1b			; end of format string
+	jz	pf3			; end of format string
 	cmp	al,'%'			; format specifier?
-	je	pf2			; yes
-pf1a:	cmp	di,[bp].SPF_LIMIT	; buffer full?
+	je	pfp			; yes
+pf2:	cmp	di,[bp].SPF_LIMIT	; buffer full?
 	jae	pf1			; yes, but keep consuming format chars
 	stosb				; buffer the character
 	jmp	pf1
-pf1b:	jmp	pf8
+pf3:	jmp	pf8
 
-pf2:	mov	cx,10			; CH = print flags, CL = base
+pfp:	mov	cx,10			; CH = print flags, CL = base
 	mov	dx,bx			; DX = where this specifier started
-	mov	[bp].SPF_LENGTH,0	; initial specifier length
-pf2a:	mov	al,[bx]
+	mov	[bp].SPF_WIDTH,0	; initial specifier width
+	mov	[bp].SPF_PRECIS,0	; initial specifier precision
+pfpa:	mov	al,[bx]
 	inc	bx
-	cmp	al,'-'
-	jne	pf2b
-	or	ch,PF_LEFT
-	jmp	pf2a
-pf2b:	cmp	al,'#'
-	jne	pf2c
-	or	ch,PF_HASH
-	jmp	pf2a
-pf2c:	cmp	al,'0'
-	jne	pf2d
-	cmp	[bp].SPF_LENGTH,0
-	jne	pf2h
-	or	ch,PF_ZERO
-	jmp	pf2a
-pf2d:	cmp	al,'l'
-	jne	pf2e
-	or	ch,PF_LONG
-	jmp	pf2a
-pf2e:	cmp	al,'d'
-	jne	pf2f
-	or	ch,PF_SIGN
+	cmp	al,'-'			; left-alignment indicator?
+	jne	pfpb
+	or	ch,PF_LEFT		; yes
+	jmp	pfpa
+pfpb:	cmp	al,'#'			; prefix indicator?
+	jne	pfpc
+	or	ch,PF_HASH		; yes
+	jmp	pfpa
+pfpc:	cmp	al,'0'			; zero-padding indicator
+	jne	pfpd
+	test	ch,PF_WIDTH OR PF_PRECIS; maybe, leading zero?
+	jnz	pfpj			; no
+	or	ch,PF_ZERO		; yes
+	jmp	pfpa
+pfpd:	cmp	al,'l'			; long value?
+	jne	pfpe
+	or	ch,PF_LONG		; yes
+	jmp	pfpa
+pfpe:	cmp	al,'d'			; decimal value?
+	jne	pfpf
+	or	ch,PF_SIGN		; yes, so mark as explicitly signed
 	jmp	short pfd
-pf2f:	cmp	al,'u'
-	je	pfd
-	cmp	al,'x'
-	jne	pf2g
+pfpf:	cmp	al,'s'			; string value?
+	jne	pfpg
+	jmp	pfs			; yes
+pfpg:	cmp	al,'u'			; unsigned value?
+	je	pfd			; yes, unsigned values are the default
+	cmp	al,'x'			; hex value?
+	jne	pfph
 	mov	cl,16			; use base 16 instead
-	jmp	short pfd
-pf2g:	cmp	al,'0'			; possible length?
-	jb	pf2z			; no
+	jmp	short pfd		; hex values are always unsigned as well
+pfph:	cmp	al,'.'			; precision indicator?
+	jne	pfpi
+	or	ch,PF_PRECIS		; yes
+	jmp	pfpa
+pfpi:	cmp	al,'1'			; possible number?
+	jb	pfpz			; no
 	cmp	al,'9'
-	ja	pf2z			; no
-pf2h:	sub	al,'0'
+	ja	pfpz			; no
+pfpj:	sub	al,'0'
+	test	ch,PF_PRECIS		; is this a precision number?
+	jnz	pfpk			; yes
+	or	ch,PF_WIDTH		; no, so it must be a width number
 	push	dx
 	xchg	dx,ax
-	mov	al,byte ptr [bp].SPF_LENGTH
+	mov	al,byte ptr [bp].SPF_WIDTH
 	mov	ah,10
 	mul	ah
 	add	al,dl
-	mov	byte ptr [bp].SPF_LENGTH,al
+	mov	byte ptr [bp].SPF_WIDTH,al
 	pop	dx
-	jmp	pf2a
-pf2z:	mov	bx,dx			; error, didn't end with known letter
+	jmp	pfpa
+pfpk:	push	dx
+	xchg	dx,ax
+	mov	al,byte ptr [bp].SPF_PRECIS
+	mov	ah,10
+	mul	ah
+	add	al,dl
+	mov	byte ptr [bp].SPF_PRECIS,al
+	pop	dx
+	jmp	pfpa
+pfpz:	mov	bx,dx			; error, didn't end with known letter
 	mov	al,'%'			; restore '%'
-	jmp	pf1a
+	jmp	pf2
 ;
-; Process %d, %u, and %x specifications
+; Process %d, %u, and %x specifications.
 ;
-; TODO: Any specified length is a minimum, not a maximum, and if the value
+; TODO: Any specified width is a minimum, not a maximum, and if the value
 ; is larger, itoa will not truncate it.  So unless we want to make worst-case
 ; length estimates for all the numeric possibilities, we really need to pass
 ; our buffer limit to itoa, so that it can guarantee the buffer never overflows.
@@ -433,10 +460,10 @@ pf2z:	mov	bx,dx			; error, didn't end with known letter
 ; Another option would be to pass the minimum in CL and the maxiumum (LIMIT-DI)
 ; in CH; however, changing itoa to honor that would be rather messy....
 ;
-pfd:	mov	ax,[bp].SPF_LENGTH
+pfd:	mov	ax,[bp].SPF_WIDTH
 	add	ax,di
 	cmp	ax,[bp].SPF_LIMIT
-	jae	pf2z			; not enough room for specified length
+	jae	pfpz			; not enough room for specified length
 
 	mov	ax,[bp+si]		; grab a stack parameter
 	add	si,2
@@ -448,7 +475,7 @@ pfd:	mov	ax,[bp].SPF_LENGTH
 	cwd				; yes, sign-extend AX to DX
 pfd1:	push	bx
 	mov	bx,cx			; set flags (BH) and base (BL)
-	mov	cx,[bp].SPF_LENGTH	; CX = length (0 if unspecified)
+	mov	cx,[bp].SPF_WIDTH	; CX = length (0 if unspecified)
 	call	itoa
 	add	di,ax			; adjust DI by number of digits
 	pop	bx
@@ -457,6 +484,56 @@ pfd1:	push	bx
 pfd2:	mov	dx,[bp+si]		; grab another stack parameter
 	add	si,2			; DX:AX = 32-bit value
 	jmp	pfd1
+;
+; Process %s specification.
+;
+pfs:	push	ds
+	mov	ax,[bp+si]		; use %s for CS-relative near pointers
+	add	si,2
+	test	ch,PF_LONG		; use %ls for far pointers
+	jz	pfs2
+	mov	ds,[bp+si]
+	add	si,2
+pfs2:	push	si
+	xchg	si,ax			; DS:SI -> string
+	mov	al,0
+	call	strlen			; AX = length
+	mov	dx,[bp].SPF_PRECIS
+	test	dx,dx
+	jz	pfs3
+	cmp	ax,dx			; length < PRECIS?
+	jb	pfs3			; no
+	mov	ax,dx			; yes, so limit it
+pfs3:	mov	dx,[bp].SPF_WIDTH
+	test	dx,dx
+	jz	pfs4
+	cmp	dx,ax
+	jbe	pfs4
+	sub	dx,ax			; DX = padding count
+
+	push	di			; make sure that DI+AX+DX < LIMIT
+	add	di,ax
+	add	di,dx
+	cmp	di,[bp].SPF_LIMIT
+	pop	di
+	jae	pfpz
+
+pfs4:	test	ch,PF_LEFT		; left-aligned?
+	jnz	pfs5			; yes
+	mov	cx,dx
+	sub	dx,dx
+	push	ax
+	mov	al,' '
+	rep	stosb			; pad it
+	pop	ax
+pfs5:	xchg	cx,ax
+	rep	movsb			; move it
+	mov	cx,dx
+	mov	al,' '
+	rep	stosb			; pad it
+	pop	si
+	pop	ds
+	jmp	pf1			; all done with %s
 
 pf8:	pop	ax			; restore original format string address
 	sub	bx,ax			; BX = length of format string + 1
