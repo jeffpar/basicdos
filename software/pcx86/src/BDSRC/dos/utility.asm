@@ -134,7 +134,8 @@ ENDPROC util_atoi
 ;
 ; util_itoa (AL = 02h)
 ;
-; Convert the value CX:DX to a string representation at ES:DI, with base BX.
+; Convert the value DX:SI to a string representation at ES:DI, using base BL,
+; flags BH, and length CX.
 ;
 ; Returns:
 ;	ES:DI filled in
@@ -143,35 +144,105 @@ ENDPROC util_atoi
 ; Modifies:
 ;	AX, CX, DX, ES
 ;
+
+;
+; Assorted "print flags"
+;
+PF_HASH	equ	01h			; prefix requested (eg, 0x for hex)
+PF_ZERO	equ	02h			; zero padding requested
+PF_LONG	equ	04h			; long value (32 bits); default is 16
+PF_SIGN	equ	08h			; signed value
+
 DEFPROC	util_itoa,DOS
-	mov	es,[bp].REG_ES
+	xchg	ax,si			; DX:AX is the value
+	mov	es,[bp].REG_ES		; ES:DI -> buffer
 	ASSUME	ES:NOTHING
+;
+; itoa internal calls use DX:AX
+;
 	DEFLBL	itoa,near		; for internal calls (no REG_FRAME)
-	push	di			; DI saved
-	push	bx
-	xchg	dx,cx			; DX:CX instead of CX:DX
-	mov	ax,cx			; DX:AX = 32-bit value
+	push	bp
+	push	si
+	push	di
+	push	bx			; save flags and base
+	push	cx			; save requested length
+
+	sub	si,si
+	test	bh,PF_SIGN		; treat value as signed?
+	jz	ia0			; no
+	test	dx,dx			; negative value?
+	jns	ia0			; no
+	neg	dx			; yes, negate DX:AX
+	neg	ax
+	sbb	dx,0
+	inc	si			; SI = 1 if we must add a sign
+
+ia0:	mov	bh,0
+	mov	bp,sp
 ia1:	mov	cx,ax			; save low dividend in CX
-	mov	ax,dx			; divide the high dividend
-	sub	dx,dx			; DX:AX is the new divided
-	div	bx			; AX is high quotient (remainder in DX)
+	mov	ax,dx			; divide high dividend
+	sub	dx,dx			; DX:AX is new dividend
+	div	bx			; AX is high quotient (DX remainder)
 	xchg	ax,cx			; move to CX, restore low dividend
-	div	bx			; AX is low quotient (remainder is 0-9)
+	div	bx			; AX is low quotient (remainder is 0-N)
 	push	dx			; save remainder
 	mov	dx,cx			; new quotient in DX:AX
 	or	cx,ax			; is new quotient zero?
 	jnz	ia1			; no, use as next dividend
-ia2:	pop	ax			; pop a digit
-	cmp	ax,bx			; end of digits?
-	jae	ia4			; yes
+
+ia2:	mov	cx,[bp]			; recover requested length
+	mov	bx,[bp+2]		; recover flags
+	sub	bp,sp
+	shr	bp,1			; BP = # of digits
+	sub	cx,bp			; is space left over?
+	jle	ia6			; no
+	sub	cx,si			; subtract room for sign, if any
+	jle	ia6			; again, jump if no space left over
+;
+; Padding is required, but unfortunately, spaces must appear BEFORE any sign
+; and zeros must appear AFTER any sign.
+;
+	mov	al,' '
+	test	bl,PF_ZERO		; pad with zeros?
+	jz	ia3			; no
+	mov	al,'0'			; yes
+
+ia3:	test	si,si
+	jz	ia5			; no sign
+	cmp	al,' '			; space padding (before sign?)
+	jne	ia4			; no
+
+	rep	stosb			; we require spaces followed by sign
+	mov	al,'-'
+	stosb
+	jmp	short ia7
+
+ia4:	mov	al,'-'			; we require a sign followed by zeros
+	stosb
+	mov	al,'0'
+
+ia5:	sub	si,si
+	rep	stosb			; no sign, we just need to pad
+
+ia6:	test	si,si
+	jz	ia7
+	mov	al,'-'
+	stosb
+
+ia7:	pop	ax			; pop a digit
 	add	al,'0'			; convert digit to ASCII
 	cmp	al,'9'			; alpha hex digit instead?
-	jbe	ia3			; no
+	jbe	ia8			; no
 	add	al,'A'-'0'-10		; yes, adjust it to 'A' to 'F'
-ia3:	stosb				; store the digit
-	jmp	ia2
-ia4:	pop	ax
-	sub	di,ax			; DI = current - original address
+ia8:	stosb				; store the digit
+	dec	bp
+	jnz	ia7
+
+	add	sp,4			; discard requested length and flags
+	pop	ax
+	pop	si
+	pop	bp
+	sub	di,ax			; current - original address
 	xchg	ax,di			; DI restored, AX is the digit count
 	ret
 ENDPROC util_itoa
@@ -208,24 +279,18 @@ ENDPROC util_itoa
 ;	AX, BX, CX, SI, DI, DS, ES
 ;
 BUFLEN	equ	80			; arbitrary buffer limit
-BPOFF	equ	4			; # of bytes pushed since REG_FRAME
-
-;
-; Assorted "print flags"
-;
-PF_HASH	equ	01h
-PF_ZERO	equ	02h
-PF_LONG	equ	04h
+BPOFF	equ	6			; # of bytes pushed since REG_FRAME
 
 DEFPROC	util_printf,DOS
 	push	ss
 	pop	es
 	ASSUME	ES:NOTHING
+	push	ax			; scratch space
 	sub	bp,BPOFF		; align BP and SP
 	ASSERTZ	<cmp bp,sp>		; assert that BPOFF is correct
 	sub	sp,BUFLEN		; SP -> BUF
-	mov	di,-BUFLEN		; [BP+DI] -> BUF
-	mov	si,BPOFF+size REG_FRAME	; [BP+SI] -> 1st parameter, if any
+	mov	di,-BUFLEN		; BP+DI -> BUF
+	mov	si,BPOFF+size REG_FRAME	; BP+SI -> 1st parameter, if any
 	mov	bx,[BP+BPOFF].REG_IP
 	mov	ds,[BP+BPOFF].REG_CS	; DS:BX -> format string
 	ASSUME	DS:NOTHING
@@ -234,7 +299,7 @@ DEFPROC	util_printf,DOS
 pf1:	mov	al,[bx]			; AL = next format character
 	inc	bx
 	test	al,al
-	jz	pf8			; end of format string
+	jz	pf1b			; end of format string
 	cmp	al,'%'			; format specifier?
 	je	pf2			; yes
 pf1a:	test	di,di			; buffer full?
@@ -242,51 +307,81 @@ pf1a:	test	di,di			; buffer full?
 	mov	[bp+di],al		; buffer the character
 	inc	di
 	jmp	pf1
+pf1b:	jmp	pf8
 
-pf2:	sub	cx,cx			; CX = assorted PF bits, if any
+pf2:	mov	cx,10			; CH = print flags, CL = base
 	mov	dx,bx			; DX = where this specifier started
+	mov	word ptr [bp],0		; use scratch for specifier length
 pf2a:	mov	al,[bx]
 	inc	bx
-	cmp	al,'l'
+	cmp	al,'#'
 	jne	pf2b
-	or	cl,PF_LONG
+	or	ch,PF_HASH
 	jmp	pf2a
 pf2b:	cmp	al,'0'
 	jne	pf2c
-	or	al,PF_ZERO
+	cmp	word ptr [bp],0
+	jne	pf2g
+	or	ch,PF_ZERO
 	jmp	pf2a
-pf2c:	cmp	al,'#'
+pf2c:	cmp	al,'l'
 	jne	pf2d
-	or	al,PF_HASH
+	or	ch,PF_LONG
 	jmp	pf2a
 pf2d:	cmp	al,'d'
+	jne	pf2e
+	or	ch,PF_SIGN
+	jmp	short pfd
+pf2e:	cmp	al,'u'
 	je	pfd
-pf2x:	mov	bx,dx			; error, didn't end with known letter
+	cmp	al,'x'
+	jne	pf2f
+	mov	cl,16			; use base 16 instead
+	jmp	short pfd
+pf2f:	cmp	al,'0'			; possible length?
+	jb	pf2z			; no
+	cmp	al,'9'
+	ja	pf2z			; no
+pf2g:	sub	al,'0'
+	push	dx
+	xchg	dx,ax
+	mov	al,[bp]
+	mov	ah,10
+	mul	ah
+	add	al,dl
+	mov	[bp],al
+	pop	dx
+	jmp	pf2a
+pf2z:	mov	bx,dx			; error, didn't end with known letter
 	mov	al,'%'			; restore '%'
 	jmp	pf1a
 ;
-; Process '%d' specification
+; Process %d, %u, and %x specifications (no support for specific widths yet)
 ;
-pfd:	mov	dx,[bp+si]		; grab a stack parameter
+pfd:	mov	ax,[bp+si]		; grab a stack parameter
 	add	si,2
-	test	cl,PF_LONG
+	test	ch,PF_LONG
 	jnz	pfd2
-	sub	cx,cx			; CX:DX = 16-bit value
 	cmp	di,-6			; room?
-	jge	pf2x			; no
+	jge	pf2z			; no
+	sub	dx,dx			; DX:AX = 16-bit value
+	test	ch,PF_SIGN		; signed value?
+	jz	pfd1			; no
+	cwd				; yes, sign-extend AX to DX
 pfd1:	push	bx
-	mov	bx,10
+	mov	bx,cx			; set flags (BH) and base (BL)
 	push	di
 	lea	di,[bp+di]		; ES:DI -> room for number
+	mov	cx,[bp]			; CX = length (0 if unspecified)
 	call	itoa
 	pop	di
-	add	di,ax
+	add	di,ax			; adjust DI by number of digits
 	pop	bx
 	jmp	pf1
-pfd2:	mov	cx,[bp+si]		; grab another stack parameter
-	add	si,2			; CX:DX = 32-bit value
+pfd2:	mov	dx,[bp+si]		; grab another stack parameter
+	add	si,2			; DX:AX = 32-bit value
 	cmp	di,-12			; room?
-	jge	pf2x			; no
+	jge	pf2z			; no
 	jmp	pfd1
 
 pf8:	pop	ax			; AX = original format string address
@@ -299,7 +394,7 @@ pf8:	pop	ax			; AX = original format string address
 	push	cx
 	call	write_tty
 	pop	ax			; AX = # of characters
-	add	sp,BUFLEN
+	add	sp,BUFLEN+2
 	add	bp,BPOFF
 	ret
 ENDPROC	util_printf endp
