@@ -169,17 +169,22 @@ DEFPROC	util_itoa,DOS
 
 	sub	si,si
 	test	bh,PF_SIGN		; treat value as signed?
-	jz	ia0			; no
+	jz	ia1			; no
 	test	dx,dx			; negative value?
-	jns	ia0			; no
+	jns	ia1			; no
 	neg	dx			; yes, negate DX:AX
 	neg	ax
 	sbb	dx,0
 	inc	si			; SI = 1 if we must add a sign
+ia1:	test	bh,PF_HASH
+	jz	ia2
+	cmp	bl,16
+	jne	ia2
+	add	si,2
 
-ia0:	mov	bh,0
+ia2:	mov	bh,0
 	mov	bp,sp
-ia1:	mov	cx,ax			; save low dividend in CX
+ia3:	mov	cx,ax			; save low dividend in CX
 	mov	ax,dx			; divide high dividend
 	sub	dx,dx			; DX:AX is new dividend
 	div	bx			; AX is high quotient (DX remainder)
@@ -188,55 +193,48 @@ ia1:	mov	cx,ax			; save low dividend in CX
 	push	dx			; save remainder
 	mov	dx,cx			; new quotient in DX:AX
 	or	cx,ax			; is new quotient zero?
-	jnz	ia1			; no, use as next dividend
+	jnz	ia3			; no, use as next dividend
 
-ia2:	mov	cx,[bp]			; recover requested length
+	mov	cx,[bp]			; recover requested length
 	mov	bx,[bp+2]		; recover flags
 	sub	bp,sp
 	shr	bp,1			; BP = # of digits
 	sub	cx,bp			; is space left over?
-	jle	ia6			; no
+	jle	ia4			; no
 	sub	cx,si			; subtract room for sign, if any
-	jle	ia6			; again, jump if no space left over
+	jle	ia4			; again, jump if no space left over
 ;
 ; Padding is required, but unfortunately, spaces must appear BEFORE any sign
 ; and zeros must appear AFTER any sign.
 ;
-	mov	al,' '
-	test	bl,PF_ZERO		; pad with zeros?
-	jz	ia3			; no
-	mov	al,'0'			; yes
-
-ia3:	test	si,si
-	jz	ia5			; no sign
-	cmp	al,' '			; space padding (before sign?)
-	jne	ia4			; no
-
-	rep	stosb			; we require spaces followed by sign
-	mov	al,'-'
-	stosb
-	jmp	short ia7
-
-ia4:	mov	al,'-'			; we require a sign followed by zeros
-	stosb
-	mov	al,'0'
-
-ia5:	sub	si,si
+	test	bh,PF_ZERO		; pad with zeros?
+	jnz	ia5			; yes
+	mov	al,' '			; no, pad with spaces
 	rep	stosb			; no sign, we just need to pad
-
-ia6:	test	si,si
-	jz	ia7
+;
+; This takes care of any sign or prefix, and will optionally pad with as
+; many zeros as CX specifies.
+;
+ia4:	sub	cx,cx
+ia5:	test	si,1
+	jz	ia6
 	mov	al,'-'
 	stosb
+ia6:	test	si,2
+	jz	ia7
+	mov	ax,'x0'
+	stosw
+ia7:	mov	al,'0'
+	rep	stosb
 
-ia7:	pop	ax			; pop a digit
+ia8:	pop	ax			; pop a digit
 	add	al,'0'			; convert digit to ASCII
 	cmp	al,'9'			; alpha hex digit instead?
-	jbe	ia8			; no
+	jbe	ia9			; no
 	add	al,'A'-'0'-10		; yes, adjust it to 'A' to 'F'
-ia8:	stosb				; store the digit
+ia9:	stosb				; store the digit
 	dec	bp
-	jnz	ia7
+	jnz	ia8
 
 	add	sp,4			; discard requested length and flags
 	pop	ax
