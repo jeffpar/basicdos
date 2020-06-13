@@ -356,9 +356,13 @@ pf2z:	mov	bx,dx			; error, didn't end with known letter
 	mov	al,'%'			; restore '%'
 	jmp	pf1a
 ;
-; Process %d, %u, and %x specifications (no support for specific widths yet)
+; Process %d, %u, and %x specifications
 ;
-pfd:	mov	ax,[bp+si]		; grab a stack parameter
+pfd:	mov	ax,[bp]			; if the length - DI is > 0
+	add	ax,di			; then we don't have enough space
+	jg	pf2z
+
+	mov	ax,[bp+si]		; grab a stack parameter
 	add	si,2
 	test	ch,PF_LONG
 	jnz	pfd2
@@ -371,13 +375,14 @@ pfd:	mov	ax,[bp+si]		; grab a stack parameter
 pfd1:	push	bx
 	mov	bx,cx			; set flags (BH) and base (BL)
 	push	di
-	lea	di,[bp+di]		; ES:DI -> room for number
 	mov	cx,[bp]			; CX = length (0 if unspecified)
+	lea	di,[bp+di]		; ES:DI -> room for number
 	call	itoa
 	pop	di
 	add	di,ax			; adjust DI by number of digits
 	pop	bx
 	jmp	pf1
+
 pfd2:	mov	dx,[bp+si]		; grab another stack parameter
 	add	si,2			; DX:AX = 32-bit value
 	cmp	di,-12			; room?
