@@ -22,7 +22,7 @@ DOS	segment word public 'CODE'
 ; something reasonable with it.
 ;
 DEFPROC	dos_dverr,DOSFAR
-	PRINTF	<"division error: IP=%04x CS=%04x",13,10>
+	PRINTF	<"division error @%08lx",13,10>
 	int 3
 	iret
 ENDPROC	dos_dverr
@@ -35,7 +35,7 @@ ENDPROC	dos_dverr
 ; no debugger is currently running, we catch it here and ignore it.
 ;
 DEFPROC	dos_sstep,DOSFAR
-	PRINTF	<"trace: IP=%04x CS=%04x",13,10>
+	PRINTF	<"trace @%08lx",13,10>
 	int 3
 	iret
 ENDPROC	dos_sstep
@@ -59,7 +59,7 @@ ENDPROC	dos_brkpt
 ; something reasonable with it.
 ;
 DEFPROC	dos_oferr,DOSFAR
-	PRINTF	<"overflow error: IP=%04x CS=%04x",13,10>
+	PRINTF	<"overflow error @%08lx",13,10>
 	int 3
 	iret
 ENDPROC	dos_oferr
