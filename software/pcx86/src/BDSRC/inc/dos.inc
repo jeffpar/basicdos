@@ -46,6 +46,10 @@ DOS_UTIL_ATOI		equ	1801h
 DOS_UTIL_ITOA		equ	1802h
 DOS_UTIL_PRINTF		equ	1803h
 DOS_UTIL_SPRINTF	equ	1804h
+DOS_UTIL_GETDEV		equ	1805h	; get device DS:SI (ES:DI := DDH)
+DOS_UTIL_SLEEP		equ	1806h	; sleep CX:DX ticks
+DOS_UTIL_WAIT		equ	1807h	; wait until ENDWAIT
+DOS_UTIL_ENDWAIT	equ	1808h	; end wait
 DOS_UTIL_STDLEN		equ	1824h	; like STRLEN but uses 24h instead of 00h
 
 DOS_PSP_CREATE	equ	26h	; create PSP (DX = segment)
@@ -100,7 +104,7 @@ SCB_SFHAUX	db	?	; 01h: SFH for AUX
 SCB_SFHCON	db	?	; 02h: SFH for CON
 SCB_SFHPRN	db	?	; 03h: SFH for PRN
 SCB_CONSOLE	dw	?	; 04h: console context
-SCB_WAITID	dw	?	; 06h: wait ID if waiting, 0 if running
+SCB_WAITID	dd	?	; 06h: wait ID if waiting, 0 if running
 SCB_STACK	dd	?	; 08h: pointer to session stack
 SCB_CURDRV	db	?	; 0Ch: current drive #
 SCB		ends

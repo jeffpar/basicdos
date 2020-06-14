@@ -18,9 +18,11 @@
 ;
 ; I appreciate that the DOS driver model was apparently designed to enable some
 ; form of future multitasking, bit the fact virtually no driver was ever really
-; written to support that made the whole exercise rather pointless.  For example,
-; I've never seen a driver that implemented a "request packet queue"; instead,
-; they typically had a global variable that stored exactly ONE packet address.
+; written to support that made the whole exercise rather pointless.  Drivers
+; rarely implemented a "request packet queue" (they typically used a global
+; variable to store a single packet address), largely because they knew DOS
+; would simply call their INTERRUPT handler immediately after calling their
+; STRATEGY handler.
 ;
 DDH		struc
 DDH_NEXT_OFF	dw	?	; 00h: offset of next DDH (or FFFFh)
@@ -39,6 +41,30 @@ DDATTR_OPEN	equ	0800h	; understands open/close
 DDATTR_IOCTL	equ	4000h	; set if device supports IOCTLs
 DDATTR_CHAR	equ	8000h	; set if character device, clear if block
 DDATTR_BLOCK	equ	0000h
+
+;
+; Device driver commands
+;
+DDC_INIT	equ	0	; Init
+DDC_MEDIACHK	equ	1	; Media Check (Block devices only)
+DDC_BUILDBPB	equ	2	; Build BPB (Block devices only)
+DDC_IOCTLIN	equ	3	; IOCtl Input (Only called if device has IOCtl)
+DDC_READ	equ	4	; Input (Read)
+DDC_NDREAD	equ	5	; Non-destructive Read, No Wait (Character devices only)
+DDC_INSTATUS	equ	6	; Input Status (Character devices only)
+DDC_INFLUSH	equ	7	; Input Flush (Character devices only)
+DDC_WRITE	equ	8	; Output (Write)
+DDC_WRITEV	equ	9	; Output (Write) with Verify
+DDC_OUTSTATUS	equ	10	; Output Status (Character devices only)
+DDC_OUTFLUSH	equ	11	; Output Flush (Character devices only)
+DDC_IOCTLOUT	equ	12	; IOCtl Output (Only called if device has IOCtl)
+DDC_OPEN	equ	13	; Device Open (Only called if Open/Close/Removable Media bit set)
+DDC_CLOSE	equ	14	; Device Close (Only called if Open/Close/Removable Media bit set)
+DDC_REMOVABLE	equ	15	; Removable Media (Only called if Open/Close/Removable Media bit set and device is block)
+DDC_OUTBUSY	equ	16	; Output Until Busy (Only called if bit 13 is set on character devices)
+DDC_GENIOCTL	equ	19	; Generic IOCtl Request
+DDC_GETLOGDEV	equ	23	; Get Logical Device
+DDC_SETLOGDEV	equ	24	; Set Logical Device
 
 ;
 ; Device driver packets, starting with the 13-byte packet header (DDP)
@@ -97,40 +123,26 @@ MC_CHANGED	equ	-1
 ;
 DDPRW		struc
 DDPRW_HDR	db	size DDP dup(?)
-DDPRW_MEDIA_ID	db	?	; 0Dh: media ID byte
+DDPRW_ID	db	?	; 0Dh: media ID (for block devices)
 DDPRW_ADDR	dd	?	; 0Eh: transfer address
-DDPRW_LENGTH	dw	?	; 12h: transfer length (in bytes)
-DDPRW_LBA	dw	?	; 14h: starting sector number
-DDPRW_OFFSET	dw	?	; 16h: starting offset within sector
+DDPRW_LBA	dw	?	; 12h: starting sector number
+DDPRW_OFFSET	dw	?	; 14h: starting offset within sector
+DDPRW_LENGTH	dw	?	; 16h: transfer length (in bytes)
 DDPRW_BPB	dd	?	; 18h: pointer to BPB
 DDPRW		ends
 
 DDP_MAXSIZE	equ	((size DDPRW + 1) AND 0FFFEh)
 
 ;
-; Device driver commands
+; Public IOCTL operations for assorted devices
 ;
-DDC_INIT	equ	0	; Init
-DDC_MEDIACHK	equ	1	; Media Check (Block devices only)
-DDC_BUILDBPB	equ	2	; Build BPB (Block devices only)
-DDC_IOCTLIN	equ	3	; IOCtl Input (Only called if device has IOCtl)
-DDC_READ	equ	4	; Input (Read)
-DDC_NDREAD	equ	5	; Non-destructive Read, No Wait (Character devices only)
-DDC_INSTATUS	equ	6	; Input Status (Character devices only)
-DDC_INFLUSH	equ	7	; Input Flush (Character devices only)
-DDC_WRITE	equ	8	; Output (Write)
-DDC_WRITEV	equ	9	; Output (Write) with Verify
-DDC_OUTSTATUS	equ	10	; Output Status (Character devices only)
-DDC_OUTFLUSH	equ	11	; Output Flush (Character devices only)
-DDC_IOCTLOUT	equ	12	; IOCtl Output (Only called if device has IOCtl)
-DDC_OPEN	equ	13	; Device Open (Only called if Open/Close/Removable Media bit set)
-DDC_CLOSE	equ	14	; Device Close (Only called if Open/Close/Removable Media bit set)
-DDC_REMOVABLE	equ	15	; Removable Media (Only called if Open/Close/Removable Media bit set and device is block)
-DDC_OUTBUSY	equ	16	; Output Until Busy (Only called if bit 13 is set on character devices)
-DDC_GENIOCTL	equ	19	; Generic IOCtl Request
-DDC_GETLOGDEV	equ	23	; Get Logical Device
-DDC_SETLOGDEV	equ	24	; Set Logical Device
+CLKIO_WAIT	equ	1	; wait # ticks in DDPRW_ADDR field
 
+;
+; Helper macro to define the overall length of a device driver;
+; especially helpful when the driver includes headers for multiple devices
+; that share a common INIT handler.
+;
 DEFLEN	macro	symbol,vars,add
 symbol	=	0
 	IRP	var,<vars>

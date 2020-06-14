@@ -7,7 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-	include	dev.inc
+	include	dos.inc
 
 DEV	group	CODE,DATA
 
@@ -17,13 +17,14 @@ CODE	segment para public 'CODE'
 CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CLOCK+DDATTR_CHAR+DDATTR_IOCTL,offset ddclk_init,-1,2020244B434F4C43h>
 
 	DEFLBL	CMDTBL,word
-	dw	ddclk_none,   ddclk_none,  ddclk_none,  ddclk_inctl	; 0-3
+	dw	ddclk_none,   ddclk_none,  ddclk_none,  ddclk_ctlin	; 0-3
 	dw	ddclk_read,   ddclk_none,  ddclk_none,  ddclk_none	; 4-7
 	dw	ddclk_write,  ddclk_none,  ddclk_none,  ddclk_none	; 8-11
-	dw	ddclk_outctl, ddclk_none,  ddclk_none			; 12-14
+	dw	ddclk_ctlout, ddclk_none,  ddclk_none			; 12-14
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
-	DEFPTR	int08_prev,0	; previous INT 08h hardware interrupt handler
+	DEFPTR	timer_interrupt,0	; timer interrupt handler
+	DEFPTR	wait_ptr,-1		; chain of waiting packets
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -68,7 +69,7 @@ ENDPROC	ddclk_req
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddclk_inctl
+; ddclk_ctlin
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
@@ -76,13 +77,37 @@ ENDPROC	ddclk_req
 ; Outputs:
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
-DEFPROC	ddclk_inctl
-	ret
-ENDPROC	ddclk_inctl
+DEFPROC	ddclk_ctlin
+	mov	al,es:[di].DDPRW_ID
+	cmp	al,CLKIO_WAIT
+	jne	dci9
+;
+; For WAIT requests, we add this packet to an internal chain of "waiting"
+; packets, and then tell DOS that we're waiting; DOS will suspend the current
+; task until we notify DOS that this packet's conditions are satisified.
+;
+	cli
+	mov	ax,di
+	xchg	[wait_ptr].off,ax
+	mov	es:[di].DDP_PTR.off,ax
+	mov	ax,es
+	xchg	[wait_ptr].seg,ax
+	mov	es:[di].DDP_PTR.seg,ax
+	sti
+;
+; The WAIT condition is satisified when the packet's LENGTH:OFFSET pair (which
+; should contain a standard CX:DX tick count) has been decremented to zero.
+;
+	mov	dx,es			; DX:DI -> packet (aka "wait ID")
+	mov	ax,DOS_UTIL_WAIT
+	int	21h
+
+dci9:	ret
+ENDPROC	ddclk_ctlin
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddclk_outctl
+; ddclk_ctlout
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
@@ -90,9 +115,9 @@ ENDPROC	ddclk_inctl
 ; Outputs:
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
-DEFPROC	ddclk_outctl
+DEFPROC	ddclk_ctlout
 	ret
-ENDPROC	ddclk_outctl
+ENDPROC	ddclk_ctlout
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -140,7 +165,7 @@ ENDPROC	ddclk_none
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddclk_int08 (hardware interrupt handler)
+; ddclk_interrupt (hardware interrupt handler)
 ;
 ; Inputs:
 ;	None
@@ -152,11 +177,57 @@ ENDPROC	ddclk_none
 ;	None
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	ddclk_int08,far
+DEFPROC	ddclk_interrupt,far
 	pushf
-	call	[int08_prev]
+	call	[timer_interrupt]
+	push	ax
+	push	bx
+	push	di
+	push	ds
+	push	es
+	push	cs
+	pop	ds
+	mov	bx,offset wait_ptr	; ES:BX -> ptr
+	lds	di,[bx]			; DS:DI -> packet, if any
+	sti
+
+ddi1:	cmp	di,-1			; end of chain?
+	je	ddi9			; yes
+	sub	[di].DDPRW_LENGTH,1
+	sbb	[di].DDPRW_OFFSET,0
+	jb	ddi2			; underflow (was count initially zero?)
+	jnz	ddi8			; high word is non-zero, long way to go
+	cmp	[di].DDPRW_LENGTH,0	; low word zero?
+	jnz	ddi7			; no
+;
+; WAIT condition has been satisfied, remove packet from wait_ptr list
+;
+ddi2:	mov	ax,[di].DDP_PTR.off
+	mov	es:[bx].off,ax
+	mov	ax,[di].DDP_PTR.seg
+	mov	es:[bx].seg,ax
+;
+; Notify DOS that the task associated with this packet is done waiting
+;
+	mov	dx,ds			; DX:DI -> packet (aka "wait ID")
+	mov	ax,DOS_UTIL_ENDWAIT
+	int	21h
+	jmp	short ddi8
+
+ddi7:	lea	bx,[di].DDP_PTR		; update prev addr ptr in ES:BX
+	push	ds
+	pop	es
+
+ddi8:	lds	di,[di].DDP_PTR
+	jmp	ddi1
+
+ddi9:	pop	es
+	pop	ds
+	pop	di
+	pop	bx
+	pop	ax
 	iret
-ENDPROC	ddclk_int08
+ENDPROC	ddclk_interrupt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -182,12 +253,12 @@ DEFPROC	ddclk_init,far
 ;
 ; Install an INT 08h hardware interrupt handler
 ;
-	mov	ax,offset ddclk_int08
+	mov	ax,offset ddclk_interrupt
 	xchg	ds:[INT_HW_TMR * 4].off,ax
-	mov	[int08_prev].off,ax
+	mov	[timer_interrupt].off,ax
 	mov	ax,cs
 	xchg	ds:[INT_HW_TMR * 4].seg,ax
-	mov	[int08_prev].seg,ax
+	mov	[timer_interrupt].seg,ax
 
 	pop	ds
 	ASSUME	DS:NOTHING

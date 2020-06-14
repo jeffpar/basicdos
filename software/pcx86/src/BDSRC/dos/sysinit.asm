@@ -12,7 +12,7 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<mcb_head,mcb_limit,scb_active,psp_active>,word
-	EXTERNS	<bpb_table,scb_table,sfb_table>,dword
+	EXTERNS	<bpb_table,scb_table,sfb_table,clk_ptr>,dword
 	EXTERNS	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>,near
 	EXTERNS	<dos_term,dos_func,dos_default>,near
 	EXTERNS	<disk_read,disk_write,dos_tsr,dos_call5>,near
@@ -273,14 +273,7 @@ si8:	mov	si,offset CFG_CONSOLE
 si8a:	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
 	jnc	si9
-dierr:	mov	si,dx
-	mov	ax,DOS_UTIL_STRLEN
-	int	21h
-	xchg	bx,ax
-	mov	byte ptr [si+bx],'$'
-	mov	dx,si
-	call	print_error
-	mov	dx,offset DEVERR
+dierr:	PRINTF	<"%s device error">,dx
 	jmp	fatal_error
 sierr:	jmp	sysinit_error
 
@@ -307,14 +300,25 @@ si10:	mov	si,offset CFG_CONSOLE
 	cmp	bx,es:[scb_table].seg
 	jb	si11
 	mov	dx,offset CONERR
-	jmp	fatal_error
+	jmp	print_error
 si11:	mov	es:[bx].SCB_SFHCON,al
 	jmp	si10
+;
+; Utility functions like SLEEP need access to specific drivers, and while we
+; could open them like we did above, that would require utility functions to go
+; through SFB interfaces (get_sfb, sfb_read, etc) with absolutely no benefit.
+;
+si12:	mov	si,offset CLK_DEFAULT
+	mov	ax,DOS_UTIL_GETDEV
+	int	21h
+	jc	dierr
+	mov	[clk_ptr].off,di
+	mov	[clk_ptr].seg,es
 ;
 ; Create the first PSP.  Until we have the ability to create a process from
 ; a COM or EXE file, this will serve as our "shell" process.
 ;
-si12:	mov	bx,100h			; we'll start with a safe 4K for now
+	mov	bx,100h			; we'll start with a safe 4K for now
 	mov	ah,DOS_MEM_ALLOC
 	int	21h
 	jc	sierr			; hmmm, guess it wasn't safe after all
@@ -495,22 +499,6 @@ ENDPROC	init_table
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; print_error (print generic error message)
-;
-; Inputs:
-;	DX -> message
-;
-; Modifies:
-;	AX, DS
-;
-DEFPROC	print_error
-	mov	ah,DOS_TTY_PRINT
-	int	21h
-	ret
-ENDPROC	print_error
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; sysinit_error (print generic error message and halt)
 ;
 ; Inputs:
@@ -524,22 +512,33 @@ ENDPROC	print_error
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; fatal_error (print specified error message and halt)
+; print_error (print error message and halt)
 ;
 ; Inputs:
 ;	DX -> message
 ;
+; Modifies:
+;	AX, DS
+;
+	DEFLBL	print_error,near
+	mov	ah,DOS_TTY_PRINT
+	int	21h
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fatal_error (print halt message and halt)
+;
+; Inputs:
+;	None
+;
 ; Outputs:
 ;	None (system halted)
 ;
-DEFPROC	fatal_error,near
-	push	cs
-	pop	ds
-	call	print_error
+	DEFLBL	fatal_error,near
 	mov	dx,offset HALTED
-	call	print_error
+	mov	ah,DOS_TTY_PRINT
+	int	21h
 	jmp	$			; "halt"
-ENDPROC	fatal_error
 
 ;
 ; Initialization data
@@ -568,6 +567,7 @@ CFG_CONSOLE	db	8,"CONSOLE=",
 AUX_DEFAULT	db	"AUX",0
 CON_DEFAULT	db	"CON:80,25",0	; default CONSOLE configuration
 PRN_DEFAULT	db	"PRN",0
+CLK_DEFAULT	db	"CLOCK$",0
 
 	IFDEF	DEBUG
 COM1_DEFAULT	db	"COM1:9600,N,8,1",0
@@ -578,9 +578,8 @@ TEST_FILE	db	"A:HANDLE.ASM",0
 	ENDIF
 
 SYSERR		db	"System initialization error$"
-DEVERR		db	" device error$"
-HALTED		db	"; halted$"
 CONERR		db	"More CONSOLES than SESSIONS$"
+HALTED		db	"; halted$"
 
 	DEFLBL	sysinit_end
 

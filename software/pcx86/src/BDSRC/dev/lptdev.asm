@@ -18,7 +18,7 @@ CODE1	segment para public 'CODE'
 	DEFLEN	LPT1_INIT,<LPT1,LPT2,LPT3>
 LPT1	DDH	<LPT1_LEN,,DDATTR_OPEN+DDATTR_CHAR,LPT1_INIT,-1,202020203154504Ch>
 
-	DEFPTR	ddlpt_funp		; ddlpt_fun pointer
+	DEFPTR	ddlpt_cmdp		; ddlpt_cmd pointer
 	DEFWORD	port_base,0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -34,14 +34,14 @@ LPT1	DDH	<LPT1_LEN,,DDATTR_OPEN+DDATTR_CHAR,LPT1_INIT,-1,202020203154504Ch>
 DEFPROC	ddlpt_req,far
 	push	dx
 	mov	dx,[port_base]
-	call	[ddlpt_funp]
+	call	[ddlpt_cmdp]
 	pop	dx
 	ret
 ENDPROC	ddlpt_req
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; Driver function handler
+; Driver command handler
 ;
 ; Inputs:
 ;	DX = port
@@ -49,20 +49,9 @@ ENDPROC	ddlpt_req
 ;
 ; Outputs:
 ;
-DEFPROC	ddlpt_fun,far
-	push	ax
-	push	bx
-	push	cx
-	push	si
-	push	ds
-	;...
-	pop	ds
-	pop	si
-	pop	cx
-	pop	bx
-	pop	ax
+DEFPROC	ddlpt_cmd,far
 	ret
-ENDPROC	ddlpt_fun
+ENDPROC	ddlpt_cmd
 
 	DEFLBL	LPT1_END
 
@@ -74,7 +63,7 @@ CODE2	segment para public 'CODE'
 	DEFLEN	LPT2_INIT,<LPT2,LPT3>
 LPT2	DDH	<LPT2_LEN,,DDATTR_CHAR,LPT2_INIT,-1,202020203254504Ch>
 
-	DEFPTR	ddlpt_funp2		; ddlpt_fun pointer
+	DEFPTR	ddlpt_cmdp2		; ddlpt_cmd pointer
 	DEFWORD	port_base2,0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -90,7 +79,7 @@ LPT2	DDH	<LPT2_LEN,,DDATTR_CHAR,LPT2_INIT,-1,202020203254504Ch>
 DEFPROC	ddlpt_req2,far
 	push	dx
 	mov	dx,[port_base2]
-	call	[ddlpt_funp2]
+	call	[ddlpt_cmdp2]
 	pop	dx
 	ret
 ENDPROC	ddlpt_req2
@@ -105,7 +94,7 @@ CODE3	segment para public 'CODE'
 	DEFLEN	LPT3_INIT,<LPT3>
 LPT3	DDH	<LPT3_LEN,,DDATTR_CHAR,LPT3_INIT,-1,202020203354504Ch>
 
-	DEFPTR	ddlpt_funp3		; ddlpt_fun pointer
+	DEFPTR	ddlpt_cmdp3		; ddlpt_cmd pointer
 	DEFWORD	port_base3,0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -121,7 +110,7 @@ LPT3	DDH	<LPT3_LEN,,DDATTR_CHAR,LPT3_INIT,-1,202020203354504Ch>
 DEFPROC	ddlpt_req3,far
 	push	dx
 	mov	dx,[port_base3]
-	call	[ddlpt_funp3]
+	call	[ddlpt_cmdp3]
 	pop	dx
 	ret
 ENDPROC	ddlpt_req3
@@ -172,13 +161,13 @@ DEFPROC	ddlpt_init,far
 in1:	mov	es:[di].DDPI_END.off,ax
 	mov	cs:[0].DDH_REQUEST,offset DEV:ddlpt_req
 
-	mov	[ddlpt_funp].off,offset DEV:ddlpt_fun
+	mov	[ddlpt_cmdp].off,offset DEV:ddlpt_cmd
 in2:	mov	ax,0			; this MOV will be modified
 	test	ax,ax			; on the first call to contain the CS
 	jnz	in3			; of the first driver (this is the
 	mov	ax,cs			; easiest way to communicate between
 	mov	word ptr cs:[in2+1],ax	; the otherwise fully insulated drivers)
-in3:	mov	[ddlpt_funp].seg,ax
+in3:	mov	[ddlpt_cmdp].seg,ax
 
 in9:	pop	ds
 	pop	di

@@ -11,12 +11,14 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<write_tty>,near
+	EXTERNS	<clk_ptr>,dword
+	EXTERNS	<chk_devname,dev_request,write_tty>,near
+	EXTERNS	<scb_block,scb_unblock>,near
 
 	DEFLBL	UTILTBL,word
 	dw	util_strlen,util_atoi,util_itoa,util_printf	; 00h-03h
-	dw	util_sprintf,util_none,util_none,util_none	; 04h-07h
-	dw	util_none,util_none,util_none,util_none		; 08h-0Bh
+	dw	util_sprintf,util_getdev,util_sleep,util_wait	; 04h-07h
+	dw	util_endwait,util_none,util_none,util_none	; 08h-0Bh
 	dw	util_none,util_none,util_none,util_none		; 0Ch-0Fh
 	dw	util_none,util_none,util_none,util_none		; 10h-13h
 	dw	util_none,util_none,util_none,util_none		; 14h-17h
@@ -539,6 +541,88 @@ pf8:	pop	ax			; restore original format string address
 	add	bp,size SPF_FRAME
 	ret
 ENDPROC	sprintf
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; util_getdev (AX = 1805h)
+;
+; Returns DDH in ES:DI for device name at DS:SI.
+;
+; Inputs:
+;	DS:SI -> device name
+;
+; Outputs:
+;	ES:DI -> DDH if success; carry set if not found
+;
+; Modifies:
+;	AX, CX, DI, ES (ie, whatever chk_devname modifies)
+;
+DEFPROC	util_getdev,DOS
+	mov	ds,[bp].REG_DS
+	ASSUME	DS:NOTHING
+	call	chk_devname
+	jc	gd9
+	mov	[bp].REG_DI,di
+	mov	[bp].REG_ES,es
+gd9:	ret
+ENDPROC	util_getdev
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; util_sleep (AX = 1806h)
+;
+; Issues an IOCTL to the CLOCK$ driver to wait the specified number of ticks.
+;
+; Inputs:
+;	CX:DX = # of ticks to sleep
+;
+; Modifies:
+;	AX, DI, ES
+;
+DEFPROC	util_sleep,DOS
+	mov	ah,DDC_IOCTLIN
+	les	di,clk_ptr
+;
+; For the DDC_IOCTLIN command, dev_request stores CX:DX in the DDPRW packet's
+; LENGTH and OFFSET fields.
+;
+	call	dev_request
+	ret
+ENDPROC	util_sleep
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; util_wait (AX = 1807h)
+;
+; Called by a device driver which is waiting for some event to occur.
+;
+; Inputs:
+;	DX:DI == wait ID
+;
+; Modifies:
+;	AX
+;
+DEFPROC	util_wait,DOS
+	call	scb_block
+	ret
+ENDPROC	util_wait
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; util_endwait (AX = 1808h)
+;
+; Called by a device driver which is signalling that an event has occurred.
+;
+; Inputs:
+;	DX:DI == wait ID
+;
+; Modifies:
+;	AX
+;
+DEFPROC	util_endwait,DOS
+	call	scb_unblock
+	ret
+ENDPROC	util_endwait
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -17,10 +17,17 @@ DOS	segment word public 'CODE'
 ;
 	DEFLBL	mcb_head,word
 	jmp	sysinit
-
+;
+; The general convention is that a PSP of zero means "none"; for example,
+; an MCB with an OWNER (ie, PSP) of zero is free.  However, the active PSP can
+; never be zero; even when there are no PSPs, psp_active must be non-zero,
+; permitting memory to be allocated, system file handles to be opened, etc.
+; Hence the reserved values.
+;
 	DEFWORD	mcb_limit,0		; segment limit
 	DEFWORD	scb_active,0		; offset of active SCB
-	DEFWORD	psp_active,1		; active PSP (0 is none, 1-15 reserved)
+	DEFWORD	psp_active,1		; active PSP (1-15 reserved)
+	DEFPTR	clk_ptr,-1		; pointer to CLOCK$ DDH
 	DEFBYTE	file_name,' ',11	; buffer for 11-character filename
 
 	DEFTBL	<bpb_table,scb_table,sfb_table>

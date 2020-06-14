@@ -408,6 +408,7 @@ ENDPROC	sfb_write
 ;
 ; Outputs:
 ;	On success, ES:DI -> device driver header (DDH)
+;	On failure, carry set
 ;
 ; Modifies:
 ;	AX, CX, DI, ES
@@ -591,18 +592,24 @@ DEFPROC	dev_request,DOS
 	mov	[bp].DDP_PTR.off,si	; use DDP_PTR to pass driver-specific
 	mov	[bp].DDP_PTR.seg,ds	; parameter block, if any
 	jmp	short dr5
-
-dr2:	cmp	ah,DDC_READ
-	je	dr3
-	cmp	ah,DDC_WRITE
-	jne	dr4
-dr3:	mov	word ptr [bp].DDP_LEN,size DDPRW
+;
+; For now, we're going to treat all other commands, even MEDIACHK (1)
+; and BUILDBPB (2), like READ (4) and WRITE (8); that includes IOCTLIN (3)
+; and IOCTLOUT (12).
+;
+dr2:	mov	word ptr [bp].DDP_LEN,size DDPRW
 	mov	[bp].DDPRW_ADDR.off,si
 	mov	[bp].DDPRW_ADDR.seg,ds
-	mov	[bp].DDPRW_LENGTH,cx
-	mov	[bp].DDPRW_OFFSET,dx
 	mov	[bp].DDPRW_LBA,bx
-dr4:	mov	ah,size BPBEX		; AL still contains the unit #
+	mov	[bp].DDPRW_OFFSET,dx
+	mov	[bp].DDPRW_LENGTH,cx
+;
+; Even though all the above commands get a DDPRW request packet, only block
+; devices get certain fields filled in (eg, the BPB pointer).
+;
+	test	es:[di].DDH_ATTR,DDATTR_CHAR
+	jnz	dr5
+	mov	ah,size BPBEX		; AL still contains the unit #
 	mul	ah
 	add	ax,[bpb_table].off	; AX = BPB address
 	mov	[bp].DDPRW_BPB.off,ax	; save it in the request packet
