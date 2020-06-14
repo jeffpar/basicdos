@@ -18,10 +18,8 @@ CODE1	segment para public 'CODE'
 	DEFLEN	COM1_INIT,<COM1,COM2,COM3,COM4>
 COM1	DDH	<COM1_LEN,,DDATTR_OPEN+DDATTR_CHAR,COM1_INIT,-1,20202020314D4F43h>
 
-	DEFPTR	ddfunp		; ddfun pointer
+	DEFPTR	ddcom_funp		; ddcom_fun pointer
 	DEFWORD	port_base,0
-
-        ASSUME	CS:CODE1, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -32,13 +30,14 @@ COM1	DDH	<COM1_LEN,,DDATTR_OPEN+DDATTR_CHAR,COM1_INIT,-1,20202020314D4F43h>
 ;
 ; Outputs:
 ;
-DEFPROC	ddreq,far
+        ASSUME	CS:CODE1, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcom_req,far
 	push	dx
 	mov	dx,[port_base]
-	call	[ddfunp]
+	call	[ddcom_funp]
 	pop	dx
 	ret
-ENDPROC	ddreq
+ENDPROC	ddcom_req
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -50,7 +49,7 @@ ENDPROC	ddreq
 ;
 ; Outputs:
 ;
-DEFPROC	ddfun,far
+DEFPROC	ddcom_fun,far
 	push	ax
 	push	bx
 	push	cx
@@ -63,7 +62,7 @@ DEFPROC	ddfun,far
 	pop	bx
 	pop	ax
 	ret
-ENDPROC	ddfun
+ENDPROC	ddcom_fun
 
 	DEFLBL	COM1_END
 
@@ -76,10 +75,8 @@ CODE2	segment para public 'CODE'
 	DEFLEN	COM2_INIT,<COM2,COM3,COM4>
 COM2	DDH	<COM2_LEN,,DDATTR_CHAR,COM2_INIT,-1,20202020324D4F43h>
 
-	DEFPTR	ddfunp2		; ddfun pointer
+	DEFPTR	ddcom_funp2		; ddcom_fun pointer
 	DEFWORD	port_base2,0
-
-        ASSUME	CS:CODE2, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -90,13 +87,14 @@ COM2	DDH	<COM2_LEN,,DDATTR_CHAR,COM2_INIT,-1,20202020324D4F43h>
 ;
 ; Outputs:
 ;
-DEFPROC	ddreq2,far
+        ASSUME	CS:CODE2, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcom_req2,far
 	push	dx
 	mov	dx,[port_base2]
-	call	[ddfunp2]
+	call	[ddcom_funp2]
 	pop	dx
 	ret
-ENDPROC	ddreq2
+ENDPROC	ddcom_req2
 
 	DEFLBL	COM2_END
 
@@ -109,10 +107,8 @@ CODE3	segment para public 'CODE'
 	DEFLEN	COM3_INIT,<COM3,COM4>
 COM3	DDH	<COM3_LEN,,DDATTR_CHAR,COM3_INIT,-1,20202020334D4F43h>
 
-	DEFPTR	ddfunp3		; ddfun pointer
+	DEFPTR	ddcom_funp3		; ddcom_fun pointer
 	DEFWORD	port_base3,0
-
-        ASSUME	CS:CODE3, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -123,13 +119,14 @@ COM3	DDH	<COM3_LEN,,DDATTR_CHAR,COM3_INIT,-1,20202020334D4F43h>
 ;
 ; Outputs:
 ;
-DEFPROC	ddreq3,far
+        ASSUME	CS:CODE3, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcom_req3,far
 	push	dx
 	mov	dx,[port_base3]
-	call	[ddfunp3]
+	call	[ddcom_funp3]
 	pop	dx
 	ret
-ENDPROC	ddreq3
+ENDPROC	ddcom_req3
 
 	DEFLBL	COM3_END
 
@@ -138,14 +135,12 @@ CODE3	ends
 CODE4	segment para public 'CODE'
 
 	public	COM4
-	DEFLEN	COM4_LEN,<COM4,ddinit>,16
+	DEFLEN	COM4_LEN,<COM4,ddcom_init>,16
 	DEFLEN	COM4_INIT,<COM4>
 COM4	DDH	<COM4_LEN,,DDATTR_CHAR,COM4_INIT,-1,20202020344D4F43h>
 
-	DEFPTR	ddfunp4		; ddfun pointer
+	DEFPTR	ddcom_funp4		; ddcom_fun pointer
 	DEFWORD	port_base4,0
-
-        ASSUME	CS:CODE4, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -156,13 +151,14 @@ COM4	DDH	<COM4_LEN,,DDATTR_CHAR,COM4_INIT,-1,20202020344D4F43h>
 ;
 ; Outputs:
 ;
-DEFPROC	ddreq4,far
+        ASSUME	CS:CODE4, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcom_req4,far
 	push	dx
 	mov	dx,[port_base4]
-	call	[ddfunp4]
+	call	[ddcom_funp4]
 	pop	dx
 	ret
-ENDPROC	ddreq4
+ENDPROC	ddcom_req4
 
 	DEFLBL	COM4_END
 
@@ -183,8 +179,7 @@ INIT	segment para public 'CODE'
 ;	DDPI's DDPI_END updated
 ;
         ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
-
-DEFPROC	ddinit,far
+DEFPROC	ddcom_init,far
 	push	ax
 	push	bx
 	push	si
@@ -206,18 +201,18 @@ DEFPROC	ddinit,far
 	mov	ax,cs:[0].DDH_NEXT_OFF	; yes, copy over the driver length
 	cmp	bl,3			; COM4?
 	jne	in1			; no
-	mov	ax,cs:[0].DDH_REQUEST	; use the temporary ddreq offset instead
+	mov	ax,cs:[0].DDH_REQUEST	; use the temporary ddcom_req offset
 
 in1:	mov	es:[di].DDPI_END.off,ax
-	mov	cs:[0].DDH_REQUEST,offset DEV:ddreq
+	mov	cs:[0].DDH_REQUEST,offset DEV:ddcom_req
 
-	mov	[ddfunp].off,offset DEV:ddfun
+	mov	[ddcom_funp].off,offset DEV:ddcom_fun
 in2:	mov	ax,0			; this MOV will be modified
 	test	ax,ax			; on the first call to contain the CS
 	jnz	in3			; of the first driver (this is the
 	mov	ax,cs			; easiest way to communicate between
 	mov	word ptr cs:[in2+1],ax	; the otherwise fully insulated drivers)
-in3:	mov	[ddfunp].seg,ax
+in3:	mov	[ddcom_funp].seg,ax
 
 in9:	pop	ds
 	pop	di
@@ -225,15 +220,15 @@ in9:	pop	ds
 	pop	bx
 	pop	ax
 	ret
-ENDPROC	ddinit
+ENDPROC	ddcom_init
 
-	DEFLBL	ddinit_end
+	DEFLBL	ddcom_init_end
 
 INIT	ends
 
 DATA	segment para public 'DATA'
 
-ddend	db	16 dup(0)
+ddcom_end	db	16 dup(0)
 
 DATA	ends
 

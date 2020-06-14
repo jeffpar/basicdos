@@ -14,9 +14,7 @@ DEV	group	CODE,DATA
 CODE	segment para public 'CODE'
 
 	public	AUX
-AUX	DDH	<offset DEV:ddend+16,,DDATTR_CHAR,offset ddinit,-1,2020202020585541h>
-
-        ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+AUX	DDH	<offset DEV:ddaux_end+16,,DDATTR_CHAR,offset ddaux_init,-1,2020202020585541h>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -27,9 +25,10 @@ AUX	DDH	<offset DEV:ddend+16,,DDATTR_CHAR,offset ddinit,-1,2020202020585541h>
 ;
 ; Outputs:
 ;
-DEFPROC	ddreq,far
+        ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddaux_req,far
 	ret
-ENDPROC	ddreq
+ENDPROC	ddaux_req
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -41,17 +40,17 @@ ENDPROC	ddreq
 ; Outputs:
 ;	DDPI's DDPI_END updated
 ;
-DEFPROC	ddinit,far
-	mov	es:[bx].DDPI_END.off,offset ddinit
-	mov	cs:[0].DDH_REQUEST,offset DEV:ddreq
+DEFPROC	ddaux_init,far
+	mov	es:[bx].DDPI_END.off,offset ddaux_init
+	mov	cs:[0].DDH_REQUEST,offset DEV:ddaux_req
 	ret
-ENDPROC	ddinit
+ENDPROC	ddaux_init
 
 CODE	ends
 
 DATA	segment para public 'DATA'
 
-ddend	db	16 dup(0)
+ddaux_end	db	16 dup(0)
 
 DATA	ends
 

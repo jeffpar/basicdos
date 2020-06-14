@@ -571,8 +571,8 @@ ENDPROC	chk_filename
 ;	allocating memory for BPBs.  I didn't feel that was appropriate.
 ;
 ;	Here, DOS creates the BPBs and requests the driver to check them
-;	and rebuild them as needed.  Also, most drivers commands look up the
-;	BPB and pass it to the driver via the DDP_PARMS field.
+;	and rebuild them as needed; READ and WRITE requests also look up the
+;	BPB and pass it to the driver via the DDPRW_BPB field.
 ;
 DEFPROC	dev_request,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
@@ -588,8 +588,8 @@ DEFPROC	dev_request,DOS
 	cmp	ah,DDC_OPEN
 	jne	dr2
 	mov	word ptr [bp].DDP_LEN,size DDP
-	mov	[bp].DDP_PARMS.off,si
-	mov	[bp].DDP_PARMS.seg,ds
+	mov	[bp].DDP_PTR.off,si	; use DDP_PTR to pass driver-specific
+	mov	[bp].DDP_PTR.seg,ds	; parameter block, if any
 	jmp	short dr5
 
 dr2:	cmp	ah,DDC_READ
@@ -605,8 +605,8 @@ dr3:	mov	word ptr [bp].DDP_LEN,size DDPRW
 dr4:	mov	ah,size BPBEX		; AL still contains the unit #
 	mul	ah
 	add	ax,[bpb_table].off	; AX = BPB address
-	mov	[bp].DDP_PARMS.off,ax	; save it in the request packet
-	mov	[bp].DDP_PARMS.seg,cs
+	mov	[bp].DDPRW_BPB.off,ax	; save it in the request packet
+	mov	[bp].DDPRW_BPB.seg,cs
 
 dr5:	mov	bx,bp
 	push	es

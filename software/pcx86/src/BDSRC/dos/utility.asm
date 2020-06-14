@@ -50,7 +50,7 @@ ENDPROC	util_func
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_strlen (AL = 00h or 24h)
+; util_strlen (AX = 1800h or 1824h)
 ;
 ; Returns the length of the REG_DS:SI string in AX, using the terminator in AL.
 ;
@@ -82,7 +82,7 @@ ENDPROC	util_strlen
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_atoi (AL = 01h)
+; util_atoi (AX = 1801h)
 ;
 ; Convert string at DS:SI to decimal, then validate using values at ES:DI.
 ;
@@ -136,7 +136,7 @@ ENDPROC util_atoi
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_itoa (AL = 02h)
+; util_itoa (AX = 1802h)
 ;
 ; Convert the value DX:SI to a string representation at ES:DI, using base BL,
 ; flags BH (see PF_*), minimum length CX (0 for no minimum).
@@ -262,7 +262,7 @@ ENDPROC util_itoa
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_printf (AL = 03h)
+; util_printf (AX = 1803h)
 ;
 ; A semi-CDECL-style calling convention is assumed, where all parameters
 ; EXCEPT for the format string are pushed from right to left, so that the
@@ -315,7 +315,7 @@ ENDPROC	util_printf endp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_sprintf (AL = 04h)
+; util_sprintf (AX = 1804h)
 ;
 ; A semi-CDECL-style calling convention is assumed, where all parameters
 ; EXCEPT for the format string are pushed from right to left, so that the
@@ -425,25 +425,20 @@ pfpi:	cmp	al,'1'			; possible number?
 	cmp	al,'9'
 	ja	pfpz			; no
 pfpj:	sub	al,'0'
+	push	dx
+	push	si
+	mov	si,offset SPF_PRECIS
 	test	ch,PF_PRECIS		; is this a precision number?
 	jnz	pfpk			; yes
+	mov	si,offset SPF_WIDTH
 	or	ch,PF_WIDTH		; no, so it must be a width number
-	push	dx
-	xchg	dx,ax
-	mov	al,byte ptr [bp].SPF_WIDTH
+pfpk:	xchg	dx,ax
+	mov	al,[bp+si]
 	mov	ah,10
 	mul	ah
 	add	al,dl
-	mov	byte ptr [bp].SPF_WIDTH,al
-	pop	dx
-	jmp	pfpa
-pfpk:	push	dx
-	xchg	dx,ax
-	mov	al,byte ptr [bp].SPF_PRECIS
-	mov	ah,10
-	mul	ah
-	add	al,dl
-	mov	byte ptr [bp].SPF_PRECIS,al
+	mov	[bp+si],al
+	pop	si
 	pop	dx
 	jmp	pfpa
 pfpz:	mov	bx,dx			; error, didn't end with known letter
@@ -454,11 +449,12 @@ pfpz:	mov	bx,dx			; error, didn't end with known letter
 ;
 ; TODO: Any specified width is a minimum, not a maximum, and if the value
 ; is larger, itoa will not truncate it.  So unless we want to make worst-case
-; length estimates for all the numeric possibilities, we really need to pass
-; our buffer limit to itoa, so that it can guarantee the buffer never overflows.
+; length estimates for all numeric possibilities, we really need to pass our
+; buffer limit to itoa, so that it can guarantee the buffer never overflows.
 ;
 ; Another option would be to pass the minimum in CL and the maxiumum (LIMIT-DI)
-; in CH; however, changing itoa to honor that would be rather messy....
+; in CH; that would make it possible for util_itoa to perform bounds checking,
+; too, but actually implementing that checking would be rather messy.
 ;
 pfd:	mov	ax,[bp].SPF_WIDTH
 	add	ax,di

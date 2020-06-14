@@ -14,9 +14,7 @@ DEV	group	CODE,DATA
 CODE	segment para public 'CODE'
 
 	public	NUL
-NUL	DDH	<offset DEV:ddend+16,,DDATTR_CHAR,offset ddinit,-1,20202020204C554Eh>
-
-        ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+NUL	DDH	<offset DEV:ddnul_end+16,,DDATTR_CHAR,offset ddnul_init,-1,20202020204C554Eh>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -27,9 +25,10 @@ NUL	DDH	<offset DEV:ddend+16,,DDATTR_CHAR,offset ddinit,-1,20202020204C554Eh>
 ;
 ; Outputs:
 ;
-DEFPROC	ddreq,far
+        ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddnul_req,far
 	ret
-ENDPROC	ddreq
+ENDPROC	ddnul_req
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -41,17 +40,18 @@ ENDPROC	ddreq
 ; Outputs:
 ;	DDPI's DDPI_END updated
 ;
-DEFPROC	ddinit,far
-	mov	es:[bx].DDPI_END.off,offset ddinit
-	mov	cs:[0].DDH_REQUEST,offset DEV:ddreq
+        ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddnul_init,far
+	mov	es:[bx].DDPI_END.off,offset ddnul_init
+	mov	cs:[0].DDH_REQUEST,offset DEV:ddnul_req
 	ret
-ENDPROC	ddinit
+ENDPROC	ddnul_init
 
 CODE	ends
 
 DATA	segment para public 'DATA'
 
-ddend	db	16 dup(0)
+ddnul_end	db	16 dup(0)
 
 DATA	ends
 

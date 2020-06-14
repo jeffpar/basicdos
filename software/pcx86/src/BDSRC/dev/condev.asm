@@ -33,10 +33,9 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFBYTE	max_rows,25	; TODO: use this for something!
 	DEFBYTE	max_cols,80	; TODO: set to correct value in ddcon_init
 ;
-; A context of "25,80,0,0" with a border results in an effective WIDTH,HEIGHT
-; of 78,23.  Logical cursor positions will be allowed from 0,0 to 77,22.
-; Physical character and cursor positions will be adjusted by the offset address
-; in CT_BUFFER.
+; A context of "25,80,0,0" with a border supports logical cursor positions
+; from 1,1 to 78,23.  Physical character and cursor positions will be adjusted
+; by the offset address in CT_BUFFER.
 ;
 CONTEXT		struc
 CT_NEXT		dw	?	; 00h: segment of next context, 0 if end
@@ -67,31 +66,30 @@ DEFPROC	ddcon_req,far
 	push	bx
 	push	cx
 	push	dx
-	push	bp
 	push	si
 	push	di
+	push	bp
 	push	ds
 	mov	di,bx			; ES:DI -> DDP
 	mov	bl,es:[di].DDP_CMD
 	cmp	bl,CMDTBL_SIZE
-	jae	ddq9
-	push	cs
+	jb	ddq1
+	mov	bl,0
+ddq1:	push	cs
 	pop	ds
 	ASSUME	DS:CODE
 	mov	bh,0
 	add	bx,bx
 	call	CMDTBL[bx]
-ddq8:	pop	ds
+	pop	ds
+	pop	bp
 	pop	di
 	pop	si
-	pop	bp
 	pop	dx
 	pop	cx
 	pop	bx
 	pop	ax
 	ret
-ddq9:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_UNKCMD
-	jmp	ddq8
 ENDPROC	ddcon_req
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -112,13 +110,13 @@ DEFPROC	ddcon_write
 	test	dx,dx
 	jnz	dcw2
 dcw1:	lodsb
-	call	ddcon_writechar
+	call	writechar
 	loop	dcw1
 	jmp	short dcw9
 dcw2:	push	es
 	mov	es,dx
 dcw3:	lodsb
-	call	ddcon_writecontext
+	call	writecontext
 	loop	dcw3
 	pop	es
 dcw9:	ret
@@ -130,7 +128,7 @@ ENDPROC	ddcon_write
 ;
 ; Inputs:
 ;	ES:DI -> DDP
-;	[DDP].DDP_PARMS -> context descriptor (eg, "CON:25,80,0,0")
+;	[DDP].DDP_PTR -> context descriptor (eg, "CON:25,80,0,0")
 ;
 ; Outputs:
 ;
@@ -140,7 +138,7 @@ DEFPROC	ddcon_open
 	push	es
 
 	push	ds
-	lds	si,es:[di].DDP_PARMS
+	lds	si,es:[di].DDP_PTR
 	ASSUME	DS:NOTHING
 	add	si,4			; DS:SI -> parms
 	push	cs
@@ -210,26 +208,26 @@ dco1a:	xchg	[ct_head],ax
 	sub	dx,dx			; eg, get top left X (DL), Y (DH)
 	mov	bx,word ptr ds:[CT_MAXX]; eg, get bottom right X (BL), Y (BH)
 	mov	cx,0C9BBh
-	call	ddcon_writevertpair
+	call	writevertpair
 	ASSUME	ES:NOTHING
 	mov	cx,0BABAh
 dco2:	inc	dh			; advance Y, holding X constant
 	cmp	dh,bh
 	jae	dco3
-	call	ddcon_writevertpair
+	call	writevertpair
 	jmp	dco2
 dco3:	mov	cx,0C8BCh
-	call	ddcon_writevertpair
+	call	writevertpair
 	mov	cx,0CDCDh
 dco4:	mov	dh,0
 	inc	dx			; advance X, holding Y constant
 	cmp	dl,bl
 	jae	dco6
-	call	ddcon_writehorzpair
+	call	writehorzpair
 	jmp	dco4
 
 dco6:	mov	al,0
-	call	ddcon_scroll		; clear the interior
+	call	scroll			; clear the interior
 	clc
 
 dco7:	pop	es
@@ -242,62 +240,9 @@ dco7:	pop	es
 ; and DOS error codes?
 ;
 dco8:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_GENFAIL
+					; carry should already be set
 dco9:	ret
 ENDPROC	ddcon_open
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; ddcon_writehorzpair
-;
-; Inputs:
-;	CH = top char
-;	CL = bottom char
-;	DL,DH = top X,Y
-;	BL,BH = bottom X,Y
-;	DS -> CONSOLE context
-;
-; Modifies:
-;	DI, ES
-;
-DEFPROC	ddcon_writehorzpair
-	mov	di,ds
-	cmp	di,[ct_focus]
-	jne	whp1
-	cmp	dl,14			; skip over 14 chars at the top
-	jbe	whp2
-whp1:	xchg	cl,ch
-	call	ddcon_writecurpos
-	xchg	cl,ch
-whp2:	xchg	dh,bh
-	call	ddcon_writecurpos
-	xchg	dh,bh
-	ret
-ENDPROC	ddcon_writehorzpair
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; ddcon_writevertpair
-;
-; Inputs:
-;	CH = left char
-;	CL = right char
-;	DL,DH = left X,Y
-;	BL,BH = right X,Y
-;	DS -> CONSOLE context
-;
-; Modifies:
-;	DI, ES
-;
-	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
-DEFPROC	ddcon_writevertpair
-	xchg	cl,ch
-	call	ddcon_writecurpos
-	xchg	dl,bl
-	xchg	cl,ch
-	call	ddcon_writecurpos
-	xchg	dl,bl
-	ret
-ENDPROC	ddcon_writevertpair
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -357,6 +302,7 @@ ENDPROC	ddcon_close
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_none
+	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_UNKCMD
 	stc
 	ret
 ENDPROC	ddcon_none
@@ -380,11 +326,11 @@ DEFPROC	ddcon_int29,far
 	mov	dx,[ct_focus]		; for now, use the context with focus
 	test	dx,dx
 	jnz	dci1
-	call	ddcon_writechar
+	call	writechar
 	jmp	short dci9
 dci1:	push	es
 	mov	es,dx
-	call	ddcon_writecontext
+	call	writecontext
 	pop	es
 dci9:	pop	dx
 	iret
@@ -392,7 +338,60 @@ ENDPROC	ddcon_int29
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddcon_writechar
+; getcurpos
+;
+; Inputs:
+;	DX = CURX (DL), CURY (DH)
+;
+; Outputs:
+;	BX -> screen buffer offset
+;
+; Modifies:
+;	AX, BX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	getcurpos
+	mov	al,dh
+	mul	[max_cols]
+	add	ax,ax			; AX = offset to row
+	sub	bx,bx
+	mov	bl,dl
+	add	bx,bx
+	add	bx,ax			; BX = offset to row and col
+	ret
+ENDPROC	getcurpos
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; scroll
+;
+; Inputs:
+;	AL = # lines (0 to clear ALL lines)
+;	DS -> CONSOLE context
+;
+; Modifies:
+;	AX, BX, CX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	scroll
+	push	dx
+	push	bp			; WARNING: INT 10h scrolls trash BP
+	mov	cx,word ptr ds:[CT_CONX]; CH = row, CL = col of upper left
+	mov	dx,cx
+	add	cx,0101h
+	add	dx,word ptr ds:[CT_MAXX]; DH = row, DL = col of lower right
+	sub	dx,0101h
+	mov	bh,07h			; BH = fill attribute
+	mov	ah,06h			; scroll up # lines in AL
+	int	10h
+	pop	bp
+	pop	dx
+	ret
+ENDPROC	scroll
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; writechar
 ;
 ; Inputs:
 ;	AL = character to display
@@ -404,7 +403,7 @@ ENDPROC	ddcon_int29
 ;	None
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	ddcon_writechar
+DEFPROC	writechar
 	push	ax
 	push	bx
 	mov	ah,VIDEO_TTYOUT
@@ -413,11 +412,11 @@ DEFPROC	ddcon_writechar
 	pop	bx
 	pop	ax
 	ret
-ENDPROC	ddcon_writechar
+ENDPROC	writechar
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddcon_writecontext
+; writecontext
 ;
 ; Inputs:
 ;	AL = character
@@ -430,7 +429,7 @@ ENDPROC	ddcon_writechar
 ;	None
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	ddcon_writecontext
+DEFPROC	writecontext
 	push	ax
 	push	bx
 	push	cx
@@ -451,7 +450,7 @@ DEFPROC	ddcon_writecontext
 wc0:	cmp	cl,0Ah
 	je	wclf			; emulate a LINEFEED
 
-	call	ddcon_writecurpos	; write CL at (DL,DH)
+	call	writecurpos		; write CL at (DL,DH)
 ;
 ; Load CURX,CURY into DX, advance it, update it, and then update the cursor
 ; IFF this context currently has focus.
@@ -466,16 +465,16 @@ wclf:	inc	dh
 	jb	wc3
 	dec	dh
 	mov	al,1
-	call	ddcon_scroll		; scroll up 1 line
+	call	scroll			; scroll up 1 line
 
 wc3:	mov	word ptr ds:[CT_CURX],dx
 	mov	ax,ds
 	cmp	ax,[ct_focus]		; does this context have focus?
 	jne	wc9			; no, leave cursor alone
-	call	ddcon_getcurpos		; BX = screen offset for CURX,CURY
+	call	getcurpos		; BX = screen offset for CURX,CURY
 	shr	bx,1			; screen offset to cell offset
 	mov	ah,14			; AH = 6845 CURSOR ADDR (HI) register
-	call	ddcon_writeport		; update cursor position using BX
+	call	writeport		; update cursor position using BX
 
 wc9:	pop	es
 	pop	ds
@@ -484,65 +483,11 @@ wc9:	pop	es
 	pop	bx
 	pop	ax
 	ret
-ENDPROC	ddcon_writecontext
+ENDPROC	writecontext
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddcon_getcurpos
-;
-; Inputs:
-;	DX = CURX (DL), CURY (DH)
-;
-; Outputs:
-;	BX -> screen buffer offset
-;
-; Modifies:
-;	AX, BX
-;
-DEFPROC	ddcon_getcurpos
-	mov	al,dh
-	mul	[max_cols]
-	add	ax,ax			; AX = offset to row
-	sub	bx,bx
-	mov	bl,dl
-	add	bx,bx
-	add	bx,ax			; BX = offset to row and col
-	ret
-ENDPROC	ddcon_getcurpos
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; ddcon_scroll
-;
-; Inputs:
-;	AL = # lines (0 to clear ALL lines)
-;	DS -> CONSOLE context
-;
-; Modifies:
-;	AX, BX, CX
-;
-DEFPROC	ddcon_scroll
-;
-; We use INT 10h to do this, for now....
-;
-	push	dx
-	push	bp			; WARNING: INT 10h scrolls trash BP
-	mov	cx,word ptr ds:[CT_CONX]; CH = row, CL = col of upper left
-	mov	dx,cx
-	add	cx,0101h
-	add	dx,word ptr ds:[CT_MAXX]; DH = row, DL = col of lower right
-	sub	dx,0101h
-	mov	bh,07h			; BH = fill attribute
-	mov	ah,06h			; scroll up # lines in AL
-	int	10h
-	pop	bp
-	pop	dx
-	ret
-ENDPROC	ddcon_scroll
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; ddcon_writecurpos
+; writecurpos
 ;
 ; Inputs:
 ;	CL = character
@@ -555,11 +500,12 @@ ENDPROC	ddcon_scroll
 ; Modifies:
 ;	AL, DI, ES
 ;
-DEFPROC	ddcon_writecurpos
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	writecurpos
 	push	bx
 	push	dx
 	les	di,ds:[CT_BUFFER]	; ES:DI -> the frame buffer
-	call	ddcon_getcurpos		; BX = screen offset for CURX,CURY
+	call	getcurpos		; BX = screen offset for CURX,CURY
 	mov	dx,ds:[CT_PORT]
 	add	dl,6			; DX = status port
 wc1:	in	al,dx
@@ -574,11 +520,11 @@ wc2:	in	al,dx
 	pop	dx
 	pop	bx
 	ret
-ENDPROC	ddcon_writecurpos
+ENDPROC	writecurpos
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddcon_writeport
+; writeport
 ;
 ; Inputs:
 ;	AH = 6845 register #
@@ -590,7 +536,8 @@ ENDPROC	ddcon_writecurpos
 ; Modifies:
 ;	AL, DX
 ;
-DEFPROC	ddcon_writeport
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	writeport
 	mov	dx,ds:[CT_PORT]
 	mov	al,ah
 	out	dx,al			; select 6845 register
@@ -606,7 +553,62 @@ DEFPROC	ddcon_writeport
 	out	dx,al			; output BL
 	dec	dx
 	ret
-ENDPROC	ddcon_writeport
+ENDPROC	writeport
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; writehorzpair
+;
+; Inputs:
+;	CH = top char
+;	CL = bottom char
+;	DL,DH = top X,Y
+;	BL,BH = bottom X,Y
+;	DS -> CONSOLE context
+;
+; Modifies:
+;	DI, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	writehorzpair
+	mov	di,ds
+	cmp	di,[ct_focus]
+	jne	whp1
+	cmp	dl,14			; skip over 14 chars at the top
+	jbe	whp2
+whp1:	xchg	cl,ch
+	call	writecurpos
+	xchg	cl,ch
+whp2:	xchg	dh,bh
+	call	writecurpos
+	xchg	dh,bh
+	ret
+ENDPROC	writehorzpair
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; writevertpair
+;
+; Inputs:
+;	CH = left char
+;	CL = right char
+;	DL,DH = left X,Y
+;	BL,BH = right X,Y
+;	DS -> CONSOLE context
+;
+; Modifies:
+;	DI, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	writevertpair
+	xchg	cl,ch
+	call	writecurpos
+	xchg	dl,bl
+	xchg	cl,ch
+	call	writecurpos
+	xchg	dl,bl
+	ret
+ENDPROC	writevertpair
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

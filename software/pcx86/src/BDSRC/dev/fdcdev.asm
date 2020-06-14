@@ -14,19 +14,19 @@ DEV	group	CODE,DATA
 CODE	segment para public 'CODE'
 
 	public	FDC
-FDC 	DDH	<offset DEV:ddend+16,,DDATTR_BLOCK,offset ddinit,-1,2020202024434446h>
+FDC 	DDH	<offset DEV:ddfdc_end+16,,DDATTR_BLOCK,offset ddfdc_init,-1,2020202024434446h>
 
 	DEFLBL	CMDTBL,word
-	dw	ddcmd_none, ddcmd_mediachk, ddcmd_buildbpb, ddcmd_none	; 0-3
-	dw	ddcmd_read, ddcmd_none, ddcmd_none, ddcmd_none		; 4-7
-	dw	ddcmd_write, ddcmd_none, ddcmd_none, ddcmd_none		; 8-11
-	dw	ddcmd_none, ddcmd_none, ddcmd_none, ddcmd_none		; 12-15
-	dw	ddcmd_none, ddcmd_none, ddcmd_none, ddcmd_none		; 16-19
+	dw	ddfdc_none, ddfdc_mediachk, ddfdc_buildbpb, ddfdc_none	; 0-3
+	dw	ddfdc_read, ddfdc_none, ddfdc_none, ddfdc_none		; 4-7
+	dw	ddfdc_write, ddfdc_none, ddfdc_none, ddfdc_none		; 8-11
+	dw	ddfdc_none, ddfdc_none, ddfdc_none, ddfdc_none		; 12-15
+	dw	ddfdc_none, ddfdc_none, ddfdc_none, ddfdc_none		; 16-19
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
 	DEFBYTE	ddbuf_drv,-1
 	DEFWORD	ddbuf_lba,-1
-	DEFPTR	ddbuf_ptr,<offset ddinit>
+	DEFPTR	ddbuf_ptr,<offset ddfdc_init>
 
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
@@ -39,38 +39,41 @@ FDC 	DDH	<offset DEV:ddend+16,,DDATTR_BLOCK,offset ddinit,-1,2020202024434446h>
 ;
 ; Outputs:
 ;
-DEFPROC	ddreq,far
+        ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddfdc_req,far
 	push	ax
 	push	bx
 	push	cx
+	push	dx
 	push	si
 	push	di
 	push	bp
 	push	ds
-	push	cs
-	pop	ds
-	ASSUME	DS:CODE
 	mov	di,bx			; ES:DI -> DDP
 	mov	bl,es:[di].DDP_CMD
-	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_UNKCMD
 	cmp	bl,CMDTBL_SIZE
-	jae	ddr9
+	jb	ddq1
+	mov	bl,0
+ddq1:	push	cs
+	pop	ds
+	ASSUME	DS:CODE
 	mov	bh,0
 	add	bx,bx
 	call	CMDTBL[bx]
-ddr9:	pop	ds
+	pop	ds
 	pop	bp
 	pop	di
 	pop	si
+	pop	dx
 	pop	cx
 	pop	bx
 	pop	ax
 	ret
-ENDPROC	ddreq
+ENDPROC	ddfdc_req
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddcmd_mediachk
+; ddfdc_mediachk
 ;
 ; Inputs:
 ;	ES:DI -> DDP
@@ -81,9 +84,9 @@ ENDPROC	ddreq
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DS
 ;
-DEFPROC	ddcmd_mediachk
-	ASSUME	DS:CODE
-	lds	si,es:[di].DDP_PARMS	; DS:SI -> BPB
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	ddfdc_mediachk
+	lds	si,es:[di].DDPRW_BPB	; DS:SI -> BPB
 	ASSUME	DS:NOTHING
 	mov	ah,TIME_GETTICKS
 	int	INT_TIME		; CX:DX is current tick count
@@ -103,14 +106,14 @@ mc1:	pop	ds:[si].BPB_TIMESTAMP.off
 	mov	es:[di].DDP_CONTEXT,ax
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	ret
-ENDPROC	ddcmd_mediachk
+ENDPROC	ddfdc_mediachk
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddcmd_buildbpb
+; ddfdc_buildbpb
 ;
 ; Inputs:
-;	ES:DI -> DDP (in particular, DDP_PARMS -> BPB)
+;	ES:DI -> DDP (in particular, DDPRW_BPB -> BPB)
 ;
 ; Outputs:
 ;	BPB is updated
@@ -118,11 +121,11 @@ ENDPROC	ddcmd_mediachk
 ; Modifies:
 ;	AX, BX, CX, DX, BP, SI, DS
 ;
-DEFPROC	ddcmd_buildbpb
-	ASSUME	DS:CODE
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	ddfdc_buildbpb
 	push	di
 	push	es
-	lds	si,es:[di].DDP_PARMS	; DS:SI -> BPB
+	lds	si,es:[di].DDPRW_BPB	; DS:SI -> BPB
 	ASSUME	DS:NOTHING
 	sub	dx,dx			; DX = LBA (0)
 	mov	al,[si].BPB_DRIVE
@@ -175,11 +178,11 @@ bb8:	pop	es
 	jc	bb9
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 bb9:	ret
-ENDPROC	ddcmd_buildbpb
+ENDPROC	ddfdc_buildbpb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddcmd_read
+; ddfdc_read
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
@@ -190,8 +193,8 @@ ENDPROC	ddcmd_buildbpb
 ; Modifies:
 ;	AX, BX, CX, DX, BP, SI, DS
 ;
-DEFPROC	ddcmd_read
-	ASSUME	DS:CODE
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	ddfdc_read
 	push	es
 	mov	cx,es:[di].DDPRW_LENGTH
 	test	cx,cx		; is length zero (ie, nothing to do)?
@@ -200,7 +203,7 @@ DEFPROC	ddcmd_read
 ;
 ; If the offset is zero, then there's no need to read a partial first sector.
 ;
-dcr1:	lds	si,es:[di].DDP_PARMS
+dcr1:	lds	si,es:[di].DDPRW_BPB
 	ASSUME	DS:NOTHING	; DS:SI -> BPB
 	mov	ax,es:[di].DDPRW_OFFSET
 	test	ax,ax
@@ -302,11 +305,11 @@ dcr8:	pop	es
 	mov	es:[di].DDPRW_LENGTH,0
 	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_SEEK
 dcr9:	ret
-ENDPROC	ddcmd_read
+ENDPROC	ddfdc_read
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddcmd_write
+; ddfdc_write
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
@@ -317,24 +320,26 @@ ENDPROC	ddcmd_read
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DS
 ;
-DEFPROC	ddcmd_write
-	ASSUME	DS:CODE
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	ddfdc_write
 	ret
-ENDPROC	ddcmd_write
+ENDPROC	ddfdc_write
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddcmd_none (handler for unimplemented functions)
+; ddfdc_none (handler for unimplemented functions)
 ;
 ; Inputs:
 ;	DS:DI -> DDP
 ;
 ; Outputs:
 ;
-DEFPROC	ddcmd_none
-	ASSUME	DS:CODE
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	ddfdc_none
+	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_UNKCMD
+	stc
 	ret
-ENDPROC	ddcmd_none
+ENDPROC	ddfdc_none
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -448,7 +453,7 @@ ENDPROC	read_buffer
 ; Outputs:
 ;	DDPI's DDPI_UNITS and DDPI_END updated
 ;
-DEFPROC	ddinit,far
+DEFPROC	ddfdc_init,far
 	push	ax
 	push	cx
 	push	ds
@@ -456,8 +461,8 @@ DEFPROC	ddinit,far
 	mov	ds,ax
 	ASSUME	DS:BIOS
 	mov	ax,[EQUIP_FLAG]
-	mov	es:[bx].DDPI_END.off,offset ddinit + 512
-	mov	cs:[0].DDH_REQUEST,offset DEV:ddreq
+	mov	es:[bx].DDPI_END.off,offset ddfdc_init + 512
+	mov	cs:[0].DDH_REQUEST,offset DEV:ddfdc_req
 	mov	[ddbuf_ptr].seg,cs
 ;
 ; Determine how many floppy disk drives are in the system.
@@ -476,13 +481,13 @@ ddin9:	mov	es:[bx].DDPI_UNITS,cl
 	pop	cx
 	pop	ax
 	ret
-ENDPROC	ddinit
+ENDPROC	ddfdc_init
 
 CODE	ends
 
 DATA	segment para public 'DATA'
 
-ddend	db	16 dup(0)
+ddfdc_end	db	16 dup(0)
 
 DATA	ends
 

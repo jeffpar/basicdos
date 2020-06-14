@@ -36,11 +36,12 @@ DDATTR_STDOUT	equ	0002h
 DDATTR_NUL	equ	0004h
 DDATTR_CLOCK	equ	0008h
 DDATTR_OPEN	equ	0800h	; understands open/close
+DDATTR_IOCTL	equ	4000h	; set if device supports IOCTLs
 DDATTR_CHAR	equ	8000h	; set if character device, clear if block
 DDATTR_BLOCK	equ	0000h
 
 ;
-; Device driver packets, starting with the packet header (DDP)
+; Device driver packets, starting with the 13-byte packet header (DDP)
 ;
 DDP		struc
 DDP_LEN		db	?	; 00h: length of packet
@@ -49,8 +50,8 @@ DDP_CMD		db	?	; 02h: command #
 DDP_STATUS	dw	?	; 03h: status
 DDP_RESERVED	db	?	; 05h (technically, next 8 bytes are reserved)
 DDP_CONTEXT	dw	?	; 06h: device context, if any
-DDP_PARMS	dd	?	; 08h (eg, OPEN parms)
-DDP_UNUSED	db	?	; 0Ah
+DDP_PTR		dd	?	; 08h: optional driver-specific pointer
+DDP_UNUSED	db	?	; 0Ch
 DDP		ends
 
 DDSTAT_ERROR	equ	8000h
@@ -92,7 +93,7 @@ MC_UNKNOWN	equ	0
 MC_CHANGED	equ	-1
 
 ;
-; Device driver packet for assorted READ/WRITE commands
+; Device driver packet for IOCTL/READ/WRITE/MEDIACHK/BUILDBPB commands
 ;
 DDPRW		struc
 DDPRW_HDR	db	size DDP dup(?)
@@ -101,6 +102,7 @@ DDPRW_ADDR	dd	?	; 0Eh: transfer address
 DDPRW_LENGTH	dw	?	; 12h: transfer length (in bytes)
 DDPRW_LBA	dw	?	; 14h: starting sector number
 DDPRW_OFFSET	dw	?	; 16h: starting offset within sector
+DDPRW_BPB	dd	?	; 18h: pointer to BPB
 DDPRW		ends
 
 DDP_MAXSIZE	equ	((size DDPRW + 1) AND 0FFFEh)

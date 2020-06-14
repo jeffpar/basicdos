@@ -14,9 +14,7 @@ DEV	group	CODE,DATA
 CODE	segment para public 'CODE'
 
 	public	PRN
-PRN	DDH	<offset DEV:ddend+16,,DDATTR_CHAR,offset ddinit,-1,20202020204E5250h>
-
-        ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+PRN	DDH	<offset DEV:ddprn_end+16,,DDATTR_CHAR,offset ddprn_init,-1,20202020204E5250h>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -27,9 +25,10 @@ PRN	DDH	<offset DEV:ddend+16,,DDATTR_CHAR,offset ddinit,-1,20202020204E5250h>
 ;
 ; Outputs:
 ;
-DEFPROC	ddreq,far
+        ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddprn_req,far
 	ret
-ENDPROC	ddreq
+ENDPROC	ddprn_req
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -41,17 +40,17 @@ ENDPROC	ddreq
 ; Outputs:
 ;	DDPI's DDPI_END updated
 ;
-DEFPROC	ddinit,far
-	mov	es:[bx].DDPI_END.off,offset ddinit
-	mov	cs:[0].DDH_REQUEST,offset DEV:ddreq
+DEFPROC	ddprn_init,far
+	mov	es:[bx].DDPI_END.off,offset ddprn_init
+	mov	cs:[0].DDH_REQUEST,offset DEV:ddprn_req
 	ret
-ENDPROC	ddinit
+ENDPROC	ddprn_init
 
 CODE	ends
 
 DATA	segment para public 'DATA'
 
-ddend	db	16 dup(0)
+ddprn_end	db	16 dup(0)
 
 DATA	ends
 

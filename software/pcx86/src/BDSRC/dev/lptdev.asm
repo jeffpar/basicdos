@@ -18,10 +18,8 @@ CODE1	segment para public 'CODE'
 	DEFLEN	LPT1_INIT,<LPT1,LPT2,LPT3>
 LPT1	DDH	<LPT1_LEN,,DDATTR_OPEN+DDATTR_CHAR,LPT1_INIT,-1,202020203154504Ch>
 
-	DEFPTR	ddfunp		; ddfun pointer
+	DEFPTR	ddlpt_funp		; ddlpt_fun pointer
 	DEFWORD	port_base,0
-
-        ASSUME	CS:CODE1, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -32,13 +30,14 @@ LPT1	DDH	<LPT1_LEN,,DDATTR_OPEN+DDATTR_CHAR,LPT1_INIT,-1,202020203154504Ch>
 ;
 ; Outputs:
 ;
-DEFPROC	ddreq,far
+        ASSUME	CS:CODE1, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddlpt_req,far
 	push	dx
 	mov	dx,[port_base]
-	call	[ddfunp]
+	call	[ddlpt_funp]
 	pop	dx
 	ret
-ENDPROC	ddreq
+ENDPROC	ddlpt_req
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -50,7 +49,7 @@ ENDPROC	ddreq
 ;
 ; Outputs:
 ;
-DEFPROC	ddfun,far
+DEFPROC	ddlpt_fun,far
 	push	ax
 	push	bx
 	push	cx
@@ -63,7 +62,7 @@ DEFPROC	ddfun,far
 	pop	bx
 	pop	ax
 	ret
-ENDPROC	ddfun
+ENDPROC	ddlpt_fun
 
 	DEFLBL	LPT1_END
 
@@ -75,10 +74,8 @@ CODE2	segment para public 'CODE'
 	DEFLEN	LPT2_INIT,<LPT2,LPT3>
 LPT2	DDH	<LPT2_LEN,,DDATTR_CHAR,LPT2_INIT,-1,202020203254504Ch>
 
-	DEFPTR	ddfunp2		; ddfun pointer
+	DEFPTR	ddlpt_funp2		; ddlpt_fun pointer
 	DEFWORD	port_base2,0
-
-        ASSUME	CS:CODE2, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -89,13 +86,14 @@ LPT2	DDH	<LPT2_LEN,,DDATTR_CHAR,LPT2_INIT,-1,202020203254504Ch>
 ;
 ; Outputs:
 ;
-DEFPROC	ddreq2,far
+        ASSUME	CS:CODE2, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddlpt_req2,far
 	push	dx
 	mov	dx,[port_base2]
-	call	[ddfunp2]
+	call	[ddlpt_funp2]
 	pop	dx
 	ret
-ENDPROC	ddreq2
+ENDPROC	ddlpt_req2
 
 	DEFLBL	LPT2_END
 
@@ -103,14 +101,12 @@ CODE2	ends
 
 CODE3	segment para public 'CODE'
 
-	DEFLEN	LPT3_LEN,<LPT3,ddinit>,16
+	DEFLEN	LPT3_LEN,<LPT3,ddlpt_init>,16
 	DEFLEN	LPT3_INIT,<LPT3>
 LPT3	DDH	<LPT3_LEN,,DDATTR_CHAR,LPT3_INIT,-1,202020203354504Ch>
 
-	DEFPTR	ddfunp3		; ddfun pointer
+	DEFPTR	ddlpt_funp3		; ddlpt_fun pointer
 	DEFWORD	port_base3,0
-
-        ASSUME	CS:CODE3, DS:NOTHING, ES:NOTHING, SS:NOTHING
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -121,13 +117,14 @@ LPT3	DDH	<LPT3_LEN,,DDATTR_CHAR,LPT3_INIT,-1,202020203354504Ch>
 ;
 ; Outputs:
 ;
-DEFPROC	ddreq3,far
+        ASSUME	CS:CODE3, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddlpt_req3,far
 	push	dx
 	mov	dx,[port_base3]
-	call	[ddfunp3]
+	call	[ddlpt_funp3]
 	pop	dx
 	ret
-ENDPROC	ddreq3
+ENDPROC	ddlpt_req3
 
 	DEFLBL	LPT3_END
 
@@ -148,8 +145,7 @@ INIT	segment para public 'CODE'
 ;	DDPI's DDPI_END updated
 ;
         ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
-
-DEFPROC	ddinit,far
+DEFPROC	ddlpt_init,far
 	push	ax
 	push	bx
 	push	si
@@ -171,18 +167,18 @@ DEFPROC	ddinit,far
 	mov	ax,cs:[0].DDH_NEXT_OFF	; yes, copy over the driver length
 	cmp	bl,2			; LPT3?
 	jne	in1			; no
-	mov	ax,cs:[0].DDH_REQUEST	; use the temporary ddreq offset instead
+	mov	ax,cs:[0].DDH_REQUEST	; use the temporary ddlpt_req offset
 
 in1:	mov	es:[di].DDPI_END.off,ax
-	mov	cs:[0].DDH_REQUEST,offset DEV:ddreq
+	mov	cs:[0].DDH_REQUEST,offset DEV:ddlpt_req
 
-	mov	[ddfunp].off,offset DEV:ddfun
+	mov	[ddlpt_funp].off,offset DEV:ddlpt_fun
 in2:	mov	ax,0			; this MOV will be modified
 	test	ax,ax			; on the first call to contain the CS
 	jnz	in3			; of the first driver (this is the
 	mov	ax,cs			; easiest way to communicate between
 	mov	word ptr cs:[in2+1],ax	; the otherwise fully insulated drivers)
-in3:	mov	[ddfunp].seg,ax
+in3:	mov	[ddlpt_funp].seg,ax
 
 in9:	pop	ds
 	pop	di
@@ -190,15 +186,15 @@ in9:	pop	ds
 	pop	bx
 	pop	ax
 	ret
-ENDPROC	ddinit
+ENDPROC	ddlpt_init
 
-	DEFLBL	ddinit_end
+	DEFLBL	ddlpt_init_end
 
 INIT	ends
 
 DATA	segment para public 'DATA'
 
-ddend	db	16 dup(0)
+ddlpt_end	db	16 dup(0)
 
 DATA	ends
 
