@@ -213,6 +213,9 @@ ENDPROC	dos_call5
 ;	REG_AX = ERR_INVALID, carry set
 ;
 DEFPROC	func_none,DOS
+	mov	al,ah
+	mov	ah,0
+	PRINTF	<"unsupported DOS function %02xh request @%08lx",13,10>,ax,[bp].REG_IP,[bp].REG_CS
 	mov	[bp].REG_AX,ERR_INVALID
 	stc
 	ret

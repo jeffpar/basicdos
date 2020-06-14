@@ -11,8 +11,6 @@
 
 CODE    SEGMENT
 
-        ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
-
 	org	100h
 ;
 ; Writes BOOT.COM (or other file specified on the command-line) to the boot
@@ -20,7 +18,8 @@ CODE    SEGMENT
 ; maximum will be written to a separate file (BOOT2.COM) for inclusion in the
 ; first boot file.
 ;
-main	proc	near
+        ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
+DEFPROC	main
 	mov	dx,offset fname
 	mov	si,80h			; check the command-line
 	lodsb
@@ -105,7 +104,7 @@ msg:	push	ax
 	pop	ax
 exit:	mov	ah,4Ch			; exit with return code in AL
 	int	21h
-main	endp
+ENDPROC	main
 
 fname	db	"BOOT\BOOT.COM",0
 fname2	db	"BOOT\BOOT2.COM",0

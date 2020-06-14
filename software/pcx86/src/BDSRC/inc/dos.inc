@@ -141,7 +141,7 @@ FCB		ends
 PSP		struc
 PSP_EXIT	dw	?	; 00h: INT 20h
 PSP_PARAS	dw	?	; 02h: paragraphs available
-PSP_UNUSD	db	?	; 04h
+PSP_UNUSED	db	?	; 04h
 PSP_FARCALL	db	?	; 05h: far call (9Ah)
 PSP_SIZE	dw	?	; 06h: size of PSP segment
 PSP_FCSEG	dw	?	; 08h: far call segment

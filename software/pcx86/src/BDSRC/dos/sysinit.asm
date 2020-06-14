@@ -256,33 +256,36 @@ si7:	mov	dx,size SFB
 ; And note that since we have no PSP yet, DOS_HDL_OPEN will be returning system
 ; handles, not process handles.
 ;
-	mov	dx,offset AUX_DEFAULT
+	mov	dx,offset AUX_DEVICE
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
-	jc	dierr
+	jc	open_error
 	mov	es:[bx].SCB_SFHAUX,al
 ;
 ; Next, open CON, with optional context.  If there's a "CONSOLE=" setting in
-; CFG_FILE, use that; otherwise, use CON_DEFAULT.
+; CFG_FILE, use that; otherwise, use CON_DEVICE.
 ;
 si8:	mov	si,offset CFG_CONSOLE
-	mov	dx,offset CON_DEFAULT
+	mov	dx,offset CON_DEVICE
 	call	find_cfg		; look for "CONSOLE="
 	jc	si8a			; not found
 	mov	dx,di
 si8a:	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
 	jnc	si9
-dierr:	PRINTF	<"%s device error">,dx
+
+	DEFLBL	open_error,near
+	PRINTF	<"%s open error %d">,dx,ax
 	jmp	fatal_error
+
 sierr:	jmp	sysinit_error
 
 si9:	mov	es:[bx].SCB_SFHCON,al
 
-	mov	dx,offset PRN_DEFAULT
+	mov	dx,offset PRN_DEVICE
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
-	jc	dierr
+	jc	open_error
 	mov	es:[bx].SCB_SFHPRN,al
 ;
 ; See if there are any more CONSOLE contexts defined; if so, then for each
@@ -295,7 +298,7 @@ si10:	mov	si,offset CFG_CONSOLE
 	mov	dx,di
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
-	jc	dierr
+	jc	open_error
 	add	bx,size SCB
 	cmp	bx,es:[scb_table].seg
 	jb	si11
@@ -308,10 +311,10 @@ si11:	mov	es:[bx].SCB_SFHCON,al
 ; could open them like we did above, that would require utility functions to go
 ; through SFB interfaces (get_sfb, sfb_read, etc) with absolutely no benefit.
 ;
-si12:	mov	si,offset CLK_DEFAULT
+si12:	mov	dx,offset CLK_DEVICE
 	mov	ax,DOS_UTIL_GETDEV
 	int	21h
-	jc	dierr
+	jc	open_error
 	mov	[clk_ptr].off,di
 	mov	[clk_ptr].seg,es
 ;
@@ -335,15 +338,15 @@ si12:	mov	si,offset CLK_DEFAULT
 	;
 	; Perform some simple console I/O tests
 	;
-	mov	si,offset CON_TEST
+	mov	si,offset CON_MSG
 	mov	ax,DOS_UTIL_STRLEN
 	int	21h
-	xchg	cx,ax			; CX = length of CON_TEST
-	mov	dx,si			; DS:DX -> CON_TEST
+	xchg	cx,ax			; CX = length of CON_MSG
+	mov	dx,si			; DS:DX -> CON_MSG
 	mov	bx,STDOUT		; BX = handle
 	mov	ah,DOS_HDL_WRITE
 	int	21h			; write the string to STDOUT
-	mov	dx,offset PRINT_TEST
+	mov	dx,offset DOS_MSG
 	mov	ah,DOS_TTY_PRINT
 	int	21h
 	;
@@ -378,30 +381,36 @@ si12:	mov	si,offset CLK_DEFAULT
 	int	21h			; free the 2nd
 	jc	dsierr
 	pop	es
-	mov	dx,offset COM1_DEFAULT
+	mov	dx,offset COM1_DEVICE
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
 	jc	dsierr
-	mov	dx,offset COM2_DEFAULT
+	mov	dx,offset COM2_DEVICE
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
-	mov	dx,offset TEST_FILE
+	jnc	si13
+dsierr:	jmp	sysinit_error
+
+si13:	mov	ah,TIME_GETTICKS
+	int	INT_TIME		; CX:DX is tick count
+	mov	bx,offset hello
+	PRINTF	<"%ls, the time is [%6ld]",13,10>,bx,cs,dx,cx
+
+	ENDIF
+
+	mov	dx,offset CMD_FILE
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
-	jc	dsierr
-	xchg	bx,ax
+	jnc	si14
+	jmp	open_error
+
+si14:	xchg	bx,ax
 	mov	dx,offset INT_TABLES
 	mov	cx,offset INT_TABLES_END - offset INT_TABLES
 	mov	ah,DOS_HDL_READ
 	int	21h
-	jnc	si99
-dsierr:	jmp	sysinit_error
-	ENDIF
-
-si99:	mov	ah,TIME_GETTICKS
-	int	INT_TIME		; CX:DX is tick count
-	mov	bx,offset hello
-	PRINTF	<"%ls, the time is [%6ld]",13,10>,bx,cs,dx,cx
+	jnc	si199
+	jmp	sysinit_error
 
 si199:	jmp	si199
 
@@ -564,17 +573,17 @@ CFG_FILES	db	6,"FILES="
 		dw	20,256
 CFG_CONSOLE	db	8,"CONSOLE=",
 		dw	16,80, 4,25	; default CONSOLE parameters
-AUX_DEFAULT	db	"AUX",0
-CON_DEFAULT	db	"CON:80,25",0	; default CONSOLE configuration
-PRN_DEFAULT	db	"PRN",0
-CLK_DEFAULT	db	"CLOCK$",0
+AUX_DEVICE	db	"AUX",0
+CON_DEVICE	db	"CON:80,25",0	; default CONSOLE configuration
+PRN_DEVICE	db	"PRN",0
+CLK_DEVICE	db	"CLOCK$",0
+CMD_FILE	db	"COMMAND.COM",0
 
 	IFDEF	DEBUG
-COM1_DEFAULT	db	"COM1:9600,N,8,1",0
-COM2_DEFAULT	db	"COM2:9600,N,8,1",0
-CON_TEST	db	"CONSOLE ready",13,10,0
-PRINT_TEST	db	"DOS interface ready",13,10,'$'
-TEST_FILE	db	"A:HANDLE.ASM",0
+COM1_DEVICE	db	"COM1:9600,N,8,1",0
+COM2_DEVICE	db	"COM2:9600,N,8,1",0
+CON_MSG		db	"CONSOLE ready",13,10,0
+DOS_MSG		db	"DOS interface ready",13,10,'$'
 	ENDIF
 
 SYSERR		db	"System initialization error$"

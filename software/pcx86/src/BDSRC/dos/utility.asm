@@ -546,10 +546,10 @@ ENDPROC	sprintf
 ;
 ; util_getdev (AX = 1805h)
 ;
-; Returns DDH in ES:DI for device name at DS:SI.
+; Returns DDH in ES:DI for device name at DS:DX.
 ;
 ; Inputs:
-;	DS:SI -> device name
+;	DS:DX -> device name
 ;
 ; Outputs:
 ;	ES:DI -> DDH if success; carry set if not found
@@ -560,7 +560,8 @@ ENDPROC	sprintf
 DEFPROC	util_getdev,DOS
 	mov	ds,[bp].REG_DS
 	ASSUME	DS:NOTHING
-	call	chk_devname
+	mov	si,dx
+	call	chk_devname		; DS:SI -> device name
 	jc	gd9
 	mov	[bp].REG_DI,di
 	mov	[bp].REG_ES,es

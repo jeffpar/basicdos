@@ -62,11 +62,12 @@ ENDPROC	hdl_open
 DEFPROC	hdl_read,DOS
 	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
 	call	get_sfb			; BX -> SFB
-	jc	hr9
+	jc	hr8
 	mov	cx,[bp].REG_CX		; CX = byte count
 	call	sfb_read
-hr9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
-	ret
+	jnc	hr9
+hr8:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
+hr9:	ret
 ENDPROC	hdl_read
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -94,6 +95,27 @@ DEFPROC	hdl_write,DOS
 hw9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
 	ret
 ENDPROC	hdl_write
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; hdl_close (REG_AH = 3Eh)
+;
+; Inputs:
+;	REG_BX = handle
+;
+; Outputs:
+;	On success, carry clear
+;	On failure, REG_AX = error, carry set
+;
+DEFPROC	hdl_close,DOS
+	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
+	mov	si,bx			; save it
+	call	get_sfb
+	jc	hc9
+	call	sfb_close		; BX -> SFB, SI = PFH
+hc9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
+	ret
+ENDPROC	hdl_close
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -126,6 +148,7 @@ so1:	mov	ax,DDC_OPEN SHL 8	; ES:DI -> driver
 	call	dev_request		; issue the DDC_OPEN request
 	jc	so9a			; failed
 	mov	al,-1			; no drive # for devices
+
 so1a:	push	ds			;
 	push	si			; save DIRENT at DS:SI (if any)
 ;
@@ -190,7 +213,7 @@ so6:	push	cs
 	mov	[bx].SFB_CONTEXT,dx	; set DRIVE (AL) and MODE (AH) next
 	mov	word ptr [bx].SFB_DRIVE,ax
 	sub	ax,ax
-	mov	[bx].SFB_HANDLES,al	; no process handles yet
+	mov	[bx].SFB_HANDLES,1	; one handle reference initially
 	mov	[bx].SFB_CURPOS.off,ax	; zero the initial file position
 	mov	[bx].SFB_CURPOS.seg,ax
 	mov	[bx].SFB_CURCLN,dx	; initial position cluster
@@ -199,11 +222,14 @@ so6:	push	cs
 so7:	pop	ax			; throw away any DIRENT on the stack
 	pop	ax
 	mov	bx,si			; return matching SFB
+	inc	[bx].SFB_HANDLES
 	jmp	short so9
 
-so8:	mov	ax,DDC_CLOSE SHL 8	; ES:DI -> driver, DX = context
+so8:	test	al,al			; did we issue DDC_OPEN?
+	jge	so8a			; no
+	mov	ax,DDC_CLOSE SHL 8	; ES:DI -> driver, DX = context
 	call	dev_request		; issue the DDC_CLOSE request
-	mov	ax,ERR_MAXFILES
+so8a:	mov	ax,ERR_MAXFILES
 	stc				; return no SFB (and BX is zero)
 
 so9:	pop	es
@@ -401,6 +427,48 @@ ENDPROC	sfb_write
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; sfb_close
+;
+; Decrement the handle reference count, and if zero, close the device
+; (if it's a device handle), mark the SFB unused, and mark any PFH as unused.
+;
+; Inputs:
+;	BX -> SFB
+;	SI = PFH ("handle")
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, DX, DI, ES
+;
+DEFPROC	sfb_close,DOS
+	dec	[bx].SFB_HANDLES
+	jnz	sc8
+	mov	al,[bx].SFB_DRIVE	; did we issue a DDC_OPEN?
+	test	al,al			; for this SFB?
+	jge	sc8			; no
+	les	di,[bx].SFB_DEVICE	; ES:DI -> driver
+	mov	dx,[bx].SFB_CONTEXT	; DX = context
+	mov	ax,DDC_CLOSE SHL 8	;
+	call	dev_request		; issue the DDC_CLOSE request
+	sub	ax,ax
+	mov	[bx].SFB_DEVICE.off,ax
+	mov	[bx].SFB_DEVICE.seg,ax	; mark SFB as unused
+sc8:	mov	ax,[psp_active]
+	test	ax,0FFF0h		; if we're called by sysinit
+	jz	sc9			; there may be no valid PSP yet
+	push	ds
+	mov	ds,ax
+	ASSUME	DS:NOTHING
+	mov	ds:[PSP_PFT][si],SFH_NONE
+	pop	ds
+	ASSUME	DS:DOS
+sc9:	ret
+ENDPROC	sfb_close
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; chk_devname
 ;
 ; Inputs:
@@ -476,7 +544,7 @@ DEFPROC	chk_filename,DOS
 ;
 	push	bx
 	mov	bx,[scb_active]
-	mov	dl,[bx].SCB_CURDRV	; DL = default drive number
+	mov	dl,es:[bx].SCB_CURDRV	; DL = default drive number
 	mov	dh,8			; DH is current file_name limit
 	sub	bx,bx			; BL is current file_name position
 	mov	di,offset file_name
