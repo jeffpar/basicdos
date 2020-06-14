@@ -461,6 +461,10 @@ DEFPROC	ddfdc_init,far
 	mov	ds,ax
 	ASSUME	DS:BIOS
 	mov	ax,[EQUIP_FLAG]
+;
+; We're not keeping any of this code, but we are reserving 512 bytes
+; for an internal sector buffer (ddbuf).
+;
 	mov	es:[bx].DDPI_END.off,offset ddfdc_init + 512
 	mov	cs:[0].DDH_REQUEST,offset DEV:ddfdc_req
 	mov	[ddbuf_ptr].seg,cs

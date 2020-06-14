@@ -14,7 +14,7 @@ DEV	group	CODE,DATA
 CODE	segment para public 'CODE'
 
 	public	CLOCK
-CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CLOCK+DDATTR_CHAR+DDATTR_IOCTL,offset ddclk_req,-1,2020244B434F4C43h>
+CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CLOCK+DDATTR_CHAR+DDATTR_IOCTL,offset ddclk_init,-1,2020244B434F4C43h>
 
 	DEFLBL	CMDTBL,word
 	dw	ddclk_none,   ddclk_none,  ddclk_none,  ddclk_inctl	; 0-3
@@ -22,6 +22,8 @@ CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CLOCK+DDATTR_CHAR+DDATTR_IOCTL,offset
 	dw	ddclk_write,  ddclk_none,  ddclk_none,  ddclk_none	; 8-11
 	dw	ddclk_outctl, ddclk_none,  ddclk_none			; 12-14
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
+
+	DEFPTR	int08_prev,0	; previous INT 08h hardware interrupt handler
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -138,6 +140,26 @@ ENDPROC	ddclk_none
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; ddclk_int08 (hardware interrupt handler)
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddclk_int08,far
+	pushf
+	call	[int08_prev]
+	iret
+ENDPROC	ddclk_int08
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; Driver initialization
 ;
 ; Inputs:
@@ -148,8 +170,29 @@ ENDPROC	ddclk_none
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddclk_init,far
+	push	ax
+	push	dx
+	push	ds
+	sub	ax,ax
+	mov	ds,ax
+	ASSUME	DS:BIOS
+
 	mov	es:[bx].DDPI_END.off,offset ddclk_init
 	mov	cs:[0].DDH_REQUEST,offset DEV:ddclk_req
+;
+; Install an INT 08h hardware interrupt handler
+;
+	mov	ax,offset ddclk_int08
+	xchg	ds:[INT_HW_TMR * 4].off,ax
+	mov	[int08_prev].off,ax
+	mov	ax,cs
+	xchg	ds:[INT_HW_TMR * 4].seg,ax
+	mov	[int08_prev].seg,ax
+
+	pop	ds
+	ASSUME	DS:NOTHING
+	pop	dx
+	pop	ax
 	ret
 ENDPROC	ddclk_init
 
