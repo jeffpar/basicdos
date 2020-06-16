@@ -124,6 +124,8 @@ DEFPROC	dos_func,DOSFAR
 ; so we now update FL_CARRY on the stack (which we already cleared on entry).
 ;
 dc9:	adc	[bp].REG_FL,0
+
+	DEFLBL	dos_exit,near
 	pop	bp
 	pop	di
 	pop	es

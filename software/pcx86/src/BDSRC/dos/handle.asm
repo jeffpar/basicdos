@@ -48,6 +48,28 @@ ENDPROC	hdl_open
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; hdl_close (REG_AH = 3Eh)
+;
+; Inputs:
+;	REG_BX = handle
+;
+; Outputs:
+;	On success, carry clear
+;	On failure, REG_AX = error, carry set
+;
+DEFPROC	hdl_close,DOS
+	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
+	mov	si,bx			; save it
+	call	get_sfb
+	jc	hc8
+	call	sfb_close		; BX -> SFB, SI = PFH
+	jnc	hc9
+hc8:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
+hc9:	ret
+ENDPROC	hdl_close
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; hdl_read (REG_AH = 3Fh)
 ;
 ; Inputs:
@@ -86,36 +108,45 @@ ENDPROC	hdl_read
 DEFPROC	hdl_write,DOS
 	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
 	call	get_sfb			; BX -> SFB
-	jc	hw9
+	jc	hw8
 	mov	cx,[bp].REG_CX		; CX = byte count
 	mov	si,[bp].REG_DX
 	mov	ds,[bp].REG_DS		; DS:SI = data to write
 	ASSUME	DS:NOTHING
 	call	sfb_write
-hw9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
-	ret
+	jnc	hw9
+hw8:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
+hw9:	ret
 ENDPROC	hdl_write
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; hdl_close (REG_AH = 3Eh)
+; hdl_seek (REG_AH = 42h)
 ;
 ; Inputs:
 ;	REG_BX = handle
+;	REG_AL = method (ie, SEEK_BEG, SEEK_CUR, or SEEK_END)
+;	REG_CX:REG_DX = distance, in bytes
 ;
 ; Outputs:
 ;	On success, carry clear
 ;	On failure, REG_AX = error, carry set
 ;
-DEFPROC	hdl_close,DOS
+DEFPROC	hdl_seek,DOS
 	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
-	mov	si,bx			; save it
 	call	get_sfb
-	jc	hc9
-	call	sfb_close		; BX -> SFB, SI = PFH
-hc9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
-	ret
-ENDPROC	hdl_close
+	jc	hs8
+	mov	ax,[bp].REG_AX		; AL = method
+	mov	cx,[bp].REG_CX		; CX:DX = distance
+	mov	dx,[bp].REG_DX
+	call	sfb_seek		; BX -> SFB
+	jc	hs8
+	mov	[bp].REG_AX,dx
+	mov	[bp].REG_DX,cx		; REG_DX:REG_AX = new CX:DX
+	jmp	short hs9
+hs8:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
+hs9:	ret
+ENDPROC	hdl_seek
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -380,19 +411,35 @@ ENDPROC	sfb_read
 ;
 ; Inputs:
 ;	BX -> SFB
-;	AL = SEEK method (eg, SEEK_CUR)
-;	CX:DX = seek value
+;	AL = SEEK method (ie, SEEK_BEG, SEEK_CUR, or SEEK_END)
+;	CX:DX = distance, in bytes
 ;
 ; Outputs:
-;	On success, carry clear
-;	On failure, AX = error code, carry set
+;	On success, carry clear, new position in CX:DX
+;	On failure, carry set, AX = error code
 ;
 ; Modifies:
-;	AX
+;	AX, CX, DX, SI,DI
 ;
 DEFPROC	sfb_seek,DOS
 	ASSUMES	<DS,DOS>,<ES,DOS>
-
+	sub	di,di
+	sub	si,si			; SI:DI = offset for SEEK_BEG
+	cmp	al,SEEK_CUR
+	jl	ss8
+	mov	di,[bx].SFB_CURPOS.off
+	mov	si,[bx].SFB_CURPOS.seg	; SI:DI = offset for SEEK_CUR
+	je	ss8
+	mov	di,[bx].SFB_SIZE.off
+	mov	si,[bx].SFB_SIZE.seg	; SI:DI = offset for SEEK_END
+ss8:	add	dx,di
+	adc	cx,si
+	mov	[bx].SFB_CURPOS.off,dx
+	mov	[bx].SFB_CURPOS.seg,cx
+;
+; TODO: Feels like we should return an error if carry is set (ie, overflow)....
+;
+	clc
 ss9:	ret
 ENDPROC	sfb_seek
 
@@ -437,7 +484,7 @@ ENDPROC	sfb_write
 ;	SI = PFH ("handle")
 ;
 ; Outputs:
-;	None
+;	Carry clear if success
 ;
 ; Modifies:
 ;	AX, DX, DI, ES
@@ -456,7 +503,7 @@ DEFPROC	sfb_close,DOS
 	mov	[bx].SFB_DEVICE.off,ax
 	mov	[bx].SFB_DEVICE.seg,ax	; mark SFB as unused
 sc8:	mov	ax,[psp_active]
-	test	ax,0FFF0h		; if we're called by sysinit
+	test	ax,ax			; if we're called by sysinit
 	jz	sc9			; there may be no valid PSP yet
 	push	ds
 	mov	ds,ax
@@ -958,7 +1005,7 @@ ENDPROC	get_dirent
 ;
 DEFPROC	get_sfb,DOS
 	mov	ax,[psp_active]
-	test	ax,0FFF0h		; if we're called by sysinit
+	test	ax,ax			; if we're called by sysinit
 	jz	gs8			; there may be no valid PSP yet
 	push	ds
 	mov	ds,ax
@@ -995,7 +1042,7 @@ ENDPROC	get_sfb
 ;
 DEFPROC	get_pft_free,DOS
 	mov	di,[psp_active]		; get the current PSP
-	test	di,0FFF0h		; if we're called by sysinit
+	test	di,di			; if we're called by sysinit
 	jz	gj9			; there may be no valid PSP yet
 	mov	es,di
 	ASSUME	ES:NOTHING		; find a free handle entry

@@ -22,14 +22,14 @@ DOS	segment word public 'CODE'
 ;
 ; Outputs:
 ;	On success, REG_AX = new segment
-;	On failure, REG_AX = ERR_NOMEM, REG_BX = max paras available
+;	On failure, REG_AX = error, REG_BX = max paras available
 ;
 DEFPROC	mem_alloc,DOS
 	mov	bx,[bp].REG_BX		; BX = # paras requested
 	call	alloc
-	jnc	mca9
+	jnc	ma9
 	mov	[bp].REG_BX,bx
-mca9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
+ma9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
 	ret
 ENDPROC	mem_alloc
 
@@ -42,30 +42,56 @@ ENDPROC	mem_alloc
 ;
 ; Outputs:
 ;	On success, carry clear
-;	On failure, carry set, REG_AX = ERR_BADMCD or ERR_BADADDR
+;	On failure, carry set, REG_AX = ERR_BADMCB or ERR_BADADDR
 ;
 DEFPROC	mem_free,DOS
 	mov	ax,[bp].REG_ES		; AX = segment to free
 	call	free
-	jnc	mcf9
+	jnc	mf9
 	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY set
-mcf9:	ret
+mf9:	ret
 ENDPROC	mem_free
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; initmcb
+; mem_realloc (REG_AH = 4Ah)
+;
+; Inputs:
+;	REG_ES = segment to realloc
+;	REG_BX = new size (in paragraphs)
+;
+; Outputs:
+;	On success, carry clear
+;	On failure, carry set, REG_AX = error, REG_BX = max paras available
+;
+DEFPROC	mem_realloc,DOS
+	mov	ax,[bp].REG_ES		; AX = segment to realloc
+	mov	bx,[bp].REG_BX		; BX = # new paras requested
+	call	realloc
+	jnc	mr9
+	mov	[bp].REG_BX,bx
+	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY set
+mr9:	ret
+ENDPROC	mem_realloc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; mcb_init
 ;
 ; Inputs:
 ;	ES:0 -> MCB
-;	AL = SIG (eg, MCBSIG_NEXT)
-;	DX = OWNER (eg, 0 or PSP_ACTIVE)
+;	AL = SIG (ie, MCBSIG_NEXT or MCBSIG_LAST)
+;	DX = OWNER (ie, MCBOWNER_NONE, MCBOWNER_SYSTEM, or a PSP segment)
 ;	CX = PARAS
+;
+; Outputs:
+;	Carry clear
 ;
 ; Modifies:
 ;	AX, CX, DX, DI
 ;
-DEFPROC	initmcb,DOS
+DEFPROC	mcb_init,DOS
+	ASSUME	DS:NOTHING, ES:NOTHING
 	sub	di,di
 	stosb				; mov es:[MCB_SIG],al
 	xchg	ax,dx
@@ -76,7 +102,40 @@ DEFPROC	initmcb,DOS
 	mov	al,0
 	rep	stosb
 	ret
-ENDPROC	initmcb
+ENDPROC	mcb_init
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; mcb_split
+;
+; Inputs:
+;	ES:0 -> MCB
+;	AL = SIG for new block
+;	BX = new (smaller) size for block
+;	CX = original (larger) size of block
+;
+; Outputs:
+;	Carry clear
+;
+; Modifies:
+;	AX, CX, DX, DI
+;
+DEFPROC	mcb_split,DOS
+	ASSUME	DS:NOTHING
+	push	es
+	mov	dx,es
+	add	dx,bx
+	inc	dx
+	mov	es,dx			; ES:0 -> new MCB
+	sub	cx,bx			; reduce by # paras requested
+	dec	cx			; reduce by 1 for new MCB
+	sub	dx,dx			; DX = owner (none)
+	call	mcb_init
+	pop	es			; ES:0 -> back to found block
+	mov	es:[MCB_SIG],MCBSIG_NEXT
+	mov	es:[MCB_PARAS],bx
+	ret
+ENDPROC	mcb_split
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -86,70 +145,122 @@ ENDPROC	initmcb
 ;	BX = paragraphs requested (from REG_BX if via INT 21h)
 ;
 ; Outputs:
-;	On success, AX = new segment, carry clear
-;	On failure, BX = max paras available, carry set
+;	On success, carry clear, AX = new segment
+;	On failure, carry set, BX = max paras available
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, DI, ES
 ;
 DEFPROC alloc,DOS
 	mov	es,[mcb_head]
+	ASSUME	ES:NOTHING
 
-ma1:	mov	al,es:[MCB_SIG]
+	sub	dx,dx			; DX = largest free block so far
+a1:	mov	al,es:[MCB_SIG]
 	cmp	al,MCBSIG_NEXT
-	je	ma2
+	je	a2
 	cmp	al,MCBSIG_LAST
-	jne	ma7
-ma2:	mov	ax,es:[MCB_PARAS]	; AX = # paras this block
+	jne	a7
+a2:	mov	cx,es:[MCB_PARAS]	; CX = # paras this block
 	cmp	es:[MCB_OWNER],0	; free block?
-	jne	ma5			; no
-	cmp	ax,bx			; big enough?
-	je	ma4			; just big enough, use as-is
-	jb	ma5			; no
+	jne	a6			; no
+	cmp	cx,bx			; big enough?
+	je	a4			; just big enough, use as-is
+	ja	a3			; yes
+	cmp	dx,cx			; is this largest free block so far?
+	jae	a6			; no
+	mov	dx,cx			; yes
+	jmp	short a6
 ;
 ; Split the current block; the new MCB at the split point will
 ; be marked free, and it will have the same MCB_SIG as the found block.
 ;
-	xchg	cx,ax			; CX = # paras in found block
-	mov	al,es:[MCB_SIG]		; AL = signature for new block
-	push	es
-	mov	dx,es
-	add	dx,bx
-	inc	dx
-	mov	es,dx			; ES:0 -> new MCB
-	sub	cx,bx			; reduce by # paras requested
-	dec	cx			; reduce by 1 for new MCB
-	sub	dx,dx			; no owner
-	call	initmcb
-	pop	es			; ES:0 -> back to found block
-	mov	es:[MCB_SIG],MCBSIG_NEXT
-	mov	es:[MCB_PARAS],bx
-ma4:	mov	ax,[psp_active]
-	mov	es:[MCB_OWNER],ax
+a3:	mov	al,es:[MCB_SIG]		; AL = signature for new block
+	call	mcb_split
+
+a4:	mov	ax,[psp_active]
+	test	ax,ax
+	jnz	a5
+	mov	ax,MCBOWNER_SYSTEM	; no active PSP yet, so use this
+a5:	mov	es:[MCB_OWNER],ax
 	mov	ax,es
 	inc	ax			; return ES+1 in AX, with CARRY clear
 	clc
-	jmp	short ma9
+	jmp	short a9
 
-ma5:	cmp	es:[MCB_SIG],MCBSIG_LAST; last block?
-	je	ma8			; yes, return error
+a6:	cmp	es:[MCB_SIG],MCBSIG_LAST; last block?
+	je	a8			; yes, return error
+	mov	ax,es			; advance to the next block
+	add	ax,cx
+	inc	ax
+	mov	es,ax
+	jmp	a1
 
-	mov	dx,es			; advance to the next block
-	add	dx,ax
-	inc	dx
-	mov	es,dx
-	jmp	ma1
+a7:	mov	ax,ERR_BADMCB
+	jmp	short a8a
 
-ma7:	mov	ax,ERR_BADMCB
-	jmp	short maerr
-ma8:	mov	ax,ERR_NOMEM
-maerr:	stc
-ma9:	ret
+a8:	mov	ax,ERR_NOMEM
+	mov	bx,dx			; BX = max # paras available
+
+a8a:	stc
+a9:	ret
 ENDPROC	alloc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; realloc
+;
+; Inputs:
+;	AX = segment to realloc (from REG_ES if via INT 21h)
+;	BX = new size (in paragraphs)
+;
+; Outputs:
+;	On success, carry clear, AX = new segment
+;	On failure, carry set, BX = max paras available for segment
+;
+; Modifies:
+;	AX, BX, CX, DX, DI, ES
+;
+DEFPROC realloc,DOS
+	dec	ax
+	mov	es,ax			; ES:0 -> MCB
+	ASSUME	ES:NOTHING
+	mov	cx,es:[MCB_PARAS]	; CX = # paras in block
+	cmp	bx,cx			; any change in size?
+	je	r9			; no, that's easy
+	cmp	es:[MCB_SIG],MCBSIG_LAST; is this the last block?
+	je	r2			; yes
+	add	ax,cx
+	inc	ax
+	mov	ds,ax			; DS:0 -> next MCB
+	ASSUME	DS:NOTHING
+	cmp	ds:[MCB_OWNER],0	; is the next MCB free?
+	jne	r2			; no
+	add	cx,ds:[MCB_PARAS]	; yes, include it
+	inc	cx			; CX = maximum # of paras
+
+r2:	cmp	bx,cx			; is requested <= avail?
+	ja	r8			; no
+	mov	al,ds:[MCB_SIG]
+	call	mcb_split		; yes, split block into used and free
+	jmp	short r9		; return success
+
+r7:	mov	ax,ERR_BADMCB
+	jmp	short r8a
+
+r8:	mov	bx,cx			; BX = maximum # of paras available
+	mov	ax,ERR_NOMEM
+r8a:	stc
+r9:	ret
+ENDPROC	realloc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; free
+;
+; When freeing a block, it's important to merge it with any free block that
+; immediately precedes or follows it.  And since the MCBs are singly-linked,
+; we must walk the chain from the head until we find the candidate block.
 ;
 ; Inputs:
 ;	AX = segment to free (from REG_ES if via INT 21h)
@@ -162,33 +273,28 @@ ENDPROC	alloc
 ;	AX, BX, DX, ES
 ;
 DEFPROC	free,DOS
-;
-; Freeing a block requires that we merge it with any free block that
-; immediately precedes or follows it (well, "require" is a strong word; it's
-; only required if we want alloc to work better).  And since the MCBs are
-; singly-linked (and there again, "linked" is a rather strong word), we must
-; walk the chain from the head until we find the candidate block.
-;
+	mov	bx,[mcb_head]		; BX tracks ES
 	dec	ax			; AX = candidate MCB
 	sub	dx,dx			; DX = previous MCB (0 if not free)
-	mov	bx,[mcb_head]		; BX tracks ES
 
-mf1:	mov	es,bx
+f1:	mov	es,bx
+	ASSUME	ES:NOTHING
 	cmp	bx,ax			; does current MCB match candidate?
-	jne	mf4			; no
+	jne	f4			; no
 ;
 ; If the previous block is free, add this block's paras (+1 for its MCB)
 ; to the previous block's paras.
 ;
 	test	dx,dx			; is the previous block free?
-	jz	mf3			; no
+	jz	f3			; no
 
-mf2:	mov	al,es:[MCB_SIG]
+f2:	mov	al,es:[MCB_SIG]
 	cmp	al,MCBSIG_NEXT
-	je	mf2a
+	je	f2a
 	cmp	al,MCBSIG_LAST
-	jne	mf7
-mf2a:	mov	cx,es:[MCB_PARAS]	; yes, merge current with previous
+	jne	f7
+
+f2a:	mov	cx,es:[MCB_PARAS]	; yes, merge current with previous
 	inc	cx
 	mov	es,dx			; ES:0 -> previous block
 	add	es:[MCB_PARAS],cx	; update its number of paras
@@ -198,36 +304,37 @@ mf2a:	mov	cx,es:[MCB_PARAS]	; yes, merge current with previous
 ;
 ; Mark the candidate block free, and if the next block is NOT free, we're done.
 ;
-mf3:	mov	es:[MCB_OWNER],dx	; happily, DX is zero
+f3:	mov	es:[MCB_OWNER],dx	; happily, DX is zero
 	cmp	es:[MCB_SIG],MCBSIG_LAST; is there a next block?
-	je	mf9			; no (and carry is clear)
+	je	f9			; no (and carry is clear)
 	mov	dx,bx			; yes, save this block as new previous
 	add	bx,es:[MCB_PARAS]
 	inc	bx
 	mov	es,bx			; ES:0 -> next block
 	cmp	es:[MCB_OWNER],0	; also free?
-	jne	mf9			; no, we're done (and carry is clear)
+	jne	f9			; no, we're done (and carry is clear)
 ;
 ; Otherwise, use the same merge logic as before; the only difference now
 ; is that the candidate block has become the previous block.
 ;
-	jmp	mf2
+	jmp	f2
 
-mf4:	cmp	es:[MCB_SIG],MCBSIG_LAST; continuing search: last block?
-	je	mf8			; yes, return error
+f4:	cmp	es:[MCB_SIG],MCBSIG_LAST; continuing search: last block?
+	je	f8			; yes, return error
 	sub	dx,dx			; assume block is not free
 	cmp	es:[MCB_OWNER],dx	; is it free?
-	jne	mf5			; no
+	jne	f5			; no
 	mov	dx,bx			; DX = new previous (and free) MCB
-mf5:	add	bx,es:[MCB_PARAS]
+f5:	add	bx,es:[MCB_PARAS]
 	inc	bx
-	jmp	mf1			; check the next block
+	jmp	f1			; check the next block
 
-mf7:	mov	ax,ERR_BADMCB
-	jmp	short mferr
-mf8:	mov	ax,ERR_BADADDR
-mferr:	stc
-mf9:	ret
+f7:	mov	ax,ERR_BADMCB
+	jmp	short f8a
+
+f8:	mov	ax,ERR_BADADDR
+f8a:	stc
+f9:	ret
 ENDPROC	free
 
 DOS	ends

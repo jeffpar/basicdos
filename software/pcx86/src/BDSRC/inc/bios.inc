@@ -239,13 +239,10 @@ FAT_BUFHDR	BUFHDR	<>		; 530h
 FAT_SECTOR	db	512 dup (?)	; 540h
 
 DIR_BUFHDR	BUFHDR	<>		; 740h
-DIR_SECTOR	db	512 dup (?)	; 750h
 DIR_SECTOR_OFF	equ	750h
+DIR_SECTOR	db	512 dup (?)	; 750h
 		ASSERT 	<offset IVT + DIR_SECTOR_OFF>,EQ,<offset DIR_SECTOR>
 
-		dw	88 dup (?)	; 88-word stack (good enough for sysinit)
-BIOS_STACK	equ	$		; A00h
-BIOS_END	equ	0A00h
-		ASSERT	<offset IVT + BIOS_END>,EQ,<offset BIOS_STACK>
+BIOS_END	equ	0950h
 
 BIOS		ends

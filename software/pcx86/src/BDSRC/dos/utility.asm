@@ -13,19 +13,20 @@ DOS	segment word public 'CODE'
 
 	EXTERNS	<clk_ptr>,dword
 	EXTERNS	<chk_devname,dev_request,write_tty>,near
-	EXTERNS	<scb_block,scb_unblock>,near
+	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload>,near
+	EXTERNS	<scb_yield,scb_block,scb_unblock>,near
 
 	DEFLBL	UTILTBL,word
-	dw	util_strlen,util_atoi,util_itoa,util_printf	; 00h-03h
-	dw	util_sprintf,util_getdev,util_sleep,util_wait	; 04h-07h
-	dw	util_endwait,util_none,util_none,util_none	; 08h-0Bh
-	dw	util_none,util_none,util_none,util_none		; 0Ch-0Fh
-	dw	util_none,util_none,util_none,util_none		; 10h-13h
-	dw	util_none,util_none,util_none,util_none		; 14h-17h
-	dw	util_none,util_none,util_none,util_none		; 18h-1Bh
-	dw	util_none,util_none,util_none,util_none		; 1Ch-1Fh
-	dw	util_none,util_none,util_none,util_none		; 20h-23h
-	dw	util_strlen					; 24h
+	dw	util_strlen,  util_atoi,    util_itoa,   util_printf	; 00h-03h
+	dw	util_sprintf, util_getdev,  util_load,   util_start	; 04h-07h
+	dw	util_stop,    util_unload,  util_yield,  util_sleep,	; 08h-0Bh
+	dw	util_wait,    util_endwait, util_none,   util_none,	; 0Ch-0Fh
+	dw	util_none,    util_none,    util_none,   util_none	; 10h-13h
+	dw	util_none,    util_none,    util_none,   util_none	; 14h-17h
+	dw	util_none,    util_none,    util_none,   util_none	; 18h-1Bh
+	dw	util_none,    util_none,    util_none,   util_none	; 1Ch-1Fh
+	dw	util_none,    util_none,    util_none,   util_none	; 20h-23h
+	dw	util_strlen						; 24h
 	DEFABS	UTILTBL_SIZE,<($ - UTILTBL) SHR 1>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -570,12 +571,79 @@ ENDPROC	util_getdev
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_sleep (AX = 1806h)
+; util_load (AX = 1806h)
+;
+; Inputs:
+;	REG_CL = SCB #
+;	REG_DS:REG_DX = name of executable
+;
+; Modifies:
+;	AX, BX, CX, DX, DI, DS, ES
+;
+DEFPROC	util_load,DOS
+	mov	es,[bp].REG_DS
+	ASSUME	DS:NOTHING		; CL = SCB #
+	jmp	scb_load		; ES:DX -> name of executable
+ENDPROC	util_load
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; util_start (AX = 1807h)
+;
+; Inputs:
+;	REG_CL = SCB #
+;
+; Modifies:
+;	None
+;
+DEFPROC	util_start,DOS
+	jmp	scb_start		; CL = SCB #
+ENDPROC	util_start
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; util_stopscb (AX = 1808h)
+;
+; Inputs:
+;	REG_CL = SCB #
+;
+; Modifies:
+;	None
+;
+DEFPROC	util_stop,DOS
+	jmp	scb_stop		; CL = SCB #
+ENDPROC	util_stop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; util_unload (AX = 1809h)
+;
+; Inputs:
+;	REG_CL = SCB #
+;
+; Modifies:
+;	None
+;
+DEFPROC	util_unload,DOS
+	jmp	scb_load		; CL = SCB #
+ENDPROC	util_unload
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; util_yield (AX = 180Ah)
+;
+DEFPROC	util_yield,DOS
+	jmp	scb_yield
+ENDPROC	util_yield
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; util_sleep (AX = 180Bh)
 ;
 ; Issues an IOCTL to the CLOCK$ driver to wait the specified number of ticks.
 ;
 ; Inputs:
-;	CX:DX = # of ticks to sleep
+;	REG_CX:REG_DX = # of ticks to sleep
 ;
 ; Modifies:
 ;	AX, DI, ES
@@ -593,7 +661,7 @@ ENDPROC	util_sleep
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_wait (AX = 1807h)
+; util_wait (AX = 180Ch)
 ;
 ; Called by a device driver which is waiting for some event to occur.
 ;
@@ -604,13 +672,12 @@ ENDPROC	util_sleep
 ;	AX
 ;
 DEFPROC	util_wait,DOS
-	call	scb_block
-	ret
+	jmp	scb_block
 ENDPROC	util_wait
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_endwait (AX = 1808h)
+; util_endwait (AX = 180Dh)
 ;
 ; Called by a device driver which is signalling that an event has occurred.
 ;
@@ -621,8 +688,7 @@ ENDPROC	util_wait
 ;	AX
 ;
 DEFPROC	util_endwait,DOS
-	call	scb_unblock
-	ret
+	jmp	scb_unblock
 ENDPROC	util_endwait
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

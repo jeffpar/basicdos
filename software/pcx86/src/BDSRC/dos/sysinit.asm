@@ -11,7 +11,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<mcb_head,mcb_limit,scb_active,psp_active>,word
+	EXTERNS	<mcb_head,mcb_limit>,word
 	EXTERNS	<bpb_table,scb_table,sfb_table,clk_ptr>,dword
 	EXTERNS	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>,near
 	EXTERNS	<dos_term,dos_func,dos_default>,near
@@ -25,7 +25,7 @@ DOS	segment word public 'CODE'
 	DEFWORD	cfg_data
 	DEFWORD	cfg_size
 
-	ASSUME	CS:DOS, DS:BIOS, ES:DOS, SS:BIOS
+	ASSUME	CS:DOS, DS:BIOS, ES:DOS, SS:NOTHING
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -86,24 +86,28 @@ si1:	mov	ax,[MEMORY_SIZE]	; get available memory in Kb
 	shr	cx,1
 	rep	movsw
 	push	ax			; push new segment on stack
-	mov	ax,offset si2
+	mov	ax,offset sysinit_high
 	push	ax			; push new offset on stack
 	ret
 ;
 ; Initialize all the DOS vectors, while DS is still dos_seg and ES is BIOS.
 ;
-si2:	push	ss
-	pop	es
+	EVEN
+	DEFLBL	sysinit_high,near
+	push	cs
+	pop	ss
+	mov	sp,offset sysinit_high
+	mov	es,cx
 	ASSUME	ES:BIOS
 	mov	si,offset INT_TABLES
-si2a:	lodsw
+si2:	lodsw
 	test	ax,ax			; any more tables?
 	jz	si3a			; no
 	and	al,0FEh
 	xchg	di,ax			; DI -> first vector for table
 si3:	lodsw				; load vector offset
 	test	ax,ax
-	jz	si2a
+	jz	si2
 	stosw				; store vector offset
 	mov	ax,ds
 	stosw				; store vector segment
@@ -115,15 +119,7 @@ si3a:	mov	al,0EAh			; DI -> INT_DOSCALL5 * 4
 	mov	ax,ds
 	stosw
 ;
-; TODO: At some point, we're going to want a buffer cache.  But for now,
-; we at least need to make sure FAT_BUFHDR and DIR_BUFHDR are initialized
-; enough to be usable.
-;
-	mov	[FAT_BUFHDR].BUF_SIZE,512
-	mov	[DIR_BUFHDR].BUF_SIZE,512
-;
-; Now set ES to the first available paragraph for resident DOS tables,
-; and set DS to the upper DOS segment.
+; Now set ES to the first available paragraph for resident DOS tables.
 ;
 si4:	mov	ax,offset sysinit_start
 	test	al,0Fh			; started on a paragraph boundary?
@@ -133,8 +129,15 @@ si4a:	mov	ax,ds
 	add	ax,dx
 	mov	es,ax			; ES = first free (low) paragraph
 	ASSUME	ES:NOTHING
-	push	cs
-	pop	ds
+	mov	ds,cx
+	ASSUME	DS:BIOS
+;
+; TODO: At some point, we're going to want a buffer cache.  But for now,
+; we at least need to make sure FAT_BUFHDR and DIR_BUFHDR are initialized
+; enough to be usable.
+;
+	mov	[FAT_BUFHDR].BUF_SIZE,512
+	mov	[DIR_BUFHDR].BUF_SIZE,512
 ;
 ; The first resident table (bpb_table) contains all the system BPBs.
 ;
@@ -144,10 +147,11 @@ si4a:	mov	ax,ds
 	mov	bx,offset bpb_table
 	call	init_table		; initialize table, update ES
 	mov	si,[bpb_off]		; get the BPB the boot sector used
+
 	push	es
 	mov	es,[dos_seg]
 	ASSUME	ES:DOS
-	mov	al,ss:[si].BPB_DRIVE	; and copy to the appropriate BPB slot
+	mov	al,[si].BPB_DRIVE	; and copy to the appropriate BPB slot
 	mov	ah,size BPBEX
 	mul	ah
 	mov	di,es:[bpb_table].off
@@ -156,7 +160,7 @@ si4a:	mov	ax,ds
 	jnb	si5
 	mov	cx,(size BPB) SHR 1
 	push	di
-	rep	movs word ptr es:[di],word ptr ss:[si]
+	rep	movsw
 	pop	di
 	mov	ah,TIME_GETTICKS
 	int	INT_TIME		; CX:DX is current tick count
@@ -180,18 +184,23 @@ si4a:	mov	ax,ds
 	mov	al,es:[di].BPB_CLUSSECS	; calculate LOG2 of CLUSSECS in CX
 	test	al,al
 	jnz	si4d			; make sure CLUSSECS is non-zero
-si4c:	jmp	sysinit_error
+
+sierr1:	jmp	sysinit_error
+
 si4d:	shr	al,1
 	jc	si4e
 	inc	cx
 	jmp	si4d
-si4e:	jnz	si4c			; hmm, CLUSSECS wasn't a power-of-two
+si4e:	jnz	sierr1			; hmm, CLUSSECS wasn't a power-of-two
 	mov	es:[di].BPB_CLUSLOG2,cl
 	mov	ax,es:[di].BPB_SECBYTES	; use that to also calculate CLUSBYTES
 	shl	ax,cl
 	mov	es:[di].BPB_CLUSBYTES,ax
 	pop	es
 	ASSUME	ES:NOTHING
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
 ;
 ; The next resident table (scb_table) contains our Session Control Blocks.
 ; Look for a "SESSIONS=" line in CFG_FILE.
@@ -248,12 +257,12 @@ si7:	mov	dx,size SFB
 	mov	es:[mcb_head],bx
 
 	mov	bx,es:[scb_table].off
-	mov	es:[scb_active],bx	; BX = 1st SCB (and now the active SCB)
+	or	es:[bx].SCB_STATUS,SCSTAT_INIT
 ;
 ; Before we create the first PSP, open all the devices we need for the 5
 ; STD handles.  We open AUX first, purely for historical reasons.
 ;
-; And note that since we have no PSP yet, DOS_HDL_OPEN will be returning system
+; And note that since we have no PSP yet, DOS_HDL_OPEN will return system
 ; handles, not process handles.
 ;
 	mov	dx,offset AUX_DEVICE
@@ -277,8 +286,6 @@ si8a:	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	DEFLBL	open_error,near
 	PRINTF	<"%s open error %d">,dx,ax
 	jmp	fatal_error
-
-sierr:	jmp	sysinit_error
 
 si9:	mov	es:[bx].SCB_SFHCON,al
 
@@ -308,113 +315,105 @@ si11:	mov	es:[bx].SCB_SFHCON,al
 	jmp	si10
 ;
 ; Utility functions like SLEEP need access to specific drivers, and while we
-; could open them like we did above, that would require utility functions to go
-; through SFB interfaces (get_sfb, sfb_read, etc) with absolutely no benefit.
+; could open them as system file handles, that would require utility functions
+; to use SFB interfaces (get_sfb, sfb_read, etc) with absolutely no benefit.
 ;
-si12:	mov	dx,offset CLK_DEVICE
+si12:	push	es
+	mov	dx,offset CLK_DEVICE
 	mov	ax,DOS_UTIL_GETDEV
 	int	21h
+	mov	dx,es
+	pop	es
 	jc	open_error
-	mov	[clk_ptr].off,di
-	mov	[clk_ptr].seg,es
-;
-; Create the first PSP.  Until we have the ability to create a process from
-; a COM or EXE file, this will serve as our "shell" process.
-;
-	mov	bx,100h			; we'll start with a safe 4K for now
-	mov	ah,DOS_MEM_ALLOC
-	int	21h
-	jc	sierr			; hmmm, guess it wasn't safe after all
+	mov	es:[clk_ptr].off,di
+	mov	es:[clk_ptr].seg,dx
 
-	xchg	dx,ax			; DX = segment for new PSP
-	mov	ah,DOS_PSP_CREATE
-	int	21h
-
-	mov	bx,dx			; and of course, this PSP function
-	mov	ah,DOS_PSP_SET		; wants the segment in BX, not DX....
-	int	21h			; active PSP updated
-
-	IFDEF	DEBUG
-	;
-	; Perform some simple console I/O tests
-	;
-	mov	si,offset CON_MSG
-	mov	ax,DOS_UTIL_STRLEN
-	int	21h
-	xchg	cx,ax			; CX = length of CON_MSG
-	mov	dx,si			; DS:DX -> CON_MSG
-	mov	bx,STDOUT		; BX = handle
-	mov	ah,DOS_HDL_WRITE
-	int	21h			; write the string to STDOUT
-	mov	dx,offset DOS_MSG
+	mov	dx,offset SYS_MSG
 	mov	ah,DOS_TTY_PRINT
 	int	21h
-	;
-	; Perform a few simple memory ALLOC/FREE "confidence" tests
-	;
-	push	es
+
+	IFDEF	DEBUG
 	mov	ah,DOS_MEM_ALLOC
 	mov	bx,200h
 	int	21h
-	jc	dsierr
+	jc	dierr1
 	xchg	cx,ax			; CX = 1st segment
+	mov	es,cx
+	mov	bx,400h			; make the 1st segment larger
+	mov	ah,DOS_MEM_REALLOC
+	int	21h
+	jc	dierr1
 	mov	ah,DOS_MEM_ALLOC
 	mov	bx,200h
 	int	21h
-	jc	dsierr
+	jc	dierr1
 	xchg	dx,ax			; DX = 2nd segment
+	mov	es,dx
+	mov	bx,100h			; make the 2nd segment smaller
+	mov	ah,DOS_MEM_REALLOC
+	int	21h
+	jc	dierr1
 	mov	ah,DOS_MEM_ALLOC
 	mov	bx,200h
 	int	21h
-	jc	dsierr
+	jc	dierr1
 	xchg	si,ax			; SI = 3rd segment
 	mov	ah,DOS_MEM_FREE
 	mov	es,cx			; free the 1st
 	int	21h
-	jc	dsierr
+dierr1:	jc	dierr2
 	mov	ah,DOS_MEM_FREE
 	mov	es,si
 	int	21h			; free the 3rd
-	jc	dsierr
+	jc	dierr2
 	mov	ah,DOS_MEM_FREE
 	mov	es,dx
 	int	21h			; free the 2nd
-	jc	dsierr
-	pop	es
+	jc	dierr2
 	mov	dx,offset COM1_DEVICE
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
-	jc	dsierr
+	jc	dierr2
 	mov	dx,offset COM2_DEVICE
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
-	jnc	si13
-dsierr:	jmp	sysinit_error
-
-si13:	mov	ah,TIME_GETTICKS
+	jc	dierr2
+	mov	ah,TIME_GETTICKS
 	int	INT_TIME		; CX:DX is tick count
 	mov	bx,offset hello
 	PRINTF	<"%ls, the time is [%6ld]",13,10>,bx,cs,dx,cx
+	jmp	short si13
+hello	db	"hello world",0
+dierr2:	jmp	sysinit_error
 
 	ENDIF
-
-	mov	dx,offset CMD_FILE
-	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
+;
+; For each SHELL definition, load the corresponding file into the next
+; available SCB.  The first time through, CFG_SHELL is used as a fallback,
+; so even if there are no SHELL definitions, at least one will be loaded.
+;
+si13:	sub	cx,cx			; CL = SCB #
+si14:	mov	dx,offset SHELL_FILE
+	mov	si,offset CFG_SHELL
+	call	find_cfg		; look for "SHELL="
+	jc	si15			; not found
+	mov	dx,di
+si15:	test	dx,dx
+	jz	si16
+	mov	ax,DOS_UTIL_LOAD	; load SHELL DS:DX into specified SCB
 	int	21h
-	jnc	si14
-	jmp	open_error
-
-si14:	xchg	bx,ax
-	mov	dx,offset INT_TABLES
-	mov	cx,offset INT_TABLES_END - offset INT_TABLES
-	mov	ah,DOS_HDL_READ
+	jc	sierr2
+	inc	cx			; advance SCB #
+	sub	dx,dx
+	jmp	si14
+;
+; Start the first SCB; this should not return
+;
+si16:	sub	cx,cx
+	mov	ax,DOS_UTIL_START
 	int	21h
-	jnc	si199
-	jmp	sysinit_error
 
-si199:	jmp	si199
-
-hello	db	"hello world",0
+sierr2:	jmp	sysinit_error
 
 ENDPROC	sysinit
 
@@ -430,6 +429,7 @@ ENDPROC	sysinit
 ;	AX, SI, DI
 ;
 DEFPROC	find_cfg
+	ASSUME	DS:DOS, ES:NOTHING
 	push	bx
 	push	cx
 	push	dx
@@ -477,6 +477,7 @@ ENDPROC	find_cfg
 ; Modifies: AX, CX, DX, DI
 ;
 DEFPROC	init_table
+	ASSUME	DS:NOTHING, ES:NOTHING
 	mul	dx			; AX = length of table in bytes
 	xchg	cx,ax			; CX = length
 	sub	di,di
@@ -530,6 +531,8 @@ ENDPROC	init_table
 ;	AX, DS
 ;
 	DEFLBL	print_error,near
+	push	cs
+	pop	ds
 	mov	ah,DOS_TTY_PRINT
 	int	21h
 
@@ -573,17 +576,18 @@ CFG_FILES	db	6,"FILES="
 		dw	20,256
 CFG_CONSOLE	db	8,"CONSOLE=",
 		dw	16,80, 4,25	; default CONSOLE parameters
+CFG_SHELL	db	6,"SHELL=",
+
 AUX_DEVICE	db	"AUX",0
 CON_DEVICE	db	"CON:80,25",0	; default CONSOLE configuration
 PRN_DEVICE	db	"PRN",0
 CLK_DEVICE	db	"CLOCK$",0
-CMD_FILE	db	"COMMAND.COM",0
+SHELL_FILE	db	"COMMAND.COM",0	; default SHELL file
 
 	IFDEF	DEBUG
 COM1_DEVICE	db	"COM1:9600,N,8,1",0
 COM2_DEVICE	db	"COM2:9600,N,8,1",0
-CON_MSG		db	"CONSOLE ready",13,10,0
-DOS_MSG		db	"DOS interface ready",13,10,'$'
+SYS_MSG		db	"System ready",13,10,'$'
 	ENDIF
 
 SYSERR		db	"System initialization error$"

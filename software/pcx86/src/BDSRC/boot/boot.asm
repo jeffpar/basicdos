@@ -366,11 +366,6 @@ errmsg1		db	" Missing system files, halted",0
 ; space in the "part2" sector, there's not much point.
 ;
 DEFPROC	part2,far
-	push	cs			; switch to a safer stack now;
-	pop	ss			; would have done it sooner, but
-	mov	sp,offset BIOS_STACK	; space in part1 is tight
-	ASSUME	SS:BIOS
-
 	mov	ax,[si].BPB_SECBYTES
 	mov	si,offset PART1_COPY	; copy PART1 data to PART2
 	mov	di,offset PART2_COPY
@@ -606,30 +601,29 @@ ENDPROC	read_fat
 ;
 DEFPROC	read_data
 	mov	dx,1		; DX = sectors already read
-rm1:	cmp	word ptr [bx+4],0
-	jne	rm2
+rd1:	cmp	word ptr [bx+4],0
+	jne	rd2
 	cmp	word ptr [bx+6],0
-	je	rm3		; file size is zero, carry clear
-rm2:	mov	ax,[bx+2]	; AX = CLN
+	je	rd3		; file size is zero, carry clear
+rd2:	mov	ax,[bx+2]	; AX = CLN
 	cmp	ax,2		; too low?
-	jc	rm3		; yes
+	jc	rd3		; yes
 	cmp	ax,CLN_END	; too high?
 	cmc
-	jc	rm3		; yes
+	jc	rd3		; yes
 	call	read_cluster	; read cluster into DI
-	jc	rm3		; error
+	jc	rd3		; error
 	mul	[si].BPB_SECBYTES; DX:AX = number of sectors read
 	add	di,ax		; adjust next read address
 	sub	[bx+4],ax	; reduce file size
 	sbb	[bx+6],dx	; (DX is zero)
-	jnc	rm3+1		; jump if file size still positive
+	jnc	rd4		; jump if file size still positive
 	add	di,[bx+4]	; rewind next load address by
 	clc			; the amount of file size underflow
-rm3:	ret			; and return success
-	mov	ax,[bx+2]	; AX = CLN
+rd3:	ret			; and return success
+rd4:	mov	ax,[bx+2]	; AX = CLN
 	push	es
-	push	ss
-	pop	es
+	mov	es,dx		; relies on DX still being zero
 	ASSUME	ES:BIOS
 	call	read_fat	; DX = next CLN
 	pop	es
@@ -638,7 +632,7 @@ rm3:	ret			; and return success
 
 read_file label near
 	sub	dx,dx		; normal case: read all cluster sectors
-	jmp	rm1
+	jmp	rd1
 ENDPROC	read_data
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -41,24 +41,32 @@ DOS_TTY_INPUT	equ	0Ah	; read (DS:DX) line from CON
 DOS_TTY_STATUS	equ	0Bh	; get CON status (AL := 0 if nothing, or FFh)
 DOS_TTY_FLUSH	equ	0Ch	; flush and invoke 01h, 06h, 07h, 08h, or 0Ah
 
-DOS_UTIL_STRLEN		equ	1800h
-DOS_UTIL_ATOI		equ	1801h
-DOS_UTIL_ITOA		equ	1802h
-DOS_UTIL_PRINTF		equ	1803h
-DOS_UTIL_SPRINTF	equ	1804h
-DOS_UTIL_GETDEV		equ	1805h	; get device DS:SI (ES:DI := DDH)
-DOS_UTIL_SLEEP		equ	1806h	; sleep CX:DX ticks
-DOS_UTIL_WAIT		equ	1807h	; wait until ENDWAIT
-DOS_UTIL_ENDWAIT	equ	1808h	; end wait
-DOS_UTIL_STDLEN		equ	1824h	; like STRLEN but uses 24h instead of 00h
+DOS_UTIL_STRLEN		equ	1800h	; return str (DS:SI) len (AX)
+DOS_UTIL_ATOI		equ	1801h	; convert str (DS:SI) to num (AX)
+DOS_UTIL_ITOA		equ	1802h	; convert num (DX:SI) to str (ES:DI)
+DOS_UTIL_PRINTF		equ	1803h	; printf to console
+DOS_UTIL_SPRINTF	equ	1804h	; sprintf to buffer (ES:DI)
+DOS_UTIL_GETDEV		equ	1805h	; get DDH (ES:DI) for device (DS:SI)
+DOS_UTIL_LOAD		equ	1806h	; load program (DS:DX) into SCB (CL)
+DOS_UTIL_START		equ	1807h	; start SCB (CL)
+DOS_UTIL_STOP		equ	1808h	; stop SCB (CL)
+DOS_UTIL_UNLOAD		equ	1809h	; unload program from SCB (CL)
+DOS_UTIL_YIELD		equ	180Ah	; yield
+DOS_UTIL_SLEEP		equ	180Bh	; sleep CX:DX ticks
+DOS_UTIL_WAIT		equ	180Ch	; wait until end wait
+DOS_UTIL_ENDWAIT	equ	180Dh	; end wait
+DOS_UTIL_STDLEN		equ	1824h	; like STRLEN but with 24h as terminator
 
 DOS_PSP_CREATE	equ	26h	; create PSP (DX = segment)
 DOS_HDL_OPEN	equ	3Dh	; open handle for device/file (DS:DX)
+DOS_HDL_CLOSE	equ	3Eh	; close handle (BX)
 DOS_HDL_READ	equ	3Fh	; read (CX) bytes at (DS:DX) with handle (BX)
 DOS_HDL_WRITE	equ	40h	; write (CX) bytes at (DS:DX) with handle (BX)
+DOS_HDL_SEEK	equ	42h	; seek to (CX:DX) w/method (AL) and handle (BX)
 
 DOS_MEM_ALLOC	equ	48h	; allocate memory
 DOS_MEM_FREE	equ	49h	; free memory
+DOS_MEM_REALLOC	equ	4Ah	; reallocate memory
 
 DOS_PSP_SET	equ	50h	; set current PSP (BX)
 DOS_PSP_GET	equ	51h	; get current PSP (BX)
@@ -103,24 +111,29 @@ SCB_STATUS	db	?	; 00h: SCB status
 SCB_SFHAUX	db	?	; 01h: SFH for AUX
 SCB_SFHCON	db	?	; 02h: SFH for CON
 SCB_SFHPRN	db	?	; 03h: SFH for PRN
-SCB_CONSOLE	dw	?	; 04h: console context
-SCB_WAITID	dd	?	; 06h: wait ID if waiting, 0 if running
+SCB_WAITID	dd	?	; 04h: wait ID if waiting, 0 if running
 SCB_STACK	dd	?	; 08h: pointer to session stack
 SCB_CURDRV	db	?	; 0Ch: current drive #
 SCB		ends
+
+SCSTAT_INIT	equ	01h	; set if initialized, clear if SCB not used
+SCSTAT_READY	equ	02h	; set if ready to run, false if not yet ready
+SCSTAT_RUNNING	equ	04h	; set if running, false if not
 
 ;
 ; Memory Control Block (MCB)
 ;
 MCB		struc
 MCB_SIG		db	?	; 00h: either MCBSIG_NEXT or MCBSIG_LAST
-MCB_OWNER	dw	?	; 01h: PSP segment owner (8 if owner is DOS)
+MCB_OWNER	dw	?	; 01h: owner (PSP segment if > 8)
 MCB_PARAS	dw	?	; 03h: size of block in paragraphs
 MCB_RESERVED	db     11 dup(?); 05h: reserved
 MCB		ends
 
 MCBSIG_NEXT	equ	4Dh
 MCBSIG_LAST	equ	5Ah
+MCBOWNER_NONE	equ	0	; free memory block
+MCBOWNER_SYSTEM	equ	0008h	; owned by the system
 
 ;
 ; File Control Block (FCB)

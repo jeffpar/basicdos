@@ -32,7 +32,7 @@ DEV	segment para public 'CODE'
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, BP
 ;
-        ASSUME	CS:DEV, DS:BIOS, ES:BIOS, SS:BIOS
+        ASSUME	CS:DEV, DS:BIOS, ES:BIOS, SS:NOTHING
 
 DEFPROC	devinit,far
 ;
