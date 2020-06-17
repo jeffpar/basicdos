@@ -31,6 +31,25 @@ ENDPROC	psp_quit
 ;
 ; psp_create (REG_AH = 26h)
 ;
+; Apparently, this is more of a "copy" function than a "create" function,
+; especially starting with DOS 2.0, which apparently assumed that the PSP to
+; copy is at the caller's CS:0 (although the INT 22h/23h/24h addresses may
+; still be copied from the IVT instead).  As a result, any PSP "created" with
+; this function automatically inherits all of the caller's open files.
+;
+; Well, the first time we call it (from sysinit), there are no existing PSPs,
+; so there's nothing to copy.  And if we want to create a PSP with accurate
+; memory information, we either need more inputs OR we have to assume that the
+; new segment was allocated with DOS_MEM_ALLOC (we assume the latter).
+;
+; A new psp_create function (REG_AH = 55h) solved a few problems: it
+; automatically increments reference counts for all "inheritable" files, it
+; marks all "uninheritable" files as closed in the new PSP, and as of DOS 3.0,
+; it uses SI to specify a memory size.
+;
+; We can mimic the "copy" behavior later, if need be, perhaps by relying on
+; whether psp_active is set.
+;
 ; Inputs:
 ;	REG_DX = segment of new PSP
 ;
@@ -38,25 +57,37 @@ ENDPROC	psp_quit
 ;	None
 ;
 DEFPROC	psp_create,DOS
+	mov	bx,[mcb_limit]		; BX = fallback memory limit
 	mov	dx,[bp].REG_DX
-	mov	es,dx			; ES:0 -> segment
+	dec	dx
+	mov	es,dx			; ES:0 -> MCB
 	ASSUME	ES:NOTHING
-	sub	di,di
+	mov	al,es:[MCB_SIG]		; MCB signature sanity check
+	cmp	al,MCBSIG_NEXT
+	je	pc1
+	cmp	al,MCBSIG_LAST
+	jne	pc2
+pc1:	mov	bx,es:[MCB_PARAS]	; BX = actual available paragraphs
+	add	bx,dx
+	inc	bx			; BX = actual memory limit
+pc2:	inc	dx
+	mov	es,dx
+	sub	di,di			; start building the new PSP at ES:0
 	mov	ax,20CDh
 	stosw				; 00h: PSP_EXIT
-	mov	ax,[mcb_limit]
-	stosw				; 02h: PSP_PARAS
+	xchg	ax,bx
+	stosw				; 02h: PSP_PARAS (ie, memory limit)
 	xchg	bx,ax
 	mov	ax,9A00h
 	stosw				; 05h: PSP_FARCALL (9Ah)
-	sub	bx,dx			; BX = top para - this para
+	sub	bx,dx			; BX = max para - this para
 	sub	ax,ax			; default to 64K
 	mov	cl,4
 	cmp	bx,1000h		; 64K or more available?
-	jae	pc1			; yes
+	jae	pc3			; yes
 	shl	bx,cl			; BX = number of bytes available
 	xchg	ax,bx
-pc1:	sub	ax,256			; AX = max available bytes this segment
+pc3:	sub	ax,256			; AX = max available bytes this segment
 	stosw				; 06h: PSP_SIZE
 ;
 ; Compute the code segment which, when shifted left 4 and added to AX, yields
@@ -134,7 +165,7 @@ ENDPROC	psp_create
 ;
 DEFPROC	psp_set,DOS
 	mov	ax,[bp].REG_BX
-	mov	[PSP_ACTIVE],ax
+	mov	[psp_active],ax
 	ret
 ENDPROC	psp_set
 
@@ -149,7 +180,7 @@ ENDPROC	psp_set
 ;	REG_BX = segment of current PSP
 ;
 DEFPROC	psp_get,DOS
-	mov	ax,[PSP_ACTIVE]
+	mov	ax,[psp_active]
 	mov	[bp].REG_BX,ax
 	ret
 ENDPROC	psp_get

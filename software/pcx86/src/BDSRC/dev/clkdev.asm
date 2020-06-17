@@ -78,7 +78,7 @@ ENDPROC	ddclk_req
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddclk_ctlin
-	mov	al,es:[di].DDPRW_ID
+	mov	al,es:[di].DDP_UNIT
 	cmp	al,CLKIO_WAIT
 	jne	dci9
 ;

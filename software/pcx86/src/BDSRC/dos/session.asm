@@ -12,7 +12,7 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<scb_locked>,byte
-	EXTERNS	<scb_active>,word
+	EXTERNS	<scb_active,psp_active>,word
 	EXTERNS	<scb_table>,dword
 	EXTERNS	<dos_exit>,near
 
@@ -20,7 +20,7 @@ DOS	segment word public 'CODE'
 ;
 ; scb_load
 ;
-; Loads a program into an available SCB
+; Loads a program into the specified SCB
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -33,92 +33,99 @@ DOS	segment word public 'CODE'
 ;	AX, BX, CX, DX, DI, DS, ES
 ;
 DEFPROC	scb_load,DOS
-	int 3
 	call	scb_lock
-	jnc	sl1
-	jmp	sl9
+	jc	sl1
 
-sl1:	push	ax			; save prev SCB
-
+	push	ax			; save previous SCB
 	mov	bx,1000h		; alloc 64K
 	mov	ah,DOS_MEM_ALLOC
 	int	21h			; returns a new segment in AX
 	jnc	sl2
-	mov	ah,DOS_MEM_ALLOC	; try again with whatever the max is
+	cmp	bx,11h			; is there a usable amount of memory?
+	jb	sl1			; no
+	mov	ah,DOS_MEM_ALLOC	; try again with max paras in BX
 	int	21h
-	jc	sl8a			; no luck
+	jnc	sl2			; success
+sl1:	jmp	sl8			; abort
 
-sl2:	mov	cl,4
-	mov	si,bx
-	shl	si,cl			; SI = size of memory in bytes
-	xchg	di,ax			; DI = segment
+sl2:	sub	bx,10h			; subtract paras for the PSP header
+	mov	cl,4
+	shl	bx,cl			; convert to bytes
+	mov	si,bx			; SI = bytes for new PSP
+	xchg	di,ax			; DI = segment for new PSP
 
+	xchg	dx,di
+	mov	ah,DOS_PSP_CREATE
+	int	21h			; create new PSP at DX
+
+	mov	bx,dx
+	mov	ah,DOS_PSP_SET
+	int	21h			; update current PSP using BX
+
+	xchg	dx,di
 	push	es
 	pop	ds			; DS:DX -> name of executable
 	ASSUME	DS:NOTHING
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
-	int	21h			; returns handle in AX
-	jc	sl8a
+	int	21h			; open the file
+	jc	sle3
 
 	xchg	bx,ax			; BX = file handle
 	sub	cx,cx
 	sub	dx,dx
 	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_END
-	int	21h			; returns file size in CX:DX
-	jc	sl8a
+	int	21h			; returns new file position in DX:AX
+	jc	sle1
 
-	test	cx,cx			; more than 64K?
-	jnz	sl7			; yes
-	cmp	dx,si			; larger than the memory we allocated?
-	ja	sl7			; yes
+	xchg	cx,ax			; file size now in DX:CX
+	mov	ax,ERR_NOMEM
+	test	dx,dx			; more than 64K?
+	jnz	sle1			; yes
+	cmp	cx,si			; larger than the memory we allocated?
+	ja	sle1			; yes
+	mov	si,cx			; no, SI is the new length
 
-	mov	dx,di			; DX = segment for new PSP
-	mov	ah,DOS_PSP_CREATE
-	int	21h
+	sub	cx,cx
+	sub	dx,dx
+	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_BEG
+	int	21h			; reset file position to beginning
+	jc	sle1
 
-	mov	ds,dx			; DS = PSP segment
+	mov	cx,si			; CX = # bytes to read
+	mov	ds,di			; DS = segment of new PSP
 	mov	dx,size PSP		; DS:DX -> memory after PSP
 	mov	ah,DOS_HDL_READ		; BX = file handle, CX = # bytes
 	int	21h
-	jc	sl8a
-	cmp	ax,cx			; does # bytes match the file size?
-	jne	sl8a			; no
+	jc	sle1
 
 	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the file
-	jnc	sl6
+sle3:	jc	sle2
 
-sl8a:	mov	es,di
-	mov	ah,DOS_MEM_FREE
-	int	21h
-	jmp	short sl8
-
-sl6:	mov	bx,cx			; size of program file
+	mov	bx,cx			; size of program file
 	add	bx,15
 	mov	cl,4
 	shr	bx,cl			; BX = size of program in paras
 	add	bx,110h			; add PSP + 4Kb
 	push	ds
 	pop	es
+	ASSUME	ES:NOTHING
 	mov	ah,DOS_MEM_REALLOC	; resize the memory block
 	int	21h
-
-	mov	bx,ds			; and of course, this PSP function
-	mov	ah,DOS_PSP_SET		; wants the segment in BX, not DX....
-	int	21h			; active PSP updated
-
-	push	ds
-	pop	es
-	ASSUME	ES:NOTHING
+	jc	sle2
 ;
-; Create an initial REG_FRAME, the top of which should be at ES:DI
+; Create an initial REG_FRAME at the top of the segment.
 ;
+	mov	di,bx
+	shl	di,cl			; ES:DI -> top of the segment
+	dec	di
+	dec	di			; ES:DI -> last word at top of segment
 	std
 	mov	dx,ds
 	sub	ax,ax
 	stosw				; store a zero at the top of the stack
 	mov	ax,FL_INTS
-	stosw				; REG_FL
+	stosw				; REG_FL (with interrupts enabled)
 	mov	ax,dx
 	stosw				; REG_CS
 	mov	ax,100h
@@ -136,8 +143,9 @@ sl6:	mov	bx,cx			; size of program file
 	stosw				; REG_ES
 	xchg	ax,dx
 	stosw				; REG_DI
-	xchg	ax,dx
 	stosw				; REG_BP
+	inc	di
+	inc	di			; ES:DI -> REG_BP
 	cld
 
 	push	cs
@@ -148,8 +156,21 @@ sl6:	mov	bx,cx			; size of program file
 	mov	[bx].SCB_STACK.seg,dx
 	or	[bx].SCB_STATUS,SCSTAT_READY
 	jmp	short sl8
-
-sl7:	mov	ax,ERR_NOMEM
+;
+; Error paths (eg, close the file handle, free the memory for the new PSP)
+;
+sle1:	push	ax
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	pop	ax
+sle2:	push	ax
+	mov	es,di
+	mov	ah,DOS_MEM_FREE
+	int	21h
+	pop	ax
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
 	stc
 
 sl8:	pop	bx			; recover previous SCB
@@ -168,7 +189,7 @@ ENDPROC	scb_load
 ;	CL = SCB #
 ;
 ; Outputs:
-;	On success, carry clear, AX = previous SCB, BX = current SCB
+;	On success, carry clear, AX -> previous SCB, BX -> current SCB
 ;	On failure, carry set
 ;
 ; Modifies:
@@ -180,28 +201,45 @@ DEFPROC	scb_lock,DOS
 	add	ax,[scb_table].off
 	cmp	ax,[scb_table].seg
 	cmc
-	jb	gs9
-	mov	bx,ax
+	jb	sk9
 	inc	[scb_locked]
-	xchg	[scb_active],ax
-gs9:	ret
+	push	dx
+	mov	bx,ax
+	xchg	bx,[scb_active]		; BX -> previous SCB
+	test	bx,bx
+	jz	sk8
+	mov	dx,[psp_active]
+	mov	[bx].SCB_CURPSP,dx
+sk8:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
+	mov	dx,[bx].SCB_CURPSP
+	mov	[psp_active],dx
+	pop	dx
+sk9:	ret
 ENDPROC	scb_lock
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; scb_unlock
 ;
-; Update current SCB and lock state
+; Restore the previous SCB and lock state
 ;
 ; Inputs:
-;	BX = SCB
+;	BX -> previous SCB
 ;
 ; Modifies:
-;	None
+;	BX, DX
 ;
 DEFPROC	scb_unlock,DOS
-	mov	[scb_active],bx
-	dec	[scb_locked]
+	push	bx
+	xchg	bx,[scb_active]		; BX -> current SCB
+	mov	dx,[psp_active]
+	mov	[bx].SCB_CURPSP,dx
+	pop	bx			; BX -> previous SCB
+	test	bx,bx
+	jz	su9
+	mov	dx,[bx].SCB_CURPSP
+	mov	[psp_active],dx
+su9:	dec	[scb_locked]		; NOTE: does not affect carry
 	ret
 ENDPROC	scb_unlock
 
@@ -224,7 +262,7 @@ DEFPROC	scb_start,DOS
 	jc	ss9
 	mov	ss,[bx].SCB_STACK.seg
 	mov	sp,[bx].SCB_STACK.off
-	call	scb_unlock
+	dec	[scb_locked]
 	jmp	dos_exit
 ss9:	ret
 ENDPROC	scb_start
@@ -300,6 +338,7 @@ ENDPROC	scb_yield
 ;	None
 ;
 DEFPROC	scb_block,DOS
+	int 3
 	mov	bx,[scb_active]
 	mov	[bx].SCB_WAITID.off,di
 	mov	[bx].SCB_WAITID.seg,dx
@@ -317,6 +356,7 @@ ENDPROC	scb_block
 ;	None
 ;
 DEFPROC	scb_unblock,DOS
+	int 3
 	mov	bx,[scb_table].off
 	ret
 ENDPROC	scb_unblock

@@ -393,23 +393,25 @@ dierr2:	jmp	sysinit_error
 ; so even if there are no SHELL definitions, at least one will be loaded.
 ;
 si13:	sub	cx,cx			; CL = SCB #
-si14:	mov	dx,offset SHELL_FILE
-	mov	si,offset CFG_SHELL
+	mov	dx,offset SHELL_FILE
+si14:	mov	si,offset CFG_SHELL
 	call	find_cfg		; look for "SHELL="
 	jc	si15			; not found
 	mov	dx,di
 si15:	test	dx,dx
-	jz	si16
+	jz	si17
 	mov	ax,DOS_UTIL_LOAD	; load SHELL DS:DX into specified SCB
 	int	21h
-	jc	sierr2
-	inc	cx			; advance SCB #
+	jnc	si16
+	PRINTF	<'Error loading SHELL "%ls": %d',13,10>,dx,ds,ax
+	jmp	short sierr2
+si16:	inc	cx			; advance SCB #
 	sub	dx,dx
 	jmp	si14
 ;
 ; Start the first SCB; this should not return
 ;
-si16:	sub	cx,cx
+si17:	sub	cx,cx
 	mov	ax,DOS_UTIL_START
 	int	21h
 

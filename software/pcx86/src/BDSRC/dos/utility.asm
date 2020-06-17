@@ -19,8 +19,8 @@ DOS	segment word public 'CODE'
 	DEFLBL	UTILTBL,word
 	dw	util_strlen,  util_atoi,    util_itoa,   util_printf	; 00h-03h
 	dw	util_sprintf, util_getdev,  util_load,   util_start	; 04h-07h
-	dw	util_stop,    util_unload,  util_yield,  util_sleep,	; 08h-0Bh
-	dw	util_wait,    util_endwait, util_none,   util_none,	; 0Ch-0Fh
+	dw	util_stop,    util_unload,  util_yield,  util_sleep	; 08h-0Bh
+	dw	util_wait,    util_endwait, util_none,   util_none	; 0Ch-0Fh
 	dw	util_none,    util_none,    util_none,   util_none	; 10h-13h
 	dw	util_none,    util_none,    util_none,   util_none	; 14h-17h
 	dw	util_none,    util_none,    util_none,   util_none	; 18h-1Bh
@@ -649,7 +649,7 @@ ENDPROC	util_yield
 ;	AX, DI, ES
 ;
 DEFPROC	util_sleep,DOS
-	mov	ah,DDC_IOCTLIN
+	mov	ax,(DDC_IOCTLIN SHL 8) OR CLKIO_WAIT
 	les	di,clk_ptr
 ;
 ; For the DDC_IOCTLIN command, dev_request stores CX:DX in the DDPRW packet's

@@ -129,8 +129,8 @@ ENDPROC	hdl_write
 ;	REG_CX:REG_DX = distance, in bytes
 ;
 ; Outputs:
-;	On success, carry clear
-;	On failure, REG_AX = error, carry set
+;	On success, carry clear, REG_DX:REG_AX = new file location
+;	On failure, carry set, REG_AX = error
 ;
 DEFPROC	hdl_seek,DOS
 	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
@@ -703,7 +703,7 @@ DEFPROC	dev_request,DOS
 
 	cmp	ah,DDC_OPEN
 	jne	dr2
-	mov	word ptr [bp].DDP_LEN,size DDP
+	mov	[bp].DDP_LEN,size DDP
 	mov	[bp].DDP_PTR.off,si	; use DDP_PTR to pass driver-specific
 	mov	[bp].DDP_PTR.seg,ds	; parameter block, if any
 	jmp	short dr5
@@ -712,7 +712,7 @@ DEFPROC	dev_request,DOS
 ; and BUILDBPB (2), like READ (4) and WRITE (8); that includes IOCTLIN (3)
 ; and IOCTLOUT (12).
 ;
-dr2:	mov	word ptr [bp].DDP_LEN,size DDPRW
+dr2:	mov	[bp].DDP_LEN,size DDPRW
 	mov	[bp].DDPRW_ADDR.off,si
 	mov	[bp].DDPRW_ADDR.seg,ds
 	mov	[bp].DDPRW_LBA,bx

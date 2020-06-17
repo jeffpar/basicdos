@@ -113,7 +113,8 @@ SCB_SFHCON	db	?	; 02h: SFH for CON
 SCB_SFHPRN	db	?	; 03h: SFH for PRN
 SCB_WAITID	dd	?	; 04h: wait ID if waiting, 0 if running
 SCB_STACK	dd	?	; 08h: pointer to session stack
-SCB_CURDRV	db	?	; 0Ch: current drive #
+SCB_CURPSP	dw	?	; 0Ch: current PSP
+SCB_CURDRV	db	?	; 0Eh: current drive #
 SCB		ends
 
 SCSTAT_INIT	equ	01h	; set if initialized, clear if SCB not used
