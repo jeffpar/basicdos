@@ -25,6 +25,7 @@ CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CLOCK+DDATTR_CHAR+DDATTR_IOCTL,offset
 
 	DEFPTR	timer_interrupt,0	; timer interrupt handler
 	DEFPTR	wait_ptr,-1		; chain of waiting packets
+	DEFBYTE	dos_ready,0		; set once DOS is ready
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -75,12 +76,25 @@ ENDPROC	ddclk_req
 ;	ES:DI -> DDPRW
 ;
 ; Outputs:
+;	Varies
+;
+; Modifies:
+;	AX, DX
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddclk_ctlin
 	mov	al,es:[di].DDP_UNIT
 	cmp	al,CLKIO_WAIT
 	jne	dci9
+;
+; Our interrupt handler needs to know when DOS has been initialized, so
+; sysinit issues a WAIT request for zero ticks (which we treat as a no-op)
+; to signal that it's ready.
+;
+	mov	[dos_ready],al
+	mov	ax,es:[di].DDPRW_OFFSET
+	or	ax,es:[di].DDPRW_LENGTH
+	jz	dci9
 ;
 ; For WAIT requests, we add this packet to an internal chain of "waiting"
 ; packets, and then tell DOS that we're waiting; DOS will suspend the current
@@ -180,53 +194,69 @@ ENDPROC	ddclk_none
 DEFPROC	ddclk_interrupt,far
 	pushf
 	call	[timer_interrupt]
+	cmp	[dos_ready],1
+	jb	ddi9
 	push	ax
 	push	bx
+	push	dx
 	push	di
 	push	ds
 	push	es
 	push	cs
 	pop	ds
+	ASSUME	DS:CODE
 	mov	bx,offset wait_ptr	; ES:BX -> ptr
 	lds	di,[bx]			; DS:DI -> packet, if any
+	ASSUME	DS:NOTHING
 	sti
 
 ddi1:	cmp	di,-1			; end of chain?
-	je	ddi9			; yes
-	sub	[di].DDPRW_LENGTH,1
-	sbb	[di].DDPRW_OFFSET,0
+	je	ddi8			; yes
+	sub	[di].DDPRW_OFFSET,1
+	sbb	[di].DDPRW_LENGTH,0
 	jb	ddi2			; underflow (was count initially zero?)
-	jnz	ddi8			; high word is non-zero, long way to go
-	cmp	[di].DDPRW_LENGTH,0	; low word zero?
-	jnz	ddi7			; no
+	jnz	ddi7			; high word is non-zero, long way to go
+	cmp	[di].DDPRW_OFFSET,0	; low word zero?
+	jnz	ddi6			; no
 ;
-; WAIT condition has been satisfied, remove packet from wait_ptr list
+; Notify DOS that the task associated with this packet is done waiting.
 ;
-ddi2:	mov	ax,[di].DDP_PTR.off
+ddi2:	mov	dx,ds			; DX:DI -> packet (aka "wait ID")
+	mov	ax,DOS_UTIL_ENDWAIT
+	int	21h
+	jnc	ddi3
+;
+; If ENDWAIT returns an error, we presume that we simply got ahead of the
+; WAIT call, so make sure the count is zero and leave the packet on the list.
+;
+	mov	[di].DDPRW_OFFSET,0
+	mov	[di].DDPRW_LENGTH,0
+	jmp	short ddi6
+;
+; WAIT condition has been satisfied, remove packet from wait_ptr list.
+;
+ddi3:	mov	ax,[di].DDP_PTR.off
 	mov	es:[bx].off,ax
 	mov	ax,[di].DDP_PTR.seg
 	mov	es:[bx].seg,ax
-;
-; Notify DOS that the task associated with this packet is done waiting
-;
-	mov	dx,ds			; DX:DI -> packet (aka "wait ID")
-	mov	ax,DOS_UTIL_ENDWAIT
-	int	21h
-	jmp	short ddi8
+	jmp	short ddi7
 
-ddi7:	lea	bx,[di].DDP_PTR		; update prev addr ptr in ES:BX
+ddi6:	lea	bx,[di].DDP_PTR		; update prev addr ptr in ES:BX
 	push	ds
 	pop	es
 
-ddi8:	lds	di,[di].DDP_PTR
+ddi7:	lds	di,[di].DDP_PTR
 	jmp	ddi1
 
-ddi9:	pop	es
+ddi8:	mov	ax,DOS_UTIL_YIELD	; allow rescheduling to occur now
+	int	21h
+	pop	es
 	pop	ds
 	pop	di
+	pop	dx
 	pop	bx
 	pop	ax
-	iret
+ddi9:	iret
 ENDPROC	ddclk_interrupt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

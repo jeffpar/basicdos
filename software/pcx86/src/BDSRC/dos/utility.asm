@@ -14,13 +14,13 @@ DOS	segment word public 'CODE'
 	EXTERNS	<clk_ptr>,dword
 	EXTERNS	<chk_devname,dev_request,write_tty>,near
 	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload>,near
-	EXTERNS	<scb_yield,scb_block,scb_unblock>,near
+	EXTERNS	<scb_yield,scb_wait,scb_endwait>,near
 
 	DEFLBL	UTILTBL,word
 	dw	util_strlen,  util_atoi,    util_itoa,   util_printf	; 00h-03h
-	dw	util_sprintf, util_getdev,  util_load,   util_start	; 04h-07h
-	dw	util_stop,    util_unload,  util_yield,  util_sleep	; 08h-0Bh
-	dw	util_wait,    util_endwait, util_none,   util_none	; 0Ch-0Fh
+	dw	util_sprintf, util_getdev,  util_load,   scb_start	; 04h-07h
+	dw	scb_stop,     scb_unload,   scb_yield,   util_sleep	; 08h-0Bh
+	dw	scb_wait,     scb_endwait,  util_none,   util_none	; 0Ch-0Fh
 	dw	util_none,    util_none,    util_none,   util_none	; 10h-13h
 	dw	util_none,    util_none,    util_none,   util_none	; 14h-17h
 	dw	util_none,    util_none,    util_none,   util_none	; 18h-1Bh
@@ -588,56 +588,6 @@ ENDPROC	util_load
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_start (AX = 1807h)
-;
-; Inputs:
-;	REG_CL = SCB #
-;
-; Modifies:
-;	None
-;
-DEFPROC	util_start,DOS
-	jmp	scb_start		; CL = SCB #
-ENDPROC	util_start
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; util_stopscb (AX = 1808h)
-;
-; Inputs:
-;	REG_CL = SCB #
-;
-; Modifies:
-;	None
-;
-DEFPROC	util_stop,DOS
-	jmp	scb_stop		; CL = SCB #
-ENDPROC	util_stop
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; util_unload (AX = 1809h)
-;
-; Inputs:
-;	REG_CL = SCB #
-;
-; Modifies:
-;	None
-;
-DEFPROC	util_unload,DOS
-	jmp	scb_load		; CL = SCB #
-ENDPROC	util_unload
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; util_yield (AX = 180Ah)
-;
-DEFPROC	util_yield,DOS
-	jmp	scb_yield
-ENDPROC	util_yield
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; util_sleep (AX = 180Bh)
 ;
 ; Issues an IOCTL to the CLOCK$ driver to wait the specified number of ticks.
@@ -651,45 +601,9 @@ ENDPROC	util_yield
 DEFPROC	util_sleep,DOS
 	mov	ax,(DDC_IOCTLIN SHL 8) OR CLKIO_WAIT
 	les	di,clk_ptr
-;
-; For the DDC_IOCTLIN command, dev_request stores CX:DX in the DDPRW packet's
-; LENGTH and OFFSET fields.
-;
-	call	dev_request
+	call	dev_request		; call the driver
 	ret
 ENDPROC	util_sleep
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; util_wait (AX = 180Ch)
-;
-; Called by a device driver which is waiting for some event to occur.
-;
-; Inputs:
-;	DX:DI == wait ID
-;
-; Modifies:
-;	AX
-;
-DEFPROC	util_wait,DOS
-	jmp	scb_block
-ENDPROC	util_wait
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; util_endwait (AX = 180Dh)
-;
-; Called by a device driver which is signalling that an event has occurred.
-;
-; Inputs:
-;	DX:DI == wait ID
-;
-; Modifies:
-;	AX
-;
-DEFPROC	util_endwait,DOS
-	jmp	scb_unblock
-ENDPROC	util_endwait
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

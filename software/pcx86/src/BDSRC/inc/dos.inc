@@ -111,15 +111,15 @@ SCB_STATUS	db	?	; 00h: SCB status
 SCB_SFHAUX	db	?	; 01h: SFH for AUX
 SCB_SFHCON	db	?	; 02h: SFH for CON
 SCB_SFHPRN	db	?	; 03h: SFH for PRN
-SCB_WAITID	dd	?	; 04h: wait ID if waiting, 0 if running
+SCB_WAITID	dd	?	; 04h: wait ID if waiting, 0 if runnable
 SCB_STACK	dd	?	; 08h: pointer to session stack
 SCB_CURPSP	dw	?	; 0Ch: current PSP
 SCB_CURDRV	db	?	; 0Eh: current drive #
+SCB_UNUSED	db	?	; 0Fh
 SCB		ends
 
-SCSTAT_INIT	equ	01h	; set if initialized, clear if SCB not used
-SCSTAT_READY	equ	02h	; set if ready to run, false if not yet ready
-SCSTAT_RUNNING	equ	04h	; set if running, false if not
+SCSTAT_INIT	equ	01h	; set if initialized
+SCSTAT_LOAD	equ	02h	; set if program is loaded
 
 ;
 ; Memory Control Block (MCB)

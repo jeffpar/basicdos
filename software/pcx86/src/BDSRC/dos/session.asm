@@ -154,7 +154,7 @@ sle3:	jc	sle2
 	mov	bx,[scb_active]
 	mov	[bx].SCB_STACK.off,di
 	mov	[bx].SCB_STACK.seg,dx
-	or	[bx].SCB_STATUS,SCSTAT_READY
+	or	[bx].SCB_STATUS,SCSTAT_LOAD
 	jmp	short sl8
 ;
 ; Error paths (eg, close the file handle, free the memory for the new PSP)
@@ -246,6 +246,7 @@ ENDPROC	scb_unlock
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; scb_start
+; util_start (AX = 1807h)
 ;
 ; Start the specified SCB
 ;
@@ -253,23 +254,24 @@ ENDPROC	scb_unlock
 ;	CL = SCB #
 ;
 ; Outputs:
-;	Carry clear on success
+;	Carry clear on successc
 ;	Carry set on error (eg, invalid SCB #)
 ;
 DEFPROC	scb_start,DOS
 	int 3
 	call	scb_lock
-	jc	ss9
+	jc	sa9
 	mov	ss,[bx].SCB_STACK.seg
 	mov	sp,[bx].SCB_STACK.off
 	dec	[scb_locked]
 	jmp	dos_exit
-ss9:	ret
+sa9:	ret
 ENDPROC	scb_start
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; scb_stop
+; util_stop (AX = 1808h)
 ;
 ; Stop the specified SCB
 ;
@@ -288,6 +290,7 @@ ENDPROC	scb_stop
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; scb_unload
+; util_unload (AX = 1809h)
 ;
 ; Unload the specified SCB
 ;
@@ -306,48 +309,66 @@ ENDPROC	scb_unload
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; scb_yield
+; util_yield (AX = 180Ah)
 ;
-; Looks for an SCB that's ready to run and starts it running.
+; Asynchronous interface to decide which SCB should run next.
+;
+; Inputs:
+;	None
 ;
 DEFPROC	scb_yield,DOS
-sr0:	mov	bx,[scb_table].off
-sr1:	cmp	bx,[scb_table].seg
-	je	sr9
-	test	[bx].SCB_STATUS,SCSTAT_READY
-	jz	sr2
-;
-; The easiest way to switch SCBs is to copy the new SCB's stack frame to the
-; current stack frame; then all we do is return exactly the same way we arrived.
-;
-
-sr2:	add	bx,size SCB
-	jmp	sr1
-sr9:	int 3
-	hlt
-	jmp	sr0
+	mov	bx,[scb_active]
+	test	bx,bx
+	jz	sy9
+sy1:	add	bx,size SCB
+	cmp	bx,[scb_table].seg
+	jb	sy2
+	mov	bx,[scb_table].off
+sy2:	test	[bx].SCB_STATUS,SCSTAT_LOAD
+	jz	sy3
+	mov	dx,[bx].SCB_WAITID.off
+	or	dx,[bx].SCB_WAITID.seg
+	jnz	sy3
+	jmp	scb_switch
+sy3:	cmp	bx,[scb_active]		; are we back to where we started?
+	jne	sy1			; not yet
+	jmp	scb_yield
+sy9:	ret
 ENDPROC	scb_yield
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; scb_block
+; scb_switch
+;
+; Switch the specified SCB.
 ;
 ; Inputs:
-;	DX:DI == wait ID
+;	BX -> SCB
 ;
-; Outputs:
-;	None
-;
-DEFPROC	scb_block,DOS
-	int 3
-	mov	bx,[scb_active]
-	mov	[bx].SCB_WAITID.off,di
-	mov	[bx].SCB_WAITID.seg,dx
-	ret
-ENDPROC	scb_block
+DEFPROC	scb_switch,DOS
+	cmp	bx,[scb_active]		; is this SCB already active?
+	je	sw9			; yes
+	mov	ax,bx
+	xchg	bx,[scb_active]		; BX -> previous SCB
+	test	bx,bx
+	jz	sw8
+	mov	dx,[psp_active]
+	mov	[bx].SCB_CURPSP,dx
+sw8:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
+	mov	dx,[bx].SCB_CURPSP
+	mov	[psp_active],dx
+	mov	ss,[bx].SCB_STACK.seg
+	mov	sp,[bx].SCB_STACK.off
+	jmp	dos_exit
+sw9:	ret
+ENDPROC	scb_switch
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; scb_unblock
+; scb_wait
+; util_wait (AX = 180Ch)
+;
+; Synchronous interface to mark current SCB as waiting for the specified ID.
 ;
 ; Inputs:
 ;	DX:DI == wait ID
@@ -355,11 +376,47 @@ ENDPROC	scb_block
 ; Outputs:
 ;	None
 ;
-DEFPROC	scb_unblock,DOS
+DEFPROC	scb_wait,DOS
 	int 3
+	cli
+	mov	bx,[scb_active]
+	mov	[bx].SCB_WAITID.off,di
+	mov	[bx].SCB_WAITID.seg,dx
+	sti
+	jmp	scb_yield
+ENDPROC	scb_wait
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; scb_endwait
+; util_endwait (AX = 180Dh)
+;
+; Asynchronous interface to examine all SCBs for the specified ID and clear it.
+;
+; Inputs:
+;	DX:DI == wait ID
+;
+; Outputs:
+;	Carry clear if found, set if not
+;
+DEFPROC	scb_endwait,DOS
+	int 3
+	cli
 	mov	bx,[scb_table].off
+se1:	cmp	[bx].SCB_WAITID.off,di
+	jne	se2
+	cmp	[bx].SCB_WAITID.seg,dx
+	jne	se2
+	mov	[bx].SCB_WAITID.off,0
+	mov	[bx].SCB_WAITID.seg,0
+	jmp	short se9
+se2:	add	bx,size SCB
+	cmp	bx,[scb_table].seg
+	jb	se1
+	stc
+se9:	sti
 	ret
-ENDPROC	scb_unblock
+ENDPROC	scb_endwait
 
 DOS	ends
 

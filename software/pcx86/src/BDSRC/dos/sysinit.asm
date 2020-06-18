@@ -94,9 +94,14 @@ si1:	mov	ax,[MEMORY_SIZE]	; get available memory in Kb
 ;
 	EVEN
 	DEFLBL	sysinit_high,near
-	push	cs
-	pop	ss
-	mov	sp,offset sysinit_high
+;
+; This is also a good time (actually, a long overdue time) to switch off
+; of whatever stack the BIOS set up for booting (the IBM PC uses 30h:100h).
+; There just weren't any particularly known good safe places, until now.
+;
+	push	cs			; use all the space available
+	pop	ss			; directly below the sysinit code
+	mov	sp,offset sysinit_start
 	mov	es,cx
 	ASSUME	ES:BIOS
 	mov	si,offset INT_TABLES
@@ -327,6 +332,11 @@ si12:	push	es
 	jc	open_error
 	mov	es:[clk_ptr].off,di
 	mov	es:[clk_ptr].seg,dx
+
+	sub	dx,dx
+	mov	cx,dx			; CX:DX = 0
+	mov	ax,DOS_UTIL_SLEEP	; issue innocuous SLEEP call
+	int	21h			; to make sure the CLK_DEVICE is ready
 
 	mov	dx,offset SYS_MSG
 	mov	ah,DOS_TTY_PRINT
