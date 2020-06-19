@@ -19,9 +19,9 @@ DOS	segment word public 'CODE'
 
 	DEFLBL	UTILTBL,word
 	dw	util_strlen,  util_atoi,    util_itoa,   util_printf	; 00h-03h
-	dw	util_sprintf, util_getdev,  util_load,   scb_start	; 04h-07h
-	dw	scb_stop,     scb_unload,   util_yield,  util_sleep	; 08h-0Bh
-	dw	scb_wait,     scb_endwait,  util_none,   util_none	; 0Ch-0Fh
+	dw	util_sprintf, util_getdev,  util_ioctl,  util_load	; 04h-07h
+	dw	scb_start,    scb_stop,     scb_unload,  util_yield	; 08h-0Bh
+	dw	util_sleep,   scb_wait,     scb_endwait, util_none	; 0Ch-0Fh
 	dw	util_none,    util_none,    util_none,   util_none	; 10h-13h
 	dw	util_none,    util_none,    util_none,   util_none	; 14h-17h
 	dw	util_none,    util_none,    util_none,   util_none	; 18h-1Bh
@@ -576,7 +576,26 @@ ENDPROC	util_getdev
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_load (AX = 1806h)
+; util_ioctl (AX = 1806h)
+;
+; Inputs:
+;	REG_BX = IOCTL command (BH = driver command, BL = IOCTL command)
+;	REG_ES:REG_DI -> DDH
+;	Other registers will vary
+;
+; Modifies:
+;	AX, DI, ES
+;
+DEFPROC	util_ioctl,DOS
+	mov	ax,[bp].REG_BX		; AX = command codes from BH,BL
+	mov	es,[bp].REG_ES		; ES:DI -> DDH
+	call	dev_request		; call the driver
+	ret
+ENDPROC	util_ioctl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; util_load (AX = 1807h)
 ;
 ; Inputs:
 ;	REG_CL = SCB #
@@ -593,7 +612,7 @@ ENDPROC	util_load
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_yield (AX = 180Ah)
+; util_yield (AX = 180Bh)
 ;
 ; Asynchronous interface to decide which SCB should run next.
 ;
@@ -610,7 +629,7 @@ ENDPROC	util_yield
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_sleep (AX = 180Bh)
+; util_sleep (AX = 180Ch)
 ;
 ; Issues an IOCTL to the CLOCK$ driver to wait the specified number of ticks.
 ;

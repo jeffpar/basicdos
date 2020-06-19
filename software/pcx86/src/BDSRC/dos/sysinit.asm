@@ -282,17 +282,12 @@ si7:	mov	dx,size SFB
 si8:	mov	si,offset CFG_CONSOLE
 	mov	dx,offset CON_DEVICE
 	call	find_cfg		; look for "CONSOLE="
-	jc	si8a			; not found
+	jc	si9			; not found
 	mov	dx,di
-si8a:	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
+si9:	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
-	jnc	si9
-
-	DEFLBL	open_error,near
-	PRINTF	<"%s open error %d">,dx,ax
-	jmp	fatal_error
-
-si9:	mov	es:[bx].SCB_SFHCON,al
+	jc	open_error
+	mov	es:[bx].SCB_SFHCON,al
 	INIT_STRUC es:[bx],SCB
 
 	mov	dx,offset PRN_DEVICE
@@ -323,6 +318,10 @@ si11:	or	es:[bx].SCB_STATUS,SCSTAT_INIT
 	ASSERT	<SCB_SFHAUX + 1>,EQ,<SCB_SFHPRN>
 	INIT_STRUC es:[bx],SCB
 	jmp	si10
+
+	DEFLBL	open_error,near
+	PRINTF	<"%s open error %d">,dx,ax
+	jmp	fatal_error
 ;
 ; Utility functions like SLEEP need access to specific drivers, and while we
 ; could open them as system file handles, that would require utility functions
@@ -333,15 +332,14 @@ si12:	push	es
 	mov	ax,DOS_UTIL_GETDEV
 	int	21h
 	mov	dx,es
-	pop	es
+	jc	si13
+	mov	ax,DOS_UTIL_IOCTL	; inform the CLOCK driver we're ready
+	mov	bx,(DDC_IOCTLIN SHL 8) OR CLKIO_INIT
+	int	21h
+si13:	pop	es
 	jc	open_error
 	mov	es:[clk_ptr].off,di
 	mov	es:[clk_ptr].seg,dx
-
-	sub	dx,dx
-	mov	cx,dx			; CX:DX = 0
-	mov	ax,DOS_UTIL_SLEEP	; issue innocuous SLEEP call
-	int	21h			; to make sure the CLK_DEVICE is ready
 
 	mov	dx,offset SYS_MSG
 	mov	ah,DOS_TTY_PRINT
@@ -397,7 +395,7 @@ dierr1:	jc	dierr2
 	int	INT_TIME		; CX:DX is tick count
 	mov	bx,offset hello
 	PRINTF	<"%ls, the time is [%6ld]",13,10>,bx,cs,dx,cx
-	jmp	short si13
+	jmp	short si14
 hello	db	"hello world",0
 dierr2:	jmp	sysinit_error
 
@@ -407,26 +405,26 @@ dierr2:	jmp	sysinit_error
 ; available SCB.  The first time through, CFG_SHELL is used as a fallback,
 ; so even if there are no SHELL definitions, at least one will be loaded.
 ;
-si13:	sub	cx,cx			; CL = SCB #
+si14:	sub	cx,cx			; CL = SCB #
 	mov	dx,offset SHELL_FILE
-si14:	mov	si,offset CFG_SHELL
+si16:	mov	si,offset CFG_SHELL
 	call	find_cfg		; look for "SHELL="
-	jc	si15			; not found
+	jc	si17			; not found
 	mov	dx,di
-si15:	test	dx,dx
-	jz	si17
+si17:	test	dx,dx
+	jz	si20
 	mov	ax,DOS_UTIL_LOAD	; load SHELL DS:DX into specified SCB
 	int	21h
-	jnc	si16
+	jnc	si18
 	PRINTF	<'Error loading SHELL "%ls": %d',13,10>,dx,ds,ax
 	jmp	short sierr2
-si16:	inc	cx			; advance SCB #
+si18:	inc	cx			; advance SCB #
 	sub	dx,dx
-	jmp	si14
+	jmp	si16
 ;
 ; Start the first SCB; this should not return
 ;
-si17:	sub	cx,cx
+si20:	sub	cx,cx
 	mov	ax,DOS_UTIL_START
 	int	21h
 

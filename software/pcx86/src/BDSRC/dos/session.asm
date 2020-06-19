@@ -332,7 +332,7 @@ ENDPROC	scb_unload
 ; of switching, but there's nothing else to switch to yet.
 ;
 ; In the second case, we never return; at best, we will simply switch to the
-; current SCB when its wait condition is satisified.
+; current SCB when its wait condition is satisfied.
 ;
 ; Inputs:
 ;	AX = scb_active when called from DOS_UTIL_YIELD, zero otherwise
@@ -341,18 +341,20 @@ ENDPROC	scb_unload
 ;	BX, DX
 ;
 DEFPROC	scb_yield,DOS
-	test	ax,ax
-	mov	bx,ax
-	jnz	sy1
 	mov	bx,[scb_active]
+	test	bx,bx			; are any SCBs active yet?
+	jz	sy9			; no
+	test	ax,ax			; is this yield due to a WAIT?
+	jz	sy1			; yes, so spin until we find an SCB
+	mov	bx,ax
 sy1:	add	bx,size SCB
 	cmp	bx,[scb_table].seg
 	jb	sy2
 	mov	bx,[scb_table].off
-sy2:	cmp	bx,ax			; have we looped back around to AX?
+sy2:	cmp	bx,ax			; have we looped around to the start?
 	je	sy9			; yes
 	test	[bx].SCB_STATUS,SCSTAT_LOAD
-	jz	sy1			; ignore SCB, nothing loaded in it
+	jz	sy1			; ignore this SCB, nothing loaded in it
 	ASSERT_STRUC [bx],SCB
 	mov	dx,[bx].SCB_WAITID.off
 	or	dx,[bx].SCB_WAITID.seg

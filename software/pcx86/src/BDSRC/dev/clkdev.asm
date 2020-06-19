@@ -25,7 +25,7 @@ CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CLOCK+DDATTR_CHAR+DDATTR_IOCTL,offset
 
 	DEFPTR	timer_interrupt,0	; timer interrupt handler
 	DEFPTR	wait_ptr,-1		; chain of waiting packets
-	DEFBYTE	dos_ready,0		; set once DOS is ready
+	DEFBYTE	dos_ready,0		; set once DOS services are available
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -84,17 +84,13 @@ ENDPROC	ddclk_req
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddclk_ctlin
 	mov	al,es:[di].DDP_UNIT
-	cmp	al,CLKIO_WAIT
+	cmp	al,CLKIO_INIT
+	jne	dci1
+	mov	[dos_ready],al		; AL = 1
+	jmp	short dci9
+
+dci1:	cmp	al,CLKIO_WAIT
 	jne	dci9
-;
-; Our interrupt handler needs to know when DOS has been initialized, so
-; sysinit issues a WAIT request for zero ticks (which we treat as a no-op)
-; to signal that it's ready.
-;
-	mov	[dos_ready],al
-	mov	ax,es:[di].DDPRW_OFFSET
-	or	ax,es:[di].DDPRW_LENGTH
-	jz	dci9
 ;
 ; For WAIT requests, we add this packet to an internal chain of "waiting"
 ; packets, and then tell DOS that we're waiting; DOS will suspend the current

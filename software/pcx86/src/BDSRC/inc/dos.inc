@@ -47,14 +47,15 @@ DOS_UTIL_ITOA		equ	1802h	; convert num (DX:SI) to str (ES:DI)
 DOS_UTIL_PRINTF		equ	1803h	; printf to console
 DOS_UTIL_SPRINTF	equ	1804h	; sprintf to buffer (ES:DI)
 DOS_UTIL_GETDEV		equ	1805h	; get DDH (ES:DI) for device (DS:SI)
-DOS_UTIL_LOAD		equ	1806h	; load program (DS:DX) into SCB (CL)
-DOS_UTIL_START		equ	1807h	; start SCB (CL)
-DOS_UTIL_STOP		equ	1808h	; stop SCB (CL)
-DOS_UTIL_UNLOAD		equ	1809h	; unload program from SCB (CL)
-DOS_UTIL_YIELD		equ	180Ah	; yield
-DOS_UTIL_SLEEP		equ	180Bh	; sleep CX:DX ticks
-DOS_UTIL_WAIT		equ	180Ch	; wait until end wait
-DOS_UTIL_ENDWAIT	equ	180Dh	; end wait
+DOS_UTIL_IOCTL		equ	1806h	; issue IOCTL to device (ES:DI)
+DOS_UTIL_LOAD		equ	1807h	; load program (DS:DX) into SCB (CL)
+DOS_UTIL_START		equ	1808h	; start SCB (CL)
+DOS_UTIL_STOP		equ	1809h	; stop SCB (CL)
+DOS_UTIL_UNLOAD		equ	180Ah	; unload program from SCB (CL)
+DOS_UTIL_YIELD		equ	180Bh	; yield
+DOS_UTIL_SLEEP		equ	180Ch	; sleep CX:DX ticks
+DOS_UTIL_WAIT		equ	180Dh	; wait until end wait
+DOS_UTIL_ENDWAIT	equ	180Eh	; end wait
 DOS_UTIL_STDLEN		equ	1824h	; like STRLEN but with 24h as terminator
 
 DOS_PSP_CREATE	equ	26h	; create PSP (DX = segment)

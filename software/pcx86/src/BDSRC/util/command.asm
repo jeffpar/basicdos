@@ -15,14 +15,19 @@ CODE    SEGMENT
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 DEFPROC	main
-m1:	PRINTF	<"hello world",13,10>
+	; mov	dx,offset msg
+	; mov	ah,DOS_TTY_PRINT
+	; int	21h
+	PRINTF	<"hello world",13,10>
 	mov	dx,36
 	sub	cx,cx
 	mov	ax,DOS_UTIL_SLEEP
 	int	21h
-	jmp	m1
+	jmp	main
 	int	20h
 ENDPROC	main
+
+; msg	db	"hello world",13,10,'$'
 
 CODE	ENDS
 
