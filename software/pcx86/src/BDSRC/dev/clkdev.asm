@@ -98,7 +98,7 @@ DEFPROC	ddclk_ctlin
 ;
 ; For WAIT requests, we add this packet to an internal chain of "waiting"
 ; packets, and then tell DOS that we're waiting; DOS will suspend the current
-; task until we notify DOS that this packet's conditions are satisified.
+; SCB until we notify DOS that this packet's conditions are satisified.
 ;
 	cli
 	mov	ax,di
@@ -202,24 +202,30 @@ DEFPROC	ddclk_interrupt,far
 	push	di
 	push	ds
 	push	es
-	push	cs
-	pop	ds
-	ASSUME	DS:CODE
+	mov	ax,cs
+	mov	es,ax
+	ASSUME	ES:CODE
 	mov	bx,offset wait_ptr	; ES:BX -> ptr
-	lds	di,[bx]			; DS:DI -> packet, if any
+	lds	di,es:[bx]		; DS:DI -> packet, if any
 	ASSUME	DS:NOTHING
 	sti
 
 ddi1:	cmp	di,-1			; end of chain?
 	je	ddi8			; yes
+
+	ASSERT_STRUC [di],DDP
+;
+; We wait for the double-word decrement to underflow (ie, to go from 0 to -1)
+; since that's the simplest to detect.  And while you might think that means we
+; always wait 1 tick longer than requested -- well, sort of.  We have no idea
+; how much time elapsed between the request being made and the first tick; that
+; time could be almost zero, so think of the tick count as "full" ticks.
+;
 	sub	[di].DDPRW_OFFSET,1
 	sbb	[di].DDPRW_LENGTH,0
-	jb	ddi2			; underflow (was count initially zero?)
-	jnz	ddi7			; high word is non-zero, long way to go
-	cmp	[di].DDPRW_OFFSET,0	; low word zero?
-	jnz	ddi6			; no
+	jae	ddi6			; keep waiting
 ;
-; Notify DOS that the task associated with this packet is done waiting.
+; Notify DOS that the SCB associated with this packet is done waiting.
 ;
 ddi2:	mov	dx,ds			; DX:DI -> packet (aka "wait ID")
 	mov	ax,DOS_UTIL_ENDWAIT
@@ -227,7 +233,7 @@ ddi2:	mov	dx,ds			; DX:DI -> packet (aka "wait ID")
 	jnc	ddi3
 ;
 ; If ENDWAIT returns an error, we presume that we simply got ahead of the
-; WAIT call, so make sure the count is zero and leave the packet on the list.
+; WAIT call, so rewind the count to zero and leave the packet on the list.
 ;
 	mov	[di].DDPRW_OFFSET,0
 	mov	[di].DDPRW_LENGTH,0
@@ -277,6 +283,8 @@ DEFPROC	ddclk_init,far
 	sub	ax,ax
 	mov	ds,ax
 	ASSUME	DS:BIOS
+
+	ASSERT_STRUC es:[bx],DDP
 
 	mov	es:[bx].DDPI_END.off,offset ddclk_init
 	mov	cs:[0].DDH_REQUEST,offset DEV:ddclk_req

@@ -108,15 +108,17 @@ REG_DH		equ 	(REG_DX.HI)
 ;
 SCB		struc
 SCB_STATUS	db	?	; 00h: SCB status
-SCB_SFHAUX	db	?	; 01h: SFH for AUX
-SCB_SFHCON	db	?	; 02h: SFH for CON
+SCB_SFHCON	db	?	; 01h: SFH for CON
+SCB_SFHAUX	db	?	; 02h: SFH for AUX
 SCB_SFHPRN	db	?	; 03h: SFH for PRN
 SCB_WAITID	dd	?	; 04h: wait ID if waiting, 0 if runnable
 SCB_STACK	dd	?	; 08h: pointer to session stack
 SCB_CURPSP	dw	?	; 0Ch: current PSP
 SCB_CURDRV	db	?	; 0Eh: current drive #
-SCB_UNUSED	db	?	; 0Fh
+SCB_RESERVED	db	?	; 0Fh (holds SCBSIG in DEBUG builds)
 SCB		ends
+
+SCBSIG		equ	'S'
 
 SCSTAT_INIT	equ	01h	; set if initialized
 SCSTAT_LOAD	equ	02h	; set if program is loaded
@@ -196,7 +198,7 @@ SFB_CONTEXT	dw	?	; 10h: device context (1st cluster if file)
 SFB_DRIVE	db	?	; 12h: drive #
 SFB_MODE	db	?	; 13h: open mode
 SFB_HANDLES	db	?	; 14h: number of process handles
-SFB_RESERVED	db	?	; 15h
+SFB_RESERVED	db	?	; 15h (holds SFBSIG in DEBUG builds)
 SFB_TIME	dw	?	; 16h: time of last write (see below)
 SFB_DATE	dw	?	; 18h: date of last write (see below)
 SFB_CLN		dw	?	; 1Ah: 1st cluster number of file
@@ -204,6 +206,8 @@ SFB_SIZE	dd	?	; 1Ch: file size
 SFB_CURPOS	dd	?	; 20h: current file position
 SFB_CURCLN	dw	?	; 24h: current cluster number
 SFB		ends
+
+SFBSIG		equ	'F'
 
 MODE_ACC_READ	equ	00h
 MODE_ACC_WRITE	equ	01h

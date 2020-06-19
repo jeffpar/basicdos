@@ -43,10 +43,11 @@ DEFPROC	devinit,far
 ; Create a DDPI packet on the stack.
 ;
 	sub	sp,DDP_MAXSIZE
-	mov	bx,sp
-	mov	word ptr [bx].DDP_LEN,size DDP
-	mov	[bx].DDP_CMD,DDC_INIT
-	mov	[bx].DDP_STATUS,0
+	mov	bp,sp
+	INIT_STRUC [bp],DDP
+	mov	word ptr [bp].DDP_LEN,size DDP
+	mov	[bp].DDP_CMD,DDC_INIT
+	mov	[bp].DDP_STATUS,0
 
 i1:	cmp	si,di		; reached the end of drivers?
 	jae	i9		; yes
@@ -54,29 +55,35 @@ i1:	cmp	si,di		; reached the end of drivers?
 	mov	ax,si
 	mov	cl,4
 	shr	ax,cl
-	mov	[bx].DDPI_END.off,0
-	mov	[bx].DDPI_END.seg,ax
+	mov	[bp].DDPI_END.off,0
+	mov	[bp].DDPI_END.seg,ax
+	push	ss
+	pop	es
+	ASSUME	ES:NOTHING
+	mov	bx,bp		; ES:BX -> packet
 	push	ax		; AX = segment of driver
 	push	[si].DDH_REQUEST
-	mov	bp,sp
-	call	dword ptr [bp]	; far call to DDH_REQUEST
+	call	dword ptr [bp-4]; far call to DDH_REQUEST
 	pop	ax
 	pop	ax		; recover the driver segment
-	mov	bp,[bx].DDPI_END.off
-	add	bp,15
-	and	bp,0FFF0h
+	sub	bx,bx
+	mov	es,bx
+	ASSUME	ES:BIOS
+	mov	bx,[bp].DDPI_END.off
+	add	bx,15
+	and	bx,0FFF0h
 ;
 ; Whereas SI was the original (paragraph-aligned) address of the driver,
-; and SI+DX was the end of the driver, SI+BP is the new end of driver. So,
-; if DX == BP, there's nothing to move; otherwise, we need to move everything
-; from SI+DX through DI to SI+BP, and update DX and DI (new end of drivers).
+; and SI+DX was the end of the driver, SI+BX is the new end of driver. So,
+; if DX == BX, there's nothing to move; otherwise, we need to move everything
+; from SI+DX through DI to SI+BX, and update DX and DI (new end of drivers).
 ;
-	cmp	dx,bp
+	cmp	dx,bx
 	je	i4
 
 	push	si
 	mov	cx,di
-	lea	di,[si+bp]	; DI = dest address
+	lea	di,[si+bx]	; DI = dest address
 	add	si,dx		; SI = source address
 	sub	cx,si
 ;
@@ -95,11 +102,10 @@ i2:	shr	cx,1
 	rep	movsw		; DI = new end of drivers
 	cld
 	pop	si
-	mov	dx,bp
+	mov	dx,bx
 
 i4:	test	dx,dx
 	jz	i8		; jump if driver not required
-
 	sub	cx,cx		; AX:CX -> driver header
 ;
 ; If this is the FDC driver, then we need to extract DDPI_UNITS from
@@ -113,7 +119,7 @@ i4:	test	dx,dx
 	push	ax
 	mov	[FDC_DEVICE].off,cx
 	mov	[FDC_DEVICE].seg,ax
-	mov	al,[bx].DDPI_UNITS
+	mov	al,[bp].DDPI_UNITS
 	mov	[FDC_UNITS],al
 	pop	ax
 ;

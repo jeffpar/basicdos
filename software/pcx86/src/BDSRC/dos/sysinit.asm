@@ -293,6 +293,7 @@ si8a:	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	jmp	fatal_error
 
 si9:	mov	es:[bx].SCB_SFHCON,al
+	INIT_STRUC es:[bx],SCB
 
 	mov	dx,offset PRN_DEVICE
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
@@ -316,7 +317,11 @@ si10:	mov	si,offset CFG_CONSOLE
 	jb	si11
 	mov	dx,offset CONERR
 	jmp	print_error
-si11:	mov	es:[bx].SCB_SFHCON,al
+si11:	or	es:[bx].SCB_STATUS,SCSTAT_INIT
+	mov	es:[bx].SCB_SFHCON,al
+	mov	word ptr es:[bx].SCB_SFHAUX,(SFH_NONE SHL 8) OR SFH_NONE
+	ASSERT	<SCB_SFHAUX + 1>,EQ,<SCB_SFHPRN>
+	INIT_STRUC es:[bx],SCB
 	jmp	si10
 ;
 ; Utility functions like SLEEP need access to specific drivers, and while we
@@ -482,7 +487,7 @@ ENDPROC	find_cfg
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Initialize table with AX entries of length DX at ES:0, store DS-relative
-; table offset at [BX], number of entries at [BX], and adjust ES.
+; table offset at [BX], table limit at [BX+2], and finally, adjust ES.
 ;
 ; Returns: Nothing
 ;

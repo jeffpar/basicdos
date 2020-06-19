@@ -31,11 +31,14 @@ ENDPROC	dos_dverr
 ;
 ; dos_sstep (INT 01h)
 ;
-; If an INT 01h instruction is executed (or the TRAP flag was enabled), and
-; no debugger is currently running, we catch it here and ignore it.
+; If an INT 01h instruction is executed, we treat it as an assertion failure.
+;
+; We make no effort to distinguish this from the FL_TRAP bit set in flags,
+; since that would presumably be done by a debugger, which would have replaced
+; the INT 01h vector with its own handler.
 ;
 DEFPROC	dos_sstep,DOSFAR
-	PRINTF	<"trace @%08lx",13,10>
+	PRINTF	<"assert @%08lx",13,10>
 	int 3
 	iret
 ENDPROC	dos_sstep

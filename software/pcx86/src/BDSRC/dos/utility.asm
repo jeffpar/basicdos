@@ -11,6 +11,7 @@
 
 DOS	segment word public 'CODE'
 
+	EXTERNS	<scb_active>,word
 	EXTERNS	<clk_ptr>,dword
 	EXTERNS	<chk_devname,dev_request,write_tty>,near
 	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload>,near
@@ -19,7 +20,7 @@ DOS	segment word public 'CODE'
 	DEFLBL	UTILTBL,word
 	dw	util_strlen,  util_atoi,    util_itoa,   util_printf	; 00h-03h
 	dw	util_sprintf, util_getdev,  util_load,   scb_start	; 04h-07h
-	dw	scb_stop,     scb_unload,   scb_yield,   util_sleep	; 08h-0Bh
+	dw	scb_stop,     scb_unload,   util_yield,  util_sleep	; 08h-0Bh
 	dw	scb_wait,     scb_endwait,  util_none,   util_none	; 0Ch-0Fh
 	dw	util_none,    util_none,    util_none,   util_none	; 10h-13h
 	dw	util_none,    util_none,    util_none,   util_none	; 14h-17h
@@ -43,9 +44,13 @@ DEFPROC	util_func,DOS
 	cmp	al,UTILTBL_SIZE
 	cmc
 	jb	dc9
-	cbw
-	mov	bx,ax
-	add	bx,ax
+	mov	bl,al
+	mov	bh,0
+	add	bx,bx
+;
+; As with dos_func, all general-purpose registers except BX, DS, and ES still
+; contain their original values.
+;
 	call	UTILTBL[bx]
 	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
 dc9:	ret
@@ -585,6 +590,23 @@ DEFPROC	util_load,DOS
 	ASSUME	DS:NOTHING		; CL = SCB #
 	jmp	scb_load		; ES:DX -> name of executable
 ENDPROC	util_load
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; util_yield (AX = 180Ah)
+;
+; Asynchronous interface to decide which SCB should run next.
+;
+; Inputs:
+;	None
+;
+; Modifies:
+;	AX, BX, DX
+;
+DEFPROC	util_yield,DOS
+	mov	ax,[scb_active]
+	jmp	scb_yield
+ENDPROC	util_yield
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

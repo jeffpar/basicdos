@@ -74,11 +74,13 @@ DDP_LEN		db	?	; 00h: length of packet
 DDP_UNIT	db	?	; 01h: unit # (block devices only)
 DDP_CMD		db	?	; 02h: command #
 DDP_STATUS	dw	?	; 03h: status
-DDP_RESERVED	db	?	; 05h (technically, next 8 bytes are reserved)
+DDP_RESERVED	db	?	; 05h (holds DDPSIG in DEBUG builds)
 DDP_CONTEXT	dw	?	; 06h: device context, if any
 DDP_PTR		dd	?	; 08h: optional driver-specific pointer
 DDP_UNUSED	db	?	; 0Ch
 DDP		ends
+
+DDPSIG		equ	'D'
 
 DDSTAT_ERROR	equ	8000h
 DDSTAT_DONE	equ	0100h

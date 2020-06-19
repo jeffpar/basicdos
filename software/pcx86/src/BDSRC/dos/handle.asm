@@ -239,6 +239,7 @@ so5:	add	si,size SFB
 so6:	push	cs
 	pop	ds
 	ASSUME	DS:DOS
+	INIT_STRUC [bx],SFB
 	mov	[bx].SFB_DEVICE.off,di
 	mov	[bx].SFB_DEVICE.seg,es
 	mov	[bx].SFB_CONTEXT,dx	; set DRIVE (AL) and MODE (AH) next
@@ -696,6 +697,8 @@ DEFPROC	dev_request,DOS
 	push	bp
 	sub	sp,DDP_MAXSIZE
 	mov	bp,sp			; packet created on stack
+
+	INIT_STRUC [bp],DDP
 
 	mov	word ptr [bp].DDP_UNIT,ax; sets DDP_UNIT (AL) and DDP_CMD (AH)
 	mov	[bp].DDP_STATUS,0

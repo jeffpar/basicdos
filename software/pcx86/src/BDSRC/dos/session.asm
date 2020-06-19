@@ -34,9 +34,10 @@ DOS	segment word public 'CODE'
 ;
 DEFPROC	scb_load,DOS
 	call	scb_lock
-	jc	sl1
+	jnc	sl0
+	jmp	sl9
 
-	push	ax			; save previous SCB
+sl0:	push	ax			; save previous SCB
 	mov	bx,1000h		; alloc 64K
 	mov	ah,DOS_MEM_ALLOC
 	int	21h			; returns a new segment in AX
@@ -68,14 +69,14 @@ sl2:	sub	bx,10h			; subtract paras for the PSP header
 	ASSUME	DS:NOTHING
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h			; open the file
-	jc	sle3
+	jc	sle2a
 
 	xchg	bx,ax			; BX = file handle
 	sub	cx,cx
 	sub	dx,dx
 	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_END
 	int	21h			; returns new file position in DX:AX
-	jc	sle1
+	jc	sle1a
 
 	xchg	cx,ax			; file size now in DX:CX
 	mov	ax,ERR_NOMEM
@@ -96,11 +97,11 @@ sl2:	sub	bx,10h			; subtract paras for the PSP header
 	mov	dx,size PSP		; DS:DX -> memory after PSP
 	mov	ah,DOS_HDL_READ		; BX = file handle, CX = # bytes
 	int	21h
-	jc	sle1
+sle1a:	jc	sle1
 
 	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the file
-sle3:	jc	sle2
+sle2a:	jc	sle2
 
 	mov	bx,cx			; size of program file
 	add	bx,15
@@ -152,6 +153,7 @@ sle3:	jc	sle2
 	pop	ds
 	ASSUME	DS:DOS
 	mov	bx,[scb_active]
+	ASSERT_STRUC [bx],SCB
 	mov	[bx].SCB_STACK.off,di
 	mov	[bx].SCB_STACK.seg,dx
 	or	[bx].SCB_STATUS,SCSTAT_LOAD
@@ -202,15 +204,20 @@ DEFPROC	scb_lock,DOS
 	cmp	ax,[scb_table].seg
 	cmc
 	jb	sk9
+	mov	bx,ax
+	test	[bx].SCB_STATUS,SCSTAT_INIT
+	stc
+	jz	sk9
 	inc	[scb_locked]
 	push	dx
-	mov	bx,ax
 	xchg	bx,[scb_active]		; BX -> previous SCB
 	test	bx,bx
 	jz	sk8
+	ASSERT_STRUC [bx],SCB
 	mov	dx,[psp_active]
 	mov	[bx].SCB_CURPSP,dx
 sk8:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
+	ASSERT_STRUC [bx],SCB
 	mov	dx,[bx].SCB_CURPSP
 	mov	[psp_active],dx
 	pop	dx
@@ -232,11 +239,13 @@ ENDPROC	scb_lock
 DEFPROC	scb_unlock,DOS
 	push	bx
 	xchg	bx,[scb_active]		; BX -> current SCB
+	ASSERT_STRUC [bx],SCB
 	mov	dx,[psp_active]
 	mov	[bx].SCB_CURPSP,dx
 	pop	bx			; BX -> previous SCB
 	test	bx,bx
 	jz	su9
+	ASSERT_STRUC [bx],SCB
 	mov	dx,[bx].SCB_CURPSP
 	mov	[psp_active],dx
 su9:	dec	[scb_locked]		; NOTE: does not affect carry
@@ -258,9 +267,9 @@ ENDPROC	scb_unlock
 ;	Carry set on error (eg, invalid SCB #)
 ;
 DEFPROC	scb_start,DOS
-	int 3
 	call	scb_lock
 	jc	sa9
+	ASSERT_STRUC [bx],SCB
 	mov	ss,[bx].SCB_STACK.seg
 	mov	sp,[bx].SCB_STACK.off
 	dec	[scb_locked]
@@ -313,26 +322,42 @@ ENDPROC	scb_unload
 ;
 ; Asynchronous interface to decide which SCB should run next.
 ;
+; There are currently two conditions to consider:
+;
+;	1) A DOS_UTIL_YIELD request
+;	2) A DOS_UTIL_WAIT request
+;
+; In the first case, we want to return if no other SCB is ready; this
+; is important when we're called from an interrupt handler with the intention
+; of switching, but there's nothing else to switch to yet.
+;
+; In the second case, we never return; at best, we will simply switch to the
+; current SCB when its wait condition is satisified.
+;
 ; Inputs:
-;	None
+;	AX = scb_active when called from DOS_UTIL_YIELD, zero otherwise
+;
+; Modifies:
+;	BX, DX
 ;
 DEFPROC	scb_yield,DOS
+	test	ax,ax
+	mov	bx,ax
+	jnz	sy1
 	mov	bx,[scb_active]
-	test	bx,bx
-	jz	sy9
 sy1:	add	bx,size SCB
 	cmp	bx,[scb_table].seg
 	jb	sy2
 	mov	bx,[scb_table].off
-sy2:	test	[bx].SCB_STATUS,SCSTAT_LOAD
-	jz	sy3
+sy2:	cmp	bx,ax			; have we looped back around to AX?
+	je	sy9			; yes
+	test	[bx].SCB_STATUS,SCSTAT_LOAD
+	jz	sy1			; ignore SCB, nothing loaded in it
+	ASSERT_STRUC [bx],SCB
 	mov	dx,[bx].SCB_WAITID.off
 	or	dx,[bx].SCB_WAITID.seg
-	jnz	sy3
+	jnz	sy1
 	jmp	scb_switch
-sy3:	cmp	bx,[scb_active]		; are we back to where we started?
-	jne	sy1			; not yet
-	jmp	scb_yield
 sy9:	ret
 ENDPROC	scb_yield
 
@@ -352,9 +377,11 @@ DEFPROC	scb_switch,DOS
 	xchg	bx,[scb_active]		; BX -> previous SCB
 	test	bx,bx
 	jz	sw8
+	ASSERT_STRUC [bx],SCB
 	mov	dx,[psp_active]
 	mov	[bx].SCB_CURPSP,dx
 sw8:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
+	ASSERT_STRUC [bx],SCB
 	mov	dx,[bx].SCB_CURPSP
 	mov	[psp_active],dx
 	mov	ss,[bx].SCB_STACK.seg
@@ -377,12 +404,13 @@ ENDPROC	scb_switch
 ;	None
 ;
 DEFPROC	scb_wait,DOS
-	int 3
 	cli
 	mov	bx,[scb_active]
+	ASSERT_STRUC [bx],SCB
 	mov	[bx].SCB_WAITID.off,di
 	mov	[bx].SCB_WAITID.seg,dx
 	sti
+	sub	ax,ax
 	jmp	scb_yield
 ENDPROC	scb_wait
 
@@ -400,10 +428,10 @@ ENDPROC	scb_wait
 ;	Carry clear if found, set if not
 ;
 DEFPROC	scb_endwait,DOS
-	int 3
 	cli
 	mov	bx,[scb_table].off
-se1:	cmp	[bx].SCB_WAITID.off,di
+se1:	ASSERT_STRUC [bx],SCB
+	cmp	[bx].SCB_WAITID.off,di
 	jne	se2
 	cmp	[bx].SCB_WAITID.seg,dx
 	jne	se2

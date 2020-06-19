@@ -203,6 +203,16 @@ ASSERTNZ macro	op
 	ENDIF
 	endm
 
+INIT_STRUC macro ptr,str
+	IFDEF DEBUG
+	mov	ptr&.&str&_RESERVED,str&SIG
+	ENDIF
+	endm
+
+ASSERT_STRUC macro ptr,str
+	ASSERTZ <cmp ptr&.&str&_RESERVED,str&SIG>
+	endm
+
 ASSUMES	macro	seg1,seg2
 	ASSUME1	seg1
 	IFNB	<seg2>
