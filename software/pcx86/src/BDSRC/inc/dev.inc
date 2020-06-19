@@ -138,8 +138,7 @@ DDP_MAXSIZE	equ	((size DDPRW + 1) AND 0FFFEh)
 ;
 ; Public IOCTL operations for assorted devices
 ;
-CLKIO_INIT	equ	1	; signals DOS services are ready
-CLKIO_WAIT	equ	2	; wait # ticks in DDPRW_ADDR field
+IOCTL_WAIT	equ	1	; wait # ticks in DDPRW_ADDR field
 
 ;
 ; Helper macro to define the overall length of a device driver;

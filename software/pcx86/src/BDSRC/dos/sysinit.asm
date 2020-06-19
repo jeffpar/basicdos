@@ -264,11 +264,14 @@ si7:	mov	dx,size SFB
 	mov	bx,es:[scb_table].off
 	or	es:[bx].SCB_STATUS,SCSTAT_INIT
 ;
-; Before we create the first PSP, open all the devices we need for the 5
-; STD handles.  We open AUX first, purely for historical reasons.
+; Before we create any sessions (and our first PSPs), we need to open all the
+; devices required for the 5 STD handles.  And we open AUX first, purely for
+; historical reasons.
 ;
-; And note that since we have no PSP yet, DOS_HDL_OPEN will return system
-; handles, not process handles.
+; Since no PSP exists yet, DOS_HDL_OPEN will return system file handles, not
+; process file handles.  Which is exactly what we want, because we're going to
+; store each SFH in the SCB, so that every time a new program is loaded in the
+; SCB, its PSP will receive the same SFHs.
 ;
 	mov	dx,offset AUX_DEVICE
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
@@ -289,7 +292,9 @@ si9:	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	jc	open_error
 	mov	es:[bx].SCB_SFHCON,al
 	INIT_STRUC es:[bx],SCB
-
+;
+; Last but not least, open PRN.
+;
 	mov	dx,offset PRN_DEVICE
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
@@ -323,29 +328,14 @@ si11:	or	es:[bx].SCB_STATUS,SCSTAT_INIT
 	PRINTF	<"%s open error %d">,dx,ax
 	jmp	fatal_error
 ;
-; Utility functions like SLEEP need access to specific drivers, and while we
-; could open them as system file handles, that would require utility functions
-; to use SFB interfaces (get_sfb, sfb_read, etc) with absolutely no benefit.
+; Good time to print a "System ready" message, or something to that effect.
 ;
-si12:	push	es
-	mov	dx,offset CLK_DEVICE
-	mov	ax,DOS_UTIL_GETDEV
-	int	21h
-	mov	dx,es
-	jc	si13
-	mov	ax,DOS_UTIL_IOCTL	; inform the CLOCK driver we're ready
-	mov	bx,(DDC_IOCTLIN SHL 8) OR CLKIO_INIT
-	int	21h
-si13:	pop	es
-	jc	open_error
-	mov	es:[clk_ptr].off,di
-	mov	es:[clk_ptr].seg,dx
-
-	mov	dx,offset SYS_MSG
+si12:	mov	dx,offset SYS_MSG
 	mov	ah,DOS_TTY_PRINT
 	int	21h
 
-	IFDEF	DEBUG
+	IFDEF	DEBUG			; a quick series of early sanity checks
+	push	es
 	mov	ah,DOS_MEM_ALLOC
 	mov	bx,200h
 	int	21h
@@ -395,24 +385,30 @@ dierr1:	jc	dierr2
 	int	INT_TIME		; CX:DX is tick count
 	mov	bx,offset hello
 	PRINTF	<"%ls, the time is [%6ld]",13,10>,bx,cs,dx,cx
-	jmp	short si14
+	pop	es
+	jmp	short diend
 hello	db	"hello world",0
 dierr2:	jmp	sysinit_error
-
+diend:
 	ENDIF
 ;
 ; For each SHELL definition, load the corresponding file into the next
 ; available SCB.  The first time through, CFG_SHELL is used as a fallback,
 ; so even if there are no SHELL definitions, at least one will be loaded.
 ;
-si14:	sub	cx,cx			; CL = SCB #
-	mov	dx,offset SHELL_FILE
-si16:	mov	si,offset CFG_SHELL
+	sub	cx,cx			; CL = SCB #
+	mov	dx,offset SHELL_FILE	; DX = default shell
+si14:	mov	si,offset CFG_SHELL
 	call	find_cfg		; look for "SHELL="
-	jc	si17			; not found
+	jc	si16			; not found
 	mov	dx,di
-si17:	test	dx,dx
-	jz	si20
+si16:	test	dx,dx			; do we still have a default?
+	jz	si20			; no, done loading
+;
+; Note that during the LOAD process, the target SCB is locked as the active
+; SCB, so that the program file can be opened and read using the SCB's PSP.
+; It's unlocked after the load, but it won't start running until START is set.
+;
 	mov	ax,DOS_UTIL_LOAD	; load SHELL DS:DX into specified SCB
 	int	21h
 	jnc	si18
@@ -420,13 +416,41 @@ si17:	test	dx,dx
 	jmp	short sierr2
 si18:	inc	cx			; advance SCB #
 	sub	dx,dx
-	jmp	si16
+	jmp	si14
 ;
-; Start the first SCB; this should not return
+; Set DX to the number of SCBs successfully loaded, and then start each one.
 ;
-si20:	sub	cx,cx
-	mov	ax,DOS_UTIL_START
+si20:	mov	dx,cx
+	sub	cx,cx
+si22:	mov	ax,DOS_UTIL_START	; CL = SCB #
+	int	21h			; must be valid, so no error checking
+	inc	cx
+	cmp	cx,dx
+	jb	si22
+;
+; Get the clock device and set its CLOCK bit, signaling that it can start
+; calling the YIELD function to switch SCBs.
+;
+; Other functions like SLEEP need access to the clock device too, so we save
+; its address in clk_ptr.  While we could open the device normally and obtain a
+; system file handle, that would require the utility functions to use SFB
+; interfaces (get_sfb, sfb_read, etc) with absolutely no benefit.
+;
+	mov	dx,offset CLK_DEVICE
+	mov	ax,DOS_UTIL_GETDEV
 	int	21h
+	jc	soerr1
+	mov	ds,[dos_seg]
+	mov	[clk_ptr].off,di
+	mov	[clk_ptr].seg,es
+	or	es:[di].DDH_ATTR,DDATTR_CLOCK
+;
+; We're done.  On the next clock tick, scb_yield will switch to one of the
+; SCBs we started, and it will never return here, because sysinit has no SCB.
+;
+si99:	jmp	si99
+
+soerr1:	jmp	open_error
 
 sierr2:	jmp	sysinit_error
 

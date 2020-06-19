@@ -193,6 +193,16 @@ ASSERTZ	macro	op
 	ENDIF
 	endm
 
+ASSERTNC macro	op
+	IFDEF DEBUG
+	IFNB	<op>
+	op
+	ENDIF
+	jnc	$+4
+	int 1
+	ENDIF
+	endm
+
 ASSERTNZ macro	op
 	IFDEF DEBUG
 	IFNB	<op>

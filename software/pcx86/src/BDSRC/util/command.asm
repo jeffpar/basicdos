@@ -15,9 +15,6 @@ CODE    SEGMENT
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 DEFPROC	main
-	; mov	dx,offset msg
-	; mov	ah,DOS_TTY_PRINT
-	; int	21h
 	PRINTF	<"hello world",13,10>
 	mov	dx,36
 	sub	cx,cx
@@ -26,8 +23,6 @@ DEFPROC	main
 	jmp	main
 	int	20h
 ENDPROC	main
-
-; msg	db	"hello world",13,10,'$'
 
 CODE	ENDS
 

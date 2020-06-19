@@ -14,7 +14,7 @@ DEV	group	CODE,DATA
 CODE	segment para public 'CODE'
 
 	public	CLOCK
-CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CLOCK+DDATTR_CHAR+DDATTR_IOCTL,offset ddclk_init,-1,2020244B434F4C43h>
+CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CHAR+DDATTR_IOCTL,offset ddclk_init,-1,2020244B434F4C43h>
 
 	DEFLBL	CMDTBL,word
 	dw	ddclk_none,   ddclk_none,  ddclk_none,  ddclk_ctlin	; 0-3
@@ -23,9 +23,8 @@ CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CLOCK+DDATTR_CHAR+DDATTR_IOCTL,offset
 	dw	ddclk_ctlout, ddclk_none,  ddclk_none			; 12-14
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
-	DEFPTR	timer_interrupt,0	; timer interrupt handler
+	DEFPTR	tmr_interrupt,0		; timer hardware interrupt handler
 	DEFPTR	wait_ptr,-1		; chain of waiting packets
-	DEFBYTE	dos_ready,0		; set once DOS services are available
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -84,12 +83,8 @@ ENDPROC	ddclk_req
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddclk_ctlin
 	mov	al,es:[di].DDP_UNIT
-	cmp	al,CLKIO_INIT
-	jne	dci1
-	mov	[dos_ready],al		; AL = 1
-	jmp	short dci9
 
-dci1:	cmp	al,CLKIO_WAIT
+	cmp	al,IOCTL_WAIT
 	jne	dci9
 ;
 ; For WAIT requests, we add this packet to an internal chain of "waiting"
@@ -175,7 +170,7 @@ ENDPROC	ddclk_none
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddclk_interrupt (hardware interrupt handler)
+; ddclk_interrupt (timer hardware interrupt handler)
 ;
 ; Inputs:
 ;	None
@@ -189,9 +184,9 @@ ENDPROC	ddclk_none
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddclk_interrupt,far
 	pushf
-	call	[timer_interrupt]
-	cmp	[dos_ready],1
-	jb	ddi9
+	call	[tmr_interrupt]
+	test	[CLOCK].DDH_ATTR,DDATTR_CLOCK
+	jz	ddi9
 	push	ax
 	push	bx
 	push	dx
@@ -252,6 +247,7 @@ ddi7:	lds	di,[di].DDP_PTR
 
 ddi8:	mov	ax,DOS_UTIL_YIELD	; allow rescheduling to occur now
 	int	21h
+
 	pop	es
 	pop	ds
 	pop	di
@@ -285,14 +281,16 @@ DEFPROC	ddclk_init,far
 	mov	es:[bx].DDPI_END.off,offset ddclk_init
 	mov	cs:[0].DDH_REQUEST,offset DEV:ddclk_req
 ;
-; Install an INT 08h hardware interrupt handler
+; Install an INT 08h hardware interrupt handler, which we will use to drive
+; calls to DOS_UTIL_YIELD as soon as DOS tells us it's ready (which it will do
+; by setting the DDATTR_CLOCK bit in our header).
 ;
 	mov	ax,offset ddclk_interrupt
 	xchg	ds:[INT_HW_TMR * 4].off,ax
-	mov	[timer_interrupt].off,ax
+	mov	[tmr_interrupt].off,ax
 	mov	ax,cs
 	xchg	ds:[INT_HW_TMR * 4].seg,ax
-	mov	[timer_interrupt].seg,ax
+	mov	[tmr_interrupt].seg,ax
 
 	pop	ds
 	ASSUME	DS:NOTHING

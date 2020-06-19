@@ -18,7 +18,7 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 
 	DEFLBL	CMDTBL,word
 	dw	ddcon_none,  ddcon_none, ddcon_none,  ddcon_none	; 0-3
-	dw	ddcon_none,  ddcon_none, ddcon_none,  ddcon_none	; 4-7
+	dw	ddcon_read,  ddcon_none, ddcon_none,  ddcon_none	; 4-7
 	dw	ddcon_write, ddcon_none, ddcon_none,  ddcon_none	; 8-11
 	dw	ddcon_none,  ddcon_open, ddcon_close			; 12-14
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
@@ -30,8 +30,11 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFWORD	ct_head,0	; head of context chain
 	DEFWORD	ct_focus,0	; segment of context with focus
 	DEFWORD	frame_seg,0
-	DEFBYTE	max_rows,25	; TODO: use this for something!
+	DEFBYTE	max_rows,25	; TODO: use this for something...
 	DEFBYTE	max_cols,80	; TODO: set to correct value in ddcon_init
+
+	DEFPTR	kbd_interrupt,0	; keyboard hardware interrupt handler
+	DEFPTR	wait_ptr,-1	; chain of waiting packets
 ;
 ; A context of "25,80,0,0" with a border supports logical cursor positions
 ; from 1,1 to 78,23.  Physical character and cursor positions will be adjusted
@@ -94,6 +97,46 @@ ENDPROC	ddcon_req
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; ddcon_read
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;
+; Outputs:
+;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_read
+	mov	cx,es:[di].DDPRW_LENGTH
+	jcxz	dcr9
+
+	call	read_kbd
+	jnc	dcr9
+;
+; For WAIT requests, we add this packet to an internal chain of "waiting"
+; packets, and then tell DOS that we're waiting; DOS will suspend the current
+; SCB until we notify DOS that this packet's conditions are satisified.
+;
+	cli
+	mov	ax,di
+	xchg	[wait_ptr].off,ax
+	mov	es:[di].DDP_PTR.off,ax
+	mov	ax,es
+	xchg	[wait_ptr].seg,ax
+	mov	es:[di].DDP_PTR.seg,ax
+	sti
+;
+; The WAIT condition is satisified when the packet's LENGTH becomes zero.
+;
+	mov	dx,es			; DX:DI -> packet (aka "wait ID")
+	mov	ax,DOS_UTIL_WAIT
+	int	21h
+
+dcr9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+	ret
+ENDPROC	ddcon_read
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; ddcon_write
 ;
 ; Inputs:
@@ -105,21 +148,26 @@ ENDPROC	ddcon_req
 DEFPROC	ddcon_write
 	mov	cx,es:[di].DDPRW_LENGTH
 	jcxz	dcw9
+
 	lds	si,es:[di].DDPRW_ADDR
 	mov	dx,es:[di].DDP_CONTEXT
 	test	dx,dx
 	jnz	dcw2
+
 dcw1:	lodsb
 	call	writechar
 	loop	dcw1
 	jmp	short dcw9
+
 dcw2:	push	es
 	mov	es,dx
 dcw3:	lodsb
 	call	writecontext
 	loop	dcw3
 	pop	es
-dcw9:	ret
+
+dcw9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+	ret
 ENDPROC	ddcon_write
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -240,7 +288,6 @@ dco7:	pop	es
 ; and DOS error codes?
 ;
 dco8:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_GENFAIL
-					; carry should already be set
 dco9:	ret
 ENDPROC	ddcon_open
 
@@ -309,6 +356,92 @@ ENDPROC	ddcon_none
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; ddcon_interrupt (keyboard hardware interrupt handler)
+;
+; When keys appear in the BIOS keyboard buffer, deliver them to whichever
+; context 1) has focus, and 2) has a pending read request.  Otherwise, let
+; them stay in the BIOS buffer.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_interrupt,far
+	pushf
+	call	[kbd_interrupt]
+	push	ax
+	push	bx
+	push	dx
+	push	di
+	push	ds
+	push	es
+	mov	ax,cs
+	mov	ds,ax
+	ASSUME	DS:CODE
+	mov	ax,[ct_focus]
+	mov	bx,offset wait_ptr	; DS:BX -> ptr
+	les	di,[bx]			; ES:DI -> packet, if any
+	ASSUME	ES:NOTHING
+	sti
+
+ddi1:	cmp	di,-1			; end of chain?
+	je	ddi9			; yes
+
+	ASSERT_STRUC es:[di],DDP
+
+	cmp	es:[di].DDP_CONTEXT,ax	; packet from console with focus?
+	jne	ddi6			; no
+;
+; TODO: Consider whether we need to be worried about another keyboard
+; interrupt arriving while we're still processing this one.  If it happened,
+; then obviously BUFFER_TAIL would be a moving target, but that in itself is
+; not necessarily a problem....
+;
+	call	read_kbd		; read keyboard data
+	jc	ddi9			; request not yet satisfied
+;
+; Notify DOS that this packet is done waiting.
+;
+	mov	dx,es			; DX:DI -> packet (aka "wait ID")
+	mov	ax,DOS_UTIL_ENDWAIT
+	int	21h
+	ASSERTNC
+;
+; The request has been satisfied, so remove packet from wait_ptr list.
+;
+	mov	ax,es:[di].DDP_PTR.off
+	mov	[bx].off,ax
+	mov	ax,es:[di].DDP_PTR.seg
+	mov	[bx].seg,ax
+
+	mov	ax,DOS_UTIL_YIELD	; allow rescheduling to occur now
+	int	21h
+	jmp	short ddi9
+
+ddi6:	lea	bx,[di].DDP_PTR		; update prev addr ptr in DS:BX
+	push	es
+	pop	ds
+
+ddi7:	les	di,es:[di].DDP_PTR
+	jmp	ddi1
+
+ddi9:	pop	es
+	pop	ds
+	pop	di
+	pop	dx
+	pop	bx
+	pop	ax
+	iret
+ENDPROC	ddcon_interrupt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; ddcon_int29 (handler for INT_FASTCON: fast console I/O)
 ;
 ; Inputs:
@@ -360,6 +493,53 @@ DEFPROC	getcurpos
 	add	bx,ax			; BX = offset to row and col
 	ret
 ENDPROC	getcurpos
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; read_kbd
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;
+; Outputs:
+;	Carry clear if request satisfied, set if not
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	read_kbd
+	push	bx
+	push	ds			; save the previous ptr addr
+	sub	bx,bx
+	mov	ds,bx
+	ASSUME	DS:BIOS
+	mov	bx,[BUFFER_HEAD]
+ddi2:	cmp	bx,[BUFFER_TAIL]
+	stc
+	je	ddi4			; BIOS buffer empty
+	mov	ax,[bx]			; AL = char code, AH = scan code
+	add	bx,2
+	cmp	bx,offset KB_BUFFER + size KB_BUFFER
+	jne	ddi3
+	mov	bx,offset KB_BUFFER
+ddi3:	mov	[BUFFER_HEAD],bx
+	push	bx
+	push	ds
+	lds	bx,es:[di].DDPRW_ADDR	; DS:BX -> next read/write address
+	mov	[bx],al
+	inc	bx
+	mov	es:[di].DDPRW_ADDR.off,bx
+	pop	ds
+	pop	bx
+	dec	es:[di].DDPRW_LENGTH	; have we satisfied the request yet?
+	jnz	ddi2			; no
+	clc
+ddi4:	pop	ds
+	ASSUME	DS:NOTHING
+	pop	bx
+	ret
+ENDPROC	read_kbd
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -639,9 +819,19 @@ DEFPROC	ddcon_init,far
 	mov	dx,0B000h
 	and	ax,EQ_VIDEO_MODE
 	cmp	ax,EQ_VIDEO_MONO
-	je	ddi1
+	je	ddn1
 	mov	dx,0B800h
-ddi1:	mov	[frame_seg],dx
+ddn1:	mov	[frame_seg],dx
+;
+; Install an INT 09h hardware interrupt handler, which we will use to detect
+; keys added to the BIOS keyboard buffer.
+;
+	mov	ax,offset ddcon_interrupt
+	xchg	ds:[INT_HW_KBD * 4].off,ax
+	mov	[kbd_interrupt].off,ax
+	mov	ax,cs
+	xchg	ds:[INT_HW_KBD * 4].seg,ax
+	mov	[kbd_interrupt].seg,ax
 ;
 ; Install an INT 29h ("FAST PUTCHAR") handler; I think traditionally DOS
 ; installed its own handler, but that's really our responsibility, especially

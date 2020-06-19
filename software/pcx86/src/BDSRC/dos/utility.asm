@@ -640,7 +640,7 @@ ENDPROC	util_yield
 ;	AX, DI, ES
 ;
 DEFPROC	util_sleep,DOS
-	mov	ax,(DDC_IOCTLIN SHL 8) OR CLKIO_WAIT
+	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_WAIT
 	les	di,clk_ptr
 	call	dev_request		; call the driver
 	ret

@@ -17,11 +17,11 @@ CODE	segment para public 'CODE'
 FDC 	DDH	<offset DEV:ddfdc_end+16,,DDATTR_BLOCK,offset ddfdc_init,-1,2020202024434446h>
 
 	DEFLBL	CMDTBL,word
-	dw	ddfdc_none, ddfdc_mediachk, ddfdc_buildbpb, ddfdc_none	; 0-3
-	dw	ddfdc_read, ddfdc_none, ddfdc_none, ddfdc_none		; 4-7
-	dw	ddfdc_write, ddfdc_none, ddfdc_none, ddfdc_none		; 8-11
-	dw	ddfdc_none, ddfdc_none, ddfdc_none, ddfdc_none		; 12-15
-	dw	ddfdc_none, ddfdc_none, ddfdc_none, ddfdc_none		; 16-19
+	dw	ddfdc_none,  ddfdc_mediachk, ddfdc_buildbpb, ddfdc_none	; 0-3
+	dw	ddfdc_read,  ddfdc_none,     ddfdc_none,     ddfdc_none	; 4-7
+	dw	ddfdc_write, ddfdc_none,     ddfdc_none,     ddfdc_none	; 8-11
+	dw	ddfdc_none,  ddfdc_none,     ddfdc_none,     ddfdc_none	; 12-15
+	dw	ddfdc_none,  ddfdc_none,     ddfdc_none,     ddfdc_none	; 16-19
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
 	DEFBYTE	ddbuf_drv,-1
@@ -337,7 +337,6 @@ ENDPROC	ddfdc_write
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddfdc_none
 	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_UNKCMD
-	stc
 	ret
 ENDPROC	ddfdc_none
 

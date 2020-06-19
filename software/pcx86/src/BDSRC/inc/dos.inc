@@ -121,8 +121,9 @@ SCB		ends
 
 SCBSIG		equ	'S'
 
-SCSTAT_INIT	equ	01h	; set if initialized
-SCSTAT_LOAD	equ	02h	; set if program is loaded
+SCSTAT_INIT	equ	01h	; set if SCB initialized
+SCSTAT_LOAD	equ	02h	; set if session has loaded a program
+SCSTAT_START	equ	04h	; set if session program can be started
 
 ;
 ; Memory Control Block (MCB)

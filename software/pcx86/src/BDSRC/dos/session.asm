@@ -18,6 +18,34 @@ DOS	segment word public 'CODE'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; get_scb
+;
+; Inputs:
+;	CL = SCB #
+;
+; Outputs:
+;	On success, carry clear, BX -> specified SCB
+;	On failure, carry set (if SCB invalid or not initialized for use)
+;
+; Modifies:
+;	AX, BX
+;
+DEFPROC	get_scb,DOS
+	mov	al,size SCB
+	mul	cl
+	add	ax,[scb_table].off
+	cmp	ax,[scb_table].seg
+	cmc
+	jb	gs9
+	mov	bx,ax
+	test	[bx].SCB_STATUS,SCSTAT_INIT
+	jnz	gs9
+	stc
+gs9:	ret
+ENDPROC	get_scb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; scb_load
 ;
 ; Loads a program into the specified SCB
@@ -192,25 +220,17 @@ ENDPROC	scb_load
 ;
 ; Outputs:
 ;	On success, carry clear, AX -> previous SCB, BX -> current SCB
-;	On failure, carry set
+;	On failure, carry set (if SCB invalid or not initialized for use)
 ;
 ; Modifies:
 ;	AX, BX
 ;
 DEFPROC	scb_lock,DOS
-	mov	al,size SCB
-	mul	cl
-	add	ax,[scb_table].off
-	cmp	ax,[scb_table].seg
-	cmc
-	jb	sk9
-	mov	bx,ax
-	test	[bx].SCB_STATUS,SCSTAT_INIT
-	stc
-	jz	sk9
+	call	get_scb
+	jc	sk9
 	inc	[scb_locked]
 	push	dx
-	xchg	bx,[scb_active]		; BX -> previous SCB
+	xchg	bx,[scb_active]		; BX -> previous SCB, if any
 	test	bx,bx
 	jz	sk8
 	ASSERT_STRUC [bx],SCB
@@ -263,18 +283,14 @@ ENDPROC	scb_unlock
 ;	CL = SCB #
 ;
 ; Outputs:
-;	Carry clear on successc
+;	Carry clear on success, BX -> SCB
 ;	Carry set on error (eg, invalid SCB #)
 ;
 DEFPROC	scb_start,DOS
-	call	scb_lock
-	jc	sa9
-	ASSERT_STRUC [bx],SCB
-	mov	ss,[bx].SCB_STACK.seg
-	mov	sp,[bx].SCB_STACK.off
-	dec	[scb_locked]
-	jmp	dos_exit
-sa9:	ret
+ 	call	get_scb
+ 	jc	ss9
+	or	[bx].SCB_STATUS,SCSTAT_START
+ss9:	ret
 ENDPROC	scb_start
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -328,8 +344,7 @@ ENDPROC	scb_unload
 ;	2) A DOS_UTIL_WAIT request
 ;
 ; In the first case, we want to return if no other SCB is ready; this
-; is important when we're called from an interrupt handler with the intention
-; of switching, but there's nothing else to switch to yet.
+; is important when we're called from an interrupt handler.
 ;
 ; In the second case, we never return; at best, we will simply switch to the
 ; current SCB when its wait condition is satisfied.
@@ -341,20 +356,23 @@ ENDPROC	scb_unload
 ;	BX, DX
 ;
 DEFPROC	scb_yield,DOS
+	cmp	[scb_locked],0		; switching not currently allowed
+	jne	sy9
 	mov	bx,[scb_active]
-	test	bx,bx			; are any SCBs active yet?
-	jz	sy9			; no
+	test	bx,bx
+	jz	sy2
 	test	ax,ax			; is this yield due to a WAIT?
 	jz	sy1			; yes, so spin until we find an SCB
 	mov	bx,ax
+	ASSERT_STRUC [bx],SCB
 sy1:	add	bx,size SCB
 	cmp	bx,[scb_table].seg
-	jb	sy2
-	mov	bx,[scb_table].off
-sy2:	cmp	bx,ax			; have we looped around to the start?
+	jb	sy3
+sy2:	mov	bx,[scb_table].off
+sy3:	cmp	bx,ax			; have we looped to where we started?
 	je	sy9			; yes
-	test	[bx].SCB_STATUS,SCSTAT_LOAD
-	jz	sy1			; ignore this SCB, nothing loaded in it
+	test	[bx].SCB_STATUS,SCSTAT_START
+	jz	sy1			; ignore this SCB, hasn't been started
 	ASSERT_STRUC [bx],SCB
 	mov	dx,[bx].SCB_WAITID.off
 	or	dx,[bx].SCB_WAITID.seg
@@ -375,6 +393,7 @@ ENDPROC	scb_yield
 DEFPROC	scb_switch,DOS
 	cmp	bx,[scb_active]		; is this SCB already active?
 	je	sw9			; yes
+	cli
 	mov	ax,bx
 	xchg	bx,[scb_active]		; BX -> previous SCB
 	test	bx,bx

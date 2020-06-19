@@ -672,7 +672,7 @@ ENDPROC	chk_filename
 ; Additionally, for read/write requests:
 ;	BX = LBA (block devices only)
 ;	CX = byte count
-;	DX = offset within LBA
+;	DX = offset within LBA (block devices only)
 ;	DS:SI -> read/write data buffer
 ;
 ; Outputs:
