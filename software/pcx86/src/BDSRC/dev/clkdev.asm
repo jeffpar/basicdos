@@ -194,17 +194,17 @@ DEFPROC	ddclk_interrupt,far
 	push	ds
 	push	es
 	mov	ax,cs
-	mov	es,ax
-	ASSUME	ES:CODE
-	mov	bx,offset wait_ptr	; ES:BX -> ptr
-	lds	di,es:[bx]		; DS:DI -> packet, if any
-	ASSUME	DS:NOTHING
+	mov	ds,ax
+	ASSUME	DS:CODE
+	mov	bx,offset wait_ptr	; DS:BX -> ptr
+	les	di,[bx]			; ES:DI -> packet, if any
+	ASSUME	ES:NOTHING
 	sti
 
 ddi1:	cmp	di,-1			; end of chain?
 	je	ddi8			; yes
 
-	ASSERT_STRUC [di],DDP
+	ASSERT_STRUC es:[di],DDP
 ;
 ; We wait for the double-word decrement to underflow (ie, to go from 0 to -1)
 ; since that's the simplest to detect.  And while you might think that means we
@@ -212,13 +212,13 @@ ddi1:	cmp	di,-1			; end of chain?
 ; how much time elapsed between the request being made and the first tick; that
 ; time could be almost zero, so think of the tick count as "full" ticks.
 ;
-	sub	[di].DDPRW_OFFSET,1
-	sbb	[di].DDPRW_LENGTH,0
+	sub	es:[di].DDPRW_OFFSET,1
+	sbb	es:[di].DDPRW_LENGTH,0
 	jae	ddi6			; keep waiting
 ;
 ; Notify DOS that the SCB associated with this packet is done waiting.
 ;
-ddi2:	mov	dx,ds			; DX:DI -> packet (aka "wait ID")
+ddi2:	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	mov	ax,DOS_UTIL_ENDWAIT
 	int	21h
 	jnc	ddi3
@@ -226,23 +226,23 @@ ddi2:	mov	dx,ds			; DX:DI -> packet (aka "wait ID")
 ; If ENDWAIT returns an error, we presume that we simply got ahead of the
 ; WAIT call, so rewind the count to zero and leave the packet on the list.
 ;
-	mov	[di].DDPRW_OFFSET,0
-	mov	[di].DDPRW_LENGTH,0
+	mov	es:[di].DDPRW_OFFSET,0
+	mov	es:[di].DDPRW_LENGTH,0
 	jmp	short ddi6
 ;
 ; WAIT condition has been satisfied, remove packet from wait_ptr list.
 ;
-ddi3:	mov	ax,[di].DDP_PTR.off
-	mov	es:[bx].off,ax
-	mov	ax,[di].DDP_PTR.seg
-	mov	es:[bx].seg,ax
+ddi3:	mov	ax,es:[di].DDP_PTR.off
+	mov	[bx].off,ax
+	mov	ax,es:[di].DDP_PTR.seg
+	mov	[bx].seg,ax
 	jmp	short ddi7
 
-ddi6:	lea	bx,[di].DDP_PTR		; update prev addr ptr in ES:BX
-	push	ds
-	pop	es
+ddi6:	lea	bx,[di].DDP_PTR		; update prev addr ptr in DS:BX
+	push	es
+	pop	ds
 
-ddi7:	lds	di,[di].DDP_PTR
+ddi7:	les	di,es:[di].DDP_PTR
 	jmp	ddi1
 
 ddi8:	mov	ax,DOS_UTIL_YIELD	; allow rescheduling to occur now
