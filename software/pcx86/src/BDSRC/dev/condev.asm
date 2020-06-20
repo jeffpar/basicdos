@@ -27,6 +27,12 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	dw	16,80,  4,25	; mirrors sysinit's default CFG_CONSOLE
 	dw	 0,79,  0,24
 
+	DEFLBL	DBL_BORDER,word
+	dw	0C9BBh,0BABAh,0C8BCh,0CDCDh
+
+	DEFLBL	SGL_BORDER,word
+	dw	0DABFh,0B3B3h,0C0D9h,0C4C4h
+
 	DEFWORD	ct_head,0	; head of context chain
 	DEFWORD	ct_focus,0	; segment of context with focus
 	DEFWORD	frame_seg,0
@@ -253,26 +259,7 @@ dco1a:	xchg	[ct_head],ax
 ;
 ; OK, so if this context is supposed to have a border, draw all 4 sides now.
 ;
-	sub	dx,dx			; eg, get top left X (DL), Y (DH)
-	mov	bx,word ptr ds:[CT_MAXX]; eg, get bottom right X (BL), Y (BH)
-	mov	cx,0C9BBh
-	call	writevertpair
-	ASSUME	ES:NOTHING
-	mov	cx,0BABAh
-dco2:	inc	dh			; advance Y, holding X constant
-	cmp	dh,bh
-	jae	dco3
-	call	writevertpair
-	jmp	dco2
-dco3:	mov	cx,0C8BCh
-	call	writevertpair
-	mov	cx,0CDCDh
-dco4:	mov	dh,0
-	inc	dx			; advance X, holding Y constant
-	cmp	dl,bl
-	jae	dco6
-	call	writehorzpair
-	jmp	dco4
+	call	draw_border
 
 dco6:	mov	al,0
 	call	scroll			; clear the interior
@@ -468,6 +455,54 @@ dci1:	push	es
 dci9:	pop	dx
 	iret
 ENDPROC	ddcon_int29
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; draw_border
+;
+; Inputs:
+;	DS -> context
+;	If DS matches ct_focus, then a double-wide border will be drawn
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	draw_border
+	mov	ax,ds
+	mov	si,offset DBL_BORDER
+	cmp	ax,[ct_focus]
+	je	db1
+	mov	si,offset SGL_BORDER
+db1:	sub	dx,dx			; eg, get top left X (DL), Y (DH)
+	mov	bx,word ptr ds:[CT_MAXX]; eg, get bottom right X (BL), Y (BH)
+	lods	word ptr cs:[si]
+	xchg	cx,ax
+	call	writevertpair
+	ASSUME	ES:NOTHING
+	lods	word ptr cs:[si]
+	xchg	cx,ax
+db2:	inc	dh			; advance Y, holding X constant
+	cmp	dh,bh
+	jae	db3
+	call	writevertpair
+	jmp	db2
+db3:	lods	word ptr cs:[si]
+	xchg	cx,ax
+	call	writevertpair
+	lods	word ptr cs:[si]
+	xchg	cx,ax
+db4:	mov	dh,0
+	inc	dx			; advance X, holding Y constant
+	cmp	dl,bl
+	jae	db6
+	call	writehorzpair
+	jmp	db4
+db6:	ret
+ENDPROC	draw_border
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -835,7 +870,8 @@ ddn1:	mov	[frame_seg],dx
 ;
 ; Install an INT 29h ("FAST PUTCHAR") handler; I think traditionally DOS
 ; installed its own handler, but that's really our responsibility, especially
-; since we eventually want all INT 29h I/O to go through our system console.
+; if we want all INT 29h I/O to go through our "system console" -- which for
+; now is nothing more than whatever console was opened first.
 ;
 	mov	ds:[INT_FASTCON * 4].off,offset ddcon_int29
 	mov	ds:[INT_FASTCON * 4].seg,cs

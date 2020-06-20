@@ -129,8 +129,8 @@ DEFPROC	ddfdc_buildbpb
 	ASSUME	DS:NOTHING
 	sub	dx,dx			; DX = LBA (0)
 	mov	al,[si].BPB_DRIVE
-	les	bp,[ddbuf_ptr]		; ES:BP -> our own buffer
 	mov	bx,(FDC_READ SHL 8) OR 1
+	les	bp,[ddbuf_ptr]		; ES:BP -> our own buffer
 	call	readwrite_sectors
 	jc	bb8
 ;
@@ -263,11 +263,13 @@ dcr4:	xchg	ax,cx		; convert length in AX to # sectors
 	mov	cx,dx		; CX = final partial sector bytes, if any
 	test	al,al		; any whole sectors?
 	jz	dcr5		; no
+	push	es
 	mov	ah,FDC_READ
 	xchg	bx,ax		; BH = FDC cmd, BL = # sectors
 	mov	dx,es:[di].DDPRW_LBA
 	les	bp,es:[di].DDPRW_ADDR
 	call	readwrite_sectors
+	pop	es
 dcr4a:	jc	dcr8
 	mov	al,bl
 	cbw
@@ -431,8 +433,8 @@ DEFPROC	read_buffer
 	cmp	dx,[ddbuf_lba]
 	je	rb9		; skipping the read (we've already got it)
 rb1:	push	es
-	les	bp,[ddbuf_ptr]	; ES:BP -> our own buffer
 	mov	bx,(FDC_READ SHL 8) OR 1
+	les	bp,[ddbuf_ptr]	; ES:BP -> our own buffer
 	call	readwrite_sectors
 	pop	es
 	jc	rb9
