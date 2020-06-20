@@ -246,3 +246,10 @@ DIR_SECTOR	db	512 dup (?)	; 750h
 BIOS_END	equ	0950h
 
 BIOS		ends
+
+;
+; The ROM stores some BIOS offsets relative to segment 40h (eg, BUFFER_HEAD
+; and BUFFER_TAIL), so if we want to use those offsets within BIOS segment 00h,
+; we must add BIOS_DATA (ie, 400h) to them.
+;
+BIOS_DATA	equ	RS232_BASE

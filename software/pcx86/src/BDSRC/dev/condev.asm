@@ -553,11 +553,11 @@ DEFPROC	read_kbd
 ddi2:	cmp	bx,[BUFFER_TAIL]
 	stc
 	je	ddi4			; BIOS buffer empty
-	mov	ax,[bx]			; AL = char code, AH = scan code
+	mov	ax,[BIOS_DATA][bx]	; AL = char code, AH = scan code
 	add	bx,2
-	cmp	bx,offset KB_BUFFER + size KB_BUFFER
+	cmp	bx,offset KB_BUFFER - offset BIOS_DATA + size KB_BUFFER
 	jne	ddi3
-	mov	bx,offset KB_BUFFER
+	mov	bx,offset KB_BUFFER - offset BIOS_DATA
 ddi3:	mov	[BUFFER_HEAD],bx
 	push	bx
 	push	ds
