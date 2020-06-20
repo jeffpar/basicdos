@@ -15,6 +15,9 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_active,psp_active>,word
 	EXTERNS	<scb_table>,dword
 	EXTERNS	<dos_exit>,near
+	IFDEF DEBUG
+	EXTERNS	<dos_func_check>,near
+	ENDIF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -173,6 +176,10 @@ sle2a:	jc	sle2
 	xchg	ax,dx
 	stosw				; REG_DI
 	stosw				; REG_BP
+	IFDEF DEBUG
+	mov	ax,offset dos_func_check
+	stosw
+	ENDIF
 	inc	di
 	inc	di			; ES:DI -> REG_BP
 	cld
@@ -401,6 +408,9 @@ DEFPROC	scb_switch,DOS
 	ASSERT_STRUC [bx],SCB
 	mov	dx,[psp_active]
 	mov	[bx].SCB_CURPSP,dx
+	add	sp,4			; toss 2 near-call return addresses
+	mov	[bx].SCB_STACK.seg,ss
+	mov	[bx].SCB_STACK.off,sp
 sw8:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
 	ASSERT_STRUC [bx],SCB
 	mov	dx,[bx].SCB_CURPSP

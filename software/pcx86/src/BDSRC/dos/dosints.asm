@@ -95,11 +95,17 @@ DEFPROC	dos_func,DOSFAR
 	push	cx
 	push	dx
 	push	ds
-	push	si			; arranged for LDS SI instructions
+	push	si
 	push	es
-	push	di			; arranged for LES DI instructions
+	push	di
 	push	bp
 	mov	bp,sp
+
+	IFDEF DEBUG
+	call	dos_func_check
+	DEFLBL	dos_func_check,near
+	ENDIF
+
 	and	[bp].REG_FL,NOT FL_CARRY
 	cmp	ah,FUNCTBL_SIZE
 	cmc
@@ -129,6 +135,12 @@ DEFPROC	dos_func,DOSFAR
 dc9:	adc	[bp].REG_FL,0
 
 	DEFLBL	dos_exit,near
+
+	IFDEF DEBUG
+	pop	bp
+	ASSERTZ	<cmp bp,offset dos_func_check>
+	ENDIF
+
 	pop	bp
 	pop	di
 	pop	es

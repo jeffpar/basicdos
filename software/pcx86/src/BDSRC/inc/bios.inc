@@ -70,8 +70,8 @@ HI		db	?
 REG16	ends
 
 FARPTR	struc
-off		dw	?
-seg		dw	?
+OFF		dw	?
+SEG		dw	?
 FARPTR	ends
 
 ;
@@ -253,3 +253,11 @@ BIOS		ends
 ; we must add BIOS_DATA (ie, 400h) to them.
 ;
 BIOS_DATA	equ	RS232_BASE
+
+;
+; BIOS-supported characters, scan codes, etc.
+;
+CHR_CTRLC	equ	03h
+CHR_BACKSPACE	equ	08h
+CHR_LINEFEED	equ	0Ah
+CHR_RETURN	equ	0Dh

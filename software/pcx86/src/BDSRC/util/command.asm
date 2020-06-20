@@ -16,12 +16,12 @@ CODE    SEGMENT
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 DEFPROC	main
 	PRINTF	<"hello world",13,10>
-	mov	bx,STDIN
+	cmp	ds:[PSP_PFT][0],1
+	ja	m1
+	mov	ah,DOS_TTY_INPUT
 	mov	dx,offset input
-	mov	cx,1
-	mov	ah,DOS_HDL_READ
 	int	21h
-	mov	dx,36
+m1:	mov	dx,36
 	sub	cx,cx
 	mov	ax,DOS_UTIL_SLEEP
 	int	21h
@@ -29,7 +29,7 @@ DEFPROC	main
 	int	20h
 ENDPROC	main
 
-input	db	32 dup(?)
+input	db	32,?,32 dup (?)
 
 CODE	ENDS
 

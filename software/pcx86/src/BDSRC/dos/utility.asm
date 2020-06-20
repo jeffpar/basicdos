@@ -13,7 +13,7 @@ DOS	segment word public 'CODE'
 
 	EXTERNS	<scb_active>,word
 	EXTERNS	<clk_ptr>,dword
-	EXTERNS	<chk_devname,dev_request,write_tty>,near
+	EXTERNS	<chk_devname,dev_request,write_string>,near
 	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload>,near
 	EXTERNS	<scb_yield,scb_wait,scb_endwait>,near
 
@@ -296,7 +296,7 @@ SPF_WIDTH	dw	?		; specifier width, if any
 SPF_PRECIS	dw	?		; specifier precision, if any
 SPF_START	dw	?		; buffer start address
 SPF_LIMIT	dw	?		; buffer limit address
-SPF_CALLS	dw	2 dup(?)	; two near-call dispatches
+SPF_CALLS	dw REG_PADDING+2 dup(?)	; 2 near-call dispatches on stack
 SPF_FRAME ends
 
 BUFLEN	equ	80			; stack space to use as printf buffer
@@ -315,7 +315,7 @@ DEFPROC	util_printf,DOS
 	ASSUME	DS:NOTHING
 	push	ax
 	xchg	cx,ax			; CX = # of characters
-	call	write_tty
+	call	write_string
 	pop	ax			; recover # of characters for caller
 	add	sp,BUFLEN + offset SPF_CALLS
 	ret

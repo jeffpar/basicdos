@@ -70,7 +70,7 @@ DEFLONG macro	name,values,repeat
 	DEFDATA name,dd,dword,<values>,repeat
 	endm
 ;
-; Tables are like pointers, where .off is the offset but .seg is the limit.
+; Tables are like pointers, where .OFF is the offset but .SEG is the limit.
 ; We don't need to record the segment, because offset is always DS-relative.
 ;
 DEFTBL	macro	names
@@ -111,8 +111,8 @@ name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 ; address, a set of macro invocations like this:
 ;
 ;	DEFPROC function,DOS
-;	LOCVAR	lFileName,byte,11
-;	LOCVAR	lDirEntry,dword,1
+;	LOCVAR	fileName,byte,11
+;	LOCVAR	dirEntry,dword,1
 ;	ENTER
 ;	...
 ;	LEAVE
@@ -120,15 +120,15 @@ name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 ;
 ; will generate equates/code that look like this:
 ;
-;	lFileName equ (byte ptr [bp-13])
-;	lDirEntry equ (dword ptr [bp-17])
+;	fileName equ (byte ptr [bp-13])
+;	dirEntry equ (dword ptr [bp-17])
 ;	sub	sp,16
 ;	...
 ;	add	sp,16
 ;
 ; If you need the address of a LOCVAR variable, use LEA, as in:
 ;
-;	lea	di,lFileName
+;	lea	di,fileName
 ;
 ; DEFPROC will define a LOCBYTES variable representing the number of LOCVAR
 ; bytes that must be allocated on the stack on ENTER and then released on LEAVE.

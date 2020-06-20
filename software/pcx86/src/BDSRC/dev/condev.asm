@@ -131,7 +131,7 @@ DEFPROC	ddcon_read
 	mov	es:[di].DDP_PTR.seg,ax
 	sti
 ;
-; The WAIT condition is satisified when the packet's LENGTH becomes zero.
+; The WAIT condition is satisfied when the packet's LENGTH becomes zero.
 ;
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	mov	ax,DOS_UTIL_WAIT
@@ -161,14 +161,14 @@ DEFPROC	ddcon_write
 	jnz	dcw2
 
 dcw1:	lodsb
-	call	writechar
+	call	write_char
 	loop	dcw1
 	jmp	short dcw9
 
 dcw2:	push	es
 	mov	es,dx
 dcw3:	lodsb
-	call	writecontext
+	call	write_context
 	loop	dcw3
 	pop	es
 
@@ -446,11 +446,11 @@ DEFPROC	ddcon_int29,far
 	mov	dx,[ct_focus]		; for now, use the context with focus
 	test	dx,dx
 	jnz	dci1
-	call	writechar
+	call	write_char
 	jmp	short dci9
 dci1:	push	es
 	mov	es,dx
-	call	writecontext
+	call	write_context
 	pop	es
 dci9:	pop	dx
 	iret
@@ -481,32 +481,32 @@ db1:	sub	dx,dx			; eg, get top left X (DL), Y (DH)
 	mov	bx,word ptr ds:[CT_MAXX]; eg, get bottom right X (BL), Y (BH)
 	lods	word ptr cs:[si]
 	xchg	cx,ax
-	call	writevertpair
+	call	write_vertpair
 	ASSUME	ES:NOTHING
 	lods	word ptr cs:[si]
 	xchg	cx,ax
 db2:	inc	dh			; advance Y, holding X constant
 	cmp	dh,bh
 	jae	db3
-	call	writevertpair
+	call	write_vertpair
 	jmp	db2
 db3:	lods	word ptr cs:[si]
 	xchg	cx,ax
-	call	writevertpair
+	call	write_vertpair
 	lods	word ptr cs:[si]
 	xchg	cx,ax
 db4:	mov	dh,0
 	inc	dx			; advance X, holding Y constant
 	cmp	dl,bl
 	jae	db6
-	call	writehorzpair
+	call	write_horzpair
 	jmp	db4
 db6:	ret
 ENDPROC	draw_border
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; getcurpos
+; get_curpos
 ;
 ; Inputs:
 ;	DX = CURX (DL), CURY (DH)
@@ -518,7 +518,7 @@ ENDPROC	draw_border
 ;	AX, BX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	getcurpos
+DEFPROC	get_curpos
 	mov	al,dh
 	mul	[max_cols]
 	add	ax,ax			; AX = offset to row
@@ -527,7 +527,7 @@ DEFPROC	getcurpos
 	add	bx,bx
 	add	bx,ax			; BX = offset to row and col
 	ret
-ENDPROC	getcurpos
+ENDPROC	get_curpos
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -606,7 +606,7 @@ ENDPROC	scroll
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; writechar
+; write_char
 ;
 ; Inputs:
 ;	AL = character to display
@@ -618,7 +618,7 @@ ENDPROC	scroll
 ;	None
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	writechar
+DEFPROC	write_char
 	push	ax
 	push	bx
 	mov	ah,VIDEO_TTYOUT
@@ -627,11 +627,11 @@ DEFPROC	writechar
 	pop	bx
 	pop	ax
 	ret
-ENDPROC	writechar
+ENDPROC	write_char
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; writecontext
+; write_context
 ;
 ; Inputs:
 ;	AL = character
@@ -644,7 +644,7 @@ ENDPROC	writechar
 ;	None
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	writecontext
+DEFPROC	write_context
 	push	ax
 	push	bx
 	push	cx
@@ -665,7 +665,7 @@ DEFPROC	writecontext
 wc0:	cmp	cl,0Ah
 	je	wclf			; emulate a LINEFEED
 
-	call	writecurpos		; write CL at (DL,DH)
+	call	write_curpos		; write CL at (DL,DH)
 ;
 ; Load CURX,CURY into DX, advance it, update it, and then update the cursor
 ; IFF this context currently has focus.
@@ -686,10 +686,10 @@ wc3:	mov	word ptr ds:[CT_CURX],dx
 	mov	ax,ds
 	cmp	ax,[ct_focus]		; does this context have focus?
 	jne	wc9			; no, leave cursor alone
-	call	getcurpos		; BX = screen offset for CURX,CURY
+	call	get_curpos		; BX = screen offset for CURX,CURY
 	shr	bx,1			; screen offset to cell offset
 	mov	ah,14			; AH = 6845 CURSOR ADDR (HI) register
-	call	writeport		; update cursor position using BX
+	call	write_port		; update cursor position using BX
 
 wc9:	pop	es
 	pop	ds
@@ -698,11 +698,11 @@ wc9:	pop	es
 	pop	bx
 	pop	ax
 	ret
-ENDPROC	writecontext
+ENDPROC	write_context
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; writecurpos
+; write_curpos
 ;
 ; Inputs:
 ;	CL = character
@@ -716,11 +716,11 @@ ENDPROC	writecontext
 ;	AL, DI, ES
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	writecurpos
+DEFPROC	write_curpos
 	push	bx
 	push	dx
 	les	di,ds:[CT_BUFFER]	; ES:DI -> the frame buffer
-	call	getcurpos		; BX = screen offset for CURX,CURY
+	call	get_curpos		; BX = screen offset for CURX,CURY
 	mov	dx,ds:[CT_PORT]
 	add	dl,6			; DX = status port
 wc1:	in	al,dx
@@ -735,11 +735,11 @@ wc2:	in	al,dx
 	pop	dx
 	pop	bx
 	ret
-ENDPROC	writecurpos
+ENDPROC	write_curpos
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; writeport
+; write_port
 ;
 ; Inputs:
 ;	AH = 6845 register #
@@ -752,7 +752,7 @@ ENDPROC	writecurpos
 ;	AL, DX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	writeport
+DEFPROC	write_port
 	mov	dx,ds:[CT_PORT]
 	mov	al,ah
 	out	dx,al			; select 6845 register
@@ -768,11 +768,11 @@ DEFPROC	writeport
 	out	dx,al			; output BL
 	dec	dx
 	ret
-ENDPROC	writeport
+ENDPROC	write_port
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; writehorzpair
+; write_horzpair
 ;
 ; Inputs:
 ;	CH = top char
@@ -785,24 +785,24 @@ ENDPROC	writeport
 ;	DI, ES
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	writehorzpair
+DEFPROC	write_horzpair
 	mov	di,ds
 	cmp	di,[ct_focus]
 	jne	whp1
 	cmp	dl,14			; skip over 14 chars at the top
 	jbe	whp2
 whp1:	xchg	cl,ch
-	call	writecurpos
+	call	write_curpos
 	xchg	cl,ch
 whp2:	xchg	dh,bh
-	call	writecurpos
+	call	write_curpos
 	xchg	dh,bh
 	ret
-ENDPROC	writehorzpair
+ENDPROC	write_horzpair
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; writevertpair
+; write_vertpair
 ;
 ; Inputs:
 ;	CH = left char
@@ -815,15 +815,15 @@ ENDPROC	writehorzpair
 ;	DI, ES
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	writevertpair
+DEFPROC	write_vertpair
 	xchg	cl,ch
-	call	writecurpos
+	call	write_curpos
 	xchg	dl,bl
 	xchg	cl,ch
-	call	writecurpos
+	call	write_curpos
 	xchg	dl,bl
 	ret
-ENDPROC	writevertpair
+ENDPROC	write_vertpair
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

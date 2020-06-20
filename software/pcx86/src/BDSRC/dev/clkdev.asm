@@ -100,7 +100,7 @@ DEFPROC	ddclk_ctlin
 	mov	es:[di].DDP_PTR.seg,ax
 	sti
 ;
-; The WAIT condition is satisified when the packet's LENGTH:OFFSET pair (which
+; The WAIT condition is satisfied when the packet's LENGTH:OFFSET pair (which
 ; should contain a standard CX:DX tick count) has been decremented to zero.
 ;
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")

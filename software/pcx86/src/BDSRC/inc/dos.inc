@@ -41,22 +41,22 @@ DOS_TTY_INPUT	equ	0Ah	; read (DS:DX) line from CON
 DOS_TTY_STATUS	equ	0Bh	; get CON status (AL := 0 if nothing, or FFh)
 DOS_TTY_FLUSH	equ	0Ch	; flush and invoke 01h, 06h, 07h, 08h, or 0Ah
 
-DOS_UTIL_STRLEN		equ	1800h	; return str (DS:SI) len (AX)
-DOS_UTIL_ATOI		equ	1801h	; convert str (DS:SI) to num (AX)
-DOS_UTIL_ITOA		equ	1802h	; convert num (DX:SI) to str (ES:DI)
-DOS_UTIL_PRINTF		equ	1803h	; printf to console
-DOS_UTIL_SPRINTF	equ	1804h	; sprintf to buffer (ES:DI)
-DOS_UTIL_GETDEV		equ	1805h	; get DDH (ES:DI) for device (DS:SI)
-DOS_UTIL_IOCTL		equ	1806h	; issue IOCTL to device (ES:DI)
-DOS_UTIL_LOAD		equ	1807h	; load program (DS:DX) into SCB (CL)
-DOS_UTIL_START		equ	1808h	; start SCB (CL)
-DOS_UTIL_STOP		equ	1809h	; stop SCB (CL)
-DOS_UTIL_UNLOAD		equ	180Ah	; unload program from SCB (CL)
-DOS_UTIL_YIELD		equ	180Bh	; yield
-DOS_UTIL_SLEEP		equ	180Ch	; sleep CX:DX ticks
-DOS_UTIL_WAIT		equ	180Dh	; wait until end wait
-DOS_UTIL_ENDWAIT	equ	180Eh	; end wait
-DOS_UTIL_STDLEN		equ	1824h	; like STRLEN but with 24h as terminator
+DOS_UTIL_STRLEN	 equ  1800h	; return str (DS:SI) len (AX)
+DOS_UTIL_ATOI	 equ  1801h	; convert str (DS:SI) to num (AX)
+DOS_UTIL_ITOA	 equ  1802h	; convert num (DX:SI) to str (ES:DI)
+DOS_UTIL_PRINTF	 equ  1803h	; printf to console
+DOS_UTIL_SPRINTF equ  1804h	; sprintf to buffer (ES:DI)
+DOS_UTIL_GETDEV	 equ  1805h	; get DDH (ES:DI) for device (DS:SI)
+DOS_UTIL_IOCTL	 equ  1806h	; issue IOCTL to device (ES:DI)
+DOS_UTIL_LOAD	 equ  1807h	; load program (DS:DX) into SCB (CL)
+DOS_UTIL_START	 equ  1808h	; start SCB (CL)
+DOS_UTIL_STOP	 equ  1809h	; stop SCB (CL)
+DOS_UTIL_UNLOAD	 equ  180Ah	; unload program from SCB (CL)
+DOS_UTIL_YIELD	 equ  180Bh	; yield
+DOS_UTIL_SLEEP	 equ  180Ch	; sleep CX:DX ticks
+DOS_UTIL_WAIT	 equ  180Dh	; wait until end wait
+DOS_UTIL_ENDWAIT equ  180Eh	; end wait
+DOS_UTIL_STDLEN	 equ  1824h	; like STRLEN but with 24h as terminator
 
 DOS_PSP_CREATE	equ	26h	; create PSP (DX = segment)
 DOS_HDL_OPEN	equ	3Dh	; open handle for device/file (DS:DX)
@@ -72,11 +72,17 @@ DOS_MEM_REALLOC	equ	4Ah	; reallocate memory
 DOS_PSP_SET	equ	50h	; set current PSP (BX)
 DOS_PSP_GET	equ	51h	; get current PSP (BX)
 
+IFNDEF DEBUG
+REG_PADDING	equ	0	; no REG_FRAME padding
+ELSE
+REG_PADDING	equ	1	; extra word of diagnostic info
+ENDIF
+
 REG_FRAME	struc		; register frame created by dos_func
 REG_BP		dw	?
-REG_DI		dw	?	; arranged for LES DI instructions
+REG_DI		dw	?	; in case anyone wants to use LES DI...
 REG_ES		dw	?
-REG_SI		dw	?	; arranged for LDS SI instructions
+REG_SI		dw	?	; in case anyone wants to use LDS SI...
 REG_DS		dw	?
 REG_DX		dw	?
 REG_CX		dw	?
