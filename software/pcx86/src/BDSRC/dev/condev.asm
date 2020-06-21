@@ -658,14 +658,25 @@ DEFPROC	write_context
 ;
 	xchg	cx,ax			; CL = char
 	mov	dx,word ptr ds:[CT_CURX]
-	cmp	cl,0Dh			; return?
+	cmp	cl,CHR_RETURN		; return?
 	jne	wc0
 	mov	dl,1			; emulate a RETURN (CURX = 1)
 	jmp	wc3
-wc0:	cmp	cl,0Ah
+wc0:	cmp	cl,CHR_LINEFEED
 	je	wclf			; emulate a LINEFEED
+	cmp	cl,CHR_BACKSPACE
+	jne	wc2
+	dec	dl
+	jnz	wc3
+	dec	dh
+	jnz	wc1
+	mov	dx,0101h
+	jmp	short wc3
+wc1:	mov	dl,ds:[CT_MAXX]
+	dec	dx
+	jmp	short wc3
 
-	call	write_curpos		; write CL at (DL,DH)
+wc2:	call	write_curpos		; write CL at (DL,DH)
 ;
 ; Load CURX,CURY into DX, advance it, update it, and then update the cursor
 ; IFF this context currently has focus.
@@ -689,7 +700,7 @@ wc3:	mov	word ptr ds:[CT_CURX],dx
 	call	get_curpos		; BX = screen offset for CURX,CURY
 	shr	bx,1			; screen offset to cell offset
 	mov	ah,14			; AH = 6845 CURSOR ADDR (HI) register
-	call	write_port		; update cursor position using BX
+	call	write_6845		; update cursor position using BX
 
 wc9:	pop	es
 	pop	ds
@@ -723,13 +734,13 @@ DEFPROC	write_curpos
 	call	get_curpos		; BX = screen offset for CURX,CURY
 	mov	dx,ds:[CT_PORT]
 	add	dl,6			; DX = status port
-wc1:	in	al,dx
+wcp1:	in	al,dx
 	test	al,01h
-	jnz	wc1			; loop until we're OUTSIDE horz retrace
+	jnz	wcp1			; loop until we're OUTSIDE horz retrace
 	cli
-wc2:	in	al,dx
+wcp2:	in	al,dx
 	test	al,01h
-	jz	wc2			; loop until we're INSIDE horz retrace
+	jz	wcp2			; loop until we're INSIDE horz retrace
 	mov	es:[di+bx],cl		; "write" the character
 	sti
 	pop	dx
@@ -739,7 +750,7 @@ ENDPROC	write_curpos
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; write_port
+; write_6845
 ;
 ; Inputs:
 ;	AH = 6845 register #
@@ -752,9 +763,10 @@ ENDPROC	write_curpos
 ;	AL, DX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	write_port
+DEFPROC	write_6845
 	mov	dx,ds:[CT_PORT]
 	mov	al,ah
+	cli
 	out	dx,al			; select 6845 register
 	inc	dx
 	mov	al,bh
@@ -766,9 +778,10 @@ DEFPROC	write_port
 	inc	dx
 	mov	al,bl
 	out	dx,al			; output BL
+	sti
 	dec	dx
 	ret
-ENDPROC	write_port
+ENDPROC	write_6845
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

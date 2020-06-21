@@ -12,6 +12,7 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<mcb_limit,scb_active,psp_active>,word
+	EXTERNS	<get_scbnum>,near
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -77,10 +78,11 @@ pc2:	inc	dx
 	stosw				; 00h: PSP_EXIT
 	xchg	ax,bx
 	stosw				; 02h: PSP_PARAS (ie, memory limit)
-	xchg	bx,ax
-	mov	ax,9A00h
-	stosw				; 05h: PSP_FARCALL (9Ah)
-	sub	bx,dx			; BX = max para - this para
+	xchg	bx,ax			; save PSP_PARAS in BX
+	call	get_scbnum		; 04h: SCB #
+	mov	ah,9Ah			; 05h: PSP_FARCALL (9Ah)
+	stosw
+	sub	bx,dx			; BX = PSP_PARAS - PSP segment
 	sub	ax,ax			; default to 64K
 	mov	cl,4
 	cmp	bx,1000h		; 64K or more available?
@@ -99,7 +101,7 @@ pc3:	sub	ax,256			; AX = max available bytes this segment
 	sub	ax,bx			; basically, compute 000Ch - (BX SHR 4)
 	stosw				; 08h: PSP_FCSEG
 ;
-; Copy the current INT 22h, INT 23h, and INT 24h vectors next.
+; Copy current INT 22h (ABORT), INT 23h (CTRLC), and INT 24h (ERROR) vectors.
 ;
 	push	ds
 	sub	ax,ax
@@ -114,11 +116,11 @@ pc3:	sub	ax,256			; AX = max available bytes this segment
 	mov	ax,[psp_active]		; 16h: PSP_PARENT
 	stosw
 ;
-; Next up: the PFT (Process File Table); the first 5 PFT slots ("handles") are
+; Next up: the PFT (Process File Table); the first 5 PFT slots (PFHs) are
 ; predefined as STDIN (0), STDOUT (1), STDERR (2), STDAUX (3), and STDPRN (4),
 ; and apparently we're supposed to open an SFB for AUX first, CON second,
-; and PRN third, so that the SFB numbers for the first five handles will always
-; be: 1, 1, 1, 0, and 2.
+; and PRN third, so that the SFHs for the first five handles will always be:
+; 1, 1, 1, 0, and 2.
 ;
 	mov	bx,[scb_active]
 	mov	al,[bx].SCB_SFHCON
@@ -157,6 +159,8 @@ ENDPROC	psp_create
 ;
 ; psp_set (REG_AH = 50h)
 ;
+; In BASICDOS, this only changes SCB_CURPSP, NOT the global psp_active.
+;
 ; Inputs:
 ;	REG_BX = segment of new PSP
 ;
@@ -165,13 +169,17 @@ ENDPROC	psp_create
 ;
 DEFPROC	psp_set,DOS
 	mov	ax,[bp].REG_BX
-	mov	[psp_active],ax
+	mov	bx,[scb_active]
+	ASSERT_STRUC [bx],SCB
+	mov	[bx].SCB_CURPSP,ax
 	ret
 ENDPROC	psp_set
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; psp_get (REG_AH = 51h)
+;
+; In BASICDOS, this only retrieves SCB_CURPSP, NOT the global psp_active.
 ;
 ; Inputs:
 ;	None
@@ -180,7 +188,9 @@ ENDPROC	psp_set
 ;	REG_BX = segment of current PSP
 ;
 DEFPROC	psp_get,DOS
-	mov	ax,[psp_active]
+	mov	bx,[scb_active]
+	ASSERT_STRUC [bx],SCB
+	mov	ax,[bx].SCB_CURPSP
 	mov	[bp].REG_BX,ax
 	ret
 ENDPROC	psp_get

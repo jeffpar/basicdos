@@ -11,6 +11,7 @@
 
 DOS	segment word public 'CODE'
 
+	EXTERNS	<scb_locked>,byte
 	EXTERNS	<mcb_head,psp_active>,word
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -152,6 +153,8 @@ ENDPROC	mcb_split
 ;	AX, BX, CX, DX, DI, ES
 ;
 DEFPROC alloc,DOS
+	inc	[scb_locked]
+
 	mov	es,[mcb_head]
 	ASSUME	ES:NOTHING
 
@@ -201,9 +204,10 @@ a7:	mov	ax,ERR_BADMCB
 
 a8:	mov	ax,ERR_NOMEM
 	mov	bx,dx			; BX = max # paras available
-
 a8a:	stc
-a9:	ret
+
+a9:	dec	[scb_locked]
+	ret
 ENDPROC	alloc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -222,6 +226,8 @@ ENDPROC	alloc
 ;	AX, BX, CX, DX, DI, ES
 ;
 DEFPROC realloc,DOS
+	inc	[scb_locked]
+
 	dec	ax
 	mov	es,ax			; ES:0 -> MCB
 	ASSUME	ES:NOTHING
@@ -251,7 +257,9 @@ r7:	mov	ax,ERR_BADMCB
 r8:	mov	bx,cx			; BX = maximum # of paras available
 	mov	ax,ERR_NOMEM
 r8a:	stc
-r9:	ret
+
+r9:	dec	[scb_locked]
+	ret
 ENDPROC	realloc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -273,6 +281,8 @@ ENDPROC	realloc
 ;	AX, BX, DX, ES
 ;
 DEFPROC	free,DOS
+	inc	[scb_locked]
+
 	mov	bx,[mcb_head]		; BX tracks ES
 	dec	ax			; AX = candidate MCB
 	sub	dx,dx			; DX = previous MCB (0 if not free)
@@ -334,7 +344,9 @@ f7:	mov	ax,ERR_BADMCB
 
 f8:	mov	ax,ERR_BADADDR
 f8a:	stc
-f9:	ret
+
+f9:	dec	[scb_locked]
+	ret
 ENDPROC	free
 
 DOS	ends

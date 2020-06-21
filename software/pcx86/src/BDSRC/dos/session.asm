@@ -36,8 +36,8 @@ DOS	segment word public 'CODE'
 DEFPROC	get_scb,DOS
 	mov	al,size SCB
 	mul	cl
-	add	ax,[scb_table].off
-	cmp	ax,[scb_table].seg
+	add	ax,[scb_table].OFF
+	cmp	ax,[scb_table].SEG
 	cmc
 	jb	gs9
 	mov	bx,ax
@@ -46,6 +46,34 @@ DEFPROC	get_scb,DOS
 	stc
 gs9:	ret
 ENDPROC	get_scb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_scbnum
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	AL = SCB # of scb_active (-1 if error)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	get_scbnum,DOS
+	ASSUME	ES:NOTHING
+	mov	ax,[scb_active]
+	sub	ax,[scb_table].OFF
+	ASSERTNC
+	jnc	gsn1
+	sbb	ax,ax
+	jmp	short gsn9
+gsn1:	push	dx
+	mov	dl,size SCB
+	div	dl
+	pop	dx
+gsn9:	ret
+ENDPROC	get_scbnum
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -90,9 +118,7 @@ sl2:	sub	bx,10h			; subtract paras for the PSP header
 	mov	ah,DOS_PSP_CREATE
 	int	21h			; create new PSP at DX
 
-	mov	bx,dx
-	mov	ah,DOS_PSP_SET
-	int	21h			; update current PSP using BX
+	mov	[psp_active],dx		; we have to update to the REAL PSP now
 
 	xchg	dx,di
 	push	es
@@ -188,10 +214,7 @@ sle2a:	jc	sle2
 	pop	ds
 	ASSUME	DS:DOS
 	mov	bx,[scb_active]
-	ASSERT_STRUC [bx],SCB
-	mov	[bx].SCB_STACK.off,di
-	mov	[bx].SCB_STACK.seg,dx
-	or	[bx].SCB_STATUS,SCSTAT_LOAD
+	call	scb_init
 	jmp	short sl8
 ;
 ; Error paths (eg, close the file handle, free the memory for the new PSP)
@@ -215,6 +238,42 @@ sl8:	pop	bx			; recover previous SCB
 
 sl9:	ret
 ENDPROC	scb_load
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; scb_init
+;
+; Prepare the specified SCB to run.
+;
+; Inputs:
+;	BX -> SCB
+;	DX:DI = initial stack pointer
+;
+; Modifies:
+;	AX, BX, CX, ES, DI
+;
+DEFPROC	scb_init,DOS
+	ASSUME	ES:NOTHING
+	ASSERT_STRUC [bx],SCB
+	mov	[bx].SCB_STACK.OFF,di
+	mov	[bx].SCB_STACK.SEG,dx
+	push	bx
+	push	ds
+	push	ds
+	pop	es
+	lea	di,[bx].SCB_ABORT	; ES:DI -> SCB vectors
+	sub	si,si
+	mov	ds,si
+	ASSUME	DS:BIOS
+	mov	si,INT_DOSABORT * 4	; DS:SI -> IVT vectors
+	mov	cx,6			; move 3 vectors (6 words)
+	rep	movsw
+	pop	ds
+	ASSUME	DS:DOS
+	pop	bx
+	or	[bx].SCB_STATUS,SCSTAT_LOAD
+	ret
+ENDPROC	scb_init
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -261,9 +320,10 @@ ENDPROC	scb_lock
 ;	BX -> previous SCB
 ;
 ; Modifies:
-;	BX, DX
+;	BX, DX (but not carry)
 ;
 DEFPROC	scb_unlock,DOS
+	pushf
 	push	bx
 	xchg	bx,[scb_active]		; BX -> current SCB
 	ASSERT_STRUC [bx],SCB
@@ -275,7 +335,8 @@ DEFPROC	scb_unlock,DOS
 	ASSERT_STRUC [bx],SCB
 	mov	dx,[bx].SCB_CURPSP
 	mov	[psp_active],dx
-su9:	dec	[scb_locked]		; NOTE: does not affect carry
+su9:	dec	[scb_locked]
+	popf
 	ret
 ENDPROC	scb_unlock
 
@@ -373,16 +434,16 @@ DEFPROC	scb_yield,DOS
 	mov	bx,ax
 	ASSERT_STRUC [bx],SCB
 sy1:	add	bx,size SCB
-	cmp	bx,[scb_table].seg
+	cmp	bx,[scb_table].SEG
 	jb	sy3
-sy2:	mov	bx,[scb_table].off
+sy2:	mov	bx,[scb_table].OFF
 sy3:	cmp	bx,ax			; have we looped to where we started?
 	je	sy9			; yes
 	test	[bx].SCB_STATUS,SCSTAT_START
 	jz	sy1			; ignore this SCB, hasn't been started
 	ASSERT_STRUC [bx],SCB
-	mov	dx,[bx].SCB_WAITID.off
-	or	dx,[bx].SCB_WAITID.seg
+	mov	dx,[bx].SCB_WAITID.OFF
+	or	dx,[bx].SCB_WAITID.SEG
 	jnz	sy1
 	jmp	scb_switch
 sy9:	ret
@@ -409,14 +470,14 @@ DEFPROC	scb_switch,DOS
 	mov	dx,[psp_active]
 	mov	[bx].SCB_CURPSP,dx
 	add	sp,4			; toss 2 near-call return addresses
-	mov	[bx].SCB_STACK.seg,ss
-	mov	[bx].SCB_STACK.off,sp
+	mov	[bx].SCB_STACK.SEG,ss
+	mov	[bx].SCB_STACK.OFF,sp
 sw8:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
 	ASSERT_STRUC [bx],SCB
 	mov	dx,[bx].SCB_CURPSP
 	mov	[psp_active],dx
-	mov	ss,[bx].SCB_STACK.seg
-	mov	sp,[bx].SCB_STACK.off
+	mov	ss,[bx].SCB_STACK.SEG
+	mov	sp,[bx].SCB_STACK.OFF
 	jmp	dos_exit
 sw9:	ret
 ENDPROC	scb_switch
@@ -438,8 +499,8 @@ DEFPROC	scb_wait,DOS
 	cli
 	mov	bx,[scb_active]
 	ASSERT_STRUC [bx],SCB
-	mov	[bx].SCB_WAITID.off,di
-	mov	[bx].SCB_WAITID.seg,dx
+	mov	[bx].SCB_WAITID.OFF,di
+	mov	[bx].SCB_WAITID.SEG,dx
 	sti
 	sub	ax,ax
 	jmp	scb_yield
@@ -460,17 +521,17 @@ ENDPROC	scb_wait
 ;
 DEFPROC	scb_endwait,DOS
 	cli
-	mov	bx,[scb_table].off
+	mov	bx,[scb_table].OFF
 se1:	ASSERT_STRUC [bx],SCB
-	cmp	[bx].SCB_WAITID.off,di
+	cmp	[bx].SCB_WAITID.OFF,di
 	jne	se2
-	cmp	[bx].SCB_WAITID.seg,dx
+	cmp	[bx].SCB_WAITID.SEG,dx
 	jne	se2
-	mov	[bx].SCB_WAITID.off,0
-	mov	[bx].SCB_WAITID.seg,0
+	mov	[bx].SCB_WAITID.OFF,0
+	mov	[bx].SCB_WAITID.SEG,0
 	jmp	short se9
 se2:	add	bx,size SCB
-	cmp	bx,[scb_table].seg
+	cmp	bx,[scb_table].SEG
 	jb	se1
 	stc
 se9:	sti

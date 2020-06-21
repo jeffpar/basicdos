@@ -9,6 +9,9 @@
 ;
 	include	dev.inc
 
+;
+; DOS interrupt vector table (IVT) usage
+;
 INT_DOSTERM	equ	20h	; terminate program
 INT_DOSFUNC	equ	21h	; DOS function interface
 INT_DOSABORT	equ	22h	; handler for program termination notification
@@ -27,6 +30,9 @@ INT_DOSCMD	equ	2Eh	; COMMAND.COM operation
 INT_DOSMULTI	equ	2Fh	; multiplex function interface
 INT_DOSCALL5	equ	30h	; vector has FAR JMP (overwrites vector 31h too)
 
+;
+; DOS functions
+;
 DOS_PSP_QUIT	equ	00h	; same function as INT 20h
 DOS_TTY_ECHO	equ	01h	; read CON and echo (AL := char)
 DOS_TTY_WRITE	equ	02h	; write CON (DL = char)
@@ -58,7 +64,9 @@ DOS_UTIL_WAIT	 equ  180Dh	; wait until end wait
 DOS_UTIL_ENDWAIT equ  180Eh	; end wait
 DOS_UTIL_STDLEN	 equ  1824h	; like STRLEN but with 24h as terminator
 
+DOS_MSC_SETVEC	equ	25h	; set vector (AL) to addr (DS:DX)
 DOS_PSP_CREATE	equ	26h	; create PSP (DX = segment)
+DOS_MSC_GETVEC	equ	35h	; get vector (AL) addr (ES:BX)
 DOS_HDL_OPEN	equ	3Dh	; open handle for device/file (DS:DX)
 DOS_HDL_CLOSE	equ	3Eh	; close handle (BX)
 DOS_HDL_READ	equ	3Fh	; read (CX) bytes at (DS:DX) with handle (BX)
@@ -113,6 +121,16 @@ REG_DH		equ 	(REG_DX.HI)
 ;
 ; Session Control Block (SCB)
 ;
+; SIDEBAR: I abhor setting per-process information in the IVT, so we'll
+; pretend that all the apps we care about are well-behaved, which means if
+; they want to set any of the ABORT/CTRLC/ERROR handlers, they'll use the
+; DOS_SET_VECTOR function, which will update the SCB vectors below, rather
+; than the actual IVT vectors.
+;
+; That will save scb_switch from having to save/restore IVT vectors on every
+; switch.  If it turns out I care about running non-well-behaved apps later,
+; then I'll add some vector-checking logic at appropriate checkpoints.
+;
 SCB		struc
 SCB_STATUS	db	?	; 00h: SCB status
 SCB_SFHCON	db	?	; 01h: SFH for CON
@@ -123,6 +141,9 @@ SCB_STACK	dd	?	; 08h: pointer to session stack
 SCB_CURPSP	dw	?	; 0Ch: current PSP
 SCB_CURDRV	db	?	; 0Eh: current drive #
 SCB_RESERVED	db	?	; 0Fh (holds SCBSIG in DEBUG builds)
+SCB_ABORT	dd	?	; 10h: current ABORT handler
+SCB_CTRLC	dd	?	; 14h: current CTRLC handler
+SCB_ERROR	dd	?	; 18h: current ERROR handler
 SCB		ends
 
 SCBSIG		equ	'S'
@@ -165,13 +186,13 @@ FCB		ends
 PSP		struc
 PSP_EXIT	dw	?	; 00h: INT 20h
 PSP_PARAS	dw	?	; 02h: paragraphs available
-PSP_UNUSED	db	?	; 04h
+PSP_SCB		db	?	; 04h: SCB # (normally unused in "real" DOS)
 PSP_FARCALL	db	?	; 05h: far call (9Ah)
 PSP_SIZE	dw	?	; 06h: size of PSP segment
 PSP_FCSEG	dw	?	; 08h: far call segment
-PSP_INT22	dd	?	; 0Ah: INT 22h vector
-PSP_INT23	dd	?	; 0Eh: INT 23h vector
-PSP_INT24	dd	?	; 12h: INT 24h vector
+PSP_PREV_ABORT	dd	?	; 0Ah: original INT 22h vector
+PSP_PREV_CTRLC	dd	?	; 0Eh: original INT 23h vector
+PSP_PREV_ERROR	dd	?	; 12h: original INT 24h vector
 PSP_PARENT	dw	?	; 16h: PSP of parent
 PSP_PFT		db     20 dup(?); 18h: Process File Table
 PSP_ENVSEG	dw	?	; 2Ch

@@ -19,11 +19,13 @@ DOS	segment word public 'CODE'
 ;
 ; tty_echo (REG_AH = 01h)
 ;
+; Reads a character from the console, echoes it, and checks for CTRLC.
+;
 ; Inputs:
 ;	None
 ;
 ; Outputs:
-;	AL = character from keyboard; if AL = CHR_CTRLC, issues INT_DOSCTRLC
+;	AL = character from console; if AL = CHR_CTRLC, issues INT_DOSCTRLC
 ;
 ; Modifies:
 ;	AX, SI
@@ -77,7 +79,7 @@ ENDPROC	tty_io
 ;	None
 ;
 ; Outputs:
-;	AL = character from keyboard
+;	AL = character from console
 ;
 ; Modifies:
 ;	AX
@@ -94,7 +96,7 @@ ENDPROC	tty_in
 ;	None
 ;
 ; Outputs:
-;	AL = character from keyboard; if AL = CHR_CTRLC, issues INT_DOSCTRLC
+;	AL = character from console; if AL = CHR_CTRLC, issues INT_DOSCTRLC
 ;
 ; Modifies:
 ;	AX
