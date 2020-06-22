@@ -43,7 +43,7 @@ DDATTR_CHAR	equ	8000h	; set if character device, clear if block
 DDATTR_BLOCK	equ	0000h
 
 ;
-; Device driver commands
+; Device driver commands (see DDP_CMD)
 ;
 DDC_INIT	equ	0	; Init
 DDC_MEDIACHK	equ	1	; Media Check (Block devices only)

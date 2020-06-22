@@ -24,7 +24,7 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
 	DEFLBL	CON_LIMITS,word
-	dw	16,80,  4,25	; mirrors sysinit's default CFG_CONSOLE
+	dw	16,80,  4,25	; mirrors sysinit's CFG_CONSOLE defaults
 	dw	 0,79,  0,24
 
 	DEFLBL	DBL_BORDER,word
@@ -48,17 +48,20 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 ;
 CONTEXT		struc
 CT_NEXT		dw	?	; 00h: segment of next context, 0 if end
-CT_CONW		db	?	; 02h: eg, context width (eg, 80 cols)
-CT_CONH		db	?	; 03h: eg, context height (eg, 25 rows)
-CT_CONX		db	?	; 04h: eg, content X of top left (eg, 0)
-CT_CONY		db	?	; 05h: eg, content Y of top left (eg, 0)
-CT_CURX		db	?	; 06h: eg, cursor X within context (eg, 1)
-CT_CURY		db	?	; 07h: eg, cursor Y within context (eg, 1)
-CT_MAXX		db	?	; 08h; eg, maximum X within context (eg, 79)
-CT_MAXY		db	?	; 09h: eg, maximum Y within context (eg, 24)
-CT_PORT		dw	?	; 0Ah: eg, 3D4h
+CT_STATUS	dw	?	; 02h: context status bits (CTSTAT_*)
+CT_CONW		db	?	; 04h: eg, context width (eg, 80 cols)
+CT_CONH		db	?	; 05h: eg, context height (eg, 25 rows)
+CT_CONX		db	?	; 06h: eg, content X of top left (eg, 0)
+CT_CONY		db	?	; 07h: eg, content Y of top left (eg, 0)
+CT_CURX		db	?	; 08h: eg, cursor X within context (eg, 1)
+CT_CURY		db	?	; 09h: eg, cursor Y within context (eg, 1)
+CT_MAXX		db	?	; 0Ah; eg, maximum X within context (eg, 79)
+CT_MAXY		db	?	; 0Bh: eg, maximum Y within context (eg, 24)
 CT_BUFFER	dd	?	; 0Ch: eg, 0B800h:00A2h
+CT_PORT		dw	?	; 10h: eg, 3D4h
 CONTEXT		ends
+
+CTSTAT_PAUSED	equ	0001h	; context is paused (triggered by CTRLS hotkey)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -118,24 +121,12 @@ DEFPROC	ddcon_read
 	call	read_kbd
 	jnc	dcr9
 ;
-; For WAIT requests, we add this packet to an internal chain of "waiting"
-; packets, and then tell DOS that we're waiting; DOS will suspend the current
-; SCB until we notify DOS that this packet's conditions are satisified.
+; For READ requests that cannot be satisifed, we add this packet to an
+; internal chain of "reading" packets, and then tell DOS that we're waiting;
+; DOS will suspend the current SCB until we notify DOS that this packet's
+; conditions are satisified.
 ;
-	cli
-	mov	ax,di
-	xchg	[wait_ptr].off,ax
-	mov	es:[di].DDP_PTR.off,ax
-	mov	ax,es
-	xchg	[wait_ptr].seg,ax
-	mov	es:[di].DDP_PTR.seg,ax
-	sti
-;
-; The WAIT condition is satisfied when the packet's LENGTH becomes zero.
-;
-	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	mov	ax,DOS_UTIL_WAIT
-	int	21h
+	call	add_packet
 
 dcr9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	ret
@@ -156,6 +147,7 @@ DEFPROC	ddcon_write
 	jcxz	dcw9
 
 	lds	si,es:[di].DDPRW_ADDR
+	ASSUME	DS:NOTHING
 	mov	dx,es:[di].DDP_CONTEXT
 	test	dx,dx
 	jnz	dcw2
@@ -167,6 +159,18 @@ dcw1:	lodsb
 
 dcw2:	push	es
 	mov	es,dx
+	test	es:[CT_STATUS],CTSTAT_PAUSED
+	jz	dcw3
+;
+; For WRITE requests that cannot be satisifed, we add this packet to an
+; internal chain of "writing" packets, and then tell DOS that we're waiting;
+; DOS will suspend the current SCB until we notify DOS that this packet's
+; conditions are satisified.
+;
+	pop	es			; ES:DI -> packet again
+	call	add_packet
+	jmp	dcw2			; when this returns, try writing again
+
 dcw3:	lodsb
 	call	write_context
 	loop	dcw3
@@ -227,6 +231,7 @@ dco1:	mov	ds,ax
 	mov	[ct_focus],ax
 dco1a:	xchg	[ct_head],ax
 	mov	ds:[CT_NEXT],ax
+	mov	ds:[CT_STATUS],0
 ;
 ; Set context screen size (CONW,CONH) and position (CONX,CONY) based on
 ; (CL,CH) and (DL,DH), and then set context cursor maximums (MAXX,MAXY) from
@@ -392,12 +397,24 @@ ddi2:	cmp	di,-1			; end of chain?
 	cmp	es:[di].DDP_CONTEXT,ax	; packet from console with focus?
 	jne	ddi6			; no
 
-	call	read_kbd		; read keyboard data
+	cmp	es:[di].DDP_CMD,DDC_READ; READ packet?
+	je	ddi3			; yes, look for keyboard data
+;
+; For WRITE packets (which we'll assume this is for now), we need to end the
+; wait if the context is no longer paused (ie, check_hotkey may have unpaused).
+;
+	push	es
+	mov	es,ax
+	test	es:[CT_STATUS],CTSTAT_PAUSED
+	pop	es
+	jz	ddi4			; yes, we're no longer paused
+
+ddi3:	call	read_kbd		; read keyboard data
 	jc	ddi9			; request not yet satisfied
 ;
 ; Notify DOS that this packet is done waiting.
 ;
-	mov	dx,es			; DX:DI -> packet (aka "wait ID")
+ddi4:	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	mov	ax,DOS_UTIL_ENDWAIT
 	int	21h
 	ASSERTNC
@@ -409,7 +426,7 @@ ddi2:	cmp	di,-1			; end of chain?
 	mov	ax,es:[di].DDP_PTR.seg
 	mov	[bx].seg,ax
 
-	mov	ax,DOS_UTIL_YIELD	; allow rescheduling to occur now
+	mov	ax,DOS_UTIL_YIELD	; allow rescheduling now
 	int	21h
 	jmp	short ddi9
 
@@ -460,6 +477,38 @@ ENDPROC	ddcon_int29
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; add_packet
+;
+; Inputs:
+;	ES:DI -> DDP
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	add_packet
+	cli
+	mov	ax,di
+	xchg	[wait_ptr].off,ax
+	mov	es:[di].DDP_PTR.off,ax
+	mov	ax,es
+	xchg	[wait_ptr].seg,ax
+	mov	es:[di].DDP_PTR.seg,ax
+	sti
+;
+; The WAIT condition will be satisfied when the context is unpaused.
+;
+	mov	dx,es			; DX:DI -> packet (aka "wait ID")
+	mov	ax,DOS_UTIL_WAIT
+	int	21h
+	ret
+ENDPROC	add_packet
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; check_hotkey
 ;
 ; Inputs:
@@ -469,7 +518,7 @@ ENDPROC	ddcon_int29
 ;	If carry clear, AL = hotkey char code, AH = hotkey scan code
 ;
 ; Modifies:
-;	AX
+;	AX, DX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	check_hotkey
@@ -478,20 +527,46 @@ DEFPROC	check_hotkey
 	sub	bx,bx
 	mov	ds,bx
 	ASSUME	DS:BIOS
+
 	mov	bx,[BUFFER_TAIL]
 	cmp	bx,[BUFFER_HEAD]
 	je	ch8			; BIOS buffer empty
 	sub	bx,2			; rewind the tail
 	cmp	bx,offset KB_BUFFER - offset BIOS_DATA
-	jae	ch2
+	jae	ch1
 	add	bx,size KB_BUFFER
-ch2:	mov	ax,[BIOS_DATA][bx]	; AL = char code, AH = scan code
-	cmp	al,CHR_CTRLC		; CTRLC?
-	jne	ch3			; no
+ch1:	mov	ax,[BIOS_DATA][bx]	; AL = char code, AH = scan code
+;
+; Let's take care of PAUSE checks first, because only CTRLS enables PAUSE,
+; and everything else disables it.
+;
+	mov	dx,[ct_focus]
+	test	dx,dx
+	jz	ch4
+	push	ds
+	mov	ds,dx
+	ASSUME	DS:NOTHING
+	cmp	al,CHR_CTRLS		; CTRLS?
+	jne	ch2			; no (anything else unpauses)
+	xor	ds:[CT_STATUS],CTSTAT_PAUSED
+	jmp	short ch3
+ch2:	and	ds:[CT_STATUS],NOT CTSTAT_PAUSED
+ch3:	pop	ds
+	ASSUME	DS:BIOS
+
+ch4:	test	ax,ax			; CTRL_BREAK?
+	jnz	ch5
+	mov	al,CHR_CTRLC		; yes, map it to CTRLC
+	mov	[BIOS_DATA][bx],ax	; in the buffer as well
+
+ch5:	cmp	al,CHR_CTRLC		; CTRLC?
+	jne	ch6			; no
 	mov	[BUFFER_HEAD],bx	; yes, advance the head toward the tail
-	jmp	short ch9
-ch3:	cmp	al,CHR_CTRLP		; CTRLP?
-	je	ch9			; yes
+	jmp	short ch9		; and return carry clear
+
+ch6:	cmp	al,CHR_CTRLP		; CTRLP?
+	je	ch9			; yes, return carry clear
+
 ch8:	stc
 ch9:	pop	ds
 	ASSUME	DS:NOTHING
