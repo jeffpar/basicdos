@@ -11,6 +11,7 @@
 
 DOS	segment word public 'CODE'
 
+	EXTERNS	<ctrlc_active,ctrlp_active>,byte
 	EXTERNS	<scb_active>,word
 	EXTERNS	<clk_ptr>,dword
 	EXTERNS	<chk_devname,dev_request,write_string>,near
@@ -21,7 +22,7 @@ DOS	segment word public 'CODE'
 	dw	util_strlen,  util_atoi,    util_itoa,   util_printf	; 00h-03h
 	dw	util_sprintf, util_getdev,  util_ioctl,  util_load	; 04h-07h
 	dw	scb_start,    scb_stop,     scb_unload,  util_yield	; 08h-0Bh
-	dw	util_sleep,   scb_wait,     scb_endwait, util_none	; 0Ch-0Fh
+	dw	util_sleep,   scb_wait,     scb_endwait, util_hotkey	; 0Ch-0Fh
 	dw	util_none,    util_none,    util_none,   util_none	; 10h-13h
 	dw	util_none,    util_none,    util_none,   util_none	; 14h-17h
 	dw	util_none,    util_none,    util_none,   util_none	; 18h-1Bh
@@ -645,6 +646,26 @@ DEFPROC	util_sleep,DOS
 	call	dev_request		; call the driver
 	ret
 ENDPROC	util_sleep
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; util_hotkey (AX = 180Fh)
+;
+; Inputs:
+;	REG_DL = char code, REG_DH = scan code
+;
+; Modifies:
+;
+DEFPROC	util_hotkey,DOS
+	xchg	ax,dx			; AL = char code, AH = scan code
+	cmp	al,CHR_CTRLC
+	jne	hk1
+	or	[ctrlc_active],-1
+hk1:	cmp	al,CHR_CTRLP
+	jne	hk2
+	xor	[ctrlp_active],-1
+hk2:	ret
+ENDPROC	util_hotkey
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

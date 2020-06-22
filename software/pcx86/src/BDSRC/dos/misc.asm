@@ -11,7 +11,9 @@
 
 DOS	segment word public 'CODE'
 
+	EXTERNS	<ctrlc_all,ctrlc_active>,byte
 	EXTERNS	<scb_active>,word
+	EXTERNS	<write_string>,near
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -46,6 +48,65 @@ msv1:	xchg	di,ax			; ES:DI -> vector to write
 	clc
 	ret
 ENDPROC	msc_setvec
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; msc_setctrlc (REG_AH = 33h)
+;
+; Inputs:
+;	REG_AL = 0 to get current CTRLC state in REG_DL
+;	REG_AL = 1 to set current CTRLC state in REG_DL
+;
+; Outputs:
+;	REG_DL = current state if REG_AL = 1, or 0FFh if REG_AL neither 0 nor 1
+;
+DEFPROC	msc_setctrlc,DOS
+	sub	al,1
+	jae	msc1
+	mov	al,[ctrlc_all]		; AL was 0
+	mov	[bp].REG_DL,al		; so return ctrlc_all in REG_DL
+	clc
+	jmp	short msc9
+msc1:	jnz	msc2			; jump if AL was neither 0 nor 1
+	mov	al,[bp].REG_DL		; AL was 1
+	sub	al,1			; so convert REG_DL to 0 or 1
+	sbb	al,al
+	inc	ax
+	mov	[ctrlc_all],al
+	clc
+	jmp	short msc9
+msc2:	mov	al,0FFh
+	stc
+msc9:	ret
+ENDPROC	msc_setctrlc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; msc_sigctrlc
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+DEFPROC	msc_sigctrlc,DOS
+	mov	[ctrlc_active],0
+	push	cx
+	push	si
+	mov	cx,4
+	mov	si,offset STR_CTRLC
+	call	write_string
+	pop	si
+	pop	cx
+	clc
+	int	INT_DOSCTRLC
+	jnc	msg9
+	int	INT_DOSABORT
+msg9:	ret
+ENDPROC	msc_sigctrlc
+
+STR_CTRLC db	"^C",CHR_RETURN,CHR_LINEFEED
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

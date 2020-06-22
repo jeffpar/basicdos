@@ -371,25 +371,27 @@ DEFPROC	ddcon_interrupt,far
 	mov	ax,cs
 	mov	ds,ax
 	ASSUME	DS:CODE
-	mov	ax,[ct_focus]
+
+	call	check_hotkey
+	jc	ddi1
+	xchg	dx,ax			; DL = char code, DH = scan code
+	mov	ax,DOS_UTIL_HOTKEY	; notify DOS
+	int	21h
+
+ddi1:	mov	ax,[ct_focus]
 	mov	bx,offset wait_ptr	; DS:BX -> ptr
 	les	di,[bx]			; ES:DI -> packet, if any
 	ASSUME	ES:NOTHING
 	sti
 
-ddi1:	cmp	di,-1			; end of chain?
+ddi2:	cmp	di,-1			; end of chain?
 	je	ddi9			; yes
 
 	ASSERT_STRUC es:[di],DDP
 
 	cmp	es:[di].DDP_CONTEXT,ax	; packet from console with focus?
 	jne	ddi6			; no
-;
-; TODO: Consider whether we need to be worried about another keyboard
-; interrupt arriving while we're still processing this one.  If it happened,
-; then obviously BUFFER_TAIL would be a moving target, but that in itself is
-; not necessarily a problem....
-;
+
 	call	read_kbd		; read keyboard data
 	jc	ddi9			; request not yet satisfied
 ;
@@ -416,7 +418,7 @@ ddi6:	lea	bx,[di].DDP_PTR		; update prev addr ptr in DS:BX
 	pop	ds
 
 ddi7:	les	di,es:[di].DDP_PTR
-	jmp	ddi1
+	jmp	ddi2
 
 ddi9:	pop	es
 	pop	ds
@@ -455,6 +457,47 @@ dci1:	push	es
 dci9:	pop	dx
 	iret
 ENDPROC	ddcon_int29
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; check_hotkey
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	If carry clear, AL = hotkey char code, AH = hotkey scan code
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	check_hotkey
+	push	bx
+	push	ds
+	sub	bx,bx
+	mov	ds,bx
+	ASSUME	DS:BIOS
+	mov	bx,[BUFFER_TAIL]
+	cmp	bx,[BUFFER_HEAD]
+	je	ch8			; BIOS buffer empty
+	sub	bx,2			; rewind the tail
+	cmp	bx,offset KB_BUFFER - offset BIOS_DATA
+	jae	ch2
+	add	bx,size KB_BUFFER
+ch2:	mov	ax,[BIOS_DATA][bx]	; AL = char code, AH = scan code
+	cmp	al,CHR_CTRLC		; CTRLC?
+	jne	ch3			; no
+	mov	[BUFFER_HEAD],bx	; yes, advance the head toward the tail
+	jmp	short ch9
+ch3:	cmp	al,CHR_CTRLP		; CTRLP?
+	je	ch9			; yes
+ch8:	stc
+ch9:	pop	ds
+	ASSUME	DS:NOTHING
+	pop	bx
+	ret
+ENDPROC	check_hotkey
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -545,20 +588,20 @@ ENDPROC	get_curpos
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	read_kbd
 	push	bx
-	push	ds			; save the previous ptr addr
+	push	ds
 	sub	bx,bx
 	mov	ds,bx
 	ASSUME	DS:BIOS
 	mov	bx,[BUFFER_HEAD]
-ddi2:	cmp	bx,[BUFFER_TAIL]
+rk2:	cmp	bx,[BUFFER_TAIL]
 	stc
-	je	ddi4			; BIOS buffer empty
+	je	rk4			; BIOS buffer empty
 	mov	ax,[BIOS_DATA][bx]	; AL = char code, AH = scan code
 	add	bx,2
 	cmp	bx,offset KB_BUFFER - offset BIOS_DATA + size KB_BUFFER
-	jne	ddi3
-	mov	bx,offset KB_BUFFER - offset BIOS_DATA
-ddi3:	mov	[BUFFER_HEAD],bx
+	jne	rk3
+	sub	bx,size KB_BUFFER
+rk3:	mov	[BUFFER_HEAD],bx
 	push	bx
 	push	ds
 	lds	bx,es:[di].DDPRW_ADDR	; DS:BX -> next read/write address
@@ -568,9 +611,9 @@ ddi3:	mov	[BUFFER_HEAD],bx
 	pop	ds
 	pop	bx
 	dec	es:[di].DDPRW_LENGTH	; have we satisfied the request yet?
-	jnz	ddi2			; no
+	jnz	rk2			; no
 	clc
-ddi4:	pop	ds
+rk4:	pop	ds
 	ASSUME	DS:NOTHING
 	pop	bx
 	ret

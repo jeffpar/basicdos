@@ -915,7 +915,7 @@ DEFPROC	get_bpb,DOS
 	mov	ah,DDC_BUILDBPB		; ask the driver to rebuild our BPB
 	call	dev_request
 	jc	gb8
-	call	flush_buffers		; flush any buffers with data from drive
+	call	dsk_flush		; flush any buffers with data from drive
 gb8:	pop	es
 	pop	di
 gb9:	pop	dx
@@ -1096,21 +1096,21 @@ ENDPROC	set_pft_free
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; flush_buffers
+; dsk_flush
 ;
 ; TODO: For now, since we haven't yet implemented a buffer cache, all we
 ; have to do is zap the LBAs in the two BIOS sector buffers.
 ;
 ; Inputs:
-;	AL = drive #
+;	AL = drive #, or -1 for all drives (TODO)
 ;
 ; Outputs:
 ;	Flush all buffers containing data for the specified drive
 ;
 ; Modifies:
-;	None
+;	None (carry clear)
 ;
-DEFPROC	flush_buffers,DOS
+DEFPROC	dsk_flush,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	push	dx
 	push	ds
@@ -1126,8 +1126,9 @@ fb2:	cmp	ds:[DIR_BUFHDR].BUF_DRIVE,al
 fb3:	pop	ds
 	ASSUME	DS:NOTHING
 	pop	dx
+	clc
 	ret
-ENDPROC	flush_buffers
+ENDPROC	dsk_flush
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

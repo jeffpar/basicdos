@@ -13,6 +13,8 @@ DOS	segment word public 'CODE'
 
 	EXTERNS	<FUNCTBL>,word
 	EXTERNS	<FUNCTBL_SIZE>,abs
+	EXTERNS	<ctrlc_all,ctrlc_active>,byte
+	EXTERNS	<msc_sigctrlc>,near
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -74,6 +76,7 @@ ENDPROC	dos_oferr
 ; TODO
 ;
 DEFPROC	dos_term,DOSFAR
+	int 3
 	iret
 ENDPROC	dos_term
 
@@ -126,7 +129,15 @@ DEFPROC	dos_func,DOSFAR
 ; For convenience, all general-purpose registers except BX, DS, and ES still
 ; contain their original values.
 ;
-	call	FUNCTBL[bx]
+	test	[ctrlc_active],-1	; has CTRLC been detected?
+	jz	dc8			; no
+	cmp	ah,DOS_UTIL		; utility functions shall be exempt
+	je	dc8			; from CTRLC checking
+	test	[ctrlc_all],-1		; is checking enabled for all others?
+	jz	dc8			; no
+	call	msc_sigctrlc		; check CTRLC
+
+dc8:	call	FUNCTBL[bx]
 	ASSUME	DS:NOTHING, ES:NOTHING
 ;
 ; We'd just as soon IRET to the caller (which also restores their D flag),
@@ -155,10 +166,43 @@ ENDPROC	dos_func
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dos_default (eg, INT 22h, INT 23h, INT 24h, INT 28h)
+; dos_abort (INT 22h handler)
 ;
-; For those software interrupts used by DOS for notification purposes,
-; this provides a default handler.
+; TODO
+;
+DEFPROC	dos_abort,DOSFAR
+	int 3
+	iret
+ENDPROC	dos_abort
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dos_ctrlc (INT 23h handler)
+;
+; TODO (for now, our default behavior, unlike DOS, is to NOT terminate)
+;
+DEFPROC	dos_ctrlc,DOSFAR
+	mov	ah,DOS_DSK_RESET
+	int	21h
+	; stc
+	; ret	2
+	iret
+ENDPROC	dos_ctrlc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dos_error (INT 24h handler)
+;
+; TODO
+;
+DEFPROC	dos_error,DOSFAR
+	int 3
+	iret
+ENDPROC	dos_error
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dos_default (currently used for INT 28h and INT 2Ah-2Fh)
 ;
 DEFPROC	dos_default,DOSFAR
 	iret

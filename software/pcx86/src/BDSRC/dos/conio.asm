@@ -11,6 +11,7 @@
 
 DOS	segment word public 'CODE'
 
+	EXTERNS	<msc_sigctrlc>,near
 	EXTERNS	<strlen,get_sfb,sfb_read,sfb_write>,near
 
 	ASSUME	CS:DOS, DS:DOS, ES:BIOS, SS:NOTHING
@@ -19,7 +20,7 @@ DOS	segment word public 'CODE'
 ;
 ; tty_echo (REG_AH = 01h)
 ;
-; Reads a character from the console, echoes it, and checks for CTRLC.
+; Reads a character from the console and echoes it; checks for CTRLC.
 ;
 ; Inputs:
 ;	None
@@ -28,7 +29,7 @@ DOS	segment word public 'CODE'
 ;	AL = character from console; if AL = CHR_CTRLC, issues INT_DOSCTRLC
 ;
 ; Modifies:
-;	AX, SI
+;	AX
 ;
 DEFPROC	tty_echo,DOS
 	call	tty_read
@@ -103,13 +104,10 @@ ENDPROC	tty_in
 ;
 DEFPROC	tty_read,DOS
 	ASSUME	ES:NOTHING
-	call	read_char
+tr1:	call	read_char
 	jc	tr9
-	cmp	al,CHR_CTRLC
-	clc
-	jne	tr9
-	int	INT_DOSCTRLC
-	stc
+	call	check_char
+	jc	tr1
 tr9:	ret
 ENDPROC	tty_read
 
@@ -122,6 +120,9 @@ ENDPROC	tty_read
 ;
 ; Outputs:
 ;	None
+;
+; Modifies:
+;	AX, CX, SI, DS
 ;
 DEFPROC	tty_print,DOS
 	mov	ds,[bp].REG_DS		; DS:SI -> string
@@ -151,18 +152,20 @@ DEFPROC	tty_input,DOS
 	mov	es,[bp].REG_DS
 	ASSUME	ES:NOTHING
 	mov	di,dx			; ES:DI -> buffer
-	sub	bx,bx			; ES:DI+BX+2 -> next buffer position
+ti1:	sub	bx,bx			; ES:DI+BX+2 -> next buffer position
 	mov	cl,es:[di]
 	mov	ch,0			; CX = max characters
 	jcxz	ti9
-ti1:	call	tty_read		; AL = next character
-	jc	ti9
-	cmp	al,CHR_RETURN
+ti2:	call	read_char		; similar to tty_read
+	jc	ti9			; but if check_char detects CTRLC
+	call	check_char		; we must reset our position
+	jc	ti1
+ti3:	cmp	al,CHR_RETURN
 	je	ti8
 	cmp	al,CHR_BACKSPACE
-	jne	ti2
+	jne	ti7
 	test	bx,bx
-	jz	ti1
+	jz	ti2
 	call	write_char
 	mov	al,' '
 	call	write_char
@@ -170,13 +173,13 @@ ti1:	call	tty_read		; AL = next character
 	call	write_char
 	dec	bx
 	inc	cx
-	jmp	ti1
-ti2:	cmp	cl,1			; room for only one more?
-	je	ti1			; yes
+	jmp	ti2
+ti7:	cmp	cl,1			; room for only one more?
+	je	ti2			; yes
 	mov	es:[di+bx+2],al
 	inc	bx
 	call	write_char
-	loop	ti1
+	loop	ti2
 ti8:	call	write_char
 	mov	al,CHR_LINEFEED
 	call	write_char
@@ -191,6 +194,28 @@ ENDPROC	tty_status
 DEFPROC	tty_flush,DOS
 	ret
 ENDPROC	tty_flush
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; check_char
+;
+; Inputs:
+;	AL = character to check
+;
+; Outputs:
+;	Carry set if CTRLC, clear otherwise
+;
+; Modifies:
+;	None
+;
+DEFPROC	check_char,DOS
+	cmp	al,CHR_CTRLC
+	clc
+	jne	cc9
+	call	msc_sigctrlc		; this may not return...
+	stc				; but if it does, make sure carry set
+cc9:	ret
+ENDPROC	check_char
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -250,26 +275,24 @@ ENDPROC	read_char
 ;	Carry clear if successful, set otherwise
 ;
 ; Modifies:
-;	SI
+;	None
 ;
 DEFPROC	write_char,DOS
-	push	ax
-	mov	si,sp
-	push	bx
 	push	cx
-	push	di
+	push	si
 	push	ds
-	push	es
+	push	ax
+	mov	cx,1			; CX = length
+	mov	si,sp
 	push	ss
 	pop	ds			; DS:SI -> character
-	mov	cx,1			; CX = length
+	ASSUME	DS:NOTHING
 	call	write_string
-	pop	es
-	pop	ds
-	pop	di
-	pop	cx
-	pop	bx
 	pop	ax
+	pop	ds
+	ASSUME	DS:DOS
+	pop	si
+	pop	cx
 	ret
 ENDPROC	write_char
 
@@ -285,11 +308,17 @@ ENDPROC	write_char
 ;	Carry clear if successful, set otherwise
 ;
 ; Modifies:
-;	AX, BX, CX, DX, SI, DI, ES
+;	AX
 ;
 DEFPROC	write_string,DOS
 	ASSUME	DS:NOTHING,ES:NOTHING
 	jcxz	ws8
+	push	bx
+	push	cx
+	push	dx
+	push	si
+	push	di
+	push	es
 	push	ds
 	push	cs
 	pop	ds
@@ -298,12 +327,18 @@ DEFPROC	write_string,DOS
 	call	get_sfb			; BX -> SFB
 	pop	ds
 	ASSUME	DS:NOTHING
-	jc	ws7
+	jc	ws6
 	call	sfb_write
-	jmp	short ws9
-ws7:	lodsb				; no valid SFB
+	jmp	short ws7
+ws6:	lodsb				; no valid SFB
 	int	INT_FASTCON		; so we fallback to INT 29h
-	loop	ws7
+	loop	ws6
+ws7:	pop	es
+	pop	di
+	pop	si
+	pop	dx
+	pop	cx
+	pop	bx
 ws8:	clc
 ws9:	ret
 ENDPROC	write_string

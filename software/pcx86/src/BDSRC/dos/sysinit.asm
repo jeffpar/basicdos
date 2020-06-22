@@ -14,7 +14,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<mcb_head,mcb_limit>,word
 	EXTERNS	<bpb_table,scb_table,sfb_table,clk_ptr>,dword
 	EXTERNS	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>,near
-	EXTERNS	<dos_term,dos_func,dos_default>,near
+	EXTERNS	<dos_term,dos_func,dos_abort,dos_ctrlc,dos_error,dos_default>,near
 	EXTERNS	<disk_read,disk_write,dos_tsr,dos_call5>,near
 
 	DEFLBL	sysinit_start
@@ -598,12 +598,12 @@ ENDPROC	init_table
 ;
 	DEFLBL	INT_TABLES,word
 	dw	(INT_DV * 4) + 1	; add 1 to avoid end-of-tables signal
-	dw	dos_dverr,dos_sstep,0
+	dw	dos_dverr,dos_sstep,0	; divide error and single-step handlers
 	dw	(INT_BP * 4)		; a few more low vectors
-	dw	dos_brkpt,dos_oferr,0
+	dw	dos_brkpt,dos_oferr,0	; breakpoint and overflow error handlers
 	dw	(INT_DOSTERM * 4)	; next, all the DOS vectors
-	dw	dos_term,dos_func,dos_default,dos_default
-	dw	dos_default,disk_read,disk_write,dos_tsr,dos_default,0
+	dw	dos_term,dos_func,dos_abort,dos_ctrlc
+	dw	dos_error,disk_read,disk_write,dos_tsr,dos_default,0
 	dw	(INT_DOSNET * 4)
 	dw	dos_default,dos_default,dos_default,dos_default,dos_default,dos_default,0
 	dw	0			; end of tables (should end at INT 30h)

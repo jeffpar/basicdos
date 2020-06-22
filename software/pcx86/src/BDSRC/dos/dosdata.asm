@@ -24,6 +24,9 @@ DOS	segment word public 'CODE'
 	DEFPTR	clk_ptr,-1		; pointer to CLOCK$ DDH
 	DEFBYTE	scb_locked,0		; non-zero when SCBs are locked
 	DEFBYTE	file_name,' ',11	; buffer for 11-character filename
+	DEFBYTE	ctrlc_all,0		; 1 for CTRLC-checking on all calls
+	DEFBYTE	ctrlc_active,0		; -1 if CTRLC detected
+	DEFBYTE	ctrlp_active,0		; -1 if CTRLP detected
 
 	DEFTBL	<bpb_table,scb_table,sfb_table>
 ;
@@ -35,6 +38,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<psp_quit>,near
 	EXTERNS	<tty_echo,tty_write,aux_read,aux_write,prn_write,tty_io>,near
 	EXTERNS	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>,near
+	EXTERNS	<dsk_flush>,near
 	EXTERNS	<msc_setvec,msc_getvec>,near
 	EXTERNS	<psp_create,psp_set,psp_get>,near
 	EXTERNS	<hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek>,near
@@ -45,7 +49,7 @@ DOS	segment word public 'CODE'
 	dw	psp_quit,   tty_echo,   tty_write,   aux_read	; 00h-03h
 	dw	aux_write,  prn_write,  tty_io,      tty_in	; 04h-07h
 	dw	tty_read,   tty_print,  tty_input,   tty_status	; 08h-0Bh
-	dw	tty_flush,  func_none,  func_none,   func_none	; 0Ch-0Fh
+	dw	tty_flush,  dsk_flush,  func_none,   func_none	; 0Ch-0Fh
 	dw	func_none,  func_none,  func_none,   func_none	; 10h-13h
 	dw	func_none,  func_none,  func_none,   func_none	; 14h-17h
 	dw	util_func,  func_none,  func_none,   func_none	; 18h-1Bh

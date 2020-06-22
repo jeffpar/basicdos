@@ -34,22 +34,24 @@ INT_DOSCALL5	equ	30h	; vector has FAR JMP (overwrites vector 31h too)
 ; DOS functions
 ;
 DOS_PSP_QUIT	equ	00h	; same function as INT 20h
-DOS_TTY_ECHO	equ	01h	; read CON and echo (AL := char)
-DOS_TTY_WRITE	equ	02h	; write CON (DL = char)
-DOS_AUX_READ	equ	03h	; read AUX (AL := char)
-DOS_AUX_WRITE	equ	04h	; write AUX (DL = char)
-DOS_PRN_WRITE	equ	05h	; write PRN (DL = char)
-DOS_TTY_IO	equ	06h	; read CON (AL := char) or write CON (DL = char)
-DOS_TTY_IN	equ	07h	; read CON (AL := char)
-DOS_TTY_READ	equ	08h	; read CON (AL := char)
-DOS_TTY_PRINT	equ	09h	; write (DS:DX) string to CON
-DOS_TTY_INPUT	equ	0Ah	; read (DS:DX) line from CON
-DOS_TTY_STATUS	equ	0Bh	; get CON status (AL := 0 if nothing, or FFh)
+DOS_TTY_ECHO	equ	01h	; read char (AL) from CON and echo
+DOS_TTY_WRITE	equ	02h	; write char (DL) to CON
+DOS_AUX_READ	equ	03h	; read char (AL) from AUX
+DOS_AUX_WRITE	equ	04h	; write char (DL) to AUX
+DOS_PRN_WRITE	equ	05h	; write char (DL) to PRN
+DOS_TTY_IO	equ	06h	; read (AL) from CON or write (DL) to CON
+DOS_TTY_IN	equ	07h	; read char (AL) from CON
+DOS_TTY_READ	equ	08h	; read char (AL) from CON; checks CTRLC
+DOS_TTY_PRINT	equ	09h	; write string (DS:DX) to CON
+DOS_TTY_INPUT	equ	0Ah	; read line (DS:DX) from CON
+DOS_TTY_STATUS	equ	0Bh	; get CON status (AL = 0 if nothing, or FFh)
 DOS_TTY_FLUSH	equ	0Ch	; flush and invoke 01h, 06h, 07h, 08h, or 0Ah
+DOS_DSK_RESET	equ	0Dh	; disk reset
 
-DOS_UTIL_STRLEN	 equ  1800h	; return str (DS:SI) len (AX)
-DOS_UTIL_ATOI	 equ  1801h	; convert str (DS:SI) to num (AX)
-DOS_UTIL_ITOA	 equ  1802h	; convert num (DX:SI) to str (ES:DI)
+DOS_UTIL	 equ	18h
+DOS_UTIL_STRLEN	 equ  1800h	; return string (DS:SI) length (AX)
+DOS_UTIL_ATOI	 equ  1801h	; convert string (DS:SI) to number (AX)
+DOS_UTIL_ITOA	 equ  1802h	; convert number (DX:SI) to string (ES:DI)
 DOS_UTIL_PRINTF	 equ  1803h	; printf to console
 DOS_UTIL_SPRINTF equ  1804h	; sprintf to buffer (ES:DI)
 DOS_UTIL_GETDEV	 equ  1805h	; get DDH (ES:DI) for device (DS:SI)
@@ -62,10 +64,12 @@ DOS_UTIL_YIELD	 equ  180Bh	; yield
 DOS_UTIL_SLEEP	 equ  180Ch	; sleep CX:DX ticks
 DOS_UTIL_WAIT	 equ  180Dh	; wait until end wait
 DOS_UTIL_ENDWAIT equ  180Eh	; end wait
+DOS_UTIL_HOTKEY	 equ  180Fh	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
 DOS_UTIL_STDLEN	 equ  1824h	; like STRLEN but with 24h as terminator
 
 DOS_MSC_SETVEC	equ	25h	; set vector (AL) to addr (DS:DX)
 DOS_PSP_CREATE	equ	26h	; create PSP (DX = segment)
+DOS_MSC_CTRLC	equ	33h	; get/set CTRLC state
 DOS_MSC_GETVEC	equ	35h	; get vector (AL) addr (ES:BX)
 DOS_HDL_OPEN	equ	3Dh	; open handle for device/file (DS:DX)
 DOS_HDL_CLOSE	equ	3Eh	; close handle (BX)
