@@ -61,7 +61,8 @@ CT_BUFFER	dd	?	; 0Ch: eg, 0B800h:00A2h
 CT_PORT		dw	?	; 10h: eg, 3D4h
 CONTEXT		ends
 
-CTSTAT_PAUSED	equ	0001h	; context is paused (triggered by CTRLS hotkey)
+CTSTAT_SYSTEM	equ	0001h	; context is system console
+CTSTAT_PAUSED	equ	0002h	; context is paused (triggered by CTRLS hotkey)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -229,15 +230,19 @@ dco1:	mov	ds,ax
 	cmp	[ct_focus],0
 	jne	dco1a
 	mov	[ct_focus],ax
+
 dco1a:	xchg	[ct_head],ax
 	mov	ds:[CT_NEXT],ax
 	mov	ds:[CT_STATUS],0
+	test	ax,ax			; first CONSOLE?
+	jnz	dco5			; no
+	or	ds:[CT_STATUS],CTSTAT_SYSTEM
 ;
 ; Set context screen size (CONW,CONH) and position (CONX,CONY) based on
 ; (CL,CH) and (DL,DH), and then set context cursor maximums (MAXX,MAXY) from
 ; the context size.
 ;
-	mov	word ptr ds:[CT_CONW],cx; set CT_CONW (CL) and CT_CONH (CH)
+dco5:	mov	word ptr ds:[CT_CONW],cx; set CT_CONW (CL) and CT_CONH (CH)
 	mov	word ptr ds:[CT_CONX],dx; set CT_CONX (DL) and CT_CONY (DH)
 	sub	cx,0101h
 	mov	word ptr ds:[CT_MAXX],cx; set CT_MAXX (CL) and CT_MAXY (CH)
@@ -651,6 +656,62 @@ ENDPROC	draw_border
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; draw_cursor
+;
+; Inputs:
+;	DS -> CONSOLE context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	draw_cursor
+	mov	dx,word ptr ds:[CT_CURX]
+	call	get_curpos		; BX = screen offset for CURX,CURY
+	add	bx,ds:[CT_BUFFER].OFF	; add the context's buffer offset
+	shr	bx,1			; screen offset to cell offset
+	mov	ah,14			; AH = 6845 CURSOR ADDR (HI) register
+	call	write_6845		; update cursor position using BX
+	ret
+ENDPROC	draw_cursor
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; focus_next
+;
+; Inputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	focus_next
+	push	es
+	mov	cx,[ct_focus]
+	jcxz	tf9			; nothing to do
+	mov	ds,cx
+	mov	cx,ds:[CT_NEXT]
+	jcxz	tf1
+	jmp	short tf2
+tf1:	mov	cx,[ct_head]
+	cmp	cx,[ct_focus]
+	je	tf9			; nothing to do
+tf2:	xchg	cx,[ct_focus]
+	mov	ds,cx
+	call	draw_border		; redraw the border with old focus
+	mov	ds,[ct_focus]
+	call	draw_border		; redraw the broder with new focus
+	call	draw_cursor
+tf9:	pop	es
+	ret
+ENDPROC	focus_next
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; get_curpos
 ;
 ; Inputs:
@@ -751,37 +812,6 @@ ENDPROC	scroll
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; focus_next
-;
-; Inputs:
-;	None
-;
-; Modifies:
-;	AX, BX, CX, DX, SI, DI
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	focus_next
-	push	es
-	mov	cx,[ct_focus]
-	jcxz	tf9			; nothing to do
-	mov	ds,cx
-	mov	cx,ds:[CT_NEXT]
-	jcxz	tf1
-	jmp	short tf2
-tf1:	mov	cx,[ct_head]
-	cmp	cx,[ct_focus]
-	je	tf9			; nothing to do
-tf2:	xchg	cx,[ct_focus]
-	mov	ds,cx
-	call	draw_border		; redraw the border with old focus
-	mov	ds,[ct_focus]
-	call	draw_border		; redraw the broder with new focus
-tf9:	pop	es
-	ret
-ENDPROC	focus_next
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; write_char
 ;
 ; Inputs:
@@ -870,13 +900,11 @@ wclf:	inc	dh
 	call	scroll			; scroll up 1 line
 
 wc3:	mov	word ptr ds:[CT_CURX],dx
+
 	mov	ax,ds
 	cmp	ax,[ct_focus]		; does this context have focus?
 	jne	wc9			; no, leave cursor alone
-	call	get_curpos		; BX = screen offset for CURX,CURY
-	shr	bx,1			; screen offset to cell offset
-	mov	ah,14			; AH = 6845 CURSOR ADDR (HI) register
-	call	write_6845		; update cursor position using BX
+	call	draw_cursor
 
 wc9:	pop	es
 	pop	ds
@@ -975,9 +1003,8 @@ ENDPROC	write_6845
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	write_horzpair
-	mov	di,ds
-	cmp	di,[ct_focus]
-	jne	whp1
+	test	ds:[CT_STATUS],CTSTAT_SYSTEM
+	jz	whp1
 	cmp	dl,14			; skip over 14 chars at the top
 	jbe	whp2
 whp1:	xchg	cl,ch
@@ -1059,8 +1086,8 @@ ddn1:	mov	[frame_seg],dx
 ;
 ; Install an INT 29h ("FAST PUTCHAR") handler; I think traditionally DOS
 ; installed its own handler, but that's really our responsibility, especially
-; if we want all INT 29h I/O to go through our "system console" -- which for
-; now is nothing more than whatever console was opened first.
+; if we want all INT 29h I/O to go through the "system console" -- which for
+; now is nothing more than whichever console was opened first.
 ;
 	mov	ds:[INT_FASTCON * 4].off,offset ddcon_int29
 	mov	ds:[INT_FASTCON * 4].seg,cs
