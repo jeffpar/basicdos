@@ -29,7 +29,9 @@ m1:	mov	dx,36
 	int	20h
 ENDPROC	main
 
-input	db	32,?,32 dup (?)
+input	db	32	; the rest (",?,32 dup (?)") doesn't need initialized
+
+COMSIZE	4096		; the COMSIZE signature ("BD") must be the last item
 
 CODE	ENDS
 

@@ -113,31 +113,32 @@ DEFPROC	dos_func,DOSFAR
 	cmp	ah,FUNCTBL_SIZE
 	cmc
 	jb	dc9
+
 	mov	bx,cs
 	mov	ds,bx
 	ASSUME	DS:DOS
 	mov	es,bx
 	ASSUME	ES:DOS
+
+	test	[ctrlc_active],-1	; has CTRLC been detected?
+	jz	dc1			; no
+	cmp	ah,DOS_UTIL		; utility functions shall be exempt
+	je	dc1			; from CTRLC checking
+	test	[ctrlc_all],-1		; is checking enabled for all others?
+	jz	dc1			; no
+	call	msc_sigctrlc		; check CTRLC
 ;
 ; While we assign DS and ES to the DOS segment on DOS function entry,
 ; we do NOT require or assume they will still be set that way on exit.
 ;
-	sub	bx,bx
+dc1:	sub	bx,bx
 	mov	bl,ah
 	add	bx,bx
 ;
 ; For convenience, all general-purpose registers except BX, DS, and ES still
 ; contain their original values.
 ;
-	test	[ctrlc_active],-1	; has CTRLC been detected?
-	jz	dc8			; no
-	cmp	ah,DOS_UTIL		; utility functions shall be exempt
-	je	dc8			; from CTRLC checking
-	test	[ctrlc_all],-1		; is checking enabled for all others?
-	jz	dc8			; no
-	call	msc_sigctrlc		; check CTRLC
-
-dc8:	call	FUNCTBL[bx]
+	call	FUNCTBL[bx]
 	ASSUME	DS:NOTHING, ES:NOTHING
 ;
 ; We'd just as soon IRET to the caller (which also restores their D flag),

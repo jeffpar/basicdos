@@ -90,6 +90,9 @@ ENDPROC	msc_setctrlc
 ; Outputs:
 ;	None
 ;
+; Modifies:
+;	None
+;
 DEFPROC	msc_sigctrlc,DOS
 	mov	[ctrlc_active],0
 	push	cx
@@ -99,11 +102,34 @@ DEFPROC	msc_sigctrlc,DOS
 	call	write_string
 	pop	si
 	pop	cx
+	push	bx
+	push	bp
 	clc
-	int	INT_DOSCTRLC
-	jnc	msg9
-	int	INT_DOSABORT
-msg9:	ret
+	pushf				; fake "INT_DOSCTRLC"
+	push	cs			; using the SCB CTRLC address
+	mov	bx,offset msg1		; instead of the IVT CTRLC address
+	push	bx
+	mov	bx,[scb_active]
+	ASSERT_STRUC [bx],SCB
+	push	[bx].SCB_CTRLC.seg
+	push	[bx].SCB_CTRLC.off
+	mov	ds,[bp].REG_DS
+	mov	es,[bp].REG_ES
+	mov	bx,[bp].REG_BX
+	mov	bp,[bp].REG_BP		; all registers restored for the "call"
+	ASSUME	DS:NOTHING, ES:NOTHING
+	db	0CBh			; RETF
+msg1:	jnc	msg2
+	mov	bx,[scb_active]
+	pushf
+	call	cs:[bx].SCB_ABORT	; should not return
+msg2:	mov	bx,cs
+	mov	ds,bx
+	mov	es,bx
+	ASSUME	DS:DOS, ES:DOS		; restore entry conditions
+	pop	bp
+	pop	bx
+	ret
 ENDPROC	msc_sigctrlc
 
 STR_CTRLC db	"^C",CHR_RETURN,CHR_LINEFEED

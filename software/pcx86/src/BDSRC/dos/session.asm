@@ -79,7 +79,7 @@ ENDPROC	get_scbnum
 ;
 ; scb_load
 ;
-; Loads a program into the specified SCB
+; Loads a program into the specified session.
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -118,8 +118,8 @@ sl2:	sub	bx,10h			; subtract paras for the PSP header
 	mov	ah,DOS_PSP_CREATE
 	int	21h			; create new PSP at DX
 
-	mov	[psp_active],dx		; we have to update to the REAL PSP now
-
+	mov	[psp_active],dx		; we must update the *real* PSP now
+					; scb_unlock will record it in the SCB
 	xchg	dx,di
 	push	es
 	pop	ds			; DS:DX -> name of executable
@@ -138,39 +138,51 @@ sl2:	sub	bx,10h			; subtract paras for the PSP header
 	xchg	cx,ax			; file size now in DX:CX
 	mov	ax,ERR_NOMEM
 	test	dx,dx			; more than 64K?
-	jnz	sle1			; yes
+	jnz	sle1a			; yes
 	cmp	cx,si			; larger than the memory we allocated?
-	ja	sle1			; yes
+	ja	sle1a			; yes
 	mov	si,cx			; no, SI is the new length
 
 	sub	cx,cx
 	sub	dx,dx
 	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_BEG
 	int	21h			; reset file position to beginning
-	jc	sle1
+	jc	sle1a
 
 	mov	cx,si			; CX = # bytes to read
 	mov	ds,di			; DS = segment of new PSP
 	mov	dx,size PSP		; DS:DX -> memory after PSP
 	mov	ah,DOS_HDL_READ		; BX = file handle, CX = # bytes
 	int	21h
-sle1a:	jc	sle1
+	jnc	sl3
+sle1a:	jmp	sle1
 
+sl3:	ASSERTZ <cmp ax,cx>		; assert bytes read = bytes requested
 	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the file
 sle2a:	jc	sle2
 
-	mov	bx,cx			; size of program file
-	add	bx,15
+	mov	bx,cx			; BX = lenth of program file
+;
+; Check the word at [BX+100h-2]: if it contains "BD" (BASIC-DOS signature),
+; then preceding word should be the program's desired memory size (in paras).
+;
+	mov	dx,100h			; default add'l space (4Kb in paras)
+	cmp	word ptr [bx+size PSP-2],'DB'
+	jne	sl4
+	mov	dx,word ptr [bx+size PSP-4]
+
+sl4:	add	bx,15
 	mov	cl,4
-	shr	bx,cl			; BX = size of program in paras
-	add	bx,110h			; add PSP + 4Kb
+	shr	bx,cl			; BX = size of program (in paras)
+	add	bx,dx			; add add'l space (in paras)
+	add	bx,10h			; add size of PSP (in paras)
 	push	ds
 	pop	es
 	ASSUME	ES:NOTHING
 	mov	ah,DOS_MEM_REALLOC	; resize the memory block
 	int	21h
-	jc	sle2
+	jc	sle2			; TODO: try to use a smaller size?
 ;
 ; Create an initial REG_FRAME at the top of the segment.
 ;
@@ -243,7 +255,7 @@ ENDPROC	scb_load
 ;
 ; scb_init
 ;
-; Prepare the specified SCB to run.
+; Mark the specified session as "loaded" and ready to start.
 ;
 ; Inputs:
 ;	BX -> SCB
@@ -345,7 +357,7 @@ ENDPROC	scb_unlock
 ; scb_start
 ; util_start (AX = 1807h)
 ;
-; Start the specified SCB
+; "Start" the specified session (actual starting will handled by scb_switch).
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -366,7 +378,7 @@ ENDPROC	scb_start
 ; scb_stop
 ; util_stop (AX = 1808h)
 ;
-; Stop the specified SCB
+; "Stop" the specified session.
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -385,7 +397,7 @@ ENDPROC	scb_stop
 ; scb_unload
 ; util_unload (AX = 1809h)
 ;
-; Unload the specified SCB
+; Unload the current program from the specified session.
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -404,7 +416,7 @@ ENDPROC	scb_unload
 ; scb_yield
 ; util_yield (AX = 180Ah)
 ;
-; Asynchronous interface to decide which SCB should run next.
+; Asynchronous interface to decide which session should run next.
 ;
 ; There are currently two conditions to consider:
 ;
@@ -453,7 +465,7 @@ ENDPROC	scb_yield
 ;
 ; scb_switch
 ;
-; Switch the specified SCB.
+; Switch to the specified session.
 ;
 ; Inputs:
 ;	BX -> SCB

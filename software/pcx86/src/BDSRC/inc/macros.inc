@@ -298,5 +298,5 @@ PRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9
 	endm
 
 COMSIZE	macro	bytes
-	dw	bytes,'DB'
+	dw	(bytes + 15) SHR 4,'DB'
 	endm

@@ -311,7 +311,7 @@ ENDPROC	write_char
 ;	AX
 ;
 DEFPROC	write_string,DOS
-	ASSUME	DS:NOTHING,ES:NOTHING
+	ASSUME	DS:NOTHING, ES:NOTHING
 	jcxz	ws8
 	push	bx
 	push	cx

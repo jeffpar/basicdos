@@ -369,6 +369,7 @@ DEFPROC	ddcon_interrupt,far
 	call	[kbd_interrupt]
 	push	ax
 	push	bx
+	push	cx
 	push	dx
 	push	di
 	push	ds
@@ -441,6 +442,7 @@ ddi9:	pop	es
 	pop	ds
 	pop	di
 	pop	dx
+	pop	cx
 	pop	bx
 	pop	ax
 	iret
@@ -511,6 +513,22 @@ ENDPROC	add_packet
 ;
 ; check_hotkey
 ;
+; Check for key combinations considered "hotkeys" by BASIC-DOS; if a hotkey
+; is detected, carry is cleared, indicating that a DOS_UTIL_HOTKEY notification
+; should be issued with the hotkey in DX.
+;
+; For example, CTRLC (and CTRL_BREAK, which we convert to CTRLC) are considered
+; hotkeys, so that DOS functions need not "poll" the console to determine if a
+; CTRLC has been typed.  Ditto for CTRLP, which DOS likes to use for turning
+; "printer echo" on and off.
+;
+; Another advantage to using hotkey notifications is that the hotkeys don't get
+; buried in the input stream; as soon as they're typed, notification occurs.
+;
+; This function also includes some internal "hotkey" checks; eg, SHIFT-TAB
+; can be used to toggle focus between consoles; internal hotkeys do not generate
+; notifications.
+;
 ; Inputs:
 ;	None
 ;
@@ -533,14 +551,23 @@ DEFPROC	check_hotkey
 	je	ch8			; BIOS buffer empty
 	sub	bx,2			; rewind the tail
 	cmp	bx,offset KB_BUFFER - offset BIOS_DATA
-	jae	ch1
+	jae	ch0
 	add	bx,size KB_BUFFER
-ch1:	mov	ax,[BIOS_DATA][bx]	; AL = char code, AH = scan code
+ch0:	mov	ax,[BIOS_DATA][bx]	; AL = char code, AH = scan code
+;
+; Let's take care of internal hotkeys first (in part because it seems
+; unlikely we would want them to affect things like a console's PAUSE state).
+;
+	cmp	ax,(SCAN_TAB SHL 8)
+	jne	ch1
+	mov	[BUFFER_TAIL],bx	; update tail, consuming the character
+	call	focus_next
+	jmp	short ch8
 ;
 ; Let's take care of PAUSE checks first, because only CTRLS enables PAUSE,
 ; and everything else disables it.
 ;
-	mov	dx,[ct_focus]
+ch1:	mov	dx,[ct_focus]
 	test	dx,dx
 	jz	ch4
 	push	ds
@@ -721,6 +748,37 @@ DEFPROC	scroll
 	pop	dx
 	ret
 ENDPROC	scroll
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; focus_next
+;
+; Inputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	focus_next
+	push	es
+	mov	cx,[ct_focus]
+	jcxz	tf9			; nothing to do
+	mov	ds,cx
+	mov	cx,ds:[CT_NEXT]
+	jcxz	tf1
+	jmp	short tf2
+tf1:	mov	cx,[ct_head]
+	cmp	cx,[ct_focus]
+	je	tf9			; nothing to do
+tf2:	xchg	cx,[ct_focus]
+	mov	ds,cx
+	call	draw_border		; redraw the border with old focus
+	mov	ds,[ct_focus]
+	call	draw_border		; redraw the broder with new focus
+tf9:	pop	es
+	ret
+ENDPROC	focus_next
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

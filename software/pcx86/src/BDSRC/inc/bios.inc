@@ -255,7 +255,7 @@ BIOS		ends
 BIOS_DATA	equ	RS232_BASE
 
 ;
-; BIOS-supported characters, scan codes, etc.
+; BIOS-supported char codes and scan codes that we care about.
 ;
 CHR_CTRLC	equ	03h
 CHR_BACKSPACE	equ	08h
@@ -263,3 +263,5 @@ CHR_LINEFEED	equ	0Ah
 CHR_RETURN	equ	0Dh
 CHR_CTRLP	equ	10h
 CHR_CTRLS	equ	13h
+
+SCAN_TAB	equ	0Fh

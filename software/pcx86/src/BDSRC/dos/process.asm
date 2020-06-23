@@ -159,7 +159,7 @@ ENDPROC	psp_create
 ;
 ; psp_set (REG_AH = 50h)
 ;
-; In BASICDOS, this only changes SCB_CURPSP, NOT the global psp_active.
+; In BASIC-DOS, this only changes SCB_CURPSP, NOT the global psp_active.
 ;
 ; Inputs:
 ;	REG_BX = segment of new PSP
@@ -179,7 +179,7 @@ ENDPROC	psp_set
 ;
 ; psp_get (REG_AH = 51h)
 ;
-; In BASICDOS, this only retrieves SCB_CURPSP, NOT the global psp_active.
+; In BASIC-DOS, this only retrieves SCB_CURPSP, NOT the global psp_active.
 ;
 ; Inputs:
 ;	None

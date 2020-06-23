@@ -125,15 +125,16 @@ REG_DH		equ 	(REG_DX.HI)
 ;
 ; Session Control Block (SCB)
 ;
-; SIDEBAR: I abhor setting per-process information in the IVT, so we'll
-; pretend that all the apps we care about are well-behaved, which means if
+; SIDEBAR: To miminize the amount of per-process information in the IVT,
+; we'll pretend all the apps we care about are well-behaved, which means if
 ; they want to set any of the ABORT/CTRLC/ERROR handlers, they'll use the
 ; DOS_SET_VECTOR function, which will update the SCB vectors below, rather
 ; than the actual IVT vectors.
 ;
 ; That will save scb_switch from having to save/restore IVT vectors on every
 ; switch.  If it turns out I care about running non-well-behaved apps later,
-; then I'll add some vector-checking logic at appropriate checkpoints.
+; then I'll add some vector-checking logic at appropriate checkpoints (or,
+; worst case, copy selected vectors in/out on session switches -- yuck).
 ;
 SCB		struc
 SCB_STATUS	db	?	; 00h: SCB status
@@ -148,6 +149,7 @@ SCB_RESERVED	db	?	; 0Fh (holds SCBSIG in DEBUG builds)
 SCB_ABORT	dd	?	; 10h: current ABORT handler
 SCB_CTRLC	dd	?	; 14h: current CTRLC handler
 SCB_ERROR	dd	?	; 18h: current ERROR handler
+SCB_DTA		dd	?	; 1Ch: current DTA (Disk Transfer Address)
 SCB		ends
 
 SCBSIG		equ	'S'
