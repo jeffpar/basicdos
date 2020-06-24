@@ -1,1 +1,0 @@
-nmake -f intsum.mak

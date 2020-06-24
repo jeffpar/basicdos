@@ -24,6 +24,5 @@ exclude:
   - gulpfile.js
   - node_modules
   - "package*.json"
-  - "**/rbil"
   - "*.OBJ"
   - "*.COM"
