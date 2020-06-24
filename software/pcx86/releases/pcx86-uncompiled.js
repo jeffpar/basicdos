@@ -7,7 +7,7 @@
 /**
  * @define {string}
  */
-var APPVERSION = "2.01";                // this @define is overridden by the Closure Compiler with the version in machines.json
+var APPVERSION = "2.02";                // this @define is overridden by the Closure Compiler with the version in machines.json
 
 var COPYRIGHT = "Copyright © 2012-2020 Jeff Parsons <Jeff@pcjs.org>";
 
@@ -24478,7 +24478,7 @@ X86.fnIDIVb = function(dst, src)
      *      These numbers represent the most negative numbers representable using 2's complement arithmetic (equaling
      *      -32768 and -128 in decimal, respectively)."
      */
-    if (result != ((result << 24) >> 24) || this.model == X86.MODEL_8086 && result == -128) {
+    if (result != ((result << 24) >> 24) || this.model <= X86.MODEL_8088 && result == -128) {
         X86.helpDIVOverflow.call(this);
         return dst;
     }
@@ -24525,7 +24525,7 @@ X86.fnIDIVw = function(dst, src)
          *      These numbers represent the most negative numbers representable using 2's complement arithmetic (equaling
          *      -32768 and -128 in decimal, respectively)."
          */
-        if (result != ((result << 16) >> 16) || this.model == X86.MODEL_8086 && result == -32768) {
+        if (result != ((result << 16) >> 16) || this.model <= X86.MODEL_8088 && result == -32768) {
             X86.helpDIVOverflow.call(this);
             return dst;
         }
@@ -27717,7 +27717,7 @@ X86.helpDIVOverflow = function()
      *
      * TODO: Determine the proper cycle cost.
      */
-    if (this.model == X86.MODEL_8086) {
+    if (this.model <= X86.MODEL_8088) {
         X86.helpTrap.call(this, X86.EXCEPTION.DE_EXC, 2);
     } else {
         X86.helpFault.call(this, X86.EXCEPTION.DE_EXC, null, 2);
@@ -35562,6 +35562,12 @@ X86.opRETF = function()
  */
 X86.opINT3 = function()
 {
+    if (DEBUG && this.flags.running) {
+        this.printMessage("debugger halting on INT 3", DEBUGGER || this.bitsMessage);
+        if (DEBUGGER && this.dbg) this.dbg.stopCPU();
+        return;
+    }
+
     /*
      * TODO: Consider swapping out this function whenever setProtMode() changes the mode to V86-mode.
      */
@@ -64529,7 +64535,10 @@ class FDC extends Component {
             }
 
             while (this.loadDrive(iDrive, sDiskName, sDiskPath, false, file) < 0) {
-                if (!window.confirm("Click OK to reload the original disk and discard any changes.")) {
+                /*
+                 * I got tired of the "reload" warning when running locally, so I've disabled it there.
+                 */
+                if (Web.getHostName() != "localhost" && !window.confirm("Click OK to reload the original disk and discard any changes.")) {
                     if (DEBUG) this.println("load cancelled");
                     return false;
                 }

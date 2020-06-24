@@ -1,0 +1,86 @@
+ === Int2TPH Interrupt List Compiler v1.2 (C) 1996 Slava Gostrenko ===
+
+
+     Introduction.
+
+     This program converts Ralf Brown's Interrupt List into Borland Turbo Help
+File  (.TPH  file  format)  to  use  it  with Turbo Help TSR or within Borland
+(Turbo) Pascal IDE.
+     Int2TPH  uses  hypertext  features of the Interrupt List. It is the first
+(and  the  only)  Interrupt  List  compiler that makes a real hypertext of the
+Interrupt  List.  It  is  made  possible due to an advanced pattern processing
+technique used in the compiler.
+     Not  only it creates comprehensive indexes for all the topics in the list
+but it also allows users to add their own indexes to the help file.
+
+
+     Usage.
+
+     Unpack  all the Interrupt List and Int2TPH files into one directory. Make
+sure  that  there  is  at  least 13Mb of free space left on the drive. You may
+need up to 17Mb of free space if you computer has less than 5Mb of RAM. Try to
+free  up  to 4Mb of XMS memory (BIOS provided XMS suites as well as the memory
+provided  by  himem  or any other XMS driver). The rest of the RAM may be used
+for  disk  caching  provided  by any disk cache driver or operating system you
+have.
+     Int2TPH  is  a  protected  mode (DPMI) program. So it is assumed that you
+have  alredy  configured  RTM  (DPMI  Runtime  manager that comes with Borland
+Pascal).  In fact the actual configuration (with the help of DPMIInst program)
+is  required  if  you have a 286 class computer. Otherwise it is only required
+that RTM.EXE and DPMI16BI.OVL can be found using PATH environment variable.
+     Run Int2TPH. After a while it will create Inter.TPH file that is the help
+file you've been waiting for.
+
+     To use the help file within Borland Pascal IDE click Help->Files...->New
+and enter the help file name.
+     To use the help file with Turbo Help TSR run THelp.Com with the help file
+name passed as a parameter using /f option of THelp. The command line may look
+like this:
+     THelp /fInter.TPH
+
+
+     Note.
+
+     The  main  index of the Interrupt List (that is generated on Shift-F1) is
+too  large  for  THelp. To solve this problem run Int2TPH with the /ShortIndex
+option.  Borland  Pascal  IDE  works fine with the default extended main index
+version.
+
+
+     User defined idexes.
+
+     To  define  your  own  index edit Int_Keys.Txt file. It is a list of user
+defined  key  words  that  are  used  for  indexing.  Each word in the list is
+searched  in  the  Interrupt  List topics. All the topics containing given key
+word  will  be  listed  in  the  separate  index  topic. The key word used for
+indexing will be the name of the topic.
+
+
+     Technical notes.
+
+     While  running Int2TPH creates 2 temporary files. Int2TPH.Swp is the main
+swap  file  for  virtual memory. Topics.Swp is the swap file for the Interrupt
+List  topics.  Temporary  files  are  deleted on the normal termination of the
+program.
+     The   Incomplt.Log  file  is  a  log  of  the  ambiguous  search  pattern
+applications. Normaly you don't need this file.
+     While  running Int2TPH displays it's current status and may display error
+messages.  I've  debugged Int2TPH to run well on the Interrupt List Release 50
+and  added  lots  of error checks to the program to make it easier to find the
+incompatabilities  of  the  compiler's  algorithms  and  new  releases  of the
+Interrupt  List.  So  let me know if you have a newer version of the Interrupt
+List that is compiled with errors.
+
+
+     E-Mail  me  anytime  you  wish  and  don't forget to visit my homepage at
+http://sunny.aha.ru/~gw/ (read http.www file included in this package)! ;-)
+
+
+Author:  Slava Gostrenko
+E-Mail:  gw@aha.ru
+WWW:     http://sunny.aha.ru/~gw/  <- Latest versions and info are here
+FidoNet: 2:5020/201.105, 2:5020/468.105
+
+
+     You can register on my page to get automatic notifications when Interrupt
+List or Int2TPH is updated.

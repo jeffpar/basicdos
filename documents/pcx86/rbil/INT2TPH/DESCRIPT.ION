@@ -1,0 +1,15 @@
+int2tph.exe  Int2TPH executable file
+rtm.exe      DPMI Runtime manager
+comment      Archive comments
+whatsnew     History of bugs&fixes
+file_id.diz  Short description
+int2tph.doc  Documentation and technical notes
+disclaim.ers Copyright notes & other disclaimers - READ BEFORE USE
+descript.ion This file
+dpmi16bi.ovl DPMI Server
+initupc.pas  Source text of the Int2TPH
+int2tph.pas  Source text of the Int2TPH
+tph.pas      Source text of the Int2TPH
+upcaser.pas  Source text of the Int2TPH
+int_keys.txt Example of user defined indexing configuration
+http.www     What's on my homepage (text file)

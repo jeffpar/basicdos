@@ -1,0 +1,534 @@
+
+
+
+
+
+
+
+
+
+        ô iAPX; Show CPU/NPX Profile and test 'em
+        õ Copyright 1986-94 by Chris Lueders
+
+        Version 1.22
+
+        For noncommercial use and distribution
+
+
+
+
+        See file LICENSE.DOC for license info
+
+
+
+
+
+        This doc file and related material (at least the IAPX.COM file)
+        was written by Chris Lueders. Feel free to contact me whenever you
+        like to. Try one of the following ways:
+
+             via FidoNet : Chris Lueders @ 2:2453/30
+            via Internet : chris@rhein.de
+         via Support BBS : Zaphods BBS, +49-228-262894 V32b/HST
+                                        +49-228-9111041 ISDN X75
+
+
+
+        Please call me if you have problems with special items or special
+        boards you used for running this software. Please call me if you
+        have further suggestions for future versions, too.
+
+
+
+                               *** WARRANTY ***
+
+        Absolutely none.
+
+        THE AUTHOR AND HIS ACCOCCIATES SHALL NOT BE HELD RESPONSIBLE FOR
+        ANY DAMAGES, LIABILITY, OR LOSS OF REVENUE DUE  TO  THE  USE  OR
+        INABILITY TO USE THIS PROGRAM. THIS INCLUDES, BUT IS NOT LIMITED
+        TO,  ANY  INTERRUPTION  OF  SERVICE,   LOSS   OF   BUSINESS   OR
+        ANTICIPATORY PROFITS, OR CONSEQUENTIAL DAMAGE RESULTING FROM THE
+        USE OF THIS PROGRAM. IN AREAS  WERE  SUCH  LIMITATIONS  ARE  NOT
+        LEGAL THIS PROGRAM IS NOT LICENSED FOR USE.
+
+
+
+                               *** DISCLAIMER ***
+
+        This program is a processor testing tool. Therefore it messes
+        around with the CPU as it likes. PLEASE BE AWARE THAT THIS CAN
+        TRASH YOUR SYSTEM. To prevent loss of data, ENSURE DISK CACHES TO
+        BE WRITTEN TO DISK PRIOR TO START THIS PROGRAM!
+
+        We tried to take any precaution, but we can take NO WARRANTY that
+        this tool will run correctly and won't crash your machine. Herewith
+        you have been warned ...
+
+
+
+======  1 - What's that small program for?  Do I need it?  ===================
+
+        OF COURSE !
+        You may think "What program may this be with it's dox four times as
+        big as the executable?". I'll try to tell you.
+
+        iAPX is a program designed for showing you some data and internals
+        of your computer. You may use it in case you buy or sell a computer
+        to check the CPU and/or NPX for type, clock ratings and known bugs.
+
+        The "normal" use may be one of the following:
+
+        1. You meet a friend, who has a new machine, but doesn't know
+           anything about it. You like to get some infos, but forgot
+           your computer hardware technician service kit. So, just run this
+           small program instead of working on the hardware. Some folks
+           won't let you open their computer, so this method is much more
+           "user friendly"
+
+           It's not only faster; it's even more neat and will discover some
+           results that you can't get staring at the hardware yourself.
+
+        2. You want to buy a new computer (or only a board). You neither
+           trust the company that sells the boards, nor the chips themselves.
+           As you intend to run Novell Netware 386 on this machine, you want
+           to know if this CPU has some of the known errors even Netware
+           checks for. Solution: simply start iAPX and it'll test the CPU
+           for all known (at least to me) bugs. If all is correct, you may
+           (more) safely purchase this board. If not, I highly recommend not
+           to buy this board.
+
+
+        iAPX has 3 commandline switches (say: "Wow!"):
+
+        ô  iAPX; Show CPU/NPX Profile and test 'em; MS-DOS Vsn for IBM/PC
+        õ  V1.22, chris@rhein.de 86-94; S/N 941011:1135; DOS 2.00; ...
+
+           Commandline syntax :
+              iAPX [?][p][r]
+
+           ? - This screen
+           P - Pause after each page of screen output
+           R - Reset to get CPU ID/Rev; use with caution! This option is
+               somewhat nasty; ENSURE DISK CACHES TO BE WRITTEN TO DISK !!
+
+           Thanx to Bob Smith from Qualitas, Inc.  I got some help from ...
+
+           Refer to the documentation for more information.
+
+        This is the output of the "?" switch. The "P" switch will pause the
+        output before it scrolls off your screen. The "R" switch enables CPU
+        RESET to kick the ID/Rev value out of it ... See later chapters in
+        this doc on this topic.
+
+
+        A typical call of iAPX looks like this (done on one of my machines
+        with the "R" option enabled):
+
+        ô  iAPX; Show CPU/NPX Profile and test 'em; MS-DOS Vsn for IBM/PC
+        õ  V1.22, chris@rhein.de 86-94; S/N 941011:1135; DOS 2.00; ...
+
+        -   Main Processor : Intel 386 DX
+              Clock rate 1 : 40.1 MHz
+              Clock rate 2 : 40.4 MHz
+
+        -   Check CPU bugs :
+                      POPA : FAILED
+
+        -   Int_Desc_Table : Limit=03ff, Base=00000000
+           Glob_Desc_Table : Limit=0010, Base=000de828
+                     Flags : PE MP EM IOPL  ET
+                              0  0  0    3   1
+
+        -  Number Cruncher : none
+
+        -  BIOS CPU ID/Rev : not supported
+
+              Reset ID/Rev : 0308
+                   that is : 386 DX, Step D1
+
+
+        See the next section for details on every single line.
+        (I'd like to mention, that this machine is the only type of 386 based
+        computer i've ever met, that had NO bug. ;-))
+
+
+
+======  2 - What do these lines of output suggest to me?  ====================
+
+
+        Ok, we'll look at each line seperately and i'll try to explain the
+        contents and meaning of each of them.
+
+
+
+------  2.1 - Main Processor  ------------------------------------------------
+
+        Guess what - this is the type of CPU you use. iAPX has the ability
+        to check for the following types:
+
+                - Intel 8088                - Intel 80286
+                - Intel 8086                - Intel 80386 SX
+                - NEC V20                   - Intel 80386 DX
+                - NEC V30                   - Intel 80486 SX
+                - Intel 80188               - Intel 80486 DX
+                - Intel 80186
+
+        The measurements of clock rating, the selection of appropriate
+        CPU tests, and the display of CPU infos is based on this type
+        check. If there were an error in these routines it would
+        likely mess up all other parts of the output (and possibly your
+        whole system as well).
+
+        Note, that iAPX cannot determine if you're using a 486 DX or a
+        486 SX with 487 SX attached. This is because the 487 SX is a full
+        486 DX, and the 486 SX is disabled if a 487 SX is active and
+        running. (You can plug it out (at your own risk, buddy) and the
+        system is still running !!). If iAPX mentions you were using an
+        486 SX, the NPX failed responding.
+
+
+
+------  2.2 - Clock ratings  -------------------------------------------------
+
+        iAPX tries to measure the rating of the clock that drives
+        your CPU and/or NPX. This is, unfortunately, not an easy task, so
+        I decided to implement two indepentent tests to check for this
+        value. Don't be worried about *two* rates; they both describe the
+        same clock.
+
+        I personally think that test no. 1 is the better method of
+        measurement, and I intend to remove the second test in future
+        versions. If you discover big differences between these two values,
+        please let me know; and please tell me further, what type of CPU you
+        are running and what environment was active while testing (QEMM, DV,
+        Windows (what mode?), OS/2 (version? mode?), &c).
+
+        The measurement of the clocks is VERY nasty if you use one of the
+        newer clone CPUs by AMD, C&T or something like that, because these
+        CPUs look like an Intel, work like an Intel, but they're faster. So
+        *IF* you're using such an CPU i'd appreciate an output of iAPX to
+        get the timings of these newer releases.
+
+
+
+------  2.3 - Test CPU for known bugs  ---------------------------------------
+
+        There are several known bugs in the Intel CPU's running in the
+        computers of the world (and even in the clones such as them coming
+        from AMD). I thought it could be very interesting (e.g. if you buy
+        a board or a whole machine, see above) if the processor is one
+        of the many buggy versions still for sale today. For example, three
+        of four tested 386 machines in my office had the POPA bug. Hopefully
+        the most compilers will generate "CPU bug tolerant" code, but if
+        not.. it might hang!
+
+        The errors I try to diagnose mostly relate to a special CPU type
+        (e.g. 80386), but I'm testing every CPU for proper operation if the
+        intruction set gives me the possibility to do so.
+
+
+        2.3.1 - IDIV [mem]
+
+        This was a bug in an early version of the 80186. The processor faulted,
+        if you tried to IDIV with a negative divisor in memory (and not in
+        a register).
+        So far, I never discovered a CPU that messed up with this test (I
+        must admit I never met a 80186 in person :-).
+
+
+        2.3.2 - REP [instr]
+
+        This was also a bug in one of the early versions of the 80186 pro-
+        cessor. If the CPU got a HOLD signal while working in a REP [instr]
+        cycle, it served the HOLD and afterwards "forgot" to take up it's work
+        with the REP again. Never found a faulty CPU till now.
+
+
+        2.3.3 - POPA
+
+        Very common bug in 386 machines. I've tested that on 12 machines,
+        10 of which were faulty! It seems this bug has been fixed only in
+        recentl 386SX versions (all 386DX i got sofar are bad; even AMD
+        chips).
+
+        Symptoms: Sometimes the processor messes up the AX register
+        after a POPA instruction, which depends on the next opcode you give
+        it to eat. To fix any problems with this instruction, simply put a
+        NOP instruction after the POPA. After that it'll work out fine.
+
+        If you try this one on a buggy CPU, it will mess up your AX register:
+
+           mov     ax,1234h
+           mov     bx,0
+           mov     di,0
+           pusha
+           popa
+           mov     cx,[bx+di]
+
+        That's by no means an odd or unusual sequence of instructions. What's
+        more, the 'mov cx, ...' operation is done correctly. It's the 'popa'
+        which fails. See IAPX.DAT for the original data i based my tests on.
+        It seems to me, that not only 32-bit but also 16-bit operations will
+        cause this problem. iAPX only checks for this bug using the 16-Bit
+        version to be also able to test 186/286 CPUs.
+
+
+        2.3.4 - 16-Bit MUL and 32-Bit MUL
+
+        Less common error, but may encounter. This was a bug in the early
+        versions of the 386 DX processor. I never got one of these buggy
+        units, but even Novell does this kindo check and won't operate if
+        it's discovered. See IAPX.DAT for further information.
+
+
+        2.3.5 - 32 Bit STOSB
+
+        I heard that the 32bit STOSB instruction has some problems sometimes.
+        It may not correctly increment the high word of the EDI register.
+        Until now i didn't find a faulty CPU.
+
+
+        2.3.6 - BSWAP
+
+        In one of the german computer magazines it was rumoured that the
+        BSWAP instruction on 486 does not work correctly and only would swap
+        one half down but forget to swap the other half down. So we check
+        this as well.
+
+
+        2.3.7 - CMPXCHG
+
+        I read about the CMPXCHG instruction yielding an INT 6 (invalid
+        opcode) on some CPU's.
+
+
+
+------  2.4 - Further information on some CPU registers  ---------------------
+
+        It may be interesting for you (e.g. if you intend to write some nasty
+        .ASM programs like this one), where some system tables are hidden and
+        how the setting of the CPU flags is. This output shows them:
+
+               Int_Desc_Table : Limit=07ff, Base=00115c48
+
+        This is the adress and length of the Interrupt-Descriptor-Table. Most
+        users think it's located at 0:0 even if they use QEMM or something
+        similar, but that's wrong.
+
+              Glob_Desc_Table : Limit=028f, Base=00116448
+
+        Address and Length of the Global-Descriptor-Table.
+
+                     Flags : PE MP EM IOPL  ET
+                              0  0  0    3   1
+
+        Some of the "static" system flags. It may be useful to take a look
+        at these if you have problems with some sort of programs, e.g. NPX
+        sensitive software.
+
+        - PE bit: Protect Enable. If set, the processor is in protected mode.
+                  Though DOS doesn't run in 80286 protected mode, this
+                  means a supervisor task (such as QEMM, 386max) has
+                  switched the CPU (386 or above) to the V86 (virtual 8086)
+                  mode. This mode can emulate various 8086 lookalike tasks
+                  at the same time. Normally, only one task is active and
+                  this task is DOS. But the V86 mode lets the supervisor
+                  task shadow RAM, swap memory and so on.
+
+        - MP bit: Monitor coProcessor. If set (and TS=1) an exception will
+                  be generated if the CPU encounters a WAIT instruction.
+
+        - EM bit: EMulate coprocessor. If set an exception will be generated
+                  each time a coprocessor instruction is going to be executed.
+                  With aid of this bit, you can enable a floating point emu-
+                  lation. If EM=1, no coprocessor timings will be performed.
+
+        - ET bit: Extension Type. In former versions of this documentation
+                  i mentioned not to know about this bit. Now i got the
+                  correct meaning. If set to 0, it means the attached NPX
+                  is 16-bit, if set to 1 it's 32-bit. It is (was) used to be
+                  able to run 80287 NPX on a 80386 CPU.
+
+        - IOPL:   I/O Privilege Level. Used to control the use of special
+                  instructions, memory areas and other protection scemes.
+                  Will be 3 under most circumstances, even when PE=0.
+
+
+
+------  2.5 - Numerix Processor  ---------------------------------------------
+
+        This will show you the type of coprocessor the CPU has attached (if
+        any). Note: it's not that easy you might think. You can, for example,
+        use an 80287 together with an 80386, so it may be interesting if
+        there is the "right" coprocessor active.
+
+        The clock rating of the coprocessor may be interesting too. You can
+        obtain a "fast socket" for your 80287 running on an 80286. This will
+        alter the clock rating of the NPX while retaining the clock rating of
+        the main processor.
+
+        iAPX also detects NPX software emulations but does not check, if the
+        emulator tries to be 387 compatible or not.
+
+
+
+------  2.6 - Computing the CPU ID and revision  -----------------------------
+
+        At RESET the DX register of the 386 SX/DX or above will hold a value
+        indicating the type of processor and it's revision. It is not easy
+        to get this data. As described above, you have to issue a RESET to
+        get this info. Unfortunately, RESET is the hardest hit you can do to
+        a CPU. So please be alarmed NOT TO MESS AROUND with this option.
+
+        I have taken some precautions to prevent system hangs or data
+        corruption. This includes flushing the chache buffers of e.g.
+        HyperDisk 4.50 and above. I, myself, never had problems with this
+        option, but i was told of crashes with e.g. the Intel Inboard.
+
+        To prevent you and your system from spurious hangs, this test will
+        only be executed if the option "R" (=RESET) is stated at the command
+        line. The output looks like this:
+
+                -     Reset ID/Rev : 2308
+                           that is : 386 SX, Step C
+
+        I added all decodings I could find for the ID/Rev word and
+        implemented them, but maybe you'll get unknown values. The revisions
+        and steps in Intel processor design usually increase with time.
+        Therefore, higher Revisions (lower byte of DX) indicate newer
+        releases.
+
+        The known IDs are:
+
+                03 - 386 DX
+                23 - 386 SX
+                43 - 386 SL
+                04 - 486 DX/SX
+
+        AS far as I know, at least all 386 SX before the step C and all
+        386 DX before step D1 are faulty. If you intend to buy a computer,
+        I suggest not to buy a machine with this CPU revisions.
+
+
+
+======  3 - Program messages  ================================================
+
+        "!!! Incorrect DOS version."
+           The DOS version is lower than 2.00. This is at least required to
+           run iAPX.
+
+        "!!! System malfunction."
+           Indicates something unusual went wrong, such as unseccessful
+           memory allocation.
+
+        " ?  WARNING : DesqView detected; ratings are most likely incorrect."
+        " ?  WARNING : Windows 3 in 386 enhanced mode detected; ..."
+           If DesqView or Windows 3 in enhanced mode is active, the timings
+           are very incorrect. Kick the multitasker out of your memory and
+           start the program again to get exact results.
+
+
+        "Stand by ..."
+           System timings and measurements are performed. Should only last
+           about 0.2 seconds. If it hangs, please let me know. Tell me *ALL*
+           about your system (type, speed, software, OS ...)
+
+
+        " ?  WARNING : 8253 not responding correctly or
+                       interrupt failure; no timings performed."
+           The test on the presence of the 8253 timer chip and the timer tick
+           interrupt failed. Should not occur on proper boards. Check your
+           setup and hardware.
+
+
+        "Timer Interrupt in loop ?"
+           While in a timing loop, an interrupt occured. This will abort
+           iAPX immediately. Try to reboot your system as soon as possible
+           to ensure stable operation.
+
+
+        "Press key to continue ..."
+           You're prompted to press any key you like to start screen
+           scrolling again. After that, the message will disappear.
+
+
+        "Overflow"
+           An register overflow was detected. Suggests a fault in this
+           program. Please inform the author about this and include the
+           register dump iAPX produces in such occasions and the version
+           of iAPX.
+
+
+        " ?  WARNING : CPU is in protected mode; cannot reset."
+           This indicates that the CPU may not be tested at this time,
+           because a supervisor task has full control over the CPU. Remove
+           supervisory software (QEMM386, 386MAX, etc.), reboot and try
+           again.
+
+
+        "Reset ..."
+           If you're able to read this message, your mashine is already dead.
+           It will be cleared immedeately after the RESET operation has
+           succeeded.
+
+
+        " ?  WARNING : A20 gate activation failed; cannot reset."
+           To issue a RESET to get the CPU ID/Rev the A20 gate must be active
+           (that is, memory above 1Mb must be adressable). The attempt to
+           active this gate failed.
+
+
+        " ?  WARNING : A20 reinitialization failure; REBOOT ASAP!"
+           After RESET iAPX was unable to reset the A20 gate to the old
+           setting. THIS MAY BE VERY DANGEROUS! Reboot your machine as soon
+           as possible!
+
+
+
+======  4 - Technical notes  =================================================
+
+        iAPX was (you guessed it) written in Assembler, compiled with Micro-
+        soft's MASM 5.10, linked with MS-LINK 5.10 and edited with M 1.00.
+        Debugging was performed with NU-MEGA's Soft-ICE 2.50, CodeView and
+        AFD-Pro. By now it consists of 3000 lines handmade assembler code
+        (and is only about 6kb big after assembly! Try this with Windows SDK!)
+
+        WARNING! The program may fault on machines that are not 100% IBM-
+        compatible. Very important are the ports for the 8259 (interrupt-
+        controller) and 8253 (timer-chip).
+
+
+
+======  5 - Epilogue  ========================================================
+
+        Thanx a lot to the following people for their assistance, wise
+        advices and betasites:
+
+        Martin Winkler, Uwe Engelmann, Stefan Rieck, Torsten Harling, Kalle
+        Braun, Ralf Pradella, Lars Bergengruen, Bjoern Schoof, Alexander
+        Bell, Mario Gongolsky, Yousuf Khan, vg@sai1.stollmann.de (Volkmar
+        Grote), harald.feldmann@almac.co.uk (Harald Feldmann) and all
+        people, which I forgot to mention.
+
+        Beta testing was performed at the following sites:
+
+           - The Ultimate Collection
+           - Freak Out
+           - The most down point in Germany
+           - Dr. Clone's human experimental lab (hit by a 'HOLD MAIL' spell)
+           - Anthem
+           - comma GmbH, Bonn/FRG
+
+
+        The latest non-beta versions of this program may be obtained using a
+        file request with magic 'IAPX' at 2:2453/30 @ fidonet.
+
+
+
+======  6 - End of file  =====================================================
+
+        Thanx for using iAPX and for reading this. Please distribute and
+        share it with others!
+
+        /chris/

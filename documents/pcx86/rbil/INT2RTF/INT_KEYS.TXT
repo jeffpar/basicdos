@@ -1,0 +1,8 @@
+CD-ROM
+DigPak
+DMA
+MMX
+SmartDrv
+TCP/IP
+VESA
+Windows

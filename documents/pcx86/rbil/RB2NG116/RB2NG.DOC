@@ -1,0 +1,82 @@
+RB2NG.PAS, RB2NG.EXE                    Version 1.16
+
+Converts the Text Ralf Brown Interrupt Lists into one .NG file for
+use with NG or EH.  This program requires the NGML (Norton Guides
+Menu Linker) and the NGC (Norton Guides Compiler).  It also requires
+about 20 megabytes of free disk space.
+
+Delete the files
+
+MEMORY.LST
+PORT.LST
+CMOS.LST
+GLOSSARY.LST
+86BUGS.LST
+
+*if* you do not want them included in the .NG file.  Note that the
+format of the files has been changed slightly since this program
+was originally written so they do not all convert properly anymore.
+
+You may delete some of the above files and keep others.
+
+This program has only been tested on release 46 files.
+
+This program is free and I don't take responsibility for any loss
+or damages, etc..  If you find this program useful, a postcard would
+be nice.
+
+If you don't have the NGC or the NGML, you might be able to find a
+copy already compiled in the same place that you found this program.
+
+Simply type
+
+RB2NG
+
+to load the program.  Specify the source path, where the text files
+
+INTERRUP.A,B,C...
+
+are to be found.
+
+Then specify an output directory.  This could be a temporary
+directory that you have created.
+
+The program reads the text files and creates files that can be
+compiled with the NGC in the specified output directory.  It also
+creates a batch file, CRB.BAT, which compiles and links the .NG
+file.  Simply type
+
+CRB
+
+in the output directory (with NGC and NGML on the path) and the .NG
+file will be created.
+
+You are welcome to use this program freely but a postcard would be
+appreciated.  You are also welcome to fiddle with the source code, as
+long as you don't redistribute the modified code.  If you have any
+ideas you would like me to add, simply EMail them to me.
+
+The code requires the Pure Power String Unit Version 1.06.  This is
+available at many FTP sites and BBS's as PSSTR106.ZIP.
+
+
+CONVERT.TXT
+
+RB2NG looks in a file called CONVERT.TXT.  In this file are case
+convertions.  Because RB2NG converts the all uppercase RB List to
+lowercase, some words are converted incorrectly.  For example, BIOS
+becomes Bios.  Thus, to fix things like this, CONVERT.TXT contains
+
+Bios|BIOS
+
+which converts the text to the correct word.  You may have up to 99
+corrections in the file.  Each correction may be no longer than
+21 letters, that is, 10 letters for each word and the | sign.  Make
+sure you copy CONVERT.TXT (with any further additions you have made
+in it) to the directory which has all the INTERRUP.? files.
+
+See DETAILS.DOC for my address.
+
+Ciao
+Michael Gallias
+

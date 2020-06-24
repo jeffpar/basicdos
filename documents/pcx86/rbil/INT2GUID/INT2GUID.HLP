@@ -1,0 +1,193 @@
+;Help text for INT2GUID conversion program, topic X (last topic before
+; key to list).
+;
+;Use condition mask
+;  2: Help for GUIDE
+;or
+;  4: Help for POPHELP
+;
+!WRAP
+;
+The pop-up reference
+!! 2
+GUIDE
+!! 4
+POPHELP
+!! 0
+is a tool to help you easily search through the Interrupt List.
+
+!! 2
+GUIDE
+!! 4
+POPHELP
+!! 0
+is a memory resident program that can be activated in three ways. The
+following is a list of common popup key combinations, however, other
+combinations can be specified when
+!! 2
+GUIDE
+!! 4
+POPHELP
+!! 0
+is installed, use
+!! 2
+GUIDEÿ/?
+!! 4
+POPHELPÿ/?
+!! 0
+for help on
+!! 2
+GUIDE.
+!! 4
+POPHELP.
+!! 0
+
+
+<LeftSh F1> or <Ctrl LeftSh F1>
+!LINE
+Reads a word from the screen at a location nearest to the cursor position
+and then scans the list of topics and displays the matching topic. If none
+is found, it displays the main index. The popup window is positioned away
+from the cursor position if possible.
+
+<LeftSh F2> or <Ctrl LeftSh F2>
+!LINE
+Redisplays the most recently selected topic.
+
+<LeftSh F3> or <Ctrl LeftSh F3>
+!LINE
+Pops up the main index, which displays references to a second level of
+Interrupt List indexing, and other items of interest, such as Help as
+a reference to this screen.
+
+The following keystrokes may be used after
+!! 2
+GUIDE
+!! 4
+POPHELP
+!! 0
+is popped up:
+
+<F1>
+!LINE
+Displays the main topic index again.
+
+<AltF1>
+!LINE
+Displays the topic that was displayed prior to the current one.
+
+<F3>
+!LINE
+Prompts for a new help file.
+!! 2
+GUIDE
+!! 4
+POPHELP
+!! 0
+will read any help file built using the
+!! 2
+Turbo
+!! 4
+Object
+!! 0
+Professional MAKEHELP utility, provided that sufficient memory was allocated
+to serve the new file. Install
+!! 2
+GUIDE
+!! 4
+POPHELP
+!! 0
+with the help file requiring most resources.
+
+!! 4
+<F4>, <CtrlK><C>
+!LINE
+If a block is marked and visible, pastes it from the help system to the
+underlying editor.
+
+<F5>, <AltZ>
+!LINE
+Toggles the zoom mode of the window.
+
+<F6>, <AltM>
+!LINE
+Enters move/resize mode--you can use the Numeric Keypad cursor keys to move
+the window around the screen, or the Shift-cursor keys to resize the window.
+<PgUp> and <PgDn> change the height of the window in increments of 4.
+<CtrlLeftArrow> and <CtrlRightArrow> change the width in increments of 10.
+Note that the window cannot be resized while it is zoomed.
+
+<F7>, <CtrlK><B>
+!LINE
+Marks the beginning of a block.
+
+<F8>, <CtrlK><K>
+!LINE
+Marks the end of a block.
+
+!! 0
+<F9>, <CtrlL>
+!LINE
+Continues the last topic name search, using the search string obtained with
+the <LeftSh F1> or <Ctrl LeftSh F1> hotkey. Searching is circular.
+
+!! 4
+<CtrlK><H>
+!LINE
+Hides or unhides the currently marked block. <F4> will paste only if a
+block is visible.
+
+!! 0
+<PgUp>, <PgDn>
+!LINE
+Moves to the next or previous page of the current help topic.
+
+!! 2
+<Left>, <Right>, <Up>, <Down>
+!LINE
+Moves the cursor around the help window cross-reference links. Pressing
+<Enter> will load and display the associated help topic.
+!! 4
+<Left>, <Right>, <Up>, <Down>
+!LINE
+Moves the cursor around the help window. Positioning the cursor over a
+cross-reference link and pressing <Enter> will load and display the
+associated help topic.
+
+<CtrlLeft>, <CtrlRight>
+!LINE
+Moves the cursor one word left or right.
+
+<Home>, <End>
+!LINE
+Moves to the beginning or end of the current line.
+
+<Tab>, <ShiftTab>
+!LINE
+Jumps to the next or previous cross reference topic, if any.
+
+<CtrlPgUp>, <CtrlPgDn>
+!LINE
+Moves to the beginning or end of the current topic.
+
+!! 0
+<Enter>
+!LINE
+Selects the currently highlighted cross-reference topic.
+
+!! 2
+<Esc>
+!! 4
+<Esc>, <AltX>
+!! 0
+!LINE
+Exits
+!! 2
+GUIDE.
+!! 4
+POPHELP.
+!! 0
+The current topic and page are retained and may be redisplayed by pressing
+<LeftSh F2> or <Ctrl LeftSh F2>.
+;
+!NOWRAP

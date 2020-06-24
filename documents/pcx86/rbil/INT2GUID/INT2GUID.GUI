@@ -1,0 +1,56 @@
+;Text for INT2GUID conversion program, topic 5.
+;INT2GUID converts INTERRUP.LST files to input for GUIDE.
+;
+!WRAP
+;
+The resident help system is controlled by the program GUIDE or its successor
+POPHELP.
+
+The GUIDE resident help program (a Popup Reference Engine) is copyright
+TurboPower Software. It is part of the program package Turbo Professional.
+The copyright notice states:
+   GUIDE.EXE, MAKEHELP.EXE, and the Turbo Professional help files are
+   copyrighted property of TurboPower Software. The Turbo Professional help
+   files and MAKEHELP.EXE are intended for the sole use of the licensed
+   owner of a copy of Turbo Professional. However, TurboPower Software
+   grants you the right to distribute GUIDE.EXE along with help files
+   of your own design.
+
+GUIDE displays information about default settings and instructs how to
+customize the settings if you enter "GUIDE /?" from the DOS prompt.
+
+The second and third level of index screens in this file are essentially
+help screens, and GUIDE's cross reference facility is used to select the
+topic. Most of the screens will display on one page if the height is set
+to 20 lines.
+
+GUIDE has three hot keys for: Look up help topic, Redisplay previous
+help topic, and Display help index. The "Look up help topic" facility
+searches for a topics retrieved from the screen at the cursor position
+and pops up, if possible, on the right one.
+
+The amount of text that can be displayed is limited by the number of pages
+per topic defined in GUIDE (default = 20, defined when GUIDE was compiled),
+and the screen height that can be defined when GUIDE is initialized. The
+biggest topic in the INTERRUPT release 2/91 has about 850 lines of text,
+thus requiring many long pages to show them all. GUIDE supports 43/50 lines
+on EGA/VGA screens; the height shrinks to 25 lines if GUIDE pops up when
+the display mode is set to a standard 25 lines screen.
+
+Within GUIDE, use
+   F1      for GUIDE index.
+   <Alt>F1 for former help screen.
+   F3      for new help file (error 203: unload GUIDE, load with new file). 
+   F5      to move the window.
+
+Most of what is stated above about GUIDE holds true also for POPHELP, part
+of the package Object Professional from TurboPower Software. However, POPHELP
+has a scrolling system capable of showing all the text independent of the
+screen height, and it has several facilities not included in GUIDE.
+
+POPHELP defines the height as active lines, whereas GUIDE includes two lines
+for the frame, therefore height 18 is a good choice when using POPHELP.
+POPHELP can readjust the height when active.
+;
+!NOWRAP
+;

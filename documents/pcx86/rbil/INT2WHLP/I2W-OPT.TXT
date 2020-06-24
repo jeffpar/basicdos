@@ -1,0 +1,126 @@
+INT2WHLP Interrupt List  -> WinHelp converter. 
+
+Syntax is:
+	INT2WHLP [options] [InPath [options] [OutPath [options]]]
+
+InPpath is the source file directory. The program will use INTERRUP.LST
+as the input file if it exists, or else it will use INTERRUP.A and consecutive
+INTERRUP.B, ..., . The files CATEGORY.KEY and OVERVIEW.LST should also be in
+the InPath directory. See also I2W-CFG.TXT's [WINDOWS] section.
+
+OutPath is the output directory where the INTWIN.HPJ and *.RTF files will go.
+The program will request InPath and OutPath if they are not specified as
+parameters or in a configuration file.
+
+Options are introduced by "-" or "/", and they are not case sensitive.
+On switch options of the form "-E+" or "-E-", actually only the "-" in
+position 3 is significant to turn the option off, "-E" alone or any other
+string after "E" turns the option on.
+Options taking an argument can optionally have a ":" after the option
+character, e.g. "-C:medium" or "-Cmedium".
+
+All the options can also be controlled by entries in the configuration file's
+[OPTION] section (see I2W-OPT.TXT). Options specified as program parameters
+take precedence over options specified in the configuration file.
+
+Implemented options are:
+	-1[+|-]		Single-entry interrupt numbers are listed directly
+			in the Interrupts index if this option is enabled,
+			instead of a reference "INT nn ..." to a one-entry
+			index.
+			Default is disabled, for a filtered list with many
+			single-entry interrupts enabling is preferable.
+			Configuration file key "singlesInMain".
+	-2[+|-]		The program can maintain two indexes, "Interrupt
+			Index" (all entries) and "Interrupts" (index with
+			subindexes). -2- disables Interrupt Index.
+			Default is enabled.
+			Configuration file key "twoIndexes".
+	-B[:]<build>	Inserts 'BUILD=<build>' in the HPJ file's [OPTIONS]
+			section if <build> is not the empty string. Don't
+			use any spaces in the <build> expression. Note
+                        that the OR operator "|" cannot be passed in an
+                        option because DOS interprets it as a pipe redirection.
+                        Use the configuration file if the OR operator is
+                        needed.
+                        Configuration file key "build".
+	-C[:][arg]	Controls HCxx's Compression ratio. If no -C option
+			is used, compression is set to NO. If -C or -C: is
+			used alone, compression is set to YES. Any argument
+			is passed to HCxx, legal arguments are: 0, NO, OFF
+			for no compression, MEDIUM for medium compression,
+			or 1, YES, HIGH for high compression.
+			Configuration file key "compression".
+	-E[+|-]		Controls opening of a HCxx error log file INTWIN.ERR.
+			Default is no error log.
+	-F[:]<filter>	Specifies the name of the Filter file for a partial
+			compilation of the Interrupt List. The filter file
+			must be in the current directory, or the path must
+			be given.
+			NOTE! It is recommended not to perform a partial
+			compilation because references to tables may then be
+			missing.
+			Configuration file key "filterFile".
+	-H[+|-]		Controls Headers in the Interrupt Index. If disabled,
+			only the entries are listed in the index. If enabled,
+			each new interrupt number gets a heading "INT nn ...".
+			Default is enabled. -H is ignored if -2- is
+			specified.
+			Configuration file key "headers".
+	-I[:]<columns>	Specifies the number of columns in the compressed
+			Index. Legal values are 1, 4, 8, or 16. Default is
+			1.
+			Configuration file key "indexColumns".
+	-K[:]c[+|-]...	Crontrols transfer of keywords to secondary keyword
+			tables in intwin.hlp. c is a letter. So far only T is
+			supported. -KT causes all #nnnn table keywords to be
+			moved to a TWBTREE table in intwin.hlp, and -KT-
+			overrides a possible setting in the configuration
+			file, thus storing the #nnnn keywords in the primary
+			table in intwin.hlp.
+			Configuration file key "keywordTable".
+	-L[+|-]		Controls whether both long and sort versions of
+			interrupt search keys are used, or short versions
+			only. A long search key is e.g. "INT 10 AH = 0", and
+			the correspoding short key is "10 00". Disabling long
+			search keys reduces the total number of keywords by
+			appr. 20% and can prolong the period that WinHelp 4.0
+			can support keyword search on intwin.hlp. WinHelp 4.0
+			has a limited keyword capacity.
+			Default is long search keys enabled.
+			Configuration file key "longKeys".
+	-M[+|-]		Controls whether or not keywords (like "See also:",
+			"Notes:") are marked (bolded). The program compiles
+			the List 20% faster, and HC31 yields a 1% shorter
+			.HLP file when disabled, but the readability of the
+			result is lower.
+			Default is marking enabled.
+			Configuration file key "markKeys".
+	-Q[+|-]		Controls blanks around the eQual sign in search
+			strings "INT nn AH = ff" or "INT nn AH=ff". Default
+			is blanks enabled.
+			Configuration file key "equalBlanks".
+	-R[:]<release>  The release specification controls Interrupt List
+			release number dependent behavior of INT2WHLP.
+			Implemented influence:
+			  releaseNo<41:	Tables are not treated as separate
+			  		topics, no table cross references.
+			Configuration file key "releaseNo".
+	-S[+|-]		Controls the Scrolling of index headers. Indexes
+			have a main header describing the Interrupt List,
+			and an individual title. If scrolling is enabled,
+			the title will scroll with the rest of the index,
+			if disabled, the title will be part of the non-
+			scrolling header. Scrolling is enabled by default.
+			Configuration file key "scrollIndexTitle".
+	-T[+|-]		Controls whether tables appear in a secodary
+			window or in the main window. The -T option is
+			ignored if the -R option disables separate table
+			topics.
+			Table windows are enabled by default.
+			Configuration file key "tableWindow".
+	-X[+|-]		Controls whether the Interrupt List Index initially
+			pops up in eXpanded (all entries in one window) or
+			in compressed (index with subindexes) format.
+			Expanded index is enabled by default.
+			Configuration file key "expandedIndex".

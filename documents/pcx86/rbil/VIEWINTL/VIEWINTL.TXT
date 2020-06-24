@@ -1,0 +1,92 @@
+                          SLY: VIEWINTL v1.0 (c) 1998
+
+          Protected mode viewer for Ralph Brown's Interrupt List v56+
+
+-*--------------------------------------------------------------------------*-
+
+                                   Contents
+                                   ========
+                                  What is it?
+                                  Why is it?
+                              How does it works?
+                                     Keys
+                                 Command line
+                                 Requirements
+                                     Other
+
+-*--------------------------------------------------------------------------*-
+
+        What is it?
+
+     This program is a text-mode viewer for the Interrupt List created  and
+distributed among the all programmers over the world by Ralph  Brown.  This
+viewer is compatible with the version 56 of  interrupt  list  and  possibly
+with the newer versions.
+
+        Why is it?
+
+     Viewer presents as suitable features as search through  topics titles,
+letter-by-letter search for needed interrupt/function. It shows all of more
+than 8000 topics of the current INTERRUPT LIST, and supports up to 15'000
+topics and topic length up to 1'400 lines.
+
+        How does it works?
+
+     Program  must  be  started  from  the  catalog  that   contains    the
+INTERRUP.LST file. This file  can  be  made  by  the  utility  COMBINE.COM,
+distributed with the Interrupt List. At  the  first  start  viewer  creates
+index-file for  the  fast  view  possibilities  in  the  catalog  with  the
+INTERRUPT.LST (or optionally in other catalog - see Command line  section).
+After this viewer goes directly to the list of topics  -  it's  topic  view
+mode. You can read desireable topic by pressing Enter on it - in this  case
+viewer will go to the topic body view mode.
+
+        Keys
+
+  In topic list view mode:
+    to move:
+      - arrows up/down, page up/page down, home/end. Also you can type in the
+        interrupt and the AX register letter by letter.
+    to search for a string:
+      - F7
+    to continue search:
+      - Shift-F7, Alt-F7, Ctrl-F7
+    to exit viewer:
+      - Alt-X, Esc
+    to enter the topic body view mode:
+      - Enter
+
+  In topic body view mode:
+    to write the topic in a file:
+      - W, F2
+    to exit this mode:
+      - Enter, Esc
+    to exit viewer:
+      - Alt-X
+
+        Command line
+
+     The only command line parameter can be full name of a index  file  (in
+case you don't want to have it in the catalog with the INTERRUP.LST  -  for
+example, if it's a CD-ROM catalog).
+
+        Requirements
+
+     This is 32-bit protected mode program, and for normal work it must  be
+run on a computers with 386+ processor with minimum of 4 Mb RAM.  Operation
+system - MS-DOS, OS/2, Win95. Minimum amount  of  free  RAM  to  start  the
+program is 1.2 Mb.
+
+        Other
+
+     Interrupt List ic (c) by Ralf Brown. Thanks for his great work -  this
+list is really incredible!
+
+-*--------------------------------------------------------------------------*-
+
+     SLY Golovanov
+
+     Moscow, Russia
+     2:5020/768.113@FIDONet
+     sly@post.ru
+     http://sly.home.ml.org

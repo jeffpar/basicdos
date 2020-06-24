@@ -1,0 +1,160 @@
+Some Hints Concerning the POPHELP Program.
+
+***** 1993-04-04: Editings after 1992-12-19 are marked with 5 asterisks.
+
+Small modifications to the Turbo Power POPHELP program can make it better
+suited for displaying the interrupt list and for many other purposes. This
+file describes four modifications that are recommended. They cover 1) minimum
+length of the screen search string 2) default Hot Keys 3) sort order in the
+main menu and 4) color attributes.
+
+The POPHELP program included in the Object Professional package comes in
+two parts, POPHELP.PAS and PHMAIN.PAS. The changes should be made in the
+PHMAIN.PAS file, and the line numbers mentioned below refer to version 1.11
+dated 18-MAR-91. Before editing PHMAIN.PAS, save a copy of the original
+version, and insert a comment in the beginning of PHMAIN.PAS stating the
+changes to the code.
+
+
+1) Minimum Length of the Screen Search String.
+
+The Screen Search facility tries to pop up on a topic referenced by a word
+at the cursor position. A word is one or more consecutive letters, digits,
+or underscores. POPHELP can pop up either on an exact match, or on a partial
+match to the beginning of a window header with a predefined minimum string
+length. The minimum string length is defined to be 4. This implies that no
+match will be found to e.g. the window header "PSP Format" because the search
+string "psp" is too short, and a space cannot be included in the search
+string to prolong it to "psp ". Also, if Function Classification is enabled
+(after Interrupt List release 33), e.g. INT 00 will have the header 00_H, and
+"00" will no longer cause an exact match. 3 is a better choice for the minimum
+search string length, then "psp" and "10_" will find partial matches to the
+two windows.
+
+To change the minimum partial search string length from 4 to 3, edit line
+198:
+  MinPartialMatch = 4;                        {Min length for partial matches}
+to read:
+  MinPartialMatch = 3;                        {Min length for partial matches}
+
+
+2) Default Hot Keys.
+
+The three predefined Hot Keys are F1, F2, and F3 together with the left shift
+key. Because shifted function keys are used in many programs, that choice
+forces the user to either consequently using the right shift key with the
+function keys in programs, or to change the Hot Keys when POPHELP is
+installed. I find it more convenient to predefine the combinations F1, F2,
+and F3 with Ctrl + left shift.
+
+To change the hot keys to use Ctrl left shift rather than left shift, edit
+lines 84-89:
+  HotKeyScreen : Word = $023B;    {LShift-F1}
+  HotKeyLast   : Word = $023C;    {LShift-F2}
+  HotKeyIndex  : Word = $023D;    {LShift-F3}
+  HotKeyNameScreen : String[19] = '<Left Shift><F1>';
+  HotKeyNameLast   : String[19] = '<Left Shift><F2>';
+  HotKeyNameIndex  : String[19] = '<Left Shift><F3>';
+to read:
+  HotKeyScreen : Word = $063B;    {Ctrl-LShift-F1}
+  HotKeyLast   : Word = $063C;    {Ctrl-LShift-F2}
+  HotKeyIndex  : Word = $063D;    {Ctrl-LShift-F3}
+  HotKeyNameScreen : String[19] = '<Ctrl><Left Sh><F1>';
+  HotKeyNameLast   : String[19] = '<Ctrl><Left Sh><F2>';
+  HotKeyNameIndex  : String[19] = '<Ctrl><Left Sh><F3>';
+
+
+3) Sort Order in the Main Menu.
+
+The POPHELP program uses a facility called a pick list for the main menu
+window. The Object Professional package supports three kinds of pick lists:
+PickHorizontal, PickVertical, and PickSnaking. They are illustrated in the
+following:
+
+PickHorizontal
+
+   1  2
+ ÚÄÄÄÄÄÄ¿  A vertically scrolling viewport always contains consecutive
+ ³ 3  4 ³  entries, but the entries are not ordered as a normal index.
+ ³ 5  6 ³
+ ³ 7  8 ³
+ ÀÄÄÄÄÄÄÙ
+   9 10
+  11 
+
+PickVertical
+
+   1  7
+ ÚÄÄÄÄÄÄ¿  A vertically scrolling viewport does not contain consecutive
+ ³ 2  8 ³  entries in two adjacent columns. This method produces the
+ ³ 3  9 ³  shortest code, 260 bytes shorter than PickHorizontal.
+ ³ 4 10 ³
+ ÀÄÄÄÄÄÄÙ
+   5 11
+   6
+
+PickSnaking
+
+   ÚÄÄÄÄÄÄ¿     The viewport scrolls horizontally. It contains consecutive
+ 1 ³ 4  7 ³ 10  entries in a natural order. This method produces the longest
+ 2 ³ 5  8 ³ 11  code, 96 bytes longer than PickHorizontal and 356 bytes
+ 3 ³ 6  9 ³     longer than PickVertical.
+   ÀÄÄÄÄÄÄÙ
+
+If the viewport can hold all entries, the PickVertical and PickSnaking
+windows appear equal.
+***** 1994-03-19: Corrected from "PickHorizontal and PickSnaking" above.
+
+POPHELP uses the PickHorizontal list with the anomalous sort order of the
+entries. 
+
+To change the pick list sorting from horizontal to vertical or snaking, edit
+the last line of lines 792-799 (in procedure LoadHelpObject):
+    Help := New(ScrollingHelpWindowPtr,
+                InitCustom(InitHelpX, InitHelpY,
+                           InitHelpX+InitHelpWidth-1,
+                           InitHelpY+InitHelpHeight-1,
+                           HelpColorSet,
+                           HelpWinOpts,
+                           CurName,
+                           PickHorizontal));
+so line 799 reads:
+                           PickVertical));
+or
+                           PickSnaking));
+
+***** 1993-04-04: Added:
+If PickSnaking is selected, also the "More" indicators in the main index
+should be changed from vertical arrows to horizontal arrows. Edit line 767
+(in procedure CustomizeHelpWindow) from
+      AddMoreHeader(' || ', heTL, #24, #25, '', 2, 3, 0);
+to
+      AddMoreHeader(' || ', heTL, #27, #26, '', 2, 3, 0);
+
+
+4) POPHELP Color Attributes.
+
+It is very common to use screen attribute bit 3 to select bright colors, and
+this is also used in the original version of POPHELP. However, programs (word
+processors for example) can alter the mode of the video board, so bit 3
+selects an alternate character set rather than a bright color. It is
+inconvenient to pop up using bright attributes in a program that has changed
+the video board mode, so the following changes are recommended to
+HelpColorSet defined in lines 125 - 157:
+
+    BlockColor      : $74 (* $1E *); BlockMono      : $70;
+
+    SelItemColor    : $63 (* $5E *); SelItemMono    : $70;
+
+    FlexAHelpColor  : $17 (* $1F *); FlexAHelpMono  : $70;
+    FlexBHelpColor  : $34 (* $3E *); FlexBHelpMono  : $0F;
+
+    UnselXrefColor  : $70 (* $3B *); UnselXrefMono  : $01;
+    SelXrefColor    : $71 (* $5E *); SelXrefMono    : $70;
+
+If you leave the old values commented out like above, insert a space between
+"(*" or "{" and "$", or else they will be interpreted as compiler directives.
+
+
+After editing PHMAIN.PAS, compile POPHELP.PAS to get a modified POPHELP
+program.

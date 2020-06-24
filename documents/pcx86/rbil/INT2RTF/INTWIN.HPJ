@@ -1,0 +1,23 @@
+; === Help project configuration to compile IntWin.RTF with HC31 ===
+
+
+[OPTIONS]
+
+TITLE=Interrupt List
+COMPRESS=High
+ERRORLOG=Int_err.Log
+
+
+[CONFIG]
+
+BrowseButtons()
+
+RegisterRoutine(`hintsrch.dll', `HSearcherDMInit', `')
+RegisterRoutine(`hintsrch.dll', `HSearcherDMExecSearch', `')
+HSearcherDMInit()
+CreateButton(`searcher_button', `F&ind Text', `HSearcherDMExecSearch()')
+
+
+[FILES]
+
+IntWin.RTF

@@ -1,0 +1,21 @@
+int2hlp.bat  Run this batch to get a .HLP file using HC31.EXE help compiler
+int2hlp_.bat Run this batch to get a .HLP file using HCW.EXE help compiler
+int2rtf.exe  Int2RTF executable file
+rtm.exe      DPMI Runtime manager
+comment      Archive comments
+whatsnew     History of bugs&fixes
+file_id.diz  Short description
+hintsrch.dll Search engine
+int2rtf.doc  Documentation and technical notes
+disclaim.ers Copyright notes & other disclaimers - READ BEFORE USE
+intwin.hpj   Help project configuration to compile IntWin.RTF with HC31
+descript.ion This file
+dpmi16bi.ovl DPMI Server
+initupc.pas  Source text of the Int2RTF
+int2rtf.pas  Source text of the Int2RTF
+rtf.pas      Source text of the Int2RTF
+upcaser.pas  Source text of the Int2RTF
+intwin.ph    Key-phrase table
+int_bold.txt List of the key words to be displayed with bold font
+int_keys.txt Example of user defined indexing configuration
+http.www     What's on my homepage (text file)

@@ -1,0 +1,35 @@
+;Text for INT2GUID conversion program, topic 2.
+;INT2GUID converts INTERRUP.LST files to input for GUIDE.
+;
+; NB! This file contains a reference to topic 200, the filter file topic.
+;
+!WRAP
+;
+The information used for these TurboPower GUIDE (or POPHELP) popup help
+screens is copyright Ralf Brown, see 3INTERRUP.LST and 4INTERRUP.1ST.
+This transcription of the files can be redistributed as a unit according to
+INTERRUP.1ST.
+
+!!1
+; unfiltered version, no special information
+!!2
+; filtered version
+This transcription of the Interrupt List is a filtered version, see
+information about the 200Filter File.
+
+!!0
+The programs GUIDE and POPHELP are copyright TurboPower Software and can
+be distributed only with a proper version of the file INTERRUP.HLP, see
+5GUIDE.
+
+The program that compiled the information in Ralf Brown's files into a
+file that could be used to generate this Help System is based on a program
+written by Kai Uwe Rommel.
+
+Because the line length in the GUIDE Help System is limited to 76 characters,
+some lines will be truncated 1 - 2 characters early.
+
+Bent Lynggaard.
+!NOWRAP
+;
+

@@ -1,0 +1,298 @@
+{\rtf1\windows\deff1{\fonttbl{\f0\fswiss Arial;}
+{\f1\fmodern Courier New;}{\f2\froman Times New Roman;}
+{\f3\froman Symbol;}{\f4\fmodern Terminal;}
+{\f5\fnil Wingdings;}{\f6\fdecor ZapfDingbats;}}
+{\colortbl;\red0\green0\blue0;\red0\green0\blue255;
+\red0\green255\blue255;\red0\green255\blue0;
+\red255\green0\blue255;\red255\green0\blue0;
+\red255\green255\blue0;\red255\green255\blue255;
+\red0\green0\blue127;\red0\green127\blue127;
+\red0\green127\blue0;\red127\green0\blue127;
+\red127\green0\blue0;\red127\green127\blue0;
+\red127\green127\blue127;\red192\green192\blue192;}
+\plain\fs18\pard\keep
+\page\pard\keepn\li1060\fi-1060
+#{\footnote{#} MISC_INF_0}
+${\footnote{$} Miscellaneous Information}
+K{\footnote{K} Miscellaneous Information;Additional tables}
++{\footnote{+} m:9}
+{\f2\fs28 Miscellaneous Information}
+\par\pard\keep
+\pard
+\par Pin assignments, screen colors, scan codes, and control code acronyms.
+\par\keep
+\par This screen gives access to:
+\par   {\uldb Serial Port Pin Assignments}{\v MISC_INF_12}
+\par   {\uldb Printer Port Pin Assignments}{\v MISC_INF_13}
+\par   {\uldb Game Port Pin Assignments}{\v MISC_INF_14}
+\par   {\uldb Colors on EGA/VGA display}{\v MISC_INF_10}
+\par   {\uldb Keyboard Scan Codes}{\v MISC_INF_11}
+\par   {\uldb Acronyms for ASCII Control Codes}{\v MISC_INF_9}
+\par
+\par Compiled from INT2GUID.ADD in the INT2GUID.ZIP package included in the 
+\par Interrupt List. 
+\par Copyright \'A9 1991-1994 Bent Lynggaard
+\page\pard\keepn\li1060\fi-1060
+#{\footnote{#} MISC_INF_12}
+${\footnote{$} Serial Port Pin Assignments}
+K{\footnote{K} Serial Port;Pin Assignments;COM port;RS-232-C;INT 14;14}
++{\footnote{+} MISC_INF_:0}
+{\f2\fs28 Serial Port Pin Assignments}
+\par\pard\keep
+\par RS-232-C serial port (COM port) pin assignments.
+\par {\cf6 *n} = PC pin, n is pin number on the 9 pin AT connector.
+\par > = from PC or DTE; < = to PC or DTE. DTE = Data Terminal Equipment.
+\par
+\par     1 FG    Frame ground            14 TD2 > Secondary TD
+\par {\cf6 *3}  2 TD  > Transmit Data           15 TC  < Transmission Signal Timing
+\par {\cf6 *2}  3 RD  < Receive Data            16 RD2 < Secondary RD
+\par {\cf6 *7}  4 RTS > Request To Send         17 RC  < Receiver Signal Timing
+\par {\cf6 *8}  5 CTS < Clear To Send           18       (unassigned)
+\par {\cf6 *6}  6 DSR < Data Set Ready          19 RS2 > Secondary RTS
+\par {\cf6 *5}  7 SG    Signal ground        {\cf6 *4} 20 DTR > Data Terminal Ready
+\par {\cf6 *1}  8 DCD < Data Carrier Detect     21 SQ  < Signal Quality Detector
+\par     9       (test)               {\cf6 *9} 22 RI  < Ring Indicator
+\par    10       (test)                  23 DRS = Data signal Rate Selector
+\par    11       (unassigned)            24 TT  > Transmit Signal Timing
+\par    12 CD2 < Secondary DCD           25       (unassigned)
+\par    13 CT2 < Secondary CTS
+\par\par See also {\uldb INT 14}{\v 14_0}.
+\par\par {\uldb Printer Port}{\v MISC_INF_13} and {\uldb Game Port}{\v MISC_INF_14} pin assignments are also available.
+\par\par Back to {\uldb Miscellaneous Information}{\v MISC_INF_0} index.
+\page\pard\keepn\li1060\fi-1060
+#{\footnote{#} MISC_INF_13}
+${\footnote{$} Printer Port Pin Assignments}
+K{\footnote{K} Printer Port;Pin Assignments;Parallel port;LPT port;INT 17;17}
++{\footnote{+} MISC_INF_:0}
+{\f2\fs28 Printer Port Pin Assignments}
+\par\pard\keep
+\par Printer port (parallel port, LPT port) pin assignments.
+\par 25 pin {\cf6 PC printer port} and 36 pin {\cf2 Centronic port}.
+\par > = from PC; < = to PC. Pins 1-9 are bidirectional on PS-2 models in ext. mode.
+\par
+\par  Data                    Gnd          Data                    Gnd
+\par   {\cf2 1} {\cf6 1} > ^Strobe         {\cf6 19} {\cf2 19}         {\cf2 10} {\cf6 10} < ^Acknowledge   {\cf6 24} {\cf2 28}
+\par   {\cf2 2} {\cf6 2} > Data Bit 0      {\cf6 20} {\cf2 20}         {\cf2 11} {\cf6 11} < Busy           {\cf6 24} {\cf2 29}
+\par   {\cf2 3} {\cf6 3} >  "    "  1      {\cf6 20} {\cf2 21}         {\cf2 12} {\cf6 12} < Paper End      {\cf6 25} {\cf2 30}
+\par   {\cf2 4} {\cf6 4} >  "    "  2      {\cf6 21} {\cf2 22}         {\cf2 13} {\cf6 13} < Select         {\cf6 18} {\cf2 16,33}
+\par   {\cf2 5} {\cf6 5} >  "    "  3      {\cf6 21} {\cf2 23}         {\cf2 14} {\cf6 14} > ^Auto Feed xt  {\cf6 18} {\cf2 16,33}
+\par   {\cf2 6} {\cf6 6} >  "    "  4      {\cf6 22} {\cf2 24}         {\cf2 32} {\cf6 15} < ^Error         {\cf6 18} {\cf2 16,33}
+\par   {\cf2 7} {\cf6 7} >  "    "  5      {\cf6 22} {\cf2 25}         {\cf2 31} {\cf6 16} > ^Initialize    {\cf6 18} {\cf2 16,33}
+\par   {\cf2 8} {\cf6 8} >  "    "  6      {\cf6 23} {\cf2 26}         {\cf2 36} {\cf6 17} > ^Select In     {\cf6 18} {\cf2 16,33}
+\par   {\cf2 9} {\cf6 9} >  "    "  7      {\cf6 23} {\cf2 27}
+\par\par See also {\uldb INT 17}{\v 17_0}.
+\par
+\par {\uldb Serial Port}{\v MISC_INF_12} and {\uldb Game Port}{\v MISC_INF_14} pin assignments are also available.
+\par\par Back to {\uldb Miscellaneous Information}{\v MISC_INF_0} index.
+\page\pard\keepn\li1060\fi-1060
+#{\footnote{#} MISC_INF_14}
+${\footnote{$} Game Port Pin Assignments}
+K{\footnote{K} Game Port;Pin Assignments;INT 15 AH = 84;15 84}
++{\footnote{+} MISC_INF_:0}
+{\f2\fs28 Game Port Pin Assignments}
+\par\pard\keep
+\par Game port pin assignments. (15 pins in 2 rows)
+\par
+\par   1,8,9: +5 V
+\par   15: +5 V or Midi RXD
+\par   4,5: 0 V (ground)
+\par   12: 0 V or Midi TXD
+\par   2:  Switch A-1                Switches are sensed active when shorted
+\par   3:  X-position A              to ground.
+\par   6:  Y-position A
+\par   7:  Switch A-2                Position sensors are variable resistors
+\par   10: Switch B-1                0 ohms - 250 kiloohms from the position
+\par   11: X-position B              pins to +5 V.
+\par   13: Y-position B
+\par   14: Switch B-2
+\par
+\par See also {\uldb INT 15 function 84}{\v int15_84}.
+\par
+\par {\uldb Serial Port}{\v MISC_INF_12} and {\uldb Printer Port}{\v MISC_INF_13} pin assignments are also available.
+\par\par Back to {\uldb Miscellaneous Information}{\v MISC_INF_0} index.
+\page\pard\keepn\li1060\fi-1060
+#{\footnote{#} MISC_INF_10}
+${\footnote{$} Colors on EGA/VGA display}
+K{\footnote{K} Colors on EGA/VGA display;Screen Colors;Colors (screen);Normal colors;Bright colors;
+Screen attributes;Attribute bits;Normal attribute;Alternate attribute;
+Foreground (screen);Background (screen);INT 10 AH = 10;10 10;
+INT 10 AX = 1000;10 1000;INT 10 AX = 1003;10 1003;INT 10 AX = 1013;10 1013}
++{\footnote{+} MISC_INF_:0}
+{\f2\fs28 Colors on EGA/VGA display}
+\par\pard\keep
+\par Screen colors.
+\par
+\par {\cf2  Normal colors       Bright colors          Attribute bits              }
+\par  0 00 Black          8 08 Dark grey         7 normal    Foreground blink
+\par  1 01 Blue           9 09 Light blue        7 alternate Background bright
+\par  2 02 Green         10 0A Light green       6-4         Background color
+\par  3 03 Cyan          11 0B Light cyan        3 normal    Foreground bright
+\par  4 04 Red           12 0C Light red         3 alternate Alternate char. set
+\par  5 05 Magenta       13 0D Light magenta     2-0         Foreground color
+\par  6 06 Brown         14 0E Yellow
+\par  7 07 White (grey)  15 0F Bright (white)
+\par
+\par {\cf2 Normal/alternate function:       Set                     Read}
+\par   Attribute bit 7:         {\uldb INT 10 AX=1003}{\v int10_1003}    {\uldb INT 10 AH=1B}{\v int10_1b} offs. 2D bit 5
+\par   Attribute bit 3:         {\uldb INT 10 AX=1103}{\v int10_11}{\cf6 *}   {\uldb INT 10 AH=1B}{\v int10_1b} offs. 2B<>offs. 2C
+\par
+\par {\cf6 *} BL bits 0,1,4<>bits 2,3,5. The bright attribute is still active, it can be
+\par disabled/enabled by {\uldb INT 10 AX=1000}{\v int10_1000} BX=0712/0F12.
+\par\par Back to {\uldb Miscellaneous Information}{\v MISC_INF_0} index.
+\page\pard\keepn\li1060\fi-1060
+#{\footnote{#} MISC_INF_11}
+${\footnote{$} Keyboard Scan Codes}
+K{\footnote{K} Keyboard Scan Codes;Scan Codes;INT 16 AH = 00;16 00;INT 16 AH = 10;16 10}
++{\footnote{+} MISC_INF_:0}
+{\f2\fs28 Keyboard Scan Codes}
+\par\pard\keep
+\par Scan codes: special keys. Num Lock off (on: swap Plain/Shift col. Up - Del).
+\par {\cf6 *}: Not {\uldb INT 16 AH = 00}{\v int16_00}. See also next page.
+\par
+\par {\cf2        Plain  Shift   Ctrl    Alt         Plain  Shift   Ctrl    Alt}
+\par {\cf2     Up}  4800   4838    --     --    {\cf2    F1}  3B00   5400   5E00   6800        
+\par {\cf2   Down}  5000   5032    --     --    {\cf2    F2}  3C00   5500   5F00   6900
+\par {\cf2   Left}  4B00   4B34   7300    --    {\cf2    F3}  3D00   5600   6000   6A00
+\par {\cf2  Right}  4D00   4D36   7400    --    {\cf2    F4}  3E00   5700   6100   6B00
+\par {\cf2   Home}  4700   4737   7700    --    {\cf2    F5}  3F00   5800   6200   6C00
+\par {\cf2    End}  4F00   4F31   7500    --    {\cf2    F6}  4000   5900   6300   6D00
+\par {\cf2   PgUp}  4900   4939   8400    --    {\cf2    F7}  4100   5A00   6400   6E00
+\par {\cf2   PgDn}  5100   5133   7600    --    {\cf2    F8}  4200   5B00   6500   6F00
+\par {\cf2    Ins}  5200   5230    --     --    {\cf2    F9}  4300   5C00   6600   7000
+\par {\cf2    Del}  5300   532E    --     --    {\cf2   F10}  4400   5D00   6700   7100
+\par {\cf2    Esc}  011B   011B   011B  {\cf6 *}0100   {\cf2   F11} {\cf6 *}8500  {\cf6 *}8700  {\cf6 *}8900  {\cf6 *}8B00
+\par {\cf2    Tab}  0F09   0F00  {\cf6 *}9400  {\cf6 *}A500   {\cf2   F12} {\cf6 *}8600  {\cf6 *}8800  {\cf6 *}8A00  {\cf6 *}8C00
+\par {\cf2   BkSp}  0E08   0E08   0E7F  {\cf6 *}0E00
+\par {\cf2 Return}  1C0D   1C0D   1C0A  {\cf6 *}1C00   {\cf2 Enter}  1C0D   1C0D   1C0A    --
+\par {\cf2  Space}  3920   3920   3920   3920
+\par\par\par\par
+\par Scan codes: special keys extended codes. Num Lock off. {\uldb INT 16 AH = 10}{\v int16_10}
+\par {\cf2              Numeric Keypad                     Special Keypad
+\par
+\par        Plain  Shift   Ctrl    Alt         Plain  Shift   Ctrl    Alt}
+\par {\cf2     Up}  4800   4838   8D00   {\cf6 *}--           48E0   48E0   8DE0   9800
+\par {\cf2   Down}  5000   5032   9100   {\cf6 *}--           50E0   50E0   91E0   A000
+\par {\cf2   Left}  4B00   4B34   7300   {\cf6 *}--           4BE0   4BE0   73E0   9B00
+\par {\cf2  Right}  4D00   4D36   7400   {\cf6 *}--           4DE0   4DE0   74E0   9D00
+\par {\cf2   Home}  4700   4737   7700   {\cf6 *}--           47E0   47E0   77E0   9700
+\par {\cf2    End}  4F00   4F31   7500   {\cf6 *}--           4FE0   4FE0   75E0   9F00
+\par {\cf2   PgUp}  4900   4939   8400   {\cf6 *}--           49E0   49E0   84E0   9900
+\par {\cf2   PgDn}  5100   5133   7600   {\cf6 *}--           51E0   51E0   76E0   A100
+\par {\cf2    Ins}  5200   5230   9200   {\cf6 *}--           52E0   52E0   9200   A200
+\par {\cf2    Del}  5300   532E   9300    --           53E0   53E0   93E0   A300
+\par {\cf2    5  }  4C00   4C35   8F00   {\cf6 *}--   {\cf6 *} = compose
+\par {\cf2    /  }  E02F   E02F   9500   A400
+\par {\cf2    *  }  372A   372A   9600   3700
+\par {\cf2    -  }  4A2D   4A2D   8E00   4A00
+\par {\cf2    +  }  4E2B   4E2B   9000   4E00  {\cf2  Enter}  E00D   E00D   E00A   A600
+\par\par\par\par
+\par Scan codes: digits, punctuation marks, etc.
+\par {\cf6 NB! US keyboard.} The high byte may differ if a national keyboard is active,
+\par and the symbols may not be paired as in the table.
+\par {\cf6 *}: Not {\uldb INT 16 AH = 00}{\v int16_00}. {\cf6 +}: See also previous page.
+\par
+\par {\cf2      Plain  Shift   Ctrl    Alt         Plain  Shift   Ctrl    Alt}
+\par {\cf2  ` ~}  2960   297E    --   {\cf6 *}2900   {\cf2   [ \{}  1A5B   1A7B   1A1B  {\cf6 *}1A00
+\par {\cf2  1 !}  0231   0221    --    7800   {\cf2   ] \}}  1B5D   1B7D   1B1D  {\cf6 *}1B00
+\par {\cf2  2 @}  0332   0340   0300   7900   {\cf2   ; :}  273B   273A    --   {\cf6 *}2700
+\par {\cf2  3 #}  0433   0423    --    7A00   {\cf2   ' "}  2827   2822    --   {\cf6 *}2800
+\par {\cf2  4 $}  0534   0524    --    7B00   {\cf2   \\ |}  2B5C   2B7C   2B1C  {\cf6 *}2B00
+\par {\cf2  5 %}  0635   0625    --    7C00   {\cf2   \\ |}  565C   567C    --     --  102nd key
+\par {\cf2  6 ^}  0736   075E   071E   7D00   {\cf2   , <}  332C   333C    --   {\cf6 *}3300
+\par {\cf2  7 &}  0837   0826    --    7E00   {\cf2   . >}  342E   343E    --   {\cf6 *}3400
+\par {\cf2  8 *}  0938   092A    --    7F00   {\cf2   / ?}  352F   353F    --   {\cf6 *}3500
+\par {\cf2  9 (}  0A39   0A28    --    8000   {\cf2  {\cf6 +}/  }  352F   352F    --     --  numeric
+\par {\cf2  0 )}  0B30   0B29    --    8100   {\cf2  {\cf6 +}*  }  372A   372A    --     --  numeric
+\par {\cf2  - _}  0C2D   0C5F   0C1F   8200   {\cf2  {\cf6 +}-  }  4A2D   4A2D    --     --  numeric
+\par {\cf2  = +}  0D3D   0D2B    --    8300   {\cf2  {\cf6 +}+  }  4E2B   4E2B    --     --  numeric
+\par\par\par\par
+\par Scan codes: letters. Caps Lock off. (Caps Lock on: swap Plain/Shift columns)
+\par {\cf6 NB! US keyboard.} The high byte may differ if a national keyboard is active.
+\par
+\par {\cf2      Plain  Shift   Ctrl    Alt         Plain  Shift   Ctrl    Alt}
+\par {\cf2    a}  1E61   1E41   1E01   1E00    {\cf2    n}  316E   314E   310E   3100
+\par {\cf2    b}  3062   3042   3002   3000    {\cf2    o}  186F   184F   180F   1800
+\par {\cf2    c}  2E63   2E43   2E03   2E00    {\cf2    p}  1970   1950   1910   1900
+\par {\cf2    d}  2064   2044   2004   2000    {\cf2    q}  1071   1051   1011   1000
+\par {\cf2    e}  1265   1245   1205   1200    {\cf2    r}  1372   1352   1312   1300
+\par {\cf2    f}  2166   2146   2106   2100    {\cf2    s}  1F73   1F53   1F13   1F00
+\par {\cf2    g}  2267   2247   2207   2200    {\cf2    t}  1474   1454   1414   1400
+\par {\cf2    h}  2368   2348   2308   2300    {\cf2    u}  1675   1655   1615   1600
+\par {\cf2    i}  1769   1749   1709   1700    {\cf2    v}  2F76   2F56   2F16   2F00
+\par {\cf2    j}  246A   244A   240A   2400    {\cf2    w}  1177   1157   1117   1100
+\par {\cf2    k}  256B   254B   250B   2500    {\cf2    x}  2D78   2D58   2D18   2D00
+\par {\cf2    l}  266C   264C   260C   2600    {\cf2    y}  1579   1559   1519   1500
+\par {\cf2    m}  326D   324D   320D   3200    {\cf2    z}  2C7A   2C5A   2C1A   2C00
+\par\par Back to {\uldb Miscellaneous Information}{\v MISC_INF_0} index.
+\page\pard\keepn\li1060\fi-1060
+#{\footnote{#} MISC_INF_9}
+${\footnote{$} Acronyms for ASCII Control Codes}
+K{\footnote{K} Acronyms for ASCII Control Codes;Control codes (acronyms)}
++{\footnote{+} MISC_INF_:0}
+{\f2\fs28 Acronyms for ASCII Control Codes}
+\par\pard\keep
+\par Alphabetic list of control codes (C0) and extended control codes (C1).
+\par
+\par ACK=  6    DEL=127    FE3= 11    IS4= 28    PU2=146    STX=  2    US = 31
+\par APC=159    DLE= 16    FE4= 12    LF = 10    RI =141    SUB= 26    VT = 11
+\par BEL=  7    EM = 25    FE5= 13    LS0= 15    RS = 30    SYN= 22    VTS=138
+\par BS =  8    ENQ=  5    FF = 12    LS1= 14    SI = 15    TC1=  1
+\par CAN= 24    EOT=  4    FS = 28    MW =149    SO = 14    TC2=  2
+\par CCH=148    EPA=151    GS = 29    NAK= 21    SOH=  1    TC3=  3
+\par CR = 13    ESA=135    HT =  9    NEL=133    SP = 32    TC4=  4
+\par CSI=155    ESC= 27    HTJ=137    NUL=  0    SPA=150    TC5=  5
+\par DC1= 17    ETB= 23    HTS=136    OSC=157    SS2=142    TC6=  6
+\par DC2= 18    ETX=  3    IND=132    PLD=139    SS3=143    TC7= 16
+\par DC3= 19    FE0=  8    IS1= 31    PLU=140    SSA=134    TC8= 21
+\par DC4= 20    FE1=  9    IS2= 30    PM =158    ST =156    TC9= 22
+\par DCS=144    FE2= 10    IS3= 29    PU1=145    STS=147    TCx= 23
+\par
+\par This list includes the graphics codes (G0):
+\par  32 20 SP  Space                       127 7F DEL Delete
+\par\par\par\par
+\par Control codes ASCII 0 - 31 (C0).
+\par Often symbolized by ^ {\cf2 + char. @ - _}, e.g. ^{\cf2 M}=CR.
+\par
+\par   0 00 {\cf2 @} NUL Null                       16 10 {\cf2 P} DLE (TC7) Data Link Escape
+\par   1 01 {\cf2 A} SOH (TC1) Start Of Heading     17 11 {\cf2 Q} DC1 Device Control 1, Xon
+\par   2 02 {\cf2 B} STX (TC2) Start of Text        18 12 {\cf2 R} DC2 Device Control 2
+\par   3 03 {\cf2 C} ETX (TC3) End of Text          19 13 {\cf2 S} DC3 Device Control 3, Xoff
+\par   4 04 {\cf2 D} EOT (TC4) End Of Transmission  20 14 {\cf2 T} DC4 Device Control 4
+\par   5 05 {\cf2 E} ENQ (TC5) Enquiry              21 15 {\cf2 U} NAK (TC8) Not Acknowledge
+\par   6 06 {\cf2 F} ACK (TC6) Acknowledge          22 16 {\cf2 V} SYN (TC9) Synchronous idle
+\par   7 07 {\cf2 G} BEL Bell                       23 17 {\cf2 W} ETB (TC10) End Transm. Block
+\par   8 08 {\cf2 H} BS  (FE0) Back Space           24 18 {\cf2 X} CAN Cancel
+\par   9 09 {\cf2 I} HT  (FE1) Horizontal Tabulat.  25 19 {\cf2 Y} EM  End of Medium
+\par  10 0A {\cf2 J} LF  (FE2) Line Feed            26 1A {\cf2 Z} SUB Substitute character
+\par  11 0B {\cf2 K} VT  (FE3) Vertical Tabulation  27 1B {\cf2 [} ESC Escape seq. introd.
+\par  12 0C {\cf2 L} FF  (FE4) Form Feed            28 1C {\cf2 \\} FS  (IS4) File Separator
+\par  13 0D {\cf2 M} CR  (FE5) Carriage Return      29 1D {\cf2 ]} GS  (IS3) Group Separator
+\par  14 0E {\cf2 N} SO  (LS1) Shift Out            30 1E {\cf2 ^} RS  (IS2) Record Separator
+\par  15 0F {\cf2 O} SI  (LS0) Shift In             31 1F {\cf2 _} US  (IS1) Unit Separator
+\par
+\par TC=Transmission Control
+\par FE=Format Effector
+\par LS=Locking Shift
+\par IS=Information Separator
+\par\par\par\par
+\par Extended control codes 128 - 159 (C1).
+\par Sometimes emulated by ESC {\cf2 + char. @ - _}, e.g. Ansi code "ESC{\cf2 [}" = "CSI"
+\par
+\par 128 80 {\cf2 @}     (unassigned)              144 90 {\cf2 P} DCS Device Control String
+\par 129 81 {\cf2 A}     (unassigned)              145 91 {\cf2 Q} PU1 Private Use 1
+\par 130 82 {\cf2 B}     (unassigned)              146 92 {\cf2 R} PU2 Private Use 2
+\par 131 83 {\cf2 C}     (unassigned)              147 93 {\cf2 S} STS Set Transmit State
+\par 132 84 {\cf2 D} IND Index                     148 94 {\cf2 T} CCH Cancel Character
+\par 133 85 {\cf2 E} NEL Next Line                 149 95 {\cf2 U} MW  Message Waiting
+\par 134 86 {\cf2 F} SSA Start Selected Area       150 96 {\cf2 V} SPA Start Protected Area
+\par 135 87 {\cf2 G} ESA End Selected Area         151 97 {\cf2 W} EPA End Protected Area
+\par 136 88 {\cf2 H} HTS Horizontal Tab. Set       152 98 {\cf2 X}     (unassigned)
+\par 137 89 {\cf2 I} HTJ Horiz. Tab. w. Justif.    153 99 {\cf2 Y}     (unassigned)
+\par 138 8A {\cf2 J} VTS Vertical Tab. Set         154 9A {\cf2 Z}     (unassigned)
+\par 139 8B {\cf2 K} PLD Partial Line Down         155 9B {\cf2 [} CSI Control Seq. Introd.
+\par 140 8C {\cf2 L} PLU Partial Line Up           156 9C {\cf2 \\} ST  String Terminator
+\par 141 8D {\cf2 M} RI  Reverse Index             157 9D {\cf2 ]} OSC Operating System Command
+\par 142 8E {\cf2 N} SS2 Single Shift G2           158 9E {\cf2 ^} PM  Privacy Message
+\par 143 8F {\cf2 O} SS3 Single Shift G3           159 9F {\cf2 _} APC Application Program Cmd.
+\par\par Back to {\uldb Miscellaneous Information}{\v MISC_INF_0} index.
+\keep }

@@ -1,0 +1,373 @@
+; The INT2WHLP configuration file has sections and entries similar to
+; Windows INI files.
+; Sections have identifiers enclosed in brackets [], starting at the left
+; margin. A section extends up to the next line starting with a left
+; bracket [ at the left margin.
+; Entries have identifiers starting at the left margin and extending up
+; to an equal sign =. The value of an entry is the string or integer after
+; the equal sign. INT2WHLP interprets digit 0 as boolean value false and
+; any non-zero integer as boolean true when interpreted with the
+; profileBoolean() procedure.
+; Section and entry identifiers are not case sensitive, however spaces
+; are significant caracters in identifiers. There may not be excessive
+; spaces around the equal sign in entries (i.e. only spaces which are part
+; of the identifier or value).
+; A semicolon ; at the left margin identifies a comment.
+
+; In the following text enabled identifiers specify default program
+; settings (unless otherwise noted), and commented-out identifiers are
+; examples of valid values.
+
+; The FILES section specifies the pathes for the input and output files.
+; These values can also be specified as program parameters, program
+; parameters take precedence over values defined in the configuration
+; file. The program will request values if neither program parameters,
+; nor the configuration file, define values.
+[FILES]
+inPath=
+; inPath=c:\interrup
+; The input files are in directory C:\INTERRUP.
+outPath=
+; outPath=.
+; Pass the output files to the current directory.
+
+; The OPTIONS section specifies values which can also be set by program
+; parameter options. Program paramter options take precedence over values
+; specified in the configuration file.
+[OPTIONS]
+build=
+; build=(WINENV | APP1) & TESTBUILD
+; Copies the build expression to the HPJ file's [OPTIONS] section build=
+; entry. See also the [BUILDTAGS] section. Program option -b. Note that
+; the OR operator "|" cannot be passed as a program option, only the
+; configuration file can pass the OR operator to the program.
+compression=none
+; compression=medium
+; compression=high
+; Sets HC31 compression option. Program option -c.
+filterFile=
+; filterFile=INTWIN.FLT
+; Should be empty for a compilation of the entier Interrupt List, or define
+; a filter file for a partial compilation. Program option -f.
+; NOTE! It is recommended not to perform a partial compilation because
+; references to tables may be missing.
+singlesInMain=0
+; singlesInMain=1
+; If 1, interrupt numbers with only one entry are inserted directly in the
+; compressed index rather than a reference to a one-entry subindex, provided
+; that the number of compressed index columns is set to 1. singlesInMain=1
+; may be an advantage for a strongly filtered list. Program option -1.
+twoIndexes=1
+; twoIndexes=0
+; Enables or disables the expanded index. Program option -2.
+errorLog=0
+; errorLog=1
+; Disables or enables HC31's log file OutPath\INTWIN.ERR. Program option -e.
+headers=1
+; headers=0
+; If 1, insert a header for each new interrupt number in the expanded index.
+; Program option -h.
+indexColumns=1
+; indexColumns=4
+; indexColumns=8
+; indexColumns=16
+; Specifies the number of columns in the compressed index. Program option -i.
+markKeys=1
+; markKeys=0
+; Controls whether or not keywords (like "See also:", "Notes:") are marked
+; (bolded). The program compiles the List 20% faster, and HC31 yields a 1%
+; shorter .HLP file when disabled, but the readability of the result is lower.
+; Program option -m.
+longKeys=1
+; longKeys=0
+; Specifies whether both long and sort versions of interrupt search keys are
+; used, or short versions only.
+; Program option -l.
+;keywordTable=
+keywordTable=T
+; Specifies whether all keywords shall go to the primary keyword table in
+; intwin.hlp, or table keywords #nnnn shal go to the TWBTREE table
+; (paramter T). Other catagories may be included in future versions of
+; INT2WHLP.
+; Program option -k.
+equalBlanks=1
+; equalBlanks=0
+; Specifies whether or not spaces are inserted around the equal sign in
+; register search strings, e.g. "INT 21 AH = 4C" or "INT 21 AH=4C". Program
+; option -q.
+releaseNo=60
+;releaseNo=41
+; releaseNo=40
+; Controls Interrupt List release number dependent behavior of INT2WHLP.
+; Implemented influence:
+;   releaseNo<41:  Tables are not treated as separate topics, no table cross
+;		   references.
+; Program option -r
+scrollIndexTitle=1
+; scrollIndexTitle=0
+; Index windows have a general header and a title. If scrollIndexTitle=1,
+; the title scrolls with the rest of the index window, otherwise the title
+; is part of the non-scrolling header region. Program option -s.
+tableWindow=1
+; tableWindow=0
+; If 1, tables referenced from text (with a #nnnn hotspot) appear in
+; a secodary window. The table can be copied to the main window with a
+; "Copy to main" hotspot included in all tables.
+; If 0, tables appear in the main window.
+; Program option -t
+expandedIndex=1
+; expandedIndex=0
+; 1 or 0 causes the Interrupt List Index initially to pop up in expanded (all
+; entries in one window) or in compressed (index with subindexes) format.
+; Program option -x
+
+
+; The CONFIG section defines WINHELP setups and defaults.
+[CONFIG]
+pos and size=
+; pos and size=(0,0,980,1023)
+; Defines the position and size of the initial main window. The format is
+; (xpos,ypos,width,height) and valid values are 0..1023, defining 1024th
+; of the screen witdh and hight. xpos+width and ypos+hight may not exceed
+; 1023.
+secondary pos and size=(43,0,980,1023)
+; secondary pos and size=(243,0,780,850)
+; Defines the position and size of the secondary window. The format is the
+; same as for "pos and size". The initial size of a secondary window MUST
+; be defined. Users of large, high resolution screens may prefer the choice
+; that is disabled above.
+; The entry is ignored if secondary table windows are disabled.
+background=
+; background=(255,255,255)
+; Defines the background color of the normal text window in the format
+; (red,green,blue). Valid values are 0..255. (255,255,255) defines a
+; white background color.
+header background=
+; header background=(255,255,192)
+; Defines the background color of the non-scrolling part of the windows.
+; (255,255,192) defines a light yellow color.
+text font=modern Courier New
+; Defines the font used for the plain text. Due to the tables in the
+; Interrupt List, this should be a fixed pitch font, and because it should
+; be a TrueType font to take advantage of the font sizing, Windows 3.1
+; has no alternatives. "modern" is the font family (modern=fixed pitch,
+; roman=proportionally spaced serif, swiss=proportionally spaced sans serif),
+; and "Courier New" is the font name.
+; If point size 10 or 12 (see deciPoints) is used, the bitmapped font
+; "modern Courier" can be used, though.
+header font=roman Times New Roman
+; header font=swiss Arial
+; Font used for headers.
+deciPoints=90
+; deciPoints=95
+; deciPoints=100
+; deciPoints=120
+; 10 times the font point size. A 9 point font can be displayed on a
+; standard VGA screen without the need of horizontal scroll. The point
+; size is not true typographical point size, it varies with screen
+; resolution and size, and a larger point size is preferable for a high
+; resolution screen with small dimensions. HC31 assigns size in half-points,
+; corresponding to deciPoints increments of 5.
+header deciPoints=140
+header 2nd deciPoints=120
+; Two font sizes used in the headers.
+
+; The INTWINCONFIG section is optional and is not used for program generated
+; output. Entries in the section are copied to the help project file's
+; [CONFIG] section. It can be used to insert macros in the final help file.
+;[INTWINCONFIG]
+;InsertItem("mnu_help","mnu_h","&INTWIN Help","JI(`',`idHelp')",0)
+
+; The WINDOWS section defines the number of extra "windows" included in
+; the compilation in addition to the Interrupt List.
+[WINDOWS]
+number=4
+; Number of additional windows (5 are defined, but only 4 enabled).
+; NB! number=0 is the program default, and the following windows are not
+; defined by default.
+
+; For each window defined by the [WINDOWS] number=n entry, there must be
+; a section [WINDOW 1], ... [WINDOW 9], [WINDOW 10], ... [WINDOW n] with
+; 3 obligatory entries and some optional entries.
+[WINDOW 1]
+title=Ports
+id=idPorts
+; title and id are obligatory entries defining the topic title and
+; identifier (context string). [WINDOW i] sections with an empty title=
+; or id= entry are ignored, and a warning is printed on the screen.
+; See comment "Help windows topic titles and identifiers" in INT2WHLP.INC
+; for reserved identifiers.
+type=2
+; There are 3 window types: type=1 are single entry windows referenced
+; directly from the main index. type=1 is the default type. type=2 are
+; windows with their own index, which is referenced from the main index.
+; The differences between type=1 and type=2 are the browse chain linkage
+; and the default "file n type=" value. type=3 defines a window with at
+; least one RTF file defining the window properties. The RTF file must
+; have a topic with the identifier (context string) defined by id=, and
+; that topic should have a title defined by title= and contain an index
+; for the system.
+; files=1
+; The entry files= defines the number of files included in the current
+; window. Only type=3 windows can have more than one file, and files=1 is
+; the default value.
+file 1=ports
+; For each file i = 1..n defined by the files=n entry (normally only 1)
+; there must be a file i=<file name> entry specifying a file. See a later
+; paragraph about default directories and extensions.
+;
+; file 1 type=2
+; There are 4 file types: file i type=1 are files passed to the program's
+; ProcessFile() procedure. file i type=2 are files passed to the program's
+; ProcessPort() procedure. file i type=3 are RTF files defining their own
+; and other included files' properties. file i type=4 are files assigned
+; their own titles and identifiers (context strings). type=4 files are
+; passed to the program's ProcessFile() procedure, and they should be
+; referenced from an RTF file.
+; The default file i type= value is the window's type= value.
+; Files' default directories depend on the file types. File types 1 and 2
+; are typically files included in the Interrupt List: PORTS.LST, MEMORY.LST
+; etc. Therefore, the default directory for file types 1 and 2 is the
+; InPath directory. File type 3 are typically the user's own file or one
+; of the RTF files supplied in this package, so the default directory
+; is 1) the current directory or 2) INT2WHLP's home directory. File type
+; 4 are the users own files, and the default directory is the current
+; directory.
+; In all cases the full path (a path including a drive, the root, or the
+; current or parent directory . or ..) can be specified to override the
+; default directory.
+; Type 2 files' default extension is .LST or, if .LST is not found, .A, .B,
+; etc.. The first two lines in file .B and successive files are ignered. To
+; compile a file without an extension include the extension dot, e.g.
+; file 1=myfile., or rename the file.
+;
+; file i title=<title>
+; file i id=<id>
+; file i chain=<browse chain>
+; Type 4 files have titles, identifiers, and browse chain definitions.
+; The default values are "<window title> - i", "<window id>_i", and
+; "<window id>:5" where i is the current file number. The empty value is
+; legal for file i chain= and causes the file to be excluded from any
+; browse chain.
+; See comment "Help windows topic titles and identifiers" in INT2WHLP.INC
+; for implemented browse chains.
+
+[WINDOW 2]
+title=Memory
+id=idMemory
+; type=1 is the default window type
+; files=1 is the default number of files
+file 1=memory.lst
+; file 1 type=1 is the default type because the window type is 1.
+
+[WINDOW 3]
+title=CPU
+id=idCPU
+file 1=86bugs.lst
+
+[WINDOW 4]
+title=CMOS
+id=idCMOS
+type=1
+file 1=cmos.lst
+
+;[WINDOW 5]
+;   (This part is disabled due to aliases required by the assosiated file)
+;title=Miscellaneous Information
+;id=MISC_INF_0
+;type=3
+; type=3 specifies a window with its own definition in an RTF file.
+; MISC_INF_0 is the identifier (context string) for one of the topics in
+; the RTF file. That topic is normally an index for other topics in the
+; file.
+;
+; files=1 is the default number of files
+;file 1=misc_inf.rtf
+;   (misc_inf.rtf references context strings that should be defined in the
+;    ALIAS part of the configuration file)
+; file 1 type=3 is the default type because the window type is 3. It
+; specifies an RTF file.
+
+; The ALIAS section is optional and is not used for program generated
+; output. It compiles an ALIAS list to the HPJ file. Two of the RTF files
+; supplied in this pasckage (SEL_TOPC.RTF and MISC_INF.RTF) require
+; some aliases.
+; [ALIAS]
+; id87err=INT 10 ---- - CPU-generated (80286+) - COPROCESSOR ERROR
+; idVideo_00=INT 10 00-- - VIDEO - SET VIDEO MODE
+; idVideo_1013=INT 10 1013 - VIDEO - SELECT VIDEO DAC COLOR PAGE (VGA)
+; Each entry is of the form
+;   id=<modified INT header>
+; where id is a user defined identifier (context string) no longer than 18
+; characters, and <modified INT header> is an INT header with flags removed
+; from char. pos. 9+ (i.e. if char. 9 is not "-" then delete up to, but not
+; including, a "-" character), and with a register value (from the divider
+; line char. pos. 13-16) + a space inserted at char. pos. 8-12, as shown in
+; the example. The program substitutes the actual identifier (context string)
+; for the <modified INT header> and copies the id=actual_id part to an
+; [ALIAS] section in the HPJ file. The example would result in an HPJ
+; section (based on Interrupt List release 40):
+;
+; [ALIAS]
+; id87err=10_1
+; idVideo_00=10_2
+; idVideo_1013=10_46
+;
+; The entries must appear in the same order as the <modified INT header>
+; appear in the Interrupt List. The program can assign more than one user
+; defined id to the same interrupt entry in the list, the entries must of
+; course be consecutive and have identical <modified INT header> values.
+;
+; Empty lines and lines starting with a semicolon (;) are ignored.
+
+; Also the TABLEALIAS section is optional and compiles an ALIAS list to the
+; HPJ file. SEL_TOPC.RTF require some tabel aliases.
+; [TABLEALIAS]
+; idListList=21 52-- Format of List of Lists:
+; Each entry is of the form
+;   id=II FUNC <title>
+; where id is a user defined identifier (context string) no longer than 18
+; characters, II is a two digit hexadecimal number and FUNC is four characters
+; describing the subfunction where the table is located. II and FUNC are also
+; characters 11-12 and 13-16 of the previous divider line. <title> is the
+; table's title. The program substitutes the actual identifier (context
+; string) for the II FUNC <title> part and copies the id=actual_id part to
+; an [ALIAS] section in the HPJ file, mixed with the output from an [AIAS]
+; section in the configuration file. The example would insert in an HPJ
+; [ALIAS] section an entry like (depending on Interrupt List release):
+;
+; idListList=t0724
+;
+; The entries must appear in the same order as the tables appear in the
+; Interrupt List. The program can assign more than one user defined id to
+; the same table.
+;
+; Empty lines and lines starting with a semicolon (;) are ignored.
+
+; The INTWINCONFIG section is optional and is not used for program generated
+; output. It is included to facilitate copying macros to the [CONFIG]
+; section in the Help Project File.
+; [INTWINCONFIG]
+; InsertItem("mnu_help","mnu_hlp","&INTWIN Help","JI(`',`idHelp')",0)
+
+; The BUILDTAGS section is optional and is not used for program generated
+; output. It is included to support users' RTF files with conditional
+; build. If the user's RTF files have build tags ("*" footnotes), the tags
+; must be defined in a BUILDTAGS section in the configuration file.
+; [BUILDTAGS]
+; WINENV
+; APP1
+; TESTBUILD
+;
+; The BUILGTAGS section is simply copied to the HPJ file, ignoring empty
+; lines and lines starting with a semicolon (;).
+;
+; See also the [OPTIONS] section's build= entry.
+
+; The BAGGAGE section is optional and is not used for program generated
+; output. It is included to support inclusion of baggage in the help file.
+; [BAGGAGE]
+; BAG.INI
+;
+; The BAGGAGE section is simply copied to the HPJ file, ignoring empty
+; lines and lines starting with a semicolon (;).

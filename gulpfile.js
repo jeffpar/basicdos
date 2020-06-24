@@ -23,7 +23,7 @@ for (let diskName in disks) {
     let diskImage = "./software/pcx86/disks/" + diskName + ".json";
     files.push(disks[diskName]);
     tasks.push(taskName);
-    gulp.task(taskName, run("node /Users/jeff/Sites/pcjs/tools/modules/diskimage.js --dir " + diskDir + " --output " + diskImage + " --overwrite"));
+    gulp.task(taskName, run("node /Users/jeff/Sites/pcjs/tools/modules/diskimage.js --dir " + diskDir + " --output " + diskImage + " --target=360 --overwrite"));
 }
 
 gulp.task("watch", function() {

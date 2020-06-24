@@ -1,0 +1,23 @@
+
+                             Interrupt Helper 1.0
+                                                        by Gary Chanson
+                                                        (C) 1994
+
+          Click mouse on "SeeAlso:" line to go to that topic.
+
+    Category    selects which sub-set of topics is active
+
+    Search      searches for a string in the current topic.
+
+    Index       returns to the index display.
+
+    prev (-)    returns to the previous topic
+
+    next (+)    returns to the next topic
+
+    eXit        terminates program
+
+ ÚÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄ¿ ÚÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄ¿
+ ³   F1   ³   F2   ³   F3   ³   F4   ³ ³   F5   ³   F6   ³   F7   ³   F8   ³
+ ³  help  ³category³ index  ³        ³ ³ search ³ again  ³  prev  ³  next  ³
+ ÀÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÙ ÀÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÙ

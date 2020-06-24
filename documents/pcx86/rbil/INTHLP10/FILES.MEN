@@ -1,0 +1,7 @@
+        ""          color=black on light cyan
+E   "Write current topic            W"      WRITE.TOPIC
+E   "Print current topic            P"      PRINT.TOPIC
+
+E   "About Interrupt Helper"                CREDITS
+
+E   "Exit                       Alt-X"      DONE!

@@ -1,0 +1,28 @@
+The program INT2QH converts the raw Interrupt list file into an input
+file for the Microsoft HELPMAKE program to create a QuickHelp database
+(also known as Microsoft Advisor Help files).
+
+When running, INT2QH reads interrup.lst and memory.lst from the current
+directory and writes the created Quickhelp source file to standard
+output (it creates two temporary files topics.tmp and subtopics.tmp
+during that process in the current directory).
+
+From the 5/90 list, it creates a 1.1M source file for HELPMAKE which
+then creates a help database of about 610k. You can use QH2HLP.BAT for
+running HELMAKE.
+
+The created help database has two levels of hierarchy (for the INT 10,
+INT 13 etc.) and the correct parent-connections. Only cross-references
+from the Interrupt list are not intepreted because this would require a
+lot of effort (symbol table).
+
+All topics get a running number to remove ambiguities from the database.
+You will see this numeric topic names like "IL123456" only in topic
+lists.
+
+The help database can be accessed from within the Microsoft Programmer's
+Workbench, the Microsoft Editor 1.2 or the stand alone QuickHelp
+program.
+
+Kai Uwe Rommel
+rommel@lan.informatik.tu-muenchen.dbp.de

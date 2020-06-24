@@ -1,0 +1,782 @@
+;Text for INT2GUID conversion program, topic 21.
+;INT2GUID converts INTERRUP.LST files to input for GUIDE.
+;
+;NB! When updating, remember to update the release number in the next
+;paragraph, and in the beginning the text.
+;
+;This file contains tables extracted from the INTERRUP.LST file release 37.
+;Tabs in the extracted text were filtered to 1 - 8 spaces.
+;
+;This file includes 4 extra topics. Reserve additionally 6 topics, or a
+;total of 10.
+;
+;Topic headings are included in the GUIDE main index unless the configuration
+;file specifies mask 0x8000.
+;
+PSP Format, Environment Block, Country Specific Information, Error List
+
+This entry gives access to tables extracted from the INTERRUP.LST file,
+release 37.
+
+  22PSP + Env.   Program Segment Prefix Format + Environment
+  23Country      Specific Information
+  24Errors       Returned by DOS Funtion Calls
+  25EXE          *.EXE File Header etc.
+;
+!TOPIC 22 PSP Format
+!! 0x8000
+!NOINDEX
+!! 0
+;
+--------D-2126-------------------------------
+INT 21 - DOS 1+ - CREATE NEW PROGRAM SEGMENT PREFIX
+        AH = 26h
+        DX = segment at which to create PSP (see below)
+Notes:  new PSP is updated with memory size information; INTs 22h, 23h, 24h
+          taken from interrupt vector table; the parent PSP field is set to 0
+        (DOS 2+) DOS assumes that the caller's CS is the segment of the PSP to
+          copy
+SeeAlso: AH=4Bh,AH=50h,AH=51h,AH=55h,AH=62h,AH=67h
+
+Format of PSP:
+Offset  Size    Description
+ 00h  2 BYTEs   INT 20 instruction for CP/M CALL 0 program termination
+                the CDh 20h here is often used as a signature for a valid PSP
+ 02h    WORD    segment of first byte beyond memory allocated to program
+ 04h    BYTE    unused filler
+ 05h    BYTE    CP/M CALL 5 service request (FAR JMP to 000C0h)
+                BUG: (DOS 2+) PSPs created by INT 21/AH=4Bh point at 000BEh
+ 06h    WORD    CP/M compatibility--size of first segment for .COM files
+ 08h  2 BYTEs   remainder of FAR JMP at 05h
+ 0Ah    DWORD   stored INT 22 termination address
+ 0Eh    DWORD   stored INT 23 control-Break handler address
+ 12h    DWORD   DOS 1.1+ stored INT 24 critical error handler address
+ 16h    WORD    segment of parent PSP
+ 18h 20 BYTEs   DOS 2+ Job File Table, one byte per file handle, FFh = closed
+ 2Ch    WORD    DOS 2+ segment of environment for process
+ 2Eh    DWORD   DOS 2+ process's SS:SP on entry to last INT 21 call
+ 32h    WORD    DOS 3+ number of entries in JFT (default 20)
+ 34h    DWORD   DOS 3+ pointer to JFT (default PSP:0018h)
+ 38h    DWORD   DOS 3+ pointer to previous PSP (default FFFFFFFFh in 3.x)
+                used by SHARE in DOS 3.3
+ 3Ch    BYTE    apparently unused by DOS versions <= 6.00
+ 3Dh    BYTE    apparently used by some versions of APPEND
+ 3Eh    BYTE    (Novell NetWare) flag: next byte initialized if CEh
+ 3Fh    BYTE    (Novell Netware) Novell task number if previous byte is CEh
+ 40h  2 BYTEs   DOS 5+ version to return on INT 21/AH=30h
+ 42h    WORD    (MSWin3) selector of next PSP (PDB) in linked list
+                Windows keeps a linked list of Windows programs only
+ 44h  4 BYTEs   unused by DOS versions <= 6.00
+ 48h    BYTE    (MSWindows3) bit 0 set if non-Windows application (WINOLDAP)
+ 49h  7 BYTEs   unused by DOS versions <= 6.00
+ 50h  3 BYTEs   DOS 2+ service request (INT 21/RETF instructions)
+ 53h  2 BYTEs   unused in DOS versions <= 6.00
+ 55h  7 BYTEs   unused in DOS versions <= 6.00; can be used to make first FCB
+                into an extended FCB
+ 5Ch 16 BYTEs   first default FCB, filled in from first commandline argument
+                overwrites second FCB if opened
+ 6Ch 16 BYTEs   second default FCB, filled in from second commandline argument
+                overwrites beginning of commandline if opened
+ 7Ch  4 BYTEs   unused
+ 80h 128 BYTEs  commandline / default DTA
+                command tail is BYTE for length of tail, N BYTEs for the tail,
+                followed by a BYTE containing 0Dh
+Notes:  in DOS v3+, the limit on simultaneously open files may be increased by
+          allocating memory for a new open file table, filling it with FFh,
+          copying the first 20 bytes from the default table, and adjusting the
+          pointer and count at 34h and 32h.  However, DOS will only copy the
+          first 20 file handles into a child PSP (including the one created on
+          EXEC).
+        network redirectors based on the original MS-Net implementation use
+          values of 80h-FEh in the open file table to indicate remote files;
+          Novell NetWare reportedly also uses values of 80h-FEh
+        MS-DOS 5.00 incorrectly fills the FCB fields when loading a program
+          high; the first FCB is empty and the second contains the first
+          parameter
+        some DOS extenders place protected-mode values in various PSP fields
+          such as the "parent" field, which can confuse PSP walkers.  Always
+          check either for the CDh 20h signature or that the suspected PSP is
+          at the beginning of a memory block which owns itself (the preceding
+          paragraph should be a valid MCB with "owner" the same as the
+          suspected PSP).
+        Novell NetWare updates the fields at offsets 3Eh and 3Fh without
+          checking that a legal PSP segment is current; see AH=50h for further
+          discussion
+
+Format of environment block:
+Offset  Size    Description
+ 00h  N BYTEs   first environment variable, ASCIZ string of form "var=value"
+      N BYTEs   second environment variable, ASCIZ string
+        ...
+      N BYTEs   last environment variable, ASCIZ string of form "var=value"
+        BYTE    00h
+---DOS 3+---
+        WORD    number of strings following environment (normally 1)
+      N BYTEs   ASCIZ full pathname of program owning this environment
+                other strings may follow
+;
+!TOPIC 23 Country Info
+!! 0x8000
+!NOINDEX
+!! 0
+;
+--------D-2138-------------------------------
+INT 21 - DOS 2+ - GET COUNTRY-SPECIFIC INFORMATION
+        AH = 38h
+--DOS 2.x--
+        AL = 00h get current-country info
+        DS:DX -> buffer for returned info (see below)
+Return: CF set on error
+            AX = error code (02h)
+        CF clear if successful
+            AX = country code (MS-DOS 2.11 only)
+            buffer at DS:DX filled
+--DOS 3+--
+        AL = 00h for current country
+        AL = 01h thru 0FEh for specific country with code <255
+        AL = 0FFh for specific country with code >= 255
+           BX = 16-bit country code
+        DS:DX -> buffer for returned info (see below)
+Return: CF set on error
+            AX = error code (02h)
+        CF clear if successful
+            BX = country code
+            DS:DX buffer filled
+Note:   this function is not supported by the Borland DPMI host, but no error
+          is returned; as a workaround, one should allocate a buffer in
+          conventional memory with INT 31/AX=0100h and simulate an INT 21 with
+          INT 31/AX=0300h
+SeeAlso: AH=65h,INT 10/AX=5001h,INT 2F/AX=110Ch,INT 2F/AX=1404h
+
+Format of PC-DOS 2.x country info:
+Offset  Size    Description
+ 00h    WORD    date format  0 = USA    mm dd yy
+                             1 = Europe dd mm yy
+                             2 = Japan  yy mm dd
+ 02h    BYTE    currency symbol
+ 03h    BYTE    00h
+ 04h    BYTE    thousands separator char
+ 05h    BYTE    00h
+ 06h    BYTE    decimal separator char
+ 07h    BYTE    00h
+ 08h 24 BYTEs   reserved
+
+Format of MS-DOS 2.x,DOS 3+ country info:
+Offset  Size    Description
+ 00h    WORD    date format (see above)
+ 02h  5 BYTEs   ASCIZ currency symbol string
+ 07h  2 BYTEs   ASCIZ thousands separator
+ 09h  2 BYTEs   ASCIZ decimal separator
+ 0Bh  2 BYTEs   ASCIZ date separator
+ 0Dh  2 BYTEs   ASCIZ time separator
+ 0Fh    BYTE    currency format
+                bit 2 = set if currency symbol replaces decimal point
+                bit 1 = number of spaces between value and currency symbol
+                bit 0 = 0 if currency symbol precedes value
+                        1 if currency symbol follows value
+ 10h    BYTE    number of digits after decimal in currency
+ 11h    BYTE    time format
+                bit 0 = 0 if 12-hour clock
+                        1 if 24-hour clock
+ 12h    DWORD   address of case map routine
+                (FAR CALL, AL = character to map to upper case [>= 80h])
+ 16h  2 BYTEs   ASCIZ data-list separator
+ 18h 10 BYTEs   reserved
+
+Values for country code:
+   1 001h   United States
+   2 002h   Canadian-French
+   3 003h   Latin America
+  31 01Fh   Netherlands
+  32 020h   Belgium
+  33 021h   France
+  34 022h   Spain
+  36 024h   Hungary (not supported by DR-DOS 5.0)
+  38 026h   Yugoslavia (not supported by DR-DOS 5.0)
+  39 027h   Italy
+  41 029h   Switzerland
+  42 02Ah   Czechoslovakia/Tjekia (not supported by DR-DOS 5.0)
+  43 02Bh   Austria (DR-DOS 5.0)
+  44 02Ch   United Kingdom
+  45 02Dh   Denmark
+  46 02Eh   Sweden
+  47 02Fh   Norway
+  48 030h   Poland (not supported by DR-DOS 5.0)
+  49 031h   Germany
+  55 037h   Brazil (not supported by DR-DOS 5.0)
+  61 03Dh   International English [Australia in DR-DOS 5.0]
+  81 051h   Japan (DR-DOS 5.0, MS-DOS 5.0+)
+  82 052h   Korea (DR-DOS 5.0)
+  86 056h   China (MS-DOS 5.0+)
+  88 058h   Taiwan (MS-DOS 5.0+)
+  90 05Ah   Turkey (MS-DOS 5.0+)
+ 351 15Fh   Portugal
+ 354 162h   Iceland
+ 358 166h   Finland
+ 785 311h   Middle East/Saudi Arabia (DR-DOS 5.0,MS-DOS 5.0+)
+ 972 3CCh   Israel (DR-DOS 5.0,MS-DOS 5.0+)
+--------D-2138--DXFFFF-----------------------
+INT 21 - DOS 3+ - SET COUNTRY CODE
+        AH = 38h
+        DX = FFFFh
+        AL = 01h thru FEh for specific country with code <255
+        AL = FFh for specific country with code >= 255
+           BX = 16-bit country code (see AH=38h)
+Return: CF set on error
+            AX = error code (see AH=59h)
+        CF clear if successful
+Note:   not supported by OS/2
+SeeAlso: INT 2F/AX=1403h
+--------D-2165-------------------------------
+INT 21 - DOS 3.3+ - GET EXTENDED COUNTRY INFORMATION
+        AH = 65h
+        AL = info ID
+            01h get general internationalization info
+            02h get pointer to uppercase table
+            04h get pointer to filename uppercase table
+            05h get pointer to filename terminator table
+            06h get pointer to collating sequence table
+            07h (DOS 4+) get pointer to Double-Byte Character Set table
+        BX = code page (FFFFh=global code page)
+        DX = country ID (FFFFh=current country)
+        ES:DI -> country information buffer (see below)
+        CX = size of buffer (>= 5)
+Return: CF set on error
+            AX = error code (see AH=59h)
+        CF clear if successful
+            CX = size of country information returned
+            ES:DI -> country information
+Notes:  AL=05h appears to return same info for all countries and codepages; it
+          has been documented for DOS 5+, but was undocumented in ealier
+          versions
+        NLSFUNC must be installed to get info for countries other than the
+          default
+        subfunctions 02h and 04h are identical under OS/2
+SeeAlso: AH=38h,INT 2F/AX=1401h,INT 2F/AX=1402h,INT 2F/AX=14FEh
+
+Format of country information:
+Offset  Size    Description
+ 00h    BYTE    info ID
+---if info ID = 01h---
+ 01h    WORD    size
+ 03h    WORD    country ID
+ 05h    WORD    code page
+ 07h 34 BYTEs   country-dependent info (see AH=38h)
+---if info ID = 02h---
+ 01h    DWORD   pointer to uppercase table (see below)
+---if info ID = 04h---
+ 01h    DWORD   pointer to filename uppercase table (see below)
+---if info ID = 05h---
+ 01h    DWORD   pointer to filename character table (see below)
+---if info ID = 06h---
+ 01h    DWORD   pointer to collating table (see below)
+---if info ID = 07h (DOS 4+)---
+ 01h    DWORD   pointer to DBCS lead byte table (see below)
+
+Format of uppercase table:
+Offset  Size    Description
+ 00h    WORD    table size
+ 02h 128 BYTEs  uppercase equivalents (if any) of chars 80h to FFh
+
+Format of collating table:
+Offset  Size    Description
+ 00h    WORD    table size
+ 02h 256 BYTEs  values used to sort characters 00h to FFh
+
+Format of filename terminator table:
+Offset  Size    Description
+ 00h    WORD    table size (not counting this word)
+ 02h    BYTE    ??? (01h for MS-DOS 3.30-6.00)
+ 03h    BYTE    lowest permissible character value for filename
+ 04h    BYTE    highest permissible character value for filename
+ 05h    BYTE    ??? (00h for MS-DOS 3.30-6.00)
+ 06h    BYTE    first excluded character in range \ all characters in this
+ 07h    BYTE    last excluded character in range  / range are illegal
+ 08h    BYTE    ??? (02h for MS-DOS 3.30-6.00)
+ 09h    BYTE    number of illegal (terminator) characters
+ 0Ah  N BYTEs   characters which terminate a filename:  ."/\[]:|<>+=;,
+Note:   partially documented for DOS 5+, but undocumented for earlier versions
+
+Format of filename uppercase table:
+Offset  Size    Description
+ 00h    WORD    table size
+ 02h 128 BYTEs  uppercase equivalents (if any) of chars 80h to FFh
+
+Format of DBCS lead byte table:
+Offset  Size    Description
+ 00h    WORD    length
+ 02h 2N BYTEs   start/end for N lead byte ranges
+        WORD    0000h   (end of table)
+--------D-2165-------------------------------
+INT 21 - DOS 4+ - COUNTRY-DEPENDENT CHARACTER CAPITALIZATION
+        AH = 65h
+        AL = function
+            20h capitalize character
+                DL = character to capitalize
+                Return: DL = capitalized character
+            21h capitalize string
+                DS:DX -> string to capitalize
+                CX = length of string
+            22h capitalize ASCIZ string
+                DS:DX -> ASCIZ string to capitalize
+Return: CF set on error
+            AX = error code (see AH=59h)
+        CF clear if successful
+Note:   these calls have been documented for DOS 5+, but were undocumented in
+          DOS 4.x.
+--------D-216523-----------------------------
+INT 21 U - DOS 4+ internal - DETERMINE IF CHARACTER REPRESENTS YES/NO RESPONSE
+        AX = 6523h
+        DL = character
+        DH = second character of double-byte character (if applicable)
+Return: CF set on error
+        CF clear if successful
+            AX = type
+                00h no
+                01h yes
+                02h neither yes nor no
+--------D-2165-------------------------------
+INT 21 U - DOS 4+ internal - COUNTRY-DEPENDENT FILENAME CAPITALIZATION
+        AH = 65h
+        AL = function
+            A0h capitalize filename character
+                DL = character to capitalize
+                Return: DL = capitalized character
+            A1h capitalize counted filename string
+                DS:DX -> filename string to capitalize
+                CX = length of string
+            A2h capitalize ASCIZ filename
+                DS:DX -> ASCIZ filename to capitalize
+Return: CF set on error
+            AX = error code (see AH=59h)
+        CF clear if successful
+Note:   nonfunctional in DOS 4.00 through 6.00 due to a bug (the code sets a
+          pointer depending on the high bit of AL, but doesn't clear the
+          bit before branching by function number).
+--------D-216601-----------------------------
+INT 21 - DOS 3.3+ - GET GLOBAL CODE PAGE TABLE
+        AX = 6601h
+Return: CF set on error
+            AX = error code (see AH=59h)
+        CF clear if successful
+            BX = active code page (see AX=6602h)
+            DX = system code page
+SeeAlso: AX=6602h
+--------D-216602-----------------------------
+INT 21 - DOS 3.3+ - SET GLOBAL CODE PAGE TABLE
+        AX = 6602h
+        BX = active code page (see below)
+        DX = system code page (active page at boot time)
+Return: CF set on error
+            AX = error code (see AH=59h)
+        CF clear if successful
+SeeAlso: AX=6601h,INT 2F/AX=14FFh
+
+Values for code page:
+ 437    US
+ 850    Multilingual
+ 852    Slavic/Latin II (DOS 5+)
+ 857    Turkish
+ 860    Portugal
+ 861    Iceland
+ 863    Canada (French)
+ 865    Norway/Denmark
+;
+!TOPIC 24 Error Codes
+!! 0x8000
+!NOINDEX
+!! 0
+;
+--------D-2159--BX0000-----------------------
+INT 21 - DOS 3+ - GET EXTENDED ERROR INFORMATION
+        AH = 59h
+        BX = 0000h
+Return: AX = extended error code (see below)
+        BH = error class (see below)
+        BL = recommended action (see below)
+        CH = error locus (see below)
+        ES:DI may be pointer (see error code list below)
+        CL, DX, SI, BP, and DS destroyed
+Notes:  functions available under DOS 2.x map the true DOS 3+ error code into
+          one supported under DOS 2.x
+        you should call this function to retrieve the true error code when an
+          FCB or DOS 2.x call returns an error
+        under DR-DOS 5.0, this function does not use any of the DOS-internal
+          stacks and may thus be called at any time
+SeeAlso: AH=59h/BX=0001h,AX=5D0Ah,INT 2F/AX=122Dh
+
+Values for extended error code:
+ 00h (0)   no error
+ 01h (1)   function number invalid
+ 02h (2)   file not found
+ 03h (3)   path not found
+ 04h (4)   too many open files (no handles available)
+ 05h (5)   access denied
+ 06h (6)   invalid handle
+ 07h (7)   memory control block destroyed
+ 08h (8)   insufficient memory
+ 09h (9)   memory block address invalid
+ 0Ah (10)  environment invalid (usually >32K in length)
+ 0Bh (11)  format invalid
+ 0Ch (12)  access code invalid
+ 0Dh (13)  data invalid
+ 0Eh (14)  reserved
+ 0Fh (15)  invalid drive
+ 10h (16)  attempted to remove current directory
+ 11h (17)  not same device
+ 12h (18)  no more files
+---DOS 3+---
+ 13h (19)  disk write-protected
+ 14h (20)  unknown unit
+ 15h (21)  drive not ready
+ 16h (22)  unknown command
+ 17h (23)  data error (CRC)
+ 18h (24)  bad request structure length
+ 19h (25)  seek error
+ 1Ah (26)  unknown media type (non-DOS disk)
+ 1Bh (27)  sector not found
+ 1Ch (28)  printer out of paper
+ 1Dh (29)  write fault
+ 1Eh (30)  read fault
+ 1Fh (31)  general failure
+ 20h (32)  sharing violation
+ 21h (33)  lock violation
+ 22h (34)  disk change invalid
+        ES:DI -> ASCIZ volume label of required disk
+ 23h (35)  FCB unavailable
+ 24h (36)  sharing buffer overflow
+ 25h (37)  (DOS 4+) code page mismatch
+ 26h (38)  (DOS 4+) cannot complete file operation (out of input)
+ 27h (39)  (DOS 4+) insufficient disk space
+ 28h-31h   reserved
+ 32h (50)  network request not supported
+ 33h (51)  remote computer not listening
+ 34h (52)  duplicate name on network
+ 35h (53)  network name not found
+ 36h (54)  network busy
+ 37h (55)  network device no longer exists
+ 38h (56)  network BIOS command limit exceeded
+ 39h (57)  network adapter hardware error
+ 3Ah (58)  incorrect response from network
+ 3Bh (59)  unexpected network error
+ 3Ch (60)  incompatible remote adapter
+ 3Dh (61)  print queue full
+ 3Eh (62)  queue not full
+ 3Fh (63)  not enough space to print file
+ 40h (64)  network name was deleted
+ 41h (65)  network: Access denied
+ 42h (66)  network device type incorrect
+ 43h (67)  network name not found
+ 44h (68)  network name limit exceeded
+ 45h (69)  network BIOS session limit exceeded
+ 46h (70)  temporarily paused
+ 47h (71)  network request not accepted
+ 48h (72)  network print/disk redirection paused
+ 49h (73)  network software not installed
+           (LANtastic) invalid network version
+ 4Ah (74)  unexpected adapter close
+           (LANtastic) account expired
+ 4Bh (75)  (LANtastic) password expired
+ 4Ch (76)  (LANtastic) login attempt invalid at this time
+ 4Dh (77)  (LANtastic v3+) disk limit exceeded on network node
+ 4Eh (78)  (LANtastic v3+) not logged in to network node
+ 4Fh (79)  reserved
+ 50h (80)  file exists
+ 51h (81)  reserved
+ 52h (82)  cannot make directory
+ 53h (83)  fail on INT 24h
+ 54h (84)  (DOS 3.3+) too many redirections
+ 55h (85)  (DOS 3.3+) duplicate redirection
+ 56h (86)  (DOS 3.3+) invalid password
+ 57h (87)  (DOS 3.3+) invalid parameter
+ 58h (88)  (DOS 3.3+) network write fault
+ 59h (89)  (DOS 4+) function not supported on network
+ 5Ah (90)  (DOS 4+) required system component not installed
+ 64h (100) (MSCDEX) unknown error
+ 65h (101) (MSCDEX) not ready
+ 66h (102) (MSCDEX) EMS memory no longer valid
+ 67h (103) (MSCDEX) not High Sierra or ISO-9660 format
+ 68h (104) (MSCDEX) door open
+
+Values for Error Class:
+   1 01h    out of resource (storage space or I/O channels)
+   2 02h    temporary situation (file or record lock)
+   3 03h    authorization (denied access)
+   4 04h    internal (system software bug)
+   5 05h    hardware failure
+   6 06h    system failure (configuration file missing or incorrect)
+   7 07h    application program error
+   8 08h    not found
+   9 09h    bad format
+  10 0Ah    locked
+  11 0Bh    media error
+  12 0Ch    already exists
+  13 0Dh    unknown
+
+Values for Suggested Action:
+   1 01h    retry
+   2 02h    delayed retry
+   3 03h    prompt user to reenter input
+   4 04h    abort after cleanup
+   5 05h    immediate abort
+   6 06h    ignore
+   7 07h    retry after user intervention
+
+Values for Error Locus:
+   1 01h    unknown or not appropriate
+   2 02h    block device (disk error)
+   3 03h    network related
+   4 04h    serial device (timeout)
+   5 05h    memory related
+;
+!TOPIC 25 EXE Header etc
+!! 0x8000
+!NOINDEX
+!! 0
+;
+--------D-214B-------------------------------
+INT 21 - DOS 2+ - "EXEC" - LOAD AND/OR EXECUTE PROGRAM
+        AH = 4Bh
+        AL = type of load
+            00h load and execute
+            01h load but do not execute
+            03h load overlay
+            04h load and execute in background (European MS-DOS 4.0 only)
+                "Exec & Go" (see also AH=80h)
+        DS:DX -> ASCIZ program name (must include extension)
+        ES:BX -> parameter block (see below)
+        CX = mode (subfunction 04h only)
+                0000h child placed in zombie mode after termination
+                0001h child's return code discarded on termination
+Return: CF clear if successful
+            BX,DX destroyed
+            if subfunction 01h, process ID set to new program's PSP; get with
+                INT 21/AH=62h
+        CF set on error
+            AX = error code (01h,02h,05h,08h,0Ah,0Bh) (see AH=59h)
+Notes:  DOS 2.x destroys all registers, including SS:SP
+        under ROM-based DOS, if no disk path characters (colons or slashes)
+          are included in the program name, the name is searched for in the
+          ROM module headers (see below) before searching on disk
+        for functions 00h and 01h, the calling process must ensure that there
+          is enough unallocated memory available; if necessary, by releasing
+          memory with AH=49h or AH=4Ah
+        for function 01h, the AX value to be passed to the child program is put
+          on top of the child's stack
+        for function 03h, DOS assumes that the overlay is being loaded into
+          memory allocated by the caller
+        function 01h was undocumented prior to the release of DOS 5.0
+        some versions (such as DR-DOS 6.0) check the parameters and parameter
+          block and return an error if an invalid value (such as an offset of
+          FFFFh) is found
+        background programs under European MS-DOS 4.0 must use the new
+          executable format
+        new executables begin running with the following register values
+                AX = environment segment
+                BX = offset of command tail in environment segment
+                CX = size of automatic data segment (0000h = 64K)
+                ES,BP = 0000h
+                DS = automatic data segment
+                SS:SP = initial stack
+          the command tail corresponds to an old executable's PSP:0081h and
+          following, except that the 0Dh is turned into a NUL (00h); new
+          format executables have no PSP
+        under the FlashTek X-32 DOS extender, only function 00h is supported
+          and the pointers are passed in DS:EDX and ES:EBX
+        DR-DOS 6 always loads .EXE-format programs with no fixups above the
+          64K mark to avoid the EXEPACK bug
+        names for the various executable type understood by various
+          environments:
+                MZ  old-style DOS executable
+                NE  Windows or OS/2 1.x segmented ("new") executable
+                LE  Windows virtual device driver (VxD) linear executable
+                LX  variant of LE used in OS/2 2.x
+                W3  Windows WIN386.EXE file; a collection of LE files
+                PE  Win32 (Windows NT and Win32s) portable executable based on
+                        Unix COFF
+BUGS:   DOS 2.00 assumes that DS points at the current program's PSP
+        Load Overlay (subfunction 03h) loads up to 512 bytes too many if the
+          file contains additional data after the actual overlay
+SeeAlso: AX=4B05h,AH=4Ch,AH=4Dh,AH=64h"OS/2",AH=8Ah,INT 2E
+
+Format of EXEC parameter block for AL=00h,01h,04h:
+Offset  Size    Description
+ 00h    WORD    segment of environment to copy for child process (copy caller's
+                environment if 0000h)
+ 02h    DWORD   pointer to command tail to be copied into child's PSP
+ 06h    DWORD   pointer to first FCB to be copied into child's PSP
+ 0Ah    DWORD   pointer to second FCB to be copied into child's PSP
+ 0Eh    DWORD   (AL=01h) will hold subprogram's initial SS:SP on return
+ 12h    DWORD   (AL=01h) will hold entry point (CS:IP) on return
+
+Format of EXEC parameter block for AL=03h:
+Offset  Size    Description
+ 00h    WORD    segment at which to load overlay
+ 02h    WORD    relocation factor to apply to overlay if in .EXE format
+
+Format of EXEC parameter block for FlashTek X-32:
+Offset  Size    Description
+ 00h    PWORD   48-bit far pointer to environment string
+ 06h    PWORD   48-bit far pointer to command tail string
+
+Format of .EXE file header:
+Offset  Size    Description
+ 00h  2 BYTEs   .EXE signature, either "MZ" or "ZM" (5A4Dh or 4D5Ah)
+ 02h    WORD    number of bytes in last 512-byte page of executable
+ 04h    WORD    total number of 512-byte pages in executable (includes any
+                partial last page)
+ 06h    WORD    number of relocation entries
+ 08h    WORD    header size in paragraphs
+ 0Ah    WORD    minimum paragraphs of memory to allocation in addition to
+                executable's size
+ 0Ch    WORD    maximum paragraphs to allocate in addition to executable's size
+ 0Eh    WORD    initial SS relative to start of executable
+ 10h    WORD    initial SP
+ 12h    WORD    checksum (one's complement of sum of all words in executable)
+ 14h    DWORD   initial CS:IP relative to start of executable
+ 18h    WORD    offset within header of relocation table
+                40h or greater for new-format (NE,LE,LX,W3,PE,etc.) executable
+ 1Ah    WORD    overlay number (normally 0000h = main program)
+---new executable---
+ 1Ch  4 BYTEs   ???
+ 20h    WORD    behavior bits
+ 22h 26 BYTEs   reserved for additional behavior info
+ 3Ch    DWORD   offset of new executable (NE,LE,etc) header within disk file,
+                or 00000000h if plain MZ executable
+---Borland TLINK---
+ 1Ch  2 BYTEs   ??? (apparently always 01h 00h)
+ 1Eh    BYTE    signature FBh
+ 1Fh    BYTE    TLINK version (major in high nybble, minor in low nybble)
+ 20h  2 BYTEs   ??? (v2.0 apparently always 72h 6Ah, v3.0+ seems always 6Ah 72h)
+---ARJ self-extracting archive---
+ 1Ch  4 BYTEs   signature "RJSX" (older versions, new signature is "aRJsfX" in
+                the first 1000 bytes of the file)
+---LZEXE 0.90 compressed executable---
+ 1Ch  4 BYTEs   signature "LZ09"
+---LZEXE 0.91 compressed executable---
+ 1Ch  4 BYTEs   signature "LZ91"
+---PKLITE compressed executable---
+ 1Ch    BYTE    minor version number
+ 1Dh    BYTE    bits 0-3: major version
+                bit 4: extra compression
+                bit 5: huge (multi-segment) file
+ 1Eh  6 BYTEs   signature "PKLITE" (followed by copyright message)
+---LHarc 1.x self-extracting archive---
+ 1Ch  4 BYTEs   unused???
+ 20h  3 BYTEs   jump to start of extraction code
+ 23h  2 BYTEs   ???
+ 25h 12 BYTEs   signature "LHarc's SFX "
+---LHA 2.x self-extracting archive---
+ 1Ch  8 BYTEs   ???
+ 24h 10 BYTEs   signature "LHa's SFX " (v2.10) or "LHA's SFX " (v2.13)
+---TopSpeed C 3.0 CRUNCH compressed file---
+ 1Ch    DWORD   018A0001h
+ 20h    WORD    1565h
+---PKARCK 3.5 self-extracting archive---
+ 1Ch    DWORD   00020001h
+ 20h    WORD    0700h
+---BSA (Soviet archiver) self-extracting archive---
+ 1Ch    WORD    000Fh
+ 1Eh    BYTE    A7h
+---LARC self-extracting archive---
+ 1Ch  4 BYTEs   ???
+ 20h 11 BYTEs   "SFX by LARC "
+---LH self-extracting archive---
+ 1Ch  8 BYTEs   ???
+ 24h  8 BYTEs   "LH's SFX "
+---other linkers---
+ 1Ch    var     optional information
+---
+  N   N DWORDs  relocation items
+Notes:  if word at offset 02h is 4, it should be treated as 00h, since pre-1.10
+          versions of the MS linker set it that way
+        if both minimum and maximum allocation (offset 0Ah/0Ch) are zero, the
+          program is loaded as high in memory as possible
+        the maximum allocation is set to FFFFh by default
+
+Format of ROM Module Header:
+Offset  Size    Description
+ 00h  2 BYTEs   ROM signature 55h, AAh
+ 02h    BYTE    size of ROM in 512-byte blocks
+ 03h  3 BYTEs   POST initialization entry point (near JMP instruction)
+ 06h    ROM Program Name List [array]
+        Offset  Size    Description
+         00h    BYTE    length of ROM program's name (00h if end of name list)
+         01h  N BYTEs   program name
+         N+1  3 BYTEs   program entry point (near JMP instruction)
+
+Format of new executable header:
+Offset  Size    Description
+ 00h  2 BYTEs   "NE" (4Eh 45h) signature
+ 02h  2 BYTEs   linker version (major, then minor)
+ 04h    WORD    offset from start of this header to entry table (see below)
+ 06h    WORD    length of entry table in bytes
+ 08h    DWORD   file load CRC (0 in Borland's TPW)
+ 0Ch    BYTE    program flags
+                bits 0-1 DGROUP type
+                  0 = none
+                  1 = single shared
+                  2 = multiple (unshared)
+                  3 = (null)
+                bit 2:  global initialization
+                bit 3:  protected mode only
+                bit 4:  8086 instructions
+                bit 5:  80286 instructions
+                bit 6:  80386 instructions
+                bit 7:  80x87 instructions
+ 0Dh    BYTE    application flags
+                bits 0-2: application type
+                    001 full screen (not aware of Windows/P.M. API)
+                    010 compatible with Windows/P.M. API
+                    011 uses Windows/P.M. API
+                bit 3: is a Family Application (OS/2)
+                bit 5: 0=executable, 1=errors in image
+                bit 6: non-conforming program (valid stack is not maintained)
+                bit 7: DLL or driver rather than application
+                        (SS:SP info invalid, CS:IP points at FAR init routine
+                         called with AX=module handle which returns AX=0000h
+                         on failure, AX nonzero on successful initialization)
+ 0Eh    WORD    auto data segment index
+ 10h    WORD    initial local heap size
+ 12h    WORD    initial stack size (added to data seg, 0000h if SS <> DS)
+ 14h    DWORD   program entry point (CS:IP), "CS" is index into segment table
+ 18h    DWORD   initial stack pointer (SS:SP), "SS" is segment index
+                if SS=automatic data segment and SP=0000h, the stack pointer is
+                  set to the top of the automatic data segment, just below the
+                  local heap
+ 1Ch    WORD    segment count
+ 1Eh    WORD    module reference count
+ 20h    WORD    length of nonresident names table in bytes
+ 22h    WORD    offset from start of this header to segment table (see below)
+ 24h    WORD    offset from start of this header to resource table
+ 26h    WORD    offset from start of this header to resident names table
+ 28h    WORD    offset from start of this header to module reference table
+ 2Ah    WORD    offset from start of this header to imported names table
+                (array of counted strings, terminated with a string of length
+                 00h)
+ 2Ch    DWORD   offset from start of file to nonresident names table
+ 30h    WORD    count of moveable entry point listed in entry table
+ 32h    WORD    file alignment size shift count
+                0 is equivalent to 9 (default 512-byte pages)
+ 34h    WORD    number of resource table entries
+ 36h    BYTE    target operating system
+                00h unknown
+                01h OS/2
+                02h Windows
+                03h European MS-DOS 4.x
+                04h Windows 386
+                05h BOSS (Borland Operating System Services)
+ 37h    BYTE    other EXE flags
+                bit 0: supports long filenames
+                bit 1: 2.X protected mode
+                bit 2: 2.X proportional font
+                bit 3: gangload area
+ 38h    WORD    offset to return thunks or start of gangload area
+ 3Ah    WORD    offset to segment reference thunks or length of gangload area
+ 3Ch    WORD    minimum code swap area size
+ 3Eh  2 BYTEs   expected Windows version (minor version first)
+Note:   this header is documented in detail in the Windows 3.1 SDK Programmer's
+          Reference, Vol 4.
+
+(The rest of the INT 21 AH = 4Bh was deleted from this table, see the entry
+in the List for info)

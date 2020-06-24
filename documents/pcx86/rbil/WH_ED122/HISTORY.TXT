@@ -1,0 +1,18 @@
+WH_wEdit History:
+
+1994-12-28 Version 1.00
+1995-05-06 v. 1.11: Added Macro editor.
+1996-04-25 v. 1.12: Accepts Win95 help files and files with appendix
+1996-09-06 v. 1.13: Resolves copyright notice conflicts
+1996-10-27 v. 1.14: Bug fix: Problem if macros defined after windows
+1997-04-26 v. 1.15: Supported windows increased from 10 to 100
+1997-08-05 v. 1.16: Bug fix: Sizing problem in Windows 95
+1997-09-28 v. 1.20: Bug fix: Automatic save at program exit could fail.
+	Added editor features Find, Replace, Match.
+	Fixed font and tab spacing 4 (user adjustable) in editor.
+1997-12-13 v. 1.21: Was unfortunately released compiled from a wrong
+	source file (well, it was on the 13th and close to Friday).
+1997-12-14 v. 1.22: Bug fix: Random initial main window height or
+	width could cause sizing problem that lasted for the rest of
+	the WH_wEdit session.
+

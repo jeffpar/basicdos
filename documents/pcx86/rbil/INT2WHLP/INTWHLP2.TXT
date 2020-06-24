@@ -1,0 +1,30 @@
+May 31, 1994.
+
+Christian and I have worked together on improving the Interrupt List to
+WinHelp converter. This has made some of the information in INTWHLP1.TXT
+obsolete.
+
+The program name was changed from INTWHLP/RB2HLP to INT2WHLP.
+The name of the WINHELP input file was changed from RB.HLP to INTWIN.HLP.
+INTWHLP.DAT is no longer needed.
+The INTWIN.PH compression information file (for HC31) included with release
+41 is based on a 41á release of the Interrupt List, and it is recommended
+to use high compression based on that file. See I2W-HINT.TXT.
+
+The new version of INT2WHLP interprets a configuration file and the command
+line for options, see the files I2W-CFG.TXT and I2W-OPT.TXT. See also
+I2W-HINT.TXT.
+
+Latest news: Ralf told that table numbering will be implemented in the
+Interrupt List release 41. Because Christian is travelling around at the
+moment, I have implemented a table cross-referencing which is useful, but
+not ideal, because it is a reference to the interrupt where the table occur,
+not to the table itself. I hope that release 42 of the List can bring a
+version of INT2WHLP, where the tables are separate topics, with references
+pointing directly to the tables.
+
+As Christian has not approved this latest update, the source code will
+not be included in release 41. It is the intension to include the source
+in release 42 of the Interrupt List.
+
+Bent Lynggaard <lynggaard@risoe.dk>

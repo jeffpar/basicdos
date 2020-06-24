@@ -1,0 +1,123 @@
+
+    II - The Interrupt List Viewer v0.32 (c) Copyright 1996 Martin Rystrand
+   -------------------------------------------------------------------------
+
+
+
+ Disclaimer:
+   This program is provided as is. I (Martin Rystrand) gives no warranty of
+   any kind for the program, any files, documentation, performance of the
+   program or quality. I can not be held responsible for any kind of damage,
+   (including but not limited to, any lost profits, lost money, or other
+   special, incidental or consequential damages arising out of the use
+   or inability to use this program) Since the software is complex, and may
+   not be completely free of errors all users are advised to make backup of
+   important data.
+
+ This program is not finished nor bug-free.
+
+
+
+
+ System-requirements:
+
+ MS-DOS 5.0
+ 150kb conventional (low) memory
+ 101/102-keys keyboard (other might work)
+ 80486 recommended
+ VGA-card recommended
+
+
+
+
+ Features:
+
+ * Simple file-requester for simple changing of .LST-file to view.
+ * Hex-viewer
+ * .LST-file-viewer with support for searching and saving topics.
+
+
+
+
+ Usage:
+
+ Running II.EXE without params brings up a simple file-requester, showing
+ current directory. If a file is specified at command-line, that file is
+ opened for viewing.
+
+
+
+
+ File-requester:
+
+ The file-requester is very simple. All files appears in a list. Choose file
+ to view - either in hex-format or as text. Text-viewer only supports .LST-
+ files due to some special features (see below).
+
+ Keys:
+ Cursor up/down - Change current file
+ H              - Hex-view current file
+ Return         - Open topiclist for current file
+
+
+
+
+ Topic-list:
+
+ If a file is choosen from file-requester or specified at command-line, a
+ indexfile is created (named FILENAME.II). The indexfile is used to improve
+ speed for both topiclist and searching. When index is created (which might
+ take a few minutes on slow computers) a list of all topics in the .LST-file
+ is shown on screen.
+
+ Keys:
+ Cursor up/down - Change topic
+ Home/end       - Beginning/end of list
+ Page up/down   - Scroll list one page up/down
+ Return         - View topic
+ F2             - Search for text-string
+ F3             - Repeat search (use same text-string)
+ S              - Save topic to disk
+
+
+
+
+ Topic-viewer:
+
+ This viewer has some features that I haven't seen in any other interrupt-
+ list-viewer. Searching has already been mentioned. Being able to view all
+ "see-also"-references is real handy.
+
+ Keys:
+ Cursor up/down - Scroll through topic
+ Page up/down   -        - || -
+ Cursor left/right - View previous/next topic
+ F2             - Search for text-string
+ F3             - Repeat search (use same text-string)
+ S              - Save topic to disk
+ Tab            - Change "see-alse"-reference
+ Return         - Goto current "see-also"-reference
+ Backspace      - Goto previously viewed topic
+
+
+
+
+ Known bugs:
+
+ * Program sometimes messes up search-string
+ * After viewing a topic, program sometimes returns to wrong part of topiclist.
+ * Doesn't find all "see-also:"-references.
+ * .II-files shouldn't appear in file-requester.
+ * Topic-viewer can only show topics smaller than 65520 bytes.
+
+
+
+
+ How to contact me:
+
+ snail-mail:  Martin Rystrand
+              Henrik Gjutaresg 32F
+              S-541 45 Sk”vde
+              Sweden
+
+ email:       a95marry@ida.his.se

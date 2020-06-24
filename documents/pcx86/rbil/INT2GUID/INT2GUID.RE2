@@ -1,0 +1,32 @@
+!WRAP
+This system contains a filtered version of Ralf Brown's Interrupt files.
+The filter program is Ralf Brown's INTPRINT program, and the contents
+of the filter file is listed below.
+
+;The following is a slightly edited copy from Ralf Brown's
+;INTPRINT.DOC file:
+;
+The filter file is a simple text file containing
+include lines, exclude lines, and comment lines. Include lines start
+with a plus sign (+) in the first column, followed immediately by the
+desired string; exclude lines start with a minus sign (-) in the first
+column, followed immediately by the desired string. Comment lines
+start with a hash mark (#) in the first column and are ignored.
+
+Only entries whose title lines contain
+at least one of the include lines (ignoring uppercase/lowercase
+distinctions) and none of the exclude lines are processed.
+
+All spaces on include and exclude lines are significant. Thus,
+        + DOS 
+!LINE
+will only match entries containing the five-letter sequence " DOS ",
+while
+        +DOS
+!LINE
+will match any entries containing the sequence "DOS", whether or
+not it is preceded and/or followed by a blank.
+
+Here follows the contents of the filter file:
+
+!NOWRAP
