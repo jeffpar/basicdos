@@ -207,7 +207,7 @@ sl5:	shl	di,cl			; ES:DI -> top of the segment
 	mov	ax,100h
 	stosw				; REG_IP
 	sub	ax,ax
-	REPT (size REG_WS) SHR 1
+	REPT (size WS_FRAME) SHR 1
 	stosw				; REG_WS
 	ENDM
 	stosw				; REG_AX
@@ -364,7 +364,7 @@ ENDPROC	scb_unlock
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; scb_start
-; util_start (AX = 1807h)
+; utl_start (AX = 1807h)
 ;
 ; "Start" the specified session (actual starting will handled by scb_switch).
 ;
@@ -388,7 +388,7 @@ ENDPROC	scb_start
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; scb_stop
-; util_stop (AX = 1808h)
+; utl_stop (AX = 1808h)
 ;
 ; "Stop" the specified session.
 ;
@@ -407,7 +407,7 @@ ENDPROC	scb_stop
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; scb_unload
-; util_unload (AX = 1809h)
+; utl_unload (AX = 1809h)
 ;
 ; Unload the current program from the specified session.
 ;
@@ -426,14 +426,14 @@ ENDPROC	scb_unload
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; scb_yield
-; util_yield (AX = 180Ah)
+; utl_yield (AX = 180Ah)
 ;
 ; Asynchronous interface to decide which session should run next.
 ;
 ; There are currently two conditions to consider:
 ;
-;	1) A DOS_UTIL_YIELD request
-;	2) A DOS_UTIL_WAIT request
+;	1) A DOS_UTL_YIELD request
+;	2) A DOS_UTL_WAIT request
 ;
 ; In the first case, we want to return if no other SCB is ready; this
 ; is important when we're called from an interrupt handler.
@@ -442,7 +442,7 @@ ENDPROC	scb_unload
 ; current SCB when its wait condition is satisfied.
 ;
 ; Inputs:
-;	AX = scb_active when called from DOS_UTIL_YIELD, zero otherwise
+;	AX = scb_active when called from DOS_UTL_YIELD, zero otherwise
 ;
 ; Modifies:
 ;	BX, DX
@@ -493,7 +493,7 @@ DEFPROC	scb_switch,DOS
 	ASSERT_STRUC [bx],SCB
 	mov	dx,[psp_active]
 	mov	[bx].SCB_CURPSP,dx
-	add	sp,4			; toss 2 near-call return addresses
+	add	sp,2			; toss 1 near-call return address
 	mov	[bx].SCB_STACK.SEG,ss
 	mov	[bx].SCB_STACK.OFF,sp
 sw8:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
@@ -509,7 +509,7 @@ ENDPROC	scb_switch
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; scb_wait
-; util_wait (AX = 180Ch)
+; utl_wait (AX = 180Ch)
 ;
 ; Synchronous interface to mark current SCB as waiting for the specified ID.
 ;
@@ -533,7 +533,7 @@ ENDPROC	scb_wait
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; scb_endwait
-; util_endwait (AX = 180Dh)
+; utl_endwait (AX = 180Dh)
 ;
 ; Asynchronous interface to examine all SCBs for the specified ID and clear it.
 ;

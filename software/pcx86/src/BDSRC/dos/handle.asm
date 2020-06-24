@@ -1013,18 +1013,18 @@ ENDPROC	get_dirent
 ;	AX, BX
 ;
 DEFPROC	get_sfb,DOS
-	mov	ax,[psp_active]
-	test	ax,ax			; if we're called by sysinit
-	jz	gs8			; there may be no valid PSP yet
+	mov	ax,[psp_active]		; if there's no PSP yet
+	test	ax,ax			; then BX must an SFH, not a PFH
+	jz	gs1
 	push	ds
 	mov	ds,ax
 	ASSUME	DS:NOTHING
-	mov	al,ds:[PSP_PFT][bx]	; AL = SFH (we're being hopeful)
+	mov	bl,ds:[PSP_PFT][bx]	; BL = SFH (we're being hopeful)
 	pop	ds
 	ASSUME	DS:DOS
-	cmp	bx,size PSP_PFT		; is the PFH within PFT bounds?
+	cmp	bl,size PSP_PFT		; is the PFH within PFT bounds?
 	jae	gs8			; no, our hope was misplaced
-	mov	bl,size SFB		; convert SFH to SFB
+gs1:	mov	al,size SFB		; convert SFH to SFB
 	mul	bl
 	add	ax,[sfb_table].off
 	cmp	ax,[sfb_table].seg	; is the SFB valid?
@@ -1043,7 +1043,7 @@ ENDPROC	get_sfb
 ;	None
 ;
 ; Outputs:
-;	On success, ES:DI -> PFT, carry clear
+;	On success, ES:DI -> PFT, carry clear (DI will be zero if no PSP)
 ;	On failure, AX = ERR_MAXFILES, carry set
 ;
 ; Modifies:

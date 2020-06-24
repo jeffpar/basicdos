@@ -104,10 +104,9 @@ ENDPROC	tty_in
 ;
 DEFPROC	tty_read,DOS
 	ASSUME	ES:NOTHING
-tr1:	call	read_char
+	call	read_char
 	jc	tr9
 	call	check_char
-	jc	tr1
 tr9:	ret
 ENDPROC	tty_read
 
@@ -156,10 +155,8 @@ ti1:	sub	bx,bx			; ES:DI+BX+2 -> next buffer position
 	mov	cl,es:[di]
 	mov	ch,0			; CX = max characters
 	jcxz	ti9
-ti2:	call	read_char		; similar to tty_read
-	jc	ti9			; but if check_char detects CTRLC
-	call	check_char		; we must reset our position
-	jc	ti1
+ti2:	call	tty_read
+	jc	ti9
 ti3:	cmp	al,CHR_RETURN
 	je	ti8
 	cmp	al,CHR_BACKSPACE
@@ -203,18 +200,17 @@ ENDPROC	tty_flush
 ;	AL = character to check
 ;
 ; Outputs:
-;	Carry set if CTRLC, clear otherwise
+;	None; if CTRLC is detected, this function does not return
 ;
 ; Modifies:
 ;	None
 ;
 DEFPROC	check_char,DOS
 	cmp	al,CHR_CTRLC
-	clc
 	jne	cc9
-	call	msc_sigctrlc		; this may not return...
-	stc				; but if it does, make sure carry set
-cc9:	ret
+	jmp	msc_sigctrlc
+cc9:	clc
+	ret
 ENDPROC	check_char
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

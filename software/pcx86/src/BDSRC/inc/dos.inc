@@ -48,24 +48,24 @@ DOS_TTY_STATUS	equ	0Bh	; get CON status (AL = 0 if nothing, or FFh)
 DOS_TTY_FLUSH	equ	0Ch	; flush and invoke 01h, 06h, 07h, 08h, or 0Ah
 DOS_DSK_RESET	equ	0Dh	; disk reset
 
-DOS_UTIL	 equ	18h
-DOS_UTIL_STRLEN	 equ  1800h	; return string (DS:SI) length (AX)
-DOS_UTIL_ATOI	 equ  1801h	; convert string (DS:SI) to number (AX)
-DOS_UTIL_ITOA	 equ  1802h	; convert number (DX:SI) to string (ES:DI)
-DOS_UTIL_PRINTF	 equ  1803h	; printf to console
-DOS_UTIL_SPRINTF equ  1804h	; sprintf to buffer (ES:DI)
-DOS_UTIL_GETDEV	 equ  1805h	; get DDH (ES:DI) for device (DS:SI)
-DOS_UTIL_IOCTL	 equ  1806h	; issue IOCTL to device (ES:DI)
-DOS_UTIL_LOAD	 equ  1807h	; load program (DS:DX) into SCB (CL)
-DOS_UTIL_START	 equ  1808h	; start SCB (CL)
-DOS_UTIL_STOP	 equ  1809h	; stop SCB (CL)
-DOS_UTIL_UNLOAD	 equ  180Ah	; unload program from SCB (CL)
-DOS_UTIL_YIELD	 equ  180Bh	; yield
-DOS_UTIL_SLEEP	 equ  180Ch	; sleep CX:DX ticks
-DOS_UTIL_WAIT	 equ  180Dh	; wait until end wait
-DOS_UTIL_ENDWAIT equ  180Eh	; end wait
-DOS_UTIL_HOTKEY	 equ  180Fh	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
-DOS_UTIL_STDLEN	 equ  1824h	; like STRLEN but with 24h as terminator
+DOS_UTL		equ	18h
+DOS_UTL_STRLEN	equ   1800h	; return string (DS:SI) length (AX)
+DOS_UTL_ATOI	equ   1801h	; convert string (DS:SI) to number (AX)
+DOS_UTL_ITOA	equ   1802h	; convert number (DX:SI) to string (ES:DI)
+DOS_UTL_PRINTF	equ   1803h	; printf to console
+DOS_UTL_SPRINTF	equ   1804h	; sprintf to buffer (ES:DI)
+DOS_UTL_GETDEV	equ   1805h	; get DDH (ES:DI) for device (DS:SI)
+DOS_UTL_IOCTL	equ   1806h	; issue IOCTL to device (ES:DI)
+DOS_UTL_LOAD	equ   1807h	; load program (DS:DX) into SCB (CL)
+DOS_UTL_START	equ   1808h	; start SCB (CL)
+DOS_UTL_STOP	equ   1809h	; stop SCB (CL)
+DOS_UTL_UNLOAD	equ   180Ah	; unload program from SCB (CL)
+DOS_UTL_YIELD	equ   180Bh	; yield
+DOS_UTL_SLEEP	equ   180Ch	; sleep CX:DX ticks
+DOS_UTL_WAIT	equ   180Dh	; wait until end wait
+DOS_UTL_ENDWAIT	equ   180Eh	; end wait
+DOS_UTL_HOTKEY	equ   180Fh	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
+DOS_UTL_STDLEN	equ   1824h	; like STRLEN but with 24h as terminator
 
 DOS_MSC_SETVEC	equ	25h	; set vector (AL) to addr (DS:DX)
 DOS_PSP_CREATE	equ	26h	; create PSP (DX = segment)
@@ -90,20 +90,28 @@ ELSE
 REG_DIAG	equ	1	; extra diagnostic info before REG_FRAME
 ENDIF
 
+WS_FRAME	struc		; workspace (eg, for CTRLC dispatching)
+JMP_IP		dw	?	; 00h
+JMP_CS		dw	?	; 02h
+RET_IP		dw	?	; 04h
+RET_CS		dw	?	; 06h
+RET_FL		dw	?	; 08h
+WS_FRAME	ends
+
 REG_FRAME	struc		; register frame created by dos_func
-REG_BP		dw	?
-REG_DI		dw	?	; in case anyone wants to use LES DI...
-REG_ES		dw	?
-REG_SI		dw	?	; in case anyone wants to use LDS SI...
-REG_DS		dw	?
-REG_DX		dw	?
-REG_CX		dw	?
-REG_BX		dw	?
-REG_AX		dw	?
-REG_WS		dw	6 dup (?); workspace (primarily for CTRLC dispatching)
-REG_IP		dw	?
-REG_CS		dw	?
-REG_FL		dw	?
+REG_BP		dw	?	; 00h
+REG_DI		dw	?	; 02h (in case anyone wants to use LES DI)
+REG_ES		dw	?	; 04h
+REG_SI		dw	?	; 06h (in case anyone wants to use LDS SI)
+REG_DS		dw	?	; 08h
+REG_DX		dw	?	; 0Ah
+REG_CX		dw	?	; 0Ch
+REG_BX		dw	?	; 0Eh
+REG_AX		dw	?	; 10h
+REG_WS		dw (size WS_FRAME) SHR 1 dup (?)
+REG_IP		dw	?	; 1Ch
+REG_CS		dw	?	; 1Eh
+REG_FL		dw	?	; 20h
 REG_FRAME	ends
 
 FL_CARRY	equ	0001h

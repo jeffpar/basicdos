@@ -13,7 +13,8 @@ DOS	segment word public 'CODE'
 
 	EXTERNS	<ctrlc_all,ctrlc_active>,byte
 	EXTERNS	<scb_active>,word
-	EXTERNS	<write_string>,near
+	EXTERNS	<write_string,dos_restart>,near
+	EXTERNS	<STR_CTRLC>,byte
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -91,48 +92,45 @@ ENDPROC	msc_setctrlc
 ;	None
 ;
 ; Modifies:
-;	None
+;	Any; this function does not return directly to the caller
 ;
-DEFPROC	msc_sigctrlc,DOS
+DEFPROC	msc_sigctrlc,DOSFAR
+	ASSUME	DS:DOS, ES:DOS
 	mov	[ctrlc_active],0
-	push	cx
-	push	si
+
 	mov	cx,4
 	mov	si,offset STR_CTRLC
 	call	write_string
-	pop	si
-	pop	cx
-	push	bx
-	push	bp
-	clc
-	pushf				; fake "INT_DOSCTRLC"
-	push	cs			; using the SCB CTRLC address
-	mov	bx,offset msg1		; instead of the IVT CTRLC address
-	push	bx
+;
+; Use the REG_WS workspace on the stack to create two "call frames",
+; allowing us to RETF to the CTRLC handler, and allowing the CTRLC handler
+; to IRET back to us.
+;
+	mov	ax,[bp].REG_FL		; FL_CARRY is clear in REG_FL
+	mov	[bp].REG_WS.RET_FL,ax
+	mov	[bp].REG_WS.RET_CS,cs
+	mov	[bp].REG_WS.RET_IP,offset dos_restart
 	mov	bx,[scb_active]
 	ASSERT_STRUC [bx],SCB
-	push	[bx].SCB_CTRLC.seg
-	push	[bx].SCB_CTRLC.off
-	mov	ds,[bp].REG_DS
-	mov	es,[bp].REG_ES
-	mov	bx,[bp].REG_BX
-	mov	bp,[bp].REG_BP		; all registers restored for the "call"
-	ASSUME	DS:NOTHING, ES:NOTHING
-	db	0CBh			; RETF
-msg1:	jnc	msg2
-	mov	bx,[scb_active]
-	pushf
-	call	cs:[bx].SCB_ABORT	; should not return
-msg2:	mov	bx,cs
-	mov	ds,bx
-	mov	es,bx
-	ASSUME	DS:DOS, ES:DOS		; restore entry conditions
+	mov	ax,[bx].SCB_CTRLC.SEG	; use the SCB CTRLC address
+	mov	[bp].REG_WS.JMP_CS,ax	; instead of the IVT CTRLC address
+	mov	ax,[bx].SCB_CTRLC.OFF
+	mov	[bp].REG_WS.JMP_IP,ax
+
+	mov	sp,bp
 	pop	bp
+	pop	di
+	pop	es
+	ASSUME	ES:NOTHING
+	pop	si
+	pop	ds
+	ASSUME	DS:NOTHING
+	pop	dx
+	pop	cx
 	pop	bx
+	pop	ax
 	ret
 ENDPROC	msc_sigctrlc
-
-STR_CTRLC db	"^C",CHR_RETURN,CHR_LINEFEED
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

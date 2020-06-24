@@ -28,10 +28,10 @@ m2:	mov	ax,bx
 	inc	cx
 	jmp	m2		; try next divisor
 
-m3:	PRINTF	<"%d ">,ax
+m3:	PRINTF	<"%u ">,ax
 	inc	bp
 	cmp	bp,5
-	jbe	m4
+	jb	m4
 	PRINTF	<13,10>
 	sub	bp,bp
 

@@ -23,7 +23,7 @@ DEFPROC	main
 	int	21h
 m1:	mov	dx,36
 	sub	cx,cx
-	mov	ax,DOS_UTIL_SLEEP
+	mov	ax,DOS_UTL_SLEEP
 	int	21h
 	jmp	main
 	int	20h

@@ -289,7 +289,7 @@ PRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9
 	argc = argc + 1
 	push	a1
 	ENDIF
-	mov	ax,DOS_UTIL_PRINTF
+	mov	ax,DOS_UTL_PRINTF
 	int	INT_DOSFUNC
 	db	format,0
 	IF	argc NE 0

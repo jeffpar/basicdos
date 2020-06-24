@@ -34,6 +34,7 @@ DOS	segment word public 'CODE'
 ;
 	DEFBYTE	VALID_CHARS,"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%&'()-@^_`{}~"
 	DEFABS	VALID_COUNT,<$ - VALID_CHARS>
+	DEFBYTE	STR_CTRLC,<"^C",CHR_RETURN,CHR_LINEFEED>
 
 	EXTERNS	<psp_quit>,near
 	EXTERNS	<tty_echo,tty_write,aux_read,aux_write,prn_write,tty_io>,near
@@ -43,31 +44,48 @@ DOS	segment word public 'CODE'
 	EXTERNS	<psp_create,psp_set,psp_get>,near
 	EXTERNS	<hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek>,near
 	EXTERNS	<mem_alloc,mem_free,mem_realloc>,near
-	EXTERNS	<util_func,func_none>,near
+	EXTERNS	<utl_strlen,utl_atoi,utl_itoa,utl_printf,utl_sprintf>,near
+	EXTERNS	<utl_getdev,utl_ioctl,utl_load,utl_yield,utl_sleep>,near
+	EXTERNS	<utl_hotkey>,near
+	EXTERNS	<scb_start,scb_stop,scb_unload,scb_wait,scb_endwait>,near
+	EXTERNS	<func_none>,near
 
 	DEFLBL	FUNCTBL,word
-	dw	psp_quit,   tty_echo,   tty_write,   aux_read	; 00h-03h
-	dw	aux_write,  prn_write,  tty_io,      tty_in	; 04h-07h
-	dw	tty_read,   tty_print,  tty_input,   tty_status	; 08h-0Bh
-	dw	tty_flush,  dsk_flush,  func_none,   func_none	; 0Ch-0Fh
-	dw	func_none,  func_none,  func_none,   func_none	; 10h-13h
-	dw	func_none,  func_none,  func_none,   func_none	; 14h-17h
-	dw	util_func,  func_none,  func_none,   func_none	; 18h-1Bh
-	dw	func_none,  func_none,  func_none,   func_none	; 1Ch-1Fh
-	dw	func_none,  func_none,  func_none,   func_none	; 20h-23h
-	dw	func_none,  msc_setvec, psp_create,  func_none	; 24h-27h
-	dw	func_none,  func_none,  func_none,   func_none	; 28h-2Bh
-	dw	func_none,  func_none,  func_none,   func_none	; 2Ch-2Fh
-	dw	func_none,  func_none,  func_none,   func_none	; 30h-33h
-	dw	func_none,  msc_getvec, func_none,   func_none	; 34h-37h
-	dw	func_none,  func_none,  func_none,   func_none	; 38h-3Bh
-	dw	func_none,  hdl_open,   hdl_close,   hdl_read	; 3Ch-3Fh
-	dw	hdl_write,  func_none,  hdl_seek,    func_none	; 40h-43h
-	dw	func_none,  func_none,  func_none,   func_none	; 44h-47h
-	dw	mem_alloc,  mem_free,   mem_realloc, func_none	; 48h-4Bh
-	dw	func_none,  func_none,  func_none,   func_none	; 4Ch-4Fh
-	dw	psp_set,    psp_get				; 50h-51h
+	dw	psp_quit,    tty_echo,    tty_write,   aux_read		;00h-03h
+	dw	aux_write,   prn_write,   tty_io,      tty_in		;04h-07h
+	dw	tty_read,    tty_print,   tty_input,   tty_status	;08h-0Bh
+	dw	tty_flush,   dsk_flush,   func_none,   func_none	;0Ch-0Fh
+	dw	func_none,   func_none,   func_none,   func_none	;10h-13h
+	dw	func_none,   func_none,   func_none,   func_none	;14h-17h
+	dw	func_none,   func_none,   func_none,   func_none	;18h-1Bh
+	dw	func_none,   func_none,   func_none,   func_none	;1Ch-1Fh
+	dw	func_none,   func_none,   func_none,   func_none	;20h-23h
+	dw	func_none,   msc_setvec,  psp_create,  func_none	;24h-27h
+	dw	func_none,   func_none,   func_none,   func_none	;28h-2Bh
+	dw	func_none,   func_none,   func_none,   func_none	;2Ch-2Fh
+	dw	func_none,   func_none,   func_none,   func_none	;30h-33h
+	dw	func_none,   msc_getvec,  func_none,   func_none	;34h-37h
+	dw	func_none,   func_none,   func_none,   func_none	;38h-3Bh
+	dw	func_none,   hdl_open,    hdl_close,   hdl_read		;3Ch-3Fh
+	dw	hdl_write,   func_none,   hdl_seek,    func_none	;40h-43h
+	dw	func_none,   func_none,   func_none,   func_none	;44h-47h
+	dw	mem_alloc,   mem_free,    mem_realloc, func_none	;48h-4Bh
+	dw	func_none,   func_none,   func_none,   func_none	;4Ch-4Fh
+	dw	psp_set,     psp_get					;50h-51h
 	DEFABS	FUNCTBL_SIZE,<($ - FUNCTBL) SHR 1>
+
+	DEFLBL	UTILTBL,word
+	dw	utl_strlen,  utl_atoi,    utl_itoa,    utl_printf	;00h-03h
+	dw	utl_sprintf, utl_getdev,  utl_ioctl,   utl_load		;04h-07h
+	dw	scb_start,   scb_stop,    scb_unload,  utl_yield	;08h-0Bh
+	dw	utl_sleep,   scb_wait,    scb_endwait, utl_hotkey	;0Ch-0Fh
+	dw	func_none,   func_none,   func_none,   func_none	;10h-13h
+	dw	func_none,   func_none,   func_none,   func_none	;14h-17h
+	dw	func_none,   func_none,   func_none,   func_none	;18h-1Bh
+	dw	func_none,   func_none,   func_none,   func_none	;1Ch-1Fh
+	dw	func_none,   func_none,   func_none,   func_none	;20h-23h
+	dw	utl_strlen						;24h
+	DEFABS	UTILTBL_SIZE,<($ - UTILTBL) SHR 1>
 
 DOS	ends
 

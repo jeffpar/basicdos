@@ -125,7 +125,7 @@ DEFPROC	ddcon_read
 ; For READ requests that cannot be satisifed, we add this packet to an
 ; internal chain of "reading" packets, and then tell DOS that we're waiting;
 ; DOS will suspend the current SCB until we notify DOS that this packet's
-; conditions are satisified.
+; conditions are satisfied.
 ;
 	call	add_packet
 
@@ -166,7 +166,7 @@ dcw2:	push	es
 ; For WRITE requests that cannot be satisifed, we add this packet to an
 ; internal chain of "writing" packets, and then tell DOS that we're waiting;
 ; DOS will suspend the current SCB until we notify DOS that this packet's
-; conditions are satisified.
+; conditions are satisfied.
 ;
 	pop	es			; ES:DI -> packet again
 	call	add_packet
@@ -203,16 +203,16 @@ DEFPROC	ddcon_open
 	push	cs
 	pop	es
 	mov	di,offset CON_LIMITS	; ES:DI -> limits
-	mov	ax,DOS_UTIL_ATOI
+	mov	ax,DOS_UTL_ATOI
 	int	21h			; updates SI, DI, and AX
 	mov	cl,al			; CL = cols
-	mov	ax,DOS_UTIL_ATOI
+	mov	ax,DOS_UTL_ATOI
 	int	21h
 	mov	ch,al			; CH = rows
-	mov	ax,DOS_UTIL_ATOI
+	mov	ax,DOS_UTL_ATOI
 	int	21h
 	mov	dl,al			; DL = starting col
-	mov	ax,DOS_UTIL_ATOI
+	mov	ax,DOS_UTL_ATOI
 	int	21h
 	mov	dh,al			; DH = starting row
 	pop	ds
@@ -383,23 +383,23 @@ DEFPROC	ddcon_interrupt,far
 	mov	ds,ax
 	ASSUME	DS:CODE
 
+	sti
 	call	check_hotkey
 	jc	ddi1
 	xchg	dx,ax			; DL = char code, DH = scan code
-	mov	ax,DOS_UTIL_HOTKEY	; notify DOS
+	mov	ax,DOS_UTL_HOTKEY	; notify DOS
 	int	21h
 
-ddi1:	mov	ax,[ct_focus]
-	mov	bx,offset wait_ptr	; DS:BX -> ptr
+ddi1:	mov	bx,offset wait_ptr	; DS:BX -> ptr
 	les	di,[bx]			; ES:DI -> packet, if any
-	ASSUME	ES:NOTHING
-	sti
+	ASSUME	DS:NOTHING, ES:NOTHING
 
 ddi2:	cmp	di,-1			; end of chain?
 	je	ddi9			; yes
 
 	ASSERT_STRUC es:[di],DDP
 
+	mov	ax,[ct_focus]
 	cmp	es:[di].DDP_CONTEXT,ax	; packet from console with focus?
 	jne	ddi6			; no
 
@@ -422,17 +422,19 @@ ddi3:	call	read_kbd		; read keyboard data
 ; Notify DOS that this packet is done waiting.
 ;
 ddi4:	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	mov	ax,DOS_UTIL_ENDWAIT
+	mov	ax,DOS_UTL_ENDWAIT
 	int	21h
 ;
 ; The request has been satisfied, so remove packet from wait_ptr list.
 ;
+	cli
 	mov	ax,es:[di].DDP_PTR.off
 	mov	[bx].off,ax
 	mov	ax,es:[di].DDP_PTR.seg
 	mov	[bx].seg,ax
+	sti
 
-	mov	ax,DOS_UTIL_YIELD	; allow rescheduling now
+	mov	ax,DOS_UTL_YIELD	; allow rescheduling now
 	int	21h
 	jmp	short ddi9
 
@@ -510,7 +512,7 @@ DEFPROC	add_packet
 ;
 	push	dx
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	mov	ax,DOS_UTIL_WAIT
+	mov	ax,DOS_UTL_WAIT
 	int	21h
 	pop	dx
 	ret
@@ -521,7 +523,7 @@ ENDPROC	add_packet
 ; check_hotkey
 ;
 ; Check for key combinations considered "hotkeys" by BASIC-DOS; if a hotkey
-; is detected, carry is cleared, indicating that a DOS_UTIL_HOTKEY notification
+; is detected, carry is cleared, indicating that a DOS_UTL_HOTKEY notification
 ; should be issued.
 ;
 ; For example, CTRLC (and CTRL_BREAK, which we convert to CTRLC) are considered

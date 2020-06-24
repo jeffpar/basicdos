@@ -15,58 +15,18 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_active>,word
 	EXTERNS	<clk_ptr>,dword
 	EXTERNS	<chk_devname,dev_request,write_string>,near
-	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload>,near
-	EXTERNS	<scb_yield,scb_wait,scb_endwait>,near
-
-	DEFLBL	UTILTBL,word
-	dw	util_strlen,  util_atoi,    util_itoa,   util_printf	; 00h-03h
-	dw	util_sprintf, util_getdev,  util_ioctl,  util_load	; 04h-07h
-	dw	scb_start,    scb_stop,     scb_unload,  util_yield	; 08h-0Bh
-	dw	util_sleep,   scb_wait,     scb_endwait, util_hotkey	; 0Ch-0Fh
-	dw	util_none,    util_none,    util_none,   util_none	; 10h-13h
-	dw	util_none,    util_none,    util_none,   util_none	; 14h-17h
-	dw	util_none,    util_none,    util_none,   util_none	; 18h-1Bh
-	dw	util_none,    util_none,    util_none,   util_none	; 1Ch-1Fh
-	dw	util_none,    util_none,    util_none,   util_none	; 20h-23h
-	dw	util_strlen						; 24h
-	DEFABS	UTILTBL_SIZE,<($ - UTILTBL) SHR 1>
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; util_func (AH = 18h)
-;
-; Inputs:
-;	AL = utility function (eg, UTIL_ATOI)
-;
-; Outputs:
-;	Varies
-;
-DEFPROC	util_func,DOS
-	cmp	al,UTILTBL_SIZE
-	cmc
-	jb	dc9
-	mov	bl,al
-	mov	bh,0
-	add	bx,bx
-;
-; As with dos_func, all general-purpose registers except BX, DS, and ES still
-; contain their original values.
-;
-	call	UTILTBL[bx]
-	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
-dc9:	ret
-ENDPROC	util_func
+	EXTERNS	<scb_load,scb_yield>,near
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_strlen (AX = 1800h or 1824h)
+; utl_strlen (AX = 1800h or 1824h)
 ;
 ; Returns the length of the REG_DS:SI string in AX, using the terminator in AL.
 ;
 ; Modifies:
 ;	AX
 ;
-DEFPROC	util_strlen,DOS
+DEFPROC	utl_strlen,DOS
 	mov	ds,[bp].REG_DS
 	ASSUME	DS:NOTHING
 	DEFLBL	strlen,near		; for internal calls (no REG_FRAME)
@@ -79,19 +39,20 @@ DEFPROC	util_strlen,DOS
 	mov	cx,di
 	not	cx			; CX = largest possible count
 	repne	scasb
-	je	usl9
-	stc				; error if we didn't end on a match
-usl9:	sub	di,si
+	stc
+	jne	us9
+	sub	di,si
 	lea	ax,[di-1]		; don't count the terminator character
 	pop	es
 	pop	di
 	pop	cx
-	ret
-ENDPROC	util_strlen
+	mov	[bp].REG_AX,ax		; update REG_AX
+us9:	ret
+ENDPROC	utl_strlen
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_atoi (AX = 1801h)
+; utl_atoi (AX = 1801h)
 ;
 ; Convert string at DS:SI to decimal, then validate using values at ES:DI.
 ;
@@ -106,7 +67,7 @@ ENDPROC	util_strlen
 ; Modifies:
 ;	AX, CX, DX, SI, DI, DS, ES
 ;
-DEFPROC	util_atoi,DOS
+DEFPROC	utl_atoi,DOS
 	mov	ds,[bp].REG_DS
 	mov	es,[bp].REG_ES
 	ASSUME	DS:NOTHING, ES:NOTHING
@@ -140,12 +101,13 @@ ud7:	cmp	es:[di+2],ax		; too large?
 ud8:	lea	di,[di+4]		; advance DI in case there are more
 	mov	[bp].REG_DI,di		; but do so without disturbing CARRY
 ud9:	mov	[bp].REG_SI,si		; update caller's SI, too
+	mov	[bp].REG_AX,ax		; update REG_AX
 	ret
-ENDPROC util_atoi
+ENDPROC utl_atoi
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_itoa (AX = 1802h)
+; utl_itoa (AX = 1802h)
 ;
 ; Convert the value DX:SI to a string representation at ES:DI, using base BL,
 ; flags BH (see PF_*), minimum length CX (0 for no minimum).
@@ -165,7 +127,7 @@ PF_SIGN   equ	10h			; signed value
 PF_WIDTH  equ	20h			; width encountered
 PF_PRECIS equ	40h			; precision encountered (after '.')
 
-DEFPROC	util_itoa,DOS
+DEFPROC	utl_itoa,DOS
 	xchg	ax,si			; DX:AX is now the value
 	mov	es,[bp].REG_ES		; ES:DI -> buffer
 	ASSUME	ES:NOTHING
@@ -266,12 +228,13 @@ ia9:	stosb				; store the digit
 	pop	bp
 	sub	di,ax			; current - original address
 	xchg	ax,di			; DI restored, AX is the digit count
+	mov	[bp].REG_AX,ax		; update REG_AX
 	ret
-ENDPROC util_itoa
+ENDPROC utl_itoa
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_printf (AX = 1803h)
+; utl_printf (AX = 1803h)
 ;
 ; A semi-CDECL-style calling convention is assumed, where all parameters
 ; EXCEPT for the format string are pushed from right to left, so that the
@@ -280,7 +243,7 @@ ENDPROC util_itoa
 ; skip, and the next instruction should be an "ADD SP,N*2", assuming N word
 ; parameters.
 ;
-; See util_sprintf for more details.
+; See utl_sprintf for more details.
 ;
 ; Inputs:
 ;	format string follows the INT 21h
@@ -297,12 +260,12 @@ SPF_WIDTH	dw	?		; specifier width, if any
 SPF_PRECIS	dw	?		; specifier precision, if any
 SPF_START	dw	?		; buffer start address
 SPF_LIMIT	dw	?		; buffer limit address
-SPF_CALLS	dw REG_DIAG+2 dup(?)	; 2 near-call dispatches on stack
+SPF_CALLS	dw REG_DIAG+1 dup(?)	; 1 near-call dispatch on stack
 SPF_FRAME ends
 
 BUFLEN	equ	80			; stack space to use as printf buffer
 
-DEFPROC	util_printf,DOS
+DEFPROC	utl_printf,DOS
 	push	ss
 	pop	es
 	ASSUME	ES:NOTHING
@@ -310,21 +273,30 @@ DEFPROC	util_printf,DOS
 	mov	cx,BUFLEN		; CX = length
 	mov	di,sp			; ES:DI -> buffer on stack
 	call	sprintf
-	mov	si,sp
+;
+; I used to call write_string, which is more efficient, but unfortunately,
+; that treats the entire printf call as a "utility" operation, which isn't
+; subject to CTRLC processing.  So it's better to issue an INT 21h here.
+; Yes, it's a nested INT 21h, but this is BASIC-DOS; embrace the reentrancy!
+;
+	mov	dx,sp
 	push	ss
-	pop	ds			; DS:SI -> buffer on stack
+	pop	ds			; DS:DX -> buffer on stack
 	ASSUME	DS:NOTHING
 	push	ax
 	xchg	cx,ax			; CX = # of characters
-	call	write_string
+	mov	bx,STDOUT
+	mov	ah,DOS_HDL_WRITE
+	int	21h
 	pop	ax			; recover # of characters for caller
 	add	sp,BUFLEN + offset SPF_CALLS
+	mov	[bp].REG_AX,ax		; update REG_AX
 	ret
-ENDPROC	util_printf endp
+ENDPROC	utl_printf endp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_sprintf (AX = 1804h)
+; utl_sprintf (AX = 1804h)
 ;
 ; A semi-CDECL-style calling convention is assumed, where all parameters
 ; EXCEPT for the format string are pushed from right to left, so that the
@@ -354,14 +326,15 @@ ENDPROC	util_printf endp
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
-DEFPROC	util_sprintf,DOS
+DEFPROC	utl_sprintf,DOS
 	mov	es,[bp].REG_ES
 	ASSUME	ES:NOTHING
 	sub	sp,offset SPF_CALLS
 	call	sprintf
 	add	sp,offset SPF_CALLS
+	mov	[bp].REG_AX,ax		; update REG_AX
 	ret
-ENDPROC	util_sprintf
+ENDPROC	utl_sprintf
 
 DEFPROC	sprintf,DOS
 	ASSUME	ES:NOTHING
@@ -462,7 +435,7 @@ pfpz:	mov	bx,dx			; error, didn't end with known letter
 ; buffer limit to itoa, so that it can guarantee the buffer never overflows.
 ;
 ; Another option would be to pass the minimum in CL and the maxiumum (LIMIT-DI)
-; in CH; that would make it possible for util_itoa to perform bounds checking,
+; in CH; that would make it possible for utl_itoa to perform bounds checking,
 ; too, but actually implementing that checking would be rather messy.
 ;
 pfd:	mov	ax,[bp].SPF_WIDTH
@@ -551,7 +524,7 @@ ENDPROC	sprintf
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_getdev (AX = 1805h)
+; utl_getdev (AX = 1805h)
 ;
 ; Returns DDH in ES:DI for device name at DS:DX.
 ;
@@ -564,7 +537,7 @@ ENDPROC	sprintf
 ; Modifies:
 ;	AX, CX, DI, ES (ie, whatever chk_devname modifies)
 ;
-DEFPROC	util_getdev,DOS
+DEFPROC	utl_getdev,DOS
 	mov	ds,[bp].REG_DS
 	ASSUME	DS:NOTHING
 	mov	si,dx
@@ -573,11 +546,11 @@ DEFPROC	util_getdev,DOS
 	mov	[bp].REG_DI,di
 	mov	[bp].REG_ES,es
 gd9:	ret
-ENDPROC	util_getdev
+ENDPROC	utl_getdev
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_ioctl (AX = 1806h)
+; utl_ioctl (AX = 1806h)
 ;
 ; Inputs:
 ;	REG_BX = IOCTL command (BH = driver command, BL = IOCTL command)
@@ -587,16 +560,16 @@ ENDPROC	util_getdev
 ; Modifies:
 ;	AX, DI, ES
 ;
-DEFPROC	util_ioctl,DOS
+DEFPROC	utl_ioctl,DOS
 	mov	ax,[bp].REG_BX		; AX = command codes from BH,BL
 	mov	es,[bp].REG_ES		; ES:DI -> DDH
 	call	dev_request		; call the driver
 	ret
-ENDPROC	util_ioctl
+ENDPROC	utl_ioctl
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_load (AX = 1807h)
+; utl_load (AX = 1807h)
 ;
 ; Inputs:
 ;	REG_CL = SCB #
@@ -605,15 +578,15 @@ ENDPROC	util_ioctl
 ; Modifies:
 ;	AX, BX, CX, DX, DI, DS, ES
 ;
-DEFPROC	util_load,DOS
+DEFPROC	utl_load,DOS
 	mov	es,[bp].REG_DS
 	ASSUME	DS:NOTHING		; CL = SCB #
 	jmp	scb_load		; ES:DX -> name of executable
-ENDPROC	util_load
+ENDPROC	utl_load
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_yield (AX = 180Bh)
+; utl_yield (AX = 180Bh)
 ;
 ; Asynchronous interface to decide which SCB should run next.
 ;
@@ -623,14 +596,14 @@ ENDPROC	util_load
 ; Modifies:
 ;	AX, BX, DX
 ;
-DEFPROC	util_yield,DOS
+DEFPROC	utl_yield,DOS
 	mov	ax,[scb_active]
 	jmp	scb_yield
-ENDPROC	util_yield
+ENDPROC	utl_yield
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_sleep (AX = 180Ch)
+; utl_sleep (AX = 180Ch)
 ;
 ; Issues an IOCTL to the CLOCK$ driver to wait the specified number of ticks.
 ;
@@ -640,23 +613,23 @@ ENDPROC	util_yield
 ; Modifies:
 ;	AX, DI, ES
 ;
-DEFPROC	util_sleep,DOS
+DEFPROC	utl_sleep,DOS
 	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_WAIT
 	les	di,clk_ptr
 	call	dev_request		; call the driver
 	ret
-ENDPROC	util_sleep
+ENDPROC	utl_sleep
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; util_hotkey (AX = 180Fh)
+; utl_hotkey (AX = 180Fh)
 ;
 ; Inputs:
 ;	REG_DL = char code, REG_DH = scan code
 ;
 ; Modifies:
 ;
-DEFPROC	util_hotkey,DOS
+DEFPROC	utl_hotkey,DOS
 	xchg	ax,dx			; AL = char code, AH = scan code
 	cmp	al,CHR_CTRLC
 	jne	hk1
@@ -665,18 +638,7 @@ hk1:	cmp	al,CHR_CTRLP
 	jne	hk2
 	xor	[ctrlp_active],-1
 hk2:	ret
-ENDPROC	util_hotkey
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; util_none
-;
-; Modifies:
-;	None
-;
-DEFPROC	util_none
-	ret
-ENDPROC	util_none
+ENDPROC	utl_hotkey
 
 DOS	ends
 

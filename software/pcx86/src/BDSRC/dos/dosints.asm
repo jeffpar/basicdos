@@ -12,7 +12,7 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<FUNCTBL>,word
-	EXTERNS	<FUNCTBL_SIZE>,abs
+	EXTERNS	<FUNCTBL_SIZE,UTILTBL_SIZE>,abs
 	EXTERNS	<ctrlc_all,ctrlc_active>,byte
 	EXTERNS	<msc_sigctrlc>,near
 
@@ -82,6 +82,23 @@ ENDPROC	dos_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; dos_restart
+;
+; Inputs:
+;	Carry determines whether we terminate or restart the DOS function
+;
+; Outputs:
+;	None
+;
+DEFPROC	dos_restart,DOSFAR
+	jc	dos_term
+;
+; Otherwise, fall (back) into dos_func
+;
+ENDPROC dos_restart
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; dos_func (INT 21h)
 ;
 ; Inputs:
@@ -93,7 +110,7 @@ ENDPROC	dos_term
 DEFPROC	dos_func,DOSFAR
 	sti
 	cld				; we assume CLD everywhere
-	sub	sp,size REG_WS
+	sub	sp,size WS_FRAME
 	push	ax			; order of pushes must match REG_FRAME
 	push	bx
 	push	cx
@@ -121,18 +138,25 @@ DEFPROC	dos_func,DOSFAR
 	mov	es,bx
 	ASSUME	ES:DOS
 
-	test	[ctrlc_active],-1	; has CTRLC been detected?
-	jz	dc1			; no
-	cmp	ah,DOS_UTIL		; utility functions shall be exempt
-	je	dc1			; from CTRLC checking
-	test	[ctrlc_all],-1		; is checking enabled for all others?
-	jz	dc1			; no
-	call	msc_sigctrlc		; check CTRLC
+	cmp	ah,DOS_UTL		; utility functions are exempt
+	jne	dc1			; from CTRLC checking
+	cmp	al,UTILTBL_SIZE		; utility function within range?
+	cmc				;
+	jb	dc9			; no
+	mov	ah,FUNCTBL_SIZE		; utility funcs follow DOS functions
+	add	ah,al
+	jmp	short dc2
+
+dc1:	test	[ctrlc_active],-1	; has CTRLC been detected?
+	jz	dc2			; no
+	test	[ctrlc_all],-1		; checking enabled for all functions?
+	jz	dc2			; no
+	jmp	msc_sigctrlc		; signal CTRLC
 ;
 ; While we assign DS and ES to the DOS segment on DOS function entry,
 ; we do NOT require or assume they will still be set that way on exit.
 ;
-dc1:	sub	bx,bx
+dc2:	sub	bx,bx
 	mov	bl,ah
 	add	bx,bx
 ;
@@ -157,13 +181,15 @@ dc9:	adc	[bp].REG_FL,0
 	pop	bp
 	pop	di
 	pop	es
+	ASSUME	ES:NOTHING
 	pop	si
 	pop	ds
+	ASSUME	DS:NOTHING
 	pop	dx
 	pop	cx
 	pop	bx
 	pop	ax
-	add	sp,size REG_WS
+	add	sp,size WS_FRAME
 	iret
 ENDPROC	dos_func
 
@@ -263,7 +289,7 @@ DEFPROC	dos_call5,DOSFAR
 	pop	[bp+4]			; these flags should have interrupts on
 	pop	bp
 	mov	ah,cl
-	jmp	dos_func
+	jmp	near ptr dos_func
 ENDPROC	dos_call5
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -217,7 +217,7 @@ si5:	mov	si,offset CFG_SESSIONS
 	push	es
 	push	ds
 	pop	es
-	mov	ax,DOS_UTIL_ATOI	; DS:SI -> string, ES:DI -> validation
+	mov	ax,DOS_UTL_ATOI		; DS:SI -> string, ES:DI -> validation
 	int	21h			; AX = new value
 	pop	es
 si6:	mov	dx,size SCB
@@ -234,7 +234,7 @@ si6:	mov	dx,size SCB
 	push	es
 	push	ds
 	pop	es
-	mov	ax,DOS_UTIL_ATOI	; DS:SI -> string, ES:DI -> validation
+	mov	ax,DOS_UTL_ATOI		; DS:SI -> string, ES:DI -> validation
 	int	21h			; AX = new value
 	pop	es
 si7:	mov	dx,size SFB
@@ -409,7 +409,7 @@ si16:	test	dx,dx			; do we still have a default?
 ; SCB, so that the program file can be opened and read using the SCB's PSP.
 ; It's unlocked after the load, but it won't start running until START is set.
 ;
-	mov	ax,DOS_UTIL_LOAD	; load SHELL DS:DX into specified SCB
+	mov	ax,DOS_UTL_LOAD		; load SHELL DS:DX into specified SCB
 	int	21h
 	jnc	si18
 
@@ -423,7 +423,7 @@ si18:	inc	cx			; advance SCB #
 ;
 si20:	mov	dx,cx
 	sub	cx,cx
-si22:	mov	ax,DOS_UTIL_START	; CL = SCB #
+si22:	mov	ax,DOS_UTL_START	; CL = SCB #
 	int	21h			; must be valid, so no error checking
 	inc	cx
 	cmp	cx,dx
@@ -438,7 +438,7 @@ si22:	mov	ax,DOS_UTIL_START	; CL = SCB #
 ; interfaces (get_sfb, sfb_read, etc) with absolutely no benefit.
 ;
 	mov	dx,offset CLK_DEVICE
-	mov	ax,DOS_UTIL_GETDEV
+	mov	ax,DOS_UTL_GETDEV
 	int	21h
 	jc	soerr1
 	mov	ds,[dos_seg]

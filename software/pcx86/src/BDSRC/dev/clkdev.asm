@@ -89,7 +89,7 @@ DEFPROC	ddclk_ctlin
 ;
 ; For WAIT requests, we add this packet to an internal chain of "waiting"
 ; packets, and then tell DOS that we're waiting; DOS will suspend the current
-; SCB until we notify DOS that this packet's conditions are satisified.
+; SCB until we notify DOS that this packet's conditions are satisfied.
 ;
 	cli
 	mov	ax,di
@@ -104,7 +104,7 @@ DEFPROC	ddclk_ctlin
 ; should contain a standard CX:DX tick count) has been decremented to zero.
 ;
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	mov	ax,DOS_UTIL_WAIT
+	mov	ax,DOS_UTL_WAIT
 	int	21h
 
 dci9:	ret
@@ -219,7 +219,7 @@ ddi1:	cmp	di,-1			; end of chain?
 ; Notify DOS that the SCB associated with this packet is done waiting.
 ;
 ddi2:	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	mov	ax,DOS_UTIL_ENDWAIT
+	mov	ax,DOS_UTL_ENDWAIT
 	int	21h
 	jnc	ddi3
 ;
@@ -245,7 +245,7 @@ ddi6:	lea	bx,[di].DDP_PTR		; update prev addr ptr in DS:BX
 ddi7:	les	di,es:[di].DDP_PTR
 	jmp	ddi1
 
-ddi8:	mov	ax,DOS_UTIL_YIELD	; allow rescheduling to occur now
+ddi8:	mov	ax,DOS_UTL_YIELD	; allow rescheduling to occur now
 	int	21h
 
 	pop	es
@@ -282,7 +282,7 @@ DEFPROC	ddclk_init,far
 	mov	cs:[0].DDH_REQUEST,offset DEV:ddclk_req
 ;
 ; Install an INT 08h hardware interrupt handler, which we will use to drive
-; calls to DOS_UTIL_YIELD as soon as DOS tells us it's ready (which it will do
+; calls to DOS_UTL_YIELD as soon as DOS tells us it's ready (which it will do
 ; by setting the DDATTR_CLOCK bit in our header).
 ;
 	mov	ax,offset ddclk_interrupt
