@@ -61,7 +61,7 @@ DOS_UTL_START	equ   1808h	; start SCB (CL)
 DOS_UTL_STOP	equ   1809h	; stop SCB (CL)
 DOS_UTL_UNLOAD	equ   180Ah	; unload program from SCB (CL)
 DOS_UTL_YIELD	equ   180Bh	; yield
-DOS_UTL_SLEEP	equ   180Ch	; sleep CX:DX ticks
+DOS_UTL_SLEEP	equ   180Ch	; sleep DX milliseconds
 DOS_UTL_WAIT	equ   180Dh	; wait until end wait
 DOS_UTL_ENDWAIT	equ   180Eh	; end wait
 DOS_UTL_HOTKEY	equ   180Fh	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)

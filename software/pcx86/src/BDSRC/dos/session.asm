@@ -83,7 +83,7 @@ ENDPROC	get_scbnum
 ;
 ; Inputs:
 ;	CL = SCB #
-;	ES:DX -> name of executable
+;	ES:DX -> name of executable (actually a command-line)
 ;
 ; Outputs:
 ;	Carry set if error, AX = error code
@@ -92,6 +92,7 @@ ENDPROC	get_scbnum
 ;	AX, BX, CX, DX, DI, DS, ES
 ;
 DEFPROC	scb_load,DOS
+	ASSUME	ES:NOTHING
 	call	scb_lock
 	jnc	sl0
 	jmp	sl9
@@ -114,21 +115,55 @@ sl2:	sub	bx,10h			; subtract paras for the PSP header
 	mov	si,bx			; SI = bytes for new PSP
 	xchg	di,ax			; DI = segment for new PSP
 
-	xchg	dx,di
+	xchg	dx,di			; save the command-line in DI
 	mov	ah,DOS_PSP_CREATE
 	int	21h			; create new PSP at DX
 
 	mov	[psp_active],dx		; we must update the *real* PSP now
 					; scb_unlock will record it in the SCB
-	xchg	dx,di
+;
+; Since we stashed pointer to the command-line in DI, let's "parse" it now,
+; separating the filename portion from the "tail" portion.
+;
+	mov	dx,di
+	mov	cx,14			; CX = max filename length
+sl3:	mov	al,es:[di]
+	test	al,al
+	jz	sl3b
+	cmp	al,' '
+	je	sl3a
+	inc	di
+	loop	sl3
+sl3a:	mov	es:[di],ch		; null-terminate the filename
+sl3b:	mov	cl,al			; CL = original terminator
 	push	es
 	pop	ds			; DS:DX -> name of executable
 	ASSUME	DS:NOTHING
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h			; open the file
 	jc	sle2a
-
 	xchg	bx,ax			; BX = file handle
+;
+; Since we successfully opened the filename, let's massage the rest of the
+; command-line now.
+;
+	push	bx
+	mov	ds,[psp_active]		; DS = segment of new PSP
+	mov	bx,offset PSP_CMDLINE+1
+	mov	es:[di],cl		; restore the original terminator
+sl4:	mov	al,es:[di]
+	inc	di
+	test	al,al
+	jz	sl4a
+	mov	[bx],al
+	inc	bx
+	cmp	bl,0FFh
+	jb	sl4
+sl4a:	mov	byte ptr [bx],CHR_RETURN
+	sub	bx,offset PSP_CMDLINE+1
+	mov	ds:[PSP_CMDLINE],bl
+	pop	bx
+
 	sub	cx,cx
 	sub	dx,dx
 	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_END
@@ -150,14 +185,13 @@ sl2:	sub	bx,10h			; subtract paras for the PSP header
 	jc	sle1a
 
 	mov	cx,si			; CX = # bytes to read
-	mov	ds,di			; DS = segment of new PSP
 	mov	dx,size PSP		; DS:DX -> memory after PSP
 	mov	ah,DOS_HDL_READ		; BX = file handle, CX = # bytes
 	int	21h
-	jnc	sl3
+	jnc	sl6
 sle1a:	jmp	sle1
 
-sl3:	ASSERTZ <cmp ax,cx>		; assert bytes read = bytes requested
+sl6:	ASSERTZ <cmp ax,cx>		; assert bytes read = bytes requested
 	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the file
 sle2a:	jc	sle2
@@ -169,13 +203,13 @@ sle2a:	jc	sle2
 ;
 	mov	dx,MINHEAP SHR 4	; minimum add'l space (1Kb in paras)
 	cmp	word ptr [bx+size PSP-2],BASICDOS_SIG
-	jne	sl4
+	jne	sl7
 	mov	ax,word ptr [bx+size PSP-4]
 	cmp	ax,dx			; larger than our minimum?
-	jbe	sl4			; no
+	jbe	sl7			; no
 	xchg	dx,ax			; yes, use their larger value
 
-sl4:	add	bx,15
+sl7:	add	bx,15
 	mov	cl,4
 	shr	bx,cl			; BX = size of program (in paras)
 	add	bx,dx			; add add'l space (in paras)
@@ -191,9 +225,9 @@ sl4:	add	bx,15
 ;
 	mov	di,bx
 	cmp	di,1000h
-	jb	sl5
+	jb	sl7a
 	mov	di,1000h
-sl5:	shl	di,cl			; ES:DI -> top of the segment
+sl7a:	shl	di,cl			; ES:DI -> top of the segment
 	dec	di
 	dec	di			; ES:DI -> last word at top of segment
 	std
