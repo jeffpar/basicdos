@@ -414,16 +414,16 @@ ddi2:	cmp	di,-1			; end of chain?
 	test	es:[CT_STATUS],CTSTAT_PAUSED
 	pop	es
 	jz	ddi4			; yes, we're no longer paused
+	jmp	short ddi6		; still paused, check next packet
 
 ddi3:	call	read_kbd		; read keyboard data
-	jc	ddi9			; request not yet satisfied
+	jc	ddi6			; not enough data, check next packet
 ;
 ; Notify DOS that this packet is done waiting.
 ;
 ddi4:	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	mov	ax,DOS_UTIL_ENDWAIT
 	int	21h
-	ASSERTNC
 ;
 ; The request has been satisfied, so remove packet from wait_ptr list.
 ;
@@ -493,7 +493,7 @@ ENDPROC	ddcon_int29
 ;	None
 ;
 ; Modifies:
-;	AX, DX
+;	AX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	add_packet
@@ -508,9 +508,11 @@ DEFPROC	add_packet
 ;
 ; The WAIT condition will be satisfied when the context is unpaused.
 ;
+	push	dx
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	mov	ax,DOS_UTIL_WAIT
 	int	21h
+	pop	dx
 	ret
 ENDPROC	add_packet
 
@@ -520,7 +522,7 @@ ENDPROC	add_packet
 ;
 ; Check for key combinations considered "hotkeys" by BASIC-DOS; if a hotkey
 ; is detected, carry is cleared, indicating that a DOS_UTIL_HOTKEY notification
-; should be issued with the hotkey in DX.
+; should be issued.
 ;
 ; For example, CTRLC (and CTRL_BREAK, which we convert to CTRLC) are considered
 ; hotkeys, so that DOS functions need not "poll" the console to determine if a
@@ -569,7 +571,7 @@ ch0:	mov	ax,[BIOS_DATA][bx]	; AL = char code, AH = scan code
 	call	focus_next
 	jmp	short ch8
 ;
-; Let's take care of PAUSE checks first, because only CTRLS enables PAUSE,
+; Let's take care of PAUSE checks first, because only CTRLS toggles PAUSE,
 ; and everything else disables it.
 ;
 ch1:	mov	dx,[ct_focus]
@@ -582,9 +584,14 @@ ch1:	mov	dx,[ct_focus]
 	jne	ch2			; no (anything else unpauses)
 	xor	ds:[CT_STATUS],CTSTAT_PAUSED
 	jmp	short ch3
-ch2:	and	ds:[CT_STATUS],NOT CTSTAT_PAUSED
+ch2:	test	ds:[CT_STATUS],CTSTAT_PAUSED
+	stc
+	jz	ch3
+	and	ds:[CT_STATUS],NOT CTSTAT_PAUSED
 ch3:	pop	ds
 	ASSUME	DS:BIOS
+	jc	ch4
+	mov	[BUFFER_TAIL],bx	; update tail, consuming the character
 
 ch4:	test	ax,ax			; CTRL_BREAK?
 	jnz	ch5
@@ -937,6 +944,7 @@ DEFPROC	write_curpos
 	les	di,ds:[CT_BUFFER]	; ES:DI -> the frame buffer
 	call	get_curpos		; BX = screen offset for CURX,CURY
 	mov	dx,ds:[CT_PORT]
+	ASSERTZ <cmp dh,03h>
 	add	dl,6			; DX = status port
 wcp1:	in	al,dx
 	test	al,01h
@@ -969,6 +977,7 @@ ENDPROC	write_curpos
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	write_6845
 	mov	dx,ds:[CT_PORT]
+	ASSERTZ <cmp dh,03h>
 	mov	al,ah
 	cli
 	out	dx,al			; select 6845 register

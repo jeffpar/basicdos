@@ -79,7 +79,7 @@ BPBEX		ends
 ; DPB_MEDIA	db	?		; 16h: media ID [2.0]
 ;
 ; DOS 2.0 added more, but let's stop here for now.  So, lots of annoying
-; differences, which seems odd, since the DPB was first defined in DOS 1.x.
+; differences, which seems odd, assuming the DPB was first defined in DOS 1.x?
 ;
 ; DPB		ends
 

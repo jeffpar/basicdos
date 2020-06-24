@@ -85,9 +85,9 @@ DOS_PSP_SET	equ	50h	; set current PSP (BX)
 DOS_PSP_GET	equ	51h	; get current PSP (BX)
 
 IFNDEF DEBUG
-REG_PADDING	equ	0	; no REG_FRAME padding
+REG_DIAG	equ	0	; no diagnostic info
 ELSE
-REG_PADDING	equ	1	; extra word of diagnostic info
+REG_DIAG	equ	1	; extra diagnostic info before REG_FRAME
 ENDIF
 
 REG_FRAME	struc		; register frame created by dos_func
@@ -100,6 +100,7 @@ REG_DX		dw	?
 REG_CX		dw	?
 REG_BX		dw	?
 REG_AX		dw	?
+REG_WS		dw	6 dup (?); workspace (primarily for CTRLC dispatching)
 REG_IP		dw	?
 REG_CS		dw	?
 REG_FL		dw	?
@@ -276,3 +277,5 @@ ERR_BADHANDLE	equ	6
 ERR_BADMCB	equ	7	; invalid MCB found
 ERR_NOMEM	equ	8	; insufficient memory
 ERR_BADADDR	equ	9	; invalid memory segment
+
+BASICDOS_SIG	equ	'DB'	; BASIC-DOS signature word ("BD")

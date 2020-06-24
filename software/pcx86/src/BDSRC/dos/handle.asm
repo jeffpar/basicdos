@@ -966,9 +966,11 @@ gd4:	call	read_buffer		; DX = LBA
 	add	bx,si			; BX -> end of sector data
 gd5:	cmp	byte ptr [si],0
 	je	gd6			; 0 indicates end of allocated entries
+	push	di
 	mov	di,offset file_name
 	mov	cx,11
 	repe	cmpsb
+	pop	di
 	je	gd9
 	add	si,cx
 	add	si,size DIRENT - 11
@@ -981,10 +983,14 @@ gd5:	cmp	byte ptr [si],0
 	inc	dx
 	cmp	dx,es:[di].BPB_LBADATA
 	jb	gd7
+
 gd6:	mov	dx,es:[di].BPB_LBAROOT
+
 gd7:	cmp	dx,bp			; back to the 1st LBA again?
 	jne	gd4			; not yet
-	stc				; out of sectors, so no match
+
+	mov	ax,ERR_NOFILE		; out of sectors, so no match
+	stc
 
 gd9:	lea	si,[si-11]		; rewind SI, in case it was a match
 	pop	bp

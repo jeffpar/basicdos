@@ -297,7 +297,7 @@ SPF_WIDTH	dw	?		; specifier width, if any
 SPF_PRECIS	dw	?		; specifier precision, if any
 SPF_START	dw	?		; buffer start address
 SPF_LIMIT	dw	?		; buffer limit address
-SPF_CALLS	dw REG_PADDING+2 dup(?)	; 2 near-call dispatches on stack
+SPF_CALLS	dw REG_DIAG+2 dup(?)	; 2 near-call dispatches on stack
 SPF_FRAME ends
 
 BUFLEN	equ	80			; stack space to use as printf buffer

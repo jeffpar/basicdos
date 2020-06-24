@@ -93,6 +93,7 @@ ENDPROC	dos_term
 DEFPROC	dos_func,DOSFAR
 	sti
 	cld				; we assume CLD everywhere
+	sub	sp,size REG_WS
 	push	ax			; order of pushes must match REG_FRAME
 	push	bx
 	push	cx
@@ -104,9 +105,9 @@ DEFPROC	dos_func,DOSFAR
 	push	bp
 	mov	bp,sp
 
-	IFDEF DEBUG
-	call	dos_func_check
-	DEFLBL	dos_func_check,near
+	IF REG_DIAG
+	call	dos_diag
+	DEFLBL	dos_diag,near
 	ENDIF
 
 	and	[bp].REG_FL,NOT FL_CARRY
@@ -148,9 +149,9 @@ dc9:	adc	[bp].REG_FL,0
 
 	DEFLBL	dos_exit,near
 
-	IFDEF DEBUG
+	IF REG_DIAG
 	pop	bp
-	ASSERTZ	<cmp bp,offset dos_func_check>
+	ASSERTZ	<cmp bp,offset dos_diag>
 	ENDIF
 
 	pop	bp
@@ -162,6 +163,7 @@ dc9:	adc	[bp].REG_FL,0
 	pop	cx
 	pop	bx
 	pop	ax
+	add	sp,size REG_WS
 	iret
 ENDPROC	dos_func
 

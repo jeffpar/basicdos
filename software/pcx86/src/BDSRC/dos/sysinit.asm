@@ -412,8 +412,9 @@ si16:	test	dx,dx			; do we still have a default?
 	mov	ax,DOS_UTIL_LOAD	; load SHELL DS:DX into specified SCB
 	int	21h
 	jnc	si18
+
 	PRINTF	<'Error loading "%ls": %d',13,10>,dx,ds,ax
-	jmp	short sierr2
+
 si18:	inc	cx			; advance SCB #
 	sub	dx,dx
 	jmp	si14

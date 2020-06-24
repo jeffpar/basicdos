@@ -15,8 +15,8 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_active,psp_active>,word
 	EXTERNS	<scb_table>,dword
 	EXTERNS	<dos_exit>,near
-	IFDEF DEBUG
-	EXTERNS	<dos_func_check>,near
+	IF REG_DIAG
+	EXTERNS	<dos_diag>,near
 	ENDIF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -164,13 +164,16 @@ sle2a:	jc	sle2
 
 	mov	bx,cx			; BX = lenth of program file
 ;
-; Check the word at [BX+100h-2]: if it contains "BD" (BASIC-DOS signature),
-; then preceding word should be the program's desired memory size (in paras).
+; Check the word at [BX+100h-2]: if it contains BASICDOS_SIG ("BD"), then
+; the preceding word must be the program's desired additional memory (in paras).
 ;
-	mov	dx,100h			; default add'l space (4Kb in paras)
-	cmp	word ptr [bx+size PSP-2],'DB'
+	mov	dx,MINHEAP SHR 4	; minimum add'l space (1Kb in paras)
+	cmp	word ptr [bx+size PSP-2],BASICDOS_SIG
 	jne	sl4
-	mov	dx,word ptr [bx+size PSP-4]
+	mov	ax,word ptr [bx+size PSP-4]
+	cmp	ax,dx			; larger than our minimum?
+	jbe	sl4			; no
+	xchg	dx,ax			; yes, use their larger value
 
 sl4:	add	bx,15
 	mov	cl,4
@@ -187,7 +190,10 @@ sl4:	add	bx,15
 ; Create an initial REG_FRAME at the top of the segment.
 ;
 	mov	di,bx
-	shl	di,cl			; ES:DI -> top of the segment
+	cmp	di,1000h
+	jb	sl5
+	mov	di,1000h
+sl5:	shl	di,cl			; ES:DI -> top of the segment
 	dec	di
 	dec	di			; ES:DI -> last word at top of segment
 	std
@@ -201,6 +207,9 @@ sl4:	add	bx,15
 	mov	ax,100h
 	stosw				; REG_IP
 	sub	ax,ax
+	REPT (size REG_WS) SHR 1
+	stosw				; REG_WS
+	ENDM
 	stosw				; REG_AX
 	stosw				; REG_BX
 	stosw				; REG_CX
@@ -214,8 +223,8 @@ sl4:	add	bx,15
 	xchg	ax,dx
 	stosw				; REG_DI
 	stosw				; REG_BP
-	IFDEF DEBUG
-	mov	ax,offset dos_func_check
+	IF REG_DIAG
+	mov	ax,offset dos_diag
 	stosw
 	ENDIF
 	inc	di
@@ -369,6 +378,9 @@ ENDPROC	scb_unlock
 DEFPROC	scb_start,DOS
  	call	get_scb
  	jc	ss9
+	test	[bx].SCB_STATUS,SCSTAT_LOAD
+	stc
+	jz	ss9
 	or	[bx].SCB_STATUS,SCSTAT_START
 ss9:	ret
 ENDPROC	scb_start
