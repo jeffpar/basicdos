@@ -573,7 +573,7 @@ ENDPROC	utl_ioctl
 ;
 ; Inputs:
 ;	REG_CL = SCB #
-;	REG_DS:REG_DX = name of executable
+;	REG_DS:REG_DX = name of program (or command-line)
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, DI, DS, ES
@@ -581,7 +581,7 @@ ENDPROC	utl_ioctl
 DEFPROC	utl_load,DOS
 	mov	es,[bp].REG_DS
 	ASSUME	DS:NOTHING		; CL = SCB #
-	jmp	scb_load		; ES:DX -> name of executable
+	jmp	scb_load		; ES:DX -> name of program
 ENDPROC	utl_load
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -605,15 +605,26 @@ ENDPROC	utl_yield
 ;
 ; utl_sleep (AX = 180Ch)
 ;
-; Issues an IOCTL to the CLOCK$ driver to wait the specified number of ticks.
+; Converts DX from milliseconds (1000/second) to ticks (18.2/sec) and
+; issues an IOCTL to the CLOCK$ driver to wait the corresponding # of ticks.
+;
+; 1 tick is equivalent to approximately 55ms, so that's the granularity of
+; sleep requests.
 ;
 ; Inputs:
-;	REG_CX:REG_DX = # of ticks to sleep
+;	REG_DX = # of milliseconds to sleep
 ;
 ; Modifies:
 ;	AX, DI, ES
 ;
 DEFPROC	utl_sleep,DOS
+	xchg	ax,dx
+	add	ax,27			; add 1/2 tick (as # ms) for rounding
+	sub	dx,dx			; DX:AX = # ms
+	mov	cx,55
+	div	cx			; AX = ticks, DX = remainder
+	xchg	dx,ax
+	sub	cx,cx			; CX:DX = # ticks
 	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_WAIT
 	les	di,clk_ptr
 	call	dev_request		; call the driver
