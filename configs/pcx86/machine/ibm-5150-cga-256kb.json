@@ -48,7 +48,7 @@
       "charCols": 80,
       "charRows": 25,
       "fontROM": "/software/pcx86/roms/IBM-CGA.json",
-      "flicker": 0.5,
+      "flicker": 0,
       "overlay": true,
       "autoLock": true,
       "touchScreen": "mouse",
