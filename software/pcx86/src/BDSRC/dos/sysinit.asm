@@ -376,11 +376,9 @@ dierr1:	jc	dierr2
 	mov	dx,offset COM1_DEVICE
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
-	jc	dierr2
 	mov	dx,offset COM2_DEVICE
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
-	jc	dierr2
 	mov	ah,TIME_GETTICKS
 	int	INT_TIME		; CX:DX is tick count
 	mov	bx,offset hello
