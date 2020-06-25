@@ -22,11 +22,12 @@ DOS	segment word public 'CODE'
 	DEFWORD	scb_active,0		; offset of active SCB (zero if none)
 	DEFWORD	psp_active,0		; segment of active PSP (zero if none)
 	DEFPTR	clk_ptr,-1		; pointer to CLOCK$ DDH
-	DEFBYTE	scb_locked,0		; non-zero when SCBs are locked
+	DEFBYTE	scb_locked,-1		; -1 if unlocked
 	DEFBYTE	file_name,' ',11	; buffer for 11-character filename
 	DEFBYTE	ctrlc_all,0		; 1 for CTRLC-checking on all calls
 	DEFBYTE	ctrlc_active,0		; -1 if CTRLC detected
 	DEFBYTE	ctrlp_active,0		; -1 if CTRLP detected
+	DEFBYTE	ddint_level,0		; device driver interrupt level
 
 	DEFTBL	<bpb_table,scb_table,sfb_table>
 ;

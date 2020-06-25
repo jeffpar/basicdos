@@ -68,6 +68,7 @@ ENDPROC	utl_strlen
 ;	AX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	utl_atoi,DOS
+	and	[bp].REG_FL,NOT FL_CARRY
 	mov	ds,[bp].REG_DS
 	mov	es,[bp].REG_ES
 	ASSUME	DS:NOTHING, ES:NOTHING
@@ -538,6 +539,7 @@ ENDPROC	sprintf
 ;	AX, CX, DI, ES (ie, whatever chk_devname modifies)
 ;
 DEFPROC	utl_getdev,DOS
+	and	[bp].REG_FL,NOT FL_CARRY
 	mov	ds,[bp].REG_DS
 	ASSUME	DS:NOTHING
 	mov	si,dx

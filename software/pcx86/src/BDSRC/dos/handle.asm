@@ -196,11 +196,11 @@ so2:	push	cs
 	ASSUME	DS:DOS
 	mov	ah,bl			; save mode in AH
 	mov	cx,es			; CX:DI is driver, DX is context
-	mov	si,[sfb_table].off
+	mov	si,[sfb_table].OFF
 	sub	bx,bx			; use BX to remember a free SFB
-so3:	cmp	[si].SFB_DEVICE.off,di
+so3:	cmp	[si].SFB_DEVICE.OFF,di
 	jne	so4			; check next SFB
-	cmp	[si].SFB_DEVICE.seg,cx
+	cmp	[si].SFB_DEVICE.SEG,cx
 	jne	so4			; check next SFB
 	cmp	[si].SFB_DRIVE,al
 	jne	so4			; check next SFB
@@ -210,11 +210,11 @@ so3:	cmp	[si].SFB_DEVICE.off,di
 	je	so7			; match
 so4:	test	bx,bx			; are we still looking for a free SFB?
 	jnz	so5			; no
-	cmp	[si].SFB_DEVICE.seg,bx	; is this one free?
+	cmp	[si].SFB_DEVICE.SEG,bx	; is this one free?
 	jne	so5			; no
 	mov	bx,si			; yes, remember it
 so5:	add	si,size SFB
-	cmp	si,[sfb_table].seg
+	cmp	si,[sfb_table].SEG
 	jb	so3			; keep checking
 
 	pop	si
@@ -240,14 +240,14 @@ so6:	push	cs
 	pop	ds
 	ASSUME	DS:DOS
 	INIT_STRUC [bx],SFB
-	mov	[bx].SFB_DEVICE.off,di
-	mov	[bx].SFB_DEVICE.seg,es
+	mov	[bx].SFB_DEVICE.OFF,di
+	mov	[bx].SFB_DEVICE.SEG,es
 	mov	[bx].SFB_CONTEXT,dx	; set DRIVE (AL) and MODE (AH) next
 	mov	word ptr [bx].SFB_DRIVE,ax
 	sub	ax,ax
 	mov	[bx].SFB_HANDLES,1	; one handle reference initially
-	mov	[bx].SFB_CURPOS.off,ax	; zero the initial file position
-	mov	[bx].SFB_CURPOS.seg,ax
+	mov	[bx].SFB_CURPOS.OFF,ax	; zero the initial file position
+	mov	[bx].SFB_CURPOS.SEG,ax
 	mov	[bx].SFB_CURCLN,dx	; initial position cluster
 	jmp	short so9		; return new SFB
 
@@ -301,10 +301,10 @@ sr0:	call	get_bpb			; DI -> BPB if no error
 ; As a preliminary matter, make sure the requested number of bytes doesn't
 ; exceed the current file size; if it does, reduce it.
 ;
-	mov	ax,[bx].SFB_SIZE.off
-	mov	dx,[bx].SFB_SIZE.seg
-	sub	ax,[bx].SFB_CURPOS.off
-	sbb	dx,[bx].SFB_CURPOS.seg
+	mov	ax,[bx].SFB_SIZE.OFF
+	mov	dx,[bx].SFB_SIZE.SEG
+	sub	ax,[bx].SFB_CURPOS.OFF
+	sbb	dx,[bx].SFB_CURPOS.SEG
 	test	dx,dx			; lots of data ahead?
 	jnz	sr1			; yes
 	cmp	cx,ax
@@ -321,7 +321,7 @@ sr1:	mov	dx,[bx].SFB_CURCLN
 	call	find_cln		; find cluster # for CURPOS
 	mov	[bx].SFB_CURCLN,dx
 
-sr1a:	mov	dx,[bx].SFB_CURPOS.off
+sr1a:	mov	dx,[bx].SFB_CURPOS.OFF
 	mov	ax,[di].BPB_CLUSBYTES
 	dec	ax
 	and	dx,ax			; DX = offset within current cluster
@@ -370,8 +370,8 @@ sr3a:	jc	sr9
 ;
 ; Time for some bookkeeping: adjust the SFB's CURPOS by DX.
 ;
-	add	[bx].SFB_CURPOS.off,dx
-	adc	[bx].SFB_CURPOS.seg,0
+	add	[bx].SFB_CURPOS.OFF,dx
+	adc	[bx].SFB_CURPOS.SEG,0
 	add	[bp].REG_AX,dx		; update accumulation of bytes read
 ;
 ; We're now obliged to determine whether or not we've exhausted the current
@@ -379,7 +379,7 @@ sr3a:	jc	sr9
 ;
 	mov	ax,[di].BPB_CLUSBYTES
 	dec	ax
-	test	[bx].SFB_CURPOS.off,ax	; is CURPOS at a cluster boundary?
+	test	[bx].SFB_CURPOS.OFF,ax	; is CURPOS at a cluster boundary?
 	jnz	sr4			; no
 	push	dx
 	sub	dx,dx
@@ -428,15 +428,15 @@ DEFPROC	sfb_seek,DOS
 	sub	si,si			; SI:DI = offset for SEEK_BEG
 	cmp	al,SEEK_CUR
 	jl	ss8
-	mov	di,[bx].SFB_CURPOS.off
-	mov	si,[bx].SFB_CURPOS.seg	; SI:DI = offset for SEEK_CUR
+	mov	di,[bx].SFB_CURPOS.OFF
+	mov	si,[bx].SFB_CURPOS.SEG	; SI:DI = offset for SEEK_CUR
 	je	ss8
-	mov	di,[bx].SFB_SIZE.off
-	mov	si,[bx].SFB_SIZE.seg	; SI:DI = offset for SEEK_END
+	mov	di,[bx].SFB_SIZE.OFF
+	mov	si,[bx].SFB_SIZE.SEG	; SI:DI = offset for SEEK_END
 ss8:	add	dx,di
 	adc	cx,si
-	mov	[bx].SFB_CURPOS.off,dx
-	mov	[bx].SFB_CURPOS.seg,cx
+	mov	[bx].SFB_CURPOS.OFF,dx
+	mov	[bx].SFB_CURPOS.SEG,cx
 ;
 ; TODO: Feels like we should return an error if carry is set (ie, overflow)....
 ;
@@ -501,8 +501,8 @@ DEFPROC	sfb_close,DOS
 	mov	ax,DDC_CLOSE SHL 8	;
 	call	dev_request		; issue the DDC_CLOSE request
 	sub	ax,ax
-	mov	[bx].SFB_DEVICE.off,ax
-	mov	[bx].SFB_DEVICE.seg,ax	; mark SFB as unused
+	mov	[bx].SFB_DEVICE.OFF,ax
+	mov	[bx].SFB_DEVICE.SEG,ax	; mark SFB as unused
 sc8:	mov	ax,[psp_active]
 	test	ax,ax			; if we're called by sysinit
 	jz	sc9			; there may be no valid PSP yet
@@ -707,8 +707,8 @@ DEFPROC	dev_request,DOS
 	cmp	ah,DDC_OPEN
 	jne	dr2
 	mov	[bp].DDP_LEN,size DDP
-	mov	[bp].DDP_PTR.off,si	; use DDP_PTR to pass driver-specific
-	mov	[bp].DDP_PTR.seg,ds	; parameter block, if any
+	mov	[bp].DDP_PTR.OFF,si	; use DDP_PTR to pass driver-specific
+	mov	[bp].DDP_PTR.SEG,ds	; parameter block, if any
 	jmp	short dr5
 ;
 ; For now, we're going to treat all other commands, even MEDIACHK (1)
@@ -716,8 +716,12 @@ DEFPROC	dev_request,DOS
 ; and IOCTLOUT (12).
 ;
 dr2:	mov	[bp].DDP_LEN,size DDPRW
-	mov	[bp].DDPRW_ADDR.off,si
-	mov	[bp].DDPRW_ADDR.seg,ds
+	IFDEF DEBUG
+	mov	[bp].DDP_PTR.OFF,0
+	mov	[bp].DDP_PTR.SEG,0
+	ENDIF
+	mov	[bp].DDPRW_ADDR.OFF,si
+	mov	[bp].DDPRW_ADDR.SEG,ds
 	mov	[bp].DDPRW_LBA,bx
 	mov	[bp].DDPRW_OFFSET,dx
 	mov	[bp].DDPRW_LENGTH,cx
@@ -729,9 +733,9 @@ dr2:	mov	[bp].DDP_LEN,size DDPRW
 	jnz	dr5
 	mov	ah,size BPBEX		; AL still contains the unit #
 	mul	ah
-	add	ax,[bpb_table].off	; AX = BPB address
-	mov	[bp].DDPRW_BPB.off,ax	; save it in the request packet
-	mov	[bp].DDPRW_BPB.seg,cs
+	add	ax,[bpb_table].OFF	; AX = BPB address
+	mov	[bp].DDPRW_BPB.OFF,ax	; save it in the request packet
+	mov	[bp].DDPRW_BPB.SEG,cs
 
 dr5:	mov	bx,bp
 	push	es
@@ -783,8 +787,8 @@ gc1:	add	si,[di].BPB_CLUSBYTES
 	adc	cx,0
 	push	cx			; save current position in CX:SI
 	push	si
-	sub	si,[bx].SFB_CURPOS.off
-	sbb	cx,[bx].SFB_CURPOS.seg
+	sub	si,[bx].SFB_CURPOS.OFF
+	sbb	cx,[bx].SFB_CURPOS.SEG
 	jnc	gc9			; we've traversed enough clusters
 	call	get_cln			; DX = next CLN
 	pop	si
@@ -901,7 +905,7 @@ DEFPROC	get_bpb,DOS
 	mul	ah			; AX = BPB offset
 	mov	di,[bpb_table].off
 	add	di,ax
-	cmp	di,[bpb_table].seg
+	cmp	di,[bpb_table].SEG
 	cmc
 	jc	gb9			; we don't have a BPB for the drive
 	push	di			; ES:DI -> BPB
@@ -1026,8 +1030,8 @@ DEFPROC	get_sfb,DOS
 	jae	gs8			; no, our hope was misplaced
 gs1:	mov	al,size SFB		; convert SFH to SFB
 	mul	bl
-	add	ax,[sfb_table].off
-	cmp	ax,[sfb_table].seg	; is the SFB valid?
+	add	ax,[sfb_table].OFF
+	cmp	ax,[sfb_table].SEG	; is the SFB valid?
 	xchg	bx,ax			; BX -> SFB
 	jb	gs9			; yes
 gs8:	mov	ax,ERR_BADHANDLE

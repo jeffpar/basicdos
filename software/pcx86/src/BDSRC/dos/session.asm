@@ -293,8 +293,9 @@ ENDPROC	scb_unload
 ;	BX, DX
 ;
 DEFPROC	scb_yield,DOS
-	cmp	[scb_locked],0		; switching not currently allowed
-	jne	sy9
+	sti
+	inc	[scb_locked]
+	jnz	sy9
 	mov	bx,[scb_active]
 	test	bx,bx
 	jz	sy2
@@ -315,7 +316,9 @@ sy3:	cmp	bx,ax			; have we looped to where we started?
 	or	dx,[bx].SCB_WAITID.SEG
 	jnz	sy1
 	jmp	scb_switch
-sy9:	ret
+sy9:	dec	[scb_locked]
+	ASSERTNC
+	ret
 ENDPROC	scb_yield
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -328,9 +331,10 @@ ENDPROC	scb_yield
 ;	BX -> SCB
 ;
 DEFPROC	scb_switch,DOS
+	cli
+	dec	[scb_locked]
 	cmp	bx,[scb_active]		; is this SCB already active?
 	je	sw9			; yes
-	cli
 	mov	ax,bx
 	xchg	bx,[scb_active]		; BX -> previous SCB
 	test	bx,bx
@@ -347,8 +351,10 @@ sw8:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
 	mov	[psp_active],dx
 	mov	ss,[bx].SCB_STACK.SEG
 	mov	sp,[bx].SCB_STACK.OFF
+	ASSERTNC
 	jmp	dos_exit
-sw9:	ret
+sw9:	sti
+	ret
 ENDPROC	scb_switch
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -368,6 +374,7 @@ DEFPROC	scb_wait,DOS
 	cli
 	mov	bx,[scb_active]
 	ASSERT_STRUC [bx],SCB
+	ASSERTZ <cmp [bx].SCB_WAITID.SEG,0>
 	mov	[bx].SCB_WAITID.OFF,di
 	mov	[bx].SCB_WAITID.SEG,dx
 	sti

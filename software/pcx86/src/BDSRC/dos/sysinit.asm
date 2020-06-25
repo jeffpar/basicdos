@@ -16,6 +16,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>,near
 	EXTERNS	<dos_term,dos_func,dos_abort,dos_ctrlc,dos_error,dos_default>,near
 	EXTERNS	<disk_read,disk_write,dos_tsr,dos_call5>,near
+	EXTERNS	<dos_ddint_enter,dos_ddint_leave>,near
 
 	DEFLBL	sysinit_start
 
@@ -427,11 +428,8 @@ si22:	mov	ax,DOS_UTL_START	; CL = SCB #
 	cmp	cx,dx
 	jb	si22
 ;
-; Get the clock device and set its CLOCK bit, signaling that it can start
-; calling the YIELD function to switch SCBs.
-;
-; Other functions like SLEEP need access to the clock device too, so we save
-; its address in clk_ptr.  While we could open the device normally and obtain a
+; Functions like SLEEP need access to the clock device, so we save its
+; address in clk_ptr.  While we could open the device normally and obtain a
 ; system file handle, that would require the utility functions to use SFB
 ; interfaces (get_sfb, sfb_read, etc) with absolutely no benefit.
 ;
@@ -442,7 +440,28 @@ si22:	mov	ax,DOS_UTL_START	; CL = SCB #
 	mov	ds,[dos_seg]
 	mov	[clk_ptr].off,di
 	mov	[clk_ptr].seg,es
-	or	es:[di].DDH_ATTR,DDATTR_CLOCK
+;
+; Last but not least, "revector" the DDINT_ENTER and DDINT_LEAVE handlers
+; to dos_ddint_enter and dos_ddint_leave.
+;
+	sub	ax,ax
+	mov	es,ax
+	ASSUME	ES:BIOS
+	cli
+	mov	di,offset DDINT_ENTER
+	mov	al,OP_JMPF
+	stosb
+	mov	ax,offset dos_ddint_enter
+	stosw
+	mov	ax,ds
+	stosw
+	mov	al,OP_JMPF
+	stosb
+	mov	ax,offset dos_ddint_leave
+	stosw
+	mov	ax,ds
+	stosw
+	sti
 ;
 ; We're done.  On the next clock tick, scb_yield will switch to one of the
 ; SCBs we started, and it will never return here, because sysinit has no SCB.

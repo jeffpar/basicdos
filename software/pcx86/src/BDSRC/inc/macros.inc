@@ -42,7 +42,9 @@ name	dd	(seg SHL 16) OR (off)
 	endm
 
 DEFDATA	macro	name,size,type,values,repeat
+	IFDIF	<type>,<byte>
 	even
+	ENDIF
 	public	name
 	IFB	<values>
 name	size	0

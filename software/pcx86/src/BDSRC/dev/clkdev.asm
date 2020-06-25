@@ -14,7 +14,7 @@ DEV	group	CODE,DATA
 CODE	segment para public 'CODE'
 
 	public	CLOCK
-CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CHAR+DDATTR_IOCTL,offset ddclk_init,-1,2020244B434F4C43h>
+CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CLOCK+DDATTR_CHAR+DDATTR_IOCTL,offset ddclk_init,-1,2020244B434F4C43h>
 
 	DEFLBL	CMDTBL,word
 	dw	ddclk_none,   ddclk_none,  ddclk_none,  ddclk_ctlin	; 0-3
@@ -23,7 +23,7 @@ CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CHAR+DDATTR_IOCTL,offset ddclk_init,-
 	dw	ddclk_ctlout, ddclk_none,  ddclk_none			; 12-14
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
-	DEFPTR	tmr_interrupt,0		; timer hardware interrupt handler
+	DEFPTR	tmr_int,0		; timer hardware interrupt handler
 	DEFPTR	wait_ptr,-1		; chain of waiting packets
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -93,11 +93,11 @@ DEFPROC	ddclk_ctlin
 ;
 	cli
 	mov	ax,di
-	xchg	[wait_ptr].off,ax
-	mov	es:[di].DDP_PTR.off,ax
+	xchg	[wait_ptr].OFF,ax
+	mov	es:[di].DDP_PTR.OFF,ax
 	mov	ax,es
-	xchg	[wait_ptr].seg,ax
-	mov	es:[di].DDP_PTR.seg,ax
+	xchg	[wait_ptr].SEG,ax
+	mov	es:[di].DDP_PTR.SEG,ax
 	sti
 ;
 ; The WAIT condition is satisfied when the packet's LENGTH:OFFSET pair (which
@@ -183,10 +183,9 @@ ENDPROC	ddclk_none
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddclk_interrupt,far
+	call	far ptr DDINT_ENTER
 	pushf
-	call	[tmr_interrupt]
-	test	[CLOCK].DDH_ATTR,DDATTR_CLOCK
-	jz	ddi9
+	call	[tmr_int]
 	push	ax
 	push	bx
 	push	dx
@@ -202,7 +201,7 @@ DEFPROC	ddclk_interrupt,far
 	sti
 
 ddi1:	cmp	di,-1			; end of chain?
-	je	ddi8			; yes
+	je	ddi9			; yes
 
 	ASSERT_STRUC es:[di],DDP
 ;
@@ -221,6 +220,7 @@ ddi1:	cmp	di,-1			; end of chain?
 ddi2:	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	mov	ax,DOS_UTL_ENDWAIT
 	int	21h
+	ASSERTNC
 	jnc	ddi3
 ;
 ; If ENDWAIT returns an error, we presume that we simply got ahead of the
@@ -232,10 +232,10 @@ ddi2:	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 ;
 ; WAIT condition has been satisfied, remove packet from wait_ptr list.
 ;
-ddi3:	mov	ax,es:[di].DDP_PTR.off
-	mov	[bx].off,ax
-	mov	ax,es:[di].DDP_PTR.seg
-	mov	[bx].seg,ax
+ddi3:	mov	ax,es:[di].DDP_PTR.OFF
+	mov	[bx].OFF,ax
+	mov	ax,es:[di].DDP_PTR.SEG
+	mov	[bx].SEG,ax
 	jmp	short ddi7
 
 ddi6:	lea	bx,[di].DDP_PTR		; update prev addr ptr in DS:BX
@@ -245,16 +245,14 @@ ddi6:	lea	bx,[di].DDP_PTR		; update prev addr ptr in DS:BX
 ddi7:	les	di,es:[di].DDP_PTR
 	jmp	ddi1
 
-ddi8:	mov	ax,DOS_UTL_YIELD	; allow rescheduling to occur now
-	int	21h
-
-	pop	es
+ddi9:	pop	es
 	pop	ds
 	pop	di
 	pop	dx
 	pop	bx
 	pop	ax
-ddi9:	iret
+	stc				; set carry to indicate yield
+	jmp	far ptr DDINT_LEAVE
 ENDPROC	ddclk_interrupt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -278,7 +276,7 @@ DEFPROC	ddclk_init,far
 
 	ASSERT_STRUC es:[bx],DDP
 
-	mov	es:[bx].DDPI_END.off,offset ddclk_init
+	mov	es:[bx].DDPI_END.OFF,offset ddclk_init
 	mov	cs:[0].DDH_REQUEST,offset DEV:ddclk_req
 ;
 ; Install an INT 08h hardware interrupt handler, which we will use to drive
@@ -286,11 +284,11 @@ DEFPROC	ddclk_init,far
 ; by setting the DDATTR_CLOCK bit in our header).
 ;
 	mov	ax,offset ddclk_interrupt
-	xchg	ds:[INT_HW_TMR * 4].off,ax
-	mov	[tmr_interrupt].off,ax
+	xchg	ds:[INT_HW_TMR * 4].OFF,ax
+	mov	[tmr_int].OFF,ax
 	mov	ax,cs
-	xchg	ds:[INT_HW_TMR * 4].seg,ax
-	mov	[tmr_interrupt].seg,ax
+	xchg	ds:[INT_HW_TMR * 4].SEG,ax
+	mov	[tmr_int].SEG,ax
 
 	pop	ds
 	ASSUME	DS:NOTHING

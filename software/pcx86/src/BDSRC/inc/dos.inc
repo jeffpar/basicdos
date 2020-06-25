@@ -115,14 +115,6 @@ REG_CS		dw	?	; 1Eh
 REG_FL		dw	?	; 20h
 REG_FRAME	ends
 
-FL_CARRY	equ	0001h
-FL_ZERO		equ	0040h
-FL_SIGN		equ	0080h
-FL_TRAP		equ	0100h
-FL_INTS		equ	0200h
-FL_DOWN		equ	0400h
-FL_OVFL		equ	0800h
-
 REG_AL		equ 	(REG_AX.LO)
 REG_AH		equ 	(REG_AX.HI)
 REG_BL		equ 	(REG_BX.LO)

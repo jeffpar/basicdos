@@ -220,7 +220,7 @@ RESET_FLAG	dw	?	; 472h: SET TO 0x1234 IF KEYBOARD RESET UNDERWAY
 ; Some DOS boot sectors would read the first directory sector into 500h,
 ; which would result in the starting clusters of IO.SYS and MSDOS.SYS residing
 ; in 51Ah and 53Ah, respectively.  Other boot sectors would create an 11-byte
-; copy of the BIOS Diskette Parameters Table at 522h.  We do the latter only.
+; copy of the BIOS Diskette Parameters Table (DPT) at 522h.  We do the latter.
 ;
 		db	4 dup (?)	; 500h: reserved
 LOGICAL_DRIVE	db	?		; 504h: (00h for A: or 01h for B:)
@@ -229,21 +229,24 @@ FDC_DEVICE	dd	?		; 506h
 		db	20 dup (?)	; reserved
 DD_LIST		dd	?		; 51Eh: head of device driver list
 DPT_ACTIVE	DPT	<>		; 522h: active DPT
+		db	3 dup (?)	; paragraph padding
+DDINT_ENTER	db	5 dup (?)	; room for a 5-byte far jump
+DDINT_LEAVE	db	5 dup (?)	; room for a 5-byte far jump
+		db	6 dup (?)	; paragraph padding
 ;
 ; We move the boot sector from BOOT_SECTOR to FAT_SECTOR.
 ;
 BOOT_SECTOR	equ	7C00h
-BOOT_SECTOR_LO	equ	540h
-		db	3 dup (?)	; paragraph padding
-FAT_BUFHDR	BUFHDR	<>		; 530h
-FAT_SECTOR	db	512 dup (?)	; 540h
+BOOT_SECTOR_LO	equ	550h
+FAT_BUFHDR	BUFHDR	<>		; 540h
+FAT_SECTOR	db	512 dup (?)	; 550h
 
-DIR_BUFHDR	BUFHDR	<>		; 740h
-DIR_SECTOR_OFF	equ	750h
-DIR_SECTOR	db	512 dup (?)	; 750h
+DIR_BUFHDR	BUFHDR	<>		; 750h
+DIR_SECTOR_OFF	equ	760h
+DIR_SECTOR	db	512 dup (?)	; 760h
 		ASSERT 	<offset IVT + DIR_SECTOR_OFF>,EQ,<offset DIR_SECTOR>
 
-BIOS_END	equ	0950h
+BIOS_END	equ	0960h
 
 BIOS		ends
 
@@ -255,7 +258,7 @@ BIOS		ends
 BIOS_DATA	equ	RS232_BASE
 
 ;
-; BIOS-supported char codes and scan codes that we care about.
+; BIOS-generated char codes and scan codes that we care about.
 ;
 CHR_CTRLC	equ	03h
 CHR_BACKSPACE	equ	08h
@@ -265,3 +268,19 @@ CHR_CTRLP	equ	10h
 CHR_CTRLS	equ	13h
 
 SCAN_TAB	equ	0Fh
+
+;
+; Miscellaneous processor definitions (for lack of a better place)
+;
+FL_CARRY	equ	0001h
+FL_ZERO		equ	0040h
+FL_SIGN		equ	0080h
+FL_TRAP		equ	0100h
+FL_INTS		equ	0200h
+FL_DOWN		equ	0400h
+FL_OVFL		equ	0800h
+
+OP_CALLF	equ	09Ah
+OP_RETF		equ	0CBh
+OP_IRET		equ	0CFh
+OP_JMPF		equ	0EAh
