@@ -41,7 +41,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>,near
 	EXTERNS	<dsk_flush>,near
 	EXTERNS	<msc_setvec,msc_getvec>,near
-	EXTERNS	<psp_create,psp_set,psp_get>,near
+	EXTERNS	<psp_exec,psp_create,psp_set,psp_get>,near
 	EXTERNS	<hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek>,near
 	EXTERNS	<mem_alloc,mem_free,mem_realloc>,near
 	EXTERNS	<utl_strlen,utl_atoi,utl_itoa,utl_printf,utl_sprintf>,near
@@ -69,7 +69,7 @@ DOS	segment word public 'CODE'
 	dw	func_none,   hdl_open,    hdl_close,   hdl_read		;3Ch-3Fh
 	dw	hdl_write,   func_none,   hdl_seek,    func_none	;40h-43h
 	dw	func_none,   func_none,   func_none,   func_none	;44h-47h
-	dw	mem_alloc,   mem_free,    mem_realloc, func_none	;48h-4Bh
+	dw	mem_alloc,   mem_free,    mem_realloc, psp_exec		;48h-4Bh
 	dw	func_none,   func_none,   func_none,   func_none	;4Ch-4Fh
 	dw	psp_set,     psp_get					;50h-51h
 	DEFABS	FUNCTBL_SIZE,<($ - FUNCTBL) SHR 1>

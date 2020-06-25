@@ -81,6 +81,7 @@ DOS_MEM_ALLOC	equ	48h	; allocate memory
 DOS_MEM_FREE	equ	49h	; free memory
 DOS_MEM_REALLOC	equ	4Ah	; reallocate memory
 
+DOS_PSP_EXEC	equ   4B00h	; load program (DS:DX) with EPB (ES:BX)
 DOS_PSP_SET	equ	50h	; set current PSP (BX)
 DOS_PSP_GET	equ	51h	; get current PSP (BX)
 
@@ -196,6 +197,33 @@ FCB_TIME	dw	?	; 16h
 FCB		ends
 
 ;
+; System File Block (SFB)
+;
+; For files, this is a superset of the directory entry (DIRENT).
+;
+; System File Handles (SFH) are indexes into the SFB table, whereas Process
+; File Handles (PFH) are indexes into a PSP's Process File Table (PFT).
+;
+SFB		struc
+SFB_NAME	db    11 dup (?); 00h: filename (E5=free,00=end)
+SFB_ATTR	db	?	; 0Bh: attribute bits (see below)
+SFB_DEVICE	dd	?	; 0Ch: device driver
+SFB_CONTEXT	dw	?	; 10h: device context (1st cluster if file)
+SFB_DRIVE	db	?	; 12h: drive #
+SFB_MODE	db	?	; 13h: open mode
+SFB_HANDLES	db	?	; 14h: number of process handles
+SFB_RESERVED	db	?	; 15h (holds SFBSIG in DEBUG builds)
+SFB_TIME	dw	?	; 16h: time of last write (see below)
+SFB_DATE	dw	?	; 18h: date of last write (see below)
+SFB_CLN		dw	?	; 1Ah: 1st cluster number of file
+SFB_SIZE	dd	?	; 1Ch: file size
+SFB_CURPOS	dd	?	; 20h: current file position
+SFB_CURCLN	dw	?	; 24h: current cluster number
+SFB		ends
+
+SFBSIG		equ	'F'
+
+;
 ; Program Segment Prefix (PSP)
 ;
 PSP		struc
@@ -227,31 +255,14 @@ PSP		ends
 SFH_NONE	equ	0FFh	; if this SFH is in a PFT entry, it's unused
 
 ;
-; System File Block (SFB)
+; Exec Parameter Block (EPB); see
 ;
-; For files, this is a superset of the directory entry (DIRENT).
-;
-; System File Handles (SFH) are indexes into the SFB table, whereas Process
-; File Handles (PFH) are indexes into a PSP's Process File Table (PFT).
-;
-SFB		struc
-SFB_NAME	db    11 dup (?); 00h: filename (E5=free,00=end)
-SFB_ATTR	db	?	; 0Bh: attribute bits (see below)
-SFB_DEVICE	dd	?	; 0Ch: device driver
-SFB_CONTEXT	dw	?	; 10h: device context (1st cluster if file)
-SFB_DRIVE	db	?	; 12h: drive #
-SFB_MODE	db	?	; 13h: open mode
-SFB_HANDLES	db	?	; 14h: number of process handles
-SFB_RESERVED	db	?	; 15h (holds SFBSIG in DEBUG builds)
-SFB_TIME	dw	?	; 16h: time of last write (see below)
-SFB_DATE	dw	?	; 18h: date of last write (see below)
-SFB_CLN		dw	?	; 1Ah: 1st cluster number of file
-SFB_SIZE	dd	?	; 1Ch: file size
-SFB_CURPOS	dd	?	; 20h: current file position
-SFB_CURCLN	dw	?	; 24h: current cluster number
-SFB		ends
-
-SFBSIG		equ	'F'
+EPB		struc
+EPB_ENVSEG	dw	?	; 00h: segment of environment (0 to copy parent)
+EPB_CMDLINE	dd	?	; 02h: pointer to well-formed command-line
+EPB_FCB1	dd	?	; 06h: pointer to FCB for PSP_FCB1
+EPB_FCB2	dd	?	; 0Ah: pointer to FCB for PSP_FCB2
+EPB		ends
 
 MODE_ACC_READ	equ	00h
 MODE_ACC_WRITE	equ	01h

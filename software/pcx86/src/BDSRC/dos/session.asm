@@ -14,10 +14,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_locked>,byte
 	EXTERNS	<scb_active,psp_active>,word
 	EXTERNS	<scb_table>,dword
-	EXTERNS	<dos_exit>,near
-	IF REG_DIAG
-	EXTERNS	<dos_diag>,near
-	ENDIF
+	EXTERNS	<dos_exit,load_program>,near
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -83,7 +80,7 @@ ENDPROC	get_scbnum
 ;
 ; Inputs:
 ;	CL = SCB #
-;	ES:DX -> name of executable (actually a command-line)
+;	ES:DX -> name of program (or command-line)
 ;
 ; Outputs:
 ;	Carry set if error, AX = error code
@@ -94,203 +91,17 @@ ENDPROC	get_scbnum
 DEFPROC	scb_load,DOS
 	ASSUME	ES:NOTHING
 	call	scb_lock
-	jnc	sl0
-	jmp	sl9
-
-sl0:	push	ax			; save previous SCB
-	mov	bx,1000h		; alloc 64K
-	mov	ah,DOS_MEM_ALLOC
-	int	21h			; returns a new segment in AX
-	jnc	sl2
-	cmp	bx,11h			; is there a usable amount of memory?
-	jb	sl1			; no
-	mov	ah,DOS_MEM_ALLOC	; try again with max paras in BX
-	int	21h
-	jnc	sl2			; success
-sl1:	jmp	sl8			; abort
-
-sl2:	sub	bx,10h			; subtract paras for the PSP header
-	mov	cl,4
-	shl	bx,cl			; convert to bytes
-	mov	si,bx			; SI = bytes for new PSP
-	xchg	di,ax			; DI = segment for new PSP
-
-	xchg	dx,di			; save the command-line in DI
-	mov	ah,DOS_PSP_CREATE
-	int	21h			; create new PSP at DX
-
-	mov	[psp_active],dx		; we must update the *real* PSP now
-					; scb_unlock will record it in the SCB
-;
-; Since we stashed pointer to the command-line in DI, let's "parse" it now,
-; separating the filename portion from the "tail" portion.
-;
-	mov	dx,di
-	mov	cx,14			; CX = max filename length
-sl3:	mov	al,es:[di]
-	test	al,al
-	jz	sl3b
-	cmp	al,' '
-	je	sl3a
-	inc	di
-	loop	sl3
-sl3a:	mov	es:[di],ch		; null-terminate the filename
-sl3b:	mov	cl,al			; CL = original terminator
-	push	es
-	pop	ds			; DS:DX -> name of executable
-	ASSUME	DS:NOTHING
-	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
-	int	21h			; open the file
-	jc	sle2a
-	xchg	bx,ax			; BX = file handle
-;
-; Since we successfully opened the filename, let's massage the rest of the
-; command-line now.
-;
-	push	bx
-	mov	ds,[psp_active]		; DS = segment of new PSP
-	mov	bx,offset PSP_CMDLINE+1
-	mov	es:[di],cl		; restore the original terminator
-sl4:	mov	al,es:[di]
-	inc	di
-	test	al,al
-	jz	sl4a
-	mov	[bx],al
-	inc	bx
-	cmp	bl,0FFh
-	jb	sl4
-sl4a:	mov	byte ptr [bx],CHR_RETURN
-	sub	bx,offset PSP_CMDLINE+1
-	mov	ds:[PSP_CMDLINE],bl
-	pop	bx
-
-	sub	cx,cx
-	sub	dx,dx
-	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_END
-	int	21h			; returns new file position in DX:AX
-	jc	sle1a
-
-	xchg	cx,ax			; file size now in DX:CX
-	mov	ax,ERR_NOMEM
-	test	dx,dx			; more than 64K?
-	jnz	sle1a			; yes
-	cmp	cx,si			; larger than the memory we allocated?
-	ja	sle1a			; yes
-	mov	si,cx			; no, SI is the new length
-
-	sub	cx,cx
-	sub	dx,dx
-	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_BEG
-	int	21h			; reset file position to beginning
-	jc	sle1a
-
-	mov	cx,si			; CX = # bytes to read
-	mov	dx,size PSP		; DS:DX -> memory after PSP
-	mov	ah,DOS_HDL_READ		; BX = file handle, CX = # bytes
-	int	21h
-	jnc	sl6
-sle1a:	jmp	sle1
-
-sl6:	ASSERTZ <cmp ax,cx>		; assert bytes read = bytes requested
-	mov	ah,DOS_HDL_CLOSE
-	int	21h			; close the file
-sle2a:	jc	sle2
-
-	mov	bx,cx			; BX = lenth of program file
-;
-; Check the word at [BX+100h-2]: if it contains BASICDOS_SIG ("BD"), then
-; the preceding word must be the program's desired additional memory (in paras).
-;
-	mov	dx,MINHEAP SHR 4	; minimum add'l space (1Kb in paras)
-	cmp	word ptr [bx+size PSP-2],BASICDOS_SIG
-	jne	sl7
-	mov	ax,word ptr [bx+size PSP-4]
-	cmp	ax,dx			; larger than our minimum?
-	jbe	sl7			; no
-	xchg	dx,ax			; yes, use their larger value
-
-sl7:	add	bx,15
-	mov	cl,4
-	shr	bx,cl			; BX = size of program (in paras)
-	add	bx,dx			; add add'l space (in paras)
-	add	bx,10h			; add size of PSP (in paras)
-	push	ds
-	pop	es
-	ASSUME	ES:NOTHING
-	mov	ah,DOS_MEM_REALLOC	; resize the memory block
-	int	21h
-	jc	sle2			; TODO: try to use a smaller size?
-;
-; Create an initial REG_FRAME at the top of the segment.
-;
-	mov	di,bx
-	cmp	di,1000h
-	jb	sl7a
-	mov	di,1000h
-sl7a:	shl	di,cl			; ES:DI -> top of the segment
-	dec	di
-	dec	di			; ES:DI -> last word at top of segment
-	std
-	mov	dx,ds
-	sub	ax,ax
-	stosw				; store a zero at the top of the stack
-	mov	ax,FL_INTS
-	stosw				; REG_FL (with interrupts enabled)
-	mov	ax,dx
-	stosw				; REG_CS
-	mov	ax,100h
-	stosw				; REG_IP
-	sub	ax,ax
-	REPT (size WS_FRAME) SHR 1
-	stosw				; REG_WS
-	ENDM
-	stosw				; REG_AX
-	stosw				; REG_BX
-	stosw				; REG_CX
-	stosw				; REG_DX
-	xchg	ax,dx
-	stosw				; REG_DS
-	xchg	ax,dx
-	stosw				; REG_SI
-	xchg	ax,dx
-	stosw				; REG_ES
-	xchg	ax,dx
-	stosw				; REG_DI
-	stosw				; REG_BP
-	IF REG_DIAG
-	mov	ax,offset dos_diag
-	stosw
-	ENDIF
-	inc	di
-	inc	di			; ES:DI -> REG_BP
-	cld
-
+	jc	sl9
+	push	ax			; save previous SCB
+	call	load_program
+	jc	sl8
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
 	mov	bx,[scb_active]
 	call	scb_init
-	jmp	short sl8
-;
-; Error paths (eg, close the file handle, free the memory for the new PSP)
-;
-sle1:	push	ax
-	mov	ah,DOS_HDL_CLOSE
-	int	21h
-	pop	ax
-sle2:	push	ax
-	mov	es,di
-	mov	ah,DOS_MEM_FREE
-	int	21h
-	pop	ax
-	push	cs
-	pop	ds
-	ASSUME	DS:DOS
-	stc
-
 sl8:	pop	bx			; recover previous SCB
 	call	scb_unlock		; unlock
-
 sl9:	ret
 ENDPROC	scb_load
 

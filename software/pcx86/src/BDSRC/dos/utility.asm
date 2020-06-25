@@ -573,7 +573,7 @@ ENDPROC	utl_ioctl
 ;
 ; Inputs:
 ;	REG_CL = SCB #
-;	REG_DS:REG_DX = name of executable
+;	REG_DS:REG_DX = name of program (or command-line)
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, DI, DS, ES
@@ -581,7 +581,7 @@ ENDPROC	utl_ioctl
 DEFPROC	utl_load,DOS
 	mov	es,[bp].REG_DS
 	ASSUME	DS:NOTHING		; CL = SCB #
-	jmp	scb_load		; ES:DX -> name of executable
+	jmp	scb_load		; ES:DX -> name of program
 ENDPROC	utl_load
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
