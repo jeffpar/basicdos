@@ -39,7 +39,7 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFBYTE	max_rows,25	; TODO: use this for something...
 	DEFBYTE	max_cols,80	; TODO: set to correct value in ddcon_init
 
-	DEFPTR	kbd_interrupt,0	; keyboard hardware interrupt handler
+	DEFPTR	kbd_int,0	; keyboard hardware interrupt handler
 	DEFPTR	wait_ptr,-1	; chain of waiting packets
 ;
 ; A context of "25,80,0,0" with a border supports logical cursor positions
@@ -252,9 +252,9 @@ dco5:	mov	word ptr ds:[CT_CONW],cx; set CT_CONW (CL) and CT_CONH (CH)
 	mov	dh,0
 	add	dx,dx
 	add	ax,dx
-	mov	ds:[CT_BUFFER].off,ax
+	mov	ds:[CT_BUFFER].OFF,ax
 	mov	ax,[frame_seg]
-	mov	ds:[CT_BUFFER].seg,ax
+	mov	ds:[CT_BUFFER].SEG,ax
 	sub	ax,ax
 	mov	es,ax
 	ASSUME	ES:BIOS
@@ -370,11 +370,11 @@ ENDPROC	ddcon_none
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_interrupt,far
+	call	far ptr DDINT_ENTER
 	pushf
-	call	[kbd_interrupt]
+	call	[kbd_int]
 	push	ax
 	push	bx
-	push	cx
 	push	dx
 	push	di
 	push	ds
@@ -390,8 +390,9 @@ DEFPROC	ddcon_interrupt,far
 	mov	ax,DOS_UTL_HOTKEY	; notify DOS
 	int	21h
 
-ddi1:	mov	bx,offset wait_ptr	; DS:BX -> ptr
-	les	di,[bx]			; ES:DI -> packet, if any
+ddi1:	ASSUME	DS:NOTHING
+	mov	bx,offset wait_ptr	; CS:BX -> ptr
+	les	di,cs:[bx]		; ES:DI -> packet, if any
 	ASSUME	DS:NOTHING, ES:NOTHING
 
 ddi2:	cmp	di,-1			; end of chain?
@@ -424,35 +425,36 @@ ddi3:	call	read_kbd		; read keyboard data
 ddi4:	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	mov	ax,DOS_UTL_ENDWAIT
 	int	21h
+	ASSERTNC
 ;
 ; The request has been satisfied, so remove packet from wait_ptr list.
 ;
 	cli
-	mov	ax,es:[di].DDP_PTR.off
-	mov	[bx].off,ax
-	mov	ax,es:[di].DDP_PTR.seg
-	mov	[bx].seg,ax
+	sub	ax,ax
+	xchg	ax,es:[di].DDP_PTR.OFF
+	mov	[bx].OFF,ax
+	sub	ax,ax
+	xchg	ax,es:[di].DDP_PTR.SEG
+	mov	[bx].SEG,ax
 	sti
 
-	mov	ax,DOS_UTL_YIELD	; allow rescheduling now
-	int	21h
+	stc				; set carry to indicate yield
 	jmp	short ddi9
 
 ddi6:	lea	bx,[di].DDP_PTR		; update prev addr ptr in DS:BX
 	push	es
 	pop	ds
 
-ddi7:	les	di,es:[di].DDP_PTR
+	les	di,es:[di].DDP_PTR
 	jmp	ddi2
 
 ddi9:	pop	es
 	pop	ds
 	pop	di
 	pop	dx
-	pop	cx
 	pop	bx
 	pop	ax
-	iret
+	jmp	far ptr DDINT_LEAVE
 ENDPROC	ddcon_interrupt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -501,20 +503,23 @@ ENDPROC	ddcon_int29
 DEFPROC	add_packet
 	cli
 	mov	ax,di
-	xchg	[wait_ptr].off,ax
-	mov	es:[di].DDP_PTR.off,ax
+	xchg	[wait_ptr].OFF,ax
+	mov	es:[di].DDP_PTR.OFF,ax
 	mov	ax,es
-	xchg	[wait_ptr].seg,ax
-	mov	es:[di].DDP_PTR.seg,ax
+	xchg	[wait_ptr].SEG,ax
+	mov	es:[di].DDP_PTR.SEG,ax
 	sti
 ;
-; The WAIT condition will be satisfied when the context is unpaused.
+; The WAIT condition will be satisfied when enough data is received
+; (for a READ packet) or when the context is unpaused (for a WRITE packet).
 ;
 	push	dx
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	mov	ax,DOS_UTL_WAIT
 	int	21h
 	pop	dx
+
+	ASSERTZ	<cmp es:[di].DDP_PTR.SEG,0>
 	ret
 ENDPROC	add_packet
 
@@ -779,7 +784,7 @@ rk3:	mov	[BUFFER_HEAD],bx
 	lds	bx,es:[di].DDPRW_ADDR	; DS:BX -> next read/write address
 	mov	[bx],al
 	inc	bx
-	mov	es:[di].DDPRW_ADDR.off,bx
+	mov	es:[di].DDPRW_ADDR.OFF,bx
 	pop	ds
 	pop	bx
 	dec	es:[di].DDPRW_LENGTH	; have we satisfied the request yet?
@@ -1072,7 +1077,7 @@ DEFPROC	ddcon_init,far
 	ASSUME	DS:BIOS
 
 	mov	ax,[EQUIP_FLAG]		; AX = EQUIP_FLAG
-	mov	es:[bx].DDPI_END.off,offset ddcon_init
+	mov	es:[bx].DDPI_END.OFF,offset ddcon_init
 	mov	cs:[0].DDH_REQUEST,offset DEV:ddcon_req
 ;
 ; Determine what kind of video console we're dealing with (MONO or COLOR)
@@ -1089,19 +1094,19 @@ ddn1:	mov	[frame_seg],dx
 ; keys added to the BIOS keyboard buffer.
 ;
 	mov	ax,offset ddcon_interrupt
-	xchg	ds:[INT_HW_KBD * 4].off,ax
-	mov	[kbd_interrupt].off,ax
+	xchg	ds:[INT_HW_KBD * 4].OFF,ax
+	mov	[kbd_int].OFF,ax
 	mov	ax,cs
-	xchg	ds:[INT_HW_KBD * 4].seg,ax
-	mov	[kbd_interrupt].seg,ax
+	xchg	ds:[INT_HW_KBD * 4].SEG,ax
+	mov	[kbd_int].SEG,ax
 ;
 ; Install an INT 29h ("FAST PUTCHAR") handler; I think traditionally DOS
 ; installed its own handler, but that's really our responsibility, especially
 ; if we want all INT 29h I/O to go through the "system console" -- which for
 ; now is nothing more than whichever console was opened first.
 ;
-	mov	ds:[INT_FASTCON * 4].off,offset ddcon_int29
-	mov	ds:[INT_FASTCON * 4].seg,cs
+	mov	ds:[INT_FASTCON * 4].OFF,offset ddcon_int29
+	mov	ds:[INT_FASTCON * 4].SEG,cs
 
 	pop	ds
 	ASSUME	DS:NOTHING

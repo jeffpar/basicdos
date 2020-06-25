@@ -36,6 +36,12 @@ DEV	segment para public 'CODE'
 
 DEFPROC	devinit,far
 ;
+; Perform some preliminary BIOS data initialization; in particular,
+; DDINT_ENTER and DDINT_LEAVE entry points for hardware interrupt handlers.
+;
+	mov	[DDINT_ENTER],OP_RETF
+	mov	[DDINT_LEAVE],OP_IRET
+;
 ; Initialize each device driver.
 ;
 	mov	si,BIOS_END	; DS:SI -> first driver

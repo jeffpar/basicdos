@@ -13,7 +13,7 @@ DOS	segment word public 'CODE'
 
 	EXTERNS	<FUNCTBL>,word
 	EXTERNS	<FUNCTBL_SIZE,UTILTBL_SIZE>,abs
-	EXTERNS	<ctrlc_all,ctrlc_active>,byte
+	EXTERNS	<ctrlc_all,ctrlc_active,ddint_level>,byte
 	EXTERNS	<msc_sigctrlc>,near
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -112,6 +112,8 @@ DEFPROC	dos_func,DOSFAR
 	cld				; we assume CLD everywhere
 	sub	sp,size WS_FRAME
 	push	ax			; order of pushes must match REG_FRAME
+
+	DEFLBL	dos_enter,near
 	push	bx
 	push	cx
 	push	dx
@@ -127,27 +129,31 @@ DEFPROC	dos_func,DOSFAR
 	DEFLBL	dos_diag,near
 	ENDIF
 
-	and	[bp].REG_FL,NOT FL_CARRY
-	cmp	ah,FUNCTBL_SIZE
-	cmc
-	jb	dc9
-
 	mov	bx,cs
 	mov	ds,bx
 	ASSUME	DS:DOS
 	mov	es,bx
 	ASSUME	ES:DOS
-
-	cmp	ah,DOS_UTL		; utility functions are exempt
-	jne	dc1			; from CTRLC checking
+;
+; Utility functions don't automatically modify any registers (including carry)
+; and are exempt from CTRL checks, because some of them are allowd to be called
+; from interrupt handlers.
+;
+	cmp	ah,DOS_UTL		; utility function?
+	jne	dc1			; no
 	cmp	al,UTILTBL_SIZE		; utility function within range?
-	cmc				;
-	jb	dc9			; no
-	mov	ah,FUNCTBL_SIZE		; utility funcs follow DOS functions
-	add	ah,al
+	jae	dos_exit		; no
+	mov	ah,FUNCTBL_SIZE		; the utility function table
+	add	ah,al			; follows the DOS function table
 	jmp	short dc2
 
-dc1:	test	[ctrlc_active],-1	; has CTRLC been detected?
+dc1:	and	[bp].REG_FL,NOT FL_CARRY
+
+	cmp	ah,FUNCTBL_SIZE
+	cmc
+	jb	dc9
+
+	test	[ctrlc_active],-1	; has CTRLC been detected?
 	jz	dc2			; no
 	test	[ctrlc_all],-1		; checking enabled for all functions?
 	jz	dc2			; no
@@ -291,6 +297,51 @@ DEFPROC	dos_call5,DOSFAR
 	mov	ah,cl
 	jmp	near ptr dos_func
 ENDPROC	dos_call5
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dos_ddint_enter
+;
+; DDINT_ENTER is "revectored" here by sysinit.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+; 	None
+;
+DEFPROC	dos_ddint_enter,DOSFAR
+	inc	[ddint_level]
+	ret
+ENDPROC	dos_ddint_enter
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dos_ddint_leave
+;
+; DDINT_LEAVE is "revectored" here by sysinit.
+;
+; Inputs:
+;	Carry set to reschedule, assuming ddint_level has dropped to zero
+;
+; Outputs:
+; 	None
+;
+DEFPROC	dos_ddint_leave,DOSFAR
+	cli
+	dec	[ddint_level]
+	jnz	ddl9
+	jnc	ddl9
+;
+; If both Z and C are set, then enter DOS to perform a reschedule.
+;
+	cld
+	sub	sp,size WS_FRAME
+	push	ax
+	mov	ax,DOS_UTL_YIELD
+	jmp	dos_enter
+ddl9:	iret
+ENDPROC	dos_ddint_leave
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
