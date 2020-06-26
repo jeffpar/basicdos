@@ -16,7 +16,7 @@ CODE    SEGMENT
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 DEFPROC	main
 	sub	dx,dx
-m1:	PRINTF	<"sleeping %d seconds...">,dx
+m1:	PRINTF	<"sleeping %dms...">,dx
 	mov	ax,DOS_UTL_SLEEP
 	int	21h
 	PRINTF	<13,10,"feeling refreshed!",13,10>
