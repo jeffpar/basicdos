@@ -12,24 +12,47 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<mcb_limit,scb_active,psp_active>,word
-	EXTERNS	<get_scbnum,dos_exit>,near
-	IF REG_DIAG
-	EXTERNS	<dos_diag>,near
+	EXTERNS	<free,get_scbnum,dos_exit>,near
+	IF REG_CHECK
+	EXTERNS	<dos_check>,near
 	ENDIF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; psp_quit (REG_AH = 00h)
+; psp_term (REG_AH = 00h)
 ;
 ; Inputs:
-;	REG_CS = segment of PSP
+;	None
 ;
 ; Outputs:
 ;	None
 ;
-DEFPROC	psp_quit,DOS
-	ret				; TODO
-ENDPROC	psp_quit
+DEFPROC	psp_term,DOS
+	ASSUME	ES:NOTHING
+	mov	es,[psp_active]
+;
+; TODO: Close file handles, once psp_create has been updated to make
+; additional handle references.
+;
+	push	es:[PSP_EXRET].SEG
+	push	es:[PSP_EXRET].OFF
+	push	es:[PSP_PARENT]
+	mov	ax,es
+	call	free
+	pop	es
+	pop	ax			; get PSP_EXRET in DX:AX
+	pop	dx
+	mov	[psp_active],es
+	mov	ss,es:[PSP_STACK].SEG
+	mov	sp,es:[PSP_STACK].OFF
+	mov	bp,sp
+	IF REG_CHECK
+	add	bp,2
+	ENDIF
+	mov	[bp].REG_CS,dx		; copy PSP_EXRET to caller's CS:IP
+	mov	[bp].REG_IP,ax		; (normally they will be identical)
+	jmp	dos_exit
+ENDPROC	psp_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -104,7 +127,7 @@ pc3:	sub	ax,256			; AX = max available bytes this segment
 	sub	ax,bx			; basically, compute 000Ch - (BX SHR 4)
 	stosw				; 08h: PSP_FCSEG
 ;
-; Copy current INT 22h (ABORT), INT 23h (CTRLC), and INT 24h (ERROR) vectors.
+; Copy current INT 22h (EXRET), INT 23h (CTRLC), and INT 24h (ERROR) vectors.
 ;
 	push	ds
 	sub	ax,ax
@@ -243,38 +266,48 @@ ENDPROC	psp_get
 ;
 DEFPROC	load_program,DOS
 	ASSUME	ES:NOTHING
-	mov	bx,[psp_active]
-	test	bx,bx
-	jz	lp1
-	mov	ds,bx
-	ASSUME	DS:NOTHING
-	mov	[bx].PSP_STACK.SEG,ss
-	mov	[bx].PSP_STACK.SEG,bp
 
-lp1:	mov	bx,1000h		; alloc 64K
+	mov	bx,1000h		; alloc 64K
 	mov	ah,DOS_MEM_ALLOC
 	int	21h			; returns a new segment in AX
 	jnc	lp2
 	cmp	bx,11h			; is there a usable amount of memory?
-	jb	lp1a			; no
+	jb	lp1			; no
 	mov	ah,DOS_MEM_ALLOC	; try again with max paras in BX
 	int	21h
 	jnc	lp2			; success
-lp1a:	jmp	lp9			; abort
+lp1:	jmp	lp9			; abort
 
 lp2:	sub	bx,10h			; subtract paras for the PSP header
 	mov	cl,4
 	shl	bx,cl			; convert to bytes
 	mov	si,bx			; SI = bytes for new PSP
-	xchg	di,ax			; DI = segment for new PSP
+	xchg	dx,ax			; DX = segment for new PSP
+	xchg	di,ax			; DI = command-line (previously in DX)
 
-	xchg	dx,di			; save the command-line in DI
 	mov	ah,DOS_PSP_CREATE
 	int	21h			; create new PSP at DX
 
+	mov	bx,[psp_active]
+	test	bx,bx
+	jz	lp2a
+;
+; Let's update the PSP_STACK field in the current PSP before we switch
+; to the new PSP, since we rely on it to gracefully return to the caller
+; when this new program terminates.  "REAL DOS" updates PSP_STACK on every
+; DOS call, because it loved switching stacks all the time; we don't.
+;
+	mov	ds,bx
+	ASSUME	DS:NOTHING
+	mov	ax,sp
+	add	ax,4			; toss 2 near-call return addresses
+	mov	ds:[PSP_STACK].SEG,ss
+	mov	ds:[PSP_STACK].OFF,ax
+
+lp2a:	push	bx			; save original PSP
 	mov	[psp_active],dx		; we must update the *real* PSP now
 ;
-; Since we stashed pointer to the command-line in DI, let's "parse" it now,
+; Since we stashed pointer to the command-line in DI, let's parse it now,
 ; separating the filename portion from the "tail" portion.
 ;
 	mov	dx,di
@@ -283,6 +316,8 @@ lp3:	mov	al,es:[di]
 	test	al,al
 	jz	lp3b
 	cmp	al,' '
+	je	lp3a
+	cmp	al,CHR_RETURN
 	je	lp3a
 	inc	di
 	loop	lp3
@@ -297,10 +332,15 @@ lp3b:	mov	cl,al			; CL = original terminator
 	xchg	bx,ax			; BX = file handle
 ;
 ; Since we successfully opened the filename, let's massage the rest of the
-; command-line now.
+; command-line now.  And before we do, let's also update the PSP EXRET address.
 ;
 	push	bx
 	mov	ds,[psp_active]		; DS = segment of new PSP
+	mov	ax,[bp].REG_IP
+	mov	ds:[PSP_EXRET].OFF,ax
+	mov	ax,[bp].REG_CS
+	mov	ds:[PSP_EXRET].SEG,ax
+
 	mov	bx,offset PSP_CMDLINE+1
 	mov	es:[di],cl		; restore the original terminator
 lp4:	mov	al,es:[di]
@@ -410,13 +450,14 @@ lp7a:	shl	di,cl			; ES:DI -> top of the segment
 	xchg	ax,dx
 	stosw				; REG_DI
 	stosw				; REG_BP
-	IF REG_DIAG
-	mov	ax,offset dos_diag
+	IF REG_CHECK
+	mov	ax,offset dos_check
 	stosw
 	ENDIF
 	inc	di
 	inc	di			; ES:DI -> REG_BP
 	cld
+	add	sp,2			; discard original PSP
 	jmp	short lp9
 ;
 ; Error paths (eg, close the file handle, free the memory for the new PSP)
@@ -426,13 +467,14 @@ lp8:	push	ax
 	int	21h
 	pop	ax
 lp8a:	push	ax
-	mov	es,di
+	mov	es,[psp_active]
 	mov	ah,DOS_MEM_FREE
 	int	21h
 	pop	ax
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
+	pop	[psp_active]		; restore original PSP
 	stc
 
 lp9:	ret

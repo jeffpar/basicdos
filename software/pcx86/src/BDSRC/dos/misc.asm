@@ -179,12 +179,12 @@ DEFPROC	get_vecoff,DOS
 	mov	ah,0			; AX = vector #
 	add	ax,ax
 	add	ax,ax			; AX = vector # * 4
-	cmp	ax,INT_DOSABORT * 4
+	cmp	ax,INT_DOSEXRET * 4
 	jb	gv9			; use IVT (carry set)
 	cmp	ax,INT_DOSERROR * 4 + 4
 	cmc
 	jb	gv9			; use IVT (carry set)
-	sub	ax,(INT_DOSABORT * 4) - offset SCB_ABORT
+	sub	ax,(INT_DOSEXRET * 4) - offset SCB_EXRET
 	add	ax,[scb_active]		; AX = vector offset in current SCB
 	ASSERTNC
 gv9:	ret

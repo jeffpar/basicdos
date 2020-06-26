@@ -68,10 +68,10 @@ ENDPROC	utl_strlen
 ;	AX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	utl_atoi,DOS
-	and	[bp].REG_FL,NOT FL_CARRY
 	mov	ds,[bp].REG_DS
 	mov	es,[bp].REG_ES
 	ASSUME	DS:NOTHING, ES:NOTHING
+	and	[bp].REG_FL,NOT FL_CARRY
 	sub	ax,ax
 	cwd
 	mov	cx,10
@@ -261,7 +261,7 @@ SPF_WIDTH	dw	?		; specifier width, if any
 SPF_PRECIS	dw	?		; specifier precision, if any
 SPF_START	dw	?		; buffer start address
 SPF_LIMIT	dw	?		; buffer limit address
-SPF_CALLS	dw REG_DIAG+1 dup(?)	; 1 near-call dispatch on stack
+SPF_CALLS	dw REG_CHECK + 1 dup(?)	; 1 near-call dispatch on stack
 SPF_FRAME ends
 
 BUFLEN	equ	80			; stack space to use as printf buffer
@@ -539,9 +539,9 @@ ENDPROC	sprintf
 ;	AX, CX, DI, ES (ie, whatever chk_devname modifies)
 ;
 DEFPROC	utl_getdev,DOS
-	and	[bp].REG_FL,NOT FL_CARRY
 	mov	ds,[bp].REG_DS
 	ASSUME	DS:NOTHING
+	and	[bp].REG_FL,NOT FL_CARRY
 	mov	si,dx
 	call	chk_devname		; DS:SI -> device name
 	jc	gd9

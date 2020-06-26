@@ -127,11 +127,11 @@ DEFPROC	scb_init,DOS
 	push	ds
 	push	ds
 	pop	es
-	lea	di,[bx].SCB_ABORT	; ES:DI -> SCB vectors
+	lea	di,[bx].SCB_EXRET	; ES:DI -> SCB vectors
 	sub	si,si
 	mov	ds,si
 	ASSUME	DS:BIOS
-	mov	si,INT_DOSABORT * 4	; DS:SI -> IVT vectors
+	mov	si,INT_DOSEXRET * 4	; DS:SI -> IVT vectors
 	mov	cx,6			; move 3 vectors (6 words)
 	rep	movsw
 	pop	ds
@@ -221,6 +221,7 @@ ENDPROC	scb_unlock
 ;	Carry set on error (eg, invalid SCB #)
 ;
 DEFPROC	scb_start,DOS
+	and	[bp].REG_FL,NOT FL_CARRY
  	call	get_scb
  	jc	ss9
 	test	[bx].SCB_STATUS,SCSTAT_LOAD
@@ -397,6 +398,7 @@ ENDPROC	scb_wait
 ;
 DEFPROC	scb_endwait,DOS
 	cli
+	and	[bp].REG_FL,NOT FL_CARRY
 	mov	bx,[scb_table].OFF
 se1:	ASSERT_STRUC [bx],SCB
 	cmp	[bx].SCB_WAITID.OFF,di
