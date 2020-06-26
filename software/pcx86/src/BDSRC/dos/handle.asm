@@ -716,10 +716,6 @@ DEFPROC	dev_request,DOS
 ; and IOCTLOUT (12).
 ;
 dr2:	mov	[bp].DDP_LEN,size DDPRW
-	IFDEF DEBUG
-	mov	[bp].DDP_PTR.OFF,0
-	mov	[bp].DDP_PTR.SEG,0
-	ENDIF
 	mov	[bp].DDPRW_ADDR.OFF,si
 	mov	[bp].DDPRW_ADDR.SEG,ds
 	mov	[bp].DDPRW_LBA,bx

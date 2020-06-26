@@ -208,7 +208,7 @@ ddi1:	cmp	di,-1			; end of chain?
 ; We wait for the double-word decrement to underflow (ie, to go from 0 to -1)
 ; since that's the simplest to detect.  And while you might think that means we
 ; always wait 1 tick longer than requested -- well, sort of.  We have no idea
-; how much time elapsed between the request being made and the first tick; that
+; how much time elapsed between the request's arrival and the first tick; that
 ; time could be almost zero, so think of the tick count as "full" ticks.
 ;
 	sub	es:[di].DDPRW_OFFSET,1
@@ -220,7 +220,6 @@ ddi1:	cmp	di,-1			; end of chain?
 ddi2:	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	mov	ax,DOS_UTL_ENDWAIT
 	int	21h
-	ASSERTNC
 	jnc	ddi3
 ;
 ; If ENDWAIT returns an error, we presume that we simply got ahead of the
@@ -232,10 +231,12 @@ ddi2:	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 ;
 ; WAIT condition has been satisfied, remove packet from wait_ptr list.
 ;
-ddi3:	mov	ax,es:[di].DDP_PTR.OFF
+ddi3:	cli
+	mov	ax,es:[di].DDP_PTR.OFF
 	mov	[bx].OFF,ax
 	mov	ax,es:[di].DDP_PTR.SEG
 	mov	[bx].SEG,ax
+	sti
 	jmp	short ddi7
 
 ddi6:	lea	bx,[di].DDP_PTR		; update prev addr ptr in DS:BX

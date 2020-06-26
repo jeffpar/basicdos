@@ -107,7 +107,6 @@ ENDPROC dos_restart
 ;	Varies
 ;
 DEFPROC	dos_func,DOSFAR
-	sti
 	cld				; we assume CLD everywhere
 	sub	sp,size WS_FRAME
 	push	ax			; order of pushes must match REG_FRAME
@@ -134,9 +133,8 @@ DEFPROC	dos_func,DOSFAR
 	mov	es,bx
 	ASSUME	ES:DOS
 ;
-; Utility functions don't automatically modify any registers (including carry)
-; and are exempt from CTRL checks, because some of them are allowed to be called
-; from interrupt handlers.
+; Utility functions don't automatically re-enable interrupts, clear the carry,
+; or check for CTRLC, since some of them are called from interrupt handlers.
 ;
 	cmp	ah,DOS_UTL		; utility function?
 	jne	dc1			; no
@@ -146,7 +144,8 @@ DEFPROC	dos_func,DOSFAR
 	add	ah,al			; follows the DOS function table
 	jmp	short dc2
 
-dc1:	and	[bp].REG_FL,NOT FL_CARRY
+dc1:	sti
+	and	[bp].REG_FL,NOT FL_CARRY
 
 	cmp	ah,FUNCTBL_SIZE
 	cmc
