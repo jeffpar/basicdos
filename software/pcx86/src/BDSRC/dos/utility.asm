@@ -15,7 +15,8 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_active>,word
 	EXTERNS	<clk_ptr>,dword
 	EXTERNS	<chk_devname,dev_request,write_string>,near
-	EXTERNS	<scb_load,scb_yield>,near
+	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload,scb_yield>,near
+	EXTERNS	<scb_wait,scb_endwait>,near
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -27,6 +28,7 @@ DOS	segment word public 'CODE'
 ;	AX
 ;
 DEFPROC	utl_strlen,DOS
+	sti
 	mov	ds,[bp].REG_DS
 	ASSUME	DS:NOTHING
 	DEFLBL	strlen,near		; for internal calls (no REG_FRAME)
@@ -40,14 +42,14 @@ DEFPROC	utl_strlen,DOS
 	not	cx			; CX = largest possible count
 	repne	scasb
 	stc
-	jne	us9
+	jne	sl9
 	sub	di,si
 	lea	ax,[di-1]		; don't count the terminator character
 	pop	es
 	pop	di
 	pop	cx
 	mov	[bp].REG_AX,ax		; update REG_AX
-us9:	ret
+sl9:	ret
 ENDPROC	utl_strlen
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -68,6 +70,7 @@ ENDPROC	utl_strlen
 ;	AX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	utl_atoi,DOS
+	sti
 	mov	ds,[bp].REG_DS
 	mov	es,[bp].REG_ES
 	ASSUME	DS:NOTHING, ES:NOTHING
@@ -75,33 +78,33 @@ DEFPROC	utl_atoi,DOS
 	sub	ax,ax
 	cwd
 	mov	cx,10
-ud1:	mov	dl,[si]
+ai1:	mov	dl,[si]
 	cmp	dl,'0'
-	jb	ud5
+	jb	ai5
 	sub	dl,'0'
 	cmp	dl,cl
-	jae	ud6
+	jae	ai6
 	inc	si
 	push	dx
 	mul	cx
 	pop	dx
 	add	ax,dx
-	jmp	ud1
-ud5:	test	dl,dl
-	jz	ud6
+	jmp	ai1
+ai5:	test	dl,dl
+	jz	ai6
 	inc	si
-ud6:	test	di,di			; validation data provided?
-	jz	ud9			; no
+ai6:	test	di,di			; validation data provided?
+	jz	ai9			; no
 	cmp	ax,es:[di]		; too small?
-	jae	ud7			; no
+	jae	ai7			; no
 	mov	ax,es:[di]
-	jmp	short ud8
-ud7:	cmp	es:[di+2],ax		; too large?
-	jae	ud8			; no
+	jmp	short ai8
+ai7:	cmp	es:[di+2],ax		; too large?
+	jae	ai8			; no
 	mov	ax,es:[di+2]
-ud8:	lea	di,[di+4]		; advance DI in case there are more
+ai8:	lea	di,[di+4]		; advance DI in case there are more
 	mov	[bp].REG_DI,di		; but do so without disturbing CARRY
-ud9:	mov	[bp].REG_SI,si		; update caller's SI, too
+ai9:	mov	[bp].REG_SI,si		; update caller's SI, too
 	mov	[bp].REG_AX,ax		; update REG_AX
 	ret
 ENDPROC utl_atoi
@@ -129,6 +132,7 @@ PF_WIDTH  equ	20h			; width encountered
 PF_PRECIS equ	40h			; precision encountered (after '.')
 
 DEFPROC	utl_itoa,DOS
+	sti
 	xchg	ax,si			; DX:AX is now the value
 	mov	es,[bp].REG_ES		; ES:DI -> buffer
 	ASSUME	ES:NOTHING
@@ -338,6 +342,7 @@ DEFPROC	utl_sprintf,DOS
 ENDPROC	utl_sprintf
 
 DEFPROC	sprintf,DOS
+	sti
 	ASSUME	ES:NOTHING
 	sub	bp,size SPF_FRAME
 	mov	[bp].SPF_START,di	; DI is the buffer start
@@ -539,6 +544,7 @@ ENDPROC	sprintf
 ;	AX, CX, DI, ES (ie, whatever chk_devname modifies)
 ;
 DEFPROC	utl_getdev,DOS
+	sti
 	mov	ds,[bp].REG_DS
 	ASSUME	DS:NOTHING
 	and	[bp].REG_FL,NOT FL_CARRY
@@ -563,6 +569,7 @@ ENDPROC	utl_getdev
 ;	AX, DI, ES
 ;
 DEFPROC	utl_ioctl,DOS
+	sti
 	mov	ax,[bp].REG_BX		; AX = command codes from BH,BL
 	mov	es,[bp].REG_ES		; ES:DI -> DDH
 	call	dev_request		; call the driver
@@ -581,10 +588,68 @@ ENDPROC	utl_ioctl
 ;	AX, BX, CX, DX, DI, DS, ES
 ;
 DEFPROC	utl_load,DOS
+	sti
 	mov	es,[bp].REG_DS
 	ASSUME	DS:NOTHING		; CL = SCB #
 	jmp	scb_load		; ES:DX -> name of program
 ENDPROC	utl_load
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_start (AX = 1808h)
+;
+; "Start" the specified session (actual starting will handled by scb_switch).
+;
+; Inputs:
+;	CL = SCB #
+;
+; Outputs:
+;	Carry clear on success, BX -> SCB
+;	Carry set on error (eg, invalid SCB #)
+;
+DEFPROC	utl_start,DOS
+	sti
+	and	[bp].REG_FL,NOT FL_CARRY
+ 	jmp	scb_start
+ENDPROC	utl_start
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_stop (AX = 1809h)
+;
+; "Stop" the specified session.
+;
+; Inputs:
+;	CL = SCB #
+;
+; Outputs:
+;	Carry clear on success
+;	Carry set on error (eg, invalid SCB #)
+;
+DEFPROC	utl_stop,DOS
+	sti
+	and	[bp].REG_FL,NOT FL_CARRY
+	jmp	scb_stop
+ENDPROC	utl_stop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_unload (AX = 180Ah)
+;
+; Unload the current program from the specified session.
+;
+; Inputs:
+;	CL = SCB #
+;
+; Outputs:
+;	Carry clear on success
+;	Carry set on error (eg, invalid SCB #)
+;
+DEFPROC	utl_unload,DOS
+	sti
+	and	[bp].REG_FL,NOT FL_CARRY
+	jmp	scb_unload
+ENDPROC	utl_unload
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -599,6 +664,7 @@ ENDPROC	utl_load
 ;	AX, BX, DX
 ;
 DEFPROC	utl_yield,DOS
+	sti
 	mov	ax,[scb_active]
 	jmp	scb_yield
 ENDPROC	utl_yield
@@ -620,6 +686,7 @@ ENDPROC	utl_yield
 ;	AX, DI, ES
 ;
 DEFPROC	utl_sleep,DOS
+	sti
 	xchg	ax,dx
 	add	ax,27			; add 1/2 tick (as # ms) for rounding
 	sub	dx,dx			; DX:AX = # ms
@@ -633,6 +700,39 @@ DEFPROC	utl_sleep,DOS
 	ret
 ENDPROC	utl_sleep
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_wait (AX = 180Dh)
+;
+; Synchronous interface to mark current SCB as waiting for the specified ID.
+;
+; Inputs:
+;	REG_DX:REG_DI == wait ID
+;
+; Outputs:
+;	None
+;
+DEFPROC	utl_wait,DOS
+	jmp	scb_wait
+ENDPROC	utl_wait
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_endwait (AX = 180Eh)
+;
+; Asynchronous interface to examine all SCBs for the specified ID and clear it.
+;
+; Inputs:
+;	REG_DX:REG_DI == wait ID
+;
+; Outputs:
+;	Carry clear if found, set if not
+;
+DEFPROC	utl_endwait,DOS
+	and	[bp].REG_FL,NOT FL_CARRY
+	jmp	scb_endwait
+ENDPROC	utl_endwait
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; utl_hotkey (AX = 180Fh)
@@ -641,8 +741,10 @@ ENDPROC	utl_sleep
 ;	REG_DL = char code, REG_DH = scan code
 ;
 ; Modifies:
+;	AX
 ;
 DEFPROC	utl_hotkey,DOS
+	sti
 	xchg	ax,dx			; AL = char code, AH = scan code
 	cmp	al,CHR_CTRLC
 	jne	hk1

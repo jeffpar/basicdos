@@ -119,6 +119,7 @@ DEFPROC	ddcon_read
 	mov	cx,es:[di].DDPRW_LENGTH
 	jcxz	dcr9
 
+	cli
 	call	read_kbd
 	jnc	dcr9
 ;
@@ -128,8 +129,9 @@ DEFPROC	ddcon_read
 ; conditions are satisfied.
 ;
 	call	add_packet
+dcr9:	sti
 
-dcr9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	ret
 ENDPROC	ddcon_read
 
@@ -425,19 +427,17 @@ ddi3:	call	read_kbd		; read keyboard data
 ddi4:	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	mov	ax,DOS_UTL_ENDWAIT
 	int	21h
-	ASSERTNC
 ;
-; The request has been satisfied, so remove packet from wait_ptr list.
+; Even if ENDWAIT returns an error, we presume that we simply got ahead of the
+; WAIT call, so we'll go ahead with the packet removal and rely on the WAIT code
+; to double-check whether the request has been satisfied.
 ;
 	cli
-	sub	ax,ax
-	xchg	ax,es:[di].DDP_PTR.OFF
+	mov	ax,es:[di].DDP_PTR.OFF
 	mov	[bx].OFF,ax
-	sub	ax,ax
-	xchg	ax,es:[di].DDP_PTR.SEG
+	mov	ax,es:[di].DDP_PTR.SEG
 	mov	[bx].SEG,ax
 	sti
-
 	stc				; set carry to indicate yield
 	jmp	short ddi9
 
@@ -508,7 +508,6 @@ DEFPROC	add_packet
 	mov	ax,es
 	xchg	[wait_ptr].SEG,ax
 	mov	es:[di].DDP_PTR.SEG,ax
-	sti
 ;
 ; The WAIT condition will be satisfied when enough data is received
 ; (for a READ packet) or when the context is unpaused (for a WRITE packet).
@@ -518,8 +517,7 @@ DEFPROC	add_packet
 	mov	ax,DOS_UTL_WAIT
 	int	21h
 	pop	dx
-
-	ASSERTZ	<cmp es:[di].DDP_PTR.SEG,0>
+	sti
 	ret
 ENDPROC	add_packet
 

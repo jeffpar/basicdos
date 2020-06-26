@@ -209,7 +209,6 @@ ENDPROC	scb_unlock
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; scb_start
-; utl_start (AX = 1807h)
 ;
 ; "Start" the specified session (actual starting will handled by scb_switch).
 ;
@@ -221,7 +220,6 @@ ENDPROC	scb_unlock
 ;	Carry set on error (eg, invalid SCB #)
 ;
 DEFPROC	scb_start,DOS
-	and	[bp].REG_FL,NOT FL_CARRY
  	call	get_scb
  	jc	ss9
 	test	[bx].SCB_STATUS,SCSTAT_LOAD
@@ -234,7 +232,6 @@ ENDPROC	scb_start
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; scb_stop
-; utl_stop (AX = 1808h)
 ;
 ; "Stop" the specified session.
 ;
@@ -253,7 +250,6 @@ ENDPROC	scb_stop
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; scb_unload
-; utl_unload (AX = 1809h)
 ;
 ; Unload the current program from the specified session.
 ;
@@ -272,7 +268,6 @@ ENDPROC	scb_unload
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; scb_yield
-; utl_yield (AX = 180Ah)
 ;
 ; Asynchronous interface to decide which session should run next.
 ;
@@ -361,7 +356,6 @@ ENDPROC	scb_switch
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; scb_wait
-; utl_wait (AX = 180Ch)
 ;
 ; Synchronous interface to mark current SCB as waiting for the specified ID.
 ;
@@ -386,7 +380,6 @@ ENDPROC	scb_wait
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; scb_endwait
-; utl_endwait (AX = 180Dh)
 ;
 ; Asynchronous interface to examine all SCBs for the specified ID and clear it.
 ;
@@ -398,7 +391,6 @@ ENDPROC	scb_wait
 ;
 DEFPROC	scb_endwait,DOS
 	cli
-	and	[bp].REG_FL,NOT FL_CARRY
 	mov	bx,[scb_table].OFF
 se1:	ASSERT_STRUC [bx],SCB
 	cmp	[bx].SCB_WAITID.OFF,di
