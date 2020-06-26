@@ -153,11 +153,9 @@ ENDPROC	mcb_split
 ;	AX, BX, CX, DX, DI, ES
 ;
 DEFPROC alloc,DOS
-	inc	[scb_locked]
-
-	mov	es,[mcb_head]
 	ASSUME	ES:NOTHING
-
+	inc	[scb_locked]
+	mov	es,[mcb_head]
 	sub	dx,dx			; DX = largest free block so far
 a1:	mov	al,es:[MCB_SIG]
 	cmp	al,MCBSIG_NEXT
@@ -226,11 +224,10 @@ ENDPROC	alloc
 ;	AX, BX, CX, DX, DI, ES
 ;
 DEFPROC realloc,DOS
+	ASSUME	ES:NOTHING
 	inc	[scb_locked]
-
 	dec	ax
 	mov	es,ax			; ES:0 -> MCB
-	ASSUME	ES:NOTHING
 	mov	cx,es:[MCB_PARAS]	; CX = # paras in block
 	cmp	bx,cx			; any change in size?
 	je	r9			; no, that's easy
@@ -278,9 +275,10 @@ ENDPROC	realloc
 ;	On failure, carry set, AX = ERR_BADMCB or ERR_BADADDR
 ;
 ; Modifies:
-;	AX, BX, DX, ES
+;	AX, BX, CX, DX, ES
 ;
 DEFPROC	free,DOS
+	ASSUME	ES:NOTHING
 	inc	[scb_locked]
 
 	mov	bx,[mcb_head]		; BX tracks ES
@@ -288,7 +286,6 @@ DEFPROC	free,DOS
 	sub	dx,dx			; DX = previous MCB (0 if not free)
 
 f1:	mov	es,bx
-	ASSUME	ES:NOTHING
 	cmp	bx,ax			; does current MCB match candidate?
 	jne	f4			; no
 ;

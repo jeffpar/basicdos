@@ -73,11 +73,10 @@ ENDPROC	dos_oferr
 ;
 ; dos_term (INT 20h)
 ;
-; TODO
-;
 DEFPROC	dos_term,DOSFAR
-	int 3
-	iret
+	mov	ah,DOS_PSP_TERM
+	int	21h
+	ASSERTNC <stc>			; assert that we never get here
 ENDPROC	dos_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -124,9 +123,9 @@ DEFPROC	dos_func,DOSFAR
 	push	bp
 	mov	bp,sp
 
-	IF REG_DIAG
-	call	dos_diag
-	DEFLBL	dos_diag,near
+	IF REG_CHECK
+	call	dos_check
+	DEFLBL	dos_check,near
 	ENDIF
 
 	mov	bx,cs
@@ -136,7 +135,7 @@ DEFPROC	dos_func,DOSFAR
 	ASSUME	ES:DOS
 ;
 ; Utility functions don't automatically modify any registers (including carry)
-; and are exempt from CTRL checks, because some of them are allowd to be called
+; and are exempt from CTRL checks, because some of them are allowed to be called
 ; from interrupt handlers.
 ;
 	cmp	ah,DOS_UTL		; utility function?
@@ -179,9 +178,9 @@ dc9:	adc	[bp].REG_FL,0
 
 	DEFLBL	dos_exit,near
 
-	IF REG_DIAG
+	IF REG_CHECK
 	pop	bp
-	ASSERTZ	<cmp bp,offset dos_diag>
+	ASSERTZ	<cmp bp,offset dos_check>
 	ENDIF
 
 	pop	bp
@@ -201,14 +200,11 @@ ENDPROC	dos_func
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dos_abort (INT 22h handler)
+; dos_exret (INT 22h handler)
 ;
-; TODO
-;
-DEFPROC	dos_abort,DOSFAR
-	int 3
-	iret
-ENDPROC	dos_abort
+DEFPROC	dos_exret,DOSFAR
+	jmp	$
+ENDPROC	dos_exret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

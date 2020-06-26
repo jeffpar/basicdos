@@ -14,9 +14,9 @@
 ;
 INT_DOSTERM	equ	20h	; terminate program
 INT_DOSFUNC	equ	21h	; DOS function interface
-INT_DOSABORT	equ	22h	; handler for program termination notification
-INT_DOSCTRLC	equ	23h	; handler for CTRL-C notification
-INT_DOSERROR	equ	24h	; handler for critical error notification
+INT_DOSEXRET	equ	22h	; exec return address
+INT_DOSCTRLC	equ	23h	; CTRL-C notification address
+INT_DOSERROR	equ	24h	; critical error notification address
 INT_DISKREAD	equ	25h	; absolute disk read
 INT_DISKWRITE	equ	26h	; absolute disk write
 INT_DOSTSR	equ	27h	; terminate-and-stay-resident
@@ -33,7 +33,7 @@ INT_DOSCALL5	equ	30h	; vector has FAR JMP (overwrites vector 31h too)
 ;
 ; DOS functions
 ;
-DOS_PSP_QUIT	equ	00h	; same function as INT 20h
+DOS_PSP_TERM	equ	00h	; same function as INT 20h
 DOS_TTY_ECHO	equ	01h	; read char (AL) from CON and echo
 DOS_TTY_WRITE	equ	02h	; write char (DL) to CON
 DOS_AUX_READ	equ	03h	; read char (AL) from AUX
@@ -86,9 +86,9 @@ DOS_PSP_SET	equ	50h	; set current PSP (BX)
 DOS_PSP_GET	equ	51h	; get current PSP (BX)
 
 IFNDEF DEBUG
-REG_DIAG	equ	0	; no diagnostic info
+REG_CHECK	equ	0	; no REG_FRAME marker on stack
 ELSE
-REG_DIAG	equ	1	; extra diagnostic info before REG_FRAME
+REG_CHECK	equ	1	; add a DEBUG marker before REG_FRAME
 ENDIF
 
 WS_FRAME	struc		; workspace (eg, for CTRLC dispatching)
@@ -148,7 +148,7 @@ SCB_STACK	dd	?	; 08h: pointer to session stack
 SCB_CURPSP	dw	?	; 0Ch: current PSP
 SCB_CURDRV	db	?	; 0Eh: current drive #
 SCB_RESERVED	db	?	; 0Fh (holds SCBSIG in DEBUG builds)
-SCB_ABORT	dd	?	; 10h: current ABORT handler
+SCB_EXRET	dd	?	; 10h: current EXRET handler
 SCB_CTRLC	dd	?	; 14h: current CTRLC handler
 SCB_ERROR	dd	?	; 18h: current ERROR handler
 SCB_DTA		dd	?	; 1Ch: current DTA (Disk Transfer Address)
@@ -225,9 +225,9 @@ PSP_SCB		db	?	; 04h: SCB # (normally unused in "real" DOS)
 PSP_FARCALL	db	?	; 05h: far call (9Ah)
 PSP_SIZE	dw	?	; 06h: size of PSP segment
 PSP_FCSEG	dw	?	; 08h: far call segment
-PSP_PREV_ABORT	dd	?	; 0Ah: original INT 22h vector
-PSP_PREV_CTRLC	dd	?	; 0Eh: original INT 23h vector
-PSP_PREV_ERROR	dd	?	; 12h: original INT 24h vector
+PSP_EXRET	dd	?	; 0Ah: original INT 22h vector
+PSP_CTRLC	dd	?	; 0Eh: original INT 23h vector
+PSP_ERROR	dd	?	; 12h: original INT 24h vector
 PSP_PARENT	dw	?	; 16h: PSP of parent
 PSP_PFT		db     20 dup(?); 18h: Process File Table
 PSP_ENVSEG	dw	?	; 2Ch

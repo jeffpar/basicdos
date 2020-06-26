@@ -19,6 +19,20 @@ DEFPROC	main
 	mov	ah,DOS_TTY_INPUT
 	mov	dx,offset input
 	int	21h
+	mov	bx,dx		; DS:BX -> input buffer
+	inc	bx
+	mov	al,[bx]
+	test	al,al		; anything typed?
+	jz	main		; no
+	cbw
+	inc	bx
+	mov	dx,bx		; DS:DX -> potential filename
+	add	bx,ax
+	mov	byte ptr [bx],0	; null-terminate it
+	mov	ax,DOS_PSP_EXEC
+	int	21h
+	jnc	main
+	PRINTF	<"error loading %s: %d",13,10>,dx,ax
 	jmp	main
 ENDPROC	main
 

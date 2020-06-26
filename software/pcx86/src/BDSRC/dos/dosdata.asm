@@ -37,7 +37,7 @@ DOS	segment word public 'CODE'
 	DEFABS	VALID_COUNT,<$ - VALID_CHARS>
 	DEFBYTE	STR_CTRLC,<"^C",CHR_RETURN,CHR_LINEFEED>
 
-	EXTERNS	<psp_quit>,near
+	EXTERNS	<psp_term>,near
 	EXTERNS	<tty_echo,tty_write,aux_read,aux_write,prn_write,tty_io>,near
 	EXTERNS	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>,near
 	EXTERNS	<dsk_flush>,near
@@ -52,7 +52,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<func_none>,near
 
 	DEFLBL	FUNCTBL,word
-	dw	psp_quit,    tty_echo,    tty_write,   aux_read		;00h-03h
+	dw	psp_term,    tty_echo,    tty_write,   aux_read		;00h-03h
 	dw	aux_write,   prn_write,   tty_io,      tty_in		;04h-07h
 	dw	tty_read,    tty_print,   tty_input,   tty_status	;08h-0Bh
 	dw	tty_flush,   dsk_flush,   func_none,   func_none	;0Ch-0Fh
