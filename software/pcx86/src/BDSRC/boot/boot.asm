@@ -7,7 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-	include	bios.inc
+	include	dos.inc
 
 BOOT	segment word public 'CODE'
 
@@ -326,7 +326,8 @@ ENDPROC	printp
 ;
 ; Strings
 ;
-product		db	" BASIC-DOS 0.01"
+product		db	" BASIC-DOS "
+		VERSION_STR
 crlf		db	13,10,' ',0
 prompt		db	"Press any key to start...",0
 errmsg1		db	" Missing system files, halted",0

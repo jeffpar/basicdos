@@ -9,6 +9,16 @@
 ;
 	include	dev.inc
 
+VERSION_MAJOR	equ	0
+VERSION_MINOR	equ	0
+VERSION_REV	equ	2
+
+VERSION_STR	macro
+		db	'0' + VERSION_MAJOR
+		db	'.'
+		db	'0' + VERSION_MINOR
+		db	'0' + VERSION_REV
+		endm
 ;
 ; DOS interrupt vector table (IVT) usage
 ;
