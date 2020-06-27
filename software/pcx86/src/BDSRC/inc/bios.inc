@@ -284,3 +284,4 @@ OP_CALLF	equ	09Ah
 OP_RETF		equ	0CBh
 OP_IRET		equ	0CFh
 OP_JMPF		equ	0EAh
+OP_STC		equ	0F9h

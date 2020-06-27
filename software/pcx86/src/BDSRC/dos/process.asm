@@ -40,8 +40,8 @@ DEFPROC	psp_term,DOS
 	mov	ax,es
 	call	free
 	pop	es
-	pop	ax			; get PSP_EXRET in DX:AX
-	pop	dx
+	pop	ax
+	pop	dx			; we now have PSP_EXRET in DX:AX
 	mov	[psp_active],es
 	mov	ss,es:[PSP_STACK].SEG
 	mov	sp,es:[PSP_STACK].OFF
@@ -264,6 +264,9 @@ ENDPROC	psp_get
 ;	If successful, carry clear, DX:DI -> new stack
 ;	If error, carry set, AX = error code
 ;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, DS, ES
+;
 DEFPROC	load_program,DOS
 	ASSUME	ES:NOTHING
 
@@ -434,7 +437,7 @@ lp7a:	shl	di,cl			; ES:DI -> top of the segment
 	mov	ax,100h
 	stosw				; REG_IP
 	sub	ax,ax
-	REPT (size WS_FRAME) SHR 1
+	REPT (size WS_TEMP) SHR 1
 	stosw				; REG_WS
 	ENDM
 	stosw				; REG_AX
@@ -471,9 +474,6 @@ lp8a:	push	ax
 	mov	ah,DOS_MEM_FREE
 	int	21h
 	pop	ax
-	push	cs
-	pop	ds
-	ASSUME	DS:DOS
 	pop	[psp_active]		; restore original PSP
 	stc
 

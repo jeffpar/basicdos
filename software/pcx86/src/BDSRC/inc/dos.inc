@@ -9,6 +9,16 @@
 ;
 	include	dev.inc
 
+VERSION_MAJOR	equ	0
+VERSION_MINOR	equ	0
+VERSION_REV	equ	2
+
+VERSION_STR	macro
+		db	'0' + VERSION_MAJOR
+		db	'.'
+		db	'0' + VERSION_MINOR
+		db	'0' + VERSION_REV
+		endm
 ;
 ; DOS interrupt vector table (IVT) usage
 ;
@@ -91,13 +101,21 @@ ELSE
 REG_CHECK	equ	1	; add a DEBUG marker before REG_FRAME
 ENDIF
 
-WS_FRAME	struc		; workspace (eg, for CTRLC dispatching)
+WS_CTRLC	struc		; REG_WS workspace when used for CTRLC
 JMP_IP		dw	?	; 00h
 JMP_CS		dw	?	; 02h
 RET_IP		dw	?	; 04h
 RET_CS		dw	?	; 06h
 RET_FL		dw	?	; 08h
-WS_FRAME	ends
+WS_CTRLC	ends
+
+WS_TEMP		struc		; REG_WS workspace when used as temp registers
+TMP_AX		dw	?	; 00h
+TMP_BX		dw	?	; 02h
+TMP_CX		dw	?	; 04h
+TMP_DX		dw	?	; 06h
+TMP_ES		dw	?	; 08h
+WS_TEMP		ends
 
 REG_FRAME	struc		; register frame created by dos_func
 REG_BP		dw	?	; 00h
@@ -109,7 +127,7 @@ REG_DX		dw	?	; 0Ah
 REG_CX		dw	?	; 0Ch
 REG_BX		dw	?	; 0Eh
 REG_AX		dw	?	; 10h
-REG_WS		dw (size WS_FRAME) SHR 1 dup (?)
+REG_WS		dw (size WS_TEMP) SHR 1 dup (?)
 REG_IP		dw	?	; 1Ch
 REG_CS		dw	?	; 1Eh
 REG_FL		dw	?	; 20h
@@ -129,7 +147,7 @@ REG_DH		equ 	(REG_DX.HI)
 ;
 ; SIDEBAR: To miminize the amount of per-process information in the IVT,
 ; we'll pretend all the apps we care about are well-behaved, which means if
-; they want to set any of the ABORT/CTRLC/ERROR handlers, they'll use the
+; they want to set any of the EXRET/CTRLC/ERROR handlers, they'll use the
 ; DOS_SET_VECTOR function, which will update the SCB vectors below, rather
 ; than the actual IVT vectors.
 ;
@@ -152,6 +170,11 @@ SCB_EXRET	dd	?	; 10h: current EXRET handler
 SCB_CTRLC	dd	?	; 14h: current CTRLC handler
 SCB_ERROR	dd	?	; 18h: current ERROR handler
 SCB_DTA		dd	?	; 1Ch: current DTA (Disk Transfer Address)
+SCB_CONTEXT	dw	?	; 20h: CONSOLE context (from device driver)
+SCB_CTRLC_ALL	db	?	; 22h: 1 if CTRLC checking enabled on all calls
+SCB_CTRLC_ACT	db	?	; 23h: 1 if CTRLC active
+SCB_CTRLP_ACT	db	?	; 24h: 1 if CTRLP active
+SCB_PADDING	db	?
 SCB		ends
 
 SCBSIG		equ	'S'

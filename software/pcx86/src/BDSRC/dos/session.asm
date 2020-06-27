@@ -86,7 +86,7 @@ ENDPROC	get_scbnum
 ;	Carry set if error, AX = error code
 ;
 ; Modifies:
-;	AX, BX, CX, DX, DI, DS, ES
+;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	scb_load,DOS
 	ASSUME	ES:NOTHING
@@ -94,13 +94,13 @@ DEFPROC	scb_load,DOS
 	jc	sl9
 	push	ax			; save previous SCB
 	call	load_program
-	jc	sl8
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
+	jc	sl8
 	mov	bx,[scb_active]
 	call	scb_init
-sl8:	pop	bx			; recover previous SCB
+sl8:	pop	ax			; recover previous SCB
 	call	scb_unlock		; unlock
 sl9:	ret
 ENDPROC	scb_load
@@ -123,20 +123,6 @@ DEFPROC	scb_init,DOS
 	ASSERT_STRUC [bx],SCB
 	mov	[bx].SCB_STACK.OFF,di
 	mov	[bx].SCB_STACK.SEG,dx
-	push	bx
-	push	ds
-	push	ds
-	pop	es
-	lea	di,[bx].SCB_EXRET	; ES:DI -> SCB vectors
-	sub	si,si
-	mov	ds,si
-	ASSUME	DS:BIOS
-	mov	si,INT_DOSEXRET * 4	; DS:SI -> IVT vectors
-	mov	cx,6			; move 3 vectors (6 words)
-	rep	movsw
-	pop	ds
-	ASSUME	DS:DOS
-	pop	bx
 	or	[bx].SCB_STATUS,SCSTAT_LOAD
 	ret
 ENDPROC	scb_init
@@ -155,9 +141,10 @@ ENDPROC	scb_init
 ;	On failure, carry set (if SCB invalid or not initialized for use)
 ;
 ; Modifies:
-;	AX, BX
+;	AX, BX, CX, SI, DI
 ;
 DEFPROC	scb_lock,DOS
+	ASSUME	ES:NOTHING
 	call	get_scb
 	jc	sk9
 	inc	[scb_locked]
@@ -172,6 +159,21 @@ sk8:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
 	ASSERT_STRUC [bx],SCB
 	mov	dx,[bx].SCB_CURPSP
 	mov	[psp_active],dx
+	push	ds
+	push	es
+	push	ds
+	pop	es
+	ASSUME	ES:DOS
+	lea	di,[bx].SCB_EXRET	; ES:DI -> SCB vectors
+	sub	si,si
+	mov	ds,si
+	ASSUME	DS:BIOS
+	mov	si,INT_DOSEXRET * 4	; DS:SI -> IVT vectors
+	mov	cx,6			; move 3 vectors (6 words)
+	rep	movsw
+	pop	es
+	pop	ds
+	ASSUME	DS:DOS
 	pop	dx
 sk9:	ret
 ENDPROC	scb_lock
@@ -183,21 +185,21 @@ ENDPROC	scb_lock
 ; Restore the previous SCB and lock state
 ;
 ; Inputs:
-;	BX -> previous SCB
+;	AX -> previous SCB
+;	BX -> current SCB
 ;
 ; Modifies:
 ;	BX, DX (but not carry)
 ;
 DEFPROC	scb_unlock,DOS
 	pushf
-	push	bx
-	xchg	bx,[scb_active]		; BX -> current SCB
 	ASSERT_STRUC [bx],SCB
 	mov	dx,[psp_active]
 	mov	[bx].SCB_CURPSP,dx
-	pop	bx			; BX -> previous SCB
-	test	bx,bx
+	mov	[scb_active],ax
+	test	ax,ax
 	jz	su9
+	xchg	bx,ax			; BX -> previous SCB
 	ASSERT_STRUC [bx],SCB
 	mov	dx,[bx].SCB_CURPSP
 	mov	[psp_active],dx

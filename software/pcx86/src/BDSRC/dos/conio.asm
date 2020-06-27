@@ -11,6 +11,7 @@
 
 DOS	segment word public 'CODE'
 
+	EXTERNS	<scb_active>,word
 	EXTERNS	<msc_sigctrlc>,near
 	EXTERNS	<strlen,get_sfb,sfb_read,sfb_write>,near
 
@@ -46,7 +47,7 @@ ENDPROC	tty_echo
 ;	REG_DL = character to write
 ;
 ; Outputs:
-;	None
+;	Writes character to console; if CTRLC detected, issues INT_DOSCTRLC
 ;
 ; Modifies:
 ;	AX, SI
@@ -80,7 +81,7 @@ ENDPROC	tty_io
 ;	None
 ;
 ; Outputs:
-;	AL = character from console
+;	AL = character from console; no CTRLC checking is performed
 ;
 ; Modifies:
 ;	AX
@@ -200,7 +201,7 @@ ENDPROC	tty_flush
 ;	AL = character to check
 ;
 ; Outputs:
-;	None; if CTRLC is detected, this function does not return
+;	Carry clear; if CTRLC is detected, this function does not return
 ;
 ; Modifies:
 ;	None
@@ -208,7 +209,17 @@ ENDPROC	tty_flush
 DEFPROC	check_char,DOS
 	cmp	al,CHR_CTRLC
 	jne	cc9
+	push	bx
+	mov	bx,[scb_active]
+	test	bx,bx
+	jz	cc8
+	DEFLBL	sig_ctrlc,near
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
+	ASSERT_STRUC [bx],SCB
 	jmp	msc_sigctrlc
+cc8:	pop	bx
 cc9:	clc
 	ret
 ENDPROC	check_char
@@ -237,19 +248,13 @@ DEFPROC	read_char,DOS
 	mov	bx,STDIN
 	call	get_sfb			; BX -> SFB
 	jc	rc9
-	push	[bp].REG_DS
-	push	[bp].REG_DX
 	push	ax
-	mov	[bp].REG_DS,ss
-	mov	[bp].REG_DX,sp		; REG_DS:REG_DX -> AX on stack
+	mov	dx,sp
+	push	ss
+	pop	es			; ES:DX -> AX on stack
 	mov	cx,1			; request one character from STDIN
-	push	ds
-	pop	es
-	ASSUME	ES:DOS
 	call	sfb_read
-	pop	ax
-	pop	[bp].REG_DX
-	pop	[bp].REG_DS
+	pop	ax			; AX = character
 rc9:	pop	es
 	ASSUME	ES:NOTHING
 	pop	di
@@ -310,7 +315,17 @@ DEFPROC	write_string,DOS
 	ASSUME	DS:NOTHING, ES:NOTHING
 	jcxz	ws8
 	push	bx
-	push	cx
+	mov	bx,[scb_active]
+	test	bx,bx
+	jz	ws1
+	cmp	cs:[bx].SCB_CTRLC_ACT,0
+	je	ws1
+	push	ds
+	push	cs
+	pop	ds
+	call	tty_read		; read the CTRLC
+	pop	ds
+ws1:	push	cx
 	push	dx
 	push	si
 	push	di

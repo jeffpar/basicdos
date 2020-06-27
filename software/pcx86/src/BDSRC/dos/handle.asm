@@ -86,8 +86,9 @@ DEFPROC	hdl_read,DOS
 	call	get_sfb			; BX -> SFB
 	jc	hr8
 	mov	cx,[bp].REG_CX		; CX = byte count
+	mov	es,[bp].REG_DS
+	mov	dx,[bp].REG_DX		; ES:DX -> data buffer
 	call	sfb_read
-	jnc	hr9
 hr8:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
 hr9:	ret
 ENDPROC	hdl_read
@@ -157,7 +158,7 @@ ENDPROC	hdl_seek
 ;	DS:SI -> name of device/file
 ;
 ; Outputs:
-;	On success, BX -> SFB, carry clear
+;	On success, BX -> SFB, DX = context (if any), carry clear
 ;	On failure, AX = error code, carry set
 ;
 ; Modifies:
@@ -278,24 +279,27 @@ ENDPROC	sfb_open
 ; Inputs:
 ;	BX -> SFB
 ;	CX = byte count
-;	REG_DS:REG_DX -> data buffer
+;	ES:DX -> data buffer
 ;
 ; Outputs:
-;	On success, carry clear
-;	On failure, AX = error code, carry set
+;	On success, carry clear, AX = bytes read
+;	On failure, carry set, AX = error code
 ;
 ; Modifies:
 ;	AX, CX, DX, SI, DI
 ;
 DEFPROC	sfb_read,DOS
-	ASSUMES	<DS,DOS>,<ES,DOS>
-	mov	[bp].REG_AX,0		; use REG_AX to accumulate bytes read
-	mov	dl,[bx].SFB_DRIVE
-	test	dl,dl
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
+	mov	al,[bx].SFB_DRIVE
+	test	al,al
 	jge	sr0
 	jmp	sr8			; character device
 
-sr0:	call	get_bpb			; DI -> BPB if no error
+sr0:	mov	[bp].TMP_AX,0		; use TMP_AX to accumulate bytes read
+	mov	[bp].TMP_ES,es
+	mov	[bp].TMP_DX,dx
+	xchg	dx,ax			; DL = drive #
+	call	get_bpb			; DI -> BPB if no error
 	jc	sr3a
 ;
 ; As a preliminary matter, make sure the requested number of bytes doesn't
@@ -353,8 +357,8 @@ sr2:	mov	ah,DDC_READ
 	les	di,[di].BPB_DEVICE
 	ASSUME	ES:NOTHING
 	push	ds
-	mov	si,[bp].REG_DX
-	mov	ds,[bp].REG_DS		; DS:SI = data buffer
+	mov	si,[bp].TMP_DX
+	mov	ds,[bp].TMP_ES		; DS:SI -> data buffer
 	ASSUME	DS:NOTHING
 	call	dev_request
 	pop	ds
@@ -372,7 +376,7 @@ sr3a:	jc	sr9
 ;
 	add	[bx].SFB_CURPOS.OFF,dx
 	adc	[bx].SFB_CURPOS.SEG,0
-	add	[bp].REG_AX,dx		; update accumulation of bytes read
+	add	[bp].TMP_AX,dx		; update accumulation of bytes read
 ;
 ; We're now obliged to determine whether or not we've exhausted the current
 ; cluster, because if we have, then we MUST zero SFB_CURCLN.
@@ -390,19 +394,24 @@ sr3a:	jc	sr9
 	jc	sr9
 	mov	[bx].SFB_CURCLN,ax
 sr4:	sub	cx,dx			; have we exhausted the read count yet?
-	jbe	sr9			; yes
-	jmp	sr1a			; no, keep reading clusters
+	ja	sr1a			; no, keep reading clusters
+	ASSERTNC
+	mov	ax,[bp].TMP_AX
+	jmp	short sr9
 
 sr8:	push	ds
 	push	es
 	mov	ax,DDC_READ SHL 8
+	push	es
+	mov	si,dx
 	les	di,[bx].SFB_DEVICE
 	mov	dx,[bx].SFB_CONTEXT
-	mov	si,[bp].REG_DX
-	mov	ds,[bp].REG_DS		; DS:SI = data buffer
+	pop	ds
+	ASSUME	DS:NOTHING		; DS:SI -> data buffer (from ES:DX)
 	call	dev_request		; issue the DDC_READ request
 	pop	es
 	pop	ds
+	ASSUME	DS:DOS
 sr9:	ret
 ENDPROC	sfb_read
 
@@ -887,14 +896,14 @@ ENDPROC	get_cln
 ;	DL = drive #
 ;
 ; Outputs:
-;	On success, ES:DI -> BPB, carry clear
+;	On success, DI -> BPB, carry clear
 ;	On failure, AX = device error code, carry set
 ;
 ; Modifies:
 ;	AX, DI
 ;
 DEFPROC	get_bpb,DOS
-	ASSUMES	<DS,NOTHING>,<ES,DOS>
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	push	dx
 	mov	al,dl			; AL = drive #
 	mov	ah,size BPBEX
@@ -906,7 +915,7 @@ DEFPROC	get_bpb,DOS
 	jc	gb9			; we don't have a BPB for the drive
 	push	di			; ES:DI -> BPB
 	push	es
-	les	di,es:[di].BPB_DEVICE
+	les	di,cs:[di].BPB_DEVICE
 	mov	ah,DDC_MEDIACHK		; perform a MEDIACHK request
 	call	dev_request
 	jc	gb8
@@ -1052,19 +1061,19 @@ ENDPROC	get_sfb
 DEFPROC	get_pft_free,DOS
 	mov	di,[psp_active]		; get the current PSP
 	test	di,di			; if we're called by sysinit
-	jz	gj9			; there may be no valid PSP yet
+	jz	gp9			; there may be no valid PSP yet
 	mov	es,di
 	ASSUME	ES:NOTHING		; find a free handle entry
 	mov	al,SFH_NONE		; AL = 0FFh (indicates unused entry)
 	mov	cx,size PSP_PFT
 	mov	di,offset PSP_PFT
 	repne	scasb
-	jne	gj8			; if no entry, return error w/carry set
+	jne	gp8			; if no entry, return error w/carry set
 	dec	di			; rewind to entry
-	jmp	short gj9
-gj8:	mov	ax,ERR_MAXFILES
+	jmp	short gp9
+gp8:	mov	ax,ERR_MAXFILES
 	stc
-gj9:	ret
+gp9:	ret
 ENDPROC	get_pft_free
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1092,12 +1101,14 @@ DEFPROC	set_pft_free,DOS
 	mov	cl,size SFB
 	div	cl			; AL = SFB # (from SFB address)
 	ASSERTZ	<test ah,ah>		; assert that the remainder is zero
-	test	di,0FFF0h		; did we find a free PFT entry?
-	jz	sj9			; no
-	stosb				; yes, store SFB # in the PFT entry
+	test	di,di			; did we find a free PFT entry?
+	jnz	sp8			; yes
+	mov	[bp].REG_DX,dx		; no, return context in REG_DX
+	jmp	short sp9		; and return the SFB # in REG_AX
+sp8:	stosb				; yes, store SFB # in the PFT entry
 	sub	di,offset PSP_PFT + 1	; convert PFT entry into PFH
 	xchg	ax,di			; AX = handle
-sj9:	ret
+sp9:	ret
 ENDPROC	set_pft_free
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

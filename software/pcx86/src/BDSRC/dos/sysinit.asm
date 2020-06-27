@@ -292,6 +292,7 @@ si9:	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
 	jc	open_error
 	mov	es:[bx].SCB_SFHCON,al
+	mov	es:[bx].SCB_CONTEXT,dx
 	INIT_STRUC es:[bx],SCB
 ;
 ; Last but not least, open PRN.
@@ -320,6 +321,7 @@ si10:	mov	si,offset CFG_CONSOLE
 	jmp	print_error
 si11:	or	es:[bx].SCB_STATUS,SCSTAT_INIT
 	mov	es:[bx].SCB_SFHCON,al
+	mov	es:[bx].SCB_CONTEXT,dx
 	mov	word ptr es:[bx].SCB_SFHAUX,(SFH_NONE SHL 8) OR SFH_NONE
 	ASSERT	<SCB_SFHAUX + 1>,EQ,<SCB_SFHPRN>
 	INIT_STRUC es:[bx],SCB
