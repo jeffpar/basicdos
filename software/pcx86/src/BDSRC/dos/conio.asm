@@ -11,8 +11,6 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<scb_active>,word
-	EXTERNS	<msc_sigctrlc>,near
 	EXTERNS	<strlen,get_sfb,sfb_read,sfb_write>,near
 
 	ASSUME	CS:DOS, DS:DOS, ES:BIOS, SS:NOTHING
@@ -53,7 +51,7 @@ ENDPROC	tty_echo
 ;	AX, SI
 ;
 DEFPROC	tty_write,DOS
-	mov	ax,[bp].REG_DX
+	mov	al,[bp].REG_DL
 	jmp	write_char
 ENDPROC	tty_write
 
@@ -87,6 +85,7 @@ ENDPROC	tty_io
 ;	AX
 ;
 DEFPROC	tty_in,DOS
+	mov	al,IO_RAW
 	jmp	read_char
 ENDPROC	tty_in
 
@@ -104,11 +103,8 @@ ENDPROC	tty_in
 ;	AX
 ;
 DEFPROC	tty_read,DOS
-	ASSUME	ES:NOTHING
-	call	read_char
-	jc	tr9
-	call	check_char
-tr9:	ret
+	mov	al,IO_COOKED
+	jmp	read_char
 ENDPROC	tty_read
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -195,41 +191,10 @@ ENDPROC	tty_flush
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; check_char
-;
-; Inputs:
-;	AL = character to check
-;
-; Outputs:
-;	Carry clear; if CTRLC is detected, this function does not return
-;
-; Modifies:
-;	None
-;
-DEFPROC	check_char,DOS
-	cmp	al,CHR_CTRLC
-	jne	cc9
-	push	bx
-	mov	bx,[scb_active]
-	test	bx,bx
-	jz	cc8
-	DEFLBL	sig_ctrlc,near
-	push	cs
-	pop	ds
-	ASSUME	DS:DOS
-	ASSERT_STRUC [bx],SCB
-	jmp	msc_sigctrlc
-cc8:	pop	bx
-cc9:	clc
-	ret
-ENDPROC	check_char
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; read_char
 ;
 ; Inputs:
-;	None
+;	AL = IO_RAW or IO_COOKED
 ;
 ; Outputs:
 ;	AL = character
@@ -245,17 +210,19 @@ DEFPROC	read_char,DOS
 	push	si
 	push	di
 	push	es
+	push	ax
 	mov	bx,STDIN
 	call	get_sfb			; BX -> SFB
 	jc	rc9
+	pop	ax
 	push	ax
 	mov	dx,sp
 	push	ss
 	pop	es			; ES:DX -> AX on stack
 	mov	cx,1			; request one character from STDIN
 	call	sfb_read
-	pop	ax			; AX = character
-rc9:	pop	es
+rc9:	pop	ax			; AX = character
+	pop	es
 	ASSUME	ES:NOTHING
 	pop	di
 	pop	si
@@ -315,17 +282,7 @@ DEFPROC	write_string,DOS
 	ASSUME	DS:NOTHING, ES:NOTHING
 	jcxz	ws8
 	push	bx
-	mov	bx,[scb_active]
-	test	bx,bx
-	jz	ws1
-	cmp	cs:[bx].SCB_CTRLC_ACT,0
-	je	ws1
-	push	ds
-	push	cs
-	pop	ds
-	call	tty_read		; read the CTRLC
-	pop	ds
-ws1:	push	cx
+	push	cx
 	push	dx
 	push	si
 	push	di
@@ -339,6 +296,7 @@ ws1:	push	cx
 	pop	ds
 	ASSUME	DS:NOTHING
 	jc	ws6
+	mov	al,IO_COOKED
 	call	sfb_write
 	jmp	short ws7
 ws6:	lodsb				; no valid SFB

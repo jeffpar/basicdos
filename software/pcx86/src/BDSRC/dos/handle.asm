@@ -11,8 +11,9 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<bpb_table,sfb_table>,dword
+	EXTERNS	<msc_sigctrlc,msc_sigctrlc_read>,near
 	EXTERNS	<scb_active,psp_active>,word
+	EXTERNS	<bpb_table,sfb_table>,dword
 	EXTERNS	<file_name>,byte
 	EXTERNS	<VALID_CHARS>,byte
 	EXTERNS	<VALID_COUNT>,abs
@@ -88,6 +89,7 @@ DEFPROC	hdl_read,DOS
 	mov	cx,[bp].REG_CX		; CX = byte count
 	mov	es,[bp].REG_DS
 	mov	dx,[bp].REG_DX		; ES:DX -> data buffer
+	mov	al,IO_COOKED
 	call	sfb_read
 hr8:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
 hr9:	ret
@@ -114,6 +116,7 @@ DEFPROC	hdl_write,DOS
 	mov	si,[bp].REG_DX
 	mov	ds,[bp].REG_DS		; DS:SI = data to write
 	ASSUME	DS:NOTHING
+	mov	al,IO_COOKED
 	call	sfb_write
 	jnc	hw9
 hw8:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
@@ -277,6 +280,7 @@ ENDPROC	sfb_open
 ; sfb_read
 ;
 ; Inputs:
+;	AL = I/O mode
 ;	BX -> SFB
 ;	CX = byte count
 ;	ES:DX -> data buffer
@@ -290,15 +294,15 @@ ENDPROC	sfb_open
 ;
 DEFPROC	sfb_read,DOS
 	ASSUMES	<DS,DOS>,<ES,NOTHING>
-	mov	al,[bx].SFB_DRIVE
-	test	al,al
+	mov	ah,[bx].SFB_DRIVE
+	test	ah,ah
 	jge	sr0
 	jmp	sr8			; character device
 
 sr0:	mov	[bp].TMP_AX,0		; use TMP_AX to accumulate bytes read
 	mov	[bp].TMP_ES,es
 	mov	[bp].TMP_DX,dx
-	xchg	dx,ax			; DL = drive #
+	mov	dl,ah			; DL = drive #
 	call	get_bpb			; DI -> BPB if no error
 	jc	sr3a
 ;
@@ -401,15 +405,31 @@ sr4:	sub	cx,dx			; have we exhausted the read count yet?
 
 sr8:	push	ds
 	push	es
-	mov	ax,DDC_READ SHL 8
+
+	mov	ah,DDC_READ
 	push	es
 	mov	si,dx
 	les	di,[bx].SFB_DEVICE
 	mov	dx,[bx].SFB_CONTEXT
 	pop	ds
 	ASSUME	DS:NOTHING		; DS:SI -> data buffer (from ES:DX)
+	push	ax			; AL = I/O mode
 	call	dev_request		; issue the DDC_READ request
-	pop	es
+	pop	dx			; DL = I/O mode
+	jc	sr8a
+;
+; If the driver is a STDIN device, and the I/O request was not "raw", then
+; we need to check the returned data for CTRLC and signal it appropriately.
+;
+	test	es:[di].DDH_ATTR,DDATTR_STDIN
+	jz	sr8a
+	cmp	dl,IO_RAW
+	je	sr8a
+	cmp	byte ptr [si],CHR_CTRLC
+	jne	sr8a
+	jmp	msc_sigctrlc
+
+sr8a:	pop	es
 	pop	ds
 	ASSUME	DS:DOS
 sr9:	ret
@@ -458,6 +478,7 @@ ENDPROC	sfb_seek
 ; sfb_write
 ;
 ; Inputs:
+;	AL = I/O mode
 ;	BX -> SFB
 ;	CX = byte count
 ;	DS:SI -> data buffer
@@ -472,13 +493,32 @@ ENDPROC	sfb_seek
 DEFPROC	sfb_write,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	cmp	cs:[bx].SFB_DRIVE,0
-	jl	sw8
+	jl	sw7
 	stc				; no writes to block devices (yet)
 	jmp	short sw9
-sw8:	mov	ax,DDC_WRITE SHL 8
+
+sw7:	mov	ah,DDC_WRITE
 	les	di,cs:[bx].SFB_DEVICE
 	mov	dx,cs:[bx].SFB_CONTEXT
-	call	dev_request		; issue the DDC_WRITE request
+;
+; If the driver is a STDOUT device, and the I/O request was not "raw", then
+; we need to check for a CTRLC signal.
+;
+	test	es:[di].DDH_ATTR,DDATTR_STDOUT
+	jz	sw8
+	cmp	dl,IO_RAW
+	je	sw8
+	mov	bx,cs:[scb_active]
+	test	bx,bx
+	jz	sw8
+	cmp	cs:[bx].SCB_CTRLC_ACT,0
+	je	sw8
+	push	cs
+	pop	ds
+	jmp	msc_sigctrlc_read
+
+sw8:	call	dev_request		; issue the DDC_WRITE request
+
 sw9:	ret
 ENDPROC	sfb_write
 
@@ -601,6 +641,9 @@ DEFPROC	chk_filename,DOS
 ;
 	push	bx
 	mov	bx,[scb_active]
+
+;	ASSERT_STRUC [bx],SCB		; TODO: always have an scb_active
+
 	mov	dl,es:[bx].SCB_CURDRV	; DL = default drive number
 	mov	dh,8			; DH is current file_name limit
 	sub	bx,bx			; BL is current file_name position

@@ -11,7 +11,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<mcb_head,mcb_limit>,word
+	EXTERNS	<mcb_head,mcb_limit,scb_active>,word
 	EXTERNS	<bpb_table,scb_table,sfb_table,clk_ptr>,dword
 	EXTERNS	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>,near
 	EXTERNS	<dos_term,dos_func,dos_exret,dos_ctrlc,dos_error,dos_default>,near
@@ -261,9 +261,16 @@ si7:	mov	dx,size SFB
 	mov	es,[dos_seg]		; mcb_head is in resident DOS segment
 	ASSUME	ES:DOS
 	mov	es:[mcb_head],bx
-
-	mov	bx,es:[scb_table].off
+;
+; The first SCB isn't ready yet, but we need to set scb_active so that
+; we can safely make DOS calls.
+;
+	mov	bx,es:[scb_table].OFF
 	or	es:[bx].SCB_STATUS,SCSTAT_INIT
+
+	; mov	es:[scb_active],bx	; TODO: always have an scb_active
+	; INIT_STRUC es:[bx],SCB
+
 ;
 ; Before we create any sessions (and our first PSPs), we need to open all the
 ; devices required for the 5 STD handles.  And we open AUX first, purely for
