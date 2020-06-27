@@ -12,6 +12,7 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<scb_active>,word
+	EXTERNS	<scb_table>,dword
 	EXTERNS	<clk_ptr>,dword
 	EXTERNS	<chk_devname,dev_request,write_string>,near
 	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload,scb_yield>,near
@@ -298,22 +299,15 @@ DEFPROC	utl_printf,DOS
 	mov	cx,BUFLEN		; CX = length
 	mov	di,sp			; ES:DI -> buffer on stack
 	call	sprintf
-;
-; I used to call write_string, which is more efficient, but unfortunately,
-; that treats the entire printf call as a "utility" operation, which isn't
-; subject to CTRLC processing.  So it's better to issue an INT 21h here.
-; Yes, it's a nested INT 21h, but this is BASIC-DOS; embrace the reentrancy!
-;
-	mov	dx,sp
+	mov	si,sp
 	push	ss
-	pop	ds			; DS:DX -> buffer on stack
+	pop	ds			; DS:SI -> buffer on stack
 	ASSUME	DS:NOTHING
 	xchg	cx,ax			; CX = # of characters
-	mov	bx,STDOUT
-	mov	ah,DOS_HDL_WRITE
-	int	21h
+	call	write_string
 	add	sp,BUFLEN + offset SPF_CALLS
 	mov	[bp].REG_AX,cx		; update REG_AX with count in CX
+	add	[bp].REG_IP,bx		; update REG_IP with length in BX
 	ret
 ENDPROC	utl_printf endp
 
@@ -356,6 +350,7 @@ DEFPROC	utl_sprintf,DOS
 	call	sprintf
 	add	sp,offset SPF_CALLS
 	mov	[bp].REG_AX,ax		; update REG_AX
+	add	[bp].REG_IP,bx		; update REG_IP with length in BX
 	ret
 ENDPROC	utl_sprintf
 
@@ -539,7 +534,6 @@ pfs5:	xchg	cx,ax
 
 pf8:	pop	ax			; restore original format string address
 	sub	bx,ax			; BX = length of format string + 1
-	add	[bp+size SPF_FRAME].REG_IP,bx
 	sub	di,[bp].SPF_START
 	xchg	ax,di			; AX = # of characters
 	add	bp,size SPF_FRAME
@@ -756,7 +750,11 @@ ENDPROC	utl_endwait
 ; utl_hotkey (AX = 180Fh)
 ;
 ; Inputs:
+;	REG_CX = CONSOLE context
 ;	REG_DL = char code, REG_DH = scan code
+;
+; Outputs:
+;	Carry clear if successful, set if unprocessed
 ;
 ; Modifies:
 ;	AX
@@ -764,16 +762,28 @@ ENDPROC	utl_endwait
 DEFPROC	utl_hotkey,DOS
 	sti
 	xchg	ax,dx			; AL = char code, AH = scan code
-	mov	bx,[scb_active]
-	test	bx,bx			; it's possible the CON driver could
-	jz	hk9			; issue this before any SCBs are ready
-	ASSERT_STRUC [bx],SCB
-	cmp	al,CHR_CTRLC
-	jne	hk1
+	and	[bp].REG_FL,NOT FL_CARRY
+;
+; Find the SCB with the matching context; that's the one with focus.
+;
+	mov	bx,[scb_table].OFF
+hk1:	cmp	[bx].SCB_CONTEXT,cx
+	je	hk2
+	add	bx,size SCB
+	cmp	bx,[scb_table].SEG
+	jb	hk1
+	stc
+	jmp	short hk9
+
+hk2:	cmp	al,CHR_CTRLC
+	jne	hk3
 	or	[bx].SCB_CTRLC_ACT,1
-hk1:	cmp	al,CHR_CTRLP
+
+hk3:	cmp	al,CHR_CTRLP
+	clc
 	jne	hk9
 	xor	[bx].SCB_CTRLP_ACT,1
+
 hk9:	ret
 ENDPROC	utl_hotkey
 

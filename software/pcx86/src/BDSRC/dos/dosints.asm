@@ -317,10 +317,11 @@ ENDPROC	dos_call5
 ;	None
 ;
 ; Outputs:
-; 	None
+; 	Carry clear (DOS interrupt processing enabled)
 ;
 DEFPROC	dos_ddint_enter,DOSFAR
 	inc	[ddint_level]
+	clc
 	ret
 ENDPROC	dos_ddint_enter
 

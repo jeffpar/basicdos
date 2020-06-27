@@ -158,7 +158,7 @@ ENDPROC	hdl_seek
 ;	DS:SI -> name of device/file
 ;
 ; Outputs:
-;	On success, BX -> SFB, carry clear
+;	On success, BX -> SFB, DX = context (if any), carry clear
 ;	On failure, AX = error code, carry set
 ;
 ; Modifies:
@@ -1061,19 +1061,19 @@ ENDPROC	get_sfb
 DEFPROC	get_pft_free,DOS
 	mov	di,[psp_active]		; get the current PSP
 	test	di,di			; if we're called by sysinit
-	jz	gj9			; there may be no valid PSP yet
+	jz	gp9			; there may be no valid PSP yet
 	mov	es,di
 	ASSUME	ES:NOTHING		; find a free handle entry
 	mov	al,SFH_NONE		; AL = 0FFh (indicates unused entry)
 	mov	cx,size PSP_PFT
 	mov	di,offset PSP_PFT
 	repne	scasb
-	jne	gj8			; if no entry, return error w/carry set
+	jne	gp8			; if no entry, return error w/carry set
 	dec	di			; rewind to entry
-	jmp	short gj9
-gj8:	mov	ax,ERR_MAXFILES
+	jmp	short gp9
+gp8:	mov	ax,ERR_MAXFILES
 	stc
-gj9:	ret
+gp9:	ret
 ENDPROC	get_pft_free
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1101,12 +1101,14 @@ DEFPROC	set_pft_free,DOS
 	mov	cl,size SFB
 	div	cl			; AL = SFB # (from SFB address)
 	ASSERTZ	<test ah,ah>		; assert that the remainder is zero
-	test	di,0FFF0h		; did we find a free PFT entry?
-	jz	sj9			; no
-	stosb				; yes, store SFB # in the PFT entry
+	test	di,di			; did we find a free PFT entry?
+	jnz	sp8			; yes
+	mov	[bp].REG_DX,dx		; no, return context in REG_DX
+	jmp	short sp9		; and return the SFB # in REG_AX
+sp8:	stosb				; yes, store SFB # in the PFT entry
 	sub	di,offset PSP_PFT + 1	; convert PFT entry into PFH
 	xchg	ax,di			; AX = handle
-sj9:	ret
+sp9:	ret
 ENDPROC	set_pft_free
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -375,8 +375,12 @@ DEFPROC	ddcon_interrupt,far
 	call	far ptr DDINT_ENTER
 	pushf
 	call	[kbd_int]
-	push	ax
+	jnc	ddi0			; carry set if DOS isn't ready
+	jmp	short ddi9x
+
+ddi0:	push	ax
 	push	bx
+	push	cx
 	push	dx
 	push	di
 	push	ds
@@ -388,6 +392,7 @@ DEFPROC	ddcon_interrupt,far
 	sti
 	call	check_hotkey
 	jc	ddi1
+	mov	cx,[ct_focus]		; CX = context
 	xchg	dx,ax			; DL = char code, DH = scan code
 	mov	ax,DOS_UTL_HOTKEY	; notify DOS
 	int	21h
@@ -452,9 +457,10 @@ ddi9:	pop	es
 	pop	ds
 	pop	di
 	pop	dx
+	pop	cx
 	pop	bx
 	pop	ax
-	jmp	far ptr DDINT_LEAVE
+ddi9x:	jmp	far ptr DDINT_LEAVE
 ENDPROC	ddcon_interrupt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

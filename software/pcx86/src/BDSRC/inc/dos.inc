@@ -170,9 +170,11 @@ SCB_EXRET	dd	?	; 10h: current EXRET handler
 SCB_CTRLC	dd	?	; 14h: current CTRLC handler
 SCB_ERROR	dd	?	; 18h: current ERROR handler
 SCB_DTA		dd	?	; 1Ch: current DTA (Disk Transfer Address)
-SCB_CTRLC_ALL	db	?	; 20h: 1 if CTRLC checking enabled on all calls
-SCB_CTRLC_ACT	db	?	; 21h: 1 if CTRLC active
-SCB_CTRLP_ACT	db	?	; 22h: 1 if CTRLP active
+SCB_CONTEXT	dw	?	; 20h: CONSOLE context (from device driver)
+SCB_CTRLC_ALL	db	?	; 22h: 1 if CTRLC checking enabled on all calls
+SCB_CTRLC_ACT	db	?	; 23h: 1 if CTRLC active
+SCB_CTRLP_ACT	db	?	; 24h: 1 if CTRLP active
+SCB_PADDING	db	?
 SCB		ends
 
 SCBSIG		equ	'S'

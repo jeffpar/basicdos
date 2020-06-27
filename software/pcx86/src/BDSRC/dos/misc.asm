@@ -96,7 +96,7 @@ ENDPROC	msc_setctrlc
 ;	Any; this function does not return directly to the caller
 ;
 DEFPROC	msc_sigctrlc,DOSFAR
-	ASSUME	DS:DOS, ES:DOS
+	ASSUME	DS:DOS, ES:NOTHING
 	mov	[bx].SCB_CTRLC_ACT,0
 
 	mov	cx,4
@@ -132,7 +132,6 @@ DEFPROC	msc_sigctrlc,DOSFAR
 	pop	bp
 	pop	di
 	pop	es
-	ASSUME	ES:NOTHING
 	pop	si
 	pop	ds
 	ASSUME	DS:NOTHING

@@ -201,7 +201,7 @@ ENDPROC	tty_flush
 ;	AL = character to check
 ;
 ; Outputs:
-;	None; if CTRLC is detected, this function does not return
+;	Carry clear; if CTRLC is detected, this function does not return
 ;
 ; Modifies:
 ;	None
@@ -209,10 +209,17 @@ ENDPROC	tty_flush
 DEFPROC	check_char,DOS
 	cmp	al,CHR_CTRLC
 	jne	cc9
+	push	bx
 	mov	bx,[scb_active]
+	test	bx,bx
+	jz	cc8
 	DEFLBL	sig_ctrlc,near
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
 	ASSERT_STRUC [bx],SCB
 	jmp	msc_sigctrlc
+cc8:	pop	bx
 cc9:	clc
 	ret
 ENDPROC	check_char
@@ -272,10 +279,6 @@ ENDPROC	read_char
 ;	None
 ;
 DEFPROC	write_char,DOS
-	push	bx
-	mov	bx,[scb_active]
-	cmp	[bx].SCB_CTRLC_ACT,0
-	jne	sig_ctrlc		; signal CTRLC
 	push	cx
 	push	si
 	push	ds
@@ -291,7 +294,6 @@ DEFPROC	write_char,DOS
 	ASSUME	DS:DOS
 	pop	si
 	pop	cx
-	pop	bx
 	ret
 ENDPROC	write_char
 
@@ -313,7 +315,17 @@ DEFPROC	write_string,DOS
 	ASSUME	DS:NOTHING, ES:NOTHING
 	jcxz	ws8
 	push	bx
-	push	cx
+	mov	bx,[scb_active]
+	test	bx,bx
+	jz	ws1
+	cmp	cs:[bx].SCB_CTRLC_ACT,0
+	je	ws1
+	push	ds
+	push	cs
+	pop	ds
+	call	tty_read		; read the CTRLC
+	pop	ds
+ws1:	push	cx
 	push	dx
 	push	si
 	push	di
