@@ -80,7 +80,7 @@ ENDPROC	tty_io
 ;	None
 ;
 ; Outputs:
-;	AL = character from console
+;	AL = character from console; no CTRLC checking is performed
 ;
 ; Modifies:
 ;	AX
@@ -237,19 +237,13 @@ DEFPROC	read_char,DOS
 	mov	bx,STDIN
 	call	get_sfb			; BX -> SFB
 	jc	rc9
-	push	[bp].REG_DS
-	push	[bp].REG_DX
 	push	ax
-	mov	[bp].REG_DS,ss
-	mov	[bp].REG_DX,sp		; REG_DS:REG_DX -> AX on stack
+	mov	dx,sp
+	push	ss
+	pop	es			; ES:DX -> AX on stack
 	mov	cx,1			; request one character from STDIN
-	push	ds
-	pop	es
-	ASSUME	ES:DOS
 	call	sfb_read
-	pop	ax
-	pop	[bp].REG_DX
-	pop	[bp].REG_DS
+	pop	ax			; AX = character
 rc9:	pop	es
 	ASSUME	ES:NOTHING
 	pop	di

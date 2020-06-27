@@ -112,8 +112,13 @@ DEFPROC	msc_sigctrlc,DOSFAR
 	mov	[bp].REG_WS.RET_IP,offset dos_restart
 	mov	bx,[scb_active]
 	ASSERT_STRUC [bx],SCB
-	mov	ax,[bx].SCB_CTRLC.SEG	; use the SCB CTRLC address
-	mov	[bp].REG_WS.JMP_CS,ax	; instead of the IVT CTRLC address
+;
+; At this point, we're effectively simulating an INT 23h, but we're using the
+; SCB CTRLC address rather than the IVT CTRLC address (which should be the
+; same thing, as long as everyone uses DOS_MSC_SETVEC to set vector addresses).
+;
+	mov	ax,[bx].SCB_CTRLC.SEG
+	mov	[bp].REG_WS.JMP_CS,ax
 	mov	ax,[bx].SCB_CTRLC.OFF
 	mov	[bp].REG_WS.JMP_IP,ax
 

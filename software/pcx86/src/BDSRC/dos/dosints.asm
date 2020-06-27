@@ -108,7 +108,7 @@ ENDPROC dos_restart
 ;
 DEFPROC	dos_func,DOSFAR
 	cld				; we assume CLD everywhere
-	sub	sp,size WS_FRAME
+	sub	sp,size WS_TEMP
 	push	ax			; order of pushes must match REG_FRAME
 
 	DEFLBL	dos_enter,near
@@ -193,7 +193,7 @@ dc9:	adc	[bp].REG_FL,0
 	pop	cx
 	pop	bx
 	pop	ax
-	add	sp,size WS_FRAME
+	add	sp,size WS_TEMP
 	iret
 ENDPROC	dos_func
 
@@ -212,11 +212,13 @@ ENDPROC	dos_exret
 ; TODO (for now, our default behavior, unlike DOS, is to NOT terminate)
 ;
 DEFPROC	dos_ctrlc,DOSFAR
+	push	ax
 	mov	ah,DOS_DSK_RESET
 	int	21h
+	pop	ax
+	iret
 	; stc
 	; ret	2
-	iret
 ENDPROC	dos_ctrlc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -331,7 +333,7 @@ DEFPROC	dos_ddint_leave,DOSFAR
 ; If both Z and C are set, then enter DOS to perform a reschedule.
 ;
 	cld
-	sub	sp,size WS_FRAME
+	sub	sp,size WS_TEMP
 	push	ax
 	mov	ax,DOS_UTL_YIELD
 	jmp	dos_enter

@@ -136,10 +136,32 @@ DEFPROC	utl_itoa,DOS
 	xchg	ax,si			; DX:AX is now the value
 	mov	es,[bp].REG_ES		; ES:DI -> buffer
 	ASSUME	ES:NOTHING
+	call	itoa
+	mov	[bp].REG_AX,ax		; update REG_AX
+	ret
+ENDPROC	utl_itoa
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; itoa internal calls use DX:AX
+; itoa
 ;
-	DEFLBL	itoa,near		; for internal calls (no REG_FRAME)
+; Inputs:
+;	DX:AX = value
+;	BL = base
+;	BH = flags (see PF_*)
+;	CX = length (minimum; 0 for none)
+;	ES:DI -> buffer
+;
+; Outputs:
+;	AL = # of digits written to buffer
+;
+; Modifies:
+;	AX, CX, DX, ES
+;
+; Notes:
+; 	When called from sprintf, BP does NOT point to REG_FRAME
+;
+DEFPROC	itoa
 	push	bp
 	push	si
 	push	di
@@ -233,9 +255,8 @@ ia9:	stosb				; store the digit
 	pop	bp
 	sub	di,ax			; current - original address
 	xchg	ax,di			; DI restored, AX is the digit count
-	mov	[bp].REG_AX,ax		; update REG_AX
 	ret
-ENDPROC utl_itoa
+ENDPROC itoa
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -288,14 +309,12 @@ DEFPROC	utl_printf,DOS
 	push	ss
 	pop	ds			; DS:DX -> buffer on stack
 	ASSUME	DS:NOTHING
-	push	ax
 	xchg	cx,ax			; CX = # of characters
 	mov	bx,STDOUT
 	mov	ah,DOS_HDL_WRITE
 	int	21h
-	pop	ax			; recover # of characters for caller
 	add	sp,BUFLEN + offset SPF_CALLS
-	mov	[bp].REG_AX,ax		; update REG_AX
+	mov	[bp].REG_AX,cx		; update REG_AX with count in CX
 	ret
 ENDPROC	utl_printf endp
 
@@ -441,8 +460,8 @@ pfpz:	mov	bx,dx			; error, didn't end with known letter
 ; buffer limit to itoa, so that it can guarantee the buffer never overflows.
 ;
 ; Another option would be to pass the minimum in CL and the maxiumum (LIMIT-DI)
-; in CH; that would make it possible for utl_itoa to perform bounds checking,
-; too, but actually implementing that checking would be rather messy.
+; in CH; that would make it possible for itoa to perform bounds checking, too,
+; but actually implementing that checking would be rather messy.
 ;
 pfd:	mov	ax,[bp].SPF_WIDTH
 	add	ax,di

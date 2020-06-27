@@ -101,13 +101,21 @@ ELSE
 REG_CHECK	equ	1	; add a DEBUG marker before REG_FRAME
 ENDIF
 
-WS_FRAME	struc		; workspace (eg, for CTRLC dispatching)
+WS_CTRLC	struc		; REG_WS workspace when used for CTRLC
 JMP_IP		dw	?	; 00h
 JMP_CS		dw	?	; 02h
 RET_IP		dw	?	; 04h
 RET_CS		dw	?	; 06h
 RET_FL		dw	?	; 08h
-WS_FRAME	ends
+WS_CTRLC	ends
+
+WS_TEMP		struc		; REG_WS workspace when used as temp registers
+TMP_AX		dw	?	; 00h
+TMP_BX		dw	?	; 02h
+TMP_CX		dw	?	; 04h
+TMP_DX		dw	?	; 06h
+TMP_ES		dw	?	; 08h
+WS_TEMP		ends
 
 REG_FRAME	struc		; register frame created by dos_func
 REG_BP		dw	?	; 00h
@@ -119,7 +127,7 @@ REG_DX		dw	?	; 0Ah
 REG_CX		dw	?	; 0Ch
 REG_BX		dw	?	; 0Eh
 REG_AX		dw	?	; 10h
-REG_WS		dw (size WS_FRAME) SHR 1 dup (?)
+REG_WS		dw (size WS_TEMP) SHR 1 dup (?)
 REG_IP		dw	?	; 1Ch
 REG_CS		dw	?	; 1Eh
 REG_FL		dw	?	; 20h
