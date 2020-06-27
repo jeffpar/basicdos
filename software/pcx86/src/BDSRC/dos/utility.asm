@@ -11,7 +11,6 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<ctrlc_active,ctrlp_active>,byte
 	EXTERNS	<scb_active>,word
 	EXTERNS	<clk_ptr>,dword
 	EXTERNS	<chk_devname,dev_request,write_string>,near
@@ -765,13 +764,17 @@ ENDPROC	utl_endwait
 DEFPROC	utl_hotkey,DOS
 	sti
 	xchg	ax,dx			; AL = char code, AH = scan code
+	mov	bx,[scb_active]
+	test	bx,bx			; it's possible the CON driver could
+	jz	hk9			; issue this before any SCBs are ready
+	ASSERT_STRUC [bx],SCB
 	cmp	al,CHR_CTRLC
 	jne	hk1
-	or	[ctrlc_active],-1
+	or	[bx].SCB_CTRLC_ACT,1
 hk1:	cmp	al,CHR_CTRLP
-	jne	hk2
-	xor	[ctrlp_active],-1
-hk2:	ret
+	jne	hk9
+	xor	[bx].SCB_CTRLP_ACT,1
+hk9:	ret
 ENDPROC	utl_hotkey
 
 DOS	ends

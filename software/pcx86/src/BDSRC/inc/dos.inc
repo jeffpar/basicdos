@@ -147,7 +147,7 @@ REG_DH		equ 	(REG_DX.HI)
 ;
 ; SIDEBAR: To miminize the amount of per-process information in the IVT,
 ; we'll pretend all the apps we care about are well-behaved, which means if
-; they want to set any of the ABORT/CTRLC/ERROR handlers, they'll use the
+; they want to set any of the EXRET/CTRLC/ERROR handlers, they'll use the
 ; DOS_SET_VECTOR function, which will update the SCB vectors below, rather
 ; than the actual IVT vectors.
 ;
@@ -170,6 +170,9 @@ SCB_EXRET	dd	?	; 10h: current EXRET handler
 SCB_CTRLC	dd	?	; 14h: current CTRLC handler
 SCB_ERROR	dd	?	; 18h: current ERROR handler
 SCB_DTA		dd	?	; 1Ch: current DTA (Disk Transfer Address)
+SCB_CTRLC_ALL	db	?	; 20h: 1 if CTRLC checking enabled on all calls
+SCB_CTRLC_ACT	db	?	; 21h: 1 if CTRLC active
+SCB_CTRLP_ACT	db	?	; 22h: 1 if CTRLP active
 SCB		ends
 
 SCBSIG		equ	'S'

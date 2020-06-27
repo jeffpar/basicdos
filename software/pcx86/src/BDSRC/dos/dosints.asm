@@ -13,8 +13,13 @@ DOS	segment word public 'CODE'
 
 	EXTERNS	<FUNCTBL>,word
 	EXTERNS	<FUNCTBL_SIZE,UTILTBL_SIZE>,abs
-	EXTERNS	<ctrlc_all,ctrlc_active,ddint_level>,byte
+	EXTERNS	<scb_active>,word
+	EXTERNS	<ddint_level>,byte
 	EXTERNS	<msc_sigctrlc>,near
+
+	IFDEF DEBUG
+	DEFBYTE	asserts,-1	; prevent nested asserts from blowing the stack
+	ENDIF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -40,8 +45,13 @@ ENDPROC	dos_dverr
 ; the INT 01h vector with its own handler.
 ;
 DEFPROC	dos_sstep,DOSFAR
+	IFDEF DEBUG
+	inc	[asserts]
+	jnz	ss1
 	PRINTF	<"assert @%08lx",13,10>
+ss1:	dec	[asserts]
 	int 3
+	ENDIF
 	iret
 ENDPROC	dos_sstep
 
@@ -143,6 +153,7 @@ DEFPROC	dos_func,DOSFAR
 	mov	ah,FUNCTBL_SIZE		; the utility function table
 	add	ah,al			; follows the DOS function table
 	jmp	short dc2
+dc0:	jmp	msc_sigctrlc
 
 dc1:	sti
 	and	[bp].REG_FL,NOT FL_CARRY
@@ -150,12 +161,13 @@ dc1:	sti
 	cmp	ah,FUNCTBL_SIZE
 	cmc
 	jb	dc9
-
-	test	[ctrlc_active],-1	; has CTRLC been detected?
-	jz	dc2			; no
-	test	[ctrlc_all],-1		; checking enabled for all functions?
-	jz	dc2			; no
-	jmp	msc_sigctrlc		; signal CTRLC
+;
+; If CTRLC checking is enabled for all (non-utility) functions and a CTRLC
+; was detected (two conditions that we check with a single compare), signal it.
+;
+	mov	bx,[scb_active]
+	cmp	word ptr [bx].SCB_CTRLC_ALL,0101h
+	je	dc0			; signal CTRLC
 ;
 ; While we assign DS and ES to the DOS segment on DOS function entry,
 ; we do NOT require or assume they will still be set that way on exit.

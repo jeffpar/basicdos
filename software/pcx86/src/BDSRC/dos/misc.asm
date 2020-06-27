@@ -11,7 +11,6 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<ctrlc_all,ctrlc_active>,byte
 	EXTERNS	<scb_active>,word
 	EXTERNS	<write_string,dos_restart>,near
 	EXTERNS	<STR_CTRLC>,byte
@@ -62,10 +61,12 @@ ENDPROC	msc_setvec
 ;	REG_DL = current state if REG_AL = 1, or 0FFh if REG_AL neither 0 nor 1
 ;
 DEFPROC	msc_setctrlc,DOS
+	mov	bx,[scb_active]
+	ASSERT_STRUC [bx],SCB
 	sub	al,1
 	jae	msc1
-	mov	al,[ctrlc_all]		; AL was 0
-	mov	[bp].REG_DL,al		; so return ctrlc_all in REG_DL
+	mov	al,[bx].SCB_CTRLC_ALL]	; AL was 0
+	mov	[bp].REG_DL,al		; so return CTRLC_ALL in REG_DL
 	clc
 	jmp	short msc9
 msc1:	jnz	msc2			; jump if AL was neither 0 nor 1
@@ -73,7 +74,7 @@ msc1:	jnz	msc2			; jump if AL was neither 0 nor 1
 	sub	al,1			; so convert REG_DL to 0 or 1
 	sbb	al,al
 	inc	ax
-	mov	[ctrlc_all],al
+	mov	[bx].SCB_CTRLC_ALL,al
 	clc
 	jmp	short msc9
 msc2:	mov	al,0FFh
@@ -86,7 +87,7 @@ ENDPROC	msc_setctrlc
 ; msc_sigctrlc
 ;
 ; Inputs:
-;	None
+;	BX -> active SCB
 ;
 ; Outputs:
 ;	None
@@ -96,7 +97,7 @@ ENDPROC	msc_setctrlc
 ;
 DEFPROC	msc_sigctrlc,DOSFAR
 	ASSUME	DS:DOS, ES:DOS
-	mov	[ctrlc_active],0
+	mov	[bx].SCB_CTRLC_ACT,0
 
 	mov	cx,4
 	mov	si,offset STR_CTRLC
@@ -113,9 +114,14 @@ DEFPROC	msc_sigctrlc,DOSFAR
 	mov	bx,[scb_active]
 	ASSERT_STRUC [bx],SCB
 ;
-; At this point, we're effectively simulating an INT 23h, but we're using the
-; SCB CTRLC address rather than the IVT CTRLC address (which should be the
-; same thing, as long as everyone uses DOS_MSC_SETVEC to set vector addresses).
+; At this point, we're effectively issuing an INT 23h (INT_DOSCTRLC), but it
+; has to be simulated, because we're using the SCB CTRLC address rather than the
+; IVT CTRLC address; they should be the same thing, as long as everyone uses
+; DOS_MSC_SETVEC to set vector addresses.
+;
+; As explained in the SCB definition, we do this only because we'd rather not
+; swap IVT vectors on every SCB switch, hence the use of "shadow" vectors inside
+; the SCB.
 ;
 	mov	ax,[bx].SCB_CTRLC.SEG
 	mov	[bp].REG_WS.JMP_CS,ax

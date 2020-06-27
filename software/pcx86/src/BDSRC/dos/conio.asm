@@ -11,6 +11,7 @@
 
 DOS	segment word public 'CODE'
 
+	EXTERNS	<scb_active>,word
 	EXTERNS	<msc_sigctrlc>,near
 	EXTERNS	<strlen,get_sfb,sfb_read,sfb_write>,near
 
@@ -46,7 +47,7 @@ ENDPROC	tty_echo
 ;	REG_DL = character to write
 ;
 ; Outputs:
-;	None
+;	Writes character to console; if CTRLC detected, issues INT_DOSCTRLC
 ;
 ; Modifies:
 ;	AX, SI
@@ -208,6 +209,9 @@ ENDPROC	tty_flush
 DEFPROC	check_char,DOS
 	cmp	al,CHR_CTRLC
 	jne	cc9
+	mov	bx,[scb_active]
+	DEFLBL	sig_ctrlc,near
+	ASSERT_STRUC [bx],SCB
 	jmp	msc_sigctrlc
 cc9:	clc
 	ret
@@ -268,6 +272,10 @@ ENDPROC	read_char
 ;	None
 ;
 DEFPROC	write_char,DOS
+	push	bx
+	mov	bx,[scb_active]
+	cmp	[bx].SCB_CTRLC_ACT,0
+	jne	sig_ctrlc		; signal CTRLC
 	push	cx
 	push	si
 	push	ds
@@ -283,6 +291,7 @@ DEFPROC	write_char,DOS
 	ASSUME	DS:DOS
 	pop	si
 	pop	cx
+	pop	bx
 	ret
 ENDPROC	write_char
 
