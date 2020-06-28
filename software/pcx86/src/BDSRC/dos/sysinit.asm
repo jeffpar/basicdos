@@ -261,16 +261,9 @@ si7:	mov	dx,size SFB
 	mov	es,[dos_seg]		; mcb_head is in resident DOS segment
 	ASSUME	ES:DOS
 	mov	es:[mcb_head],bx
-;
-; The first SCB isn't ready yet, but we need to set scb_active so that
-; we can safely make DOS calls.
-;
+
 	mov	bx,es:[scb_table].OFF
 	or	es:[bx].SCB_STATUS,SCSTAT_INIT
-
-	; mov	es:[scb_active],bx	; TODO: always have an scb_active
-	; INIT_STRUC es:[bx],SCB
-
 ;
 ; Before we create any sessions (and our first PSPs), we need to open all the
 ; devices required for the 5 STD handles.  And we open AUX first, purely for

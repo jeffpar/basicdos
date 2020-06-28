@@ -109,7 +109,7 @@ DEFPROC	msc_sigctrlc,DOSFAR
 	ASSERT_STRUC [bx],SCB
 	cmp	[bx].SCB_CTRLC_ACT,0
 	je	msg1
-	call	tty_read		; remove the CTRLC from the input buffer
+	call	tty_read		; remove CTRLC from the input buffer
 msg0:	mov	[bx].SCB_CTRLC_ACT,0
 
 msg1:	mov	cx,4
@@ -120,6 +120,7 @@ msg1:	mov	cx,4
 ; allowing us to RETF to the CTRLC handler, and allowing the CTRLC handler
 ; to IRET back to us.
 ;
+	int 3
 	mov	ax,[bp].REG_FL		; FL_CARRY is clear in REG_FL
 	mov	[bp].REG_WS.RET_FL,ax
 	mov	[bp].REG_WS.RET_CS,cs

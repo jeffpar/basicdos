@@ -30,16 +30,19 @@ DOS	segment word public 'CODE'
 DEFPROC	psp_term,DOS
 	ASSUME	ES:NOTHING
 	mov	es,[psp_active]
+	mov	ax,es:[PSP_PARENT]
+	test	ax,ax			; if there's no parent
+	jz	pt9			; we can't terminate
 ;
 ; TODO: Close file handles, once psp_create has been updated to make
 ; additional handle references.
 ;
 	push	es:[PSP_EXRET].SEG
 	push	es:[PSP_EXRET].OFF
-	push	es:[PSP_PARENT]
+	push	ax			; save PSP of parent
 	mov	ax,es
 	call	free
-	pop	es
+	pop	es			; ES = PSP of parent
 	pop	ax
 	pop	dx			; we now have PSP_EXRET in DX:AX
 	mov	[psp_active],es
@@ -52,6 +55,7 @@ DEFPROC	psp_term,DOS
 	mov	[bp].REG_CS,dx		; copy PSP_EXRET to caller's CS:IP
 	mov	[bp].REG_IP,ax		; (normally they will be identical)
 	jmp	dos_exit
+pt9:	ret
 ENDPROC	psp_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

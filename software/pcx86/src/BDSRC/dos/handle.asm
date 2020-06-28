@@ -641,9 +641,7 @@ DEFPROC	chk_filename,DOS
 ;
 	push	bx
 	mov	bx,[scb_active]
-
-;	ASSERT_STRUC [bx],SCB		; TODO: always have an scb_active
-
+	ASSERT_STRUC es:[bx],SCB
 	mov	dl,es:[bx].SCB_CURDRV	; DL = default drive number
 	mov	dh,8			; DH is current file_name limit
 	sub	bx,bx			; BL is current file_name position

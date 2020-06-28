@@ -87,6 +87,7 @@ DEFPROC	dos_term,DOSFAR
 	mov	ah,DOS_PSP_TERM
 	int	21h
 	ASSERTNC <stc>			; assert that we never get here
+	jmp	$
 ENDPROC	dos_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -224,16 +225,13 @@ ENDPROC	dos_exret
 ;
 ; dos_ctrlc (INT 23h handler)
 ;
-; TODO (for now, our default behavior, unlike DOS, is to NOT terminate)
-;
 DEFPROC	dos_ctrlc,DOSFAR
 	push	ax
 	mov	ah,DOS_DSK_RESET
 	int	21h
 	pop	ax
-	iret
-	; stc
-	; ret	2
+	stc			; set carry to indicate program termination
+	ret
 ENDPROC	dos_ctrlc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
