@@ -15,31 +15,66 @@ CODE    SEGMENT
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 DEFPROC	main
+
+	LOCVAR	maxDivisor,word,1
+	LOCVAR	maxSquared,word,1
+	LOCVAR	advSquared,word,1
+	ENTER
+
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	mov	dx,offset ctrlc
 	int	21h
-	sub	bp,bp		; BP = # of primes this line
+;
+; One simple rule is that if you haven't found a perfect divisor of a number
+; before reaching the square root of that number, the number must be prime.
+;
+; Since we're working through the dividends incrementally, we can simply
+; increment maxDivisor whenever the next dividend reaches the square of
+; maxDivisor (maxSquared).  And while we could recalculate maxSquared
+; each time maxDivisor changes, each successive square (ie, 9, 16, 25, 36)
+; is just the sum of the previous square and the next odd number (advSquared).
+;
+	mov	[maxDivisor],2
+	mov	[maxSquared],4	; current square of maxDivisor
+	mov	[advSquared],5	; amount to advance maxSquared
+
+	sub	si,si		; SI = # of primes this line
+
 	mov	bx,2		; BX = first dividend
-m1:	mov	cx,2		; CX = first divisor
-m2:	mov	ax,bx
-	cmp	cx,ax		; is divisor too large now?
-	jae	m3		; yes, must be a prime
+
+m1:	mov	cx,3		; CX = first (odd) divisor
+m2:	cmp	cx,[maxDivisor]	; is divisor too large now?
+	jae	m3		; yes, must be prime
+	mov	ax,bx
 	sub	dx,dx
 	div	cx		; AX = quotient, DX = remainder
 	test	dx,dx
 	jz	m4		; no remainder, so AX is not a prime
-	inc	cx
-	jmp	m2		; try next divisor
+	add	cx,2
+	jmp	m2		; try next (odd) divisor
 
-m3:	PRINTF	<"%u ">,ax
-	inc	bp
-	cmp	bp,5
+m3:	PRINTF	<"%u ">,bx
+	inc	si
+	cmp	si,5
 	jb	m4
 	PRINTF	<13,10>
-	sub	bp,bp
+	sub	si,si
 
 m4:	inc	bx		; BX = next dividend
+	jz	m9		; wrapped around to zero, all done
+	or	bx,1		; bump it to odd if it isn't odd already
+
+m5:	cmp	bx,[maxSquared]	; dividend below square of max divisor?
+	jb	m1		; yes
+	inc	[maxDivisor]
+	mov	ax,[advSquared]
+	add	[maxSquared],ax	; this wraps around, but so does the dividend
+	add	ax,2
+	mov	[advSquared],ax
 	jmp	m1
+
+m9:	LEAVE
+	ret
 ENDPROC	main
 
 DEFPROC	ctrlc,FAR

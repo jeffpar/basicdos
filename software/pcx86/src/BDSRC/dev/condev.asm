@@ -1097,12 +1097,14 @@ ddn1:	mov	[frame_seg],dx
 ; Install an INT 09h hardware interrupt handler, which we will use to detect
 ; keys added to the BIOS keyboard buffer.
 ;
+	cli
 	mov	ax,offset ddcon_interrupt
 	xchg	ds:[INT_HW_KBD * 4].OFF,ax
 	mov	[kbd_int].OFF,ax
 	mov	ax,cs
 	xchg	ds:[INT_HW_KBD * 4].SEG,ax
 	mov	[kbd_int].SEG,ax
+	sti
 ;
 ; Install an INT 29h ("FAST PUTCHAR") handler; I think traditionally DOS
 ; installed its own handler, but that's really our responsibility, especially
