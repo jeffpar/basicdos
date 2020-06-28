@@ -120,7 +120,6 @@ msg1:	mov	cx,4
 ; allowing us to RETF to the CTRLC handler, and allowing the CTRLC handler
 ; to IRET back to us.
 ;
-	int 3
 	mov	ax,[bp].REG_FL		; FL_CARRY is clear in REG_FL
 	mov	[bp].REG_WS.RET_FL,ax
 	mov	[bp].REG_WS.RET_CS,cs

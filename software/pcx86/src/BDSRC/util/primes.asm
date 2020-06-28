@@ -15,6 +15,9 @@ CODE    SEGMENT
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 DEFPROC	main
+	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
+	mov	dx,offset ctrlc
+	int	21h
 	sub	bp,bp		; BP = # of primes this line
 	mov	bx,2		; BX = first dividend
 m1:	mov	cx,2		; CX = first divisor
@@ -38,6 +41,12 @@ m3:	PRINTF	<"%u ">,ax
 m4:	inc	bx		; BX = next dividend
 	jmp	m1
 ENDPROC	main
+
+DEFPROC	ctrlc,FAR
+	PRINTF	<"CTRL-C detected, aborting...",13,10>
+	stc
+	ret
+ENDPROC	ctrlc
 
 ;
 ; COMHEAP 0 means we don't need a heap, but the system will still allocate

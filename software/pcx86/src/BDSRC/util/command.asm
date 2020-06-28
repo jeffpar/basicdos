@@ -40,7 +40,9 @@ m1:	PRINTF	">"
 ENDPROC	main
 
 DEFPROC	ctrlc,FAR
+	push	ax
 	PRINTF	<"CTRL-C intercepted",13,10>
+	pop	ax
 	iret
 ENDPROC	ctrlc
 

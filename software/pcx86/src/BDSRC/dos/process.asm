@@ -12,7 +12,7 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<mcb_limit,scb_active,psp_active>,word
-	EXTERNS	<free,get_scbnum,dos_exit>,near
+	EXTERNS	<free,get_scbnum,dos_exit,dos_ctrlc,dos_error>,near
 	IF REG_CHECK
 	EXTERNS	<dos_check>,near
 	ENDIF
@@ -28,21 +28,36 @@ DOS	segment word public 'CODE'
 ;	None
 ;
 DEFPROC	psp_term,DOS
-	ASSUME	ES:NOTHING
 	mov	es,[psp_active]
-	mov	ax,es:[PSP_PARENT]
-	test	ax,ax			; if there's no parent
-	jz	pt9			; we can't terminate
+	ASSUME	ES:NOTHING
 ;
 ; TODO: Close file handles, once psp_create has been updated to make
 ; additional handle references.
 ;
-	push	es:[PSP_EXRET].SEG
+; Restore the SCB's CTRLC and ERROR handlers from the values in the PSP.
+;
+	mov	bx,[scb_active]
+	push	es:[PSP_EXRET].SEG	; push PSP_EXRET (exec return address)
 	push	es:[PSP_EXRET].OFF
-	push	ax			; save PSP of parent
+
+	mov	ax,es:[PSP_CTRLC].OFF	; brute-force restoration
+	mov	[bx].SCB_CTRLC.OFF,ax	; of CTRLC and ERROR handlers
+	mov	ax,es:[PSP_CTRLC].SEG
+	mov	[bx].SCB_CTRLC.SEG,ax
+
+	mov	ax,es:[PSP_ERROR].OFF
+	mov	[bx].SCB_ERROR.OFF,ax
+	mov	ax,es:[PSP_ERROR].SEG
+	mov	[bx].SCB_ERROR.SEG,ax
+
+	push	es:[PSP_PARENT]		; save PSP of parent
 	mov	ax,es
-	call	free
-	pop	es			; ES = PSP of parent
+	call	free			; free PSP in AX
+	pop	ax			; restore PSP of parent
+	test	ax,ax
+	ASSERTNZ			; if there's no parent
+	jz	pt9			; we don't have a stack to switch to
+	mov	es,ax			; ES = PSP of parent
 	pop	ax
 	pop	dx			; we now have PSP_EXRET in DX:AX
 	mov	[psp_active],es
@@ -131,17 +146,13 @@ pc3:	sub	ax,256			; AX = max available bytes this segment
 	sub	ax,bx			; basically, compute 000Ch - (BX SHR 4)
 	stosw				; 08h: PSP_FCSEG
 ;
-; Copy current INT 22h (EXRET), INT 23h (CTRLC), and INT 24h (ERROR) vectors.
+; Copy current INT 22h (EXRET), INT 23h (CTRLC), and INT 24h (ERROR) vectors,
+; but copy them from the SCB, not the IVT.
 ;
-	push	ds
-	sub	ax,ax
-	mov	ds,ax
-	ASSUME	DS:BIOS
-	mov	si,22h * 4
+	mov	bx,[scb_active]
+	lea	si,[bx].SCB_EXRET
 	mov	cx,6
 	rep	movsw
-	pop	ds
-	ASSUME	DS:DOS
 
 	mov	ax,[psp_active]		; 16h: PSP_PARENT
 	stosw
@@ -152,7 +163,6 @@ pc3:	sub	ax,256			; AX = max available bytes this segment
 ; and PRN third, so that the SFHs for the first five handles will always be:
 ; 1, 1, 1, 0, and 2.
 ;
-	mov	bx,[scb_active]
 	mov	al,[bx].SCB_SFHCON
 	stosb
 	stosb
@@ -393,13 +403,12 @@ lp5a:	jmp	lp8
 lp6:	ASSERTZ <cmp ax,cx>		; assert bytes read = bytes requested
 	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the file
-lp6a:	jc	lp8a
-
-	mov	bx,cx			; BX = lenth of program file
+lp6a:	jc	lp7a
 ;
 ; Check the word at [BX+100h-2]: if it contains BASICDOS_SIG ("BD"), then
 ; the preceding word must be the program's desired additional memory (in paras).
 ;
+	mov	bx,cx			; BX = lenth of program file
 	mov	dx,MINHEAP SHR 4	; minimum add'l space (1Kb in paras)
 	cmp	word ptr [bx+size PSP-2],BASICDOS_SIG
 	jne	lp7
@@ -418,16 +427,27 @@ lp7:	add	bx,15
 	ASSUME	ES:NOTHING
 	mov	ah,DOS_MEM_REALLOC	; resize the memory block
 	int	21h
-	jc	lp8a			; TODO: try to use a smaller size?
+lp7a:	jc	lp8a			; TODO: try to use a smaller size?
+;
+; Since we're past the point of no return now, let's take care of some
+; initialization outside of the program segment; namely, resetting the CTRLC
+; and ERROR handlers to their default values.  And as always, we set these
+; defaults inside the SCB rather than the IVT.
+;
+	mov	bx,[scb_active]
+	mov	cs:[bx].SCB_CTRLC.OFF,offset dos_ctrlc
+	mov	cs:[bx].SCB_CTRLC.SEG,cs
+	mov	cs:[bx].SCB_ERROR.OFF,offset dos_error
+	mov	cs:[bx].SCB_ERROR.SEG,cs
 ;
 ; Create an initial REG_FRAME at the top of the segment (or the top of
 ; allocated memory, whichever's lower).
 ;
 	mov	di,bx
 	cmp	di,1000h
-	jb	lp7a
+	jb	lp7b
 	mov	di,1000h
-lp7a:	shl	di,cl			; ES:DI -> top of the segment
+lp7b:	shl	di,cl			; ES:DI -> top of the segment
 	dec	di
 	dec	di			; ES:DI -> last word at top of segment
 	std

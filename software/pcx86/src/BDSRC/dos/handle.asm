@@ -506,9 +506,9 @@ sw7:	mov	ah,DDC_WRITE
 ;
 	test	es:[di].DDH_ATTR,DDATTR_STDOUT
 	jz	sw8
-	cmp	dl,IO_RAW
+	cmp	al,IO_RAW
 	je	sw8
-	mov	bx,cs:[scb_active]
+	mov	bx,cs:[scb_active]	; TODO: always have an scb_active
 	test	bx,bx
 	jz	sw8
 	cmp	cs:[bx].SCB_CTRLC_ACT,0
