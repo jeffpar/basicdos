@@ -11,7 +11,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<mcb_head,mcb_limit>,word
+	EXTERNS	<mcb_head,mcb_limit,scb_active>,word
 	EXTERNS	<bpb_table,scb_table,sfb_table,clk_ptr>,dword
 	EXTERNS	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>,near
 	EXTERNS	<dos_term,dos_func,dos_exret,dos_ctrlc,dos_error,dos_default>,near
@@ -262,7 +262,7 @@ si7:	mov	dx,size SFB
 	ASSUME	ES:DOS
 	mov	es:[mcb_head],bx
 
-	mov	bx,es:[scb_table].off
+	mov	bx,es:[scb_table].OFF
 	or	es:[bx].SCB_STATUS,SCSTAT_INIT
 ;
 ; Before we create any sessions (and our first PSPs), we need to open all the

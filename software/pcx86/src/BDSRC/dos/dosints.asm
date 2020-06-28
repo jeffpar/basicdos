@@ -15,7 +15,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<FUNCTBL_SIZE,UTILTBL_SIZE>,abs
 	EXTERNS	<scb_active>,word
 	EXTERNS	<ddint_level>,byte
-	EXTERNS	<msc_sigctrlc>,near
+	EXTERNS	<msc_sigctrlc_read>,near
 
 	IFDEF DEBUG
 	DEFBYTE	asserts,-1	; prevent nested asserts from blowing the stack
@@ -87,6 +87,7 @@ DEFPROC	dos_term,DOSFAR
 	mov	ah,DOS_PSP_TERM
 	int	21h
 	ASSERTNC <stc>			; assert that we never get here
+	jmp	$
 ENDPROC	dos_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -153,7 +154,7 @@ DEFPROC	dos_func,DOSFAR
 	mov	ah,FUNCTBL_SIZE		; the utility function table
 	add	ah,al			; follows the DOS function table
 	jmp	short dc2
-dc0:	jmp	msc_sigctrlc
+dc0:	jmp	msc_sigctrlc_read
 
 dc1:	sti
 	and	[bp].REG_FL,NOT FL_CARRY
@@ -166,6 +167,9 @@ dc1:	sti
 ; was detected (two conditions that we check with a single compare), signal it.
 ;
 	mov	bx,[scb_active]
+	test	bx,bx
+	jz	dc2			; TODO: always have an scb_active
+	ASSERT_STRUC [bx],SCB
 	cmp	word ptr [bx].SCB_CTRLC_ALL,0101h
 	je	dc0			; signal CTRLC
 ;
@@ -221,16 +225,13 @@ ENDPROC	dos_exret
 ;
 ; dos_ctrlc (INT 23h handler)
 ;
-; TODO (for now, our default behavior, unlike DOS, is to NOT terminate)
-;
 DEFPROC	dos_ctrlc,DOSFAR
 	push	ax
 	mov	ah,DOS_DSK_RESET
 	int	21h
 	pop	ax
-	iret
-	; stc
-	; ret	2
+	stc			; set carry to indicate program termination
+	ret
 ENDPROC	dos_ctrlc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -12,7 +12,7 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<scb_active>,word
-	EXTERNS	<write_string,dos_restart>,near
+	EXTERNS	<tty_read,write_string,dos_restart>,near
 	EXTERNS	<STR_CTRLC>,byte
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -87,7 +87,7 @@ ENDPROC	msc_setctrlc
 ; msc_sigctrlc
 ;
 ; Inputs:
-;	BX -> active SCB
+;	None
 ;
 ; Outputs:
 ;	None
@@ -96,10 +96,23 @@ ENDPROC	msc_setctrlc
 ;	Any; this function does not return directly to the caller
 ;
 DEFPROC	msc_sigctrlc,DOSFAR
-	ASSUME	DS:DOS, ES:NOTHING
-	mov	[bx].SCB_CTRLC_ACT,0
+	ASSUME	DS:NOTHING, ES:NOTHING
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
+	mov	bx,[scb_active]		; TODO: always have an scb_active
+	test	bx,bx
+	jnz	msg0
+	jmp	short msg1
 
-	mov	cx,4
+	DEFLBL	msc_sigctrlc_read,near
+	ASSERT_STRUC [bx],SCB
+	cmp	[bx].SCB_CTRLC_ACT,0
+	je	msg1
+	call	tty_read		; remove CTRLC from the input buffer
+msg0:	mov	[bx].SCB_CTRLC_ACT,0
+
+msg1:	mov	cx,4
 	mov	si,offset STR_CTRLC
 	call	write_string
 ;
