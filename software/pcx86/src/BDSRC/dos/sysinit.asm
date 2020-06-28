@@ -376,6 +376,7 @@ dierr1:	jc	dierr2
 	mov	es,dx
 	int	21h			; free the 2nd
 	jc	dierr2
+	IFDEF MAXDEBUG
 	mov	dx,offset COM1_DEVICE
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
@@ -386,9 +387,9 @@ dierr1:	jc	dierr2
 	int	INT_TIME		; CX:DX is tick count
 	mov	bx,offset hello
 	PRINTF	<"%ls, the time is [%6ld]",13,10>,bx,cs,dx,cx
+	ENDIF
 	pop	es
 	jmp	short diend
-hello	db	"hello world",0
 dierr2:	jmp	sysinit_error
 diend:
 	ENDIF
@@ -643,10 +644,12 @@ PRN_DEVICE	db	"PRN",0
 CLK_DEVICE	db	"CLOCK$",0
 SHELL_FILE	db	"COMMAND.COM",0	; default SHELL file
 
-	IFDEF	DEBUG
+SYS_MSG		db	"System ready",13,10,'$'
+
+	IFDEF	MAXDEBUG
 COM1_DEVICE	db	"COM1:9600,N,8,1",0
 COM2_DEVICE	db	"COM2:9600,N,8,1",0
-SYS_MSG		db	"System ready",13,10,'$'
+hello		db	"hello world",0
 	ENDIF
 
 SYSERR		db	"System initialization error$"
