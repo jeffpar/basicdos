@@ -85,10 +85,14 @@ name	dd	0
 
 DEFPROC	macro	name,type
 	public	name
-	IFDEF	DEBUG
+	_LOCBYTES = 0
 	IFIDN	<type>,<DOS>
+	IFDEF	DEBUG
 	db	"&name",0
 	ENDIF
+	_PROCTYPE = 1
+	ELSE
+	_PROCTYPE = 0
 	ENDIF
 	IFB	<type>
 name	proc	near
@@ -105,12 +109,10 @@ name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 	ENDIF
 	ENDIF
 	ENDIF
-	LOCBYTES = 0
 	endm
 
 ;
-; For functions called from dos_func, where BP -> REG_FRAME and BP-2 -> return
-; address, a set of macro invocations like this:
+; LOCVAR is used inside DEFPROC, like so:
 ;
 ;	DEFPROC function,DOS
 ;	LOCVAR	fileName,byte,11
@@ -118,55 +120,79 @@ name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 ;	ENTER
 ;	...
 ;	LEAVE
+;	RET
 ;	ENDPROC function
 ;
-; will generate equates/code that look like this:
+; which will generate equates/code that look like:
 ;
-;	fileName equ (byte ptr [bp-13])
-;	dirEntry equ (dword ptr [bp-17])
+;	fileName equ byte ptr [bp-12]
+;	dirEntry equ dword ptr [bp-16]
+;	push	bp
+;	mov	bp,sp
 ;	sub	sp,16
+;
 ;	...
-;	add	sp,16
+;	mov	sp,bp
+;	pop	bp
 ;
 ; If you need the address of a LOCVAR variable, use LEA, as in:
 ;
 ;	lea	di,fileName
 ;
-; DEFPROC will define a LOCBYTES variable representing the number of LOCVAR
+; DEFPROC will define a _LOCBYTES variable representing the number of LOCVAR
 ; bytes that must be allocated on the stack on ENTER and then released on LEAVE.
+;
+; NOTE: Using LOCVAR/ENTER/LEAVE inside a "DOS" function attempts to generate
+; optimized code, by assuming there are _PROCTYPE return addresses (or other
+; words) pushed on the stack since REG_FRAME was created.  However, it's very
+; fragile, so beware.
 ;
 LOCVAR	macro	name,type,len
 	IFIDN	<type>,<byte>
-	LOCBYTES = LOCBYTES + len
+	_LOCBYTES = _LOCBYTES + len
 	ELSE
 	IFIDN	<type>,<word>
-	LOCBYTES = LOCBYTES + (len * 2)
+	_LOCBYTES = _LOCBYTES + (len * 2)
 	ELSE
 	IFIDN	<type>,<dword>
-	LOCBYTES = LOCBYTES + (len * 4)
+	_LOCBYTES = _LOCBYTES + (len * 4)
 	ELSE
 	%out	Unrecognized LOCVAR parameter: type
 	ENDIF
 	ENDIF
 	ENDIF
-name	equ	type ptr [bp - LOCBYTES - 2]
+	_LOCBYTES = _LOCBYTES + (_LOCBYTES AND 1)
+	DEFVAR	name,type,%(_LOCBYTES)
+	endm
+
+DEFVAR	macro	name,type,offset
+name	equ	type ptr [bp - offset]
 	endm
 
 ENTER	macro
-	IF LOCBYTES GT 0
-	sub	sp,LOCBYTES + (LOCBYTES AND 1)
+	IF _LOCBYTES GT 0
+	IF _PROCTYPE EQ 0
+	push	bp
+	mov	bp,sp
+	ENDIF
+	sub	sp,_LOCBYTES
 	ENDIF
 	endm
 
 LEAVE	macro
-	IF LOCBYTES GT 0
-	add	sp,LOCBYTES + (LOCBYTES AND 1)
+	IF _LOCBYTES GT 0
+	IF _PROCTYPE EQ 0
+	mov	sp,bp
+	pop	bp
+	ELSE
+	add	sp,_LOCBYTES
+	ENDIF
 	ENDIF
 	endm
 
 ENDPROC	macro	name
+	_LOCBYTES = 0
 name	endp
-	LOCBYTES = 0
 	endm
 
 ERROR	macro	msg

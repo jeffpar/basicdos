@@ -284,12 +284,14 @@ DEFPROC	ddclk_init,far
 ; calls to DOS_UTL_YIELD as soon as DOS tells us it's ready (which it will do
 ; by setting the DDATTR_CLOCK bit in our header).
 ;
+	cli
 	mov	ax,offset ddclk_interrupt
 	xchg	ds:[INT_HW_TMR * 4].OFF,ax
 	mov	[tmr_int].OFF,ax
 	mov	ax,cs
 	xchg	ds:[INT_HW_TMR * 4].SEG,ax
 	mov	[tmr_int].SEG,ax
+	sti
 
 	pop	ds
 	ASSUME	DS:NOTHING
