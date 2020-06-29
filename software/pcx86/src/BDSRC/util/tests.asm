@@ -24,7 +24,9 @@ DEFPROC	main
 	jmp	short s1
 
 f1:	lea	ax,ds:[80h].FFB_NAME
-	PRINTF	<"found %s",13,10>,ax
+	mov	dx,ds:[80h].FFB_DATE
+	mov	cx,ds:[80h].FFB_TIME
+	PRINTF	<"%-12s %2M-%02D-%04Y %2H:%02N:%02S",13,10>,ax,dx,dx,dx,cx,cx,cx
 	mov	ah,DOS_DSK_FNEXT
 	int	21h
 	jnc	f1

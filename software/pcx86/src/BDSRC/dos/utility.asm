@@ -343,6 +343,22 @@ ENDPROC	utl_printf endp
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
+; Standard format types:
+;	%d:	signed 16-bit decimal integer; use %ld for 32-bit
+;	%u:	unsigned 16-bit decimal integer; use %lu for 32-bit
+;	%x:	unsigned 16-bit hexadecimal integer: use %lx for 32-bit
+;	%s:	string (near pointer); use %ls for far pointer
+;
+; Non-standard format types:
+;	%F:	month portion of a 16-bit DATE value, as string
+;	%M:	month portion of a 16-bit DATE value, as number (1-12)
+;	%D:	day portion of a 16-bit DATE value, as number (1-31)
+;	%Y:	year portion of a 16-bit DATE value, as number (1980-)
+;	%H:	hour portion of a 16-bit TIME value, as number (0-23)
+;	%I:	hour portion of a 16-bit TIME value, as number (1-12)
+;	%N:	minute portion of a 16-bit TIME value, as number (0-59)
+;	%S:	second portion of a 16-bit TIME value, as number (0-59)
+;
 DEFPROC	utl_sprintf,DOS
 	mov	es,[bp].REG_ES
 	ASSUME	ES:NOTHING
@@ -407,24 +423,24 @@ pfpd:	cmp	al,'l'			; long value?
 pfpe:	cmp	al,'d'			; decimal value?
 	jne	pfpf
 	or	ch,PF_SIGN		; yes, so mark as explicitly signed
-	jmp	short pfd
+pfd0:	jmp	pfd
 pfpf:	cmp	al,'s'			; string value?
 	jne	pfpg
 	jmp	pfs			; yes
 pfpg:	cmp	al,'u'			; unsigned value?
-	je	pfd			; yes, unsigned values are the default
+	je	pfd0			; yes, unsigned values are the default
 	cmp	al,'x'			; hex value?
 	jne	pfph
 	mov	cl,16			; use base 16 instead
-	jmp	short pfd		; hex values are always unsigned as well
+	jmp	pfd			; hex values are always unsigned as well
 pfph:	cmp	al,'.'			; precision indicator?
 	jne	pfpi
 	or	ch,PF_PRECIS		; yes
 	jmp	pfpa
 pfpi:	cmp	al,'1'			; possible number?
-	jb	pfpz			; no
+	jb	pfpl			; no
 	cmp	al,'9'
-	ja	pfpz			; no
+	ja	pfpl			; no
 pfpj:	sub	al,'0'
 	push	dx
 	push	si
@@ -442,9 +458,51 @@ pfpk:	xchg	dx,ax
 	pop	si
 	pop	dx
 	jmp	pfpa
+pfpl:	cmp	al,'M'
+	jne	pfpm
+	mov	dx,0F05h
+	jmp	short pfda
+pfpm:	cmp	al,'D'
+	jne	pfpn
+	mov	dx,1F00h
+	jmp	short pfda
+pfpn:	cmp	al,'Y'
+	jne	pfpo
+	mov	dx,7F09h
+	jmp	short pfda
+pfpo:	cmp	al,'H'
+	jne	pfpp
+	mov	dx,1F0Bh
+	jmp	short pfda
+pfpp:	cmp	al,'N'
+	jne	pfpq
+	mov	dx,3F05h
+	jmp	short pfda
+pfpq:	cmp	al,'S'
+	jne	pfpz
+	mov	dx,1FFFh
+	jmp	short pfda
+
 pfpz:	mov	bx,dx			; error, didn't end with known letter
 	mov	al,'%'			; restore '%'
 	jmp	pf2
+
+pfda:	mov	ax,[bp+si]		; grab the next stack parameter
+	push	cx
+	mov	cl,dl
+	test	dl,dl
+	jge	pfda1
+	neg	cl
+	shl	ax,cl
+	jmp	short pfda2
+pfda1:	shr	ax,cl
+pfda2:	pop	cx
+	and	al,dh
+	mov	ah,0
+	cmp	dh,7fh
+	jne	pfda3
+	add	ax,1980
+pfda3:	mov	[bp+si],ax		; update the shifted/masked parameter
 ;
 ; Process %d, %u, and %x specifications.
 ;
@@ -460,7 +518,7 @@ pfpz:	mov	bx,dx			; error, didn't end with known letter
 pfd:	mov	ax,[bp].SPF_WIDTH
 	add	ax,di
 	cmp	ax,[bp].SPF_LIMIT
-	jae	pfpz			; not enough room for specified length
+pfdz:	jae	pfpz			; not enough room for specified length
 
 	mov	ax,[bp+si]		; grab a stack parameter
 	add	si,2
@@ -513,7 +571,7 @@ pfs3:	mov	dx,[bp].SPF_WIDTH
 	add	di,dx
 	cmp	di,[bp].SPF_LIMIT
 	pop	di
-	jae	pfpz
+	jae	pfdz
 
 pfs4:	test	ch,PF_LEFT		; left-aligned?
 	jnz	pfs5			; yes
