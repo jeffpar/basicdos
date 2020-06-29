@@ -440,6 +440,11 @@ lp7a:	jc	lp8a			; TODO: try to use a smaller size?
 	mov	cs:[bx].SCB_ERROR.OFF,offset dos_error
 	mov	cs:[bx].SCB_ERROR.SEG,cs
 ;
+; Initialize the DTA to its default (PSP:80h)
+;
+	mov	cs:[bx].SCB_DTA.OFF,80h
+	mov	cs:[bx].SCB_DTA.SEG,ds
+;
 ; Create an initial REG_FRAME at the top of the segment (or the top of
 ; allocated memory, whichever's lower).
 ;
