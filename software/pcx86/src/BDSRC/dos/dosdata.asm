@@ -37,7 +37,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<psp_term>,near
 	EXTERNS	<tty_echo,tty_write,aux_read,aux_write,prn_write,tty_io>,near
 	EXTERNS	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>,near
-	EXTERNS	<dsk_flush>,near
+	EXTERNS	<dsk_flush,dsk_setdta,dsk_getdta,dsk_ffirst,dsk_fnext>,near
 	EXTERNS	<msc_setvec,msc_getvec>,near
 	EXTERNS	<psp_exec,psp_create,psp_set,psp_get>,near
 	EXTERNS	<hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek>,near
@@ -54,12 +54,12 @@ DOS	segment word public 'CODE'
 	dw	tty_flush,   dsk_flush,   func_none,   func_none	;0Ch-0Fh
 	dw	func_none,   func_none,   func_none,   func_none	;10h-13h
 	dw	func_none,   func_none,   func_none,   func_none	;14h-17h
-	dw	func_none,   func_none,   func_none,   func_none	;18h-1Bh
+	dw	func_none,   func_none,   dsk_setdta,  func_none	;18h-1Bh
 	dw	func_none,   func_none,   func_none,   func_none	;1Ch-1Fh
 	dw	func_none,   func_none,   func_none,   func_none	;20h-23h
 	dw	func_none,   msc_setvec,  psp_create,  func_none	;24h-27h
 	dw	func_none,   func_none,   func_none,   func_none	;28h-2Bh
-	dw	func_none,   func_none,   func_none,   func_none	;2Ch-2Fh
+	dw	func_none,   func_none,   func_none,   dsk_getdta	;2Ch-2Fh
 	dw	func_none,   func_none,   func_none,   func_none	;30h-33h
 	dw	func_none,   msc_getvec,  func_none,   func_none	;34h-37h
 	dw	func_none,   func_none,   func_none,   func_none	;38h-3Bh
@@ -67,7 +67,7 @@ DOS	segment word public 'CODE'
 	dw	hdl_write,   func_none,   hdl_seek,    func_none	;40h-43h
 	dw	func_none,   func_none,   func_none,   func_none	;44h-47h
 	dw	mem_alloc,   mem_free,    mem_realloc, psp_exec		;48h-4Bh
-	dw	func_none,   func_none,   func_none,   func_none	;4Ch-4Fh
+	dw	func_none,   func_none,   dsk_ffirst,  dsk_fnext	;4Ch-4Fh
 	dw	psp_set,     psp_get					;50h-51h
 	DEFABS	FUNCTBL_SIZE,<($ - FUNCTBL) SHR 1>
 

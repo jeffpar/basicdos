@@ -96,6 +96,9 @@ DIR_CLN		dw	?		; 1Ah: first cluster number of file
 DIR_SIZE	dd	?		; 1Ch: 32-bit file size
 DIRENT		ends
 
+DIRENT_END	equ	00h
+DIRENT_DELETED	equ	0E5h
+
 DIRENT_SIZE	equ	(size DIRENT)	; 20h: size of directory entry in bytes
 ;
 ;   Time:   Bits 0-4 = seconds/2, bits 5-10 = minute, 11-15 = hour

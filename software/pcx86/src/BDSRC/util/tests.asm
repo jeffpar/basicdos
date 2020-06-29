@@ -15,16 +15,32 @@ CODE    SEGMENT
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 DEFPROC	main
-	sub	dx,dx
-m1:	PRINTF	<"sleeping %dms...">,dx
+	sub	cx,cx
+	mov	dx,offset filespec
+	mov	ah,DOS_DSK_FFIRST
+	int	21h
+	jnc	f1
+	PRINTF	<"unable to find %s: %d",13,10>,dx,ax
+	jmp	short s1
+
+f1:	lea	ax,ds:[80h].FFB_NAME
+	PRINTF	<"found %s",13,10>,ax
+	mov	ah,DOS_DSK_FNEXT
+	int	21h
+	jnc	f1
+
+s1:	sub	dx,dx
+s2:	PRINTF	<"sleeping %dms...">,dx
 	mov	ax,DOS_UTL_SLEEP
 	int	21h
 	PRINTF	<13,10,"feeling refreshed!",13,10>
 	add	dx,1000
 	cmp	dx,10000
-	jbe	m1
+	jbe	s2
 	int	20h
 ENDPROC	main
+
+filespec	db	"*.*",0
 
 ;
 ; COMHEAP 0 means we don't need a heap, but the system will still allocate

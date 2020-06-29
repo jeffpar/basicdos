@@ -77,8 +77,10 @@ DOS_UTL_ENDWAIT	equ   180Eh	; end wait
 DOS_UTL_HOTKEY	equ   180Fh	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
 DOS_UTL_STDLEN	equ   1824h	; like STRLEN but with 24h as terminator
 
+DOS_DSK_SETDTA	equ	1Ah	; set DTA (DS:DX)
 DOS_MSC_SETVEC	equ	25h	; set vector (AL) to addr (DS:DX)
 DOS_PSP_CREATE	equ	26h	; create PSP (DX = segment)
+DOS_DSK_GETDTA	equ	2Fh	; get DTA (ES:BX)
 DOS_MSC_CTRLC	equ	33h	; get/set CTRLC state
 DOS_MSC_GETVEC	equ	35h	; get vector (AL) addr (ES:BX)
 DOS_HDL_OPEN	equ	3Dh	; open handle for device/file (DS:DX)
@@ -90,6 +92,9 @@ DOS_HDL_SEEK	equ	42h	; seek to (CX:DX) w/method (AL) and handle (BX)
 DOS_MEM_ALLOC	equ	48h	; allocate memory
 DOS_MEM_FREE	equ	49h	; free memory
 DOS_MEM_REALLOC	equ	4Ah	; reallocate memory
+
+DOS_DSK_FFIRST	equ	4Eh	; find first filespec (DS:DX) with attr (CX)
+DOS_DSK_FNEXT	equ	4Fh	; find next filespec (DTA)
 
 DOS_PSP_EXEC	equ   4B00h	; load program (DS:DX) with EPB (ES:BX)
 DOS_PSP_SET	equ	50h	; set current PSP (BX)
@@ -238,6 +243,29 @@ SFB		ends
 
 SFBSIG		equ	'F'
 
+MODE_ACC_READ	equ	00h
+MODE_ACC_WRITE	equ	01h
+MODE_ACC_BOTH	equ	02h
+MODE_COMPAT	equ	00h
+MODE_DENY_BOTH	equ	10h
+MODE_DENY_WRITE	equ	20h
+MODE_DENY_READ	equ	30h
+MODE_DENY_NONE	equ	40h
+MODE_INHERIT	equ	80h
+
+SEEK_BEG	equ	0
+SEEK_CUR	equ	1
+SEEK_END	equ	2
+
+;
+; Predefined Process File Table (PFT) numbers
+;
+STDIN		equ	0
+STDOUT		equ	1
+STDERR		equ	2
+STDAUX		equ	3
+STDPRN		equ	4
+
 ;
 ; Program Segment Prefix (PSP)
 ;
@@ -277,7 +305,7 @@ IO_RAW		equ	0
 IO_COOKED	equ	1
 
 ;
-; Exec Parameter Block (EPB); see
+; Exec Parameter Block (EPB)
 ;
 EPB		struc
 EPB_ENVSEG	dw	?	; 00h: segment of environment (0 to copy parent)
@@ -286,28 +314,21 @@ EPB_FCB1	dd	?	; 06h: pointer to FCB for PSP_FCB1
 EPB_FCB2	dd	?	; 0Ah: pointer to FCB for PSP_FCB2
 EPB		ends
 
-MODE_ACC_READ	equ	00h
-MODE_ACC_WRITE	equ	01h
-MODE_ACC_BOTH	equ	02h
-MODE_COMPAT	equ	00h
-MODE_DENY_BOTH	equ	10h
-MODE_DENY_WRITE	equ	20h
-MODE_DENY_READ	equ	30h
-MODE_DENY_NONE	equ	40h
-MODE_INHERIT	equ	80h
-
-SEEK_BEG	equ	0
-SEEK_CUR	equ	1
-SEEK_END	equ	2
-
 ;
-; Predefined Process File Table (PFT) numbers
+; Find File Block (FFB)
 ;
-STDIN		equ	0
-STDOUT		equ	1
-STDERR		equ	2
-STDAUX		equ	3
-STDPRN		equ	4
+FFB		struc
+FFB_DRIVE	db	?	; 00h: drive #
+FFB_SATTR	db	?	; 01h: search attributes
+FFB_FILESPEC	db    11 dup (?); 02h: filespec
+FFB_PADDING	db     6 dup (?); 0Dh
+FFB_DIRNUM	dw	?	; 13h: DIRENT #
+FFB_ATTR	db	?	; 15h: file attr
+FFB_TIME	dw	?	; 16h: file time
+FFB_DATE	dw	?	; 18h: file date
+FFB_SIZE	dd	?	; 1Ah: file size
+FFB_NAME	db    13 dup (?); 1Eh: file name (null-terminated)
+FFB		ends
 
 ERR_INVALID	equ	1
 ERR_NOFILE	equ	2
