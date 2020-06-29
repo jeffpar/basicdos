@@ -18,6 +18,9 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload,scb_yield>,near
 	EXTERNS	<scb_wait,scb_endwait>,near
 
+	EXTERNS	<MONTH_DAYS>,byte
+	EXTERNS	<MONTHS,DAYS>,word
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; utl_strlen (AX = 1800h or 1824h)
@@ -344,18 +347,20 @@ ENDPROC	utl_printf endp
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
 ; Standard format types:
+;	%c:	8-bit character
 ;	%d:	signed 16-bit decimal integer; use %ld for 32-bit
 ;	%u:	unsigned 16-bit decimal integer; use %lu for 32-bit
 ;	%x:	unsigned 16-bit hexadecimal integer: use %lx for 32-bit
-;	%s:	string (near pointer); use %ls for far pointer
+;	%s:	string (near CS-relative pointer); use %ls for far pointer
 ;
 ; Non-standard format types:
 ;	%F:	month portion of a 16-bit DATE value, as string
 ;	%M:	month portion of a 16-bit DATE value, as number (1-12)
 ;	%D:	day portion of a 16-bit DATE value, as number (1-31)
-;	%Y:	year portion of a 16-bit DATE value, as number (1980-)
+;	%X:	year portion of a 16-bit DATE value, as 2-digit number (80-)
+;	%Y:	year portion of a 16-bit DATE value, as 4-digit number (1980-)
+;	%G:	hour portion of a 16-bit TIME value, as number (1-12)
 ;	%H:	hour portion of a 16-bit TIME value, as number (0-23)
-;	%I:	hour portion of a 16-bit TIME value, as number (1-12)
 ;	%N:	minute portion of a 16-bit TIME value, as number (0-59)
 ;	%S:	second portion of a 16-bit TIME value, as number (0-59)
 ;
@@ -421,9 +426,12 @@ pfpd:	cmp	al,'l'			; long value?
 	or	ch,PF_LONG		; yes
 	jmp	pfpa
 pfpe:	cmp	al,'d'			; decimal value?
-	jne	pfpf
+	jne	pfpe1
 	or	ch,PF_SIGN		; yes, so mark as explicitly signed
 pfd0:	jmp	pfd
+pfpe1:	cmp	al,'c'			; character value?
+	jne	pfpf
+	jmp	pfc
 pfpf:	cmp	al,'s'			; string value?
 	jne	pfpg
 	jmp	pfs			; yes
@@ -458,35 +466,74 @@ pfpk:	xchg	dx,ax
 	pop	si
 	pop	dx
 	jmp	pfpa
-pfpl:	cmp	al,'M'
-	jne	pfpm
-	mov	dx,0F05h
+pfpl:	cmp	al,'F'			; %F (month as a string)?
+	jne	pfpl2			; no
+	jmp	pfm
+pfpl2:	cmp	al,'W'			; %W (day-of-week as a string)?
+	jne	pfpl3			; no
+	jmp	pfw
+pfpl3:	cmp	al,'M'			; %M (month portion of DATE)?
+	jne	pfpm			; no
+	mov	dx,0F05h		; shift DATE right 5, mask with 0Fh
 	jmp	short pfda
-pfpm:	cmp	al,'D'
-	jne	pfpn
-	mov	dx,1F00h
+pfpm:	cmp	al,'D'			; %D (day portion of DATE)?
+	jne	pfpn			; no
+	mov	dx,1F00h		; shift DATE right 0, mask with 1Fh
 	jmp	short pfda
-pfpn:	cmp	al,'Y'
-	jne	pfpo
-	mov	dx,7F09h
+pfpn:	cmp	al,'X'			; %X (year portion of DATE)?
+	jne	pfpo			; no
+	mov	dx,7F09h		; shift DATE right 9, mask with 7Fh
 	jmp	short pfda
-pfpo:	cmp	al,'H'
-	jne	pfpp
-	mov	dx,1F0Bh
+pfpo:	cmp	al,'Y'			; %Y (year portion of DATE)?
+	jne	pfpp			; no
+	mov	dx,0FF09h		; shift DATE right 9, mask with FFh
 	jmp	short pfda
-pfpp:	cmp	al,'N'
-	jne	pfpq
-	mov	dx,3F05h
+pfpp:	cmp	al,'G'			; %G (12-hour portion of TIME)?
+	jne	pfpq			; no
+	mov	dx,0FF0Bh		; shift TIME right 11, mask with FFh
 	jmp	short pfda
-pfpq:	cmp	al,'S'
-	jne	pfpz
-	mov	dx,1FFFh
+pfpq:	cmp	al,'H'			; %H (24-hour portion of TIME)?
+	jne	pfpr			; no
+	mov	dx,1F0Bh		; shift TIME right 11, mask with 1Fh
 	jmp	short pfda
+pfpr:	cmp	al,'N'			; %N (minute portion of TIME)?
+	jne	pfps			; no
+	mov	dx,3F05h		; shift TIME right 5, mask with 0Fh
+	jmp	short pfda
+pfps:	cmp	al,'S'			; %S (second portion of TIME)?
+	jne	pfpt			; no
+	mov	dx,1FFFh		; shift TIME left 1, mask with 1Fh
+	jmp	short pfda
+pfpt:	cmp	al,'A'			; %A (AM or PM portion of TIME)?
+	jne	pfpz			; no
+	mov	ax,[bp+si]		; get the TIME
+	push	cx
+	mov	cl,11
+	shr	ax,cl			; AX = hour
+	pop	cx
+	cmp	al,12			; is hour < 12?
+	mov	al,'a'
+	jb	pfps2			; yes, use 'a'
+	mov	al,'p'			; no, use 'p'
+pfps2:	mov	[bp+si],ax
+	jmp	pfc
 
 pfpz:	mov	bx,dx			; error, didn't end with known letter
 	mov	al,'%'			; restore '%'
 	jmp	pf2
-
+;
+; Helper code for DATE/TIME specifiers:
+;
+; Take the next value from the stack (which must be either a 16-bit DATE or
+; TIME), shift it right by the number in DL (or left if DL is negative), mask
+; it with value in DH, and then put it back on the stack and continue as if
+; the specifier was %d.
+;
+; Some masks are "special": 7F09h and FF09h are used to mask a year, so we
+; also add 1980 to the result, and FF0Bh is used to mask an hour that needs to
+; be converted to 12-hour format (FFh is an overbroad mask, but since there
+; are no bits to the left of the hour, it's OK).
+;
 pfda:	mov	ax,[bp+si]		; grab the next stack parameter
 	push	cx
 	mov	cl,dl
@@ -499,12 +546,27 @@ pfda1:	shr	ax,cl
 pfda2:	pop	cx
 	and	al,dh
 	mov	ah,0
-	cmp	dh,7fh
-	jne	pfda3
-	add	ax,1980
-pfda3:	mov	[bp+si],ax		; update the shifted/masked parameter
+	cmp	dl,09h			; mask used specifically for year?
+	jne	pfda3			; no
+	add	ax,1980			; yes, so add 1980
+	cmp	dh,7Fh			; mask also used for 2-digit year?
+	jne	pfda9			; no
+	mov	dl,100			; yes, so divide AX by 100
+	div	dl
+	mov	al,ah			; and move the remainder into AL
+	cbw
+	jmp	short pfda9
+pfda3:	cmp	dx,0FF0Bh		; mask used specifically for 12-hour?
+	jne	pfda9			; no
+	test	ax,ax
+	jnz	pfda4
+	mov	ax,12			; transform 0 to 12
+pfda4:	cmp	ax,12			; and subtract 12 from anything > 12
+	jbe	pfda9
+	sub	ax,12
+pfda9:	mov	[bp+si],ax		; update the shifted/masked parameter
 ;
-; Process %d, %u, and %x specifications.
+; Process %d, %u, and %x specifiers.
 ;
 ; TODO: Any specified width is a minimum, not a maximum, and if the value
 ; is larger, itoa will not truncate it.  So unless we want to make worst-case
@@ -540,7 +602,55 @@ pfd2:	mov	dx,[bp+si]		; grab another stack parameter
 	add	si,2			; DX:AX = 32-bit value
 	jmp	pfd1
 ;
-; Process %s specification.
+; Process %F specifier, which we convert to a "fake" string parameter.
+;
+pfm:	push	ds
+	mov	ax,[bp+si]		; get the DATE parameter
+	add	si,2
+	push	si
+	push	cs
+	pop	ds
+	push	cx
+	mov	cl,5
+	shr	ax,cl
+	and	ax,0Fh			; AX = month
+	pop	cx
+	dec	ax			; AX = month index
+	add	ax,ax			; AX = month offset
+	add	ax,offset MONTHS	; AX = month address
+	xchg	si,ax			; DS:SI -> month address
+	mov	si,[si]			; DS:SI -> month string
+	mov	al,0
+	call	strlen			; AX = length
+	jmp	short pfs2a		; jump into the string code now
+;
+; Process %W specifier, which we convert to a "fake" string parameter.
+;
+pfw:	push	ds
+	mov	ax,[bp+si]		; get the DATE parameter
+	add	si,2
+	push	si
+	push	cs
+	pop	ds
+	call	day_of_week		; convert AX from DATE to string pointer
+	xchg	si,ax			; DS:SI -> day string
+	mov	al,0
+	call	strlen			; AX = length
+	jmp	short pfs2a		; jump into the string code now
+;
+; Process %c specifier, which we treat as a 1-character string.
+;
+pfc:	push	ds
+	lea	ax,[bp+si]
+	add	si,2
+	push	si
+	push	ss
+	pop	ds
+	xchg	si,ax			; DS:SI -> character
+	mov	ax,1			; AX = length
+	jmp	short pfs2a		; jump into the string code now
+;
+; Process %s specifier.
 ;
 pfs:	push	ds
 	mov	ax,[bp+si]		; use %s for CS-relative near pointers
@@ -553,7 +663,7 @@ pfs2:	push	si
 	xchg	si,ax			; DS:SI -> string
 	mov	al,0
 	call	strlen			; AX = length
-	mov	dx,[bp].SPF_PRECIS
+pfs2a:	mov	dx,[bp].SPF_PRECIS
 	test	dx,dx
 	jz	pfs3
 	cmp	ax,dx			; length < PRECIS?
@@ -571,7 +681,8 @@ pfs3:	mov	dx,[bp].SPF_WIDTH
 	add	di,dx
 	cmp	di,[bp].SPF_LIMIT
 	pop	di
-	jae	pfdz
+	jb	pfs4
+	jmp	pfdz
 
 pfs4:	test	ch,PF_LEFT		; left-aligned?
 	jnz	pfs5			; yes
@@ -597,6 +708,80 @@ pf8:	pop	ax			; restore original format string address
 	add	bp,size SPF_FRAME
 	ret
 ENDPROC	sprintf
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; day_of_week
+;
+; For the given DATE, calculate the day of the week.  Given that Jan 1 1980
+; (DATE "zero") was a TUESDAY (day-of-week 2, since SUNDAY is day-of-week 0),
+; we simply calculate how many days have elapsed, add 2, and compute days mod 7.
+;
+; Since 2000 was one of those every-400-years leap years, the number of elapsed
+; leap days is a simple calculation as well.
+;
+; Note that since a DATE's year cannot be larger than 127, the number of days
+; for all elapsed years cannot exceed 128 * 365 + (128 / 4) or 46752, which we
+; note is a 16-bit quantity.
+;
+; Inputs:
+;	AX = DATE
+;
+; Outputs:
+;	DS:AX -> DAY string
+;
+; Modifies:
+;	AX
+;
+DEFPROC	day_of_week,DOS
+	ASSUME	ES:NOTHING
+	push	bx
+	push	cx
+	push	dx
+	push	si
+	push	di
+	sub	di,di			; DI = day accumulator
+	mov	bx,ax			; save the original date in BX
+	mov	cl,9
+	shr	ax,cl			; AX = # of full years elapsed
+	push	ax
+	shr	ax,1			; divide full years by 4
+	shr	ax,1			; to get number of leap days
+	add	di,ax			; add to DI
+	pop	ax
+	mov	dx,365
+	mul	dx			; AX = total days for full years
+	add	di,ax			; add to DI
+	mov	ax,bx			; AX = original date again
+	mov	cl,5
+	shr	ax,cl
+	and	ax,0Fh
+	dec	ax			; AX = # of full months elapsed
+	xchg	si,ax
+dow1:	dec	si
+	jl	dow2
+	mov	dl,[MONTH_DAYS][si]
+	mov	dh,0
+	add	di,dx			; add # of days in past month to DI
+	jmp	dow1
+dow2:	mov	ax,bx			; AX = original date again
+	and	ax,1Fh			; AX = day of the current month
+	add	di,ax
+	xchg	ax,di
+	add	ax,2			; add 2 days (DATE "zero" was a Tues)
+	sub	dx,dx			; DX:AX = total days
+	mov	cx,7			; divide by length of week
+	div	cx
+	mov	si,dx			; SI = remainder from DX (0-6)
+	add	si,si			; convert day-of-week index into offset
+	mov	ax,[DAYS][si]		; AX -> day-of-week string
+	pop	di
+	pop	si
+	pop	dx
+	pop	cx
+	pop	bx
+	ret
+ENDPROC	day_of_week
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

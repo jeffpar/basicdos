@@ -33,6 +33,28 @@ DOS	segment word public 'CODE'
 	DEFBYTE	VALID_CHARS,"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%&'()-@^_`{}~"
 	DEFABS	VALID_COUNT,<$ - VALID_CHARS>
 	DEFBYTE	STR_CTRLC,<"^C",CHR_RETURN,CHR_LINEFEED>
+	DEFBYTE	JAN,<"January",0>
+	DEFBYTE	FEB,<"February",0>
+	DEFBYTE	MAR,<"March",0>
+	DEFBYTE	APR,<"April",0>
+	DEFBYTE	MAY,<"May",0>
+	DEFBYTE	JUN,<"June",0>
+	DEFBYTE	JUL,<"July",0>
+	DEFBYTE	AUG,<"August",0>
+	DEFBYTE	SEP,<"September",0>
+	DEFBYTE	OCT,<"October",0>
+	DEFBYTE	NOV,<"November",0>
+	DEFBYTE	DEC,<"December",0>
+	DEFWORD	MONTHS,<JAN,FEB,MAR,APR,MAY,JUN,JUL,AUG,SEP,OCT,NOV,DEC>
+	DEFBYTE	SUN,<"Sunday",0>
+	DEFBYTE	MON,<"Monday",0>
+	DEFBYTE	TUE,<"Tuesday",0>
+	DEFBYTE	WED,<"Wednesday",0>
+	DEFBYTE	THU,<"Thursday",0>
+	DEFBYTE	FRI,<"Friday",0>
+	DEFBYTE	SAT,<"Saturday",0>
+	DEFWORD	DAYS,<SUN,MON,TUE,WED,THU,FRI,SAT>
+	DEFBYTE	MONTH_DAYS,<31,28,31,30,31,30,31,31,30,31,30,31>
 
 	EXTERNS	<psp_term>,near
 	EXTERNS	<tty_echo,tty_write,aux_read,aux_write,prn_write,tty_io>,near

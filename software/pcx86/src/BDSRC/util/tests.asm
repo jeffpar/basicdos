@@ -26,7 +26,7 @@ DEFPROC	main
 f1:	lea	ax,ds:[80h].FFB_NAME
 	mov	dx,ds:[80h].FFB_DATE
 	mov	cx,ds:[80h].FFB_TIME
-	PRINTF	<"%-12s %2M-%02D-%04Y %2H:%02N:%02S",13,10>,ax,dx,dx,dx,cx,cx,cx
+	PRINTF	<"%-12s %.3W %.3F-%02D-%02X %2G:%02N%A",13,10>,ax,dx,dx,dx,dx,cx,cx,cx
 	mov	ah,DOS_DSK_FNEXT
 	int	21h
 	jnc	f1
