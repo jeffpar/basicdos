@@ -53,7 +53,7 @@ m2:	cmp	cx,[maxDivisor]	; is divisor too large now?
 	add	cx,2
 	jmp	m2		; try next (odd) divisor
 
-m3:	PRINTF	<"%u ">,bx
+m3:	PRINTF	<"%7u">,bx
 	inc	si
 	cmp	si,5
 	jb	m4

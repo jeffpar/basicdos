@@ -112,7 +112,7 @@ ENDPROC	dsk_getdta
 ;	If not found, carry set, AX = error code
 ;
 ; Modifies:
-;	AX, BX
+;	AX, BX, CX, DX, SI, DI, DS
 ;
 DEFPROC	dsk_ffirst,DOS
 	mov	al,[bp].REG_CL
@@ -121,6 +121,7 @@ DEFPROC	dsk_ffirst,DOS
 	mov	ds,[bp].REG_DS		; DS:SI -> filespec
 	call	chk_filename
 	jc	ff8
+	mov	ah,[bp].REG_CL
 ;
 ; Fill in the DTA with the relevant bits
 ;
@@ -128,9 +129,7 @@ DEFPROC	dsk_ffirst,DOS
 	ASSUME	DS:NOTHING, ES:NOTHING	; DS:SI -> DIRENT
 	mov	bx,[scb_active]
 	les	di,cs:[bx].SCB_DTA	; ES:DI -> DTA (FFB)
-	stosb				; FFB_DRIVE
-	mov	al,[bp].REG_CL
-	stosb				; FFB_SATTR
+	stosw				; FFB_DRIVE, FFB_SATTR
 	push	cx
 	push	si
 	mov	cx,11
@@ -187,7 +186,7 @@ ENDPROC	dsk_ffirst
 ;	If not found, carry set, AX = error code
 ;
 ; Modifies:
-;	AX, BX
+;	AX, BX, CX, DX, SI, DI, DS
 ;
 DEFPROC	dsk_fnext,DOS
 	mov	bx,[scb_active]
@@ -203,12 +202,13 @@ DEFPROC	dsk_fnext,DOS
 	call	get_bpb			; DL = drive #
 	jc	fn8
 	mov	bl,[si].FFB_SATTR	; BL = search attributes
-	mov	ax,[si].FFB_DIRNUM
-	inc	ax
+	mov	dh,bl
+	mov	ax,[si].FFB_DIRNUM	; AX = prev DIRENT #
+	inc	ax			; AX = next DIRENT #
 	call	get_dirent
 	jc	fn8
 	xchg	cx,ax			; CX = DIRENT #
-	mov	al,dl			; AL = drive #
+	mov	ax,dx			; AL = drive #, AH = search attributes
 	jmp	dsk_ffill
 fn8:	mov	[bp].REG_AX,ax
 	ret

@@ -279,44 +279,14 @@ ASSUME1	macro	segreg,segment
 	ENDIF
 	endm
 
-PRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9
+PRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	argc = 0
-	IFNB	<a9>
+	IRP	arg,<a12,a11,a10,a9,a8,a7,a6,a5,a4,a3,a2,a1>
+	IFNB	<arg>
 	argc = argc + 1
-	push	a9
+	push	arg
 	ENDIF
-	IFNB	<a8>
-	argc = argc + 1
-	push	a8
-	ENDIF
-	IFNB	<a7>
-	argc = argc + 1
-	push	a7
-	ENDIF
-	IFNB	<a6>
-	argc = argc + 1
-	push	a6
-	ENDIF
-	IFNB	<a5>
-	argc = argc + 1
-	push	a5
-	ENDIF
-	IFNB	<a4>
-	argc = argc + 1
-	push	a4
-	ENDIF
-	IFNB	<a3>
-	argc = argc + 1
-	push	a3
-	ENDIF
-	IFNB	<a2>
-	argc = argc + 1
-	push	a2
-	ENDIF
-	IFNB	<a1>
-	argc = argc + 1
-	push	a1
-	ENDIF
+	ENDM
 	mov	ax,DOS_UTL_PRINTF
 	int	INT_DOSFUNC
 	db	format,0
