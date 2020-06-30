@@ -13,16 +13,10 @@ EXE2BIN=EXE2BIN
 AFLAGS=/DDEBUG
 
 .ASM.OBJ:
-	$(ASM) $(AFLAGS) /I..\INC $**,$@;
+	$(ASM) $(AFLAGS) /I../INC $**,$@;
 
 .ASM.LST:
-	$(ASM) $(AFLAGS) /I..\INC $**,$@,$*.LST;
-
-.OBJ.EXE:
-	$(LINK) $**,$@;
-
-.EXE.COM:
-	$(EXE2BIN) $** $@
+	$(ASM) $(AFLAGS) /I../INC $**,$@,$*.LST;
 
 DOSDATA.OBJ: DOSDATA.ASM
 
