@@ -15,21 +15,47 @@ CODE    SEGMENT
 ;
 ; Writes BOOT.COM (or other file specified on the command-line) to the boot
 ; sector of the diskette in drive A.  Any portion that exceeds the 512-byte
-; maximum will be written to a separate file (BOOT2.COM) for inclusion in the
+; maximum will be written to a second file (eg, BOOT2.COM) for inclusion in the
 ; first boot file.
 ;
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 DEFPROC	main
 	mov	dx,offset fname
+	mov	bp,offset fname2
+
 	mov	si,80h			; check the command-line
 	lodsb
 	test	al,al
 	jz	open			; open the default filename
-	mov	bl,al
-	mov	bh,0
-	mov	byte ptr [si+bx],0	; null-terminate file name
-	inc	si
-	mov	dx,si			; DS:DX -> file name
+m1:	lodsb
+	cmp	al,' '
+	je	m1
+	cmp	al,0Dh
+	je	open
+	lea	dx,[si-1]		; DS:DX -> first filename
+m2:	lodsb
+	cmp	al,' '
+	je	m3
+	cmp	al,0Dh
+	je	m3
+	jmp	m2
+m3:	mov	byte ptr [si-1],0	; null-terminate the first filename
+	cmp	al,' '
+	jne	open
+m4:	lodsb
+	cmp	al,' '
+	je	m4
+	cmp	al,0Dh
+	je	open
+	lea	bp,[si-1]		; DS:BP -> second filename
+m5:	lodsb
+	cmp	al,' '
+	je	m6
+	cmp	al,0Dh
+	je	m6
+	jmp	m5
+m6:	mov	byte ptr [si-1],0	; null-terminate the second filename
+
 open:	mov	ax,3D00h		; AH = 3Dh (OPEN FILE)
 	int	21h
 	jc	eopen
@@ -74,7 +100,7 @@ open:	mov	ax,3D00h		; AH = 3Dh (OPEN FILE)
 	int	21h
 	mov	ah,3Ch
 	sub	cx,cx
-	mov	dx,offset fname2
+	mov	dx,bp			; DS:DX -> second filename
 	int	21h
 	pop	cx			; CX = number of bytes to write
 	jc	ecreat
@@ -106,8 +132,8 @@ exit:	mov	ah,4Ch			; exit with return code in AL
 	int	21h
 ENDPROC	main
 
-fname	db	"BOOT\BOOT.COM",0
-fname2	db	"BOOT\BOOT2.COM",0
+fname	db	"BOOT.COM",0
+fname2	db	"BOOT2.COM",0
 emopen	db	"Unable to open BOOT.COM",13,10,'$'
 emread	db	"Unable to read BOOT.COM",13,10,'$'
 emcheck	db	"BOOT.COM check failure",13,10,'$'

@@ -19,7 +19,9 @@ let disks = {
         "./software/pcx86/src/inc/dev.inc",
         "./software/pcx86/src/inc/disk.inc",
         "./software/pcx86/src/inc/dos.inc",
-        "./software/pcx86/src/inc/macros.inc"
+        "./software/pcx86/src/inc/macros.inc",
+        "./software/pcx86/src/boot/makefile",
+        "./software/pcx86/src/boot/mk.bat"
     ],
     "BDS-DEV": [
         "./software/pcx86/src/dev/auxdev.asm",
@@ -28,7 +30,6 @@ let disks = {
         "./software/pcx86/src/dev/condev.asm",
         "./software/pcx86/src/dev/devinit.asm",
         "./software/pcx86/src/dev/fdcdev.asm",
-        "./software/pcx86/src/dev/ibmbio.lrf",
         "./software/pcx86/src/dev/lptdev.asm",
         "./software/pcx86/src/dev/nuldev.asm",
         "./software/pcx86/src/dev/prndev.asm",
@@ -36,7 +37,9 @@ let disks = {
         "./software/pcx86/src/inc/dev.inc",
         "./software/pcx86/src/inc/disk.inc",
         "./software/pcx86/src/inc/dos.inc",
-        "./software/pcx86/src/inc/macros.inc"
+        "./software/pcx86/src/inc/macros.inc",
+        "./software/pcx86/src/dev/makefile",
+        "./software/pcx86/src/dev/mk.bat"
     ],
     "BDS-DOS": [
         "./software/pcx86/src/dos/conio.asm",
@@ -47,6 +50,7 @@ let disks = {
         "./software/pcx86/src/dos/handle.asm",
         "./software/pcx86/src/dos/ibmdos.lrf",
         "./software/pcx86/src/dos/memory.asm",
+        "./software/pcx86/src/dos/misc.asm",
         "./software/pcx86/src/dos/process.asm",
         "./software/pcx86/src/dos/session.asm",
         "./software/pcx86/src/dos/sysinit.asm",
@@ -55,7 +59,9 @@ let disks = {
         "./software/pcx86/src/inc/dev.inc",
         "./software/pcx86/src/inc/disk.inc",
         "./software/pcx86/src/inc/dos.inc",
-        "./software/pcx86/src/inc/macros.inc"
+        "./software/pcx86/src/inc/macros.inc",
+        "./software/pcx86/src/dos/makefile",
+        "./software/pcx86/src/dos/mk.bat"
     ],
     "BDS-UTIL": [
         "./software/pcx86/src/util/cmd.inc",
@@ -66,26 +72,36 @@ let disks = {
         "./software/pcx86/src/inc/dev.inc",
         "./software/pcx86/src/inc/disk.inc",
         "./software/pcx86/src/inc/dos.inc",
-        "./software/pcx86/src/inc/macros.inc"
+        "./software/pcx86/src/inc/macros.inc",
+        "./software/pcx86/src/util/makefile",
+        "./software/pcx86/src/util/mk.bat"
+    ],
+    "BDS-SRC": [
+        "./software/pcx86/src/**"
     ]
 };
 
 let watchTasks = [];
 for (let diskName in disks) {
-    let files = [];
     let buildTask = "BUILD-" + diskName;
     let diskImage = "./software/pcx86/disks/" + diskName + ".json";
-    disks[diskName].forEach((file) => files.push(file));
     let diskFiles = "";
-    for (let i = 0; i < files.length; i++) {
-        if (diskFiles) diskFiles += ",";
-        diskFiles += files[i];
+    let kbTarget = 160;
+    if (disks[diskName].length == 1) {
+        kbTarget = 10000;
+        diskFiles = "--dir " + path.dirname(disks[diskName][0]);
+    } else {
+        for (let i = 0; i < disks[diskName].length; i++) {
+            if (diskFiles) diskFiles += ",";
+            diskFiles += disks[diskName][i];
+        }
+        diskFiles = "--files " + diskFiles;
     }
-    gulp.task(buildTask, run("node /Users/jeff/Sites/pcjs/tools/modules/diskimage.js --files " + diskFiles + " --output " + diskImage + " --target=360 --overwrite"));
+    gulp.task(buildTask, run("node /Users/jeff/Sites/pcjs/tools/modules/diskimage.js " + diskFiles + " --output " + diskImage + " --target=" + kbTarget + " --overwrite"));
     let watchTask = "WATCH-" + diskName;
     watchTasks.push(watchTask);
     gulp.task(watchTask, function() {
-        return gulp.watch(files, gulp.series(buildTask));
+        return gulp.watch(disks[diskName], gulp.series(buildTask));
     });
 }
 

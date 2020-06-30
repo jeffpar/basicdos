@@ -9,8 +9,8 @@ machines:
     autoType: $date\r$time\r
     autoStart: true
     autoMount:
-      A: "BD-BIN"
-      B: "BD-SRC"
+      A: "BASIC-DOS"
+      B: "BDS-BOOT"
 ---
 
 {% include machine.html id="ibm-5160-cga" %}

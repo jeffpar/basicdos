@@ -7,7 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-	include	dos.inc
+	include	cmd.inc
 
 CODE    SEGMENT
 
@@ -33,7 +33,7 @@ m1:	mov	ah,DOS_DSK_GETDRV
 	mov	si,dx
 	mov	[bx].TOKENS.TOK_MAX,size TOKENS.TOK_BUF
 	lea	di,[bx].TOKENS
-	mov	ax,DOS_UTIL_TOKENS
+	mov	ax,DOS_UTL_TOKENS
 	int	21h
 
 	mov	ch,0

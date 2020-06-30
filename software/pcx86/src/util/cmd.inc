@@ -7,7 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-
+	include	dos.inc
 ;
 ; Define the command workspace as a structure
 ;
@@ -24,6 +24,6 @@ TOK_BUF		dw	32 dup (?)
 CMD_TOKENS	ends
 
 CMD_WS		struc
-INPUT		CMD_INPUT	<>
-TOKENS		CMD_TOKENS	<>
+INPUT		db	size CMD_INPUT dup (?)
+TOKENS		db	size CMD_TOKENS	dup (?)
 CMD_WS		ends
