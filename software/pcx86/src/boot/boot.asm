@@ -23,13 +23,13 @@ BOOT	segment word public 'CODE'
 ;	CS = 0
 ;	IP = 7C00h
 ;
-; because although the original IBM PC had these additional inputs:
+; Although the original IBM PC had these additional inputs:
 ;
 ;	DS = ES = 0
 ;	SS:SP = 30h:100h
 ;
-; that apparently didn't become a standard, because if we make any of those
-; other assumptions, we have boot failures.
+; that apparently didn't become a standard, because if we rely on any of those
+; other assumptions, we can run into boot failures.
 ;
 start:	cld
 	jmp	short part1
@@ -55,8 +55,8 @@ PART1_END	equ	$		; end of PART1 data
 part1:	push	cs
 	pop	es
 	ASSUME	ES:BIOS
-	lds	si,es:[INT_DPT*4]	; DS:SI -> original table (in ROM)
-	mov	cx,size DPT
+	lds	si,dword ptr es:[INT_DPT*4]
+	mov	cx,size DPT		; DS:SI -> original table (in ROM)
 	mov	di,offset DPT_ACTIVE	; ES:DI -> DPT_ACTIVE
 	push	di
 	rep	movsb

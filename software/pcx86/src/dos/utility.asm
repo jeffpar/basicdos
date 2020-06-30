@@ -1030,6 +1030,85 @@ hk3:	cmp	al,CHR_CTRLP
 hk9:	ret
 ENDPROC	utl_hotkey
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_tokens (AX = 1810h)
+;
+; Inputs:
+;	REG_DS:REG_SI -> input buffer
+;	REG_ES:REG_DI -> token buffer
+;
+; Outputs:
+;	AX = # tokens; token buffer updated
+;
+; Modifies:
+;	AX
+;
+DEFPROC	utl_tokens,DOS
+	sti
+	and	[bp].REG_FL,NOT FL_CARRY
+	mov	ds,[bp].REG_DS		; DS:SI -> input buffer
+	mov	es,[bp].REG_ES		; ES:DI -> token buffer
+	sub	bx,bx			; BX = token index
+
+	inc	si
+	lodsb				; AL = # characters (minus CHR_RETURN)
+	cbw				; AH = 0 (since AL < 128)
+	xchg	cx,ax			; CX = character count
+	jcxz	ut9
+;
+; Skip all whitespace in front of the next token.
+;
+ut0:	lodsb
+ut1:	cmp	al,CHR_SPACE
+	je	ut2
+	cmp	al,CHR_TAB
+	jne	ut3
+ut2:	loop	ut0
+	jmp	short ut9
+
+ut3:	dec	cx
+	lea	si,[si-1]		; SI -> next token
+	cmp	bl,es:[di]		; room for more tokens?
+	jae	ut9			; no
+	add	bx,bx
+	mov	es:[di+bx+2],si		; update next token slot
+	shr	bx,1
+	inc	bx			; increment token index
+	jcxz	ut9
+;
+; Skip over the next token. This is complicated by additional rules,
+; such as treating all quoted sequences as a single token.
+;
+	sub	dx,dx
+	lodsb
+	cmp	al,'"'
+	jne	ut4a
+	cmp	al,"'"
+	jne	ut4a
+	mov	dl,al
+	jmp	short ut4b
+ut4:	lodsb
+	test	dl,dl			; did we start with a quote?
+	jz	ut4a			; no
+	cmp	al,dl			; yes, so have we found another?
+	jnz	ut4b			; no
+ut4a:	cmp	al,CHR_SPACE
+	je	ut5
+	cmp	al,CHR_TAB
+	je	ut5
+ut4b:	loop	ut4
+	jmp	short ut9
+
+ut5:	mov	byte ptr [si-1],0	; null-terminate the token
+	dec	cx
+	jnz	ut1
+
+ut9:	mov	es:[di+1],bl		; update # tokens
+	mov	[bp].REG_AX,bx		; return # tokens in AX, too
+	ret
+ENDPROC	utl_tokens
+
 DOS	ends
 
 	end

@@ -7,7 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-	include	disk.inc	; Disk structures
+	include	disk.inc
 
 PCJS_MULTIPLIER EQU 16		; build for machine running at this multiplier
 
@@ -262,10 +262,12 @@ BIOS_DATA	equ	RS232_BASE
 ;
 CHR_CTRLC	equ	03h
 CHR_BACKSPACE	equ	08h
+CHR_TAB		equ	09h
 CHR_LINEFEED	equ	0Ah
 CHR_RETURN	equ	0Dh
 CHR_CTRLP	equ	10h
 CHR_CTRLS	equ	13h
+CHR_SPACE	equ	20h
 
 SCAN_TAB	equ	0Fh
 

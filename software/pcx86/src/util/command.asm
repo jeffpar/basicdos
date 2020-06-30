@@ -18,20 +18,29 @@ DEFPROC	main
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	mov	dx,offset ctrlc
 	int	21h
-m1:	PRINTF	">"
-	mov	ah,DOS_TTY_INPUT
-	mov	dx,offset input
+m1:	mov	ah,DOS_DSK_GETDRV
 	int	21h
-	mov	bx,dx		; DS:BX -> input buffer
-	inc	bx
-	mov	al,[bx]
-	test	al,al		; anything typed?
-	jz	m1		; no
-	cbw
-	inc	bx
-	mov	dx,bx		; DS:DX -> potential filename
-	add	bx,ax
-	mov	byte ptr [bx],0	; null-terminate it
+	add	al,'A'		; AL = current drive letter
+	PRINTF	"%c>",ax
+
+	int 3
+	mov	bx,offset workspace
+	mov	[bx].INPUT.INP_MAX,size INPUT.INP_BUF
+	lea	dx,[bx].INPUT
+	mov	ah,DOS_TTY_INPUT
+	int	21h
+
+	mov	si,dx
+	mov	[bx].TOKENS.TOK_MAX,size TOKENS.TOK_BUF
+	lea	di,[bx].TOKENS
+	mov	ax,DOS_UTIL_TOKENS
+	int	21h
+
+	mov	ch,0
+	mov	cl,[bx].TOKENS.TOK_CNT
+	jcxz	m1
+
+	mov	dx,[bx].TOKENS.TOK_BUF
 	mov	ax,DOS_PSP_EXEC
 	int	21h
 	jnc	m1
@@ -46,7 +55,7 @@ DEFPROC	ctrlc,FAR
 	iret
 ENDPROC	ctrlc
 
-input	db	32		; the rest of input doesn't need initialization
+workspace equ	$
 
 	COMHEAP	4096		; COMHEAP (heap size) must be the last item
 

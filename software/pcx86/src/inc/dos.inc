@@ -57,8 +57,9 @@ DOS_TTY_INPUT	equ	0Ah	; read line (DS:DX) from CON
 DOS_TTY_STATUS	equ	0Bh	; get CON status (AL = 0 if nothing, or FFh)
 DOS_TTY_FLUSH	equ	0Ch	; flush and invoke 01h, 06h, 07h, 08h, or 0Ah
 DOS_DSK_RESET	equ	0Dh	; disk reset
+DOS_DSK_SETDRV	equ	0Eh	; set current drive (DL), return # drives (AL)
 
-DOS_UTL		equ	18h
+DOS_UTL		equ	18h	; BASIC-DOS utility functions
 DOS_UTL_STRLEN	equ   1800h	; return string (DS:SI) length (AX)
 DOS_UTL_ATOI	equ   1801h	; convert string (DS:SI) to number (AX)
 DOS_UTL_ITOA	equ   1802h	; convert number (DX:SI) to string (ES:DI)
@@ -75,8 +76,10 @@ DOS_UTL_SLEEP	equ   180Ch	; sleep DX milliseconds
 DOS_UTL_WAIT	equ   180Dh	; wait until end wait
 DOS_UTL_ENDWAIT	equ   180Eh	; end wait
 DOS_UTL_HOTKEY	equ   180Fh	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
+DOS_UTL_TOKENS	equ   1810h	; tokenize string (DS:SI) into buffer (ES:DI)
 DOS_UTL_STDLEN	equ   1824h	; like STRLEN but with 24h as terminator
 
+DOS_DSK_GETDRV	equ	19h	; get current drive (AL)
 DOS_DSK_SETDTA	equ	1Ah	; set DTA (DS:DX)
 DOS_MSC_SETVEC	equ	25h	; set vector (AL) to addr (DS:DX)
 DOS_PSP_CREATE	equ	26h	; create PSP (DX = segment)

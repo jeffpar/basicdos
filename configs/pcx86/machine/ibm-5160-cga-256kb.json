@@ -129,8 +129,11 @@
           "type": "list",
           "options": {
             "": "None",
-            "/software/pcx86/disks/BDBIN.json": "BD-BIN",
-            "/software/pcx86/disks/BDSRC.json": "BD-SRC"
+            "/software/pcx86/disks/BASIC-DOS.json": "BASIC-DOS",
+            "/software/pcx86/disks/BDS-BOOT.json": "BDS-BOOT",
+            "/software/pcx86/disks/BDS-DEV.json": "BDS-DEV",
+            "/software/pcx86/disks/BDS-DOS.json": "BDS-DOS",
+            "/software/pcx86/disks/BDS-UTIL.json": "BDS-UTIL"
           }
         },
         {

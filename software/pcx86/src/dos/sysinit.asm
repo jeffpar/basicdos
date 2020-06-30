@@ -11,6 +11,7 @@
 
 DOS	segment word public 'CODE'
 
+	EXTERNS	<bpb_total>,byte
 	EXTERNS	<mcb_head,mcb_limit,scb_active>,word
 	EXTERNS	<bpb_table,scb_table,sfb_table,clk_ptr>,dword
 	EXTERNS	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>,near
@@ -157,6 +158,7 @@ si4a:	mov	ax,ds
 	push	es
 	mov	es,[dos_seg]
 	ASSUME	ES:DOS
+	mov	es:[bpb_total],al
 	mov	al,[si].BPB_DRIVE	; and copy to the appropriate BPB slot
 	mov	ah,size BPBEX
 	mul	ah
@@ -534,10 +536,11 @@ ENDPROC	find_cfg
 ;
 ; Returns: Nothing
 ;
-; Modifies: AX, CX, DX, DI
+; Modifies: CX, DX, DI
 ;
 DEFPROC	init_table
 	ASSUME	DS:NOTHING, ES:NOTHING
+	push	ax
 	mul	dx			; AX = length of table in bytes
 	xchg	cx,ax			; CX = length
 	sub	di,di
@@ -564,6 +567,7 @@ DEFPROC	init_table
 	mov	ax,es
 	add	ax,di
 	mov	es,ax			; ES = next available paragraph
+	pop	ax
 	ret
 ENDPROC	init_table
 

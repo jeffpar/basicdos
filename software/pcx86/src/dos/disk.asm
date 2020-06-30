@@ -15,7 +15,7 @@ DOS	segment word public 'CODE'
 
 	EXTERNS	<scb_active>,word
 	EXTERNS	<bpb_table>,dword
-	EXTERNS	<file_name>,byte
+	EXTERNS	<bpb_total,file_name>,byte
 
 	EXTERNS	<VALID_CHARS>,byte
 	EXTERNS	<VALID_COUNT>,abs
@@ -58,6 +58,24 @@ ENDPROC	dsk_flush
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; dsk_setdrv (REG_AH = 0Eh)
+;
+; Inputs:
+;	REG_DL = drive #
+;
+; Outputs:
+;	REG_AL = # of (logical) drives
+;
+DEFPROC	dsk_setdrv,DOS
+	mov	bx,[scb_active]
+	mov	[bx].SCB_CURDRV,dl
+	mov	al,[bpb_total]		; AL = # drives (TODO: physical only)
+	mov	[bp].REG_AL,al
+	ret
+ENDPROC	dsk_setdrv
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; dsk_setdta (REG_AH = 1Ah)
 ;
 ; Inputs:
@@ -76,6 +94,23 @@ DEFPROC	dsk_setdta,DOS
 	mov	[bx].SCB_DTA.SEG,ax
 	ret
 ENDPROC	dsk_setdta
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dsk_getdrv (REG_AH = 19h)
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	REG_AL = current drive #
+;
+DEFPROC	dsk_getdrv,DOS
+	mov	bx,[scb_active]
+	mov	al,[bx].SCB_CURDRV
+	mov	[bp].REG_AL,al
+	ret
+ENDPROC	dsk_getdrv
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

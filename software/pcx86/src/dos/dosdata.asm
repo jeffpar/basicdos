@@ -23,6 +23,7 @@ DOS	segment word public 'CODE'
 	DEFWORD	psp_active,0		; segment of active PSP (zero if none)
 	DEFPTR	clk_ptr,-1		; pointer to CLOCK$ DDH
 	DEFBYTE	scb_locked,-1		; -1 if unlocked
+	DEFBYTE	bpb_total,0		; total number of BPBs
 	DEFBYTE	file_name,' ',11	; buffer for 11-character filename
 	DEFBYTE	ddint_level,0		; device driver interrupt level
 
@@ -59,7 +60,8 @@ DOS	segment word public 'CODE'
 	EXTERNS	<psp_term>,near
 	EXTERNS	<tty_echo,tty_write,aux_read,aux_write,prn_write,tty_io>,near
 	EXTERNS	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>,near
-	EXTERNS	<dsk_flush,dsk_setdta,dsk_getdta,dsk_ffirst,dsk_fnext>,near
+	EXTERNS	<dsk_flush,dsk_getdrv,dsk_setdrv,dsk_setdta,dsk_getdta>,near
+	EXTERNS	<dsk_ffirst,dsk_fnext>,near
 	EXTERNS	<msc_setvec,msc_getvec>,near
 	EXTERNS	<psp_exec,psp_create,psp_set,psp_get>,near
 	EXTERNS	<hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek>,near
@@ -67,16 +69,17 @@ DOS	segment word public 'CODE'
 	EXTERNS	<utl_strlen,utl_atoi,utl_itoa,utl_printf,utl_sprintf>,near
 	EXTERNS	<utl_getdev,utl_ioctl,utl_load,utl_start,utl_stop,utl_unload>,near
 	EXTERNS	<utl_yield,utl_sleep,utl_wait,utl_endwait,utl_hotkey>,near
+	EXTERNS	<utl_tokens>,near
 	EXTERNS	<func_none>,near
 
 	DEFLBL	FUNCTBL,word
 	dw	psp_term,    tty_echo,    tty_write,   aux_read		;00h-03h
 	dw	aux_write,   prn_write,   tty_io,      tty_in		;04h-07h
 	dw	tty_read,    tty_print,   tty_input,   tty_status	;08h-0Bh
-	dw	tty_flush,   dsk_flush,   func_none,   func_none	;0Ch-0Fh
+	dw	tty_flush,   dsk_flush,   dsk_setdrv,  func_none	;0Ch-0Fh
 	dw	func_none,   func_none,   func_none,   func_none	;10h-13h
 	dw	func_none,   func_none,   func_none,   func_none	;14h-17h
-	dw	func_none,   func_none,   dsk_setdta,  func_none	;18h-1Bh
+	dw	func_none,   dsk_getdrv,  dsk_setdta,  func_none	;18h-1Bh
 	dw	func_none,   func_none,   func_none,   func_none	;1Ch-1Fh
 	dw	func_none,   func_none,   func_none,   func_none	;20h-23h
 	dw	func_none,   msc_setvec,  psp_create,  func_none	;24h-27h
@@ -98,7 +101,7 @@ DOS	segment word public 'CODE'
 	dw	utl_sprintf, utl_getdev,  utl_ioctl,   utl_load		;04h-07h
 	dw	utl_start,   utl_stop,    utl_unload,  utl_yield	;08h-0Bh
 	dw	utl_sleep,   utl_wait,    utl_endwait, utl_hotkey	;0Ch-0Fh
-	dw	func_none,   func_none,   func_none,   func_none	;10h-13h
+	dw	utl_tokens,  func_none,   func_none,   func_none	;10h-13h
 	dw	func_none,   func_none,   func_none,   func_none	;14h-17h
 	dw	func_none,   func_none,   func_none,   func_none	;18h-1Bh
 	dw	func_none,   func_none,   func_none,   func_none	;1Ch-1Fh

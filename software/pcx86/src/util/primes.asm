@@ -25,18 +25,18 @@ DEFPROC	main
 	mov	dx,offset ctrlc
 	int	21h
 ;
-; One simple rule is that if you haven't found a perfect divisor of a number
-; before reaching the square root of that number, the number must be prime.
+; For each number, we test all the (odd) divisors up to the square root of
+; the number, and if none divide it perfectly, then the number must be prime.
 ;
 ; Since we're working through the dividends incrementally, we can simply
 ; increment maxDivisor whenever the next dividend reaches the square of
-; maxDivisor (maxSquared).  And while we could recalculate maxSquared
-; each time maxDivisor changes, each successive square (ie, 9, 16, 25, 36)
-; is just the sum of the previous square and the next odd number (advSquared).
+; maxDivisor (maxSquared) and then advance maxSquared to next square by adding
+; the next odd number (since square numbers are separated by sequential odd
+; numbers).
 ;
 	mov	[maxDivisor],2
 	mov	[maxSquared],4	; current square of maxDivisor
-	mov	[advSquared],5	; amount to advance maxSquared
+	mov	[advSquared],5	; next odd amount to advance maxSquared by
 
 	sub	si,si		; SI = # of primes this line
 
