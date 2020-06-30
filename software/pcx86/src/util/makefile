@@ -13,17 +13,17 @@ EXE2BIN=EXE2BIN
 AFLAGS=/DDEBUG
 
 .ASM.COM:
-	$(ASM) $(AFLAGS) /I../INC $**,$*.OBJ;
+	$(ASM) $(AFLAGS) /I..\INC $**,$*.OBJ;
 	$(LINK) $*.OBJ,$*.EXE;
 	$(EXE2BIN) $*.EXE $@
 	DEL $*.OBJ
 	DEL $*.EXE
 
 .ASM.OBJ:
-	$(ASM) $(AFLAGS) /I../INC $**,$@;
+	$(ASM) $(AFLAGS) /I..\INC $**,$@;
 
 .ASM.LST:
-	$(ASM) $(AFLAGS) /I../INC $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) /I..\INC $**,$@,$*.LST;
 
 .OBJ.EXE:
 	$(LINK) $**,$@;

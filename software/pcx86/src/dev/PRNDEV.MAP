@@ -1,0 +1,22 @@
+
+
+Warning: no stack segment
+
+ Start  Stop   Length Name                   Class
+ 00000H 00020H 00021H CODE                   CODE
+ 00030H 0003FH 00010H DATA                   DATA
+
+ Origin   Group
+ 0000:0   DEV
+
+  Address         Publics by Name
+
+ 0000:0013       DDPRN_INIT
+ 0000:0012       DDPRN_REQ
+ 0000:0000       PRN
+
+  Address         Publics by Value
+
+ 0000:0000       PRN
+ 0000:0012       DDPRN_REQ
+ 0000:0013       DDPRN_INIT
