@@ -86,7 +86,7 @@ ENDPROC	dos_oferr
 DEFPROC	dos_term,DOSFAR
 	mov	ah,DOS_PSP_TERM
 	int	21h
-	ASSERTNC <stc>			; assert that we never get here
+	ASSERT	NC,<stc>		; assert that we never get here
 	jmp	$
 ENDPROC	dos_term
 
@@ -169,7 +169,7 @@ dc1:	sti
 	mov	bx,[scb_active]
 	test	bx,bx
 	jz	dc2			; TODO: always have an scb_active
-	ASSERT_STRUC [bx],SCB
+	ASSERT	STRUCT,[bx],SCB
 	cmp	word ptr [bx].SCB_CTRLC_ALL,0101h
 	je	dc0			; signal CTRLC
 ;
@@ -195,7 +195,7 @@ dc9:	adc	[bp].REG_FL,0
 
 	IF REG_CHECK
 	pop	bp
-	ASSERTZ	<cmp bp,offset dos_check>
+	ASSERT	Z,<cmp bp,offset dos_check>
 	ENDIF
 
 	pop	bp

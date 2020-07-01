@@ -66,10 +66,10 @@ DOS	segment word public 'CODE'
 	EXTERNS	<psp_exec,psp_create,psp_set,psp_get>,near
 	EXTERNS	<hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek>,near
 	EXTERNS	<mem_alloc,mem_free,mem_realloc>,near
-	EXTERNS	<utl_strlen,utl_atoi,utl_itoa,utl_printf,utl_sprintf>,near
+	EXTERNS	<utl_strlen,utl_strupr,utl_atoi,utl_itoa,utl_printf,utl_sprintf>,near
 	EXTERNS	<utl_getdev,utl_ioctl,utl_load,utl_start,utl_stop,utl_unload>,near
 	EXTERNS	<utl_yield,utl_sleep,utl_wait,utl_endwait,utl_hotkey>,near
-	EXTERNS	<utl_tokens>,near
+	EXTERNS	<utl_tokify,utl_tokid>,near
 	EXTERNS	<func_none>,near
 
 	DEFLBL	FUNCTBL,word
@@ -97,11 +97,11 @@ DOS	segment word public 'CODE'
 	DEFABS	FUNCTBL_SIZE,<($ - FUNCTBL) SHR 1>
 
 	DEFLBL	UTILTBL,word
-	dw	utl_strlen,  utl_atoi,    utl_itoa,    utl_printf	;00h-03h
-	dw	utl_sprintf, utl_getdev,  utl_ioctl,   utl_load		;04h-07h
-	dw	utl_start,   utl_stop,    utl_unload,  utl_yield	;08h-0Bh
-	dw	utl_sleep,   utl_wait,    utl_endwait, utl_hotkey	;0Ch-0Fh
-	dw	utl_tokens,  func_none,   func_none,   func_none	;10h-13h
+	dw	utl_strlen,  utl_strupr,  utl_atoi,    utl_itoa		;00h-03h
+	dw	utl_printf,  utl_sprintf, utl_getdev,  utl_ioctl	;04h-07h
+	dw	utl_load,    utl_start,   utl_stop,    utl_unload	;08h-0Bh
+	dw	utl_yield,   utl_sleep,   utl_wait,    utl_endwait	;0Ch-0Fh
+	dw	utl_hotkey,  utl_tokify,  utl_tokid,   func_none	;10h-13h
 	dw	func_none,   func_none,   func_none,   func_none	;14h-17h
 	dw	func_none,   func_none,   func_none,   func_none	;18h-1Bh
 	dw	func_none,   func_none,   func_none,   func_none	;1Ch-1Fh

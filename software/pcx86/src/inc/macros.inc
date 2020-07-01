@@ -116,7 +116,7 @@ name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 ;
 ;	DEFPROC function,DOS
 ;	LOCVAR	fileName,byte,11
-;	LOCVAR	dirEntry,dword,1
+;	LOCVAR	dirEntry,dword
 ;	ENTER
 ;	...
 ;	LEAVE
@@ -148,14 +148,19 @@ name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 ; fragile, so beware.
 ;
 LOCVAR	macro	name,type,len
+	IFB <len>
+	_LOCLEN = 1
+	ELSE
+	_LOCLEN = len
+	ENDIF
 	IFIDN	<type>,<byte>
-	_LOCBYTES = _LOCBYTES + len
+	_LOCBYTES = _LOCBYTES + _LOCLEN
 	ELSE
 	IFIDN	<type>,<word>
-	_LOCBYTES = _LOCBYTES + (len * 2)
+	_LOCBYTES = _LOCBYTES + (_LOCLEN * 2)
 	ELSE
 	IFIDN	<type>,<dword>
-	_LOCBYTES = _LOCBYTES + (len * 4)
+	_LOCBYTES = _LOCBYTES + (_LOCLEN * 4)
 	ELSE
 	%out	Unrecognized LOCVAR parameter: type
 	ENDIF
@@ -202,42 +207,23 @@ ERROR	macro	msg
 	.ERROR
 	endm
 
-ASSERT	macro	v1,op,v2
-	IFE	v1 op v2
-	ERROR	<Assertion failed: v1 op v2>
-	IF1
-	%out
+ASSERT	macro	cond,op,value
+	IFNB	<value>
+	IFIDN	<cond>,<STRUCT>	;; must use "STRUCT" instead of "STRUC" here...
+	ASSERT	Z,<cmp op&.&value&_RESERVED,value&SIG>
+	ELSE
+	IFE	cond op value
+	ERROR	<Assertion failed: cond op value>
 	ENDIF
 	ENDIF
-	endm
-
-ASSERTZ	macro	op
+	ELSE
 	IFDEF DEBUG
 	IFNB	<op>
 	op
 	ENDIF
-	jz	$+4
+	J&cond	$+4
 	int 1
 	ENDIF
-	endm
-
-ASSERTNC macro	op
-	IFDEF DEBUG
-	IFNB	<op>
-	op
-	ENDIF
-	jnc	$+4
-	int 1
-	ENDIF
-	endm
-
-ASSERTNZ macro	op
-	IFDEF DEBUG
-	IFNB	<op>
-	op
-	ENDIF
-	jnz	$+4
-	int 1
 	ENDIF
 	endm
 
@@ -245,10 +231,6 @@ INIT_STRUC macro ptr,str
 	IFDEF DEBUG
 	mov	ptr&.&str&_RESERVED,str&SIG
 	ENDIF
-	endm
-
-ASSERT_STRUC macro ptr,str
-	ASSERTZ <cmp ptr&.&str&_RESERVED,str&SIG>
 	endm
 
 ASSUMES	macro	seg1,seg2
@@ -266,12 +248,12 @@ ASSUME1	macro	segreg,segment
 	push	segreg
 	pop	ax
 	IFIDN	<segment>,<BIOS>
-	ASSERTZ <test ax,ax>
+	ASSERT	Z,<test ax,ax>
 	ELSE
 	IFIDN	<segment>,<DOS>
 	push	cs
 	pop	dx
-	ASSERTZ <cmp ax,dx>
+	ASSERT	Z,<cmp ax,dx>
 	ENDIF
 	ENDIF
 	pop	dx

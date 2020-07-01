@@ -61,7 +61,7 @@ DEFPROC	get_scbnum,DOS
 	ASSUME	ES:NOTHING
 	mov	ax,[scb_active]
 	sub	ax,[scb_table].OFF
-	ASSERTNC
+	ASSERT	NC
 	jnc	gsn1
 	sbb	ax,ax
 	jmp	short gsn9
@@ -120,7 +120,7 @@ ENDPROC	scb_load
 ;
 DEFPROC	scb_init,DOS
 	ASSUME	ES:NOTHING
-	ASSERT_STRUC [bx],SCB
+	ASSERT	STRUCT,[bx],SCB
 	mov	[bx].SCB_STACK.OFF,di
 	mov	[bx].SCB_STACK.SEG,dx
 	or	[bx].SCB_STATUS,SCSTAT_LOAD
@@ -152,11 +152,11 @@ DEFPROC	scb_lock,DOS
 	xchg	bx,[scb_active]		; BX -> previous SCB, if any
 	test	bx,bx
 	jz	sk8
-	ASSERT_STRUC [bx],SCB
+	ASSERT	STRUCT,[bx],SCB
 	mov	dx,[psp_active]
 	mov	[bx].SCB_CURPSP,dx
 sk8:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
-	ASSERT_STRUC [bx],SCB
+	ASSERT	STRUCT,[bx],SCB
 	mov	dx,[bx].SCB_CURPSP
 	mov	[psp_active],dx
 	push	ds
@@ -193,14 +193,14 @@ ENDPROC	scb_lock
 ;
 DEFPROC	scb_unlock,DOS
 	pushf
-	ASSERT_STRUC [bx],SCB
+	ASSERT	STRUCT,[bx],SCB
 	mov	dx,[psp_active]
 	mov	[bx].SCB_CURPSP,dx
 	mov	[scb_active],ax
 	test	ax,ax
 	jz	su9
 	xchg	bx,ax			; BX -> previous SCB
-	ASSERT_STRUC [bx],SCB
+	ASSERT	STRUCT,[bx],SCB
 	mov	dx,[bx].SCB_CURPSP
 	mov	[psp_active],dx
 su9:	dec	[scb_locked]
@@ -300,7 +300,7 @@ DEFPROC	scb_yield,DOS
 	test	ax,ax			; is this yield due to a WAIT?
 	jz	sy1			; yes, so spin until we find an SCB
 	mov	bx,ax
-	ASSERT_STRUC [bx],SCB
+	ASSERT	STRUCT,[bx],SCB
 sy1:	add	bx,size SCB
 	cmp	bx,[scb_table].SEG
 	jb	sy3
@@ -309,13 +309,13 @@ sy3:	cmp	bx,ax			; have we looped to where we started?
 	je	sy9			; yes
 	test	[bx].SCB_STATUS,SCSTAT_START
 	jz	sy1			; ignore this SCB, hasn't been started
-	ASSERT_STRUC [bx],SCB
+	ASSERT	STRUCT,[bx],SCB
 	mov	dx,[bx].SCB_WAITID.OFF
 	or	dx,[bx].SCB_WAITID.SEG
 	jnz	sy1
 	jmp	scb_switch
 sy9:	dec	[scb_locked]
-	ASSERTNC
+	ASSERT	NC
 	ret
 ENDPROC	scb_yield
 
@@ -337,19 +337,19 @@ DEFPROC	scb_switch,DOS
 	xchg	bx,[scb_active]		; BX -> previous SCB
 	test	bx,bx
 	jz	sw8
-	ASSERT_STRUC [bx],SCB
+	ASSERT	STRUCT,[bx],SCB
 	mov	dx,[psp_active]
 	mov	[bx].SCB_CURPSP,dx
 	add	sp,2			; toss 1 near-call return address
 	mov	[bx].SCB_STACK.SEG,ss
 	mov	[bx].SCB_STACK.OFF,sp
 sw8:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
-	ASSERT_STRUC [bx],SCB
+	ASSERT	STRUCT,[bx],SCB
 	mov	dx,[bx].SCB_CURPSP
 	mov	[psp_active],dx
 	mov	ss,[bx].SCB_STACK.SEG
 	mov	sp,[bx].SCB_STACK.OFF
-	ASSERTNC
+	ASSERT	NC
 	jmp	dos_exit
 sw9:	sti
 	ret
@@ -370,8 +370,8 @@ ENDPROC	scb_switch
 DEFPROC	scb_wait,DOS
 	cli
 	mov	bx,[scb_active]
-	ASSERT_STRUC [bx],SCB
-	ASSERTZ <cmp [bx].SCB_WAITID.SEG,0>
+	ASSERT	STRUCT,[bx],SCB
+	ASSERT	Z,<cmp [bx].SCB_WAITID.SEG,0>
 	mov	[bx].SCB_WAITID.OFF,di
 	mov	[bx].SCB_WAITID.SEG,dx
 	sti
@@ -394,7 +394,7 @@ ENDPROC	scb_wait
 DEFPROC	scb_endwait,DOS
 	cli
 	mov	bx,[scb_table].OFF
-se1:	ASSERT_STRUC [bx],SCB
+se1:	ASSERT	STRUCT,[bx],SCB
 	cmp	[bx].SCB_WAITID.OFF,di
 	jne	se2
 	cmp	[bx].SCB_WAITID.SEG,dx

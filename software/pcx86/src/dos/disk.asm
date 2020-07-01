@@ -282,7 +282,7 @@ DEFPROC	chk_filename,DOS
 	push	bx
 	push	ax
 	mov	bx,[scb_active]
-	ASSERT_STRUC es:[bx],SCB
+	ASSERT	STRUCT,es:[bx],SCB
 	mov	dl,es:[bx].SCB_CURDRV	; DL = default drive number
 	mov	dh,8			; DH is current file_name limit
 	sub	bx,bx			; BL is current file_name position
@@ -692,7 +692,7 @@ rb1:	push	bx
 	mov	ah,DDC_READ
 	push	di
 	push	es
-	ASSERTZ <cmp al,es:[di].BPB_UNIT>
+	ASSERT	Z,<cmp al,es:[di].BPB_UNIT>
 	les	di,es:[di].BPB_DEVICE
 	call	dev_request
 	pop	es

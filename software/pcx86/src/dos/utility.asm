@@ -57,7 +57,41 @@ ENDPROC	utl_strlen
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_atoi (AX = 1801h)
+; utl_strupr (AX = 1801h)
+;
+; Makes the string at REG_DS:SI with length CX upper-case; use length -1
+; if null-terminated.
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX (but not REG_AX)
+;
+DEFPROC	utl_strupr,DOS
+	sti
+	mov	ds,[bp].REG_DS
+	ASSUME	DS:NOTHING
+	DEFLBL	strupr,near		; for internal calls (no REG_FRAME)
+	push	si
+usu1:	mov	al,[si]
+	test	al,al
+	jz	usu9
+	cmp	al,'a'
+	jb	usu2
+	cmp	al,'z'
+	ja	usu2
+	sub	al,20h
+	mov	[si],al
+usu2:	inc	si
+	loop	usu1
+usu9:	pop	si
+	ret
+ENDPROC	utl_strupr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_atoi (AX = 1802h)
 ;
 ; Convert string at DS:SI to decimal, then validate using values at ES:DI.
 ;
@@ -114,7 +148,7 @@ ENDPROC utl_atoi
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_itoa (AX = 1802h)
+; utl_itoa (AX = 1803h)
 ;
 ; Convert the value DX:SI to a string representation at ES:DI, using base BL,
 ; flags BH (see PF_*), minimum length CX (0 for no minimum).
@@ -263,7 +297,7 @@ ENDPROC itoa
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_printf (AX = 1803h)
+; utl_printf (AX = 1804h)
 ;
 ; A semi-CDECL-style calling convention is assumed, where all parameters
 ; EXCEPT for the format string are pushed from right to left, so that the
@@ -316,7 +350,7 @@ ENDPROC	utl_printf endp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_sprintf (AX = 1804h)
+; utl_sprintf (AX = 1805h)
 ;
 ; A semi-CDECL-style calling convention is assumed, where all parameters
 ; EXCEPT for the format string are pushed from right to left, so that the
@@ -785,7 +819,7 @@ ENDPROC	day_of_week
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_getdev (AX = 1805h)
+; utl_getdev (AX = 1806h)
 ;
 ; Returns DDH in ES:DI for device name at DS:DX.
 ;
@@ -813,7 +847,7 @@ ENDPROC	utl_getdev
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_ioctl (AX = 1806h)
+; utl_ioctl (AX = 1807h)
 ;
 ; Inputs:
 ;	REG_BX = IOCTL command (BH = driver command, BL = IOCTL command)
@@ -833,7 +867,7 @@ ENDPROC	utl_ioctl
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_load (AX = 1807h)
+; utl_load (AX = 1808h)
 ;
 ; Inputs:
 ;	REG_CL = SCB #
@@ -851,7 +885,7 @@ ENDPROC	utl_load
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_start (AX = 1808h)
+; utl_start (AX = 1809h)
 ;
 ; "Start" the specified session (actual starting will handled by scb_switch).
 ;
@@ -870,7 +904,7 @@ ENDPROC	utl_start
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_stop (AX = 1809h)
+; utl_stop (AX = 180Ah)
 ;
 ; "Stop" the specified session.
 ;
@@ -889,7 +923,7 @@ ENDPROC	utl_stop
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_unload (AX = 180Ah)
+; utl_unload (AX = 180Bh)
 ;
 ; Unload the current program from the specified session.
 ;
@@ -908,7 +942,7 @@ ENDPROC	utl_unload
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_yield (AX = 180Bh)
+; utl_yield (AX = 180Ch)
 ;
 ; Asynchronous interface to decide which SCB should run next.
 ;
@@ -926,7 +960,7 @@ ENDPROC	utl_yield
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_sleep (AX = 180Ch)
+; utl_sleep (AX = 180Dh)
 ;
 ; Converts DX from milliseconds (1000/second) to ticks (18.2/sec) and
 ; issues an IOCTL to the CLOCK$ driver to wait the corresponding # of ticks.
@@ -957,7 +991,7 @@ ENDPROC	utl_sleep
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_wait (AX = 180Dh)
+; utl_wait (AX = 180Eh)
 ;
 ; Synchronous interface to mark current SCB as waiting for the specified ID.
 ;
@@ -973,7 +1007,7 @@ ENDPROC	utl_wait
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_endwait (AX = 180Eh)
+; utl_endwait (AX = 180Fh)
 ;
 ; Asynchronous interface to examine all SCBs for the specified ID and clear it.
 ;
@@ -990,7 +1024,7 @@ ENDPROC	utl_endwait
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_hotkey (AX = 180Fh)
+; utl_hotkey (AX = 1810h)
 ;
 ; Inputs:
 ;	REG_CX = CONSOLE context
@@ -1032,11 +1066,12 @@ ENDPROC	utl_hotkey
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_tokens (AX = 1810h)
+; utl_tokify (AX = 1811h)
 ;
 ; Inputs:
-;	REG_DS:REG_SI -> input buffer
-;	REG_ES:REG_DI -> token buffer
+;	REG_AL = token type
+;	REG_DS:REG_SI -> BUF_INPUT
+;	REG_ES:REG_DI -> BUF_TOKENS
 ;
 ; Outputs:
 ;	AX = # tokens; token buffer updated
@@ -1044,70 +1079,166 @@ ENDPROC	utl_hotkey
 ; Modifies:
 ;	AX
 ;
-DEFPROC	utl_tokens,DOS
+DEFPROC	utl_tokify,DOS
 	sti
 	and	[bp].REG_FL,NOT FL_CARRY
-	mov	ds,[bp].REG_DS		; DS:SI -> input buffer
-	mov	es,[bp].REG_ES		; ES:DI -> token buffer
-	sub	bx,bx			; BX = token index
+	mov	ds,[bp].REG_DS		; DS:SI -> BUF_INPUT
+	mov	es,[bp].REG_ES		; ES:DI -> BUF_TOKENS
 
-	inc	si
-	lodsb				; AL = # characters (minus CHR_RETURN)
-	cbw				; AH = 0 (since AL < 128)
-	xchg	cx,ax			; CX = character count
-	jcxz	ut9
+	LOCVAR	pStart,word
+	ENTER
+
+	sub	bx,bx			; BX = token index
+	add	si,2			; SI -> 1st character
+	mov	[pStart],si		; BP = starting position
+	lodsb				; preload the first character
+	jmp	ut8			; and dive in
 ;
 ; Skip all whitespace in front of the next token.
 ;
-ut0:	lodsb
-ut1:	cmp	al,CHR_SPACE
-	je	ut2
+ut1:	lodsb
+ut2:	cmp	al,CHR_RETURN
+	je	ut9
+	cmp	al,CHR_SPACE
+	je	ut1
 	cmp	al,CHR_TAB
-	jne	ut3
-ut2:	loop	ut0
-	jmp	short ut9
+	je	ut1
+;
+; For the next token word-pair, we need to record the offset and the length;
+; we know the offset already (SI-pStart-1), so put that in DX.
+;
+	lea	dx,[si-1]
+	sub	dx,[pStart]		; DX = offset of next token
+;
+; Skip over the next token. This is complicated by additional rules, such as
+; treating all quoted sequences as a single token.
+;
+	mov	ah,0			; AH = 0 (or quote char)
+	cmp	al,'"'
+	je	ut3
+	cmp	al,"'"
+	jne	ut4
+ut3:	mov	ah,al
+ut4:	lodsb
+	cmp	al,CHR_RETURN
+	je	ut9
+	test	ah,ah			; did we start with a quote?
+	jz	ut5			; no
+	cmp	al,ah			; yes, so have we found another?
+	jnz	ut4			; no
+	lodsb				; yes, preload the next character
+	jmp	short ut6		; and record the token length
+ut5:	cmp	al,CHR_SPACE
+	je	ut6
+	cmp	al,CHR_TAB
+	jne	ut4
 
-ut3:	dec	cx
-	lea	si,[si-1]		; SI -> next token
-	cmp	bl,es:[di]		; room for more tokens?
-	jae	ut9			; no
+ut6:	lea	cx,[si-1]
+	sub	cx,[pStart]
+	sub	cx,dx			; CX = length of token
+;
+; DX:CX has our next token pair; store it at the token index in BX
+;
 	add	bx,bx
-	mov	es:[di+bx+2],si		; update next token slot
+	add	bx,bx
+	mov	es:[di+bx+2],dx
+	mov	es:[di+bx+4],cx
+	shr	bx,1
 	shr	bx,1
 	inc	bx			; increment token index
-	jcxz	ut9
-;
-; Skip over the next token. This is complicated by additional rules,
-; such as treating all quoted sequences as a single token.
-;
-	sub	dx,dx
-	lodsb
-	cmp	al,'"'
-	jne	ut4a
-	cmp	al,"'"
-	jne	ut4a
-	mov	dl,al
-	jmp	short ut4b
-ut4:	lodsb
-	test	dl,dl			; did we start with a quote?
-	jz	ut4a			; no
-	cmp	al,dl			; yes, so have we found another?
-	jnz	ut4b			; no
-ut4a:	cmp	al,CHR_SPACE
-	je	ut5
-	cmp	al,CHR_TAB
-	je	ut5
-ut4b:	loop	ut4
-	jmp	short ut9
 
-ut5:	mov	byte ptr [si-1],0	; null-terminate the token
-	dec	cx
-	jnz	ut1
+ut8:	cmp	bl,es:[di]		; room for more tokens?
+	jb	ut2			; yes
 
-ut9:	mov	es:[di+1],bl		; update # tokens
+ut9:	LEAVE
+
+	mov	es:[di+1],bl		; update # tokens
 	mov	[bp].REG_AX,bx		; return # tokens in AX, too
 	ret
-ENDPROC	utl_tokens
+ENDPROC	utl_tokify
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_tokid (AX = 1812h)
+;
+; Inputs:
+;	REG_CX = token length
+;	REG_DS:REG_SI -> token
+;	REG_ES:REG_DI -> DEF_TOKENs
+; Outputs:
+;	If carry clear, AX = token ID
+;	If carry set, token not found
+;
+; Modifies:
+;	AX
+;
+DEFPROC	utl_tokid,DOS
+	mov	ds,[bp].REG_DS		; DS:SI -> token (length CX)
+	mov	es,[bp].REG_ES		; ES:DI -> DEF_TOKENs
+	ASSUME	DS:NOTHING, ES:NOTHING
+
+	push	bp
+	sub	bp,bp			; BP = top index
+	mov	dx,es:[di]		; DX = number of tokens in DEF_TOKENs
+
+utc0:	mov	ax,-1
+	cmp	bp,dx
+	stc
+	je	utc9
+	mov	bx,dx
+	add	bx,bp
+	shr	bx,1			; BX = midpoint index
+	push	bx
+
+	IF	SIZE DEF_TOKEN EQ 6
+	mov	ax,bx
+	add	bx,bx
+	add	bx,ax
+	add	bx,bx
+	ELSE
+	ASSERT	B,<cmp bl,256>
+	mov	al,size DEF_TOKEN
+	mul	bl
+	mov	bx,ax
+	ENDIF
+	mov	ch,es:[di+bx]		; CH = length of current token
+	push	cx
+	push	di
+	mov	di,es:[di+bx+2]		; ES:DI -> current token
+utc1:	cmpsb				; compare input to current
+	jne	utc2
+	sub	cx,0101h
+	jz	utc8			; match!
+	test	cl,cl
+	stc
+	jz	utc2			; if CL exhausted, input < current
+	test	ch,ch
+	jz	utc2			; if CH exhausted, input > current
+	jmp	utc1
+
+utc2:	pop	di
+	pop	cx
+	pop	bx			; BX = index of token we just tested
+;
+; If carry is set, set the bottom range to BX, otherwise set the top range
+;
+	jnc	utc3
+	mov	dx,bx			; new bottom is middle
+	jmp	utc0
+utc3:	inc	bx
+	mov	bp,bx			; new top is middle + 1
+	jmp	utc0
+
+utc8:	pop	di
+	pop	cx
+	pop	bx
+	sub	ax,ax			; zero AX (and carry, too)
+	mov	al,es:[di+bx+1]		; AX = token ID
+
+utc9:	pop	bp
+	mov	[bp].REG_AX,ax
+	ret
+ENDPROC	utl_tokid
 
 DOS	ends
 

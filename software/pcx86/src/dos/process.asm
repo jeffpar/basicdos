@@ -55,7 +55,7 @@ DEFPROC	psp_term,DOS
 	call	free			; free PSP in AX
 	pop	ax			; restore PSP of parent
 	test	ax,ax
-	ASSERTNZ			; if there's no parent
+	ASSERT	NZ			; if there's no parent
 	jz	pt9			; we don't have a stack to switch to
 	mov	es,ax			; ES = PSP of parent
 	pop	ax
@@ -242,7 +242,7 @@ ENDPROC	psp_exec
 DEFPROC	psp_set,DOS
 	mov	ax,[bp].REG_BX
 	mov	bx,[scb_active]
-	ASSERT_STRUC [bx],SCB
+	ASSERT	STRUCT,[bx],SCB
 	mov	[bx].SCB_CURPSP,ax
 	ret
 ENDPROC	psp_set
@@ -261,7 +261,7 @@ ENDPROC	psp_set
 ;
 DEFPROC	psp_get,DOS
 	mov	bx,[scb_active]
-	ASSERT_STRUC [bx],SCB
+	ASSERT	STRUCT,[bx],SCB
 	mov	ax,[bx].SCB_CURPSP
 	mov	[bp].REG_BX,ax
 	ret
@@ -400,7 +400,7 @@ lp5:	mov	byte ptr [bx],CHR_RETURN
 	jnc	lp6
 lp5a:	jmp	lp8
 
-lp6:	ASSERTZ <cmp ax,cx>		; assert bytes read = bytes requested
+lp6:	ASSERT	Z,<cmp ax,cx>		; assert bytes read = bytes requested
 	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the file
 lp6a:	jc	lp7a

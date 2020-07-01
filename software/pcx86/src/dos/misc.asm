@@ -62,7 +62,7 @@ ENDPROC	msc_setvec
 ;
 DEFPROC	msc_setctrlc,DOS
 	mov	bx,[scb_active]
-	ASSERT_STRUC [bx],SCB
+	ASSERT	STRUCT,[bx],SCB
 	sub	al,1
 	jae	msc1
 	mov	al,[bx].SCB_CTRLC_ALL]	; AL was 0
@@ -106,7 +106,7 @@ DEFPROC	msc_sigctrlc,DOSFAR
 	jmp	short msg1
 
 	DEFLBL	msc_sigctrlc_read,near
-	ASSERT_STRUC [bx],SCB
+	ASSERT	STRUCT,[bx],SCB
 	cmp	[bx].SCB_CTRLC_ACT,0
 	je	msg1
 	call	tty_read		; remove CTRLC from the input buffer
@@ -125,7 +125,7 @@ msg1:	mov	cx,4
 	mov	[bp].REG_WS.RET_CS,cs
 	mov	[bp].REG_WS.RET_IP,offset dos_restart
 	mov	bx,[scb_active]
-	ASSERT_STRUC [bx],SCB
+	ASSERT	STRUCT,[bx],SCB
 ;
 ; At this point, we're effectively issuing an INT 23h (INT_DOSCTRLC), but it
 ; has to be simulated, because we're using the SCB CTRLC address rather than the
@@ -209,7 +209,7 @@ DEFPROC	get_vecoff,DOS
 	jb	gv9			; use IVT (carry set)
 	sub	ax,(INT_DOSEXRET * 4) - offset SCB_EXRET
 	add	ax,[scb_active]		; AX = vector offset in current SCB
-	ASSERTNC
+	ASSERT	NC
 gv9:	ret
 ENDPROC	get_vecoff
 

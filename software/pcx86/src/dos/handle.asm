@@ -400,7 +400,7 @@ sr3a:	jc	sr9
 	mov	[bx].SFB_CURCLN,ax
 sr4:	sub	cx,dx			; have we exhausted the read count yet?
 	ja	sr1a			; no, keep reading clusters
-	ASSERTNC
+	ASSERT	NC
 	mov	ax,[bp].TMP_AX
 	jmp	short sr9
 
@@ -658,7 +658,7 @@ DEFPROC	set_pft_free,DOS
 	sub	ax,[sfb_table].off
 	mov	cl,size SFB
 	div	cl			; AL = SFB # (from SFB address)
-	ASSERTZ	<test ah,ah>		; assert that the remainder is zero
+	ASSERT	Z,<test ah,ah>		; assert that the remainder is zero
 	test	di,di			; did we find a free PFT entry?
 	jnz	sp8			; yes
 	mov	[bp].REG_DX,dx		; no, return context in REG_DX

@@ -61,22 +61,24 @@ DOS_DSK_SETDRV	equ	0Eh	; set current drive (DL), return # drives (AL)
 
 DOS_UTL		equ	18h	; BASIC-DOS utility functions
 DOS_UTL_STRLEN	equ   1800h	; return string (DS:SI) length (AX)
-DOS_UTL_ATOI	equ   1801h	; convert string (DS:SI) to number (AX)
-DOS_UTL_ITOA	equ   1802h	; convert number (DX:SI) to string (ES:DI)
-DOS_UTL_PRINTF	equ   1803h	; printf to console
-DOS_UTL_SPRINTF	equ   1804h	; sprintf to buffer (ES:DI)
-DOS_UTL_GETDEV	equ   1805h	; get DDH (ES:DI) for device (DS:SI)
-DOS_UTL_IOCTL	equ   1806h	; issue IOCTL to device (ES:DI)
-DOS_UTL_LOAD	equ   1807h	; load program (DS:DX) into SCB (CL)
-DOS_UTL_START	equ   1808h	; start SCB (CL)
-DOS_UTL_STOP	equ   1809h	; stop SCB (CL)
-DOS_UTL_UNLOAD	equ   180Ah	; unload program from SCB (CL)
-DOS_UTL_YIELD	equ   180Bh	; yield
-DOS_UTL_SLEEP	equ   180Ch	; sleep DX milliseconds
-DOS_UTL_WAIT	equ   180Dh	; wait until end wait
-DOS_UTL_ENDWAIT	equ   180Eh	; end wait
-DOS_UTL_HOTKEY	equ   180Fh	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
-DOS_UTL_TOKENS	equ   1810h	; tokenize string (DS:SI) into buffer (ES:DI)
+DOS_UTL_STRUPR	equ   1801h	; upper-case string (DS:SI)
+DOS_UTL_ATOI	equ   1802h	; convert string (DS:SI) to number (AX)
+DOS_UTL_ITOA	equ   1803h	; convert number (DX:SI) to string (ES:DI)
+DOS_UTL_PRINTF	equ   1804h	; printf to console
+DOS_UTL_SPRINTF	equ   1805h	; sprintf to buffer (ES:DI)
+DOS_UTL_GETDEV	equ   1806h	; get DDH (ES:DI) for device (DS:SI)
+DOS_UTL_IOCTL	equ   1807h	; issue IOCTL to device (ES:DI)
+DOS_UTL_LOAD	equ   1808h	; load program (DS:DX) into SCB (CL)
+DOS_UTL_START	equ   1809h	; start SCB (CL)
+DOS_UTL_STOP	equ   180Ah	; stop SCB (CL)
+DOS_UTL_UNLOAD	equ   180Bh	; unload program from SCB (CL)
+DOS_UTL_YIELD	equ   180Ch	; yield
+DOS_UTL_SLEEP	equ   180Dh	; sleep DX milliseconds
+DOS_UTL_WAIT	equ   180Eh	; wait until end wait
+DOS_UTL_ENDWAIT	equ   180Fh	; end wait
+DOS_UTL_HOTKEY	equ   1810h	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
+DOS_UTL_TOKIFY	equ   1811h	; tokenize string (DS:SI) into buffer (ES:DI)
+DOS_UTL_TOKID	equ   1812h	; convert string (DS:SI) into token ID
 DOS_UTL_STDLEN	equ   1824h	; like STRLEN but with 24h as terminator
 
 DOS_DSK_GETDRV	equ	19h	; get current drive (AL)
@@ -344,3 +346,36 @@ ERR_NOMEM	equ	8	; insufficient memory
 ERR_BADADDR	equ	9	; invalid memory segment
 
 BASICDOS_SIG	equ	'DB'	; BASIC-DOS signature word ("BD")
+
+;
+; Input buffer (eg, as used by DOS_TTY_INPUT)
+;
+BUF_INPUT	struc
+INP_MAX		db	?
+INP_CNT		db	?
+INP_BUF		db	128 dup (?)
+BUF_INPUT	ends
+
+;
+; Token buffer (eg, as used by DOS_UTL_TOKIFY)
+;
+; Whereas the elements of INP_BUF are bytes, the elements of TOK_BUF are dwords,
+; or more precisely, word-pairs, where the low word is the offset of the token
+; and the high word is the length.
+;
+BUF_TOKENS	struc
+TOK_MAX		db	?
+TOK_CNT		db	?
+TOK_BUF		dd	128 dup (?)
+BUF_TOKENS	ends
+
+;
+; After DOS_UTL_TOKIFY breaks a string into tokens, use DOS_UTL_TOKID to
+; identify each token, based on a sorted DEF_TOKENs table.
+;
+DEF_TOKEN	struc
+TOK_LEN		db	?	; length of token
+TOK_ID		db	?	; ID of token
+TOK_OFF		dw	?	; offset of token
+TOK_USER	dw	?	; user-defined field
+DEF_TOKEN	ends

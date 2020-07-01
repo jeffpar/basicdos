@@ -162,12 +162,12 @@ DEFPROC	ddfdc_buildbpb
 	sub	cx,cx
 	mov	al,es:[di].BPB_CLUSSECS
 	test	al,al			; calculate LOG2 of CLUSSECS
-	ASSERTNZ			; assert that CLUSSECS is non-zero
+	ASSERT	NZ			; assert that CLUSSECS is non-zero
 bb6:	shr	al,1
 	jc	bb7
 	inc	cx
 	jmp	bb6
-bb7:	ASSERTZ				; assert CLUSSECS was a power-of-two
+bb7:	ASSERT	Z			; assert CLUSSECS was a power-of-two
 	mov	es:[di].BPB_CLUSLOG2,cl
 	mov	ax,es:[di].BPB_SECBYTES
 	shl	ax,cl			; use CLOSLOG2 to calculate CLUSBYTES
@@ -296,7 +296,7 @@ dcr7:	push	di
 	pop	di
 	add	es:[di].DDPRW_ADDR.off,ax
 	sub	es:[di].DDPRW_LENGTH,ax
-	ASSERTZ	<cmp es:[di].DDPRW_LENGTH,cx>
+	ASSERT	Z,<cmp es:[di].DDPRW_LENGTH,cx>
 
 dcr8:	pop	es
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE

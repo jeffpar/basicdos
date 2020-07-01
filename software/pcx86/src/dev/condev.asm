@@ -315,7 +315,7 @@ dcc0:	int 3
 	push	ds
 	mov	bx,offset ct_head	; DS:BX -> 1st context
 dcc1:	mov	cx,[bx].CT_NEXT
-	ASSERTNZ <test cx,cx>
+	ASSERT	NZ,<test cx,cx>
 	jcxz	dcc2			; context not found
 	cmp	cx,ax
 	je	dcc2
@@ -405,7 +405,7 @@ ddi1:	ASSUME	DS:NOTHING
 ddi2:	cmp	di,-1			; end of chain?
 	je	ddi9			; yes
 
-	ASSERT_STRUC es:[di],DDP
+	ASSERT	STRUCT,es:[di],DDP
 
 	mov	ax,[ct_focus]
 	cmp	es:[di].DDP_CONTEXT,ax	; packet from console with focus?
@@ -955,7 +955,7 @@ DEFPROC	write_curpos
 	les	di,ds:[CT_BUFFER]	; ES:DI -> the frame buffer
 	call	get_curpos		; BX = screen offset for CURX,CURY
 	mov	dx,ds:[CT_PORT]
-	ASSERTZ <cmp dh,03h>
+	ASSERT	Z,<cmp dh,03h>
 	add	dl,6			; DX = status port
 wcp1:	in	al,dx
 	test	al,01h
@@ -988,7 +988,7 @@ ENDPROC	write_curpos
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	write_6845
 	mov	dx,ds:[CT_PORT]
-	ASSERTZ <cmp dh,03h>
+	ASSERT	Z,<cmp dh,03h>
 	mov	al,ah
 	cli
 	out	dx,al			; select 6845 register

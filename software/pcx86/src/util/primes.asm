@@ -16,9 +16,9 @@ CODE    SEGMENT
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 DEFPROC	main
 
-	LOCVAR	maxDivisor,word,1
-	LOCVAR	maxSquared,word,1
-	LOCVAR	advSquared,word,1
+	LOCVAR	maxDivisor,word
+	LOCVAR	maxSquared,word
+	LOCVAR	advSquared,word
 	ENTER
 
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC

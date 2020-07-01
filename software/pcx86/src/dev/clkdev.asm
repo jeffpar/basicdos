@@ -203,7 +203,7 @@ DEFPROC	ddclk_interrupt,far
 ddi1:	cmp	di,-1			; end of chain?
 	je	ddi9			; yes
 
-	ASSERT_STRUC es:[di],DDP
+	ASSERT	STRUCT,es:[di],DDP
 ;
 ; We wait for the double-word decrement to underflow (ie, to go from 0 to -1)
 ; since that's the simplest to detect.  And while you might think that means we
@@ -275,7 +275,7 @@ DEFPROC	ddclk_init,far
 	mov	ds,ax
 	ASSUME	DS:BIOS
 
-	ASSERT_STRUC es:[bx],DDP
+	ASSERT	STRUCT,es:[bx],DDP
 
 	mov	es:[bx].DDPI_END.OFF,offset ddclk_init
 	mov	cs:[0].DDH_REQUEST,offset DEV:ddclk_req
