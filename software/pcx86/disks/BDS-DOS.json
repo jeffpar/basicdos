@@ -1,9 +1,9 @@
 {
 "imageInfo": {
   "type": "CHS",
-  "name": "BDS-DOS.json",
+  "name": "BDS-DOS.img",
   "format": "PC320K",
-  "hash": "none",
+  "hash": "475ee2d336bcaa9a816b7e9f5e23e0a8",
   "checksum": -1654089445,
   "cylinders": 40,
   "heads": 2,

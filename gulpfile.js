@@ -105,4 +105,4 @@ for (let diskName in disks) {
     });
 }
 
-gulp.task("default", gulp.parallel(watchTasks));
+gulp.task("watch", gulp.parallel(watchTasks));

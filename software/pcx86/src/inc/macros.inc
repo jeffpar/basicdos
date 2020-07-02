@@ -86,13 +86,11 @@ name	dd	0
 DEFPROC	macro	name,type
 	public	name
 	_LOCBYTES = 0
+	_PROCTYPE = 0
 	IFIDN	<type>,<DOS>
 	IFDEF	DEBUG
 	db	"&name",0
 	ENDIF
-	_PROCTYPE = 1
-	ELSE
-	_PROCTYPE = 0
 	ENDIF
 	IFB	<type>
 name	proc	near
@@ -293,5 +291,6 @@ PRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 MINHEAP	equ	1024
 
 COMHEAP	macro	bytes
-	dw	(bytes + 15) SHR 4,BASICDOS_SIG
+	public	heap
+heap	dw	(bytes + 15) SHR 4,BASICDOS_SIG
 	endm

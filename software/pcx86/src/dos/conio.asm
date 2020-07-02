@@ -174,7 +174,8 @@ ti7:	cmp	cl,1			; room for only one more?
 	inc	bx
 	call	write_char
 	loop	ti2
-ti8:	call	write_char
+ti8:	mov	es:[di+bx+2],al		; store the final character (CR)
+	call	write_char
 	mov	al,CHR_LINEFEED
 	call	write_char
 ti9:	mov	es:[di+1],bl		; return character count in 2nd byte
