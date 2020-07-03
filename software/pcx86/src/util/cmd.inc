@@ -48,6 +48,7 @@ gt1:
 ; Define the command workspace as a structure
 ;
 CMD_WS		struc
+ORIG_SP		dd	?
 INPUT		db	size BUF_INPUT dup (?)
 TOKENS		db	size BUF_TOKENS dup (?)
 FILENAME	db	16 dup (?)

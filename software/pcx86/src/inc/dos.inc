@@ -79,7 +79,8 @@ DOS_UTL_ENDWAIT	equ   180Fh	; end wait
 DOS_UTL_HOTKEY	equ   1810h	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
 DOS_UTL_TOKIFY	equ   1811h	; tokenize string (DS:SI) into buffer (ES:DI)
 DOS_UTL_TOKID	equ   1812h	; convert string (DS:SI) into token ID
-DOS_UTL_STDLEN	equ   1824h	; like STRLEN but with 24h as terminator
+DOS_UTL_STDLEN	equ   1824h	; like STRLEN but w/24h (dollar) as terminator
+DOS_UTL_STPLEN	equ   182Eh	; like STRLEN but w/2Eh (period) as terminator
 
 DOS_DSK_GETDRV	equ	19h	; get current drive (AL)
 DOS_DSK_SETDTA	equ	1Ah	; set DTA (DS:DX)
@@ -291,7 +292,8 @@ PSP_STACK	dd	?	; 2Eh
 PSP_HDLFREE	dw	?	; 32h: available handles
 PSP_HDLPTR	dd	?	; 34h: initially 0FFFF:0018h
 PSP_SHAREPSP	dd	?	; 38h
-PSP_RESERVED1	db     20 dup(?); 3Ch
+PSP_DTAPREV	dd	?	; 3Ch: BASIC-DOS: prev DTA (restored on return)
+PSP_RESERVED1	db     16 dup(?); 40h
 PSP_DISPATCH	db	3 dup(?); 50h: INT 21h/RETF
 PSP_RESERVED2	db	9 dup(?); 53h
 PSP_FCB1	db     16 dup(?); 5Ch
@@ -299,6 +301,8 @@ PSP_FCB2	db     16 dup(?); 6ch
 PSP_RESERVED3	db	4 dup(?); 7Ch
 PSP_CMDLINE	db    128 dup(?); 80h
 PSP		ends
+
+PSP_DTA		equ	PSP_CMDLINE
 
 SFH_NONE	equ	0FFh	; if this SFH is in a PFT entry, it's unused
 

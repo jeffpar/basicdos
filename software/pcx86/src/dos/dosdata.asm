@@ -106,7 +106,9 @@ DOS	segment word public 'CODE'
 	dw	func_none,   func_none,   func_none,   func_none	;18h-1Bh
 	dw	func_none,   func_none,   func_none,   func_none	;1Ch-1Fh
 	dw	func_none,   func_none,   func_none,   func_none	;20h-23h
-	dw	utl_strlen						;24h
+	dw	utl_strlen,  func_none,   func_none,   func_none	;24h-27h
+	dw	func_none,   func_none,   func_none,   func_none	;28h-2Bh
+	dw	func_none,   func_none,   utl_strlen,  func_none	;2Ch-2Fh
 	DEFABS	UTILTBL_SIZE,<($ - UTILTBL) SHR 1>
 
 DOS	ends

@@ -23,7 +23,7 @@ DOS	segment word public 'CODE'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_strlen (AX = 1800h or 1824h)
+; utl_strlen (AX = 1800h or 1824h or 182Eh)
 ;
 ; Returns the length of the REG_DS:SI string in AX, using the terminator in AL.
 ;
@@ -198,7 +198,7 @@ ENDPROC	utl_itoa
 ;	AX, CX, DX, ES
 ;
 ; Notes:
-; 	When called from sprintf, BP does NOT point to REG_FRAME
+; 	When called from sprintf, BP does NOT point to a REG_FRAME
 ;
 DEFPROC	itoa
 	push	bp
@@ -481,12 +481,17 @@ pfph:	cmp	al,'.'			; precision indicator?
 	jne	pfpi
 	or	ch,PF_PRECIS		; yes
 	jmp	pfpa
-pfpi:	cmp	al,'1'			; possible number?
+pfpi:	cmp	al,'*'			; asterisk?
+	jne	pfpi2
+	mov	ax,[bp+si]		; grab a stack parameter
+	add	si,2			; and use that as the PRECIS or WIDTH
+	jmp	short pfpj2
+pfpi2:	cmp	al,'1'			; possible number?
 	jb	pfpl			; no
 	cmp	al,'9'
 	ja	pfpl			; no
 pfpj:	sub	al,'0'
-	push	dx
+pfpj2:	push	dx
 	push	si
 	mov	si,offset SPF_PRECIS
 	test	ch,PF_PRECIS		; is this a precision number?
@@ -707,12 +712,11 @@ pfs2a:	mov	dx,[bp].SPF_PRECIS
 	mov	ax,dx			; yes, so limit it
 pfs3:	mov	dx,[bp].SPF_WIDTH
 	test	dx,dx
-	jz	pfs4
-	cmp	dx,ax
-	jbe	pfs4
+	jz	pfs3a
 	sub	dx,ax			; DX = padding count
-
-	push	di			; make sure that DI+AX+DX < LIMIT
+	jae	pfs3a
+	sub	dx,dx
+pfs3a:	push	di			; make sure that DI+AX+DX < LIMIT
 	add	di,ax
 	add	di,dx
 	cmp	di,[bp].SPF_LIMIT

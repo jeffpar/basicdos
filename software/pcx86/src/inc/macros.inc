@@ -71,6 +71,11 @@ DEFWORD	macro	name,values,repeat
 DEFLONG macro	name,values,repeat
 	DEFDATA name,dd,dword,<values>,repeat
 	endm
+
+DEFSTR	macro	name,value
+	name	db	value
+	name&_LEN equ ($ - name)
+	endm
 ;
 ; Tables are like pointers, where .OFF is the offset but .SEG is the limit.
 ; We don't need to record the segment, because offset is always DS-relative.

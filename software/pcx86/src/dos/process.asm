@@ -50,6 +50,11 @@ DEFPROC	psp_term,DOS
 	mov	ax,es:[PSP_ERROR].SEG
 	mov	[bx].SCB_ERROR.SEG,ax
 
+	mov	ax,es:[PSP_DTAPREV].OFF	; restore the current process' DTA
+	mov	[bx].SCB_DTA.OFF,ax	; ("REAL DOS" probably requires every
+	mov	ax,es:[PSP_DTAPREV].SEG	;  process to restore this itself after
+	mov	[bx].SCB_DTA.SEG,ax	;  an exec)
+
 	push	es:[PSP_PARENT]		; save PSP of parent
 	mov	ax,es
 	call	free			; free PSP in AX
@@ -440,10 +445,15 @@ lp7a:	jc	lp8a			; TODO: try to use a smaller size?
 	mov	cs:[bx].SCB_ERROR.OFF,offset dos_error
 	mov	cs:[bx].SCB_ERROR.SEG,cs
 ;
-; Initialize the DTA to its default (PSP:80h)
+; Initialize the DTA to its default (PSP:80h), while simultaneously
+; preserving the previous DTA in the new PSP.
 ;
-	mov	cs:[bx].SCB_DTA.OFF,80h
-	mov	cs:[bx].SCB_DTA.SEG,ds
+	mov	ax,80h
+	xchg	cs:[bx].SCB_DTA.OFF,ax
+	mov	ds:[PSP_DTAPREV].OFF,ax
+	mov	ax,ds
+	xchg	cs:[bx].SCB_DTA.SEG,ax
+	mov	ds:[PSP_DTAPREV].SEG,ax
 ;
 ; Create an initial REG_FRAME at the top of the segment (or the top of
 ; allocated memory, whichever's lower).

@@ -16,6 +16,9 @@ CODE    SEGMENT word public 'CODE'
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 DEFPROC	main
+	lea	bx,[DGROUP:heap]
+	mov	[bx].ORIG_SP.SEG,ss
+	mov	[bx].ORIG_SP.OFF,sp
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	mov	dx,offset ctrlc
 	int	21h
@@ -25,7 +28,6 @@ m1:	mov	ah,DOS_DSK_GETDRV
 	add	al,'A'		; AL = current drive letter
 	PRINTF	"%c>",ax
 
-	lea	bx,[DGROUP:heap]
 	mov	[bx].INPUT.INP_MAX,40
 	lea	dx,[bx].INPUT
 	mov	ah,DOS_TTY_INPUT
@@ -87,10 +89,14 @@ m4:	lea	di,[bx].TOKENS
 ENDPROC	main
 
 DEFPROC	ctrlc,FAR
-	push	ax
-	PRINTF	<"CTRL-C intercepted",13,10>
-	pop	ax
-	iret
+	; push	ax
+	; PRINTF	<"CTRL-C intercepted",13,10>
+	; pop	ax
+	; iret
+	lea	bx,[DGROUP:heap]
+	mov	ss,[bx].ORIG_SP.SEG
+	mov	sp,[bx].ORIG_SP.OFF
+	jmp	m1
 ENDPROC	ctrlc
 
 DEFPROC	cmdDate
@@ -105,10 +111,15 @@ DEFPROC	cmdDir
 	jnc	dir1
 	PRINTF	<"unable to find %s: %d",13,10>,dx,ax
 	jmp	short dir9
-dir1:	lea	ax,ds:[80h].FFB_NAME
-	mov	dx,ds:[80h].FFB_DATE
-	mov	cx,ds:[80h].FFB_TIME
-	PRINTF	<"%-12s %2M-%02D-%02X %2G:%02N%A",13,10>,ax,dx,dx,dx,cx,cx,cx
+dir1:	lea	si,ds:[PSP_DTA].FFB_NAME
+	mov	ax,DOS_UTL_STPLEN
+	int	21h		; AX = length of base name
+	mov	di,si
+	add	di,ax
+	inc	di		; DI -> extension
+	mov	dx,ds:[PSP_DTA].FFB_DATE
+	mov	cx,ds:[PSP_DTA].FFB_TIME
+	PRINTF	<"%-8.*s %-3s %7ld %2M-%02D-%02X %2G:%02N%A",13,10>,ax,si,di,ds:[PSP_DTA].FFB_SIZE.OFF,ds:[PSP_DTA].FFB_SIZE.SEG,dx,dx,dx,cx,cx,cx
 	mov	ah,DOS_DSK_FNEXT
 	int	21h
 	jnc	dir1
@@ -123,18 +134,15 @@ DEFPROC	cmdTime
 	ret
 ENDPROC	cmdTime
 
-COM_EXT	db	".COM",0
-COM_EXT_LEN equ $ - COM_EXT
+	DEFSTR	COM_EXT,<".COM",0>
+	DEFSTR	DIR_DEF,<"*.*">
 
-DIR_DEF	db	"*.*"
-DIR_DEF_LEN equ $ - DIR_DEF
-
-DEFTOKENS CMD_TOKENS,NUM_TOKENS
-DEFTOK	TOK_DATE,  0, "DATE",	cmdDate
-DEFTOK	TOK_DIR,   1, "DIR",	cmdDir
-DEFTOK	TOK_PRINT, 2, "PRINT",	cmdUndefined
-DEFTOK	TOK_TIME,  3, "TIME",	cmdTime
-NUMTOKENS CMD_TOKENS,NUM_TOKENS
+	DEFTOKENS CMD_TOKENS,NUM_TOKENS
+	DEFTOK	TOK_DATE,  0, "DATE",	cmdDate
+	DEFTOK	TOK_DIR,   1, "DIR",	cmdDir
+	DEFTOK	TOK_PRINT, 2, "PRINT",	cmdUndefined
+	DEFTOK	TOK_TIME,  3, "TIME",	cmdTime
+	NUMTOKENS CMD_TOKENS,NUM_TOKENS
 
 STRDATA SEGMENT
 	COMHEAP	<size CMD_WS>	; COMHEAP (heap size) must be the last item
