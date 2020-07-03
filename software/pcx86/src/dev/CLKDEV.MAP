@@ -1,0 +1,42 @@
+
+
+Warning: no stack segment
+
+ Start  Stop   Length Name                   Class
+ 00000H 0013CH 0013DH CODE                   CODE
+ 00140H 0014FH 00010H DATA                   DATA
+
+ Origin   Group
+ 0000:0   DEV
+
+  Address         Publics by Name
+
+ 0000:0000       CLOCK
+ 0000:0012       CMDTBL
+ 0000:000F  Abs  CMDTBL_SIZE
+ 0000:0060       DDCLK_CTLIN
+ 0000:0086       DDCLK_CTLOUT
+ 0000:0105       DDCLK_INIT
+ 0000:0091       DDCLK_INTERRUPT
+ 0000:0089       DDCLK_NONE
+ 0000:0087       DDCLK_READ
+ 0000:0038       DDCLK_REQ
+ 0000:0088       DDCLK_WRITE
+ 0000:0030       TMR_INT
+ 0000:0034       WAIT_PTR
+
+  Address         Publics by Value
+
+ 0000:0000       CLOCK
+ 0000:000F  Abs  CMDTBL_SIZE
+ 0000:0012       CMDTBL
+ 0000:0030       TMR_INT
+ 0000:0034       WAIT_PTR
+ 0000:0038       DDCLK_REQ
+ 0000:0060       DDCLK_CTLIN
+ 0000:0086       DDCLK_CTLOUT
+ 0000:0087       DDCLK_READ
+ 0000:0088       DDCLK_WRITE
+ 0000:0089       DDCLK_NONE
+ 0000:0091       DDCLK_INTERRUPT
+ 0000:0105       DDCLK_INIT

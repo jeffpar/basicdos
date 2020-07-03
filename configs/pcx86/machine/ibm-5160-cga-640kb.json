@@ -129,8 +129,11 @@
           "type": "list",
           "options": {
             "": "None",
-            "/software/pcx86/disks/BDBIN.json": "BD-BIN",
-            "/software/pcx86/disks/BDSRC.json": "BD-SRC"
+            "/software/pcx86/disks/BASIC-DOS.json": "BASIC-DOS",
+            "/software/pcx86/disks/BDS-BOOT.json": "BDS-BOOT",
+            "/software/pcx86/disks/BDS-DEV.json": "BDS-DEV",
+            "/software/pcx86/disks/BDS-DOS.json": "BDS-DOS",
+            "/software/pcx86/disks/BDS-UTIL.json": "BDS-UTIL"
           }
         },
         {
@@ -169,6 +172,29 @@
           "name": "10Mb Hard Disk",
           "type": 3,
           "path":"/software/pcx86/disks/PCDOS200-C400.json"
+        },
+        {
+          "name": "10Mb Hard Disk",
+          "type": 3,
+          "path":"/software/pcx86/disks/BDS-SRC.json"
+        }
+      ],
+      "controls": [
+        {
+          "type": "group",
+          "style": {
+            "padding-bottom": "8px"
+          }
+        },
+        {
+          "id": "saveHD0",
+          "type": "button",
+          "label": "Save HD0"
+        },
+        {
+          "id": "saveHD1",
+          "type": "button",
+          "label": "Save HD1"
         }
       ]
     },

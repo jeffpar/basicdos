@@ -12,22 +12,97 @@ let gulp = require("gulp");
 let run = require("gulp-run-command").default;
 
 let disks = {
-    "BDSRC": "./software/pcx86/src/BDSRC/**"
+    "BDS-BOOT": [
+        "./software/pcx86/src/boot/boot.asm",
+        "./software/pcx86/src/boot/wboot.asm",
+        "./software/pcx86/src/inc/bios.inc",
+        "./software/pcx86/src/inc/dev.inc",
+        "./software/pcx86/src/inc/disk.inc",
+        "./software/pcx86/src/inc/dos.inc",
+        "./software/pcx86/src/inc/macros.inc",
+        "./software/pcx86/src/boot/makefile",
+        "./software/pcx86/src/boot/mk.bat"
+    ],
+    "BDS-DEV": [
+        "./software/pcx86/src/dev/auxdev.asm",
+        "./software/pcx86/src/dev/clkdev.asm",
+        "./software/pcx86/src/dev/comdev.asm",
+        "./software/pcx86/src/dev/condev.asm",
+        "./software/pcx86/src/dev/devinit.asm",
+        "./software/pcx86/src/dev/fdcdev.asm",
+        "./software/pcx86/src/dev/lptdev.asm",
+        "./software/pcx86/src/dev/nuldev.asm",
+        "./software/pcx86/src/dev/prndev.asm",
+        "./software/pcx86/src/inc/bios.inc",
+        "./software/pcx86/src/inc/dev.inc",
+        "./software/pcx86/src/inc/disk.inc",
+        "./software/pcx86/src/inc/dos.inc",
+        "./software/pcx86/src/inc/macros.inc",
+        "./software/pcx86/src/dev/makefile",
+        "./software/pcx86/src/dev/mk.bat"
+    ],
+    "BDS-DOS": [
+        "./software/pcx86/src/dos/conio.asm",
+        "./software/pcx86/src/dos/device.asm",
+        "./software/pcx86/src/dos/disk.asm",
+        "./software/pcx86/src/dos/dosdata.asm",
+        "./software/pcx86/src/dos/dosints.asm",
+        "./software/pcx86/src/dos/handle.asm",
+        "./software/pcx86/src/dos/ibmdos.lrf",
+        "./software/pcx86/src/dos/memory.asm",
+        "./software/pcx86/src/dos/misc.asm",
+        "./software/pcx86/src/dos/process.asm",
+        "./software/pcx86/src/dos/session.asm",
+        "./software/pcx86/src/dos/sysinit.asm",
+        "./software/pcx86/src/dos/utility.asm",
+        "./software/pcx86/src/inc/bios.inc",
+        "./software/pcx86/src/inc/dev.inc",
+        "./software/pcx86/src/inc/disk.inc",
+        "./software/pcx86/src/inc/dos.inc",
+        "./software/pcx86/src/inc/macros.inc",
+        "./software/pcx86/src/dos/makefile",
+        "./software/pcx86/src/dos/mk.bat"
+    ],
+    "BDS-UTIL": [
+        "./software/pcx86/src/util/cmd.inc",
+        "./software/pcx86/src/util/command.asm",
+        "./software/pcx86/src/util/primes.asm",
+        "./software/pcx86/src/util/tests.asm",
+        "./software/pcx86/src/inc/bios.inc",
+        "./software/pcx86/src/inc/dev.inc",
+        "./software/pcx86/src/inc/disk.inc",
+        "./software/pcx86/src/inc/dos.inc",
+        "./software/pcx86/src/inc/macros.inc",
+        "./software/pcx86/src/util/makefile",
+        "./software/pcx86/src/util/mk.bat"
+    ],
+    "BDS-SRC": [
+        "./software/pcx86/src/**"
+    ]
 };
 
-let files = [];
-let tasks = [];
+let watchTasks = [];
 for (let diskName in disks) {
-    let taskName = "build" + diskName;
-    let diskDir = path.dirname(disks[diskName]);
+    let buildTask = "BUILD-" + diskName;
     let diskImage = "./software/pcx86/disks/" + diskName + ".json";
-    files.push(disks[diskName]);
-    tasks.push(taskName);
-    gulp.task(taskName, run("node /Users/jeff/Sites/pcjs/tools/modules/diskimage.js --dir " + diskDir + " --output " + diskImage + " --target=360 --overwrite"));
+    let diskFiles = "";
+    let kbTarget = 160;
+    if (disks[diskName].length == 1) {
+        kbTarget = 10000;
+        diskFiles = "--dir " + path.dirname(disks[diskName][0]);
+    } else {
+        for (let i = 0; i < disks[diskName].length; i++) {
+            if (diskFiles) diskFiles += ",";
+            diskFiles += disks[diskName][i];
+        }
+        diskFiles = "--files " + diskFiles;
+    }
+    gulp.task(buildTask, run("node /Users/jeff/Sites/pcjs/tools/modules/diskimage.js " + diskFiles + " --output " + diskImage + " --target=" + kbTarget + " --overwrite"));
+    let watchTask = "WATCH-" + diskName;
+    watchTasks.push(watchTask);
+    gulp.task(watchTask, function() {
+        return gulp.watch(disks[diskName], gulp.series(buildTask));
+    });
 }
 
-gulp.task("watch", function() {
-    return gulp.watch(files, gulp.series(tasks));
-});
-
-gulp.task("default", gulp.series("watch"));
+gulp.task("watch", gulp.parallel(watchTasks));

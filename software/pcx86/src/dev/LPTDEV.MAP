@@ -1,0 +1,51 @@
+
+
+Warning: no stack segment
+
+ Start  Stop   Length Name                   Class
+ 00000H 00025H 00026H CODE1                  CODE
+ 00030H 00054H 00025H CODE2                  CODE
+ 00060H 00084H 00025H CODE3                  CODE
+ 00090H 000E9H 0005AH INIT                   CODE
+ 000F0H 000FFH 00010H DATA                   DATA
+
+ Origin   Group
+ 0000:0   DEV
+
+  Address         Publics by Name
+
+ 0000:0025       DDLPT_CMD
+ 0000:0012       DDLPT_CMDP
+ 0000:0042       DDLPT_CMDP2
+ 0000:0072       DDLPT_CMDP3
+ 0000:0090       DDLPT_INIT
+ 0000:00EA       DDLPT_INIT_END
+ 0000:0018       DDLPT_REQ
+ 0000:0048       DDLPT_REQ2
+ 0000:0078       DDLPT_REQ3
+ 0000:0000       LPT1
+ 0000:0026       LPT1_END
+ 0000:0055       LPT2_END
+ 0000:0085       LPT3_END
+ 0000:0016       PORT_BASE
+ 0000:0046       PORT_BASE2
+ 0000:0076       PORT_BASE3
+
+  Address         Publics by Value
+
+ 0000:0000       LPT1
+ 0000:0012       DDLPT_CMDP
+ 0000:0016       PORT_BASE
+ 0000:0018       DDLPT_REQ
+ 0000:0025       DDLPT_CMD
+ 0000:0026       LPT1_END
+ 0000:0042       DDLPT_CMDP2
+ 0000:0046       PORT_BASE2
+ 0000:0048       DDLPT_REQ2
+ 0000:0055       LPT2_END
+ 0000:0072       DDLPT_CMDP3
+ 0000:0076       PORT_BASE3
+ 0000:0078       DDLPT_REQ3
+ 0000:0085       LPT3_END
+ 0000:0090       DDLPT_INIT
+ 0000:00EA       DDLPT_INIT_END

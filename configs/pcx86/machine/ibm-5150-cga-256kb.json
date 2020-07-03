@@ -120,7 +120,7 @@
           "type": "list",
           "options": {
             "": "None",
-            "/software/pcx86/disks/BASICDOS.json": "BASIC-DOS",
+            "/software/pcx86/disks/BASIC-DOS.json": "BASIC-DOS",
             "/software/pcx86/disks/PCDOS100.json": "PC DOS 1.00",
             "/software/pcx86/disks/PCDOS200-DISK1.json": "PC DOS 2.00 (Disk 1)",
             "/software/pcx86/disks/PCDOS200-DISK2.json": "PC DOS 2.00 (Disk 2)"

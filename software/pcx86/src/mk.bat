@@ -1,0 +1,3 @@
+CD BOOT
+MK ALL
+

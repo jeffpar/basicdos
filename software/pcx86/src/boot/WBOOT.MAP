@@ -1,0 +1,16 @@
+
+
+Warning: no stack segment
+
+ Start  Stop   Length Name                   Class
+ 00000H 004B9H 004BAH CODE                   
+
+  Address         Publics by Name
+
+ 0000:0100       MAIN
+
+  Address         Publics by Value
+
+ 0000:0100       MAIN
+
+Program entry point at 0000:0100

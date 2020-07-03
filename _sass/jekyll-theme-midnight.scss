@@ -304,3 +304,37 @@ section {
     display: none;
   }
 }
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #252525;
+    color: #eaeaea;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    color: #ffcc00;
+  }
+  strong {
+    color: #c9a30d;
+    font-weight: 700;
+  }
+  a {
+    color: #63c0f5;
+  }
+  a:visited {
+    color: rgb(45, 212, 162);
+  }
+  code.highlighter-rouge {
+    background-color: #252525;
+    color: #c9a30d;
+  }
+  code, pre, .highlight {
+    background-color: #000;
+    color: rgb(100, 209, 100);
+  }
+  textarea {
+    background-color: #000;
+    color: rgb(100, 209, 100);
+    border-radius: 5px;
+    border: 1px solid #e5e5e5;
+  }
+}
