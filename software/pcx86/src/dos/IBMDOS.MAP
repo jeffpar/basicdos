@@ -90,7 +90,7 @@ Warning: no stack segment
  0000:007F       MAY
  0000:0000       MCB_HEAD
  0000:0E9D       MCB_INIT
- 0000:0004       MCB_LIMIT
+ 0000:0002       MCB_LIMIT
  0000:0EB5       MCB_SPLIT
  0000:0E52       MEM_ALLOC
  0000:0E6A       MEM_FREE
@@ -192,7 +192,7 @@ Warning: no stack segment
   Address         Publics by Value
 
  0000:0000       MCB_HEAD
- 0000:0004       MCB_LIMIT
+ 0000:0002       MCB_LIMIT
  0000:0006       SCB_ACTIVE
  0000:0008       PSP_ACTIVE
  0000:000A       CLK_PTR

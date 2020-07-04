@@ -22,8 +22,12 @@ DEFPROC	main
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	mov	dx,offset ctrlc
 	int	21h
-
-m1:	mov	ah,DOS_DSK_GETDRV
+;
+; Since all the command handlers loop back to this point, we should not
+; assume that any registers (including BX) will still be set to anything.
+;
+m1:	lea	bx,[DGROUP:heap]
+	mov	ah,DOS_DSK_GETDRV
 	int	21h
 	add	al,'A'		; AL = current drive letter
 	PRINTF	"%c>",ax
@@ -153,6 +157,33 @@ DEFPROC	cmdTime
 	ret
 ENDPROC	cmdTime
 
+DEFPROC	cmdType
+	mov	dx,si		; DS:DX -> filename
+	mov	ax,DOS_HDL_OPEN SHL 8
+	int	21h
+	jnc	ty1		; AX = file handle if successful, else error
+	PRINTF	<"unable to open %s: %d",13,10>,dx,ax
+	jmp	short ty9
+ty1:	xchg	bx,ax		; BX = file handle
+	mov	dx,PSP_DTA	; DS:DX -> DTA (as good a place as any)
+ty2:	mov	cx,size PSP_DTA	; CX = number of bytes to read
+	mov	ah,DOS_HDL_READ
+	int	21h
+	jc	ty8		; silently fail (for now)
+	test	ax,ax		; anything read?
+	jz	ty8		; no
+	push	bx
+	mov	bx,STDOUT
+	xchg	cx,ax		; CX = number of bytes to write
+	mov	ah,DOS_HDL_WRITE
+	int	21h
+	pop	bx
+	jmp	ty2
+ty8:	mov	ah,DOS_HDL_CLOSE
+	int	21h
+ty9:	ret
+ENDPROC	cmdType
+
 	DEFSTR	COM_EXT,<".COM",0>
 	DEFSTR	DIR_DEF,<"*.*">
 
@@ -163,6 +194,7 @@ ENDPROC	cmdTime
 	DEFTOK	TOK_LOOP,  3, "LOOP",	cmdLoop
 	DEFTOK	TOK_PRINT, 4, "PRINT",	cmdUndefined
 	DEFTOK	TOK_TIME,  5, "TIME",	cmdTime
+	DEFTOK	TOK_TYPE,  6, "TYPE",	cmdType
 	NUMTOKENS CMD_TOKENS,NUM_TOKENS
 
 STRDATA SEGMENT
