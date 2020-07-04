@@ -13,12 +13,14 @@
 
 DOS	segment word public 'CODE'
 ;
-; This must be the first object module; we reuse the JMP as mcb_head.
+; This must be the first object module; we reuse the fake INT 20h
+; as mcb_head and overwrite the JMP with mcb_limit.
 ;
 	DEFLBL	mcb_head,word
+	int	20h			; fake DOS terminate call
+	DEFLBL	mcb_limit,word
 	jmp	sysinit
 
-	DEFWORD	mcb_limit,0		; segment limit
 	DEFWORD	scb_active,0		; offset of active SCB (zero if none)
 	DEFWORD	psp_active,0		; segment of active PSP (zero if none)
 	DEFPTR	clk_ptr,-1		; pointer to CLOCK$ DDH

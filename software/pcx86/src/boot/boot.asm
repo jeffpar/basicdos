@@ -150,7 +150,7 @@ read:	mov	bx,offset DEV_FILE
 	call	get_lba
 	call	read_sector		; DI -> DIR_SECTOR
 err1:	jc	err
-	jmp	near ptr part2		; jump to the next part
+	jmp	near ptr part2 + 2	; jump to the next part
 ENDPROC	main
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -367,6 +367,7 @@ errmsg1		db	" Missing system files, halted",0
 ; space in the "part2" sector, there's not much point.
 ;
 DEFPROC	part2,far
+	int	20h			; fake DOS terminate call
 	mov	ax,[si].BPB_SECBYTES
 	mov	si,offset PART1_COPY	; copy PART1 data to PART2
 	mov	di,offset PART2_COPY
@@ -451,8 +452,8 @@ DEFPROC	part3,far
 	pop	dx		; DX = CFG_FILE size
 i9:	pop	bx		; BX = CFG_FILE data address
 	push	es
-	sub	ax,ax
-	push	ax		; far "jmp" address -> CS:0000h
+	mov	ax,2		; skip the fake INT 20h in DOS_FILE
+	push	ax		; far "jmp" address -> CS:0002h
 	mov	ax,offset PART2_COPY
 	ret			; AX = offset of BPB
 ENDPROC	part3
