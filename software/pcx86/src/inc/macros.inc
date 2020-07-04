@@ -222,10 +222,14 @@ ASSERT	macro	cond,op,value
 	ELSE
 	IFDEF DEBUG
 	IFNB	<op>
+	pushf
 	op
 	ENDIF
 	J&cond	$+4
 	int 1
+	IFNB	<op>
+	popf
+	ENDIF
 	ENDIF
 	ENDIF
 	endm

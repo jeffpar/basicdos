@@ -15,6 +15,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<get_bpb,find_cln,get_cln>,near
 	EXTERNS	<msc_sigctrlc,msc_sigctrlc_read>,near
 
+	EXTERNS	<scb_locked>,byte
 	EXTERNS	<scb_active,psp_active>,word
 	EXTERNS	<sfb_table>,dword
 
@@ -169,6 +170,7 @@ ENDPROC	hdl_seek
 ;
 DEFPROC	sfb_open,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	LOCK_SCB
 	push	si
 	push	ds
 	push	es
@@ -208,6 +210,8 @@ so3:	cmp	[si].SFB_DEVICE.OFF,di
 	cmp	[si].SFB_DEVICE.SEG,cx
 	jne	so4			; check next SFB
 	cmp	[si].SFB_DRIVE,al
+	jne	so4			; check next SFB
+	cmp	[si].SFB_HANDLES,0	; we currently never share SFBs...
 	jne	so4			; check next SFB
 	test	dx,dx			; any context?
 	jz	so7			; no, so consider this SFB a match
@@ -273,6 +277,7 @@ so9:	pop	es
 	pop	ds
 	pop	si
 	ASSUME	DS:NOTHING,ES:NOTHING
+	UNLOCK_SCB
 	ret
 ENDPROC	sfb_open
 
@@ -300,9 +305,10 @@ DEFPROC	sfb_read,DOS
 	jge	sr0
 	jmp	sr8			; character device
 
-sr0:	mov	[bp].TMP_AX,0		; use TMP_AX to accumulate bytes read
-	mov	[bp].TMP_ES,es
-	mov	[bp].TMP_DX,dx
+sr0:	LOCK_SCB
+	mov	[bp].REG_WS.TMP_AX,0	; use TMP_AX to accumulate bytes read
+	mov	[bp].REG_WS.TMP_ES,es
+	mov	[bp].REG_WS.TMP_DX,dx
 	mov	dl,ah			; DL = drive #
 	call	get_bpb			; DI -> BPB if no error
 	jc	sr3a
@@ -362,8 +368,8 @@ sr2:	mov	ah,DDC_READ
 	les	di,[di].BPB_DEVICE
 	ASSUME	ES:NOTHING
 	push	ds
-	mov	si,[bp].TMP_DX
-	mov	ds,[bp].TMP_ES		; DS:SI -> data buffer
+	mov	si,[bp].REG_WS.TMP_DX
+	mov	ds,[bp].REG_WS.TMP_ES	; DS:SI -> data buffer
 	ASSUME	DS:NOTHING
 	call	dev_request
 	pop	ds
@@ -372,16 +378,17 @@ sr2:	mov	ah,DDC_READ
 	pop	cx			; restore byte count
 
 sr3:	pop	es
-	ASSUME	ES:DOS
 	pop	di			; BPB pointer restored
 	pop	bx			; SFB pointer restored
-sr3a:	jc	sr9
+sr3a:	jc	sr7
 ;
 ; Time for some bookkeeping: adjust the SFB's CURPOS by DX.
 ;
 	add	[bx].SFB_CURPOS.OFF,dx
 	adc	[bx].SFB_CURPOS.SEG,0
-	add	[bp].TMP_AX,dx		; update accumulation of bytes read
+	add	[bp].REG_WS.TMP_AX,dx	; update accumulation of bytes read
+	add	[bp].REG_WS.TMP_DX,dx
+	ASSERT	NC
 ;
 ; We're now obliged to determine whether or not we've exhausted the current
 ; cluster, because if we have, then we MUST zero SFB_CURCLN.
@@ -396,12 +403,14 @@ sr3a:	jc	sr9
 	call	get_cln
 	xchg	ax,dx
 	pop	dx
-	jc	sr9
+	jc	sr7
 	mov	[bx].SFB_CURCLN,ax
 sr4:	sub	cx,dx			; have we exhausted the read count yet?
 	ja	sr1a			; no, keep reading clusters
 	ASSERT	NC
-	mov	ax,[bp].TMP_AX
+	mov	ax,[bp].REG_WS.TMP_AX
+
+sr7:	UNLOCK_SCB
 	jmp	short sr9
 
 sr8:	push	ds
@@ -433,6 +442,7 @@ sr8:	push	ds
 sr8a:	pop	es
 	pop	ds
 	ASSUME	DS:DOS
+
 sr9:	ret
 ENDPROC	sfb_read
 
@@ -541,16 +551,17 @@ ENDPROC	sfb_write
 ;	AX, DX, DI, ES
 ;
 DEFPROC	sfb_close,DOS
+	LOCK_SCB
 	dec	[bx].SFB_HANDLES
 	jnz	sc8
 	mov	al,[bx].SFB_DRIVE	; did we issue a DDC_OPEN?
 	test	al,al			; for this SFB?
-	jge	sc8			; no
+	jge	sc7			; no
 	les	di,[bx].SFB_DEVICE	; ES:DI -> driver
 	mov	dx,[bx].SFB_CONTEXT	; DX = context
 	mov	ax,DDC_CLOSE SHL 8	;
 	call	dev_request		; issue the DDC_CLOSE request
-	sub	ax,ax
+sc7:	sub	ax,ax
 	mov	[bx].SFB_DEVICE.OFF,ax
 	mov	[bx].SFB_DEVICE.SEG,ax	; mark SFB as unused
 sc8:	mov	ax,[psp_active]
@@ -562,7 +573,8 @@ sc8:	mov	ax,[psp_active]
 	mov	ds:[PSP_PFT][si],SFH_NONE
 	pop	ds
 	ASSUME	DS:DOS
-sc9:	ret
+sc9:	UNLOCK_SCB
+	ret
 ENDPROC	sfb_close
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -22,7 +22,7 @@ DOS	segment word public 'CODE'
 	DEFWORD	scb_active,0		; offset of active SCB (zero if none)
 	DEFWORD	psp_active,0		; segment of active PSP (zero if none)
 	DEFPTR	clk_ptr,-1		; pointer to CLOCK$ DDH
-	DEFBYTE	scb_locked,-1		; -1 if unlocked
+	DEFBYTE	scb_locked,<-1,4Ah>	; -1 if unlocked
 	DEFBYTE	bpb_total,0		; total number of BPBs
 	DEFBYTE	file_name,' ',11	; buffer for 11-character filename
 	DEFBYTE	ddint_level,0		; device driver interrupt level

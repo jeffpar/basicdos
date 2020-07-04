@@ -83,6 +83,7 @@ ENDPROC	get_scbnum
 ;	ES:DX -> name of program (or command-line)
 ;
 ; Outputs:
+;	Carry clear if successful
 ;	Carry set if error, AX = error code
 ;
 ; Modifies:
@@ -97,8 +98,8 @@ DEFPROC	scb_load,DOS
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
-	jc	sl8
 	mov	bx,[scb_active]
+	jc	sl8
 	call	scb_init
 sl8:	pop	ax			; recover previous SCB
 	call	scb_unlock		; unlock
@@ -350,7 +351,7 @@ sw8:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
 	mov	ss,[bx].SCB_STACK.SEG
 	mov	sp,[bx].SCB_STACK.OFF
 	ASSERT	NC
-	jmp	dos_exit
+	jmp	dos_exit		; we'll let dos_exit turn interrupts on
 sw9:	sti
 	ret
 ENDPROC	scb_switch

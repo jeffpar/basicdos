@@ -13,6 +13,7 @@ DOS	segment word public 'CODE'
 
 	EXTERNS	<dev_request>,near
 
+	EXTERNS	<scb_locked>,byte
 	EXTERNS	<scb_active>,word
 	EXTERNS	<bpb_table>,dword
 	EXTERNS	<bpb_total,file_name>,byte
@@ -150,6 +151,7 @@ ENDPROC	dsk_getdta
 ;	AX, BX, CX, DX, SI, DI, DS
 ;
 DEFPROC	dsk_ffirst,DOS
+	LOCK_SCB
 	mov	al,[bp].REG_CL
 	mov	ah,1			; AH = 1 (filespec)
 	mov	si,dx
@@ -169,8 +171,19 @@ DEFPROC	dsk_ffirst,DOS
 	push	si
 	mov	cx,11
 	mov	si,offset file_name	; FFB_FILESPEC
-	rep movs byte ptr es:[di],byte ptr cs:[si]
-	pop	si
+;
+; TODO: MASM 4.0 generates the REP prefix before the CS: prefix,
+; but if we ever use a different assembler, this must be re-verified.
+;
+; See: https://www.pcjs.org/documents/manuals/intel/8086/ for errata details.
+;
+; Fortunately, PCjs simulates the errata, so I was able to catch it; however,
+; it would be even better if PCjs displayed a warning when it happened.
+;
+ff1:	rep	movs byte ptr es:[di],byte ptr cs:[si]
+	jcxz	ff2
+	jmp	ff1
+ff2:	pop	si
 	pop	cx
 	add	di,size FFB_PADDING
 	xchg	ax,cx
@@ -186,27 +199,28 @@ DEFPROC	dsk_ffirst,DOS
 	mov	ax,[si].DIR_SIZE.SEG
 	stosw
 	mov	cx,8
-ff1:	lodsb
-	cmp	al,' '
-	je	ff2
-	stosb				; FFB_NAME
-ff2:	loop	ff1
-	mov	al,[si]
-	cmp	al,' '
-	je	ff5
-	mov	al,'.'
-	stosb
-	mov	cx,3
 ff3:	lodsb
 	cmp	al,' '
 	je	ff4
-	stosb
+	stosb				; FFB_NAME
 ff4:	loop	ff3
-ff5:	sub	ax,ax
+	mov	al,[si]
+	cmp	al,' '
+	je	ff7
+	mov	al,'.'
+	stosb
+	mov	cx,3
+ff5:	lodsb
+	cmp	al,' '
+	je	ff6
+	stosb
+ff6:	loop	ff5
+ff7:	sub	ax,ax
 	stosb
 	jnc	ff9
 ff8:	mov	[bp].REG_AX,ax
-ff9:	ret
+ff9:	UNLOCK_SCB
+	ret
 ENDPROC	dsk_ffirst
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -224,6 +238,7 @@ ENDPROC	dsk_ffirst
 ;	AX, BX, CX, DX, SI, DI, DS
 ;
 DEFPROC	dsk_fnext,DOS
+	LOCK_SCB
 	mov	bx,[scb_active]
 	lds	si,cs:[bx].SCB_DTA	; DS:SI -> DTA (FFB)
 	ASSUME	DS:NOTHING
@@ -246,6 +261,7 @@ DEFPROC	dsk_fnext,DOS
 	mov	ax,dx			; AL = drive #, AH = search attributes
 	jmp	dsk_ffill
 fn8:	mov	[bp].REG_AX,ax
+	UNLOCK_SCB
 	ret
 ENDPROC	dsk_fnext
 
@@ -346,7 +362,7 @@ cf3c:	cmp	bl,dh
 cf4:	call	get_bpb			; DL = drive #
 	jc	cf9
 ;
-; ES:DI -> BPB.  Start a directory search for file_name.
+; DI -> BPB.  Start a directory search for file_name.
 ;
 	pop	ax
 	push	ax
@@ -443,7 +459,7 @@ DEFPROC	get_bpb,DOS
 	cmp	di,[bpb_table].SEG
 	cmc
 	jc	gb9			; we don't have a BPB for the drive
-	push	di			; ES:DI -> BPB
+	push	di			; DI -> BPB
 	push	es
 	les	di,cs:[di].BPB_DEVICE
 	mov	ah,DDC_MEDIACHK		; perform a MEDIACHK request
@@ -478,8 +494,10 @@ ENDPROC	get_bpb
 ;	AX, DX, SI
 ;
 DEFPROC	get_cln,DOS
+	ASSUME	ES:NOTHING
 	push	bx
 	push	cx
+	push	bp
 	push	ds
 	sub	ax,ax
 	mov	ds,ax
@@ -502,17 +520,18 @@ DEFPROC	get_cln,DOS
 	mov	bx,dx
 	mov	cl,10
 	shr	dx,cl			; DX = FAT sector ((CLN * 3) SHR 10)
-	add	dx,es:[di].BPB_RESSECS	; DX = FAT LBA
+	add	dx,cs:[di].BPB_RESSECS	; DX = FAT LBA
 ;
 ; Next, we need the nibble offset within the sector, which is:
 ;
 ;	((CLN * 12) % 4096) / 4
 ;
 	and	bx,03FFh		; nibble offset (assuming 1024 nibbles)
-	mov	al,es:[di].BPB_UNIT
+	mov	al,cs:[di].BPB_UNIT
 	mov	si,offset FAT_BUFHDR
 	call	read_buffer
 	jc	gc4
+
 	mov	bp,bx			; save nibble offset in BP
 	shr	bx,1			; BX -> byte, carry set if odd nibble
 	mov	dl,[si+bx]
@@ -520,7 +539,7 @@ DEFPROC	get_cln,DOS
 	cmp	bp,03FFh		; at the sector boundary?
 	jb	gc2			; no
 	inc	dx			; DX = next FAT LBA
-	mov	al,es:[di].BPB_UNIT
+	mov	al,cs:[di].BPB_UNIT
 	mov	si,offset FAT_BUFHDR
 	call	read_buffer
 	jc	gc4
@@ -535,6 +554,7 @@ gc3:	mov	cl,4			;
 	clc
 
 gc4:	pop	ds
+	pop	bp
 	pop	cx
 	pop	bx
 	ret
@@ -547,7 +567,7 @@ ENDPROC	get_cln
 ; Inputs:
 ;	AX = next DIRENT #, -1 if don't care
 ;	BL = file attributes, 0 if don't care
-;	ES:DI -> BPB
+;	DI -> BPB
 ;	DS:file_name contains filename
 ;
 ; Outputs:
@@ -558,7 +578,7 @@ ENDPROC	get_cln
 ;	AX, BX, CX, SI, DS
 ;
 DEFPROC	get_dirent,DOS
-	ASSUMES	<DS,NOTHING>,<ES,DOS>	; ES = DOS since BPBs are in DOS
+	ASSUMES	<DS,NOTHING>,<ES,DOS>
 	push	dx
 	push	bp
 	sub	dx,dx
@@ -663,7 +683,7 @@ ENDPROC	get_dirent
 ;	AL = drive #
 ;	DX = LBA
 ;	DS:SI -> BUFHDR
-;	ES:DI -> BPB
+;	DI -> BPB
 ;
 ; Outputs:
 ;	On success, DS:SI -> buffer with requested data, carry clear
@@ -673,7 +693,7 @@ ENDPROC	get_dirent
 ;	AX, SI
 ;
 DEFPROC	read_buffer,DOS
-	ASSUMES	<DS,BIOS>,<ES,DOS>	; ES = DOS since BPBs are in DOS
+	ASSUMES	<DS,BIOS>,<ES,NOTHING>
 	cmp	[si].BUF_DRIVE,al
 	jne	rb1
 	cmp	[si].BUF_LBA,dx
@@ -692,8 +712,8 @@ rb1:	push	bx
 	mov	ah,DDC_READ
 	push	di
 	push	es
-	ASSERT	Z,<cmp al,es:[di].BPB_UNIT>
-	les	di,es:[di].BPB_DEVICE
+	ASSERT	Z,<cmp al,cs:[di].BPB_UNIT>
+	les	di,cs:[di].BPB_DEVICE
 	call	dev_request
 	pop	es
 	pop	di

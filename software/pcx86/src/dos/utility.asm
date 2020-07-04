@@ -879,12 +879,17 @@ ENDPROC	utl_ioctl
 ;	REG_CL = SCB #
 ;	REG_DS:REG_DX = name of program (or command-line)
 ;
+; Outputs:
+;	Carry clear if successful
+;	Carry set if error, AX = error code
+;
 ; Modifies:
 ;	AX, BX, CX, DX, DI, DS, ES
 ;
 DEFPROC	utl_load,DOS
 	sti
 	mov	es,[bp].REG_DS
+	and	[bp].REG_FL,NOT FL_CARRY
 	ASSUME	DS:NOTHING		; CL = SCB #
 	jmp	scb_load		; ES:DX -> name of program
 ENDPROC	utl_load
@@ -899,8 +904,8 @@ ENDPROC	utl_load
 ;	CL = SCB #
 ;
 ; Outputs:
-;	Carry clear on success, BX -> SCB
-;	Carry set on error (eg, invalid SCB #)
+;	Carry clear if successful, BX -> SCB
+;	Carry set if error (eg, invalid SCB #)
 ;
 DEFPROC	utl_start,DOS
 	sti
@@ -918,8 +923,8 @@ ENDPROC	utl_start
 ;	CL = SCB #
 ;
 ; Outputs:
-;	Carry clear on success
-;	Carry set on error (eg, invalid SCB #)
+;	Carry clear if successful
+;	Carry set if error (eg, invalid SCB #)
 ;
 DEFPROC	utl_stop,DOS
 	sti
@@ -937,8 +942,8 @@ ENDPROC	utl_stop
 ;	CL = SCB #
 ;
 ; Outputs:
-;	Carry clear on success
-;	Carry set on error (eg, invalid SCB #)
+;	Carry clear if successful
+;	Carry set if error (eg, invalid SCB #)
 ;
 DEFPROC	utl_unload,DOS
 	sti

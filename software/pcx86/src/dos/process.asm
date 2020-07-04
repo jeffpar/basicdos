@@ -66,6 +66,7 @@ DEFPROC	psp_term,DOS
 	pop	ax
 	pop	dx			; we now have PSP_EXRET in DX:AX
 	mov	[psp_active],es
+	cli
 	mov	ss,es:[PSP_STACK].SEG
 	mov	sp,es:[PSP_STACK].OFF
 	mov	bp,sp
@@ -74,7 +75,7 @@ DEFPROC	psp_term,DOS
 	ENDIF
 	mov	[bp].REG_CS,dx		; copy PSP_EXRET to caller's CS:IP
 	mov	[bp].REG_IP,ax		; (normally they will be identical)
-	jmp	dos_exit
+	jmp	dos_exit		; we'll let dos_exit turn interrupts on
 pt9:	ret
 ENDPROC	psp_term
 
@@ -224,9 +225,10 @@ DEFPROC	psp_exec,DOS
 ; Unlike scb_load, this is a "synchronous" operation, meaning we launch
 ; the program ourselves.
 ;
+	cli
 	mov	ss,dx
 	mov	sp,di
-	jmp	dos_exit
+	jmp	dos_exit		; we'll let dos_exit turn interrupts on
 
 px9:	mov	[bp].REG_AX,ax		; return any error code in REG_AX
 	ret
@@ -288,7 +290,6 @@ ENDPROC	psp_get
 ;
 DEFPROC	load_program,DOS
 	ASSUME	ES:NOTHING
-
 	mov	bx,1000h		; alloc 64K
 	mov	ah,DOS_MEM_ALLOC
 	int	21h			; returns a new segment in AX
@@ -317,7 +318,7 @@ lp2:	sub	bx,10h			; subtract paras for the PSP header
 ; Let's update the PSP_STACK field in the current PSP before we switch
 ; to the new PSP, since we rely on it to gracefully return to the caller
 ; when this new program terminates.  "REAL DOS" updates PSP_STACK on every
-; DOS call, because it loved switching stacks all the time; we don't.
+; DOS call, because it loves switching stacks all the time; we don't.
 ;
 	mov	ds,bx
 	ASSUME	DS:NOTHING

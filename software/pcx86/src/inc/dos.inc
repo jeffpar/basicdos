@@ -11,7 +11,7 @@
 
 VERSION_MAJOR	equ	0
 VERSION_MINOR	equ	0
-VERSION_REV	equ	2
+VERSION_REV	equ	3
 
 VERSION_STR	macro
 		db	'0' + VERSION_MAJOR
@@ -194,6 +194,15 @@ SCSTAT_INIT	equ	01h	; set if SCB initialized
 SCSTAT_LOAD	equ	02h	; set if session has loaded a program
 SCSTAT_START	equ	04h	; set if session program can be started
 
+LOCK_SCB macro
+	ASSERT	Z,<cmp [scb_locked+1],4Ah>
+	inc	[scb_locked]
+	endm
+
+UNLOCK_SCB macro
+	ASSERT	Z,<cmp [scb_locked+1],4Ah>
+	dec	[scb_locked]
+	endm
 ;
 ; Memory Control Block (MCB)
 ;
