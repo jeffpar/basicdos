@@ -12,6 +12,7 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<mcb_limit,scb_active,psp_active>,word
+	EXTERNS	<sfh_addref,pfh_close>,near
 	EXTERNS	<free,get_scbnum,dos_exit,dos_ctrlc,dos_error>,near
 	IF REG_CHECK
 	EXTERNS	<dos_check>,near
@@ -31,8 +32,13 @@ DEFPROC	psp_term,DOS
 	mov	es,[psp_active]
 	ASSUME	ES:NOTHING
 ;
-; TODO: Close file handles, once psp_create has been updated to make
-; additional handle references.
+; Close process file handles.
+;
+	mov	cx,size PSP_PFT
+	sub	bx,bx			; BX = handle (PFH)
+pt1:	call	pfh_close		; close process file handle
+	inc	bx
+	loop	pt1
 ;
 ; Restore the SCB's CTRLC and ERROR handlers from the values in the PSP.
 ;
@@ -173,10 +179,16 @@ pc3:	sub	ax,256			; AX = max available bytes this segment
 	stosb
 	stosb
 	stosb
+	mov	ah,3
+	call	sfh_addref		; add 3 refs to this SFH
 	mov	al,[bx].SCB_SFHAUX
 	stosb
+	mov	ah,1
+	call	sfh_addref		; add 1 ref to this SFH
 	mov	al,[bx].SCB_SFHPRN
 	stosb
+	mov	ah,1
+	call	sfh_addref		; add 1 ref to this SFH
 	mov	al,SFH_NONE		; AL = 0FFh (indicates unused entry)
 	mov	cl,15
 	rep	stosb			; finish up PSP_PFT (20 bytes total)
@@ -195,7 +207,7 @@ pc3:	sub	ax,256			; AX = max available bytes this segment
 	mov	cl,size FCB_NAME
 	mov	di,PSP_FCB2
 	rep	stosb
-	mov	di,PSP_CMDLINE + 1
+	mov	di,PSP_CMDTAIL + 1
 	mov	al,0Dh
 	stosb				; done for now
 	ret
@@ -219,8 +231,34 @@ DEFPROC	psp_exec,DOS
 	jne	px9
 
 	mov	es,[bp].REG_DS		; ES:DX -> name of program
+	ASSUME	ES:NOTHING
 	call	load_program
+	ASSUME	DS:NOTHING
 	jc	px9
+;
+; Now we deal with the EPB we've been given.  load_program already set up
+; a default command tail in the PSP, but for this call, we must replace it.
+;
+; TODO: Add support for EPB_ENVSEG, EPB_FCB1, and EPB_FCB2.
+;
+	push	si
+	push	di
+	push	ds
+	push	es
+	mov	ds,[bp].REG_ES
+	ASSUME	DS:NOTHING
+	mov	si,[bp].REG_BX
+	lds	si,[si].EPB_CMDTAIL
+	mov	es,[psp_active]
+	mov	di,PSP_CMDTAIL
+	mov	cl,[si]
+	mov	ch,0
+	add	cx,2
+	rep	movsb
+	pop	es
+	pop	ds
+	pop	di
+	pop	si
 ;
 ; Unlike scb_load, this is a "synchronous" operation, meaning we launch
 ; the program ourselves.
@@ -364,7 +402,7 @@ lp3b:	mov	cl,al			; CL = original terminator
 	mov	ax,[bp].REG_CS
 	mov	ds:[PSP_EXRET].SEG,ax
 
-	mov	bx,offset PSP_CMDLINE+1
+	mov	bx,offset PSP_CMDTAIL+1
 	mov	es:[di],cl		; restore the original terminator
 lp4:	mov	al,es:[di]
 	inc	di
@@ -375,8 +413,8 @@ lp4:	mov	al,es:[di]
 	cmp	bl,0FFh
 	jb	lp4
 lp5:	mov	byte ptr [bx],CHR_RETURN
-	sub	bx,offset PSP_CMDLINE+1
-	mov	ds:[PSP_CMDLINE],bl
+	sub	bx,offset PSP_CMDTAIL+1
+	mov	ds:[PSP_CMDTAIL],bl
 	pop	bx
 
 	sub	cx,cx
@@ -403,25 +441,35 @@ lp5:	mov	byte ptr [bx],CHR_RETURN
 	mov	dx,size PSP		; DS:DX -> memory after PSP
 	mov	ah,DOS_HDL_READ		; BX = file handle, CX = # bytes
 	int	21h
-	jnc	lp6
+	jnc	lp6b
 lp5a:	jmp	lp8
-
-lp6:	ASSERT	Z,<cmp ax,cx>		; assert bytes read = bytes requested
-	mov	ah,DOS_HDL_CLOSE
-	int	21h			; close the file
 lp6a:	jc	lp7a
+
+lp6b:	ASSERT	Z,<cmp ax,cx>		; assert bytes read = bytes requested
+;
+; We now leave the executable file open and close it on process termination,
+; because it provides us with valuable information about all the processes that
+; are running (info that should have been recorded in the PSP but never was).
+;
+; Additionally, in order to support executables with overlays down the road,
+; we'll need the file handle anyway.
+;
+	; mov	ah,DOS_HDL_CLOSE
+	; int	21h			; close the file
+	; jc	lp7a
 ;
 ; Check the word at [BX+100h-2]: if it contains BASICDOS_SIG ("BD"), then
 ; the preceding word must be the program's desired additional memory (in paras).
 ;
-	mov	bx,cx			; BX = lenth of program file
+	mov	bx,cx			; BX = length of program file
 	mov	dx,MINHEAP SHR 4	; minimum add'l space (1Kb in paras)
 	cmp	word ptr [bx+size PSP-2],BASICDOS_SIG
 	jne	lp7
 	mov	ax,word ptr [bx+size PSP-4]
+	sub	bx,4			; don't count the BASIC_DOS sig words
 	cmp	ax,dx			; larger than our minimum?
 	jbe	lp7			; no
-	xchg	dx,ax			; yes, use their larger value
+	xchg	dx,ax			; yes, set DX to the larger value
 
 lp7:	add	bx,15
 	mov	cl,4
@@ -458,6 +506,8 @@ lp7a:	jc	lp8a			; TODO: try to use a smaller size?
 ;
 ; Create an initial REG_FRAME at the top of the segment (or the top of
 ; allocated memory, whichever's lower).
+;
+; TODO: Verify that we're setting proper initial values for all the registers.
 ;
 	mov	di,bx
 	cmp	di,1000h

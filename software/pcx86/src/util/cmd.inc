@@ -52,5 +52,6 @@ ORIG_SP		dd	?
 INPUT		db	size BUF_INPUT dup (?)
 TOKENS		db	size BUF_TOKENS dup (?)
 FILENAME	db	16 dup (?)
+EXECDATA	db	size EPB dup (?)
 STACK		dw	1024 dup (?)
 CMD_WS		ends

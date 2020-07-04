@@ -204,6 +204,7 @@ DEFPROC	ddcon_open
 	add	si,4			; DS:SI -> parms
 	push	cs
 	pop	es
+	mov	bl,10			; use base 10
 	mov	di,offset CON_LIMITS	; ES:DI -> limits
 	mov	ax,DOS_UTL_ATOI
 	int	21h			; updates SI, DI, and AX

@@ -48,7 +48,7 @@ m1:	lea	bx,[DGROUP:heap]
 ; Before trying to ID the token, let's copy it to the FILENAME buffer,
 ; upper-case it, and null-terminate it.
 ;
-	GETTOKEN 1		; DS:SI -> token #1
+	GETTOKEN 1		; DS:SI -> token #1, CX = length
 	lea	di,[bx].FILENAME
 	push	cx
 	push	di
@@ -60,25 +60,61 @@ m1:	lea	bx,[DGROUP:heap]
 	mov	ax,DOS_UTL_TOKID
 	lea	di,[DGROUP:CMD_TOKENS]
 	int	21h		; identify the token
-	jnc	m4		; token ID in AX, token data in DX
+	jc	m4
+	jmp	m9		; token ID in AX, token data in DX
 
+m4:	push	cx
 	mov	dx,si		; DS:DX -> FILENAME
-	mov	di,si
-	add	di,cx		; ES:DI -> end of name in FILENAME
+	mov	di,si		; ES:DI -> FILENAME also
+	mov	al,'.'
+	push	cx
+	push	di
+	rep	scasb		; any periods in FILENAME?
+	pop	di
+	pop	cx
+	je	m5
+	add	di,cx		; no, so append .COM
 	mov	si,offset COM_EXT
 	mov	cx,COM_EXT_LEN
 	rep	movsb
+m5:	add	di,cx
+	mov	al,0
+	stosb			; null-terminate the FILENAME
+	pop	cx
+
+	lea	si,[bx].INPUT.INP_BUF
+	add	si,cx		; DS:SI -> cmd tail after filename
+	lea	bx,[bx].EXECDATA
+	mov	[bx].EPB_ENVSEG,0
+	mov	di,PSP_CMDTAIL
+	push	di
+	mov	[bx].EPB_CMDTAIL.OFF,di
+	mov	[bx].EPB_CMDTAIL.SEG,es
+	inc	di		; use our cmd tail space to build a new tail
+	mov	cx,-1
+m6:	lodsb
+	stosb
+	inc	cx
+	cmp	al,CHR_RETURN
+	jne	m6
+	pop	di
+	mov	[di],cl		; set the cmd tail length
+	mov	[bx].EPB_FCB1.OFF,PSP_FCB1
+	mov	[bx].EPB_FCB1.SEG,es
+	mov	[bx].EPB_FCB2.OFF,PSP_FCB2
+	mov	[bx].EPB_FCB2.SEG,es
+
 	mov	ax,DOS_PSP_EXEC
 	int	21h		; exec program at DS:DX
-	jnc	m3
-m2:	PRINTF	<"error loading %s: %d">,dx,ax
-m3:	PRINTF	<13,10>
+	jnc	m8
+	PRINTF	<"error loading %s: %d">,dx,ax
+m8:	PRINTF	<13,10>
 	jmp	m1
 
-m4:	lea	di,[bx].TOKENS
+m9:	lea	di,[bx].TOKENS
 	mov	cx,DIR_DEF_LEN
 	mov	si,offset DIR_DEF
-	GETTOKEN 2		; DS:SI -> token #2
+	GETTOKEN 2		; DS:SI -> token #2, CX = length
 	lea	di,[bx].FILENAME
 	push	cx
 	push	di
@@ -93,10 +129,6 @@ m4:	lea	di,[bx].TOKENS
 ENDPROC	main
 
 DEFPROC	ctrlc,FAR
-	; push	ax
-	; PRINTF	<"CTRL-C intercepted",13,10>
-	; pop	ax
-	; iret
 	lea	bx,[DGROUP:heap]
 	cli
 	mov	ss,[bx].ORIG_SP.SEG
@@ -149,9 +181,22 @@ DEFPROC	cmdExit
 ex9:	ret
 ENDPROC	cmdExit
 
-DEFPROC	cmdUndefined
-	ret
-ENDPROC	cmdUndefined
+DEFPROC	cmdPrint
+	mov	bl,10		; default to base 10
+	mov	cx,si		; check for "0x" prefix (upper-cased)
+	cmp	word ptr [si],"X0"
+	jne	pr1
+	mov	bl,16		; the prefix is present, so switch to base 16
+	add	si,2		; and skip the prefix
+pr1:	mov	di,-1		; no validation
+	mov	ax,DOS_UTL_ATOI
+	int	21h
+	jc	pr8		; apparently not a number
+	PRINTF	<"value is %ld (%#lx)",13,10>,ax,dx,ax,dx
+	jmp	short pr9
+pr8:	PRINTF	<"invalid number: %s",13,10>,cx
+pr9:	ret
+ENDPROC	cmdPrint
 
 DEFPROC	cmdTime
 	ret
@@ -184,7 +229,7 @@ ty8:	mov	ah,DOS_HDL_CLOSE
 ty9:	ret
 ENDPROC	cmdType
 
-	DEFSTR	COM_EXT,<".COM",0>
+	DEFSTR	COM_EXT,<".COM">
 	DEFSTR	DIR_DEF,<"*.*">
 
 	DEFTOKENS CMD_TOKENS,NUM_TOKENS
@@ -192,7 +237,7 @@ ENDPROC	cmdType
 	DEFTOK	TOK_DIR,   1, "DIR",	cmdDir
 	DEFTOK	TOK_EXIT,  2, "EXIT",	cmdExit
 	DEFTOK	TOK_LOOP,  3, "LOOP",	cmdLoop
-	DEFTOK	TOK_PRINT, 4, "PRINT",	cmdUndefined
+	DEFTOK	TOK_PRINT, 4, "PRINT",	cmdPrint
 	DEFTOK	TOK_TIME,  5, "TIME",	cmdTime
 	DEFTOK	TOK_TYPE,  6, "TYPE",	cmdType
 	NUMTOKENS CMD_TOKENS,NUM_TOKENS
