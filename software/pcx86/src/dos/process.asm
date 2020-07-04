@@ -195,7 +195,7 @@ pc3:	sub	ax,256			; AX = max available bytes this segment
 	mov	cl,size FCB_NAME
 	mov	di,PSP_FCB2
 	rep	stosb
-	mov	di,PSP_CMDLINE + 1
+	mov	di,PSP_CMDTAIL + 1
 	mov	al,0Dh
 	stosb				; done for now
 	ret
@@ -219,8 +219,34 @@ DEFPROC	psp_exec,DOS
 	jne	px9
 
 	mov	es,[bp].REG_DS		; ES:DX -> name of program
+	ASSUME	ES:NOTHING
 	call	load_program
+	ASSUME	DS:NOTHING
 	jc	px9
+;
+; Now we deal with the EPB we've been given.  load_program already set up
+; a default command tail in the PSP, but for this call, we must replace it.
+;
+; TODO: Add support for EPB_ENVSEG, EPB_FCB1, and EPB_FCB2.
+;
+	push	si
+	push	di
+	push	ds
+	push	es
+	mov	ds,[bp].REG_ES
+	ASSUME	DS:NOTHING
+	mov	si,[bp].REG_BX
+	lds	si,[si].EPB_CMDTAIL
+	mov	es,[psp_active]
+	mov	di,PSP_CMDTAIL
+	mov	cl,[si]
+	mov	ch,0
+	add	cx,2
+	rep	movsb
+	pop	es
+	pop	ds
+	pop	di
+	pop	si
 ;
 ; Unlike scb_load, this is a "synchronous" operation, meaning we launch
 ; the program ourselves.
@@ -364,7 +390,7 @@ lp3b:	mov	cl,al			; CL = original terminator
 	mov	ax,[bp].REG_CS
 	mov	ds:[PSP_EXRET].SEG,ax
 
-	mov	bx,offset PSP_CMDLINE+1
+	mov	bx,offset PSP_CMDTAIL+1
 	mov	es:[di],cl		; restore the original terminator
 lp4:	mov	al,es:[di]
 	inc	di
@@ -375,8 +401,8 @@ lp4:	mov	al,es:[di]
 	cmp	bl,0FFh
 	jb	lp4
 lp5:	mov	byte ptr [bx],CHR_RETURN
-	sub	bx,offset PSP_CMDLINE+1
-	mov	ds:[PSP_CMDLINE],bl
+	sub	bx,offset PSP_CMDTAIL+1
+	mov	ds:[PSP_CMDTAIL],bl
 	pop	bx
 
 	sub	cx,cx
@@ -458,6 +484,8 @@ lp7a:	jc	lp8a			; TODO: try to use a smaller size?
 ;
 ; Create an initial REG_FRAME at the top of the segment (or the top of
 ; allocated memory, whichever's lower).
+;
+; TODO: Verify that we're setting proper initial values for all the registers.
 ;
 	mov	di,bx
 	cmp	di,1000h

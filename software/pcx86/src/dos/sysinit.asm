@@ -220,6 +220,7 @@ si5:	mov	si,offset CFG_SESSIONS
 	push	es
 	push	ds
 	pop	es
+	mov	bl,10
 	mov	ax,DOS_UTL_ATOI		; DS:SI -> string, ES:DI -> validation
 	int	21h			; AX = new value
 	pop	es
@@ -237,6 +238,7 @@ si6:	mov	dx,size SCB
 	push	es
 	push	ds
 	pop	es
+	mov	bl,10
 	mov	ax,DOS_UTL_ATOI		; DS:SI -> string, ES:DI -> validation
 	int	21h			; AX = new value
 	pop	es

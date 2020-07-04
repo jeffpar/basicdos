@@ -95,14 +95,19 @@ ENDPROC	utl_strupr
 ;
 ; utl_atoi (AX = 1802h)
 ;
-; Convert string at DS:SI to decimal, then validate using values at ES:DI.
+; Convert string at DS:SI to base BL, then validate using values at ES:DI.
 ;
-; For no validation, set DI to zero; otherwise, ES:DI must point to a pair
+; For no validation, set DI to -1; otherwise, ES:DI must point to a pair
 ; of (min,max) 16-bit values; and like SI, DI will be advanced, making it easy
 ; to parse a series of values, each with their own (min,max) values.
 ;
+; NOTE: Validated values are currently limited to 16 bits, so when validation
+; is requested, the result is limited to AX (DX is not modified).  Unvalidated
+; values can be 32 bits and are returned in DX:AX.
+;
 ; Returns:
-;	AX = value, DS:SI -> next character (after non-decimal digit)
+;	AX = value, DS:SI -> next character (after any non-digit)
+;	DX:AX = value if no validation is requested
 ;	Carry will be set on a validation error, but AX will ALWAYS be valid
 ;
 ; Modifies:
@@ -110,41 +115,81 @@ ENDPROC	utl_strupr
 ;
 DEFPROC	utl_atoi,DOS
 	sti
+	mov	bl,[bp].REG_BL		; BL = base (eg, 10)
+	mov	bh,0
 	mov	ds,[bp].REG_DS
 	mov	es,[bp].REG_ES
 	ASSUME	DS:NOTHING, ES:NOTHING
 	and	[bp].REG_FL,NOT FL_CARRY
-	sub	ax,ax
-	cwd
-	mov	cx,10
-ai1:	mov	dl,[si]
-	cmp	dl,'0'
+
+	mov	ah,-1			; cleared when digit found
+	sub	cx,cx			; CX:DX = value
+	sub	dx,dx			; (will be returned in DX:AX)
+
+ai0:	lodsb				; skip any leading whitespace
+	cmp	al,CHR_SPACE
+	je	ai0
+	cmp	al,CHR_TAB
+	je	ai0
+
+ai1:	cmp	al,'a'			; remap lower-case
+	jb	ai2			; to upper-case
+	sub	al,20h
+ai2:	cmp	al,'A'			; remap hex digits
+	jb	ai3			; to characters above '9'
+	cmp	al,'F'
+	ja	ai6
+	sub	al,'A'-'0'-10
+ai3:	cmp	al,'0'			; convert ASCII digit to value
 	jb	ai5
-	sub	dl,'0'
-	cmp	dl,cl
-	jae	ai6
-	inc	si
-	push	dx
-	mul	cx
-	pop	dx
-	add	ax,dx
-	jmp	ai1
-ai5:	test	dl,dl
-	jz	ai6
-	inc	si
-ai6:	test	di,di			; validation data provided?
-	jz	ai9			; no
-	cmp	ax,es:[di]		; too small?
+	sub	al,'0'
+	cmp	al,bl			; outside the requested base?
+	jae	ai6			; yes
+	cbw
+;
+; Multiply CX:DX by the base in BX before adding the digit value in AX.
+;
+	push	ax
+	push	di
+	mov	ax,dx
+	mul	bx
+	xchg	ax,cx
+	mov	di,dx
+	mul	bx
+	add	ax,di
+	adc	dx,0			; DX:AX:CX contains the result
+	xchg	ax,cx			; DX:CX:AX now
+	xchg	ax,dx			; AX:CX:DX now
+	pop	di
+	pop	ax			; CX:DX = CX:DX * BX
+
+	add	dx,ax			; add the digit value in AX now
+	adc	cx,0
+	lodsb				; fetch the next character
+	jmp	ai1			; and continue the evaluation
+
+ai5:	test	al,al			; normally we skip the first non-digit
+	jnz	ai6			; but if it's a null
+	dec	si			; rewind
+
+ai6:	cmp	di,-1			; validation data provided?
+	jne	ai6a			; yes
+	add	ah,1
+	jmp	short ai9		; (carry clear if one or more digits)
+ai6a:	cmp	dx,es:[di]		; too small?
 	jae	ai7			; no
-	mov	ax,es:[di]
+	mov	dx,es:[di]		; yes (carry set)
 	jmp	short ai8
-ai7:	cmp	es:[di+2],ax		; too large?
+ai7:	cmp	es:[di+2],dx		; too large?
 	jae	ai8			; no
-	mov	ax,es:[di+2]
+	mov	dx,es:[di+2]		; yes (carry set)
 ai8:	lea	di,[di+4]		; advance DI in case there are more
-	mov	[bp].REG_DI,di		; but do so without disturbing CARRY
-ai9:	mov	[bp].REG_SI,si		; update caller's SI, too
-	mov	[bp].REG_AX,ax		; update REG_AX
+	mov	[bp].REG_DI,di		; update REG_DI
+	jmp	short ai9a
+
+ai9:	mov	[bp].REG_DX,cx		; update REG_DX if no validation data
+ai9a:	mov	[bp].REG_AX,dx		; update REG_AX
+	mov	[bp].REG_SI,si		; update caller's SI, too
 	ret
 ENDPROC utl_atoi
 
@@ -980,20 +1025,23 @@ ENDPROC	utl_yield
 ; sleep requests.
 ;
 ; Inputs:
-;	REG_DX = # of milliseconds to sleep
+;	REG_CX:REG_DX = # of milliseconds to sleep
 ;
 ; Modifies:
-;	AX, DI, ES
+;	AX, BX, CX, DX, DI, ES
 ;
 DEFPROC	utl_sleep,DOS
 	sti
-	xchg	ax,dx
-	add	ax,27			; add 1/2 tick (as # ms) for rounding
-	sub	dx,dx			; DX:AX = # ms
-	mov	cx,55
-	div	cx			; AX = ticks, DX = remainder
-	xchg	dx,ax
-	sub	cx,cx			; CX:DX = # ticks
+	add	dx,27			; add 1/2 tick (as # ms) for rounding
+	adc	cx,0
+	mov	bx,55			; BX = divisor
+	xchg	ax,cx			; AX = high dividend
+	mov	cx,dx			; CX = low dividend
+	sub	dx,dx
+	div	bx			; AX = high quotient
+	xchg	ax,cx			; AX = low dividend, CX = high quotient
+	div	bx			; AX = low quotient
+	xchg	dx,ax			; CX:DX = # ticks
 	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_WAIT
 	les	di,clk_ptr
 	call	dev_request		; call the driver

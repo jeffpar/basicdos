@@ -99,10 +99,11 @@ DOS_MEM_ALLOC	equ	48h	; allocate memory
 DOS_MEM_FREE	equ	49h	; free memory
 DOS_MEM_REALLOC	equ	4Ah	; reallocate memory
 
+DOS_PSP_EXEC	equ   4B00h	; load program (DS:DX) with EPB (ES:BX)
+
 DOS_DSK_FFIRST	equ	4Eh	; find first filespec (DS:DX) with attr (CX)
 DOS_DSK_FNEXT	equ	4Fh	; find next filespec (DTA)
 
-DOS_PSP_EXEC	equ   4B00h	; load program (DS:DX) with EPB (ES:BX)
 DOS_PSP_SET	equ	50h	; set current PSP (BX)
 DOS_PSP_GET	equ	51h	; get current PSP (BX)
 
@@ -308,10 +309,10 @@ PSP_RESERVED2	db	9 dup(?); 53h
 PSP_FCB1	db     16 dup(?); 5Ch
 PSP_FCB2	db     16 dup(?); 6ch
 PSP_RESERVED3	db	4 dup(?); 7Ch
-PSP_CMDLINE	db    128 dup(?); 80h
+PSP_CMDTAIL	db    128 dup(?); 80h: length byte, command tail, CR
 PSP		ends
 
-PSP_DTA		equ	PSP_CMDLINE
+PSP_DTA		equ	PSP_CMDTAIL
 
 SFH_NONE	equ	0FFh	; if this SFH is in a PFT entry, it's unused
 
@@ -327,7 +328,7 @@ IO_COOKED	equ	1
 ;
 EPB		struc
 EPB_ENVSEG	dw	?	; 00h: segment of environment (0 to copy parent)
-EPB_CMDLINE	dd	?	; 02h: pointer to well-formed command-line
+EPB_CMDTAIL	dd	?	; 02h: pointer to well-formed command tail
 EPB_FCB1	dd	?	; 06h: pointer to FCB for PSP_FCB1
 EPB_FCB2	dd	?	; 0Ah: pointer to FCB for PSP_FCB2
 EPB		ends
