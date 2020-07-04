@@ -648,7 +648,8 @@ PRN_DEVICE	db	"PRN",0
 CLK_DEVICE	db	"CLOCK$",0
 SHELL_FILE	db	"COMMAND.COM",0	; default SHELL file
 
-SYS_MSG		db	"System ready",13,10,'$'
+SYS_MSG		db	"BASIC-DOS for the IBM PC",13,10
+		db	"Copyright (C) pcjs.org 1981-2021",13,10,13,10,'$'
 
 	IFDEF	MAXDEBUG
 COM1_DEVICE	db	"COM1:9600,N,8,1",0

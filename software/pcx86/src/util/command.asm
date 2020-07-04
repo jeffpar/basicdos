@@ -94,8 +94,10 @@ DEFPROC	ctrlc,FAR
 	; pop	ax
 	; iret
 	lea	bx,[DGROUP:heap]
+	cli
 	mov	ss,[bx].ORIG_SP.SEG
 	mov	sp,[bx].ORIG_SP.OFF
+	sti
 	jmp	m1
 ENDPROC	ctrlc
 
@@ -119,12 +121,29 @@ dir1:	lea	si,ds:[PSP_DTA].FFB_NAME
 	inc	di		; DI -> extension
 	mov	dx,ds:[PSP_DTA].FFB_DATE
 	mov	cx,ds:[PSP_DTA].FFB_TIME
+	ASSERT	Z,<cmp ds:[PSP_DTA].FFB_SIZE.SEG,0>
 	PRINTF	<"%-8.*s %-3s %7ld %2M-%02D-%02X %2G:%02N%A",13,10>,ax,si,di,ds:[PSP_DTA].FFB_SIZE.OFF,ds:[PSP_DTA].FFB_SIZE.SEG,dx,dx,dx,cx,cx,cx
 	mov	ah,DOS_DSK_FNEXT
 	int	21h
 	jnc	dir1
 dir9:	ret
 ENDPROC	cmdDir
+
+DEFPROC	cmdLoop
+	push	si
+	call	cmdDir
+	pop	si
+	jmp	cmdLoop
+ENDPROC	cmdLoop
+
+DEFPROC	cmdExit
+	mov	ax,ds:[PSP_PARENT]
+	test	ax,ax		; do we have a parent?
+	jz	ex9		; no, can't exit
+	PRINTF	<"Returning to process %#04x",13,10>,ax
+	int	20h		; terminate ourselves
+ex9:	ret
+ENDPROC	cmdExit
 
 DEFPROC	cmdUndefined
 	ret
@@ -140,8 +159,10 @@ ENDPROC	cmdTime
 	DEFTOKENS CMD_TOKENS,NUM_TOKENS
 	DEFTOK	TOK_DATE,  0, "DATE",	cmdDate
 	DEFTOK	TOK_DIR,   1, "DIR",	cmdDir
-	DEFTOK	TOK_PRINT, 2, "PRINT",	cmdUndefined
-	DEFTOK	TOK_TIME,  3, "TIME",	cmdTime
+	DEFTOK	TOK_EXIT,  2, "EXIT",	cmdExit
+	DEFTOK	TOK_LOOP,  3, "LOOP",	cmdLoop
+	DEFTOK	TOK_PRINT, 4, "PRINT",	cmdUndefined
+	DEFTOK	TOK_TIME,  5, "TIME",	cmdTime
 	NUMTOKENS CMD_TOKENS,NUM_TOKENS
 
 STRDATA SEGMENT

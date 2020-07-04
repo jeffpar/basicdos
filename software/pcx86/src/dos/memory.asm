@@ -154,7 +154,7 @@ ENDPROC	mcb_split
 ;
 DEFPROC alloc,DOS
 	ASSUME	ES:NOTHING
-	inc	[scb_locked]
+	LOCK_SCB
 	mov	es,[mcb_head]
 	sub	dx,dx			; DX = largest free block so far
 a1:	mov	al,es:[MCB_SIG]
@@ -204,7 +204,7 @@ a8:	mov	ax,ERR_NOMEM
 	mov	bx,dx			; BX = max # paras available
 a8a:	stc
 
-a9:	dec	[scb_locked]
+a9:	UNLOCK_SCB
 	ret
 ENDPROC	alloc
 
@@ -225,7 +225,7 @@ ENDPROC	alloc
 ;
 DEFPROC realloc,DOS
 	ASSUME	ES:NOTHING
-	inc	[scb_locked]
+	LOCK_SCB
 	dec	ax
 	mov	es,ax			; ES:0 -> MCB
 	mov	cx,es:[MCB_PARAS]	; CX = # paras in block
@@ -255,7 +255,7 @@ r8:	mov	bx,cx			; BX = maximum # of paras available
 	mov	ax,ERR_NOMEM
 r8a:	stc
 
-r9:	dec	[scb_locked]
+r9:	UNLOCK_SCB
 	ret
 ENDPROC	realloc
 
@@ -279,7 +279,7 @@ ENDPROC	realloc
 ;
 DEFPROC	free,DOS
 	ASSUME	ES:NOTHING
-	inc	[scb_locked]
+	LOCK_SCB
 
 	mov	bx,[mcb_head]		; BX tracks ES
 	dec	ax			; AX = candidate MCB
@@ -342,7 +342,7 @@ f7:	mov	ax,ERR_BADMCB
 f8:	mov	ax,ERR_BADADDR
 f8a:	stc
 
-f9:	dec	[scb_locked]
+f9:	UNLOCK_SCB
 	ret
 ENDPROC	free
 

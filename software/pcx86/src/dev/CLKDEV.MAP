@@ -3,8 +3,8 @@
 Warning: no stack segment
 
  Start  Stop   Length Name                   Class
- 00000H 0013CH 0013DH CODE                   CODE
- 00140H 0014FH 00010H DATA                   DATA
+ 00000H 00140H 00141H CODE                   CODE
+ 00150H 0015FH 00010H DATA                   DATA
 
  Origin   Group
  0000:0   DEV
@@ -16,7 +16,7 @@ Warning: no stack segment
  0000:000F  Abs  CMDTBL_SIZE
  0000:0060       DDCLK_CTLIN
  0000:0086       DDCLK_CTLOUT
- 0000:0105       DDCLK_INIT
+ 0000:0107       DDCLK_INIT
  0000:0091       DDCLK_INTERRUPT
  0000:0089       DDCLK_NONE
  0000:0087       DDCLK_READ
@@ -39,4 +39,4 @@ Warning: no stack segment
  0000:0088       DDCLK_WRITE
  0000:0089       DDCLK_NONE
  0000:0091       DDCLK_INTERRUPT
- 0000:0105       DDCLK_INIT
+ 0000:0107       DDCLK_INIT

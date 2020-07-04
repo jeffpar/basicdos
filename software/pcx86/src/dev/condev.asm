@@ -376,7 +376,7 @@ DEFPROC	ddcon_interrupt,far
 	pushf
 	call	[kbd_int]
 	jnc	ddi0			; carry set if DOS isn't ready
-	jmp	short ddi9x
+	jmp	ddi9x
 
 ddi0:	push	ax
 	push	bx
