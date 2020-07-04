@@ -125,6 +125,8 @@ DEFPROC	utl_atoi,DOS
 	mov	ah,-1			; cleared when digit found
 	sub	cx,cx			; CX:DX = value
 	sub	dx,dx			; (will be returned in DX:AX)
+	push	bp
+	sub	bp,bp			; BP will be negative if # is negative
 
 ai0:	lodsb				; skip any leading whitespace
 	cmp	al,CHR_SPACE
@@ -132,13 +134,20 @@ ai0:	lodsb				; skip any leading whitespace
 	cmp	al,CHR_TAB
 	je	ai0
 
+	cmp	al,'-'			; minus sign?
+	jne	ai1			; no
+	test	bp,bp			; already negated?
+	jl	ai6			; yes, not good
+	dec	bp			; make a note to negate later
+	jmp	short ai4
+
 ai1:	cmp	al,'a'			; remap lower-case
 	jb	ai2			; to upper-case
 	sub	al,20h
 ai2:	cmp	al,'A'			; remap hex digits
 	jb	ai3			; to characters above '9'
 	cmp	al,'F'
-	ja	ai6
+	ja	ai6			; never a valid digit
 	sub	al,'A'-'0'-10
 ai3:	cmp	al,'0'			; convert ASCII digit to value
 	jb	ai5
@@ -165,18 +174,25 @@ ai3:	cmp	al,'0'			; convert ASCII digit to value
 
 	add	dx,ax			; add the digit value in AX now
 	adc	cx,0
-	lodsb				; fetch the next character
+ai4:	lodsb				; fetch the next character
 	jmp	ai1			; and continue the evaluation
 
 ai5:	test	al,al			; normally we skip the first non-digit
 	jnz	ai6			; but if it's a null
 	dec	si			; rewind
 
-ai6:	cmp	di,-1			; validation data provided?
-	jne	ai6a			; yes
+ai6:	test	bp,bp
+	jge	ai6a
+	neg	cx
+	neg	dx
+	sbb	cx,0
+ai6a:	pop	bp
+
+	cmp	di,-1			; validation data provided?
+	jne	ai6b			; yes
 	add	ah,1
 	jmp	short ai9		; (carry clear if one or more digits)
-ai6a:	cmp	dx,es:[di]		; too small?
+ai6b:	cmp	dx,es:[di]		; too small?
 	jae	ai7			; no
 	mov	dx,es:[di]		; yes (carry set)
 	jmp	short ai8

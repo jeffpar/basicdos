@@ -349,18 +349,6 @@ FFB_SIZE	dd	?	; 1Ah: file size
 FFB_NAME	db    13 dup (?); 1Eh: file name (null-terminated)
 FFB		ends
 
-ERR_INVALID	equ	1
-ERR_NOFILE	equ	2
-ERR_NOPATH	equ	3
-ERR_MAXFILES	equ	4	; too many open files
-ERR_ACCDENIED	equ	5
-ERR_BADHANDLE	equ	6
-ERR_BADMCB	equ	7	; invalid MCB found
-ERR_NOMEM	equ	8	; insufficient memory
-ERR_BADADDR	equ	9	; invalid memory segment
-
-BASICDOS_SIG	equ	'DB'	; BASIC-DOS signature word ("BD")
-
 ;
 ; Input buffer (eg, as used by DOS_TTY_INPUT)
 ;
@@ -393,3 +381,18 @@ TOK_ID		db	?	; ID of token
 TOK_OFF		dw	?	; offset of token
 TOK_DATA	dw	?	; user-defined token data
 DEF_TOKEN	ends
+
+;
+; DOS error codes (not to be confused with device error codes)
+;
+ERR_INVALID	equ	1
+ERR_NOFILE	equ	2
+ERR_NOPATH	equ	3
+ERR_MAXFILES	equ	4	; too many open files
+ERR_ACCDENIED	equ	5
+ERR_BADHANDLE	equ	6
+ERR_BADMCB	equ	7	; invalid MCB found
+ERR_NOMEM	equ	8	; insufficient memory
+ERR_BADADDR	equ	9	; invalid memory segment
+
+BASICDOS_SIG	equ	'DB'	; BASIC-DOS signature word ("BD")

@@ -15,20 +15,26 @@ CODE    SEGMENT
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 DEFPROC	main
-	mov	ah,52h
+	mov	bx,offset heap + MINHEAP
+	mov	sp,bx		; lower the stack
+	mov	cl,4
+	add	bx,15
+	shr	bx,cl
+	mov	ah,DOS_MEM_REALLOC
 	int	21h
-	les	di,es:[bx+4]	; ES:DI -> SFTs (in DOS 2.x)
-	int 3
+	mov	ah,52h		; undocumented "REAL DOS" list-of-lists func
+	int	21h
+	les	di,es:[bx+4]	; ES:DI -> SFTs (DOS 2.x)
 	push	ds
 	pop	es
 	mov	dx,offset readfile
-	mov	ax,3D00h
+	mov	ax,DOS_HDL_OPEN SHL 8
 	int	21h		; open a test file
 	mov	bx,offset execparms
 	mov	[bx].EPB_CMDTAIL.SEG,cs
 	mov	[bx].EPB_FCB1.SEG,cs
 	mov	[bx].EPB_FCB2.SEG,cs
-	mov	ax,4B00h
+	mov	ax,DOS_PSP_EXEC
 	mov	dx,offset execfile
 	int	21h
 	int	20h

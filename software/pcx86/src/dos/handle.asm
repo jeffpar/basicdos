@@ -582,7 +582,7 @@ ENDPROC	sfb_close
 ; get_sfb
 ;
 ; Inputs:
-;	BX = handle
+;	BX = handle (PFH)
 ;
 ; Outputs:
 ;	On success, BX -> SFB, carry clear
@@ -595,14 +595,16 @@ DEFPROC	get_sfb,DOS
 	mov	ax,[psp_active]		; if there's no PSP yet
 	test	ax,ax			; then BX must an SFH, not a PFH
 	jz	gs1
+	cmp	bl,size PSP_PFT		; is the PFH within PFT bounds?
+	jae	gs8			; no
 	push	ds
 	mov	ds,ax
 	ASSUME	DS:NOTHING
-	mov	bl,ds:[PSP_PFT][bx]	; BL = SFH (we're being hopeful)
+	mov	bl,ds:[PSP_PFT][bx]	; BL = SFH
 	pop	ds
 	ASSUME	DS:DOS
-	cmp	bl,size PSP_PFT		; is the PFH within PFT bounds?
-	jae	gs8			; no, our hope was misplaced
+
+	DEFLBL	get_sfh_sfb,near
 gs1:	mov	al,size SFB		; convert SFH to SFB
 	mul	bl
 	add	ax,[sfb_table].OFF
@@ -680,6 +682,56 @@ sp8:	stosb				; yes, store SFB # in the PFT entry
 	xchg	ax,di			; AX = handle
 sp9:	ret
 ENDPROC	set_pft_free
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; sfh_addref
+;
+; Inputs:
+;	AL = SFH
+;	AH = # refs
+;
+; Modifies:
+;	None
+;
+DEFPROC	sfh_addref,DOS
+	push	bx
+	mov	bl,al
+	push	ax
+	call	get_sfh_sfb
+	pop	ax
+	jc	sfa9
+	add	[bx].SFB_HANDLES,ah
+	ASSERT	NC
+sfa9:	pop	bx
+	ret
+ENDPROC	sfh_addref
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; pfh_close
+;
+; Inputs:
+;	BX = handle (PFH)
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	pfh_close,DOS
+	push	bx
+	push	si
+	mov	si,bx			; SI = PFH
+	call	get_sfb
+	jc	pfc9
+	push	di
+	push	es
+	call	sfb_close		; BX -> SFB, SI = PFH
+	pop	es
+	pop	di
+pfc9:	pop	si
+	pop	bx
+	ret
+ENDPROC	pfh_close
 
 DOS	ends
 
