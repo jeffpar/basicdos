@@ -126,6 +126,29 @@ si3a:	mov	al,0EAh			; DI -> INT_DOSCALL5 * 4
 	mov	ax,ds
 	stosw
 ;
+; For ease of configuration testing, allow MEMSIZE (eg, MEMSIZE=32) to set a
+; new memory limit (Kb), assuming we have at least as much memory as specified.
+;
+	mov	si,offset CFG_MEMSIZE
+	call	find_cfg		; look for "MEMSIZE="
+	jc	si4
+	xchg	si,di
+	push	ds
+	pop	es
+	ASSUME	ES:NOTHING		; ES:DI -> validation data
+	mov	bl,10
+	mov	ax,DOS_UTL_ATOI		; DS:SI -> string
+	int	21h			; AX = value
+	jc	si4
+	push	cx
+	mov	cl,6
+	shl	ax,cl
+	pop	cx
+	cmp	ax,[mcb_limit]		; is MEMSIZE too large?
+	jae	si4			; yes
+	mov	[mcb_limit],ax
+	mov	cs:[top_seg],ax
+;
 ; Now set ES to the first available paragraph for resident DOS tables.
 ;
 si4:	mov	ax,offset sysinit_start
@@ -344,27 +367,27 @@ si12:	mov	dx,offset SYS_MSG
 	IFDEF	DEBUG			; a quick series of early sanity checks
 	push	es
 	mov	ah,DOS_MEM_ALLOC
-	mov	bx,200h
+	mov	bx,20h
 	int	21h
 	jc	dierr1
 	xchg	cx,ax			; CX = 1st segment
 	mov	es,cx
-	mov	bx,400h			; make the 1st segment larger
+	mov	bx,40h			; make the 1st segment larger
 	mov	ah,DOS_MEM_REALLOC
 	int	21h
 	jc	dierr1
 	mov	ah,DOS_MEM_ALLOC
-	mov	bx,200h
+	mov	bx,20h
 	int	21h
 	jc	dierr1
 	xchg	dx,ax			; DX = 2nd segment
 	mov	es,dx
-	mov	bx,100h			; make the 2nd segment smaller
+	mov	bx,10h			; make the 2nd segment smaller
 	mov	ah,DOS_MEM_REALLOC
 	int	21h
 	jc	dierr1
 	mov	ah,DOS_MEM_ALLOC
-	mov	bx,200h
+	mov	bx,20h
 	int	21h
 	jc	dierr1
 	xchg	si,ax			; SI = 3rd segment
@@ -636,6 +659,8 @@ ENDPROC	init_table
 	dw	0			; end of tables (should end at INT 30h)
 	DEFLBL	INT_TABLES_END
 
+CFG_MEMSIZE	db	8,"MEMSIZE="
+		dw	16,640
 CFG_SESSIONS	db	9,"SESSIONS="
 		dw	4,16
 CFG_FILES	db	6,"FILES="

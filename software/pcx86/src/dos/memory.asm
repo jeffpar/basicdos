@@ -66,7 +66,7 @@ ENDPROC	mem_free
 ;	On failure, carry set, REG_AX = error, REG_BX = max paras available
 ;
 DEFPROC	mem_realloc,DOS
-	mov	ax,[bp].REG_ES		; AX = segment to realloc
+	mov	dx,[bp].REG_ES		; DX = segment to realloc
 	mov	bx,[bp].REG_BX		; BX = # new paras requested
 	call	realloc
 	jnc	mr9
@@ -213,7 +213,7 @@ ENDPROC	alloc
 ; realloc
 ;
 ; Inputs:
-;	AX = segment to realloc (from REG_ES if via INT 21h)
+;	DX = segment to realloc (from REG_ES if via INT 21h)
 ;	BX = new size (in paragraphs)
 ;
 ; Outputs:
@@ -226,17 +226,20 @@ ENDPROC	alloc
 DEFPROC realloc,DOS
 	ASSUME	ES:NOTHING
 	LOCK_SCB
-	dec	ax
-	mov	es,ax			; ES:0 -> MCB
+	dec	dx
+	mov	es,dx			; ES:0 -> MCB
 	mov	cx,es:[MCB_PARAS]	; CX = # paras in block
 	cmp	bx,cx			; any change in size?
 	je	r9			; no, that's easy
-	cmp	es:[MCB_SIG],MCBSIG_LAST; is this the last block?
+
+	mov	al,es:[MCB_SIG]
+	cmp	al,MCBSIG_LAST		; is this the last block?
 	je	r2			; yes
-	add	ax,cx
-	inc	ax
-	mov	ds,ax			; DS:0 -> next MCB
+	add	dx,cx
+	inc	dx
+	mov	ds,dx			; DS:0 -> next MCB
 	ASSUME	DS:NOTHING
+	mov	al,ds:[MCB_SIG]
 	cmp	ds:[MCB_OWNER],0	; is the next MCB free?
 	jne	r2			; no
 	add	cx,ds:[MCB_PARAS]	; yes, include it
@@ -244,7 +247,6 @@ DEFPROC realloc,DOS
 
 r2:	cmp	bx,cx			; is requested <= avail?
 	ja	r8			; no
-	mov	al,ds:[MCB_SIG]
 	call	mcb_split		; yes, split block into used and free
 	jmp	short r9		; return success
 

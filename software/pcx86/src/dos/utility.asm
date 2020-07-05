@@ -76,18 +76,18 @@ DEFPROC	utl_strupr,DOS
 	ASSUME	DS:NOTHING
 	DEFLBL	strupr,near		; for internal calls (no REG_FRAME)
 	push	si
-usu1:	mov	al,[si]
+su1:	mov	al,[si]
 	test	al,al
-	jz	usu9
+	jz	su9
 	cmp	al,'a'
-	jb	usu2
+	jb	su2
 	cmp	al,'z'
-	ja	usu2
+	ja	su2
 	sub	al,20h
 	mov	[si],al
-usu2:	inc	si
-	loop	usu1
-usu9:	pop	si
+su2:	inc	si
+	loop	su1
+su9:	pop	si
 	ret
 ENDPROC	utl_strupr
 
