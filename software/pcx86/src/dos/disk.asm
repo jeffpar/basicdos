@@ -186,7 +186,9 @@ ff1:	rep	movs byte ptr es:[di],byte ptr cs:[si]
 ff2:	pop	si
 	pop	cx
 	add	di,size FFB_PADDING
+	ASSERT	Z,<cmp di,80h + offset FFB_DIRNUM>
 	xchg	ax,cx
+	ASSERT	Z,<test ah,ah>		; assert DIRENT # < 256 (for now)
 	stosw				; FFB_DIRNUM
 	mov	al,[si].DIR_ATTR
 	stosb				; FFB_ATTR
@@ -257,6 +259,7 @@ DEFPROC	dsk_fnext,DOS
 	inc	ax			; AX = next DIRENT #
 	call	get_dirent
 	jc	fn8
+	ASSERT	Z,<test ah,ah>		; assert DIRENT # < 256 (for now)
 	xchg	cx,ax			; CX = DIRENT #
 	mov	ax,dx			; AL = drive #, AH = search attributes
 	jmp	dsk_ffill

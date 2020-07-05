@@ -11,9 +11,9 @@
 
 DOS	segment word public 'CODE'
 
+	EXTERNS	<scb_locked>,byte
 	EXTERNS	<scb_active>,word
-	EXTERNS	<scb_table>,dword
-	EXTERNS	<clk_ptr>,dword
+	EXTERNS	<scb_table,clk_ptr>,dword
 	EXTERNS	<chk_devname,dev_request,write_string>,near
 	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload,scb_yield>,near
 	EXTERNS	<scb_wait,scb_endwait>,near
@@ -959,7 +959,7 @@ ENDPROC	utl_load
 ;
 ; utl_start (AX = 1809h)
 ;
-; "Start" the specified session (actual starting will handled by scb_switch).
+; "Start" the specified session (actual starting will handled by scb_switch)
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -978,7 +978,7 @@ ENDPROC	utl_start
 ;
 ; utl_stop (AX = 180Ah)
 ;
-; "Stop" the specified session.
+; "Stop" the specified session
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -997,7 +997,7 @@ ENDPROC	utl_stop
 ;
 ; utl_unload (AX = 180Bh)
 ;
-; Unload the current program from the specified session.
+; Unload the current program from the specified session
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -1321,6 +1321,40 @@ utc9:	pop	bp
 	mov	[bp].REG_AX,ax
 utc9a:	ret
 ENDPROC	utl_tokid
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_lock (AX = 1812h)
+;
+; Asynchronous interface to lock the current SCB
+;
+; Inputs:
+;	None
+;
+; Modifies:
+;	AX, BX, DX
+;
+DEFPROC	utl_lock,DOS
+	LOCK_SCB
+	ret
+ENDPROC	utl_lock
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_unlock (AX = 1813h)
+;
+; Asynchronous interface to unlock the current SCB
+;
+; Inputs:
+;	None
+;
+; Modifies:
+;	AX, BX, DX
+;
+DEFPROC	utl_unlock,DOS
+	UNLOCK_SCB
+	ret
+ENDPROC	utl_unlock
 
 DOS	ends
 

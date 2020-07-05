@@ -79,6 +79,8 @@ DOS_UTL_ENDWAIT	equ   180Fh	; end wait
 DOS_UTL_HOTKEY	equ   1810h	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
 DOS_UTL_TOKIFY	equ   1811h	; tokenize string (DS:SI) into buffer (ES:DI)
 DOS_UTL_TOKID	equ   1812h	; convert string (DS:SI) into token ID
+DOS_UTL_LOCK	equ   1813h	; lock current SCB
+DOS_UTL_UNLOCK	equ   1814h	; unlock current SCB
 DOS_UTL_STDLEN	equ   1824h	; like STRLEN but w/24h (dollar) as terminator
 DOS_UTL_STPLEN	equ   182Eh	; like STRLEN but w/2Eh (period) as terminator
 
