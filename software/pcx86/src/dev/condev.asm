@@ -433,10 +433,17 @@ ddi3:	call	read_kbd		; read keyboard data
 ddi4:	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	mov	ax,DOS_UTL_ENDWAIT
 	int	21h
+	ASSERT	NC
 ;
-; Even if ENDWAIT returns an error, we presume that we simply got ahead of the
-; WAIT call, so we'll go ahead with the packet removal and rely on the WAIT code
-; to double-check whether the request has been satisfied.
+; If ENDWAIT returns an error, that could be a problem.  In the past, it
+; was because we got ahead of the WAIT call.  One thought was to make the
+; driver's WAIT code more resilient, and double-check that the request had
+; really been satisfied, but I eventually resolved the race by making the
+; read_kbd/add_packet/utl_wait path atomic (ie, no interrupts).
+;
+; TODO: Consider lighter-weight solutions to this race condition.
+;
+; Anyway, assuming no race conditions, proceed with the packet removal now.
 ;
 	cli
 	mov	ax,es:[di].DDP_PTR.OFF
@@ -541,12 +548,21 @@ ENDPROC	add_packet
 ; CTRLC has been typed.  Ditto for CTRLP, which DOS likes to use for turning
 ; "printer echo" on and off.
 ;
-; Another advantage to using hotkey notifications is that the hotkeys don't get
+; Another advantage to using HOTKEY notifications is that the hotkeys don't get
 ; buried in the input stream; as soon as they're typed, notification occurs.
 ;
-; This function also includes some internal "hotkey" checks; eg, SHIFT-TAB
-; can be used to toggle focus between consoles; internal hotkeys do not generate
-; notifications.
+; This function also includes some internal hotkey checks; eg, CTRLS for
+; toggling the console's PAUSE state, and SHIFT-TAB for toggling focus between
+; consoles; internal hotkeys do now generate system HOTKEY notifications.
+;
+; TODO: CTRLC can still get "buried" in a sense: if you fill up the ROM's
+; keyboard buffer, the ROM will never add CTRLC, so it's CTRL_BREAK to the
+; rescue again.  One alternative is to maintain our own (per console) buffer
+; and always suck the ROM's buffer dry; that's better for session focus, but
+; there are ripple effects: for example, we would be forced to simulate at
+; least some of the ROM BIOS keyboard services then.  An intermediate hack
+; would be to always toss the last key whenever the buffer has reached
+; capacity, so that there's always room for one more key....
 ;
 ; Inputs:
 ;	None
@@ -583,8 +599,8 @@ ch0:	mov	ax,[BIOS_DATA][bx]	; AL = char code, AH = scan code
 	call	focus_next
 	jmp	short ch8
 ;
-; Let's take care of PAUSE checks first, because only CTRLS toggles PAUSE,
-; and everything else disables it.
+; Do PAUSE checks next, because only CTRLS toggles PAUSE, and everything else
+; disables it.
 ;
 ch1:	mov	dx,[ct_focus]
 	test	dx,dx
@@ -701,14 +717,31 @@ ENDPROC	draw_cursor
 ;
 ; focus_next
 ;
+; Switch focus to the next console context in our chain.
+;
+; This is called from check_hotkey, which is called at interrupt time,
+; so be careful to not modify more registers than the caller has preserved.
+;
 ; Inputs:
 ;	None
 ;
 ; Modifies:
-;	AX, BX, CX, DX, SI, DI
+;	AX, BX, DX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	focus_next
+	push	cx
+	push	si
+	push	di
+;
+; Not sure that calling DOS_UTL_LOCK is strictly necessary, but it feels
+; like a good idea while we're 1) switching which context has focus, and 2)
+; redrawing the borders of the outgoing and incoming contexts.
+;
+; And it gives us an excuse to test the new LOCK/UNLOCK interfaces.
+;
+	mov	ax,DOS_UTL_LOCK
+	int	21h
 	push	es
 	mov	cx,[ct_focus]
 	jcxz	tf9			; nothing to do
@@ -726,6 +759,11 @@ tf2:	xchg	cx,[ct_focus]
 	call	draw_border		; redraw the broder with new focus
 	call	draw_cursor
 tf9:	pop	es
+	mov	ax,DOS_UTL_UNLOCK
+	int	21h
+	pop	di
+	pop	si
+	pop	cx
 	ret
 ENDPROC	focus_next
 
