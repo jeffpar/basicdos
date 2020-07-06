@@ -364,13 +364,13 @@ BUF_INPUT	ends
 ; Token buffer (eg, as used by DOS_UTL_TOKIFY)
 ;
 ; Whereas the elements of INP_BUF are bytes, the elements of TOK_BUF
-; are dwords, or more precisely, word-pairs, where the low word is the
-; offset of the token and the high word is the length.
+; are dwords, or more precisely, byte-pairs, where the low byte is the
+; offset of the token and the high byte is the length.
 ;
 BUF_TOKENS	struc
 TOK_MAX		db	?
 TOK_CNT		db	?
-TOK_BUF		dd	128 dup (?)
+TOK_BUF		db	128 dup (?)
 BUF_TOKENS	ends
 
 ;

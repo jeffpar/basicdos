@@ -40,8 +40,10 @@ GETTOKEN macro	num				;; get token num (1-N)
 	cmp	[di].TOK_CNT,num		;; at least num tokens?
 	jb	gt1				;; no
 	lea	si,[bx].INPUT.INP_BUF		;;
-	add	si,[di+(num-1)*4].TOK_BUF.OFF	;; SI -> token
-	mov	cx,[di+(num-1)*4].TOK_BUF.SEG	;; CX = token length
+	mov	cl,[di+(num-1)*2].TOK_BUF.LO
+	mov	ch,0				;; CX = token offset
+	add	si,cx
+	mov	cl,[di+(num-1)*2].TOK_BUF.HI	;; CX = token length
 gt1:
 	endm
 ;
@@ -53,5 +55,5 @@ INPUT		db	size BUF_INPUT dup (?)
 TOKENS		db	size BUF_TOKENS dup (?)
 FILENAME	db	16 dup (?)
 EXECDATA	db	size EPB dup (?)
-STACK		dw	1024 dup (?)
+STACK		dw	512 dup (?)
 CMD_WS		ends

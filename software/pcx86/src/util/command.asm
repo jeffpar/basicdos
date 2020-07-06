@@ -32,14 +32,14 @@ m1:	lea	bx,[DGROUP:heap]
 	add	al,'A'		; AL = current drive letter
 	PRINTF	"%c>",ax
 
-	mov	[bx].INPUT.INP_MAX,40
+	mov	[bx].INPUT.INP_MAX,size INP_BUF
 	lea	dx,[bx].INPUT
 	mov	ah,DOS_TTY_INPUT
 	int	21h
 
 	mov	si,dx		; DS:SI -> input buffer
 	lea	di,[bx].TOKENS
-	mov	[di].TOK_MAX,40
+	mov	[di].TOK_MAX,size TOK_BUF SHR 1
 	mov	ax,DOS_UTL_TOKIFY
 	int	21h
 	xchg	cx,ax		; CX = token count from AX
@@ -185,42 +185,73 @@ DEFPROC	cmdMem
 ;
 ; Before we get into memory blocks, let's dump the driver list.
 ;
-	push	di
+	push	bp
 	push	es
 	sub	di,di
 	mov	es,di
 	ASSUME	ES:BIOS
 	les	di,[DD_LIST]
 	ASSUME	ES:NOTHING
+	mov	bx,es
+	mov	ax,bx
+	push	di
+	mov	di,ds
+	mov	si,offset RES_MEM
+	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
+	pop	di
 drv1:	cmp	di,-1
 	je	drv9
 	lea	si,[di].DDH_NAME
-	mov	cx,es
+	mov	bx,es
+	mov	cx,bx
 	mov	ax,es:[di].DDH_NEXT_SEG
 	sub	ax,cx		; AX = # paras
-	call	calcKB		; CX = # KB, DX = # KB tenths
-	PRINTF	<"%#06x: %#06x %3d.%1dK %.8ls",13,10>,es,ax,cx,dx,si,es
+	push	di
+	mov	di,bx
+	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
+	pop	di
 	les	di,es:[di]
 	jmp	drv1
-drv9:	pop	es
-	pop	di
+drv9:	mov	bx,es		; ES = DOS data segment
+	mov	ax,es:[0]	; ES:[0] is mcb_head
+	mov	bp,es:[2]	; ES:[2] is mcb_limit
+	sub	ax,bx
+	mov	di,ds
+	mov	si,offset DOS_MEM
+	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
+	pop	es
 	ASSUME	ES:CODE
 
+	push	bp
 	sub	cx,cx
-mem1:	mov	dl,2
-	mov	di,ds
+	sub	bp,bp		; BP = free memory
+mem1:	mov	dl,0		; DL = 0 (query all memory blocks)
+	mov	di,ds		; DI:SI -> default owner name
 	mov	si,offset SYS_MEM
 	mov	ax,DOS_UTL_QRYMEM
 	int	21h
-	jc	mem9
-	mov	ax,dx		; AX = # paras (OWNER isn't that interesting)
+	jc	mem9		; all done
+	test	ax,ax		; free block (is OWNER zero?)
+	jne	mem2		; no
+	add	bp,dx		; yes, add to total free paras
+	jmp	short mem8
+mem2:	mov	ax,dx		; AX = # paras
 	push	cx
-	call	calcKB		; CX = # KB, DX = # KB tenths
-	PRINTF	<"%#06x: %#06x %3d.%1dK %.11ls",13,10>,bx,ax,cx,dx,si,di
+	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
 	pop	cx
-	inc	cx
+mem8:	inc	cx
 	jmp	mem1
-mem9:	ret
+mem9:	xchg	ax,bp		; AX = free memory (paras)
+	pop	bp		; BP = total memory (paras)
+	mov	cx,16
+	mul	cx		; DX:AX = free memory (in bytes)
+	xchg	si,ax
+	mov	di,dx		; DI:SI = free memory
+	xchg	ax,bp
+	mul	cx		; DX:AX = total memory (in bytes)
+	PRINTF	<"%8ld bytes total",13,10,"%8ld bytes free",13,10>,ax,dx,si,di
+	pop	bp
+	ret
 ENDPROC	cmdMem
 
 DEFPROC	cmdPrint
@@ -281,7 +312,7 @@ ENDPROC	cmdType
 ;
 ;	R/64 = N/10, or N = (R*10)/64
 ;
-DEFPROC	calcKB
+DEFPROC	printKB
 	push	ax
 	push	bx
 	mov	bx,64
@@ -291,17 +322,22 @@ DEFPROC	calcKB
 	xchg	ax,dx		; AX = paragraphs remainder
 	mov	bl,10
 	mul	bx		; DX:AX = remainder * 10
+	add	ax,31		; rounding factor
+	adc	dx,0
 	mov	bl,64
 	div	bx		; AX = tenths of Kb
 	xchg	dx,ax		; save tenths in DX
 	pop	bx
 	pop	ax
+	PRINTF	<"%#06x: %#06x %3d.%1dK %.8ls",13,10>,bx,ax,cx,dx,si,di
 	ret
-ENDPROC	calcKB
+ENDPROC	printKB
 
 	DEFSTR	COM_EXT,<".COM">
 	DEFSTR	DIR_DEF,<"*.*">
-	DEFSTR	SYS_MEM,"SYSTEM",0
+	DEFSTR	RES_MEM,<"RESERVED",0>
+	DEFSTR	SYS_MEM,<"SYSTEM",0>
+	DEFSTR	DOS_MEM,<"DOS",0>
 
 	DEFTOKENS CMD_TOKENS,NUM_TOKENS
 	DEFTOK	TOK_DATE,  0, "DATE",	cmdDate
