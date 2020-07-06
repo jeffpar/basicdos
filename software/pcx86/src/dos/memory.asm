@@ -100,9 +100,9 @@ DEFPROC	mcb_query,DOS
 	mov	bx,[mcb_head]		; BX tracks ES
 	mov	es,bx
 	ASSUME	ES:NOTHING
-q1:	test	dl,dl			; report any block?
+q1:	mov	ax,es:[MCB_OWNER]
+	test	dl,dl			; report any block?
 	jz	q3			; yes
-	mov	ax,es:[MCB_OWNER]
 	test	ax,ax			; free block?
 	jnz	q2			; no
 	cmp	dl,1			; yes, interested?
@@ -113,13 +113,13 @@ q2:	cmp	dl,2			; interested in used blocks?
 
 q3:	jcxz	q7
 	dec	cx
-q4:	add	bx,es:[MCB_PARAS]
+q4:	cmp	es:[MCB_SIG],MCBSIG_LAST
+	stc
+	je	q9
+	add	bx,es:[MCB_PARAS]
 	inc	bx
 	mov	es,bx
-	cmp	es:[MCB_SIG],MCBSIG_LAST
-	jne	q1
-	stc
-	jmp	short q9
+	jmp	q1
 
 q7:	mov	dx,es:[MCB_PARAS]
 	cmp	ax,MCBOWNER_SYSTEM

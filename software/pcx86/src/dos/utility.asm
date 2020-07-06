@@ -1219,19 +1219,17 @@ ut6:	lea	cx,[si-1]
 ; DX:CX has our next token pair; store it at the token index in BX
 ;
 	add	bx,bx
-	add	bx,bx
-	mov	es:[di+bx+2],dx
-	mov	es:[di+bx+4],cx
-	shr	bx,1
+	mov	es:[di+bx].TOK_BUF,dl
+	mov	es:[di+bx+1].TOK_BUF,cl
 	shr	bx,1
 	inc	bx			; increment token index
 
-ut8:	cmp	bl,es:[di]		; room for more tokens?
+ut8:	cmp	bl,es:[di].TOK_MAX	; room for more tokens?
 	jb	ut2			; yes
 
 ut9:	LEAVE
 
-	mov	es:[di+1],bl		; update # tokens
+	mov	es:[di].TOK_CNT,bl	; update # tokens
 	mov	[bp].REG_AX,bx		; return # tokens in AX, too
 	ret
 ENDPROC	utl_tokify
