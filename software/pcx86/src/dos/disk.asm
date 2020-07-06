@@ -457,7 +457,7 @@ DEFPROC	get_bpb,DOS
 	mov	al,dl			; AL = drive #
 	mov	ah,size BPBEX
 	mul	ah			; AX = BPB offset
-	mov	di,[bpb_table].off
+	mov	di,[bpb_table].OFF
 	add	di,ax
 	cmp	di,[bpb_table].SEG
 	cmc

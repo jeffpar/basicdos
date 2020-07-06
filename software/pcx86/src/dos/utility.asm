@@ -17,6 +17,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<chk_devname,dev_request,write_string>,near
 	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload,scb_yield>,near
 	EXTERNS	<scb_wait,scb_endwait>,near
+	EXTERNS	<mcb_query>,near
 
 	EXTERNS	<MONTH_DAYS>,byte
 	EXTERNS	<MONTHS,DAYS>,word
@@ -47,14 +48,16 @@ DEFPROC	utl_strlen,DOS
 	mov	cx,di
 	not	cx			; CX = largest possible count
 	repne	scasb
-	stc
-	jne	sl9
-	sub	di,si
+	je	sl8
+	sub	ax,ax			; operation failed
+	stc				; return carry set and zero length
+	jmp	short sl9
+sl8:	sub	di,si
 	lea	ax,[di-1]		; don't count the terminator character
-	pop	es
+sl9:	pop	es
 	pop	di
 	pop	cx
-sl9:	ret
+	ret
 ENDPROC	utl_strlen
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1324,7 +1327,7 @@ ENDPROC	utl_tokid
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_lock (AX = 1812h)
+; utl_lock (AX = 1813h)
 ;
 ; Asynchronous interface to lock the current SCB
 ;
@@ -1341,7 +1344,7 @@ ENDPROC	utl_lock
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_unlock (AX = 1813h)
+; utl_unlock (AX = 1814h)
 ;
 ; Asynchronous interface to unlock the current SCB
 ;
@@ -1355,6 +1358,33 @@ DEFPROC	utl_unlock,DOS
 	UNLOCK_SCB
 	ret
 ENDPROC	utl_unlock
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_qrymem (AX = 1815h)
+;
+; Query info about memory blocks
+;
+; Inputs:
+;	REG_CX = memory block # (0-based)
+;	REG_DL = memory block type (0 for any, 1 for free, 2 for used)
+;
+; Outputs:
+;	On success, carry clear:
+;		REG_ES:0 -> MCB
+;		REG_AX = owner ID (eg, PSP)
+;		REG_DX = size (in paragraphs)
+;		REG_DS:REG_BX -> owner name, if any
+;	On failure, carry set (ie, no more blocks of the requested type)
+;
+; Modifies:
+;	AX, BX, CX, DS, ES
+;
+DEFPROC	utl_qrymem,DOS
+	sti
+	and	[bp].REG_FL,NOT FL_CARRY
+	jmp	mcb_query
+ENDPROC	utl_qrymem
 
 DOS	ends
 

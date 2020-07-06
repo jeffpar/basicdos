@@ -190,13 +190,8 @@ so1:	mov	ax,DDC_OPEN SHL 8	; ES:DI -> driver
 so1a:	push	ds			;
 	push	si			; save DIRENT at DS:SI (if any)
 ;
-; When looking for a matching existing SFB, all we require is that three
-; pieces of data match: the device driver (ES:DI), the drive # (AL), and the
-; device context (DX).  For files, the context will be the starting cluster
-; number; for devices, the context will be whatever dev_request returned.
-;
-; Traditionally, detecting unused SFBs meant those with a zero HANDLES count;
-; however, our SFBs are also unused IFF the DRIVER seg is zero.
+; Although the primary goal here is to find a free SFB, a matching SFB
+; will suffice if it's for a context-less device (ie, not a file).
 ;
 so2:	push	cs
 	pop	ds
@@ -205,21 +200,17 @@ so2:	push	cs
 	mov	cx,es			; CX:DI is driver, DX is context
 	mov	si,[sfb_table].OFF
 	sub	bx,bx			; use BX to remember a free SFB
-so3:	cmp	[si].SFB_DEVICE.OFF,di
-	jne	so4			; check next SFB
+so3:	test	dx,dx			; any context?
+	jnz	so4			; yes, check next SFB
 	cmp	[si].SFB_DEVICE.SEG,cx
 	jne	so4			; check next SFB
-	cmp	[si].SFB_DRIVE,al
+	cmp	[si].SFB_DEVICE.OFF,di
 	jne	so4			; check next SFB
-	cmp	[si].SFB_HANDLES,0	; we currently never share SFBs...
-	jne	so4			; check next SFB
-	test	dx,dx			; any context?
-	jz	so7			; no, so consider this SFB a match
-	cmp	[si].SFB_CONTEXT,dx	; context match?
-	je	so7			; match
+	cmp	[si].SFB_CONTEXT,dx	; context-less device?
+	je	so7			; yes, this SFB will suffice
 so4:	test	bx,bx			; are we still looking for a free SFB?
 	jnz	so5			; no
-	cmp	[si].SFB_DEVICE.SEG,bx	; is this one free?
+	cmp	[si].SFB_HANDLES,bl	; is this one free?
 	jne	so5			; no
 	mov	bx,si			; yes, remember it
 so5:	add	si,size SFB
@@ -669,7 +660,7 @@ ENDPROC	get_pft_free
 DEFPROC	set_pft_free,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	xchg	ax,bx			; AX = SFB address
-	sub	ax,[sfb_table].off
+	sub	ax,[sfb_table].OFF
 	mov	cl,size SFB
 	div	cl			; AL = SFB # (from SFB address)
 	ASSERT	Z,<test ah,ah>		; assert that the remainder is zero

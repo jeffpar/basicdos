@@ -176,10 +176,52 @@ DEFPROC	cmdExit
 	mov	ax,ds:[PSP_PARENT]
 	test	ax,ax		; do we have a parent?
 	jz	ex9		; no, can't exit
-	PRINTF	<"Returning to process %#04x",13,10>,ax
+	PRINTF	<"returning to process %#04x",13,10>,ax
 	int	20h		; terminate ourselves
 ex9:	ret
 ENDPROC	cmdExit
+
+DEFPROC	cmdMem
+;
+; Before we get into memory blocks, let's dump the driver list.
+;
+	push	di
+	push	es
+	sub	di,di
+	mov	es,di
+	ASSUME	ES:BIOS
+	les	di,[DD_LIST]
+	ASSUME	ES:NOTHING
+drv1:	cmp	di,-1
+	je	drv9
+	lea	si,[di].DDH_NAME
+	mov	cx,es
+	mov	ax,es:[di].DDH_NEXT_SEG
+	sub	ax,cx		; AX = # paras
+	call	calcKB		; CX = # KB, DX = # KB tenths
+	PRINTF	<"%#06x: %#06x %3d.%1dK %.8ls",13,10>,es,ax,cx,dx,si,es
+	les	di,es:[di]
+	jmp	drv1
+drv9:	pop	es
+	pop	di
+	ASSUME	ES:CODE
+
+	sub	cx,cx
+mem1:	mov	dl,2
+	mov	di,ds
+	mov	si,offset SYS_MEM
+	mov	ax,DOS_UTL_QRYMEM
+	int	21h
+	jc	mem9
+	mov	ax,dx		; AX = # paras (OWNER isn't that interesting)
+	push	cx
+	call	calcKB		; CX = # KB, DX = # KB tenths
+	PRINTF	<"%#06x: %#06x %3d.%1dK %.11ls",13,10>,bx,ax,cx,dx,si,di
+	pop	cx
+	inc	cx
+	jmp	mem1
+mem9:	ret
+ENDPROC	cmdMem
 
 DEFPROC	cmdPrint
 	mov	bl,10		; default to base 10
@@ -229,17 +271,47 @@ ty8:	mov	ah,DOS_HDL_CLOSE
 ty9:	ret
 ENDPROC	cmdType
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; calcKB
+;
+; DX = memory block size in paragraphs; DX/64 (or DX >> 6) is the size
+; in Kb, but that's a bit too granular, so we include tenths of Kb as well.
+; Using the paragraph remainder (R), we calculate tenths (N) like so:
+;
+;	R/64 = N/10, or N = (R*10)/64
+;
+DEFPROC	calcKB
+	push	ax
+	push	bx
+	mov	bx,64
+	sub	dx,dx		; DX:AX = paragraphs
+	div	bx		; AX = Kb
+	xchg	cx,ax		; save Kb in CX
+	xchg	ax,dx		; AX = paragraphs remainder
+	mov	bl,10
+	mul	bx		; DX:AX = remainder * 10
+	mov	bl,64
+	div	bx		; AX = tenths of Kb
+	xchg	dx,ax		; save tenths in DX
+	pop	bx
+	pop	ax
+	ret
+ENDPROC	calcKB
+
 	DEFSTR	COM_EXT,<".COM">
 	DEFSTR	DIR_DEF,<"*.*">
+	DEFSTR	SYS_MEM,"SYSTEM",0
 
 	DEFTOKENS CMD_TOKENS,NUM_TOKENS
 	DEFTOK	TOK_DATE,  0, "DATE",	cmdDate
 	DEFTOK	TOK_DIR,   1, "DIR",	cmdDir
 	DEFTOK	TOK_EXIT,  2, "EXIT",	cmdExit
 	DEFTOK	TOK_LOOP,  3, "LOOP",	cmdLoop
-	DEFTOK	TOK_PRINT, 4, "PRINT",	cmdPrint
-	DEFTOK	TOK_TIME,  5, "TIME",	cmdTime
-	DEFTOK	TOK_TYPE,  6, "TYPE",	cmdType
+	DEFTOK	TOK_MEM,   4, "MEM",	cmdMem
+	DEFTOK	TOK_PRINT, 5, "PRINT",	cmdPrint
+	DEFTOK	TOK_TIME,  6, "TIME",	cmdTime
+	DEFTOK	TOK_TYPE,  7, "TYPE",	cmdType
 	NUMTOKENS CMD_TOKENS,NUM_TOKENS
 
 STRDATA SEGMENT

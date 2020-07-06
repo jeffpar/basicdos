@@ -93,16 +93,16 @@ DEFPROC	ddfdc_mediachk
 	mov	ax,MC_UNKNOWN		; default to UNKNOWN
 	push	cx
 	push	dx
-	sub	dx,ds:[si].BPB_TIMESTAMP.off
-	sbb	cx,ds:[si].BPB_TIMESTAMP.seg
+	sub	dx,ds:[si].BPB_TIMESTAMP.OFF
+	sbb	cx,ds:[si].BPB_TIMESTAMP.SEG
 	jb	mc1			; underflow, use default
 	test	cx,cx			; large difference?
 	jnz	mc1			; yes, use defaut
 	cmp	dx,38			; more than 2 seconds of ticks?
 	jae	mc1			; yes, use default
 	inc	ax			; change from UNKNOWN to UNCHANGED
-mc1:	pop	ds:[si].BPB_TIMESTAMP.off
-	pop	ds:[si].BPB_TIMESTAMP.seg
+mc1:	pop	ds:[si].BPB_TIMESTAMP.OFF
+	pop	ds:[si].BPB_TIMESTAMP.SEG
 	mov	es:[di].DDP_CONTEXT,ax
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	ret
@@ -147,14 +147,14 @@ DEFPROC	ddfdc_buildbpb
 	mov	ah,TIME_GETTICKS
 	int	INT_TIME		; CX:DX is current tick count
 	xchg	ax,dx
-	stosw				; update BPB_TIMESTAMP.off
+	stosw				; update BPB_TIMESTAMP.OFF
 	xchg	ax,cx
-	stosw				; update BPB_TIMESTAMP.seg
+	stosw				; update BPB_TIMESTAMP.SEG
 	sub	ax,ax
-	stosw				; update BPB_DEVICE.off
+	stosw				; update BPB_DEVICE.OFF
 	mov	[ddbuf_lba],ax
 	mov	ax,cs
-	stosw				; update BPB_DEVICE.seg
+	stosw				; update BPB_DEVICE.SEG
 	pop	di
 	mov	al,es:[di].BPB_DRIVE
 	mov	es:[di].BPB_UNIT,al
@@ -250,7 +250,7 @@ dcr3:	push	si
 	pop	di
 	pop	si
 	inc	es:[di].DDPRW_LBA
-	add	es:[di].DDPRW_ADDR.off,ax
+	add	es:[di].DDPRW_ADDR.OFF,ax
 	sub	es:[di].DDPRW_LENGTH,ax
 	mov	cx,es:[di].DDPRW_LENGTH
 ;
@@ -275,7 +275,7 @@ dcr4a:	jc	dcr8
 	cbw
 	add	es:[di].DDPRW_LBA,ax
 	mul	[si].BPB_SECBYTES
-	add	es:[di].DDPRW_ADDR.off,ax
+	add	es:[di].DDPRW_ADDR.OFF,ax
 	sub	es:[di].DDPRW_LENGTH,ax
 ;
 ; And finally, the tail end of the request, if there are CX bytes remaining.
@@ -294,7 +294,7 @@ dcr7:	push	di
 	rep	movsb		; transfer bytes from our own buffer
 	pop	es
 	pop	di
-	add	es:[di].DDPRW_ADDR.off,ax
+	add	es:[di].DDPRW_ADDR.OFF,ax
 	sub	es:[di].DDPRW_LENGTH,ax
 	ASSERT	Z,<cmp es:[di].DDPRW_LENGTH,cx>
 
@@ -466,9 +466,9 @@ DEFPROC	ddfdc_init,far
 ; We're not keeping any of this code, but we are reserving 512 bytes
 ; for an internal sector buffer (ddbuf).
 ;
-	mov	es:[bx].DDPI_END.off,offset ddfdc_init + 512
+	mov	es:[bx].DDPI_END.OFF,offset ddfdc_init + 512
 	mov	cs:[0].DDH_REQUEST,offset DEV:ddfdc_req
-	mov	[ddbuf_ptr].seg,cs
+	mov	[ddbuf_ptr].SEG,cs
 ;
 ; Determine how many floppy disk drives are in the system.
 ;

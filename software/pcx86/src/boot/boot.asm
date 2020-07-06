@@ -184,9 +184,9 @@ fd1:	cmp	byte ptr [di],ch
 fd8:	mov	[bx],cx
 	mov	ax,[di-11].DIR_CLN	; overwrite the filename
 	mov	[bx+2],ax		; with cluster number and size,
-	mov	ax,[di-11].DIR_SIZE.off	; since we're done with the filename
+	mov	ax,[di-11].DIR_SIZE.OFF	; since we're done with the filename
 	mov	[bx+4],ax
-	mov	ax,[di-11].DIR_SIZE.seg
+	mov	ax,[di-11].DIR_SIZE.SEG
 	mov	[bx+6],ax
 fd9:	pop	di
 	pop	si
@@ -408,7 +408,7 @@ i2:	jmp	load_error
 ;
 ; Prepare to "call" the DEV_FILE entry point, with DI -> end of drivers.
 ;
-i3:	mov	[DD_LIST].off,ax	; initialize driver list head (to -1)
+i3:	mov	[DD_LIST].OFF,ax	; initialize driver list head (to -1)
 	mov	ax,di
 	test	ax,0Fh			; paragraph boundary?
 	jnz	i2			; no

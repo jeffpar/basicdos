@@ -192,16 +192,16 @@ DEFPROC	ddcom_init,far
 	jne	in1			; no
 	mov	ax,cs:[0].DDH_REQUEST	; use the temporary ddcom_req offset
 
-in1:	mov	es:[di].DDPI_END.off,ax
+in1:	mov	es:[di].DDPI_END.OFF,ax
 	mov	cs:[0].DDH_REQUEST,offset DEV:ddcom_req
 
-	mov	[ddcom_cmdp].off,offset DEV:ddcom_cmd
+	mov	[ddcom_cmdp].OFF,offset DEV:ddcom_cmd
 in2:	mov	ax,0			; this MOV will be modified
 	test	ax,ax			; on the first call to contain the CS
 	jnz	in3			; of the first driver (this is the
 	mov	ax,cs			; easiest way to communicate between
 	mov	word ptr cs:[in2+1],ax	; the otherwise fully insulated drivers)
-in3:	mov	[ddcom_cmdp].seg,ax
+in3:	mov	[ddcom_cmdp].SEG,ax
 
 in9:	pop	ds
 	pop	di
