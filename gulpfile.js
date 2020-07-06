@@ -66,8 +66,9 @@ let disks = {
     "BDS-UTIL": [
         "./software/pcx86/src/util/cmd.inc",
         "./software/pcx86/src/util/command.asm",
+        "./software/pcx86/src/util/exec.asm",
         "./software/pcx86/src/util/primes.asm",
-        "./software/pcx86/src/util/tests.asm",
+        "./software/pcx86/src/util/sleep.asm",
         "./software/pcx86/src/inc/bios.inc",
         "./software/pcx86/src/inc/dev.inc",
         "./software/pcx86/src/inc/disk.inc",
