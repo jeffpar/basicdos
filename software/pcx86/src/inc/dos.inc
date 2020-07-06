@@ -14,10 +14,7 @@ VERSION_MINOR	equ	0
 VERSION_REV	equ	3
 
 VERSION_STR	macro
-		db	'0' + VERSION_MAJOR
-		db	'.'
-		db	'0' + VERSION_MINOR
-		db	'0' + VERSION_REV
+		db	'0'+VERSION_MAJOR,'.','0'+VERSION_MINOR,'0'+VERSION_REV
 		endm
 ;
 ; DOS interrupt vector table (IVT) usage
@@ -81,6 +78,8 @@ DOS_UTL_TOKIFY	equ   1811h	; tokenize string (DS:SI) into buffer (ES:DI)
 DOS_UTL_TOKID	equ   1812h	; convert string (DS:SI) into token ID
 DOS_UTL_LOCK	equ   1813h	; lock current SCB
 DOS_UTL_UNLOCK	equ   1814h	; unlock current SCB
+DOS_UTL_QRYMEM	equ   1815h	; query memory block N (CL)
+DOS_UTL_QRYHDL	equ   1816h	; query system file handle N (CL)
 DOS_UTL_STDLEN	equ   1824h	; like STRLEN but w/24h (dollar) as terminator
 DOS_UTL_STPLEN	equ   182Eh	; like STRLEN but w/2Eh (period) as terminator
 
@@ -247,7 +246,7 @@ SFB_NAME	db    11 dup (?); 00h: filename (E5=free,00=end)
 SFB_ATTR	db	?	; 0Bh: attribute bits (see below)
 SFB_DEVICE	dd	?	; 0Ch: device driver
 SFB_CONTEXT	dw	?	; 10h: device context (1st cluster if file)
-SFB_DRIVE	db	?	; 12h: drive #
+SFB_DRIVE	db	?	; 12h: drive # (-1 if not block device)
 SFB_MODE	db	?	; 13h: open mode
 SFB_HANDLES	db	?	; 14h: number of process handles
 SFB_RESERVED	db	?	; 15h (holds SFBSIG in DEBUG builds)
@@ -283,6 +282,7 @@ STDOUT		equ	1
 STDERR		equ	2
 STDAUX		equ	3
 STDPRN		equ	4
+STDEXE		equ	5
 
 ;
 ; Program Segment Prefix (PSP)

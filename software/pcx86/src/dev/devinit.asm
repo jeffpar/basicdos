@@ -56,13 +56,14 @@ DEFPROC	devinit,far
 	mov	[bp].DDP_STATUS,0
 
 i1:	cmp	si,di		; reached the end of drivers?
-	jae	i9		; yes
-	mov	dx,[si]		; DX = original size of this driver
+	jb	i2		; no
+	jmp	i9		; yes
+i2:	mov	dx,[si]		; DX = original size of this driver
 	mov	ax,si
 	mov	cl,4
 	shr	ax,cl
-	mov	[bp].DDPI_END.off,0
-	mov	[bp].DDPI_END.seg,ax
+	mov	[bp].DDPI_END.OFF,0
+	mov	[bp].DDPI_END.SEG,ax
 	push	ss
 	pop	es
 	ASSUME	ES:NOTHING
@@ -75,7 +76,7 @@ i1:	cmp	si,di		; reached the end of drivers?
 	sub	bx,bx
 	mov	es,bx
 	ASSUME	ES:BIOS
-	mov	bx,[bp].DDPI_END.off
+	mov	bx,[bp].DDPI_END.OFF
 	add	bx,15
 	and	bx,0FFF0h
 ;
@@ -98,13 +99,13 @@ i1:	cmp	si,di		; reached the end of drivers?
 ; we'll end up trashing some of the memory we're moving.
 ;
 	cmp	di,si
-	jb	i2
+	jb	i3
 	add	si,cx
 	sub	si,2
 	add	di,cx
 	sub	di,2
 	std
-i2:	shr	cx,1
+i3:	shr	cx,1
 	rep	movsw		; DI = new end of drivers
 	cld
 	pop	si
@@ -123,18 +124,38 @@ i4:	test	dx,dx
 	test	[si].DDH_ATTR,DDATTR_CHAR
 	jnz	i7
 	push	ax
-	mov	[FDC_DEVICE].off,cx
-	mov	[FDC_DEVICE].seg,ax
+	mov	[FDC_DEVICE].OFF,cx
+	mov	[FDC_DEVICE].SEG,ax
 	mov	al,[bp].DDPI_UNITS
 	mov	[FDC_UNITS],al
 	pop	ax
 ;
-; Link the driver into the chain.
+; Link the driver into the chain.  I originally chained them in reverse:
 ;
-i7:	xchg	[DD_LIST].off,cx
-	mov	[si].DDH_NEXT_OFF,cx
-	xchg	[DD_LIST].seg,ax
-	mov	[si].DDH_NEXT_SEG,ax
+;	xchg	[DD_LIST].OFF,cx
+;	mov	[si].DDH_NEXT_OFF,cx
+;	xchg	[DD_LIST].SEG,ax
+;	mov	[si].DDH_NEXT_SEG,ax
+;
+; because it's simpler, but later decided to keep the list in memory order.
+;
+; In addition, I now store the next available segment in the SEG portion of the
+; final driver pointer (-1 in the OFF portion still means end of list).
+;
+i7:	push	di
+	lea	di,[DD_LIST]
+i7a:	cmp	es:[di].DDH_NEXT_OFF,-1
+	je	i7b
+	les	di,es:[di]
+	jmp	i7a
+i7b:	mov	es:[di].DDH_NEXT_OFF,cx
+	mov	es:[di].DDH_NEXT_SEG,ax
+	mov	cl,4
+	shr	bx,cl
+	add	bx,ax
+	mov	[si].DDH_NEXT_SEG,bx
+	mov	[si].DDH_NEXT_OFF,-1
+	pop	di
 
 i8:	add	si,dx		; SI -> next driver (after adding original size)
 	jmp	i1

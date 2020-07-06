@@ -483,6 +483,16 @@ lp7:	add	bx,15
 	int	21h
 lp7a:	jc	lp8a			; TODO: try to use a smaller size?
 ;
+; Mark the segment as being "owned" by the PSP now.
+; TODO: Consider adding an interface for this operation.
+;
+	push	es
+	mov	bx,es
+	dec	bx
+	mov	es,bx
+	mov	es:[MCB_OWNER],ds
+	pop	es
+;
 ; Since we're past the point of no return now, let's take care of some
 ; initialization outside of the program segment; namely, resetting the CTRLC
 ; and ERROR handlers to their default values.  And as always, we set these

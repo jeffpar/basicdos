@@ -126,6 +126,29 @@ si3a:	mov	al,0EAh			; DI -> INT_DOSCALL5 * 4
 	mov	ax,ds
 	stosw
 ;
+; For ease of configuration testing, allow MEMSIZE (eg, MEMSIZE=32) to set a
+; new memory limit (Kb), assuming we have at least as much memory as specified.
+;
+	mov	si,offset CFG_MEMSIZE
+	call	find_cfg		; look for "MEMSIZE="
+	jc	si4
+	xchg	si,di
+	push	ds
+	pop	es
+	ASSUME	ES:NOTHING		; ES:DI -> validation data
+	mov	bl,10
+	mov	ax,DOS_UTL_ATOI		; DS:SI -> string
+	int	21h			; AX = value
+	jc	si4
+	push	cx
+	mov	cl,6
+	shl	ax,cl
+	pop	cx
+	cmp	ax,[mcb_limit]		; is MEMSIZE too large?
+	jae	si4			; yes
+	mov	[mcb_limit],ax
+	mov	cs:[top_seg],ax
+;
 ; Now set ES to the first available paragraph for resident DOS tables.
 ;
 si4:	mov	ax,offset sysinit_start
@@ -162,9 +185,9 @@ si4a:	mov	ax,ds
 	mov	al,[si].BPB_DRIVE	; and copy to the appropriate BPB slot
 	mov	ah,size BPBEX
 	mul	ah
-	mov	di,es:[bpb_table].off
+	mov	di,es:[bpb_table].OFF
 	add	di,ax
-	cmp	di,es:[bpb_table].seg
+	cmp	di,es:[bpb_table].SEG
 	jnb	si5
 	mov	cx,(size BPB) SHR 1
 	push	di
@@ -172,8 +195,8 @@ si4a:	mov	ax,ds
 	pop	di
 	mov	ah,TIME_GETTICKS
 	int	INT_TIME		; CX:DX is current tick count
-	mov	es:[di].BPB_TIMESTAMP.off,dx
-	mov	es:[di].BPB_TIMESTAMP.seg,cx
+	mov	es:[di].BPB_TIMESTAMP.OFF,dx
+	mov	es:[di].BPB_TIMESTAMP.SEG,cx
 ;
 ; Initialize all the BPBEX fields, like BPB_DEVICE and BPB_UNIT, as well as
 ; pre-calculated values like BPB_CLOSLOG2 and BPB_CLUSBYTES.
@@ -182,10 +205,10 @@ si4a:	mov	ax,ds
 ; later, because even though we've allocated BPBs for all the FDC units, the
 ; only *real* BPB among them currently is the one we booted with.
 ;
-	mov	ax,[FDC_DEVICE].off
-	mov	dx,[FDC_DEVICE].seg
-	mov	es:[di].BPB_DEVICE.off,ax
-	mov	es:[di].BPB_DEVICE.seg,dx
+	mov	ax,[FDC_DEVICE].OFF
+	mov	dx,[FDC_DEVICE].SEG
+	mov	es:[di].BPB_DEVICE.OFF,ax
+	mov	es:[di].BPB_DEVICE.SEG,dx
 	mov	al,es:[di].BPB_DRIVE
 	mov	es:[di].BPB_UNIT,al
 	sub	cx,cx
@@ -283,6 +306,7 @@ si7:	mov	dx,size SFB
 	int	21h
 	jc	open_error
 	mov	es:[bx].SCB_SFHAUX,al
+	mov	cl,al			; CL = SFH for AUX
 ;
 ; Next, open CON, with optional context.  If there's a "CONSOLE=" setting in
 ; CFG_FILE, use that; otherwise, use CON_DEVICE.
@@ -306,10 +330,11 @@ si9:	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
 	jc	open_error
 	mov	es:[bx].SCB_SFHPRN,al
+	mov	ch,al			; CH = SFH for PRN
 ;
 ; See if there are any more CONSOLE contexts defined; if so, then for each
 ; one, open an CON handle, and record it in the next available SCB.  If there
-; aren't enough SCBs, then we've got a configuration error.
+; aren't enough SCBs or SFBs, then we've got a configuration error.
 ;
 si10:	mov	si,offset CFG_CONSOLE
 	call	find_cfg		; look for another "CONSOLE="
@@ -319,14 +344,14 @@ si10:	mov	si,offset CFG_CONSOLE
 	int	21h
 	jc	open_error
 	add	bx,size SCB
-	cmp	bx,es:[scb_table].seg
+	cmp	bx,es:[scb_table].SEG
 	jb	si11
 	mov	dx,offset CONERR
 	jmp	print_error
 si11:	or	es:[bx].SCB_STATUS,SCSTAT_INIT
 	mov	es:[bx].SCB_SFHCON,al
 	mov	es:[bx].SCB_CONTEXT,dx
-	mov	word ptr es:[bx].SCB_SFHAUX,(SFH_NONE SHL 8) OR SFH_NONE
+	mov	word ptr es:[bx].SCB_SFHAUX,cx
 	ASSERT	<SCB_SFHAUX + 1>,EQ,<SCB_SFHPRN>
 	INIT_STRUC es:[bx],SCB
 	jmp	si10
@@ -344,27 +369,27 @@ si12:	mov	dx,offset SYS_MSG
 	IFDEF	DEBUG			; a quick series of early sanity checks
 	push	es
 	mov	ah,DOS_MEM_ALLOC
-	mov	bx,200h
+	mov	bx,20h
 	int	21h
 	jc	dierr1
 	xchg	cx,ax			; CX = 1st segment
 	mov	es,cx
-	mov	bx,400h			; make the 1st segment larger
+	mov	bx,40h			; make the 1st segment larger
 	mov	ah,DOS_MEM_REALLOC
 	int	21h
 	jc	dierr1
 	mov	ah,DOS_MEM_ALLOC
-	mov	bx,200h
+	mov	bx,20h
 	int	21h
 	jc	dierr1
 	xchg	dx,ax			; DX = 2nd segment
 	mov	es,dx
-	mov	bx,100h			; make the 2nd segment smaller
+	mov	bx,10h			; make the 2nd segment smaller
 	mov	ah,DOS_MEM_REALLOC
 	int	21h
 	jc	dierr1
 	mov	ah,DOS_MEM_ALLOC
-	mov	bx,200h
+	mov	bx,20h
 	int	21h
 	jc	dierr1
 	xchg	si,ax			; SI = 3rd segment
@@ -445,8 +470,8 @@ si22:	mov	ax,DOS_UTL_START	; CL = SCB #
 	int	21h
 	jc	soerr1
 	mov	ds,[dos_seg]
-	mov	[clk_ptr].off,di
-	mov	[clk_ptr].seg,es
+	mov	[clk_ptr].OFF,di
+	mov	[clk_ptr].SEG,es
 ;
 ; Last but not least, "revector" the DDINT_ENTER and DDINT_LEAVE handlers
 ; to dos_ddint_enter and dos_ddint_leave.
@@ -556,9 +581,9 @@ DEFPROC	init_table
 	mov	dx,ax			; save for DS overflow check
 	mov	cl,4
 	shl	ax,cl			; AX = DS-relative offset
-	mov	[bx].off,ax		; save DS-relative offset
+	mov	[bx].OFF,ax		; save DS-relative offset
 	add	ax,di
-	mov	[bx].seg,ax		; save DS-relative limit
+	mov	[bx].SEG,ax		; save DS-relative limit
 	pop	ds
 	add	di,15
 	mov	cl,4
@@ -636,6 +661,8 @@ ENDPROC	init_table
 	dw	0			; end of tables (should end at INT 30h)
 	DEFLBL	INT_TABLES_END
 
+CFG_MEMSIZE	db	8,"MEMSIZE="
+		dw	16,640
 CFG_SESSIONS	db	9,"SESSIONS="
 		dw	4,16
 CFG_FILES	db	6,"FILES="

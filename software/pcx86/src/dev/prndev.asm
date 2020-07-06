@@ -41,7 +41,7 @@ ENDPROC	ddprn_req
 ;	DDPI's DDPI_END updated
 ;
 DEFPROC	ddprn_init,far
-	mov	es:[bx].DDPI_END.off,offset ddprn_init
+	mov	es:[bx].DDPI_END.OFF,offset ddprn_init
 	mov	cs:[0].DDH_REQUEST,offset DEV:ddprn_req
 	ret
 ENDPROC	ddprn_init

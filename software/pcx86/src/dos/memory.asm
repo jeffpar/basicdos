@@ -13,6 +13,7 @@ DOS	segment word public 'CODE'
 
 	EXTERNS	<scb_locked>,byte
 	EXTERNS	<mcb_head,psp_active>,word
+	EXTERNS	<get_sfh_sfb>,near
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -66,7 +67,7 @@ ENDPROC	mem_free
 ;	On failure, carry set, REG_AX = error, REG_BX = max paras available
 ;
 DEFPROC	mem_realloc,DOS
-	mov	ax,[bp].REG_ES		; AX = segment to realloc
+	mov	dx,[bp].REG_ES		; DX = segment to realloc
 	mov	bx,[bp].REG_BX		; BX = # new paras requested
 	call	realloc
 	jnc	mr9
@@ -74,6 +75,74 @@ DEFPROC	mem_realloc,DOS
 	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY set
 mr9:	ret
 ENDPROC	mem_realloc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; mcb_query
+;
+; Inputs:
+;	CX = memory block # (0-based)
+;	DL = memory block type (0 for any, 1 for free, 2 for used)
+;
+; Outputs:
+;	On success, carry clear:
+;		BX = segment
+;		AX = owner ID (eg, PSP)
+;		DX = size (in paragraphs)
+;		DI:SI -> owner name, if any
+;	On failure, carry set (ie, no more blocks of the requested type)
+;
+; Modifies:
+;	AX, BX, CX, DS, ES
+;
+DEFPROC	mcb_query,DOS
+	LOCK_SCB
+	mov	bx,[mcb_head]		; BX tracks ES
+	mov	es,bx
+	ASSUME	ES:NOTHING
+q1:	test	dl,dl			; report any block?
+	jz	q3			; yes
+	mov	ax,es:[MCB_OWNER]
+	test	ax,ax			; free block?
+	jnz	q2			; no
+	cmp	dl,1			; yes, interested?
+	je	q3			; yes
+	jmp	short q4		; no
+q2:	cmp	dl,2			; interested in used blocks?
+	jne	q4			; no
+
+q3:	jcxz	q7
+	dec	cx
+q4:	add	bx,es:[MCB_PARAS]
+	inc	bx
+	mov	es,bx
+	cmp	es:[MCB_SIG],MCBSIG_LAST
+	jne	q1
+	stc
+	jmp	short q9
+
+q7:	mov	dx,es:[MCB_PARAS]
+	cmp	ax,MCBOWNER_SYSTEM
+	jbe	q8
+	mov	es,ax
+	push	ax
+	push	bx
+	mov	bl,es:[PSP_PFT][STDEXE]
+	call	get_sfh_sfb
+	mov	si,bx
+	pop	bx
+	pop	ax
+	jc	q8
+	mov	[bp].REG_DI,ds
+	mov	[bp].REG_SI,si		; REG_DI:REG_SI -> SFB_NAME
+q8:	inc	bx
+	mov	[bp].REG_BX,bx
+	mov	[bp].REG_AX,ax
+	mov	[bp].REG_DX,dx
+	clc
+q9:	UNLOCK_SCB
+	ret
+ENDPROC	mcb_query
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -213,7 +282,7 @@ ENDPROC	alloc
 ; realloc
 ;
 ; Inputs:
-;	AX = segment to realloc (from REG_ES if via INT 21h)
+;	DX = segment to realloc (from REG_ES if via INT 21h)
 ;	BX = new size (in paragraphs)
 ;
 ; Outputs:
@@ -226,17 +295,20 @@ ENDPROC	alloc
 DEFPROC realloc,DOS
 	ASSUME	ES:NOTHING
 	LOCK_SCB
-	dec	ax
-	mov	es,ax			; ES:0 -> MCB
+	dec	dx
+	mov	es,dx			; ES:0 -> MCB
 	mov	cx,es:[MCB_PARAS]	; CX = # paras in block
 	cmp	bx,cx			; any change in size?
 	je	r9			; no, that's easy
-	cmp	es:[MCB_SIG],MCBSIG_LAST; is this the last block?
+
+	mov	al,es:[MCB_SIG]
+	cmp	al,MCBSIG_LAST		; is this the last block?
 	je	r2			; yes
-	add	ax,cx
-	inc	ax
-	mov	ds,ax			; DS:0 -> next MCB
+	add	dx,cx
+	inc	dx
+	mov	ds,dx			; DS:0 -> next MCB
 	ASSUME	DS:NOTHING
+	mov	al,ds:[MCB_SIG]
 	cmp	ds:[MCB_OWNER],0	; is the next MCB free?
 	jne	r2			; no
 	add	cx,ds:[MCB_PARAS]	; yes, include it
@@ -244,7 +316,6 @@ DEFPROC realloc,DOS
 
 r2:	cmp	bx,cx			; is requested <= avail?
 	ja	r8			; no
-	mov	al,ds:[MCB_SIG]
 	call	mcb_split		; yes, split block into used and free
 	jmp	short r9		; return success
 

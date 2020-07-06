@@ -41,7 +41,7 @@ ENDPROC	ddaux_req
 ;	DDPI's DDPI_END updated
 ;
 DEFPROC	ddaux_init,far
-	mov	es:[bx].DDPI_END.off,offset ddaux_init
+	mov	es:[bx].DDPI_END.OFF,offset ddaux_init
 	mov	cs:[0].DDH_REQUEST,offset DEV:ddaux_req
 	ret
 ENDPROC	ddaux_init
