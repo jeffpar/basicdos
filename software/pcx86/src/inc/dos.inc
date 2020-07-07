@@ -352,6 +352,30 @@ FFB_NAME	db    13 dup (?); 1Eh: file name (null-terminated)
 FFB		ends
 
 ;
+; itoa flag definitions (see sprintf.asm)
+;
+PF_LEFT   equ	01h		; left-alignment requested
+PF_HASH   equ	02h		; prefix requested (eg, "0x")
+PF_ZERO   equ	04h		; zero padding requested
+PF_LONG   equ	08h		; long value (32 bits); default is 16
+PF_SIGN   equ	10h		; signed value
+PF_WIDTH  equ	20h		; width encountered
+PF_PRECIS equ	40h		; precision encountered (after '.')
+
+;
+; sprintf stack frame definition (see sprintf.asm)
+;
+SPF_FRAME struc
+SPF_WIDTH	dw	?	; specifier width, if any
+SPF_PRECIS	dw	?	; specifier precision, if any
+SPF_START	dw	?	; buffer start address
+SPF_LIMIT	dw	?	; buffer limit address
+SPF_CALLS	dw REG_CHECK + 1 dup(?)	; 1 near-call dispatch on stack
+SPF_FRAME ends
+
+BUFLEN	equ	120		; max stack space to use as printf buffer
+
+;
 ; Input buffer (eg, as used by DOS_TTY_INPUT)
 ;
 BUF_INPUT	struc

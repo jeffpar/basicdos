@@ -53,6 +53,7 @@ let disks = {
         "./software/pcx86/src/dos/misc.asm",
         "./software/pcx86/src/dos/process.asm",
         "./software/pcx86/src/dos/session.asm",
+        "./software/pcx86/src/dos/sprintf.asm",
         "./software/pcx86/src/dos/sysinit.asm",
         "./software/pcx86/src/dos/utility.asm",
         "./software/pcx86/src/inc/bios.inc",
