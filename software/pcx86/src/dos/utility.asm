@@ -252,7 +252,11 @@ ENDPROC	utl_itoa
 ;	all other parameters must be pushed onto the stack, right to left
 ;
 ; Outputs:
-;	REG_AX = # of characters printed
+;	None; we used to update REG_AX with the number of characters printed,
+;	but none of our callers actually cared (callers who do care can use
+;	utl_sprintf instead), and the advantage of not modifying any registers
+;	is that exception handlers (eg, dos_dverr) can call utl_printf with the
+;	stack frame as-is.
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, DS, ES
@@ -275,7 +279,7 @@ DEFPROC	utl_printf,DOS
 	xchg	cx,ax			; CX = # of characters
 	call	write_string
 	add	sp,BUFLEN + offset SPF_CALLS
-	mov	[bp].REG_AX,cx		; update REG_AX with count in CX
+	; mov	[bp].REG_AX,cx		; update REG_AX with count in CX
 	add	[bp].REG_IP,bx		; update REG_IP with length in BX
 	ret
 ENDPROC	utl_printf endp
@@ -826,6 +830,68 @@ DEFPROC	utl_qrymem,DOS
 	and	[bp].REG_FL,NOT FL_CARRY
 	jmp	mcb_query
 ENDPROC	utl_qrymem
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_strstr (AX = 1817h)
+;
+; Find string (DS:SI) in string (ES:DI)
+;
+; Inputs:
+;	REG_DS:REG_SI = source string
+;	REG_ES:REG_DI = target string
+;
+; Outputs:
+;	On match, carry clear, and REG_DI is updated with position of match
+;	Otherwise, carry set (no registers modified)
+;
+; Modifies:
+;	AX, BX, CX, DS, ES
+;
+DEFPROC	utl_strstr,DOS
+	sti
+	and	[bp].REG_FL,NOT FL_CARRY
+	mov	ds,[bp].REG_ES
+	ASSUME	DS:NOTHING
+	xchg	si,di
+	mov	al,0
+	call	strlen
+	xchg	dx,ax			; DX = length of target string
+	xchg	si,di
+	mov	es,[bp].REG_ES
+	ASSUME	ES:NOTHING
+	mov	ds,[bp].REG_DS
+	mov	al,0
+	call	strlen
+	xchg	bx,ax			; BX = length of source string
+
+	lodsb				; AX = first char of source
+	test	al,al
+	stc
+	jz	ss9
+
+	mov	cx,dx
+ss1:	repne	scasb			; scan all remaining target chars
+	stc
+	jne	ss9
+	push	cx
+	mov	cx,bx
+	dec	cx
+	push	si
+	push	di
+	rep	cmpsb			; compare all remaining source chars
+	pop	di
+	pop	si
+	pop	cx
+	je	ss8			; match (and carry clear)
+	mov	dx,cx
+	jmp	ss1
+
+ss8:	dec	di
+	mov	[bp].REG_DI,di
+
+ss9:	ret
+ENDPROC	utl_strstr
 
 DOS	ends
 

@@ -328,22 +328,13 @@ ENDPROC	psp_get
 ;
 DEFPROC	load_program,DOS
 	ASSUME	ES:NOTHING
-	mov	bx,1000h		; alloc 64K
+	mov	bx,10h			; alloc a new PSP segment
 	mov	ah,DOS_MEM_ALLOC
 	int	21h			; returns a new segment in AX
-	jnc	lp2
-	cmp	bx,11h			; is there a usable amount of memory?
-	jb	lp1			; no
-	mov	ah,DOS_MEM_ALLOC	; try again with max paras in BX
-	int	21h
-	jnc	lp2			; success
-lp1:	jmp	lp9			; abort
+	jnc	lp1			; success
+	jmp	lp9			; abort
 
-lp2:	sub	bx,10h			; subtract paras for the PSP header
-	mov	cl,4
-	shl	bx,cl			; convert to bytes
-	mov	si,bx			; SI = bytes for new PSP
-	xchg	dx,ax			; DX = segment for new PSP
+lp1:	xchg	dx,ax			; DX = segment for new PSP
 	xchg	di,ax			; DI = command-line (previously in DX)
 
 	mov	ah,DOS_PSP_CREATE
@@ -351,7 +342,7 @@ lp2:	sub	bx,10h			; subtract paras for the PSP header
 
 	mov	bx,[psp_active]
 	test	bx,bx
-	jz	lp2a
+	jz	lp2
 ;
 ; Let's update the PSP_STACK field in the current PSP before we switch
 ; to the new PSP, since we rely on it to gracefully return to the caller
@@ -365,7 +356,7 @@ lp2:	sub	bx,10h			; subtract paras for the PSP header
 	mov	ds:[PSP_STACK].SEG,ss
 	mov	ds:[PSP_STACK].OFF,ax
 
-lp2a:	push	bx			; save original PSP
+lp2:	push	bx			; save original PSP
 	mov	[psp_active],dx		; we must update the *real* PSP now
 ;
 ; Since we stashed pointer to the command-line in DI, let's parse it now,
@@ -386,11 +377,11 @@ lp3a:	mov	es:[di],ch		; null-terminate the filename
 lp3b:	mov	cl,al			; CL = original terminator
 	push	es
 	pop	ds			; DS:DX -> name of program
-	ASSUME	DS:NOTHING
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h			; open the file
-	jc	lp6a
-	xchg	bx,ax			; BX = file handle
+	jnc	lp3c
+	jmp	lpef
+lp3c:	xchg	bx,ax			; BX = file handle
 ;
 ; Since we successfully opened the filename, let's massage the rest of the
 ; command-line now.  And before we do, let's also update the PSP EXRET address.
@@ -421,31 +412,84 @@ lp5:	mov	byte ptr [bx],CHR_RETURN
 	sub	dx,dx
 	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_END
 	int	21h			; returns new file position in DX:AX
-	jc	lp5a
-
-	xchg	cx,ax			; file size now in DX:CX
-	mov	ax,ERR_NOMEM
-	test	dx,dx			; more than 64K?
-	jnz	lp5a			; yes
-	cmp	cx,si			; larger than the memory we allocated?
-	ja	lp5a			; yes
-	mov	si,cx			; no, SI is the new length
+	jc	lpec1
+;
+; Now that we have a file size, we can reallocate the PSP segment to a size
+; closer to what we actually need.  We won't know EXACTLY how much we need yet,
+; because there might be a COMHEAP signature if it's a COM file, and EXE files
+; have numerous unknowns at this point.  But having at LEAST as much memory
+; as there are bytes in the file is a reasonable starting point.
+;
+	add	ax,15
+	adc	dx,0			; round DX:AX to next paragraph
+	mov	cx,16
+	cmp	dx,cx			; can we safely divide DX:AX by 16?
+	ja	lpec2			; no, the program is much too large
+	div	cx			; AX = # paras
+	push	ds
+	pop	es			; ES = PSP segment
+	mov	si,ax			; SI = # paras in file
+	add	ax,10h			; AX = # paras (plus PSP)
+	push	bx			; save file handle
+	xchg	bx,ax			; BX = new size in paras
+	mov	ah,DOS_MEM_REALLOC
+	int	21h			; resize the segment
+	pop	bx			; restore file handle
+	jc	lpec1			; we could be more forgiving; oh well
 
 	sub	cx,cx
 	sub	dx,dx
 	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_BEG
 	int	21h			; reset file position to beginning
-	jc	lp5a
-
-	mov	cx,si			; CX = # bytes to read
-	mov	dx,size PSP		; DS:DX -> memory after PSP
+	jc	lpec1
+;
+; We're going to make this code executable-agnostic, which means regardless
+; whether it's a COM or EXE file, we're going to read EXEHDR bytes at the top
+; of the allocation and decide what to do next.
+;
+	mov	ax,es
+	add	ax,si
+	sub	ax,(size EXEHDR + 15) SHR 4
+	mov	ds,ax			; DS:0 -> EXEHDR read location
+	sub	dx,dx
+	mov	cx,size EXEHDR
 	mov	ah,DOS_HDL_READ		; BX = file handle, CX = # bytes
 	int	21h
 	jnc	lp6b
-lp5a:	jmp	lp8
-lp6a:	jc	lp7a
+lpec1:	jmp	lpec
+lpec2:	mov	ax,ERR_NOMEM
+	jmp	short lpec1
 
 lp6b:	ASSERT	Z,<cmp ax,cx>		; assert bytes read = bytes requested
+	cmp	ds:[0],EXESIG
+	jne	lp6c
+;
+; Load the EXE file.  This code is just a placeholder.  SI is the # paras
+; in the file.
+;
+	mov	bx,si
+	jmp	short lp7
+;
+; Load the COM file.
+;
+lp6c:	push	si
+	mov	si,dx			; DS:SI -> 1st few paras of file
+	mov	di,size PSP		; ES:DI -> end of PSP
+	xchg	cx,ax			; CX = # bytes actually read so far
+	shr	cx,1
+	rep	movsw
+	pop	si
+	push	es
+	pop	ds
+	mov	dx,di			; DS:DX -> next memory location to fill
+	sub	si,(size EXEHDR + 15) SHR 4
+	mov	cl,4
+	shl	si,cl
+	mov	cx,si			; CX = maximum # bytes left to read
+	mov	ah,DOS_HDL_READ
+	int	21h
+	jc	lpec1
+	add	dx,ax			; DX -> end of program file
 ;
 ; We now leave the executable file open and close it on process termination,
 ; because it provides us with valuable information about all the processes that
@@ -456,16 +500,16 @@ lp6b:	ASSERT	Z,<cmp ax,cx>		; assert bytes read = bytes requested
 ;
 	; mov	ah,DOS_HDL_CLOSE
 	; int	21h			; close the file
-	; jc	lp7a
+	; jc	lpef1
 ;
-; Check the word at [BX+100h-2]: if it contains BASICDOS_SIG ("BD"), then
-; the preceding word must be the program's desired additional memory (in paras).
+; Check the word at [BX-2]: if it contains BASICDOS_SIG ("BD"), then the
+; preceding word must be the program's desired additional memory (in paras).
 ;
-	mov	bx,cx			; BX = length of program file
+	mov	bx,dx			; BX -> end of program file
 	mov	dx,MINHEAP SHR 4	; minimum add'l space (1Kb in paras)
-	cmp	word ptr [bx+size PSP-2],BASICDOS_SIG
+	cmp	word ptr [bx-2],BASICDOS_SIG
 	jne	lp7
-	mov	ax,word ptr [bx+size PSP-4]
+	mov	ax,word ptr [bx-4]
 	sub	bx,4			; don't count the BASIC_DOS sig words
 	cmp	ax,dx			; larger than our minimum?
 	jbe	lp7			; no
@@ -475,13 +519,12 @@ lp7:	add	bx,15
 	mov	cl,4
 	shr	bx,cl			; BX = size of program (in paras)
 	add	bx,dx			; add add'l space (in paras)
-	add	bx,10h			; add size of PSP (in paras)
 	push	ds
 	pop	es
 	ASSUME	ES:NOTHING
 	mov	ah,DOS_MEM_REALLOC	; resize the memory block
 	int	21h
-lp7a:	jc	lp8a			; TODO: try to use a smaller size?
+lpef1:	jc	lpef			; TODO: try to use a smaller size?
 ;
 ; Mark the segment as being "owned" by the PSP now.
 ; TODO: Consider adding an interface for this operation.
@@ -496,7 +539,8 @@ lp7a:	jc	lp8a			; TODO: try to use a smaller size?
 ; Since we're past the point of no return now, let's take care of some
 ; initialization outside of the program segment; namely, resetting the CTRLC
 ; and ERROR handlers to their default values.  And as always, we set these
-; defaults inside the SCB rather than the IVT.
+; handlers inside the SCB rather than the IVT (ie, exactly as DOS_MSC_SETVEC
+; does).
 ;
 	mov	bx,[scb_active]
 	mov	cs:[bx].SCB_CTRLC.OFF,offset dos_ctrlc
@@ -504,8 +548,8 @@ lp7a:	jc	lp8a			; TODO: try to use a smaller size?
 	mov	cs:[bx].SCB_ERROR.OFF,offset dos_error
 	mov	cs:[bx].SCB_ERROR.SEG,cs
 ;
-; Initialize the DTA to its default (PSP:80h), while simultaneously
-; preserving the previous DTA in the new PSP.
+; Initialize the DTA to its default (PSP:80h), while simultaneously preserving
+; the previous DTA in the new PSP.
 ;
 	mov	ax,80h
 	xchg	cs:[bx].SCB_DTA.OFF,ax
@@ -565,11 +609,12 @@ lp7b:	shl	di,cl			; ES:DI -> top of the segment
 ;
 ; Error paths (eg, close the file handle, free the memory for the new PSP)
 ;
-lp8:	push	ax
+lpec:	push	ax
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
 	pop	ax
-lp8a:	push	ax
+
+lpef:	push	ax
 	mov	es,[psp_active]
 	mov	ah,DOS_MEM_FREE
 	int	21h

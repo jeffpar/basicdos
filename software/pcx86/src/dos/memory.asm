@@ -66,6 +66,11 @@ ENDPROC	mem_free
 ;	On success, carry clear
 ;	On failure, carry set, REG_AX = error, REG_BX = max paras available
 ;
+; TODO:
+;	In some versions of DOS (2.1 and 3.x), this reportedly reallocates the
+;	block to the largest available size, even though an error is reported.
+;	Do we care to do the same?  I think not.
+;
 DEFPROC	mem_realloc,DOS
 	mov	dx,[bp].REG_ES		; DX = segment to realloc
 	mov	bx,[bp].REG_BX		; BX = # new paras requested

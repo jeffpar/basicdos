@@ -80,6 +80,7 @@ DOS_UTL_LOCK	equ   1813h	; lock current SCB
 DOS_UTL_UNLOCK	equ   1814h	; unlock current SCB
 DOS_UTL_QRYMEM	equ   1815h	; query memory block N (CL)
 DOS_UTL_QRYHDL	equ   1816h	; query system file handle N (CL)
+DOS_UTL_STRSTR	equ   1817h	; find string (DS:SI) in string (ES:DI)
 DOS_UTL_STDLEN	equ   1824h	; like STRLEN but w/24h (dollar) as terminator
 DOS_UTL_STPLEN	equ   182Eh	; like STRLEN but w/2Eh (period) as terminator
 
@@ -215,8 +216,8 @@ MCB_PARAS	dw	?	; 03h: size of block in paragraphs
 MCB_RESERVED	db     11 dup(?); 05h: reserved
 MCB		ends
 
-MCBSIG_NEXT	equ	4Dh
-MCBSIG_LAST	equ	5Ah
+MCBSIG_NEXT	equ	4Dh	; "M"
+MCBSIG_LAST	equ	5Ah	; "Z"
 MCBOWNER_NONE	equ	0	; free memory block
 MCBOWNER_SYSTEM	equ	0008h	; owned by the system
 
@@ -334,6 +335,28 @@ EPB_CMDTAIL	dd	?	; 02h: pointer to well-formed command tail
 EPB_FCB1	dd	?	; 06h: pointer to FCB for PSP_FCB1
 EPB_FCB2	dd	?	; 0Ah: pointer to FCB for PSP_FCB2
 EPB		ends
+
+;
+; EXE File Header
+;
+EXEHDR		struc
+EXE_SIG		dw	?	; 00h: EXESIG
+EXE_NBLAST	dw	?	; 02h: # bytes in last block (0 if full)
+EXE_NBLOCKS	dw	?	; 04h: # blocks of EXE file data
+EXE_NRELOCS	dw	?	; 06h: # relocation entries
+EXE_NPARAHDR	dw	?	; 08h: # header paras (includes reloc entries)
+EXE_NPARAMIN	dw	?	; 0Ah: # paras minimum additional
+EXE_NPARAMAX	dw	?	; 0Ch: # paras maximum additional
+EXE_STACK_SEG	dw	?	; 0Eh: initial SS value
+EXE_STACK_OFF	dw	?	; 10h: initial SP value
+EXE_CHECKSUM	dw	?	; 12h: checksum of all words in file
+EXE_CODE_OFF	dw	?	; 14h: initial IP value
+EXE_CODE_SEG	dw	?	; 16h: initial CS value
+EXE_OFFRELOC	dw	?	; 18h: offset of first relocation entry
+EXE_OVERLAY	dw	?	; 1Ah: 0 for main program
+EXEHDR		ends
+
+EXESIG		equ	5A4Dh	; "MZ"
 
 ;
 ; Find File Block (FFB)
