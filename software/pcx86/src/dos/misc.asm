@@ -51,6 +51,30 @@ ENDPROC	msc_setvec
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; msc_getver (REG_AH = 30h)
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	REG_AL = major version #
+;	REG_AH = minor version #
+;	REG_BH = OEM serial #
+;	REG_BL:REG_CX = 24-bit serial number
+;
+; Modifies:
+;	None
+;
+DEFPROC	msc_getver,DOS
+	mov	[bp].REG_AX,0002h	; hard-coded to simulate v2.00
+	mov	[bp].REG_BX,0
+	mov	[bp].REG_CX,0
+	clc
+	ret
+ENDPROC	msc_getver
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; msc_setctrlc (REG_AH = 33h)
 ;
 ; Inputs:

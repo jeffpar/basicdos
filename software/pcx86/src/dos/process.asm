@@ -487,6 +487,7 @@ lp6a:	cmp	ax,size EXEHDR
 ;
 	mov	dx,es
 	add	dx,si
+	add	dx,10h
 	sub	dx,[di].EXE_PARASHDR
 
 	push	si			; save allocated paras
@@ -554,15 +555,21 @@ lp6f:	mov	bx,es:[di].OFF		; BX = offset
 ; DX - (AX - 10h) is the base # of paragraphs required for the EXE.  Add the
 ; minimum specified in the EXEHDR.
 ;
+; TODO: Decide what to do about the maximum.  The default setting seems to be
+; "give me all the memory" (eg, FFFFh), which we do not want to do.
+;
 lp6g:	push	es:[EXE_START_SEG]
 	push	es:[EXE_START_OFF]
 	push	es:[EXE_STACK_SEG]
 	push	es:[EXE_STACK_OFF]
-	mov	cx,es:[EXE_PARASMIN]
+	mov	si,es:[EXE_PARASMIN]
+	IFDEF DEBUG
+	mov	di,es:[EXE_PARASMAX]
+	ENDIF
 	sub	ax,10h
 	mov	es,ax			; ES = PSP segment
 	sub	dx,ax			; DX = base # paras
-	add	dx,cx			; DX = base + minimum
+	add	dx,si			; DX = base + minimum
 	mov	bx,dx			; BX = realloc size (in paras)
 	add	ax,10h
 	mov	ds,[psp_active]
@@ -572,6 +579,9 @@ lp6g:	push	es:[EXE_START_SEG]
 	pop	ds:[PSP_START].OFF
 	pop	ds:[PSP_START].SEG
 	add	ds:[PSP_START].SEG,ax
+	IFDEF DEBUG
+	PRINTF	<"min,max paragraphs: %#06x,%#06x",13,10>,si,di
+	ENDIF
 	jmp	short lp8		; realloc the PSP segment
 ;
 ; Load the COM file.  All we have to do is finish reading it.

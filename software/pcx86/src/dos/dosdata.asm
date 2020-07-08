@@ -64,7 +64,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>,near
 	EXTERNS	<dsk_flush,dsk_getdrv,dsk_setdrv,dsk_setdta,dsk_getdta>,near
 	EXTERNS	<dsk_ffirst,dsk_fnext>,near
-	EXTERNS	<msc_setvec,msc_getvec>,near
+	EXTERNS	<msc_setvec,msc_getver,msc_setctrlc,msc_getvec>,near
 	EXTERNS	<psp_exec,psp_exit,psp_create,psp_set,psp_get>,near
 	EXTERNS	<hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek>,near
 	EXTERNS	<mem_alloc,mem_free,mem_realloc>,near
@@ -88,7 +88,7 @@ DOS	segment word public 'CODE'
 	dw	func_none,   msc_setvec,  psp_create,  func_none	;24h-27h
 	dw	func_none,   func_none,   func_none,   func_none	;28h-2Bh
 	dw	func_none,   func_none,   func_none,   dsk_getdta	;2Ch-2Fh
-	dw	func_none,   func_none,   func_none,   func_none	;30h-33h
+	dw	msc_getver,  func_none,   func_none,   msc_setctrlc	;30h-33h
 	dw	func_none,   msc_getvec,  func_none,   func_none	;34h-37h
 	dw	func_none,   func_none,   func_none,   func_none	;38h-3Bh
 	dw	func_none,   hdl_open,    hdl_close,   hdl_read		;3Ch-3Fh
