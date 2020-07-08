@@ -874,7 +874,8 @@ DEFPROC	utl_strstr,DOS
 ss1:	repne	scasb			; scan all remaining target chars
 	stc
 	jne	ss9
-	push	cx
+	clc				; clear the carry in case CX is zero
+	push	cx			; (in that case, cmpsb won't clear it)
 	mov	cx,bx
 	dec	cx
 	push	si

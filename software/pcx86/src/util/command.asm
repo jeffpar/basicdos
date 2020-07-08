@@ -158,20 +158,33 @@ DEFPROC	cmdDir
 	int	21h
 	jnc	dir1
 	PRINTF	<"unable to find %s: %d",13,10>,dx,ax
-	jmp	short dir9
+	jmp	dir9
 dir1:	lea	si,ds:[PSP_DTA].FFB_NAME
-	mov	ax,DOS_UTL_STPLEN
-	int	21h		; AX = length of base name
+	mov	ax,DOS_UTL_STRLEN
+	int	21h
+	xchg	cx,ax		; CX = total length
+	mov	di,si
+	push	si
+	mov	si,offset PERIOD
+	mov	ax,DOS_UTL_STRSTR
+	int	21h		; if carry clear, DI is updated
+	pop	si
+	jc	dir2
+	mov	ax,di
+	sub	ax,si		; AX = partial filename length
+	inc	di		; DI -> character after period
+	jmp	short dir3
+dir2:	mov	ax,cx		; AX = complete filename length
 	mov	di,si
 	add	di,ax
-	inc	di		; DI -> extension
-	mov	dx,ds:[PSP_DTA].FFB_DATE
+dir3:	mov	dx,ds:[PSP_DTA].FFB_DATE
 	mov	cx,ds:[PSP_DTA].FFB_TIME
 	ASSERT	Z,<cmp ds:[PSP_DTA].FFB_SIZE.SEG,0>
 	PRINTF	<"%-8.*s %-3s %7ld %2M-%02D-%02X %2G:%02N%A",13,10>,ax,si,di,ds:[PSP_DTA].FFB_SIZE.OFF,ds:[PSP_DTA].FFB_SIZE.SEG,dx,dx,dx,cx,cx,cx
 	mov	ah,DOS_DSK_FNEXT
 	int	21h
-	jnc	dir1
+	jc	dir9
+	jmp	dir1
 dir9:	ret
 ENDPROC	cmdDir
 
@@ -346,6 +359,7 @@ ENDPROC	printKB
 	DEFSTR	COM_EXT,<".COM",0>
 	DEFSTR	EXE_EXT,<".EXE",0>
 	DEFSTR	DIR_DEF,<"*.*">
+	DEFSTR	PERIOD,<".",0>
 	DEFSTR	RES_MEM,<"RESERVED",0>
 	DEFSTR	SYS_MEM,<"SYSTEM",0>
 	DEFSTR	DOS_MEM,<"DOS",0>
