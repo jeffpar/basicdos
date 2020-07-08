@@ -114,16 +114,16 @@ ENDPROC	scb_load
 ;
 ; Inputs:
 ;	BX -> SCB
-;	DX:DI = initial stack pointer
+;	ES:DI = initial stack pointer
 ;
 ; Modifies:
-;	AX, BX, CX, ES, DI
+;	None
 ;
 DEFPROC	scb_init,DOS
 	ASSUME	ES:NOTHING
 	ASSERT	STRUCT,[bx],SCB
 	mov	[bx].SCB_STACK.OFF,di
-	mov	[bx].SCB_STACK.SEG,dx
+	mov	[bx].SCB_STACK.SEG,es
 	or	[bx].SCB_STATUS,SCSTAT_LOAD
 	ret
 ENDPROC	scb_init
@@ -193,6 +193,7 @@ ENDPROC	scb_lock
 ;	BX, DX (but not carry)
 ;
 DEFPROC	scb_unlock,DOS
+	ASSUME	ES:NOTHING
 	pushf
 	ASSERT	STRUCT,[bx],SCB
 	mov	dx,[psp_active]

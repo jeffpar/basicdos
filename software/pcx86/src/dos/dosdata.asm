@@ -65,7 +65,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<dsk_flush,dsk_getdrv,dsk_setdrv,dsk_setdta,dsk_getdta>,near
 	EXTERNS	<dsk_ffirst,dsk_fnext>,near
 	EXTERNS	<msc_setvec,msc_getvec>,near
-	EXTERNS	<psp_exec,psp_create,psp_set,psp_get>,near
+	EXTERNS	<psp_exec,psp_exit,psp_create,psp_set,psp_get>,near
 	EXTERNS	<hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek>,near
 	EXTERNS	<mem_alloc,mem_free,mem_realloc>,near
 	EXTERNS	<utl_strlen,utl_strupr,utl_atoi,utl_itoa,utl_printf,utl_sprintf>,near
@@ -95,7 +95,7 @@ DOS	segment word public 'CODE'
 	dw	hdl_write,   func_none,   hdl_seek,    func_none	;40h-43h
 	dw	func_none,   func_none,   func_none,   func_none	;44h-47h
 	dw	mem_alloc,   mem_free,    mem_realloc, psp_exec		;48h-4Bh
-	dw	func_none,   func_none,   dsk_ffirst,  dsk_fnext	;4Ch-4Fh
+	dw	psp_exit,    func_none,   dsk_ffirst,  dsk_fnext	;4Ch-4Fh
 	dw	psp_set,     psp_get					;50h-51h
 	DEFABS	FUNCTBL_SIZE,<($ - FUNCTBL) SHR 1>
 

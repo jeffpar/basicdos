@@ -102,6 +102,7 @@ DOS_MEM_FREE	equ	49h	; free memory
 DOS_MEM_REALLOC	equ	4Ah	; reallocate memory
 
 DOS_PSP_EXEC	equ   4B00h	; load program (DS:DX) with EPB (ES:BX)
+DOS_PSP_EXIT	equ	4Ch	; exit program with return code (AL)
 
 DOS_DSK_FFIRST	equ	4Eh	; find first filespec (DS:DX) with attr (CX)
 DOS_DSK_FNEXT	equ	4Fh	; find next filespec (DTA)
@@ -289,7 +290,7 @@ STDEXE		equ	5
 ; Program Segment Prefix (PSP)
 ;
 PSP		struc
-PSP_EXIT	dw	?	; 00h: INT 20h
+PSP_ABORT	dw	?	; 00h: INT 20h
 PSP_PARAS	dw	?	; 02h: paragraphs available
 PSP_SCB		db	?	; 04h: SCB # (normally unused in "real" DOS)
 PSP_FARCALL	db	?	; 05h: far call (9Ah)
@@ -301,12 +302,13 @@ PSP_ERROR	dd	?	; 12h: original INT 24h vector
 PSP_PARENT	dw	?	; 16h: PSP of parent
 PSP_PFT		db     20 dup(?); 18h: Process File Table
 PSP_ENVSEG	dw	?	; 2Ch
-PSP_STACK	dd	?	; 2Eh
+PSP_STACK	dd	?	; 2Eh: BASIC-DOS: initial program stack
 PSP_HDLFREE	dw	?	; 32h: available handles
 PSP_HDLPTR	dd	?	; 34h: initially 0FFFF:0018h
 PSP_SHAREPSP	dd	?	; 38h
 PSP_DTAPREV	dd	?	; 3Ch: BASIC-DOS: prev DTA (restored on return)
-PSP_RESERVED1	db     16 dup(?); 40h
+PSP_START	dd	?	; 40h: BASIC-DOS: initial program address
+PSP_RESERVED1	db     12 dup(?); 44h
 PSP_DISPATCH	db	3 dup(?); 50h: INT 21h/RETF
 PSP_RESERVED2	db	9 dup(?); 53h
 PSP_FCB1	db     16 dup(?); 5Ch
@@ -344,14 +346,14 @@ EXE_SIG		dw	?	; 00h: EXESIG
 EXE_NBLAST	dw	?	; 02h: # bytes in last block (0 if full)
 EXE_NBLOCKS	dw	?	; 04h: # blocks of EXE file data
 EXE_NRELOCS	dw	?	; 06h: # relocation entries
-EXE_NPARAHDR	dw	?	; 08h: # header paras (includes reloc entries)
-EXE_NPARAMIN	dw	?	; 0Ah: # paras minimum additional
-EXE_NPARAMAX	dw	?	; 0Ch: # paras maximum additional
+EXE_PARASHDR	dw	?	; 08h: # header paras (includes reloc entries)
+EXE_PARASMIN	dw	?	; 0Ah: # paras minimum additional
+EXE_PARASMAX	dw	?	; 0Ch: # paras maximum additional
 EXE_STACK_SEG	dw	?	; 0Eh: initial SS value
 EXE_STACK_OFF	dw	?	; 10h: initial SP value
 EXE_CHECKSUM	dw	?	; 12h: checksum of all words in file
-EXE_CODE_OFF	dw	?	; 14h: initial IP value
-EXE_CODE_SEG	dw	?	; 16h: initial CS value
+EXE_START_OFF	dw	?	; 14h: initial IP value
+EXE_START_SEG	dw	?	; 16h: initial CS value
 EXE_OFFRELOC	dw	?	; 18h: offset of first relocation entry
 EXE_OVERLAY	dw	?	; 1Ah: 0 for main program
 EXEHDR		ends
