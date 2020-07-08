@@ -11,15 +11,18 @@
 
 CODE    SEGMENT
 
-	org	100h
-
-        ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
+        ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:STACK
 DEFPROC	main
 
 	LOCVAR	maxDivisor,word
 	LOCVAR	maxSquared,word
 	LOCVAR	advSquared,word
 	ENTER
+
+	mov	ax,CODE
+	mov	ds,ax
+	mov	es,ax
+	ASSUME	DS:CODE, ES:CODE
 
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	mov	dx,offset ctrlc
@@ -74,7 +77,8 @@ m5:	cmp	bx,[maxSquared]	; dividend below square of max divisor?
 	jmp	m1
 
 m9:	LEAVE
-	ret
+	mov	ax,DOS_PSP_EXIT SHL 8
+	int	21h
 ENDPROC	main
 
 DEFPROC	ctrlc,FAR
@@ -83,12 +87,10 @@ DEFPROC	ctrlc,FAR
 	ret
 ENDPROC	ctrlc
 
-;
-; COMHEAP 0 means we don't need a heap, but the system will still allocate
-; a minimum amount of heap space, because that's where our initial stack lives.
-;
-	COMHEAP	0		; COMHEAP (heap size) must be the last item
-
 CODE	ENDS
+
+STACK	SEGMENT	STACK
+	dw	512 dup (?)
+STACK	ENDS
 
 	end	main

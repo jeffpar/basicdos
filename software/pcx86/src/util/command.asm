@@ -69,20 +69,30 @@ m4:	push	cx
 	mov	al,'.'
 	push	cx
 	push	di
-	rep	scasb		; any periods in FILENAME?
+	repne	scasb		; any periods in FILENAME?
 	pop	di
 	pop	cx
 	je	m5
 	add	di,cx		; no, so append .COM
 	mov	si,offset COM_EXT
-	mov	cx,COM_EXT_LEN
+	mov	cx,COM_EXT_LEN - 1
 	rep	movsb
 m5:	add	di,cx
 	mov	al,0
 	stosb			; null-terminate the FILENAME
 	pop	cx
 
-	lea	si,[bx].INPUT.INP_BUF
+	mov	si,offset COM_EXT
+	mov	di,dx
+	mov	ax,DOS_UTL_STRSTR
+	int	21h		; verify that FILENAME contains either .COM
+	jnc	m5a
+	mov	si,offset EXE_EXT
+	int	21h		; or .EXE
+	mov	ax,ERR_INVALID
+	jc	m7		; looks like neither, so report an error
+
+m5a:	lea	si,[bx].INPUT.INP_BUF
 	add	si,cx		; DS:SI -> cmd tail after filename
 	lea	bx,[bx].EXECDATA
 	mov	[bx].EPB_ENVSEG,0
@@ -107,7 +117,7 @@ m6:	lodsb
 	mov	ax,DOS_PSP_EXEC
 	int	21h		; exec program at DS:DX
 	jnc	m8
-	PRINTF	<"error loading %s: %d">,dx,ax
+m7:	PRINTF	<"error loading %s: %d">,dx,ax
 m8:	PRINTF	<13,10>
 	jmp	m1
 
@@ -306,7 +316,7 @@ ENDPROC	cmdType
 ;
 ; calcKB
 ;
-; DX = memory block size in paragraphs; DX/64 (or DX >> 6) is the size
+; AX = memory block size in paragraphs; AX/64 (or AX >> 6) is the size
 ; in Kb, but that's a bit too granular, so we include tenths of Kb as well.
 ; Using the paragraph remainder (R), we calculate tenths (N) like so:
 ;
@@ -322,10 +332,10 @@ DEFPROC	printKB
 	xchg	ax,dx		; AX = paragraphs remainder
 	mov	bl,10
 	mul	bx		; DX:AX = remainder * 10
-	add	ax,31		; rounding factor
-	adc	dx,0
 	mov	bl,64
+	or	ax,31		; round up without adding
 	div	bx		; AX = tenths of Kb
+	ASSERT	NZ,<cmp ax,10>
 	xchg	dx,ax		; save tenths in DX
 	pop	bx
 	pop	ax
@@ -333,7 +343,8 @@ DEFPROC	printKB
 	ret
 ENDPROC	printKB
 
-	DEFSTR	COM_EXT,<".COM">
+	DEFSTR	COM_EXT,<".COM",0>
+	DEFSTR	EXE_EXT,<".EXE",0>
 	DEFSTR	DIR_DEF,<"*.*">
 	DEFSTR	RES_MEM,<"RESERVED",0>
 	DEFSTR	SYS_MEM,<"SYSTEM",0>

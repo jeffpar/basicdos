@@ -53,6 +53,7 @@ let disks = {
         "./software/pcx86/src/dos/misc.asm",
         "./software/pcx86/src/dos/process.asm",
         "./software/pcx86/src/dos/session.asm",
+        "./software/pcx86/src/dos/sprintf.asm",
         "./software/pcx86/src/dos/sysinit.asm",
         "./software/pcx86/src/dos/utility.asm",
         "./software/pcx86/src/inc/bios.inc",
@@ -66,8 +67,9 @@ let disks = {
     "BDS-UTIL": [
         "./software/pcx86/src/util/cmd.inc",
         "./software/pcx86/src/util/command.asm",
+        "./software/pcx86/src/util/exec.asm",
         "./software/pcx86/src/util/primes.asm",
-        "./software/pcx86/src/util/tests.asm",
+        "./software/pcx86/src/util/sleep.asm",
         "./software/pcx86/src/inc/bios.inc",
         "./software/pcx86/src/inc/dev.inc",
         "./software/pcx86/src/inc/disk.inc",

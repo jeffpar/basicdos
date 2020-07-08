@@ -8,4 +8,6 @@ DEL DOS\*.MAP
 DEL UTIL\*.COM
 DEL UTIL\*.MAP
 CD BOOT
-MK ALL
+REM Use MK NODEBUG to create a non-debug release
+IF "%1"=="" MK DEBUG ALL
+IF NOT "%1"=="" MK %1 ALL

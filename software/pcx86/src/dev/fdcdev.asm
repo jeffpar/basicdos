@@ -232,26 +232,33 @@ dcr1b:	mov	es:[di].DDPRW_OFFSET,ax
 ; Reload the offset: copy bytes from ddbuf+offset to the target address.
 ;
 dcr2:	mov	ax,es:[di].DDPRW_OFFSET
-	add	cx,ax
-	cmp	cx,[si].BPB_SECBYTES
-	jb	dcr3		; make sure we don't read beyond the buffer
 	mov	cx,[si].BPB_SECBYTES
-dcr3:	push	si
+	sub	cx,ax
+	mov	dx,es:[di].DDPRW_LENGTH
+	cmp	cx,dx		; partial read smaller than requested?
+	jb	dcr2a		; yes
+	mov	cx,dx		; no, limit it to the requested length
+dcr2a:	push	si
 	push	di
 	push	ds
 	push	es
 	lds	si,[ddbuf_ptr]	; DS:SI -> our own buffer
 	add	si,ax		; add offset
-	mov	ax,cx
+	mov	ax,cx		; save byte transfer count in AX
 	les	di,es:[di].DDPRW_ADDR
-	rep	movsb		; transfer bytes from our own buffer
-	pop	es
+	shr	cx,1
+	rep	movsw		; transfer CX words from our own buffer
+	jnc	dcr2b
+	movsb
+dcr2b:	pop	es
 	pop	ds
 	pop	di
 	pop	si
+	mov	es:[di].DDPRW_OFFSET,cx
 	inc	es:[di].DDPRW_LBA
 	add	es:[di].DDPRW_ADDR.OFF,ax
 	sub	es:[di].DDPRW_LENGTH,ax
+	ASSERT	NC
 	mov	cx,es:[di].DDPRW_LENGTH
 ;
 ; At this point, we know that the transfer offset is now zero, so we're free to
@@ -291,8 +298,11 @@ dcr7:	push	di
 	lds	si,[ddbuf_ptr]	; DS:SI -> our own buffer
 	les	di,es:[di].DDPRW_ADDR
 	mov	ax,cx
-	rep	movsb		; transfer bytes from our own buffer
-	pop	es
+	shr	cx,1
+	rep	movsw		; transfer words from our own buffer
+	jnc	dcr7a
+	movsb
+dcr7a:	pop	es
 	pop	di
 	add	es:[di].DDPRW_ADDR.OFF,ax
 	sub	es:[di].DDPRW_LENGTH,ax

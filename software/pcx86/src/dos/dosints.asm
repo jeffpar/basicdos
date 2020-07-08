@@ -29,9 +29,7 @@ DOS	segment word public 'CODE'
 ; something reasonable with it.
 ;
 DEFPROC	dos_dverr,DOSFAR
-	push	ax
 	PRINTF	<"division error @%08lx",13,10>
-	pop	ax
 	int 3
 	iret
 ENDPROC	dos_dverr
@@ -50,9 +48,7 @@ DEFPROC	dos_sstep,DOSFAR
 	IFDEF DEBUG
 	inc	[asserts]
 	jnz	ss1
-	push	ax
 	PRINTF	<"assert @%08lx",13,10>
-	pop	ax
 ss1:	dec	[asserts]
 	int 3
 	ENDIF
@@ -78,9 +74,7 @@ ENDPROC	dos_brkpt
 ; something reasonable with it.
 ;
 DEFPROC	dos_oferr,DOSFAR
-	push	ax
 	PRINTF	<"overflow error @%08lx",13,10>
-	pop	ax
 	int 3
 	iret
 ENDPROC	dos_oferr
@@ -93,7 +87,6 @@ DEFPROC	dos_term,DOSFAR
 	mov	ah,DOS_PSP_TERM
 	int	21h
 	ASSERT	NC,<stc>		; assert that we never get here
-	jmp	$
 ENDPROC	dos_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

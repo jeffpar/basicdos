@@ -80,6 +80,7 @@ DOS_UTL_LOCK	equ   1813h	; lock current SCB
 DOS_UTL_UNLOCK	equ   1814h	; unlock current SCB
 DOS_UTL_QRYMEM	equ   1815h	; query memory block N (CL)
 DOS_UTL_QRYHDL	equ   1816h	; query system file handle N (CL)
+DOS_UTL_STRSTR	equ   1817h	; find string (DS:SI) in string (ES:DI)
 DOS_UTL_STDLEN	equ   1824h	; like STRLEN but w/24h (dollar) as terminator
 DOS_UTL_STPLEN	equ   182Eh	; like STRLEN but w/2Eh (period) as terminator
 
@@ -101,6 +102,7 @@ DOS_MEM_FREE	equ	49h	; free memory
 DOS_MEM_REALLOC	equ	4Ah	; reallocate memory
 
 DOS_PSP_EXEC	equ   4B00h	; load program (DS:DX) with EPB (ES:BX)
+DOS_PSP_EXIT	equ	4Ch	; exit program with return code (AL)
 
 DOS_DSK_FFIRST	equ	4Eh	; find first filespec (DS:DX) with attr (CX)
 DOS_DSK_FNEXT	equ	4Fh	; find next filespec (DTA)
@@ -215,8 +217,8 @@ MCB_PARAS	dw	?	; 03h: size of block in paragraphs
 MCB_RESERVED	db     11 dup(?); 05h: reserved
 MCB		ends
 
-MCBSIG_NEXT	equ	4Dh
-MCBSIG_LAST	equ	5Ah
+MCBSIG_NEXT	equ	4Dh	; "M"
+MCBSIG_LAST	equ	5Ah	; "Z"
 MCBOWNER_NONE	equ	0	; free memory block
 MCBOWNER_SYSTEM	equ	0008h	; owned by the system
 
@@ -288,7 +290,7 @@ STDEXE		equ	5
 ; Program Segment Prefix (PSP)
 ;
 PSP		struc
-PSP_EXIT	dw	?	; 00h: INT 20h
+PSP_ABORT	dw	?	; 00h: INT 20h
 PSP_PARAS	dw	?	; 02h: paragraphs available
 PSP_SCB		db	?	; 04h: SCB # (normally unused in "real" DOS)
 PSP_FARCALL	db	?	; 05h: far call (9Ah)
@@ -300,12 +302,13 @@ PSP_ERROR	dd	?	; 12h: original INT 24h vector
 PSP_PARENT	dw	?	; 16h: PSP of parent
 PSP_PFT		db     20 dup(?); 18h: Process File Table
 PSP_ENVSEG	dw	?	; 2Ch
-PSP_STACK	dd	?	; 2Eh
+PSP_STACK	dd	?	; 2Eh: BASIC-DOS: initial program stack
 PSP_HDLFREE	dw	?	; 32h: available handles
 PSP_HDLPTR	dd	?	; 34h: initially 0FFFF:0018h
 PSP_SHAREPSP	dd	?	; 38h
 PSP_DTAPREV	dd	?	; 3Ch: BASIC-DOS: prev DTA (restored on return)
-PSP_RESERVED1	db     16 dup(?); 40h
+PSP_START	dd	?	; 40h: BASIC-DOS: initial program address
+PSP_RESERVED1	db     12 dup(?); 44h
 PSP_DISPATCH	db	3 dup(?); 50h: INT 21h/RETF
 PSP_RESERVED2	db	9 dup(?); 53h
 PSP_FCB1	db     16 dup(?); 5Ch
@@ -336,6 +339,28 @@ EPB_FCB2	dd	?	; 0Ah: pointer to FCB for PSP_FCB2
 EPB		ends
 
 ;
+; EXE File Header
+;
+EXEHDR		struc
+EXE_SIG		dw	?	; 00h: EXESIG
+EXE_NBLAST	dw	?	; 02h: # bytes in last block (0 if full)
+EXE_NBLOCKS	dw	?	; 04h: # blocks of EXE file data
+EXE_NRELOCS	dw	?	; 06h: # relocation entries
+EXE_PARASHDR	dw	?	; 08h: # header paras (includes reloc entries)
+EXE_PARASMIN	dw	?	; 0Ah: # paras minimum additional
+EXE_PARASMAX	dw	?	; 0Ch: # paras maximum additional
+EXE_STACK_SEG	dw	?	; 0Eh: initial SS value
+EXE_STACK_OFF	dw	?	; 10h: initial SP value
+EXE_CHECKSUM	dw	?	; 12h: checksum of all words in file
+EXE_START_OFF	dw	?	; 14h: initial IP value
+EXE_START_SEG	dw	?	; 16h: initial CS value
+EXE_OFFRELOC	dw	?	; 18h: offset of first relocation entry
+EXE_OVERLAY	dw	?	; 1Ah: 0 for main program
+EXEHDR		ends
+
+EXESIG		equ	5A4Dh	; "MZ"
+
+;
 ; Find File Block (FFB)
 ;
 FFB		struc
@@ -350,6 +375,30 @@ FFB_DATE	dw	?	; 18h: file date
 FFB_SIZE	dd	?	; 1Ah: file size
 FFB_NAME	db    13 dup (?); 1Eh: file name (null-terminated)
 FFB		ends
+
+;
+; itoa flag definitions (see sprintf.asm)
+;
+PF_LEFT   equ	01h		; left-alignment requested
+PF_HASH   equ	02h		; prefix requested (eg, "0x")
+PF_ZERO   equ	04h		; zero padding requested
+PF_LONG   equ	08h		; long value (32 bits); default is 16
+PF_SIGN   equ	10h		; signed value
+PF_WIDTH  equ	20h		; width encountered
+PF_PRECIS equ	40h		; precision encountered (after '.')
+
+;
+; sprintf stack frame definition (see sprintf.asm)
+;
+SPF_FRAME struc
+SPF_WIDTH	dw	?	; specifier width, if any
+SPF_PRECIS	dw	?	; specifier precision, if any
+SPF_START	dw	?	; buffer start address
+SPF_LIMIT	dw	?	; buffer limit address
+SPF_CALLS	dw REG_CHECK + 1 dup(?)	; 1 near-call dispatch on stack
+SPF_FRAME ends
+
+BUFLEN	equ	120		; max stack space to use as printf buffer
 
 ;
 ; Input buffer (eg, as used by DOS_TTY_INPUT)
