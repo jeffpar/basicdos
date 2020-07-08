@@ -19,7 +19,6 @@ DEFPROC	main
 	LOCVAR	advSquared,word
 	ENTER
 
-	int 3
 	mov	ax,CODE
 	mov	ds,ax
 	mov	es,ax
