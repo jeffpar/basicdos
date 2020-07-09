@@ -29,6 +29,9 @@ DOS	segment word public 'CODE'
 ;	None
 ;
 DEFPROC	psp_term,DOS
+	sub	ax,ax			; default exit code/exit type
+	DEFLBL	psp_term_exitcode,near
+	push	ax			; save it on the stack
 	mov	es,[psp_active]
 	ASSUME	ES:NOTHING
 ;
@@ -69,8 +72,10 @@ pt1:	call	pfh_close		; close process file handle
 	ASSERT	NZ			; if there's no parent
 	jz	pt9			; we don't have a stack to switch to
 	mov	es,ax			; ES = PSP of parent
-	pop	ax
-	pop	dx			; we now have PSP_EXRET in DX:AX
+	pop	dx
+	pop	cx			; we now have PSP_EXRET in CX:DX
+	pop	ax			; AX = exit code (saved on entry above)
+	mov	word ptr es:[PSP_EXCODE],ax
 	mov	[psp_active],es
 	cli
 	mov	ss,es:[PSP_STACK].SEG
@@ -79,10 +84,12 @@ pt1:	call	pfh_close		; close process file handle
 	IF REG_CHECK
 	add	bp,2
 	ENDIF
-	mov	[bp].REG_CS,dx		; copy PSP_EXRET to caller's CS:IP
-	mov	[bp].REG_IP,ax		; (normally they will be identical)
+	mov	[bp].REG_CS,cx		; copy PSP_EXRET to caller's CS:IP
+	mov	[bp].REG_IP,dx		; (normally they will be identical)
 	jmp	dos_exit		; we'll let dos_exit turn interrupts on
-pt9:	ret
+pt9:	add	sp,6
+	ASSERT	NEVER			; it's not good to be here....
+	ret
 ENDPROC	psp_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -90,10 +97,10 @@ ENDPROC	psp_term
 ; psp_create (REG_AH = 26h)
 ;
 ; Apparently, this is more of a "copy" function than a "create" function,
-; especially starting with DOS 2.0, which apparently assumed that the PSP to
-; copy is at the caller's CS:0 (although the INT 22h/23h/24h addresses may
-; still be copied from the IVT instead).  As a result, any PSP "created" with
-; this function automatically inherits all of the caller's open files.
+; especially starting with DOS 2.0, which copies the PSP from the caller's
+; CS:0 (although the INT 22h/23h/24h addresses may still be copied from the
+; IVT).  As a result, any PSP "created" with this function automatically
+; "inherits" all of the caller's open files.
 ;
 ; Well, the first time we call it (from sysinit), there are no existing PSPs,
 ; so there's nothing to copy.  And if we want to create a PSP with accurate
@@ -105,8 +112,8 @@ ENDPROC	psp_term
 ; marks all "uninheritable" files as closed in the new PSP, and as of DOS 3.0,
 ; it uses SI to specify a memory size.
 ;
-; We can mimic the "copy" behavior later, if need be, perhaps by relying on
-; whether psp_active is set.
+; TODO: Mimic the "copy" behavior when we're not being called by sysinit (ie,
+; whenever psp_active is valid).
 ;
 ; Inputs:
 ;	REG_DX = segment of new PSP
@@ -284,8 +291,32 @@ ENDPROC	psp_exec
 ;	None
 ;
 DEFPROC	psp_exit,DOS
-	jmp	psp_term
+	mov	ah,EXTYPE_NORMAL
+	jmp	psp_term_exitcode
 ENDPROC	psp_exit
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; psp_retcode (REG_AH = 4Dh)
+;
+; Returns the exit code (AL) and exit type (AH) from the child process.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	REG_AL = exit code
+;	REG_AH = exit type (see EXTYPE_*)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	psp_retcode,DOS
+	mov	ds,[psp_active]
+	mov	ax,word ptr ds:[PSP_EXCODE]
+	mov	[bp].REG_AX,ax
+	ret
+ENDPROC	psp_retcode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

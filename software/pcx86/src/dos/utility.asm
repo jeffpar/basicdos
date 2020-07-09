@@ -18,11 +18,12 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload,scb_yield>,near
 	EXTERNS	<scb_wait,scb_endwait>,near
 	EXTERNS	<mcb_query>,near
+	EXTERNS	<psp_term_exitcode>,near
 	EXTERNS	<itoa,sprintf>,near
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_strlen (AX = 1800h or 1824h or 182Eh)
+; utl_strlen (AX = 1800h or 1824h)
 ;
 ; Returns the length of the REG_DS:SI string in AX, using the terminator in AL.
 ;
@@ -893,6 +894,22 @@ ss8:	dec	di
 
 ss9:	ret
 ENDPROC	utl_strstr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_abort (AX = 1818h)
+;
+; Inputs:
+;	REG_DL = exit code
+;	REG_DH = exit type
+;
+; Outputs:
+;	None
+;
+DEFPROC	utl_abort,DOS
+	xchg	ax,dx			; AL = exit code, AH = exit type
+	jmp	psp_term_exitcode
+ENDPROC	utl_abort
 
 DOS	ends
 

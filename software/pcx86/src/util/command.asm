@@ -90,7 +90,7 @@ m5:	add	di,cx
 	mov	si,offset EXE_EXT
 	int	21h		; or .EXE
 	mov	ax,ERR_INVALID
-	jc	m7		; looks like neither, so report an error
+	jc	m8		; looks like neither, so report an error
 
 m5a:	lea	si,[bx].INPUT.INP_BUF
 	add	si,cx		; DS:SI -> cmd tail after filename
@@ -116,9 +116,12 @@ m6:	lodsb
 
 	mov	ax,DOS_PSP_EXEC
 	int	21h		; exec program at DS:DX
-	jnc	m8
-m7:	PRINTF	<"error loading %s: %d">,dx,ax
-m8:	PRINTF	<13,10>
+	jc	m8
+	mov	ah,DOS_PSP_RETCODE
+	int	21h
+	PRINTF	<13,10,"return code: %d",13,10>,ax
+	jmp	m1
+m8:	PRINTF	<"error loading %s: %d",13,10>,dx,ax
 	jmp	m1
 
 m9:	lea	di,[bx].TOKENS

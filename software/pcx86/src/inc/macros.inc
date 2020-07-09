@@ -225,7 +225,9 @@ ASSERT	macro	cond,op,value
 	pushf
 	op
 	ENDIF
+	IFDIF	<cond>,<NEVER>
 	J&cond	$+4
+	ENDIF
 	int 1
 	IFNB	<op>
 	popf
