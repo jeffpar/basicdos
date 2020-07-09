@@ -2,10 +2,10 @@
 
 	.RADIX  8		; To be safe
 
-CSEG	SEGMENT PUBLIC 'CODESG' 
+CSEG	SEGMENT PUBLIC 'CODESG'
 	ASSUME  CS:CSEG
 
-INCLUDE	OEM.H
+INCLUDE	OEM.INC
 
 	TITLE   GWINIT GW-BASIC-86 Initialization
 
@@ -19,7 +19,7 @@ BSEGSZ=0			;Size of Buffer segment for Misc. Buffers
 
 	.RADIX	10
 
-DSEG	SEGMENT PUBLIC 'DATASG'		
+DSEG	SEGMENT PUBLIC 'DATASG'
 	ASSUME DS:DSEG
 	EXTRN	LSTVAR:WORD	;Last variable in RAM
 	EXTRN	FILTAB:WORD,STKLOW:WORD,MAXMEM:WORD
@@ -52,7 +52,7 @@ DSEG	SEGMENT PUBLIC 'DATASG'
 DSEG	ENDS
 	EXTRN	MAPCLC:NEAR,MAPINI:NEAR
 	EXTRN	INITSA:NEAR
-	PAGE	
+	PAGE
 	SUBTTL  INIT - System Initialization Code
 
 	PUBLIC	INIT
@@ -428,7 +428,7 @@ KEYSOF:	MOV	AL,LOW 377O
 				;indicating errors no longer result in an exit
 				;to the OS
 	JMP	INITSA
-	PAGE	
+	PAGE
 ;CMDERR This routine is called when an error is detected before the
 ;       completion of initialization (before INITFG is set to non-zero).
 ;       CMDERR performs the following:
@@ -454,4 +454,3 @@ PUBLIC	LASTWR
 	LASTWR=$
 CSEG	ENDS
 	END
-                                                                                

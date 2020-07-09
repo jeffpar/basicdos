@@ -2,10 +2,10 @@
 
 	.RADIX  8		; To be safe
 
-CSEG	SEGMENT PUBLIC 'CODESG' 
+CSEG	SEGMENT PUBLIC 'CODESG'
 	ASSUME  CS:CSEG
 
-INCLUDE	OEM.H
+INCLUDE	OEM.INC
 
 	TITLE   GWSTS - GW-BASIC Common Statement Support
 
@@ -53,29 +53,29 @@ ZENITH=0
 	EXTRN	USERR:NEAR
 
 
-IF	CPM86  
+IF	CPM86
 CPMXIO	MACRO	DFUN
 	MOV	CL,LOW OFFSET DFUN
 	INT	340O		;CPM86 system call
-ENDM 
-ENDIF 
+ENDM
+ENDIF
 
 DOSIO	MACRO	DFUN
 	MOV	AH,LOW OFFSET DFUN
 	INT	33		;MS-DOS system call
-ENDM 
+ENDM
 	GDAT=42D		;MS-DOS Get Date Function
 	SDAT=43D		;MS-DOS Set Date Function
 	GTIM=44D		;MS-DOS Get Time Function
 	STIM=45D		;MS-DOS Set Time Function
 	PUBLIC	PATCHG
 PATCHG:	DB	500D DUP(?)	;GW patch space
-	PAGE	
+	PAGE
 	SUBTTL CLS,LOCATE,WIDTH (of screen),LCOPY
 
 	PUBLIC	CLS,LOCATE,GWWID,LCOPYS,COLOR,GETLIN,SCRENF,SCREEN
 
-DSEG	SEGMENT PUBLIC 'DATASG'		
+DSEG	SEGMENT PUBLIC 'DATASG'
 	ASSUME DS:DSEG
 	EXTRN	LINCNT:WORD,LINLEN:WORD,CSRY:WORD,CSRX:WORD,BUF:WORD
 DSEG	ENDS
@@ -92,7 +92,7 @@ DSEG	ENDS
 	BKSPC=8D
 	CR=13D
 	LF=10D
-	PAGE	
+	PAGE
 ;CLS: CLear Screen issues an escape sequence to clear
 ;     the CRT.  Sequences are ANSII standard whereas the machine
 ;     default is not.  CLS resets the graphics cursor position.
@@ -102,17 +102,17 @@ DSEG	ENDS
 ;
 	EXTRN	CLRSCN:NEAR
 CLS:	CALL	SCNINT		;Test for optional parameter
-	CMC	
-	PUSHF	
+	CMC
+	PUSHF
 	PUSH	AX
 	CALL	EOSCHK		;Test for end of statement
 	POP	AX
-	POPF	
+	POPF
 	PUSH	BX
 	CALL	CLRSCN
 	POP	BX
-	RET	
-	PAGE	
+	RET
+	PAGE
 ;LOCATE: Parse the following syntax:
 ;       LOCATE [Y] [, [X] [, [CURSOR] [, [START] [, [STOP] ]]]
 ;
@@ -177,11 +177,11 @@ DSEG	ENDS
 	MOV	AL,LOW 3D	;Signal for user cursor
 	CALL	CSRDSP		;Set cursor
 	POP	BX		;Restore text pointer
-	RET	
+	RET
 
 
 GOFCER:	JMP	FCERR
-	PAGE	
+	PAGE
 ;GWWID: Parsing for WIDTH [X] [, [Y]]
 ;ENTRY - WIDTH LPRINT is not a possibility at this point.
 ;EXIT  - AL = X param
@@ -199,13 +199,13 @@ YPRAM:	PUSH	AX
 	CALL	EOSCHK		;Must be at end of statement
 	POP	AX
 	CMP	AL,BYTE PTR LINCNT	;Set CC's for Y dimension change
-	LAHF	
+	LAHF
 	MOV	CX,AX
 	POP	AX
 	CMP	AL,BYTE PTR LINLEN	;Set CC's for X dimension change
-	LAHF	
+	LAHF
 	AND	AH,CH		;Set CC's for X OR Y change
-	SAHF	
+	SAHF
 	JZ	GWWIDX		;No change - done
 	PUSH	BX		;Save text pointer
 	PUSH	AX		;save Width
@@ -216,11 +216,11 @@ YPRAM:	PUSH	AX
 	JB	GFCERR		;Error detected within SWIDTH
 	POP	BX		;Restore text pointer
 GWWIDX:	POP	AX		;Return X dimension for WIDTH
-	RET	
+	RET
 
 GFCERR:	JMP	FCERR
 
-	PAGE	
+	PAGE
 ;LCOPY: Copy the screen to the line printer.
 ;ENTRY - BX = text pointer
 ;EXIT  - BX = text pointer
@@ -232,8 +232,8 @@ NOPARM:	CALL	EOSCHK		;Check for unwanted parameters
 	CALL	LCPY
 	JB	GFCERR		;Error detected in low level routine
 	POP	BX
-	RET	
-	PAGE	
+	RET
+	PAGE
 	SUBTTL  COLOR,GETLIN,SCREEN (function and statement)
 ;COLOR: Set the foreground, background, and boarder attributes.
 ;       SYNTAX - COLOR [FOR] [,BACK [,BOARD]]
@@ -247,8 +247,8 @@ COLOR1:	PUSH	BX		;Save text pointer
 	CALL	SETCLR		;Check colors for validity
 	JB	GFCERR		;Error detected by low level routine
 	POP	BX
-	RET	
-	PAGE	
+	RET
+	PAGE
 ;GETLIN: Obtain the current cursor line number.
 ;EXIT - FAC = cursor line number
 ;       BX preserved
@@ -262,7 +262,7 @@ GETLIN:	CALL	GTLINE
 	CALL	MAKINT
 	POP	BX
 	CALL	CHRGTR
-	RET	
+	RET
 
 ;GTLINE: Get the line number of the character position to which the next
 ;character would be written.
@@ -279,8 +279,8 @@ GTLINE:	MOV	AL,BYTE PTR CSRY	;BX = cursor line number
 	CMP	AL,AH
 	JAE	GETLN0		;BRIF wrap will cause scroll
 	INC	AL		;Else wrap will cause line number increment
-GETLN0:	RET	
-	PAGE	
+GETLN0:	RET
+	PAGE
 ;SCRENF: Obtain character from screen.
 SCRENF:
 	CALL	CHRGTR		;Eat the SCREEN token since SCREEN is
@@ -334,8 +334,8 @@ SCRENX:	CALL	MAKINT		;Set FAC
 	POP	BX		;Retrieve text pointer
 	DEC	BX
 	CALL	CHRGTR
-	RET	
-	PAGE	
+	RET
+	PAGE
 ;SCREEN: This statement has no standard syntax.  It is handled
 ;        by parsing single byte integers until end of statement.
 ;        Parameters may be null (appearance of a comma before an
@@ -353,7 +353,7 @@ SCREEN:	CALL	GTPRMS		;Get single byte integer parms
 	CALL	SCRSTT		;Process params
 	JB	FCERGO		;Error detected in low level routine
 	POP	BX		;Restore text pointer
-	RET	
+	RET
 
 
 GTPRMS:	MOV	DI,OFFSET BUF	;Parameters stored in BUF
@@ -382,8 +382,8 @@ STTEND:	JB	NOPRM
 NOPRM:	DEC	CX
 	MOV	DI,OFFSET BUF	;Reset list index
 	MOV	BYTE PTR 0[DI],CL	;Head list with param count
-	RET	
-	PAGE	
+	RET
+	PAGE
 	SUBTTL  PUT & GET (Distinguish Disk from Graphics)
 
 	PUBLIC	PUT,GET
@@ -418,7 +418,7 @@ DSKVER:	POP	BX		;Restore text pointer
 	POP	AX		;Get PUT/GET flag
 	JMP	DPUTG
 
-	PAGE	
+	PAGE
 	SUBTTL  Parsing Routines for GWSTS
 	PUBLIC	SCNINT,EOSCHK
 
@@ -451,14 +451,14 @@ TRMOK:	MOV	CL,AL		;Save terminator
 	POP	AX		;Retrieve parameter value
 	MOV	AH,CL		;Return with AH = terminator
 	CLC			;Flag param. found
-	RET	
+	RET
 
 OMITD:	INC	BX
 NOMORE:	MOV	AH,AL		;Save terminator
 	MOV	AL,LOW 0D	;Set param value to 0, save flags
 	STC			;Flag param. not found
-	RET	
-	PAGE	
+	RET
+	PAGE
 ;EOSCHK: Detect garbage beyond end of statement
 ;ENTRY - BX = text pointer
 ;EXIT  - AL = 0 & all other registers preserved or
@@ -470,9 +470,9 @@ EOSCH1:
 	CALL	CHRGTR		;Get next character (skipping blanks)
 	JZ	EOSCKX		;End of statement
 	JMP	SNERR		;Not EOS - error
-EOSCKX:	RET	
+EOSCKX:	RET
 
-	PAGE	
+	PAGE
 	SUBTTL  Graphics Support Specific to the 8086
 
 	PUBLIC	LINLP3
@@ -491,8 +491,8 @@ LINLP3:	CALL	SETC		;SET CURRENT POINT
 	CALL	 WORD PTR MINUPD+1	;ADVANCE MINOR AXIS
 LINLOP:	CALL	 WORD PTR MAXUPD+1	;UPDATE MAJOR AXIS
 	LOOP	LINLP3		;CONTINUE UNTIL COUNT EXHAUSTED
-	RET	
-	PAGE	
+	RET
+	PAGE
 	SUBTTL  VARPT2 - VARPTR$ Function
 
 	PUBLIC	VARPT2
@@ -534,7 +534,7 @@ VARRT2:
 	POP	WORD PTR 0[BX]	;Store addr in Bytes 2-3.
 	JMP	PUTNEW		;Desc in FAC & ret. ([BX] on stack).
 
-	PAGE	
+	PAGE
 	SUBTTL  PLAY/SOUND statements
 
 ;
@@ -626,12 +626,12 @@ PLYLEN:	JNB	PLGOFC		;ERROR IF NO ARG
 	OR	DL,DL		;DON'T ALLOW ZERO
 	JZ	PLGOFC		;FC ERROR IF ZERO
 	MOV	BYTE PTR NOTELN,DL	;STORE NOTE LENGTH
-	RET	
+	RET
 
 PTEMPO:	CMP	DL,LOW 32D	;ALLOW ONLY 32 - 255
 	JB	PLGOFC		;FC ERROR IF TOO SMALL
 	MOV	BYTE PTR BEATS,DL	;Store Beats per minute
-	RET	
+	RET
 
 NCFCER:
 PPAUSE:	JNB	PLGOFC		;ERROR IF NO ARG
@@ -646,7 +646,7 @@ POCTAV:	JNB	PLGOFC		;ERROR IF NO ARG
 	CMP	DL,LOW 7	;ALLOW ONLY OCTAVES 0..6
 	JNB	PLGOFC		;FC ERROR IF TO BIG
 	MOV	BYTE PTR OCTAVE,DL
-PLYRET:	RET	
+PLYRET:	RET
 
 PLYNUM:	JNB	PLGOFC		;ERROR IF NO ARG
 	MOV	AL,DL		;GET NOTE NUMBER INTO [AL]
@@ -807,10 +807,10 @@ PLYMET:
 	JNZ	PLYMER		;Brif not Background Music
 PLYMOD:
 	MOV	BYTE PTR MMODE,CL	;Store Music Mode (0=FG, 1=BG)
-	RET	
+	RET
 PLYDUR:
 	MOV	BYTE PTR MSCALE,CL	;Store Duration Scaling factor
-	RET	
+	RET
 
 ;SNDINI is called to set OCTAVE, BEATS, NOTELN, NOTE1L, MSCALE, and MMODE
 ;to appropriate initial settings.  SNDINI is called at CLEARC and during
@@ -830,7 +830,7 @@ SNDINI:	MOV	BYTE PTR BEATS,LOW 120D
 	MOV	BYTE PTR NOTE1L,LOW 4D
 	MOV	BYTE PTR OCTAVE,LOW 4D
 	CALL	SNDRST		;Turn off sound
-	RET	
+	RET
 
 ;SNDRST is called to reset background music.  It is called during
 ; initialization from INIT and during the processing of CTL-C
@@ -843,15 +843,15 @@ SNDRST:	PUSH	AX
 	PUSH	BX
 	PUSH	CX
 	PUSH	DX
-	PUSHF	
+	PUSHF
 	MOV	AL,LOW 255D
 	CALL	DONOTE		;Disable background music, init music queue
-	POPF	
+	POPF
 	POP	DX
 	POP	CX
 	POP	BX
 	POP	AX
-	RET	
+	RET
 
 	PUBLIC	BEEPS,BEEP,SOUNDS
 	EXTRN	DONOTE:NEAR,FRQINT:NEAR,FRCSNG:NEAR,GETIN2:NEAR
@@ -930,7 +930,7 @@ SNDFCE:
 	JMP	FCERR		; Complain
 
 
-	PAGE	
+	PAGE
 	SUBTTL General Event Trapping Code
 
 	PUBLIC	ONGOTP,SETGSB
@@ -1013,7 +1013,7 @@ NOACOM:
 	POP	DX
 	POP	CX
 	POP	BX
-CHKINX:	RET	
+CHKINX:	RET
 
 ;SEVSTT - Set Event Status
 ; Common code for parsing event-id ON/OFF/STOP
@@ -1055,7 +1055,7 @@ SEVST2:
 ;         [AL]=$ON, $OFF, or $STOP
 ;
 SET1EV:	CALL	EVSET		;set event flags to ON, OFF, or STOP
-	RET	
+	RET
 
 FCERR1:	JMP	FCERR
 SNERR1:	JMP	SNERR
@@ -1073,7 +1073,7 @@ SEVALL:	PUSH	DX		;save $ON, $OFF, or $STOP
 SEVAL1:	CALL	EVSET		;set event for key 9-[B]
 	ADD	DX,3		;[DX] points to next entry
 	LOOPNE	SEVAL1
-	RET	
+	RET
 
 ;EVSET changes the status of 1 event.
 ; Entry - [AL]=$ON, $OFF, or $STOP
@@ -1101,7 +1101,7 @@ EVONX:	POP	AX		;restore all caller's registers
 	POP	BX
 	POP	CX
 	POP	DX
-	RET	
+	RET
 
 ;EVADR transforms event-id to event-flag-pointer.
 ; Entry - [AL] = event id
@@ -1113,7 +1113,7 @@ EVADR:	XOR	AH,AH		;[AX] = event id
 	ADD	AX,DX		;[AX] = 3*event id
 	ADD	AX,OFFSET TRPTBL
 	MOV	DX,AX
-	RET	
+	RET
 
 DSEG	SEGMENT PUBLIC 'DATASG'
 	EXTRN	$KEY2B:WORD,$PEN2B:WORD,$STR2B:WORD,$COM2B:WORD
@@ -1186,7 +1186,7 @@ ONSTM:
 	DEC	BX		;backup for CHRGET
 	OR	AL,AL		;clear carry - indicates it was event
 ONGOTX:	MOV	AL,BYTE PTR 0[BX]	;Restore Token
-	RET	
+	RET
 
 GETSUB:	PUSH	CX
 	CALL	CHRGTR		;skip current token
@@ -1198,7 +1198,7 @@ GETSU2:	CALL	SYNCHR
 	DB	OFFSET ")"
 	POP	AX
 	POP	CX
-	RET	
+	RET
 
 ;Set gosub entry
 ; Entry - [AL]=trap id, [DX]=line pointer
@@ -1212,7 +1212,7 @@ SETGSB:	PUSH	SI
 	INC	SI		;[SI] points to gosub line ptr entry
 	MOV	WORD PTR 0[SI],DX	;put trap adr in table for this entry
 	POP	SI
-	RET	
+	RET
 
 ;EVTRP is called to signal that an event has occured.
 ; Entry - [AL] = event id
@@ -1230,13 +1230,13 @@ EVTRP:	PUSH	DX
 	MOV	AL,BYTE PTR 0[BX]	;[AL]=event flag
 	AND	AL,LOW OFFSET T_ON	;NZ if trapping enabled for key
 	JZ	NOT_ON		;branch if event is not on
-	PUSHF	
+	PUSHF
 	CALL	REQTRP		;Trap enabled, Issue Request
-	POPF	
+	POPF
 NOT_ON:	POP	BX
 	POP	CX
 	POP	DX
-	RET	
+	RET
 
 ;EVCLR is called to reset an event
 ; Entry - [AL] = event id
@@ -1267,9 +1267,9 @@ TSTCEV:
 	AND	AL,LOW OFFSET T_REQ
 	JE	TSTEVX
 	DEC	BX		;[BX]=-1 (indicates event has occured)
-TSTEVX:	RET	
+TSTEVX:	RET
 
-	PAGE	
+	PAGE
 	SUBTTL COM Statement and Event Trapping
 
 	PUBLIC	COMS
@@ -1289,9 +1289,9 @@ COMTRP:	PUSH	AX
 	ADD	AL,LOW OFFSET COMOFF	;[AL]=event id
 	CALL	EVTRP		;Signal the occurance of a COM EVENT
 	POP	AX
-	RET	
+	RET
 
-	PAGE	
+	PAGE
 	SUBTTL SOFT KEY Statement and Event Trapping
 
 	PUBLIC	KEYS
@@ -1323,7 +1323,7 @@ KEYTRP:	PUSH	AX
 	ADD	AL,LOW OFFSET KEYOFF	;[AL] = 0-relative event id
 	CALL	EVTRP		;Signal the occurance of a KEY EVENT
 	POP	AX
-	RET	
+	RET
 
 	EXTRN	FKYADV:NEAR
 
@@ -1365,7 +1365,7 @@ KEY1:
 	POP	DI		;STRTAB addr
 	PUSH	BX
 	MOV	CH,LOW 0
-	CLD	
+	CLD
                      ;Move new softkey
  REP	MOVSB			;to Softkey table
 	MOV	BYTE PTR 0[DI],CH	;Terminate entry with 0.
@@ -1375,7 +1375,7 @@ KEY1:
 				;erase the bottom line of the screen.
 	CALL	KEYDSP		;Yes, update the display.
 NODSPK:	POP	BX		;Text pntr
-	RET	
+	RET
 KEYFCE:
 	JMP	FCERR		;complain..
 KEYLSI:	JMP	SHORT KEYLST
@@ -1387,7 +1387,7 @@ KEYOF:	MOV	AH,LOW 1D	;Prepare to inc scroll limit
 	MOV	AL,LOW 0	;zero = OFF
 	CALL	KEYOX
 KEYOXX:	CALL	CHRGTR		;over ON/OFF token.
-	RET	
+	RET
 
 PUBLIC	SKEYON
 SKEYON:	MOV	AH,LOW -1D	;Prepare to dec scroll limit
@@ -1401,7 +1401,7 @@ KEYOX:				;AH=scroll limit diff., AL=new KEYSW
 	CALL	FKYADV
 KEYOX1:
 	CALL	KEYDSP		;On, Display on 25th line.
-KEYXX:	RET	
+KEYXX:	RET
 
 ;List Function Keys
 ;
@@ -1424,7 +1424,7 @@ KEYLS0:
 	PUSH	SI
 	PUSH	CX
 KEYLS1:
-	CLD	
+	CLD
 	LODSB
 	OR	AL,AL
 	JZ	KEYLS2		;Brif end of String.
@@ -1451,8 +1451,8 @@ KEYLSP:
 	MOV	AL,LOW 33O
 KEYLSQ:	CALL	OUTDO
 	POP	SI
-	RET	
-	PAGE	
+	RET
+	PAGE
 	SUBTTL  KEYON,  KEYOFF, and KEYDSP
 
 	PUBLIC	KEYDSP,TKEYOF
@@ -1476,7 +1476,7 @@ KEYDSP:	PUSH	DX
 	JNZ	KEYDS0		;Softkey display switch on
 	CALL	CLREOL		;Clear from (DH,DL) to EOL
 	POP	DX
-	RET	
+	RET
 
 
 KEYDS0:
@@ -1497,17 +1497,17 @@ SINDIG:	CALL	KEYDCH		;Display last digit
 	CALL	XFGBG		;Swap Forground & background colors
 KNXTCH:				;Write the next key character
 	PUSH	CX
-	CLD	
+	CLD
 	LODSB
 	OR	AL,AL		;End of string?
-	PUSHF	
+	PUSHF
 	PUSH	SI
 	JNZ	KEYDS4		;No, Display char
 	XOR	AL,AL		;else blank
 KEYDS4:
 	CALL	KEYDCH		;Display char, adv cursor
 	POP	SI
-	POPF	
+	POPF
 	JNZ	KEYDS5		;Brif not EOS
 	DEC	SI
 KEYDS5:
@@ -1525,7 +1525,7 @@ KEYDSX:	POP	BX		;Retrieve cursor position
 	POP	DX
 	MOV	BYTE PTR CSRTYP,LOW 3D	;Set user mode cursor
 	CALL	SETCSR		;Turn on cursor
-	RET	
+	RET
 
 KEYDB:	XOR	AL,AL		;For Blank at end of Key field
 KEYDCH:
@@ -1547,8 +1547,8 @@ KEYNLF:	PUSH	CX
 	POP	CX
 	POP	BX
 	POP	AX		;Restore key number
-	RET	
-	PAGE	
+	RET
+	PAGE
 ;Get function key display format
 ;
 GETFMT:	PUSH	BX
@@ -1558,7 +1558,7 @@ GETFMT:	PUSH	BX
 	MOV	BYTE PTR FKCNUM,CL
 	MOV	SI,OFFSET STRTAB	;SI=address of first fkey in table
 	MOV	AL,BYTE PTR 2[BX]
-	CBW	
+	CBW
 	PUSH	AX		;Save number of first function key
 	DEC	AL		;Set to zero relative
 	MOV	CL,LOW 4D	;Multiply by 16 (bytes/key)
@@ -1572,7 +1572,7 @@ GETFMT:	PUSH	BX
 ONEDIG:	CALL	KADNRM		;Normalize key address
 	POP	CX
 	POP	BX
-	RET	
+	RET
 ;INTOCH: Translate integer AL to characters in AX.
 ;        Integers must be in the range (100,0].
 ;        Radix is 10.
@@ -1585,7 +1585,7 @@ INTOCH:	PUSH	CX
 	ADD	AX,30060O	;3030H forms character codes
 	XCHG	AH,AL		;AH represents significant digit
 	POP	CX
-	RET	
+	RET
 ;KEYADV - Advance to next key
 ;Entry - AX = key number characters
 ;        SI = index into STRTAB (key code table)
@@ -1606,8 +1606,8 @@ KADNRM:
 	MOV	AH,LOW "0"
 	MOV	AL,LOW "1"
 	INC	BYTE PTR FKCNUM	;Re-adjust format
-KADNMX:	RET	
-	PAGE	
+KADNMX:	RET
+	PAGE
 	SUBTTL  Swap Forground & Background Colors
 
 ;Swap Forground & Background Colors (Toggle Reverse Video Mode)
@@ -1618,8 +1618,8 @@ XFGBG:	CLC			;Signal text attributes
 	CALL	GETFBC		;Get forground/background attributes
 	XCHG	AX,BX
 	CALL	SETFBC		;Set forground/background attributes
-	RET	
-	PAGE	
+	RET
+	PAGE
 	SUBTTL PEN Statement and Event Trapping
 
 	PUBLIC	PENS,PENF
@@ -1694,7 +1694,7 @@ NPEN0:
 	CALL	RDPEN
 PENRET:	CALL	MAKINT		;Return [BX] as signed integer
 	POP	BX		;restore text pointer
-	RET	
+	RET
 
 ;POLPEN is called by CHKINT at beginning of every BASIC statement (NEWSTT).
 ; If a PEN interrupt has occured, it sets the appropriate bit in TRPTBL
@@ -1710,7 +1710,7 @@ POLPEN:
 	JE	NOPENI		;branch if no lightpen interrupt
 	MOV	AL,LOW OFFSET PENOFF
 	CALL	EVTRP		;Signal the occurance of a PEN EVENT
-NOPENI:	RET	
+NOPENI:	RET
 ;Parse "(n)" and return n in [AL]
 ONESUB:
 ;In non-IBMTOK versions, EVAL doesn't parse the argument
@@ -1720,8 +1720,8 @@ ONESUB:
 	JNE	FCERRI		;branch if [DX] is not [0..255]
 	MOV	AL,DL		;return argument in [AL]
 	POP	DX		;restore caller's [DX]
-	RET	
-	PAGE	
+	RET
+	PAGE
 	SUBTTL STRIG Statement and Event Trapping
 
 	PUBLIC	STRIGS,STRIGF,STICKF
@@ -1804,7 +1804,7 @@ NSTR0:	CALL	RDTRIG		;[AL] = 0/1 for not-pressed/pressed
 	MOV	BX,AX
 STRRET:	CALL	MAKINT		;return [BX] as signed integer
 	POP	BX		;restore text pointer
-	RET	
+	RET
 
 ;STICK Function:
 ;
@@ -1826,7 +1826,7 @@ STICKF:
 STKOK:
 	CALL	MAKINT		;return [BX] as signed integer
 	POP	BX		;restore text pointer
-	RET	
+	RET
 
 ;POLSTR is called by CHKINT at beginning of every BASIC statement (NEWSTT).
 ; If a STRIG interrupt has occured, it sets the appropriate bit in TRPTBL
@@ -1858,7 +1858,7 @@ STRI1:	POP	AX
 	INC	AL
 	CMP	AL,LOW OFFSET NMSTRT
 	JB	STRILP		;brif there are more triggers to poll
-	RET	
+	RET
 
 	SUBTTL DATE - Get/Set Date.
 
@@ -1912,7 +1912,7 @@ PUTCHR:
 PUTCH2:
 	MOV	BYTE PTR 0[BX],AL	;store char in string
 	INC	BX
-	RET	
+	RET
 
 
 ;PRSDAT parses a string containing
@@ -1968,7 +1968,7 @@ DATSEP:
 GNUM8:	CALL	GNUM16		;[AX]=16-bit number
 	OR	AH,AH
 	JNZ	DATERR		;error if larger than 255
-	RET	
+	RET
 
 GNUM16:	PUSH	CX		;save caller's [CX], [DX]
 	PUSH	DX
@@ -1982,7 +1982,7 @@ GNUML:	CALL	DIGIT		;[CX]=0..9
 	JMP	SHORT GNUML
 GNUMX:	POP	DX
 	POP	CX
-RET2:	RET	
+RET2:	RET
 
 DIGIT:	CMP	BL,LOW 1	;End-of-string?
 	JB	RET2		;Brif END-OF-STRING
@@ -1990,16 +1990,16 @@ DIGIT:	CMP	BL,LOW 1	;End-of-string?
 	SUB	CL,LOW "0"
 	JB	RET2		;branch if illegal digit
 	CMP	CL,LOW 10D
-	CMC	
+	CMC
 	JB	RET2		;branch if illegal digit
 	MOV	CH,LOW 0	;[CX]=digit
 DIGITX:	DEC	BL		;Length -1
 	INC	SI		;[SI] points to next byte in string
-	RET	
+	RET
 
 DATERR:	JMP	FCERR
 
-IFE	IBMTOK OR CPM86  
+IFE	IBMTOK OR CPM86
 ;DYOFYR converts YEAR, MONTH, DAY to binary DAY-OF-YEAR
 ; Entry - [CX]=binary year (19xx/20xx)
 ;         [DH]=binary month (1..12)
@@ -2022,7 +2022,7 @@ DYOFYR:	SUB	CX,1978D	;[CX]=year - 1978
 	JNB	DATERR		;error if day-of-month too large
 	OR	SI,SI
 MONTHL:	JNZ	MONTHS
-	RET	
+	RET
 MONTHS:	MOV	AL,BYTE PTR DAYSPM-1[SI]
 	ADD	BX,AX		;days=days+DAYSPM(month)
 	DEC	SI
@@ -2033,7 +2033,7 @@ MONTHS:	MOV	AL,BYTE PTR DAYSPM-1[SI]
 SETFEB:	CALL	CKLEAP		;[AX]=1 if [CX]=leap-year
 	ADD	AL,LOW 28D	;[AL]=29 if leap, 28 if not
 	MOV	BYTE PTR DAYSPM+1,AL	;DAYSPM(2)=28 or 29
-	RET	
+	RET
 
 ;CKLEAP returns with [AX]=1 if [CX]+1978 is a leap year, else [AX]=0.
 ;
@@ -2044,10 +2044,10 @@ CKLEAP:	MOV	AH,LOW 0
 	JZ	CKLEA1		;branch if it is leap-year
 	MOV	AL,LOW 377O
 CKLEA1:	INC	AL
-	RET	
-ENDIF 
+	RET
+ENDIF
 
-IF	CPM86  
+IF	CPM86
 ;SETDAT sets the system clock's date.
 ; Entry - [CX]=year (19xx/20xx)
 ;         [DH]=month (1..12)
@@ -2068,7 +2068,7 @@ YEARS1:	ADD	BX,365D		;days=days+365
 YEARSX:	MOV	WORD PTR DATIME,BX	;DATIME=count of days since 1/1/1978
 	CALL	SDTIME		;set current date/time from DATIME
 	POP	BX		;restore text pointer
-	RET	
+	RET
 
 ;GETDAT returns with [CX]=year, DH=month, DL=day-of-month.
 ; Exit - BX, AX are used.
@@ -2097,21 +2097,21 @@ FNDMON:	MOV	AL,BYTE PTR DAYSPM[BX]	;[AX]=days in month BX
 GOTMON:	MOV	DH,BL		;[DH]=month (1..12)
 	INC	DL		;[DL]=day of month (1..31)
 	ADD	CX,1978D	;[CX]=year
-	RET	
-ENDIF 
+	RET
+ENDIF
 SETDAT:	PUSH	BX
 	DOSIO	SDAT		;Give Date to MS-DOS.
 	OR	AL,AL		;Date OK?
 	JNZ	DATERR		;Brif not.
 	POP	BX
-	RET	
+	RET
 
 ;GETDAT returns with [CX]=year, DH=month, DL=day-of-month.
 ; Exit - BX, AX are used.
 ;
 GETDAT:	DOSIO	GDAT		;Get Date from MS-DOS
-	RET	
-	PAGE	
+	RET
+	PAGE
 	SUBTTL TIME - Get/Set Time.
 
 	PUBLIC	TIMES,TIMEF
@@ -2199,12 +2199,12 @@ TIMSEP:
 	CMP	AL,LOW "."
 	JNZ	TIMERR
 TIMSXX:
-	RET	
+	RET
 
 TIMERR:	JMP	FCERR
 
 
-IF	CPM86  
+IF	CPM86
 SETTIM:	CALL	GDTIME		;get current date/time into DATIME
 	PUSH	BX		;save text pointer
 	MOV	BX,OFFSET DATIME+2	;BX points to hours digit of buffer
@@ -2216,7 +2216,7 @@ SETTIM:	CALL	GDTIME		;get current date/time into DATIME
 	CALL	BINBCD		;DT.SEC=BINBCD(DH)
 	CALL	SDTIME		;set current date/time from DATIME
 	POP	BX		;restore text pointer
-	RET	
+	RET
 
 ;BINBCD converts [AL] to 2-digit BCD and stores the result at [BX]
 ; Exit  - BX is incremented
@@ -2242,7 +2242,7 @@ GETTIM:	CALL	GDTIME		;get current date/time into DATIME
 	MOV	CL,AL		;[CL]=BCDBIN(DT.MIN)
 	CALL	BCDBIN
 	MOV	DH,AL		;[DH]=BCDBIN(DT.SEC)
-	RET	
+	RET
 
 ;GDTIME sets DATIME to the current date-time.
 ; Exit - All registers preserved.
@@ -2272,7 +2272,7 @@ SDTIMX:	POP	DX
 	POP	BX
 	POP	AX
 	POP	ES
-	RET	
+	RET
 
 ;BCDBIN converts [[BX]] from 2-digit BCD to binary and
 ; returns it in [AL]
@@ -2289,17 +2289,17 @@ BCDBIN:	MOV	AL,BYTE PTR 0[BX]
 	ADD	AL,DL		;[AL]=D1*10
 	AND	AH,LOW 17O	;[AH]=D2
 	ADD	AL,AH		;[AL]=10*D1+D2=binary result
-	RET	
-ENDIF 
+	RET
+ENDIF
 SETTIM:	PUSH	BX
 	DOSIO	STIM		;Give Time to MS-DOS.
 	OR	AL,AL		;Date OK?
 	JNZ	TIMERR		;Brif not.
 	POP	BX
-	RET	
+	RET
 
 GETTIM:	DOSIO	GTIM		;Get Time from MS-DOS
-	RET	
+	RET
 
 	SUBTTL  Error Handlers for Features not supported in a version
 
@@ -2344,4 +2344,3 @@ ADVERR:
 
 CSEG	ENDS
 	END
-                                                                                                                              

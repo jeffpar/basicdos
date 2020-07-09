@@ -2,10 +2,10 @@
 
 	.RADIX  8		; To be safe
 
-CSEG	SEGMENT PUBLIC 'CODESG' 
+CSEG	SEGMENT PUBLIC 'CODESG'
 	ASSUME  CS:CSEG
 
-INCLUDE	OEM.H
+INCLUDE	OEM.INC
 
 	TITLE   GWRAM - GW BASIC OEM Independent RAM Declarations
 
@@ -15,7 +15,7 @@ COMMENT	*
         --------- --- ---- -- ---------
         *
 
-	INCLUDE	GIO86U
+	INCLUDE	GIO86U.INC
 	.SALL
 
 	.RADIX	10
@@ -30,22 +30,22 @@ NMPAGE=1
 	CR=15O
 ;
 
-	PAGE	
+	PAGE
 	SUBTTL Sign on message and other data to be discarded after INIT
 
-HEDING:	ACRLF	
+HEDING:	ACRLF
 	DB	"(C) Copyright Microsoft 1982"
 $DATE:	DB	"         "	;$DATE
-	ACRLF	
+	ACRLF
 	DB	00O		;Terminate previous string.
 
 CERMSG:	ACRLF			;Command line error message
 	DB	"Error detected in command line"
-	ACRLF	
+	ACRLF
 	DB	00O
 
 CSEG	ENDS			; End of code segment constants
-	PAGE	
+	PAGE
 DSEG	SEGMENT PUBLIC 'DATASG'		; Start of data segment GW variables
 	ASSUME DS:DSEG
 
@@ -61,36 +61,36 @@ R1	MACRO	NAME,SIZE
 	ORG	$-1
 NAME	LABEL WORD
 	ORG	$+1
-IF	SIZE  
+IF	SIZE
 	DB	SIZE DUP(?)
-ENDIF 
-ENDM 
+ENDIF
+ENDM
 
 R	MACRO	NAME,SIZE
 	Q=Q+SIZE
 	QDS=QDS+SIZE
 	PUBLIC	NAME
 NAME	LABEL WORD
-IF	SIZE  
+IF	SIZE
 	DB	SIZE DUP(?)
-ENDIF 
-ENDM 
+ENDIF
+ENDM
 
 RINIT	MACRO	NAME,SIZE
 	PUBLIC	NAME
 NAME	LABEL WORD
 	QQ=NAME-MOVDAT-Q
-IF	QQ  
+IF	QQ
 	%OUT  *FATAL RINIT ERROR*
-ENDIF 
+ENDIF
 	Q=Q+SIZE
 	QDS=QDS+SIZE
-ENDM 
+ENDM
 
-ACRLF	MACRO	
+ACRLF	MACRO
 	DB	13D
 	DB	10D
-ENDM 
+ENDM
 
 
 	Q=0
@@ -150,9 +150,9 @@ ENDM
 ;
 	RINIT	ENDTAB,0
 	DIST=ENDTAB-STRTAB-(16D*NMKEYF)
-IF	DIST  
+IF	DIST
 	%OUT/++++BAD SOFTKEY PADDING+++++/
-ENDIF 
+ENDIF
 
 
 	RINIT	CMDOFF,2	;Index into ESCBUFF or STRTAB
@@ -205,7 +205,7 @@ ENDIF
 	DB	2 DUP(?)
 	RINIT	SNDOUT,2	;Base addr of Sound Queue Buffer
 	DB	2 DUP(?)
-	PAGE	
+	PAGE
 	SUBTTL  Page Dependent OEM Independent Variables
 
 ; Page Dependent variables arranged as follows:
@@ -249,7 +249,7 @@ ENDIF
 	PUBLIC	PDIDS1		;Start of DS: init block.
 	PUBLIC	FPDVAR,LPDVAR	;Addresses of first and last active page vars in DS:
 
-PDIRAM	MACRO	
+PDIRAM	MACRO
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;       Start of declaration of page dependent variables
 ;       which are initialized by block move either by
@@ -271,9 +271,9 @@ PDIRAM	MACRO
 
 	RINIT	KEYSW,1		;Flag for softkey display
 	DB	0		;Flag: 0=do not display softkeys.
-ENDM 
+ENDM
 
-PDURAM	MACRO	
+PDURAM	MACRO
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;       Start of declaration of page dependent variables
 ;
@@ -302,12 +302,12 @@ PDURAM	MACRO
 ;NOTE: Some Routines expect CSRX to immediately follow CSRY
 	R	CSRY,1		; Current line(1-[LINCNT])
 	R	CSRX,1		; Current column(1-[CRTWID])
-ENDM 
+ENDM
 
 
 RINIT	MACRO	NAME,SIZE
 	QDS=QDS+SIZE
-ENDM 
+ENDM
 
 	QDS=Q
 
@@ -319,12 +319,12 @@ RINIT	MACRO	NAME,SIZE
 	PUBLIC	NAME
 NAME	LABEL WORD
 	QQ=NAME-MOVDAT-QDS
-IF	QQ  
+IF	QQ
 	%OUT  *FATAL RINIT ERROR*
-ENDIF 
+ENDIF
 	Q=Q+SIZE
 	QDS=QDS+SIZE
-ENDM 
+ENDM
 
 ;Although RINIT is used subsequently there are no more CS: RAM locations
 ; to declare.   The RINIT will be used for DS: declaration only
@@ -339,17 +339,17 @@ ENDM
 	R	LPDVAR,0	;End of active page vars in DS:
 
 RINIT	MACRO	NAME,SIZE
-IF	SIZE  
+IF	SIZE
 	DB	SIZE DUP(?)
 	QDS=QDS+SIZE
-ENDIF 
-ENDM 
+ENDIF
+ENDM
 R	MACRO	NAME,SIZE
-IF	SIZE  
+IF	SIZE
 	DB	SIZE DUP(?)
 	QDS=QDS+SIZE
-ENDIF 
-ENDM 
+ENDIF
+ENDM
 ;
 ;Now put back the R macro for use by Page Independent Uninitialized RAM
 ; declarations.
@@ -361,17 +361,17 @@ ENDM
 R	MACRO	NAME,SIZE
 	PUBLIC	NAME
 NAME	LABEL WORD
-IF	SIZE  
+IF	SIZE
 	DB	SIZE DUP(?)
-ENDIF 
+ENDIF
 	QQ=NAME-MOVDAT-QDS
-IF	QQ  
+IF	QQ
 	%OUT  *FATAL RINIT ERROR*
-ENDIF 
+ENDIF
 	Q=Q+SIZE
 	QDS=QDS+SIZE
-ENDM 
-	PAGE	
+ENDM
+	PAGE
 	SUBTTL  Page Independent Uninitialized RAM Location Definitions
 
 ;OEM Independent Graphics Locations
@@ -464,4 +464,3 @@ ENDM
 
 DSEG	ENDS
 	END
-                                                        

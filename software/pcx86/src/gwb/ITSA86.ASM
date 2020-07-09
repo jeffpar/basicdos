@@ -2,10 +2,10 @@
 
 	.RADIX  8		; To be safe
 
-CSEG	SEGMENT PUBLIC 'CODESG' 
+CSEG	SEGMENT PUBLIC 'CODESG'
 	ASSUME  CS:CSEG
 
-INCLUDE	OEM.H
+INCLUDE	OEM.INC
 
 	TITLE   ITSA86 - Resident Initialization for I8086
 
@@ -25,14 +25,14 @@ COPYRIGHT (C) 1982 BY MICROSOFT CORPORATION
 ;*                                                                      *
 ;************************************************************************
 
-	INCLUDE	GIO86U
+	INCLUDE	GIO86U.INC
 	.SALL
 
 CPM86=0
 TETRA=0				;Save DS in DATSEG(defined in CS and
 				;   used by interrupt routine).
 
-	INCLUDE	MSDOSU
+	INCLUDE	MSDOSU.INC
 
 
 DSEG	SEGMENT PUBLIC 'DATASG'
@@ -46,7 +46,7 @@ DSEG	ENDS
 WORDS:	DB	" Bytes free"	;WORDS
 	DB	0
 
-	PAGE	
+	PAGE
 	SUBTTL  INITSA
 	PUBLIC	INITSA
 INITSA:
@@ -61,7 +61,7 @@ INITSA:
 	JZ	GREADY
 	JMP	LRUN		;TRY TO RUN FILE
 GREADY:	JMP	READY
-	PAGE	
+	PAGE
 ;BASVAR - Retrieve or Modify BASIC Internal Data Locations
 ;This routine provides a method to retrieve or modify certain BASIC internal
 ;data locations.  This routine is provided as support for PEEK and
@@ -88,17 +88,17 @@ BVTAB:	DW	OFFSET CURLIN
 	DW	OFFSET VARTAB
 
 BASVAR:
-	PUSHF	
+	PUSHF
 	SHL	BX,1		;make word offset
 	POPF			;preserve PSW.C (input parameter)
 	MOV	BX,WORD PTR BVTAB[BX]	;Get address of appropriate variable
 	JNB	BASVRD		;Performing read function
 	MOV	WORD PTR 0[BX],AX	;Perform write function
 BASVRD:	MOV	AX,WORD PTR 0[BX]	;Perform read function
-	RET	
-	PAGE	
+	RET
+	PAGE
 	SUBTTL  Initialization Support Routines
-DSEG	SEGMENT PUBLIC 'DATASG'		
+DSEG	SEGMENT PUBLIC 'DATASG'
 	EXTRN	CSWFLG:WORD,CSWSIZ:WORD,MSWFLG:WORD,MSWSIZ:WORD,NEWDS:WORD
 	EXTRN	STKLOW:WORD,MEMSIZ:WORD,TOPMEM:WORD,SAVSEG:WORD,MAXMEM:WORD
 	EXTRN	FILTAB:WORD
@@ -133,7 +133,7 @@ MAPINI:
 	XOR	SI,SI
 	MOV	CX,WORD PTR TXTTAB	;Amount of memory to move
 	SHR	CX,1		;In words
-	CLD	
+	CLD
 	MOV	BX,DS
 	CMP	AX,BX		;Test for direction of copy
 	JB	BLKCPY		;brif destination is below source
@@ -196,10 +196,10 @@ MAXRQ1:	MOV	BX,AX
 	MOV	BX,OFFSET WORDS	;TYPE THE HEADING
 	CALL	STROUT		;"BYTES FREE"
 	CALL	CRDO		;PRINT CARRIAGE RETURN
-MAPINX:	RET	
+MAPINX:	RET
 
 GOMERR:	JMP	OMERR
-	PAGE	
+	PAGE
 	SUBTTL  End of the New CS:
 
 ;All code loaded after this label is resident only until routine MAPINI
@@ -268,7 +268,7 @@ NOMOPT:	MOV	WORD PTR MSWSIZ,BX	;New MAXMEM
 ;       CMP     BX,TXTTAB               ;Is new MAXMEM big enough?
 ;       JBE     GOMERR                  ;BRIF new MAXMEM smaller than data area
 	POP	BX
-	RET	
+	RET
 
 ;SEGOFF     Convert end of memory segment to offset from current DS
 ;
@@ -293,9 +293,8 @@ LESS64:
 	MOV	CL,LOW 4
 	SHL	BX,CL		;convert paragraphs to bytes
 	POP	CX		;restore caller's CX
-	RET	
+	RET
 SGOFER:	JMP	OMERR
 
 CSEG	ENDS
 	END
-                                                      

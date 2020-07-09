@@ -5,7 +5,7 @@
 CSEG	SEGMENT PUBLIC 'CODESG'
 	ASSUME	CS:CSEG
 
-INCLUDE OEM.H
+INCLUDE OEM.INC
 
 	TITLE MATH86 8086 MATH PACK
 
@@ -3825,4 +3825,3 @@ MAXQUO:
 	MOV	AX,CX
 	JNB	RESTORE	;Carry means it's not negative any more
 	RET
-                                                                                                           

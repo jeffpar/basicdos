@@ -2,10 +2,10 @@
 
 	.RADIX  8		; To be safe
 
-CSEG	SEGMENT PUBLIC 'CODESG' 
+CSEG	SEGMENT PUBLIC 'CODESG'
 	ASSUME  CS:CSEG
 
-INCLUDE	OEM.H
+INCLUDE	OEM.INC
 
 	TITLE   GIOSCN - Screen Machine Independent Device Driver Code
 
@@ -16,7 +16,7 @@ COPYRIGHT (C) 1982 BY MICROSOFT
 --------- --- ---- -- ---------
 
 	*
-	INCLUDE	GIO86U
+	INCLUDE	GIO86U.INC
 	.SALL
 
 CPM86=0				;CPM86 Operating System
@@ -30,7 +30,7 @@ IBMCSR=IBMLIK			;IBM compatibile cursor control interface
 	INVLIN=SCROLT		;Invisible (function key) Line
 	FKFSRL=(SCROLT-1) AND 1	;Clear fkeys/full scroll/rewrite fkeys
 
-	INCLUDE	MSDOSU		;Operating System Constants
+	INCLUDE	MSDOSU.INC	;Operating System Constants
 
 	PUBLIC	SCNDSP,SCNINI,SCNTRM
 	EXTRN	DERBFM:NEAR,INIFDB:NEAR
@@ -59,7 +59,7 @@ SCNDSP:
 	DW	(DEVBIN)	;block input from file opened on this device
 	DW	(DEVBOT)	;block output to file opened on this device
 	PUBLIC	SCNSWD,SCNSOT,SCNGPS,SCNGWD,SCNSCW,SCNGCW
-	PAGE	
+	PAGE
 	SUBTTL CRT Primitive I/O Routines
 
 ;SCNINI is called to initialize Screen when BASIC comes up
@@ -70,7 +70,7 @@ DSEG	ENDS
 SCNINI:
 	MOV	AL,BYTE PTR LINLEN	; Get CRT logical line length
 	MOV	BYTE PTR WDTFLG,AL	; Default width of device SCRN:
-	RET	
+	RET
 
 ;SCNTRM is called to Clean-up Screen when BASIC terminates
 ;
@@ -78,7 +78,7 @@ SCNINI:
 SCNTRM:	CALL	TKEYOF		;Turn off KEY display
 	EXTRN	SCNPOS:NEAR
 	CALL	SCNPOS		;[DX]=current cursor location
-	RET	
+	RET
 
 ;SCNCLS - perform any device dependent close functions.
 ; Entry - SI points to File-Data-Block.
@@ -86,7 +86,7 @@ SCNTRM:	CALL	TKEYOF		;Turn off KEY display
 ;         This routine is called before BASIC releases the
 ;         file-data-block associated with this file.
 ;
-SCNCLS:	RET	
+SCNCLS:	RET
 
 ;SCNSWD - set device width
 ; Entry - [DX] = new device width
@@ -100,7 +100,7 @@ DSEG	ENDS
 	MOV	BYTE PTR WDTFLG,DL	;Set/Reset infinite length flag
 	CMP	DL,LOW 255D
 	JNZ	SCNWD1		;BRIF not infinite length
-	RET	
+	RET
 SCNWD1:	PUSH	CX
 	PUSH	AX
 	MOV	AL,DL		;pass Width in AL
@@ -108,7 +108,7 @@ SCNWD1:	PUSH	CX
 	CALL	SWIDTH		;Let screen editor set width
 	POP	AX
 	POP	CX
-	RET	
+	RET
 
 ;SCNOPN - perform any device dependent open functions.
 ; Entry - [AL]=  device id
@@ -154,7 +154,7 @@ CALTTY:	PUSH	WORD PTR PTRFIL
 	MOV	WORD PTR PTRFIL,0	;Make sure we go to the "TTY"
 	CALL	OUTDO
 	POP	WORD PTR PTRFIL
-	RET	
+	RET
 
 ;SCNSOT - Sequential Output.
 ; Entry - SI points to File-Data-Block.
@@ -167,7 +167,7 @@ CALTTY:	PUSH	WORD PTR PTRFIL
 ;
 SCNSOT:
 	EXTRN	SCNOUT:NEAR
-	PUSHF	
+	PUSHF
 	PUSH	AX
 
 ;If last char SCNSOT was called with was the 1st byte of a 2-byte char,
@@ -195,8 +195,8 @@ SCNSO2:
 	XOR	AH,AH		;clear high-byte (not 2-byte char)
 SCNSO3:	CALL	SCNOL1
 SCNSOX:	POP	AX
-	POPF	
-	RET	
+	POPF
+	RET
 
 ;SCNSOT level 1
 ; Outputs AX, destroys AX
@@ -230,7 +230,7 @@ NTCRLF:
 	JNE	RET22		;if not CR, just output char
 	MOV	AX,OFFSET ASCLF	;else map CR to CR LF
 	CALL	SCNOL2
-RET22:	RET	
+RET22:	RET
 
 ;SCNSOT level 2
 ; Output [AX], destroys AX
@@ -288,13 +288,13 @@ DSEG	SEGMENT PUBLIC 'DATASG'
 	EXTRN	CSRX:WORD
 DSEG	ENDS
 SCNGPS:	MOV	AH,BYTE PTR CSRX
-	PUSHF	
+	PUSHF
 	CMP	AH,BYTE PTR LINLEN
 	JBE	SCNGP1		;BRIF not beyond edge of screen
 	MOV	AH,BYTE PTR LINLEN	;Force posn within screen
-SCNGP1:	POPF	
+SCNGP1:	POPF
 	DEC	AH		;Make it 0 relative
-	RET	
+	RET
 
 ;SCNGWD - get device width
 ; Exit  - [AH] = device width as set by xxxSWD
@@ -308,21 +308,20 @@ DSEG	ENDS
 	OR	SI,SI
 	JZ	SCNGWX		;BRIF not file I/O, use device width
 	MOV	AH,BYTE PTR F_WID[SI]	;Is file I/O, use FDB width
-SCNGWX:	RET	
+SCNGWX:	RET
 
 ;SCNSCW - set device comma width
 ; Entry - [BX] = new device comma width
 ; Exit  - SI, DI can be changed.
 ;         All other registers preserved
 ;
-SCNSCW:	RET	
+SCNSCW:	RET
 
 ;SCNGCW - get device comma width
 ; Exit  - [BX] = device comma width as set by xxxSCW
 ;         All other registers preserved
 ;
-SCNGCW:	RET	
+SCNGCW:	RET
 
 CSEG	ENDS
 	END
-                                                                          

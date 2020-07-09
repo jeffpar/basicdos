@@ -2,10 +2,10 @@
 
 	.RADIX  8		; To be safe
 
-CSEG	SEGMENT PUBLIC 'CODESG' 
+CSEG	SEGMENT PUBLIC 'CODESG'
 	ASSUME  CS:CSEG
 
-INCLUDE	OEM.H
+INCLUDE	OEM.INC
 
 	TITLE   GIOCOM - Communications Machine Independent Device Driver Code
 
@@ -18,14 +18,14 @@ COPYRIGHT (C) 1982 BY MICROSOFT CORPORATION
         by Tom Corbett  Microsoft Corp.
         *
 
-	INCLUDE	GIO86U
+	INCLUDE	GIO86U.INC
 	.SALL
 
 CPM86=0
 COMPAQ=0			;Include IBM 1.0/1.1 Bugs for compatibility
 
 
-	INCLUDE	MSDOSU
+	INCLUDE	MSDOSU.INC
 
 
 	PUBLIC	COMDSP,COMINI,COMTRM
@@ -51,7 +51,7 @@ COMDSP:
 	DW	(COMGCW)	;get device comma Width
 	DW	(DEVBIN)	;block input from file opened on this device
 	DW	(DEVBOT)	;block output to file opened on this device
-	PAGE	
+	PAGE
 	SUBTTL Communications Generalized I/O Routines
 
 ; RS232 Device Control Block Definition:
@@ -135,7 +135,7 @@ POLCML:	CALL	POLCM1		;test unit 1 for trap
 	JNZ	POLCML		;branch if any more to test
 	POP	SI
 	POP	DI
-	RET	
+	RET
 
 ;POLCM1 checks 1 COM device to see if input is waiting, if so, it calls COMTRP
 ;
@@ -152,7 +152,7 @@ POLCM1:	MOV	SI,WORD PTR _CMFDB[DI]	;SI points to FDB (if device is opened)
 POLTRP:	MOV	AL,DH		;[AL]=trap id (0..n)
 	JE	PLCM1X		;branch if no com data queued
 	CALL	COMTRP		;so ON-COM service routine will be called
-PLCM1X:	RET	
+PLCM1X:	RET
 
 ;Get COM bytes in queue
 ;       On entry: AH = unit number
@@ -165,7 +165,7 @@ GCOMSZ:	PUSH	AX
 				;CKCMER does for speed.
 	JNZ	CKCMER		;branch if got error from COM
 	POP	AX
-RET14:	RET	
+RET14:	RET
 
 ; Check for COM I/O error and output COM Error Message if error occured.
 ; Entry - [AH] = non-zero if error occured
@@ -191,7 +191,7 @@ CMERRT:	DB	OFFSET ERRCBO	;buffer overflow error
 	DB	OFFSET ERRDTO	;device timeout
 	DB	OFFSET ERRDTO	;device timeout
 	DB	OFFSET ERRDTO	;device timeout
-	PAGE	
+	PAGE
 	SUBTTL  COM OPEN
 ;
 ;    Syntax:   OPEN "COMn: [speed] [,parity] [,data] [,stop]
@@ -333,7 +333,7 @@ NTRND:	MOV	WORD PTR _CMFDB[DI],SI	;save FDB pointer in DCB
 EXTRN	SCDBIN:NEAR
 	CALL	SCDBIN		;set CODE atr for file PTRFIL to BINARY
 CMOPNX:
-RET21:	RET	
+RET21:	RET
 
 ERIFN1:	JMP	DERIFN		;Illegal File Name
 
@@ -468,7 +468,7 @@ PARIFN:
 LPTRYS:
 	CALL	GETPRM
 	CMP	AL,LOW "S"	;set cond codes for S (Frequent letter)
-RET24:	RET	
+RET24:	RET
 
 LPRBIN:	CMP	AL,LOW "B"	;BIN?
 	JNZ	LPRASC		;Branch if not
@@ -558,7 +558,7 @@ VALLOP:
 VALXIT:
 	DEC	SI		;Adjust for GETPRM
 	POP	BX
-	RET	
+	RET
 
 ;COMEOF - test for End-Of-File on device.
 ; Entry - SI points to File-Data-Block.
@@ -591,7 +591,7 @@ BINEOF:
 	JE	YCMEOF		;branch if input queue is empty
 	MOV	BX,1		;return with [BX]=0 (false)
 YCMEOF:	DEC	BX		;BX=-1 if end-of-file is true
-	RET	
+	RET
 
 ;COMLOC - Number of Bytes in input buffer for device.
 ; Entry - SI points to File-Data-Block.
@@ -605,7 +605,7 @@ COMLOC:	CALL	GCMUID		;AL=Unit ID
 	TEST	BYTE PTR F_FLGS[SI],LOW OFFSET FL_BKC
 	JZ	CMLOCX		;branch if char not backed up
 	INC	BX
-CMLOCX:	RET	
+CMLOCX:	RET
 
 ;COMLOF - number of bytes free in input buffer.
 ; Entry - SI points to File-Data-Block.
@@ -645,7 +645,7 @@ COMCLX:	MOV	AH,BYTE PTR _DEVID[DI]	;[AH]=device ID
 ;
 COMSWD:	CALL	GCMDCB		;DI points to device control block
 	MOV	BYTE PTR _CMWID[DI],DL	;set device width
-RET12:	RET	
+RET12:	RET
 
 ;COMRND - perform random I/O.
 ; Entry - [AL] = function to be performed:
@@ -673,13 +673,13 @@ GETLOP:	PUSH	DI		;[AL]=next byte from com port
 	MOV	BYTE PTR 0[BX],AL	;save byte in buffer
 	INC	BX		;bump buffer pointer
 	LOOP	GETLOP
-	RET	
+	RET
 PUTRND:	CALL	GCMDCB		;DI points to COMx DCB
 PUTLOP:	MOV	AL,BYTE PTR 0[BX]	;[AL]=next byte from buffer
 	CALL	CMROUT		;output to com port
 	INC	BX		;bump buffer pointer
 	LOOP	PUTLOP
-	RET	
+	RET
 
 ;COMSIN - Sequential Input.
 ; Entry - SI points to File-Data-Block.
@@ -692,9 +692,9 @@ COMSIN:
 CSWAIT:	CALL	GCMUID		;[AL]=Com Unit ID(DI)
 	MOV	AH,AL		;[AH]=Com Unit ID(DI)
 	CALL	RECCOM		;[AL]=input byte (if data is ready)
-	PUSHF	
+	PUSHF
 	CALL	CKCMER		;Check for COM I/O Error
-	POPF	
+	POPF
 	JNZ	CSGOT1		;wait if none ready to be read
 	CALL	POLKEY		;allow CTL-Z to break in
 	JMP	SHORT CSWAIT
@@ -706,7 +706,7 @@ CSGOT1:
 	STC			;CTL-z is EOF for ASCII files
 	JMP	SHORT CMSINX	;restore registers and exit
 CMNEOF:	OR	AL,AL		;clear carry (no eof)
-CMSINX:	RET	
+CMSINX:	RET
 
 ;COMSOT - Sequential Output.
 ; Expand tab to spaces, force carriage return before outputting char
@@ -753,7 +753,7 @@ NOTBIN:	PUSH	BX
 	MOV	BYTE PTR _CMPOS[DI],DH	;save new column position
 	POP	DX
 	POP	BX
-RET11:	RET	
+RET11:	RET
 
 ;Low-Level RS232 Output (updates column position)
 ; If LF option was not set in COMOPN (OPEN "COM1:,,,,LF), eat all LineFeeds
@@ -788,7 +788,7 @@ CMOUT3:
 	CALL	CMROUT
 	POP	AX
 CMOUTX:
-	RET	
+	RET
 
 ;Output byte [AL] to device with COM DCB pointed to by [DI].
 ;If error occurs, jump to ERROR
@@ -798,7 +798,7 @@ CMROUT:	MOV	AH,BYTE PTR _DEVID[DI]	;[AH]=device ID
 	CALL	SNDCOM		;output [AL] to COM and return
 	CALL	CKCMER		;Check for I/O errors and return
 	POP	AX
-	RET	
+	RET
 
 ;COMGPS - return current file position.
 ; Entry - SI points to File-Data-Block.
@@ -808,7 +808,7 @@ CMROUT:	MOV	AH,BYTE PTR _DEVID[DI]	;[AH]=device ID
 ;
 COMGPS:	CALL	GCMDCB		;DI points to Device Control Block
 	MOV	AH,BYTE PTR _CMPOS[DI]
-	RET	
+	RET
 
 ;COMGWD - get device width
 ; Entry - SI points to File-Data-Block.
@@ -818,7 +818,7 @@ COMGPS:	CALL	GCMDCB		;DI points to Device Control Block
 ;
 COMGWD:	CALL	GCMDCB		;DI points to Device Control Block
 	MOV	AH,BYTE PTR _CMWID[DI]	;get width
-	RET	
+	RET
 
 ;COMSCW - set device comma width
 ; Entry - [BX] = new device comma width
@@ -827,7 +827,7 @@ COMGWD:	CALL	GCMDCB		;DI points to Device Control Block
 ; Exit  - SI, DI can be changed.
 ;         All other registers preserved
 ;
-COMSCW:	RET	
+COMSCW:	RET
 
 ;COMGCW - get device comma width
 ; Entry - SI points to File-Data-Block.
@@ -835,7 +835,7 @@ COMSCW:	RET
 ; Exit  - [BX] = device comma width as set by xxxSCW
 ;         All other registers preserved
 ;
-COMGCW:	RET	
+COMGCW:	RET
 
 ;GCMDCB - get pointer to COM Device Control Block
 ; Entry - [DI] = -2*device id (2,4,..n)
@@ -849,7 +849,7 @@ GCMDCB:	CALL	GCMUID		;[AX]=unit id (0..n)
 	ADD	AX,OFFSET CM1DCB
 	MOV	DI,AX		;DI points to COMx device ctl block
 	POP	AX		;[AX]=unit id
-	RET	
+	RET
 
 ;GCMUID - get COM Unit Id
 ; Entry - [DI] = -2*device id (2,4,..n)
@@ -859,8 +859,7 @@ GCMUID:	MOV	AX,DI
 ;       ADDI    AX,$CODE+2*<$.COM1-^O400>   ;[DI]=0, 2, ... for COM1, COM2, ...
 	SHR	AX,1
 	ADD	AX,OFFSET ($_COM1-400O)	;[AX]=0, 1, ... for COM1, COM2, ...
-	RET	
+	RET
 
 CSEG	ENDS
 	END
-                                                      

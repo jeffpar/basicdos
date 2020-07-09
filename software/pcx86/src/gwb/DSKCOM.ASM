@@ -2,10 +2,10 @@
 
 	.RADIX  8		; To be safe
 
-CSEG	SEGMENT PUBLIC 'CODESG' 
+CSEG	SEGMENT PUBLIC 'CODESG'
 	ASSUME  CS:CSEG
 
-INCLUDE	OEM.H
+INCLUDE	OEM.INC
 
 	TITLE   DSKCOM - - COMMON ROUTINES FOR DISK BASICS
 
@@ -53,9 +53,9 @@ DSEG	SEGMENT PUBLIC 'DATASG'
 	EXTRN	PROFLG:WORD
 DSEG	ENDS
 
-	INCLUDE	GIO86U
+	INCLUDE	GIO86U.INC
 CPM86=0
-	INCLUDE	MSDOSU
+	INCLUDE	MSDOSU.INC
 	NMLOFS=F_BREM
 
 	.RADIX	10
@@ -728,7 +728,7 @@ LRSTDN:	JNB	SHORT ??L024
 	CALL	BLKFIL		;Fill trailing if LSET
 ??L024:
 	POP	BX		;Restore text pointer
-	RET	
+	RET
 
 BLKFIL:	MOV	AL,LOW " "	;Fill with spaces
 	INC	CL		;In case zero
@@ -864,5 +864,3 @@ DSKCHR:	CALL	INDSKC		;Get char from file
 	JMP	SHORT PUTCHR	;Put char in string
 CSEG	ENDS
 	END
-                                                        
-                                                          

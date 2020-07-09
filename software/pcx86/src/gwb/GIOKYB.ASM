@@ -2,10 +2,10 @@
 
 	.RADIX  8		; To be safe
 
-CSEG	SEGMENT PUBLIC 'CODESG' 
+CSEG	SEGMENT PUBLIC 'CODESG'
 	ASSUME  CS:CSEG
 
-INCLUDE	OEM.H
+INCLUDE	OEM.INC
 
 	TITLE   GIOKYB - Machine Independent Keyboard Device Driver Code
 
@@ -16,7 +16,7 @@ COPYRIGHT (C) 1982 BY MICROSOFT
 --------- --- ---- -- ---------
 
 	*
-	INCLUDE	GIO86U
+	INCLUDE	GIO86U.INC
 	.SALL
 
 ;Generic Switches
@@ -33,7 +33,7 @@ COMPAQ=0
 INTHND=SCP AND GW
 
 
-	INCLUDE	MSDOSU
+	INCLUDE	MSDOSU.INC
 
 	PUBLIC	KYBDSP,KYBINI,KYBTRM
 	EXTRN	SCNSWD:NEAR,SCNGWD:NEAR,SCNSOT:NEAR,SCNGPS:NEAR,SCNGCW:NEAR
@@ -105,7 +105,7 @@ KYBINI:
 	PUSH	BX
 	PUSH	CX
 	PUSH	DX
-	PUSHF	
+	PUSHF
 	PUSH	SI
 	XOR	AX,AX
 	MOV	WORD PTR CMDOFF,AX	;[CMDOFF]=0 (no soft key)
@@ -115,7 +115,7 @@ KYBINI:
 	CALL	INITQ		;Initialize keyboard queue
 	CALL	FINPRT		;reset PTRFIL to Keyboard/CRT
 	POP	SI
-	POPF	
+	POPF
 	JMP	PDCBAX		;POP DX, CX, BX, AX and return
 
 	PUBLIC	KYBCLR
@@ -127,8 +127,8 @@ KYBINI:
 ;        Segment registers and stack preserved.
 ;
 KYBCLR:	CALL	KYBINI		;Initialize the keyboard buffer
-	RET	
-	PAGE	
+	RET
+	PAGE
 ;KYBEOF - test for End-Of-File on device.
 ; Entry - SI points to File-Data-Block.
 ; Exit  - [BX] = -1 if EOF, 0 if not EOF
@@ -141,9 +141,9 @@ KYBEOF:	XOR	BX,BX		;0 means not at eof
 	CALL	INCHSI		;[AL]=next byte from keyboard
 	JB	YKYEOF		;branch if next key = CTL-Z
 	CALL	BCHRSI		;put this back in queue
-KBEOFX:	RET	
+KBEOFX:	RET
 YKYEOF:	DEC	BX		;BX=-1, end-of-file is true
-KYBTRM:	RET	
+KYBTRM:	RET
 
 ;KYBLOC - Number of Bytes in input buffer for KEYBOARD device.
 ; Entry - SI points to File-Data-Block.
@@ -158,7 +158,7 @@ EXTRN	NUMQ:NEAR
 	TEST	BYTE PTR F_FLGS[SI],LOW OFFSET FL_BKC
 	JZ	KYLOCX		;branch if char not backed up
 	INC	BX
-KYLOCX:	RET	
+KYLOCX:	RET
 
 ;KYBLOF - number of bytes free in KEYBOARD input buffer.
 ; Entry - SI points to File-Data-Block.
@@ -177,7 +177,7 @@ EXTRN	LFTQ:NEAR
 ;         file-data-block associated with this file.
 ;
 KYBCLS:
-RET11:	RET	
+RET11:	RET
 
 ;KYBOPN - perform any device dependent open functions.
 ; Entry - [AL]=  device id
@@ -232,7 +232,7 @@ INCHRI:
 	MOV	BYTE PTR SAVKYF,LOW 0D
 	JNZ	KBSINX		;Send second bytes through unfiltered
 KEYGET:
-	STC	
+	STC
 	CALL	STCTYP		;Set new cursor type to user mode (PSW.C set)
 	CALL	KEYSIN		;Read a key from the OS (could be a null fkey)
 	CALL	INFMAP		;OEM fixed length input map routine
@@ -247,22 +247,22 @@ KYBSIN:	MOV	AL,BYTE PTR SAVKEY
 	CALL	KEYIN		;[AX]=next character from keyboard
 KYBSI2:
 	JB	KBSIN2		;branch if got 2-byte sequence (f-key/KANJI)
-	PUSHF	
+	PUSHF
 	OR	SI,SI
 	JZ	KB1X		;branch if no FDB
 	CMP	AL,LOW OFFSET ASCCTZ	;CTL-Z=eof for keyboard
 	JNE	KB1X		;branch if not EOF
-	POPF	
+	POPF
 	STC			;return EOF indication
 	JMP	SHORT KBSINX
-KB1X:	POPF	
+KB1X:	POPF
 	JMP	SHORT KBSINX
 KBSIN2:
 	MOV	BYTE PTR SAVKEY,AL	;save 2nd byte of 2-byte sequence
 	MOV	BYTE PTR SAVKYF,LOW 255D	;Set saved key flag
 	XCHG	AH,AL		;return 1st byte to user
 	CLC			;clear carry (not EOF)
-KBSINX:	RET	
+KBSINX:	RET
 
 ;KEYIN turns cursor on if no key is available.
 ; It then waits for key from keyboard (if one wasn't already there).
@@ -276,7 +276,7 @@ KBSINX:	RET
 	PUBLIC	KEYIN
 KEYIN:
 IGNNFK:	CALL	KEYSIN		;Get a key (possibly a null function key)
-	PUSHF	
+	PUSHF
 	JAE	NOTNFK		;branch if not 2-byte key code
 	CMP	AH,LOW 200O
 	JNE	NOTNFK		;branch if definitely not a null Function key
@@ -284,11 +284,11 @@ IGNNFK:	CALL	KEYSIN		;Get a key (possibly a null function key)
 	JB	NOTNFK		;branch if definitely not a null Function key
 	CMP	AL,LOW 101O
 	JAE	NOTNFK		;branch if definitely not a null Function key
-	POPF	
+	POPF
 	JMP	SHORT IGNNFK	;ignore null Function key
 
-NOTNFK:	POPF	
-	RET	
+NOTNFK:	POPF
+	RET
 
 ;KEYSIN - Get a key.  This routine will return null function keys.
 ;Entry - none
@@ -303,14 +303,14 @@ KEYSIN:	CALL	CHSNS		;try to get next key
 	POP	DX
 CHWAIT:	CALL	CHSNS		;Has a key been typed?
 	JE	CHWAIT		;No, wait
-KEYINX:	PUSHF	
+KEYINX:	PUSHF
 	PUSH	AX
 	MOV	BYTE PTR CSRTYP,LOW 3D	;Indicate user cursor
 	CALL	SETCSR		;Set the cursor
 	POP	AX
-	POPF	
-	RET	
-	PAGE	
+	POPF
+	RET
+	PAGE
 	SUBTTL  Keyboard Interrupt/Trap Checking in an Operating System Environment
 
 ;POLKEY is called from several places in BASIC to "poll" the keyboard.
@@ -344,7 +344,7 @@ DSEG	SEGMENT PUBLIC 'DATASG'
 DSEG	ENDS
 
 POLKEY:	PUSH	DI
-	PUSHF	
+	PUSHF
 	PUSH	AX
 	PUSH	BX
 	PUSH	CX
@@ -424,9 +424,9 @@ POLKYX:	POP	DX		;restore caller's registers
 	POP	CX
 	POP	BX
 POLKXX:	POP	AX
-	POPF	
+	POPF
 	POP	DI
-RET8:	RET	
+RET8:	RET
 
 ;TRPCHK - Check for key trapping
 ;Entry - AX = key code
@@ -444,8 +444,8 @@ CHKTRP:	INC	BX
 	MOV	AL,BYTE PTR CS:0[BX]	;[AL]=key-trap id
 	CALL	KEYTRP		;Trap key if event is ON
 NTRAP:	POP	AX		;Restore key code
-	RET	
-	PAGE	
+	RET
+	PAGE
 	SUBTTL  CHKKYB - OEM Version of POLKEY
 ;CHKKYB - This is the OEM version of POLKEY.  It is documented to the OEM as
 ;the way to check for keyboard interrupts.
@@ -459,8 +459,8 @@ CHKKYB:	PUSH	SI
 	CALL	POLKEY
 	POP	BP
 	POP	SI
-	RET	
-	PAGE	
+	RET
+	PAGE
 	SUBTTL  CNTCCN, PKQUE, TRPKTB
 ;CNTCCN performs special action upon receipt of CTL-S or CTL-C
 ;
@@ -491,7 +491,7 @@ PKQUE:	PUSH	SI
 	MOV	SI,OFFSET KYBQDS	;SI = keyboard queue descriptor
 	CALL	PUTQ		;append [AL] to keyboard queue (read by CHSNS)
 	POP	SI
-	RET	
+	RET
 
 ;Keyboard Trap Table (for KEY TRAPPING of non-soft keys)
 ; Referenced by POLKEY
@@ -502,7 +502,7 @@ TRPKTB:
 	DB	28D,OFFSET NMKEYF+2	;ON KEY (Cursor Right)
 	DB	31D,OFFSET NMKEYF+3	;ON KEY (Cursor Down)
 	DB	0		;end-of-table
-	PAGE	
+	PAGE
 	SUBTTL  Machine independent Keyboard input routines CHSNS, INKEY$
 	PUBLIC	CHSNS
 DSEG	SEGMENT PUBLIC 'DATASG'
@@ -546,12 +546,12 @@ CHSN2A:	CALL	CHKFKY		;see if AX is a non-null function key
 	JMP	SHORT CHSNSI	;Is string key, get first expansion and return
 CHSNS3:
 	OR	AH,AH		;else NZ, C Indicates 2 byte character
-	STC	
+	STC
 	JMP	SHORT CHSNSX
 CHSNG1:	OR	AL,AL		;set NZ, no-carry (got 1 byte)
 	MOV	AH,LOW 0	;high-byte = 0 for single byte characters
 ;Check for 3 byte sequence case
-	PUSHF	
+	PUSHF
 	CMP	AL,LOW 254D	;Test for three byte sequence
 	JNZ	CHSNG2		;Not a three byte sequence
 	PUSH	AX		;Save first byte
@@ -560,24 +560,24 @@ CHSNG1:	OR	AL,AL		;set NZ, no-carry (got 1 byte)
 	CALL	CONIN		;Get third byte
 	MOV	DL,AL
 	POP	AX		;Restore third byte
-CHSNG2:	POPF	
+CHSNG2:	POPF
 CHSNSX:	POP	DI
 	POP	SI
 	POP	CX
 	POP	BX
-	RET	
+	RET
 
 
 CKDBLK:
 ;Check for function key (80,nn)
 	CMP	AL,LOW 200O	;First check for 80,nn key
-	STC	
+	STC
 	JE	CKDBLX		;branch if 1st of 2-byte sequence
 	CMP	AL,LOW 255D
-	STC	
+	STC
 	JE	CKDBLX		;BRIF 1st byte of two byte control function
-	CLC	
-CKDBLX:	RET	
+	CLC
+CKDBLX:	RET
 
 ;CONIN gets the next key from the soft-key being expanded (if any).
 ; If no soft-key is active, it calls POLKEY to get and queue key from OS,
@@ -593,7 +593,7 @@ CONIN:	PUSH	BX
 	CALL	GETQ		;[AL]=next key from keyboard queue
 	POP	SI
 CONINX:	POP	BX
-	RET	
+	RET
 
 ;Returns with FLAGS.NZ if AX is Universal key code for non-null Soft-key
 ;Also sets FLAGS.NC for softkey and FLAGS.C for super shift key
@@ -706,7 +706,7 @@ GETFKY:	CMP	WORD PTR CMDOFF,0D	;Softkey available?
 	JZ	GETFKX		;No special key available
 	CALL	GTSFKY		;Get a softkey
 	CALL	EOKTST		;Test for end of softkey
-GETFKX:	RET	
+GETFKX:	RET
 
 GTSFKY:	MOV	BX,WORD PTR CMDOFF	;Get char. offset
 	MOV	AL,BYTE PTR F_SUPR	;Get super-shift flag
@@ -719,7 +719,7 @@ GTSFKY:	MOV	BX,WORD PTR CMDOFF	;Get char. offset
 NOTSUP:	MOV	AL,BYTE PTR 0[BX]	;Get next character
 	XOR	AH,AH		;Clear high byte
 	INC	BX		;Index to next key
-GTSFKX:	RET	
+GTSFKX:	RET
 
 EOKTST:
 	TEST	BYTE PTR F_SUPR,LOW 377O	;Super-shift key expansion?
@@ -753,7 +753,7 @@ DSEG	SEGMENT PUBLIC 'DATASG'
 DSEG	ENDS
 	MOV	BYTE PTR F_SUPR,BL	;Turn off current supershift key expansion
 EOKTSX:	MOV	WORD PTR CMDOFF,BX	;Store new softkey expansion index
-	RET	
+	RET
 
 
 ;SFTOFF - Turn off softkey expansion for the current softkey.  This routine
@@ -763,7 +763,7 @@ EOKTSX:	MOV	WORD PTR CMDOFF,BX	;Store new softkey expansion index
 	PUBLIC	SFTOFF
 SFTOFF:	MOV	WORD PTR CMDOFF,0D	;Stop soft key expansion
 	MOV	BYTE PTR F_SUPR,LOW 0D	;Turn off super shift flag
-	RET	
+	RET
 
 ;KYBSNS - Detect whether keys are available in the keyboard buffer.
 ;         This routine has been documented to OEMs for use in implementation
@@ -781,7 +781,7 @@ KYBSNS:	PUSH	AX
 	OR	AX,AX		;Set flags
 	POP	SI
 	POP	AX
-	RET	
+	RET
 
 ;FKYSNS - Sense the availability of a softkey.  This routine is documented to
 ;         IBMLIK OEMs for support of a PEEK/POKE address documented by IBM.
@@ -799,9 +799,9 @@ FKYSNS:	CMP	BYTE PTR CMDOFF,LOW 0D	;Test for expansion in progress
 	CMP	BYTE PTR F_SUPR,LOW 0D	;Test for super-shift expansion
 	JZ	FKYSNW		;Function key expansion in progress
 FKYSNW:
-	STC	
-FKYSNX:	RET	
-	PAGE	
+	STC
+FKYSNX:	RET
+	PAGE
 ;INKEY$ - get key from key-queue if one exists, else return null string.
 ; Returns 2-byte string for DBLCHR.  For function keys, returns next char
 ; of function key if key is not null.  If F-key is null, it returns
@@ -842,8 +842,8 @@ NULRT:	MOV	BX,OFFSET DSEGZ	;GUARANTEED ZERO IN DATA SEGMENT
 	MOV	WORD PTR FACLO,BX
 	MOV	BYTE PTR VALTYP,LOW 3
 	POP	BX		;restore text pointer
-	RET	
-	PAGE	
+	RET
+	PAGE
 	SUBTTL  Cursor Support
 
 ;STCTYP Set the new cursor type
@@ -866,7 +866,7 @@ STCTYP:	PUSH	AX
 	DEC	AL		;Set for insert mode
 CSRSET:	MOV	BYTE PTR CSRTYP,AL	;Save the type
 	POP	AX
-	RET	
+	RET
 
 ;SETCSR - Set the cursor to the new cursor type.
 ;         This routine ensures that the cursor is set to the new cursor type.
@@ -885,8 +885,7 @@ SETCSR:	PUSH	AX
 	JZ	CSROK		;Cursor already set properly
 	CALL	CSRDSP		;Display the cursor
 CSROK:	POP	AX
-	RET	
+	RET
 
 CSEG	ENDS
 	END
-                

@@ -2,10 +2,10 @@
 
 	.RADIX  8		; To be safe
 
-CSEG	SEGMENT PUBLIC 'CODESG' 
+CSEG	SEGMENT PUBLIC 'CODESG'
 	ASSUME  CS:CSEG
 
-INCLUDE	OEM.H
+INCLUDE	OEM.INC
 
 	TITLE   GIOLPT - Line Printer Machine Independent Device Driver Code
 
@@ -16,14 +16,14 @@ COPYRIGHT (C) 1982 BY MICROSOFT
 --------- --- ---- -- ---------
 
 	*
-	INCLUDE	GIO86U
+	INCLUDE	GIO86U.INC
 	.SALL
 
 MELCO=0
 TETRA=0
 ZENITH=0
 CPM86=0
-	INCLUDE	MSDOSU
+	INCLUDE	MSDOSU.INC
 
 ;OEM Switches
 ;
@@ -51,8 +51,8 @@ LPTDSP:
 	DW	(DEVBIN)	;block input from file opened on this device
 	DW	(DEVBOT)	;block output to file opened on this device
 
-LPTTRM:	RET	
-	PAGE	
+LPTTRM:	RET
+	PAGE
 	SUBTTL Line Printer Primitive I/O Routines
 
 DSEG	SEGMENT PUBLIC 'DATASG'
@@ -76,7 +76,7 @@ LPTINI:	PUSH	DI
 	MOV	BYTE PTR _LPPOS[DI],LOW 0	;initial position = 0
 	MOV	BYTE PTR _LPFLG[DI],LOW 0	;reset device Flags
 	POP	DI
-	RET	
+	RET
 
 ;LPTCLS - perform any device dependent close functions.
 ; Entry - SI points to File-Data-Block.
@@ -85,7 +85,7 @@ LPTINI:	PUSH	DI
 ;         This routine is called before BASIC releases the
 ;         file-data-block associated with this file.
 ;
-LPTCLS:	RET	
+LPTCLS:	RET
 
 ;LPTSWD - set device width
 ; Entry - [DX] = new device width
@@ -94,7 +94,7 @@ LPTCLS:	RET
 LPTSWD:
 	CALL	GLPDCB		;DI points to device control block
 	MOV	BYTE PTR _LPWID[DI],DL
-	RET	
+	RET
 
 	EXTRN	DERIFN:NEAR,SCDBIN:NEAR
 DSEG	SEGMENT PUBLIC 'DATASG'
@@ -147,16 +147,16 @@ LPTOPN:	PUSH	AX		;save device id for INIFDB
 NOOPT:
 	MOV	DH,BYTE PTR _LPPOS[DI]	;initial file column position
 	MOV	DL,BYTE PTR _LPWID[DI]	;initial file width
-	POPF	
+	POPF
 	POP	AX		;[AL]=device id
 	PUSHF			;remember if BIN option was selected
 	MOV	AH,LOW OFFSET MD_SQO OR MD_RND	;allow open for output/random
 	CALL	INIFDB
-	POPF	
+	POPF
 	JE	NOBIN		;branch if BIN option was not selected
 	CALL	SCDBIN		;set BINARY file mode
 NOBIN:
-	RET	
+	RET
 
 IFNERR:	JMP	DERIFN		;"illegal filename" error
 
@@ -195,7 +195,7 @@ PSDFDB:
 	MOV	BYTE PTR _LPPOS[DI],DH	;save new column position
 	POP	DX
 	POP	BX
-	RET	
+	RET
 
 ;Low-Level Line Printer Output (updates column position)
 ;For IBM Compatibility, the following filter performs the following translations
@@ -248,7 +248,7 @@ OUTLF:
 	CALL	LPROUT
 	POP	AX
 LPOUTX:
-	RET	
+	RET
 
 ;Raw Line Printer Output routine
 ; Entry - [AL]=byte to be sent to current line printer
@@ -263,7 +263,7 @@ LPROUT:
 	OR	AH,AH
 	JNE	LPERR		;branch if OEM routine detected error
 	POP	AX
-	RET	
+	RET
 LPERR:
 	MOV	AL,AH
 	XOR	AH,AH		;[AX]=error code 1..n
@@ -286,7 +286,7 @@ LPERRT:	DB	OFFSET ERRDNA
 	EXTRN	SNGFLT:NEAR,CONINT:NEAR
 LPOS:	PUSH	BX
 	CALL	CONINT		;Force FAC to byte integer in AL
-	CBW	
+	CBW
 	OR	AX,AX		;Test for LPT number 0 to map to 1
 	JZ	LPTN0		;n = 0, so map to 1
 	DEC	AX
@@ -305,7 +305,7 @@ LPTN0:	MOV	BX,OFFSET LP1DCB+_LPPOS	;Get address of LPOS in first LPT DCB
 ;
 LPTGPS:	CALL	GLPDCB		;DI points to device control block
 	MOV	AH,BYTE PTR _LPPOS[DI]
-	RET	
+	RET
 
 ;LPTGWD - get device width
 ; Entry - DI = -2*device id
@@ -314,7 +314,7 @@ LPTGPS:	CALL	GLPDCB		;DI points to device control block
 ;
 LPTGWD:	CALL	GLPDCB		;DI points to device control block
 	MOV	AH,BYTE PTR _LPWID[DI]
-	RET	
+	RET
 
 ;LPTSCW - set device comma width
 ; Entry - [BX] = new device comma width
@@ -322,14 +322,14 @@ LPTGWD:	CALL	GLPDCB		;DI points to device control block
 ; Exit  - SI, DI can be changed.
 ;         All other registers preserved
 ;
-LPTSCW:	RET	
+LPTSCW:	RET
 
 ;LPTGCW - get device comma width
 ; Entry - DI = -2*device id
 ; Exit  - [BX] = device comma width as set by xxxSCW
 ;         All other registers preserved
 ;
-LPTGCW:	RET	
+LPTGCW:	RET
 
 ;GLPDCB - get pointer to line printer device control block
 ; Entry - [DI] = -2*device id (2,4,..n)
@@ -348,8 +348,7 @@ GLPDCB:
 	SHL	DI,1		;[DI]=0, 4, ... for LPT1, LPT2, ...
 	SHR	AX,1		;[AX]=0, 1, ... for LPT1, LPT2, ...
 	ADD	DI,OFFSET LP1DCB	;[DI] points to LPTx device ctl block
-	RET	
+	RET
 ;
 CSEG	ENDS
 	END
-                                           

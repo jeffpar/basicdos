@@ -2,10 +2,10 @@
 
 	.RADIX  8		; To be safe
 
-CSEG	SEGMENT PUBLIC 'CODESG' 
+CSEG	SEGMENT PUBLIC 'CODESG'
 	ASSUME  CS:CSEG
 
-INCLUDE	OEM.H
+INCLUDE	OEM.INC
 
 	TITLE   SCNEDT  Screen Oriented Editor for GW-BASIC
 	SUBTTL  DATA DEFINITIONS
@@ -17,7 +17,7 @@ COMMENT	*
         --------- --- ---- -- ---------
         *
 
-	INCLUDE	GIO86U
+	INCLUDE	GIO86U.INC
 	.RADIX	8
 	.SALL
 
@@ -79,7 +79,7 @@ IBMCSR=IBMLIK
 	EXTRN	CHRGTR:NEAR	; BASIC character scan routine
 
 ;DATA (DEFINED IN RAM MODULE)
-DSEG	SEGMENT PUBLIC 'DATASG'		
+DSEG	SEGMENT PUBLIC 'DATASG'
 	ASSUME DS:DSEG
 	EXTRN	F_EDPG:WORD	; Flag - =^O377 indicates program statement edit
 	EXTRN	SEMFLG:WORD	; Flag - zero indicates INPUT; statement(no crlf
@@ -217,7 +217,7 @@ SCNSEM:	CMP	AL,LOW ";"
 	JNZ	SCNSMR		; BRIF not semicolon, return
 	MOV	BYTE PTR SEMFLG,AL
 	JMP	CHRGTR		; Skip semicolon and return
-SCNSMR:	RET	
+SCNSMR:	RET
 	SUBTTL  Exit, return current logical line
 
 
@@ -226,13 +226,13 @@ SCNSMR:	RET
 INLRET:	MOV	BX,OFFSET BUF	; Put data into BUF
 	MOV	CX,255D		; CX=Max number of bytes to move
 	TEST	BYTE PTR F_EDPG,LOW 377O	; Set zero flag if program statement input
-	PUSHF	
+	PUSHF
 	MOV	DL,BYTE PTR CSRY	; (DH,DL) = (CSRX,CSRY)
 	MOV	DH,BYTE PTR CSRX
 	CALL	SCNRDL		; Read the logical line into BUF
 				; BX=address of last char in BUF plus one
 ;IF PROGRAM_STATEMENT_INPUT BEGIN
-	POPF	
+	POPF
 	JZ	INCRTX		; BRIF not statement input
 ;** WHILE POSN.NE.BEGIN_OF_LINE AND [POSN].NE.BLANK AND [POSN].NE.LF BEGIN
 	MOV	CX,BX
@@ -268,10 +268,10 @@ INCRTX:	MOV	BYTE PTR 0[BX],LOW 0	; Terminate BUF
 	MOV	BYTE PTR F_EDIT,LOW 0
 	CALL	CRDO		; Move to first posn beyond this logical
 INCRTF:	MOV	BX,OFFSET BUF-1	; Return BUF - 1
-	PUSHF	
+	PUSHF
 	CALL	CLRFLG		; Clear miscellaneous status flags
-	POPF	
-	RET	
+	POPF
+	RET
 
 
 ;SUBROUTINE EDTBRK              ; Routine which initializes when break detected
@@ -293,7 +293,7 @@ DSEG	ENDS
 	CALL	CRDO		; Move cursor to next physical line
 	POP	AX
 	MOV	BYTE PTR AUTFLG,LOW 0	; Reset AUTO mode
-	RET	
+	RET
 ;** END SUBROUTINE EDTBRK
 
 ;SUBROUTINE CLRFLG              ; Routine which clears flags
@@ -302,7 +302,7 @@ CLRFLG:	MOV	BYTE PTR F_EDIT,LOW 0	; No longer in INLIN
 	MOV	BYTE PTR F_EDPG,LOW 0	; Not program edit
 	MOV	BYTE PTR F_INST,LOW 0	; Not insert mode
 	MOV	BYTE PTR SEMFLG,LOW 0	; Not INPUT; statement
-	RET	
+	RET
 ;** END SUBROUTINE CLRFLG
 
 	SUBTTL  EDIT code
@@ -396,7 +396,7 @@ ERRED2:	CMP	DX,177777O	; See if it was direct
 	OR	DX,DX
 	JZ	ERRED3		; Go back if zero
 	JMP	EREDIT
-ERRED3:	RET	
+ERRED3:	RET
 	SUBTTL  ASCII LOAD and SAVE line handler
 
 
@@ -434,7 +434,7 @@ INOTLF:	INC	BX		; ADVANCE THE POINTER
 FINLIN:
 	MOV	BYTE PTR 0[BX],LOW 0
 	MOV	BX,OFFSET BUF-1	; POINT AT BUFMIN
-	RET	
+	RET
 
 LTLONG:	JMP	LBOERR		; Report LINE BUFFER OVERFLOW error
 				; (This program wasn't created by BASIC)
@@ -451,13 +451,12 @@ OUTCH0:
 	CALL	ISFLIO
 	JNZ	OUTCH2		; branch if outputting to file
 	CALL	OUTDO
-	RET	
+	RET
 
 OUTCH2:	CALL	OUTDO
 	MOV	AL,LOW OFFSET CHRRET
 	CALL	OUTDO
 	MOV	AL,LOW OFFSET CHRLNF
-	RET	
+	RET
 CSEG	ENDS
 	END
-                                                                  

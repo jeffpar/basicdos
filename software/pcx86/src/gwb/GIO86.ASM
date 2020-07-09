@@ -2,10 +2,10 @@
 
 	.RADIX  8		; To be safe
 
-CSEG	SEGMENT PUBLIC 'CODESG' 
+CSEG	SEGMENT PUBLIC 'CODESG'
 	ASSUME  CS:CSEG
 
-INCLUDE	OEM.H
+INCLUDE	OEM.INC
 
 	TITLE   GIO86   - BASIC-86 Interpreter Device Independent I/O Module
 
@@ -18,16 +18,16 @@ COPYRIGHT (C) 1982 BY MICROSOFT
         T. Corbett      Microsoft Inc.
 
         *
-	INCLUDE	GIO86U
+	INCLUDE	GIO86U.INC
 	.SALL
 
 
 CPM86=0
 IBMCSR=IBMLIK			;IBM Compatible Cursor Handling
 
-	INCLUDE	MSDOSU
+	INCLUDE	MSDOSU.INC
 
-DSEG	SEGMENT PUBLIC 'DATASG'		
+DSEG	SEGMENT PUBLIC 'DATASG'
 	ASSUME DS:DSEG
 	EXTRN	DEVPTR:WORD,DEVTBL:WORD,DEVINI:WORD,DEVTRM:WORD
 	EXTRN	NLONLY:WORD,RUNFLG:WORD
@@ -44,7 +44,7 @@ DSEG	ENDS
 DOSIO	MACRO	DFUN
 	MOV	AH,LOW OFFSET DFUN
 	INT	33D		;MS-DOS system call
-ENDM 
+ENDM
 
 
 
@@ -184,7 +184,7 @@ VARECS:	CALL	INTID2		;[DX]=record size (0..32767)
 	MOV	CX,DX		;return it in CX
 	OR	CX,CX
 	JZ	FCERR1		;0 is illegal value
-PRLENX:	RET	
+PRLENX:	RET
 
 ;PRLENC - see if reclen parm is expected
 ;
@@ -198,7 +198,7 @@ PRLENC:
 	JZ	NOLEN		;branch if end-of-statement
 	MOV	CL,LOW 1	;indicates reclen parm included
 NOLEN:	OR	CX,CX		;set NZ if reclen parm included
-	RET	
+	RET
 
 FCERR1:	JMP	FCERR		;function call error
 
@@ -277,7 +277,7 @@ FILWID:	CALL	PRFNUM		;[AL]=file number
 	CALL	GETWDT		;[AL]=width (1..255)
 	POP	SI		;SI points to file data block
 	MOV	BYTE PTR F_WID[SI],AL	;save width in FDB
-RET6:	RET	
+RET6:	RET
 
 GETWDT:	CALL	GETBYT
 	OR	AL,AL
@@ -396,7 +396,7 @@ BPARM2:
 	JNZ	BPARM3		;Brif 2nd Parm given.
 	POP	CX		;[CX]=start adr
 	XOR	AL,AL		;Set 0 if 1 parm only given.
-	RET	
+	RET
 BPARM3:
 	CALL	SYNCHR
 	DB	OFFSET ","
@@ -409,7 +409,7 @@ BPARM3:
 	JNZ	SNERR3		;must be end of statement
 	POP	CX		;[CX]=start-adr
 	MOV	AL,LOW 377O	;Set -1 if 2 parms given.
-	RET	
+	RET
 
 SNERR3:	JMP	SNERR
 
@@ -466,7 +466,7 @@ PRTS:	POP	DX		;get rid of old text pointer
 	CALL	FOUT		;make a number into a string
 	CALL	STRLIT		;make it a string
 	MOV	BYTE PTR 0[BX],LOW " "	;put a space at the end
-	POPF	
+	POPF
 	POP	BX
 	POP	CX		;restore [CH]=width, [CL]=last comma column
 	PUSH	CX
@@ -656,7 +656,7 @@ RELRN1:	PUSH	BX		;save text pointer
 	MOV	AH,LOW OFFSET G_RND	;select Random I/O function code
 	CALL	SIDSP		;dispatch to routine for FDB SI
 	POP	BX		;restore text pointer
-	RET	
+	RET
 
 ERBFM1:	JMP	DERBFM
 
@@ -690,7 +690,7 @@ GETNZB:	PUSH	DX
 	JZ	ERBFN1		;bad file number if 0
 	POP	CX
 	POP	DX
-RET9:	RET	
+RET9:	RET
 
 ERBFN1:	JMP	DERBFN		;bad file number
 
@@ -711,7 +711,7 @@ GDFILM:
 	DB	OFFSET 54O	;GO PAST THE COMMA
 FILSET:	MOV	DX,CX		;SETUP PTRFIL
 	MOV	WORD PTR PTRFIL,CX
-	RET	
+	RET
 
 ERBFM3:	JMP	DERBFM
 ERFNO3:	JMP	DERFNO
@@ -731,7 +731,7 @@ FILID2:	CALL	FDBPTR		;SI points to FDB for file [AL]
 	MOV	CX,SI		;CX  points to FDB
 	MOV	AL,BYTE PTR F_MODE[SI]	;[AL]=file mode
 	OR	AL,AL		;set non-zero (file is opened)
-NTOPEN:	RET	
+NTOPEN:	RET
 
 ;GETPTR IS CALLED FROM VARPTR(#<EXPRESSION>)
 ; Entry - [AL]=file number
@@ -741,7 +741,7 @@ GETPTR:	CALL	FDBPTR		;SI points to File Data Block
 	JZ	ERFNO3		;error if file not open
 	MOV	DX,OFFSET F_MODE	;Return pointer to MODE
 	ADD	DX,SI		;Return result in [DX]
-	RET	
+	RET
 
 ;DIRDO is called to make sure direct statement is not found when loading file
 ; If device is keyboard, control transfers to GONE with AX used.
@@ -772,7 +772,7 @@ EXTRN	FRQINT:NEAR
 	POP	DX
 	XCHG	BX,DX		;Offset in [DX], text pointer in [BX]
 	POP	CX
-	RET	
+	RET
 
 	SUBTTL Major I/O Routines
 
@@ -806,7 +806,7 @@ NAMBAS:	MOV	SI,OFFSET FILDEV	;SI points to device id
 	JNE	NAMBAX		;Exit if device is not DISK
 	MOV	WORD PTR 0[SI],OFFSET (400O*"A")+"B"
 	MOV	BYTE PTR 2[SI],LOW "S"
-NAMBAX:	RET	
+NAMBAX:	RET
 
 ;NULOPN opens File 0 with mode [AL].
 ; Exit  - [PTRFIL] points to files FDB (directing all future I/O to file)
@@ -827,7 +827,7 @@ NULOPN:	XOR	AL,AL		;[AL]=file number
 ; Exit  - [PTRFIL] points to files FDB (directing all future I/O to file)
 ;         all registers preserved
 ;
-OPNFIL:	PUSHF	
+OPNFIL:	PUSHF
 	PUSH	AX
 	PUSH	BX
 	PUSH	CX
@@ -848,8 +848,8 @@ OPNFIL:	PUSHF
 	POP	CX
 	POP	BX
 	POP	AX
-	POPF	
-	RET	
+	POPF
+	RET
 
 FCERR3:	JMP	FCERR
 ERFAO1:	JMP	DERFAO		;file already opened error
@@ -871,7 +871,7 @@ CLSAL1:	CMP	SI,WORD PTR STKLOW
 	JMP	SHORT CLSAL1	;Keep looping till all files closed
 CLSALX:	POP	SI
 	POP	AX
-	RET	
+	RET
 
 ;CLSFIL - close file [AL]
 ; Exit  - Flags, AX, SI used, all other registers are preserved
@@ -898,7 +898,7 @@ CLSFL1:	CALL	FDBPTR		;[SI] points to FDB [AL]
 	POP	DX
 	POP	CX
 	POP	BX
-RET22:	RET	
+RET22:	RET
 
 ;INCHR - get next byte from file PTRFIL
 ; Exit  - [AL]=byte, [FLAGS], [AH] destroyed.
@@ -959,7 +959,7 @@ NORUNC:	PUSH	BX
 	POP	BX
 	MOV	AL,LOW 13D
 INCHRX:	POP	SI
-	RET	
+	RET
 
 ;INCHRE - get next byte from file PTRFIL.
 ; Exit  - Carry set if EOF, else [AL]=byte.
@@ -991,12 +991,12 @@ INGFDB:	CMP	BYTE PTR F_MODE[SI],LOW OFFSET MD_SQO
 	MOV	AH,LOW OFFSET G_SIN
 	CALL	SIDSP		;[AL]=next input from file
 	JB	INCEOF		;branch if device detected EOF
-	RET	
+	RET
 
 INCEOF:	MOV	BYTE PTR F_ORCT[SI],LOW 0	;indicates EOF on future calls
 	MOV	BYTE PTR F_BREM[SI],LOW 0
 	STC			;tells caller EOF reached
-	RET	
+	RET
 
 GETBKC:	AND	BYTE PTR F_FLGS[SI],LOW OFFSET 255D-FL_BKC	;clear Backup Present flag
 	MOV	AL,BYTE PTR F_BAKC[SI]	;return Backed-up character
@@ -1006,14 +1006,14 @@ ERBFM6:	JMP	DERBFM		;bad file mode error
 
 	PUBLIC	CRFIN,CRDONZ,FININL,CRDO
 CRFIN:	XOR	AL,AL		;all references should be eliminated
-	RET	
+	RET
 
 ;CRDONZ - output carriage return if file PTRFIL is not at left margin
 ;
 CRDONZ:	CALL	PTRGPS		;[AH]=0-relative column for PTRFIL
 	OR	AH,AH
 	JNZ	CRDO		;if not at column 0, output CRLF
-	RET	
+	RET
 
 DSEG	SEGMENT PUBLIC 'DATASG'
 	EXTRN	BUFMIN:WORD
@@ -1028,7 +1028,7 @@ CRDO:	MOV	AL,LOW OFFSET ASCCR
 	MOV	AL,LOW OFFSET ASCLF	;output Line Feed
 	CALL	OUTDO
 	XOR	AL,AL		;must return with [AL]=0 and FLAGS.Z true
-	RET	
+	RET
 
 ;OUTDO - output [AL] to current file (force CR if end-of-line)
 ; Exit - All registers preserved (including FLAGS)
@@ -1036,13 +1036,13 @@ CRDO:	MOV	AL,LOW OFFSET ASCCR
 	PUBLIC	OUTDO,FILOU3
 FILOU3:
 OUTDO:
-	PUSHF	
+	PUSHF
 	PUSH	AX
 	MOV	AH,LOW OFFSET G_SOT
 	CALL	PTRDSP		;dispatch to function [DL] for PTRFIL
 	POP	AX
-	POPF	
-	RET	
+	POPF
+	RET
 
 ;OUT16 - output data [AX] to current file
 ;
@@ -1051,7 +1051,7 @@ OUT16:	PUSH	AX
 	XCHG	AH,AL
 	CALL	OUTDO		;then output high-byte
 	POP	AX
-	RET	
+	RET
 
 ;INP16 reads the next 16 bits from file PTRFIL
 ; Exit  - [AX]=result. Carry set if EOF.
@@ -1064,7 +1064,7 @@ INP16:	PUSH	BX
 	MOV	BH,AL
 	MOV	AX,BX
 INP16X:	POP	BX
-	RET	
+	RET
 
 ;BAKCHR - backup sequential input file
 ; Entry - [AL] = char to be backed up
@@ -1075,7 +1075,7 @@ BAKCHR:	PUSH	SI
 	MOV	SI,WORD PTR PTRFIL
 	CALL	BCHRSI
 	POP	SI
-	RET	
+	RET
 
 ;BCHRSI - backup sequential input file
 ; Entry - [AL] = char to be backed up
@@ -1083,7 +1083,7 @@ BAKCHR:	PUSH	SI
 ;
 BCHRSI:	MOV	BYTE PTR F_BAKC[SI],AL
 	OR	BYTE PTR F_FLGS[SI],LOW OFFSET FL_BKC	;set flag indicating char backed up
-	RET	
+	RET
 
 ;BINSAV - Binary SAVE support.
 ;
@@ -1152,7 +1152,7 @@ DEVBOT:	OR	CX,CX
 	INC	BX
 	DEC	CX
 	JMP	SHORT DEVBOT
-RET27:	RET	
+RET27:	RET
 
 ;OUTBLK - Write Block of memory to current file
 ; Entry - [BX] = Start adr
@@ -1163,7 +1163,7 @@ RET27:	RET
 OUTBLK:	MOV	SI,WORD PTR PTRFIL
 	MOV	AH,LOW OFFSET G_BOT	;Block output function
 	CALL	PTRDSP
-	RET	
+	RET
 
 ; INPBLK - Read block of memory from current file
 ; Entry - [BX] = Start adr
@@ -1177,7 +1177,7 @@ OUTBLK:	MOV	SI,WORD PTR PTRFIL
 INPBLK:	MOV	SI,WORD PTR PTRFIL
 	MOV	AH,LOW OFFSET G_BIN	;block input function
 	CALL	PTRDSP		;[AL]=next byte from file PTRFIL
-	RET	
+	RET
 
 ;FSTLOD - load Binary BASIC program (Called from DSKCOM after LOAD statement)
 ; Entry - BX points to destination of program
@@ -1209,7 +1209,7 @@ PTRGPS:	MOV	AH,LOW OFFSET G_GPS	;Get column position request-code
 	CALL	PTRDSP		;[AH]=position
 	MOV	AL,AH		;[AL]=position
 	OR	AL,AL
-	RET	
+	RET
 
 ;PTRWDC - get line width and last comma column for file PTRFIL
 ; Exit  - [CH] = line width
@@ -1224,7 +1224,7 @@ PTRWDL:	SUB	AH,LOW 14D	;T.B.S. eventually, use G.GCW
 	NEG	AH
 	ADD	AH,CH
 	MOV	CL,AH		;[CL]=last comma column
-	RET	
+	RET
 
 ;PTRWID - get line width for file PTRFIL
 ; Exit  - [AH] = line width
@@ -1239,7 +1239,7 @@ PTRWID:	PUSH	SI		;save caller's SI
 	JZ	PTRWD1		;if KYBD Pseudo FDB, use Device width
 	MOV	AH,BYTE PTR F_WID[SI]	;else use FDB width
 	POP	SI		;restore caller's SI
-	RET	
+	RET
 PTRWD1:	POP	SI		;restore caller's SI
 	MOV	AH,LOW OFFSET G_GWD	;Get file width function code
 	JMP	PTRDSP		;return with [AH]=device width
@@ -1261,7 +1261,7 @@ XTABCR:	PUSH	CX
 	MOV	CX,OFFSET CRIFEL	;EXPTAB will call CRIFEL which will
 	CALL	EXPTAB		;call raw-output routine [BX]
 	POP	CX
-	RET	
+	RET
 
 ;EXPTAB is called by Device Driver Output routines to Expand Tabs to Spaces
 ; Entry - [AL]=char to be output
@@ -1280,7 +1280,7 @@ EXTABL:	CALL	CX		;output space (update position)
 	TEST	DH,LOW 7
 	JNZ	EXTABL		;branch if not at MOD 8 column position
 	MOV	AL,LOW OFFSET ASCTAB	;restore AL
-EXTABX:	RET	
+EXTABX:	RET
 
 NOTTAB:	JMP	CX		;output char and update position
 
@@ -1314,17 +1314,17 @@ NOCR:	JMP	BX		;output char, update position
 UPDPOS:	CMP	AL,LOW 32D
 	JB	NPRINT		;branch if not printable (CTL CHR)
 	INC	DH		;bump column position
-	RET	
+	RET
 NPRINT:	CMP	AL,LOW OFFSET ASCCR
 	JNE	NOTCR		;branch if not carriage return
 ZERPOS:	MOV	DH,LOW 0	;reset to left margin
-	RET	
+	RET
 NOTCR:	CMP	AL,LOW OFFSET ASCBS
 	JNE	UPPOSX		;branch if not backspace
 	OR	DH,DH
 	JE	UPPOSX		;don't decrement below 0
 	DEC	DH		;decrement position
-UPPOSX:	RET	
+UPPOSX:	RET
 
 	SUBTTL File Dispatch Routines
 
@@ -1359,7 +1359,7 @@ FILDSP:	PUSH	SI
 	POP	AX		;restore caller's [AX]
 	CALL	SIDSP
 	POP	SI
-	RET	
+	RET
 
 FCERR9:	JMP	FCERR		;Function Call Error
 
@@ -1373,7 +1373,7 @@ PTRDSP:	PUSH	SI
 	MOV	SI,WORD PTR PTRFIL
 	CALL	SIDSP
 	POP	SI
-	RET	
+	RET
 
 ;SIDSP - Dispatch to I/O routine for file with FDB=[SI]
 ; Entry - [AH]=function code (G.OPN, G.CLS, etc.)
@@ -1383,7 +1383,7 @@ PTRDSP:	PUSH	SI
 SIDSP:	PUSH	DI
 	PUSH	SI
 	PUSH	AX
-	PUSHF	
+	PUSHF
 	INC	SI
 	JZ	LPDSP		;branch if Line Printer Pseudo FDB
 	DEC	SI
@@ -1403,12 +1403,12 @@ LPDSP:
 	JMP	SHORT SIDSP2
 SIDSP1:	MOV	AL,BYTE PTR F_DEV[SI]	;(AL) = device number
 	CALL	CDEVID		;[DI]=device dispatch table offset
-SIDSP2:	POPF	
+SIDSP2:	POPF
 	POP	AX		;restore caller's [AX]
 	CALL	TBLDSP		;function [AH] on device [DI]
 	POP	SI
 	POP	DI
-	RET	
+	RET
 
 ;TBLDSP - Dispatch to I/O routine for device-table [DI]
 ; Entry - [AH]=function code (G.OPN, G.CLS, etc.)
@@ -1416,7 +1416,7 @@ SIDSP2:	POPF
 ; Exit  - All registers preserved except those changed by device driver
 ;
 TBLDSP:	PUSH	DI
-	PUSHF	
+	PUSHF
 	PUSH	AX
 	MOV	AX,WORD PTR DEVPTR	;AX points to 1st entry in dispatch table
 	ADD	DI,AX		;DI points to dispatch table pointer for device
@@ -1431,7 +1431,7 @@ TBLDSP:	PUSH	DI
 	MOV	AX,WORD PTR CS:0[DI]	;Get address of routine
 	MOV	WORD PTR IOJUMP,AX
 	POP	AX
-	POPF	
+	POPF
 	POP	DI
 	JMP	 WORD PTR IOJUMP	;jump to routine at address [IOJUMP]
 
@@ -1453,7 +1453,7 @@ CDEV2:	PUSHF			;save Z=disk
 	MOV	DI,AX
 	POPF			;restore Z=disk
 	POP	AX
-	RET	
+	RET
 
 ERFNO2:	JMP	DERFNO		;file not opened error
 
@@ -1539,16 +1539,16 @@ SCNAM2:	CMP	AL,LOW "."
 	DEC	DX
 	JNZ	SCAN1		;Keep looking for characters
 
-SCNAM3:	POPF	
+SCNAM3:	POPF
 	POP	DI
 	POP	DX
 	POP	AX
 	POP	BX		;restore updated text pointer
-	RET	
+	RET
 
-FILLNM:	POPF	
+FILLNM:	POPF
 	STC			;set carry indicating "." scanned
-	PUSHF	
+	PUSHF
 FILNM0:	CMP	DX,OFFSET FNAML	;file name length
 	JE	ERIFN1		;Error - extension only !
 	CMP	DX,3
@@ -1592,7 +1592,7 @@ NODVNM:	MOV	CX,DX		;No device name - restore everything
 	POP	DI
 	POP	DX
 	XOR	AL,AL		;Default device to 0
-	RET	
+	RET
 
 DEVNM:	POP	DI		;Restore old string pointer
 	XCHG	SI,DI
@@ -1657,7 +1657,7 @@ UPCASE:	CMP	AL,LOW "a"	;Convert (AL) to upper case
 	CMP	AL,LOW "z"
 	JA	UPRET
 	AND	AL,LOW OFFSET 255D-" "
-UPRET:	RET	
+UPRET:	RET
 
 	SUBTTL File Data Block Management Routines
 
@@ -1698,7 +1698,7 @@ INIFDB:	PUSH	CX
 	MOV	BYTE PTR F_ORCT[SI],LOW 1	;indicates not at EOF
 	POP	DI
 	POP	CX
-	RET	
+	RET
 
 ERBFM4:	JMP	DERBFM		;Bad file mode
 
@@ -1710,7 +1710,7 @@ SCDASC:	PUSH	SI
 	MOV	SI,WORD PTR PTRFIL
 	MOV	BYTE PTR F_CODE[SI],LOW OFFSET FC_ASC
 	POP	SI
-	RET	
+	RET
 
 ;SCDBIN - Set file-attribute CODE for file PTRFIL to binary
 ; Exit  - all registers preserved.
@@ -1720,7 +1720,7 @@ SCDBIN:	PUSH	SI
 	MOV	SI,WORD PTR PTRFIL
 	MOV	BYTE PTR F_CODE[SI],LOW OFFSET FC_BIN
 	POP	SI
-	RET	
+	RET
 
 ;FDBPTR - Transform file number into File-Data-Block pointer
 ; Entry - [FAC] = file number (0..n)
@@ -1747,7 +1747,7 @@ GPTRL:	CMP	SI,WORD PTR STKLOW	;compare with nil FDB pointer
 	MOV	SI,WORD PTR F_NEXT[SI]	;advance to next FDB in chain
 	JMP	SHORT GPTRL
 GPTRF:	OR	SI,SI		;set NZ - indicates FDB found
-GPTRX:	RET	
+GPTRX:	RET
 
 ;FALLOC(nbytes) {allocate file-data-block and link into chain}
 ; Entry - CX=size of FDB
@@ -1766,7 +1766,7 @@ FALLOC:	PUSH	AX
 	PUSH	BX
 	PUSH	CX
 	PUSH	DX
-	PUSHF	
+	PUSHF
 	MOV	AX,CX		;[AX]=size of new FDB
 	MOV	DL,LOW 1	;Indicates 1st attempt to find space
 FALC1:	MOV	BX,WORD PTR FRETOP	;BX points to top of free string space
@@ -1793,12 +1793,12 @@ FALCOK:	NEG	AX		;indicates moving strings down
 	MOV	WORD PTR F_NEXT[SI],BX	;link FDB into chain
 
 	PUBLIC	PDCBAX,PCBAX,PBAX	;generally useful routines
-PFDCBA:	POPF	
+PFDCBA:	POPF
 PDCBAX:	POP	DX
 PCBAX:	POP	CX
 PBAX:	POP	BX
 	POP	AX
-	RET	
+	RET
 
 
 ;FFREE(fdbptr) {free file data block}
@@ -1815,7 +1815,7 @@ FFREE:	PUSH	AX
 	PUSH	BX
 	PUSH	CX
 	PUSH	DX
-	PUSHF	
+	PUSHF
 	MOV	AX,WORD PTR F_NEXT[SI]	;AX points to next FDB in chain
 	SUB	AX,SI		;AX = size of FDB being freed
 	MOV	BX,WORD PTR FILTAB	;BX points to 1st FDB in chain
@@ -1934,7 +1934,7 @@ XFSTX1:	ADD	WORD PTR FRETOP,DX	;Adjust FRETOP for block move
 	ADD	WORD PTR MEMSIZ,DX	;Adjust MEMSIZ for block move
 	POP	DI
 	POP	SI
-	RET	
+	RET
 
 
 ;Update String Descriptor pointed to by BX.
@@ -1960,7 +1960,7 @@ UPDSTU:
 	ADD	WORD PTR 1[BX],DX	;adjust pointer for block move
 UPDSTX:
 	ADD	BX,3		;BX points 1 byte beyond string desc
-	RET	
+	RET
 
 	SUBTTL General Queue support routines
 
@@ -1990,7 +1990,7 @@ INITQ:	MOV	WORD PTR Q_PUT[SI],BX
 	MOV	WORD PTR Q_BUF[SI],BX
 	ADD	AX,BX
 	MOV	WORD PTR Q_END[SI],AX
-	RET	
+	RET
 
 ;PUTQ - append data to back of queue
 ; Entry - SI points to 8 byte queue descriptor
@@ -2003,7 +2003,7 @@ PUTQ:	MOV	BX,WORD PTR Q_PUT[SI]
 	CMP	BX,WORD PTR Q_GET[SI]
 	JE	PQFULL		;brif queue is full (ignore new data)
 	MOV	WORD PTR Q_PUT[SI],BX	;save new PUT-POINTER
-PQFULL:	RET	
+PQFULL:	RET
 
 ;GETQ - get next byte from front of queue
 ; Entry - SI points to 8 byte queue descriptor
@@ -2018,13 +2018,13 @@ GETQ:	MOV	BX,WORD PTR Q_GET[SI]
 	CALL	BUMPQP		;advance queue pointer BX
 	MOV	WORD PTR Q_GET[SI],BX	;save new GET-POINTER
 	OR	BX,BX		;set NZ so caller knows AL has data
-GQEMTY:	RET	
+GQEMTY:	RET
 
 BUMPQP:	INC	BX
 	CMP	BX,WORD PTR Q_END[SI]
 	JB	BUMPQX		;branch if no need to Wrap-Around
 	MOV	BX,WORD PTR Q_BUF[SI]	;reset pointer to start of buf
-BUMPQX:	RET	
+BUMPQX:	RET
 
 ;LFTQ - How many times can PUTQ be successfully called for queue SI
 ; Entry - SI points to 8 byte queue descriptor
@@ -2044,7 +2044,7 @@ NUMQ:	MOV	AX,WORD PTR Q_PUT[SI]
 NUMQ1:	JAE	NUMQX		;brif PUT-POINTER exceeds GET-POINTER
 	ADD	AX,WORD PTR Q_END[SI]
 	SUB	AX,WORD PTR Q_BUF[SI]
-NUMQX:	RET	
+NUMQX:	RET
 
 	SUBTTL I/O Initialization Called by INIT
 
@@ -2063,7 +2063,7 @@ GIOINI:
 GIOTRM:	MOV	BX,WORD PTR DEVTRM	;DI points to array of terminate routines
 	CALL	DOALDV
 	CALL	MSIRST		;Replace MSDOS int vectors &H23 & &H24
-	RET	
+	RET
 
 DOALDV:	MOV	AL,LOW OFFSET $_NDEV
 	CBW			;[CX]=number of devices in system
@@ -2079,7 +2079,7 @@ DOALLP:	PUSH	BX
 	DEC	DI
 	JNZ	DOALLP		;Loop until Device ID = 0 (disk)
 DOALLX:
-	RET	
+	RET
 
 ;FINLPT forces a carriage return on LPT1 if it is not already at left margin.
 ; It then falls into FINPRT.
@@ -2143,8 +2143,8 @@ NFRFDB:	XOR	AX,AX
 	TEST	BYTE PTR NLONLY,LOW 1
 	JNZ	RET45		;don't clear PTRFIL if loading program
 	MOV	WORD PTR PTRFIL,AX	;future I/O will use Keyboard/CRT
-RET45:	RET	
-	PAGE	
+RET45:	RET
+	PAGE
 	SUBTTL  MSDOS   Abort/Initialization/Termination Processing
 
 DSEG	SEGMENT PUBLIC 'DATASG'
@@ -2162,7 +2162,7 @@ DSEG	ENDS
 ;DSKERR - Processing for MSDOS interrupt &H23
 ;         Exit is made through ERROR.  No IRET is executed.
 ;
-DSKERR:	STI	
+DSKERR:	STI
 	MOV	AX,DI		;[AX]= Error code
 	ADD	SP,20D		;Adjust stack
 	POP	DS		;Get BASIC data segment
@@ -2180,7 +2180,7 @@ DSKERX:	JMP	ERROR		;Go report the error and return
 ;MSCTLC - Processing for MSDOS interrupt &H23
 ;
 MSCTLC:	MOV	BYTE PTR MSDCCF,LOW 377O	;Record control-C event for POLKEY
-	IRET	
+	IRET
 
 ;MSISET - Set MSDOS termination and Ctl-C processing addresses.
 ;         The current addresses are saved for restoration upon termination
@@ -2207,7 +2207,7 @@ MSISET:	PUSH	AX
 	POP	ES
 	POP	DX
 	POP	AX
-	RET	
+	RET
 
 MSIRST:	PUSH	AX
 	PUSH	ES
@@ -2219,7 +2219,7 @@ MSIRST:	PUSH	AX
 	CALL	SETVEC
 	POP	ES
 	POP	AX
-	RET	
+	RET
 ;SAVVEC - Get and store an interrupt vector
 ;ENTRY  - AX = interrupt
 ;         BX = CS relative address of vector storage area
@@ -2233,7 +2233,7 @@ SAVVEC:	PUSH	DX
 	MOV	WORD PTR 2[BX],DX	;Save paragraph portion
 	POP	ES
 	POP	DX
-	RET	
+	RET
 
 ;SETVEC - Set an interrupt vector
 ;ENTRY  - AX    = interrupt number
@@ -2253,7 +2253,7 @@ XCESDS:	PUSH	ES
 	PUSH	DS
 	POP	ES
 	POP	DS
-	RET	
+	RET
 
 ;GETVEC - Get current interrupt vector
 ;ENTRY  - AX    = interrupt number
@@ -2272,7 +2272,6 @@ GETVEC:	PUSH	AX
 	POP	DS
 	POP	BX
 	POP	AX
-	RET	
+	RET
 CSEG	ENDS
 	END
-                                                                                       

@@ -2,10 +2,10 @@
 
 	.RADIX  8		; To be safe
 
-CSEG	SEGMENT PUBLIC 'CODESG' 
+CSEG	SEGMENT PUBLIC 'CODESG'
 	ASSUME  CS:CSEG
 
-INCLUDE	OEM.H
+INCLUDE	OEM.INC
 
 	SUBTTL  GLOBAL TEMPS and DEFS
 	TITLE   GIODSK - BASIC-86 Generalized I/O Disk Driver
@@ -19,11 +19,11 @@ COPYRIGHT (C) 1982 BY MICROSOFT
         T. Corbett      Microsoft   for BASIC-86 Generalized I/O
                         Based on code written for BASCOM-86
         *
-	INCLUDE	GIO86U
+	INCLUDE	GIO86U.INC
 
 CPM86=0
 
-	INCLUDE	MSDOSU
+	INCLUDE	MSDOSU.INC
 
 	.SALL
 	.RADIX	10
@@ -35,7 +35,7 @@ CPM86=0
 	EXTRN	DERFAE:NEAR,DERFNF:NEAR,DERIOE:NEAR,DERDFL:NEAR,DERFOV:NEAR
 	EXTRN	CONIA:NEAR,MAKINT:NEAR,MOVE1:NEAR,$NORMD:NEAR
 	EXTRN	DEVBOT:NEAR
-DSEG	SEGMENT PUBLIC 'DATASG'		
+DSEG	SEGMENT PUBLIC 'DATASG'
 	ASSUME DS:DSEG
 	EXTRN	DFACLO:WORD,FAC:WORD,VALTYP:WORD
 	EXTRN	RECRD:WORD,LBUFF:WORD,PBUFF:WORD
@@ -91,10 +91,10 @@ CHKCTZ:
 	JNZ	NOTEOF		;Brif next char not EOF
 WASEOF:
 	MOV	BX,-1		; -1 if EOF
-	RET	
+	RET
 NOTEOF:
 	XOR	BX,BX		;0 = not EOF
-	RET	
+	RET
 
 ER_BFM:	JMP	DERBFM		;"Bad File mode"
 
@@ -107,7 +107,7 @@ DSKLOC:
 	MOV	BX,WORD PTR F_CLOC[SI]	;Use current for Sequential
 	JNE	LOC1
 	MOV	BX,WORD PTR FD_LOG[SI]	;Use logical for Random
-LOC1:	RET	
+LOC1:	RET
 
 ;DSKLOF - return file size in bytes.
 ; Entry - SI points to File-Data-Block.
@@ -131,14 +131,14 @@ DSKLOF:
 ;         All other registers preserved
 ;
 DSKGPS:	MOV	AH,BYTE PTR F_POS[SI]	;[AH]=current column
-	RET	
+	RET
 
 ;DSKGWD - get device width
 ; Exit  - [AH] = device width as set by xxxSWD
 ;         All other registers preserved
 ;
 DSKGWD:	MOV	AH,LOW 255D	;disk files always have infinite width
-	RET	
+	RET
 
 ;DSKSCW - set device comma width
 ; Entry - [BX] = new device comma width
@@ -151,7 +151,7 @@ DSKSCW:
 ; Exit  - [BX] = device comma width as set by xxxSCW
 ;         All other registers preserved
 ;
-DSKGCW:	RET	
+DSKGCW:	RET
 
 	SUBTTL  OPEN hook for Disk and all Directory handling
 
@@ -259,7 +259,7 @@ OPNSET:
 	CALL	$READS		;Read 1st data block into buffer
 OPNFIN:	MOV	WORD PTR FREFDB,0	;file is completely open.
 				;FINPRT won't release FDB.
-	RET	
+	RET
 RNDFIN:
 	LEA	DI,DWORD PTR FD_PHY[SI]	;zero FD.PHY, FD.LOG, FD.OPS, sector buffer
 	MOV	CX,OFFSET (FD_DAT-FD_PHY)	;number of bytes to be cleared
@@ -325,7 +325,7 @@ BAKURN:
 	SUB	WORD PTR FCB_RN[SI],1	;Random rec no. -1
 	JAE	BAKRET		;Brif no underflow
 	DEC	WORD PTR FCB_RN+2[SI]	;hi word -1
-BAKRET:	RET	
+BAKRET:	RET
 
 	SUBTTL  CLOSE (CLSFIL) hook for Disk files
 
@@ -347,7 +347,7 @@ NOFORC:
 	CALL	SETBUF		;Set DMA addr
 	LEA	DX,DWORD PTR F_FCB[SI]	;[DX] = FCB
 	CALLOS	C_CLOS		;Close the file
-	RET	
+	RET
 
 	SUBTTL Disk Sequential Input
 
@@ -364,9 +364,9 @@ DSKSIN:	CALL	DSKINP		;get next byte from file
 	CMP	BYTE PTR F_CODE[SI],LOW OFFSET FC_BIN
 	JE	DSNEOF		;CTL-Z is not EOF for Binary files
 DSYEOF:	STC			;set carry indicating EOF
-	RET	
+	RET
 DSNEOF:	OR	AL,AL		;clear carry (no eof)
-	RET	
+	RET
 
 ;DSKINP - get next byte from file [SI]
 ; Exit  - Carry set if EOF, else [AL]=next byte from file
@@ -389,7 +389,7 @@ SINP1:
 	MOV	AL,BYTE PTR DATOFS[BX+SI]	;Get the character
 	POP	BX
 	OR	AL,AL		;Clear carry
-	RET	
+	RET
 FILLSQ:
 	CMP	BYTE PTR F_ORCT[SI],LOW 0
 	JE	FILLS1		;Brif EOF
@@ -398,22 +398,22 @@ FILLSQ:
 FILLS1:
 	STC			;Return with carry
 	MOV	AL,LOW OFFSET ASCCTZ	; and EOF character
-	RET	
+	RET
 
 SINP50:				;Serial Input from Random File
 	PUSH	BX
 	CALL	FOVCHK		;Field overflow check
 	MOV	AL,BYTE PTR FD_DAT-1[BX+SI]	;Get character
-	CLC	
+	CLC
 	POP	BX
-	RET	
+	RET
 FOVCHK:
 	MOV	BX,WORD PTR FD_OPS[SI]	;Get current posn
 	CMP	BX,WORD PTR FD_SIZ[SI]	;check for end of field
 	JE	ER_FOV		;Brif field overflow
 	INC	BX		;posn +1
 	MOV	WORD PTR FD_OPS[SI],BX	;store new posn
-	RET	
+	RET
 ER_FOV:
 	JMP	DERFOV		;"Field Overflow"
 
@@ -450,13 +450,13 @@ SOUTPS:
 	JNE	SOUT3
 	MOV	BYTE PTR F_POS[SI],LOW 0	;reset posn on CR
 FILOUX:
-	RET	
+	RET
 
 SOUT3:
 	CMP	AL,LOW " "
-	CMC	
+	CMC
 	ADC	BYTE PTR F_POS[SI],LOW 0	;posn +1  if printable char
-	RET	
+	RET
 
 
 	SUBTTL GET and PUT for Disk Files
@@ -571,7 +571,7 @@ NXFVBF:
 	XOR	BX,BX		;zero buffer offset
 	OR	DX,DX		;More to transfer?
 	JNZ	NXTOPD		; then continue
-	RET	
+	RET
 
 ; Sector I/O routines for Random
 
@@ -608,7 +608,7 @@ PGRET:	POP	DX
 	POP	CX
 	POP	BX
 	POP	AX
-	RET	
+	RET
 
 	SUBTTL Primitive Disk sector I/O routines
 
@@ -639,7 +639,7 @@ READ1:
 	OR	AL,AL		;zero if EOF
 	POP	DI
 	POP	CX
-	RET	
+	RET
 
 ;$WRITS - Write sector to file
 ; Entry - SI points to FDB
@@ -663,7 +663,7 @@ $WRITS:
 WRITE1:
 	INC	WORD PTR F_CLOC[SI]	;Logical record +1
 	POP	AX
-	RET	
+	RET
 
 ER_TMF:	JMP	DERTMF		;"Too many Files"
 ER_IOE:	JMP	DERIOE		;"Device I/O error"
@@ -675,7 +675,7 @@ SETBUF:
 	LEA	DX,DWORD PTR DATOFS[SI]	;[DX] = Data buffer addr
 	CALLOS	C_BUFF
 	POP	DX
-	RET	
+	RET
 
 ACCFIL:
 	PUSH	DX
@@ -702,7 +702,7 @@ ACCFL2:
 	XOR	AL,AL		;Map 3 to 0 (no error)
 ACCRET:
 	POP	DX
-	RET	
+	RET
 
 	SUBTTL CHKFOP - Check for file already OPEN
 
@@ -753,7 +753,7 @@ IGNTFL:
 	JMP	SHORT CHKNFL
 CHKFLX:
 	POP	AX
-	RET	
+	RET
 
 MAKUPC:
 	CMP	AL,LOW "a"
@@ -762,7 +762,7 @@ MAKUPC:
 	JNB	NOTLC		;branch if not a..z
 	AND	AL,LOW 337O	;map a..z to A..Z
 NOTLC:
-	RET	
+	RET
 
 	SUBTTL  DFSTLD - Fast Binary Program Load (from DISK)
 
@@ -802,7 +802,7 @@ DFSTLD:
 	ADD	BX,CX		;BX points 1 byte beyond last byte read
 	CMP	AL,LOW 1
 	CMC			;set carry if [AL] exceeds 1 (EOF)
-	RET	
+	RET
 
 	SUBTTL  PROSAV - Protected SAVE
 	PUBLIC	PROSAV,CMPFBC
@@ -825,7 +825,7 @@ GETFSZ:	MOV	BX,OFFSET FD_SIZ	;Point to record size
 GETFPS:	MOV	BX,OFFSET FD_OPS	;Point to output position
 GETFP1:	ADD	BX,CX		;Add offset into buffer
 	MOV	DX,WORD PTR 0[BX]	;Get value
-	RET	
+	RET
 
 CMPFBC:	MOV	CX,BX		;Copy file data block into [CX]
 CMPFPS:	CALL	GETFPS		;Get present posit
@@ -834,7 +834,7 @@ CMPFPS:	CALL	GETFPS		;Get present posit
 	MOV	BX,DX		;into [BX]
 	POP	DX		;Get back posit
 	CMP	BX,DX		;See if were at end
-RET12:	RET	
+RET12:	RET
 
 	N1=11D			;Number of bytes to use from ATNCON
 	N2=13D			;Number of bytes to use from SINCON
@@ -848,7 +848,7 @@ ENCDBL:	MOV	BX,WORD PTR VARTAB	;At end?
 	JZ	RET12		;Yes
 	MOV	BX,OFFSET $EXPCN
 	MOV	AL,CL		;Use [CL] to index into it
-	CBW	
+	CBW
 	ADD	BX,AX
 	MOV	SI,DX
 	CLD			;Set Post-Increment mode
@@ -858,7 +858,7 @@ ENCDBL:	MOV	BX,WORD PTR VARTAB	;At end?
 	PUSH	AX		;Save result
 	MOV	BX,OFFSET $LOGP
 	MOV	AL,CH
-	CBW	
+	CBW
 	ADD	BX,AX
 	POP	AX		;Get back current byte
 	XOR	AL,BYTE PTR CS:0[BX]	;XOR on this one too
@@ -884,7 +884,7 @@ DECDBL:	MOV	BX,WORD PTR VARTAB	;At end?
 	JZ	RET12		;Yes
 	MOV	BX,OFFSET $LOGP
 	MOV	AL,CH
-	CBW	
+	CBW
 	ADD	BX,AX
 	MOV	SI,DX
 	CLD			;Set Post-Increment mode
@@ -894,7 +894,7 @@ DECDBL:	MOV	BX,WORD PTR VARTAB	;At end?
 	PUSH	AX		;Save result
 	MOV	BX,OFFSET $EXPCN
 	MOV	AL,CL		;Use [CL] to index into it
-	CBW	
+	CBW
 	ADD	BX,AX
 	POP	AX		;Get back current byte
 	XOR	AL,BYTE PTR CS:0[BX]	;XOR entry
@@ -917,17 +917,17 @@ PRODIR:	PUSH	BX		;Save [H,L]
 	INC	BX		;Direct? (if BX=0, direct)
 	POP	BX		;Restore [H,L]
 	JZ	PROCHK
-	RET	
+	RET
 
 PROCHK:	PUSHF			;Save flags
 	MOV	AL,BYTE PTR PROFLG	;Is this a protected file?
 	OR	AL,AL		;Set CC's
 	JNZ	FCERRA		;Yes, give error
 	POPF			;Restore flags
-	RET	
+	RET
 
 FCERRA:	JMP	FCERR
-	PAGE	
+	PAGE
 	SUBTTL  KILL, FILES, NAME commands
 
 	PUBLIC	FILES,KILL,NAME
@@ -1039,7 +1039,7 @@ KILL2:	POP	DX		;DX points to FCB
 	POP	DX		;DX points to FCB
 	CALLOS	C_DELE		;Delete file
 	POP	BX		;text pointer
-	RET	
+	RET
 
 ;NAME oldname AS newname
 ; Entry - [BX] = text pointer
@@ -1091,7 +1091,7 @@ SAMDRV:
 	INC	AL		;error if attempted to create file which
 	JE	NA_FAE		; already existed
 	POP	BX		;text pointer
-	RET	
+	RET
 
 NA_FNF:	JMP	DERFNF		;file not found
 NA_FAE:	JMP	DERFAE		;file already exists
@@ -1112,7 +1112,7 @@ NAMFIL:
 	JCXZ	ER_NMF		;If null then bad name
 	MOV	SI,WORD PTR 1[BX]	;[SI] = Filename string
 	POP	BX
-	RET	
+	RET
 
 ER_NMF:	JMP	DERNMF		;"Bad file name"
 
@@ -1167,7 +1167,7 @@ TRMSTR:	MOV	BYTE PTR 0[DI],LOW 0	;store string terminator
 	JNE	FLFCBX		;branch if non-empty filename
 	DEC	AL		;[AL] = FF (illegal filename)
 FLFCBX:
-	RET	
+	RET
 
 	SUBTTL  RESET and SYSTEM statements
 ;
@@ -1188,7 +1188,7 @@ RESET:
 	CALLOS	C_SDRV		;Set drive number
 	POP	BX		;text pointer
 RESETX:
-	RET	
+	RET
 
 
 ; SYSTEM - Exit BASIC
@@ -1216,4 +1216,3 @@ dumy  ENDP
 
 CSEG	ENDS
 	END
-                                                                                       

@@ -2,10 +2,10 @@
 
 	.RADIX  8		; To be safe
 
-CSEG	SEGMENT PUBLIC 'CODESG' 
+CSEG	SEGMENT PUBLIC 'CODESG'
 	ASSUME  CS:CSEG
 
-INCLUDE	IBMRES.H 
+INCLUDE	IBMRES.INC
 
 	SUBTTL  Equates and External Declarations
 	TITLE   IBMRES - IBM compatible reserved words / MLC
@@ -591,7 +591,7 @@ STMDSX:
 ;*************************************************************************
 
 
-	PAGE	
+	PAGE
 ;The following are 2 byte tokens, the 1st byte is FD
 
 	QQ=128D
@@ -607,7 +607,7 @@ FUNDSX:
 	R2	KPOS,KPOSFN
 	R2	KLEN,KLENFN
 
-	PAGE	
+	PAGE
 PUBLIC	ALPTAX
 ALPTAX:
 	ADR	ATABX
@@ -637,7 +637,7 @@ ALPTAX:
 	ADR	YTABX
 	ADR	ZTABX
 
-	PAGE	
+	PAGE
 RESLSX:
 
 ATABX:
@@ -807,7 +807,7 @@ LOPSK2:
 
 	SUBTTL  LIST code for extended reserved words
 
-BUFRET:	RET	
+BUFRET:	RET
 
 NEWFUN:	MOV	AL,BYTE PTR [BX]	;GET FUNCTION NUMBER
 	AND	AL,LOW 177O	;TAKE OFF HIGH BIT
@@ -943,7 +943,7 @@ EVALX:	CMP	AL,LOW 376O
 	JZ	SHORT EVALNS	;Brif possible stmt as function
 	CMP	AL,LOW 375O
 	JZ	SHORT EVALNF	;NEW FUNCTION IF 375 IN FRONT
-	RET	
+	RET
 
 EVALNS:	INC	BX
 	MOV	AL,BYTE PTR [BX]
@@ -953,7 +953,7 @@ EVALNS:	INC	BX
 	JZ	SHORT TIMEV	;Brif TIME$
 	DEC	BX
 	MOV	AL,BYTE PTR [BX]
-	RET	
+	RET
 
 DATEV:	POP	CX		;Get rid of the hook return address.
 	JMP	DATEF		;Do DATE function.
@@ -981,9 +981,8 @@ EVALNF:	POP	CX		;Get rid of the return address.
 	INS86	213,363		;MOV SI,BX (GET FUNCTION OFFSET IN SI)
 	INS86	56
 	INS86	377,264,FUNDSX
-	RET	
+	RET
 
 
 CSEG	ENDS
 	END
-                                          
