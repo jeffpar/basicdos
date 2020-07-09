@@ -11,6 +11,7 @@
 
 DOS	segment word public 'CODE'
 
+	EXTERNS	<scb_locked>,byte
 	EXTERNS	<mcb_limit,scb_active,psp_active>,word
 	EXTERNS	<sfh_addref,pfh_close>,near
 	EXTERNS	<free,get_scbnum,dos_exit,dos_ctrlc,dos_error>,near
@@ -32,6 +33,11 @@ DEFPROC	psp_term,DOS
 	sub	ax,ax			; default exit code/exit type
 	DEFLBL	psp_term_exitcode,near
 	push	ax			; save it on the stack
+;
+; Process termination while SCBs are locked will generally be unrecoverable
+;
+	ASSERT	Z,<cmp [scb_locked],-1>
+
 	mov	es,[psp_active]
 	ASSUME	ES:NOTHING
 ;
@@ -59,7 +65,7 @@ pt1:	call	pfh_close		; close process file handle
 	mov	ax,es:[PSP_ERROR].SEG
 	mov	[bx].SCB_ERROR.SEG,ax
 
-	mov	ax,es:[PSP_DTAPREV].OFF	; restore the current process' DTA
+	mov	ax,es:[PSP_DTAPREV].OFF	; restore the previous DTA
 	mov	[bx].SCB_DTA.OFF,ax	; ("REAL DOS" probably requires every
 	mov	ax,es:[PSP_DTAPREV].SEG	;  process to restore this itself after
 	mov	[bx].SCB_DTA.SEG,ax	;  an exec)
@@ -68,9 +74,8 @@ pt1:	call	pfh_close		; close process file handle
 	mov	ax,es
 	call	free			; free PSP in AX
 	pop	ax			; restore PSP of parent
-	test	ax,ax
-	ASSERT	NZ			; if there's no parent
-	jz	pt9			; we don't have a stack to switch to
+	test	ax,ax			; if there's no parent
+	jz	pt9			; then there's no stack to switch to
 	mov	es,ax			; ES = PSP of parent
 	pop	dx
 	pop	cx			; we now have PSP_EXRET in CX:DX

@@ -228,11 +228,17 @@ ASSERT	macro	cond,op,value
 	IFDIF	<cond>,<NEVER>
 	J&cond	$+4
 	ENDIF
-	int 1
+	int	1		;; use INT 01h to signal an assertion failure
 	IFNB	<op>
 	popf
 	ENDIF
 	ENDIF
+	ENDIF
+	endm
+
+DBGBRK	macro
+	IFDEF DEBUG
+	int	3		;; use INT 03h to signal a debugger breakpoint
 	ENDIF
 	endm
 

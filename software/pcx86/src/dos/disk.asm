@@ -67,10 +67,12 @@ ENDPROC	dsk_flush
 ; Outputs:
 ;	REG_AL = # of (logical) drives
 ;
+; TODO: Add support for logical drives; all we currently support are physical.
+;
 DEFPROC	dsk_setdrv,DOS
 	mov	bx,[scb_active]
 	mov	[bx].SCB_CURDRV,dl
-	mov	al,[bpb_total]		; AL = # drives (TODO: physical only)
+	mov	al,[bpb_total]		; AL = # (physical) drives
 	mov	[bp].REG_AL,al
 	ret
 ENDPROC	dsk_setdrv
@@ -453,8 +455,10 @@ ENDPROC	find_cln
 ;
 DEFPROC	get_bpb,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	cx
 	push	dx
 	mov	al,dl			; AL = drive #
+	mov	cl,al			; save it in CL
 	mov	ah,size BPBEX
 	mul	ah			; AX = BPB offset
 	mov	di,[bpb_table].OFF
@@ -470,13 +474,16 @@ DEFPROC	get_bpb,DOS
 	jc	gb8
 	test	dx,dx			; media unchanged?
 	jg	gb8			; yes
+	mov	al,cl			; AL = drive #
 	mov	ah,DDC_BUILDBPB		; ask the driver to rebuild our BPB
 	call	dev_request
 	jc	gb8
+	mov	al,cl			; AL = drive #
 	call	dsk_flush		; flush any buffers with data from drive
 gb8:	pop	es
 	pop	di
 gb9:	pop	dx
+	pop	cx
 	ret
 ENDPROC	get_bpb
 
@@ -609,7 +616,8 @@ gd1:	mov	al,es:[di].BPB_DRIVE	; AL = drive #
 	mov	bp,dx
 gd2:	mov	dx,bp
 
-gd3:	call	read_buffer		; AL = drive #, DX = LBA
+gd3:	mov	al,es:[di].BPB_DRIVE
+	call	read_buffer		; AL = drive #, DX = LBA
 	jc	gd7a
 
 	mov	ax,es:[di].BPB_SECBYTES
@@ -653,7 +661,6 @@ gd5e:	add	si,size DIRENT
 gd6:	mov	dx,es:[di].BPB_LBAROOT
 
 gd7:	sub	cx,cx			; start at offset zero of next sector
-	mov	al,es:[di].BPB_DRIVE
 	cmp	dx,bp			; back to the 1st LBA again?
 	jne	gd3			; not yet
 

@@ -30,7 +30,7 @@ DOS	segment word public 'CODE'
 ;
 DEFPROC	dos_dverr,DOSFAR
 	PRINTF	<"division error @%08lx",13,10>
-	ASSERT	NEVER			; assert that we never get here
+	DBGBRK
 	mov	ah,EXTYPE_DVERR
 	jmp	dos_abort
 ENDPROC	dos_dverr
@@ -50,7 +50,7 @@ DEFPROC	dos_sstep,DOSFAR
 	inc	[asserts]
 	jnz	ss1
 	PRINTF	<"assert @%08lx",13,10>
-	ASSERT	NEVER			; assert that we never get here
+	DBGBRK
 ss1:	dec	[asserts]
 	ENDIF
 	iret
@@ -76,7 +76,7 @@ ENDPROC	dos_brkpt
 ;
 DEFPROC	dos_oferr,DOSFAR
 	PRINTF	<"overflow error @%08lx",13,10>
-	ASSERT	NEVER			; assert that we never get here
+	DBGBRK
 	mov	ah,EXTYPE_OVERR
 	jmp	dos_abort
 ENDPROC	dos_oferr
@@ -104,7 +104,7 @@ ENDPROC	dos_term
 ; exit code -1
 ;
 ; Inputs:
-;	Carry determines whether we exit the process or restart the DOS function
+;	Carry determines whether we exit the process or restart the DOS call
 ;
 ; Outputs:
 ;	None

@@ -119,13 +119,16 @@ m6:	lodsb
 	jc	m8
 	mov	ah,DOS_PSP_RETCODE
 	int	21h
-	PRINTF	<13,10,"return code: %d",13,10>,ax
+	mov	dl,ah
+	mov	ah,0
+	mov	dh,0
+	PRINTF	<13,10,"return code: %d (%d)",13,10>,ax,dx
 	jmp	m1
 m8:	PRINTF	<"error loading %s: %d",13,10>,dx,ax
 	jmp	m1
 
 m9:	lea	di,[bx].TOKENS
-	mov	cx,DIR_DEF_LEN
+	mov	cx,DIR_DEF_LEN - 1
 	mov	si,offset DIR_DEF
 	GETTOKEN 2		; DS:SI -> token #2, CX = length
 	lea	di,[bx].FILENAME
@@ -141,6 +144,21 @@ m9:	lea	di,[bx].TOKENS
 	jmp	m1
 ENDPROC	main
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ctrlc
+;
+; CTRLC handler; resets the program stack and jumps to the start address
+;
+; Inputs:
+;	DS:SI -> user-defined token
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
 DEFPROC	ctrlc,FAR
 	lea	bx,[DGROUP:heap]
 	cli
@@ -150,13 +168,54 @@ DEFPROC	ctrlc,FAR
 	jmp	m1
 ENDPROC	ctrlc
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmdDate
+;
+; TBD
+;
+; Inputs:
+;	DS:SI -> user-defined token
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
 DEFPROC	cmdDate
 	ret
 ENDPROC	cmdDate
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmdDir
+;
+; Print a directory listing for the specified filespec
+;
+; Inputs:
+;	DS:SI -> filespec (with length CX)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
 DEFPROC	cmdDir
-	sub	cx,cx		; CX = attributes
 	mov	dx,si		; DS:DX -> filespec
+;
+; If filespec ends with ":", then append DIR_DEF ("*.*")
+;
+	mov	di,si
+	add	di,cx
+	cmp	byte ptr [di-1],':'
+	jne	dir0
+	mov	cx,DIR_DEF_LEN
+	mov	si,offset DIR_DEF
+	rep	movsb
+
+dir0:	sub	cx,cx		; CX = attributes
 	mov	ah,DOS_DSK_FFIRST
 	int	21h
 	jnc	dir1
@@ -188,16 +247,25 @@ dir3:	mov	dx,ds:[PSP_DTA].FFB_DATE
 	int	21h
 	jc	dir9
 	jmp	dir1
+
 dir9:	ret
 ENDPROC	cmdDir
 
-DEFPROC	cmdLoop
-	push	si
-	call	cmdDir
-	pop	si
-	jmp	cmdLoop
-ENDPROC	cmdLoop
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmdExit
+;
+; Exits (if we have a parent)
+;
+; Inputs:
+;	DS:SI -> filespec (with length CX)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
 DEFPROC	cmdExit
 	mov	ax,ds:[PSP_PARENT]
 	test	ax,ax		; do we have a parent?
@@ -207,6 +275,45 @@ DEFPROC	cmdExit
 ex9:	ret
 ENDPROC	cmdExit
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmdLoop
+;
+; Calls cmdDir in a loop (for "stress testing" purposes only)
+;
+; Inputs:
+;	DS:SI -> filespec (with length CX)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cmdLoop
+	push	cx
+	push	si
+	call	cmdDir
+	pop	si
+	pop	cx
+	jmp	cmdLoop
+ENDPROC	cmdLoop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmdMem
+;
+; Prints memory usage
+;
+; Inputs:
+;	DS:SI -> user-defined token (not used)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
 DEFPROC	cmdMem
 ;
 ; Before we get into memory blocks, let's dump the driver list.
@@ -280,6 +387,21 @@ mem9:	xchg	ax,bp		; AX = free memory (paras)
 	ret
 ENDPROC	cmdMem
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmdPrint
+;
+; Prints the specified value, in both decimal and hex (for test purposes only)
+;
+; Inputs:
+;	DS:SI -> user-defined token
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
 DEFPROC	cmdPrint
 	mov	bl,10		; default to base 10
 	mov	cx,si		; check for "0x" prefix (upper-cased)
@@ -297,10 +419,40 @@ pr8:	PRINTF	<"invalid number: %s",13,10>,cx
 pr9:	ret
 ENDPROC	cmdPrint
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmdTime
+;
+; TBD
+;
+; Inputs:
+;	DS:SI -> user-defined token
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
 DEFPROC	cmdTime
 	ret
 ENDPROC	cmdTime
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmdType
+;
+; Reads the specified file and writes it to STDOUT
+;
+; Inputs:
+;	DS:SI -> user-defined token
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
 DEFPROC	cmdType
 	mov	dx,si		; DS:DX -> filename
 	mov	ax,DOS_HDL_OPEN SHL 8
@@ -330,13 +482,21 @@ ENDPROC	cmdType
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; calcKB
+; printKB
 ;
-; AX = memory block size in paragraphs; AX/64 (or AX >> 6) is the size
-; in Kb, but that's a bit too granular, so we include tenths of Kb as well.
-; Using the paragraph remainder (R), we calculate tenths (N) like so:
+; Calculates AX/64 (or AX >> 6) as the size in Kb; however, that's a bit too
+; granular, so we include tenths of Kb as well.  Using the paragraph remainder
+; (R), we calculate tenths (N) like so:
 ;
 ;	R/64 = N/10, or N = (R*10)/64
+;
+; Inputs:
+;	AX = size in paragraphs
+;	BX = segment of memory block
+;	DI:SI -> "owner" name for memory block
+;
+; Outputs:
+;	None
 ;
 DEFPROC	printKB
 	push	ax
@@ -361,7 +521,7 @@ ENDPROC	printKB
 
 	DEFSTR	COM_EXT,<".COM",0>
 	DEFSTR	EXE_EXT,<".EXE",0>
-	DEFSTR	DIR_DEF,<"*.*">
+	DEFSTR	DIR_DEF,<"*.*",0>
 	DEFSTR	PERIOD,<".",0>
 	DEFSTR	RES_MEM,<"RESERVED",0>
 	DEFSTR	SYS_MEM,<"SYSTEM",0>
