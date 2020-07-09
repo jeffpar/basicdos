@@ -177,13 +177,20 @@ si4a:	mov	ax,ds
 	mov	bx,offset bpb_table
 	call	init_table		; initialize table, update ES
 	mov	si,[bpb_off]		; get the BPB the boot sector used
-
+;
+; Note that when we copy the "boot" BPB into the table of system BPBs, we
+; don't assume that it came from drive 0 (that will always be true on the IBM
+; PC, but on, um, future machines, perhaps not).
+;
 	push	es
 	mov	es,[dos_seg]
 	ASSUME	ES:DOS
-	mov	es:[bpb_total],al
-	mov	al,[si].BPB_DRIVE	; and copy to the appropriate BPB slot
-	mov	ah,size BPBEX
+	mov	es:[bpb_total],al	; record # BPBs
+	push	ax			; save # BPBs on stack
+	push	[FDC_DEVICE].SEG	; save FDC pointer on stack
+	push	[FDC_DEVICE].OFF
+	mov	al,[si].BPB_DRIVE	; use the BPB's own BPB_DRIVE #
+	mov	ah,size BPBEX		; to determine the system BPB to update
 	mul	ah
 	mov	di,es:[bpb_table].OFF
 	add	di,ax
@@ -193,40 +200,56 @@ si4a:	mov	ax,ds
 	push	di
 	rep	movsw
 	pop	di
+	push	es
+	pop	ds
+	ASSUME	DS:DOS
 	mov	ah,TIME_GETTICKS
 	int	INT_TIME		; CX:DX is current tick count
-	mov	es:[di].BPB_TIMESTAMP.OFF,dx
-	mov	es:[di].BPB_TIMESTAMP.SEG,cx
+	mov	[di].BPB_TIMESTAMP.OFF,dx
+	mov	[di].BPB_TIMESTAMP.SEG,cx
 ;
-; Initialize all the BPBEX fields, like BPB_DEVICE and BPB_UNIT, as well as
-; pre-calculated values like BPB_CLOSLOG2 and BPB_CLUSBYTES.
+; Calculate BPBEX values like BPB_CLOSLOG2 and BPB_CLUSBYTES for the "boot"
+; BPB, and then initialize other BPBEX values (eg, BPB_DEVICE and BPB_UNIT)
+; for all BPBs.
 ;
-; TODO: Move this BPB initialization code into a DOS function that we can call
-; later, because even though we've allocated BPBs for all the FDC units, the
-; only *real* BPB among them currently is the one we booted with.
+; TODO: It would be nicer to leverage the FDC's buildbpb function to do some
+; of this work, but that would have to be preceded by a call to the mediachk
+; function to avoid hitting the disk(s) unnecessarily, and all of that would
+; require access to the dev_request interface, which is awkward at the moment.
+; So we'll live with a bit of redundant code here.
 ;
-	mov	ax,[FDC_DEVICE].OFF
-	mov	dx,[FDC_DEVICE].SEG
-	mov	es:[di].BPB_DEVICE.OFF,ax
-	mov	es:[di].BPB_DEVICE.SEG,dx
-	mov	al,es:[di].BPB_DRIVE
-	mov	es:[di].BPB_UNIT,al
 	sub	cx,cx
-	mov	al,es:[di].BPB_CLUSSECS	; calculate LOG2 of CLUSSECS in CX
+	mov	al,[di].BPB_CLUSSECS	; calculate LOG2 of CLUSSECS in CX
 	test	al,al
-	jnz	si4d			; make sure CLUSSECS is non-zero
+	jnz	si4b			; make sure CLUSSECS is non-zero
 
 sierr1:	jmp	sysinit_error
 
-si4d:	shr	al,1
-	jc	si4e
+si4b:	shr	al,1
+	jc	si4c
 	inc	cx
-	jmp	si4d
-si4e:	jnz	sierr1			; hmm, CLUSSECS wasn't a power-of-two
-	mov	es:[di].BPB_CLUSLOG2,cl
-	mov	ax,es:[di].BPB_SECBYTES	; use that to also calculate CLUSBYTES
+	jmp	si4b
+si4c:	jnz	sierr1			; hmm, CLUSSECS wasn't a power-of-two
+	mov	[di].BPB_CLUSLOG2,cl
+	mov	ax,[di].BPB_SECBYTES	; use that to also calculate CLUSBYTES
 	shl	ax,cl
-	mov	es:[di].BPB_CLUSBYTES,ax
+	mov	[di].BPB_CLUSBYTES,ax
+
+	pop	ax			; restore FDC pointer in DX:AX
+	pop	dx
+	pop	cx			; restore # BPBs in CL
+	mov	di,[bpb_table].OFF	; DI -> first BPB
+si4d:	mov	[di].BPB_DEVICE.OFF,ax
+	mov	[di].BPB_DEVICE.SEG,dx
+	cmp	[di].BPB_SECBYTES,0	; is this BPB initialized?
+	jne	si4e			; yes
+	mov	[di].BPB_DRIVE,ch	; no, fill in the drive #
+	mov	[di].BPB_UNIT,ch	; TODO: Decide if this is useful at all
+si4e:	add	di,size BPBEX
+	inc	ch
+	dec	cl
+	jnz	si4d
+
 	pop	es
 	ASSUME	ES:NOTHING
 	push	cs
@@ -510,7 +533,7 @@ ENDPROC	sysinit
 ;
 ; Search for length-prefixed string at SI in CFG_FILE.
 ;
-; Returns:
+; Outputs:
 ;	Carry clear on success (DI -> 1st character after match)
 ;	Carry set on failure (AX = minimum value from SI)
 ;
@@ -558,10 +581,13 @@ ENDPROC	find_cfg
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; Initialize table with AX entries of length DX at ES:0, store DS-relative
-; table offset at [BX], table limit at [BX+2], and finally, adjust ES.
+; init_table
 ;
-; Returns: Nothing
+; Initializes table with AX entries of length DX at ES:0, stores DS-relative
+; table offset at [BX], table limit at [BX+2], and finally, adjusts ES.
+;
+; Outputs:
+;	Nothing
 ;
 ; Modifies: CX, DX, DI
 ;

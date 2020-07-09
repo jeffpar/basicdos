@@ -179,11 +179,16 @@ DEFPROC	sfb_open,DOS
 	sub	ax,ax			; AH = 0 (filename), AL = attributes
 	call	chk_filename		; is it a disk filename?
 	jnc	so1a			; yes
-so9a:	jmp	so9			; no
+so9a:	mov	ax,ERR_NOFILE
+	jmp	so9			; no
 
 so1:	mov	ax,DDC_OPEN SHL 8	; ES:DI -> driver
 	sub	dx,dx			; no initial context
 	call	dev_request		; issue the DDC_OPEN request
+;
+; TODO: Decide what to do with device error codes; we're currently
+; overwriting them with DOS error codes.
+;
 	jc	so9a			; failed
 	mov	al,-1			; no drive # for devices
 

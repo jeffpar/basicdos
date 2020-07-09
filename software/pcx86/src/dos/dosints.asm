@@ -18,20 +18,21 @@ DOS	segment word public 'CODE'
 	EXTERNS	<msc_sigctrlc_read>,near
 
 	IFDEF DEBUG
-	DEFBYTE	asserts,-1	; prevent nested asserts from blowing the stack
+	DEFBYTE	asserts,-1		; prevent nested asserts
 	ENDIF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; dos_dverr (INT 00h)
 ;
-; If a "divide exception" occurs, we catch it here and (eventually) do
-; something reasonable with it.
+; If a "divide exception" occurs, this default handler reports it and
+; then aborts the current program.
 ;
 DEFPROC	dos_dverr,DOSFAR
 	PRINTF	<"division error @%08lx",13,10>
-	int 3
-	iret
+	DBGBRK
+	mov	ah,EXTYPE_DVERR
+	jmp	dos_abort
 ENDPROC	dos_dverr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -41,7 +42,7 @@ ENDPROC	dos_dverr
 ; If an INT 01h instruction is executed, we treat it as an assertion failure.
 ;
 ; We make no effort to distinguish this from the FL_TRAP bit set in flags,
-; since that would presumably be done by a debugger, which would have replaced
+; since that would presumably be done by a debugger, which should have replaced
 ; the INT 01h vector with its own handler.
 ;
 DEFPROC	dos_sstep,DOSFAR
@@ -49,8 +50,8 @@ DEFPROC	dos_sstep,DOSFAR
 	inc	[asserts]
 	jnz	ss1
 	PRINTF	<"assert @%08lx",13,10>
+	DBGBRK
 ss1:	dec	[asserts]
-	int 3
 	ENDIF
 	iret
 ENDPROC	dos_sstep
@@ -70,40 +71,53 @@ ENDPROC	dos_brkpt
 ;
 ; dos_oferr (INT 04h)
 ;
-; If an "overflow exception" occurs, we catch it here and (eventually) do
-; something reasonable with it.
+; If an "overflow exception" occurs, this default handler reports it and
+; then aborts the current program.
 ;
 DEFPROC	dos_oferr,DOSFAR
 	PRINTF	<"overflow error @%08lx",13,10>
-	int 3
-	iret
+	DBGBRK
+	mov	ah,EXTYPE_OVERR
+	jmp	dos_abort
 ENDPROC	dos_oferr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; dos_term (INT 20h)
 ;
+; NOTE: This interrupt, as well as INT 21h AH=00h, both apparently require
+; the call to be made from the segment containing the PSP (CS == PSP).  Also,
+; the underlying function call here (DOS_PSP_TERM) sets a default exit code
+; of zero, unlike DOS_PSP_EXIT, which allows any exit code to be returned.
+;
 DEFPROC	dos_term,DOSFAR
 	mov	ah,DOS_PSP_TERM
 	int	21h
-	ASSERT	NC,<stc>		; assert that we never get here
+	ASSERT	NEVER			; assert that we never get here
 ENDPROC	dos_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; dos_restart
 ;
+; Default CTRLC response handler; if carry is set, call DOS_PSP_EXIT with
+; exit code -1
+;
 ; Inputs:
-;	Carry determines whether we terminate or restart the DOS function
+;	Carry determines whether we exit the process or restart the DOS call
 ;
 ; Outputs:
 ;	None
 ;
 DEFPROC	dos_restart,DOSFAR
-	jc	dos_term
-;
-; Otherwise, fall (back) into dos_func
-;
+	jnc	dos_func
+	mov	ah,EXTYPE_CTRLC
+	DEFLBL	dos_abort,near
+	mov	al,0FFh			; AL = arbitrary exit code
+	xchg	dx,ax			; DL = exit code, DH = exit type
+	mov	ax,DOS_UTL_ABORT
+	int	21h
+	ASSERT	NEVER			; assert that we never get here
 ENDPROC dos_restart
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -217,6 +231,7 @@ ENDPROC	dos_func
 ; dos_exret (INT 22h handler)
 ;
 DEFPROC	dos_exret,DOSFAR
+	ASSERT	NEVER			; assert that we never get here
 	jmp	$
 ENDPROC	dos_exret
 
@@ -229,7 +244,7 @@ DEFPROC	dos_ctrlc,DOSFAR
 	mov	ah,DOS_DSK_RESET
 	int	21h
 	pop	ax
-	stc			; set carry to indicate program termination
+	stc				; set carry to indicate termination
 	ret
 ENDPROC	dos_ctrlc
 
@@ -240,7 +255,7 @@ ENDPROC	dos_ctrlc
 ; TODO
 ;
 DEFPROC	dos_error,DOSFAR
-	int 3
+	ASSERT	NEVER			; assert that we never get here
 	iret
 ENDPROC	dos_error
 
@@ -366,7 +381,7 @@ ENDPROC	dos_ddint_leave
 DEFPROC	func_none,DOS
 	mov	al,ah
 	mov	ah,0
-	PRINTF	<"unsupported DOS function %02xh request @%08lx",13,10>,ax,[bp].REG_IP,[bp].REG_CS
+	PRINTF	<"unsupported DOS function %02xh",13,10,"called @%08lx",13,10>,ax,[bp].REG_IP,[bp].REG_CS
 	mov	[bp].REG_AX,ERR_INVALID
 	stc
 	ret

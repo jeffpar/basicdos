@@ -81,8 +81,8 @@ DOS_UTL_UNLOCK	equ   1814h	; unlock current SCB
 DOS_UTL_QRYMEM	equ   1815h	; query memory block N (CL)
 DOS_UTL_QRYHDL	equ   1816h	; query system file handle N (CL)
 DOS_UTL_STRSTR	equ   1817h	; find string (DS:SI) in string (ES:DI)
+DOS_UTL_ABORT	equ   1818h	; abort with exit code (DL) and exit type (DH)
 DOS_UTL_STDLEN	equ   1824h	; like STRLEN but w/24h (dollar) as terminator
-DOS_UTL_STPLEN	equ   182Eh	; like STRLEN but w/2Eh (period) as terminator
 
 DOS_DSK_GETDRV	equ	19h	; get current drive (AL)
 DOS_DSK_SETDTA	equ	1Ah	; set DTA (DS:DX)
@@ -103,6 +103,7 @@ DOS_MEM_REALLOC	equ	4Ah	; reallocate memory
 
 DOS_PSP_EXEC	equ   4B00h	; load program (DS:DX) with EPB (ES:BX)
 DOS_PSP_EXIT	equ	4Ch	; exit program with return code (AL)
+DOS_PSP_RETCODE	equ	4Dh	; return exit code (AL) and exit type (AH)
 
 DOS_DSK_FFIRST	equ	4Eh	; find first filespec (DS:DX) with attr (CX)
 DOS_DSK_FNEXT	equ	4Fh	; find next filespec (DTA)
@@ -292,7 +293,7 @@ STDEXE		equ	5
 PSP		struc
 PSP_ABORT	dw	?	; 00h: INT 20h
 PSP_PARAS	dw	?	; 02h: paragraphs available
-PSP_SCB		db	?	; 04h: SCB # (normally unused in "real" DOS)
+PSP_SCB		db	?	; 04h: BASIC-DOS: SCB #
 PSP_FARCALL	db	?	; 05h: far call (9Ah)
 PSP_SIZE	dw	?	; 06h: size of PSP segment
 PSP_FCSEG	dw	?	; 08h: far call segment
@@ -308,7 +309,9 @@ PSP_HDLPTR	dd	?	; 34h: initially 0FFFF:0018h
 PSP_SHAREPSP	dd	?	; 38h
 PSP_DTAPREV	dd	?	; 3Ch: BASIC-DOS: prev DTA (restored on return)
 PSP_START	dd	?	; 40h: BASIC-DOS: initial program address
-PSP_RESERVED1	db     12 dup(?); 44h
+PSP_RESERVED1	db     10 dup(?); 44h
+PSP_EXCODE	db	?	; 4Eh: BASIC-DOS: exit code, if any
+PSP_EXTYPE	db	?	; 4Fh: BASIC-DOS: exit type (see EXTYPE_*)
 PSP_DISPATCH	db	3 dup(?); 50h: INT 21h/RETF
 PSP_RESERVED2	db	9 dup(?); 53h
 PSP_FCB1	db     16 dup(?); 5Ch
@@ -337,6 +340,16 @@ EPB_CMDTAIL	dd	?	; 02h: pointer to well-formed command tail
 EPB_FCB1	dd	?	; 06h: pointer to FCB for PSP_FCB1
 EPB_FCB2	dd	?	; 0Ah: pointer to FCB for PSP_FCB2
 EPB		ends
+
+;
+; Exit types (returned with exit code on DOS_PSP_RETCODE calls)
+;
+EXTYPE_NORMAL	equ	0	; normal termination
+EXTYPE_CTRLC	equ	1	; CTRLC termination
+EXTYPE_ERROR	equ	2	; critical error termination
+EXTYPE_KEEP	equ	3	; INT 21h AH=31h (keep process)
+EXTYPE_DVERR	equ	4	; BASIC-DOS: divide error
+EXTYPE_OVERR	equ	5	; BASIC-DOS: overflow error
 
 ;
 ; EXE File Header

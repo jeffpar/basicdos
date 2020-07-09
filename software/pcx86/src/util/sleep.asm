@@ -28,6 +28,15 @@ DEFPROC	main
 	mov	di,-1		; no ATOI validation
 	mov	ax,DOS_UTL_ATOI
 	int	21h		; DX:AX = value (# of seconds)
+;
+; Perform an unnecessary division, so we can verify that division error
+; processing works (eg, by running "sleep 0").
+;
+	; push	ax
+	; push	dx
+	; div	ax
+	; pop	dx
+	; pop	ax
 
 s1:	push	ax
 	PRINTF	<"sleeping %d seconds...">,ax

@@ -11,6 +11,7 @@
 
 DOS	segment word public 'CODE'
 
+	EXTERNS	<scb_locked>,byte
 	EXTERNS	<mcb_limit,scb_active,psp_active>,word
 	EXTERNS	<sfh_addref,pfh_close>,near
 	EXTERNS	<free,get_scbnum,dos_exit,dos_ctrlc,dos_error>,near
@@ -29,6 +30,14 @@ DOS	segment word public 'CODE'
 ;	None
 ;
 DEFPROC	psp_term,DOS
+	sub	ax,ax			; default exit code/exit type
+	DEFLBL	psp_term_exitcode,near
+	push	ax			; save it on the stack
+;
+; Process termination while SCBs are locked will generally be unrecoverable
+;
+	ASSERT	Z,<cmp [scb_locked],-1>
+
 	mov	es,[psp_active]
 	ASSUME	ES:NOTHING
 ;
@@ -56,7 +65,7 @@ pt1:	call	pfh_close		; close process file handle
 	mov	ax,es:[PSP_ERROR].SEG
 	mov	[bx].SCB_ERROR.SEG,ax
 
-	mov	ax,es:[PSP_DTAPREV].OFF	; restore the current process' DTA
+	mov	ax,es:[PSP_DTAPREV].OFF	; restore the previous DTA
 	mov	[bx].SCB_DTA.OFF,ax	; ("REAL DOS" probably requires every
 	mov	ax,es:[PSP_DTAPREV].SEG	;  process to restore this itself after
 	mov	[bx].SCB_DTA.SEG,ax	;  an exec)
@@ -65,12 +74,13 @@ pt1:	call	pfh_close		; close process file handle
 	mov	ax,es
 	call	free			; free PSP in AX
 	pop	ax			; restore PSP of parent
-	test	ax,ax
-	ASSERT	NZ			; if there's no parent
-	jz	pt9			; we don't have a stack to switch to
+	test	ax,ax			; if there's no parent
+	jz	pt9			; then there's no stack to switch to
 	mov	es,ax			; ES = PSP of parent
-	pop	ax
-	pop	dx			; we now have PSP_EXRET in DX:AX
+	pop	dx
+	pop	cx			; we now have PSP_EXRET in CX:DX
+	pop	ax			; AX = exit code (saved on entry above)
+	mov	word ptr es:[PSP_EXCODE],ax
 	mov	[psp_active],es
 	cli
 	mov	ss,es:[PSP_STACK].SEG
@@ -79,10 +89,12 @@ pt1:	call	pfh_close		; close process file handle
 	IF REG_CHECK
 	add	bp,2
 	ENDIF
-	mov	[bp].REG_CS,dx		; copy PSP_EXRET to caller's CS:IP
-	mov	[bp].REG_IP,ax		; (normally they will be identical)
+	mov	[bp].REG_CS,cx		; copy PSP_EXRET to caller's CS:IP
+	mov	[bp].REG_IP,dx		; (normally they will be identical)
 	jmp	dos_exit		; we'll let dos_exit turn interrupts on
-pt9:	ret
+pt9:	add	sp,6
+	ASSERT	NEVER			; it's not good to be here....
+	ret
 ENDPROC	psp_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -90,10 +102,10 @@ ENDPROC	psp_term
 ; psp_create (REG_AH = 26h)
 ;
 ; Apparently, this is more of a "copy" function than a "create" function,
-; especially starting with DOS 2.0, which apparently assumed that the PSP to
-; copy is at the caller's CS:0 (although the INT 22h/23h/24h addresses may
-; still be copied from the IVT instead).  As a result, any PSP "created" with
-; this function automatically inherits all of the caller's open files.
+; especially starting with DOS 2.0, which copies the PSP from the caller's
+; CS:0 (although the INT 22h/23h/24h addresses may still be copied from the
+; IVT).  As a result, any PSP "created" with this function automatically
+; "inherits" all of the caller's open files.
 ;
 ; Well, the first time we call it (from sysinit), there are no existing PSPs,
 ; so there's nothing to copy.  And if we want to create a PSP with accurate
@@ -105,8 +117,8 @@ ENDPROC	psp_term
 ; marks all "uninheritable" files as closed in the new PSP, and as of DOS 3.0,
 ; it uses SI to specify a memory size.
 ;
-; We can mimic the "copy" behavior later, if need be, perhaps by relying on
-; whether psp_active is set.
+; TODO: Mimic the "copy" behavior when we're not being called by sysinit (ie,
+; whenever psp_active is valid).
 ;
 ; Inputs:
 ;	REG_DX = segment of new PSP
@@ -284,8 +296,32 @@ ENDPROC	psp_exec
 ;	None
 ;
 DEFPROC	psp_exit,DOS
-	jmp	psp_term
+	mov	ah,EXTYPE_NORMAL
+	jmp	psp_term_exitcode
 ENDPROC	psp_exit
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; psp_retcode (REG_AH = 4Dh)
+;
+; Returns the exit code (AL) and exit type (AH) from the child process.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	REG_AL = exit code
+;	REG_AH = exit type (see EXTYPE_*)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	psp_retcode,DOS
+	mov	ds,[psp_active]
+	mov	ax,word ptr ds:[PSP_EXCODE]
+	mov	[bp].REG_AX,ax
+	ret
+ENDPROC	psp_retcode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -487,6 +523,7 @@ lp6a:	cmp	ax,size EXEHDR
 ;
 	mov	dx,es
 	add	dx,si
+	add	dx,10h
 	sub	dx,[di].EXE_PARASHDR
 
 	push	si			; save allocated paras
@@ -554,15 +591,21 @@ lp6f:	mov	bx,es:[di].OFF		; BX = offset
 ; DX - (AX - 10h) is the base # of paragraphs required for the EXE.  Add the
 ; minimum specified in the EXEHDR.
 ;
+; TODO: Decide what to do about the maximum.  The default setting seems to be
+; "give me all the memory" (eg, FFFFh), which we do not want to do.
+;
 lp6g:	push	es:[EXE_START_SEG]
 	push	es:[EXE_START_OFF]
 	push	es:[EXE_STACK_SEG]
 	push	es:[EXE_STACK_OFF]
-	mov	cx,es:[EXE_PARASMIN]
+	mov	si,es:[EXE_PARASMIN]
+	IFDEF DEBUG
+	mov	di,es:[EXE_PARASMAX]
+	ENDIF
 	sub	ax,10h
 	mov	es,ax			; ES = PSP segment
 	sub	dx,ax			; DX = base # paras
-	add	dx,cx			; DX = base + minimum
+	add	dx,si			; DX = base + minimum
 	mov	bx,dx			; BX = realloc size (in paras)
 	add	ax,10h
 	mov	ds,[psp_active]
@@ -572,6 +615,9 @@ lp6g:	push	es:[EXE_START_SEG]
 	pop	ds:[PSP_START].OFF
 	pop	ds:[PSP_START].SEG
 	add	ds:[PSP_START].SEG,ax
+	IFDEF DEBUG
+	PRINTF	<"min,max paragraphs: %#06x,%#06x",13,10>,si,di
+	ENDIF
 	jmp	short lp8		; realloc the PSP segment
 ;
 ; Load the COM file.  All we have to do is finish reading it.

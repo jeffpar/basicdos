@@ -127,19 +127,33 @@ DEFPROC	ddfdc_buildbpb
 	push	es
 	lds	si,es:[di].DDPRW_BPB	; DS:SI -> BPB
 	ASSUME	DS:NOTHING
+;
+; If this is an uninitialized BPB, then it won't have the necessary
+; geometry info that get_chs requires; that's what we deserve when we use
+; a single parameter block to describe everything from volume geometry
+; to media geometry to drive geometry.
+;
+; For now, we resolve this by providing some hard-coded drive geometry,
+; which should be good enough for reading the first sector.
+;
+	mov	[si].BPB_CYLSECS,8
+	mov	[si].BPB_TRACKSECS,8
+
 	sub	dx,dx			; DX = LBA (0)
 	mov	al,[si].BPB_DRIVE
 	mov	bx,(FDC_READ SHL 8) OR 1
 	les	bp,[ddbuf_ptr]		; ES:BP -> our own buffer
 	call	readwrite_sectors
-	jc	bb8
+	jnc	bb1
+	jmp	bb8
 ;
 ; Copy the BPB from the boot sector in our buffer to the BPB provided.
 ;
-	push	ds
+bb1:	push	ds
 	pop	es
 	mov	di,si
 	push	di
+	mov	bl,[si].BPB_DRIVE	; BL = drive #
 	lds	si,[ddbuf_ptr]		; DS:SI -> our own buffer
 	add	si,BPB_OFFSET
 	mov	cx,size BPB SHR 1
@@ -152,13 +166,35 @@ DEFPROC	ddfdc_buildbpb
 	stosw				; update BPB_TIMESTAMP.SEG
 	sub	ax,ax
 	stosw				; update BPB_DEVICE.OFF
-	mov	[ddbuf_lba],ax
+	mov	[ddbuf_lba],ax		; (zero ddbuf_lba while AX is zero)
 	mov	ax,cs
 	stosw				; update BPB_DEVICE.SEG
 	pop	di
-	mov	al,es:[di].BPB_DRIVE
-	mov	es:[di].BPB_UNIT,al
-	mov	[ddbuf_drv],al
+	mov	[ddbuf_drv],bl
+;
+; Initialize the rest of the BPB extension data now
+;
+	mov	es:[di].BPB_DRIVE,bl
+	mov	es:[di].BPB_UNIT,bl
+	mov	ax,es:[di].BPB_TRACKSECS
+	mul	es:[di].BPB_DRIVEHEADS
+	mov	es:[di].BPB_CYLSECS,ax
+	mov	ax,es:[di].BPB_FATSECS
+	mov	dl,es:[di].BPB_FATS
+	mov	dh,0
+	mul	dx
+	add	ax,es:[di].BPB_RESSECS
+	mov	es:[di].BPB_LBAROOT,ax
+	mov	ax,es:[di].BPB_DIRENTS
+	mov	dx,size DIRENT
+	mul	dx
+	mov	cx,es:[di].BPB_SECBYTES
+	add	ax,cx
+	dec	ax
+	div	cx
+	add	ax,es:[di].BPB_LBAROOT
+	mov	es:[di].BPB_LBADATA,ax
+
 	sub	cx,cx
 	mov	al,es:[di].BPB_CLUSSECS
 	test	al,al			; calculate LOG2 of CLUSSECS
@@ -173,9 +209,11 @@ bb7:	ASSERT	Z			; assert CLUSSECS was a power-of-two
 	shl	ax,cl			; use CLOSLOG2 to calculate CLUSBYTES
 	mov	es:[di].BPB_CLUSBYTES,ax
 	clc
+
 bb8:	pop	es
 	pop	di
 	jc	bb9
+
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 bb9:	ret
 ENDPROC	ddfdc_buildbpb

@@ -64,15 +64,15 @@ DOS	segment word public 'CODE'
 	EXTERNS	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>,near
 	EXTERNS	<dsk_flush,dsk_getdrv,dsk_setdrv,dsk_setdta,dsk_getdta>,near
 	EXTERNS	<dsk_ffirst,dsk_fnext>,near
-	EXTERNS	<msc_setvec,msc_getvec>,near
-	EXTERNS	<psp_exec,psp_exit,psp_create,psp_set,psp_get>,near
+	EXTERNS	<msc_setvec,msc_getver,msc_setctrlc,msc_getvec>,near
+	EXTERNS	<psp_exec,psp_exit,psp_retcode,psp_create,psp_set,psp_get>,near
 	EXTERNS	<hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek>,near
 	EXTERNS	<mem_alloc,mem_free,mem_realloc>,near
 	EXTERNS	<utl_strlen,utl_strupr,utl_atoi,utl_itoa,utl_printf,utl_sprintf>,near
 	EXTERNS	<utl_getdev,utl_ioctl,utl_load,utl_start,utl_stop,utl_unload>,near
 	EXTERNS	<utl_yield,utl_sleep,utl_wait,utl_endwait,utl_hotkey>,near
 	EXTERNS	<utl_tokify,utl_tokid,utl_lock,utl_unlock>,near
-	EXTERNS	<utl_qrymem,utl_strstr>,near
+	EXTERNS	<utl_qrymem,utl_strstr,utl_abort>,near
 	EXTERNS	<func_none>,near
 
 	DEFLBL	FUNCTBL,word
@@ -88,14 +88,14 @@ DOS	segment word public 'CODE'
 	dw	func_none,   msc_setvec,  psp_create,  func_none	;24h-27h
 	dw	func_none,   func_none,   func_none,   func_none	;28h-2Bh
 	dw	func_none,   func_none,   func_none,   dsk_getdta	;2Ch-2Fh
-	dw	func_none,   func_none,   func_none,   func_none	;30h-33h
+	dw	msc_getver,  func_none,   func_none,   msc_setctrlc	;30h-33h
 	dw	func_none,   msc_getvec,  func_none,   func_none	;34h-37h
 	dw	func_none,   func_none,   func_none,   func_none	;38h-3Bh
 	dw	func_none,   hdl_open,    hdl_close,   hdl_read		;3Ch-3Fh
 	dw	hdl_write,   func_none,   hdl_seek,    func_none	;40h-43h
 	dw	func_none,   func_none,   func_none,   func_none	;44h-47h
 	dw	mem_alloc,   mem_free,    mem_realloc, psp_exec		;48h-4Bh
-	dw	psp_exit,    func_none,   dsk_ffirst,  dsk_fnext	;4Ch-4Fh
+	dw	psp_exit,    psp_retcode, dsk_ffirst,  dsk_fnext	;4Ch-4Fh
 	dw	psp_set,     psp_get					;50h-51h
 	DEFABS	FUNCTBL_SIZE,<($ - FUNCTBL) SHR 1>
 
@@ -106,12 +106,10 @@ DOS	segment word public 'CODE'
 	dw	utl_yield,   utl_sleep,   utl_wait,    utl_endwait	;0Ch-0Fh
 	dw	utl_hotkey,  utl_tokify,  utl_tokid,   utl_lock		;10h-13h
 	dw	utl_unlock,  utl_qrymem,  func_none,   utl_strstr	;14h-17h
-	dw	func_none,   func_none,   func_none,   func_none	;18h-1Bh
+	dw	utl_abort,   func_none,   func_none,   func_none	;18h-1Bh
 	dw	func_none,   func_none,   func_none,   func_none	;1Ch-1Fh
 	dw	func_none,   func_none,   func_none,   func_none	;20h-23h
-	dw	utl_strlen,  func_none,   func_none,   func_none	;24h-27h
-	dw	func_none,   func_none,   func_none,   func_none	;28h-2Bh
-	dw	func_none,   func_none,   utl_strlen,  func_none	;2Ch-2Fh
+	dw	utl_strlen						;24h
 	DEFABS	UTILTBL_SIZE,<($ - UTILTBL) SHR 1>
 
 DOS	ends

@@ -40,6 +40,9 @@ BPB_LARGESECS	dd	?		; 1Dh: if DISKSECS is 0 (see DOS 3.31)
 ; Our EXTERNAL additions to the BPB, which make it easier for the boot
 ; sector to do its job, among other things.
 ;
+; Note, however, that external legacy BPBs won't have these, so the FDC will
+; will have to "build" them.
+;
 BPB_DRIVE	db	?		; 21h: physical drive #
 BPB_CYLSECS	dw	?		; 22h: sectors per cylinder (eg, 8)
 BPB_LBAROOT	dw	?		; 24h: LBA of 1st root dir sector
@@ -48,7 +51,10 @@ BPB		ends
 
 ;
 ; Our INTERNAL additions to the BPB -- which we do INSTEAD of defining yet
-; another structure, like the Drive Parameter Block (DPB).
+; another structure, like, say, a Drive Parameter Block (DPB).
+;
+; TODO: Make clear the distinction (if any) between BPB_DRIVE and BPB_UNIT;
+; for FDC drives at least, I'm unaware of any distinction.
 ;
 BPBEX		struc			; our internal structure for bpb_table
 BPB_STRUC	db	size BPB dup (?)
