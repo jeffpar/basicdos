@@ -60,39 +60,76 @@ m1:	lea	bx,[DGROUP:heap]
 	mov	ax,DOS_UTL_TOKID
 	lea	di,[DGROUP:CMD_TOKENS]
 	int	21h		; identify the token
-	jc	m4
+	jc	m2
 	jmp	m9		; token ID in AX, token data in DX
+;
+; First token is unrecognized, so we'll assume it's either a drive
+; specification or a program name.
+;
+m2:	mov	dx,si		; DS:DX -> FILENAME
+	cmp	cl,2		; two characters only?
+	jne	m3		; no
+	cmp	byte ptr [si+1],':'
+	jne	m3		; not a valid drive specification
+	mov	cl,[si]		; CL = drive letter
+	mov	dl,cl
+	sub	dl,'A'		; DL = drive number
+	cmp	dl,26
+	jae	m2a		; out of range
+	mov	ah,DOS_DSK_SETDRV
+	int	21h		; attempt to set the drive number in DL
+	jnc	m2b		; success
+m2a:	PRINTF	<"Drive %c: invalid",13,10>,cx
+m2b:	jmp	m1
 
-m4:	push	cx
-	mov	dx,si		; DS:DX -> FILENAME
-	mov	di,si		; ES:DI -> FILENAME also
+m3:	mov	di,dx		; ES:DI -> FILENAME
 	mov	al,'.'
 	push	cx
 	push	di
 	repne	scasb		; any periods in FILENAME?
 	pop	di
 	pop	cx
-	je	m5
-	add	di,cx		; no, so append .COM
-	mov	si,offset COM_EXT
-	mov	cx,COM_EXT_LEN - 1
+	je	m4		; yes
+;
+; First we're going to append .EXE, not because we prefer .EXE (we don't),
+; but because if no .EXE exists, we want to revert to .COM.
+;
+	push	cx
+	push	di
+	add	di,cx		; append .EXE
+	mov	si,offset EXE_EXT
+	mov	cx,EXE_EXT_LEN
 	rep	movsb
-m5:	add	di,cx
-	mov	al,0
-	stosb			; null-terminate the FILENAME
+	pop	di
+	mov	ah,DOS_DSK_FFIRST
+	int	21h		; find file (DS:DX) with attributes (CX = 0)
 	pop	cx
+	jnc	m5
 
+	push	cx
+	add	di,cx		; append .COM
 	mov	si,offset COM_EXT
+	mov	cx,COM_EXT_LEN
+	rep	movsb
+	pop	cx
+	jmp	m5
+;
+; The token contains a period, so let's verify the extension is valid
+; (ie, .COM or .EXE); we don't want people running, say, "CONFIG.SYS".
+;
+m4:	mov	si,offset COM_EXT
 	mov	di,dx
 	mov	ax,DOS_UTL_STRSTR
-	int	21h		; verify that FILENAME contains either .COM
-	jnc	m5a
+	int	21h		; verify FILENAME contains either .COM
+	jnc	m5
 	mov	si,offset EXE_EXT
 	int	21h		; or .EXE
 	mov	ax,ERR_INVALID
 	jc	m8		; looks like neither, so report an error
-
-m5a:	lea	si,[bx].INPUT.INP_BUF
+;
+; It looks like we have a valid program name, so prepare to exec.
+;
+m5:	lea	si,[bx].INPUT.INP_BUF
 	add	si,cx		; DS:SI -> cmd tail after filename
 	lea	bx,[bx].EXECDATA
 	mov	[bx].EPB_ENVSEG,0
@@ -122,11 +159,14 @@ m6:	lodsb
 	mov	dl,ah
 	mov	ah,0
 	mov	dh,0
-	PRINTF	<13,10,"return code: %d (%d)",13,10>,ax,dx
+	PRINTF	<13,10,"Return code: %d (%d)",13,10>,ax,dx
 	jmp	m1
-m8:	PRINTF	<"error loading %s: %d",13,10>,dx,ax
+m8:	PRINTF	<"Error loading %s: %d",13,10>,dx,ax
 	jmp	m1
-
+;
+; We arrive here if the token was recognized, but before we invoke the
+; corresponding handler, we prep the 2nd token, if any, for convenience.
+;
 m9:	lea	di,[bx].TOKENS
 	mov	cx,DIR_DEF_LEN - 1
 	mov	si,offset DIR_DEF
@@ -219,7 +259,7 @@ dir0:	sub	cx,cx		; CX = attributes
 	mov	ah,DOS_DSK_FFIRST
 	int	21h
 	jnc	dir1
-	PRINTF	<"unable to find %s: %d",13,10>,dx,ax
+	PRINTF	<"Unable to find %s: %d",13,10>,dx,ax
 	jmp	dir9
 dir1:	lea	si,ds:[PSP_DTA].FFB_NAME
 	mov	ax,DOS_UTL_STRLEN
@@ -270,7 +310,7 @@ DEFPROC	cmdExit
 	mov	ax,ds:[PSP_PARENT]
 	test	ax,ax		; do we have a parent?
 	jz	ex9		; no, can't exit
-	PRINTF	<"returning to process %#04x",13,10>,ax
+	PRINTF	<"Returning to process %#04x",13,10>,ax
 	int	20h		; terminate ourselves
 ex9:	ret
 ENDPROC	cmdExit
@@ -413,9 +453,9 @@ pr1:	mov	di,-1		; no validation
 	mov	ax,DOS_UTL_ATOI
 	int	21h
 	jc	pr8		; apparently not a number
-	PRINTF	<"value is %ld (%#lx)",13,10>,ax,dx,ax,dx
+	PRINTF	<"Value is %ld (%#lx)",13,10>,ax,dx,ax,dx
 	jmp	short pr9
-pr8:	PRINTF	<"invalid number: %s",13,10>,cx
+pr8:	PRINTF	<"Invalid number: %s",13,10>,cx
 pr9:	ret
 ENDPROC	cmdPrint
 
@@ -458,7 +498,7 @@ DEFPROC	cmdType
 	mov	ax,DOS_HDL_OPEN SHL 8
 	int	21h
 	jnc	ty1		; AX = file handle if successful, else error
-	PRINTF	<"unable to open %s: %d",13,10>,dx,ax
+	PRINTF	<"Unable to open %s: %d",13,10>,dx,ax
 	jmp	short ty9
 ty1:	xchg	bx,ax		; BX = file handle
 	mov	dx,PSP_DTA	; DS:DX -> DTA (as good a place as any)
