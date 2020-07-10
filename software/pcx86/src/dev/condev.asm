@@ -258,15 +258,18 @@ dco5:	mov	word ptr ds:[CT_CONW],cx; set CT_CONW (CL) and CT_CONH (CH)
 	mov	ds:[CT_BUFFER].OFF,ax
 	mov	ax,[frame_seg]
 	mov	ds:[CT_BUFFER].SEG,ax
+
 	sub	ax,ax
 	mov	es,ax
 	ASSUME	ES:BIOS
-	mov	ax,[CURSOR_POSN]
+;
+; Importing the BIOS CURSOR_POSN into CURX and CURY seemed like a nice idea
+; initially, but now that we're clearing interior below, we go with a default.
+;
+	; mov	ax,[CURSOR_POSN]
+	mov	ax,0101h		; default when displaying borders
 	mov	word ptr ds:[CT_CURX],ax; set CT_CURX (AL) and CT_CURY (AH)
-;
-; TODO: Verify that the CURX and CURY positions we're importing are valid for
-; this context.
-;
+
 	mov	ax,[ADDR_6845]
 	mov	ds:[CT_PORT],ax
 ;
@@ -1012,42 +1015,6 @@ ENDPROC	write_curpos
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; write_6845
-;
-; Inputs:
-;	AH = 6845 register #
-;	BX = 16-bit value to write
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	AL, DX
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	write_6845
-	mov	dx,ds:[CT_PORT]
-	ASSERT	Z,<cmp dh,03h>
-	mov	al,ah
-	cli
-	out	dx,al			; select 6845 register
-	inc	dx
-	mov	al,bh
-	out	dx,al			; output BH
-	dec	dx
-	mov	al,ah
-	inc	ax
-	out	dx,al			; select 6845 register + 1
-	inc	dx
-	mov	al,bl
-	out	dx,al			; output BL
-	sti
-	dec	dx
-	ret
-ENDPROC	write_6845
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; write_horzpair
 ;
 ; Inputs:
@@ -1099,6 +1066,42 @@ DEFPROC	write_vertpair
 	xchg	dl,bl
 	ret
 ENDPROC	write_vertpair
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; write_6845
+;
+; Inputs:
+;	AH = 6845 register #
+;	BX = 16-bit value to write
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AL, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	write_6845
+	mov	dx,ds:[CT_PORT]
+	ASSERT	Z,<cmp dh,03h>
+	mov	al,ah
+	cli
+	out	dx,al			; select 6845 register
+	inc	dx
+	mov	al,bh
+	out	dx,al			; output BH
+	dec	dx
+	mov	al,ah
+	inc	ax
+	out	dx,al			; select 6845 register + 1
+	inc	dx
+	mov	al,bl
+	out	dx,al			; output BL
+	sti
+	dec	dx
+	ret
+ENDPROC	write_6845
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

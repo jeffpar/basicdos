@@ -6,6 +6,7 @@ DEL DOS\*.OBJ
 DEL DOS\*.COM
 DEL DOS\*.MAP
 DEL UTIL\*.COM
+DEL UTIL\*.EXE
 DEL UTIL\*.MAP
 CD BOOT
 REM Use MK NODEBUG to create a non-debug release

@@ -87,11 +87,13 @@ let watchTasks = [];
 for (let diskName in disks) {
     let buildTask = "BUILD-" + diskName;
     let diskImage = "./software/pcx86/disks/" + diskName + ".json";
+    let hddImage = "";
     let diskFiles = "";
-    let kbTarget = 160;
+    let kbTarget = 320;
     if (disks[diskName].length == 1) {
         kbTarget = 10000;
         diskFiles = "--dir " + path.dirname(disks[diskName][0]);
+        hddImage = " --output " + diskImage.replace(".json",".hdd");
     } else {
         for (let i = 0; i < disks[diskName].length; i++) {
             if (diskFiles) diskFiles += ",";
@@ -99,7 +101,9 @@ for (let diskName in disks) {
         }
         diskFiles = "--files " + diskFiles;
     }
-    gulp.task(buildTask, run("node /Users/jeff/Sites/pcjs/tools/modules/diskimage.js " + diskFiles + " --output " + diskImage + " --target=" + kbTarget + " --overwrite"));
+    let cmd = "node ${PCJS}/tools/modules/diskimage.js " + diskFiles + " --output " + diskImage + hddImage + " --target=" + kbTarget + " --overwrite";
+    cmd = cmd.replace(/\$\{([^}]+)\}/g, (_,n) => process.env[n]);
+    gulp.task(buildTask, run(cmd));
     let watchTask = "WATCH-" + diskName;
     watchTasks.push(watchTask);
     gulp.task(watchTask, function() {

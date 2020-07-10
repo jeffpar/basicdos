@@ -8,9 +8,6 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	include	disk.inc
-
-PCJS_MULTIPLIER EQU 16		; build for machine running at this multiplier
-
 ;
 ; Standard PC BIOS vectors (first few are really standard 8086 vectors)
 ;
@@ -267,6 +264,7 @@ CHR_LINEFEED	equ	0Ah
 CHR_RETURN	equ	0Dh
 CHR_CTRLP	equ	10h
 CHR_CTRLS	equ	13h
+CHR_ESC		equ	1Bh
 CHR_SPACE	equ	20h
 
 SCAN_TAB	equ	0Fh
