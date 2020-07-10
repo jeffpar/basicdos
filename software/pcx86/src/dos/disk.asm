@@ -67,13 +67,20 @@ ENDPROC	dsk_flush
 ; Outputs:
 ;	REG_AL = # of (logical) drives
 ;
+; Notes:
+;	The spec isn't clear if this should return an error (carry set)
+;	if REG_DL >= # drives; we assume that we should.
+;
 ; TODO: Add support for logical drives; all we currently support are physical.
 ;
 DEFPROC	dsk_setdrv,DOS
+	mov	al,[bpb_total]		; AL = # (physical) drives
+	cmp	dl,al			; DL valid?
+	cmc
+	jc	ds9			; no
 	mov	bx,[scb_active]
 	mov	[bx].SCB_CURDRV,dl
-	mov	al,[bpb_total]		; AL = # (physical) drives
-	mov	[bp].REG_AL,al
+ds9:	mov	[bp].REG_AL,al
 	ret
 ENDPROC	dsk_setdrv
 
