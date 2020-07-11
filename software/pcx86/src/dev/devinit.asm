@@ -67,12 +67,23 @@ i2:	mov	dx,[si]		; DX = original size of this driver
 	push	ss
 	pop	es
 	ASSUME	ES:NOTHING
+
+	; push	dx
+	; push	si
+	; push	di
+	; push	bp
+	; push	ds
 	mov	bx,bp		; ES:BX -> packet
 	push	ax		; AX = segment of driver
 	push	[si].DDH_REQUEST
 	call	dword ptr [bp-4]; far call to DDH_REQUEST
 	pop	ax
 	pop	ax		; recover the driver segment
+	; pop	ds
+	; pop	bp
+	; pop	di
+	; pop	si
+	; pop	dx
 	sub	bx,bx
 	mov	es,bx
 	ASSUME	ES:BIOS

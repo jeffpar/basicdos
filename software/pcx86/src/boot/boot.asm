@@ -9,6 +9,8 @@
 ;
 	include	dos.inc
 
+	; TWAIT equ 16
+
 BOOT	segment word public 'CODE'
 
 ;
@@ -287,7 +289,7 @@ DEFPROC	wait
 	IFDEF	TWAIT
 	mov	ah,TIME_GETTICKS
 	int	INT_TIME	; CX:DX is initial tick count
-	add	ax,91
+	add	ax,91 * TWAIT
 	mov	dx,cx
 	adc	dx,0		; DX:AX is target tick count
 ws1:	push	dx
@@ -312,7 +314,7 @@ ws2:	mov	ah,TIME_GETTICKS
 	ELSE
 	mov	ah,KBD_READ
 	int	INT_KBD
-	cmp	al,CHR_ESC	; ESC?
+	cmp	al,CHR_ESC	; escape key?
 	xchg	cx,ax		; CL = char code, CH = scan code
 	jne	ws9
 	sub	cx,cx		; yes, zero CX

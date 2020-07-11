@@ -136,7 +136,7 @@ DEFPROC	msc_sigctrlc,DOSFAR
 	call	tty_read		; remove CTRLC from the input buffer
 msg0:	mov	[bx].SCB_CTRLC_ACT,0
 
-msg1:	mov	cx,4
+msg1:	mov	cx,3
 	mov	si,offset STR_CTRLC
 	call	write_string
 ;

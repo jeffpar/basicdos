@@ -262,6 +262,9 @@ dir0:	sub	cx,cx		; CX = attributes
 	PRINTF	<"Unable to find %s: %d",13,10>,dx,ax
 	jmp	dir9
 dir1:	lea	si,ds:[PSP_DTA].FFB_NAME
+;
+; Beginning of "stupid" code to break filename into two separate parts....
+;
 	mov	ax,DOS_UTL_STRLEN
 	int	21h
 	xchg	cx,ax		; CX = total length
@@ -279,6 +282,9 @@ dir1:	lea	si,ds:[PSP_DTA].FFB_NAME
 dir2:	mov	ax,cx		; AX = complete filename length
 	mov	di,si
 	add	di,ax
+;
+; End of "stupid" code (which I'm tempted to eliminate, but since it's done....)
+;
 dir3:	mov	dx,ds:[PSP_DTA].FFB_DATE
 	mov	cx,ds:[PSP_DTA].FFB_TIME
 	ASSERT	Z,<cmp ds:[PSP_DTA].FFB_SIZE.SEG,0>
@@ -356,7 +362,8 @@ ENDPROC	cmdLoop
 ;
 DEFPROC	cmdMem
 ;
-; Before we get into memory blocks, let's dump the driver list.
+; Before we get into memory blocks, show the amount of memory reserved
+; for the BIOS and disk buffers.
 ;
 	push	bp
 	push	es
@@ -372,6 +379,9 @@ DEFPROC	cmdMem
 	mov	si,offset RES_MEM
 	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
 	pop	di
+;
+; Next, dump the list of resident built-in device drivers.
+;
 drv1:	cmp	di,-1
 	je	drv9
 	lea	si,[di].DDH_NAME
@@ -385,6 +395,10 @@ drv1:	cmp	di,-1
 	pop	di
 	les	di,es:[di]
 	jmp	drv1
+;
+; Next, dump the size of the operating system, which resides between the
+; built-in device drivers and the first memory block.
+;
 drv9:	mov	bx,es		; ES = DOS data segment
 	mov	ax,es:[0]	; ES:[0] is mcb_head
 	mov	bp,es:[2]	; ES:[2] is mcb_limit
@@ -394,7 +408,9 @@ drv9:	mov	bx,es		; ES = DOS data segment
 	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
 	pop	es
 	ASSUME	ES:CODE
-
+;
+; Next, examine all the memory blocks and display those that are used.
+;
 	push	bp
 	sub	cx,cx
 	sub	bp,bp		; BP = free memory
@@ -416,6 +432,9 @@ mem8:	inc	cx
 	jmp	mem1
 mem9:	xchg	ax,bp		; AX = free memory (paras)
 	pop	bp		; BP = total memory (paras)
+;
+; Last but not least, dump the amount of free memory.
+;
 	mov	cx,16
 	mul	cx		; DX:AX = free memory (in bytes)
 	xchg	si,ax

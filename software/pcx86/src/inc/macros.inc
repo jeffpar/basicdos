@@ -33,11 +33,11 @@ DEFPTR	macro	name,off,seg
 	IFB	<off>
 name	dd	0
 	ELSE
-	IFB	<seg>
+	 IFB	<seg>
 name	dd	off
-	ELSE
+	 ELSE
 name	dd	(seg SHL 16) OR (off)
-	ENDIF
+	 ENDIF
 	ENDIF
 	endm
 
@@ -49,14 +49,14 @@ DEFDATA	macro	name,size,type,values,repeat
 	IFB	<values>
 name	size	0
 	ELSE
-	IFB	<repeat>
+	 IFB	<repeat>
 name	label	type
 	IRP	value,<values>
 	size	value
 	ENDM
-	ELSE
+	 ELSE
 name	size	repeat dup (values)
-	ENDIF
+	 ENDIF
 	ENDIF
 	endm
 
@@ -93,24 +93,24 @@ DEFPROC	macro	name,type
 	_LOCBYTES = 0
 	_PROCTYPE = 0
 	IFIDN	<type>,<DOS>
-	IFDEF	DEBUG
+	 IFDEF	DEBUG
 	db	"&name",0
-	ENDIF
+	 ENDIF
 	ENDIF
 	IFB	<type>
 name	proc	near
 	ELSE
-	IFIDN <type>,<DOS>
+	 IFIDN <type>,<DOS>
 	ASSUME	CS:DOS, DS:DOS, ES:DOS, SS:NOTHING
 name	proc	near
-	ELSE
-	IFIDN <type>,<DOSFAR>
+	 ELSE
+	  IFIDN <type>,<DOSFAR>
 	ASSUME	CS:DOS, DS:NOTHING, ES:NOTHING, SS:NOTHING
 name	proc	far
-	ELSE
+	  ELSE
 name	proc	type	;; we'll leave whatever ASSUMEs are active in place
-	ENDIF
-	ENDIF
+	  ENDIF
+	 ENDIF
 	ENDIF
 	endm
 
@@ -159,15 +159,15 @@ LOCVAR	macro	name,type,len
 	IFIDN	<type>,<byte>
 	_LOCBYTES = _LOCBYTES + _LOCLEN
 	ELSE
-	IFIDN	<type>,<word>
+	 IFIDN	<type>,<word>
 	_LOCBYTES = _LOCBYTES + (_LOCLEN * 2)
-	ELSE
-	IFIDN	<type>,<dword>
+	 ELSE
+	  IFIDN	<type>,<dword>
 	_LOCBYTES = _LOCBYTES + (_LOCLEN * 4)
-	ELSE
+	  ELSE
 	%out	Unrecognized LOCVAR parameter: type
-	ENDIF
-	ENDIF
+	  ENDIF
+	 ENDIF
 	ENDIF
 	_LOCBYTES = _LOCBYTES + (_LOCBYTES AND 1)
 	DEFVAR	name,type,%(_LOCBYTES)
@@ -179,22 +179,22 @@ name	equ	type ptr [bp - offset]
 
 ENTER	macro
 	IF _LOCBYTES GT 0
-	IF _PROCTYPE EQ 0
+	 IF _PROCTYPE EQ 0
 	push	bp
 	mov	bp,sp
-	ENDIF
+	 ENDIF
 	sub	sp,_LOCBYTES
 	ENDIF
 	endm
 
 LEAVE	macro
 	IF _LOCBYTES GT 0
-	IF _PROCTYPE EQ 0
+	 IF _PROCTYPE EQ 0
 	mov	sp,bp
 	pop	bp
-	ELSE
+	 ELSE
 	add	sp,_LOCBYTES
-	ENDIF
+	 ENDIF
 	ENDIF
 	endm
 
@@ -212,27 +212,27 @@ ERROR	macro	msg
 
 ASSERT	macro	cond,op,value
 	IFNB	<value>
-	IFIDN	<cond>,<STRUCT>	;; must use "STRUCT" instead of "STRUC" here...
+	 IFIDN	<cond>,<STRUCT>	;; must use "STRUCT" instead of "STRUC" here...
 	ASSERT	Z,<cmp op&.&value&_RESERVED,value&SIG>
-	ELSE
-	IFE	cond op value
+	 ELSE
+	  IFE	cond op value
 	ERROR	<Assertion failed: cond op value>
-	ENDIF
-	ENDIF
+	  ENDIF
+	 ENDIF
 	ELSE
-	IFDEF DEBUG
-	IFNB	<op>
+	 IFDEF DEBUG
+	  IFNB	<op>
 	pushf
 	op
-	ENDIF
-	IFDIF	<cond>,<NEVER>
+	  ENDIF
+	  IFDIF	<cond>,<NEVER>
 	J&cond	$+4
-	ENDIF
+	  ENDIF
 	int	1		;; use INT 01h to signal an assertion failure
-	IFNB	<op>
+	  IFNB	<op>
 	popf
-	ENDIF
-	ENDIF
+	  ENDIF
+	 ENDIF
 	ENDIF
 	endm
 
@@ -262,15 +262,15 @@ ASSUME1	macro	segreg,segment
 	push	dx
 	push	segreg
 	pop	ax
-	IFIDN	<segment>,<BIOS>
+	 IFIDN	<segment>,<BIOS>
 	ASSERT	Z,<test ax,ax>
-	ELSE
-	IFIDN	<segment>,<DOS>
+	 ELSE
+	  IFIDN	<segment>,<DOS>
 	push	cs
 	pop	dx
 	ASSERT	Z,<cmp ax,dx>
-	ENDIF
-	ENDIF
+	  ENDIF
+	 ENDIF
 	pop	dx
 	pop	ax
 	ENDIF

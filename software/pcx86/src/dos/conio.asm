@@ -11,7 +11,8 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<strlen,get_sfb,sfb_read,sfb_write>,near
+	EXTERNS	<strlen,get_sfb,sfb_read,sfb_write,dev_request>,near
+	EXTERNS	<STR_ESC>,byte
 
 	ASSUME	CS:DOS, DS:DOS, ES:BIOS, SS:NOTHING
 
@@ -148,36 +149,71 @@ DEFPROC	tty_input,DOS
 	mov	es,[bp].REG_DS
 	ASSUME	ES:NOTHING
 	mov	di,dx			; ES:DI -> buffer
+
+	mov	al,IOCTL_GETPOS
+	call	con_ioctl		; AX = starting position
+	xchg	dx,ax			; move to DX
+
 ti1:	sub	bx,bx			; ES:DI+BX+2 -> next buffer position
 	mov	cl,es:[di]
 	mov	ch,0			; CX = max characters
 	jcxz	ti9
+
 ti2:	call	tty_read
 	jc	ti9
 ti3:	cmp	al,CHR_RETURN
 	je	ti8
 	cmp	al,CHR_BACKSPACE
-	jne	ti7
+	jne	ti5
 	test	bx,bx
 	jz	ti2
+;
+; Get the logical length of the buffered data, to determine backspace length.
+;
+	push	bx
+	push	cx
+	lea	si,[di+2]		; ES:SI -> characters
+	mov	cx,bx			; CX = length
+	mov	bx,dx			; BX = starting position
+	mov	al,IOCTL_GETLEN
+	call	con_ioctl		; AL = length delta for final character
+	mov	ah,0			; AH = total length (discarded)
+	xchg	cx,ax			; CX = length delta
+	jcxz	ti4a
+ti4:	mov	al,CHR_BACKSPACE
 	call	write_char
-	mov	al,' '
-	call	write_char
-	mov	al,CHR_BACKSPACE
-	call	write_char
+	loop	ti4
+ti4a:	pop	cx
+	pop	bx
 	dec	bx
 	inc	cx
 	jmp	ti2
+
+ti5:	cmp	al,CHR_ESC
+	jne	ti7
+	mov	cx,3
+	mov	si,offset STR_ESC
+	call	write_string
+	mov	cl,dl
+	jcxz	ti1
+	jmp	short ti5b
+ti5a:	mov	al,CHR_SPACE
+	call	write_char
+ti5b:	loop	ti5a
+	jmp	ti1
+
 ti7:	cmp	cl,1			; room for only one more?
 	je	ti2			; yes
 	mov	es:[di+bx+2],al
 	inc	bx
 	call	write_char
 	loop	ti2
+
 ti8:	mov	es:[di+bx+2],al		; store the final character (CR)
 	call	write_char
 	mov	al,CHR_LINEFEED
 	call	write_char
+
 ti9:	mov	es:[di+1],bl		; return character count in 2nd byte
 	ret
 ENDPROC	tty_input
@@ -189,6 +225,54 @@ ENDPROC	tty_status
 DEFPROC	tty_flush,DOS
 	ret
 ENDPROC	tty_flush
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; con_ioctl
+;
+; Inputs:
+;	AL = IOCTL_GETPOS or IOCTL_GETLEN
+;	CX = length (for IOCTL_GETLEN)
+;	DX = starting position (from IOCTL_GETPOS)
+;	ES:SI -> data (for IOCTL_GETLEN only)
+;
+; Outputs:
+;	AX = position (for IOCTL_GETPOS) or length (for IOCTL_GETLEN)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	con_ioctl,DOS
+	push	bx
+	push	dx
+	push	di
+	push	ds
+	push	es
+	mov	bx,STDIN
+	push	ax
+	call	get_sfb			; BX -> SFB
+	pop	ax
+	jc	gcp8
+	push	es
+	les	di,[bx].SFB_DEVICE	; ES:DI -> CON driver
+	mov	bx,[bx].SFB_CONTEXT	; BX = context
+	xchg	bx,dx			; DX = content, BX = position
+	test	es:[di].DDH_ATTR,DDATTR_STDOUT
+	pop	ds
+	jz	gcp8
+	mov	ah,DDC_IOCTLIN
+	call	dev_request
+	jc	gcp8
+	xchg	ax,dx			; AX = position or length as requested
+	jmp	short gcp9
+gcp8:	mov	ax,0			; default value if error
+gcp9:	pop	es
+	pop	ds
+	pop	di
+	pop	dx
+	pop	bx
+	ret
+ENDPROC	con_ioctl
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

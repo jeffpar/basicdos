@@ -17,7 +17,7 @@ CODE	segment para public 'CODE'
 CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_CHAR,offset ddcon_init,-1,20202020204E4F43h>
 
 	DEFLBL	CMDTBL,word
-	dw	ddcon_none,  ddcon_none, ddcon_none,  ddcon_none	; 0-3
+	dw	ddcon_none,  ddcon_none, ddcon_none,  ddcon_ctlin	; 0-3
 	dw	ddcon_read,  ddcon_none, ddcon_none,  ddcon_none	; 4-7
 	dw	ddcon_write, ddcon_none, ddcon_none,  ddcon_none	; 8-11
 	dw	ddcon_none,  ddcon_open, ddcon_close			; 12-14
@@ -104,6 +104,84 @@ ddq1:	push	cs
 	pop	ax
 	ret
 ENDPROC	ddcon_req
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_ctlin
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;
+; Outputs:
+;	Varies
+;
+; Modifies:
+;	AX, BX, CX, DX, DS
+;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_ctlin
+	mov	al,es:[di].DDP_UNIT
+	mov	dx,es:[di].DDP_CONTEXT
+	test	dx,dx
+	jz	dio9
+	mov	ds,dx
+	ASSUME	DS:NOTHING
+
+	cmp	al,IOCTL_GETPOS
+	jne	dio1
+	mov	dx,word ptr ds:[CT_CURX]; DX = current cursor position
+	jmp	short dio7
+
+dio1:	cmp	al,IOCTL_GETLEN
+	jne	dio9
+	mov	bx,es:[di].DDPRW_LBA	; BX = starting cursor position
+	sub	dx,dx			; DL = current len, DH = previous len
+	mov	ah,ds:[CT_MAXX]		; AH = column limit
+	lds	si,es:[di].DDPRW_ADDR
+	mov	cx,es:[di].DDPRW_LENGTH
+	jcxz	dio7			; nothing to do
+	ASSUME	DS:NOTHING
+
+dio2:	lodsb
+	mov	dh,dl			; current len -> previous len
+	cmp	al,CHR_TAB
+	jne	dio4
+	mov	al,bl			; for CHR_TAB
+	dec	al			; mimic write_context's TAB logic
+	and	al,07h
+	neg	al
+	add	al,8			; AL = # output chars
+dio3:	inc	bl
+	inc	dl
+	cmp	bl,ah			; column still below limit?
+	jb	dio3a			; yes
+	mov	bl,1			; no, so reset column and stop
+	jmp	short dio5
+dio3a:	dec	al
+	jnz	dio3
+	jmp	short dio5
+
+dio4:	cmp	al,CHR_ESC
+	mov	al,1			; AL = # output chars
+	jae	dio4a
+	inc	ax			; add 1 more to output for presumed "^"
+dio4a:	inc	bl			; advance the column
+	inc	dl			; advance the length
+	cmp	bl,ah			; column still below limit?
+	jb	dio4b			; yes
+	mov	bl,1			; no, so reset column and keep going
+dio4b:	dec	al
+	jnz	dio4a
+
+dio5:	loop	dio2
+	sub	dl,dh			; DL = length delta for final character
+	add	dh,dl			; DH = total length
+
+dio7:	mov	es:[di].DDP_CONTEXT,dx	; return pos or length in packet context
+dio8:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+
+dio9:	ret
+ENDPROC	ddcon_ctlin
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -264,7 +342,7 @@ dco5:	mov	word ptr ds:[CT_CONW],cx; set CT_CONW (CL) and CT_CONH (CH)
 	ASSUME	ES:BIOS
 ;
 ; Importing the BIOS CURSOR_POSN into CURX and CURY seemed like a nice idea
-; initially, but now that we're clearing interior below, we go with a default.
+; initially, but now that we're clearing interior below, best to use a default.
 ;
 	; mov	ax,[CURSOR_POSN]
 	mov	ax,0101h		; default when displaying borders
@@ -274,6 +352,8 @@ dco5:	mov	word ptr ds:[CT_CONW],cx; set CT_CONW (CL) and CT_CONH (CH)
 	mov	ds:[CT_PORT],ax
 ;
 ; OK, so if this context is supposed to have a border, draw all 4 sides now.
+;
+; TODO: Add a mechanism for making the border optional.
 ;
 	call	draw_border
 
@@ -551,7 +631,7 @@ ENDPROC	add_packet
 ; CTRLC has been typed.  Ditto for CTRLP, which DOS likes to use for turning
 ; "printer echo" on and off.
 ;
-; Another advantage to using HOTKEY notifications is that the hotkeys don't get
+; Another advantage to using HOTKEY notifications is the hotkeys don't get
 ; buried in the input stream; as soon as they're typed, notification occurs.
 ;
 ; This function also includes some internal hotkey checks; eg, CTRLS for
@@ -694,6 +774,59 @@ ENDPROC	draw_border
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; draw_char
+;
+; Inputs:
+;	CL = character
+;	DX = CURX (DL), CURY (DH)
+;	DS -> CONSOLE context
+;
+; Outputs:
+;	Updates DL,DH
+;
+; Modifies:
+;	AX, DX, DI, ES
+;
+DEFPROC	draw_char
+	push	cx
+	mov	ch,1			; CH = amount to advance DL
+	cmp	cl,CHR_BACKSPACE
+	jne	dc8
+	dec	ch			; no advance
+	mov	cl,CHR_SPACE		; emulate a BACKSPACE
+	dec	dl
+	jnz	dc8
+	dec	dh
+	jnz	dc7
+	mov	dx,0101h
+	jmp	short dc8
+dc7:	mov	dl,ds:[CT_MAXX]
+	dec	dx
+
+dc8:	call	write_curpos		; write CL at (DL,DH)
+;
+; Advance DL, advancing DH as needed, and scrolling the context as needed.
+;
+	add	dl,ch			; advance DL
+	pop	cx
+
+	cmp	dl,ds:[CT_MAXX]
+	jb	dc9
+	mov	dl,1
+
+	DEFLBL	draw_linefeed,near
+	inc	dh
+	cmp	dh,ds:[CT_MAXY]
+	jb	dc9
+	dec	dh
+	mov	al,1
+	call	scroll			; scroll up 1 line
+
+dc9:	ret
+ENDPROC	draw_char
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; draw_cursor
 ;
 ; Inputs:
@@ -818,7 +951,7 @@ DEFPROC	read_kbd
 	mov	bx,[BUFFER_HEAD]
 rk2:	cmp	bx,[BUFFER_TAIL]
 	stc
-	je	rk4			; BIOS buffer empty
+	je	rk9			; BIOS buffer empty
 	mov	ax,[BIOS_DATA][bx]	; AL = char code, AH = scan code
 	add	bx,2
 	cmp	bx,offset KB_BUFFER - offset BIOS_DATA + size KB_BUFFER
@@ -829,14 +962,20 @@ rk3:	mov	[BUFFER_HEAD],bx
 	push	ds
 	lds	bx,es:[di].DDPRW_ADDR	; DS:BX -> next read/write address
 	mov	[bx],al
-	inc	bx
+	IFDEF MAXDEBUG
+	test	al,al
+	jnz	rk4
+	xchg	al,ah
+	PRINTF	<"null character, scan code %#04x",13,10>,ax
+	ENDIF
+rk4:	inc	bx
 	mov	es:[di].DDPRW_ADDR.OFF,bx
 	pop	ds
 	pop	bx
 	dec	es:[di].DDPRW_LENGTH	; have we satisfied the request yet?
 	jnz	rk2			; no
 	clc
-rk4:	pop	ds
+rk9:	pop	ds
 	ASSUME	DS:NOTHING
 	pop	bx
 	ret
@@ -851,10 +990,12 @@ ENDPROC	read_kbd
 ;	DS -> CONSOLE context
 ;
 ; Modifies:
-;	AX, BX, CX
+;	AX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	scroll
+	push	bx
+	push	cx
 	push	dx
 	push	bp			; WARNING: INT 10h scrolls trash BP
 	mov	cx,word ptr ds:[CT_CONX]; CH = row, CL = col of upper left
@@ -867,6 +1008,8 @@ DEFPROC	scroll
 	int	10h
 	pop	bp
 	pop	dx
+	pop	cx
+	pop	bx
 	ret
 ENDPROC	scroll
 
@@ -920,46 +1063,53 @@ DEFPROC	write_context
 	push	es
 	pop	ds			; DS is now the context
 ;
-; Check for special characters that we don't actually have to write...
+; Check for special characters.
 ;
 	xchg	cx,ax			; CL = char
 	mov	dx,word ptr ds:[CT_CURX]
-	cmp	cl,CHR_RETURN		; return?
-	jne	wc0
-	mov	dl,1			; emulate a RETURN (CURX = 1)
-	jmp	wc3
-wc0:	cmp	cl,CHR_LINEFEED
-	je	wclf			; emulate a LINEFEED
+
+	cmp	cl,CHR_RETURN		; RETURN?
+	jne	wc1
+	mov	dl,1			; emulate a RETURN
+	jmp	short wc8
+
+wc1:	cmp	cl,CHR_LINEFEED
+	je	wclf
+
+	cmp	cl,CHR_TAB
+	je	wcht
+
 	cmp	cl,CHR_BACKSPACE
-	jne	wc2
-	dec	dl
+	je	wc7
+
+	cmp	cl,CHR_ESC
+	jae	wc7
+	push	cx
+	mov	cl,'^'
+	call	draw_char
+	pop	cx
+	add	cl,'A'-1
+	jmp	short wc7
+
+wcht:	mov	bl,dl			; emulate a (horizontal) TAB
+	dec	bl
+	and	bl,07h
+	neg	bl
+	add	bl,8
+	mov	cl,CHR_SPACE
+wc3:	call	draw_char
+	cmp	dl,1			; did the column wrap back around?
+	jbe	wc8			; yes, stop
+	dec	bl
 	jnz	wc3
-	dec	dh
-	jnz	wc1
-	mov	dx,0101h
-	jmp	short wc3
-wc1:	mov	dl,ds:[CT_MAXX]
-	dec	dx
-	jmp	short wc3
+	jmp	short wc8
 
-wc2:	call	write_curpos		; write CL at (DL,DH)
-;
-; Load CURX,CURY into DX, advance it, update it, and then update the cursor
-; IFF this context currently has focus.
-;
-	mov	dx,word ptr ds:[CT_CURX]
-	inc	dx
-	cmp	dl,ds:[CT_MAXX]
-	jb	wc3
-	mov	dl,1
-wclf:	inc	dh
-	cmp	dh,ds:[CT_MAXY]
-	jb	wc3
-	dec	dh
-	mov	al,1
-	call	scroll			; scroll up 1 line
+wclf:	call	draw_linefeed		; emulate a LINEFEED
+	jmp	short wc8
 
-wc3:	mov	word ptr ds:[CT_CURX],dx
+wc7:	call	draw_char		; draw CL at (DL,DH)
+
+wc8:	mov	word ptr ds:[CT_CURX],dx
 
 	mov	ax,ds
 	cmp	ax,[ct_focus]		; does this context have focus?

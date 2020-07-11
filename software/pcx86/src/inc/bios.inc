@@ -261,9 +261,11 @@ CHR_CTRLC	equ	03h
 CHR_BACKSPACE	equ	08h
 CHR_TAB		equ	09h
 CHR_LINEFEED	equ	0Ah
+CHR_VTAB	equ	0Bh	; treated by CON as a "reverse tab"
 CHR_RETURN	equ	0Dh
 CHR_CTRLP	equ	10h
 CHR_CTRLS	equ	13h
+CHR_CTRLZ	equ	1Ah
 CHR_ESC		equ	1Bh
 CHR_SPACE	equ	20h
 
