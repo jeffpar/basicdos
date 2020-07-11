@@ -135,11 +135,6 @@ INIT	segment para public 'CODE'
 ;
         ASSUME	CS:DEV, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddlpt_init,far
-	push	ax
-	push	bx
-	push	si
-	push	di
-	push	ds
 	sub	ax,ax
 	mov	ds,ax
 	ASSUME	DS:BIOS
@@ -169,12 +164,7 @@ in2:	mov	ax,0			; this MOV will be modified
 	mov	word ptr cs:[in2+1],ax	; the otherwise fully insulated drivers)
 in3:	mov	[ddlpt_cmdp].SEG,ax
 
-in9:	pop	ds
-	pop	di
-	pop	si
-	pop	bx
-	pop	ax
-	ret
+in9:	ret
 ENDPROC	ddlpt_init
 
 	DEFLBL	ddlpt_init_end

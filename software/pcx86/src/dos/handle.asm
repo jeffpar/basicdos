@@ -427,11 +427,14 @@ sr8:	push	ds
 ; If the driver is a STDIN device, and the I/O request was not "raw", then
 ; we need to check the returned data for CTRLC and signal it appropriately.
 ;
+	xchg	ax,cx			; AX = original byte count
 	test	es:[di].DDH_ATTR,DDATTR_STDIN
 	jz	sr8a
-	cmp	dl,IO_RAW
-	je	sr8a
+	ASSERT	IO_RAW,EQ,0
+	test	dl,dl			; IO_RAW request?
+	jz	sr8a			; yes
 	cmp	byte ptr [si],CHR_CTRLC
+	clc
 	jne	sr8a
 	jmp	msc_sigctrlc
 

@@ -6,8 +6,8 @@ Warning: no stack segment
  00000H 00025H 00026H CODE1                  CODE
  00030H 00054H 00025H CODE2                  CODE
  00060H 00084H 00025H CODE3                  CODE
- 00090H 000E9H 0005AH INIT                   CODE
- 000F0H 000FFH 00010H DATA                   DATA
+ 00090H 000DFH 00050H INIT                   CODE
+ 000E0H 000EFH 00010H DATA                   DATA
 
  Origin   Group
  0000:0   DEV
@@ -19,7 +19,7 @@ Warning: no stack segment
  0000:0042       DDLPT_CMDP2
  0000:0072       DDLPT_CMDP3
  0000:0090       DDLPT_INIT
- 0000:00EA       DDLPT_INIT_END
+ 0000:00E0       DDLPT_INIT_END
  0000:0018       DDLPT_REQ
  0000:0048       DDLPT_REQ2
  0000:0078       DDLPT_REQ3
@@ -48,4 +48,4 @@ Warning: no stack segment
  0000:0078       DDLPT_REQ3
  0000:0085       LPT3_END
  0000:0090       DDLPT_INIT
- 0000:00EA       DDLPT_INIT_END
+ 0000:00E0       DDLPT_INIT_END

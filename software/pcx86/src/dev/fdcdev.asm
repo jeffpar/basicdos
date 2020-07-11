@@ -41,14 +41,6 @@ FDC 	DDH	<offset DEV:ddfdc_end+16,,DDATTR_BLOCK,offset ddfdc_init,-1,20202020244
 ;
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddfdc_req,far
-	push	ax
-	push	bx
-	push	cx
-	push	dx
-	push	si
-	push	di
-	push	bp
-	push	ds
 	mov	di,bx			; ES:DI -> DDP
 	mov	bl,es:[di].DDP_CMD
 	cmp	bl,CMDTBL_SIZE
@@ -60,14 +52,6 @@ ddq1:	push	cs
 	mov	bh,0
 	add	bx,bx
 	call	CMDTBL[bx]
-	pop	ds
-	pop	bp
-	pop	di
-	pop	si
-	pop	dx
-	pop	cx
-	pop	bx
-	pop	ax
 	ret
 ENDPROC	ddfdc_req
 
@@ -503,9 +487,6 @@ ENDPROC	read_buffer
 ;	DDPI's DDPI_UNITS and DDPI_END updated
 ;
 DEFPROC	ddfdc_init,far
-	push	ax
-	push	cx
-	push	ds
 	sub	ax,ax
 	mov	ds,ax
 	ASSUME	DS:BIOS
@@ -529,10 +510,6 @@ DEFPROC	ddfdc_init,far
 	inc	ax
 	xchg	cx,ax
 ddin9:	mov	es:[bx].DDPI_UNITS,cl
-	pop	ds
-	ASSUME	DS:NOTHING
-	pop	cx
-	pop	ax
 	ret
 ENDPROC	ddfdc_init
 

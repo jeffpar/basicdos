@@ -9,6 +9,8 @@
 ;
 	include	dos.inc
 
+	; TWAIT equ 16
+
 BOOT	segment word public 'CODE'
 
 ;
@@ -98,7 +100,7 @@ DEFPROC	main,far			; now at BOOT_SECTOR_LO
 	jz	find			; jump if no hard disks
 	mov	si,offset prompt
 	call	print
-	call	twait			; timed-wait for key
+	call	wait			; wait for key
 	jcxz	hard			; jump if no key pressed
 ;
 ; Find all the files in our file list, starting with DEV_FILE.
@@ -265,18 +267,29 @@ ENDPROC	read_sector
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; twait (timed wait)
+; wait (for a key)
 ;
-; Wait some number of ticks, or until a key is pressed.
+; Waits some number of ticks, or until a key is pressed.
+;
+; NOTE: There are now two variations of this function: if TWAIT is defined,
+; then we perform the original timed wait (91 ticks or 5 seconds); otherwise,
+; we wait indefinitely for a key, and if the key is ESC, then we return 0,
+; indicating that our boot code should be bypassed.
+;
+; There are two main advantages to NOT using TWAIT: 1) faster-than-normal
+; PCJS machines generate ticks faster as well, so that the IBM ROM POST tests
+; won't fail, which means the delay may be too short; and 2) it makes the boot
+; code smaller.
 ;
 ; Returns: CX = char code (lo), scan code (hi); 0 if no key pressed
 ;
-; Modifies: AX, CX, DX
+; Modifies: AX, CX (and DX if TWAIT is defined)
 ;
-DEFPROC	twait
+DEFPROC	wait
+	IFDEF	TWAIT
 	mov	ah,TIME_GETTICKS
 	int	INT_TIME	; CX:DX is initial tick count
-	add	ax,91 * PCJS_MULTIPLIER
+	add	ax,91 * TWAIT
 	mov	dx,cx
 	adc	dx,0		; DX:AX is target tick count
 ws1:	push	dx
@@ -286,7 +299,6 @@ ws1:	push	dx
 	jz	ws2
 	pop	ax
 	pop	dx
-wait	label	near
 	mov	ah,KBD_READ
 	int	INT_KBD
 	xchg	cx,ax		; CL = char code, CH = scan code
@@ -299,10 +311,18 @@ ws2:	mov	ah,TIME_GETTICKS
 	sbb	cx,dx		; as long as the target value is bigger
 	jc	ws1		; carry will be set
 	sub	cx,cx		; no key was pressed in time
+	ELSE
+	mov	ah,KBD_READ
+	int	INT_KBD
+	cmp	al,CHR_ESC	; escape key?
+	xchg	cx,ax		; CL = char code, CH = scan code
+	jne	ws9
+	sub	cx,cx		; yes, zero CX
+	ENDIF
 ws9:	mov	si,offset crlf
 	call	print
 	ret
-ENDPROC	twait
+ENDPROC	wait
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

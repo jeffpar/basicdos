@@ -70,9 +70,26 @@ i2:	mov	dx,[si]		; DX = original size of this driver
 	mov	bx,bp		; ES:BX -> packet
 	push	ax		; AX = segment of driver
 	push	[si].DDH_REQUEST
+;
+; Just as in dev_request, we no longer force drivers to preserve all registers.
+;
+	push	dx
+	push	si
+	push	di
+	push	bp
+	push	ds
+
 	call	dword ptr [bp-4]; far call to DDH_REQUEST
-	pop	ax
+
+	pop	ds
+	pop	bp
+	pop	di
+	pop	si
+	pop	dx
+
+	pop	ax		; toss DDH_REQUEST address
 	pop	ax		; recover the driver segment
+
 	sub	bx,bx
 	mov	es,bx
 	ASSUME	ES:BIOS

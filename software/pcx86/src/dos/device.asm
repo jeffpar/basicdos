@@ -72,14 +72,14 @@ ENDPROC	chk_devname
 ;	ES:DI -> device driver header (DDH)
 ;
 ; Additionally, for read/write requests:
-;	BX = LBA (block devices only)
+;	BX = LBA (or other position data if not block device)
 ;	CX = byte count
-;	DX = offset within LBA (block devices only)
+;	DX = offset within LBA (or other context data if not block device)
 ;	DS:SI -> read/write data buffer
 ;
 ; Outputs:
 ;	If carry set, then AL contains error code
-;	If carry clear, then DX contains the context, if any
+;	If carry clear, then DX contains context data, if any
 ;
 ; Modifies:
 ;	AX, DX
@@ -135,13 +135,31 @@ dr2:	mov	[bp].DDP_LEN,size DDPRW
 	mov	[bp].DDPRW_BPB.OFF,ax	; save it in the request packet
 	mov	[bp].DDPRW_BPB.SEG,cs
 
-dr5:	mov	bx,bp
-	push	es
+dr5:	push	es
 	push	es:[di].DDH_REQUEST
 	push	ss
-	pop	es			; ES:BX -> packet
+	pop	es
+	mov	bx,bp			; ES:BX -> packet
+;
+; To make it easier on drivers, don't force them to preserve all registers;
+; there were some they already didn't need to preserve in BASIC-DOS (ie, AX,
+; BX, DX, and ES), so we're just extending the list now.
+;
+	push	cx
+	push	si
+	push	di
+	push	bp
+	push	ds
+
 	call	dword ptr [bp-4]	; far call to DDH_REQUEST
-	pop	ax
+
+	pop	ds
+	pop	bp
+	pop	di
+	pop	si
+	pop	cx
+
+	pop	ax			; toss DDH_REQUEST address
 	pop	es			; ES restored
 	mov	ax,[bp].DDP_STATUS
 	mov	dx,[bp].DDP_CONTEXT

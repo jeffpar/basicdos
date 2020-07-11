@@ -16,13 +16,13 @@ Warning: no stack segment
  0000:05CD       MAIN
  0000:0760       PART2
  0000:07C1       PART3
- 0000:06F7       PRINTP
+ 0000:06D7       PRINTP
  0000:08C4       READ_CLUSTER
  0000:087F       READ_DATA
  0000:0829       READ_FAT
  0000:06B5       READ_SECTOR
  0000:08D8       READ_SECTORS
- 0000:06C5       TWAIT
+ 0000:06C5       WAIT
 
   Address         Publics by Value
 
@@ -31,8 +31,8 @@ Warning: no stack segment
  0000:068C       GET_CHS
  0000:06A5       GET_LBA
  0000:06B5       READ_SECTOR
- 0000:06C5       TWAIT
- 0000:06F7       PRINTP
+ 0000:06C5       WAIT
+ 0000:06D7       PRINTP
  0000:0760       PART2
  0000:07C1       PART3
  0000:07F0       GET_CHS2
