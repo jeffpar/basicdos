@@ -72,17 +72,10 @@ CTSTAT_PAUSED	equ	0002h	; context is paused (triggered by CTRLS hotkey)
 ;	ES:BX -> DDP
 ;
 ; Outputs:
+;	Varies
 ;
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_req,far
-	push	ax
-	push	bx
-	push	cx
-	push	dx
-	push	si
-	push	di
-	push	bp
-	push	ds
 	mov	di,bx			; ES:DI -> DDP
 	mov	bl,es:[di].DDP_CMD
 	cmp	bl,CMDTBL_SIZE
@@ -94,14 +87,6 @@ ddq1:	push	cs
 	mov	bh,0
 	add	bx,bx
 	call	CMDTBL[bx]
-	pop	ds
-	pop	bp
-	pop	di
-	pop	si
-	pop	dx
-	pop	cx
-	pop	bx
-	pop	ax
 	ret
 ENDPROC	ddcon_req
 
@@ -1265,9 +1250,6 @@ ENDPROC	write_6845
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_init,far
-	push	ax
-	push	dx
-	push	ds
 	sub	ax,ax
 	mov	ds,ax
 	ASSUME	DS:BIOS
@@ -1305,11 +1287,6 @@ ddn1:	mov	[frame_seg],dx
 ;
 	mov	ds:[INT_FASTCON * 4].OFF,offset ddcon_int29
 	mov	ds:[INT_FASTCON * 4].SEG,cs
-
-	pop	ds
-	ASSUME	DS:NOTHING
-	pop	dx
-	pop	ax
 	ret
 ENDPROC	ddcon_init
 

@@ -37,14 +37,6 @@ CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CLOCK+DDATTR_CHAR+DDATTR_IOCTL,offset
 ;
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddclk_req,far
-	push	ax
-	push	bx
-	push	cx
-	push	dx
-	push	si
-	push	di
-	push	bp
-	push	ds
 	mov	di,bx			; ES:DI -> DDP
 	mov	bl,es:[di].DDP_CMD
 	cmp	bl,CMDTBL_SIZE
@@ -56,14 +48,6 @@ ddq1:	push	cs
 	mov	bh,0
 	add	bx,bx
 	call	CMDTBL[bx]
-	pop	ds
-	pop	bp
-	pop	di
-	pop	si
-	pop	dx
-	pop	cx
-	pop	bx
-	pop	ax
 	ret
 ENDPROC	ddclk_req
 
@@ -268,9 +252,6 @@ ENDPROC	ddclk_interrupt
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddclk_init,far
-	push	ax
-	push	dx
-	push	ds
 	sub	ax,ax
 	mov	ds,ax
 	ASSUME	DS:BIOS
@@ -293,10 +274,6 @@ DEFPROC	ddclk_init,far
 	mov	[tmr_int].SEG,ax
 	sti
 
-	pop	ds
-	ASSUME	DS:NOTHING
-	pop	dx
-	pop	ax
 	ret
 ENDPROC	ddclk_init
 

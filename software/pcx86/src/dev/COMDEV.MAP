@@ -7,8 +7,8 @@ Warning: no stack segment
  00030H 00054H 00025H CODE2                  CODE
  00060H 00084H 00025H CODE3                  CODE
  00090H 000B4H 00025H CODE4                  CODE
- 000C0H 00119H 0005AH INIT                   CODE
- 00120H 0012FH 00010H DATA                   DATA
+ 000C0H 0010FH 00050H INIT                   CODE
+ 00110H 0011FH 00010H DATA                   DATA
 
  Origin   Group
  0000:0   DEV
@@ -29,7 +29,7 @@ Warning: no stack segment
  0000:0072       DDCOM_CMDP3
  0000:00A2       DDCOM_CMDP4
  0000:00C0       DDCOM_INIT
- 0000:011A       DDCOM_INIT_END
+ 0000:0110       DDCOM_INIT_END
  0000:0018       DDCOM_REQ
  0000:0048       DDCOM_REQ2
  0000:0078       DDCOM_REQ3
@@ -63,4 +63,4 @@ Warning: no stack segment
  0000:00A8       DDCOM_REQ4
  0000:00B5       COM4_END
  0000:00C0       DDCOM_INIT
- 0000:011A       DDCOM_INIT_END
+ 0000:0110       DDCOM_INIT_END
