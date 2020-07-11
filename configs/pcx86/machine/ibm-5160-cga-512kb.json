@@ -133,7 +133,11 @@
             "/software/pcx86/disks/BDS-BOOT.json": "BDS-BOOT",
             "/software/pcx86/disks/BDS-DEV.json": "BDS-DEV",
             "/software/pcx86/disks/BDS-DOS.json": "BDS-DOS",
-            "/software/pcx86/disks/BDS-UTIL.json": "BDS-UTIL"
+            "/software/pcx86/disks/BDS-UTIL.json": "BDS-UTIL",
+            "/software/pcx86/disks/PCDOS100.json": "PC DOS 1.00",
+            "/software/pcx86/disks/PCDOS110.json": "PC DOS 1.10",
+            "/software/pcx86/disks/PCDOS200-DISK1.json": "PC DOS 2.00 (Disk 1)",
+            "/software/pcx86/disks/PCDOS200-DISK2.json": "PC DOS 2.00 (Disk 2)"
           }
         },
         {
