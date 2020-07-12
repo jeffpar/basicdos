@@ -102,8 +102,8 @@ DOS	segment word public 'CODE'
 
 	DEFLBL	UTILTBL,word
 	dw	utl_strlen,  utl_strstr,  func_none,   utl_strupr	;00h-03h
-	dw	func_none,   func_none,   utl_atoi16,  utl_atoi32	;04h-07h
-	dw	utl_itoa,    utl_printf,  utl_sprintf, utl_tokify	;08h-0Bh
+	dw	utl_printf,  utl_sprintf, utl_atoi16,  utl_atoi32	;04h-07h
+	dw	utl_itoa,    func_none,   func_none,   utl_tokify	;08h-0Bh
 	dw	utl_tokid,   func_none,   func_none,   func_none	;0Ch-0Fh
 	dw	utl_getdev,  utl_ioctl,   utl_load,    utl_start	;10h-13h
 	dw	utl_stop,    utl_unload,  utl_yield,   utl_sleep	;14h-17h

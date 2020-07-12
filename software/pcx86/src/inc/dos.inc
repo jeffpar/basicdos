@@ -60,11 +60,11 @@ DOS_UTL		equ	18h	; BASIC-DOS utility functions
 DOS_UTL_STRLEN	equ   1800h	; return string (DS:SI) length (AX)
 DOS_UTL_STRSTR	equ   1801h	; find string (DS:SI) in string (ES:DI)
 DOS_UTL_STRUPR	equ   1803h	; upper-case string (DS:SI)
+DOS_UTL_PRINTF	equ   1804h	; printf to console (PCjs debugger assumes 1804)
+DOS_UTL_SPRINTF	equ   1805h	; sprintf to buffer (ES:DI)
 DOS_UTL_ATOI16	equ   1806h	; convert string (DS:SI) to number (AX)
 DOS_UTL_ATOI32	equ   1807h	; convert string (DS:SI) to number (AX)
 DOS_UTL_ITOA	equ   1808h	; convert number (DX:SI) to string (ES:DI)
-DOS_UTL_PRINTF	equ   1809h	; printf to console
-DOS_UTL_SPRINTF	equ   180Ah	; sprintf to buffer (ES:DI)
 DOS_UTL_TOKIFY	equ   180Bh	; tokenize string (DS:SI) into buffer (ES:DI)
 DOS_UTL_TOKID	equ   180Ch	; convert string (DS:SI) into token ID
 DOS_UTL_GETDEV	equ   1810h	; get DDH (ES:DI) for device (DS:SI)
