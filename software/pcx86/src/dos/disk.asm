@@ -11,7 +11,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<dev_request>,near
+	EXTERNS	<dev_request,scb_delock>,near
 
 	EXTERNS	<scb_locked>,byte
 	EXTERNS	<scb_active>,word

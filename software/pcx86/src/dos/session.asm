@@ -11,8 +11,21 @@
 
 DOS	segment word public 'CODE'
 
+;
+; Global SCB status variables:
+;
+; scb_locked is -1 if the current SCB is unlocked, >= 0 if it's locked;
+; locked means that SCB switching is disabled.
+;
+; scb_stoked normally points to scb_return (ie, a RET) but if a yield
+; operation notices that another SCB is ready to run BUT the current SCB is
+; locked, then scb_stoked will be set to scb_stoke instead, triggering a yield
+; on the next unlock.
+;
+; That is, thus far, the extent of our extremely simple scheduler.
+;
 	EXTERNS	<scb_locked>,byte
-	EXTERNS	<scb_active,psp_active>,word
+	EXTERNS	<scb_active,psp_active,scb_stoked>,word
 	EXTERNS	<scb_table>,dword
 	EXTERNS	<dos_exit,load_program>,near
 
@@ -212,6 +225,50 @@ ENDPROC	scb_unlock
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; scb_delock
+;
+; Handler invoked via UNLOCK_SCB to unlock the SCB and check for
+; a deferred yield request if we're completely unlocked.
+;
+; Inputs:
+;	None
+;
+; Modifies:
+;	None
+;
+DEFPROC	scb_delock,DOS
+	ASSUME	DS:NOTHING, ES:NOTHING
+	dec	[scb_locked]
+	jge	scb_return
+	ASSERT	Z,<cmp [scb_locked],-1>
+	jmp	[scb_stoked]
+ENDPROC	scb_delock
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; scb_stoke
+;
+; Handler invoked via UNLOCK_SCB to perform a deferred yield request.
+;
+; Inputs:
+;	None
+;
+; Modifies:
+;	None
+;
+DEFPROC	scb_stoke,DOS
+	ASSUME	DS:NOTHING, ES:NOTHING
+	mov	[scb_stoked],offset scb_return
+	push	ax
+	mov	ax,DOS_UTL_YIELD
+	int	21h
+	pop	ax
+	DEFLBL	scb_return,near
+	ret
+ENDPROC	scb_stoke
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; scb_start
 ;
 ; "Start" the specified session (actual starting will handled by scb_switch).
@@ -294,8 +351,6 @@ ENDPROC	scb_unload
 ;
 DEFPROC	scb_yield,DOS
 	sti
-	inc	[scb_locked]
-	jnz	sy9
 	mov	bx,[scb_active]
 	test	bx,bx
 	jz	sy2
@@ -315,9 +370,13 @@ sy3:	cmp	bx,ax			; have we looped to where we started?
 	mov	dx,[bx].SCB_WAITID.OFF
 	or	dx,[bx].SCB_WAITID.SEG
 	jnz	sy1
-	jmp	scb_switch
-sy9:	dec	[scb_locked]
-	ASSERT	NC
+	inc	[scb_locked]
+	jz	scb_switch		; we were not already locked, so switch
+	test	ax,ax			; yield?
+	jz	sy8			; no
+	mov	[scb_stoked],offset scb_stoke
+sy8:	dec	[scb_locked]
+sy9:	ASSERT	NC
 	ret
 ENDPROC	scb_yield
 

@@ -60,8 +60,8 @@ DOS_UTL		equ	18h	; BASIC-DOS utility functions
 DOS_UTL_STRLEN	equ   1800h	; return string (DS:SI) length (AX)
 DOS_UTL_STRSTR	equ   1801h	; find string (DS:SI) in string (ES:DI)
 DOS_UTL_STRUPR	equ   1803h	; upper-case string (DS:SI)
-DOS_UTL_PRINTF	equ   1804h	; printf to console (PCjs debugger assumes 1804)
-DOS_UTL_SPRINTF	equ   1805h	; sprintf to buffer (ES:DI)
+DOS_UTL_PRINTF	equ   1804h	; printf to console [used by PCjs Dbg]
+DOS_UTL_SPRINTF	equ   1805h	; sprintf to buffer (ES:DI) [used by PCjs Dbg]
 DOS_UTL_ATOI16	equ   1806h	; convert string (DS:SI) to number (AX)
 DOS_UTL_ATOI32	equ   1807h	; convert string (DS:SI) to number (AX)
 DOS_UTL_ITOA	equ   1808h	; convert number (DX:SI) to string (ES:DI)
@@ -201,13 +201,11 @@ SCSTAT_LOAD	equ	02h	; set if session has loaded a program
 SCSTAT_START	equ	04h	; set if session program can be started
 
 LOCK_SCB macro
-	ASSERT	Z,<cmp [scb_locked+1],4Ah>
 	inc	[scb_locked]
 	endm
 
 UNLOCK_SCB macro
-	ASSERT	Z,<cmp [scb_locked+1],4Ah>
-	dec	[scb_locked]
+	jmp	scb_delock
 	endm
 ;
 ; Memory Control Block (MCB)

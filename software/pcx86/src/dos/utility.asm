@@ -11,15 +11,16 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<scb_locked>,byte
-	EXTERNS	<scb_active>,word
-	EXTERNS	<scb_table,clk_ptr>,dword
 	EXTERNS	<chk_devname,dev_request,write_string>,near
-	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload,scb_yield>,near
-	EXTERNS	<scb_wait,scb_endwait>,near
+	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload>,near
+	EXTERNS	<scb_yield,scb_delock,scb_wait,scb_endwait>,near
 	EXTERNS	<mcb_query>,near
 	EXTERNS	<psp_term_exitcode>,near
 	EXTERNS	<itoa,sprintf>,near
+
+	EXTERNS	<scb_locked>,byte
+	EXTERNS	<scb_active>,word
+	EXTERNS	<scb_table,clk_ptr>,dword
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
