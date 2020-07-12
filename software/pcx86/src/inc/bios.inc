@@ -50,6 +50,17 @@ FDC_READ	EQU	02h	;
 FDC_WRITE	EQU	03h	;
 HDC_GETPARMS	EQU	08h	; DL=80h; DL:=# drives (if carry clear)
 
+FDCERR_BADCMD	EQU	01h	; bad (BIOS) command
+FDCERR_BADMARK	EQU	02h	; bad address mark
+FDCERR_WP	EQU	03h	; write-protect error
+FDCERR_NOSECTOR	EQU	04h	; sector not found
+FDCERR_DMAOVR	EQU	08h	; DMA overrun error
+FDCERR_DMA64K	EQU	09h	; DMA (64K) boundary error
+FDCERR_CRC	EQU	10h	; CRC error
+FDCERR_CTRL	EQU	20h	; controller failure
+FDCERR_SEEK	EQU	40h	; seek failure
+FDCERR_NOTREADY	EQU	80h	; aka timeout
+
 ;
 ; INT_KBD functions
 ;

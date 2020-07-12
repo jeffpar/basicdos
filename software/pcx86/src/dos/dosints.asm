@@ -29,8 +29,8 @@ DOS	segment word public 'CODE'
 ; then aborts the current program.
 ;
 DEFPROC	dos_dverr,DOSFAR
-	PRINTF	<"division error @%08lx",13,10>
 	DBGBRK
+	PRINTF	<"division error @%08lx",13,10>
 	mov	ah,EXTYPE_DVERR
 	jmp	dos_abort
 ENDPROC	dos_dverr
@@ -49,8 +49,8 @@ DEFPROC	dos_sstep,DOSFAR
 	IFDEF DEBUG
 	inc	[asserts]
 	jnz	ss1
-	PRINTF	<"assert @%08lx",13,10>
 	DBGBRK
+	PRINTF	<"assert @%08lx",13,10>
 ss1:	dec	[asserts]
 	ENDIF
 	iret
@@ -75,8 +75,8 @@ ENDPROC	dos_brkpt
 ; then aborts the current program.
 ;
 DEFPROC	dos_oferr,DOSFAR
-	PRINTF	<"overflow error @%08lx",13,10>
 	DBGBRK
+	PRINTF	<"overflow error @%08lx",13,10>
 	mov	ah,EXTYPE_OVERR
 	jmp	dos_abort
 ENDPROC	dos_oferr

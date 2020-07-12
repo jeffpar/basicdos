@@ -476,6 +476,7 @@ DEFPROC	get_bpb,DOS
 	push	di			; DI -> BPB
 	push	es
 	les	di,cs:[di].BPB_DEVICE
+	mov	al,cl			; AL = drive #
 	mov	ah,DDC_MEDIACHK		; perform a MEDIACHK request
 	call	dev_request
 	jc	gb8
