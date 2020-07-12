@@ -269,16 +269,16 @@ DEFPROC	ddcon_open
 	pop	es
 	mov	bl,10			; use base 10
 	mov	di,offset CON_LIMITS	; ES:DI -> limits
-	mov	ax,DOS_UTL_ATOI
+	mov	ax,DOS_UTL_ATOI16
 	int	21h			; updates SI, DI, and AX
 	mov	cl,al			; CL = cols
-	mov	ax,DOS_UTL_ATOI
+	mov	ax,DOS_UTL_ATOI16
 	int	21h
 	mov	ch,al			; CH = rows
-	mov	ax,DOS_UTL_ATOI
+	mov	ax,DOS_UTL_ATOI16
 	int	21h
 	mov	dl,al			; DL = starting col
-	mov	ax,DOS_UTL_ATOI
+	mov	ax,DOS_UTL_ATOI16
 	int	21h
 	mov	dh,al			; DH = starting row
 	pop	ds

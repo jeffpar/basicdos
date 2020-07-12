@@ -468,8 +468,7 @@ DEFPROC	cmdPrint
 	jne	pr1
 	mov	bl,16		; the prefix is present, so switch to base 16
 	add	si,2		; and skip the prefix
-pr1:	mov	di,-1		; no validation
-	mov	ax,DOS_UTL_ATOI
+pr1:	mov	ax,DOS_UTL_ATOI32
 	int	21h
 	jc	pr8		; apparently not a number
 	PRINTF	<"Value is %ld (%#lx)",13,10>,ax,dx,ax,dx

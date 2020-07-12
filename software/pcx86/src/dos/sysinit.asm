@@ -137,7 +137,7 @@ si3a:	mov	al,0EAh			; DI -> INT_DOSCALL5 * 4
 	pop	es
 	ASSUME	ES:NOTHING		; ES:DI -> validation data
 	mov	bl,10
-	mov	ax,DOS_UTL_ATOI		; DS:SI -> string
+	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
 	int	21h			; AX = value
 	jc	si4
 	push	cx
@@ -267,7 +267,7 @@ si5:	mov	si,offset CFG_SESSIONS
 	push	ds
 	pop	es
 	mov	bl,10
-	mov	ax,DOS_UTL_ATOI		; DS:SI -> string, ES:DI -> validation
+	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string, ES:DI -> validation
 	int	21h			; AX = new value
 	pop	es
 si6:	mov	dx,size SCB
@@ -285,7 +285,7 @@ si6:	mov	dx,size SCB
 	push	ds
 	pop	es
 	mov	bl,10
-	mov	ax,DOS_UTL_ATOI		; DS:SI -> string, ES:DI -> validation
+	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string, ES:DI -> validation
 	int	21h			; AX = new value
 	pop	es
 si7:	mov	dx,size SFB

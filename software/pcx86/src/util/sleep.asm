@@ -25,8 +25,7 @@ DEFPROC	main
 	je	s1
 	inc	si
 	mov	bl,10
-	mov	di,-1		; no ATOI validation
-	mov	ax,DOS_UTL_ATOI
+	mov	ax,DOS_UTL_ATOI32
 	int	21h		; DX:AX = value (# of seconds)
 ;
 ; Perform an unnecessary division, so we can verify that division error

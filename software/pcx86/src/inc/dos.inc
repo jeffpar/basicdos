@@ -58,30 +58,31 @@ DOS_DSK_SETDRV	equ	0Eh	; set current drive (DL), return # drives (AL)
 
 DOS_UTL		equ	18h	; BASIC-DOS utility functions
 DOS_UTL_STRLEN	equ   1800h	; return string (DS:SI) length (AX)
-DOS_UTL_STRUPR	equ   1801h	; upper-case string (DS:SI)
-DOS_UTL_ATOI	equ   1802h	; convert string (DS:SI) to number (AX)
-DOS_UTL_ITOA	equ   1803h	; convert number (DX:SI) to string (ES:DI)
-DOS_UTL_PRINTF	equ   1804h	; printf to console
-DOS_UTL_SPRINTF	equ   1805h	; sprintf to buffer (ES:DI)
-DOS_UTL_GETDEV	equ   1806h	; get DDH (ES:DI) for device (DS:SI)
-DOS_UTL_IOCTL	equ   1807h	; issue IOCTL to device (ES:DI)
-DOS_UTL_LOAD	equ   1808h	; load program (DS:DX) into SCB (CL)
-DOS_UTL_START	equ   1809h	; start SCB (CL)
-DOS_UTL_STOP	equ   180Ah	; stop SCB (CL)
-DOS_UTL_UNLOAD	equ   180Bh	; unload program from SCB (CL)
-DOS_UTL_YIELD	equ   180Ch	; yield
-DOS_UTL_SLEEP	equ   180Dh	; sleep DX milliseconds
-DOS_UTL_WAIT	equ   180Eh	; wait until end wait
-DOS_UTL_ENDWAIT	equ   180Fh	; end wait
-DOS_UTL_HOTKEY	equ   1810h	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
-DOS_UTL_TOKIFY	equ   1811h	; tokenize string (DS:SI) into buffer (ES:DI)
-DOS_UTL_TOKID	equ   1812h	; convert string (DS:SI) into token ID
-DOS_UTL_LOCK	equ   1813h	; lock current SCB
-DOS_UTL_UNLOCK	equ   1814h	; unlock current SCB
-DOS_UTL_QRYMEM	equ   1815h	; query memory block N (CL)
-DOS_UTL_QRYHDL	equ   1816h	; query system file handle N (CL)
-DOS_UTL_STRSTR	equ   1817h	; find string (DS:SI) in string (ES:DI)
-DOS_UTL_ABORT	equ   1818h	; abort with exit code (DL) and exit type (DH)
+DOS_UTL_STRSTR	equ   1801h	; find string (DS:SI) in string (ES:DI)
+DOS_UTL_STRUPR	equ   1803h	; upper-case string (DS:SI)
+DOS_UTL_ATOI16	equ   1806h	; convert string (DS:SI) to number (AX)
+DOS_UTL_ATOI32	equ   1807h	; convert string (DS:SI) to number (AX)
+DOS_UTL_ITOA	equ   1808h	; convert number (DX:SI) to string (ES:DI)
+DOS_UTL_PRINTF	equ   1809h	; printf to console
+DOS_UTL_SPRINTF	equ   180Ah	; sprintf to buffer (ES:DI)
+DOS_UTL_TOKIFY	equ   180Bh	; tokenize string (DS:SI) into buffer (ES:DI)
+DOS_UTL_TOKID	equ   180Ch	; convert string (DS:SI) into token ID
+DOS_UTL_GETDEV	equ   1810h	; get DDH (ES:DI) for device (DS:SI)
+DOS_UTL_IOCTL	equ   1811h	; issue IOCTL to device (ES:DI)
+DOS_UTL_LOAD	equ   1812h	; load program (DS:DX) into SCB (CL)
+DOS_UTL_START	equ   1813h	; start SCB (CL)
+DOS_UTL_STOP	equ   1814h	; stop SCB (CL)
+DOS_UTL_UNLOAD	equ   1815h	; unload program from SCB (CL)
+DOS_UTL_YIELD	equ   1816h	; yield
+DOS_UTL_SLEEP	equ   1817h	; sleep DX milliseconds
+DOS_UTL_WAIT	equ   1818h	; wait until end wait
+DOS_UTL_ENDWAIT	equ   1819h	; end wait
+DOS_UTL_HOTKEY	equ   181Ah	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
+DOS_UTL_LOCK	equ   181Bh	; lock current SCB
+DOS_UTL_UNLOCK	equ   181Ch	; unlock current SCB
+DOS_UTL_QRYMEM	equ   181Dh	; query memory block N (CL)
+DOS_UTL_QRYHDL	equ   181Eh	; query system file handle N (CL)
+DOS_UTL_ABORT	equ   181Fh	; abort with exit code (DL) and exit type (DH)
 DOS_UTL_STDLEN	equ   1824h	; like STRLEN but w/24h (dollar) as terminator
 
 DOS_DSK_GETDRV	equ	19h	; get current drive (AL)
