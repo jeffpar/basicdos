@@ -47,6 +47,7 @@ let disks = {
         "./software/pcx86/src/dos/disk.asm",
         "./software/pcx86/src/dos/dosdata.asm",
         "./software/pcx86/src/dos/dosints.asm",
+        "./software/pcx86/src/dos/fcbio.asm",
         "./software/pcx86/src/dos/handle.asm",
         "./software/pcx86/src/dos/ibmdos.lrf",
         "./software/pcx86/src/dos/memory.asm",

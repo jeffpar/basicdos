@@ -279,6 +279,7 @@ CHR_CTRLS	equ	13h
 CHR_CTRLZ	equ	1Ah
 CHR_ESC		equ	1Bh
 CHR_SPACE	equ	20h
+CHR_DBLQUOTE	equ	22h
 
 SCAN_TAB	equ	0Fh
 

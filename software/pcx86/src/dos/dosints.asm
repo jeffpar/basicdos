@@ -85,10 +85,11 @@ ENDPROC	dos_oferr
 ;
 ; dos_term (INT 20h)
 ;
-; NOTE: This interrupt, as well as INT 21h AH=00h, both apparently require
-; the call to be made from the segment containing the PSP (CS == PSP).  Also,
-; the underlying function call here (DOS_PSP_TERM) sets a default exit code
-; of zero, unlike DOS_PSP_EXIT, which allows any exit code to be returned.
+; NOTE: In "REAL DOS", this interrupt, as well as INT 21h AH=00h, apparently
+; requires the call to be made from the segment containing the PSP (CS == PSP).
+; We do not.  Also, the underlying function here (DOS_PSP_TERM) sets a default
+; exit code (we use zero), whereas DOS_PSP_EXIT (4Ch) allows any exit code to
+; be returned.
 ;
 DEFPROC	dos_term,DOSFAR
 	mov	ah,DOS_PSP_TERM
@@ -101,7 +102,7 @@ ENDPROC	dos_term
 ; dos_restart
 ;
 ; Default CTRLC response handler; if carry is set, call DOS_PSP_EXIT with
-; exit code -1
+; (arbitrary) exit code -1.
 ;
 ; Inputs:
 ;	Carry determines whether we exit the process or restart the DOS call
@@ -113,7 +114,7 @@ DEFPROC	dos_restart,DOSFAR
 	jnc	dos_func
 	mov	ah,EXTYPE_CTRLC
 	DEFLBL	dos_abort,near
-	mov	al,0FFh			; AL = arbitrary exit code
+	mov	al,0FFh			; AL = exit code
 	xchg	dx,ax			; DL = exit code, DH = exit type
 	mov	ax,DOS_UTL_ABORT
 	int	21h
@@ -171,7 +172,6 @@ dc0:	jmp	msc_sigctrlc_read
 
 dc1:	sti
 	and	[bp].REG_FL,NOT FL_CARRY
-
 	cmp	ah,FUNCTBL_SIZE
 	cmc
 	jb	dc9
