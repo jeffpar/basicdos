@@ -94,7 +94,7 @@ for (let diskName in disks) {
     if (disks[diskName].length == 1) {
         kbTarget = 10000;
         diskFiles = "--dir " + path.dirname(disks[diskName][0]);
-        hddImage = " --output " + diskImage.replace(".json",".hdd");
+        hddImage = " --output " + diskImage.replace(diskName, "archive/" + diskName).replace(".json",".hdd");
     } else {
         for (let i = 0; i < disks[diskName].length; i++) {
             if (diskFiles) diskFiles += ",";
