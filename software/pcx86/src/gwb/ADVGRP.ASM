@@ -11,12 +11,6 @@ INCLUDE	OEM.INC
 
 	.RADIX	10
 
-				;Number of graphics planes.  Used to
-				;calculate the array size in PUT/GET.
-PWR2PX=(MELCO OR TETRA OR MCI OR SIRIUS)-1
-				;TRUE IF BITS/PIXEL IS ALWAYS POWER
-				;OF TWO. SAVES MULTIPLICATION.
-
 TETRA=0
 ZENITH=0
 MCI=0
@@ -31,6 +25,12 @@ MODEL3=0
 TSHIBA=0
 KANJSW=PC8A OR (TSHIBA AND (TRUROM-1))
 				;PUT @(x,y),KANJI(c) function,on,off
+
+				;Number of graphics planes.  Used to
+				;calculate the array size in PUT/GET.
+PWR2PX=(MELCO OR TETRA OR MCI OR SIRIUS)-1
+				;TRUE IF BITS/PIXEL IS ALWAYS POWER
+				;OF TWO. SAVES MULTIPLICATION.
 
 ;
 ; MACHINE DEPENDENT SWITCHES

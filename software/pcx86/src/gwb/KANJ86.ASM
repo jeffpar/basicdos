@@ -5,7 +5,7 @@
 CSEG	SEGMENT PUBLIC 'CODESG'
 	ASSUME  CS:CSEG
 
-INCLUDE	OEM.H
+INCLUDE	OEM.INC
 
 	TITLE   KANJ86 - KANJI String Function Support for Basic-86
 
@@ -18,12 +18,12 @@ COPYRIGHT (C) 1982 BY MICROSOFT
         Author: Tom Corbett - Microsoft Inc.  -  April 28, 1982
 
         *
-	INCLUDE	GIO86U		;contains DB definition
+	INCLUDE	GIO86U.INC	;contains DB definition
 	.SALL
 
-	INCLUDE	MSDOSU
+	INCLUDE	MSDOSU.INC
 IF	CPM86
-	INCLUDE	CPM86U
+	INCLUDE	CPM86U.INC
 ENDIF
 
 
