@@ -10,10 +10,10 @@ EXTRN   CSAVEA:WORD,CSAVEM:WORD
 ; Data defined by the OEM module
 
 var_630 db      0       ; Saved video mode
-var_631 dw      offset  CTLBRK
-var_633 dw      0
+CBKINT  dw      offset  CTLBRK
+CBRKSG  dw      0
         dw      offset  TIMISR
-var_637 dw      0
+TIMRSG  dw      0
 var_639 db      0       ; Currently selected video page
 var_63a db      0
 var_63b db      80      ; Screen width in columns (40/80)
@@ -95,7 +95,7 @@ SEGINI		endp
 
 ; ---------------------------------------------------------------------------
 OEMHED		db 0Dh,0Ah
-		db 'S/2 Museum BASIC',0Dh,0Ah
+		db 'OS/2 Museum BASIC',0Dh,0Ah
 		db 'Version 1.0',0Dh,0Ah
 		db 0Dh,0Ah
 		db '(C) Copyright OS/2 Museum 2020'
@@ -181,7 +181,7 @@ GETFBC		proc near
 		ret
 ; ---------------------------------------------------------------------------
 
-TXTATR:					; CODE XREF: GETFBCj
+TXTATR:
 		xor	ax, ax
 		mov	bx, ax
 		mov	al, 3
@@ -296,8 +296,7 @@ POKFLT		proc near
 		push	bx
 		push	dx
 		mov	cs:PEKPOK, -1	; It's a poke
-
-DOPFLT:					; CODE XREF: PEKFLT+Cj
+DOPFLT:
 		push	di
 		push	es
 		cld
@@ -315,7 +314,7 @@ DOPFLT:					; CODE XREF: PEKFLT+Cj
 		jmp	short PFLTX
 ; ---------------------------------------------------------------------------
 
-BASDAT:					; CODE XREF: POKFLT+13j
+BASDAT:
 		mov	di, offset word_50E9
 		mov	ax, dx
 		mov	cx, 18h
@@ -345,7 +344,7 @@ BASDAT:					; CODE XREF: POKFLT+13j
 		ret
 ; ---------------------------------------------------------------------------
 
-loc_5187:				; CODE XREF: POKFLT+56j
+loc_5187:
 		mov	bx, ax
 		or	ax, 0FFFFh
 		pop	cx
@@ -353,7 +352,7 @@ loc_5187:				; CODE XREF: POKFLT+56j
 		ret
 ; ---------------------------------------------------------------------------
 
-loc_518F:				; CODE XREF: POKFLT+4Ej
+loc_518F:
 		pop	cx
 		jmp	ax
 ; ---------------------------------------------------------------------------
@@ -364,7 +363,7 @@ loc_5192:
 		ret
 ; ---------------------------------------------------------------------------
 
-PFLTX:					; CODE XREF: POKFLT+18j POKFLT+1Ej ...
+PFLTX:
 		pop	es
 		pop	di
 		pop	dx
@@ -472,9 +471,9 @@ CM2CTL		db    0         ; Control structure for	second COM port
 		db    0
 		db    0
 		dw offset CM2ISR
-CBFSEG		dw 0			; DATA XREF: CM2ISR+49r SETCBF+4w ...
-CBFSIZ		dw 0			; DATA XREF: CM2ISR+29r SETCBF:CKCOM1w ...
-ISRDSP		dw offset ISRFN0	; DATA XREF: CM2ISR+1Er
+CBFSEG		dw 0
+CBFSIZ		dw 0
+ISRDSP		dw offset ISRFN0
 		dw offset ISRFN1
 		dw offset ISRFN2
 		dw offset ISRFN3
@@ -507,14 +506,12 @@ COMISR:
 		inc	dx
 		inc	dx
 		in	al, dx
-
 loc_523B:
 		and	al, 6
 		inc	byte ptr [bx+1Dh]
 		mov	ah, 0
 		mov	si, ax
 		jmp	ISRDSP[si]
-
 ISRFN2:
 		dec	dx
 		dec	dx
@@ -524,12 +521,11 @@ ISRFN2:
 		cmp	si, CBFSIZ
 		jbe	short loc_5257
 		xor	si, si
-
-loc_5257:				; CODE XREF: CM2ISR+2Dj
+loc_5257:
 		cmp	si, [bx+8]
 		jnz	short loc_5262
 		or	byte ptr [bx+18h], 1
-		jmp	short loc_5279
+		jmp	short COMEOI
 ; ---------------------------------------------------------------------------
 
 loc_5262:				; CODE XREF: CM2ISR+34j
@@ -544,8 +540,7 @@ loc_5262:				; CODE XREF: CM2ISR+34j
 		mov	[bx+si], al
 		pop	bx
 		pop	ds
-
-loc_5279:				; CODE XREF: CM2ISR+3Aj CM2ISR+CAj ...
+COMEOI:
 		mov	al, 20h		; Send EOI
 		out	20h, al		; Interrupt controller,	8259A.
 		mov	dx, [bx]
@@ -580,8 +575,7 @@ loc_5279:				; CODE XREF: CM2ISR+3Aj CM2ISR+CAj ...
 		out	21h, al		; Interrupt controller,	8259A.
 		mov	al, 20h		; One more EOI for good	measure?
 		out	20h, al		; Interrupt controller,	8259A.
-
-ISRX:					; CODE XREF: CM2ISR+5Ej
+ISRX:
 		pop	ax
 		pop	ds
 		pop	di
@@ -602,8 +596,7 @@ ISRFN1:
 		cmp	si, 80h	; '�'
 		jbe	short loc_52DC
 		xor	si, si
-
-loc_52DC:				; CODE XREF: CM2ISR+B2j
+loc_52DC:
 		mov	[bx+0Ch], si
 		push	bx
 		push	ds
@@ -615,13 +608,13 @@ loc_52DC:				; CODE XREF: CM2ISR+B2j
 		pop	bx
 		dec	dx
 		out	dx, al
-		jmp	short loc_5279
+		jmp	short COMEOI
 ; ---------------------------------------------------------------------------
 
 loc_52F2:
 		mov	al, 0Dh
 		out	dx, al
-		jmp	short loc_5279
+		jmp	short COMEOI
 ; ---------------------------------------------------------------------------
 
 ISRFN3:
@@ -629,7 +622,7 @@ ISRFN3:
 		in	al, dx
 		and	al, 0Ah
 		or	[bx+18h], al
-		jmp	loc_5279
+		jmp	COMEOI
 ; ---------------------------------------------------------------------------
 
 ISRFN0:
@@ -652,16 +645,15 @@ ISRFN0:
 		or	byte ptr [bx+19h], 2
 		mov	al, 0Dh
 		out	dx, al
-
-loc_5330:				; CODE XREF: CM2ISR+F5j
-		jmp	loc_5279
+loc_5330:
+		jmp	COMEOI
 ; ---------------------------------------------------------------------------
 
-loc_5333:				; CODE XREF: CM2ISR+101j
+loc_5333:
 		and	byte ptr [bx+19h], 0FDh
 		mov	al, 0Fh
 		out	dx, al
-		jmp	loc_5279
+		jmp	COMEOI
 CM2ISR		endp
 
 
@@ -747,7 +739,7 @@ BADFNM:
 		jmp	INICMX
 ; ---------------------------------------------------------------------------
 
-loc_53CE:
+COMERR:
 		mov	ah, -2
 		jmp	INICMX
 ; END OF FUNCTION CHUNK	FOR INICOM
@@ -770,7 +762,7 @@ INICOM		proc near
 		mov	ah, al
 		call	CMPREP
 		or	dx, dx
-		jz	short loc_53CE
+		jz	short COMERR
 		lods	word ptr es:[si]
 		mov	di, offset BAUDTB
 		mov	cx, 0Ah
@@ -1423,8 +1415,8 @@ INILPT:					; CODE XREF: GWINI+3Aj
 		cmp	dx, 3
 		jnz	short INILPT
 		mov	ax, cs		; Set segments for interrupt vectors
-		mov	ds:var_633, ax
-		mov	ds:var_637, ax
+		mov	ds:CBRKSG, ax
+		mov	ds:TIMRSG, ax
 		call	SWPVEC		; Install INT 1Bh/1Ch vectors
 		push	ds
 		xor	ax, ax
@@ -1458,7 +1450,7 @@ SWPVEC		proc near
 		mov	ds, ax
 		assume ds:nothing
 		mov	si, 6Ch		; Offset of vector 1Bh (Ctrl+Break)
-		mov	di, 631h
+		mov	di, OFFSET CBKINT
 		cli
 		cld
 DOVEC:
