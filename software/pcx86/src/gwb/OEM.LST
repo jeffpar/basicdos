@@ -1,9 +1,13 @@
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-1
                                                             
 
                                  
+                                ; 
+                                ; Reversed-engineered OEM.ASM, courtesy of Mich
+				al Necasek 2020-07-13 
+                                ; 
  0000                           DSEG    SEGMENT PUBLIC 'DATASG' 
                                  
                                 ; Defined elsewhere 
@@ -53,15 +57,15 @@
  0025  06                       var_655 db      6 
  0026  0A                               db      10 
  0027  01                               db      1 
- 0028  00                               db      0       ; Likely unused 
- 0029  00                               db      0 
- 002A  00                               db      0 
- 002B  00                               db      0 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-2
                                                             
 
+ 0028  00                               db      0       ; Likely unused 
+ 0029  00                               db      0 
+ 002A  00                               db      0 
+ 002B  00                               db      0 
  002C  00                               db      0 
  002D  00                               db      0 
  002E  00                               db      0 
@@ -112,15 +116,15 @@
  0010  8C C0                    		mov	ax, es 
  0012  A3 0510                  		mov	ds:510h, ax	; Stash	away BASIC data	segme
 				nt 
- 0015  1F                       		pop	ds 
-                                		assume ds:nothing 
- 0016  C3                       		ret 
-                                SEGINI		endp 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-3
                                                             
 
+ 0015  1F                       		pop	ds 
+                                		assume ds:nothing 
+ 0016  C3                       		ret 
+                                SEGINI		endp 
                                  
                                 ; ---------------------------------------------
 				------------------------------ 
@@ -171,15 +175,15 @@
  007B  3C 0E                    		cmp	al, 0Eh 
  007D  72 04                    		jb	short BADMAP 
  007F  3C 1C                    		cmp	al, 1Ch 
- 0081  72 14                    		jb	short loc_506E 
- 0083                           BADMAP: 
- 0083  B4 FF                    		mov	ah, 0FFh 
- 0085  0A C0                    		or	al, al 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-4
                                                             
 
+ 0081  72 14                    		jb	short loc_506E 
+ 0083                           BADMAP: 
+ 0083  B4 FF                    		mov	ah, 0FFh 
+ 0085  0A C0                    		or	al, al 
  0087  F9                       		stc 
  0088  C3                       		ret 
                                 ; ---------------------------------------------
@@ -230,15 +234,15 @@
                                 ; ---------------------------------------------
 				------------------------------ 
                                  
- 00B7                           TXTATR: 
- 00B7  33 C0                    		xor	ax, ax 
- 00B9  8B D8                    		mov	bx, ax 
- 00BB  B0 03                    		mov	al, 3 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-5
                                                             
 
+ 00B7                           TXTATR: 
+ 00B7  33 C0                    		xor	ax, ax 
+ 00B9  8B D8                    		mov	bx, ax 
+ 00BB  B0 03                    		mov	al, 3 
  00BD  C3                       		ret 
                                 GETFBC		endp 
                                  
@@ -289,15 +293,15 @@
                                 ; =============== S U B	R O U T	I N E =========
 				============================== 
                                  
-                                ; Get screen pixel dimensions 
-                                 
- 0104                           GRPSIZ		proc near 
- 0104  8B 0E 0019 R             		mov	cx, ds:var_649 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-6
                                                             
 
+                                ; Get screen pixel dimensions 
+                                 
+ 0104                           GRPSIZ		proc near 
+ 0104  8B 0E 0019 R             		mov	cx, ds:var_649 
  0108  0B C9                    		or	cx, cx 
  010A  74 01                    		jz	short HEIGHT 
  010C  49                       		dec	cx		; Decrement unless zero 
@@ -348,15 +352,15 @@
  0146  8B D3                    		mov	dx, bx 
  0148  2E: C6 06 0111 R 00      		mov	cs:PEKPOK, 0	; It's a peek 
  014E  EB 0A                    		jmp	short DOPFLT 
-                                PEKFLT		endp 
-                                 
-                                 
-                                ; =============== S U B	R O U T	I N E =========
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-7
                                                             
 
+                                PEKFLT		endp 
+                                 
+                                 
+                                ; =============== S U B	R O U T	I N E =========
 				============================== 
                                  
                                 ; Filter POKEs for "special" addresses 
@@ -407,15 +411,15 @@
                                 		assume es:nothing 
  0198  5F                       		pop	di 
  0199  5A                       		pop	dx 
- 019A  5B                       		pop	bx 
- 019B  83 F9 02                 		cmp	cx, 2 
- 019E  72 18                    		jb	short loc_518F 
- 01A0  2E: 80 3E 0111 R 00      		cmp	cs:PEKPOK, 0	; Is it	a PEEK? 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-8
                                                             
 
+ 019A  5B                       		pop	bx 
+ 019B  83 F9 02                 		cmp	cx, 2 
+ 019E  72 18                    		jb	short loc_518F 
+ 01A0  2E: 80 3E 0111 R 00      		cmp	cs:PEKPOK, 0	; Is it	a PEEK? 
  01A6  74 08                    		jz	short loc_5187 
  01A8  8B D0                    		mov	dx, ax 
  01AA  0D FFFF                  		or	ax, 0FFFFh 
@@ -466,15 +470,15 @@
 				 TRMCOM, SNDLPT 
                                  
  01C6  2580                     BAUDTB  	dw 9600 
- 01C8  12C0                     		dw 4800 
- 01CA  0960                     		dw 2400 
- 01CC  0708                     		dw 1800 
- 01CE  04B0                     		dw 1200 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-9
                                                             
 
+ 01C8  12C0                     		dw 4800 
+ 01CA  0960                     		dw 2400 
+ 01CC  0708                     		dw 1800 
+ 01CE  04B0                     		dw 1200 
  01D0  0258                     		dw 600 
  01D2  012C                     		dw 300 
  01D4  0096                     		dw 150 
@@ -525,15 +529,15 @@
  020F  00                       		db    0 
  0210  00                       		db    0 
  0211  00                       		db    0 
- 0212  00                       		db    0 
- 0213  00                       		db    0 
- 0214  00                       		db    0 
- 0215  00                       		db    0 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-10
                                                             
 
+ 0212  00                       		db    0 
+ 0213  00                       		db    0 
+ 0214  00                       		db    0 
+ 0215  00                       		db    0 
  0216  0246 R                   		dw offset CM1ISR 
  0218  00                       CM2CTL		db    0         ; Control structure for
 					second COM port 
@@ -584,15 +588,15 @@
  024A  EB 04                    		jmp	short COMISR 
                                  
                                 ; =============== S U B	R O U T	I N E =========
-				============================== 
-                                 
-                                 
- 024C                           CM2ISR		proc far 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-11
                                                             
 
+				============================== 
+                                 
+                                 
+ 024C                           CM2ISR		proc far 
  024C  53                       		push	bx 
  024D  BB 0218 R                		mov	bx, offset CM2CTL 
                                  
@@ -643,15 +647,15 @@
  0295  8B 3E 023A R             		mov	di, CBFSEG 
  0299  8E DF                    		mov	ds, di 
                                 		assume ds:nothing 
- 029B  88 00                    		mov	[bx+si], al 
- 029D  5B                       		pop	bx 
- 029E  1F                       		pop	ds 
- 029F                           COMEOI: 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-12
                                                             
 
+ 029B  88 00                    		mov	[bx+si], al 
+ 029D  5B                       		pop	bx 
+ 029E  1F                       		pop	ds 
+ 029F                           COMEOI: 
  029F  B0 20                    		mov	al, 20h		; Send EOI 
  02A1  E6 20                    		out	20h, al		; Interrupt controller,	8259A. 
  02A3  8B 17                    		mov	dx, [bx] 
@@ -702,16 +706,16 @@
                                  
  02F0                           ISRFN1: 
  02F0  4A                       		dec	dx 
- 02F1  8B 77 0C                 		mov	si, [bx+0Ch] 
- 02F4  3B 77 0E                 		cmp	si, [bx+0Eh] 
- 02F7  74 1F                    		jz	short loc_52F2 
- 02F9  46                       		inc	si 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-13
                                                             
 
- 02FA  81 FE 0080               		cmp	si, 80h	; 'Ä' 
+ 02F1  8B 77 0C                 		mov	si, [bx+0Ch] 
+ 02F4  3B 77 0E                 		cmp	si, [bx+0Eh] 
+ 02F7  74 1F                    		jz	short loc_52F2 
+ 02F9  46                       		inc	si 
+ 02FA  81 FE 0080               		cmp	si, 80h	; 'ÔøΩ' 
  02FE  76 02                    		jbe	short loc_52DC 
  0300  33 F6                    		xor	si, si 
  0302                           loc_52DC: 
@@ -761,15 +765,15 @@
  0343  80 E5 0F                 		and	ch, 0Fh 
  0346  0A C5                    		or	al, ch 
  0348  88 47 19                 		mov	[bx+19h], al 
- 034B  22 C1                    		and	al, cl 
- 034D  74 0A                    		jz	short loc_5333 
- 034F  80 4F 19 02              		or	byte ptr [bx+19h], 2 
- 0353  B0 0D                    		mov	al, 0Dh 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-14
                                                             
 
+ 034B  22 C1                    		and	al, cl 
+ 034D  74 0A                    		jz	short loc_5333 
+ 034F  80 4F 19 02              		or	byte ptr [bx+19h], 2 
+ 0353  B0 0D                    		mov	al, 0Dh 
  0355  EE                       		out	dx, al 
  0356                           loc_5330: 
  0356  E9 029F R                		jmp	COMEOI 
@@ -820,22 +824,22 @@
  0385  42                       		inc	dx 
  0386  8E DE                    		mov	ds, si 
                                 		assume ds:nothing 
- 0388  BB 01F6 R                		mov	bx, offset CM1CTL 
- 038B  A1 0400                  		mov	ax, ds:400h	; Read COM1 base from BDA 
- 038E  3D 03F8                  		cmp	ax, 3F8h	; Does it match	the first UART? 
- 0391  75 27                    		jnz	short CKCOM2 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-15
                                                             
 
+ 0388  BB 01F6 R                		mov	bx, offset CM1CTL 
+ 038B  A1 0400                  		mov	ax, ds:400h	; Read COM1 base from BDA 
+ 038E  3D 03F8                  		cmp	ax, 3F8h	; Does it match	the first UART? 
+ 0391  75 27                    		jnz	short CKCOM2 
  0393  2E: C7 47 1E 0030        		mov	word ptr cs:[bx+1Eh], 30h ; Address of IR
 				Q4 vector 
  0399  2E: C6 47 1B EF          		mov	byte ptr cs:[bx+1Bh], 0EFh ; IRQ4 mask 
  039E  2E: C6 47 1C 10          		mov	byte ptr cs:[bx+1Ch], 10h ; IRQ4 bit 
  03A3  2E: 89 07                		mov	cs:[bx], ax 
  03A6  2E: 89 77 16             		mov	cs:[bx+16h], si 
- 03AA  81 C6 0081               		add	si, 81h	; 'Å' 
+ 03AA  81 C6 0081               		add	si, 81h	; 'ÔøΩ' 
  03AE  2E: 89 77 14             		mov	cs:[bx+14h], si 
  03B2  03 F2                    		add	si, dx 
  03B4  BB 0218 R                		mov	bx, offset CM2CTL 
@@ -850,7 +854,7 @@
  03CA  2E: C6 47 1C 08          		mov	byte ptr cs:[bx+1Ch], 8	; IRQ3 bit 
  03CF  2E: 89 07                		mov	cs:[bx], ax 
  03D2  2E: 89 77 16             		mov	cs:[bx+16h], si 
- 03D6  81 C6 0081               		add	si, 81h	; 'Å' 
+ 03D6  81 C6 0081               		add	si, 81h	; 'ÔøΩ' 
  03DA  2E: 89 77 14             		mov	cs:[bx+14h], si 
  03DE  03 F2                    		add	si, dx 
                                  
@@ -879,15 +883,15 @@
 				------------------------------ 
                                  
  03F4                           COMERR: 
- 03F4  B4 FE                    		mov	ah, -2 
- 03F6  E9 0515 R                		jmp	INICMX 
-                                ; END OF FUNCTION CHUNK	FOR INICOM 
-                                 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-16
                                                             
 
+ 03F4  B4 FE                    		mov	ah, -2 
+ 03F6  E9 0515 R                		jmp	INICMX 
+                                ; END OF FUNCTION CHUNK	FOR INICOM 
+                                 
                                 ; =============== S U B	R O U T	I N E =========
 				============================== 
                                  
@@ -921,7 +925,7 @@
  041A  75 D3                    		jnz	short BADFNM 
  041C  83 C7 12                 		add	di, 12h 
  041F  83 C2 03                 		add	dx, 3 
- 0422  B0 80                    		mov	al, 80h	; 'Ä' 
+ 0422  B0 80                    		mov	al, 80h	; 'ÔøΩ' 
  0424  EE                       		out	dx, al 
  0425  83 EA 03                 		sub	dx, 3 
  0428  8B 05                    		mov	ax, [di] 
@@ -938,15 +942,15 @@
  043C  FE C8                    		dec	al 
                                  
  043E                           loc_5418: 
- 043E  3C 03                    		cmp	al, 3 
- 0440  77 AD                    		ja	short BADFNM 
- 0442  8A C8                    		mov	cl, al 
- 0444  26: AC                   		lods	byte ptr es:[si] 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-17
                                                             
 
+ 043E  3C 03                    		cmp	al, 3 
+ 0440  77 AD                    		ja	short BADFNM 
+ 0442  8A C8                    		mov	cl, al 
+ 0444  26: AC                   		lods	byte ptr es:[si] 
  0446  75 08                    		jnz	short loc_542A 
  0448  3C 02                    		cmp	al, 2 
  044A  74 04                    		jz	short loc_542A 
@@ -997,15 +1001,15 @@
                                  
  0495                           loc_546F: 
  0495  26: AC                   		lods	byte ptr es:[si] 
- 0497  A8 02                    		test	al, 2 
- 0499  B0 03                    		mov	al, 3 
- 049B  74 02                    		jz	short loc_5479 
- 049D  B0 01                    		mov	al, 1 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-18
                                                             
 
+ 0497  A8 02                    		test	al, 2 
+ 0499  B0 03                    		mov	al, 3 
+ 049B  74 02                    		jz	short loc_5479 
+ 049D  B0 01                    		mov	al, 1 
                                  
  049F                           loc_5479: 
  049F  42                       		inc	dx 
@@ -1056,15 +1060,15 @@
  0505  EE                       		out	dx, al 
  0506  42                       		inc	dx 
  0507  42                       		inc	dx 
- 0508  FA                       		cli 
- 0509  EC                       		in	al, dx 
- 050A  F6 D0                    		not	al 
- 050C  22 C1                    		and	al, cl 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-19
                                                             
 
+ 0508  FA                       		cli 
+ 0509  EC                       		in	al, dx 
+ 050A  F6 D0                    		not	al 
+ 050C  22 C1                    		and	al, cl 
  050E  88 47 19                 		mov	[bx+19h], al 
  0511  FB                       		sti 
  0512  E8 068B R                		call	sub_5665 
@@ -1115,15 +1119,15 @@
  054B  8E DF                    		mov	ds, di 
                                 		assume ds:nothing 
  054D  8A 00                    		mov	al, [bx+si] 
- 054F  FB                       		sti 
- 0550  0B D2                    		or	dx, dx 
-                                 
- 0552                           loc_552C: 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-20
                                                             
 
+ 054F  FB                       		sti 
+ 0550  0B D2                    		or	dx, dx 
+                                 
+ 0552                           loc_552C: 
  0552  1F                       		pop	ds 
  0553  5F                       		pop	di 
  0554  5E                       		pop	si 
@@ -1160,7 +1164,7 @@
  056E  FA                       		cli 
  056F  8B 77 0E                 		mov	si, [bx+0Eh] 
  0572  46                       		inc	si 
- 0573  81 FE 0080               		cmp	si, 80h	; 'Ä' 
+ 0573  81 FE 0080               		cmp	si, 80h	; 'ÔøΩ' 
  0577  76 02                    		jbe	short loc_5555 
  0579  33 F6                    		xor	si, si 
                                  
@@ -1174,15 +1178,15 @@
  0588  8B 3E 023A R             		mov	di, CBFSEG 
  058C  8E DF                    		mov	ds, di 
                                 		assume ds:nothing 
- 058E  88 08                    		mov	[bx+si], cl 
- 0590  5B                       		pop	bx 
- 0591  1F                       		pop	ds 
- 0592  42                       		inc	dx 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-21
                                                             
 
+ 058E  88 08                    		mov	[bx+si], cl 
+ 0590  5B                       		pop	bx 
+ 0591  1F                       		pop	ds 
+ 0592  42                       		inc	dx 
  0593  EC                       		in	al, dx 
  0594  A8 02                    		test	al, 2 
  0596  75 11                    		jnz	short SNDCMX 
@@ -1233,15 +1237,15 @@
  05BC  8B 57 0A                 		mov	dx, [bx+0Ah] 
  05BF  3B 57 08                 		cmp	dx, [bx+8] 
  05C2  73 05                    		jnb	short loc_55A3 
- 05C4  03 16 023C R             		add	dx, CBFSIZ 
- 05C8  42                       		inc	dx 
-                                 
- 05C9                           loc_55A3: 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-22
                                                             
 
+ 05C4  03 16 023C R             		add	dx, CBFSIZ 
+ 05C8  42                       		inc	dx 
+                                 
+ 05C9                           loc_55A3: 
  05C9  2B 57 08                 		sub	dx, [bx+8] 
  05CC  8B 0E 023C R             		mov	cx, CBFSIZ 
  05D0  2B CA                    		sub	cx, dx 
@@ -1292,15 +1296,15 @@
                                  
  0603                           loc_55DD: 
  0603  B4 02                    		mov	ah, 2 
-                                 
- 0605                           loc_55DF: 
- 0605  5A                       		pop	dx 
- 0606  59                       		pop	cx 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-23
                                                             
 
+                                 
+ 0605                           loc_55DF: 
+ 0605  5A                       		pop	dx 
+ 0606  59                       		pop	cx 
  0607  C3                       		ret 
                                 SNDLPT		endp 
                                  
@@ -1351,15 +1355,15 @@
  0636  83 C2 03                 		add	dx, 3 
  0639  EE                       		out	dx, al 
  063A  E4 21                    		in	al, 21h		; Interrupt controller,	8259A. 
- 063C  0A 47 1C                 		or	al, [bx+1Ch] 
- 063F  E6 21                    		out	21h, al		; Interrupt controller,	8259A. 
- 0641  33 C0                    		xor	ax, ax 
- 0643  8E D8                    		mov	ds, ax		; IVT manipulation! 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-24
                                                             
 
+ 063C  0A 47 1C                 		or	al, [bx+1Ch] 
+ 063F  E6 21                    		out	21h, al		; Interrupt controller,	8259A. 
+ 0641  33 C0                    		xor	ax, ax 
+ 0643  8E D8                    		mov	ds, ax		; IVT manipulation! 
  0645  2E: 8B 77 1E             		mov	si, cs:[bx+1Eh] 
  0649  2E: 8B 47 10             		mov	ax, cs:[bx+10h] 
  064D  89 04                    		mov	[si], ax 
@@ -1410,15 +1414,15 @@
  068A  C3                       		ret 
                                 sub_5643	endp 
                                  
-                                 
-                                ; =============== S U B	R O U T	I N E =========
-				============================== 
-                                 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-25
                                                             
 
+                                 
+                                ; =============== S U B	R O U T	I N E =========
+				============================== 
+                                 
                                  
  068B                           sub_5665	proc near 
  068B  FE C1                    		inc	cl 
@@ -1469,15 +1473,15 @@
 				5+1Dj ... 
  06CC  5D                       		pop	bp 
  06CD  0A E4                    		or	ah, ah 
- 06CF  C3                       		ret 
-                                sub_5665	endp 
-                                 
-                                 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-26
                                                             
 
+ 06CF  C3                       		ret 
+                                sub_5665	endp 
+                                 
+                                 
                                 ; =============== S U B	R O U T	I N E =========
 				============================== 
                                  
@@ -1528,15 +1532,15 @@
                                 		assume ds:nothing 
  06FF  5E                       		pop	si 
  0700  C3                       		ret 
-                                CMPREP		endp 
-                                 
-                                ; ---------------------------------------------
-				------------------------------ 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-27
                                                             
 
+                                CMPREP		endp 
+                                 
+                                ; ---------------------------------------------
+				------------------------------ 
                                 ; Start of another module? 
                                 ;		align 8 
                                 PUBLIC  SCNRST, GWINI, GWTERM, KEYINP, INKMAP, 
@@ -1587,15 +1591,15 @@
  0726                           CTLBRK		proc far 
  0726  2E: C6 06 0703 R 00      		mov	cs:BRKFLG, 0	; 0 = Ctrl+Break, -1 = no br
 				eak 
- 072C  CF                       		iret 
-                                CTLBRK		endp 
-                                 
-                                 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-28
                                                             
 
+ 072C  CF                       		iret 
+                                CTLBRK		endp 
+                                 
+                                 
                                 ; =============== S U B	R O U T	I N E =========
 				============================== 
                                  
@@ -1646,15 +1650,15 @@
  076D  33 D2                    		xor	dx, dx 
                                  
  076F                           INILPT:					; CODE XREF: GWINI+3Aj 
- 076F  B4 01                    		mov	ah, 1 
- 0771  52                       		push	dx 
- 0772  CD 17                    		int	17h		; PRINTER - INITIALIZE 
-                                					; DX = printer port (0-3) 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-29
                                                             
 
+ 076F  B4 01                    		mov	ah, 1 
+ 0771  52                       		push	dx 
+ 0772  CD 17                    		int	17h		; PRINTER - INITIALIZE 
+                                					; DX = printer port (0-3) 
                                 					; Return: AH = status 
  0774  5A                       		pop	dx 
  0775  42                       		inc	dx 
@@ -1705,15 +1709,15 @@
  07B2  BF 0001 R                		mov	di, OFFSET CBKINT 
  07B5  FA                       		cli 
  07B6  FC                       		cld 
- 07B7                           DOVEC: 
- 07B7  26: 8B 05                		mov	ax, es:[di]	; Read in new offset 
- 07BA  87 04                    		xchg	ax, [si]	; Swap in new offset 
- 07BC  AB                       		stosw			; Save old offset 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-30
                                                             
 
+ 07B7                           DOVEC: 
+ 07B7  26: 8B 05                		mov	ax, es:[di]	; Read in new offset 
+ 07BA  87 04                    		xchg	ax, [si]	; Swap in new offset 
+ 07BC  AB                       		stosw			; Save old offset 
  07BD  46                       		inc	si		; Skip over segment 
  07BE  46                       		inc	si 
  07BF  E2 F6                    		loop	DOVEC 
@@ -1764,15 +1768,15 @@
  0802  3A 06 000F R             		cmp	al, ds:var_63f 
  0806  74 02                    		jz	short loc_57E9 
  0808                           loc_57E7: 
- 0808  CD 10                    		int	10h		; - VIDEO - SET	VIDEO MODE 
-                                					; AL = mode 
- 080A                           loc_57E9: 
- 080A  C6 06 0016 R 07          		mov	byte ptr ds:var_646, 7 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-31
                                                             
 
+ 0808  CD 10                    		int	10h		; - VIDEO - SET	VIDEO MODE 
+                                					; AL = mode 
+ 080A                           loc_57E9: 
+ 080A  C6 06 0016 R 07          		mov	byte ptr ds:var_646, 7 
  080F  C6 06 000A R 00          		mov	byte ptr ds:var_63a, 0 
  0814  BA 1700                  		mov	dx, 1700h 
  0817  89 16 001E R             		mov	ds:var_64e, dx 
@@ -1823,15 +1827,15 @@
  0845                           CBREAK: 
  0845  B8 FF03                  		mov	ax, 0FF03h	; CTLBRK aka Ctrl+Break 
  0848  EB 4A                    		jmp	short TWOKEY 
-                                ; ---------------------------------------------
-				------------------------------ 
-                                 
- 084A                           NOBRK: 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-32
                                                             
 
+                                ; ---------------------------------------------
+				------------------------------ 
+                                 
+ 084A                           NOBRK: 
  084A  B4 01                    		mov	ah, 1 
  084C  CD 16                    		int	16h		; KEYBOARD - CHECK BUFFER, DO NOT CL
 				EAR 
@@ -1846,7 +1850,7 @@
  0854  0A C0                    		or	al, al 
  0856  74 1E                    		jz	short NONASC 
  0858  B4 00                    		mov	ah, 0 
- 085A  3C FE                    		cmp	al, 0FEh ; '˛' 
+ 085A  3C FE                    		cmp	al, 0FEh ; 'ÔøΩ' 
  085C  72 08                    		jb	short CHKESC 
  085E  B4 FF                    		mov	ah, 0FFh 
  0860  75 32                    		jnz	short TWOKEY 
@@ -1882,15 +1886,15 @@
  087E  FC                       		cld 
  087F  F2/ AE                   		repne scasb 
  0881  75 16                    		jnz	short NOTTAB 
- 0883  81 EF 08B2 R             		sub	di, offset SCNXLT 
- 0887  8B C7                    		mov	ax, di 
- 0889  3D 0020                  		cmp	ax, 20h 
- 088C  B4 FF                    		mov	ah, 0FFh 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-33
                                                             
 
+ 0883  81 EF 08B2 R             		sub	di, offset SCNXLT 
+ 0887  8B C7                    		mov	ax, di 
+ 0889  3D 0020                  		cmp	ax, 20h 
+ 088C  B4 FF                    		mov	ah, 0FFh 
  088E  72 04                    		jb	short TWOKEY 
  0890  04 21                    		add	al, 21h	; '!' 
  0892                           loc_5871: 
@@ -1941,15 +1945,15 @@
             FA                  
                          ]      
        0002[   52               
-            FA                  
-                         ]      
-                                
- 08C6  F9                       		db 0F9h, 2 dup(0FAh), 0FEh, 3 dup(0FAh), 4Dh,
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-34
                                                             
 
+            FA                  
+                         ]      
+                                
+ 08C6  F9                       		db 0F9h, 2 dup(0FAh), 0FEh, 3 dup(0FAh), 4Dh,
 				 4Bh, 48h 
        0002[                    		db 0F9h, 2 dup(0FAh), 0FEh, 3 dup(0FAh), 4Dh,
 				 4Bh, 48h 
@@ -1975,7 +1979,7 @@
  08EB                           INKMAP		proc near 
  08EB  53                       		push	bx 
  08EC  72 11                    		jb	short loc_58DE 
- 08EE  3C FE                    		cmp	al, 0FEh ; '˛' 
+ 08EE  3C FE                    		cmp	al, 0FEh ; 'ÔøΩ' 
  08F0  75 09                    		jnz	short loc_58DA 
  08F2  8B C2                    		mov	ax, dx 
                                  
@@ -2000,15 +2004,15 @@
                                 ; ---------------------------------------------
 				------------------------------ 
                                  
- 08FF                           loc_58DE:				; CODE XREF: INKMAP+1j 
- 08FF  3C FF                    		cmp	al, 0FFh 
- 0901  74 F8                    		jz	short loc_58DA 
- 0903  3C 15                    		cmp	al, 15h 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-35
                                                             
 
+ 08FF                           loc_58DE:				; CODE XREF: INKMAP+1j 
+ 08FF  3C FF                    		cmp	al, 0FFh 
+ 0901  74 F8                    		jz	short loc_58DA 
+ 0903  3C 15                    		cmp	al, 15h 
  0905  75 04                    		jnz	short loc_58EA 
  0907  B0 1B                    		mov	al, 1Bh 
  0909  EB F0                    		jmp	short loc_58DA 
@@ -2030,9 +2034,9 @@
  091A  B4 00                    		mov	ah, 0 
  091C  03 D8                    		add	bx, ax 
  091E  2E: 8A 07                		mov	al, cs:[bx] 
- 0921  3C FA                    		cmp	al, 0FAh ; '˙' 
+ 0921  3C FA                    		cmp	al, 0FAh ; 'ÔøΩ' 
  0923  74 D8                    		jz	short loc_58DC 
- 0925  3C FE                    		cmp	al, 0FEh ; '˛' 
+ 0925  3C FE                    		cmp	al, 0FEh ; 'ÔøΩ' 
  0927  72 CB                    		jb	short loc_58D3 
  0929  EB D0                    		jmp	short loc_58DA 
                                 ; ---------------------------------------------
@@ -2059,15 +2063,15 @@
  0947  EB AB                    		jmp	short loc_58D3 
                                 ; ---------------------------------------------
 				------------------------------ 
-                                 
- 0949                           loc_5928:				; CODE XREF: INKMAP+4Aj INKMAP+4E
-				j 
- 0949  3A C0                    		cmp	al, al 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-36
                                                             
 
+                                 
+ 0949                           loc_5928:				; CODE XREF: INKMAP+4Aj INKMAP+4E
+				j 
+ 0949  3A C0                    		cmp	al, al 
  094B  EB B0                    		jmp	short loc_58DC 
                                 INKMAP		endp 
                                  
@@ -2118,15 +2122,15 @@
                                  
  097E                           loc_595D:				; CODE XREF: EDTMAP+Dj 
  097E  3C 1B                    		cmp	al, 1Bh 
- 0980  75 04                    		jnz	short loc_5965 
- 0982  B0 15                    		mov	al, 15h 
- 0984  EB 1E                    		jmp	short loc_5983 
-                                ; ---------------------------------------------
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-37
                                                             
 
+ 0980  75 04                    		jnz	short loc_5965 
+ 0982  B0 15                    		mov	al, 15h 
+ 0984  EB 1E                    		jmp	short loc_5983 
+                                ; ---------------------------------------------
 				------------------------------ 
                                  
  0986                           loc_5965:				; CODE XREF: EDTMAP+2Aj 
@@ -2177,15 +2181,15 @@
                                  
  09AF                           MAPSUP		proc near		; CODE XREF: CHKFKY+39p 
  09AF  B5 01                    		mov	ch, 1 
- 09B1  C3                       		ret 
-                                MAPSUP		endp 
-                                 
-                                 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-38
                                                             
 
+ 09B1  C3                       		ret 
+                                MAPSUP		endp 
+                                 
+                                 
                                 ; =============== S U B	R O U T	I N E =========
 				============================== 
                                  
@@ -2236,15 +2240,15 @@
  09E1  53                       		push	bx 
  09E2  50                       		push	ax 
  09E3  9C                       		pushf 
- 09E4  80 3E 000A R 00          		cmp	byte ptr ds:var_63a, 0 
- 09E9  74 11                    		jz	short loc_59DB 
- 09EB  80 3E 0010 R 01          		cmp	byte ptr ds:var_640, 1 
- 09F0  74 07                    		jz	short loc_59D8 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-39
                                                             
 
+ 09E4  80 3E 000A R 00          		cmp	byte ptr ds:var_63a, 0 
+ 09E9  74 11                    		jz	short loc_59DB 
+ 09EB  80 3E 0010 R 01          		cmp	byte ptr ds:var_640, 1 
+ 09F0  74 07                    		jz	short loc_59D8 
  09F2  80 3E 0010 R 02          		cmp	byte ptr ds:var_640, 2 
  09F7  75 03                    		jnz	short loc_59DB 
                                  
@@ -2295,15 +2299,15 @@
  0A27  32 E4                    		xor	ah, ah 
  0A29  5A                       		pop	dx 
  0A2A  50                       		push	ax 
- 0A2B  EB 2C                    		jmp	short SCRRST 
-                                SCRINP		endp 
-                                 
-                                ; ---------------------------------------------
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-40
                                                             
 
+ 0A2B  EB 2C                    		jmp	short SCRRST 
+                                SCRINP		endp 
+                                 
+                                ; ---------------------------------------------
 				------------------------------ 
  0A2D  90                       		nop 
                                  
@@ -2354,15 +2358,15 @@
  0A78                           loc_5A57: 
  0A78  3A C3                    		cmp	al, bl 
  0A7A  75 2E                    		jnz	short loc_5A89 
- 0A7C  E8 0ACF R                		call	SETVPG 
- 0A7F  3A FC                    		cmp	bh, ah 
- 0A81  73 08                    		jnb	short loc_5A6A 
- 0A83  03 C1                    		add	ax, cx 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-41
                                                             
 
+ 0A7C  E8 0ACF R                		call	SETVPG 
+ 0A7F  3A FC                    		cmp	bh, ah 
+ 0A81  73 08                    		jnb	short loc_5A6A 
+ 0A83  03 C1                    		add	ax, cx 
  0A85  8B CB                    		mov	cx, bx 
  0A87  B3 06                    		mov	bl, 6 
  0A89  EB 05                    		jmp	short loc_5A6F 
@@ -2413,15 +2417,15 @@
  0ACD  EB EF                    		jmp	short loc_5A9D 
                                 SCROLL		endp 
                                  
-                                 
-                                ; =============== S U B	R O U T	I N E =========
-				============================== 
-                                 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-42
                                                             
 
+                                 
+                                ; =============== S U B	R O U T	I N E =========
+				============================== 
+                                 
                                 ; Set display page 
                                  
  0ACF                           SETVPG		proc near		; CODE XREF: SCROLL+4Ep SCR
@@ -2472,15 +2476,15 @@
  0B07  58                       		pop	ax 
  0B08  C3                       		ret 
                                 DOSCRL		endp 
-                                 
-                                 
-                                ; =============== S U B	R O U T	I N E =========
-				============================== 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-43
                                                             
 
+                                 
+                                 
+                                ; =============== S U B	R O U T	I N E =========
+				============================== 
                                  
                                  
  0B09                           SCRRDC		proc near		; CODE XREF: DOSCRL:NXTCHRp
@@ -2531,15 +2535,15 @@
  0B31  C3                       		ret 
                                 SCRWRC		endp 
                                  
-                                 
-                                ; =============== S U B	R O U T	I N E =========
-				============================== 
-                                 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-44
                                                             
 
+                                 
+                                ; =============== S U B	R O U T	I N E =========
+				============================== 
+                                 
                                  
  0B32                           SCRSAV		proc near		; CODE XREF: GWINIp GWTERM
 				p ... 
@@ -2590,15 +2594,15 @@
                                  
  0B70                           CLRSCN		proc near 
  0B70  E8 0B32 R                		call	SCRSAV 
-                                 
- 0B73                           DOCLRS: 
- 0B73  50                       		push	ax 
- 0B74  E8 0ACF R                		call	SETVPG 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-45
                                                             
 
+                                 
+ 0B73                           DOCLRS: 
+ 0B73  50                       		push	ax 
+ 0B74  E8 0ACF R                		call	SETVPG 
  0B77  33 C9                    		xor	cx, cx		; Start	at 0,0 
  0B79  8A 16 000B R             		mov	dl, ds:var_63b 
  0B7D  FE CA                    		dec	dl 
@@ -2649,15 +2653,15 @@
                                 					; DH,DL	= row, column (0,0 = upper left) 
                                 					; BH = page number 
  0BBA  B0 20                    		mov	al, ' ' 
- 0BBC  8A 1E 0016 R             		mov	bl, ds:var_646 
- 0BC0  B4 09                    		mov	ah, 9 
- 0BC2  CD 10                    		int	10h		; - VIDEO - WRITE ATTRIBUTES/CHARACT
-				ERS	AT CURSOR POSITION 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-46
                                                             
 
+ 0BBC  8A 1E 0016 R             		mov	bl, ds:var_646 
+ 0BC0  B4 09                    		mov	ah, 9 
+ 0BC2  CD 10                    		int	10h		; - VIDEO - WRITE ATTRIBUTES/CHARACT
+				ERS	AT CURSOR POSITION 
                                 					; AL = character, BH = display page 
                                 					; BL = attributes of character (alpha mode
 				s) or	color (graphics	modes) 
@@ -2708,15 +2712,15 @@
  0BF8  B1 0D                    		mov	cl, 0Dh 
  0BFA  EB E4                    		jmp	short SETCUR 
                                 ; ---------------------------------------------
-				------------------------------ 
-                                 
- 0BFC                           loc_5BDB: 
- 0BFC  3C 02                    		cmp	al, 2 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-47
                                                             
 
+				------------------------------ 
+                                 
+ 0BFC                           loc_5BDB: 
+ 0BFC  3C 02                    		cmp	al, 2 
  0BFE  75 09                    		jnz	short GOSCUR 
  0C00  8B 0E 0013 R             		mov	cx, ds:var_643 
  0C04  80 E5 DF                 		and	ch, 0DFh 
@@ -2756,7 +2760,7 @@
  0C33  D1 E3                    		shl	bx, 1 
  0C35                           loc_5C14: 
  0C35  03 D8                    		add	bx, ax 
- 0C37  81 C3 00F0               		add	bx, 0F0h ; '' 
+ 0C37  81 C3 00F0               		add	bx, 0F0h ; 'ÔøΩ' 
  0C3B  B9 0004                  		mov	cx, 4 
  0C3E  80 3E 0010 R 01          		cmp	byte ptr ds:var_640, 1 
  0C43  75 02                    		jnz	short loc_5C26 
@@ -2767,15 +2771,15 @@
  0C4A  1E                       		push	ds 
  0C4B  8E D8                    		mov	ds, ax 
                                 		assume ds:nothing 
- 0C4D  B8 FFFF                  		mov	ax, 0FFFFh 
- 0C50  80 FA 01                 		cmp	dl, 1 
- 0C53  BA 2000                  		mov	dx, 2000h 
- 0C56  75 0F                    		jnz	short loc_5C46 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-48
                                                             
 
+ 0C4D  B8 FFFF                  		mov	ax, 0FFFFh 
+ 0C50  80 FA 01                 		cmp	dl, 1 
+ 0C53  BA 2000                  		mov	dx, 2000h 
+ 0C56  75 0F                    		jnz	short loc_5C46 
  0C58                           loc_5C37: 
  0C58  03 DA                    		add	bx, dx 
  0C5A  31 07                    		xor	[bx], ax 
@@ -2826,15 +2830,15 @@
  0C94  0A FF                    		or	bh, bh 
  0C96  74 10                    		jz	short GSTCUR 
  0C98  8A CB                    		mov	cl, bl 
- 0C9A                           loc_5C79: 
- 0C9A  8A FB                    		mov	bh, bl 
- 0C9C  8A D9                    		mov	bl, cl 
- 0C9E  F7 C3 E0E0               		test	bx, 0E0E0h 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-49
                                                             
 
+ 0C9A                           loc_5C79: 
+ 0C9A  8A FB                    		mov	bh, bl 
+ 0C9C  8A D9                    		mov	bl, cl 
+ 0C9E  F7 C3 E0E0               		test	bx, 0E0E0h 
  0CA2  75 07                    		jnz	short CSRERR 
  0CA4  89 1E 0013 R             		mov	ds:var_643, bx 
  0CA8                           GSTCUR: 
@@ -2885,15 +2889,15 @@
                                 					; AH = attribute of character (alpha modes
 				) 
  0CD1  B7 00                    		mov	bh, 0 
- 0CD3  8A DC                    		mov	bl, ah 
- 0CD5  5A                       		pop	dx 
- 0CD6  59                       		pop	cx 
- 0CD7  58                       		pop	ax 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-50
                                                             
 
+ 0CD3  8A DC                    		mov	bl, ah 
+ 0CD5  5A                       		pop	dx 
+ 0CD6  59                       		pop	cx 
+ 0CD7  58                       		pop	ax 
  0CD8  C3                       		ret 
                                 SCRATR		endp 
                                  
@@ -2944,15 +2948,15 @@
  0D22  C6 06 0015 R 07          		mov	byte ptr ds:var_645, 7 
  0D27  3C 00                    		cmp	al, 0 
  0D29  75 13                    		jnz	short loc_5D1D 
- 0D2B  33 D2                    		xor	dx, dx 
- 0D2D  89 16 001C R             		mov	word ptr ds:var_64c, dx 
- 0D31  B5 02                    		mov	ch, 2 
- 0D33  80 3E 000B R 50          		cmp	byte ptr ds:var_63b, 80 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-51
                                                             
 
+ 0D2B  33 D2                    		xor	dx, dx 
+ 0D2D  89 16 001C R             		mov	word ptr ds:var_64c, dx 
+ 0D31  B5 02                    		mov	ch, 2 
+ 0D33  80 3E 000B R 50          		cmp	byte ptr ds:var_63b, 80 
  0D38  74 28                    		jz	short loc_5D41 
  0D3A  B5 00                    		mov	ch, 0 
  0D3C  EB 24                    		jmp	short loc_5D41 
@@ -3003,15 +3007,15 @@
  0D9D  74 02                    		jz	short loc_5D80 
  0D9F  73 03                    		jnb	short loc_5D83 
  0DA1                           loc_5D80: 
- 0DA1  A0 0009 R                		mov	al, ds:var_639 
- 0DA4                           loc_5D83: 
- 0DA4  B4 05                    		mov	ah, 5 
- 0DA6  CD 10                    		int	10h		; - VIDEO - SELECT DISPLAY PAGE 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-52
                                                             
 
+ 0DA1  A0 0009 R                		mov	al, ds:var_639 
+ 0DA4                           loc_5D83: 
+ 0DA4  B4 05                    		mov	ah, 5 
+ 0DA6  CD 10                    		int	10h		; - VIDEO - SELECT DISPLAY PAGE 
                                 					; AL = display page, 0-7  for modes 0 &	1,
 				 0-3	for modes 2 & 3 
  0DA8  E9 0EF9 R                		jmp	SCNOK 
@@ -3062,15 +3066,15 @@
                                  
                                  
  0DCA                           SETCLR		proc near 
- 0DCA  E8 0B32 R                		call	SCRSAV 
- 0DCD  8A 0F                    		mov	cl, [bx] 
- 0DCF  43                       		inc	bx 
- 0DD0  FE C1                    		inc	cl 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-53
                                                             
 
+ 0DCA  E8 0B32 R                		call	SCRSAV 
+ 0DCD  8A 0F                    		mov	cl, [bx] 
+ 0DCF  43                       		inc	bx 
+ 0DD0  FE C1                    		inc	cl 
  0DD2  8A 2E 0016 R             		mov	ch, ds:var_646 
  0DD6  A0 000A R                		mov	al, ds:var_63a 
  0DD9  3C 00                    		cmp	al, 0 
@@ -3121,15 +3125,15 @@
  0E1F  74 4C                    		jz	short loc_5E4C 
  0E21  8A C2                    		mov	al, dl 
  0E23  24 01                    		and	al, 1 
- 0E25  B7 01                    		mov	bh, 1 
- 0E27  EB 3E                    		jmp	short loc_5E46 
-                                ; ---------------------------------------------
-				------------------------------ 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-54
                                                             
 
+ 0E25  B7 01                    		mov	bh, 1 
+ 0E27  EB 3E                    		jmp	short loc_5E46 
+                                ; ---------------------------------------------
+				------------------------------ 
                                  
  0E29                           loc_5E08: 
  0E29  80 F9 05                 		cmp	cl, 5 
@@ -3180,15 +3184,15 @@
 				j ... 
  0E78  E9 0EFD R                		jmp	SCNERR 
                                 SETCLR		endp 
-                                 
-                                 
-                                ; =============== S U B	R O U T	I N E =========
-				============================== 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-55
                                                             
 
+                                 
+                                 
+                                ; =============== S U B	R O U T	I N E =========
+				============================== 
                                  
                                  
  0E7B                           sub_5E5A	proc near		; CODE XREF: SCRSTT+13p 
@@ -3239,15 +3243,15 @@
  0EAD  80 3E 000F R 07          		cmp	byte ptr ds:var_63f, 7 
  0EB2  74 45                    		jz	short SCNOK 
  0EB4  A2 000B R                		mov	ds:var_63b, al 
- 0EB7  BA 0140                  		mov	dx, 320 
- 0EBA  B0 01                    		mov	al, 1 
- 0EBC  C7 06 001C R 3F02        		mov	word ptr ds:var_64c, 3F02h 
-                                 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-56
                                                             
 
+ 0EB7  BA 0140                  		mov	dx, 320 
+ 0EBA  B0 01                    		mov	al, 1 
+ 0EBC  C7 06 001C R 3F02        		mov	word ptr ds:var_64c, 3F02h 
+                                 
  0EC2                           loc_5EA1:				; CODE XREF: SWIDTH+1Fj 
  0EC2  80 3E 000A R 00          		cmp	byte ptr ds:var_63a, 0 
  0EC7  74 07                    		jz	short loc_5EAF 
@@ -3298,15 +3302,15 @@
                                 PUBLIC  FKYFMT, FKYADV, STOREC, FETCHC 
                                 PUBLIC  RIGHTC, LEFTC, UPC, DOWNC 
                                 PUBLIC  SCALXY, MAPXYC, SETATR, READC, SETC, NS
-				ETCX 
-                                PUBLIC  GTASPC, PIXSIZ 
-                                PUBLIC  TUPC, TDOWNC, PGINIT, NREAD, NWRITE 
-                                PUBLIC  PNTINI, SCANR, SCANL 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-57
                                                             
 
+				ETCX 
+                                PUBLIC  GTASPC, PIXSIZ 
+                                PUBLIC  TUPC, TDOWNC, PGINIT, NREAD, NWRITE 
+                                PUBLIC  PNTINI, SCANR, SCANL 
                                  
  0F00  00                       MODES40		db    0			; DATA XREF: SWIDTH+3o 
  0F01  01                       		db    1 
@@ -3357,15 +3361,15 @@
  0F21  A2 001B R                		mov	ds:var_64b, al 
  0F24  89 1E 0017 R             		mov	ds:var_647, bx 
  0F28  C3                       		ret 
-                                STOREC		endp 
-                                 
-                                 
-                                ; =============== S U B	R O U T	I N E =========
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-58
                                                             
 
+                                STOREC		endp 
+                                 
+                                 
+                                ; =============== S U B	R O U T	I N E =========
 				============================== 
                                  
                                  
@@ -3416,15 +3420,15 @@
  0F56  3B 06 0017 R             		cmp	ax, ds:var_647 
  0F5A  76 08                    		jbe	short loc_5F43 
  0F5C  2D 0050                  		sub	ax, 80 
- 0F5F  01 06 0017 R             		add	ds:var_647, ax 
- 0F63  C3                       		ret 
-                                ; ---------------------------------------------
-				------------------------------ 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-59
                                                             
 
+ 0F5F  01 06 0017 R             		add	ds:var_647, ax 
+ 0F63  C3                       		ret 
+                                ; ---------------------------------------------
+				------------------------------ 
                                  
  0F64                           loc_5F43: 
  0F64  29 06 0017 R             		sub	ds:var_647, ax 
@@ -3475,15 +3479,15 @@
  0F9A  8B D3                    		mov	dx, bx 
  0F9C  4A                       		dec	dx 
  0F9D  C3                       		ret 
-                                ; ---------------------------------------------
-				------------------------------ 
-                                 
- 0F9E                           loc_5F7D:				; CODE XREF: SCALXY+2j 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-60
                                                             
 
+                                ; ---------------------------------------------
+				------------------------------ 
+                                 
+ 0F9E                           loc_5F7D:				; CODE XREF: SCALXY+2j 
  0F9E  33 C9                    		xor	cx, cx 
  0FA0  9F                       		lahf 
  0FA1  EB EC                    		jmp	short loc_5F6E 
@@ -3534,15 +3538,15 @@
  0FDB  A0 001D R                		mov	al, ds:var_64d 
  0FDE  D2 C8                    		ror	al, cl 
  0FE0  A2 001B R                		mov	ds:var_64b, al 
- 0FE3  C3                       		ret 
-                                MAPXYC		endp 
-                                 
-                                 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-61
                                                             
 
+ 0FE3  C3                       		ret 
+                                MAPXYC		endp 
+                                 
+                                 
                                 ; =============== S U B	R O U T	I N E =========
 				============================== 
                                  
@@ -3593,15 +3597,15 @@
  1012  20 2C                    		and	[si], ch 
  1014  08 04                    		or	[si], al 
  1016  1F                       		pop	ds 
- 1017  59                       		pop	cx 
- 1018  C3                       		ret 
-                                SETC		endp 
-                                 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-62
                                                             
 
+ 1017  59                       		pop	cx 
+ 1018  C3                       		ret 
+                                SETC		endp 
+                                 
                                  
                                 ; =============== S U B	R O U T	I N E =========
 				============================== 
@@ -3652,15 +3656,15 @@
  1057  50                       		push	ax 
  1058  BA 0007                  		mov	dx, 7 
  105B  8A E0                    		mov	ah, al 
- 105D                           loc_603C: 
- 105D  D2 C8                    		ror	al, cl 
- 105F  0A E0                    		or	ah, al 
- 1061  4A                       		dec	dx 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-63
                                                             
 
+ 105D                           loc_603C: 
+ 105D  D2 C8                    		ror	al, cl 
+ 105F  0A E0                    		or	ah, al 
+ 1061  4A                       		dec	dx 
  1062  75 F9                    		jnz	short loc_603C 
  1064  8A C4                    		mov	al, ah 
  1066  26: 8A 0E 000A R         		mov	cl, es:var_63a 
@@ -3711,15 +3715,15 @@
  109B  BB 006B                  		mov	bx, 107		; FP number! 
  109E  BA 0267                  		mov	dx, 615 
  10A1                           GTASPX: 
- 10A1  C3                       		ret 
-                                GTASPC		endp 
-                                 
-                                 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-64
                                                             
 
+ 10A1  C3                       		ret 
+                                GTASPC		endp 
+                                 
+                                 
                                 ; =============== S U B	R O U T	I N E =========
 				============================== 
                                  
@@ -3770,15 +3774,15 @@
 				============================== 
                                  
                                  
- 10C7                           PGINIT		proc near 
- 10C7  9F                       		lahf 
- 10C8  89 1E 0031 R             		mov	ds:var_661, bx 
- 10CC  51                       		push	cx 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-65
                                                             
 
+ 10C7                           PGINIT		proc near 
+ 10C7  9F                       		lahf 
+ 10C8  89 1E 0031 R             		mov	ds:var_661, bx 
+ 10CC  51                       		push	cx 
  10CD  D1 E9                    		shr	cx, 1 
  10CF  D1 E9                    		shr	cx, 1 
  10D1  D1 E9                    		shr	cx, 1 
@@ -3829,15 +3833,15 @@
 				------------------------------ 
                                  
  111A                           loc_60F9:				; CODE XREF: NREAD+13j 
- 111A  8A CC                    		mov	cl, ah 
- 111C  EB 06                    		jmp	short loc_6103 
-                                ; ---------------------------------------------
-				------------------------------ 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-66
                                                             
 
+ 111A  8A CC                    		mov	cl, ah 
+ 111C  EB 06                    		jmp	short loc_6103 
+                                ; ---------------------------------------------
+				------------------------------ 
                                  
  111E                           loc_60FD:				; CODE XREF: NREAD+32j 
  111E  26: 88 35                		mov	es:[di], dh 
@@ -3888,15 +3892,15 @@
  1163  EB F3                    		jmp	short loc_6137 
                                 ; ---------------------------------------------
 				------------------------------ 
-                                 
- 1165                           loc_6144:				; CODE XREF: NWRITE+13j 
- 1165  8A CC                    		mov	cl, ah 
- 1167  EB 0B                    		jmp	short loc_6153 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-67
                                                             
 
+                                 
+ 1165                           loc_6144:				; CODE XREF: NWRITE+13j 
+ 1165  8A CC                    		mov	cl, ah 
+ 1167  EB 0B                    		jmp	short loc_6153 
                                 ; ---------------------------------------------
 				------------------------------ 
                                  
@@ -3947,15 +3951,15 @@
  11B0  8A CD                    		mov	cl, ch 
  11B2  D2 EA                    		shr	dl, cl 
  11B4  D2 E2                    		shl	dl, cl 
- 11B6  0A F2                    		or	dh, dl 
- 11B8  88 34                    		mov	[si], dh 
-                                 
- 11BA                           loc_6199:				; CODE XREF: NWRITE+47j NWRITE+54
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-68
                                                             
 
+ 11B6  0A F2                    		or	dh, dl 
+ 11B8  88 34                    		mov	[si], dh 
+                                 
+ 11BA                           loc_6199:				; CODE XREF: NWRITE+47j NWRITE+54
 				j 
  11BA  1F                       		pop	ds 
  11BB  89 3E 0031 R             		mov	ds:var_661, di 
@@ -4006,15 +4010,15 @@
                                  
                                  
                                 ; =============== S U B	R O U T	I N E =========
-				============================== 
-                                 
-                                 
- 11D9                           SCANR		proc near		; CODE XREF: SCANR1p 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-69
                                                             
 
+				============================== 
+                                 
+                                 
+ 11D9                           SCANR		proc near		; CODE XREF: SCANR1p 
  11D9  1E                       		push	ds 
  11DA  8B FA                    		mov	di, dx 
  11DC  E8 1019 R                		call	SETPTR 
@@ -4065,15 +4069,15 @@
  122A  57                       		push	di 
  122B  26: 8A 36 0030 R         		mov	dh, es:var_660 
  1230  8A DE                    		mov	bl, dh 
- 1232  51                       		push	cx 
- 1233  26: 80 3E 000A R 01      		cmp	byte ptr es:var_63a, 1 
- 1239  74 09                    		jz	short loc_6223 
- 123B  80 E6 01                 		and	dh, 1 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-70
                                                             
 
+ 1232  51                       		push	cx 
+ 1233  26: 80 3E 000A R 01      		cmp	byte ptr es:var_63a, 1 
+ 1239  74 09                    		jz	short loc_6223 
+ 123B  80 E6 01                 		and	dh, 1 
  123E  8A DE                    		mov	bl, dh 
  1240  EB 02                    		jmp	short loc_6223 
                                 ; ---------------------------------------------
@@ -4124,15 +4128,15 @@
  1273  74 02                    		jz	short loc_6256 
  1275  B1 00                    		mov	cl, 0 
                                  
- 1277                           loc_6256:				; CODE XREF: SCANR+9Aj 
- 1277  8B DF                    		mov	bx, di 
- 1279  1F                       		pop	ds 
- 127A  89 36 0017 R             		mov	ds:var_647, si 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-71
                                                             
 
+ 1277                           loc_6256:				; CODE XREF: SCANR+9Aj 
+ 1277  8B DF                    		mov	bx, di 
+ 1279  1F                       		pop	ds 
+ 127A  89 36 0017 R             		mov	ds:var_647, si 
  127E  88 2E 001B R             		mov	ds:var_64b, ch 
  1282  C3                       		ret 
                                 SCANR		endp 
@@ -4183,15 +4187,15 @@
  12C2  33 FF                    		xor	di, di 
  12C4  EB 13                    		jmp	short loc_62B8 
                                 ; ---------------------------------------------
-				------------------------------ 
-                                 
- 12C6                           loc_62A5: 
- 12C6  B0 00                    		mov	al, 0 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-72
                                                             
 
+				------------------------------ 
+                                 
+ 12C6                           loc_62A5: 
+ 12C6  B0 00                    		mov	al, 0 
  12C8  D3 C8                    		ror	ax, cl 
  12CA  3A C7                    		cmp	al, bh 
  12CC  74 18                    		jz	short loc_62C5 
@@ -4242,15 +4246,15 @@
                                 ;		align 10h 
                                  
                                 PUBLIC  RDPEN, RDTRIG, RDSTIK, POLLEV 
-                                 
- 1307  00                       ISREVT		db 0			; DATA XREF: CM2ISR:loc_5262w 
-                                					; TIMISR+1Aw ... 
- 1308  0000                     LPWSDN		dw 0			; DATA XREF: LPENQR+35w RDPEN+C
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-73
                                                             
 
+                                 
+ 1307  00                       ISREVT		db 0			; DATA XREF: CM2ISR:loc_5262w 
+                                					; TIMISR+1Aw ... 
+ 1308  0000                     LPWSDN		dw 0			; DATA XREF: LPENQR+35w RDPEN+C
 				o ... 
  130A  0000                     LPLGX		dw 0			; DATA XREF: LPENQR+38w 
  130C  0000                     LPLGY		dw 0			; DATA XREF: LPENQR+3Cw 
@@ -4301,15 +4305,15 @@
  134B  B8 FFFF                  		mov	ax, -1 
  134E  A3 130E R                		mov	LPDOWN,	ax 
  1351  A3 1308 R                		mov	LPWSDN,	ax 
- 1354  89 1E 130A R             		mov	LPLGX, bx 
- 1358  88 2E 130C R             		mov	byte ptr LPLGY,	ch 
- 135C  88 36 1314 R             		mov	byte ptr LPROW,	dh 
- 1360  88 16 1316 R             		mov	byte ptr LPCOL,	dl 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-74
                                                             
 
+ 1354  89 1E 130A R             		mov	LPLGX, bx 
+ 1358  88 2E 130C R             		mov	byte ptr LPLGY,	ch 
+ 135C  88 36 1314 R             		mov	byte ptr LPROW,	dh 
+ 1360  88 16 1316 R             		mov	byte ptr LPCOL,	dl 
  1364                           LPENQX: 
  1364  5A                       		pop	dx 
  1365  59                       		pop	cx 
@@ -4360,15 +4364,15 @@
  1375  0A C0                    		or	al, al 
  1377  78 17                    		js	short LPNOFF 
  1379  56                       		push	si 
- 137A  D0 E0                    		shl	al, 1 
- 137C  B4 00                    		mov	ah, 0 
- 137E  BE 1308 R                		mov	si, offset LPWSDN 
- 1381  03 F0                    		add	si, ax 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-75
                                                             
 
+ 137A  D0 E0                    		shl	al, 1 
+ 137C  B4 00                    		mov	ah, 0 
+ 137E  BE 1308 R                		mov	si, offset LPWSDN 
+ 1381  03 F0                    		add	si, ax 
  1383  2E: 8B 1C                		mov	bx, cs:[si] 
  1386  0B C0                    		or	ax, ax 
  1388  75 03                    		jnz	short RDPENX 
@@ -4419,15 +4423,15 @@
  13BA  B1 01                    		mov	cl, 1 
  13BC                           loc_63A5: 
  13BC  80 C1 04                 		add	cl, 4 
- 13BF  BA 0201                  		mov	dx, 201h 
- 13C2  EC                       		in	al, dx		; Game I/O port 
-                                					; bits 0-3: Coordinates	(resistive, time-d
-				ependent inputs) 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-76
                                                             
 
+ 13BF  BA 0201                  		mov	dx, 201h 
+ 13C2  EC                       		in	al, dx		; Game I/O port 
+                                					; bits 0-3: Coordinates	(resistive, time-d
+				ependent inputs) 
                                 					; bits 4-7: Buttons/Triggers (digital inpu
 				ts) 
  13C3  F6 D0                    		not	al 
@@ -4478,15 +4482,15 @@
  13FE  75 0B                    		jnz	short RDSTKX 
  1400  4B                       		dec	bx 
  1401  4B                       		dec	bx 
- 1402  FA                       		cli 
- 1403  EE                       		out	dx, al		; Game I/O port 
-                                					; bits 0-3: Coordinates	(resistive, time-d
-				ependent inputs) 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-77
                                                             
 
+ 1402  FA                       		cli 
+ 1403  EE                       		out	dx, al		; Game I/O port 
+                                					; bits 0-3: Coordinates	(resistive, time-d
+				ependent inputs) 
                                 					; bits 4-7: Buttons/Triggers (digital inpu
 				ts) 
  1404                           RDSTLP: 
@@ -4537,15 +4541,15 @@
                                 ;		align 10h 
                                  
                                 PUBLIC  DONOTE 
-                                 
- 142E  0084[                    NTARRY		db 84h dup(   0)	; DATA XREF: TMRISR:lo
-				c_6518o 
-            00                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-78
                                                             
 
+                                 
+ 142E  0084[                    NTARRY		db 84h dup(   0)	; DATA XREF: TMRISR:lo
+				c_6518o 
+            00                  
                          ]      
                                 
                                 					; DONOTE+6Bo 
@@ -4588,7 +4592,7 @@
  14C8  F6 06 0701 R 02          		test	EVTSET,	2	; Speaker on? 
  14CD  75 06                    		jnz	short TMRIS1	; If not, turn it off now 
  14CF  E4 61                    		in	al, 61h		; PC/XT	PPI port B bits: 
-                                					; 0: Tmr 2 gate	ÕÀÕ OR	03H=spkr ON 
+                                					; 0: Tmr 2 gate	ÔøΩÔøΩÔøΩ OR	03H=spkr ON 
                                 					; 1: Tmr 2 data	Õº  AND	0fcH=spkr OFF 
                                 					; 3: 1=read high switches 
                                 					; 4: 0=enable RAM parity checking 
@@ -4596,15 +4600,15 @@
                                 					; 6: 0=hold keyboard clock low 
                                 					; 7: 0=enable kbrd 
  14D1  24 FD                    		and	al, 0FDh 
- 14D3  E6 61                    		out	61h, al		; PC/XT	PPI port B bits: 
-                                					; 0: Tmr 2 gate	ÕÀÕ OR	03H=spkr ON 
-                                					; 1: Tmr 2 data	Õº  AND	0fcH=spkr OFF 
-                                					; 3: 1=read high switches 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-79
                                                             
 
+ 14D3  E6 61                    		out	61h, al		; PC/XT	PPI port B bits: 
+                                					; 0: Tmr 2 gate	ÔøΩÔøΩÔøΩ OR	03H=spkr ON 
+                                					; 1: Tmr 2 data	Õº  AND	0fcH=spkr OFF 
+                                					; 3: 1=read high switches 
                                 					; 4: 0=enable RAM parity checking 
                                 					; 5: 0=enable I/O channel check 
                                 					; 6: 0=hold keyboard clock low 
@@ -4641,7 +4645,7 @@
  1513  80 26 0701 R FD          		and	EVTSET,	0FDh	; Clear	speaker	event bit 
  1518  FA                       		cli 
  1519  E4 61                    		in	al, 61h		; PC/XT	PPI port B bits: 
-                                					; 0: Tmr 2 gate	ÕÀÕ OR	03H=spkr ON 
+                                					; 0: Tmr 2 gate	ÔøΩÔøΩÔøΩ OR	03H=spkr ON 
                                 					; 1: Tmr 2 data	Õº  AND	0fcH=spkr OFF 
                                 					; 3: 1=read high switches 
                                 					; 4: 0=enable RAM parity checking 
@@ -4650,20 +4654,20 @@
                                 					; 7: 0=enable kbrd 
  151B  24 FD                    		and	al, 0FDh 
  151D  E6 61                    		out	61h, al		; PC/XT	PPI port B bits: 
-                                					; 0: Tmr 2 gate	ÕÀÕ OR	03H=spkr ON 
+                                					; 0: Tmr 2 gate	ÔøΩÔøΩÔøΩ OR	03H=spkr ON 
                                 					; 1: Tmr 2 data	Õº  AND	0fcH=spkr OFF 
                                 					; 3: 1=read high switches 
                                 					; 4: 0=enable RAM parity checking 
                                 					; 5: 0=enable I/O channel check 
-                                					; 6: 0=hold keyboard clock low 
-                                					; 7: 0=enable kbrd 
- 151F  FB                       		sti 
- 1520  EB 50                    		jmp	short loc_6564 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-80
                                                             
 
+                                					; 6: 0=hold keyboard clock low 
+                                					; 7: 0=enable kbrd 
+ 151F  FB                       		sti 
+ 1520  EB 50                    		jmp	short loc_6564 
                                 ; ---------------------------------------------
 				------------------------------ 
                                  
@@ -4678,7 +4682,7 @@
  152D  75 07                    		jnz	short loc_6528 
  152F  FA                       		cli 
  1530  E4 61                    		in	al, 61h		; PC/XT	PPI port B bits: 
-                                					; 0: Tmr 2 gate	ÕÀÕ OR	03H=spkr ON 
+                                					; 0: Tmr 2 gate	ÔøΩÔøΩÔøΩ OR	03H=spkr ON 
                                 					; 1: Tmr 2 data	Õº  AND	0fcH=spkr OFF 
                                 					; 3: 1=read high switches 
                                 					; 4: 0=enable RAM parity checking 
@@ -4696,7 +4700,7 @@
  153A  E6 42                    		out	42h, al		; Timer	8253-5 (AT: 8254.2). 
  153C  FA                       		cli 
  153D  E4 61                    		in	al, 61h		; PC/XT	PPI port B bits: 
-                                					; 0: Tmr 2 gate	ÕÀÕ OR	03H=spkr ON 
+                                					; 0: Tmr 2 gate	ÔøΩÔøΩÔøΩ OR	03H=spkr ON 
                                 					; 1: Tmr 2 data	Õº  AND	0fcH=spkr OFF 
                                 					; 3: 1=read high switches 
                                 					; 4: 0=enable RAM parity checking 
@@ -4707,22 +4711,22 @@
                                  
  1541                           loc_6533:				; CODE XREF: TMRISR+73j 
  1541  E6 61                    		out	61h, al		; PC/XT	PPI port B bits: 
-                                					; 0: Tmr 2 gate	ÕÀÕ OR	03H=spkr ON 
+                                					; 0: Tmr 2 gate	ÔøΩÔøΩÔøΩ OR	03H=spkr ON 
                                 					; 1: Tmr 2 data	Õº  AND	0fcH=spkr OFF 
                                 					; 3: 1=read high switches 
                                 					; 4: 0=enable RAM parity checking 
                                 					; 5: 0=enable I/O channel check 
                                 					; 6: 0=hold keyboard clock low 
                                 					; 7: 0=enable kbrd 
- 1543  FB                       		sti 
- 1544  46                       		inc	si 
- 1545  46                       		inc	si 
- 1546  8B 00                    		mov	ax, [bx+si] 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-81
                                                             
 
+ 1543  FB                       		sti 
+ 1544  46                       		inc	si 
+ 1545  46                       		inc	si 
+ 1546  8B 00                    		mov	ax, [bx+si] 
  1548  46                       		inc	si 
  1549  46                       		inc	si 
  154A  E8 16C7 R                		call	NXTNOT 
@@ -4773,15 +4777,15 @@
  15A3  58                       		pop	ax 
  15A4  A3 0022                  		mov	ds:22h,	ax 
  15A7  EB 05                    		jmp	short TMRCHN 
-                                ; ---------------------------------------------
-				------------------------------ 
-                                 
- 15A9                           TMRRST:					; CODE XREF: TMRISR+C0j TMRISR+C9
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-82
                                                             
 
+                                ; ---------------------------------------------
+				------------------------------ 
+                                 
+ 15A9                           TMRRST:					; CODE XREF: TMRISR+C0j TMRISR+C9
 				j ... 
  15A9  C6 06 14BC R 20          		mov	ds:ISRCNT, 32	; Timer	ticks 32x faster; r
 				estart period. 
@@ -4832,16 +4836,16 @@
  15CB  F6 06 0701 R 02          		test	EVTSET,	2	; Speaker on? 
  15D0  74 15                    		jz	short DONOTX 
  15D2  FA                       		cli 
- 15D3  8B 1E 14B4 R             		mov	bx, NOTPTR 
- 15D7  89 1E 14B2 R             		mov	CURNOT,	bx 
- 15DB  80 26 0701 R FD          		and	EVTSET,	0FDh	; Clear	event bit 
- 15E0  E4 61                    		in	al, 61h		; PC/XT	PPI port B bits: 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-83
                                                             
 
-                                					; 0: Tmr 2 gate	ÕÀÕ OR	03H=spkr ON 
+ 15D3  8B 1E 14B4 R             		mov	bx, NOTPTR 
+ 15D7  89 1E 14B2 R             		mov	CURNOT,	bx 
+ 15DB  80 26 0701 R FD          		and	EVTSET,	0FDh	; Clear	event bit 
+ 15E0  E4 61                    		in	al, 61h		; PC/XT	PPI port B bits: 
+                                					; 0: Tmr 2 gate	ÔøΩÔøΩÔøΩ OR	03H=spkr ON 
                                 					; 1: Tmr 2 data	Õº  AND	0fcH=spkr OFF 
                                 					; 3: 1=read high switches 
                                 					; 4: 0=enable RAM parity checking 
@@ -4850,7 +4854,7 @@
                                 					; 7: 0=enable kbrd 
  15E2  24 FD                    		and	al, 0FDh 
  15E4  E6 61                    		out	61h, al		; PC/XT	PPI port B bits: 
-                                					; 0: Tmr 2 gate	ÕÀÕ OR	03H=spkr ON 
+                                					; 0: Tmr 2 gate	ÔøΩÔøΩÔøΩ OR	03H=spkr ON 
                                 					; 1: Tmr 2 data	Õº  AND	0fcH=spkr OFF 
                                 					; 3: 1=read high switches 
                                 					; 4: 0=enable RAM parity checking 
@@ -4891,15 +4895,15 @@
  1602  1E                       		push	ds 
  1603  33 C0                    		xor	ax, ax 
  1605  8E D8                    		mov	ds, ax 
-                                		assume ds:nothing 
- 1607  BB 0471                  		mov	bx, 471h	; Ctrl+Break flag 
- 160A  88 07                    		mov	[bx], al	; Zero out the flag 
- 160C  1F                       		pop	ds 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-84
                                                             
 
+                                		assume ds:nothing 
+ 1607  BB 0471                  		mov	bx, 471h	; Ctrl+Break flag 
+ 160A  88 07                    		mov	[bx], al	; Zero out the flag 
+ 160C  1F                       		pop	ds 
                                 		assume ds:nothing 
  160D  8B 36 14B4 R             		mov	si, ds:NOTPTR 
  1611  56                       		push	si 
@@ -4950,15 +4954,15 @@
  1660  8E D8                    		mov	ds, ax 
                                 		assume ds:nothing 
  1662  C4 06 0020               		les	ax, DWORD PTR DS:[20h]	; Install timer	IS
-				R (IRQ0, vector 08h) 
- 1666  BA 14C1 R                		mov	dx, offset TMRISR 
- 1669  89 16 0020               		mov	ds:20h,	dx 
- 166D  0E                       		push	cs 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-85
                                                             
 
+				R (IRQ0, vector 08h) 
+ 1666  BA 14C1 R                		mov	dx, offset TMRISR 
+ 1669  89 16 0020               		mov	ds:20h,	dx 
+ 166D  0E                       		push	cs 
  166E  5A                       		pop	dx 
  166F  89 16 0022               		mov	ds:22h,	dx 
  1673  1F                       		pop	ds 
@@ -5009,15 +5013,15 @@
                                  
  16C4                           GONOTX:					; CODE XREF: DONOTE+C8j DONOTE+D5
 				j ... 
- 16C4  E9 15E7 R                		jmp	DONOTX 
-                                DONOTE		endp 
-                                 
-                                 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Page     1-86
                                                             
 
+ 16C4  E9 15E7 R                		jmp	DONOTX 
+                                DONOTE		endp 
+                                 
+                                 
                                 ; =============== S U B	R O U T	I N E =========
 				============================== 
                                  
@@ -5037,7 +5041,7 @@
                                  
  16D2                           CSEG    ENDS 
                                         END 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Symbols-1
                                                              
@@ -5096,7 +5100,7 @@ DEBUG  . . . . . . . . . . . . .  	Text
 DELAY  . . . . . . . . . . . . .  	L NEAR	06D6	CSEG
 DOCLRS . . . . . . . . . . . . .  	L NEAR	0B73	CSEG
 DODIV  . . . . . . . . . . . . .  	L NEAR	15F9	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Symbols-2
                                                              
@@ -5155,7 +5159,7 @@ ISREVT . . . . . . . . . . . . .  	L BYTE 	1307	CSEG
 ISRFN0 . . . . . . . . . . . . .  	L NEAR	0329	CSEG
 ISRFN1 . . . . . . . . . . . . .  	L NEAR	02F0	CSEG
 ISRFN2 . . . . . . . . . . . . .  	L NEAR	026E	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Symbols-3
                                                              
@@ -5214,7 +5218,7 @@ LOC_5662 . . . . . . . . . . . .  	L NEAR	0688	CSEG
 LOC_5673 . . . . . . . . . . . .  	L NEAR	0699	CSEG
 LOC_5684 . . . . . . . . . . . .  	L NEAR	06AA	CSEG
 LOC_568D . . . . . . . . . . . .  	L NEAR	06B3	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Symbols-4
                                                              
@@ -5273,7 +5277,7 @@ LOC_5CDB . . . . . . . . . . . .  	L NEAR	0CFC	CSEG
 LOC_5CE6 . . . . . . . . . . . .  	L NEAR	0D07	CSEG
 LOC_5CEE . . . . . . . . . . . .  	L NEAR	0D0F	CSEG
 LOC_5D1D . . . . . . . . . . . .  	L NEAR	0D3E	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Symbols-5
                                                              
@@ -5332,7 +5336,7 @@ LOC_6183 . . . . . . . . . . . .  	L NEAR	11A4	CSEG
 LOC_6199 . . . . . . . . . . . .  	L NEAR	11BA	CSEG
 LOC_61C8 . . . . . . . . . . . .  	L NEAR	11E9	CSEG
 LOC_61E1 . . . . . . . . . . . .  	L NEAR	1202	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Symbols-6
                                                              
@@ -5391,7 +5395,7 @@ NOBRK  . . . . . . . . . . . . .  	L NEAR	084A	CSEG
 NONASC . . . . . . . . . . . . .  	L NEAR	0876	CSEG
 NOSWIT . . . . . . . . . . . . .  	L NEAR	136A	CSEG
 NOTPTR . . . . . . . . . . . . .  	L WORD 	14B4	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Symbols-7
                                                              
@@ -5450,7 +5454,7 @@ SCNSWI . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 SCNXLT . . . . . . . . . . . . .  	L BYTE 	08B2	CSEG
 SCRATR . . . . . . . . . . . . .  	N PROC	0CB6	CSEG	Global	Length = 0023
 SCRINP . . . . . . . . . . . . .  	N PROC	0A16	CSEG	Global	Length = 0017
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Symbols-8
                                                              
@@ -5509,7 +5513,7 @@ TUPCX  . . . . . . . . . . . . .  	L NEAR	10B0	CSEG
 TWOKEY . . . . . . . . . . . . .  	L NEAR	0894	CSEG
 TXTATR . . . . . . . . . . . . .  	L NEAR	00B7	CSEG
 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 12:47:54
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 13:03:16
 
                                                             Symbols-9
                                                              
@@ -5556,8 +5560,8 @@ WRAP . . . . . . . . . . . . . .  	L NEAR	16CE	CSEG
 WTDONE . . . . . . . . . . . . .  	L NEAR	162B	CSEG
 
 
-   4218 Source  Lines
-   4218 Total   Lines
+   4221 Source  Lines
+   4221 Total   Lines
     467 Symbols
 
   34834 Bytes symbol space free
