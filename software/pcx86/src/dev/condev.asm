@@ -42,8 +42,8 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFPTR	kbd_int,0	; keyboard hardware interrupt handler
 	DEFPTR	wait_ptr,-1	; chain of waiting packets
 ;
-; A context of "25,80,0,0" with a border supports logical cursor positions
-; from 1,1 to 78,23.  Physical character and cursor positions will be adjusted
+; A context of "80,25,0,0,1" requests a border, so logical cursor positions
+; are 1,1 to 78,23.  Physical character and cursor positions will be adjusted
 ; by the offset address in CT_BUFFER.
 ;
 CONTEXT		struc
@@ -93,6 +93,14 @@ ENDPROC	ddcon_req
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; ddcon_ctlin
+;
+; The first two IOCTLs supported here (IOCTL_GETPOS and IOCTL_GETLEN) were
+; both required by DOS console I/O functions; specifically, the buffered input
+; function (AH = 0Ah), which cannot successfully erase TAB characters, or
+; erase the entire line, unless it knows the starting column.  In addition,
+; TAB characters always wrap to column 1 on the following line, and since the
+; total number of columns in our contexts are not always multiples of 8, the
+; IOCTL_GETLEN function is needed to calculate differences in line lengths.
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
@@ -250,9 +258,23 @@ ENDPROC	ddcon_write
 ;
 ; ddcon_open
 ;
+; The format of the optional context descriptor is:
+;
+;	[device]:[cols],[rows],[x],[y],[border],[adapter]
+;
+; where [device] is CON (otherwise you wouldn't be here), [cols] is number of
+; columns (up to 80), [rows] is number of rows (up to 25), [x] and [y] are the
+; top-left row and col of the context, [border] is 1 for a border or 0 for none,
+; and [adapter] is the adapter #, in case there is more than one video adapter
+; (default is 0).
+;
+; Obviously, future hardware (imagine an ENHANCED Graphics Adapter, for example)
+; will be able to support more rows and other features, but we're designing
+; exclusively for the MDA and CGA for now.
+;
 ; Inputs:
 ;	ES:DI -> DDP
-;	[DDP].DDP_PTR -> context descriptor (eg, "CON:25,80,0,0")
+;	[DDP].DDP_PTR -> context descriptor (eg, "CON:80,25,0,0,1")
 ;
 ; Outputs:
 ;
@@ -269,16 +291,16 @@ DEFPROC	ddcon_open
 	pop	es
 	mov	bl,10			; use base 10
 	mov	di,offset CON_LIMITS	; ES:DI -> limits
-	mov	ax,DOS_UTL_ATOI
+	mov	ax,DOS_UTL_ATOI16
 	int	21h			; updates SI, DI, and AX
 	mov	cl,al			; CL = cols
-	mov	ax,DOS_UTL_ATOI
+	mov	ax,DOS_UTL_ATOI16
 	int	21h
 	mov	ch,al			; CH = rows
-	mov	ax,DOS_UTL_ATOI
+	mov	ax,DOS_UTL_ATOI16
 	int	21h
 	mov	dl,al			; DL = starting col
-	mov	ax,DOS_UTL_ATOI
+	mov	ax,DOS_UTL_ATOI16
 	int	21h
 	mov	dh,al			; DH = starting row
 	pop	ds
@@ -1164,10 +1186,15 @@ ENDPROC	write_curpos
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	write_horzpair
-	test	ds:[CT_STATUS],CTSTAT_SYSTEM
-	jz	whp1
-	cmp	dl,14			; skip over 14 chars at the top
-	jbe	whp2
+;
+; Skipping characters along the top row to preserve a console "label"
+; is no longer done here.
+;
+	; test	ds:[CT_STATUS],CTSTAT_SYSTEM
+	; jz	whp1
+	; cmp	dl,14			; skip over 14 chars at the top
+	; jbe	whp2
+
 whp1:	xchg	cl,ch
 	call	write_curpos
 	xchg	cl,ch

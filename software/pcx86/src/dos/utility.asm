@@ -11,15 +11,16 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<scb_locked>,byte
-	EXTERNS	<scb_active>,word
-	EXTERNS	<scb_table,clk_ptr>,dword
 	EXTERNS	<chk_devname,dev_request,write_string>,near
-	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload,scb_yield>,near
-	EXTERNS	<scb_wait,scb_endwait>,near
+	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload>,near
+	EXTERNS	<scb_yield,scb_delock,scb_wait,scb_endwait>,near
 	EXTERNS	<mcb_query>,near
 	EXTERNS	<psp_term_exitcode>,near
 	EXTERNS	<itoa,sprintf>,near
+
+	EXTERNS	<scb_locked>,byte
+	EXTERNS	<scb_active>,word
+	EXTERNS	<scb_table,clk_ptr>,dword
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -61,7 +62,70 @@ ENDPROC	utl_strlen
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_strupr (AX = 1801h)
+; utl_strstr (AX = 1801h)
+;
+; Find string (DS:SI) in string (ES:DI)
+;
+; Inputs:
+;	REG_DS:REG_SI = source string
+;	REG_ES:REG_DI = target string
+;
+; Outputs:
+;	On match, carry clear, and REG_DI is updated with position of match
+;	Otherwise, carry set (no registers modified)
+;
+; Modifies:
+;	AX, BX, CX, DS, ES
+;
+DEFPROC	utl_strstr,DOS
+	sti
+	and	[bp].REG_FL,NOT FL_CARRY
+	mov	ds,[bp].REG_ES
+	ASSUME	DS:NOTHING
+	xchg	si,di
+	mov	al,0
+	call	strlen
+	xchg	dx,ax			; DX = length of target string
+	xchg	si,di
+	mov	es,[bp].REG_ES
+	ASSUME	ES:NOTHING
+	mov	ds,[bp].REG_DS
+	mov	al,0
+	call	strlen
+	xchg	bx,ax			; BX = length of source string
+
+	lodsb				; AX = first char of source
+	test	al,al
+	stc
+	jz	ss9
+
+	mov	cx,dx
+ss1:	repne	scasb			; scan all remaining target chars
+	stc
+	jne	ss9
+	clc				; clear the carry in case CX is zero
+	push	cx			; (in that case, cmpsb won't clear it)
+	mov	cx,bx
+	dec	cx
+	push	si
+	push	di
+	rep	cmpsb			; compare all remaining source chars
+	pop	di
+	pop	si
+	pop	cx
+	je	ss8			; match (and carry clear)
+	mov	dx,cx
+	jmp	ss1
+
+ss8:	dec	di
+	mov	[bp].REG_DI,di
+
+ss9:	ret
+ENDPROC	utl_strstr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_strupr (AX = 1803h)
 ;
 ; Makes the string at REG_DS:SI with length CX upper-case; use length 0
 ; if null-terminated.
@@ -95,27 +159,23 @@ ENDPROC	utl_strupr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_atoi (AX = 1802h)
+; utl_atoi16 (AX = 1806h)
 ;
-; Convert string at DS:SI to base BL, then validate using values at ES:DI.
+; Convert string at DS:SI to number in AX using base BL, using validation
+; values at ES:DI.
 ;
-; For no validation, set DI to -1; otherwise, ES:DI must point to a pair
-; of (min,max) 16-bit values; and like SI, DI will be advanced, making it easy
-; to parse a series of values, each with their own (min,max) values.
-;
-; NOTE: Validated values are currently limited to 16 bits, so when validation
-; is requested, the result is limited to AX (DX is not modified).  Unvalidated
-; values can be 32 bits and are returned in DX:AX.
+; ES:DI must point to a pair of (min,max) 16-bit values; and like SI, DI will
+; be advanced, making it easy to parse a series of values, each with their own
+; (min,max) values.
 ;
 ; Returns:
 ;	AX = value, DS:SI -> next character (after any non-digit)
-;	DX:AX = value if no validation is requested
 ;	Carry will be set on a validation error, but AX will ALWAYS be valid
 ;
 ; Modifies:
 ;	AX, CX, DX, SI, DI, DS, ES
 ;
-DEFPROC	utl_atoi,DOS
+DEFPROC	utl_atoi16,DOS
 	sti
 	mov	bl,[bp].REG_BL		; BL = base (eg, 10)
 	mov	bh,0
@@ -192,8 +252,8 @@ ai6a:	pop	bp
 
 	cmp	di,-1			; validation data provided?
 	jne	ai6b			; yes
-	add	ah,1
-	jmp	short ai9		; (carry clear if one or more digits)
+	add	ah,1			; (carry clear if one or more digits)
+	jmp	short ai9
 ai6b:	cmp	dx,es:[di]		; too small?
 	jae	ai7			; no
 	mov	dx,es:[di]		; yes (carry set)
@@ -209,11 +269,29 @@ ai9:	mov	[bp].REG_DX,cx		; update REG_DX if no validation data
 ai9a:	mov	[bp].REG_AX,dx		; update REG_AX
 	mov	[bp].REG_SI,si		; update caller's SI, too
 	ret
-ENDPROC utl_atoi
+ENDPROC utl_atoi16
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_itoa (AX = 1803h)
+; utl_atoi32 (AX = 1807h)
+;
+; Convert string at DS:SI to number in DX:AX using base BL.
+;
+; Returns:
+;	Carry clear if one or more digits, set otherwise
+;	DX:AX = value, DS:SI -> next character (after any non-digit)
+;
+; Modifies:
+;	AX, CX, DX, SI, DI, DS, ES
+;
+DEFPROC	utl_atoi32,DOS
+	mov	di,-1			; setting no validation allows
+	jmp	utl_atoi16		; atoi16 to return a 32-bit value
+ENDPROC utl_atoi32
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_itoa (AX = 1808h)
 ;
 ; Convert the value DX:SI to a string representation at ES:DI, using base BL,
 ; flags BH (see itoa for PF definitions), minimum length CX (0 for no minimum).
@@ -237,7 +315,7 @@ ENDPROC	utl_itoa
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_printf (AX = 1804h)
+; utl_printf (AX = 1809h)
 ;
 ; A semi-CDECL-style calling convention is assumed, where all parameters
 ; EXCEPT for the format string are pushed from right to left, so that the
@@ -287,7 +365,7 @@ ENDPROC	utl_printf endp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_sprintf (AX = 1805h)
+; utl_sprintf (AX = 180Ah)
 ;
 ; A semi-CDECL-style calling convention is assumed, where all parameters
 ; EXCEPT for the format string are pushed from right to left, so that the
@@ -336,262 +414,7 @@ ENDPROC	utl_sprintf
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_getdev (AX = 1806h)
-;
-; Returns DDH in ES:DI for device name at DS:DX.
-;
-; Inputs:
-;	DS:DX -> device name
-;
-; Outputs:
-;	ES:DI -> DDH if success; carry set if not found
-;
-; Modifies:
-;	AX, CX, DI, ES (ie, whatever chk_devname modifies)
-;
-DEFPROC	utl_getdev,DOS
-	sti
-	mov	ds,[bp].REG_DS
-	ASSUME	DS:NOTHING
-	and	[bp].REG_FL,NOT FL_CARRY
-	mov	si,dx
-	call	chk_devname		; DS:SI -> device name
-	jc	gd9
-	mov	[bp].REG_DI,di
-	mov	[bp].REG_ES,es
-gd9:	ret
-ENDPROC	utl_getdev
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_ioctl (AX = 1807h)
-;
-; Inputs:
-;	REG_BX = IOCTL command (BH = driver command, BL = IOCTL command)
-;	REG_ES:REG_DI -> DDH
-;	Other registers will vary
-;
-; Modifies:
-;	AX, DI, ES
-;
-DEFPROC	utl_ioctl,DOS
-	sti
-	mov	ax,[bp].REG_BX		; AX = command codes from BH,BL
-	mov	es,[bp].REG_ES		; ES:DI -> DDH
-	call	dev_request		; call the driver
-	ret
-ENDPROC	utl_ioctl
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_load (AX = 1808h)
-;
-; Inputs:
-;	REG_CL = SCB #
-;	REG_DS:REG_DX = name of program (or command-line)
-;
-; Outputs:
-;	Carry clear if successful
-;	Carry set if error, AX = error code
-;
-; Modifies:
-;	AX, BX, CX, DX, DI, DS, ES
-;
-DEFPROC	utl_load,DOS
-	sti
-	mov	es,[bp].REG_DS
-	and	[bp].REG_FL,NOT FL_CARRY
-	ASSUME	DS:NOTHING		; CL = SCB #
-	jmp	scb_load		; ES:DX -> name of program
-ENDPROC	utl_load
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_start (AX = 1809h)
-;
-; "Start" the specified session (actual starting will handled by scb_switch)
-;
-; Inputs:
-;	CL = SCB #
-;
-; Outputs:
-;	Carry clear if successful, BX -> SCB
-;	Carry set if error (eg, invalid SCB #)
-;
-DEFPROC	utl_start,DOS
-	sti
-	and	[bp].REG_FL,NOT FL_CARRY
- 	jmp	scb_start
-ENDPROC	utl_start
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_stop (AX = 180Ah)
-;
-; "Stop" the specified session
-;
-; Inputs:
-;	CL = SCB #
-;
-; Outputs:
-;	Carry clear if successful
-;	Carry set if error (eg, invalid SCB #)
-;
-DEFPROC	utl_stop,DOS
-	sti
-	and	[bp].REG_FL,NOT FL_CARRY
-	jmp	scb_stop
-ENDPROC	utl_stop
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_unload (AX = 180Bh)
-;
-; Unload the current program from the specified session
-;
-; Inputs:
-;	CL = SCB #
-;
-; Outputs:
-;	Carry clear if successful
-;	Carry set if error (eg, invalid SCB #)
-;
-DEFPROC	utl_unload,DOS
-	sti
-	and	[bp].REG_FL,NOT FL_CARRY
-	jmp	scb_unload
-ENDPROC	utl_unload
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_yield (AX = 180Ch)
-;
-; Asynchronous interface to decide which SCB should run next.
-;
-; Inputs:
-;	None
-;
-; Modifies:
-;	AX, BX, DX
-;
-DEFPROC	utl_yield,DOS
-	sti
-	mov	ax,[scb_active]
-	jmp	scb_yield
-ENDPROC	utl_yield
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_sleep (AX = 180Dh)
-;
-; Converts DX from milliseconds (1000/second) to ticks (18.2/sec) and
-; issues an IOCTL to the CLOCK$ driver to wait the corresponding # of ticks.
-;
-; 1 tick is equivalent to approximately 55ms, so that's the granularity of
-; sleep requests.
-;
-; Inputs:
-;	REG_CX:REG_DX = # of milliseconds to sleep
-;
-; Modifies:
-;	AX, BX, CX, DX, DI, ES
-;
-DEFPROC	utl_sleep,DOS
-	sti
-	add	dx,27			; add 1/2 tick (as # ms) for rounding
-	adc	cx,0
-	mov	bx,55			; BX = divisor
-	xchg	ax,cx			; AX = high dividend
-	mov	cx,dx			; CX = low dividend
-	sub	dx,dx
-	div	bx			; AX = high quotient
-	xchg	ax,cx			; AX = low dividend, CX = high quotient
-	div	bx			; AX = low quotient
-	xchg	dx,ax			; CX:DX = # ticks
-	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_WAIT
-	les	di,clk_ptr
-	call	dev_request		; call the driver
-	ret
-ENDPROC	utl_sleep
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_wait (AX = 180Eh)
-;
-; Synchronous interface to mark current SCB as waiting for the specified ID.
-;
-; Inputs:
-;	REG_DX:REG_DI == wait ID
-;
-; Outputs:
-;	None
-;
-DEFPROC	utl_wait,DOS
-	jmp	scb_wait
-ENDPROC	utl_wait
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_endwait (AX = 180Fh)
-;
-; Asynchronous interface to examine all SCBs for the specified ID and clear it.
-;
-; Inputs:
-;	REG_DX:REG_DI == wait ID
-;
-; Outputs:
-;	Carry clear if found, set if not
-;
-DEFPROC	utl_endwait,DOS
-	and	[bp].REG_FL,NOT FL_CARRY
-	jmp	scb_endwait
-ENDPROC	utl_endwait
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_hotkey (AX = 1810h)
-;
-; Inputs:
-;	REG_CX = CONSOLE context
-;	REG_DL = char code, REG_DH = scan code
-;
-; Outputs:
-;	Carry clear if successful, set if unprocessed
-;
-; Modifies:
-;	AX
-;
-DEFPROC	utl_hotkey,DOS
-	sti
-	xchg	ax,dx			; AL = char code, AH = scan code
-	and	[bp].REG_FL,NOT FL_CARRY
-;
-; Find the SCB with the matching context; that's the one with focus.
-;
-	mov	bx,[scb_table].OFF
-hk1:	cmp	[bx].SCB_CONTEXT,cx
-	je	hk2
-	add	bx,size SCB
-	cmp	bx,[scb_table].SEG
-	jb	hk1
-	stc
-	jmp	short hk9
-
-hk2:	cmp	al,CHR_CTRLC
-	jne	hk3
-	or	[bx].SCB_CTRLC_ACT,1
-
-hk3:	cmp	al,CHR_CTRLP
-	clc
-	jne	hk9
-	xor	[bx].SCB_CTRLP_ACT,1
-
-hk9:	ret
-ENDPROC	utl_hotkey
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_tokify (AX = 1811h)
+; utl_tokify (AX = 180Bh)
 ;
 ; Inputs:
 ;	REG_AL = token type (TODO)
@@ -683,7 +506,7 @@ ENDPROC	utl_tokify
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_tokid (AX = 1812h)
+; utl_tokid (AX = 180Ch)
 ;
 ; Inputs:
 ;	REG_CX = token length
@@ -773,7 +596,262 @@ ENDPROC	utl_tokid
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_lock (AX = 1813h)
+; utl_getdev (AX = 1810h)
+;
+; Returns DDH in ES:DI for device name at DS:DX.
+;
+; Inputs:
+;	DS:DX -> device name
+;
+; Outputs:
+;	ES:DI -> DDH if success; carry set if not found
+;
+; Modifies:
+;	AX, CX, DI, ES (ie, whatever chk_devname modifies)
+;
+DEFPROC	utl_getdev,DOS
+	sti
+	mov	ds,[bp].REG_DS
+	ASSUME	DS:NOTHING
+	and	[bp].REG_FL,NOT FL_CARRY
+	mov	si,dx
+	call	chk_devname		; DS:SI -> device name
+	jc	gd9
+	mov	[bp].REG_DI,di
+	mov	[bp].REG_ES,es
+gd9:	ret
+ENDPROC	utl_getdev
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_ioctl (AX = 1811h)
+;
+; Inputs:
+;	REG_BX = IOCTL command (BH = driver command, BL = IOCTL command)
+;	REG_ES:REG_DI -> DDH
+;	Other registers will vary
+;
+; Modifies:
+;	AX, DI, ES
+;
+DEFPROC	utl_ioctl,DOS
+	sti
+	mov	ax,[bp].REG_BX		; AX = command codes from BH,BL
+	mov	es,[bp].REG_ES		; ES:DI -> DDH
+	call	dev_request		; call the driver
+	ret
+ENDPROC	utl_ioctl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_load (AX = 1812h)
+;
+; Inputs:
+;	REG_CL = SCB #
+;	REG_DS:REG_DX = name of program (or command-line)
+;
+; Outputs:
+;	Carry clear if successful
+;	Carry set if error, AX = error code
+;
+; Modifies:
+;	AX, BX, CX, DX, DI, DS, ES
+;
+DEFPROC	utl_load,DOS
+	sti
+	mov	es,[bp].REG_DS
+	and	[bp].REG_FL,NOT FL_CARRY
+	ASSUME	DS:NOTHING		; CL = SCB #
+	jmp	scb_load		; ES:DX -> name of program
+ENDPROC	utl_load
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_start (AX = 1813h)
+;
+; "Start" the specified session (actual starting will handled by scb_switch)
+;
+; Inputs:
+;	CL = SCB #
+;
+; Outputs:
+;	Carry clear if successful, BX -> SCB
+;	Carry set if error (eg, invalid SCB #)
+;
+DEFPROC	utl_start,DOS
+	sti
+	and	[bp].REG_FL,NOT FL_CARRY
+ 	jmp	scb_start
+ENDPROC	utl_start
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_stop (AX = 1814h)
+;
+; "Stop" the specified session
+;
+; Inputs:
+;	CL = SCB #
+;
+; Outputs:
+;	Carry clear if successful
+;	Carry set if error (eg, invalid SCB #)
+;
+DEFPROC	utl_stop,DOS
+	sti
+	and	[bp].REG_FL,NOT FL_CARRY
+	jmp	scb_stop
+ENDPROC	utl_stop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_unload (AX = 1815h)
+;
+; Unload the current program from the specified session
+;
+; Inputs:
+;	CL = SCB #
+;
+; Outputs:
+;	Carry clear if successful
+;	Carry set if error (eg, invalid SCB #)
+;
+DEFPROC	utl_unload,DOS
+	sti
+	and	[bp].REG_FL,NOT FL_CARRY
+	jmp	scb_unload
+ENDPROC	utl_unload
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_yield (AX = 1816h)
+;
+; Asynchronous interface to decide which SCB should run next.
+;
+; Inputs:
+;	None
+;
+; Modifies:
+;	AX, BX, DX
+;
+DEFPROC	utl_yield,DOS
+	sti
+	mov	ax,[scb_active]
+	jmp	scb_yield
+ENDPROC	utl_yield
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_sleep (AX = 1817h)
+;
+; Converts DX from milliseconds (1000/second) to ticks (18.2/sec) and
+; issues an IOCTL to the CLOCK$ driver to wait the corresponding # of ticks.
+;
+; 1 tick is equivalent to approximately 55ms, so that's the granularity of
+; sleep requests.
+;
+; Inputs:
+;	REG_CX:REG_DX = # of milliseconds to sleep
+;
+; Modifies:
+;	AX, BX, CX, DX, DI, ES
+;
+DEFPROC	utl_sleep,DOS
+	sti
+	add	dx,27			; add 1/2 tick (as # ms) for rounding
+	adc	cx,0
+	mov	bx,55			; BX = divisor
+	xchg	ax,cx			; AX = high dividend
+	mov	cx,dx			; CX = low dividend
+	sub	dx,dx
+	div	bx			; AX = high quotient
+	xchg	ax,cx			; AX = low dividend, CX = high quotient
+	div	bx			; AX = low quotient
+	xchg	dx,ax			; CX:DX = # ticks
+	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_WAIT
+	les	di,clk_ptr
+	call	dev_request		; call the driver
+	ret
+ENDPROC	utl_sleep
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_wait (AX = 1818h)
+;
+; Synchronous interface to mark current SCB as waiting for the specified ID.
+;
+; Inputs:
+;	REG_DX:REG_DI == wait ID
+;
+; Outputs:
+;	None
+;
+DEFPROC	utl_wait,DOS
+	jmp	scb_wait
+ENDPROC	utl_wait
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_endwait (AX = 1819h)
+;
+; Asynchronous interface to examine all SCBs for the specified ID and clear it.
+;
+; Inputs:
+;	REG_DX:REG_DI == wait ID
+;
+; Outputs:
+;	Carry clear if found, set if not
+;
+DEFPROC	utl_endwait,DOS
+	and	[bp].REG_FL,NOT FL_CARRY
+	jmp	scb_endwait
+ENDPROC	utl_endwait
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_hotkey (AX = 181Ah)
+;
+; Inputs:
+;	REG_CX = CONSOLE context
+;	REG_DL = char code, REG_DH = scan code
+;
+; Outputs:
+;	Carry clear if successful, set if unprocessed
+;
+; Modifies:
+;	AX
+;
+DEFPROC	utl_hotkey,DOS
+	sti
+	xchg	ax,dx			; AL = char code, AH = scan code
+	and	[bp].REG_FL,NOT FL_CARRY
+;
+; Find the SCB with the matching context; that's the one with focus.
+;
+	mov	bx,[scb_table].OFF
+hk1:	cmp	[bx].SCB_CONTEXT,cx
+	je	hk2
+	add	bx,size SCB
+	cmp	bx,[scb_table].SEG
+	jb	hk1
+	stc
+	jmp	short hk9
+
+hk2:	cmp	al,CHR_CTRLC
+	jne	hk3
+	or	[bx].SCB_CTRLC_ACT,1
+
+hk3:	cmp	al,CHR_CTRLP
+	clc
+	jne	hk9
+	xor	[bx].SCB_CTRLP_ACT,1
+
+hk9:	ret
+ENDPROC	utl_hotkey
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_lock (AX = 181Bh)
 ;
 ; Asynchronous interface to lock the current SCB
 ;
@@ -790,7 +868,7 @@ ENDPROC	utl_lock
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_unlock (AX = 1814h)
+; utl_unlock (AX = 181Ch)
 ;
 ; Asynchronous interface to unlock the current SCB
 ;
@@ -807,7 +885,7 @@ ENDPROC	utl_unlock
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_qrymem (AX = 1815h)
+; utl_qrymem (AX = 181Dh)
 ;
 ; Query info about memory blocks
 ;
@@ -834,70 +912,7 @@ ENDPROC	utl_qrymem
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_strstr (AX = 1817h)
-;
-; Find string (DS:SI) in string (ES:DI)
-;
-; Inputs:
-;	REG_DS:REG_SI = source string
-;	REG_ES:REG_DI = target string
-;
-; Outputs:
-;	On match, carry clear, and REG_DI is updated with position of match
-;	Otherwise, carry set (no registers modified)
-;
-; Modifies:
-;	AX, BX, CX, DS, ES
-;
-DEFPROC	utl_strstr,DOS
-	sti
-	and	[bp].REG_FL,NOT FL_CARRY
-	mov	ds,[bp].REG_ES
-	ASSUME	DS:NOTHING
-	xchg	si,di
-	mov	al,0
-	call	strlen
-	xchg	dx,ax			; DX = length of target string
-	xchg	si,di
-	mov	es,[bp].REG_ES
-	ASSUME	ES:NOTHING
-	mov	ds,[bp].REG_DS
-	mov	al,0
-	call	strlen
-	xchg	bx,ax			; BX = length of source string
-
-	lodsb				; AX = first char of source
-	test	al,al
-	stc
-	jz	ss9
-
-	mov	cx,dx
-ss1:	repne	scasb			; scan all remaining target chars
-	stc
-	jne	ss9
-	clc				; clear the carry in case CX is zero
-	push	cx			; (in that case, cmpsb won't clear it)
-	mov	cx,bx
-	dec	cx
-	push	si
-	push	di
-	rep	cmpsb			; compare all remaining source chars
-	pop	di
-	pop	si
-	pop	cx
-	je	ss8			; match (and carry clear)
-	mov	dx,cx
-	jmp	ss1
-
-ss8:	dec	di
-	mov	[bp].REG_DI,di
-
-ss9:	ret
-ENDPROC	utl_strstr
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_abort (AX = 1818h)
+; utl_abort (AX = 181Fh)
 ;
 ; Inputs:
 ;	REG_DL = exit code

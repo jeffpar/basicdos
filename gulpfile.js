@@ -47,6 +47,7 @@ let disks = {
         "./software/pcx86/src/dos/disk.asm",
         "./software/pcx86/src/dos/dosdata.asm",
         "./software/pcx86/src/dos/dosints.asm",
+        "./software/pcx86/src/dos/fcbio.asm",
         "./software/pcx86/src/dos/handle.asm",
         "./software/pcx86/src/dos/ibmdos.lrf",
         "./software/pcx86/src/dos/memory.asm",
@@ -93,7 +94,7 @@ for (let diskName in disks) {
     if (disks[diskName].length == 1) {
         kbTarget = 10000;
         diskFiles = "--dir " + path.dirname(disks[diskName][0]);
-        hddImage = " --output " + diskImage.replace(".json",".hdd");
+        hddImage = " --output " + diskImage.replace(diskName, "archive/" + diskName).replace(".json",".hdd");
     } else {
         for (let i = 0; i < disks[diskName].length; i++) {
             if (diskFiles) diskFiles += ",";

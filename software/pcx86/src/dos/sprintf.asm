@@ -140,8 +140,11 @@ ENDPROC itoa
 ; skip, and the next instruction should be an "ADD SP,N*2", assuming N word
 ; parameters.
 ;
-; When printing 32-bit values, list the low word first, then the high word,
-; so that the high word is pushed first.
+; When printing 32-bit ("long") values, push the high word first, then the
+; low word; similarly, when pushing far ("long") pointers, push the segment
+; first, then the offset.  When using the PRINTF macro, list the low word
+; first, then the high word; the macro takes care of pushing the parameters
+; in reverse order.
 ;
 ; The code relies on SPF_FRAME, which must accurately reflect the number of
 ; additional bytes pushed onto the stack since REG_FRAME was created.

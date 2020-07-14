@@ -5,7 +5,7 @@
 CSEG	SEGMENT PUBLIC 'CODESG'
 	ASSUME  CS:CSEG
 
-INCLUDE	OEM.H
+INCLUDE	OEM.INC
 
 	TITLE   GIOCON - Machine Independent CONS: Device Support
 
@@ -16,14 +16,14 @@ COPYRIGHT (C) 1982 BY MICROSOFT
 --------- --- ---- -- ---------
 
         *
-	INCLUDE	GIO86U
+	INCLUDE	GIO86U.INC
 	.SALL
 
 CPM86=0				;CPM86
 
 ;This module becomes NULL if CONSSW is 0
 ;
-	INCLUDE	MSDOSU		;MSDOS Constant Definitions
+	INCLUDE	MSDOSU.INC	;MSDOS Constant Definitions
 
 
 

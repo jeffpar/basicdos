@@ -979,7 +979,22 @@ SIN20:
 ; At this point the FAC has the remainder of the angle / 2*PI
 ;
 SIN30:
-	MOV	AL,LOW OFFSET $FAC
+;
+; The next instruction was originally:
+;
+;	MOV	AL,LOW OFFSET $FAC
+;
+; but as written, it makes little sense, because it's loading a constant
+; (the low 8 bits of the address of $FAC) into AL.  Someone else eventually
+; noticed this too, because in BASICA.EXE for COMPAQ DOS 3.00, this same
+; sequence of instructions now looks like:
+;
+;	MOV	AL,[05EB]
+;	OR	AL,AL
+;	JZ	D475
+;	ADD	Byte Ptr [05EB],2
+;
+	MOV	AL,BYTE PTR $FAC
 	OR	AL,AL
 	JZ	SIN31
 	ADD	BYTE PTR $FAC,LOW 2	; FAC = FAC*4 = Reduce angle / PI/2

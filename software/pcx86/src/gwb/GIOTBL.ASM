@@ -5,7 +5,7 @@
 CSEG	SEGMENT PUBLIC 'CODESG'
 	ASSUME  CS:CSEG
 
-INCLUDE	OEM.H
+INCLUDE	OEM.INC
 
 	TITLE   GIOTBL - Device Name Table, Dispatch Table Address Tables
 ;                Initialization and Termination Dispatch Tables
@@ -17,12 +17,12 @@ COPYRIGHT (C) 1982 BY MICROSOFT
 --------- --- ---- -- ---------
 
         *
-	INCLUDE	GIO86U
+	INCLUDE	GIO86U.INC
 	.SALL
 
-	INCLUDE	MSDOSU		;MSDOS Constant Definitions
+	INCLUDE	MSDOSU.INC	;MSDOS Constant Definitions
 IF	CPM86
-	INCLUDE	CPM86U		;CPM86 Constant Definitions
+	INCLUDE	CPM86U.INC	;CPM86 Constant Definitions
 ENDIF
 
 	.RADIX	10

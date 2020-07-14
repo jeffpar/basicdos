@@ -21,20 +21,25 @@ DOS	segment word public 'CODE'
 	DEFLBL	mcb_limit,word
 	jmp	sysinit
 
+	EXTERNS	scb_return,near
+
 	DEFWORD	scb_active,0		; offset of active SCB (zero if none)
 	DEFWORD	psp_active,0		; segment of active PSP (zero if none)
 	DEFPTR	clk_ptr,-1		; pointer to CLOCK$ DDH
-	DEFBYTE	scb_locked,<-1,4Ah>	; -1 if unlocked
+	DEFWORD	scb_stoked,<offset scb_return>
+	DEFBYTE	scb_locked,-1		; -1 if unlocked, >=0 if locked
 	DEFBYTE	bpb_total,0		; total number of BPBs
-	DEFBYTE	file_name,' ',11	; buffer for 11-character filename
+	DEFBYTE	file_name,'?',12	; buffer for drive # and filename
 	DEFBYTE	ddint_level,0		; device driver interrupt level
 
 	DEFTBL	<bpb_table,scb_table,sfb_table>
 ;
 ; Constants
 ;
-	DEFBYTE	VALID_CHARS,"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%&'()-@^_`{}~"
-	DEFABS	VALID_COUNT,<$ - VALID_CHARS>
+	DEFBYTE	FILENAME_CHARS,"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%&'()-@^_`{}~"
+	DEFABS	FILENAME_CHARS_LEN,<$ - FILENAME_CHARS>
+	DEFBYTE	FILENAME_SEPS,<":;.,=+/[]\<>|",CHR_DBLQUOTE,CHR_SPACE,CHR_TAB>
+	DEFABS	FILENAME_SEPS_LEN,<$ - FILENAME_SEPS>
 	DEFBYTE	STR_CTRLC,<CHR_CTRLC,CHR_RETURN,CHR_LINEFEED>
 	DEFBYTE	STR_ESC,<"\",13,10>
 	DEFBYTE	JAN,<"January",0>
@@ -65,15 +70,16 @@ DOS	segment word public 'CODE'
 	EXTERNS	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>,near
 	EXTERNS	<dsk_flush,dsk_getdrv,dsk_setdrv,dsk_setdta,dsk_getdta>,near
 	EXTERNS	<dsk_ffirst,dsk_fnext>,near
+	EXTERNS	<fcb_parse>,near
 	EXTERNS	<msc_setvec,msc_getver,msc_setctrlc,msc_getvec>,near
 	EXTERNS	<psp_exec,psp_exit,psp_retcode,psp_create,psp_set,psp_get>,near
 	EXTERNS	<hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek>,near
 	EXTERNS	<mem_alloc,mem_free,mem_realloc>,near
-	EXTERNS	<utl_strlen,utl_strupr,utl_atoi,utl_itoa,utl_printf,utl_sprintf>,near
+	EXTERNS	<utl_strlen,utl_strstr,utl_strupr,utl_atoi16,utl_atoi32>,near
+	EXTERNS	<utl_itoa,utl_printf,utl_sprintf,utl_tokify,utl_tokid>,near
 	EXTERNS	<utl_getdev,utl_ioctl,utl_load,utl_start,utl_stop,utl_unload>,near
 	EXTERNS	<utl_yield,utl_sleep,utl_wait,utl_endwait,utl_hotkey>,near
-	EXTERNS	<utl_tokify,utl_tokid,utl_lock,utl_unlock>,near
-	EXTERNS	<utl_qrymem,utl_strstr,utl_abort>,near
+	EXTERNS	<utl_lock,utl_unlock,utl_qrymem,utl_abort>,near
 	EXTERNS	<func_none>,near
 
 	DEFLBL	FUNCTBL,word
@@ -87,7 +93,7 @@ DOS	segment word public 'CODE'
 	dw	func_none,   func_none,   func_none,   func_none	;1Ch-1Fh
 	dw	func_none,   func_none,   func_none,   func_none	;20h-23h
 	dw	func_none,   msc_setvec,  psp_create,  func_none	;24h-27h
-	dw	func_none,   func_none,   func_none,   func_none	;28h-2Bh
+	dw	func_none,   fcb_parse,   func_none,   func_none	;28h-2Bh
 	dw	func_none,   func_none,   func_none,   dsk_getdta	;2Ch-2Fh
 	dw	msc_getver,  func_none,   func_none,   msc_setctrlc	;30h-33h
 	dw	func_none,   msc_getvec,  func_none,   func_none	;34h-37h
@@ -101,14 +107,14 @@ DOS	segment word public 'CODE'
 	DEFABS	FUNCTBL_SIZE,<($ - FUNCTBL) SHR 1>
 
 	DEFLBL	UTILTBL,word
-	dw	utl_strlen,  utl_strupr,  utl_atoi,    utl_itoa		;00h-03h
-	dw	utl_printf,  utl_sprintf, utl_getdev,  utl_ioctl	;04h-07h
-	dw	utl_load,    utl_start,   utl_stop,    utl_unload	;08h-0Bh
-	dw	utl_yield,   utl_sleep,   utl_wait,    utl_endwait	;0Ch-0Fh
-	dw	utl_hotkey,  utl_tokify,  utl_tokid,   utl_lock		;10h-13h
-	dw	utl_unlock,  utl_qrymem,  func_none,   utl_strstr	;14h-17h
-	dw	utl_abort,   func_none,   func_none,   func_none	;18h-1Bh
-	dw	func_none,   func_none,   func_none,   func_none	;1Ch-1Fh
+	dw	utl_strlen,  utl_strstr,  func_none,   utl_strupr	;00h-03h
+	dw	utl_printf,  utl_sprintf, utl_atoi16,  utl_atoi32	;04h-07h
+	dw	utl_itoa,    func_none,   func_none,   utl_tokify	;08h-0Bh
+	dw	utl_tokid,   func_none,   func_none,   func_none	;0Ch-0Fh
+	dw	utl_getdev,  utl_ioctl,   utl_load,    utl_start	;10h-13h
+	dw	utl_stop,    utl_unload,  utl_yield,   utl_sleep	;14h-17h
+	dw	utl_wait,    utl_endwait, utl_hotkey,  utl_lock		;18h-1Bh
+	dw	utl_unlock,  utl_qrymem,  func_none,   utl_abort	;1Ch-1Fh
 	dw	func_none,   func_none,   func_none,   func_none	;20h-23h
 	dw	utl_strlen						;24h
 	DEFABS	UTILTBL_SIZE,<($ - UTILTBL) SHR 1>

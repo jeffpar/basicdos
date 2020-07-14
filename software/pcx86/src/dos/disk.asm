@@ -11,15 +11,12 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<dev_request>,near
+	EXTERNS	<dev_request,parse_name,scb_delock>,near
 
 	EXTERNS	<scb_locked>,byte
 	EXTERNS	<scb_active>,word
 	EXTERNS	<bpb_table>,dword
 	EXTERNS	<bpb_total,file_name>,byte
-
-	EXTERNS	<VALID_CHARS>,byte
-	EXTERNS	<VALID_COUNT>,abs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -162,7 +159,7 @@ ENDPROC	dsk_getdta
 DEFPROC	dsk_ffirst,DOS
 	LOCK_SCB
 	mov	al,[bp].REG_CL
-	mov	ah,1			; AH = 1 (filespec)
+	mov	ah,80h			; AH = 80h (filespec)
 	mov	si,dx
 	mov	ds,[bp].REG_DS		; DS:SI -> filespec
 	call	chk_filename
@@ -179,7 +176,7 @@ DEFPROC	dsk_ffirst,DOS
 	push	cx
 	push	si
 	mov	cx,11
-	mov	si,offset file_name	; FFB_FILESPEC
+	mov	si,offset file_name + 1	; FFB_FILESPEC
 ;
 ; TODO: MASM 4.0 generates the REP prefix before the CS: prefix,
 ; but if we ever use a different assembler, this must be re-verified.
@@ -256,7 +253,7 @@ DEFPROC	dsk_fnext,DOS
 	mov	dl,[si].FFB_DRIVE
 	push	si
 	lea	si,[si].FFB_FILESPEC
-	mov	di,offset file_name
+	mov	di,offset file_name + 1
 	mov	cx,11
 	rep	movsb
 	pop	si
@@ -283,8 +280,8 @@ ENDPROC	dsk_fnext
 ;
 ; Inputs:
 ;	AL = search attributes (0 if none)
-;	AH = 0 for filename, 1 for filespec (ie, wildcards allowed)
-;	DS:SI -> name
+;	AH = 00h for filename, 80h for filespec (ie, wildcards allowed)
+;	DS:SI -> filename or filespec
 ;
 ; Outputs:
 ;	On success:
@@ -303,69 +300,11 @@ DEFPROC	chk_filename,DOS
 	push	cs
 	pop	es
 	ASSUME	ES:DOS
-;
-; See if the name begins with a drive letter.  If so, convert to a drive
-; number and then skip over it; otherwise, use SCB_CURDRV as the drive number.
-;
+	mov	di,offset file_name	; ES:DI -> filename buffer
 	push	bx
 	push	ax
-	mov	bx,[scb_active]
-	ASSERT	STRUCT,es:[bx],SCB
-	mov	dl,es:[bx].SCB_CURDRV	; DL = default drive number
-	mov	dh,8			; DH is current file_name limit
-	sub	bx,bx			; BL is current file_name position
-	mov	di,offset file_name
-	mov	cx,11
-	mov	al,' '
-	rep	stosb			; initialize file_name
-	cmp	byte ptr [si+1],':'	; check for drive letter
-	jne	cf1
-	lodsb				; AL = drive letter
-	sub	al,'A'
-	jb	cf9			; error
-	cmp	al,26
-	cmc
-	jb	cf9
-	inc	si
-	mov	dl,al			; DL = specified drive number
-;
-; Build file_name at ES:BX from the string at DS:SI, making sure that all
-; characters exist within VALID_CHARS.
-;
-cf1:	lodsb				; get next char
-	test	al,al			; terminating null?
-	jz	cf4			; yes, end of name
-	cmp	al,'.'			; period?
-	jne	cf2			; no
-	mov	bl,8			; BL -> file_name extension
-	mov	dh,11			; DH -> file_name limit
-	jmp	cf1
-cf2:	cmp	al,'a'
-	jb	cf3
-	cmp	al,'z'
-	ja	cf3
-	sub	al,20h
-cf3:	test	ah,ah			; filespec?
-	jz	cf3a			; no
-	cmp	al,'?'			; wildcard?
-	je	cf3b			; yes
-	cmp	al,'*'			; asterisk?
-	je	cf3c			; yes
-cf3a:	mov	cx,VALID_COUNT
-	mov	di,offset VALID_CHARS
-	repne	scasb
-	stc
-	jne	cf9			; invalid character
-cf3b:	cmp	bl,dh
-	jae	cf1			; valid character but we're at limit
-	mov	es:[file_name][bx],al	; store it
-	inc	bx
-	jmp	cf1
-cf3c:	cmp	bl,dh
-	jae	cf1
-	mov	es:[file_name][bx],'?'	; store '?' until we reach the limit
-	inc	bx
-	jmp	cf3c
+	call	parse_name		; DS:SI -> filename or filespec
+	jc	cf9			; bail on error
 ;
 ; file_name has been successfully filled in, so we're ready to search
 ; directory sectors for a matching name.  This requires getting a fresh
@@ -476,6 +415,7 @@ DEFPROC	get_bpb,DOS
 	push	di			; DI -> BPB
 	push	es
 	les	di,cs:[di].BPB_DEVICE
+	mov	al,cl			; AL = drive #
 	mov	ah,DDC_MEDIACHK		; perform a MEDIACHK request
 	call	dev_request
 	jc	gb8
@@ -643,7 +583,7 @@ gd5:	cmp	byte ptr [si],DIRENT_END
 
 gd5a:	push	di
 	mov	cx,11
-	mov	di,offset file_name
+	mov	di,offset file_name + 1	; skip drive # for DIRENT comparison
 gd5b:	mov	bh,es:[di]
 	inc	di
 	cmp	bh,'?'

@@ -41,7 +41,7 @@ FDC 	DDH	<offset DEV:ddfdc_end+16,,DDATTR_BLOCK,offset ddfdc_init,-1,20202020244
 ;
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddfdc_req,far
-	mov	di,bx			; ES:DI -> DDP
+	mov	di,bx		; ES:DI -> DDP
 	mov	bl,es:[di].DDP_CMD
 	cmp	bl,CMDTBL_SIZE
 	jb	ddq1
@@ -70,21 +70,21 @@ ENDPROC	ddfdc_req
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddfdc_mediachk
-	lds	si,es:[di].DDPRW_BPB	; DS:SI -> BPB
-	ASSUME	DS:NOTHING
+	lds	si,es:[di].DDPRW_BPB
+	ASSUME	DS:NOTHING	; DS:SI -> BPB
 	mov	ah,TIME_GETTICKS
-	int	INT_TIME		; CX:DX is current tick count
-	mov	ax,MC_UNKNOWN		; default to UNKNOWN
+	int	INT_TIME	; CX:DX is current tick count
+	mov	ax,MC_UNKNOWN	; default to UNKNOWN
 	push	cx
 	push	dx
 	sub	dx,ds:[si].BPB_TIMESTAMP.OFF
 	sbb	cx,ds:[si].BPB_TIMESTAMP.SEG
-	jb	mc1			; underflow, use default
-	test	cx,cx			; large difference?
-	jnz	mc1			; yes, use defaut
-	cmp	dx,38			; more than 2 seconds of ticks?
-	jae	mc1			; yes, use default
-	inc	ax			; change from UNKNOWN to UNCHANGED
+	jb	mc1		; underflow, use default
+	test	cx,cx		; large difference?
+	jnz	mc1		; yes, use defaut
+	cmp	dx,38		; more than 2 seconds of ticks?
+	jae	mc1		; yes, use default
+	inc	ax		; change from UNKNOWN to UNCHANGED
 mc1:	pop	ds:[si].BPB_TIMESTAMP.OFF
 	pop	ds:[si].BPB_TIMESTAMP.SEG
 	mov	es:[di].DDP_CONTEXT,ax
@@ -109,8 +109,8 @@ ENDPROC	ddfdc_mediachk
 DEFPROC	ddfdc_buildbpb
 	push	di
 	push	es
-	lds	si,es:[di].DDPRW_BPB	; DS:SI -> BPB
-	ASSUME	DS:NOTHING
+	lds	si,es:[di].DDPRW_BPB
+	ASSUME	DS:NOTHING	; DS:SI -> BPB
 ;
 ; If this is an uninitialized BPB, then it won't have the necessary
 ; geometry info that get_chs requires; that's what we deserve when we use
@@ -123,10 +123,10 @@ DEFPROC	ddfdc_buildbpb
 	mov	[si].BPB_CYLSECS,8
 	mov	[si].BPB_TRACKSECS,8
 
-	sub	dx,dx			; DX = LBA (0)
+	sub	dx,dx		; DX = LBA (0)
 	mov	al,[si].BPB_DRIVE
 	mov	bx,(FDC_READ SHL 8) OR 1
-	les	bp,[ddbuf_ptr]		; ES:BP -> our own buffer
+	les	bp,[ddbuf_ptr]	; ES:BP -> our own buffer
 	call	readwrite_sectors
 	jnc	bb1
 	jmp	bb8
@@ -137,22 +137,22 @@ bb1:	push	ds
 	pop	es
 	mov	di,si
 	push	di
-	mov	bl,[si].BPB_DRIVE	; BL = drive #
-	lds	si,[ddbuf_ptr]		; DS:SI -> our own buffer
-	add	si,BPB_OFFSET
+	mov	bl,[si].BPB_DRIVE
+	lds	si,[ddbuf_ptr]	; BL = drive #
+	add	si,BPB_OFFSET	; DS:SI -> our own buffer
 	mov	cx,size BPB SHR 1
 	rep	movsw
 	mov	ah,TIME_GETTICKS
-	int	INT_TIME		; CX:DX is current tick count
+	int	INT_TIME	; CX:DX is current tick count
 	xchg	ax,dx
-	stosw				; update BPB_TIMESTAMP.OFF
+	stosw			; update BPB_TIMESTAMP.OFF
 	xchg	ax,cx
-	stosw				; update BPB_TIMESTAMP.SEG
+	stosw			; update BPB_TIMESTAMP.SEG
 	sub	ax,ax
-	stosw				; update BPB_DEVICE.OFF
-	mov	[ddbuf_lba],ax		; (zero ddbuf_lba while AX is zero)
+	stosw			; update BPB_DEVICE.OFF
+	mov	[ddbuf_lba],ax	; (zero ddbuf_lba while AX is zero)
 	mov	ax,cs
-	stosw				; update BPB_DEVICE.SEG
+	stosw			; update BPB_DEVICE.SEG
 	pop	di
 	mov	[ddbuf_drv],bl
 ;
@@ -181,24 +181,25 @@ bb1:	push	ds
 
 	sub	cx,cx
 	mov	al,es:[di].BPB_CLUSSECS
-	test	al,al			; calculate LOG2 of CLUSSECS
-	ASSERT	NZ			; assert that CLUSSECS is non-zero
+	test	al,al		; calculate LOG2 of CLUSSECS
+	ASSERT	NZ		; assert that CLUSSECS is non-zero
 bb6:	shr	al,1
 	jc	bb7
 	inc	cx
 	jmp	bb6
-bb7:	ASSERT	Z			; assert CLUSSECS was a power-of-two
+bb7:	ASSERT	Z		; assert CLUSSECS was a power-of-two
 	mov	es:[di].BPB_CLUSLOG2,cl
 	mov	ax,es:[di].BPB_SECBYTES
-	shl	ax,cl			; use CLOSLOG2 to calculate CLUSBYTES
+	shl	ax,cl		; use CLOSLOG2 to calculate CLUSBYTES
 	mov	es:[di].BPB_CLUSBYTES,ax
 	clc
 
 bb8:	pop	es
 	pop	di
-	jc	bb9
-
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+	jnc	bb9
+	mov	ah,DDSTAT_ERROR SHR 8
+	mov	es:[di].DDP_STATUS,ax
 bb9:	ret
 ENDPROC	ddfdc_buildbpb
 
@@ -333,11 +334,10 @@ dcr7a:	pop	es
 dcr8:	pop	es
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	jnc	dcr9
-;
-; TODO: Map the error and set the sector count to the correct values
-;
+
 	mov	es:[di].DDPRW_LENGTH,0
-	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_SEEK
+	mov	ah,DDSTAT_ERROR SHR 8
+	mov	es:[di].DDP_STATUS,ax
 dcr9:	ret
 ENDPROC	ddfdc_read
 
@@ -386,7 +386,8 @@ ENDPROC	ddfdc_none
 ;	ES:BP -> buffer
 ;
 ; Outputs:
-;	DDPRW updated appropriately
+;	If carry clear, success (AX is whatever the BIOS returned)
+;	If carry set, AX is a driver error code (based on the BIOS error code)
 ;
 ; Modifies:
 ;	AX
@@ -396,11 +397,36 @@ DEFPROC	readwrite_sectors
 	push	bx
 	push	cx
 	push	dx
+
 	call	get_chs		; convert LBA in DX to CHS in CX,DX
 	xchg	ax,bx		; AH = FDC cmd, AL = # sectors
 	mov	bx,bp
 	int	INT_FDC		; AX and carry are whatever the ROM returns
-	pop	dx
+	jnc	rw9
+;
+; Map BIOS error code (in AH) to driver error code (in AX)
+;
+	cmp	ah,FDCERR_WP
+	jne	rw1
+	mov	al,DDERR_WP
+rw1:	cmp	ah,FDCERR_NOSECTOR
+	jne	rw2
+	mov	al,DDERR_NOSECTOR
+rw2:	cmp	ah,FDCERR_CRC
+	jne	rw3
+	mov	al,DDERR_CRC
+rw3:	cmp	ah,FDCERR_SEEK
+	jne	rw4
+	mov	al,DDERR_SEEK
+rw4:	cmp	ah,FDCERR_NOTREADY
+	jne	rw7
+	mov	al,DDERR_NOTREADY
+	jmp	short rw8
+rw7:	mov	al,DDERR_GENFAIL
+rw8:	cbw
+	stc
+
+rw9:	pop	dx
 	pop	cx
 	pop	bx
 	ret
