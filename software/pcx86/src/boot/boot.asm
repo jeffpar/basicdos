@@ -346,11 +346,11 @@ ENDPROC	printp
 ;
 ; Strings
 ;
-product		db	" BASIC-DOS "
+product		db	"BASIC-DOS "
 		VERSION_STR
-crlf		db	13,10,' ',0
+crlf		db	13,10,0
 prompt		db	"Press any key to start...",0
-errmsg1		db	" Missing system files, halted",0
+errmsg1		db	"Missing system files, halted",0
 
 	org 	BOOT_SECTOR_LO + 510
 	dw	0AA55h
@@ -711,7 +711,7 @@ DEFPROC	read_sectors
 	ret
 ENDPROC	read_sectors
 
-errmsg2		db	" Error loading system files, halted",0
+errmsg2		db	"Error loading system files, halted",0
 
 ;
 ; Data copied from PART1 (BPB and file data)

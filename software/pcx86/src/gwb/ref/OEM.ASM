@@ -6,18 +6,18 @@ EXTRN   CSAVEA:WORD,CSAVEM:WORD
 
 ; Data defined by the OEM module
 
-var_630 db      0       ; Saved video mode
+OVMODE  db      0       ; Old video mode
 CBKINT  dw      offset  CTLBRK
 CBRKSG  dw      0
         dw      offset  TIMISR
 TIMRSG  dw      0
-var_639 db      0       ; Currently selected video page
+CVPAGE  db      0       ; Currently selected video page
 var_63a db      0
 var_63b db      80      ; Screen width in columns (40/80)
 var_63c db      0
-var_63d db      0       ; Currently visible video page
+VISVPG  db      0       ; Currently visible video page
 var_63e db      0       ; Initial/saved number of columns
-var_63f db      0       ; Currently set video mode
+CVMODE  db      0       ; Currently set video mode
 var_640 db      0
 var_641 db      0
 var_642 db      0
@@ -186,7 +186,7 @@ TXTATR:
 GETFBC		endp
 
 ; ---------------------------------------------------------------------------
-byte_5095	db 0			; DATA XREF: SETFBC+13r SETFBC+19w ...
+byte_5095	db 0
 
 ; =============== S U B	R O U T	I N E =======================================
 
@@ -525,7 +525,7 @@ loc_5257:
 		jmp	short COMEOI
 ; ---------------------------------------------------------------------------
 
-loc_5262:				; CODE XREF: CM2ISR+34j
+loc_5262:
 		mov	BYTE PTR ISREVT, 1
 		mov	[bx+0Ah], si
 		push	ds
@@ -665,7 +665,7 @@ CM2ISR		endp
 ; On return: DX	= COM buffer size
 ;	     CF	set on error
 
-SETCBF		proc near		; CODE XREF: MAPCLC+17p
+SETCBF		proc near
 		push	bx
 		push	ax
 		push	ds
@@ -674,16 +674,14 @@ SETCBF		proc near		; CODE XREF: MAPCLC+17p
 		jnz	short HAVBSZ	; ZF set if COM	buffer size was
 					; given	on the command line (/C:xxx)
 		mov	dx, 256		; Default COM buffer size
-
-HAVBSZ:					; CODE XREF: SETCBF+9j
+HAVBSZ:
 		xor	si, si
 		or	dx, dx
 		jz	short SCBFX	; Bail if zero buffer size
 		cmp	dx, 7F70h	; Buffer size too big?
 		jbe	short CKCOM1
 		mov	dx, 7F70h	; Maximum COM buffer size
-
-CKCOM1:					; CODE XREF: SETCBF+18j
+CKCOM1:
 		mov	cs:CBFSIZ, dx
 		inc	dx
 		mov	ds, si
@@ -702,8 +700,7 @@ CKCOM1:					; CODE XREF: SETCBF+18j
 		add	si, dx
 		mov	bx, offset CM2CTL
 		mov	ax, ds:402h	; Read COM2 base from BDA
-
-CKCOM2:					; CODE XREF: SETCBF+2Ej
+CKCOM2:
 		cmp	ax, 2F8h	; Is it	the second UART?
 		jnz	short SCBFX
 		mov	word ptr cs:[bx+1Eh], 2Ch ; Address of IRQ3 vector
@@ -714,8 +711,7 @@ CKCOM2:					; CODE XREF: SETCBF+2Ej
 		add	si, 81h	; 'Å'
 		mov	cs:[bx+14h], si
 		add	si, dx
-
-SCBFX:					; CODE XREF: SETCBF+12j SETCBF+5Aj
+SCBFX:
 		mov	dx, si
 		add	dx, 0Fh		; Round	up to next para
 		and	dx, 0FFF0h
@@ -1146,7 +1142,7 @@ loc_55F9:
 		jz	short loc_55F9
 		jmp	short loc_560D
 ; ---------------------------------------------------------------------------
-		nop
+
 loc_5606:
 		call	COMDLY
 		jnz	short loc_560D
@@ -1231,33 +1227,29 @@ loc_5673:
 		jmp	short loc_56A6
 ; ---------------------------------------------------------------------------
 
-loc_5684:				; CODE XREF: sub_5665+19j
+loc_5684:
 		test	al, 80h
 		jz	short loc_568D
 		dec	di
 		mov	ah, 5
 		jz	short loc_56A6
-
-loc_568D:				; CODE XREF: sub_5665+21j
+loc_568D:
 		test	al, 20h
 		jz	short loc_5696
 		dec	si
 		mov	ah, 4
 		jz	short loc_56A6
-
-loc_5696:				; CODE XREF: sub_5665+2Aj
+loc_5696:
 		test	al, 10h
 		jz	short loc_569F
 		dec	bp
 		mov	ah, 3
 		jz	short loc_56A6
-
-loc_569F:				; CODE XREF: sub_5665+33j
+loc_569F:
 		call	COMDLY
 		jz	short loc_5673
 		mov	ah, 0FFh
-
-loc_56A6:				; CODE XREF: sub_5665+15j sub_5665+1Dj ...
+loc_56A6:
 		pop	bp
 		or	ah, ah
 		ret
@@ -1267,13 +1259,12 @@ sub_5665	endp
 ; =============== S U B	R O U T	I N E =======================================
 
 
-COMDLY		proc near		; CODE XREF: SNDCOM+4Bp TRMCOM+1Cp ...
+COMDLY		proc near
 		push	ax
 		push	bx
 		push	cx
 		mov	cx, 242
-
-DELAY:					; CODE XREF: COMDLY:DELAYj
+DELAY:
 		loop	DELAY
 		pop	cx
 		xor	ax, ax
@@ -1292,7 +1283,7 @@ COMDLY		endp
 ; =============== S U B	R O U T	I N E =======================================
 
 
-CMPREP		proc near		; CODE XREF: INICOM+Cp	RECCOM+9p ...
+CMPREP		proc near
 		mov	al, ah
 		shl	al, 1
 		mov	ah, 0
@@ -1319,9 +1310,9 @@ PUBLIC  SCNRST, GWINI, GWTERM, KEYINP, INKMAP, INFMAP, EDTMAP, MAPSUP
 PUBLIC  SCROUT, SCRINP, SCROLL, CLRSCN, CLREOL
 PUBLIC  CSRDSP, CSRATR, LCPY, SCRATR, SCRSTT, SETCLR, SWIDTH
 
-EVTSET		db 0			; DATA XREF: TIMISRr RDPEN+22w ...
-LSTRIG		db 0			; DATA XREF: TIMISR+13w RDTRIG+24r ...
-BRKFLG		db -1			; DATA XREF: CTLBRKw KEYINP+7r ...
+EVTSET		db 0
+LSTRIG		db 0
+BRKFLG		db -1
 
 ; =============== S U B	R O U T	I N E =======================================
 
@@ -1387,21 +1378,19 @@ GWINI		proc near
 		mov	cs:EQUIP, al
 		pop	ds
 		assume ds:nothing
-		mov	al, ds:var_63f
-		mov	ds:var_630, al
+		mov	al, ds:CVMODE
+		mov	ds:OVMODE, al
 		mov	al, ds:var_63e
 		mov	ds:var_63b, al
-		cmp	byte ptr ds:var_63f, 7
+		cmp	byte ptr ds:CVMODE, 7
 		jnz	short VIDPGE
 		mov	word ptr ds:var_643, 0C0Dh
-
-VIDPGE:					; CODE XREF: GWINI+21j
+VIDPGE:
 		mov	ax, 500h
 		int	10h		; - VIDEO - SELECT DISPLAY PAGE
 					; AL = display page, 0-7  for modes 0 &	1, 0-3	for modes 2 & 3
 		xor	dx, dx
-
-INILPT:					; CODE XREF: GWINI+3Aj
+INILPT:
 		mov	ah, 1
 		push	dx
 		int	17h		; PRINTER - INITIALIZE
@@ -1431,8 +1420,7 @@ INILPT:					; CODE XREF: GWINI+3Aj
 		add	bx, 39h		; Offset of PLAYS entry	in STMDSX
 		mov	ax, offset SNERR ; Disable PLAY	statement?
 		mov	cs:[bx], ax
-
-GWINIX:					; CODE XREF: GWINI+57j
+GWINIX:
 		jmp	DOCLRS
 GWINI		endp
 
@@ -1480,7 +1468,7 @@ GWTERM		proc near
 		mov	al, -1
 		call	DONOTE
 		mov	cx, 607h	; 8x8 cursor
-		cmp	byte ptr ds:var_63f, 7
+		cmp	byte ptr ds:CVMODE, 7
 		jnz	short SETCSR
 		mov	cx, 0C0Dh	; 8x14 cursor
 SETCSR:
@@ -1489,17 +1477,17 @@ SETCSR:
 					; CH bits 0-4 =	start line for cursor in character cell
 					; bits 5-6 = blink attribute
 					; CL bits 0-4 =	end line for cursor in character cell
-		cmp	byte ptr ds:var_63f, 7
+		cmp	byte ptr ds:CVMODE, 7
 		jz	short loc_57E9
 		xor	ax, ax
-		mov	al, ds:var_630
-		cmp	ah, ds:var_63d
-		jnz	short loc_57E7
-		cmp	ah, ds:var_639
-		jnz	short loc_57E7
-		cmp	al, ds:var_63f
+		mov	al, ds:OVMODE
+		cmp	ah, ds:VISVPG
+		jnz	short SETVMD
+		cmp	ah, ds:CVPAGE
+		jnz	short SETVMD
+		cmp	al, ds:CVMODE
 		jz	short loc_57E9
-loc_57E7:
+SETVMD:
 		int	10h		; - VIDEO - SET	VIDEO MODE
 					; AL = mode
 loc_57E9:
@@ -1632,7 +1620,6 @@ KEYINP		endp
 
 ; ---------------------------------------------------------------------------
 SCNXLT		db 0FAh, 73h, 2	dup(0FAh), 75h,	74h, 4 dup(0F9h), 47h
-					; DATA XREF: KEYINP+51o KEYINP+5Co ...
 		db 77h,	0F9h, 4Fh, 0F9h, 2 dup(0FAh), 52h, 2 dup(0FAh)
 		db 0F9h, 2 dup(0FAh), 0FEh, 3 dup(0FAh), 4Dh, 4Bh, 48h
 		db 50h,	1Eh, 30h, 2Eh, 20h, 12h, 21h, 22h, 23h,	17h, 24h
@@ -1649,8 +1636,7 @@ INKMAP		proc near
 		cmp	al, 0FEh ; '˛'
 		jnz	short loc_58DA
 		mov	ax, dx
-
-loc_58D3:				; CODE XREF: INKMAP+26j INKMAP+3Cj ...
+loc_58D3:
 		mov	ah, 0
 		or	sp, sp
 		stc
@@ -1658,15 +1644,14 @@ loc_58D3:				; CODE XREF: INKMAP+26j INKMAP+3Cj ...
 		ret
 ; ---------------------------------------------------------------------------
 
-loc_58DA:				; CODE XREF: INKMAP+5j	INKMAP+16j ...
+loc_58DA:
 		or	sp, sp
-
-loc_58DC:				; CODE XREF: INKMAP+38j INKMAP+60j
+loc_58DC:
 		pop	bx
 		ret
 ; ---------------------------------------------------------------------------
 
-loc_58DE:				; CODE XREF: INKMAP+1j
+loc_58DE:
 		cmp	al, 0FFh
 		jz	short loc_58DA
 		cmp	al, 15h
@@ -1675,17 +1660,17 @@ loc_58DE:				; CODE XREF: INKMAP+1j
 		jmp	short loc_58DA
 ; ---------------------------------------------------------------------------
 
-loc_58EA:				; CODE XREF: INKMAP+1Aj
+loc_58EA:
 		cmp	al, 7Fh	; ''
 		jnz	short loc_58F2
 		mov	al, 53h	; 'S'
 		jmp	short loc_58D3
 ; ---------------------------------------------------------------------------
 
-loc_58F2:				; CODE XREF: INKMAP+22j
+loc_58F2:
 		cmp	al, 20h	; ' '
 		jnb	short loc_590A
-		mov	bx, 5890h
+		mov	bx, offset SCNXLT-1
 		mov	ah, 0
 		add	bx, ax
 		mov	al, cs:[bx]
@@ -1696,14 +1681,14 @@ loc_58F2:				; CODE XREF: INKMAP+22j
 		jmp	short loc_58DA
 ; ---------------------------------------------------------------------------
 
-loc_590A:				; CODE XREF: INKMAP+2Aj
+loc_590A:
 		cmp	al, 2Ah	; '*'
 		jnb	short loc_5912
 		add	al, 1Bh
 		jmp	short loc_58D3
 ; ---------------------------------------------------------------------------
 
-loc_5912:				; CODE XREF: INKMAP+42j
+loc_5912:
 		cmp	al, 'A'
 		jb	short loc_5928
 		cmp	al, 5Bh	; '['
@@ -1716,7 +1701,7 @@ loc_5912:				; CODE XREF: INKMAP+42j
 		jmp	short loc_58D3
 ; ---------------------------------------------------------------------------
 
-loc_5928:				; CODE XREF: INKMAP+4Aj INKMAP+4Ej
+loc_5928:
 		cmp	al, al
 		jmp	short loc_58DC
 INKMAP		endp
@@ -1726,12 +1711,11 @@ INKMAP		endp
 
 ; OEM fixed length input map routine
 
-INFMAP		proc near		; CODE XREF: INCHRI+16p
+INFMAP		proc near
 		call	INKMAP
-		jnb	short loc_5933
+		jnb	short INMAPX
 		mov	al, 0
-
-loc_5933:				; CODE XREF: INFMAP+3j
+INMAPX:
 		clc
 		ret
 INFMAP		endp
@@ -1741,7 +1725,7 @@ INFMAP		endp
 
 ; Map edit function/output character code
 
-EDTMAP		proc near		; CODE XREF: CTLDSP+21p
+EDTMAP		proc near
 		mov	byte ptr ds:var_641, 0
 		cmp	ax, 3
 		jz	short loc_5983
@@ -1753,7 +1737,7 @@ EDTMAP		proc near		; CODE XREF: CTLDSP+21p
 		jmp	short loc_5989
 ; ---------------------------------------------------------------------------
 
-loc_594D:				; CODE XREF: EDTMAP+11j
+loc_594D:
 		cmp	al, 0FFh
 		jnz	short loc_5983
 		cmp	byte ptr ds:var_63a, 0
@@ -1762,14 +1746,14 @@ loc_594D:				; CODE XREF: EDTMAP+11j
 		jmp	short loc_5989
 ; ---------------------------------------------------------------------------
 
-loc_595D:				; CODE XREF: EDTMAP+Dj
+loc_595D:
 		cmp	al, 1Bh
 		jnz	short loc_5965
 		mov	al, 15h
 		jmp	short loc_5983
 ; ---------------------------------------------------------------------------
 
-loc_5965:				; CODE XREF: EDTMAP+2Aj
+loc_5965:
 		cmp	al, 0FFh
 		jz	short loc_5983
 		cmp	al, 7Fh
@@ -1779,25 +1763,23 @@ loc_5965:				; CODE XREF: EDTMAP+2Aj
 		push	ax
 		push	bx
 		mov	ah, 0
-		mov	bx, offset SCNXLT - 1
+		mov	bx, offset SCNXLT-1
 		add	bx, ax
 		mov	al, cs:[bx]
 		cmp	al, 0FAh
 		pop	bx
 		pop	ax
 		jz	short loc_598B
-
-loc_5983:				; CODE XREF: EDTMAP+8j	EDTMAP+1Aj ...
+loc_5983:
 		mov	ah, 0FFh
 		or	sp, sp
 		stc
 		ret
 ; ---------------------------------------------------------------------------
 
-loc_5989:				; CODE XREF: EDTMAP+16j EDTMAP+26j ...
+loc_5989:
 		or	sp, sp
-
-loc_598B:				; CODE XREF: EDTMAP+4Cj
+loc_598B:
 		clc
 		ret
 EDTMAP		endp
@@ -1809,7 +1791,7 @@ EDTMAP		endp
 
 ; Map super shift key to letter	in [AL]	and count in [CH]
 
-MAPSUP		proc near		; CODE XREF: CHKFKY+39p
+MAPSUP		proc near
 		mov	ch, 1
 		ret
 MAPSUP		endp
@@ -1819,7 +1801,7 @@ MAPSUP		endp
 
 ; Write	the character in [AL] at (DH,DL)
 
-SCROUT		proc near		; CODE XREF: KEYDCH+17p SCNOUT+13p ...
+SCROUT		proc near
 		push	ax
 		push	bx
 		push	cx
@@ -1828,7 +1810,7 @@ SCROUT		proc near		; CODE XREF: KEYDCH+17p SCNOUT+13p ...
 		xchg	dl, dh
 		push	ax
 		mov	ds:var_64e, dx
-		mov	bh, ds:var_639
+		mov	bh, ds:CVPAGE
 		mov	ah, 2
 		int	10h		; - VIDEO - SET	CURSOR POSITION
 					; DH,DL	= row, column (0,0 = upper left)
@@ -1866,16 +1848,14 @@ SCRSV2		proc near
 		jz	short loc_59D8
 		cmp	byte ptr ds:var_640, 2
 		jnz	short loc_59DB
-
-loc_59D8:				; CODE XREF: SCRSV2+15j
+loc_59D8:
 		call	sub_5BF8
-
-loc_59DB:				; CODE XREF: SCRSV2+Ej	SCRSV2+1Cj
+loc_59DB:
 		push	ax
 		sub	dx, 101h
 		xchg	dl, dh
 		mov	ds:var_64e, dx
-		mov	bh, ds:var_639
+		mov	bh, ds:CVPAGE
 		mov	ah, 2
 		int	10h		; - VIDEO - SET	CURSOR POSITION
 					; DH,DL	= row, column (0,0 = upper left)
@@ -1904,16 +1884,13 @@ SCRINP		proc near
 		or	al, al
 		jnz	short loc_5A06
 		mov	al, ' '
-
-loc_5A06:				; CODE XREF: SCRINP+9j	SCRINP+Dj
+loc_5A06:
 		xor	ah, ah
 		pop	dx
 		push	ax
 		jmp	short SCRRST
 SCRINP		endp
 
-; ---------------------------------------------------------------------------
-		nop
 
 ; =============== S U B	R O U T	I N E =======================================
 
@@ -2012,13 +1989,13 @@ SCROLL		endp
 
 ; Set display page
 
-SETVPG		proc near		; CODE XREF: SCROLL+4Ep SCROLL+77p ...
+SETVPG		proc near
 		push	ax
-		mov	al, ds:var_63d
-		cmp	al, ds:var_639
-		jz	short SETVPX
-		xchg	al, ds:var_639
-		mov	ds:var_63d, al
+		mov	al, ds:VISVPG
+		cmp	al, ds:CVPAGE   ; Selected page equals visible?
+		jz	short SETVPX    ; If so, we're done
+		xchg	al, ds:CVPAGE
+		mov	ds:VISVPG, al
 		mov	ah, 5
 		int	10h		; - VIDEO - SELECT DISPLAY PAGE
 					; AL = display page, 0-7  for modes 0 &	1, 0-3	for modes 2 & 3
@@ -2031,8 +2008,7 @@ SETVPG		endp
 ; =============== S U B	R O U T	I N E =======================================
 
 
-DOSCRL		proc near		; CODE XREF: SCROLL:loc_5A35p
-					; SCROLL:loc_5A9Dp
+DOSCRL		proc near
 		push	ax
 		push	bx
 		push	cx
@@ -2040,8 +2016,7 @@ DOSCRL		proc near		; CODE XREF: SCROLL:loc_5A35p
 		mov	ch, 0
 		inc	cl
 		jz	short DOSCRX
-
-NXTCHR:					; CODE XREF: DOSCRL+1Dj
+NXTCHR:
 		call	SCRRDC
 		add	dl, ds:var_63c
 		xchg	dx, bx
@@ -2049,8 +2024,7 @@ NXTCHR:					; CODE XREF: DOSCRL+1Dj
 		add	dl, ds:var_63c
 		xchg	dx, bx
 		loop	NXTCHR
-
-DOSCRX:					; CODE XREF: DOSCRL+9j
+DOSCRX:
 		pop	cx
 		pop	bx
 		pop	ax
@@ -2061,9 +2035,9 @@ DOSCRL		endp
 ; =============== S U B	R O U T	I N E =======================================
 
 
-SCRRDC		proc near		; CODE XREF: DOSCRL:NXTCHRp
+SCRRDC		proc near
 		push	bx
-		mov	bh, ds:var_639
+		mov	bh, ds:CVPAGE
 		mov	ah, 2
 		int	10h		; - VIDEO - SET	CURSOR POSITION
 					; DH,DL	= row, column (0,0 = upper left)
@@ -2081,11 +2055,11 @@ SCRRDC		endp
 ; =============== S U B	R O U T	I N E =======================================
 
 
-SCRWRC		proc near		; CODE XREF: DOSCRL+14p
+SCRWRC		proc near
 		push	bx
 		push	cx
 		push	ax
-		mov	bh, ds:var_639
+		mov	bh, ds:CVPAGE
 		mov	ah, 2
 		int	10h		; - VIDEO - SET	CURSOR POSITION
 					; DH,DL	= row, column (0,0 = upper left)
@@ -2107,7 +2081,7 @@ SCRWRC		endp
 ; =============== S U B	R O U T	I N E =======================================
 
 
-SCRSAV		proc near		; CODE XREF: GWINIp GWTERMp ...
+SCRSAV		proc near
 		pop	word ptr ds:var_650
 		push	dx
 		push	cx
@@ -2123,20 +2097,18 @@ SCRSAV		proc near		; CODE XREF: GWINIp GWTERMp ...
 					; Return: AH = number of columns on screen
 					; AL = current video mode
 					; BH = current active display page
-		mov	ds:var_63d, bh
+		mov	ds:VISVPG, bh
 		mov	ds:var_63e, ah
-		mov	ds:var_63f, al
+		mov	ds:CVMODE, al
 		cmp	byte ptr ds:var_63a, 0
 		jz	short loc_5B45
 		cmp	byte ptr ds:var_640, 1
 		jz	short loc_5B42
 		cmp	byte ptr ds:var_640, 2
 		jnz	short loc_5B45
-
-loc_5B42:				; CODE XREF: SCRSAV+28j
+loc_5B42:
 		call	sub_5BF8
-
-loc_5B45:				; CODE XREF: SCRSAV+21j SCRSAV+2Fj
+loc_5B45:
 		popf
 		pop	dx
 		pop	cx
@@ -2144,7 +2116,7 @@ loc_5B45:				; CODE XREF: SCRSAV+21j SCRSAV+2Fj
 		pop	ax
 		push	word ptr ds:var_650
 		ret
-SCRSAV		endp ; sp-analysis failed
+SCRSAV		endp
 
 
 ; =============== S U B	R O U T	I N E =======================================
@@ -2165,8 +2137,7 @@ DOCLRS:
 		cmp	byte ptr ds:var_63a, 0
 		jz	short SCROL
 		mov	bh, 0
-
-SCROL:					; CODE XREF: CLRSCN+1Dj
+SCROL:
 		int	10h		; - VIDEO - SCROLL PAGE	UP
 					; AL = number of lines to scroll window	(0 = blank whole window)
 					; BH = attributes to be	used on	blanked	lines
@@ -2182,7 +2153,7 @@ CLRSCN		endp
 ; =============== S U B	R O U T	I N E =======================================
 
 
-CLREOL		proc near		; CODE XREF: KEYDSP+Ep	PLINIT+19p
+CLREOL		proc near
 		push	ax
 		push	bx
 		push	cx
@@ -2194,7 +2165,7 @@ CLREOL		proc near		; CODE XREF: KEYDSP+Ep	PLINIT+19p
 		mov	cl, al
 		mov	ch, 0
 		xchg	dl, dh
-		mov	bh, ds:var_639
+		mov	bh, ds:CVPAGE
 		mov	ah, 2
 		int	10h		; - VIDEO - SET	CURSOR POSITION
 					; DH,DL	= row, column (0,0 = upper left)
@@ -2242,7 +2213,7 @@ loc_5BC9:
 		cmp	al, 1
 		jnz	short loc_5BDB
 		mov	cx, 407h
-		cmp	byte ptr ds:var_63f, 7
+		cmp	byte ptr ds:CVMODE, 7
 		jnz	short SETCUR
 		mov	cl, 0Dh
 		jmp	short SETCUR
@@ -2269,8 +2240,7 @@ CSRDSP		endp
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_5BF8	proc near		; CODE XREF: SCRSV2:loc_59D8p
-					; SCROLL:loc_5A4Ep ...
+sub_5BF8	proc near
 		push	ax
 		push	bx
 		push	cx
@@ -2386,7 +2356,7 @@ SCRATR		proc near
 		mov	dh, bl
 		sub	dx, 101h
 		mov	ds:var_64e, dx
-		mov	bh, ds:var_639
+		mov	bh, ds:CVPAGE
 		mov	ah, 2
 		int	10h		; - VIDEO - SET	CURSOR POSITION
 					; DH,DL	= row, column (0,0 = upper left)
@@ -2441,7 +2411,7 @@ loc_5CE6:
 loc_5CEE:
 		pop	cx
 		pop	bx
-		mov	ch, ds:var_63f
+		mov	ch, ds:CVMODE
 		call	sub_5E5A
 		jbe	short loc_5D45
 		mov	ds:var_63a, al
@@ -2482,7 +2452,7 @@ loc_5D45:
 		or	ch, 1
 loc_5D59:
 		mov	al, ch
-		cmp	al, ds:var_63f
+		cmp	al, ds:CVMODE
 		jz	short loc_5D71
 		mov	ah, 0
 		int	10h		; - VIDEO - SET	VIDEO MODE
@@ -2492,17 +2462,17 @@ loc_5D59:
 		call	SCNRST
 		pop	cx
 		pop	bx
-		mov	byte ptr ds:var_639, 0
+		mov	byte ptr ds:CVPAGE, 0
 loc_5D71:
 		call	sub_5E5A
 		jbe	short loc_5D79
-		mov	ds:var_639, al
+		mov	ds:CVPAGE, al
 loc_5D79:
 		call	sub_5E5A
 		jz	short loc_5D80
 		jnb	short loc_5D83
 loc_5D80:
-		mov	al, ds:var_639
+		mov	al, ds:CVPAGE
 loc_5D83:
 		mov	ah, 5
 		int	10h		; - VIDEO - SELECT DISPLAY PAGE
@@ -2514,30 +2484,26 @@ SCRSTT		endp
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_5D8A	proc near		; CODE XREF: SCRSTT+2Bp SCRSTT+33p
-
-; FUNCTION CHUNK AT 5EDC SIZE 00000003 BYTES
-
+sub_5D8A	proc near
 		or	dl, dl
 		jnz	short loc_5D9E
 		mov	ah, 4
 		cmp	byte ptr ds:var_63b, 80
 		jz	short loc_5D99
 		mov	ah, 8
-
-loc_5D99:				; CODE XREF: sub_5D8A+Bj
+loc_5D99:
 		cmp	al, ah
 		jnb	short loc_5DA3
 		ret
 ; ---------------------------------------------------------------------------
 
-loc_5D9E:				; CODE XREF: sub_5D8A+2j
+loc_5D9E:
 		cmp	al, 0
 		jnz	short loc_5DA3
 		ret
 ; ---------------------------------------------------------------------------
 
-loc_5DA3:				; CODE XREF: sub_5D8A+11j sub_5D8A+16j
+loc_5DA3:
 		pop	ax
 		pop	ax
 		pop	ax
@@ -2650,7 +2616,7 @@ loc_5E4C:
 		jmp	SCNOK
 ; ---------------------------------------------------------------------------
 
-SETERR:					; CODE XREF: SETCLR+62j SETCLR+6Bj ...
+SETERR:
 		jmp	SCNERR
 SETCLR		endp
 
@@ -2658,8 +2624,7 @@ SETCLR		endp
 ; =============== S U B	R O U T	I N E =======================================
 
 
-sub_5E5A	proc near		; CODE XREF: SCRSTT+13p
-					; SCRSTT:loc_5CDBp ...
+sub_5E5A	proc near
 		dec	cl
 		jz	short loc_5E67
 		mov	ax, [bx]
@@ -2670,7 +2635,7 @@ sub_5E5A	proc near		; CODE XREF: SCRSTT+13p
 		ret
 ; ---------------------------------------------------------------------------
 
-loc_5E67:				; CODE XREF: sub_5E5A+2j
+loc_5E67:
 		inc	cl
 		stc
 		ret
@@ -2697,33 +2662,31 @@ SWIDTH		proc near
 		jmp	short loc_5EA1
 ; ---------------------------------------------------------------------------
 
-WIDE40:					; CODE XREF: SWIDTH+8j
-		cmp	byte ptr ds:var_63f, 7
+WIDE40:
+		cmp	byte ptr ds:CVMODE, 7
 		jz	short SCNOK
 		mov	ds:var_63b, al
 		mov	dx, 320
 		mov	al, 1
 		mov	word ptr ds:var_64c, 3F02h
-
-loc_5EA1:				; CODE XREF: SWIDTH+1Fj
+loc_5EA1:
 		cmp	byte ptr ds:var_63a, 0
 		jz	short loc_5EAF
 		mov	ds:var_63a, al
 		mov	ds:var_649, dx
-
-loc_5EAF:				; CODE XREF: SWIDTH+3Bj
-		mov	al, ds:var_63f
+loc_5EAF:
+		mov	al, ds:CVMODE
 		mov	ah, 0
 		add	bx, ax
 		mov	al, cs:[bx]
 		mov	ah, 0
-		cmp	al, ds:var_63f
+		cmp	al, ds:CVMODE
 		jz	short SCNOK
 		int	10h		; - VIDEO - SET	VIDEO MODE
 					; AL = mode
 		call	SCNRST
 		xor	ax, ax
-		mov	ds:var_639, al
+		mov	ds:CVPAGE, al
 		cmp	byte ptr ds:var_63a, 2
 		jz	short SCNOK
 		mov	ah, 0Bh
@@ -2732,19 +2695,16 @@ loc_5EAF:				; CODE XREF: SWIDTH+3Bj
 					; BH = 00h, BL = border	color
 					; BH = 01h, BL = palette (0-3)
 
-SCNOK:					; CODE XREF: CLRSCN+2Aj
-					; CSRDSP:loc_5BC6j ...
+SCNOK:
 		clc
-
-GOSRST:					; CODE XREF: sub_5D8A+153j
+GOSRST:
 		jmp	SCRRST
 SWIDTH		endp
 
 ; ---------------------------------------------------------------------------
 ; START	OF FUNCTION CHUNK FOR sub_5D8A
 
-SCNERR:					; CODE XREF: CSRATR:CSRERRj
-					; SCRSTT:loc_5CD8j ...
+SCNERR:
 		stc
 		jmp	short GOSRST
 ; END OF FUNCTION CHUNK	FOR sub_5D8A
@@ -2757,7 +2717,7 @@ PUBLIC  GTASPC, PIXSIZ
 PUBLIC  TUPC, TDOWNC, PGINIT, NREAD, NWRITE
 PUBLIC  PNTINI, SCANR, SCANL
 
-MODES40		db    0			; DATA XREF: SWIDTH+3o
+MODES40		db    0
 		db    1
 		db    0
 		db    1
@@ -2765,7 +2725,7 @@ MODES40		db    0			; DATA XREF: SWIDTH+3o
 		db    5
 		db    5
 		db    7
-MODES80		db    2			; DATA XREF: SWIDTH+Co
+MODES80		db    2
 		db    3
 		db    2
 		db    3
@@ -2819,7 +2779,7 @@ FETCHC		endp
 ; =============== S U B	R O U T	I N E =======================================
 
 
-RIGHTC		proc near		; DATA XREF: DOGRPH+18o
+RIGHTC		proc near
 		push	cx
 		mov	cl, ds:var_64c
 		ror	byte ptr ds:var_64b, cl
@@ -2892,8 +2852,7 @@ SCALXY		proc near
 		jb	short loc_5F6E
 		mov	cx, bx
 		dec	cx
-
-loc_5F6E:				; CODE XREF: SCALXY+Bj	SCALXY+22j
+loc_5F6E:
 		or	dh, dh
 		js	short loc_5F82
 		mov	bx, 200
@@ -2904,18 +2863,18 @@ loc_5F6E:				; CODE XREF: SCALXY+Bj	SCALXY+22j
 		ret
 ; ---------------------------------------------------------------------------
 
-loc_5F7D:				; CODE XREF: SCALXY+2j
+loc_5F7D:
 		xor	cx, cx
 		lahf
 		jmp	short loc_5F6E
 ; ---------------------------------------------------------------------------
 
-loc_5F82:				; CODE XREF: SCALXY+12j
+loc_5F82:
 		xor	dx, dx
 		ret
 ; ---------------------------------------------------------------------------
 
-loc_5F85:				; CODE XREF: SCALXY+19j
+loc_5F85:
 		sahf
 		ret
 SCALXY		endp
@@ -3144,7 +3103,7 @@ TDOWNC		proc near
 TDOWNC		endp
 
 ; ---------------------------------------------------------------------------
-PGDISP		dw offset FNOR		; DATA XREF: PGINIT+26o
+PGDISP		dw offset FNOR
 		dw offset FNAND
 		dw offset FNINV
 		dw offset FNSET
@@ -3177,8 +3136,7 @@ PGINIT		proc near
 		add	bx, ax
 		mov	ax, cs:[bx]
 		mov	ds:var_667, ax
-
-PGINIX:					; CODE XREF: PGINIT+20j PGINIT+24j
+PGINIX:
 		ret
 PGINIT		endp
 
@@ -3193,8 +3151,7 @@ NREAD		proc near
 		call	SETPTR
 		mov	dh, [si]
 		mov	ah, 0
-
-loc_60EC:				; CODE XREF: NREAD+1Bj
+loc_60EC:
 		test	ch, 80h
 		jz	short loc_60F9
 		rol	ch, cl
@@ -3203,17 +3160,16 @@ loc_60EC:				; CODE XREF: NREAD+1Bj
 		jmp	short loc_60EC
 ; ---------------------------------------------------------------------------
 
-loc_60F9:				; CODE XREF: NREAD+13j
+loc_60F9:
 		mov	cl, ah
 		jmp	short loc_6103
 ; ---------------------------------------------------------------------------
 
-loc_60FD:				; CODE XREF: NREAD+32j
+loc_60FD:
 		mov	es:[di], dh
 		inc	di
 		mov	dh, al
-
-loc_6103:				; CODE XREF: NREAD+1Fj
+loc_6103:
 		inc	si
 		mov	al, [si]
 		mov	ah, bh
@@ -3228,8 +3184,7 @@ loc_6103:				; CODE XREF: NREAD+1Fj
 		shl	dh, cl
 		mov	es:[di], dh
 		inc	di
-
-NREADX:					; CODE XREF: NREAD+3Bj
+NREADX:
 		pop	ds
 		mov	ds:var_661, di
 		ret
@@ -3256,12 +3211,12 @@ loc_6137:
 		jmp	short loc_6137
 ; ---------------------------------------------------------------------------
 
-loc_6144:				; CODE XREF: NWRITE+13j
+loc_6144:
 		mov	cl, ah
 		jmp	short loc_6153
 ; ---------------------------------------------------------------------------
 
-loc_6148:				; CODE XREF: NWRITE+39j
+loc_6148:
 		mov	[si], dl
 		inc	si
 		mov	dl, dh
@@ -3269,8 +3224,7 @@ loc_6148:				; CODE XREF: NWRITE+39j
 		mov	dh, [si]
 		dec	si
 		rol	dx, cl
-
-loc_6153:				; CODE XREF: NWRITE+1Fj
+loc_6153:
 		mov	al, es:[di]
 		inc	di
 		call	word ptr es:var_667
@@ -3286,7 +3240,7 @@ loc_6153:				; CODE XREF: NWRITE+1Fj
 		jmp	short loc_6183
 ; ---------------------------------------------------------------------------
 
-loc_6172:				; CODE XREF: NWRITE+42j
+loc_6172:
 		add	cl, bl
 		cmp	cl, 8
 		jb	short loc_6183
@@ -3295,8 +3249,7 @@ loc_6172:				; CODE XREF: NWRITE+42j
 		inc	si
 		mov	dl, dh
 		sub	cl, 8
-
-loc_6183:				; CODE XREF: NWRITE+49j NWRITE+50j
+loc_6183:
 		mov	al, [si]
 		shl	al, cl
 		shr	al, cl
@@ -3308,8 +3261,7 @@ loc_6183:				; CODE XREF: NWRITE+49j NWRITE+50j
 		shl	dl, cl
 		or	dh, dl
 		mov	[si], dh
-
-loc_6199:				; CODE XREF: NWRITE+47j NWRITE+54j
+loc_6199:
 		pop	ds
 		mov	ds:var_661, di
 		ret
@@ -3356,7 +3308,7 @@ PNTINI		endp
 ; =============== S U B	R O U T	I N E =======================================
 
 
-SCANR		proc near		; CODE XREF: SCANR1p
+SCANR		proc near
 		push	ds
 		mov	di, dx
 		call	SETPTR
@@ -3365,8 +3317,7 @@ SCANR		proc near		; CODE XREF: SCANR1p
 		mov	dl, bl
 		mov	ah, [si]
 		push	cx
-
-loc_61C8:				; CODE XREF: SCANR+14j
+loc_61C8:
 		ror	ah, cl
 		ror	ch, cl
 		jb	short loc_61C8
@@ -3376,8 +3327,7 @@ loc_61C8:				; CODE XREF: SCANR+14j
 		cmp	byte ptr es:var_63a, 1
 		jz	short loc_61E1
 		and	bh, 1
-
-loc_61E1:				; CODE XREF: SCANR+24j	SCANR+36j ...
+loc_61E1:
 		mov	al, bl
 		rol	ax, cl
 		cmp	al, bh
@@ -3390,8 +3340,7 @@ loc_61E1:				; CODE XREF: SCANR+24j	SCANR+36j ...
 		mov	ah, [si]
 		dec	dl
 		jnz	short loc_61E1
-
-loc_61F7:				; CODE XREF: SCANR+32j
+loc_61F7:
 		xor	bx, bx
 		mov	dx, bx
 		mov	cl, dl
@@ -3399,7 +3348,7 @@ loc_61F7:				; CODE XREF: SCANR+32j
 		ret
 ; ---------------------------------------------------------------------------
 
-loc_61FF:				; CODE XREF: SCANR+2Fj
+loc_61FF:
 		mov	es:CSAVEA, si
 		mov	BYTE PTR es:CSAVEM, ch
 		push	di
@@ -3413,10 +3362,9 @@ loc_61FF:				; CODE XREF: SCANR+2Fj
 		jmp	short loc_6223
 ; ---------------------------------------------------------------------------
 
-loc_6221:				; CODE XREF: SCANR+6Dj
+loc_6221:
 		rol	dh, cl
-
-loc_6223:				; CODE XREF: SCANR+60j	SCANR+67j
+loc_6223:
 		ror	ch, cl
 		jb	short loc_6221
 		pop	cx
@@ -3424,20 +3372,18 @@ loc_6223:				; CODE XREF: SCANR+60j	SCANR+67j
 		jmp	short loc_6234
 ; ---------------------------------------------------------------------------
 
-loc_622C:				; CODE XREF: SCANR+8Bj	SCANR+92j
+loc_622C:
 		mov	al, 0
 		rol	ax, cl
 		cmp	al, bh
 		jz	short loc_624F
-
-loc_6234:				; CODE XREF: SCANR+72j
+loc_6234:
 		cmp	al, bl
 		jz	short loc_623E
 		and	[si], ch
 		or	[si], dh
 		mov	bl, 0FFh
-
-loc_623E:				; CODE XREF: SCANR+7Ej
+loc_623E:
 		inc	di
 		ror	dh, cl
 		ror	ch, cl
@@ -3448,14 +3394,12 @@ loc_623E:				; CODE XREF: SCANR+7Ej
 		jnz	short loc_622C
 		rol	ch, cl
 		dec	si
-
-loc_624F:				; CODE XREF: SCANR+7Aj
+loc_624F:
 		pop	dx
 		inc	bl
 		jz	short loc_6256
 		mov	cl, 0
-
-loc_6256:				; CODE XREF: SCANR+9Aj
+loc_6256:
 		mov	bx, di
 		pop	ds
 		mov	ds:var_647, si
@@ -3559,19 +3503,17 @@ SCANL		endp
 
 PUBLIC  RDPEN, RDTRIG, RDSTIK, POLLEV
 
-ISREVT		db 0			; DATA XREF: CM2ISR:loc_5262w
-					; TIMISR+1Aw ...
-LPWSDN		dw 0			; DATA XREF: LPENQR+35w RDPEN+Co ...
-LPLGX		dw 0			; DATA XREF: LPENQR+38w
-LPLGY		dw 0			; DATA XREF: LPENQR+3Cw
-LPDOWN		dw 0			; DATA XREF: LPENQR+23r LPENQR+32w ...
-					; -1 if	currently down,	0 if up
-LPGX		dw 0			; DATA XREF: LPENQR+Fw
-LPGY		dw 0			; DATA XREF: LPENQR+1Fw
-LPROW		dw 1			; DATA XREF: LPENQR+40w
-LPCOL		dw 1			; DATA XREF: LPENQR+44w
-LPLROW		dw 1			; DATA XREF: LPENQR+15w
-LPLCOL		dw 1			; DATA XREF: LPENQR+1Bw
+ISREVT		db 0
+LPWSDN		dw 0
+LPLGX		dw 0
+LPLGY		dw 0
+LPDOWN		dw 0                    ; -1 if	currently down,	0 if up
+LPGX		dw 0
+LPGY		dw 0
+LPROW		dw 1
+LPCOL		dw 1
+LPLROW		dw 1
+LPLCOL		dw 1
 
 ; =============== S U B	R O U T	I N E =======================================
 
@@ -3772,7 +3714,7 @@ RDSTIK		endp
 ; =============== S U B	R O U T	I N E =======================================
 
 
-POLLEV		proc near		; CODE XREF: CHKINT+7p
+POLLEV		proc near
 		cld
 		cli
 		cmp	cs:ISREVT, 0	; Light	pen event?
@@ -3787,8 +3729,7 @@ POLLEV		proc near		; CODE XREF: CHKINT+7p
 		cmp	ax, ds:41Ch	; Last keyboard	buffer item
 		pop	ds
 		assume ds:nothing
-
-POLEVX:					; CODE XREF: POLLEV+Fj
+POLEVX:
 		ret
 POLLEV		endp
 
@@ -3798,28 +3739,24 @@ POLLEV		endp
 
 PUBLIC  DONOTE
 
-NTARRY		db 84h dup(   0)	; DATA XREF: TMRISR:loc_6518o
-					; DONOTE+6Bo
-CURNOT		dw 0			; DATA XREF: TMRISR+2Fr TMRISR+48r ...
-NOTPTR		dw 0			; DATA XREF: TMRISR+33r TMRISR+4Cr ...
-		db    0
-		db    0
-byte_64AA	db 0			; DATA XREF: TMRISR+28r TMRISR+42w ...
-word_64AB	dw 0			; DATA XREF: TMRISR+21r
-					; TMRISR:loc_64EFw ...
-byte_64AD	db 0			; DATA XREF: TMRISR+1Cw TMRISR+CBw
-ISRCNT		db 0			; DATA XREF: TMRISR:loc_6564w
-					; TMRISR:TMRRSTw ...
-					; Timer	ISR entry counter. Because the timer ticks
-					; faster, only chain to	the previous handler when
-					; the counter goes to zero.
-OLDTMI		dd 0			; DATA XREF: TMRISR+D7r TMRISR+F2r ...
-					; Previous timer interrupt vector
+NTARRY		db 84h dup(0)
+CURNOT		dw 0
+NOTPTR		dw 0
+		db 0            ; Unused?
+		db 0
+byte_64AA	db 0
+word_64AB	dw 0
+
+byte_64AD	db 0
+ISRCNT		db 0            ; Timer	ISR entry counter. Because the timer ticks
+				; faster, only chain to	the previous handler when
+				; the counter goes to zero.
+OLDTMI		dd 0            ; Previous timer interrupt vector
 
 ; =============== S U B	R O U T	I N E =======================================
 
 
-TMRISR		proc far		; DATA XREF: DONOTE+A4o
+TMRISR		proc far
 		push	ax
 		push	bx
 		push	dx
@@ -3847,8 +3784,7 @@ TMRISR		proc far		; DATA XREF: DONOTE+A4o
 					; 5: 0=enable I/O channel check
 					; 6: 0=hold keyboard clock low
 					; 7: 0=enable kbrd
-
-TMRIS1:					; CODE XREF: TMRISR+Cj
+TMRIS1:
 		sti
 		test	EVTSET,	2	; Speaker on?
 		jz	short loc_64EC
@@ -3860,13 +3796,9 @@ TMRIS1:					; CODE XREF: TMRISR+Cj
 		mov	si, CURNOT
 		cmp	si, NOTPTR
 		jnz	short loc_6514
-
-loc_64EC:				; CODE XREF: TMRISR+1Aj
+loc_64EC:
 		jmp	short loc_6564
-; ---------------------------------------------------------------------------
-		nop
-
-loc_64EF:				; CODE XREF: TMRISR+26j TMRISR+2Dj
+loc_64EF:
 		dec	word_64AB
 		jnz	short loc_6564
 		dec	byte_64AA
@@ -3897,11 +3829,10 @@ loc_64EF:				; CODE XREF: TMRISR+26j TMRISR+2Dj
 		jmp	short loc_6564
 ; ---------------------------------------------------------------------------
 
-loc_6514:				; CODE XREF: TMRISR+37j
+loc_6514:
 		mov	al, 0B6h
 		out	43h, al		; Timer	8253-5 (AT: 8254.2).
-
-loc_6518:				; CODE XREF: TMRISR+50j
+loc_6518:
 		mov	bx, offset NTARRY
 		mov	ax, [bx+si]
 		or	ax, ax
@@ -3919,7 +3850,7 @@ loc_6518:				; CODE XREF: TMRISR+50j
 		jmp	short loc_6533
 ; ---------------------------------------------------------------------------
 
-loc_6528:				; CODE XREF: TMRISR+6Cj
+loc_6528:
 		out	42h, al		; Timer	8253-5 (AT: 8254.2).
 		mov	al, ah
 		out	42h, al		; Timer	8253-5 (AT: 8254.2).
@@ -3933,8 +3864,7 @@ loc_6528:				; CODE XREF: TMRISR+6Cj
 					; 6: 0=hold keyboard clock low
 					; 7: 0=enable kbrd
 		or	al, 3
-
-loc_6533:				; CODE XREF: TMRISR+73j
+loc_6533:
 		out	61h, al		; PC/XT	PPI port B bits:
 					; 0: Tmr 2 gate	ÕÀÕ OR	03H=spkr ON
 					; 1: Tmr 2 data	Õº  AND	0fcH=spkr OFF
@@ -3965,9 +3895,7 @@ loc_6533:				; CODE XREF: TMRISR+73j
 		rcl	bx, 1
 		mov	byte_64AA, bl
 		mov	word_64AB, dx
-
-loc_6564:				; CODE XREF: TMRISR:loc_64ECj
-					; TMRISR+40j ...
+loc_6564:
 		dec	ISRCNT
 		jns	short CHKSTP
 		mov	ax, 2048	; 65536/32
@@ -3977,7 +3905,7 @@ loc_6564:				; CODE XREF: TMRISR:loc_64ECj
 		jmp	short TMRRST
 ; ---------------------------------------------------------------------------
 
-CHKSTP:					; CODE XREF: TMRISR+B5j
+CHKSTP:
 		jnz	short TMRISX
 		test	EVTSET,	2	; Speaker still	on?
 		jnz	short TMRRST	; If so, keep going.
@@ -3997,10 +3925,9 @@ CHKSTP:					; CODE XREF: TMRISR+B5j
 		jmp	short TMRCHN
 ; ---------------------------------------------------------------------------
 
-TMRRST:					; CODE XREF: TMRISR+C0j TMRISR+C9j ...
+TMRRST:
 		mov	ds:ISRCNT, 32	; Timer	ticks 32x faster; restart period.
-
-TMRCHN:					; CODE XREF: TMRISR+E6j
+TMRCHN:
 		pop	ds
 		assume ds:nothing
 		pop	si
@@ -4010,7 +3937,7 @@ TMRCHN:					; CODE XREF: TMRISR+E6j
 		jmp	cs:OLDTMI	; Chain	to previous timer ISR
 ; ---------------------------------------------------------------------------
 
-TMRISX:					; CODE XREF: TMRISR:CHKSTPj
+TMRISX:
 		pop	ds
 		pop	si
 		pop	dx
@@ -4031,7 +3958,7 @@ TMRISR		endp
 ;   DX = duration (1=18.7ms)
 ;
 
-DONOTE		proc near		; CODE XREF: GWTERM+12p SNDRST+7p ...
+DONOTE		proc near
 		push	ds
 		push	bx
 		push	si
@@ -4064,8 +3991,7 @@ DONOTE		proc near		; CODE XREF: GWTERM+12p SNDRST+7p ...
 					; 6: 0=hold keyboard clock low
 					; 7: 0=enable kbrd
 		sti
-
-DONOTX:					; CODE XREF: DONOTE+Ej	DONOTE:GONOTXj
+DONOTX:
 		clc
 		pop	si
 		pop	bx
@@ -4074,7 +4000,7 @@ DONOTX:					; CODE XREF: DONOTE+Ej	DONOTE:GONOTXj
 		ret
 ; ---------------------------------------------------------------------------
 
-DOPLAY:					; CODE XREF: DONOTE+7j
+DOPLAY:
 		push	ax
 		push	dx
 		mov	ax, 19
@@ -4084,12 +4010,11 @@ DOPLAY:					; CODE XREF: DONOTE+7j
 		jmp	short NXNOTE
 ; ---------------------------------------------------------------------------
 
-DODIV:					; CODE XREF: DONOTE+31j
+DODIV:
 		mov	dx, 12h
 		mov	ax, 34DCh
 		div	cx		; Divide 1,193,180 by CX
-
-NXNOTE:					; CODE XREF: DONOTE+35j
+NXNOTE:
 		push	ax
 		push	ds
 		xor	ax, ax
@@ -4103,8 +4028,7 @@ NXNOTE:					; CODE XREF: DONOTE+35j
 		push	si
 		add	si, 4
 		call	NXTNOT
-
-WAITLP:					; CODE XREF: DONOTE+67j
+WAITLP:
 		push	ds
 		xor	ax, ax
 		mov	ds, ax
@@ -4116,8 +4040,7 @@ WAITLP:					; CODE XREF: DONOTE+67j
 		jnz	short WTDONE
 		cmp	si, ds:CURNOT
 		jz	short WAITLP
-
-WTDONE:					; CODE XREF: DONOTE+61j
+WTDONE:
 		pop	si
 		pop	ax
 		mov	bx, offset NTARRY
@@ -4159,15 +4082,13 @@ WTDONE:					; CODE XREF: DONOTE+61j
 		pop	es
 		mov	al, 0B6h
 		out	43h, al		; Timer	8253-5 (AT: 8254.2).
-
-TMISON:					; CODE XREF: DONOTE+86j DONOTE+96j
+TMISON:
 		or	ds:EVTSET, 2	; Speaker on!
 		sti
 		pop	ax
 		cmp	al, 0		; Play in the foreground?
 		jnz	short GONOTX
-
-FGNDLP:					; CODE XREF: DONOTE+E2j DONOTE+F2j ...
+FGNDLP:
 		push	ds
 		xor	ax, ax
 		mov	ds, ax
@@ -4186,16 +4107,14 @@ FGNDLP:					; CODE XREF: DONOTE+E2j DONOTE+F2j ...
 		cmp	ax, 84h		; Wrapping around?
 		jnz	short HAVPTR
 		xor	ax, ax		; If yes, pointer wraps	to zero
-
-HAVPTR:					; CODE XREF: DONOTE+EAj
+HAVPTR:
 		cmp	ax, ds:NOTPTR
 		jnz	short FGNDLP
 		cmp	ds:byte_64AA, 0
 		jnz	short FGNDLP
 		cmp	ds:word_64AB, 6
 		jnb	short FGNDLP
-
-GONOTX:					; CODE XREF: DONOTE+C8j DONOTE+D5j ...
+GONOTX:
 		jmp	DONOTX
 DONOTE		endp
 
@@ -4203,13 +4122,13 @@ DONOTE		endp
 ; =============== S U B	R O U T	I N E =======================================
 
 
-NXTNOT		proc near		; CODE XREF: TMRISR+89p DONOTE+53p ...
+NXTNOT		proc near
 		cmp	si, 84h
 		jz	short WRAP
 		ret
 ; ---------------------------------------------------------------------------
 
-WRAP:					; CODE XREF: NXTNOT+4j
+WRAP:
 		mov	si, 0
 		ret
 NXTNOT		endp
