@@ -22,6 +22,8 @@ DEFPROC	main
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	mov	dx,offset ctrlc
 	int	21h
+
+	PRINTF	<"BASIC-DOS Interpreter",13,10,13,10,"BASIC MATH library functions",13,10,"Copyright (c) Microsoft Corporation",13,10>
 ;
 ; Since all the command handlers loop back to this point, we should not
 ; assume that any registers (including BX) will still be set to anything.
