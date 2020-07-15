@@ -9,7 +9,7 @@
 ;
 	include	dos.inc
 
-	; TWAIT equ 16
+	; TWAIT equ 16			; timed wait is now disabled
 
 BOOT	segment word public 'CODE'
 
@@ -157,11 +157,17 @@ ENDPROC	main
 ;
 ; find_dirent
 ;
-; Find DIRENT in sector at DI using filename at BX
+; Find DIRENT in sector at ES:DI using filename at DS:BX.
 ;
-; Returns: zero flag set if match (in DI), carry set if end of directory
+; Inputs:
+;	DS:BX -> filename
+;	ES:DI -> directory sector
 ;
-; Modifies: AX
+; Outputs:
+;	Zero flag set if match (in DI), carry set if end of directory
+;
+; Modifies:
+;	AX
 ;
 DEFPROC	find_dirent
 	push	cx			; CH is zero on entry
@@ -198,11 +204,18 @@ ENDPROC	find_dirent
 ;
 ; get_chs
 ;
-; Get CHS from LBA in AX, using BPB at SI
+; Get CHS from LBA in AX, using BPB at DS:SI.
 ;
-; Returns: CH = cylinder #, CL = sector ID, DH = head #, DL = drive #
+; Inputs:
+;	AX = LBA
+;	DS:SI -> BPB
 ;
-; Modifies: AX, CX, DX
+; Outputs:
+;	DH = head #, DL = drive #
+;	CH = cylinder #, CL = sector ID
+;
+; Modifies:
+;	AX, CX, DX
 ;
 DEFPROC	get_chs
 	sub	dx,dx		; DX:AX is LBA
@@ -224,11 +237,18 @@ ENDPROC	get_chs
 ;
 ; get_lba
 ;
-; Get LBA from CLN in AX, using BPB at SI
+; Get LBA from CLN in AX, using BPB at DS:SI.
 ;
-; Returns: AX = LBA, CX = sectors per cluster (or carry set if error)
+; Inputs:
+;	AX = CLN
+;	DS:SI -> BPB
 ;
-; Modifies: AX, CX, DX
+; Outputs:
+;	If successful, carry clear, AX = LBA, CX = sectors per cluster
+;	If unsuccessful, carry set
+;
+; Modifies:
+;	AX, CX, DX
 ;
 DEFPROC	get_lba
 	sub	ax,2
@@ -244,11 +264,18 @@ ENDPROC	get_lba
 ;
 ; read_sector
 ;
-; Read 1 sector into DI using LBA in AX and BPB at SI
+; Read 1 sector into ES:DI using LBA in AX and BPB at DS:SI.
 ;
-; Returns: carry clear if successful, set if error (see AH for reason)
+; Inputs:
+;	AX = LBA
+;	DS:SI -> BPB
+;	ES:DI -> buffer
 ;
-; Modifies: AX, BX
+; Output:
+;	Carry clear if successful, set if error (see AH for reason)
+;
+; Modifies:
+;	AX, BX
 ;
 DEFPROC	read_sector
 	push	cx
@@ -279,9 +306,14 @@ ENDPROC	read_sector
 ; won't fail, which means the delay may be too short; and 2) it makes the boot
 ; code smaller.
 ;
-; Returns: CX = char code (lo), scan code (hi); 0 if no key pressed
+; Inputs:
+;	None
 ;
-; Modifies: AX, CX (and DX if TWAIT is defined)
+; Outputs:
+;	CX = char code (lo), scan code (hi); 0 if no key pressed
+;
+; Modifies:
+;	AX, CX (and DX if TWAIT is defined)
 ;
 DEFPROC	wait
 	IFDEF	TWAIT
@@ -324,11 +356,18 @@ ENDPROC	wait
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; print (prints the null-terminated string at SI)
+; print
 ;
-; Returns: Nothing
+; Print the null-terminated string at DS:SI.
 ;
-; Modifies: AX, BX, SI
+; Inputs:
+;	DS:SI -> string
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, SI
 ;
 DEFPROC	printp
 	mov	ah,VIDEO_TTYOUT
@@ -410,7 +449,6 @@ DEFPROC	part2,far
 
 	mov	si,offset PART2_COPY
 	call	read_data		; read the rest of DEV_FILE (see BX)
-	jc	i2			; load_error
 ;
 ; To find the entry point of DEV_FILE's init code, we must walk the
 ; driver headers.  And since they haven't been chained together yet (that's
@@ -482,11 +520,18 @@ ENDPROC	part3
 ;
 ; get_chs2
 ;
-; Get CHS from LBA in AX, using BPB at SI
+; Get CHS from LBA in AX, using BPB at DS:SI.
 ;
-; Returns: CH = cylinder #, CL = sector ID, DH = head #, DL = drive #
+; Inputs:
+;	AX = LBA
+;	DS:SI -> BPB
 ;
-; Modifies: AX, CX, DX
+; Outputs:
+;	DH = head #, DL = drive #
+;	CH = cylinder #, CL = sector ID
+;
+; Modifies:
+;	AX, CX, DX
 ;
 DEFPROC	get_chs2
 	sub	dx,dx		; DX:AX is LBA
@@ -508,11 +553,18 @@ ENDPROC	get_chs2
 ;
 ; get_lba2
 ;
-; Get LBA from CLN in AX, using BPB at SI
+; Get LBA from CLN in AX, using BPB at DS:SI.
 ;
-; Returns: AX = LBA, CX = sectors per cluster (or carry set if error)
+; Inputs:
+;	AX = CLN
+;	DS:SI -> BPB
 ;
-; Modifies: AX, CX, DX
+; Outputs:
+;	If successful, carry clear, AX = LBA, CX = sectors per cluster
+;	If unsuccessful, carry set
+;
+; Modifies:
+;	AX, CX, DX
 ;
 DEFPROC	get_lba2
 	sub	ax,2
@@ -547,79 +599,20 @@ ENDPROC	load_error
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; read_fat
-;
-; From the CLN in AX, return the next CLN in DX, using BPB at SI.
-;
-; We observe that the FAT sector # containing a 12-bit CLN is:
-;
-;	(CLN * 12) / 4096
-;
-; assuming a 512-byte sector with 4096 or 2^12 bits.  The expression
-; can be simplified to (CLN * 12) SHR 12, or (CLN * 3) SHR 10, or simply
-; (CLN + CLN + CLN) SHR 10.
-;
-; Next, we need the nibble offset within the sector, which is:
-;
-;	((CLN * 12) % 4096) / 4
-;
-; TODO: If we're serious about being sector-size-agnostic, our BPB should
-; contain a (precalculated) LOG2 of BPB_SECBYTES, to avoid hard-coded shifts.
-;
-; Returns: DX (next CLN)
-;
-; Modifies: AX, CX, DX, BP
-;
-DEFPROC	read_fat
-	push	bx
-	push	di
-	mov	bx,ax
-	add	ax,ax
-	add	ax,bx
-	mov	bx,ax
-	mov	cl,10
-	shr	ax,cl		; AX = FAT sector ((CLN * 3) SHR 10)
-	add	ax,[si].BPB_RESSECS
-	and	bx,3FFh		; nibble offset (assuming 1024 nibbles)
-	mov	di,offset FAT_SECTOR
-	cmp	ax,[FAT_BUFHDR].BUF_LBA
-	je	rf1
-	mov	[FAT_BUFHDR].BUF_LBA,ax
-	mov	cl,1
-	call	read_sectors
-	jc	load_error
-rf1:	mov	bp,bx		; save nibble offset in BP
-	shr	bx,1		; BX -> byte, carry set if odd nibble
-	mov	dl,[di+bx]
-	inc	bx
-	cmp	bp,03FFh	; at the sector boundary?
-	jb	rf2		; no
-	inc	[FAT_BUFHDR].BUF_LBA
-	mov	ax,[FAT_BUFHDR].BUF_LBA
-	call	read_sectors	; read next FAT LBA
-	jc	load_error
-	sub	bx,bx
-rf2:	mov	dh,[di+bx]
-	shr	bp,1		; was that an odd nibble again?
-	jc	rf8		; yes
-	and	dx,0FFFh	; no, so make sure top 4 bits clear
-	jmp	short rf9
-rf8:	mov	cl,4
-	shr	dx,cl		; otherwise, shift all 12 bits down
-rf9:	pop	di
-	pop	bx
-	ret
-ENDPROC	read_fat
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; read_data
 ;
-; Read file data into ES:DI using directory info at BX and BPB at SI.
+; Read file data into ES:DI using directory info at BX and BPB at DS:SI.
 ;
-; Returns: carry set on error (see AH), clear otherwise (AX sectors read)
+; Inputs:
+;	BX -> DIR info
+;	DS:SI -> BPB
+;	ES:DI -> buffer
 ;
-; Modifies: AX, CX, DX
+; Output:
+;	ES:DI updated to next available address
+;
+; Modifies:
+;	AX, CX, DX
 ;
 DEFPROC	read_data
 	mov	dx,1		; DX = sectors already read
@@ -629,21 +622,22 @@ rd1:	cmp	word ptr [bx+4],0
 	je	rd3		; file size is zero, carry clear
 rd2:	mov	ax,[bx+2]	; AX = CLN
 	cmp	ax,2		; too low?
-	jc	rd3		; yes
+	jc	read_error	; yes
 	cmp	ax,CLN_END	; too high?
-	cmc
-	jc	rd3		; yes
+	jae	read_error	; yes
 	call	read_cluster	; read cluster into DI
-	jc	rd3		; error
+	jc	read_error	; error
 	mul	[si].BPB_SECBYTES; DX:AX = number of sectors read
 	add	di,ax		; adjust next read address
 	sub	[bx+4],ax	; reduce file size
 	sbb	[bx+6],dx	; (DX is zero)
-	jnc	rd4		; jump if file size still positive
+	jnc	rd5		; jump if file size still positive
 	add	di,[bx+4]	; rewind next load address by
-	clc			; the amount of file size underflow
-rd3:	ret			; and return success
-rd4:	mov	ax,[bx+2]	; AX = CLN
+rd3:	ret			; the amount of file size underflow
+
+read_error label near
+	jmp	load_error
+rd5:	mov	ax,[bx+2]	; AX = CLN
 	push	es
 	mov	es,dx		; relies on DX still being zero
 	ASSUME	ES:BIOS
@@ -659,13 +653,103 @@ ENDPROC	read_data
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; read_fat (see also: get_cln in disk.asm)
+;
+; For the CLN in AX, get the next CLN in DX, using the BPB at DS:SI.
+;
+; Inputs:
+;	AX = CLN
+;	DS:SI -> BPB
+;
+; Outputs:
+;	DX (next CLN)
+;
+; Modifies:
+;	AX, CX, DX, BP
+;
+DEFPROC	read_fat
+	push	bx
+	push	di
+;
+; We observe that the FAT sector # containing a 12-bit CLN is:
+;
+;	(CLN * 12) / 4096
+;
+; assuming a 512-byte sector with 4096 or 2^12 bits.  The expression
+; can be simplified to (CLN * 12) SHR 12, or (CLN * 3) SHR 10, or simply
+; (CLN + CLN + CLN) SHR 10.
+;
+; Next, we need the nibble offset within the sector, which is:
+;
+;	((CLN * 12) % 4096) / 4
+;
+; TODO: If we're serious about being sector-size-agnostic, our BPB should
+; contain a (precalculated) LOG2 of BPB_SECBYTES, to avoid hard-coded shifts.
+; That'll be tough to do without wasting buffer memory though, since sectors
+; can be as large as 1K.
+;
+	mov	bx,ax
+	add	ax,ax
+	add	ax,bx
+	mov	bx,ax
+	mov	cl,10
+	shr	ax,cl		; AX = FAT sector ((CLN * 3) SHR 10)
+	add	ax,[si].BPB_RESSECS
+;
+; Next, we need the nibble offset within the sector, which is:
+;
+;	((CLN * 12) % 4096) / 4
+;
+	and	bx,3FFh		; nibble offset (assuming 1024 nibbles)
+	mov	di,offset FAT_SECTOR
+	cmp	ax,[FAT_BUFHDR].BUF_LBA
+	je	rf1
+	mov	[FAT_BUFHDR].BUF_LBA,ax
+	mov	cl,1
+	call	read_sectors
+	jc	read_error
+
+rf1:	mov	bp,bx		; save nibble offset in BP
+	shr	bx,1		; BX -> byte, carry set if odd nibble
+	mov	dl,[di+bx]
+	inc	bx
+	cmp	bp,03FFh	; at the sector boundary?
+	jb	rf2		; no
+	inc	[FAT_BUFHDR].BUF_LBA
+	mov	ax,[FAT_BUFHDR].BUF_LBA
+	call	read_sectors	; read next FAT LBA
+	jc	read_error
+	sub	bx,bx
+rf2:	mov	dh,[di+bx]
+	shr	bp,1		; was that an odd nibble again?
+	jc	rf8		; yes
+	and	dx,0FFFh	; no, so make sure top 4 bits clear
+	jmp	short rf9
+rf8:	mov	cl,4
+	shr	dx,cl		; otherwise, shift all 12 bits down
+
+rf9:	pop	di
+	pop	bx
+	ret
+ENDPROC	read_fat
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; read_cluster
 ;
-; Read cluster AX into memory at DI, using BPB at SI.
+; Read cluster AX into memory at ES:DI, using BPB at DS:SI.
 ;
-; Returns: carry set on error (see AH), clear otherwise (AX sectors read)
+; Inputs:
+;	AX = CLN
+;	DS:SI -> BPB
+;	ES:DI -> buffer
 ;
-; Modifies: AX, CX
+; Output:
+;	If successful, carry clear, AX = # sectors read
+;	If unsuccessful, carry set, AH = BIOS error code
+;
+; Modifies:
+;	AX, CX
 ;
 DEFPROC	read_cluster
 	push	dx		; DX = sectors this cluster already read
@@ -688,11 +772,19 @@ ENDPROC	read_cluster
 ;
 ; read_sectors
 ;
-; Read CL sectors into DI using LBA in AX and BPB at SI
+; Read CL sectors into ES:DI using LBA in AX and BPB at DS:SI.
 ;
-; Returns: carry clear if successful, set if error (see AH for reason)
+; Inputs:
+;	AX = LBA
+;	CL = # sectors
+;	DS:SI -> BPB
+;	ES:DI -> buffer
 ;
-; Modifies: AX
+; Output:
+;	AX and carry are whatever the ROM returns
+;
+; Modifies:
+;	AX
 ;
 DEFPROC	read_sectors
 	push	bx

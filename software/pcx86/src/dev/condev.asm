@@ -51,18 +51,21 @@ CT_NEXT		dw	?	; 00h: segment of next context, 0 if end
 CT_STATUS	dw	?	; 02h: context status bits (CTSTAT_*)
 CT_CONW		db	?	; 04h: eg, context width (eg, 80 cols)
 CT_CONH		db	?	; 05h: eg, context height (eg, 25 rows)
-CT_CONX		db	?	; 06h: eg, content X of top left (eg, 0)
-CT_CONY		db	?	; 07h: eg, content Y of top left (eg, 0)
-CT_CURX		db	?	; 08h: eg, cursor X within context (eg, 1)
-CT_CURY		db	?	; 09h: eg, cursor Y within context (eg, 1)
-CT_MAXX		db	?	; 0Ah; eg, maximum X within context (eg, 79)
-CT_MAXY		db	?	; 0Bh: eg, maximum Y within context (eg, 24)
-CT_BUFFER	dd	?	; 0Ch: eg, 0B800h:00A2h
-CT_PORT		dw	?	; 10h: eg, 3D4h
+CT_CONX		db	?	; 06h: eg, context X of top left (eg, 0)
+CT_CONY		db	?	; 07h: eg, context Y of top left (eg, 0)
+CT_MAXX		db	?	; 08h; eg, maximum X within context (eg, 79)
+CT_MAXY		db	?	; 09h: eg, maximum Y within context (eg, 24)
+CT_CURX		db	?	; 0Ah: eg, cursor X within context (eg, 1)
+CT_CURY		db	?	; 0Bh: eg, cursor Y within context (eg, 1)
+CT_CURMINX	db	?	; 0Ch: eg, minimum cursor X (eg, 1)
+CT_CURMINY	db	?	; 0Dh: eg, minimum cursor Y (eg, 1)
+CT_CURMAXX	db	?	; 0Eh: eg, minimum cursor X (eg, 1)
+CT_CURMAXY	db	?	; 0Fh: eg, minimum cursor Y (eg, 1)
+CT_BUFFER	dd	?	; 10h: eg, 0B800h:00A2h
+CT_PORT		dw	?	; 14h: eg, 3D4h
 CONTEXT		ends
 
-CTSTAT_SYSTEM	equ	0001h	; context is system console
-CTSTAT_PAUSED	equ	0002h	; context is paused (triggered by CTRLS hotkey)
+CTSTAT_PAUSED	equ	0001h	; context is paused (triggered by CTRLS hotkey)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -322,15 +325,12 @@ dco1:	mov	ds,ax
 dco1a:	xchg	[ct_head],ax
 	mov	ds:[CT_NEXT],ax
 	mov	ds:[CT_STATUS],0
-	test	ax,ax			; first CONSOLE?
-	jnz	dco5			; no
-	or	ds:[CT_STATUS],CTSTAT_SYSTEM
 ;
 ; Set context screen size (CONW,CONH) and position (CONX,CONY) based on
 ; (CL,CH) and (DL,DH), and then set context cursor maximums (MAXX,MAXY) from
 ; the context size.
 ;
-dco5:	mov	word ptr ds:[CT_CONW],cx; set CT_CONW (CL) and CT_CONH (CH)
+	mov	word ptr ds:[CT_CONW],cx; set CT_CONW (CL) and CT_CONH (CH)
 	mov	word ptr ds:[CT_CONX],dx; set CT_CONX (DL) and CT_CONY (DH)
 	sub	cx,0101h
 	mov	word ptr ds:[CT_MAXX],cx; set CT_MAXX (CL) and CT_MAXY (CH)
@@ -812,7 +812,7 @@ dc7:	mov	dl,ds:[CT_MAXX]
 
 dc8:	call	write_curpos		; write CL at (DL,DH)
 ;
-; Advance DL, advancing DH as needed, and scrolling the context as needed.
+; Advance DL, advance DH as needed, and scroll the context as needed.
 ;
 	add	dl,ch			; advance DL
 	pop	cx
@@ -1186,19 +1186,10 @@ ENDPROC	write_curpos
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	write_horzpair
-;
-; Skipping characters along the top row to preserve a console "label"
-; is no longer done here.
-;
-	; test	ds:[CT_STATUS],CTSTAT_SYSTEM
-	; jz	whp1
-	; cmp	dl,14			; skip over 14 chars at the top
-	; jbe	whp2
-
-whp1:	xchg	cl,ch
+	xchg	cl,ch
 	call	write_curpos
 	xchg	cl,ch
-whp2:	xchg	dh,bh
+	xchg	dh,bh
 	call	write_curpos
 	xchg	dh,bh
 	ret
