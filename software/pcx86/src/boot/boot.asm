@@ -88,8 +88,6 @@ part1:	push	cs
 ; load the first sector of the first file, and continue booting from there.
 ;
 DEFPROC	main,far			; now at BOOT_SECTOR_LO
-	mov	si,offset product
-	call	print
 	cmp	ds:[mybpb].BPB_MEDIA,MEDIA_HARD
 	je	find			; jump if we're a hard disk
 	mov	ah,HDC_GETPARMS		; get hard drive parameters
@@ -346,10 +344,10 @@ ENDPROC	printp
 ;
 ; Strings
 ;
-product		db	"BASIC-DOS "
+prompt		db	"BASIC-DOS "
 		VERSION_STR
-crlf		db	13,10,0
-prompt		db	"Press any key to start...",0
+crlf		db	13,10
+		db	"Press any key to start...",0
 errmsg1		db	"Missing system files, halted",0
 
 	org 	BOOT_SECTOR_LO + 510
