@@ -450,6 +450,7 @@ diend:
 ; available SCB.  The first time through, CFG_SHELL is used as a fallback,
 ; so even if there are no SHELL definitions, at least one will be loaded.
 ;
+	sub	bx,bx			; BX = SCB load count
 	sub	cx,cx			; CL = SCB #
 	mov	dx,offset SHELL_FILE	; DX = default shell
 si14:	mov	si,offset CFG_SHELL
@@ -465,23 +466,23 @@ si16:	test	dx,dx			; do we still have a default?
 ;
 	mov	ax,DOS_UTL_LOAD		; load SHELL DS:DX into specified SCB
 	int	21h
-	jnc	si18
-
-	PRINTF	<'Error loading "%ls": %d',13,10>,dx,ds,ax
-
-si18:	inc	cx			; advance SCB #
-	sub	dx,dx
-	jmp	si14
-;
-; Set DX to the number of SCBs successfully loaded, and then start each one.
-;
-si20:	mov	dx,cx
-	sub	cx,cx
-si22:	mov	ax,DOS_UTL_START	; CL = SCB #
+	jc	si18
+	mov	ax,DOS_UTL_START	; CL = SCB #
 	int	21h			; must be valid, so no error checking
-	inc	cx
-	cmp	cx,dx
-	jb	si22
+	inc	bx
+si17:	inc	cx			; advance SCB #
+	sub	dx,dx			; no more default
+	jmp	si14
+
+si18:	PRINTF	<'Error loading "%ls": %d',13,10>,dx,ds,ax
+	jmp	si17
+;
+; Although it may appear that every SCB was started immediately after loading,
+; nothing can actually begin running until we obtain access to the CLOCK$ device
+; and revector all the hardware interrupt handlers that drive our scheduler.
+;
+si20:	test	bx,bx
+	jz	sierr2			; if no SCBs loaded, that's not good
 ;
 ; Functions like SLEEP need access to the clock device, so we save its
 ; address in clk_ptr.  While we could open the device normally and obtain a
@@ -703,8 +704,7 @@ PRN_DEVICE	db	"PRN",0
 CLK_DEVICE	db	"CLOCK$",0
 SHELL_FILE	db	"COMMAND.COM",0	; default SHELL file
 
-SYS_MSG		db	13,10
-		db	"BASIC-DOS for the IBM PC",13,10
+SYS_MSG		db	"BASIC-DOS for the IBM PC",13,10
 		db	"Copyright (C) pcjs.org 1981-2021",13,10,13,10,'$'
 
 	IFDEF	MAXDEBUG

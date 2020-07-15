@@ -407,7 +407,9 @@ DEFPROC	part2,far
 	rep	movsb			; move first bit of DEV_FILE
 
 	mov	bx,offset DEV_FILE + (offset PART2_COPY - offset PART1_COPY)
-	sub	di,ax			; adjust load addr for read_data
+	sub	[bx+4],ax		; reduce file size by AX
+	sbb	[bx+6],cx		; (CX is zero)
+
 	mov	si,offset PART2_COPY
 	call	read_data		; read the rest of DEV_FILE (see BX)
 	jc	i2			; load_error
@@ -536,13 +538,13 @@ ENDPROC	get_lba2
 ;
 DEFPROC	load_error
 	mov	si,offset errmsg2
-	lodsb
+le1:	lodsb
 	test	al,al
 	jz	$			; "halt"
 	mov	ah,VIDEO_TTYOUT
 	mov	bh,0
 	int	INT_VIDEO
-	jmp	load_error
+	jmp	le1
 ENDPROC	load_error
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -676,12 +678,11 @@ DEFPROC	read_cluster
 	jbe	rc8		; no
 	call	read_sectors
 	jc	rc9
-rc8:	add	cx,dx		; adjust total sectors read so far
 ;
 ; The ROM claims that, on success, AL will (normally) contain the number of
 ; sectors actually read, but I'm not seeing that, so I'll just move CL to AL.
 ;
-	xchg	ax,cx
+rc8:	xchg	ax,cx
 rc9:	ret
 ENDPROC	read_cluster
 

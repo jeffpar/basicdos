@@ -3,25 +3,25 @@
 Warning: no stack segment
 
  Start  Stop   Length Name                   Class
- 00000H 00959H 0095AH BOOT                   CODE
+ 00000H 0095BH 0095CH BOOT                   CODE
 
   Address         Publics by Name
 
  0000:0654       FIND_DIRENT
  0000:068C       GET_CHS
- 0000:07F0       GET_CHS2
+ 0000:07F4       GET_CHS2
  0000:06A5       GET_LBA
- 0000:0809       GET_LBA2
- 0000:0819       LOAD_ERROR
+ 0000:080D       GET_LBA2
+ 0000:081D       LOAD_ERROR
  0000:05CD       MAIN
  0000:0760       PART2
- 0000:07C1       PART3
+ 0000:07C5       PART3
  0000:06D7       PRINTP
- 0000:08C4       READ_CLUSTER
- 0000:087F       READ_DATA
- 0000:0829       READ_FAT
+ 0000:08C8       READ_CLUSTER
+ 0000:0883       READ_DATA
+ 0000:082D       READ_FAT
  0000:06B5       READ_SECTOR
- 0000:08D8       READ_SECTORS
+ 0000:08DA       READ_SECTORS
  0000:06C5       WAIT
 
   Address         Publics by Value
@@ -34,11 +34,11 @@ Warning: no stack segment
  0000:06C5       WAIT
  0000:06D7       PRINTP
  0000:0760       PART2
- 0000:07C1       PART3
- 0000:07F0       GET_CHS2
- 0000:0809       GET_LBA2
- 0000:0819       LOAD_ERROR
- 0000:0829       READ_FAT
- 0000:087F       READ_DATA
- 0000:08C4       READ_CLUSTER
- 0000:08D8       READ_SECTORS
+ 0000:07C5       PART3
+ 0000:07F4       GET_CHS2
+ 0000:080D       GET_LBA2
+ 0000:081D       LOAD_ERROR
+ 0000:082D       READ_FAT
+ 0000:0883       READ_DATA
+ 0000:08C8       READ_CLUSTER
+ 0000:08DA       READ_SECTORS

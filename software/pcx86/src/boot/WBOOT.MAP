@@ -3,7 +3,7 @@
 Warning: no stack segment
 
  Start  Stop   Length Name                   Class
- 00000H 004B9H 004BAH CODE                   
+ 00000H 002D6H 002D7H CODE                   
 
   Address         Publics by Name
 

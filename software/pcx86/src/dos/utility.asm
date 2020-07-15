@@ -441,17 +441,17 @@ DEFPROC	utl_tokify,DOS
 	add	si,offset INP_BUF	; SI -> 1st character
 	mov	[pStart],si		; BP = starting position
 	lodsb				; preload the first character
-	jmp	ut8			; and dive in
+	jmp	tf8			; and dive in
 ;
 ; Skip all whitespace in front of the next token.
 ;
-ut1:	lodsb
-ut2:	cmp	al,CHR_RETURN
-	je	ut9
+tf1:	lodsb
+tf2:	cmp	al,CHR_RETURN
+	je	tf9
 	cmp	al,CHR_SPACE
-	je	ut1
+	je	tf1
 	cmp	al,CHR_TAB
-	je	ut1
+	je	tf1
 ;
 ; For the next token word-pair, we need to record the offset and the length;
 ; we know the offset already (SI-pStart-1), so put that in DX.
@@ -464,25 +464,25 @@ ut2:	cmp	al,CHR_RETURN
 ;
 	mov	ah,0			; AH = 0 (or quote char)
 	cmp	al,'"'
-	je	ut3
+	je	tf3
 	cmp	al,"'"
-	jne	ut4
-ut3:	mov	ah,al
-ut4:	lodsb
+	jne	tf4
+tf3:	mov	ah,al
+tf4:	lodsb
 	cmp	al,CHR_RETURN
-	je	ut6
+	je	tf6
 	test	ah,ah			; did we start with a quote?
-	jz	ut5			; no
+	jz	tf5			; no
 	cmp	al,ah			; yes, so have we found another?
-	jnz	ut4			; no
+	jnz	tf4			; no
 	lodsb				; yes, preload the next character
-	jmp	short ut6		; and record the token length
-ut5:	cmp	al,CHR_SPACE
-	je	ut6
+	jmp	short tf6		; and record the token length
+tf5:	cmp	al,CHR_SPACE
+	je	tf6
 	cmp	al,CHR_TAB
-	jne	ut4
+	jne	tf4
 
-ut6:	lea	cx,[si-1]
+tf6:	lea	cx,[si-1]
 	sub	cx,[pStart]
 	sub	cx,dx			; CX = length of token
 ;
@@ -494,10 +494,10 @@ ut6:	lea	cx,[si-1]
 	shr	bx,1
 	inc	bx			; increment token index
 
-ut8:	cmp	bl,es:[di].TOK_MAX	; room for more tokens?
-	jb	ut2			; yes
+tf8:	cmp	bl,es:[di].TOK_MAX	; room for more tokens?
+	jb	tf2			; yes
 
-ut9:	LEAVE
+tf9:	LEAVE
 
 	mov	es:[di].TOK_CNT,bl	; update # tokens
 	mov	[bp].REG_AX,bx		; return # tokens in AX, too
@@ -531,10 +531,10 @@ DEFPROC	utl_tokid,DOS
 	mov	dx,es:[di]		; DX = number of tokens in DEF_TOKENs
 	add	di,2
 
-utc0:	mov	ax,-1
+td0:	mov	ax,-1
 	cmp	bp,dx
 	stc
-	je	utc9
+	je	td9
 	mov	bx,dx
 	add	bx,bp
 	shr	bx,1			; BX = midpoint index
@@ -556,42 +556,42 @@ utc0:	mov	ax,-1
 	push	si
 	push	di
 	mov	di,es:[di+bx].TOK_OFF	; ES:DI -> current token
-utc1:	cmpsb				; compare input to current
-	jne	utc2
+td1:	cmpsb				; compare input to current
+	jne	td2
 	sub	cx,0101h
-	jz	utc2			; match!
+	jz	td2			; match!
 	test	cl,cl
 	stc
-	jz	utc2			; if CL exhausted, input < current
+	jz	td2			; if CL exhausted, input < current
 	test	ch,ch
-	jz	utc2			; if CH exhausted, input > current
-	jmp	utc1
+	jz	td2			; if CH exhausted, input > current
+	jmp	td1
 
-utc2:	pop	di
+td2:	pop	di
 	pop	si
-	jcxz	utc8
+	jcxz	td8
 ;
 ; If carry is set, set the bottom range to BX, otherwise set the top range
 ;
 	pop	bx			; BX = index of token we just tested
 	xchg	cx,ax			; restore CL from AL
-	jnc	utc3
+	jnc	td3
 	mov	dx,bx			; new bottom is middle
-	jmp	utc0
-utc3:	inc	bx
+	jmp	td0
+td3:	inc	bx
 	mov	bp,bx			; new top is middle + 1
-	jmp	utc0
+	jmp	td0
 
-utc8:	sub	ax,ax			; zero AX (and carry, too)
+td8:	sub	ax,ax			; zero AX (and carry, too)
 	mov	al,es:[di+bx].TOK_ID	; AX = token ID
 	mov	dx,es:[di+bx].TOK_DATA	; DX = user-defined token data
 	pop	bx			; toss BX from stack
 
-utc9:	pop	bp
-	jc	utc9a
+td9:	pop	bp
+	jc	td9a
 	mov	[bp].REG_DX,dx
 	mov	[bp].REG_AX,ax
-utc9a:	ret
+td9a:	ret
 ENDPROC	utl_tokid
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
