@@ -102,67 +102,7 @@
       "flicker": 0,
       "overlay": true
     },
-    {
-      "id": "fdcNEC",
-      "class": "fdc",
-      "autoMount": {
-        "A": {"name": "BASIC-DOS"},
-        "B": {"name": "PC DOS 2.00 (Disk 1)"}
-      },
-      "diskettes": "",
-      "server": "",
-      "style": {
-        "float": "left",
-        "padding-right": "8px",
-        "padding-bottom": "8px"
-      },
-      "controls": [
-        {
-          "type": "group"
-        },
-        {
-          "id": "listDrives",
-          "type": "list"
-        },
-        {
-          "id": "listDisks",
-          "type": "list",
-          "options": {
-            "": "None",
-            "/software/pcx86/disks/BASIC-DOS.json": "BASIC-DOS",
-            "/software/pcx86/disks/PCDOS100.json": "PC DOS 1.00",
-            "/software/pcx86/disks/PCDOS110.json": "PC DOS 1.10",
-            "/software/pcx86/disks/PCDOS200-DISK1.json": "PC DOS 2.00 (Disk 1)",
-            "/software/pcx86/disks/PCDOS200-DISK2.json": "PC DOS 2.00 (Disk 2)"
-          }
-        },
-        {
-          "id": "loadDisk",
-          "type": "button",
-          "label": "Load"
-        },
-        {
-          "id": "saveDisk",
-          "type": "button",
-          "label": "Save",
-          "style": {
-            "padding-right": "8px"
-          }
-        },
-        {
-          "id": "descDisk",
-          "type": "description",
-          "style": {
-            "padding-right": "8px"
-          }
-        },
-        {
-          "id": "mountDisk",
-          "type": "file",
-          "label": "Mount"
-        }
-      ]
-    },
+    "/configs/pcx86/machine/fdc-5150.json",
     {
       "id": "ramLow",
       "class": "ram",

@@ -52,11 +52,20 @@ m5:	lodsb
 	cmp	al,' '
 	je	m6
 	cmp	al,0Dh
-	je	m6
-	jmp	m5
+	jne	m5
 m6:	mov	byte ptr [si-1],0	; null-terminate the second filename
+	jmp	short open
 
-open:	mov	ax,3D00h		; AH = 3Dh (OPEN FILE)
+eopen:	mov	dx,offset emopen
+	jmp	emsg
+eread:	mov	dx,offset emread
+	jmp	emsg
+ewrite:	mov	dx,offset emwrite
+	jmp	emsg
+echeck:	mov	dx,offset emcheck
+	jmp	emsg
+
+open:	mov	ax,3D02h		; AH = 3Dh (OPEN FILE), AL = R/W
 	int	21h
 	jc	eopen
 	xchg	bx,ax			; BX = file handle
@@ -89,23 +98,44 @@ open:	mov	ax,3D00h		; AH = 3Dh (OPEN FILE)
 	sub	cx,cx			; CX:DX = offset
 	int	21h
 	mov	cx,514			; CX = number of bytes
-	mov	dx,offset buffer	; DS:DX -> buffer
+	mov	dx,offset buffer + 512	; DS:DX -> buffer + 512
 	mov	ah,3Fh			; AH = 3Fh (READ FILE)
 	int	21h
 	jc	eread
 	cmp	ax,512			; 2nd half small enough?
 	ja	echeck			; no
 	push	ax			; AX = number of bytes read
+;
+; Before we close the original file (BOOT.COM), let's write the 1st half of
+; the boot sector back to it, and then truncate it at 512 bytes.
+;
+	mov	ax,4200h		; AH = 42h (SEEK), AL = 0 (FROM START)
+	sub	cx,cx
+	sub	dx,dx
+	int	21h
+	mov	dx,offset buffer
+	mov	cx,512
+	mov	ah,40h
+	int	21h
+	mov	ah,40h			; write zero bytes to truncate here
+	sub	cx,cx
+	int	21h
 	mov	ah,3Eh			; AH = 3Eh (CLOSE FILE)
 	int	21h
-	mov	ah,3Ch
+	jmp	short create
+
+ecreat:	mov	dx,offset emcreat
+emsg:	mov	al,0FFh
+	jmp	short msg
+
+create:	mov	ah,3Ch
 	sub	cx,cx
 	mov	dx,bp			; DS:DX -> second filename
 	int	21h
 	pop	cx			; CX = number of bytes to write
 	jc	ecreat
 	xchg	bx,ax			; BX = handle
-	mov	dx,offset buffer	; DS:DX -> buffer
+	mov	dx,offset buffer + 512	; DS:DX -> buffer + 512
 	mov	ah,40h			; AH = 40h (WRITE FILE)
 	int	21h
 	jc	ecreat
@@ -113,17 +143,7 @@ open:	mov	ax,3D00h		; AH = 3Dh (OPEN FILE)
 	int	21h
 	mov	al,0			; exit with zero return code
 	mov	dx,offset success
-	jmp	short msg
-eopen:	mov	dx,offset emopen
-	jmp	short emsg
-ecreat:	mov	dx,offset emcreat
-	jmp	short emsg
-ewrite:	mov	dx,offset emwrite
-	jmp	short emsg
-echeck:	mov	dx,offset emcheck
-	jmp	short emsg
-eread:	mov	dx,offset emread
-emsg:	mov	al,0FFh
+
 msg:	push	ax
 	mov	ah,9
 	int	21h
@@ -140,7 +160,7 @@ emcheck	db	"BOOT.COM check failure",13,10,'$'
 emwrite	db	"Unable to write BOOT.COM to boot sector",13,10,'$'
 emcreat	db	"Unable to create BOOT2.COM",13,10,'$'
 success	db	"Boot sector on drive A: updated",13,10,'$'
-buffer	db	514 dup (0)
+buffer	label	byte
 
 CODE	ENDS
 

@@ -360,6 +360,18 @@ DEFPROC	dos_ddint_leave,DOSFAR
 ;
 ; If both Z and C are set, then enter DOS to perform a reschedule.
 ;
+; TODO: Once sysinit has revectored DDINT_LEAVE, we're off and running, but
+; the very first call to scb_yield will occur while scb_active is still zero,
+; which scb_yield will misinterpret as a WAIT rather than a YIELD.  That's
+; OK, but only so long as at least one SCB is runnable, and only so long as
+; scb_active NEVER goes to zero again, lest we run the risk of blowing the
+; stack, as successive timer interrupts attempt to yield and fail.
+;
+; There was no risk of that when scb_yield locked the SCBs first, but we
+; prefer to no longer do that, because we want every yield to at least take
+; a quick look at all the SCBs and "stoke" any SCB that would have started
+; running earlier if another SCB hadn't been holding the lock.
+;
 	cld
 	sub	sp,size WS_TEMP
 	push	ax

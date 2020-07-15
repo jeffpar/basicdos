@@ -12,6 +12,22 @@ let gulp = require("gulp");
 let run = require("gulp-run-command").default;
 
 let disks = {
+    "BASIC-DOS": [
+        "./software/pcx86/src/dev/IBMBIO.COM",
+        "./software/pcx86/src/dos/IBMDOS.COM",
+        "./software/pcx86/src/boot/config1/CONFIG.SYS",
+        "./software/pcx86/src/util/COMMAND.COM",
+        "./software/pcx86/src/util/PRIMES.EXE",
+        "./software/pcx86/src/util/SLEEP.COM"
+    ],
+    "BASIC-DOS2": [
+        "./software/pcx86/src/dev/IBMBIO.COM",
+        "./software/pcx86/src/dos/IBMDOS.COM",
+        "./software/pcx86/src/boot/config2/CONFIG.SYS",
+        "./software/pcx86/src/util/COMMAND.COM",
+        "./software/pcx86/src/util/PRIMES.EXE",
+        "./software/pcx86/src/util/SLEEP.COM"
+    ],
     "BDS-BOOT": [
         "./software/pcx86/src/boot/boot.asm",
         "./software/pcx86/src/boot/wboot.asm",
@@ -90,17 +106,29 @@ for (let diskName in disks) {
     let diskImage = "./software/pcx86/disks/" + diskName + ".json";
     let hddImage = "";
     let diskFiles = "";
-    let kbTarget = 320;
+    let kbTarget = 160;
     if (disks[diskName].length == 1) {
         kbTarget = 10000;
         diskFiles = "--dir " + path.dirname(disks[diskName][0]);
         hddImage = " --output " + diskImage.replace(diskName, "archive/" + diskName).replace(".json",".hdd");
     } else {
+        let dirPrev = "";
         for (let i = 0; i < disks[diskName].length; i++) {
             if (diskFiles) diskFiles += ",";
-            diskFiles += disks[diskName][i];
+            let fileNext = disks[diskName][i];
+            let dirNext = path.dirname(fileNext);
+            if (dirNext == dirPrev) {
+                fileNext = path.basename(fileNext);
+            }
+            diskFiles += fileNext;
+            dirPrev = dirNext;
         }
         diskFiles = "--files " + diskFiles;
+        if (diskName.startsWith("BDS-")) {
+            kbTarget = 320;
+        } else {
+            diskFiles += " --boot ./software/pcx86/src/boot/BOOT.COM";
+        }
     }
     let cmd = "node ${PCJS}/tools/modules/diskimage.js " + diskFiles + " --output " + diskImage + hddImage + " --target=" + kbTarget + " --overwrite";
     cmd = cmd.replace(/\$\{([^}]+)\}/g, (_,n) => process.env[n]);
