@@ -24,13 +24,14 @@ BOOT	segment word public 'CODE'
 ;
 ;	CS = 0
 ;	IP = 7C00h
+;	DL = drive # (eg, 00h or 80h)
 ;
-; Although the original IBM PC had these additional inputs:
+; The original IBM PC had these additional inputs:
 ;
 ;	DS = ES = 0
 ;	SS:SP = 30h:100h
 ;
-; that apparently didn't become a standard, because if we rely on any of those
+; which apparently didn't become a standard, because if we rely on those
 ; other assumptions, we can run into boot failures.
 ;
 start:	cld
@@ -81,17 +82,18 @@ part1:	push	cs
 ;
 ; main
 ;
-; If there's a hard disk, display a prompt.
+; If there's a hard disk, but we didn't boot from it, display a prompt.
 ;
 ; If there's no hard disk (or we were told to bypass it), then look for
 ; all the the required files in the root directory (starting with DEV_FILE),
 ; load the first sector of the first file, and continue booting from there.
 ;
 DEFPROC	main,far			; now at BOOT_SECTOR_LO
-	cmp	ds:[mybpb].BPB_MEDIA,MEDIA_HARD
-	je	find			; jump if we're a hard disk
+	mov	ds:[mybpb].BPB_DRIVE,dl	; save boot drive (DL) in BPB
+	test	dl,dl			; hard drive?
+	jl	find			; yes
 	mov	ah,HDC_GETPARMS		; get hard drive parameters
-	mov	dl,80h
+	mov	dl,80h			;
 	int	INT_FDC			;
 	jc	find			; jump if call failed
 	test	dl,dl			; any hard disks?
