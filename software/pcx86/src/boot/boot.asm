@@ -98,9 +98,10 @@ DEFPROC	main,far			; now at BOOT_SECTOR_LO
 	jc	find			; jump if call failed
 	test	dl,dl			; any hard disks?
 	jz	find			; jump if no hard disks
-	mov	si,offset prompt
-	call	print
-	call	wait			; wait for key
+	mov	si,offset product
+	call	print			; print the product name
+	call	print			; then the prompt
+	call	wait			; wait for a key
 	jcxz	hard			; jump if no key pressed
 ;
 ; Find all the files in our file list, starting with DEV_FILE.
@@ -385,10 +386,10 @@ ENDPROC	printp
 ;
 ; Strings
 ;
-prompt		db	"BASIC-DOS "
+product		db	"BASIC-DOS "
 		VERSION_STR
-crlf		db	13,10
-		db	"Press any key to start...",0
+crlf		db	13,10,0
+prompt		db	"Press any key to start...",0
 errmsg1		db	"Missing system files, halted",0
 
 	org 	BOOT_SECTOR_LO + 510

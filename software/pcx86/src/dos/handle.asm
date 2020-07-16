@@ -54,20 +54,17 @@ ENDPROC	hdl_open
 ; hdl_close (REG_AH = 3Eh)
 ;
 ; Inputs:
-;	REG_BX = handle
+;	REG_BX = PFH (Process File Handle)
 ;
 ; Outputs:
 ;	On success, carry clear
-;	On failure, REG_AX = error, carry set
+;	On failure, carry set, REG_AX = error
 ;
 DEFPROC	hdl_close,DOS
-	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
-	mov	si,bx			; save it
-	call	get_sfb
-	jc	hc8
-	call	sfb_close		; BX -> SFB, SI = PFH
+	mov	bx,[bp].REG_BX		; BX = Process File Handle
+	call	pfh_close
 	jnc	hc9
-hc8:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
+	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
 hc9:	ret
 ENDPROC	hdl_close
 
@@ -711,8 +708,14 @@ ENDPROC	sfh_addref
 ;
 ; pfh_close
 ;
+; Close the process file handle in BX.
+;
 ; Inputs:
 ;	BX = handle (PFH)
+;
+; Outputs:
+;	On success, carry clear
+;	On failure, carry set, REG_AX = error
 ;
 ; Modifies:
 ;	AX, DX

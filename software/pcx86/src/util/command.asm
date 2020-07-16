@@ -303,8 +303,6 @@ ENDPROC	cmdDir
 ;
 ; cmdExit
 ;
-; Exits (if we have a parent)
-;
 ; Inputs:
 ;	DS:SI -> filespec (with length CX)
 ;
@@ -315,12 +313,9 @@ ENDPROC	cmdDir
 ;	Any
 ;
 DEFPROC	cmdExit
-	mov	ax,ds:[PSP_PARENT]
-	test	ax,ax		; do we have a parent?
-	jz	ex9		; no, can't exit
-	PRINTF	<"Returning to process %#04x",13,10>,ax
-	int	20h		; terminate ourselves
-ex9:	ret
+	int 3
+	int	20h		; terminate
+	ret			; unless we can't (ie, if no parent)
 ENDPROC	cmdExit
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

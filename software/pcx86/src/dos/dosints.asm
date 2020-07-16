@@ -94,7 +94,7 @@ ENDPROC	dos_oferr
 DEFPROC	dos_term,DOSFAR
 	mov	ah,DOS_PSP_TERM
 	int	21h
-	ASSERT	NEVER			; assert that we never get here
+	iret
 ENDPROC	dos_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

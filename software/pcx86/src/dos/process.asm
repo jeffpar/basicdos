@@ -31,18 +31,24 @@ DOS	segment word public 'CODE'
 ;
 DEFPROC	psp_term,DOS
 	sub	ax,ax			; default exit code/exit type
+
 	DEFLBL	psp_term_exitcode,near
-	push	ax			; save it on the stack
-;
-; Process termination while SCBs are locked will generally be unrecoverable
-;
-	ASSERT	Z,<cmp [scb_locked],-1>
+	ASSERT	Z,<cmp [scb_locked],-1>	; SCBs should never be locked now
 
 	mov	es,[psp_active]
 	ASSUME	ES:NOTHING
+	mov	si,es:[PSP_PARENT]
+;
+; TODO: We may elect to terminate a parent-less program by destroying the
+; entire session, as long as it's not the first session.  But for now, we just
+; don't allow termination.
+;
+	test	si,si
+	jz	pt9			; can't exit, nowhere to go
 ;
 ; Close process file handles.
 ;
+	push	ax			; save exit code/exit type on stack
 	mov	cx,size PSP_PFT
 	sub	bx,bx			; BX = handle (PFH)
 pt1:	call	pfh_close		; close process file handle
@@ -70,12 +76,14 @@ pt1:	call	pfh_close		; close process file handle
 	mov	ax,es:[PSP_DTAPREV].SEG	;  process to restore this itself after
 	mov	[bx].SCB_DTA.SEG,ax	;  an exec)
 
-	push	es:[PSP_PARENT]		; save PSP of parent
+	push	si			; save PSP of parent
 	mov	ax,es
 	call	free			; free PSP in AX
 	pop	ax			; restore PSP of parent
-	test	ax,ax			; if there's no parent
-	jz	pt9			; then there's no stack to switch to
+;
+; TODO: If we elected to terminate a parent-less program, this is the
+; point where we would tear down the session, instead of returning anywhere.
+;
 	mov	es,ax			; ES = PSP of parent
 	pop	dx
 	pop	cx			; we now have PSP_EXRET in CX:DX
@@ -92,9 +100,8 @@ pt1:	call	pfh_close		; close process file handle
 	mov	[bp].REG_CS,cx		; copy PSP_EXRET to caller's CS:IP
 	mov	[bp].REG_IP,dx		; (normally they will be identical)
 	jmp	dos_exit		; we'll let dos_exit turn interrupts on
-pt9:	add	sp,6
-	ASSERT	NEVER			; it's not good to be here....
-	ret
+
+pt9:	ret
 ENDPROC	psp_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
