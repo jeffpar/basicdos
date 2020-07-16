@@ -24,7 +24,7 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
 	DEFLBL	CON_LIMITS,word
-	dw	80,16,80, 25,4,25, 0,0,79, 0,0,24
+	dw	80,16,80, 25,4,25, 0,0,79, 0,0,24, 1,0,1
 
 	DEFLBL	DBL_BORDER,word
 	dw	0C9BBh,0BABAh,0C8BCh,0CDCDh
@@ -57,7 +57,8 @@ CT_PORT		dw	?	; 0Eh: eg, 3D4h
 CT_BUFFER	dd	?	; 10h: eg, 0B800h:00A2h
 CONTEXT		ends
 
-CTSTAT_PAUSED	equ	0001h	; context is paused (triggered by CTRLS hotkey)
+CTSTAT_BORDER	equ	0001h	; context has border
+CTSTAT_PAUSED	equ	0002h	; context is paused (triggered by CTRLS hotkey)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -298,12 +299,19 @@ DEFPROC	ddcon_open
 	mov	ax,DOS_UTL_ATOI16
 	int	21h
 	mov	dh,al			; DH = starting row
+	mov	ax,DOS_UTL_ATOI16
+	int	21h
+	cbw
+	mov	bx,ax			; BX = border (0 for none)
+	ASSERT	CTSTAT_BORDER,EQ,1
 	pop	ds
 	ASSUME	DS:CODE
 
+	push	bx
 	mov	bx,(size context + 15) SHR 4
 	mov	ah,DOS_MEM_ALLOC
 	int	INT_DOSFUNC
+	pop	bx
 	jnc	dco1
 	jmp	dco7
 
@@ -316,7 +324,7 @@ dco1:	mov	ds,ax
 
 dco1a:	xchg	[ct_head],ax
 	mov	ds:[CT_NEXT],ax
-	mov	ds:[CT_STATUS],0
+	mov	ds:[CT_STATUS],bx
 ;
 ; Set context dimensions (CL,CH) and position (DL,DH), and then determine
 ; cursor minimums and maximums from the context size.
@@ -325,6 +333,8 @@ dco1a:	xchg	[ct_head],ax
 	sub	cx,ax
 	mov	ds:[CT_CONDIM],cx	; set CT_CONDIM (CL,CH)
 	mov	ds:[CT_CONPOS],dx	; set CT_CONPOS (DL,DH)
+	mov	al,bl
+	mov	ah,bl			; AX = 0101h for border, 0000h for none
 	mov	ds:[CT_CURMIN],ax	; set CT_CURMIN (AL,AH)
 	sub	cx,ax
 	mov	ds:[CT_CURMAX],cx	; set CT_CURMAX (CL,CH)
@@ -351,12 +361,8 @@ dco1a:	xchg	[ct_head],ax
 
 	mov	ax,[ADDR_6845]
 	mov	ds:[CT_PORT],ax
-;
-; OK, so if this context is supposed to have a border, draw all 4 sides now.
-;
-; TODO: Add a mechanism for making the border optional.
-;
-	call	draw_border
+
+	call	draw_border		; draw the context's border, if any
 
 dco6:	mov	al,0
 	call	scroll			; clear the interior
@@ -741,6 +747,8 @@ ENDPROC	check_hotkey
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	draw_border
+	test	ds:[CT_STATUS],CTSTAT_BORDER
+	jz	db9
 	mov	ax,ds
 	mov	si,offset DBL_BORDER
 	cmp	ax,[ct_focus]
@@ -767,10 +775,10 @@ db3:	lods	word ptr cs:[si]
 db4:	mov	dh,0
 	inc	dx			; advance X, holding Y constant
 	cmp	dl,bl
-	jae	db6
+	jae	db9
 	call	write_horzpair
 	jmp	db4
-db6:	ret
+db9:	ret
 ENDPROC	draw_border
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
