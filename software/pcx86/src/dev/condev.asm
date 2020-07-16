@@ -126,6 +126,7 @@ dio1:	cmp	al,IOCTL_GETLEN
 	mov	bx,es:[di].DDPRW_LBA	; BX = starting cursor position
 	sub	dx,dx			; DL = current len, DH = previous len
 	mov	ah,ds:[CT_CURMAX].LO	; AH = column max
+	mov	bh,ds:[CT_CURMIN].LO	; BH = column min
 	lds	si,es:[di].DDPRW_ADDR
 	mov	cx,es:[di].DDPRW_LENGTH
 	jcxz	dio7			; nothing to do
@@ -136,7 +137,7 @@ dio2:	lodsb
 	cmp	al,CHR_TAB
 	jne	dio4
 	mov	al,bl			; for CHR_TAB
-	dec	al			; mimic write_context's TAB logic
+	sub	al,bh			; mimic write_context's TAB logic
 	and	al,07h
 	neg	al
 	add	al,8			; AL = # output chars
@@ -258,7 +259,7 @@ ENDPROC	ddcon_write
 ;
 ;	[device]:[cols],[rows],[x],[y],[border],[adapter]
 ;
-; where [device] is CON (otherwise you wouldn't be here), [cols] is number of
+; where [device] is "CON" (otherwise you wouldn't be here), [cols] is number of
 ; columns (up to 80), [rows] is number of rows (up to 25), [x] and [y] are the
 ; top-left row and col of the context, [border] is 1 for a border or 0 for none,
 ; and [adapter] is the adapter #, in case there is more than one video adapter
@@ -282,6 +283,10 @@ DEFPROC	ddcon_open
 	push	ds
 	lds	si,es:[di].DDP_PTR
 	ASSUME	DS:NOTHING
+;
+; We know that DDP_PTR must point to a string containing "CON:" at the
+; very least, so we skip those 4 bytes.
+;
 	add	si,4			; DS:SI -> parms
 	push	cs
 	pop	es
@@ -1101,7 +1106,7 @@ wc1:	cmp	al,CHR_LINEFEED		; LINEFEED?
 	jmp	short wc6
 
 wcht:	mov	bl,dl			; emulate a (horizontal) TAB
-	dec	bl
+	sub	bl,ds:[CT_CURMIN].LO
 	and	bl,07h
 	neg	bl
 	add	bl,8
