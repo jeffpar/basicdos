@@ -174,6 +174,7 @@ ENDPROC itoa
 ;	%s:	string (near CS-relative pointer); use %ls for far pointer
 ;
 ; Non-standard format types:
+;	%U:	skip one 16-bit parameter on the stack; nothing output
 ;	%F:	month portion of a 16-bit DATE value, as string
 ;	%M:	month portion of a 16-bit DATE value, as number (1-12)
 ;	%D:	day portion of a 16-bit DATE value, as number (1-31)
@@ -326,6 +327,10 @@ pfpt:	cmp	al,'A'			; %A (AM or PM portion of TIME)?
 	mov	al,'p'			; no, use 'p'
 pfps2:	mov	[bp+si],ax
 	jmp	pfc
+pfpu:	cmp	al,'U'			; %U (skip one 16-bit parameter)?
+	jnz	pfpz			; no
+	add	si,2			; yes, bump parameter index
+	jmp	pf1			; and return to top
 
 pfpz:	mov	bx,dx			; error, didn't end with known letter
 	mov	al,'%'			; restore '%'

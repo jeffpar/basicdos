@@ -73,9 +73,17 @@ DEFLONG macro	name,values,repeat
 	endm
 
 DEFSTR	macro	name,value
+	public	name
+	public	name&_LEN
 	name	db	value
 	name&_LEN equ ($ - name)
 	endm
+
+EXTSTR	macro	name
+	extrn	name:byte
+	extrn	name&_LEN:abs
+	endm
+
 ;
 ; Tables are like pointers, where .OFF is the offset but .SEG is the limit.
 ; We don't need to record the segment, because offset is always DS-relative.

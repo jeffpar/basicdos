@@ -13,7 +13,7 @@ DOS	segment word public 'CODE'
 
 	EXTERNS	<scb_active>,word
 	EXTERNS	<tty_read,write_string,dos_restart>,near
-	EXTERNS	<STR_CTRLC>,byte
+	EXTSTR	<STR_CTRLC>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -136,7 +136,7 @@ DEFPROC	msc_sigctrlc,DOSFAR
 	call	tty_read		; remove CTRLC from the input buffer
 msg0:	mov	[bx].SCB_CTRLC_ACT,0
 
-msg1:	mov	cx,3
+msg1:	mov	cx,STR_CTRLC_LEN
 	mov	si,offset STR_CTRLC
 	call	write_string
 ;

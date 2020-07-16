@@ -12,7 +12,6 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<strlen,get_sfb,sfb_read,sfb_write,dev_request>,near
-	EXTERNS	<STR_ESC>,byte
 
 	ASSUME	CS:DOS, DS:DOS, ES:BIOS, SS:NOTHING
 
@@ -163,43 +162,45 @@ ti2:	call	tty_read
 	jc	ti9
 ti3:	cmp	al,CHR_RETURN
 	je	ti8
+
 	cmp	al,CHR_BACKSPACE
-	jne	ti5
-	test	bx,bx
-	jz	ti2
+	je	ti3a
+	cmp	al,CHR_ESC
+	je	ti3a
+	jmp	short ti7
 ;
-; Get the logical length of the buffered data, to determine backspace length.
+; Get logical length of data, to determine backspace length.
 ;
+ti3a:	test	bx,bx			; any data?
+	jz	ti2			; no, don't bother
 	push	bx
 	push	cx
+	push	ax			; save character
 	lea	si,[di+2]		; ES:SI -> characters
 	mov	cx,bx			; CX = length
-	mov	bx,dx			; BX = starting position
 	mov	al,IOCTL_GETLEN
-	call	con_ioctl		; AL = length delta for final character
-	mov	ah,0			; AH = total length (discarded)
-	xchg	cx,ax			; CX = length delta
-	jcxz	ti4a
-ti4:	mov	al,CHR_BACKSPACE
-	call	write_char
-	loop	ti4
-ti4a:	pop	cx
-	pop	bx
+	call	con_ioctl		; get logical length values in AX
+	xchg	cx,ax			; CH = total length, CL = length delta
+	pop	ax			; restore character
+;
+; If char is BACKSPACE, output CL times; if ESC, output CH times.
+;
+	cmp	al,CHR_BACKSPACE
+	pop	ax			; AX is now original CX
+	pop	bx			; BX restored
+	jne	ti3b
+	mov	ch,cl
 	dec	bx
-	inc	cx
-	jmp	ti2
-
-ti5:	cmp	al,CHR_ESC
-	jne	ti7
-	mov	cx,3
-	mov	si,offset STR_ESC
-	call	write_string
-	mov	cl,dl
-	jcxz	ti1
-	jmp	short ti5b
-ti5a:	mov	al,CHR_SPACE
-	call	write_char
-ti5b:	loop	ti5a
+	inc	ax
+	jmp	short ti3c
+ti3b:	sub	bx,bx
+ti3c:	xchg	cx,ax			; CX restored, AH = erase count
+	mov	al,CHR_BACKSPACE
+ti3d:	call	write_char
+	dec	ah
+	jnz	ti3d
+	test	bx,bx
+	jnz	ti2
 	jmp	ti1
 
 ti7:	cmp	cl,1			; room for only one more?

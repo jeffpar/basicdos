@@ -24,8 +24,7 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
 	DEFLBL	CON_LIMITS,word
-	dw	16,80,  4,25	; mirrors sysinit's CFG_CONSOLE defaults
-	dw	 0,79,  0,24
+	dw	80,16,80, 25,4,25, 0,0,79, 0,0,24
 
 	DEFLBL	DBL_BORDER,word
 	dw	0C9BBh,0BABAh,0C8BCh,0CDCDh
@@ -1064,33 +1063,34 @@ DEFPROC	write_context
 	push	es
 	pop	ds			; DS is now the context
 ;
-; Check for special characters.
+; Check for special characters first.
 ;
-	xchg	cx,ax			; CL = char
+	mov	cx,ax			; CL = character
 	mov	dx,ds:[CT_CURPOS]
 
-	cmp	cl,CHR_RETURN		; RETURN?
-	jne	wc1
-	mov	dl,ds:[CT_CURMIN].LO	; emulate a RETURN
+	cmp	al,CHR_RETURN		; RETURN?
+	jne	wc1			; no
+	mov	dl,ds:[CT_CURMIN].LO	; yes
 	jmp	short wc8
 
-wc1:	cmp	cl,CHR_LINEFEED
-	je	wclf
+wc1:	cmp	al,CHR_LINEFEED		; LINEFEED?
+	je	wclf			; yes
 
-	cmp	cl,CHR_TAB
-	je	wcht
+	cmp	al,CHR_TAB		; TAB?
+	je	wcht			; yes
 
-	cmp	cl,CHR_BACKSPACE
-	je	wc7
+	cmp	al,CHR_BACKSPACE	; BACKSPACE?
+	je	wc7			; yes
 
-	cmp	cl,CHR_ESC
-	jae	wc7
-	push	cx
+	cmp	al,CHR_ESC		; CONTROL CHAR?
+	jae	wc6			; no
+
+	push	cx			; yes
 	mov	cl,'^'
 	call	draw_char
 	pop	cx
 	add	cl,'A'-1
-	jmp	short wc7
+	jmp	short wc6
 
 wcht:	mov	bl,dl			; emulate a (horizontal) TAB
 	dec	bl
@@ -1098,16 +1098,18 @@ wcht:	mov	bl,dl			; emulate a (horizontal) TAB
 	neg	bl
 	add	bl,8
 	mov	cl,CHR_SPACE
-wc3:	call	draw_char
+wcsp:	call	draw_char
 	cmp	dl,ds:[CT_CURMIN].LO	; did the column wrap back around?
 	jle	wc8			; yes, stop
 	dec	bl
-	jnz	wc3
+	jnz	wcsp
 	jmp	short wc8
 
 wclf:	call	draw_linefeed		; emulate a LINEFEED
 	jmp	short wc8
 
+wc6:	ASSERT	NC,<cmp cl,' '>
+	ASSERT	C,<cmp cl,7Fh>
 wc7:	call	draw_char		; draw character (CL) at CURPOS (DL,DH)
 
 wc8:	mov	ds:[CT_CURPOS],dx

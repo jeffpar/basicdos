@@ -30,7 +30,9 @@ DOS	segment word public 'CODE'
 ;
 DEFPROC	dos_dverr,DOSFAR
 	DBGBRK
-	PRINTF	<"division error @%08lx",13,10>
+	push	ax
+	PRINTF	<"division error @%U%08lx",13,10>
+	pop	ax
 	mov	ah,EXTYPE_DVERR
 	jmp	dos_abort
 ENDPROC	dos_dverr
@@ -50,7 +52,9 @@ DEFPROC	dos_sstep,DOSFAR
 	inc	[asserts]
 	jnz	ss1
 	DBGBRK
-	PRINTF	<"assert @%08lx",13,10>
+	push	ax
+	PRINTF	<"assert @%U%08lx",13,10>
+	pop	ax
 ss1:	dec	[asserts]
 	ENDIF
 	iret
@@ -76,7 +80,9 @@ ENDPROC	dos_brkpt
 ;
 DEFPROC	dos_oferr,DOSFAR
 	DBGBRK
-	PRINTF	<"overflow error @%08lx",13,10>
+	push	ax
+	PRINTF	<"overflow error @%U%08lx",13,10>
+	pop	ax
 	mov	ah,EXTYPE_OVERR
 	jmp	dos_abort
 ENDPROC	dos_oferr

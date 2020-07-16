@@ -532,11 +532,14 @@ ENDPROC	sysinit
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; Search for length-prefixed string at SI in CFG_FILE.
+; find_cfg
+;
+; Search for length-prefixed string at SI in CFG_FILE, and if found,
+; set DI to 1st character after match.
 ;
 ; Outputs:
 ;	Carry clear on success (DI -> 1st character after match)
-;	Carry set on failure (AX = minimum value from SI)
+;	Carry set on failure (AX = default value following string at SI)
 ;
 ; Modifies:
 ;	AX, SI, DI
@@ -689,17 +692,16 @@ ENDPROC	init_table
 	DEFLBL	INT_TABLES_END
 
 CFG_MEMSIZE	db	8,"MEMSIZE="
-		dw	16,640
+		dw	640,16,640
 CFG_SESSIONS	db	9,"SESSIONS="
-		dw	4,16
+		dw	4,4,16
 CFG_FILES	db	6,"FILES="
-		dw	20,256
-CFG_CONSOLE	db	8,"CONSOLE=",
-		dw	16,80, 4,25	; default CONSOLE parameters
-CFG_SHELL	db	6,"SHELL=",
+		dw	20,20,256
+CFG_CONSOLE	db	8,"CONSOLE="
+CON_DEVICE	db	"CON:80,25",0	; default CONSOLE configuration
+CFG_SHELL	db	6,"SHELL="
 
 AUX_DEVICE	db	"AUX",0
-CON_DEVICE	db	"CON:80,25",0	; default CONSOLE configuration
 PRN_DEVICE	db	"PRN",0
 CLK_DEVICE	db	"CLOCK$",0
 SHELL_FILE	db	"COMMAND.COM",0	; default SHELL file
