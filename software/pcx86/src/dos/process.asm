@@ -14,7 +14,8 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_locked>,byte
 	EXTERNS	<mcb_limit,scb_active,psp_active>,word
 	EXTERNS	<sfh_addref,pfh_close>,near
-	EXTERNS	<free,get_scbnum,dos_exit,dos_ctrlc,dos_error>,near
+	EXTERNS	<free,dos_exit,dos_ctrlc,dos_error>,near
+	EXTERNS	<get_scbnum,scb_unload,scb_yield>,near
 	IF REG_CHECK
 	EXTERNS	<dos_check>,near
 	ENDIF
@@ -38,17 +39,16 @@ DEFPROC	psp_term,DOS
 	mov	es,[psp_active]
 	ASSUME	ES:NOTHING
 	mov	si,es:[PSP_PARENT]
-;
-; TODO: We may elect to terminate a parent-less program by destroying the
-; entire session, as long as it's not the first session.  But for now, we just
-; don't allow termination.
-;
-	test	si,si
-	jz	pt9			; can't exit, nowhere to go
+
+	test	si,si			; if there's a parent
+	jnz	pt0			; then the SCB is still healthy
+	cmp	es:[PSP_SCB],0		; are we allowed to kill this SCB?
+	jne	pt0			; yes
+	jmp	pt9
 ;
 ; Close process file handles.
 ;
-	push	ax			; save exit code/exit type on stack
+pt0:	push	ax			; save exit code/exit type on stack
 	mov	cx,size PSP_PFT
 	sub	bx,bx			; BX = handle (PFH)
 pt1:	call	pfh_close		; close process file handle
@@ -76,15 +76,23 @@ pt1:	call	pfh_close		; close process file handle
 	mov	ax,es:[PSP_DTAPREV].SEG	;  process to restore this itself after
 	mov	[bx].SCB_DTA.SEG,ax	;  an exec)
 
+	mov	al,es:[PSP_SCB]		; save SCB #
+	push	ax
 	push	si			; save PSP of parent
 	mov	ax,es
 	call	free			; free PSP in AX
 	pop	ax			; restore PSP of parent
+	pop	cx			; CL = SCB #
 ;
-; TODO: If we elected to terminate a parent-less program, this is the
-; point where we would tear down the session, instead of returning anywhere.
+; If this is a parent-less program, mark the SCB as unloaded and yield.
 ;
-	mov	es,ax			; ES = PSP of parent
+	test	ax,ax
+	jnz	pt8
+	call	scb_unload		; mark SCB # CL as unloaded
+	jmp	scb_yield		; and call scb_yield with AX = zero
+	ASSERT	NEVER
+
+pt8:	mov	es,ax			; ES = PSP of parent
 	pop	dx
 	pop	cx			; we now have PSP_EXRET in CX:DX
 	pop	ax			; AX = exit code (saved on entry above)

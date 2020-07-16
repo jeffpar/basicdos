@@ -313,7 +313,6 @@ ENDPROC	cmdDir
 ;	Any
 ;
 DEFPROC	cmdExit
-	int 3
 	int	20h		; terminate
 	ret			; unless we can't (ie, if no parent)
 ENDPROC	cmdExit

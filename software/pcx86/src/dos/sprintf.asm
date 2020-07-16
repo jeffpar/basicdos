@@ -315,7 +315,7 @@ pfps:	cmp	al,'S'			; %S (second portion of TIME)?
 	mov	dx,1FFFh		; shift TIME left 1, mask with 1Fh
 	jmp	short pfda
 pfpt:	cmp	al,'A'			; %A (AM or PM portion of TIME)?
-	jne	pfpz			; no
+	jne	pfpu			; no
 	mov	ax,[bp+si]		; get the TIME
 	push	cx
 	mov	cl,11
@@ -328,7 +328,7 @@ pfpt:	cmp	al,'A'			; %A (AM or PM portion of TIME)?
 pfps2:	mov	[bp+si],ax
 	jmp	pfc
 pfpu:	cmp	al,'U'			; %U (skip one 16-bit parameter)?
-	jnz	pfpz			; no
+	jne	pfpz			; no
 	add	si,2			; yes, bump parameter index
 	jmp	pf1			; and return to top
 

@@ -313,7 +313,14 @@ si7:	mov	dx,size SFB
 	mov	es:[mcb_head],bx
 
 	mov	bx,es:[scb_table].OFF
+	push	bx			; initialize the 1st SCB
 	or	es:[bx].SCB_STATUS,SCSTAT_INIT
+si7a:	mov	es:[bx].SCB_NUM,al	; along with other fields in all SCBs
+	inc	ax
+	add	bx,size SCB
+	cmp	bx,es:[scb_table].SEG
+	jb	si7a
+	pop	bx
 ;
 ; Before we create any sessions (and our first PSPs), we need to open all the
 ; devices required for the 5 STD handles.  And we open AUX first, purely for
@@ -389,7 +396,7 @@ si12:	mov	dx,offset SYS_MSG
 	mov	ah,DOS_TTY_PRINT
 	int	21h
 
-	IFDEF	DEBUG			; a quick series of early sanity checks
+	IFDEF	MAXDEBUG		; a quick series of early sanity checks
 	push	es
 	mov	ah,DOS_MEM_ALLOC
 	mov	bx,20h
@@ -428,7 +435,6 @@ dierr1:	jc	dierr2
 	mov	es,dx
 	int	21h			; free the 2nd
 	jc	dierr2
-	IFDEF MAXDEBUG
 	mov	dx,offset COM1_DEVICE
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
@@ -439,7 +445,6 @@ dierr1:	jc	dierr2
 	int	INT_TIME		; CX:DX is tick count
 	mov	bx,offset hello
 	PRINTF	<"%ls, the time is [%6ld]",13,10>,bx,cs,dx,cx
-	ENDIF
 	pop	es
 	jmp	short diend
 dierr2:	jmp	sysinit_error

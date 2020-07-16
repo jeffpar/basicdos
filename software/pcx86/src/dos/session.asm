@@ -41,20 +41,22 @@ DOS	segment word public 'CODE'
 ;	On failure, carry set (if SCB invalid or not initialized for use)
 ;
 ; Modifies:
-;	AX, BX
+;	BX
 ;
 DEFPROC	get_scb,DOS
+	push	ax
 	mov	al,size SCB
 	mul	cl
 	add	ax,[scb_table].OFF
 	cmp	ax,[scb_table].SEG
 	cmc
 	jb	gs9
-	mov	bx,ax
+	xchg	bx,ax
 	test	[bx].SCB_STATUS,SCSTAT_INIT
 	jnz	gs9
 	stc
-gs9:	ret
+gs9:	pop	ax
+	ret
 ENDPROC	get_scb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -65,24 +67,19 @@ ENDPROC	get_scb
 ;	None
 ;
 ; Outputs:
-;	AL = SCB # of scb_active (-1 if error)
+;	AL = SCB # of scb_active
 ;
 ; Modifies:
 ;	AX
 ;
 DEFPROC	get_scbnum,DOS
 	ASSUME	ES:NOTHING
-	mov	ax,[scb_active]
-	sub	ax,[scb_table].OFF
-	ASSERT	NC
-	jnc	gsn1
-	sbb	ax,ax
-	jmp	short gsn9
-gsn1:	push	dx
-	mov	dl,size SCB
-	div	dl
-	pop	dx
-gsn9:	ret
+	push	bx
+	mov	bx,[scb_active]
+	ASSERT	STRUCT,[bx],SCB
+	mov	al,[bx].SCB_NUM
+gsn9:	pop	bx
+	ret
 ENDPROC	get_scbnum
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -163,6 +160,7 @@ DEFPROC	scb_lock,DOS
 	jc	sk9
 	inc	[scb_locked]
 	push	dx
+	mov	ax,bx			; AX = current SCB
 	xchg	bx,[scb_active]		; BX -> previous SCB, if any
 	test	bx,bx
 	jz	sk8
@@ -323,7 +321,10 @@ ENDPROC	scb_stop
 ;
 DEFPROC	scb_unload,DOS
 	int 3
-	ret
+	call	get_scb
+ 	jc	sud9
+	and	[bx].SCB_STATUS,NOT (SCSTAT_LOAD OR SCSTAT_START)
+sud9:	ret
 ENDPROC	scb_unload
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
