@@ -312,10 +312,16 @@ si7:	mov	dx,size SFB
 	ASSUME	ES:DOS
 	mov	es:[mcb_head],bx
 
+	dec	cx
+	mov	ah,ch
 	mov	bx,es:[scb_table].OFF
-	push	bx			; initialize the 1st SCB
+	push	bx			; initialize the SCBs
 	or	es:[bx].SCB_STATUS,SCSTAT_INIT
-si7a:	mov	es:[bx].SCB_NUM,al	; along with other fields in all SCBs
+si7a:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHCON>
+	ASSERT	<SCB_SFHAUX + 1>,EQ,<SCB_SFHPRN>
+	mov	word ptr es:[bx].SCB_NUM,ax
+	mov	word ptr es:[bx].SCB_SFHAUX,cx
+	INIT_STRUC es:[bx],SCB
 	inc	ax
 	add	bx,size SCB
 	cmp	bx,es:[scb_table].SEG
@@ -351,7 +357,6 @@ si9:	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	jc	open_error
 	mov	es:[bx].SCB_SFHCON,al
 	mov	es:[bx].SCB_CONTEXT,dx
-	INIT_STRUC es:[bx],SCB
 ;
 ; Last but not least, open PRN.
 ;
@@ -383,7 +388,6 @@ si11:	or	es:[bx].SCB_STATUS,SCSTAT_INIT
 	mov	es:[bx].SCB_CONTEXT,dx
 	mov	word ptr es:[bx].SCB_SFHAUX,cx
 	ASSERT	<SCB_SFHAUX + 1>,EQ,<SCB_SFHPRN>
-	INIT_STRUC es:[bx],SCB
 	jmp	si10
 
 	DEFLBL	open_error,near

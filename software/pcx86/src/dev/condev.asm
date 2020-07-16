@@ -370,7 +370,7 @@ dco1a:	xchg	[ct_head],ax
 	call	draw_border		; draw the context's border, if any
 
 dco6:	mov	al,0
-	call	scroll			; clear the interior
+	call	scroll			; clear the context's interior
 	clc
 
 dco7:	pop	es
@@ -397,16 +397,16 @@ ENDPROC	ddcon_open
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_close
-	mov	ax,es:[di].DDP_CONTEXT
-	test	ax,ax
-	jz	dcc9			; no context
-	cmp	[ct_focus],ax
+	mov	cx,es:[di].DDP_CONTEXT
+	jcxz	dcc9			; no context
+	cmp	[ct_focus],cx
 	jne	dcc0
-	mov	[ct_focus],0
+	call	focus_next
+	ASSERT	NZ,<cmp [ct_focus],cx>
 ;
 ; Remove the context from our chain
 ;
-dcc0:	int 3
+dcc0:	xchg	ax,cx			; AX = context to free
 	push	es
 	push	ds
 	mov	bx,offset ct_head	; DS:BX -> 1st context
@@ -422,6 +422,9 @@ dcc1:	mov	cx,[bx].CT_NEXT
 dcc2:	mov	es,ax
 	mov	cx,es:[CT_NEXT]		; move this context's CT_NEXT
 	mov	[bx].CT_NEXT,cx		; to the previous context's CT_NEXT
+	mov	ds,ax
+	mov	al,-1			; clear the entire context
+	call	scroll
 	pop	ds
 	ASSUME	DS:CODE
 ;
@@ -834,7 +837,7 @@ dc8:	call	write_curpos		; write CL at (DL,DH)
 	jle	dc9
 	dec	dh
 	mov	al,1
-	call	scroll			; scroll up 1 line
+	call	scroll			; scroll the context up 1 line
 
 dc9:	ret
 ENDPROC	draw_char
@@ -883,6 +886,7 @@ DEFPROC	focus_next
 	push	cx
 	push	si
 	push	di
+	push	ds
 ;
 ; Not sure that calling DOS_UTL_LOCK is strictly necessary, but it feels
 ; like a good idea while we're 1) switching which context has focus, and 2)
@@ -911,6 +915,7 @@ tf2:	xchg	cx,[ct_focus]
 tf9:	pop	es
 	mov	ax,DOS_UTL_UNLOCK
 	int	21h
+	pop	ds
 	pop	di
 	pop	si
 	pop	cx
@@ -1000,7 +1005,7 @@ ENDPROC	read_kbd
 ; scroll
 ;
 ; Inputs:
-;	AL = # lines (0 to clear ALL lines)
+;	AL = # lines (0 to clear ALL lines, -1 to clear entire context)
 ;	DS -> CONSOLE context
 ;
 ; Modifies:
@@ -1014,9 +1019,14 @@ DEFPROC	scroll
 	push	bp			; WARNING: INT 10h scrolls trash BP
 	mov	cx,ds:[CT_CONPOS]
 	mov	dx,cx
-	add	cx,ds:[CT_CURMIN]	; CH = row, CL = col of upper left
+	test	al,al			; negative?
+	jge	scr1			; no
+	mov	al,0
+	add	dx,ds:[CT_CONDIM]	; yes, clear entire context
+	jmp	short scr2		; (including borders)
+scr1:	add	cx,ds:[CT_CURMIN]	; CH = row, CL = col of upper left
 	add	dx,ds:[CT_CURMAX]	; DH = row, DL = col of lower right
-	mov	bh,07h			; BH = fill attribute
+scr2:	mov	bh,07h			; BH = fill attribute
 	mov	ah,06h			; scroll up # lines in AL
 	int	10h
 	pop	bp
@@ -1071,6 +1081,7 @@ DEFPROC	write_context
 	push	bx
 	push	cx
 	push	dx
+	push	di
 	push	ds
 	push	es
 	push	es
@@ -1134,6 +1145,7 @@ wc8:	mov	ds:[CT_CURPOS],dx
 
 wc9:	pop	es
 	pop	ds
+	pop	di
 	pop	dx
 	pop	cx
 	pop	bx

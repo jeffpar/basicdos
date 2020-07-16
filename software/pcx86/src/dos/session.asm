@@ -320,7 +320,6 @@ ENDPROC	scb_stop
 ;	Carry set on error (eg, invalid SCB #)
 ;
 DEFPROC	scb_unload,DOS
-	int 3
 	call	get_scb
  	jc	sud9
 	and	[bx].SCB_STATUS,NOT (SCSTAT_LOAD OR SCSTAT_START)

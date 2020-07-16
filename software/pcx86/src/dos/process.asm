@@ -13,7 +13,7 @@ DOS	segment word public 'CODE'
 
 	EXTERNS	<scb_locked>,byte
 	EXTERNS	<mcb_limit,scb_active,psp_active>,word
-	EXTERNS	<sfh_addref,pfh_close>,near
+	EXTERNS	<sfh_addref,pfh_close,sfh_close>,near
 	EXTERNS	<free,dos_exit,dos_ctrlc,dos_error>,near
 	EXTERNS	<get_scbnum,scb_unload,scb_yield>,near
 	IF REG_CHECK
@@ -41,23 +41,26 @@ DEFPROC	psp_term,DOS
 	mov	si,es:[PSP_PARENT]
 
 	test	si,si			; if there's a parent
-	jnz	pt0			; then the SCB is still healthy
+	jnz	pt1			; then the SCB is still healthy
 	cmp	es:[PSP_SCB],0		; are we allowed to kill this SCB?
-	jne	pt0			; yes
-	jmp	pt9
+	je	pt7			; no
 ;
 ; Close process file handles.
 ;
-pt0:	push	ax			; save exit code/exit type on stack
+pt1:	push	ax			; save exit code/exit type on stack
 	mov	cx,size PSP_PFT
 	sub	bx,bx			; BX = handle (PFH)
-pt1:	call	pfh_close		; close process file handle
+pt2:	call	pfh_close		; close process file handle
 	inc	bx
-	loop	pt1
+	loop	pt2
 ;
 ; Restore the SCB's CTRLC and ERROR handlers from the values in the PSP.
 ;
 	mov	bx,[scb_active]
+	push	bx
+	mov	bl,[bx].SCB_SFHCON
+	call	sfh_close
+	pop	bx
 	push	es:[PSP_EXRET].SEG	; push PSP_EXRET (exec return address)
 	push	es:[PSP_EXRET].OFF
 
@@ -91,6 +94,7 @@ pt1:	call	pfh_close		; close process file handle
 	call	scb_unload		; mark SCB # CL as unloaded
 	jmp	scb_yield		; and call scb_yield with AX = zero
 	ASSERT	NEVER
+pt7:	jmp	short pt9
 
 pt8:	mov	es,ax			; ES = PSP of parent
 	pop	dx

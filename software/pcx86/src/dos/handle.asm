@@ -539,7 +539,7 @@ ENDPROC	sfb_write
 ;
 ; Inputs:
 ;	BX -> SFB
-;	SI = PFH ("handle")
+;	SI = PFH, -1 if none
 ;
 ; Outputs:
 ;	Carry clear if success
@@ -561,7 +561,9 @@ DEFPROC	sfb_close,DOS
 sc7:	sub	ax,ax
 	mov	[bx].SFB_DEVICE.OFF,ax
 	mov	[bx].SFB_DEVICE.SEG,ax	; mark SFB as unused
-sc8:	mov	ax,[psp_active]
+sc8:	test	si,si			; valid PFH?
+	jl	sc9			; no
+	mov	ax,[psp_active]
 	test	ax,ax			; if we're called by sysinit
 	jz	sc9			; there may be no valid PSP yet
 	push	ds
@@ -735,6 +737,38 @@ pfc9:	pop	si
 	pop	bx
 	ret
 ENDPROC	pfh_close
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; sfh_close
+;
+; Close the system file handle in BX.
+;
+; Inputs:
+;	BX = handle (SFH)
+;
+; Outputs:
+;	On success, carry clear
+;	On failure, carry set, REG_AX = error
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	sfh_close,DOS
+	push	bx
+	push	si
+	call	get_sfh_sfb
+	jc	sfc9
+	push	di
+	push	es
+	mov	si,-1			; no PFH
+	call	sfb_close		; BX -> SFB
+	pop	es
+	pop	di
+sfc9:	pop	si
+	pop	bx
+	ret
+ENDPROC	sfh_close
 
 DOS	ends
 
