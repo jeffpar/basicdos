@@ -27,7 +27,7 @@ let disks = {
         "./software/pcx86/src/util/COMMAND.COM",
         "./software/pcx86/src/util/PRIMES.EXE",
         "./software/pcx86/src/util/SLEEP.COM",
-        "./software/pcx86/src/boot/config2/SYMDEB.EXE"
+        "./software/pcx86/src/configs/config2/SYMDEB.EXE"
     ],
     "BDS-BOOT": [
         "./software/pcx86/src/boot/boot.asm",

@@ -37,7 +37,7 @@ BOOT	segment word public 'CODE'
 start:	cld
 	jmp	short start1
 
-PART1_COPY	equ	$		; start of PART1 data
+	DEFLBL	PART1_COPY		; start of PART1 code/data
 
 mybpb:		BPB	<,512,1,1,2,64,320,MEDIA_160K,1,8,1,0,0,0,8,3,7>
 
@@ -167,7 +167,7 @@ print	label	near
 	ret
 ENDPROC	printp
 
-PART1_END	equ	$	; end of PART1 code/data
+	DEFLBL	PART1_COPY_END		; end of PART1 code/data to copy
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -177,7 +177,9 @@ PART1_END	equ	$	; end of PART1 code/data
 ; ourselves to low memory where we'll be out of the way, should we ever need
 ; to load more than 32K.
 ;
-part1:	push	cs
+	DEFLBL	PART1
+
+	push	cs
 	pop	es
 	ASSUME	ES:BIOS
 	lds	si,dword ptr es:[INT_DPT*4]
@@ -250,8 +252,10 @@ m7:	jcxz	read			; all files found, go read
 	inc	dx			; DX = next dir LBA
 	cmp	dx,[si].BPB_LBADATA	; exhausted root directory?
 	jb	m1			; jump if not exhausted
-	dec	cx			; CX == 1?
-	jz	read			; yes, it's OK if CFG_FILE is missing
+	dec	cx			; only 1 file missing?
+	jnz	err			; no
+	cmp	[CFG_FILE],ch		; was the missing file CFG_FILE?
+	jnz	read			; yes, that's OK
 err:	mov	si,offset errmsg1
 	call	print
 	jmp	$			; "halt"
@@ -315,7 +319,7 @@ fd1:	cmp	byte ptr [di],ch
 	cmp	di,ax
 	jb	fd1
 	jmp	short fd9
-fd8:	mov	[bx],cx		; overwrite the filename
+fd8:	mov	[bx],cl		; zero the first byte of the filename
 	mov	ax,[di-11].DIR_CLN
 	mov	[bx+2],ax	; with cluster number and size,
 	mov	ax,[di-11].DIR_SIZE.OFF
@@ -392,14 +396,15 @@ ws9:	mov	si,offset crlf
 	ret
 ENDPROC	wait
 
-;
-; Strings
-;
 product		db	"BASIC-DOS "
 		VERSION_STR
 crlf		db	13,10,0
 prompt		db	"Press any key to start...",0
-errmsg1		db	"System file missing, halted",0
+errmsg1		db	"System file(s) missing, halted",0
+
+	DEFLBL	PART1_END
+
+	ASSERT 	<offset PART1_END - offset start>,LE,510
 
 	org 	BOOT_SECTOR_LO + 510
 	dw	0AA55h
@@ -412,12 +417,12 @@ errmsg1		db	"System file missing, halted",0
 ;
 ; Part 2 of the boot process:
 ;
-;    1) Copy critical data from PART1 to PART2, before FAT reads (if any)
-;	overwrite it.
-;
-;    2) Move the non-boot code from this sector (ie, the first chunk of
+;    1) Move the non-boot code from this sector (ie, the first chunk of
 ;	DEV_FILE) into its final resting place (ie, BIOS_END) and save that
 ;	ending address as the next load address.
+;
+;    2) Copy critical data from PART1 to PART2, before FAT reads (if any)
+;	overwrite it.
 ;
 ;    3) Load the rest of DEV_FILE; the file need not be first, nor
 ;	contiguous, since we read the FAT to process the cluster chain;
@@ -444,7 +449,7 @@ DEFPROC	part2,far
 	push	di		; save next DEV_FILE read address
 	mov	si,offset PART1_COPY
 	mov	di,offset PART2_COPY
-	mov	cx,offset PART1_END - offset PART1_COPY
+	mov	cx,offset PART1_COPY_END - offset PART1_COPY
 	rep	movsb
 				; now we can zero the area
 	mov	di,offset FAT_BUFHDR
@@ -513,7 +518,7 @@ DEFPROC	part3,far
 	push	di
 	mov	bx,offset CFG_FILE2
 	sub	dx,dx		; default CFG_FILE size is zero
-	cmp	[bx],dx		; did we find CFG_FILE?
+	cmp	[bx],dl		; did we find CFG_FILE?
 	jne	i9		; no
 	push	[bx+4]		; push CFG_FILE size (assume < 64K)
 	call	read_file	; load CFG_FILE above DOS_FILE
@@ -720,23 +725,23 @@ errmsg2		db	"System file error, halted",0
 ;
 ; Code and data copied from PART1 (BPB, file data, and shared functions)
 ;
-		public	PART2_COPY
-PART2_COPY	label	byte
-		org	$ + (offset DEV_FILE - offset PART1_COPY)
+	DEFLBL	PART2_COPY
+
+	org	$ + (offset DEV_FILE - offset PART1_COPY)
 DEV_FILE2	label	byte
-		org	$ + (offset DOS_FILE - offset DEV_FILE)
+	org	$ + (offset DOS_FILE - offset DEV_FILE)
 DOS_FILE2	label	byte
-		org	$ + (offset CFG_FILE - offset DOS_FILE)
+	org	$ + (offset CFG_FILE - offset DOS_FILE)
 CFG_FILE2	label	byte
-		org	$ + (offset get_lba - offset CFG_FILE)
+	org	$ + (offset get_lba - offset CFG_FILE)
 get_lba2	label	near
-		org	$ + (offset read_sectors - offset get_lba)
+	org	$ + (offset read_sectors - offset get_lba)
 read_sectors2	label	near
-		org	$ + (offset print - offset read_sectors)
+	org	$ + (offset print - offset read_sectors)
 print2		label	near
-		org	$ + (offset PART1_END - offset print)
-		public	PART2_END
-PART2_END	label	byte
+	org	$ + (offset PART1_COPY_END - offset print)
+
+	DEFLBL	PART2_END
 
 	ASSERT 	<offset PART2_END - offset part2>,LE,512
 

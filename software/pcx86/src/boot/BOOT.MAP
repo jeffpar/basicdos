@@ -7,11 +7,15 @@ Warning: no stack segment
 
   Address         Publics by Name
 
- 0000:06A3       FIND_DIRENT
+ 0000:06AA       FIND_DIRENT
  0000:059F       GET_CHS
  0000:05B8       GET_LBA
  0000:08A4       LOAD_ERROR
  0000:0618       MAIN
+ 0000:05E8       PART1
+ 0000:0553       PART1_COPY
+ 0000:05E8       PART1_COPY_END
+ 0000:073E       PART1_END
  0000:0760       PART2
  0000:08C6       PART2_COPY
  0000:095B       PART2_END
@@ -21,17 +25,21 @@ Warning: no stack segment
  0000:07F4       READ_DATA
  0000:083A       READ_FAT
  0000:05C8       READ_SECTORS
- 0000:06DB       WAIT
+ 0000:06E2       WAIT
 
   Address         Publics by Value
 
+ 0000:0553       PART1_COPY
  0000:059F       GET_CHS
  0000:05B8       GET_LBA
  0000:05C8       READ_SECTORS
  0000:05DC       PRINTP
+ 0000:05E8       PART1_COPY_END
+ 0000:05E8       PART1
  0000:0618       MAIN
- 0000:06A3       FIND_DIRENT
- 0000:06DB       WAIT
+ 0000:06AA       FIND_DIRENT
+ 0000:06E2       WAIT
+ 0000:073E       PART1_END
  0000:0760       PART2
  0000:07C5       PART3
  0000:07F4       READ_DATA
