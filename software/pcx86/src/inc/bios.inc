@@ -254,7 +254,7 @@ DIR_SECTOR_OFF	equ	760h
 DIR_SECTOR	db	512 dup (?)	; 760h
 		ASSERT 	<offset IVT + DIR_SECTOR_OFF>,EQ,<offset DIR_SECTOR>
 
-BIOS_END	equ	0960h
+BIOS_END	label	byte		; 960h
 
 BIOS		ends
 
@@ -272,7 +272,7 @@ CHR_CTRLC	equ	03h
 CHR_BACKSPACE	equ	08h
 CHR_TAB		equ	09h
 CHR_LINEFEED	equ	0Ah
-CHR_VTAB	equ	0Bh	; treated by CON as a "reverse tab"
+CHR_VTAB	equ	0Bh
 CHR_RETURN	equ	0Dh
 CHR_CTRLP	equ	10h
 CHR_CTRLS	equ	13h
@@ -280,6 +280,7 @@ CHR_CTRLZ	equ	1Ah
 CHR_ESC		equ	1Bh
 CHR_SPACE	equ	20h
 CHR_DBLQUOTE	equ	22h
+CHR_SLASH	equ	2Fh
 
 SCAN_TAB	equ	0Fh
 

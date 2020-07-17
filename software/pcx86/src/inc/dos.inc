@@ -150,14 +150,14 @@ REG_CS		dw	?	; 1Eh
 REG_FL		dw	?	; 20h
 REG_FRAME	ends
 
-REG_AL		equ 	(REG_AX.LO)
-REG_AH		equ 	(REG_AX.HI)
-REG_BL		equ 	(REG_BX.LO)
-REG_BH		equ 	(REG_BX.HI)
-REG_CL		equ 	(REG_CX.LO)
-REG_CH		equ 	(REG_CX.HI)
-REG_DL		equ 	(REG_DX.LO)
-REG_DH		equ 	(REG_DX.HI)
+REG_AL		equ 	REG_AX.LO
+REG_AH		equ 	REG_AX.HI
+REG_BL		equ 	REG_BX.LO
+REG_BH		equ 	REG_BX.HI
+REG_CL		equ 	REG_CX.LO
+REG_CH		equ 	REG_CX.HI
+REG_DL		equ 	REG_DX.LO
+REG_DH		equ 	REG_DX.HI
 
 ;
 ; Session Control Block (SCB)
@@ -192,6 +192,8 @@ SCB_CURDRV	db	?	; 22h: current drive #
 SCB_CTRLC_ALL	db	?	; 23h: 1 if CTRLC checking enabled on all calls
 SCB_CTRLC_ACT	db	?	; 24h: 1 if CTRLC active
 SCB_CTRLP_ACT	db	?	; 25h: 1 if CTRLP active
+SCB_SWITCHAR	db	?	; 26h: current "switchar" (default is CHR_SLASH)
+SCB_PADDING	db	?
 SCB		ends
 
 SCBSIG		equ	'S'

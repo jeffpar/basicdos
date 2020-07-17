@@ -540,6 +540,7 @@ lp6a:	cmp	ax,size EXEHDR
 ; there is to read, read that as well, and then read the rest of the file
 ; into the bottom of the allocated memory.
 ;
+	int 3
 	mov	dx,es
 	add	dx,si
 	add	dx,10h
@@ -613,7 +614,8 @@ lp6f:	mov	bx,es:[di].OFF		; BX = offset
 ; TODO: Decide what to do about the maximum.  The default setting seems to be
 ; "give me all the memory" (eg, FFFFh), which we do not want to do.
 ;
-lp6g:	push	es:[EXE_START_SEG]
+lp6g:	int 3
+	push	es:[EXE_START_SEG]
 	push	es:[EXE_START_OFF]
 	push	es:[EXE_STACK_SEG]
 	push	es:[EXE_STACK_OFF]

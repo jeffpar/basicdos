@@ -35,7 +35,7 @@ BOOT	segment word public 'CODE'
 ; other assumptions, we can run into boot failures.
 ;
 start:	cld
-	jmp	short part1
+	jmp	short start1
 
 PART1_COPY	equ	$		; start of PART1 data
 
@@ -45,7 +45,129 @@ DEV_FILE	db	"IBMBIO  COM"
 DOS_FILE	db	"IBMDOS  COM"
 CFG_FILE	db	"CONFIG  SYS",-1
 
-PART1_END	equ	$		; end of PART1 data
+start1:	jmp	short part1		; can't quite make it in one jump
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_chs
+;
+; Get CHS from LBA in AX, using BPB at DS:SI.
+;
+; Inputs:
+;	AX = LBA
+;	DS:SI -> BPB
+;
+; Outputs:
+;	DH = head #, DL = drive #
+;	CH = cylinder #, CL = sector ID
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	get_chs
+	sub	dx,dx		; DX:AX is LBA
+	div	[si].BPB_CYLSECS; AX = cylinder, DX = remaining sectors
+	xchg	al,ah		; AH = cylinder, AL = cylinder bits 8-9
+	ror	al,1		; future-proofing: saving cylinder bits 8-9
+	ror	al,1
+	xchg	cx,ax		; CH = cylinder #
+	xchg	ax,dx		; AX = remaining sectors from last divide
+	div	byte ptr [si].BPB_TRACKSECS
+	mov	dh,al		; DH = head # (quotient of last divide)
+	or	cl,ah		; CL = sector # (remainder of last divide)
+	inc	cx		; LBA are zero-based, sector IDs are 1-based
+	mov	dl,[si].BPB_DRIVE
+	ret
+ENDPROC	get_chs
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_lba
+;
+; Get LBA from CLN in AX, using BPB at DS:SI.
+;
+; Inputs:
+;	AX = CLN
+;	DS:SI -> BPB
+;
+; Outputs:
+;	If successful, carry clear, AX = LBA, CX = sectors per cluster
+;	If unsuccessful, carry set
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	get_lba
+	sub	ax,2
+	jb	gl9
+	sub	cx,cx
+	mov	cl,[si].BPB_CLUSSECS
+	mul	cx
+	add	ax,[si].BPB_LBADATA
+gl9:	ret
+ENDPROC	get_lba
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; read_sectors
+;
+; Read CL sectors into ES:DI using LBA in AX and BPB at DS:SI.
+;
+; Inputs:
+;	AX = LBA
+;	CL = # sectors
+;	DS:SI -> BPB
+;	ES:DI -> buffer
+;
+; Output:
+;	Carry clear if successful, set if error (see AH for reason)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	read_sectors
+	push	bx
+	push	cx
+	push	dx
+	mov	bl,cl
+	call	get_chs
+	mov	al,bl		; AL = # sectors
+	mov	ah,FDC_READ
+	mov	bx,di		; ES:BX = address
+	int	INT_FDC		; AX and carry are whatever the ROM returns
+	pop	dx
+	pop	cx
+	pop	bx
+	ret
+ENDPROC	read_sectors
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; print
+;
+; Print the null-terminated string at DS:SI.
+;
+; Inputs:
+;	DS:SI -> string
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, SI
+;
+DEFPROC	printp
+	mov	ah,VIDEO_TTYOUT
+	mov	bh,0
+	int	INT_VIDEO
+print	label	near
+	lodsb
+	test	al,al
+	jnz	printp
+	ret
+ENDPROC	printp
+
+PART1_END	equ	$	; end of PART1 code/data
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -110,7 +232,8 @@ find:	mov	si,offset mybpb		; SI -> BPB
 	mov	dx,[si].BPB_LBAROOT	; DX = root dir LBA
 m1:	mov	ax,dx			; AX = LBA
 	mov	di,offset DIR_SECTOR	; DI = dir sector
-	call	read_sector		; read it
+	mov	cl,1			; CL = # sectors
+	call	read_sectors		; read it
 	jc	err			; jump if error
 m2:	mov	cx,3			; CX = # files left to find
 	mov	bx,offset DEV_FILE	; first file to find
@@ -151,9 +274,11 @@ hard:	mov	al,[CRT_MODE]
 read:	mov	bx,offset DEV_FILE
 	mov	ax,[bx+2]		; AX = CLN
 	call	get_lba
-	call	read_sector		; DI -> DIR_SECTOR
+	jc	err
+	mov	cl,1			; CL = # sectors
+	call	read_sectors		; DI -> DIR_SECTOR
 err1:	jc	err
-	jmp	near ptr part2 + 2	; jump to the next part
+	jmp	near ptr part2 + 2	; jump to next part (skip fake INT 20h)
 ENDPROC	main
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -173,14 +298,14 @@ ENDPROC	main
 ;	AX
 ;
 DEFPROC	find_dirent
-	push	cx			; CH is zero on entry
+	push	cx		; CH is zero on entry
 	push	si
 	push	di
 	mov	ax,[si].BPB_SECBYTES
-	add	ax,di			; AX -> end of sector data
-	dec	ax			; ensure DI will never equal AX
+	add	ax,di		; AX -> end of sector data
+	dec	ax		; ensure DI will never equal AX
 fd1:	cmp	byte ptr [di],ch
-	je	err			; 0 indicates end of allocated entries
+	je	err		; 0 indicates end of allocated entries
 	mov	si,bx
 	mov	cl,11
 	repe	cmpsb
@@ -190,11 +315,11 @@ fd1:	cmp	byte ptr [di],ch
 	cmp	di,ax
 	jb	fd1
 	jmp	short fd9
-fd8:	mov	[bx],cx
-	mov	ax,[di-11].DIR_CLN	; overwrite the filename
-	mov	[bx+2],ax		; with cluster number and size,
-	mov	ax,[di-11].DIR_SIZE.OFF	; since we're done with the filename
-	mov	[bx+4],ax
+fd8:	mov	[bx],cx		; overwrite the filename
+	mov	ax,[di-11].DIR_CLN
+	mov	[bx+2],ax	; with cluster number and size,
+	mov	ax,[di-11].DIR_SIZE.OFF
+	mov	[bx+4],ax	; since we're done with the filename
 	mov	ax,[di-11].DIR_SIZE.SEG
 	mov	[bx+6],ax
 fd9:	pop	di
@@ -202,96 +327,6 @@ fd9:	pop	di
 	pop	cx
 	ret
 ENDPROC	find_dirent
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; get_chs
-;
-; Get CHS from LBA in AX, using BPB at DS:SI.
-;
-; Inputs:
-;	AX = LBA
-;	DS:SI -> BPB
-;
-; Outputs:
-;	DH = head #, DL = drive #
-;	CH = cylinder #, CL = sector ID
-;
-; Modifies:
-;	AX, CX, DX
-;
-DEFPROC	get_chs
-	sub	dx,dx		; DX:AX is LBA
-	div	[si].BPB_CYLSECS; AX = cylinder, DX = remaining sectors
-	xchg	al,ah		; AH = cylinder, AL = cylinder bits 8-9
-	ror	al,1		; future-proofing: saving cylinder bits 8-9
-	ror	al,1
-	xchg	cx,ax		; CH = cylinder #
-	xchg	ax,dx		; AX = remaining sectors from last divide
-	div	byte ptr [si].BPB_TRACKSECS
-	mov	dh,al		; DH = head # (quotient of last divide)
-	or	cl,ah		; CL = sector # (remainder of last divide)
-	inc	cx		; LBA are zero-based, sector IDs are 1-based
-	mov	dl,[si].BPB_DRIVE
-	ret
-ENDPROC	get_chs
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; get_lba
-;
-; Get LBA from CLN in AX, using BPB at DS:SI.
-;
-; Inputs:
-;	AX = CLN
-;	DS:SI -> BPB
-;
-; Outputs:
-;	If successful, carry clear, AX = LBA, CX = sectors per cluster
-;	If unsuccessful, carry set
-;
-; Modifies:
-;	AX, CX, DX
-;
-DEFPROC	get_lba
-	sub	ax,2
-	jb	err1
-	sub	cx,cx
-	mov	cl,[si].BPB_CLUSSECS
-	mul	cx
-	add	ax,[si].BPB_LBADATA
-	ret
-ENDPROC	get_lba
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; read_sector
-;
-; Read 1 sector into ES:DI using LBA in AX and BPB at DS:SI.
-;
-; Inputs:
-;	AX = LBA
-;	DS:SI -> BPB
-;	ES:DI -> buffer
-;
-; Output:
-;	Carry clear if successful, set if error (see AH for reason)
-;
-; Modifies:
-;	AX, BX
-;
-DEFPROC	read_sector
-	push	cx
-	push	dx
-	call	get_chs
-	mov	al,1		; AL = 1 sector
-	mov	ah,FDC_READ
-	mov	bx,di		; ES:BX = address
-	int	INT_FDC		; AX and carry are whatever the ROM returns
-	pop	dx
-	pop	cx
-	ret
-ENDPROC	read_sector
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -357,32 +392,6 @@ ws9:	mov	si,offset crlf
 	ret
 ENDPROC	wait
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; print
-;
-; Print the null-terminated string at DS:SI.
-;
-; Inputs:
-;	DS:SI -> string
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	AX, BX, SI
-;
-DEFPROC	printp
-	mov	ah,VIDEO_TTYOUT
-	mov	bh,0
-	int	INT_VIDEO
-print	label	near
-	lodsb
-	test	al,al
-	jnz	printp
-	ret
-ENDPROC	printp
-
 ;
 ; Strings
 ;
@@ -390,7 +399,7 @@ product		db	"BASIC-DOS "
 		VERSION_STR
 crlf		db	13,10,0
 prompt		db	"Press any key to start...",0
-errmsg1		db	"Missing system files, halted",0
+errmsg1		db	"System file missing, halted",0
 
 	org 	BOOT_SECTOR_LO + 510
 	dw	0AA55h
@@ -420,67 +429,65 @@ errmsg1		db	"Missing system files, halted",0
 ;	device drivers, and call it.  It must return the next available
 ;	load address.
 ;
-; NOTE: We currently don't include any code in the PART1-to-PART2 copy step,
-; but we could.  We could move some of the duplicated functions like get_chs,
-; get_lba, and print, for example.  However, that would make calling the code
-; a bit more complicated, and fragile, so as long we don't need the extra
-; space in the "part2" sector, there's not much point.
-;
 DEFPROC	part2,far
-	int	20h			; fake DOS terminate call
+	int	20h		; fake DOS terminate call
+				; copy PART1 data to PART2
 	mov	ax,[si].BPB_SECBYTES
-	mov	si,offset PART1_COPY	; copy PART1 data to PART2
-	mov	di,offset PART2_COPY
-	mov	cx,offset PART1_END - offset PART1_COPY
-	rep	movsb
 
-	mov	di,offset FAT_BUFHDR
-	mov	cx,offset DIR_SECTOR	; now we can zero the area
-	sub	cx,di			; from FAT_BUFHDR to DIR_SECTOR
-	rep	stosb			; (AL should be zero)
-
-	mov	si,offset PART2_END
-	mov	di,BIOS_END
+	mov	si,offset PART2_COPY
+	mov	di,offset BIOS_END
 	mov	cx,offset DIR_SECTOR
 	add	cx,ax
 	sub	cx,si
-	rep	movsb			; move first bit of DEV_FILE
+	rep	movsb		; move first bit of DEV_FILE
 
-	mov	bx,offset DEV_FILE + (offset PART2_COPY - offset PART1_COPY)
-	sub	[bx+4],ax		; reduce file size by AX
-	sbb	[bx+6],cx		; (CX is zero)
+	push	di		; save next DEV_FILE read address
+	mov	si,offset PART1_COPY
+	mov	di,offset PART2_COPY
+	mov	cx,offset PART1_END - offset PART1_COPY
+	rep	movsb
+				; now we can zero the area
+	mov	di,offset FAT_BUFHDR
+	mov	cx,offset DIR_SECTOR
+	sub	cx,di		; from FAT_BUFHDR to DIR_SECTOR
+	rep	stosb		; (AL should be zero)
+	pop	di
+
+	mov	bx,offset DEV_FILE2
+	sub	[bx+4],ax	; reduce DEV_FILE file size by AX
+	sbb	[bx+6],cx	; (CX is zero)
 
 	mov	si,offset PART2_COPY
-	call	read_data		; read the rest of DEV_FILE (see BX)
+	call	read_data	; read the rest of DEV_FILE (see BX) into DI
 ;
 ; To find the entry point of DEV_FILE's init code, we must walk the
 ; driver headers.  And since they haven't been chained together yet (that's
 ; the DEV_FILE init code's job), we do this by simply "hopping" over all
 ; the headers.
 ;
-	mov	di,BIOS_END		; BIOS's end is DEV_FILE's beginning
-	mov	cx,100			; put a limit on this loop
-i1:	mov	ax,[di]			; AX = current driver's total size
-	cmp	ax,-1			; have we reached end of drivers?
-	je	i3			; yes
+	mov	di,offset BIOS_END; BIOS's end is DEV_FILE's beginning
+	mov	cx,100		; put a limit on this loop
+i1:	mov	ax,[di]		; AX = current driver's total size
+	cmp	ax,-1		; have we reached end of drivers?
+	je	i3		; yes
 	add	di,ax
 	loop	i1
 i2:	jmp	load_error
 ;
 ; Prepare to "call" the DEV_FILE entry point, with DI -> end of drivers.
 ;
-i3:	mov	[DD_LIST].OFF,ax	; initialize driver list head (to -1)
+i3:	mov	[DD_LIST].OFF,ax; initialize driver list head (to -1)
 	mov	ax,di
-	test	ax,0Fh			; paragraph boundary?
-	jnz	i2			; no
+	test	ax,0Fh		; paragraph boundary?
+	jnz	i2		; no
 	push	cs
 	mov	cx,offset part3
-	push	cx			; far return address -> part3
+	push	cx		; far return address -> part3
 	mov	cx,4
 	shr	ax,cl
 	push	ax
-	push	cx			; far "call" address -> CS:0004h
-	ret				; "call"
+	push	cx		; far "call" address -> CS:0004h
+	ret			; "call"
 ENDPROC	part2
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -501,10 +508,10 @@ DEFPROC	part3,far
 	mov	es,di
 	ASSUME	ES:NOTHING
 	sub	di,di		; ES:DI now converted
-	mov	bx,offset DOS_FILE + (offset PART2_COPY - offset PART1_COPY)
+	mov	bx,offset DOS_FILE2
 	call	read_file	; load DOS_FILE
 	push	di
-	mov	bx,offset CFG_FILE + (offset PART2_COPY - offset PART1_COPY)
+	mov	bx,offset CFG_FILE2
 	sub	dx,dx		; default CFG_FILE size is zero
 	cmp	[bx],dx		; did we find CFG_FILE?
 	jne	i9		; no
@@ -518,87 +525,6 @@ i9:	pop	bx		; BX = CFG_FILE data address
 	mov	ax,offset PART2_COPY
 	ret			; AX = offset of BPB
 ENDPROC	part3
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; get_chs2
-;
-; Get CHS from LBA in AX, using BPB at DS:SI.
-;
-; Inputs:
-;	AX = LBA
-;	DS:SI -> BPB
-;
-; Outputs:
-;	DH = head #, DL = drive #
-;	CH = cylinder #, CL = sector ID
-;
-; Modifies:
-;	AX, CX, DX
-;
-DEFPROC	get_chs2
-	sub	dx,dx		; DX:AX is LBA
-	div	[si].BPB_CYLSECS; AX = cylinder, DX = remaining sectors
-	xchg	al,ah		; AH = cylinder, AL = cylinder bits 8-9
-	ror	al,1		; future-proofing: saving cylinder bits 8-9
-	ror	al,1
-	xchg	cx,ax		; CH = cylinder #
-	xchg	ax,dx		; AX = remaining sectors from last divide
-	div	byte ptr [si].BPB_TRACKSECS
-	mov	dh,al		; DH = head # (quotient of last divide)
-	or	cl,ah		; CL = sector # (remainder of last divide)
-	inc	cx		; LBA are zero-based, sector IDs are 1-based
-	mov	dl,[si].BPB_DRIVE
-	ret
-ENDPROC	get_chs2
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; get_lba2
-;
-; Get LBA from CLN in AX, using BPB at DS:SI.
-;
-; Inputs:
-;	AX = CLN
-;	DS:SI -> BPB
-;
-; Outputs:
-;	If successful, carry clear, AX = LBA, CX = sectors per cluster
-;	If unsuccessful, carry set
-;
-; Modifies:
-;	AX, CX, DX
-;
-DEFPROC	get_lba2
-	sub	ax,2
-	jb	load_error
-	sub	cx,cx
-	mov	cl,[si].BPB_CLUSSECS
-	mul	cx
-	add	ax,[si].BPB_LBADATA
-	ret
-ENDPROC	get_lba2
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; load_error
-;
-; Print load error message and "halt"
-;
-; Returns: Nothing
-;
-; Modifies: AX, BX, SI
-;
-DEFPROC	load_error
-	mov	si,offset errmsg2
-le1:	lodsb
-	test	al,al
-	jz	$			; "halt"
-	mov	ah,VIDEO_TTYOUT
-	mov	bh,0
-	int	INT_VIDEO
-	jmp	le1
-ENDPROC	load_error
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -709,7 +635,7 @@ DEFPROC	read_fat
 	je	rf1
 	mov	[FAT_BUFHDR].BUF_LBA,ax
 	mov	cl,1
-	call	read_sectors
+	call	read_sectors2
 	jc	read_error
 
 rf1:	mov	bp,bx		; save nibble offset in BP
@@ -720,7 +646,7 @@ rf1:	mov	bp,bx		; save nibble offset in BP
 	jb	rf2		; no
 	inc	[FAT_BUFHDR].BUF_LBA
 	mov	ax,[FAT_BUFHDR].BUF_LBA
-	call	read_sectors	; read next FAT LBA
+	call	read_sectors2	; read next FAT LBA
 	jc	read_error
 	sub	bx,bx
 rf2:	mov	dh,[di+bx]
@@ -744,6 +670,7 @@ ENDPROC	read_fat
 ;
 ; Inputs:
 ;	AX = CLN
+;	DX = # sectors already read from cluster (usually 0)
 ;	DS:SI -> BPB
 ;	ES:DI -> buffer
 ;
@@ -755,13 +682,14 @@ ENDPROC	read_fat
 ;	AX, CX
 ;
 DEFPROC	read_cluster
-	push	dx		; DX = sectors this cluster already read
-	call	get_lba2	; AX = LBA, CX = sectors per cluster
-	pop	dx
+	push	dx		; DX = sectors already read
+	call	get_lba2
+	jc	rc9
+	pop	dx		; AX = LBA, CX = sectors per cluster
 	add	ax,dx		; adjust LBA by sectors already read
 	sub	cx,dx		; sectors remaining?
 	jbe	rc8		; no
-	call	read_sectors
+	call	read_sectors2
 	jc	rc9
 ;
 ; The ROM claims that, on success, AL will (normally) contain the number of
@@ -773,46 +701,44 @@ ENDPROC	read_cluster
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; read_sectors
+; load_error
 ;
-; Read CL sectors into ES:DI using LBA in AX and BPB at DS:SI.
+; Print load error message and "halt"
 ;
-; Inputs:
-;	AX = LBA
-;	CL = # sectors
-;	DS:SI -> BPB
-;	ES:DI -> buffer
+; Returns: Nothing
 ;
-; Output:
-;	AX and carry are whatever the ROM returns
+; Modifies: AX, BX, SI
 ;
-; Modifies:
-;	AX
-;
-DEFPROC	read_sectors
-	push	bx
-	push	cx
-	push	dx
-	mov	bl,cl
-	call	get_chs2
-	mov	al,bl		; AL = # sectors (from original CL)
-	mov	ah,FDC_READ
-	mov	bx,di		; ES:BX = address
-	int	INT_FDC		; AX and carry are whatever the ROM returns
-	pop	dx
-	pop	cx
-	pop	bx
-	ret
-ENDPROC	read_sectors
+DEFPROC	load_error
+	mov	si,offset errmsg2
+	call	print2
+	jmp	$		; "halt"
+ENDPROC	load_error
 
-errmsg2		db	"Error loading system files, halted",0
+errmsg2		db	"System file error, halted",0
 
 ;
-; Data copied from PART1 (BPB and file data)
+; Code and data copied from PART1 (BPB, file data, and shared functions)
 ;
-PART2_COPY	db	(offset PART1_END - offset PART1_COPY) dup (?)
-		even
-PART2_END	equ	$
+		public	PART2_COPY
+PART2_COPY	label	byte
+		org	$ + (offset DEV_FILE - offset PART1_COPY)
+DEV_FILE2	label	byte
+		org	$ + (offset DOS_FILE - offset DEV_FILE)
+DOS_FILE2	label	byte
+		org	$ + (offset CFG_FILE - offset DOS_FILE)
+CFG_FILE2	label	byte
+		org	$ + (offset get_lba - offset CFG_FILE)
+get_lba2	label	near
+		org	$ + (offset read_sectors - offset get_lba)
+read_sectors2	label	near
+		org	$ + (offset print - offset read_sectors)
+print2		label	near
+		org	$ + (offset PART1_END - offset print)
+		public	PART2_END
+PART2_END	label	byte
+
+	ASSERT 	<offset PART2_END - offset part2>,LE,512
 
 BOOT	ends
 

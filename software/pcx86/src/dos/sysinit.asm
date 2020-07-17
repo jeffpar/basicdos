@@ -311,7 +311,11 @@ si7:	mov	dx,size SFB
 	mov	es,[dos_seg]		; mcb_head is in resident DOS segment
 	ASSUME	ES:DOS
 	mov	es:[mcb_head],bx
-
+;
+; The following SCB initialization should be limited to invariant SCB fields
+; (eg, SCB_NUM); alternatively, make sure everything we do here is done in
+; scb_init instead.
+;
 	dec	cx
 	mov	ah,ch
 	mov	bx,es:[scb_table].OFF

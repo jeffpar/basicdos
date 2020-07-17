@@ -134,6 +134,7 @@ DEFPROC	scb_init,DOS
 	ASSERT	STRUCT,[bx],SCB
 	mov	[bx].SCB_STACK.OFF,di
 	mov	[bx].SCB_STACK.SEG,es
+	mov	[bx].SCB_SWITCHAR,CHR_SLASH
 	or	[bx].SCB_STATUS,SCSTAT_LOAD
 	ret
 ENDPROC	scb_init

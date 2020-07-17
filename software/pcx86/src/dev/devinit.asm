@@ -44,7 +44,7 @@ DEFPROC	devinit,far
 ;
 ; Initialize each device driver.
 ;
-	mov	si,BIOS_END	; DS:SI -> first driver
+	mov	si,offset BIOS_END; DS:SI -> first driver
 ;
 ; Create a DDPI packet on the stack.
 ;

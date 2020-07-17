@@ -211,6 +211,39 @@ ENDPROC	msc_getvec
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; msc_getswc (REG_AH = 37h)
+;
+; Get/set the current switch character ("switchar").
+;
+; Inputs:
+;	If REG_AL = 0, returns current switch character in REG_DL
+;	If REG_AL = 1, set the current switch character from REG_DL
+;	Otherwise, set REG_AL to 0FFh to indicate unsupported subfunction
+;
+; Outputs:
+;	See above
+;
+; Modifies:
+;	AX
+;
+DEFPROC	msc_getswc,DOS
+	mov	bx,[scb_active]
+	ASSERT	STRUCT,[bx],SCB
+	test	al,al
+	jnz	gsw1
+	mov	al,[bx].SCB_SWITCHAR
+	mov	[bp].REG_DL,al		; DL = "switchar"
+	jmp	short gsw9
+gsw1:	dec	al
+	jnz	gsw2
+	mov	[bx].SCB_SWITCHAR,dl	; update "switchar"
+	jmp	short gsw9
+gsw2:	mov	byte ptr [bp].REG_AL,0FFh; (unsupported subfunction)
+gsw9:	ret
+ENDPROC	msc_getswc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; get_vecoff
 ;
 ; Inputs:

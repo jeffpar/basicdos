@@ -114,18 +114,31 @@ eread2:	jc	eread
 	mov	dx,offset DIR_SECTOR	;
 	sub	cx,cx			; CX:DX = offset
 	int	21h
-	mov	cx,514			; CX = number of bytes
+	mov	cx,1024			; CX = number of bytes
 	mov	dx,offset buffer + 512	; DS:DX -> buffer + 512
 	mov	ah,3Fh			; AH = 3Fh (READ FILE)
 	int	21h
 	jc	eread2
+	mov	di,dx			; DI -> buffer
+	add	di,ax			; DI -> just past bytes read
+	dec	di			; DI -> last byte read
+	xchg	cx,ax			; CX = # bytes read
+	mov	al,0
+	std
+	repe	scasb			; scan backward for 1st non-null
+	cld
+	jz	echk2			; must have been all nulls?
+	add	di,3
+	sub	di,dx
+	xchg	ax,di			; AX = # of VALID bytes read
 	cmp	ax,512			; 2nd half small enough?
-	ja	echeck			; no
-	push	ax			; AX = number of bytes read
+	jb	trunc			; yes
+echk2:	jmp	echeck			; no
 ;
 ; Before we close the original file (BOOT.COM), let's write the 1st half of
 ; the boot sector back to it, and then truncate it at 512 bytes.
 ;
+trunc:	push	ax			; save # bytes to write
 	mov	ax,4200h		; AH = 42h (SEEK), AL = 0 (FROM START)
 	sub	cx,cx
 	sub	dx,dx
