@@ -540,7 +540,6 @@ lp6a:	cmp	ax,size EXEHDR
 ; there is to read, read that as well, and then read the rest of the file
 ; into the bottom of the allocated memory.
 ;
-	int 3
 	mov	dx,es
 	add	dx,si
 	add	dx,10h
@@ -575,8 +574,8 @@ lp6b:	mov	ds,dx
 
 lp6c:	push	es
 	push	ds
-	pop	es
-	pop	dx
+	pop	es			; ES = header segment
+	pop	dx			; DX = PSP segment
 	add	dx,10h
 lp6d:	mov	ds,dx
 	sub	dx,dx			; DS:DX -> next read location
@@ -606,6 +605,7 @@ lp6f:	mov	bx,es:[di].OFF		; BX = offset
 	add	si,ax
 	mov	ds,si
 	add	[bx],ax			; add base segment to DS:[BX]
+	add	di,4
 	loop	lp6f
 ;
 ; DX - (AX - 10h) is the base # of paragraphs required for the EXE.  Add the
@@ -614,8 +614,7 @@ lp6f:	mov	bx,es:[di].OFF		; BX = offset
 ; TODO: Decide what to do about the maximum.  The default setting seems to be
 ; "give me all the memory" (eg, FFFFh), which we do not want to do.
 ;
-lp6g:	int 3
-	push	es:[EXE_START_SEG]
+lp6g:	push	es:[EXE_START_SEG]
 	push	es:[EXE_START_OFF]
 	push	es:[EXE_STACK_SEG]
 	push	es:[EXE_STACK_OFF]
@@ -628,8 +627,16 @@ lp6g:	int 3
 	sub	dx,ax			; DX = base # paras
 	add	dx,si			; DX = base + minimum
 	mov	bx,dx			; BX = realloc size (in paras)
-	add	ax,10h
-	mov	ds,[psp_active]
+;
+; TODO: Determine a reasonable amount to add to the minimum.  SYMDEB.EXE 4.0
+; was the first non-BASIC-DOS EXE I tried to load, and if I provided only its
+; minimum of 11h paragraphs, it would trash the memory arena when creating a
+; PSP.
+;
+	add	bx,20h			; add another 0.5Kb (in paras)
+
+	mov	ds,ax			; DS = PSP segment
+	add	ax,10h			; AX = EXE base segment (again)
 	pop	ds:[PSP_STACK].OFF
 	pop	ds:[PSP_STACK].SEG
 	add	ds:[PSP_STACK].SEG,ax
@@ -637,7 +644,7 @@ lp6g:	int 3
 	pop	ds:[PSP_START].SEG
 	add	ds:[PSP_START].SEG,ax
 	IFDEF DEBUG
-	PRINTF	<"min,max paragraphs: %#06x,%#06x",13,10>,si,di
+	PRINTF	<"min,cur,max paragraphs: %#06x,%#06x,%#06x",13,10>,si,bx,di
 	ENDIF
 	jmp	short lp8		; realloc the PSP segment
 ;

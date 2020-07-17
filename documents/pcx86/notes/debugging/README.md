@@ -1067,3 +1067,38 @@ dumpMCB(0x03C6)
 &054B:4C7A 7403             JZ       4C7F (SYMDEB.EXE+0x4E7F) ;history=3
 &054B:4C7F A3948E           MOV      [8E94],AX                ;history=2
 &054B:4C82 A3968E           MOV      [8E96],AX                ;history=1
+
+---
+
+SYMDEB.EXE header:
+
+00000000  4d 5a 9d 00 49 00 04 00  20 00 11 00 ff ff ea 08  |MZ..I... .......|
+00000010  00 01 fb 2e 09 01 00 00  1e 00 00 00 01 00 b4 08  |................|
+00000020  00 00 e0 58 00 00 71 59  00 00 c0 59 00 00 00 00  |...X..qY...Y....|
+00000030  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+
+dumpMCB(0x03C6)
+03C6:0000: 'M' PID=0x0008 LEN=0x0002 ""
+03C9:0000: 'M' PID=0x0008 LEN=0x0002 ""
+03CC:0000: 'M' PID=0x03CD LEN=0x00B6 ""
+0483:0000: 'M' PID=0x0484 LEN=0x00B6 ""
+053A:0000: 'M' PID=0x03CD LEN=0x091A ""
+0E55:0000: 'Z' PID=0x0000 LEN=0x01AA ""
+
+SYMDEB.EXE is 37021 (909dh) bytes, 2314 (90Ah) paras.
+
+PSP at 53Bh.  We add 90Ah, plus 10h for the PSP, giving E55h, then we subtract
+EXE_PARASHDR (=20h), giving E35h.
+
+After reading header, we read the main EXE (8E9Dh total bytes) starting
+at paragraph 54Bh.  1st (8000h byte) chunk bumps next para to D4Bh, and then
+the final E9Dh bytes bumps us another EAh paras, for a total of E35h.  Which
+aligns with where we loaded the header data.
+
+There are 4 relocation entries, all adjusted by a base segment value of 54Bh.
+The adjustments are made at offsets: 08B4, 58E0, 5971, and 59C0.
+
+	mov	es,ax			; ES = PSP segment              53Bh
+	sub	dx,ax			; DX = base # paras             DX = E35h - 53Bh = 8FAh
+	add	dx,si			; DX = base + minimum           DX = 8FAh + 11h = 90Bh
+	mov	bx,dx			; BX = realloc size (in paras)
