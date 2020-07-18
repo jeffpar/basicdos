@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Page     1-1
                                                             
@@ -57,7 +57,7 @@ BIBOOT - Initialization File for ASM86 BASICs               Page     1-1
 				 line - DO NOT MODIFY 
                              C  ; 
  = 0015                      C  	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -116,7 +116,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMIN
 				AL 
                              C  				;AND FILES 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Page     1-3
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -175,7 +175,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,C
 				ENT) 
  = 0000                      C  	TSLPT=0 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Page     1-4
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -234,7 +234,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C   
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Page     1-5
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -293,7 +293,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	MOV	WORD PTR A,WORD PTR M 
                              C  	STAX	D 
                              C  	DCXF	H 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Page     1-6
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -352,7 +352,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	PUSH	WORD PTR B 
                              C  ENDM 
                              C  POPR	MACRO 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Page     1-7
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -411,7 +411,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDIF 
                              C  IFNB    <D> 
                              C          DB      C&O 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -447,7 +447,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Page     1-9
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -506,7 +506,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ;Special File ID's (identified by 1st byte of f
 				ile) 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Page     1-10
 GIO86U - Device Independent I/O Constants and Macros        
@@ -543,7 +543,7 @@ GIO86U - Device Independent I/O Constants and Macros
 				n this device 
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Page     1-11
 GIO86U - Device Independent I/O Constants and Macros        
@@ -602,7 +602,7 @@ GIO86U - Device Independent I/O Constants and Macros
  = 0021                      C  	C_RNDR=33D		;Random read 
  = 0022                      C  	C_RNDW=34D		;Random write 
  = 0027                      C  	C_RBR=39D		;Random Block Read 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Page     1-12
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -661,7 +661,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                              C  	ROFFST	FDBSIZ,0	;size of device independent pa
 				rt of FDB 
                              C  				;device dependant FDB entries start here 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Page     1-13
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -696,7 +696,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Numbe
 				r 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Page     1-14
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -704,7 +704,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                              C          PAGE 
                                  
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Page     1-15
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -748,22 +748,22 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 ;         DS:0 pointing to start of control blo
 				ck. 
                                 ; 
- 0000                           BIBOOT: 
- 0000  8C C9                    	MOV	CX,CS		; Get BASIC's segment 
- 0002  8E C1                    	MOV	ES,CX		; Make it the destination segment 
- 0004  33 F6                    	XOR	SI,SI		; Start at ES:0 
- 0006  33 FF                    	XOR	DI,DI		; Destination is CS:0 
- 0008  B9 0080                  	MOV	CX,200O		; There are 100H bytes to move 
- 000B  FC                       	CLD 
- 000C  F3/ A5                    REP	MOVSW 
- 000E  8C D9                    	MOV	CX,DS		; Restore segment registers 
- 0010  8E C1                    	MOV	ES,CX 
- 0012  E9 0000 E                	JMP	START 
- 0015                           CSEG    ENDS 
+ 0000  CC                       BIBOOT:	int 3 
+ 0001  8C C9                    	MOV	CX,CS		; Get BASIC's segment 
+ 0003  8E C1                    	MOV	ES,CX		; Make it the destination segment 
+ 0005  33 F6                    	XOR	SI,SI		; Start at ES:0 
+ 0007  33 FF                    	XOR	DI,DI		; Destination is CS:0 
+ 0009  B9 0080                  	MOV	CX,200O		; There are 100H bytes to move 
+ 000C  FC                       	CLD 
+ 000D  F3/ A5                    REP	MOVSW 
+ 000F  8C D9                    	MOV	CX,DS		; Restore segment registers 
+ 0011  8E C1                    	MOV	ES,CX 
+ 0013  E9 0000 E                	JMP	START 
+ 0016                           CSEG    ENDS 
                                 ; 
                                 ; Last label in data segment.  Is used by BASIC
 				 to initialize TXTTAB, etc. 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Page     1-16
 ASM86 Version                                               
@@ -774,12 +774,12 @@ ASM86 Version
                                         PUBLIC  LSTVAR 
  0000                           LSTVAR  LABEL   WORD 
  0000                           DSEG    ENDS 
- 0015                           CSEG    SEGMENT PUBLIC 'CODESG' 
+ 0016                           CSEG    SEGMENT PUBLIC 'CODESG' 
                                         ASSUME  CS:CSEG 
- 0015                           CSEG	ENDS 
+ 0016                           CSEG	ENDS 
                                 	END	BIBOOT		; BIBOOT is the entry point. 
 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Symbols-1
                                                              
@@ -813,7 +813,7 @@ Segments and Groups:
 
                 N a m e         	Size	Align	Combine Class
 
-CSEG . . . . . . . . . . . . . .  	0015	PARA	PUBLIC	'CODESG'
+CSEG . . . . . . . . . . . . . .  	0016	PARA	PUBLIC	'CODESG'
 DSEG . . . . . . . . . . . . . .  	0000	PARA	PUBLIC	'DATASG'
 
 Symbols:            
@@ -838,7 +838,7 @@ BIBOOT . . . . . . . . . . . . .  	L NEAR	0000	CSEG
 BINCSW . . . . . . . . . . . . .  	Number	0000	
 BINFID . . . . . . . . . . . . .  	Number	00FF	
 BLODSW . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Symbols-2
                                                              
@@ -897,7 +897,7 @@ DOS  . . . . . . . . . . . . . .  	Number	0000
 DRVPOS . . . . . . . . . . . . .  	Number	0000	
 DUPONT . . . . . . . . . . . . .  	Number	0000	
 DYNCOM . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Symbols-3
                                                              
@@ -956,7 +956,7 @@ GENBIN . . . . . . . . . . . . .  	Number	0001
 GENDSK . . . . . . . . . . . . .  	Number	0000	
 GENIO  . . . . . . . . . . . . .  	Number	0001	
 GESBC  . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Symbols-4
                                                              
@@ -1015,7 +1015,7 @@ LINLN  . . . . . . . . . . . . .  	Number	0050
 LISTEN . . . . . . . . . . . . .  	Number	0001	
 LNGVAR . . . . . . . . . . . . .  	Number	0001	
 LOKHED . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Symbols-5
                                                              
@@ -1074,7 +1074,7 @@ ONTEL  . . . . . . . . . . . . .  	Number	0000
 PALSIZ . . . . . . . . . . . . .  	Number	0000	
 PANBAS . . . . . . . . . . . . .  	Number	0000	
 PCS  . . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:51
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:39
 
 BIBOOT - Initialization File for ASM86 BASICs               Symbols-6
                                                              

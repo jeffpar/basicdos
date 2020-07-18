@@ -436,16 +436,17 @@ ENDPROC	get_bpb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; get_cln
+; get_cln (see also: read_fat in boot.asm)
 ;
-; For the CLN in DX, get the next CLN.
+; For the CLN in DX, get the next CLN in DX, using the BPB at DI.
 ;
 ; Inputs:
+;	DX = CLN
 ;	DI -> BPB
 ;
 ; Outputs:
-;	On success, DX = CLN, carry clear
-;	On failure, AX = error code, carry set
+;	On success, carry clear, DX = CLN
+;	On failure, carry set, AX = error code
 ;
 ; Modifies:
 ;	AX, DX, SI
@@ -470,6 +471,8 @@ DEFPROC	get_cln,DOS
 ;
 ; TODO: If we're serious about being sector-size-agnostic, our BPB should
 ; contain a (precalculated) LOG2 of BPB_SECBYTES, to avoid hard-coded shifts.
+; That'll be tough to do without wasting buffer memory though, since sectors
+; can be as large as 1K.
 ;
 	mov	bx,dx
 	add	dx,dx

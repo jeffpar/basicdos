@@ -69,21 +69,33 @@ open:	mov	ax,3D02h		; AH = 3Dh (OPEN FILE), AL = R/W
 	int	21h
 	jc	eopen
 	xchg	bx,ax			; BX = file handle
-	mov	ax,4200h		; AH = 42h (SEEK), AL = 0 (FROM START)
+;
+; Let's get the boot sector length first; if it's only 512 bytes,
+; then it's already been truncated, so all we want to do is write it
+; to the boot drive.
+;
+	mov	ax,4202h		; AH = 42h (SEEK), AL = 2 (FROM END)
+	sub	cx,cx
+	sub	dx,dx			; CX:DX == offset (zero)
+	int	21h
+	cmp	ax,512			; exactly 512?
 	mov	dx,BOOT_SECTOR_LO	;
-	sub	cx,cx			; CX:DX == offset
+	jne	seek			; no
+	sub	dx,dx			; yes, seek back to start
+
+seek:	mov	ax,4200h		; AH = 42h (SEEK), AL = 0 (FROM START)
 	int	21h
 	mov	cx,514			; CX = number of bytes
 	mov	dx,offset buffer	; DS:DX -> buffer
+	mov	di,dx			; DS:DI -> buffer
+	mov	word ptr [di+512],-1	; set guard word just past sector
 	mov	ah,3Fh			; AH = 3Fh (READ FILE)
 	int	21h
-	jc	eread
+eread2:	jc	eread
+
 	cmp	ax,512			; read at least 512 bytes?
 	jb	echeck			; no
-	mov	di,dx			; DS:DI -> buffer
 	cmp	[di+510],0AA55h		; correct signature?
-	jne	echeck			; no
-	cmp	word ptr [di+512],0000h	; nothing past the signature?
 	jne	echeck			; no
 	push	bx
 	mov	ax,0301h		; AH = 03h (WRITE SECTORS), AL = 1
@@ -93,22 +105,40 @@ open:	mov	ax,3D02h		; AH = 3Dh (OPEN FILE), AL = R/W
 	int	13h
 	pop	bx
 	jc	ewrite
+	cmp	word ptr [di+512],-1	; anything past the signature?
+	je	done			; no, assume we're done
+;
+; Read the 2nd half of the boot code into buffer + 512
+;
 	mov	ax,4200h		; AH = 42h (SEEK), AL = 0 (FROM START)
 	mov	dx,offset DIR_SECTOR	;
 	sub	cx,cx			; CX:DX = offset
 	int	21h
-	mov	cx,514			; CX = number of bytes
+	mov	cx,1024			; CX = number of bytes
 	mov	dx,offset buffer + 512	; DS:DX -> buffer + 512
 	mov	ah,3Fh			; AH = 3Fh (READ FILE)
 	int	21h
-	jc	eread
+	jc	eread2
+	mov	di,dx			; DI -> buffer
+	add	di,ax			; DI -> just past bytes read
+	dec	di			; DI -> last byte read
+	xchg	cx,ax			; CX = # bytes read
+	mov	al,0
+	std
+	repe	scasb			; scan backward for 1st non-null
+	cld
+	jz	echk2			; must have been all nulls?
+	add	di,3
+	sub	di,dx
+	xchg	ax,di			; AX = # of VALID bytes read
 	cmp	ax,512			; 2nd half small enough?
-	ja	echeck			; no
-	push	ax			; AX = number of bytes read
+	jb	trunc			; yes
+echk2:	jmp	echeck			; no
 ;
 ; Before we close the original file (BOOT.COM), let's write the 1st half of
 ; the boot sector back to it, and then truncate it at 512 bytes.
 ;
+trunc:	push	ax			; save # bytes to write
 	mov	ax,4200h		; AH = 42h (SEEK), AL = 0 (FROM START)
 	sub	cx,cx
 	sub	dx,dx
@@ -142,7 +172,8 @@ create:	mov	ah,3Ch
 	mov	ah,3Eh			; AH = 3Eh (CLOSE FILE)
 	int	21h
 	mov	al,0			; exit with zero return code
-	mov	dx,offset success
+
+done:	mov	dx,offset success
 
 msg:	push	ax
 	mov	ah,9

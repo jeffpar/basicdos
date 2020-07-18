@@ -15,7 +15,7 @@ let disks = {
     "BASIC-DOS": [
         "./software/pcx86/src/dev/IBMBIO.COM",
         "./software/pcx86/src/dos/IBMDOS.COM",
-        "./software/pcx86/src/boot/config1/CONFIG.SYS",
+        "./software/pcx86/src/configs/config1/CONFIG.SYS",
         "./software/pcx86/src/util/COMMAND.COM",
         "./software/pcx86/src/util/PRIMES.EXE",
         "./software/pcx86/src/util/SLEEP.COM"
@@ -23,10 +23,10 @@ let disks = {
     "BASIC-DOS2": [
         "./software/pcx86/src/dev/IBMBIO.COM",
         "./software/pcx86/src/dos/IBMDOS.COM",
-        "./software/pcx86/src/boot/config2/CONFIG.SYS",
+        "./software/pcx86/src/configs/config2/CONFIG.SYS",
         "./software/pcx86/src/util/COMMAND.COM",
-        "./software/pcx86/src/util/PRIMES.EXE",
-        "./software/pcx86/src/util/SLEEP.COM"
+        "./software/pcx86/src/gwb/GWB.EXE",
+        "./software/pcx86/src/configs/config2/SYMDEB.EXE"
     ],
     "BDS-BOOT": [
         "./software/pcx86/src/boot/boot.asm",

@@ -24,8 +24,7 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
 	DEFLBL	CON_LIMITS,word
-	dw	16,80,  4,25	; mirrors sysinit's CFG_CONSOLE defaults
-	dw	 0,79,  0,24
+	dw	80,16,80, 25,4,25, 0,0,79, 0,0,24, 1,0,1
 
 	DEFLBL	DBL_BORDER,word
 	dw	0C9BBh,0BABAh,0C8BCh,0CDCDh
@@ -49,19 +48,16 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 CONTEXT		struc
 CT_NEXT		dw	?	; 00h: segment of next context, 0 if end
 CT_STATUS	dw	?	; 02h: context status bits (CTSTAT_*)
-CT_CONW		db	?	; 04h: eg, context width (eg, 80 cols)
-CT_CONH		db	?	; 05h: eg, context height (eg, 25 rows)
-CT_CONX		db	?	; 06h: eg, content X of top left (eg, 0)
-CT_CONY		db	?	; 07h: eg, content Y of top left (eg, 0)
-CT_CURX		db	?	; 08h: eg, cursor X within context (eg, 1)
-CT_CURY		db	?	; 09h: eg, cursor Y within context (eg, 1)
-CT_MAXX		db	?	; 0Ah; eg, maximum X within context (eg, 79)
-CT_MAXY		db	?	; 0Bh: eg, maximum Y within context (eg, 24)
-CT_BUFFER	dd	?	; 0Ch: eg, 0B800h:00A2h
-CT_PORT		dw	?	; 10h: eg, 3D4h
+CT_CONDIM	dw	?	; 04h: eg, context dimensions (0-based)
+CT_CONPOS	dw	?	; 06h: eg, context position (X,Y) of top left
+CT_CURPOS	dw	?	; 08h: eg, cursor X (lo) and Y (hi) position
+CT_CURMIN	dw	?	; 0Ah: eg, cursor X (lo) and Y (hi) minimums
+CT_CURMAX	dw	?	; 0Ch: eg, cursor X (lo) and Y (hi) maximums
+CT_PORT		dw	?	; 0Eh: eg, 3D4h
+CT_BUFFER	dd	?	; 10h: eg, 0B800h:00A2h
 CONTEXT		ends
 
-CTSTAT_SYSTEM	equ	0001h	; context is system console
+CTSTAT_BORDER	equ	0001h	; context has border
 CTSTAT_PAUSED	equ	0002h	; context is paused (triggered by CTRLS hotkey)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -122,14 +118,15 @@ DEFPROC	ddcon_ctlin
 
 	cmp	al,IOCTL_GETPOS
 	jne	dio1
-	mov	dx,word ptr ds:[CT_CURX]; DX = current cursor position
+	mov	dx,ds:[CT_CURPOS]	; DX = current cursor position
 	jmp	short dio7
 
 dio1:	cmp	al,IOCTL_GETLEN
 	jne	dio9
 	mov	bx,es:[di].DDPRW_LBA	; BX = starting cursor position
 	sub	dx,dx			; DL = current len, DH = previous len
-	mov	ah,ds:[CT_MAXX]		; AH = column limit
+	mov	ah,ds:[CT_CURMAX].LO	; AH = column max
+	mov	bh,ds:[CT_CURMIN].LO	; BH = column min
 	lds	si,es:[di].DDPRW_ADDR
 	mov	cx,es:[di].DDPRW_LENGTH
 	jcxz	dio7			; nothing to do
@@ -140,14 +137,14 @@ dio2:	lodsb
 	cmp	al,CHR_TAB
 	jne	dio4
 	mov	al,bl			; for CHR_TAB
-	dec	al			; mimic write_context's TAB logic
+	sub	al,bh			; mimic write_context's TAB logic
 	and	al,07h
 	neg	al
 	add	al,8			; AL = # output chars
 dio3:	inc	bl
 	inc	dl
 	cmp	bl,ah			; column still below limit?
-	jb	dio3a			; yes
+	jbe	dio3a			; yes
 	mov	bl,1			; no, so reset column and stop
 	jmp	short dio5
 dio3a:	dec	al
@@ -161,7 +158,7 @@ dio4:	cmp	al,CHR_ESC
 dio4a:	inc	bl			; advance the column
 	inc	dl			; advance the length
 	cmp	bl,ah			; column still below limit?
-	jb	dio4b			; yes
+	jbe	dio4b			; yes
 	mov	bl,1			; no, so reset column and keep going
 dio4b:	dec	al
 	jnz	dio4a
@@ -262,7 +259,7 @@ ENDPROC	ddcon_write
 ;
 ;	[device]:[cols],[rows],[x],[y],[border],[adapter]
 ;
-; where [device] is CON (otherwise you wouldn't be here), [cols] is number of
+; where [device] is "CON" (otherwise you wouldn't be here), [cols] is number of
 ; columns (up to 80), [rows] is number of rows (up to 25), [x] and [y] are the
 ; top-left row and col of the context, [border] is 1 for a border or 0 for none,
 ; and [adapter] is the adapter #, in case there is more than one video adapter
@@ -286,6 +283,10 @@ DEFPROC	ddcon_open
 	push	ds
 	lds	si,es:[di].DDP_PTR
 	ASSUME	DS:NOTHING
+;
+; We know that DDP_PTR must point to a string containing "CON:" at the
+; very least, so we skip those 4 bytes.
+;
 	add	si,4			; DS:SI -> parms
 	push	cs
 	pop	es
@@ -303,12 +304,19 @@ DEFPROC	ddcon_open
 	mov	ax,DOS_UTL_ATOI16
 	int	21h
 	mov	dh,al			; DH = starting row
+	mov	ax,DOS_UTL_ATOI16
+	int	21h
+	cbw
+	mov	bx,ax			; BX = border (0 for none)
+	ASSERT	CTSTAT_BORDER,EQ,1
 	pop	ds
 	ASSUME	DS:CODE
 
+	push	bx
 	mov	bx,(size context + 15) SHR 4
 	mov	ah,DOS_MEM_ALLOC
 	int	INT_DOSFUNC
+	pop	bx
 	jnc	dco1
 	jmp	dco7
 
@@ -321,19 +329,20 @@ dco1:	mov	ds,ax
 
 dco1a:	xchg	[ct_head],ax
 	mov	ds:[CT_NEXT],ax
-	mov	ds:[CT_STATUS],0
-	test	ax,ax			; first CONSOLE?
-	jnz	dco5			; no
-	or	ds:[CT_STATUS],CTSTAT_SYSTEM
+	mov	ds:[CT_STATUS],bx
 ;
-; Set context screen size (CONW,CONH) and position (CONX,CONY) based on
-; (CL,CH) and (DL,DH), and then set context cursor maximums (MAXX,MAXY) from
-; the context size.
+; Set context dimensions (CL,CH) and position (DL,DH), and then determine
+; cursor minimums and maximums from the context size.
 ;
-dco5:	mov	word ptr ds:[CT_CONW],cx; set CT_CONW (CL) and CT_CONH (CH)
-	mov	word ptr ds:[CT_CONX],dx; set CT_CONX (DL) and CT_CONY (DH)
-	sub	cx,0101h
-	mov	word ptr ds:[CT_MAXX],cx; set CT_MAXX (CL) and CT_MAXY (CH)
+	mov	ax,0101h
+	sub	cx,ax
+	mov	ds:[CT_CONDIM],cx	; set CT_CONDIM (CL,CH)
+	mov	ds:[CT_CONPOS],dx	; set CT_CONPOS (DL,DH)
+	mov	al,bl
+	mov	ah,bl			; AX = 0101h for border, 0000h for none
+	mov	ds:[CT_CURMIN],ax	; set CT_CURMIN (AL,AH)
+	sub	cx,ax
+	mov	ds:[CT_CURMAX],cx	; set CT_CURMAX (CL,CH)
 	mov	al,dh
 	mul	[max_cols]
 	add	ax,ax
@@ -348,24 +357,20 @@ dco5:	mov	word ptr ds:[CT_CONW],cx; set CT_CONW (CL) and CT_CONH (CH)
 	mov	es,ax
 	ASSUME	ES:BIOS
 ;
-; Importing the BIOS CURSOR_POSN into CURX and CURY seemed like a nice idea
-; initially, but now that we're clearing interior below, best to use a default.
+; Importing the BIOS CURSOR_POSN into CURPOS seemed like a nice idea initially,
+; but now that we're clearing interior below, seems best to use a default.
 ;
 	; mov	ax,[CURSOR_POSN]
-	mov	ax,0101h		; default when displaying borders
-	mov	word ptr ds:[CT_CURX],ax; set CT_CURX (AL) and CT_CURY (AH)
+	mov	ax,ds:[CT_CURMIN]	; get CT_CURMIN
+	mov	ds:[CT_CURPOS],ax	; set CT_CURPOS (X and Y)
 
 	mov	ax,[ADDR_6845]
 	mov	ds:[CT_PORT],ax
-;
-; OK, so if this context is supposed to have a border, draw all 4 sides now.
-;
-; TODO: Add a mechanism for making the border optional.
-;
-	call	draw_border
+
+	call	draw_border		; draw the context's border, if any
 
 dco6:	mov	al,0
-	call	scroll			; clear the interior
+	call	scroll			; clear the context's interior
 	clc
 
 dco7:	pop	es
@@ -392,16 +397,16 @@ ENDPROC	ddcon_open
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_close
-	mov	ax,es:[di].DDP_CONTEXT
-	test	ax,ax
-	jz	dcc9			; no context
-	cmp	[ct_focus],ax
+	mov	cx,es:[di].DDP_CONTEXT
+	jcxz	dcc9			; no context
+	cmp	[ct_focus],cx
 	jne	dcc0
-	mov	[ct_focus],0
+	call	focus_next
+	ASSERT	NZ,<cmp [ct_focus],cx>
 ;
 ; Remove the context from our chain
 ;
-dcc0:	int 3
+dcc0:	xchg	ax,cx			; AX = context to free
 	push	es
 	push	ds
 	mov	bx,offset ct_head	; DS:BX -> 1st context
@@ -417,6 +422,9 @@ dcc1:	mov	cx,[bx].CT_NEXT
 dcc2:	mov	es,ax
 	mov	cx,es:[CT_NEXT]		; move this context's CT_NEXT
 	mov	[bx].CT_NEXT,cx		; to the previous context's CT_NEXT
+	mov	ds,ax
+	mov	al,-1			; clear the entire context
+	call	scroll
 	pop	ds
 	ASSUME	DS:CODE
 ;
@@ -747,13 +755,15 @@ ENDPROC	check_hotkey
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	draw_border
+	test	ds:[CT_STATUS],CTSTAT_BORDER
+	jz	db9
 	mov	ax,ds
 	mov	si,offset DBL_BORDER
 	cmp	ax,[ct_focus]
 	je	db1
 	mov	si,offset SGL_BORDER
-db1:	sub	dx,dx			; eg, get top left X (DL), Y (DH)
-	mov	bx,word ptr ds:[CT_MAXX]; eg, get bottom right X (BL), Y (BH)
+db1:	sub	dx,dx			; get top left X,Y (DL,DH)
+	mov	bx,ds:[CT_CONDIM]	; get bottom right X,Y (BL,BH)
 	lods	word ptr cs:[si]
 	xchg	cx,ax
 	call	write_vertpair
@@ -773,10 +783,10 @@ db3:	lods	word ptr cs:[si]
 db4:	mov	dh,0
 	inc	dx			; advance X, holding Y constant
 	cmp	dl,bl
-	jae	db6
+	jae	db9
 	call	write_horzpair
 	jmp	db4
-db6:	ret
+db9:	ret
 ENDPROC	draw_border
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -785,11 +795,11 @@ ENDPROC	draw_border
 ;
 ; Inputs:
 ;	CL = character
-;	DX = CURX (DL), CURY (DH)
+;	DX = CURPOS (DL,DH)
 ;	DS -> CONSOLE context
 ;
 ; Outputs:
-;	Updates DL,DH
+;	Updates cursor position in (DL,DH)
 ;
 ; Modifies:
 ;	AX, DX, DI, ES
@@ -802,32 +812,32 @@ DEFPROC	draw_char
 	dec	ch			; no advance
 	mov	cl,CHR_SPACE		; emulate a BACKSPACE
 	dec	dl
-	jnz	dc8
+	cmp	dl,ds:[CT_CURMIN].LO
+	jge	dc8
+	mov	dl,ds:[CT_CURMAX].LO
 	dec	dh
-	jnz	dc7
-	mov	dx,0101h
-	jmp	short dc8
-dc7:	mov	dl,ds:[CT_MAXX]
-	dec	dx
+	cmp	dh,ds:[CT_CURMIN].HI
+	jge	dc8
+	mov	dx,ds:[CT_CURMIN]
 
 dc8:	call	write_curpos		; write CL at (DL,DH)
 ;
-; Advance DL, advancing DH as needed, and scrolling the context as needed.
+; Advance DL, advance DH as needed, and scroll the context as needed.
 ;
 	add	dl,ch			; advance DL
 	pop	cx
 
-	cmp	dl,ds:[CT_MAXX]
-	jb	dc9
-	mov	dl,1
+	cmp	dl,ds:[CT_CURMAX].LO
+	jle	dc9
+	mov	dl,ds:[CT_CURMIN].LO
 
 	DEFLBL	draw_linefeed,near
 	inc	dh
-	cmp	dh,ds:[CT_MAXY]
-	jb	dc9
+	cmp	dh,ds:[CT_CURMAX].HI
+	jle	dc9
 	dec	dh
 	mov	al,1
-	call	scroll			; scroll up 1 line
+	call	scroll			; scroll the context up 1 line
 
 dc9:	ret
 ENDPROC	draw_char
@@ -847,12 +857,12 @@ ENDPROC	draw_char
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	draw_cursor
-	mov	dx,word ptr ds:[CT_CURX]
-	call	get_curpos		; BX = screen offset for CURX,CURY
+	mov	dx,ds:[CT_CURPOS]
+	call	get_curpos		; BX = screen offset for CURPOS
 	add	bx,ds:[CT_BUFFER].OFF	; add the context's buffer offset
 	shr	bx,1			; screen offset to cell offset
 	mov	ah,14			; AH = 6845 CURSOR ADDR (HI) register
-	call	write_6845		; update cursor position using BX
+	call	write_port		; update cursor position using BX
 	ret
 ENDPROC	draw_cursor
 
@@ -876,6 +886,7 @@ DEFPROC	focus_next
 	push	cx
 	push	si
 	push	di
+	push	ds
 ;
 ; Not sure that calling DOS_UTL_LOCK is strictly necessary, but it feels
 ; like a good idea while we're 1) switching which context has focus, and 2)
@@ -904,6 +915,7 @@ tf2:	xchg	cx,[ct_focus]
 tf9:	pop	es
 	mov	ax,DOS_UTL_UNLOCK
 	int	21h
+	pop	ds
 	pop	di
 	pop	si
 	pop	cx
@@ -915,7 +927,7 @@ ENDPROC	focus_next
 ; get_curpos
 ;
 ; Inputs:
-;	DX = CURX (DL), CURY (DH)
+;	DX = CURPOS (DL,DH)
 ;
 ; Outputs:
 ;	BX -> screen buffer offset
@@ -993,7 +1005,7 @@ ENDPROC	read_kbd
 ; scroll
 ;
 ; Inputs:
-;	AL = # lines (0 to clear ALL lines)
+;	AL = # lines (0 to clear ALL lines, -1 to clear entire context)
 ;	DS -> CONSOLE context
 ;
 ; Modifies:
@@ -1005,12 +1017,16 @@ DEFPROC	scroll
 	push	cx
 	push	dx
 	push	bp			; WARNING: INT 10h scrolls trash BP
-	mov	cx,word ptr ds:[CT_CONX]; CH = row, CL = col of upper left
+	mov	cx,ds:[CT_CONPOS]
 	mov	dx,cx
-	add	cx,0101h
-	add	dx,word ptr ds:[CT_MAXX]; DH = row, DL = col of lower right
-	sub	dx,0101h
-	mov	bh,07h			; BH = fill attribute
+	test	al,al			; negative?
+	jge	scr1			; no
+	mov	al,0
+	add	dx,ds:[CT_CONDIM]	; yes, clear entire context
+	jmp	short scr2		; (including borders)
+scr1:	add	cx,ds:[CT_CURMIN]	; CH = row, CL = col of upper left
+	add	dx,ds:[CT_CURMAX]	; DH = row, DL = col of lower right
+scr2:	mov	bh,07h			; BH = fill attribute
 	mov	ah,06h			; scroll up # lines in AL
 	int	10h
 	pop	bp
@@ -1065,58 +1081,62 @@ DEFPROC	write_context
 	push	bx
 	push	cx
 	push	dx
+	push	di
 	push	ds
 	push	es
 	push	es
 	pop	ds			; DS is now the context
 ;
-; Check for special characters.
+; Check for special characters first.
 ;
-	xchg	cx,ax			; CL = char
-	mov	dx,word ptr ds:[CT_CURX]
+	mov	cx,ax			; CL = character
+	mov	dx,ds:[CT_CURPOS]
 
-	cmp	cl,CHR_RETURN		; RETURN?
-	jne	wc1
-	mov	dl,1			; emulate a RETURN
+	cmp	al,CHR_RETURN		; RETURN?
+	jne	wc1			; no
+	mov	dl,ds:[CT_CURMIN].LO	; yes
 	jmp	short wc8
 
-wc1:	cmp	cl,CHR_LINEFEED
-	je	wclf
+wc1:	cmp	al,CHR_LINEFEED		; LINEFEED?
+	je	wclf			; yes
 
-	cmp	cl,CHR_TAB
-	je	wcht
+	cmp	al,CHR_TAB		; TAB?
+	je	wcht			; yes
 
-	cmp	cl,CHR_BACKSPACE
-	je	wc7
+	cmp	al,CHR_BACKSPACE	; BACKSPACE?
+	je	wc7			; yes
 
-	cmp	cl,CHR_ESC
-	jae	wc7
-	push	cx
+	cmp	al,CHR_ESC		; CONTROL CHAR?
+	jae	wc6			; no
+
+	push	cx			; yes
 	mov	cl,'^'
 	call	draw_char
 	pop	cx
 	add	cl,'A'-1
-	jmp	short wc7
+	jmp	short wc6
 
 wcht:	mov	bl,dl			; emulate a (horizontal) TAB
-	dec	bl
+	sub	bl,ds:[CT_CURMIN].LO
 	and	bl,07h
 	neg	bl
 	add	bl,8
 	mov	cl,CHR_SPACE
-wc3:	call	draw_char
-	cmp	dl,1			; did the column wrap back around?
-	jbe	wc8			; yes, stop
+wcsp:	call	draw_char
+	cmp	dl,ds:[CT_CURMIN].LO	; did the column wrap back around?
+	jle	wc8			; yes, stop
 	dec	bl
-	jnz	wc3
+	jnz	wcsp
 	jmp	short wc8
 
 wclf:	call	draw_linefeed		; emulate a LINEFEED
 	jmp	short wc8
 
-wc7:	call	draw_char		; draw CL at (DL,DH)
+wc6:	ASSERT	NC,<cmp cl,' '>
+	ASSERT	C,<cmp cl,7Fh>
+wc7:	call	draw_char		; draw character (CL) at CURPOS (DL,DH)
 
-wc8:	mov	word ptr ds:[CT_CURX],dx
+wc8:	mov	ds:[CT_CURPOS],dx
 
 	mov	ax,ds
 	cmp	ax,[ct_focus]		; does this context have focus?
@@ -1125,6 +1145,7 @@ wc8:	mov	word ptr ds:[CT_CURX],dx
 
 wc9:	pop	es
 	pop	ds
+	pop	di
 	pop	dx
 	pop	cx
 	pop	bx
@@ -1138,7 +1159,7 @@ ENDPROC	write_context
 ;
 ; Inputs:
 ;	CL = character
-;	DX = CURX (DL), CURY (DH)
+;	DX = CURPOS (DL,DH)
 ;	DS -> CONSOLE context
 ;
 ; Outputs:
@@ -1152,7 +1173,7 @@ DEFPROC	write_curpos
 	push	bx
 	push	dx
 	les	di,ds:[CT_BUFFER]	; ES:DI -> the frame buffer
-	call	get_curpos		; BX = screen offset for CURX,CURY
+	call	get_curpos		; BX = screen offset for CURPOS
 	mov	dx,ds:[CT_PORT]
 	ASSERT	Z,<cmp dh,03h>
 	add	dl,6			; DX = status port
@@ -1186,19 +1207,10 @@ ENDPROC	write_curpos
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	write_horzpair
-;
-; Skipping characters along the top row to preserve a console "label"
-; is no longer done here.
-;
-	; test	ds:[CT_STATUS],CTSTAT_SYSTEM
-	; jz	whp1
-	; cmp	dl,14			; skip over 14 chars at the top
-	; jbe	whp2
-
-whp1:	xchg	cl,ch
+	xchg	cl,ch
 	call	write_curpos
 	xchg	cl,ch
-whp2:	xchg	dh,bh
+	xchg	dh,bh
 	call	write_curpos
 	xchg	dh,bh
 	ret
@@ -1231,7 +1243,7 @@ ENDPROC	write_vertpair
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; write_6845
+; write_port
 ;
 ; Inputs:
 ;	AH = 6845 register #
@@ -1244,7 +1256,7 @@ ENDPROC	write_vertpair
 ;	AL, DX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	write_6845
+DEFPROC	write_port
 	mov	dx,ds:[CT_PORT]
 	ASSERT	Z,<cmp dh,03h>
 	mov	al,ah
@@ -1263,7 +1275,7 @@ DEFPROC	write_6845
 	sti
 	dec	dx
 	ret
-ENDPROC	write_6845
+ENDPROC	write_port
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

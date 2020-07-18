@@ -13,8 +13,9 @@ DOS	segment word public 'CODE'
 
 	EXTERNS	<scb_locked>,byte
 	EXTERNS	<mcb_limit,scb_active,psp_active>,word
-	EXTERNS	<sfh_addref,pfh_close>,near
-	EXTERNS	<free,get_scbnum,dos_exit,dos_ctrlc,dos_error>,near
+	EXTERNS	<sfh_addref,pfh_close,sfh_close>,near
+	EXTERNS	<getsize,free,dos_exit,dos_ctrlc,dos_error>,near
+	EXTERNS	<get_scbnum,scb_unload,scb_yield>,near
 	IF REG_CHECK
 	EXTERNS	<dos_check>,near
 	ENDIF
@@ -31,27 +32,35 @@ DOS	segment word public 'CODE'
 ;
 DEFPROC	psp_term,DOS
 	sub	ax,ax			; default exit code/exit type
+
 	DEFLBL	psp_term_exitcode,near
-	push	ax			; save it on the stack
-;
-; Process termination while SCBs are locked will generally be unrecoverable
-;
-	ASSERT	Z,<cmp [scb_locked],-1>
+	ASSERT	Z,<cmp [scb_locked],-1>	; SCBs should never be locked now
 
 	mov	es,[psp_active]
 	ASSUME	ES:NOTHING
+	mov	si,es:[PSP_PARENT]
+
+	test	si,si			; if there's a parent
+	jnz	pt1			; then the SCB is still healthy
+	cmp	es:[PSP_SCB],0		; are we allowed to kill this SCB?
+	je	pt7			; no
 ;
 ; Close process file handles.
 ;
+pt1:	push	ax			; save exit code/exit type on stack
 	mov	cx,size PSP_PFT
 	sub	bx,bx			; BX = handle (PFH)
-pt1:	call	pfh_close		; close process file handle
+pt2:	call	pfh_close		; close process file handle
 	inc	bx
-	loop	pt1
+	loop	pt2
 ;
 ; Restore the SCB's CTRLC and ERROR handlers from the values in the PSP.
 ;
 	mov	bx,[scb_active]
+	push	bx
+	mov	bl,[bx].SCB_SFHCON
+	call	sfh_close
+	pop	bx
 	push	es:[PSP_EXRET].SEG	; push PSP_EXRET (exec return address)
 	push	es:[PSP_EXRET].OFF
 
@@ -70,13 +79,24 @@ pt1:	call	pfh_close		; close process file handle
 	mov	ax,es:[PSP_DTAPREV].SEG	;  process to restore this itself after
 	mov	[bx].SCB_DTA.SEG,ax	;  an exec)
 
-	push	es:[PSP_PARENT]		; save PSP of parent
+	mov	al,es:[PSP_SCB]		; save SCB #
+	push	ax
+	push	si			; save PSP of parent
 	mov	ax,es
 	call	free			; free PSP in AX
 	pop	ax			; restore PSP of parent
-	test	ax,ax			; if there's no parent
-	jz	pt9			; then there's no stack to switch to
-	mov	es,ax			; ES = PSP of parent
+	pop	cx			; CL = SCB #
+;
+; If this is a parent-less program, mark the SCB as unloaded and yield.
+;
+	test	ax,ax
+	jnz	pt8
+	call	scb_unload		; mark SCB # CL as unloaded
+	jmp	scb_yield		; and call scb_yield with AX = zero
+	ASSERT	NEVER
+pt7:	jmp	short pt9
+
+pt8:	mov	es,ax			; ES = PSP of parent
 	pop	dx
 	pop	cx			; we now have PSP_EXRET in CX:DX
 	pop	ax			; AX = exit code (saved on entry above)
@@ -92,9 +112,8 @@ pt1:	call	pfh_close		; close process file handle
 	mov	[bp].REG_CS,cx		; copy PSP_EXRET to caller's CS:IP
 	mov	[bp].REG_IP,dx		; (normally they will be identical)
 	jmp	dos_exit		; we'll let dos_exit turn interrupts on
-pt9:	add	sp,6
-	ASSERT	NEVER			; it's not good to be here....
-	ret
+
+pt9:	ret
 ENDPROC	psp_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -127,48 +146,10 @@ ENDPROC	psp_term
 ;	None
 ;
 DEFPROC	psp_create,DOS
-	mov	bx,[mcb_limit]		; BX = fallback memory limit
 	mov	dx,[bp].REG_DX
-	dec	dx
-	mov	es,dx			; ES:0 -> MCB
-	ASSUME	ES:NOTHING
-	mov	al,es:[MCB_SIG]		; MCB signature sanity check
-	cmp	al,MCBSIG_NEXT
-	je	pc1
-	cmp	al,MCBSIG_LAST
-	jne	pc2
-pc1:	mov	bx,es:[MCB_PARAS]	; BX = actual available paragraphs
-	add	bx,dx
-	inc	bx			; BX = actual memory limit
-pc2:	inc	dx
-	mov	es,dx
-	sub	di,di			; start building the new PSP at ES:0
-	mov	ax,20CDh
-	stosw				; 00h: PSP_EXIT
-	xchg	ax,bx
-	stosw				; 02h: PSP_PARAS (ie, memory limit)
-	xchg	bx,ax			; save PSP_PARAS in BX
-	call	get_scbnum		; 04h: SCB #
-	mov	ah,9Ah			; 05h: PSP_FARCALL (9Ah)
-	stosw
-	sub	bx,dx			; BX = PSP_PARAS - PSP segment
-	sub	ax,ax			; default to 64K
-	mov	cl,4
-	cmp	bx,1000h		; 64K or more available?
-	jae	pc3			; yes
-	shl	bx,cl			; BX = number of bytes available
-	xchg	ax,bx
-pc3:	sub	ax,256			; AX = max available bytes this segment
-	stosw				; 06h: PSP_SIZE
+	call	set_pspmem		; DX = PSP segment to update
 ;
-; Compute the code segment which, when shifted left 4 and added to AX, yields
-; wrap-around linear address 000C0h, aka INT_DOSCALL5 * 4.
-;
-	xchg	bx,ax
-	shr	bx,cl
-	mov	ax,(INT_DOSCALL5 * 4) SHR 4
-	sub	ax,bx			; basically, compute 000Ch - (BX SHR 4)
-	stosw				; 08h: PSP_FCSEG
+; On return from set_pspmem, ES = PSP segment and DI -> PSP_EXRET.
 ;
 ; Copy current INT 22h (EXRET), INT 23h (CTRLC), and INT 24h (ERROR) vectors,
 ; but copy them from the SCB, not the IVT.
@@ -402,8 +383,10 @@ lp1:	xchg	dx,ax			; DX = segment for new PSP
 ;
 	mov	ds,bx
 	ASSUME	DS:NOTHING
-	mov	ax,sp
-	add	ax,4			; toss 2 near-call return addresses
+	mov	ax,bp
+	IF REG_CHECK
+	sub	ax,2
+	ENDIF
 	mov	ds:[PSP_STACK].SEG,ss
 	mov	ds:[PSP_STACK].OFF,ax
 
@@ -555,8 +538,8 @@ lp6b:	mov	ds,dx
 
 lp6c:	push	es
 	push	ds
-	pop	es
-	pop	dx
+	pop	es			; ES = header segment
+	pop	dx			; DX = PSP segment
 	add	dx,10h
 lp6d:	mov	ds,dx
 	sub	dx,dx			; DS:DX -> next read location
@@ -586,6 +569,7 @@ lp6f:	mov	bx,es:[di].OFF		; BX = offset
 	add	si,ax
 	mov	ds,si
 	add	[bx],ax			; add base segment to DS:[BX]
+	add	di,4
 	loop	lp6f
 ;
 ; DX - (AX - 10h) is the base # of paragraphs required for the EXE.  Add the
@@ -607,16 +591,24 @@ lp6g:	push	es:[EXE_START_SEG]
 	sub	dx,ax			; DX = base # paras
 	add	dx,si			; DX = base + minimum
 	mov	bx,dx			; BX = realloc size (in paras)
-	add	ax,10h
-	mov	ds,[psp_active]
+;
+; TODO: Determine a reasonable amount to add to the minimum.  SYMDEB.EXE 4.0
+; was the first non-BASIC-DOS EXE I tried to load, and if I provided only its
+; minimum of 11h paragraphs, it would trash the memory arena when creating a
+; PSP.
+;
+	add	bx,20h			; add another 0.5Kb (in paras)
+
+	mov	ds,ax			; DS = PSP segment
+	add	ax,10h			; AX = EXE base segment (again)
 	pop	ds:[PSP_STACK].OFF
 	pop	ds:[PSP_STACK].SEG
 	add	ds:[PSP_STACK].SEG,ax
 	pop	ds:[PSP_START].OFF
 	pop	ds:[PSP_START].SEG
 	add	ds:[PSP_START].SEG,ax
-	IFDEF DEBUG
-	PRINTF	<"min,max paragraphs: %#06x,%#06x",13,10>,si,di
+	IFDEF MAXDEBUG
+	PRINTF	<"min,cur,max paragraphs: %#06x,%#06x,%#06x",13,10>,si,bx,di
 	ENDIF
 	jmp	short lp8		; realloc the PSP segment
 ;
@@ -676,16 +668,12 @@ lp7d:	shl	di,cl			; ES:DI -> top of the segment
 lp8:	mov	ah,DOS_MEM_REALLOC	; resize the memory block in ES
 	int	21h
 lpef1:	jc	lpef			; TODO: try to use a smaller size?
-;
-; Mark the segment as being "owned" by the PSP now.
-; TODO: Consider adding an interface for this operation.
-;
-	push	es
-	mov	bx,es
-	dec	bx
-	mov	es,bx
-	mov	es:[MCB_OWNER],ds
-	pop	es
+
+	mov	dx,es
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
+	call	set_pspmem		; DX = PSP segment to update
 ;
 ; Since we're past the point of no return now, let's take care of some
 ; initialization outside of the program segment; namely, resetting the CTRLC
@@ -694,26 +682,29 @@ lpef1:	jc	lpef			; TODO: try to use a smaller size?
 ; does).
 ;
 	mov	bx,[scb_active]
-	mov	cs:[bx].SCB_CTRLC.OFF,offset dos_ctrlc
-	mov	cs:[bx].SCB_CTRLC.SEG,cs
-	mov	cs:[bx].SCB_ERROR.OFF,offset dos_error
-	mov	cs:[bx].SCB_ERROR.SEG,cs
+	mov	[bx].SCB_CTRLC.OFF,offset dos_ctrlc
+	mov	[bx].SCB_CTRLC.SEG,cs
+	mov	[bx].SCB_ERROR.OFF,offset dos_error
+	mov	[bx].SCB_ERROR.SEG,cs
 ;
 ; Initialize the DTA to its default (PSP:80h), while simultaneously preserving
 ; the previous DTA in the new PSP.
 ;
 	mov	ax,80h
-	xchg	cs:[bx].SCB_DTA.OFF,ax
-	mov	ds:[PSP_DTAPREV].OFF,ax
-	mov	ax,ds
-	xchg	cs:[bx].SCB_DTA.SEG,ax
-	mov	ds:[PSP_DTAPREV].SEG,ax
+	xchg	[bx].SCB_DTA.OFF,ax
+	mov	es:[PSP_DTAPREV].OFF,ax
+	mov	ax,es
+	xchg	[bx].SCB_DTA.SEG,ax
+	mov	es:[PSP_DTAPREV].SEG,ax
 ;
 ; Create an initial REG_FRAME at the top of the stack segment.
 ;
 ; TODO: Verify that we're setting proper initial values for all the registers.
 ;
-	les	di,ds:[PSP_STACK]
+	push	es
+	pop	ds
+	ASSUME	DS:NOTHING
+	les	di,ds:[PSP_STACK]	; ES = stack segment (NOT PSP)
 	dec	di
 	dec	di
 	std
@@ -723,7 +714,7 @@ lpef1:	jc	lpef			; TODO: try to use a smaller size?
 	stosw				; store a zero at the top of the stack
 	mov	ax,FL_INTS
 	stosw				; REG_FL (with interrupts enabled)
-	mov	ax,cx
+	xchg	ax,cx
 	stosw				; REG_CS
 	xchg	ax,dx
 	stosw				; REG_IP
@@ -735,13 +726,13 @@ lpef1:	jc	lpef			; TODO: try to use a smaller size?
 	stosw				; REG_BX
 	stosw				; REG_CX
 	stosw				; REG_DX
-	xchg	ax,cx
+	mov	ax,ds			; DS = PSP segment
 	stosw				; REG_DS
-	xchg	ax,cx
+	sub	ax,ax
 	stosw				; REG_SI
-	xchg	ax,cx
+	mov	ax,ds			; DS = PSP segment
 	stosw				; REG_ES
-	xchg	ax,cx
+	sub	ax,ax
 	stosw				; REG_DI
 	stosw				; REG_BP
 	IF REG_CHECK
@@ -771,6 +762,68 @@ lpef:	push	ax
 
 lp9:	ret
 ENDPROC	load_program
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; set_pspmem
+;
+; This is called by psp_create to initialize the first 10 bytes of the PSP,
+; as well as by load_program after a program has been loaded and the PSP has
+; been resized, requiring many of those bytes to be updated again.
+;
+; Inputs:
+;	DX = PSP segment
+;
+; Outputs:
+;	ES = PSP segment
+;	DI -> PSP_EXRET of PSP
+;
+; Modifies:
+;	AX, BX, CX, DI, ES
+;
+DEFPROC	set_pspmem,DOS
+	ASSUME	ES:NOTHING
+	mov	bx,[mcb_limit]		; BX = fallback memory limit
+	call	getsize			; if segment has a size, get it
+	jc	pc1			; nope, use BX
+	mov	bx,dx
+	add	bx,ax			; BX = actual memory limit
+	ASSERT	NZ,<test cx,cx>
+	jcxz	pc1			; jump if segment unowned (unusual)
+	dec	dx
+	mov	es,dx			; ES -> MCB
+	inc	dx
+	mov	es:[MCB_OWNER],dx	; set MCB owner to PSP
+pc1:	mov	es,dx
+	sub	di,di			; start building the new PSP at ES:0
+	mov	ax,20CDh
+	stosw				; 00h: PSP_EXIT
+	xchg	ax,bx
+	stosw				; 02h: PSP_PARAS (ie, memory limit)
+	xchg	bx,ax			; save PSP_PARAS in BX
+	call	get_scbnum		; 04h: SCB #
+	mov	ah,9Ah			; 05h: PSP_FARCALL (9Ah)
+	stosw
+	sub	bx,dx			; BX = PSP_PARAS - PSP segment
+	sub	ax,ax			; default to 64K
+	mov	cl,4
+	cmp	bx,1000h		; 64K or more available?
+	jae	pc3			; yes
+	shl	bx,cl			; BX = number of bytes available
+	xchg	ax,bx
+pc3:	sub	ax,256			; AX = max available bytes this segment
+	stosw				; 06h: PSP_SIZE
+;
+; Compute the code segment which, when shifted left 4 and added to AX, yields
+; wrap-around linear address 000C0h, aka INT_DOSCALL5 * 4.
+;
+	xchg	bx,ax
+	shr	bx,cl
+	mov	ax,(INT_DOSCALL5 * 4) SHR 4
+	sub	ax,bx			; basically, compute 000Ch - (BX SHR 4)
+	stosw				; 08h: PSP_FCSEG
+	ret
+ENDPROC	set_pspmem
 
 DOS	ends
 

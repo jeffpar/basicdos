@@ -94,8 +94,8 @@ DEFPROC	parse_name,DOS
 ; number and then skip over it; otherwise, use SCB_CURDRV as the drive number.
 ;
 	mov	bx,[scb_active]
-	ASSERT	STRUCT,es:[bx],SCB
-	mov	dl,es:[bx].SCB_CURDRV	; DL = default drive number
+	ASSERT	STRUCT,cs:[bx],SCB
+	mov	dl,cs:[bx].SCB_CURDRV	; DL = default drive number
 	mov	dh,0			; DH = wildcards flag
 	mov	cl,8			; CL is current filename limit
 	sub	bx,bx			; BL is current filename position

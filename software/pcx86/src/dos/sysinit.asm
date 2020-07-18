@@ -311,9 +311,26 @@ si7:	mov	dx,size SFB
 	mov	es,[dos_seg]		; mcb_head is in resident DOS segment
 	ASSUME	ES:DOS
 	mov	es:[mcb_head],bx
-
+;
+; The following SCB initialization should be limited to invariant SCB fields
+; (eg, SCB_NUM); alternatively, make sure everything we do here is done in
+; scb_init instead.
+;
+	dec	cx
+	mov	ah,ch
 	mov	bx,es:[scb_table].OFF
+	push	bx			; initialize the SCBs
 	or	es:[bx].SCB_STATUS,SCSTAT_INIT
+si7a:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHCON>
+	ASSERT	<SCB_SFHAUX + 1>,EQ,<SCB_SFHPRN>
+	mov	word ptr es:[bx].SCB_NUM,ax
+	mov	word ptr es:[bx].SCB_SFHAUX,cx
+	INIT_STRUC es:[bx],SCB
+	inc	ax
+	add	bx,size SCB
+	cmp	bx,es:[scb_table].SEG
+	jb	si7a
+	pop	bx
 ;
 ; Before we create any sessions (and our first PSPs), we need to open all the
 ; devices required for the 5 STD handles.  And we open AUX first, purely for
@@ -344,7 +361,6 @@ si9:	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	jc	open_error
 	mov	es:[bx].SCB_SFHCON,al
 	mov	es:[bx].SCB_CONTEXT,dx
-	INIT_STRUC es:[bx],SCB
 ;
 ; Last but not least, open PRN.
 ;
@@ -376,7 +392,6 @@ si11:	or	es:[bx].SCB_STATUS,SCSTAT_INIT
 	mov	es:[bx].SCB_CONTEXT,dx
 	mov	word ptr es:[bx].SCB_SFHAUX,cx
 	ASSERT	<SCB_SFHAUX + 1>,EQ,<SCB_SFHPRN>
-	INIT_STRUC es:[bx],SCB
 	jmp	si10
 
 	DEFLBL	open_error,near
@@ -389,7 +404,7 @@ si12:	mov	dx,offset SYS_MSG
 	mov	ah,DOS_TTY_PRINT
 	int	21h
 
-	IFDEF	DEBUG			; a quick series of early sanity checks
+	IFDEF	MAXDEBUG		; a quick series of early sanity checks
 	push	es
 	mov	ah,DOS_MEM_ALLOC
 	mov	bx,20h
@@ -428,7 +443,6 @@ dierr1:	jc	dierr2
 	mov	es,dx
 	int	21h			; free the 2nd
 	jc	dierr2
-	IFDEF MAXDEBUG
 	mov	dx,offset COM1_DEVICE
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
@@ -439,7 +453,6 @@ dierr1:	jc	dierr2
 	int	INT_TIME		; CX:DX is tick count
 	mov	bx,offset hello
 	PRINTF	<"%ls, the time is [%6ld]",13,10>,bx,cs,dx,cx
-	ENDIF
 	pop	es
 	jmp	short diend
 dierr2:	jmp	sysinit_error
@@ -532,11 +545,14 @@ ENDPROC	sysinit
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; Search for length-prefixed string at SI in CFG_FILE.
+; find_cfg
+;
+; Search for length-prefixed string at SI in CFG_FILE, and if found,
+; set DI to 1st character after match.
 ;
 ; Outputs:
 ;	Carry clear on success (DI -> 1st character after match)
-;	Carry set on failure (AX = minimum value from SI)
+;	Carry set on failure (AX = default value following string at SI)
 ;
 ; Modifies:
 ;	AX, SI, DI
@@ -689,17 +705,16 @@ ENDPROC	init_table
 	DEFLBL	INT_TABLES_END
 
 CFG_MEMSIZE	db	8,"MEMSIZE="
-		dw	16,640
+		dw	640,16,640
 CFG_SESSIONS	db	9,"SESSIONS="
-		dw	4,16
+		dw	4,4,16
 CFG_FILES	db	6,"FILES="
-		dw	20,256
-CFG_CONSOLE	db	8,"CONSOLE=",
-		dw	16,80, 4,25	; default CONSOLE parameters
-CFG_SHELL	db	6,"SHELL=",
+		dw	20,20,256
+CFG_CONSOLE	db	8,"CONSOLE="
+CON_DEVICE	db	"CON:80,25",0	; default CONSOLE configuration
+CFG_SHELL	db	6,"SHELL="
 
 AUX_DEVICE	db	"AUX",0
-CON_DEVICE	db	"CON:80,25",0	; default CONSOLE configuration
 PRN_DEVICE	db	"PRN",0
 CLK_DEVICE	db	"CLOCK$",0
 SHELL_FILE	db	"COMMAND.COM",0	; default SHELL file

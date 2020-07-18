@@ -150,14 +150,14 @@ REG_CS		dw	?	; 1Eh
 REG_FL		dw	?	; 20h
 REG_FRAME	ends
 
-REG_AL		equ 	(REG_AX.LO)
-REG_AH		equ 	(REG_AX.HI)
-REG_BL		equ 	(REG_BX.LO)
-REG_BH		equ 	(REG_BX.HI)
-REG_CL		equ 	(REG_CX.LO)
-REG_CH		equ 	(REG_CX.HI)
-REG_DL		equ 	(REG_DX.LO)
-REG_DH		equ 	(REG_DX.HI)
+REG_AL		equ 	REG_AX.LO
+REG_AH		equ 	REG_AX.HI
+REG_BL		equ 	REG_BX.LO
+REG_BH		equ 	REG_BX.HI
+REG_CL		equ 	REG_CX.LO
+REG_CH		equ 	REG_CX.HI
+REG_DL		equ 	REG_DX.LO
+REG_DH		equ 	REG_DX.HI
 
 ;
 ; Session Control Block (SCB)
@@ -175,22 +175,24 @@ REG_DH		equ 	(REG_DX.HI)
 ;
 SCB		struc
 SCB_STATUS	db	?	; 00h: SCB status
-SCB_SFHCON	db	?	; 01h: SFH for CON
-SCB_SFHAUX	db	?	; 02h: SFH for AUX
-SCB_SFHPRN	db	?	; 03h: SFH for PRN
-SCB_WAITID	dd	?	; 04h: wait ID if waiting, 0 if runnable
-SCB_STACK	dd	?	; 08h: pointer to session stack
-SCB_CURPSP	dw	?	; 0Ch: current PSP
-SCB_CURDRV	db	?	; 0Eh: current drive #
-SCB_RESERVED	db	?	; 0Fh (holds SCBSIG in DEBUG builds)
+SCB_NUM		db	?	; 01h: SCB #
+SCB_SFHCON	db	?	; 02h: SFH for CON
+SCB_SFHAUX	db	?	; 03h: SFH for AUX
+SCB_SFHPRN	db	?	; 04h: SFH for PRN
+SCB_RESERVED	db	?	; 05h (holds SCBSIG in DEBUG builds)
+SCB_CURPSP	dw	?	; 06h: current PSP
+SCB_WAITID	dd	?	; 08h: wait ID if waiting, 0 if runnable
+SCB_STACK	dd	?	; 0Ch: pointer to session stack
 SCB_EXRET	dd	?	; 10h: current EXRET handler
 SCB_CTRLC	dd	?	; 14h: current CTRLC handler
 SCB_ERROR	dd	?	; 18h: current ERROR handler
 SCB_DTA		dd	?	; 1Ch: current DTA (Disk Transfer Address)
 SCB_CONTEXT	dw	?	; 20h: CONSOLE context (from device driver)
-SCB_CTRLC_ALL	db	?	; 22h: 1 if CTRLC checking enabled on all calls
-SCB_CTRLC_ACT	db	?	; 23h: 1 if CTRLC active
-SCB_CTRLP_ACT	db	?	; 24h: 1 if CTRLP active
+SCB_CURDRV	db	?	; 22h: current drive #
+SCB_CTRLC_ALL	db	?	; 23h: 1 if CTRLC checking enabled on all calls
+SCB_CTRLC_ACT	db	?	; 24h: 1 if CTRLC active
+SCB_CTRLP_ACT	db	?	; 25h: 1 if CTRLP active
+SCB_SWITCHAR	db	?	; 26h: current "switchar" (default is CHR_SLASH)
 SCB_PADDING	db	?
 SCB		ends
 

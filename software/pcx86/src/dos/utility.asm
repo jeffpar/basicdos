@@ -14,7 +14,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<chk_devname,dev_request,write_string>,near
 	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload>,near
 	EXTERNS	<scb_yield,scb_delock,scb_wait,scb_endwait>,near
-	EXTERNS	<mcb_query>,near
+	EXTERNS	<mem_query>,near
 	EXTERNS	<psp_term_exitcode>,near
 	EXTERNS	<itoa,sprintf>,near
 
@@ -164,9 +164,9 @@ ENDPROC	utl_strupr
 ; Convert string at DS:SI to number in AX using base BL, using validation
 ; values at ES:DI.
 ;
-; ES:DI must point to a pair of (min,max) 16-bit values; and like SI, DI will
-; be advanced, making it easy to parse a series of values, each with their own
-; (min,max) values.
+; ES:DI must point to a triplet of (def,min,max) 16-bit values; and like SI,
+; DI will be advanced, making it easy to parse a series of values, each with
+; their own set of (def,min,max) values.
 ;
 ; Returns:
 ;	AX = value, DS:SI -> next character (after any non-digit)
@@ -216,7 +216,7 @@ ai3:	cmp	al,'0'			; convert ASCII digit to value
 	sub	al,'0'
 	cmp	al,bl			; outside the requested base?
 	jae	ai6			; yes
-	cbw
+	cbw				; clear AH (digit found)
 ;
 ; Multiply CX:DX by the base in BX before adding the digit value in AX.
 ;
@@ -254,14 +254,19 @@ ai6a:	pop	bp
 	jne	ai6b			; yes
 	add	ah,1			; (carry clear if one or more digits)
 	jmp	short ai9
-ai6b:	cmp	dx,es:[di]		; too small?
-	jae	ai7			; no
-	mov	dx,es:[di]		; yes (carry set)
+ai6b:	test	ah,ah			; any digits?
+	jz	ai6c			; yes
+	mov	dx,es:[di]		; no, get the default value
+	stc
 	jmp	short ai8
-ai7:	cmp	es:[di+2],dx		; too large?
-	jae	ai8			; no
+ai6c:	cmp	dx,es:[di+2]		; too small?
+	jae	ai7			; no
 	mov	dx,es:[di+2]		; yes (carry set)
-ai8:	lea	di,[di+4]		; advance DI in case there are more
+	jmp	short ai8
+ai7:	cmp	es:[di+4],dx		; too large?
+	jae	ai8			; no
+	mov	dx,es:[di+4]		; yes (carry set)
+ai8:	lea	di,[di+6]		; advance DI in case there are more
 	mov	[bp].REG_DI,di		; update REG_DI
 	jmp	short ai9a
 
@@ -331,11 +336,7 @@ ENDPROC	utl_itoa
 ;	all other parameters must be pushed onto the stack, right to left
 ;
 ; Outputs:
-;	None; we used to update REG_AX with the number of characters printed,
-;	but none of our callers actually cared (callers who do care can use
-;	utl_sprintf instead), and the advantage of not modifying any registers
-;	is that exception handlers (eg, dos_dverr) can call utl_printf with the
-;	stack frame as-is.
+;	REG_AX = # of characters printed
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, DS, ES
@@ -358,7 +359,7 @@ DEFPROC	utl_printf,DOS
 	xchg	cx,ax			; CX = # of characters
 	call	write_string
 	add	sp,BUFLEN + offset SPF_CALLS
-	; mov	[bp].REG_AX,cx		; update REG_AX with count in CX
+	mov	[bp].REG_AX,cx		; update REG_AX with count in CX
 	add	[bp].REG_IP,bx		; update REG_IP with length in BX
 	ret
 ENDPROC	utl_printf endp
@@ -407,7 +408,7 @@ DEFPROC	utl_sprintf,DOS
 	sub	sp,offset SPF_CALLS
 	call	sprintf
 	add	sp,offset SPF_CALLS
-	mov	[bp].REG_AX,ax		; update REG_AX
+	mov	[bp].REG_AX,ax		; update REG_AX with count in AX
 	add	[bp].REG_IP,bx		; update REG_IP with length in BX
 	ret
 ENDPROC	utl_sprintf
@@ -907,7 +908,7 @@ ENDPROC	utl_unlock
 DEFPROC	utl_qrymem,DOS
 	sti
 	and	[bp].REG_FL,NOT FL_CARRY
-	jmp	mcb_query
+	jmp	mem_query
 ENDPROC	utl_qrymem
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
