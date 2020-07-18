@@ -607,7 +607,7 @@ lp6g:	push	es:[EXE_START_SEG]
 	pop	ds:[PSP_START].OFF
 	pop	ds:[PSP_START].SEG
 	add	ds:[PSP_START].SEG,ax
-	IFDEF DEBUG
+	IFDEF MAXDEBUG
 	PRINTF	<"min,cur,max paragraphs: %#06x,%#06x,%#06x",13,10>,si,bx,di
 	ENDIF
 	jmp	short lp8		; realloc the PSP segment
