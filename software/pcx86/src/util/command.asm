@@ -368,8 +368,8 @@ DEFPROC	cmdMem
 	ASSUME	ES:BIOS
 	les	di,[DD_LIST]
 	ASSUME	ES:NOTHING
-	mov	bx,es
-	mov	ax,bx
+	sub	bx,bx
+	mov	ax,es
 	push	di
 	mov	di,ds
 	mov	si,offset RES_MEM

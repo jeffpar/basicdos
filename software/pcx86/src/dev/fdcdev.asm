@@ -512,9 +512,12 @@ rw1b:	mov	al,ah
 	pop	cx
 	jnz	rw3		; yes
 ;
-; No, so read the next sector into our internal buffer, copy it out,
-; and proceed with the next sector(s).
+; No, so check the command.  For reads, read the next sector into our
+; internal buffer, copy it out, and proceed with the next sector(s).  For
+; writes, the process is obviously reversed.
 ;
+	cmp	bh,FDC_READ
+	jne	rw2
 	push	es
 	push	bx
 	mov	ah,bh		; AH = FDC cmd
@@ -541,6 +544,33 @@ rw1b:	mov	al,ah
 	inc	cx		; CX = 1 sector read
 	jmp	short rw3a
 
+rw2:	push	es
+	push	bx
+	push	si
+	push	di
+	push	ds
+	mov	cx,[si].BPB_SECBYTES
+	push	es
+	pop	ds
+	mov	si,bp		; DS:SI -> caller's buffer
+	les	di,[ddbuf_ptr]	; ES:DI -> our own buffer
+	shr	cx,1
+	rep	movsw
+	pop	ds
+	pop	di
+	pop	si
+	mov	ah,bh		; AH = FDC cmd
+	mov	al,1		; AL = 1 sector
+	mov	bx,[ddbuf_ptr].OFF
+	int	INT_FDC		; AX and carry are whatever the ROM returns
+	pop	bx
+	pop	es
+	jc	rw3a
+	mov	cx,-1
+	mov	[ddbuf_lba],cx	; store -1 in ddbuf_lba to invalidate it
+	neg	cx		; CX = 1 sector written
+	jmp	short rw3a
+
 rw3:	cbw
 	push	ax		; AX = # sectors this iteration
 	mov	ah,bh		; AH = FDC cmd
@@ -554,7 +584,7 @@ rw3a:	pop	bx		; BL = total # sectors
 	ASSERT	NC
 	jbe	rw9		; no
 	add	dx,cx		; advance LBA in DX
-	mov	ax,cx
+	xchg	ax,cx
 	mov	cl,9		; TODO: Should we add BPB_SECLOG2 to the BPB?
 	shl	ax,cl		; AX = # bytes in request
 	add	bp,ax		; advance transfer address in BP

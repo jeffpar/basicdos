@@ -84,7 +84,7 @@ ENDPROC	mem_realloc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; mcb_query
+; mem_query
 ;
 ; Inputs:
 ;	CX = memory block # (0-based)
@@ -101,7 +101,7 @@ ENDPROC	mem_realloc
 ; Modifies:
 ;	AX, BX, CX, DS, ES
 ;
-DEFPROC	mcb_query,DOS
+DEFPROC	mem_query,DOS
 	LOCK_SCB
 	mov	bx,[mcb_head]		; BX tracks ES
 	mov	es,bx
@@ -148,7 +148,7 @@ q8:	inc	bx
 	clc
 q9:	UNLOCK_SCB
 	ret
-ENDPROC	mcb_query
+ENDPROC	mem_query
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -422,6 +422,47 @@ f8a:	stc
 f9:	UNLOCK_SCB
 	ret
 ENDPROC	free
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getsize
+;
+; Inputs:
+;	DX = segment
+;
+; Outputs:
+;	On success, carry clear:
+;		AX = size of segment, in paragraphs
+;		CX = owner (zero if free)
+;	On failure, carry set (not a valid memory block)
+;
+; Modifies:
+;	AX, CX
+;
+DEFPROC	getsize,DOS
+	ASSUME	ES:NOTHING
+	LOCK_SCB
+	push	bx
+	push	es
+	mov	bx,[mcb_head]		; BX tracks ES
+	dec	dx			; DX = candidate MCB
+gs1:	mov	es,bx
+	cmp	bx,dx			; does current MCB match candidate?
+	je	gs8			; yes
+	cmp	es:[MCB_SIG],MCBSIG_LAST; continuing search: last block?
+	stc
+	je	gs9			; yes, return error
+	add	bx,es:[MCB_PARAS]
+	inc	bx
+	jmp	gs1			; check the next block
+gs8:	mov	ax,es:[MCB_PARAS]	; AX = size, in paragraphs
+	mov	cx,es:[MCB_OWNER]	; CX = owner (zero if free)
+gs9:	inc	dx			; restore DX
+	pop	es
+	pop	bx
+	UNLOCK_SCB
+	ret
+ENDPROC	getsize
 
 DOS	ends
 
