@@ -421,8 +421,10 @@ lp1:	xchg	dx,ax			; DX = segment for new PSP
 ;
 	mov	ds,bx
 	ASSUME	DS:NOTHING
-	mov	ax,sp
-	add	ax,4			; toss 2 near-call return addresses
+	mov	ax,bp
+	IF REG_CHECK
+	sub	ax,2
+	ENDIF
 	mov	ds:[PSP_STACK].SEG,ss
 	mov	ds:[PSP_STACK].OFF,ax
 

@@ -305,12 +305,13 @@ sr0:	LOCK_SCB
 	mov	[bp].REG_WS.TMP_DX,dx
 	mov	dl,ah			; DL = drive #
 	call	get_bpb			; DI -> BPB if no error
-	jc	sr3a
+	jnc	sr0a
+	jmp	sr7
 ;
 ; As a preliminary matter, make sure the requested number of bytes doesn't
 ; exceed the current file size; if it does, reduce it.
 ;
-	mov	ax,[bx].SFB_SIZE.OFF
+sr0a:	mov	ax,[bx].SFB_SIZE.OFF
 	mov	dx,[bx].SFB_SIZE.SEG
 	sub	ax,[bx].SFB_CURPOS.OFF
 	sbb	dx,[bx].SFB_CURPOS.SEG
@@ -340,6 +341,9 @@ sr1a:	mov	dx,[bx].SFB_CURPOS.OFF
 	push	es
 
 	mov	bx,[bx].SFB_CURCLN
+	IFDEF MAXDEBUG
+	PRINTF	<"Reading cluster %#05x...",13,10>,bx
+	ENDIF
 	sub	bx,2
 	jb	sr3			; invalid cluster #
 	xchg	ax,cx			; save CX
@@ -374,7 +378,7 @@ sr2:	mov	ah,DDC_READ
 sr3:	pop	es
 	pop	di			; BPB pointer restored
 	pop	bx			; SFB pointer restored
-sr3a:	jc	sr7
+	jc	sr7
 ;
 ; Time for some bookkeeping: adjust the SFB's CURPOS by DX.
 ;
@@ -400,8 +404,10 @@ sr3a:	jc	sr7
 	jc	sr7
 	mov	[bx].SFB_CURCLN,ax
 sr4:	sub	cx,dx			; have we exhausted the read count yet?
-	ja	sr1a			; no, keep reading clusters
-	ASSERT	NC
+	jbe	sr5
+	jmp	sr1a			; no, keep reading clusters
+
+sr5:	ASSERT	NC
 	mov	ax,[bp].REG_WS.TMP_AX
 
 sr7:	UNLOCK_SCB

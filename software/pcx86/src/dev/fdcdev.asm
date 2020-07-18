@@ -249,7 +249,8 @@ dcr1a:	cmp	ax,[si].BPB_SECBYTES
 	jmp	dcr1a
 dcr1b:	mov	es:[di].DDPRW_OFFSET,ax
 
-	call	read_buffer	; read DDPRW_LBA into ddbuf
+	mov	dx,es:[di].DDPRW_LBA
+	call	read_buffer	; read LBA (DX) into ddbuf
 	jc	dcr4a
 ;
 ; Reload the offset: copy bytes from ddbuf+offset to the target address.
@@ -313,7 +314,8 @@ dcr4a:	jc	dcr8
 dcr5:	test	cx,cx		; anything remaining?
 	jz	dcr8		; no
 
-dcr6:	call	read_buffer	; read DDPRW_LBA into ddbuf
+dcr6:	mov	dx,es:[di].DDPRW_LBA
+	call	read_buffer	; read LBA (DX) into ddbuf
 	jc	dcr8
 
 dcr7:	push	di
@@ -374,64 +376,6 @@ DEFPROC	ddfdc_none
 	ret
 ENDPROC	ddfdc_none
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; Call BIOS to read/write sectors
-;
-; Inputs:
-;	BH = FDC cmd
-;	BL = # sectors
-;	DX = LBA
-;	DS:SI -> BPB
-;	ES:BP -> buffer
-;
-; Outputs:
-;	If carry clear, success (AX is whatever the BIOS returned)
-;	If carry set, AX is a driver error code (based on the BIOS error code)
-;
-; Modifies:
-;	AX
-;
-DEFPROC	readwrite_sectors
-	ASSUME	DS:NOTHING
-	push	bx
-	push	cx
-	push	dx
-
-	call	get_chs		; convert LBA in DX to CHS in CX,DX
-	xchg	ax,bx		; AH = FDC cmd, AL = # sectors
-	mov	bx,bp
-	int	INT_FDC		; AX and carry are whatever the ROM returns
-	jnc	rw9
-;
-; Map BIOS error code (in AH) to driver error code (in AX)
-;
-	cmp	ah,FDCERR_WP
-	jne	rw1
-	mov	al,DDERR_WP
-rw1:	cmp	ah,FDCERR_NOSECTOR
-	jne	rw2
-	mov	al,DDERR_NOSECTOR
-rw2:	cmp	ah,FDCERR_CRC
-	jne	rw3
-	mov	al,DDERR_CRC
-rw3:	cmp	ah,FDCERR_SEEK
-	jne	rw4
-	mov	al,DDERR_SEEK
-rw4:	cmp	ah,FDCERR_NOTREADY
-	jne	rw7
-	mov	al,DDERR_NOTREADY
-	jmp	short rw8
-rw7:	mov	al,DDERR_GENFAIL
-rw8:	cbw
-	stc
-
-rw9:	pop	dx
-	pop	cx
-	pop	bx
-	ret
-ENDPROC	readwrite_sectors
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Get CHS from LBA in AX, using BPB at SI
@@ -474,8 +418,8 @@ ENDPROC	get_chs
 ; Read 1 sector into our internal buffer
 ;
 ; Inputs:
+;	DX = LBA
 ;	DS:SI -> BPB (drive to read is BPB_DRIVE)
-;	ES:DI -> DDPRW (sector to read is DDPRW_LBA)
 ;
 ; Outputs:
 ;	Carry clear if successful
@@ -484,7 +428,6 @@ ENDPROC	get_chs
 ;	AX, BX, DX, BP
 ;
 DEFPROC	read_buffer
-	mov	dx,es:[di].DDPRW_LBA
 	mov	al,[si].BPB_DRIVE
 	cmp	al,[ddbuf_drv]
 	jne	rb1
@@ -495,12 +438,155 @@ rb1:	push	es
 	les	bp,[ddbuf_ptr]	; ES:BP -> our own buffer
 	call	readwrite_sectors
 	pop	es
-	jc	rb9
+	jc	rb9		; TODO: can errors "damage" the buffer contents?
 	mov	al,[si].BPB_DRIVE
 	mov	[ddbuf_drv],al
 	mov	[ddbuf_lba],dx
 rb9:	ret
 ENDPROC	read_buffer
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Call BIOS to read/write sectors
+;
+; There are several annoying problems that the IBM PC diskette system suffers
+; from, which you'll be happy to know this function (finally) addresses:
+;
+;    1)	Multi-sector requests that cross track boundaries
+;    2)	Requests that cross 64K memory boundaries
+;
+; We break every request into one or more single-track requests, and within
+; each single-track request, we read all sectors that precede a 64K boundary,
+; then we read the next sector, if any, into an internal buffer, and then we
+; finish reading any remaining sectors on the track.
+;
+; Inputs:
+;	BH = FDC cmd
+;	BL = # sectors
+;	DX = LBA
+;	DS:SI -> BPB
+;	ES:BP -> buffer
+;
+; Outputs:
+;	If carry clear, success (AX is whatever the BIOS returned)
+;	If carry set, AX is a driver error code (based on the BIOS error code)
+;
+; Modifies:
+;	AX
+;
+; Limitations:
+;	The entire transfer must occur within ES:BP to ES:FFFFh.
+;
+DEFPROC	readwrite_sectors
+	ASSUME	DS:NOTHING
+	push	bx
+	push	cx
+
+rw0:	push	dx		; save LBA
+	call	get_chs		; convert LBA in DX to CHS in CX,DX
+	push	bx
+	mov	al,byte ptr [si].BPB_TRACKSECS
+	sub	al,cl
+	inc	ax		; AL = max # sectors available this track
+	cmp	al,bl		; AL < BL?
+	jb	rw1		; yes, so use AL as # sectors
+	mov	al,bl
+;
+; Calculate how many sectors are safe from crossing a 64K boundary.
+;
+rw1:	cbw			; AH = new (safe for 64K) sector count
+	push	cx
+	push	dx
+	mov	dx,es
+	mov	cl,4
+	shl	dx,cl
+	add	dx,bp
+rw1a:	add	dx,[si].BPB_SECBYTES
+	jc	rw1b
+	inc	ah
+	dec	al
+	jnz	rw1a
+rw1b:	mov	al,ah
+	test	al,al		; are any safe?
+	pop	dx
+	pop	cx
+	jnz	rw3		; yes
+;
+; No, so read the next sector into our internal buffer, copy it out,
+; and proceed with the next sector(s).
+;
+	push	es
+	push	bx
+	mov	ah,bh		; AH = FDC cmd
+	mov	al,1		; AL = 1 sector
+	les	bx,[ddbuf_ptr]	; ES:BX -> our own buffer
+	int	INT_FDC		; AX and carry are whatever the ROM returns
+	pop	bx
+	pop	es
+	jc	rw3a
+	push	si
+	push	di
+	push	ds
+	mov	cx,[si].BPB_SECBYTES
+	lds	si,[ddbuf_ptr]	; DS:SI -> our own buffer
+	mov	di,bp		; ES:DI -> caller's buffer
+	shr	cx,1
+	rep	movsw
+	pop	ds
+	pop	di
+	pop	si
+	dec	cx
+	mov	[ddbuf_lba],cx	; store -1 in ddbuf_lba to invalidate it
+	inc	cx
+	inc	cx		; CX = 1 sector read
+	jmp	short rw3a
+
+rw3:	cbw
+	push	ax		; AX = # sectors this iteration
+	mov	ah,bh		; AH = FDC cmd
+	mov	bx,bp		; ES:BX -> buffer
+	int	INT_FDC		; AX and carry are whatever the ROM returns
+	pop	cx		; CX = # sectors this iteration
+rw3a:	pop	bx		; BL = total # sectors
+	pop	dx		; DX = LBA again
+	jc	rw8
+	sub	bl,cl		; any sectors remaining?
+	ASSERT	NC
+	jbe	rw9		; no
+	add	dx,cx		; advance LBA in DX
+	mov	ax,cx
+	mov	cl,9		; TODO: Should we add BPB_SECLOG2 to the BPB?
+	shl	ax,cl		; AX = # bytes in request
+	add	bp,ax		; advance transfer address in BP
+	jc	rw8e		; BP should never overflow, but just in case...
+	jmp	rw0
+;
+; Map BIOS error code (in AH) to driver error code (in AX)
+;
+rw8:	cmp	ah,FDCERR_WP
+	jne	rw8a
+	mov	al,DDERR_WP
+rw8a:	cmp	ah,FDCERR_NOSECTOR
+	jne	rw8b
+	mov	al,DDERR_NOSECTOR
+rw8b:	cmp	ah,FDCERR_CRC
+	jne	rw8c
+	mov	al,DDERR_CRC
+rw8c:	cmp	ah,FDCERR_SEEK
+	jne	rw8d
+	mov	al,DDERR_SEEK
+rw8d:	cmp	ah,FDCERR_NOTREADY
+	jne	rw8e
+	mov	al,DDERR_NOTREADY
+	jmp	short rw8f
+rw8e:	mov	al,DDERR_GENFAIL
+rw8f:	cbw
+	stc
+
+rw9:	pop	cx
+	pop	bx
+	ret
+ENDPROC	readwrite_sectors
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

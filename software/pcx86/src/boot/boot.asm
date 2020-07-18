@@ -109,13 +109,12 @@ ENDPROC	get_lba
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; read_sectors
+; read_sector
 ;
-; Read CL sectors into ES:DI using LBA in AX and BPB at DS:SI.
+; Read 1 sector into ES:DI using LBA in AX and BPB at DS:SI.
 ;
 ; Inputs:
 ;	AX = LBA
-;	CL = # sectors
 ;	DS:SI -> BPB
 ;	ES:DI -> buffer
 ;
@@ -125,21 +124,19 @@ ENDPROC	get_lba
 ; Modifies:
 ;	AX
 ;
-DEFPROC	read_sectors
+DEFPROC	read_sector
 	push	bx
 	push	cx
 	push	dx
-	mov	bl,cl
 	call	get_chs
-	mov	al,bl		; AL = # sectors
-	mov	ah,FDC_READ
+	mov	ax,(FDC_READ SHL 8) OR 1
 	mov	bx,di		; ES:BX = address
 	int	INT_FDC		; AX and carry are whatever the ROM returns
 	pop	dx
 	pop	cx
 	pop	bx
 	ret
-ENDPROC	read_sectors
+ENDPROC	read_sector
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -234,9 +231,8 @@ find:	mov	si,offset mybpb		; SI -> BPB
 	mov	dx,[si].BPB_LBAROOT	; DX = root dir LBA
 m1:	mov	ax,dx			; AX = LBA
 	mov	di,offset DIR_SECTOR	; DI = dir sector
-	mov	cl,1			; CL = # sectors
-	call	read_sectors		; read it
-	jc	err			; jump if error
+	call	read_sector		; read it
+	jc	boot_error		; jump if error
 m2:	mov	cx,3			; CX = # files left to find
 	mov	bx,offset DEV_FILE	; first file to find
 m3:	cmp	byte ptr [bx],ch	; more files to find?
@@ -253,11 +249,19 @@ m7:	jcxz	read			; all files found, go read
 	cmp	dx,[si].BPB_LBADATA	; exhausted root directory?
 	jb	m1			; jump if not exhausted
 	dec	cx			; only 1 file missing?
-	jnz	err			; no
+	jnz	file_error		; no
 	cmp	[CFG_FILE],ch		; was the missing file CFG_FILE?
 	jnz	read			; yes, that's OK
-err:	mov	si,offset errmsg1
-	call	print
+
+file_error label near
+	IFDEF LATER
+	mov	si,offset errmsg2
+	jmp	short hltmsg
+	ENDIF
+
+boot_error label near
+	mov	si,offset errmsg1
+hltmsg:	call	print
 	jmp	$			; "halt"
 ;
 ; There's a hard disk and no response, so boot from hard disk instead.
@@ -270,7 +274,7 @@ hard:	mov	al,[CRT_MODE]
 	mov	dx,0080h		; DH = HEAD 0, DL = DRIVE 80h
 	mov	bx,BOOT_SECTOR		; ES:BX -> BOOT_SECTOR
 	int	INT_FDC			; read it
-	jc	err
+	jc	boot_error
 	jmp	bx			; jump to the hard disk boot sector
 ;
 ; We found all the required files, so read the first sector of the first file.
@@ -278,10 +282,22 @@ hard:	mov	al,[CRT_MODE]
 read:	mov	bx,offset DEV_FILE
 	mov	ax,[bx+2]		; AX = CLN
 	call	get_lba
-	jc	err
-	mov	cl,1			; CL = # sectors
-	call	read_sectors		; DI -> DIR_SECTOR
-err1:	jc	err
+	jc	boot_error
+	call	read_sector		; DI -> DIR_SECTOR
+	jc	boot_error
+;
+; Move the non-boot code from this sector (ie, the first chunk of DEV_FILE)
+; into its final resting place (ie, BIOS_END) and save that ending address as
+; the next load address.
+;
+move:	mov	ax,[si].BPB_SECBYTES
+	mov	si,offset PART2_COPY
+	mov	di,offset BIOS_END
+	mov	cx,offset DIR_SECTOR
+	add	cx,ax
+	sub	cx,si
+	rep	movsb			; move first bit of DEV_FILE
+
 	jmp	near ptr part2 + 2	; jump to next part (skip fake INT 20h)
 ENDPROC	main
 
@@ -309,7 +325,7 @@ DEFPROC	find_dirent
 	add	ax,di		; AX -> end of sector data
 	dec	ax		; ensure DI will never equal AX
 fd1:	cmp	byte ptr [di],ch
-	je	err		; 0 indicates end of allocated entries
+	je	file_error	; 0 indicates end of allocated entries
 	mov	si,bx
 	mov	cl,11
 	repe	cmpsb
@@ -400,7 +416,10 @@ product		db	"BASIC-DOS "
 		VERSION_STR
 crlf		db	13,10,0
 prompt		db	"Press any key to start...",0
-errmsg1		db	"System file(s) missing, halted",0
+errmsg1		db	"System boot error, halted",0
+	IFDEF LATER
+errmsg2		db	"System file(s) missing, halted",0
+	ENDIF
 
 	DEFLBL	PART1_END
 
@@ -417,46 +436,33 @@ errmsg1		db	"System file(s) missing, halted",0
 ;
 ; Part 2 of the boot process:
 ;
-;    1) Move the non-boot code from this sector (ie, the first chunk of
-;	DEV_FILE) into its final resting place (ie, BIOS_END) and save that
-;	ending address as the next load address.
-;
-;    2) Copy critical data from PART1 to PART2, before FAT reads (if any)
+;    1) Copy critical data from PART1 to PART2, before FAT reads (if any)
 ;	overwrite it.
 ;
-;    3) Load the rest of DEV_FILE; the file need not be first, nor
+;    2) Load the rest of DEV_FILE; the file need not be first, nor
 ;	contiguous, since we read the FAT to process the cluster chain;
 ;	the downside is that any FAT sectors read will overwrite the first
 ;	half of the boot code, so any code/data that must be copied between
 ;	the halves should be copied above (see step 1).
 ;
-;    4) Locate DEV_FILE's "init" code, which resides just beyond all the
+;    3) Locate DEV_FILE's "init" code, which resides just beyond all the
 ;	device drivers, and call it.  It must return the next available
 ;	load address.
 ;
 DEFPROC	part2,far
 	int	20h		; fake DOS terminate call
-				; copy PART1 data to PART2
-	mov	ax,[si].BPB_SECBYTES
 
-	mov	si,offset PART2_COPY
-	mov	di,offset BIOS_END
-	mov	cx,offset DIR_SECTOR
-	add	cx,ax
-	sub	cx,si
-	rep	movsb		; move first bit of DEV_FILE
-
-	push	di		; save next DEV_FILE read address
+	push	di		; copy PART1 data to PART2
 	mov	si,offset PART1_COPY
 	mov	di,offset PART2_COPY
 	mov	cx,offset PART1_COPY_END - offset PART1_COPY
 	rep	movsb
-				; now we can zero the area
+
 	mov	di,offset FAT_BUFHDR
 	mov	cx,offset DIR_SECTOR
-	sub	cx,di		; from FAT_BUFHDR to DIR_SECTOR
-	rep	stosb		; (AL should be zero)
-	pop	di
+	sub	cx,di		; now we can zero the area
+	rep	stosb		; from FAT_BUFHDR to DIR_SECTOR
+	pop	di		; restore DEV_FILE read address
 
 	mov	bx,offset DEV_FILE2
 	sub	[bx+4],ax	; reduce DEV_FILE file size by AX
@@ -571,6 +577,7 @@ rd3:	ret			; the amount of file size underflow
 
 read_error label near
 	jmp	load_error
+
 rd5:	mov	ax,[bx+2]	; AX = CLN
 	push	es
 	mov	es,dx		; relies on DX still being zero
@@ -639,8 +646,7 @@ DEFPROC	read_fat
 	cmp	ax,[FAT_BUFHDR].BUF_LBA
 	je	rf1
 	mov	[FAT_BUFHDR].BUF_LBA,ax
-	mov	cl,1
-	call	read_sectors2
+	call	read_sector2
 	jc	read_error
 
 rf1:	mov	bp,bx		; save nibble offset in BP
@@ -651,7 +657,7 @@ rf1:	mov	bp,bx		; save nibble offset in BP
 	jb	rf2		; no
 	inc	[FAT_BUFHDR].BUF_LBA
 	mov	ax,[FAT_BUFHDR].BUF_LBA
-	call	read_sectors2	; read next FAT LBA
+	call	read_sector2	; read next FAT LBA
 	jc	read_error
 	sub	bx,bx
 rf2:	mov	dh,[di+bx]
@@ -684,17 +690,29 @@ ENDPROC	read_fat
 ;	If unsuccessful, carry set, AH = BIOS error code
 ;
 ; Modifies:
-;	AX, CX
+;	AX, CX, DX
 ;
 DEFPROC	read_cluster
 	push	dx		; DX = sectors already read
-	call	get_lba2
+	call	get_lba2	; AX = LBA, CX = sectors/cluster
+	pop	dx
 	jc	rc9
-	pop	dx		; AX = LBA, CX = sectors per cluster
 	add	ax,dx		; adjust LBA by sectors already read
 	sub	cx,dx		; sectors remaining?
 	jbe	rc8		; no
-	call	read_sectors2
+
+	push	cx
+	push	di
+rc1:	push	ax		; save LBA
+	call	read_sector2
+	pop	dx		; DX = previous LBA
+	jc	rc2
+	add	di,[si].BPB_SECBYTES
+	inc	dx		; advance LBA
+	xchg	ax,dx		; and move to AX
+	loop	rc1		; keep looping until cluster is fully read
+rc2:	pop	di
+	pop	cx
 	jc	rc9
 ;
 ; The ROM claims that, on success, AL will (normally) contain the number of
@@ -715,12 +733,12 @@ ENDPROC	read_cluster
 ; Modifies: AX, BX, SI
 ;
 DEFPROC	load_error
-	mov	si,offset errmsg2
+	mov	si,offset errmsg3
 	call	print2
 	jmp	$		; "halt"
 ENDPROC	load_error
 
-errmsg2		db	"System file error, halted",0
+errmsg3		db	"System load error, halted",0
 
 ;
 ; Code and data copied from PART1 (BPB, file data, and shared functions)
@@ -735,9 +753,9 @@ DOS_FILE2	label	byte
 CFG_FILE2	label	byte
 	org	$ + (offset get_lba - offset CFG_FILE)
 get_lba2	label	near
-	org	$ + (offset read_sectors - offset get_lba)
-read_sectors2	label	near
-	org	$ + (offset print - offset read_sectors)
+	org	$ + (offset read_sector - offset get_lba)
+read_sector2	label	near
+	org	$ + (offset print - offset read_sector)
 print2		label	near
 	org	$ + (offset PART1_COPY_END - offset print)
 

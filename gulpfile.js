@@ -25,8 +25,7 @@ let disks = {
         "./software/pcx86/src/dos/IBMDOS.COM",
         "./software/pcx86/src/configs/config2/CONFIG.SYS",
         "./software/pcx86/src/util/COMMAND.COM",
-        "./software/pcx86/src/util/PRIMES.EXE",
-        "./software/pcx86/src/util/SLEEP.COM",
+        "./software/pcx86/src/gwb/GWB.EXE",
         "./software/pcx86/src/configs/config2/SYMDEB.EXE"
     ],
     "BDS-BOOT": [
