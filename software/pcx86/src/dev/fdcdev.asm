@@ -113,9 +113,9 @@ DEFPROC	ddfdc_buildbpb
 	ASSUME	DS:NOTHING	; DS:SI -> BPB
 ;
 ; If this is an uninitialized BPB, then it won't have the necessary
-; geometry info that get_chs requires; that's what we deserve when we use
+; geometry info that get_chs requires; that's what happens when we use
 ; a single parameter block to describe everything from volume geometry
-; to media geometry to drive geometry.
+; to media geometry to drive geometry.  Oh well.
 ;
 ; For now, we resolve this by providing some hard-coded drive geometry,
 ; which should be good enough for reading the first sector.
@@ -178,6 +178,7 @@ bb1:	push	ds
 	div	cx
 	add	ax,es:[di].BPB_LBAROOT
 	mov	es:[di].BPB_LBADATA,ax
+	xchg	dx,ax		; save LBADATA in DX
 
 	sub	cx,cx
 	mov	al,es:[di].BPB_CLUSSECS
@@ -192,6 +193,14 @@ bb7:	ASSERT	Z		; assert CLUSSECS was a power-of-two
 	mov	ax,es:[di].BPB_SECBYTES
 	shl	ax,cl		; use CLOSLOG2 to calculate CLUSBYTES
 	mov	es:[di].BPB_CLUSBYTES,ax
+;
+; Finally, calculate total clusters on the disk (total data sectors
+; divided by sectors per cluster, or just another shift using CLUSLOG2).
+;
+	mov	ax,es:[di].BPB_DISKSECS
+	sub	ax,dx		; AX = DISKSECS - LBADATA = total data sectors
+	shr	ax,cl		; AX = data clusters
+	mov	es:[di].BPB_CLUSTERS,ax
 	clc
 
 bb8:	pop	es

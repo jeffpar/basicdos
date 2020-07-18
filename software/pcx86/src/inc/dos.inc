@@ -11,7 +11,7 @@
 
 VERSION_MAJOR	equ	0
 VERSION_MINOR	equ	0
-VERSION_REV	equ	4
+VERSION_REV	equ	5
 
 VERSION_STR	macro
 		db	'0'+VERSION_MAJOR,'.','0'+VERSION_MINOR,'0'+VERSION_REV
@@ -92,6 +92,7 @@ DOS_PSP_CREATE	equ	26h	; create PSP (DX = segment)
 DOS_DSK_GETDTA	equ	2Fh	; get DTA (ES:BX)
 DOS_MSC_CTRLC	equ	33h	; get/set CTRLC state
 DOS_MSC_GETVEC	equ	35h	; get vector (AL) addr (ES:BX)
+DOS_DSK_GETINFO	equ	36h	; get disk info
 DOS_HDL_OPEN	equ	3Dh	; open handle for device/file (DS:DX)
 DOS_HDL_CLOSE	equ	3Eh	; close handle (BX)
 DOS_HDL_READ	equ	3Fh	; read (CX) bytes at (DS:DX) with handle (BX)

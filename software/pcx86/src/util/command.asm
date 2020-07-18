@@ -233,7 +233,7 @@ ENDPROC	cmdDate
 ;
 ; cmdDir
 ;
-; Print a directory listing for the specified filespec
+; Print a directory listing for the specified filespec.
 ;
 ; Inputs:
 ;	DS:SI -> filespec (with length CX)
@@ -245,28 +245,61 @@ ENDPROC	cmdDate
 ;	Any
 ;
 DEFPROC	cmdDir
-	mov	dx,si		; DS:DX -> filespec
+	push	bp
 ;
-; If filespec ends with ":", then append DIR_DEF ("*.*")
+; If filespec begins with ":", extract drive letter, and if it ends
+; with ":" as well, append DIR_DEF ("*.*").
 ;
-	mov	di,si
-	add	di,cx
-	cmp	byte ptr [di-1],':'
+	mov	dl,0		; DL = default drive #
+	mov	di,cx		; DI = length of filespec
+	cmp	cx,2
+	jb	dir0
+	cmp	byte ptr [si+1],':'
 	jne	dir0
+	mov	al,[si]
+	sub	al,'A'-1
+	jb	dir0a
+	mov	dl,al		; DL = specific drive # (1-based)
+dir0:	mov	ah,DOS_DSK_GETINFO
+	int	21h		; get disk info for drive
+	jnc	dir1
+dir0a:	jmp	dir8
+;
+; We primarily want the cluster size, in bytes, which this call doesn't
+; provide directly; we must multiply bytes per sector (CX) by sectors per
+; cluster (AX).
+;
+dir1:	mov	bp,bx		; BP = available clusters
+	mul	cx		; DX:AX = bytes per cluster
+	xchg	bx,ax		; BX = bytes per cluster
+
+dir2:	add	di,si		; DI -> end of filespec
+	cmp	byte ptr [di-1],':'
+	jne	dir3
+	push	si
 	mov	cx,DIR_DEF_LEN
 	mov	si,offset DIR_DEF
 	rep	movsb
+	pop	si
 
-dir0:	sub	cx,cx		; CX = attributes
+dir3:	sub	cx,cx		; CX = attributes
+	mov	dx,si		; DX -> filespec
 	mov	ah,DOS_DSK_FFIRST
 	int	21h
-	jnc	dir1
-	PRINTF	<"Unable to find %s: %d",13,10>,dx,ax
-	jmp	dir9
-dir1:	lea	si,ds:[PSP_DTA].FFB_NAME
+	jc	dir0a
+;
+; Use DX to maintain the total number of clusters, and CX to maintain
+; the total number of files.
+;
+	sub	dx,dx
+	sub	cx,cx
+
+dir4:	lea	si,ds:[PSP_DTA].FFB_NAME
 ;
 ; Beginning of "stupid" code to break filename into two separate parts....
 ;
+	push	cx
+	push	dx
 	mov	ax,DOS_UTL_STRLEN
 	int	21h
 	xchg	cx,ax		; CX = total length
@@ -276,27 +309,53 @@ dir1:	lea	si,ds:[PSP_DTA].FFB_NAME
 	mov	ax,DOS_UTL_STRSTR
 	int	21h		; if carry clear, DI is updated
 	pop	si
-	jc	dir2
+	jc	dir5
 	mov	ax,di
 	sub	ax,si		; AX = partial filename length
 	inc	di		; DI -> character after period
-	jmp	short dir3
-dir2:	mov	ax,cx		; AX = complete filename length
+	jmp	short dir6
+dir5:	mov	ax,cx		; AX = complete filename length
 	mov	di,si
 	add	di,ax
 ;
-; End of "stupid" code (which I'm tempted to eliminate, but since it's done....)
+; End of "stupid" code (which I'm tempted to eliminate, but since it's done...)
 ;
-dir3:	mov	dx,ds:[PSP_DTA].FFB_DATE
+dir6:	mov	dx,ds:[PSP_DTA].FFB_DATE
 	mov	cx,ds:[PSP_DTA].FFB_TIME
 	ASSERT	Z,<cmp ds:[PSP_DTA].FFB_SIZE.SEG,0>
 	PRINTF	<"%-8.*s %-3s %7ld %2M-%02D-%02X %2G:%02N%A",13,10>,ax,si,di,ds:[PSP_DTA].FFB_SIZE.OFF,ds:[PSP_DTA].FFB_SIZE.SEG,dx,dx,dx,cx,cx,cx
+;
+; Update our totals
+;
+	mov	ax,ds:[PSP_DTA].FFB_SIZE.OFF
+	mov	dx,ds:[PSP_DTA].FFB_SIZE.SEG
+	mov	cx,bx
+	dec	cx
+	add	ax,cx		; add cluster size - 1 to file size
+	adc	dx,0
+	div	bx		; # clusters = file size / cluster size
+	pop	dx
+	pop	cx
+	add	dx,ax		; update our cluster total
+	inc	cx		; and increment our file total
+
 	mov	ah,DOS_DSK_FNEXT
 	int	21h
-	jc	dir9
-	jmp	dir1
+	jc	dir7
+	jmp	dir4
 
-dir9:	ret
+dir7:	xchg	ax,dx		; AX = total # of clusters used
+	mul	bx		; DX:AX = total # bytes
+	PRINTF	<"%8d file(s) %8ld bytes",13,10>,cx,ax,dx
+	xchg	ax,bp		; AX = total # of clusters free
+	mul	bx		; DX:AX = total # bytes free
+	PRINTF	<"%25ld bytes free",13,10>,ax,dx
+	jmp	short dir9
+
+dir8:	PRINTF	<"Unable to find %s: %d",13,10>,si,ax
+
+dir9:	pop	bp
+	ret
 ENDPROC	cmdDir
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
