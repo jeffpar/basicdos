@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Page     1-1
                                                             
@@ -57,7 +57,7 @@ GWINIT GW-BASIC-86 Initialization                           Page     1-1
 				 line - DO NOT MODIFY 
                              C  ; 
  = 0015                      C  	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -116,7 +116,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMIN
 				AL 
                              C  				;AND FILES 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Page     1-3
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -175,7 +175,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,C
 				ENT) 
  = 0000                      C  	TSLPT=0 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Page     1-4
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -234,7 +234,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C   
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Page     1-5
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -293,7 +293,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	MOV	WORD PTR A,WORD PTR M 
                              C  	STAX	D 
                              C  	DCXF	H 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Page     1-6
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -352,7 +352,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	PUSH	WORD PTR B 
                              C  ENDM 
                              C  POPR	MACRO 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Page     1-7
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -411,7 +411,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDIF 
                              C  IFNB    <D> 
                              C          DB      C&O 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -447,7 +447,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Page     1-9
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -506,14 +506,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                 	EXTRN	MSWFLG:WORD,MSWSIZ:WORD,CSWFLG:WORD,CSWS
 				IZ:WORD,NEWDS:WORD 
  0000                           DSEG	ENDS 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Page     1-10
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                                 	EXTRN	MAPCLC:NEAR,MAPINI:NEAR 
                                 	EXTRN	INITSA:NEAR 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Page     1-11
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -572,7 +572,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	CPMEXT:WORD 
  0000                           DSEG	ENDS 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Page     1-12
 INIT - System Initialization Code                           
@@ -631,7 +631,7 @@ INIT - System Initialization Code
 				RT OK. 
  0065  E8 0000 E                	CALL	STKINI		;REALLY SET UP INIT'S TEMPORARY S
 				TACK 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Page     1-13
 INIT - System Initialization Code                           
@@ -690,7 +690,7 @@ INIT - System Initialization Code
                                 ; 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	CPMMEM:WORD 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Page     1-14
 Read Operating System Parameters (memsiz etc.)              
@@ -749,7 +749,7 @@ Read Operating System Parameters (memsiz etc.)
  00DC  74 17                    	JZ	SHORT FNDSLH	;YES 
  00DE  4B                       	DEC	BX		;BACK UP POINTER 
  00DF  C6 07 22                 	MOV	BYTE PTR [BX],LOW 34	;STORE DOUBLE QUOTE 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Page     1-15
 Read Operating System Parameters (memsiz etc.)              
@@ -808,7 +808,7 @@ Read Operating System Parameters (memsiz etc.)
  0142  3A                       	DB	OFFSET ":"	;MAKE SURE COLON FOLLOWS 
  0143  E9 0000 E                	JMP	CNSGET		;[DE]=VALUE FOLLOWING COLON 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Page     1-16
 Read Operating System Parameters (memsiz etc.)              
@@ -867,7 +867,7 @@ Read Operating System Parameters (memsiz etc.)
 				TOP, STREND 
                                  
                                 ; Memory map for GW-BASIC: 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Page     1-17
 INIT TXTAB, STKTOP, VARTAB, MEMSIZ, FRETOP, STREND          
@@ -926,7 +926,7 @@ INIT TXTAB, STKTOP, VARTAB, MEMSIZ, FRETOP, STREND
  0185  8A F8                    	MOV	BH,AL 
  0187  73 03                    	JAE	SHORT ??L003 
  0189  E9 0000 E                	JMP	OMERRR 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Page     1-18
 INIT TXTAB, STKTOP, VARTAB, MEMSIZ, FRETOP, STREND          
@@ -985,7 +985,7 @@ INIT TXTAB, STKTOP, VARTAB, MEMSIZ, FRETOP, STREND
 				heading 
  01E1  75 16                    	JNZ	SHORT PRNTIT	;Always print the heading opt
 				ion 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Page     1-19
 INIT TXTAB, STKTOP, VARTAB, MEMSIZ, FRETOP, STREND          
@@ -1029,7 +1029,7 @@ INIT TXTAB, STKTOP, VARTAB, MEMSIZ, FRETOP, STREND
 				xit 
                                 				;to the OS 
  0219  E9 0000 E                	JMP	INITSA 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Page     1-20
 INIT TXTAB, STKTOP, VARTAB, MEMSIZ, FRETOP, STREND          
@@ -1067,7 +1067,7 @@ INIT TXTAB, STKTOP, VARTAB, MEMSIZ, FRETOP, STREND
  022B                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Symbols-1
                                                              
@@ -1126,7 +1126,7 @@ CHNFLG . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 CHRGTR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 CHSEAT . . . . . . . . . . . . .  	Number	0001	
 CLMWID . . . . . . . . . . . . .  	Number	000E	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Symbols-2
                                                              
@@ -1185,7 +1185,7 @@ ENDBUF . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 ENDCMD . . . . . . . . . . . . .  	L NEAR	00C6	CSEG
 ERRCMD . . . . . . . . . . . . .  	L NEAR	0146	CSEG
 ERRFLG . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Symbols-3
                                                              
@@ -1244,7 +1244,7 @@ ISIS . . . . . . . . . . . . . .  	Number	0000
 ISSLH  . . . . . . . . . . . . .  	L NEAR	00E7	CSEG
 
 JISKTN . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Symbols-4
                                                              
@@ -1303,7 +1303,7 @@ NEWDS  . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 NMCOMT . . . . . . . . . . . . .  	Number	0002	
 NMKEYF . . . . . . . . . . . . .  	Number	000A	
 NMKEYT . . . . . . . . . . . . .  	Number	000E	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Symbols-5
                                                              
@@ -1362,7 +1362,7 @@ SCANSW . . . . . . . . . . . . .  	L NEAR	00F8	CSEG
 SCNIPL . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 SCP  . . . . . . . . . . . . . .  	Number	0001	
 SCRN86 . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Symbols-6
                                                              
@@ -1421,7 +1421,7 @@ WASF . . . . . . . . . . . . . .  	L NEAR	0137	CSEG
 WASS . . . . . . . . . . . . . .  	L NEAR	0137	CSEG
 WORDS  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:39:18
+Microsoft (R) Macro Assembler  Version 4.00                 7/18/20 10:31:07
 
 GWINIT GW-BASIC-86 Initialization                           Symbols-7
                                                              
