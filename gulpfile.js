@@ -15,16 +15,17 @@ let disks = {
     "BASIC-DOS": [
         "./software/pcx86/src/dev/IBMBIO.COM",
         "./software/pcx86/src/dos/IBMDOS.COM",
-        "./software/pcx86/src/configs/config1/CONFIG.SYS",
         "./software/pcx86/src/util/COMMAND.COM",
+        "./software/pcx86/src/configs/config1/CONFIG.SYS",
         "./software/pcx86/src/util/PRIMES.EXE",
-        "./software/pcx86/src/util/SLEEP.COM"
+        "./software/pcx86/src/util/SLEEP.COM",
+        "./software/pcx86/src/util/TESTS.COM"
     ],
     "BASIC-DOS2": [
         "./software/pcx86/src/dev/IBMBIO.COM",
         "./software/pcx86/src/dos/IBMDOS.COM",
-        "./software/pcx86/src/configs/config2/CONFIG.SYS",
         "./software/pcx86/src/util/COMMAND.COM",
+        "./software/pcx86/src/configs/config2/CONFIG.SYS",
         "./software/pcx86/src/gwb/GWB.EXE",
         "./software/pcx86/src/configs/config2/SYMDEB.EXE"
     ],
@@ -84,9 +85,9 @@ let disks = {
     "BDS-UTIL": [
         "./software/pcx86/src/util/cmd.inc",
         "./software/pcx86/src/util/command.asm",
-        "./software/pcx86/src/util/exec.asm",
         "./software/pcx86/src/util/primes.asm",
         "./software/pcx86/src/util/sleep.asm",
+        "./software/pcx86/src/util/tests.asm",
         "./software/pcx86/src/inc/bios.inc",
         "./software/pcx86/src/inc/dev.inc",
         "./software/pcx86/src/inc/disk.inc",

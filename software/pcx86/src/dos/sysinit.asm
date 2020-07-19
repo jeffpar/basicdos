@@ -234,6 +234,14 @@ si4c:	jnz	sierr1			; hmm, CLUSSECS wasn't a power-of-two
 	mov	ax,[di].BPB_SECBYTES	; use that to also calculate CLUSBYTES
 	shl	ax,cl
 	mov	[di].BPB_CLUSBYTES,ax
+;
+; Finally, calculate total clusters on the disk (total data sectors
+; divided by sectors per cluster, or just another shift using CLUSLOG2).
+;
+	mov	ax,[di].BPB_DISKSECS
+	sub	ax,[di].BPB_LBADATA	; AX = DISKSECS - LBADATA = data sectors
+	shr	ax,cl			; AX = data clusters
+	mov	[di].BPB_CLUSTERS,ax
 
 	pop	ax			; restore FDC pointer in DX:AX
 	pop	dx

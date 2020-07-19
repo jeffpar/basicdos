@@ -67,7 +67,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<tty_echo,tty_write,aux_read,aux_write,prn_write,tty_io>,near
 	EXTERNS	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>,near
 	EXTERNS	<dsk_flush,dsk_getdrv,dsk_setdrv,dsk_setdta,dsk_getdta>,near
-	EXTERNS	<dsk_ffirst,dsk_fnext>,near
+	EXTERNS	<dsk_getinfo,dsk_ffirst,dsk_fnext>,near
 	EXTERNS	<fcb_parse>,near
 	EXTERNS	<msc_setvec,msc_getver,msc_setctrlc,msc_getvec,msc_getswc>,near
 	EXTERNS	<psp_exec,psp_exit,psp_retcode,psp_create,psp_set,psp_get>,near
@@ -94,7 +94,7 @@ DOS	segment word public 'CODE'
 	dw	func_none,   fcb_parse,   func_none,   func_none	;28h-2Bh
 	dw	func_none,   func_none,   func_none,   dsk_getdta	;2Ch-2Fh
 	dw	msc_getver,  func_none,   func_none,   msc_setctrlc	;30h-33h
-	dw	func_none,   msc_getvec,  func_none,   msc_getswc	;34h-37h
+	dw	func_none,   msc_getvec,  dsk_getinfo, msc_getswc	;34h-37h
 	dw	func_none,   func_none,   func_none,   func_none	;38h-3Bh
 	dw	func_none,   hdl_open,    hdl_close,   hdl_read		;3Ch-3Fh
 	dw	hdl_write,   func_none,   hdl_seek,    func_none	;40h-43h

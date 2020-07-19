@@ -143,6 +143,63 @@ ENDPROC	dsk_getdta
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; dsk_getinfo (REG_AH = 36h)
+;
+; Returns cluster info (incl. free space) for the specified disk.
+;
+; Inputs:
+;	REG_DL = drive # (0 for default, 1 for A:, and so on)
+;
+; Outputs:
+;	REG_AX = sectors per cluster (FFFFh if drive number invalid)
+;	REG_BX = available clusters
+;	REG_CX = bytes per sector
+;	REG_DX = clusters per disk
+;
+; Modifies:
+;	AX, BX
+;
+DEFPROC	dsk_getinfo,DOS
+	LOCK_SCB
+	dec	dl			; drive # specified?
+	jge	gi1			; yes
+	mov	bx,[scb_active]		; no, so get CURDRV
+	mov	dl,[bx].SCB_CURDRV	; from the active SCB
+gi1:	call	get_bpb			; DL = drive #
+	jc	gi8
+;
+; DS:DI -> fresh BPB for disk in drive.
+;
+	mov	ax,[di].BPB_SECBYTES
+	mov	[bp].REG_CX,ax
+;
+; Count all the clusters on the disk, using SI.
+;
+	sub	si,si			; SI = cluster count
+	mov	cx,[di].BPB_CLUSTERS
+	mov	[bp].REG_DX,cx
+	mov	bx,2			; BX = starting cluster #
+gi2:	mov	dx,bx			; DX = cluster # for get_cln
+	call	get_cln			; get the CLN
+	jc	gi8			; error
+	test	dx,dx			; cluster in use?
+	jnz	gi3			; yes
+	inc	si			; increment free count
+gi3:	inc	bx			; advance cluster #
+	loop	gi2			; loop until all clusters checked
+	mov	[bp].REG_BX,si
+	mov	al,[di].BPB_CLUSSECS
+	cbw
+	jmp	short gi9
+
+gi8:	sbb	ax,ax
+gi9:	mov	[bp].REG_AX,ax
+	UNLOCK_SCB
+	ret
+ENDPROC	dsk_getinfo
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; dsk_ffirst (REG_AH = 4Eh)
 ;
 ; Inputs:
@@ -364,21 +421,21 @@ DEFPROC	find_cln,DOS
 ; If our current position in CX:SI, plus CLUSBYTES, is greater than CURPOS,
 ; then we have reached the target cluster.
 ;
-gc1:	add	si,[di].BPB_CLUSBYTES
+fc1:	add	si,[di].BPB_CLUSBYTES
 	adc	cx,0
 	push	cx			; save current position in CX:SI
 	push	si
 	sub	si,[bx].SFB_CURPOS.OFF
 	sbb	cx,[bx].SFB_CURPOS.SEG
-	jnc	gc9			; we've traversed enough clusters
+	jnc	fc9			; we've traversed enough clusters
 	call	get_cln			; DX = next CLN
 	pop	si
 	pop	cx			; restore current position in CX:SI
-	jnc	gc1
-	jmp	short gc9a
-gc9:	pop	si
+	jnc	fc1
+	jmp	short fc9a
+fc9:	pop	si
 	pop	cx
-gc9a:	ret
+fc9a:	ret
 ENDPROC	find_cln
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -390,7 +447,7 @@ ENDPROC	find_cln
 ; that the BPB is "fresh", and if it isn't, we reload it and mark it "fresh".
 ;
 ; Inputs:
-;	DL = drive #
+;	DL = drive # (0-based)
 ;
 ; Outputs:
 ;	On success, DI -> BPB, carry clear
@@ -449,12 +506,13 @@ ENDPROC	get_bpb
 ;	On failure, carry set, AX = error code
 ;
 ; Modifies:
-;	AX, DX, SI
+;	AX, DX
 ;
 DEFPROC	get_cln,DOS
 	ASSUME	ES:NOTHING
 	push	bx
 	push	cx
+	push	si
 	push	bp
 	push	ds
 	sub	ax,ax
@@ -515,6 +573,7 @@ gc3:	mov	cl,4			;
 
 gc4:	pop	ds
 	pop	bp
+	pop	si
 	pop	cx
 	pop	bx
 	ret

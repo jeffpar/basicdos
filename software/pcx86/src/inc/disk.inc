@@ -63,6 +63,7 @@ BPB_DEVICE	dd	?		; 2Ch: device driver
 BPB_UNIT	db	?		; 30h: unit #
 BPB_CLUSLOG2	db	?		; 31h: shift count for CLUSSECS
 BPB_CLUSBYTES	dw	?		; 32h: BPB_CLUSSECS * BPB_SECBYTES
+BPB_CLUSTERS	dw	?		; 34h: total clusters on disk
 BPBEX		ends
 
 ;

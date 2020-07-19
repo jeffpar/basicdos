@@ -183,7 +183,7 @@ ti3a:	test	bx,bx			; any data?
 	xchg	cx,ax			; CH = total length, CL = length delta
 	pop	ax			; restore character
 ;
-; If char is BACKSPACE, output CL times; if ESC, output CH times.
+; If char is BACKSPACE, output it CL times; if ESC, output BACKSPACE CH times.
 ;
 	cmp	al,CHR_BACKSPACE
 	pop	ax			; AX is now original CX
@@ -207,12 +207,15 @@ ti7:	cmp	cl,1			; room for only one more?
 	je	ti2			; yes
 	mov	es:[di+bx+2],al
 	inc	bx
+	cmp	al,CHR_LINEFEED
+	jne	ti7a
+	mov	al,'^'
 	call	write_char
+	mov	al,'J'
+ti7a:	call	write_char
 	loop	ti2
 
 ti8:	mov	es:[di+bx+2],al		; store the final character (CR)
-	call	write_char
-	mov	al,CHR_LINEFEED
 	call	write_char
 
 ti9:	mov	es:[di+1],bl		; return character count in 2nd byte

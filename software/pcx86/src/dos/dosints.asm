@@ -318,11 +318,11 @@ ENDPROC	dos_tsr
 ;
 DEFPROC	dos_call5,DOSFAR
 	push	bp
-	mov	sp,bp
-	mov	ax,[bp+4]
-	mov	[bp],ax
+	mov	bp,sp
+	mov	ax,[bp+6]
+	mov	[bp+2],ax
 	pushf				; since we didn't arrive here via INT,
-	pop	[bp+4]			; these flags should have interrupts on
+	pop	[bp+6]			; these flags should have interrupts on
 	pop	bp
 	mov	ah,cl
 	jmp	near ptr dos_func
