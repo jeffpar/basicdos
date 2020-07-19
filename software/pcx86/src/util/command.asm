@@ -38,6 +38,7 @@ m1:	lea	bx,[DGROUP:heap]
 	lea	dx,[bx].INPUT
 	mov	ah,DOS_TTY_INPUT
 	int	21h
+	PRINTF	<13,10>
 
 	mov	si,dx		; DS:SI -> input buffer
 	lea	di,[bx].TOKENS
@@ -161,7 +162,7 @@ m6:	lodsb
 	mov	dl,ah
 	mov	ah,0
 	mov	dh,0
-	PRINTF	<13,10,"Return code: %d (%d)",13,10>,ax,dx
+	PRINTF	<13,10,"Return code %d (%d)",13,10>,ax,dx
 	jmp	m1
 m8:	PRINTF	<"Error loading %s: %d",13,10>,dx,ax
 	jmp	m1
@@ -296,7 +297,7 @@ dir3:	sub	cx,cx		; CX = attributes
 
 dir4:	lea	si,ds:[PSP_DTA].FFB_NAME
 ;
-; Beginning of "stupid" code to break filename into two separate parts....
+; Beginning of "stupid" code to separate filename into name and extension.
 ;
 	push	cx
 	push	dx
@@ -329,8 +330,7 @@ dir6:	mov	dx,ds:[PSP_DTA].FFB_DATE
 ;
 	mov	ax,ds:[PSP_DTA].FFB_SIZE.OFF
 	mov	dx,ds:[PSP_DTA].FFB_SIZE.SEG
-	mov	cx,bx
-	dec	cx
+	lea	cx,[bx-1]
 	add	ax,cx		; add cluster size - 1 to file size
 	adc	dx,0
 	div	bx		; # clusters = file size / cluster size
@@ -352,7 +352,7 @@ dir7:	xchg	ax,dx		; AX = total # of clusters used
 	PRINTF	<"%25ld bytes free",13,10>,ax,dx
 	jmp	short dir9
 
-dir8:	PRINTF	<"Unable to find %s: %d",13,10>,si,ax
+dir8:	PRINTF	<"Unable to find %s (%d)",13,10>,si,ax
 
 dir9:	pop	bp
 	ret

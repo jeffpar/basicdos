@@ -224,6 +224,7 @@ DEFPROC	main,far			; now at BOOT_SECTOR_LO
 	call	print			; then the prompt
 	call	wait			; wait for a key
 	jcxz	hard			; jump if no key pressed
+	mov	[BOOT_KEY],cx		; save boot key
 ;
 ; Find all the files in our file list, starting with DEV_FILE.
 ;

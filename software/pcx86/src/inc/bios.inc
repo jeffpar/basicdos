@@ -237,7 +237,8 @@ FDC_DEVICE	dd	?		; 506h
 		db	20 dup (?)	; reserved
 DD_LIST		dd	?		; 51Eh: head of device driver list
 DPT_ACTIVE	DPT	<>		; 522h: active DPT
-		db	3 dup (?)	; paragraph padding
+BOOT_KEY	dw	?		; set by boot sector
+		db	1 dup (?)	; paragraph padding
 DDINT_ENTER	db	5 dup (?)	; room for a 5-byte far jump
 DDINT_LEAVE	db	5 dup (?)	; room for a 5-byte far jump
 		db	6 dup (?)	; paragraph padding

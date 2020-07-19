@@ -91,12 +91,12 @@ ENDPROC	ddcon_req
 ; ddcon_ctlin
 ;
 ; The first two IOCTLs supported here (IOCTL_GETPOS and IOCTL_GETLEN) were
-; both required by DOS console I/O functions; specifically, the buffered input
-; function (AH = 0Ah), which cannot successfully erase TAB characters, or
-; erase the entire line, unless it knows the starting column.  In addition,
-; TAB characters always wrap to column 1 on the following line, and since the
-; total number of columns in our contexts are not always multiples of 8, the
-; IOCTL_GETLEN function is needed to calculate differences in line lengths.
+; both required for DOS console I/O support; specifically, the buffered input
+; function (AH = 0Ah), which cannot accurately erase TAB characters (or the
+; entire buffer) unless it knows the starting position and the displayed length
+; of the buffer.  TAB characters complicate matters, since the total number of
+; columns in our contexts are not always multiples of 8, and they always wrap
+; to column 1 on the following line.
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
@@ -151,9 +151,9 @@ dio3a:	dec	al
 	jnz	dio3
 	jmp	short dio5
 
-dio4:	cmp	al,CHR_ESC
+dio4:	cmp	al,CHR_SPACE		; CONTROL character?
 	mov	al,1			; AL = # output chars
-	jae	dio4a
+	jae	dio4a			; no
 	inc	ax			; add 1 more to output for presumed "^"
 dio4a:	inc	bl			; advance the column
 	inc	dl			; advance the length
@@ -1106,7 +1106,7 @@ wc1:	cmp	al,CHR_LINEFEED		; LINEFEED?
 	cmp	al,CHR_BACKSPACE	; BACKSPACE?
 	je	wc7			; yes
 
-	cmp	al,CHR_ESC		; CONTROL CHAR?
+	cmp	al,CHR_SPACE		; CONTROL character?
 	jae	wc6			; no
 
 	push	cx			; yes
