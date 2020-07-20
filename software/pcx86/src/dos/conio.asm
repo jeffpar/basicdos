@@ -150,34 +150,30 @@ DEFPROC	tty_input,DOS
 	mov	di,dx			; ES:DI -> buffer
 
 	mov	al,IOCTL_GETPOS
-	call	con_ioctl		; AX = starting position
-	xchg	dx,ax			; move to DX
+	call	con_ioctl		; AL = starting column
+	mov	ah,0			; AH = # displayed chars
+	xchg	dx,ax			; DL = starting col, DH = # displayed
+	sub	bx,bx			; ES:DI+BX+2 -> next buffer position
 
-ti1:	sub	bx,bx			; ES:DI+BX+2 -> next buffer position
-	mov	cl,es:[di]
-	mov	ch,0			; CX = max characters
-	jcxz	ti9
-
-ti2:	call	tty_read
-	jc	ti9
-ti3:	cmp	al,CHR_RETURN
+ti1:	call	tty_read
+	jnc	ti2
+	jmp	ti9
+ti2:	cmp	al,CHR_RETURN
 	je	ti8
-
 	cmp	al,CHR_BACKSPACE
-	je	ti3a
+	je	ti3
 	cmp	al,CHR_ESC
-	je	ti3a
-	jmp	short ti7
+	je	ti3
+	cmp	al,CHR_CTRLB
+	jne	ti4
 ;
 ; Get logical length of data, to determine backspace length.
 ;
-ti3a:	test	bx,bx			; any data?
-	jz	ti2			; no, don't bother
-	push	bx
-	push	cx
+ti3:	test	bx,bx			; any data?
+	jz	ti1			; no, don't bother
 	push	ax			; save character
 	lea	si,[di+2]		; ES:SI -> characters
-	mov	cx,bx			; CX = length
+	mov	cx,bx			; CX = # of characters
 	mov	al,IOCTL_GETLEN
 	call	con_ioctl		; get logical length values in AX
 	xchg	cx,ax			; CH = total length, CL = length delta
@@ -185,41 +181,69 @@ ti3a:	test	bx,bx			; any data?
 ;
 ; If char is BACKSPACE, output it CL times; if ESC, output BACKSPACE CH times.
 ;
-	cmp	al,CHR_BACKSPACE
-	pop	ax			; AX is now original CX
-	pop	bx			; BX restored
-	jne	ti3b
-	mov	ch,cl
 	dec	bx
-	inc	ax
-	jmp	short ti3c
-ti3b:	sub	bx,bx
-ti3c:	xchg	cx,ax			; CX restored, AH = erase count
+	cmp	al,CHR_BACKSPACE
+	je	ti3b
+	jb	ti3c			; must have been CTRLB
+	sub	bx,bx			; must have been ESC
+	mov	cl,ch
 	mov	al,CHR_BACKSPACE
-ti3d:	call	write_char
-	dec	ah
-	jnz	ti3d
-	test	bx,bx
-	jnz	ti2
+ti3b:	call	write_char
+	dec	cl
+	jnz	ti3b
 	jmp	ti1
 
-ti7:	cmp	cl,1			; room for only one more?
-	je	ti2			; yes
-	mov	es:[di+bx+2],al
-	inc	bx
-	cmp	al,CHR_LINEFEED
-	jne	ti7a
-	mov	al,'^'
-	call	write_char
-	mov	al,'J'
-ti7a:	call	write_char
-	loop	ti2
+ti3c:	mov	ch,0
+	neg	cx
+	mov	al,IOCTL_MOVHORZ
+	call	con_ioctl
+	jmp	ti1
+;
+; Check for more special editing keys...
+;
+ti4:	cmp	al,CHR_CTRLF		; CTRLF?
+	jne	ti4a			; no
+	cmp	bl,es:[di+1]		; more existing chars?
+	jae	ti1			; no, just ignore CTRLF
+	mov	al,es:[di+bx+2]		; yes, fetch next character
+	jmp	short ti7
+
+ti4a:	cmp	al,CHR_CTRLR		; CTRLR?
+	jne	ti7
+ti4b:	cmp	bl,es:[di+1]		; more existing chars?
+	jae	ti1			; no
+	mov	al,es:[di+bx+2]		; yes, fetch next character
+	call	add_char
+	jc	ti1
+	jmp	ti4b
+
+ti7:	call	add_char
+	jmp	ti1
 
 ti8:	mov	es:[di+bx+2],al		; store the final character (CR)
 	call	write_char
-
 ti9:	mov	es:[di+1],bl		; return character count in 2nd byte
 	ret
+
+	DEFLBL	add_char,near
+	mov	ah,es:[di]		; AH = max count
+	sub	ah,bl			; AH = space remaining
+	cmp	ah,2			; room for at least two more?
+	jb	ac9			; no
+	mov	es:[di+bx+2],al
+	inc	bx
+	cmp	bl,dh			; <= # displayed?
+	jbe	ac1			; no
+	inc	dh			; bump display count as well
+ac1:	cmp	al,CHR_LINEFEED
+	jne	ac2
+	mov	al,'^'			; for purposes of buffered input,
+	call	write_char		; LINEFEED should be displayed as "^J"
+	mov	al,'J'
+ac2:	call	write_char
+	clc
+ac9:	ret
+
 ENDPROC	tty_input
 
 DEFPROC	tty_status,DOS
@@ -235,9 +259,9 @@ ENDPROC	tty_flush
 ; con_ioctl
 ;
 ; Inputs:
-;	AL = IOCTL_GETPOS or IOCTL_GETLEN
-;	CX = length (for IOCTL_GETLEN)
-;	DX = starting position (from IOCTL_GETPOS)
+;	AL = IOCTL function (eg, IOCTL_GETPOS, IOCTL_GETLEN, etc)
+;	CX = length (for IOCTL_GETLEN or IOCTL_MOVCUR)
+;	DL = starting position (from IOCTL_GETPOS)
 ;	ES:SI -> data (for IOCTL_GETLEN only)
 ;
 ; Outputs:

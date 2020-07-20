@@ -32,6 +32,12 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFLBL	SGL_BORDER,word
 	dw	0DABFh,0B3B3h,0C0D9h,0C4C4h
 
+	DEFLBL	SCAN_MAP,byte
+	db	SCAN_F1,CHR_CTRLF,SCAN_F3,CHR_CTRLR
+	db	SCAN_RIGHT,CHR_CTRLF,SCAN_UP,CHR_CTRLR
+	db	SCAN_LEFT,CHR_CTRLB,SCAN_DOWN,CHR_ESC
+	db	0
+
 	DEFWORD	ct_head,0	; head of context chain
 	DEFWORD	ct_focus,0	; segment of context with focus
 	DEFWORD	frame_seg,0
@@ -119,16 +125,16 @@ DEFPROC	ddcon_ctlin
 	cmp	al,IOCTL_GETPOS
 	jne	dio1
 	mov	dx,ds:[CT_CURPOS]	; DX = current cursor position
-	jmp	short dio7
+	jmp	dio7
 
-dio1:	cmp	al,IOCTL_GETLEN
-	jne	dio9
+dio1:	mov	cx,es:[di].DDPRW_LENGTH
+	cmp	al,IOCTL_GETLEN
+	jne	dio6
 	mov	bx,es:[di].DDPRW_LBA	; BX = starting cursor position
 	sub	dx,dx			; DL = current len, DH = previous len
 	mov	ah,ds:[CT_CURMAX].LO	; AH = column max
 	mov	bh,ds:[CT_CURMIN].LO	; BH = column min
 	lds	si,es:[di].DDPRW_ADDR
-	mov	cx,es:[di].DDPRW_LENGTH
 	jcxz	dio7			; nothing to do
 	ASSUME	DS:NOTHING
 
@@ -166,6 +172,11 @@ dio4b:	dec	al
 dio5:	loop	dio2
 	sub	dl,dh			; DL = length delta for final character
 	add	dh,dl			; DH = total length
+	jmp	short dio7
+
+dio6:	cmp	al,IOCTL_MOVHORZ
+	jne	dio7
+	call	move_curhorz
 
 dio7:	mov	es:[di].DDP_CONTEXT,dx	; return pos or length in packet context
 dio8:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
@@ -796,7 +807,7 @@ ENDPROC	draw_border
 ; Inputs:
 ;	CL = character
 ;	DX = CURPOS (DL,DH)
-;	DS -> CONSOLE context
+;	DS = CONSOLE context
 ;
 ; Outputs:
 ;	Updates cursor position in (DL,DH)
@@ -847,7 +858,7 @@ ENDPROC	draw_char
 ; draw_cursor
 ;
 ; Inputs:
-;	DS -> CONSOLE context
+;	DS = CONSOLE context
 ;
 ; Outputs:
 ;	None
@@ -949,6 +960,56 @@ ENDPROC	get_curpos
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; move_curhorz
+;
+; Inputs:
+;	DS = CONSOLE context
+;	CX = +/- delta (may wrap one line)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, DX
+;
+DEFPROC	move_curhorz
+	mov	dx,ds:[CT_CURPOS]	; DX = current cursor position
+	add	dl,cl
+	test	cx,cx			; positive adjustment?
+	jl	mc5			; no
+
+	cmp	dl,ds:[CT_CURMAX].LO
+	jle	mc8
+	sub	dl,ds:[CT_CURMAX].LO
+	dec	dl
+	add	dl,ds:[CT_CURMIN].LO
+	inc	dh
+	cmp	dh,ds:[CT_CURMAX].HI
+	jle	mc8
+	dec	dh
+	jmp	short mc8
+
+mc5:	cmp	dl,ds:[CT_CURMIN].LO
+	jge	mc8
+	add	dl,ds:[CT_CURMAX].LO
+	inc	dl
+	sub	dl,ds:[CT_CURMIN].LO
+	dec	dh
+	cmp	dh,ds:[CT_CURMIN].HI
+	jge	mc8
+	inc	dh
+
+	DEFLBL	move_cursor,near
+mc8:	mov	ds:[CT_CURPOS],dx
+	mov	ax,ds
+	cmp	ax,[ct_focus]		; does this context have focus?
+	jne	mc9			; no, leave cursor alone
+	call	draw_cursor
+mc9:	ret
+ENDPROC	move_curhorz
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; read_kbd
 ;
 ; Inputs:
@@ -980,9 +1041,24 @@ rk3:	mov	[BUFFER_HEAD],bx
 	push	bx
 	push	ds
 	lds	bx,es:[di].DDPRW_ADDR	; DS:BX -> next read/write address
-	mov	[bx],al
-	IFDEF MAXDEBUG
 	test	al,al
+	jnz	rk3c
+;
+; Perform some function key to control character mappings now...
+;
+	push	si
+	mov	si,offset SCAN_MAP
+rk3a:	lods	byte ptr cs:[si]
+	test	al,al
+	jz	rk3b
+	cmp	ah,al
+	lods	byte ptr cs:[si]
+	jne	rk3a
+rk3b:	pop	si
+
+rk3c:	mov	[bx],al
+	IFDEF MAXDEBUG
+	test	al,ac
 	jnz	rk4
 	xchg	al,ah
 	PRINTF	<"null character, scan code %#04x",13,10>,ax
@@ -1006,7 +1082,7 @@ ENDPROC	read_kbd
 ;
 ; Inputs:
 ;	AL = # lines (0 to clear ALL lines, -1 to clear entire context)
-;	DS -> CONSOLE context
+;	DS = CONSOLE context
 ;
 ; Modifies:
 ;	AX
@@ -1067,7 +1143,7 @@ ENDPROC	write_char
 ;
 ; Inputs:
 ;	AL = character
-;	ES -> CONSOLE context
+;	ES = CONSOLE context
 ;
 ; Outputs:
 ;	None
@@ -1107,14 +1183,14 @@ wc1:	cmp	al,CHR_LINEFEED		; LINEFEED?
 	je	wc7			; yes
 
 	cmp	al,CHR_SPACE		; CONTROL character?
-	jae	wc6			; no
+	jae	wc7			; no
 
 	push	cx			; yes
 	mov	cl,'^'
 	call	draw_char
 	pop	cx
 	add	cl,'A'-1
-	jmp	short wc6
+	jmp	short wc7
 
 wcht:	mov	bl,dl			; emulate a (horizontal) TAB
 	sub	bl,ds:[CT_CURMIN].LO
@@ -1132,16 +1208,9 @@ wcsp:	call	draw_char
 wclf:	call	draw_linefeed		; emulate a LINEFEED
 	jmp	short wc8
 
-wc6:	ASSERT	NC,<cmp cl,' '>
-	ASSERT	C,<cmp cl,7Fh>
 wc7:	call	draw_char		; draw character (CL) at CURPOS (DL,DH)
 
-wc8:	mov	ds:[CT_CURPOS],dx
-
-	mov	ax,ds
-	cmp	ax,[ct_focus]		; does this context have focus?
-	jne	wc9			; no, leave cursor alone
-	call	draw_cursor
+wc8:	call	move_cursor		; set CURPOS to (DL,DH)
 
 wc9:	pop	es
 	pop	ds
@@ -1160,7 +1229,7 @@ ENDPROC	write_context
 ; Inputs:
 ;	CL = character
 ;	DX = CURPOS (DL,DH)
-;	DS -> CONSOLE context
+;	DS = CONSOLE context
 ;
 ; Outputs:
 ;	None
@@ -1200,7 +1269,7 @@ ENDPROC	write_curpos
 ;	CL = bottom char
 ;	DL,DH = top X,Y
 ;	BL,BH = bottom X,Y
-;	DS -> CONSOLE context
+;	DS = CONSOLE context
 ;
 ; Modifies:
 ;	DI, ES
@@ -1225,7 +1294,7 @@ ENDPROC	write_horzpair
 ;	CL = right char
 ;	DL,DH = left X,Y
 ;	BL,BH = right X,Y
-;	DS -> CONSOLE context
+;	DS = CONSOLE context
 ;
 ; Modifies:
 ;	DI, ES
@@ -1253,10 +1322,11 @@ ENDPROC	write_vertpair
 ;	None
 ;
 ; Modifies:
-;	AL, DX
+;	AL
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	write_port
+	push	dx
 	mov	dx,ds:[CT_PORT]
 	ASSERT	Z,<cmp dh,03h>
 	mov	al,ah
@@ -1273,7 +1343,7 @@ DEFPROC	write_port
 	mov	al,bl
 	out	dx,al			; output BL
 	sti
-	dec	dx
+	pop	dx
 	ret
 ENDPROC	write_port
 
