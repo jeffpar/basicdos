@@ -14,6 +14,9 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_active>,word
 	EXTERNS	<tty_read,write_string,dos_restart>,near
 	EXTSTR	<STR_CTRLC>
+	IF REG_CHECK
+	EXTERNS	<dos_check>,near
+	ENDIF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -124,10 +127,9 @@ DEFPROC	msc_sigctrlc,DOSFAR
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
-	mov	bx,[scb_active]		; TODO: always have an scb_active
-	test	bx,bx
-	jnz	msg0
-	jmp	short msg1
+	mov	bx,[scb_active]
+	ASSERT	NZ,<test bx,bx>		; TODO: verify there's an SCB
+	jmp	short msg0
 
 	DEFLBL	msc_sigctrlc_read,near
 	ASSERT	STRUCT,[bx],SCB
@@ -136,7 +138,11 @@ DEFPROC	msc_sigctrlc,DOSFAR
 	call	tty_read		; remove CTRLC from the input buffer
 msg0:	mov	[bx].SCB_CTRLC_ACT,0
 
-msg1:	mov	cx,STR_CTRLC_LEN
+msg1:	IF REG_CHECK
+	ASSERT	Z,<cmp word ptr [bp-2],offset dos_check>
+	ENDIF
+
+	mov	cx,STR_CTRLC_LEN
 	mov	si,offset STR_CTRLC
 	call	write_string
 ;

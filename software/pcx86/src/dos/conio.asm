@@ -145,7 +145,6 @@ ENDPROC	tty_print
 ;	AX, BX, CX, DX, SI, DI, ES
 ;
 DEFPROC	tty_input,DOS
-	push	bp
 	mov	es,[bp].REG_DS
 	ASSUME	ES:NOTHING
 	mov	di,dx			; ES:DI -> buffer
@@ -213,7 +212,6 @@ ti8:	mov	bl,dh			; return all displayed chars
 	call	ttyin_out
 
 ti9:	mov	es:[di+1],bl		; return character count in 2nd byte
-	pop	bp
 	ret
 ENDPROC	tty_input
 
@@ -222,8 +220,10 @@ DEFPROC	ttyin_add,near
 	sub	ah,bl			; AH = space remaining
 	cmp	ah,2			; room for at least two more?
 	jb	tta9			; no
+	push	bp
 	sub	bp,bp			; BP = 0 (replace)
 	call	ttyin_mod		; replace character (AL) at BX
+	pop	bp
 	cmp	bl,dh			; have we increased # displayed chars?
 	jbe	tta8			; no
 	mov	dh,bl			; yes
@@ -234,8 +234,10 @@ ENDPROC	ttyin_add
 DEFPROC	ttyin_del
 	cmp	bl,dh			; anything displayed at position?
 	jae	ttd9			; no
+	push	bp
 	sbb	bp,bp			; BP = -1 (delete)
 	call	ttyin_mod		; delete character at BX
+	pop	bp
 	dec	dh			; reduce # displayed characters
 ttd9:	ret
 ENDPROC	ttyin_del
@@ -282,6 +284,7 @@ ENDPROC	ttyin_left
 
 DEFPROC	ttyin_mod
 	push	ax
+	push	dx
 	mov	al,IOCTL_GETPOS
 	call	con_ioctl
 	mov	cl,dh
@@ -291,13 +294,14 @@ DEFPROC	ttyin_mod
 	mov	al,IOCTL_GETLEN
 	call	con_ioctl		; get logical length values in AX
 	mov	ch,ah			; CH = logical length from position
+	pop	dx
 	pop	ax
 
 	test	bp,bp
 	jl	ttm2
 	jg	ttm9
 ;
-; Replace character at BX with AL, and increment BX.
+; Replace character at BX with AL and increment BX.
 ;
 ttm1:	mov	es:[di+bx+2],al
 	call	ttyin_out
@@ -329,18 +333,24 @@ ttm7:	mov	al,IOCTL_GETLEN
 	call	con_ioctl		; get display lengths in AX
 	cmp	ah,ch			; any change in total display length?
 	je	ttm9			; no
+	test	cl,cl
+	jz	ttm7c
 	push	si
-ttm7a:	lods	byte ptr es:[si]
+	test	bp,bp
+	jz	ttm7b
+ttm7a:	mov	al,es:[si]
 	call	ttyin_out
+ttm7b:	inc	si
 	dec	cl
 	jnz	ttm7a
 	pop	si
-	sub	ch,ah			; is the old display length longer?
+ttm7c:	sub	ch,ah			; is the old display length longer?
 	jbe	ttm8			; no
 	mov	al,CHR_SPACE
-ttm7b:	call	ttyin_out
+ttm7d:	call	ttyin_out
+	inc	ah
 	dec	ch
-	jnz	ttm7b
+	jnz	ttm7d
 ;
 ; AH contains the length of all the displayed characters from SI, and that's
 ; normally how many positions we want to rewind the cursor -- unless BP >= 0,
@@ -349,12 +359,12 @@ ttm7b:	call	ttyin_out
 ;
 ttm8:	mov	ch,ah			; save original length in CH
 	test	bp,bp
-	jl	ttm9
+	jl	ttm8a
 	mov	cl,1
 	mov	al,IOCTL_GETLEN
 	call	con_ioctl		; get display lengths in AX
 	sub	ch,ah
-	mov	cl,ch
+ttm8a:	mov	cl,ch
 	call	ttyin_move		; move cursor back CL characters
 
 ttm9:	ret

@@ -152,7 +152,7 @@ dio3:	inc	bl
 	inc	dl
 	cmp	bl,ah			; column still below limit?
 	jbe	dio3a			; yes
-	mov	bl,1			; no, so reset column and stop
+	mov	bl,bh			; no, so reset column and stop
 	jmp	short dio5
 dio3a:	dec	al
 	jnz	dio3
@@ -166,7 +166,7 @@ dio4a:	inc	bl			; advance the column
 	inc	dl			; advance the length
 	cmp	bl,ah			; column still below limit?
 	jbe	dio4b			; yes
-	mov	bl,1			; no, so reset column and keep going
+	mov	bl,bh			; no, so reset column and keep going
 dio4b:	dec	al
 	jnz	dio4a
 
