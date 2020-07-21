@@ -142,109 +142,259 @@ ENDPROC	tty_print
 ;	characters received (excluding the CHR_RETURN).
 ;
 ; Modifies:
-;	AX, BX, CX, SI, DI, ES
+;	AX, BX, CX, DX, SI, DI, ES
 ;
 DEFPROC	tty_input,DOS
+	push	bp
 	mov	es,[bp].REG_DS
 	ASSUME	ES:NOTHING
 	mov	di,dx			; ES:DI -> buffer
 
 	mov	al,IOCTL_GETPOS
 	call	con_ioctl		; AL = starting column
-	mov	ah,0			; AH = # displayed chars
-	xchg	dx,ax			; DL = starting col, DH = # displayed
+	xchg	dx,ax			; DL = starting column
+	mov	dh,0			; DH = # display characters
 	sub	bx,bx			; ES:DI+BX+2 -> next buffer position
 
 ti1:	call	tty_read
-	jnc	ti2
-	jmp	ti9
+	jc	ti9
+
 ti2:	cmp	al,CHR_RETURN
 	je	ti8
-	cmp	al,CHR_BACKSPACE
-	je	ti3
-	cmp	al,CHR_ESC
-	je	ti3
-	cmp	al,CHR_CTRLB
+
+	cmp	al,CHR_DEL
+	jne	ti3
+ti2a:	call	ttyin_del
+	jmp	ti1
+
+ti3:	cmp	al,CHR_BACKSPACE
 	jne	ti4
-;
-; Get logical length of data, to determine backspace length.
-;
-ti3:	test	bx,bx			; any data?
-	jz	ti1			; no, don't bother
-	push	ax			; save character
-	lea	si,[di+2]		; ES:SI -> characters
-	mov	cx,bx			; CX = # of characters
-	mov	al,IOCTL_GETLEN
-	call	con_ioctl		; get logical length values in AX
-	xchg	cx,ax			; CH = total length, CL = length delta
-	pop	ax			; restore character
-;
-; If char is BACKSPACE, output it CL times; if ESC, output BACKSPACE CH times.
-;
-	dec	bx
-	cmp	al,CHR_BACKSPACE
-	je	ti3b
-	jb	ti3c			; must have been CTRLB
-	sub	bx,bx			; must have been ESC
-	mov	cl,ch
-	mov	al,CHR_BACKSPACE
-ti3b:	call	write_char
-	dec	cl
-	jnz	ti3b
+	call	ttyin_left
+	jmp	ti2a
+
+ti4:	cmp	al,CHR_ESC
+	jne	ti5
+ti4a:	call	ttyin_end
+	call	ttyin_erase
 	jmp	ti1
 
-ti3c:	mov	ch,0
-	neg	cx
-	mov	al,IOCTL_MOVHORZ
-	call	con_ioctl
+ti5:	cmp	al,CHR_CTRLX
+	je	ti4a
+	cmp	al,CHR_CTRLB
+	jne	ti6
+	call	ttyin_left
 	jmp	ti1
-;
-; Check for more special editing keys...
-;
-ti4:	cmp	al,CHR_CTRLF		; CTRLF?
-	jne	ti4a			; no
-	cmp	bl,es:[di+1]		; more existing chars?
-	jae	ti1			; no, just ignore CTRLF
-	mov	al,es:[di+bx+2]		; yes, fetch next character
-	jmp	short ti7
 
-ti4a:	cmp	al,CHR_CTRLR		; CTRLR?
+ti6:	cmp	al,CHR_CTRLE
+	jne	ti6a
+	call	ttyin_end
+	jmp	ti1
+
+ti6a:	cmp	al,CHR_CTRLF
+	jne	ti6b
+	call	ttyin_right
+	jmp	ti1
+
+ti6b:	cmp	al,CHR_CTRLR
 	jne	ti7
-ti4b:	cmp	bl,es:[di+1]		; more existing chars?
-	jae	ti1			; no
-	mov	al,es:[di+bx+2]		; yes, fetch next character
-	call	add_char
-	jc	ti1
-	jmp	ti4b
-
-ti7:	call	add_char
+	call	ttyin_recall
 	jmp	ti1
 
-ti8:	mov	es:[di+bx+2],al		; store the final character (CR)
-	call	write_char
-ti9:	mov	es:[di+1],bl		; return character count in 2nd byte
-	ret
+ti7:	call	ttyin_add
+	jmp	ti1
+;
+; BL indicates the current position within the buffer, and historically
+; that's where we'd put the final character (CR); however, we now allow
+; the cursor to move within the displayed data, so we need to use the end
+; of the displayed data (according to DH) as the actual end.
+;
+ti8:	mov	bl,dh			; return all displayed chars
+	mov	es:[di+bx+2],al		; store the final character (CR)
+	call	ttyin_out
 
-	DEFLBL	add_char,near
+ti9:	mov	es:[di+1],bl		; return character count in 2nd byte
+	pop	bp
+	ret
+ENDPROC	tty_input
+
+DEFPROC	ttyin_add,near
 	mov	ah,es:[di]		; AH = max count
 	sub	ah,bl			; AH = space remaining
 	cmp	ah,2			; room for at least two more?
-	jb	ac9			; no
-	mov	es:[di+bx+2],al
+	jb	tta9			; no
+	sub	bp,bp			; BP = 0 (replace)
+	call	ttyin_mod		; replace character (AL) at BX
+	cmp	bl,dh			; have we increased # displayed chars?
+	jbe	tta8			; no
+	mov	dh,bl			; yes
+tta8:	clc
+tta9:	ret
+ENDPROC	ttyin_add
+
+DEFPROC	ttyin_del
+	cmp	bl,dh			; anything displayed at position?
+	jae	ttd9			; no
+	sbb	bp,bp			; BP = -1 (delete)
+	call	ttyin_mod		; delete character at BX
+	dec	dh			; reduce # displayed characters
+ttd9:	ret
+ENDPROC	ttyin_del
+
+DEFPROC	ttyin_end
+	cmp	bl,dh			; more displayed chars?
+	jae	tte9			; no
+	mov	al,es:[di+bx+2]		; yes, fetch next character
+	call	ttyin_add		; add it to what's being displayed
+	jnc	ttyin_end
+tte9:	ret
+ENDPROC	ttyin_end
+
+DEFPROC	ttyin_erase
+	call	ttyin_getlen		; CH = total length
+	sub	bx,bx
+	mov	cl,ch
+	mov	ch,bh
+	jcxz	ttx9
+	mov	al,CHR_BACKSPACE
+ttx1:	call	ttyin_out
+	loop	ttx1
+ttx9:	mov	dh,cl			; zero # displayed characters, too
+	ret
+ENDPROC	ttyin_erase
+
+DEFPROC	ttyin_getlen
+	lea	si,[di+2]		; ES:SI -> all characters
+	mov	cl,bl			; CL = # of characters
+	mov	al,IOCTL_GETLEN		; DL = starting column
+	call	con_ioctl		; get logical length values in AX
+	xchg	cx,ax			; CH = total length, CL = length delta
+	ret
+ENDPROC	ttyin_getlen
+
+DEFPROC	ttyin_left
+	test	bx,bx			; any data to our left?
+	jz	ttl9			; no
+	call	ttyin_getlen		; CH = total length, CL = length delta
+	dec	bx			; update buffer position
+	call	ttyin_move		; move cursor back CL characters
+ttl9:	ret
+ENDPROC	ttyin_left
+
+DEFPROC	ttyin_mod
+	push	ax
+	mov	al,IOCTL_GETPOS
+	call	con_ioctl
+	mov	cl,dh
+	sub	cl,bl			; CX = # displayed chars at position
+	mov	dl,al			; DL = current position
+	lea	si,[di+bx+2]		; ES:SI -> characters at position
+	mov	al,IOCTL_GETLEN
+	call	con_ioctl		; get logical length values in AX
+	mov	ch,ah			; CH = logical length from position
+	pop	ax
+
+	test	bp,bp
+	jl	ttm2
+	jg	ttm9
+;
+; Replace character at BX with AL, and increment BX.
+;
+ttm1:	mov	es:[di+bx+2],al
+	call	ttyin_out
 	inc	bx
-	cmp	bl,dh			; <= # displayed?
-	jbe	ac1			; no
-	inc	dh			; bump display count as well
-ac1:	cmp	al,CHR_LINEFEED
-	jne	ac2
+	cmp	bl,es:[di+1]		; have we extended existing chars?
+	jbe	ttm1a			; no
+	mov	es:[di+1],bl		; yes
+ttm1a:	cmp	bl,dh			; have we added to displayed chars?
+	jbe	ttm7			; no
+	inc	dh			; yes
+	jmp	short ttm9
+;
+; Delete character at BX, shifting all higher characters down.
+;
+ttm2:	push	bx
+	dec	byte ptr es:[di+1]
+	jmp	short ttm2b
+ttm2a:	inc	bx			; start shifting characters down
+	mov	al,es:[di+bx+2]
+	mov	es:[di+bx+1],al
+ttm2b:	cmp	bl,es:[di+1]
+	jb	ttm2a
+	pop	bx
+	dec	cx			; adjust length of displayed chars
+;
+; Redisplay CL characters at SI if their display length changed.
+;
+ttm7:	mov	al,IOCTL_GETLEN
+	call	con_ioctl		; get display lengths in AX
+	cmp	ah,ch			; any change in total display length?
+	je	ttm9			; no
+	push	si
+ttm7a:	lods	byte ptr es:[si]
+	call	ttyin_out
+	dec	cl
+	jnz	ttm7a
+	pop	si
+	sub	ch,ah			; is the old display length longer?
+	jbe	ttm8			; no
+	mov	al,CHR_SPACE
+ttm7b:	call	ttyin_out
+	dec	ch
+	jnz	ttm7b
+;
+; AH contains the length of all the displayed characters from SI, and that's
+; normally how many positions we want to rewind the cursor -- unless BP >= 0,
+; in which case we need to reduce AH by the display length of the single char
+; at SI.
+;
+ttm8:	mov	ch,ah			; save original length in CH
+	test	bp,bp
+	jl	ttm9
+	mov	cl,1
+	mov	al,IOCTL_GETLEN
+	call	con_ioctl		; get display lengths in AX
+	sub	ch,ah
+	mov	cl,ch
+	call	ttyin_move		; move cursor back CL characters
+
+ttm9:	ret
+ENDPROC	ttyin_mod
+
+DEFPROC	ttyin_move
+	mov	ch,0
+	jcxz	ttv9
+	neg	cx
+	mov	al,IOCTL_MOVHORZ
+	call	con_ioctl
+ttv9:	ret
+ENDPROC	ttyin_move
+
+DEFPROC	ttyin_out
+	cmp	al,CHR_LINEFEED
+	jne	tto2
 	mov	al,'^'			; for purposes of buffered input,
 	call	write_char		; LINEFEED should be displayed as "^J"
 	mov	al,'J'
-ac2:	call	write_char
-	clc
-ac9:	ret
+tto2:	call	write_char
+	ret
+ENDPROC	ttyin_out
 
-ENDPROC	tty_input
+DEFPROC	ttyin_recall
+	cmp	bl,es:[di+1]		; more existing chars?
+	jae	ttc9			; no
+	mov	al,es:[di+bx+2]		; yes, fetch next character
+	call	ttyin_add		; add it to what's being displayed
+	jnc	ttyin_recall
+ttc9:	ret
+ENDPROC	ttyin_recall
+
+DEFPROC	ttyin_right
+	cmp	bl,es:[di+1]		; more existing chars?
+	jae	ttr9			; no, just ignore CTRLF
+	mov	al,es:[di+bx+2]		; yes, fetch next character
+	call	ttyin_add
+ttr9:	ret
+ENDPROC	ttyin_right
 
 DEFPROC	tty_status,DOS
 	ret
@@ -280,21 +430,21 @@ DEFPROC	con_ioctl,DOS
 	push	ax
 	call	get_sfb			; BX -> SFB
 	pop	ax
-	jc	gcp8
+	jc	ioc8
 	push	es
 	les	di,[bx].SFB_DEVICE	; ES:DI -> CON driver
 	mov	bx,[bx].SFB_CONTEXT	; BX = context
 	xchg	bx,dx			; DX = content, BX = position
 	test	es:[di].DDH_ATTR,DDATTR_STDOUT
 	pop	ds
-	jz	gcp8
+	jz	ioc8
 	mov	ah,DDC_IOCTLIN
 	call	dev_request
-	jc	gcp8
+	jc	ioc8
 	xchg	ax,dx			; AX = position or length as requested
-	jmp	short gcp9
-gcp8:	mov	ax,0			; default value if error
-gcp9:	pop	es
+	jmp	short ioc9
+ioc8:	mov	ax,0			; default value if error
+ioc9:	pop	es
 	pop	ds
 	pop	di
 	pop	dx

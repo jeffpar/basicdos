@@ -33,9 +33,9 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	dw	0DABFh,0B3B3h,0C0D9h,0C4C4h
 
 	DEFLBL	SCAN_MAP,byte
-	db	SCAN_F1,CHR_CTRLF,SCAN_F3,CHR_CTRLR
-	db	SCAN_RIGHT,CHR_CTRLF,SCAN_UP,CHR_CTRLR
-	db	SCAN_LEFT,CHR_CTRLB,SCAN_DOWN,CHR_ESC
+	db	SCAN_F1,CHR_CTRLF,SCAN_F3,CHR_CTRLR,SCAN_UP,CHR_CTRLR
+	db	SCAN_RIGHT,CHR_CTRLF,SCAN_LEFT,CHR_CTRLB,SCAN_DEL,CHR_DEL
+	db	SCAN_DOWN,CHR_CTRLX
 	db	0
 
 	DEFWORD	ct_head,0	; head of context chain
@@ -135,6 +135,7 @@ dio1:	mov	cx,es:[di].DDPRW_LENGTH
 	mov	ah,ds:[CT_CURMAX].LO	; AH = column max
 	mov	bh,ds:[CT_CURMIN].LO	; BH = column min
 	lds	si,es:[di].DDPRW_ADDR
+	mov	ch,0			; CL = length (255 character maximum)
 	jcxz	dio7			; nothing to do
 	ASSUME	DS:NOTHING
 

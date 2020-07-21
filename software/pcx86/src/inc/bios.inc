@@ -272,6 +272,7 @@ BIOS_DATA	equ	RS232_BASE
 CHR_CTRLA	equ	01h
 CHR_CTRLB	equ	02h	; alias for left-arrow
 CHR_CTRLC	equ	03h
+CHR_CTRLE	equ	05h	; alias for up-arrow or F3 ("recall")
 CHR_CTRLF	equ	06h	; alias for right-arrow or F1
 CHR_BACKSPACE	equ	08h
 CHR_TAB		equ	09h
@@ -279,13 +280,15 @@ CHR_LINEFEED	equ	0Ah
 CHR_VTAB	equ	0Bh
 CHR_RETURN	equ	0Dh
 CHR_CTRLP	equ	10h
-CHR_CTRLR	equ	12h	; alias for up-arrow or F3 ("recall")
+CHR_CTRLR	equ	12h
 CHR_CTRLS	equ	13h
+CHR_CTRLX	equ	18h	; alias for down-arrow
 CHR_CTRLZ	equ	1Ah
 CHR_ESC		equ	1Bh
 CHR_SPACE	equ	20h
 CHR_DBLQUOTE	equ	22h
 CHR_SLASH	equ	2Fh
+CHR_DEL		equ	7Fh
 
 SCAN_TAB	equ	0Fh
 SCAN_F1		equ	3Bh
@@ -298,10 +301,11 @@ SCAN_F7		equ	41h
 SCAN_F8		equ	42h
 SCAN_F9		equ	43h
 SCAN_F10	equ	44h
-SCAN_UP		equ	48h	; up arrow
-SCAN_LEFT	equ	4Bh	; left arrow
-SCAN_RIGHT	equ	4Dh	; right arrow
-SCAN_DOWN	equ	50h	; down arrow
+SCAN_UP		equ	48h	; up-arrow
+SCAN_LEFT	equ	4Bh	; left-arrow
+SCAN_RIGHT	equ	4Dh	; right-arrow
+SCAN_DOWN	equ	50h	; down-arrow
+SCAN_DEL	equ	53h	; del
 
 
 ;
