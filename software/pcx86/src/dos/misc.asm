@@ -137,7 +137,12 @@ DEFPROC	msc_sigctrlc,DOSFAR
 	je	msg1
 	call	tty_read		; remove CTRLC from the input buffer
 msg0:	mov	[bx].SCB_CTRLC_ACT,0
-
+;
+; Make sure that whatever function we're interrupting has not violated
+; our BP convention; some functions prefer to use BP as an extra register,
+; and that's OK as long as 1) they're not an interruptable function and 2)
+; they restore BP when they're done.
+;
 msg1:	IF REG_CHECK
 	ASSERT	Z,<cmp word ptr [bp-2],offset dos_check>
 	ENDIF
