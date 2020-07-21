@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: page
 title: BASIC-DOS Demo with Debugger
 permalink: /maplebar/debugger/
 machines:

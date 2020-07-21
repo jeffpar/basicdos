@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: page
 title: BASIC-DOS with Dual Monitors
 permalink: /maplebar/dual/
 machines:

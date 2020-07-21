@@ -3,7 +3,7 @@ layout: page
 title: BASIC-DOS Development Machine
 permalink: /maplebar/dev/
 machines:
-  - id: ibm-5160-cga
+  - id: ibm5160
     type: pcx86
     config: /configs/pcx86/machine/ibm-5160-cga-512kb-debugger.json
     autoType: $date\r$time\r
@@ -13,4 +13,4 @@ machines:
       B: "BDS-BOOT"
 ---
 
-{% include machine.html id="ibm-5160-cga" %}
+{% include machine.html id="ibm5160" %}

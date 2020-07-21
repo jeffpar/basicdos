@@ -24,7 +24,7 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
 	DEFLBL	CON_LIMITS,word
-	dw	80,16,80, 25,4,25, 0,0,79, 0,0,24, 1,0,1
+	dw	80,16,80, 25,4,25, 0,0,79, 0,0,24, 1,0,1, 0,0,1
 
 	DEFLBL	DBL_BORDER,word
 	dw	0C9BBh,0BABAh,0C8BCh,0CDCDh
@@ -49,22 +49,28 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 ;
 ; A context of "80,25,0,0,1" requests a border, so logical cursor positions
 ; are 1,1 to 78,23.  Physical character and cursor positions will be adjusted
-; by the offset address in CT_BUFFER.
+; by the offset address in CT_SCREEN.
 ;
 CONTEXT		struc
 CT_NEXT		dw	?	; 00h: segment of next context, 0 if end
-CT_STATUS	dw	?	; 02h: context status bits (CTSTAT_*)
+CT_STATUS	db	?	; 02h: context status bits (CTSTAT_*)
+CT_RESERVED	db	?	; 03h
 CT_CONDIM	dw	?	; 04h: eg, context dimensions (0-based)
 CT_CONPOS	dw	?	; 06h: eg, context position (X,Y) of top left
 CT_CURPOS	dw	?	; 08h: eg, cursor X (lo) and Y (hi) position
 CT_CURMIN	dw	?	; 0Ah: eg, cursor X (lo) and Y (hi) minimums
 CT_CURMAX	dw	?	; 0Ch: eg, cursor X (lo) and Y (hi) maximums
-CT_PORT		dw	?	; 0Eh: eg, 3D4h
-CT_BUFFER	dd	?	; 10h: eg, 0B800h:00A2h
+CT_EQUIP	dw	?	; 0Eh: BIOS equipment flags (snapshot)
+CT_PORT		dw	?	; 10h: eg, 3D4h
+CT_SCROFF	dw	?	; 12h: eg, 2000 (offset of off-screen memory)
+CT_SCREEN	dd	?	; 14h: eg, 0B800h:00A2h
+CT_BUFFER	dd	?	; 18h: used only for background contexts
+CT_BUFLEN	dw	?	; 1Ch: eg, 4000 for a full-screen 25*80*2 buffer
 CONTEXT		ends
 
-CTSTAT_BORDER	equ	0001h	; context has border
-CTSTAT_PAUSED	equ	0002h	; context is paused (triggered by CTRLS hotkey)
+CTSTAT_BORDER	equ	01h	; context has border
+CTSTAT_ADAPTER	equ	02h	; alternate adapter selected
+CTSTAT_PAUSED	equ	80h	; context is paused (triggered by CTRLS hotkey)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -177,7 +183,7 @@ dio5:	loop	dio2
 
 dio6:	cmp	al,IOCTL_MOVHORZ
 	jne	dio7
-	call	move_curhorz
+	call	move_cursor
 
 dio7:	mov	es:[di].DDP_CONTEXT,dx	; return pos or length in packet context
 dio8:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
@@ -287,6 +293,10 @@ ENDPROC	ddcon_write
 ;
 ; Outputs:
 ;
+; Notes:
+;	We presume that the current SCB is locked for duration of this call;
+;	if that presumption ever proves false, then use the DOS_UTL_LOCK API.
+;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_open
 	push	di
@@ -318,9 +328,13 @@ DEFPROC	ddcon_open
 	mov	dh,al			; DH = starting row
 	mov	ax,DOS_UTL_ATOI16
 	int	21h
-	cbw
-	mov	bx,ax			; BX = border (0 for none)
-	ASSERT	CTSTAT_BORDER,EQ,1
+	mov	bh,al			; BH = border (0 for none)
+	ASSERT	CTSTAT_BORDER,EQ,01h
+	mov	ax,DOS_UTL_ATOI16
+	int	21h
+	shl	al,1
+	or	bh,al			; BH includes adapter bit, too
+	ASSERT	CTSTAT_ADAPTER,EQ,02h
 	pop	ds
 	ASSUME	DS:CODE
 
@@ -341,7 +355,7 @@ dco1:	mov	ds,ax
 
 dco1a:	xchg	[ct_head],ax
 	mov	ds:[CT_NEXT],ax
-	mov	ds:[CT_STATUS],bx
+	mov	ds:[CT_STATUS],bh
 ;
 ; Set context dimensions (CL,CH) and position (DL,DH), and then determine
 ; cursor minimums and maximums from the context size.
@@ -350,8 +364,9 @@ dco1a:	xchg	[ct_head],ax
 	sub	cx,ax
 	mov	ds:[CT_CONDIM],cx	; set CT_CONDIM (CL,CH)
 	mov	ds:[CT_CONPOS],dx	; set CT_CONPOS (DL,DH)
-	mov	al,bl
-	mov	ah,bl			; AX = 0101h for border, 0000h for none
+	mov	al,bh
+	and	al,CTSTAT_BORDER
+	mov	ah,al			; AX = 0101h for border, 0000h for none
 	mov	ds:[CT_CURMIN],ax	; set CT_CURMIN (AL,AH)
 	sub	cx,ax
 	mov	ds:[CT_CURMAX],cx	; set CT_CURMAX (CL,CH)
@@ -361,28 +376,52 @@ dco1a:	xchg	[ct_head],ax
 	mov	dh,0
 	add	dx,dx
 	add	ax,dx
-	mov	ds:[CT_BUFFER].OFF,ax
-	mov	ax,[frame_seg]
-	mov	ds:[CT_BUFFER].SEG,ax
-
-	sub	ax,ax
-	mov	es,ax
-	ASSUME	ES:BIOS
+	mov	ds:[CT_SCREEN].OFF,ax
+	mov	ds:[CT_SCROFF],4000	; TODO: fix this hard-coded
+					; offset to off-screen memory
 ;
 ; Importing the BIOS CURSOR_POSN into CURPOS seemed like a nice idea initially,
 ; but now that we're clearing interior below, seems best to use a default.
 ;
+	sub	ax,ax
+	mov	es,ax
+	ASSUME	ES:BIOS
 	; mov	ax,[CURSOR_POSN]
 	mov	ax,ds:[CT_CURMIN]	; get CT_CURMIN
 	mov	ds:[CT_CURPOS],ax	; set CT_CURPOS (X and Y)
-
-	mov	ax,[ADDR_6845]
-	mov	ds:[CT_PORT],ax
-
+;
+; WARNING: The following code to support alternate adapters is very fragile;
+; it assumes we're dealing EXCLUSIVELY with MDA and CGA adapters, and that the
+; monitor bits in the equipment flags are always set to either EQ_VIDEO_MONO
+; (30h) or EQ_VIDEO_CO80 (20h), and therefore by toggling EQ_VIDEO_CO40 (10h)
+; prior to INT 10h initialization of the adapter, the correct "equipment" will
+; be enabled.
+;
+	mov	ax,[frame_seg]
+	mov	cx,[EQUIP_FLAG]		; snapshot the equipment flags
+	mov	dx,[ADDR_6845]		; get the adapter's port address
+	test	bh,CTSTAT_ADAPTER
+	jz	dco5
+	xor	dx,0060h		; convert 3D4h to 3B4h (or vice versa)
+	xor	ax,0800h		; convert B800h to B000h (or vice versa)
+	push	ax
+	xor	cl,EQ_VIDEO_CO40
+	mov	al,07h
+	cmp	dl,0B4h
+	je	dco4
+	mov	al,03h
+dco4:	mov	ah,0
+	xchg	[EQUIP_FLAG],cx
+	int	INT_VIDEO
+	xchg	[EQUIP_FLAG],cx
+	pop	ax
+dco5:	mov	ds:[CT_PORT],dx
+	mov	ds:[CT_EQUIP],cx
+	mov	ds:[CT_SCREEN].SEG,ax
 	call	draw_border		; draw the context's border, if any
-
-dco6:	mov	al,0
+	mov	cl,0
 	call	scroll			; clear the context's interior
+	call	hide_cursor		; important when using an alt adapter
 	clc
 
 dco7:	pop	es
@@ -435,7 +474,7 @@ dcc2:	mov	es,ax
 	mov	cx,es:[CT_NEXT]		; move this context's CT_NEXT
 	mov	[bx].CT_NEXT,cx		; to the previous context's CT_NEXT
 	mov	ds,ax
-	mov	al,-1			; clear the entire context
+	mov	cl,-1			; clear the entire context
 	call	scroll
 	pop	ds
 	ASSUME	DS:CODE
@@ -663,7 +702,7 @@ ENDPROC	add_packet
 ;
 ; This function also includes some internal hotkey checks; eg, CTRLS for
 ; toggling the console's PAUSE state, and SHIFT-TAB for toggling focus between
-; consoles; internal hotkeys do now generate system HOTKEY notifications.
+; consoles; internal hotkeys do not generate system HOTKEY notifications.
 ;
 ; TODO: CTRLC can still get "buried" in a sense: if you fill up the ROM's
 ; keyboard buffer, the ROM will never add CTRLC, so it's CTRL_BREAK to the
@@ -756,7 +795,7 @@ ENDPROC	check_hotkey
 ; draw_border
 ;
 ; Inputs:
-;	DS -> context
+;	DS = CONSOLE context
 ;	If DS matches ct_focus, then a double-wide border will be drawn
 ;
 ; Outputs:
@@ -848,9 +887,10 @@ dc8:	call	write_curpos		; write CL at (DL,DH)
 	cmp	dh,ds:[CT_CURMAX].HI
 	jle	dc9
 	dec	dh
-	mov	al,1
+	push	cx
+	mov	cl,1
 	call	scroll			; scroll the context up 1 line
-
+	pop	cx
 dc9:	ret
 ENDPROC	draw_char
 
@@ -871,7 +911,9 @@ ENDPROC	draw_char
 DEFPROC	draw_cursor
 	mov	dx,ds:[CT_CURPOS]
 	call	get_curpos		; BX = screen offset for CURPOS
-	add	bx,ds:[CT_BUFFER].OFF	; add the context's buffer offset
+	add	bx,ds:[CT_SCREEN].OFF	; add the context's buffer offset
+
+	DEFLBL	set_cursor,near
 	shr	bx,1			; screen offset to cell offset
 	mov	ah,14			; AH = 6845 CURSOR ADDR (HI) register
 	call	write_port		; update cursor position using BX
@@ -904,7 +946,7 @@ DEFPROC	focus_next
 ; like a good idea while we're 1) switching which context has focus, and 2)
 ; redrawing the borders of the outgoing and incoming contexts.
 ;
-; And it gives us an excuse to test the new LOCK/UNLOCK interfaces.
+; And it gives us an excuse to test the new LOCK/UNLOCK APIs.
 ;
 	mov	ax,DOS_UTL_LOCK
 	int	21h
@@ -920,10 +962,11 @@ tf1:	mov	cx,[ct_head]
 	je	tf9			; nothing to do
 tf2:	xchg	cx,[ct_focus]
 	mov	ds,cx
-	call	draw_border		; redraw the border with old focus
+	call	draw_border		; redraw the border and hide
+	call	hide_cursor		; the cursor of the outgoing context
 	mov	ds,[ct_focus]
-	call	draw_border		; redraw the broder with new focus
-	call	draw_cursor
+	call	draw_border		; redraw the broder and show
+	call	draw_cursor		; the cursor of the incoming context
 tf9:	pop	es
 	mov	ax,DOS_UTL_UNLOCK
 	int	21h
@@ -961,7 +1004,26 @@ ENDPROC	get_curpos
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; move_curhorz
+; hide_cursor
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	hide_cursor
+	mov	bx,ds:[CT_SCROFF]
+	jmp	set_cursor
+ENDPROC	hide_cursor
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; move_cursor
 ;
 ; Inputs:
 ;	DS = CONSOLE context
@@ -973,7 +1035,7 @@ ENDPROC	get_curpos
 ; Modifies:
 ;	AX, BX, DX
 ;
-DEFPROC	move_curhorz
+DEFPROC	move_cursor
 	mov	dx,ds:[CT_CURPOS]	; DX = current cursor position
 	add	dl,cl
 	test	cx,cx			; positive adjustment?
@@ -1000,14 +1062,14 @@ mc5:	cmp	dl,ds:[CT_CURMIN].LO
 	jge	mc8
 	inc	dh
 
-	DEFLBL	move_cursor,near
+	DEFLBL	update_cursor,near
 mc8:	mov	ds:[CT_CURPOS],dx
 	mov	ax,ds
 	cmp	ax,[ct_focus]		; does this context have focus?
 	jne	mc9			; no, leave cursor alone
 	call	draw_cursor
 mc9:	ret
-ENDPROC	move_curhorz
+ENDPROC	move_cursor
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1082,7 +1144,7 @@ ENDPROC	read_kbd
 ; scroll
 ;
 ; Inputs:
-;	AL = # lines (0 to clear ALL lines, -1 to clear entire context)
+;	CL = # lines (0 to clear ALL lines, -1 to clear entire context)
 ;	DS = CONSOLE context
 ;
 ; Modifies:
@@ -1090,10 +1152,20 @@ ENDPROC	read_kbd
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	scroll
+	mov	ax,DOS_UTL_LOCK		; we must lock to ensure EQUIP_FLAG
+	int	21h			; remains stable for the duration
 	push	bx
 	push	cx
 	push	dx
 	push	bp			; WARNING: INT 10h scrolls trash BP
+	push	es
+	sub	ax,ax
+	mov	es,ax
+	ASSUME	ES:BIOS
+	mov	ax,ds:[CT_EQUIP]
+	xchg	es:[EQUIP_FLAG],ax	; swap EQUIP_FLAG
+	push	ax
+	xchg	ax,cx			; AL = # lines now
 	mov	cx,ds:[CT_CONPOS]
 	mov	dx,cx
 	test	al,al			; negative?
@@ -1105,11 +1177,16 @@ scr1:	add	cx,ds:[CT_CURMIN]	; CH = row, CL = col of upper left
 	add	dx,ds:[CT_CURMAX]	; DH = row, DL = col of lower right
 scr2:	mov	bh,07h			; BH = fill attribute
 	mov	ah,06h			; scroll up # lines in AL
-	int	10h
+	int	INT_VIDEO
+	pop	ax
+	mov	es:[EQUIP_FLAG],ax	; restore EQUIP_FLAG
+	pop	es
 	pop	bp
 	pop	dx
 	pop	cx
 	pop	bx
+	mov	ax,DOS_UTL_UNLOCK
+	int	21h
 	ret
 ENDPROC	scroll
 
@@ -1211,7 +1288,7 @@ wclf:	call	draw_linefeed		; emulate a LINEFEED
 
 wc7:	call	draw_char		; draw character (CL) at CURPOS (DL,DH)
 
-wc8:	call	move_cursor		; set CURPOS to (DL,DH)
+wc8:	call	update_cursor		; set CURPOS to (DL,DH)
 
 wc9:	pop	es
 	pop	ds
@@ -1242,7 +1319,7 @@ ENDPROC	write_context
 DEFPROC	write_curpos
 	push	bx
 	push	dx
-	les	di,ds:[CT_BUFFER]	; ES:DI -> the frame buffer
+	les	di,ds:[CT_SCREEN]	; ES:DI -> screen location
 	call	get_curpos		; BX = screen offset for CURPOS
 	mov	dx,ds:[CT_PORT]
 	ASSERT	Z,<cmp dh,03h>
