@@ -1,28 +1,45 @@
 <!doctype html>
 <html lang="{{ site.lang | default: 'en-US' }}">
   <!--
-   ___   _   ___ ___ ___ ___   ___  ___
-  | _ ) /_\ / __|_ _/ __|   \ / _ \/ __|
-  | _ \/ _ \\__ \| | (__| |) | (_) \__ \
-  |___/_/ \_\___/___\___|___/ \___/|___/
+   ___   _   ___ ___ ___    ___   ___  ___
+  | _ ) /_\ / __|_ _/ __|__|   \ / _ \/ __|
+  | _ \/ _ \\__ \| | (_|___| |) | (_) \__ \
+  |___/_/ \_\___/___\___|  |___/ \___/|___/
   -->
 {% comment %}
   BASICDOS website © 2020 by Jeff Parsons (@jeffpar)
-  ASCII art from http://patorjk.com/software/taag/#p=display&f=Small&t=BASICDOS
+  ASCII art from http://patorjk.com/software/taag/#p=display&f=Small&t=BASIC-DOS
 {% endcomment %}
   <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-
-{% seo %}
+    <title>{% if page.title %}{{ page.title }} | BASIC-DOS{% else %}{{ site.title }}{% endif %}</title>
+    <meta name="author" content="{{ site.author }}">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:site_name" content="{{ site.title }}">
+    <meta name="description" property="og:description" content="{{ site.title }}: {{ site.description | default: site.github.project_tagline | rstrip }}">
+    {%- comment %}{% seo %}{% endcomment %}
+    {%- if page.title != nil %}
+    <meta name="twitter:title" property="og:title" content="{{ page.title }}">
+    {%- else %}
+    <meta name="twitter:title" property="og:title" content="BASIC-DOS">
+    {%- endif %}
+    {%- if page.preview != nil %}
+    <meta name="twitter:image" property="og:image" content="{{ page.preview }}">
+    {%- else %}
+    <meta name="twitter:image" property="og:image" content="{{ site.baseurl }}/assets/images/LCM_at_Night.jpg">
+    {%- endif %}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="{{ site.twitter_id | default: '@jeffpar' }}">
+    <link rel="canonical" href="{{ page.url | replace:'index.html','' | prepend: site.baseurl | prepend: site.url }}">
     <link rel="stylesheet" href="{{ '/assets/css/style.css?v=' | append: site.github.build_revision | relative_url }}">
     <link rel="stylesheet" href="{{ '/assets/css/pcjs.css' | relative_url }}">
-    {%- comment -%}
+    {%- comment %}
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     {%- endcomment %}
   </head>
   <body>
-     {% comment %}
+     {%- comment %}
       <div id="header">
         <nav>
           <li class="fork"><a href="{{ site.github.repository_url }}">View On GitHub</a></li>
@@ -33,7 +50,7 @@
           {% endif %}
         </nav>
       </div><!-- end header -->
-      {% endcomment %}
+      {%- endcomment %}
 
     <div class="wrapper">
 
@@ -47,13 +64,11 @@
         </div>
 
         {{ content }}
-
       </section>
 
     </div>
-
-    {% include scripts.html %}
-    {% if site.google_analytics and site.developer != true %}
+    {% include scripts.html -%}
+    {%- if site.google_analytics and site.developer != true %}
       <script>
         (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
         (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
@@ -62,6 +77,6 @@
         ga('create', '{{ site.google_analytics }}', 'auto');
         ga('send', 'pageview');
       </script>
-    {% endif %}
+    {%- endif %}
   </body>
 </html>
