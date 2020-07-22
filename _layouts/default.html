@@ -24,13 +24,13 @@
     {%- else %}
     <meta name="twitter:title" property="og:title" content="BASIC-DOS">
     {%- endif %}
-    {%- if page.preview != nil %}
-    <meta name="twitter:image" property="og:image" content="{{ page.preview }}">
-    {%- else %}
-    <meta name="twitter:image" property="og:image" content="{{ site.baseurl }}/assets/images/LCM_at_Night.jpg">
-    {%- endif %}
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="{{ site.twitter_id | default: '@jeffpar' }}">
+    {%- if page.preview != nil %}
+    <meta name="twitter:image" property="og:image" content="{{ page.preview | prepend: site.baseurl | prepend: site.url }}">
+    {%- else %}
+    <meta name="twitter:image" property="og:image" content="{{ '/assets/images/LCM_at_Night.jpg' | prepend: site.baseurl | prepend: site.url }}">
+    {%- endif %}
     <link rel="canonical" href="{{ page.url | replace:'index.html','' | prepend: site.baseurl | prepend: site.url }}">
     <link rel="stylesheet" href="{{ '/assets/css/style.css?v=' | append: site.github.build_revision | relative_url }}">
     <link rel="stylesheet" href="{{ '/assets/css/pcjs.css' | relative_url }}">
