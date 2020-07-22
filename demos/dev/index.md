@@ -20,7 +20,7 @@ created, it was clear that IBM PCs would eventually have them, so if the
 boot sector detects a hard disk, it prompts you; otherwise, it boots straight
 into BASIC-DOS.  All the [BASIC-DOS Demos](../) run on floppy-based IBM PCs.
 
-The machine contains two 10Mb hard disks: drive C: contains all the tools used
+This machine contains two 10Mb hard disks: drive C: contains all the tools used
 to build BASIC-DOS, and drive D: contains all the source code.
 
 To build BASIC-DOS, switch to drive D: and type **MK**. The **MK.BAT** batch
@@ -28,8 +28,9 @@ file uses the Microsoft **MAKE** utility to do most of the work, but the batch
 file is also responsible for copying the resulting binaries to whatever diskette
 is currently in drive A:.
 
-By default, the binaries will contain *DEBUG* code (eg, assertion checks,
-symbol names, etc).  To build non-debug binaries, type **MKCLEAN NODEBUG**.
+By default, the binaries contain *DEBUG* code (eg, assertion checks,
+symbol names, etc).  To build non-debug binaries, type **MK NODEBUG**, or
+**MKCLEAN NODEBUG** if switching between *DEBUG* and *NODEBUG* binaries.
 The **MKCLEAN.BAT** batch file simply deletes all the binaries before running
 **MK.BAT**.
 
