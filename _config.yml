@@ -8,7 +8,6 @@ data_dir: configs
 left_brace: "{"
 right_brace: "}"
 encoding: UTF-8
-root: /maplebar
 google_analytics: UA-49658648-4
 
 github:
