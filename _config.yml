@@ -1,6 +1,6 @@
 title: BASIC-DOS
 domain: basicdos.com
-description: "A PCjs Retro-Programming Project"
+description: A PCjs Retro-Programming Project
 author: Jeff Parsons
 twitter_id: jeffpar
 data_dir: configs
@@ -11,7 +11,7 @@ google_analytics: UA-49658648-4
 theme: jekyll-theme-midnight
 
 github:
-  owner_name: "jeffpar"
+  owner_name: jeffpar
   owner_url: https://github.com/jeffpar
   repository_url: https://github.com/jeffpar/basicdos
 
