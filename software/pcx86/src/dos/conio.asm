@@ -224,9 +224,6 @@ DEFPROC	ttyin_add,near
 	sub	bp,bp			; BP = 0 (replace)
 	call	ttyin_mod		; replace character (AL) at BX
 	pop	bp
-	cmp	bl,dh			; have we increased # displayed chars?
-	jbe	tta8			; no
-	mov	dh,bl			; yes
 tta8:	clc
 tta9:	ret
 ENDPROC	ttyin_add
@@ -283,8 +280,8 @@ ttl9:	ret
 ENDPROC	ttyin_left
 
 DEFPROC	ttyin_mod
-	push	ax
 	push	dx
+	push	ax
 	mov	al,IOCTL_GETPOS
 	call	con_ioctl
 	mov	cl,dh
@@ -294,7 +291,6 @@ DEFPROC	ttyin_mod
 	mov	al,IOCTL_GETLEN
 	call	con_ioctl		; get logical length values in AX
 	mov	ch,ah			; CH = logical length from position
-	pop	dx
 	pop	ax
 
 	test	bp,bp
@@ -327,7 +323,7 @@ ttm2b:	cmp	bl,es:[di+1]
 	pop	bx
 	dec	cx			; adjust length of displayed chars
 ;
-; Redisplay CL characters at SI if their display length changed.
+; Redisplay CL characters at SI (and position DL) if display length changed.
 ;
 ttm7:	mov	al,IOCTL_GETLEN
 	call	con_ioctl		; get display lengths in AX
@@ -367,7 +363,9 @@ ttm8:	mov	ch,ah			; save original length in CH
 ttm8a:	mov	cl,ch
 	call	ttyin_move		; move cursor back CL characters
 
-ttm9:	ret
+ttm9:	pop	ax			; this would be pop dx
+	mov	dl,al			; but we only want to pop DL, not DH
+	ret
 ENDPROC	ttyin_mod
 
 DEFPROC	ttyin_move
