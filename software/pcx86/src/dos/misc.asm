@@ -14,6 +14,9 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_active>,word
 	EXTERNS	<tty_read,write_string,dos_restart>,near
 	EXTSTR	<STR_CTRLC>
+	IF REG_CHECK
+	EXTERNS	<dos_check>,near
+	ENDIF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -124,10 +127,9 @@ DEFPROC	msc_sigctrlc,DOSFAR
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
-	mov	bx,[scb_active]		; TODO: always have an scb_active
-	test	bx,bx
-	jnz	msg0
-	jmp	short msg1
+	mov	bx,[scb_active]
+	ASSERT	NZ,<test bx,bx>		; TODO: verify there's an SCB
+	jmp	short msg0
 
 	DEFLBL	msc_sigctrlc_read,near
 	ASSERT	STRUCT,[bx],SCB
@@ -135,8 +137,17 @@ DEFPROC	msc_sigctrlc,DOSFAR
 	je	msg1
 	call	tty_read		; remove CTRLC from the input buffer
 msg0:	mov	[bx].SCB_CTRLC_ACT,0
+;
+; Make sure that whatever function we're interrupting has not violated
+; our BP convention; some functions prefer to use BP as an extra register,
+; and that's OK as long as 1) they're not an interruptable function and 2)
+; they restore BP when they're done.
+;
+msg1:	IF REG_CHECK
+	ASSERT	Z,<cmp word ptr [bp-2],offset dos_check>
+	ENDIF
 
-msg1:	mov	cx,STR_CTRLC_LEN
+	mov	cx,STR_CTRLC_LEN
 	mov	si,offset STR_CTRLC
 	call	write_string
 ;

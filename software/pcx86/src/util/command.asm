@@ -22,6 +22,8 @@ DEFPROC	main
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	mov	dx,offset ctrlc
 	int	21h
+	lea	bx,[DGROUP:heap]
+	mov	word ptr [bx].INPUT.INP_MAX,size INP_BUF
 
 	PRINTF	<"BASIC-DOS Interpreter",13,10,13,10,"BASIC MATH library functions",13,10,"Copyright (c) Microsoft Corporation",13,10>
 ;
@@ -34,7 +36,6 @@ m1:	lea	bx,[DGROUP:heap]
 	add	al,'A'		; AL = current drive letter
 	PRINTF	"%c>",ax
 
-	mov	[bx].INPUT.INP_MAX,size INP_BUF
 	lea	dx,[bx].INPUT
 	mov	ah,DOS_TTY_INPUT
 	int	21h
