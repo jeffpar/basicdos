@@ -60,12 +60,13 @@ CT_CONPOS	dw	?	; 06h: eg, context position (X,Y) of top left
 CT_CURPOS	dw	?	; 08h: eg, cursor X (lo) and Y (hi) position
 CT_CURMIN	dw	?	; 0Ah: eg, cursor X (lo) and Y (hi) minimums
 CT_CURMAX	dw	?	; 0Ch: eg, cursor X (lo) and Y (hi) maximums
-CT_EQUIP	dw	?	; 0Eh: BIOS equipment flags (snapshot)
-CT_PORT		dw	?	; 10h: eg, 3D4h
-CT_SCROFF	dw	?	; 12h: eg, 2000 (offset of off-screen memory)
-CT_SCREEN	dd	?	; 14h: eg, 0B800h:00A2h
-CT_BUFFER	dd	?	; 18h: used only for background contexts
-CT_BUFLEN	dw	?	; 1Ch: eg, 4000 for a full-screen 25*80*2 buffer
+CT_CURDIM	dw	?	; 0Eh: width and height (for cursor movement)
+CT_EQUIP	dw	?	; 10h: BIOS equipment flags (snapshot)
+CT_PORT		dw	?	; 12h: eg, 3D4h
+CT_SCROFF	dw	?	; 14h: eg, 2000 (offset of off-screen memory)
+CT_SCREEN	dd	?	; 16h: eg, 0B800h:00A2h
+CT_BUFFER	dd	?	; 1Ah: used only for background contexts
+CT_BUFLEN	dw	?	; 1Eh: eg, 4000 for a full-screen 25*80*2 buffer
 CONTEXT		ends
 
 CTSTAT_BORDER	equ	01h	; context has border
@@ -361,6 +362,7 @@ dco1a:	xchg	[ct_head],ax
 ; cursor minimums and maximums from the context size.
 ;
 	mov	ax,0101h
+	push	cx
 	sub	cx,ax
 	mov	ds:[CT_CONDIM],cx	; set CT_CONDIM (CL,CH)
 	mov	ds:[CT_CONPOS],dx	; set CT_CONPOS (DL,DH)
@@ -370,6 +372,10 @@ dco1a:	xchg	[ct_head],ax
 	mov	ds:[CT_CURMIN],ax	; set CT_CURMIN (AL,AH)
 	sub	cx,ax
 	mov	ds:[CT_CURMAX],cx	; set CT_CURMAX (CL,CH)
+	pop	cx
+	sub	cx,ax
+	sub	cx,ax
+	mov	ds:[CT_CURDIM],cx	; set CT_CURDIM (width and height)
 	mov	al,dh
 	mul	[max_cols]
 	add	ax,ax
@@ -1027,7 +1033,7 @@ ENDPROC	hide_cursor
 ;
 ; Inputs:
 ;	DS = CONSOLE context
-;	CX = +/- delta (may wrap one line)
+;	CX = +/- position delta
 ;
 ; Outputs:
 ;	None
@@ -1037,28 +1043,33 @@ ENDPROC	hide_cursor
 ;
 DEFPROC	move_cursor
 	mov	dx,ds:[CT_CURPOS]	; DX = current cursor position
-	add	dl,cl
-	test	cx,cx			; positive adjustment?
-	jl	mc5			; no
+	xchg	ax,cx
+	idiv	ds:[CT_CURDIM].LO	; AL = # lines, AH = # columns (signed)
 
-	cmp	dl,ds:[CT_CURMAX].LO
+mc1:	add	dh,al
+	cmp	dh,ds:[CT_CURMIN].HI
+	jge	mc1a
+	mov	dh,ds:[CT_CURMIN].HI
+mc1a:	cmp	dh,ds:[CT_CURMAX].HI
+	jle	mc2
+	mov	dh,ds:[CT_CURMAX].HI
+
+mc2:	add	dl,ah
+	cmp	dl,ds:[CT_CURMIN].LO
+	jge	mc2a
+	add	dl,ds:[CT_CURMAX].LO
+	inc	dl
+	sub	dl,ds:[CT_CURMIN].LO
+	cmp	dh,ds:[CT_CURMIN].HI
+	jle	mc2a
+	dec	dh
+
+mc2a:	cmp	dl,ds:[CT_CURMAX].LO
 	jle	mc8
 	sub	dl,ds:[CT_CURMAX].LO
 	dec	dl
 	add	dl,ds:[CT_CURMIN].LO
-	inc	dh
 	cmp	dh,ds:[CT_CURMAX].HI
-	jle	mc8
-	dec	dh
-	jmp	short mc8
-
-mc5:	cmp	dl,ds:[CT_CURMIN].LO
-	jge	mc8
-	add	dl,ds:[CT_CURMAX].LO
-	inc	dl
-	sub	dl,ds:[CT_CURMIN].LO
-	dec	dh
-	cmp	dh,ds:[CT_CURMIN].HI
 	jge	mc8
 	inc	dh
 
