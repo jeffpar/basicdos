@@ -24,5 +24,4 @@ exclude:
   - gulpfile.js
   - node_modules
   - "package*.json"
-  - "*.OBJ"
-  - "*.COM"
+  - "**/src"
