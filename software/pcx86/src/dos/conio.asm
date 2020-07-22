@@ -184,17 +184,22 @@ ti5:	cmp	al,CHR_CTRLX
 	call	ttyin_left
 	jmp	ti1
 
-ti6:	cmp	al,CHR_CTRLE
+ti6:	cmp	al,CHR_CTRLA
 	jne	ti6a
+	call	ttyin_beg
+	jmp	ti1
+
+ti6a:	cmp	al,CHR_CTRLE
+	jne	ti6b
 	call	ttyin_end
 	jmp	ti1
 
-ti6a:	cmp	al,CHR_CTRLF
-	jne	ti6b
+ti6b:	cmp	al,CHR_CTRLF
+	jne	ti6c
 	call	ttyin_right
 	jmp	ti1
 
-ti6b:	cmp	al,CHR_CTRLR
+ti6c:	cmp	al,CHR_CTRLR
 	jne	ti7
 	call	ttyin_recall
 	jmp	ti1
@@ -227,6 +232,16 @@ DEFPROC	ttyin_add,near
 tta8:	clc
 tta9:	ret
 ENDPROC	ttyin_add
+
+DEFPROC	ttyin_beg
+	test	bx,bx			; any data to our left?
+	jz	ttb9			; no
+	call	ttyin_getlen		; CH = total length, CL = length delta
+	sub	bx,bx			; update buffer position
+	mov	cl,ch			;
+	call	ttyin_move		; move cursor back CL characters
+ttb9:	ret
+ENDPROC	ttyin_beg
 
 DEFPROC	ttyin_del
 	cmp	bl,dh			; anything displayed at position?
@@ -328,25 +343,27 @@ ttm2b:	cmp	bl,es:[di+1]
 ttm7:	mov	al,IOCTL_GETLEN
 	call	con_ioctl		; get display lengths in AX
 	cmp	ah,ch			; any change in total display length?
-	je	ttm9			; no
-	test	cl,cl
-	jz	ttm7c
+	jne	ttm7a			; yes
+	test	bp,bp			; no, and was this a simple replacement?
+	jz	ttm9			; yes, we're done
+ttm7a:	test	cl,cl
+	jz	ttm7d
 	push	si
 	test	bp,bp
-	jz	ttm7b
-ttm7a:	mov	al,es:[si]
+	jz	ttm7c
+ttm7b:	mov	al,es:[si]
 	call	ttyin_out
-ttm7b:	inc	si
+ttm7c:	inc	si
 	dec	cl
-	jnz	ttm7a
+	jnz	ttm7b
 	pop	si
-ttm7c:	sub	ch,ah			; is the old display length longer?
+ttm7d:	sub	ch,ah			; is the old display length longer?
 	jbe	ttm8			; no
 	mov	al,CHR_SPACE
-ttm7d:	call	ttyin_out
+ttm7e:	call	ttyin_out
 	inc	ah
 	dec	ch
-	jnz	ttm7d
+	jnz	ttm7e
 ;
 ; AH contains the length of all the displayed characters from SI, and that's
 ; normally how many positions we want to rewind the cursor -- unless BP >= 0,

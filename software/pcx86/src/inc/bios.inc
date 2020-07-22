@@ -272,7 +272,7 @@ BIOS_DATA	equ	RS232_BASE
 CHR_CTRLA	equ	01h
 CHR_CTRLB	equ	02h	; alias for left-arrow
 CHR_CTRLC	equ	03h
-CHR_CTRLE	equ	05h	; alias for up-arrow or F3 ("recall")
+CHR_CTRLE	equ	05h	; alias for up-arrow or F3
 CHR_CTRLF	equ	06h	; alias for right-arrow or F1
 CHR_BACKSPACE	equ	08h
 CHR_TAB		equ	09h
