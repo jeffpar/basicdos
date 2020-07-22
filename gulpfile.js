@@ -12,22 +12,24 @@ let gulp = require("gulp");
 let run = require("gulp-run-command").default;
 
 let disks = {
-    "BASIC-DOS": [
+    "BASIC-DOS1": [
         "./software/pcx86/src/dev/IBMBIO.COM",
         "./software/pcx86/src/dos/IBMDOS.COM",
         "./software/pcx86/src/util/COMMAND.COM",
         "./software/pcx86/src/configs/config1/CONFIG.SYS",
         "./software/pcx86/src/util/PRIMES.EXE",
-        "./software/pcx86/src/util/SLEEP.COM",
-        "./software/pcx86/src/util/TESTS.COM"
+        "./software/pcx86/src/gwb/GWB.EXE",
+        "./software/pcx86/src/util/SYMDEB.EXE"
     ],
     "BASIC-DOS2": [
         "./software/pcx86/src/dev/IBMBIO.COM",
         "./software/pcx86/src/dos/IBMDOS.COM",
         "./software/pcx86/src/util/COMMAND.COM",
         "./software/pcx86/src/configs/config2/CONFIG.SYS",
-        "./software/pcx86/src/gwb/GWB.EXE",
-        "./software/pcx86/src/configs/config2/SYMDEB.EXE"
+        "./software/pcx86/src/util/PRIMES.EXE",
+        "./software/pcx86/src/util/SLEEP.COM",
+        "./software/pcx86/src/util/TESTS.COM",
+        "./software/pcx86/src/util/SYMDEB.EXE"
     ],
     "BASIC-DOS3": [
         "./software/pcx86/src/dev/IBMBIO.COM",
@@ -35,8 +37,19 @@ let disks = {
         "./software/pcx86/src/util/COMMAND.COM",
         "./software/pcx86/src/configs/config3/CONFIG.SYS",
         "./software/pcx86/src/util/PRIMES.EXE",
+        "./software/pcx86/src/util/SLEEP.COM",
+        "./software/pcx86/src/util/TESTS.COM"
+    ],
+    "BASIC-DOS4": [
+        "./software/pcx86/src/dev/IBMBIO.COM",
+        "./software/pcx86/src/dos/IBMDOS.COM",
+        "./software/pcx86/src/util/COMMAND.COM",
+        "./software/pcx86/src/configs/config4/CONFIG.SYS",
+        "./software/pcx86/src/util/PRIMES.EXE",
+        "./software/pcx86/src/util/SLEEP.COM",
+        "./software/pcx86/src/util/TESTS.COM",
         "./software/pcx86/src/gwb/GWB.EXE",
-        "./software/pcx86/src/configs/config2/SYMDEB.EXE"
+        "./software/pcx86/src/util/SYMDEB.EXE"
     ],
     "BDS-BOOT": [
         "./software/pcx86/src/boot/boot.asm",

@@ -24,9 +24,10 @@
       "type": "list",
       "options": {
         "": "None",
-        "/software/pcx86/disks/BASIC-DOS.json": "BASIC-DOS",
+        "/software/pcx86/disks/BASIC-DOS1.json": "BASIC-DOS1",
         "/software/pcx86/disks/BASIC-DOS2.json": "BASIC-DOS2",
         "/software/pcx86/disks/BASIC-DOS3.json": "BASIC-DOS3",
+        "/software/pcx86/disks/BASIC-DOS4.json": "BASIC-DOS4",
         "/software/pcx86/disks/BDS-BOOT.json": "BDS-BOOT",
         "/software/pcx86/disks/BDS-DEV.json": "BDS-DEV",
         "/software/pcx86/disks/BDS-DOS.json": "BDS-DOS",

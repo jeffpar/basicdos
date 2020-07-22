@@ -2,7 +2,7 @@
   "id": "fdcNEC",
   "class": "fdc",
   "autoMount": {
-    "A": {"name": "BASIC-DOS"},
+    "A": {"name": "BASIC-DOS1"},
     "B": {"name": "PC DOS 2.00 (Disk 1)"}
   },
   "diskettes": "",
@@ -25,9 +25,10 @@
       "type": "list",
       "options": {
         "": "None",
-        "/software/pcx86/disks/BASIC-DOS.json": "BASIC-DOS",
+        "/software/pcx86/disks/BASIC-DOS1.json": "BASIC-DOS1",
         "/software/pcx86/disks/BASIC-DOS2.json": "BASIC-DOS2",
         "/software/pcx86/disks/BASIC-DOS3.json": "BASIC-DOS3",
+        "/software/pcx86/disks/BASIC-DOS4.json": "BASIC-DOS4",
         "/software/pcx86/disks/PCDOS100.json": "PC DOS 1.00",
         "/software/pcx86/disks/PCDOS110.json": "PC DOS 1.10",
         "/software/pcx86/disks/PCDOS200-DISK1.json": "PC DOS 2.00 (Disk 1)",

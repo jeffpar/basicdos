@@ -24,7 +24,7 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
 	DEFLBL	CON_LIMITS,word
-	dw	80,16,80, 25,4,25, 0,0,79, 0,0,24, 1,0,1, 0,0,1
+	dw	80,16,80, 25,4,25, 0,0,79, 0,0,24, 0,0,1, 0,0,1
 
 	DEFLBL	DBL_BORDER,word
 	dw	0C9BBh,0BABAh,0C8BCh,0CDCDh
@@ -281,7 +281,7 @@ ENDPROC	ddcon_write
 ; columns (up to 80), [rows] is number of rows (up to 25), [x] and [y] are the
 ; top-left row and col of the context, [border] is 1 for a border or 0 for none,
 ; and [adapter] is the adapter #, in case there is more than one video adapter
-; (default is 0).
+; (adapter 0 is the default).
 ;
 ; Obviously, future hardware (imagine an ENHANCED Graphics Adapter, for example)
 ; will be able to support more rows and other features, but we're designing
@@ -289,7 +289,7 @@ ENDPROC	ddcon_write
 ;
 ; Inputs:
 ;	ES:DI -> DDP
-;	[DDP].DDP_PTR -> context descriptor (eg, "CON:80,25,0,0,1")
+;	[DDP].DDP_PTR -> context descriptor (eg, "CON:80,25")
 ;
 ; Outputs:
 ;
