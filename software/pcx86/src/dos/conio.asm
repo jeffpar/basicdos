@@ -233,16 +233,27 @@ ti9:	mov	es:[di+1],bl		; return character count in 2nd byte
 	ret
 ENDPROC	tty_input
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ttyin_add (tty_input helper function)
+;
+; This either replaces or inserts a character at BX, depending on the
+; insert flag (0 or 1) in TMP_CX.  Replacing is allowed only if BL + 1 < MAX,
+; whereas inserting is allowed only if DH + 1 < MAX.
+;
 DEFPROC	ttyin_add,near
-	mov	ah,es:[di]		; AH = max count
-	sub	ah,bl			; AH = space remaining
-	cmp	ah,2			; room for at least two more?
-	jb	tta9			; no
+	mov	cx,[bp].TMP_CX		; CX = 0 (replace) or 1 (insert)
+	mov	ah,bl
+	jcxz	tta1
+	mov	ah,dh
+tta1:	inc	ah
+	cmp	ah,es:[di]
+	cmc
+	jb	tta9
 	push	bp
-	mov	bp,[bp].TMP_CX		; BP = 0 (replace) or 1 (insert)
+	mov	bp,cx			; BP = 0 (replace) or 1 (insert)
 	call	ttyin_modify		; replace/insert character (AL) at BX
 	pop	bp
-	clc
 tta9:	ret
 ENDPROC	ttyin_add
 
@@ -250,7 +261,7 @@ DEFPROC	ttyin_back
 	mov	ch,0
 	jcxz	ttb8
 	neg	cx
-	mov	al,IOCTL_MOVHORZ
+	mov	al,IOCTL_MOVCUR
 	call	con_ioctl
 ttb8:	ret
 ENDPROC	ttyin_back
@@ -280,7 +291,7 @@ DEFPROC	ttyin_end
 	cmp	bl,dh			; more displayed chars?
 	jae	tte9			; no
 	mov	al,es:[di+bx+2]		; yes, fetch next character
-	call	ttyin_next		; add it to what's being displayed
+	call	ttyin_next		; and (re)display it
 	jnc	ttyin_end
 tte9:	ret
 ENDPROC	ttyin_end
@@ -422,19 +433,19 @@ ttm8a:	mov	cl,ch
 
 ttm9:	pop	ax			; this would be pop dx
 	mov	dl,al			; but we only want to pop DL, not DH
+	clc
 	ret
 ENDPROC	ttyin_modify
 
 DEFPROC	ttyin_next,near
 	mov	ah,es:[di]		; AH = max count
 	sub	ah,bl			; AH = space remaining
-	cmp	ah,2			; room for at least two more?
+	cmp	ah,1			; room for at least one more?
 	jb	ttn9			; no
 	push	bp
 	sub	bp,bp
 	call	ttyin_modify		; replace (AL) at BX
 	pop	bp
-	clc
 ttn9:	ret
 ENDPROC	ttyin_next
 
@@ -457,9 +468,9 @@ ENDPROC	ttyin_recall
 DEFPROC	ttyin_right
 	cmp	bl,es:[di+1]		; more existing chars?
 	cmc
-	jb	ttr9			; no, just ignore CTRLF
+	jb	ttr9			; no, ignore movement
 	mov	al,es:[di+bx+2]		; yes, fetch next character
-	call	ttyin_next
+	call	ttyin_next		; and (re)display it
 ttr9:	ret
 ENDPROC	ttyin_right
 

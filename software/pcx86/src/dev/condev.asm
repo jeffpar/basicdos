@@ -186,7 +186,7 @@ dio5:	loop	dio2
 	add	dh,dl			; DH = total length
 	jmp	short dio7
 
-dio6:	cmp	al,IOCTL_MOVHORZ
+dio6:	cmp	al,IOCTL_MOVCUR
 	jne	dio7
 	call	move_cursor
 
