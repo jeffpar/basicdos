@@ -227,19 +227,28 @@ DEFPROC	ttyin_add,near
 	jb	tta9			; no
 	push	bp
 	sub	bp,bp			; BP = 0 (replace)
-	call	ttyin_mod		; replace character (AL) at BX
+	call	ttyin_modify		; replace character (AL) at BX
 	pop	bp
 tta8:	clc
 tta9:	ret
 ENDPROC	ttyin_add
 
+DEFPROC	ttyin_back
+	mov	ch,0
+	jcxz	ttb8
+	neg	cx
+	mov	al,IOCTL_MOVHORZ
+	call	con_ioctl
+ttb8:	ret
+ENDPROC	ttyin_back
+
 DEFPROC	ttyin_beg
 	test	bx,bx			; any data to our left?
 	jz	ttb9			; no
-	call	ttyin_getlen		; CH = total length, CL = length delta
+	call	ttyin_length		; CH = total length, CL = length delta
 	sub	bx,bx			; update buffer position
 	mov	cl,ch			;
-	call	ttyin_move		; move cursor back CL characters
+	call	ttyin_back		; move cursor back CL characters
 ttb9:	ret
 ENDPROC	ttyin_beg
 
@@ -248,7 +257,7 @@ DEFPROC	ttyin_del
 	jae	ttd9			; no
 	push	bp
 	sbb	bp,bp			; BP = -1 (delete)
-	call	ttyin_mod		; delete character at BX
+	call	ttyin_modify		; delete character at BX
 	pop	bp
 	dec	dh			; reduce # displayed characters
 ttd9:	ret
@@ -264,7 +273,7 @@ tte9:	ret
 ENDPROC	ttyin_end
 
 DEFPROC	ttyin_erase
-	call	ttyin_getlen		; CH = total length
+	call	ttyin_length		; CH = total length
 	sub	bx,bx
 	mov	cl,ch
 	mov	ch,bh
@@ -276,25 +285,25 @@ ttx9:	mov	dh,cl			; zero # displayed characters, too
 	ret
 ENDPROC	ttyin_erase
 
-DEFPROC	ttyin_getlen
+DEFPROC	ttyin_length
 	lea	si,[di+2]		; ES:SI -> all characters
 	mov	cl,bl			; CL = # of characters
 	mov	al,IOCTL_GETLEN		; DL = starting column
 	call	con_ioctl		; get logical length values in AX
 	xchg	cx,ax			; CH = total length, CL = length delta
 	ret
-ENDPROC	ttyin_getlen
+ENDPROC	ttyin_length
 
 DEFPROC	ttyin_left
 	test	bx,bx			; any data to our left?
 	jz	ttl9			; no
-	call	ttyin_getlen		; CH = total length, CL = length delta
+	call	ttyin_length		; CH = total length, CL = length delta
 	dec	bx			; update buffer position
-	call	ttyin_move		; move cursor back CL characters
+	call	ttyin_back		; move cursor back CL characters
 ttl9:	ret
 ENDPROC	ttyin_left
 
-DEFPROC	ttyin_mod
+DEFPROC	ttyin_modify
 	push	dx
 	push	ax
 	mov	al,IOCTL_GETPOS
@@ -378,21 +387,12 @@ ttm8:	mov	ch,ah			; save original length in CH
 	call	con_ioctl		; get display lengths in AX
 	sub	ch,ah
 ttm8a:	mov	cl,ch
-	call	ttyin_move		; move cursor back CL characters
+	call	ttyin_back		; move cursor back CL characters
 
 ttm9:	pop	ax			; this would be pop dx
 	mov	dl,al			; but we only want to pop DL, not DH
 	ret
-ENDPROC	ttyin_mod
-
-DEFPROC	ttyin_move
-	mov	ch,0
-	jcxz	ttv9
-	neg	cx
-	mov	al,IOCTL_MOVHORZ
-	call	con_ioctl
-ttv9:	ret
-ENDPROC	ttyin_move
+ENDPROC	ttyin_modify
 
 DEFPROC	ttyin_out
 	cmp	al,CHR_LINEFEED
@@ -405,17 +405,15 @@ tto2:	call	write_char
 ENDPROC	ttyin_out
 
 DEFPROC	ttyin_recall
-	cmp	bl,es:[di+1]		; more existing chars?
-	jae	ttc9			; no
-	mov	al,es:[di+bx+2]		; yes, fetch next character
-	call	ttyin_add		; add it to what's being displayed
-	jnc	ttyin_recall
-ttc9:	ret
+	call	ttyin_right
+	jc	ttr9
+	jmp	ttyin_recall
 ENDPROC	ttyin_recall
 
 DEFPROC	ttyin_right
 	cmp	bl,es:[di+1]		; more existing chars?
-	jae	ttr9			; no, just ignore CTRLF
+	cmc
+	jb	ttr9			; no, just ignore CTRLF
 	mov	al,es:[di+bx+2]		; yes, fetch next character
 	call	ttyin_add
 ttr9:	ret

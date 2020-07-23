@@ -209,8 +209,7 @@ si4a:	mov	ax,ds
 	mov	[di].BPB_TIMESTAMP.SEG,cx
 ;
 ; Calculate BPBEX values like BPB_CLOSLOG2 and BPB_CLUSBYTES for the "boot"
-; BPB, and then initialize other BPBEX values (eg, BPB_DEVICE and BPB_UNIT)
-; for all BPBs.
+; BPB, and then initialize other BPBEX values (eg, BPB_DEVICE) for all BPBs.
 ;
 ; TODO: It would be nicer to leverage the FDC's buildbpb function to do some
 ; of this work, but that would have to be preceded by a call to the mediachk
@@ -252,7 +251,6 @@ si4d:	mov	[di].BPB_DEVICE.OFF,ax
 	cmp	[di].BPB_SECBYTES,0	; is this BPB initialized?
 	jne	si4e			; yes
 	mov	[di].BPB_DRIVE,ch	; no, fill in the drive #
-	mov	[di].BPB_UNIT,ch	; TODO: Decide if this is useful at all
 si4e:	add	di,size BPBEX
 	inc	ch
 	dec	cl

@@ -362,7 +362,7 @@ sr1a:	mov	dx,[bx].SFB_CURPOS.OFF
 	jbe	sr2
 	mov	cx,ax			; reduce CX
 sr2:	mov	ah,DDC_READ
-	mov	al,[di].BPB_UNIT
+	mov	al,[di].BPB_DRIVE
 	les	di,[di].BPB_DEVICE
 	ASSUME	ES:NOTHING
 	push	ds
