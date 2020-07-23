@@ -149,6 +149,11 @@ DEFPROC	tty_input,DOS
 	ASSUME	ES:NOTHING
 	mov	di,dx			; ES:DI -> buffer
 
+	sub	cx,cx
+	mov	[bp].TMP_CX,cx		; TMP_CX tracks insert mode
+	mov	al,IOCTL_SETINS		; initially OFF
+	call	con_ioctl
+
 	mov	al,IOCTL_GETPOS
 	call	con_ioctl		; AL = starting column
 	xchg	dx,ax			; DL = starting column
@@ -179,7 +184,7 @@ ti4a:	call	ttyin_end
 
 ti5:	cmp	al,CHR_CTRLX
 	je	ti4a
-	cmp	al,CHR_CTRLB
+	cmp	al,CHR_CTRLS
 	jne	ti6
 	call	ttyin_left
 	jmp	ti1
@@ -189,19 +194,27 @@ ti6:	cmp	al,CHR_CTRLA
 	call	ttyin_beg
 	jmp	ti1
 
-ti6a:	cmp	al,CHR_CTRLE
+ti6a:	cmp	al,CHR_CTRLF
 	jne	ti6b
 	call	ttyin_end
 	jmp	ti1
 
-ti6b:	cmp	al,CHR_CTRLF
+ti6b:	cmp	al,CHR_CTRLD
 	jne	ti6c
 	call	ttyin_right
 	jmp	ti1
 
-ti6c:	cmp	al,CHR_CTRLR
-	jne	ti7
+ti6c:	cmp	al,CHR_CTRLE
+	jne	ti6d
 	call	ttyin_recall
+	jmp	ti1
+
+ti6d:	cmp	al,CHR_CTRLV
+	jne	ti7
+	xor	byte ptr [bp].TMP_CL,1	; toggle insert mode
+	mov	cl,[bp].TMP_CL
+	mov	al,IOCTL_SETINS
+	call	con_ioctl
 	jmp	ti1
 
 ti7:	call	ttyin_add
@@ -226,10 +239,10 @@ DEFPROC	ttyin_add,near
 	cmp	ah,2			; room for at least two more?
 	jb	tta9			; no
 	push	bp
-	sub	bp,bp			; BP = 0 (replace)
-	call	ttyin_modify		; replace character (AL) at BX
+	mov	bp,[bp].TMP_CX		; BP = 0 (replace) or 1 (insert)
+	call	ttyin_modify		; replace/insert character (AL) at BX
 	pop	bp
-tta8:	clc
+	clc
 tta9:	ret
 ENDPROC	ttyin_add
 
@@ -267,7 +280,7 @@ DEFPROC	ttyin_end
 	cmp	bl,dh			; more displayed chars?
 	jae	tte9			; no
 	mov	al,es:[di+bx+2]		; yes, fetch next character
-	call	ttyin_add		; add it to what's being displayed
+	call	ttyin_next		; add it to what's being displayed
 	jnc	ttyin_end
 tte9:	ret
 ENDPROC	ttyin_end
@@ -318,32 +331,50 @@ DEFPROC	ttyin_modify
 	pop	ax
 
 	test	bp,bp
-	jl	ttm2
-	jg	ttm9
+	jl	ttm3
+	jz	ttm2
+;
+; Insert character at BX with AL and increment BX.
+;
+	push	ax
+	push	bx
+	inc	byte ptr es:[di+1]
+ttm1:	xchg	al,es:[di+bx+2]
+	inc	bx
+	cmp	bl,es:[di+1]
+	jb	ttm1
+	cmp	bl,dh			; have we added to displayed chars?
+	jbe	ttm11			; no
+	inc	dh			; yes
+ttm11:	pop	bx
+	pop	ax
+	inc	bx
+	inc	cx			; adjust length of displayed chars
+	jmp	short ttm7
 ;
 ; Replace character at BX with AL and increment BX.
 ;
-ttm1:	mov	es:[di+bx+2],al
+ttm2:	mov	es:[di+bx+2],al
 	call	ttyin_out
 	inc	bx
 	cmp	bl,es:[di+1]		; have we extended existing chars?
-	jbe	ttm1a			; no
+	jbe	ttm2a			; no
 	mov	es:[di+1],bl		; yes
-ttm1a:	cmp	bl,dh			; have we added to displayed chars?
+ttm2a:	cmp	bl,dh			; have we added to displayed chars?
 	jbe	ttm7			; no
 	inc	dh			; yes
 	jmp	short ttm9
 ;
 ; Delete character at BX, shifting all higher characters down.
 ;
-ttm2:	push	bx
+ttm3:	push	bx
 	dec	byte ptr es:[di+1]
-	jmp	short ttm2b
-ttm2a:	inc	bx			; start shifting characters down
+	jmp	short ttm3b
+ttm3a:	inc	bx			; start shifting characters down
 	mov	al,es:[di+bx+2]
 	mov	es:[di+bx+1],al
-ttm2b:	cmp	bl,es:[di+1]
-	jb	ttm2a
+ttm3b:	cmp	bl,es:[di+1]
+	jb	ttm3a
 	pop	bx
 	dec	cx			; adjust length of displayed chars
 ;
@@ -394,6 +425,19 @@ ttm9:	pop	ax			; this would be pop dx
 	ret
 ENDPROC	ttyin_modify
 
+DEFPROC	ttyin_next,near
+	mov	ah,es:[di]		; AH = max count
+	sub	ah,bl			; AH = space remaining
+	cmp	ah,2			; room for at least two more?
+	jb	ttn9			; no
+	push	bp
+	sub	bp,bp
+	call	ttyin_modify		; replace (AL) at BX
+	pop	bp
+	clc
+ttn9:	ret
+ENDPROC	ttyin_next
+
 DEFPROC	ttyin_out
 	cmp	al,CHR_LINEFEED
 	jne	tto2
@@ -415,7 +459,7 @@ DEFPROC	ttyin_right
 	cmc
 	jb	ttr9			; no, just ignore CTRLF
 	mov	al,es:[di+bx+2]		; yes, fetch next character
-	call	ttyin_add
+	call	ttyin_next
 ttr9:	ret
 ENDPROC	ttyin_right
 
@@ -457,7 +501,7 @@ DEFPROC	con_ioctl,DOS
 	push	es
 	les	di,[bx].SFB_DEVICE	; ES:DI -> CON driver
 	mov	bx,[bx].SFB_CONTEXT	; BX = context
-	xchg	bx,dx			; DX = content, BX = position
+	xchg	bx,dx			; DX = context, BX = position
 	test	es:[di].DDH_ATTR,DDATTR_STDOUT
 	pop	ds
 	jz	ioc8

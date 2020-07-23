@@ -100,7 +100,7 @@ DEFPROC	dev_request,DOS
 	sub	sp,DDP_MAXSIZE
 	mov	bp,sp			; packet created on stack
 
-	INIT_STRUC [bp],DDP
+	INIT	STRUCT,[bp],DDP
 
 	mov	word ptr [bp].DDP_UNIT,ax; sets DDP_UNIT (AL) and DDP_CMD (AH)
 	mov	[bp].DDP_STATUS,0

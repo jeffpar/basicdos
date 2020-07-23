@@ -242,7 +242,7 @@ so5:	add	si,size SFB
 so6:	push	cs
 	pop	ds
 	ASSUME	DS:DOS
-	INIT_STRUC [bx],SFB
+	INIT	STRUCT,[bx],SFB
 	mov	[bx].SFB_DEVICE.OFF,di
 	mov	[bx].SFB_DEVICE.SEG,es
 	mov	[bx].SFB_CONTEXT,dx	; set DRIVE (AL) and MODE (AH) next
@@ -300,9 +300,9 @@ DEFPROC	sfb_read,DOS
 	jmp	sr8			; character device
 
 sr0:	LOCK_SCB
-	mov	[bp].REG_WS.TMP_AX,0	; use TMP_AX to accumulate bytes read
-	mov	[bp].REG_WS.TMP_ES,es
-	mov	[bp].REG_WS.TMP_DX,dx
+	mov	word ptr [bp].TMP_AX,0	; use TMP_AX to accumulate bytes read
+	mov	[bp].TMP_ES,es
+	mov	[bp].TMP_DX,dx
 	mov	dl,ah			; DL = drive #
 	call	get_bpb			; DI -> BPB if no error
 	jnc	sr0a
@@ -366,8 +366,8 @@ sr2:	mov	ah,DDC_READ
 	les	di,[di].BPB_DEVICE
 	ASSUME	ES:NOTHING
 	push	ds
-	mov	si,[bp].REG_WS.TMP_DX
-	mov	ds,[bp].REG_WS.TMP_ES	; DS:SI -> data buffer
+	mov	si,[bp].TMP_DX
+	mov	ds,[bp].TMP_ES		; DS:SI -> data buffer
 	ASSUME	DS:NOTHING
 	call	dev_request
 	pop	ds
@@ -384,8 +384,8 @@ sr3:	pop	es
 ;
 	add	[bx].SFB_CURPOS.OFF,dx
 	adc	[bx].SFB_CURPOS.SEG,0
-	add	[bp].REG_WS.TMP_AX,dx	; update accumulation of bytes read
-	add	[bp].REG_WS.TMP_DX,dx
+	add	[bp].TMP_AX,dx		; update accumulation of bytes read
+	add	[bp].TMP_DX,dx
 	ASSERT	NC
 ;
 ; We're now obliged to determine whether or not we've exhausted the current
@@ -408,7 +408,7 @@ sr4:	sub	cx,dx			; have we exhausted the read count yet?
 	jmp	sr1a			; no, keep reading clusters
 
 sr5:	ASSERT	NC
-	mov	ax,[bp].REG_WS.TMP_AX
+	mov	ax,[bp].TMP_AX
 
 sr7:	UNLOCK_SCB
 	jmp	short sr9

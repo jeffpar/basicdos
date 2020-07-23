@@ -270,25 +270,33 @@ BIOS_DATA	equ	RS232_BASE
 ; BIOS-generated char codes and scan codes that we care about.
 ;
 CHR_CTRLA	equ	01h
-CHR_CTRLB	equ	02h	; alias for left-arrow
+CHR_CTRLB	equ	02h
 CHR_CTRLC	equ	03h
-CHR_CTRLE	equ	05h	; alias for up-arrow or F3
-CHR_CTRLF	equ	06h	; alias for right-arrow or F1
+CHR_CTRLD	equ	04h	; alias for SCAN_RIGHT and SCAN_F1
+CHR_CTRLE	equ	05h	; alias for SCAN_UP and SCAN_F3
+CHR_CTRLF	equ	06h
+CHR_CTRLG	equ	07h
 CHR_BACKSPACE	equ	08h
 CHR_TAB		equ	09h
 CHR_LINEFEED	equ	0Ah
 CHR_VTAB	equ	0Bh
 CHR_RETURN	equ	0Dh
 CHR_CTRLP	equ	10h
+CHR_CTRLQ	equ	11h
 CHR_CTRLR	equ	12h
-CHR_CTRLS	equ	13h
-CHR_CTRLX	equ	18h	; alias for down-arrow
+CHR_CTRLS	equ	13h	; alias for SCAN_LEFT
+CHR_CTRLT	equ	14h
+CHR_CTRLU	equ	15h
+CHR_CTRLV	equ	16h	; alias for SCAN_INS
+CHR_CTRLW	equ	17h
+CHR_CTRLX	equ	18h	; alias for SCAN_DOWN
+CHR_CTRLY	equ	19h
 CHR_CTRLZ	equ	1Ah
 CHR_ESC		equ	1Bh
 CHR_SPACE	equ	20h
 CHR_DBLQUOTE	equ	22h
 CHR_SLASH	equ	2Fh
-CHR_DEL		equ	7Fh
+CHR_DEL		equ	7Fh	; alias for SCAN_DEL
 
 SCAN_TAB	equ	0Fh
 SCAN_F1		equ	3Bh
@@ -305,6 +313,7 @@ SCAN_UP		equ	48h	; up-arrow
 SCAN_LEFT	equ	4Bh	; left-arrow
 SCAN_RIGHT	equ	4Dh	; right-arrow
 SCAN_DOWN	equ	50h	; down-arrow
+SCAN_INS	equ	52h	; ins
 SCAN_DEL	equ	53h	; del
 
 

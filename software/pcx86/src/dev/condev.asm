@@ -33,9 +33,10 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	dw	0DABFh,0B3B3h,0C0D9h,0C4C4h
 
 	DEFLBL	SCAN_MAP,byte
-	db	SCAN_F1,CHR_CTRLF,SCAN_F3,CHR_CTRLR,SCAN_UP,CHR_CTRLR
-	db	SCAN_RIGHT,CHR_CTRLF,SCAN_LEFT,CHR_CTRLB,SCAN_DEL,CHR_DEL
-	db	SCAN_DOWN,CHR_CTRLX
+	db	SCAN_F1,CHR_CTRLD,SCAN_RIGHT,CHR_CTRLD
+	db	SCAN_F3,CHR_CTRLE,SCAN_UP,CHR_CTRLE
+	db	SCAN_LEFT,CHR_CTRLS,SCAN_DEL,CHR_DEL
+	db	SCAN_DOWN,CHR_CTRLX,SCAN_INS,CHR_CTRLV
 	db	0
 
 	DEFWORD	ct_head,0	; head of context chain
@@ -54,7 +55,7 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 CONTEXT		struc
 CT_NEXT		dw	?	; 00h: segment of next context, 0 if end
 CT_STATUS	db	?	; 02h: context status bits (CTSTAT_*)
-CT_RESERVED	db	?	; 03h
+CT_RESERVED	db	?	; 03h: (holds CTSIG in DEBUG builds)
 CT_CONDIM	dw	?	; 04h: eg, context dimensions (0-based)
 CT_CONPOS	dw	?	; 06h: eg, context position (X,Y) of top left
 CT_CURPOS	dw	?	; 08h: eg, cursor X (lo) and Y (hi) position
@@ -69,8 +70,11 @@ CT_BUFFER	dd	?	; 1Ah: used only for background contexts
 CT_BUFLEN	dw	?	; 1Eh: eg, 4000 for a full-screen 25*80*2 buffer
 CONTEXT		ends
 
+CTSIG		equ	'C'
+
 CTSTAT_BORDER	equ	01h	; context has border
 CTSTAT_ADAPTER	equ	02h	; alternate adapter selected
+CTSTAT_INPUT	equ	40h	; context is waiting for input
 CTSTAT_PAUSED	equ	80h	; context is paused (triggered by CTRLS hotkey)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -215,6 +219,11 @@ DEFPROC	ddcon_read
 ; DOS will suspend the current SCB until we notify DOS that this packet's
 ; conditions are satisfied.
 ;
+	mov	ds,es:[di].DDP_CONTEXT
+	ASSUME	DS:NOTHING
+	ASSERT	STRUCT,ds:[0],CT
+	or	ds:[CT_STATUS],CTSTAT_INPUT
+
 	call	add_packet
 dcr9:	sti
 
@@ -349,6 +358,7 @@ DEFPROC	ddcon_open
 
 dco1:	mov	ds,ax
 	ASSUME	DS:NOTHING
+	INIT	STRUCT,ds:[0],CT
 
 	cmp	[ct_focus],0
 	jne	dco1a
@@ -546,25 +556,24 @@ ddi0:	push	ax
 	ASSUME	DS:CODE
 
 	sti
+	mov	cx,[ct_focus]		; CX = context
 	call	check_hotkey
 	jc	ddi1
-	mov	cx,[ct_focus]		; CX = context
 	xchg	dx,ax			; DL = char code, DH = scan code
 	mov	ax,DOS_UTL_HOTKEY	; notify DOS
 	int	21h
 
-ddi1:	ASSUME	DS:NOTHING
-	mov	bx,offset wait_ptr	; CS:BX -> ptr
-	les	di,cs:[bx]		; ES:DI -> packet, if any
-	ASSUME	DS:NOTHING, ES:NOTHING
+ddi1:	mov	bx,offset wait_ptr	; DS:BX -> ptr
+	les	di,[bx]			; ES:DI -> packet, if any
+	ASSUME	ES:NOTHING
 
-ddi2:	cmp	di,-1			; end of chain?
+ddi2:	ASSUME	DS:NOTHING		; DS:BX changes when we loop back here
+	cmp	di,-1			; end of chain?
 	je	ddi9			; yes
 
 	ASSERT	STRUCT,es:[di],DDP
 
-	mov	ax,[ct_focus]
-	cmp	es:[di].DDP_CONTEXT,ax	; packet from console with focus?
+	cmp	es:[di].DDP_CONTEXT,cx	; packet from console with focus?
 	jne	ddi6			; no
 
 	cmp	es:[di].DDP_CMD,DDC_READ; READ packet?
@@ -574,7 +583,8 @@ ddi2:	cmp	di,-1			; end of chain?
 ; wait if the context is no longer paused (ie, check_hotkey may have unpaused).
 ;
 	push	es
-	mov	es,ax
+	mov	es,cx
+	ASSERT	STRUCT,es:[0],CT
 	test	es:[CT_STATUS],CTSTAT_PAUSED
 	pop	es
 	jz	ddi4			; yes, we're no longer paused
@@ -585,7 +595,12 @@ ddi3:	call	read_kbd		; read keyboard data
 ;
 ; Notify DOS that this packet is done waiting.
 ;
-ddi4:	mov	dx,es			; DX:DI -> packet (aka "wait ID")
+ddi4:	push	es
+	mov	es,cx
+	ASSERT	STRUCT,es:[0],CT
+	and	es:[CT_STATUS],NOT CTSTAT_INPUT
+	pop	es
+	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	mov	ax,DOS_UTL_ENDWAIT
 	int	21h
 	ASSERT	NC
@@ -720,17 +735,16 @@ ENDPROC	add_packet
 ; capacity, so that there's always room for one more key....
 ;
 ; Inputs:
-;	None
+;	CX = focus context, if any
 ;
 ; Outputs:
 ;	If carry clear, AL = hotkey char code, AH = hotkey scan code
 ;
 ; Modifies:
-;	AX, DX
+;	AX, BX, CX
 ;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	check_hotkey
-	push	bx
 	push	ds
 	sub	bx,bx
 	mov	ds,bx
@@ -757,12 +771,14 @@ ch0:	mov	ax,[BIOS_DATA][bx]	; AL = char code, AH = scan code
 ; Do PAUSE checks next, because only CTRLS toggles PAUSE, and everything else
 ; disables it.
 ;
-ch1:	mov	dx,[ct_focus]
-	test	dx,dx
-	jz	ch4
+ch1:	jcxz	ch4
 	push	ds
-	mov	ds,dx
+	mov	ds,cx
 	ASSUME	DS:NOTHING
+	ASSERT	STRUCT,ds:[0],CT
+	test	ds:[CT_STATUS],CTSTAT_INPUT
+	stc
+	jnz	ch3
 	cmp	al,CHR_CTRLS		; CTRLS?
 	jne	ch2			; no (anything else unpauses)
 	xor	ds:[CT_STATUS],CTSTAT_PAUSED
@@ -791,8 +807,6 @@ ch6:	cmp	al,CHR_CTRLP		; CTRLP?
 
 ch8:	stc
 ch9:	pop	ds
-	ASSUME	DS:NOTHING
-	pop	bx
 	ret
 ENDPROC	check_hotkey
 
@@ -936,7 +950,7 @@ ENDPROC	draw_cursor
 ; so be careful to not modify more registers than the caller has preserved.
 ;
 ; Inputs:
-;	None
+;	CX = focus context, if any
 ;
 ; Modifies:
 ;	AX, BX, DX
@@ -957,9 +971,9 @@ DEFPROC	focus_next
 	mov	ax,DOS_UTL_LOCK
 	int	21h
 	push	es
-	mov	cx,[ct_focus]
 	jcxz	tf9			; nothing to do
 	mov	ds,cx
+	ASSERT	STRUCT,ds:[0],CT
 	mov	cx,ds:[CT_NEXT]
 	jcxz	tf1
 	jmp	short tf2

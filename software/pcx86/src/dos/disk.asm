@@ -471,6 +471,7 @@ DEFPROC	get_bpb,DOS
 	jc	gb9			; we don't have a BPB for the drive
 	push	di			; DI -> BPB
 	push	es
+	ASSERT	STRUCT,cs:[di],BPB
 	les	di,cs:[di].BPB_DEVICE
 	mov	al,cl			; AL = drive #
 	mov	ah,DDC_MEDIACHK		; perform a MEDIACHK request

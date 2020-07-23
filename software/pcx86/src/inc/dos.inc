@@ -120,20 +120,12 @@ ELSE
 REG_CHECK	equ	1	; add a DEBUG marker before REG_FRAME
 ENDIF
 
-WS_CTRLC	struc		; REG_WS workspace when used for CTRLC
+WS_TEMP		struc		; REG_WS workspace used for CTRLC dispatcing
 JMP_IP		dw	?	; 00h
 JMP_CS		dw	?	; 02h
 RET_IP		dw	?	; 04h
 RET_CS		dw	?	; 06h
 RET_FL		dw	?	; 08h
-WS_CTRLC	ends
-
-WS_TEMP		struc		; REG_WS workspace when used as temp registers
-TMP_AX		dw	?	; 00h
-TMP_BX		dw	?	; 02h
-TMP_CX		dw	?	; 04h
-TMP_DX		dw	?	; 06h
-TMP_ES		dw	?	; 08h
 WS_TEMP		ends
 
 REG_FRAME	struc		; register frame created by dos_func
@@ -160,6 +152,24 @@ REG_CL		equ 	REG_CX.LO
 REG_CH		equ 	REG_CX.HI
 REG_DL		equ 	REG_DX.LO
 REG_DH		equ 	REG_DX.HI
+
+;
+; Temp register definitions: an alternate use of the REG_WS workspace
+;
+TMP_AX		equ	REG_WS.JMP_IP
+TMP_BX		equ	REG_WS.JMP_CS
+TMP_CX		equ	REG_WS.RET_IP
+TMP_DX		equ	REG_WS.RET_CS
+TMP_ES		equ	REG_WS.RET_FL
+
+TMP_AL		equ	TMP_AX.LO
+TMP_AH		equ	TMP_AX.HI
+TMP_BL		equ	TMP_BX.LO
+TMP_BH		equ	TMP_BX.HI
+TMP_CL		equ	TMP_CX.LO
+TMP_CH		equ	TMP_CX.HI
+TMP_DL		equ	TMP_DX.LO
+TMP_DH		equ	TMP_DX.HI
 
 ;
 ; Session Control Block (SCB)

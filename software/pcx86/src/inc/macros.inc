@@ -250,9 +250,13 @@ DBGBRK	macro
 	ENDIF
 	endm
 
-INIT_STRUC macro ptr,str
+INIT	macro	type,ptr,str
 	IFDEF DEBUG
+	IFIDN	<type>,<STRUCT>
 	mov	ptr&.&str&_RESERVED,str&SIG
+	ELSE
+	%out	Unrecognized INIT parameter: type
+	ENDIF
 	ENDIF
 	endm
 

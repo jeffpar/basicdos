@@ -57,11 +57,13 @@ BPBEX		struc			; our internal structure for bpb_table
 BPB_STRUC	db	size BPB dup (?)
 BPB_TIMESTAMP	dd	?		; 28h: ticks from last refresh
 BPB_DEVICE	dd	?		; 2Ch: device driver
-BPB_RESERVED	db	?		; 30h
+BPB_RESERVED	db	?		; 30h: (holds BPBSIG in DEBUG builds)
 BPB_CLUSLOG2	db	?		; 31h: shift count for CLUSSECS
 BPB_CLUSBYTES	dw	?		; 32h: BPB_CLUSSECS * BPB_SECBYTES
 BPB_CLUSTERS	dw	?		; 34h: total clusters on disk
 BPBEX		ends
+
+BPBSIG		equ	'B'
 
 ;
 ; Let's compare and contrast the BPB with the DPB, as it existed beginning
