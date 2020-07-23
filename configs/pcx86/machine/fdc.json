@@ -2,7 +2,8 @@
   "id": "fdcNEC",
   "class": "fdc",
   "autoMount": {
-    "A": {"name": "None"}
+    "A": {"name": "BASIC-DOS1"},
+    "B": {"name": "PC DOS 2.00 (Disk 1)"}
   },
   "diskettes": "",
   "server": "",
