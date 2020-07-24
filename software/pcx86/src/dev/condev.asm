@@ -17,11 +17,16 @@ CODE	segment para public 'CODE'
 CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_CHAR,offset ddcon_init,-1,20202020204E4F43h>
 
 	DEFLBL	CMDTBL,word
-	dw	ddcon_none,  ddcon_none, ddcon_none,  ddcon_ctlin	; 0-3
-	dw	ddcon_read,  ddcon_none, ddcon_none,  ddcon_none	; 4-7
-	dw	ddcon_write, ddcon_none, ddcon_none,  ddcon_none	; 8-11
-	dw	ddcon_none,  ddcon_open, ddcon_close			; 12-14
+	dw	ddcon_none,   ddcon_none,   ddcon_none,   ddcon_ioctl	; 0-3
+	dw	ddcon_read,   ddcon_none,   ddcon_none,   ddcon_none	; 4-7
+	dw	ddcon_write,  ddcon_none,   ddcon_none,   ddcon_none	; 8-11
+	dw	ddcon_none,   ddcon_open,   ddcon_close			; 12-14
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
+
+	DEFLBL	IOCTBL,word
+	dw	ddcon_none,   ddcon_none,   ddcon_getpos, ddcon_getlen	; 0-3
+	dw	ddcon_movcur, ddcon_setins				; 4-5
+	DEFABS	IOCTBL_SIZE,<($ - IOCTBL) SHR 1>
 
 	DEFLBL	CON_LIMITS,word
 	dw	80,16,80, 25,4,25, 0,0,79, 0,0,24, 0,0,1, 0,0,1
@@ -105,15 +110,7 @@ ENDPROC	ddcon_req
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddcon_ctlin
-;
-; The first two IOCTLs supported here (IOCTL_GETPOS and IOCTL_GETLEN) were
-; both required for DOS console I/O support; specifically, the buffered input
-; function (AH = 0Ah), which cannot accurately erase TAB characters (or the
-; entire buffer) unless it knows the starting position and the displayed length
-; of the buffer.  TAB characters complicate matters, since the total number of
-; columns in our contexts are not always multiples of 8, and they always wrap
-; to column 1 on the following line.
+; ddcon_ioctl
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
@@ -125,76 +122,163 @@ ENDPROC	ddcon_req
 ;	AX, BX, CX, DX, DS
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
-DEFPROC	ddcon_ctlin
-	mov	al,es:[di].DDP_UNIT
+DEFPROC	ddcon_ioctl
+	mov	bl,es:[di].DDP_UNIT
 	mov	dx,es:[di].DDP_CONTEXT
 	test	dx,dx
-	jz	dio9
+	jz	dio0
 	mov	ds,dx
 	ASSUME	DS:NOTHING
+	cmp	bl,IOCTBL_SIZE
+	jb	dio1
+dio0:	mov	bl,0
+dio1:	mov	bh,0
+	add	bx,bx
+	mov	cx,es:[di].DDPRW_LENGTH
+	call	IOCTBL[bx]
+	jc	dio9
+dio7:	mov	es:[di].DDP_CONTEXT,dx	; return pos or length in packet context
+	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+dio9:	ret
+ENDPROC	ddcon_ioctl
 
-	cmp	al,IOCTL_GETPOS
-	jne	dio1
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_getpos
+;
+; This IOCTL is used in conjunction with IOCTL_GETLEN to obtain the display
+; length of a series of bytes (up to 255).
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;	CX = DDPRW_LENGTH
+;	DS = CONSOLE context
+;
+; Outputs:
+;	DX = current cursor position (DL = col, DH = row)
+;
+; Modifies:
+;	DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_getpos
 	mov	dx,ds:[CT_CURPOS]	; DX = current cursor position
-	jmp	dio7
+	ret
+ENDPROC	ddcon_getpos
 
-dio1:	mov	cx,es:[di].DDPRW_LENGTH
-	cmp	al,IOCTL_GETLEN
-	jne	dio6
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_getlen
+;
+; This IOCTL returns the display length of a series of bytes (up to 255).
+;
+; This assists DOS function DOS_TTY_INPUT (AH = 0Ah), which cannot accurately
+; erase TAB characters (or the entire buffer) without knowing both the starting
+; position (from IOCTL_GETPOS) and the display length of the buffer.
+;
+; TAB characters complicate matters, since the total number of columns in a
+; context are not always multiples of 8, and they always wrap to column 1 on
+; the following line.
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;	CX = DDPRW_LENGTH
+;	DS = CONSOLE context
+;
+; Outputs:
+;	DH = total length, DL = length delta
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DS
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_getlen
 	mov	bx,es:[di].DDPRW_LBA	; BX = starting cursor position
 	sub	dx,dx			; DL = current len, DH = previous len
 	mov	ah,ds:[CT_CURMAX].LO	; AH = column max
 	mov	bh,ds:[CT_CURMIN].LO	; BH = column min
 	lds	si,es:[di].DDPRW_ADDR
 	mov	ch,0			; CL = length (255 character maximum)
-	jcxz	dio7			; nothing to do
+	jcxz	dgl9			; nothing to do
 	ASSUME	DS:NOTHING
 
-dio2:	lodsb
+dgl2:	lodsb
 	mov	dh,dl			; current len -> previous len
 	cmp	al,CHR_TAB
-	jne	dio4
+	jne	dgl4
 	mov	al,bl			; for CHR_TAB
 	sub	al,bh			; mimic write_context's TAB logic
 	and	al,07h
 	neg	al
 	add	al,8			; AL = # output chars
-dio3:	inc	bl
+dgl3:	inc	bl
 	inc	dl
 	cmp	bl,ah			; column still below limit?
-	jbe	dio3a			; yes
+	jbe	dgl3a			; yes
 	mov	bl,bh			; no, so reset column and stop
-	jmp	short dio5
-dio3a:	dec	al
-	jnz	dio3
-	jmp	short dio5
+	jmp	short dgl5
+dgl3a:	dec	al
+	jnz	dgl3
+	jmp	short dgl5
 
-dio4:	cmp	al,CHR_SPACE		; CONTROL character?
+dgl4:	cmp	al,CHR_SPACE		; CONTROL character?
 	mov	al,1			; AL = # output chars
-	jae	dio4a			; no
+	jae	dgl4a			; no
 	inc	ax			; add 1 more to output for presumed "^"
-dio4a:	inc	bl			; advance the column
+dgl4a:	inc	bl			; advance the column
 	inc	dl			; advance the length
 	cmp	bl,ah			; column still below limit?
-	jbe	dio4b			; yes
+	jbe	dgl4b			; yes
 	mov	bl,bh			; no, so reset column and keep going
-dio4b:	dec	al
-	jnz	dio4a
+dgl4b:	dec	al
+	jnz	dgl4a
 
-dio5:	loop	dio2
+dgl5:	loop	dgl2
 	sub	dl,dh			; DL = length delta for final character
 	add	dh,dl			; DH = total length
-	jmp	short dio7
 
-dio6:	cmp	al,IOCTL_MOVCUR
-	jne	dio7
+dgl9:	ret
+ENDPROC	ddcon_getlen
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_movcur
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;	CX = DDPRW_LENGTH (+/- columns to move cursor horizontally)
+;	DS = CONSOLE context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_movcur
 	call	move_cursor
+	ret
+ENDPROC	ddcon_movcur
 
-dio7:	mov	es:[di].DDP_CONTEXT,dx	; return pos or length in packet context
-dio8:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
-
-dio9:	ret
-ENDPROC	ddcon_ctlin
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_setins
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;	CX = DDPRW_LENGTH (0 to clear insert mode, 1 to set)
+;	DS = CONSOLE context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_setins
+	ret
+ENDPROC	ddcon_setins
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1093,7 +1177,8 @@ mc8:	mov	ds:[CT_CURPOS],dx
 	cmp	ax,[ct_focus]		; does this context have focus?
 	jne	mc9			; no, leave cursor alone
 	call	draw_cursor
-mc9:	ret
+mc9:	clc
+	ret
 ENDPROC	move_cursor
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
