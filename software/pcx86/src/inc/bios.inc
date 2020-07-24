@@ -41,6 +41,8 @@ INT_VGCDATA	EQU	1Fh	; VIDEO GRAPHICS CHARACTER DATA
 ;
 ; INT_VIDEO functions
 ;
+VIDEO_SETMODE	EQU	00h	; AL=mode
+VIDEO_SCROLL	EQU	06h	; AL=# lines, BH=fill attribute, CX/DX=coords
 VIDEO_TTYOUT	EQU	0Eh	; AL=char, BH=display page
 
 ;
@@ -315,7 +317,6 @@ SCAN_RIGHT	equ	4Dh	; right-arrow
 SCAN_DOWN	equ	50h	; down-arrow
 SCAN_INS	equ	52h	; ins
 SCAN_DEL	equ	53h	; del
-
 
 ;
 ; Miscellaneous processor definitions (for lack of a better place)

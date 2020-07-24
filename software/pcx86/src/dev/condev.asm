@@ -82,6 +82,14 @@ CTSTAT_ADAPTER	equ	02h	; alternate adapter selected
 CTSTAT_INPUT	equ	40h	; context is waiting for input
 CTSTAT_PAUSED	equ	80h	; context is paused (triggered by CTRLS hotkey)
 
+;
+; CRT Controller Registers
+;
+CRTC_CURTOP	equ	0Ah	; cursor top (mirrored at CURSOR_MODE.HI)
+CRTC_CURBOT	equ	0Bh	; cursor bottom (mirrored at CURSOR_MODE.LO)
+CRTC_CURHI	equ	0Eh	; cursor start address (high)
+CRTC_CURLO	equ	0Fh	; cursor start address (low)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Driver request
@@ -147,11 +155,11 @@ ENDPROC	ddcon_ioctl
 ; ddcon_getpos
 ;
 ; This IOCTL is used in conjunction with IOCTL_GETLEN to obtain the display
-; length of a series of bytes (up to 255).
+; length of a series of bytes (up to 255).  Generally, all the caller cares
+; about is the column, which is then passed to IOCTL_GETLEN.
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
-;	CX = DDPRW_LENGTH
 ;	DS = CONSOLE context
 ;
 ; Outputs:
@@ -182,11 +190,11 @@ ENDPROC	ddcon_getpos
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
-;	CX = DDPRW_LENGTH
+;	CX = DDPRW_LENGTH (starting cursor position; see IOCTL_GETPOS)
 ;	DS = CONSOLE context
 ;
 ; Outputs:
-;	DH = total length, DL = length delta
+;	DH = total display length, DL = length delta (of the final character)
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DS
@@ -271,12 +279,33 @@ ENDPROC	ddcon_movcur
 ;	DS = CONSOLE context
 ;
 ; Outputs:
-;	None
+;	DX = previous insert mode (0 if cleared, 1 if set)
 ;
 ; Modifies:
+;	AX, CX, DX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_setins
+	push	es
+	sub	ax,ax
+	mov	es,ax
+	ASSUME	ES:BIOS
+	mov	al,[CURSOR_MODE].HI
+	ror	cl,1			; move CL bit 0 to bit 7 (and carry)
+	jnc	dsi1
+	and	al,0E0h
+dsi1:	mov	ah,CRTC_CURTOP
+	cli
+	call	write_crtc8
+	sti
+	mov	dl,[KB_FLAG]
+	mov	al,dl
+	and	al,7Fh
+	or	al,cl
+	mov	[KB_FLAG],al		; update keyboard insert mode
+	rol	dl,1
+	and	dx,1
+	pop	es
 	ret
 ENDPROC	ddcon_setins
 
@@ -510,8 +539,8 @@ dco1a:	xchg	[ct_head],ax
 	cmp	dl,0B4h
 	je	dco4
 	mov	al,03h
-dco4:	mov	ah,0
-	xchg	[EQUIP_FLAG],cx
+dco4:	xchg	[EQUIP_FLAG],cx
+	mov	ah,VIDEO_SETMODE
 	int	INT_VIDEO
 	xchg	[EQUIP_FLAG],cx
 	pop	ax
@@ -1019,8 +1048,8 @@ DEFPROC	draw_cursor
 
 	DEFLBL	set_cursor,near
 	shr	bx,1			; screen offset to cell offset
-	mov	ah,14			; AH = 6845 CURSOR ADDR (HI) register
-	call	write_port		; update cursor position using BX
+	mov	ah,CRTC_CURHI		; AH = 6845 CURSOR ADDR (HI) register
+	call	write_crtc16		; update cursor position using BX
 	ret
 ENDPROC	draw_cursor
 
@@ -1286,7 +1315,7 @@ DEFPROC	scroll
 scr1:	add	cx,ds:[CT_CURMIN]	; CH = row, CL = col of upper left
 	add	dx,ds:[CT_CURMAX]	; DH = row, DL = col of lower right
 scr2:	mov	bh,07h			; BH = fill attribute
-	mov	ah,06h			; scroll up # lines in AL
+	mov	ah,VIDEO_SCROLL		; scroll up # lines in AL
 	int	INT_VIDEO
 	pop	ax
 	mov	es:[EQUIP_FLAG],ax	; restore EQUIP_FLAG
@@ -1317,8 +1346,8 @@ ENDPROC	scroll
 DEFPROC	write_char
 	push	ax
 	push	bx
-	mov	ah,VIDEO_TTYOUT
 	mov	bh,0
+	mov	ah,VIDEO_TTYOUT
 	int	INT_VIDEO
 	pop	bx
 	pop	ax
@@ -1500,40 +1529,56 @@ ENDPROC	write_vertpair
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; write_port
+; write_crtc16
 ;
 ; Inputs:
 ;	AH = 6845 register #
 ;	BX = 16-bit value to write
+;	DS = CONSOLE context
 ;
 ; Outputs:
 ;	None
 ;
 ; Modifies:
-;	AL
+;	AX, DX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	write_port
-	push	dx
+DEFPROC	write_crtc16
+	cli
+	mov	al,bh
+	call	write_crtc8
+	inc	ah
+	mov	al,bl
+	call	write_crtc8
+	sti
+	ret
+ENDPROC	write_crtc16
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; write_crtc8
+;
+; Inputs:
+;	AH = 6845 register #
+;	AL = 8-bit value to write
+;	DS = CONSOLE context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	DX
+;
+DEFPROC	write_crtc8
 	mov	dx,ds:[CT_PORT]
 	ASSERT	Z,<cmp dh,03h>
-	mov	al,ah
-	cli
+	xchg	al,ah
 	out	dx,al			; select 6845 register
 	inc	dx
-	mov	al,bh
-	out	dx,al			; output BH
-	dec	dx
-	mov	al,ah
-	inc	ax
-	out	dx,al			; select 6845 register + 1
-	inc	dx
-	mov	al,bl
-	out	dx,al			; output BL
-	sti
-	pop	dx
+	xchg	al,ah
+	out	dx,al			; output AL
 	ret
-ENDPROC	write_port
+ENDPROC	write_crtc8
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

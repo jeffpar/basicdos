@@ -149,10 +149,11 @@ DEFPROC	tty_input,DOS
 	ASSUME	ES:NOTHING
 	mov	di,dx			; ES:DI -> buffer
 
-	sub	cx,cx
+	sub	cx,cx			; set insert mode OFF
 	mov	[bp].TMP_CX,cx		; TMP_CX tracks insert mode
-	mov	al,IOCTL_SETINS		; initially OFF
+	mov	al,IOCTL_SETINS
 	call	con_ioctl
+	mov	[bp].TMP_DX,ax		; save original insert mode
 
 	mov	al,IOCTL_GETPOS
 	call	con_ioctl		; AL = starting column
@@ -228,6 +229,10 @@ ti7:	call	ttyin_add
 ti8:	mov	bl,dh			; return all displayed chars
 	mov	es:[di+bx+2],al		; store the final character (CR)
 	call	ttyin_out
+
+	mov	cx,[bp].TMP_DX		; restore original insert mode
+	mov	al,IOCTL_SETINS
+	call	con_ioctl
 
 ti9:	mov	es:[di+1],bl		; return character count in 2nd byte
 	ret
