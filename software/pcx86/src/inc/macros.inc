@@ -79,9 +79,15 @@ DEFSTR	macro	name,value
 	name&_LEN equ ($ - name)
 	endm
 
-EXTSTR	macro	name
-	extrn	name:byte
+EXTABS	macro	name
 	extrn	name&_LEN:abs
+	endm
+
+EXTSTR	macro	names
+	IRP	name,<names>
+	extrn	name:byte
+	EXTABS	name
+	ENDM
 	endm
 
 ;

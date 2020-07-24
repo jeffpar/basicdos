@@ -594,8 +594,29 @@ lp6g:	push	es:[EXE_START_SEG]
 ;
 ; TODO: Determine a reasonable amount to add to the minimum.  SYMDEB.EXE 4.0
 ; was the first non-BASIC-DOS EXE I tried to load, and if I provided only its
-; minimum of 11h paragraphs, it would trash the memory arena when creating a
-; PSP.
+; minimum of 11h paragraphs (for a total of 90Bh), it would trash the memory
+; arena when creating a PSP, so it's unclear the minimum, at least in SYMDEB's
+; case, can be fully trusted.
+;
+; More info on SYMDEB.EXE 4.0 and PC DOS 2.00: it seems the smallest amount of
+; free memory where DOS 2.0 will still load SYMDEB is when COMMAND.COM "owns"
+; at least 967h paras in the final memory segment (CHKDSK reports 38336 bytes
+; free at that point).  The PSP that SYMDEB created under those conditions was
+; located at 7FAFh (this was on a 512K machine so the para limit was 8000h),
+; so the PSP had 51h paragraphs available to it.  However, SYMDEB could not
+; load even a tiny (11-byte) COM file; it would report "EXEC failure", which
+; seems odd with 51h paragraphs available.  Also, the word at 7FAF:0006 (memory
+; size) contained 8460h, which seems way too large.
+;
+; I also discovered that if I tried to load "SYMDEB E.COM" (where E.COM was an
+; 11-byte COM file) with 8 more paras available (96Fh total), the system would
+; crash while trying to load E.COM.  I didn't investigate further (yet), so it's
+; unclear if the cause is a DOS/EXEC bug or a SYMDEB bug.
+;
+; Anyway, since BASIC-DOS can successfully load SYMDEB.EXE 4.0 with only 92Bh
+; paras (considerably less than 967h), either we're somehow being insufficiently
+; conservative, or PC DOS had some EXEC overhead (perhaps in the transient
+; portion of COMMAND.COM?) that it couldn't eliminate.
 ;
 	add	bx,20h			; add another 0.5Kb (in paras)
 
@@ -665,7 +686,8 @@ lp7d:	shl	di,cl			; ES:DI -> top of the segment
 	mov	ds:[PSP_START].OFF,100h
 	mov	ds:[PSP_START].SEG,ds
 
-lp8:	mov	ah,DOS_MEM_REALLOC	; resize the memory block in ES
+lp8:	int 3
+	mov	ah,DOS_MEM_REALLOC	; resize ES memory block to BX
 	int	21h
 lpef1:	jc	lpef			; TODO: try to use a smaller size?
 
