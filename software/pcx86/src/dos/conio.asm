@@ -34,6 +34,7 @@ DEFPROC	tty_echo,DOS
 	call	tty_read
 	jc	te9
 	call	write_char
+	mov	[bp].REG_AL,AL
 te9:	ret
 ENDPROC	tty_echo
 
@@ -86,7 +87,7 @@ ENDPROC	tty_io
 ;
 DEFPROC	tty_in,DOS
 	mov	al,IO_RAW
-	jmp	read_char
+	jmp	short ttr1
 ENDPROC	tty_in
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -104,7 +105,9 @@ ENDPROC	tty_in
 ;
 DEFPROC	tty_read,DOS
 	mov	al,IO_COOKED
-	jmp	read_char
+ttr1:	call	read_char
+	mov	[bp].REG_AL,al
+	ret
 ENDPROC	tty_read
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -686,8 +686,7 @@ lp7d:	shl	di,cl			; ES:DI -> top of the segment
 	mov	ds:[PSP_START].OFF,100h
 	mov	ds:[PSP_START].SEG,ds
 
-lp8:	int 3
-	mov	ah,DOS_MEM_REALLOC	; resize ES memory block to BX
+lp8:	mov	ah,DOS_MEM_REALLOC	; resize ES memory block to BX
 	int	21h
 lpef1:	jc	lpef			; TODO: try to use a smaller size?
 
