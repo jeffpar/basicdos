@@ -31,6 +31,7 @@ DOS	segment word public 'CODE'
 	DEFBYTE	bpb_total,0		; total number of BPBs
 	DEFBYTE	file_name,'?',12	; buffer for drive # and filename
 	DEFBYTE	ddint_level,0		; device driver interrupt level
+	DEFBYTE	sfh_debug,-1		; system file handle for DEBUG device
 
 	DEFTBL	<bpb_table,scb_table,sfb_table>
 ;

@@ -11,7 +11,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<strlen,get_sfb,sfb_read,sfb_write,dev_request>,near
+	EXTERNS	<strlen,sfb_get,sfb_read,sfb_write,dev_request>,near
 
 	ASSUME	CS:DOS, DS:DOS, ES:BIOS, SS:NOTHING
 
@@ -514,7 +514,7 @@ DEFPROC	con_ioctl,DOS
 	push	es
 	mov	bx,STDIN
 	push	ax
-	call	get_sfb			; BX -> SFB
+	call	sfb_get			; BX -> SFB
 	pop	ax
 	jc	ioc8
 	push	es
@@ -552,7 +552,7 @@ ENDPROC	con_ioctl
 ;	AX
 ;
 DEFPROC	read_char,DOS
-	ASSUME	ES:NOTHING
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	push	bx
 	push	cx
 	push	dx
@@ -561,7 +561,7 @@ DEFPROC	read_char,DOS
 	push	es
 	push	ax
 	mov	bx,STDIN
-	call	get_sfb			; BX -> SFB
+	call	sfb_get			; BX -> SFB
 	jc	rc9
 	pop	ax
 	push	ax
@@ -595,6 +595,7 @@ ENDPROC	read_char
 ;	None
 ;
 DEFPROC	write_char,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	push	cx
 	push	si
 	push	ds
@@ -628,7 +629,7 @@ ENDPROC	write_char
 ;	AX
 ;
 DEFPROC	write_string,DOS
-	ASSUME	DS:NOTHING, ES:NOTHING
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	jcxz	ws8
 	push	bx
 	push	cx
@@ -641,7 +642,7 @@ DEFPROC	write_string,DOS
 	pop	ds
 	ASSUME	DS:DOS
 	mov	bx,STDOUT
-	call	get_sfb			; BX -> SFB
+	call	sfb_get			; BX -> SFB
 	pop	ds
 	ASSUME	DS:NOTHING
 	jc	ws6

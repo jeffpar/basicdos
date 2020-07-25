@@ -11,6 +11,7 @@
 
 DOS	segment word public 'CODE'
 
+	EXTERNS	<get_sfh_sfb,sfb_write>,near
 	EXTERNS	<chk_devname,dev_request,write_string>,near
 	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload>,near
 	EXTERNS	<scb_yield,scb_delock,scb_wait,scb_endwait>,near
@@ -18,7 +19,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<psp_term_exitcode>,near
 	EXTERNS	<itoa,sprintf>,near
 
-	EXTERNS	<scb_locked>,byte
+	EXTERNS	<scb_locked,sfh_debug>,byte
 	EXTERNS	<scb_active>,word
 	EXTERNS	<scb_table,clk_ptr>,dword
 
@@ -181,25 +182,36 @@ ENDPROC	utl_strupr
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	utl_printf,DOS
+	mov	bl,-1
+	DEFLBL	hprintf,near		; BL = SFH (or -1 for STDOUT)
 	sti
 	push	ss
 	pop	es
 	ASSUME	ES:NOTHING
-	sub	sp,BUFLEN + offset SPF_CALLS
 	mov	cx,BUFLEN		; CX = length
+	sub	sp,cx
 	mov	di,sp			; ES:DI -> buffer on stack
+	push	bx
 	mov	bx,[bp].REG_IP
 	mov	ds,[bp].REG_CS		; DS:BX -> format string
 	ASSUME	DS:NOTHING
 	call	sprintf
+	mov	[bp].REG_AX,ax		; update REG_AX with count in AX
+	add	[bp].REG_IP,bx		; update REG_IP with length in BX
+	pop	bx
 	mov	si,sp
 	push	ss
 	pop	ds			; DS:SI -> buffer on stack
 	xchg	cx,ax			; CX = # of characters
-	call	write_string
-	add	sp,BUFLEN + offset SPF_CALLS
-	mov	[bp].REG_AX,cx		; update REG_AX with count in CX
-	add	[bp].REG_IP,bx		; update REG_IP with length in BX
+	cmp	bl,-1			; SFH?
+	je	pf8			; no
+	call	get_sfh_sfb		; BX -> SFB
+	jc	pf8
+	mov	al,IO_COOKED
+	call	sfb_write
+	jmp	short pf9
+pf8:	call	write_string		; write string to STDOUT
+pf9:	add	sp,BUFLEN
 	ret
 ENDPROC	utl_printf endp
 
@@ -227,28 +239,8 @@ ENDPROC	utl_printf endp
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	utl_dprintf,DOS
-	IFDEF DEBUG
-	sti
-	push	ss
-	pop	es
-	ASSUME	ES:NOTHING
-	sub	sp,BUFLEN + offset SPF_CALLS
-	mov	cx,BUFLEN		; CX = length
-	mov	di,sp			; ES:DI -> buffer on stack
-	mov	bx,[bp].REG_IP
-	mov	ds,[bp].REG_CS		; DS:BX -> format string
-	ASSUME	DS:NOTHING
-	call	sprintf
-	mov	si,sp
-	push	ss
-	pop	ds			; DS:SI -> buffer on stack
-	xchg	cx,ax			; CX = # of characters
-	call	write_string
-	add	sp,BUFLEN + offset SPF_CALLS
-	mov	[bp].REG_AX,cx		; update REG_AX with count in CX
-	add	[bp].REG_IP,bx		; update REG_IP with length in BX
-	ENDIF
-	ret
+	mov	bl,[sfh_debug]
+	jmp	hprintf
 ENDPROC	utl_dprintf endp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -264,12 +256,6 @@ ENDPROC	utl_dprintf endp
 ;
 ; When printing 32-bit values, list the low word first, then the high word,
 ; so that the high word is pushed first.
-;
-; The code relies on SPF_FRAME, which must accurately reflect the number of
-; additional bytes pushed onto the stack since REG_FRAME was created.
-; Obviously that could be calculated at run-time, but it's preferable to know
-; the value at assembly-time so that we can use constant displacements and
-; simplify register usage.
 ;
 ; Inputs:
 ;	DS:BX -> format string
@@ -292,9 +278,7 @@ DEFPROC	utl_sprintf,DOS
 	mov	es,[bp].REG_ES
 	ASSUME	DS:NOTHING, ES:NOTHING
 	mov	bx,[bp].REG_BX		; DS:BX -> format string
-	sub	sp,offset SPF_CALLS
 	call	sprintf
-	add	sp,offset SPF_CALLS
 	mov	[bp].REG_AX,ax		; update REG_AX with count in AX
 	add	[bp].REG_IP,bx		; update REG_IP with length in BX
 	ret
@@ -463,10 +447,10 @@ ENDPROC	utl_itoa
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_tokify (AX = 180Bh or 180Ch	)
+; utl_tokify (AX = 180Bh or 180Ch)
 ;
 ; Inputs:
-;	REG_AL = token type (eg, TOKTYPE_*)
+;	REG_AL = 0Bh (TOKTYPE_WHITE) or 0Ch (TOKTYPE_BASIC)
 ;	REG_DS:REG_SI -> BUF_INPUT
 ;	REG_ES:REG_DI -> BUF_TOKENS
 ;
@@ -500,27 +484,24 @@ tf2:	cmp	al,CHR_RETURN
 	cmp	al,CHR_TAB
 	je	tf1
 ;
-; For the next token word-pair, we need to record the offset and the length;
-; we know the offset already (SI-TMP_BX-1), so put that in DX.
+; For the next token word-pair, we need to record the offset and the length,
+; so save the starting address in DX.
 ;
 	lea	dx,[si-1]
-	sub	dx,[bp].TMP_BX		; DX = offset of next token
-;
-; Before we skip over the next token, we must classify the first character.
-;
-	mov	ah,0
-tf4:	call	classify
-	jz	tf6
+	mov	ah,0			; AH = 0 (no initial classification)
+tf4:	call	tok_classify		; classify returns ZF set
+	jz	tf6			; whenever the classification changes
 	lodsb
 	jmp	tf4
 
 tf6:	lea	cx,[si-1]
-	sub	cx,[bp].TMP_BX
 	sub	cx,dx			; CX = length of token
+	DPRINTF	<"token: '%.*ls'",13,10>,cx,dx,ds
 ;
 ; DX:CX has our next token pair; store it at the token index in BX
 ;
 	add	bx,bx
+	sub	dx,[bp].TMP_BX		; DX = offset of next token
 	mov	es:[di+bx].TOK_BUF,dl
 	mov	es:[di+bx+1].TOK_BUF,cl
 	shr	bx,1
@@ -540,7 +521,21 @@ CLS_DEC		equ	04h
 CLS_VAR		equ	08h
 CLS_QUOTE	equ	20h
 
-DEFPROC	classify
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; tok_classify
+;
+; Inputs:
+;	AL = character
+;	AH = current classification bits (see CLS_*)
+;
+; Outputs:
+;	ZF set if classification has changed, clear otherwise
+;
+; Modifies:
+;	AX
+;
+DEFPROC	tok_classify
 	cmp	al,CHR_RETURN
 	je	cl4c			; done (return with ZF set)
 ;
@@ -574,8 +569,8 @@ cl2:	test	ah,CLS_QUOTE
 ;
 ; If there's no classification yet, check for special leading characters.
 ;
-	cmp	byte ptr [bp].TMP_AL,DOS_UTL_TOKIFY2 AND 0FFh
-	jne	cl9			; not done if whitespace only
+	test	byte ptr [bp].TMP_AL,TOKTYPE_WHITE
+	jnz	cl9			; not done if whitespace only
 	test	al,al
 	jnz	cl4
 	cmp	al,'&'			; leading char for hex or octal?
@@ -650,7 +645,7 @@ cl6a:	or	ah,CLS_DEC		; not done (decimal)
 ;
 cl8:	sub	ah,ah			; done
 cl9:	ret
-ENDPROC	classify
+ENDPROC	tok_classify
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

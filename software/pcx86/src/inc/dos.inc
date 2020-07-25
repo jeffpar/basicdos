@@ -61,8 +61,8 @@ DOS_UTL_STRLEN	equ   1800h	; return string (DS:SI) length (AX)
 DOS_UTL_STRSTR	equ   1801h	; find string (DS:SI) in string (ES:DI)
 DOS_UTL_STRUPR	equ   1803h	; upper-case string (DS:SI)
 DOS_UTL_PRINTF	equ   1804h	; printf to console
-DOS_UTL_SPRINTF	equ   1805h	; sprintf to buffer (ES:DI)
-DOS_UTL_DPRINTF	equ   1806h	; printf to COM1 (DEBUG only)
+DOS_UTL_DPRINTF	equ   1805h	; printf to DEBUG context, if any
+DOS_UTL_SPRINTF	equ   1806h	; sprintf to buffer (ES:DI)
 DOS_UTL_ATOI16	equ   1807h	; convert string (DS:SI) to number (AX)
 DOS_UTL_ATOI32	equ   1808h	; convert string (DS:SI) to number (AX)
 DOS_UTL_ITOA	equ   1809h	; convert number (DX:SI) to string (ES:DI)
@@ -119,7 +119,7 @@ DOS_PSP_GET	equ	51h	; get current PSP (BX)
 IFNDEF DEBUG
 REG_CHECK	equ	0	; no REG_FRAME marker on stack
 ELSE
-REG_CHECK	equ	1	; add a DEBUG marker before REG_FRAME
+REG_CHECK	equ	2	; add a DEBUG marker before REG_FRAME
 ENDIF
 
 WS_TEMP		struc		; REG_WS workspace used for CTRLC dispatcing
@@ -415,17 +415,6 @@ PF_SIGN   equ	10h		; signed value
 PF_WIDTH  equ	20h		; width encountered
 PF_PRECIS equ	40h		; precision encountered (after '.')
 
-;
-; sprintf stack frame definition (see sprintf.asm)
-;
-SPF_FRAME struc
-SPF_WIDTH	dw	?	; specifier width, if any
-SPF_PRECIS	dw	?	; specifier precision, if any
-SPF_START	dw	?	; buffer start address
-SPF_LIMIT	dw	?	; buffer limit address
-SPF_CALLS	dw REG_CHECK + 1 dup(?)	; 1 near-call dispatch on stack
-SPF_FRAME ends
-
 BUFLEN	equ	120		; max stack space to use as printf buffer
 
 ;
@@ -450,8 +439,8 @@ TOK_CNT		db	?
 TOK_BUF		db	128 dup (?)
 BUF_TOKENS	ends
 
-TOKTYPE_DEF	equ	0	; default (whitespace delimiters only)
-TOKTYPE_BASIC	equ	1	; BASIC token parsing
+TOKTYPE_BASIC	equ	0	; default parsing
+TOKTYPE_WHITE	equ	1	; whitespace parsing only
 
 ;
 ; After DOS_UTL_TOKIFY breaks a string into tokens, use DOS_UTL_TOKID to

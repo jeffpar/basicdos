@@ -15,7 +15,7 @@ let disks = {
     "BASIC-DOS1": [
         "./software/pcx86/src/dev/IBMBIO.COM",
         "./software/pcx86/src/dos/IBMDOS.COM",
-        "./software/pcx86/src/util/COMMAND.COM",
+        "./software/pcx86/src/cmd/COMMAND.COM",
         "./software/pcx86/src/configs/config1/CONFIG.SYS",
         "./software/pcx86/src/util/PRIMES.EXE",
         "./software/pcx86/src/gwb/GWB.EXE",
@@ -24,7 +24,7 @@ let disks = {
     "BASIC-DOS2": [
         "./software/pcx86/src/dev/IBMBIO.COM",
         "./software/pcx86/src/dos/IBMDOS.COM",
-        "./software/pcx86/src/util/COMMAND.COM",
+        "./software/pcx86/src/cmd/COMMAND.COM",
         "./software/pcx86/src/configs/config2/CONFIG.SYS",
         "./software/pcx86/src/util/PRIMES.EXE",
         "./software/pcx86/src/util/SLEEP.COM",
@@ -34,7 +34,7 @@ let disks = {
     "BASIC-DOS3": [
         "./software/pcx86/src/dev/IBMBIO.COM",
         "./software/pcx86/src/dos/IBMDOS.COM",
-        "./software/pcx86/src/util/COMMAND.COM",
+        "./software/pcx86/src/cmd/COMMAND.COM",
         "./software/pcx86/src/configs/config3/CONFIG.SYS",
         "./software/pcx86/src/util/PRIMES.EXE",
         "./software/pcx86/src/util/SLEEP.COM",
@@ -43,7 +43,7 @@ let disks = {
     "BASIC-DOS4": [
         "./software/pcx86/src/dev/IBMBIO.COM",
         "./software/pcx86/src/dos/IBMDOS.COM",
-        "./software/pcx86/src/util/COMMAND.COM",
+        "./software/pcx86/src/cmd/COMMAND.COM",
         "./software/pcx86/src/configs/config4/CONFIG.SYS",
         "./software/pcx86/src/util/PRIMES.EXE",
         "./software/pcx86/src/util/SLEEP.COM",

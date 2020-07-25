@@ -11,7 +11,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<bpb_total>,byte
+	EXTERNS	<bpb_total,sfh_debug>,byte
 	EXTERNS	<mcb_head,mcb_limit,scb_active>,word
 	EXTERNS	<bpb_table,scb_table,sfb_table,clk_ptr>,dword
 	EXTERNS	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>,near
@@ -404,10 +404,19 @@ si11:	or	es:[bx].SCB_STATUS,SCSTAT_INIT
 	DEFLBL	open_error,near
 	PRINTF	<"%s open error %d">,dx,ax
 	jmp	fatal_error
+
+si12:	mov	si,offset CFG_DEBUG
+	call	find_cfg		; look for "DEBUG="
+	jc	si13			; not found
+	mov	dx,di
+	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
+	int	21h
+	jc	si13
+	mov	es:[sfh_debug],al	; save SFH for DEBUG device
 ;
 ; Good time to print a "System ready" message, or something to that effect.
 ;
-si12:	mov	dx,offset SYS_MSG
+si13:	mov	dx,offset SYS_MSG
 	mov	ah,DOS_TTY_PRINT
 	int	21h
 
@@ -507,7 +516,7 @@ si20:	test	bx,bx
 ; Functions like SLEEP need access to the clock device, so we save its
 ; address in clk_ptr.  While we could open the device normally and obtain a
 ; system file handle, that would require the utility functions to use SFB
-; interfaces (get_sfb, sfb_read, etc) with absolutely no benefit.
+; interfaces (sfb_get, sfb_read, etc) with absolutely no benefit.
 ;
 	mov	dx,offset CLK_DEVICE
 	mov	ax,DOS_UTL_GETDEV
@@ -719,6 +728,7 @@ CFG_FILES	db	6,"FILES="
 		dw	20,20,256
 CFG_CONSOLE	db	8,"CONSOLE="
 CON_DEVICE	db	"CON:80,25",0	; default CONSOLE configuration
+CFG_DEBUG	db	6,"DEBUG="	; used to specify DEBUG device
 CFG_SHELL	db	6,"SHELL="
 
 AUX_DEVICE	db	"AUX",0

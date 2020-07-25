@@ -26,7 +26,7 @@ COM1	DDH	<COM1_LEN,,DDATTR_OPEN+DDATTR_CHAR,COM1_INIT,ddcom_int1,20202020314D4F4
 	DEFLBL	CMDTBL,word
 	dw	ddcom_none,   ddcom_none,   ddcom_none,   ddcom_none	; 0-3
 	dw	ddcom_none,   ddcom_none,   ddcom_none,   ddcom_none	; 4-7
-	dw	ddcom_none,   ddcom_none,   ddcom_none,   ddcom_none	; 8-11
+	dw	ddcom_write,  ddcom_none,   ddcom_none,   ddcom_none	; 8-11
 	dw	ddcom_none,   ddcom_open,   ddcom_close			; 12-14
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
@@ -104,6 +104,56 @@ ENDPROC	ddcom_cmd
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; ddcom_write
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;
+; Outputs:
+;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcom_write
+	mov	cx,es:[di].DDPRW_LENGTH
+	jcxz	dcw9
+
+	lds	si,es:[di].DDPRW_ADDR
+	ASSUME	DS:NOTHING
+	; mov	dx,es:[di].DDP_CONTEXT
+	; test	dx,dx
+	; jnz	dcw2
+
+dcw1:	lodsb
+	mov	ah,1
+	mov	dx,0
+	int	14h
+	loop	dcw1
+	jmp	short dcw9
+
+; dcw2:	push	es
+; 	mov	es,dx
+; 	test	es:[CT_STATUS],CTSTAT_PAUSED
+; 	jz	dcw3
+; ;
+; ; For WRITE requests that cannot be satisifed, we add this packet to an
+; ; internal chain of "writing" packets, and then tell DOS that we're waiting;
+; ; DOS will suspend the current SCB until we notify DOS that this packet's
+; ; conditions are satisfied.
+; ;
+; 	pop	es			; ES:DI -> packet again
+; 	call	add_packet
+; 	jmp	dcw2			; when this returns, try writing again
+
+; dcw3:	lodsb
+; 	call	write_context
+; 	loop	dcw3
+; 	pop	es
+
+dcw9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+	ret
+ENDPROC	ddcom_write
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; ddcom_open
 ;
 ; The format of the optional context descriptor is:
@@ -113,32 +163,35 @@ ENDPROC	ddcom_cmd
 ; where [device] is "COMn" (otherwise you wouldn't be here).
 ;
 ; Inputs:
-;	CX = context, if any
+;	CX = context (zero if none)
 ;	DX = port base
 ;	ES:DI -> DDP
 ;	[DDP].DDP_PTR -> context descriptor (eg, "COM1:9600,N,8,1")
 ;
 ; Outputs:
+;	CX = context (zero if none)
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcom_open
 ;
 ; If there's already a context for this device, increment the refs.
 ;
-	int 3
 	jcxz	dco1
 	mov	ds,cx
 	ASSUME	DS:NOTHING
 	inc	ds:[CT_REFS]
-	jmp	short dco8
+dco0:	jmp	short dco8
 
-dco1:	push	ds
-	lds	si,es:[di].DDP_PTR
+dco1:	lds	si,es:[di].DDP_PTR
 	ASSUME	DS:NOTHING
 ;
 ; We know that DDP_PTR must point to a string containing "COMn:" at the
 ; very least, so we skip those 5 bytes.
 ;
+	add	si,5			; DS:SI -> parms
+	cmp	[si],cl			; any parms?
+	je	dco0			; no
+
 	mov	bx,(size CONTEXT + DEF_INLEN + DEF_OUTLEN + 15) SHR 4
 	mov	ah,DOS_MEM_ALLOC
 	int	INT_DOSFUNC
@@ -150,7 +203,6 @@ dco1:	push	ds
 	sub	di,di
 	xchg	ax,dx			; AX = port address
 	stosw				; set CT_PORT
-	add	si,5			; DS:SI -> parms
 	call	get_parms
 	xchg	ax,cx
 	stosw				; set CT_BAUD
@@ -182,8 +234,7 @@ dco1:	push	ds
 ;
 ; At the moment, the only possible error is a failure to allocate memory.
 ;
-dco7:	pop	dx
-	sub	cx,cx
+dco7:	sub	cx,cx
 	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_GENFAIL
 	jmp	short dco9
 
@@ -218,6 +269,7 @@ DEFPROC	ddcom_close
 	mov	ah,DOS_MEM_FREE
 	int	INT_DOSFUNC
 	pop	es
+	sub	cx,cx
 
 dcc8:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	ret
@@ -267,6 +319,7 @@ DEFPROC	get_parms
 	xchg	cx,ax			; CX = baud rate
 	lodsb
 	mov	bl,al			; BL = parity indicator
+	lodsb
 	mov	ax,DOS_UTL_ATOI16
 	int	21h
 	mov	dl,al			; DL = data bits
@@ -293,33 +346,37 @@ ENDPROC	get_parms
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcom_int,far
+	int 3
 	call	far ptr DDINT_ENTER
-	jnc	ddi0			; carry set if DOS isn't ready
-	jmp	ddi9x
+	push	ax
+	jcxz	ddi0			; no context
+	jnc	ddi1			; carry clear if DOS ready
+ddi0:	jmp	ddi9x
 
-ddi0:	push	ax
-	push	bx
-	push	cx
+ddi1:	push	bx
 	push	dx
 	push	di
+	push	ds
 	push	es
 
 	sti
 
 ddi9:	pop	es
+	pop	ds
 	pop	di
 	pop	dx
-	pop	cx
 	pop	bx
-	pop	ax
 
-ddi9x:	pop	ds
+ddi9x:	mov	al,20h			; EOI the interrupt
+	out	20h,al
+	pop	ax
+	pop	cx
 	jmp	far ptr DDINT_LEAVE
 ENDPROC	ddcom_int
 
 DEFPROC	ddcom_int1,far
-	push	ds
-	mov	ds,[ct_seg]
+	push	cx
+	mov	cx,[ct_seg]
 	jmp	[ddcom_intp]
 ENDPROC	ddcom_int1
 
@@ -358,8 +415,8 @@ DEFPROC	ddcom_req2,far
 ENDPROC	ddcom_req2
 
 DEFPROC	ddcom_int2,far
-	push	ds
-	mov	ds,[ct_seg2]
+	push	cx
+	mov	cx,[ct_seg2]
 	jmp	[ddcom_intp2]
 ENDPROC	ddcom_int2
 
@@ -398,8 +455,8 @@ DEFPROC	ddcom_req3,far
 ENDPROC	ddcom_req3
 
 DEFPROC	ddcom_int3,far
-	push	ds
-	mov	ds,[ct_seg3]
+	push	cx
+	mov	cx,[ct_seg3]
 	jmp	[ddcom_intp3]
 ENDPROC	ddcom_int3
 
@@ -438,8 +495,8 @@ DEFPROC	ddcom_req4,far
 ENDPROC	ddcom_req4
 
 DEFPROC	ddcom_int4,far
-	push	ds
-	mov	ds,[ct_seg4]
+	push	cx
+	mov	cx,[ct_seg4]
 	jmp	[ddcom_intp4]
 ENDPROC	ddcom_int4
 

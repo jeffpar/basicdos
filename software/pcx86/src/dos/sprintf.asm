@@ -146,12 +146,6 @@ ENDPROC itoa
 ; first, then the high word; the macro takes care of pushing the parameters
 ; in reverse order.
 ;
-; The code relies on SPF_FRAME, which must accurately reflect the number of
-; additional bytes pushed onto the stack since REG_FRAME was created.
-; Obviously that could be calculated at run-time, but it's preferable to know
-; the value at assembly-time so that we can use constant displacements and
-; simplify register usage.
-;
 ; Inputs:
 ;	DS:BX -> format string
 ;	ES:DI -> output buffer
@@ -185,13 +179,17 @@ ENDPROC itoa
 ;	%N:	minute portion of a 16-bit TIME value, as number (0-59)
 ;	%S:	second portion of a 16-bit TIME value, as number (0-59)
 ;
+SPF_START	equ	TMP_AX		; buffer start address
+SPF_LIMIT	equ	TMP_BX		; buffer limit address
+SPF_WIDTH	equ	TMP_CX		; specifier width, if any
+SPF_PRECIS	equ	TMP_DX		; specifier precision, if any
+
 DEFPROC	sprintf,DOS
 	ASSUME	DS:NOTHING, ES:NOTHING
-	sub	bp,size SPF_FRAME
 	mov	[bp].SPF_START,di	; DI is the buffer start
 	add	cx,di
 	mov	[bp].SPF_LIMIT,cx	; CX+DI is the buffer limit
-	mov	si,size SPF_FRAME+size REG_FRAME
+	mov	si,size REG_FRAME
 					; BP+SI -> parameters
 	push	bx			; save original format string address
 pf1:	mov	al,[bx]			; AL = next format character
@@ -208,8 +206,8 @@ pf3:	jmp	pf8
 
 pfp:	mov	cx,10			; CH = print flags, CL = base
 	mov	dx,bx			; DX = where this specifier started
-	mov	[bp].SPF_WIDTH,0	; initial specifier width
-	mov	[bp].SPF_PRECIS,0	; initial specifier precision
+	mov	word ptr [bp].SPF_WIDTH,0
+	mov	word ptr [bp].SPF_PRECIS,0
 pfpa:	mov	al,[bx]
 	inc	bx
 	cmp	al,'-'			; left-alignment indicator?
@@ -518,7 +516,6 @@ pf8:	pop	ax			; restore original format string address
 	sub	bx,ax			; BX = length of format string + 1
 	sub	di,[bp].SPF_START
 	xchg	ax,di			; AX = # of characters
-	add	bp,size SPF_FRAME
 	ret
 ENDPROC	sprintf
 

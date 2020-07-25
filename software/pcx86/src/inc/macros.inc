@@ -295,6 +295,18 @@ ASSUME1	macro	segreg,segment
 	endm
 
 PRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
+	FPRINTF	DOS_UTL_PRINTF,<format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
+	endm
+
+DPRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
+	IFDEF DEBUG
+	push	ax
+	FPRINTF	DOS_UTL_DPRINTF,<format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
+	pop	ax
+	ENDIF
+	endm
+
+FPRINTF	macro	func,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	argc = 0
 	IRP	arg,<a12,a11,a10,a9,a8,a7,a6,a5,a4,a3,a2,a1>
 	IFNB	<arg>
@@ -302,14 +314,13 @@ PRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	push	arg
 	ENDIF
 	ENDM
-	mov	ax,DOS_UTL_PRINTF
+	mov	ax,func
 	int	INT_DOSFUNC
 	db	format,0
 	IF	argc NE 0
 	add	sp,argc * 2
 	ENDIF
 	endm
-
 ;
 ; MINHEAP is the minimum number of bytes we allocate for a .COM binary, on
 ; top of the actual file size.  This is important, because unlike "REAL DOS",
