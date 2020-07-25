@@ -37,7 +37,7 @@ DOS	segment word public 'CODE'
 ; Constants
 ;
 	DEFSTR	FILENAME_CHARS,"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%&'()-@^_`{}~"
-	DEFSTR	FILENAME_SEPS,<":;.,=+/[]\<>|",CHR_DBLQUOTE,CHR_SPACE,CHR_TAB>
+	DEFSTR	FILENAME_SEPS,<":;.,=+/[]\<>|",CHR_DQUOTE,CHR_SPACE,CHR_TAB>
 	DEFSTR	STR_CTRLC,<CHR_CTRLC,CHR_RETURN,CHR_LINEFEED>
 	DEFSTR	STR_ESC,<"\",13,10>
 	DEFBYTE	JAN,<"January",0>
@@ -74,8 +74,9 @@ DOS	segment word public 'CODE'
 	EXTERNS	<hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek>,near
 	EXTERNS	<mem_alloc,mem_free,mem_realloc>,near
 	EXTERNS	<utl_strlen,utl_strstr,utl_strupr,utl_atoi16,utl_atoi32>,near
-	EXTERNS	<utl_itoa,utl_printf,utl_sprintf,utl_tokify,utl_tokid>,near
-	EXTERNS	<utl_getdev,utl_ioctl,utl_load,utl_start,utl_stop,utl_unload>,near
+	EXTERNS	<utl_itoa,utl_printf,utl_dprintf,utl_sprintf>,near
+	EXTERNS	<utl_tokify,utl_tokid,utl_getdev>,near
+	EXTERNS	<utl_ioctl,utl_load,utl_start,utl_stop,utl_unload>,near
 	EXTERNS	<utl_yield,utl_sleep,utl_wait,utl_endwait,utl_hotkey>,near
 	EXTERNS	<utl_lock,utl_unlock,utl_qrymem,utl_abort>,near
 	EXTERNS	<func_none>,near
@@ -106,9 +107,9 @@ DOS	segment word public 'CODE'
 
 	DEFLBL	UTILTBL,word
 	dw	utl_strlen,  utl_strstr,  func_none,   utl_strupr	;00h-03h
-	dw	utl_printf,  utl_sprintf, utl_atoi16,  utl_atoi32	;04h-07h
-	dw	utl_itoa,    func_none,   func_none,   utl_tokify	;08h-0Bh
-	dw	utl_tokid,   func_none,   func_none,   func_none	;0Ch-0Fh
+	dw	utl_printf,  utl_dprintf, utl_sprintf, utl_atoi16	;04h-07h
+	dw	utl_atoi32,  utl_itoa,    func_none,   utl_tokify	;08h-0Bh
+	dw	utl_tokify,  utl_tokid,   func_none,   func_none	;0Ch-0Fh
 	dw	utl_getdev,  utl_ioctl,   utl_load,    utl_start	;10h-13h
 	dw	utl_stop,    utl_unload,  utl_yield,   utl_sleep	;14h-17h
 	dw	utl_wait,    utl_endwait, utl_hotkey,  utl_lock		;18h-1Bh

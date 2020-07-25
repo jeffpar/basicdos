@@ -256,7 +256,7 @@ DBGBRK	macro
 	ENDIF
 	endm
 
-INIT	macro	type,ptr,str
+DBGINIT	macro	type,ptr,str
 	IFDEF DEBUG
 	IFIDN	<type>,<STRUCT>
 	mov	ptr&.&str&_RESERVED,str&SIG

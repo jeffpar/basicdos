@@ -28,7 +28,7 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	dw	ddcon_movcur, ddcon_setins				; 4-5
 	DEFABS	IOCTBL_SIZE,<($ - IOCTBL) SHR 1>
 
-	DEFLBL	CON_LIMITS,word
+	DEFLBL	CON_PARMS,word
 	dw	80,16,80, 25,4,25, 0,0,79, 0,0,24, 0,0,1, 0,0,1
 
 	DEFLBL	DBL_BORDER,word
@@ -436,7 +436,7 @@ DEFPROC	ddcon_open
 	push	cs
 	pop	es
 	mov	bl,10			; use base 10
-	mov	di,offset CON_LIMITS	; ES:DI -> limits
+	mov	di,offset CON_PARMS	; ES:DI -> parm defaults/limits
 	mov	ax,DOS_UTL_ATOI16
 	int	21h			; updates SI, DI, and AX
 	mov	cl,al			; CL = cols
@@ -462,7 +462,7 @@ DEFPROC	ddcon_open
 	ASSUME	DS:CODE
 
 	push	bx
-	mov	bx,(size context + 15) SHR 4
+	mov	bx,(size CONTEXT + 15) SHR 4
 	mov	ah,DOS_MEM_ALLOC
 	int	INT_DOSFUNC
 	pop	bx
@@ -471,7 +471,7 @@ DEFPROC	ddcon_open
 
 dco1:	mov	ds,ax
 	ASSUME	DS:NOTHING
-	INIT	STRUCT,ds:[0],CT
+	DBGINIT	STRUCT,ds:[0],CT
 
 	cmp	[ct_focus],0
 	jne	dco1a
@@ -552,17 +552,17 @@ dco5:	mov	ds:[CT_PORT],dx
 	call	scroll			; clear the context's interior
 	call	hide_cursor		; important when using an alt adapter
 	clc
-
+;
+; At the moment, the only possible error is a failure to allocate memory.
+;
 dco7:	pop	es
 	pop	di			; ES:DI -> DDP again
-	jc	dco8
-	mov	es:[di].DDP_CONTEXT,ds
+	jnc	dco8
+	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_GENFAIL
 	jmp	short dco9
-;
-; What's up with the complete disconnect between device driver error codes
-; and DOS error codes?
-;
-dco8:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_GENFAIL
+
+dco8:	mov	es:[di].DDP_CONTEXT,ds
+	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 dco9:	ret
 ENDPROC	ddcon_open
 
@@ -578,7 +578,7 @@ ENDPROC	ddcon_open
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_close
 	mov	cx,es:[di].DDP_CONTEXT
-	jcxz	dcc9			; no context
+	jcxz	dcc8			; no context
 	cmp	[ct_focus],cx
 	jne	dcc0
 	call	focus_next
@@ -613,7 +613,9 @@ dcc2:	mov	es,ax
 dcc3:	mov	ah,DOS_MEM_FREE
 	int	INT_DOSFUNC
 	pop	es
-dcc9:	ret
+
+dcc8:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+	ret
 ENDPROC	ddcon_close
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

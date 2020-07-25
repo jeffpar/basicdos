@@ -246,7 +246,7 @@ si4c:	jnz	sierr1			; hmm, CLUSSECS wasn't a power-of-two
 	pop	dx
 	pop	cx			; restore # BPBs in CL
 	mov	di,[bpb_table].OFF	; DI -> first BPB
-si4d:	INIT	STRUCT,[di],BPB
+si4d:	DBGINIT	STRUCT,[di],BPB
 	mov	[di].BPB_DEVICE.OFF,ax
 	mov	[di].BPB_DEVICE.SEG,dx
 	cmp	[di].BPB_SECBYTES,0	; is this BPB initialized?
@@ -332,7 +332,7 @@ si7a:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHCON>
 	ASSERT	<SCB_SFHAUX + 1>,EQ,<SCB_SFHPRN>
 	mov	word ptr es:[bx].SCB_NUM,ax
 	mov	word ptr es:[bx].SCB_SFHAUX,cx
-	INIT	STRUCT,es:[bx],SCB
+	DBGINIT	STRUCT,es:[bx],SCB
 	inc	ax
 	add	bx,size SCB
 	cmp	bx,es:[scb_table].SEG

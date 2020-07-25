@@ -46,7 +46,7 @@ m1:	lea	bx,[heap]
 	mov	si,dx		; DS:SI -> input buffer
 	lea	di,[bx].TOKENBUF
 	mov	[di].TOK_MAX,size TOK_BUF SHR 1
-	mov	ax,DOS_UTL_TOKIFY
+	mov	ax,DOS_UTL_TOKIFY1
 	int	21h
 	xchg	cx,ax		; CX = token count from AX
 	jcxz	m1		; jump if no tokens

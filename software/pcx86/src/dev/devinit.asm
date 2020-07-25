@@ -50,7 +50,7 @@ DEFPROC	devinit,far
 ;
 	sub	sp,DDP_MAXSIZE
 	mov	bp,sp
-	INIT	STRUCT,[bp],DDP
+	DBGINIT	STRUCT,[bp],DDP
 	mov	word ptr [bp].DDP_LEN,size DDP
 	mov	[bp].DDP_CMD,DDC_INIT
 	mov	[bp].DDP_STATUS,0

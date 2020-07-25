@@ -242,7 +242,7 @@ so5:	add	si,size SFB
 so6:	push	cs
 	pop	ds
 	ASSUME	DS:DOS
-	INIT	STRUCT,[bx],SFB
+	DBGINIT	STRUCT,[bx],SFB
 	mov	[bx].SFB_DEVICE.OFF,di
 	mov	[bx].SFB_DEVICE.SEG,es
 	mov	[bx].SFB_CONTEXT,dx	; set DRIVE (AL) and MODE (AH) next
