@@ -12,7 +12,7 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<bpb_total,sfh_debug>,byte
-	EXTERNS	<mcb_head,mcb_limit,scb_active>,word
+	EXTERNS	<mcb_head,mcb_limit,buf_head,scb_active>,word
 	EXTERNS	<bpb_table,scb_table,sfb_table,clk_ptr>,dword
 	EXTERNS	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>,near
 	EXTERNS	<dos_term,dos_func,dos_exret,dos_ctrlc,dos_error,dos_default>,near
@@ -162,13 +162,6 @@ si4a:	mov	ax,ds
 	mov	ds,cx
 	ASSUME	DS:BIOS
 ;
-; TODO: At some point, we're going to want a buffer cache.  But for now,
-; we at least need to make sure FAT_BUFHDR and DIR_BUFHDR are initialized
-; enough to be usable.
-;
-	mov	[FAT_BUFHDR].BUF_SIZE,512
-	mov	[DIR_BUFHDR].BUF_SIZE,512
-;
 ; The first resident table (bpb_table) contains all the system BPBs.
 ;
 	mov	al,[FDC_UNITS]
@@ -187,6 +180,26 @@ si4a:	mov	ax,ds
 	ASSUME	ES:DOS
 	mov	es:[bpb_total],al	; record # BPBs
 	push	ax			; save # BPBs on stack
+;
+; Initialize the buffer chain while DS still points to the BIOS segment.
+;
+	mov	cl,4
+	mov	ax,offset FAT_BUFHDR
+	shr	ax,cl
+	mov	es:[buf_head],ax
+	mov	dx,offset DIR_BUFHDR
+	shr	dx,cl
+
+	DBGINIT	STRUCT,[FAT_BUFHDR],BUF
+	mov	[FAT_BUFHDR].BUF_PREV,dx
+	mov	[FAT_BUFHDR].BUF_NEXT,dx
+	mov	[FAT_BUFHDR].BUF_PREV,512
+
+	DBGINIT	STRUCT,[DIR_BUFHDR],BUF
+	mov	[DIR_BUFHDR].BUF_PREV,ax
+	mov	[DIR_BUFHDR].BUF_NEXT,ax
+	mov	[DIR_BUFHDR].BUF_SIZE,512
+
 	push	[FDC_DEVICE].SEG	; save FDC pointer on stack
 	push	[FDC_DEVICE].OFF
 	mov	al,[si].BPB_DRIVE	; use the BPB's own BPB_DRIVE #

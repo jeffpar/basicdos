@@ -14,7 +14,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<dev_request,parse_name,scb_delock>,near
 
 	EXTERNS	<scb_locked>,byte
-	EXTERNS	<scb_active>,word
+	EXTERNS	<buf_head,scb_active>,word
 	EXTERNS	<bpb_table>,dword
 	EXTERNS	<bpb_total,file_name>,byte
 
@@ -22,11 +22,8 @@ DOS	segment word public 'CODE'
 ;
 ; dsk_flush (REG_AH = 0Dh)
 ;
-; TODO: For now, since we haven't yet implemented a buffer cache, all we
-; have to do is zap the LBAs in the two BIOS sector buffers.
-;
 ; Inputs:
-;	AL = drive #, or -1 for all drives (TODO)
+;	None (use drv_flush to flush drive # in AL only)
 ;
 ; Outputs:
 ;	Flush all buffers containing data for the specified drive
@@ -36,21 +33,23 @@ DOS	segment word public 'CODE'
 ;
 DEFPROC	dsk_flush,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	mov	al,-1			; by default, flush all drives
+	DEFLBL	drv_flush,near		; otherwise, flush only drive # in AL
 	push	dx
 	push	ds
-	sub	dx,dx
-	mov	ds,dx
-	ASSUME	DS:BIOS
-	cmp	ds:[FAT_BUFHDR].BUF_DRIVE,al
-	jne	df2
-	mov	ds:[FAT_BUFHDR].BUF_LBA,0
-df2:	cmp	ds:[DIR_BUFHDR].BUF_DRIVE,al
+	mov	ds,[buf_head]
+	mov	dx,ds			; DX = head
+df1:	test	al,al
+	jl	df2
+	cmp	ds:[BUF_DRIVE],al
 	jne	df3
-	mov	ds:[DIR_BUFHDR].BUF_LBA,0
-df3:	pop	ds
-	ASSUME	DS:NOTHING
+df2:	mov	ds:[BUF_LBA],-1		; use -1 to invalidate the LBA
+df3:	cmp	ds:[BUF_NEXT],dx	; looped back around?
+	je	df9			; yes
+	mov	ds,ds:[BUF_NEXT]
+	jmp	df1
+df9:	pop	ds
 	pop	dx
-	clc
 	ret
 ENDPROC	dsk_flush
 
@@ -484,7 +483,7 @@ DEFPROC	get_bpb,DOS
 	call	dev_request
 	jc	gb8
 	mov	al,cl			; AL = drive #
-	call	dsk_flush		; flush any buffers with data from drive
+	call	drv_flush		; flush any buffers with data from drive
 gb8:	pop	es
 	pop	di
 gb9:	pop	dx
@@ -616,7 +615,12 @@ DEFPROC	get_dirent,DOS
 	mov	dx,bp
 	add	dx,ax			; DX = LBA of directory sector
 	jmp	short gd3
-
+;
+; If one of the sectors from the directory we're interested in is already
+; in DIR_BUF, and we're not continuing from a specific DIRENT, then a nice
+; optimization is to start with the current sector.  We simply loop around
+; to the top of the directory and stop when we reach this same sector again.
+;
 gd1:	mov	al,es:[di].BPB_DRIVE	; AL = drive #
 	cmp	[si].BUF_DRIVE,al
 	jne	gd2
@@ -625,8 +629,11 @@ gd1:	mov	al,es:[di].BPB_DRIVE	; AL = drive #
 	jz	gd2
 	mov	bp,dx
 gd2:	mov	dx,bp
-
+;
+; End of initialization code, beginning of main loop.
+;
 gd3:	mov	al,es:[di].BPB_DRIVE
+	ASSERT	STRUCT,[si],BUF
 	call	read_buffer		; AL = drive #, DX = LBA
 	jc	gd7a
 
@@ -664,13 +671,13 @@ gd5e:	add	si,size DIRENT
 	cmp	si,ax
 	jb	gd5
 
-	mov	si,offset DIR_BUFHDR	; advance to next directory sector
-	inc	dx
+	inc	dx			; advance to the next directory sector
 	cmp	dx,es:[di].BPB_LBADATA
 	jb	gd7
 gd6:	mov	dx,es:[di].BPB_LBAROOT
 
 gd7:	sub	cx,cx			; start at offset zero of next sector
+	mov	si,offset DIR_BUFHDR
 	cmp	dx,bp			; back to the 1st LBA again?
 	jne	gd3			; not yet
 

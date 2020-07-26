@@ -25,6 +25,7 @@ DOS	segment word public 'CODE'
 
 	DEFWORD	scb_active,0		; offset of active SCB (zero if none)
 	DEFWORD	psp_active,0		; segment of active PSP (zero if none)
+	DEFWORD	buf_head,0		; head of buffer chain
 	DEFPTR	clk_ptr,-1		; pointer to CLOCK$ DDH
 	DEFWORD	scb_stoked,<offset scb_return>
 	DEFBYTE	scb_locked,-1		; -1 if unlocked, >=0 if locked
