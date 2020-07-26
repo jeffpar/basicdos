@@ -11,6 +11,7 @@
 
 DOS	segment word public 'CODE'
 
+	EXTERNS	<get_sfh_sfb,sfb_write>,near
 	EXTERNS	<chk_devname,dev_request,write_string>,near
 	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload>,near
 	EXTERNS	<scb_yield,scb_delock,scb_wait,scb_endwait>,near
@@ -18,7 +19,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<psp_term_exitcode>,near
 	EXTERNS	<itoa,sprintf>,near
 
-	EXTERNS	<scb_locked>,byte
+	EXTERNS	<scb_locked,sfh_debug>,byte
 	EXTERNS	<scb_active>,word
 	EXTERNS	<scb_table,clk_ptr>,dword
 
@@ -157,9 +158,135 @@ su9:	pop	si
 	ret
 ENDPROC	utl_strupr
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_printf (AX = 1804h)
+;
+; A semi-CDECL-style calling convention is assumed, where all parameters
+; EXCEPT for the format string are pushed from right to left, so that the
+; first (left-most) parameter is the last one pushed.  The format string
+; is stored in the CODE segment following the INT 21h, which we automatically
+; skip, and the next instruction should be an "ADD SP,N*2", assuming N word
+; parameters.
+;
+; See utl_sprintf for more details.
+;
+; Inputs:
+;	format string follows the INT 21h
+;	all other parameters must be pushed onto the stack, right to left
+;
+; Outputs:
+;	REG_AX = # of characters printed
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, DS, ES
+;
+DEFPROC	utl_printf,DOS
+	mov	bl,0
+	DEFLBL	hprintf,near		; BL = SFH (or 0 for STDOUT)
+	sti
+	push	ss
+	pop	es
+	ASSUME	ES:NOTHING
+	mov	cx,BUFLEN		; CX = length
+	sub	sp,cx
+	mov	di,sp			; ES:DI -> buffer on stack
+	push	bx
+	mov	bx,[bp].REG_IP
+	mov	ds,[bp].REG_CS		; DS:BX -> format string
+	ASSUME	DS:NOTHING
+	call	sprintf
+	mov	[bp].REG_AX,ax		; update REG_AX with count in AX
+	add	[bp].REG_IP,bx		; update REG_IP with length in BX
+	pop	bx
+	mov	si,sp
+	push	ss
+	pop	ds			; DS:SI -> buffer on stack
+	xchg	cx,ax			; CX = # of characters
+	test	bl,bl			; SFH?
+	jz	pf7			; no
+	jl	pf8			; DEBUG output not enabled
+	call	get_sfh_sfb		; BX -> SFB
+	jc	pf7
+	mov	al,IO_COOKED
+	call	sfb_write
+	jmp	short pf8
+pf7:	call	write_string		; write string to STDOUT
+pf8:	add	sp,BUFLEN
+	ret
+ENDPROC	utl_printf endp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_dprintf (AX = 1805h)
+;
+; This is used by DEBUG code (in particular, the DPRINTF macro) to print
+; to a "debug" device defined by a DEBUG= line in CONFIG.SYS.  However, this
+; code is always left in place, in case we end up with a mix of DEBUG and
+; NODEBUG binaries.  Without this function, those calls would crash, due to
+; how the format strings are stored after the INT 21h.
+;
+; Except for the output device, this function is identical to utl_printf.
+;
+; Inputs:
+;	format string follows the INT 21h
+;	all other parameters must be pushed onto the stack, right to left
+;
+; Outputs:
+;	REG_AX = # of characters printed
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, DS, ES
+;
+DEFPROC	utl_dprintf,DOS
+	mov	bl,[sfh_debug]
+	jmp	hprintf
+ENDPROC	utl_dprintf endp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_sprintf (AX = 1806h)
+;
+; A semi-CDECL-style calling convention is assumed, where all parameters
+; EXCEPT for the format string are pushed from right to left, so that the
+; first (left-most) parameter is the last one pushed.  The format string
+; is stored in the CODE segment following the INT 21h, which we automatically
+; skip, and the next instruction should be an "ADD SP,N*2", assuming N word
+; parameters.
+;
+; When printing 32-bit values, list the low word first, then the high word,
+; so that the high word is pushed first.
+;
+; Inputs:
+;	DS:BX -> format string
+;	ES:DI -> output buffer
+;	CX = length of buffer
+;	format string follows the INT 21h
+;	all other parameters must be pushed onto the stack, right to left
+;
+; Outputs:
+;	REG_AX = # of characters generated
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, DS, ES
+;
+; See sprintf.asm for a list of supported format specifiers.
+;
+DEFPROC	utl_sprintf,DOS
+	sti
+	mov	ds,[bp].REG_DS
+	mov	es,[bp].REG_ES
+	ASSUME	DS:NOTHING, ES:NOTHING
+	mov	bx,[bp].REG_BX		; DS:BX -> format string
+	call	sprintf
+	mov	[bp].REG_AX,ax		; update REG_AX with count in AX
+	add	[bp].REG_IP,bx		; update REG_IP with length in BX
+	ret
+ENDPROC	utl_sprintf
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_atoi16 (AX = 1806h)
+; utl_atoi16 (AX = 1807h)
 ;
 ; Convert string at DS:SI to number in AX using base BL, using validation
 ; values at ES:DI.
@@ -278,7 +405,7 @@ ENDPROC utl_atoi16
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_atoi32 (AX = 1807h)
+; utl_atoi32 (AX = 1808h)
 ;
 ; Convert string at DS:SI to number in DX:AX using base BL.
 ;
@@ -296,7 +423,7 @@ ENDPROC utl_atoi32
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_itoa (AX = 1808h)
+; utl_itoa (AX = 1809h)
 ;
 ; Convert the value DX:SI to a string representation at ES:DI, using base BL,
 ; flags BH (see itoa for PF definitions), minimum length CX (0 for no minimum).
@@ -318,107 +445,12 @@ DEFPROC	utl_itoa,DOS
 	ret
 ENDPROC	utl_itoa
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_printf (AX = 1809h)
-;
-; A semi-CDECL-style calling convention is assumed, where all parameters
-; EXCEPT for the format string are pushed from right to left, so that the
-; first (left-most) parameter is the last one pushed.  The format string
-; is stored in the CODE segment following the INT 21h, which we automatically
-; skip, and the next instruction should be an "ADD SP,N*2", assuming N word
-; parameters.
-;
-; See utl_sprintf for more details.
-;
-; Inputs:
-;	format string follows the INT 21h
-;	all other parameters must be pushed onto the stack, right to left
-;
-; Outputs:
-;	REG_AX = # of characters printed
-;
-; Modifies:
-;	AX, BX, CX, DX, SI, DI, DS, ES
-;
-DEFPROC	utl_printf,DOS
-	sti
-	push	ss
-	pop	es
-	ASSUME	ES:NOTHING
-	sub	sp,BUFLEN + offset SPF_CALLS
-	mov	cx,BUFLEN		; CX = length
-	mov	di,sp			; ES:DI -> buffer on stack
-	mov	bx,[bp].REG_IP
-	mov	ds,[bp].REG_CS		; DS:BX -> format string
-	ASSUME	DS:NOTHING
-	call	sprintf
-	mov	si,sp
-	push	ss
-	pop	ds			; DS:SI -> buffer on stack
-	xchg	cx,ax			; CX = # of characters
-	call	write_string
-	add	sp,BUFLEN + offset SPF_CALLS
-	mov	[bp].REG_AX,cx		; update REG_AX with count in CX
-	add	[bp].REG_IP,bx		; update REG_IP with length in BX
-	ret
-ENDPROC	utl_printf endp
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_sprintf (AX = 180Ah)
-;
-; A semi-CDECL-style calling convention is assumed, where all parameters
-; EXCEPT for the format string are pushed from right to left, so that the
-; first (left-most) parameter is the last one pushed.  The format string
-; is stored in the CODE segment following the INT 21h, which we automatically
-; skip, and the next instruction should be an "ADD SP,N*2", assuming N word
-; parameters.
-;
-; When printing 32-bit values, list the low word first, then the high word,
-; so that the high word is pushed first.
-;
-; The code relies on SPF_FRAME, which must accurately reflect the number of
-; additional bytes pushed onto the stack since REG_FRAME was created.
-; Obviously that could be calculated at run-time, but it's preferable to know
-; the value at assembly-time so that we can use constant displacements and
-; simplify register usage.
-;
-; Inputs:
-;	DS:BX -> format string
-;	ES:DI -> output buffer
-;	CX = length of buffer
-;	format string follows the INT 21h
-;	all other parameters must be pushed onto the stack, right to left
-;
-; Outputs:
-;	REG_AX = # of characters generated
-;
-; Modifies:
-;	AX, BX, CX, DX, SI, DI, DS, ES
-;
-; See sprintf.asm for a list of supported format specifiers.
-;
-DEFPROC	utl_sprintf,DOS
-	sti
-	mov	ds,[bp].REG_DS
-	mov	es,[bp].REG_ES
-	ASSUME	DS:NOTHING, ES:NOTHING
-	mov	bx,[bp].REG_BX		; DS:BX -> format string
-	sub	sp,offset SPF_CALLS
-	call	sprintf
-	add	sp,offset SPF_CALLS
-	mov	[bp].REG_AX,ax		; update REG_AX with count in AX
-	add	[bp].REG_IP,bx		; update REG_IP with length in BX
-	ret
-ENDPROC	utl_sprintf
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_tokify (AX = 180Bh)
+; utl_tokify (AX = 180Bh or 180Ch)
 ;
 ; Inputs:
-;	REG_AL = token type (TODO)
+;	REG_AL = 0Bh (TOKTYPE_WHITE) or 0Ch (TOKTYPE_BASIC)
 ;	REG_DS:REG_SI -> BUF_INPUT
 ;	REG_ES:REG_DI -> BUF_TOKENS
 ;
@@ -435,12 +467,10 @@ DEFPROC	utl_tokify,DOS
 	mov	es,[bp].REG_ES		; ES:DI -> BUF_TOKENS
 	ASSUME	DS:NOTHING, ES:NOTHING
 
-	LOCVAR	pStart,word
-	ENTER
-
 	sub	bx,bx			; BX = token index
 	add	si,offset INP_BUF	; SI -> 1st character
-	mov	[pStart],si		; BP = starting position
+	mov	[bp].TMP_AL,al		; save token type
+	mov	[bp].TMP_BX,si		; TMP_BX = starting position
 	lodsb				; preload the first character
 	jmp	tf8			; and dive in
 ;
@@ -454,42 +484,24 @@ tf2:	cmp	al,CHR_RETURN
 	cmp	al,CHR_TAB
 	je	tf1
 ;
-; For the next token word-pair, we need to record the offset and the length;
-; we know the offset already (SI-pStart-1), so put that in DX.
+; For the next token word-pair, we need to record the offset and the length,
+; so save the starting address in DX.
 ;
 	lea	dx,[si-1]
-	sub	dx,[pStart]		; DX = offset of next token
-;
-; Skip over the next token. This is complicated by additional rules, such as
-; treating all quoted sequences as a single token.
-;
-	mov	ah,0			; AH = 0 (or quote char)
-	cmp	al,'"'
-	je	tf3
-	cmp	al,"'"
-	jne	tf4
-tf3:	mov	ah,al
-tf4:	lodsb
-	cmp	al,CHR_RETURN
-	je	tf6
-	test	ah,ah			; did we start with a quote?
-	jz	tf5			; no
-	cmp	al,ah			; yes, so have we found another?
-	jnz	tf4			; no
-	lodsb				; yes, preload the next character
-	jmp	short tf6		; and record the token length
-tf5:	cmp	al,CHR_SPACE
-	je	tf6
-	cmp	al,CHR_TAB
-	jne	tf4
+	mov	ah,0			; AH = 0 (no initial classification)
+tf4:	call	tok_classify		; classify returns ZF set
+	jz	tf6			; whenever the classification changes
+	lodsb
+	jmp	tf4
 
 tf6:	lea	cx,[si-1]
-	sub	cx,[pStart]
 	sub	cx,dx			; CX = length of token
+	DPRINTF	<"token: '%.*ls'",13,10>,cx,dx,ds
 ;
 ; DX:CX has our next token pair; store it at the token index in BX
 ;
 	add	bx,bx
+	sub	dx,[bp].TMP_BX		; DX = offset of next token
 	mov	es:[di+bx].TOK_BUF,dl
 	mov	es:[di+bx+1].TOK_BUF,cl
 	shr	bx,1
@@ -498,16 +510,146 @@ tf6:	lea	cx,[si-1]
 tf8:	cmp	bl,es:[di].TOK_MAX	; room for more tokens?
 	jb	tf2			; yes
 
-tf9:	LEAVE
-
-	mov	es:[di].TOK_CNT,bl	; update # tokens
+tf9:	mov	es:[di].TOK_CNT,bl	; update # tokens
 	mov	[bp].REG_AX,bx		; return # tokens in AX, too
 	ret
 ENDPROC	utl_tokify
 
+CLS_OCT		equ	01h
+CLS_HEX		equ	02h
+CLS_DEC		equ	04h
+CLS_VAR		equ	08h
+CLS_QUOTE	equ	20h
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_tokid (AX = 180Ch)
+; tok_classify
+;
+; Inputs:
+;	AL = character
+;	AH = current classification bits (see CLS_*)
+;
+; Outputs:
+;	ZF set if classification has changed, clear otherwise
+;
+; Modifies:
+;	AX
+;
+DEFPROC	tok_classify
+	cmp	al,CHR_RETURN
+	je	cl4c			; done (return with ZF set)
+;
+; Check for quotation characters first.
+;
+	cmp	al,CHR_DQUOTE
+	je	cl1
+	cmp	al,CHR_SQUOTE
+	jne	cl2
+cl1:	test	ah,ah			; previous classification?
+	jnz	cl1a			; yes
+	or	ah,al			; no, the character becomes the class
+	ret				; return with ZF clear
+
+cl1a:	test	ah,CLS_QUOTE		; are we looking for a closing quote?
+	jz	cl4c			; done (return with ZF set)
+	cmp	al,ah			; yes, have we reached matching quote?
+	jne	cl4b			; no, return with ZF clear
+	lodsb				; yes, preload the next character
+	ret				; done (return with ZF set)
+;
+; Assuming we're not looking for a closing quotation, get whitespace
+; out of the way next.
+;
+cl2:	test	ah,CLS_QUOTE
+	jnz	cl9			; not done
+	cmp	al,CHR_SPACE
+	je	cl9			; done
+	cmp	al,CHR_TAB
+	je	cl9			; done
+;
+; If there's no classification yet, check for special leading characters.
+;
+	test	byte ptr [bp].TMP_AL,TOKTYPE_WHITE
+	jnz	cl9			; not done if whitespace only
+	test	al,al
+	jnz	cl4
+	cmp	al,'&'			; leading char for hex or octal?
+	jne	cl4			; no
+	or	ah,CLS_HEX OR CLS_OCT	; yes
+	ret				; not done
+;
+; Check for digits.
+;
+cl4:	cmp	al,'0'
+	jb	cl5
+	cmp	al,'9'
+	ja	cl5
+;
+; Digits can start CLS_DEC, or continue CLS_DEC, CLS_HEX, or CLS_VAR,
+; or continue CLS_OCT if < '8'.
+;
+	test	ah,ah
+	jnz	cl4a
+	or	ah,CLS_DEC		; not done
+	ret
+
+cl4a:	test	ah,CLS_DEC OR CLS_HEX OR CLS_VAR
+cl4b:	jnz	cl9			; not done
+	test	ah,CLS_OCT
+cl4c:	jz	cl9			; done (mystery digit)
+	cmp	al,'8'
+	jb	cl9			; not done (octal digit is OK)
+	sub	ah,ah
+	ret				; done (non-octal digit)
+;
+; Check for letters.
+;
+cl5:	cmp	al,'a'
+	jb	cl5a			; may be a letter, but not lowercase
+	cmp	al,'z'
+	ja	cl6			; letter
+	sub	al,'a'-'A'
+cl5a:	cmp	al,'A'
+	jb	cl6			; not a letter
+	cmp	al,'Z'
+	ja	cl6			; not a letter
+;
+; Letters can start or continue CLS_VAR, or continue CLS_HEX if < 'G'.
+;
+cl5b:	test	ah,ah
+	jnz	cl5c
+	or	ah,CLS_VAR
+	ret
+
+cl5c:	test	ah,CLS_VAR
+	jnz	cl9
+	test	ah,CLS_HEX
+	jz	cl9			; done (mystery letter)
+	cmp	al,'G'
+	jb	cl9			; not done (hex digit is OK)
+	sub	ah,ah
+	ret				; done (non-hex digit)
+;
+; Other cases: period can be decimal point, so it can start or continue CLS_DEC.
+;
+cl6:	cmp	al,'.'
+	jne	cl8
+	test	ah,ah
+	jz	cl6a
+	test	ah,CLS_DEC
+	jz	cl9			; done (mystery period)
+cl6a:	or	ah,CLS_DEC		; not done (decimal)
+	ret
+;
+; Must be some sort of symbol; treat it as a "one and done".
+;
+cl8:	sub	ah,ah			; done
+cl9:	ret
+ENDPROC	tok_classify
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_tokid (AX = 180Dh)
 ;
 ; Inputs:
 ;	REG_CX = token length

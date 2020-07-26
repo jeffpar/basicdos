@@ -141,7 +141,8 @@ DDP_MAXSIZE	equ	((size DDPRW + 1) AND 0FFFEh)
 IOCTL_WAIT	equ	1	; CLOCK$: wait # ticks in DDPRW_ADDR field
 IOCTL_GETPOS	equ	2	; CON: get current device (cursor) position
 IOCTL_GETLEN	equ	3	; CON: get displayed length of data
-IOCTL_MOVHORZ	equ	4	; CON: move cursor by DDPRW_LENGTH positions
+IOCTL_MOVCUR	equ	4	; CON: move cursor by DDPRW_LENGTH positions
+IOCTL_SETINS	equ	5	; CON: set INSERT mode ON (CL=1) or OFF (CL=0)
 
 ;
 ; Helper macro to define the overall length of a device driver;

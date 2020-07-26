@@ -102,7 +102,7 @@
       "flicker": 0,
       "overlay": true
     },
-    "/configs/pcx86/machine/fdc-5150.json",
+    "/configs/pcx86/machine/fdc.json",
     {
       "id": "ramLow",
       "class": "ram",
@@ -158,47 +158,7 @@
         }
       ]
     },
-    {
-      "id": "keyboard",
-      "class": "keyboard",
-      "model": "us83",
-      "controls": [
-        {
-          "type": "group",
-          "style": {
-            "float": "none"
-          }
-        },
-        {
-          "id": "ctrl-alt-del",
-          "type": "button",
-          "label": "Ctrl-Alt-Del",
-          "style": {
-            "padding-right": "8px"
-          }
-        },
-        {
-          "id": "keys",
-          "type": "button",
-          "label": "Keys",
-          "style": {
-            "padding-right": "8px"
-          }
-        },
-        {
-          "id": "soft-keyboard",
-          "type": "keyboard",
-          "model": "us83",
-          "class": "pcjs-soft-keyboard"
-        },
-        {
-          "id": "soft-keyboard-mobile",
-          "type": "keyboard",
-          "model": "us83-mobile",
-          "class": "pcjs-soft-keyboard-mobile"
-        }
-      ]
-    },
+    "/configs/pcx86/machine/keys.json",
     {
       "id": "chipset",
       "class": "chipset",

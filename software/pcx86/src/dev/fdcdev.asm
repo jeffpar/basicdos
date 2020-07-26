@@ -159,7 +159,6 @@ bb1:	push	ds
 ; Initialize the rest of the BPB extension data now
 ;
 	mov	es:[di].BPB_DRIVE,bl
-	mov	es:[di].BPB_UNIT,bl
 	mov	ax,es:[di].BPB_TRACKSECS
 	mul	es:[di].BPB_DRIVEHEADS
 	mov	es:[di].BPB_CYLSECS,ax

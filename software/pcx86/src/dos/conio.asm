@@ -11,7 +11,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<strlen,get_sfb,sfb_read,sfb_write,dev_request>,near
+	EXTERNS	<strlen,sfb_get,sfb_read,sfb_write,dev_request>,near
 
 	ASSUME	CS:DOS, DS:DOS, ES:BIOS, SS:NOTHING
 
@@ -34,6 +34,7 @@ DEFPROC	tty_echo,DOS
 	call	tty_read
 	jc	te9
 	call	write_char
+	mov	[bp].REG_AL,AL
 te9:	ret
 ENDPROC	tty_echo
 
@@ -86,7 +87,7 @@ ENDPROC	tty_io
 ;
 DEFPROC	tty_in,DOS
 	mov	al,IO_RAW
-	jmp	read_char
+	jmp	short ttr1
 ENDPROC	tty_in
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -104,7 +105,9 @@ ENDPROC	tty_in
 ;
 DEFPROC	tty_read,DOS
 	mov	al,IO_COOKED
-	jmp	read_char
+ttr1:	call	read_char
+	mov	[bp].REG_AL,al
+	ret
 ENDPROC	tty_read
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -149,6 +152,12 @@ DEFPROC	tty_input,DOS
 	ASSUME	ES:NOTHING
 	mov	di,dx			; ES:DI -> buffer
 
+	sub	cx,cx			; set insert mode OFF
+	mov	[bp].TMP_CX,cx		; TMP_CX tracks insert mode
+	mov	al,IOCTL_SETINS
+	call	con_ioctl
+	mov	[bp].TMP_DX,ax		; save original insert mode
+
 	mov	al,IOCTL_GETPOS
 	call	con_ioctl		; AL = starting column
 	xchg	dx,ax			; DL = starting column
@@ -179,7 +188,7 @@ ti4a:	call	ttyin_end
 
 ti5:	cmp	al,CHR_CTRLX
 	je	ti4a
-	cmp	al,CHR_CTRLB
+	cmp	al,CHR_CTRLS
 	jne	ti6
 	call	ttyin_left
 	jmp	ti1
@@ -189,19 +198,27 @@ ti6:	cmp	al,CHR_CTRLA
 	call	ttyin_beg
 	jmp	ti1
 
-ti6a:	cmp	al,CHR_CTRLE
+ti6a:	cmp	al,CHR_CTRLF
 	jne	ti6b
 	call	ttyin_end
 	jmp	ti1
 
-ti6b:	cmp	al,CHR_CTRLF
+ti6b:	cmp	al,CHR_CTRLD
 	jne	ti6c
 	call	ttyin_right
 	jmp	ti1
 
-ti6c:	cmp	al,CHR_CTRLR
-	jne	ti7
+ti6c:	cmp	al,CHR_CTRLE
+	jne	ti6d
 	call	ttyin_recall
+	jmp	ti1
+
+ti6d:	cmp	al,CHR_CTRLV
+	jne	ti7
+	xor	byte ptr [bp].TMP_CL,1	; toggle insert mode
+	mov	cl,[bp].TMP_CL
+	mov	al,IOCTL_SETINS
+	call	con_ioctl
 	jmp	ti1
 
 ti7:	call	ttyin_add
@@ -216,30 +233,54 @@ ti8:	mov	bl,dh			; return all displayed chars
 	mov	es:[di+bx+2],al		; store the final character (CR)
 	call	ttyin_out
 
+	mov	cx,[bp].TMP_DX		; restore original insert mode
+	mov	al,IOCTL_SETINS
+	call	con_ioctl
+
 ti9:	mov	es:[di+1],bl		; return character count in 2nd byte
 	ret
 ENDPROC	tty_input
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ttyin_add (tty_input helper function)
+;
+; This either replaces or inserts a character at BX, depending on the
+; insert flag (0 or 1) in TMP_CX.  Replacing is allowed only if BL + 1 < MAX,
+; whereas inserting is allowed only if DH + 1 < MAX.
+;
 DEFPROC	ttyin_add,near
-	mov	ah,es:[di]		; AH = max count
-	sub	ah,bl			; AH = space remaining
-	cmp	ah,2			; room for at least two more?
-	jb	tta9			; no
+	mov	cx,[bp].TMP_CX		; CX = 0 (replace) or 1 (insert)
+	mov	ah,bl
+	jcxz	tta1
+	mov	ah,dh
+tta1:	inc	ah
+	cmp	ah,es:[di]
+	cmc
+	jb	tta9
 	push	bp
-	sub	bp,bp			; BP = 0 (replace)
-	call	ttyin_mod		; replace character (AL) at BX
+	mov	bp,cx			; BP = 0 (replace) or 1 (insert)
+	call	ttyin_modify		; replace/insert character (AL) at BX
 	pop	bp
-tta8:	clc
 tta9:	ret
 ENDPROC	ttyin_add
+
+DEFPROC	ttyin_back
+	mov	ch,0
+	jcxz	ttb8
+	neg	cx
+	mov	al,IOCTL_MOVCUR
+	call	con_ioctl
+ttb8:	ret
+ENDPROC	ttyin_back
 
 DEFPROC	ttyin_beg
 	test	bx,bx			; any data to our left?
 	jz	ttb9			; no
-	call	ttyin_getlen		; CH = total length, CL = length delta
+	call	ttyin_length		; CH = total length, CL = length delta
 	sub	bx,bx			; update buffer position
 	mov	cl,ch			;
-	call	ttyin_move		; move cursor back CL characters
+	call	ttyin_back		; move cursor back CL characters
 ttb9:	ret
 ENDPROC	ttyin_beg
 
@@ -248,7 +289,7 @@ DEFPROC	ttyin_del
 	jae	ttd9			; no
 	push	bp
 	sbb	bp,bp			; BP = -1 (delete)
-	call	ttyin_mod		; delete character at BX
+	call	ttyin_modify		; delete character at BX
 	pop	bp
 	dec	dh			; reduce # displayed characters
 ttd9:	ret
@@ -258,13 +299,13 @@ DEFPROC	ttyin_end
 	cmp	bl,dh			; more displayed chars?
 	jae	tte9			; no
 	mov	al,es:[di+bx+2]		; yes, fetch next character
-	call	ttyin_add		; add it to what's being displayed
+	call	ttyin_next		; and (re)display it
 	jnc	ttyin_end
 tte9:	ret
 ENDPROC	ttyin_end
 
 DEFPROC	ttyin_erase
-	call	ttyin_getlen		; CH = total length
+	call	ttyin_length		; CH = total length
 	sub	bx,bx
 	mov	cl,ch
 	mov	ch,bh
@@ -276,25 +317,25 @@ ttx9:	mov	dh,cl			; zero # displayed characters, too
 	ret
 ENDPROC	ttyin_erase
 
-DEFPROC	ttyin_getlen
+DEFPROC	ttyin_length
 	lea	si,[di+2]		; ES:SI -> all characters
 	mov	cl,bl			; CL = # of characters
 	mov	al,IOCTL_GETLEN		; DL = starting column
 	call	con_ioctl		; get logical length values in AX
 	xchg	cx,ax			; CH = total length, CL = length delta
 	ret
-ENDPROC	ttyin_getlen
+ENDPROC	ttyin_length
 
 DEFPROC	ttyin_left
 	test	bx,bx			; any data to our left?
 	jz	ttl9			; no
-	call	ttyin_getlen		; CH = total length, CL = length delta
+	call	ttyin_length		; CH = total length, CL = length delta
 	dec	bx			; update buffer position
-	call	ttyin_move		; move cursor back CL characters
+	call	ttyin_back		; move cursor back CL characters
 ttl9:	ret
 ENDPROC	ttyin_left
 
-DEFPROC	ttyin_mod
+DEFPROC	ttyin_modify
 	push	dx
 	push	ax
 	mov	al,IOCTL_GETPOS
@@ -309,32 +350,50 @@ DEFPROC	ttyin_mod
 	pop	ax
 
 	test	bp,bp
-	jl	ttm2
-	jg	ttm9
+	jl	ttm3
+	jz	ttm2
+;
+; Insert character at BX with AL and increment BX.
+;
+	push	ax
+	push	bx
+	inc	byte ptr es:[di+1]
+ttm1:	xchg	al,es:[di+bx+2]
+	inc	bx
+	cmp	bl,es:[di+1]
+	jb	ttm1
+	cmp	bl,dh			; have we added to displayed chars?
+	jbe	ttm11			; no
+	inc	dh			; yes
+ttm11:	pop	bx
+	pop	ax
+	inc	bx
+	inc	cx			; adjust length of displayed chars
+	jmp	short ttm7
 ;
 ; Replace character at BX with AL and increment BX.
 ;
-ttm1:	mov	es:[di+bx+2],al
+ttm2:	mov	es:[di+bx+2],al
 	call	ttyin_out
 	inc	bx
 	cmp	bl,es:[di+1]		; have we extended existing chars?
-	jbe	ttm1a			; no
+	jbe	ttm2a			; no
 	mov	es:[di+1],bl		; yes
-ttm1a:	cmp	bl,dh			; have we added to displayed chars?
+ttm2a:	cmp	bl,dh			; have we added to displayed chars?
 	jbe	ttm7			; no
 	inc	dh			; yes
 	jmp	short ttm9
 ;
 ; Delete character at BX, shifting all higher characters down.
 ;
-ttm2:	push	bx
+ttm3:	push	bx
 	dec	byte ptr es:[di+1]
-	jmp	short ttm2b
-ttm2a:	inc	bx			; start shifting characters down
+	jmp	short ttm3b
+ttm3a:	inc	bx			; start shifting characters down
 	mov	al,es:[di+bx+2]
 	mov	es:[di+bx+1],al
-ttm2b:	cmp	bl,es:[di+1]
-	jb	ttm2a
+ttm3b:	cmp	bl,es:[di+1]
+	jb	ttm3a
 	pop	bx
 	dec	cx			; adjust length of displayed chars
 ;
@@ -378,21 +437,25 @@ ttm8:	mov	ch,ah			; save original length in CH
 	call	con_ioctl		; get display lengths in AX
 	sub	ch,ah
 ttm8a:	mov	cl,ch
-	call	ttyin_move		; move cursor back CL characters
+	call	ttyin_back		; move cursor back CL characters
 
 ttm9:	pop	ax			; this would be pop dx
 	mov	dl,al			; but we only want to pop DL, not DH
+	clc
 	ret
-ENDPROC	ttyin_mod
+ENDPROC	ttyin_modify
 
-DEFPROC	ttyin_move
-	mov	ch,0
-	jcxz	ttv9
-	neg	cx
-	mov	al,IOCTL_MOVHORZ
-	call	con_ioctl
-ttv9:	ret
-ENDPROC	ttyin_move
+DEFPROC	ttyin_next,near
+	mov	ah,es:[di]		; AH = max count
+	sub	ah,bl			; AH = space remaining
+	cmp	ah,1			; room for at least one more?
+	jb	ttn9			; no
+	push	bp
+	sub	bp,bp
+	call	ttyin_modify		; replace (AL) at BX
+	pop	bp
+ttn9:	ret
+ENDPROC	ttyin_next
 
 DEFPROC	ttyin_out
 	cmp	al,CHR_LINEFEED
@@ -405,19 +468,17 @@ tto2:	call	write_char
 ENDPROC	ttyin_out
 
 DEFPROC	ttyin_recall
-	cmp	bl,es:[di+1]		; more existing chars?
-	jae	ttc9			; no
-	mov	al,es:[di+bx+2]		; yes, fetch next character
-	call	ttyin_add		; add it to what's being displayed
-	jnc	ttyin_recall
-ttc9:	ret
+	call	ttyin_right
+	jc	ttr9
+	jmp	ttyin_recall
 ENDPROC	ttyin_recall
 
 DEFPROC	ttyin_right
 	cmp	bl,es:[di+1]		; more existing chars?
-	jae	ttr9			; no, just ignore CTRLF
+	cmc
+	jb	ttr9			; no, ignore movement
 	mov	al,es:[di+bx+2]		; yes, fetch next character
-	call	ttyin_add
+	call	ttyin_next		; and (re)display it
 ttr9:	ret
 ENDPROC	ttyin_right
 
@@ -453,13 +514,13 @@ DEFPROC	con_ioctl,DOS
 	push	es
 	mov	bx,STDIN
 	push	ax
-	call	get_sfb			; BX -> SFB
+	call	sfb_get			; BX -> SFB
 	pop	ax
 	jc	ioc8
 	push	es
 	les	di,[bx].SFB_DEVICE	; ES:DI -> CON driver
 	mov	bx,[bx].SFB_CONTEXT	; BX = context
-	xchg	bx,dx			; DX = content, BX = position
+	xchg	bx,dx			; DX = context, BX = position
 	test	es:[di].DDH_ATTR,DDATTR_STDOUT
 	pop	ds
 	jz	ioc8
@@ -491,7 +552,7 @@ ENDPROC	con_ioctl
 ;	AX
 ;
 DEFPROC	read_char,DOS
-	ASSUME	ES:NOTHING
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	push	bx
 	push	cx
 	push	dx
@@ -500,7 +561,7 @@ DEFPROC	read_char,DOS
 	push	es
 	push	ax
 	mov	bx,STDIN
-	call	get_sfb			; BX -> SFB
+	call	sfb_get			; BX -> SFB
 	jc	rc9
 	pop	ax
 	push	ax
@@ -534,6 +595,7 @@ ENDPROC	read_char
 ;	None
 ;
 DEFPROC	write_char,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	push	cx
 	push	si
 	push	ds
@@ -567,7 +629,7 @@ ENDPROC	write_char
 ;	AX
 ;
 DEFPROC	write_string,DOS
-	ASSUME	DS:NOTHING, ES:NOTHING
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	jcxz	ws8
 	push	bx
 	push	cx
@@ -580,7 +642,7 @@ DEFPROC	write_string,DOS
 	pop	ds
 	ASSUME	DS:DOS
 	mov	bx,STDOUT
-	call	get_sfb			; BX -> SFB
+	call	sfb_get			; BX -> SFB
 	pop	ds
 	ASSUME	DS:NOTHING
 	jc	ws6

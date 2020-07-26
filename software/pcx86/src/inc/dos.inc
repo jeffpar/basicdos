@@ -60,13 +60,15 @@ DOS_UTL		equ	18h	; BASIC-DOS utility functions
 DOS_UTL_STRLEN	equ   1800h	; return string (DS:SI) length (AX)
 DOS_UTL_STRSTR	equ   1801h	; find string (DS:SI) in string (ES:DI)
 DOS_UTL_STRUPR	equ   1803h	; upper-case string (DS:SI)
-DOS_UTL_PRINTF	equ   1804h	; printf to console [used by PCjs Dbg]
-DOS_UTL_SPRINTF	equ   1805h	; sprintf to buffer (ES:DI) [used by PCjs Dbg]
-DOS_UTL_ATOI16	equ   1806h	; convert string (DS:SI) to number (AX)
-DOS_UTL_ATOI32	equ   1807h	; convert string (DS:SI) to number (AX)
-DOS_UTL_ITOA	equ   1808h	; convert number (DX:SI) to string (ES:DI)
-DOS_UTL_TOKIFY	equ   180Bh	; tokenize string (DS:SI) into buffer (ES:DI)
-DOS_UTL_TOKID	equ   180Ch	; convert string (DS:SI) into token ID
+DOS_UTL_PRINTF	equ   1804h	; printf to console
+DOS_UTL_DPRINTF	equ   1805h	; printf to DEBUG context, if any
+DOS_UTL_SPRINTF	equ   1806h	; sprintf to buffer (ES:DI)
+DOS_UTL_ATOI16	equ   1807h	; convert string (DS:SI) to number (AX)
+DOS_UTL_ATOI32	equ   1808h	; convert string (DS:SI) to number (AX)
+DOS_UTL_ITOA	equ   1809h	; convert number (DX:SI) to string (ES:DI)
+DOS_UTL_TOKIFY1	equ   180Bh	; tokenize string (DS:SI) using whitespace only
+DOS_UTL_TOKIFY2	equ   180Ch	; tokenize string (DS:SI) using BASIC syntax
+DOS_UTL_TOKID	equ   180Dh	; convert string (DS:SI) into token ID
 DOS_UTL_GETDEV	equ   1810h	; get DDH (ES:DI) for device (DS:SI)
 DOS_UTL_IOCTL	equ   1811h	; issue IOCTL to device (ES:DI)
 DOS_UTL_LOAD	equ   1812h	; load program (DS:DX) into SCB (CL)
@@ -90,6 +92,7 @@ DOS_DSK_SETDTA	equ	1Ah	; set DTA (DS:DX)
 DOS_MSC_SETVEC	equ	25h	; set vector (AL) to addr (DS:DX)
 DOS_PSP_CREATE	equ	26h	; create PSP (DX = segment)
 DOS_DSK_GETDTA	equ	2Fh	; get DTA (ES:BX)
+DOS_DSK_GETDPB	equ	32h	; get DPB (DS:BX, AL=FFh if invalid drive)
 DOS_MSC_CTRLC	equ	33h	; get/set CTRLC state
 DOS_MSC_GETVEC	equ	35h	; get vector (AL) addr (ES:BX)
 DOS_DSK_GETINFO	equ	36h	; get disk info
@@ -116,23 +119,15 @@ DOS_PSP_GET	equ	51h	; get current PSP (BX)
 IFNDEF DEBUG
 REG_CHECK	equ	0	; no REG_FRAME marker on stack
 ELSE
-REG_CHECK	equ	1	; add a DEBUG marker before REG_FRAME
+REG_CHECK	equ	2	; add a DEBUG marker before REG_FRAME
 ENDIF
 
-WS_CTRLC	struc		; REG_WS workspace when used for CTRLC
+WS_TEMP		struc		; REG_WS workspace used for CTRLC dispatcing
 JMP_IP		dw	?	; 00h
 JMP_CS		dw	?	; 02h
 RET_IP		dw	?	; 04h
 RET_CS		dw	?	; 06h
 RET_FL		dw	?	; 08h
-WS_CTRLC	ends
-
-WS_TEMP		struc		; REG_WS workspace when used as temp registers
-TMP_AX		dw	?	; 00h
-TMP_BX		dw	?	; 02h
-TMP_CX		dw	?	; 04h
-TMP_DX		dw	?	; 06h
-TMP_ES		dw	?	; 08h
 WS_TEMP		ends
 
 REG_FRAME	struc		; register frame created by dos_func
@@ -159,6 +154,24 @@ REG_CL		equ 	REG_CX.LO
 REG_CH		equ 	REG_CX.HI
 REG_DL		equ 	REG_DX.LO
 REG_DH		equ 	REG_DX.HI
+
+;
+; Temp register definitions: an alternate use of the REG_WS workspace
+;
+TMP_AX		equ	REG_WS.JMP_IP
+TMP_BX		equ	REG_WS.JMP_CS
+TMP_CX		equ	REG_WS.RET_IP
+TMP_DX		equ	REG_WS.RET_CS
+TMP_ES		equ	REG_WS.RET_FL
+
+TMP_AL		equ	TMP_AX.LO
+TMP_AH		equ	TMP_AX.HI
+TMP_BL		equ	TMP_BX.LO
+TMP_BH		equ	TMP_BX.HI
+TMP_CL		equ	TMP_CX.LO
+TMP_CH		equ	TMP_CX.HI
+TMP_DL		equ	TMP_DX.LO
+TMP_DH		equ	TMP_DX.HI
 
 ;
 ; Session Control Block (SCB)
@@ -402,17 +415,6 @@ PF_SIGN   equ	10h		; signed value
 PF_WIDTH  equ	20h		; width encountered
 PF_PRECIS equ	40h		; precision encountered (after '.')
 
-;
-; sprintf stack frame definition (see sprintf.asm)
-;
-SPF_FRAME struc
-SPF_WIDTH	dw	?	; specifier width, if any
-SPF_PRECIS	dw	?	; specifier precision, if any
-SPF_START	dw	?	; buffer start address
-SPF_LIMIT	dw	?	; buffer limit address
-SPF_CALLS	dw REG_CHECK + 1 dup(?)	; 1 near-call dispatch on stack
-SPF_FRAME ends
-
 BUFLEN	equ	120		; max stack space to use as printf buffer
 
 ;
@@ -428,7 +430,7 @@ BUF_INPUT	ends
 ; Token buffer (eg, as used by DOS_UTL_TOKIFY)
 ;
 ; Whereas the elements of INP_BUF are bytes, the elements of TOK_BUF
-; are dwords, or more precisely, byte-pairs, where the low byte is the
+; are words, or more precisely, byte-pairs, where the low byte is the
 ; offset of the token and the high byte is the length.
 ;
 BUF_TOKENS	struc
@@ -436,6 +438,9 @@ TOK_MAX		db	?
 TOK_CNT		db	?
 TOK_BUF		db	128 dup (?)
 BUF_TOKENS	ends
+
+TOKTYPE_BASIC	equ	0	; default parsing
+TOKTYPE_WHITE	equ	1	; whitespace parsing only
 
 ;
 ; After DOS_UTL_TOKIFY breaks a string into tokens, use DOS_UTL_TOKID to

@@ -471,6 +471,7 @@ DEFPROC	get_bpb,DOS
 	jc	gb9			; we don't have a BPB for the drive
 	push	di			; DI -> BPB
 	push	es
+	ASSERT	STRUCT,cs:[di],BPB
 	les	di,cs:[di].BPB_DEVICE
 	mov	al,cl			; AL = drive #
 	mov	ah,DDC_MEDIACHK		; perform a MEDIACHK request
@@ -545,7 +546,7 @@ DEFPROC	get_cln,DOS
 ;	((CLN * 12) % 4096) / 4
 ;
 	and	bx,03FFh		; nibble offset (assuming 1024 nibbles)
-	mov	al,cs:[di].BPB_UNIT
+	mov	al,cs:[di].BPB_DRIVE
 	mov	si,offset FAT_BUFHDR
 	call	read_buffer
 	jc	gc4
@@ -557,7 +558,7 @@ DEFPROC	get_cln,DOS
 	cmp	bp,03FFh		; at the sector boundary?
 	jb	gc2			; no
 	inc	dx			; DX = next FAT LBA
-	mov	al,cs:[di].BPB_UNIT
+	mov	al,cs:[di].BPB_DRIVE
 	mov	si,offset FAT_BUFHDR
 	call	read_buffer
 	jc	gc4
@@ -731,7 +732,7 @@ rb1:	push	bx
 	mov	ah,DDC_READ
 	push	di
 	push	es
-	ASSERT	Z,<cmp al,cs:[di].BPB_UNIT>
+	ASSERT	Z,<cmp al,cs:[di].BPB_DRIVE>
 	les	di,cs:[di].BPB_DEVICE
 	call	dev_request
 	pop	es

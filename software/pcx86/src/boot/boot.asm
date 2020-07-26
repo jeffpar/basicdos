@@ -268,8 +268,8 @@ hltmsg:	call	print
 ; There's a hard disk and no response, so boot from hard disk instead.
 ;
 hard:	mov	al,[CRT_MODE]
-	cbw
-	int	10h
+	cbw				; AH = 00h (SET MODE)
+	int	INT_VIDEO
 	mov	ax,0201h		; AH = 02h (READ), AL = 1 sector
 	inc	cx			; CH = CYL 0, CL = SEC 1
 	mov	dx,0080h		; DH = HEAD 0, DL = DRIVE 80h

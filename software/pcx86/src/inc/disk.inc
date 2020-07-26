@@ -20,7 +20,7 @@ MEDIA_HARD	equ	0F8h
 BPB_OFFSET	equ	3		; BPB offset within boot sector
 
 ;
-; The venerable BPB: BIOS Parameter Block
+; The venerable BIOS Parameter Block (BPB).
 ;
 BPB		struc
 BPB_OEM		db	"PCJS.ORG"	; 00h: OEM signature
@@ -37,58 +37,64 @@ BPB_DRIVEHEADS	dw	?		; 17h: number of heads (eg, 1)
 BPB_HIDDENSECS	dd	?		; 19h: number of hidden sectors
 BPB_LARGESECS	dd	?		; 1Dh: if DISKSECS is 0 (see DOS 3.31)
 ;
-; Our EXTERNAL additions to the BPB, which make it easier for the boot
-; sector to do its job, among other things.
+; Our on-disk additions to the BPB, which make it easier for the boot code
+; to do its job, among other things.
 ;
-; Note, however, that external legacy BPBs won't have these, so the FDC will
-; will have to "build" them.
+; Note that external legacy BPBs won't have these, so the FDC must calculate
+; and add them as part of the BUILDBPB process.
 ;
-BPB_DRIVE	db	?		; 21h: physical drive #
+BPB_DRIVE	db	?		; 21h: drive # (filled in by boot code)
 BPB_CYLSECS	dw	?		; 22h: sectors per cylinder (eg, 8)
 BPB_LBAROOT	dw	?		; 24h: LBA of 1st root dir sector
 BPB_LBADATA	dw	?		; 26h: LBA of 1st data sector
 BPB		ends
-
 ;
-; Our INTERNAL additions to the BPB -- which we do INSTEAD of defining yet
-; another structure, like, say, a Drive Parameter Block (DPB).
-;
-; TODO: Make clear the distinction (if any) between BPB_DRIVE and BPB_UNIT;
-; for FDC drives at least, I'm unaware of any distinction.
+; Beyond our on-disk additions to the BPB, we also have internal additions,
+; hence the extended BPB (BPBEX) structure.  We do this intead of defining yet
+; another structure -- like, say, a Drive Parameter Block (DPB).
 ;
 BPBEX		struc			; our internal structure for bpb_table
 BPB_STRUC	db	size BPB dup (?)
-BPB_TIMESTAMP	dd	?		; 28h; ticks
+BPB_TIMESTAMP	dd	?		; 28h: ticks from last refresh
 BPB_DEVICE	dd	?		; 2Ch: device driver
-BPB_UNIT	db	?		; 30h: unit #
+BPB_RESERVED	db	?		; 30h: (holds BPBSIG in DEBUG builds)
 BPB_CLUSLOG2	db	?		; 31h: shift count for CLUSSECS
 BPB_CLUSBYTES	dw	?		; 32h: BPB_CLUSSECS * BPB_SECBYTES
 BPB_CLUSTERS	dw	?		; 34h: total clusters on disk
 BPBEX		ends
 
+BPBSIG		equ	'B'
+
 ;
-; Let's compare and contrast the BPB with the DPB.
+; Let's compare and contrast the BPB with the DPB, as it existed beginning
+; with DOS 2.0.  If we ever decide to support INT 21h function DOS_DSK_GETDPB
+; (32h), this is the (annoyingly different) structure we'd have to return.
 ;
 ; DPB		struc
 ; DPB_DRIVE	db	?		; 00h: drive number
 ; DPB_UNIT	db	?		; 01h: unit number
-; DPB_SECBYTES	dw	?		; 02h: bytes per sector
+; DPB_SECBYTES	dw	?		; 02h: bytes per sector (eg, 0x200)
 ; DPB_CLUSSECS1	db	?		; 04h: sectors per cluster - 1
 ; DPB_CLUSLOG2	db	?		; 05h: shift count of cluster size
 ; DPB_RESSECS	dw	?		; 06h: reserved (boot) sectors
-; DPB_FATS	db	?		; 08h: FAT copies
+; DPB_FATS	db	?		; 08h: FAT copies (eg, 2)
 ; DPB_DIRENTS	dw	?		; 09h: root directory entries
 ; DPB_LBADATA	dw	?		; 0Bh: first data sector
 ; DPB_CLUSMAX	dw	?		; 0Dh: largest CLN (total clusters + 1)
-; DPB_FATSECS	db	?		; 0Fh: sectors per FAT [2.0]
-; DPB_LBAROOT	dw	?		; 10h: first root directory sector [2.0]
-; DPB_DRIVER	dd	?		; 12h: address of device driver [2.0]
-; DPB_MEDIA	db	?		; 16h: media ID [2.0]
-;
-; DOS 2.0 added more, but let's stop here for now.  So, lots of annoying
-; differences, which seems odd, assuming the DPB was first defined in DOS 1.x?
-;
+; DPB_FATSECS	db	?		; 0Fh: sectors per FAT
+; DPB_LBAROOT	dw	?		; 10h: first root directory sector
+; DPB_DRIVER	dd	?		; 12h: address of device driver
+; DPB_MEDIA	db	?		; 16h: media ID
+; DPB_REBUILD	db	?		; 17h: 0FFh if block must be rebuilt
+; DPB_NEXT	dd	?		; 18h: address of next DPB
+; DPB_DIRCLUS	dw	?		; 1Ch: 1st cluster of cur dir (0=root)
+; DPB_DIRPATH	db	64 dup (?)	; 1Eh: ASCIZ cur dir path string
 ; DPB		ends
+;
+; Interesting side note about DPB_FATSECS: it was changed to a WORD in DOS 4.0,
+; which had unfortunate side-effects (see Feb 1989 PC TEch Journal article by
+; Ted Mirecki).
+;
 
 CLN_BAD		equ	0FF7h
 CLN_END		equ	0FF8h
@@ -118,6 +124,9 @@ DIRATTR_VOLUME	equ	00001000b	; volume name attribute
 DIRATTR_SUBDIR	equ	00010000b	; directory attribute
 DIRATTR_ARCHIVE	equ	00100000b	; backup attribute
 
+;
+; This internal BUFHDR structure precedes each allocated buffer.
+;
 BUFHDR		struc			; 16-byte buffer header
 BUF_PREV	dw	?		; 00h: prev buffer header paragraph
 BUF_NEXT	dw	?		; 02h: next buffer header paragraph

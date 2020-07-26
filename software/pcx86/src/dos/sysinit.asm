@@ -11,7 +11,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<bpb_total>,byte
+	EXTERNS	<bpb_total,sfh_debug>,byte
 	EXTERNS	<mcb_head,mcb_limit,scb_active>,word
 	EXTERNS	<bpb_table,scb_table,sfb_table,clk_ptr>,dword
 	EXTERNS	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>,near
@@ -209,8 +209,7 @@ si4a:	mov	ax,ds
 	mov	[di].BPB_TIMESTAMP.SEG,cx
 ;
 ; Calculate BPBEX values like BPB_CLOSLOG2 and BPB_CLUSBYTES for the "boot"
-; BPB, and then initialize other BPBEX values (eg, BPB_DEVICE and BPB_UNIT)
-; for all BPBs.
+; BPB, and then initialize other BPBEX values (eg, BPB_DEVICE) for all BPBs.
 ;
 ; TODO: It would be nicer to leverage the FDC's buildbpb function to do some
 ; of this work, but that would have to be preceded by a call to the mediachk
@@ -247,12 +246,12 @@ si4c:	jnz	sierr1			; hmm, CLUSSECS wasn't a power-of-two
 	pop	dx
 	pop	cx			; restore # BPBs in CL
 	mov	di,[bpb_table].OFF	; DI -> first BPB
-si4d:	mov	[di].BPB_DEVICE.OFF,ax
+si4d:	DBGINIT	STRUCT,[di],BPB
+	mov	[di].BPB_DEVICE.OFF,ax
 	mov	[di].BPB_DEVICE.SEG,dx
 	cmp	[di].BPB_SECBYTES,0	; is this BPB initialized?
 	jne	si4e			; yes
 	mov	[di].BPB_DRIVE,ch	; no, fill in the drive #
-	mov	[di].BPB_UNIT,ch	; TODO: Decide if this is useful at all
 si4e:	add	di,size BPBEX
 	inc	ch
 	dec	cl
@@ -333,7 +332,7 @@ si7a:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHCON>
 	ASSERT	<SCB_SFHAUX + 1>,EQ,<SCB_SFHPRN>
 	mov	word ptr es:[bx].SCB_NUM,ax
 	mov	word ptr es:[bx].SCB_SFHAUX,cx
-	INIT_STRUC es:[bx],SCB
+	DBGINIT	STRUCT,es:[bx],SCB
 	inc	ax
 	add	bx,size SCB
 	cmp	bx,es:[scb_table].SEG
@@ -405,10 +404,19 @@ si11:	or	es:[bx].SCB_STATUS,SCSTAT_INIT
 	DEFLBL	open_error,near
 	PRINTF	<"%s open error %d">,dx,ax
 	jmp	fatal_error
+
+si12:	mov	si,offset CFG_DEBUG
+	call	find_cfg		; look for "DEBUG="
+	jc	si13			; not found
+	mov	dx,di
+	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
+	int	21h
+	jc	si13
+	mov	es:[sfh_debug],al	; save SFH for DEBUG device
 ;
 ; Good time to print a "System ready" message, or something to that effect.
 ;
-si12:	mov	dx,offset SYS_MSG
+si13:	mov	dx,offset SYS_MSG
 	mov	ah,DOS_TTY_PRINT
 	int	21h
 
@@ -508,7 +516,7 @@ si20:	test	bx,bx
 ; Functions like SLEEP need access to the clock device, so we save its
 ; address in clk_ptr.  While we could open the device normally and obtain a
 ; system file handle, that would require the utility functions to use SFB
-; interfaces (get_sfb, sfb_read, etc) with absolutely no benefit.
+; interfaces (sfb_get, sfb_read, etc) with absolutely no benefit.
 ;
 	mov	dx,offset CLK_DEVICE
 	mov	ax,DOS_UTL_GETDEV
@@ -720,6 +728,7 @@ CFG_FILES	db	6,"FILES="
 		dw	20,20,256
 CFG_CONSOLE	db	8,"CONSOLE="
 CON_DEVICE	db	"CON:80,25",0	; default CONSOLE configuration
+CFG_DEBUG	db	6,"DEBUG="	; used to specify DEBUG device
 CFG_SHELL	db	6,"SHELL="
 
 AUX_DEVICE	db	"AUX",0
