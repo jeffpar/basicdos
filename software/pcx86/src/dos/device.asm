@@ -135,15 +135,16 @@ dr2:	mov	[bp].DDP_LEN,size DDPRW
 	mov	[bp].DDPRW_BPB.OFF,ax	; save it in the request packet
 	mov	[bp].DDPRW_BPB.SEG,cs
 
-dr5:	push	es
-	push	es:[di].DDH_REQUEST
+dr5:	push	es			; create far pointer to DDH_REQUEST
+	push	es:[di].DDH_REQUEST	; at [bp-4]
+
 	push	ss
 	pop	es
 	mov	bx,bp			; ES:BX -> packet
 ;
 ; To make it easier on drivers, don't force them to preserve all registers;
 ; there were some they already didn't need to preserve in BASIC-DOS (ie, AX,
-; BX, DX, and ES), so we're just extending the list now.
+; BX, DX, and ES), so by adding 5 more registers, we can simplify the rules.
 ;
 	push	cx
 	push	si
@@ -159,8 +160,9 @@ dr5:	push	es
 	pop	si
 	pop	cx
 
-	pop	ax			; toss DDH_REQUEST address
+	pop	ax			; toss DDH_REQUEST pointer offset
 	pop	es			; ES restored
+
 	mov	ax,[bp].DDP_STATUS
 	mov	dx,[bp].DDP_CONTEXT
 	add	sp,DDP_MAXSIZE
