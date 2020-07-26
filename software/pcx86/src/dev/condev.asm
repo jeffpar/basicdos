@@ -290,7 +290,21 @@ DEFPROC	ddcon_setins
 	sub	ax,ax
 	mov	es,ax
 	ASSUME	ES:BIOS
-	mov	al,[CURSOR_MODE].HI
+;
+; There was a bug in the original IBM PC (5150) BIOS: it stored the cursor's
+; top and bottom scan lines in the high and low nibbles of CURSOR_MODE.LO,
+; respectively, instead of the high and low bytes of CURSOR_MODE.
+;
+;	F177:	C70660006700	MOV	CURSOR_MODE,67H
+;
+; So, we'll check for that combo (67h in the LO byte, 00h in the HI byte) and
+; compensate.
+;
+	mov	ax,[CURSOR_MODE]
+	cmp	ax,0067h		; buggy value?
+	jne	dsi0			; no
+	mov	ax,0607h		; yes, fix it
+dsi0:	xchg	al,ah			; we're changing the top scan line only
 	ror	cl,1			; move CL bit 0 to bit 7 (and carry)
 	jnc	dsi1
 	and	al,0E0h

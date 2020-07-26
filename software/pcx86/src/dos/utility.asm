@@ -182,8 +182,8 @@ ENDPROC	utl_strupr
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	utl_printf,DOS
-	mov	bl,-1
-	DEFLBL	hprintf,near		; BL = SFH (or -1 for STDOUT)
+	mov	bl,0
+	DEFLBL	hprintf,near		; BL = SFH (or 0 for STDOUT)
 	sti
 	push	ss
 	pop	es
@@ -203,15 +203,16 @@ DEFPROC	utl_printf,DOS
 	push	ss
 	pop	ds			; DS:SI -> buffer on stack
 	xchg	cx,ax			; CX = # of characters
-	cmp	bl,-1			; SFH?
-	je	pf8			; no
+	test	bl,bl			; SFH?
+	jz	pf7			; no
+	jl	pf8			; DEBUG output not enabled
 	call	get_sfh_sfb		; BX -> SFB
-	jc	pf8
+	jc	pf7
 	mov	al,IO_COOKED
 	call	sfb_write
-	jmp	short pf9
-pf8:	call	write_string		; write string to STDOUT
-pf9:	add	sp,BUFLEN
+	jmp	short pf8
+pf7:	call	write_string		; write string to STDOUT
+pf8:	add	sp,BUFLEN
 	ret
 ENDPROC	utl_printf endp
 
@@ -219,14 +220,13 @@ ENDPROC	utl_printf endp
 ;
 ; utl_dprintf (AX = 1805h)
 ;
-; A semi-CDECL-style calling convention is assumed, where all parameters
-; EXCEPT for the format string are pushed from right to left, so that the
-; first (left-most) parameter is the last one pushed.  The format string
-; is stored in the CODE segment following the INT 21h, which we automatically
-; skip, and the next instruction should be an "ADD SP,N*2", assuming N word
-; parameters.
+; This is used by DEBUG code (in particular, the DPRINTF macro) to print
+; to a "debug" device defined by a DEBUG= line in CONFIG.SYS.  However, this
+; code is always left in place, in case we end up with a mix of DEBUG and
+; NODEBUG binaries.  Without this function, those calls would crash, due to
+; how the format strings are stored after the INT 21h.
 ;
-; See utl_sprintf for more details.
+; Except for the output device, this function is identical to utl_printf.
 ;
 ; Inputs:
 ;	format string follows the INT 21h
