@@ -70,7 +70,7 @@ CT_CURDIM	dw	?	; 0Eh: width and height (for cursor movement)
 CT_EQUIP	dw	?	; 10h: BIOS equipment flags (snapshot)
 CT_PORT		dw	?	; 12h: eg, 3D4h
 CT_SCROFF	dw	?	; 14h: eg, 2000 (offset of off-screen memory)
-CT_SCREEN	dd	?	; 16h: eg, 0B800h:00A2h
+CT_SCREEN	dd	?	; 16h: eg, B800:00A2h
 CT_BUFFER	dd	?	; 1Ah: used only for background contexts
 CT_BUFLEN	dw	?	; 1Eh: eg, 4000 for a full-screen 25*80*2 buffer
 CONTEXT		ends
@@ -300,18 +300,33 @@ DEFPROC	ddcon_setins
 ; So, we'll check for that combo (67h in the LO byte, 00h in the HI byte) and
 ; compensate.
 ;
+; What's worse is that the same values (6,7) are stored in CURSOR_MODE for the
+; MDA as well, even though the MDA actually uses values (11,12) -- and that's
+; true regardless of BIOS revision.  Sigh.
+;
 	mov	ax,[CURSOR_MODE]
-	cmp	ax,0067h		; buggy value?
+	cmp	ax,0067h		; buggy cursor scanline values?
 	jne	dsi0			; no
-	mov	ax,0607h		; yes, fix it
-dsi0:	xchg	al,ah			; we're changing the top scan line only
-	ror	cl,1			; move CL bit 0 to bit 7 (and carry)
-	jnc	dsi1
-	and	al,0E0h
-dsi1:	mov	ah,CRTC_CURTOP
-	cli
-	call	write_crtc8
-	sti
+	mov	ax,0607h		; yes, fix them
+dsi0:	cmp	byte ptr ds:[CT_PORT],0B4h
+	jne	dsi1			; not an MDA
+	cmp	ax,0607h		; bogus values for MDA?
+	jne	dsi1			; no
+	mov	ax,0B0Ch		; yes, fix them
+dsi1:	ror	cl,1			; move CL bit 0 to bit 7 (and carry)
+	jnc	dsi2
+	and	ah,0E0h
+dsi2:	xchg	bx,ax			; BX = new values
+	mov	ah,CRTC_CURTOP		; AH = 6845 register #
+	call	write_crtc16		; write them
+;
+; We don't mirror the cursor scanline changes in CURSOR_MODE, because we
+; want to restore the original values when insert mode ends.  We do, however,
+; toggle INS_STATE (80h) in KB_FLAG, to avoid any unanticipated keyboard BIOS
+; side-effects; we rely almost entirely on the BIOS for keyboard processing,
+; whereas we rely very little on the BIOS for screen updates (scrolling and
+; dual monitor support are the main exceptions).
+;
 	mov	dl,[KB_FLAG]
 	mov	al,dl
 	and	al,7Fh
