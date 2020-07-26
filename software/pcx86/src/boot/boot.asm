@@ -556,6 +556,16 @@ ENDPROC	part3
 ;	AX, CX, DX
 ;
 DEFPROC	read_data
+;
+; Sysinit will initialize the buffer chain, but it still assumes that any
+; buffer we used (ie, FAT_BUF) will contain valid BUF_DRIVE and BUF_LBA values,
+; so that we don't needlessly throw good disk data away.  This code was loaded
+; into DIR_BUF, so DIR_BUF is already toast, which is why we already zeroed
+; DIR_BUFHDR.
+;
+	mov	al,[si].BPB_DRIVE
+	mov	[FAT_BUFHDR].BUF_DRIVE,al
+
 	mov	dx,1		; DX = sectors already read
 rd1:	cmp	word ptr [bx+4],0
 	jne	rd2
