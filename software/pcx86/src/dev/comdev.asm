@@ -725,7 +725,7 @@ ENDPROC	get_parms
 ;	ZF clear if data available, ZF set if empty
 ;
 ; Modifies:
-;	AX, BX
+;	BX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	peek_buffer
@@ -820,25 +820,25 @@ ENDPROC	push_buffer
 ;	If carry clear, AL = byte; otherwise carry set
 ;
 ; Modifies:
-;	AX, BX
+;	AX, SI
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	pull_input
+	push	bx
 	mov	si,offset CT_INPUT
 pli1:	call	pull_buffer
 	jc	pli9
-	push	bx
 	push	ds
 	lds	bx,es:[di].DDPRW_ADDR	; DS:BX -> next read/write address
 	mov	[bx],al
 	inc	bx
 	mov	es:[di].DDPRW_ADDR.OFF,bx
 	pop	ds
-	pop	bx
 	dec	es:[di].DDPRW_LENGTH	; have we satisfied the request yet?
 	jnz	pli1
 	clc
-pli9:	ret
+pli9:	pop	bx
+	ret
 ENDPROC	pull_input
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -884,7 +884,7 @@ ENDPROC	push_input
 ;	If carry clear, AL = byte; otherwise carry set
 ;
 ; Modifies:
-;	AX, BX
+;	AX, BX, SI
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	pull_output
@@ -1012,7 +1012,7 @@ ENDPROC	read_rbr
 ;	None
 ;
 ; Modifies:
-;	DX
+;	AX, DX
 ;
 DEFPROC	write_mcr
 	mov	dx,ds:[CT_PORT]
@@ -1035,7 +1035,7 @@ ENDPROC	write_mcr
 ;	None
 ;
 ; Modifies:
-;	DX
+;	AX, DX
 ;
 DEFPROC	write_ier
 	mov	dx,ds:[CT_PORT]
@@ -1119,10 +1119,11 @@ ENDPROC	write_thr
 ;	Carry clear if successful, set unable to buffer
 ;
 ; Modifies:
-;	BX
+;	None
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	write_context
+	push	bx
 	push	dx
 	push	si
 	push	ds
@@ -1132,6 +1133,7 @@ DEFPROC	write_context
 	pop	ds
 	pop	si
 	pop	dx
+	pop	bx
 	ret
 ENDPROC	write_context
 
