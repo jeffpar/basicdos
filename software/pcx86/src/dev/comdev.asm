@@ -568,10 +568,10 @@ ddi1a:	cmp	al,IIR_INT_THR		; transmitter ready?
 ddi1b:	mov	al,20h			; EOI the interrupt now
 	out	20h,al
 
-	push	cs
-	pop	ds
-	mov	bx,offset wait_ptr	; DS:BX -> ptr
-	les	di,[bx]			; ES:DI -> packet, if any
+	mov	cx,cs
+	mov	es,cx
+	mov	bx,offset wait_ptr	; CX:BX -> ptr
+	les	di,es:[bx]		; ES:DI -> packet, if any
 
 ddi2:	cmp	di,-1			; end of chain?
 	je	ddi9			; yes
@@ -584,11 +584,8 @@ ddi2:	cmp	di,-1			; end of chain?
 ; For WRITE packets (which we'll assume this is for now), we need to end the
 ; wait if the context is no longer busy.
 ;
-	push	es
-	mov	es,cx
-	ASSERT	STRUCT,es:[0],CT
-	test	es:[CT_STATUS],CTSTAT_XMTBUSY
-	pop	es
+	ASSERT	STRUCT,ds:[0],CT
+	test	ds:[CT_STATUS],CTSTAT_XMTBUSY
 	jz	ddi4			; the transmitter is no longer busy
 	jmp	short ddi6		; still busy, check next packet
 
@@ -597,11 +594,7 @@ ddi3:	call	pull_inbuf		; pull more input data
 ;
 ; Notify DOS that this packet is done waiting.
 ;
-ddi4:	push	es
-	mov	es,cx
-	ASSERT	STRUCT,es:[0],CT
-	and	es:[CT_STATUS],NOT CTSTAT_INPUT
-	pop	es
+ddi4:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	mov	ax,DOS_UTL_ENDWAIT
 	int	21h
@@ -619,16 +612,16 @@ ddi4:	push	es
 ;
 	cli
 	mov	ax,es:[di].DDP_PTR.OFF
-	mov	[bx].OFF,ax
-	mov	ax,es:[di].DDP_PTR.SEG
-	mov	[bx].SEG,ax
+	mov	dx,es:[di].DDP_PTR.SEG
+	mov	es,cx
+	mov	es:[bx].OFF,ax
+	mov	es:[bx].SEG,dx
 	sti
 	stc				; set carry to indicate yield
 	jmp	short ddi9
 
-ddi6:	lea	bx,[di].DDP_PTR		; update prev addr ptr in DS:BX
-	push	es
-	pop	ds
+ddi6:	lea	bx,[di].DDP_PTR		; update prev addr ptr in CX:BX
+	mov	cx,es
 
 	les	di,es:[di].DDP_PTR
 	jmp	ddi2

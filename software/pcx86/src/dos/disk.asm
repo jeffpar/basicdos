@@ -412,7 +412,7 @@ ENDPROC	chk_filename
 ;	AX, CX, DX, SI
 ;
 DEFPROC	find_cln,DOS
-	ASSUMES	<DS,DOS>,<ES,DOS>
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	mov	dx,[bx].SFB_CLN
 	sub	si,si			; zero current position in CX:SI
 	sub	cx,cx
