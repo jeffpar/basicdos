@@ -465,9 +465,8 @@ se1:	ASSERT	STRUCT,[bx],SCB
 	mov	[bx].SCB_WAITID.SEG,0
 	jmp	short se9
 se2:	add	bx,size SCB
-	cmp	bx,[scb_table].SEG
-	jb	se1
-	stc
+	cmp	[scb_table].SEG,bx
+	jnb	se1
 se9:	sti
 	ret
 ENDPROC	scb_endwait

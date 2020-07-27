@@ -50,7 +50,7 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFBYTE	max_rows,25	; TODO: use this for something...
 	DEFBYTE	max_cols,80	; TODO: set to correct value in ddcon_init
 
-	DEFPTR	kbd_int,0	; keyboard hardware interrupt handler
+	DEFPTR	kbd_int,0	; original keyboard hardware interrupt handler
 	DEFPTR	wait_ptr,-1	; chain of waiting packets
 ;
 ; A context of "80,25,0,0,1" requests a border, so logical cursor positions
@@ -184,9 +184,9 @@ ENDPROC	ddcon_getpos
 ; erase TAB characters (or the entire buffer) without knowing both the starting
 ; position (from IOCTL_GETPOS) and the display length of the buffer.
 ;
-; TAB characters complicate matters, since the total number of columns in a
-; context are not always multiples of 8, and they always wrap to column 1 on
-; the following line.
+; TAB characters are more complicated than usual, since the total number of
+; columns in a context are not always multiples of 8, and tabs must always wrap
+; to column 1 on the following line.
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
@@ -353,7 +353,7 @@ DEFPROC	ddcon_read
 	jcxz	dcr9
 
 	cli
-	call	read_kbd
+	call	pull_kbd
 	jnc	dcr9
 ;
 ; For READ requests that cannot be satisifed, we add this packet to an
@@ -400,8 +400,8 @@ dcw1:	lodsb
 
 dcw2:	push	es
 	mov	es,dx
-	test	es:[CT_STATUS],CTSTAT_PAUSED
-	jz	dcw3
+dcw3:	test	es:[CT_STATUS],CTSTAT_PAUSED
+	jz	dcw4
 ;
 ; For WRITE requests that cannot be satisifed, we add this packet to an
 ; internal chain of "writing" packets, and then tell DOS that we're waiting;
@@ -409,10 +409,12 @@ dcw2:	push	es
 ; conditions are satisfied.
 ;
 	pop	es			; ES:DI -> packet again
+	mov	es:[di].DDPRW_LENGTH,cx
+	mov	es:[di].DDPRW_ADDR.OFF,si
 	call	add_packet
 	jmp	dcw2			; when this returns, try writing again
 
-dcw3:	lodsb
+dcw4:	lodsb
 	call	write_context
 	loop	dcw3
 	pop	es
@@ -665,7 +667,7 @@ ENDPROC	ddcon_none
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddcon_interrupt (keyboard hardware interrupt handler)
+; ddcon_int09 (keyboard hardware interrupt handler)
 ;
 ; When keys appear in the BIOS keyboard buffer, deliver them to whichever
 ; context 1) has focus, and 2) has a pending read request.  Otherwise, let
@@ -681,7 +683,7 @@ ENDPROC	ddcon_none
 ;	None
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	ddcon_interrupt,far
+DEFPROC	ddcon_int09,far
 	call	far ptr DDINT_ENTER
 	pushf
 	call	[kbd_int]
@@ -734,7 +736,7 @@ ddi2:	ASSUME	DS:NOTHING		; DS:BX changes when we loop back here
 	jz	ddi4			; yes, we're no longer paused
 	jmp	short ddi6		; still paused, check next packet
 
-ddi3:	call	read_kbd		; read keyboard data
+ddi3:	call	pull_kbd		; pull keyboard data
 	jc	ddi6			; not enough data, check next packet
 ;
 ; Notify DOS that this packet is done waiting.
@@ -753,7 +755,7 @@ ddi4:	push	es
 ; was because we got ahead of the WAIT call.  One thought was to make the
 ; driver's WAIT code more resilient, and double-check that the request had
 ; really been satisfied, but I eventually resolved the race by making the
-; read_kbd/add_packet/utl_wait path atomic (ie, no interrupts).
+; pull_kbd/add_packet/utl_wait path atomic (ie, no interrupts).
 ;
 ; TODO: Consider lighter-weight solutions to this race condition.
 ;
@@ -783,7 +785,7 @@ ddi9:	pop	es
 	pop	bx
 	pop	ax
 ddi9x:	jmp	far ptr DDINT_LEAVE
-ENDPROC	ddcon_interrupt
+ENDPROC	ddcon_int09
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -920,6 +922,11 @@ ch1:	jcxz	ch4
 	mov	ds,cx
 	ASSUME	DS:NOTHING
 	ASSERT	STRUCT,ds:[0],CT
+;
+; This is currently the sole use of CTSTAT_INPUT: to avoid treating CTRLS as
+; a pause key if the context is waiting for input.  This makes it possible for
+; the buffered input API to use CTRLS for input control as well.
+;
 	test	ds:[CT_STATUS],CTSTAT_INPUT
 	stc
 	jnz	ch3
@@ -1191,7 +1198,7 @@ ENDPROC	hide_cursor
 ;
 ; Inputs:
 ;	DS = CONSOLE context
-;	CX = +/- position delta
+;	CX = +/- position delta (255 max)
 ;
 ; Outputs:
 ;	None
@@ -1243,7 +1250,7 @@ ENDPROC	move_cursor
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; read_kbd
+; pull_kbd
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
@@ -1255,59 +1262,60 @@ ENDPROC	move_cursor
 ;	AX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	read_kbd
+DEFPROC	pull_kbd
 	push	bx
 	push	ds
 	sub	bx,bx
 	mov	ds,bx
 	ASSUME	DS:BIOS
 	mov	bx,[BUFFER_HEAD]
-rk2:	cmp	bx,[BUFFER_TAIL]
+pl2:	cmp	bx,[BUFFER_TAIL]
 	stc
-	je	rk9			; BIOS buffer empty
+	je	pl9			; BIOS buffer empty
 	mov	ax,[BIOS_DATA][bx]	; AL = char code, AH = scan code
 	add	bx,2
 	cmp	bx,offset KB_BUFFER - offset BIOS_DATA + size KB_BUFFER
-	jne	rk3
+	jne	pl3
 	sub	bx,size KB_BUFFER
-rk3:	mov	[BUFFER_HEAD],bx
+pl3:	mov	[BUFFER_HEAD],bx
+
 	push	bx
 	push	ds
 	lds	bx,es:[di].DDPRW_ADDR	; DS:BX -> next read/write address
 	test	al,al
-	jnz	rk3c
+	jnz	pl3c
 ;
-; Perform some function key to control character mappings now...
+; Perform some function key to control character mappings now.
 ;
 	push	si
 	mov	si,offset SCAN_MAP
-rk3a:	lods	byte ptr cs:[si]
+pl3a:	lods	byte ptr cs:[si]
 	test	al,al
-	jz	rk3b
+	jz	pl3b
 	cmp	ah,al
 	lods	byte ptr cs:[si]
-	jne	rk3a
-rk3b:	pop	si
+	jne	pl3a
+pl3b:	pop	si
 
-rk3c:	mov	[bx],al
+pl3c:	mov	[bx],al
 	IFDEF MAXDEBUG
 	test	al,ac
-	jnz	rk4
+	jnz	pl4
 	xchg	al,ah
 	PRINTF	<"null character, scan code %#04x",13,10>,ax
 	ENDIF
-rk4:	inc	bx
+pl4:	inc	bx
 	mov	es:[di].DDPRW_ADDR.OFF,bx
 	pop	ds
 	pop	bx
 	dec	es:[di].DDPRW_LENGTH	; have we satisfied the request yet?
-	jnz	rk2			; no
+	jnz	pl2			; no
 	clc
-rk9:	pop	ds
+pl9:	pop	ds
 	ASSUME	DS:NOTHING
 	pop	bx
 	ret
-ENDPROC	read_kbd
+ENDPROC	pull_kbd
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1641,11 +1649,11 @@ DEFPROC	ddcon_init,far
 	mov	dx,0B800h
 ddn1:	mov	[frame_seg],dx
 ;
-; Install an INT 09h hardware interrupt handler, which we will use to detect
+; Install an INT 09h hardware interrupt handler, which we'll use to detect
 ; keys added to the BIOS keyboard buffer.
 ;
 	cli
-	mov	ax,offset ddcon_interrupt
+	mov	ax,offset ddcon_int09
 	xchg	ds:[INT_HW_KBD * 4].OFF,ax
 	mov	[kbd_int].OFF,ax
 	mov	ax,cs
