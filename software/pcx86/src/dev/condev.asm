@@ -697,9 +697,6 @@ ddi0:	push	ax
 	push	di
 	push	ds
 	push	es
-	mov	ax,cs
-	mov	ds,ax
-	ASSUME	DS:CODE
 
 	sti
 	mov	cx,[ct_focus]		; CX = context
@@ -709,17 +706,20 @@ ddi0:	push	ax
 	mov	ax,DOS_UTL_HOTKEY	; notify DOS
 	int	21h
 
-ddi1:	mov	bx,offset wait_ptr	; DS:BX -> ptr
-	les	di,[bx]			; ES:DI -> packet, if any
+ddi1:	mov	ds,cx			; DS = context
+	mov	cx,cs
+	mov	es,cx
+	mov	bx,offset wait_ptr	; CX:BX -> ptr
+	les	di,es:[bx]		; ES:DI -> packet, if any
 	ASSUME	ES:NOTHING
 
-ddi2:	ASSUME	DS:NOTHING		; DS:BX changes when we loop back here
-	cmp	di,-1			; end of chain?
+ddi2:	cmp	di,-1			; end of chain?
 	je	ddi9			; yes
 
 	ASSERT	STRUCT,es:[di],DDP
 
-	cmp	es:[di].DDP_CONTEXT,cx	; packet from console with focus?
+	mov	dx,ds
+	cmp	es:[di].DDP_CONTEXT,dx	; packet from console with focus?
 	jne	ddi6			; no
 
 	cmp	es:[di].DDP_CMD,DDC_READ; READ packet?
@@ -728,11 +728,8 @@ ddi2:	ASSUME	DS:NOTHING		; DS:BX changes when we loop back here
 ; For WRITE packets (which we'll assume this is for now), we need to end the
 ; wait if the context is no longer paused (ie, check_hotkey may have unpaused).
 ;
-	push	es
-	mov	es,cx
-	ASSERT	STRUCT,es:[0],CT
-	test	es:[CT_STATUS],CTSTAT_PAUSED
-	pop	es
+	ASSERT	STRUCT,ds:[0],CT
+	test	ds:[CT_STATUS],CTSTAT_PAUSED
 	jz	ddi4			; yes, we're no longer paused
 	jmp	short ddi6		; still paused, check next packet
 
@@ -741,11 +738,7 @@ ddi3:	call	pull_kbd		; pull keyboard data
 ;
 ; Notify DOS that this packet is done waiting.
 ;
-ddi4:	push	es
-	mov	es,cx
-	ASSERT	STRUCT,es:[0],CT
-	and	es:[CT_STATUS],NOT CTSTAT_INPUT
-	pop	es
+ddi4:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	mov	ax,DOS_UTL_ENDWAIT
 	int	21h
@@ -763,16 +756,16 @@ ddi4:	push	es
 ;
 	cli
 	mov	ax,es:[di].DDP_PTR.OFF
-	mov	[bx].OFF,ax
-	mov	ax,es:[di].DDP_PTR.SEG
-	mov	[bx].SEG,ax
+	mov	dx,es:[di].DDP_PTR.SEG
+	mov	es,cx
+	mov	es:[bx].OFF,ax
+	mov	es:[bx].SEG,dx
 	sti
 	stc				; set carry to indicate yield
 	jmp	short ddi9
 
-ddi6:	lea	bx,[di].DDP_PTR		; update prev addr ptr in DS:BX
-	push	es
-	pop	ds
+ddi6:	lea	bx,[di].DDP_PTR		; update prev addr ptr in CX:BX
+	mov	cx,es
 
 	les	di,es:[di].DDP_PTR
 	jmp	ddi2
@@ -889,7 +882,7 @@ ENDPROC	add_packet
 ; Modifies:
 ;	AX, BX, CX
 ;
-	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	check_hotkey
 	push	ds
 	sub	bx,bx

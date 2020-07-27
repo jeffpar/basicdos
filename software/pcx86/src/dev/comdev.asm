@@ -54,24 +54,13 @@ CT_PARITY	db	?	; 08h
 CT_REFS		db	?	; 09h
 CT_STATUS	db	?	; 0Ah: context status bits (CTSTAT_*)
 CT_RESERVED	db	?	; 0Bh
-CT_INPUT	db	size RINGBUF dup (?)
-; CT_INLEN	dw	?	; 0Ch: size of input buffer
-; CT_INBUF	dw	?	; 0Eh: offset within segment of input buffer
-; CT_INHEAD	dw	?	; 10h: head of input (next offset to read)
-; CT_INTAIL	dw	?	; 12h: tail of input (next offset to write)
-CT_OUTPUT	db	size RINGBUF dup (?)
-; CT_OUTLEN	dw	?	; 14h: size of output buffer
-; CT_OUTBUF	dw	?	; 16h: offset within segment of output buffer
-; CT_OUTHEAD	dw	?	; 18h: head of output (next offset to read)
-; CT_OUTTAIL	dw	?	; 1Ah: tail of output (next offset to write)
-; CT_OUTEND	dw	?	; 1Ch
+CT_INPUT	db	size RINGBUF dup (?)	; 0Ch
+CT_OUTPUT	db	size RINGBUF dup (?)	; 14h
 CONTEXT		ends
-
-; CT_INEND	equ	CT_OUTBUF
 
 CTSIG		equ	'O'
 
-CTSTAT_XMTBUSY	equ	01h	; transmitter busy
+CTSTAT_XMTFULL	equ	01h	; transmitter buffer full
 CTSTAT_RCVOVFL	equ	02h	; receiver buffer overflow
 CTSTAT_INPUT	equ	40h	; context is waiting for input
 
@@ -185,9 +174,12 @@ ENDPROC	ddcom_cmd
 ; ddcom_read
 ;
 ; Inputs:
+;	CX = context, if any
+;	DX = card #
 ;	ES:DI -> DDPRW
 ;
 ; Outputs:
+;	DDPRW packet updated
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcom_read
@@ -215,7 +207,7 @@ dcr1a:	mov	ds,ax
 	ASSUME	DS:NOTHING
 
 	cli
-	call	pull_inbuf
+	call	pull_input
 	jnc	dcr9
 ;
 ; For READ requests that cannot be satisifed, we add this packet to an
@@ -244,6 +236,7 @@ ENDPROC	ddcom_read
 ;	ES:DI -> DDPRW
 ;
 ; Outputs:
+;	DDPRW packet updated
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcom_write
@@ -267,7 +260,7 @@ dcw1a:	xchg	dx,ax
 
 dcw2:	push	es
 	mov	es,dx
-dcw3:	test	es:[CT_STATUS],CTSTAT_XMTBUSY
+dcw3:	test	es:[CT_STATUS],CTSTAT_XMTFULL
 	jz	dcw4
 ;
 ; For WRITE requests that cannot be satisifed, we add this packet to an
@@ -505,6 +498,7 @@ ENDPROC	ddcom_close
 ;	ES:DI -> DDP
 ;
 ; Outputs:
+;	DDPRW packet updated
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcom_none
@@ -558,12 +552,12 @@ ddi1:	push	bx
 	call	read_iir
 	cmp	al,IIR_INT_RBR		; data received?
 	jne	ddi1a			; no
-	call	push_inbuf
+	call	push_input
 	jmp	short ddi1b
 
 ddi1a:	cmp	al,IIR_INT_THR		; transmitter ready?
 	jne	ddi1b			; no
-	and	ds:[CT_STATUS],NOT CTSTAT_XMTBUSY
+	call	pull_output
 
 ddi1b:	mov	al,20h			; EOI the interrupt now
 	out	20h,al
@@ -585,11 +579,11 @@ ddi2:	cmp	di,-1			; end of chain?
 ; wait if the context is no longer busy.
 ;
 	ASSERT	STRUCT,ds:[0],CT
-	test	ds:[CT_STATUS],CTSTAT_XMTBUSY
-	jz	ddi4			; the transmitter is no longer busy
-	jmp	short ddi6		; still busy, check next packet
+	test	ds:[CT_STATUS],CTSTAT_XMTFULL
+	jz	ddi4			; transmitter buffer is no longer full
+	jmp	short ddi6		; still full, check next packet
 
-ddi3:	call	pull_inbuf		; pull more input data
+ddi3:	call	pull_input		; pull more input data
 	jc	ddi6			; not enough data, check next packet
 ;
 ; Notify DOS that this packet is done waiting.
@@ -604,7 +598,7 @@ ddi4:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 ; was because we got ahead of the WAIT call.  One thought was to make the
 ; driver's WAIT code more resilient, and double-check that the request had
 ; really been satisfied, but I eventually resolved the race by making the
-; pull_inbuf/add_packet/utl_wait path atomic (ie, no interrupts).
+; pull_input/add_packet/utl_wait path atomic (ie, no interrupts).
 ;
 ; TODO: Consider lighter-weight solutions to this race condition.
 ;
@@ -643,137 +637,6 @@ DEFPROC	ddcom_int1,far
 	mov	cx,[ct_seg]
 	jmp	[ddcom_intp]
 ENDPROC	ddcom_int1
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; pull_buffer
-;
-; Call with interrupts off when calling from non-interrupt code (eg, when
-; pulling bytes for a read request).
-;
-; Inputs:
-;	SI -> RINGBUF in context
-;	DS = context
-;
-; Outputs:
-;	CF clear if data available in AL, CF set if empty
-;
-; Modifies:
-;	AX, BX
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	pull_buffer
-	int 3
-	ASSERT	STRUCT,ds:[0],CT
-	mov	bx,[si].BUFHEAD
-	cmp	bx,[si].BUFTAIL
-	stc
-	je	pl9			; buffer empty
-	mov	al,[bx]
-	inc	bx
-	cmp	bx,[si].BUFEND
-	jb	pl2
-	mov	bx,[si].BUFOFF
-pl2:	mov	[si].BUFHEAD,bx
-	clc
-pl9:	ret
-ENDPROC	pull_buffer
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; push_buffer
-;
-; Call with interrupts off when calling from non-interrupt code (eg, when
-; pushing bytes from a write request).
-;
-; Inputs:
-;	SI -> RINGBUF in context
-;	DS = context
-;
-; Outputs:
-;	ZF clear if room (SI -> available space), ZF set if full
-;
-; Modifies:
-;	AX, BX, SI
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	push_buffer
-	int 3
-	ASSERT	STRUCT,ds:[0],CT
-	mov	bx,[si].BUFTAIL
-	mov	ax,bx			; AX -> potential free space
-	inc	bx
-	cmp	bx,[si].BUFEND
-	jb	ps1
-	mov	bx,[si].BUFOFF
-ps1:	cmp	bx,[si].BUFHEAD
-	je	ps9
-	mov	[si].BUFTAIL,bx
-	xchg	si,ax
-ps9:	ret
-ENDPROC	push_buffer
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; pull_inbuf
-;
-; Remove bytes from CT_INPUT and transfer them to the request buffer.
-;
-; Inputs:
-;	DS = context
-;	ES:DI -> DDPRW
-;
-; Outputs:
-;	If carry clear, AL = byte; otherwise carry set
-;
-; Modifies:
-;	AX, BX
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	pull_inbuf
-	mov	si,offset CT_INPUT
-pli1:	call	pull_buffer
-	jc	pli9
-	push	bx
-	push	ds
-	lds	bx,es:[di].DDPRW_ADDR	; DS:BX -> next read/write address
-	mov	[bx],al
-	inc	bx
-	mov	es:[di].DDPRW_ADDR.OFF,bx
-	pop	ds
-	pop	bx
-	dec	es:[di].DDPRW_LENGTH	; have we satisfied the request yet?
-	jnz	pli1
-	clc
-pli9:	ret
-ENDPROC	pull_inbuf
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; push_inbuf
-;
-; Add a byte from the RBR if there's room in INBUF.
-;
-; Inputs:
-;	DS = context
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	AX, BX, SI
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	push_inbuf
-	mov	si,offset CT_INPUT
-	call	push_buffer
-	jz	psi8
-	call	read_rbr
-	mov	[si],al
-	jmp	short psi9
-psi8:	or	ds:[CT_STATUS],CTSTAT_RCVOVFL
-psi9:	ret
-ENDPROC	push_inbuf
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -849,6 +712,235 @@ DEFPROC	get_parms
 	pop	di
 	ret
 ENDPROC	get_parms
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; peek_buffer
+;
+; Inputs:
+;	SI -> RINGBUF in context
+;	DS = context
+;
+; Outputs:
+;	ZF clear if data available, ZF set if empty
+;
+; Modifies:
+;	AX, BX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	peek_buffer
+	ASSERT	STRUCT,ds:[0],CT
+	mov	bx,[si].BUFHEAD
+	cmp	bx,[si].BUFTAIL
+	ret
+ENDPROC	peek_buffer
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; pull_buffer
+;
+; Call with interrupts off when calling from non-interrupt code (eg, when
+; pulling bytes for a read request).
+;
+; Inputs:
+;	SI -> RINGBUF in context
+;	DS = context
+;
+; Outputs:
+;	CF clear if data available in AL, CF set if empty
+;
+; Modifies:
+;	AX, BX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	pull_buffer
+	ASSERT	STRUCT,ds:[0],CT
+	mov	bx,[si].BUFHEAD
+	cmp	bx,[si].BUFTAIL
+	stc
+	je	pl9			; buffer empty
+	mov	al,[bx]
+	inc	bx
+	cmp	bx,[si].BUFEND
+	jb	pl2
+	mov	bx,[si].BUFOFF
+pl2:	mov	[si].BUFHEAD,bx
+	clc
+pl9:	ret
+ENDPROC	pull_buffer
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; push_buffer
+;
+; Call with interrupts off when calling from non-interrupt code (eg, when
+; pushing bytes from a write request).
+;
+; Inputs:
+;	SI -> RINGBUF in context
+;	DS = context
+;
+; Outputs:
+;	CF clear if room (BX -> available space), CF set if full
+;
+; Modifies:
+;	BX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	push_buffer
+	ASSERT	STRUCT,ds:[0],CT
+	push	ax
+	mov	bx,[si].BUFTAIL
+	mov	ax,bx			; AX -> potential free space
+	inc	bx
+	cmp	bx,[si].BUFEND
+	jb	ps1
+	mov	bx,[si].BUFOFF
+ps1:	cmp	bx,[si].BUFHEAD
+	stc
+	je	ps9
+	mov	[si].BUFTAIL,bx
+	xchg	bx,ax
+	clc
+ps9:	pop	ax
+	ret
+ENDPROC	push_buffer
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; pull_input
+;
+; Remove bytes from CT_INPUT and transfer them to the request buffer.
+;
+; Inputs:
+;	DS = context
+;	ES:DI -> DDPRW
+;
+; Outputs:
+;	If carry clear, AL = byte; otherwise carry set
+;
+; Modifies:
+;	AX, BX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	pull_input
+	mov	si,offset CT_INPUT
+pli1:	call	pull_buffer
+	jc	pli9
+	push	bx
+	push	ds
+	lds	bx,es:[di].DDPRW_ADDR	; DS:BX -> next read/write address
+	mov	[bx],al
+	inc	bx
+	mov	es:[di].DDPRW_ADDR.OFF,bx
+	pop	ds
+	pop	bx
+	dec	es:[di].DDPRW_LENGTH	; have we satisfied the request yet?
+	jnz	pli1
+	clc
+pli9:	ret
+ENDPROC	pull_input
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; push_input
+;
+; Add a byte from the receiver to CT_INPUT.  If there's no more room,
+; then set CTSTAT_RCVOVFL.
+;
+; Inputs:
+;	DS = context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	push_input
+	mov	si,offset CT_INPUT
+	call	push_buffer
+	jc	psi8
+	call	read_rbr
+	mov	[bx],al
+	jmp	short psi9
+psi8:	or	ds:[CT_STATUS],CTSTAT_RCVOVFL
+psi9:	ret
+ENDPROC	push_input
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; pull_output
+;
+; Remove a byte from CT_OUTPUT and transmit it.  If there are no more bytes,
+; then clear CTSTAT_XMTFULL.
+;
+; Inputs:
+;	DS = context
+;	ES:DI -> DDPRW
+;
+; Outputs:
+;	If carry clear, AL = byte; otherwise carry set
+;
+; Modifies:
+;	AX, BX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	pull_output
+	mov	si,offset CT_OUTPUT
+	call	pull_buffer
+	jc	plo8
+	call	write_thr
+	jmp	short plo9
+;
+; TODO: Think about the best time to clear CTSTAT_XMTFULL.  In theory, I can
+; clear it every time we remove a single byte, instead of waiting for the buffer
+; to become completely empty, but that could create increased context-switching
+; overhead with minimal benefit.
+;
+plo8:	and	ds:[CT_STATUS],NOT CTSTAT_XMTFULL
+plo9:	ret
+ENDPROC	pull_output
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; push_output
+;
+; Add a byte to CT_OUTPUT.
+;
+; Inputs:
+;	AL = byte
+;	DS = context
+;
+; Outputs:
+;	CF clear if successful, CF set if buffer full
+;
+; Modifies:
+;	BX, DX, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	push_output
+	cli
+	mov	si,offset CT_OUTPUT
+	call	peek_buffer		; anything in the output buffer?
+	jnz	pso7			; yes, so continue to buffer
+	push	ax
+	call	read_lsr
+	test	al,LSR_THRE		; is the transmitter is available?
+	pop	ax
+	jz	pso7			; no, so once again, we must buffer
+	call	write_thr		; prime the pump
+	jmp	short pso9
+pso7:	call	push_buffer		; is there room in the buffer?
+	jc	pso8			; no, mark it full
+	mov	[bx],al			; yes, save the data
+	jmp	short pso9
+pso8:	or	ds:[CT_STATUS],CTSTAT_XMTFULL
+	stc
+pso9:	sti
+	ret
+ENDPROC	push_output
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1024,27 +1116,21 @@ ENDPROC	write_thr
 ;	ES = context
 ;
 ; Outputs:
-;	Carry clear if successful, set if transmitter busy
+;	Carry clear if successful, set unable to buffer
 ;
 ; Modifies:
-;	None
+;	BX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	write_context
 	push	dx
+	push	si
 	push	ds
 	push	es
 	pop	ds			; DS is now the context
-	push	ax
-	call	read_lsr
-	test	al,LSR_THRE
-	pop	ax
-	jz	wc8
-	call	write_thr
-	jmp	short wc9
-wc8:	or	ds:[CT_STATUS],CTSTAT_XMTBUSY
-	stc
-wc9:	pop	ds
+	call	push_output
+	pop	ds
+	pop	si
 	pop	dx
 	ret
 ENDPROC	write_context
