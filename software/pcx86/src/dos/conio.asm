@@ -251,6 +251,15 @@ ENDPROC	tty_input
 ; whereas inserting is allowed only if DH + 1 < MAX.
 ;
 DEFPROC	ttyin_add,near
+	push	ax			; HACK: to avoid overflowing our
+	call	ttyin_length		; byte-sized limits, disallow additions
+	pop	ax			; if there's any risk of overflow
+	mov	ah,1
+	cmp	al,CHR_TAB
+	jne	tta0
+	mov	ah,8
+tta0:	add	ch,ah
+	jc	tta9
 	mov	cx,[bp].TMP_CX		; CX = 0 (replace) or 1 (insert)
 	mov	ah,bl
 	jcxz	tta1

@@ -528,16 +528,16 @@ DEFPROC	cmdPrint
 ;
 ; Let's retokenize using DOS_UTL_TOKIFY2
 ;
-	push	si
 	lea	si,[bx].INPUTBUF; DS:SI -> input buffer
 	lea	di,[bx].TOKENBUF; DS:DI -> token buffer
 	mov	ax,DOS_UTL_TOKIFY2
 	int	21h
-	pop	si
+	add	si,offset INP_BUF
 
+	GETTOKEN 2		; DS:SI -> token #2, CX = length
 	push	si
 	mov	bl,10		; default to base 10
-	cmp	word ptr [si],"X0"
+	cmp	word ptr [si],"x0"
 	jne	pr1
 	mov	bl,16		; "0x" prefix is present, so switch to base 16
 	add	si,2		; and skip the prefix

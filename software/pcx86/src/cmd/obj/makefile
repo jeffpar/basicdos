@@ -18,16 +18,16 @@ AFLAGS=/D$(REL)
 # under each dependency.
 #
 .ASM.OBJ:
-	$(ASM) $(AFLAGS) /I..\..\INC $**,$@;
+	$(ASM) $(AFLAGS) /I.. /I..\..\INC $**,$@;
 
 .ASM.LST:
-	$(ASM) $(AFLAGS) /I..\..\INC $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) /I.. /I..\..\INC $**,$@,$*.LST;
 
 CMD.OBJ: ..\CMD.ASM
-	$(ASM) $(AFLAGS) /I..\..\INC $**,$@;
+	$(ASM) $(AFLAGS) /I.. /I..\..\INC $**,$@;
 
 CONST.OBJ: ..\CONST.ASM
-	$(ASM) $(AFLAGS) /I..\..\INC $**,$@;
+	$(ASM) $(AFLAGS) /I.. /I..\..\INC $**,$@;
 
 COMMAND.COM: CMD.OBJ CONST.OBJ
 	$(LINK) @$*.LRF

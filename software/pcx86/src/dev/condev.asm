@@ -163,7 +163,7 @@ ENDPROC	ddcon_ioctl
 ;	DS = CONSOLE context
 ;
 ; Outputs:
-;	DX = current cursor position (DL = col, DH = row)
+;	DX = current cursor position (DL = col, DH = row), zero-based.
 ;
 ; Modifies:
 ;	DX
@@ -171,6 +171,7 @@ ENDPROC	ddcon_ioctl
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_getpos
 	mov	dx,ds:[CT_CURPOS]	; DX = current cursor position
+	sub	dx,ds:[CT_CURMIN]	; make both row and col zero-based
 	ret
 ENDPROC	ddcon_getpos
 
@@ -202,6 +203,7 @@ ENDPROC	ddcon_getpos
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_getlen
 	mov	bx,es:[di].DDPRW_LBA	; BX = starting cursor position
+	add	bx,ds:[CT_CURMIN]	; zero-based, so adjust to our mins
 	sub	dx,dx			; DL = current len, DH = previous len
 	mov	ah,ds:[CT_CURMAX].LO	; AH = column max
 	mov	bh,ds:[CT_CURMIN].LO	; BH = column min
@@ -292,17 +294,16 @@ DEFPROC	ddcon_setins
 	ASSUME	ES:BIOS
 ;
 ; There was a bug in the original IBM PC (5150) BIOS: it stored the cursor's
-; top and bottom scan lines in the high and low nibbles of CURSOR_MODE.LO,
-; respectively, instead of the high and low bytes of CURSOR_MODE.
+; top and bottom scan lines in the high and low *nibbles* of CURSOR_MODE.LO,
+; respectively, instead of the high and low *bytes* of CURSOR_MODE.
 ;
 ;	F177:	C70660006700	MOV	CURSOR_MODE,67H
 ;
-; So, we'll check for that combo (67h in the LO byte, 00h in the HI byte) and
-; compensate.
+; So, we'll check for that combo (ie, 67h low, 00h high) and compensate.
 ;
 ; What's worse is that the same values (6,7) are stored in CURSOR_MODE for the
-; MDA as well, even though the MDA actually uses values (11,12) -- and that's
-; true regardless of BIOS revision.  Sigh.
+; MDA as well, even though the MDA's default values are different (11,12);
+; and this behavior seems to be true regardless of BIOS revision.  Bummer.
 ;
 	mov	ax,[CURSOR_MODE]
 	cmp	ax,0067h		; buggy cursor scanline values?
@@ -1020,36 +1021,36 @@ ENDPROC	draw_border
 ;	AX, DX, DI, ES
 ;
 DEFPROC	draw_char
+	push	cx
+	mov	ch,1			; CH = amount to advance DL
 	cmp	cl,CHR_BACKSPACE
 	jne	dc1
 ;
-; At one point, this code treated CHR_BACKSPACE as a "destructive" backspace
-; (ie, erasing the the character underneath the cursor first), which involved
-; changing CL to CHR_SPACE and not advancing DL.  That was done, in part,
-; as a convenience for the DOS CONIO functions, which otherwise had to output
-; THREE characters (backspace, space, backspace again) to perform a destructive
-; backspace.
+; This code treats CHR_BACKSPACE as a "destructive" backspace (ie, erasing
+; the character underneath the cursor first), which means changing CL to
+; CHR_SPACE and not advancing DL afterward.  That is done primarily as an
+; optimization for the DOS CONIO functions, which would otherwise have to
+; output 3 characters (backspace, space, backspace again) to do the same thing.
 ;
-; However, the CONIO functions have evolved and no longer rely on destructive
-; backspaces, so it's probably best to revert to non-destructive behavior now.
-;
+	mov	cl,CHR_SPACE		; make this "destructive"
+	dec	ch			; no advance for backspace
 	dec	dl
 	cmp	dl,ds:[CT_CURMIN].LO
-	jge	dc2
+	jge	dc1
 	mov	dl,ds:[CT_CURMAX].LO
 	dec	dh
 	cmp	dh,ds:[CT_CURMIN].HI
-	jge	dc2
+	jge	dc1
 	mov	dx,ds:[CT_CURMIN]
-	jmp	short dc2
 
 dc1:	call	write_curpos		; write CL at (DL,DH)
 ;
 ; Advance DL, advance DH as needed, and scroll the context as needed.
 ;
-	inc	dx			; advance DL
+	add	dl,ch			; advance DL
+	pop	cx
 
-dc2:	cmp	dl,ds:[CT_CURMAX].LO
+	cmp	dl,ds:[CT_CURMAX].LO
 	jle	dc9
 	mov	dl,ds:[CT_CURMIN].LO
 
