@@ -12,6 +12,11 @@ LINK=LINK
 EXE2BIN=EXE2BIN
 AFLAGS=/D$(REL)
 
+#
+# Inference rules in the DOS MAKE utility apparently work only if the
+# files are in the same folder.  So for now, these rules must be copied
+# under each dependency.
+#
 .ASM.OBJ:
 	$(ASM) $(AFLAGS) /I..\..\INC $**,$@;
 
@@ -19,8 +24,10 @@ AFLAGS=/D$(REL)
 	$(ASM) $(AFLAGS) /I..\..\INC $**,$@,$*.LST;
 
 CMD.OBJ: ..\CMD.ASM
+	$(ASM) $(AFLAGS) /I..\..\INC $**,$@;
 
 CONST.OBJ: ..\CONST.ASM
+	$(ASM) $(AFLAGS) /I..\..\INC $**,$@;
 
 COMMAND.COM: CMD.OBJ CONST.OBJ
 	$(LINK) @$*.LRF
