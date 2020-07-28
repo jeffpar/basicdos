@@ -579,7 +579,7 @@ dco5:	mov	ds:[CT_PORT],dx
 	mov	ds:[CT_EQUIP],cx
 	mov	ds:[CT_SCREEN].SEG,ax
 	call	draw_border		; draw the context's border, if any
-	mov	cl,0
+	mov	cl,100
 	call	scroll			; clear the context's interior
 	call	hide_cursor		; important when using an alt adapter
 	clc
@@ -634,7 +634,7 @@ dcc2:	mov	es,ax
 	mov	cx,es:[CT_NEXT]		; move this context's CT_NEXT
 	mov	[bx].CT_NEXT,cx		; to the previous context's CT_NEXT
 	mov	ds,ax
-	mov	cl,-1			; clear the entire context
+	mov	cl,0			; clear the entire context
 	call	scroll
 	pop	ds
 	ASSUME	DS:CODE
@@ -1020,22 +1020,19 @@ ENDPROC	draw_border
 ;	AX, DX, DI, ES
 ;
 DEFPROC	draw_char
-	push	cx
-	mov	ch,1			; CH = amount to advance DL
 	cmp	cl,CHR_BACKSPACE
 	jne	dc1
 ;
-; At one point, this code was changed to treat CHR_BACKSPACE as a "destructive"
-; backspace (ie, erasing the the character underneath the cursor first); it set
-; CL to CHR_SPACE and jumped to dc1 instead of dc2.  That was done, in part,
+; At one point, this code treated CHR_BACKSPACE as a "destructive" backspace
+; (ie, erasing the the character underneath the cursor first), which involved
+; changing CL to CHR_SPACE and not advancing DL.  That was done, in part,
 ; as a convenience for the DOS CONIO functions, which otherwise had to output
 ; THREE characters (backspace, space, backspace again) to perform a destructive
 ; backspace.
 ;
 ; However, the CONIO functions have evolved and no longer rely on destructive
-; backspaces, so it's probably best to do a non-destructive operation now.
+; backspaces, so it's probably best to revert to non-destructive behavior now.
 ;
-	dec	ch			; no advance for BACKSPACE
 	dec	dl
 	cmp	dl,ds:[CT_CURMIN].LO
 	jge	dc2
@@ -1050,9 +1047,9 @@ dc1:	call	write_curpos		; write CL at (DL,DH)
 ;
 ; Advance DL, advance DH as needed, and scroll the context as needed.
 ;
-dc2:	add	dl,ch			; advance DL
+	inc	dx			; advance DL
 
-	cmp	dl,ds:[CT_CURMAX].LO
+dc2:	cmp	dl,ds:[CT_CURMAX].LO
 	jle	dc9
 	mov	dl,ds:[CT_CURMIN].LO
 
@@ -1061,10 +1058,11 @@ dc2:	add	dl,ch			; advance DL
 	cmp	dh,ds:[CT_CURMAX].HI
 	jle	dc9
 	dec	dh
+	push	cx
 	mov	cl,1
 	call	scroll			; scroll the context up 1 line
-dc9:	pop	cx
-	ret
+	pop	cx
+dc9:	ret
 ENDPROC	draw_char
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1323,8 +1321,12 @@ ENDPROC	pull_kbd
 ;
 ; scroll
 ;
+; Set CL to +/- lines to scroll.  To clear the entire interior, set
+; CL >= # lines (eg, 100).  To clear the entire context, including any
+; border, set CL to zero (typically only done when destroying a context).
+;
 ; Inputs:
-;	CL = # lines (0 to clear ALL lines, -1 to clear entire context)
+;	CL = # lines
 ;	DS = CONSOLE context
 ;
 ; Modifies:
@@ -1348,11 +1350,13 @@ DEFPROC	scroll
 	xchg	ax,cx			; AL = # lines now
 	mov	cx,ds:[CT_CONPOS]
 	mov	dx,cx
-	test	al,al			; negative?
-	jge	scr1			; no
-	mov	al,0
+	test	al,al			; zero?
+	jnz	scr0			; no
 	add	dx,ds:[CT_CONDIM]	; yes, clear entire context
-	jmp	short scr2		; (including borders)
+	jmp	short scr2		; (including border, if any)
+scr0:	cmp	al,ds:[CT_CONDIM].HI
+	jl	scr1
+	mov	al,0			; zero tells BIOS to clear all lines
 scr1:	add	cx,ds:[CT_CURMIN]	; CH = row, CL = col of upper left
 	add	dx,ds:[CT_CURMAX]	; DH = row, DL = col of lower right
 scr2:	mov	bh,07h			; BH = fill attribute
