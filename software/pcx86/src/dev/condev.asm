@@ -325,8 +325,8 @@ dsi2:	xchg	bx,ax			; BX = new values
 ; want to restore the original values when insert mode ends.  We do, however,
 ; toggle INS_STATE (80h) in KB_FLAG, to avoid any unanticipated keyboard BIOS
 ; side-effects; we rely almost entirely on the BIOS for keyboard processing,
-; whereas we rely very little on the BIOS for screen updates (scrolling and
-; dual monitor support are the main exceptions).
+; whereas we rely very little on the BIOS for screen updates (scroll calls and
+; dual monitor mode sets are the main exceptions).
 ;
 	mov	dl,[KB_FLAG]
 	mov	al,dl

@@ -254,12 +254,12 @@ DEFPROC	ttyin_add,near
 	push	ax			; HACK: to avoid overflowing our
 	call	ttyin_length		; byte-sized limits, disallow additions
 	pop	ax			; if there's any risk of overflow
-	mov	ah,1
+	mov	ah,[bp].TMP_CL		; AH = 0 or 1
 	cmp	al,CHR_TAB
 	jne	tta0
-	mov	ah,8
-tta0:	add	ch,ah
-	jc	tta9
+	mov	ah,8			; AH = 8 (worst case for a tab)
+tta0:	add	ch,ah			; add 0 or 1 or 8 to display length
+	jc	tta9			; jump on overflow
 	mov	cx,[bp].TMP_CX		; CX = 0 (replace) or 1 (insert)
 	mov	ah,bl
 	jcxz	tta1

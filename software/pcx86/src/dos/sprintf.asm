@@ -490,10 +490,12 @@ pfs3:	mov	dx,[bp].SPF_WIDTH
 pfs3a:	push	di			; make sure that DI+AX+DX < LIMIT
 	add	di,ax
 	add	di,dx
-	cmp	di,[bp].SPF_LIMIT
+	cmp	di,[bp].SPF_LIMIT	; too long?
 	pop	di
-	jb	pfs4
-	jmp	pfdz
+	jb	pfs4			; no
+	mov	ax,[bp].SPF_LIMIT	; yes, so instead of bailing, we'll
+	sub	ax,di			; set the length to the amount of
+	sub	dx,dx			; remaining space and zero the padding
 
 pfs4:	test	ch,PF_LEFT		; left-aligned?
 	jnz	pfs5			; yes
