@@ -13,43 +13,43 @@ let run = require("gulp-run-command").default;
 
 let disks = {
     "BASIC-DOS1": [
-        "./software/pcx86/src/dev/IBMBIO.COM",
-        "./software/pcx86/src/dos/IBMDOS.COM",
-        "./software/pcx86/src/cmd/COMMAND.COM",
+        "./software/pcx86/src/dev/obj/IBMBIO.COM",
+        "./software/pcx86/src/dos/obj/IBMDOS.COM",
+        "./software/pcx86/src/cmd/obj/COMMAND.COM",
         "./software/pcx86/src/cfg/config1/CONFIG.SYS",
-        "./software/pcx86/src/util/PRIMES.EXE",
-        "./software/pcx86/src/gwb/GWB.EXE",
-        "./software/pcx86/src/util/SYMDEB.EXE"
+        "./software/pcx86/src/util/obj/PRIMES.EXE",
+        "./software/pcx86/src/gwb/obj/GWB.EXE",
+        "./software/pcx86/src/util/obj/SYMDEB.EXE"
     ],
     "BASIC-DOS2": [
-        "./software/pcx86/src/dev/IBMBIO.COM",
-        "./software/pcx86/src/dos/IBMDOS.COM",
-        "./software/pcx86/src/cmd/COMMAND.COM",
+        "./software/pcx86/src/dev/obj/IBMBIO.COM",
+        "./software/pcx86/src/dos/obj/IBMDOS.COM",
+        "./software/pcx86/src/cmd/obj/COMMAND.COM",
         "./software/pcx86/src/cfg/config2/CONFIG.SYS",
-        "./software/pcx86/src/util/PRIMES.EXE",
-        "./software/pcx86/src/util/SLEEP.COM",
-        "./software/pcx86/src/util/TESTS.COM",
-        "./software/pcx86/src/util/SYMDEB.EXE"
+        "./software/pcx86/src/util/obj/PRIMES.EXE",
+        "./software/pcx86/src/util/obj/SLEEP.COM",
+        "./software/pcx86/src/util/obj/TESTS.COM",
+        "./software/pcx86/src/util/obj/SYMDEB.EXE"
     ],
     "BASIC-DOS3": [
-        "./software/pcx86/src/dev/IBMBIO.COM",
-        "./software/pcx86/src/dos/IBMDOS.COM",
-        "./software/pcx86/src/cmd/COMMAND.COM",
+        "./software/pcx86/src/dev/obj/IBMBIO.COM",
+        "./software/pcx86/src/dos/obj/IBMDOS.COM",
+        "./software/pcx86/src/cmd/obj/COMMAND.COM",
         "./software/pcx86/src/cfg/config3/CONFIG.SYS",
-        "./software/pcx86/src/util/PRIMES.EXE",
-        "./software/pcx86/src/util/SLEEP.COM",
-        "./software/pcx86/src/util/TESTS.COM"
+        "./software/pcx86/src/util/obj/PRIMES.EXE",
+        "./software/pcx86/src/util/obj/SLEEP.COM",
+        "./software/pcx86/src/util/obj/TESTS.COM"
     ],
     "BASIC-DOS4": [
-        "./software/pcx86/src/dev/IBMBIO.COM",
-        "./software/pcx86/src/dos/IBMDOS.COM",
-        "./software/pcx86/src/cmd/COMMAND.COM",
+        "./software/pcx86/src/dev/obj/IBMBIO.COM",
+        "./software/pcx86/src/dos/obj/IBMDOS.COM",
+        "./software/pcx86/src/cmd/obj/COMMAND.COM",
         "./software/pcx86/src/cfg/config4/CONFIG.SYS",
-        "./software/pcx86/src/util/PRIMES.EXE",
-        "./software/pcx86/src/util/SLEEP.COM",
-        "./software/pcx86/src/util/TESTS.COM",
-        "./software/pcx86/src/gwb/GWB.EXE",
-        "./software/pcx86/src/util/SYMDEB.EXE"
+        "./software/pcx86/src/util/obj/PRIMES.EXE",
+        "./software/pcx86/src/util/obj/SLEEP.COM",
+        "./software/pcx86/src/util/obj/TESTS.COM",
+        "./software/pcx86/src/gwb/obj/GWB.EXE",
+        "./software/pcx86/src/util/obj/SYMDEB.EXE"
     ],
     "BDS-BOOT": [
         "./software/pcx86/src/boot/boot.asm",
@@ -59,7 +59,6 @@ let disks = {
         "./software/pcx86/src/inc/disk.inc",
         "./software/pcx86/src/inc/dos.inc",
         "./software/pcx86/src/inc/macros.inc",
-        "./software/pcx86/src/boot/makefile",
         "./software/pcx86/src/boot/mk.bat"
     ],
     "BDS-DEV": [
@@ -77,7 +76,6 @@ let disks = {
         "./software/pcx86/src/inc/disk.inc",
         "./software/pcx86/src/inc/dos.inc",
         "./software/pcx86/src/inc/macros.inc",
-        "./software/pcx86/src/dev/makefile",
         "./software/pcx86/src/dev/mk.bat"
     ],
     "BDS-DOS": [
@@ -88,7 +86,6 @@ let disks = {
         "./software/pcx86/src/dos/dosints.asm",
         "./software/pcx86/src/dos/fcbio.asm",
         "./software/pcx86/src/dos/handle.asm",
-        "./software/pcx86/src/dos/ibmdos.lrf",
         "./software/pcx86/src/dos/memory.asm",
         "./software/pcx86/src/dos/misc.asm",
         "./software/pcx86/src/dos/process.asm",
@@ -101,12 +98,12 @@ let disks = {
         "./software/pcx86/src/inc/disk.inc",
         "./software/pcx86/src/inc/dos.inc",
         "./software/pcx86/src/inc/macros.inc",
-        "./software/pcx86/src/dos/makefile",
         "./software/pcx86/src/dos/mk.bat"
     ],
     "BDS-UTIL": [
         "./software/pcx86/src/util/cmd.inc",
-        "./software/pcx86/src/util/command.asm",
+        "./software/pcx86/src/util/cmd.asm",
+        "./software/pcx86/src/util/const.asm",
         "./software/pcx86/src/util/primes.asm",
         "./software/pcx86/src/util/sleep.asm",
         "./software/pcx86/src/util/tests.asm",
@@ -115,7 +112,6 @@ let disks = {
         "./software/pcx86/src/inc/disk.inc",
         "./software/pcx86/src/inc/dos.inc",
         "./software/pcx86/src/inc/macros.inc",
-        "./software/pcx86/src/util/makefile",
         "./software/pcx86/src/util/mk.bat"
     ],
     "BDS-SRC": [
@@ -150,7 +146,7 @@ for (let diskName in disks) {
         if (diskName.startsWith("BDS-")) {
             kbTarget = 320;
         } else {
-            diskFiles += " --boot ./software/pcx86/src/boot/BOOT.COM";
+            diskFiles += " --boot ./software/pcx86/src/boot/obj/BOOT.COM";
         }
     }
     let cmd = "node ${PCJS}/tools/modules/diskimage.js " + diskFiles + " --output " + diskImage + hddImage + " --target=" + kbTarget + " --overwrite";
