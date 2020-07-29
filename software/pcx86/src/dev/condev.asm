@@ -947,7 +947,7 @@ ch1:	jcxz	ch4
 ;
 ; This is currently the sole use of CTSTAT_INPUT: to avoid treating CTRLS as
 ; a pause key if the context is waiting for input.  This makes it possible for
-; the buffered input API to use CTRLS for input control as well.
+; the CONIO buffered input code to use CTRLS for input control as well.
 ;
 	test	ds:[CT_STATUS],CTSTAT_INPUT
 	stc
@@ -963,6 +963,8 @@ ch2:	test	ds:[CT_STATUS],CTSTAT_PAUSED
 ch3:	pop	ds
 	ASSUME	DS:BIOS
 	jc	ch4
+	cmp	al,CHR_CTRLC
+	je	ch5a
 	mov	[BUFFER_TAIL],bx	; update tail, consuming the character
 
 ch4:	test	ax,ax			; CTRL_BREAK?
@@ -972,7 +974,7 @@ ch4:	test	ax,ax			; CTRL_BREAK?
 
 ch5:	cmp	al,CHR_CTRLC		; CTRLC?
 	jne	ch6			; no
-	mov	[BUFFER_HEAD],bx	; yes, advance the head toward the tail
+ch5a:	mov	[BUFFER_HEAD],bx	; yes, advance the head toward the tail
 	jmp	short ch9		; and return carry clear
 
 ch6:	cmp	al,CHR_CTRLP		; CTRLP?
