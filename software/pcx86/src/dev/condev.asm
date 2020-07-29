@@ -24,8 +24,8 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
 	DEFLBL	IOCTBL,word
-	dw	ddcon_none,   ddcon_none,   ddcon_getpos, ddcon_getlen	; 0-3
-	dw	ddcon_movcur, ddcon_setins				; 4-5
+	dw	ddcon_none,   ddcon_getpos, ddcon_getlen, ddcon_movcur	; 0-3
+	dw	ddcon_setins, ddcon_scroll				; 4-5
 	DEFABS	IOCTBL_SIZE,<($ - IOCTBL) SHR 1>
 
 	DEFLBL	CON_PARMS,word
@@ -132,6 +132,7 @@ ENDPROC	ddcon_req
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_ioctl
 	mov	bl,es:[di].DDP_UNIT
+	sub	bl,IOCTL_CON
 	mov	dx,es:[di].DDP_CONTEXT
 	test	dx,dx
 	jz	dio0
@@ -341,6 +342,34 @@ ENDPROC	ddcon_setins
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; ddcon_scroll
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;	CX = DDPRW_LENGTH (+/- lines to scroll, 0 to clear)
+;	DS = CONSOLE context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_scroll
+	test	cx,cx
+	jnz	dcs1
+	mov	cl,100
+dcs1:	call	scroll
+	cmp	cl,100
+	jne	dcs9
+	mov	dx,ds:[CT_CURMIN]
+	call	update_cursor
+dcs9:	ret
+ENDPROC	ddcon_scroll
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; ddcon_read
 ;
 ; Inputs:
@@ -538,8 +567,7 @@ dco1a:	xchg	[ct_head],ax
 	add	dx,dx
 	add	ax,dx
 	mov	ds:[CT_SCREEN].OFF,ax
-	mov	ds:[CT_SCROFF],4000	; TODO: fix this hard-coded
-					; offset to off-screen memory
+	mov	ds:[CT_SCROFF],4000	; TODO: fix this hard-coded offset
 ;
 ; Importing the BIOS CURSOR_POSN into CURPOS seemed like a nice idea initially,
 ; but now that we're clearing interior below, seems best to use a default.

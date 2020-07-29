@@ -153,6 +153,40 @@ ENDPROC	hdl_seek
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; hdl_ioctl (REG_AH = 44h)
+;
+; Inputs:
+;	REG_AL = subfunction (see IOCTL_*)
+;	REG_BX = handle
+;	REG_CX = IOCTL-specific data
+;	REG_DX = IOCTL-specific data
+;	REG_DS:REG_SI -> optional IOCTL-specific data
+;
+; Outputs:
+;	On success, carry clear
+;	On failure, carry set, REG_AX = error
+;
+DEFPROC	hdl_ioctl,DOS
+	push	ax
+	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
+	call	sfb_get
+	pop	ax
+	jc	hio9
+	les	di,[bx].SFB_DEVICE	; ES:DI -> driver
+	mov	bx,[bx].SFB_CONTEXT	; BX = context
+	xchg	bx,dx			; DX = context, BX = REG_DX
+	mov	ah,DDC_IOCTLIN
+	mov	ds,[bp].REG_DS		; in case DS:SI is required as well
+	ASSUME	DS:NOTHING
+	call	dev_request
+	jc	hio9
+	xchg	ax,dx			; AX = result
+hio9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY set
+	ret
+ENDPROC	hdl_ioctl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; sfb_open
 ;
 ; Inputs:

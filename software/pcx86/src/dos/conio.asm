@@ -519,32 +519,16 @@ ENDPROC	tty_flush
 ;
 DEFPROC	con_ioctl,DOS
 	push	bx
-	push	dx
-	push	di
 	push	ds
 	push	es
+	pop	ds
+	ASSUME	DS:NOTHING
+	mov	ah,DOS_HDL_IOCTL
 	mov	bx,STDIN
-	push	ax
-	call	sfb_get			; BX -> SFB
-	pop	ax
-	jc	ioc8
-	push	es
-	les	di,[bx].SFB_DEVICE	; ES:DI -> CON driver
-	mov	bx,[bx].SFB_CONTEXT	; BX = context
-	xchg	bx,dx			; DX = context, BX = position
-	test	es:[di].DDH_ATTR,DDATTR_STDOUT
-	pop	ds
-	jz	ioc8
-	mov	ah,DDC_IOCTLIN
-	call	dev_request
-	jc	ioc8
-	xchg	ax,dx			; AX = position or length as requested
-	jmp	short ioc9
-ioc8:	mov	ax,0			; default value if error
-ioc9:	pop	es
-	pop	ds
-	pop	di
-	pop	dx
+	int	21h
+	jnc	ioc9
+	sub	ax,ax			; default value (STDIN redirected?)
+ioc9:	pop	ds
 	pop	bx
 	ret
 ENDPROC	con_ioctl

@@ -101,6 +101,7 @@ DOS_HDL_CLOSE	equ	3Eh	; close handle (BX)
 DOS_HDL_READ	equ	3Fh	; read (CX) bytes at (DS:DX) with handle (BX)
 DOS_HDL_WRITE	equ	40h	; write (CX) bytes at (DS:DX) with handle (BX)
 DOS_HDL_SEEK	equ	42h	; seek to (CX:DX) w/method (AL) and handle (BX)
+DOS_HDL_IOCTL	equ   	44h	; send device request (AL) for handle (BX)
 
 DOS_MEM_ALLOC	equ	48h	; allocate memory
 DOS_MEM_FREE	equ	49h	; free memory

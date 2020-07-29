@@ -73,7 +73,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<fcb_parse>,near
 	EXTERNS	<msc_setvec,msc_getver,msc_setctrlc,msc_getvec,msc_getswc>,near
 	EXTERNS	<psp_exec,psp_exit,psp_retcode,psp_create,psp_set,psp_get>,near
-	EXTERNS	<hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek>,near
+	EXTERNS	<hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek,hdl_ioctl>,near
 	EXTERNS	<mem_alloc,mem_free,mem_realloc>,near
 	EXTERNS	<utl_strlen,utl_strstr,utl_strupr,utl_atoi16,utl_atoi32>,near
 	EXTERNS	<utl_itoa,utl_printf,utl_dprintf,utl_sprintf>,near
@@ -101,7 +101,7 @@ DOS	segment word public 'CODE'
 	dw	func_none,   func_none,   func_none,   func_none	;38h-3Bh
 	dw	func_none,   hdl_open,    hdl_close,   hdl_read		;3Ch-3Fh
 	dw	hdl_write,   func_none,   hdl_seek,    func_none	;40h-43h
-	dw	func_none,   func_none,   func_none,   func_none	;44h-47h
+	dw	hdl_ioctl,   func_none,   func_none,   func_none	;44h-47h
 	dw	mem_alloc,   mem_free,    mem_realloc, psp_exec		;48h-4Bh
 	dw	psp_exit,    psp_retcode, dsk_ffirst,  dsk_fnext	;4Ch-4Fh
 	dw	psp_set,     psp_get					;50h-51h

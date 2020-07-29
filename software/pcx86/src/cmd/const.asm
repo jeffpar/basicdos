@@ -10,7 +10,7 @@
 	include	cmd.inc
 
 CODE    SEGMENT
-	EXTERNS	<cmdDate,CmdDir,cmdExit,cmdLoop,cmdMem>,near
+	EXTERNS	<cmdCLS,cmdDate,CmdDir,cmdExit,cmdLoop,cmdMem>,near
 	EXTERNS	<cmdPrint,cmdTime,cmdType>,near
 	DEFSTR	COM_EXT,<".COM",0>
 	DEFSTR	EXE_EXT,<".EXE",0>
@@ -22,14 +22,15 @@ CODE    SEGMENT
 CODE	ENDS
 
 	DEFTOKENS CMD_TOKENS,NUM_TOKENS
-	DEFTOK	TOK_DATE,  0, "DATE",	cmdDate
-	DEFTOK	TOK_DIR,   1, "DIR",	cmdDir
-	DEFTOK	TOK_EXIT,  2, "EXIT",	cmdExit
-	DEFTOK	TOK_LOOP,  3, "LOOP",	cmdLoop
-	DEFTOK	TOK_MEM,   4, "MEM",	cmdMem
-	DEFTOK	TOK_PRINT, 5, "PRINT",	cmdPrint
-	DEFTOK	TOK_TIME,  6, "TIME",	cmdTime
-	DEFTOK	TOK_TYPE,  7, "TYPE",	cmdType
+	DEFTOK	TOK_CLS,   0, "CLS",	cmdCLS
+	DEFTOK	TOK_DATE,  1, "DATE",	cmdDate
+	DEFTOK	TOK_DIR,   2, "DIR",	cmdDir
+	DEFTOK	TOK_EXIT,  3, "EXIT",	cmdExit
+	DEFTOK	TOK_LOOP,  4, "LOOP",	cmdLoop
+	DEFTOK	TOK_MEM,   5, "MEM",	cmdMem
+	DEFTOK	TOK_PRINT, 6, "PRINT",	cmdPrint
+	DEFTOK	TOK_TIME,  7, "TIME",	cmdTime
+	DEFTOK	TOK_TYPE,  8, "TYPE",	cmdType
 	NUMTOKENS CMD_TOKENS,NUM_TOKENS
 
 DATA	SEGMENT

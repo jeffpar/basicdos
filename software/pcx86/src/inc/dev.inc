@@ -138,11 +138,15 @@ DDP_MAXSIZE	equ	((size DDPRW + 1) AND 0FFFEh)
 ;
 ; IOCTL operations for assorted devices
 ;
-IOCTL_WAIT	equ	1	; CLOCK$: wait # ticks in DDPRW_ADDR field
-IOCTL_GETPOS	equ	2	; CON: get current device (cursor) position
-IOCTL_GETLEN	equ	3	; CON: get displayed length of data
-IOCTL_MOVCUR	equ	4	; CON: move cursor by DDPRW_LENGTH positions
-IOCTL_SETINS	equ	5	; CON: set INSERT mode ON (CL=1) or OFF (CL=0)
+IOCTL_CLOCK	equ	0D0h
+IOCTL_WAIT	equ	0D1h	; CLOCK$: wait # ticks in DDPRW_ADDR field
+
+IOCTL_CON	equ	0E0h
+IOCTL_GETPOS	equ	0E1h	; CON: get current device (cursor) position
+IOCTL_GETLEN	equ	0E2h	; CON: get displayed length of data
+IOCTL_MOVCUR	equ	0E3h	; CON: move cursor by DDPRW_LENGTH positions
+IOCTL_SETINS	equ	0E4h	; CON: set INSERT mode ON (CL=1) or OFF (CL=0)
+IOCTL_SCROLL	equ	0E5h	; CON: scroll (or clear) interior of context
 
 ;
 ; Helper macro to define the overall length of a device driver;
