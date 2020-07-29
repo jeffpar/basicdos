@@ -770,7 +770,7 @@ ENDPROC	utl_getdev
 ; utl_ioctl (AX = 1811h)
 ;
 ; Inputs:
-;	REG_BX = IOCTL command (BH = driver command, BL = IOCTL command)
+;	REG_BX = IOCTL command (BH = DDC_IOCTLIN, BL = IOCTL command)
 ;	REG_ES:REG_DI -> DDH
 ;	Other registers will vary
 ;
