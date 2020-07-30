@@ -26,7 +26,7 @@ N1	label	byte
 	len = offset $ - offset N1
 CODE	ENDS
 DATA	SEGMENT
-	DEF_TOKEN <len,val,offset DGROUP:N1,offset func>
+	TOKDEF	<len,val,offset DGROUP:N1,offset func>
 DATA	ENDS
 	endm
 
@@ -39,7 +39,7 @@ DATA	ENDS
 
 NUMTOKENS macro tbl,val
 DATA	SEGMENT
-val = ((offset $ - offset tbl) - 2) / (size DEF_TOKEN)
+val = ((offset $ - offset tbl) - 2) / (size TOKDEF)
 DATA	ENDS
 	endm
 
@@ -48,10 +48,10 @@ GETTOKEN macro	num				;; get token num (1-N)
 	cmp	[di].TOK_CNT,num		;; at least num tokens?
 	jb	gt1				;; no
 	lea	si,[bx].INPUTBUF.INP_BUF
-	mov	cl,[di+(num-1)*2].TOK_BUF.LO
+	mov	cl,[di+(num-1)*(size TOKBUF)].TOK_BUF.TOKBUF_OFF
 	mov	ch,0				;; CX = token offset
 	add	si,cx
-	mov	cl,[di+(num-1)*2].TOK_BUF.HI	;; CX = token length
+	mov	cl,[di+(num-1)*(size TOKBUF)].TOK_BUF.TOKBUF_LEN
 gt1:
 	endm
 ;

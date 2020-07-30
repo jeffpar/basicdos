@@ -430,29 +430,33 @@ BUF_INPUT	ends
 ;
 ; Token buffer (eg, as used by DOS_UTL_TOKIFY)
 ;
-; Whereas the elements of INP_BUF are bytes, the elements of TOK_BUF
-; are words, or more precisely, byte-pairs, where the low byte is the
-; offset of the token and the high byte is the length.
+; Whereas INP_BUF consists of bytes, TOK_BUF consists of TOKBUFs.
 ;
+TOKBUF		struc
+TOKBUF_OFF	db	?	; 00h: token offset
+TOKBUF_LEN	db	?	; 01h: token length
+TOKBUF_CLASS	db	?	; 02h: token class
+TOKBUF		ends
+
 BUF_TOKENS	struc
 TOK_MAX		db	?
 TOK_CNT		db	?
-TOK_BUF		db	128 dup (?)
+TOK_BUF		db	128 * (size TOKBUF) dup (?)
 BUF_TOKENS	ends
 
 TOKTYPE_BASIC	equ	0	; default parsing
-TOKTYPE_WHITE	equ	1	; whitespace parsing only
+TOKTYPE_GENERIC	equ	1	; generic whitespace parsing only
 
 ;
-; After DOS_UTL_TOKIFY breaks a string into tokens, use DOS_UTL_TOKID to
-; identify each token, based on a sorted DEF_TOKENs table.
+; After DOS_UTL_TOKIFY breaks a string into tokens, use DOS_UTL_TOKID
+; to identify each token, based on a table of sorted TOKDEF structures.
 ;
-DEF_TOKEN	struc
-TOK_LEN		db	?	; length of token
-TOK_ID		db	?	; ID of token
-TOK_OFF		dw	?	; offset of token
-TOK_DATA	dw	?	; user-defined token data
-DEF_TOKEN	ends
+TOKDEF		struc
+TOKDEF_LEN	db	?	; length of token
+TOKDEF_ID	db	?	; ID of token
+TOKDEF_OFF	dw	?	; offset of token
+TOKDEF_DATA	dw	?	; user-defined token data
+TOKDEF		ends
 
 ;
 ; DOS error codes (not to be confused with device error codes)

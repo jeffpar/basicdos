@@ -32,7 +32,7 @@ COM1	DDH	<COM1_LEN,,DDATTR_OPEN+DDATTR_CHAR,COM1_INIT,ddcom_int1,20202020314D4F4
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
 	DEFLBL	COM_PARMS,word
-	dw	9600,110,19200, 8,7,8, 1,1,2
+	dw	9600,110,19200, 8,7,8, 1,1,2, 128,0,4096
 
 RINGBUF		struc
 BUFOFF		dw	?	; 00h: offset within context of buffer
@@ -195,7 +195,7 @@ DEFPROC	ddcom_read
 	ASSUME	DS:NOTHING
 
 dcr1:	mov	ah,2			; AH = READ, DX = card #
-	int	14h			; call the BIOS to write the char
+	int	14h			; call the BIOS to read a char
 	; test	ah,ah
 	; jnz	err
 	mov	[si],al
@@ -292,7 +292,7 @@ ENDPROC	ddcom_write
 ;
 ; The format of the optional context descriptor is:
 ;
-;	[device]:[baud],[parity],[databits],[stopbits]
+;	[device]:[baud],[parity],[databits],[stopbits],[inbuflen],[outbuflen]
 ;
 ; where [device] is "COMn" (otherwise you wouldn't be here).
 ;
@@ -327,20 +327,29 @@ dco1:	lds	si,es:[di].DDP_PTR
 	je	dco0			; no
 	inc	si			; skip the colon separator
 
-	mov	bx,(size CONTEXT + DEF_INLEN + DEF_OUTLEN + 15) SHR 4
+	push	di
+	push	es
+	mov	di,dx			; DI = card #
+	call	get_parms
+	push	ax			; save output buffer length
+	push	bx			; save parity
+	push	cx			; save baud rate
+	add	ax,si			; AX = output + input buffer lengths
+	add	ax,size CONTEXT + 15
+	mov	cl,4
+	shr	ax,cl
+	xchg	bx,ax			; BX = required length, in paras
 	mov	ah,DOS_MEM_ALLOC
 	int	INT_DOSFUNC
 	jnc	dco1a
 	jmp	dco7
 
-dco1a:	push	di
-	push	es
-	mov	es,ax
-	sub	di,di
+dco1a:	mov	es,ax
+	xchg	ax,di			; AX = card #
+	sub	di,di			; ES:DI -> CONTEXT
 	push	ds
 	mov	ds,di
 	ASSUME	DS:BIOS
-	xchg	ax,dx
 	stosw				; set CT_CARD
 	xchg	bx,ax
 	add	bx,bx			; BX = card # * 2
@@ -348,13 +357,13 @@ dco1a:	push	di
 	pop	ds
 	ASSUME	DS:NOTHING
 	stosw				; set CT_PORT
-	call	get_parms
-	xchg	ax,cx
+	pop	ax			; restore baud rate (originally in CX)
 	stosw				; set CT_BAUD
 	xchg	ax,dx
 	stosw				; set CT_DATABITS and CT_STOPBITS
-	mov	al,bl
-	mov	ah,1
+	pop	ax			; restore parity (originally in BH)
+	mov	al,1
+	xchg	al,ah
 	stosw				; set CT_PARITY and CT_REFS
 	sub	ax,ax
 	IFDEF DEBUG
@@ -366,19 +375,18 @@ dco1a:	push	di
 	stosw				; set CT_INPUT.BUFOFF
 	stosw				; set CT_INPUT.BUFHEAD
 	stosw				; set CT_INPUT.BUFTAIL
-	add	ax,DEF_INLEN
+	add	ax,si
 	stosw				; set CT_INPUT.BUFEND
 
-	mov	ax,size CONTEXT + DEF_INLEN
 	stosw				; set CT_OUTPUT.BUFOFF
 	stosw				; set CT_OUTPUT.BUFHEAD
 	stosw				; set CT_OUTPUT.BUFTAIL
-	add	ax,DEF_OUTLEN
+	pop	bx			; restore output buffer length
+	add	ax,bx
 	stosw				; set CT_OUTPUT.BUFEND
 
 	push	es
 	pop	ds			; DS is now the context
-	sub	di,di
 	mov	ax,ds:[CT_BAUD]
 	mov	cl,150
 	div	cl
@@ -413,17 +421,23 @@ dco3c:	or	ah,02h
 ;
 ; Now we can use the BIOS to initialize the card.
 ;
-dco4:
-	mov	dx,ds:[CT_CARD]
+dco4:	mov	dx,ds:[CT_CARD]
 	mov	al,ah
 	mov	ah,0
 	int	INT_COM
+
+	test	si,si			; verify we have an input buffer
+	jnz	dco5			; we do
+	mov	ah,DOS_MEM_FREE		; no, apparently the caller just
+	int	INT_DOSFUNC		; used us to initialize the COM port
+	sub	cx,cx
+	jmp	short dco6
 ;
 ; There are 3 required steps to enabling COM interrupts.
 ;
 ; Step 1: Set the desired bits in the Interrupt Enable Register.
 ;
-	call	write_ier		; enable THR and RBR interrupts
+dco5:	call	write_ier		; enable THR and RBR interrupts
 ;
 ; Step 2: Set the OUT2 bit in the Modem Control Register.
 ;
@@ -437,13 +451,15 @@ dco4:
 ; All done.  Be sure to return with the context segment in CX.
 ;
 	mov	cx,ds
-	pop	es
+dco6:	pop	es
 	pop	di
 	jmp	short dco8
 ;
 ; At the moment, the only possible error is a failure to allocate memory.
 ;
-dco7:	sub	cx,cx
+dco7:	pop	es
+	pop	di
+	sub	cx,cx
 	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_GENFAIL
 	jmp	short dco9
 
@@ -678,16 +694,19 @@ ENDPROC	add_packet
 ; get_parms
 ;
 ; Inputs:
-;	DS:SI -> parameter string
+;	DS:SI -> parameter string:
+;	[device]:[baud],[parity],[databits],[stopbits],[inbuflen],[outbuflen]
 ;
 ; Outputs:
 ;	CX = baud rate
-;	DL = parity indicator (unvalidated; should be one of 'N', 'O', or 'E')
-;	DH = data bits
-;	AL = stop bits
+;	BH = parity indicator (unvalidated; should be one of 'N', 'O', or 'E')
+;	DL = data bits
+;	DH = stop bits
+;	SI = input buffer length
+;	AX = output buffer length
 ;
 ; Modifies:
-;	AX, CX, DX, SI
+;	AX, BX, CX, DX, SI
 ;
 DEFPROC	get_parms
 	push	di
@@ -700,7 +719,7 @@ DEFPROC	get_parms
 	int	21h			; updates SI, DI, and AX
 	xchg	cx,ax			; CX = baud rate
 	lodsb
-	mov	bl,al			; BL = parity indicator ('N', 'O', 'E')
+	mov	bh,al			; BH = parity indicator ('N', 'O', 'E')
 	lodsb
 	mov	ax,DOS_UTL_ATOI16
 	int	21h
@@ -708,6 +727,12 @@ DEFPROC	get_parms
 	mov	ax,DOS_UTL_ATOI16
 	int	21h
 	mov	dh,al			; DH = stop bits
+	mov	ax,DOS_UTL_ATOI16
+	int	21h
+	xchg	si,ax			; SI = input buffer length
+	sub	di,6			; use the input limits for output, too
+	mov	ax,DOS_UTL_ATOI16
+	int	21h			; AX = output buffer length
 	pop	es
 	pop	di
 	ret

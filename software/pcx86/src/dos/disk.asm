@@ -43,7 +43,11 @@ df1:	test	al,al
 	jl	df2
 	cmp	ds:[BUF_DRIVE],al
 	jne	df3
-df2:	mov	ds:[BUF_LBA],-1		; use -1 to invalidate the LBA
+;
+; We use zero to zap BUF_LBA because we never read LBA 0 into our buffers;
+; the disk driver will read LBA 0, but only when it needs to rebuild the BPB.
+;
+df2:	mov	ds:[BUF_LBA],0		; use 0 to invalidate the LBA
 df3:	cmp	ds:[BUF_NEXT],dx	; looped back around?
 	je	df9			; yes
 	mov	ds,ds:[BUF_NEXT]
@@ -191,7 +195,7 @@ gi3:	inc	bx			; advance cluster #
 	cbw
 	jmp	short gi9
 
-gi8:	sbb	ax,ax
+gi8:	sbb	ax,ax			; set AX to FFFFh on error
 gi9:	mov	[bp].REG_AX,ax
 	UNLOCK_SCB
 	ret

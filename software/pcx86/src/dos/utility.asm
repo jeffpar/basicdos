@@ -445,12 +445,21 @@ DEFPROC	utl_itoa,DOS
 	ret
 ENDPROC	utl_itoa
 
+CLS_OCT		equ	01h		; octal value
+CLS_HEX		equ	02h		; hexadecimal value
+CLS_DEC		equ	04h		; decimal value
+CLS_STR		equ	08h		; string constant
+CLS_VAR		equ	10h		; identifier (eg, variable)
+CLS_SYM		equ	20h		; any other symbol
+CLS_DQUOTE	equ	40h		; inside double quotes
+CLS_WHITE	equ	80h		; whitespace
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; utl_tokify (AX = 180Bh or 180Ch)
 ;
 ; Inputs:
-;	REG_AL = 0Bh (TOKTYPE_WHITE) or 0Ch (TOKTYPE_BASIC)
+;	REG_AL = 0Bh (TOKTYPE_GENERIC) or 0Ch (TOKTYPE_BASIC)
 ;	REG_DS:REG_SI -> BUF_INPUT
 ;	REG_ES:REG_DI -> BUF_TOKENS
 ;
@@ -471,55 +480,60 @@ DEFPROC	utl_tokify,DOS
 	add	si,offset INP_BUF	; SI -> 1st character
 	mov	[bp].TMP_AL,al		; save token type
 	mov	[bp].TMP_BX,si		; TMP_BX = starting position
-	lodsb				; preload the first character
+	mov	ah,0			; AH = initial classification
 	jmp	tf8			; and dive in
 ;
-; Skip all whitespace in front of the next token.
+; Starting a new token.
 ;
-tf1:	lodsb
-tf2:	cmp	al,CHR_RETURN
-	je	tf9
-	cmp	al,CHR_SPACE
-	je	tf1
-	cmp	al,CHR_TAB
-	je	tf1
-;
-; For the next token word-pair, we need to record the offset and the length,
-; so save the starting address in DX.
-;
-	lea	dx,[si-1]
-	mov	ah,0			; AH = 0 (no initial classification)
-tf4:	call	tok_classify		; classify returns ZF set
-	jz	tf6			; whenever the classification changes
-	lodsb
-	jmp	tf4
+tf1:	lea	dx,[si-1]		; DX = start of token
+tf2:	lodsb
+	mov	ch,ah			; CH = current classification
+	call	tok_classify
+	test	ah,ah			; all done?
+	jz	tf6			; yes
+	test	ch,ch			; priming the pump?
+	jz	tf1			; yes
+	cmp	ah,ch			; any change to classification?
+	je	tf2			; no
+	cmp	ch,CLS_WHITE		; was the previous class whitespace?
+	je	tf1			; yes, just start a new token
 
-tf6:	lea	cx,[si-1]
+tf6:	mov	al,ch
+	lea	cx,[si-1]		; SI = end of token
 	sub	cx,dx			; CX = length of token
-	DPRINTF	<"token: '%.*ls'",13,10>,cx,dx,ds
+
+	IFDEF DEBUG
+	; test	byte ptr [bp].TMP_AL,TOKTYPE_GENERIC
+	; jnz	tf7
+	push	ax
+	mov	ah,0
+	DPRINTF	<"token: '%.*ls' (%#04x)",13,10>,cx,dx,ds,ax
+	pop	ax
+tf7:
+	ENDIF
 ;
-; DX:CX has our next token pair; store it at the token index in BX
+; Update the TOKBUF in the TOK_BUF at ES:DI, token index BX
 ;
-	add	bx,bx
-	sub	dx,[bp].TMP_BX		; DX = offset of next token
-	mov	es:[di+bx].TOK_BUF,dl
-	mov	es:[di+bx+1].TOK_BUF,cl
-	shr	bx,1
+	sub	dx,[bp].TMP_BX		; DL = offset of next token
+	mov	dh,cl
+	mov	cx,bx			; save BX
+	add	bx,cx			; and set BX = BX * 3 (size TOKBUF)
+	add	bx,cx
+	mov	word ptr es:[di+bx].TOK_BUF.TOKBUF_OFF,dx
+	mov	es:[di+bx].TOK_BUF.TOKBUF_CLASS,al
+	mov	bx,cx
 	inc	bx			; increment token index
 
+	test	ah,ah			; all done?
+	jz	tf9			; yes
+
 tf8:	cmp	bl,es:[di].TOK_MAX	; room for more tokens?
-	jb	tf2			; yes
+	jb	tf1			; yes
 
 tf9:	mov	es:[di].TOK_CNT,bl	; update # tokens
 	mov	[bp].REG_AX,bx		; return # tokens in AX, too
 	ret
 ENDPROC	utl_tokify
-
-CLS_OCT		equ	01h
-CLS_HEX		equ	02h
-CLS_DEC		equ	04h
-CLS_VAR		equ	08h
-CLS_QUOTE	equ	20h
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -527,124 +541,117 @@ CLS_QUOTE	equ	20h
 ;
 ; Inputs:
 ;	AL = character
-;	AH = current classification bits (see CLS_*)
+;	AH = classification of previous character(s)
 ;
 ; Outputs:
-;	ZF set if classification has changed, clear otherwise
+;	AH = new classification, 0 if none (end of input)
 ;
 ; Modifies:
 ;	AX
 ;
 DEFPROC	tok_classify
 	cmp	al,CHR_RETURN
-	je	cl4c			; done (return with ZF set)
-;
-; Check for quotation characters first.
-;
-	cmp	al,CHR_DQUOTE
-	je	cl1
-	cmp	al,CHR_SQUOTE
-	jne	cl2
-cl1:	test	ah,ah			; previous classification?
-	jnz	cl1a			; yes
-	or	ah,al			; no, the character becomes the class
-	ret				; return with ZF clear
-
-cl1a:	test	ah,CLS_QUOTE		; are we looking for a closing quote?
-	jz	cl4c			; done (return with ZF set)
-	cmp	al,ah			; yes, have we reached matching quote?
-	jne	cl4b			; no, return with ZF clear
-	lodsb				; yes, preload the next character
-	ret				; done (return with ZF set)
-;
-; Assuming we're not looking for a closing quotation, get whitespace
-; out of the way next.
-;
-cl2:	test	ah,CLS_QUOTE
-	jnz	cl9			; not done
-	cmp	al,CHR_SPACE
-	je	cl9			; done
-	cmp	al,CHR_TAB
-	je	cl9			; done
-;
-; If there's no classification yet, check for special leading characters.
-;
-	test	byte ptr [bp].TMP_AL,TOKTYPE_WHITE
-	jnz	cl9			; not done if whitespace only
-	test	al,al
-	jnz	cl4
-	cmp	al,'&'			; leading char for hex or octal?
-	jne	cl4			; no
-	or	ah,CLS_HEX OR CLS_OCT	; yes
-	ret				; not done
-;
-; Check for digits.
-;
-cl4:	cmp	al,'0'
-	jb	cl5
-	cmp	al,'9'
-	ja	cl5
-;
-; Digits can start CLS_DEC, or continue CLS_DEC, CLS_HEX, or CLS_VAR,
-; or continue CLS_OCT if < '8'.
-;
-	test	ah,ah
-	jnz	cl4a
-	or	ah,CLS_DEC		; not done
-	ret
-
-cl4a:	test	ah,CLS_DEC OR CLS_HEX OR CLS_VAR
-cl4b:	jnz	cl9			; not done
-	test	ah,CLS_OCT
-cl4c:	jz	cl9			; done (mystery digit)
-	cmp	al,'8'
-	jb	cl9			; not done (octal digit is OK)
+	jne	tc1
 	sub	ah,ah
-	ret				; done (non-octal digit)
+	ret
 ;
-; Check for letters.
+; Check for quotations first.
 ;
-cl5:	cmp	al,'a'
+tc1:	cmp	al,CHR_DQUOTE		; double quotes?
+	jne	tc1b			; no
+	and	ah,CLS_DQUOTE		; yes
+	xor	ah,CLS_DQUOTE		; are we inside double quotes?
+	jnz	tc1a			; no
+	mov	ah,CLS_STR		; convert classification to CLS_STR
+	mov	ch,ah			; and set previous class to match
+tc1a:	ret
+tc1b:	test	ah,CLS_DQUOTE		; are we inside double quotes?
+	jz	tc2			; no
+	ret				; yes, so leave classification alone
+;
+; Take care of whitespace next.
+;
+tc2:	cmp	al,CHR_SPACE
+	je	tc2a
+	cmp	al,CHR_TAB
+	jne	tc3
+tc2a:	mov	ah,CLS_WHITE
+	ret
+;
+; For generic parsing, everything is whitespace or a string.
+;
+tc3:	test	byte ptr [bp].TMP_AL,TOKTYPE_GENERIC
+	jz	tc4
+	mov	ah,CLS_STR		; call it a string
+	ret
+;
+; Check for digits next.
+;
+tc4:	cmp	al,'0'
+	jb	tc5
+	cmp	al,'9'
+	ja	tc5
+;
+; Digits can start CLS_DEC, or continue CLS_OCT, CLS_HEX, CLS_DEC, or CLS_VAR.
+; Technically, they can only continue CLS_OCT if < '8', but we worry about that
+; later, during evaluation.
+;
+	test	ah,CLS_OCT OR CLS_HEX OR CLS_DEC OR CLS_VAR
+	jnz	tc4a
+	mov	ah,CLS_DEC		; must be decimal
+tc4a:	cmp	ah,CLS_OCT OR CLS_HEX
+	jne	tc4b
+	and	ah,CLS_OCT
+	mov	ch,ah			; set previous class as well
+tc4b:	ret				; to avoid unnecesary token transition
+;
+; Check for letters next.
+;
+tc5:	cmp	al,'a'
 	jb	cl5a			; may be a letter, but not lowercase
 	cmp	al,'z'
-	ja	cl6			; letter
+	ja	cl6			; not a letter
 	sub	al,'a'-'A'
 cl5a:	cmp	al,'A'
 	jb	cl6			; not a letter
 	cmp	al,'Z'
 	ja	cl6			; not a letter
 ;
-; Letters can start or continue CLS_VAR, or continue CLS_HEX if < 'G'.
+; Letters can start or continue CLS_VAR, or continue CLS_HEX if < 'G'; however,
+; as with octal numbers, we'll worry about the validity of a hex number later,
+; during evaluation.
 ;
-cl5b:	test	ah,ah
-	jnz	cl5c
-	or	ah,CLS_VAR
-	ret
+	cmp	al,'H'
+	jne	cl5b
+	cmp	ah,CLS_OCT OR CLS_HEX
+	jne	cl5b
+	and	ah,CLS_HEX
+	mov	ch,ah			; set previous class as well
+	ret				; to avoid unnecesary token transition
 
-cl5c:	test	ah,CLS_VAR
-	jnz	cl9
-	test	ah,CLS_HEX
-	jz	cl9			; done (mystery letter)
-	cmp	al,'G'
-	jb	cl9			; not done (hex digit is OK)
-	sub	ah,ah
-	ret				; done (non-hex digit)
+cl5b:	test	ah,CLS_HEX OR CLS_VAR
+	jnz	cl5c
+	mov	ah,CLS_VAR		; must be a variable
+cl5c:	ret
 ;
-; Other cases: period can be decimal point, so it can start or continue CLS_DEC.
+; Periods can be a decimal point, so it can start or continue CLS_DEC.
 ;
 cl6:	cmp	al,'.'
-	jne	cl8
-	test	ah,ah
-	jz	cl6a
-	test	ah,CLS_DEC
-	jz	cl9			; done (mystery period)
-cl6a:	or	ah,CLS_DEC		; not done (decimal)
+	jne	cl7
+	mov	ah,CLS_DEC
 	ret
 ;
-; Must be some sort of symbol; treat it as a "one and done".
+; Ampersands are leading characters for hex and octal values.
 ;
-cl8:	sub	ah,ah			; done
-cl9:	ret
+cl7:	cmp	al,'&'			; leading char for hex or octal?
+	jne	cl8			; no
+	mov	ah,CLS_OCT OR CLS_HEX
+	ret
+;
+; Everything else is just a symbol at this point.
+;
+cl8:	mov	ah,CLS_SYM
+	ret
 ENDPROC	tok_classify
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -654,9 +661,9 @@ ENDPROC	tok_classify
 ; Inputs:
 ;	REG_CX = token length
 ;	REG_DS:REG_SI -> token
-;	REG_ES:REG_DI -> DEF_TOKENs
+;	REG_ES:REG_DI -> TOKDEFs
 ; Outputs:
-;	If carry clear, AX = token ID (TOK_ID), DX = token data (TOK_DATA)
+;	If carry clear, AX = token ID (TOKDEF_ID), DX = token data (TOKDEF_DATA)
 ;	If carry set, token not found
 ;
 ; Modifies:
@@ -666,12 +673,12 @@ DEFPROC	utl_tokid,DOS
 	sti
 	and	[bp].REG_FL,NOT FL_CARRY
 	mov	ds,[bp].REG_DS		; DS:SI -> token (length CX)
-	mov	es,[bp].REG_ES		; ES:DI -> DEF_TOKENs
+	mov	es,[bp].REG_ES		; ES:DI -> TOKDEFs
 	ASSUME	DS:NOTHING, ES:NOTHING
 
 	push	bp
 	sub	bp,bp			; BP = top index
-	mov	dx,es:[di]		; DX = number of tokens in DEF_TOKENs
+	mov	dx,es:[di]		; DX = number of tokens in TOKDEFs
 	add	di,2
 
 td0:	mov	ax,-1
@@ -683,22 +690,22 @@ td0:	mov	ax,-1
 	shr	bx,1			; BX = midpoint index
 
 	push	bx
-	IF	SIZE DEF_TOKEN EQ 6
+	IF	SIZE TOKDEF EQ 6
 	mov	ax,bx
 	add	bx,bx
 	add	bx,ax
 	add	bx,bx
 	ELSE
 	ASSERT	B,<cmp bl,256>
-	mov	al,size DEF_TOKEN
+	mov	al,size TOKDEF
 	mul	bl
 	mov	bx,ax
 	ENDIF
-	mov	ch,es:[di+bx].TOK_LEN	; CH = length of current token
+	mov	ch,es:[di+bx].TOKDEF_LEN; CH = length of current token
 	mov	ax,cx			; CL is saved in AL
 	push	si
 	push	di
-	mov	di,es:[di+bx].TOK_OFF	; ES:DI -> current token
+	mov	di,es:[di+bx].TOKDEF_OFF; ES:DI -> current token
 td1:	cmpsb				; compare input to current
 	jne	td2
 	sub	cx,0101h
@@ -726,8 +733,8 @@ td3:	inc	bx
 	jmp	td0
 
 td8:	sub	ax,ax			; zero AX (and carry, too)
-	mov	al,es:[di+bx].TOK_ID	; AX = token ID
-	mov	dx,es:[di+bx].TOK_DATA	; DX = user-defined token data
+	mov	al,es:[di+bx].TOKDEF_ID	; AX = token ID
+	mov	dx,es:[di+bx].TOKDEF_DATA; DX = user-defined token data
 	pop	bx			; toss BX from stack
 
 td9:	pop	bp
