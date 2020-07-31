@@ -452,11 +452,20 @@ TOKTYPE_GENERIC	equ	1	; generic whitespace parsing only
 ; to identify each token, based on a table of sorted TOKDEF structures.
 ;
 TOKDEF		struc
-TOKDEF_LEN	db	?	; length of token
 TOKDEF_ID	db	?	; ID of token
-TOKDEF_OFF	dw	?	; offset of token
+TOKDEF_LEN	db	?	; length of token text
+TOKDEF_OFF	dw	?	; offset of token text
 TOKDEF_DATA	dw	?	; user-defined token data
 TOKDEF		ends
+
+CLS_OCT		equ	01h	; octal value
+CLS_HEX		equ	02h	; hexadecimal value
+CLS_DEC		equ	04h	; decimal value
+CLS_STR		equ	08h	; string constant
+CLS_VAR		equ	10h	; identifier (eg, keyword or variable)
+CLS_SYM		equ	20h	; any other symbol
+CLS_DQUOTE	equ	40h	; inside double quotes
+CLS_WHITE	equ	80h	; whitespace
 
 ;
 ; DOS error codes (not to be confused with device error codes)

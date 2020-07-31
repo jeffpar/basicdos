@@ -26,7 +26,7 @@ N1	label	byte
 	len = offset $ - offset N1
 CODE	ENDS
 DATA	SEGMENT
-	TOKDEF	<len,val,offset DGROUP:N1,offset func>
+	TOKDEF	<val,len,offset DGROUP:N1,offset func>
 DATA	ENDS
 	endm
 

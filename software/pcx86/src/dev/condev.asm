@@ -24,8 +24,8 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
 	DEFLBL	IOCTBL,word
-	dw	ddcon_none,   ddcon_getpos, ddcon_getlen, ddcon_movcur	; 0-3
-	dw	ddcon_setins, ddcon_scroll				; 4-5
+	dw	ddcon_none,   ddcon_getpos, ddcon_getlen,  ddcon_movcur	; 0-3
+	dw	ddcon_setins, ddcon_scroll, ddcon_setcolor		; 4-6
 	DEFABS	IOCTBL_SIZE,<($ - IOCTBL) SHR 1>
 
 	DEFLBL	CON_PARMS,word
@@ -74,6 +74,7 @@ CT_SCROFF	dw	?	; 14h: eg, 2000 (offset of off-screen memory)
 CT_SCREEN	dd	?	; 16h: eg, B800:00A2h
 CT_BUFFER	dd	?	; 1Ah: used only for background contexts
 CT_BUFLEN	dw	?	; 1Eh: eg, 4000 for a full-screen 25*80*2 buffer
+CT_COLOR	dw	?	; 20h: fill (LO) and border (HI) attributes
 CONTEXT		ends
 
 CTSIG		equ	'C'
@@ -371,6 +372,28 @@ ENDPROC	ddcon_scroll
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; ddcon_setcolor
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;	CL = fill attributes (from DDPRW_LENGTH.LO)
+;	CH = border attributes (from DDPRW_LENGTH.HI)
+;	DS = CONSOLE context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_setcolor
+	mov	ds:[CT_COLOR],cx
+	ret
+ENDPROC	ddcon_setcolor
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; ddcon_read
 ;
 ; Inputs:
@@ -569,6 +592,7 @@ dco1a:	xchg	[ct_head],ax
 	add	ax,dx
 	mov	ds:[CT_SCREEN].OFF,ax
 	mov	ds:[CT_SCROFF],4000	; TODO: fix this hard-coded offset
+	mov	ds:[CT_COLOR],0707h	; default fill and border attributes
 ;
 ; Importing the BIOS CURSOR_POSN into CURPOS seemed like a nice idea initially,
 ; but now that we're clearing interior below, seems best to use a default.
@@ -1013,25 +1037,25 @@ db1:	sub	dx,dx			; get top left X,Y (DL,DH)
 	mov	bx,ds:[CT_CONDIM]	; get bottom right X,Y (BL,BH)
 	lods	word ptr cs:[si]
 	xchg	cx,ax
-	call	write_vertpair
+	call	draw_vertpair
 	ASSUME	ES:NOTHING
 	lods	word ptr cs:[si]
 	xchg	cx,ax
 db2:	inc	dh			; advance Y, holding X constant
 	cmp	dh,bh
 	jae	db3
-	call	write_vertpair
+	call	draw_vertpair
 	jmp	db2
 db3:	lods	word ptr cs:[si]
 	xchg	cx,ax
-	call	write_vertpair
+	call	draw_vertpair
 	lods	word ptr cs:[si]
 	xchg	cx,ax
 db4:	mov	dh,0
 	inc	dx			; advance X, holding Y constant
 	cmp	dl,bl
 	jae	db9
-	call	write_horzpair
+	call	draw_horzpair
 	jmp	db4
 db9:	ret
 ENDPROC	draw_border
@@ -1074,7 +1098,8 @@ DEFPROC	draw_char
 	jge	dc1
 	mov	dx,ds:[CT_CURMIN]
 
-dc1:	call	write_curpos		; write CL at (DL,DH)
+dc1:	mov	ah,ds:[CT_COLOR].LO	; AH = attributes
+	call	write_curpos		; write CL at (DL,DH)
 ;
 ; Advance DL, advance DH as needed, and scroll the context as needed.
 ;
@@ -1122,6 +1147,58 @@ DEFPROC	draw_cursor
 	call	write_crtc16		; update cursor position using BX
 	ret
 ENDPROC	draw_cursor
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; draw_horzpair
+;
+; Inputs:
+;	CH = top char
+;	CL = bottom char
+;	DL,DH = top X,Y
+;	BL,BH = bottom X,Y
+;	DS = CONSOLE context
+;
+; Modifies:
+;	DI, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	draw_horzpair
+	mov	ah,ds:[CT_COLOR].HI
+	xchg	cl,ch
+	call	write_curpos
+	xchg	cl,ch
+	xchg	dh,bh
+	call	write_curpos
+	xchg	dh,bh
+	ret
+ENDPROC	draw_horzpair
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; draw_vertpair
+;
+; Inputs:
+;	CH = left char
+;	CL = right char
+;	DL,DH = left X,Y
+;	BL,BH = right X,Y
+;	DS = CONSOLE context
+;
+; Modifies:
+;	DI, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	draw_vertpair
+	mov	ah,ds:[CT_COLOR].HI
+	xchg	cl,ch
+	call	write_curpos
+	xchg	dl,bl
+	xchg	cl,ch
+	call	write_curpos
+	xchg	dl,bl
+	ret
+ENDPROC	draw_vertpair
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1191,10 +1268,11 @@ ENDPROC	focus_next
 ;	BX -> screen buffer offset
 ;
 ; Modifies:
-;	AX, BX
+;	BX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	get_curpos
+	push	ax
 	mov	al,dh
 	mul	[max_cols]
 	add	ax,ax			; AX = offset to row
@@ -1202,6 +1280,7 @@ DEFPROC	get_curpos
 	mov	bl,dl
 	add	bx,bx
 	add	bx,ax			; BX = offset to row and col
+	pop	ax
 	ret
 ENDPROC	get_curpos
 
@@ -1391,7 +1470,7 @@ scr0:	cmp	al,ds:[CT_CONDIM].HI
 	mov	al,0			; zero tells BIOS to clear all lines
 scr1:	add	cx,ds:[CT_CURMIN]	; CH = row, CL = col of upper left
 	add	dx,ds:[CT_CURMAX]	; DH = row, DL = col of lower right
-scr2:	mov	bh,07h			; BH = fill attribute
+scr2:	mov	bh,ds:[CT_COLOR].LO	; BH = fill attributes
 	mov	ah,VIDEO_SCROLL		; scroll up # lines in AL
 	int	INT_VIDEO
 	pop	ax
@@ -1521,6 +1600,7 @@ ENDPROC	write_context
 ; write_curpos
 ;
 ; Inputs:
+;	AH = attributes
 ;	CL = character
 ;	DX = CURPOS (DL,DH)
 ;	DS = CONSOLE context
@@ -1547,62 +1627,13 @@ wcp1:	in	al,dx
 wcp2:	in	al,dx
 	test	al,01h
 	jz	wcp2			; loop until we're INSIDE horz retrace
-	mov	es:[di+bx],cl		; "write" the character
+	mov	al,cl
+	mov	es:[di+bx],ax		; "write" the character and attributes
 	sti
 	pop	dx
 	pop	bx
 	ret
 ENDPROC	write_curpos
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; write_horzpair
-;
-; Inputs:
-;	CH = top char
-;	CL = bottom char
-;	DL,DH = top X,Y
-;	BL,BH = bottom X,Y
-;	DS = CONSOLE context
-;
-; Modifies:
-;	DI, ES
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	write_horzpair
-	xchg	cl,ch
-	call	write_curpos
-	xchg	cl,ch
-	xchg	dh,bh
-	call	write_curpos
-	xchg	dh,bh
-	ret
-ENDPROC	write_horzpair
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; write_vertpair
-;
-; Inputs:
-;	CH = left char
-;	CL = right char
-;	DL,DH = left X,Y
-;	BL,BH = right X,Y
-;	DS = CONSOLE context
-;
-; Modifies:
-;	DI, ES
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	write_vertpair
-	xchg	cl,ch
-	call	write_curpos
-	xchg	dl,bl
-	xchg	cl,ch
-	call	write_curpos
-	xchg	dl,bl
-	ret
-ENDPROC	write_vertpair
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -445,15 +445,6 @@ DEFPROC	utl_itoa,DOS
 	ret
 ENDPROC	utl_itoa
 
-CLS_OCT		equ	01h		; octal value
-CLS_HEX		equ	02h		; hexadecimal value
-CLS_DEC		equ	04h		; decimal value
-CLS_STR		equ	08h		; string constant
-CLS_VAR		equ	10h		; identifier (eg, variable)
-CLS_SYM		equ	20h		; any other symbol
-CLS_DQUOTE	equ	40h		; inside double quotes
-CLS_WHITE	equ	80h		; whitespace
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; utl_tokify (AX = 180Bh or 180Ch)
@@ -495,16 +486,17 @@ tf2:	lodsb
 	jz	tf1			; yes
 	cmp	ah,ch			; any change to classification?
 	je	tf2			; no
-	cmp	ch,CLS_WHITE		; was the previous class whitespace?
-	je	tf1			; yes, just start a new token
 
 tf6:	mov	al,ch
+	test	al,NOT CLS_WHITE	; any previous classification?
+	jz	tf7a			; no
+
 	lea	cx,[si-1]		; SI = end of token
 	sub	cx,dx			; CX = length of token
 
 	IFDEF DEBUG
-	; test	byte ptr [bp].TMP_AL,TOKTYPE_GENERIC
-	; jnz	tf7
+	test	byte ptr [bp].TMP_AL,TOKTYPE_GENERIC
+	jnz	tf7
 	push	ax
 	mov	ah,0
 	DPRINTF	<"token: '%.*ls' (%#04x)",13,10>,cx,dx,ds,ax
@@ -524,7 +516,7 @@ tf7:
 	mov	bx,cx
 	inc	bx			; increment token index
 
-	test	ah,ah			; all done?
+tf7a:	test	ah,ah			; all done?
 	jz	tf9			; yes
 
 tf8:	cmp	bl,es:[di].TOK_MAX	; room for more tokens?
@@ -634,12 +626,15 @@ cl5b:	test	ah,CLS_HEX OR CLS_VAR
 	mov	ah,CLS_VAR		; must be a variable
 cl5c:	ret
 ;
-; Periods can be a decimal point, so it can start or continue CLS_DEC.
+; Periods can be a decimal point, so it can start or continue CLS_DEC,
+; or continue CLS_VAR.
 ;
 cl6:	cmp	al,'.'
 	jne	cl7
+	test	ah,CLS_VAR
+	jnz	cl6a
 	mov	ah,CLS_DEC
-	ret
+cl6a:	ret
 ;
 ; Ampersands are leading characters for hex and octal values.
 ;

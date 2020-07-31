@@ -171,6 +171,7 @@ dr5:	push	es			; create far pointer to DDH_REQUEST
 	stc				; AL contains device error code
 
 dr9:	pop	bp
+	ASSERT	NZ,<test bp,bp>
 	pop	bx
 	ret
 ENDPROC	dev_request

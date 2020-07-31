@@ -147,6 +147,7 @@ IOCTL_GETLEN	equ	0D2h	; CON: get displayed length of data
 IOCTL_MOVCUR	equ	0D3h	; CON: move cursor by DDPRW_LENGTH positions
 IOCTL_SETINS	equ	0D4h	; CON: set INSERT mode ON (CL=1) or OFF (CL=0)
 IOCTL_SCROLL	equ	0D5h	; CON: scroll (or clear) interior of context
+IOCTL_SETCOLOR	equ	0D6h	; CON: set fgnd (CL) and bgnd (CH) colors
 
 ;
 ; Helper macro to define the overall length of a device driver;

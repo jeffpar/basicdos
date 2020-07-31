@@ -273,23 +273,24 @@ DEFPROC	ttyin_add,near
 	call	ttyin_dsplen		; CH = current display length
 	pop	ax
 	mov	ah,[bp].TMP_CL		; AH = 0 or 1
-	cmp	al,CHR_TAB
-	jne	tta0
+	cmp	bl,dh			; cursor at the end?
+	jb	tta0			; no
+	mov	ah,1			; AH = 1
+tta0:	cmp	al,CHR_TAB
+	jne	tta1
 	mov	ah,8			; AH = 8 (worst case for a tab)
-tta0:	add	ch,ah			; could this overflow display length?
+tta1:	add	ch,ah			; could this overflow display length?
 	jc	tta9			; yes
 	mov	cx,[bp].TMP_CX		; CX = 0 (replace) or 1 (insert)
 	mov	ah,bl
-	jcxz	tta1
+	jcxz	tta2
 	mov	ah,dh
-tta1:	inc	ah
+tta2:	inc	ah
 	cmp	ah,es:[di]
 	cmc
 	jb	tta9
-	push	bp
-	mov	bp,cx			; BP = 0 (replace) or 1 (insert)
+	mov	[bp].TMP_AL,cl		; TMP_AL = 0 (replace) or 1 (insert)
 	call	ttyin_modify		; replace/insert character (AL) at BX
-	pop	bp
 tta9:	ret
 ENDPROC	ttyin_add
 
@@ -369,10 +370,8 @@ ENDPROC	ttyin_beg
 DEFPROC	ttyin_del
 	cmp	bl,dh			; anything displayed at position?
 	jae	ttd9			; no
-	push	bp
-	sbb	bp,bp			; BP = -1 (delete)
+	mov	byte ptr [bp].TMP_AL,-1	; TMP_AL = -1 (delete)
 	call	ttyin_modify		; delete character at BX
-	pop	bp
 	dec	dh			; reduce # displayed characters
 ttd9:	ret
 ENDPROC	ttyin_del
@@ -543,10 +542,8 @@ DEFPROC	ttyin_next,near
 	sub	ah,bl			; AH = space remaining
 	cmp	ah,1			; room for at least one more?
 	jb	ttn9			; no
-	push	bp
-	sub	bp,bp
+	mov	byte ptr [bp].TMP_AL,0	; TMP_AL = 0 (replace)
 	call	ttyin_modify		; replace (AL) at BX
-	pop	bp
 ttn9:	ret
 ENDPROC	ttyin_next
 
@@ -635,10 +632,10 @@ ENDPROC	ttyin_right
 ;
 ; Inputs:
 ;	AL = character
+;	TMP_AX = 1 to insert, 0 to replace, -1 to delete
 ;	BX = # characters preceding cursor
 ;	DH = # characters displayed
 ;	DL = starting column (required for display length calculations)
-;	BP = 1 to insert, 0 to replace, -1 to delete
 ;	ES:DI -> input buffer
 ;
 ; Outputs:
@@ -661,7 +658,7 @@ DEFPROC	ttyin_modify
 	mov	ch,ah			; CH = logical length from position
 	pop	ax
 
-	test	bp,bp
+	cmp	byte ptr [bp].TMP_AL,0
 	jl	ttm3
 	jz	ttm2
 ;
@@ -715,13 +712,13 @@ ttm7:	mov	al,IOCTL_GETLEN
 	call	con_ioctl		; get display lengths in AX
 	cmp	ah,ch			; any change in total display length?
 	jne	ttm7a			; yes
-	test	bp,bp			; no, and was this a simple replacement?
-	jz	ttm9			; yes, we're done
+	cmp	byte ptr [bp].TMP_AL,0	; no, was this a simple replacement?
+	je	ttm9			; yes, we're done
 ttm7a:	test	cl,cl
 	jz	ttm7d
 	push	si
-	test	bp,bp
-	jz	ttm7c
+	cmp	byte ptr [bp].TMP_AL,0
+	je	ttm7c
 ttm7b:	mov	al,es:[si]
 	call	ttyin_out
 ttm7c:	inc	si
@@ -737,12 +734,12 @@ ttm7e:	call	ttyin_out
 	jnz	ttm7e
 ;
 ; AH contains the length of all the displayed characters from SI, and that's
-; normally how many positions we want to rewind the cursor -- unless BP >= 0,
+; normally how many cols we want to rewind the cursor -- unless TMP_AX >= 0,
 ; in which case we need to reduce AH by the display length of the single char
 ; at SI.
 ;
 ttm8:	mov	ch,ah			; save original length in CH
-	test	bp,bp
+	cmp	byte ptr [bp].TMP_AL,0
 	jl	ttm8a
 	mov	cl,1
 	mov	al,IOCTL_GETLEN

@@ -170,19 +170,35 @@ m6:	lodsb
 m8:	PRINTF	<"Error loading %s: %d",13,10>,dx,ax
 	jmp	m1
 ;
-; We arrive here if the token was recognized, but before we invoke the
-; corresponding handler, we prep the 2nd token, if any, for convenience.
+; We arrive here if the token was recognized.  The token ID determines
+; the level of additional parsing required, if any.
 ;
-m9:	lea	di,[bx].TOKENBUF
+m9:	cmp	ax,20		; token ID < 20?
+	jb	m9a		; yes, token is not part of "the language"
+;
+; The token is for a recognized keyword, so retokenize the line.
+;
+	lea	si,[bx].INPUTBUF; DS:SI -> input buffer
+	lea	di,[bx].TOKENBUF; DS:DI -> token buffer
+	mov	ax,DOS_UTL_TOKIFY2
+	int	21h
+	jmp	short m9c
+
+m9a:	cmp	ax,10		; token ID < 10?
+	jb	m9c		; yes, command does not use a filespec
+;
+; The token is for a command that expects a filespec, so fix up token #2.
+;
+	lea	di,[bx].TOKENBUF
 	mov	cx,DIR_DEF_LEN - 1
 	mov	si,offset DIR_DEF
 	GETTOKEN 2		; DS:SI -> token #2, CX = length
 	lea	di,[bx].FILENAME
 	mov	ax,size FILENAME-1
 	cmp	cx,ax
-	jbe	m9a
+	jbe	m9b
 	xchg	cx,ax
-m9a:	push	cx
+m9b:	push	cx
 	push	di
 	rep	movsb
 	mov	byte ptr es:[di],0
@@ -190,7 +206,8 @@ m9a:	push	cx
 	pop	cx
 	mov	ax,DOS_UTL_STRUPR
 	int	21h		; DS:SI -> upper-case token, CX = length
-	call	dx		; call token handler
+
+m9c:	call	dx		; call token handler
 	jmp	m1
 ENDPROC	main
 
@@ -529,48 +546,6 @@ mem9:	xchg	ax,bp		; AX = free memory (paras)
 	pop	bp
 	ret
 ENDPROC	cmdMem
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; cmdPrint
-;
-; Prints the specified value, in both decimal and hex (for test purposes only)
-;
-; Inputs:
-;	DS:SI -> user-defined token
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	Any
-;
-DEFPROC	cmdPrint
-;
-; Let's retokenize using DOS_UTL_TOKIFY2
-;
-	lea	si,[bx].INPUTBUF; DS:SI -> input buffer
-	lea	di,[bx].TOKENBUF; DS:DI -> token buffer
-	mov	ax,DOS_UTL_TOKIFY2
-	int	21h
-	add	si,offset INP_BUF
-
-	GETTOKEN 2		; DS:SI -> token #2, CX = length
-	push	si
-	mov	bl,10		; default to base 10
-	cmp	word ptr [si],"x0"
-	jne	pr1
-	mov	bl,16		; "0x" prefix is present, so switch to base 16
-	add	si,2		; and skip the prefix
-pr1:	mov	ax,DOS_UTL_ATOI32
-	int	21h
-	pop	si
-	jc	pr8		; apparently not a number
-	PRINTF	<"Value is %ld (%#lx)",13,10>,ax,dx,ax,dx
-	jmp	short pr9
-pr8:	PRINTF	<"Invalid number: %.*s",13,10>,cx,si
-pr9:	ret
-ENDPROC	cmdPrint
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
