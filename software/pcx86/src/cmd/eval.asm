@@ -18,13 +18,13 @@ CODE    SEGMENT
 ; evalAdd16
 ;
 ; Inputs:
-;	2 offsets (to 16-bit values) pushed on stack
+;	2 (offsets to) 16-bit values pushed on stack
 ;
 ; Outputs:
-;	1 16-bit sum pushed back onto stack
+;	1 (offset to) 16-bit sum pushed back onto stack
 ;
 ; Modifies:
-;	AX, DX, SI, DI
+;	AX, BX, DX, SI, DI, ES
 ;
 DEFPROC	evalAdd16,FAR
 	pop	dx

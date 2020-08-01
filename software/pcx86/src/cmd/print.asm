@@ -18,13 +18,13 @@ CODE    SEGMENT
 ; print16
 ;
 ; Inputs:
-;	1 16-bit value on stack
+;	1 (offset to) 16-bit value pushed on stack
 ;
 ; Outputs:
 ;	None
 ;
 ; Modifies:
-;	AX, DX, SI, DI
+;	AX, DX, SI, ES
 ;
 DEFPROC	print16,FAR
 	pop	dx
