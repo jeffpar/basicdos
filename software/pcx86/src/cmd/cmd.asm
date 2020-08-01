@@ -16,7 +16,7 @@ CODE    SEGMENT
 
 	EXTERNS	<CMD_TOKENS,heap>,word
 	EXTSTR	<COM_EXT,EXE_EXT,DIR_DEF,PERIOD>
-	EXTSTR	<RES_MEM,SYS_MEM,DOS_MEM>
+	EXTSTR	<SYS_MEM,DOS_MEM>
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 
@@ -483,7 +483,7 @@ DEFPROC	cmdMem
 	mov	ax,es
 	push	di
 	mov	di,ds
-	mov	si,offset RES_MEM
+	mov	si,offset SYS_MEM
 	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
 	pop	di
 ;

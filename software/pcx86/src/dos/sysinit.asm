@@ -752,7 +752,7 @@ SHELL_FILE	db	"COMMAND.COM",0	; default SHELL file
 SYS_MSG		db	"BASIC-DOS "
 		VERSION_STR
 		db	" for the IBM PC",13,10
-		db	"Copyright (C) pcjs.org 1981-2021",13,10,13,10,'$'
+		db	"Copyright (c) pcjs.org 1981-2021",13,10,13,10,'$'
 
 	IFDEF	MAXDEBUG
 COM1_DEVICE	db	"COM1:9600,N,8,1",0
