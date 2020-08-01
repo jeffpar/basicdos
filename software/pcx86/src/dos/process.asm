@@ -20,7 +20,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<dos_check>,near
 	ENDIF
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; psp_term (REG_AH = 00h)
 ;
@@ -48,11 +48,7 @@ DEFPROC	psp_term,DOS
 ; Close process file handles.
 ;
 pt1:	push	ax			; save exit code/exit type on stack
-	mov	cx,size PSP_PFT
-	sub	bx,bx			; BX = handle (PFH)
-pt2:	call	pfh_close		; close process file handle
-	inc	bx
-	loop	pt2
+	call	psp_close		; close all the process file handles
 ;
 ; Restore the SCB's CTRLC and ERROR handlers from the values in the PSP.
 ;
@@ -116,7 +112,7 @@ pt8:	mov	es,ax			; ES = PSP of parent
 pt9:	ret
 ENDPROC	psp_term
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; psp_create (REG_AH = 26h)
 ;
@@ -147,9 +143,9 @@ ENDPROC	psp_term
 ;
 DEFPROC	psp_create,DOS
 	mov	dx,[bp].REG_DX
-	call	set_pspmem		; DX = PSP segment to update
+	call	psp_setmem		; DX = PSP segment to update
 ;
-; On return from set_pspmem, ES = PSP segment and DI -> PSP_EXRET.
+; On return from psp_setmem, ES = PSP segment and DI -> PSP_EXRET.
 ;
 ; Copy current INT 22h (EXRET), INT 23h (CTRLC), and INT 24h (ERROR) vectors,
 ; but copy them from the SCB, not the IVT.
@@ -206,7 +202,7 @@ DEFPROC	psp_create,DOS
 	ret
 ENDPROC	psp_create
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; psp_exec (REG_AX = 4Bh)
 ;
@@ -266,7 +262,7 @@ px9:	mov	[bp].REG_AX,ax		; return any error code in REG_AX
 	ret
 ENDPROC	psp_exec
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; psp_exit (REG_AH = 4Ch)
 ;
@@ -281,7 +277,7 @@ DEFPROC	psp_exit,DOS
 	jmp	psp_term_exitcode
 ENDPROC	psp_exit
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; psp_retcode (REG_AH = 4Dh)
 ;
@@ -304,7 +300,7 @@ DEFPROC	psp_retcode,DOS
 	ret
 ENDPROC	psp_retcode
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; psp_set (REG_AH = 50h)
 ;
@@ -324,7 +320,7 @@ DEFPROC	psp_set,DOS
 	ret
 ENDPROC	psp_set
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; psp_get (REG_AH = 51h)
 ;
@@ -344,7 +340,7 @@ DEFPROC	psp_get,DOS
 	ret
 ENDPROC	psp_get
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; load_program
 ;
@@ -694,7 +690,7 @@ lpef1:	jc	lpef			; TODO: try to use a smaller size?
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
-	call	set_pspmem		; DX = PSP segment to update
+	call	psp_setmem		; DX = PSP segment to update
 ;
 ; Since we're past the point of no return now, let's take care of some
 ; initialization outside of the program segment; namely, resetting the CTRLC
@@ -774,6 +770,10 @@ lpec:	push	ax
 	pop	ax
 
 lpef:	push	ax
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
+	call	psp_close
 	mov	es,[psp_active]
 	mov	ah,DOS_MEM_FREE
 	int	21h
@@ -784,9 +784,9 @@ lpef:	push	ax
 lp9:	ret
 ENDPROC	load_program
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; set_pspmem
+; psp_setmem
 ;
 ; This is called by psp_create to initialize the first 10 bytes of the PSP,
 ; as well as by load_program after a program has been loaded and the PSP has
@@ -802,20 +802,20 @@ ENDPROC	load_program
 ; Modifies:
 ;	AX, BX, CX, DI, ES
 ;
-DEFPROC	set_pspmem,DOS
+DEFPROC	psp_setmem,DOS
 	ASSUME	ES:NOTHING
 	mov	bx,[mcb_limit]		; BX = fallback memory limit
 	call	getsize			; if segment has a size, get it
-	jc	pc1			; nope, use BX
+	jc	ps1			; nope, use BX
 	mov	bx,dx
 	add	bx,ax			; BX = actual memory limit
 	ASSERT	NZ,<test cx,cx>
-	jcxz	pc1			; jump if segment unowned (unusual)
+	jcxz	ps1			; jump if segment unowned (unusual)
 	dec	dx
 	mov	es,dx			; ES -> MCB
 	inc	dx
 	mov	es:[MCB_OWNER],dx	; set MCB owner to PSP
-pc1:	mov	es,dx
+ps1:	mov	es,dx
 	sub	di,di			; start building the new PSP at ES:0
 	mov	ax,20CDh
 	stosw				; 00h: PSP_EXIT
@@ -829,10 +829,10 @@ pc1:	mov	es,dx
 	sub	ax,ax			; default to 64K
 	mov	cl,4
 	cmp	bx,1000h		; 64K or more available?
-	jae	pc3			; yes
+	jae	ps3			; yes
 	shl	bx,cl			; BX = number of bytes available
 	xchg	ax,bx
-pc3:	sub	ax,256			; AX = max available bytes this segment
+ps3:	sub	ax,256			; AX = max available bytes this segment
 	stosw				; 06h: PSP_SIZE
 ;
 ; Compute the code segment which, when shifted left 4 and added to AX, yields
@@ -844,7 +844,29 @@ pc3:	sub	ax,256			; AX = max available bytes this segment
 	sub	ax,bx			; basically, compute 000Ch - (BX SHR 4)
 	stosw				; 08h: PSP_FCSEG
 	ret
-ENDPROC	set_pspmem
+ENDPROC	psp_setmem
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; psp_close
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+DEFPROC	psp_close,DOS
+	mov	cx,size PSP_PFT
+	sub	bx,bx			; BX = handle (PFH)
+pc1:	call	pfh_close		; close process file handle
+	inc	bx
+	loop	pc1
+	ret
+ENDPROC	psp_close
 
 DOS	ends
 

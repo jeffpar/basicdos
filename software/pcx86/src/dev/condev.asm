@@ -24,8 +24,8 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
 	DEFLBL	IOCTBL,word
-	dw	ddcon_none,   ddcon_none,   ddcon_getpos, ddcon_getlen	; 0-3
-	dw	ddcon_movcur, ddcon_setins				; 4-5
+	dw	ddcon_none,   ddcon_getpos, ddcon_getlen,  ddcon_movcur	; 0-3
+	dw	ddcon_setins, ddcon_scroll, ddcon_setcolor		; 4-6
 	DEFABS	IOCTBL_SIZE,<($ - IOCTBL) SHR 1>
 
 	DEFLBL	CON_PARMS,word
@@ -42,6 +42,7 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	db	SCAN_F3,CHR_CTRLE,SCAN_UP,CHR_CTRLE
 	db	SCAN_LEFT,CHR_CTRLS,SCAN_DEL,CHR_DEL
 	db	SCAN_DOWN,CHR_CTRLX,SCAN_INS,CHR_CTRLV
+	db	SCAN_HOME,CHR_CTRLA,SCAN_END,CHR_CTRLF
 	db	0
 
 	DEFWORD	ct_head,0	; head of context chain
@@ -50,7 +51,7 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFBYTE	max_rows,25	; TODO: use this for something...
 	DEFBYTE	max_cols,80	; TODO: set to correct value in ddcon_init
 
-	DEFPTR	kbd_int,0	; keyboard hardware interrupt handler
+	DEFPTR	kbd_int,0	; original keyboard hardware interrupt handler
 	DEFPTR	wait_ptr,-1	; chain of waiting packets
 ;
 ; A context of "80,25,0,0,1" requests a border, so logical cursor positions
@@ -73,6 +74,7 @@ CT_SCROFF	dw	?	; 14h: eg, 2000 (offset of off-screen memory)
 CT_SCREEN	dd	?	; 16h: eg, B800:00A2h
 CT_BUFFER	dd	?	; 1Ah: used only for background contexts
 CT_BUFLEN	dw	?	; 1Eh: eg, 4000 for a full-screen 25*80*2 buffer
+CT_COLOR	dw	?	; 20h: fill (LO) and border (HI) attributes
 CONTEXT		ends
 
 CTSIG		equ	'C'
@@ -90,7 +92,7 @@ CRTC_CURBOT	equ	0Bh	; cursor bottom (mirrored at CURSOR_MODE.LO)
 CRTC_CURHI	equ	0Eh	; cursor start address (high)
 CRTC_CURLO	equ	0Fh	; cursor start address (low)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Driver request
 ;
@@ -116,7 +118,7 @@ ddq1:	push	cs
 	ret
 ENDPROC	ddcon_req
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; ddcon_ioctl
 ;
@@ -132,6 +134,7 @@ ENDPROC	ddcon_req
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_ioctl
 	mov	bl,es:[di].DDP_UNIT
+	sub	bl,IOCTL_CON
 	mov	dx,es:[di].DDP_CONTEXT
 	test	dx,dx
 	jz	dio0
@@ -150,7 +153,7 @@ dio7:	mov	es:[di].DDP_CONTEXT,dx	; return pos or length in packet context
 dio9:	ret
 ENDPROC	ddcon_ioctl
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; ddcon_getpos
 ;
@@ -163,7 +166,7 @@ ENDPROC	ddcon_ioctl
 ;	DS = CONSOLE context
 ;
 ; Outputs:
-;	DX = current cursor position (DL = col, DH = row)
+;	DX = current cursor position (DL = col, DH = row), zero-based.
 ;
 ; Modifies:
 ;	DX
@@ -171,10 +174,11 @@ ENDPROC	ddcon_ioctl
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_getpos
 	mov	dx,ds:[CT_CURPOS]	; DX = current cursor position
+	sub	dx,ds:[CT_CURMIN]	; make both row and col zero-based
 	ret
 ENDPROC	ddcon_getpos
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; ddcon_getlen
 ;
@@ -184,9 +188,9 @@ ENDPROC	ddcon_getpos
 ; erase TAB characters (or the entire buffer) without knowing both the starting
 ; position (from IOCTL_GETPOS) and the display length of the buffer.
 ;
-; TAB characters complicate matters, since the total number of columns in a
-; context are not always multiples of 8, and they always wrap to column 1 on
-; the following line.
+; TAB characters are more complicated than usual, since the total number of
+; columns in a context are not always multiples of 8, and tabs must always wrap
+; to column 1 on the following line.
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
@@ -202,6 +206,7 @@ ENDPROC	ddcon_getpos
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_getlen
 	mov	bx,es:[di].DDPRW_LBA	; BX = starting cursor position
+	add	bx,ds:[CT_CURMIN]	; zero-based, so adjust to our mins
 	sub	dx,dx			; DL = current len, DH = previous len
 	mov	ah,ds:[CT_CURMAX].LO	; AH = column max
 	mov	bh,ds:[CT_CURMIN].LO	; BH = column min
@@ -248,7 +253,7 @@ dgl5:	loop	dgl2
 dgl9:	ret
 ENDPROC	ddcon_getlen
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; ddcon_movcur
 ;
@@ -269,7 +274,7 @@ DEFPROC	ddcon_movcur
 	ret
 ENDPROC	ddcon_movcur
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; ddcon_setins
 ;
@@ -292,17 +297,16 @@ DEFPROC	ddcon_setins
 	ASSUME	ES:BIOS
 ;
 ; There was a bug in the original IBM PC (5150) BIOS: it stored the cursor's
-; top and bottom scan lines in the high and low nibbles of CURSOR_MODE.LO,
-; respectively, instead of the high and low bytes of CURSOR_MODE.
+; top and bottom scan lines in the high and low *nibbles* of CURSOR_MODE.LO,
+; respectively, instead of the high and low *bytes* of CURSOR_MODE.
 ;
 ;	F177:	C70660006700	MOV	CURSOR_MODE,67H
 ;
-; So, we'll check for that combo (67h in the LO byte, 00h in the HI byte) and
-; compensate.
+; So, we'll check for that combo (ie, 67h low, 00h high) and compensate.
 ;
 ; What's worse is that the same values (6,7) are stored in CURSOR_MODE for the
-; MDA as well, even though the MDA actually uses values (11,12) -- and that's
-; true regardless of BIOS revision.  Sigh.
+; MDA as well, even though the MDA's default values are different (11,12);
+; and this behavior seems to be true regardless of BIOS revision.  Bummer.
 ;
 	mov	ax,[CURSOR_MODE]
 	cmp	ax,0067h		; buggy cursor scanline values?
@@ -324,8 +328,8 @@ dsi2:	xchg	bx,ax			; BX = new values
 ; want to restore the original values when insert mode ends.  We do, however,
 ; toggle INS_STATE (80h) in KB_FLAG, to avoid any unanticipated keyboard BIOS
 ; side-effects; we rely almost entirely on the BIOS for keyboard processing,
-; whereas we rely very little on the BIOS for screen updates (scrolling and
-; dual monitor support are the main exceptions).
+; whereas we rely very little on the BIOS for screen updates (scroll calls and
+; dual monitor mode sets are the main exceptions).
 ;
 	mov	dl,[KB_FLAG]
 	mov	al,dl
@@ -338,7 +342,57 @@ dsi2:	xchg	bx,ax			; BX = new values
 	ret
 ENDPROC	ddcon_setins
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_scroll
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;	CX = DDPRW_LENGTH (+/- lines to scroll, 0 to clear)
+;	DS = CONSOLE context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_scroll
+	test	cx,cx
+	jnz	dcs1
+	mov	cl,100
+dcs1:	call	scroll
+	cmp	cl,100
+	jne	dcs9
+	mov	dx,ds:[CT_CURMIN]
+	call	update_cursor
+dcs9:	ret
+ENDPROC	ddcon_scroll
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_setcolor
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;	CL = fill attributes (from DDPRW_LENGTH.LO)
+;	CH = border attributes (from DDPRW_LENGTH.HI)
+;	DS = CONSOLE context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_setcolor
+	mov	ds:[CT_COLOR],cx
+	ret
+ENDPROC	ddcon_setcolor
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; ddcon_read
 ;
@@ -353,7 +407,7 @@ DEFPROC	ddcon_read
 	jcxz	dcr9
 
 	cli
-	call	read_kbd
+	call	pull_kbd
 	jnc	dcr9
 ;
 ; For READ requests that cannot be satisifed, we add this packet to an
@@ -373,7 +427,7 @@ dcr9:	sti
 	ret
 ENDPROC	ddcon_read
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; ddcon_write
 ;
@@ -400,8 +454,8 @@ dcw1:	lodsb
 
 dcw2:	push	es
 	mov	es,dx
-	test	es:[CT_STATUS],CTSTAT_PAUSED
-	jz	dcw3
+dcw3:	test	es:[CT_STATUS],CTSTAT_PAUSED
+	jz	dcw4
 ;
 ; For WRITE requests that cannot be satisifed, we add this packet to an
 ; internal chain of "writing" packets, and then tell DOS that we're waiting;
@@ -409,10 +463,12 @@ dcw2:	push	es
 ; conditions are satisfied.
 ;
 	pop	es			; ES:DI -> packet again
+	mov	es:[di].DDPRW_LENGTH,cx
+	mov	es:[di].DDPRW_ADDR.OFF,si
 	call	add_packet
 	jmp	dcw2			; when this returns, try writing again
 
-dcw3:	lodsb
+dcw4:	lodsb
 	call	write_context
 	loop	dcw3
 	pop	es
@@ -421,7 +477,7 @@ dcw9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	ret
 ENDPROC	ddcon_write
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; ddcon_open
 ;
@@ -535,8 +591,8 @@ dco1a:	xchg	[ct_head],ax
 	add	dx,dx
 	add	ax,dx
 	mov	ds:[CT_SCREEN].OFF,ax
-	mov	ds:[CT_SCROFF],4000	; TODO: fix this hard-coded
-					; offset to off-screen memory
+	mov	ds:[CT_SCROFF],4000	; TODO: fix this hard-coded offset
+	mov	ds:[CT_COLOR],0707h	; default fill and border attributes
 ;
 ; Importing the BIOS CURSOR_POSN into CURPOS seemed like a nice idea initially,
 ; but now that we're clearing interior below, seems best to use a default.
@@ -577,7 +633,7 @@ dco5:	mov	ds:[CT_PORT],dx
 	mov	ds:[CT_EQUIP],cx
 	mov	ds:[CT_SCREEN].SEG,ax
 	call	draw_border		; draw the context's border, if any
-	mov	cl,0
+	mov	cl,100
 	call	scroll			; clear the context's interior
 	call	hide_cursor		; important when using an alt adapter
 	clc
@@ -595,7 +651,7 @@ dco8:	mov	es:[di].DDP_CONTEXT,ds
 dco9:	ret
 ENDPROC	ddcon_open
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; ddcon_close
 ;
@@ -632,7 +688,7 @@ dcc2:	mov	es,ax
 	mov	cx,es:[CT_NEXT]		; move this context's CT_NEXT
 	mov	[bx].CT_NEXT,cx		; to the previous context's CT_NEXT
 	mov	ds,ax
-	mov	cl,-1			; clear the entire context
+	mov	cl,0			; clear the entire context
 	call	scroll
 	pop	ds
 	ASSUME	DS:CODE
@@ -647,7 +703,7 @@ dcc8:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	ret
 ENDPROC	ddcon_close
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; ddcon_none (handler for unimplemented functions)
 ;
@@ -663,9 +719,9 @@ DEFPROC	ddcon_none
 	ret
 ENDPROC	ddcon_none
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddcon_interrupt (keyboard hardware interrupt handler)
+; ddcon_int09 (keyboard hardware interrupt handler)
 ;
 ; When keys appear in the BIOS keyboard buffer, deliver them to whichever
 ; context 1) has focus, and 2) has a pending read request.  Otherwise, let
@@ -681,7 +737,7 @@ ENDPROC	ddcon_none
 ;	None
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	ddcon_interrupt,far
+DEFPROC	ddcon_int09,far
 	call	far ptr DDINT_ENTER
 	pushf
 	call	[kbd_int]
@@ -695,9 +751,6 @@ ddi0:	push	ax
 	push	di
 	push	ds
 	push	es
-	mov	ax,cs
-	mov	ds,ax
-	ASSUME	DS:CODE
 
 	sti
 	mov	cx,[ct_focus]		; CX = context
@@ -707,17 +760,20 @@ ddi0:	push	ax
 	mov	ax,DOS_UTL_HOTKEY	; notify DOS
 	int	21h
 
-ddi1:	mov	bx,offset wait_ptr	; DS:BX -> ptr
-	les	di,[bx]			; ES:DI -> packet, if any
+ddi1:	mov	ds,cx			; DS = context
+	mov	cx,cs
+	mov	es,cx
+	mov	bx,offset wait_ptr	; CX:BX -> ptr
+	les	di,es:[bx]		; ES:DI -> packet, if any
 	ASSUME	ES:NOTHING
 
-ddi2:	ASSUME	DS:NOTHING		; DS:BX changes when we loop back here
-	cmp	di,-1			; end of chain?
+ddi2:	cmp	di,-1			; end of chain?
 	je	ddi9			; yes
 
 	ASSERT	STRUCT,es:[di],DDP
 
-	cmp	es:[di].DDP_CONTEXT,cx	; packet from console with focus?
+	mov	dx,ds
+	cmp	es:[di].DDP_CONTEXT,dx	; packet from console with focus?
 	jne	ddi6			; no
 
 	cmp	es:[di].DDP_CMD,DDC_READ; READ packet?
@@ -726,24 +782,17 @@ ddi2:	ASSUME	DS:NOTHING		; DS:BX changes when we loop back here
 ; For WRITE packets (which we'll assume this is for now), we need to end the
 ; wait if the context is no longer paused (ie, check_hotkey may have unpaused).
 ;
-	push	es
-	mov	es,cx
-	ASSERT	STRUCT,es:[0],CT
-	test	es:[CT_STATUS],CTSTAT_PAUSED
-	pop	es
+	ASSERT	STRUCT,ds:[0],CT
+	test	ds:[CT_STATUS],CTSTAT_PAUSED
 	jz	ddi4			; yes, we're no longer paused
 	jmp	short ddi6		; still paused, check next packet
 
-ddi3:	call	read_kbd		; read keyboard data
+ddi3:	call	pull_kbd		; pull keyboard data
 	jc	ddi6			; not enough data, check next packet
 ;
 ; Notify DOS that this packet is done waiting.
 ;
-ddi4:	push	es
-	mov	es,cx
-	ASSERT	STRUCT,es:[0],CT
-	and	es:[CT_STATUS],NOT CTSTAT_INPUT
-	pop	es
+ddi4:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	mov	ax,DOS_UTL_ENDWAIT
 	int	21h
@@ -753,7 +802,7 @@ ddi4:	push	es
 ; was because we got ahead of the WAIT call.  One thought was to make the
 ; driver's WAIT code more resilient, and double-check that the request had
 ; really been satisfied, but I eventually resolved the race by making the
-; read_kbd/add_packet/utl_wait path atomic (ie, no interrupts).
+; pull_kbd/add_packet/utl_wait path atomic (ie, no interrupts).
 ;
 ; TODO: Consider lighter-weight solutions to this race condition.
 ;
@@ -761,16 +810,16 @@ ddi4:	push	es
 ;
 	cli
 	mov	ax,es:[di].DDP_PTR.OFF
-	mov	[bx].OFF,ax
-	mov	ax,es:[di].DDP_PTR.SEG
-	mov	[bx].SEG,ax
+	mov	dx,es:[di].DDP_PTR.SEG
+	mov	es,cx
+	mov	es:[bx].OFF,ax
+	mov	es:[bx].SEG,dx
 	sti
 	stc				; set carry to indicate yield
 	jmp	short ddi9
 
-ddi6:	lea	bx,[di].DDP_PTR		; update prev addr ptr in DS:BX
-	push	es
-	pop	ds
+ddi6:	lea	bx,[di].DDP_PTR		; update prev addr ptr in CX:BX
+	mov	cx,es
 
 	les	di,es:[di].DDP_PTR
 	jmp	ddi2
@@ -783,9 +832,9 @@ ddi9:	pop	es
 	pop	bx
 	pop	ax
 ddi9x:	jmp	far ptr DDINT_LEAVE
-ENDPROC	ddcon_interrupt
+ENDPROC	ddcon_int09
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; ddcon_int29 (handler for INT_FASTCON: fast console I/O)
 ;
@@ -814,7 +863,7 @@ dci9:	pop	dx
 	iret
 ENDPROC	ddcon_int29
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; add_packet
 ;
@@ -849,7 +898,7 @@ DEFPROC	add_packet
 	ret
 ENDPROC	add_packet
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; check_hotkey
 ;
@@ -887,7 +936,7 @@ ENDPROC	add_packet
 ; Modifies:
 ;	AX, BX, CX
 ;
-	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	check_hotkey
 	push	ds
 	sub	bx,bx
@@ -920,6 +969,11 @@ ch1:	jcxz	ch4
 	mov	ds,cx
 	ASSUME	DS:NOTHING
 	ASSERT	STRUCT,ds:[0],CT
+;
+; This is currently the sole use of CTSTAT_INPUT: to avoid treating CTRLS as
+; a pause key if the context is waiting for input.  This makes it possible for
+; the CONIO buffered input code to use CTRLS for input control as well.
+;
 	test	ds:[CT_STATUS],CTSTAT_INPUT
 	stc
 	jnz	ch3
@@ -934,6 +988,8 @@ ch2:	test	ds:[CT_STATUS],CTSTAT_PAUSED
 ch3:	pop	ds
 	ASSUME	DS:BIOS
 	jc	ch4
+	cmp	al,CHR_CTRLC
+	je	ch5a
 	mov	[BUFFER_TAIL],bx	; update tail, consuming the character
 
 ch4:	test	ax,ax			; CTRL_BREAK?
@@ -943,7 +999,7 @@ ch4:	test	ax,ax			; CTRL_BREAK?
 
 ch5:	cmp	al,CHR_CTRLC		; CTRLC?
 	jne	ch6			; no
-	mov	[BUFFER_HEAD],bx	; yes, advance the head toward the tail
+ch5a:	mov	[BUFFER_HEAD],bx	; yes, advance the head toward the tail
 	jmp	short ch9		; and return carry clear
 
 ch6:	cmp	al,CHR_CTRLP		; CTRLP?
@@ -954,7 +1010,7 @@ ch9:	pop	ds
 	ret
 ENDPROC	check_hotkey
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; draw_border
 ;
@@ -981,30 +1037,30 @@ db1:	sub	dx,dx			; get top left X,Y (DL,DH)
 	mov	bx,ds:[CT_CONDIM]	; get bottom right X,Y (BL,BH)
 	lods	word ptr cs:[si]
 	xchg	cx,ax
-	call	write_vertpair
+	call	draw_vertpair
 	ASSUME	ES:NOTHING
 	lods	word ptr cs:[si]
 	xchg	cx,ax
 db2:	inc	dh			; advance Y, holding X constant
 	cmp	dh,bh
 	jae	db3
-	call	write_vertpair
+	call	draw_vertpair
 	jmp	db2
 db3:	lods	word ptr cs:[si]
 	xchg	cx,ax
-	call	write_vertpair
+	call	draw_vertpair
 	lods	word ptr cs:[si]
 	xchg	cx,ax
 db4:	mov	dh,0
 	inc	dx			; advance X, holding Y constant
 	cmp	dl,bl
 	jae	db9
-	call	write_horzpair
+	call	draw_horzpair
 	jmp	db4
 db9:	ret
 ENDPROC	draw_border
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; draw_char
 ;
@@ -1023,19 +1079,27 @@ DEFPROC	draw_char
 	push	cx
 	mov	ch,1			; CH = amount to advance DL
 	cmp	cl,CHR_BACKSPACE
-	jne	dc8
-	dec	ch			; no advance
-	mov	cl,CHR_SPACE		; emulate a BACKSPACE
+	jne	dc1
+;
+; This code treats CHR_BACKSPACE as a "destructive" backspace (ie, erasing
+; the character underneath the cursor first), which means changing CL to
+; CHR_SPACE and not advancing DL afterward.  That is done primarily as an
+; optimization for the DOS CONIO functions, which would otherwise have to
+; output 3 characters (backspace, space, backspace again) to do the same thing.
+;
+	mov	cl,CHR_SPACE		; make this "destructive"
+	dec	ch			; no advance for backspace
 	dec	dl
 	cmp	dl,ds:[CT_CURMIN].LO
-	jge	dc8
+	jge	dc1
 	mov	dl,ds:[CT_CURMAX].LO
 	dec	dh
 	cmp	dh,ds:[CT_CURMIN].HI
-	jge	dc8
+	jge	dc1
 	mov	dx,ds:[CT_CURMIN]
 
-dc8:	call	write_curpos		; write CL at (DL,DH)
+dc1:	mov	ah,ds:[CT_COLOR].LO	; AH = attributes
+	call	write_curpos		; write CL at (DL,DH)
 ;
 ; Advance DL, advance DH as needed, and scroll the context as needed.
 ;
@@ -1058,7 +1122,7 @@ dc8:	call	write_curpos		; write CL at (DL,DH)
 dc9:	ret
 ENDPROC	draw_char
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; draw_cursor
 ;
@@ -1084,7 +1148,59 @@ DEFPROC	draw_cursor
 	ret
 ENDPROC	draw_cursor
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; draw_horzpair
+;
+; Inputs:
+;	CH = top char
+;	CL = bottom char
+;	DL,DH = top X,Y
+;	BL,BH = bottom X,Y
+;	DS = CONSOLE context
+;
+; Modifies:
+;	DI, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	draw_horzpair
+	mov	ah,ds:[CT_COLOR].HI
+	xchg	cl,ch
+	call	write_curpos
+	xchg	cl,ch
+	xchg	dh,bh
+	call	write_curpos
+	xchg	dh,bh
+	ret
+ENDPROC	draw_horzpair
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; draw_vertpair
+;
+; Inputs:
+;	CH = left char
+;	CL = right char
+;	DL,DH = left X,Y
+;	BL,BH = right X,Y
+;	DS = CONSOLE context
+;
+; Modifies:
+;	DI, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	draw_vertpair
+	mov	ah,ds:[CT_COLOR].HI
+	xchg	cl,ch
+	call	write_curpos
+	xchg	dl,bl
+	xchg	cl,ch
+	call	write_curpos
+	xchg	dl,bl
+	ret
+ENDPROC	draw_vertpair
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; focus_next
 ;
@@ -1141,7 +1257,7 @@ tf9:	pop	es
 	ret
 ENDPROC	focus_next
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; get_curpos
 ;
@@ -1152,10 +1268,11 @@ ENDPROC	focus_next
 ;	BX -> screen buffer offset
 ;
 ; Modifies:
-;	AX, BX
+;	BX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	get_curpos
+	push	ax
 	mov	al,dh
 	mul	[max_cols]
 	add	ax,ax			; AX = offset to row
@@ -1163,10 +1280,11 @@ DEFPROC	get_curpos
 	mov	bl,dl
 	add	bx,bx
 	add	bx,ax			; BX = offset to row and col
+	pop	ax
 	ret
 ENDPROC	get_curpos
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; hide_cursor
 ;
@@ -1185,13 +1303,13 @@ DEFPROC	hide_cursor
 	jmp	set_cursor
 ENDPROC	hide_cursor
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; move_cursor
 ;
 ; Inputs:
 ;	DS = CONSOLE context
-;	CX = +/- position delta
+;	CX = +/- position delta (255 max)
 ;
 ; Outputs:
 ;	None
@@ -1241,9 +1359,9 @@ mc9:	clc
 	ret
 ENDPROC	move_cursor
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; read_kbd
+; pull_kbd
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
@@ -1255,66 +1373,71 @@ ENDPROC	move_cursor
 ;	AX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	read_kbd
+DEFPROC	pull_kbd
 	push	bx
 	push	ds
 	sub	bx,bx
 	mov	ds,bx
 	ASSUME	DS:BIOS
 	mov	bx,[BUFFER_HEAD]
-rk2:	cmp	bx,[BUFFER_TAIL]
+pl2:	cmp	bx,[BUFFER_TAIL]
 	stc
-	je	rk9			; BIOS buffer empty
+	je	pl9			; BIOS buffer empty
 	mov	ax,[BIOS_DATA][bx]	; AL = char code, AH = scan code
 	add	bx,2
 	cmp	bx,offset KB_BUFFER - offset BIOS_DATA + size KB_BUFFER
-	jne	rk3
+	jne	pl3
 	sub	bx,size KB_BUFFER
-rk3:	mov	[BUFFER_HEAD],bx
+pl3:	mov	[BUFFER_HEAD],bx
+
 	push	bx
 	push	ds
 	lds	bx,es:[di].DDPRW_ADDR	; DS:BX -> next read/write address
 	test	al,al
-	jnz	rk3c
+	jnz	pl3c
 ;
-; Perform some function key to control character mappings now...
+; Perform some function key to control character mappings now.
 ;
 	push	si
 	mov	si,offset SCAN_MAP
-rk3a:	lods	byte ptr cs:[si]
+pl3a:	lods	byte ptr cs:[si]
 	test	al,al
-	jz	rk3b
+	jz	pl3b
 	cmp	ah,al
 	lods	byte ptr cs:[si]
-	jne	rk3a
-rk3b:	pop	si
+	jne	pl3a
+pl3b:	pop	si
 
-rk3c:	mov	[bx],al
+pl3c:	mov	[bx],al
 	IFDEF MAXDEBUG
 	test	al,ac
-	jnz	rk4
+	jnz	pl4
 	xchg	al,ah
 	PRINTF	<"null character, scan code %#04x",13,10>,ax
 	ENDIF
-rk4:	inc	bx
+pl4:	inc	bx
 	mov	es:[di].DDPRW_ADDR.OFF,bx
 	pop	ds
 	pop	bx
 	dec	es:[di].DDPRW_LENGTH	; have we satisfied the request yet?
-	jnz	rk2			; no
+	jnz	pl2			; no
 	clc
-rk9:	pop	ds
+pl9:	pop	ds
 	ASSUME	DS:NOTHING
 	pop	bx
 	ret
-ENDPROC	read_kbd
+ENDPROC	pull_kbd
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; scroll
 ;
+; Set CL to +/- lines to scroll.  To clear the entire interior, set
+; CL >= # lines (eg, 100).  To clear the entire context, including any
+; border, set CL to zero (typically only done when destroying a context).
+;
 ; Inputs:
-;	CL = # lines (0 to clear ALL lines, -1 to clear entire context)
+;	CL = # lines
 ;	DS = CONSOLE context
 ;
 ; Modifies:
@@ -1338,14 +1461,16 @@ DEFPROC	scroll
 	xchg	ax,cx			; AL = # lines now
 	mov	cx,ds:[CT_CONPOS]
 	mov	dx,cx
-	test	al,al			; negative?
-	jge	scr1			; no
-	mov	al,0
+	test	al,al			; zero?
+	jnz	scr0			; no
 	add	dx,ds:[CT_CONDIM]	; yes, clear entire context
-	jmp	short scr2		; (including borders)
+	jmp	short scr2		; (including border, if any)
+scr0:	cmp	al,ds:[CT_CONDIM].HI
+	jl	scr1
+	mov	al,0			; zero tells BIOS to clear all lines
 scr1:	add	cx,ds:[CT_CURMIN]	; CH = row, CL = col of upper left
 	add	dx,ds:[CT_CURMAX]	; DH = row, DL = col of lower right
-scr2:	mov	bh,07h			; BH = fill attribute
+scr2:	mov	bh,ds:[CT_COLOR].LO	; BH = fill attributes
 	mov	ah,VIDEO_SCROLL		; scroll up # lines in AL
 	int	INT_VIDEO
 	pop	ax
@@ -1360,7 +1485,7 @@ scr2:	mov	bh,07h			; BH = fill attribute
 	ret
 ENDPROC	scroll
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; write_char
 ;
@@ -1385,7 +1510,7 @@ DEFPROC	write_char
 	ret
 ENDPROC	write_char
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; write_context
 ;
@@ -1470,11 +1595,12 @@ wc9:	pop	es
 	ret
 ENDPROC	write_context
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; write_curpos
 ;
 ; Inputs:
+;	AH = attributes
 ;	CL = character
 ;	DX = CURPOS (DL,DH)
 ;	DS = CONSOLE context
@@ -1501,64 +1627,15 @@ wcp1:	in	al,dx
 wcp2:	in	al,dx
 	test	al,01h
 	jz	wcp2			; loop until we're INSIDE horz retrace
-	mov	es:[di+bx],cl		; "write" the character
+	mov	al,cl
+	mov	es:[di+bx],ax		; "write" the character and attributes
 	sti
 	pop	dx
 	pop	bx
 	ret
 ENDPROC	write_curpos
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; write_horzpair
-;
-; Inputs:
-;	CH = top char
-;	CL = bottom char
-;	DL,DH = top X,Y
-;	BL,BH = bottom X,Y
-;	DS = CONSOLE context
-;
-; Modifies:
-;	DI, ES
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	write_horzpair
-	xchg	cl,ch
-	call	write_curpos
-	xchg	cl,ch
-	xchg	dh,bh
-	call	write_curpos
-	xchg	dh,bh
-	ret
-ENDPROC	write_horzpair
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; write_vertpair
-;
-; Inputs:
-;	CH = left char
-;	CL = right char
-;	DL,DH = left X,Y
-;	BL,BH = right X,Y
-;	DS = CONSOLE context
-;
-; Modifies:
-;	DI, ES
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	write_vertpair
-	xchg	cl,ch
-	call	write_curpos
-	xchg	dl,bl
-	xchg	cl,ch
-	call	write_curpos
-	xchg	dl,bl
-	ret
-ENDPROC	write_vertpair
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; write_crtc16
 ;
@@ -1585,7 +1662,7 @@ DEFPROC	write_crtc16
 	ret
 ENDPROC	write_crtc16
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; write_crtc8
 ;
@@ -1611,7 +1688,7 @@ DEFPROC	write_crtc8
 	ret
 ENDPROC	write_crtc8
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Driver initialization
 ;
@@ -1641,11 +1718,11 @@ DEFPROC	ddcon_init,far
 	mov	dx,0B800h
 ddn1:	mov	[frame_seg],dx
 ;
-; Install an INT 09h hardware interrupt handler, which we will use to detect
+; Install an INT 09h hardware interrupt handler, which we'll use to detect
 ; keys added to the BIOS keyboard buffer.
 ;
 	cli
-	mov	ax,offset ddcon_interrupt
+	mov	ax,offset ddcon_int09
 	xchg	ds:[INT_HW_KBD * 4].OFF,ax
 	mov	[kbd_int].OFF,ax
 	mov	ax,cs

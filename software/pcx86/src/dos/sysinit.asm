@@ -29,7 +29,7 @@ DOS	segment word public 'CODE'
 
 	ASSUME	CS:DOS, DS:BIOS, ES:DOS, SS:NOTHING
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; System initialization
 ;
@@ -193,7 +193,7 @@ si4a:	mov	ax,ds
 	DBGINIT	STRUCT,[FAT_BUFHDR],BUF
 	mov	[FAT_BUFHDR].BUF_PREV,dx
 	mov	[FAT_BUFHDR].BUF_NEXT,dx
-	mov	[FAT_BUFHDR].BUF_PREV,512
+	mov	[FAT_BUFHDR].BUF_SIZE,512
 
 	DBGINIT	STRUCT,[DIR_BUFHDR],BUF
 	mov	[DIR_BUFHDR].BUF_PREV,ax

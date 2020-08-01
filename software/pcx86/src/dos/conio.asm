@@ -15,7 +15,7 @@ DOS	segment word public 'CODE'
 
 	ASSUME	CS:DOS, DS:DOS, ES:BIOS, SS:NOTHING
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; tty_echo (REG_AH = 01h)
 ;
@@ -38,7 +38,7 @@ DEFPROC	tty_echo,DOS
 te9:	ret
 ENDPROC	tty_echo
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; tty_write (REG_AH = 02h)
 ;
@@ -72,7 +72,7 @@ DEFPROC	tty_io,DOS
 	ret
 ENDPROC	tty_io
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; tty_in (REG_AH = 07h)
 ;
@@ -90,7 +90,7 @@ DEFPROC	tty_in,DOS
 	jmp	short ttr1
 ENDPROC	tty_in
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; tty_read (REG_AH = 08h)
 ;
@@ -110,7 +110,7 @@ ttr1:	call	read_char
 	ret
 ENDPROC	tty_read
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; tty_print (REG_AH = 09h)
 ;
@@ -132,7 +132,7 @@ DEFPROC	tty_print,DOS
 	jmp	write_string
 ENDPROC	tty_print
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; tty_input (REG_AH = 0Ah)
 ;
@@ -165,7 +165,8 @@ DEFPROC	tty_input,DOS
 	sub	bx,bx			; ES:DI+BX+2 -> next buffer position
 
 ti1:	call	tty_read
-	jc	ti9
+	jnc	ti2
+	jmp	ti9
 
 ti2:	cmp	al,CHR_RETURN
 	je	ti8
@@ -178,7 +179,8 @@ ti2a:	call	ttyin_del
 ti3:	cmp	al,CHR_BACKSPACE
 	jne	ti4
 	call	ttyin_left
-	jmp	ti2a
+	jc	ti2a			; carry set if there's a char to delete
+	jmp	ti1
 
 ti4:	cmp	al,CHR_ESC
 	jne	ti5
@@ -225,12 +227,15 @@ ti7:	call	ttyin_add
 	jmp	ti1
 ;
 ; BL indicates the current position within the buffer, and historically
-; that's where we'd put the final character (CR); however, we now allow
+; that's where we'd put the final character (RETURN); however, we now allow
 ; the cursor to move within the displayed data, so we need to use the end
 ; of the displayed data (according to DH) as the actual end.
 ;
-ti8:	mov	bl,dh			; return all displayed chars
-	mov	es:[di+bx+2],al		; store the final character (CR)
+ti8:	push	ax
+	call	ttyin_end
+	pop	ax
+	mov	bl,dh			; return all displayed chars
+	mov	es:[di+bx+2],al		; store the final character (RETURN)
 	call	ttyin_out
 
 	mov	cx,[bp].TMP_DX		; restore original insert mode
@@ -241,30 +246,71 @@ ti9:	mov	es:[di+1],bl		; return character count in 2nd byte
 	ret
 ENDPROC	tty_input
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ttyin_add (tty_input helper function)
+; ttyin_add
 ;
 ; This either replaces or inserts a character at BX, depending on the
 ; insert flag (0 or 1) in TMP_CX.  Replacing is allowed only if BL + 1 < MAX,
-; whereas inserting is allowed only if DH + 1 < MAX.
+; inserting is allowed only if DH + 1 < MAX, and neither is allowed if the
+; display length could exceed 255.
+;
+; Inputs:
+;	AL = character
+;	BX = # characters preceding cursor
+;	DH = # characters displayed
+;	DL = starting column (required for display length calculations)
+;	ES:DI -> input buffer
+;
+; Outputs:
+;	BX, DH, and input buffer updated as needed
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
 ;
 DEFPROC	ttyin_add,near
+	push	ax
+	call	ttyin_dsplen		; CH = current display length
+	pop	ax
+	mov	ah,[bp].TMP_CL		; AH = 0 or 1
+	cmp	bl,dh			; cursor at the end?
+	jb	tta0			; no
+	mov	ah,1			; AH = 1
+tta0:	cmp	al,CHR_TAB
+	jne	tta1
+	mov	ah,8			; AH = 8 (worst case for a tab)
+tta1:	add	ch,ah			; could this overflow display length?
+	jc	tta9			; yes
 	mov	cx,[bp].TMP_CX		; CX = 0 (replace) or 1 (insert)
 	mov	ah,bl
-	jcxz	tta1
+	jcxz	tta2
 	mov	ah,dh
-tta1:	inc	ah
+tta2:	inc	ah
 	cmp	ah,es:[di]
 	cmc
 	jb	tta9
-	push	bp
-	mov	bp,cx			; BP = 0 (replace) or 1 (insert)
+	mov	[bp].TMP_AL,cl		; TMP_AL = 0 (replace) or 1 (insert)
 	call	ttyin_modify		; replace/insert character (AL) at BX
-	pop	bp
 tta9:	ret
 ENDPROC	ttyin_add
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ttyin_back
+;
+; Moves the cursor back the specified number of columns.  Although we could
+; use the underlying IOCTL to move the cursor both forward and backward, all
+; forward movement is currently handled by simply redisplaying characters.
+;
+; Inputs:
+;	CL = # of columns to move back
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, CX
+;
 DEFPROC	ttyin_back
 	mov	ch,0
 	jcxz	ttb8
@@ -274,27 +320,133 @@ DEFPROC	ttyin_back
 ttb8:	ret
 ENDPROC	ttyin_back
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ttyin_beg
+;
+; Rewinds the cursor to the beginning.  Used to implement HOME (CTRLA).
+;
+; Inputs:
+;	BX = # characters preceding cursor
+;	DH = # characters displayed
+;	DL = starting column (required for display length calculations)
+;	ES:DI -> input buffer
+;
+; Outputs:
+;	BX updated as needed
+;
+; Modifies:
+;	AX, BX, CX, SI
+;
 DEFPROC	ttyin_beg
 	test	bx,bx			; any data to our left?
 	jz	ttb9			; no
-	call	ttyin_length		; CH = total length, CL = length delta
+	call	ttyin_curlen		; CH = total length, CL = length delta
 	sub	bx,bx			; update buffer position
 	mov	cl,ch			;
 	call	ttyin_back		; move cursor back CL characters
 ttb9:	ret
 ENDPROC	ttyin_beg
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ttyin_del
+;
+; Deletes the character, if any, underneath the cursor.  Used to implement
+; DEL and BACKSPACE.
+;
+; Inputs:
+;	BX = # characters preceding cursor
+;	DH = # characters displayed
+;	DL = starting column (required for display length calculations)
+;	ES:DI -> input buffer
+;
+; Outputs:
+;	BX, DH, and input buffer updated as needed
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
 DEFPROC	ttyin_del
 	cmp	bl,dh			; anything displayed at position?
 	jae	ttd9			; no
-	push	bp
-	sbb	bp,bp			; BP = -1 (delete)
+	mov	byte ptr [bp].TMP_AL,-1	; TMP_AL = -1 (delete)
 	call	ttyin_modify		; delete character at BX
-	pop	bp
 	dec	dh			; reduce # displayed characters
 ttd9:	ret
 ENDPROC	ttyin_del
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ttyin_dsplen
+;
+; Gets the display length of all displayed characters.
+;
+; Inputs:
+;	BX = # characters preceding cursor
+;	DH = # characters displayed
+;	DL = starting column (required for display length calculations)
+;	ES:DI -> input buffer
+;
+; Outputs:
+;	CH = total length, CL = length delta of final character
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
+DEFPROC	ttyin_dsplen
+	mov	cl,dh
+	jmp	short ttyin_getlen
+ENDPROC	ttyin_dsplen
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ttyin_curlen
+;
+; Gets the display length of all characters preceding the cursor.
+;
+; Inputs:
+;	BX = # characters preceding cursor
+;	DH = # characters displayed
+;	DL = starting column (required for display length calculations)
+;	ES:DI -> input buffer
+;
+; Outputs:
+;	CH = total length, CL = length delta of final character
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
+DEFPROC	ttyin_curlen
+	mov	cl,bl			; CL = # of characters
+	DEFLBL	ttyin_getlen,near
+	lea	si,[di+2]		; ES:SI -> all characters
+	mov	al,IOCTL_GETLEN		; DL = starting column
+	call	con_ioctl		; get logical length values in AX
+	xchg	cx,ax			; CH = total length, CL = length delta
+	ret
+ENDPROC	ttyin_curlen
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ttyin_end
+;
+; Advances the cursor to the end of displayed characters.  Used to implement
+; END (CTRLF), ESC (which must advance to the end before calling ttyin_erase),
+; and RETURN.
+;
+; Inputs:
+;	BX = # characters preceding cursor
+;	DH = # characters displayed
+;	DL = starting column (required for display length calculations)
+;	ES:DI -> input buffer
+;
+; Outputs:
+;	BX updated as needed
+;
+; Modifies:
+;	AX, BX, CX, SI
+;
 DEFPROC	ttyin_end
 	cmp	bl,dh			; more displayed chars?
 	jae	tte9			; no
@@ -304,37 +456,194 @@ DEFPROC	ttyin_end
 tte9:	ret
 ENDPROC	ttyin_end
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ttyin_erase
+;
+; Erases all the characters preceding the cursor.  Used to implement ESC (and
+; DOWN ARROW and CTRLX) by first calling ttyin_end.
+;
+; Inputs:
+;	BX = # characters preceding cursor
+;	DH = # characters displayed
+;	DL = starting column (required for display length calculations)
+;	ES:DI -> input buffer
+;
+; Outputs:
+;	BX and DH updated as needed (no characters in the buffer are modified)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
 DEFPROC	ttyin_erase
-	call	ttyin_length		; CH = total length
-	sub	bx,bx
+	call	ttyin_curlen		; CH = display length to cursor
 	mov	cl,ch
-	mov	ch,bh
+	mov	ch,0
 	jcxz	ttx9
 	mov	al,CHR_BACKSPACE
 ttx1:	call	ttyin_out
 	loop	ttx1
-ttx9:	mov	dh,cl			; zero # displayed characters, too
+ttx9:	sub	dh,bl			; reduce displayed characters by BL
+	sub	bx,bx			; and reset BX
 	ret
 ENDPROC	ttyin_erase
 
-DEFPROC	ttyin_length
-	lea	si,[di+2]		; ES:SI -> all characters
-	mov	cl,bl			; CL = # of characters
-	mov	al,IOCTL_GETLEN		; DL = starting column
-	call	con_ioctl		; get logical length values in AX
-	xchg	cx,ax			; CH = total length, CL = length delta
-	ret
-ENDPROC	ttyin_length
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ttyin_left
+;
+; Moves the cursor back one character.  Used to implement LEFT ARROW (CTRLS)
+; and BACKSPACE (CTRLH).
+;
+; Inputs:
+;	BX = # characters preceding cursor
+;	DH = # characters displayed
+;	DL = starting column (required for display length calculations)
+;	ES:DI -> input buffer
+;
+; Outputs:
+;	BX updated as needed
+;
+; Modifies:
+;	AX, BX, CX, SI
+;
 DEFPROC	ttyin_left
 	test	bx,bx			; any data to our left?
 	jz	ttl9			; no
-	call	ttyin_length		; CH = total length, CL = length delta
+	call	ttyin_curlen		; CH = total length, CL = length delta
 	dec	bx			; update buffer position
-	call	ttyin_back		; move cursor back CL characters
+	call	ttyin_back		; move cursor back CL display positions
+	stc
 ttl9:	ret
 ENDPROC	ttyin_left
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ttyin_next
+;
+; Used by ttyin_right and ttyin_end to advance the cursor, using the character
+; in AL, and ensuring we stay within the limits of the input buffer.
+;
+; Inputs:
+;	AL = character
+;	BX = # characters preceding cursor
+;	DH = # characters displayed
+;	DL = starting column (required for display length calculations)
+;	ES:DI -> input buffer
+;
+; Outputs:
+;	BX, DH, and input buffer updated as needed
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
+DEFPROC	ttyin_next,near
+	mov	ah,es:[di]		; AH = max count
+	sub	ah,bl			; AH = space remaining
+	cmp	ah,1			; room for at least one more?
+	jb	ttn9			; no
+	mov	byte ptr [bp].TMP_AL,0	; TMP_AL = 0 (replace)
+	call	ttyin_modify		; replace (AL) at BX
+ttn9:	ret
+ENDPROC	ttyin_next
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ttyin_out
+;
+; Displays all non-special characters, using write_char.  Used by ttyin_modify
+; ensure consistent output (eg, displaying LINEFEED as "^J").
+;
+; Inputs:
+;	AL = character
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX
+;
+DEFPROC	ttyin_out
+	cmp	al,CHR_LINEFEED
+	jne	tto2
+	mov	al,'^'			; for purposes of buffered input,
+	call	write_char		; LINEFEED should be displayed as "^J"
+	mov	al,'J'
+tto2:	call	write_char
+	ret
+ENDPROC	ttyin_out
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ttyin_recall
+;
+; Moves the cursor to the end of available characters.  Used to implement
+; RECALL (F3 and CTRLE).
+;
+; Inputs:
+;	BX = # characters preceding cursor
+;	DH = # characters displayed
+;	DL = starting column (required for display length calculations)
+;	ES:DI -> input buffer
+;
+; Outputs:
+;	BX and DH updated as needed
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
+DEFPROC	ttyin_recall
+	call	ttyin_right
+	jc	ttr9
+	jmp	ttyin_recall
+ENDPROC	ttyin_recall
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ttyin_right
+;
+; Moves the cursor right by (re)displaying the character, if any, underneath
+; the cursor.  Used to implement RIGHT ARROW (CTRLD) and RECALL (F3 and CTRLE).
+;
+; Inputs:
+;	BX = # characters preceding cursor
+;	DH = # characters displayed
+;	DL = starting column (required for display length calculations)
+;	ES:DI -> input buffer
+;
+; Outputs:
+;	BX and DH updated as needed
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
+DEFPROC	ttyin_right
+	cmp	bl,es:[di+1]		; more existing chars?
+	cmc
+	jb	ttr9			; no, ignore movement
+	mov	al,es:[di+bx+2]		; yes, fetch next character
+	call	ttyin_next		; and (re)display it
+ttr9:	ret
+ENDPROC	ttyin_right
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ttyin_modify
+;
+; Inputs:
+;	AL = character
+;	TMP_AX = 1 to insert, 0 to replace, -1 to delete
+;	BX = # characters preceding cursor
+;	DH = # characters displayed
+;	DL = starting column (required for display length calculations)
+;	ES:DI -> input buffer
+;
+; Outputs:
+;	BX, DH, and input buffer updated as needed
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
 DEFPROC	ttyin_modify
 	push	dx
 	push	ax
@@ -349,7 +658,7 @@ DEFPROC	ttyin_modify
 	mov	ch,ah			; CH = logical length from position
 	pop	ax
 
-	test	bp,bp
+	cmp	byte ptr [bp].TMP_AL,0
 	jl	ttm3
 	jz	ttm2
 ;
@@ -403,13 +712,13 @@ ttm7:	mov	al,IOCTL_GETLEN
 	call	con_ioctl		; get display lengths in AX
 	cmp	ah,ch			; any change in total display length?
 	jne	ttm7a			; yes
-	test	bp,bp			; no, and was this a simple replacement?
-	jz	ttm9			; yes, we're done
+	cmp	byte ptr [bp].TMP_AL,0	; no, was this a simple replacement?
+	je	ttm9			; yes, we're done
 ttm7a:	test	cl,cl
 	jz	ttm7d
 	push	si
-	test	bp,bp
-	jz	ttm7c
+	cmp	byte ptr [bp].TMP_AL,0
+	je	ttm7c
 ttm7b:	mov	al,es:[si]
 	call	ttyin_out
 ttm7c:	inc	si
@@ -425,12 +734,12 @@ ttm7e:	call	ttyin_out
 	jnz	ttm7e
 ;
 ; AH contains the length of all the displayed characters from SI, and that's
-; normally how many positions we want to rewind the cursor -- unless BP >= 0,
+; normally how many cols we want to rewind the cursor -- unless TMP_AX >= 0,
 ; in which case we need to reduce AH by the display length of the single char
 ; at SI.
 ;
 ttm8:	mov	ch,ah			; save original length in CH
-	test	bp,bp
+	cmp	byte ptr [bp].TMP_AL,0
 	jl	ttm8a
 	mov	cl,1
 	mov	al,IOCTL_GETLEN
@@ -445,43 +754,6 @@ ttm9:	pop	ax			; this would be pop dx
 	ret
 ENDPROC	ttyin_modify
 
-DEFPROC	ttyin_next,near
-	mov	ah,es:[di]		; AH = max count
-	sub	ah,bl			; AH = space remaining
-	cmp	ah,1			; room for at least one more?
-	jb	ttn9			; no
-	push	bp
-	sub	bp,bp
-	call	ttyin_modify		; replace (AL) at BX
-	pop	bp
-ttn9:	ret
-ENDPROC	ttyin_next
-
-DEFPROC	ttyin_out
-	cmp	al,CHR_LINEFEED
-	jne	tto2
-	mov	al,'^'			; for purposes of buffered input,
-	call	write_char		; LINEFEED should be displayed as "^J"
-	mov	al,'J'
-tto2:	call	write_char
-	ret
-ENDPROC	ttyin_out
-
-DEFPROC	ttyin_recall
-	call	ttyin_right
-	jc	ttr9
-	jmp	ttyin_recall
-ENDPROC	ttyin_recall
-
-DEFPROC	ttyin_right
-	cmp	bl,es:[di+1]		; more existing chars?
-	cmc
-	jb	ttr9			; no, ignore movement
-	mov	al,es:[di+bx+2]		; yes, fetch next character
-	call	ttyin_next		; and (re)display it
-ttr9:	ret
-ENDPROC	ttyin_right
-
 DEFPROC	tty_status,DOS
 	ret
 ENDPROC	tty_status
@@ -490,7 +762,7 @@ DEFPROC	tty_flush,DOS
 	ret
 ENDPROC	tty_flush
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; con_ioctl
 ;
@@ -508,37 +780,21 @@ ENDPROC	tty_flush
 ;
 DEFPROC	con_ioctl,DOS
 	push	bx
-	push	dx
-	push	di
 	push	ds
 	push	es
+	pop	ds
+	ASSUME	DS:NOTHING
+	mov	ah,DOS_HDL_IOCTL
 	mov	bx,STDIN
-	push	ax
-	call	sfb_get			; BX -> SFB
-	pop	ax
-	jc	ioc8
-	push	es
-	les	di,[bx].SFB_DEVICE	; ES:DI -> CON driver
-	mov	bx,[bx].SFB_CONTEXT	; BX = context
-	xchg	bx,dx			; DX = context, BX = position
-	test	es:[di].DDH_ATTR,DDATTR_STDOUT
-	pop	ds
-	jz	ioc8
-	mov	ah,DDC_IOCTLIN
-	call	dev_request
-	jc	ioc8
-	xchg	ax,dx			; AX = position or length as requested
-	jmp	short ioc9
-ioc8:	mov	ax,0			; default value if error
-ioc9:	pop	es
-	pop	ds
-	pop	di
-	pop	dx
+	int	21h
+	jnc	ioc9
+	sub	ax,ax			; default value (STDIN redirected?)
+ioc9:	pop	ds
 	pop	bx
 	ret
 ENDPROC	con_ioctl
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; read_char
 ;
@@ -581,7 +837,7 @@ rc9:	pop	ax			; AX = character
 	ret
 ENDPROC	read_char
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; write_char
 ;
@@ -614,7 +870,7 @@ DEFPROC	write_char,DOS
 	ret
 ENDPROC	write_char
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; write_string
 ;

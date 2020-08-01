@@ -314,10 +314,14 @@ SCAN_F7		equ	41h
 SCAN_F8		equ	42h
 SCAN_F9		equ	43h
 SCAN_F10	equ	44h
+SCAN_HOME	equ	47h	; home
 SCAN_UP		equ	48h	; up-arrow
+SCAN_PGUP	equ	49h	; page-up
 SCAN_LEFT	equ	4Bh	; left-arrow
 SCAN_RIGHT	equ	4Dh	; right-arrow
+SCAN_END	equ	4Fh	; end
 SCAN_DOWN	equ	50h	; down-arrow
+SCAN_PGDN	equ	51h	; page-down
 SCAN_INS	equ	52h	; ins
 SCAN_DEL	equ	53h	; del
 
@@ -332,8 +336,11 @@ FL_INTS		equ	0200h
 FL_DOWN		equ	0400h
 FL_OVFL		equ	0800h
 
+OP_PUSH_AX	equ	050h
 OP_CALLF	equ	09Ah
+OP_MOV_AX	equ	0B8h
 OP_RETF		equ	0CBh
 OP_IRET		equ	0CFh
+OP_CALL		equ	0E8h
 OP_JMPF		equ	0EAh
 OP_STC		equ	0F9h
