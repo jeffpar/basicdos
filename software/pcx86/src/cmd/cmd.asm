@@ -12,11 +12,14 @@
 CODE    SEGMENT
 	org	100h
 
+	EXTERNS	<genImmediate>,near
+
+	EXTERNS	<CMD_TOKENS,heap>,word
 	EXTSTR	<COM_EXT,EXE_EXT,DIR_DEF,PERIOD>
 	EXTSTR	<RES_MEM,SYS_MEM,DOS_MEM>
-	EXTERNS	<CMD_TOKENS,heap>,word
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
+
 DEFPROC	main
 	lea	bx,[heap]
 	mov	[bx].ORIG_SP.SEG,ss
@@ -29,10 +32,12 @@ DEFPROC	main
 
 	PRINTF	<"BASIC-DOS Interpreter",13,10,13,10,"BASIC MATH library functions",13,10,"Copyright (c) Microsoft Corporation",13,10>
 ;
-; Since all the command handlers loop back to this point, we should not
-; assume that any registers (including BX) will still be set to anything.
+; Since all command handlers loop back to this point, we shouldn't assume
+; that any registers (eg, BX, ES) will still be set to their original values.
 ;
-m1:	lea	bx,[heap]
+m1:	push	cs
+	pop	es
+	lea	bx,[heap]
 	mov	ah,DOS_DSK_GETDRV
 	int	21h
 	add	al,'A'		; AL = current drive letter
@@ -45,7 +50,7 @@ m1:	lea	bx,[heap]
 
 	mov	si,dx		; DS:SI -> input buffer
 	lea	di,[bx].TOKENBUF
-	mov	[di].TOK_MAX,(size TOK_BUF) / (size TOKBUF)
+	mov	[di].TOK_MAX,(size TOK_BUF) / (size TOKLET)
 	mov	ax,DOS_UTL_TOKIFY1
 	int	21h
 	xchg	cx,ax		; CX = token count from AX
@@ -54,7 +59,7 @@ m1:	lea	bx,[heap]
 ; Before trying to ID the token, let's copy it to the FILENAME buffer,
 ; upper-case it, and null-terminate it.
 ;
-	GETTOKEN 1		; DS:SI -> token #1, CX = length
+	GETTOKEN 1,m1		; DS:SI -> token #1, CX = length
 	lea	di,[bx].FILENAME
 	push	cx
 	push	di
@@ -182,17 +187,19 @@ m9:	cmp	ax,20		; token ID < 20?
 	lea	di,[bx].TOKENBUF; DS:DI -> token buffer
 	mov	ax,DOS_UTL_TOKIFY2
 	int	21h
-	jmp	short m9c
+	call	genImmediate
+	jmp	m1
 
 m9a:	cmp	ax,10		; token ID < 10?
-	jb	m9c		; yes, command does not use a filespec
+	jb	m10		; yes, command does not use a filespec
 ;
 ; The token is for a command that expects a filespec, so fix up token #2.
+; If there is no token #2, then we use the defaults loaded in to SI and CX.
 ;
-	lea	di,[bx].TOKENBUF
-	mov	cx,DIR_DEF_LEN - 1
 	mov	si,offset DIR_DEF
-	GETTOKEN 2		; DS:SI -> token #2, CX = length
+	mov	cx,DIR_DEF_LEN - 1
+	lea	di,[bx].TOKENBUF
+	GETTOKEN 2,m10		; DS:SI -> token #2, CX = length
 	lea	di,[bx].FILENAME
 	mov	ax,size FILENAME-1
 	cmp	cx,ax
@@ -207,7 +214,7 @@ m9b:	push	cx
 	mov	ax,DOS_UTL_STRUPR
 	int	21h		; DS:SI -> upper-case token, CX = length
 
-m9c:	call	dx		; call token handler
+m10:	call	dx		; call token handler
 	jmp	m1
 ENDPROC	main
 

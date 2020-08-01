@@ -449,10 +449,17 @@ ENDPROC	utl_itoa
 ;
 ; utl_tokify (AX = 180Bh or 180Ch)
 ;
+; DOS_UTL_TOKIFY1 (180Bh) performs GENERIC parsing, which means that only
+; tokens separated by whitespace will be returned (and they will all be
+; identified "generically" as CLS_STR).
+;
+; DOS_UTL_TOKIFY2 (180Ch) performs BASIC parsing, which returns all tokens,
+; even whitespace sequences (CLS_WHITE).
+;
 ; Inputs:
 ;	REG_AL = 0Bh (TOKTYPE_GENERIC) or 0Ch (TOKTYPE_BASIC)
 ;	REG_DS:REG_SI -> BUF_INPUT
-;	REG_ES:REG_DI -> BUF_TOKENS
+;	REG_ES:REG_DI -> BUF_TOKEN
 ;
 ; Outputs:
 ;	AX = # tokens; token buffer updated
@@ -464,59 +471,63 @@ DEFPROC	utl_tokify,DOS
 	sti
 	and	[bp].REG_FL,NOT FL_CARRY
 	mov	ds,[bp].REG_DS		; DS:SI -> BUF_INPUT
-	mov	es,[bp].REG_ES		; ES:DI -> BUF_TOKENS
+	mov	es,[bp].REG_ES		; ES:DI -> BUF_TOKEN
 	ASSUME	DS:NOTHING, ES:NOTHING
 
 	sub	bx,bx			; BX = token index
 	add	si,offset INP_BUF	; SI -> 1st character
-	mov	[bp].TMP_AL,al		; save token type
-	mov	[bp].TMP_BX,si		; TMP_BX = starting position
 	mov	ah,0			; AH = initial classification
-	jmp	tf8			; and dive in
+	test	al,TOKTYPE_GENERIC
+	mov	al,-1
+	jz	tf0			; for generic parsing
+	mov	al,NOT CLS_WHITE	; we're not interested in whitespace
+tf0:	mov	[bp].TMP_AL,al
+	jmp	short tf8		; dive in
 ;
 ; Starting a new token.
 ;
 tf1:	lea	dx,[si-1]		; DX = start of token
 tf2:	lodsb
-	mov	ch,ah			; CH = current classification
-	call	tok_classify
+	mov	ch,ah
+	call	tok_classify		; AH = next classification
+	mov	al,ch			; AL = previous classification
 	test	ah,ah			; all done?
 	jz	tf6			; yes
-	test	ch,ch			; priming the pump?
+	test	ch,ch			; still priming the pump?
 	jz	tf1			; yes
+	cmp	ah,CLS_SYM		; symbol found? (only happens w/BASIC)
+	je	tf6a			; yes
 	cmp	ah,ch			; any change to classification?
 	je	tf2			; no
 
-tf6:	mov	al,ch
-	test	al,NOT CLS_WHITE	; any previous classification?
-	jz	tf7a			; no
+tf6:	test	al,[bp].TMP_AL		; any previous classification?
+	jz	tf7			; no
 
-	lea	cx,[si-1]		; SI = end of token
+tf6a:	lea	cx,[si-1]		; SI = end of token
 	sub	cx,dx			; CX = length of token
 
 	IFDEF DEBUG
-	test	byte ptr [bp].TMP_AL,TOKTYPE_GENERIC
-	jnz	tf7
+	cmp	byte ptr [bp].TMP_AL,-1
+	jne	tf6b
 	push	ax
 	mov	ah,0
 	DPRINTF	<"token: '%.*ls' (%#04x)",13,10>,cx,dx,ds,ax
 	pop	ax
-tf7:
+tf6b:
 	ENDIF
 ;
-; Update the TOKBUF in the TOK_BUF at ES:DI, token index BX
+; Update the TOKLET in the TOK_BUF at ES:DI, token index BX
 ;
-	sub	dx,[bp].TMP_BX		; DL = offset of next token
-	mov	dh,cl
-	mov	cx,bx			; save BX
-	add	bx,cx			; and set BX = BX * 3 (size TOKBUF)
-	add	bx,cx
-	mov	word ptr es:[di+bx].TOK_BUF.TOKBUF_OFF,dx
-	mov	es:[di+bx].TOK_BUF.TOKBUF_CLASS,al
-	mov	bx,cx
-	inc	bx			; increment token index
+	push	bx
+	add	bx,bx
+	add	bx,bx			; BX = BX * 4 (size TOKLET)
+	mov	es:[di+bx].TOK_BUF.TOKLET_CLS,al
+	mov	es:[di+bx].TOK_BUF.TOKLET_LEN,cl
+	mov	es:[di+bx].TOK_BUF.TOKLET_OFF,dx
+	pop	bx
+	inc	bx			; and increment token index
 
-tf7a:	test	ah,ah			; all done?
+tf7:	test	ah,ah			; all done?
 	jz	tf9			; yes
 
 tf8:	cmp	bl,es:[di].TOK_MAX	; room for more tokens?
@@ -572,7 +583,7 @@ tc2a:	mov	ah,CLS_WHITE
 ;
 ; For generic parsing, everything is whitespace or a string.
 ;
-tc3:	test	byte ptr [bp].TMP_AL,TOKTYPE_GENERIC
+tc3:	test	byte ptr [bp].REG_AL,TOKTYPE_GENERIC
 	jz	tc4
 	mov	ah,CLS_STR		; call it a string
 	ret
@@ -609,22 +620,29 @@ cl5a:	cmp	al,'A'
 	cmp	al,'Z'
 	ja	cl6			; not a letter
 ;
+; If we're on the heels of an ampersand, check for letters that determine
+; the base of the number ('H' for hex, 'O' for octal).
+;
+	cmp	ah,CLS_OCT OR CLS_HEX	; did we see an ampersand previously?
+	jne	cl5d			; no
+	cmp	al,'H'
+	jne	cl5c
+	and	ah,CLS_HEX
+cl5b:	mov	ch,ah			; set previous class as well
+	ret				; to avoid unnecesary token transition
+cl5c:	cmp	al,'O'
+	jne	cl5d
+	and	ah,CLS_OCT
+	jmp	short cl5b
+;
 ; Letters can start or continue CLS_VAR, or continue CLS_HEX if < 'G'; however,
 ; as with octal numbers, we'll worry about the validity of a hex number later,
 ; during evaluation.
 ;
-	cmp	al,'H'
-	jne	cl5b
-	cmp	ah,CLS_OCT OR CLS_HEX
-	jne	cl5b
-	and	ah,CLS_HEX
-	mov	ch,ah			; set previous class as well
-	ret				; to avoid unnecesary token transition
-
-cl5b:	test	ah,CLS_HEX OR CLS_VAR
-	jnz	cl5c
+cl5d:	test	ah,CLS_HEX OR CLS_VAR
+	jnz	cl5e
 	mov	ah,CLS_VAR		; must be a variable
-cl5c:	ret
+cl5e:	ret
 ;
 ; Periods can be a decimal point, so it can start or continue CLS_DEC,
 ; or continue CLS_VAR.

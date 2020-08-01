@@ -43,25 +43,37 @@ val = ((offset $ - offset tbl) - 2) / (size TOKDEF)
 DATA	ENDS
 	endm
 
-GETTOKEN macro	num				;; get token num (1-N)
-	LOCAL	gt1
+GETTOKEN macro	num,err				;; get token num (1-N)
 	cmp	[di].TOK_CNT,num		;; at least num tokens?
-	jb	gt1				;; no
-	lea	si,[bx].INPUTBUF.INP_BUF
-	mov	cl,[di+(num-1)*(size TOKBUF)].TOK_BUF.TOKBUF_OFF
-	mov	ch,0				;; CX = token offset
-	add	si,cx
-	mov	cl,[di+(num-1)*(size TOKBUF)].TOK_BUF.TOKBUF_LEN
-gt1:
+	jb	err				;; no
+	mov	si,[di+(num-1)*(size TOKLET)].TOK_BUF.TOKLET_OFF
+	mov	cl,[di+(num-1)*(size TOKLET)].TOK_BUF.TOKLET_LEN
+	mov	ch,0
+	endm
+
+PUSHNUM	macro	val
+	local	lbl
+	call	lbl
+	dw	val
+lbl:
 	endm
 ;
-; Define the command workspace as a structure
+; Define our heap as a structure
 ;
-CMD_WS		struc
+CMD_HEAP	struc
 ORIG_SP		dd	?
 INPUTBUF	db	size BUF_INPUT dup (?)
-TOKENBUF	db	size BUF_TOKENS dup (?)
+TOKENBUF	db	size BUF_TOKEN dup (?)
 FILENAME	db	16 dup (?)		; filename template
 EXECDATA	db	size EPB dup (?)	; Exec Parameter Block
 STACK		dw	512 dup (?)
-CMD_WS		ends
+CMD_HEAP	ends
+
+;
+; Code Block definitions
+;
+CBLKLEN		equ	1024			; default size, for now
+
+CBLK_HDR	struc
+TMP16		dw	?			; temporary 16-bit eval space
+CBLK_HDR	ends

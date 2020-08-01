@@ -26,13 +26,19 @@ AFLAGS=/D$(REL)
 CMD.OBJ: ..\CMD.ASM
 	$(ASM) $(AFLAGS) /I.. /I..\..\INC $**,$@;
 
-PARSE.OBJ: ..\PARSE.ASM
+EVAL.OBJ: ..\EVAL.ASM
+	$(ASM) $(AFLAGS) /I.. /I..\..\INC $**,$@;
+
+GEN.OBJ: ..\GEN.ASM
+	$(ASM) $(AFLAGS) /I.. /I..\..\INC $**,$@;
+
+PRINT.OBJ: ..\PRINT.ASM
 	$(ASM) $(AFLAGS) /I.. /I..\..\INC $**,$@;
 
 CONST.OBJ: ..\CONST.ASM
 	$(ASM) $(AFLAGS) /I.. /I..\..\INC $**,$@;
 
-COMMAND.COM: CMD.OBJ PARSE.OBJ CONST.OBJ
+COMMAND.COM: CMD.OBJ EVAL.OBJ GEN.OBJ CONST.OBJ
 	$(LINK) @$*.LRF
 	$(EXE2BIN) $*.EXE $@
 	DEL $*.EXE

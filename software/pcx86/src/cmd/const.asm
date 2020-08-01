@@ -12,7 +12,7 @@
 CODE    SEGMENT
 	EXTERNS	<cmdCLS,cmdDate,CmdDir,cmdExit,cmdLoop,cmdMem>,near
 	EXTERNS	<cmdTime,cmdType>,near
-	EXTERNS	<parseColor,parseExpr>,near
+	EXTERNS	<genColor,genPrint>,near
 	DEFSTR	COM_EXT,<".COM",0>
 	DEFSTR	EXE_EXT,<".EXE",0>
 	DEFSTR	DIR_DEF,<"*.*",0>
@@ -23,20 +23,20 @@ CODE    SEGMENT
 CODE	ENDS
 
 	DEFTOKENS CMD_TOKENS,NUM_TOKENS
-	DEFTOK	TOK_CLS,   20, "CLS",	cmdCLS
-	DEFTOK	TOK_COLOR, 21, "COLOR",	parseColor
-	DEFTOK	TOK_DATE,   1, "DATE",	cmdDate
+	DEFTOK	TOK_CLS,    1, "CLS",	cmdCLS	; TODO: will become genCLS
+	DEFTOK	TOK_COLOR, 21, "COLOR",	genColor
+	DEFTOK	TOK_DATE,   2, "DATE",	cmdDate
 	DEFTOK	TOK_DIR,   11, "DIR",	cmdDir
-	DEFTOK	TOK_EXIT,   2, "EXIT",	cmdExit
+	DEFTOK	TOK_EXIT,   3, "EXIT",	cmdExit
 	DEFTOK	TOK_LOOP,  12, "LOOP",	cmdLoop
-	DEFTOK	TOK_MEM,    3, "MEM",	cmdMem
-	DEFTOK	TOK_PRINT, 22, "PRINT",	parseExpr
-	DEFTOK	TOK_TIME,   4, "TIME",	cmdTime
+	DEFTOK	TOK_MEM,    4, "MEM",	cmdMem
+	DEFTOK	TOK_PRINT, 22, "PRINT",	genPrint
+	DEFTOK	TOK_TIME,   5, "TIME",	cmdTime
 	DEFTOK	TOK_TYPE,  13, "TYPE",	cmdType
 	NUMTOKENS CMD_TOKENS,NUM_TOKENS
 
 DATA	SEGMENT
-	COMHEAP	<size CMD_WS>	; COMHEAP (heap size) must be the last item
+	COMHEAP	<size CMD_HEAP>	; COMHEAP (heap size) must be the last item
 DATA	ENDS
 
 	end

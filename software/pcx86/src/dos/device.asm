@@ -12,6 +12,9 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<bpb_table>,dword
+	IF REG_CHECK
+	EXTERNS	<dos_check>,near
+	ENDIF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -171,7 +174,6 @@ dr5:	push	es			; create far pointer to DDH_REQUEST
 	stc				; AL contains device error code
 
 dr9:	pop	bp
-	ASSERT	NZ,<test bp,bp>
 	pop	bx
 	ret
 ENDPROC	dev_request
