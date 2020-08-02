@@ -1309,7 +1309,7 @@ ENDPROC	hide_cursor
 ;
 ; Inputs:
 ;	DS = CONSOLE context
-;	CX = +/- position delta (255 max)
+;	CX = +/- position delta
 ;
 ; Outputs:
 ;	None
