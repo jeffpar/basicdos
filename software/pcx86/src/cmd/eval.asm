@@ -24,19 +24,23 @@ CODE    SEGMENT
 ;	1 (offset to) 16-bit sum pushed back onto stack
 ;
 ; Modifies:
-;	AX, BX, DX, SI, DI, ES
+;	AX, CX, DX, DI, ES
 ;
 DEFPROC	evalAdd16,FAR
 	pop	dx
-	pop	es			; ES:DX = return address
-	pop	si
+	pop	cx			; CX:DX = return address
 	pop	di
-	mov	ax,es:[si]
+	pop	es			; ES:DI -> 1st arg
+	mov	ax,es:[di]
+	pop	di
+	pop	es			; ES:DI -> 2nd arg
 	add	ax,es:[di]
-	mov	bx,offset TMP16
-	mov	es:[bx],ax
-	push	bx
-	push	es
+	mov	di,offset TMP16
+	mov	es,cx
+	mov	es:[di],ax
+	push	es			; ES:DI -> new arg
+	push	di
+	push	cx			; ie, "JMP CX:DX"
 	push	dx
 	ret
 ENDPROC	evalAdd16

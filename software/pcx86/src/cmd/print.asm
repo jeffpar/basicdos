@@ -24,14 +24,15 @@ CODE    SEGMENT
 ;	None
 ;
 ; Modifies:
-;	AX, DX, SI, ES
+;	AX, CX, DX, DI, ES
 ;
 DEFPROC	print16,FAR
 	pop	dx
-	pop	es			; ES:DX = return address
-	pop	si			; ES:SI -> value
-	PRINTF	<"%d",13,10>,es:[si]
-	push	es
+	pop	cx			; CX:DX = return address
+	pop	di
+	pop	es			; ES:DI -> value
+	PRINTF	<"%d",13,10>,es:[di]
+	push	cx			; ie, "JMP CX:DX"
 	push	dx
 	ret
 ENDPROC	print16

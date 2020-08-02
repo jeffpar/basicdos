@@ -12,7 +12,7 @@
 CODE    SEGMENT
 	EXTERNS	<cmdCLS,cmdDate,CmdDir,cmdExit,cmdLoop,cmdMem>,near
 	EXTERNS	<cmdTime,cmdType>,near
-	EXTERNS	<genColor,genPrint>,near
+	EXTERNS	<genColor,genLet,genPrint>,near
 	DEFSTR	COM_EXT,<".COM",0>
 	DEFSTR	EXE_EXT,<".EXE",0>
 	DEFSTR	DIR_DEF,<"*.*",0>
@@ -27,14 +27,19 @@ CODE	ENDS
 	DEFTOK	TOK_DATE,   2, "DATE",	cmdDate
 	DEFTOK	TOK_DIR,   11, "DIR",	cmdDir
 	DEFTOK	TOK_EXIT,   3, "EXIT",	cmdExit
+	DEFTOK	TOK_LET,   22, "LET",	genLet
 	DEFTOK	TOK_LOOP,  12, "LOOP",	cmdLoop
 	DEFTOK	TOK_MEM,    4, "MEM",	cmdMem
-	DEFTOK	TOK_PRINT, 22, "PRINT",	genPrint
+	DEFTOK	TOK_PRINT, 23, "PRINT",	genPrint
 	DEFTOK	TOK_TIME,   5, "TIME",	cmdTime
 	DEFTOK	TOK_TYPE,  13, "TYPE",	cmdType
 	NUMTOKENS CMD_TOKENS,NUM_TOKENS
 
 DATA	SEGMENT
+	DEFWORD	segCode,0	; code block
+	DEFWORD	segVars,0	; var block
+	DEFWORD	segData,0	; data block
+	DEFWORD	segText,0	; text block
 	COMHEAP	<size CMD_HEAP>	; COMHEAP (heap size) must be the last item
 DATA	ENDS
 
