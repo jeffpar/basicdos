@@ -16,7 +16,7 @@ CODE    SEGMENT
 
 	EXTERNS	<CMD_TOKENS,heap>,word
 	EXTSTR	<COM_EXT,EXE_EXT,DIR_DEF,PERIOD>
-	EXTSTR	<SYS_MEM,DOS_MEM>
+	EXTSTR	<SYS_MEM,DOS_MEM,FREE_MEM>
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 
@@ -530,7 +530,12 @@ mem1:	mov	dl,0		; DL = 0 (query all memory blocks)
 	test	ax,ax		; free block (is OWNER zero?)
 	jne	mem2		; no
 	add	bp,dx		; yes, add to total free paras
-	jmp	short mem8
+;
+; Let's include free blocks in the report now, too.
+;
+	mov	si,offset FREE_MEM
+	; jmp	short mem8
+
 mem2:	mov	ax,dx		; AX = # paras
 	push	cx
 	call	printKB		; BX = seg, AX = # paras, DI:SI -> name

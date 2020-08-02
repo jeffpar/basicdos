@@ -5,14 +5,13 @@ date: 2020-07-31 11:00:00
 permalink: /maplebar/blog/2020/07/31/
 ---
 
-I had originally thought about blogging every day about the progress
-of BASIC-DOS, but reality quickly set it.  First of all, I'd much rather be
-writing code than stupid blog entries, and secondly, no one would really be
-all that interested.  Any blow-by-blow description of building a piece of
-software byte by tedious byte would be about as fascinating as watching paint
-dry.
+I originally thought about blogging about the progress
+of BASIC-DOS every day, but it turns I'd much rather be
+writing code than blog entries, and no one would really
+be that interested anyway.  The Git repository has all the
+daily details if anyone cares.
 
-But after more than two months into the project, an update is probably overdue.
+But, after more than two months into the project, an update is probably overdue.
 
 ## The Boot Sector
 
@@ -20,20 +19,18 @@ This is where development started.  And I'm happy to report that the boot
 sector is in good shape.  It includes features that I don't think existed in
 any version of DOS until MS-DOS 5.0:
 
- - IBMBIO.COM and IBMDOS.COM can be located anywhere in root directory
+ - **IBMBIO.COM** and **IBMDOS.COM** can be located anywhere in root directory
  - Those same files can use any clusters (they don't need to be contiguous)
 
 In addition, the boot sector will prompt you if a hard disk is detected, and
 if you press the Esc key, you can boot from the hard disk instead of the
-BASIC-DOS diskette.  In the "old days," if you left a diskette in your IBM
-PC XT's floppy drive, you booted from the diskette -- period.
+BASIC-DOS diskette.
 
 ## System Configuration
 
-The BASIC-DOS boot code also loads CONFIG.SYS, if any, into memory, so that
-the system can be tailored to your needs.  In the real world, PC DOS didn't
-support CONFIG.SYS until version 2.0, over 1.5 years after the IBM PC and PC
-DOS were introduced.
+The BASIC-DOS boot code also loads *8CONFIG.SYS** into memory, so that
+the system can be tailored to your needs.  PC DOS didn't support **CONFIG.SYS**
+until version 2.0, over 1.5 years after the IBM PC and PC DOS were introduced.
 
 Installable device drivers (using the **DEVICE** keyword) aren't supported
 yet, but support does exist for:
@@ -49,37 +46,33 @@ when I talk about the **CONSOLE** driver.
 
 ## Built-in Device Drivers
 
-IBMBIO.COM is the first file loaded by the boot sector, and it's little
-more than the binary concatenation of all the standard (built-in) device
-drivers, followed by a small bit code calls each driver's INIT function.
-If a driver isn't needed (eg, if the hardware for COM3 or COM4 isn't
-present), then the driver is discarded, to save memory.
+**IBMBIO.COM** is the first file loaded by the boot sector, and it's little
+more than the concatenation of all the standard (built-in) device drivers,
+followed by a small bit code to call each driver's INIT function.  If a driver
+reports that it isn't needed (eg, if no serial or parallel adapter is present),
+then the driver is discarded.
 
-If you type the `MEM` command, you'll see that BASIC-DOS includes all the
+If you use the `MEM` command, you'll see that BASIC-DOS includes all the
 usual built-in DOS device drivers, although the only ones that really do
-anything at this point are:
+much at this point are:
 
   - CON
   - COM#
   - CLOCK$
   - FDC$
 
-And before talking about specific device drivers, it's worth pointing out
-that although BASIC-DOS drivers and PC DOS drivers use a similar architecture,
-they are *not* binary compatible.  After all, in this alternate timeline,
-BASIC-DOS was the first version of DOS, so driver compatibility was a non-issue
--- there were no drivers to be compatible with.
+BASIC-DOS device drivers are very similar to DOS drivers.  For example,
+they use similar header and request packet structures.  But there are also
+some significant differences.  
 
-Even though PC DOS drivers were designed with separate **STRATEGY** and
-**INTERRUPT** entry points, the promise of asynchronous I/O was never
-fulfilled.  BASIC-DOS drivers, on the other hand, have a single **REQUEST**
-entry point that doesn't need to preserve any registers, and support for
-asynchronous I/O is baked in.  The BASIC-DOS **CON** and **COM** drivers
-already support interrupt-driven (rather than polling-driven) I/O.
+PC DOS drivers never fulfilled the promise of asynchronous I/O, even though
+they were designed with separate **STRATEGY** and **INTERRUPT** entry points.
+All I/O was synchronous, and in general, input devices were polled.
 
-Other details, like the format of device driver request packets and how IOCTLs
-are handled, are also slightly different in BASIC-DOS.  The driver model is
-inspired by DOS, not constrained by it.
+In BASIC-DOS, support for asynchronous I/O is baked in.  Drivers have a
+unified **REQUEST** entry point that doesn't need to preserve any registers,
+and both the BASIC-DOS **CON** and **COM** drivers support interrupt-driven
+I/O.
 
 ### The CONSOLE Driver
 
@@ -99,20 +92,21 @@ and:
     CONSOLE=CON:40,25,40,0,1
     SHELL=COMMAND.COM
 
-define two 40-column, 25-line sessions that will be displayed side-by-side
-on an 80-column IBM PC monitor.
+define two 40-column, 25-line sessions that are displayed side-by-side on
+an 80-column IBM PC monitor, each running their own copy of
+COMMAND.COM.
 
 Sessions define a *context* within which one or more DOS programs many run,
 and the system automatically multi-tasks between sessions, providing many of
 the benefits a true multi-tasking operating system while still supporting
 the traditional DOS application model.
 
-At the moment, the CONSOLE driver is fairly stupid -- it will create contexts
-with any size and position, without regard for other contexts, so you define
-two or more overlapping contexts, expect to see a mess on the screen.
+At the moment, the CONSOLE driver is fairly dumb -- it will create contexts
+with any size and position, without regard for other contexts, so if you
+define two or more overlapping contexts, expect to see a mess on the screen.
 
 Contexts are created by opening the "CON" device with a descriptor, which is
-a string following the device name, separated by a colon; eg:
+a string following the device name and colon; eg:
 
     CON:40,25,40,0,1,0
 
@@ -143,6 +137,8 @@ For example:
 defines two full-screen border-less contexts, each assigned to a different
 monitor.  In this case, the presence of a blinking cursor is your sole visual
 cue as to which context has focus.
+
+I suspect dual-monitor IBM PCs were *never* this cool!
 
 ### The COM Driver
 
@@ -180,7 +176,7 @@ It provides a much nicer interface that supports:
 Support for partial sector requests relieves DOS from blocking/deblocking
 I/O requests using intermediate buffers.  So if an app wants just 10 bytes
 out of the middle of a sector, that request can more or less go straight to
-the FDC driver.  And since the FDC does its own buffering, such requests
+the FDC driver.  And since the driver does its own buffering, such requests
 can usually be satisfied without hitting the disk again.
 
 The BIOS only supports multi-sector requests as long as all the sectors are
@@ -191,7 +187,7 @@ non-sector boundaries.
 
 And finally, while the BIOS could fail a request simply because the transfer
 address crossed a 64K boundary, the FDC driver automatically detects and avoids
-those failures.
+such failures.
 
 There's no support in the system for hard errors (eg, the familiar "Abort,
 Retry, Ignore" prompts).  Any unrecoverable error is reported immediately back
@@ -202,27 +198,24 @@ to the CONSOLE driver for "popup" and background display contexts.
 
 While the BPB is a diskette structure that was introduced in PC DOS 2.00,
 BASIC-DOS had the, um, "foresight" to include that feature in BASIC-DOS 1.00
--- with some extensions.
+-- with some extensions as well.
 
-BASIC-DOS on-disk BPBs have a few additional fields that relieve the boot code
-from having to make expensive calculations (eg, the first root directory sector
-and first data sector), and our in-memory BPBs have even more.  This makes them
-suitable for all internal I/O requirements, eliminating the need for other
+BASIC-DOS on-disk BPBs have a few additional fields that relieve the boot
+code from making unnecessary calculations (eg, the locations of the first root
+directory and data sectors), and the in-memory BPBs have even more.  This makes
+them suitable for all internal I/O requirements, eliminating the need for other
 largely redundant data structures, such as Drive Parameter Blocks.
 
 BPB support means that BASIC-DOS can read any standard PC diskette, even those
 that didn't exist until PC DOS 2.00 or later, as long as the BIOS can read it.
 However, diskettes with subdirectories won't be fully usable, at least not
-until the day comes -- if ever -- that BASIC-DOS supports them.
+until the day comes -- if ever -- that BASIC-DOS supports subdirectories.
 
 BASIC-DOS changes another aspect of the BPB paradigm, too.  Whereas PC DOS
 expected the driver to allocate memory for BPBs, BASIC-DOS takes charge of
-that memory.  This seems to make more sense, given the central role that BPBs
-play in managing an entire disk.
-
-This in turn means that the FDC functions that manage and rebuild BPBs behave
-differently (and, I would argue, more rationally) in BASIC-DOS.
+that memory.  The FDC driver still supports the usual MEDIA CHECK and BUILD
+BPB operations, but the memory for BPBs is allocated by DOS.
 
 ## The DOS "Kernel"
 
-IBMDOS.COM is the second file loaded by the boot code. 
+**IBMDOS.COM** is the second file loaded by the boot code. 
