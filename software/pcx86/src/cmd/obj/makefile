@@ -35,6 +35,9 @@ GEN.OBJ: ..\GEN.ASM
 PRINT.OBJ: ..\PRINT.ASM
 	$(ASM) $(AFLAGS) /I.. /I..\..\INC $**,$@;
 
+VARS.OBJ: ..\VARS.ASM
+	$(ASM) $(AFLAGS) /I.. /I..\..\INC $**,$@;
+
 CONST.OBJ: ..\CONST.ASM
 	$(ASM) $(AFLAGS) /I.. /I..\..\INC $**,$@;
 

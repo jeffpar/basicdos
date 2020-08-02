@@ -31,7 +31,7 @@ DOS	segment word public 'CODE'
 ;	None
 ;
 DEFPROC	psp_term,DOS
-	sub	ax,ax			; default exit code/exit type
+	sub	ax,ax			; default exit code/type
 
 	DEFLBL	psp_term_exitcode,near
 	ASSERT	Z,<cmp [scb_locked],-1>	; SCBs should never be locked now
@@ -47,7 +47,7 @@ DEFPROC	psp_term,DOS
 ;
 ; Close process file handles.
 ;
-pt1:	push	ax			; save exit code/exit type on stack
+pt1:	push	ax			; save exit code/type on stack
 	call	psp_close		; close all the process file handles
 ;
 ; Restore the SCB's CTRLC and ERROR handlers from the values in the PSP.
@@ -356,11 +356,29 @@ ENDPROC	psp_get
 ;
 DEFPROC	load_program,DOS
 	ASSUME	ES:NOTHING
-	mov	bx,10h			; alloc a new PSP segment
-	mov	ah,DOS_MEM_ALLOC
+;
+; I used to start off with a small allocation (10h paras), since that's
+; all we initially need for the PSP, but that can get us into trouble later
+; if there isn't enough free space after the block.  So it's actually best
+; to allocate the largest possible block now.  We'll shrink it down once
+; we know how large the program is.
+;
+; Perhaps someday there will be a DOS_MEM_REALLOC function that can move a
+; block, for callers that can deal with movable blocks.  However, the utility
+; of such a function might be minimal, since it still couldn't rearrange any
+; blocks allocated by other callers.
+;
+	mov	bx,0A000h		; alloc a PSP segment
+	mov	ah,DOS_MEM_ALLOC	; with a size that should fail
+	int	21h			; in order to get max paras avail
+	ASSERT	C
+	jnc	lp1			; if it didn't fail, use it anyway?
+	cmp	bx,11h			; enough memory to do anything useful?
+	jb	lp0			; no
+	mov	ah,DOS_MEM_ALLOC	; BX = max paras avail
 	int	21h			; returns a new segment in AX
-	jnc	lp1			; success
-	jmp	lp9			; abort
+	jnc	lp1
+lp0:	jmp	lp9			; abort
 
 lp1:	xchg	dx,ax			; DX = segment for new PSP
 	xchg	di,ax			; DI = command-line (previously in DX)

@@ -58,6 +58,34 @@ PUSHNUM	macro	val
 lbl:
 	endm
 ;
+; Code Block definitions
+;
+CBLKLEN		equ	1024			; default code block size
+
+CBLK_HDR	struc
+TMP16		dw	?			; temporary 16-bit eval space
+CBLK_HDR	ends
+
+;
+; Other Block definitions
+;
+VBLK_HDR	struc
+VAR_SIZE	dw	?			; size of var block
+VAR_NEXT	dw	?			; offset of next free byte
+VBLK_HDR	ends
+
+VAR_INT		equ	020h			; 2 bytes of var data
+VAR_LONG	equ	040h			; 4 bytes of var data
+VAR_SINGLE	equ	060h			; 4 bytes of var data
+VAR_STRING	equ	080h			; 4 bytes of ptr data
+VAR_DOUBLE	equ	0A0h			; 8 bytes of var data
+MAX_VARLEN	equ	31			; max chars allowed in var name
+
+VBLKLEN		equ	1024			; default vars block size
+DBLKLEN		equ	1024			; default data block size
+TBLKLEN		equ	4096			; default text block size
+
+;
 ; Define our heap as a structure
 ;
 CMD_HEAP	struc
@@ -69,11 +97,3 @@ EXECDATA	db	size EPB dup (?)	; Exec Parameter Block
 STACK		dw	512 dup (?)
 CMD_HEAP	ends
 
-;
-; Code Block definitions
-;
-CBLKLEN		equ	1024			; default size, for now
-
-CBLK_HDR	struc
-TMP16		dw	?			; temporary 16-bit eval space
-CBLK_HDR	ends

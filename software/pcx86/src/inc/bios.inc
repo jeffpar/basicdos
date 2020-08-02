@@ -336,9 +336,13 @@ FL_INTS		equ	0200h
 FL_DOWN		equ	0400h
 FL_OVFL		equ	0800h
 
+OP_PUSH_CS	equ	00Eh
+OP_PUSH_DS	equ	01Eh
 OP_PUSH_AX	equ	050h
+OP_PUSH_BX	equ	053h
 OP_CALLF	equ	09Ah
 OP_MOV_AX	equ	0B8h
+OP_MOV_BX	equ	0BBh
 OP_RETF		equ	0CBh
 OP_IRET		equ	0CFh
 OP_CALL		equ	0E8h
