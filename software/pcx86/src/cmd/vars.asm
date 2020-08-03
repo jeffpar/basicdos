@@ -62,8 +62,9 @@ ENDPROC	allocVars
 ; the name of the variable, followed by the variable data.  The name length
 ; is limited to MAX_VARLEN.
 ;
-; Note that in the case of string variables, the variable data is nothing more
-; that a far pointer to the actual string data.
+; Note that, except for numbers (integers and floating point values), the
+; variable data is generally a far pointer to the actual data; for example, a
+; string variable is just a far pointer to a location inside a string pool.
 ;
 ; Inputs:
 ;	AL = VAR_*
@@ -71,7 +72,7 @@ ENDPROC	allocVars
 ;	DS:SI -> variable name
 ;
 ; Outputs:
-;	If carry clear, DX = offset of data associated with variable
+;	If carry clear, DX = offset of var data
 ;
 ; Modifies:
 ;	AX, CX, DX, SI
@@ -132,10 +133,10 @@ ENDPROC	addVar
 ;	DS:SI -> variable name
 ;
 ; Outputs:
-;	If carry clear, DX = offset of data associated with variable
+;	If carry clear, DX = offset of var data
 ;
 ; Modifies:
-;	CX, DX, SI
+;	DX
 ;
 DEFPROC	findVar
 	push	ax
@@ -183,11 +184,11 @@ ENDPROC	findVar
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; letVar16
+; letVar32
 ;
 ; Inputs:
-;	BX = offset of variable data
-;	1 (offset to) 16-bit value pushed on stack
+;	ES:DI -> var data
+;	1 pointer to 32-bit value pushed on stack
 ;
 ; Outputs:
 ;	None
@@ -195,17 +196,17 @@ ENDPROC	findVar
 ; Modifies:
 ;	AX, CX, DX, DI, ES
 ;
-DEFPROC	letVar16,FAR
-	pop	dx
-	pop	cx			; CX:DX = return address
-	pop	di
-	pop	es			; ES:DI -> value
-	mov	ax,es:[di]
-	mov	[bx],ax
-	push	cx			; ie, "JMP CX:DX"
-	push	dx
+DEFPROC	letVar32,FAR
+	pop	cx
+	pop	dx			; DX:CX = return address
+	pop	si
+	pop	ds			; DS:SI -> 32-bit value
+	movsw
+	movsw
+	push	dx			; ie, "JMP DX:CX"
+	push	cx
 	ret
-ENDPROC	letVar16
+ENDPROC	letVar32
 
 CODE	ENDS
 

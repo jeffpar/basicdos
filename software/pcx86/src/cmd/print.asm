@@ -15,10 +15,10 @@ CODE    SEGMENT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; print16
+; print32
 ;
 ; Inputs:
-;	1 (offset to) 16-bit value pushed on stack
+;	1 (pointer to) 32-bit value pushed on stack
 ;
 ; Outputs:
 ;	None
@@ -26,16 +26,19 @@ CODE    SEGMENT
 ; Modifies:
 ;	AX, CX, DX, DI, ES
 ;
-DEFPROC	print16,FAR
-	pop	dx
-	pop	cx			; CX:DX = return address
+DEFPROC	print32,FAR
 	pop	di
-	pop	es			; ES:DI -> value
-	PRINTF	<"%d",13,10>,es:[di]
-	push	cx			; ie, "JMP CX:DX"
-	push	dx
+	pop	dx			; DX:DI = return address
+	pop	si
+	pop	ds			; DS:SI -> value
+	lodsw
+	xchg	bx,ax
+	lodsw
+	PRINTF	<"%ld",13,10>,bx,ax	; AX:BX = 32-bit value
+	push	dx			; ie, "JMP DX:DI"
+	push	di
 	ret
-ENDPROC	print16
+ENDPROC	print32
 
 CODE	ENDS
 

@@ -355,12 +355,17 @@ ENDPROC	ddcon_setins
 ;	None
 ;
 ; Modifies:
-;	AX
+;	AX, BX, CX, DX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_scroll
-	test	cx,cx
-	jnz	dcs1
+	test	cx,cx			; clearing the whole interior?
+	jnz	dcs1			; no
+	push	di
+	push	es
+	call	draw_border		; yes, good idea to redraw border, too
+	pop	es
+	pop	di
 	mov	cl,100
 dcs1:	call	scroll
 	cmp	cl,100

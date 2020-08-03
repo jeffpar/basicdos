@@ -15,35 +15,40 @@ CODE    SEGMENT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; evalAdd16
+; evalAdd32
 ;
 ; Inputs:
-;	2 (offsets to) 16-bit values pushed on stack
+;	2 (pointers to) 32-bit values pushed on stack
 ;
 ; Outputs:
-;	1 (offset to) 16-bit sum pushed back onto stack
+;	1 (pointer to) 32-bit sum pushed back onto stack
 ;
 ; Modifies:
 ;	AX, CX, DX, DI, ES
 ;
-DEFPROC	evalAdd16,FAR
-	pop	dx
-	pop	cx			; CX:DX = return address
+DEFPROC	evalAdd32,FAR
 	pop	di
-	pop	es			; ES:DI -> 1st arg
-	mov	ax,es:[di]
-	pop	di
-	pop	es			; ES:DI -> 2nd arg
-	add	ax,es:[di]
-	mov	di,offset TMP16
-	mov	es,cx
-	mov	es:[di],ax
-	push	es			; ES:DI -> new arg
+	pop	dx			; DX:DI = return address
+	pop	si
+	pop	ds			; DS:SI -> 1st arg
+	lodsw
+	xchg	bx,ax
+	lodsw
+	xchg	cx,ax			; CX:BX = 1st arg
+	pop	si
+	pop	ds			; DS:SI -> 2nd arg
+	lodsw
+	add	bx,ax
+	lodsw
+	adc	cx,ax			; CX:BX = 1st arg + 2nd arg
+	mov	[bp],bx
+	mov	[bp+2],cx
+	push	ss			; SS:BP -> new arg
+	push	bp
+	push	dx			; ie, "JMP DX:DI"
 	push	di
-	push	cx			; ie, "JMP CX:DX"
-	push	dx
 	ret
-ENDPROC	evalAdd16
+ENDPROC	evalAdd32
 
 CODE	ENDS
 
