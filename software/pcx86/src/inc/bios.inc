@@ -343,7 +343,9 @@ OP_PUSH_AX	equ	050h
 OP_PUSH_BX	equ	053h
 OP_PUSH_DI	equ	057h
 OP_CALLF	equ	09Ah
+OP_MOV_AL	equ	0B0h
 OP_MOV_AX	equ	0B8h
+OP_MOV_CX	equ	0B9h
 OP_MOV_BX	equ	0BBh
 OP_MOV_DI	equ	0BFh
 OP_RETF		equ	0CBh
