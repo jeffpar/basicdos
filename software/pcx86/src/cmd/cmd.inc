@@ -81,6 +81,7 @@ VAR_DOUBLE	equ	0E0h			; 8 bytes of var data
 ;
 VAR_SEMI	equ	VAR_NONE OR 01h
 VAR_COMMA	equ	VAR_NONE OR 02h
+VAR_EOL		equ	VAR_NONE OR 03h
 
 VBLK_HDR	struc
 VAR_NEXT	dw	?			; next var block, if any

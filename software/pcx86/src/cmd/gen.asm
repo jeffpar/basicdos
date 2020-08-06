@@ -100,7 +100,7 @@ gi7:	pushf
 	popf
 gi8:	jnc	gi9
 
-	PRINTF	<'Syntax error at "%.*ls"',13,10>,cx,si,ds
+	PRINTF	<'Syntax error',13,10>
 
 gi9:	LEAVE
 	ret
@@ -140,7 +140,8 @@ ENDPROC	genColor
 ;	ES:DI -> next unused location in code block
 ;
 ; Outputs:
-;	Carry clear if successful, set if error
+;	CF clear if successful, set if error
+;	ZF clear if expression existed, set if not
 ;	ES:DI -> next unused location in code block
 ;
 ; Modifies:
@@ -169,7 +170,7 @@ ge2:	cmp	al,CLS_VAR		; variable?
 	call	findVar			; go find it
 ;
 ; We don't care if findVar succeeds or not, because even when it fails,
-; it returns the var data (DX) of a zero constant.
+; it returns var type (AH) VAR_LONG with var data (DX) zero.
 ;
 ; TODO: Check AH for the var type and act accordingly.
 ;
@@ -228,8 +229,9 @@ ge6:	mov	al,OP_MOV_AX
 ;
 ; Time to start popping the operator stack.
 ;
-ge7:	xchg	cx,ax			; CL = last symbol
-
+ge7:	mov	ah,0
+	xchg	cx,ax			; CL = last symbol, CH = counter
+	
 ge8:	pop	ax
 	test	ax,ax
 	jz	ge9			; all done
@@ -240,13 +242,19 @@ ge8:	pop	ax
 	stosw
 	mov	ax,cs
 	stosw
+	inc	ch
 	jmp	ge8
 ;
-; TODO: Count the number of values that the operator stack expects, compare
-; to the number of values actually queued (nValues), and bail on any mismatch.
+; Verify the number of expected operands matches the number of values queued.
 ;
-ge9:	clc
-	ret
+ge9:	cmp	[nValues],0		; return ZF set if no values
+	jz	ge10
+	inc	ch
+	cmp	ch,byte ptr [nValues]
+	stc
+	jne	ge10
+	test	ch,ch			; success (both CF and ZF clear)
+ge10:	ret
 ENDPROC	genExpr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -297,6 +305,7 @@ gl1:	call	addVar			; DX -> var data
 	jne	gl9
 
 	call	genExpr
+	jc	gl9
 
 	mov	al,OP_CALLF
 	stosb
@@ -332,18 +341,21 @@ DEFPROC	genPrint
 
 gp1:	call	genExpr
 	jc	gp9
+	jz	gp8
 
-	mov	ax,OP_MOV_AL OR (VAR_LONG SHL 8)
+gp2:	mov	ax,OP_MOV_AL OR (VAR_LONG SHL 8)
 	stosw
 	mov	al,OP_PUSH_AX
 	stosb
 
+	mov	ah,VAR_SEMI
 	cmp	cl,';'			; was the last symbol a semi-colon?
-	je	gp1			; yes, nothing to do
+	je	gp3			; yes
+	mov	ah,VAR_COMMA
 	cmp	cl,','			; how about a comma?
 	jne	gp8			; no
 
-	mov	ax,OP_MOV_AL OR (VAR_COMMA SHL 8)
+gp3:	mov	al,OP_MOV_AL		; "MOV AL,[VAR_SEMI or VAR_COMMA]"
 	stosw
 	mov	al,OP_PUSH_AX
 	stosb
@@ -355,8 +367,8 @@ gp8:	mov	al,OP_CALLF
 	stosw
 	mov	ax,cs
 	stosw
-
 	clc
+
 gp9:	ret
 ENDPROC	genPrint
 
@@ -376,7 +388,7 @@ ENDPROC	genPrint
 ;	CX = length of token
 ;	SI = offset of token
 ;	BX = offset of next TOKLET
-;	ZF and CF clear (use JA opcode)
+;	ZF and CF clear
 ;
 ; Outputs if NO matching next token:
 ;	ZF set if no matching token, CF set if no more tokens

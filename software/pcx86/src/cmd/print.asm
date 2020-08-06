@@ -53,26 +53,33 @@ p2:	push	bp
 	lea	bp,[bp+4]
 	jmp	p1
 
-p3:	lea	bp,[bp+2]
+p3:	mov	al,VAR_EOL
+	lea	bp,[bp+2]
 	sub	bp,bx
 	mov	cs:[nPrintArgsRet],bp	; modify the RETF N with proper N 
 p4:	pop	bp
 	test	bp,bp			; end-of-args marker?
 	jz	p8			; yes
 	mov	al,[bp]			; AL = arg type
+	cmp	al,VAR_SEMI
+	je	p4
 	cmp	al,VAR_COMMA
 	jne	p5
 	PRINTF	<CHR_TAB>
 	jmp	p4
 p5:	cmp	al,VAR_LONG
 	jne	p4
+	push	ax
 	mov	ax,[bp+2]
 	mov	dx,[bp+4]
 	PRINTF	<"%#ld ">,ax,dx		; DX:AX = 32-bit value
+	pop	ax
 	jmp	p4
 
-p8:	PRINTF	<13,10>
-	db	OP_RETF_N
+p8:	cmp	al,VAR_COMMA		; did we end with semi-colon or comma?
+	jbe	p9			; yes
+	PRINTF	<13,10>
+p9:	db	OP_RETF_N
 	DEFLBL	nPrintArgsRet,word
 	dw	0
 ENDPROC	printArgs
