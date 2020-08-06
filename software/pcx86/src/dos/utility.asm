@@ -715,33 +715,39 @@ td0:	mov	ax,-1
 	mov	bx,ax
 	ENDIF
 	mov	ch,es:[di+bx].TOKDEF_LEN; CH = length of current token
-	mov	ax,cx			; CL is saved in AL
+	mov	ah,cl			; CL is saved in AH
 	push	si
 	push	di
 	mov	di,es:[di+bx].TOKDEF_OFF; ES:DI -> current token
-td1:	cmpsb				; compare input to current
-	jne	td2
+td1:	lodsb
+	cmp	al,'a'
+	jb	td2
+	cmp	al,'z'
+	ja	td2
+	sub	al,20h
+td2:	scasb				; compare input to current
+	jne	td3
 	sub	cx,0101h
-	jz	td2			; match!
+	jz	td3			; match!
 	test	cl,cl
 	stc
-	jz	td2			; if CL exhausted, input < current
+	jz	td3			; if CL exhausted, input < current
 	test	ch,ch
-	jz	td2			; if CH exhausted, input > current
+	jz	td3			; if CH exhausted, input > current
 	jmp	td1
 
-td2:	pop	di
+td3:	pop	di
 	pop	si
 	jcxz	td8
 ;
 ; If carry is set, set the bottom range to BX, otherwise set the top range
 ;
 	pop	bx			; BX = index of token we just tested
-	xchg	cx,ax			; restore CL from AL
-	jnc	td3
+	mov	cl,ah			; restore CL from AH
+	jnc	td4
 	mov	dx,bx			; new bottom is middle
 	jmp	td0
-td3:	inc	bx
+td4:	inc	bx
 	mov	bp,bx			; new top is middle + 1
 	jmp	td0
 

@@ -88,7 +88,7 @@ BPBSIG		equ	'B'
 ; DPB_REBUILD	db	?		; 17h: 0FFh if block must be rebuilt
 ; DPB_NEXT	dd	?		; 18h: address of next DPB
 ; DPB_DIRCLUS	dw	?		; 1Ch: 1st cluster of cur dir (0=root)
-; DPB_DIRPATH	db	64 dup (?)	; 1Eh: ASCIZ cur dir path string
+; DPB_DIRPATH	db	64 dup (?)	; 1Eh: ASCIIZ cur dir path string
 ; DPB		ends
 ;
 ; Interesting side note about DPB_FATSECS: it was changed to a WORD in DOS 4.0,

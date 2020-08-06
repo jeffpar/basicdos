@@ -15,35 +15,57 @@ CODE    SEGMENT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; evalAdd16
+; evalAddLong
 ;
 ; Inputs:
-;	2 (offsets to) 16-bit values pushed on stack
+;	2 32-bit values pushed on stack
 ;
 ; Outputs:
-;	1 (offset to) 16-bit sum pushed back onto stack
+;	1 32-bit sum pushed back onto stack
 ;
 ; Modifies:
-;	AX, CX, DX, DI, ES
+;	AX, BX, CX, DX, DI
 ;
-DEFPROC	evalAdd16,FAR
-	pop	dx
-	pop	cx			; CX:DX = return address
+DEFPROC	evalAddLong,FAR
 	pop	di
-	pop	es			; ES:DI -> 1st arg
-	mov	ax,es:[di]
-	pop	di
-	pop	es			; ES:DI -> 2nd arg
-	add	ax,es:[di]
-	mov	di,offset TMP16
-	mov	es,cx
-	mov	es:[di],ax
-	push	es			; ES:DI -> new arg
+	pop	dx			; DX:DI = return address
+	pop	cx
+	pop	bx			; BX:CX = 1st arg
+	DEFLBL	evalAddSubLong,near
+	pop	ax
+	add	cx,ax
+	pop	ax
+	adc	bx,ax			; BX:CX = 1st arg + 2nd arg
+	push	bx
+	push	cx
+	push	dx			; ie, "JMP DX:DI"
 	push	di
-	push	cx			; ie, "JMP CX:DX"
-	push	dx
 	ret
-ENDPROC	evalAdd16
+ENDPROC	evalAddLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; evalSubLong
+;
+; Inputs:
+;	2 32-bit values pushed on stack
+;
+; Outputs:
+;	1 32-bit difference pushed back onto stack
+;
+; Modifies:
+;	AX, BX, CX, DX, DI
+;
+DEFPROC	evalSubLong,FAR
+	pop	di
+	pop	dx			; DX:DI = return address
+	pop	cx
+	pop	bx			; BX:CX = 1st arg
+	neg	cx
+	adc	bx,0
+	neg	bx			; BX:CX negated
+	jmp	short evalAddSubLong
+ENDPROC	evalSubLong
 
 CODE	ENDS
 

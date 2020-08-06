@@ -11,14 +11,19 @@
 
 CODE    SEGMENT
 
-        ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
+        ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; print16
+; printArgs
+;
+; Since expressions are evaluated left-to-right, their results are pushed
+; left-to-right as well.  Since the number of parameters is variable, we must
+; walk the stacked parameters back to the beginning, pushing the offset of
+; each as we go, and then popping and printing our way back to the end again.
 ;
 ; Inputs:
-;	1 (offset to) 16-bit value pushed on stack
+;	N pairs of variable types/values pushed on stack
 ;
 ; Outputs:
 ;	None
@@ -26,16 +31,58 @@ CODE    SEGMENT
 ; Modifies:
 ;	AX, CX, DX, DI, ES
 ;
-DEFPROC	print16,FAR
-	pop	dx
-	pop	cx			; CX:DX = return address
-	pop	di
-	pop	es			; ES:DI -> value
-	PRINTF	<"%d",13,10>,es:[di]
-	push	cx			; ie, "JMP CX:DX"
-	push	dx
-	ret
-ENDPROC	print16
+DEFPROC	printArgs,FAR
+	mov	bp,sp
+	add	bp,4
+	sub	bx,bx
+	push	bx			; push end-of-args marker
+	mov	bx,bp
+
+p1:	mov	al,[bp]			; AL = arg type
+	test	al,al
+	jz	p3
+p2:	push	bp
+	lea	bp,[bp+2]
+	cmp	al,VAR_INT
+	jb	p1
+	lea	bp,[bp+2]
+	je	p1
+	lea	bp,[bp+2]
+	cmp	al,VAR_DOUBLE
+	jb	p1
+	lea	bp,[bp+4]
+	jmp	p1
+
+p3:	mov	al,VAR_EOL
+	lea	bp,[bp+2]
+	sub	bp,bx
+	mov	cs:[nPrintArgsRet],bp	; modify the RETF N with proper N 
+p4:	pop	bp
+	test	bp,bp			; end-of-args marker?
+	jz	p8			; yes
+	mov	al,[bp]			; AL = arg type
+	cmp	al,VAR_SEMI
+	je	p4
+	cmp	al,VAR_COMMA
+	jne	p5
+	PRINTF	<CHR_TAB>
+	jmp	p4
+p5:	cmp	al,VAR_LONG
+	jne	p4
+	push	ax
+	mov	ax,[bp+2]
+	mov	dx,[bp+4]
+	PRINTF	<"%#ld ">,ax,dx		; DX:AX = 32-bit value
+	pop	ax
+	jmp	p4
+
+p8:	cmp	al,VAR_COMMA		; did we end with semi-colon or comma?
+	jbe	p9			; yes
+	PRINTF	<13,10>
+p9:	db	OP_RETF_N
+	DEFLBL	nPrintArgsRet,word
+	dw	0
+ENDPROC	printArgs
 
 CODE	ENDS
 
