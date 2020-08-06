@@ -51,12 +51,15 @@ DEFPROC	allocVars
 	stosw				; set VAR_SIZE
 	mov	ax,size VBLK_HDR
 	stosw				; set VAR_FREE
-	xchg	di,ax
+	mov	ax,VAR_LONG SHL 8
+	IFDEF DEBUG
+	mov	al,VARSIG 
+	ENDIF
+	stosw				; initialize VAR_RESERVED/VAR_ZERO
 	sub	ax,ax
-	stosb				; initialize VAR_ZERO
 	stosw
 	stosw
-	stosb				; set end-of-vars byte
+	stosb				; set end-of-vars byte (zero)
 	pop	es
 	pop	di
 al9:	ret
@@ -80,10 +83,10 @@ ENDPROC	allocVars
 ;	DS:SI -> variable name
 ;
 ; Outputs:
-;	If carry clear, AL = var type, DX:SI -> var data
+;	If carry clear, AH = var type, DX -> var data
 ;
 ; Modifies:
-;	AX, CX, DX, SI
+;	AX, CX, DX
 ;
 DEFPROC	addVar
 	call	findVar
@@ -91,7 +94,10 @@ DEFPROC	addVar
 	push	di
 	push	es
 	mov	es,[segVars]
+	ASSERT	STRUCT,es:[0],VAR
 	mov	di,es:[VAR_FREE]
+	push	ax
+
 	cmp	cx,MAX_VARNAME
 	jbe	av0
 	mov	cx,MAX_VARNAME
@@ -115,6 +121,7 @@ av1:	mov	dh,0
 ; first byte, the variable name in the following bytes, and zero-initialized
 ; data in the remaining bytes.
 ;
+	mov	ah,al			; AH = var type
 	or	al,cl
 	stosb
 av2:	lodsb				; rep movsb would be nice here
@@ -134,7 +141,8 @@ av3:	stosb
 	stosb				; ensure there's always a zero after
 av8:	jmp	retVar
 
-av9:	pop	es
+av9:	pop	ax
+	pop	es
 	pop	di
 av10:	ret
 ENDPROC	addVar
@@ -148,25 +156,28 @@ ENDPROC	addVar
 ;	DS:SI -> variable name
 ;
 ; Outputs:
-;	If carry clear, AL = var type, DX:SI -> var data
-;	If carry set, AL = VAR_LONG, DX:SI -> zero constant
+;	If carry clear, AH = var type, DX -> var data
+;	If carry set, AH = VAR_LONG, DX -> zero constant
 ;
 ; Modifies:
-;	DX, SI
+;	AH, DX
 ;
 DEFPROC	findVar
 	push	di
 	push	es
 	mov	es,[segVars]
-	mov	di,size VBLK_HDR
+	ASSERT	STRUCT,es:[0],VAR
+	mov	di,size VBLK_HDR	; ES:DI -> first var in block
+	push	ax
 
 fv1:	mov	al,es:[di]
 	inc	di
 	test	al,al			; end of variables in the block?
 	jnz	fv2			; no
-	mov	dx,offset VAR_ZERO
 	stc
-	jmp	short fv9		; yes
+	mov	ah,VAR_LONG
+	mov	dx,offset VAR_ZERO + 1
+	jmp	short retVar		; yes
 
 fv2:	mov	ah,al
 	and	al,MAX_VARNAME
@@ -203,10 +214,10 @@ fv7:	cbw
 	jmp	fv1			; keep looking
 
 	DEFLBL	retVar,near
-	mov	si,dx
-	mov	dx,es			; DX:SI -> var data
-	mov	al,[si]
-	and	al,VAR_TYPE
+	mov	di,dx
+	pop	dx
+	mov	al,dl			; AH = var type (AL unchanged)
+	mov	dx,di			; DX -> var data
 
 fv9:	pop	es
 	pop	di
@@ -215,7 +226,7 @@ ENDPROC	findVar
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; letVar32
+; letVarLong
 ;
 ; Inputs:
 ;	ES:DI -> var data
@@ -227,7 +238,7 @@ ENDPROC	findVar
 ; Modifies:
 ;	AX, CX, DX, DI
 ;
-DEFPROC	letVar32,FAR
+DEFPROC	letVarLong,FAR
 	pop	cx
 	pop	dx			; DX:CX = return address
 	pop	ax
@@ -237,7 +248,7 @@ DEFPROC	letVar32,FAR
 	push	dx			; ie, "JMP DX:CX"
 	push	cx
 	ret
-ENDPROC	letVar32
+ENDPROC	letVarLong
 
 CODE	ENDS
 

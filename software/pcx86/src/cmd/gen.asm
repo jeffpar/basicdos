@@ -11,9 +11,8 @@
 
 CODE    SEGMENT
 
-	EXTERNS	<evalAdd32>,near
-	EXTERNS	<print32>,near
-	EXTERNS	<allocVars,addVar,findVar,letVar32>,near
+	EXTERNS	<printArgs>,near
+	EXTERNS	<allocVars,addVar,findVar,letVarLong>,near
 
 	EXTERNS	<segVars>,word
 	EXTERNS	<CMD_TOKENS>,word
@@ -27,21 +26,6 @@ CODE    SEGMENT
 ;
 ; Generate code for a single line, by creating a temporary code block, and
 ; then calling the specified "gen" handler to generate code in the block.
-;
-; For example, if "PRINT 2+2" triggers a call to genPrint, it might generate
-; something like (but not quite as inefficient as) this:
-;
-;	PUSH	CS
-;	PUSH	offset C1
-;	JMP	SHORT L1
-;  C1:	DW	2		; 16-bit constant
-;  L1:	PUSH	CS
-;	PUSH	offset C2
-;	JMP	SHORT L2
-;  C2:	DW	2		; 16-bit constant (assumes no constant folding)
-;  L2:	CALLF	ADD
-;	CALLF	PRINT
-;	RETF
 ;
 ; Inputs:
 ;	DI -> TOKENBUF with all tokens
@@ -60,6 +44,8 @@ DEFPROC	genImmediate
 	LOCVAR	pTokBufEnd,word
 	ENTER
 	mov	[errCode],0
+	call	allocVars
+	jc	gie
 	mov	bx,CBLKLEN SHR 4
 	mov	ah,DOS_MEM_ALLOC
 	int	21h
@@ -88,6 +74,9 @@ gi5:	call	dx			; generate code
 	int	21h			; identify the token
 	jc	gi7			; can't identify
 	jmp	gi5
+
+gie:	PRINTF	<'Not enough memory (%#06x)',13,10>,ax
+	jmp	short gi9
 	
 gi6:	mov	al,OP_RETF		; terminate code
 	stosb
@@ -110,7 +99,9 @@ gi7:	pushf
 	int	21h
 	popf
 gi8:	jnc	gi9
+
 	PRINTF	<'Syntax error at "%.*ls"',13,10>,cx,si,ds
+
 gi9:	LEAVE
 	ret
 ENDPROC	genImmediate
@@ -158,7 +149,7 @@ ENDPROC	genColor
 DEFPROC	genExpr
 	sub	dx,dx
 	mov	[nValues],dx		; count values queued
-	push	dx			; push operator end marker (zero)
+	push	dx			; push end-of-operators marker (zero)
 
 ge1:	mov	al,CLS_NUM OR CLS_SYM OR CLS_VAR
 	call	getNextToken
@@ -177,12 +168,14 @@ ge2:	cmp	al,CLS_VAR		; variable?
 	jne	ge4			; no
 	call	findVar			; go find it
 ;
-; We don't care if findVar succeeds or not, because even when it fails, it
-; returns the var data (DX:SI) of a zero constant.
+; We don't care if findVar succeeds or not, because even when it fails,
+; it returns the var data (DX) of a zero constant.
+;
+; TODO: Check AH for the var type and act accordingly.
 ;
 ge3:	mov	al,OP_MOV_SI		; "MOV SI,offset var data"
 	stosb
-	xchg	ax,si
+	xchg	ax,dx
 	stosw
 	mov	al,OP_LODSW
 	stosb
@@ -277,9 +270,6 @@ ENDPROC	genExpr
 ;	Any
 ;
 DEFPROC	genLet
-	call	allocVars
-	jc	gl9
-
 	mov	al,CLS_VAR
 	call	getNextToken
 	jbe	gl9
@@ -291,12 +281,12 @@ DEFPROC	genLet
 	jae	gl1
 	mov	al,VAR_LONG
 
-gl1:	call	addVar			; DX:SI -> var data
+gl1:	call	addVar			; DX -> var data
 	jc	gl9
 
 	mov	al,OP_MOV_DI		; "MOV DI,offset var data"
 	stosb
-	xchg	ax,si
+	xchg	ax,dx
 	stosw
 
 	mov	al,CLS_SYM
@@ -310,7 +300,7 @@ gl1:	call	addVar			; DX:SI -> var data
 
 	mov	al,OP_CALLF
 	stosb
-	mov	ax,offset letVar32
+	mov	ax,offset letVarLong
 	stosw
 	mov	ax,cs
 	stosw
@@ -337,7 +327,7 @@ ENDPROC	genLet
 DEFPROC	genPrint
 	mov	ax,OP_MOV_AL OR (VAR_NONE SHL 8)
 	stosw
-	mov	al,OP_PUSH_AX		; push an end-of-args marker
+	mov	al,OP_PUSH_AX		; push end-of-args marker (VAR_NONE)
 	stosb
 
 gp1:	call	genExpr
@@ -348,12 +338,20 @@ gp1:	call	genExpr
 	mov	al,OP_PUSH_AX
 	stosb
 
-	cmp	cl,','			; was the last symbol a comma?
-	je	gp1			; yes
+	cmp	cl,';'			; was the last symbol a semi-colon?
+	je	gp1			; yes, nothing to do
+	cmp	cl,','			; how about a comma?
+	jne	gp8			; no
+
+	mov	ax,OP_MOV_AL OR (VAR_COMMA SHL 8)
+	stosw
+	mov	al,OP_PUSH_AX
+	stosb
+	jmp	gp1
 
 gp8:	mov	al,OP_CALLF
 	stosb
-	mov	ax,offset print32
+	mov	ax,offset printArgs
 	stosw
 	mov	ax,cs
 	stosw

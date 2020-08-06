@@ -15,7 +15,7 @@ CODE    SEGMENT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; print32
+; printArgs
 ;
 ; Since expressions are evaluated left-to-right, their results are pushed
 ; left-to-right as well.  Since the number of parameters is variable, we must
@@ -31,39 +31,51 @@ CODE    SEGMENT
 ; Modifies:
 ;	AX, CX, DX, DI, ES
 ;
-DEFPROC	print32,FAR
+DEFPROC	printArgs,FAR
 	mov	bp,sp
 	add	bp,4
 	sub	bx,bx
 	push	bx			; push end-of-args marker
 	mov	bx,bp
+
 p1:	mov	al,[bp]			; AL = arg type
 	test	al,al
-	jz	p2
-	push	bp
-	add	bp,6			; 6 bytes (2 for type, 4 for value)
+	jz	p3
+p2:	push	bp
+	lea	bp,[bp+2]
+	cmp	al,VAR_INT
+	jb	p1
+	lea	bp,[bp+2]
+	je	p1
+	lea	bp,[bp+2]
 	cmp	al,VAR_DOUBLE
 	jb	p1
-	add	bp,4
+	lea	bp,[bp+4]
 	jmp	p1
-p2:	add	bp,2
+
+p3:	lea	bp,[bp+2]
 	sub	bp,bx
-	mov	cs:[p32retn],bp		; modify the RETF N with proper N 
-p3:	pop	bp
+	mov	cs:[nPrintArgsRet],bp	; modify the RETF N with proper N 
+p4:	pop	bp
 	test	bp,bp			; end-of-args marker?
 	jz	p8			; yes
-	mov	al,[bp]
-	cmp	al,VAR_LONG		; AL = arg type
-	jne	p3
+	mov	al,[bp]			; AL = arg type
+	cmp	al,VAR_COMMA
+	jne	p5
+	PRINTF	<CHR_TAB>
+	jmp	p4
+p5:	cmp	al,VAR_LONG
+	jne	p4
 	mov	ax,[bp+2]
 	mov	dx,[bp+4]
 	PRINTF	<"%#ld ">,ax,dx		; DX:AX = 32-bit value
-	jmp	p3
+	jmp	p4
+
 p8:	PRINTF	<13,10>
 	db	OP_RETF_N
-	DEFLBL	p32retn,word
+	DEFLBL	nPrintArgsRet,word
 	dw	0
-ENDPROC	print32
+ENDPROC	printArgs
 
 CODE	ENDS
 

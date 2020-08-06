@@ -15,7 +15,7 @@ CODE    SEGMENT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; evalAdd32
+; evalAddLong
 ;
 ; Inputs:
 ;	2 32-bit values pushed on stack
@@ -26,12 +26,12 @@ CODE    SEGMENT
 ; Modifies:
 ;	AX, BX, CX, DX, DI
 ;
-DEFPROC	evalAdd32,FAR
+DEFPROC	evalAddLong,FAR
 	pop	di
 	pop	dx			; DX:DI = return address
 	pop	cx
 	pop	bx			; BX:CX = 1st arg
-	DEFLBL	evalAddSub32,near
+	DEFLBL	evalAddSubLong,near
 	pop	ax
 	add	cx,ax
 	pop	ax
@@ -41,11 +41,11 @@ DEFPROC	evalAdd32,FAR
 	push	dx			; ie, "JMP DX:DI"
 	push	di
 	ret
-ENDPROC	evalAdd32
+ENDPROC	evalAddLong
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; evalSub32
+; evalSubLong
 ;
 ; Inputs:
 ;	2 32-bit values pushed on stack
@@ -56,7 +56,7 @@ ENDPROC	evalAdd32
 ; Modifies:
 ;	AX, BX, CX, DX, DI
 ;
-DEFPROC	evalSub32,FAR
+DEFPROC	evalSubLong,FAR
 	pop	di
 	pop	dx			; DX:DI = return address
 	pop	cx
@@ -64,8 +64,8 @@ DEFPROC	evalSub32,FAR
 	neg	cx
 	adc	bx,0
 	neg	bx			; BX:CX negated
-	jmp	short evalAddSub32
-ENDPROC	evalSub32
+	jmp	short evalAddSubLong
+ENDPROC	evalSubLong
 
 CODE	ENDS
 
