@@ -48,7 +48,8 @@ m1:	push	cs
 	int	21h
 	PRINTF	<13,10>
 
-	mov	si,dx		; DS:SI -> input buffer
+	mov	si,dx
+	add	si,offset INP_BUF
 	lea	di,[bx].TOKENBUF
 	mov	[di].TOK_MAX,(size TOK_BUF) / (size TOKLET)
 	mov	ax,DOS_UTL_TOKIFY1
@@ -183,7 +184,7 @@ m9:	cmp	ax,20		; token ID < 20?
 ;
 ; The token is for a recognized keyword, so retokenize the line.
 ;
-	lea	si,[bx].INPUTBUF; DS:SI -> input buffer
+	lea	si,[bx].INPUTBUF.INP_BUF
 	lea	di,[bx].TOKENBUF; DS:DI -> token buffer
 	mov	ax,DOS_UTL_TOKIFY2
 	int	21h
