@@ -57,6 +57,7 @@ PUSHNUM	macro	val
 	dw	val
 lbl:
 	endm
+
 ;
 ; Code Block definitions
 ;
@@ -65,11 +66,8 @@ CBLKLEN		equ	1024			; default code block size
 ;
 ; Other Block definitions
 ;
-VBLK_HDR	struc
-VAR_SIZE	dw	?			; size of var block
-VAR_NEXT	dw	?			; offset of next free byte
-VBLK_HDR	ends
-
+VAR_TYPE	equ	0E0h
+VAR_NONE	equ	000h
 VAR_INT		equ	020h			; 2 bytes of var data
 VAR_LONG	equ	040h			; 4 bytes of var data
 VAR_SINGLE	equ	060h			; 4 bytes of var data
@@ -77,9 +75,23 @@ VAR_STRING	equ	080h			; 4 bytes of ptr data (ptr)
 VAR_ARRAY	equ	0A0h			; 4 bytes of var data (ptr)
 VAR_FUNC	equ	0C0h			; 4 bytes of var data (ptr)
 VAR_DOUBLE	equ	0E0h			; 8 bytes of var data
-MAX_VARLEN	equ	01Fh			; max chars allowed in var name
+MAX_VARNAME	equ	01Fh			; max chars allowed in var name
+
+VBLK_HDR	struc
+VAR_NEXT	dw	?			; next var block, if any
+VAR_SIZE	dw	?			; size of var block
+VAR_FREE	dw	?			; offset of next free byte
+VAR_ZERO	db	VAR_LONG	
+		dd	0			; zero constant
+VBLK_HDR	ends
 
 VBLKLEN		equ	1024			; default vars block size
+
+OPDEF		struc
+OP_CHR		db	?			; ASCII character
+OP_PREC		db	?			; precedence value
+OP_EVAL		dw	?			; offset of evaluator
+OPDEF		ends
 
 ;
 ; Define our heap as a structure

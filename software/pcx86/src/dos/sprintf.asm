@@ -30,32 +30,41 @@ DOS	segment word public 'CODE'
 ;	AL = # of digits written to buffer
 ;
 ; Modifies:
-;	AX, CX, DX, ES
+;	AX, BX, CX, DX, ES
 ;
 DEFPROC	itoa,DOS
 	push	bp
 	push	si
 	push	di
-	push	bx			; save flags and base
-	push	cx			; save requested length
 
 	sub	si,si
 	test	bh,PF_SIGN		; treat value as signed?
 	jz	ia1			; no
+	and	bh,NOT PF_SIGN
 	test	dx,dx			; negative value?
 	jns	ia1			; no
 	neg	dx			; yes, negate DX:AX
 	neg	ax
 	sbb	dx,0
-	inc	si			; SI += 1 if we must add a sign
+	inc	si			; SI = 1 if we must add a sign
+	or	bh,PF_SIGN
 ia1:	test	bh,PF_HASH
 	jz	ia2
-	cmp	bl,16
-	jne	ia2
-	add	si,2			; SI += 2 if we must add a prefix
+;
+; For BASIC PRINT compatibility, I use PF_HASH with signed decimal output
+; to indicate that a space should be displayed in lieu of a minus sign if the
+; value is not negative.
+;
+	or	si,1
+	cmp	bl,10
+	je	ia2
+	mov	si,2			; SI = 2 if we must add a prefix
 
-ia2:	mov	bh,0
+ia2:	push	bx			; save flags and base
+	push	cx			; save requested length
+	mov	bh,0
 	mov	bp,sp
+
 ia3:	mov	cx,ax			; save low dividend in CX
 	mov	ax,dx			; divide high dividend
 	sub	dx,dx			; DX:AX is new dividend
@@ -93,10 +102,13 @@ ia3a:	mov	al,' '			; no, pad with spaces
 ; many zeros as CX specifies.
 ;
 ia4:	sub	cx,cx
-ia5:	test	si,1			; sign required?
+ia5:	test	si,1			; sign or space required?
 	jz	ia6			; no
 	mov	al,'-'
-	stosb
+	test	bh,PF_SIGN
+	jnz	ia5a
+	mov	al,' '
+ia5a:	stosb
 ia6:	test	si,2			; prefix required?
 	jz	ia7			; no
 	mov	ax,'x0'			; assume a hex prefix

@@ -17,6 +17,7 @@ CODE    SEGMENT
 
 	EXTERNS	<segVars>,word
 	EXTERNS	<CMD_TOKENS>,word
+	EXTERNS	<OPDEFS>,byte
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 
@@ -53,8 +54,8 @@ CODE    SEGMENT
 ;	Any
 ;
 DEFPROC	genImmediate
-	LOCVAR	errCode,word
 	LOCVAR	nValues,word
+	LOCVAR	errCode,word
 	LOCVAR	pCode,dword
 	LOCVAR	pTokBufEnd,word
 	ENTER
@@ -74,9 +75,10 @@ DEFPROC	genImmediate
 	add	ax,bx
 	mov	[pTokBufEnd],ax
 	add	bx,size TOKLET		; skip 1st token (already parsed)
-	mov	di,di			; ES:DI -> usable code block space
+	sub	di,di			; ES:DI -> usable code block space
 	mov	[pCode].OFF,di
 	mov	[pCode].SEG,es
+
 gi5:	call	dx			; generate code
 	jc	gi7			; error
 	call	getNextToken
@@ -92,17 +94,17 @@ gi6:	mov	al,OP_RETF		; terminate code
 	push	bp
 	push	ds
 	push	es
-	mov	es,[segVars]
-	ASSUME	ES:NOTHING
-	lea	bx,[pCode]
-	sub	sp,4
-	mov	bp,sp			; SS:BP is 32-bit scratch space
-	call	dword ptr ss:[bx]	; execute code
-	add	sp,4
+	mov	ax,[segVars]
+	mov	ds,ax
+	mov	es,ax
+	ASSUME	DS:NOTHING
+	call	[pCode]			; execute code
 	pop	es
 	pop	ds
 	ASSUME	DS:CODE
 	pop	bp
+	clc
+
 gi7:	pushf
 	mov	ah,DOS_MEM_FREE
 	int	21h
@@ -160,29 +162,39 @@ DEFPROC	genExpr
 
 ge1:	mov	al,CLS_NUM OR CLS_SYM OR CLS_VAR
 	call	getNextToken
-	jbe	ge8
+	jbe	ge7
 
 	cmp	al,CLS_SYM		; operator?
 	jne	ge2			; no
-	mov	al,[si]			; TODO: validate operator
-	push	ax			; yes, push it
+	mov	al,[si]			; AL = operator (potentially)
+	call	validateOp
+	jc	ge7			; error
+	push	dx			; push evaluator
+	push	ax			; push operator/precedence
 	jmp	ge1			; go to next token
 
 ge2:	cmp	al,CLS_VAR		; variable?
 	jne	ge4			; no
-	call	findVar			; yes, does it exist?
-	jnc	ge3			; yes
-	sub	cx,cx			; no, so it has a default value of 0
-	jmp	short ge6
-
-ge3:	mov	al,OP_PUSH_ES
+	call	findVar			; go find it
+;
+; We don't care if findVar succeeds or not, because even when it fails, it
+; returns the var data (DX:SI) of a zero constant.
+;
+ge3:	mov	al,OP_MOV_SI		; "MOV SI,offset var data"
 	stosb
-	mov	al,OP_MOV_DI		; "MOV DI,offset var data"
-	stosb
-	xchg	ax,dx
+	xchg	ax,si
 	stosw
-	mov	al,OP_PUSH_DI
+	mov	al,OP_LODSW
 	stosb
+	mov	al,OP_XCHG_DX
+	stosb
+	mov	al,OP_LODSW
+	stosb
+	mov	al,OP_PUSH_AX
+	stosb
+	mov	al,OP_PUSH_DX
+	stosb
+
 ge3a:	inc	[nValues]		; count another queued value
 	jmp	ge1
 ;
@@ -207,35 +219,35 @@ ge5:	mov	ax,DOS_UTL_ATOI32	; DS:SI -> numeric string
 	xchg	cx,ax			; save result in DX:CX
 	pop	bx
 
-ge6:	mov	al,OP_PUSH_CS
+ge6:	mov	al,OP_MOV_AX
 	stosb
-	mov	al,OP_CALL
-	stosb
-	mov	ax,4			; size of 32-bit constant
-	stosw
-	xchg	ax,cx			; store 32-bit constant in DX:CX
-	stosw
 	xchg	ax,dx
 	stosw
+	mov	al,OP_PUSH_AX
+	stosb
+	mov	al,OP_MOV_AX
+	stosb
+	xchg	ax,cx
+	stosw
+	mov	al,OP_PUSH_AX
+	stosb
 	jmp	ge3a			; go count another queued value
 ;
 ; Time to start popping the operator stack.
 ;
+ge7:	xchg	cx,ax			; CL = last symbol
+
 ge8:	pop	ax
 	test	ax,ax
 	jz	ge9			; all done
-	cmp	al,'+'
-	jne	ge9a
+	pop	dx			; DX = evaluator
 	mov	al,OP_CALLF
 	stosb
-	mov	ax,offset evalAdd32
+	xchg	ax,dx
 	stosw
 	mov	ax,cs
 	stosw
 	jmp	ge8
-
-ge9a:	jmp	ge8
-
 ;
 ; TODO: Count the number of values that the operator stack expects, compare
 ; to the number of values actually queued (nValues), and bail on any mismatch.
@@ -279,8 +291,13 @@ DEFPROC	genLet
 	jae	gl1
 	mov	al,VAR_LONG
 
-gl1:	call	addVar			; DX -> var data
+gl1:	call	addVar			; DX:SI -> var data
 	jc	gl9
+
+	mov	al,OP_MOV_DI		; "MOV DI,offset var data"
+	stosb
+	xchg	ax,si
+	stosw
 
 	mov	al,CLS_SYM
 	call	getNextToken
@@ -288,11 +305,6 @@ gl1:	call	addVar			; DX -> var data
 	cmp	byte ptr [si],'='
 	stc
 	jne	gl9
-
-	mov	al,OP_MOV_DI		; "MOV DI,offset var data"
-	stosb
-	xchg	ax,dx
-	stosw
 
 	call	genExpr
 
@@ -323,24 +335,30 @@ ENDPROC	genLet
 ;	Any
 ;
 DEFPROC	genPrint
-	mov	al,CLS_NUM OR CLS_VAR
-	call	getNextToken
-	jbe	gp8
+	mov	ax,OP_MOV_AL OR (VAR_NONE SHL 8)
+	stosw
+	mov	al,OP_PUSH_AX		; push an end-of-args marker
+	stosb
 
-	sub	bx,size TOKLET
-	call	genExpr
+gp1:	call	genExpr
 	jc	gp9
 
-	mov	al,OP_CALLF
+	mov	ax,OP_MOV_AL OR (VAR_LONG SHL 8)
+	stosw
+	mov	al,OP_PUSH_AX
+	stosb
+
+	cmp	cl,','			; was the last symbol a comma?
+	je	gp1			; yes
+
+gp8:	mov	al,OP_CALLF
 	stosb
 	mov	ax,offset print32
 	stosw
 	mov	ax,cs
 	stosw
 
-	jmp	genPrint
-
-gp8:	clc
+	clc
 gp9:	ret
 ENDPROC	genPrint
 
@@ -424,6 +442,40 @@ gt8:	mov	al,0
 
 gt9:	ret
 ENDPROC	getNextToken
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; validateOp
+;
+; Inputs:
+;	AL = operator
+;
+; Outputs:
+;	If carry clear, AL = op, AH = precedence, DX = evaluator
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	validateOp
+	mov	ah,al			; AH = operator to validate
+	push	si
+	mov	si,offset OPDEFS
+vo1:	lodsb
+	test	al,al
+	stc
+	jz	vo9			; not valid
+	cmp	al,ah			; match?
+	je	vo8			; yes
+	add	si,size OPDEF - 1
+	jmp	vo1
+vo8:	lodsb				; AL = precedence, AH = operator
+	xchg	dx,ax
+	lodsw				; AX = evaluator
+	xchg	dx,ax			; DX = evaluator, AX = op/prec
+vo9:	xchg	al,ah			; AL = operator, AH = precedence
+	pop	si
+	ret
+ENDPROC	validateOp
 
 CODE	ENDS
 

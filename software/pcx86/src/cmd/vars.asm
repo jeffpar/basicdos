@@ -44,11 +44,19 @@ DEFPROC	allocVars
 	push	es
 	mov	[segVars],ax
 	mov	es,ax
-	mov	es:[VAR_SIZE],VBLKLEN
-	mov	di,size VBLK_HDR
-	mov	es:[VAR_NEXT],di
-	mov	al,0
-	stosb
+	sub	di,di
+	sub	ax,ax
+	stosw				; set VAR_NEXT
+	mov	ax,VBLKLEN
+	stosw				; set VAR_SIZE
+	mov	ax,size VBLK_HDR
+	stosw				; set VAR_FREE
+	xchg	di,ax
+	sub	ax,ax
+	stosb				; initialize VAR_ZERO
+	stosw
+	stosw
+	stosb				; set end-of-vars byte
 	pop	es
 	pop	di
 al9:	ret
@@ -60,7 +68,7 @@ ENDPROC	allocVars
 ;
 ; Variables start with a byte length (the length of the name), followed by
 ; the name of the variable, followed by the variable data.  The name length
-; is limited to MAX_VARLEN.
+; is limited to MAX_VARNAME.
 ;
 ; Note that, except for numbers (integers and floating point values), the
 ; variable data is generally a far pointer to the actual data; for example, a
@@ -72,7 +80,7 @@ ENDPROC	allocVars
 ;	DS:SI -> variable name
 ;
 ; Outputs:
-;	If carry clear, DX = offset of var data
+;	If carry clear, AL = var type, DX:SI -> var data
 ;
 ; Modifies:
 ;	AX, CX, DX, SI
@@ -83,10 +91,10 @@ DEFPROC	addVar
 	push	di
 	push	es
 	mov	es,[segVars]
-	mov	di,es:[VAR_NEXT]
-	cmp	cx,MAX_VARLEN
+	mov	di,es:[VAR_FREE]
+	cmp	cx,MAX_VARNAME
 	jbe	av0
-	mov	cx,MAX_VARLEN
+	mov	cx,MAX_VARNAME
 av0:	push	di
 	add	di,cx
 	mov	dl,2			; minimum associated data size
@@ -109,16 +117,23 @@ av1:	mov	dh,0
 ;
 	or	al,cl
 	stosb
-av2:	rep	movsb
+av2:	lodsb				; rep movsb would be nice here
+	cmp	al,'a'			; but we upper-case the var name now
+	jb	av3
+	sub	al,20h
+av3:	stosb
+	loop	av2
 	mov	cl,dl
 	mov	al,0
 	mov	dx,di			; DX = offset of variable's data
 	rep	stosb
-	mov	es:[VAR_NEXT],di
+	mov	es:[VAR_FREE],di
 	cmp	es:[VAR_SIZE],di
 	ASSERT	AE
-	je	av9
+	je	av8
 	stosb				; ensure there's always a zero after
+av8:	jmp	retVar
+
 av9:	pop	es
 	pop	di
 av10:	ret
@@ -133,13 +148,13 @@ ENDPROC	addVar
 ;	DS:SI -> variable name
 ;
 ; Outputs:
-;	If carry clear, DX = offset of var data
+;	If carry clear, AL = var type, DX:SI -> var data
+;	If carry set, AL = VAR_LONG, DX:SI -> zero constant
 ;
 ; Modifies:
-;	DX
+;	DX, SI
 ;
 DEFPROC	findVar
-	push	ax
 	push	di
 	push	es
 	mov	es,[segVars]
@@ -148,37 +163,53 @@ DEFPROC	findVar
 fv1:	mov	al,es:[di]
 	inc	di
 	test	al,al			; end of variables in the block?
+	jnz	fv2			; no
+	mov	dx,offset VAR_ZERO
 	stc
-	jz	fv9			; yes
-	mov	ah,al
-	and	al,MAX_VARLEN
-	cmp	al,cl			; do the name lengths match?
-	jne	fv7			; no
+	jmp	short fv9		; yes
 
+fv2:	mov	ah,al
+	and	al,MAX_VARNAME
+	cmp	al,cl			; do the name lengths match?
+	jne	fv6			; no
+
+	push	ax
 	push	cx
 	push	si
 	push	di
-	rep	cmpsb
-	mov	dx,di			; DX -> variable data (potentially)
-	pop	di
+fv3:	lodsb				; rep cmpsb would be nice here
+	cmp	al,'a'			; especially since it doesn't use AL
+	jb	fv4			; but tokens are not upper-cased first
+	sub	al,20h
+fv4:	scasb
+	jne	fv5
+	loop	fv3
+	mov	dx,di			; DX -> variable data
+fv5:	pop	di
 	pop	si
 	pop	cx
-	je	fv9			; match!
+	pop	ax
+	je	retVar			; match!
 
-fv7:	add	al,2			; add at least 2 bytes for data
+fv6:	add	al,2			; add at least 2 bytes for data
 	cmp	ah,VAR_INT		; just an INT?
-	jbe	fv8			; yes, good enough
+	jbe	fv7			; yes, good enough
 	add	al,2			; add 2 more data bytes
 	cmp	ah,VAR_DOUBLE		; good enough?
-	jb	fv8			; yes
+	jb	fv7			; yes
 	add	al,4			; no, add 4 more (for a total of 8)
-fv8:	cbw
+fv7:	cbw
 	add	di,ax			; bump to next variable
 	jmp	fv1			; keep looking
 
+	DEFLBL	retVar,near
+	mov	si,dx
+	mov	dx,es			; DX:SI -> var data
+	mov	al,[si]
+	and	al,VAR_TYPE
+
 fv9:	pop	es
 	pop	di
-	pop	ax
 	ret
 ENDPROC	findVar
 
@@ -194,15 +225,15 @@ ENDPROC	findVar
 ;	None
 ;
 ; Modifies:
-;	AX, CX, DX, DI, ES
+;	AX, CX, DX, DI
 ;
 DEFPROC	letVar32,FAR
 	pop	cx
 	pop	dx			; DX:CX = return address
-	pop	si
-	pop	ds			; DS:SI -> 32-bit value
-	movsw
-	movsw
+	pop	ax
+	stosw
+	pop	ax
+	stosw
 	push	dx			; ie, "JMP DX:CX"
 	push	cx
 	ret

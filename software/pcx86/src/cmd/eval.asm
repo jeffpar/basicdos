@@ -18,37 +18,54 @@ CODE    SEGMENT
 ; evalAdd32
 ;
 ; Inputs:
-;	2 (pointers to) 32-bit values pushed on stack
+;	2 32-bit values pushed on stack
 ;
 ; Outputs:
-;	1 (pointer to) 32-bit sum pushed back onto stack
+;	1 32-bit sum pushed back onto stack
 ;
 ; Modifies:
-;	AX, CX, DX, DI, ES
+;	AX, BX, CX, DX, DI
 ;
 DEFPROC	evalAdd32,FAR
 	pop	di
 	pop	dx			; DX:DI = return address
-	pop	si
-	pop	ds			; DS:SI -> 1st arg
-	lodsw
-	xchg	bx,ax
-	lodsw
-	xchg	cx,ax			; CX:BX = 1st arg
-	pop	si
-	pop	ds			; DS:SI -> 2nd arg
-	lodsw
-	add	bx,ax
-	lodsw
-	adc	cx,ax			; CX:BX = 1st arg + 2nd arg
-	mov	[bp],bx
-	mov	[bp+2],cx
-	push	ss			; SS:BP -> new arg
-	push	bp
+	pop	cx
+	pop	bx			; BX:CX = 1st arg
+	DEFLBL	evalAddSub32,near
+	pop	ax
+	add	cx,ax
+	pop	ax
+	adc	bx,ax			; BX:CX = 1st arg + 2nd arg
+	push	bx
+	push	cx
 	push	dx			; ie, "JMP DX:DI"
 	push	di
 	ret
 ENDPROC	evalAdd32
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; evalSub32
+;
+; Inputs:
+;	2 32-bit values pushed on stack
+;
+; Outputs:
+;	1 32-bit difference pushed back onto stack
+;
+; Modifies:
+;	AX, BX, CX, DX, DI
+;
+DEFPROC	evalSub32,FAR
+	pop	di
+	pop	dx			; DX:DI = return address
+	pop	cx
+	pop	bx			; BX:CX = 1st arg
+	neg	cx
+	adc	bx,0
+	neg	bx			; BX:CX negated
+	jmp	short evalAddSub32
+ENDPROC	evalSub32
 
 CODE	ENDS
 

@@ -13,6 +13,7 @@ CODE    SEGMENT
 	EXTERNS	<cmdCLS,cmdDate,CmdDir,cmdExit,cmdLoop,cmdMem>,near
 	EXTERNS	<cmdTime,cmdType>,near
 	EXTERNS	<genColor,genLet,genPrint>,near
+	EXTERNS	<evalAdd32,evalSub32>,near
 	DEFSTR	COM_EXT,<".COM",0>
 	DEFSTR	EXE_EXT,<".EXE",0>
 	DEFSTR	DIR_DEF,<"*.*",0>
@@ -20,6 +21,17 @@ CODE    SEGMENT
 	DEFSTR	SYS_MEM,<"<SYS>",0>
 	DEFSTR	DOS_MEM,<"DOS",0>
 	DEFSTR	FREE_MEM,<"<FREE>",0>
+;
+; Table of operators
+;
+; Each OPDEF contains 1) the operator symbol, 2) the operator precedence,
+; and 3) the operator evaluator. 
+;
+	DEFLBL	OPDEFS,byte
+	OPDEF	<'+',4,evalAdd32>
+	OPDEF	<'-',4,evalSub32>
+	DEFBYTE	OPDEFS_END,0
+
 CODE	ENDS
 
 	DEFTOKENS CMD_TOKENS,NUM_TOKENS
