@@ -458,8 +458,8 @@ ENDPROC	utl_itoa
 ;
 ; Inputs:
 ;	REG_AL = 0Bh (TOKTYPE_GENERIC) or 0Ch (TOKTYPE_BASIC)
-;	REG_DS:REG_SI -> BUF_INPUT
-;	REG_ES:REG_DI -> BUF_TOKEN
+;	REG_DS:REG_SI -> string (CR or null-terminated)
+;	REG_DS:REG_DI -> BUF_TOKEN
 ;
 ; Outputs:
 ;	AX = # tokens; token buffer updated
@@ -471,11 +471,9 @@ DEFPROC	utl_tokify,DOS
 	sti
 	and	[bp].REG_FL,NOT FL_CARRY
 	mov	ds,[bp].REG_DS		; DS:SI -> BUF_INPUT
-	mov	es,[bp].REG_ES		; ES:DI -> BUF_TOKEN
-	ASSUME	DS:NOTHING, ES:NOTHING
+	ASSUME	DS:NOTHING		; DS:DI -> BUF_TOKEN
 
 	sub	bx,bx			; BX = token index
-	add	si,offset INP_BUF	; SI -> 1st character
 	mov	ah,0			; AH = initial classification
 	test	al,TOKTYPE_GENERIC
 	mov	al,-1
@@ -516,24 +514,24 @@ tf6a:	lea	cx,[si-1]		; SI = end of token
 tf6b:
 	ENDIF
 ;
-; Update the TOKLET in the TOK_BUF at ES:DI, token index BX
+; Update the TOKLET in the TOK_BUF at DI, token index BX
 ;
 	push	bx
 	add	bx,bx
 	add	bx,bx			; BX = BX * 4 (size TOKLET)
-	mov	es:[di+bx].TOK_BUF.TOKLET_CLS,al
-	mov	es:[di+bx].TOK_BUF.TOKLET_LEN,cl
-	mov	es:[di+bx].TOK_BUF.TOKLET_OFF,dx
+	mov	[di+bx].TOK_BUF.TOKLET_CLS,al
+	mov	[di+bx].TOK_BUF.TOKLET_LEN,cl
+	mov	[di+bx].TOK_BUF.TOKLET_OFF,dx
 	pop	bx
 	inc	bx			; and increment token index
 
 tf7:	test	ah,ah			; all done?
 	jz	tf9			; yes
 
-tf8:	cmp	bl,es:[di].TOK_MAX	; room for more tokens?
+tf8:	cmp	bl,[di].TOK_MAX		; room for more tokens?
 	jb	tf1			; yes
 
-tf9:	mov	es:[di].TOK_CNT,bl	; update # tokens
+tf9:	mov	[di].TOK_CNT,bl		; update # tokens
 	mov	[bp].REG_AX,bx		; return # tokens in AX, too
 	ret
 ENDPROC	utl_tokify
@@ -674,7 +672,7 @@ ENDPROC	tok_classify
 ; Inputs:
 ;	REG_CX = token length
 ;	REG_DS:REG_SI -> token
-;	REG_ES:REG_DI -> TOKDEFs
+;	REG_DS:REG_DI -> TOKDEFs
 ; Outputs:
 ;	If carry clear, AX = token ID (TOKDEF_ID), DX = token data (TOKDEF_DATA)
 ;	If carry set, token not found
@@ -686,12 +684,12 @@ DEFPROC	utl_tokid,DOS
 	sti
 	and	[bp].REG_FL,NOT FL_CARRY
 	mov	ds,[bp].REG_DS		; DS:SI -> token (length CX)
-	mov	es,[bp].REG_ES		; ES:DI -> TOKDEFs
+	mov	es,[bp].REG_DS		; ES:DI -> TOKDEFs
 	ASSUME	DS:NOTHING, ES:NOTHING
 
 	push	bp
 	sub	bp,bp			; BP = top index
-	mov	dx,es:[di]		; DX = number of tokens in TOKDEFs
+	mov	dx,[di]			; DX = number of tokens in TOKDEFs
 	add	di,2
 
 td0:	mov	ax,-1
@@ -714,11 +712,11 @@ td0:	mov	ax,-1
 	mul	bl
 	mov	bx,ax
 	ENDIF
-	mov	ch,es:[di+bx].TOKDEF_LEN; CH = length of current token
+	mov	ch,[di+bx].TOKDEF_LEN	; CH = length of current token
 	mov	ah,cl			; CL is saved in AH
 	push	si
 	push	di
-	mov	di,es:[di+bx].TOKDEF_OFF; ES:DI -> current token
+	mov	di,[di+bx].TOKDEF_OFF	; ES:DI -> current token
 td1:	lodsb
 	cmp	al,'a'
 	jb	td2
@@ -752,8 +750,8 @@ td4:	inc	bx
 	jmp	td0
 
 td8:	sub	ax,ax			; zero AX (and carry, too)
-	mov	al,es:[di+bx].TOKDEF_ID	; AX = token ID
-	mov	dx,es:[di+bx].TOKDEF_DATA; DX = user-defined token data
+	mov	al,[di+bx].TOKDEF_ID	; AX = token ID
+	mov	dx,[di+bx].TOKDEF_DATA	; DX = user-defined token data
 	pop	bx			; toss BX from stack
 
 td9:	pop	bp

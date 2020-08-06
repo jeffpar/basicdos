@@ -69,9 +69,11 @@ gi5:	call	dx			; generate code
 	jc	gi7			; error
 	call	getNextToken
 	jc	gi6
+	push	di
 	mov	ax,DOS_UTL_TOKID
 	lea	di,[CMD_TOKENS]
 	int	21h			; identify the token
+	pop	di
 	jc	gi7			; can't identify
 	jmp	gi5
 
@@ -128,9 +130,9 @@ ENDPROC	genColor
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genExpr
+; genExprNum
 ;
-; Generate code for an expression.
+; Generate code for a numeric expression.
 ;
 ; Inputs:
 ;	AL = CLS of token
@@ -147,7 +149,7 @@ ENDPROC	genColor
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI
 ;
-DEFPROC	genExpr
+DEFPROC	genExprNum
 	sub	dx,dx
 	mov	[nValues],dx		; count values queued
 	push	dx			; push end-of-operators marker (zero)
@@ -255,7 +257,7 @@ ge9:	cmp	[nValues],0		; return ZF set if no values
 	jne	ge10
 	test	ch,ch			; success (both CF and ZF clear)
 ge10:	ret
-ENDPROC	genExpr
+ENDPROC	genExprNum
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -292,6 +294,7 @@ DEFPROC	genLet
 gl1:	call	addVar			; DX -> var data
 	jc	gl9
 
+	push	ax
 	mov	al,OP_MOV_DI		; "MOV DI,offset var data"
 	stosb
 	xchg	ax,dx
@@ -299,12 +302,13 @@ gl1:	call	addVar			; DX -> var data
 
 	mov	al,CLS_SYM
 	call	getNextToken
+	pop	ax
 	jc	gl9
 	cmp	byte ptr [si],'='
 	stc
 	jne	gl9
 
-	call	genExpr
+	call	genExprNum
 	jc	gl9
 
 	mov	al,OP_CALLF
@@ -339,7 +343,7 @@ DEFPROC	genPrint
 	mov	al,OP_PUSH_AX		; push end-of-args marker (VAR_NONE)
 	stosb
 
-gp1:	call	genExpr
+gp1:	call	genExprNum
 	jc	gp9
 	jz	gp8
 
