@@ -12,7 +12,7 @@
 CODE    SEGMENT
 
 	EXTERNS	<printArgs>,near
-	EXTERNS	<allocVars,addVar,findVar,letVarLong>,near
+	EXTERNS	<allocVars,addVar,findVar,setVarLong>,near
 
 	EXTERNS	<segVars>,word
 	EXTERNS	<CMD_TOKENS>,word
@@ -309,7 +309,7 @@ gl1:	call	addVar			; DX -> var data
 
 	mov	al,OP_CALLF
 	stosb
-	mov	ax,offset letVarLong
+	mov	ax,offset setVarLong
 	stosw
 	mov	ax,cs
 	stosw

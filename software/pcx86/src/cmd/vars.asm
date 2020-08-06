@@ -226,7 +226,7 @@ ENDPROC	findVar
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; letVarLong
+; setVarLong
 ;
 ; Inputs:
 ;	ES:DI -> var data
@@ -238,7 +238,7 @@ ENDPROC	findVar
 ; Modifies:
 ;	AX, CX, DX, DI
 ;
-DEFPROC	letVarLong,FAR
+DEFPROC	setVarLong,FAR
 	pop	cx
 	pop	dx			; DX:CX = return address
 	pop	ax
@@ -248,7 +248,7 @@ DEFPROC	letVarLong,FAR
 	push	dx			; ie, "JMP DX:CX"
 	push	cx
 	ret
-ENDPROC	letVarLong
+ENDPROC	setVarLong
 
 CODE	ENDS
 
