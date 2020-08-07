@@ -358,3 +358,5 @@ OP_IRET		equ	0CFh
 OP_CALL		equ	0E8h
 OP_JMPF		equ	0EAh
 OP_STC		equ	0F9h
+
+OP_ZERO_AX	equ	0C031h		; ie, XOR AX,AX

@@ -228,11 +228,11 @@ ENDPROC	findVar
 ;
 ; setVarLong
 ;
-; Inputs:
-;	ES:DI -> var data
-;	1 pointer to 32-bit value pushed on stack
+; Stack on input:
+;	pointer to var data
+;	32-bit value
 ;
-; Outputs:
+; Stack on output:
 ;	None
 ;
 ; Modifies:
@@ -242,13 +242,94 @@ DEFPROC	setVarLong,FAR
 	pop	cx
 	pop	dx			; DX:CX = return address
 	pop	ax
+	pop	bx			; BX:AX = 32-bit value
+	pop	di
+	pop	es			; ES:DI -> var data
 	stosw
-	pop	ax
+	xchg	ax,bx
 	stosw
 	push	dx			; ie, "JMP DX:CX"
 	push	cx
 	ret
 ENDPROC	setVarLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; appendVarStr
+;
+; This is the first function that must consider how the string pool will work.
+;
+; The pool will consist of zero or more blocks, each block will contain zero
+; or more strings, and each string will consist of:
+;
+;	length byte (1-255)
+;	# of bytes
+;
+; We can reserve length zero by saying that all empty strings must have a null
+; pointer.  This means that length bytes of zero can be used to indicate
+; unused pool space; the next byte must be the number of unused bytes.
+;
+; This simplistic model makes it easy to append to a string if it's followed
+; by enough unused bytes.
+;
+; Inputs:
+;	2 pointers to strings pushed on stack (target followed by source)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, CX, DX, DI
+;
+DEFPROC	appendVarStr,FAR
+	pop	cx
+	pop	dx			; DX:CX = return address
+	pop	si
+	pop	ax
+	pop	di
+	pop	es
+	push	es
+	push	di
+	push	dx
+	push	cx
+
+	push	ds
+	mov	ds,ax			; DS:SI -> string to append
+	push	di
+	push	es
+;
+; If the target string doesn't exist, it can simply "inherit" the source.
+;
+	les	di,es:[di]		; ES:DI -> target string
+	test	di,di
+	jnz	avs1
+	pop	es
+	pop	di
+	mov	es:[di].OFF,si
+	mov	es:[di].SEG,ds
+	jmp	avs9
+;
+; Get length of target string at ES:DI into CL, and verify that the new
+; string will still be within limits.
+;
+avs1:	mov	cl,es:[di]
+	mov	al,[si]
+	add	cl,al
+	jc	avs8			; resulting string would be too big
+;
+; Check the target string to see if there's any (and enough) space after it.
+;
+	mov	ah,0
+	inc	ax
+	add	si,ax
+	;...
+
+avs8:	pop	es			; recover address of target string ptr
+	pop	di
+
+avs9:	pop	ds
+	ret
+ENDPROC	appendVarStr
 
 CODE	ENDS
 

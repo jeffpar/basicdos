@@ -72,7 +72,7 @@ VAR_NONE	equ	000h
 VAR_INT		equ	020h			; 2 bytes of var data
 VAR_LONG	equ	040h			; 4 bytes of var data
 VAR_SINGLE	equ	060h			; 4 bytes of var data
-VAR_STRING	equ	080h			; 4 bytes of ptr data (ptr)
+VAR_STR		equ	080h			; 4 bytes of ptr data (ptr)
 VAR_ARRAY	equ	0A0h			; 4 bytes of var data (ptr)
 VAR_FUNC	equ	0C0h			; 4 bytes of var data (ptr)
 VAR_DOUBLE	equ	0E0h			; 8 bytes of var data

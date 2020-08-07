@@ -29,7 +29,7 @@ CODE    SEGMENT
 ;	None
 ;
 ; Modifies:
-;	AX, CX, DX, DI, ES
+;	AX, BX, CX, DX, DI, ES
 ;
 DEFPROC	printArgs,FAR
 	mov	bp,sp
@@ -57,6 +57,7 @@ p3:	mov	al,VAR_EOL
 	lea	bp,[bp+2]
 	sub	bp,bx
 	mov	cs:[nPrintArgsRet],bp	; modify the RETF N with proper N 
+
 p4:	pop	bp
 	test	bp,bp			; end-of-args marker?
 	jz	p8			; yes
@@ -67,12 +68,23 @@ p4:	pop	bp
 	jne	p5
 	PRINTF	<CHR_TAB>
 	jmp	p4
+
 p5:	cmp	al,VAR_LONG
-	jne	p4
+	jne	p6
 	push	ax
 	mov	ax,[bp+2]
 	mov	dx,[bp+4]
 	PRINTF	<"%#ld ">,ax,dx		; DX:AX = 32-bit value
+	pop	ax
+	jmp	p4
+
+p6:	cmp	al,VAR_STR
+	jne	p4			; TODO: error instead?
+	push	ax
+	lds	si,[bp+2]
+	lodsb
+	mov	ah,0
+	PRINTF	<"%.*ls ">,ax,si,ds	; DS:SI -> string
 	pop	ax
 	jmp	p4
 
