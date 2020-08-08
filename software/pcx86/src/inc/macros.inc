@@ -104,6 +104,7 @@ name	dd	0
 
 DEFPROC	macro	name,type
 	public	name
+	_ARGBYTES = 0
 	_LOCBYTES = 0
 	_PROCTYPE = 0
 	IFIDN	<type>,<DOS>
@@ -121,11 +122,24 @@ name	proc	near
 	  IFIDN <type>,<DOSFAR>
 	ASSUME	CS:DOS, DS:NOTHING, ES:NOTHING, SS:NOTHING
 name	proc	far
+	_PROCTYPE = 2
 	  ELSE
+	   IFIDN <type>,<FAR>
+	_PROCTYPE = 2
+	   ENDIF
 name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 	  ENDIF
 	 ENDIF
 	ENDIF
+	endm
+
+ARGLONG	macro	name
+	DEFARG	name,dword,%(4+_PROCTYPE+_ARGBYTES)
+	_ARGBYTES = _ARGBYTES + 4
+	endm
+
+DEFARG	macro	name,type,offset
+name	equ	type ptr [bp + offset]
 	endm
 
 ;
@@ -159,11 +173,6 @@ name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 ; DEFPROC will define a _LOCBYTES variable representing the number of LOCVAR
 ; bytes that must be allocated on the stack on ENTER and then released on LEAVE.
 ;
-; NOTE: Using LOCVAR/ENTER/LEAVE inside a "DOS" function attempts to generate
-; optimized code, by assuming there are _PROCTYPE return addresses (or other
-; words) pushed on the stack since REG_FRAME was created.  However, it's very
-; fragile, so beware.
-;
 LOCVAR	macro	name,type,len
 	IFB <len>
 	_LOCLEN = 1
@@ -192,23 +201,19 @@ name	equ	type ptr [bp - offset]
 	endm
 
 ENTER	macro
-	IF _LOCBYTES GT 0
-	 IF _PROCTYPE EQ 0
+	IF _LOCBYTES GT 0 OR _ARGBYTES GT 0
 	push	bp
 	mov	bp,sp
-	 ENDIF
+	 IF _LOCBYTES GT 0
 	sub	sp,_LOCBYTES
+	 ENDIF
 	ENDIF
 	endm
 
 LEAVE	macro
-	IF _LOCBYTES GT 0
-	 IF _PROCTYPE EQ 0
+	IF _LOCBYTES GT 0 OR _ARGBYTES GT 0
 	mov	sp,bp
 	pop	bp
-	 ELSE
-	add	sp,_LOCBYTES
-	 ENDIF
 	ENDIF
 	endm
 

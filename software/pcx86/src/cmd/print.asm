@@ -11,6 +11,8 @@
 
 CODE    SEGMENT
 
+	EXTERNS	<freeStr>,near
+
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -29,7 +31,7 @@ CODE    SEGMENT
 ;	None
 ;
 ; Modifies:
-;	AX, CX, DX, DI, ES
+;	AX, BX, CX, DX, DI, ES
 ;
 DEFPROC	printArgs,FAR
 	mov	bp,sp
@@ -53,10 +55,11 @@ p2:	push	bp
 	lea	bp,[bp+4]
 	jmp	p1
 
-p3:	mov	al,VAR_EOL
+p3:	mov	al,VAR_NEWLINE
 	lea	bp,[bp+2]
 	sub	bp,bx
-	mov	cs:[nPrintArgsRet],bp	; modify the RETF N with proper N 
+	mov	cs:[nPrintArgsRet],bp	; modify the RETF N with proper N
+
 p4:	pop	bp
 	test	bp,bp			; end-of-args marker?
 	jz	p8			; yes
@@ -67,8 +70,9 @@ p4:	pop	bp
 	jne	p5
 	PRINTF	<CHR_TAB>
 	jmp	p4
+
 p5:	cmp	al,VAR_LONG
-	jne	p4
+	jne	p6
 	push	ax
 	mov	ax,[bp+2]
 	mov	dx,[bp+4]
@@ -76,8 +80,29 @@ p5:	cmp	al,VAR_LONG
 	pop	ax
 	jmp	p4
 
-p8:	cmp	al,VAR_COMMA		; did we end with semi-colon or comma?
-	jbe	p9			; yes
+p6:	cmp	al,VAR_STR
+	je	p7
+	cmp	al,CLS_STR
+	jne	p4			; TODO: error instead?
+p7:	push	ax
+	lds	si,[bp+2]
+	lodsb
+	mov	ah,0			; AX = string length (255 max)
+;
+; TODO: The default PRINTF buffer is smaller than the maximum string size,
+; so this function will need to SPRINTF to an internal buffer and then use a
+; standard DOS call to write to STDOUT.
+;
+	PRINTF	<"%.*ls ">,ax,si,ds	; DS:SI -> string
+	push	ds
+	pop	es
+	mov	di,si
+	call	freeStr			; ES:DI -> string data to free
+	pop	ax
+	jmp	p4
+
+p8:	cmp	al,VAR_NEWLINE		; did we want to start a new line?
+	jb	p9			; no
 	PRINTF	<13,10>
 p9:	db	OP_RETF_N
 	DEFLBL	nPrintArgsRet,word

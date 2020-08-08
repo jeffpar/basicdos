@@ -338,6 +338,7 @@ FL_OVFL		equ	0800h
 
 OP_PUSH_ES	equ	006h
 OP_PUSH_CS	equ	00Eh
+OP_PUSH_SS	equ	016h
 OP_PUSH_DS	equ	01Eh
 OP_PUSH_AX	equ	050h
 OP_PUSH_DX	equ	052h
@@ -358,3 +359,6 @@ OP_IRET		equ	0CFh
 OP_CALL		equ	0E8h
 OP_JMPF		equ	0EAh
 OP_STC		equ	0F9h
+
+OP_ZERO_AX	equ	0C031h		; XOR AX,AX
+OP_MOV_AX_SP	equ	089E0h		; MOV AX,SP

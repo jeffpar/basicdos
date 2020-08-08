@@ -12,7 +12,9 @@
 CODE    SEGMENT
 
 	EXTERNS	<printArgs>,near
-	EXTERNS	<allocVars,addVar,findVar,setVarLong>,near
+	EXTERNS	<allocCode,freeCode,allocVars>,near
+	EXTERNS	<addVar,findVar,setVarLong>,near
+	EXTERNS	<appendStr,setStr>,near
 
 	EXTERNS	<segVars>,word
 	EXTERNS	<CMD_TOKENS>,word
@@ -25,7 +27,7 @@ CODE    SEGMENT
 ; genImmediate
 ;
 ; Generate code for a single line, by creating a temporary code block, and
-; then calling the specified "gen" handler to generate code in the block.
+; then calling the specified "gen" handler(s) to generate code in the block.
 ;
 ; Inputs:
 ;	DI -> TOKENBUF with all tokens
@@ -38,20 +40,13 @@ CODE    SEGMENT
 ;	Any
 ;
 DEFPROC	genImmediate
+	LOCVAR	nOps,word
 	LOCVAR	nValues,word
 	LOCVAR	errCode,word
 	LOCVAR	pCode,dword
 	LOCVAR	pTokBufEnd,word
 	ENTER
 	mov	[errCode],0
-	call	allocVars
-	jc	gie
-	mov	bx,CBLKLEN SHR 4
-	mov	ah,DOS_MEM_ALLOC
-	int	21h
-	jc	gi8
-	mov	es,ax
-	ASSUME	ES:NOTHING
 	mov	bx,di			; BX -> TOKENBUF
 	mov	al,[bx].TOK_CNT
 	mov	ah,0
@@ -61,11 +56,16 @@ DEFPROC	genImmediate
 	add	ax,bx
 	mov	[pTokBufEnd],ax
 	add	bx,size TOKLET		; skip 1st token (already parsed)
-	sub	di,di			; ES:DI -> usable code block space
+
+	call	allocVars
+	jc	gie
+	call	allocCode
+	jc	gie
+	ASSUME	ES:NOTHING		; ES:DI -> usable code block space
 	mov	[pCode].OFF,di
 	mov	[pCode].SEG,es
 
-gi5:	call	dx			; generate code
+gi1:	call	dx			; generate code
 	jc	gi7			; error
 	call	getNextToken
 	jc	gi6
@@ -75,11 +75,11 @@ gi5:	call	dx			; generate code
 	int	21h			; identify the token
 	pop	di
 	jc	gi7			; can't identify
-	jmp	gi5
+	jmp	gi1
 
 gie:	PRINTF	<'Not enough memory (%#06x)',13,10>,ax
 	jmp	short gi9
-	
+
 gi6:	mov	al,OP_RETF		; terminate code
 	stosb
 	push	bp
@@ -97,8 +97,7 @@ gi6:	mov	al,OP_RETF		; terminate code
 	clc
 
 gi7:	pushf
-	mov	ah,DOS_MEM_FREE
-	int	21h
+	call	freeCode
 	popf
 gi8:	jnc	gi9
 
@@ -135,9 +134,6 @@ ENDPROC	genColor
 ; Generate code for a numeric expression.
 ;
 ; Inputs:
-;	AL = CLS of token
-;	CL = length of token
-;	SI = offset of token
 ;	BX = offset of next TOKLET
 ;	ES:DI -> next unused location in code block
 ;
@@ -151,113 +147,178 @@ ENDPROC	genColor
 ;
 DEFPROC	genExprNum
 	sub	dx,dx
-	mov	[nValues],dx		; count values queued
+	mov	[nOps],dx		; count operators
+	mov	[nValues],dx		; and values queued
 	push	dx			; push end-of-operators marker (zero)
 
-ge1:	mov	al,CLS_NUM OR CLS_SYM OR CLS_VAR
+gn1:	mov	al,CLS_NUM OR CLS_SYM OR CLS_VAR
 	call	getNextToken
-	jbe	ge7
+	jbe	gn8
 
-	cmp	al,CLS_SYM		; operator?
-	jne	ge2			; no
-	mov	al,[si]			; AL = operator (potentially)
-	call	validateOp
-	jc	ge7			; error
-	push	dx			; push evaluator
-	push	ax			; push operator/precedence
-	jmp	ge1			; go to next token
+	cmp	ah,CLS_SYM		; operator?
+	jne	gn2			; no
+	call	validateOp		; AL = operator to validate
+	jc	gn8			; error
+	inc	[nOps]
+	mov	si,dx			; SI = current evaluator
+;
+; Operator is valid, so peek at the operator stack and pop if the top
+; operator precedence >= current operator precedence.
+;
+gn1a:	pop	cx			; "peek"
+	cmp	ch,ah			; top precedence >= current?
+	jb	gn1b			; no
+	pop	dx			; yes, pop the evaluator as well
+	GENCALL	dx			; and generate call
+	jmp	gn1a
+gn1b:	push	cx			; "unpeek"
+	push	si			; push current evaluator
+	push	ax			; push current operator/precedence
+	jmp	gn1			; next token
 
-ge2:	cmp	al,CLS_VAR		; variable?
-	jne	ge4			; no
+gn2:	cmp	ah,CLS_VAR		; variable?
+	jne	gn4			; no
 	call	findVar			; go find it
 ;
-; We don't care if findVar succeeds or not, because even when it fails,
-; it returns var type (AH) VAR_LONG with var data (DX) zero.
+; We don't care if findVar succeeds or not, because even if it fails,
+; it returns var type (AH) VAR_LONG with var data (DX) preset to zero.
 ;
 ; TODO: Check AH for the var type and act accordingly.
 ;
-ge3:	mov	al,OP_MOV_SI		; "MOV SI,offset var data"
-	stosb
-	xchg	ax,dx
-	stosw
-	mov	al,OP_LODSW
-	stosb
-	mov	al,OP_XCHG_DX
-	stosb
-	mov	al,OP_LODSW
-	stosb
-	mov	al,OP_PUSH_AX
-	stosb
-	mov	al,OP_PUSH_DX
-	stosb
+gn3:	call	genPushVarLong
 
-ge3a:	inc	[nValues]		; count another queued value
-	jmp	ge1
+gn3a:	inc	[nValues]		; count another queued value
+	jmp	gn1
 ;
 ; Number must be a constant, and although CX contains its exact length,
 ; DOS_UTL_ATOI32 doesn't actually care; it simply converts characters until
 ; it reaches a non-digit.
 ;
-ge4:	push	bx
+gn4:	push	bx
 	mov	bl,10			; BL = 10 (default base)
-	test	al,CLS_OCT OR CLS_HEX	; octal or hex value?
-	jz	ge5			; no
+	test	ah,CLS_OCT OR CLS_HEX	; octal or hex value?
+	jz	gn5			; no
 	inc	si			; yes, skip leading ampersand
-	shl	al,1
-	shl	al,1
-	shl	al,1
-	mov	bl,al			; BL = 8 or 16 (new base)
+	shl	ah,1
+	shl	ah,1
+	shl	ah,1
+	mov	bl,ah			; BL = 8 or 16 (new base)
 	cmp	byte ptr [si],'9'	; is next character a digit?
-	jbe	ge5			; yes
+	jbe	gn5			; yes
 	inc	si			; no, skip it (must be 'O' or 'H')
-ge5:	mov	ax,DOS_UTL_ATOI32	; DS:SI -> numeric string
+gn5:	mov	ax,DOS_UTL_ATOI32	; DS:SI -> numeric string
 	int	21h
 	xchg	cx,ax			; save result in DX:CX
 	pop	bx
 
-ge6:	mov	al,OP_MOV_AX
+gn6:	mov	al,OP_MOV_AX
 	stosb
 	xchg	ax,dx
 	stosw
-	mov	al,OP_PUSH_AX
-	stosb
-	mov	al,OP_MOV_AX
-	stosb
+	mov	ax,OP_PUSH_AX OR (OP_MOV_AX SHL 8)
+	stosw
 	xchg	ax,cx
 	stosw
-	mov	al,OP_PUSH_AX
-	stosb
-	jmp	ge3a			; go count another queued value
+	PUSH_AX
+	jmp	gn3a			; go count another queued value
 ;
 ; Time to start popping the operator stack.
 ;
-ge7:	mov	ah,0
-	xchg	cx,ax			; CL = last symbol, CH = counter
-	
-ge8:	pop	ax
+gn8:	pop	ax
 	test	ax,ax
-	jz	ge9			; all done
+	jz	gn9			; all done
 	pop	dx			; DX = evaluator
-	mov	al,OP_CALLF
-	stosb
-	xchg	ax,dx
-	stosw
-	mov	ax,cs
-	stosw
-	inc	ch
-	jmp	ge8
+	GENCALL	dx
+	jmp	gn8
 ;
 ; Verify the number of expected operands matches the number of values queued.
 ;
-ge9:	cmp	[nValues],0		; return ZF set if no values
-	jz	ge10
-	inc	ch
-	cmp	ch,byte ptr [nValues]
+gn9:	mov	ax,[nValues]
+	test	ax,ax
+	jz	gn10			; return ZF set if no values
+	mov	ax,[nOps]
+	inc	ax
+	cmp	ax,[nValues]
 	stc
-	jne	ge10
-	test	ch,ch			; success (both CF and ZF clear)
-ge10:	ret
+	jne	gn10
+	test	ax,ax			; success (both CF and ZF clear)
+gn10:	ret
 ENDPROC	genExprNum
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genExprStr
+;
+; Generate code for a string expression.  It begins by creating an empty
+; string (ie, null pointer) on the stack and beginning string operations
+; (ie, concatenations, if any).
+;
+; The common case is a string constant, which is stored in the code block.
+; The generated code will call appendStr to append the string referenced in
+; the code block to the string pointer on the stack.
+;
+; Inputs:;
+;	BX = offset of next TOKLET
+;	ES:DI -> next unused location in code block
+;
+; Outputs:
+;	CF clear if successful, set if error
+;	ZF clear if expression existed, set if not
+;	ES:DI -> next unused location in code block
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+DEFPROC	genExprStr
+	int 3
+	mov	ax,OP_ZERO_AX
+	stosw
+	mov	ax,OP_PUSH_AX OR (OP_PUSH_AX SHL 8)
+	stosw
+
+gs1:	mov	al,CLS_VAR OR CLS_STR
+	call	getNextToken
+	jbe	gs5
+
+	cmp	ah,CLS_STR
+	jne	gs2
+;
+; Handle string constant here.
+;
+	sub	cx,2			; CX = string length
+	ASSERT	NC
+	jcxz	gs4			; empty string, skip it
+	inc	si			; DS:SI -> string contents
+	PUSHSTR
+	jmp	short gs3
+;
+; Handle string variable here.
+;
+gs2:	cmp	ah,VAR_STR
+	ASSERT	Z
+	stc
+	jne	gs8
+	call	findVar			; find the variable
+	jc	gs8
+	cmp	ah,VAR_STR		; correct type?
+	stc
+	jne	gs8			; no
+	call	genPushVarLong
+gs3:	GENCALL	appendStr
+;
+; Check for concatenation (the only supported string operator).
+;
+gs4:	mov	al,CLS_SYM
+	call	getNextToken
+	jbe	gs5
+	cmp	al,'+'
+	je	gs1
+	stc
+
+gs5:
+
+gs8:	ret
+ENDPROC	genExprStr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -270,8 +331,8 @@ ENDPROC	genExprNum
 ; using its preallocated location.
 ;
 ; Inputs:
-;	BX -> TOKLETs
-;	ES:DI -> code block
+;	BX = offset of next TOKLET
+;	ES:DI -> next unused location in code block
 ;
 ; Outputs:
 ;	None
@@ -287,6 +348,7 @@ DEFPROC	genLet
 ; If the variable has a specific type, then AL should be >= VAR_INT.
 ; Otherwise, we default to VAR_LONG.
 ;
+	mov	al,ah
 	cmp	al,VAR_INT
 	jae	gl1
 	mov	al,VAR_LONG
@@ -295,28 +357,27 @@ gl1:	call	addVar			; DX -> var data
 	jc	gl9
 
 	push	ax
-	mov	al,OP_MOV_DI		; "MOV DI,offset var data"
-	stosb
-	xchg	ax,dx
-	stosw
-
+	PUSH_DS_DX
 	mov	al,CLS_SYM
 	call	getNextToken
-	pop	ax
-	jc	gl9
-	cmp	byte ptr [si],'='
+	pop	dx
+	jbe	gl9
+
+	cmp	al,'='
 	stc
 	jne	gl9
 
-	call	genExprNum
-	jc	gl9
+	cmp	dl,VAR_STR		; check the new variable's type
+	jne	gl2			; presumably numeric
 
-	mov	al,OP_CALLF
-	stosb
-	mov	ax,offset setVarLong
-	stosw
-	mov	ax,cs
-	stosw
+	call	genExprStr
+	jc	gl9
+	GENCALL	setStr
+	jmp	short gl9
+
+gl2:	call	genExprNum
+	jc	gl9
+	GENCALL	setVarLong
 
 gl9:	ret
 ENDPROC	genLet
@@ -328,8 +389,8 @@ ENDPROC	genLet
 ; Generate code to print.
 ;
 ; Inputs:
-;	BX -> TOKLETs
-;	ES:DI -> code block
+;	BX = offset of next TOKLET
+;	ES:DI -> next unused location in code block
 ;
 ; Outputs:
 ;	None
@@ -338,43 +399,118 @@ ENDPROC	genLet
 ;	Any
 ;
 DEFPROC	genPrint
-	mov	ax,OP_MOV_AL OR (VAR_NONE SHL 8)
-	stosw
-	mov	al,OP_PUSH_AX		; push end-of-args marker (VAR_NONE)
-	stosb
+	MOV_AL	VAR_NONE
+	PUSH_AX				; push end-of-args marker (VAR_NONE)
 
-gp1:	call	genExprNum
+gp1:	mov	al,CLS_VAR or CLS_STR
+	call	peekNextToken
+	jc	gp8
+	jz	gp3
+	cmp	ah,CLS_STR
+	je	gp2
+	cmp	ah,VAR_STR
+	jne	gp3
+;
+; Handle string arguments here.
+;
+gp2:	push	ax
+	call	genExprStr
+	pop	ax
 	jc	gp9
 	jz	gp8
 
-gp2:	mov	ax,OP_MOV_AL OR (VAR_LONG SHL 8)
+	push	ax
+	mov	al,OP_MOV_AL
 	stosw
-	mov	al,OP_PUSH_AX
-	stosb
+	jmp	short gp4a
+;
+; Handle numeric arguments here.
+;
+gp3:	call	genExprNum
+	jc	gp9
+	jz	gp8
 
-	mov	ah,VAR_SEMI
+gp4:	push	ax
+	MOV_AL	VAR_LONG
+gp4a:	PUSH_AX
+	pop	ax
+;
+; Argument paths rejoin here to determine spacing requirements.
+;
+gp5:	mov	ah,VAR_SEMI
 	cmp	cl,';'			; was the last symbol a semi-colon?
-	je	gp3			; yes
+	je	gp6			; yes
 	mov	ah,VAR_COMMA
 	cmp	cl,','			; how about a comma?
 	jne	gp8			; no
 
-gp3:	mov	al,OP_MOV_AL		; "MOV AL,[VAR_SEMI or VAR_COMMA]"
+gp6:	mov	al,OP_MOV_AL		; "MOV AL,[VAR_SEMI or VAR_COMMA]"
 	stosw
-	mov	al,OP_PUSH_AX
-	stosb
-	jmp	gp1
-
-gp8:	mov	al,OP_CALLF
-	stosb
-	mov	ax,offset printArgs
-	stosw
-	mov	ax,cs
-	stosw
+	PUSH_AX
+	jmp	gp1			; contine processing arguments
+;
+; Arguments exhausted, generate the print call.
+;
+gp8:	GENCALL	printArgs
 	clc
 
 gp9:	ret
 ENDPROC	genPrint
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genCallDX
+;
+; Inputs:
+;	CS:DX -> function to call
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	DX, DI
+;
+DEFPROC	genCallDX
+	push	ax
+	mov	al,OP_CALLF
+	stosb
+	xchg	ax,dx
+	stosw
+	mov	ax,cs
+	stosw
+	pop	ax
+	ret
+ENDPROC	genCallDX
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genPushVarLong
+;
+; Generates code to push 4-byte variable data onto stack (eg, a VAR_LONG or
+; a VAR_STR pointer).
+;
+; Inputs:
+;	DS:DX -> var data
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, DX, DI
+;
+DEFPROC	genPushVarLong
+	mov	al,OP_MOV_SI		; "MOV SI,offset var data"
+	stosb
+	xchg	ax,dx
+	stosw
+	mov	ax,OP_LODSW OR (OP_XCHG_DX SHL 8)
+	stosw
+	mov	ax,OP_LODSW OR (OP_PUSH_AX SHL 8)
+	stosw
+	mov	al,OP_PUSH_DX
+	stosb
+	ret
+ENDPROC	genPushVarLong
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -388,7 +524,8 @@ ENDPROC	genPrint
 ;	BX -> TOKLETs
 ;
 ; Outputs if next token matches:
-;	AL = CLS of token
+;	AH = CLS of token
+;	AL = symbol if CLS_SYM
 ;	CX = length of token
 ;	SI = offset of token
 ;	BX = offset of next TOKLET
@@ -423,7 +560,8 @@ gt1:	mov	si,[bx].TOKLET_OFF
 ;
 	cmp	ah,CLS_SYM
 	jne	gt2
-	cmp	byte ptr [si],':'
+	mov	al,[si]
+	cmp	al,':'
 	jne	gt8
 	jmp	short gt9
 ;
@@ -449,13 +587,24 @@ gt4:	cmp	al,'#'
 	mov	ah,VAR_DOUBLE
 gt5:	cmp	al,'$'
 	jne	gt8
-	mov	ah,VAR_STRING
-
-gt8:	mov	al,0
-	or	al,ah			; return both ZF clear and CF clear
-
+	mov	ah,VAR_STR
+gt8:	or	ah,0			; return both ZF and CF clear
 gt9:	ret
 ENDPROC	getNextToken
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; peekNextToken
+;
+; Return the next token if it matches the criteria in AL; by default,
+; we ignore whitespace tokens.
+;
+DEFPROC	peekNextToken
+	call	getNextToken
+	jbe	pt9
+	lea	bx,[bx - size TOKLET]
+pt9:	ret
+ENDPROC	peekNextToken
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
