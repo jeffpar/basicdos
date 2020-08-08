@@ -12,8 +12,9 @@
 CODE    SEGMENT
 
 	EXTERNS	<printArgs>,near
-	EXTERNS	<allocVars,addVar,findVar,setVarLong>,near
-	EXTERNS	<appendVarStr>,near
+	EXTERNS	<allocCode,freeCode,allocVars>,near
+	EXTERNS	<addVar,findVar,setVarLong>,near
+	EXTERNS	<appendStr>,near
 
 	EXTERNS	<segVars>,word
 	EXTERNS	<CMD_TOKENS>,word
@@ -45,14 +46,6 @@ DEFPROC	genImmediate
 	LOCVAR	pTokBufEnd,word
 	ENTER
 	mov	[errCode],0
-	call	allocVars
-	jc	gie
-	mov	bx,CBLKLEN SHR 4
-	mov	ah,DOS_MEM_ALLOC
-	int	21h
-	jc	gi8
-	mov	es,ax
-	ASSUME	ES:NOTHING
 	mov	bx,di			; BX -> TOKENBUF
 	mov	al,[bx].TOK_CNT
 	mov	ah,0
@@ -62,11 +55,16 @@ DEFPROC	genImmediate
 	add	ax,bx
 	mov	[pTokBufEnd],ax
 	add	bx,size TOKLET		; skip 1st token (already parsed)
-	sub	di,di			; ES:DI -> usable code block space
+
+	call	allocVars
+	jc	gie
+	call	allocCode
+	jc	gie
+	ASSUME	ES:NOTHING		; ES:DI -> usable code block space
 	mov	[pCode].OFF,di
 	mov	[pCode].SEG,es
 
-gi5:	call	dx			; generate code
+gi1:	call	dx			; generate code
 	jc	gi7			; error
 	call	getNextToken
 	jc	gi6
@@ -76,7 +74,7 @@ gi5:	call	dx			; generate code
 	int	21h			; identify the token
 	pop	di
 	jc	gi7			; can't identify
-	jmp	gi5
+	jmp	gi1
 
 gie:	PRINTF	<'Not enough memory (%#06x)',13,10>,ax
 	jmp	short gi9
@@ -98,8 +96,7 @@ gi6:	mov	al,OP_RETF		; terminate code
 	clc
 
 gi7:	pushf
-	mov	ah,DOS_MEM_FREE
-	int	21h
+	call	freeCode
 	popf
 gi8:	jnc	gi9
 
@@ -263,7 +260,7 @@ ENDPROC	genExprNum
 ;
 ; Generate code for a string expression.  The common case is a string
 ; constant, which we store in the code block.  The generated code will call
-; appendVarStr to append the string referenced in the code block to the string
+; appendStr to append the string referenced in the code block to the string
 ; variable referenced by DI.
 ;
 ; Inputs:;	
@@ -279,6 +276,7 @@ ENDPROC	genExprNum
 ;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	genExprStr
+	int 3
 	mov	al,CLS_VAR OR CLS_STR
 	call	getNextToken
 	jbe	gs8
@@ -304,15 +302,25 @@ DEFPROC	genExprStr
 
 	mov	al,OP_CALLF
 	stosb
-	mov	ax,offset appendVarStr
+	mov	ax,offset appendStr
 	stosw
 	mov	ax,cs
 	stosw
+	jmp	short gs8
 
-gs2:	stc
+gs2:	cmp	al,VAR_STR
+	stc
+	jne	gs8
+	call	findVar			; find the variable
+	jc	gs8
+	mov	al,OP_PUSH_DS
+	stosb
+	mov	al,OP_MOV_AX		; "MOV AX,offset var data"
+	stosb
+	xchg	ax,dx
+	stosw
 
-gs8:
-	ret
+gs8:	ret
 ENDPROC	genExprStr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -421,13 +429,15 @@ gp1:	mov	al,CLS_VAR or CLS_STR
 ; string variable, we don't have one, so we have to allocate a temporary one,
 ; which printArgs will then have to free.
 ;
-gp2:	int 3
+gp2:	push	ax
 	mov	ax,OP_ZERO_AX
 	stosw
 	mov	ax,(OP_PUSH_AX SHL 8) OR OP_PUSH_AX
 	stosw
 	call	genExprStr
-	mov	ax,OP_MOV_AL OR (VAR_STR SHL 8)
+	pop	ax
+	mov	ah,OP_MOV_AL
+	xchg	al,ah
 	stosw
 	mov	al,OP_PUSH_AX
 	stosb

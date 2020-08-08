@@ -53,7 +53,7 @@ p2:	push	bp
 	lea	bp,[bp+4]
 	jmp	p1
 
-p3:	mov	al,VAR_EOL
+p3:	mov	al,VAR_NEWLINE
 	lea	bp,[bp+2]
 	sub	bp,bx
 	mov	cs:[nPrintArgsRet],bp	; modify the RETF N with proper N 
@@ -79,8 +79,10 @@ p5:	cmp	al,VAR_LONG
 	jmp	p4
 
 p6:	cmp	al,VAR_STR
+	je	p7
+	cmp	al,CLS_STR
 	jne	p4			; TODO: error instead?
-	push	ax
+p7:	push	ax
 	lds	si,[bp+2]
 	lodsb
 	mov	ah,0
@@ -88,8 +90,8 @@ p6:	cmp	al,VAR_STR
 	pop	ax
 	jmp	p4
 
-p8:	cmp	al,VAR_COMMA		; did we end with semi-colon or comma?
-	jbe	p9			; yes
+p8:	cmp	al,VAR_NEWLINE		; did we want to start a new line?
+	jb	p9			; no
 	PRINTF	<13,10>
 p9:	db	OP_RETF_N
 	DEFLBL	nPrintArgsRet,word

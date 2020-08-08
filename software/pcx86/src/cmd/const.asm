@@ -49,10 +49,14 @@ CODE	ENDS
 	NUMTOKENS CMD_TOKENS,NUM_TOKENS
 
 DATA	SEGMENT
-	DEFWORD	segCode,0	; code block
-	DEFWORD	segVars,0	; var block
-	DEFWORD	segData,0	; data block
-	DEFWORD	segText,0	; text block
+	DEFWORD	segCode,0	; first code block
+	db	size CBLK_HDR,CBLKSIG
+	DEFWORD	segVars,0	; first var block
+	db	size VBLK_HDR,VBLKSIG
+	DEFWORD	segStrs,0	; first string block
+	db	size SBLK_HDR,SBLKSIG
+	DEFWORD	segText,0	; first text block
+	dw	size CBLK_HDR,CBLKSIG
 	COMHEAP	<size CMD_HEAP>	; COMHEAP (heap size) must be the last item
 DATA	ENDS
 

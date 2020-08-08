@@ -61,7 +61,15 @@ lbl:
 ;
 ; Code Block (CBLK) definitions
 ;
+CBLK_HDR	struc
+CBLK_NEXT	dw	?			; next var block seg, if any
+CBLK_SIZE	dw	?			; size of var block, in bytes
+CBLK_FREE	dw	?			; offset of next free byte
+CBLK_RESERVED	db	?
+CBLK_PADDING	db	?
+CBLK_HDR	ends
 CBLKLEN		equ	1024			; default code block size
+CBLKSIG		equ	'C'
 
 ;
 ; Variable Block (VBLK) definitions
@@ -76,26 +84,41 @@ VAR_STR		equ	080h			; 4 bytes of ptr data (ptr)
 VAR_ARRAY	equ	0A0h			; 4 bytes of var data (ptr)
 VAR_FUNC	equ	0C0h			; 4 bytes of var data (ptr)
 VAR_DOUBLE	equ	0E0h			; 8 bytes of var data
+
 ;
 ; Pseudo-variable types (used by printArgs)
 ;
 VAR_SEMI	equ	VAR_NONE OR 01h
 VAR_COMMA	equ	VAR_NONE OR 02h
-VAR_EOL		equ	VAR_NONE OR 03h
+VAR_NEWLINE	equ	VAR_NONE OR 03h
 
 VBLK_HDR	struc
-VAR_NEXT	dw	?			; next var block, if any
-VAR_SIZE	dw	?			; size of var block
-VAR_FREE	dw	?			; offset of next free byte
-VAR_RESERVED	db	?
-VAR_ZERO	db	VAR_LONG	
+VBLK_NEXT	dw	?			; next var block seg, if any
+VBLK_SIZE	dw	?			; size of var block, in bytes
+VBLK_FREE	dw	?			; offset of next free byte
+VBLK_RESERVED	db	?
+VBLK_ZERO	db	VAR_LONG	
 		dd	0			; zero constant
 VBLK_HDR	ends
-
-VARSIG		equ	'V'
-
+VBLKSIG		equ	'V'
 VBLKLEN		equ	1024			; default vars block size
 
+;
+; String Block (SBLK) definitions
+;
+SBLK_HDR	struc
+SBLK_NEXT	dw	?			; next str block seg, if any
+SBLK_SIZE	dw	?			; size of str block, in bytes
+SBLK_FREE	dw	?			; offset of next free byte
+SBLK_RESERVED	db	?
+SBLK_PADDING	db	?
+SBLK_HDR	ends
+SBLKSIG		equ	'P'
+SBLKLEN		equ	2048			; default strs block size
+
+;
+; Operator Definition
+;
 OPDEF		struc
 OP_CHR		db	?			; ASCII character
 OP_PREC		db	?			; precedence value

@@ -11,9 +11,179 @@
 
 CODE    SEGMENT
 
-	EXTERNS	<segVars>,word
+	EXTERNS	<segCode,segVars,segStrs>,word
 
         ASSUME  CS:CODE, DS:CODE, ES:NOTHING, SS:CODE
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; allocBlock
+;
+; Allocates a block of memory for the given block chain.  All blocks must
+; begin with the following:
+;
+;	BLK_NEXT (segment of next block in chain)
+;	BLK_SIZE (size of block, in bytes)
+;	BLK_FREE (offset of next free byte in block)
+;
+; Inputs:
+;	CX = size of block, in bytes
+;	SI = offset of block chain head
+;
+; Outputs:
+;	If successful, carry clear, ES = segment
+;
+; Modifies:
+;	AX, CX, DI, ES
+;
+DEFPROC	allocBlock
+	push	bx
+	mov	bx,cx
+	add	bx,15
+	xchg	cx,ax
+	mov	cl,4
+	shr	bx,cl
+	xchg	cx,ax
+	mov	ah,DOS_MEM_ALLOC
+	int	21h
+	jc	ab9
+
+	mov	es,ax
+	sub	di,di
+	sub	ax,ax
+	stosw				; set BLK_NEXT
+	mov	ax,cx
+	stosw				; set BLK_SIZE
+	mov	al,[si+2]
+	cbw
+	stosw				; set BLK_FREE
+	mov	al,[si+3]
+	stosw
+	cmp	al,VBLKSIG
+	jne	ab1
+	dec	di
+	mov	al,VAR_LONG
+	stosb				; initialize VBLK_ZERO
+	sub	ax,ax
+	stosw
+	stosw
+ab1:	sub	cx,di
+	shr	cx,1
+	ASSERT	NC
+	rep	stosw			; zero out the rest of the block
+;
+; Block is initialized, append to the header chain now.
+;
+ab2:	push	ds
+	mov	di,si			; DS:DI -> first segment in chain
+ab3:	mov	cx,[di]			; at the end yet?
+	jcxz	ab4			; yes
+	mov	ds,cx
+	sub	di,di
+	jmp	ab3
+ab4:	mov	[di],es			; chain updated
+	mov	di,es:[CBLK_FREE]	; ES:DI -> first available byte
+	pop	ds
+	clc
+
+ab9:	pop	bx
+	ret
+ENDPROC	allocBlock
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; freeBlock
+;
+; Freess a block of memory for the given block chain.
+;
+; Inputs:
+;	ES = segment of block
+;	SI = offset of block chain head
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	AX, CX, SI
+;
+DEFPROC	freeBlock
+	push	ds			; DS:SI -> first segment in chain
+	mov	ax,es
+fb1:	mov	cx,[si]
+	jcxz	fb9			; ended without match, free anyway
+	cmp	cx,ax			; find a match yet?
+	je	fb2			; yes
+	mov	ds,cx
+	sub	si,si
+	jmp	fb1
+fb2:	mov	ax,es:[CBLK_NEXT]
+	mov	[si],ax
+	pop	ds
+fb9:	mov	ah,DOS_MEM_FREE
+	int	21h
+	ret
+ENDPROC	freeBlock
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; freeAllBlocks
+;
+; Freess all blocks of memory for the given block chain.
+;
+; Inputs:
+;	SI = offset of block chain head
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	AX, CX, SI
+;
+DEFPROC	freeAllBlocks
+fa1:	mov	cx,[si]
+	jcxz	fa9			; end of chain
+	mov	es,cx
+	call	freeBlock		; ES = segment of block to free
+	jmp	fa1
+fa9:	ret
+ENDPROC	freeAllBlocks
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; allocCode
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	If successful, carry clear, ES = segment
+;
+; Modifies:
+;	AX, CX, SI, DI, ES
+;
+DEFPROC	allocCode
+	mov	si,offset segCode
+	mov	cx,CBLKLEN
+	jmp	allocBlock
+ENDPROC	allocCode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; freeCode
+;
+; Inputs:
+;	ES = segment
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	AX, CX, SI
+;
+DEFPROC	freeCode
+	mov	si,offset segCode
+	jmp	freeBlock
+ENDPROC	freeCode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -28,42 +198,76 @@ CODE    SEGMENT
 ;	If carry clear, segVars allocated; otherwise, carry set
 ;
 ; Modifies:
-;	AX
+;	AX, CX, SI, DI, ES
 ;
 DEFPROC	allocVars
-	mov	ax,[segVars]
-	test	ax,ax
-	jnz	al9
-	push	bx
-	mov	bx,VBLKLEN SHR 4
-	mov	ah,DOS_MEM_ALLOC
-	int	21h
-	pop	bx
-	jc	al9
-	push	di
-	push	es
-	mov	[segVars],ax
-	mov	es,ax
-	sub	di,di
-	sub	ax,ax
-	stosw				; set VAR_NEXT
-	mov	ax,VBLKLEN
-	stosw				; set VAR_SIZE
-	mov	ax,size VBLK_HDR
-	stosw				; set VAR_FREE
-	mov	ax,VAR_LONG SHL 8
-	IFDEF DEBUG
-	mov	al,VARSIG 
-	ENDIF
-	stosw				; initialize VAR_RESERVED/VAR_ZERO
-	sub	ax,ax
-	stosw
-	stosw
-	stosb				; set end-of-vars byte (zero)
-	pop	es
-	pop	di
-al9:	ret
+	mov	si,offset segVars
+	cmp	word ptr [si],0
+	jne	fa9
+	mov	cx,VBLKLEN
+	jmp	allocBlock
 ENDPROC	allocVars
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; freeVars
+;
+; Frees all VBLKS and resets the segVars chain.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	AX, CX, SI
+;
+DEFPROC	freeVars
+	mov	si,offset segVars
+	jmp	freeAllBlocks
+ENDPROC	freeVars
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; allocStrs
+;
+; Allocates an SBLK and adds it to the segStrs chain.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	If successful, carry clear, ES = segment
+;
+; Modifies:
+;	AX, CX, SI, DI, ES
+;
+DEFPROC	allocStrs
+	mov	si,offset segStrs
+	mov	cx,SBLKLEN
+	jmp	allocBlock
+ENDPROC	allocStrs
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; freeStrs
+;
+; Frees all SBLKs and resets the segStrs chain.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	AX, CX, SI
+;
+DEFPROC	freeStrs
+	mov	si,offset segStrs
+	jmp	freeAllBlocks
+ENDPROC	freeStrs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -94,8 +298,8 @@ DEFPROC	addVar
 	push	di
 	push	es
 	mov	es,[segVars]
-	ASSERT	STRUCT,es:[0],VAR
-	mov	di,es:[VAR_FREE]
+	ASSERT	STRUCT,es:[0],VBLK
+	mov	di,es:[VBLK_FREE]
 	push	ax
 
 	cmp	cx,MAX_VARNAME
@@ -113,7 +317,7 @@ av0:	push	di
 av1:	mov	dh,0
 	add	di,dx
 	inc	di			; one for the length byte
-	cmp	es:[VAR_SIZE],di	; enough room?
+	cmp	es:[VBLK_SIZE],di	; enough room?
 	pop	di
 	jb	av9			; no (carry set)
 ;
@@ -134,8 +338,8 @@ av3:	stosb
 	mov	al,0
 	mov	dx,di			; DX = offset of variable's data
 	rep	stosb
-	mov	es:[VAR_FREE],di
-	cmp	es:[VAR_SIZE],di
+	mov	es:[VBLK_FREE],di
+	cmp	es:[VBLK_SIZE],di
 	ASSERT	AE
 	je	av8
 	stosb				; ensure there's always a zero after
@@ -166,7 +370,7 @@ DEFPROC	findVar
 	push	di
 	push	es
 	mov	es,[segVars]
-	ASSERT	STRUCT,es:[0],VAR
+	ASSERT	STRUCT,es:[0],VBLK
 	mov	di,size VBLK_HDR	; ES:DI -> first var in block
 	push	ax
 
@@ -176,7 +380,7 @@ fv1:	mov	al,es:[di]
 	jnz	fv2			; no
 	stc
 	mov	ah,VAR_LONG
-	mov	dx,offset VAR_ZERO + 1
+	mov	dx,offset VBLK_ZERO + 1
 	jmp	short retVar		; yes
 
 fv2:	mov	ah,al
@@ -228,15 +432,15 @@ ENDPROC	findVar
 ;
 ; setVarLong
 ;
-; Stack on input:
+; Input stack:
 ;	pointer to var data
 ;	32-bit value
 ;
-; Stack on output:
+; Output stack:
 ;	None
 ;
 ; Modifies:
-;	AX, CX, DX, DI
+;	AX, BX, CX, DX, DI, ES
 ;
 DEFPROC	setVarLong,FAR
 	pop	cx
@@ -255,7 +459,7 @@ ENDPROC	setVarLong
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; appendVarStr
+; appendStr
 ;
 ; This is the first function that must consider how the string pool will work.
 ;
@@ -263,35 +467,44 @@ ENDPROC	setVarLong
 ; or more strings, and each string will consist of:
 ;
 ;	length byte (1-255)
-;	# of bytes
+;	characters (up to 255 of them)
 ;
-; We can reserve length zero by saying that all empty strings must have a null
-; pointer.  This means that length bytes of zero can be used to indicate
-; unused pool space; the next byte must be the number of unused bytes.
+; We can reserve length zero by saying that all empty strings will have a
+; null pointer.  This means that length of zero can be used to indicate unused
+; pool space.
 ;
 ; This simplistic model makes it easy to append to a string if it's followed
 ; by enough unused bytes.
 ;
-; Inputs:
-;	2 pointers to strings pushed on stack (target followed by source)
+; Input stack:
+;	pointer to target string pointer
+;	pointer to source string data
 ;
 ; Outputs:
 ;	None
 ;
 ; Modifies:
-;	AX, CX, DX, DI
+;	AX, BX, CX, DX, SI, DI
 ;
-DEFPROC	appendVarStr,FAR
+DEFPROC	appendStr,FAR
 	pop	cx
 	pop	dx			; DX:CX = return address
 	pop	si
-	pop	ax
+	pop	ax			; AX:SI -> source string data
 	pop	di
-	pop	es
+	pop	es			; ES:DI -> target string pointer
 	push	es
-	push	di
+	push	di			; target string pointer pushed back
 	push	dx
-	push	cx
+	push	cx			; return address pushed back
+;
+; If the source string pointer is null (ie, an empty string), that's
+; the easiest case of all; there's nothing to do.  We'll assume that checking
+; the offset is sufficient, since all our blocks begin with headers, so a
+; variable offset should be impossible.
+;
+	test	si,si
+	jz	as0
 
 	push	ds
 	mov	ds,ax			; DS:SI -> string to append
@@ -300,36 +513,160 @@ DEFPROC	appendVarStr,FAR
 ;
 ; If the target string doesn't exist, it can simply "inherit" the source.
 ;
-	les	di,es:[di]		; ES:DI -> target string
+	les	di,es:[di]		; ES:DI -> target string data
 	test	di,di
-	jnz	avs1
+	jnz	as1
 	pop	es
 	pop	di
 	mov	es:[di].OFF,si
 	mov	es:[di].SEG,ds
-	jmp	avs9
+as0:	jmp	as9
 ;
 ; Get length of target string at ES:DI into CL, and verify that the new
 ; string will still be within limits.
 ;
-avs1:	mov	cl,es:[di]
+as1:	mov	dl,es:[di]
+	mov	cl,dl
 	mov	al,[si]
-	add	cl,al
-	jc	avs8			; resulting string would be too big
+	add	dl,al
+	jc	as8			; resulting string would be too big
+;
+; If the target string does NOT reside in a string pool block, then it must
+; always be copied.
+;
+	cmp	es:[SBLK_RESERVED],SBLKSIG
+	jne	as2			; target must be copied
 ;
 ; Check the target string to see if there's any (and enough) space after it.
 ;
-	mov	ah,0
-	inc	ax
-	add	si,ax
-	;...
-
-avs8:	pop	es			; recover address of target string ptr
+	mov	ch,0
+	mov	bx,di			; BX -> target also
+	add	di,cx
+	inc	di			; DI -> 1st byte after string
+	mov	cx,es:[SBLK_SIZE]
+	sub	cx,di			; CX = max possible chars available
+	mov	ah,0			; AX = length of source string
+	cmp	cx,ax			; less than we need?
+	jb	as2			; yes, target must be copied instead
+	mov	cx,ax
+	push	ax
+	push	di
+	mov	al,0
+	rep	scasb			; zeros all the way?
 	pop	di
+	pop	ax
+	jne	as2			; no, target must be copied instead
+;
+; Finally, an answer: we can simply copy the source to the end of the target.
+;
+	inc	si
+	mov	cx,ax			; CX = length of source string
+	rep	movsb			; copied
+	add	es:[bx],al		; update length of target string
+	ASSERT	NC
+	pop	es
+	pop	di
+	jmp	short as9		; all done
+;
+; We must copy the target + source to a new location.  Combined length is DL.
+; Use findStrSpace to find a sufficiently large space.
+;
+as2:	push	si			; push source
+	push	ds
+	push	di			; push target
+	push	es
+	call	findStrSpace		; DL = # bytes required
+	pop	ds
+	pop	si			; recover target in DS:SI
+	jc	as4			; error
+	mov	al,dl
+	mov	bx,di
+	mov	dx,es			; DX:BX = new string address
+	stosb				; start with the new combined length
+	mov	ah,0
+	xchg	al,[si]
+	mov	cx,ax
+as3:	mov	al,0
+	xchg	al,[si]
+	inc	si
+	stosb
+	loop	as3
+as4:	pop	ds			; recover source in DS:SI
+	pop	si
+	jc	as8
+	lodsb
+	mov	cl,al
+	rep	movsb			; copy all the source bytes, too
 
-avs9:	pop	ds
+as8:	pop	es			; recover address of target string ptr
+	pop	di
+	jc	as9
+	mov	es:[di].OFF,bx
+	mov	es:[di].SEG,dx
+
+as9:	pop	ds
 	ret
-ENDPROC	appendVarStr
+ENDPROC	appendStr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; findStrSpace
+;
+; Inputs:
+;	DX = # bytes required (not counting length byte)
+;
+; Outputs:
+;	If successful, carry clear, ES:DI -> available space
+;
+; Modifies:
+;	AX, BX, CX, DI, ES
+;
+DEFPROC	findStrSpace
+	push	si
+	push	ds
+	mov	si,offset segStrs
+	mov	ah,0
+
+fss1:	mov	cx,[si]
+	jcxz	fss6			; end of chain
+
+	mov	es,cx
+	mov	di,size SBLK_HDR	; ES:DI -> next location to check
+	mov	bx,es:[SBLK_SIZE]	; BX = limit
+
+fss2:	cmp	di,bx
+	jae	fss4
+fss2a:	mov	al,es:[di]
+	test	al,al
+	jz	fss3
+	add	di,ax
+	inc	di
+	jmp	fss2
+
+fss3:	add	di,dx
+	cmp	di,bx
+	ja	fss4			; not enough room, even if free
+	sub	di,dx			; rewind DI
+	mov	cx,dx			; CX = # bytes required
+	rep	scasb
+	je	fss5
+	dec	di			; rewind DI to the non-matching byte
+	jmp	fss2a			; and continue scanning
+
+fss4:	push	es
+	pop	ds
+	sub	si,si			; DS:SI -> SBLK_NEXT
+	jmp	fss1
+
+fss5:	sub	di,dx			; ES:DI -> available space
+	jmp	short fss9
+
+fss6:	call	allocStrs		; ES:DI -> new space (if carry clear)
+
+fss9:	pop	ds
+	pop	si
+	ret
+ENDPROC	findStrSpace
 
 CODE	ENDS
 
