@@ -13,7 +13,7 @@ CODE    SEGMENT
 	EXTERNS	<cmdCLS,cmdDate,CmdDir,cmdExit,cmdLoop,cmdMem>,near
 	EXTERNS	<cmdTime,cmdType>,near
 	EXTERNS	<genColor,genLet,genPrint>,near
-	EXTERNS	<evalAddLong,evalSubLong>,near
+	EXTERNS	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>,near
 	DEFSTR	COM_EXT,<".COM",0>
 	DEFSTR	EXE_EXT,<".EXE",0>
 	DEFSTR	DIR_DEF,<"*.*",0>
@@ -28,8 +28,10 @@ CODE    SEGMENT
 ; and 3) the operator evaluators (for INT, LONG, SINGLE, DOUBLE, etc).
 ;
 	DEFLBL	OPDEFS,byte
-	OPDEF	<'+',4,evalAddLong>
-	OPDEF	<'-',4,evalSubLong>
+	OPDEF	<'+',1,evalAddLong>
+	OPDEF	<'-',1,evalSubLong>
+	OPDEF	<'*',4,evalMulLong>
+	OPDEF	<'/',4,evalDivLong>
 	DEFBYTE	OPDEFS_END,0
 
 CODE	ENDS

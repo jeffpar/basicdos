@@ -40,6 +40,7 @@ CODE    SEGMENT
 ;	Any
 ;
 DEFPROC	genImmediate
+	LOCVAR	nOps,word
 	LOCVAR	nValues,word
 	LOCVAR	errCode,word
 	LOCVAR	pCode,dword
@@ -146,27 +147,41 @@ ENDPROC	genColor
 ;
 DEFPROC	genExprNum
 	sub	dx,dx
-	mov	[nValues],dx		; count values queued
+	mov	[nOps],dx		; count operators
+	mov	[nValues],dx		; and values queued
 	push	dx			; push end-of-operators marker (zero)
 
 gn1:	mov	al,CLS_NUM OR CLS_SYM OR CLS_VAR
 	call	getNextToken
-	jbe	gn7
+	jbe	gn8
 
 	cmp	ah,CLS_SYM		; operator?
 	jne	gn2			; no
 	call	validateOp		; AL = operator to validate
-	jc	gn7			; error
-	push	dx			; push evaluator
-	push	ax			; push operator/precedence
-	jmp	gn1			; go to next token
+	jc	gn8			; error
+	inc	[nOps]
+	mov	si,dx			; SI = current evaluator
+;
+; Operator is valid, so peek at the operator stack and pop if the top
+; operator precedence >= current operator precedence.
+;
+gn1a:	pop	cx			; "peek"
+	cmp	ch,ah			; top precedence >= current?
+	jb	gn1b			; no
+	pop	dx			; yes, pop the evaluator as well
+	GENCALL	dx			; and generate call
+	jmp	gn1a
+gn1b:	push	cx			; "unpeek"
+	push	si			; push current evaluator
+	push	ax			; push current operator/precedence
+	jmp	gn1			; next token
 
 gn2:	cmp	ah,CLS_VAR		; variable?
 	jne	gn4			; no
 	call	findVar			; go find it
 ;
-; We don't care if findVar succeeds or not, because even when it fails,
-; it returns var type (AH) VAR_LONG with var data (DX) zero.
+; We don't care if findVar succeeds or not, because even if it fails,
+; it returns var type (AH) VAR_LONG with var data (DX) preset to zero.
 ;
 ; TODO: Check AH for the var type and act accordingly.
 ;
@@ -209,26 +224,24 @@ gn6:	mov	al,OP_MOV_AX
 ;
 ; Time to start popping the operator stack.
 ;
-gn7:	mov	ah,0
-	xchg	cx,ax			; CL = last symbol, CH = counter
-
 gn8:	pop	ax
 	test	ax,ax
 	jz	gn9			; all done
 	pop	dx			; DX = evaluator
 	GENCALL	dx
-	inc	ch
 	jmp	gn8
 ;
 ; Verify the number of expected operands matches the number of values queued.
 ;
-gn9:	cmp	[nValues],0		; return ZF set if no values
-	jz	gn10
-	inc	ch
-	cmp	ch,byte ptr [nValues]
+gn9:	mov	ax,[nValues]
+	test	ax,ax
+	jz	gn10			; return ZF set if no values
+	mov	ax,[nOps]
+	inc	ax
+	cmp	ax,[nValues]
 	stc
 	jne	gn10
-	test	ch,ch			; success (both CF and ZF clear)
+	test	ax,ax			; success (both CF and ZF clear)
 gn10:	ret
 ENDPROC	genExprNum
 
@@ -443,6 +456,31 @@ gp8:	GENCALL	printArgs
 
 gp9:	ret
 ENDPROC	genPrint
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genCallDX
+;
+; Inputs:
+;	CS:DX -> function to call
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	DX, DI
+;
+DEFPROC	genCallDX
+	push	ax
+	mov	al,OP_CALLF
+	stosb
+	xchg	ax,dx
+	stosw
+	mov	ax,cs
+	stosw
+	pop	ax
+	ret
+ENDPROC	genCallDX
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

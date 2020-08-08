@@ -134,8 +134,12 @@ name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 	endm
 
 ARGLONG	macro	name
-name	equ	dword ptr [bp+4+_PROCTYPE+_ARGBYTES]
+	DEFARG	name,dword,%(4+_PROCTYPE+_ARGBYTES)
 	_ARGBYTES = _ARGBYTES + 4
+	endm
+
+DEFARG	macro	name,type,offset
+name	equ	type ptr [bp + offset]
 	endm
 
 ;

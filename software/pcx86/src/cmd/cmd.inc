@@ -129,16 +129,10 @@ OPDEF		ends
 ; Code generation macros
 ;
 GENCALL	macro	func
-	mov	al,OP_CALLF
-	stosb
-	IFIDN	<func>,<dx>
-	xchg	ax,dx
-	ELSE
-	mov	ax,offset func
+	IFDIF	<func>,<dx>
+	mov	dx,offset func
 	ENDIF
-	stosw
-	mov	ax,cs
-	stosw
+	call	genCallDX
 	endm
 ;
 ; PUSHSTR copies the string at DS:SI with length CL into the code segment,

@@ -30,7 +30,10 @@ DEFPROC	main
 	lea	bx,[heap]
 	mov	word ptr [bx].INPUTBUF.INP_MAX,size INP_BUF
 
-	PRINTF	<"BASIC-DOS Interpreter",13,10,13,10,"BASIC MATH library functions",13,10,"Copyright (c) Microsoft Corporation",13,10>
+	PRINTF	<"BASIC-DOS Interpreter",13,10,13,10>
+	IFDEF	MSLIB
+	PRINTF	<"BASIC MATH library functions",13,10,"Copyright (c) Microsoft Corporation",13,10,13,10>
+	ENDIF
 ;
 ; Since all command handlers loop back to this point, we shouldn't assume
 ; that any registers (eg, BX, ES) will still be set to their original values.
