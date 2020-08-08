@@ -94,7 +94,7 @@ ENDPROC	allocBlock
 ;
 ; freeBlock
 ;
-; Freess a block of memory for the given block chain.
+; Frees a block of memory for the given block chain.
 ;
 ; Inputs:
 ;	ES = segment of block
@@ -128,7 +128,7 @@ ENDPROC	freeBlock
 ;
 ; freeAllBlocks
 ;
-; Freess all blocks of memory for the given block chain.
+; Frees all blocks of memory for the given block chain.
 ;
 ; Inputs:
 ;	SI = offset of block chain head
@@ -230,7 +230,7 @@ ENDPROC	freeVars
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; allocStrs
+; allocStrSpace
 ;
 ; Allocates an SBLK and adds it to the segStrs chain.
 ;
@@ -243,15 +243,15 @@ ENDPROC	freeVars
 ; Modifies:
 ;	AX, CX, SI, DI, ES
 ;
-DEFPROC	allocStrs
+DEFPROC	allocStrSpace
 	mov	si,offset segStrs
 	mov	cx,SBLKLEN
 	jmp	allocBlock
-ENDPROC	allocStrs
+ENDPROC	allocStrSpace
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; freeStrs
+; freeStrSpace
 ;
 ; Frees all SBLKs and resets the segStrs chain.
 ;
@@ -264,10 +264,10 @@ ENDPROC	allocStrs
 ; Modifies:
 ;	AX, CX, SI
 ;
-DEFPROC	freeStrs
+DEFPROC	freeStrSpace
 	mov	si,offset segStrs
 	jmp	freeAllBlocks
-ENDPROC	freeStrs
+ENDPROC	freeStrSpace
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -477,49 +477,37 @@ ENDPROC	setVarLong
 ; by enough unused bytes.
 ;
 ; Input stack:
-;	pointer to target string pointer
+;	pointer to target string data
 ;	pointer to source string data
 ;
-; Outputs:
-;	None
+; Output stack:
+;	pointer to target string data
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	appendStr,FAR
-	pop	cx
-	pop	dx			; DX:CX = return address
-	pop	si
-	pop	ax			; AX:SI -> source string data
-	pop	di
-	pop	es			; ES:DI -> target string pointer
-	push	es
-	push	di			; target string pointer pushed back
-	push	dx
-	push	cx			; return address pushed back
+	ARGLONG	pSource			; define args from the bottom up
+	ARGLONG	pTarget
+	ENTER
+	push	ds
+	lds	si,[pSource]
+	les	di,[pTarget]
 ;
 ; If the source string pointer is null (ie, an empty string), that's
 ; the easiest case of all; there's nothing to do.  We'll assume that checking
 ; the offset is sufficient, since all our blocks begin with headers, so a
-; variable offset should be impossible.
+; non-zero offset should be impossible.
 ;
 	test	si,si
 	jz	as0
-
-	push	ds
-	mov	ds,ax			; DS:SI -> string to append
-	push	di
-	push	es
 ;
-; If the target string doesn't exist, it can simply "inherit" the source.
+; If the target string pointer is null, it can simply "inherit" the source.
 ;
-	les	di,es:[di]		; ES:DI -> target string data
 	test	di,di
 	jnz	as1
-	pop	es
-	pop	di
-	mov	es:[di].OFF,si
-	mov	es:[di].SEG,ds
+	mov	[pTarget].OFF,si
+	mov	[pTarget].SEG,ds
 as0:	jmp	as9
 ;
 ; Get length of target string at ES:DI into CL, and verify that the new
@@ -564,8 +552,6 @@ as1:	mov	dl,es:[di]
 	rep	movsb			; copied
 	add	es:[bx],al		; update length of target string
 	ASSERT	NC
-	pop	es
-	pop	di
 	jmp	short as9		; all done
 ;
 ; We must copy the target + source to a new location.  Combined length is DL.
@@ -598,15 +584,93 @@ as4:	pop	ds			; recover source in DS:SI
 	mov	cl,al
 	rep	movsb			; copy all the source bytes, too
 
-as8:	pop	es			; recover address of target string ptr
-	pop	di
-	jc	as9
-	mov	es:[di].OFF,bx
-	mov	es:[di].SEG,dx
+as8:	jc	as9
+	mov	[pTarget].OFF,bx
+	mov	[pTarget].SEG,dx
 
 as9:	pop	ds
-	ret
+	LEAVE
+	ret	4			; clean off the source string pointer
 ENDPROC	appendStr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; freeStr
+;
+; Zero all the bytes referenced by the target variable.
+;
+; Inputs:
+;	ES:DI -> string to free
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, CX, DI
+;
+DEFPROC	freeStr
+	mov	cl,es:[di]		; CL = string length
+	mov	ch,0			; CX = length
+	inc	cx			; CX = length + length byte
+	mov	al,0
+	rep	stosb			; zero away
+	ret
+ENDPROC	freeStr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; setStr
+;
+; Input stack:
+;	pointer to target string variable
+;	pointer to source string data
+;
+; Output stack:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, DI, ES
+;
+DEFPROC	setStr,FAR
+	ARGLONG	pSource			; define args from the bottom up
+	ARGLONG	pTargetVar
+	ENTER
+	les	di,[pTargetVar]
+	int 3
+;
+; The general case involves storing the source address in the target variable
+; after first zeroing all the bytes referenced by the target variable.
+;
+; However, there are a number of simple yet critical cases to check for first.
+; For example, is the target is null?  If so, no further checks required.
+;
+	les	di,es:[di]
+	test	di,di
+	jz	ss8
+;
+; The target has a valid pointer, but before we zero its bytes, see if source
+; and target are identical; if so, nothing to do at all.
+;
+	cmp	di,si
+	jne	ss1
+	mov	ax,es
+	cmp	ax,[pSource].SEG
+	je	ss9
+
+ss1:	call	freeStr
+;
+; Transfer the pointer from DS:SI to the target variable now.
+;
+ss8:	push	ds
+	les	di,[pTargetVar]
+	lds	si,[pSource]
+	mov	es:[di].OFF,si
+	mov	es:[di].SEG,ds
+	pop	ds
+
+ss9:	LEAVE
+	ret	8			; clean the stack
+ENDPROC	setStr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -661,7 +725,7 @@ fss4:	push	es
 fss5:	sub	di,dx			; ES:DI -> available space
 	jmp	short fss9
 
-fss6:	call	allocStrs		; ES:DI -> new space (if carry clear)
+fss6:	call	allocStrSpace		; ES:DI -> new space (if carry clear)
 
 fss9:	pop	ds
 	pop	si
