@@ -296,14 +296,12 @@ ENDPROC	con_add
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; con_back
+; con_back (con_fwd)
 ;
-; Moves the cursor back the specified number of columns.  Although we could
-; use the underlying IOCTL to move the cursor both forward and backward, all
-; forward movement is currently handled by simply redisplaying characters.
+; Moves the cursor back (or forward) the specified number of columns.
 ;
 ; Inputs:
-;	CL = # of columns to move back
+;	CL = # of columns to move back (or forward)
 ;
 ; Outputs:
 ;	None
@@ -630,9 +628,15 @@ ENDPROC	con_out
 ;	AX, BX, CX, DX, SI
 ;
 DEFPROC	con_recall
-	call	con_right
+;
+; Calling con_end is optional, and in fact, we didn't before con_end existed,
+; but now that it does, it's more efficient to jump to the end of displayed
+; characters before moving rightward to the end of available characters.
+;
+	call	con_end
+cr1:	call	con_right
 	jc	ttr9
-	jmp	con_recall
+	jmp	cr1
 ENDPROC	con_recall
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
