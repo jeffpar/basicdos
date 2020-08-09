@@ -53,10 +53,6 @@ pt1:	push	ax			; save exit code/type on stack
 ; Restore the SCB's CTRLC and ERROR handlers from the values in the PSP.
 ;
 	mov	bx,[scb_active]
-	push	bx
-	mov	bl,[bx].SCB_SFHCON
-	call	sfh_close
-	pop	bx
 	push	es:[PSP_EXRET].SEG	; push PSP_EXRET (exec return address)
 	push	es:[PSP_EXRET].OFF
 
