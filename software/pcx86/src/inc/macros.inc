@@ -183,16 +183,15 @@ LOCVAR	macro	name,type,len
 	_LOCBYTES = _LOCBYTES + _LOCLEN
 	ELSE
 	 IFIDN	<type>,<word>
-	_LOCBYTES = _LOCBYTES + (_LOCLEN * 2)
+	_LOCBYTES = _LOCBYTES + (_LOCLEN * 2) + (_LOCBYTES AND 1)
 	 ELSE
 	  IFIDN	<type>,<dword>
-	_LOCBYTES = _LOCBYTES + (_LOCLEN * 4)
+	_LOCBYTES = _LOCBYTES + (_LOCLEN * 4) + (_LOCBYTES AND 1)
 	  ELSE
 	%out	Unrecognized LOCVAR parameter: type
 	  ENDIF
 	 ENDIF
 	ENDIF
-	_LOCBYTES = _LOCBYTES + (_LOCBYTES AND 1)
 	DEFVAR	name,type,%(_LOCBYTES)
 	endm
 
@@ -212,7 +211,9 @@ ENTER	macro
 
 LEAVE	macro
 	IF _LOCBYTES GT 0 OR _ARGBYTES GT 0
-	mov	sp,bp
+	 IF _LOCBYTES GT 0
+	add	sp,_LOCBYTES
+	 ENDIF
 	pop	bp
 	ENDIF
 	endm
