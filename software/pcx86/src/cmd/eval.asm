@@ -27,8 +27,8 @@ CODE    SEGMENT
 ;	AX
 ;
 DEFPROC	evalAddLong,FAR
-	ARGLONG	addB			; second arg
-	ARGLONG	addA			; first arg
+	ARGVAR	addA,dword
+	ARGVAR	addB,dword
 	ENTER
 	mov	ax,[addB].OFF
 	add	[addA].OFF,ax
@@ -52,8 +52,8 @@ ENDPROC	evalAddLong
 ;	AX, BX, CX, DX, DI
 ;
 DEFPROC	evalSubLong,FAR
-	ARGLONG	subB			; second arg
-	ARGLONG	subA			; first arg
+	ARGVAR	subA,dword
+	ARGVAR	subB,dword
 	ENTER
 	mov	ax,[subB].OFF
 	sub	[subA].OFF,ax
@@ -77,8 +77,8 @@ ENDPROC	evalSubLong
 ;	AX, CX, DX
 ;
 DEFPROC	evalMulLong,FAR
-	ARGLONG	mulB			; second arg
-	ARGLONG	mulA			; first arg
+	ARGVAR	mulA,dword
+	ARGVAR	mulB,dword
 	ENTER
 
 	mov	ax,[mulB].OFF
@@ -118,8 +118,8 @@ ENDPROC	evalMulLong
 DEFPROC	evalDivLong,FAR
 	mov	al,0			; AL = 0 for quotient, 1 for remainder
 	DEFLBL	evalDivModLong,near
-	ARGLONG	divB			; second arg
-	ARGLONG	divA			; first arg
+	ARGVAR	divA,dword
+	ARGVAR	divB,dword
 	LOCVAR	bitCount,byte
 	LOCVAR	resultType,byte
 	LOCVAR	signDivisor,byte

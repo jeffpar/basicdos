@@ -104,9 +104,10 @@ name	dd	0
 
 DEFPROC	macro	name,type
 	public	name
+	_ARGLEN = 0
 	_ARGBYTES = 0
 	_LOCBYTES = 0
-	_PROCTYPE = 0
+	_PROCTYPE = 2
 	IFIDN	<type>,<DOS>
 	 IFDEF	DEBUG
 	db	"&name",0
@@ -122,10 +123,10 @@ name	proc	near
 	  IFIDN <type>,<DOSFAR>
 	ASSUME	CS:DOS, DS:NOTHING, ES:NOTHING, SS:NOTHING
 name	proc	far
-	_PROCTYPE = 2
+	_PROCTYPE = 4
 	  ELSE
 	   IFIDN <type>,<FAR>
-	_PROCTYPE = 2
+	_PROCTYPE = 4
 	   ENDIF
 name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 	  ENDIF
@@ -133,46 +134,77 @@ name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 	ENDIF
 	endm
 
-ARGLONG	macro	name
-	DEFARG	name,dword,%(4+_PROCTYPE+_ARGBYTES)
-	_ARGBYTES = _ARGBYTES + 4
-	endm
-
-DEFARG	macro	name,type,offset
-name	equ	type ptr [bp + offset]
-	endm
-
 ;
-; LOCVAR is used inside DEFPROC, like so:
+; ARGVAR and LOCVAR are used inside DEFPROC, like so:
 ;
-;	DEFPROC function,DOS
-;	LOCVAR	fileName,byte,11
-;	LOCVAR	dirEntry,dword
+;	DEFPROC	evalDivLong,FAR
+;	ARGVAR	divA,dword
+;	ARGVAR	divB,dword
+;	LOCVAR	bitCount,byte
+;	LOCVAR	resultType,byte
+;	LOCVAR	signDivisor,byte
+;	LOCVAR	signDividend,byte
 ;	ENTER
 ;	...
 ;	LEAVE
-;	RET
-;	ENDPROC function
+;	RET	4
+;	ENDPROC evalDivLong
 ;
-; which will generate equates/code that look like:
+; List any ARGVARs in the order the arguments were pushed.  The actual offset
+; of each ARGVAR will not be known until the ENTER macro is called, at which
+; point an _ARGINVERT value will be calculated to "invert" all the offsets,
+; so that the first ARGVAR offset will be the "farthest" on the stack (ie, the
+; first argument pushed).
 ;
-;	fileName equ byte ptr [bp-12]
-;	dirEntry equ dword ptr [bp-16]
+; The generated code will look like:
+;
 ;	push	bp
 ;	mov	bp,sp
-;	sub	sp,16
-;
+;	sub	sp,4
 ;	...
-;	mov	sp,bp
+;	add	sp,4	; used instead of "mov sp,bp" in case BP is reused
 ;	pop	bp
+;	ret	4
 ;
-; If you need the address of a LOCVAR variable, use LEA, as in:
+; If you need the address of an ARGVAR or LOCVAR variable, use LEA:
 ;
-;	lea	di,fileName
+;	lea	di,resultType
 ;
 ; DEFPROC will define a _LOCBYTES variable representing the number of LOCVAR
-; bytes that must be allocated on the stack on ENTER and then released on LEAVE.
+; bytes that must be allocated on the stack on ENTER and released on LEAVE.
 ;
+; An effort is made to ensure all WORD and DWORD LOCVARs are evenly aligned;
+; this is easy to do since the ENTER macro is in complete control of how much
+; stack space to allocate.  However, no alignment adjustments are made for
+; ARGVAR definitions, so if you define any BYTE arguments, make sure ALL bytes
+; on the argument side of the stack are accounted for.
+;
+ARGVAR	macro	name,type,len
+	DEFARG	name,type,%(2 + _PROCTYPE + _ARGBYTES)
+	IFB <len>
+	_ARGLEN = 1
+	ELSE
+	_ARGLEN = len
+	ENDIF
+	IFIDN	<type>,<byte>
+	ELSE
+	 IFIDN	<type>,<word>
+	_ARGLEN = _ARGLEN * 2
+	 ELSE
+	  IFIDN	<type>,<dword>
+	_ARGLEN = _ARGLEN * 4
+	  ELSE
+	%out	Unrecognized ARGVAR parameter: type
+	  ENDIF
+	 ENDIF
+	ENDIF
+	_ARGBYTES = _ARGBYTES + _ARGLEN
+	endm
+
+DEFARG	macro	name,type,offset
+name	equ	type ptr [bp + (_ARGINVERT - offset)]
+	endm
+
 LOCVAR	macro	name,type,len
 	IFB <len>
 	_LOCLEN = 1
@@ -207,6 +239,7 @@ ENTER	macro
 	sub	sp,_LOCBYTES
 	 ENDIF
 	ENDIF
+	_ARGINVERT = ((2 + _PROCTYPE) * 2) + (_ARGBYTES - _ARGLEN)
 	endm
 
 LEAVE	macro
@@ -329,7 +362,7 @@ FPRINTF	macro	func,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	endm
 ;
 ; MINHEAP is the minimum number of bytes we allocate for a .COM binary, on
-; top of the actual file size.  This is important, because unlike "REAL DOS",
+; top of the actual file size.  This is important, because unlike PC DOS,
 ; we don't allocate all available memory to a program when it's loaded and
 ; then hope the program will shrink its footprint later.
 ;
