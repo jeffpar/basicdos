@@ -7,17 +7,12 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-	include	disk.inc
+	include	8086.inc
 ;
 ; Standard PC BIOS vectors (first few are really standard 8086 vectors)
 ;
 ; Page numbers are from the first IBM 5150 Technical Reference Manual (1981)
 ;
-INT_DV		EQU	00h	; #DE (divide error)
-INT_DB		EQU	01h	; #DB (debug aka single-step)
-INT_NMI		EQU	02h	; NMI
-INT_BP		EQU	03h	; #BP (breakpoint)
-INT_OF		EQU	04h	; #OF (overflow)
 INT_PRTSC	EQU	05h	; PRINT_SCREEN (p. A-79)
 INT_HW_TMR	EQU	08h	;
 INT_HW_KBD	EQU	09h	;
@@ -76,16 +71,6 @@ KBD_CHECK	EQU	01h	; returns ZF set if no key
 ;
 TIME_GETTICKS	EQU	00h	; returns CX:DX, and AL != 0 if wrapped
 
-REG16	struc
-LO		db	?
-HI		db	?
-REG16	ends
-
-FARPTR	struc
-OFF		dw	?
-SEG		dw	?
-FARPTR	ends
-
 ;
 ; Diskette Parameter Table (11 bytes pointed by INT_DSKPARMS (1Eh))
 ;
@@ -108,6 +93,21 @@ DP_FILL		db	?	; F6h: FILL BYTE FOR FORMAT
 DP_HEADSETTLE	db	?	; 19h: HEAD SETTLE TIME (MS)
 DP_MOTORON	db	?	; 04h: MOTOR-ON START TIME (1/8 SECS)
 DPT		ends
+
+;
+; This internal BUFHDR structure precedes each allocated disk buffer.
+;
+BUFHDR		struc			; 16-byte buffer header
+BUF_PREV	dw	?		; 00h: prev buffer header paragraph
+BUF_NEXT	dw	?		; 02h: next buffer header paragraph
+BUF_SIZE	dw	?		; 04h: size of buffer (in bytes)
+BUF_DRIVE	db	?		; 06h: drive number of buffer data
+BUF_RESERVED	db	?		; 07h: (holds BUFSIG in DEBUG builds)
+BUF_PADDING	dw	?		; 08h: unused
+BUF_LBA		dw	?		; 0Ah: LBA of buffer data
+BUF_TIMESTAMP	dd	?		; 0Ch: timestamp of buffer data
+BUFHDR		ends
+BUFSIG		equ	'B'
 
 ;
 ; ROM BIOS DATA AREA
@@ -324,41 +324,3 @@ SCAN_DOWN	equ	50h	; down-arrow
 SCAN_PGDN	equ	51h	; page-down
 SCAN_INS	equ	52h	; ins
 SCAN_DEL	equ	53h	; del
-
-;
-; Miscellaneous processor definitions (for lack of a better place)
-;
-FL_CARRY	equ	0001h
-FL_ZERO		equ	0040h
-FL_SIGN		equ	0080h
-FL_TRAP		equ	0100h
-FL_INTS		equ	0200h
-FL_DOWN		equ	0400h
-FL_OVFL		equ	0800h
-
-OP_PUSH_ES	equ	006h
-OP_PUSH_CS	equ	00Eh
-OP_PUSH_SS	equ	016h
-OP_PUSH_DS	equ	01Eh
-OP_PUSH_AX	equ	050h
-OP_PUSH_DX	equ	052h
-OP_PUSH_BX	equ	053h
-OP_PUSH_DI	equ	057h
-OP_XCHG_DX	equ	092h
-OP_CALLF	equ	09Ah
-OP_LODSW	equ	0ADh
-OP_MOV_AL	equ	0B0h
-OP_MOV_AX	equ	0B8h
-OP_MOV_CX	equ	0B9h
-OP_MOV_BX	equ	0BBh
-OP_MOV_SI	equ	0BEh
-OP_MOV_DI	equ	0BFh
-OP_RETF_N	equ	0CAh
-OP_RETF		equ	0CBh
-OP_IRET		equ	0CFh
-OP_CALL		equ	0E8h
-OP_JMPF		equ	0EAh
-OP_STC		equ	0F9h
-
-OP_ZERO_AX	equ	0C031h		; XOR AX,AX
-OP_MOV_AX_SP	equ	089E0h		; MOV AX,SP
