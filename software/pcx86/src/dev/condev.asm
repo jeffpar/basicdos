@@ -52,6 +52,7 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFBYTE	max_cols,80	; TODO: set to correct value in ddcon_init
 
 	DEFPTR	kbd_int,0	; original keyboard hardware interrupt handler
+	DEFPTR	video_int,0	; original video services interrupt handler
 	DEFPTR	wait_ptr,-1	; chain of waiting packets
 ;
 ; A context of "80,25,0,0,1" requests a border, so logical cursor positions
@@ -77,6 +78,7 @@ CT_SCREEN	dd	?	; 18h: eg, B800:00A2h
 CT_BUFFER	dd	?	; 1Ch: used only for background contexts
 CT_BUFLEN	dw	?	; 20h: eg, 4000 for a full-screen 25*80*2 buffer
 CT_COLOR	dw	?	; 22h: fill (LO) and border (HI) attributes
+CT_CURTYPE	dw	?	; 24h: cursor type
 CONTEXT		ends
 
 CTSIG		equ	'C'
@@ -297,43 +299,26 @@ DEFPROC	ddcon_setins
 	sub	ax,ax
 	mov	es,ax
 	ASSUME	ES:BIOS
-;
-; There was a bug in the original IBM PC (5150) BIOS: it stored the cursor's
-; top and bottom scan lines in the high and low *nibbles* of CURSOR_MODE.LO,
-; respectively, instead of the high and low *bytes* of CURSOR_MODE.
-;
-;	F177:	C70660006700	MOV	CURSOR_MODE,67H
-;
-; So, we'll check for that combo (ie, 67h low, 00h high) and compensate.
-;
-; What's worse is that the same values (6,7) are stored in CURSOR_MODE for the
-; MDA as well, even though the MDA's default values are different (11,12);
-; and this behavior seems to be true regardless of BIOS revision.  Bummer.
-;
+	mov	ax,ds
+	cmp	ax,[ct_focus]		; does this context have focus?
+	jne	dsi2			; no, leave cursor alone
 	mov	ax,[CURSOR_MODE]
-	cmp	ax,0067h		; buggy cursor scanline values?
-	jne	dsi0			; no
-	mov	ax,0607h		; yes, fix them
-dsi0:	cmp	byte ptr ds:[CT_PORT],0B4h
-	jne	dsi1			; not an MDA
-	cmp	ax,0607h		; bogus values for MDA?
-	jne	dsi1			; no
-	mov	ax,0B0Ch		; yes, fix them
-dsi1:	ror	cl,1			; move CL bit 0 to bit 7 (and carry)
-	jnc	dsi2
+	ror	cl,1			; move CL bit 0 to bit 7 (and carry)
+	jnc	dsi1
 	and	ah,0E0h
-dsi2:	xchg	bx,ax			; BX = new values
+dsi1:	xchg	bx,ax			; BX = new values
 	mov	ah,CRTC_CURTOP		; AH = 6845 register #
 	call	write_crtc16		; write them
 ;
 ; We don't mirror the cursor scanline changes in CURSOR_MODE, because we
-; want to restore the original values when insert mode ends.  We do, however,
-; toggle INS_STATE (80h) in KB_FLAG, to avoid any unanticipated keyboard BIOS
-; side-effects; we rely almost entirely on the BIOS for keyboard processing,
-; whereas we rely very little on the BIOS for screen updates (scroll calls and
-; dual monitor mode sets are the main exceptions).
+; want to restore the original values from CURSOR_MODE when insert mode ends.
 ;
-	mov	dl,[KB_FLAG]
+; However, we do toggle INS_STATE (80h) in KB_FLAG, to avoid any unanticipated
+; keyboard BIOS side-effects; we rely almost entirely on the BIOS for keyboard
+; processing, whereas we rely very little on the BIOS for screen updates
+; (scroll calls and dual monitor mode sets are currently the main exceptions).
+;
+dsi2:	mov	dl,[KB_FLAG]
 	mov	al,dl
 	and	al,7Fh
 	or	al,cl
@@ -373,7 +358,7 @@ dcs1:	call	scroll
 	cmp	cl,100
 	jne	dcs9
 	mov	dx,ds:[CT_CURMIN]
-	call	update_cursor
+	call	update_curpos
 dcs9:	ret
 ENDPROC	ddcon_scroll
 
@@ -566,10 +551,10 @@ dco1:	mov	ds,ax
 	DBGINIT	STRUCT,ds:[0],CT
 
 	cmp	[ct_focus],0
-	jne	dco1a
+	jne	dco2
 	mov	[ct_focus],ax
 
-dco1a:	xchg	[ct_head],ax
+dco2:	xchg	[ct_head],ax
 	mov	ds:[CT_NEXT],ax
 	mov	ds:[CT_STATUS],bh
 ;
@@ -622,31 +607,49 @@ dco1a:	xchg	[ct_head],ax
 	mov	bl,[CRT_MODE]
 	mov	cx,[EQUIP_FLAG]		; snapshot the equipment flags
 	mov	dx,[ADDR_6845]		; get the adapter's port address
+
 	test	bh,CTSTAT_ADAPTER
-	jz	dco5
+	jz	dco4
 	xor	dl,60h			; convert 3D4h to 3B4h (or vice versa)
 	xor	ah,08h			; convert B800h to B000h (or vice versa)
 	push	ax
 	xor	cl,EQ_VIDEO_CO40
 	mov	al,MODE_MONO		; default
 	cmp	dl,0B4h
-	je	dco4
+	je	dco3
 	mov	al,MODE_CO80
-dco4:	mov	bl,al			; BL = new video mode
+dco3:	mov	bl,al			; BL = new video mode
 	xchg	[EQUIP_FLAG],cx
 	mov	ah,VIDEO_SETMODE
 	int	INT_VIDEO
 	xchg	[EQUIP_FLAG],cx
 	pop	ax
-dco5:	mov	ds:[CT_PORT],dx
+
+dco4:	mov	ds:[CT_PORT],dx
 	mov	ds:[CT_EQUIP],cx
 	mov	ds:[CT_MODE],bl
 	mov	ds:[CT_SCREEN].SEG,ax
+	call	update_curtype
+	mov	ds:[CT_CURTYPE],ax
+
+	push	bx
 	call	draw_border		; draw the context's border, if any
 	mov	cl,100
 	call	scroll			; clear the context's interior
-	call	hide_cursor		; important when using an alt adapter
-	clc
+	pop	bx
+
+	test	bh,CTSTAT_ADAPTER	; is new context on alternate adapter?
+	jz	dco5			; no
+	mov	ax,ds			; yes
+	cmp	ax,[ct_focus]		; does new context have focus?
+	je	dco5			; yes, we're done
+	call	hide_cursor		; no, so hide cursor
+	push	ds			; and restore BIOS with data from focus
+	mov	ds,[ct_focus]
+	call	update_adapter
+	pop	ds
+
+dco5:	clc
 ;
 ; At the moment, the only possible error is a failure to allocate memory.
 ;
@@ -751,10 +754,10 @@ DEFPROC	ddcon_int09,far
 	call	far ptr DDINT_ENTER
 	pushf
 	call	[kbd_int]
-	jnc	ddi0			; carry set if DOS isn't ready
-	jmp	ddi9x
+	jnc	i09a			; carry set if DOS isn't ready
+	jmp	i09x
 
-ddi0:	push	ax
+i09a:	push	ax
 	push	bx
 	push	cx
 	push	dx
@@ -765,44 +768,44 @@ ddi0:	push	ax
 	sti
 	mov	cx,[ct_focus]		; CX = context
 	call	check_hotkey
-	jc	ddi1
+	jc	i09b
 	xchg	dx,ax			; DL = char code, DH = scan code
 	mov	ax,DOS_UTL_HOTKEY	; notify DOS
 	int	21h
 
-ddi1:	mov	ds,cx			; DS = context
+i09b:	mov	ds,cx			; DS = context
 	mov	cx,cs
 	mov	es,cx
 	mov	bx,offset wait_ptr	; CX:BX -> ptr
 	les	di,es:[bx]		; ES:DI -> packet, if any
 	ASSUME	ES:NOTHING
 
-ddi2:	cmp	di,-1			; end of chain?
-	je	ddi9			; yes
+i09c:	cmp	di,-1			; end of chain?
+	je	i09w			; yes
 
 	ASSERT	STRUCT,es:[di],DDP
 
 	mov	dx,ds
 	cmp	es:[di].DDP_CONTEXT,dx	; packet from console with focus?
-	jne	ddi6			; no
+	jne	i09f			; no
 
 	cmp	es:[di].DDP_CMD,DDC_READ; READ packet?
-	je	ddi3			; yes, look for keyboard data
+	je	i09d			; yes, look for keyboard data
 ;
 ; For WRITE packets (which we'll assume this is for now), we need to end the
 ; wait if the context is no longer paused (ie, check_hotkey may have unpaused).
 ;
 	ASSERT	STRUCT,ds:[0],CT
 	test	ds:[CT_STATUS],CTSTAT_PAUSED
-	jz	ddi4			; yes, we're no longer paused
-	jmp	short ddi6		; still paused, check next packet
+	jz	i09e			; yes, we're no longer paused
+	jmp	short i09f		; still paused, check next packet
 
-ddi3:	call	pull_kbd		; pull keyboard data
-	jc	ddi6			; not enough data, check next packet
+i09d:	call	pull_kbd		; pull keyboard data
+	jc	i09f			; not enough data, check next packet
 ;
 ; Notify DOS that this packet is done waiting.
 ;
-ddi4:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
+i09e:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	mov	ax,DOS_UTL_ENDWAIT
 	int	21h
@@ -826,23 +829,72 @@ ddi4:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	mov	es:[bx].SEG,dx
 	sti
 	stc				; set carry to indicate yield
-	jmp	short ddi9
+	jmp	short i09w
 
-ddi6:	lea	bx,[di].DDP_PTR		; update prev addr ptr in CX:BX
+i09f:	lea	bx,[di].DDP_PTR		; update prev addr ptr in CX:BX
 	mov	cx,es
 
 	les	di,es:[di].DDP_PTR
-	jmp	ddi2
+	jmp	i09c
 
-ddi9:	pop	es
+i09w:	pop	es
 	pop	ds
 	pop	di
 	pop	dx
 	pop	cx
 	pop	bx
 	pop	ax
-ddi9x:	jmp	far ptr DDINT_LEAVE
+i09x:	jmp	far ptr DDINT_LEAVE
 ENDPROC	ddcon_int09
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_int10 (BIOS video services)
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_int10,far
+;
+; We preserve the original AX for inspection after the call (but we still
+; return the updated AX), and we preserve BP, which has the added benefit of
+; fixing an INT 10h "bug" where certain functions would trash BP.
+;
+; The BIOS says for INT 10h:
+;
+;	CS,SS,DS,ES,BX,CX,DX PRESERVED DURING CALL
+;	ALL OTHERS DESTROYED
+;
+; but in fact, SI, DI, and flags are explicitly preserved as well, BP is
+; trashed by only a few functions (scroll and graphics read), and virtually
+; no other BIOS services alter BP.  So rather than let this odd behavior
+; expose us to potential bugs downstream, we preserve BP, too.
+;
+	push	ax
+	push	bp
+	pushf
+	call	[video_int]
+	mov	bp,sp
+	xchg	ax,[bp+2]		; AX = original AX
+	cmp	ah,VIDEO_SETMODE
+	jne	i10x
+	push	es
+	sub	ax,ax
+	mov	es,ax
+	ASSUME	ES:BIOS
+	call	update_curtype
+	pop	es
+i10x:	pop	bp
+	pop	ax
+	iret
+ENDPROC	ddcon_int10
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -862,14 +914,14 @@ DEFPROC	ddcon_int29,far
 	push	dx
 	mov	dx,[ct_focus]		; for now, use the context with focus
 	test	dx,dx
-	jnz	dci1
+	jnz	i29a
 	call	write_char
-	jmp	short dci9
-dci1:	push	es
+	jmp	short i29b
+i29a:	push	es
 	mov	es,dx
 	call	write_context
 	pop	es
-dci9:	pop	dx
+i29b:	pop	dx
 	iret
 ENDPROC	ddcon_int29
 
@@ -1155,6 +1207,7 @@ DEFPROC	draw_cursor
 	shr	bx,1			; screen offset to cell offset
 	mov	ah,CRTC_CURHI		; AH = 6845 CURSOR ADDR (HI) register
 	call	write_crtc16		; update cursor position using BX
+	call	update_bios
 	ret
 ENDPROC	draw_cursor
 
@@ -1263,7 +1316,7 @@ tf2:	xchg	cx,[ct_focus]
 	xor	al,ds:[CT_STATUS]
 	test	al,CTSTAT_ADAPTER	; does CTSTAT_ADAPTER differ between
 	jz	tf9			; outgoing and incoming context?
-	call	update_bios		; call update_bios if so
+	call	update_adapter		; call update_adapter if so
 tf9:	pop	es
 	mov	ax,DOS_UTL_UNLOCK
 	int	21h
@@ -1366,7 +1419,7 @@ mc2a:	cmp	dl,ds:[CT_CURMAX].LO
 	jge	mc8
 	inc	dh
 
-	DEFLBL	update_cursor,near
+	DEFLBL	update_curpos,near
 mc8:	mov	ds:[CT_CURPOS],dx
 	mov	ax,ds
 	cmp	ax,[ct_focus]		; does this context have focus?
@@ -1467,7 +1520,6 @@ DEFPROC	scroll
 	push	bx
 	push	cx
 	push	dx
-	push	bp			; WARNING: INT 10h scrolls trash BP
 	push	es
 	sub	ax,ax
 	mov	es,ax
@@ -1493,7 +1545,6 @@ scr2:	mov	bh,ds:[CT_COLOR].LO	; BH = fill attributes
 	pop	ax
 	mov	es:[EQUIP_FLAG],ax	; restore EQUIP_FLAG
 	pop	es
-	pop	bp
 	pop	dx
 	pop	cx
 	pop	bx
@@ -1504,12 +1555,12 @@ ENDPROC	scroll
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; update_bios
+; update_adapter
 ;
-; Call this function whenever the BIOS data area needs to be updated to
-; reflect current context state.  For now, we're going to call this only
-; when the CTSTAT_ADAPTER bit between the "entering focus" and "leaving
-; focus" contexts differs (see focus_next).
+; Called whenever the BIOS adapter state needs to be updated to reflect
+; current context state.  For now, we're going to call this only when the
+; CTSTAT_ADAPTER bit between the "entering focus" and "leaving focus" contexts
+; differs (see focus_next).
 ;
 ; Worst case, this function might need to be called on every session switch.
 ; However, as discussed in scb_switch, calling drivers on every context switch
@@ -1525,7 +1576,7 @@ ENDPROC	scroll
 ;	AX, ES
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	update_bios
+DEFPROC	update_adapter
 	sub	ax,ax
 	mov	es,ax
 	ASSUME	ES:BIOS
@@ -1535,8 +1586,81 @@ DEFPROC	update_bios
 	mov	[EQUIP_FLAG],ax
 	mov	ax,ds:[CT_PORT]
 	mov	[ADDR_6845],ax
+	mov	ax,ds:[CT_CURTYPE]
+	mov	[CURSOR_MODE],ax
+	ret
+ENDPROC	update_adapter
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; update_bios
+;
+; Called whenever the BIOS state should be sync'ed with the hardware state.
+;
+; Currently, the only state we sync is the context's cursor position with the
+; BIOS' CURSOR_POSN.
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	update_bios
+	push	es
+	sub	dx,dx
+	mov	es,dx
+	ASSUME	ES:BIOS
+	call	ddcon_getpos
+	sub	dx,ds:[CT_CONPOS]
+	mov	[CURSOR_POSN],dx
+	pop	es
 	ret
 ENDPROC	update_bios
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; update_curtype
+;
+; Due to a bug in the original IBM PC (5150) BIOS, the cursor's top and
+; bottom scan lines are stored in the high and low *nibbles* of CURSOR_MODE.LO,
+; instead of the high and low *bytes* of CURSOR_MODE.  Here's the buggy code:
+;
+;	F177:	C70660006700	MOV	CURSOR_MODE,67H
+;
+; So, we'll check for that combo (ie, 67h low, 00h high) and compensate.
+;
+; What's worse is that the same values (6,7) are stored in CURSOR_MODE for the
+; MDA as well, even though the MDA's default values are different (11,12);
+; and this behavior seems to be true regardless of BIOS revision.  Bummer.
+;
+; Inputs:
+;	ES = BIOS
+;
+; Outputs:
+;	AX = cursor type
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:BIOS, SS:NOTHING
+DEFPROC	update_curtype
+	mov	ax,[CURSOR_MODE]
+	cmp	ax,0067h		; buggy cursor scanline values?
+	jne	uct1			; no
+	mov	ax,0607h		; yes, fix them
+uct1:	cmp	[ADDR_6845].LO,0B4h	; MDA?
+	jne	uct2			; no
+	cmp	ax,0607h		; bogus values for MDA?
+	jne	uct2			; no
+	mov	ax,0B0Ch		; yes, fix them
+uct2:	mov	[CURSOR_MODE],ax
+	ret
+ENDPROC	update_curtype
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1636,7 +1760,7 @@ wclf:	call	draw_linefeed		; emulate a LINEFEED
 
 wc7:	call	draw_char		; draw character (CL) at CURPOS (DL,DH)
 
-wc8:	call	update_cursor		; set CURPOS to (DL,DH)
+wc8:	call	update_curpos		; set CURPOS to (DL,DH)
 
 wc9:	pop	es
 	pop	ds
@@ -1782,6 +1906,16 @@ ddn1:	mov	[frame_seg],dx
 	xchg	ds:[INT_HW_KBD * 4].SEG,ax
 	mov	[kbd_int].SEG,ax
 	sti
+;
+; Install an INT 10h services handler to detect mode changes (and perhaps
+; more as we evolve).
+;
+	mov	ax,offset ddcon_int10
+	xchg	ds:[INT_VIDEO * 4].OFF,ax
+	mov	[video_int].OFF,ax
+	mov	ax,cs
+	xchg	ds:[INT_VIDEO * 4].SEG,ax
+	mov	[video_int].SEG,ax
 ;
 ; Install an INT 29h ("FAST PUTCHAR") handler; I think traditionally DOS
 ; installed its own handler, but that's really our responsibility, especially
