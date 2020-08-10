@@ -21,6 +21,8 @@ There are currently four BASIC-DOS demo configurations:
 The wide and skinny demos are configured with borders.  A double-wide border
 indicates which session has keyboard focus.  Use **SHIFT-TAB** to toggle focus.
 
-BASIC-DOS development was performed on this [PC XT Development Machine](dev/).
-There's also a [blog](blog/), but I haven't been keeping it up-to-date with
-development.
+BASIC-DOS development was performed on this PC XT [Development Machine](dev/).
+A [Dual Monitor Development Machine](dual/dev/) is available, too.
+
+There's also a [blog](blog/), but I've been doing a poor job keeping it
+up-to-date.  There's just too much code to write and test.

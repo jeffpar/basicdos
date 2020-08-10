@@ -67,9 +67,9 @@ pt1:	push	ax			; save exit code/type on stack
 	mov	[bx].SCB_ERROR.SEG,ax
 
 	mov	ax,es:[PSP_DTAPREV].OFF	; restore the previous DTA
-	mov	[bx].SCB_DTA.OFF,ax	; ("REAL DOS" probably requires every
-	mov	ax,es:[PSP_DTAPREV].SEG	;  process to restore this itself after
-	mov	[bx].SCB_DTA.SEG,ax	;  an exec)
+	mov	[bx].SCB_DTA.OFF,ax	; (PC DOS may require every process
+	mov	ax,es:[PSP_DTAPREV].SEG	; to restore this itself after an exec)
+	mov	[bx].SCB_DTA.SEG,ax
 
 	mov	al,es:[PSP_SCB]		; save SCB #
 	push	ax
@@ -360,7 +360,7 @@ DEFPROC	load_program,DOS
 ; we know how large the program is.
 ;
 ; Perhaps someday there will be a DOS_MEM_REALLOC function that can move a
-; block, for callers that can deal with movable blocks.  However, the utility
+; block for callers that can deal with movable blocks.  However, the utility
 ; of such a function might be minimal, since it still couldn't rearrange any
 ; blocks allocated by other callers.
 ;
@@ -388,8 +388,8 @@ lp1:	xchg	dx,ax			; DX = segment for new PSP
 ;
 ; Let's update the PSP_STACK field in the current PSP before we switch
 ; to the new PSP, since we rely on it to gracefully return to the caller
-; when this new program terminates.  "REAL DOS" updates PSP_STACK on every
-; DOS call, because it loves switching stacks all the time; we don't.
+; when this new program terminates.  PC DOS updates PSP_STACK on every
+; DOS call, because it loves switching stacks; we do not.
 ;
 	mov	ds,bx
 	ASSUME	DS:NOTHING

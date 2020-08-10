@@ -47,8 +47,7 @@ CPM86=0
 ;Entry  - ES:0 pointing to start of control block.
 ;         DS:0 pointing to start of control block.
 ;
-BIBOOT:	int 3
-	MOV	CX,CS		; Get BASIC's segment
+BIBOOT:	MOV	CX,CS		; Get BASIC's segment
 	MOV	ES,CX		; Make it the destination segment
 	XOR	SI,SI		; Start at ES:0
 	XOR	DI,DI		; Destination is CS:0

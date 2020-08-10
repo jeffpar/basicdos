@@ -70,17 +70,19 @@ CT_CURMAX	dw	?	; 0Ch: eg, cursor X (lo) and Y (hi) maximums
 CT_CURDIM	dw	?	; 0Eh: width and height (for cursor movement)
 CT_EQUIP	dw	?	; 10h: BIOS equipment flags (snapshot)
 CT_PORT		dw	?	; 12h: eg, 3D4h
-CT_SCROFF	dw	?	; 14h: eg, 2000 (offset of off-screen memory)
-CT_SCREEN	dd	?	; 16h: eg, B800:00A2h
-CT_BUFFER	dd	?	; 1Ah: used only for background contexts
-CT_BUFLEN	dw	?	; 1Eh: eg, 4000 for a full-screen 25*80*2 buffer
-CT_COLOR	dw	?	; 20h: fill (LO) and border (HI) attributes
+CT_MODE		db	?	; 14h: active video mode (see MODE_*)
+CT_PADDING	db	?	; 15h
+CT_SCROFF	dw	?	; 16h: eg, 2000 (offset of off-screen memory)
+CT_SCREEN	dd	?	; 18h: eg, B800:00A2h
+CT_BUFFER	dd	?	; 1Ch: used only for background contexts
+CT_BUFLEN	dw	?	; 20h: eg, 4000 for a full-screen 25*80*2 buffer
+CT_COLOR	dw	?	; 22h: fill (LO) and border (HI) attributes
 CONTEXT		ends
 
 CTSIG		equ	'C'
 
 CTSTAT_BORDER	equ	01h	; context has border
-CTSTAT_ADAPTER	equ	02h	; alternate adapter selected
+CTSTAT_ADAPTER	equ	02h	; context is using alternate adapter
 CTSTAT_INPUT	equ	40h	; context is waiting for input
 CTSTAT_PAUSED	equ	80h	; context is paused (triggered by CTRLS hotkey)
 
@@ -617,25 +619,28 @@ dco1a:	xchg	[ct_head],ax
 ; be enabled.
 ;
 	mov	ax,[frame_seg]
+	mov	bl,[CRT_MODE]
 	mov	cx,[EQUIP_FLAG]		; snapshot the equipment flags
 	mov	dx,[ADDR_6845]		; get the adapter's port address
 	test	bh,CTSTAT_ADAPTER
 	jz	dco5
-	xor	dx,0060h		; convert 3D4h to 3B4h (or vice versa)
-	xor	ax,0800h		; convert B800h to B000h (or vice versa)
+	xor	dl,60h			; convert 3D4h to 3B4h (or vice versa)
+	xor	ah,08h			; convert B800h to B000h (or vice versa)
 	push	ax
 	xor	cl,EQ_VIDEO_CO40
-	mov	al,07h
+	mov	al,MODE_MONO		; default
 	cmp	dl,0B4h
 	je	dco4
-	mov	al,03h
-dco4:	xchg	[EQUIP_FLAG],cx
+	mov	al,MODE_CO80
+dco4:	mov	bl,al			; BL = new video mode
+	xchg	[EQUIP_FLAG],cx
 	mov	ah,VIDEO_SETMODE
 	int	INT_VIDEO
 	xchg	[EQUIP_FLAG],cx
 	pop	ax
 dco5:	mov	ds:[CT_PORT],dx
 	mov	ds:[CT_EQUIP],cx
+	mov	ds:[CT_MODE],bl
 	mov	ds:[CT_SCREEN].SEG,ax
 	call	draw_border		; draw the context's border, if any
 	mov	cl,100
@@ -1247,11 +1252,18 @@ tf1:	mov	cx,[ct_head]
 	je	tf9			; nothing to do
 tf2:	xchg	cx,[ct_focus]
 	mov	ds,cx
+	mov	al,ds:[CT_STATUS]
+	push	ax
 	call	draw_border		; redraw the border and hide
 	call	hide_cursor		; the cursor of the outgoing context
 	mov	ds,[ct_focus]
 	call	draw_border		; redraw the broder and show
 	call	draw_cursor		; the cursor of the incoming context
+	pop	ax
+	xor	al,ds:[CT_STATUS]
+	test	al,CTSTAT_ADAPTER	; does CTSTAT_ADAPTER differ between
+	jz	tf9			; outgoing and incoming context?
+	call	update_bios		; call update_bios if so
 tf9:	pop	es
 	mov	ax,DOS_UTL_UNLOCK
 	int	21h
@@ -1489,6 +1501,42 @@ scr2:	mov	bh,ds:[CT_COLOR].LO	; BH = fill attributes
 	int	21h
 	ret
 ENDPROC	scroll
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; update_bios
+;
+; Call this function whenever the BIOS data area needs to be updated to
+; reflect current context state.  For now, we're going to call this only
+; when the CTSTAT_ADAPTER bit between the "entering focus" and "leaving
+; focus" contexts differs (see focus_next).
+;
+; Worst case, this function might need to be called on every session switch.
+; However, as discussed in scb_switch, calling drivers on every context switch
+; would require some new services and generate a lot of undesirable overhead.
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	update_bios
+	sub	ax,ax
+	mov	es,ax
+	ASSUME	ES:BIOS
+	mov	al,ds:[CT_MODE]
+	mov	[CRT_MODE],al
+	mov	ax,ds:[CT_EQUIP]
+	mov	[EQUIP_FLAG],ax
+	mov	ax,ds:[CT_PORT]
+	mov	[ADDR_6845],ax
+	ret
+ENDPROC	update_bios
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -58,8 +58,8 @@ DEFPROC	ctrlc,FAR
 ENDPROC	ctrlc
 
 ;
-; COMHEAP 0 means we don't need a heap, but the system will still allocate
-; a minimum amount of heap space, because that's where our initial stack lives.
+; COMHEAP 0 means we don't need a heap, but BASIC-DOS will still allocate a
+; minimum amount of heap space, because that's where our initial stack lives.
 ;
 	COMHEAP	0		; COMHEAP (heap size) must be the last item
 
