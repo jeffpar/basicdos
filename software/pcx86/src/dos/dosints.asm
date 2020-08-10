@@ -91,7 +91,7 @@ ENDPROC	dos_oferr
 ;
 ; dos_term (INT 20h)
 ;
-; NOTE: In "REAL DOS", this interrupt, as well as INT 21h AH=00h, apparently
+; NOTE: In PC DOS, this interrupt, as well as INT 21h AH=00h, apparently
 ; requires the call to be made from the segment containing the PSP (CS == PSP).
 ; We do not.  Also, the underlying function here (DOS_PSP_TERM) sets a default
 ; exit code (we use zero), whereas DOS_PSP_EXIT (4Ch) allows any exit code to

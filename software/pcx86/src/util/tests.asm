@@ -22,7 +22,7 @@ DEFPROC	main
 ;
 ; The following REALLOC is not necessary in BASIC-DOS, because it detects
 ; our COMHEAP signature and resizes us automatically, but if we want to run
-; with the same footprint in "REAL DOS", then we must resize ourselves.
+; with the same footprint in PC DOS, then we must still resize ourselves.
 ;
 	mov	bx,offset heap + MINHEAP
 	or	bl,0Eh		; adjust BX to top word of the paragraph
@@ -35,14 +35,14 @@ DEFPROC	main
 	int	21h
 ;
 ; The "list-of-lists" function isn't supported in BASIC-DOS, since we have
-; no interest in tying ourselves to internal "REAL DOS" data structures that
-; don't even exist in our alternative timeline, but this call is helpful for
-; examining them, if that's where we're running.
+; no interest in tying ourselves to internal PC DOS data structures that don't
+; exist in the BASIC-DOS timeline, but this call is helpful for examining them
+; when we're running under PC DOS.
 ;
-; For example, in DOS 2.x, the word at ES:BX-2 contains the first MCB segment,
-; and the dword at ES:BX+4 points to the SFT.
+; For example, in PC DOS 2.x, the word at ES:BX-2 contains the first MCB
+; segment, and the dword at ES:BX+4 points to the SFT.
 ;
-	mov	ah,52h		; undocumented "REAL DOS" list-of-lists func
+	mov	ah,52h		; undocumented PC DOS "list-of-lists" function
 	int	21h
 ;
 ; Test the CALL 5 interface.
@@ -77,8 +77,8 @@ execfile	db		"EXEC.COM",0
 execparms	EPB		<0,PSP_CMDTAIL,PSP_FCB1,PSP_FCB2>
 	ENDIF
 ;
-; COMHEAP 0 means we don't need a heap, but the system will still allocate
-; a minimum amount of heap space, because that's where our initial stack lives.
+; COMHEAP 0 means we don't need a heap, but BASIC-DOS will still allocate a
+; minimum amount of heap space, because that's where our initial stack lives.
 ;
 	COMHEAP	0		; COMHEAP (heap size) must be the last item
 

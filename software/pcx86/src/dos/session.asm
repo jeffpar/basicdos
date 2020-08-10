@@ -385,7 +385,24 @@ ENDPROC	scb_yield
 ;
 ; scb_switch
 ;
-; Switch to the specified session.
+; Switch to the specified session.  SCB locking is used to prevent switches
+; whenever large global data structures are in use (eg, disk buffers), but all
+; per-session data should be stored in the SCB, so that no global state needs
+; to be copied in or out.
+;
+; The kinds of apps we ultimately want to support in BASIC-DOS sessions will
+; determine whether we need to adopt additional measures, such as "swapping"
+; global data (eg, BIOS data) in or out of the SCB.
+;
+; Our CONSOLE driver is a good example.  For now, it performs some minor BIOS
+; updates on the relatively infrequent "focus" switches that can occur between
+; contexts on different video adapters, but if that proves to be ineffective,
+; we may need to perform session-switch notifications to the drivers, so that
+; they can do their own "state swapping" every time we're about to switch to a
+; new SCB.
+;
+; The incentives for avoiding that are high, because these switches will become
+; very expensive, and IBM PCs are not all that fast.
 ;
 ; Inputs:
 ;	BX -> SCB

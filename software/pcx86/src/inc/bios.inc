@@ -42,6 +42,9 @@ VIDEO_SETMODE	EQU	00h	; AL=mode
 VIDEO_SCROLL	EQU	06h	; AL=# lines, BH=fill attribute, CX/DX=coords
 VIDEO_TTYOUT	EQU	0Eh	; AL=char, BH=display page
 
+MODE_CO80	equ	03h
+MODE_MONO	equ	07h
+
 ;
 ; INT_FDC (Floppy Disk Controller) and INT_HDC (Hard Disk Controller) functions
 ;
