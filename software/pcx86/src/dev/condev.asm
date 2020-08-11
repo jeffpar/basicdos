@@ -87,6 +87,7 @@ CTSIG		equ	'C'
 
 CTSTAT_BORDER	equ	01h	; context has border
 CTSTAT_ADAPTER	equ	02h	; context is using alternate adapter
+CTSTAT_SKIPMODE	equ	04h	; set to skip the mode set for the adapter
 CTSTAT_INPUT	equ	40h	; context is waiting for input
 CTSTAT_PAUSED	equ	80h	; context is paused (triggered by CTRLS hotkey)
 
@@ -550,13 +551,16 @@ dco1:	mov	ds,ax
 	mov	[ct_focus],ax
 ;
 ; Inserting the new context at the head of the chain (ct_head) is the
-; simplest way to update the chain, but we prefer to keep the contexts
+; simplest way to update the chain, but we prefer to chain the contexts
 ; in the order they were created, for more natural context switching.
 ;
 ;	xchg	[ct_head],ax
 ;	mov	ds:[CT_NEXT],ax
 ;
-dco2:	mov	di,offset ct_head
+dco2:	mov	ds:[CT_NEXT],0
+	mov	ds:[CT_STATUS],bh
+	sub	si,si			; no CURTYPE yet
+	mov	di,offset ct_head
 	push	cs
 	pop	es
 dco2a:	mov	ax,es:[di]		; ES:DI -> next context segment
@@ -564,11 +568,17 @@ dco2a:	mov	ax,es:[di]		; ES:DI -> next context segment
 	jz	dco2b
 	mov	es,ax
 	mov	di,offset CT_NEXT
+;
+; Since we're stepping through every context, this is a good opportunity
+; to see if any of them were for a second adapter; if so, then set the
+; SKIPMODE bit (in BH only) to try to avoid another (unnecessary) mode set.
+;
+	test	es:[di].CT_STATUS,CTSTAT_ADAPTER
+	jz	dco2a
+	or	bh,CTSTAT_SKIPMODE
+	mov	si,es:[CT_DEFTYPE]	; grab the default CURTYPE as well
 	jmp	dco2a
 dco2b:	mov	es:[di],ds
-
-	mov	ds:[CT_NEXT],0
-	mov	ds:[CT_STATUS],bh
 ;
 ; Set context dimensions (CL,CH) and position (DL,DH), and then determine
 ; cursor minimums and maximums from the context size.
@@ -631,18 +641,23 @@ dco2b:	mov	es:[di],ds
 	je	dco3
 	mov	al,MODE_CO80
 dco3:	mov	bl,al			; BL = new video mode
+	test	bh,CTSTAT_SKIPMODE	; do we really need to set the mode?
+	jnz	dco3a			; no
 	xchg	[EQUIP_FLAG],cx
 	mov	ah,VIDEO_SETMODE
 	int	INT_VIDEO
 	xchg	[EQUIP_FLAG],cx
-	pop	ax
+dco3a:	pop	ax
 
 dco4:	mov	ds:[CT_PORT],dx
 	mov	ds:[CT_EQUIP],cx
 	mov	ds:[CT_MODE],bl
 	mov	ds:[CT_SCREEN].SEG,ax
+	xchg	ax,si
+	test	ax,ax
+	jnz	dco4a
 	call	update_curtype
-	mov	ds:[CT_CURTYPE],ax
+dco4a:	mov	ds:[CT_CURTYPE],ax
 	mov	ds:[CT_DEFTYPE],ax
 
 	push	bx
@@ -659,7 +674,6 @@ dco4:	mov	ds:[CT_PORT],dx
 	mov	ds,[ct_focus]
 	call	update_biosdata
 	pop	ds
-
 dco5:	clc
 ;
 ; At the moment, the only possible error is a failure to allocate memory.
