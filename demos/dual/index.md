@@ -14,6 +14,11 @@ machines:
 The machine below is configured with both MDA and CGA adapters, each
 connected to its own monitor.
 
+Other dual-monitor configurations include:
+
+  - [Dual Monitor Development Machine](dev/)
+  - [Dual Monitor Multiple Session Demo](multi/)
+
 In this demo, BASIC-DOS has been configured for two sessions, with each
 session assigned to its own monitor.  At first glance, it might appear there
 are two machines running, but it really is just a single IBM PC running two
@@ -34,6 +39,3 @@ a means of testing BASIC-DOS with different memory sizes.  And in any case,
 partitioning memory would not be a good strategy.
 
 {% include machine.html id="ibm5150" %}
-
-BASIC-DOS development was performed on this PC XT [Development Machine](../dev/).
-A [Dual Monitor Development Machine](dev/) is available, too.
