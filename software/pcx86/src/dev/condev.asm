@@ -1917,6 +1917,8 @@ DEFPROC	write_curpos
 	call	get_curpos		; BX = screen offset for CURPOS
 	mov	dx,ds:[CT_PORT]
 	ASSERT	Z,<cmp dh,03h>
+	cmp	dl,0B4h			; monochrome adapter?
+	je	wcp3			; yes, don't worry about horz retrace
 	add	dl,6			; DX = status port
 wcp1:	in	al,dx
 	test	al,01h
@@ -1925,7 +1927,7 @@ wcp1:	in	al,dx
 wcp2:	in	al,dx
 	test	al,01h
 	jz	wcp2			; loop until we're INSIDE horz retrace
-	mov	al,cl
+wcp3:	mov	al,cl
 	mov	es:[di+bx],ax		; "write" the character and attributes
 	sti
 	pop	dx

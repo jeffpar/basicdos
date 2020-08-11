@@ -3,7 +3,7 @@
 Warning: no stack segment
 
  Start  Stop   Length Name                   Class
- 00000H 00978H 00979H CODE                   CODE
+ 00000H 0097DH 0097EH CODE                   CODE
  00980H 0098FH 00010H DATA                   DATA
 
  Origin   Group
@@ -24,7 +24,7 @@ Warning: no stack segment
  0000:0385       DDCON_CLOSE
  0000:00F1       DDCON_GETLEN
  0000:00E8       DDCON_GETPOS
- 0000:091B       DDCON_INIT
+ 0000:0920       DDCON_INIT
  0000:03DF       DDCON_INT09
  0000:0488       DDCON_INT10
  0000:04AE       DDCON_INT29
@@ -72,8 +72,8 @@ Warning: no stack segment
  0000:009A       WAIT_PTR
  0000:0858       WRITE_CHAR
  0000:0863       WRITE_CONTEXT
- 0000:08F7       WRITE_CRTC16
- 0000:0906       WRITE_CRTC8
+ 0000:08FC       WRITE_CRTC16
+ 0000:090B       WRITE_CRTC8
  0000:08CA       WRITE_CURPOS
 
   Address         Publics by Value
@@ -139,6 +139,6 @@ Warning: no stack segment
  0000:0858       WRITE_CHAR
  0000:0863       WRITE_CONTEXT
  0000:08CA       WRITE_CURPOS
- 0000:08F7       WRITE_CRTC16
- 0000:0906       WRITE_CRTC8
- 0000:091B       DDCON_INIT
+ 0000:08FC       WRITE_CRTC16
+ 0000:090B       WRITE_CRTC8
+ 0000:0920       DDCON_INIT
