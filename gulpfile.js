@@ -51,6 +51,17 @@ let disks = {
         "./software/pcx86/src/gwb/obj/GWB.EXE",
         "./software/pcx86/src/util/obj/SYMDEB.EXE"
     ],
+    "BASIC-DOS5": [
+        "./software/pcx86/src/dev/obj/IBMBIO.COM",
+        "./software/pcx86/src/dos/obj/IBMDOS.COM",
+        "./software/pcx86/src/cmd/obj/COMMAND.COM",
+        "./software/pcx86/src/cfg/config5/CONFIG.SYS",
+        "./software/pcx86/src/util/obj/PRIMES.EXE",
+        "./software/pcx86/src/util/obj/SLEEP.COM",
+        "./software/pcx86/src/util/obj/TESTS.COM",
+        "./software/pcx86/src/gwb/obj/GWB.EXE",
+        "./software/pcx86/src/util/obj/SYMDEB.EXE"
+    ],
     "BDS-BOOT": [
         "./software/pcx86/src/boot/boot.asm",
         "./software/pcx86/src/boot/wboot.asm",

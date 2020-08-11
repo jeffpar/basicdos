@@ -1,3 +1,4 @@
+REM Demonstration of two 80-columns sessions
 MEMSIZE=64
 FILES=20
 CONSOLE=CON:80,16,0,0,1

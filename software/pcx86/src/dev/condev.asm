@@ -80,9 +80,9 @@ CT_SCREEN	dd	?	; 18h: eg, B800:00A2h with full-screen border
 CT_BUFFER	dd	?	; 1Ch: used only for background contexts
 CT_BUFLEN	dw	?	; 20h: eg, 4000 for full-screen 25*80*2 buffer
 CT_COLOR	dw	?	; 22h: fill (LO) and border (HI) attributes
-CT_CURTYPE	dw	?	; 24h: cursor type
+CT_CURTYPE	dw	?	; 24h: current cursor type
+CT_DEFTYPE	dw	?	; 26h: default cursor type
 CONTEXT		ends
-
 CTSIG		equ	'C'
 
 CTSTAT_BORDER	equ	01h	; context has border
@@ -297,33 +297,26 @@ ENDPROC	ddcon_movcur
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_setins
-	push	es
-	sub	ax,ax
-	mov	es,ax
-	ASSUME	ES:BIOS
-	mov	ax,ds
-	cmp	ax,[ct_focus]		; does this context have focus?
-	jne	dsi2			; no, leave cursor alone
-	mov	ax,[CURSOR_MODE]
+	mov	ax,ds:[CT_DEFTYPE]
 	ror	cl,1			; move CL bit 0 to bit 7 (and carry)
 	jnc	dsi1
 	and	ah,0E0h
-dsi1:	xchg	bx,ax			; BX = new values
-	mov	ah,CRTC_CURTOP		; AH = 6845 register #
-	call	write_crtc16		; write them
+dsi1:	mov	ds:[CT_CURTYPE],ax
+	mov	ax,ds
+	cmp	ax,[ct_focus]		; does this context have focus?
+	jne	dsi2			; no, leave cursor alone
+	call	set_curtype		; update CT_CURTYPE
 ;
-; We don't mirror the cursor scanline changes in CURSOR_MODE, because we
-; want to restore the original values from CURSOR_MODE when insert mode ends.
+; Toggle INS_STATE (80h) in KB_FLAG to reflect the requested insert state.
 ;
-; However, we do toggle INS_STATE (80h) in KB_FLAG, to avoid any unanticipated
-; keyboard BIOS side-effects; we rely almost entirely on the BIOS for keyboard
-; processing, whereas we rely very little on the BIOS for screen updates
-; (scroll calls and dual monitor mode sets are currently the main exceptions).
-;
-dsi2:	mov	dl,[KB_FLAG]
+dsi2:	push	es
+	sub	ax,ax
+	mov	es,ax
+	ASSUME	ES:BIOS
+	mov	dl,[KB_FLAG]
 	mov	al,dl
 	and	al,7Fh
-	or	al,cl
+	or	al,cl			; CL should be 00h or 80h, from above
 	mov	[KB_FLAG],al		; update keyboard insert mode
 	rol	dl,1
 	and	dx,1
@@ -360,7 +353,7 @@ dcs1:	call	scroll
 	cmp	cl,100
 	jne	dcs9
 	mov	dx,ds:[CT_CURMIN]
-	call	update_curpos
+	call	update_cursor
 dcs9:	ret
 ENDPROC	ddcon_scroll
 
@@ -633,6 +626,7 @@ dco4:	mov	ds:[CT_PORT],dx
 	mov	ds:[CT_SCREEN].SEG,ax
 	call	update_curtype
 	mov	ds:[CT_CURTYPE],ax
+	mov	ds:[CT_DEFTYPE],ax
 
 	push	bx
 	call	draw_border		; draw the context's border, if any
@@ -1364,7 +1358,7 @@ mc2a:	cmp	dl,ds:[CT_CURMAX].LO
 	jge	mc8
 	inc	dh
 
-	DEFLBL	update_curpos,near
+	DEFLBL	update_cursor,near
 mc8:	mov	ds:[CT_CURPOS],dx
 	mov	ax,ds
 	cmp	ax,[ct_focus]		; does this context have focus?
@@ -1502,6 +1496,46 @@ ENDPROC	scroll
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; set_curtype
+;
+; Sets the hardware cursor to the current type (ie, shape).
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Modifies:
+;	AX, BX, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	set_curtype
+	mov	bx,ds:[CT_CURTYPE]	; BX = new values
+	mov	ah,CRTC_CURTOP		; AH = 6845 register #
+	jmp	write_crtc16		; write them
+ENDPROC	set_curtype
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; show_cursor
+;
+; Wrapper for draw_cursor and set_curtype (used when switching focus).
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	show_cursor
+	call	draw_cursor
+	jmp	set_curtype
+ENDPROC	show_cursor
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; switch_focus
 ;
 ; Switch focus to the next console context in our chain.
@@ -1533,14 +1567,7 @@ DEFPROC	switch_focus
 	push	si
 	push	di
 	push	ds
-;
-; Not sure that calling DOS_UTL_LOCK is strictly necessary, but it feels
-; like a good idea while we're 1) switching which context has focus, and 2)
-; redrawing the borders of the outgoing and incoming contexts.
-;
-; And it gives us an excuse to test the new LOCK/UNLOCK APIs.
-;
-	mov	ax,DOS_UTL_LOCK
+	mov	ax,DOS_UTL_LOCK		; lock the current session
 	int	21h
 	push	es
 	jcxz	sf8			; nothing to do
@@ -1554,13 +1581,13 @@ sf1:	mov	cx,[ct_head]
 	je	sf8			; nothing to do
 sf2:	xchg	cx,[ct_focus]
 	mov	ds,cx
+	int 3
 	call	update_context
 	call	draw_border		; redraw the border and hide
 	call	hide_cursor		; the cursor of the outgoing context
 	mov	ds,[ct_focus]
-	call	draw_border		; redraw the broder and show
-	call	draw_cursor		; the cursor of the incoming context
-	call	update_biosdata
+	call	draw_border		; redraw the border and show
+	call	show_cursor		; the cursor of the incoming context
 sf8:	pop	es
 	mov	ax,DOS_UTL_UNLOCK
 	int	21h
@@ -1642,9 +1669,9 @@ DEFPROC	update_biosdata
 	mov	[ADDR_6845],ax
 	mov	ax,ds:[CT_CURTYPE]
 	mov	[CURSOR_MODE],ax
-	call	ddcon_getpos
-	sub	dx,ds:[CT_CONPOS]
-	mov	[CURSOR_POSN],dx
+	mov	ax,ds:[CT_CURPOS]	; AX = cursor pos within context
+	add	ax,ds:[CT_CONPOS]	; add context pos to get screen pos
+	mov	[CURSOR_POSN],ax
 	pop	es
 	ret
 ENDPROC	update_biosdata
@@ -1681,7 +1708,6 @@ DEFPROC	update_context
 	mov	ds:[CT_CURTYPE],ax
 	mov	ax,[CURSOR_POSN]
 	sub	ax,ds:[CT_CONPOS]
-	add	ax,ds:[CT_CURMIN]
 	mov	ds:[CT_CURPOS],ax
 	pop	es
 	ret
@@ -1691,7 +1717,7 @@ ENDPROC	update_context
 ;
 ; update_curtype
 ;
-; Due to a bug in the original IBM PC (5150) BIOS, the cursor's top and
+; Due to a bug in the original IBM PC (5150) BIOS, the initial cursor top and
 ; bottom scan lines are stored in the high and low *nibbles* of CURSOR_MODE.LO,
 ; instead of the high and low *bytes* of CURSOR_MODE.  Here's the buggy code:
 ;
@@ -1699,8 +1725,8 @@ ENDPROC	update_context
 ;
 ; So, we'll check for that combo (ie, 67h low, 00h high) and compensate.
 ;
-; What's worse is that the same values (6,7) are stored in CURSOR_MODE for the
-; MDA as well, even though the MDA's default values are different (11,12);
+; What's worse is that the same initial values (6,7) are stored in CURSOR_MODE
+; for the MDA as well, even though the MDA's defaults are different (11,12),
 ; and this behavior seems to be true regardless of BIOS revision.  Bummer.
 ;
 ; Inputs:
@@ -1825,7 +1851,7 @@ wclf:	call	draw_linefeed		; emulate a LINEFEED
 
 wc7:	call	draw_char		; draw character (CL) at CURPOS (DL,DH)
 
-wc8:	call	update_curpos		; set CURPOS to (DL,DH)
+wc8:	call	update_cursor		; set CURPOS to (DL,DH)
 
 wc9:	pop	es
 	pop	ds

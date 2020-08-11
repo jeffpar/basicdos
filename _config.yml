@@ -19,9 +19,9 @@ exclude:
   - CNAME
   - Gemfile
   - Gemfile.lock
-  - .history
-  - "**/archive"
   - gulpfile.js
-  - node_modules
   - "package*.json"
+  - "**/archive"
   - "**/src"
+  - /.history
+  - /node_modules
