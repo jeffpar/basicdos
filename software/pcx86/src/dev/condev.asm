@@ -548,9 +548,26 @@ dco1:	mov	ds,ax
 	cmp	[ct_focus],0
 	jne	dco2
 	mov	[ct_focus],ax
+;
+; Inserting the new context at the head of the chain (ct_head) is the
+; simplest way to update the chain, but we prefer to keep the contexts
+; in the order they were created, for more natural context switching.
+;
+;	xchg	[ct_head],ax
+;	mov	ds:[CT_NEXT],ax
+;
+dco2:	mov	di,offset ct_head
+	push	cs
+	pop	es
+dco2a:	mov	ax,es:[di]		; ES:DI -> next context segment
+	test	ax,ax
+	jz	dco2b
+	mov	es,ax
+	mov	di,offset CT_NEXT
+	jmp	dco2a
+dco2b:	mov	es:[di],ds
 
-dco2:	xchg	[ct_head],ax
-	mov	ds:[CT_NEXT],ax
+	mov	ds:[CT_NEXT],0
 	mov	ds:[CT_STATUS],bh
 ;
 ; Set context dimensions (CL,CH) and position (DL,DH), and then determine
@@ -1581,8 +1598,7 @@ sf1:	mov	cx,[ct_head]
 	je	sf8			; nothing to do
 sf2:	xchg	cx,[ct_focus]
 	mov	ds,cx
-	int 3
-	call	update_context
+;	call	update_context
 	call	draw_border		; redraw the border and hide
 	call	hide_cursor		; the cursor of the outgoing context
 	mov	ds,[ct_focus]
