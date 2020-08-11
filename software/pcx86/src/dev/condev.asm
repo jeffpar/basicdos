@@ -50,6 +50,8 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFWORD	frame_seg,0
 	DEFBYTE	max_rows,25	; TODO: use this for something...
 	DEFBYTE	max_cols,80	; TODO: set to correct value in ddcon_init
+	DEFBYTE	bios_lock,0	; non-zero if BIOS lock in effect
+	DEFBYTE	req_switch,0	; non-zero if a context switch is requested
 
 	DEFPTR	kbd_int,0	; original keyboard hardware interrupt handler
 	DEFPTR	video_int,0	; original video services interrupt handler
@@ -74,9 +76,9 @@ CT_PORT		dw	?	; 12h: eg, 3D4h
 CT_MODE		db	?	; 14h: active video mode (see MODE_*)
 CT_PADDING	db	?	; 15h
 CT_SCROFF	dw	?	; 16h: eg, 2000 (offset of off-screen memory)
-CT_SCREEN	dd	?	; 18h: eg, B800:00A2h
+CT_SCREEN	dd	?	; 18h: eg, B800:00A2h with full-screen border
 CT_BUFFER	dd	?	; 1Ch: used only for background contexts
-CT_BUFLEN	dw	?	; 20h: eg, 4000 for a full-screen 25*80*2 buffer
+CT_BUFLEN	dw	?	; 20h: eg, 4000 for full-screen 25*80*2 buffer
 CT_COLOR	dw	?	; 22h: fill (LO) and border (HI) attributes
 CT_CURTYPE	dw	?	; 24h: cursor type
 CONTEXT		ends
@@ -477,13 +479,13 @@ ENDPROC	ddcon_write
 ;
 ;	[device]:[cols],[rows],[x],[y],[border],[adapter]
 ;
-; where [device] is "CON" (otherwise you wouldn't be here), [cols] is number of
-; columns (up to 80), [rows] is number of rows (up to 25), [x] and [y] are the
-; top-left row and col of the context, [border] is 1 for a border or 0 for none,
-; and [adapter] is the adapter #, in case there is more than one video adapter
-; (adapter 0 is the default).
+; where [device] is "CON" (otherwise you wouldn't be here), [cols] is number
+; of columns (up to 80), [rows] is number of rows (up to 25), [x] and [y] are
+; the top-left row and col of the context, [border] is 1 for a border or 0 for
+; none, and [adapter] is the adapter #, in case there is more than one video
+; adapter (adapter 0 is the default).
 ;
-; Obviously, future hardware (imagine an ENHANCED Graphics Adapter, for example)
+; Obviously future hardware (imagine an ENHANCED Graphics Adapter, for example)
 ; will be able to support more rows and other features, but we're designing
 ; exclusively for the MDA and CGA for now.
 ;
@@ -638,15 +640,13 @@ dco4:	mov	ds:[CT_PORT],dx
 	call	scroll			; clear the context's interior
 	pop	bx
 
-	test	bh,CTSTAT_ADAPTER	; is new context on alternate adapter?
-	jz	dco5			; no
-	mov	ax,ds			; yes
+	mov	ax,ds
 	cmp	ax,[ct_focus]		; does new context have focus?
-	je	dco5			; yes, we're done
+	je	dco5			; yes
 	call	hide_cursor		; no, so hide cursor
 	push	ds			; and restore BIOS with data from focus
 	mov	ds,[ct_focus]
-	call	update_adapter
+	call	update_biosdata
 	pop	ds
 
 dco5:	clc
@@ -679,7 +679,7 @@ DEFPROC	ddcon_close
 	jcxz	dcc8			; no context
 	cmp	[ct_focus],cx
 	jne	dcc0
-	call	focus_next
+	call	switch_focus
 	ASSERT	NZ,<cmp [ct_focus],cx>
 ;
 ; Remove the context from our chain
@@ -879,6 +879,14 @@ DEFPROC	ddcon_int10,far
 ;
 	push	ax
 	push	bp
+;
+; We increment bios_lock here for the same reason we do so in scroll: if a
+; CONSOLE context switch is allowed to occur in the middle of certain INT 10h
+; operations, inconsistencies can arise.  In particular, if the active adapter
+; (in EQUIP_FLAG) is changed in the middle of a scroll, the original adapter's
+; state may not be properly restored.
+;
+	inc	[bios_lock]
 	pushf
 	call	[video_int]
 	mov	bp,sp
@@ -891,7 +899,8 @@ DEFPROC	ddcon_int10,far
 	ASSUME	ES:BIOS
 	call	update_curtype
 	pop	es
-i10x:	pop	bp
+i10x:	call	unlock_bios
+	pop	bp
 	pop	ax
 	iret
 ENDPROC	ddcon_int10
@@ -1020,7 +1029,7 @@ ch0:	mov	ax,[BIOS_DATA][bx]	; AL = char code, AH = scan code
 	cmp	ax,(SCAN_TAB SHL 8)
 	jne	ch1
 	mov	[BUFFER_TAIL],bx	; update tail, consuming the character
-	call	focus_next
+	call	switch_focus
 	jmp	short ch8
 ;
 ; Do PAUSE checks next, because only CTRLS toggles PAUSE, and everything else
@@ -1207,7 +1216,7 @@ DEFPROC	draw_cursor
 	shr	bx,1			; screen offset to cell offset
 	mov	ah,CRTC_CURHI		; AH = 6845 CURSOR ADDR (HI) register
 	call	write_crtc16		; update cursor position using BX
-	call	update_bios
+	call	update_biosdata
 	ret
 ENDPROC	draw_cursor
 
@@ -1262,70 +1271,6 @@ DEFPROC	draw_vertpair
 	xchg	dl,bl
 	ret
 ENDPROC	draw_vertpair
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; focus_next
-;
-; Switch focus to the next console context in our chain.
-;
-; This is called from check_hotkey, which is called at interrupt time,
-; so be careful to not modify more registers than the caller has preserved.
-;
-; Inputs:
-;	CX = focus context, if any
-;
-; Modifies:
-;	AX, BX, DX
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	focus_next
-	push	cx
-	push	si
-	push	di
-	push	ds
-;
-; Not sure that calling DOS_UTL_LOCK is strictly necessary, but it feels
-; like a good idea while we're 1) switching which context has focus, and 2)
-; redrawing the borders of the outgoing and incoming contexts.
-;
-; And it gives us an excuse to test the new LOCK/UNLOCK APIs.
-;
-	mov	ax,DOS_UTL_LOCK
-	int	21h
-	push	es
-	jcxz	tf9			; nothing to do
-	mov	ds,cx
-	ASSERT	STRUCT,ds:[0],CT
-	mov	cx,ds:[CT_NEXT]
-	jcxz	tf1
-	jmp	short tf2
-tf1:	mov	cx,[ct_head]
-	cmp	cx,[ct_focus]
-	je	tf9			; nothing to do
-tf2:	xchg	cx,[ct_focus]
-	mov	ds,cx
-	mov	al,ds:[CT_STATUS]
-	push	ax
-	call	draw_border		; redraw the border and hide
-	call	hide_cursor		; the cursor of the outgoing context
-	mov	ds,[ct_focus]
-	call	draw_border		; redraw the broder and show
-	call	draw_cursor		; the cursor of the incoming context
-	pop	ax
-	xor	al,ds:[CT_STATUS]
-	test	al,CTSTAT_ADAPTER	; does CTSTAT_ADAPTER differ between
-	jz	tf9			; outgoing and incoming context?
-	call	update_adapter		; call update_adapter if so
-tf9:	pop	es
-	mov	ax,DOS_UTL_UNLOCK
-	int	21h
-	pop	ds
-	pop	di
-	pop	si
-	pop	cx
-	ret
-ENDPROC	focus_next
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1515,6 +1460,7 @@ ENDPROC	pull_kbd
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	scroll
+	inc	[bios_lock]
 	mov	ax,DOS_UTL_LOCK		; we must lock to ensure EQUIP_FLAG
 	int	21h			; remains stable for the duration
 	push	bx
@@ -1550,17 +1496,124 @@ scr2:	mov	bh,ds:[CT_COLOR].LO	; BH = fill attributes
 	pop	bx
 	mov	ax,DOS_UTL_UNLOCK
 	int	21h
+	call	unlock_bios
 	ret
 ENDPROC	scroll
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; update_adapter
+; switch_focus
 ;
-; Called whenever the BIOS adapter state needs to be updated to reflect
-; current context state.  For now, we're going to call this only when the
-; CTSTAT_ADAPTER bit between the "entering focus" and "leaving focus" contexts
-; differs (see focus_next).
+; Switch focus to the next console context in our chain.
+;
+; This is called from check_hotkey, which is called at interrupt time,
+; as well as whenever the bios_lock is released and a pending switch request
+; has been made.
+;
+; Inputs:
+;	CX = focus context, if any
+;
+; Modifies:
+;	AX, BX, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	switch_focus
+;
+; If bios_lock is set, then the switch must be deferred until the lock
+; is released.  It may well be that there's no context to switch TO, but
+; it's cheaper to defer now and ask questions later.
+;
+	cmp	[bios_lock],0
+	je	switch_now
+	inc	[req_switch]
+	jmp	short sf9
+
+	DEFLBL	switch_now,near
+	push	cx
+	push	si
+	push	di
+	push	ds
+;
+; Not sure that calling DOS_UTL_LOCK is strictly necessary, but it feels
+; like a good idea while we're 1) switching which context has focus, and 2)
+; redrawing the borders of the outgoing and incoming contexts.
+;
+; And it gives us an excuse to test the new LOCK/UNLOCK APIs.
+;
+	mov	ax,DOS_UTL_LOCK
+	int	21h
+	push	es
+	jcxz	sf8			; nothing to do
+	mov	ds,cx
+	ASSERT	STRUCT,ds:[0],CT
+	mov	cx,ds:[CT_NEXT]
+	jcxz	sf1
+	jmp	short sf2
+sf1:	mov	cx,[ct_head]
+	cmp	cx,[ct_focus]
+	je	sf8			; nothing to do
+sf2:	xchg	cx,[ct_focus]
+	mov	ds,cx
+	call	update_context
+	call	draw_border		; redraw the border and hide
+	call	hide_cursor		; the cursor of the outgoing context
+	mov	ds,[ct_focus]
+	call	draw_border		; redraw the broder and show
+	call	draw_cursor		; the cursor of the incoming context
+	call	update_biosdata
+sf8:	pop	es
+	mov	ax,DOS_UTL_UNLOCK
+	int	21h
+	pop	ds
+	pop	di
+	pop	si
+	pop	cx
+sf9:	ret
+ENDPROC	switch_focus
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; unlock_bios
+;
+; While locking is as simple as incrementing bios_lock, unlocking requires
+; decrementing, checking for an unlocked (zero) state, and then checking for
+; any pending switch requests.
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	unlock_bios
+	dec	[bios_lock]		; BIOS unlocked now?
+	jnz	ub9			; no
+	mov	al,0
+	xchg	[req_switch],al
+	test	al,al			; pending switch request?
+	jz	ub9			; no
+	push	bx
+	push	cx
+	push	dx
+	mov	cx,[ct_focus]		; CX = context
+	call	switch_now		; perform the requested switch now
+	pop	dx
+	pop	cx
+	pop	bx
+ub9:	ret
+ENDPROC	unlock_bios
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; update_biosdata
+;
+; Called whenever the BIOS data needs to be updated to reflect current
+; context state.  It should be called for an incoming context when switching
+; contexts (see switch_focus).
 ;
 ; Worst case, this function might need to be called on every session switch.
 ; However, as discussed in scb_switch, calling drivers on every context switch
@@ -1573,10 +1626,11 @@ ENDPROC	scroll
 ;	None
 ;
 ; Modifies:
-;	AX, ES
+;	AX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	update_adapter
+DEFPROC	update_biosdata
+	push	es
 	sub	ax,ax
 	mov	es,ax
 	ASSUME	ES:BIOS
@@ -1588,39 +1642,50 @@ DEFPROC	update_adapter
 	mov	[ADDR_6845],ax
 	mov	ax,ds:[CT_CURTYPE]
 	mov	[CURSOR_MODE],ax
-	ret
-ENDPROC	update_adapter
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; update_bios
-;
-; Called whenever the BIOS state should be sync'ed with the hardware state.
-;
-; Currently, the only state we sync is the context's cursor position with the
-; BIOS' CURSOR_POSN.
-;
-; Inputs:
-;	DS = CONSOLE context
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	DX
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	update_bios
-	push	es
-	sub	dx,dx
-	mov	es,dx
-	ASSUME	ES:BIOS
 	call	ddcon_getpos
 	sub	dx,ds:[CT_CONPOS]
 	mov	[CURSOR_POSN],dx
 	pop	es
 	ret
-ENDPROC	update_bios
+ENDPROC	update_biosdata
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; update_context
+;
+; This is the inverse of update_biosdata.  It should be called for an outgoing
+; context when switching contexts (see switch_focus).
+;
+; Worst case, this function might need to be called on every session switch.
+; However, as discussed in scb_switch, calling drivers on every context switch
+; would require some new services and generate a lot of undesirable overhead.
+;
+; Inputs:
+;	DS = CONSOLE context (outgoing)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	update_context
+	push	es
+	sub	ax,ax
+	mov	es,ax
+	ASSUME	ES:BIOS
+	mov	al,[CRT_MODE]
+	mov	ds:[CT_MODE],al
+	mov	ax,[CURSOR_MODE]
+	mov	ds:[CT_CURTYPE],ax
+	mov	ax,[CURSOR_POSN]
+	sub	ax,ds:[CT_CONPOS]
+	add	ax,ds:[CT_CURMIN]
+	mov	ds:[CT_CURPOS],ax
+	pop	es
+	ret
+ENDPROC	update_context
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
