@@ -40,8 +40,10 @@ CODE    SEGMENT
 ;	Any
 ;
 DEFPROC	genImmediate
-	LOCVAR	nOps,word
+	LOCVAR	nArgs,word
 	LOCVAR	nValues,word
+	LOCVAR	nParens,word
+	LOCVAR	prevOp,word
 	LOCVAR	errCode,word
 	LOCVAR	pCode,dword
 	LOCVAR	pTokBufEnd,word
@@ -131,7 +133,10 @@ ENDPROC	genColor
 ;
 ; genExprNum
 ;
-; Generate code for a numeric expression.
+; Generate code for a numeric expression.  To help catch errors up front,
+; we maintain a count of values queued, and compare that to the number of
+; arguments expected by all the operators.  For example, after the first
+; binary operator, 2 args are expected, but
 ;
 ; Inputs:
 ;	BX = offset of next TOKLET
@@ -147,37 +152,85 @@ ENDPROC	genColor
 ;
 DEFPROC	genExprNum
 	sub	dx,dx
-	mov	[nOps],dx		; count operators
-	mov	[nValues],dx		; and values queued
+	mov	[nArgs],1		; count of expected arguments
+	mov	[nValues],dx		; count of values queued
+	mov	[nParens],dx		; count of open parentheses
+	mov	[prevOp],dx		; previous operator (none)
 	push	dx			; push end-of-operators marker (zero)
 
 gn1:	mov	al,CLS_NUM OR CLS_SYM OR CLS_VAR
 	call	getNextToken
-	jbe	gn8
-
+	jbe	gn5x
+;
+; We check for operators first, for no particular reason -- but since we do,
+; we must FIRST check for any predefined CLS_VAR keywords that must be
+; converted to an operator symbol.
+;
 	cmp	ah,CLS_SYM		; operator?
-	jne	gn2			; no
-	call	validateOp		; AL = operator to validate
-	jc	gn8			; error
-	inc	[nOps]
+	jne	gn6			; no
+;
+; Before we try to validate the operator, we need to remap binary minus to
+; unary minus.  So, if we have a minus, and the previous token is undefined,
+; or another operator, or a left paren, it's unary.  Ditto for unary plus.
+; The internal identifiers for unary '-' and '+' are 'N' and 'P'.
+;
+	mov	ah,'N'
+	cmp	al,'-'
+	je	gn2a
+	mov	ah,'P'
+	cmp	al,'+'
+	jne	gn3
+gn2a:	mov	cx,[prevOp]
+	jcxz	gn2b
+	cmp	cl,')'			; do NOT remap if preceded by ')'
+	je	gn3
+	cmp	cl,-1			; another operator (including '(')?
+	je	gn3			; no
+
+gn2b:	mov	al,ah			; remap the operator
+
+gn3:	call	validateOp		; AL = operator to validate
+	jc	gn5x			; error
+	mov	[prevOp],ax
+	sub	si,si
+	jcxz	gn5			; handle no-arg operators below
+	dec	cx
+	add	[nArgs],cx
 	mov	si,dx			; SI = current evaluator
 ;
 ; Operator is valid, so peek at the operator stack and pop if the top
 ; operator precedence >= current operator precedence.
 ;
-gn1a:	pop	cx			; "peek"
-	cmp	ch,ah			; top precedence >= current?
-	jb	gn1b			; no
-	pop	dx			; yes, pop the evaluator as well
-	GENCALL	dx			; and generate call
-	jmp	gn1a
-gn1b:	push	cx			; "unpeek"
-	push	si			; push current evaluator
+gn4:	pop	dx			; "peek"
+	cmp	dh,ah			; top precedence > current?
+	jb	gn4b			; no
+	ja	gn4a
+	jcxz	gn4b			; don't pop unary operator yet
+gn4a:	pop	cx			; yes, pop the evaluator as well
+	jcxz	gn1			; no evaluator (eg, left paren)
+	GENCALL	cx			; and generate call
+	jmp	gn4
+gn4b:	push	dx			; "unpeek"
+gn4c:	push	si			; push current evaluator
 	push	ax			; push current operator/precedence
 	jmp	gn1			; next token
-
-gn2:	cmp	ah,CLS_VAR		; variable?
-	jne	gn4			; no
+;
+; Special operators handled here.
+;
+gn5:	cmp	al,'('
+	jne	gn5a
+	inc	[nParens]
+	jmp	gn4c
+gn5a:	ASSERT	Z,<cmp al,')'>
+	dec	[nParens]
+	jmp	gn4
+gn5x:	jmp	short gn8
+;
+; Non-operator cases: distinguish between variable and number.
+;
+gn6:	mov	byte ptr [prevOp],-1	; invalidate prevOp (intervening token)
+	cmp	ah,CLS_VAR		; variable?
+	jne	gn7			; no
 	call	findVar			; go find it
 ;
 ; We don't care if findVar succeeds or not, because even if it fails,
@@ -185,33 +238,33 @@ gn2:	cmp	ah,CLS_VAR		; variable?
 ;
 ; TODO: Check AH for the var type and act accordingly.
 ;
-gn3:	call	genPushVarLong
+	call	genPushVarLong
 
-gn3a:	inc	[nValues]		; count another queued value
+gn6b:	inc	[nValues]		; count another queued value
 	jmp	gn1
 ;
 ; Number must be a constant, and although CX contains its exact length,
 ; DOS_UTL_ATOI32 doesn't actually care; it simply converts characters until
 ; it reaches a non-digit.
 ;
-gn4:	push	bx
+gn7:	push	bx
 	mov	bl,10			; BL = 10 (default base)
 	test	ah,CLS_OCT OR CLS_HEX	; octal or hex value?
-	jz	gn5			; no
+	jz	gn7a			; no
 	inc	si			; yes, skip leading ampersand
 	shl	ah,1
 	shl	ah,1
 	shl	ah,1
 	mov	bl,ah			; BL = 8 or 16 (new base)
 	cmp	byte ptr [si],'9'	; is next character a digit?
-	jbe	gn5			; yes
+	jbe	gn7a			; yes
 	inc	si			; no, skip it (must be 'O' or 'H')
-gn5:	mov	ax,DOS_UTL_ATOI32	; DS:SI -> numeric string
+gn7a:	mov	ax,DOS_UTL_ATOI32	; DS:SI -> numeric string
 	int	21h
 	xchg	cx,ax			; save result in DX:CX
 	pop	bx
 
-gn6:	mov	al,OP_MOV_AX
+	mov	al,OP_MOV_AX
 	stosb
 	xchg	ax,dx
 	stosw
@@ -220,28 +273,27 @@ gn6:	mov	al,OP_MOV_AX
 	xchg	ax,cx
 	stosw
 	PUSH_AX
-	jmp	gn3a			; go count another queued value
+	jmp	gn6b			; go count another queued value
 ;
 ; Time to start popping the operator stack.
 ;
-gn8:	pop	ax
-	test	ax,ax
-	jz	gn9			; all done
-	pop	dx			; DX = evaluator
-	GENCALL	dx
+gn8:	pop	cx
+	jcxz	gn9			; all done
+	pop	cx			; CX = evaluator
+	jcxz	gn8
+	GENCALL	cx
 	jmp	gn8
 ;
-; Verify the number of expected operands matches the number of values queued.
+; Verify the number of values queued matches the number of expected arguments.
 ;
 gn9:	mov	ax,[nValues]
-	test	ax,ax
-	jz	gn10			; return ZF set if no values
-	mov	ax,[nOps]
-	inc	ax
-	cmp	ax,[nValues]
+	cmp	ax,[nArgs]
 	stc
 	jne	gn10
-	test	ax,ax			; success (both CF and ZF clear)
+	cmp	[nParens],0
+	stc
+	jne	gn10
+	test	ax,ax			; return ZF set if no values
 gn10:	ret
 ENDPROC	genExprNum
 
@@ -459,28 +511,26 @@ ENDPROC	genPrint
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genCallDX
+; genCallCX
 ;
 ; Inputs:
-;	CS:DX -> function to call
+;	CS:CX -> function to call
 ;
 ; Outputs:
 ;	None
 ;
 ; Modifies:
-;	DX, DI
+;	AX, CX, DI
 ;
-DEFPROC	genCallDX
-	push	ax
+DEFPROC	genCallCX
 	mov	al,OP_CALLF
 	stosb
-	xchg	ax,dx
+	xchg	ax,cx
 	stosw
 	mov	ax,cs
 	stosw
-	pop	ax
 	ret
-ENDPROC	genCallDX
+ENDPROC	genCallCX
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -614,10 +664,10 @@ ENDPROC	peekNextToken
 ;	AL = operator
 ;
 ; Outputs:
-;	If carry clear, AL = op, AH = precedence, DX = evaluator
+;	If carry clear, AL = op, AH = precedence, CX = args, DX = evaluator
 ;
 ; Modifies:
-;	AX, DX
+;	AX, CX, DX
 ;
 DEFPROC	validateOp
 	mov	ah,al			; AH = operator to validate
@@ -633,6 +683,9 @@ vo1:	lodsb
 	jmp	vo1
 vo8:	lodsb				; AL = precedence, AH = operator
 	xchg	dx,ax
+	lodsb
+	cbw
+	xchg	cx,ax
 	lodsw				; AX = evaluator
 	xchg	dx,ax			; DX = evaluator, AX = op/prec
 vo9:	xchg	al,ah			; AL = operator, AH = precedence

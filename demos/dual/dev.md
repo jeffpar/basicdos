@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS Dual Monitor Development Machine
+title: BASIC-DOS Development Machine with Dual Monitors
 permalink: /maplebar/dual/dev/
 machines:
   - id: ibm5160

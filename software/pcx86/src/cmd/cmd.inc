@@ -122,6 +122,7 @@ SBLKLEN		equ	2048		; default strs block size
 OPDEF		struc
 OP_CHR		db	?		; ASCII character
 OP_PREC		db	?		; precedence value
+OP_ARGS		db	?		; # of operator arguments
 OP_EVAL		dw	?		; offset of evaluator
 OPDEF		ends
 
@@ -129,10 +130,10 @@ OPDEF		ends
 ; Code generation macros
 ;
 GENCALL	macro	func
-	IFDIF	<func>,<dx>
-	mov	dx,offset func
+	IFDIF	<func>,<cx>
+	mov	cx,offset func
 	ENDIF
-	call	genCallDX
+	call	genCallCX
 	endm
 ;
 ; PUSHSTR copies the string at DS:SI with length CL into the code segment,
