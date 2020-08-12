@@ -143,6 +143,7 @@ ENDPROC	genColor
 ;	ES:DI -> next unused location in code block
 ;
 ; Outputs:
+;	AX = last result from getNextToken
 ;	CF clear if successful, set if error
 ;	ZF clear if expression existed, set if not
 ;	ES:DI -> next unused location in code block
@@ -286,14 +287,14 @@ gn8:	pop	cx
 ;
 ; Verify the number of values queued matches the number of expected arguments.
 ;
-gn9:	mov	ax,[nValues]
-	cmp	ax,[nArgs]
+gn9:	mov	cx,[nValues]
+	cmp	cx,[nArgs]
 	stc
 	jne	gn10
 	cmp	[nParens],0
 	stc
 	jne	gn10
-	test	ax,ax			; return ZF set if no values
+	test	cx,cx			; return ZF set if no values
 gn10:	ret
 ENDPROC	genExprNum
 
@@ -490,10 +491,10 @@ gp4a:	PUSH_AX
 ; Argument paths rejoin here to determine spacing requirements.
 ;
 gp5:	mov	ah,VAR_SEMI
-	cmp	cl,';'			; was the last symbol a semi-colon?
+	cmp	al,';'			; was the last symbol a semi-colon?
 	je	gp6			; yes
 	mov	ah,VAR_COMMA
-	cmp	cl,','			; how about a comma?
+	cmp	al,','			; how about a comma?
 	jne	gp8			; no
 
 gp6:	mov	al,OP_MOV_AL		; "MOV AL,[VAR_SEMI or VAR_COMMA]"
@@ -520,15 +521,17 @@ ENDPROC	genPrint
 ;	None
 ;
 ; Modifies:
-;	AX, CX, DI
+;	CX, DI
 ;
 DEFPROC	genCallCX
+	push	ax
 	mov	al,OP_CALLF
 	stosb
 	xchg	ax,cx
 	stosw
 	mov	ax,cs
 	stosw
+	pop	ax
 	ret
 ENDPROC	genCallCX
 
