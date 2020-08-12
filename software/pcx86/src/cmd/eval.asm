@@ -18,10 +18,10 @@ CODE    SEGMENT
 ; evalAddLong
 ;
 ; Inputs:
-;	2 32-bit values on stack (popped)
+;	2 32-bit args on stack (popped)
 ;
 ; Outputs:
-;	1 32-bit sum on stack (pushed)
+;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
 ;	AX
@@ -43,13 +43,13 @@ ENDPROC	evalAddLong
 ; evalSubLong
 ;
 ; Inputs:
-;	2 32-bit values on stack (popped)
+;	2 32-bit args on stack (popped)
 ;
 ; Outputs:
-;	1 32-bit difference on stack (pushed)
+;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX, BX, CX, DX, DI
+;	AX
 ;
 DEFPROC	evalSubLong,FAR
 	ARGVAR	subA,dword
@@ -68,10 +68,10 @@ ENDPROC	evalSubLong
 ; evalMulLong
 ;
 ; Inputs:
-;	2 32-bit values on stack (popped)
+;	2 32-bit args on stack (popped)
 ;
 ; Outputs:
-;	1 32-bit product on stack (pushed)
+;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
 ;	AX, CX, DX
@@ -104,10 +104,10 @@ ENDPROC	evalMulLong
 ; evalDivLong
 ;
 ; Inputs:
-;	2 32-bit values on stack (popped)
+;	2 32-bit args on stack (popped)
 ;
 ; Outputs:
-;	1 32-bit quotient on stack (pushed)
+;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI
@@ -176,7 +176,7 @@ dl3:	dec	[bitCount]		; repeat
 ;
 ; We can use the DIV instruction, since the divisor is no more than 16 bits;
 ; we use two divides to avoid quotient overflow.  And since the remainder must
-; be less than the divisor, it cannot be more than 16 bits either.
+; be less than the divisor, it can't be more than 16 bits either.
 ;
 ; This is also the only path that has to worry about divide-by-zero, since zero
 ; is a 16-bit divisor.
@@ -219,10 +219,10 @@ ENDPROC	evalDivLong
 ; evalModLong
 ;
 ; Inputs:
-;	2 32-bit values on stack (popped)
+;	2 32-bit args on stack (popped)
 ;
 ; Outputs:
-;	1 32-bit remainder on stack (pushed)
+;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
 ;	AX, CX, DX
@@ -231,6 +231,337 @@ DEFPROC	evalModLong,FAR
 	mov	al,1
 	jmp	evalDivModLong
 ENDPROC	evalModLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; evalExpLong
+;
+; Since the long version of exponentiation supports only long base (expA) and
+; power (expB) args, there are the following power cases to consider:
+;
+;	<0, =0, =1, power-of-two, and anything else
+;
+; If <0, we negate the power, calculate the result, and return 1/result;
+; however, note that the long division of 1 by any possible result here can
+; only produce 1, -1, or 0|underflow.
+;
+; If =0, return 1.
+;
+; If =1, return base.
+;
+; If >1, return base if base=0 or base=1; if base=-1, then return 1 if power
+; is even or -1 if power is odd.
+;
+; If power-of-two, return base shifted left power times, which may result in
+; zero|overflow (guaranteed if power >= 32).
+;
+; Otherwise, we can perform repeated multiplication until power is exhausted
+; or the result becomes zero|overflow; will never take more than 32 iterations.
+;
+; Inputs:
+;	2 32-bit args on stack (popped)
+;
+; Outputs:
+;	1 32-bit result on stack (pushed)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	evalExpLong,FAR
+	ARGVAR	expA,dword
+	ARGVAR	expB,dword
+	ENTER
+	;...
+	LEAVE
+	ret	4
+ENDPROC	evalExpLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; evalNegLong
+;
+; Inputs:
+;	1 32-bit arg on stack (popped)
+;
+; Outputs:
+;	1 32-bit result on stack (pushed)
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	evalNegLong,FAR
+	ARGVAR	negA,dword
+	ENTER
+	neg 	[negA].SEG
+	neg	[negA].OFF
+	sbb	[negA].SEG,0
+	LEAVE
+	ret
+ENDPROC	evalNegLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; evalNotLong
+;
+; Inputs:
+;	1 32-bit arg on stack (popped)
+;
+; Outputs:
+;	1 32-bit result on stack (pushed)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	evalNotLong,FAR
+	ARGVAR	notA,dword
+	ENTER
+	not 	[negA].SEG
+	not	[negA].OFF
+	LEAVE
+	ret
+ENDPROC	evalNotLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; evalImpLong
+;
+; Inputs:
+;	2 32-bit args on stack (popped)
+;
+; Outputs:
+;	1 32-bit result on stack (pushed)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	evalImpLong,FAR
+	ARGVAR	impA,dword
+	ARGVAR	impB,dword
+	ENTER
+	;...
+	LEAVE
+	ret	4
+ENDPROC	evalImpLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; evalEqvLong
+;
+; Inputs:
+;	2 32-bit args on stack (popped)
+;
+; Outputs:
+;	1 32-bit result on stack (pushed)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	evalEqvLong,FAR
+	ARGVAR	eqvA,dword
+	ARGVAR	eqvB,dword
+	ENTER
+	;...
+	LEAVE
+	ret	4
+ENDPROC	evalEqvLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; evalXorLong
+;
+; Inputs:
+;	2 32-bit args on stack (popped)
+;
+; Outputs:
+;	1 32-bit result on stack (pushed)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	evalXorLong,FAR
+	ARGVAR	xorA,dword
+	ARGVAR	xorB,dword
+	ENTER
+	;...
+	LEAVE
+	ret	4
+ENDPROC	evalXorLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; evalOrLong
+;
+; Inputs:
+;	2 32-bit args on stack (popped)
+;
+; Outputs:
+;	1 32-bit result on stack (pushed)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	evalOrLong,FAR
+	ARGVAR	orA,dword
+	ARGVAR	orB,dword
+	ENTER
+	;...
+	LEAVE
+	ret	4
+ENDPROC	evalOrLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; evalAndLong
+;
+; Inputs:
+;	2 32-bit args on stack (popped)
+;
+; Outputs:
+;	1 32-bit result on stack (pushed)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	evalAndLong,FAR
+	ARGVAR	andA,dword
+	ARGVAR	andB,dword
+	ENTER
+	;...
+	LEAVE
+	ret	4
+ENDPROC	evalAndLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; evalEQLong
+;
+; Inputs:
+;	2 32-bit args on stack (popped)
+;
+; Outputs:
+;	1 32-bit result on stack (pushed)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	evalEQLong,FAR
+	ARGVAR	eqA,dword
+	ARGVAR	eqB,dword
+	ENTER
+	;...
+	LEAVE
+	ret	4
+ENDPROC	evalEQLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; evalNELong
+;
+; Inputs:
+;	2 32-bit args on stack (popped)
+;
+; Outputs:
+;	1 32-bit result on stack (pushed)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	evalNELong,FAR
+	ARGVAR	neA,dword
+	ARGVAR	neB,dword
+	ENTER
+	;...
+	LEAVE
+	ret	4
+ENDPROC	evalNELong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; evalLTLong
+;
+; Inputs:
+;	2 32-bit args on stack (popped)
+;
+; Outputs:
+;	1 32-bit result on stack (pushed)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	evalLTLong,FAR
+	ARGVAR	ltA,dword
+	ARGVAR	ltB,dword
+	ENTER
+	;...
+	LEAVE
+	ret	4
+ENDPROC	evalLTLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; evalGTLong
+;
+; Inputs:
+;	2 32-bit args on stack (popped)
+;
+; Outputs:
+;	1 32-bit result on stack (pushed)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	evalGTLong,FAR
+	ARGVAR	gtA,dword
+	ARGVAR	gtB,dword
+	ENTER
+	;...
+	LEAVE
+	ret	4
+ENDPROC	evalGTLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; evalLELong
+;
+; Inputs:
+;	2 32-bit args on stack (popped)
+;
+; Outputs:
+;	1 32-bit result on stack (pushed)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	evalLELong,FAR
+	ARGVAR	leA,dword
+	ARGVAR	leB,dword
+	ENTER
+	;...
+	LEAVE
+	ret	4
+ENDPROC	evalLELong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; evalGELong
+;
+; Inputs:
+;	2 32-bit args on stack (popped)
+;
+; Outputs:
+;	1 32-bit result on stack (pushed)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	evalGELong,FAR
+	ARGVAR	geA,dword
+	ARGVAR	geB,dword
+	ENTER
+	;...
+	LEAVE
+	ret	4
+ENDPROC	evalGELong
 
 CODE	ENDS
 
