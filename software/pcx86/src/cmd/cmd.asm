@@ -21,9 +21,16 @@ CODE    SEGMENT
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 
 DEFPROC	main
+	LOCVAR	pArg,word
+	LOCVAR	lenArg,word
+	LOCVAR	pHandler,word
+	LOCVAR	swDigits,word
+	LOCVAR	swLetters,dword
+	ENTER
 	lea	bx,[heap]
 	mov	[bx].ORIG_SP.SEG,ss
 	mov	[bx].ORIG_SP.OFF,sp
+	mov	[bx].ORIG_BP,bp
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	mov	dx,offset ctrlc
 	int	21h
@@ -51,6 +58,10 @@ m1:	push	cs
 	int	21h
 	PRINTF	<13,10>
 
+	sub	ax,ax
+	mov	[swDigits],ax
+	mov	[swLetters].OFF,ax
+	mov	[swLetters].SEG,ax
 	mov	si,dx
 	add	si,offset INP_BUF
 	lea	di,[bx].TOKENBUF
@@ -63,11 +74,19 @@ m1:	push	cs
 ; Before trying to ID the token, let's copy it to the FILENAME buffer,
 ; upper-case it, and null-terminate it.
 ;
-	GETTOKEN 1,m1		; DS:SI -> token #1, CX = length
+	mov	dh,1
+	call	getToken	; DS:SI -> token #1, CX = length
+	jc	m1
 	lea	di,[bx].FILENAME
-	push	cx
+	mov	ax,size FILENAME
+	cmp	cx,ax
+	jb	m1a
+	xchg	cx,ax
+m1a:	push	cx
 	push	di
 	rep	movsb
+	mov	al,0
+	stosb
 	pop	si		; DS:SI -> copy of token in FILENAME
 	pop	cx
 	mov	ax,DOS_UTL_STRUPR
@@ -76,7 +95,8 @@ m1:	push	cs
 	mov	ax,DOS_UTL_TOKID
 	int	21h		; identify the token
 	jc	m2
-	jmp	m9		; token ID in AX, token data in DX
+	mov	[pHandler],dx
+	jmp	m9		; token ID in AX
 ;
 ; First token is unrecognized, so we'll assume it's either a drive
 ; specification or a program name.
@@ -96,7 +116,9 @@ m2:	mov	dx,si		; DS:DX -> FILENAME
 	jnc	m2b		; success
 m2a:	PRINTF	<"Drive %c: invalid",13,10>,cx
 m2b:	jmp	m1
-
+;
+; Not a drive letter, so presumably a program name.
+;
 m3:	mov	di,dx		; ES:DI -> FILENAME
 	mov	al,'.'
 	push	cx
@@ -182,34 +204,40 @@ m8:	PRINTF	<"Error loading %s: %d",13,10>,dx,ax
 ; We arrive here if the token was recognized.  The token ID determines
 ; the level of additional parsing required, if any.
 ;
-m9:	cmp	ax,20		; token ID < 20?
-	jb	m9a		; yes, token is not part of "the language"
+m9:	lea	di,[bx].TOKENBUF; DS:DI -> token buffer
+	cmp	ax,20		; token ID < 20?
+	jb	m10		; yes, token is not part of "the language"
 ;
 ; The token is for a recognized keyword, so retokenize the line.
 ;
 	lea	si,[bx].INPUTBUF.INP_BUF
-	lea	di,[bx].TOKENBUF; DS:DI -> token buffer
 	mov	ax,DOS_UTL_TOKIFY2
 	int	21h
-	call	genImmediate
+	call	genImmediate	; DX = code generator (from 1st token)
 	jmp	m1
-
-m9a:	cmp	ax,10		; token ID < 10?
-	jb	m10		; yes, command does not use a filespec
 ;
-; The token is for a command that expects a filespec, so fix up token #2.
-; If there is no token #2, then we use the defaults loaded in to SI and CX.
+; For non-BASIC commands, check for any switches first and record any that
+; we find prior to the first non-switch token.
+;
+m10:	call	parseSW		; parse all switch tokens, if any
+
+	cmp	ax,10		; token ID < 10?
+	jb	m20		; yes, command does not use a filespec
+;
+; The token is for a command that expects a filespec, so fix up the next
+; token (index in DH).  If there is no token, then we use the defaults loaded
+; into SI and CX.
 ;
 	mov	si,offset DIR_DEF
 	mov	cx,DIR_DEF_LEN - 1
-	lea	di,[bx].TOKENBUF
-	GETTOKEN 2,m10		; DS:SI -> token #2, CX = length
-	lea	di,[bx].FILENAME
+	call	getToken	; DH = next token # (from parseSW)
+	jc	m20
+	lea	di,[bx].FILENAME; DS:SI -> token, CX = length
 	mov	ax,size FILENAME-1
 	cmp	cx,ax
-	jbe	m9b
+	jbe	m19
 	xchg	cx,ax
-m9b:	push	cx
+m19:	push	cx
 	push	di
 	rep	movsb
 	mov	byte ptr es:[di],0
@@ -218,9 +246,137 @@ m9b:	push	cx
 	mov	ax,DOS_UTL_STRUPR
 	int	21h		; DS:SI -> upper-case token, CX = length
 
-m10:	call	dx		; call token handler
+m20:	mov	[pArg],si
+	mov	[lenArg],cx
+	call	[pHandler]	; call token handler
 	jmp	m1
 ENDPROC	main
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; parseSW
+;
+; Switch tokens start with the system's SWITCHAR and may contain 1 or more
+; alphanumeric characters, each of which is converted to a bit in either
+; swDigits or swLetters.
+;
+; Actually, alphanumeric is not entirely true anymore: in swDigits, we now
+; capture anything from '0' to '?'.
+;
+; Inputs:
+;	DS:DI -> BUF_TOKEN
+;
+; Outputs:
+;	DH = # of first non-switch token
+;
+; Modifies:
+;	CX, DX
+;
+DEFPROC	parseSW
+	push	ax
+	push	bx
+	mov	ax,DOS_MSC_GETSWC
+	int	21h		; DL = SWITCHAR
+	mov	dh,2		; start with the second token
+ps1:	call	getToken
+	jc	ps8
+	lodsb
+	cmp	al,dl		; starts with SWITCHAR?
+	jne	ps8		; no
+ps2:	lodsb			; consume option chars
+	cmp	al,'a'		; until we reach a non-alphanumeric char
+	jb	ps3
+	sub	al,20h
+ps3:	sub	al,'0'
+	jb	ps7		; not alphanumeric
+	cmp	al,16
+	jae	ps5
+	lea	bx,[swDigits]
+ps4:	mov	cl,al
+	mov	ax,1
+	shl	ax,cl
+	mov	[bx],ax		; set corresponding bit in the word at [bx]
+	jmp	ps2		; go back for more option chars
+ps5:	sub	al,'A'-'0'
+	jb	ps7		; not alphanumeric
+	cmp	al,16		; in the range of the first 16?
+	jae	ps6		; no
+	lea	bx,[swLetters].OFF
+	jmp	ps4
+ps6:	sub	al,16
+	cmp	al,10		; in the range of the next 10?
+	jae	ps7		; no
+	lea	bx,[swLetters].SEG
+	jmp	ps4
+ps7:	inc	dh		; advance to next token
+	jmp	ps1
+ps8:	pop	bx
+	pop	ax
+	ret
+ENDPROC	parseSW
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; checkSW
+;
+; Inputs:
+;	AL = letter or digit (or special characters, such as ':' and '?')
+;
+; Outputs:
+;	ZF clear if switch letter present, set otherwise
+;
+; Modifies:
+;	AX, CX
+;
+DEFPROC	checkSW
+	push	bx
+	lea	bx,[swDigits]
+	sub	al,'A'
+	jae	cs1
+	add	al,'A'-'0'
+	jmp	short cs2
+cs1:	lea	bx,[swLetters]
+	cmp	al,16
+	jb	cs2
+	sub	al,16
+	add	bx,2
+cs2:	xchg	cx,ax
+	mov	ax,1
+	shl	ax,cl
+	test	[bx],ax
+	pop	bx
+	ret
+ENDPROC	checkSW
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getToken
+;
+; Inputs:
+;	DH = token # (1-based)
+;	DS:DI -> BUF_TOKEN
+;
+; Outputs:
+;	If carry clear, DS:SI -> token, CX = length
+;
+; Modifies:
+;	CX, SI
+;
+DEFPROC	getToken
+	cmp	[di].TOK_CNT,dh
+	jb	gt9
+	push	bx
+	mov	bl,dh
+	mov	bh,0
+	dec	bx		; BX = 0-based index
+	add	bx,bx
+	add	bx,bx		; BX = BX * 4 (size TOKLET)
+	mov	si,[di+bx].TOK_BUF.TOKLET_OFF
+	mov	cl,[di+bx].TOK_BUF.TOKLET_LEN
+	mov	ch,0
+	pop	bx
+gt9:	ret
+ENDPROC	getToken
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -242,6 +398,7 @@ DEFPROC	ctrlc,FAR
 	cli
 	mov	ss,[bx].ORIG_SP.SEG
 	mov	sp,[bx].ORIG_SP.OFF
+	mov	bp,[bx].ORIG_BP
 	sti
 	jmp	m1
 ENDPROC	ctrlc
@@ -406,12 +563,21 @@ dir7:	xchg	ax,dx		; AX = total # of clusters used
 	xchg	ax,bp		; AX = total # of clusters free
 	mul	bx		; DX:AX = total # bytes free
 	PRINTF	<"%25ld bytes free",13,10>,ax,dx
-	jmp	short dir9
+;
+; For testing purposes: if /L is specified, display the directory continuously.
+;
+	pop	bp
+	mov	al,'L'
+	call	checkSW
+	jz	dir9
+	mov	si,[pArg]
+	mov	cx,[lenArg]
+	jmp	cmdDir
 
 dir8:	PRINTF	<"Unable to find %s (%d)",13,10>,si,ax
+	pop	bp
 
-dir9:	pop	bp
-	ret
+dir9:	ret
 ENDPROC	cmdDir
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -431,30 +597,6 @@ DEFPROC	cmdExit
 	int	20h		; terminate
 	ret			; unless we can't (ie, if no parent)
 ENDPROC	cmdExit
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; cmdLoop
-;
-; Calls cmdDir in a loop (for "stress testing" purposes only)
-;
-; Inputs:
-;	DS:SI -> filespec (with length CX)
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	Any
-;
-DEFPROC	cmdLoop
-	push	cx
-	push	si
-	call	cmdDir
-	pop	si
-	pop	cx
-	jmp	cmdLoop
-ENDPROC	cmdLoop
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

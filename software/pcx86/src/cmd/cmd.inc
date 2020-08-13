@@ -37,7 +37,7 @@ DATA	ENDS
 DEFTOKENS macro tbl,val
 DATA	SEGMENT
 	public	tbl
-tbl	dw	val
+tbl	TOKTBL	<val,size TOKDEF>
 DATA	ENDS
 	endm
 
@@ -45,14 +45,6 @@ NUMTOKENS macro tbl,val
 DATA	SEGMENT
 val = ((offset $ - offset tbl) - 2) / (size TOKDEF)
 DATA	ENDS
-	endm
-
-GETTOKEN macro	num,err			;; get token num (1-N)
-	cmp	[di].TOK_CNT,num	;; at least num tokens?
-	jb	err			;; no
-	mov	si,[di+(num-1)*(size TOKLET)].TOK_BUF.TOKLET_OFF
-	mov	cl,[di+(num-1)*(size TOKLET)].TOK_BUF.TOKLET_LEN
-	mov	ch,0
 	endm
 
 PUSHNUM	macro	val
@@ -186,9 +178,10 @@ PUSH_DS_DX macro
 ;
 CMD_HEAP	struc
 ORIG_SP		dd	?
+ORIG_BP		dw	?
 INPUTBUF	db	size BUF_INPUT dup (?)
 TOKENBUF	db	size BUF_TOKEN dup (?)
-FILENAME	db	16 dup (?)	; filename template
+FILENAME	db	16 dup (?)	; filename template ("X:XXXXXXXX.XXX")
 EXECDATA	db	size EPB dup (?); Exec Parameter Block
 STACK		dw	512 dup (?)
 CMD_HEAP	ends

@@ -96,6 +96,8 @@ DOS_DSK_GETDPB	equ	32h	; get DPB (DS:BX, AL=FFh if invalid drive)
 DOS_MSC_CTRLC	equ	33h	; get/set CTRLC state
 DOS_MSC_GETVEC	equ	35h	; get vector (AL) addr (ES:BX)
 DOS_DSK_GETINFO	equ	36h	; get disk info; eg, available clusters (BX)
+DOS_MSC_GETSWC	equ   3700h	; get switch char (DL)
+DOS_MSC_SETSWC	equ   3701h	; set switch char (DL)
 DOS_HDL_OPEN	equ	3Dh	; open handle for device/file (DS:DX)
 DOS_HDL_CLOSE	equ	3Eh	; close handle (BX)
 DOS_HDL_READ	equ	3Fh	; read (CX) bytes at (DS:DX) with handle (BX)
@@ -451,6 +453,14 @@ TOKTYPE_GENERIC	equ	1	; generic whitespace parsing only
 ; After DOS_UTL_TOKIFY breaks a string into tokens, use DOS_UTL_TOKID
 ; to identify each token, based on a table of sorted TOKDEF structures.
 ;
+; The table must begin with two bytes: # tokens (255 max) and TOKDEF size.
+;
+TOKTBL		struc
+TOKTBL_NUM	db	?	; # of tokens in table
+TOKTBL_SIZE	db	?	; default is size TOKDEF
+				; sorted array of TOKDEF structures follows
+TOKTBL		ends
+
 TOKDEF		struc
 TOKDEF_ID	db	?	; ID of token
 TOKDEF_LEN	db	?	; length of token text

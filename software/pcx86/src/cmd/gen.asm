@@ -46,6 +46,7 @@ DEFPROC	genImmediate
 	LOCVAR	prevOp,word
 	LOCVAR	errCode,word
 	LOCVAR	pCode,dword
+	LOCVAR	pGenerator,word
 	LOCVAR	pTokBufEnd,word
 	ENTER
 	mov	[errCode],0
@@ -58,6 +59,7 @@ DEFPROC	genImmediate
 	add	ax,bx
 	mov	[pTokBufEnd],ax
 	add	bx,size TOKLET		; skip 1st token (already parsed)
+	mov	[pGenerator],dx
 
 	call	allocVars
 	jc	gie
@@ -67,7 +69,7 @@ DEFPROC	genImmediate
 	mov	[pCode].OFF,di
 	mov	[pCode].SEG,es
 
-gi1:	call	dx			; generate code
+gi1:	call	[pGenerator]		; generate code
 	jc	gi7			; error
 	call	getNextToken
 	jc	gi6
