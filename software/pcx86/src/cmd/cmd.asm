@@ -72,8 +72,8 @@ m1:	push	cs
 	pop	cx
 	mov	ax,DOS_UTL_STRUPR
 	int	21h		; DS:SI -> upper-case token, CX = length
+	lea	dx,[CMD_TOKENS]
 	mov	ax,DOS_UTL_TOKID
-	lea	di,[CMD_TOKENS]
 	int	21h		; identify the token
 	jc	m2
 	jmp	m9		; token ID in AX, token data in DX
