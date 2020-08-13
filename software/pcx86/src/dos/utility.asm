@@ -672,9 +672,9 @@ ENDPROC	tok_classify
 ; Inputs:
 ;	REG_CX = token length
 ;	REG_DS:REG_SI -> token
-;	REG_DS:REG_DI -> TOKDEFs
+;	REG_DS:REG_DX -> TOKDEFs
 ; Outputs:
-;	If carry clear, AX = token ID (TOKDEF_ID), DX = token data (TOKDEF_DATA)
+;	If carry clear, AX = ID (TOKDEF_ID), DX = data (TOKDEF_DATA)
 ;	If carry set, token not found
 ;
 ; Modifies:
@@ -684,7 +684,8 @@ DEFPROC	utl_tokid,DOS
 	sti
 	and	[bp].REG_FL,NOT FL_CARRY
 	mov	ds,[bp].REG_DS		; DS:SI -> token (length CX)
-	mov	es,[bp].REG_DS		; ES:DI -> TOKDEFs
+	mov	di,dx
+	mov	es,[bp].REG_DS		; ES:DI -> TOKDEFs (from DS:DX)
 	ASSUME	DS:NOTHING, ES:NOTHING
 
 	push	bp

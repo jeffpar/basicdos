@@ -138,7 +138,7 @@ defines two full-screen border-less contexts, each assigned to a different
 monitor.  In this case, the presence of a blinking cursor is your sole visual
 cue as to which context has focus.
 
-I suspect dual-monitor IBM PCs were *never* this cool!
+I suspect dual-monitor IBM PCs were *never* this cool.
 
 ### The COM Driver
 

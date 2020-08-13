@@ -237,11 +237,11 @@ ENDPROC	evalModLong
 ; evalExpLong
 ;
 ; Since the long version of exponentiation supports only long base (expA) and
-; power (expB) args, there are the following power cases to consider:
+; power (expB) args, we can consider these discrete power cases:
 ;
 ;	<0, =0, =1, power-of-two, and anything else
 ;
-; If <0, we negate the power, calculate the result, and return 1/result;
+; If <0, negate the power, calculate the result, and return 1/result;
 ; however, note that the long division of 1 by any possible result here can
 ; only produce 1, -1, or 0|underflow.
 ;
@@ -256,7 +256,7 @@ ENDPROC	evalModLong
 ; zero|overflow (guaranteed if power >= 32).
 ;
 ; Otherwise, we can perform repeated multiplication until power is exhausted
-; or the result becomes zero|overflow; will never take more than 32 iterations.
+; or the result becomes zero|overflow; can never take more than 32 iterations.
 ;
 ; Inputs:
 ;	2 32-bit args on stack (popped)
@@ -382,7 +382,10 @@ DEFPROC	evalXorLong,FAR
 	ARGVAR	xorA,dword
 	ARGVAR	xorB,dword
 	ENTER
-	;...
+	mov	ax,[xorB].OFF
+	xor	[xorA].OFF,ax
+	mov	ax,[xorB].SEG
+	xor	[xorA].SEG,ax
 	LEAVE
 	ret	4
 ENDPROC	evalXorLong
@@ -404,7 +407,10 @@ DEFPROC	evalOrLong,FAR
 	ARGVAR	orA,dword
 	ARGVAR	orB,dword
 	ENTER
-	;...
+	mov	ax,[orB].OFF
+	xor	[orA].OFF,ax
+	mov	ax,[orB].SEG
+	xor	[orA].SEG,ax
 	LEAVE
 	ret	4
 ENDPROC	evalOrLong
@@ -426,7 +432,10 @@ DEFPROC	evalAndLong,FAR
 	ARGVAR	andA,dword
 	ARGVAR	andB,dword
 	ENTER
-	;...
+	mov	ax,[andB].OFF
+	xor	[andA].OFF,ax
+	mov	ax,[andB].SEG
+	xor	[andA].SEG,ax
 	LEAVE
 	ret	4
 ENDPROC	evalAndLong

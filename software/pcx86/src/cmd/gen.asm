@@ -17,7 +17,7 @@ CODE    SEGMENT
 	EXTERNS	<appendStr,setStr>,near
 
 	EXTERNS	<segVars>,word
-	EXTERNS	<CMD_TOKENS>,word
+	EXTERNS	<CMD_TOKENS,KEYOP_TOKENS>,word
 	EXTERNS	<OPDEFS>,byte
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
@@ -71,11 +71,9 @@ gi1:	call	dx			; generate code
 	jc	gi7			; error
 	call	getNextToken
 	jc	gi6
-	push	di
+	lea	dx,[CMD_TOKENS]
 	mov	ax,DOS_UTL_TOKID
-	lea	di,[CMD_TOKENS]
 	int	21h			; identify the token
-	pop	di
 	jc	gi7			; can't identify
 	jmp	gi1
 
@@ -134,9 +132,8 @@ ENDPROC	genColor
 ; genExprNum
 ;
 ; Generate code for a numeric expression.  To help catch errors up front,
-; we maintain a count of values queued, and compare that to the number of
-; arguments expected by all the operators.  For example, after the first
-; binary operator, 2 args are expected, but
+; we maintain a count of values queued, compare that to the number of arguments
+; expected by all the operators, and also maintain an open parentheses count.
 ;
 ; Inputs:
 ;	BX = offset of next TOKLET
@@ -161,78 +158,24 @@ DEFPROC	genExprNum
 
 gn1:	mov	al,CLS_NUM OR CLS_SYM OR CLS_VAR
 	call	getNextToken
-	jbe	gn5x
+	jbe	gn3x
+	cmp	ah,CLS_SYM
+	je	gn4
 ;
-; We check for operators first, for no particular reason -- but since we do,
-; we must FIRST check for any predefined CLS_VAR keywords that must be
-; converted to an operator symbol.
+; Non-operator cases: distinguish between variables and numbers.
 ;
-	cmp	ah,CLS_SYM		; operator?
-	jne	gn6			; no
-;
-; Before we try to validate the operator, we need to remap binary minus to
-; unary minus.  So, if we have a minus, and the previous token is undefined,
-; or another operator, or a left paren, it's unary.  Ditto for unary plus.
-; The internal identifiers for unary '-' and '+' are 'N' and 'P'.
-;
-	mov	ah,'N'
-	cmp	al,'-'
-	je	gn2a
-	mov	ah,'P'
-	cmp	al,'+'
-	jne	gn3
-gn2a:	mov	cx,[prevOp]
-	jcxz	gn2b
-	cmp	cl,')'			; do NOT remap if preceded by ')'
-	je	gn3
-	cmp	cl,-1			; another operator (including '(')?
-	je	gn3			; no
-
-gn2b:	mov	al,ah			; remap the operator
-
-gn3:	call	validateOp		; AL = operator to validate
-	jc	gn5x			; error
-	mov	[prevOp],ax
-	sub	si,si
-	jcxz	gn5			; handle no-arg operators below
-	dec	cx
-	add	[nArgs],cx
-	mov	si,dx			; SI = current evaluator
-;
-; Operator is valid, so peek at the operator stack and pop if the top
-; operator precedence >= current operator precedence.
-;
-gn4:	pop	dx			; "peek"
-	cmp	dh,ah			; top precedence > current?
-	jb	gn4b			; no
-	ja	gn4a
-	jcxz	gn4b			; don't pop unary operator yet
-gn4a:	pop	cx			; yes, pop the evaluator as well
-	jcxz	gn1			; no evaluator (eg, left paren)
-	GENCALL	cx			; and generate call
-	jmp	gn4
-gn4b:	push	dx			; "unpeek"
-gn4c:	push	si			; push current evaluator
-	push	ax			; push current operator/precedence
-	jmp	gn1			; next token
-;
-; Special operators handled here.
-;
-gn5:	cmp	al,'('
-	jne	gn5a
-	inc	[nParens]
-	jmp	gn4c
-gn5a:	ASSERT	Z,<cmp al,')'>
-	dec	[nParens]
-	jmp	gn4
-gn5x:	jmp	short gn8
-;
-; Non-operator cases: distinguish between variable and number.
-;
-gn6:	mov	byte ptr [prevOp],-1	; invalidate prevOp (intervening token)
+gn2:	mov	byte ptr [prevOp],-1	; invalidate prevOp (intervening token)
 	cmp	ah,CLS_VAR		; variable?
-	jne	gn7			; no
-	call	findVar			; go find it
+	jne	gn3			; no
+;
+; Some tokens initially classified as VAR are really keyword-based operators
+; (eg, 'NOT', 'AND', 'XOR'), so check for those first.
+;
+	mov	dx,offset KEYOP_TOKENS	; see if token is a KEYOP
+	mov	ax,DOS_UTL_TOKID
+	int	21h
+	jnc	gn5
+	call	findVar			; no, check vars next
 ;
 ; We don't care if findVar succeeds or not, because even if it fails,
 ; it returns var type (AH) VAR_LONG with var data (DX) preset to zero.
@@ -241,26 +184,26 @@ gn6:	mov	byte ptr [prevOp],-1	; invalidate prevOp (intervening token)
 ;
 	call	genPushVarLong
 
-gn6b:	inc	[nValues]		; count another queued value
+gn2b:	inc	[nValues]		; count another queued value
 	jmp	gn1
 ;
 ; Number must be a constant, and although CX contains its exact length,
 ; DOS_UTL_ATOI32 doesn't actually care; it simply converts characters until
 ; it reaches a non-digit.
 ;
-gn7:	push	bx
+gn3:	push	bx
 	mov	bl,10			; BL = 10 (default base)
 	test	ah,CLS_OCT OR CLS_HEX	; octal or hex value?
-	jz	gn7a			; no
+	jz	gn3a			; no
 	inc	si			; yes, skip leading ampersand
 	shl	ah,1
 	shl	ah,1
 	shl	ah,1
 	mov	bl,ah			; BL = 8 or 16 (new base)
 	cmp	byte ptr [si],'9'	; is next character a digit?
-	jbe	gn7a			; yes
+	jbe	gn3a			; yes
 	inc	si			; no, skip it (must be 'O' or 'H')
-gn7a:	mov	ax,DOS_UTL_ATOI32	; DS:SI -> numeric string
+gn3a:	mov	ax,DOS_UTL_ATOI32	; DS:SI -> numeric string
 	int	21h
 	xchg	cx,ax			; save result in DX:CX
 	pop	bx
@@ -274,7 +217,64 @@ gn7a:	mov	ax,DOS_UTL_ATOI32	; DS:SI -> numeric string
 	xchg	ax,cx
 	stosw
 	PUSH_AX
-	jmp	gn6b			; go count another queued value
+	jmp	gn2b			; go count another queued value
+gn3x:	jmp	short gn8
+;
+; Before we try to validate the operator, we need to remap binary minus to
+; unary minus.  So, if we have a minus, and the previous token is undefined,
+; or another operator, or a left paren, it's unary.  Ditto for unary plus.
+; The internal identifiers for unary '-' and '+' are 'N' and 'P'.
+;
+gn4:	mov	ah,'N'
+	cmp	al,'-'
+	je	gn4a
+	mov	ah,'P'
+	cmp	al,'+'
+	jne	gn5
+gn4a:	mov	cx,[prevOp]
+	jcxz	gn4b
+	cmp	cl,')'			; do NOT remap if preceded by ')'
+	je	gn5
+	cmp	cl,-1			; another operator (including '(')?
+	je	gn5			; no
+
+gn4b:	mov	al,ah			; remap the operator
+
+gn5:	call	validateOp		; AL = operator to validate
+	jc	gn8			; error
+	mov	[prevOp],ax
+	sub	si,si
+	jcxz	gn7			; handle no-arg operators below
+	dec	cx
+	add	[nArgs],cx
+	mov	si,dx			; SI = current evaluator
+;
+; Operator is valid, so peek at the operator stack and pop if the top
+; operator precedence >= current operator precedence.
+;
+gn6:	pop	dx			; "peek"
+	cmp	dh,ah			; top precedence > current?
+	jb	gn6b			; no
+	ja	gn6a
+	jcxz	gn6b			; don't pop unary operator yet
+gn6a:	pop	cx			; yes, pop the evaluator as well
+	jcxz	gn6d			; no evaluator (eg, left paren)
+	GENCALL	cx			; and generate call
+	jmp	gn6
+gn6b:	push	dx			; "unpeek"
+gn6c:	push	si			; push current evaluator
+	push	ax			; push current operator/precedence
+gn6d:	jmp	gn1			; next token
+;
+; Special operators handled here.
+;
+gn7:	cmp	al,'('
+	jne	gn7a
+	inc	[nParens]
+	jmp	gn6c
+gn7a:	ASSERT	Z,<cmp al,')'>
+	dec	[nParens]
+	jmp	gn6
 ;
 ; Time to start popping the operator stack.
 ;
