@@ -11,7 +11,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<bpb_total,sfh_debug>,byte
+	EXTERNS	<bpb_total,sfh_debug,def_switchar>,byte
 	EXTERNS	<mcb_head,mcb_limit,buf_head,scb_active>,word
 	EXTERNS	<bpb_table,scb_table,sfb_table,clk_ptr>,dword
 	EXTERNS	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>,near
@@ -126,10 +126,18 @@ si3a:	mov	al,0EAh			; DI -> INT_DOSCALL5 * 4
 	mov	ax,ds
 	stosw
 ;
+; Let users override the default switch character '/' (eg, "SWITCHAR=-").
+;
+	mov	si,offset CFG_SWITCHAR
+	call	find_cfg		; look for "SWITCHAR="
+	jc	si3b
+	mov	al,[di]			; grab the character
+	mov	[def_switchar],al	; and update the default for all SCBs
+;
 ; For ease of configuration testing, allow MEMSIZE (eg, MEMSIZE=32) to set a
 ; new memory limit (Kb), assuming we have at least as much memory as specified.
 ;
-	mov	si,offset CFG_MEMSIZE
+si3b:	mov	si,offset CFG_MEMSIZE
 	call	find_cfg		; look for "MEMSIZE="
 	jc	si4
 	xchg	si,di
@@ -736,6 +744,8 @@ ENDPROC	init_table
 CFG_MEMSIZE	db	8,"MEMSIZE="
 		dw	640,16,640
 CFG_SESSIONS	db	9,"SESSIONS="
+		dw	4,4,16
+CFG_SWITCHAR	db	9,"SWITCHAR="
 		dw	4,4,16
 CFG_FILES	db	6,"FILES="
 		dw	20,20,256

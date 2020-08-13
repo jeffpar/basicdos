@@ -450,8 +450,8 @@ ENDPROC	utl_itoa
 ; utl_tokify (AX = 180Bh or 180Ch)
 ;
 ; DOS_UTL_TOKIFY1 (180Bh) performs GENERIC parsing, which means that only
-; tokens separated by whitespace will be returned (and they will all be
-; identified "generically" as CLS_STR).
+; tokens separated by whitespace (or SWITCHAR) will be returned, and they
+; will all be identified "generically" as CLS_STR.
 ;
 ; DOS_UTL_TOKIFY2 (180Ch) performs BASIC parsing, which returns all tokens,
 ; even whitespace sequences (CLS_WHITE).
@@ -470,6 +470,9 @@ ENDPROC	utl_itoa
 DEFPROC	utl_tokify,DOS
 	sti
 	and	[bp].REG_FL,NOT FL_CARRY
+	mov	bx,[scb_active]
+	mov	al,[bx].SCB_SWITCHAR
+	mov	[bp].TMP_AH,al		; TMP_AH = SWITCHAR
 	mov	ds,[bp].REG_DS		; DS:SI -> BUF_INPUT
 	ASSUME	DS:NOTHING		; DS:DI -> BUF_TOKEN
 
@@ -493,7 +496,7 @@ tf2:	lodsb
 	jz	tf6			; yes
 	test	ch,ch			; still priming the pump?
 	jz	tf1			; yes
-	cmp	ah,CLS_SYM		; symbol found? (only happens w/BASIC)
+	cmp	ah,CLS_SYM		; symbol found?
 	je	tf6a			; yes
 	cmp	ah,ch			; any change to classification?
 	je	tf2			; no
@@ -583,7 +586,16 @@ tc2a:	mov	ah,CLS_WHITE
 ;
 tc3:	test	byte ptr [bp].REG_AL,TOKTYPE_GENERIC
 	jz	tc4
-	mov	ah,CLS_STR		; call it a string
+	cmp	al,[bp].TMP_AH		; SWITCHAR?
+	jne	tc3a			; no
+	cmp	ah,CLS_WHITE		; yes, any intervening whitespace?
+	je	tc3a			; yes
+	mov	ah,CLS_SYM		; no, so force a transition
+	ret
+tc3a:	cmp	ch,CLS_SYM		; did we force a transition?
+	jne	tc3b			; no
+	mov	ch,CLS_STR		; yes, revert to string
+tc3b:	mov	ah,CLS_STR		; and call anything else a string
 	ret
 ;
 ; Check for digits next.
@@ -672,9 +684,9 @@ ENDPROC	tok_classify
 ; Inputs:
 ;	REG_CX = token length
 ;	REG_DS:REG_SI -> token
-;	REG_DS:REG_DX -> TOKDEFs
+;	REG_DS:REG_DX -> TOKTBL followed by sorted array of TOKDEFs
 ; Outputs:
-;	If carry clear, AX = ID (TOKDEF_ID), DX = data (TOKDEF_DATA)
+;	If carry clear, AX = ID (TOKDEF_ID), DX = data (TOKDEF_DATA, if any)
 ;	If carry set, token not found
 ;
 ; Modifies:
@@ -685,34 +697,27 @@ DEFPROC	utl_tokid,DOS
 	and	[bp].REG_FL,NOT FL_CARRY
 	mov	ds,[bp].REG_DS		; DS:SI -> token (length CX)
 	mov	di,dx
-	mov	es,[bp].REG_DS		; ES:DI -> TOKDEFs (from DS:DX)
+	mov	es,[bp].REG_DS		; ES:DI -> TOKTBL (from DS:DX)
 	ASSUME	DS:NOTHING, ES:NOTHING
 
-	push	bp
-	sub	bp,bp			; BP = top index
-	mov	dx,[di]			; DX = number of tokens in TOKDEFs
-	add	di,2
+	mov	byte ptr [bp].TMP_BL,0	; TMP_BL = top index
+	mov	dx,[di]			; DL = # TOKDEFs
+					; DH = size of TOKDEF
+	add	di,2			; ES:DI -> 1st TOKDEF
 
 td0:	mov	ax,-1
-	cmp	bp,dx
+	cmp	[bp].TMP_BL,dl		; top index = bottom index?
 	stc
-	je	td9
-	mov	bx,dx
-	add	bx,bp
-	shr	bx,1			; BX = midpoint index
+	je	td10			; yes, no match
+	mov	bl,dl
+	mov	bh,0
+	add	bl,[bp].TMP_BL
+	shr	bx,1			; BL = index of midpoint
 
 	push	bx
-	IF	SIZE TOKDEF EQ 6
-	mov	ax,bx
-	add	bx,bx
-	add	bx,ax
-	add	bx,bx
-	ELSE
-	ASSERT	B,<cmp bl,256>
-	mov	al,size TOKDEF
-	mul	bl
-	mov	bx,ax
-	ENDIF
+	mov	al,dh			; AL = size TOKDEF
+	mul	bl			; BL = index of TOKDEF
+	xchg	bx,ax			; BX = offset of TOKDEF
 	mov	ch,[di+bx].TOKDEF_LEN	; CH = length of current token
 	mov	ah,cl			; CL is saved in AH
 	push	si
@@ -741,13 +746,13 @@ td3:	pop	di
 ;
 ; If carry is set, set the bottom range to BX, otherwise set the top range
 ;
-	pop	bx			; BX = index of token we just tested
+	pop	bx			; BL = index of token we just tested
 	mov	cl,ah			; restore CL from AH
 	jnc	td4
-	mov	dx,bx			; new bottom is middle
+	mov	dl,bl			; new bottom is middle
 	jmp	td0
 td4:	inc	bx
-	mov	bp,bx			; new top is middle + 1
+	mov	[bp].TMP_BL,bl		; new top is middle + 1
 	jmp	td0
 
 td8:	sub	ax,ax			; zero AX (and carry, too)
@@ -755,11 +760,10 @@ td8:	sub	ax,ax			; zero AX (and carry, too)
 	mov	dx,[di+bx].TOKDEF_DATA	; DX = user-defined token data
 	pop	bx			; toss BX from stack
 
-td9:	pop	bp
-	jc	td9a
+td9:	jc	td10
 	mov	[bp].REG_DX,dx
 	mov	[bp].REG_AX,ax
-td9a:	ret
+td10:	ret
 ENDPROC	utl_tokid
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

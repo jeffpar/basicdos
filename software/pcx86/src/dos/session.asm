@@ -24,7 +24,7 @@ DOS	segment word public 'CODE'
 ;
 ; That is, thus far, the extent of our extremely simple scheduler.
 ;
-	EXTERNS	<scb_locked>,byte
+	EXTERNS	<scb_locked,def_switchar>,byte
 	EXTERNS	<scb_active,psp_active,scb_stoked>,word
 	EXTERNS	<scb_table>,dword
 	EXTERNS	<dos_exit,load_program>,near
@@ -127,14 +127,15 @@ ENDPROC	scb_load
 ;	ES:DI = initial stack pointer
 ;
 ; Modifies:
-;	None
+;	AX
 ;
 DEFPROC	scb_init,DOS
 	ASSUME	ES:NOTHING
 	ASSERT	STRUCT,[bx],SCB
 	mov	[bx].SCB_STACK.OFF,di
 	mov	[bx].SCB_STACK.SEG,es
-	mov	[bx].SCB_SWITCHAR,CHR_SLASH
+	mov	al,[def_switchar]
+	mov	[bx].SCB_SWITCHAR,al
 	or	[bx].SCB_STATUS,SCSTAT_LOAD
 	ret
 ENDPROC	scb_init
