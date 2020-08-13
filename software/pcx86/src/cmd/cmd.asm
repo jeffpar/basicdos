@@ -21,6 +21,7 @@ CODE    SEGMENT
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 
 DEFPROC	main
+	LOCVAR	iArg,byte
 	LOCVAR	pArg,word
 	LOCVAR	lenArg,word
 	LOCVAR	pHandler,word
@@ -220,7 +221,6 @@ m9:	lea	di,[bx].TOKENBUF; DS:DI -> token buffer
 ; we find prior to the first non-switch token.
 ;
 m10:	call	parseSW		; parse all switch tokens, if any
-
 	cmp	ax,10		; token ID < 10?
 	jb	m20		; yes, command does not use a filespec
 ;
@@ -230,7 +230,7 @@ m10:	call	parseSW		; parse all switch tokens, if any
 ;
 	mov	si,offset DIR_DEF
 	mov	cx,DIR_DEF_LEN - 1
-	call	getToken	; DH = next token # (from parseSW)
+	call	getToken	; DH = 1st non-switch token (or -1)
 	jc	m20
 	lea	di,[bx].FILENAME; DS:SI -> token, CX = length
 	mov	ax,size FILENAME-1
@@ -267,7 +267,7 @@ ENDPROC	main
 ;	DS:DI -> BUF_TOKEN
 ;
 ; Outputs:
-;	DH = # of first non-switch token
+;	DH = # of first non-switch token (-1 if none)
 ;
 ; Modifies:
 ;	CX, DX
@@ -275,6 +275,7 @@ ENDPROC	main
 DEFPROC	parseSW
 	push	ax
 	push	bx
+	mov	[iArg],-1
 	mov	ax,DOS_MSC_GETSWC
 	int	21h		; DL = SWITCHAR
 	mov	dh,2		; start with the second token
@@ -282,7 +283,9 @@ ps1:	call	getToken
 	jc	ps8
 	lodsb
 	cmp	al,dl		; starts with SWITCHAR?
-	jne	ps8		; no
+	je	ps2		; yes
+	mov	[iArg],dh	; update iArg with first non-switch token
+	jmp	short ps7	; no
 ps2:	lodsb			; consume option chars
 	cmp	al,'a'		; until we reach a non-alphanumeric char
 	jb	ps3
@@ -310,7 +313,8 @@ ps6:	sub	al,16
 	jmp	ps4
 ps7:	inc	dh		; advance to next token
 	jmp	ps1
-ps8:	pop	bx
+ps8:	mov	dh,[iArg]	; DH = first non-switch token (-1 if none)
+	pop	bx
 	pop	ax
 	ret
 ENDPROC	parseSW
