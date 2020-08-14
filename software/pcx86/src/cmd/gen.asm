@@ -167,10 +167,10 @@ gn1:	mov	al,CLS_NUM OR CLS_SYM OR CLS_VAR
 ; Non-operator cases: distinguish between variables and numbers.
 ;
 gn2:	mov	byte ptr [prevOp],-1	; invalidate prevOp (intervening token)
-	cmp	ah,CLS_VAR		; variable?
-	jne	gn3			; no
+	test	ah,CLS_VAR		; variable?
+	jz	gn3			; no
 ;
-; Some tokens initially classified as VAR are really keyword-based operators
+; Some tokens initially classified as VAR are really keyword operators
 ; (eg, 'NOT', 'AND', 'XOR'), so check for those first.
 ;
 	mov	dx,offset KEYOP_TOKENS	; see if token is a KEYOP
@@ -614,35 +614,10 @@ gt1:	mov	si,[bx].TOKLET_OFF
 ; return ZF set (but not carry) to end the caller's token scan.
 ;
 	cmp	ah,CLS_SYM
-	jne	gt2
+	jne	gt8
 	mov	al,[si]
 	cmp	al,':'
-	jne	gt8
-	jmp	short gt9
-;
-; If we're about to return a CLS_VAR, then we also peek at the next token,
-; and if it's CLS_SYM, then check for '%', '!', '#', and '$', and if one of
-; those is present, skip it and update this token's type appropriately.
-;
-gt2:	cmp	ah,CLS_VAR		; returning CLS_VAR?
-	jne	gt8			; no
-	cmp	bx,[pTokBufEnd]		; more tokens?
-	jnb	gt8			; no
-	cmp	[bx].TOKLET_CLS,CLS_SYM	; next token a symbol?
-	jne	gt8			; no
-	mov	al,[si]			; get symbol character
-	cmp	al,'%'
-	jne	gt3
-	mov	ah,VAR_LONG		; default to VAR_LONG for integers
-gt3:	cmp	al,'!'
-	jne	gt4
-	mov	ah,VAR_SINGLE
-gt4:	cmp	al,'#'
-	jne	gt5
-	mov	ah,VAR_DOUBLE
-gt5:	cmp	al,'$'
-	jne	gt8
-	mov	ah,VAR_STR
+	je	gt9
 gt8:	or	ah,0			; return both ZF and CF clear
 gt9:	ret
 ENDPROC	getNextToken
@@ -655,10 +630,10 @@ ENDPROC	getNextToken
 ; we ignore whitespace tokens.
 ;
 DEFPROC	peekNextToken
+	push	bx
 	call	getNextToken
-	jbe	pt9
-	lea	bx,[bx - size TOKLET]
-pt9:	ret
+	pop	bx
+	ret
 ENDPROC	peekNextToken
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

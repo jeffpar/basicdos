@@ -29,12 +29,18 @@ DOS	segment word public 'CODE'
 ; then aborts the current program.
 ;
 DEFPROC	dos_dverr,DOSFAR
+	IFDEF MAXDEBUG
 	DBGBRK
+	ENDIF
 	push	ax
 	PRINTF	<"division error @%U%08lx",13,10>
 	pop	ax
+	IFDEF DEBUG
+	iret
+	ELSE
 	mov	ah,EXTYPE_DVERR
 	jmp	dos_abort
+	ENDIF
 ENDPROC	dos_dverr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -79,12 +85,18 @@ ENDPROC	dos_brkpt
 ; then aborts the current program.
 ;
 DEFPROC	dos_oferr,DOSFAR
+	IFDEF MAXDEBUG
 	DBGBRK
+	ENDIF
 	push	ax
 	PRINTF	<"overflow error @%U%08lx",13,10>
 	pop	ax
+	IFDEF DEBUG
+	iret
+	ELSE
 	mov	ah,EXTYPE_OVERR
 	jmp	dos_abort
+	ENDIF
 ENDPROC	dos_oferr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

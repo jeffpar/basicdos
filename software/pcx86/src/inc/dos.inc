@@ -477,6 +477,11 @@ CLS_VAR		equ	10h	; identifier (eg, keyword or variable)
 CLS_SYM		equ	20h	; any other symbol
 CLS_DQUOTE	equ	40h	; inside double quotes
 CLS_WHITE	equ	80h	; whitespace
+CLS_VAR_INT	equ	30h	; CLS_VAR + VAR_INT
+CLS_VAR_LONG	equ	50h	; CLS_VAR + VAR_LONG (var ending with '%')
+CLS_VAR_SINGLE	equ	70h	; CLS_VAR + VAR_SINGLE (var ending with '!')
+CLS_VAR_STR	equ	90h	; CLS_VAR + VAR_STR (var ending with '$')
+CLS_VAR_DOUBLE	equ	0F0h	; CLS_VAR + VAR_DOUBLE (var ending with '#')
 
 ;
 ; DOS error codes (not to be confused with device error codes)

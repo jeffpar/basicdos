@@ -471,8 +471,8 @@ DEFPROC	utl_tokify,DOS
 	sti
 	and	[bp].REG_FL,NOT FL_CARRY
 	mov	bx,[scb_active]
-	mov	al,[bx].SCB_SWITCHAR
-	mov	[bp].TMP_AH,al		; TMP_AH = SWITCHAR
+	mov	bl,[bx].SCB_SWITCHAR
+	mov	[bp].TMP_AH,bl		; TMP_AH = SWITCHAR
 	mov	ds,[bp].REG_DS		; DS:SI -> BUF_INPUT
 	ASSUME	DS:NOTHING		; DS:DI -> BUF_TOKEN
 
@@ -483,7 +483,7 @@ DEFPROC	utl_tokify,DOS
 	jz	tf0			; for generic parsing
 	mov	al,NOT CLS_WHITE	; we're not interested in whitespace
 tf0:	mov	[bp].TMP_AL,al
-	jmp	short tf8		; dive in
+	jmp	tf8			; dive in
 ;
 ; Starting a new token.
 ;
@@ -491,20 +491,42 @@ tf1:	lea	dx,[si-1]		; DX = start of token
 tf2:	lodsb
 	mov	ch,ah
 	call	tok_classify		; AH = next classification
-	mov	al,ch			; AL = previous classification
 	test	ah,ah			; all done?
 	jz	tf6			; yes
 	test	ch,ch			; still priming the pump?
 	jz	tf1			; yes
 	cmp	ah,CLS_SYM		; symbol found?
-	je	tf6a			; yes
-	cmp	ah,ch			; any change to classification?
+	jne	tf5			; no
+;
+; Let's merge CLS_SYM with CLS_VAR to make life simpler downstream.
+;
+	cmp	ch,CLS_VAR
+	jne	tf6a
+	cmp	al,'%'
+	jne	tf3b
+	mov	ah,CLS_VAR_LONG
+	jmp	short tf3e
+tf3b:	cmp	al,'!'
+	jne	tf3c
+	mov	ah,CLS_VAR_SINGLE
+	jmp	short tf3e
+tf3c:	cmp	al,'$'
+	jne	tf3d
+	mov	ah,CLS_VAR_STR
+	jmp	short tf3e
+tf3d:	cmp	al,'#'
+	jne	tf6a
+	mov	ah,CLS_VAR_DOUBLE
+tf3e:	mov	ch,ah			; change previous classification, too
+
+tf5:	cmp	ah,ch			; any change to classification?
 	je	tf2			; no
 
-tf6:	test	al,[bp].TMP_AL		; any previous classification?
+tf6:	test	ch,[bp].TMP_AL		; any previous classification?
 	jz	tf7			; no
 
-tf6a:	lea	cx,[si-1]		; SI = end of token
+tf6a:	mov	al,ch			; AL = previous classification
+	lea	cx,[si-1]		; SI = end of token
 	sub	cx,dx			; CX = length of token
 
 	IFDEF DEBUG
@@ -532,7 +554,8 @@ tf7:	test	ah,ah			; all done?
 	jz	tf9			; yes
 
 tf8:	cmp	bl,[di].TOK_MAX		; room for more tokens?
-	jb	tf1			; yes
+	jae	tf9			; no
+	jmp	tf1			; yes
 
 tf9:	mov	[di].TOK_CNT,bl		; update # tokens
 	mov	[bp].REG_AX,bx		; return # tokens in AX, too
@@ -563,14 +586,15 @@ DEFPROC	tok_classify
 ;
 tc1:	cmp	al,CHR_DQUOTE		; double quotes?
 	jne	tc1b			; no
-	and	ah,CLS_DQUOTE		; yes
-	xor	ah,CLS_DQUOTE		; are we inside double quotes?
-	jnz	tc1a			; no
+	cmp	ah,CLS_DQUOTE		; already inside double quotes?
+	mov	ah,CLS_DQUOTE
+	jne	tc1a			; no (but we are now)
 	mov	ah,CLS_STR		; convert classification to CLS_STR
-	mov	ch,ah			; and set previous class to match
+	mov	ch,ah			; and change previous class to match
 tc1a:	ret
-tc1b:	test	ah,CLS_DQUOTE		; are we inside double quotes?
-	jz	tc2			; no
+
+tc1b:	cmp	ah,CLS_DQUOTE		; are we inside double quotes?
+	jne	tc2			; no
 	ret				; yes, so leave classification alone
 ;
 ; Take care of whitespace next.
@@ -615,7 +639,7 @@ tc4:	cmp	al,'0'
 tc4a:	cmp	ah,CLS_OCT OR CLS_HEX
 	jne	tc4b
 	and	ah,CLS_OCT
-	mov	ch,ah			; set previous class as well
+	mov	ch,ah			; change previous class as well
 tc4b:	ret				; to avoid unnecesary token transition
 ;
 ; Check for letters next.
@@ -638,7 +662,7 @@ cl5a:	cmp	al,'A'
 	cmp	al,'H'
 	jne	cl5c
 	and	ah,CLS_HEX
-cl5b:	mov	ch,ah			; set previous class as well
+cl5b:	mov	ch,ah			; change previous class as well
 	ret				; to avoid unnecesary token transition
 cl5c:	cmp	al,'O'
 	jne	cl5d
