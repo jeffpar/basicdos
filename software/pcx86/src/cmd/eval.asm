@@ -30,10 +30,10 @@ DEFPROC	evalAddLong,FAR
 	ARGVAR	addA,dword
 	ARGVAR	addB,dword
 	ENTER
-	mov	ax,[addB].OFF
-	add	[addA].OFF,ax
-	mov	ax,[addB].SEG
-	adc	[addA].SEG,ax
+	mov	ax,[addB].LOW
+	add	[addA].LOW,ax
+	mov	ax,[addB].HIW
+	adc	[addA].HIW,ax
 	LEAVE
 	ret	4
 ENDPROC	evalAddLong
@@ -55,10 +55,10 @@ DEFPROC	evalSubLong,FAR
 	ARGVAR	subA,dword
 	ARGVAR	subB,dword
 	ENTER
-	mov	ax,[subB].OFF
-	sub	[subA].OFF,ax
-	mov	ax,[subB].SEG
-	sbb	[subA].SEG,ax
+	mov	ax,[subB].LOW
+	sub	[subA].LOW,ax
+	mov	ax,[subB].HIW
+	sbb	[subA].HIW,ax
 	LEAVE
 	ret	4
 ENDPROC	evalSubLong
@@ -74,27 +74,27 @@ ENDPROC	evalSubLong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX, CX, DX
+;	AX, BX, DX
 ;
 DEFPROC	evalMulLong,FAR
 	ARGVAR	mulA,dword
 	ARGVAR	mulB,dword
 	ENTER
 
-	mov	ax,[mulB].OFF
-	mul	[mulA].SEG
-	xchg	cx,ax			; CX = mulB.OFF * mulA.SEG
+	mov	ax,[mulB].LOW
+	mul	[mulA].HIW
+	xchg	bx,ax			; BX = mulB.LOW * mulA.HIW
 
-	mov	ax,[mulA].OFF
-	mul	[mulB].SEG
-	add	cx,ax			; CX = sum of cross product
+	mov	ax,[mulA].LOW
+	mul	[mulB].HIW
+	add	bx,ax			; BX = sum of cross product
 
-	mov	ax,[mulA].OFF
-	mul	[mulB].OFF		; DX:AX = mulB.OFF * mulA.OFF
-	add	dx,cx			; add cross product to upper word
+	mov	ax,[mulA].LOW
+	mul	[mulB].LOW		; DX:AX = mulB.LOW * mulA.LOW
+	add	dx,bx			; add cross product to upper word
 
-	mov	[mulA].OFF,ax
-	mov	[mulA].SEG,dx
+	mov	[mulA].LOW,ax
+	mov	[mulA].HIW,dx
 	LEAVE
 	ret	4
 ENDPROC	evalMulLong
@@ -128,8 +128,8 @@ DEFPROC	evalDivLong,FAR
 	ENTER
 	mov	[bitCount],32
 	mov	[resultType],al
-	mov	bx,[divA].OFF
-	mov	ax,[divA].SEG		; AX:BX = dividend
+	mov	bx,[divA].LOW
+	mov	ax,[divA].HIW		; AX:BX = dividend
 	mov	[signDividend],ah
 
 	cwd				; DX = 0 or -1
@@ -140,8 +140,8 @@ DEFPROC	evalDivLong,FAR
 
 	xchg	si,ax			; SI:BX = abs(dividend), for now
 
-	mov	cx,[divB].OFF
-	mov	ax,[divB].SEG		; AX:CX = divisor
+	mov	cx,[divB].LOW
+	mov	ax,[divB].HIW		; AX:CX = divisor
 	mov	[signDivisor],ah
 
 	cwd				; DX = 0 or -1
@@ -205,11 +205,11 @@ dl6:	mov	cl,[signDivisor]	; negate quotient if signs opposite
 
 dl7:	cmp	[resultType],0
 	je	dl8
-	mov	[divA].OFF,di		; return remainder
-	mov	[divA].SEG,si
+	mov	[divA].LOW,di		; return remainder
+	mov	[divA].HIW,si
 	jmp	short dl9
-dl8:	mov	[divA].OFF,ax		; return quotient
-	mov	[divA].SEG,dx
+dl8:	mov	[divA].LOW,ax		; return quotient
+	mov	[divA].HIW,dx
 dl9:	LEAVE
 	ret	4
 ENDPROC	evalDivLong
@@ -239,7 +239,7 @@ ENDPROC	evalModLong
 ; Since the long version of exponentiation supports only long base (expA) and
 ; power (expB) args, we can consider these discrete power cases:
 ;
-;	<0, =0, =1, power-of-two, and anything else
+;	<0, =0, =1, >1, >31
 ;
 ; If <0, negate the power, calculate the result, and return 1/result;
 ; however, note that the long division of 1 by any possible result here can
@@ -252,11 +252,11 @@ ENDPROC	evalModLong
 ; If >1, return base if base=0 or base=1; if base=-1, then return 1 if power
 ; is even or -1 if power is odd.
 ;
-; If power-of-two, return base shifted left power times, which may result in
-; zero|overflow (guaranteed if power >= 32).
+; If base is 2, return base shifted left power times, which may result in
+; zero|overflow (guaranteed if power > 31).
 ;
 ; Otherwise, we can perform repeated multiplication until power is exhausted
-; or the result becomes zero|overflow; can never take more than 32 iterations.
+; or the result becomes zero|overflow; can never take more than 31 iterations.
 ;
 ; Inputs:
 ;	2 32-bit args on stack (popped)
@@ -265,14 +265,78 @@ ENDPROC	evalModLong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX
+;	AX, CX, DX
 ;
 DEFPROC	evalExpLong,FAR
 	ARGVAR	expA,dword
 	ARGVAR	expB,dword
 	ENTER
-	;...
-	LEAVE
+	mov	ax,[expB].LOW
+	mov	dx,[expB].HIW
+	test	dx,dx			; TODO: large and/or negative powers
+	jnz	ex4
+	cmp	ax,1			; power = 1?
+	je	ex10			; yes, return base as-is
+	inc	ax			; power = 0?
+	jb	ex9			; yes, set return value to 1
+;
+; Power is greater than 1.  Check for simple bases.
+;
+	dec	ax			; undo previous power increment
+	mov	cx,[expA].LOW
+	mov	dx,[expA].HIW
+	test	dx,dx
+	jnz	ex1
+	jcxz	ex10			; DX:CX is 0, return base as-is
+	dec	cx
+	jz	ex10			; DX:CX is 1, return base as-is
+	jmp	short ex2
+ex1:	inc	dx
+	jnz	ex2
+	inc	cx			; DX was FFFFh, is CX FFFFh too?
+	jnz	ex2			; no
+	test	al,1			; DX:CX = -1, so is the power odd?
+	jnz	ex10			; yes, return base (-1)
+	inc	cx			; DX:CX = 1
+	xchg	ax,cx			; DX:AX = 1
+	jmp	short ex9		; return DX:AX (1) when power is even
+;
+; Check base for 2, which can be shifted instead of multiplied.
+;
+ex2:	cmp	ax,32			; power >= 32?
+	jae	ex4			; yes, return 0 (overflow)
+	mov	cx,ax			; CX = shift count
+	dec	cx
+	mov	ax,[expA].LOW
+	mov	dx,[expA].HIW		; DX:AX = base
+	test	dx,dx
+	jnz	ex5
+	cmp	ax,2
+	jne	ex5
+ex3:	shl	ax,1
+	rcl	dx,1
+	loop	ex3
+	jmp	short ex9		; return shifted base
+
+ex4:	sub	ax,ax
+	cwd
+	jmp	short ex9
+;
+; Worst case: repetitive multiplication.
+;
+ex5:	push	dx
+	push	ax
+ex6:	push	[expA].HIW
+	push	[expA].LOW
+	push	cs
+	call	near ptr evalMulLong
+	loop	ex6
+	pop	ax
+	pop	dx
+
+ex9:	mov	[expA].LOW,ax
+	mov	[expA].HIW,dx
+ex10:	LEAVE
 	ret	4
 ENDPROC	evalExpLong
 
@@ -292,9 +356,9 @@ ENDPROC	evalExpLong
 DEFPROC	evalNegLong,FAR
 	ARGVAR	negA,dword
 	ENTER
-	neg 	[negA].SEG
-	neg	[negA].OFF
-	sbb	[negA].SEG,0
+	neg 	[negA].HIW
+	neg	[negA].LOW
+	sbb	[negA].HIW,0
 	LEAVE
 	ret
 ENDPROC	evalNegLong
@@ -315,8 +379,8 @@ ENDPROC	evalNegLong
 DEFPROC	evalNotLong,FAR
 	ARGVAR	notA,dword
 	ENTER
-	not 	[negA].SEG
-	not	[negA].OFF
+	not 	[negA].HIW
+	not	[negA].LOW
 	LEAVE
 	ret
 ENDPROC	evalNotLong
@@ -382,10 +446,10 @@ DEFPROC	evalXorLong,FAR
 	ARGVAR	xorA,dword
 	ARGVAR	xorB,dword
 	ENTER
-	mov	ax,[xorB].OFF
-	xor	[xorA].OFF,ax
-	mov	ax,[xorB].SEG
-	xor	[xorA].SEG,ax
+	mov	ax,[xorB].LOW
+	xor	[xorA].LOW,ax
+	mov	ax,[xorB].HIW
+	xor	[xorA].HIW,ax
 	LEAVE
 	ret	4
 ENDPROC	evalXorLong
@@ -407,10 +471,10 @@ DEFPROC	evalOrLong,FAR
 	ARGVAR	orA,dword
 	ARGVAR	orB,dword
 	ENTER
-	mov	ax,[orB].OFF
-	xor	[orA].OFF,ax
-	mov	ax,[orB].SEG
-	xor	[orA].SEG,ax
+	mov	ax,[orB].LOW
+	xor	[orA].LOW,ax
+	mov	ax,[orB].HIW
+	xor	[orA].HIW,ax
 	LEAVE
 	ret	4
 ENDPROC	evalOrLong
@@ -432,10 +496,10 @@ DEFPROC	evalAndLong,FAR
 	ARGVAR	andA,dword
 	ARGVAR	andB,dword
 	ENTER
-	mov	ax,[andB].OFF
-	xor	[andA].OFF,ax
-	mov	ax,[andB].SEG
-	xor	[andA].SEG,ax
+	mov	ax,[andB].LOW
+	xor	[andA].LOW,ax
+	mov	ax,[andB].HIW
+	xor	[andA].HIW,ax
 	LEAVE
 	ret	4
 ENDPROC	evalAndLong

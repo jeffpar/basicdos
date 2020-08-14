@@ -22,6 +22,11 @@ LO		db	?
 HI		db	?
 REG16	ends
 
+REG32	struc
+LOW		dw	?
+HIW		dw	?
+REG32	ends
+
 FARPTR	struc
 OFF		dw	?
 SEG		dw	?
