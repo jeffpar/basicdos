@@ -34,6 +34,7 @@ DEFPROC	evalAddLong,FAR
 	add	[addA].LOW,ax
 	mov	ax,[addB].HIW
 	adc	[addA].HIW,ax
+	into
 	LEAVE
 	ret	4
 ENDPROC	evalAddLong
@@ -59,6 +60,7 @@ DEFPROC	evalSubLong,FAR
 	sub	[subA].LOW,ax
 	mov	ax,[subB].HIW
 	sbb	[subA].HIW,ax
+	into
 	LEAVE
 	ret	4
 ENDPROC	evalSubLong
@@ -92,6 +94,7 @@ DEFPROC	evalMulLong,FAR
 	mov	ax,[mulA].LOW
 	mul	[mulB].LOW		; DX:AX = mulB.LOW * mulA.LOW
 	add	dx,bx			; add cross product to upper word
+	into
 
 	mov	[mulA].LOW,ax
 	mov	[mulA].HIW,dx
