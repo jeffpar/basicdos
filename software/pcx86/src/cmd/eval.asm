@@ -382,8 +382,8 @@ ENDPROC	evalNegLong
 DEFPROC	evalNotLong,FAR
 	ARGVAR	notA,dword
 	ENTER
-	not 	[negA].HIW
-	not	[negA].LOW
+	not 	[notA].HIW
+	not	[notA].LOW
 	LEAVE
 	ret
 ENDPROC	evalNotLong
@@ -405,7 +405,12 @@ DEFPROC	evalImpLong,FAR
 	ARGVAR	impA,dword
 	ARGVAR	impB,dword
 	ENTER
-	;...
+	mov	ax,[impB].LOW
+	not	[impA].LOW
+	or	[impA].LOW,ax
+	mov	ax,[impB].HIW
+	not	[impA].HIW
+	or	[impA].HIW,ax
 	LEAVE
 	ret	4
 ENDPROC	evalImpLong
@@ -427,7 +432,12 @@ DEFPROC	evalEqvLong,FAR
 	ARGVAR	eqvA,dword
 	ARGVAR	eqvB,dword
 	ENTER
-	;...
+	mov	ax,[eqvB].LOW
+	xor	[eqvA].LOW,ax
+	not	[eqvA].LOW
+	mov	ax,[eqvB].HIW
+	xor	[eqvA].HIW,ax
+	not	[eqvA].HIW
 	LEAVE
 	ret	4
 ENDPROC	evalEqvLong
@@ -475,9 +485,9 @@ DEFPROC	evalOrLong,FAR
 	ARGVAR	orB,dword
 	ENTER
 	mov	ax,[orB].LOW
-	xor	[orA].LOW,ax
+	or	[orA].LOW,ax
 	mov	ax,[orB].HIW
-	xor	[orA].HIW,ax
+	or	[orA].HIW,ax
 	LEAVE
 	ret	4
 ENDPROC	evalOrLong
@@ -500,9 +510,9 @@ DEFPROC	evalAndLong,FAR
 	ARGVAR	andB,dword
 	ENTER
 	mov	ax,[andB].LOW
-	xor	[andA].LOW,ax
+	and	[andA].LOW,ax
 	mov	ax,[andB].HIW
-	xor	[andA].HIW,ax
+	and	[andA].HIW,ax
 	LEAVE
 	ret	4
 ENDPROC	evalAndLong
@@ -518,13 +528,53 @@ ENDPROC	evalAndLong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX
+;	AX, BX, CX, DX
 ;
 DEFPROC	evalEQLong,FAR
+	mov	bx,offset evalEQ
+	DEFLBL	evalRelLong,near
 	ARGVAR	eqA,dword
 	ARGVAR	eqB,dword
 	ENTER
-	;...
+	mov	cx,[eqA].LOW
+	mov	dx,[eqB].LOW
+	mov	ax,[eqA].HIW
+	cmp	ax,[eqB].HIW
+	jmp	bx
+evalEQ:	jne	evalF
+	cmp	cx,dx
+	jne	evalF
+	jmp	short evalT
+evalNE:	jne	evalT
+	cmp	cx,dx
+	jne	evalT
+	jmp	short evalF
+evalLT:	jl	evalT
+	jg	evalF
+	cmp	cx,dx
+	jl	evalT
+	jmp	short evalF
+evalGT:	jg	evalT
+	jl	evalF
+	cmp	cx,dx
+	jg	evalT
+	jmp	short evalF
+evalLE:	jl	evalT
+	jg	evalF
+	cmp	cx,dx
+	jle	evalT
+	jmp	short evalF
+evalGE:	jg	evalT
+	jl	evalF
+	cmp	cx,dx
+	jge	evalT
+	jmp	short evalF
+evalT:	mov	ax,-1
+	jmp	short evalX
+evalF:	sub	ax,ax
+evalX:	cwd
+	mov	[eqA].LOW,ax
+	mov	[eqA].HIW,dx
 	LEAVE
 	ret	4
 ENDPROC	evalEQLong
@@ -543,12 +593,8 @@ ENDPROC	evalEQLong
 ;	AX
 ;
 DEFPROC	evalNELong,FAR
-	ARGVAR	neA,dword
-	ARGVAR	neB,dword
-	ENTER
-	;...
-	LEAVE
-	ret	4
+	mov	bx,offset evalNE
+	jmp	evalRelLong
 ENDPROC	evalNELong
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -565,12 +611,8 @@ ENDPROC	evalNELong
 ;	AX
 ;
 DEFPROC	evalLTLong,FAR
-	ARGVAR	ltA,dword
-	ARGVAR	ltB,dword
-	ENTER
-	;...
-	LEAVE
-	ret	4
+	mov	bx,offset evalLT
+	jmp	evalRelLong
 ENDPROC	evalLTLong
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -587,12 +629,8 @@ ENDPROC	evalLTLong
 ;	AX
 ;
 DEFPROC	evalGTLong,FAR
-	ARGVAR	gtA,dword
-	ARGVAR	gtB,dword
-	ENTER
-	;...
-	LEAVE
-	ret	4
+	mov	bx,offset evalGT
+	jmp	evalRelLong
 ENDPROC	evalGTLong
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -609,12 +647,8 @@ ENDPROC	evalGTLong
 ;	AX
 ;
 DEFPROC	evalLELong,FAR
-	ARGVAR	leA,dword
-	ARGVAR	leB,dword
-	ENTER
-	;...
-	LEAVE
-	ret	4
+	mov	bx,offset evalLE
+	jmp	evalRelLong
 ENDPROC	evalLELong
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -631,13 +665,77 @@ ENDPROC	evalLELong
 ;	AX
 ;
 DEFPROC	evalGELong,FAR
-	ARGVAR	geA,dword
-	ARGVAR	geB,dword
+	mov	bx,offset evalGE
+	jmp	evalRelLong
+ENDPROC	evalGELong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; evalShlLong
+;
+; Inputs:
+;	2 32-bit args on stack (popped)
+;
+; Outputs:
+;	1 32-bit result on stack (pushed)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	evalShlLong,FAR
+	ARGVAR	shlA,dword
+	ARGVAR	shlB,dword
 	ENTER
-	;...
+	mov	dx,[shlB].HIW
+	test	dx,dx
+	jnz	shl8
+	mov	cx,[shlB].LOW
+	cmp	cx,32
+	jae	shl8
+	mov	dx,[shlA].HIW
+	mov	ax,[shlA].LOW
+shl1:	shl	ax,1
+	rcl	dx,1
+	loop	shl1
+	jmp	short shl9
+shl8:	sub	ax,ax
+	cwd
+shl9:	mov	[shlA].LOW,ax
+	mov	[shlA].HIW,dx
 	LEAVE
 	ret	4
-ENDPROC	evalGELong
+ENDPROC	evalShlLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; evalShrLong
+;
+; Inputs:
+;	2 32-bit args on stack (popped)
+;
+; Outputs:
+;	1 32-bit result on stack (pushed)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	evalShrLong,FAR
+	ARGVAR	shrA,dword
+	ARGVAR	shrB,dword
+	ENTER
+	mov	dx,[shrB].HIW
+	test	dx,dx
+	jnz	shl8
+	mov	cx,[shrB].LOW
+	cmp	cx,32
+	jae	shl8
+	mov	dx,[shrA].HIW
+	mov	ax,[shrA].LOW
+shr1:	sar	dx,1
+	rcr	ax,1
+	loop	shr1
+	jmp	short shl9
+ENDPROC	evalShrLong
 
 CODE	ENDS
 

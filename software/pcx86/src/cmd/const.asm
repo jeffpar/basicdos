@@ -17,8 +17,8 @@ CODE    SEGMENT
 	EXTERNS	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>,near
 	EXTERNS	<evalModLong,evalNegLong,evalNotLong,evalImpLong>,near
 	EXTERNS	<evalEqvLong,evalXorLong,evalOrLong,evalAndLong>,near
-	EXTERNS	<evalEQLong,evalNELong,evalLTLong>,near
-	EXTERNS	<evalGTLong,evalLELong,evalGELong>,near
+	EXTERNS	<evalEQLong,evalNELong,evalLTLong,evalGTLong>,near
+	EXTERNS	<evalLELong,evalGELong,evalShlLong,evalShrLong>,near
 	DEFSTR	COM_EXT,<".COM",0>
 	DEFSTR	EXE_EXT,<".EXE",0>
 	DEFSTR	DIR_DEF,<"*.*",0>
@@ -51,16 +51,23 @@ CODE    SEGMENT
 	OPDEF	<'>',8,2,evalGTLong>
 	OPDEF	<'L',8,2,evalLELong>	; '<=' or '=<'
 	OPDEF	<'G',8,2,evalGELong>	; '>=' or '=>'
-	OPDEF	<'+',9,2,evalAddLong>
-	OPDEF	<'-',9,2,evalSubLong>
-	OPDEF	<'%',10,2,evalModLong>	; 'MOD'
-	OPDEF	<'\',11,2,evalDivLong>
-	OPDEF	<'*',12,2,evalMulLong>
-	OPDEF	<'/',12,2,evalDivLong>
-	OPDEF	<'P',13,1,0>		; unary '+'
-	OPDEF	<'N',13,1,evalNegLong>	; unary '-'
-	OPDEF	<'^',14,2,evalExpLong>
+	OPDEF	<'S',9,2,evalShlLong>	; '<<'
+	OPDEF	<'R',9,2,evalShrLong>	; '>>'
+	OPDEF	<'+',10,2,evalAddLong>
+	OPDEF	<'-',10,2,evalSubLong>
+	OPDEF	<'%',11,2,evalModLong>	; 'MOD'
+	OPDEF	<'\',12,2,evalDivLong>
+	OPDEF	<'*',13,2,evalMulLong>
+	OPDEF	<'/',13,2,evalDivLong>
+	OPDEF	<'P',14,1,0>		; unary '+'
+	OPDEF	<'N',14,1,evalNegLong>	; unary '-'
+	OPDEF	<'^',15,2,evalExpLong>
 	DEFBYTE	OPDEFS_END,0
+
+	DEFLBL	RELDEFS,byte
+	db	"<>",'!',"><",'!',"<=",'L',"=<",'L',">=",'G',"=>",'G'
+	db	"==",'=',"<<",'S',">>",'R'
+	db	0
 
 CODE	ENDS
 
