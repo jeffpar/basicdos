@@ -18,7 +18,7 @@ CODE    SEGMENT
 
 	EXTERNS	<segVars>,word
 	EXTERNS	<CMD_TOKENS,KEYOP_TOKENS>,word
-	EXTERNS	<OPDEFS>,byte
+	EXTERNS	<OPDEFS,RELDEFS>,byte
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 
@@ -47,7 +47,8 @@ DEFPROC	genImmediate
 	LOCVAR	errCode,word
 	LOCVAR	pCode,dword
 	LOCVAR	pGenerator,word
-	LOCVAR	pTokBufEnd,word
+	LOCVAR	pTokletNext,word
+	LOCVAR	pTokletEnd,word
 	ENTER
 	mov	[errCode],0
 	mov	bx,di			; BX -> TOKENBUF
@@ -57,7 +58,7 @@ DEFPROC	genImmediate
 	add	ax,ax
 	add	ax,ax
 	add	ax,bx
-	mov	[pTokBufEnd],ax
+	mov	[pTokletEnd],ax
 	add	bx,size TOKLET		; skip 1st token (already parsed)
 	mov	[pGenerator],dx
 
@@ -239,9 +240,10 @@ gn4a:	mov	cx,[prevOp]
 	je	gn5
 	cmp	cl,-1			; another operator (including '(')?
 	je	gn5			; no
-
 gn4b:	mov	al,ah			; remap the operator
-
+;
+; Verify that the symbol is a valid operator.
+;
 gn5:	call	validateOp		; AL = operator to validate
 	jc	gn8			; error
 	mov	[prevOp],ax
@@ -594,7 +596,7 @@ ENDPROC	genPushVarLong
 ;	AX, BX, CX, SI
 ;
 DEFPROC	getNextToken
-	cmp	bx,[pTokBufEnd]
+	cmp	bx,[pTokletEnd]
 	cmc
 	jb	gt9			; no more tokens
 	mov	ah,[bx].TOKLET_CLS
@@ -629,9 +631,13 @@ ENDPROC	getNextToken
 ; Return the next token if it matches the criteria in AL; by default,
 ; we ignore whitespace tokens.
 ;
+; Inputs and outputs are the same as getNextToken, but we also save the
+; offset of the next TOKLET, in case the caller wants to consume it.
+;
 DEFPROC	peekNextToken
 	push	bx
 	call	getNextToken
+	mov	[pTokletNext],bx
 	pop	bx
 	ret
 ENDPROC	peekNextToken
@@ -639,6 +645,13 @@ ENDPROC	peekNextToken
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; validateOp
+;
+; This must also check for operators that are multi-character.  It must remap
+; "<>" and "><" to '!', "<=" and "=<" to 'L', and ">=" and "=>" to 'G'.
+;
+; If we want to get carried away, we could also remap "==" to '=', "<<" to 'S'
+; (left shift) and ">>" to 'R' (right shift).  That would cover all 9 possible
+; 2-character combinations of '<', '>', and '='.
 ;
 ; Inputs:
 ;	AL = operator
@@ -650,17 +663,30 @@ ENDPROC	peekNextToken
 ;	AX, CX, DX
 ;
 DEFPROC	validateOp
-	mov	ah,al			; AH = operator to validate
 	push	si
-	mov	si,offset OPDEFS
-vo1:	lodsb
+	xchg	dx,ax			; DL = operator to validate
+	mov	al,CLS_SYM
+	call	peekNextToken
+	jbe	vo6
+	mov	dh,al			; DX = potential 2-character operator
+	mov	si,offset RELDEFS
+vo1:	lodsw
+	test	al,al
+	jz	vo6
+	cmp	ax,dx			; match?
+	lodsb
+	jne	vo1
+	mov	bx,[pTokletNext]
+	xchg	dx,ax			; DL = (new) operator to validate
+vo6:	mov	si,offset OPDEFS
+vo7:	lodsb
 	test	al,al
 	stc
 	jz	vo9			; not valid
-	cmp	al,ah			; match?
+	cmp	al,dl			; match?
 	je	vo8			; yes
 	add	si,size OPDEF - 1
-	jmp	vo1
+	jmp	vo7
 vo8:	lodsb				; AL = precedence, AH = operator
 	xchg	dx,ax
 	lodsb
