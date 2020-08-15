@@ -18,7 +18,7 @@ CODE    SEGMENT
 
 	EXTERNS	<segVars>,word
 	EXTERNS	<CMD_TOKENS,KEYOP_TOKENS>,word
-	EXTERNS	<OPDEFS,RELDEFS>,byte
+	EXTERNS	<OPDEFS,RELOPS>,byte
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 
@@ -669,7 +669,7 @@ DEFPROC	validateOp
 	call	peekNextToken
 	jbe	vo6
 	mov	dh,al			; DX = potential 2-character operator
-	mov	si,offset RELDEFS
+	mov	si,offset RELOPS
 vo1:	lodsw
 	test	al,al
 	jz	vo6
