@@ -660,7 +660,7 @@ ENDPROC	peekNextToken
 ;	If carry clear, AL = op, AH = precedence, CX = args, DX = evaluator
 ;
 ; Modifies:
-;	AX, CX, DX
+;	AH, CX, DX
 ;
 DEFPROC	validateOp
 	push	si
@@ -678,12 +678,13 @@ vo1:	lodsw
 	jne	vo1
 	mov	bx,[pTokletNext]
 	xchg	dx,ax			; DL = (new) operator to validate
-vo6:	mov	si,offset OPDEFS
+vo6:	mov	ah,dl			; AH = operator to validate
+	mov	si,offset OPDEFS
 vo7:	lodsb
 	test	al,al
 	stc
 	jz	vo9			; not valid
-	cmp	al,dl			; match?
+	cmp	al,ah			; match?
 	je	vo8			; yes
 	add	si,size OPDEF - 1
 	jmp	vo7

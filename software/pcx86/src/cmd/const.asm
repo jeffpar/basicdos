@@ -46,7 +46,7 @@ CODE    SEGMENT
 	OPDEF	<'&',6,2,evalAndLong>	; 'AND'
 	OPDEF	<'~',7,1,evalNotLong>	; 'NOT'
 	OPDEF	<'=',8,2,evalEQLong>
-	OPDEF	<'!',8,2,evalNELong>	; '<>' or '><'
+	OPDEF	<'U',8,2,evalNELong>	; '<>' or '><'
 	OPDEF	<'<',8,2,evalLTLong>
 	OPDEF	<'>',8,2,evalGTLong>
 	OPDEF	<'L',8,2,evalLELong>	; '<=' or '=<'
@@ -55,7 +55,7 @@ CODE    SEGMENT
 	OPDEF	<'R',9,2,evalShrLong>	; '>>'
 	OPDEF	<'+',10,2,evalAddLong>
 	OPDEF	<'-',10,2,evalSubLong>
-	OPDEF	<'%',11,2,evalModLong>	; 'MOD'
+	OPDEF	<'M',11,2,evalModLong>	; 'MOD'
 	OPDEF	<'\',12,2,evalDivLong>
 	OPDEF	<'*',13,2,evalMulLong>
 	OPDEF	<'/',13,2,evalDivLong>
