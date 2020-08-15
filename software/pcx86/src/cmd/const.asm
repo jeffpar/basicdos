@@ -13,9 +13,9 @@ CODE    SEGMENT
 	EXTERNS	<cmdCLS,cmdDate,CmdDir,cmdExit,cmdMem>,near
 	EXTERNS	<cmdTime,cmdType>,near
 	EXTERNS	<genColor,genLet,genPrint>,near
-	EXTERNS	<evalExpLong>,near
+	EXTERNS	<evalNegLong,evalNotLong>,near
 	EXTERNS	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>,near
-	EXTERNS	<evalModLong,evalNegLong,evalNotLong,evalImpLong>,near
+	EXTERNS	<evalModLong,evalExpLong,evalImpLong>,near
 	EXTERNS	<evalEqvLong,evalXorLong,evalOrLong,evalAndLong>,near
 	EXTERNS	<evalEQLong,evalNELong,evalLTLong,evalGTLong>,near
 	EXTERNS	<evalLELong,evalGELong,evalShlLong,evalShrLong>,near
@@ -29,21 +29,38 @@ CODE    SEGMENT
 ;
 ; Table of operators
 ;
-; Each OPDEF contains 1) an operator symbol, 2) the operator precedence,
-; 3) number of args, and 4) operator evaluators (for INT, LONG, SINGLE, etc).
+; Each OPDEF structure contains 1) operator symbol, 2) operator precedence,
+; 3) number of args, and 4) operator evaluators (currently, only one LONG
+; evaluator is present for each operator).  Although the operators are listed
+; in order of lowest to highest precedence, it's the operator precedence
+; field the determines an operator's priority.
 ;
-; Note that some of the operator symbols are internal only; the getKeywordOp
-; function will convert reserved operator keywords to the corresponding
-; character symbol in this table.
+; Most operators are "binary ops" (2 arguments).  There are 3 "unary ops":
+; unary '-', unary '+', and 'NOT'.  Parentheses require special treatment;
+; they may appear to have low precedence (1), but that's simply to ensure
+; that when we encounter a closing parenthesis, all operators with precedence
+; higher than the opening parenthesis get popped.
+;
+; Note that all multi-character operators are converted to single character
+; operators internally, to simplify operator management; genExprNum takes care
+; of any keyword operators listed in the KEYOP_TOKENS table, and validateOp
+; takes care of any any multi-symbol operators listed in the RELOPS table.
+;
+; We've also taken some liberties with the language, by allowing '~' and '|'
+; in addition to 'NOT' and 'OR', and by adding '>>' and '<<' arithmetic shift
+; operations.  It would have been nice to allow '&' in place of 'AND' as well,
+; but unfortunately '&' was already used to prefix hex and octal constants.
+;
+; TODO: Speaking of hex and octal constants, maybe someday we'll also allow
+; "0x" and "0o" prefixes, and maybe even a C-inspired version of PRINT USING
+; called... drum roll... PRINTF USING.
 ;
 	DEFLBL	OPDEFS,byte
-	OPDEF	<'(',1,0,0>
-	OPDEF	<')',1,0,0>
 	OPDEF	<'I',2,2,evalImpLong>	; 'IMP'
 	OPDEF	<'E',3,2,evalEqvLong>	; 'EQV'
 	OPDEF	<'X',4,2,evalXorLong>	; 'XOR'
 	OPDEF	<'|',5,2,evalOrLong>	; 'OR'
-	OPDEF	<'&',6,2,evalAndLong>	; 'AND'
+	OPDEF	<'A',6,2,evalAndLong>	; 'AND'
 	OPDEF	<'~',7,1,evalNotLong>	; 'NOT'
 	OPDEF	<'=',8,2,evalEQLong>
 	OPDEF	<'U',8,2,evalNELong>	; '<>' or '><'
@@ -62,9 +79,11 @@ CODE    SEGMENT
 	OPDEF	<'P',14,1,0>		; unary '+'
 	OPDEF	<'N',14,1,evalNegLong>	; unary '-'
 	OPDEF	<'^',15,2,evalExpLong>
+	OPDEF	<'(',1,0,0>
+	OPDEF	<')',1,0,0>
 	DEFBYTE	OPDEFS_END,0
 
-	DEFLBL	RELDEFS,byte
+	DEFLBL	RELOPS,byte
 	db	"<>",'!',"><",'!',"<=",'L',"=<",'L',">=",'G',"=>",'G'
 	db	"==",'=',"<<",'S',">>",'R'
 	db	0
