@@ -131,6 +131,13 @@ GENCALL	macro	func
 	ENDIF
 	call	genCallCX
 	endm
+
+GENPUSH	macro	val
+	IFDIF	<val>,<dx>
+	mov	dx,val
+	ENDIF
+	call	genPushDX
+	endm
 ;
 ; PUSHSTR copies the string at DS:SI with length CL into the code segment,
 ; pushing the far address of that string and then "leaping" over the string.

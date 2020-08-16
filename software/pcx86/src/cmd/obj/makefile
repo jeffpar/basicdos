@@ -32,7 +32,7 @@ EVAL.OBJ: ..\EVAL.ASM
 GEN.OBJ: ..\GEN.ASM
 	$(ASM) $(AFLAGS) /I.. /I..\..\INC $**,$@;
 
-PRINT.OBJ: ..\PRINT.ASM
+STDIO.OBJ: ..\STDIO.ASM
 	$(ASM) $(AFLAGS) /I.. /I..\..\INC $**,$@;
 
 VARS.OBJ: ..\VARS.ASM

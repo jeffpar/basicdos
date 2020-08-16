@@ -10,9 +10,8 @@
 	include	cmd.inc
 
 CODE    SEGMENT
-	EXTERNS	<cmdCLS,cmdDate,CmdDir,cmdExit,cmdMem>,near
-	EXTERNS	<cmdTime,cmdType>,near
-	EXTERNS	<genColor,genLet,genPrint>,near
+	EXTERNS	<cmdDate,CmdDir,cmdExit,cmdMem,cmdTime,cmdType>,near
+	EXTERNS	<genCLS,genColor,genLet,genPrint>,near
 	EXTERNS	<evalNegLong,evalNotLong>,near
 	EXTERNS	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>,near
 	EXTERNS	<evalModLong,evalExpLong,evalImpLong>,near
@@ -84,21 +83,21 @@ CODE    SEGMENT
 	DEFBYTE	OPDEFS_END,0
 
 	DEFLBL	RELOPS,byte
-	db	"<>",'!',"><",'!',"<=",'L',"=<",'L',">=",'G',"=>",'G'
+	db	"<>",'U',"><",'U',"<=",'L',"=<",'L',">=",'G',"=>",'G'
 	db	"==",'=',"<<",'S',">>",'R'
 	db	0
 
 CODE	ENDS
 
 	DEFTOKENS CMD_TOKENS,CMD_TOTAL
-	DEFTOK	TOK_CLS,    1, "CLS",	cmdCLS	; TODO: will become genCLS
-	DEFTOK	TOK_COLOR, 21, "COLOR",	genColor
+	DEFTOK	TOK_CLS,   21, "CLS",	genCLS
+	DEFTOK	TOK_COLOR, 22, "COLOR",	genColor
 	DEFTOK	TOK_DATE,   2, "DATE",	cmdDate
 	DEFTOK	TOK_DIR,   11, "DIR",	cmdDir
 	DEFTOK	TOK_EXIT,   3, "EXIT",	cmdExit
-	DEFTOK	TOK_LET,   22, "LET",	genLet
+	DEFTOK	TOK_LET,   23, "LET",	genLet
 	DEFTOK	TOK_MEM,    4, "MEM",	cmdMem
-	DEFTOK	TOK_PRINT, 23, "PRINT",	genPrint
+	DEFTOK	TOK_PRINT, 24, "PRINT",	genPrint
 	DEFTOK	TOK_TIME,   5, "TIME",	cmdTime
 	DEFTOK	TOK_TYPE,  12, "TYPE",	cmdType
 	NUMTOKENS CMD_TOKENS,CMD_TOTAL

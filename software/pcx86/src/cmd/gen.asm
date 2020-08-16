@@ -11,10 +11,10 @@
 
 CODE    SEGMENT
 
-	EXTERNS	<printArgs>,near
 	EXTERNS	<allocCode,freeCode,allocVars>,near
 	EXTERNS	<addVar,findVar,setVarLong>,near
 	EXTERNS	<appendStr,setStr>,near
+	EXTERNS	<clearScreen,printArgs,setColor>,near
 
 	EXTERNS	<segVars>,word
 	EXTERNS	<CMD_TOKENS,KEYOP_TOKENS>,word
@@ -41,19 +41,21 @@ CODE    SEGMENT
 ;
 DEFPROC	genImmediate
 	LOCVAR	nArgs,word
-	LOCVAR	nValues,word
-	LOCVAR	nParens,word
-	LOCVAR	prevOp,word
+	LOCVAR	nExpArgs,word
+	LOCVAR	nExpVals,word
+	LOCVAR	nExpParens,word
+	LOCVAR	nExpPrevOp,word
 	LOCVAR	errCode,word
 	LOCVAR	pCode,dword
 	LOCVAR	pGenerator,word
 	LOCVAR	pTokletNext,word
 	LOCVAR	pTokletEnd,word
 	ENTER
-	mov	[errCode],0
+	sub	ax,ax
+	mov	[nArgs],ax
+	mov	[errCode],ax
 	mov	bx,di			; BX -> TOKENBUF
-	mov	al,[bx].TOK_CNT
-	mov	ah,0
+	mov	al,[bx].TOK_CNT		; AX = token count
 	add	bx,offset TOK_BUF	; BX -> TOKLET array
 	add	ax,ax
 	add	ax,ax
@@ -112,9 +114,30 @@ ENDPROC	genImmediate
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; genCLS
+;
+; Generate code for "CLS"
+;
+; Inputs:
+;	BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genCLS
+	GENCALL	clearScreen
+	ret
+ENDPROC	genCLS
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; genColor
 ;
-; Generate code for "COLOR [fgnd],[bgnd],[border]"
+; Generate code for "COLOR fgnd[,[bgnd[,[border]]"
 ;
 ; Inputs:
 ;	BX -> TOKLETs
@@ -127,6 +150,12 @@ ENDPROC	genImmediate
 ;	Any
 ;
 DEFPROC	genColor
+	call	genExprNum
+	jbe	gc9
+	cmp	al,','			; was the last symbol a semi-colon?
+	je	genColor		; yes, go back for more
+gc9:	GENPUSH	nArgs
+	GENCALL	setColor
 	ret
 ENDPROC	genColor
 
@@ -135,8 +164,8 @@ ENDPROC	genColor
 ; genExprNum
 ;
 ; Generate code for a numeric expression.  To help catch errors up front,
-; we maintain a count of values queued, compare that to the number of arguments
-; expected by all the operators, and also maintain an open parentheses count.
+; maintains a count of values queued, compares that to the number of arguments
+; expected by all the operators, and also maintains an open parentheses count.
 ;
 ; Inputs:
 ;	BX = offset of next TOKLET
@@ -153,10 +182,10 @@ ENDPROC	genColor
 ;
 DEFPROC	genExprNum
 	sub	dx,dx
-	mov	[nArgs],1		; count of expected arguments
-	mov	[nValues],dx		; count of values queued
-	mov	[nParens],dx		; count of open parentheses
-	mov	[prevOp],dx		; previous operator (none)
+	mov	[nExpArgs],1		; count of expected arguments
+	mov	[nExpVals],dx		; count of values queued
+	mov	[nExpParens],dx		; count of open parentheses
+	mov	[nExpPrevOp],dx		; previous operator (none)
 	push	dx			; push end-of-operators marker (zero)
 
 gn1:	mov	al,CLS_NUM OR CLS_SYM OR CLS_VAR
@@ -167,7 +196,7 @@ gn1:	mov	al,CLS_NUM OR CLS_SYM OR CLS_VAR
 ;
 ; Non-operator cases: distinguish between variables and numbers.
 ;
-gn2:	mov	byte ptr [prevOp],-1	; invalidate prevOp (intervening token)
+gn2:	mov	byte ptr [nExpPrevOp],-1; invalidate prevOp (intervening token)
 	test	ah,CLS_VAR		; variable?
 	jz	gn3			; no
 ;
@@ -187,7 +216,7 @@ gn2:	mov	byte ptr [prevOp],-1	; invalidate prevOp (intervening token)
 ;
 	call	genPushVarLong
 
-gn2b:	inc	[nValues]		; count another queued value
+gn2b:	inc	[nExpVals]		; count another queued value
 	jmp	gn1
 ;
 ; Number must be a constant, and although CX contains its exact length,
@@ -234,7 +263,7 @@ gn4:	mov	ah,'N'
 	mov	ah,'P'
 	cmp	al,'+'
 	jne	gn5
-gn4a:	mov	cx,[prevOp]
+gn4a:	mov	cx,[nExpPrevOp]
 	jcxz	gn4b
 	cmp	cl,')'			; do NOT remap if preceded by ')'
 	je	gn5
@@ -246,11 +275,11 @@ gn4b:	mov	al,ah			; remap the operator
 ;
 gn5:	call	validateOp		; AL = operator to validate
 	jc	gn8			; error
-	mov	[prevOp],ax
+	mov	[nExpPrevOp],ax
 	sub	si,si
 	jcxz	gn7			; handle no-arg operators below
 	dec	cx
-	add	[nArgs],cx
+	add	[nExpArgs],cx
 	mov	si,dx			; SI = current evaluator
 ;
 ; Operator is valid, so peek at the operator stack and pop if the top
@@ -274,10 +303,10 @@ gn6d:	jmp	gn1			; next token
 ;
 gn7:	cmp	al,'('
 	jne	gn7a
-	inc	[nParens]
+	inc	[nExpParens]
 	jmp	gn6c
 gn7a:	ASSERT	Z,<cmp al,')'>
-	dec	[nParens]
+	dec	[nExpParens]
 	jmp	gn6
 ;
 ; Time to start popping the operator stack.
@@ -291,13 +320,14 @@ gn8:	pop	cx
 ;
 ; Verify the number of values queued matches the number of expected arguments.
 ;
-gn9:	mov	cx,[nValues]
-	cmp	cx,[nArgs]
+gn9:	mov	cx,[nExpVals]
+	cmp	cx,[nExpArgs]
 	stc
 	jne	gn10
-	cmp	[nParens],0
+	cmp	[nExpParens],0
 	stc
 	jne	gn10
+	inc	[nArgs]
 	test	cx,cx			; return ZF set if no values
 gn10:	ret
 ENDPROC	genExprNum
@@ -541,6 +571,29 @@ ENDPROC	genCallCX
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; genPushDX
+;
+; Inputs:
+;	DX = value to push
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, DX, DI
+;
+DEFPROC	genPushDX
+	mov	al,OP_MOV_AX
+	stosb
+	xchg	ax,dx
+	stosw
+	mov	al,OP_PUSH_AX
+	stosb
+	ret
+ENDPROC	genPushDX
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; genPushVarLong
 ;
 ; Generates code to push 4-byte variable data onto stack (eg, a VAR_LONG or
@@ -647,11 +700,9 @@ ENDPROC	peekNextToken
 ; validateOp
 ;
 ; This must also check for operators that are multi-character.  It must remap
-; "<>" and "><" to '!', "<=" and "=<" to 'L', and ">=" and "=>" to 'G'.
+; "<>" and "><" to 'U', "<=" and "=<" to 'L', and ">=" and "=>" to 'G'.
 ;
-; If we want to get carried away, we could also remap "==" to '=', "<<" to 'S'
-; (left shift) and ">>" to 'R' (right shift).  That would cover all 9 possible
-; 2-character combinations of '<', '>', and '='.
+; See RELOPS for the complete list of multi-character operators we remap.
 ;
 ; Inputs:
 ;	AL = operator
