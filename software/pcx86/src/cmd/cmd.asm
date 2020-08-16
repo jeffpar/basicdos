@@ -612,20 +612,19 @@ DEFPROC	cmdHelp
 	mov	al,ah
 	cbw
 	xchg	di,ax		; DI = size TOKDEF
-	mov	dl,0		; DL = # chars printed on line so far
+	mov	dl,8		; DL = # chars to be printed so far
 h1:	push	dx
 	mov	dl,[si].TOKDEF_LEN
 	mov	dh,0
 	PRINTF	<"%-8.*s">,dx,[si].TOKDEF_OFF
 	pop	dx
-	inc	ax
 	add	dl,al
 	cmp	cl,1
 	je	h2
 	cmp	dl,[bx].CON_COLS
 	jb	h3
 h2:	PRINTF	<13,10>
-	mov	dl,0
+	mov	dl,8
 h3:	add	si,di		; SI -> next TOKDEF
 	loop	h1
 	ret
