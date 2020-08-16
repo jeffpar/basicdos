@@ -94,7 +94,8 @@ DEFPROC	evalMulLong,FAR
 	mov	ax,[mulA].LOW
 	mul	[mulB].LOW		; DX:AX = mulB.LOW * mulA.LOW
 	add	dx,bx			; add cross product to upper word
-	into
+
+	OPCHECK	OP_MUL32
 
 	mov	[mulA].LOW,ax
 	mov	[mulA].HIW,dx
@@ -184,12 +185,15 @@ dl3:	dec	[bitCount]		; repeat
 ; This is also the only path that has to worry about divide-by-zero, since zero
 ; is a 16-bit divisor.
 ;
-dl4:	mov	cx,ax			; save low dividend
-	mov	ax,dx			; divide high dividend
+dl4:	sub	cx,cx
+	cmp	dx,bx			; can we avoid the first division?
+	jb	dl4a			; yes
+	xchg	cx,ax			; save low dividend
+	xchg	ax,dx			; divide high dividend
 	sub	dx,dx			; DX:AX is new dividend
 	div	bx			; AX is high quotient
 	xchg	ax,cx			; move to CX, restore low dividend
-	div	bx			; AX is low quotient
+dl4a:	div	bx			; AX is low quotient
 	mov	di,dx			; SI:DI = remainder
 	mov	dx,cx			; DX:AX = quotient
 
@@ -206,7 +210,9 @@ dl6:	mov	cl,[signDivisor]	; negate quotient if signs opposite
 	neg	ax			; subtract DX:AX from 0 with carry
 	sbb	dx,0
 
-dl7:	cmp	[resultType],0
+dl7:	OPCHECK	OP_DIV32
+
+	cmp	[resultType],0
 	je	dl8
 	mov	[divA].LOW,di		; return remainder
 	mov	[divA].HIW,si
@@ -239,8 +245,8 @@ ENDPROC	evalModLong
 ;
 ; evalExpLong
 ;
-; Since the long version of exponentiation supports only long base (expA) and
-; power (expB) args, we can consider these discrete power cases:
+; This version of exponentiation supports only long base (expA) and power
+; (expB) args, so we consider these discrete power cases:
 ;
 ;	<0, =0, =1, >1, >31
 ;
@@ -258,8 +264,9 @@ ENDPROC	evalModLong
 ; If base is 2, return base shifted left power times, which may result in
 ; zero|overflow (guaranteed if power > 31).
 ;
-; Otherwise, we can perform repeated multiplication until power is exhausted
-; or the result becomes zero|overflow; can never take more than 31 iterations.
+; Otherwise, perform repeated multiplication until power is exhausted or the
+; result becomes zero|overflow; note that any power larger than 31 will always
+; cause an overflow, since we've already eliminated bases <= 2.
 ;
 ; Inputs:
 ;	2 32-bit args on stack (popped)
@@ -268,7 +275,7 @@ ENDPROC	evalModLong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX, CX, DX
+;	AX, BX, CX, DX
 ;
 DEFPROC	evalExpLong,FAR
 	ARGVAR	expA,dword
@@ -354,7 +361,7 @@ ENDPROC	evalExpLong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX, CX, DX
+;	None
 ;
 DEFPROC	evalNegLong,FAR
 	ARGVAR	negA,dword
@@ -377,7 +384,7 @@ ENDPROC	evalNegLong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX
+;	None
 ;
 DEFPROC	evalNotLong,FAR
 	ARGVAR	notA,dword
@@ -590,7 +597,7 @@ ENDPROC	evalEQLong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX
+;	AX, BX, CX, DX
 ;
 DEFPROC	evalNELong,FAR
 	mov	bx,offset evalNE
@@ -608,7 +615,7 @@ ENDPROC	evalNELong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX
+;	AX, BX, CX, DX
 ;
 DEFPROC	evalLTLong,FAR
 	mov	bx,offset evalLT
@@ -626,7 +633,7 @@ ENDPROC	evalLTLong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX
+;	AX, BX, CX, DX
 ;
 DEFPROC	evalGTLong,FAR
 	mov	bx,offset evalGT
@@ -644,7 +651,7 @@ ENDPROC	evalGTLong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX
+;	AX, BX, CX, DX
 ;
 DEFPROC	evalLELong,FAR
 	mov	bx,offset evalLE
@@ -662,7 +669,7 @@ ENDPROC	evalLELong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX
+;	AX, BX, CX, DX
 ;
 DEFPROC	evalGELong,FAR
 	mov	bx,offset evalGE
@@ -680,7 +687,7 @@ ENDPROC	evalGELong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX
+;	AX, CX, DX
 ;
 DEFPROC	evalShlLong,FAR
 	ARGVAR	shlA,dword
@@ -717,7 +724,7 @@ ENDPROC	evalShlLong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX
+;	AX, CX, DX
 ;
 DEFPROC	evalShrLong,FAR
 	ARGVAR	shrA,dword

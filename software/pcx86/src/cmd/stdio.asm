@@ -28,7 +28,7 @@ CODE    SEGMENT
 ;	None
 ;
 ; Modifies:
-;	Any
+;	AX, BX, CX
 ;
 DEFPROC	clearScreen,FAR
 	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_SCROLL
@@ -83,7 +83,7 @@ p2:	push	bp
 p3:	mov	al,VAR_NEWLINE
 	lea	bp,[bp+2]
 	sub	bp,bx
-	mov	cs:[nPrintArgsRet],bp	; modify the RETF N with proper N
+	mov	bx,bp			; BX = # bytes to clean off stack
 
 p4:	pop	bp
 	test	bp,bp			; end-of-args marker?
@@ -101,6 +101,10 @@ p5:	cmp	al,VAR_LONG
 	push	ax
 	mov	ax,[bp+2]
 	mov	dx,[bp+4]
+;
+; As the itoa code in sprintf.asm explains, I use the '#' (hash) flag with
+; decimal output to signify that a space should precede positive values.
+;
 	PRINTF	<"%#ld ">,ax,dx		; DX:AX = 32-bit value
 	pop	ax
 	jmp	p4
@@ -116,7 +120,7 @@ p7:	push	ax
 ;
 ; TODO: The default PRINTF buffer is smaller than the maximum string size,
 ; so this function will need to SPRINTF to an internal buffer and then use a
-; standard DOS call to write to STDOUT.
+; DOS call to write to STDOUT (or break long strings into smaller ones).
 ;
 	PRINTF	<"%.*ls ">,ax,si,ds	; DS:SI -> string
 	push	ds
@@ -129,9 +133,13 @@ p7:	push	ax
 p8:	cmp	al,VAR_NEWLINE		; did we want to start a new line?
 	jb	p9			; no
 	PRINTF	<13,10>
-p9:	db	OP_RETF_N
-	DEFLBL	nPrintArgsRet,word
-	dw	0
+
+p9:	pop	dx			; remove return address
+	pop	cx
+	add	sp,bx			; clean the stack
+	push	cx			; restore the return address
+	push	dx
+	ret
 ENDPROC	printArgs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -147,7 +155,7 @@ ENDPROC	printArgs
 ;	None
 ;
 ; Modifies:
-;	Any
+;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	setColor,FAR
 	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETCOLOR

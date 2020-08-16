@@ -358,11 +358,24 @@ ai3:	cmp	al,'0'			; convert ASCII digit to value
 	adc	dx,0			; DX:AX:CX contains the result
 	xchg	ax,cx			; DX:CX:AX now
 	xchg	ax,dx			; AX:CX:DX now
-	pop	di
+	test	ax,ax
+	jz	ai3a
+	int	04h			; signal overflow
+ai3a:	pop	di
 	pop	ax			; CX:DX = CX:DX * BX
 
 	add	dx,ax			; add the digit value in AX now
 	adc	cx,0
+	jno	ai4
+;
+; This COULD be an overflow situation UNLESS CX:DX is now 80000000h AND
+; the result is going to be negated.  Unfortunately, any negation may happen
+; later, so it won't do any good to test BP.  We'll just have to allow it.
+;
+	test	dx,dx
+	jz	ai4
+	int	04h			; signal overflow
+
 ai4:	lodsb				; fetch the next character
 	jmp	ai1			; and continue the evaluation
 
@@ -375,6 +388,7 @@ ai6:	test	bp,bp
 	neg	cx
 	neg	dx
 	sbb	cx,0
+	into				; signal overflow if set
 ai6a:	pop	bp
 
 	cmp	di,-1			; validation data provided?

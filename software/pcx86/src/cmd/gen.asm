@@ -152,7 +152,7 @@ ENDPROC	genCLS
 DEFPROC	genColor
 	call	genExprNum
 	jbe	gc9
-	cmp	al,','			; was the last symbol a semi-colon?
+	cmp	al,','			; was the last symbol a comma?
 	je	genColor		; yes, go back for more
 gc9:	GENPUSH	nArgs
 	GENCALL	setColor
