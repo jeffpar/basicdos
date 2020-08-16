@@ -487,8 +487,8 @@ ENDPROC	setVarLong
 ;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	appendStr,FAR
-	ARGLONG	pSource			; define args from the bottom up
-	ARGLONG	pTarget
+	ARGVAR	pTarget,dword
+	ARGVAR	pSource,dword
 	ENTER
 	push	ds
 	lds	si,[pSource]
@@ -632,8 +632,8 @@ ENDPROC	freeStr
 ;	AX, BX, CX, DX, DI, ES
 ;
 DEFPROC	setStr,FAR
-	ARGLONG	pSource			; define args from the bottom up
-	ARGLONG	pTargetVar
+	ARGVAR	pTargetVar,dword
+	ARGVAR	pSource,dword
 	ENTER
 	les	di,[pTargetVar]
 	int 3

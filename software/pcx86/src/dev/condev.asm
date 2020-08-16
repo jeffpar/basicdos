@@ -24,8 +24,9 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
 	DEFLBL	IOCTBL,word
-	dw	ddcon_none,   ddcon_getpos, ddcon_getlen,   ddcon_movcur
-	dw	ddcon_setins, ddcon_scroll, ddcon_getcolor, ddcon_setcolor
+	dw	ddcon_none,   ddcon_getdim, ddcon_getpos, ddcon_getlen
+	dw	ddcon_movcur, ddcon_setins, ddcon_scroll, ddcon_getcolor
+	dw	ddcon_setcolor
 	DEFABS	IOCTBL_SIZE,<($ - IOCTBL) SHR 1>
 
 	DEFLBL	CON_PARMS,word
@@ -163,6 +164,27 @@ dio7:	mov	es:[di].DDP_CONTEXT,dx	; return pos or length in packet context
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 dio9:	ret
 ENDPROC	ddcon_ioctl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_getdim
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;	DS = CONSOLE context
+;
+; Outputs:
+;	DL = # columns
+;	DH = # rows
+;
+; Modifies:
+;	DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_getdim
+	mov	dx,ds:[CT_CONDIM]
+	ret
+ENDPROC	ddcon_getdim
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -365,8 +387,8 @@ ENDPROC	ddcon_scroll
 ;	DS = CONSOLE context
 ;
 ; Outputs:
-;	DL = fill attributes (from DDPRW_LENGTH.LO)
-;	DH = border attributes (from DDPRW_LENGTH.HI)
+;	DL = fill attributes
+;	DH = border attributes
 ;
 ; Modifies:
 ;	DX
