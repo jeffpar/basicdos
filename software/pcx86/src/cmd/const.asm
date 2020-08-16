@@ -10,7 +10,7 @@
 	include	cmd.inc
 
 CODE    SEGMENT
-	EXTERNS	<cmdDate,CmdDir,cmdExit,cmdMem,cmdTime,cmdType>,near
+	EXTERNS	<cmdDate,CmdDir,cmdExit,cmdHelp,cmdMem,cmdTime,cmdType>,near
 	EXTERNS	<genCLS,genColor,genLet,genPrint>,near
 	EXTERNS	<evalNegLong,evalNotLong>,near
 	EXTERNS	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>,near
@@ -95,10 +95,11 @@ CODE	ENDS
 	DEFTOK	TOK_DATE,   2, "DATE",	cmdDate
 	DEFTOK	TOK_DIR,   11, "DIR",	cmdDir
 	DEFTOK	TOK_EXIT,   3, "EXIT",	cmdExit
+	DEFTOK	TOK_HELP,   4, "HELP",	cmdHelp
 	DEFTOK	TOK_LET,   23, "LET",	genLet
-	DEFTOK	TOK_MEM,    4, "MEM",	cmdMem
+	DEFTOK	TOK_MEM,    5, "MEM",	cmdMem
 	DEFTOK	TOK_PRINT, 24, "PRINT",	genPrint
-	DEFTOK	TOK_TIME,   5, "TIME",	cmdTime
+	DEFTOK	TOK_TIME,   6, "TIME",	cmdTime
 	DEFTOK	TOK_TYPE,  12, "TYPE",	cmdType
 	NUMTOKENS CMD_TOKENS,CMD_TOTAL
 

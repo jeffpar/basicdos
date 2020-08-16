@@ -186,6 +186,8 @@ PUSH_DS_DX macro
 CMD_HEAP	struc
 ORIG_SP		dd	?
 ORIG_BP		dw	?
+CON_COLS	db	?
+CON_ROWS	db	?
 INPUTBUF	db	size BUF_INPUT dup (?)
 TOKENBUF	db	size BUF_TOKEN dup (?)
 FILENAME	db	16 dup (?)	; filename template ("X:XXXXXXXX.XXX")

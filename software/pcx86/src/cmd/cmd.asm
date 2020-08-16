@@ -32,16 +32,24 @@ DEFPROC	main
 	mov	[bx].ORIG_SP.SEG,ss
 	mov	[bx].ORIG_SP.OFF,sp
 	mov	[bx].ORIG_BP,bp
+
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	mov	dx,offset ctrlc
 	int	21h
-	lea	bx,[heap]
-	mov	word ptr [bx].INPUTBUF.INP_MAX,size INP_BUF
+
+	push	bx
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETDIM
+	mov	bx,STDOUT
+	int	21h
+	pop	bx
+	mov	word ptr [bx].CON_COLS,ax
 
 	PRINTF	<"BASIC-DOS Interpreter",13,10,13,10>
 	IFDEF	MSLIB
 	PRINTF	<"BASIC MATH library functions",13,10,"Copyright (c) Microsoft Corporation",13,10,13,10>
 	ENDIF
+
+	mov	word ptr [bx].INPUTBUF.INP_MAX,size INP_BUF
 ;
 ; Since all command handlers loop back to this point, we shouldn't assume
 ; that any registers (eg, BX, ES) will still be set to their original values.
@@ -580,6 +588,48 @@ DEFPROC	cmdExit
 	int	20h		; terminate
 	ret			; unless we can't (ie, if no parent)
 ENDPROC	cmdExit
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmdHelp
+;
+; For now, all this does is print the names of all supported commands.
+;
+; Inputs:
+;	DS:SI -> filespec (with length CX)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cmdHelp
+	mov	si,offset CMD_TOKENS
+	lodsw			; AL = # tokens, AH = size TOKDEF
+	mov	cl,al
+	mov	ch,0		; CX = # tokens
+	mov	al,ah
+	cbw
+	xchg	di,ax		; DI = size TOKDEF
+	mov	dl,0		; DL = # chars printed on line so far
+h1:	push	dx
+	mov	dl,[si].TOKDEF_LEN
+	mov	dh,0
+	PRINTF	<"%-8.*s">,dx,[si].TOKDEF_OFF
+	pop	dx
+	inc	ax
+	add	dl,al
+	cmp	cl,1
+	je	h2
+	cmp	dl,[bx].CON_COLS
+	jb	h3
+h2:	PRINTF	<13,10>
+	mov	dl,0
+h3:	add	si,di		; SI -> next TOKDEF
+	loop	h1
+	ret
+ENDPROC	cmdHelp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
