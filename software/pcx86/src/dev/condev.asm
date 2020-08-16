@@ -24,8 +24,8 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
 	DEFLBL	IOCTBL,word
-	dw	ddcon_none,   ddcon_getpos, ddcon_getlen,  ddcon_movcur	; 0-3
-	dw	ddcon_setins, ddcon_scroll, ddcon_setcolor		; 4-6
+	dw	ddcon_none,   ddcon_getpos, ddcon_getlen,   ddcon_movcur
+	dw	ddcon_setins, ddcon_scroll, ddcon_getcolor, ddcon_setcolor
 	DEFABS	IOCTBL_SIZE,<($ - IOCTBL) SHR 1>
 
 	DEFLBL	CON_PARMS,word
@@ -153,7 +153,11 @@ dio0:	mov	bl,0
 dio1:	mov	bh,0
 	add	bx,bx
 	mov	cx,es:[di].DDPRW_LENGTH
+	push	di			; some of the IOCTL subfunctions
+	push	es			; modify DI and ES, so we save them
 	call	IOCTBL[bx]
+	pop	es
+	pop	di
 	jc	dio9
 dio7:	mov	es:[di].DDP_CONTEXT,dx	; return pos or length in packet context
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
@@ -294,7 +298,7 @@ ENDPROC	ddcon_movcur
 ;	DX = previous insert mode (0 if cleared, 1 if set)
 ;
 ; Modifies:
-;	AX, CX, DX
+;	AX, CX, DX, ES
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_setins
@@ -310,8 +314,7 @@ dsi1:	mov	ds:[CT_CURTYPE],ax
 ;
 ; Toggle INS_STATE (80h) in KB_FLAG to reflect the requested insert state.
 ;
-dsi2:	push	es
-	sub	ax,ax
+dsi2:	sub	ax,ax
 	mov	es,ax
 	ASSUME	ES:BIOS
 	mov	dl,[KB_FLAG]
@@ -321,7 +324,6 @@ dsi2:	push	es
 	mov	[KB_FLAG],al		; update keyboard insert mode
 	rol	dl,1
 	and	dx,1
-	pop	es
 	ret
 ENDPROC	ddcon_setins
 
@@ -338,17 +340,13 @@ ENDPROC	ddcon_setins
 ;	None
 ;
 ; Modifies:
-;	AX, BX, CX, DX
+;	AX, BX, CX, DX, SI, DI, ES
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_scroll
 	test	cx,cx			; clearing the whole interior?
 	jnz	dcs1			; no
-	push	di
-	push	es
 	call	draw_border		; yes, good idea to redraw border, too
-	pop	es
-	pop	di
 	mov	cl,100
 dcs1:	call	scroll
 	cmp	cl,100
@@ -357,6 +355,27 @@ dcs1:	call	scroll
 	call	update_cursor
 dcs9:	ret
 ENDPROC	ddcon_scroll
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_getcolor
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;	DS = CONSOLE context
+;
+; Outputs:
+;	DL = fill attributes (from DDPRW_LENGTH.LO)
+;	DH = border attributes (from DDPRW_LENGTH.HI)
+;
+; Modifies:
+;	DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_getcolor
+	mov	dx,ds:[CT_COLOR]
+	ret
+ENDPROC	ddcon_getcolor
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -372,12 +391,16 @@ ENDPROC	ddcon_scroll
 ;	None
 ;
 ; Modifies:
-;	AX
+;	AX, BX, CX, DX, SI, DI, ES
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_setcolor
-	mov	ds:[CT_COLOR],cx
-	ret
+	mov	ax,cx
+	xchg	ds:[CT_COLOR],ax
+	cmp	ah,ch			; border color changed?
+	je	sc9			; no
+	call	draw_border
+sc9:	ret
 ENDPROC	ddcon_setcolor
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1612,7 +1635,9 @@ sf1:	mov	cx,[ct_head]
 	je	sf8			; nothing to do
 sf2:	xchg	cx,[ct_focus]
 	mov	ds,cx
-;	call	update_context
+	IFDEF	MAYBE_SOMEDAY
+	call	update_context
+	ENDIF
 	call	draw_border		; redraw the border and hide
 	call	hide_cursor		; the cursor of the outgoing context
 	mov	ds,[ct_focus]
@@ -1668,9 +1693,9 @@ ENDPROC	unlock_bios
 ;
 ; update_biosdata
 ;
-; Called whenever the BIOS data needs to be updated to reflect current
-; context state.  It should be called for an incoming context when switching
-; contexts (see switch_focus).
+; Called whenever the BIOS data should be updated to reflect current context
+; state.  The main benefit is improved compatibility with apps that bypass our
+; services (ie, access the BIOS directly).
 ;
 ; Worst case, this function might need to be called on every session switch.
 ; However, as discussed in scb_switch, calling drivers on every context switch
@@ -1710,8 +1735,8 @@ ENDPROC	update_biosdata
 ;
 ; update_context
 ;
-; This is the inverse of update_biosdata.  It should be called for an outgoing
-; context when switching contexts (see switch_focus).
+; This is the inverse of update_biosdata.  It may only be necessary if we
+; get more aggressive about maintaining BIOS state on a per-session basis.
 ;
 ; Worst case, this function might need to be called on every session switch.
 ; However, as discussed in scb_switch, calling drivers on every context switch
@@ -1726,6 +1751,7 @@ ENDPROC	update_biosdata
 ; Modifies:
 ;	AX
 ;
+	IFDEF	MAYBE_SOMEDAY
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	update_context
 	push	es
@@ -1742,6 +1768,7 @@ DEFPROC	update_context
 	pop	es
 	ret
 ENDPROC	update_context
+	ENDIF	; MAYBE_SOMEDAY
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

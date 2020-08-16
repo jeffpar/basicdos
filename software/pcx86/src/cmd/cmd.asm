@@ -409,27 +409,6 @@ ENDPROC	ctrlc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; cmdCLS
-;
-; Inputs:
-;	DS:SI -> user-defined token (none)
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	Any
-;
-DEFPROC	cmdCLS
-	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_SCROLL
-	mov	bx,STDOUT
-	sub	cx,cx
-	int	21h
-	ret
-ENDPROC	cmdCLS
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; cmdDate
 ;
 ; TBD
