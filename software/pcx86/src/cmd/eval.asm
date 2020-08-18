@@ -69,19 +69,40 @@ ENDPROC	evalSubLong
 ;
 ; evalMulLong
 ;
-; New strategy: load mulA in DX:AX and mulB into CX:BX, convert them to
-; positive values, multiply, and then negate the result if the signs differ.
+; I tried loading mulA in SI:BX and mulB into AX:CX, converting them to
+; positive values, multiplying, and then negating the result if the signs
+; differed; however, the low 32 bits of this 64-bit operation are apparently
+; always the same, irrespective of whether the numbers are signed or not.
 ;
-; Example: -123123123 (F8A9 4A4D) * 91283123 (0570 DEB3) = (AF7D B9D8)
+; Example: -123123123 (F8A9 4A4D) * 91283123 (0570 DEB3)
 ;
 ;	a) load mulA (F8A9 4A4D) and negate: 0756 B5B3 (SI:BX)
 ;	b) load mulB: 0570 DEB3 (AX:CX)
-;	c) multiply AX * BX (0570 * B5B3): 03DB FD50 (DX:AX) (save FD50)
-;	d) multiply SI * CX (0756 * DEB3): 0661 B522 (DX:AX) (save B522)
+;	c) multiply AX * BX (0570 * B5B3): 03DB FD50 (DX:AX)
+;	d) multiply SI * CX (0756 * DEB3): 0661 B522 (DX:AX)
 ;	e) add B522 to FD50, resulting in B272
 ;	f) multiply BX * CX (B5B3 * DEB3): 9E10 4629 (DX:AX)
 ;	g) add B272 to 9E10, resulting in 5082 (with carry)
-;	h) negate 5082 4629, resulting in AF7D B9D7 (should be AF7D B9D8?)
+;	h) negate 5082 4629, resulting in AF7D B9D7
+;
+;			0756B5B3
+;			0570DEB3
+;		      x --------
+;			16042119
+;		       50B9CEB1
+;		      66BDEFCA
+;		     5F673A17
+;		    00000000
+;		   335EF7E5
+;		  24B18C7F
+;		 00000000
+;		 ---------------
+;		0027EDDE50824629
+;		FFD81221AF7DB9D7 (negated)
+;
+; Note that JavaScript comes up with AF7DB9D8 instead, presumably because
+; it does all its multiplication in floating-point, which is limited to 52
+; significant bits, so some accuracy gets lost in the least significant bits.
 ;
 ; Inputs:
 ;	2 32-bit args on stack (popped)
@@ -132,8 +153,15 @@ DEFPROC	evalMulLong,FAR
 	; neg	ax			; subtract DX:AX from 0 with carry
 	; sbb	dx,0
 
-	mov	cx,[mulA].HIW
-	or	cx,[mulB].HIW
+;
+; We perform a simple short-circuiting if both numbers are >= 0 and < 65536.
+;
+; We could do something similar if both numbers were >= -65536 and < 0 (ie, if
+; both high words were simply sign-extensions of the low words).  However, that
+; is a bit more tedious to determine.
+;
+	mov	cx,[mulA].HIW		; a small optimization if both numbers
+	or	cx,[mulB].HIW		; are >= 0 and < 65536
 	jcxz	ml6
 
 	mov	ax,[mulB].LOW
@@ -228,8 +256,8 @@ dl3:	dec	[bitCount]		; repeat
 	jmp	short dl5
 ;
 ; We can use the DIV instruction, since the divisor is no more than 16 bits;
-; we use two divides to avoid quotient overflow.  And since the remainder must
-; be less than the divisor, it can't be more than 16 bits either.
+; we use two divides, if necessary, to avoid quotient overflow.  And since the
+; remainder must be less than the divisor, it can't be more than 16 bits, too.
 ;
 ; This is also the only path that has to worry about divide-by-zero, since zero
 ; is a 16-bit divisor.
