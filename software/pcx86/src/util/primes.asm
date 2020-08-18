@@ -14,6 +14,7 @@ CODE    SEGMENT
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:STACK
 DEFPROC	main
 
+	LOCVAR	nPrimes,word
 	LOCVAR	maxDivisor,word
 	LOCVAR	maxSquared,word
 	LOCVAR	advSquared,word
@@ -37,13 +38,13 @@ DEFPROC	main
 ; the next odd number (since square numbers are separated by sequential odd
 ; numbers).
 ;
-	mov	[maxDivisor],2
+	mov	bx,2		; BX = first dividend
+	mov	[maxDivisor],bx
 	mov	[maxSquared],4	; current square of maxDivisor
 	mov	[advSquared],5	; next odd amount to advance maxSquared by
 
 	sub	si,si		; SI = # of primes this line
-
-	mov	bx,2		; BX = first dividend
+	mov	[nPrimes],0
 
 m1:	mov	cx,3		; CX = first (odd) divisor
 m2:	cmp	cx,[maxDivisor]	; is divisor too large now?
@@ -57,6 +58,7 @@ m2:	cmp	cx,[maxDivisor]	; is divisor too large now?
 	jmp	m2		; try next (odd) divisor
 
 m3:	PRINTF	<"%7u">,bx
+	inc	[nPrimes]
 	inc	si
 	cmp	si,5
 	jb	m4
@@ -64,8 +66,9 @@ m3:	PRINTF	<"%7u">,bx
 	sub	si,si
 
 m4:	inc	bx		; BX = next dividend
-	jz	m9		; wrapped around to zero, all done
 	or	bx,1		; bump it to odd if it isn't odd already
+	cmp	bx,32000
+	jae	m9
 
 m5:	cmp	bx,[maxSquared]	; dividend below square of max divisor?
 	jb	m1		; yes
@@ -76,7 +79,8 @@ m5:	cmp	bx,[maxSquared]	; dividend below square of max divisor?
 	mov	[advSquared],ax
 	jmp	m1
 
-m9:	LEAVE
+m9:	PRINTF	<13,10,"total primes < 32000: %d",13,10>,nPrimes
+	LEAVE
 	mov	ax,DOS_PSP_EXIT SHL 8
 	int	21h
 ENDPROC	main

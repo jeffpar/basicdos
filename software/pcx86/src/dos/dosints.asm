@@ -101,6 +101,23 @@ ENDPROC	dos_oferr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; dos_opchk (INT 06h)
+;
+; This interrupt is used by DEBUG builds to perform "operation checks";
+; eg:
+;
+;	CL = 01h: 32-bit multiply check
+;	CL = 02h: 32-bit division check
+;
+; If the 8086 emulation environment isn't set up to intercept INT 06h and
+; perform these checks, this handler ensures the checks are harmless.
+;
+DEFPROC	dos_opchk,DOSFAR
+	iret
+ENDPROC	dos_opchk
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; dos_term (INT 20h)
 ;
 ; NOTE: In PC DOS, this interrupt, as well as INT 21h AH=00h, apparently

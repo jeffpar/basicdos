@@ -69,6 +69,41 @@ ENDPROC	evalSubLong
 ;
 ; evalMulLong
 ;
+; I tried loading mulA in SI:BX and mulB into AX:CX, converting them to
+; positive values, multiplying, and then negating the result if the signs
+; differed; however, the low 32 bits of this 64-bit operation are apparently
+; always the same, irrespective of whether the numbers are signed or not.
+;
+; Example: -123123123 (F8A9 4A4D) * 91283123 (0570 DEB3)
+;
+;	a) load mulA (F8A9 4A4D) and negate: 0756 B5B3 (SI:BX)
+;	b) load mulB: 0570 DEB3 (AX:CX)
+;	c) multiply AX * BX (0570 * B5B3): 03DB FD50 (DX:AX)
+;	d) multiply SI * CX (0756 * DEB3): 0661 B522 (DX:AX)
+;	e) add B522 to FD50, resulting in B272
+;	f) multiply BX * CX (B5B3 * DEB3): 9E10 4629 (DX:AX)
+;	g) add B272 to 9E10, resulting in 5082 (with carry)
+;	h) negate 5082 4629, resulting in AF7D B9D7
+;
+;			0756B5B3
+;			0570DEB3
+;		      x --------
+;			16042119
+;		       50B9CEB1
+;		      66BDEFCA
+;		     5F673A17
+;		    00000000
+;		   335EF7E5
+;		  24B18C7F
+;		 00000000
+;		 ---------------
+;		0027EDDE50824629
+;		FFD81221AF7DB9D7 (negated)
+;
+; Note that JavaScript comes up with AF7DB9D8 instead, presumably because
+; it does all its multiplication in floating-point, which is limited to 52
+; significant bits, so some accuracy gets lost in the least significant bits.
+;
 ; Inputs:
 ;	2 32-bit args on stack (popped)
 ;
@@ -83,18 +118,65 @@ DEFPROC	evalMulLong,FAR
 	ARGVAR	mulB,dword
 	ENTER
 
+	; mov	bx,[mulA].LOW
+	; mov	ax,[mulA].HIW		; AX:BX = mulA
+
+	; cwd				; DX = 0 or -1
+	; xor	bx,dx
+	; xor	ax,dx			; flip all the bits in AX:BX (or not)
+	; sub	bx,dx
+	; sbb	ax,dx			; AX:BX = abs(mulA)
+	; xchg	si,ax			; SI:BX = abs(mulA), for now
+
+	; mov	cx,[mulB].LOW
+	; mov	ax,[mulB].HIW		; AX:CX = mulB
+
+	; cwd				; DX = 0 or -1
+	; xor	cx,dx
+	; xor	ax,dx			; flip all the bits in AX:CX (or not)
+	; sub	cx,dx
+	; sbb	ax,dx			; AX:CX = abs(mulB)
+
+	; mul	bx
+	; xchg	si,ax			; SI = mulB.HIW (AX) * mulA.LOW (BX)
+	; mul	cx
+	; add	si,ax			; SI += mulA.HIW (AX) * mulB.LOW (CX)
+	; xchg	ax,bx
+	; mul	cx			; DX:AX = mulA.LOW (AX) * mulB.LOW (CX)
+	; add	dx,si			; DX += SI
+
+	; mov	cl,[mulA].HIW.HIB
+	; xor	cl,[mulB].HIW.HIB
+	; jns	ml7
+
+	; neg 	dx
+	; neg	ax			; subtract DX:AX from 0 with carry
+	; sbb	dx,0
+
+;
+; We perform a simple short-circuiting if both numbers are >= 0 and < 65536.
+;
+; We could do something similar if both numbers were >= -65536 and < 0 (ie, if
+; both high words were simply sign-extensions of the low words).  However, that
+; is a bit more tedious to determine.
+;
+	mov	cx,[mulA].HIW		; a small optimization if both numbers
+	or	cx,[mulB].HIW		; are >= 0 and < 65536
+	jcxz	ml6
+
 	mov	ax,[mulB].LOW
 	mul	[mulA].HIW
-	xchg	bx,ax			; BX = mulB.LOW * mulA.HIW
+	xchg	cx,ax			; CX = mulB.LOW * mulA.HIW
 
 	mov	ax,[mulA].LOW
 	mul	[mulB].HIW
-	add	bx,ax			; BX = sum of cross product
+	add	cx,ax			; CX = sum of cross product
 
-	mov	ax,[mulA].LOW
+ml6:	mov	ax,[mulA].LOW
 	mul	[mulB].LOW		; DX:AX = mulB.LOW * mulA.LOW
-	add	dx,bx			; add cross product to upper word
-	into
+	add	dx,cx			; add cross product to upper word
+
+ml7:	OPCHECK	OP_MUL32
 
 	mov	[mulA].LOW,ax
 	mov	[mulA].HIW,dx
@@ -125,15 +207,12 @@ DEFPROC	evalDivLong,FAR
 	ARGVAR	divB,dword
 	LOCVAR	bitCount,byte
 	LOCVAR	resultType,byte
-	LOCVAR	signDivisor,byte
-	LOCVAR	signDividend,byte
 
 	ENTER
 	mov	[bitCount],32
 	mov	[resultType],al
 	mov	bx,[divA].LOW
 	mov	ax,[divA].HIW		; AX:BX = dividend
-	mov	[signDividend],ah
 
 	cwd				; DX = 0 or -1
 	xor	bx,dx
@@ -145,7 +224,6 @@ DEFPROC	evalDivLong,FAR
 
 	mov	cx,[divB].LOW
 	mov	ax,[divB].HIW		; AX:CX = divisor
-	mov	[signDivisor],ah
 
 	cwd				; DX = 0 or -1
 	xor	cx,dx
@@ -178,35 +256,40 @@ dl3:	dec	[bitCount]		; repeat
 	jmp	short dl5
 ;
 ; We can use the DIV instruction, since the divisor is no more than 16 bits;
-; we use two divides to avoid quotient overflow.  And since the remainder must
-; be less than the divisor, it can't be more than 16 bits either.
+; we use two divides, if necessary, to avoid quotient overflow.  And since the
+; remainder must be less than the divisor, it can't be more than 16 bits, too.
 ;
 ; This is also the only path that has to worry about divide-by-zero, since zero
 ; is a 16-bit divisor.
 ;
-dl4:	mov	cx,ax			; save low dividend
-	mov	ax,dx			; divide high dividend
+dl4:	sub	cx,cx
+	cmp	dx,bx			; can we avoid the first division?
+	jb	dl4a			; yes
+	xchg	cx,ax			; save low dividend
+	xchg	ax,dx			; divide high dividend
 	sub	dx,dx			; DX:AX is new dividend
 	div	bx			; AX is high quotient
 	xchg	ax,cx			; move to CX, restore low dividend
-	div	bx			; AX is low quotient
+dl4a:	div	bx			; AX is low quotient
 	mov	di,dx			; SI:DI = remainder
 	mov	dx,cx			; DX:AX = quotient
 
-dl5:	test	[signDividend],-1	; negate remainder if dividend neg
+dl5:	test	[divA].HIW.HIB,-1	; negate remainder if dividend neg
 	jns	dl6
 	neg 	si
 	neg	di			; subtract SI:DI from 0 with carry
 	sbb	si,0
 
-dl6:	mov	cl,[signDivisor]	; negate quotient if signs opposite
-	xor	cl,[signDividend]
+dl6:	mov	cl,[divB].HIW.HIB	; negate quotient if signs opposite
+	xor	cl,[divA].HIW.HIB
 	jns	dl7
 	neg 	dx
 	neg	ax			; subtract DX:AX from 0 with carry
 	sbb	dx,0
 
-dl7:	cmp	[resultType],0
+dl7:	OPCHECK	OP_DIV32
+
+	cmp	[resultType],0
 	je	dl8
 	mov	[divA].LOW,di		; return remainder
 	mov	[divA].HIW,si
@@ -239,8 +322,8 @@ ENDPROC	evalModLong
 ;
 ; evalExpLong
 ;
-; Since the long version of exponentiation supports only long base (expA) and
-; power (expB) args, we can consider these discrete power cases:
+; This version of exponentiation supports only long base (expA) and power
+; (expB) args, so we consider these discrete power cases:
 ;
 ;	<0, =0, =1, >1, >31
 ;
@@ -258,8 +341,9 @@ ENDPROC	evalModLong
 ; If base is 2, return base shifted left power times, which may result in
 ; zero|overflow (guaranteed if power > 31).
 ;
-; Otherwise, we can perform repeated multiplication until power is exhausted
-; or the result becomes zero|overflow; can never take more than 31 iterations.
+; Otherwise, perform repeated multiplication until power is exhausted or the
+; result becomes zero|overflow; note that any power larger than 31 will always
+; cause an overflow, since we've already eliminated bases <= 2.
 ;
 ; Inputs:
 ;	2 32-bit args on stack (popped)
@@ -268,7 +352,7 @@ ENDPROC	evalModLong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX, CX, DX
+;	AX, BX, CX, DX
 ;
 DEFPROC	evalExpLong,FAR
 	ARGVAR	expA,dword
@@ -354,7 +438,7 @@ ENDPROC	evalExpLong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX, CX, DX
+;	None
 ;
 DEFPROC	evalNegLong,FAR
 	ARGVAR	negA,dword
@@ -377,7 +461,7 @@ ENDPROC	evalNegLong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX
+;	None
 ;
 DEFPROC	evalNotLong,FAR
 	ARGVAR	notA,dword
@@ -590,7 +674,7 @@ ENDPROC	evalEQLong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX
+;	AX, BX, CX, DX
 ;
 DEFPROC	evalNELong,FAR
 	mov	bx,offset evalNE
@@ -608,7 +692,7 @@ ENDPROC	evalNELong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX
+;	AX, BX, CX, DX
 ;
 DEFPROC	evalLTLong,FAR
 	mov	bx,offset evalLT
@@ -626,7 +710,7 @@ ENDPROC	evalLTLong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX
+;	AX, BX, CX, DX
 ;
 DEFPROC	evalGTLong,FAR
 	mov	bx,offset evalGT
@@ -644,7 +728,7 @@ ENDPROC	evalGTLong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX
+;	AX, BX, CX, DX
 ;
 DEFPROC	evalLELong,FAR
 	mov	bx,offset evalLE
@@ -662,7 +746,7 @@ ENDPROC	evalLELong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX
+;	AX, BX, CX, DX
 ;
 DEFPROC	evalGELong,FAR
 	mov	bx,offset evalGE
@@ -680,7 +764,7 @@ ENDPROC	evalGELong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX
+;	AX, CX, DX
 ;
 DEFPROC	evalShlLong,FAR
 	ARGVAR	shlA,dword
@@ -717,7 +801,7 @@ ENDPROC	evalShlLong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX
+;	AX, CX, DX
 ;
 DEFPROC	evalShrLong,FAR
 	ARGVAR	shrA,dword

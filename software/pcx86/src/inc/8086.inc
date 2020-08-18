@@ -18,8 +18,8 @@ INT_BP		EQU	03h	; #BP (breakpoint)
 INT_OF		EQU	04h	; #OF (overflow)
 
 REG16	struc
-LO		db	?
-HI		db	?
+LOB		db	?
+HIB		db	?
 REG16	ends
 
 REG32	struc

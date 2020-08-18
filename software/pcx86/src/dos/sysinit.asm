@@ -14,7 +14,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<bpb_total,sfh_debug,def_switchar>,byte
 	EXTERNS	<mcb_head,mcb_limit,buf_head,scb_active>,word
 	EXTERNS	<bpb_table,scb_table,sfb_table,clk_ptr>,dword
-	EXTERNS	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>,near
+	EXTERNS	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr,dos_opchk>,near
 	EXTERNS	<dos_term,dos_func,dos_exret,dos_ctrlc,dos_error,dos_default>,near
 	EXTERNS	<disk_read,disk_write,dos_tsr,dos_call5>,near
 	EXTERNS	<dos_ddint_enter,dos_ddint_leave>,near
@@ -732,7 +732,7 @@ ENDPROC	init_table
 	dw	(INT_DV * 4) + 1	; add 1 to avoid end-of-tables signal
 	dw	dos_dverr,dos_sstep,0	; divide error and single-step handlers
 	dw	(INT_BP * 4)		; a few more low vectors
-	dw	dos_brkpt,dos_oferr,0	; breakpoint and overflow error handlers
+	dw	dos_brkpt,dos_oferr,dos_opchk,0
 	dw	(INT_DOSTERM * 4)	; next, all the DOS vectors
 	dw	dos_term,dos_func,dos_exret,dos_ctrlc
 	dw	dos_error,disk_read,disk_write,dos_tsr,dos_default,0

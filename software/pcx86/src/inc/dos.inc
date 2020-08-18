@@ -149,14 +149,14 @@ REG_CS		dw	?	; 1Eh
 REG_FL		dw	?	; 20h
 REG_FRAME	ends
 
-REG_AL		equ 	REG_AX.LO
-REG_AH		equ 	REG_AX.HI
-REG_BL		equ 	REG_BX.LO
-REG_BH		equ 	REG_BX.HI
-REG_CL		equ 	REG_CX.LO
-REG_CH		equ 	REG_CX.HI
-REG_DL		equ 	REG_DX.LO
-REG_DH		equ 	REG_DX.HI
+REG_AL		equ 	REG_AX.LOB
+REG_AH		equ 	REG_AX.HIB
+REG_BL		equ 	REG_BX.LOB
+REG_BH		equ 	REG_BX.HIB
+REG_CL		equ 	REG_CX.LOB
+REG_CH		equ 	REG_CX.HIB
+REG_DL		equ 	REG_DX.LOB
+REG_DH		equ 	REG_DX.HIB
 
 ;
 ; Temp register definitions: an alternate use of the REG_WS workspace
@@ -167,14 +167,14 @@ TMP_CX		equ	REG_WS.RET_IP
 TMP_DX		equ	REG_WS.RET_CS
 TMP_ES		equ	REG_WS.RET_FL
 
-TMP_AL		equ	TMP_AX.LO
-TMP_AH		equ	TMP_AX.HI
-TMP_BL		equ	TMP_BX.LO
-TMP_BH		equ	TMP_BX.HI
-TMP_CL		equ	TMP_CX.LO
-TMP_CH		equ	TMP_CX.HI
-TMP_DL		equ	TMP_DX.LO
-TMP_DH		equ	TMP_DX.HI
+TMP_AL		equ	TMP_AX.LOB
+TMP_AH		equ	TMP_AX.HIB
+TMP_BL		equ	TMP_BX.LOB
+TMP_BH		equ	TMP_BX.HIB
+TMP_CL		equ	TMP_CX.LOB
+TMP_CH		equ	TMP_CX.HIB
+TMP_DL		equ	TMP_DX.LOB
+TMP_DH		equ	TMP_DX.HIB
 
 ;
 ; Session Control Block (SCB)

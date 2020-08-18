@@ -380,3 +380,17 @@ COMHEAP	macro	bytes
 	public	heap
 heap	dw	(bytes + 15) SHR 4,BASICDOS_SIG
 	endm
+
+;
+; Operation checks are sprinkled throughout DEBUG builds to help perform
+; verification tests.
+;
+OP_MUL32	equ	01h
+OP_DIV32	equ	02h
+
+OPCHECK	macro	op
+	IFDEF	DEBUG
+	mov	cl,op
+	int	06h
+	ENDIF
+	endm

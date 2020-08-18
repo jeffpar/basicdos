@@ -95,8 +95,8 @@ CTSTAT_PAUSED	equ	80h	; context is paused (triggered by CTRLS hotkey)
 ;
 ; CRT Controller Registers
 ;
-CRTC_CURTOP	equ	0Ah	; cursor top (mirrored at CURSOR_MODE.HI)
-CRTC_CURBOT	equ	0Bh	; cursor bottom (mirrored at CURSOR_MODE.LO)
+CRTC_CURTOP	equ	0Ah	; cursor top (mirrored at CURSOR_MODE.HIB)
+CRTC_CURBOT	equ	0Bh	; cursor bottom (mirrored at CURSOR_MODE.LOB)
 CRTC_CURHI	equ	0Eh	; cursor start address (high)
 CRTC_CURLO	equ	0Fh	; cursor start address (low)
 
@@ -241,8 +241,8 @@ DEFPROC	ddcon_getlen
 	mov	bx,es:[di].DDPRW_LBA	; BX = starting cursor position
 	add	bx,ds:[CT_CURMIN]	; zero-based, so adjust to our mins
 	sub	dx,dx			; DL = current len, DH = previous len
-	mov	ah,ds:[CT_CURMAX].LO	; AH = column max
-	mov	bh,ds:[CT_CURMIN].LO	; BH = column min
+	mov	ah,ds:[CT_CURMAX].LOB	; AH = column max
+	mov	bh,ds:[CT_CURMIN].LOB	; BH = column min
 	lds	si,es:[di].DDPRW_ADDR
 	mov	ch,0			; CL = length (255 character maximum)
 	jcxz	dgl9			; nothing to do
@@ -405,8 +405,8 @@ ENDPROC	ddcon_getcolor
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
-;	CL = fill attributes (from DDPRW_LENGTH.LO)
-;	CH = border attributes (from DDPRW_LENGTH.HI)
+;	CL = fill attributes (from DDPRW_LENGTH.LOB)
+;	CH = border attributes (from DDPRW_LENGTH.HIB)
 ;	DS = CONSOLE context
 ;
 ; Outputs:
@@ -1231,15 +1231,15 @@ DEFPROC	draw_char
 	mov	cl,CHR_SPACE		; make this "destructive"
 	dec	ch			; no advance for backspace
 	dec	dl
-	cmp	dl,ds:[CT_CURMIN].LO
+	cmp	dl,ds:[CT_CURMIN].LOB
 	jge	dc1
-	mov	dl,ds:[CT_CURMAX].LO
+	mov	dl,ds:[CT_CURMAX].LOB
 	dec	dh
-	cmp	dh,ds:[CT_CURMIN].HI
+	cmp	dh,ds:[CT_CURMIN].HIB
 	jge	dc1
 	mov	dx,ds:[CT_CURMIN]
 
-dc1:	mov	ah,ds:[CT_COLOR].LO	; AH = attributes
+dc1:	mov	ah,ds:[CT_COLOR].LOB	; AH = attributes
 	call	write_curpos		; write CL at (DL,DH)
 ;
 ; Advance DL, advance DH as needed, and scroll the context as needed.
@@ -1247,13 +1247,13 @@ dc1:	mov	ah,ds:[CT_COLOR].LO	; AH = attributes
 	add	dl,ch			; advance DL
 	pop	cx
 
-	cmp	dl,ds:[CT_CURMAX].LO
+	cmp	dl,ds:[CT_CURMAX].LOB
 	jle	dc9
-	mov	dl,ds:[CT_CURMIN].LO
+	mov	dl,ds:[CT_CURMIN].LOB
 
 	DEFLBL	draw_linefeed,near
 	inc	dh
-	cmp	dh,ds:[CT_CURMAX].HI
+	cmp	dh,ds:[CT_CURMAX].HIB
 	jle	dc9
 	dec	dh
 	push	cx
@@ -1306,7 +1306,7 @@ ENDPROC	draw_cursor
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	draw_horzpair
-	mov	ah,ds:[CT_COLOR].HI
+	mov	ah,ds:[CT_COLOR].HIB
 	xchg	cl,ch
 	call	write_curpos
 	xchg	cl,ch
@@ -1332,7 +1332,7 @@ ENDPROC	draw_horzpair
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	draw_vertpair
-	mov	ah,ds:[CT_COLOR].HI
+	mov	ah,ds:[CT_COLOR].HIB
 	xchg	cl,ch
 	call	write_curpos
 	xchg	dl,bl
@@ -1405,32 +1405,32 @@ ENDPROC	hide_cursor
 DEFPROC	move_cursor
 	mov	dx,ds:[CT_CURPOS]	; DX = current cursor position
 	xchg	ax,cx
-	idiv	ds:[CT_CURDIM].LO	; AL = # lines, AH = # columns (signed)
+	idiv	ds:[CT_CURDIM].LOB	; AL = # lines, AH = # columns (signed)
 
 mc1:	add	dh,al
-	cmp	dh,ds:[CT_CURMIN].HI
+	cmp	dh,ds:[CT_CURMIN].HIB
 	jge	mc1a
-	mov	dh,ds:[CT_CURMIN].HI
-mc1a:	cmp	dh,ds:[CT_CURMAX].HI
+	mov	dh,ds:[CT_CURMIN].HIB
+mc1a:	cmp	dh,ds:[CT_CURMAX].HIB
 	jle	mc2
-	mov	dh,ds:[CT_CURMAX].HI
+	mov	dh,ds:[CT_CURMAX].HIB
 
 mc2:	add	dl,ah
-	cmp	dl,ds:[CT_CURMIN].LO
+	cmp	dl,ds:[CT_CURMIN].LOB
 	jge	mc2a
-	add	dl,ds:[CT_CURMAX].LO
+	add	dl,ds:[CT_CURMAX].LOB
 	inc	dl
-	sub	dl,ds:[CT_CURMIN].LO
-	cmp	dh,ds:[CT_CURMIN].HI
+	sub	dl,ds:[CT_CURMIN].LOB
+	cmp	dh,ds:[CT_CURMIN].HIB
 	jle	mc2a
 	dec	dh
 
-mc2a:	cmp	dl,ds:[CT_CURMAX].LO
+mc2a:	cmp	dl,ds:[CT_CURMAX].LOB
 	jle	mc8
-	sub	dl,ds:[CT_CURMAX].LO
+	sub	dl,ds:[CT_CURMAX].LOB
 	dec	dl
-	add	dl,ds:[CT_CURMIN].LO
-	cmp	dh,ds:[CT_CURMAX].HI
+	add	dl,ds:[CT_CURMIN].LOB
+	cmp	dh,ds:[CT_CURMAX].HIB
 	jge	mc8
 	inc	dh
 
@@ -1550,12 +1550,12 @@ DEFPROC	scroll
 	jnz	scr0			; no
 	add	dx,ds:[CT_CONDIM]	; yes, clear entire context
 	jmp	short scr2		; (including border, if any)
-scr0:	cmp	al,ds:[CT_CONDIM].HI
+scr0:	cmp	al,ds:[CT_CONDIM].HIB
 	jl	scr1
 	mov	al,0			; zero tells BIOS to clear all lines
 scr1:	add	cx,ds:[CT_CURMIN]	; CH = row, CL = col of upper left
 	add	dx,ds:[CT_CURMAX]	; DH = row, DL = col of lower right
-scr2:	mov	bh,ds:[CT_COLOR].LO	; BH = fill attributes
+scr2:	mov	bh,ds:[CT_COLOR].LOB	; BH = fill attributes
 	mov	ah,VIDEO_SCROLL		; scroll up # lines in AL
 	int	INT_VIDEO
 	pop	ax
@@ -1797,7 +1797,7 @@ ENDPROC	update_context
 ; update_curtype
 ;
 ; Due to a bug in the original IBM PC (5150) BIOS, the initial cursor top and
-; bottom scan lines are stored in the high and low *nibbles* of CURSOR_MODE.LO,
+; bottom scan lines are stored in the high and low *nibbles* of CURSOR_MODE.LOB
 ; instead of the high and low *bytes* of CURSOR_MODE.  Here's the buggy code:
 ;
 ;	F177:	C70660006700	MOV	CURSOR_MODE,67H
@@ -1823,7 +1823,7 @@ DEFPROC	update_curtype
 	cmp	ax,0067h		; buggy cursor scanline values?
 	jne	uct1			; no
 	mov	ax,0607h		; yes, fix them
-uct1:	cmp	[ADDR_6845].LO,0B4h	; MDA?
+uct1:	cmp	[ADDR_6845].LOB,0B4h	; MDA?
 	jne	uct2			; no
 	cmp	ax,0607h		; bogus values for MDA?
 	jne	uct2			; no
@@ -1890,7 +1890,7 @@ DEFPROC	write_context
 
 	cmp	al,CHR_RETURN		; RETURN?
 	jne	wc1			; no
-	mov	dl,ds:[CT_CURMIN].LO	; yes
+	mov	dl,ds:[CT_CURMIN].LOB	; yes
 	jmp	short wc8
 
 wc1:	cmp	al,CHR_LINEFEED		; LINEFEED?
@@ -1913,13 +1913,13 @@ wc1:	cmp	al,CHR_LINEFEED		; LINEFEED?
 	jmp	short wc7
 
 wcht:	mov	bl,dl			; emulate a (horizontal) TAB
-	sub	bl,ds:[CT_CURMIN].LO
+	sub	bl,ds:[CT_CURMIN].LOB
 	and	bl,07h
 	neg	bl
 	add	bl,8
 	mov	cl,CHR_SPACE
 wcsp:	call	draw_char
-	cmp	dl,ds:[CT_CURMIN].LO	; did the column wrap back around?
+	cmp	dl,ds:[CT_CURMIN].LOB	; did the column wrap back around?
 	jle	wc8			; yes, stop
 	dec	bl
 	jnz	wcsp
