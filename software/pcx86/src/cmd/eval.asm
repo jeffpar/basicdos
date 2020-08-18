@@ -69,6 +69,20 @@ ENDPROC	evalSubLong
 ;
 ; evalMulLong
 ;
+; New strategy: load mulA in DX:AX and mulB into CX:BX, convert them to
+; positive values, multiply, and then negate the result if the signs differ.
+;
+; Example: -123123123 (F8A9 4A4D) * 91283123 (0570 DEB3) = (AF7D B9D8)
+;
+;	a) load mulA (F8A9 4A4D) and negate: 0756 B5B3 (SI:BX)
+;	b) load mulB: 0570 DEB3 (AX:CX)
+;	c) multiply AX * BX (0570 * B5B3): 03DB FD50 (DX:AX) (save FD50)
+;	d) multiply SI * CX (0756 * DEB3): 0661 B522 (DX:AX) (save B522)
+;	e) add B522 to FD50, resulting in B272
+;	f) multiply BX * CX (B5B3 * DEB3): 9E10 4629 (DX:AX)
+;	g) add B272 to 9E10, resulting in 5082 (with carry)
+;	h) negate 5082 4629, resulting in AF7D B9D7 (should be AF7D B9D8?)
+;
 ; Inputs:
 ;	2 32-bit args on stack (popped)
 ;
@@ -83,19 +97,58 @@ DEFPROC	evalMulLong,FAR
 	ARGVAR	mulB,dword
 	ENTER
 
+	; mov	bx,[mulA].LOW
+	; mov	ax,[mulA].HIW		; AX:BX = mulA
+
+	; cwd				; DX = 0 or -1
+	; xor	bx,dx
+	; xor	ax,dx			; flip all the bits in AX:BX (or not)
+	; sub	bx,dx
+	; sbb	ax,dx			; AX:BX = abs(mulA)
+	; xchg	si,ax			; SI:BX = abs(mulA), for now
+
+	; mov	cx,[mulB].LOW
+	; mov	ax,[mulB].HIW		; AX:CX = mulB
+
+	; cwd				; DX = 0 or -1
+	; xor	cx,dx
+	; xor	ax,dx			; flip all the bits in AX:CX (or not)
+	; sub	cx,dx
+	; sbb	ax,dx			; AX:CX = abs(mulB)
+
+	; mul	bx
+	; xchg	si,ax			; SI = mulB.HIW (AX) * mulA.LOW (BX)
+	; mul	cx
+	; add	si,ax			; SI += mulA.HIW (AX) * mulB.LOW (CX)
+	; xchg	ax,bx
+	; mul	cx			; DX:AX = mulA.LOW (AX) * mulB.LOW (CX)
+	; add	dx,si			; DX += SI
+
+	; mov	cl,[mulA].HIW.HIB
+	; xor	cl,[mulB].HIW.HIB
+	; jns	ml7
+
+	; neg 	dx
+	; neg	ax			; subtract DX:AX from 0 with carry
+	; sbb	dx,0
+
+	mov	cx,[mulA].HIW
+	or	cx,[mulB].HIW
+	jcxz	ml6
+
 	mov	ax,[mulB].LOW
 	mul	[mulA].HIW
-	xchg	bx,ax			; BX = mulB.LOW * mulA.HIW
+	xchg	cx,ax			; CX = mulB.LOW * mulA.HIW
 
 	mov	ax,[mulA].LOW
 	mul	[mulB].HIW
-	add	bx,ax			; BX = sum of cross product
+	add	cx,ax			; CX = sum of cross product
 
-	mov	ax,[mulA].LOW
+ml6:	mov	ax,[mulA].LOW
 	mul	[mulB].LOW		; DX:AX = mulB.LOW * mulA.LOW
-	add	dx,bx			; add cross product to upper word
+	add	dx,cx			; add cross product to upper word
 
-	OPCHECK	OP_MUL32
+ml7:	OPCHECK	OP_MUL32
 
 	mov	[mulA].LOW,ax
 	mov	[mulA].HIW,dx
@@ -126,15 +179,12 @@ DEFPROC	evalDivLong,FAR
 	ARGVAR	divB,dword
 	LOCVAR	bitCount,byte
 	LOCVAR	resultType,byte
-	LOCVAR	signDivisor,byte
-	LOCVAR	signDividend,byte
 
 	ENTER
 	mov	[bitCount],32
 	mov	[resultType],al
 	mov	bx,[divA].LOW
 	mov	ax,[divA].HIW		; AX:BX = dividend
-	mov	[signDividend],ah
 
 	cwd				; DX = 0 or -1
 	xor	bx,dx
@@ -146,7 +196,6 @@ DEFPROC	evalDivLong,FAR
 
 	mov	cx,[divB].LOW
 	mov	ax,[divB].HIW		; AX:CX = divisor
-	mov	[signDivisor],ah
 
 	cwd				; DX = 0 or -1
 	xor	cx,dx
@@ -197,14 +246,14 @@ dl4a:	div	bx			; AX is low quotient
 	mov	di,dx			; SI:DI = remainder
 	mov	dx,cx			; DX:AX = quotient
 
-dl5:	test	[signDividend],-1	; negate remainder if dividend neg
+dl5:	test	[divA].HIW.HIB,-1	; negate remainder if dividend neg
 	jns	dl6
 	neg 	si
 	neg	di			; subtract SI:DI from 0 with carry
 	sbb	si,0
 
-dl6:	mov	cl,[signDivisor]	; negate quotient if signs opposite
-	xor	cl,[signDividend]
+dl6:	mov	cl,[divB].HIW.HIB	; negate quotient if signs opposite
+	xor	cl,[divA].HIW.HIB
 	jns	dl7
 	neg 	dx
 	neg	ax			; subtract DX:AX from 0 with carry

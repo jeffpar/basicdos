@@ -8,6 +8,7 @@ machines:
     config: /configs/pcx86/machine/ibm-5160-cga-512kb-debugger.json
     autoType: $date\r$time\r
     autoStart: true
+    messages: int
     autoMount:
       A: "BASIC-DOS3"
       B: "BDS-BOOT"
