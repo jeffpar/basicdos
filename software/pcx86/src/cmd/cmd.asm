@@ -14,7 +14,7 @@ CODE    SEGMENT
 
 	EXTERNS	<genImmediate>,near
 
-	EXTERNS	<CMD_TOKENS,heap>,word
+	EXTERNS	<KEYWORD_TOKENS,heap>,word
 	EXTSTR	<COM_EXT,EXE_EXT,DIR_DEF,PERIOD>
 	EXTSTR	<SYS_MEM,DOS_MEM,FREE_MEM>
 
@@ -100,7 +100,7 @@ m1a:	push	cx
 	pop	cx
 	mov	ax,DOS_UTL_STRUPR
 	int	21h		; DS:SI -> upper-case token, CX = length
-	lea	dx,[CMD_TOKENS]
+	lea	dx,[KEYWORD_TOKENS]
 	mov	ax,DOS_UTL_TOKID
 	int	21h		; identify the token
 	jc	m2
@@ -605,7 +605,7 @@ ENDPROC	cmdExit
 ;	Any
 ;
 DEFPROC	cmdHelp
-	mov	si,offset CMD_TOKENS
+	mov	si,offset KEYWORD_TOKENS
 	lodsw			; AL = # tokens, AH = size TOKDEF
 	mov	cl,al
 	mov	ch,0		; CX = # tokens
@@ -613,7 +613,9 @@ DEFPROC	cmdHelp
 	cbw
 	xchg	di,ax		; DI = size TOKDEF
 	mov	dl,8		; DL = # chars to be printed so far
-h1:	push	dx
+h1:	cmp	[si].TOKDEF_ID,100
+	jae	h3		; ignore token IDs >= 100
+	push	dx
 	mov	dl,[si].TOKDEF_LEN
 	mov	dh,0
 	PRINTF	<"%-8.*s">,dx,[si].TOKDEF_OFF

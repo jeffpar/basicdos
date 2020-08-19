@@ -19,6 +19,7 @@ DATA	ENDS
 
 DEFTOK	macro	sym,val,str,func
 	LOCAL	N1
+	public	sym
 sym	equ	val
 CODE	SEGMENT
 N1	label	byte
@@ -132,11 +133,27 @@ GENCALL	macro	func
 	call	genCallCX
 	endm
 
-GENPUSH	macro	val
-	IFDIF	<val>,<dx>
-	mov	dx,val
+GENPUSH	macro	val1,val2
+	IFDIF	<val1>,<dx>
+	mov	dx,val1
 	ENDIF
-	call	genPushDX
+	IFNB	<val2>
+	IFDIF	<val2>,<cx>
+	mov	cx,val2
+	ENDIF
+	call	genPushImmLong
+	ELSE
+	call	genPushImm
+	ENDIF
+	endm
+
+GENPUSHB macro	val
+	IFDIF	<val>,<ah>
+	mov	ax,OP_MOV_AL OR (val SHL 8)
+	ELSE
+	mov	al,OP_MOV_AL
+	ENDIF
+	call	genPushImmByte
 	endm
 ;
 ; PUSHSTR copies the string at DS:SI with length CL into the code segment,
@@ -153,21 +170,6 @@ PUSHSTR	macro
 	mov	al,cl
 	stosb				;; store the length byte
 	rep	movsb			;; followed by all the characters
-	endm
-
-MOV_AL	macro	val
-	mov	ax,OP_MOV_AL OR (val SHL 8)
-	stosw
-	endm
-
-PUSH_AX	macro
-	mov	al,OP_PUSH_AX
-	stosb
-	endm
-
-PUSH_DX	macro
-	mov	al,OP_PUSH_DX
-	stosb
 	endm
 
 PUSH_DS_DX macro

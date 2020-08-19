@@ -11,7 +11,7 @@
 
 CODE    SEGMENT
 	EXTERNS	<cmdDate,CmdDir,cmdExit,cmdHelp,cmdMem,cmdTime,cmdType>,near
-	EXTERNS	<genCLS,genColor,genLet,genPrint>,near
+	EXTERNS	<genCLS,genColor,genGoto,genIf,genLet,genPrint>,near
 	EXTERNS	<evalNegLong,evalNotLong>,near
 	EXTERNS	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>,near
 	EXTERNS	<evalModLong,evalExpLong,evalImpLong>,near
@@ -89,19 +89,23 @@ CODE    SEGMENT
 
 CODE	ENDS
 
-	DEFTOKENS CMD_TOKENS,CMD_TOTAL
+	DEFTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
 	DEFTOK	TOK_CLS,   21, "CLS",	genCLS
 	DEFTOK	TOK_COLOR, 22, "COLOR",	genColor
 	DEFTOK	TOK_DATE,   2, "DATE",	cmdDate
 	DEFTOK	TOK_DIR,   11, "DIR",	cmdDir
+	DEFTOK	TOK_ELSE, 101, "ELSE"
 	DEFTOK	TOK_EXIT,   3, "EXIT",	cmdExit
+	DEFTOK	TOK_GOTO,  23, "GOTO",	genGoto
 	DEFTOK	TOK_HELP,   4, "HELP",	cmdHelp
-	DEFTOK	TOK_LET,   23, "LET",	genLet
+	DEFTOK	TOK_IF,    24, "IF",	genIf
+	DEFTOK	TOK_LET,   25, "LET",	genLet
 	DEFTOK	TOK_MEM,    5, "MEM",	cmdMem
-	DEFTOK	TOK_PRINT, 24, "PRINT",	genPrint
+	DEFTOK	TOK_PRINT, 26, "PRINT",	genPrint
+	DEFTOK	TOK_THEN, 102, "THEN"
 	DEFTOK	TOK_TIME,   6, "TIME",	cmdTime
 	DEFTOK	TOK_TYPE,  12, "TYPE",	cmdType
-	NUMTOKENS CMD_TOKENS,CMD_TOTAL
+	NUMTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
 
 	DEFTOKENS KEYOP_TOKENS,KEYOP_TOTAL
 	DEFTOK	TOK_AND,  'A', "AND"
