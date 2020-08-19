@@ -19,6 +19,7 @@ DATA	ENDS
 
 DEFTOK	macro	sym,val,str,func
 	LOCAL	N1
+	public	sym
 sym	equ	val
 CODE	SEGMENT
 N1	label	byte
@@ -169,21 +170,6 @@ PUSHSTR	macro
 	mov	al,cl
 	stosb				;; store the length byte
 	rep	movsb			;; followed by all the characters
-	endm
-
-MOV_AL	macro	val
-	mov	ax,OP_MOV_AL OR (val SHL 8)
-	stosw
-	endm
-
-PUSH_AX	macro
-	mov	al,OP_PUSH_AX
-	stosb
-	endm
-
-PUSH_DX	macro
-	mov	al,OP_PUSH_DX
-	stosb
 	endm
 
 PUSH_DS_DX macro
