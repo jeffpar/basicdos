@@ -470,7 +470,7 @@ ENDPROC	genGoto
 ;
 ; The general structure of the generated code will look like:
 ;
-;	call	evalEQLong (just for example, assuming an expr with '=')
+;	call	evalEQLong (assuming an expression with '=')
 ;	pop	ax
 ;	pop	dx
 ;	or	ax,dx
@@ -485,7 +485,7 @@ ENDPROC	genGoto
 ;
 ; So when genCommands for the "THEN" block returns, we must update the
 ; "jz elseBlock" with the address of the next available location.  Note that
-; if the amount of generated code is larger than 127 bytes, we may have to use
+; if the amount of generated code is larger than 127 bytes, we'll have to use
 ; "jnz $+5; jmp elseBlock" instead.
 ;
 ; Inputs:
@@ -747,7 +747,8 @@ ENDPROC	genPushImmByte
 ;	PUSH	DX
 ;	PUSX	AX
 ;
-; and if AX (xxxx) is zero, it can be simplified to a 4-byte sequence:
+; and if AX (xxxx) is zero, it can be simplified to a 4-byte sequence
+; (ie, genPushZeroLong):
 ;
 ;	XOR	AX,AX
 ;	PUSH	AX
@@ -763,36 +764,31 @@ ENDPROC	genPushImmByte
 ;	AX, CX, DX, DI
 ;
 DEFPROC	genPushImmLong
-	push	bx
-	mov	bx,dx			; BX:CX is now the value to push
-	mov	ax,cx			; AX = low word from CX
-	cwd				; DX = sign extension of AX
-	cmp	bx,dx			; does DX match BX?
-	jne	gpil3			; no
-	jcxz	gpil1			; jump if we can zero AX as well
+	xchg	ax,dx			; AX has original DX
+	xchg	ax,cx			; AX contains CX, CX has original DX
+	cwd				; DX is 0 or FFFFh
+	cmp	dx,cx			; same as original DX?
+	xchg	cx,ax			; AX contains original DX, CX restored
+	xchg	dx,ax			; DX restored
+	jne	gpil7			; no, DX is not the same
+	jcxz	genPushZeroLong		; jump if we can zero AX as well
 	mov	al,OP_MOV_AX
 	stosb
 	xchg	ax,cx
 	stosw
 	mov	ax,OP_CWD OR (OP_PUSH_DX SHL 8)
 	stosw
-	jmp	short gpil7
-gpil1:	mov	ax,OP_ZERO_AX
-	stosw
-	mov	ax,OP_PUSH_AX OR (OP_PUSH_AX SHL 8)
-	stosw
 	jmp	short gpil8
-gpil3:	mov	al,OP_MOV_AX
+gpil7:	mov	al,OP_MOV_AX
 	stosb
-	xchg	ax,bx
+	xchg	ax,dx
 	stosw
 	mov	ax,OP_PUSH_AX OR (OP_MOV_AX SHL 8)
 	stosw
 	xchg	ax,cx
 	stosw
-gpil7:	mov	al,OP_PUSH_AX
+gpil8:	mov	al,OP_PUSH_AX
 	stosb
-gpil8:	pop	bx
 	ret
 ENDPROC	genPushImmLong
 
