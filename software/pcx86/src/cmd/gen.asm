@@ -47,7 +47,6 @@ DEFPROC	genImmediate
 	LOCVAR	nExpPrevOp,word
 	LOCVAR	errCode,word
 	LOCVAR	pCode,dword
-	LOCVAR	pGenerator,word
 	LOCVAR	pTokletNext,word
 	LOCVAR	pTokletEnd,word
 	ENTER
@@ -62,7 +61,6 @@ DEFPROC	genImmediate
 	add	ax,bx
 	mov	[pTokletEnd],ax
 	add	bx,size TOKLET		; skip 1st token (already parsed)
-	mov	[pGenerator],dx
 
 	call	allocVars
 	jc	gie
@@ -72,7 +70,7 @@ DEFPROC	genImmediate
 	mov	[pCode].OFF,di
 	mov	[pCode].SEG,es
 
-gi1:	call	[pGenerator]		; generate code
+gi1:	call	dx			; generate code
 	jc	gi7			; error
 	call	getNextToken
 	jc	gi6
@@ -80,7 +78,7 @@ gi1:	call	[pGenerator]		; generate code
 	mov	ax,DOS_UTL_TOKID
 	int	21h			; identify the token
 	jc	gi7			; can't identify
-	jmp	gi1
+	jmp	gi1			; DX = new "gen" handler
 
 gie:	PRINTF	<'Not enough memory (%#06x)',13,10>,ax
 	jmp	short gi9
@@ -240,15 +238,7 @@ gn3a:	mov	ax,DOS_UTL_ATOI32	; DS:SI -> numeric string
 	xchg	cx,ax			; save result in DX:CX
 	pop	bx
 
-	mov	al,OP_MOV_AX
-	stosb
-	xchg	ax,dx
-	stosw
-	mov	ax,OP_PUSH_AX OR (OP_MOV_AX SHL 8)
-	stosw
-	xchg	ax,cx
-	stosw
-	PUSH_AX
+	GENPUSH	dx,cx
 	jmp	gn2b			; go count another queued value
 gn3x:	jmp	short gn8
 ;
@@ -358,10 +348,7 @@ ENDPROC	genExprNum
 ;
 DEFPROC	genExprStr
 	int 3
-	mov	ax,OP_ZERO_AX
-	stosw
-	mov	ax,OP_PUSH_AX OR (OP_PUSH_AX SHL 8)
-	stosw
+	call	genPushZeroLong
 
 gs1:	mov	al,CLS_VAR OR CLS_STR
 	call	getNextToken
@@ -486,8 +473,7 @@ ENDPROC	genLet
 ;	Any
 ;
 DEFPROC	genPrint
-	MOV_AL	VAR_NONE
-	PUSH_AX				; push end-of-args marker (VAR_NONE)
+	GENPUSHB VAR_NONE		; push end-of-args marker (VAR_NONE)
 
 gp1:	mov	al,CLS_VAR or CLS_STR
 	call	peekNextToken
@@ -507,9 +493,9 @@ gp2:	push	ax
 	jz	gp8
 
 	push	ax
-	mov	al,OP_MOV_AL
-	stosw
-	jmp	short gp4a
+	GENPUSHB ah
+	pop	ax
+	jmp	short gp5
 ;
 ; Handle numeric arguments here.
 ;
@@ -518,8 +504,7 @@ gp3:	call	genExprNum
 	jz	gp8
 
 gp4:	push	ax
-	MOV_AL	VAR_LONG
-gp4a:	PUSH_AX
+	GENPUSHB VAR_LONG
 	pop	ax
 ;
 ; Argument paths rejoin here to determine spacing requirements.
@@ -531,9 +516,7 @@ gp5:	mov	ah,VAR_SEMI
 	cmp	al,','			; how about a comma?
 	jne	gp8			; no
 
-gp6:	mov	al,OP_MOV_AL		; "MOV AL,[VAR_SEMI or VAR_COMMA]"
-	stosw
-	PUSH_AX
+gp6:	GENPUSHB ah			; "MOV AL,[VAR_SEMI or VAR_COMMA]"
 	jmp	gp1			; contine processing arguments
 ;
 ; Arguments exhausted, generate the print call.
@@ -571,7 +554,7 @@ ENDPROC	genCallCX
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genPushDX
+; genPushImm
 ;
 ; Inputs:
 ;	DX = value to push
@@ -582,7 +565,7 @@ ENDPROC	genCallCX
 ; Modifies:
 ;	AX, DX, DI
 ;
-DEFPROC	genPushDX
+DEFPROC	genPushImm
 	mov	al,OP_MOV_AX
 	stosb
 	xchg	ax,dx
@@ -590,7 +573,76 @@ DEFPROC	genPushDX
 	mov	al,OP_PUSH_AX
 	stosb
 	ret
-ENDPROC	genPushDX
+ENDPROC	genPushImm
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genPushImmByte
+;
+; Inputs:
+;	AL = OP_MOV_AL
+;	AH = value to push
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, DI
+;
+DEFPROC	genPushImmByte
+	stosw
+	mov	al,OP_PUSH_AX
+	stosb
+	ret
+ENDPROC	genPushImmByte
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genPushImmLong
+;
+; Inputs:
+;	DX:CX = value to push
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, CX, DX, DI
+;
+DEFPROC	genPushImmLong
+	mov	al,OP_MOV_AX
+	stosb
+	xchg	ax,dx
+	stosw
+	mov	ax,OP_PUSH_AX OR (OP_MOV_AX SHL 8)
+	stosw
+	xchg	ax,cx
+	stosw
+	mov	al,OP_PUSH_AX
+	stosb
+	ret
+ENDPROC	genPushImmLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genPushZeroLong
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, DI
+;
+DEFPROC	genPushZeroLong
+	mov	ax,OP_ZERO_AX
+	stosw
+	mov	ax,OP_PUSH_AX OR (OP_PUSH_AX SHL 8)
+	stosw
+	ret
+ENDPROC	genPushZeroLong
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

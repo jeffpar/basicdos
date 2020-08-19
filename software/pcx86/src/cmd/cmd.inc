@@ -132,11 +132,27 @@ GENCALL	macro	func
 	call	genCallCX
 	endm
 
-GENPUSH	macro	val
-	IFDIF	<val>,<dx>
-	mov	dx,val
+GENPUSH	macro	val1,val2
+	IFDIF	<val1>,<dx>
+	mov	dx,val1
 	ENDIF
-	call	genPushDX
+	IFNB	<val2>
+	IFDIF	<val2>,<cx>
+	mov	cx,val2
+	ENDIF
+	call	genPushImmLong
+	ELSE
+	call	genPushImm
+	ENDIF
+	endm
+
+GENPUSHB macro	val
+	IFDIF	<val>,<ah>
+	mov	ax,OP_MOV_AL OR (val SHL 8)
+	ELSE
+	mov	al,OP_MOV_AL
+	ENDIF
+	call	genPushImmByte
 	endm
 ;
 ; PUSHSTR copies the string at DS:SI with length CL into the code segment,
