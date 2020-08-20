@@ -163,17 +163,21 @@ ml1:	xchg	ax,bx
 	add	dx,si			; DX += SI
 	adc	di,0			; any carry triggers an overflow
 
-ml4:	mov	cl,[mulA].HIW.HIB
+	cmp	dx,8000h		; negative result?
+	jb	ml5			; no
+	jne	ml4			; yes, and it's not 80000000h
+	test	ax,ax			; oh wait, maybe it is
+	jz	ml5			; yes, it is
+ml4:	or	di,1			; no, it's not, so flag it as overflow
+
+ml5:	mov	cl,[mulA].HIW.HIB
 	xor	cl,[mulB].HIW.HIB	; signs differ?
-	jns	ml5			; no
+	jns	ml6			; no
 	neg 	dx
 	neg	ax			; subtract DX:AX from 0 with carry
 	sbb	dx,0
-	test	dx,dx
-	js	ml5
-	or	di,1			; hmmm, negation yielded a positive
 
-ml5:	test	di,di			; overflow indicator set?
+ml6:	test	di,di			; overflow indicator set?
 	jz	ml7			; no
 	int	04h			; signal overflow
 ;
