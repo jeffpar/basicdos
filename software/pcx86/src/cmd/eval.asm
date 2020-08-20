@@ -104,7 +104,7 @@ ENDPROC	evalSubLong
 ; Note that if the OPCHECK macro triggers a JavaScript check, the latter
 ; comes up with AF7DB9D8 instead, presumably because JavaScript does all its
 ; multiplication in floating-point, which is limited to 52 significant bits,
-; so some accuracy gets lost in the least significant bits.
+; so some accuracy is sacrificed in the low 32 bits.
 ;
 ; Inputs:
 ;	2 32-bit args on stack (popped)
@@ -139,7 +139,7 @@ DEFPROC	evalMulLong,FAR
 	sub	cx,dx
 	sbb	ax,dx			; AX:CX = abs(mulB)
 
-	sub	di,di			; overflow indicator
+	sub	di,di			; clear overflow indicator
 	mov	dx,si			; save SI
 	or	si,ax			; are both SI and AX zero?
 	jz	ml1			; yes, just need one multiply
@@ -153,18 +153,15 @@ DEFPROC	evalMulLong,FAR
 
 ml0:	mul	bx
 	xchg	si,ax			; SI = mulB.HIW (AX) * mulA.LOW (BX)
-	or	di,dx
+	or	di,dx			; any bits in DX triggers an overflow
 	mul	cx
 	add	si,ax			; SI += mulA.HIW (AX) * mulB.LOW (CX)
-	adc	di,0
-	or	di,dx
+	adc	di,0			; any carry triggers an overflow
+	or	di,dx			; any bits in DX triggers an overflow
 ml1:	xchg	ax,bx
 	mul	cx			; DX:AX = mulA.LOW (AX) * mulB.LOW (CX)
 	add	dx,si			; DX += SI
-	adc	di,0
-	test	dx,dx			; result positive?
-	jns	ml4			; yes
-	or	di,1			; no, implied overflow
+	adc	di,0			; any carry triggers an overflow
 
 ml4:	mov	cl,[mulA].HIW.HIB
 	xor	cl,[mulB].HIW.HIB	; signs differ?
@@ -172,9 +169,12 @@ ml4:	mov	cl,[mulA].HIW.HIB
 	neg 	dx
 	neg	ax			; subtract DX:AX from 0 with carry
 	sbb	dx,0
+	test	dx,dx
+	js	ml5
+	or	di,1			; hmmm, negation yielded a positive
 
-ml5:	test	di,di
-	jz	ml7
+ml5:	test	di,di			; overflow indicator set?
+	jz	ml7			; no
 	int	04h			; signal overflow
 ;
 ; Previous code, retained for reference.  Note that it fails to optimize the
