@@ -59,8 +59,8 @@ lbl:
 ; Code Block (CBLK) definitions
 ;
 CBLK_HDR	struc
-CBLK_NEXT	dw	?		; next var block seg, if any
-CBLK_SIZE	dw	?		; size of var block, in bytes
+CBLK_NEXT	dw	?		; next code block seg, if any
+CBLK_SIZE	dw	?		; size of code block, in bytes
 CBLK_FREE	dw	?		; offset of next free byte
 CBLK_RESERVED	db	?
 CBLK_PADDING	db	?
@@ -98,20 +98,35 @@ VBLK_ZERO	db	VAR_LONG
 		dd	0		; zero constant
 VBLK_HDR	ends
 VBLKSIG		equ	'V'
-VBLKLEN		equ	1024		; default vars block size
+VBLKLEN		equ	1024		; default var block size
 
 ;
 ; String Block (SBLK) definitions
 ;
 SBLK_HDR	struc
-SBLK_NEXT	dw	?		; next str block seg, if any
-SBLK_SIZE	dw	?		; size of str block, in bytes
+SBLK_NEXT	dw	?		; next string block seg, if any
+SBLK_SIZE	dw	?		; size of string block, in bytes
 SBLK_FREE	dw	?		; offset of next free byte
 SBLK_RESERVED	db	?
 SBLK_PADDING	db	?
 SBLK_HDR	ends
 SBLKSIG		equ	'P'
-SBLKLEN		equ	2048		; default strs block size
+SBLKLEN		equ	2048		; default string block size
+
+;
+; Text Block (TBLK) definitions
+;
+; TODO: Increase default TBLKLEN after we've finished testing the small size.
+;
+TBLK_HDR	struc
+TBLK_NEXT	dw	?		; next text block seg, if any
+TBLK_SIZE	dw	?		; size of text block, in bytes
+TBLK_FREE	dw	?		; offset of next free byte
+TBLK_RESERVED	db	?
+TBLK_PADDING	db	?
+TBLK_HDR	ends
+TBLKSIG		equ	'T'
+TBLKLEN		equ	128		; default text block size
 
 ;
 ; Operator Definition
@@ -130,7 +145,7 @@ GENCALL	macro	func
 	IFDIF	<func>,<cx>
 	mov	cx,offset func
 	ENDIF
-	call	genCallCX
+	call	genCallFar
 	endm
 
 GENPUSH	macro	val1,val2
@@ -192,6 +207,7 @@ CON_COLS	db	?
 CON_ROWS	db	?
 INPUTBUF	db	size BUF_INPUT dup (?)
 TOKENBUF	db	size BUF_TOKEN dup (?)
+LINEBUF		db	256 dup (?)
 FILENAME	db	16 dup (?)	; filename template ("X:XXXXXXXX.XXX")
 EXECDATA	db	size EPB dup (?); Exec Parameter Block
 STACK		dw	512 dup (?)

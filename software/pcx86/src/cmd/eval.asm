@@ -75,6 +75,10 @@ ENDPROC	evalSubLong
 ; both inputs have a magnitude of 16 bits or less, harder to detect overflow
 ; conditions, and less obvious that it works for all signed inputs.
 ;
+; TODO: Overflow detection is still slightly complicated by 80000000h, both
+; as an input value (because it can't be negated) and as an output value
+; (since it can be produced by two positive values such as 20000h and 4000h).
+;
 ; Example: -123123123 (F8A9 4A4D) * 91283123 (0570 DEB3)
 ;
 ;	a) load mulA (F8A9 4A4D) and negate: 0756 B5B3 (SI:BX)
@@ -101,10 +105,10 @@ ENDPROC	evalSubLong
 ;		0027EDDE50824629
 ;		FFD81221AF7DB9D7 (negated)
 ;
-; Note that if the OPCHECK macro triggers a JavaScript check, the latter
-; comes up with AF7DB9D8 instead, presumably because JavaScript does all its
+; In this example, the OPCHECK macro will trigger a warning, because our
+; JavaScript test environment comes up with AF7DB9D8 instead; it does all its
 ; multiplication in floating-point, which is limited to 52 significant bits,
-; so some accuracy is sacrificed in the low 32 bits.
+; so some accuracy is lost in the low 32 bits.
 ;
 ; Inputs:
 ;	2 32-bit args on stack (popped)
@@ -185,9 +189,9 @@ ml6:	test	di,di			; overflow indicator set?
 ; case where both high words are FFFFh (ie, sign-extensions of the low words),
 ; and makes no attempt to catch any of the many potentials for overflow.
 ;
-; 	mov	cx,[mulA].HIW		; a small optimization if both numbers
-; 	or	cx,[mulB].HIW		; are >= 0 and < 65536
-; 	jcxz	ml6
+; 	mov	cx,[mulA].HIW		; a small optimization:
+; 	or	cx,[mulB].HIW		; if both numbers are >= 0 and < 65536
+; 	jcxz	ml1			; then a single multiplication suffices
 ;
 ; 	mov	ax,[mulB].LOW
 ; 	mul	[mulA].HIW
@@ -197,7 +201,7 @@ ml6:	test	di,di			; overflow indicator set?
 ; 	mul	[mulB].HIW
 ; 	add	cx,ax			; CX = sum of cross product
 ;
-; ml6:	mov	ax,[mulA].LOW
+; ml1:	mov	ax,[mulA].LOW
 ; 	mul	[mulB].LOW		; DX:AX = mulB.LOW * mulA.LOW
 ; 	add	dx,cx			; add cross product to upper word
 

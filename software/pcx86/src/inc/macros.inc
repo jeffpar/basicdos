@@ -7,6 +7,8 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	PAGE	,132
+
 EXTERNS	macro	list,type
 	IRP	l,<list>
 	extrn	l:type
@@ -360,27 +362,6 @@ FPRINTF	macro	func,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	add	sp,argc * 2
 	ENDIF
 	endm
-;
-; MINHEAP is the minimum number of bytes we allocate for a .COM binary, on
-; top of the actual file size.  This is important, because unlike PC DOS,
-; we don't allocate all available memory to a program when it's loaded and
-; then hope the program will shrink its footprint later.
-;
-; In addition, if a .COM binary uses the COMHEAP macro at the end of its image,
-; it can specify its own minimum heap size.  Currently, any value smaller than
-; MINHEAP is ignored.
-;
-; The program's initial stack will always be at the top of "heap", or at the
-; top of the program's first 64Kb, whichever is lower.
-;
-MINHEAP	equ	1024
-
-COMHEAP	macro	bytes
-	even
-	public	heap
-heap	dw	(bytes + 15) SHR 4,BASICDOS_SIG
-	endm
-
 ;
 ; Operation checks are sprinkled throughout DEBUG builds to help perform
 ; verification tests.

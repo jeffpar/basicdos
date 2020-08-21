@@ -670,14 +670,15 @@ lp7a:	add	dx,ax			; DX -> end of program file
 	; jc	lpef1
 ;
 ; Check the word at [BX-2]: if it contains BASICDOS_SIG ("BD"), then the
-; preceding word must be the program's desired additional memory (in paras).
+; image ends with a HEAPINFO, where the preceding word (HI_HEAP) specifies the
+; program's desired additional memory (in paras).
 ;
 lp7b:	mov	bx,dx			; BX -> end of program file
 	mov	dx,MINHEAP SHR 4	; minimum add'l space (1Kb in paras)
 	cmp	word ptr [bx-2],BASICDOS_SIG
 	jne	lp7c
 	mov	ax,word ptr [bx-4]
-	sub	bx,4			; don't count the BASIC_DOS sig words
+	sub	bx,size HEAPINFO	; don't count the HEAPINFO struc
 	cmp	ax,dx			; larger than our minimum?
 	jbe	lp7c			; no
 	xchg	dx,ax			; yes, set DX to the larger value

@@ -296,7 +296,7 @@ ENDPROC	utl_sprintf
 ; their own set of (def,min,max) values.
 ;
 ; Returns:
-;	AX = value, DS:SI -> next character (after any non-digit)
+;	AX = value, DS:SI -> next character (ie, AFTER first non-digit)
 ;	Carry will be set on a validation error, but AX will ALWAYS be valid
 ;
 ; Modifies:
@@ -393,6 +393,7 @@ ai6a:	pop	bp
 
 	cmp	di,-1			; validation data provided?
 	jne	ai6b			; yes
+	dec	si			; no, rewind SI to first non-digit
 	add	ah,1			; (carry clear if one or more digits)
 	jmp	short ai9
 ai6b:	test	ah,ah			; any digits?
@@ -421,11 +422,18 @@ ENDPROC utl_atoi16
 ;
 ; utl_atoi32 (AX = 1808h)
 ;
-; Convert string at DS:SI to number in DX:AX using base BL.
+; Convert string at DS:SI to number in DX:AX using base BL.  Note these
+; differences from ATOI16:
+;
+;	1) Validation data is not supported
+;	2) SI points to the first non-digit character, not PAST it
+;
+; ATOI16 advances SI past the first non-digit character to facilitate parsing
+; of a series of delimited, validated numbers.
 ;
 ; Returns:
 ;	Carry clear if one or more digits, set otherwise
-;	DX:AX = value, DS:SI -> next character (after any non-digit)
+;	DX:AX = value, DS:SI -> first non-digit character
 ;
 ; Modifies:
 ;	AX, CX, DX, SI, DI, DS, ES

@@ -10,7 +10,8 @@
 	include	cmd.inc
 
 CODE    SEGMENT
-	EXTERNS	<cmdDate,CmdDir,cmdExit,cmdHelp,cmdMem,cmdTime,cmdType>,near
+	EXTERNS	<cmdDate,CmdDir,cmdExit,cmdHelp,cmdList,cmdLoad,cmdMem>,near
+	EXTERNS	<cmdTime,cmdType>,near
 	EXTERNS	<genCLS,genColor,genGoto,genIf,genLet,genPrint>,near
 	EXTERNS	<evalNegLong,evalNotLong>,near
 	EXTERNS	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>,near
@@ -18,6 +19,7 @@ CODE    SEGMENT
 	EXTERNS	<evalEqvLong,evalXorLong,evalOrLong,evalAndLong>,near
 	EXTERNS	<evalEQLong,evalNELong,evalLTLong,evalGTLong>,near
 	EXTERNS	<evalLELong,evalGELong,evalShlLong,evalShrLong>,near
+
 	DEFSTR	COM_EXT,<".COM",0>
 	DEFSTR	EXE_EXT,<".EXE",0>
 	DEFSTR	DIR_DEF,<"*.*",0>
@@ -88,23 +90,28 @@ CODE    SEGMENT
 	db	0
 
 CODE	ENDS
-
+;
+; Keywords with IDs < 20 only get GENERIC parsing, and keywords with IDs < 10
+; don't use filespecs for their first argument.
+;
 	DEFTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
 	DEFTOK	TOK_CLS,   21, "CLS",	genCLS
 	DEFTOK	TOK_COLOR, 22, "COLOR",	genColor
-	DEFTOK	TOK_DATE,   2, "DATE",	cmdDate
+	DEFTOK	TOK_DATE,   1, "DATE",	cmdDate
 	DEFTOK	TOK_DIR,   11, "DIR",	cmdDir
 	DEFTOK	TOK_ELSE, 101, "ELSE"
-	DEFTOK	TOK_EXIT,   3, "EXIT",	cmdExit
+	DEFTOK	TOK_EXIT,   2, "EXIT",	cmdExit
 	DEFTOK	TOK_GOTO,  23, "GOTO",	genGoto
-	DEFTOK	TOK_HELP,   4, "HELP",	cmdHelp
+	DEFTOK	TOK_HELP,   3, "HELP",	cmdHelp
 	DEFTOK	TOK_IF,    24, "IF",	genIf
 	DEFTOK	TOK_LET,   25, "LET",	genLet
+	DEFTOK	TOK_LIST,   4, "LIST",	cmdList
+	DEFTOK	TOK_LOAD,  12, "LOAD",	cmdLoad
 	DEFTOK	TOK_MEM,    5, "MEM",	cmdMem
 	DEFTOK	TOK_PRINT, 26, "PRINT",	genPrint
 	DEFTOK	TOK_THEN, 102, "THEN"
 	DEFTOK	TOK_TIME,   6, "TIME",	cmdTime
-	DEFTOK	TOK_TYPE,  12, "TYPE",	cmdType
+	DEFTOK	TOK_TYPE,  13, "TYPE",	cmdType
 	NUMTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
 
 	DEFTOKENS KEYOP_TOKENS,KEYOP_TOTAL
@@ -118,6 +125,7 @@ CODE	ENDS
 	NUMTOKENS KEYOP_TOKENS,KEYOP_TOTAL
 
 DATA	SEGMENT
+
 	DEFWORD	segCode,0	; first code block
 	db	size CBLK_HDR,CBLKSIG
 	DEFWORD	segVars,0	; first var block
@@ -126,7 +134,9 @@ DATA	SEGMENT
 	db	size SBLK_HDR,SBLKSIG
 	DEFWORD	segText,0	; first text block
 	dw	size CBLK_HDR,CBLKSIG
-	COMHEAP	<size CMD_HEAP>	; COMHEAP (heap size) must be the last item
+
+	COMHEAP	<size CMD_HEAP>,<offset segCode>
+
 DATA	ENDS
 
 	end

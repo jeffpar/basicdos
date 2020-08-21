@@ -12,7 +12,7 @@
 CODE    SEGMENT
 	org	100h
 
-	EXTERNS	<genImmediate>,near
+	EXTERNS	<allocText,freeText,genImmediate>,near
 
 	EXTERNS	<KEYWORD_TOKENS,heap>,word
 	EXTSTR	<COM_EXT,EXE_EXT,DIR_DEF,PERIOD>
@@ -21,17 +21,21 @@ CODE    SEGMENT
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 
 DEFPROC	main
-	LOCVAR	iArg,byte
-	LOCVAR	pArg,word
-	LOCVAR	lenArg,word
-	LOCVAR	pHandler,word
-	LOCVAR	swDigits,word
-	LOCVAR	swLetters,dword
+	LOCVAR	iArg,byte		; # of first non-switch argument
+	LOCVAR	pArg,word		; saves arg ptr command handler
+	LOCVAR	lenArg,word		; saves arg len command handler
+	LOCVAR	pHandler,word		; saves address of command handler
+	LOCVAR	swDigits,word		; bit mask of digit switches, if any
+	LOCVAR	swLetters,dword		; bit mask of letter switches, if any
+	LOCVAR	hFile,word		; file handle
+	LOCVAR	numLine,word		; current line number
+	LOCVAR	offLine,word		; offset of current line
 	ENTER
 	lea	bx,[heap]
 	mov	[bx].ORIG_SP.SEG,ss
 	mov	[bx].ORIG_SP.OFF,sp
 	mov	[bx].ORIG_BP,bp
+	mov	[hFile],0
 
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	mov	dx,offset ctrlc
@@ -226,9 +230,9 @@ m9:	lea	di,[bx].TOKENBUF; DS:DI -> token buffer
 	jmp	m1
 ;
 ; For non-BASIC commands, check for any switches first and record any that
-; we find prior to the first non-switch token.
+; we find prior to the first non-switch argument.
 ;
-m10:	call	parseSW		; parse all switch tokens, if any
+m10:	call	parseSW		; parse all switch arguments, if any
 	cmp	ax,10		; token ID < 10?
 	jb	m20		; yes, command does not use a filespec
 ;
@@ -238,7 +242,7 @@ m10:	call	parseSW		; parse all switch tokens, if any
 ;
 	mov	si,offset DIR_DEF
 	mov	cx,DIR_DEF_LEN - 1
-	call	getToken	; DH = 1st non-switch token (or -1)
+	call	getToken	; DH = 1st non-switch argument (or -1)
 	jc	m20
 	lea	di,[bx].FILENAME; DS:SI -> token, CX = length
 	mov	ax,size FILENAME-1
@@ -275,7 +279,7 @@ ENDPROC	main
 ;	DS:DI -> BUF_TOKEN
 ;
 ; Outputs:
-;	DH = # of first non-switch token (-1 if none)
+;	DH = # of first non-switch argument (-1 if none)
 ;
 ; Modifies:
 ;	CX, DX
@@ -292,7 +296,7 @@ ps1:	call	getToken
 	lodsb
 	cmp	al,dl		; starts with SWITCHAR?
 	je	ps2		; yes
-	mov	[iArg],dh	; update iArg with first non-switch token
+	mov	[iArg],dh	; update iArg with first non-switch arg
 	jmp	short ps7	; no
 ps2:	lodsb			; consume option chars
 	cmp	al,'a'		; until we reach a non-alphanumeric char
@@ -321,7 +325,7 @@ ps6:	sub	al,16
 	jmp	ps4
 ps7:	inc	dh		; advance to next token
 	jmp	ps1
-ps8:	mov	dh,[iArg]	; DH = first non-switch token (-1 if none)
+ps8:	mov	dh,[iArg]	; DH = first non-switch argument (-1 if none)
 	pop	bx
 	pop	ax
 	ret
@@ -555,7 +559,7 @@ dir7:	xchg	ax,dx		; AX = total # of clusters used
 	mul	bx		; DX:AX = total # bytes free
 	PRINTF	<"%25ld bytes free",13,10>,ax,dx
 ;
-; For testing purposes: if /L is specified, display the directory continuously.
+; For testing purposes: if /L is specified, display the directory in a "loop".
 ;
 	pop	bp
 	mov	al,'L'
@@ -585,8 +589,8 @@ ENDPROC	cmdDir
 ;	Any
 ;
 DEFPROC	cmdExit
-	int	20h		; terminate
-	ret			; unless we can't (ie, if no parent)
+	int	20h		; terminates the current process
+	ret			; unless it can't (ie, if there's no parent)
 ENDPROC	cmdExit
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -634,9 +638,182 @@ ENDPROC	cmdHelp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; cmdList
+;
+; Inputs:
+;	DS:SI -> filespec (with length CX)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cmdList
+	stc
+li9:	ret
+ENDPROC	cmdList
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmdLoad
+;
+; Opens the specified file and loads it into one or more text blocks.
+;
+; Inputs:
+;	DS:SI -> filespec (with length CX)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cmdLoad
+	call	openFile
+	jc	li9
+;
+; Since the open succeeded, toss any existing text block(s).
+;
+	call	freeText
+	lea	bx,[bx].LINEBUF
+	sub	cx,cx		; DS:SI contains zero bytes at the moment
+	mov	di,TBLKLEN	; initialize DI to memory limit
+;
+; For every complete line at DS:SI, determine the line number (if any), and
+; then add the line number (2 bytes), line length (1 byte), and line contents
+; (not including any leading space or terminating CR/LF) to the text block.
+;
+lf1:	jcxz	lf4
+	push	cx
+	mov	dx,si		; save SI
+lf2:	lodsb
+	cmp	al,CHR_RETURN
+	je	lf3
+	loop	lf2
+lf3:	xchg	si,dx		; restore SI; DX is how far we got
+	pop	cx
+	je	lf5		; we found the end of a line; process it
+;
+; The end of the current line is not contained in our buffer, so "slide"
+; everything at DS:SI down to LINEBUF, fill in the rest of LINEBUF, and try
+; again.
+;
+	cmp	si,bx		; is the current line already at LINEBUF?
+	je	lf4x		; yes, report a file format error
+	push	cx
+	push	di
+	push	es
+	push	ds
+	pop	es
+	mov	di,bx
+	push	cx
+	rep	movsb
+	pop	es
+	pop	di
+	pop	cx
+lf4:	mov	si,bx		; DS:SI has been adjusted
+;
+; At DS:SI+CX, read (size LINEBUF - CX) more bytes.
+;
+	push	cx
+	push	si
+	add	si,cx
+	mov	ax,size LINEBUF
+	sub	ax,cx
+	xchg	cx,ax
+	call	readFile
+	pop	si
+	pop	cx
+	jc	lf4x
+	add	cx,ax
+	jcxz	lf4y		; if we've exhausted the file, we're done
+	jmp	lf1
+lf4x:	jmp	lf10
+lf4y:	jmp	lf12
+;
+; We found the end of another line starting at DS:SI and ending at DX.
+;
+lf5:	mov	[offLine],si
+	lodsb
+	cmp	al,CHR_LINEFEED	; skip any LINEFEED from the previous line
+	je	lf6
+	dec	si
+
+lf6:	push	bx
+	push	dx
+	mov	bl,10
+	mov	ax,DOS_UTL_ATOI32; DS:SI -> numeric string
+	int	21h
+	ASSERT	Z,<test dx,dx>	; DX:AX is the result but we keep only AX
+	mov	[numLine],ax
+	pop	dx
+	pop	bx
+;
+; We've extracted the line number, if any; skip over any intervening space.
+;
+	lodsb
+	cmp	al,CHR_SPACE
+	je	lf7
+	dec	si
+
+lf7:	dec	dx		; back up to CHR_RETURN
+	sub	dx,si		; DX = # of characters on line (may be zero)
+;
+; Is there room for DX more bytes at ES:DI?
+;
+	mov	ax,di
+	add	ax,dx
+	add	ax,3
+	cmp	ax,TBLKLEN	; does this overflow ES:DI?
+	jbe	lf8		; no
+;
+; No, there's not enough room, so allocate another text block.
+;
+	push	cx
+	mov	cx,TBLKLEN
+	push	si
+	call	allocText
+	pop	si
+	pop	cx
+	jc	lf11		; unable to allocate enough memory
+	sub	di,di		; ES:DI -> next available text location
+				; ES:TBLKLEN is the limit
+lf8:	mov	ax,[numLine]
+	stosw
+	mov	al,dl
+	stosb
+	push	cx
+	mov	cx,dx
+	IFDEF DEBUG
+	PRINTF	<"line: '%-.*ls'",13,10>,cx,si,ds
+	int 3
+	ENDIF
+	rep	movsb
+	pop	cx
+	mov	ax,si
+	sub	ax,[offLine]
+	sub	cx,ax
+;
+; Consume the line terminator and go back for more.
+;
+	lodsb
+	dec	cx
+	jmp	lf1
+
+lf10:	PRINTF	<"Invalid file format",13,10>
+
+lf11:	call	freeText
+
+lf12:	call	closeFile
+	ret
+ENDPROC	cmdLoad
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; cmdMem
 ;
-; Prints memory usage
+; Prints memory usage.
 ;
 ; Inputs:
 ;	DS:SI -> user-defined token (not used)
@@ -762,7 +939,7 @@ ENDPROC	cmdTime
 ;
 ; cmdType
 ;
-; Reads the specified file and writes it to STDOUT
+; Reads the specified file and writes it to STDOUT.
 ;
 ; Inputs:
 ;	DS:SI -> user-defined token
@@ -774,41 +951,117 @@ ENDPROC	cmdTime
 ;	Any
 ;
 DEFPROC	cmdType
-	mov	dx,si		; DS:DX -> filename
-	mov	ax,DOS_HDL_OPEN SHL 8
-	int	21h
-	jnc	ty1		; AX = file handle if successful, else error
-	PRINTF	<"Unable to open %s: %d",13,10>,dx,ax
-	jmp	short ty9
-ty1:	xchg	bx,ax		; BX = file handle
-	mov	dx,PSP_DTA	; DS:DX -> DTA (as good a place as any)
-ty2:	mov	cx,size PSP_DTA	; CX = number of bytes to read
-	mov	ah,DOS_HDL_READ
-	int	21h
-	jc	ty8		; silently fail (for now)
+	call	openFile	; SI -> filename
+	jc	of9
+	mov	si,PSP_DTA	; SI -> DTA (used as a read buffer)
+ty1:	mov	cx,size PSP_DTA	; CX = number of bytes to read
+	call	readFile
+	jc	closeFile
 	test	ax,ax		; anything read?
-	jz	ty8		; no
-	push	bx
+	jz	closeFile	; no
 	mov	bx,STDOUT
 	xchg	cx,ax		; CX = number of bytes to write
 	mov	ah,DOS_HDL_WRITE
 	int	21h
-	pop	bx
-	jmp	ty2
-ty8:	mov	ah,DOS_HDL_CLOSE
-	int	21h
-ty9:	ret
+	jmp	ty1
 ENDPROC	cmdType
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; openFile
+;
+; Opens the specified file; used by commands like "LOAD" and "TYPE".
+;
+; Inputs:
+;	DS:SI -> filename
+;
+; Outputs:
+;	If carry clear, [hFile] is updated
+;	If carry set, an error message was printed
+;
+; Modifies:
+;	AX, BX
+;
+DEFPROC	openFile
+	push	dx
+	mov	dx,si		; DX -> filename
+	mov	ax,DOS_HDL_OPEN SHL 8
+	int	21h
+	jc	of8
+	mov	[hFile],ax	; save file handle
+	jmp	short of9
+of8:	PRINTF	<"Unable to open %ls (%d)",13,10>,dx,ds,ax
+	stc
+of9:	pop	dx
+	ret
+ENDPROC	openFile
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; readFile
+;
+; Reads CX bytes from the default file into the buffer at DS:SI.
+;
+; Inputs:
+;	CX = number of bytes
+;	DS:SI -> buffer
+;
+; Outputs:
+;	If carry clear, AX = number of bytes read
+;	If carry set, an error message was printed
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	readFile
+	push	bx
+	mov	dx,si
+	mov	bx,[hFile]
+	mov	ah,DOS_HDL_READ
+	int	21h
+	jnc	rf9
+	PRINTF	<"Unable to read file",13,10>
+	stc
+rf9:	pop	bx
+	ret
+ENDPROC	readFile
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; closeFile
+;
+; Close the default file handle.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX
+;
+DEFPROC	closeFile
+	push	bx
+	mov	bx,[hFile]
+	test	bx,bx
+	jz	cf9
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	mov	[hFile],0
+cf9:	pop	bx
+	ret
+ENDPROC	closeFile
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; printKB
 ;
-; Calculates AX/64 (or AX >> 6) as the size in Kb; however, that's a bit too
-; granular, so we include tenths of Kb as well.  Using the paragraph remainder
-; (R), we calculate tenths (N) like so:
+; Converts the paragraph size in AX to Kb, by calculating AX/64 (or AX >> 6);
+; however, that's a bit too granular, so we include tenths of Kb as well.
 ;
-;	R/64 = N/10, or N = (R*10)/64
+; Using the paragraph remainder (R), we calculate tenths (N): R/64 = N/10, so
+; N = (R*10)/64.
 ;
 ; Inputs:
 ;	AX = size in paragraphs

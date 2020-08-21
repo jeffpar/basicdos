@@ -7,7 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-	include	bios.inc
+	include	dos.inc
 
 CODE    SEGMENT
 
@@ -28,30 +28,30 @@ DEFPROC	main
 	test	al,al
 	jz	open			; open the default filename
 m1:	lodsb
-	cmp	al,' '
+	cmp	al,CHR_SPACE
 	je	m1
-	cmp	al,0Dh
+	cmp	al,CHR_RETURN
 	je	open
 	lea	dx,[si-1]		; DS:DX -> first filename
 m2:	lodsb
-	cmp	al,' '
+	cmp	al,CHR_SPACE
 	je	m3
-	cmp	al,0Dh
+	cmp	al,CHR_RETURN
 	je	m3
 	jmp	m2
 m3:	mov	byte ptr [si-1],0	; null-terminate the first filename
-	cmp	al,' '
+	cmp	al,CHR_SPACE
 	jne	open
 m4:	lodsb
-	cmp	al,' '
+	cmp	al,CHR_SPACE
 	je	m4
-	cmp	al,0Dh
+	cmp	al,CHR_RETURN
 	je	open
 	lea	bp,[si-1]		; DS:BP -> second filename
 m5:	lodsb
-	cmp	al,' '
+	cmp	al,CHR_SPACE
 	je	m6
-	cmp	al,0Dh
+	cmp	al,CHR_RETURN
 	jne	m5
 m6:	mov	byte ptr [si-1],0	; null-terminate the second filename
 	jmp	short open
@@ -65,7 +65,7 @@ ewrite:	mov	dx,offset emwrite
 echeck:	mov	dx,offset emcheck
 	jmp	emsg
 
-open:	mov	ax,3D02h		; AH = 3Dh (OPEN FILE), AL = R/W
+open:	mov	ax,DOS_HDL_OPENRW	; AH = 3Dh (OPEN FILE), AL = R/W
 	int	21h
 	jc	eopen
 	xchg	bx,ax			; BX = file handle
@@ -74,7 +74,7 @@ open:	mov	ax,3D02h		; AH = 3Dh (OPEN FILE), AL = R/W
 ; then it's already been truncated, so all we want to do is write it
 ; to the boot drive.
 ;
-	mov	ax,4202h		; AH = 42h (SEEK), AL = 2 (FROM END)
+	mov	ax,DOS_HDL_SEEKEND	; AH = 42h (SEEK), AL = 2 (FROM END)
 	sub	cx,cx
 	sub	dx,dx			; CX:DX == offset (zero)
 	int	21h
@@ -83,13 +83,13 @@ open:	mov	ax,3D02h		; AH = 3Dh (OPEN FILE), AL = R/W
 	jne	seek			; no
 	sub	dx,dx			; yes, seek back to start
 
-seek:	mov	ax,4200h		; AH = 42h (SEEK), AL = 0 (FROM START)
+seek:	mov	ax,DOS_HDL_SEEKBEG	; AH = 42h (SEEK), AL = 0 (FROM START)
 	int	21h
 	mov	cx,514			; CX = number of bytes
 	mov	dx,offset buffer	; DS:DX -> buffer
 	mov	di,dx			; DS:DI -> buffer
 	mov	word ptr [di+512],-1	; set guard word just past sector
-	mov	ah,3Fh			; AH = 3Fh (READ FILE)
+	mov	ah,DOS_HDL_READ		; AH = 3Fh (READ FILE)
 	int	21h
 eread2:	jc	eread
 
@@ -110,13 +110,13 @@ eread2:	jc	eread
 ;
 ; Read the 2nd half of the boot code into buffer + 512
 ;
-	mov	ax,4200h		; AH = 42h (SEEK), AL = 0 (FROM START)
+	mov	ax,DOS_HDL_SEEKBEG	; AH = 42h (SEEK), AL = 0 (FROM START)
 	mov	dx,offset DIR_SECTOR	;
 	sub	cx,cx			; CX:DX = offset
 	int	21h
 	mov	cx,1024			; CX = number of bytes
 	mov	dx,offset buffer + 512	; DS:DX -> buffer + 512
-	mov	ah,3Fh			; AH = 3Fh (READ FILE)
+	mov	ah,DOS_HDL_READ		; AH = 3Fh (READ FILE)
 	int	21h
 	jc	eread2
 	mov	di,dx			; DI -> buffer
@@ -139,18 +139,18 @@ echk2:	jmp	echeck			; no
 ; the boot sector back to it, and then truncate it at 512 bytes.
 ;
 trunc:	push	ax			; save # bytes to write
-	mov	ax,4200h		; AH = 42h (SEEK), AL = 0 (FROM START)
+	mov	ax,DOS_HDL_SEEKBEG	; AH = 42h (SEEK), AL = 0 (FROM START)
 	sub	cx,cx
 	sub	dx,dx
 	int	21h
 	mov	dx,offset buffer
 	mov	cx,512
-	mov	ah,40h
+	mov	ah,DOS_HDL_WRITE
 	int	21h
-	mov	ah,40h			; write zero bytes to truncate here
+	mov	ah,DOS_HDL_WRITE	; write zero bytes to truncate here
 	sub	cx,cx
 	int	21h
-	mov	ah,3Eh			; AH = 3Eh (CLOSE FILE)
+	mov	ah,DOS_HDL_CLOSE	; AH = 3Eh (CLOSE FILE)
 	int	21h
 	jmp	short create
 
@@ -158,7 +158,7 @@ ecreat:	mov	dx,offset emcreat
 emsg:	mov	al,0FFh
 	jmp	short msg
 
-create:	mov	ah,3Ch
+create:	mov	ah,DOS_HDL_CREATE
 	sub	cx,cx
 	mov	dx,bp			; DS:DX -> second filename
 	int	21h
@@ -166,20 +166,20 @@ create:	mov	ah,3Ch
 	jc	ecreat
 	xchg	bx,ax			; BX = handle
 	mov	dx,offset buffer + 512	; DS:DX -> buffer + 512
-	mov	ah,40h			; AH = 40h (WRITE FILE)
+	mov	ah,DOS_HDL_WRITE	; AH = 40h (WRITE FILE)
 	int	21h
 	jc	ecreat
-	mov	ah,3Eh			; AH = 3Eh (CLOSE FILE)
+	mov	ah,DOS_HDL_CLOSE	; AH = 3Eh (CLOSE FILE)
 	int	21h
 	mov	al,0			; exit with zero return code
 
 done:	mov	dx,offset success
 
 msg:	push	ax
-	mov	ah,9
+	mov	ah,DOS_TTY_PRINT
 	int	21h
 	pop	ax
-exit:	mov	ah,4Ch			; exit with return code in AL
+exit:	mov	ah,DOS_PSP_EXIT		; exit with return code in AL
 	int	21h
 ENDPROC	main
 

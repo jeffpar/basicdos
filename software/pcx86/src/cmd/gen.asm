@@ -21,7 +21,7 @@ CODE    SEGMENT
 	EXTERNS	<OPDEFS,RELOPS>,byte
 	EXTERNS	<TOK_ELSE,TOK_THEN>,abs
 
-        ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
+        ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -90,7 +90,7 @@ gi6:	mov	al,OP_RETF		; terminate code
 	call	[pCode]			; execute code
 	pop	es
 	pop	ds
-	ASSUME	DS:CODE
+	ASSUME	DS:DATA
 	pop	bp
 	clc
 
@@ -485,8 +485,8 @@ ENDPROC	genGoto
 ;
 ; So when genCommands for the "THEN" block returns, we must update the
 ; "jz elseBlock" with the address of the next available location.  Note that
-; if the amount of generated code is larger than 127 bytes, we'll have to use
-; "jnz $+5; jmp elseBlock" instead.
+; if the amount of generated code is larger than 127 bytes, we'll have to
+; move the generated code to make room for "jnz $+5; jmp elseBlock" instead.
 ;
 ; Inputs:
 ;	BX -> TOKLETs
@@ -661,7 +661,7 @@ ENDPROC	genPrint
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genCallCX
+; genCallFar
 ;
 ; Inputs:
 ;	CS:CX -> function to call
@@ -672,7 +672,7 @@ ENDPROC	genPrint
 ; Modifies:
 ;	CX, DI
 ;
-DEFPROC	genCallCX
+DEFPROC	genCallFar
 	push	ax
 	mov	al,OP_CALLF
 	stosb
@@ -682,7 +682,7 @@ DEFPROC	genCallCX
 	stosw
 	pop	ax
 	ret
-ENDPROC	genCallCX
+ENDPROC	genCallFar
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -739,15 +739,15 @@ ENDPROC	genPushImmByte
 ;	MOV	AX,xxxx
 ;	PUSH	AX
 ;
-; if we determine that DX (yyyy) is a sign-extension of AX, we can
-; generate this 6-byte sequence instead:
+; if we determine that DX (yyyy) is a sign-extension of CX (xxxx),
+; we can generate this 6-byte sequence instead:
 ;
 ;	MOV	AX,xxxx
 ;	CWD
 ;	PUSH	DX
 ;	PUSX	AX
 ;
-; and if AX (xxxx) is zero, it can be simplified to a 4-byte sequence
+; and if CX (xxxx) is zero, it can be simplified to a 4-byte sequence
 ; (ie, genPushZeroLong):
 ;
 ;	XOR	AX,AX
@@ -817,8 +817,12 @@ ENDPROC	genPushZeroLong
 ;
 ; genPushVarLong
 ;
-; Generates code to push 4-byte variable data onto stack (eg, a VAR_LONG or
-; a VAR_STR pointer).
+; Generates code to push 4-byte variable data onto stack (eg, a VAR_LONG
+; integer or a VAR_STR pointer).
+;
+; DX must contain the var block offset of the variable, which the generated
+; code will load using SI, so that it can use a pair of LODSW instructions to
+; load the variable's data and push onto the stack.
 ;
 ; Inputs:
 ;	DS:DX -> var data
@@ -859,17 +863,17 @@ ENDPROC	genPushVarLong
 ; Modifies:
 ;	AX, BX, CX, DX, SI
 ;
-DEFPROC	getNextKeyword
-	mov	al,CLS_VAR
-	call	getNextToken
-	jb	gk9
-	stc
-	je	gk9
-	lea	dx,[KEYWORD_TOKENS]
-	mov	ax,DOS_UTL_TOKID
-	int	21h
-gk9:	ret
-ENDPROC	getNextKeyword
+; DEFPROC	getNextKeyword
+; 	mov	al,CLS_VAR
+; 	call	getNextToken
+; 	jb	gk9
+; 	stc
+; 	je	gk9
+; 	lea	dx,[KEYWORD_TOKENS]
+; 	mov	ax,DOS_UTL_TOKID
+; 	int	21h
+; gk9:	ret
+; ENDPROC	getNextKeyword
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -11,7 +11,7 @@
 
 CODE    SEGMENT
 
-	EXTERNS	<segCode,segVars,segStrs>,word
+	EXTERNS	<segCode,segVars,segStrs,segText>,word
 
         ASSUME  CS:CODE, DS:CODE, ES:NOTHING, SS:CODE
 
@@ -34,10 +34,11 @@ CODE    SEGMENT
 ;	If successful, carry clear, ES = segment
 ;
 ; Modifies:
-;	AX, CX, DI, ES
+;	AX, DI, ES
 ;
 DEFPROC	allocBlock
 	push	bx
+	push	cx
 	mov	bx,cx
 	add	bx,15
 	xchg	cx,ax
@@ -46,7 +47,7 @@ DEFPROC	allocBlock
 	xchg	cx,ax
 	mov	ah,DOS_MEM_ALLOC
 	int	21h
-	jc	ab9
+	jc	ab8
 
 	mov	es,ax
 	sub	di,di
@@ -85,8 +86,13 @@ ab4:	mov	[di],es			; chain updated
 	mov	di,es:[CBLK_FREE]	; ES:DI -> first available byte
 	pop	ds
 	clc
+	jmp	short ab9
 
-ab9:	pop	bx
+ab8:	PRINTF	<"Not enough memory",13,10>
+	stc
+
+ab9:	pop	cx
+	pop	bx
 	ret
 ENDPROC	allocBlock
 
@@ -184,6 +190,44 @@ DEFPROC	freeCode
 	mov	si,offset segCode
 	jmp	freeBlock
 ENDPROC	freeCode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; allocText
+;
+; Inputs:
+;	CX = text block size, in bytes
+;
+; Outputs:
+;	If successful, carry clear, ES = segment
+;
+; Modifies:
+;	AX, CX, SI, DI, ES
+;
+DEFPROC	allocText
+	mov	si,offset segText
+	jmp	allocBlock
+ENDPROC	allocText
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; freeText
+;
+; Frees all text blocks and resets the segText chain.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	AX, CX, SI
+;
+DEFPROC	freeText
+	mov	si,offset segText
+	jmp	freeAllBlocks
+ENDPROC	freeText
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

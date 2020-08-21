@@ -7,6 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+
 	include	dev.inc
 
 VERSION_MAJOR	equ	0
@@ -98,11 +99,16 @@ DOS_MSC_GETVEC	equ	35h	; get vector (AL) addr (ES:BX)
 DOS_DSK_GETINFO	equ	36h	; get disk info; eg, available clusters (BX)
 DOS_MSC_GETSWC	equ   3700h	; get switch char (DL)
 DOS_MSC_SETSWC	equ   3701h	; set switch char (DL)
+DOS_HDL_CREATE	equ	3Ch	; create handle for device/file (DS:DX)
 DOS_HDL_OPEN	equ	3Dh	; open handle for device/file (DS:DX)
+DOS_HDL_OPENRW	equ   3D02h	; open handle for R/W access
 DOS_HDL_CLOSE	equ	3Eh	; close handle (BX)
 DOS_HDL_READ	equ	3Fh	; read (CX) bytes at (DS:DX) with handle (BX)
 DOS_HDL_WRITE	equ	40h	; write (CX) bytes at (DS:DX) with handle (BX)
 DOS_HDL_SEEK	equ	42h	; seek to (CX:DX) w/method (AL) and handle (BX)
+DOS_HDL_SEEKBEG	equ   4200h	; seek from beginning
+DOS_HDL_SEEKCUR	equ   4201h	; seek from current position
+DOS_HDL_SEEKEND	equ   4202h	; seek from end
 DOS_HDL_IOCTL	equ   	44h	; send device request (AL) for handle (BX)
 
 DOS_MEM_ALLOC	equ	48h	; allocate (BX) paras (returns segment AX)
@@ -497,4 +503,35 @@ ERR_BADMCB	equ	7	; invalid MCB found
 ERR_NOMEM	equ	8	; insufficient memory
 ERR_BADADDR	equ	9	; invalid memory segment
 
+;
+; MINHEAP is the minimum number of bytes we allocate for a .COM binary, on
+; top of the actual file size.  This is important, because unlike PC DOS,
+; we don't allocate all available memory to a program when it's loaded and
+; then hope the program will shrink its footprint later.
+;
+; In addition, if a .COM binary contains a HEAPINFO at the end of its image,
+; it can specify its own minimum heap size.  Currently, any value smaller than
+; MINHEAP is ignored.  Use the COMHEAP macro to create the HEAPINFO structure.
+;
+; The program's initial stack will always be at the top of "heap", or at the
+; top of the program's first 64Kb, whichever is lower.
+;
 BASICDOS_SIG	equ	'DB'	; BASIC-DOS signature word ("BD")
+
+MINHEAP		equ	1024
+
+HEAPINFO struc
+HI_CODE	dw	?		; shared code size, in bytes
+HI_HEAP	dw	?		; desired heap size, in paras
+HI_SIG	dw	BASICDOS_SIG
+HEAPINFO ends
+
+COMHEAP	macro	heap_size,code_size
+	even
+	public	heap
+shared_code = 0
+	IFNB	<code_size>
+shared_code = code_size
+	ENDIF
+heap	HEAPINFO <shared_code,(heap_size + 15) SHR 4,BASICDOS_SIG>
+	endm
