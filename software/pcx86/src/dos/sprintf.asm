@@ -219,7 +219,7 @@ pf3:	jmp	pf8
 pfp:	mov	cx,10			; CH = print flags, CL = base
 	mov	dx,bx			; DX = where this specifier started
 	mov	word ptr [bp].SPF_WIDTH,0
-	mov	word ptr [bp].SPF_PRECIS,0
+	mov	word ptr [bp].SPF_PRECIS,0FF00h
 pfpa:	mov	al,[bx]
 	inc	bx
 	cmp	al,'-'			; left-alignment indicator?
@@ -277,12 +277,13 @@ pfpj2:	push	dx
 	jnz	pfpk			; yes
 	mov	si,offset SPF_WIDTH
 	or	ch,PF_WIDTH		; no, so it must be a width number
-pfpk:	xchg	dx,ax
-	mov	al,[bp+si]
-	mov	ah,10
-	mul	ah
-	add	al,dl
-	mov	[bp+si],al
+pfpk:	cbw
+	xchg	dx,ax			; DX = value of next digit
+	mov	al,[bp+si]		; load SPF value as an 8-bit value
+	mov	ah,10			; (we assume it never goes over 255)
+	mul	ah			; multiply SPF value * 10
+	add	ax,dx			; add digit
+	mov	[bp+si],ax		; update SPF value as a 16-bit value
 	pop	si
 	pop	dx
 	jmp	pfpa
@@ -488,10 +489,10 @@ pfs2:	push	si
 	mov	al,0
 	call	strlen			; AX = length
 pfs2a:	mov	dx,[bp].SPF_PRECIS
-	test	dx,dx
-	jz	pfs3
-	cmp	ax,dx			; length < PRECIS?
-	jb	pfs3			; no
+	test	dx,dx			; was a precision specified?
+	js	pfs3			; no (still set to negative FF00h)
+	cmp	ax,dx			; is length < PRECIS?
+	jl	pfs3			; no
 	mov	ax,dx			; yes, so limit it
 pfs3:	mov	dx,[bp].SPF_WIDTH
 	test	dx,dx

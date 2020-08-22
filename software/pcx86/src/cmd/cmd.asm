@@ -700,14 +700,13 @@ lf3:	xchg	si,dx		; restore SI; DX is how far we got
 ; again.
 ;
 	cmp	si,bx		; is the current line already at LINEBUF?
-	je	lf4x		; yes, report a file format error
+	je	lf4y		; yes, we're done
 	push	cx
 	push	di
 	push	es
 	push	ds
 	pop	es
 	mov	di,bx
-	push	cx
 	rep	movsb
 	pop	es
 	pop	di
@@ -785,10 +784,6 @@ lf8:	mov	ax,[numLine]
 	stosb
 	push	cx
 	mov	cx,dx
-	IFDEF DEBUG
-	PRINTF	<"line: '%-.*ls'",13,10>,cx,si,ds
-	int 3
-	ENDIF
 	rep	movsb
 	pop	cx
 	mov	ax,si
