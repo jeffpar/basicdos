@@ -460,7 +460,7 @@ lp5:	mov	byte ptr [bx],CHR_RETURN
 ;
 ; Now that we have a file size, we can reallocate the PSP segment to a size
 ; closer to what we actually need.  We won't know EXACTLY how much we need yet,
-; because there might be a COMDEF signature if it's a COM file, and EXE files
+; because there might be a COMHEAP signature if it's a COM file, and EXE files
 ; have numerous unknowns at this point.  But having at LEAST as much memory
 ; as there are bytes in the file is a reasonable starting point.
 ;
@@ -620,13 +620,13 @@ lp6g:	push	es:[EXE_START_SEG]
 ;
 ; I also discovered that if I tried to load "SYMDEB E.COM" (where E.COM was an
 ; 11-byte COM file) with 8 more paras available (96Fh total), the system would
-; crash while trying to load E.COM.  I didn't investigate further (yet), so it's
-; unclear if the cause is a DOS/EXEC bug or a SYMDEB bug.
+; crash while trying to load E.COM.  I didn't investigate further (yet), so it
+; is unclear if the cause is a DOS/EXEC bug or a SYMDEB bug.
 ;
 ; Anyway, since BASIC-DOS can successfully load SYMDEB.EXE 4.0 with only 92Bh
-; paras (considerably less than 967h), either we're somehow being insufficiently
+; paras (considerably less than 967h), either we're being insufficiently
 ; conservative, or PC DOS had some EXEC overhead (perhaps in the transient
-; portion of COMMAND.COM?) that it couldn't eliminate.
+; portion of COMMAND.COM) that it couldn't eliminate.
 ;
 	add	bx,20h			; add another 0.5Kb (in paras)
 
@@ -671,45 +671,51 @@ lp7a:	add	dx,ax			; DX -> end of program file
 	; jc	lpef
 ;
 ; Check the word at [BX-2]: if it contains BASICDOS_SIG ("BD"), then the
-; image ends with a COMINFO, where the preceding word (CI_HEAPSIZE) specifies
+; image ends with a COMDATA, where the preceding word (CD_HEAPSIZE) specifies
 ; the program's desired additional memory (in paras).
 ;
 lp7b:	mov	bx,dx			; BX -> end of program file
 	mov	dx,MINHEAP SHR 4	; minimum add'l space (1Kb in paras)
 	cmp	word ptr [bx-2],BASICDOS_SIG
 	jne	lp7e
-	sub	bx,size COMINFO		; rewind BX to the COMINFO struc
-	mov	ax,[bx].CI_HEAPSIZE	; AX = heap size, in paras
+	sub	bx,size COMDATA		; rewind BX to the COMDATA struc
+	mov	ax,[bx].CD_HEAPSIZE	; AX = heap size, in paras
 	cmp	ax,dx			; larger than our minimum?
 	jbe	lp7c			; no
 	xchg	dx,ax			; yes, set DX to the larger value
 ;
-; Since there's COMINFO structure, fill in the relevant PSP fields.
+; Since there's COMDATA structure, fill in the relevant PSP fields.
 ; In addition, if a code size is specified, checksum the code, and then
 ; see if there's another block with the same code.
 ;
-lp7c:	mov	cx,[bx].CI_CODESIZE
-	mov	ds:[PSP_ENDCODE],cx	; record end of code
-	call	psp_calcsum		; calc checksum for code
-	mov	ds:[PSP_CHECKSUM],ax	; record checksum
+lp7c:	mov	cx,[bx].CD_CODESIZE
+	mov	ds:[PSP_CODESIZE],cx	; record end of code
 	mov	ds:[PSP_HEAPSIZE],dx	; record heap size
+	mov	ds:[PSP_HEAP],bx	; by default, heap starts at COMDATA
+	jcxz	lp7d			; but if a code size was specified
+	mov	ds:[PSP_HEAP],cx	; heap starts at the end of the code
+
+lp7d:	call	psp_calcsum		; calc checksum for code
+	mov	ds:[PSP_CHECKSUM],ax	; record checksum (zero if unspecified)
 	mov	ds:[PSP_START].OFF,100h
 	mov	ds:[PSP_START].SEG,ds
 	jcxz	lp7e
 ;
-; We found an alternate copy of the code segment (CX), so we can move
-; everything from PSP_ENDCODE to BX down to 100h, and reduce the program
-; size in BX by the number of bytes saved.
+; We found another copy of the code segment (CX), so we can move everything
+; from PSP_CODESIZE to BX down to 100h, and then set BX to the new program end.
+;
+; The bytes, if any, between PSP_CODESIZE and the COMDATA structure (which is
+; where BX is now pointing) represent statically initialized data that is also
+; considered part of the program's "heap".
 ;
 	mov	ds:[PSP_START].SEG,cx
-	mov	si,ds:[PSP_ENDCODE]
+	mov	si,ds:[PSP_CODESIZE]
 	mov	cx,bx
 	sub	cx,si
 	mov	di,100h
-	mov	ax,si
-	sub	ax,di			; AX = # bytes saved
-	sub	bx,ax			; reduce BX
+	mov	ds:[PSP_HEAP],di	; record the new heap offset
 	rep	movsb
+	mov	bx,di
 
 lp7e:	add	bx,15
 	mov	cl,4
@@ -729,14 +735,13 @@ lp8:	mov	ah,DOS_MEM_REALLOC	; resize ES memory block to BX
 	jnc	lp8a
 	jmp	lpef			; TODO: try to use a smaller size?
 ;
-; Zero the heap, if any; DX is the number of paras (zero if no heap).
+; Zero the additional heap paragraphs requested, if any.
 ;
 lp8a:	test	dx,dx
 	jz	lp8b
 	sub	bx,dx			; BX = 1st para to zero
 	mov	cl,4
 	shl	bx,cl			; convert BX to offset within ES
-	mov	ds:[PSP_HEAP],bx	; record the heap offset
 	dec	cx
 	shl	dx,cl			; convert # paras to number of words
 	mov	cx,dx
@@ -872,7 +877,7 @@ crc1:	lodsw
 	loop	crc1
 	pop	ax
 ;
-; Scan the arena for a PSP block with matching PSP_ENDCODE and PSP_CHECKSUM.
+; Scan the arena for a PSP block with matching PSP_CODESIZE and PSP_CHECKSUM.
 ;
 	push	es
 	mov	si,[mcb_head]
@@ -883,7 +888,7 @@ crc2:	mov	es,si
 	jcxz	crc5
 	cmp	cx,si			; MCB_OWNER = PSP?
 	jne	crc5			; no
-	cmp	es:[size MCB].PSP_ENDCODE,ax
+	cmp	es:[size MCB].PSP_CODESIZE,ax
 	jne	crc5
 	cmp	es:[size MCB].PSP_CHECKSUM,dx
 	jne	crc5

@@ -177,7 +177,7 @@ ENDPROC itoa
 ;	%d:	signed 16-bit decimal integer; use %ld for 32-bit
 ;	%u:	unsigned 16-bit decimal integer; use %lu for 32-bit
 ;	%x:	unsigned 16-bit hexadecimal integer: use %lx for 32-bit
-;	%s:	string (near CS-relative pointer); use %ls for far pointer
+;	%s:	string (near DS-relative pointer); use %ls for far pointer
 ;
 ; Non-standard format types:
 ;	%U:	skip one 16-bit parameter on the stack; nothing output
@@ -478,9 +478,10 @@ pfc:	push	ds
 ; Process %s specifier.
 ;
 pfs:	push	ds
-	mov	ax,[bp+si]		; use %s for CS-relative near pointers
+	mov	ax,[bp+si]		; %s implies DS-relative near pointer
 	add	si,2
-	test	ch,PF_LONG		; use %ls for far pointers
+	mov	ds,[bp].REG_DS
+	test	ch,PF_LONG		; %ls implies far pointer
 	jz	pfs2
 	mov	ds,[bp+si]
 	add	si,2

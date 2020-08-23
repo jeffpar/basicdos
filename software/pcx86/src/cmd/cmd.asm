@@ -36,17 +36,13 @@ DEFPROC	main
 	mov	[bx].ORIG_SP.SEG,ss
 	mov	[bx].ORIG_SP.OFF,sp
 	mov	[bx].ORIG_BP,bp
-	mov	word ptr [bx].CODE_BLK.BLK_HDR,(size CBLK_HDR) OR (CBLKSIG SHL 8)
-	mov	word ptr [bx].VARS_BLK.BLK_HDR,(size VBLK_HDR) OR (VBLKSIG SHL 8)
-	mov	word ptr [bx].STRS_BLK.BLK_HDR,(size SBLK_HDR) OR (SBLKSIG SHL 8)
-	mov	word ptr [bx].TEXT_BLK.BLK_HDR,(size TBLK_HDR) OR (TBLKSIG SHL 8)
 
 	mov	[hFile],0
-	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	push	ds
 	push	cs
 	pop	ds
 	mov	dx,offset ctrlc		; DS:DX -> CTRLC handler
+	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	int	21h
 	pop	ds
 
@@ -84,8 +80,8 @@ m1:	push	ss
 
 	sub	ax,ax
 	mov	[swDigits],ax
-	mov	[swLetters].OFF,ax
-	mov	[swLetters].SEG,ax
+	mov	[swLetters].LOW,ax
+	mov	[swLetters].HIW,ax
 	mov	si,dx
 	add	si,offset INP_BUF
 	lea	di,[bx].TOKENBUF
@@ -222,7 +218,7 @@ m6:	lodsb
 	mov	dh,0
 	PRINTF	<13,10,"Return code %d (%d)",13,10>,ax,dx
 	jmp	m1
-m8:	PRINTF	<"Error loading %ls: %d",13,10>,dx,ds,ax
+m8:	PRINTF	<"Error loading %s: %d",13,10>,dx,ax
 	jmp	m1
 ;
 ; We arrive here if the token was recognized.  The token ID determines
@@ -331,12 +327,12 @@ ps5:	sub	al,'A'-'0'
 	jb	ps7		; not alphanumeric
 	cmp	al,16		; in the range of the first 16?
 	jae	ps6		; no
-	lea	bx,[swLetters].OFF
+	lea	bx,[swLetters].LOW
 	jmp	ps4
 ps6:	sub	al,16
 	cmp	al,10		; in the range of the next 10?
 	jae	ps7		; no
-	lea	bx,[swLetters].SEG
+	lea	bx,[swLetters].HIW
 	jmp	ps4
 ps7:	inc	dh		; advance to next token
 	jmp	ps1
@@ -546,7 +542,7 @@ dir5:	mov	ax,cx		; AX = complete filename length
 dir6:	mov	dx,ds:[PSP_DTA].FFB_DATE
 	mov	cx,ds:[PSP_DTA].FFB_TIME
 	ASSERT	Z,<cmp ds:[PSP_DTA].FFB_SIZE.HIW,0>
-	PRINTF	<"%-8.*ls %-3ls %7ld %2M-%02D-%02X %2G:%02N%A",13,10>,ax,si,ds,di,ds,ds:[PSP_DTA].FFB_SIZE.LOW,ds:[PSP_DTA].FFB_SIZE.HIW,dx,dx,dx,cx,cx,cx
+	PRINTF	<"%-8.*s %-3s %7ld %2M-%02D-%02X %2G:%02N%A",13,10>,ax,si,di,ds:[PSP_DTA].FFB_SIZE.LOW,ds:[PSP_DTA].FFB_SIZE.HIW,dx,dx,dx,cx,cx,cx
 ;
 ; Update our totals
 ;
@@ -583,7 +579,7 @@ dir7:	xchg	ax,dx		; AX = total # of clusters used
 	mov	cx,[lenArg]
 	jmp	cmdDir
 
-dir8:	PRINTF	<"Unable to find %ls (%d)",13,10>,si,ds,ax
+dir8:	PRINTF	<"Unable to find %s (%d)",13,10>,si,ax
 	pop	bp
 
 dir9:	ret
@@ -915,7 +911,7 @@ DEFPROC	openFile
 	pop	dx
 	pop	ax
 	jmp	short of9
-of8:	PRINTF	<"Unable to open %ls (%d)",13,10>,dx,ds,ax
+of8:	PRINTF	<"Unable to open %s (%d)",13,10>,dx,ax
 	stc
 of9:	pop	bx
 	ret

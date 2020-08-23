@@ -169,10 +169,10 @@ PSP_HDLPTR	dd	?	; 34h: initially 0FFFF:0018h
 PSP_SHAREPSP	dd	?	; 38h
 PSP_DTAPREV	dd	?	; 3Ch: BASIC-DOS: prev DTA (restored on return)
 PSP_START	dd	?	; 40h: BASIC-DOS: initial program address
-PSP_ENDCODE	dw	?	; 44h: end of code, as defined by COMDEF
+PSP_CODESIZE	dw	?	; 44h: end of code, as defined by COMHEAP
 PSP_CHECKSUM	dw	?	; 46h: checksum of code
-PSP_HEAPSIZE	dw	?	; 48h: heap size, as defined by COMDEF
-PSP_HEAP	dw	?	; 4Ah: heap offset, if heap size set
+PSP_HEAPSIZE	dw	?	; 48h: heap size, as defined by COMHEAP
+PSP_HEAP	dw	?	; 4Ah: heap offset, based on COMHEAP settings
 PSP_RESERVED1	dw	?	; 4Ch
 PSP_EXCODE	db	?	; 4Eh: BASIC-DOS: exit code, if any
 PSP_EXTYPE	db	?	; 4Fh: BASIC-DOS: exit type (see EXTYPE_*)
@@ -322,36 +322,46 @@ ERR_NOMEM	equ	8	; insufficient memory
 ERR_BADADDR	equ	9	; invalid memory segment
 
 ;
-; MINHEAP is the minimum number of bytes we allocate for a .COM binary, on
+; MINHEAP is the minimum number of bytes we allocate for a COM binary, on
 ; top of the actual file size.  This is important, because unlike PC DOS,
 ; we don't allocate all available memory to a program when it's loaded and
-; then hope the program will shrink its footprint later.
+; hope the program will shrink its footprint later.
 ;
-; In addition, if a .COM binary contains a COMINFO at the end of its image,
-; it can specify its own minimum heap size.  Currently, any value smaller than
-; MINHEAP is ignored.  Use the COMDEF macro to create the COMINFO structure.
+; In addition, if a COM binary contains a COMDATA structure at the end of
+; the image, it can specify its own minimum heap size.  Currently, any value
+; smaller than MINHEAP is ignored.  Use the COMHEAP macro to create the
+; COMDATA structure.  Dynamically allocated heap space is zero-initialized.
 ;
 ; The program's initial stack will always be at the top of "heap", or at the
 ; top of the program's first 64Kb, whichever is lower.
+;
+; The COMHEAP macro also allows a COM file to define a range of shared code
+; starting at offset 100h; all copies of the program will use the same CS.
+; Successive copies will only contain the data following the end of the shared
+; code, plus whatever additional heap space was requested.
+;
+; COM programs designed to share code should access all their data via the
+; offset stored at PSP_HEAP in the program's PSP.
 ;
 BASICDOS_SIG	equ	'DB'	; BASIC-DOS signature word ("BD")
 
 MINHEAP		equ	1024
 
-COMINFO	struc
-CI_CODESIZE	dw	?	; shared code size, in bytes
-CI_HEAPSIZE	dw	?	; desired heap size, in paras
-CI_SIG		dw	BASICDOS_SIG
-COMINFO	ends
+COMDATA	struc
+CD_CODESIZE	dw	?	; shared code size, in bytes
+CD_HEAPSIZE	dw	?	; additional heap space, in paras
+CD_SIG		dw	BASICDOS_SIG
+COMDATA	ends
 
-COMDEF	macro	heap_size,code_size
-	even
-	public	heap
-heap	label	word
-	IFB	<code_size>
-shared_code equ 0
+COMHEAP	macro	heap_size,code_limit
+	IFB	<code_limit>
+	DEFLBL	HEAP,word
+code_size equ 0
+data_size equ 0
 	ELSE
-shared_code equ code_size
+code_size equ offset DGROUP:code_limit
+data_size equ $ - code_limit
 	ENDIF
-	COMINFO <shared_code,(heap_size + 15) SHR 4,BASICDOS_SIG>
+heap_paras equ (heap_size - data_size + 15) SHR 4
+	COMDATA <code_size,heap_paras,BASICDOS_SIG>
 	endm

@@ -21,10 +21,10 @@ CODE    SEGMENT
 DEFPROC	main
 ;
 ; The following REALLOC is not necessary in BASIC-DOS, because it detects
-; our COMDEF signature and resizes us automatically, but if we want to run
+; our COMHEAP signature and resizes us automatically, but if we want to run
 ; with the same footprint in PC DOS, then we must still resize ourselves.
 ;
-	mov	bx,offset heap + MINHEAP
+	mov	bx,offset HEAP + MINHEAP
 	or	bl,0Eh		; adjust BX to top word of the paragraph
 	mov	word ptr [bx],0	; store a zero there so we can simply return
 	mov	sp,bx		; lower the stack
@@ -77,10 +77,10 @@ execfile	db		"EXEC.COM",0
 execparms	EPB		<0,PSP_CMDTAIL,PSP_FCB1,PSP_FCB2>
 	ENDIF
 ;
-; COMDEF 0 means we don't need a heap, but BASIC-DOS will still allocate a
+; COMHEAP 0 means we don't need a heap, but BASIC-DOS will still allocate a
 ; minimum amount of heap space, because that's where our initial stack lives.
 ;
-	COMDEF	0		; COMDEF (heap size) must be the last item
+	COMHEAP	0		; COMHEAP (heap size) must be the last item
 
 CODE	ENDS
 

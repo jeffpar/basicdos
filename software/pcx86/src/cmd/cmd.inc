@@ -209,14 +209,14 @@ PUSH_DS_DX macro
 ; Define the heap as a structure
 ;
 CMD_HEAP	struc
-ORIG_SP		dd	?
-ORIG_BP		dw	?
-CON_COLS	db	?
-CON_ROWS	db	?
 CODE_BLK	db	size BLK_DEF dup (?)
 VARS_BLK	db	size BLK_DEF dup (?)
 STRS_BLK	db	size BLK_DEF dup (?)
 TEXT_BLK	db	size BLK_DEF dup (?)
+ORIG_SP		dd	?
+ORIG_BP		dw	?
+CON_COLS	db	?
+CON_ROWS	db	?
 INPUTBUF	db	size BUF_INPUT dup (?)
 TOKENBUF	db	size BUF_TOKEN dup (?)
 LINEBUF		db	256 dup (?)

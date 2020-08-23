@@ -747,7 +747,7 @@ DEFPROC	utl_tokid,DOS
 	ASSUME	DS:NOTHING, ES:NOTHING
 
 	mov	byte ptr [bp].TMP_BL,0	; TMP_BL = top index
-	mov	dx,[di]			; DL = # TOKDEFs
+	mov	dx,es:[di]		; DL = # TOKDEFs
 					; DH = size of TOKDEF
 	add	di,2			; ES:DI -> 1st TOKDEF
 
@@ -764,11 +764,11 @@ td0:	mov	ax,-1
 	mov	al,dh			; AL = size TOKDEF
 	mul	bl			; BL = index of TOKDEF
 	xchg	bx,ax			; BX = offset of TOKDEF
-	mov	ch,[di+bx].TOKDEF_LEN	; CH = length of current token
+	mov	ch,es:[di+bx].TOKDEF_LEN; CH = length of current token
 	mov	ah,cl			; CL is saved in AH
 	push	si
 	push	di
-	mov	di,[di+bx].TOKDEF_OFF	; ES:DI -> current token
+	mov	di,es:[di+bx].TOKDEF_OFF; ES:DI -> current token
 td1:	lodsb
 	cmp	al,'a'
 	jb	td2
@@ -802,8 +802,8 @@ td4:	inc	bx
 	jmp	td0
 
 td8:	sub	ax,ax			; zero AX (and carry, too)
-	mov	al,[di+bx].TOKDEF_ID	; AX = token ID
-	mov	dx,[di+bx].TOKDEF_DATA	; DX = user-defined token data
+	mov	al,es:[di+bx].TOKDEF_ID	; AX = token ID
+	mov	dx,es:[di+bx].TOKDEF_DATA; DX = user-defined token data
 	pop	bx			; toss BX from stack
 
 td9:	jc	td10
