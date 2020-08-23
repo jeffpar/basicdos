@@ -7,7 +7,9 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-	include	dos.inc
+	include	bios.inc
+	include	devapi.inc
+	include	dosapi.inc
 
 DGROUP	group	CODE,DATA
 
@@ -54,6 +56,12 @@ PUSHNUM	macro	val
 	dw	val
 lbl:
 	endm
+
+BLK_DEF		struc
+BLK_NEXT	dw	?		; next block seg, if any
+BLK_HDR		db	?		; eg, size CBLK_HDR
+BLK_SIG		db	?		; eg, CBLKSIG
+BLK_DEF		ends
 
 ;
 ; Code Block (CBLK) definitions
@@ -126,7 +134,7 @@ TBLK_RESERVED	db	?
 TBLK_PADDING	db	?
 TBLK_HDR	ends
 TBLKSIG		equ	'T'
-TBLKLEN		equ	128		; default text block size
+TBLKLEN		equ	1024		; default text block size
 
 ;
 ; Operator Definition
@@ -205,6 +213,10 @@ ORIG_SP		dd	?
 ORIG_BP		dw	?
 CON_COLS	db	?
 CON_ROWS	db	?
+CODE_BLK	db	size BLK_DEF dup (?)
+VARS_BLK	db	size BLK_DEF dup (?)
+STRS_BLK	db	size BLK_DEF dup (?)
+TEXT_BLK	db	size BLK_DEF dup (?)
 INPUTBUF	db	size BUF_INPUT dup (?)
 TOKENBUF	db	size BUF_TOKEN dup (?)
 LINEBUF		db	256 dup (?)

@@ -65,10 +65,10 @@ ENDPROC	utl_strlen
 ;
 ; utl_strstr (AX = 1801h)
 ;
-; Find string (DS:SI) in string (ES:DI)
+; Find string (CS:SI) in string (ES:DI)
 ;
 ; Inputs:
-;	REG_DS:REG_SI = source string
+;	REG_CS:REG_SI = source string
 ;	REG_ES:REG_DI = target string
 ;
 ; Outputs:
@@ -90,7 +90,7 @@ DEFPROC	utl_strstr,DOS
 	xchg	si,di
 	mov	es,[bp].REG_ES
 	ASSUME	ES:NOTHING
-	mov	ds,[bp].REG_DS
+	mov	ds,[bp].REG_CS
 	mov	al,0
 	call	strlen
 	xchg	bx,ax			; BX = length of source string
@@ -730,7 +730,7 @@ ENDPROC	tok_classify
 ; Inputs:
 ;	REG_CX = token length
 ;	REG_DS:REG_SI -> token
-;	REG_DS:REG_DX -> TOKTBL followed by sorted array of TOKDEFs
+;	REG_CS:REG_DX -> TOKTBL followed by sorted array of TOKDEFs
 ; Outputs:
 ;	If carry clear, AX = ID (TOKDEF_ID), DX = data (TOKDEF_DATA, if any)
 ;	If carry set, token not found
@@ -743,7 +743,7 @@ DEFPROC	utl_tokid,DOS
 	and	[bp].REG_FL,NOT FL_CARRY
 	mov	ds,[bp].REG_DS		; DS:SI -> token (length CX)
 	mov	di,dx
-	mov	es,[bp].REG_DS		; ES:DI -> TOKTBL (from DS:DX)
+	mov	es,[bp].REG_CS		; ES:DI -> TOKTBL (from CS:DX)
 	ASSUME	DS:NOTHING, ES:NOTHING
 
 	mov	byte ptr [bp].TMP_BL,0	; TMP_BL = top index

@@ -14,9 +14,8 @@ CODE    SEGMENT
 
 	EXTERNS	<allocText,freeText,genImmediate>,near
 
-	EXTERNS	<KEYWORD_TOKENS,heap>,word
+	EXTERNS	<KEYWORD_TOKENS>,word
 	EXTSTR	<COM_EXT,EXE_EXT,DIR_DEF,PERIOD>
-	EXTSTR	<SYS_MEM,DOS_MEM,FREE_MEM>
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 
@@ -30,16 +29,26 @@ DEFPROC	main
 	LOCVAR	hFile,word		; file handle
 	LOCVAR	numLine,word		; current line number
 	LOCVAR	offLine,word		; offset of current line
+	LOCVAR	pTextLimit,word		; current text memory limit
+
 	ENTER
-	lea	bx,[heap]
+	mov	bx,ds:[PSP_HEAP]
 	mov	[bx].ORIG_SP.SEG,ss
 	mov	[bx].ORIG_SP.OFF,sp
 	mov	[bx].ORIG_BP,bp
-	mov	[hFile],0
+	mov	word ptr [bx].CODE_BLK.BLK_HDR,(size CBLK_HDR) OR (CBLKSIG SHL 8)
+	mov	word ptr [bx].VARS_BLK.BLK_HDR,(size VBLK_HDR) OR (VBLKSIG SHL 8)
+	mov	word ptr [bx].STRS_BLK.BLK_HDR,(size SBLK_HDR) OR (SBLKSIG SHL 8)
+	mov	word ptr [bx].TEXT_BLK.BLK_HDR,(size TBLK_HDR) OR (TBLKSIG SHL 8)
 
+	mov	[hFile],0
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
-	mov	dx,offset ctrlc
+	push	ds
+	push	cs
+	pop	ds
+	mov	dx,offset ctrlc		; DS:DX -> CTRLC handler
 	int	21h
+	pop	ds
 
 	push	bx
 	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETDIM
@@ -58,9 +67,11 @@ DEFPROC	main
 ; Since all command handlers loop back to this point, we shouldn't assume
 ; that any registers (eg, BX, ES) will still be set to their original values.
 ;
-m1:	push	cs
+m1:	push	ss
+	pop	ds
+	push	ss
 	pop	es
-	lea	bx,[heap]
+	mov	bx,ds:[PSP_HEAP]
 	mov	ah,DOS_DSK_GETDRV
 	int	21h
 	add	al,'A'		; AL = current drive letter
@@ -105,7 +116,7 @@ m1a:	push	cx
 	mov	ax,DOS_UTL_STRUPR
 	int	21h		; DS:SI -> upper-case token, CX = length
 	lea	dx,[KEYWORD_TOKENS]
-	mov	ax,DOS_UTL_TOKID
+	mov	ax,DOS_UTL_TOKID; CS:DX -> TOKTBL
 	int	21h		; identify the token
 	jc	m2
 	mov	[pHandler],dx
@@ -149,7 +160,7 @@ m3:	mov	di,dx		; ES:DI -> FILENAME
 	add	di,cx		; append .EXE
 	mov	si,offset EXE_EXT
 	mov	cx,EXE_EXT_LEN
-	rep	movsb
+	rep	movs byte ptr es:[di],byte ptr cs:[si]
 	pop	di
 	mov	ah,DOS_DSK_FFIRST
 	int	21h		; find file (DS:DX) with attributes (CX = 0)
@@ -160,7 +171,7 @@ m3:	mov	di,dx		; ES:DI -> FILENAME
 	add	di,cx		; append .COM
 	mov	si,offset COM_EXT
 	mov	cx,COM_EXT_LEN
-	rep	movsb
+	rep	movs byte ptr es:[di],byte ptr cs:[si]
 	pop	cx
 	jmp	m5
 ;
@@ -211,7 +222,7 @@ m6:	lodsb
 	mov	dh,0
 	PRINTF	<13,10,"Return code %d (%d)",13,10>,ax,dx
 	jmp	m1
-m8:	PRINTF	<"Error loading %s: %d",13,10>,dx,ax
+m8:	PRINTF	<"Error loading %ls: %d",13,10>,dx,ds,ax
 	jmp	m1
 ;
 ; We arrive here if the token was recognized.  The token ID determines
@@ -240,11 +251,14 @@ m10:	call	parseSW		; parse all switch arguments, if any
 ; token (index in DH).  If there is no token, then we use the defaults loaded
 ; into SI and CX.
 ;
+	call	getToken	; DH = 1st non-switch argument (or -1)
+	jnc	m18
+	push	cs
+	pop	ds
 	mov	si,offset DIR_DEF
 	mov	cx,DIR_DEF_LEN - 1
-	call	getToken	; DH = 1st non-switch argument (or -1)
-	jc	m20
-	lea	di,[bx].FILENAME; DS:SI -> token, CX = length
+	jmp	short m19
+m18:	lea	di,[bx].FILENAME; DS:SI -> token, CX = length
 	mov	ax,size FILENAME-1
 	cmp	cx,ax
 	jbe	m19
@@ -255,12 +269,13 @@ m19:	push	cx
 	mov	byte ptr es:[di],0
 	pop	si		; DS:SI -> copy of token in FILENAME
 	pop	cx
+	push	ss
+	pop	ds
 	mov	ax,DOS_UTL_STRUPR
 	int	21h		; DS:SI -> upper-case token, CX = length
-
-m20:	mov	[pArg],si
+	mov	[pArg],si
 	mov	[lenArg],cx
-	call	[pHandler]	; call token handler
+m20:	call	[pHandler]	; call token handler
 	jmp	m1
 ENDPROC	main
 
@@ -410,12 +425,11 @@ ENDPROC	getToken
 ;	Any
 ;
 DEFPROC	ctrlc,FAR
-	lea	bx,[heap]
-	cli
-	mov	ss,[bx].ORIG_SP.SEG
+	push	ss
+	pop	ds
+	mov	bx,ds:[PSP_HEAP]
 	mov	sp,[bx].ORIG_SP.OFF
 	mov	bp,[bx].ORIG_BP
-	sti
 	jmp	m1
 ENDPROC	ctrlc
 
@@ -488,7 +502,7 @@ dir2:	add	di,si		; DI -> end of filespec
 	push	si
 	mov	cx,DIR_DEF_LEN
 	mov	si,offset DIR_DEF
-	rep	movsb
+	rep	movs byte ptr es:[di],byte ptr cs:[si]
 	pop	si
 
 dir3:	sub	cx,cx		; CX = attributes
@@ -531,13 +545,13 @@ dir5:	mov	ax,cx		; AX = complete filename length
 ;
 dir6:	mov	dx,ds:[PSP_DTA].FFB_DATE
 	mov	cx,ds:[PSP_DTA].FFB_TIME
-	ASSERT	Z,<cmp ds:[PSP_DTA].FFB_SIZE.SEG,0>
-	PRINTF	<"%-8.*s %-3s %7ld %2M-%02D-%02X %2G:%02N%A",13,10>,ax,si,di,ds:[PSP_DTA].FFB_SIZE.OFF,ds:[PSP_DTA].FFB_SIZE.SEG,dx,dx,dx,cx,cx,cx
+	ASSERT	Z,<cmp ds:[PSP_DTA].FFB_SIZE.HIW,0>
+	PRINTF	<"%-8.*ls %-3ls %7ld %2M-%02D-%02X %2G:%02N%A",13,10>,ax,si,ds,di,ds,ds:[PSP_DTA].FFB_SIZE.LOW,ds:[PSP_DTA].FFB_SIZE.HIW,dx,dx,dx,cx,cx,cx
 ;
 ; Update our totals
 ;
-	mov	ax,ds:[PSP_DTA].FFB_SIZE.OFF
-	mov	dx,ds:[PSP_DTA].FFB_SIZE.SEG
+	mov	ax,ds:[PSP_DTA].FFB_SIZE.LOW
+	mov	dx,ds:[PSP_DTA].FFB_SIZE.HIW
 	lea	cx,[bx-1]
 	add	ax,cx		; add cluster size - 1 to file size
 	adc	dx,0
@@ -569,7 +583,7 @@ dir7:	xchg	ax,dx		; AX = total # of clusters used
 	mov	cx,[lenArg]
 	jmp	cmdDir
 
-dir8:	PRINTF	<"Unable to find %s (%d)",13,10>,si,ax
+dir8:	PRINTF	<"Unable to find %ls (%d)",13,10>,si,ds,ax
 	pop	bp
 
 dir9:	ret
@@ -610,19 +624,19 @@ ENDPROC	cmdExit
 ;
 DEFPROC	cmdHelp
 	mov	si,offset KEYWORD_TOKENS
-	lodsw			; AL = # tokens, AH = size TOKDEF
+	lods	word ptr cs:[si]; AL = # tokens, AH = size TOKDEF
 	mov	cl,al
 	mov	ch,0		; CX = # tokens
 	mov	al,ah
 	cbw
 	xchg	di,ax		; DI = size TOKDEF
 	mov	dl,8		; DL = # chars to be printed so far
-h1:	cmp	[si].TOKDEF_ID,100
+h1:	cmp	cs:[si].TOKDEF_ID,100
 	jae	h3		; ignore token IDs >= 100
 	push	dx
-	mov	dl,[si].TOKDEF_LEN
+	mov	dl,cs:[si].TOKDEF_LEN
 	mov	dh,0
-	PRINTF	<"%-8.*s">,dx,[si].TOKDEF_OFF
+	PRINTF	<"%-8.*ls">,dx,[si].TOKDEF_OFF,cs
 	pop	dx
 	add	dl,al
 	cmp	cl,1
@@ -660,6 +674,8 @@ ENDPROC	cmdList
 ;
 ; Opens the specified file and loads it into one or more text blocks.
 ;
+; TODO: Shrink the final text block to the amount of text actually loaded.
+;
 ; Inputs:
 ;	DS:SI -> filespec (with length CX)
 ;
@@ -670,20 +686,27 @@ ENDPROC	cmdList
 ;	Any
 ;
 DEFPROC	cmdLoad
-	call	openFile
+	call	openFile	; open the specified file
 	jc	li9
-;
-; Since the open succeeded, toss any existing text block(s).
-;
-	call	freeText
-	lea	bx,[bx].LINEBUF
-	sub	cx,cx		; DS:SI contains zero bytes at the moment
-	mov	di,TBLKLEN	; initialize DI to memory limit
+	call	freeText	; free any pre-existing blocks
+	test	dx,dx
+	jnz	lf0a
+	add	ax,TBLKLEN
+	jnc	lf0b
+lf0a:	mov	ax,0FFFFh
+lf0b:	xchg	cx,ax		; CX = size of initial text block
+	mov	[pTextLimit],cx
+	call	allocText
+	jc	lf4y
+	mov	di,size TBLK_HDR; ES:DI -> next available text location
 ;
 ; For every complete line at DS:SI, determine the line number (if any), and
 ; then add the line number (2 bytes), line length (1 byte), and line contents
 ; (not including any leading space or terminating CR/LF) to the text block.
 ;
+	lea	bx,[bx].LINEBUF
+	sub	cx,cx		; DS:SI contains zero bytes at the moment
+
 lf1:	jcxz	lf4
 	push	cx
 	mov	dx,si		; save SI
@@ -764,20 +787,21 @@ lf7:	dec	dx		; back up to CHR_RETURN
 	mov	ax,di
 	add	ax,dx
 	add	ax,3
-	cmp	ax,TBLKLEN	; does this overflow ES:DI?
+	cmp	ax,[pTextLimit]	; does this overflow the current text block?
 	jbe	lf8		; no
 ;
 ; No, there's not enough room, so allocate another text block.
 ;
 	push	cx
 	mov	cx,TBLKLEN
+	mov	[pTextLimit],cx
 	push	si
 	call	allocText
 	pop	si
 	pop	cx
 	jc	lf11		; unable to allocate enough memory
-	sub	di,di		; ES:DI -> next available text location
-				; ES:TBLKLEN is the limit
+	mov	di,size TBLK_HDR; ES:DI -> next available text location
+
 lf8:	mov	ax,[numLine]
 	stosw
 	mov	al,dl
@@ -803,113 +827,6 @@ lf11:	call	freeText
 lf12:	call	closeFile
 	ret
 ENDPROC	cmdLoad
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; cmdMem
-;
-; Prints memory usage.
-;
-; Inputs:
-;	DS:SI -> user-defined token (not used)
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	Any
-;
-DEFPROC	cmdMem
-;
-; Before we get into memory blocks, show the amount of memory reserved
-; for the BIOS and disk buffers.
-;
-	push	bp
-	push	es
-	sub	di,di
-	mov	es,di
-	ASSUME	ES:BIOS
-	les	di,[DD_LIST]
-	ASSUME	ES:NOTHING
-	sub	bx,bx
-	mov	ax,es
-	push	di
-	mov	di,ds
-	mov	si,offset SYS_MEM
-	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
-	pop	di
-;
-; Next, dump the list of resident built-in device drivers.
-;
-drv1:	cmp	di,-1
-	je	drv9
-	lea	si,[di].DDH_NAME
-	mov	bx,es
-	mov	cx,bx
-	mov	ax,es:[di].DDH_NEXT_SEG
-	sub	ax,cx		; AX = # paras
-	push	di
-	mov	di,bx
-	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
-	pop	di
-	les	di,es:[di]
-	jmp	drv1
-;
-; Next, dump the size of the operating system, which resides between the
-; built-in device drivers and the first memory block.
-;
-drv9:	mov	bx,es		; ES = DOS data segment
-	mov	ax,es:[0]	; ES:[0] is mcb_head
-	mov	bp,es:[2]	; ES:[2] is mcb_limit
-	sub	ax,bx
-	mov	di,ds
-	mov	si,offset DOS_MEM
-	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
-	pop	es
-	ASSUME	ES:CODE
-;
-; Next, examine all the memory blocks and display those that are used.
-;
-	push	bp
-	sub	cx,cx
-	sub	bp,bp		; BP = free memory
-mem1:	mov	dl,0		; DL = 0 (query all memory blocks)
-	mov	di,ds		; DI:SI -> default owner name
-	mov	si,offset SYS_MEM
-	mov	ax,DOS_UTL_QRYMEM
-	int	21h
-	jc	mem9		; all done
-	test	ax,ax		; free block (is OWNER zero?)
-	jne	mem2		; no
-	add	bp,dx		; yes, add to total free paras
-;
-; Let's include free blocks in the report now, too.
-;
-	mov	si,offset FREE_MEM
-	; jmp	short mem8
-
-mem2:	mov	ax,dx		; AX = # paras
-	push	cx
-	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
-	pop	cx
-mem8:	inc	cx
-	jmp	mem1
-mem9:	xchg	ax,bp		; AX = free memory (paras)
-	pop	bp		; BP = total memory (paras)
-;
-; Last but not least, dump the amount of free memory (ie, the sum of all the
-; free blocks that we did NOT display above).
-;
-	mov	cx,16
-	mul	cx		; DX:AX = free memory (in bytes)
-	xchg	si,ax
-	mov	di,dx		; DI:SI = free memory
-	xchg	ax,bp
-	mul	cx		; DX:AX = total memory (in bytes)
-	PRINTF	<"%8ld bytes total",13,10,"%8ld bytes free",13,10>,ax,dx,si,di
-	pop	bp
-	ret
-ENDPROC	cmdMem
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -966,60 +883,43 @@ ENDPROC	cmdType
 ; openFile
 ;
 ; Opens the specified file; used by commands like "LOAD" and "TYPE".
+; As an added bonus, returns the size of the file in DX:AX.
 ;
 ; Inputs:
 ;	DS:SI -> filename
 ;
 ; Outputs:
-;	If carry clear, [hFile] is updated
-;	If carry set, an error message was printed
-;
-; Modifies:
-;	AX, BX
-;
-DEFPROC	openFile
-	push	dx
-	mov	dx,si		; DX -> filename
-	mov	ax,DOS_HDL_OPEN SHL 8
-	int	21h
-	jc	of8
-	mov	[hFile],ax	; save file handle
-	jmp	short of9
-of8:	PRINTF	<"Unable to open %ls (%d)",13,10>,dx,ds,ax
-	stc
-of9:	pop	dx
-	ret
-ENDPROC	openFile
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; readFile
-;
-; Reads CX bytes from the default file into the buffer at DS:SI.
-;
-; Inputs:
-;	CX = number of bytes
-;	DS:SI -> buffer
-;
-; Outputs:
-;	If carry clear, AX = number of bytes read
+;	If carry clear, [hFile] is updated, and DX:AX is the file size
 ;	If carry set, an error message was printed
 ;
 ; Modifies:
 ;	AX, DX
 ;
-DEFPROC	readFile
+DEFPROC	openFile
 	push	bx
-	mov	dx,si
-	mov	bx,[hFile]
-	mov	ah,DOS_HDL_READ
+	mov	dx,si		; DX -> filename
+	mov	ax,DOS_HDL_OPEN SHL 8
 	int	21h
-	jnc	rf9
-	PRINTF	<"Unable to read file",13,10>
+	jc	of8
+	mov	[hFile],ax	; save file handle
+	xchg	bx,ax		; BX = handle
+	sub	cx,cx
+	sub	dx,dx
+	mov	ax,DOS_HDL_SEEKEND
+	int	21h
+	push	ax
+	push	dx
+	sub	cx,cx
+	mov	ax,DOS_HDL_SEEKBEG
+	int	21h
+	pop	dx
+	pop	ax
+	jmp	short of9
+of8:	PRINTF	<"Unable to open %ls (%d)",13,10>,dx,ds,ax
 	stc
-rf9:	pop	bx
+of9:	pop	bx
 	ret
-ENDPROC	readFile
+ENDPROC	openFile
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1050,42 +950,33 @@ ENDPROC	closeFile
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; printKB
+; readFile
 ;
-; Converts the paragraph size in AX to Kb, by calculating AX/64 (or AX >> 6);
-; however, that's a bit too granular, so we include tenths of Kb as well.
-;
-; Using the paragraph remainder (R), we calculate tenths (N): R/64 = N/10, so
-; N = (R*10)/64.
+; Reads CX bytes from the default file into the buffer at DS:SI.
 ;
 ; Inputs:
-;	AX = size in paragraphs
-;	BX = segment of memory block
-;	DI:SI -> "owner" name for memory block
+;	CX = number of bytes
+;	DS:SI -> buffer
 ;
 ; Outputs:
-;	None
+;	If carry clear, AX = number of bytes read
+;	If carry set, an error message was printed
 ;
-DEFPROC	printKB
-	push	ax
+; Modifies:
+;	AX, DX
+;
+DEFPROC	readFile
 	push	bx
-	mov	bx,64
-	sub	dx,dx		; DX:AX = paragraphs
-	div	bx		; AX = Kb
-	xchg	cx,ax		; save Kb in CX
-	xchg	ax,dx		; AX = paragraphs remainder
-	mov	bl,10
-	mul	bx		; DX:AX = remainder * 10
-	mov	bl,64
-	or	ax,31		; round up without adding
-	div	bx		; AX = tenths of Kb
-	ASSERT	NZ,<cmp ax,10>
-	xchg	dx,ax		; save tenths in DX
-	pop	bx
-	pop	ax
-	PRINTF	<"%#06x: %#06x %3d.%1dK %.8ls",13,10>,bx,ax,cx,dx,si,di
+	mov	dx,si
+	mov	bx,[hFile]
+	mov	ah,DOS_HDL_READ
+	int	21h
+	jnc	rf9
+	PRINTF	<"Unable to read file",13,10>
+	stc
+rf9:	pop	bx
 	ret
-ENDPROC	printKB
+ENDPROC	readFile
 
 CODE	ENDS
 

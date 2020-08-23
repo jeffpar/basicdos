@@ -12,7 +12,7 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<scb_locked>,byte
-	EXTERNS	<mcb_limit,scb_active,psp_active>,word
+	EXTERNS	<mcb_head,mcb_limit,scb_active,psp_active>,word
 	EXTERNS	<sfh_addref,pfh_close,sfh_close>,near
 	EXTERNS	<getsize,free,dos_exit,dos_ctrlc,dos_error>,near
 	EXTERNS	<get_scbnum,scb_unload,scb_yield>,near
@@ -460,7 +460,7 @@ lp5:	mov	byte ptr [bx],CHR_RETURN
 ;
 ; Now that we have a file size, we can reallocate the PSP segment to a size
 ; closer to what we actually need.  We won't know EXACTLY how much we need yet,
-; because there might be a COMHEAP signature if it's a COM file, and EXE files
+; because there might be a COMDEF signature if it's a COM file, and EXE files
 ; have numerous unknowns at this point.  But having at LEAST as much memory
 ; as there are bytes in the file is a reasonable starting point.
 ;
@@ -641,7 +641,8 @@ lp6g:	push	es:[EXE_START_SEG]
 	IFDEF MAXDEBUG
 	PRINTF	<"min,cur,max paragraphs: %#06x,%#06x,%#06x",13,10>,si,bx,di
 	ENDIF
-	jmp	short lp8		; realloc the PSP segment
+	sub	dx,dx			; no heap
+	jmp	lp8			; realloc the PSP segment
 ;
 ; Load the COM file.  All we have to do is finish reading it.
 ;
@@ -667,41 +668,83 @@ lp7a:	add	dx,ax			; DX -> end of program file
 ;
 	; mov	ah,DOS_HDL_CLOSE
 	; int	21h			; close the file
-	; jc	lpef1
+	; jc	lpef
 ;
 ; Check the word at [BX-2]: if it contains BASICDOS_SIG ("BD"), then the
-; image ends with a HEAPINFO, where the preceding word (HI_HEAP) specifies the
-; program's desired additional memory (in paras).
+; image ends with a COMINFO, where the preceding word (CI_HEAPSIZE) specifies
+; the program's desired additional memory (in paras).
 ;
 lp7b:	mov	bx,dx			; BX -> end of program file
 	mov	dx,MINHEAP SHR 4	; minimum add'l space (1Kb in paras)
 	cmp	word ptr [bx-2],BASICDOS_SIG
-	jne	lp7c
-	mov	ax,word ptr [bx-4]
-	sub	bx,size HEAPINFO	; don't count the HEAPINFO struc
+	jne	lp7e
+	sub	bx,size COMINFO		; rewind BX to the COMINFO struc
+	mov	ax,[bx].CI_HEAPSIZE	; AX = heap size, in paras
 	cmp	ax,dx			; larger than our minimum?
 	jbe	lp7c			; no
 	xchg	dx,ax			; yes, set DX to the larger value
-lp7c:	add	bx,15
+;
+; Since there's COMINFO structure, fill in the relevant PSP fields.
+; In addition, if a code size is specified, checksum the code, and then
+; see if there's another block with the same code.
+;
+lp7c:	mov	cx,[bx].CI_CODESIZE
+	mov	ds:[PSP_ENDCODE],cx	; record end of code
+	call	psp_calcsum		; calc checksum for code
+	mov	ds:[PSP_CHECKSUM],ax	; record checksum
+	mov	ds:[PSP_HEAPSIZE],dx	; record heap size
+	mov	ds:[PSP_START].OFF,100h
+	mov	ds:[PSP_START].SEG,ds
+	jcxz	lp7e
+;
+; We found an alternate copy of the code segment (CX), so we can move
+; everything from PSP_ENDCODE to BX down to 100h, and reduce the program
+; size in BX by the number of bytes saved.
+;
+	mov	ds:[PSP_START].SEG,cx
+	mov	si,ds:[PSP_ENDCODE]
+	mov	cx,bx
+	sub	cx,si
+	mov	di,100h
+	mov	ax,si
+	sub	ax,di			; AX = # bytes saved
+	sub	bx,ax			; reduce BX
+	rep	movsb
+
+lp7e:	add	bx,15
 	mov	cl,4
 	shr	bx,cl			; BX = size of program (in paras)
 	add	bx,dx			; add add'l space (in paras)
 
 	mov	di,bx
 	cmp	di,1000h
-	jb	lp7d
+	jb	lp7f
 	mov	di,1000h
-lp7d:	shl	di,cl			; ES:DI -> top of the segment
+lp7f:	shl	di,cl			; ES:DI -> top of the segment
 	mov	ds:[PSP_STACK].OFF,di
 	mov	ds:[PSP_STACK].SEG,ds
-	mov	ds:[PSP_START].OFF,100h
-	mov	ds:[PSP_START].SEG,ds
 
 lp8:	mov	ah,DOS_MEM_REALLOC	; resize ES memory block to BX
 	int	21h
-lpef1:	jc	lpef			; TODO: try to use a smaller size?
+	jnc	lp8a
+	jmp	lpef			; TODO: try to use a smaller size?
+;
+; Zero the heap, if any; DX is the number of paras (zero if no heap).
+;
+lp8a:	test	dx,dx
+	jz	lp8b
+	sub	bx,dx			; BX = 1st para to zero
+	mov	cl,4
+	shl	bx,cl			; convert BX to offset within ES
+	mov	ds:[PSP_HEAP],bx	; record the heap offset
+	dec	cx
+	shl	dx,cl			; convert # paras to number of words
+	mov	cx,dx
+	sub	ax,ax
+	mov	di,bx
+	rep	stosw			; zero the words
 
-	mov	dx,es
+lp8b:	mov	dx,es
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
@@ -798,6 +841,66 @@ lpef:	push	ax
 
 lp9:	ret
 ENDPROC	load_program
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; psp_calcsum
+;
+; Inputs:
+;	DS:100h -> bytes to checksum
+;	CX = end of region to checksum
+;
+; Outputs:
+;	AX = 16-bit checksum
+;	CX = segment with matching checksum (zero if none)
+;
+; Modifies:
+;	AX, CX, SI
+;
+DEFPROC	psp_calcsum
+	ASSUME	DS:NOTHING, ES:NOTHING
+
+	push	dx
+	sub	dx,dx
+	jcxz	crc8
+	push	cx
+	mov	si,100h			; SI -> 1st byte to sum
+	sub	cx,si			; CX = # bytes to checksum
+	shr	cx,1			; CX = # words
+crc1:	lodsw
+	add	dx,ax
+	loop	crc1
+	pop	ax
+;
+; Scan the arena for a PSP block with matching PSP_ENDCODE and PSP_CHECKSUM.
+;
+	push	es
+	mov	si,[mcb_head]
+crc2:	mov	es,si
+	ASSUME	ES:NOTHING
+	inc	si
+	mov	cx,es:[MCB_OWNER]
+	jcxz	crc5
+	cmp	cx,si			; MCB_OWNER = PSP?
+	jne	crc5			; no
+	cmp	es:[size MCB].PSP_ENDCODE,ax
+	jne	crc5
+	cmp	es:[size MCB].PSP_CHECKSUM,dx
+	jne	crc5
+	mov	cx,si			; CX = matching segment
+	jmp	short crc7		; done scanning
+crc5:	cmp	es:[MCB_SIG],MCBSIG_LAST
+	jne	crc6
+	sub	cx,cx			; CX = zero (no match found)
+	jmp	short crc7		; done scanning
+crc6:	add	si,es:[MCB_PARAS]
+	jmp	crc2
+crc7:	pop	es
+
+crc8:	xchg	ax,dx			; AX = checksum
+	pop	dx
+	ret
+ENDPROC	psp_calcsum
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

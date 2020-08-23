@@ -13,10 +13,9 @@ CODE    SEGMENT
 
 	EXTERNS	<allocCode,freeCode,allocVars>,near
 	EXTERNS	<addVar,findVar,setVarLong>,near
-	EXTERNS	<appendStr,setStr>,near
+	EXTERNS	<appendStr,setStr,errorMemory>,near
 	EXTERNS	<clearScreen,printArgs,setColor>,near
 
-	EXTERNS	<segVars>,word
 	EXTERNS	<KEYWORD_TOKENS,KEYOP_TOKENS>,word
 	EXTERNS	<OPDEFS,RELOPS>,byte
 	EXTERNS	<TOK_ELSE,TOK_THEN>,abs
@@ -48,8 +47,8 @@ DEFPROC	genImmediate
 	LOCVAR	nExpPrevOp,word
 	LOCVAR	errCode,word
 	LOCVAR	pCode,dword
-	LOCVAR	pTokletNext,word
-	LOCVAR	pTokletEnd,word
+	LOCVAR	pTokNext,word
+	LOCVAR	pTokEnd,word
 	ENTER
 	sub	ax,ax
 	mov	[nArgs],ax
@@ -60,7 +59,7 @@ DEFPROC	genImmediate
 	add	ax,ax
 	add	ax,ax
 	add	ax,bx
-	mov	[pTokletEnd],ax
+	mov	[pTokEnd],ax
 	add	bx,size TOKLET		; skip 1st token (already parsed)
 
 	call	allocVars
@@ -75,7 +74,7 @@ gi1:	call	genCommand		; generate code
 	jnc	gi6
 	jmp	short gi7		; error
 
-gie:	PRINTF	<'Not enough memory (%#06x)',13,10>,ax
+gie:	call	errorMemory
 	jmp	short gi9
 
 gi6:	mov	al,OP_RETF		; terminate code
@@ -83,7 +82,8 @@ gi6:	mov	al,OP_RETF		; terminate code
 	push	bp
 	push	ds
 	push	es
-	mov	ax,[segVars]
+	mov	si,ds:[PSP_HEAP]
+	mov	ax,[si].VARS_BLK.BLK_NEXT
 	mov	ds,ax
 	mov	es,ax
 	ASSUME	DS:NOTHING
@@ -126,7 +126,7 @@ gc1:	call	getNextToken
 	cmc
 	jnc	gc9
 	lea	dx,[KEYWORD_TOKENS]
-	mov	ax,DOS_UTL_TOKID
+	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
 	int	21h			; identify the token
 	jc	gc9			; can't identify
 	DEFLBL	genCommand,near
@@ -228,12 +228,12 @@ gn2:	mov	byte ptr [nExpPrevOp],-1; invalidate prevOp (intervening token)
 ; (eg, 'NOT', 'AND', 'XOR'), so check for those first.
 ;
 	mov	dx,offset KEYOP_TOKENS	; see if token is a KEYOP
-	mov	ax,DOS_UTL_TOKID
+	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
 	int	21h
 	jnc	gn5			; jump to operator validation
 
 	mov	dx,offset KEYWORD_TOKENS; see if token is a KEYWORD
-	mov	ax,DOS_UTL_TOKID
+	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
 	int	21h
 	jc	gn2a
 	mov	ah,CLS_KEYWORD
@@ -869,7 +869,7 @@ ENDPROC	genPushVarLong
 ; 	jb	gk9
 ; 	stc
 ; 	je	gk9
-; 	lea	dx,[KEYWORD_TOKENS]
+; 	lea	dx,[KEYWORD_TOKENS]	; CS:DX -> TOKTBL
 ; 	mov	ax,DOS_UTL_TOKID
 ; 	int	21h
 ; gk9:	ret
@@ -902,7 +902,7 @@ ENDPROC	genPushVarLong
 ;	AX, BX, CX, SI
 ;
 DEFPROC	getNextToken
-	cmp	bx,[pTokletEnd]
+	cmp	bx,[pTokEnd]
 	cmc
 	jb	gt9			; no more tokens
 	mov	ah,[bx].TOKLET_CLS
@@ -943,7 +943,7 @@ ENDPROC	getNextToken
 DEFPROC	peekNextToken
 	push	bx
 	call	getNextToken
-	mov	[pTokletNext],bx
+	mov	[pTokNext],bx
 	pop	bx
 	ret
 ENDPROC	peekNextToken
@@ -974,17 +974,17 @@ DEFPROC	validateOp
 	jbe	vo6
 	mov	dh,al			; DX = potential 2-character operator
 	mov	si,offset RELOPS
-vo1:	lodsw
+vo1:	lods	word ptr cs:[si]
 	test	al,al
 	jz	vo6
 	cmp	ax,dx			; match?
-	lodsb
+	lods	byte ptr cs:[si]
 	jne	vo1
-	mov	bx,[pTokletNext]
+	mov	bx,[pTokNext]
 	xchg	dx,ax			; DL = (new) operator to validate
 vo6:	mov	ah,dl			; AH = operator to validate
 	mov	si,offset OPDEFS
-vo7:	lodsb
+vo7:	lods	byte ptr cs:[si]
 	test	al,al
 	stc
 	jz	vo9			; not valid
@@ -992,12 +992,12 @@ vo7:	lodsb
 	je	vo8			; yes
 	add	si,size OPDEF - 1
 	jmp	vo7
-vo8:	lodsb				; AL = precedence, AH = operator
+vo8:	lods	byte ptr cs:[si]	; AL = precedence, AH = operator
 	xchg	dx,ax
-	lodsb
+	lods	byte ptr cs:[si]
 	cbw
 	xchg	cx,ax
-	lodsw				; AX = evaluator
+	lods	word ptr cs:[si]	; AX = evaluator
 	xchg	dx,ax			; DX = evaluator, AX = op/prec
 vo9:	xchg	al,ah			; AL = operator, AH = precedence
 	pop	si
