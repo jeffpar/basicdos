@@ -45,7 +45,7 @@ DEFPROC	cmdMem
 	sub	bx,bx
 	mov	ax,es
 	push	di
-	mov	di,ds
+	mov	di,cs
 	mov	si,offset SYS_MEM
 	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
 	pop	di
@@ -73,7 +73,7 @@ drv9:	mov	bx,es		; ES = DOS data segment
 	mov	ax,es:[0]	; ES:[0] is mcb_head
 	mov	bp,es:[2]	; ES:[2] is mcb_limit
 	sub	ax,bx
-	mov	di,ds
+	mov	di,cs
 	mov	si,offset DOS_MEM
 	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
 	pop	es
@@ -85,7 +85,7 @@ drv9:	mov	bx,es		; ES = DOS data segment
 	sub	cx,cx
 	sub	bp,bp		; BP = free memory
 mem1:	mov	dl,0		; DL = 0 (query all memory blocks)
-	mov	di,ds		; DI:SI -> default owner name
+	mov	di,cs		; DI:SI -> default owner name
 	mov	si,offset SYS_MEM
 	mov	ax,DOS_UTL_QRYMEM
 	int	21h
