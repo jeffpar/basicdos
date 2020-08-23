@@ -13,15 +13,14 @@ CODE    SEGMENT
 
 	EXTERNS	<allocCode,freeCode,allocVars>,near
 	EXTERNS	<addVar,findVar,setVarLong>,near
-	EXTERNS	<appendStr,setStr>,near
+	EXTERNS	<appendStr,setStr,errorMemory>,near
 	EXTERNS	<clearScreen,printArgs,setColor>,near
 
-	EXTERNS	<segVars>,word
 	EXTERNS	<KEYWORD_TOKENS,KEYOP_TOKENS>,word
 	EXTERNS	<OPDEFS,RELOPS>,byte
 	EXTERNS	<TOK_ELSE,TOK_THEN>,abs
 
-        ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
+        ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -48,8 +47,8 @@ DEFPROC	genImmediate
 	LOCVAR	nExpPrevOp,word
 	LOCVAR	errCode,word
 	LOCVAR	pCode,dword
-	LOCVAR	pTokletNext,word
-	LOCVAR	pTokletEnd,word
+	LOCVAR	pTokNext,word
+	LOCVAR	pTokEnd,word
 	ENTER
 	sub	ax,ax
 	mov	[nArgs],ax
@@ -60,7 +59,7 @@ DEFPROC	genImmediate
 	add	ax,ax
 	add	ax,ax
 	add	ax,bx
-	mov	[pTokletEnd],ax
+	mov	[pTokEnd],ax
 	add	bx,size TOKLET		; skip 1st token (already parsed)
 
 	call	allocVars
@@ -75,7 +74,7 @@ gi1:	call	genCommand		; generate code
 	jnc	gi6
 	jmp	short gi7		; error
 
-gie:	PRINTF	<'Not enough memory (%#06x)',13,10>,ax
+gie:	call	errorMemory
 	jmp	short gi9
 
 gi6:	mov	al,OP_RETF		; terminate code
@@ -83,14 +82,15 @@ gi6:	mov	al,OP_RETF		; terminate code
 	push	bp
 	push	ds
 	push	es
-	mov	ax,[segVars]
+	mov	si,ds:[PSP_HEAP]
+	mov	ax,[si].VARS_BLK.BLK_NEXT
 	mov	ds,ax
 	mov	es,ax
 	ASSUME	DS:NOTHING
 	call	[pCode]			; execute code
 	pop	es
 	pop	ds
-	ASSUME	DS:CODE
+	ASSUME	DS:DATA
 	pop	bp
 	clc
 
@@ -126,7 +126,7 @@ gc1:	call	getNextToken
 	cmc
 	jnc	gc9
 	lea	dx,[KEYWORD_TOKENS]
-	mov	ax,DOS_UTL_TOKID
+	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
 	int	21h			; identify the token
 	jc	gc9			; can't identify
 	DEFLBL	genCommand,near
@@ -228,12 +228,12 @@ gn2:	mov	byte ptr [nExpPrevOp],-1; invalidate prevOp (intervening token)
 ; (eg, 'NOT', 'AND', 'XOR'), so check for those first.
 ;
 	mov	dx,offset KEYOP_TOKENS	; see if token is a KEYOP
-	mov	ax,DOS_UTL_TOKID
+	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
 	int	21h
 	jnc	gn5			; jump to operator validation
 
 	mov	dx,offset KEYWORD_TOKENS; see if token is a KEYWORD
-	mov	ax,DOS_UTL_TOKID
+	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
 	int	21h
 	jc	gn2a
 	mov	ah,CLS_KEYWORD
@@ -470,7 +470,7 @@ ENDPROC	genGoto
 ;
 ; The general structure of the generated code will look like:
 ;
-;	call	evalEQLong (just for example, assuming an expr with '=')
+;	call	evalEQLong (assuming an expression with '=')
 ;	pop	ax
 ;	pop	dx
 ;	or	ax,dx
@@ -485,8 +485,8 @@ ENDPROC	genGoto
 ;
 ; So when genCommands for the "THEN" block returns, we must update the
 ; "jz elseBlock" with the address of the next available location.  Note that
-; if the amount of generated code is larger than 127 bytes, we may have to use
-; "jnz $+5; jmp elseBlock" instead.
+; if the amount of generated code is larger than 127 bytes, we'll have to
+; move the generated code to make room for "jnz $+5; jmp elseBlock" instead.
 ;
 ; Inputs:
 ;	BX -> TOKLETs
@@ -661,7 +661,7 @@ ENDPROC	genPrint
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genCallCX
+; genCallFar
 ;
 ; Inputs:
 ;	CS:CX -> function to call
@@ -672,7 +672,7 @@ ENDPROC	genPrint
 ; Modifies:
 ;	CX, DI
 ;
-DEFPROC	genCallCX
+DEFPROC	genCallFar
 	push	ax
 	mov	al,OP_CALLF
 	stosb
@@ -682,7 +682,7 @@ DEFPROC	genCallCX
 	stosw
 	pop	ax
 	ret
-ENDPROC	genCallCX
+ENDPROC	genCallFar
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -739,15 +739,16 @@ ENDPROC	genPushImmByte
 ;	MOV	AX,xxxx
 ;	PUSH	AX
 ;
-; if we determine that DX (yyyy) is a sign-extension of AX, we can
-; generate this 6-byte sequence instead:
+; if we determine that DX (yyyy) is a sign-extension of CX (xxxx),
+; we can generate this 6-byte sequence instead:
 ;
 ;	MOV	AX,xxxx
 ;	CWD
 ;	PUSH	DX
 ;	PUSX	AX
 ;
-; and if AX (xxxx) is zero, it can be simplified to a 4-byte sequence:
+; and if CX (xxxx) is zero, it can be simplified to a 4-byte sequence
+; (ie, genPushZeroLong):
 ;
 ;	XOR	AX,AX
 ;	PUSH	AX
@@ -763,36 +764,31 @@ ENDPROC	genPushImmByte
 ;	AX, CX, DX, DI
 ;
 DEFPROC	genPushImmLong
-	push	bx
-	mov	bx,dx			; BX:CX is now the value to push
-	mov	ax,cx			; AX = low word from CX
-	cwd				; DX = sign extension of AX
-	cmp	bx,dx			; does DX match BX?
-	jne	gpil3			; no
-	jcxz	gpil1			; jump if we can zero AX as well
+	xchg	ax,dx			; AX has original DX
+	xchg	ax,cx			; AX contains CX, CX has original DX
+	cwd				; DX is 0 or FFFFh
+	cmp	dx,cx			; same as original DX?
+	xchg	cx,ax			; AX contains original DX, CX restored
+	xchg	dx,ax			; DX restored
+	jne	gpil7			; no, DX is not the same
+	jcxz	genPushZeroLong		; jump if we can zero AX as well
 	mov	al,OP_MOV_AX
 	stosb
 	xchg	ax,cx
 	stosw
 	mov	ax,OP_CWD OR (OP_PUSH_DX SHL 8)
 	stosw
-	jmp	short gpil7
-gpil1:	mov	ax,OP_ZERO_AX
-	stosw
-	mov	ax,OP_PUSH_AX OR (OP_PUSH_AX SHL 8)
-	stosw
 	jmp	short gpil8
-gpil3:	mov	al,OP_MOV_AX
+gpil7:	mov	al,OP_MOV_AX
 	stosb
-	xchg	ax,bx
+	xchg	ax,dx
 	stosw
 	mov	ax,OP_PUSH_AX OR (OP_MOV_AX SHL 8)
 	stosw
 	xchg	ax,cx
 	stosw
-gpil7:	mov	al,OP_PUSH_AX
+gpil8:	mov	al,OP_PUSH_AX
 	stosb
-gpil8:	pop	bx
 	ret
 ENDPROC	genPushImmLong
 
@@ -821,8 +817,12 @@ ENDPROC	genPushZeroLong
 ;
 ; genPushVarLong
 ;
-; Generates code to push 4-byte variable data onto stack (eg, a VAR_LONG or
-; a VAR_STR pointer).
+; Generates code to push 4-byte variable data onto stack (eg, a VAR_LONG
+; integer or a VAR_STR pointer).
+;
+; DX must contain the var block offset of the variable, which the generated
+; code will load using SI, so that it can use a pair of LODSW instructions to
+; load the variable's data and push onto the stack.
 ;
 ; Inputs:
 ;	DS:DX -> var data
@@ -863,17 +863,17 @@ ENDPROC	genPushVarLong
 ; Modifies:
 ;	AX, BX, CX, DX, SI
 ;
-DEFPROC	getNextKeyword
-	mov	al,CLS_VAR
-	call	getNextToken
-	jb	gk9
-	stc
-	je	gk9
-	lea	dx,[KEYWORD_TOKENS]
-	mov	ax,DOS_UTL_TOKID
-	int	21h
-gk9:	ret
-ENDPROC	getNextKeyword
+; DEFPROC	getNextKeyword
+; 	mov	al,CLS_VAR
+; 	call	getNextToken
+; 	jb	gk9
+; 	stc
+; 	je	gk9
+; 	lea	dx,[KEYWORD_TOKENS]	; CS:DX -> TOKTBL
+; 	mov	ax,DOS_UTL_TOKID
+; 	int	21h
+; gk9:	ret
+; ENDPROC	getNextKeyword
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -902,7 +902,7 @@ ENDPROC	getNextKeyword
 ;	AX, BX, CX, SI
 ;
 DEFPROC	getNextToken
-	cmp	bx,[pTokletEnd]
+	cmp	bx,[pTokEnd]
 	cmc
 	jb	gt9			; no more tokens
 	mov	ah,[bx].TOKLET_CLS
@@ -943,7 +943,7 @@ ENDPROC	getNextToken
 DEFPROC	peekNextToken
 	push	bx
 	call	getNextToken
-	mov	[pTokletNext],bx
+	mov	[pTokNext],bx
 	pop	bx
 	ret
 ENDPROC	peekNextToken
@@ -974,17 +974,17 @@ DEFPROC	validateOp
 	jbe	vo6
 	mov	dh,al			; DX = potential 2-character operator
 	mov	si,offset RELOPS
-vo1:	lodsw
+vo1:	lods	word ptr cs:[si]
 	test	al,al
 	jz	vo6
 	cmp	ax,dx			; match?
-	lodsb
+	lods	byte ptr cs:[si]
 	jne	vo1
-	mov	bx,[pTokletNext]
+	mov	bx,[pTokNext]
 	xchg	dx,ax			; DL = (new) operator to validate
 vo6:	mov	ah,dl			; AH = operator to validate
 	mov	si,offset OPDEFS
-vo7:	lodsb
+vo7:	lods	byte ptr cs:[si]
 	test	al,al
 	stc
 	jz	vo9			; not valid
@@ -992,12 +992,12 @@ vo7:	lodsb
 	je	vo8			; yes
 	add	si,size OPDEF - 1
 	jmp	vo7
-vo8:	lodsb				; AL = precedence, AH = operator
+vo8:	lods	byte ptr cs:[si]	; AL = precedence, AH = operator
 	xchg	dx,ax
-	lodsb
+	lods	byte ptr cs:[si]
 	cbw
 	xchg	cx,ax
-	lodsw				; AX = evaluator
+	lods	word ptr cs:[si]	; AX = evaluator
 	xchg	dx,ax			; DX = evaluator, AX = op/prec
 vo9:	xchg	al,ah			; AL = operator, AH = precedence
 	pop	si

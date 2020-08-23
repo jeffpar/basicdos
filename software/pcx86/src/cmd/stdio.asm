@@ -45,7 +45,7 @@ ENDPROC	clearScreen
 ; Used by "PRINT [args]"
 ;
 ; Since expressions are evaluated left-to-right, their results are pushed
-; left-to-right as well.  Since the number of parameters is variable, we must
+; left-to-right as well.  Since the number of parameters is variable, we
 ; walk the stacked parameters back to the beginning, pushing the offset of
 ; each as we go, and then popping and printing our way back to the end again.
 ;
@@ -118,9 +118,9 @@ p7:	push	ax
 	lodsb
 	mov	ah,0			; AX = string length (255 max)
 ;
-; TODO: The default PRINTF buffer is smaller than the maximum string size,
-; so this function will need to SPRINTF to an internal buffer and then use a
-; DOS call to write to STDOUT (or break long strings into smaller ones).
+; TODO: Don't use PRINTF for strings, since the default PRINTF buffer is
+; smaller than the maximum string size.  Just write the string to STDOUT using
+; a normal DOS call.
 ;
 	PRINTF	<"%.*ls ">,ax,si,ds	; DS:SI -> string
 	push	ds
@@ -146,7 +146,7 @@ ENDPROC	printArgs
 ;
 ; setColor
 ;
-; Used by "COLOR fgnd[,[bgnd[,[border]]"
+; Used by "COLOR fgnd[,bgnd[,border]]"
 ;
 ; Inputs:
 ;	N numeric expressions pushed on stack (only 1st 3 are processed)

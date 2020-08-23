@@ -69,10 +69,15 @@ ENDPROC	evalSubLong
 ;
 ; evalMulLong
 ;
-; I tried loading mulA in SI:BX and mulB into AX:CX, converting them to
-; positive values, multiplying, and then negating the result if the signs
-; differed; however, the low 32 bits of this 64-bit operation are apparently
-; always the same, irrespective of whether the numbers are signed or not.
+; I now load mulA in SI:BX and mulB into AX:CX, convert them to positive
+; values, multiply, and then negate the result if the signs differ; the
+; previous approach seemed to work fine, but it's harder to optimize when
+; both inputs have a magnitude of 16 bits or less, harder to detect overflow
+; conditions, and less obvious that it works for all signed inputs.
+;
+; TODO: Overflow detection is still slightly complicated by 80000000h, both
+; as an input value (because it can't be negated) and as an output value
+; (since it can be produced by two positive values such as 20000h and 4000h).
 ;
 ; Example: -123123123 (F8A9 4A4D) * 91283123 (0570 DEB3)
 ;
@@ -100,9 +105,10 @@ ENDPROC	evalSubLong
 ;		0027EDDE50824629
 ;		FFD81221AF7DB9D7 (negated)
 ;
-; Note that JavaScript comes up with AF7DB9D8 instead, presumably because
-; it does all its multiplication in floating-point, which is limited to 52
-; significant bits, so some accuracy gets lost in the least significant bits.
+; In this example, the OPCHECK macro will trigger a warning, because our
+; JavaScript test environment comes up with AF7DB9D8 instead; it does all its
+; multiplication in floating-point, which is limited to 52 significant bits,
+; so some accuracy is lost in the low 32 bits.
 ;
 ; Inputs:
 ;	2 32-bit args on stack (popped)
@@ -111,70 +117,93 @@ ENDPROC	evalSubLong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX, BX, DX
+;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	evalMulLong,FAR
 	ARGVAR	mulA,dword
 	ARGVAR	mulB,dword
 	ENTER
 
-	; mov	bx,[mulA].LOW
-	; mov	ax,[mulA].HIW		; AX:BX = mulA
+	mov	bx,[mulA].LOW
+	mov	ax,[mulA].HIW		; AX:BX = mulA
 
-	; cwd				; DX = 0 or -1
-	; xor	bx,dx
-	; xor	ax,dx			; flip all the bits in AX:BX (or not)
-	; sub	bx,dx
-	; sbb	ax,dx			; AX:BX = abs(mulA)
-	; xchg	si,ax			; SI:BX = abs(mulA), for now
+	cwd				; DX = 0 or -1
+	xor	bx,dx
+	xor	ax,dx			; flip all the bits in AX:BX (or not)
+	sub	bx,dx
+	sbb	ax,dx			; AX:BX = abs(mulA)
+	xchg	si,ax			; SI:BX = abs(mulA)
 
-	; mov	cx,[mulB].LOW
-	; mov	ax,[mulB].HIW		; AX:CX = mulB
+	mov	cx,[mulB].LOW
+	mov	ax,[mulB].HIW		; AX:CX = mulB
 
-	; cwd				; DX = 0 or -1
-	; xor	cx,dx
-	; xor	ax,dx			; flip all the bits in AX:CX (or not)
-	; sub	cx,dx
-	; sbb	ax,dx			; AX:CX = abs(mulB)
+	cwd				; DX = 0 or -1
+	xor	cx,dx
+	xor	ax,dx			; flip all the bits in AX:CX (or not)
+	sub	cx,dx
+	sbb	ax,dx			; AX:CX = abs(mulB)
 
-	; mul	bx
-	; xchg	si,ax			; SI = mulB.HIW (AX) * mulA.LOW (BX)
-	; mul	cx
-	; add	si,ax			; SI += mulA.HIW (AX) * mulB.LOW (CX)
-	; xchg	ax,bx
-	; mul	cx			; DX:AX = mulA.LOW (AX) * mulB.LOW (CX)
-	; add	dx,si			; DX += SI
+	sub	di,di			; clear overflow indicator
+	mov	dx,si			; save SI
+	or	si,ax			; are both SI and AX zero?
+	jz	ml1			; yes, just need one multiply
+	mov	si,dx			; restore SI
 
-	; mov	cl,[mulA].HIW.HIB
-	; xor	cl,[mulB].HIW.HIB
-	; jns	ml7
+	test	si,si			; if both high words are non-zero
+	jz	ml0			; signal overflow
+	test	ax,ax			; (no impact if either one is zero)
+	jz	ml0
+	inc	di
 
-	; neg 	dx
-	; neg	ax			; subtract DX:AX from 0 with carry
-	; sbb	dx,0
+ml0:	mul	bx
+	xchg	si,ax			; SI = mulB.HIW (AX) * mulA.LOW (BX)
+	or	di,dx			; any bits in DX triggers an overflow
+	mul	cx
+	add	si,ax			; SI += mulA.HIW (AX) * mulB.LOW (CX)
+	adc	di,0			; any carry triggers an overflow
+	or	di,dx			; any bits in DX triggers an overflow
+ml1:	xchg	ax,bx
+	mul	cx			; DX:AX = mulA.LOW (AX) * mulB.LOW (CX)
+	add	dx,si			; DX += SI
+	adc	di,0			; any carry triggers an overflow
 
+	cmp	dx,8000h		; negative result?
+	jb	ml5			; no
+	jne	ml4			; yes, and it's not 80000000h
+	test	ax,ax			; oh wait, maybe it is
+	jz	ml5			; yes, it is
+ml4:	or	di,1			; no, it's not, so flag it as overflow
+
+ml5:	mov	cl,[mulA].HIW.HIB
+	xor	cl,[mulB].HIW.HIB	; signs differ?
+	jns	ml6			; no
+	neg 	dx
+	neg	ax			; subtract DX:AX from 0 with carry
+	sbb	dx,0
+
+ml6:	test	di,di			; overflow indicator set?
+	jz	ml7			; no
+	int	04h			; signal overflow
 ;
-; We perform a simple short-circuiting if both numbers are >= 0 and < 65536.
+; Previous code, retained for reference.  Note that it fails to optimize the
+; case where both high words are FFFFh (ie, sign-extensions of the low words),
+; and makes no attempt to catch any of the many potentials for overflow.
 ;
-; We could do something similar if both numbers were >= -65536 and < 0 (ie, if
-; both high words were simply sign-extensions of the low words).  However, that
-; is a bit more tedious to determine.
+; 	mov	cx,[mulA].HIW		; a small optimization:
+; 	or	cx,[mulB].HIW		; if both numbers are >= 0 and < 65536
+; 	jcxz	ml1			; then a single multiplication suffices
 ;
-	mov	cx,[mulA].HIW		; a small optimization if both numbers
-	or	cx,[mulB].HIW		; are >= 0 and < 65536
-	jcxz	ml6
-
-	mov	ax,[mulB].LOW
-	mul	[mulA].HIW
-	xchg	cx,ax			; CX = mulB.LOW * mulA.HIW
-
-	mov	ax,[mulA].LOW
-	mul	[mulB].HIW
-	add	cx,ax			; CX = sum of cross product
-
-ml6:	mov	ax,[mulA].LOW
-	mul	[mulB].LOW		; DX:AX = mulB.LOW * mulA.LOW
-	add	dx,cx			; add cross product to upper word
+; 	mov	ax,[mulB].LOW
+; 	mul	[mulA].HIW
+; 	xchg	cx,ax			; CX = mulB.LOW * mulA.HIW
+;
+; 	mov	ax,[mulA].LOW
+; 	mul	[mulB].HIW
+; 	add	cx,ax			; CX = sum of cross product
+;
+; ml1:	mov	ax,[mulA].LOW
+; 	mul	[mulB].LOW		; DX:AX = mulB.LOW * mulA.LOW
+; 	add	dx,cx			; add cross product to upper word
 
 ml7:	OPCHECK	OP_MUL32
 

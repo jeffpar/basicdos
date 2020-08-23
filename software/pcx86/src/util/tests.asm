@@ -24,7 +24,7 @@ DEFPROC	main
 ; our COMHEAP signature and resizes us automatically, but if we want to run
 ; with the same footprint in PC DOS, then we must still resize ourselves.
 ;
-	mov	bx,offset heap + MINHEAP
+	mov	bx,offset HEAP + MINHEAP
 	or	bl,0Eh		; adjust BX to top word of the paragraph
 	mov	word ptr [bx],0	; store a zero there so we can simply return
 	mov	sp,bx		; lower the stack

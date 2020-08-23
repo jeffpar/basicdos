@@ -8,40 +8,7 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	include	disk.inc
-;
-; Device driver header
-;
-; NOTE: While our drivers use traditional DOS driver headers and packets,
-; our interfaces are a bit simpler: in place of the STRATEGY handler, we have
-; a REQUEST handler, which performs the functions of both the STRATEGY and
-; INTERRUPT handlers (we currently have no use for the INTERRUPT handler).
-;
-; I appreciate that the DOS driver model was apparently designed to enable some
-; form of future multitasking, bit the fact virtually no driver was ever really
-; written to support that made the whole exercise rather pointless.  Drivers
-; rarely implemented a "request packet queue" (they typically used a global
-; variable to store a single packet address), largely because they knew DOS
-; would simply call their INTERRUPT handler immediately after calling their
-; STRATEGY handler.
-;
-DDH		struc
-DDH_NEXT_OFF	dw	?	; 00h: offset of next DDH (or FFFFh)
-DDH_NEXT_SEG	dw	?	; 02h: segment of next DDH
-DDH_ATTR	dw	?	; 04h: device attributes
-DDH_REQUEST	dw	?	; 06h: request ("strategy") entry offset
-DDH_INTERRUPT	dw	?	; 08h: unused ("interrupt") entry offset
-DDH_NAME	dq	?	; 0Ah: device name (8 characters)
-DDH		ends
-
-DDATTR_STDIN	equ	0001h
-DDATTR_STDOUT	equ	0002h
-DDATTR_NUL	equ	0004h
-DDATTR_CLOCK	equ	0008h
-DDATTR_OPEN	equ	0800h	; understands open/close
-DDATTR_IOCTL	equ	4000h	; set if device supports IOCTLs
-DDATTR_CHAR	equ	8000h	; set if character device, clear if block
-DDATTR_BLOCK	equ	0000h
-
+	include	devapi.inc
 ;
 ; Device driver commands (see DDP_CMD)
 ;

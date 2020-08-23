@@ -65,10 +65,10 @@ ENDPROC	utl_strlen
 ;
 ; utl_strstr (AX = 1801h)
 ;
-; Find string (DS:SI) in string (ES:DI)
+; Find string (CS:SI) in string (ES:DI)
 ;
 ; Inputs:
-;	REG_DS:REG_SI = source string
+;	REG_CS:REG_SI = source string
 ;	REG_ES:REG_DI = target string
 ;
 ; Outputs:
@@ -90,7 +90,7 @@ DEFPROC	utl_strstr,DOS
 	xchg	si,di
 	mov	es,[bp].REG_ES
 	ASSUME	ES:NOTHING
-	mov	ds,[bp].REG_DS
+	mov	ds,[bp].REG_CS
 	mov	al,0
 	call	strlen
 	xchg	bx,ax			; BX = length of source string
@@ -296,7 +296,7 @@ ENDPROC	utl_sprintf
 ; their own set of (def,min,max) values.
 ;
 ; Returns:
-;	AX = value, DS:SI -> next character (after any non-digit)
+;	AX = value, DS:SI -> next character (ie, AFTER first non-digit)
 ;	Carry will be set on a validation error, but AX will ALWAYS be valid
 ;
 ; Modifies:
@@ -393,6 +393,7 @@ ai6a:	pop	bp
 
 	cmp	di,-1			; validation data provided?
 	jne	ai6b			; yes
+	dec	si			; no, rewind SI to first non-digit
 	add	ah,1			; (carry clear if one or more digits)
 	jmp	short ai9
 ai6b:	test	ah,ah			; any digits?
@@ -421,11 +422,18 @@ ENDPROC utl_atoi16
 ;
 ; utl_atoi32 (AX = 1808h)
 ;
-; Convert string at DS:SI to number in DX:AX using base BL.
+; Convert string at DS:SI to number in DX:AX using base BL.  Note these
+; differences from ATOI16:
+;
+;	1) Validation data is not supported
+;	2) SI points to the first non-digit character, not PAST it
+;
+; ATOI16 advances SI past the first non-digit character to facilitate parsing
+; of a series of delimited, validated numbers.
 ;
 ; Returns:
 ;	Carry clear if one or more digits, set otherwise
-;	DX:AX = value, DS:SI -> next character (after any non-digit)
+;	DX:AX = value, DS:SI -> first non-digit character
 ;
 ; Modifies:
 ;	AX, CX, DX, SI, DI, DS, ES
@@ -722,7 +730,7 @@ ENDPROC	tok_classify
 ; Inputs:
 ;	REG_CX = token length
 ;	REG_DS:REG_SI -> token
-;	REG_DS:REG_DX -> TOKTBL followed by sorted array of TOKDEFs
+;	REG_CS:REG_DX -> TOKTBL followed by sorted array of TOKDEFs
 ; Outputs:
 ;	If carry clear, AX = ID (TOKDEF_ID), DX = data (TOKDEF_DATA, if any)
 ;	If carry set, token not found
@@ -735,11 +743,11 @@ DEFPROC	utl_tokid,DOS
 	and	[bp].REG_FL,NOT FL_CARRY
 	mov	ds,[bp].REG_DS		; DS:SI -> token (length CX)
 	mov	di,dx
-	mov	es,[bp].REG_DS		; ES:DI -> TOKTBL (from DS:DX)
+	mov	es,[bp].REG_CS		; ES:DI -> TOKTBL (from CS:DX)
 	ASSUME	DS:NOTHING, ES:NOTHING
 
 	mov	byte ptr [bp].TMP_BL,0	; TMP_BL = top index
-	mov	dx,[di]			; DL = # TOKDEFs
+	mov	dx,es:[di]		; DL = # TOKDEFs
 					; DH = size of TOKDEF
 	add	di,2			; ES:DI -> 1st TOKDEF
 
@@ -756,11 +764,11 @@ td0:	mov	ax,-1
 	mov	al,dh			; AL = size TOKDEF
 	mul	bl			; BL = index of TOKDEF
 	xchg	bx,ax			; BX = offset of TOKDEF
-	mov	ch,[di+bx].TOKDEF_LEN	; CH = length of current token
+	mov	ch,es:[di+bx].TOKDEF_LEN; CH = length of current token
 	mov	ah,cl			; CL is saved in AH
 	push	si
 	push	di
-	mov	di,[di+bx].TOKDEF_OFF	; ES:DI -> current token
+	mov	di,es:[di+bx].TOKDEF_OFF; ES:DI -> current token
 td1:	lodsb
 	cmp	al,'a'
 	jb	td2
@@ -794,8 +802,8 @@ td4:	inc	bx
 	jmp	td0
 
 td8:	sub	ax,ax			; zero AX (and carry, too)
-	mov	al,[di+bx].TOKDEF_ID	; AX = token ID
-	mov	dx,[di+bx].TOKDEF_DATA	; DX = user-defined token data
+	mov	al,es:[di+bx].TOKDEF_ID	; AX = token ID
+	mov	dx,es:[di+bx].TOKDEF_DATA; DX = user-defined token data
 	pop	bx			; toss BX from stack
 
 td9:	jc	td10

@@ -11,8 +11,6 @@
 
 CODE    SEGMENT
 
-	EXTERNS	<segCode,segVars,segStrs>,word
-
         ASSUME  CS:CODE, DS:CODE, ES:NOTHING, SS:CODE
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -34,10 +32,11 @@ CODE    SEGMENT
 ;	If successful, carry clear, ES = segment
 ;
 ; Modifies:
-;	AX, CX, DI, ES
+;	AX, DI, ES
 ;
 DEFPROC	allocBlock
 	push	bx
+	push	cx
 	mov	bx,cx
 	add	bx,15
 	xchg	cx,ax
@@ -46,7 +45,7 @@ DEFPROC	allocBlock
 	xchg	cx,ax
 	mov	ah,DOS_MEM_ALLOC
 	int	21h
-	jc	ab9
+	jc	ab8
 
 	mov	es,ax
 	sub	di,di
@@ -54,10 +53,10 @@ DEFPROC	allocBlock
 	stosw				; set BLK_NEXT
 	mov	ax,cx
 	stosw				; set BLK_SIZE
-	mov	al,[si+2]
+	mov	al,[si].BLK_HDR
 	cbw
 	stosw				; set BLK_FREE
-	mov	al,[si+3]
+	mov	al,[si].BLK_SIG
 	stosw
 	cmp	al,VBLKSIG
 	jne	ab1
@@ -85,8 +84,12 @@ ab4:	mov	[di],es			; chain updated
 	mov	di,es:[CBLK_FREE]	; ES:DI -> first available byte
 	pop	ds
 	clc
+	jmp	short ab9
 
-ab9:	pop	bx
+ab8:	call	errorMemory
+
+ab9:	pop	cx
+	pop	bx
 	ret
 ENDPROC	allocBlock
 
@@ -104,9 +107,10 @@ ENDPROC	allocBlock
 ;	Carry clear if successful, set if error
 ;
 ; Modifies:
-;	AX, CX, SI
+;	CX, SI
 ;
 DEFPROC	freeBlock
+	push	ax
 	push	ds			; DS:SI -> first segment in chain
 	mov	ax,es
 fb1:	mov	cx,[si]
@@ -121,6 +125,7 @@ fb2:	mov	ax,es:[CBLK_NEXT]
 	pop	ds
 fb9:	mov	ah,DOS_MEM_FREE
 	int	21h
+	pop	ax
 	ret
 ENDPROC	freeBlock
 
@@ -137,7 +142,7 @@ ENDPROC	freeBlock
 ;	Carry clear if successful, set if error
 ;
 ; Modifies:
-;	AX, CX, SI
+;	CX, SI
 ;
 DEFPROC	freeAllBlocks
 fa1:	mov	cx,[si]
@@ -162,7 +167,8 @@ ENDPROC	freeAllBlocks
 ;	AX, CX, SI, DI, ES
 ;
 DEFPROC	allocCode
-	mov	si,offset segCode
+	mov	si,ds:[PSP_HEAP]
+	lea	si,[si].CODE_BLK
 	mov	cx,CBLKLEN
 	jmp	allocBlock
 ENDPROC	allocCode
@@ -178,31 +184,73 @@ ENDPROC	allocCode
 ;	Carry clear if successful, set if error
 ;
 ; Modifies:
-;	AX, CX, SI
+;	CX, SI
 ;
 DEFPROC	freeCode
-	mov	si,offset segCode
+	mov	si,ds:[PSP_HEAP]
+	lea	si,[si].CODE_BLK
 	jmp	freeBlock
 ENDPROC	freeCode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; allocVars
+; allocText
 ;
-; Allocates segVars if not already allocated.
+; Inputs:
+;	CX = text block size, in bytes
+;
+; Outputs:
+;	If successful, carry clear, ES = segment
+;
+; Modifies:
+;	AX, CX, SI, DI, ES
+;
+DEFPROC	allocText
+	mov	si,ds:[PSP_HEAP]
+	lea	si,[si].TEXT_BLK
+	jmp	allocBlock
+ENDPROC	allocText
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; freeText
+;
+; Frees all text blocks and resets the TEXT_BLK chain.
 ;
 ; Inputs:
 ;	None
 ;
 ; Outputs:
-;	If carry clear, segVars allocated; otherwise, carry set
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	CX, SI
+;
+DEFPROC	freeText
+	mov	si,ds:[PSP_HEAP]
+	lea	si,[si].TEXT_BLK
+	jmp	freeAllBlocks
+ENDPROC	freeText
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; allocVars
+;
+; Allocates a var block if one is not already allocated.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	If carry clear, var block allocated; otherwise, carry set
 ;
 ; Modifies:
 ;	AX, CX, SI, DI, ES
 ;
 DEFPROC	allocVars
-	mov	si,offset segVars
-	cmp	word ptr [si],0
+	mov	si,ds:[PSP_HEAP]
+	lea	si,[si].VARS_BLK
+	cmp	[si].BLK_NEXT,0
 	jne	fa9
 	mov	cx,VBLKLEN
 	jmp	allocBlock
@@ -212,7 +260,7 @@ ENDPROC	allocVars
 ;
 ; freeVars
 ;
-; Frees all VBLKS and resets the segVars chain.
+; Frees all VBLKS and resets the chain.
 ;
 ; Inputs:
 ;	None
@@ -224,7 +272,8 @@ ENDPROC	allocVars
 ;	AX, CX, SI
 ;
 DEFPROC	freeVars
-	mov	si,offset segVars
+	mov	si,ds:[PSP_HEAP]
+	lea	si,[si].VARS_BLK
 	jmp	freeAllBlocks
 ENDPROC	freeVars
 
@@ -232,7 +281,7 @@ ENDPROC	freeVars
 ;
 ; allocStrSpace
 ;
-; Allocates an SBLK and adds it to the segStrs chain.
+; Allocates an SBLK and adds it to the STRS_BLK chain.
 ;
 ; Inputs:
 ;	None
@@ -244,7 +293,8 @@ ENDPROC	freeVars
 ;	AX, CX, SI, DI, ES
 ;
 DEFPROC	allocStrSpace
-	mov	si,offset segStrs
+	mov	si,ds:[PSP_HEAP]
+	lea	si,[si].STRS_BLK
 	mov	cx,SBLKLEN
 	jmp	allocBlock
 ENDPROC	allocStrSpace
@@ -253,7 +303,7 @@ ENDPROC	allocStrSpace
 ;
 ; freeStrSpace
 ;
-; Frees all SBLKs and resets the segStrs chain.
+; Frees all SBLKs and resets the STRS_BLK chain.
 ;
 ; Inputs:
 ;	None
@@ -265,7 +315,8 @@ ENDPROC	allocStrSpace
 ;	AX, CX, SI
 ;
 DEFPROC	freeStrSpace
-	mov	si,offset segStrs
+	mov	si,ds:[PSP_HEAP]
+	lea	si,[si].STRS_BLK
 	jmp	freeAllBlocks
 ENDPROC	freeStrSpace
 
@@ -297,7 +348,8 @@ DEFPROC	addVar
 	jnc	av10
 	push	di
 	push	es
-	mov	es,[segVars]
+	mov	di,ds:[PSP_HEAP]
+	mov	es,[di].VARS_BLK.BLK_NEXT
 	ASSERT	STRUCT,es:[0],VBLK
 	mov	di,es:[VBLK_FREE]
 	push	ax
@@ -369,7 +421,8 @@ ENDPROC	addVar
 DEFPROC	findVar
 	push	di
 	push	es
-	mov	es,[segVars]
+	mov	di,ds:[PSP_HEAP]
+	mov	es,[di].VARS_BLK.BLK_NEXT
 	ASSERT	STRUCT,es:[0],VBLK
 	mov	di,size VBLK_HDR	; ES:DI -> first var in block
 	push	ax
@@ -688,7 +741,8 @@ ENDPROC	setStr
 DEFPROC	findStrSpace
 	push	si
 	push	ds
-	mov	si,offset segStrs
+	mov	si,ds:[PSP_HEAP]
+	lea	si,[si].STRS_BLK
 	mov	ah,0
 
 fss1:	mov	cx,[si]
@@ -731,6 +785,26 @@ fss9:	pop	ds
 	pop	si
 	ret
 ENDPROC	findStrSpace
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; errorMessage
+;
+; Inputs:
+;	AX = error #
+;
+; Outputs:
+;	Carry set
+;
+; Modifies:
+;	AX
+;
+DEFPROC	errorMessage
+	DEFLBL	errorMemory,near
+	PRINTF	<"Not enough memory (%#06x)",13,10>,ax
+	stc
+	ret
+ENDPROC	errorMessage
 
 CODE	ENDS
 
