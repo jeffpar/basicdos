@@ -29,7 +29,7 @@ CODE    SEGMENT
 ;	SI = offset of block chain head
 ;
 ; Outputs:
-;	If successful, carry clear, ES = segment
+;	If successful, carry clear, ES:DI -> first available byte in new block
 ;
 ; Modifies:
 ;	AX, DI, ES
@@ -57,7 +57,7 @@ DEFPROC	allocBlock
 	cbw
 	stosw				; set BLK_FREE
 	mov	al,[si].BLK_SIG
-	stosw
+	stosw				; set BLK_RESERVED/BLK_PADDING
 	cmp	al,VBLKSIG
 	jne	ab1
 	dec	di
@@ -66,7 +66,8 @@ DEFPROC	allocBlock
 	sub	ax,ax
 	stosw
 	stosw
-ab1:	sub	cx,di
+ab1:	sub	ax,ax
+	sub	cx,di
 	shr	cx,1
 	ASSERT	NC
 	rep	stosw			; zero out the rest of the block
