@@ -12,7 +12,7 @@
 CODE    SEGMENT
 	org	100h
 
-	EXTERNS	<allocText,freeText,genImmediate>,near
+	EXTERNS	<allocText,freeText,genCode>,near
 
 	EXTERNS	<KEYWORD_TOKENS>,word
 	EXTSTR	<COM_EXT,EXE_EXT,DIR_DEF,PERIOD>
@@ -27,17 +27,16 @@ DEFPROC	main
 	LOCVAR	swDigits,word		; bit mask of digit switches, if any
 	LOCVAR	swLetters,dword		; bit mask of letter switches, if any
 	LOCVAR	hFile,word		; file handle
-	LOCVAR	numLine,word		; current line number
-	LOCVAR	offLine,word		; offset of current line
+	LOCVAR	lineLabel,word		; current line label
+	LOCVAR	lineOffset,word		; current line offset
 	LOCVAR	pTextLimit,word		; current text memory limit
 
 	ENTER
+	mov	[hFile],0
 	mov	bx,ds:[PSP_HEAP]
 	mov	[bx].ORIG_SP.SEG,ss
 	mov	[bx].ORIG_SP.OFF,sp
 	mov	[bx].ORIG_BP,bp
-
-	mov	[hFile],0
 	push	ds
 	push	cs
 	pop	ds
@@ -83,13 +82,13 @@ m1:	push	ss
 	mov	[swLetters].LOW,ax
 	mov	[swLetters].HIW,ax
 	mov	si,dx
-	add	si,offset INP_BUF
+	mov	cl,[si].INP_CNT
+	lea	si,[si].INP_BUF
 	lea	di,[bx].TOKENBUF
 	mov	[di].TOK_MAX,(size TOK_BUF) / (size TOKLET)
 	mov	ax,DOS_UTL_TOKIFY1
 	int	21h
-	xchg	cx,ax		; CX = token count from AX
-	jcxz	m1		; jump if no tokens
+	jc	m1		; jump if no tokens
 ;
 ; Before trying to ID the token, let's copy it to the FILENAME buffer,
 ; upper-case it, and null-terminate it.
@@ -228,12 +227,10 @@ m9:	lea	di,[bx].TOKENBUF; DS:DI -> token buffer
 	cmp	ax,20		; token ID < 20?
 	jb	m10		; yes, token is not part of "the language"
 ;
-; The token is for a recognized keyword, so retokenize the line.
+; The token is for a recognized keyword, so generate code.
 ;
-	lea	si,[bx].INPUTBUF.INP_BUF
-	mov	ax,DOS_UTL_TOKIFY2
-	int	21h
-	call	genImmediate	; DX = code generator (from 1st token)
+	lea	si,[bx].INPUTBUF
+	call	genCode
 	jmp	m1
 ;
 ; For non-BASIC commands, check for any switches first and record any that
@@ -244,8 +241,8 @@ m10:	call	parseSW		; parse all switch arguments, if any
 	jb	m20		; yes, command does not use a filespec
 ;
 ; The token is for a command that expects a filespec, so fix up the next
-; token (index in DH).  If there is no token, then we use the defaults loaded
-; into SI and CX.
+; token (index in DH).  If there is no token, then use defaults loaded into
+; SI and CX.
 ;
 	call	getToken	; DH = 1st non-switch argument (or -1)
 	jnc	m18
@@ -293,7 +290,7 @@ ENDPROC	main
 ;	DH = # of first non-switch argument (-1 if none)
 ;
 ; Modifies:
-;	CX, DX
+;	CX, DX, SI
 ;
 DEFPROC	parseSW
 	push	ax
@@ -412,10 +409,12 @@ ENDPROC	getToken
 ; CTRLC handler; resets the program stack and jumps to the start address
 ;
 ; Inputs:
-;	DS:SI -> user-defined token
+;	None
 ;
 ; Outputs:
-;	None
+;	DS = SS
+;	DS:BX -> heap
+;	SP and BP reset
 ;
 ; Modifies:
 ;	Any
@@ -426,6 +425,7 @@ DEFPROC	ctrlc,FAR
 	mov	bx,ds:[PSP_HEAP]
 	mov	sp,[bx].ORIG_SP.OFF
 	mov	bp,[bx].ORIG_BP
+	call	closeFile
 	jmp	m1
 ENDPROC	ctrlc
 
@@ -433,10 +433,8 @@ ENDPROC	ctrlc
 ;
 ; cmdDate
 ;
-; TBD
-;
 ; Inputs:
-;	DS:SI -> user-defined token
+;	DS:BX -> heap
 ;
 ; Outputs:
 ;	None
@@ -590,7 +588,7 @@ ENDPROC	cmdDir
 ; cmdExit
 ;
 ; Inputs:
-;	DS:SI -> filespec (with length CX)
+;	DS:BX -> heap
 ;
 ; Outputs:
 ;	None
@@ -610,7 +608,7 @@ ENDPROC	cmdExit
 ; For now, all this does is print the names of all supported commands.
 ;
 ; Inputs:
-;	DS:SI -> filespec (with length CX)
+;	DS:BX -> heap
 ;
 ; Outputs:
 ;	None
@@ -643,7 +641,7 @@ h2:	PRINTF	<13,10>
 	mov	dl,8
 h3:	add	si,di		; SI -> next TOKDEF
 	loop	h1
-	ret
+h9:	ret
 ENDPROC	cmdHelp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -651,7 +649,7 @@ ENDPROC	cmdHelp
 ; cmdList
 ;
 ; Inputs:
-;	DS:SI -> filespec (with length CX)
+;	DS:BX -> heap
 ;
 ; Outputs:
 ;	None
@@ -660,8 +658,7 @@ ENDPROC	cmdHelp
 ;	Any
 ;
 DEFPROC	cmdList
-	stc
-li9:	ret
+	ret
 ENDPROC	cmdList
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -683,7 +680,7 @@ ENDPROC	cmdList
 ;
 DEFPROC	cmdLoad
 	call	openFile	; open the specified file
-	jc	li9
+	jc	h9
 	call	freeText	; free any pre-existing blocks
 	test	dx,dx
 	jnz	lf0a
@@ -694,10 +691,9 @@ lf0b:	xchg	cx,ax		; CX = size of initial text block
 	mov	[pTextLimit],cx
 	call	allocText
 	jc	lf4y
-	mov	di,size TBLK_HDR; ES:DI -> next available text location
 ;
-; For every complete line at DS:SI, determine the line number (if any), and
-; then add the line number (2 bytes), line length (1 byte), and line contents
+; For every complete line at DS:SI, determine the line label (if any), and
+; then add the label # (2 bytes), line length (1 byte), and line contents
 ; (not including any leading space or terminating CR/LF) to the text block.
 ;
 	lea	bx,[bx].LINEBUF
@@ -752,7 +748,7 @@ lf4y:	jmp	lf12
 ;
 ; We found the end of another line starting at DS:SI and ending at DX.
 ;
-lf5:	mov	[offLine],si
+lf5:	mov	[lineOffset],si
 	lodsb
 	cmp	al,CHR_LINEFEED	; skip any LINEFEED from the previous line
 	je	lf6
@@ -764,11 +760,11 @@ lf6:	push	bx
 	mov	ax,DOS_UTL_ATOI32; DS:SI -> numeric string
 	int	21h
 	ASSERT	Z,<test dx,dx>	; DX:AX is the result but we keep only AX
-	mov	[numLine],ax
+	mov	[lineLabel],ax
 	pop	dx
 	pop	bx
 ;
-; We've extracted the line number, if any; skip over any intervening space.
+; We've extracted the label #, if any; skip over any intervening space.
 ;
 	lodsb
 	cmp	al,CHR_SPACE
@@ -796,18 +792,18 @@ lf7:	dec	dx		; back up to CHR_RETURN
 	pop	si
 	pop	cx
 	jc	lf11		; unable to allocate enough memory
-	mov	di,size TBLK_HDR; ES:DI -> next available text location
 
-lf8:	mov	ax,[numLine]
+lf8:	mov	ax,[lineLabel]
 	stosw
 	mov	al,dl
 	stosb
 	push	cx
 	mov	cx,dx
 	rep	movsb
+	mov	es:[TBLK_FREE],di
 	pop	cx
 	mov	ax,si
-	sub	ax,[offLine]
+	sub	ax,[lineOffset]
 	sub	cx,ax
 ;
 ; Consume the line terminator and go back for more.
@@ -826,12 +822,29 @@ ENDPROC	cmdLoad
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; cmdTime
-;
-; TBD
+; cmdRun
 ;
 ; Inputs:
-;	DS:SI -> user-defined token
+;	DS:BX -> heap
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cmdRun
+	sub	si,si
+	call	genCode
+	ret
+ENDPROC	cmdRun
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmdTime
+;
+; Inputs:
+;	DS:BX -> heap
 ;
 ; Outputs:
 ;	None
@@ -850,7 +863,7 @@ ENDPROC	cmdTime
 ; Reads the specified file and writes it to STDOUT.
 ;
 ; Inputs:
-;	DS:SI -> user-defined token
+;	DS:SI -> filespec (with length CX)
 ;
 ; Outputs:
 ;	None

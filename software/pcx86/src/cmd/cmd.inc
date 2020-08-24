@@ -50,13 +50,10 @@ val = ((offset $ - offset tbl) - 2) / (size TOKDEF)
 DATA	ENDS
 	endm
 
-PUSHNUM	macro	val
-	local	lbl
-	call	lbl
-	dw	val
-lbl:
-	endm
-
+;
+; Each of our block chains begins with a BLK_DEF, so that a common set of
+; block functions (eg, allocBlock) can work with any chain.
+;
 BLK_DEF		struc
 BLK_NEXT	dw	?		; next block seg, if any
 BLK_HDR		db	?		; eg, size CBLK_HDR
@@ -206,7 +203,11 @@ PUSH_DS_DX macro
 	stosb
 	endm
 ;
-; Define the heap as a structure
+; Define the heap as a structure.  The first few fields (ie, all the BLK
+; headers) are statically initialized, but the rest are left undefined so
+; that they won't take up any space in the COM file.  The loader's heap
+; logic will ensure that the remaining fields are zero-initialized (although
+; I don't think any of the code here currently depends on that).
 ;
 CMD_HEAP	struc
 CODE_BLK	db	size BLK_DEF dup (?)

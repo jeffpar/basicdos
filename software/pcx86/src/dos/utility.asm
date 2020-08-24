@@ -480,14 +480,16 @@ ENDPROC	utl_itoa
 ;
 ; Inputs:
 ;	REG_AL = 0Bh (TOKTYPE_GENERIC) or 0Ch (TOKTYPE_BASIC)
-;	REG_DS:REG_SI -> string (CR or null-terminated)
-;	REG_DS:REG_DI -> BUF_TOKEN
+;	REG_CL = length of string
+;	REG_DS:REG_SI -> string to "tokify"
+;	REG_DS:REG_DI -> BUF_TOKEN (filled in with token info)
 ;
 ; Outputs:
-;	AX = # tokens; token buffer updated
+;	Carry clear if tokens found; AX = # tokens, BUF_TOKEN updated
+;	Carry set if no tokens found
 ;
 ; Modifies:
-;	AX
+;	AX, TMP_AX, TMP_CX
 ;
 DEFPROC	utl_tokify,DOS
 	sti
@@ -497,6 +499,8 @@ DEFPROC	utl_tokify,DOS
 	mov	[bp].TMP_AH,bl		; TMP_AH = SWITCHAR
 	mov	ds,[bp].REG_DS		; DS:SI -> BUF_INPUT
 	ASSUME	DS:NOTHING		; DS:DI -> BUF_TOKEN
+	mov	ch,0
+	mov	[bp].TMP_CX,cx		; TMP_CX = length
 
 	sub	bx,bx			; BX = token index
 	mov	ah,0			; AH = initial classification
@@ -512,9 +516,11 @@ tf0:	mov	[bp].TMP_AL,al
 tf1:	lea	dx,[si-1]		; DX = start of token
 tf2:	lodsb
 	mov	ch,ah
-	call	tok_classify		; AH = next classification
-	test	ah,ah			; all done?
-	jz	tf6			; yes
+	dec	word ptr [bp].TMP_CX
+	jge	tf3
+	sub	ah,ah			; AH = 0 means we're done
+	jmp	short tf6
+tf3:	call	tok_classify		; AH = next classification
 	test	ch,ch			; still priming the pump?
 	jz	tf1			; yes
 	cmp	ah,CLS_SYM		; symbol found?
@@ -581,6 +587,7 @@ tf8:	cmp	bl,[di].TOK_MAX		; room for more tokens?
 
 tf9:	mov	[di].TOK_CNT,bl		; update # tokens
 	mov	[bp].REG_AX,bx		; return # tokens in AX, too
+	cmp	bx,1			; set carry if no tokens
 	ret
 ENDPROC	utl_tokify
 
@@ -599,10 +606,6 @@ ENDPROC	utl_tokify
 ;	AX
 ;
 DEFPROC	tok_classify
-	cmp	al,CHR_RETURN
-	jne	tc1
-	sub	ah,ah
-	ret
 ;
 ; Check for quotations first.
 ;

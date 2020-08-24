@@ -22,7 +22,7 @@ CODE    SEGMENT
 ; Prints memory usage.
 ;
 ; Inputs:
-;	DS:SI -> user-defined token (not used)
+;	DS:BX -> heap (not used)
 ;
 ; Outputs:
 ;	None

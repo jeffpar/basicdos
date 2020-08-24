@@ -24,14 +24,11 @@ CODE    SEGMENT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genImmediate
-;
-; Generate code for a single line, by creating a temporary code block, and
-; then calling the specified "gen" handler(s) to generate code in the block.
+; genCode
 ;
 ; Inputs:
-;	DI -> TOKENBUF with all tokens
-;	DX = TOKDEF_DATA for first token (ie, the "gen" handler)
+;	DS:BX -> heap
+;	DS:SI -> BUF_INPUT (or null to parse preloaded text)
 ;
 ; Outputs:
 ;	None
@@ -39,45 +36,82 @@ CODE    SEGMENT
 ; Modifies:
 ;	Any
 ;
-DEFPROC	genImmediate
+DEFPROC	genCode
 	LOCVAR	nArgs,word
 	LOCVAR	nExpArgs,word
 	LOCVAR	nExpVals,word
 	LOCVAR	nExpParens,word
 	LOCVAR	nExpPrevOp,word
 	LOCVAR	errCode,word
+	LOCVAR	pInput,word
 	LOCVAR	pCode,dword
 	LOCVAR	pTokNext,word
 	LOCVAR	pTokEnd,word
+	LOCVAR	lineNumber,word
 	ENTER
+
 	sub	ax,ax
 	mov	[nArgs],ax
 	mov	[errCode],ax
+	mov	[pInput],si
+	mov	[lineNumber],ax
+
+	call	allocVars
+	jc	gce
+	call	allocCode
+	jc	gce
+	ASSUME	ES:NOTHING		; ES:DI -> code block
+	mov	[pCode].OFF,di
+	mov	[pCode].SEG,es
+
+	mov	si,[pInput]
+	test	si,si
+	jz	gc1
+	mov	cl,[si].INP_CNT
+	lea	si,[si].INP_BUF
+	jmp	short gc4
+
+gce:	call	errorMemory
+	jmp	short gc9
+
+gc1:	lea	si,[bx].TEXT_BLK
+gc2:	mov	cx,[si].TBLK_NEXT
+	jcxz	gc9			; nothing left to parse
+	mov	ds,cx
+	mov	si,size TBLK_HDR
+
+gc3:	cmp	si,ds:[TBLK_FREE]
+	jae	gc2			; advance to next block in chain
+	inc	[lineNumber]
+	lodsw
+	xchg	dx,ax			; DX = label #, if any
+	lodsb
+	mov	ah,0
+	xchg	cx,ax			; CX = length of next line
+	jcxz	gc3
+
+gc4:	push	bx
+	push	di
+	lea	di,[bx].TOKENBUF	; DS:DI -> token buffer
+	mov	ax,DOS_UTL_TOKIFY2
+	int	21h
 	mov	bx,di			; BX -> TOKENBUF
-	mov	al,[bx].TOK_CNT		; AX = token count
+	pop	di
+	jc	gc5
 	add	bx,offset TOK_BUF	; BX -> TOKLET array
 	add	ax,ax
 	add	ax,ax
 	add	ax,bx
 	mov	[pTokEnd],ax
-	add	bx,size TOKLET		; skip 1st token (already parsed)
+	add	bx,size TOKLET
+	call	genCommand		; generate code
+gc5:	pop	bx
+	jc	gc7			; error
 
-	call	allocVars
-	jc	gie
-	call	allocCode
-	jc	gie
-	ASSUME	ES:NOTHING		; ES:DI -> usable code block space
-	mov	[pCode].OFF,di
-	mov	[pCode].SEG,es
+	cmp	[pInput],0		; more text to parse?
+	je	gc2			; perhaps
 
-gi1:	call	genCommand		; generate code
-	jnc	gi6
-	jmp	short gi7		; error
-
-gie:	call	errorMemory
-	jmp	short gi9
-
-gi6:	mov	al,OP_RETF		; terminate code
+gc6:	mov	al,OP_RETF		; terminate the code buffer
 	stosb
 	push	bp
 	push	ds
@@ -87,23 +121,23 @@ gi6:	mov	al,OP_RETF		; terminate code
 	mov	ds,ax
 	mov	es,ax
 	ASSUME	DS:NOTHING
-	call	[pCode]			; execute code
+	call	[pCode]			; execute the code buffer
 	pop	es
 	pop	ds
 	ASSUME	DS:DATA
 	pop	bp
 	clc
 
-gi7:	pushf
+gc7:	pushf
 	call	freeCode
 	popf
-gi8:	jnc	gi9
+gc8:	jnc	gc9
 
 	PRINTF	<'Syntax error',13,10>
 
-gi9:	LEAVE
+gc9:	LEAVE
 	ret
-ENDPROC	genImmediate
+ENDPROC	genCode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -122,17 +156,17 @@ ENDPROC	genImmediate
 ;	Any
 ;
 DEFPROC	genCommands
-gc1:	call	getNextToken
+	call	getNextToken
 	cmc
-	jnc	gc9
+	jnc	gcs9
 	lea	dx,[KEYWORD_TOKENS]
 	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
 	int	21h			; identify the token
-	jc	gc9			; can't identify
+	jc	gcs9			; can't identify
 	DEFLBL	genCommand,near
 	call	dx
-	jnc	gc1
-gc9:	ret
+	jnc	genCommands
+gcs9:	ret
 ENDPROC	genCommands
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -182,6 +216,27 @@ gco8:	GENPUSH	nArgs
 	GENCALL	setColor
 gco9:	ret
 ENDPROC	genColor
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genDefInt
+;
+; Process "DEFINT" (TODO)
+;
+; Inputs:
+;	BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genDefInt
+	clc
+	ret
+ENDPROC	genDefInt
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -846,34 +901,6 @@ DEFPROC	genPushVarLong
 	stosb
 	ret
 ENDPROC	genPushVarLong
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; getNextKeyword
-;
-; Like getNextToken but with AL preset to CLS_VAR, and if successful,
-; the token is checked against the KEYWORDS table.
-;
-; Inputs:
-;	BX -> TOKLETs
-;
-; Outputs:
-;	CF clear if successful, AX = TOKDEF_ID (BX, CX, SI updated as well)
-;
-; Modifies:
-;	AX, BX, CX, DX, SI
-;
-; DEFPROC	getNextKeyword
-; 	mov	al,CLS_VAR
-; 	call	getNextToken
-; 	jb	gk9
-; 	stc
-; 	je	gk9
-; 	lea	dx,[KEYWORD_TOKENS]	; CS:DX -> TOKTBL
-; 	mov	ax,DOS_UTL_TOKID
-; 	int	21h
-; gk9:	ret
-; ENDPROC	getNextKeyword
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
