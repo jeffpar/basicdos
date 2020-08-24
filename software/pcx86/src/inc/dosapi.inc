@@ -186,15 +186,6 @@ PSP		ends
 
 PSP_DTA		equ	PSP_CMDTAIL
 
-SFH_NONE	equ	0FFh	; if this SFH is in a PFT entry, it's unused
-
-;
-; The CONIO functions need a way of telling dev_request whether or not
-; STDIN I/O requests should also perform CTRLC checks; set IO_RAW if not.
-;
-IO_RAW		equ	0
-IO_COOKED	equ	1
-
 ;
 ; Exec Parameter Block (EPB)
 ;

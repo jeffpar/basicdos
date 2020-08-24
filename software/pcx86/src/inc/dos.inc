@@ -170,8 +170,17 @@ SFB_SIZE	dd	?	; 1Ch: file size
 SFB_CURPOS	dd	?	; 20h: current file position
 SFB_CURCLN	dw	?	; 24h: current cluster number
 SFB		ends
-
 SFBSIG		equ	'F'
+
+SFH_NONE	equ	0FFh	; if this SFH is in a PFT entry, it's unused
+
+;
+; The CONIO functions need a way of telling dev_request whether or not
+; STDIN I/O requests should also perform CTRLC checks; set IO_RAW if not.
+;
+IO_RAW		equ	0
+IO_COOKED	equ	1
+IO_DIRECT	equ	-1
 
 ;
 ; EXE File Header

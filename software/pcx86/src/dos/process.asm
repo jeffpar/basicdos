@@ -674,7 +674,9 @@ lp7a:	add	dx,ax			; DX -> end of program file
 ; image ends with a COMDATA, where the preceding word (CD_HEAPSIZE) specifies
 ; the program's desired additional memory (in paras).
 ;
-lp7b:	mov	bx,dx			; BX -> end of program file
+lp7b:	mov	ds:[PSP_START].OFF,100h
+	mov	ds:[PSP_START].SEG,ds
+	mov	bx,dx			; BX -> end of program file
 	mov	dx,MINHEAP SHR 4	; minimum add'l space (1Kb in paras)
 	cmp	word ptr [bx-2],BASICDOS_SIG
 	jne	lp7e
@@ -697,8 +699,6 @@ lp7c:	mov	cx,[bx].CD_CODESIZE
 
 lp7d:	call	psp_calcsum		; calc checksum for code
 	mov	ds:[PSP_CHECKSUM],ax	; record checksum (zero if unspecified)
-	mov	ds:[PSP_START].OFF,100h
-	mov	ds:[PSP_START].SEG,ds
 	jcxz	lp7e
 ;
 ; We found another copy of the code segment (CX), so we can move everything
