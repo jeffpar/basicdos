@@ -29,7 +29,7 @@ DEFPROC	main
 	LOCVAR	hFile,word		; file handle
 	LOCVAR	lineLabel,word		; current line label
 	LOCVAR	lineOffset,word		; current line offset
-	LOCVAR	pTextLimit,word		; current text memory limit
+	LOCVAR	pTextLimit,word		; current text block limit
 
 	ENTER
 	mov	[hFile],0
@@ -630,7 +630,7 @@ h1:	cmp	cs:[si].TOKDEF_ID,100
 	push	dx
 	mov	dl,cs:[si].TOKDEF_LEN
 	mov	dh,0
-	PRINTF	<"%-8.*ls">,dx,[si].TOKDEF_OFF,cs
+	PRINTF	<"%-8.*ls">,dx,cs:[si].TOKDEF_OFF,cs
 	pop	dx
 	add	dl,al
 	cmp	cl,1
