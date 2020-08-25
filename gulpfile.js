@@ -19,6 +19,9 @@ let disks = {
         "./software/pcx86/src/cfg/config1/CONFIG.SYS",
         "./software/pcx86/src/util/PRIMES.BAT",
         "./software/pcx86/src/util/obj/PRIMES.EXE",
+        "./software/pcx86/src/util/obj/SLEEP.COM",
+        "./software/pcx86/src/util/TESTS.BAT",
+        "./software/pcx86/src/util/obj/TESTS.COM",
         "./software/pcx86/src/gwb/obj/GWB.EXE",
         "./software/pcx86/src/util/obj/SYMDEB.EXE"
     ],
@@ -30,6 +33,7 @@ let disks = {
         "./software/pcx86/src/util/PRIMES.BAT",
         "./software/pcx86/src/util/obj/PRIMES.EXE",
         "./software/pcx86/src/util/obj/SLEEP.COM",
+        "./software/pcx86/src/util/TESTS.BAT",
         "./software/pcx86/src/util/obj/TESTS.COM",
         "./software/pcx86/src/util/obj/SYMDEB.EXE"
     ],
@@ -41,7 +45,9 @@ let disks = {
         "./software/pcx86/src/util/PRIMES.BAT",
         "./software/pcx86/src/util/obj/PRIMES.EXE",
         "./software/pcx86/src/util/obj/SLEEP.COM",
-        "./software/pcx86/src/util/obj/TESTS.COM"
+        "./software/pcx86/src/util/TESTS.BAT",
+        "./software/pcx86/src/util/obj/TESTS.COM",
+        "./software/pcx86/src/gwb/obj/GWB.EXE"
     ],
     "BASIC-DOS4": [
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
@@ -51,6 +57,7 @@ let disks = {
         "./software/pcx86/src/util/PRIMES.BAT",
         "./software/pcx86/src/util/obj/PRIMES.EXE",
         "./software/pcx86/src/util/obj/SLEEP.COM",
+        "./software/pcx86/src/util/TESTS.BAT",
         "./software/pcx86/src/util/obj/TESTS.COM",
         "./software/pcx86/src/gwb/obj/GWB.EXE",
         "./software/pcx86/src/util/obj/SYMDEB.EXE"
@@ -63,6 +70,7 @@ let disks = {
         "./software/pcx86/src/util/PRIMES.BAT",
         "./software/pcx86/src/util/obj/PRIMES.EXE",
         "./software/pcx86/src/util/obj/SLEEP.COM",
+        "./software/pcx86/src/util/TESTS.BAT",
         "./software/pcx86/src/util/obj/TESTS.COM",
         "./software/pcx86/src/gwb/obj/GWB.EXE",
         "./software/pcx86/src/util/obj/SYMDEB.EXE"
@@ -70,10 +78,13 @@ let disks = {
     "BDS-BOOT": [
         "./software/pcx86/src/boot/boot.asm",
         "./software/pcx86/src/boot/wboot.asm",
+        "./software/pcx86/src/inc/8086.inc",
         "./software/pcx86/src/inc/bios.inc",
         "./software/pcx86/src/inc/dev.inc",
+        "./software/pcx86/src/inc/devapi.inc",
         "./software/pcx86/src/inc/disk.inc",
         "./software/pcx86/src/inc/dos.inc",
+        "./software/pcx86/src/inc/dosapi.inc",
         "./software/pcx86/src/inc/macros.inc",
         "./software/pcx86/src/boot/mk.bat"
     ],
@@ -87,10 +98,13 @@ let disks = {
         "./software/pcx86/src/dev/lptdev.asm",
         "./software/pcx86/src/dev/nuldev.asm",
         "./software/pcx86/src/dev/prndev.asm",
+        "./software/pcx86/src/inc/8086.inc",
         "./software/pcx86/src/inc/bios.inc",
         "./software/pcx86/src/inc/dev.inc",
+        "./software/pcx86/src/inc/devapi.inc",
         "./software/pcx86/src/inc/disk.inc",
         "./software/pcx86/src/inc/dos.inc",
+        "./software/pcx86/src/inc/dosapi.inc",
         "./software/pcx86/src/inc/macros.inc",
         "./software/pcx86/src/dev/mk.bat"
     ],
@@ -109,24 +123,35 @@ let disks = {
         "./software/pcx86/src/dos/sprintf.asm",
         "./software/pcx86/src/dos/sysinit.asm",
         "./software/pcx86/src/dos/utility.asm",
+        "./software/pcx86/src/inc/8086.inc",
         "./software/pcx86/src/inc/bios.inc",
         "./software/pcx86/src/inc/dev.inc",
+        "./software/pcx86/src/inc/devapi.inc",
         "./software/pcx86/src/inc/disk.inc",
         "./software/pcx86/src/inc/dos.inc",
+        "./software/pcx86/src/inc/dosapi.inc",
         "./software/pcx86/src/inc/macros.inc",
         "./software/pcx86/src/dos/mk.bat"
     ],
     "BDS-UTIL": [
         "./software/pcx86/src/util/cmd.inc",
         "./software/pcx86/src/util/cmd.asm",
+        "./software/pcx86/src/util/eval.asm",
+        "./software/pcx86/src/util/gen.asm",
+        "./software/pcx86/src/util/mem.asm",
+        "./software/pcx86/src/util/stdio.asm",
+        "./software/pcx86/src/util/vars.asm",
         "./software/pcx86/src/util/const.asm",
         "./software/pcx86/src/util/primes.asm",
         "./software/pcx86/src/util/sleep.asm",
         "./software/pcx86/src/util/tests.asm",
+        "./software/pcx86/src/inc/8086.inc",
         "./software/pcx86/src/inc/bios.inc",
         "./software/pcx86/src/inc/dev.inc",
+        "./software/pcx86/src/inc/devapi.inc",
         "./software/pcx86/src/inc/disk.inc",
         "./software/pcx86/src/inc/dos.inc",
+        "./software/pcx86/src/inc/dosapi.inc",
         "./software/pcx86/src/inc/macros.inc",
         "./software/pcx86/src/util/mk.bat"
     ],

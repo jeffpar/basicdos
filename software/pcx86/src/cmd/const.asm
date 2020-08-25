@@ -95,24 +95,25 @@ CODE	ENDS
 ; IDs < 10 don't use filespecs for their first argument.
 ;
 	DEFTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
-	DEFTOK	TOK_CLS,    21, "CLS",    genCLS
-	DEFTOK	TOK_COLOR,  22, "COLOR",  genColor
+	DEFTOK	TOK_CLS,    20, "CLS",    genCLS
+	DEFTOK	TOK_COLOR,  21, "COLOR",  genColor
 	DEFTOK	TOK_DATE,    1, "DATE",   cmdDate
-	DEFTOK	TOK_DEFINT, 23, "DEFINT", genDefInt
+	DEFTOK	TOK_DEFINT, 22, "DEFINT", genDefInt
 	DEFTOK	TOK_DIR,    11, "DIR",    cmdDir
 	DEFTOK	TOK_ELSE,  101, "ELSE"
 	DEFTOK	TOK_EXIT,    2, "EXIT",   cmdExit
-	DEFTOK	TOK_GOTO,   24, "GOTO",   genGoto
+	DEFTOK	TOK_GOTO,   23, "GOTO",   genGoto
 	DEFTOK	TOK_HELP,    3, "HELP",   cmdHelp
-	DEFTOK	TOK_IF,     25, "IF",     genIf
-	DEFTOK	TOK_LET,    26, "LET",    genLet
+	DEFTOK	TOK_IF,     24, "IF",     genIf
+	DEFTOK	TOK_LET,    25, "LET",    genLet
 	DEFTOK	TOK_LIST,    4, "LIST",   cmdList
 	DEFTOK	TOK_LOAD,   12, "LOAD",   cmdLoad
 	DEFTOK	TOK_MEM,     5, "MEM",    cmdMem
-	DEFTOK	TOK_PRINT,  27, "PRINT",  genPrint
-	DEFTOK	TOK_RUN,     6, "RUN",    cmdRun
+	DEFTOK	TOK_PRINT,  26, "PRINT",  genPrint
+	DEFTOK	TOK_REM,     6, "REM"
+	DEFTOK	TOK_RUN,     7, "RUN",    cmdRun
 	DEFTOK	TOK_THEN,  102, "THEN"
-	DEFTOK	TOK_TIME,    7, "TIME",   cmdTime
+	DEFTOK	TOK_TIME,    8, "TIME",   cmdTime
 	DEFTOK	TOK_TYPE,   13, "TYPE",   cmdType
 	NUMTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
 

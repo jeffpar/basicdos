@@ -386,9 +386,10 @@ ENDPROC	evalModLong
 DEFPROC	evalExpLong,FAR
 	ARGVAR	expA,dword
 	ARGVAR	expB,dword
+	LOCVAR	loopCount,word
 	ENTER
 	mov	ax,[expB].LOW
-	mov	dx,[expB].HIW
+	mov	dx,[expB].HIW		; DX:AX = power
 	test	dx,dx			; TODO: large and/or negative powers
 	jnz	ex4
 	cmp	ax,1			; power = 1?
@@ -400,7 +401,7 @@ DEFPROC	evalExpLong,FAR
 ;
 	dec	ax			; undo previous power increment
 	mov	cx,[expA].LOW
-	mov	dx,[expA].HIW
+	mov	dx,[expA].HIW		; DX:CX = base, AX = power
 	test	dx,dx
 	jnz	ex1
 	jcxz	ex10			; DX:CX is 0, return base as-is
@@ -421,7 +422,7 @@ ex1:	inc	dx
 ;
 ex2:	cmp	ax,32			; power >= 32?
 	jae	ex4			; yes, return 0 (overflow)
-	mov	cx,ax			; CX = shift count
+	xchg	cx,ax			; CX = shift count
 	dec	cx
 	mov	ax,[expA].LOW
 	mov	dx,[expA].HIW		; DX:AX = base
@@ -440,13 +441,15 @@ ex4:	sub	ax,ax
 ;
 ; Worst case: repetitive multiplication.
 ;
-ex5:	push	dx
+ex5:	mov	[loopCount],cx
+	push	dx
 	push	ax
 ex6:	push	[expA].HIW
 	push	[expA].LOW
 	push	cs
 	call	near ptr evalMulLong
-	loop	ex6
+	dec	[loopCount]
+	jnz	ex6
 	pop	ax
 	pop	dx
 

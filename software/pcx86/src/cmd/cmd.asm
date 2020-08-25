@@ -69,7 +69,7 @@ m1:	push	ss
 	mov	bx,ds:[PSP_HEAP]
 	mov	ah,DOS_DSK_GETDRV
 	int	21h
-	add	al,'A'		; AL = current drive letter
+	add	al,'A'			; AL = current drive letter
 	PRINTF	"%c>",ax
 
 	lea	dx,[bx].INPUTBUF
@@ -84,17 +84,17 @@ m1:	push	ss
 	mov	si,dx
 	mov	cl,[si].INP_CNT
 	lea	si,[si].INP_BUF
-	lea	di,[bx].TOKENBUF
+	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
 	mov	[di].TOK_MAX,(size TOK_BUF) / (size TOKLET)
 	mov	ax,DOS_UTL_TOKIFY1
 	int	21h
-	jc	m1		; jump if no tokens
+	jc	m1			; jump if no tokens
 ;
 ; Before trying to ID the token, let's copy it to the FILENAME buffer,
 ; upper-case it, and null-terminate it.
 ;
 	mov	dh,1
-	call	getToken	; DS:SI -> token #1, CX = length
+	call	getToken		; DS:SI -> token #1, CX = length
 	jc	m1
 	lea	di,[bx].FILENAME
 	mov	ax,size FILENAME
@@ -106,64 +106,64 @@ m1a:	push	cx
 	rep	movsb
 	mov	al,0
 	stosb
-	pop	si		; DS:SI -> copy of token in FILENAME
+	pop	si			; DS:SI -> copy of token in FILENAME
 	pop	cx
 	mov	ax,DOS_UTL_STRUPR
-	int	21h		; DS:SI -> upper-case token, CX = length
+	int	21h			; DS:SI -> token, CX = length
 	lea	dx,[KEYWORD_TOKENS]
-	mov	ax,DOS_UTL_TOKID; CS:DX -> TOKTBL
-	int	21h		; identify the token
+	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
+	int	21h			; identify the token
 	jc	m2
 	mov	[pHandler],dx
-	jmp	m9		; token ID in AX
+	jmp	m9			; token ID in AX
 ;
 ; First token is unrecognized, so we'll assume it's either a drive
 ; specification or a program name.
 ;
-m2:	mov	dx,si		; DS:DX -> FILENAME
-	cmp	cl,2		; two characters only?
-	jne	m3		; no
+m2:	mov	dx,si			; DS:DX -> FILENAME
+	cmp	cl,2			; two characters only?
+	jne	m3			; no
 	cmp	byte ptr [si+1],':'
-	jne	m3		; not a valid drive specification
-	mov	cl,[si]		; CL = drive letter
+	jne	m3			; not a valid drive specification
+	mov	cl,[si]			; CL = drive letter
 	mov	dl,cl
-	sub	dl,'A'		; DL = drive number
+	sub	dl,'A'			; DL = drive number
 	cmp	dl,26
-	jae	m2a		; out of range
+	jae	m2a			; out of range
 	mov	ah,DOS_DSK_SETDRV
-	int	21h		; attempt to set the drive number in DL
-	jnc	m2b		; success
+	int	21h			; attempt to set the drive number in DL
+	jnc	m2b			; success
 m2a:	PRINTF	<"Drive %c: invalid",13,10>,cx
 m2b:	jmp	m1
 ;
 ; Not a drive letter, so presumably a program name.
 ;
-m3:	mov	di,dx		; ES:DI -> FILENAME
+m3:	mov	di,dx			; ES:DI -> FILENAME
 	mov	al,'.'
 	push	cx
 	push	di
-	repne	scasb		; any periods in FILENAME?
+	repne	scasb			; any periods in FILENAME?
 	pop	di
 	pop	cx
-	je	m4		; yes
+	je	m4			; yes
 ;
 ; First we're going to append .EXE, not because we prefer .EXE (we don't),
 ; but because if no .EXE exists, we want to revert to .COM.
 ;
 	push	cx
 	push	di
-	add	di,cx		; append .EXE
+	add	di,cx			; append .EXE
 	mov	si,offset EXE_EXT
 	mov	cx,EXE_EXT_LEN
 	rep	movs byte ptr es:[di],byte ptr cs:[si]
 	pop	di
 	mov	ah,DOS_DSK_FFIRST
-	int	21h		; find file (DS:DX) with attributes (CX = 0)
+	int	21h			; find file (DS:DX) with attrs (CX=0)
 	pop	cx
 	jnc	m5
 
 	push	cx
-	add	di,cx		; append .COM
+	add	di,cx			; append .COM
 	mov	si,offset COM_EXT
 	mov	cx,COM_EXT_LEN
 	rep	movs byte ptr es:[di],byte ptr cs:[si]
@@ -176,24 +176,24 @@ m3:	mov	di,dx		; ES:DI -> FILENAME
 m4:	mov	si,offset COM_EXT
 	mov	di,dx
 	mov	ax,DOS_UTL_STRSTR
-	int	21h		; verify FILENAME contains either .COM
+	int	21h			; verify FILENAME contains .COM
 	jnc	m5
 	mov	si,offset EXE_EXT
-	int	21h		; or .EXE
+	int	21h			; or .EXE
 	mov	ax,ERR_INVALID
-	jc	m8		; looks like neither, so report an error
+	jc	m8			; looks like neither, report an error
 ;
 ; It looks like we have a valid program name, so prepare to exec.
 ;
 m5:	lea	si,[bx].INPUTBUF.INP_BUF
-	add	si,cx		; DS:SI -> cmd tail after filename
+	add	si,cx			; DS:SI -> cmd tail after filename
 	lea	bx,[bx].EXECDATA
 	mov	[bx].EPB_ENVSEG,0
 	mov	di,PSP_CMDTAIL
 	push	di
 	mov	[bx].EPB_CMDTAIL.OFF,di
 	mov	[bx].EPB_CMDTAIL.SEG,es
-	inc	di		; use our cmd tail space to build a new tail
+	inc	di			; use our tail space to build new tail
 	mov	cx,-1
 m6:	lodsb
 	stosb
@@ -201,14 +201,14 @@ m6:	lodsb
 	cmp	al,CHR_RETURN
 	jne	m6
 	pop	di
-	mov	[di],cl		; set the cmd tail length
+	mov	[di],cl			; set the cmd tail length
 	mov	[bx].EPB_FCB1.OFF,PSP_FCB1
 	mov	[bx].EPB_FCB1.SEG,es
 	mov	[bx].EPB_FCB2.OFF,PSP_FCB2
 	mov	[bx].EPB_FCB2.SEG,es
 
 	mov	ax,DOS_PSP_EXEC
-	int	21h		; exec program at DS:DX
+	int	21h			; exec program at DS:DX
 	jc	m8
 	mov	ah,DOS_PSP_RETCODE
 	int	21h
@@ -223,9 +223,9 @@ m8:	PRINTF	<"Error loading %s: %d",13,10>,dx,ax
 ; We arrive here if the token was recognized.  The token ID determines
 ; the level of additional parsing required, if any.
 ;
-m9:	lea	di,[bx].TOKENBUF; DS:DI -> token buffer
-	cmp	ax,20		; token ID < 20?
-	jb	m10		; yes, token is not part of "the language"
+m9:	lea	di,[bx].TOKENBUF	; DS:DI -> token buffer
+	cmp	ax,20			; token ID < 20?
+	jb	m10			; yes, token not part of "the language"
 ;
 ; The token is for a recognized keyword, so generate code.
 ;
@@ -236,22 +236,22 @@ m9:	lea	di,[bx].TOKENBUF; DS:DI -> token buffer
 ; For non-BASIC commands, check for any switches first and record any that
 ; we find prior to the first non-switch argument.
 ;
-m10:	call	parseSW		; parse all switch arguments, if any
-	cmp	ax,10		; token ID < 10?
-	jb	m20		; yes, command does not use a filespec
+m10:	call	parseSW			; parse all switch arguments, if any
+	cmp	ax,10			; token ID < 10?
+	jb	m20			; yes, command does not use a filespec
 ;
 ; The token is for a command that expects a filespec, so fix up the next
 ; token (index in DH).  If there is no token, then use defaults loaded into
 ; SI and CX.
 ;
-	call	getToken	; DH = 1st non-switch argument (or -1)
+	call	getToken		; DH = 1st non-switch argument (or -1)
 	jnc	m18
 	push	cs
 	pop	ds
 	mov	si,offset DIR_DEF
 	mov	cx,DIR_DEF_LEN - 1
 	jmp	short m19
-m18:	lea	di,[bx].FILENAME; DS:SI -> token, CX = length
+m18:	lea	di,[bx].FILENAME	; DS:SI -> token, CX = length
 	mov	ax,size FILENAME-1
 	cmp	cx,ax
 	jbe	m19
@@ -260,16 +260,18 @@ m19:	push	cx
 	push	di
 	rep	movsb
 	mov	byte ptr es:[di],0
-	pop	si		; DS:SI -> copy of token in FILENAME
+	pop	si			; DS:SI -> copy of token in FILENAME
 	pop	cx
 	push	ss
 	pop	ds
 	mov	ax,DOS_UTL_STRUPR
-	int	21h		; DS:SI -> upper-case token, CX = length
+	int	21h			; DS:SI -> token, CX = length
 	mov	[pArg],si
 	mov	[lenArg],cx
-m20:	call	[pHandler]	; call token handler
-	jmp	m1
+m20:	cmp	[pHandler],0		; handler exist?
+	je	m99			; no
+	call	[pHandler]		; call the token handler
+m99:	jmp	m1
 ENDPROC	main
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -297,43 +299,43 @@ DEFPROC	parseSW
 	push	bx
 	mov	[iArg],-1
 	mov	ax,DOS_MSC_GETSWC
-	int	21h		; DL = SWITCHAR
-	mov	dh,2		; start with the second token
+	int	21h			; DL = SWITCHAR
+	mov	dh,2			; start with the second token
 ps1:	call	getToken
 	jc	ps8
 	lodsb
-	cmp	al,dl		; starts with SWITCHAR?
-	je	ps2		; yes
-	mov	[iArg],dh	; update iArg with first non-switch arg
-	jmp	short ps7	; no
-ps2:	lodsb			; consume option chars
-	cmp	al,'a'		; until we reach a non-alphanumeric char
+	cmp	al,dl			; starts with SWITCHAR?
+	je	ps2			; yes
+	mov	[iArg],dh		; update iArg with first non-switch
+	jmp	short ps7		; no
+ps2:	lodsb				; consume option chars
+	cmp	al,'a'			; until we reach non-alphanumeric char
 	jb	ps3
 	sub	al,20h
 ps3:	sub	al,'0'
-	jb	ps7		; not alphanumeric
+	jb	ps7			; not alphanumeric
 	cmp	al,16
 	jae	ps5
 	lea	bx,[swDigits]
 ps4:	mov	cl,al
 	mov	ax,1
 	shl	ax,cl
-	mov	[bx],ax		; set corresponding bit in the word at [bx]
-	jmp	ps2		; go back for more option chars
+	mov	[bx],ax			; set bit in word at [bx]
+	jmp	ps2			; go back for more option chars
 ps5:	sub	al,'A'-'0'
-	jb	ps7		; not alphanumeric
-	cmp	al,16		; in the range of the first 16?
-	jae	ps6		; no
+	jb	ps7			; not alphanumeric
+	cmp	al,16			; in the range of the first 16?
+	jae	ps6			; no
 	lea	bx,[swLetters].LOW
 	jmp	ps4
 ps6:	sub	al,16
-	cmp	al,10		; in the range of the next 10?
-	jae	ps7		; no
+	cmp	al,10			; in the range of the next 10?
+	jae	ps7			; no
 	lea	bx,[swLetters].HIW
 	jmp	ps4
-ps7:	inc	dh		; advance to next token
+ps7:	inc	dh			; advance to next token
 	jmp	ps1
-ps8:	mov	dh,[iArg]	; DH = first non-switch argument (-1 if none)
+ps8:	mov	dh,[iArg]		; DH = first non-switch (-1 if none)
 	pop	bx
 	pop	ax
 	ret
@@ -392,9 +394,9 @@ DEFPROC	getToken
 	push	bx
 	mov	bl,dh
 	mov	bh,0
-	dec	bx		; BX = 0-based index
+	dec	bx			; BX = 0-based index
 	add	bx,bx
-	add	bx,bx		; BX = BX * 4 (size TOKLET)
+	add	bx,bx			; BX = BX * 4 (size TOKLET)
 	mov	si,[di+bx].TOK_BUF.TOKLET_OFF
 	mov	cl,[di+bx].TOK_BUF.TOKLET_LEN
 	mov	ch,0
@@ -467,8 +469,8 @@ DEFPROC	cmdDir
 ; If filespec begins with ":", extract drive letter, and if it ends
 ; with ":" as well, append DIR_DEF ("*.*").
 ;
-	mov	dl,0		; DL = default drive #
-	mov	di,cx		; DI = length of filespec
+	mov	dl,0			; DL = default drive #
+	mov	di,cx			; DI = length of filespec
 	cmp	cx,2
 	jb	dir0
 	cmp	byte ptr [si+1],':'
@@ -476,9 +478,9 @@ DEFPROC	cmdDir
 	mov	al,[si]
 	sub	al,'A'-1
 	jb	dir0a
-	mov	dl,al		; DL = specific drive # (1-based)
+	mov	dl,al			; DL = specific drive # (1-based)
 dir0:	mov	ah,DOS_DSK_GETINFO
-	int	21h		; get disk info for drive
+	int	21h			; get disk info for drive
 	jnc	dir1
 dir0a:	jmp	dir8
 ;
@@ -486,11 +488,11 @@ dir0a:	jmp	dir8
 ; provide directly; we must multiply bytes per sector (CX) by sectors per
 ; cluster (AX).
 ;
-dir1:	mov	bp,bx		; BP = available clusters
-	mul	cx		; DX:AX = bytes per cluster
-	xchg	bx,ax		; BX = bytes per cluster
+dir1:	mov	bp,bx			; BP = available clusters
+	mul	cx			; DX:AX = bytes per cluster
+	xchg	bx,ax			; BX = bytes per cluster
 
-dir2:	add	di,si		; DI -> end of filespec
+dir2:	add	di,si			; DI -> end of filespec
 	cmp	byte ptr [di-1],':'
 	jne	dir3
 	push	si
@@ -499,8 +501,8 @@ dir2:	add	di,si		; DI -> end of filespec
 	rep	movs byte ptr es:[di],byte ptr cs:[si]
 	pop	si
 
-dir3:	sub	cx,cx		; CX = attributes
-	mov	dx,si		; DX -> filespec
+dir3:	sub	cx,cx			; CX = attributes
+	mov	dx,si			; DX -> filespec
 	mov	ah,DOS_DSK_FFIRST
 	int	21h
 	jc	dir0a
@@ -519,19 +521,19 @@ dir4:	lea	si,ds:[PSP_DTA].FFB_NAME
 	push	dx
 	mov	ax,DOS_UTL_STRLEN
 	int	21h
-	xchg	cx,ax		; CX = total length
+	xchg	cx,ax			; CX = total length
 	mov	di,si
 	push	si
 	mov	si,offset PERIOD
 	mov	ax,DOS_UTL_STRSTR
-	int	21h		; if carry clear, DI is updated
+	int	21h			; if carry clear, DI is updated
 	pop	si
 	jc	dir5
 	mov	ax,di
-	sub	ax,si		; AX = partial filename length
-	inc	di		; DI -> character after period
+	sub	ax,si			; AX = partial filename length
+	inc	di			; DI -> character after period
 	jmp	short dir6
-dir5:	mov	ax,cx		; AX = complete filename length
+dir5:	mov	ax,cx			; AX = complete filename length
 	mov	di,si
 	add	di,ax
 ;
@@ -547,24 +549,24 @@ dir6:	mov	dx,ds:[PSP_DTA].FFB_DATE
 	mov	ax,ds:[PSP_DTA].FFB_SIZE.LOW
 	mov	dx,ds:[PSP_DTA].FFB_SIZE.HIW
 	lea	cx,[bx-1]
-	add	ax,cx		; add cluster size - 1 to file size
+	add	ax,cx			; add cluster size - 1 to file size
 	adc	dx,0
-	div	bx		; # clusters = file size / cluster size
+	div	bx			; # clusters = file size/cluster size
 	pop	dx
 	pop	cx
-	add	dx,ax		; update our cluster total
-	inc	cx		; and increment our file total
+	add	dx,ax			; update our cluster total
+	inc	cx			; and increment our file total
 
 	mov	ah,DOS_DSK_FNEXT
 	int	21h
 	jc	dir7
 	jmp	dir4
 
-dir7:	xchg	ax,dx		; AX = total # of clusters used
-	mul	bx		; DX:AX = total # bytes
+dir7:	xchg	ax,dx			; AX = total # of clusters used
+	mul	bx			; DX:AX = total # bytes
 	PRINTF	<"%8d file(s) %8ld bytes",13,10>,cx,ax,dx
-	xchg	ax,bp		; AX = total # of clusters free
-	mul	bx		; DX:AX = total # bytes free
+	xchg	ax,bp			; AX = total # of clusters free
+	mul	bx			; DX:AX = total # bytes free
 	PRINTF	<"%25ld bytes free",13,10>,ax,dx
 ;
 ; For testing purposes: if /L is specified, display the directory in a "loop".
@@ -597,8 +599,8 @@ ENDPROC	cmdDir
 ;	Any
 ;
 DEFPROC	cmdExit
-	int	20h		; terminates the current process
-	ret			; unless it can't (ie, if there's no parent)
+	int	20h			; terminates the current process
+	ret				; unless it can't (ie, no parent)
 ENDPROC	cmdExit
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -618,15 +620,15 @@ ENDPROC	cmdExit
 ;
 DEFPROC	cmdHelp
 	mov	si,offset KEYWORD_TOKENS
-	lods	word ptr cs:[si]; AL = # tokens, AH = size TOKDEF
+	lods	word ptr cs:[si]	; AL = # tokens, AH = size TOKDEF
 	mov	cl,al
-	mov	ch,0		; CX = # tokens
+	mov	ch,0			; CX = # tokens
 	mov	al,ah
 	cbw
-	xchg	di,ax		; DI = size TOKDEF
-	mov	dl,8		; DL = # chars to be printed so far
+	xchg	di,ax			; DI = size TOKDEF
+	mov	dl,8			; DL = # chars to be printed so far
 h1:	cmp	cs:[si].TOKDEF_ID,100
-	jae	h3		; ignore token IDs >= 100
+	jae	h3			; ignore token IDs >= 100
 	push	dx
 	mov	dl,cs:[si].TOKDEF_LEN
 	mov	dh,0
@@ -639,7 +641,7 @@ h1:	cmp	cs:[si].TOKDEF_ID,100
 	jb	h3
 h2:	PRINTF	<13,10>
 	mov	dl,8
-h3:	add	si,di		; SI -> next TOKDEF
+h3:	add	si,di			; SI -> next TOKDEF
 	loop	h1
 h9:	ret
 ENDPROC	cmdHelp
@@ -679,15 +681,15 @@ ENDPROC	cmdList
 ;	Any
 ;
 DEFPROC	cmdLoad
-	call	openFile	; open the specified file
+	call	openFile		; open the specified file
 	jc	h9
-	call	freeText	; free any pre-existing blocks
+	call	freeText		; free any pre-existing blocks
 	test	dx,dx
 	jnz	lf0a
 	add	ax,TBLKLEN
 	jnc	lf0b
 lf0a:	mov	ax,0FFFFh
-lf0b:	xchg	cx,ax		; CX = size of initial text block
+lf0b:	xchg	cx,ax			; CX = size of initial text block
 	mov	[pTextLimit],cx
 	call	allocText
 	jc	lf4y
@@ -697,25 +699,25 @@ lf0b:	xchg	cx,ax		; CX = size of initial text block
 ; (not including any leading space or terminating CR/LF) to the text block.
 ;
 	lea	bx,[bx].LINEBUF
-	sub	cx,cx		; DS:SI contains zero bytes at the moment
+	sub	cx,cx			; DS:SI contains zero bytes now
 
 lf1:	jcxz	lf4
 	push	cx
-	mov	dx,si		; save SI
+	mov	dx,si			; save SI
 lf2:	lodsb
 	cmp	al,CHR_RETURN
 	je	lf3
 	loop	lf2
-lf3:	xchg	si,dx		; restore SI; DX is how far we got
+lf3:	xchg	si,dx			; restore SI; DX is how far we got
 	pop	cx
-	je	lf5		; we found the end of a line; process it
+	je	lf5			; we found the end of a line
 ;
 ; The end of the current line is not contained in our buffer, so "slide"
 ; everything at DS:SI down to LINEBUF, fill in the rest of LINEBUF, and try
 ; again.
 ;
-	cmp	si,bx		; is the current line already at LINEBUF?
-	je	lf4y		; yes, we're done
+	cmp	si,bx			; is current line already at LINEBUF?
+	je	lf4y			; yes, we're done
 	push	cx
 	push	di
 	push	es
@@ -726,7 +728,7 @@ lf3:	xchg	si,dx		; restore SI; DX is how far we got
 	pop	es
 	pop	di
 	pop	cx
-lf4:	mov	si,bx		; DS:SI has been adjusted
+lf4:	mov	si,bx			; DS:SI has been adjusted
 ;
 ; At DS:SI+CX, read (size LINEBUF - CX) more bytes.
 ;
@@ -741,7 +743,7 @@ lf4:	mov	si,bx		; DS:SI has been adjusted
 	pop	cx
 	jc	lf4x
 	add	cx,ax
-	jcxz	lf4y		; if we've exhausted the file, we're done
+	jcxz	lf4y			; if file is exhausted, we're done
 	jmp	lf1
 lf4x:	jmp	lf10
 lf4y:	jmp	lf12
@@ -750,16 +752,17 @@ lf4y:	jmp	lf12
 ;
 lf5:	mov	[lineOffset],si
 	lodsb
-	cmp	al,CHR_LINEFEED	; skip any LINEFEED from the previous line
+	cmp	al,CHR_LINEFEED		; skip LINEFEED from the previous line
 	je	lf6
 	dec	si
 
 lf6:	push	bx
 	push	dx
 	mov	bl,10
-	mov	ax,DOS_UTL_ATOI32; DS:SI -> numeric string
+	mov	cx,-1			; CX = unknown length
+	mov	ax,DOS_UTL_ATOI32	; DS:SI -> numeric string
 	int	21h
-	ASSERT	Z,<test dx,dx>	; DX:AX is the result but we keep only AX
+	ASSERT	Z,<test dx,dx>		; DX:AX is the result but keep only AX
 	mov	[lineLabel],ax
 	pop	dx
 	pop	bx
@@ -771,16 +774,16 @@ lf6:	push	bx
 	je	lf7
 	dec	si
 
-lf7:	dec	dx		; back up to CHR_RETURN
-	sub	dx,si		; DX = # of characters on line (may be zero)
+lf7:	dec	dx			; back up to CHR_RETURN
+	sub	dx,si			; DX = # of chars on line (may be zero)
 ;
 ; Is there room for DX more bytes at ES:DI?
 ;
 	mov	ax,di
 	add	ax,dx
 	add	ax,3
-	cmp	ax,[pTextLimit]	; does this overflow the current text block?
-	jbe	lf8		; no
+	cmp	ax,[pTextLimit]		; overflows the current text block?
+	jbe	lf8			; no
 ;
 ; No, there's not enough room, so allocate another text block.
 ;
@@ -791,7 +794,7 @@ lf7:	dec	dx		; back up to CHR_RETURN
 	call	allocText
 	pop	si
 	pop	cx
-	jc	lf11		; unable to allocate enough memory
+	jc	lf11			; unable to allocate enough memory
 
 lf8:	mov	ax,[lineLabel]
 	stosw
@@ -872,16 +875,16 @@ ENDPROC	cmdTime
 ;	Any
 ;
 DEFPROC	cmdType
-	call	openFile	; SI -> filename
+	call	openFile		; SI -> filename
 	jc	of9
-	mov	si,PSP_DTA	; SI -> DTA (used as a read buffer)
-ty1:	mov	cx,size PSP_DTA	; CX = number of bytes to read
+	mov	si,PSP_DTA		; SI -> DTA (used as a read buffer)
+ty1:	mov	cx,size PSP_DTA		; CX = number of bytes to read
 	call	readFile
 	jc	closeFile
-	test	ax,ax		; anything read?
-	jz	closeFile	; no
+	test	ax,ax			; anything read?
+	jz	closeFile		; no
 	mov	bx,STDOUT
-	xchg	cx,ax		; CX = number of bytes to write
+	xchg	cx,ax			; CX = number of bytes to write
 	mov	ah,DOS_HDL_WRITE
 	int	21h
 	jmp	ty1
@@ -906,12 +909,12 @@ ENDPROC	cmdType
 ;
 DEFPROC	openFile
 	push	bx
-	mov	dx,si		; DX -> filename
+	mov	dx,si			; DX -> filename
 	mov	ax,DOS_HDL_OPEN SHL 8
 	int	21h
 	jc	of8
-	mov	[hFile],ax	; save file handle
-	xchg	bx,ax		; BX = handle
+	mov	[hFile],ax		; save file handle
+	xchg	bx,ax			; BX = handle
 	sub	cx,cx
 	sub	dx,dx
 	mov	ax,DOS_HDL_SEEKEND

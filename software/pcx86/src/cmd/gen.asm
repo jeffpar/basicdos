@@ -68,15 +68,16 @@ DEFPROC	genCode
 	test	si,si
 	jz	gc1
 	mov	cl,[si].INP_CNT
+	mov	ch,0
 	lea	si,[si].INP_BUF
 	jmp	short gc4
 
 gce:	call	errorMemory
-	jmp	short gc9
+gcx:	jmp	gc9
 
 gc1:	lea	si,[bx].TEXT_BLK
 gc2:	mov	cx,[si].TBLK_NEXT
-	jcxz	gc9			; nothing left to parse
+	jcxz	gc6			; nothing left to parse
 	mov	ds,cx
 	mov	si,size TBLK_HDR
 
@@ -90,28 +91,60 @@ gc3:	cmp	si,ds:[TBLK_FREE]
 	xchg	cx,ax			; CX = length of next line
 	jcxz	gc3
 
-gc4:	push	bx
+gc4:	push	bx			; save heap offset
+	push	cx
+	push	ds
+	push	si			; save text pointer + length
+	push	es
+	push	di			; save code gen pointer
+
+	push	ss
+	pop	es
+;
+; Copy the line (at DS:SI with length CX) to LINEBUF, so that we
+; can use a single segment (DS) to address both LINEBUF and TOKENBUF,
+; after ES has been restored to the code gen segment.
+;
+	push	cx
+	push	es
+	lea	di,[bx].LINEBUF
 	push	di
-	lea	di,[bx].TOKENBUF	; DS:DI -> token buffer
+	rep	movsb
+	pop	si
+	pop	ds
+	pop	cx			; DS:SI -> LINEBUF (with length CX)
+
+	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
 	mov	ax,DOS_UTL_TOKIFY2
 	int	21h
-	mov	bx,di			; BX -> TOKENBUF
+	mov	bx,di
+	push	es
+	pop	ds
+	add	bx,offset TOK_BUF	; DS:BX -> TOKLET array
 	pop	di
+	pop	es			; restore code gen pointer
 	jc	gc5
-	add	bx,offset TOK_BUF	; BX -> TOKLET array
+
 	add	ax,ax
 	add	ax,ax
 	add	ax,bx
 	mov	[pTokEnd],ax
-	add	bx,size TOKLET
-	call	genCommand		; generate code
-gc5:	pop	bx
+
+	call	genCommands		; generate code
+
+gc5:	pop	si
+	pop	ds
+	pop	cx			; restore text pointer + length
+	pop	bx			; restore heap offset
 	jc	gc7			; error
 
 	cmp	[pInput],0		; more text to parse?
-	je	gc2			; perhaps
+	jne	gc6			; no (just a single line)
 
-gc6:	mov	al,OP_RETF		; terminate the code buffer
+	add	si,cx			; advance past previous line of text
+	jmp	gc3			; and check for more
+
+gc6:	mov	al,OP_RETF		; terminate the code in the buffer
 	stosb
 	push	bp
 	push	ds
@@ -146,7 +179,7 @@ ENDPROC	genCode
 ; Generate code for one or more commands.
 ;
 ; Inputs:
-;	BX -> TOKLETs
+;	DS:BX -> TOKLETs
 ;	ES:DI -> code block
 ;
 ; Outputs:
@@ -156,15 +189,20 @@ ENDPROC	genCode
 ;	Any
 ;
 DEFPROC	genCommands
+	mov	al,CLS_KEYWORD
 	call	getNextToken
 	cmc
 	jnc	gcs9
-	lea	dx,[KEYWORD_TOKENS]
-	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
-	int	21h			; identify the token
+	lea	dx,[KEYWORD_TOKENS]	; CS:DX -> TOKTBL
+	mov	ax,DOS_UTL_TOKID	; identify the token
+	int	21h			; at DS:SI (with length CX)
 	jc	gcs9			; can't identify
-	DEFLBL	genCommand,near
-	call	dx
+	cmp	ax,20			; supported keyword?
+	jb	gcs9			; no
+	test	dx,dx			; valid generator function?
+	stc
+	jz	gcs9			; no
+	call	dx			; call the generator
 	jnc	genCommands
 gcs9:	ret
 ENDPROC	genCommands
@@ -176,7 +214,7 @@ ENDPROC	genCommands
 ; Generate code for "CLS"
 ;
 ; Inputs:
-;	BX -> TOKLETs
+;	DS:BX -> TOKLETs
 ;	ES:DI -> code block
 ;
 ; Outputs:
@@ -197,7 +235,7 @@ ENDPROC	genCLS
 ; Generate code for "COLOR fgnd[,[bgnd[,[border]]"
 ;
 ; Inputs:
-;	BX -> TOKLETs
+;	DS:BX -> TOKLETs
 ;	ES:DI -> code block
 ;
 ; Outputs:
@@ -224,7 +262,7 @@ ENDPROC	genColor
 ; Process "DEFINT" (TODO)
 ;
 ; Inputs:
-;	BX -> TOKLETs
+;	DS:BX -> TOKLETs
 ;	ES:DI -> code block
 ;
 ; Outputs:
@@ -260,6 +298,7 @@ ENDPROC	genDefInt
 ;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	genExprNum
+	int 3
 	sub	dx,dx
 	mov	[nExpArgs],1		; count of expected arguments
 	mov	[nExpVals],dx		; count of values queued
@@ -306,9 +345,7 @@ gn2a:	call	findVar			; no, check vars next
 gn2b:	inc	[nExpVals]		; count another queued value
 	jmp	gn1
 ;
-; Number must be a constant, and although CX contains its exact length,
-; DOS_UTL_ATOI32 doesn't actually care; it simply converts characters until
-; it reaches a non-digit.
+; Number must be a constant and CX must contain its exact length.
 ;
 ; TODO: If the preceding character is a '-' and the top of the operator stack
 ; is 'N' (unary minus), consider decrementing SI and removing the operator.
@@ -495,7 +532,7 @@ ENDPROC	genExprStr
 ; Generate code for "GOTO [line]"
 ;
 ; Inputs:
-;	BX -> TOKLETs
+;	DS:BX -> TOKLETs
 ;	ES:DI -> code block
 ;
 ; Outputs:
@@ -544,7 +581,7 @@ ENDPROC	genGoto
 ; move the generated code to make room for "jnz $+5; jmp elseBlock" instead.
 ;
 ; Inputs:
-;	BX -> TOKLETs
+;	DS:BX -> TOKLETs
 ;	ES:DI -> code block
 ;
 ; Outputs:
@@ -911,7 +948,7 @@ ENDPROC	genPushVarLong
 ;
 ; Inputs:
 ;	AL = CLS bits
-;	BX -> TOKLETs
+;	DS:BX -> TOKLETs
 ;
 ; Outputs if next token matches:
 ;	AH = CLS of token

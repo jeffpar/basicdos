@@ -303,21 +303,25 @@ ENDPROC	utl_sprintf
 ;	AX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	utl_atoi16,DOS
+	mov	cx,-1			; no specific length
+	DEFLBL	utl_atoi,near
 	sti
 	mov	bl,[bp].REG_BL		; BL = base (eg, 10)
 	mov	bh,0
+	mov	[bp].TMP_BX,bx		; TMP_BX equals 16-bit base
+	mov	[bp].TMP_AL,bh		; TMP_AL indicates sign
 	mov	ds,[bp].REG_DS
 	mov	es,[bp].REG_ES
 	ASSUME	DS:NOTHING, ES:NOTHING
 	and	[bp].REG_FL,NOT FL_CARRY
 
 	mov	ah,-1			; cleared when digit found
-	sub	cx,cx			; CX:DX = value
+	sub	bx,bx			; DX:BX = value
 	sub	dx,dx			; (will be returned in DX:AX)
-	push	bp
-	sub	bp,bp			; BP will be negative if # is negative
 
-ai0:	lodsb				; skip any leading whitespace
+ai0:	jcxz	ai6
+	lodsb				; skip any leading whitespace
+	dec	cx
 	cmp	al,CHR_SPACE
 	je	ai0
 	cmp	al,CHR_TAB
@@ -325,9 +329,9 @@ ai0:	lodsb				; skip any leading whitespace
 
 	cmp	al,'-'			; minus sign?
 	jne	ai1			; no
-	test	bp,bp			; already negated?
+	cmp	byte ptr [bp].TMP_AL,0	; already negated?
 	jl	ai6			; yes, not good
-	dec	bp			; make a note to negate later
+	dec	byte ptr [bp].TMP_AL	; make a note to negate later
 	jmp	short ai4
 
 ai1:	cmp	al,'a'			; remap lower-case
@@ -341,79 +345,79 @@ ai2:	cmp	al,'A'			; remap hex digits
 ai3:	cmp	al,'0'			; convert ASCII digit to value
 	jb	ai5
 	sub	al,'0'
-	cmp	al,bl			; outside the requested base?
+	cmp	al,[bp].TMP_BL		; outside the requested base?
 	jae	ai6			; yes
 	cbw				; clear AH (digit found)
 ;
-; Multiply CX:DX by the base in BX before adding the digit value in AX.
+; Multiply DX:BX by the base in TMP_BX before adding the digit value in AX.
 ;
 	push	ax
-	push	di
-	mov	ax,dx
-	mul	bx
-	xchg	ax,cx
-	mov	di,dx
-	mul	bx
-	add	ax,di
-	adc	dx,0			; DX:AX:CX contains the result
-	xchg	ax,cx			; DX:CX:AX now
-	xchg	ax,dx			; AX:CX:DX now
+	xchg	ax,bx
+	mov	[bp].TMP_DX,dx
+	mul	word ptr [bp].TMP_BX	; DX:AX = orig BX * BASE
+	xchg	bx,ax			; DX:BX
+	xchg	[bp].TMP_DX,dx
+	xchg	ax,dx
+	mul	word ptr [bp].TMP_BX	; DX:AX = orig DX * BASE
+	add	ax,[bp].TMP_DX
+	adc	dx,0			; DX:AX:BX = new result
+	xchg	dx,ax			; AX:DX:BX = new result
 	test	ax,ax
 	jz	ai3a
 	int	04h			; signal overflow
-ai3a:	pop	di
-	pop	ax			; CX:DX = CX:DX * BX
+ai3a:	pop	ax			; DX:BX = DX:BX * TMP_BX
 
-	add	dx,ax			; add the digit value in AX now
-	adc	cx,0
+	add	bx,ax			; add the digit value in AX now
+	adc	dx,0
 	jno	ai4
 ;
-; This COULD be an overflow situation UNLESS CX:DX is now 80000000h AND
+; This COULD be an overflow situation UNLESS DX:BX is now 80000000h AND
 ; the result is going to be negated.  Unfortunately, any negation may happen
-; later, so it won't do any good to test BP.  We'll just have to allow it.
+; later, so it won't do any good to test TMP_AL.  We'll just have to allow it.
 ;
-	test	dx,dx
+	test	bx,bx
 	jz	ai4
 	int	04h			; signal overflow
 
-ai4:	lodsb				; fetch the next character
+ai4:	jcxz	ai6
+	lodsb				; fetch the next character
+	dec	cx
 	jmp	ai1			; and continue the evaluation
 
 ai5:	test	al,al			; normally we skip the first non-digit
 	jnz	ai6			; but if it's a null
 	dec	si			; rewind
 
-ai6:	test	bp,bp
+ai6:	cmp	byte ptr [bp].TMP_AL,0
 	jge	ai6a
-	neg	cx
 	neg	dx
-	sbb	cx,0
+	neg	bx
+	sbb	dx,0
 	into				; signal overflow if set
-ai6a:	pop	bp
 
-	cmp	di,-1			; validation data provided?
+ai6a:	cmp	di,-1			; validation data provided?
 	jne	ai6b			; yes
 	dec	si			; no, rewind SI to first non-digit
 	add	ah,1			; (carry clear if one or more digits)
 	jmp	short ai9
 ai6b:	test	ah,ah			; any digits?
 	jz	ai6c			; yes
-	mov	dx,es:[di]		; no, get the default value
+	mov	bx,es:[di]		; no, get the default value
 	stc
 	jmp	short ai8
-ai6c:	cmp	dx,es:[di+2]		; too small?
+ai6c:	cmp	bx,es:[di+2]		; too small?
 	jae	ai7			; no
-	mov	dx,es:[di+2]		; yes (carry set)
+	mov	bx,es:[di+2]		; yes (carry set)
 	jmp	short ai8
-ai7:	cmp	es:[di+4],dx		; too large?
+ai7:	cmp	es:[di+4],bx		; too large?
 	jae	ai8			; no
-	mov	dx,es:[di+4]		; yes (carry set)
+	mov	bx,es:[di+4]		; yes (carry set)
 ai8:	lea	di,[di+6]		; advance DI in case there are more
 	mov	[bp].REG_DI,di		; update REG_DI
 	jmp	short ai9a
 
-ai9:	mov	[bp].REG_DX,cx		; update REG_DX if no validation data
-ai9a:	mov	[bp].REG_AX,dx		; update REG_AX
+ai9:	mov	[bp].REG_DX,dx		; update REG_DX if no validation data
+ai9a:	mov	[bp].REG_AX,bx		; update REG_AX
 	mov	[bp].REG_SI,si		; update caller's SI, too
 	ret
 ENDPROC utl_atoi16
@@ -422,25 +426,27 @@ ENDPROC utl_atoi16
 ;
 ; utl_atoi32 (AX = 1808h)
 ;
-; Convert string at DS:SI to number in DX:AX using base BL.  Note these
-; differences from ATOI16:
+; Convert string at DS:SI (with length CX) to number in DX:AX using base BL.
+;
+; Note these differences from ATOI16:
 ;
 ;	1) Validation data is not supported
-;	2) SI points to the first non-digit character, not PAST it
+;	2) CX should contain the exact length (-1 if unknown)
+;	2) SI points to the first unprocessed character, not PAST it
 ;
 ; ATOI16 advances SI past the first non-digit character to facilitate parsing
 ; of a series of delimited, validated numbers.
 ;
 ; Returns:
 ;	Carry clear if one or more digits, set otherwise
-;	DX:AX = value, DS:SI -> first non-digit character
+;	DX:AX = value, DS:SI -> first unprocessed character
 ;
 ; Modifies:
 ;	AX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	utl_atoi32,DOS
-	mov	di,-1			; setting no validation allows
-	jmp	utl_atoi16		; atoi16 to return a 32-bit value
+	mov	di,-1			; no validation
+	jmp	utl_atoi		; utl_atoi returns a 32-bit value
 ENDPROC utl_atoi32
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -482,14 +488,14 @@ ENDPROC	utl_itoa
 ;	REG_AL = 0Bh (TOKTYPE_GENERIC) or 0Ch (TOKTYPE_BASIC)
 ;	REG_CL = length of string
 ;	REG_DS:REG_SI -> string to "tokify"
-;	REG_DS:REG_DI -> BUF_TOKEN (filled in with token info)
+;	REG_ES:REG_DI -> BUF_TOKEN (filled in with token info)
 ;
 ; Outputs:
 ;	Carry clear if tokens found; AX = # tokens, BUF_TOKEN updated
 ;	Carry set if no tokens found
 ;
 ; Modifies:
-;	AX, TMP_AX, TMP_CX
+;	AX, BX, CX, DX, SI, DI, TMP_AX, TMP_CX
 ;
 DEFPROC	utl_tokify,DOS
 	sti
@@ -498,7 +504,9 @@ DEFPROC	utl_tokify,DOS
 	mov	bl,[bx].SCB_SWITCHAR
 	mov	[bp].TMP_AH,bl		; TMP_AH = SWITCHAR
 	mov	ds,[bp].REG_DS		; DS:SI -> BUF_INPUT
-	ASSUME	DS:NOTHING		; DS:DI -> BUF_TOKEN
+	ASSUME	DS:NOTHING
+	mov	es,[bp].REG_ES		; ES:DI -> BUF_TOKEN
+	ASSUME	ES:NOTHING
 	mov	ch,0
 	mov	[bp].TMP_CX,cx		; TMP_CX = length
 
@@ -567,25 +575,25 @@ tf6a:	mov	al,ch			; AL = previous classification
 tf6b:
 	ENDIF
 ;
-; Update the TOKLET in the TOK_BUF at DI, token index BX
+; Update the TOKLET in the TOK_BUF at ES:DI, token index BX
 ;
 	push	bx
 	add	bx,bx
 	add	bx,bx			; BX = BX * 4 (size TOKLET)
-	mov	[di+bx].TOK_BUF.TOKLET_CLS,al
-	mov	[di+bx].TOK_BUF.TOKLET_LEN,cl
-	mov	[di+bx].TOK_BUF.TOKLET_OFF,dx
+	mov	es:[di+bx].TOK_BUF.TOKLET_CLS,al
+	mov	es:[di+bx].TOK_BUF.TOKLET_LEN,cl
+	mov	es:[di+bx].TOK_BUF.TOKLET_OFF,dx
 	pop	bx
 	inc	bx			; and increment token index
 
 tf7:	test	ah,ah			; all done?
 	jz	tf9			; yes
 
-tf8:	cmp	bl,[di].TOK_MAX		; room for more tokens?
+tf8:	cmp	bl,es:[di].TOK_MAX	; room for more tokens?
 	jae	tf9			; no
 	jmp	tf1			; yes
 
-tf9:	mov	[di].TOK_CNT,bl		; update # tokens
+tf9:	mov	es:[di].TOK_CNT,bl	; update # tokens
 	mov	[bp].REG_AX,bx		; return # tokens in AX, too
 	cmp	bx,1			; set carry if no tokens
 	ret

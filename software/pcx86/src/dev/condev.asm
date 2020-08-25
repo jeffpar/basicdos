@@ -440,8 +440,16 @@ ENDPROC	ddcon_setclr
 DEFPROC	ddcon_read
 	mov	cx,es:[di].DDPRW_LENGTH
 	jcxz	dcr8
-
+;
+; If the current context doesn't have focus, then we're not going to
+; bother checking the keyboard buffer.  We still won't block non-blocking
+; requests, but no data will be returned as long as we're out-of-focus.
+;
 	cli
+	mov	dx,es:[di].DDP_CONTEXT
+	cmp	dx,[ct_focus]
+	jne	dcr0
+
 	call	pull_kbd
 	jnc	dcr8
 ;
@@ -453,12 +461,12 @@ DEFPROC	ddcon_read
 ; For character devices, DDP_UNIT contains the I/O mode (IO_RAW, IO_COOKED,
 ; or IO_DIRECT).
 ;
-	cmp	es:[di].DDP_UNIT,0
+dcr0:	cmp	es:[di].DDP_UNIT,0
 	jge	dcr1		; normal blocking request (not IO_DIRECT)
 	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_NOTREADY
 	jmp	short dcr9
 
-dcr1:	mov	ds,es:[di].DDP_CONTEXT
+dcr1:	mov	ds,dx
 	ASSUME	DS:NOTHING
 	ASSERT	STRUCT,ds:[0],CT
 	or	ds:[CT_STATUS],CTSTAT_INPUT
