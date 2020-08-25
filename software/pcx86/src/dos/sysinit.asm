@@ -109,12 +109,11 @@ si1:	mov	ax,[MEMORY_SIZE]	; get available memory in Kb
 	mov	si,offset INT_TABLES
 si2:	lodsw
 	test	ax,ax			; any more tables?
-	jz	si3a			; no
-	and	al,0FEh
+	jl	si3a			; no
 	xchg	di,ax			; DI -> first vector for table
 si3:	lodsw				; load vector offset
-	test	ax,ax
-	jz	si2
+	test	ax,ax			; end of sub-table?
+	jz	si2			; yes
 	stosw				; store vector offset
 	mov	ax,ds
 	stosw				; store vector segment
@@ -722,23 +721,25 @@ ENDPROC	init_table
 	mov	ah,DOS_TTY_PRINT
 	int	21h
 	jmp	$			; "halt"
-
 ;
 ; Initialization data
 ;
 ; Labels are capitalized to indicate their static (constant) nature.
 ;
 	DEFLBL	INT_TABLES,word
-	dw	(INT_DV * 4) + 1	; add 1 to avoid end-of-tables signal
-	dw	dos_dverr,dos_sstep,0	; divide error and single-step handlers
-	dw	(INT_BP * 4)		; a few more low vectors
-	dw	dos_brkpt,dos_oferr,dos_opchk,0
-	dw	(INT_DOSTERM * 4)	; next, all the DOS vectors
+	dw	(INT_DV * 4)		; set diverr and single-step vectors
+	dw	dos_dverr,dos_sstep,0
+	dw	(INT_BP * 4)		; set breakpoint and overflow vectors
+	dw	dos_brkpt,dos_oferr,0
+	dw	(INT_UD * 4)		; initialize the INT_UD vector
+	dw	dos_opchk,0		; in case the OPCHECK macro is enabled
+	dw	(INT_DOSTERM * 4)	; next, set all the DOS vectors
 	dw	dos_term,dos_func,dos_exret,dos_ctrlc
 	dw	dos_error,disk_read,disk_write,dos_tsr,dos_default,0
 	dw	(INT_DOSNET * 4)
-	dw	dos_default,dos_default,dos_default,dos_default,dos_default,dos_default,0
-	dw	0			; end of tables (should end at INT 30h)
+	dw	dos_default,dos_default,dos_default
+	dw	dos_default,dos_default,dos_default,0
+	dw	-1			; end of tables (should end at INT 30h)
 	DEFLBL	INT_TABLES_END
 
 CFG_MEMSIZE	db	8,"MEMSIZE="

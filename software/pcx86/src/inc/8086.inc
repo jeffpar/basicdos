@@ -11,11 +11,13 @@
 ;
 ; Processor-defined interrupt vectors
 ;
-INT_DV		EQU	00h	; #DE (divide error)
-INT_DB		EQU	01h	; #DB (debug aka single-step)
-INT_NMI		EQU	02h	; NMI
-INT_BP		EQU	03h	; #BP (breakpoint)
-INT_OF		EQU	04h	; #OF (overflow)
+INT_DV		EQU	00h	; #DE (divide error exception)
+INT_DB		EQU	01h	; #DB (debug aka single-step exception)
+INT_NMI		EQU	02h	; NMI (non-maskable interrupt)
+INT_BP		EQU	03h	; #BP (breakpoint trap)
+INT_OF		EQU	04h	; #OF (overflow trap)
+INT_BR		EQU	05h	; #BR (BOUND error fault; 80186 and up)
+INT_UD		EQU	06h	; #UD (undefined opcode fault; 80186 and up)
 
 REG16	struc
 LOB		db	?
@@ -78,3 +80,24 @@ OP_MOV_AX_SP	equ	089E0h		; MOV AX,SP
 OP_POP_DX_AX	equ	05A58h		; POP AX, POP DX
 OP_OR_AX_DX	equ	0D009h		; OR  AX,DX
 OP_JZ_SELF	equ	0FE74h		; JZ  $
+
+;
+; Operation checks are sprinkled throughout DEBUG BASIC-DOS binaries to
+; perform arithmetic validation tests in the PCjs emulator.  They invoke
+; INT_UD (INT 06h) to trigger the check, since that interrupt had no defined
+; purpose on 8086/8088 processors (every opcode did something).  The concept
+; of invalid opcodes came later, on the 80186.
+;
+; In case a DEBUG binary is run in a non-PCjs environment (or on a real
+; machine), BASIC-DOS system initialization sets the INT_UD vector to point
+; to an IRET, since the original IBM PC BIOS didn't initialize it.
+;
+OP_MUL32	equ	01h		; verify 32-bit multiplication result
+OP_DIV32	equ	02h		; verify 32-bit division result
+
+OPCHECK	macro	op
+	IFDEF	DEBUG
+	mov	cl,op
+	int	INT_UD			; INT 06h
+	ENDIF
+	endm
