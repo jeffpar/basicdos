@@ -45,6 +45,9 @@ DDATTR_BLOCK	equ	0000h
 ;
 ; IOCTL operations for assorted devices
 ;
+; Once again, our IOCTL interface is a simplification of what PC DOS
+; eventually implemented.
+;
 IOCTL_CLOCK	equ	0C0h
 IOCTL_WAIT	equ	0C1h	; CLOCK$: wait # ticks in DDPRW_ADDR field
 

@@ -77,8 +77,10 @@ gcx:	jmp	gc9
 
 gc1:	lea	si,[bx].TEXT_BLK
 gc2:	mov	cx,[si].TBLK_NEXT
+	clc
 	jcxz	gc6			; nothing left to parse
 	mov	ds,cx
+	ASSUME	DS:NOTHING
 	mov	si,size TBLK_HDR
 
 gc3:	cmp	si,ds:[TBLK_FREE]
@@ -102,8 +104,8 @@ gc4:	push	bx			; save heap offset
 	pop	es
 ;
 ; Copy the line (at DS:SI with length CX) to LINEBUF, so that we
-; can use a single segment (DS) to address both LINEBUF and TOKENBUF,
-; after ES has been restored to the code gen segment.
+; can use a single segment (DS) to address both LINEBUF and TOKENBUF
+; once ES has been restored to the code gen segment.
 ;
 	push	cx
 	push	es
@@ -136,7 +138,7 @@ gc5:	pop	si
 	pop	ds
 	pop	cx			; restore text pointer + length
 	pop	bx			; restore heap offset
-	jc	gc7			; error
+	jc	gc6			; error
 
 	cmp	[pInput],0		; more text to parse?
 	jne	gc6			; no (just a single line)
@@ -144,7 +146,11 @@ gc5:	pop	si
 	add	si,cx			; advance past previous line of text
 	jmp	gc3			; and check for more
 
-gc6:	mov	al,OP_RETF		; terminate the code in the buffer
+gc6:	push	ss
+	pop	ds
+	ASSUME	DS:DATA
+	jc	gc7
+	mov	al,OP_RETF		; terminate the code in the buffer
 	stosb
 	push	bp
 	push	ds
@@ -166,7 +172,7 @@ gc7:	pushf
 	popf
 gc8:	jnc	gc9
 
-	PRINTF	<'Syntax error',13,10>
+	PRINTF	<'Syntax error in line %d',13,10>,lineNumber
 
 gc9:	LEAVE
 	ret
@@ -199,8 +205,7 @@ DEFPROC	genCommands
 	jc	gcs9			; can't identify
 	cmp	ax,20			; supported keyword?
 	jb	gcs9			; no
-	test	dx,dx			; valid generator function?
-	stc
+	test	dx,dx			; generator function?
 	jz	gcs9			; no
 	call	dx			; call the generator
 	jnc	genCommands
@@ -298,7 +303,6 @@ ENDPROC	genDefInt
 ;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	genExprNum
-	int 3
 	sub	dx,dx
 	mov	[nExpArgs],1		; count of expected arguments
 	mov	[nExpVals],dx		; count of values queued
@@ -368,10 +372,9 @@ gn3a:	mov	ax,DOS_UTL_ATOI32	; DS:SI -> numeric string
 	int	21h
 	xchg	cx,ax			; save result in DX:CX
 	pop	bx
-
 	GENPUSH	dx,cx
 	jmp	gn2b			; go count another queued value
-gn3x:	jmp	short gn8
+gn3x:	jmp	gn8
 ;
 ; Before we try to validate the operator, we need to remap binary minus to
 ; unary minus.  So, if we have a minus, and the previous token is undefined,
@@ -395,7 +398,7 @@ gn4b:	mov	al,ah			; remap the operator
 ; Verify that the symbol is a valid operator.
 ;
 gn5:	call	validateOp		; AL = operator to validate
-	jc	gn8			; error
+	jc	gn3x			; error
 	mov	[nExpPrevOp],ax
 	sub	si,si
 	jcxz	gn7			; handle no-arg operators below
@@ -406,35 +409,59 @@ gn5:	call	validateOp		; AL = operator to validate
 ; Operator is valid, so peek at the operator stack and pop if the top
 ; operator precedence >= current operator precedence.
 ;
-gn6:	pop	dx			; "peek"
+gn5a:	pop	dx			; "peek"
 	cmp	dh,ah			; top precedence > current?
-	jb	gn6b			; no
-	ja	gn6a
-	jcxz	gn6b			; don't pop unary operator yet
-gn6a:	pop	cx			; yes, pop the evaluator as well
-	jcxz	gn6			; no evaluator (eg, left paren)
+	jb	gn6			; no
+	ja	gn5b			; yes
+	test	dh,1			; unary operator?
+	jnz	gn6			; yes, hold off
+gn5b:	pop	cx			; pop the evaluator as well
+	jcxz	gn6c			; no evaluator (eg, left paren)
+
+	IFDEF MAXDEBUG
+	DPRINTF	<"op %c, func @%08lx",13,10>,dx,cx,cs
+	ENDIF
+
 	GENCALL	cx			; and generate call
-	jmp	gn6
-gn6b:	push	dx			; "unpeek"
-gn6c:	push	si			; push current evaluator
+	jmp	gn5a
+
+gn6:	push	dx			; "unpeek"
+gn6a:	push	si			; push current evaluator
 	push	ax			; push current operator/precedence
-gn6d:	jmp	gn1			; next token
+gn6b:	jmp	gn1			; next token
 ;
-; Special operators handled here.
+; We just popped an operator with no evaluator; if it's a left paren,
+; we're done; otherwise, ignore it (eg, unary '+').
+;
+gn6c:	cmp	dl,'('
+	je	gn6b
+	jmp	gn5a
+;
+; When special (eg, no-arg) operators are encountered in the expression,
+; they are handled here.
 ;
 gn7:	cmp	al,'('
 	jne	gn7a
 	inc	[nExpParens]
-	jmp	gn6c
+	jmp	gn6a
 gn7a:	ASSERT	Z,<cmp al,')'>
 	dec	[nExpParens]
-	jmp	gn6
+	jmp	gn5a
 ;
-; Time to start popping the operator stack.
+; We have reached the (presumed) end of the expression, so start popping
+; the operator stack.
 ;
 gn8:	pop	cx
 	jcxz	gn9			; all done
+
+	IFDEF MAXDEBUG
+	pop	ax
+	DPRINTF	<"op %c, func @%08lx...",13,10>,cx,ax,cs
+	xchg	cx,ax
+	ELSE
 	pop	cx			; CX = evaluator
+	ENDIF
+
 	jcxz	gn8
 	GENCALL	cx
 	jmp	gn8
@@ -856,6 +883,9 @@ ENDPROC	genPushImmByte
 ;	AX, CX, DX, DI
 ;
 DEFPROC	genPushImmLong
+	IFDEF MAXDEBUG
+	DPRINTF	<"num %ld",13,10>,cx,dx
+	ENDIF
 	xchg	ax,dx			; AX has original DX
 	xchg	ax,cx			; AX contains CX, CX has original DX
 	cwd				; DX is 0 or FFFFh
@@ -1025,7 +1055,7 @@ ENDPROC	peekNextToken
 ;	AL = operator
 ;
 ; Outputs:
-;	If carry clear, AL = op, AH = precedence, CX = args, DX = evaluator
+;	If carry clear, AL = op, AH = precedence, CX = # args, DX = evaluator
 ;
 ; Modifies:
 ;	AH, CX, DX
@@ -1035,32 +1065,38 @@ DEFPROC	validateOp
 	xchg	dx,ax			; DL = operator to validate
 	mov	al,CLS_SYM
 	call	peekNextToken
-	jbe	vo6
+	jbe	vo2
 	mov	dh,al			; DX = potential 2-character operator
 	mov	si,offset RELOPS
+
 vo1:	lods	word ptr cs:[si]
 	test	al,al
-	jz	vo6
+	jz	vo2
 	cmp	ax,dx			; match?
 	lods	byte ptr cs:[si]
 	jne	vo1
 	mov	bx,[pTokNext]
 	xchg	dx,ax			; DL = (new) operator to validate
-vo6:	mov	ah,dl			; AH = operator to validate
+vo2:	mov	ah,dl			; AH = operator to validate
 	mov	si,offset OPDEFS
-vo7:	lods	byte ptr cs:[si]
+vo3:	lods	byte ptr cs:[si]
 	test	al,al
 	stc
 	jz	vo9			; not valid
 	cmp	al,ah			; match?
-	je	vo8			; yes
+	je	vo7			; yes
 	add	si,size OPDEF - 1
-	jmp	vo7
-vo8:	lods	byte ptr cs:[si]	; AL = precedence, AH = operator
-	xchg	dx,ax
-	lods	byte ptr cs:[si]
-	cbw
-	xchg	cx,ax
+	jmp	vo3
+
+vo7:	lods	byte ptr cs:[si]	; AL = precedence, AH = operator
+	sub	cx,cx			; default to 0 args
+	cmp	al,2			; precedence <= 2?
+	jbe	vo8			; yes
+	inc	cx			; no, so op requires at least 1 arg
+	test	al,1			; odd precedence?
+	jnz	vo8			; yes, just 1 arg
+	inc	cx			; no, op requires 2 args
+vo8:	xchg	dx,ax
 	lods	word ptr cs:[si]	; AX = evaluator
 	xchg	dx,ax			; DX = evaluator, AX = op/prec
 vo9:	xchg	al,ah			; AL = operator, AH = precedence

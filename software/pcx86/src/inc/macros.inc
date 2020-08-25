@@ -335,6 +335,26 @@ ASSUME1	macro	segreg,segment
 	ENDIF
 	endm
 
+;
+; Use this macro (ie, REPMOV byte,CS instead of rep movsb cs:...) to avoid
+; an errata on the 8086.
+;
+; See: https://www.pcjs.org/documents/manuals/intel/8086/ for details.
+;
+; MASM 4.0 appears to know that it must generate the REP prefix before the
+; segment prefix, and hopefully all other assemblers do as well.
+;
+; Fortunately, PCjs simulates the errata, so I was able to catch it.
+; TODO: It would be even better if PCjs displayed a warning when it happened.
+;
+REPMOV	macro	msize,mseg
+	local	rmb1,rmb2
+rmb1:	rep	movs msize ptr es:[di],msize ptr mseg:[si]
+	jcxz	rmb2
+	jmp	rmb1
+rmb2:
+	endm
+
 PRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	FPRINTF	DOS_UTL_PRINTF,<format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	endm

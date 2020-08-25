@@ -237,19 +237,8 @@ DEFPROC	dsk_ffirst,DOS
 	push	si
 	mov	cx,11
 	mov	si,offset file_name + 1	; FFB_FILESPEC
-;
-; TODO: MASM 4.0 generates the REP prefix before the CS: prefix,
-; but if we ever use a different assembler, this must be re-verified.
-;
-; See: https://www.pcjs.org/documents/manuals/intel/8086/ for errata details.
-;
-; Fortunately, PCjs simulates the errata, so I was able to catch it; however,
-; it would be even better if PCjs displayed a warning when it happened.
-;
-ff1:	rep	movs byte ptr es:[di],byte ptr cs:[si]
-	jcxz	ff2
-	jmp	ff1
-ff2:	pop	si
+	REPMOV	byte,CS
+	pop	si
 	pop	cx
 	add	di,size FFB_PADDING
 	ASSERT	Z,<cmp di,80h + offset FFB_DIRNUM>

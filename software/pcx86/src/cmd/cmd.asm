@@ -155,7 +155,7 @@ m3:	mov	di,dx			; ES:DI -> FILENAME
 	add	di,cx			; append .EXE
 	mov	si,offset EXE_EXT
 	mov	cx,EXE_EXT_LEN
-	rep	movs byte ptr es:[di],byte ptr cs:[si]
+	REPMOV	byte,CS
 	pop	di
 	mov	ah,DOS_DSK_FFIRST
 	int	21h			; find file (DS:DX) with attrs (CX=0)
@@ -166,7 +166,7 @@ m3:	mov	di,dx			; ES:DI -> FILENAME
 	add	di,cx			; append .COM
 	mov	si,offset COM_EXT
 	mov	cx,COM_EXT_LEN
-	rep	movs byte ptr es:[di],byte ptr cs:[si]
+	REPMOV	byte,CS
 	pop	cx
 	jmp	m5
 ;
@@ -498,7 +498,7 @@ dir2:	add	di,si			; DI -> end of filespec
 	push	si
 	mov	cx,DIR_DEF_LEN
 	mov	si,offset DIR_DEF
-	rep	movs byte ptr es:[di],byte ptr cs:[si]
+	REPMOV	byte,CS
 	pop	si
 
 dir3:	sub	cx,cx			; CX = attributes
@@ -757,6 +757,7 @@ lf5:	mov	[lineOffset],si
 	dec	si
 
 lf6:	push	bx
+	push	cx
 	push	dx
 	mov	bl,10
 	mov	cx,-1			; CX = unknown length
@@ -765,6 +766,7 @@ lf6:	push	bx
 	ASSERT	Z,<test dx,dx>		; DX:AX is the result but keep only AX
 	mov	[lineLabel],ax
 	pop	dx
+	pop	cx
 	pop	bx
 ;
 ; We've extracted the label #, if any; skip over any intervening space.

@@ -34,7 +34,12 @@ DDC_GETLOGDEV	equ	23	; Get Logical Device
 DDC_SETLOGDEV	equ	24	; Set Logical Device
 
 ;
-; Device driver packets, starting with the 13-byte packet header (DDP)
+; Device driver packets, starting with the 13-byte packet header (DDP).
+;
+; Strangely, PC DOS defined only the first 5 bytes (through DDP_STATUS),
+; leaving one to wonder what the other 8 bytes were used for.  BASIC-DOS
+; puts them to good use, however.  For example, the DDP_CONTEXT field
+; provides critical context (ie, session) information to our CONSOLE driver.
 ;
 DDP		struc
 DDP_LEN		db	?	; 00h: length of packet
@@ -46,7 +51,6 @@ DDP_CONTEXT	dw	?	; 06h: device context, if any
 DDP_PTR		dd	?	; 08h: optional driver-specific pointer
 DDP_UNUSED	db	?	; 0Ch
 DDP		ends
-
 DDPSIG		equ	'D'
 
 DDSTAT_ERROR	equ	8000h
@@ -101,22 +105,6 @@ DDPRW_BPB	dd	?	; 18h: pointer to BPB
 DDPRW		ends
 
 DDP_MAXSIZE	equ	((size DDPRW + 1) AND 0FFFEh)
-
-;
-; IOCTL operations for assorted devices
-;
-IOCTL_CLOCK	equ	0C0h
-IOCTL_WAIT	equ	0C1h	; CLOCK$: wait # ticks in DDPRW_ADDR field
-
-IOCTL_CON	equ	0D0h
-IOCTL_GETDIM	equ	0D1h	; CON: get context dimensions
-IOCTL_GETPOS	equ	0D2h	; CON: get cursor position
-IOCTL_GETLEN	equ	0D3h	; CON: get displayed length of data
-IOCTL_MOVCUR	equ	0D4h	; CON: move cursor by DDPRW_LENGTH positions
-IOCTL_SETINS	equ	0D5h	; CON: set INSERT mode ON (CL=1) or OFF (CL=0)
-IOCTL_SCROLL	equ	0D6h	; CON: scroll (or clear) interior of context
-IOCTL_GETCOLOR	equ	0D7h	; CON: get fill (DL) and border (DH) colors
-IOCTL_SETCOLOR	equ	0D8h	; CON: set fill (CL) and border (CH) colors
 
 ;
 ; Helper macro to define the overall length of a device driver;

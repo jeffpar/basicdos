@@ -27,7 +27,7 @@ DOS	segment word public 'CODE'
 ;
 ; utl_strlen (AX = 1800h or 1824h)
 ;
-; Returns the length of the REG_DS:SI string in AX, using the terminator in AL.
+; Return the length of the REG_DS:SI string in AX, using the terminator in AL.
 ;
 ; Modifies:
 ;	AX
@@ -128,7 +128,7 @@ ENDPROC	utl_strstr
 ;
 ; utl_strupr (AX = 1803h)
 ;
-; Makes the string at REG_DS:SI with length CX upper-case; use length 0
+; Make the string at REG_DS:SI with length CX upper-case; use length 0
 ; if null-terminated.
 ;
 ; Outputs:
@@ -289,15 +289,19 @@ ENDPROC	utl_sprintf
 ; utl_atoi16 (AX = 1807h)
 ;
 ; Convert string at DS:SI to number in AX using base BL, using validation
-; values at ES:DI.
+; values at ES:DI.  It will also advance SI past the first non-digit character
+; to facilitate parsing of a series of delimited, validated numbers.
 ;
-; ES:DI must point to a triplet of (def,min,max) 16-bit values; and like SI,
-; DI will be advanced, making it easy to parse a series of values, each with
-; their own set of (def,min,max) values.
+; For validation, ES:DI must point to a triplet of (def,min,max) 16-bit values
+; and like SI, DI will be advanced, making it easy to parse a series of values,
+; each with their own set of (def,min,max) values.
+;
+; For no validation (and to leave SI pointing to the first non-digit), set
+; DI to -1.
 ;
 ; Returns:
 ;	AX = value, DS:SI -> next character (ie, AFTER first non-digit)
-;	Carry will be set on a validation error, but AX will ALWAYS be valid
+;	Carry set on a validation error (AX will be set to the default value)
 ;
 ; Modifies:
 ;	AX, CX, DX, SI, DI, DS, ES
@@ -428,14 +432,11 @@ ENDPROC utl_atoi16
 ;
 ; Convert string at DS:SI (with length CX) to number in DX:AX using base BL.
 ;
-; Note these differences from ATOI16:
+; Note these differences from utl_atoi16:
 ;
-;	1) Validation data is not supported
-;	2) CX should contain the exact length (-1 if unknown)
-;	2) SI points to the first unprocessed character, not PAST it
-;
-; ATOI16 advances SI past the first non-digit character to facilitate parsing
-; of a series of delimited, validated numbers.
+;	1) Validation data is not supported (DI is preset to -1)
+;	2) CX should contain the exact length (use -1 if unknown)
+;	2) SI will point to the first unprocessed character, not PAST it
 ;
 ; Returns:
 ;	Carry clear if one or more digits, set otherwise
@@ -565,7 +566,7 @@ tf6a:	mov	al,ch			; AL = previous classification
 	lea	cx,[si-1]		; SI = end of token
 	sub	cx,dx			; CX = length of token
 
-	IFDEF DEBUG
+	IFDEF MAXDEBUG
 	cmp	byte ptr [bp].TMP_AL,-1
 	jne	tf6b
 	push	ax
