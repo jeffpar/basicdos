@@ -69,8 +69,9 @@ DEFPROC	allocBlock
 ab1:	sub	ax,ax
 	sub	cx,di
 	shr	cx,1
-	ASSERT	NC
 	rep	stosw			; zero out the rest of the block
+	jnc	ab2
+	stosb
 ;
 ; Block is initialized, append to the header chain now.
 ;
@@ -146,12 +147,14 @@ ENDPROC	freeBlock
 ;	CX, SI
 ;
 DEFPROC	freeAllBlocks
+	push	es
 fa1:	mov	cx,[si]
 	jcxz	fa9			; end of chain
 	mov	es,cx
 	call	freeBlock		; ES = segment of block to free
 	jmp	fa1
-fa9:	ret
+fa9:	pop	es
+	ret
 ENDPROC	freeAllBlocks
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -252,9 +255,10 @@ DEFPROC	allocVars
 	mov	si,ds:[PSP_HEAP]
 	lea	si,[si].VARS_BLK
 	cmp	[si].BLK_NEXT,0
-	jne	fa9
+	jne	al9
 	mov	cx,VBLKLEN
 	jmp	allocBlock
+al9:	ret
 ENDPROC	allocVars
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -270,7 +274,7 @@ ENDPROC	allocVars
 ;	Carry clear if successful, set if error
 ;
 ; Modifies:
-;	AX, CX, SI
+;	CX, SI
 ;
 DEFPROC	freeVars
 	mov	si,ds:[PSP_HEAP]
@@ -313,7 +317,7 @@ ENDPROC	allocStrSpace
 ;	Carry clear if successful, set if error
 ;
 ; Modifies:
-;	AX, CX, SI
+;	CX, SI
 ;
 DEFPROC	freeStrSpace
 	mov	si,ds:[PSP_HEAP]

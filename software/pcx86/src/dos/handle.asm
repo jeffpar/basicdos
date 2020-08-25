@@ -324,7 +324,7 @@ ENDPROC	sfb_open
 ;	On failure, carry set, AX = error code
 ;
 ; Modifies:
-;	AX, CX, DX, SI, DI
+;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	sfb_read,DOS
 	ASSUMES	<DS,DOS>,<ES,NOTHING>
@@ -457,9 +457,8 @@ sr8:	push	ds
 	mov	dx,[bx].SFB_CONTEXT
 	pop	ds
 	ASSUME	DS:NOTHING		; DS:SI -> data buffer (from ES:DX)
-	push	ax			; AL = I/O mode
+	mov	bl,al			; BL = I/O mode
 	call	dev_request		; issue the DDC_READ request
-	pop	dx			; DL = I/O mode
 	jc	sr8a
 ;
 ; If the driver is a STDIN device, and the I/O request was not "raw", then
@@ -469,8 +468,8 @@ sr8:	push	ds
 	test	es:[di].DDH_ATTR,DDATTR_STDIN
 	jz	sr8a
 	ASSERT	IO_RAW,EQ,0
-	test	dl,dl			; IO_RAW request?
-	jz	sr8a			; yes
+	test	bl,bl			; IO_RAW (or IO_DIRECT) request?
+	jle	sr8a			; yes
 	cmp	byte ptr [si],CHR_CTRLC
 	clc
 	jne	sr8a
@@ -536,7 +535,7 @@ ENDPROC	sfb_seek
 ;	On failure, AX = error code, carry set
 ;
 ; Modifies:
-;	AX, DX, DI, ES
+;	AX, BX, DX, DI, ES
 ;
 DEFPROC	sfb_write,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
@@ -554,8 +553,9 @@ sw7:	mov	ah,DDC_WRITE
 ;
 	test	es:[di].DDH_ATTR,DDATTR_STDOUT
 	jz	sw8
-	cmp	al,IO_RAW
-	je	sw8
+	ASSERT	IO_RAW,EQ,0
+	test	al,al			; IO_RAW (or IO_DIRECT) request?
+	jle	sw8			; yes
 	mov	bx,cs:[scb_active]	; TODO: always have an scb_active
 	test	bx,bx
 	jz	sw8
@@ -566,7 +566,6 @@ sw7:	mov	ah,DDC_WRITE
 	jmp	msc_sigctrlc_read
 
 sw8:	call	dev_request		; issue the DDC_WRITE request
-
 sw9:	ret
 ENDPROC	sfb_write
 

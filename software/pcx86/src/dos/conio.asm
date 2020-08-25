@@ -68,7 +68,34 @@ DEFPROC	prn_write,DOS
 	ret
 ENDPROC	prn_write
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; tty_io (REG_AH = 06h)
+;
+; Inputs:
+;	DL = 0FFh for input check
+;	DL = character to output otherwise
+;
+; Outputs:
+;	AL = input character if ZF clear; no CTRLC checking is performed
+;
+; Modifies:
+;	AX
+;
 DEFPROC	tty_io,DOS
+	cmp	dl,0FFh			; input request?
+	je	tio1			; yes
+	xchg	ax,dx			; AL = character to write
+	call	write_char
+tio0:	clc
+	ret
+
+tio1:	mov	al,IO_DIRECT
+	or	[bp].REG_FL,FL_ZERO
+	call	read_char
+	jc	tio0
+	mov	[bp].REG_AL,al
+	and	[bp].REG_FL,NOT FL_ZERO
 	ret
 ENDPROC	tty_io
 
@@ -831,10 +858,10 @@ ENDPROC	tty_flush
 ; read_char
 ;
 ; Inputs:
-;	AL = IO_RAW or IO_COOKED
+;	AL = IO_RAW, IO_COOKED, or IO_DIRECT
 ;
 ; Outputs:
-;	AL = character
+;	If carry clear, AL = character; otherwise, carry set
 ;
 ; Modifies:
 ;	AX

@@ -134,12 +134,11 @@ TBLKSIG		equ	'T'
 TBLKLEN		equ	1024		; default text block size
 
 ;
-; Operator Definition
+; Operator definition
 ;
 OPDEF		struc
 OP_CHR		db	?		; ASCII character
 OP_PREC		db	?		; precedence value
-OP_ARGS		db	?		; # of operator arguments
 OP_EVAL		dw	?		; offset of evaluator
 OPDEF		ends
 
@@ -205,9 +204,8 @@ PUSH_DS_DX macro
 ;
 ; Define the heap as a structure.  The first few fields (ie, all the BLK
 ; headers) are statically initialized, but the rest are left undefined so
-; that they won't take up any space in the COM file.  The loader's heap
-; logic will ensure that the remaining fields are zero-initialized (although
-; I don't think any of the code here currently depends on that).
+; that they won't take up any space in the COM file.  The BASIC-DOS loader
+; ensures that the remaining fields are zero-initialized.
 ;
 CMD_HEAP	struc
 CODE_BLK	db	size BLK_DEF dup (?)

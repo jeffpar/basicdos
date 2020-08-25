@@ -25,6 +25,7 @@ DEFPROC	main
 	je	s1
 	inc	si
 	mov	bl,10
+	mov	cx,-1
 	mov	ax,DOS_UTL_ATOI32
 	int	21h		; DX:AX = value (# of seconds)
 ;

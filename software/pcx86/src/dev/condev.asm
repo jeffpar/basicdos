@@ -25,8 +25,8 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 
 	DEFLBL	IOCTBL,word
 	dw	ddcon_none,   ddcon_getdim, ddcon_getpos, ddcon_getlen
-	dw	ddcon_movcur, ddcon_setins, ddcon_scroll, ddcon_getcolor
-	dw	ddcon_setcolor
+	dw	ddcon_movcur, ddcon_setins, ddcon_scroll, ddcon_getclr
+	dw	ddcon_setclr
 	DEFABS	IOCTBL_SIZE,<($ - IOCTBL) SHR 1>
 
 	DEFLBL	CON_PARMS,word
@@ -153,7 +153,8 @@ DEFPROC	ddcon_ioctl
 dio0:	mov	bl,0
 dio1:	mov	bh,0
 	add	bx,bx
-	mov	cx,es:[di].DDPRW_LENGTH
+	mov	cx,es:[di].DDPRW_LENGTH	; CX = IOCTL input value
+	mov	dx,es:[di].DDPRW_LBA	; DX = IOCTL input value
 	push	di			; some of the IOCTL subfunctions
 	push	es			; modify DI and ES, so we save them
 	call	IOCTBL[bx]
@@ -227,7 +228,8 @@ ENDPROC	ddcon_getpos
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
-;	CX = DDPRW_LENGTH (starting cursor position; see IOCTL_GETPOS)
+;	CX = number of bytes (up to 255)
+;	DX = starting cursor position; see IOCTL_GETPOS
 ;	DS = CONSOLE context
 ;
 ; Outputs:
@@ -238,7 +240,7 @@ ENDPROC	ddcon_getpos
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_getlen
-	mov	bx,es:[di].DDPRW_LBA	; BX = starting cursor position
+	mov	bx,dx			; BX = starting cursor position
 	add	bx,ds:[CT_CURMIN]	; zero-based, so adjust to our mins
 	sub	dx,dx			; DL = current len, DH = previous len
 	mov	ah,ds:[CT_CURMAX].LOB	; AH = column max
@@ -292,7 +294,7 @@ ENDPROC	ddcon_getlen
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
-;	CX = DDPRW_LENGTH (+/- columns to move cursor horizontally)
+;	CX = +/- columns to move cursor horizontally
 ;	DS = CONSOLE context
 ;
 ; Outputs:
@@ -313,7 +315,7 @@ ENDPROC	ddcon_movcur
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
-;	CX = DDPRW_LENGTH (0 to clear insert mode, 1 to set)
+;	CX = 0 to clear insert mode, 1 to set
 ;	DS = CONSOLE context
 ;
 ; Outputs:
@@ -355,7 +357,7 @@ ENDPROC	ddcon_setins
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
-;	CX = DDPRW_LENGTH (+/- lines to scroll, 0 to clear)
+;	CX = +/- lines to scroll, 0 to clear
 ;	DS = CONSOLE context
 ;
 ; Outputs:
@@ -380,7 +382,7 @@ ENDPROC	ddcon_scroll
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddcon_getcolor
+; ddcon_getclr
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
@@ -394,19 +396,19 @@ ENDPROC	ddcon_scroll
 ;	DX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	ddcon_getcolor
+DEFPROC	ddcon_getclr
 	mov	dx,ds:[CT_COLOR]
 	ret
-ENDPROC	ddcon_getcolor
+ENDPROC	ddcon_getclr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ddcon_setcolor
+; ddcon_setclr
 ;
 ; Inputs:
 ;	ES:DI -> DDPRW
-;	CL = fill attributes (from DDPRW_LENGTH.LOB)
-;	CH = border attributes (from DDPRW_LENGTH.HIB)
+;	CL = fill attributes
+;	CH = border attributes
 ;	DS = CONSOLE context
 ;
 ; Outputs:
@@ -416,14 +418,14 @@ ENDPROC	ddcon_getcolor
 ;	AX, BX, CX, DX, SI, DI, ES
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	ddcon_setcolor
+DEFPROC	ddcon_setclr
 	mov	ax,cx
 	xchg	ds:[CT_COLOR],ax
 	cmp	ah,ch			; border color changed?
 	je	sc9			; no
 	call	draw_border
 sc9:	ret
-ENDPROC	ddcon_setcolor
+ENDPROC	ddcon_setclr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -437,26 +439,42 @@ ENDPROC	ddcon_setcolor
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_read
 	mov	cx,es:[di].DDPRW_LENGTH
-	jcxz	dcr9
-
+	jcxz	dcr8
+;
+; If the current context doesn't have focus, then we're not going to
+; bother checking the keyboard buffer.  We still won't block non-blocking
+; requests, but no data will be returned as long as we're out-of-focus.
+;
 	cli
+	mov	dx,es:[di].DDP_CONTEXT
+	cmp	dx,[ct_focus]
+	jne	dcr0
+
 	call	pull_kbd
-	jnc	dcr9
+	jnc	dcr8
 ;
 ; For READ requests that cannot be satisifed, we add this packet to an
 ; internal chain of "reading" packets, and then tell DOS that we're waiting;
 ; DOS will suspend the current SCB until we notify DOS that this packet's
 ; conditions are satisfied.
 ;
-	mov	ds,es:[di].DDP_CONTEXT
+; For character devices, DDP_UNIT contains the I/O mode (IO_RAW, IO_COOKED,
+; or IO_DIRECT).
+;
+dcr0:	cmp	es:[di].DDP_UNIT,0
+	jge	dcr1		; normal blocking request (not IO_DIRECT)
+	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_NOTREADY
+	jmp	short dcr9
+
+dcr1:	mov	ds,dx
 	ASSUME	DS:NOTHING
 	ASSERT	STRUCT,ds:[0],CT
 	or	ds:[CT_STATUS],CTSTAT_INPUT
-
 	call	add_packet
-dcr9:	sti
 
-	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+dcr8:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+
+dcr9:	sti
 	ret
 ENDPROC	ddcon_read
 
