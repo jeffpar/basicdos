@@ -382,16 +382,3 @@ FPRINTF	macro	func,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	add	sp,argc * 2
 	ENDIF
 	endm
-;
-; Operation checks are sprinkled throughout DEBUG builds to help perform
-; verification tests.
-;
-OP_MUL32	equ	01h
-OP_DIV32	equ	02h
-
-OPCHECK	macro	op
-	IFDEF	DEBUG
-	mov	cl,op
-	int	06h
-	ENDIF
-	endm
