@@ -137,34 +137,56 @@ m2b:	jmp	m1
 ;
 ; Not a drive letter, so presumably DS:SI contains a program name.
 ;
-m3:	mov	ax,offset PERIOD
+m3:	mov	dx,offset PERIOD
 	call	chkString		; any periods in string at DS:SI?
 	jnc	m4			; yes
 ;
-; There's no period, so we'll append .EXE, not because we prefer .EXE,
-; but because if no .EXE exists, we want to revert to .COM.
+; There's no period, so append extensions in a well-defined order:
+; .COM, .EXE, .BAT, and finally .BAS.
 ;
-	mov	ax,offset EXE_EXT
-	call	addString
+	mov	dx,offset COM_EXT
+m3a:	call	addString
 	call	findFile
-	jnc	m5
-	mov	ax,offset COM_EXT
-	call	addString
-	jmp	m5
+	jnc	m4
+	add	dx,COM_EXT_LEN
+	cmp	dx,offset BAS_EXT
+	jbe	m3a
+	mov	dx,di			; DX -> FILENAME
+	add	di,cx			; every extension failed
+	mov	byte ptr [di],0		; so clear the last one we tried
+	mov	ax,ERR_NOFILE		; and report an error
+	jmp	short m4a
 ;
-; The token contains a period, so let's verify the extension is valid
-; (ie, .COM or .EXE); we don't want people running, say, "CONFIG.SYS".
+; The filename contains a period, so let's verify the extension and the
+; action; for example, only .COM or .EXE files should be EXEC'ed (it would
+; not be a good idea to execute, say, CONFIG.SYS).
 ;
-m4:	mov	ax,offset COM_EXT
+m4:	mov	dx,offset COM_EXT
 	call	chkString
 	jnc	m5
-	mov	ax,offset EXE_EXT
+	mov	dx,offset EXE_EXT
 	call	chkString
 	jnc	m5
-	mov	ax,ERR_INVALID
-	jmp	short m8		; looks like neither, report an error
+	mov	dx,offset BAT_EXT
+	call	chkString
+	jnc	m4b
+	mov	dx,offset BAS_EXT
+	call	chkString
+	jnc	m4b
+	mov	dx,di			; filename was none of the above
+	mov	ax,ERR_INVALID		; so report an error
+m4a:	jmp	short m8
 ;
-; It looks like we have a valid program name, so prepare to exec.
+; BAT files are LOAD'ed and then immediately RUN.  We'll do the same for
+; BAS files, too.  Use the "LOAD" command to load without running.
+;
+m4b:	call	cmdLoad
+	jc	m4c			; don't RUN if there was a LOAD error
+	mov	bx,ds:[PSP_HEAP]	; don't assume cmdLoad preserved BX
+	call	cmdRun
+m4c:	jmp	m1
+;
+; COM and EXE files are EXEC'ed, which requires building EXECDATA.
 ;
 m5:	mov	dx,si			; DS:DX -> filename
 	lea	si,[bx].INPUTBUF.INP_BUF
@@ -190,7 +212,7 @@ m6:	lodsb
 	mov	[bx].EPB_FCB2.SEG,es
 
 	mov	ax,DOS_PSP_EXEC
-	int	21h			; exec program at DS:DX
+	int	21h			; EXEC program at DS:DX
 	jc	m8
 	mov	ah,DOS_PSP_RETCODE
 	int	21h
@@ -505,7 +527,7 @@ dir4:	lea	si,ds:[PSP_DTA].FFB_NAME
 	mov	ax,DOS_UTL_STRLEN
 	int	21h
 	xchg	cx,ax			; CX = total length
-	mov	ax,offset PERIOD
+	mov	dx,offset PERIOD
 	call	chkString		; does the filename contain a period?
 	jc	dir5			; no
 	mov	ax,di
@@ -651,26 +673,28 @@ ENDPROC	cmdList
 ; TODO: Shrink the final text block to the amount of text actually loaded.
 ;
 ; Inputs:
+;	DS:BX -> heap
 ;	DS:SI -> filespec (with length CX)
 ;
 ; Outputs:
-;	None
+;	Carry clear if successful, set if error (the main function doesn't
+;	care whether this succeeds, but other callers do).
 ;
 ; Modifies:
 ;	Any
 ;
 DEFPROC	cmdLoad
-	mov	ax,offset PERIOD
+	mov	dx,offset PERIOD
 	call	chkString
 	jnc	lf1			; period exists, use filename as-is
-	mov	ax,offset BAS_EXT
+	mov	dx,offset BAS_EXT
 	call	addString
 
 lf1:	call	openFile		; open the specified file
 	jnc	lf1b
 	cmp	si,di			; was there an extension?
 	jne	lf1a			; yes, give up
-	mov	ax,offset BAT_EXT
+	mov	dx,offset BAT_EXT
 	call	addString
 	sub	di,di			; zap DI so that we don't try again
 	jmp	lf1
@@ -813,8 +837,11 @@ lf8:	mov	ax,[lineLabel]
 lf10:	PRINTF	<"Invalid file format",13,10>
 
 lf11:	call	freeText
+	stc
 
-lf12:	call	closeFile
+lf12:	pushf
+	call	closeFile
+	popf
 	ret
 ENDPROC	cmdLoad
 
@@ -889,23 +916,23 @@ ENDPROC	cmdType
 ;
 ; addString
 ;
-; Copy a source string (CS:AX) to the end of a target string (DS:DI).
+; Copy a source string (CS:DX) to the end of a target string (DS:DI).
 ;
 ; Inputs:
-;	CS:AX -> source
+;	CS:DX -> source
 ;	DS:DI -> target (with length CX)
 ;
 ; Outputs:
 ;	None
 ;
 ; Modifies:
-;	AX, DI
+;	AX
 ;
 DEFPROC	addString
 	push	si
 	push	di
 	add	di,cx
-	xchg	si,ax
+	mov	si,dx
 as1:	lods	byte ptr cs:[si]
 	stosb
 	test	al,al
@@ -919,10 +946,10 @@ ENDPROC	addString
 ;
 ; chkString
 ;
-; Check the target string (DS:SI) for the source string (CS:AX).
+; Check the target string (DS:SI) for the source string (CS:DX).
 ;
 ; Inputs:
-;	CS:AX -> source
+;	CS:DX -> source
 ;	DS:SI -> target
 ;
 ; Outputs:
@@ -934,7 +961,7 @@ ENDPROC	addString
 DEFPROC	chkString
 	mov	di,si			; ES:DI -> target
 	push	si
-	xchg	si,ax			; CS:SI -> source
+	mov	si,dx			; CS:SI -> source
 	mov	ax,DOS_UTL_STRSTR
 	int	21h			; if carry clear, DI updated
 	pop	si
@@ -1051,17 +1078,19 @@ ENDPROC	readFile
 ;	DS:SI -> filename
 ;
 ; Outputs:
-;	If carry clear, file found
+;	Carry clear if file found, set otherwise (AX = error #)
 ;
 ; Modifies:
-;	AX, DX
+;	AX
 ;
 DEFPROC	findFile
 	push	cx
+	push	dx
 	sub	cx,cx
 	mov	dx,si
 	mov	ah,DOS_DSK_FFIRST
 	int	21h			; find file (DS:DX) with attrs (CX=0)
+	pop	dx
 	pop	cx
 	ret
 ENDPROC	findFile

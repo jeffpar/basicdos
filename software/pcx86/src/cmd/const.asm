@@ -20,14 +20,14 @@ CODE    SEGMENT
 	EXTERNS	<evalEQLong,evalNELong,evalLTLong,evalGTLong>,near
 	EXTERNS	<evalLELong,evalGELong,evalShlLong,evalShrLong>,near
 
-	DEFSTR	COM_EXT,<".COM",0>
-	DEFSTR	EXE_EXT,<".EXE",0>
-	DEFSTR	BAS_EXT,<".BAS",0>
+	DEFSTR	COM_EXT,<".COM",0>	; these 4 file extensions must be
+	DEFSTR	EXE_EXT,<".EXE",0>	; listed in the desired search order
 	DEFSTR	BAT_EXT,<".BAT",0>
+	DEFSTR	BAS_EXT,<".BAS",0>
 	DEFSTR	DIR_DEF,<"*.*",0>
 	DEFSTR	PERIOD,<".",0>
 	DEFSTR	SYS_MEM,<"<SYS>",0>
-	DEFSTR	DOS_MEM,<"DOS",0>
+	DEFSTR	DOS_MEM,<"<DOS>",0>
 	DEFSTR	FREE_MEM,<"<FREE>",0>
 ;
 ; Table of operators
