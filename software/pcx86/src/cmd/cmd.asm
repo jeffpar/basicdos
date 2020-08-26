@@ -117,11 +117,10 @@ m1a:	push	cx
 	mov	[pHandler],dx
 	jmp	m9			; token ID in AX
 ;
-; First token is unrecognized, so we'll assume it's either a drive
-; specification or a program name.
+; First token is unrecognized, so we'll assume DS:SI contains either
+; a drive specification or a program name.
 ;
-m2:	mov	dx,si			; DS:DX -> FILENAME
-	cmp	cl,2			; two characters only?
+m2:	cmp	cl,2			; two characters only?
 	jne	m3			; no
 	cmp	byte ptr [si+1],':'
 	jne	m3			; not a valid drive specification
@@ -136,56 +135,39 @@ m2:	mov	dx,si			; DS:DX -> FILENAME
 m2a:	PRINTF	<"Drive %c: invalid",13,10>,cx
 m2b:	jmp	m1
 ;
-; Not a drive letter, so presumably a program name.
+; Not a drive letter, so presumably DS:SI contains a program name.
 ;
-m3:	mov	di,dx			; ES:DI -> FILENAME
-	mov	al,'.'
-	push	cx
-	push	di
-	repne	scasb			; any periods in FILENAME?
-	pop	di
-	pop	cx
-	je	m4			; yes
+m3:	mov	ax,offset PERIOD
+	call	chkString		; any periods in string at DS:SI?
+	jnc	m4			; yes
 ;
-; First we're going to append .EXE, not because we prefer .EXE (we don't),
+; There's no period, so we'll append .EXE, not because we prefer .EXE,
 ; but because if no .EXE exists, we want to revert to .COM.
 ;
-	push	cx
-	push	di
-	add	di,cx			; append .EXE
-	mov	si,offset EXE_EXT
-	mov	cx,EXE_EXT_LEN
-	REPMOV	byte,CS
-	pop	di
-	mov	ah,DOS_DSK_FFIRST
-	int	21h			; find file (DS:DX) with attrs (CX=0)
-	pop	cx
+	mov	ax,offset EXE_EXT
+	call	addString
+	call	findFile
 	jnc	m5
-
-	push	cx
-	add	di,cx			; append .COM
-	mov	si,offset COM_EXT
-	mov	cx,COM_EXT_LEN
-	REPMOV	byte,CS
-	pop	cx
+	mov	ax,offset COM_EXT
+	call	addString
 	jmp	m5
 ;
 ; The token contains a period, so let's verify the extension is valid
 ; (ie, .COM or .EXE); we don't want people running, say, "CONFIG.SYS".
 ;
-m4:	mov	si,offset COM_EXT
-	mov	di,dx
-	mov	ax,DOS_UTL_STRSTR
-	int	21h			; verify FILENAME contains .COM
+m4:	mov	ax,offset COM_EXT
+	call	chkString
 	jnc	m5
-	mov	si,offset EXE_EXT
-	int	21h			; or .EXE
+	mov	ax,offset EXE_EXT
+	call	chkString
+	jnc	m5
 	mov	ax,ERR_INVALID
-	jc	m8			; looks like neither, report an error
+	jmp	short m8		; looks like neither, report an error
 ;
 ; It looks like we have a valid program name, so prepare to exec.
 ;
-m5:	lea	si,[bx].INPUTBUF.INP_BUF
+m5:	mov	dx,si			; DS:DX -> filename
+	lea	si,[bx].INPUTBUF.INP_BUF
 	add	si,cx			; DS:SI -> cmd tail after filename
 	lea	bx,[bx].EXECDATA
 	mov	[bx].EPB_ENVSEG,0
@@ -217,6 +199,7 @@ m6:	lodsb
 	mov	dh,0
 	PRINTF	<13,10,"Return code %d (%d)",13,10>,ax,dx
 	jmp	m1
+
 m8:	PRINTF	<"Error loading %s: %d",13,10>,dx,ax
 	jmp	m1
 ;
@@ -875,7 +858,7 @@ ENDPROC	cmdTime
 ;
 ; cmdType
 ;
-; Reads the specified file and writes it to STDOUT.
+; Read the specified file and write the contents to STDOUT.
 ;
 ; Inputs:
 ;	DS:SI -> filespec (with length CX)
@@ -906,7 +889,7 @@ ENDPROC	cmdType
 ;
 ; addString
 ;
-; Copies a source string (CS:AX) to the end of a target string (DS:DI).
+; Copy a source string (CS:AX) to the end of a target string (DS:DI).
 ;
 ; Inputs:
 ;	CS:AX -> source
@@ -923,7 +906,7 @@ DEFPROC	addString
 	push	di
 	add	di,cx
 	xchg	si,ax
-as1:	lodsb
+as1:	lods	byte ptr cs:[si]
 	stosb
 	test	al,al
 	jnz	as1
@@ -936,7 +919,7 @@ ENDPROC	addString
 ;
 ; chkString
 ;
-; Checks the target string (DS:SI) for the source string (CS:AX).
+; Check the target string (DS:SI) for the source string (CS:AX).
 ;
 ; Inputs:
 ;	CS:AX -> source
@@ -962,8 +945,8 @@ ENDPROC	chkString
 ;
 ; openFile
 ;
-; Opens the specified file; used by commands like "LOAD" and "TYPE".
-; As an added bonus, returns the size of the file in DX:AX.
+; Open the specified file; used by "LOAD" and "TYPE".
+; As an added bonus, return the size of the file in DX:AX.
 ;
 ; Inputs:
 ;	DS:SI -> filename
@@ -1032,7 +1015,7 @@ ENDPROC	closeFile
 ;
 ; readFile
 ;
-; Reads CX bytes from the default file into the buffer at DS:SI.
+; Read CX bytes from the default file into the buffer at DS:SI.
 ;
 ; Inputs:
 ;	CX = number of bytes
@@ -1057,6 +1040,31 @@ DEFPROC	readFile
 rf9:	pop	bx
 	ret
 ENDPROC	readFile
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; findFile
+;
+; Find the filename at DS:SI.
+;
+; Inputs:
+;	DS:SI -> filename
+;
+; Outputs:
+;	If carry clear, file found
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	findFile
+	push	cx
+	sub	cx,cx
+	mov	dx,si
+	mov	ah,DOS_DSK_FFIRST
+	int	21h			; find file (DS:DX) with attrs (CX=0)
+	pop	cx
+	ret
+ENDPROC	findFile
 
 CODE	ENDS
 
