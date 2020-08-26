@@ -88,7 +88,7 @@ ab4:	mov	[di],es			; chain updated
 	clc
 	jmp	short ab9
 
-ab8:	call	errorMemory
+ab8:	call	memError
 
 ab9:	pop	cx
 	pop	bx
@@ -793,7 +793,7 @@ ENDPROC	findStrSpace
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; errorMessage
+; memError
 ;
 ; Inputs:
 ;	AX = error #
@@ -804,12 +804,11 @@ ENDPROC	findStrSpace
 ; Modifies:
 ;	AX
 ;
-DEFPROC	errorMessage
-	DEFLBL	errorMemory,near
+DEFPROC	memError
 	PRINTF	<"Not enough memory (%#06x)",13,10>,ax
 	stc
 	ret
-ENDPROC	errorMessage
+ENDPROC	memError
 
 CODE	ENDS
 
