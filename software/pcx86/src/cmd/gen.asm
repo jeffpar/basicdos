@@ -13,7 +13,7 @@ CODE    SEGMENT
 
 	EXTERNS	<allocCode,freeCode,allocVars>,near
 	EXTERNS	<addVar,findVar,setVarLong>,near
-	EXTERNS	<appendStr,setStr,errorMemory>,near
+	EXTERNS	<appendStr,setStr,memError>,near
 	EXTERNS	<clearScreen,printArgs,setColor>,near
 
 	EXTERNS	<KEYWORD_TOKENS,KEYOP_TOKENS>,word
@@ -72,7 +72,7 @@ DEFPROC	genCode
 	lea	si,[si].INP_BUF
 	jmp	short gc4
 
-gce:	call	errorMemory
+gce:	call	memError
 gcx:	jmp	gc9
 
 gc1:	lea	si,[bx].TEXT_BLK
@@ -173,6 +173,7 @@ gc7:	pushf
 gc8:	jnc	gc9
 
 	PRINTF	<'Syntax error in line %d',13,10>,lineNumber
+	stc
 
 gc9:	LEAVE
 	ret

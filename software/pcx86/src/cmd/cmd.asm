@@ -15,7 +15,7 @@ CODE    SEGMENT
 	EXTERNS	<allocText,freeText,genCode>,near
 
 	EXTERNS	<KEYWORD_TOKENS>,word
-	EXTSTR	<COM_EXT,EXE_EXT,DIR_DEF,PERIOD>
+	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF,PERIOD>
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 
@@ -522,13 +522,9 @@ dir4:	lea	si,ds:[PSP_DTA].FFB_NAME
 	mov	ax,DOS_UTL_STRLEN
 	int	21h
 	xchg	cx,ax			; CX = total length
-	mov	di,si
-	push	si
-	mov	si,offset PERIOD
-	mov	ax,DOS_UTL_STRSTR
-	int	21h			; if carry clear, DI is updated
-	pop	si
-	jc	dir5
+	mov	ax,offset PERIOD
+	call	chkString		; does the filename contain a period?
+	jc	dir5			; no
 	mov	ax,di
 	sub	ax,si			; AX = partial filename length
 	inc	di			; DI -> character after period
@@ -681,15 +677,29 @@ ENDPROC	cmdList
 ;	Any
 ;
 DEFPROC	cmdLoad
-	call	openFile		; open the specified file
-	jc	h9
-	call	freeText		; free any pre-existing blocks
+	mov	ax,offset PERIOD
+	call	chkString
+	jnc	lf1			; period exists, use filename as-is
+	mov	ax,offset BAS_EXT
+	call	addString
+
+lf1:	call	openFile		; open the specified file
+	jnc	lf1b
+	cmp	si,di			; was there an extension?
+	jne	lf1a			; yes, give up
+	mov	ax,offset BAT_EXT
+	call	addString
+	sub	di,di			; zap DI so that we don't try again
+	jmp	lf1
+lf1a:	jmp	openError
+
+lf1b:	call	freeText		; free any pre-existing blocks
 	test	dx,dx
-	jnz	lf0a
+	jnz	lf2
 	add	ax,TBLKLEN
-	jnc	lf0b
-lf0a:	mov	ax,0FFFFh
-lf0b:	xchg	cx,ax			; CX = size of initial text block
+	jnc	lf2a
+lf2:	mov	ax,0FFFFh
+lf2a:	xchg	cx,ax			; CX = size of initial text block
 	mov	[pTextLimit],cx
 	call	allocText
 	jc	lf4y
@@ -701,14 +711,14 @@ lf0b:	xchg	cx,ax			; CX = size of initial text block
 	lea	bx,[bx].LINEBUF
 	sub	cx,cx			; DS:SI contains zero bytes now
 
-lf1:	jcxz	lf4
+lf3:	jcxz	lf4
 	push	cx
 	mov	dx,si			; save SI
-lf2:	lodsb
+lf3a:	lodsb
 	cmp	al,CHR_RETURN
-	je	lf3
-	loop	lf2
-lf3:	xchg	si,dx			; restore SI; DX is how far we got
+	je	lf3b
+	loop	lf3a
+lf3b:	xchg	si,dx			; restore SI; DX is how far we got
 	pop	cx
 	je	lf5			; we found the end of a line
 ;
@@ -744,7 +754,7 @@ lf4:	mov	si,bx			; DS:SI has been adjusted
 	jc	lf4x
 	add	cx,ax
 	jcxz	lf4y			; if file is exhausted, we're done
-	jmp	lf1
+	jmp	lf3
 lf4x:	jmp	lf10
 lf4y:	jmp	lf12
 ;
@@ -815,7 +825,7 @@ lf8:	mov	ax,[lineLabel]
 ;
 	lodsb
 	dec	cx
-	jmp	lf1
+	jmp	lf3
 
 lf10:	PRINTF	<"Invalid file format",13,10>
 
@@ -878,7 +888,7 @@ ENDPROC	cmdTime
 ;
 DEFPROC	cmdType
 	call	openFile		; SI -> filename
-	jc	of9
+	jc	openError
 	mov	si,PSP_DTA		; SI -> DTA (used as a read buffer)
 ty1:	mov	cx,size PSP_DTA		; CX = number of bytes to read
 	call	readFile
@@ -894,6 +904,62 @@ ENDPROC	cmdType
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; addString
+;
+; Copies a source string (CS:AX) to the end of a target string (DS:DI).
+;
+; Inputs:
+;	CS:AX -> source
+;	DS:DI -> target (with length CX)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, DI
+;
+DEFPROC	addString
+	push	si
+	push	di
+	add	di,cx
+	xchg	si,ax
+as1:	lodsb
+	stosb
+	test	al,al
+	jnz	as1
+	pop	di
+	pop	si
+	ret
+ENDPROC	addString
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chkString
+;
+; Checks the target string (DS:SI) for the source string (CS:AX).
+;
+; Inputs:
+;	CS:AX -> source
+;	DS:SI -> target
+;
+; Outputs:
+;	If carry clear, DI points to the first match; otherwise, DI = SI
+;
+; Modifies:
+;	AX, DI
+;
+DEFPROC	chkString
+	mov	di,si			; ES:DI -> target
+	push	si
+	xchg	si,ax			; CS:SI -> source
+	mov	ax,DOS_UTL_STRSTR
+	int	21h			; if carry clear, DI updated
+	pop	si
+	ret
+ENDPROC	chkString
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; openFile
 ;
 ; Opens the specified file; used by commands like "LOAD" and "TYPE".
@@ -904,7 +970,6 @@ ENDPROC	cmdType
 ;
 ; Outputs:
 ;	If carry clear, [hFile] is updated, and DX:AX is the file size
-;	If carry set, an error message was printed
 ;
 ; Modifies:
 ;	AX, DX
@@ -914,7 +979,7 @@ DEFPROC	openFile
 	mov	dx,si			; DX -> filename
 	mov	ax,DOS_HDL_OPEN SHL 8
 	int	21h
-	jc	of8
+	jc	of9
 	mov	[hFile],ax		; save file handle
 	xchg	bx,ax			; BX = handle
 	sub	cx,cx
@@ -928,10 +993,11 @@ DEFPROC	openFile
 	int	21h
 	pop	dx
 	pop	ax
-	jmp	short of9
-of8:	PRINTF	<"Unable to open %s (%d)",13,10>,dx,ax
-	stc
 of9:	pop	bx
+	ret
+	DEFLBL	openError,near
+	PRINTF	<"Unable to open %s (%d)",13,10>,dx,ax
+	stc
 	ret
 ENDPROC	openFile
 
