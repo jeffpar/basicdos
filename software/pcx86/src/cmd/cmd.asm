@@ -133,7 +133,7 @@ m2:	cmp	cl,2			; two characters only?
 	mov	ah,DOS_DSK_SETDRV
 	int	21h			; attempt to set the drive number in DL
 	jnc	m2b			; success
-m2a:	PRINTF	<"Drive %c: invalid",13,10>,cx
+m2a:	PRINTF	<"Drive %c: invalid",13,10,13,10>,cx
 m2b:	jmp	m1
 ;
 ; Not a drive letter, so presumably DS:SI contains a program name.
@@ -220,10 +220,10 @@ m6:	lodsb
 	mov	dl,ah
 	mov	ah,0
 	mov	dh,0
-	PRINTF	<13,10,"Return code %d (%d)",13,10>,ax,dx
+	PRINTF	<"Return code %d (%d)",13,10,13,10>,ax,dx
 	jmp	m1
 
-m8:	PRINTF	<"Error loading %s: %d",13,10>,dx,ax
+m8:	PRINTF	<"Error loading %s: %d",13,10,13,10>,dx,ax
 	jmp	m1
 ;
 ; We arrive here if the token was recognized.  The token ID determines
@@ -581,7 +581,7 @@ dir7:	xchg	ax,dx			; AX = total # of clusters used
 	mov	cx,[lenArg]
 	jmp	cmdDir
 
-dir8:	PRINTF	<"Unable to find %s (%d)",13,10>,si,ax
+dir8:	PRINTF	<"Unable to find %s (%d)",13,10,13,10>,si,ax
 	pop	bp
 
 dir9:	ret
@@ -835,7 +835,7 @@ lf8:	mov	ax,[lineLabel]
 	dec	cx
 	jmp	lf3
 
-lf10:	PRINTF	<"Invalid file format",13,10>
+lf10:	PRINTF	<"Invalid file format",13,10,13,10>
 
 lf11:	call	freeText
 	stc
@@ -909,7 +909,7 @@ DEFPROC	cmdVer
 	mov	cx,offset STD_VER
 	jz	ver9
 	mov	cx,offset DBG_VER
-ver9:	PRINTF	<"BASIC-DOS Version %d.%d%d %ls",13,10>,ax,dx,bx,cx,cs
+ver9:	PRINTF	<"BASIC-DOS Version %d.%d%d %ls",13,10,13,10>,ax,dx,bx,cx,cs
 	ret
 ENDPROC	cmdver
 
@@ -982,7 +982,7 @@ DEFPROC	openFile
 of9:	pop	bx
 	ret
 	DEFLBL	openError,near
-	PRINTF	<"Unable to open %s (%d)",13,10>,dx,ax
+	PRINTF	<"Unable to open %s (%d)",13,10,13,10>,dx,ax
 	stc
 	ret
 ENDPROC	openFile
@@ -1038,7 +1038,7 @@ DEFPROC	readFile
 	mov	ah,DOS_HDL_READ
 	int	21h
 	jnc	rf9
-	PRINTF	<"Unable to read file",13,10>
+	PRINTF	<"Unable to read file",13,10,13,10>
 	stc
 rf9:	pop	bx
 	ret
