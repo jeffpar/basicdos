@@ -111,7 +111,7 @@ DEFPROC	macro	name,type
 	_LOCBYTES = 0
 	_PROCTYPE = 2
 	IFIDN	<type>,<DOS>
-	 IFDEF	DEBUG
+	 IFDEF	MAXDEBUG
 	db	"&name",0
 	 ENDIF
 	ENDIF

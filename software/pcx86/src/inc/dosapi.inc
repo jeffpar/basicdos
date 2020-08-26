@@ -9,8 +9,8 @@
 ;
 
 VERSION_MAJOR	equ	0
-VERSION_MINOR	equ	0
-VERSION_REV	equ	6
+VERSION_MINOR	equ	1
+VERSION_REV	equ	0
 
 VERSION_STR	macro
 		db	'0'+VERSION_MAJOR,'.','0'+VERSION_MINOR,'0'+VERSION_REV
@@ -91,6 +91,7 @@ DOS_DSK_SETDTA	equ	1Ah	; set DTA (DS:DX)
 DOS_MSC_SETVEC	equ	25h	; set vector (AL) to addr (DS:DX)
 DOS_PSP_CREATE	equ	26h	; create PSP (DX = segment)
 DOS_DSK_GETDTA	equ	2Fh	; get DTA (ES:BX)
+DOS_MSC_GETVER	equ	30h	; get version (AL,AH,BH,BL,CX)
 DOS_DSK_GETDPB	equ	32h	; get DPB (DS:BX, AL=FFh if invalid drive)
 DOS_MSC_CTRLC	equ	33h	; get/set CTRLC state
 DOS_MSC_GETVEC	equ	35h	; get vector (AL) addr (ES:BX)

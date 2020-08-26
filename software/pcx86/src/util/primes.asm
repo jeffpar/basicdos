@@ -86,7 +86,9 @@ m9:	PRINTF	<13,10,"total primes < 32000: %d",13,10>,nPrimes
 ENDPROC	main
 
 DEFPROC	ctrlc,FAR
+	IFDEF MAXDEBUG
 	PRINTF	<"CTRL-C detected, aborting...",13,10>
+	ENDIF
 	stc
 	ret
 ENDPROC	ctrlc
