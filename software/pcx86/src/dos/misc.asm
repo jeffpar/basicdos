@@ -56,23 +56,34 @@ ENDPROC	msc_setvec
 ;
 ; msc_getver (REG_AH = 30h)
 ;
+; For now, this is hard-coded to return 02h in AL, so that we can experiment
+; with assorted PC DOS 2.00 binaries without hitting version-check roadblocks.
+;
+; However, we also set AH to our major version, BH to our minor version, BL
+; to our revision, and CX to indicate internal states (eg, bit 0 is set for
+; DEBUG builds).
+;
 ; Inputs:
 ;	None
 ;
 ; Outputs:
-;	REG_AL = major version #
-;	REG_AH = minor version #
-;	REG_BH = OEM serial #
-;	REG_BL:REG_CX = 24-bit serial number
+;	REG_AL = major version # (BASIC-DOS: 02h)
+;	REG_AH = minor version # (BASIC-DOS: major version)
+;	REG_BH = OEM serial #    (BASIC-DOS: minor version)
+;	REG_BL = upper 8 bits of 24-bit S/N (BASIC-DOS: revision)
+;	REG_CX = lower 16 bits of 24-bit S/N (BASIC-DOS: internal states)
 ;
 ; Modifies:
-;	None
+;	AX
 ;
 DEFPROC	msc_getver,DOS
-	mov	[bp].REG_AX,0002h	; hard-coded to simulate v2.00
-	mov	[bp].REG_BX,0
-	mov	[bp].REG_CX,0
-	clc
+	mov	[bp].REG_AX,(VERSION_MAJOR SHL 8) OR 02h
+	mov	[bp].REG_BX,(VERSION_MINOR SHL 8) OR VERSION_REV
+	sub	ax,ax
+	IFDEF DEBUG
+	inc	ax
+	ENDIF
+	mov	[bp].REG_CX,ax
 	ret
 ENDPROC	msc_getver
 

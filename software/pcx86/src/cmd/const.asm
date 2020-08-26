@@ -11,7 +11,7 @@
 
 CODE    SEGMENT
 	EXTERNS	<cmdDate,cmdDir,cmdExit,cmdHelp,cmdList,cmdLoad,cmdMem>,near
-	EXTERNS	<cmdRun,cmdTime,cmdType>,near
+	EXTERNS	<cmdRun,cmdTime,cmdType,cmdVer>,near
 	EXTERNS	<genCLS,genColor,genDefInt,genGoto,genIf,genLet,genPrint>,near
 	EXTERNS	<evalNegLong,evalNotLong>,near
 	EXTERNS	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>,near
@@ -29,8 +29,10 @@ CODE    SEGMENT
 	DEFSTR	SYS_MEM,<"<SYS>",0>
 	DEFSTR	DOS_MEM,<"<DOS>",0>
 	DEFSTR	FREE_MEM,<"<FREE>",0>
+	DEFSTR	STD_VER,<0>
+	DEFSTR	DBG_VER,<"DEBUG",0>
 ;
-; Table of operators
+; Table of BASIC-DOS expression operators
 ;
 ; Each OPDEF structure contains 1) operator symbol, 2) operator precedence,
 ; and 3) operator evaluators (currently, only one LONG evaluator is present
@@ -39,13 +41,12 @@ CODE    SEGMENT
 ; determines an operator's priority.
 ;
 ; Most operators are "binary ops" (ie, operators that require 2 stack-based
-; arguments).  There are 3 "unary ops": unary '-', unary '+', and 'NOT',
-; each distinguished by an ODD precedence.
+; arguments).  Exceptions include 3 "unary ops": unary -, unary +, and NOT,
+; all of which are distinguished by an ODD precedence.
 ;
-; Parentheses require special treatment; they may appear to have low
-; precedence (1), but that's simply to ensure that when we encounter a
-; closing parenthesis, all operators with a precedence higher than the opening
-; parenthesis get popped.
+; Parentheses are another exception; they may appear to have low precedence,
+; but that's just to ensure that when we encounter a closing parenthesis, all
+; operators with a precedence higher than the opening parenthesis get popped.
 ;
 ; Note that all multi-character operators are converted to single character
 ; operators internally, to simplify operator management; genExprNum takes care
@@ -120,6 +121,7 @@ CODE	ENDS
 	DEFTOK	TOK_THEN,  102, "THEN"
 	DEFTOK	TOK_TIME,    7, "TIME",   cmdTime
 	DEFTOK	TOK_TYPE,   12, "TYPE",   cmdType
+	DEFTOK	TOK_VER,     8, "VER",    cmdVer
 	NUMTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
 
 	DEFTOKENS KEYOP_TOKENS,KEYOP_TOTAL

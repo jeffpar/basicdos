@@ -11,6 +11,8 @@
 
 CODE    SEGMENT
 
+	EXTERNS	<checkSW>,near
+
 	EXTSTR	<SYS_MEM,DOS_MEM,FREE_MEM>
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
@@ -19,7 +21,7 @@ CODE    SEGMENT
 ;
 ; cmdMem
 ;
-; Prints memory usage.
+; Prints memory usage.  Use /D to display segment-level detail.
 ;
 ; Inputs:
 ;	DS:BX -> heap (not used)
@@ -31,11 +33,25 @@ CODE    SEGMENT
 ;	Any
 ;
 DEFPROC	cmdMem
+	LOCVAR	memFree,word	; free paras
+	LOCVAR	memLimit,word	; max available paras
+	LOCVAR	memSwitches,word
+;
+; Before we create our own stack frame, get any switch information
+; we'll need, since it's stored on caller's stack frame.
+;
+	sub	dx,dx
+	mov	al,'D'
+	call	checkSW
+	jz	mem0
+	inc	dx
+
+mem0:	ENTER
+	mov	[memSwitches],dx
 ;
 ; Before we get into memory blocks, show the amount of memory reserved
 ; for the BIOS and disk buffers.
 ;
-	push	bp
 	push	es
 	sub	di,di
 	mov	es,di
@@ -71,7 +87,8 @@ drv1:	cmp	di,-1
 ;
 drv9:	mov	bx,es		; ES = DOS data segment
 	mov	ax,es:[0]	; ES:[0] is mcb_head
-	mov	bp,es:[2]	; ES:[2] is mcb_limit
+	mov	di,es:[2]	; ES:[2] is mcb_limit
+	mov	[memLimit],di
 	sub	ax,bx
 	mov	di,cs
 	mov	si,offset DOS_MEM
@@ -81,9 +98,8 @@ drv9:	mov	bx,es		; ES = DOS data segment
 ;
 ; Next, examine all the memory blocks and display those that are used.
 ;
-	push	bp
 	sub	cx,cx
-	sub	bp,bp		; BP = free memory
+	mov	[memFree],cx
 mem1:	mov	dl,0		; DL = 0 (query all memory blocks)
 	mov	di,cs		; DI:SI -> default owner name
 	mov	si,offset SYS_MEM
@@ -92,7 +108,7 @@ mem1:	mov	dl,0		; DL = 0 (query all memory blocks)
 	jc	mem9		; all done
 	test	ax,ax		; free block (is OWNER zero?)
 	jne	mem2		; no
-	add	bp,dx		; yes, add to total free paras
+	add	[memFree],dx	; yes, add to total free paras
 ;
 ; Let's include free blocks in the report now, too.
 ;
@@ -105,8 +121,7 @@ mem2:	mov	ax,dx		; AX = # paras
 	pop	cx
 mem8:	inc	cx
 	jmp	mem1
-mem9:	xchg	ax,bp		; AX = free memory (paras)
-	pop	bp		; BP = total memory (paras)
+mem9:	mov	ax,[memFree]	; AX = free memory (paras)
 ;
 ; Last but not least, dump the amount of free memory (ie, the sum of all the
 ; free blocks that we did NOT display above).
@@ -115,10 +130,10 @@ mem9:	xchg	ax,bp		; AX = free memory (paras)
 	mul	cx		; DX:AX = free memory (in bytes)
 	xchg	si,ax
 	mov	di,dx		; DI:SI = free memory
-	xchg	ax,bp
+	mov	ax,[memLimit]
 	mul	cx		; DX:AX = total memory (in bytes)
-	PRINTF	<"%8ld bytes total",13,10,"%8ld bytes free",13,10>,ax,dx,si,di
-	pop	bp
+	PRINTF	<"%8ld bytes",13,10,"%8ld bytes free",13,10>,ax,dx,si,di
+	LEAVE
 	ret
 ENDPROC	cmdMem
 
@@ -141,6 +156,8 @@ ENDPROC	cmdMem
 ;	None
 ;
 DEFPROC	printKB
+	test	[memSwitches],1	; detail requested (/D)?
+	jz	pkb9		; no
 	push	ax
 	push	bx
 	mov	bx,64
@@ -158,7 +175,7 @@ DEFPROC	printKB
 	pop	bx
 	pop	ax
 	PRINTF	<"%#06x: %#06x %3d.%1dK %.8ls",13,10>,bx,ax,cx,dx,si,di
-	ret
+pkb9:	ret
 ENDPROC	printKB
 
 CODE	ENDS

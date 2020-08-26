@@ -16,6 +16,7 @@ CODE    SEGMENT
 
 	EXTERNS	<KEYWORD_TOKENS>,word
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF,PERIOD>
+	EXTSTR	<STD_VER,DBG_VER>
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 
@@ -273,7 +274,7 @@ m19:	push	cx
 	int	21h			; DS:SI -> token, CX = length
 	mov	[pArg],si
 	mov	[lenArg],cx
-m20:	cmp	[pHandler],0		; handler exist?
+m20:	cmp	[pHandler],0		; does handler exist?
 	je	m99			; no
 	call	[pHandler]		; call the token handler
 m99:	jmp	m1
@@ -883,6 +884,37 @@ ENDPROC	cmdTime
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; cmdVer
+;
+; Prints the BASIC-DOS version.
+;
+; Inputs:
+;	DS:BX -> heap
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+DEFPROC	cmdVer
+	mov	ah,DOS_MSC_GETVER
+	int	21h
+	mov	al,ah
+	cbw
+	mov	dl,bh
+	mov	dh,ah
+	mov	bh,ah
+	test	cx,1
+	mov	cx,offset STD_VER
+	jz	ver9
+	mov	cx,offset DBG_VER
+ver9:	PRINTF	<"BASIC-DOS Version %d.%d%d %ls",13,10>,ax,dx,bx,cx,cs
+	ret
+ENDPROC	cmdver
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; cmdType
 ;
 ; Read the specified file and write the contents to STDOUT.
@@ -911,62 +943,6 @@ ty1:	mov	cx,size PSP_DTA		; CX = number of bytes to read
 	int	21h
 	jmp	ty1
 ENDPROC	cmdType
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; addString
-;
-; Copy a source string (CS:DX) to the end of a target string (DS:DI).
-;
-; Inputs:
-;	CS:DX -> source
-;	DS:DI -> target (with length CX)
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	AX
-;
-DEFPROC	addString
-	push	si
-	push	di
-	add	di,cx
-	mov	si,dx
-as1:	lods	byte ptr cs:[si]
-	stosb
-	test	al,al
-	jnz	as1
-	pop	di
-	pop	si
-	ret
-ENDPROC	addString
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; chkString
-;
-; Check the target string (DS:SI) for the source string (CS:DX).
-;
-; Inputs:
-;	CS:DX -> source
-;	DS:SI -> target
-;
-; Outputs:
-;	If carry clear, DI points to the first match; otherwise, DI = SI
-;
-; Modifies:
-;	AX, DI
-;
-DEFPROC	chkString
-	mov	di,si			; ES:DI -> target
-	push	si
-	mov	si,dx			; CS:SI -> source
-	mov	ax,DOS_UTL_STRSTR
-	int	21h			; if carry clear, DI updated
-	pop	si
-	ret
-ENDPROC	chkString
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1094,6 +1070,62 @@ DEFPROC	findFile
 	pop	cx
 	ret
 ENDPROC	findFile
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; addString
+;
+; Copy a source string (CS:DX) to the end of a target string (DS:DI).
+;
+; Inputs:
+;	CS:DX -> source
+;	DS:DI -> target (with length CX)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX
+;
+DEFPROC	addString
+	push	si
+	push	di
+	add	di,cx
+	mov	si,dx
+as1:	lods	byte ptr cs:[si]
+	stosb
+	test	al,al
+	jnz	as1
+	pop	di
+	pop	si
+	ret
+ENDPROC	addString
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chkString
+;
+; Check the target string (DS:SI) for the source string (CS:DX).
+;
+; Inputs:
+;	CS:DX -> source
+;	DS:SI -> target
+;
+; Outputs:
+;	If carry clear, DI points to the first match; otherwise, DI = SI
+;
+; Modifies:
+;	AX, DI
+;
+DEFPROC	chkString
+	mov	di,si			; ES:DI -> target
+	push	si
+	mov	si,dx			; CS:SI -> source
+	mov	ax,DOS_UTL_STRSTR
+	int	21h			; if carry clear, DI updated
+	pop	si
+	ret
+ENDPROC	chkString
 
 CODE	ENDS
 
