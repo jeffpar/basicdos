@@ -287,8 +287,8 @@ ENDPROC	genDefInt
 ; genExprNum
 ;
 ; Generate code for a numeric expression.  To help catch errors up front,
-; maintains a count of values queued, compares that to the number of arguments
-; expected by all the operators, and also maintains an open parentheses count.
+; maintain a count of values queued, compare that to the number of arguments
+; expected by all the operators, and also maintain an open parentheses count.
 ;
 ; Inputs:
 ;	BX = offset of next TOKLET

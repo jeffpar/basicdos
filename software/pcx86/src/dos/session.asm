@@ -27,7 +27,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_locked,def_switchar>,byte
 	EXTERNS	<scb_active,psp_active,scb_stoked>,word
 	EXTERNS	<scb_table>,dword
-	EXTERNS	<dos_exit,load_program>,near
+	EXTERNS	<dos_exit,load_program,sfh_close>,near
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -86,7 +86,11 @@ ENDPROC	get_scbnum
 ;
 ; scb_load
 ;
-; Loads a program into the specified session.
+; Load a program into the specified session.
+;
+; TODO: Add support for a session startup block that allows the CONSOLE
+; and other system handles to be specified for this session.  Currently, we
+; are called only from sysinit, which creates all the system handles itself.
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -314,16 +318,33 @@ ENDPROC	scb_stop
 ;
 ; Unload the current program from the specified session.
 ;
+; TODO: Until an API is added to call scb_load to start new sessions, this
+; session is dead in the water, so we may as well close its system handles now.
+;
 ; Inputs:
 ;	CL = SCB #
 ;
 ; Outputs:
-;	Carry clear on success
+;	Carry clear on success (AX = 0)
 ;	Carry set on error (eg, invalid SCB #)
 ;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
 DEFPROC	scb_unload,DOS
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	call	get_scb
  	jc	sud9
+	mov	cx,3			; close this session's system handles
+	push	bx			; (for reasons given in the TODO above)
+	lea	si,[bx].SCB_SFHCON
+sud1:	mov	bl,-1
+	xchg	bl,[si]
+	call	sfh_close
+	inc	si
+	loop	sud1
+	pop	bx
+	xchg	ax,cx			; make sure AX is zero
 	and	[bx].SCB_STATUS,NOT (SCSTAT_LOAD OR SCSTAT_START)
 sud9:	ret
 ENDPROC	scb_unload
