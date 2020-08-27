@@ -165,7 +165,7 @@ ENDPROC	freeAllBlocks
 ;	None
 ;
 ; Outputs:
-;	If successful, carry clear, ES = segment
+;	If successful, carry clear, ES:DI -> first available byte, CX = length
 ;
 ; Modifies:
 ;	AX, CX, SI, DI, ES
@@ -201,10 +201,10 @@ ENDPROC	freeCode
 ; allocText
 ;
 ; Inputs:
-;	CX = text block size, in bytes
+;	CX = text block size (in bytes)
 ;
 ; Outputs:
-;	If successful, carry clear, ES = segment
+;	If successful, carry clear, ES:DI -> first available byte, CX = length
 ;
 ; Modifies:
 ;	AX, CX, SI, DI, ES
@@ -246,7 +246,7 @@ ENDPROC	freeText
 ;	None
 ;
 ; Outputs:
-;	If carry clear, var block allocated; otherwise, carry set
+;	If successful, carry clear, ES:DI -> first available byte, CX = length
 ;
 ; Modifies:
 ;	AX, CX, SI, DI, ES
@@ -292,7 +292,7 @@ ENDPROC	freeVars
 ;	None
 ;
 ; Outputs:
-;	If successful, carry clear, ES = segment
+;	If successful, carry clear, ES:DI -> first available byte, CX = length
 ;
 ; Modifies:
 ;	AX, CX, SI, DI, ES

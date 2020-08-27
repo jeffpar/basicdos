@@ -60,7 +60,7 @@ OP_POP_AX	equ	058h
 OP_POP_DX	equ	05Ah
 OP_XCHG_DX	equ	092h
 OP_CWD		equ	099h
-OP_CALLF	equ	09Ah
+OP_CALLF	equ	09Ah		; 32-bit absolute address
 OP_LODSW	equ	0ADh
 OP_MOV_AL	equ	0B0h
 OP_MOV_AX	equ	0B8h
@@ -71,8 +71,9 @@ OP_MOV_DI	equ	0BFh
 OP_RETF_N	equ	0CAh
 OP_RETF		equ	0CBh
 OP_IRET		equ	0CFh
-OP_CALL		equ	0E8h
-OP_JMPF		equ	0EAh
+OP_CALL		equ	0E8h		; 16-bit displacement
+OP_JMP		equ	0E9h		; 16-bit displacement
+OP_JMPF		equ	0EAh		; 32-bit absolute address
 OP_STC		equ	0F9h
 
 OP_ZERO_AX	equ	0C031h		; XOR AX,AX
@@ -80,6 +81,8 @@ OP_MOV_AX_SP	equ	089E0h		; MOV AX,SP
 OP_POP_DX_AX	equ	05A58h		; POP AX, POP DX
 OP_OR_AX_DX	equ	0D009h		; OR  AX,DX
 OP_JZ_SELF	equ	0FE74h		; JZ  $
+OP_MOV_BP_SP	equ	0E589h		; MOV BP,SP
+OP_MOV_SP_BP	equ	0EC89h		; MOV SP,BP
 
 ;
 ; Operation checks are sprinkled throughout DEBUG BASIC-DOS binaries to

@@ -69,8 +69,9 @@ CBLK_SIZE	dw	?		; size of code block, in bytes
 CBLK_FREE	dw	?		; offset of next free byte
 CBLK_RESERVED	db	?
 CBLK_PADDING	db	?
+CBLK_REFS	dw	?		; top of LBLREF stack, if any
 CBLK_HDR	ends
-CBLKLEN		equ	1024		; default code block size
+CBLKLEN		equ	4096		; default code block size
 CBLKSIG		equ	'C'
 
 ;
@@ -141,6 +142,23 @@ OP_CHR		db	?		; ASCII character
 OP_PREC		db	?		; precedence value
 OP_EVAL		dw	?		; offset of evaluator
 OPDEF		ends
+
+;
+; Label reference
+;
+; As label definitions (eg, line numbers) are encountered by the code
+; generator, a LBLREF is pushed onto the current code block's LBLREF stack.
+;
+; Similarly, a LBLREF is pushed whenever a label reference (eg, GOTO line)
+; is encountered.  If the label reference cannot be resolved immediately,
+; then LBL_IP is the current IP + LBL_RESOLVE, indicating that the IP is for
+; a JMP waiting to be resolved.
+;
+LBLREF		struc
+LBL_NUM		dw	?		; label number
+LBL_IP		dw	?		; instruction pointer for label
+LBLREF		ends
+LBL_RESOLVE	equ	CBLKLEN
 
 ;
 ; Code generation macros

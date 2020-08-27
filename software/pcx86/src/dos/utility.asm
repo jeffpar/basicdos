@@ -286,7 +286,31 @@ ENDPROC	utl_sprintf
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_atoi16 (AX = 1807h)
+; utl_itoa (AX = 1807h)
+;
+; Convert the value DX:SI to a string representation at ES:DI, using base BL,
+; flags BH (see itoa for PF definitions), minimum length CX (0 for no minimum).
+;
+; Returns:
+;	ES:DI filled in
+;	AL = # of digits
+;
+; Modifies:
+;	AX, CX, DX, ES
+;
+DEFPROC	utl_itoa,DOS
+	sti
+	xchg	ax,si			; DX:AX is now the value
+	mov	es,[bp].REG_ES		; ES:DI -> buffer
+	ASSUME	ES:NOTHING
+	call	itoa
+	mov	[bp].REG_AX,ax		; update REG_AX
+	ret
+ENDPROC	utl_itoa
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_atoi16 (AX = 1808h)
 ;
 ; Convert string at DS:SI to number in AX using base BL, using validation
 ; values at ES:DI.  It will also advance SI past the first non-digit character
@@ -309,8 +333,9 @@ ENDPROC	utl_sprintf
 DEFPROC	utl_atoi16,DOS
 	mov	cx,-1			; no specific length
 	DEFLBL	utl_atoi,near
-	sti
 	mov	bl,[bp].REG_BL		; BL = base (eg, 10)
+	DEFLBL	utl_atoi_base,near
+	sti
 	mov	bh,0
 	mov	[bp].TMP_BX,bx		; TMP_BX equals 16-bit base
 	mov	[bp].TMP_AL,bh		; TMP_AL indicates sign
@@ -428,7 +453,7 @@ ENDPROC utl_atoi16
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_atoi32 (AX = 1808h)
+; utl_atoi32 (AX = 1809h)
 ;
 ; Convert string at DS:SI (with length CX) to number in DX:AX using base BL.
 ;
@@ -452,27 +477,20 @@ ENDPROC utl_atoi32
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_itoa (AX = 1809h)
+; utl_atoi32d (AX = 180Ah)
 ;
-; Convert the value DX:SI to a string representation at ES:DI, using base BL,
-; flags BH (see itoa for PF definitions), minimum length CX (0 for no minimum).
+; Convert decimal string at DS:SI to number in DX:AX.
 ;
-; Returns:
-;	ES:DI filled in
-;	AL = # of digits
+; This is equivalent to calling utl_atoi32 with BL = 10 and CX = -1, with
+; the advantage that the caller's BX and CX registers are neither required
+; nor modified.
 ;
-; Modifies:
-;	AX, CX, DX, ES
-;
-DEFPROC	utl_itoa,DOS
-	sti
-	xchg	ax,si			; DX:AX is now the value
-	mov	es,[bp].REG_ES		; ES:DI -> buffer
-	ASSUME	ES:NOTHING
-	call	itoa
-	mov	[bp].REG_AX,ax		; update REG_AX
-	ret
-ENDPROC	utl_itoa
+DEFPROC	utl_atoi32d,DOS
+	mov	bl,10			; always base 10
+	mov	cx,-1			; no specific length
+	mov	di,-1			; no validation
+	jmp	utl_atoi_base		; utl_atoi returns a 32-bit value
+ENDPROC utl_atoi32d
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

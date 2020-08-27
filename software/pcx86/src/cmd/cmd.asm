@@ -61,7 +61,7 @@ DEFPROC	main
 	mov	word ptr [bx].INPUTBUF.INP_MAX,size INP_BUF
 ;
 ; Since all command handlers loop back to this point, we shouldn't assume
-; that any registers (eg, BX, ES) will still be set to their original values.
+; that any registers (eg, BX, DS, ES) will still contain their original values.
 ;
 m1:	push	ss
 	pop	ds
@@ -180,6 +180,11 @@ m4a:	jmp	short m8
 ;
 ; BAT files are LOAD'ed and then immediately RUN.  We'll do the same for
 ; BAS files, too.  Use the "LOAD" command to load without running.
+;
+; BAT file operation does differ in some respects, however.  One significant
+; difference is that, ordinarily, each line of a BAT file is displayed before
+; it is executed, so that will have to be taken into account in the generated
+; code.
 ;
 m4b:	call	cmdLoad
 	jc	m4c			; don't RUN if there was a LOAD error
@@ -774,18 +779,12 @@ lf5:	mov	[lineOffset],si
 	je	lf6
 	dec	si
 
-lf6:	push	bx
-	push	cx
-	push	dx
-	mov	bl,10
-	mov	cx,-1			; CX = unknown length
-	mov	ax,DOS_UTL_ATOI32	; DS:SI -> numeric string
+lf6:	push	dx
+	mov	ax,DOS_UTL_ATOI32D	; DS:SI -> decimal string
 	int	21h
 	ASSERT	Z,<test dx,dx>		; DX:AX is the result but keep only AX
 	mov	[lineLabel],ax
 	pop	dx
-	pop	cx
-	pop	bx
 ;
 ; We've extracted the label #, if any; skip over any intervening space.
 ;
