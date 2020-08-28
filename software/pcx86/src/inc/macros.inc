@@ -168,6 +168,10 @@ name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 ;	pop	bp
 ;	ret	4
 ;
+; There's also a RETURN macro that will automatically generate the RET N
+; instruction with N = _ARGBYTES, but if a function must leave a result on
+; the stack (like the evalDivLong example above), you must write the RET N.
+;
 ; If you need the address of an ARGVAR or LOCVAR variable, use LEA:
 ;
 ;	lea	di,resultType
@@ -250,6 +254,14 @@ LEAVE	macro
 	add	sp,_LOCBYTES
 	 ENDIF
 	pop	bp
+	ENDIF
+	endm
+
+RETURN	macro
+	IF _ARGBYTES GT 0
+	ret	_ARGBYTES
+	ELSE
+	ret
 	ENDIF
 	endm
 

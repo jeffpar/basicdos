@@ -14,7 +14,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_locked>,byte
 	EXTERNS	<mcb_head,mcb_limit,scb_active,psp_active>,word
 	EXTERNS	<sfh_addref,pfh_close,sfh_close>,near
-	EXTERNS	<getsize,free,dos_exit,dos_ctrlc,dos_error>,near
+	EXTERNS	<getsize,freeAll,dos_exit,dos_ctrlc,dos_error>,near
 	EXTERNS	<get_scbnum,scb_unload,scb_yield>,near
 	IF REG_CHECK
 	EXTERNS	<dos_check>,near
@@ -75,7 +75,7 @@ pt1:	push	ax			; save exit code/type on stack
 	push	ax
 	push	si			; save PSP of parent
 	mov	ax,es
-	call	free			; free PSP in AX
+	call	freeAll			; free all blocks owned by PSP in AX
 	pop	ax			; restore PSP of parent
 	pop	cx			; CL = SCB #
 ;

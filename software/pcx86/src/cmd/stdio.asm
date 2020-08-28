@@ -31,9 +31,9 @@ CODE    SEGMENT
 ;	AX, BX, CX
 ;
 DEFPROC	clearScreen,FAR
-	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_SCROLL
 	mov	bx,STDOUT
 	sub	cx,cx
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_SCROLL
 	int	21h
 	ret
 ENDPROC	clearScreen
@@ -114,6 +114,7 @@ p6:	cmp	al,VAR_STR
 	cmp	al,CLS_STR
 	jne	p4			; TODO: error instead?
 p7:	push	ax
+	push	ds
 	lds	si,[bp+2]
 	lodsb
 	mov	ah,0			; AX = string length (255 max)
@@ -127,6 +128,7 @@ p7:	push	ax
 	pop	es
 	mov	di,si
 	call	freeStr			; ES:DI -> string data to free
+	pop	ds
 	pop	ax
 	jmp	p4
 
@@ -141,6 +143,57 @@ p9:	pop	dx			; remove return address
 	push	dx
 	ret
 ENDPROC	printArgs
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; printLine
+;
+; Inputs:
+;	Pointer to length-prefixed string pushed on stack
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
+DEFPROC	printLine,FAR
+	PRINTF	<13,10>
+	;
+	; Fall into printStr
+	;
+ENDPROC	printLine
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; printStr
+;
+; Inputs:
+;	Pointer to length-prefixed string pushed on stack
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
+DEFPROC	printStr,FAR
+	ARGVAR	pStr,dword
+	ENTER
+	push	ds
+	lds	si,[pStr]		; DS:SI -> length-prefixed string
+	lodsb				; AL = length
+	mov	ah,0
+	xchg	cx,ax			; CX = length
+	mov	dx,si			; DS:DX -> string
+	mov	bx,STDOUT
+	mov	ah,DOS_HDL_WRITE
+	int	21h
+	pop	ds
+	PRINTF	<13,10>
+	LEAVE
+	RETURN
+ENDPROC	printStr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

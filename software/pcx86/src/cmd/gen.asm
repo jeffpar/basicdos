@@ -14,7 +14,7 @@ CODE    SEGMENT
 	EXTERNS	<allocCode,freeCode,allocVars>,near
 	EXTERNS	<addVar,findVar,setVarLong>,near
 	EXTERNS	<appendStr,setStr,memError>,near
-	EXTERNS	<clearScreen,printArgs,setColor>,near
+	EXTERNS	<clearScreen,printArgs,printLine,setColor>,near
 
 	EXTERNS	<KEYWORD_TOKENS,KEYOP_TOKENS>,word
 	EXTERNS	<OPDEFS,RELOPS>,byte
@@ -27,6 +27,7 @@ CODE    SEGMENT
 ; genCode
 ;
 ; Inputs:
+;	AL = GEN flags (eg, GEN_BATCH)
 ;	DS:BX -> heap
 ;	DS:SI -> BUF_INPUT (or null to parse preloaded text)
 ;
@@ -37,6 +38,7 @@ CODE    SEGMENT
 ;	Any
 ;
 DEFPROC	genCode
+	LOCVAR	genFlags,byte
 	LOCVAR	nArgs,word
 	LOCVAR	nExpArgs,word
 	LOCVAR	nExpVals,word
@@ -50,6 +52,7 @@ DEFPROC	genCode
 	LOCVAR	lineNumber,word
 	ENTER
 
+	mov	[genFlags],al
 	sub	ax,ax
 	mov	[nArgs],ax
 	mov	[errCode],ax
@@ -84,11 +87,12 @@ DEFPROC	genCode
 
 gce:	call	memError
 gcx:	jmp	gc9
+gcy:	jmp	gc6
 
 gc1:	lea	si,[bx].TEXT_BLK
 gc2:	mov	cx,[si].TBLK_NEXT
 	clc
-	jcxz	gc6			; nothing left to parse
+	jcxz	gcy			; nothing left to parse
 	mov	ds,cx
 	ASSUME	DS:NOTHING
 	mov	si,size TBLK_HDR
@@ -97,12 +101,33 @@ gc3:	cmp	si,ds:[TBLK_FREE]
 	jae	gc2			; advance to next block in chain
 	inc	[lineNumber]
 	lodsw
-	call	addLabel		; add label AX to the LBLREF stack
-	xchg	dx,ax			; DX = label #, if any
-	lodsb
+	test	ax,ax			; is there a label #?
+	jz	gc3a			; no
+	call	addLabel		; yes, add it to the LBLREF stack
+gc3a:	xchg	dx,ax			; DX = label #, if any
+	lodsb				; AL = length byte
 	mov	ah,0
-	xchg	cx,ax			; CX = length of next line
+	xchg	cx,ax			; CX = length of line
+	jcxz	gc3			; empty line, nothing to do
+;
+; As a preliminary matter, if we're processing a BAT file, then generate
+; code to print the line, unless it starts with a '@', in which case, skip
+; over the '@'.
+;
+	cmp	byte ptr [si],'@'
+	jne	gc3b
+	inc	si
+	dec	cx
 	jcxz	gc3
+	jmp	short gc4
+
+gc3b:	test	[genFlags],GEN_BATCH
+	jz	gc4
+	push	cx
+	lea	cx,[si-1]
+	GENPUSH	ds,cx			; DX:CX -> string (at the length byte)
+	GENCALL	printLine
+	pop	cx
 
 gc4:	push	bx			; save heap offset
 	push	cx
@@ -165,17 +190,18 @@ gc6:	push	ss
 	jc	gc7
 	mov	al,OP_RETF		; terminate the code in the buffer
 	stosb
-
+;
+; TODO: Define the memory model for the generated code.  For now, the
+; only requirement is that DS always point to the var block (which means
+; that all variables must fit in a single block).
+;
 	push	bp
 	push	ds
-	push	es
 	mov	si,ds:[PSP_HEAP]
 	mov	ax,[si].VARS_BLK.BLK_NEXT
 	mov	ds,ax
-	mov	es,ax
 	ASSUME	DS:NOTHING
 	call	[pCode]			; execute the code buffer
-	pop	es
 	pop	ds
 	ASSUME	DS:DATA
 	pop	bp
@@ -830,7 +856,7 @@ ENDPROC	genPrint
 ; addLabel
 ;
 ; Inputs:
-;	AX = label #, if any
+;	AX = label #
 ;	ES -> current code block
 ;
 ; Outputs:
@@ -840,8 +866,6 @@ ENDPROC	genPrint
 ;	CX, DX
 ;
 DEFPROC	addLabel
-	test	ax,ax			; is there a label?
-	jz	al9			; no, nothing to do
 	mov	dx,di			; DX = current code gen offset
 	test	dx,LBL_RESOLVE		; is this a label reference?
 	jnz	al8			; yes, just add it
