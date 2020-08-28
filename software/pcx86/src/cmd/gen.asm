@@ -63,6 +63,16 @@ DEFPROC	genCode
 	ASSUME	ES:NOTHING		; ES:DI -> code block
 	mov	[pCode].OFF,di
 	mov	[pCode].SEG,es
+	mov	ax,OP_MOV_BP_SP		; make it easy for endProgram
+	stosw				; to reset the stack and return
+;
+; ES:[CBLK_SIZE] is the absolute limit for pCode, but we also maintain
+; another field, ES:[CBLK_REFS], as the top of a LBLREF stack, and that
+; is the real limit that the code generator must be mindful of.
+;
+; Initialize the LBLREF stack; it's empty when CBLK_REFS = CBLK_SIZE.
+;
+	mov	es:[CBLK_REFS],cx
 
 	mov	si,[pInput]
 	test	si,si
@@ -87,6 +97,7 @@ gc3:	cmp	si,ds:[TBLK_FREE]
 	jae	gc2			; advance to next block in chain
 	inc	[lineNumber]
 	lodsw
+	call	addLabel		; add label AX to the LBLREF stack
 	xchg	dx,ax			; DX = label #, if any
 	lodsb
 	mov	ah,0
@@ -112,6 +123,8 @@ gc4:	push	bx			; save heap offset
 	lea	di,[bx].LINEBUF
 	push	di
 	rep	movsb
+	xchg	ax,cx			; AL = 0
+	stosb				; null-terminate for good measure
 	pop	si
 	pop	ds
 	pop	cx			; DS:SI -> LINEBUF (with length CX)
@@ -152,6 +165,7 @@ gc6:	push	ss
 	jc	gc7
 	mov	al,OP_RETF		; terminate the code in the buffer
 	stosb
+
 	push	bp
 	push	ds
 	push	es
@@ -369,7 +383,7 @@ gn3:	push	bx
 	cmp	byte ptr [si],'9'	; is next character a digit?
 	jbe	gn3a			; yes
 	inc	si			; no, skip it (must be 'O' or 'H')
-gn3a:	mov	ax,DOS_UTL_ATOI32	; DS:SI -> numeric string
+gn3a:	mov	ax,DOS_UTL_ATOI32	; DS:SI -> numeric string (length CX)
 	int	21h
 	xchg	cx,ax			; save result in DX:CX
 	pop	bx
@@ -570,8 +584,40 @@ ENDPROC	genExprStr
 ;	Any
 ;
 DEFPROC	genGoto
-	stc
-	ret
+	mov	al,CLS_NUM
+	call	getNextToken
+	jbe	gg9
+	mov	ax,DOS_UTL_ATOI32D	; DS:SI -> decimal string
+	int	21h
+	call	findLabel
+;
+; If carry is clear, then we found the specified label # (ie, it must have
+; been a backward reference), so we can generate the correct code immediately;
+; AX contains the LBL_IP to use.
+;
+; If carry is set, then the label # must be a forward reference.  findLabel
+; automatically calls addLabel with LBL_RESOLVE set, so when the definition is
+; finally found, this (and any other LBL_RESOLVE references) can be resolved.
+;
+; In the interim, we generate a 3-byte program termination sequence (reset
+; the stack pointer and return); once the label definition is encountered, that
+; 3-byte sequence will be overwritten with a 3-byte JMP (see addLabel).
+;
+	jc	gg7
+	xchg	dx,ax
+	sub	dx,di
+	sub	dx,3			; DX = 16-bit displacement
+	mov	al,OP_JMP
+	stosb
+	xchg	ax,dx
+	stosw
+	jmp	short gg8
+gg7:	mov	ax,OP_MOV_SP_BP		; placeholder for endProgram
+	stosw
+	mov	al,OP_RETF
+	stosb
+gg8:	clc
+gg9:	ret
 ENDPROC	genGoto
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -778,6 +824,114 @@ gp8:	GENCALL	printArgs
 
 gp9:	ret
 ENDPROC	genPrint
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; addLabel
+;
+; Inputs:
+;	AX = label #, if any
+;	ES -> current code block
+;
+; Outputs:
+;	Carry clear if successful, set if error (eg, duplicate label)
+;
+; Modifies:
+;	CX, DX
+;
+DEFPROC	addLabel
+	test	ax,ax			; is there a label?
+	jz	al9			; no, nothing to do
+	mov	dx,di			; DX = current code gen offset
+	test	dx,LBL_RESOLVE		; is this a label reference?
+	jnz	al8			; yes, just add it
+;
+; For label definitions, we scan the LBLREF stack to ensure this
+; definition is unique.  We must also scan the stack for any unresolved
+; references and fix them up.
+;
+	mov	cx,es:[CBLK_SIZE]
+	mov	di,es:[CBLK_REFS]
+	sub	cx,di
+	jcxz	al8			; stack is empty
+	shr	cx,1			; CX = # of words on LBLREF stack
+al1:	repne	scasw			; scan all words for label #
+	jne	al8			; nothing found
+	test	di,(size LBLREF)-1	; did we match the first LBLREF word?
+	jz	al1			; no (must have match LBL_IP instead)
+	test	word ptr es:[di],LBL_RESOLVE
+	stc
+	jz	al9			; duplicate definition
+;
+; Generate code in the same fashion as genGoto, except that here, we're
+; replacing a previously unresolved GOTO with a forward JMP (ie, positive
+; displacement) to the location at DX.
+;
+	push	ax
+	push	dx
+	push	di
+	mov	di,es:[di]
+	and	di,NOT LBL_RESOLVE
+	sub	dx,di
+	sub	dx,3			; DX = 16-bit displacement
+	mov	al,OP_JMP
+	stosb
+	xchg	ax,dx
+	stosw
+	pop	di
+	pop	dx
+	pop	ax
+	jmp	al1			; keep looking for LBL_RESOLVE matches
+
+al8:	mov	di,es:[CBLK_REFS]
+	sub	di,size LBLREF
+	mov	es:[CBLK_REFS],di
+	stosw				; LBL_NUM <- AX
+	xchg	ax,dx
+	stosw				; LBL_IP <- DX
+	xchg	ax,dx			; restore AX
+	mov	di,dx			; restore DI
+	clc
+al9:	ret
+ENDPROC	addLabel
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; findLabel
+;
+; Inputs:
+;	AX = label #
+;	ES -> current code block
+;
+; Outputs:
+;	Carry clear if found, AX = code gen offset for label
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	findLabel
+	push	di
+	mov	cx,es:[CBLK_SIZE]
+	mov	di,es:[CBLK_REFS]
+	sub	cx,di
+	jcxz	fl8			; stack is empty
+	shr	cx,1			; CX = # of words on LBLREF stack
+fl1:	repne	scasw			; scan all words for label #
+	jne	fl8			; nothing found
+	test	di,(size LBLREF)-1	; did we match the first LBLREF word?
+	jz	fl1			; no (must have match LBL_IP instead)
+	test	word ptr es:[di],LBL_RESOLVE
+	jnz	fl1			; this is a ref, not a definition
+	mov	ax,es:[di]		; AX = LBL_IP for label
+	jmp	short fl9
+fl8:	pop	di
+	push	di
+	add	di,LBL_RESOLVE
+	call	addLabel
+	stc
+fl9:	pop	di
+	ret
+ENDPROC	findLabel
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

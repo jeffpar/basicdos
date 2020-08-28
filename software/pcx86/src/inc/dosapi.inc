@@ -62,9 +62,10 @@ DOS_UTL_STRUPR	equ   1803h	; upper-case string (DS:SI)
 DOS_UTL_PRINTF	equ   1804h	; printf to console
 DOS_UTL_DPRINTF	equ   1805h	; printf to DEBUG context, if any
 DOS_UTL_SPRINTF	equ   1806h	; sprintf to buffer (ES:DI)
-DOS_UTL_ATOI16	equ   1807h	; convert string (DS:SI) to number (AX)
-DOS_UTL_ATOI32	equ   1808h	; convert string (DS:SI) to number (AX)
-DOS_UTL_ITOA	equ   1809h	; convert number (DX:SI) to string (ES:DI)
+DOS_UTL_ITOA	equ   1807h	; convert number (DX:SI) to string (ES:DI)
+DOS_UTL_ATOI16	equ   1808h	; convert string (DS:SI) to number (AX)
+DOS_UTL_ATOI32	equ   1809h	; convert string (DS:SI) to number (AX)
+DOS_UTL_ATOI32D	equ   180Ah	; convert decimal string (DS:SI) to number (AX)
 DOS_UTL_TOKIFY1	equ   180Bh	; tokenize string (DS:SI) using GENERIC syntax
 DOS_UTL_TOKIFY2	equ   180Ch	; tokenize string (DS:SI) using BASIC syntax
 DOS_UTL_TOKID	equ   180Dh	; convert string (DS:SI) into token ID
@@ -289,9 +290,9 @@ CLS_HEX		equ	02h	; hexadecimal value
 CLS_DEC		equ	04h	; decimal value
 CLS_NUM		equ	07h	; any of the above
 CLS_STR		equ	08h	; string constant
-CLS_SYM		equ	10h	; symbol
-CLS_VAR		equ	20h	; identifier (eg, keyword or variable)
-CLS_KEYWORD	equ	28h	; var identified as keyword
+CLS_VAR		equ	10h	; identifier (eg, keyword or variable)
+CLS_KEYWORD	equ	18h	; var identified as keyword
+CLS_SYM		equ	20h	; symbol
 CLS_DQUOTE	equ	40h	; inside double quotes
 CLS_WHITE	equ	80h	; whitespace
 CLS_VAR_INT	equ	30h	; CLS_VAR + VAR_INT

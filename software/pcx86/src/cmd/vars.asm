@@ -165,7 +165,7 @@ ENDPROC	freeAllBlocks
 ;	None
 ;
 ; Outputs:
-;	If successful, carry clear, ES = segment
+;	If successful, carry clear, ES:DI -> first available byte, CX = length
 ;
 ; Modifies:
 ;	AX, CX, SI, DI, ES
@@ -181,8 +181,10 @@ ENDPROC	allocCode
 ;
 ; freeCode
 ;
+; Frees all code blocks and resets the CODE_BLK chain.
+;
 ; Inputs:
-;	ES = segment
+;	None
 ;
 ; Outputs:
 ;	Carry clear if successful, set if error
@@ -193,7 +195,7 @@ ENDPROC	allocCode
 DEFPROC	freeCode
 	mov	si,ds:[PSP_HEAP]
 	lea	si,[si].CODE_BLK
-	jmp	freeBlock
+	jmp	freeAllBlocks
 ENDPROC	freeCode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -201,10 +203,10 @@ ENDPROC	freeCode
 ; allocText
 ;
 ; Inputs:
-;	CX = text block size, in bytes
+;	CX = text block size (in bytes)
 ;
 ; Outputs:
-;	If successful, carry clear, ES = segment
+;	If successful, carry clear, ES:DI -> first available byte, CX = length
 ;
 ; Modifies:
 ;	AX, CX, SI, DI, ES
@@ -246,7 +248,7 @@ ENDPROC	freeText
 ;	None
 ;
 ; Outputs:
-;	If carry clear, var block allocated; otherwise, carry set
+;	If successful, carry clear, ES:DI -> first available byte, CX = length
 ;
 ; Modifies:
 ;	AX, CX, SI, DI, ES
@@ -292,7 +294,7 @@ ENDPROC	freeVars
 ;	None
 ;
 ; Outputs:
-;	If successful, carry clear, ES = segment
+;	If successful, carry clear, ES:DI -> first available byte, CX = length
 ;
 ; Modifies:
 ;	AX, CX, SI, DI, ES

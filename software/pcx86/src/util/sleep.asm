@@ -24,9 +24,7 @@ DEFPROC	main
 	cmp	[si],ah
 	je	s1
 	inc	si
-	mov	bl,10
-	mov	cx,-1
-	mov	ax,DOS_UTL_ATOI32
+	mov	ax,DOS_UTL_ATOI32D
 	int	21h		; DX:AX = value (# of seconds)
 ;
 ; Perform an unnecessary division, so we can verify that division error
