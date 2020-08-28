@@ -7,7 +7,7 @@
 /**
  * @define {string}
  */
-var APPVERSION = "2.03";                // this @define is overridden by the Closure Compiler with the version in machines.json
+var APPVERSION = "2.04";                // this @define is overridden by the Closure Compiler with the version in machines.json
 
 var COPYRIGHT = "Copyright © 2012-2020 Jeff Parsons <Jeff@pcjs.org>";
 
@@ -47691,6 +47691,16 @@ class Kbdx86 extends Component {
         let fPress = false;
         let fIgnore = false;
         let keyCode = event.keyCode;
+
+        /*
+         * HACK for the Apple Magic Keyboard connected to an iPad: iPadOS inexplicably generates CTRL-ENTER (or CTRL-J)
+         ; whenever CTRL-C is pressed, so we attempt to undo that behavior -- at the loss of a genuine CTRL-ENTER, sadly.
+         */
+        if (this.bitsState & Kbdx86.STATE.CTRL) {
+            if (keyCode == Keys.KEYCODE.CR) {
+                keyCode = Keys.ASCII.C;
+            }
+        }
 
         /*
          * We used to be able to capture keystrokes like "Alt-E" by simply checking keyCode for "ALT" (18) and "E" (69),
