@@ -15,7 +15,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<FUNCTBL_SIZE,UTILTBL_SIZE>,abs
 	EXTERNS	<scb_active>,word
 	EXTERNS	<ddint_level>,byte
-	EXTERNS	<msc_sigctrlc_read>,near
+	EXTERNS	<msc_sigctrlc_read,msc_sigerr>,near
 
 	IFDEF DEBUG
 	DEFBYTE	asserts,-1		; prevent nested asserts
@@ -33,7 +33,8 @@ DEFPROC	dos_dverr,DOSFAR
 	DBGBRK
 	ENDIF
 	push	ax
-	PRINTF	<"division error @%U%08lx",13,10>
+	PRINTF	<"Division error @%U%08lx",13,10>
+	call	msc_sigerr
 	pop	ax
 	IFDEF DEBUG
 	iret
@@ -59,7 +60,7 @@ DEFPROC	dos_sstep,DOSFAR
 	jnz	ss1
 	DBGBRK
 	push	ax
-	PRINTF	<"assert @%U%08lx",13,10>
+	PRINTF	<"Assert @%U%08lx",13,10>
 	pop	ax
 ss1:	dec	[asserts]
 	ENDIF
@@ -70,8 +71,8 @@ ENDPROC	dos_sstep
 ;
 ; dos_brkpt (INT 03h)
 ;
-; If a breakpoint instruction is executed, and no debugger is currently running,
-; we catch it here and ignore it.
+; If a breakpoint instruction is executed, and no debugger is currently
+; running, we catch it here and ignore it.
 ;
 DEFPROC	dos_brkpt,DOSFAR
 	iret
@@ -82,14 +83,15 @@ ENDPROC	dos_brkpt
 ; dos_oferr (INT 04h)
 ;
 ; If an "overflow exception" occurs, this default handler reports it and
-; then aborts the current program.
+; signals the error.
 ;
 DEFPROC	dos_oferr,DOSFAR
 	IFDEF MAXDEBUG
 	DBGBRK
 	ENDIF
 	push	ax
-	PRINTF	<"overflow error @%U%08lx",13,10>
+	PRINTF	<"Overflow error @%U%08lx",13,10>
+	call	msc_sigerr
 	pop	ax
 	IFDEF DEBUG
 	iret
@@ -267,7 +269,7 @@ ENDPROC	dos_func
 ;
 DEFPROC	dos_exret,DOSFAR
 	ASSERT	NEVER			; assert that we never get here
-	jmp	$
+	jmp	near ptr dos_term
 ENDPROC	dos_exret
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -287,10 +289,14 @@ ENDPROC	dos_ctrlc
 ;
 ; dos_error (INT 24h handler)
 ;
-; TODO
+; Outputs:
+;	AL = 0:	ignore error
+;	AL = 1:	retry operation
+;	AL = 2:	abort program via INT 23h
+;	AL = 3:	fail system call in progress
 ;
 DEFPROC	dos_error,DOSFAR
-	ASSERT	NEVER			; assert that we never get here
+	mov	al,CRERR_ABORT		; default to 2 (abort via INT 23h)
 	iret
 ENDPROC	dos_error
 
@@ -428,7 +434,7 @@ ENDPROC	dos_ddint_leave
 DEFPROC	func_none,DOS
 	mov	al,ah
 	mov	ah,0
-	PRINTF	<"unsupported DOS function %02xh",13,10,"called @%08lx",13,10>,ax,[bp].REG_IP,[bp].REG_CS
+	PRINTF	<"Unsupported DOS function %02xh",13,10,"called @%08lx",13,10>,ax,[bp].REG_IP,[bp].REG_CS
 	mov	[bp].REG_AX,ERR_INVALID
 	stc
 	ret
