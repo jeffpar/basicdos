@@ -12,7 +12,7 @@
 CODE    SEGMENT
 	org	100h
 
-	EXTERNS	<allocText,freeText,genCode>,near
+	EXTERNS	<allocText,freeText,genCode,freeCode>,near
 
 	EXTERNS	<KEYWORD_TOKENS>,word
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF,PERIOD>
@@ -419,7 +419,8 @@ ENDPROC	getToken
 ;
 ; ctrlc
 ;
-; CTRLC handler; resets the program stack and jumps to the start address
+; CTRLC handler: resets the program stack, closes any open file, frees any
+; active code buffer, and then jumps to our start address.
 ;
 ; Inputs:
 ;	None
@@ -439,6 +440,7 @@ DEFPROC	ctrlc,FAR
 	mov	sp,[bx].ORIG_SP.OFF
 	mov	bp,[bx].ORIG_BP
 	call	closeFile
+	call	freeCode
 	jmp	m1
 ENDPROC	ctrlc
 

@@ -290,9 +290,9 @@ CLS_HEX		equ	02h	; hexadecimal value
 CLS_DEC		equ	04h	; decimal value
 CLS_NUM		equ	07h	; any of the above
 CLS_STR		equ	08h	; string constant
-CLS_SYM		equ	10h	; symbol
-CLS_VAR		equ	20h	; identifier (eg, keyword or variable)
-CLS_KEYWORD	equ	28h	; var identified as keyword
+CLS_VAR		equ	10h	; identifier (eg, keyword or variable)
+CLS_KEYWORD	equ	18h	; var identified as keyword
+CLS_SYM		equ	20h	; symbol
 CLS_DQUOTE	equ	40h	; inside double quotes
 CLS_WHITE	equ	80h	; whitespace
 CLS_VAR_INT	equ	30h	; CLS_VAR + VAR_INT

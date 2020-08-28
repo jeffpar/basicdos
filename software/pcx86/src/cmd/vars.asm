@@ -181,8 +181,10 @@ ENDPROC	allocCode
 ;
 ; freeCode
 ;
+; Frees all code blocks and resets the CODE_BLK chain.
+;
 ; Inputs:
-;	ES = segment
+;	None
 ;
 ; Outputs:
 ;	Carry clear if successful, set if error
@@ -193,7 +195,7 @@ ENDPROC	allocCode
 DEFPROC	freeCode
 	mov	si,ds:[PSP_HEAP]
 	lea	si,[si].CODE_BLK
-	jmp	freeBlock
+	jmp	freeAllBlocks
 ENDPROC	freeCode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -1,14 +1,7 @@
-REM The first BASIC-DOS test file
+REM The first BASIC-DOS test file:
+REM Printing Fibonacci numbers
 COLOR 7,1
-10 PRINT 2+2
-PRINT 1;2;3;4;5;6;7;8;9
-LET a = 99
-GOTO 20
-PRINT (-a)^2/3+&hff*(3+4)
-REM Result should be 5052
-20 PRINT -(-a)^2/3+&hff*(3+44)
-REM Result should be 8718
-REM
-REM String support is coming soon
-REM Until then, do NOT use strings
+LET A = 0:LET B = 1
+10 PRINT A;
+LET C = A + B:LET A = B:LET B = C
 GOTO 10

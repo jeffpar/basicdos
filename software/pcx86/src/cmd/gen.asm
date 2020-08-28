@@ -584,11 +584,10 @@ ENDPROC	genExprStr
 ;	Any
 ;
 DEFPROC	genGoto
-	int 3
 	mov	al,CLS_NUM
 	call	getNextToken
 	jbe	gg9
-	mov	ax,DOS_UTL_ATOI32D	; DS:SI -> decimal string (length CX)
+	mov	ax,DOS_UTL_ATOI32D	; DS:SI -> decimal string
 	int	21h
 	call	findLabel
 ;
@@ -604,7 +603,7 @@ DEFPROC	genGoto
 ; the stack pointer and return); once the label definition is encountered, that
 ; 3-byte sequence will be overwritten with a 3-byte JMP (see addLabel).
 ;
-	jc	gg8
+	jc	gg7
 	xchg	dx,ax
 	sub	dx,di
 	sub	dx,3			; DX = 16-bit displacement
@@ -612,11 +611,12 @@ DEFPROC	genGoto
 	stosb
 	xchg	ax,dx
 	stosw
-	jmp	short gg9
-gg8:	mov	ax,OP_MOV_SP_BP		; placeholder for endProgram
+	jmp	short gg8
+gg7:	mov	ax,OP_MOV_SP_BP		; placeholder for endProgram
 	stosw
 	mov	al,OP_RETF
 	stosb
+gg8:	clc
 gg9:	ret
 ENDPROC	genGoto
 
@@ -840,7 +840,6 @@ ENDPROC	genPrint
 ;	CX, DX
 ;
 DEFPROC	addLabel
-	int 3
 	test	ax,ax			; is there a label?
 	jz	al9			; no, nothing to do
 	mov	dx,di			; DX = current code gen offset
@@ -856,7 +855,7 @@ DEFPROC	addLabel
 	sub	cx,di
 	jcxz	al8			; stack is empty
 	shr	cx,1			; CX = # of words on LBLREF stack
-al1:	rep	scasw			; scan all words for label #
+al1:	repne	scasw			; scan all words for label #
 	jne	al8			; nothing found
 	test	di,(size LBLREF)-1	; did we match the first LBLREF word?
 	jz	al1			; no (must have match LBL_IP instead)
@@ -917,7 +916,7 @@ DEFPROC	findLabel
 	sub	cx,di
 	jcxz	fl8			; stack is empty
 	shr	cx,1			; CX = # of words on LBLREF stack
-fl1:	rep	scasw			; scan all words for label #
+fl1:	repne	scasw			; scan all words for label #
 	jne	fl8			; nothing found
 	test	di,(size LBLREF)-1	; did we match the first LBLREF word?
 	jz	fl1			; no (must have match LBL_IP instead)

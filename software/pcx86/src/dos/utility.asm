@@ -372,7 +372,7 @@ ai2:	cmp	al,'A'			; remap hex digits
 	ja	ai6			; never a valid digit
 	sub	al,'A'-'0'-10
 ai3:	cmp	al,'0'			; convert ASCII digit to value
-	jb	ai5
+	jb	ai6
 	sub	al,'0'
 	cmp	al,[bp].TMP_BL		; outside the requested base?
 	jae	ai6			; yes
@@ -412,10 +412,6 @@ ai4:	jcxz	ai6
 	lodsb				; fetch the next character
 	dec	cx
 	jmp	ai1			; and continue the evaluation
-
-ai5:	test	al,al			; normally we skip the first non-digit
-	jnz	ai6			; but if it's a null
-	dec	si			; rewind
 
 ai6:	cmp	byte ptr [bp].TMP_AL,0
 	jge	ai6a
@@ -488,7 +484,7 @@ ENDPROC utl_atoi32
 DEFPROC	utl_atoi32d,DOS
 	mov	bl,10			; always base 10
 	mov	cx,-1			; no specific length
-	mov	di,-1			; no validation
+	mov	di,cx			; no validation
 	jmp	utl_atoi_base		; utl_atoi returns a 32-bit value
 ENDPROC utl_atoi32d
 
