@@ -174,13 +174,13 @@ msg1:	IF REG_CHECK
 	ASSERT	STRUCT,[bx],SCB
 ;
 ; At this point, we're effectively issuing an INT 23h (INT_DOSCTRLC), but it
-; has to be simulated, because we're using the SCB CTRLC address rather than the
-; IVT CTRLC address; they should be the same thing, as long as everyone uses
-; DOS_MSC_SETVEC to set vector addresses.
+; has to be simulated, because we're using the SCB CTRLC address rather than
+; the IVT CTRLC address; they should be the same thing, as long as everyone
+; uses DOS_MSC_SETVEC to set vector addresses.
 ;
 ; As explained in the SCB definition, we do this only because we'd rather not
-; swap IVT vectors on every SCB switch, hence the use of "shadow" vectors inside
-; the SCB.
+; swap IVT vectors on every SCB switch, hence the use of "shadow" vectors
+; inside the SCB.
 ;
 	mov	ax,[bx].SCB_CTRLC.SEG
 	mov	[bp].REG_WS.JMP_CS,ax
@@ -200,6 +200,49 @@ msg1:	IF REG_CHECK
 	pop	ax
 	ret
 ENDPROC	msc_sigctrlc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; msc_sigerr
+;
+; Unlike msc_sigctrlc, this signals errors from a variety of sources, so
+; don't assume BP refers to a REG_FRAME.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None
+;
+DEFPROC	msc_sigerr
+	ASSUME	DS:NOTHING, ES:NOTHING
+	push	bx
+	push	ds
+
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
+	mov	bx,[scb_active]
+	ASSERT	STRUCT,[bx],SCB
+	pushf
+	call	[bx].SCB_ERROR
+;
+; Check the handler's return code and decide what to do.
+;
+	cmp	al,CRERR_ABORT		; abort program via INT 23h?
+	jne	ms9			; no
+	pushf
+	call	[bx].SCB_CTRLC		; yes
+;
+; TODO: Add support for other responses.
+;
+ms9:	pop	ds
+	pop	bx
+	ret
+ENDPROC	msc_sigerr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

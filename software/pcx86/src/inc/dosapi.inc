@@ -150,6 +150,14 @@ STDPRN		equ	4
 STDEXE		equ	5
 
 ;
+; Critical error (INT 24h) response codes
+;
+CRERR_IGNORE	equ	0	; ignore the error
+CRERR_RETRY	equ	1	; retry the operation
+CRERR_ABORT	equ	2	; abort program via INT 23h
+CRERR_FAIL	equ	3	; fail the system call in progress
+
+;
 ; Program Segment Prefix (PSP)
 ;
 PSP		struc
