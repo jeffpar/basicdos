@@ -11,7 +11,7 @@
 
 CODE    SEGMENT
 	EXTERNS	<cmdDate,cmdDir,cmdExit,cmdHelp,cmdList,cmdLoad,cmdMem>,near
-	EXTERNS	<cmdRun,cmdTime,cmdType,cmdVer>,near
+	EXTERNS	<cmdNew,cmdRun,cmdTime,cmdType,cmdVer>,near
 	EXTERNS	<genCLS,genColor,genDefInt,genGoto,genIf,genLet,genPrint>,near
 	EXTERNS	<evalNegLong,evalNotLong>,near
 	EXTERNS	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>,near
@@ -96,32 +96,30 @@ CODE    SEGMENT
 	db	0
 
 CODE	ENDS
-;
-; Keywords with IDs < 20 only require GENERIC parsing, and keywords with
-; IDs < 10 don't use filespecs for their first argument.
-;
+
 	DEFTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
-	DEFTOK	TOK_CLS,    20, "CLS",    genCLS
-	DEFTOK	TOK_COLOR,  21, "COLOR",  genColor
+	DEFTOK	TOK_CLS,    40, "CLS",    genCLS
+	DEFTOK	TOK_COLOR,  41, "COLOR",  genColor
 	DEFTOK	TOK_DATE,    1, "DATE",   cmdDate
-	DEFTOK	TOK_DEFINT, 22, "DEFINT", genDefInt
-	DEFTOK	TOK_DIR,    10, "DIR",    cmdDir
+	DEFTOK	TOK_DEFINT, 42, "DEFINT", genDefInt
+	DEFTOK	TOK_DIR,    20, "DIR",    cmdDir
 	DEFTOK	TOK_ELSE,  101, "ELSE"
 	DEFTOK	TOK_EXIT,    2, "EXIT",   cmdExit
-	DEFTOK	TOK_GOTO,   23, "GOTO",   genGoto
+	DEFTOK	TOK_GOTO,   43, "GOTO",   genGoto
 	DEFTOK	TOK_HELP,    3, "HELP",   cmdHelp
-	DEFTOK	TOK_IF,     24, "IF",     genIf
-	DEFTOK	TOK_LET,    25, "LET",    genLet
+	DEFTOK	TOK_IF,     44, "IF",     genIf
+	DEFTOK	TOK_LET,    45, "LET",    genLet
 	DEFTOK	TOK_LIST,    4, "LIST",   cmdList
-	DEFTOK	TOK_LOAD,   11, "LOAD",   cmdLoad
+	DEFTOK	TOK_LOAD,   21, "LOAD",   cmdLoad
 	DEFTOK	TOK_MEM,     5, "MEM",    cmdMem
-	DEFTOK	TOK_PRINT,  26, "PRINT",  genPrint
-	DEFTOK	TOK_REM,    27, "REM"
-	DEFTOK	TOK_RUN,     6, "RUN",    cmdRun
+	DEFTOK	TOK_NEW,     6, "NEW",    cmdNew
+	DEFTOK	TOK_PRINT,  46, "PRINT",  genPrint
+	DEFTOK	TOK_REM,    47, "REM"
+	DEFTOK	TOK_RUN,     7, "RUN",    cmdRun
 	DEFTOK	TOK_THEN,  102, "THEN"
-	DEFTOK	TOK_TIME,    7, "TIME",   cmdTime
-	DEFTOK	TOK_TYPE,   12, "TYPE",   cmdType
-	DEFTOK	TOK_VER,     8, "VER",    cmdVer
+	DEFTOK	TOK_TIME,    8, "TIME",   cmdTime
+	DEFTOK	TOK_TYPE,   22, "TYPE",   cmdType
+	DEFTOK	TOK_VER,     9, "VER",    cmdVer
 	NUMTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
 
 	DEFTOKENS KEYOP_TOKENS,KEYOP_TOTAL

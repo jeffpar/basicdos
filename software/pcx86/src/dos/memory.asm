@@ -425,6 +425,50 @@ ENDPROC	free
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; freeAll
+;
+; Used during process termination to free all blocks marked "owned" by
+; the PSP in AX.
+;
+; Inputs:
+;	AX = owner
+;
+; Outputs:
+;	On success, carry clear
+;	On failure, carry set, AX = ERR_BADMCB or ERR_BADADDR
+;
+; Modifies:
+;	AX, BX, CX, DX, ES
+;
+DEFPROC	freeAll,DOS
+	ASSUME	ES:NOTHING
+	LOCK_SCB
+	mov	bx,[mcb_head]
+
+fa1:	mov	es,bx
+	cmp	es:[MCB_OWNER],ax	; MCB owned by AX?
+	jne	fa8			; no
+	push	ax			; save owner
+	mov	ax,es			; AX = MCB
+	inc	ax			; AX = segment
+	call	free			; free the segment
+	pop	ax			; restore owner
+	jc	fa9			; assuming free was successful
+	mov	bx,es			; we can pick up where free left off
+	jmp	fa1
+
+fa8:	cmp	es:[MCB_SIG],MCBSIG_LAST
+	je	fa9
+	add	bx,es:[MCB_PARAS]
+	inc	bx
+	jmp	fa1
+
+fa9:	UNLOCK_SCB
+	ret
+ENDPROC	freeAll
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; getsize
 ;
 ; Inputs:

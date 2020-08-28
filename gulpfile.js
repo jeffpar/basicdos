@@ -9,6 +9,7 @@
 
 let path = require("path");
 let gulp = require("gulp");
+var glob = require("glob");
 let run = require("gulp-run-command").default;
 
 let disks = {
@@ -17,63 +18,58 @@ let disks = {
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
         "./software/pcx86/src/cfg/config1/CONFIG.SYS",
-        "./software/pcx86/src/util/PRIMES.BAT",
         "./software/pcx86/src/util/obj/PRIMES.EXE",
         "./software/pcx86/src/util/obj/SLEEP.COM",
-        "./software/pcx86/src/util/TESTS.BAT",
         "./software/pcx86/src/util/obj/TESTS.COM",
         "./software/pcx86/src/gwb/obj/GWB.EXE",
-        "./software/pcx86/src/util/obj/SYMDEB.EXE"
+        "./software/pcx86/src/util/obj/SYMDEB.EXE",
+        "./software/pcx86/src/util/*.BAT"
     ],
     "BASIC-DOS2": [
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
         "./software/pcx86/src/cfg/config2/CONFIG.SYS",
-        "./software/pcx86/src/util/PRIMES.BAT",
         "./software/pcx86/src/util/obj/PRIMES.EXE",
         "./software/pcx86/src/util/obj/SLEEP.COM",
-        "./software/pcx86/src/util/TESTS.BAT",
         "./software/pcx86/src/util/obj/TESTS.COM",
-        "./software/pcx86/src/util/obj/SYMDEB.EXE"
+        "./software/pcx86/src/util/obj/SYMDEB.EXE",
+        "./software/pcx86/src/util/*.BAT"
     ],
     "BASIC-DOS3": [
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
         "./software/pcx86/src/cfg/config3/CONFIG.SYS",
-        "./software/pcx86/src/util/PRIMES.BAT",
         "./software/pcx86/src/util/obj/PRIMES.EXE",
         "./software/pcx86/src/util/obj/SLEEP.COM",
-        "./software/pcx86/src/util/TESTS.BAT",
         "./software/pcx86/src/util/obj/TESTS.COM",
-        "./software/pcx86/src/gwb/obj/GWB.EXE"
+        "./software/pcx86/src/gwb/obj/GWB.EXE",
+        "./software/pcx86/src/util/*.BAT"
     ],
     "BASIC-DOS4": [
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
         "./software/pcx86/src/cfg/config4/CONFIG.SYS",
-        "./software/pcx86/src/util/PRIMES.BAT",
         "./software/pcx86/src/util/obj/PRIMES.EXE",
         "./software/pcx86/src/util/obj/SLEEP.COM",
-        "./software/pcx86/src/util/TESTS.BAT",
         "./software/pcx86/src/util/obj/TESTS.COM",
         "./software/pcx86/src/gwb/obj/GWB.EXE",
-        "./software/pcx86/src/util/obj/SYMDEB.EXE"
+        "./software/pcx86/src/util/obj/SYMDEB.EXE",
+        "./software/pcx86/src/util/*.BAT"
     ],
     "BASIC-DOS5": [
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
         "./software/pcx86/src/cfg/config5/CONFIG.SYS",
-        "./software/pcx86/src/util/PRIMES.BAT",
         "./software/pcx86/src/util/obj/PRIMES.EXE",
         "./software/pcx86/src/util/obj/SLEEP.COM",
-        "./software/pcx86/src/util/TESTS.BAT",
         "./software/pcx86/src/util/obj/TESTS.COM",
         "./software/pcx86/src/gwb/obj/GWB.EXE",
-        "./software/pcx86/src/util/obj/SYMDEB.EXE"
+        "./software/pcx86/src/util/obj/SYMDEB.EXE",
+        "./software/pcx86/src/util/*.BAT"
     ],
     "BDS-BOOT": [
         "./software/pcx86/src/boot/boot.asm",
@@ -174,12 +170,17 @@ for (let diskName in disks) {
     } else {
         let dirPrev = "";
         for (let i = 0; i < disks[diskName].length; i++) {
-            if (diskFiles) diskFiles += ",";
             let fileNext = disks[diskName][i];
+            let filesNext = glob.sync(fileNext);
+            if (filesNext.length > 1) {
+                disks[diskName].push(...filesNext);
+                continue;
+            }
             let dirNext = path.dirname(fileNext);
             if (dirNext == dirPrev) {
                 fileNext = path.basename(fileNext);
             }
+            if (diskFiles) diskFiles += ",";
             diskFiles += fileNext;
             dirPrev = dirNext;
         }

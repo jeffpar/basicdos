@@ -12,13 +12,13 @@
 CODE    SEGMENT
 	org	100h
 
-	EXTERNS	<allocText,freeText,genCode,freeCode>,near
+	EXTERNS	<allocText,freeText,genCode,freeCode,freeVars,printStr>,near
 
 	EXTERNS	<KEYWORD_TOKENS>,word
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF,PERIOD>
 	EXTSTR	<STD_VER,DBG_VER>
 
-        ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
+        ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
 DEFPROC	main
 	LOCVAR	iArg,byte		; # of first non-switch argument
@@ -176,21 +176,35 @@ m4:	mov	dx,offset COM_EXT
 	jnc	m4b
 	mov	dx,di			; filename was none of the above
 	mov	ax,ERR_INVALID		; so report an error
-m4a:	jmp	short m8
+m4a:	jmp	m8
 ;
-; BAT files are LOAD'ed and then immediately RUN.  We'll do the same for
-; BAS files, too.  Use the "LOAD" command to load without running.
+; BAT files are LOAD'ed and then immediately RUN.  We may as well do the same
+; for BAS files; you can always use the "LOAD" command to load without running.
 ;
-; BAT file operation does differ in some respects, however.  One significant
-; difference is that, ordinarily, each line of a BAT file is displayed before
-; it is executed, so that will have to be taken into account in the generated
-; code.
+; BAT file operation differs in other respects.  For example, each line of a
+; BAT file is displayed before it's executed, unless prefixed with '@'.  This
+; is why we must call cmdRunFlags with GEN_BASIC or GEN_BATCH as appropriate.
 ;
-m4b:	call	cmdLoad
-	jc	m4c			; don't RUN if there was a LOAD error
-	mov	bx,ds:[PSP_HEAP]	; don't assume cmdLoad preserved BX
-	call	cmdRun
-m4c:	jmp	m1
+; Another side-effect of an implied LOAD+RUN operation is that we free the
+; loaded program (ie, all text blocks) when it finishes running.  Any variables
+; set (ie, all var blocks) are allowed to remain in memory.
+;
+; Note that if the execution is aborted (eg, critical error, CTRLC signal),
+; the program remains loaded, available for LIST'ing, RUN'ing, etc.
+;
+m4b:	push	bx
+	push	dx
+	call	cmdLoad
+	pop	dx
+	pop	bx
+	jc	m4d			; don't RUN if there was a LOAD error
+	mov	al,GEN_BASIC
+	cmp	dx,offset BAS_EXT
+	je	m4c
+	mov	al,GEN_BATCH
+m4c:	call	cmdRunFlags		; if cmdRUn returns normally
+	call	freeText		; then free all the text blocks
+m4d:	jmp	m1
 ;
 ; COM and EXE files are EXEC'ed, which requires building EXECDATA.
 ;
@@ -235,11 +249,12 @@ m8:	PRINTF	<"Error loading %s: %d",13,10,13,10>,dx,ax
 ; the level of additional parsing required, if any.
 ;
 m9:	lea	di,[bx].TOKENBUF	; DS:DI -> token buffer
-	cmp	ax,20			; token ID < 20?
-	jb	m10			; yes, token not part of "the language"
+	cmp	ax,KEYWORD_GENCODE	; token ID < KEYWORD_GENCODE?
+	jb	m10			; yes, code generation not required
 ;
 ; The token is for a recognized keyword, so generate code.
 ;
+	mov	al,GEN_IMM
 	lea	si,[bx].INPUTBUF
 	call	genCode
 	jmp	m1
@@ -248,7 +263,7 @@ m9:	lea	di,[bx].TOKENBUF	; DS:DI -> token buffer
 ; we find prior to the first non-switch argument.
 ;
 m10:	call	parseSW			; parse all switch arguments, if any
-	cmp	ax,10			; token ID < 10?
+	cmp	ax,KEYWORD_FILESPEC	; token ID < KEYWORD_FILESPEC?
 	jb	m20			; yes, command does not use a filespec
 ;
 ; The token is for a command that expects a filespec, so fix up the next
@@ -669,7 +684,33 @@ ENDPROC	cmdHelp
 ;	Any
 ;
 DEFPROC	cmdList
-	ret
+	lea	si,[bx].TEXT_BLK
+l2:	mov	cx,[si].TBLK_NEXT
+	jcxz	l9			; nothing left to parse
+	mov	ds,cx
+	ASSUME	DS:NOTHING
+	mov	si,size TBLK_HDR
+l3:	cmp	si,ds:[TBLK_FREE]
+	jae	l2			; advance to next block in chain
+	lodsw
+	test	ax,ax			; is there a label #?
+	jz	l4			; no
+	PRINTF	<"%5d">,ax
+l4:	PRINTF	<CHR_TAB>
+	mov	al,[si]
+	mov	ah,0
+	push	ax
+	push	si
+	push	ds
+	push	si
+	push	cs
+	call	near ptr printStr
+	pop	si
+	pop	ax
+	inc	si
+	add	si,ax
+	jmp	l3
+l9:	ret
 ENDPROC	cmdList
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -692,6 +733,7 @@ ENDPROC	cmdList
 ;	Any
 ;
 DEFPROC	cmdLoad
+	ASSUME	DS:DATA
 	mov	dx,offset PERIOD
 	call	chkString
 	jnc	lf1			; period exists, use filename as-is
@@ -849,6 +891,25 @@ ENDPROC	cmdLoad
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; cmdNew
+;
+; Inputs:
+;	DS:BX -> heap
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cmdNew
+	call	freeText
+	call	freeVars
+	ret
+ENDPROC	cmdNew
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; cmdRun
 ;
 ; Inputs:
@@ -861,6 +922,8 @@ ENDPROC	cmdLoad
 ;	Any
 ;
 DEFPROC	cmdRun
+	mov	al,GEN_BASIC
+	DEFLBL	cmdRunFlags,near
 	sub	si,si
 	call	genCode
 	ret

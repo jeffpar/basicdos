@@ -49,7 +49,14 @@ DATA	SEGMENT
 val = ((offset $ - offset tbl) - 2) / (size TOKDEF)
 DATA	ENDS
 	endm
-
+;
+; Keywords with IDs >= GENCODE require code generation.
+; Those with IDs < GENCODE and >= FILESPEC expect a filespec.
+;
+; Keywords are defined in the KEYWORD_TOKENS table in const.asm.
+;
+	KEYWORD_FILESPEC equ	20
+	KEYWORD_GENCODE  equ	40
 ;
 ; Each of our block chains begins with a BLK_DEF, so that a common set of
 ; block functions (eg, allocBlock) can work with any chain.
@@ -159,6 +166,13 @@ LBL_NUM		dw	?		; label number
 LBL_IP		dw	?		; instruction pointer for label
 LBLREF		ends
 LBL_RESOLVE	equ	CBLKLEN
+
+;
+; Code generation flags
+;
+GEN_IMM		equ	01h		; immediate mode
+GEN_BASIC	equ	02h		; BAS file
+GEN_BATCH	equ	04h		; BAT file
 
 ;
 ; Code generation macros
