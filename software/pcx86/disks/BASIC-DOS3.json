@@ -10,7 +10,7 @@
   "trackDefault": 8,
   "sectorDefault": 512,
   "diskSize": 163840,
-  "version": "2.03",
+  "version": "2.04",
   "repository": "pcjs.org"
 },
 "volTable": [
