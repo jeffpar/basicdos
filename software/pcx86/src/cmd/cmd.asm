@@ -1028,8 +1028,8 @@ ENDPROC	cmdType
 ;
 ; openFile
 ;
-; Open the specified file; used by "LOAD" and "TYPE".
-; As an added bonus, return the size of the file in DX:AX.
+; Open the specified file; used by "LOAD" and "TYPE".  As an added bonus,
+; return the size of the file in DX:AX.
 ;
 ; Inputs:
 ;	DS:SI -> filename
@@ -1042,6 +1042,7 @@ ENDPROC	cmdType
 ;
 DEFPROC	openFile
 	push	bx
+	push	cx
 	mov	dx,si			; DX -> filename
 	mov	ax,DOS_HDL_OPEN SHL 8
 	int	21h
@@ -1059,7 +1060,8 @@ DEFPROC	openFile
 	int	21h
 	pop	dx
 	pop	ax
-of9:	pop	bx
+of9:	pop	cx
+	pop	bx
 	ret
 	DEFLBL	openError,near
 	PRINTF	<"Unable to open %s (%d)",13,10,13,10>,dx,ax
@@ -1128,7 +1130,12 @@ ENDPROC	readFile
 ;
 ; findFile
 ;
-; Find the filename at DS:SI.
+; Find the filename at DS:SI.  I originally used DOS_DSK_FFIRST to find it,
+; but that returns its results in the DTA, which may be where the command
+; we're processing is still located (eg, if it was passed in via PSP_CMDTAIL).
+;
+; Since this function is always looking for a specific file (no wildcards),
+; we may as well use open and close.
 ;
 ; Inputs:
 ;	DS:SI -> filename
@@ -1140,14 +1147,11 @@ ENDPROC	readFile
 ;	AX
 ;
 DEFPROC	findFile
-	push	cx
 	push	dx
-	sub	cx,cx
-	mov	dx,si
-	mov	ah,DOS_DSK_FFIRST
-	int	21h			; find file (DS:DX) with attrs (CX=0)
-	pop	dx
-	pop	cx
+	call	openFile		; returns file size too, but we
+	jc	ff9			; don't care (TODO: any perf impact)?
+	call	closeFile
+ff9:	pop	dx
 	ret
 ENDPROC	findFile
 
