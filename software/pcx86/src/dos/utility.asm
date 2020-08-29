@@ -162,12 +162,11 @@ ENDPROC	utl_strupr
 ;
 ; utl_printf (AX = 1804h)
 ;
-; A semi-CDECL-style calling convention is assumed, where all parameters
-; EXCEPT for the format string are pushed from right to left, so that the
-; first (left-most) parameter is the last one pushed.  The format string
-; is stored in the CODE segment following the INT 21h, which we automatically
-; skip, and the next instruction should be an "ADD SP,N*2", assuming N word
-; parameters.
+; A CDECL-style calling convention is assumed, where all parameters EXCEPT
+; for the format string are pushed from right to left, so that the first
+; (left-most) parameter is the last one pushed.  The format string is stored
+; in the CODE segment following the INT 21h, which we automatically skip, and
+; the next instruction should be an "ADD SP,N*2", assuming N word parameters.
 ;
 ; See utl_sprintf for more details.
 ;
@@ -220,13 +219,21 @@ ENDPROC	utl_printf endp
 ;
 ; utl_dprintf (AX = 1805h)
 ;
-; This is used by DEBUG code (in particular, the DPRINTF macro) to print
+; This is used by DEBUG code (specifically, the DPRINTF macro) to print
 ; to a "debug" device defined by a DEBUG= line in CONFIG.SYS.  However, this
 ; code is always left in place, in case we end up with a mix of DEBUG and
 ; NODEBUG binaries.  Without this function, those calls would crash, due to
 ; how the format strings are stored after the INT 21h.
 ;
 ; Except for the output device, this function is identical to utl_printf.
+;
+; TODO: With some additional code, it would be easy enough to check sfh_debug
+; here, and if it's not set, calculate the length of the format string, add
+; that (+1) to the caller's REG_IP, and immediately return; that would
+; obviously be much faster than calling sprintf every time.  However, I'm
+; already wasting enough code on a DEBUG-only feature, and people shouldn't
+; normally be running DEBUG binaries anyway, so I don't feel any need to speed
+; this up.
 ;
 ; Inputs:
 ;	format string follows the INT 21h
@@ -247,15 +254,15 @@ ENDPROC	utl_dprintf endp
 ;
 ; utl_sprintf (AX = 1806h)
 ;
-; A semi-CDECL-style calling convention is assumed, where all parameters
-; EXCEPT for the format string are pushed from right to left, so that the
-; first (left-most) parameter is the last one pushed.  The format string
-; is stored in the CODE segment following the INT 21h, which we automatically
-; skip, and the next instruction should be an "ADD SP,N*2", assuming N word
-; parameters.
+; A CDECL-style calling convention is assumed, where all parameters EXCEPT
+; for the format string are pushed from right to left, so that the first
+; (left-most) parameter is the last one pushed.  The format string is stored
+; in the CODE segment following the INT 21h, which we automatically skip, and
+; the next instruction should be an "ADD SP,N*2", assuming N word parameters.
 ;
-; When printing 32-bit values, list the low word first, then the high word,
-; so that the high word is pushed first.
+; When passing 32-bit ("long") values to the PRINTF macro, pass the low word
+; first, then the high word, so that the high word is pushed first.  Similarly,
+; when passing 32-bit ("far") pointers, pass the offset first, then segment.
 ;
 ; Inputs:
 ;	DS:BX -> format string
@@ -338,7 +345,7 @@ DEFPROC	utl_atoi16,DOS
 	sti
 	mov	bh,0
 	mov	[bp].TMP_BX,bx		; TMP_BX equals 16-bit base
-	mov	[bp].TMP_AL,bh		; TMP_AL indicates sign
+	mov	[bp].TMP_AL,bh		; TMP_AL is sign (0 for +, -1 for -)
 	mov	ds,[bp].REG_DS
 	mov	es,[bp].REG_ES
 	ASSUME	DS:NOTHING, ES:NOTHING
@@ -402,7 +409,8 @@ ai3a:	pop	ax			; DX:BX = DX:BX * TMP_BX
 ;
 ; This COULD be an overflow situation UNLESS DX:BX is now 80000000h AND
 ; the result is going to be negated.  Unfortunately, any negation may happen
-; later, so it won't do any good to test TMP_AL.  We'll just have to allow it.
+; later, so it's insufficient to test the sign in TMP_AL; we'll just have to
+; allow it.
 ;
 	test	bx,bx
 	jz	ai4
@@ -478,8 +486,8 @@ ENDPROC utl_atoi32
 ; Convert decimal string at DS:SI to number in DX:AX.
 ;
 ; This is equivalent to calling utl_atoi32 with BL = 10 and CX = -1, with
-; the advantage that the caller's BX and CX registers are neither required
-; nor modified.
+; the advantage that the caller's BX and CX registers are ignored (ie, they
+; can be used for other purposes).
 ;
 DEFPROC	utl_atoi32d,DOS
 	mov	bl,10			; always base 10
@@ -654,7 +662,7 @@ tc2:	cmp	al,CHR_SPACE
 tc2a:	mov	ah,CLS_WHITE
 	ret
 ;
-; For generic parsing, everything is whitespace or a string.
+; For generic parsing, everything is either whitespace or a string.
 ;
 tc3:	test	byte ptr [bp].REG_AL,TOKTYPE_GENERIC
 	jz	tc4
@@ -678,8 +686,8 @@ tc4:	cmp	al,'0'
 	ja	tc5
 ;
 ; Digits can start CLS_DEC, or continue CLS_OCT, CLS_HEX, CLS_DEC, or CLS_VAR.
-; Technically, they can only continue CLS_OCT if < '8', but we worry about that
-; later, during evaluation.
+; Technically, they can only continue CLS_OCT if < '8', but we'll worry about
+; that later, during evaluation.
 ;
 	test	ah,CLS_OCT OR CLS_HEX OR CLS_DEC OR CLS_VAR
 	jnz	tc4a
@@ -752,6 +760,11 @@ ENDPROC	tok_classify
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; utl_tokid (AX = 180Dh)
+;
+; The main advantage of this function is that, by requiring the TOKTBL
+; to be sorted, it can use a binary search to find the token faster.  For
+; small token tables, that's probably insigificant, but for larger tables
+; (eg, BASIC keywords), the difference will presumably add up.
 ;
 ; Inputs:
 ;	REG_CX = token length
@@ -842,7 +855,7 @@ ENDPROC	utl_tokid
 ;
 ; utl_getdev (AX = 1810h)
 ;
-; Returns DDH in ES:DI for device name at DS:DX.
+; Returns the DDH (Device Driver Header) in ES:DI for device name at DS:DX.
 ;
 ; Inputs:
 ;	DS:DX -> device name
@@ -913,7 +926,8 @@ ENDPROC	utl_load
 ;
 ; utl_start (AX = 1813h)
 ;
-; "Start" the specified session (actual starting will handled by scb_switch)
+; "Start" the specified session.  Currently, all this does is mark the session
+; startable; actual starting will handled by scb_switch.
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -932,7 +946,7 @@ ENDPROC	utl_start
 ;
 ; utl_stop (AX = 1814h)
 ;
-; "Stop" the specified session
+; "Stop" the specified session.
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -951,7 +965,7 @@ ENDPROC	utl_stop
 ;
 ; utl_unload (AX = 1815h)
 ;
-; Unload the current program from the specified session
+; Unload the current program from the specified session.
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -992,7 +1006,8 @@ ENDPROC	utl_yield
 ; issues an IOCTL to the CLOCK$ driver to wait the corresponding # of ticks.
 ;
 ; 1 tick is equivalent to approximately 55ms, so that's the granularity of
-; sleep requests.
+; sleep requests (yeah, pretty granular, but it's not clear that the speed of
+; an IBM PC is fast enough to warrant more frequent context-switching).
 ;
 ; Inputs:
 ;	REG_CX:REG_DX = # of milliseconds to sleep
@@ -1131,7 +1146,7 @@ ENDPROC	utl_unlock
 ;
 ; utl_qrymem (AX = 181Dh)
 ;
-; Query info about memory blocks
+; Query info about memory blocks.
 ;
 ; Inputs:
 ;	REG_CX = memory block # (0-based)

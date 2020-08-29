@@ -298,7 +298,7 @@ ENDPROC	scb_start
 ;
 ; scb_stop
 ;
-; "Stop" the specified session.
+; TODO: "Stop" the specified session.
 ;
 ; Inputs:
 ;	CL = SCB #
