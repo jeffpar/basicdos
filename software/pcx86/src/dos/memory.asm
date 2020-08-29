@@ -86,6 +86,11 @@ ENDPROC	mem_realloc
 ;
 ; mem_query
 ;
+; This utility function simplifies implementation of the MEM /D command.
+;
+; TODO: While this is a useful function during development, consider dropping
+; it (and the MEM /D command) in the final release.
+;
 ; Inputs:
 ;	CX = memory block # (0-based)
 ;	DL = memory block type (0 for any, 1 for free, 2 for used)
@@ -427,11 +432,10 @@ ENDPROC	free
 ;
 ; freeAll
 ;
-; Used during process termination to free all blocks marked "owned" by
-; the PSP in AX.
+; Used during process termination to free all blocks "owned" by a PSP.
 ;
 ; Inputs:
-;	AX = owner
+;	AX = owner (PSP)
 ;
 ; Outputs:
 ;	On success, carry clear
@@ -446,7 +450,7 @@ DEFPROC	freeAll,DOS
 	mov	bx,[mcb_head]
 
 fa1:	mov	es,bx
-	cmp	es:[MCB_OWNER],ax	; MCB owned by AX?
+	cmp	es:[MCB_OWNER],ax	; MCB owned by PSP?
 	jne	fa8			; no
 	push	ax			; save owner
 	mov	ax,es			; AX = MCB
@@ -470,6 +474,12 @@ ENDPROC	freeAll
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; getsize
+;
+; Returns the size (in paras) of a segment IFF it's a valid memory block.
+;
+; It's tempting to simply subtract one from the segment and check for an MCB
+; signature; however, it's too easy to be spoofed by a bogus signature.  The
+; only way to be sure it's valid is by walking the MCB chain.
 ;
 ; Inputs:
 ;	DX = segment

@@ -704,6 +704,14 @@ lp7d:	call	psp_calcsum		; calc checksum for code
 ; We found another copy of the code segment (CX), so we can move everything
 ; from PSP_CODESIZE to BX down to 100h, and then set BX to the new program end.
 ;
+; TODO: While sharing a code segment (more precisely, the initial code-only
+; portion of a COM segment) is a nice feature of BASIC-DOS, it would be even
+; nicer if we could do it without re-reading the entire COM image again.
+; We really need to 1) move the COMDATA structure near the beginning of the
+; image (ie, within the first 512 bytes), 2) include a precalculated checksum
+; of the code-only portion in COMDATA, and 3) search for an existing PSP with
+; a matching PSP_CHECKSUM.
+;
 ; The bytes, if any, between PSP_CODESIZE and the COMDATA structure (which is
 ; where BX is now pointing) represent statically initialized data that is also
 ; considered part of the program's "heap".
