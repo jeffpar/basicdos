@@ -47694,9 +47694,12 @@ class Kbdx86 extends Component {
 
         /*
          * HACK for the Apple Magic Keyboard connected to an iPad: iPadOS inexplicably generates CTRL-ENTER (or CTRL-J)
-         ; whenever CTRL-C is pressed, so we attempt to undo that behavior -- at the loss of a genuine CTRL-ENTER, sadly.
+         * whenever CTRL-C is pressed, so we attempt to undo that behavior -- at the loss of a genuine CTRL-ENTER, sadly.
+         *
+         * NOTE: isUserAgent struggles to detect iPadOS because Apple insists on pretending that it be indistinguishable
+         * from desktop systems, so be aware that this hack may stop working at some undefined point.
          */
-        if (this.bitsState & Kbdx86.STATE.CTRL) {
+        if (Web.isUserAgent("iOS") && (this.bitsState & Kbdx86.STATE.CTRL)) {
             if (keyCode == Keys.KEYCODE.CR) {
                 keyCode = Keys.ASCII.C;
             }
