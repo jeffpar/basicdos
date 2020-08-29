@@ -57,8 +57,22 @@ DEFPROC	main
 	IFDEF	MSLIB
 	PRINTF	<"BASIC MATH library functions",13,10,"Copyright (c) Microsoft Corporation",13,10,13,10>
 	ENDIF
-
+;
+; Check the PSP_CMDTAIL for a startup command.  Startup commands must be
+; explicitly provided; there is no support for a global AUTOEXEC.BAT, since
+; 1) it's likely each session will want its own startup command(s), and 2)
+; it's easy enough to specify the name of any desired BAT file on any or all
+; of the SHELL= lines in CONFIG.SYS.
+;
+; Our approach is simple (perhaps even too simple): if a tail exists, set
+; INPUTOFF (which ordinarily points to INPUTBUF) to PSP_CMD_TAIL-1 instead,
+; and then jump into the command-processing code below.
+;
 	mov	word ptr [bx].INPUTBUF.INP_MAX,size INP_BUF
+	cmp	ds:[PSP_CMDTAIL],0
+	je	m1
+	mov	[bx].INPUTOFF,PSP_CMDTAIL-1
+	jmp	short m1a
 ;
 ; Since all command handlers loop back to this point, we shouldn't assume
 ; that any registers (eg, BX, DS, ES) will still contain their original values.
@@ -74,15 +88,16 @@ m1:	push	ss
 	PRINTF	"%c>",ax
 
 	lea	dx,[bx].INPUTBUF
+	mov	[bx].INPUTOFF,dx
 	mov	ah,DOS_TTY_INPUT
 	int	21h
 	PRINTF	<13,10>
 
-	sub	ax,ax
+m1a:	sub	ax,ax
 	mov	[swDigits],ax
 	mov	[swLetters].LOW,ax
 	mov	[swLetters].HIW,ax
-	mov	si,dx
+	mov	si,[bx].INPUTOFF
 	mov	cl,[si].INP_CNT
 	lea	si,[si].INP_BUF
 	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
@@ -100,9 +115,9 @@ m1:	push	ss
 	lea	di,[bx].FILENAME
 	mov	ax,size FILENAME
 	cmp	cx,ax
-	jb	m1a
+	jb	m1b
 	xchg	cx,ax
-m1a:	push	cx
+m1b:	push	cx
 	push	di
 	rep	movsb
 	mov	al,0
@@ -209,7 +224,8 @@ m4d:	jmp	m1
 ; COM and EXE files are EXEC'ed, which requires building EXECDATA.
 ;
 m5:	mov	dx,si			; DS:DX -> filename
-	lea	si,[bx].INPUTBUF.INP_BUF
+	mov	si,[bx].INPUTOFF
+	lea	si,[si].INP_BUF
 	add	si,cx			; DS:SI -> cmd tail after filename
 	lea	bx,[bx].EXECDATA
 	mov	[bx].EPB_ENVSEG,0
@@ -255,7 +271,7 @@ m9:	lea	di,[bx].TOKENBUF	; DS:DI -> token buffer
 ; The token is for a recognized keyword, so generate code.
 ;
 	mov	al,GEN_IMM
-	lea	si,[bx].INPUTBUF
+	mov	si,[bx].INPUTOFF
 	call	genCode
 	jmp	m1
 ;

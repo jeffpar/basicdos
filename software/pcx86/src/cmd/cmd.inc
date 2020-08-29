@@ -248,6 +248,7 @@ ORIG_SP		dd	?
 ORIG_BP		dw	?
 CON_COLS	db	?
 CON_ROWS	db	?
+INPUTOFF	dw	?		; input offset (defaults to INPUTBUF)
 INPUTBUF	db	size BUF_INPUT dup (?)
 TOKENBUF	db	size BUF_TOKEN dup (?)
 LINEBUF		db	256 dup (?)
