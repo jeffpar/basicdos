@@ -39,6 +39,7 @@ INT_VGCDATA	EQU	1Fh	; VIDEO GRAPHICS CHARACTER DATA
 ; INT_VIDEO functions
 ;
 VIDEO_SETMODE	EQU	00h	; AL=mode
+VIDEO_SETCTYPE	EQU	01h	; CH=cursor top, CL=cursor bottom
 VIDEO_SCROLL	EQU	06h	; AL=# lines, BH=fill attribute, CX/DX=coords
 VIDEO_TTYOUT	EQU	0Eh	; AL=char, BH=display page
 
@@ -68,6 +69,61 @@ FDCERR_NOTREADY	EQU	80h	; aka timeout
 ;
 KBD_READ	EQU	00h	; returns char code in AL, scan code in AH
 KBD_CHECK	EQU	01h	; returns ZF set if no key
+
+;
+; BIOS-generated keyboard char codes and scan codes that we care about.
+;
+CHR_CTRLA	equ	01h
+CHR_CTRLB	equ	02h
+CHR_CTRLC	equ	03h
+CHR_CTRLD	equ	04h	; alias for SCAN_RIGHT and SCAN_F1
+CHR_CTRLE	equ	05h	; alias for SCAN_UP and SCAN_F3
+CHR_CTRLF	equ	06h
+CHR_CTRLG	equ	07h
+CHR_BACKSPACE	equ	08h
+CHR_TAB		equ	09h
+CHR_LINEFEED	equ	0Ah
+CHR_VTAB	equ	0Bh
+CHR_RETURN	equ	0Dh
+CHR_CTRLP	equ	10h
+CHR_CTRLQ	equ	11h
+CHR_CTRLR	equ	12h
+CHR_CTRLS	equ	13h	; alias for SCAN_LEFT
+CHR_CTRLT	equ	14h
+CHR_CTRLU	equ	15h
+CHR_CTRLV	equ	16h	; alias for SCAN_INS
+CHR_CTRLW	equ	17h
+CHR_CTRLX	equ	18h	; alias for SCAN_DOWN
+CHR_CTRLY	equ	19h
+CHR_CTRLZ	equ	1Ah
+CHR_ESC		equ	1Bh
+CHR_SPACE	equ	20h
+CHR_DQUOTE	equ	22h
+CHR_SQUOTE	equ	27h
+CHR_SLASH	equ	2Fh
+CHR_DEL		equ	7Fh	; alias for SCAN_DEL
+
+SCAN_TAB	equ	0Fh
+SCAN_F1		equ	3Bh
+SCAN_F2		equ	3Ch
+SCAN_F3		equ	3Dh
+SCAN_F4		equ	3Eh
+SCAN_F5		equ	3Fh
+SCAN_F6		equ	40h
+SCAN_F7		equ	41h
+SCAN_F8		equ	42h
+SCAN_F9		equ	43h
+SCAN_F10	equ	44h
+SCAN_HOME	equ	47h	; home
+SCAN_UP		equ	48h	; up-arrow
+SCAN_PGUP	equ	49h	; page-up
+SCAN_LEFT	equ	4Bh	; left-arrow
+SCAN_RIGHT	equ	4Dh	; right-arrow
+SCAN_END	equ	4Fh	; end
+SCAN_DOWN	equ	50h	; down-arrow
+SCAN_PGDN	equ	51h	; page-down
+SCAN_INS	equ	52h	; ins
+SCAN_DEL	equ	53h	; del
 
 ;
 ; INT_TIME functions
@@ -100,20 +156,20 @@ DPT		ends
 ;
 ; This internal BUFHDR structure precedes each allocated disk buffer.
 ;
-BUFHDR		struc			; 16-byte buffer header
-BUF_PREV	dw	?		; 00h: prev buffer header paragraph
-BUF_NEXT	dw	?		; 02h: next buffer header paragraph
-BUF_SIZE	dw	?		; 04h: size of buffer (in bytes)
-BUF_DRIVE	db	?		; 06h: drive number of buffer data
-BUF_RESERVED	db	?		; 07h: (holds BUFSIG in DEBUG builds)
-BUF_PADDING	dw	?		; 08h: unused
-BUF_LBA		dw	?		; 0Ah: LBA of buffer data
-BUF_TIMESTAMP	dd	?		; 0Ch: timestamp of buffer data
+BUFHDR		struc		; 16-byte buffer header
+BUF_PREV	dw	?	; 00h: prev buffer header paragraph
+BUF_NEXT	dw	?	; 02h: next buffer header paragraph
+BUF_SIZE	dw	?	; 04h: size of buffer (in bytes)
+BUF_DRIVE	db	?	; 06h: drive number of buffer data
+BUF_RESERVED	db	?	; 07h: (holds BUFSIG in DEBUG builds)
+BUF_PADDING	dw	?	; 08h: unused
+BUF_LBA		dw	?	; 0Ah: LBA of buffer data
+BUF_TIMESTAMP	dd	?	; 0Ch: timestamp of buffer data
 BUFHDR		ends
 BUFSIG		equ	'B'
 
 ;
-; ROM BIOS DATA AREA
+; ROM BIOS DATA AREA (RBDA)
 ;
 ; We'll assume that all 256 bytes from 40:00h to 40:FFh are used or reserved.
 ;
@@ -217,32 +273,42 @@ TIMER_OFL	db	?	; 470h: TIMER HAS ROLLED OVER SINCE LAST READ
 ; SYSTEM DATA AREA
 ;
 BIOS_BREAK	db	?	; 471h: BIT 7 = 1 IF BREAK KEY HAS BEEN DEPRESSED
-;
-; RESET_FLAG is the traditional end of the RBDA, as originally defined by the IBM PC
-;
 RESET_FLAG	dw	?	; 472h: SET TO 0x1234 IF KEYBOARD RESET UNDERWAY
-
-		db    	8Ch DUP(?)
+;
+; RESET_FLAG marks the traditional end of the RBDA, as defined by the IBM PC.
+; We'll add future definitions below, mostly out of "historical" interest.
+;
+		db	13h DUP(?)
+EGA_MISC_INFO	db	?	; 487h: bit 0=cursor emulation, etc.
+EGA_MISC_INFO2	db	?	; 488h: EGA DIP switches and feature bits
+		db    	77h DUP(?)
 ;
 ; Define BASIC-DOS low memory usage, starting at offset 500h.
 ;
 ; Unfortunately, there's a byte at 500h (STATUS_BYTE) used by the ROM BIOS
-; PRINT_SCREEN function, and apparently the ROM BASIC can use bytes from 510h
-; through 51Dh.  There was also a DOS convention for using the byte at 504h
-; to indicate whether the diskette drive in a single-drive system was operating
-; as drive A (00h) or drive B (01h).
+; PRINT_SCREEN function.  There was also a DOS convention for using the byte
+; at 504h to indicate whether the diskette drive in a single-drive system was
+; operating as "logical drive" A (00h) or drive B (01h).
+
+; Apparently the ROM BASIC can use bytes from 510h through 51Dh (or maybe
+; through 521h); we play it safe and assume the latter.
 ;
 ; Some DOS boot sectors would read the first directory sector into 500h,
 ; which would result in the starting clusters of IO.SYS and MSDOS.SYS residing
-; in 51Ah and 53Ah, respectively.  Other boot sectors would create an 11-byte
-; copy of the BIOS Diskette Parameters Table (DPT) at 522h.  We do the latter.
+; in 51Ah and 53Ah, respectively.  Our boot sector does read root directory
+; sectors into low memory, but at 760h, not 500h, and no assumptions are made
+; about directory entries or starting clusters.
+;
+; Other boot sectors would create an 11-byte copy of the BIOS Diskette
+; Parameters Table (DPT) at 522h.  Updating the DPT as early as possible with
+; faster values is useful, so we do the same.
 ;
 		db	4 dup (?)	; 500h: reserved
 LOGICAL_DRIVE	db	?		; 504h: (00h for A: or 01h for B:)
-FDC_UNITS	db	?		; 505h
-FDC_DEVICE	dd	?		; 506h
-		db	20 dup (?)	; reserved
-DD_LIST		dd	?		; 51Eh: head of device driver list
+FDC_UNITS	db	?		; 505h: # floppy drives
+FDC_DEVICE	dd	?		; 506h: FDC driver header
+DD_LIST		dd	?		; 50Ah: head of device driver list
+		db	20 dup (?)	; 50Eh: reserved
 DPT_ACTIVE	DPT	<>		; 522h: active DPT
 BOOT_KEY	dw	?		; set by boot sector
 		db	1 dup (?)	; paragraph padding
@@ -272,58 +338,3 @@ BIOS		ends
 ; we must add BIOS_DATA (ie, 400h) to them.
 ;
 BIOS_DATA	equ	RS232_BASE
-
-;
-; BIOS-generated char codes and scan codes that we care about.
-;
-CHR_CTRLA	equ	01h
-CHR_CTRLB	equ	02h
-CHR_CTRLC	equ	03h
-CHR_CTRLD	equ	04h	; alias for SCAN_RIGHT and SCAN_F1
-CHR_CTRLE	equ	05h	; alias for SCAN_UP and SCAN_F3
-CHR_CTRLF	equ	06h
-CHR_CTRLG	equ	07h
-CHR_BACKSPACE	equ	08h
-CHR_TAB		equ	09h
-CHR_LINEFEED	equ	0Ah
-CHR_VTAB	equ	0Bh
-CHR_RETURN	equ	0Dh
-CHR_CTRLP	equ	10h
-CHR_CTRLQ	equ	11h
-CHR_CTRLR	equ	12h
-CHR_CTRLS	equ	13h	; alias for SCAN_LEFT
-CHR_CTRLT	equ	14h
-CHR_CTRLU	equ	15h
-CHR_CTRLV	equ	16h	; alias for SCAN_INS
-CHR_CTRLW	equ	17h
-CHR_CTRLX	equ	18h	; alias for SCAN_DOWN
-CHR_CTRLY	equ	19h
-CHR_CTRLZ	equ	1Ah
-CHR_ESC		equ	1Bh
-CHR_SPACE	equ	20h
-CHR_DQUOTE	equ	22h
-CHR_SQUOTE	equ	27h
-CHR_SLASH	equ	2Fh
-CHR_DEL		equ	7Fh	; alias for SCAN_DEL
-
-SCAN_TAB	equ	0Fh
-SCAN_F1		equ	3Bh
-SCAN_F2		equ	3Ch
-SCAN_F3		equ	3Dh
-SCAN_F4		equ	3Eh
-SCAN_F5		equ	3Fh
-SCAN_F6		equ	40h
-SCAN_F7		equ	41h
-SCAN_F8		equ	42h
-SCAN_F9		equ	43h
-SCAN_F10	equ	44h
-SCAN_HOME	equ	47h	; home
-SCAN_UP		equ	48h	; up-arrow
-SCAN_PGUP	equ	49h	; page-up
-SCAN_LEFT	equ	4Bh	; left-arrow
-SCAN_RIGHT	equ	4Dh	; right-arrow
-SCAN_END	equ	4Fh	; end
-SCAN_DOWN	equ	50h	; down-arrow
-SCAN_PGDN	equ	51h	; page-down
-SCAN_INS	equ	52h	; ins
-SCAN_DEL	equ	53h	; del

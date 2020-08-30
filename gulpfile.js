@@ -160,13 +160,13 @@ let watchTasks = [];
 for (let diskName in disks) {
     let buildTask = "BUILD-" + diskName;
     let diskImage = "./software/pcx86/disks/" + diskName + ".json";
-    let hddImage = "";
+    let archiveImage = "";
     let diskFiles = "";
     let kbTarget = 160;
     if (disks[diskName].length == 1) {
         kbTarget = 10000;
         diskFiles = "--dir " + path.dirname(disks[diskName][0]);
-        hddImage = " --output " + diskImage.replace(diskName, "archive/" + diskName).replace(".json",".hdd");
+        archiveImage = " --output " + diskImage.replace(diskName, "archive/" + diskName).replace(".json",".hdd");
     } else {
         let dirPrev = "";
         for (let i = 0; i < disks[diskName].length; i++) {
@@ -185,13 +185,14 @@ for (let diskName in disks) {
             dirPrev = dirNext;
         }
         diskFiles = "--files " + diskFiles;
+        archiveImage = " --output " + diskImage.replace(diskName, "archive/" + diskName).replace(".json",".img");
         if (diskName.startsWith("BDS-")) {
             kbTarget = 320;
         } else {
             diskFiles += " --boot ./software/pcx86/src/boot/obj/BOOT.COM";
         }
     }
-    let cmd = "node ${PCJS}/tools/modules/diskimage.js " + diskFiles + " --output " + diskImage + hddImage + " --target=" + kbTarget + " --overwrite";
+    let cmd = "node ${PCJS}/tools/modules/diskimage.js " + diskFiles + " --output " + diskImage + archiveImage + " --target=" + kbTarget + " --overwrite";
     cmd = cmd.replace(/\$\{([^}]+)\}/g, (_,n) => process.env[n]);
     gulp.task(buildTask, run(cmd));
     let watchTask = "WATCH-" + diskName;

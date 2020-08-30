@@ -81,8 +81,8 @@ CT_SCREEN	dd	?	; 18h: eg, B800:00A2h with full-screen border
 CT_BUFFER	dd	?	; 1Ch: used only for background contexts
 CT_BUFLEN	dw	?	; 20h: eg, 4000 for full-screen 25*80*2 buffer
 CT_COLOR	dw	?	; 22h: fill (LO) and border (HI) attributes
-CT_CURTYPE	dw	?	; 24h: current cursor type
-CT_DEFTYPE	dw	?	; 26h: default cursor type
+CT_CURTYPE	dw	?	; 24h: current cursor type (HI=top, LO=bottom)
+CT_DEFTYPE	dw	?	; 26h: default cursor type (HI=top, LO=bottom)
 CONTEXT		ends
 CTSIG		equ	'C'
 
@@ -322,7 +322,7 @@ ENDPROC	ddcon_movcur
 ;	DX = previous insert mode (0 if cleared, 1 if set)
 ;
 ; Modifies:
-;	AX, CX, DX, ES
+;	AX, CX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_setins
@@ -333,22 +333,9 @@ DEFPROC	ddcon_setins
 dsi1:	mov	ds:[CT_CURTYPE],ax
 	mov	ax,ds
 	cmp	ax,[ct_focus]		; does this context have focus?
-	jne	dsi2			; no, leave cursor alone
+	jne	dsi9			; no, leave cursor alone
 	call	set_curtype		; update CT_CURTYPE
-;
-; Toggle INS_STATE (80h) in KB_FLAG to reflect the requested insert state.
-;
-dsi2:	sub	ax,ax
-	mov	es,ax
-	ASSUME	ES:BIOS
-	mov	dl,[KB_FLAG]
-	mov	al,dl
-	and	al,7Fh
-	or	al,cl			; CL should be 00h or 80h, from above
-	mov	[KB_FLAG],al		; update keyboard insert mode
-	rol	dl,1
-	and	dx,1
-	ret
+dsi9:	ret
 ENDPROC	ddcon_setins
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1496,29 +1483,36 @@ pl3:	mov	[BUFFER_HEAD],bx
 	push	bx
 	push	ds
 	lds	bx,es:[di].DDPRW_ADDR	; DS:BX -> next read/write address
-	test	al,al
-	jnz	pl3c
+	test	al,al			; ASCII zero?
+	jz	pl4			; yes, must be a special-function key
+	cmp	al,0E0h			; ditto for E0h, which future keyboards
+	jne	pl7			; may generate....
 ;
-; Perform some function key to control character mappings now.
+; Perform our own non-ASCII special-function key to control-character mappings
+; now, using the scan code in AH.  If there's no mapping, we end up returning
+; a zero ASCII code.
 ;
-	push	si
+; TODO: Add support for reading "raw" keys.  For now, if a non-ASCII key has
+; no mapping, it can't be detected.
+;
+pl4:	push	si
 	mov	si,offset SCAN_MAP
-pl3a:	lods	byte ptr cs:[si]
-	test	al,al
-	jz	pl3b
-	cmp	ah,al
+pl5:	lods	byte ptr cs:[si]
+	test	al,al			; end of SCAN_MAP?
+	jz	pl6			; yes
+	cmp	ah,al			; scan code match?
 	lods	byte ptr cs:[si]
-	jne	pl3a
-pl3b:	pop	si
+	jne	pl5			; no
+pl6:	pop	si
 
-pl3c:	mov	[bx],al
+pl7:	mov	[bx],al
 	IFDEF MAXDEBUG
 	test	al,ac
-	jnz	pl4
+	jnz	pl8
 	xchg	al,ah
 	PRINTF	<"null character, scan code %#04x",13,10>,ax
 	ENDIF
-pl4:	inc	bx
+pl8:	inc	bx
 	mov	es:[di].DDPRW_ADDR.OFF,bx
 	pop	ds
 	pop	bx
@@ -1598,13 +1592,24 @@ ENDPROC	scroll
 ;	DS = CONSOLE context
 ;
 ; Modifies:
-;	AX, BX, DX
+;	AX, CX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	set_curtype
-	mov	bx,ds:[CT_CURTYPE]	; BX = new values
-	mov	ah,CRTC_CURTOP		; AH = 6845 register #
-	jmp	write_crtc16		; write them
+;
+; While the following code works just fine (modifying AX, BX, DX instead of
+; AX, CX), it's better to use the BIOS, because later BIOSes perform cursor
+; emulation, which automatically converts CGA-based cursor sizes (0-7) to
+; higher-res values.
+;
+	; mov	bx,ds:[CT_CURTYPE]	; BX = new values
+	; mov	ah,CRTC_CURTOP		; AH = 6845 register #
+	; jmp	write_crtc16		; write them
+
+	mov	cx,ds:[CT_CURTYPE]
+	mov	ah,VIDEO_SETCTYPE
+	int	10h
+	ret
 ENDPROC	set_curtype
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1620,7 +1625,7 @@ ENDPROC	set_curtype
 ;	None
 ;
 ; Modifies:
-;	AX, BX, DX
+;	AX, BX, CX, DX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	show_cursor
@@ -1830,7 +1835,7 @@ ENDPROC	update_context
 ;	ES = BIOS
 ;
 ; Outputs:
-;	AX = cursor type
+;	AX = cursor type (AH = top scanline, AL = bottom scanline)
 ;
 ; Modifies:
 ;	AX
