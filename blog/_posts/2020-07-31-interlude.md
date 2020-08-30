@@ -5,11 +5,10 @@ date: 2020-07-31 11:00:00
 permalink: /maplebar/blog/2020/07/31/
 ---
 
-I originally thought about blogging about the progress
-of BASIC-DOS every day, but it turns I'd much rather be
-writing code than blog entries, and no one would really
-be that interested anyway.  The Git repository has all the
-daily details if anyone cares.
+I originally thought about blogging about the progress of BASIC-DOS every day,
+but it turns I'd much rather be writing code than blog entries, and no one
+would really be that interested anyway.  The Git repository has all the daily
+gory details if anyone cares.
 
 But, after more than two months into the project, an update is probably overdue.
 
@@ -19,8 +18,8 @@ This is where development started.  And I'm happy to report that the boot
 sector is in good shape.  It includes features that I don't think existed in
 any version of DOS until MS-DOS 5.0:
 
- - **IBMBIO.COM** and **IBMDOS.COM** can be located anywhere in root directory
- - Those same files can use any clusters (they don't need to be contiguous)
+ - **IBMBIO.COM** and **IBMDOS.COM** boot files can be anywhere in the root directory
+ - The boot files can use any clusters (they don't need to be contiguous)
 
 In addition, the boot sector will prompt you if a hard disk is detected, and
 if you press the Esc key, you can boot from the hard disk instead of the
@@ -28,7 +27,7 @@ BASIC-DOS diskette.
 
 ## System Configuration
 
-The BASIC-DOS boot code also loads *8CONFIG.SYS** into memory, so that
+The BASIC-DOS boot code also loads **CONFIG.SYS** into memory, so that
 the system can be tailored to your needs.  PC DOS didn't support **CONFIG.SYS**
 until version 2.0, over 1.5 years after the IBM PC and PC DOS were introduced.
 
@@ -63,11 +62,10 @@ much at this point are:
 
 BASIC-DOS device drivers are very similar to DOS drivers.  For example,
 they use similar header and request packet structures.  But there are also
-some significant differences.  
-
-PC DOS drivers never fulfilled the promise of asynchronous I/O, even though
-they were designed with separate **STRATEGY** and **INTERRUPT** entry points.
-All I/O was synchronous, and in general, input devices were polled.
+some significant differences.  For example, PC DOS drivers never fulfilled
+the promise of asynchronous I/O, even though they were designed with separate
+**STRATEGY** and **INTERRUPT** entry points.  All I/O was synchronous, and
+in general, input devices were polled.
 
 In BASIC-DOS, support for asynchronous I/O is baked in.  Drivers have a
 unified **REQUEST** entry point that doesn't need to preserve any registers,
@@ -96,10 +94,10 @@ define two 40-column, 25-line sessions that are displayed side-by-side on
 an 80-column IBM PC monitor, each running their own copy of
 COMMAND.COM.
 
-Sessions define a *context* within which one or more DOS programs many run,
-and the system automatically multi-tasks between sessions, providing many of
-the benefits a true multi-tasking operating system while still supporting
-the traditional DOS application model.
+Sessions define a *context* within which one or more DOS programs may run,
+and the system automatically multi-tasks between sessions, providing the
+benefits a multi-tasking operating system while still supporting the traditional
+DOS application model.
 
 At the moment, the CONSOLE driver is fairly dumb -- it will create contexts
 with any size and position, without regard for other contexts, so if you
@@ -110,7 +108,7 @@ a string following the device name and colon; eg:
 
     CON:40,25,40,0,1,0
 
-The 6 possible values in a CON descriptor are:
+The 6 possible values in a CONSOLE descriptor are:
 
   1. number of columns
   2. number of rows
@@ -138,7 +136,7 @@ defines two full-screen border-less contexts, each assigned to a different
 monitor.  In this case, the presence of a blinking cursor is your sole visual
 cue as to which context has focus.
 
-I suspect dual-monitor IBM PCs were *never* this cool.
+Were dual-monitor IBM PCs *ever* this cool?
 
 ### The COM Driver
 
@@ -146,13 +144,13 @@ For each serial device present in the machine, an instance of the **COM**
 driver will be installed.  You can open a COM device with just the bare name
 ("COM1"), or with a basic descriptor ("COM1:9600,N,8,1") to initialize the
 device, or with a full descriptor ("COM1:9600,N,8,1,64,128") to also enable
-asynchronous I/O (eg, with a 64-byte input buffer and a 128-byte output
+buffered asynchronous I/O (eg, a 64-byte input buffer and a 128-byte output
 buffer).
 
 ### The FDC$ Driver
 
 This is a block device driver specifically designed for the IBM PC's floppy
-disk controller.  However, unlike the CON and COM drivers, it does *not*
+disk controller.  However, unlike the CONSOLE and COM drivers, it does *not*
 currently support asynchronous I/O.  I didn't feel like taking on that work
 just yet, so it's largely just a wrapper for the BIOS INT 13h READ and WRITE
 functions.
@@ -219,3 +217,5 @@ BPB operations, but the memory for BPBs is allocated by DOS.
 ## The DOS "Kernel"
 
 **IBMDOS.COM** is the second file loaded by the boot code. 
+
+More about that component in the next blog post.

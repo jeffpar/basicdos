@@ -12,14 +12,11 @@ machines:
 ---
 
 The machine below is configured with both MDA and CGA adapters, each
-connected to its own monitor.
+connected to its own monitor.  Other dual-monitor configurations include:
 
-Other dual-monitor configurations include:
-
-  - [Dual Monitor Development Machine](dev/)
   - [Dual Monitor Multiple Session Demo](multi/)
 
-In this demo, BASIC-DOS has been configured for two sessions, with each
+In the demo below, BASIC-DOS has been configured for two sessions, with each
 session assigned to its own monitor.  At first glance, it might appear there
 are two machines running, but it really is just a single IBM PC running two
 BASIC-DOS sessions.
@@ -31,7 +28,7 @@ the presence of a blinking cursor indicates which session has focus.
 Also, while the machine is configured for 256K, if you **TYPE CONFIG.SYS**,
 you'll see that it contains a **MEMSIZE=128** line which limits total BASIC-DOS
 memory usage to 128K.  You can use the **MEM** command to display current
-memory usage.
+memory usage and **MEM /D** for detailed memory usage.
 
 You might be tempted to think that **MEMSIZE** is a way to "partition" memory,
 so that each session has a dedicated amount, but no -- **MEMSIZE** is simply
@@ -39,3 +36,9 @@ a means of testing BASIC-DOS with different memory sizes.  And in any case,
 partitioning memory would not be a good strategy.
 
 {% include machine.html id="ibm5150" %}
+
+### **CONFIG.SYS** from the "BASIC-DOS4" Boot Disk
+
+```
+{% include_relative CONFIG.SYS %}
+```

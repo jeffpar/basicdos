@@ -13,16 +13,33 @@ machines:
 
 There are currently four BASIC-DOS demo configurations:
 
- 1. [Single (boring) session](?autoStart=true)
- 2. [Two wide 80-column sessions](?autoMount={A:{name:"BASIC-DOS2"}})
- 3. [Two skinny 40-column sessions](?autoMount={A:{name:"BASIC-DOS3"}})
+ 1. [Single 25x80 session](?autoStart=true)
+ 3. [Two 40-column sessions](?autoMount={A:{name:"BASIC-DOS2"}})
+ 2. [Two 80-column sessions](?autoMount={A:{name:"BASIC-DOS3"}})
  4. [Dual monitors](dual/) with independent full-screen sessions
 
-The wide and skinny demos are configured with borders.  A double-wide border
+The 40 and 80-column demos are configured with borders.  A double-wide border
 indicates which session has keyboard focus.  Use **SHIFT-TAB** to toggle focus.
 
 BASIC-DOS development was performed on this PC XT [Development Machine](dev/).
-A [Development Machine with Dual Monitors](dual/dev/) is also available.
-
+A development machine with [Dual Monitors](dual/dev/) is also available.
 There's also a [blog](blog/), but I've been doing a poor job keeping it
 up-to-date.  There's just too much code to write and test.
+
+### **CONFIG.SYS** from the "BASIC-DOS1" Boot Disk
+
+```
+{% include_relative s80/CONFIG.SYS %}
+```
+
+### **CONFIG.SYS** from the "BASIC-DOS2" Boot Disk
+
+```
+{% include_relative d40/CONFIG.SYS %}
+```
+
+### **CONFIG.SYS** from the "BASIC-DOS3" Boot Disk
+
+```
+{% include_relative d80/CONFIG.SYS %}
+```
