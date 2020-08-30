@@ -14,10 +14,10 @@ let run = require("gulp-run-command").default;
 
 let disks = {
     "BASIC-DOS1": [
+        "./demos/s80/CONFIG.SYS",
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
-        "./software/pcx86/src/cfg/config1/CONFIG.SYS",
         "./software/pcx86/src/util/obj/PRIMES.EXE",
         "./software/pcx86/src/util/obj/SLEEP.COM",
         "./software/pcx86/src/util/obj/TESTS.COM",
@@ -26,10 +26,10 @@ let disks = {
         "./software/pcx86/src/util/*.BAT"
     ],
     "BASIC-DOS2": [
+        "./demos/d40/CONFIG.SYS",
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
-        "./software/pcx86/src/cfg/config2/CONFIG.SYS",
         "./software/pcx86/src/util/obj/PRIMES.EXE",
         "./software/pcx86/src/util/obj/SLEEP.COM",
         "./software/pcx86/src/util/obj/TESTS.COM",
@@ -37,10 +37,10 @@ let disks = {
         "./software/pcx86/src/util/*.BAT"
     ],
     "BASIC-DOS3": [
+        "./demos/d80/CONFIG.SYS",
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
-        "./software/pcx86/src/cfg/config3/CONFIG.SYS",
         "./software/pcx86/src/util/obj/PRIMES.EXE",
         "./software/pcx86/src/util/obj/SLEEP.COM",
         "./software/pcx86/src/util/obj/TESTS.COM",
@@ -48,10 +48,10 @@ let disks = {
         "./software/pcx86/src/util/*.BAT"
     ],
     "BASIC-DOS4": [
+        "./demos/dual/CONFIG.SYS",
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
-        "./software/pcx86/src/cfg/config4/CONFIG.SYS",
         "./software/pcx86/src/util/obj/PRIMES.EXE",
         "./software/pcx86/src/util/obj/SLEEP.COM",
         "./software/pcx86/src/util/obj/TESTS.COM",
@@ -60,10 +60,10 @@ let disks = {
         "./software/pcx86/src/util/*.BAT"
     ],
     "BASIC-DOS5": [
+        "./demos/dual/multi/CONFIG.SYS",
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
-        "./software/pcx86/src/cfg/config5/CONFIG.SYS",
         "./software/pcx86/src/util/obj/PRIMES.EXE",
         "./software/pcx86/src/util/obj/SLEEP.COM",
         "./software/pcx86/src/util/obj/TESTS.COM",
