@@ -13,7 +13,7 @@ machines:
 
 {% include machine.html id="ibm5150" %}
 
-### **CONFIG.SYS** from the "BASIC-DOS5" Boot Disk
+### **CONFIG.SYS** from the BASIC-DOS5 Diskette
 
 ```
 {% include_relative CONFIG.SYS %}

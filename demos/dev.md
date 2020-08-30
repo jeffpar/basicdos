@@ -37,7 +37,7 @@ The **MKCLEAN.BAT** batch file simply deletes all the binaries before running
 
 {% include machine.html id="ibm5160" %}
 
-### **CONFIG.SYS** from the "BASIC-DOS2" Boot Disk
+### **CONFIG.SYS** from the BASIC-DOS2 Diskette
 
 ```
 {% include_relative d40/CONFIG.SYS %}

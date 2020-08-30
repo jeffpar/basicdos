@@ -26,19 +26,19 @@ A development machine with [Dual Monitors](dual/dev/) is also available.
 There's also a [blog](blog/), but I've been doing a poor job keeping it
 up-to-date.  There's just too much code to write and test.
 
-### **CONFIG.SYS** from the "BASIC-DOS1" Boot Disk
+### **CONFIG.SYS** from the BASIC-DOS1 Diskette
 
 ```
 {% include_relative s80/CONFIG.SYS %}
 ```
 
-### **CONFIG.SYS** from the "BASIC-DOS2" Boot Disk
+### **CONFIG.SYS** from the BASIC-DOS2 Diskette
 
 ```
 {% include_relative d40/CONFIG.SYS %}
 ```
 
-### **CONFIG.SYS** from the "BASIC-DOS3" Boot Disk
+### **CONFIG.SYS** from the BASIC-DOS3 Diskette
 
 ```
 {% include_relative d80/CONFIG.SYS %}
