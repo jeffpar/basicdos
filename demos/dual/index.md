@@ -37,7 +37,7 @@ partitioning memory would not be a good strategy.
 
 {% include machine.html id="ibm5150" %}
 
-### **CONFIG.SYS** from the "BASIC-DOS4" Boot Disk
+### **CONFIG.SYS** from the BASIC-DOS4 Diskette
 
 ```
 {% include_relative CONFIG.SYS %}
