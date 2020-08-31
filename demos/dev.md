@@ -29,11 +29,10 @@ files use the Microsoft **MAKE** utility to do most of the work, but the batch
 files are also responsible for copying the resulting binaries to whatever
 diskette is currently in drive A:.
 
-By default, the binaries contain *DEBUG* code (eg, assertions and other
-integrity checks).  To build non-debug binaries, type **MK NODEBUG**, or
-**MKCLEAN NODEBUG** if switching between *DEBUG* and *NODEBUG* binaries.
-The **MKCLEAN.BAT** batch file simply deletes all the binaries before running
-**MK.BAT**.
+By default, the binaries contain *DEBUG* code (eg, assertions and debugging
+aids).  To build non-debug binaries, type **MK NODEBUG**, or **MKCLEAN NODEBUG**
+if switching between *DEBUG* and *NODEBUG* binaries.  The **MKCLEAN.BAT** batch
+file simply deletes all the binaries before running **MK.BAT**.
 
 {% include machine.html id="ibm5160" %}
 

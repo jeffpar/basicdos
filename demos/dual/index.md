@@ -14,7 +14,7 @@ machines:
 The machine below is configured with both MDA and CGA adapters, each
 connected to its own monitor.  Other dual-monitor configurations include:
 
-  - [Dual Monitor Multiple Session Demo](multi/)
+  - [Dual Monitor Multi-Session Demo](multi/)
 
 In the demo below, BASIC-DOS has been configured for two sessions, with each
 session assigned to its own monitor.  At first glance, it might appear there

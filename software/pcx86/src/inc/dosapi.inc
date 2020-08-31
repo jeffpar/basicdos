@@ -301,6 +301,7 @@ CLS_STR		equ	08h	; string constant
 CLS_VAR		equ	10h	; identifier (eg, keyword or variable)
 CLS_KEYWORD	equ	18h	; var identified as keyword
 CLS_SYM		equ	20h	; symbol
+CLS_ANY		equ	3Fh	;
 CLS_DQUOTE	equ	40h	; inside double quotes
 CLS_WHITE	equ	80h	; whitespace
 CLS_VAR_INT	equ	30h	; CLS_VAR + VAR_INT

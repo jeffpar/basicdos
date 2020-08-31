@@ -52,7 +52,10 @@ DEFPROC	genCode
 	LOCVAR	lineNumber,word
 	ENTER
 
-	mov	[genFlags],al
+	test	al,GEN_BATCH
+	jz	gc0
+	or	al,GEN_ECHO
+gc0:	mov	[genFlags],al
 	sub	ax,ax
 	mov	[nArgs],ax
 	mov	[errCode],ax
@@ -86,13 +89,12 @@ DEFPROC	genCode
 	jmp	short gc4
 
 gce:	call	memError
-gcx:	jmp	gc9
-gcy:	jmp	gc6
+	jmp	gc9
 
 gc1:	lea	si,[bx].TEXT_BLK
 gc2:	mov	cx,[si].TBLK_NEXT
 	clc
-	jcxz	gcy			; nothing left to parse
+	jcxz	gc3b			; nothing left to parse
 	mov	ds,cx
 	ASSUME	DS:NOTHING
 	mov	si,size TBLK_HDR
@@ -115,13 +117,14 @@ gc3a:	xchg	dx,ax			; DX = label #, if any
 ; over the '@'.
 ;
 	cmp	byte ptr [si],'@'
-	jne	gc3b
+	jne	gc3c
 	inc	si
 	dec	cx
-	jcxz	gc3
+	jz	gc3
 	jmp	short gc4
+gc3b:	jmp	short gc6
 
-gc3b:	test	[genFlags],GEN_BATCH
+gc3c:	test	[genFlags],GEN_ECHO
 	jz	gc4
 	push	cx
 	lea	cx,[si-1]
@@ -244,7 +247,7 @@ DEFPROC	genCommands
 	mov	ax,DOS_UTL_TOKID	; identify the token
 	int	21h			; at DS:SI (with length CX)
 	jc	gcs9			; can't identify
-	cmp	ax,20			; supported keyword?
+	cmp	ax,KEYWORD_GENCODE	; keyword support generated code?
 	jb	gcs9			; no
 	test	dx,dx			; generator function?
 	jz	gcs9			; no
@@ -318,9 +321,37 @@ ENDPROC	genColor
 ;	Any
 ;
 DEFPROC	genDefInt
+	mov	al,CLS_ANY		; consume all remaining tokens for now
+	call	getNextToken
+	ja	genDefInt
 	clc
 	ret
 ENDPROC	genDefInt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genEcho
+;
+; Process "ECHO"
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genEcho
+	mov	al,CLS_ANY
+	call	getNextToken
+	jbe	gec9
+	and	[genFlags],NOT GEN_ECHO
+	clc
+gec9:	ret
+ENDPROC	genEcho
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

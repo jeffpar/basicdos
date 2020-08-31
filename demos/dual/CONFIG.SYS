@@ -1,6 +1,7 @@
 REM Demonstration of dual monitors with full-screen sessions
 MEMSIZE=128
 FILES=20
+SESSIONS=2
 CONSOLE=CON:80,25,0,0,0
 SHELL=COMMAND.COM
 CONSOLE=CON:80,25,0,0,0,1

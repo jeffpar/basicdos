@@ -1,6 +1,6 @@
 REM Demonstration of dual monitors with multiple sessions per monitor
-MEMSIZE=128
 FILES=20
+SESSIONS=4
 CONSOLE=CON:40,25,0,0,1
 SHELL=COMMAND.COM TEST1.BAT
 CONSOLE=CON:40,25,40,0,1

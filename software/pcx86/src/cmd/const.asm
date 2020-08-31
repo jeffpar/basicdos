@@ -10,9 +10,10 @@
 	include	cmd.inc
 
 CODE    SEGMENT
-	EXTERNS	<cmdDate,cmdDir,cmdExit,cmdHelp,cmdList,cmdLoad,cmdMem>,near
-	EXTERNS	<cmdNew,cmdRun,cmdTime,cmdType,cmdVer>,near
-	EXTERNS	<genCLS,genColor,genDefInt,genGoto,genIf,genLet,genPrint>,near
+	EXTERNS	<cmdDate,cmdDir,cmdExit,cmdHelp,cmdList,cmdLoad>,near
+	EXTERNS	<cmdMem,cmdNew,cmdRun,cmdTime,cmdType,cmdVer>,near
+	EXTERNS	<genCLS,genColor,genDefInt,genEcho,genGoto,genIf,genLet>,near
+	EXTERNS	<genPrint>,near
 	EXTERNS	<evalNegLong,evalNotLong>,near
 	EXTERNS	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>,near
 	EXTERNS	<evalModLong,evalExpLong,evalImpLong>,near
@@ -103,18 +104,19 @@ CODE	ENDS
 	DEFTOK	TOK_DATE,    1, "DATE",   cmdDate
 	DEFTOK	TOK_DEFINT, 42, "DEFINT", genDefInt
 	DEFTOK	TOK_DIR,    20, "DIR",    cmdDir
+	DEFTOK	TOK_ECHO,   43, "ECHO",   genEcho
 	DEFTOK	TOK_ELSE,  101, "ELSE"
 	DEFTOK	TOK_EXIT,    2, "EXIT",   cmdExit
-	DEFTOK	TOK_GOTO,   43, "GOTO",   genGoto
+	DEFTOK	TOK_GOTO,   44, "GOTO",   genGoto
 	DEFTOK	TOK_HELP,    3, "HELP",   cmdHelp
-	DEFTOK	TOK_IF,     44, "IF",     genIf
-	DEFTOK	TOK_LET,    45, "LET",    genLet
+	DEFTOK	TOK_IF,     45, "IF",     genIf
+	DEFTOK	TOK_LET,    46, "LET",    genLet
 	DEFTOK	TOK_LIST,    4, "LIST",   cmdList
 	DEFTOK	TOK_LOAD,   21, "LOAD",   cmdLoad
 	DEFTOK	TOK_MEM,     5, "MEM",    cmdMem
 	DEFTOK	TOK_NEW,     6, "NEW",    cmdNew
-	DEFTOK	TOK_PRINT,  46, "PRINT",  genPrint
-	DEFTOK	TOK_REM,    47, "REM"
+	DEFTOK	TOK_PRINT,  47, "PRINT",  genPrint
+	DEFTOK	TOK_REM,    48, "REM"
 	DEFTOK	TOK_RUN,     7, "RUN",    cmdRun
 	DEFTOK	TOK_THEN,  102, "THEN"
 	DEFTOK	TOK_TIME,    8, "TIME",   cmdTime

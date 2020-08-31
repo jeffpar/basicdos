@@ -173,6 +173,7 @@ LBL_RESOLVE	equ	CBLKLEN
 GEN_IMM		equ	01h		; immediate mode
 GEN_BASIC	equ	02h		; BAS file
 GEN_BATCH	equ	04h		; BAT file
+GEN_ECHO	equ	08h		; initially set if GEN_BATCH
 
 ;
 ; Code generation macros
