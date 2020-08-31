@@ -22,7 +22,7 @@ print
 let printed = 0
 
 40 let dividend = (dividend + 1) or 1
-if dividend >= 32000 then goto 90
+if dividend >= 10000 then goto 90
 if dividend < maxsquared then goto 15
 let maxdivisor = maxdivisor + 1
 let maxsquared = maxsquared + advsquared

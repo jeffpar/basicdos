@@ -23,6 +23,7 @@ let disks = {
         "./software/pcx86/src/util/obj/TESTS.COM",
         "./software/pcx86/src/gwb/obj/GWB.EXE",
         "./software/pcx86/src/util/obj/SYMDEB.EXE",
+        "./software/pcx86/src/util/*.BAS",
         "./software/pcx86/src/util/*.BAT"
     ],
     "BASIC-DOS2": [
@@ -34,6 +35,7 @@ let disks = {
         "./software/pcx86/src/util/obj/SLEEP.COM",
         "./software/pcx86/src/util/obj/TESTS.COM",
         "./software/pcx86/src/util/obj/SYMDEB.EXE",
+        "./software/pcx86/src/util/*.BAS",
         "./software/pcx86/src/util/*.BAT"
     ],
     "BASIC-DOS3": [
@@ -45,6 +47,7 @@ let disks = {
         "./software/pcx86/src/util/obj/SLEEP.COM",
         "./software/pcx86/src/util/obj/TESTS.COM",
         "./software/pcx86/src/gwb/obj/GWB.EXE",
+        "./software/pcx86/src/util/*.BAS",
         "./software/pcx86/src/util/*.BAT"
     ],
     "BASIC-DOS4": [
@@ -57,6 +60,7 @@ let disks = {
         "./software/pcx86/src/util/obj/TESTS.COM",
         "./software/pcx86/src/gwb/obj/GWB.EXE",
         "./software/pcx86/src/util/obj/SYMDEB.EXE",
+        "./software/pcx86/src/util/*.BAS",
         "./software/pcx86/src/util/*.BAT"
     ],
     "BASIC-DOS5": [
@@ -69,6 +73,7 @@ let disks = {
         "./software/pcx86/src/util/obj/TESTS.COM",
         "./software/pcx86/src/gwb/obj/GWB.EXE",
         "./software/pcx86/src/util/obj/SYMDEB.EXE",
+        "./software/pcx86/src/util/*.BAS",
         "./software/pcx86/src/util/*.BAT"
     ],
     "BDS-BOOT": [
@@ -171,10 +176,12 @@ for (let diskName in disks) {
         let dirPrev = "";
         for (let i = 0; i < disks[diskName].length; i++) {
             let fileNext = disks[diskName][i];
-            let filesNext = glob.sync(fileNext);
-            if (filesNext.length > 1) {
-                disks[diskName].push(...filesNext);
-                continue;
+            if (fileNext.indexOf('*') >= 0) {
+                let filesNext = glob.sync(fileNext);
+                if (filesNext.length) {
+                    disks[diskName].push(...filesNext);
+                    continue;
+                }
             }
             let dirNext = path.dirname(fileNext);
             if (dirNext == dirPrev) {
