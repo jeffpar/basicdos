@@ -21,6 +21,9 @@ CODE    SEGMENT
 	EXTERNS	<evalEQLong,evalNELong,evalLTLong,evalGTLong>,near
 	EXTERNS	<evalLELong,evalGELong,evalShlLong,evalShrLong>,near
 
+	EXTERNS	<genExprNum,genExprStr>,near
+	EXTERNS	<printArgs>,near
+
 	DEFSTR	COM_EXT,<".COM",0>	; these 4 file extensions must be
 	DEFSTR	EXE_EXT,<".EXE",0>	; listed in the desired search order
 	DEFSTR	BAT_EXT,<".BAT",0>
@@ -96,6 +99,41 @@ CODE    SEGMENT
 	db	"==",'=',"<<",'S',">>",'R'
 	db	0
 
+	DEFLBL	SYNTAX_TABLES,word
+;
+; Syntax tables are a series of bytes processed by synCheck that define
+; both the syntax and the code generation logic for a given keyword.
+;
+	DEFLBL	synPrint,byte
+	db	SC_GENPB,VAR_NONE
+	db	SC_PKTOK,CLS_ANY
+
+	db	SC_MASYM,';'
+	db	SC_GENPB,VAR_SEMI
+
+	db	SC_MASYM,','
+	db	SC_GENPB,VAR_COMMA
+
+	db	SC_MATCH,CLS_STR
+	db	SC_CALFN,SCF_GENXSTR
+	db	SC_GENPB,VAR_STR
+
+	db	SC_MATCH,VAR_STR
+	db	SC_CALFN,SCF_GENXSTR
+	db	SC_GENPB,VAR_STR
+
+	db	SC_MATCH,CLS_ANY
+	db	SC_CALFN,SCF_GENXNUM
+	db	SC_GENPB,VAR_LONG
+
+	db	SC_NXTOK,0
+	db	SC_GENFN,SCF_PRINTARGS,-1
+
+	DEFLBL	SCF_TABLE,word			; synCheck function table
+	dw	genExprNum			; SCF_GENXNUM
+	dw	genExprStr			; SCF_GENXSTR
+	dw	printArgs			; SCF_PRINTARGS
+
 CODE	ENDS
 
 	DEFTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
@@ -115,7 +153,7 @@ CODE	ENDS
 	DEFTOK	TOK_LOAD,   21, "LOAD",   cmdLoad
 	DEFTOK	TOK_MEM,     5, "MEM",    cmdMem
 	DEFTOK	TOK_NEW,     6, "NEW",    cmdNew
-	DEFTOK	TOK_PRINT,  47, "PRINT",  genPrint
+	DEFTOK	TOK_PRINT,  47, "PRINT",  synPrint
 	DEFTOK	TOK_REM,    48, "REM"
 	DEFTOK	TOK_RUN,     7, "RUN",    cmdRun
 	DEFTOK	TOK_THEN,  102, "THEN"

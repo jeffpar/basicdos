@@ -16,7 +16,7 @@ CODE    SEGMENT
 	EXTERNS	<appendStr,setStr,memError>,near
 	EXTERNS	<clearScreen,printArgs,printLine,setColor>,near
 
-	EXTERNS	<KEYWORD_TOKENS,KEYOP_TOKENS>,word
+	EXTERNS	<KEYWORD_TOKENS,KEYOP_TOKENS,SYNTAX_TABLES,SCF_TABLE>,word
 	EXTERNS	<OPDEFS,RELOPS>,byte
 	EXTERNS	<TOK_ELSE,TOK_THEN>,abs
 
@@ -49,6 +49,7 @@ DEFPROC	genCode
 	LOCVAR	pCode,dword
 	LOCVAR	pTokNext,word
 	LOCVAR	pTokEnd,word
+	LOCVAR	pSynToken,word
 	LOCVAR	lineNumber,word
 	ENTER
 
@@ -249,10 +250,14 @@ DEFPROC	genCommands
 	jc	gcs9			; can't identify
 	cmp	ax,KEYWORD_GENCODE	; keyword support generated code?
 	jb	gcs9			; no
-	test	dx,dx			; generator function?
+	test	dx,dx			; command address?
 	jz	gcs9			; no
-	call	dx			; call the generator
-	jnc	genCommands
+	cmp	dx,offset SYNTAX_TABLES	; syntax table address?
+	jb	gcs7			; no, dedicated generator function
+	call	synCheck		; yes, process syntax table
+	jmp	short gcs8
+gcs7:	call	dx			; call dedicated generator function
+gcs8:	jnc	genCommands
 gcs9:	ret
 ENDPROC	genCommands
 
@@ -301,6 +306,7 @@ DEFPROC	genColor
 	je	genColor		; yes, go back for more
 gco8:	GENPUSH	nArgs
 	GENCALL	setColor
+	clc
 gco9:	ret
 ENDPROC	genColor
 
@@ -446,6 +452,7 @@ gn3a:	mov	ax,DOS_UTL_ATOI32	; DS:SI -> numeric string (length CX)
 	pop	bx
 	GENPUSH	dx,cx
 	jmp	gn2b			; go count another queued value
+gn3s:	mov	ah,CLS_SYM
 gn3x:	jmp	gn8
 ;
 ; Before we try to validate the operator, we need to remap binary minus to
@@ -470,7 +477,7 @@ gn4b:	mov	al,ah			; remap the operator
 ; Verify that the symbol is a valid operator.
 ;
 gn5:	call	validateOp		; AL = operator to validate
-	jc	gn3x			; error
+	jc	gn3s			; error (reset AH to CLS_SYM)
 	mov	[nExpPrevOp],ax
 	sub	si,si
 	jcxz	gn7			; handle no-arg operators below
@@ -753,11 +760,11 @@ ENDPROC	genIf
 ;
 ; genLet
 ;
-; Generate code to "let" a variable equal some expression.  We start with
+; Generate code to "let" a variable equal some expression.  We'll start with
 ; 32-bit integer ("long") variables.  We'll also start with the assumption
 ; that it's OK to alloc the variable at "gen" time, so that the only code we
-; have to generate (and execute later) is code that sets the variable,
-; using its preallocated location.
+; have to generate (and execute later) is code that sets the variable, using
+; its preallocated location.
 ;
 ; Inputs:
 ;	BX = offset of next TOKLET
@@ -818,7 +825,7 @@ ENDPROC	genLet
 ; Generate code to print.
 ;
 ; Inputs:
-;	BX = offset of next TOKLET
+;	DS:BX = offset of next TOKLET
 ;	ES:DI -> next unused location in code block
 ;
 ; Outputs:
@@ -1050,12 +1057,16 @@ ENDPROC	genPushImm
 ; Modifies:
 ;	AX, DI
 ;
-DEFPROC	genPushImmByte
+DEFPROC	genPushImmByteAL
+	mov	ah,al
+	DEFLBL	genPushImmByteAH,near
+	mov	al,OP_MOV_AL
+	DEFLBL	genPushImmByte,near
 	stosw
 	mov	al,OP_PUSH_AX
 	stosb
 	ret
-ENDPROC	genPushImmByte
+ENDPROC	genPushImmByteAL
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1207,9 +1218,11 @@ ENDPROC	genPushVarLong
 ;
 DEFPROC	getNextToken
 	cmp	bx,[pTokEnd]
-	cmc
-	jb	gt9			; no more tokens
-	mov	ah,[bx].TOKLET_CLS
+	jb	gt0
+	sub	ax,ax
+	stc
+	jmp	short gt9		; no more tokens
+gt0:	mov	ah,[bx].TOKLET_CLS
 	test	al,ah
 	jnz	gt1
 	test	ah,CLS_WHITE		; whitespace token?
@@ -1220,10 +1233,10 @@ DEFPROC	getNextToken
 gt1:	mov	si,[bx].TOKLET_OFF
 	mov	cl,[bx].TOKLET_LEN
 	mov	ch,0
-	lea	bx,[bx + size TOKLET]
+	add	bx,size TOKLET
 ;
-; If we're about to return a CLS_SYM that happens to be a colon, then
-; return ZF set (but not carry) to end the caller's token scan.
+; If we're about to return a CLS_SYM that happens to be a colon,
+; then return ZF set (but not carry) to end the caller's token scan.
 ;
 	cmp	ah,CLS_SYM
 	jne	gt8
@@ -1251,6 +1264,114 @@ DEFPROC	peekNextToken
 	pop	bx
 	ret
 ENDPROC	peekNextToken
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; synCheck
+;
+; Inputs:
+;	CS:DX -> syntax table
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+DEFPROC	synCheck
+	mov	si,dx			; CS:SI -> syntax table
+;
+; Loop until we find an SC_PKTOK that matches the next token.
+;
+sc1:	lods	word ptr cs:[si]	; AL = next SC_* value
+	test	al,al
+	jl	sc8c
+	cmp	al,SC_GENPB		; invoke GENPUSHB? (71h)
+	jne	sc2			; no
+	GENPUSHB ah
+	jmp	sc1
+sc2:	cmp	al,SC_PKTOK		; invoke peekNextToken? (73h)
+	jne	sc1			; no
+	mov	al,ah			; AL = mask for peekNextToken
+	push	si
+	mov	[pSynToken],si		; remember where the SC_PKTOK was
+	call	peekNextToken
+	pop	si
+	jc	sc8			; nope, wrap it up
+	jz	sc1			; look for next SC_PKTOK
+;
+; We found a token of the specified CLS, so look for a more specific match.
+;
+sc3:	xchg	dx,ax			; DH = token CLS, DL = token char
+sc3a:	lods	word ptr cs:[si]	; AL = next SC_* value
+	cmp	al,SC_MATCH		; (74h)
+	je	sc3b
+	cmp	al,SC_MASYM		; (75h)
+	ja	sc8			; never found a match, wrap up
+	jne	sc3a
+	mov	al,ah
+	mov	ah,CLS_SYM
+	cmp	dx,ax
+	jne	sc3a
+	push	si
+	call	getNextToken
+	pop	si
+	jmp	short sc4
+sc3b:	cmp	dh,ah			; match?
+	je	sc4			; yes
+	cmp	ah,CLS_ANY		; any CLS OK? (3Fh)
+	jne	sc3a			; no
+;
+; Perform operations < SC_PKTOK.  If an operation reports an error (CF set),
+; the call is terminated; if it reports no valid data (ZF set), we wrap it up.
+;
+sc4:	lods	word ptr cs:[si]
+	sub	dx,dx			; allow SC_NXTOK
+	cmp	al,SC_CALFN		; call an SCF function? (72h)
+	ja	sc8b			; done with match, wrap up
+	jne	sc4b			; no
+	mov	al,ah
+	cbw				; AX = SCF #
+	add	ax,ax			; convert to word offset
+	push	si
+	xchg	si,ax			; SI -> SCF function
+	call	cs:SCF_TABLE[si]
+	pop	si
+	jc	sc9
+	jz	sc8
+	test	ax,ax			; was there a previous token?
+	jz	sc4			; no
+	sub	bx,size TOKLET		; yes, back up to the previous token
+	jmp	sc4
+sc4b:	cmp	al,SC_GENPB		; invoke GENPUSHB? (71h)
+	jne	sc2			; no
+	GENPUSHB ah
+	jmp	sc4
+;
+; To wrap up, scan the syntax table for a final SC_GENFN and then exit,
+; unless there's an SC_NXTOK entry, in which case we go back for more.
+;
+sc8:	mov	dx,-1
+sc8a:	lods	word ptr cs:[si]	; AL = next SC_* value
+sc8b:	test	al,al			; end of table?
+sc8c:	jl	sc9			; OK, just leave
+	cmp	al,SC_NXTOK		; (76h)
+	jne	sc8d
+	inc	dx			; should we look for more tokens?
+	jz	sc8			; no
+	mov	si,[pSynToken]
+	sub	si,2			; go peek for more tokens
+	jmp	sc1
+sc8d:	cmp	al,SC_GENFN		; have we found SC_GENFN yet? (77h)
+	jne	sc8a			; no
+	mov	al,ah
+	cbw				; AX = SCF #
+	add	ax,ax			; convert to word offset
+	xchg	si,ax			; SI -> SCF function
+	mov	cx,cs:SCF_TABLE[si]
+	GENCALL cx
+	clc
+sc9:	ret
+ENDPROC	synCheck
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
