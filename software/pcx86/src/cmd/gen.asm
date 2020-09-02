@@ -279,6 +279,7 @@ ENDPROC	genCommands
 ;
 DEFPROC	genCLS
 	GENCALL	clearScreen
+	clc
 	ret
 ENDPROC	genCLS
 
@@ -354,8 +355,7 @@ DEFPROC	genEcho
 	mov	al,CLS_ANY
 	call	getNextToken
 	jbe	gec9
-	and	[genFlags],NOT GEN_ECHO
-	clc
+	and	[genFlags],NOT GEN_ECHO	; clears carry in the process, too
 gec9:	ret
 ENDPROC	genEcho
 
