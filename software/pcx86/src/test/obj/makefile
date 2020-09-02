@@ -41,7 +41,7 @@ SLEEP.COM: ..\SLEEP.ASM
 	DEL $*.OBJ
 	DEL $*.EXE
 
-TESTS.COM: ..\TESTS.ASM
+TESTDOS.COM: ..\TESTDOS.ASM
 	$(ASM) $(AFLAGS) /I..\..\INC $**,$*.OBJ;
 	$(LINK) $*.OBJ,$*.EXE;
 	$(EXE2BIN) $*.EXE $@

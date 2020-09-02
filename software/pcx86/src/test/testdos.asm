@@ -1,5 +1,5 @@
 ;
-; BASIC-DOS Miscellaneous Tests
+; BASIC-DOS Miscellaneous DOS Tests
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
 ; @copyright © 2012-2020 Jeff Parsons
