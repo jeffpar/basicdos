@@ -13,7 +13,7 @@ DOS	segment word public 'CODE'
 
 	EXTERNS	<bpb_total>,byte
 	EXTERNS	<scb_active>,word
-	EXTERNS	<sfb_open_fcb,sfb_find_fcb,sfb_seek,sfb_read>,near
+	EXTERNS	<sfb_open_fcb,sfb_find_fcb,sfb_seek,sfb_read,sfb_close>,near
 	EXTERNS	<mul_32_16>,near
 
 	EXTSTR	<FILENAME_CHARS>
@@ -90,7 +90,12 @@ ENDPROC	fcb_open
 ; Modifies:
 ;
 DEFPROC	fcb_close,DOS
-	ret
+	mov	cx,[bp].REG_DS		; CX:DX -> FCB
+	call	sfb_find_fcb
+	jc	fc9
+	mov	si,-1			; SI = -1 (no PFH)
+	call	sfb_close		; BX -> SFB
+fc9:	ret
 ENDPROC	fcb_close
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -114,6 +119,9 @@ ENDPROC	fcb_close
 DEFPROC	fcb_sread,DOS
 	mov	cx,[bp].REG_DS		; CX:DX -> FCB
 	call	sfb_find_fcb
+;
+; TODO
+;
 	ret
 ENDPROC	fcb_sread
 
@@ -139,7 +147,6 @@ ENDPROC	fcb_sread
 ; Modifies:
 ;
 DEFPROC	fcb_rread,DOS
-	int 3
 	mov	cx,[bp].REG_DS		; CX:DX -> FCB
 	call	sfb_find_fcb
 	jc	fr9
@@ -183,7 +190,7 @@ fr1:	call	mul_32_16		; DX:AX = DX:AX * CX
 	push	cx
 	push	dx
 	call	sfb_read
-	pop	di
+	pop	di			; ES:DI -> DTA now
 	pop	cx
 	mov	dl,0			; DL = default return code (00h)
 	jc	fr6

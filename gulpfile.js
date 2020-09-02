@@ -21,8 +21,8 @@ let disks = {
         "./software/pcx86/src/util/obj/PRIMES.EXE",
         "./software/pcx86/src/util/obj/SLEEP.COM",
         "./software/pcx86/src/util/obj/TESTS.COM",
-        "./software/pcx86/src/gwb/obj/GWB.EXE",
         "./software/pcx86/src/util/obj/SYMDEB.EXE",
+        "./software/pcx86/src/gwb/obj/GWB.EXE",
         "./software/pcx86/src/util/*.BAS",
         "./software/pcx86/src/util/*.BAT"
     ],
@@ -35,6 +35,7 @@ let disks = {
         "./software/pcx86/src/util/obj/SLEEP.COM",
         "./software/pcx86/src/util/obj/TESTS.COM",
         "./software/pcx86/src/util/obj/SYMDEB.EXE",
+        "./software/pcx86/src/gwb/obj/GWB.EXE",
         "./software/pcx86/src/util/*.BAS",
         "./software/pcx86/src/util/*.BAT"
     ],
@@ -46,6 +47,7 @@ let disks = {
         "./software/pcx86/src/util/obj/PRIMES.EXE",
         "./software/pcx86/src/util/obj/SLEEP.COM",
         "./software/pcx86/src/util/obj/TESTS.COM",
+        "./software/pcx86/src/util/obj/SYMDEB.EXE",
         "./software/pcx86/src/gwb/obj/GWB.EXE",
         "./software/pcx86/src/util/*.BAS",
         "./software/pcx86/src/util/*.BAT"
@@ -58,8 +60,8 @@ let disks = {
         "./software/pcx86/src/util/obj/PRIMES.EXE",
         "./software/pcx86/src/util/obj/SLEEP.COM",
         "./software/pcx86/src/util/obj/TESTS.COM",
-        "./software/pcx86/src/gwb/obj/GWB.EXE",
         "./software/pcx86/src/util/obj/SYMDEB.EXE",
+        "./software/pcx86/src/gwb/obj/GWB.EXE",
         "./software/pcx86/src/util/*.BAS",
         "./software/pcx86/src/util/*.BAT"
     ],

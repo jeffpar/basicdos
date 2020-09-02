@@ -351,7 +351,10 @@ sr0a:	mov	ax,[bx].SFB_SIZE.OFF
 	mov	dx,[bx].SFB_SIZE.SEG
 	sub	ax,[bx].SFB_CURPOS.OFF
 	sbb	dx,[bx].SFB_CURPOS.SEG
-	test	dx,dx			; lots of data ahead?
+	jnb	sr0b
+	sub	ax,ax			; no data available
+	cwd
+sr0b:	test	dx,dx			; lots of data ahead?
 	jnz	sr1			; yes
 	cmp	cx,ax
 	jbe	sr1
@@ -508,10 +511,10 @@ DEFPROC	sfb_seek,DOS
 	mov	ax,si			; SI:AX = offset for SEEK_BEG
 	jl	ss8
 	mov	ax,[bx].SFB_CURPOS.OFF
-	mov	si,[bx].SFB_CURPOS.SEG	; SI:DI = offset for SEEK_CUR
+	mov	si,[bx].SFB_CURPOS.SEG	; SI:AX = offset for SEEK_CUR
 	je	ss8
 	mov	ax,[bx].SFB_SIZE.OFF
-	mov	si,[bx].SFB_SIZE.SEG	; SI:DI = offset for SEEK_END
+	mov	si,[bx].SFB_SIZE.SEG	; SI:AX = offset for SEEK_END
 ss8:	add	dx,ax
 	adc	cx,si
 	mov	[bx].SFB_CURPOS.OFF,dx
