@@ -240,7 +240,7 @@ m3:	cmp	byte ptr [bx],ch	; more files to find?
 	jl	m7			; no, see if we're done
 	jg	m6			; no, this file hasn't been found yet
 m4:	dec	cx			; reduce the # files left
-m5:	add	bx,11			; partly, skip to next filename
+m5:	add	bx,size FCB_NAME	; partly, skip to next filename
 	jmp	m3			; and check again
 m6:	call	find_dirent		;
 	jz	m4			; we found a file
@@ -328,7 +328,7 @@ DEFPROC	find_dirent
 fd1:	cmp	byte ptr [di],ch
 	je	file_error	; 0 indicates end of allocated entries
 	mov	si,bx
-	mov	cl,11
+	mov	cl,size FCB_NAME
 	repe	cmpsb
 	jz	fd8
 	add	di,cx

@@ -218,4 +218,4 @@ BPB operations, but the memory for BPBs is allocated by DOS.
 
 **IBMDOS.COM** is the second file loaded by the boot code. 
 
-More about that component in the next blog post.
+More about that component in the next blog post....

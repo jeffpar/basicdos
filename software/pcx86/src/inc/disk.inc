@@ -109,7 +109,7 @@ DIR_CLN		dw	?		; 1Ah: first cluster number of file
 DIR_SIZE	dd	?		; 1Ch: 32-bit file size
 DIRENT		ends
 
-DIRENT_END	equ	00h
+DIRENT_END	equ	00h		; an optimization introduced in DOS 2
 DIRENT_DELETED	equ	0E5h
 
 DIRENT_SIZE	equ	(size DIRENT)	; 20h: size of directory entry in bytes

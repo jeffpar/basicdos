@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS with Dual Monitors and Multiple Sessions
+title: BASIC-DOS with Dual Monitors and Sessions
 permalink: /maplebar/dual/multi/
 machines:
   - id: ibm5150

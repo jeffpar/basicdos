@@ -10,9 +10,9 @@
 	include	cmd.inc
 
 CODE    SEGMENT
-	EXTERNS	<cmdDate,cmdDir,cmdExit,cmdHelp,cmdList,cmdLoad,cmdMem>,near
-	EXTERNS	<cmdNew,cmdRun,cmdTime,cmdType,cmdVer>,near
-	EXTERNS	<genCLS,genColor,genDefInt,genGoto,genIf,genLet,genPrint>,near
+	EXTERNS	<cmdDate,cmdDir,cmdExit,cmdHelp,cmdList,cmdLoad>,near
+	EXTERNS	<cmdMem,cmdNew,cmdRun,cmdTime,cmdType,cmdVer>,near
+	EXTERNS	<genCLS,genColor,genDefInt,genEcho,genGoto,genIf,genLet>,near
 	EXTERNS	<evalNegLong,evalNotLong>,near
 	EXTERNS	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>,near
 	EXTERNS	<evalModLong,evalExpLong,evalImpLong>,near
@@ -20,10 +20,14 @@ CODE    SEGMENT
 	EXTERNS	<evalEQLong,evalNELong,evalLTLong,evalGTLong>,near
 	EXTERNS	<evalLELong,evalGELong,evalShlLong,evalShrLong>,near
 
+	EXTERNS	<genExprNum,genExprStr>,near
+	EXTERNS	<printArgs>,near
+
 	DEFSTR	COM_EXT,<".COM",0>	; these 4 file extensions must be
 	DEFSTR	EXE_EXT,<".EXE",0>	; listed in the desired search order
 	DEFSTR	BAT_EXT,<".BAT",0>
 	DEFSTR	BAS_EXT,<".BAS",0>
+
 	DEFSTR	DIR_DEF,<"*.*",0>
 	DEFSTR	PERIOD,<".",0>
 	DEFSTR	SYS_MEM,<"<SYS>",0>
@@ -95,6 +99,41 @@ CODE    SEGMENT
 	db	"==",'=',"<<",'S',">>",'R'
 	db	0
 
+	DEFLBL	SYNTAX_TABLES,word
+;
+; Syntax tables are a series of bytes processed by synCheck that define
+; both the syntax and the code generation logic for a given keyword.
+;
+	DEFLBL	synPrint,byte
+	db	SC_GENPB,VAR_NONE	; start with VAR_NONE on the stack
+	db	SC_PKTOK,CLS_ANY	; peek for any token
+
+	db	SC_MASYM,';'		; semi-colon pushes
+	db	SC_GENPB,VAR_SEMI	; VAR_SEMI onto the stack
+
+	db	SC_MASYM,','		; comma pushes
+	db	SC_GENPB,VAR_COMMA	; VAR_COMMA onto the stack
+
+	db	SC_MATCH,CLS_STR	; string constant
+	db	SC_CALFN,SCF_GENXSTR	; generates call to genExprStr
+	db	SC_GENPB,VAR_STR
+
+	db	SC_MATCH,VAR_STR	; string variable
+	db	SC_CALFN,SCF_GENXSTR	; also generates call to genExprStr
+	db	SC_GENPB,VAR_STR
+
+	db	SC_MATCH,CLS_ANY	; anything else
+	db	SC_CALFN,SCF_GENXNUM	; generates call to genExprNum
+	db	SC_GENPB,VAR_LONG	; (failure triggers jump to next block)
+
+	db	SC_NXTOK,0		; check for more tokens if no failure
+	db	SC_GENFN,SCF_PRTARGS,-1	; otherwise generate call to printArgs
+
+	DEFLBL	SCF_TABLE,word		; synCheck function table:
+	dw	genExprNum		; SCF_GENXNUM
+	dw	genExprStr		; SCF_GENXSTR
+	dw	printArgs		; SCF_PRTARGS
+
 CODE	ENDS
 
 	DEFTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
@@ -103,18 +142,19 @@ CODE	ENDS
 	DEFTOK	TOK_DATE,    1, "DATE",   cmdDate
 	DEFTOK	TOK_DEFINT, 42, "DEFINT", genDefInt
 	DEFTOK	TOK_DIR,    20, "DIR",    cmdDir
+	DEFTOK	TOK_ECHO,   43, "ECHO",   genEcho
 	DEFTOK	TOK_ELSE,  101, "ELSE"
 	DEFTOK	TOK_EXIT,    2, "EXIT",   cmdExit
-	DEFTOK	TOK_GOTO,   43, "GOTO",   genGoto
+	DEFTOK	TOK_GOTO,   44, "GOTO",   genGoto
 	DEFTOK	TOK_HELP,    3, "HELP",   cmdHelp
-	DEFTOK	TOK_IF,     44, "IF",     genIf
-	DEFTOK	TOK_LET,    45, "LET",    genLet
+	DEFTOK	TOK_IF,     45, "IF",     genIf
+	DEFTOK	TOK_LET,    46, "LET",    genLet
 	DEFTOK	TOK_LIST,    4, "LIST",   cmdList
 	DEFTOK	TOK_LOAD,   21, "LOAD",   cmdLoad
 	DEFTOK	TOK_MEM,     5, "MEM",    cmdMem
 	DEFTOK	TOK_NEW,     6, "NEW",    cmdNew
-	DEFTOK	TOK_PRINT,  46, "PRINT",  genPrint
-	DEFTOK	TOK_REM,    47, "REM"
+	DEFTOK	TOK_PRINT,  47, "PRINT",  synPrint
+	DEFTOK	TOK_REM,    48, "REM"
 	DEFTOK	TOK_RUN,     7, "RUN",    cmdRun
 	DEFTOK	TOK_THEN,  102, "THEN"
 	DEFTOK	TOK_TIME,    8, "TIME",   cmdTime

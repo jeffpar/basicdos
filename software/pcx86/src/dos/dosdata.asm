@@ -71,7 +71,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>,near
 	EXTERNS	<dsk_flush,dsk_getdrv,dsk_setdrv,dsk_setdta,dsk_getdta>,near
 	EXTERNS	<dsk_getinfo,dsk_ffirst,dsk_fnext>,near
-	EXTERNS	<fcb_parse>,near
+	EXTERNS	<fcb_open,fcb_close,fcb_sread,fcb_rread,fcb_parse>,near
 	EXTERNS	<msc_setvec,msc_getver,msc_setctrlc,msc_getvec,msc_getswc>,near
 	EXTERNS	<psp_exec,psp_exit,psp_retcode,psp_create,psp_set,psp_get>,near
 	EXTERNS	<hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek,hdl_ioctl>,near
@@ -89,12 +89,12 @@ DOS	segment word public 'CODE'
 	dw	psp_term,    tty_echo,    tty_write,   aux_read		;00h-03h
 	dw	aux_write,   prn_write,   tty_io,      tty_in		;04h-07h
 	dw	tty_read,    tty_print,   tty_input,   tty_status	;08h-0Bh
-	dw	tty_flush,   dsk_flush,   dsk_setdrv,  func_none	;0Ch-0Fh
-	dw	func_none,   func_none,   func_none,   func_none	;10h-13h
-	dw	func_none,   func_none,   func_none,   func_none	;14h-17h
+	dw	tty_flush,   dsk_flush,   dsk_setdrv,  fcb_open		;0Ch-0Fh
+	dw	fcb_close,   func_none,   func_none,   func_none	;10h-13h
+	dw	fcb_sread,   func_none,   func_none,   func_none	;14h-17h
 	dw	func_none,   dsk_getdrv,  dsk_setdta,  func_none	;18h-1Bh
 	dw	func_none,   func_none,   func_none,   func_none	;1Ch-1Fh
-	dw	func_none,   func_none,   func_none,   func_none	;20h-23h
+	dw	func_none,   fcb_rread,   func_none,   func_none	;20h-23h
 	dw	func_none,   msc_setvec,  psp_create,  func_none	;24h-27h
 	dw	func_none,   fcb_parse,   func_none,   func_none	;28h-2Bh
 	dw	func_none,   func_none,   func_none,   dsk_getdta	;2Ch-2Fh

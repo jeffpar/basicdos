@@ -202,13 +202,14 @@ ENDPROC	hdl_ioctl
 ;
 DEFPROC	sfb_open,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	sub	ax,ax			; AH = 0 (filename), AL = attributes
+	DEFLBL	sfb_open_fcb,near
 	LOCK_SCB
 	push	si
 	push	ds
 	push	es
 	call	chk_devname		; is it a device name?
 	jnc	so1			; yes
-	sub	ax,ax			; AH = 0 (filename), AL = attributes
 	call	chk_filename		; is it a disk filename?
 	jnc	so1a			; yes
 so9a:	mov	ax,ERR_NOFILE
@@ -286,6 +287,7 @@ so6:	push	cs
 	mov	[bx].SFB_CURPOS.OFF,ax	; zero the initial file position
 	mov	[bx].SFB_CURPOS.SEG,ax
 	mov	[bx].SFB_CURCLN,dx	; initial position cluster
+	mov	[bx].SFB_FLAGS,al	; zero flags
 	jmp	short so9		; return new SFB
 
 so7:	pop	ax			; throw away any DIRENT on the stack
@@ -349,7 +351,10 @@ sr0a:	mov	ax,[bx].SFB_SIZE.OFF
 	mov	dx,[bx].SFB_SIZE.SEG
 	sub	ax,[bx].SFB_CURPOS.OFF
 	sbb	dx,[bx].SFB_CURPOS.SEG
-	test	dx,dx			; lots of data ahead?
+	jnb	sr0b
+	sub	ax,ax			; no data available
+	cwd
+sr0b:	test	dx,dx			; lots of data ahead?
 	jnz	sr1			; yes
 	cmp	cx,ax
 	jbe	sr1
@@ -487,8 +492,8 @@ ENDPROC	sfb_read
 ; sfb_seek
 ;
 ; Inputs:
-;	BX -> SFB
 ;	AL = SEEK method (ie, SEEK_BEG, SEEK_CUR, or SEEK_END)
+;	BX -> SFB
 ;	CX:DX = distance, in bytes
 ;
 ; Outputs:
@@ -496,27 +501,28 @@ ENDPROC	sfb_read
 ;	On failure, carry set, AX = error code
 ;
 ; Modifies:
-;	AX, CX, DX, SI,DI
+;	AX (and CX and DX if SEEK_CUR or SEEK_END)
 ;
 DEFPROC	sfb_seek,DOS
-	ASSUMES	<DS,DOS>,<ES,DOS>
-	sub	di,di
-	sub	si,si			; SI:DI = offset for SEEK_BEG
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
+	push	si
+	sub	si,si
 	cmp	al,SEEK_CUR
+	mov	ax,si			; SI:AX = offset for SEEK_BEG
 	jl	ss8
-	mov	di,[bx].SFB_CURPOS.OFF
-	mov	si,[bx].SFB_CURPOS.SEG	; SI:DI = offset for SEEK_CUR
+	mov	ax,[bx].SFB_CURPOS.OFF
+	mov	si,[bx].SFB_CURPOS.SEG	; SI:AX = offset for SEEK_CUR
 	je	ss8
-	mov	di,[bx].SFB_SIZE.OFF
-	mov	si,[bx].SFB_SIZE.SEG	; SI:DI = offset for SEEK_END
-ss8:	add	dx,di
+	mov	ax,[bx].SFB_SIZE.OFF
+	mov	si,[bx].SFB_SIZE.SEG	; SI:AX = offset for SEEK_END
+ss8:	add	dx,ax
 	adc	cx,si
 	mov	[bx].SFB_CURPOS.OFF,dx
 	mov	[bx].SFB_CURPOS.SEG,cx
 ;
 ; TODO: Feels like we should return an error if carry is set (ie, overflow)....
 ;
-	clc
+	pop	si
 ss9:	ret
 ENDPROC	sfb_seek
 
@@ -653,6 +659,35 @@ gs8:	mov	ax,ERR_BADHANDLE
 gs9:	cmc
 	ret
 ENDPROC	sfb_get
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; sfb_find_fcb
+;
+; Inputs:
+;	CX:DX = address of FCB
+;
+; Outputs:
+;	On success, carry clear, BX -> SFB
+;	On failure, carry set
+;
+; Modifies:
+;	BX
+;
+DEFPROC	sfb_find_fcb,DOS
+	mov	bx,[sfb_table].OFF
+sff1:	test	[bx].SFB_FLAGS,SFBF_FCB
+	jz	sff8
+	cmp	[bx].SFB_FCB.OFF,dx
+	jne	sff8
+	cmp	[bx].SFB_FCB.SEG,cx
+	je	sff9
+sff8:	add	bx,size SFB
+	cmp	bx,[sfb_table].SEG
+	jb	sff1
+	stc
+sff9:	ret
+ENDPROC	sfb_find_fcb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

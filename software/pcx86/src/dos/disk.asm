@@ -235,7 +235,7 @@ DEFPROC	dsk_ffirst,DOS
 	stosw				; FFB_DRIVE, FFB_SATTR
 	push	cx
 	push	si
-	mov	cx,11
+	mov	cx,size FCB_NAME
 	mov	si,offset file_name + 1	; FFB_FILESPEC
 	REPMOV	byte,CS
 	pop	si
@@ -303,7 +303,7 @@ DEFPROC	dsk_fnext,DOS
 	push	si
 	lea	si,[si].FFB_FILESPEC
 	mov	di,offset file_name + 1
-	mov	cx,11
+	mov	cx,size FFB_FILESPEC
 	rep	movsb
 	pop	si
 	call	get_bpb			; DL = drive #
@@ -329,7 +329,7 @@ ENDPROC	dsk_fnext
 ;
 ; Inputs:
 ;	AL = search attributes (0 if none)
-;	AH = 00h for filename, 80h for filespec (ie, wildcards allowed)
+;	AH = 00h for filename, 10h for FCB, 80h for filespec (w/wildcards)
 ;	DS:SI -> filename or filespec
 ;
 ; Outputs:
@@ -352,14 +352,46 @@ DEFPROC	chk_filename,DOS
 	mov	di,offset file_name	; ES:DI -> filename buffer
 	push	bx
 	push	ax
-	call	parse_name		; DS:SI -> filename or filespec
+;
+; If AH = 10h, then we've already got a "parsed name", so instead
+; of calling parse_name, just copy the name to the file_name buffer.
+;
+	cmp	ah,10h
+	jne	cf3
+	lodsb				; AL = FCB_DRIVE
+	dec	al			; convert 1-based drive # to 0-based
+	jge	cf2			; looks good
+	mov	bx,[scb_active]		; no, get SCB's default drive instead
+	ASSERT	STRUCT,es:[bx],SCB
+	mov	al,es:[bx].SCB_CURDRV
+cf2:	stosb				; store drive # in the file_name buffer
+	xchg	dx,ax			; DL = drive #
+	mov	cx,size FCB_NAME
+;
+; Even though callers have provided a "parsed name", they are apparently NOT
+; required to also upper-case it.
+;
+; TODO: Expand this code to a separate function which, like parse_name, upper-
+; cases and validates all characters against FILENAME_CHARS.
+;
+cf2a:	lodsb
+	cmp	al,'a'
+	jb	cf2b
+	cmp	al,'z'
+	ja	cf2b
+	sub	al,20h
+cf2b:	stosb
+	loop	cf2a
+	jmp	short cf4
+
+cf3:	call	parse_name		; DS:SI -> filename or filespec
 	jc	cf9			; bail on error
 ;
 ; file_name has been successfully filled in, so we're ready to search
 ; directory sectors for a matching name.  This requires getting a fresh
 ; BPB for the drive.
 ;
-cf4:	call	get_bpb			; DL = drive #
+cf4:	call	get_bpb			; DL = drive # (from above)
 	jc	cf9
 ;
 ; DI -> BPB.  Start a directory search for file_name.
@@ -645,7 +677,7 @@ gd5:	cmp	byte ptr [si],DIRENT_END
 	jz	gd5e			; no
 
 gd5a:	push	di
-	mov	cx,11
+	mov	cx,size FCB_NAME
 	mov	di,offset file_name + 1	; skip drive # for DIRENT comparison
 gd5b:	mov	bh,es:[di]
 	inc	di
@@ -659,7 +691,7 @@ gd5d:	pop	di
 	je	gd8
 
 	add	si,cx
-	sub	si,11
+	sub	si,size FCB_NAME
 gd5e:	add	si,size DIRENT
 	cmp	si,ax
 	jb	gd5

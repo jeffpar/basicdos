@@ -1,1 +1,0 @@
-LINK @GW.LNK

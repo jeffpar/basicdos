@@ -49,6 +49,20 @@ DATA	SEGMENT
 val = ((offset $ - offset tbl) - 2) / (size TOKDEF)
 DATA	ENDS
 	endm
+
+SC_GENPB	equ	71h		; do GENPUSHB
+SC_CALFN	equ	72h		; call function
+SC_PKTOK	equ	73h		; peek token
+SC_GTTOK	equ	74h		; get token
+SC_MATCH	equ	75h		; if token matches...
+SC_MASYM	equ	76h		; if CLS_SYM token matches...
+SC_NXTOK	equ	77h		; get next token
+SC_GENFN	equ	78h		; do GENCALL
+
+SCF_GENXNUM	equ	0		; -> genExprNum
+SCF_GENXSTR	equ	1		; -> genExprStr
+SCF_PRTARGS	equ	2		; -> printArgs
+
 ;
 ; Keywords with IDs >= GENCODE require code generation.
 ; Those with IDs < GENCODE and >= FILESPEC expect a filespec.
@@ -173,6 +187,7 @@ LBL_RESOLVE	equ	CBLKLEN
 GEN_IMM		equ	01h		; immediate mode
 GEN_BASIC	equ	02h		; BAS file
 GEN_BATCH	equ	04h		; BAT file
+GEN_ECHO	equ	08h		; initially set if GEN_BATCH
 
 ;
 ; Code generation macros
@@ -199,12 +214,16 @@ GENPUSH	macro	val1,val2
 	endm
 
 GENPUSHB macro	val
-	IFDIF	<val>,<ah>
-	mov	ax,OP_MOV_AL OR (val SHL 8)
+	IFIDN	<val>,<al>
+	call	genPushImmByteAL
 	ELSE
-	mov	al,OP_MOV_AL
-	ENDIF
+	 IFIDN	<val>,<ah>
+	call	genPushImmByteAH
+	 ELSE
+	mov	ax,OP_MOV_AL OR (val SHL 8)
 	call	genPushImmByte
+	 ENDIF
+	ENDIF
 	endm
 ;
 ; PUSHSTR copies the string at DS:SI with length CL into the code segment,

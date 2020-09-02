@@ -7,7 +7,8 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-	include	dos.inc
+	include	dev.inc
+	include	dosapi.inc
 
 DEV	group	CODE,DATA
 

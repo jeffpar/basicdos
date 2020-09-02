@@ -498,6 +498,31 @@ ENDPROC utl_atoi32d
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; mul_32_16
+;
+; Multiply DX:AX by CX, leaving result in DX:AX.
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	mul_32_16
+	push	bx
+	mov	bx,dx
+	mul	cx			; DX:AX = orig AX * CX
+	push	ax			;
+	xchg	ax,bx			; AX = orig DX
+	mov	bx,dx			; BX:[SP] = orig AX * CX
+	mul	cx			; DX:AX = orig DX * CX
+	add	ax,bx
+	adc	dx,0
+	xchg	dx,ax
+	pop	ax			; DX:AX = new result
+	pop	bx
+	ret
+ENDPROC	mul_32_16
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; utl_tokify (AX = 180Bh or 180Ch)
 ;
 ; DOS_UTL_TOKIFY1 (180Bh) performs GENERIC parsing, which means that only

@@ -106,17 +106,19 @@ ENDPROC	get_scbnum
 DEFPROC	scb_load,DOS
 	ASSUME	ES:NOTHING
 	call	scb_lock
-	jc	sl9
+	jc	sl8
 	push	ax			; save previous SCB
 	call	load_program
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
 	mov	bx,[scb_active]
-	jc	sl8
+	jc	sl7
 	call	scb_init
-sl8:	pop	ax			; recover previous SCB
+sl7:	pop	cx			; recover previous SCB
 	call	scb_unlock		; unlock
+sl8:	jnc	sl9
+	mov	[bp].REG_AX,ax		; return error code to caller
 sl9:	ret
 ENDPROC	scb_load
 
@@ -200,11 +202,11 @@ ENDPROC	scb_lock
 ;
 ; scb_unlock
 ;
-; Restore the previous SCB and lock state
+; Restore the previous SCB and lock state.
 ;
 ; Inputs:
-;	AX -> previous SCB
 ;	BX -> current SCB
+;	CX -> previous SCB
 ;
 ; Modifies:
 ;	BX, DX (but not carry)
@@ -215,10 +217,9 @@ DEFPROC	scb_unlock,DOS
 	ASSERT	STRUCT,[bx],SCB
 	mov	dx,[psp_active]
 	mov	[bx].SCB_CURPSP,dx
-	mov	[scb_active],ax
-	test	ax,ax
-	jz	su9
-	xchg	bx,ax			; BX -> previous SCB
+	mov	[scb_active],cx
+	jcxz	su9
+	mov	bx,cx			; BX -> previous SCB
 	ASSERT	STRUCT,[bx],SCB
 	mov	dx,[bx].SCB_CURPSP
 	mov	[psp_active],dx

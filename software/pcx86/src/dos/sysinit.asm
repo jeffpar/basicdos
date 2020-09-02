@@ -439,61 +439,6 @@ si12:	mov	si,offset CFG_DEBUG
 si13:	mov	dx,offset SYS_MSG
 	mov	ah,DOS_TTY_PRINT
 	int	21h
-
-	IFDEF	MAXDEBUG		; a quick series of early sanity checks
-	push	es
-	mov	ah,DOS_MEM_ALLOC
-	mov	bx,20h
-	int	21h
-	jc	dierr1
-	xchg	cx,ax			; CX = 1st segment
-	mov	es,cx
-	mov	bx,40h			; make the 1st segment larger
-	mov	ah,DOS_MEM_REALLOC
-	int	21h
-	jc	dierr1
-	mov	ah,DOS_MEM_ALLOC
-	mov	bx,20h
-	int	21h
-	jc	dierr1
-	xchg	dx,ax			; DX = 2nd segment
-	mov	es,dx
-	mov	bx,10h			; make the 2nd segment smaller
-	mov	ah,DOS_MEM_REALLOC
-	int	21h
-	jc	dierr1
-	mov	ah,DOS_MEM_ALLOC
-	mov	bx,20h
-	int	21h
-	jc	dierr1
-	xchg	si,ax			; SI = 3rd segment
-	mov	ah,DOS_MEM_FREE
-	mov	es,cx			; free the 1st
-	int	21h
-dierr1:	jc	dierr2
-	mov	ah,DOS_MEM_FREE
-	mov	es,si
-	int	21h			; free the 3rd
-	jc	dierr2
-	mov	ah,DOS_MEM_FREE
-	mov	es,dx
-	int	21h			; free the 2nd
-	jc	dierr2
-	mov	dx,offset COM1_DEVICE
-	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
-	int	21h
-	mov	dx,offset COM2_DEVICE
-	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
-	int	21h
-	mov	ah,TIME_GETTICKS
-	int	INT_TIME		; CX:DX is tick count
-	mov	bx,offset hello
-	PRINTF	<"%ls, the time is [%6ld]",13,10>,bx,cs,dx,cx
-	pop	es
-	jmp	short diend
-dierr2:	jmp	sysinit_error
-diend:
-	ENDIF
 ;
 ; For each SHELL definition, load the corresponding file into the next
 ; available SCB.  The first time through, CFG_SHELL is used as a fallback,
@@ -763,13 +708,7 @@ SHELL_FILE	db	"COMMAND.COM",0	; default SHELL file
 SYS_MSG		db	"BASIC-DOS "
 		VERSION_STR
 		db	" for the IBM PC",13,10
-		db	"Copyright (c) pcjs.org 1981-2021",13,10,13,10,'$'
-
-	IFDEF	MAXDEBUG
-COM1_DEVICE	db	"COM1:9600,N,8,1",0
-COM2_DEVICE	db	"COM2:9600,N,8,1",0
-hello		db	"hello world",0
-	ENDIF
+		db	"Copyright (c) Jeff Parsons 1981-2021",13,10,13,10,'$'
 
 SYSERR		db	"System initialization error$"
 CONERR		db	"More CONSOLES than SESSIONS$"

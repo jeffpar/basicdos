@@ -628,7 +628,7 @@ lp6g:	push	es:[EXE_START_SEG]
 ; conservative, or PC DOS had some EXEC overhead (perhaps in the transient
 ; portion of COMMAND.COM) that it couldn't eliminate.
 ;
-	add	bx,20h			; add another 0.5Kb (in paras)
+	add	bx,40h			; add another 1Kb (in paras)
 
 	mov	ds,ax			; DS = PSP segment
 	add	ax,10h			; AX = EXE base segment (again)

@@ -28,7 +28,7 @@ DOS	segment word public 'CODE'
 ;	On failure, carry set
 ;
 ; Modifies:
-;	AX, CX, DI, ES
+;	CX, DI, ES
 ;
 DEFPROC	chk_devname,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
@@ -50,10 +50,9 @@ cd1:	cmp	di,-1			; end of device list?
 ; This could still be a match if DS:[SI-1] is a colon or a null, and
 ; ES:[DI-1] is a space.
 ;
-	mov	al,[si-1]
-	test	al,al
-	jz	cd2
-	cmp	al,':'
+	mov	cl,[si-1]
+	jcxz	cd2
+	cmp	cl,':'
 	jne	cd3
 cd2:	cmp	byte ptr es:[di-1],' '
 cd3:	pop	di

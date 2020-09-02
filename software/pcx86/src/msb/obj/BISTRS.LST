@@ -1,0 +1,2315 @@
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-1
+                                                            
+
+                                ; [ This translation created 10-Feb-83 by Versi
+				on 4.3 ] 
+                                 
+ 0008                           	.RADIX  8		; To be safe 
+                                 
+ 0000                           CSEG	SEGMENT PUBLIC 'CODESG' 
+                                	ASSUME  CS:CSEG 
+                                 
+                             C  INCLUDE	OEM.INC 
+                             C  ; [ This translation created 10-Feb-83 by Versi
+				on 4.3 ] 
+                             C   
+                             C  	SUBTTL  Common file to produce 2-segment 8086 
+				GW-CPM BASIC 
+                             C   
+                             C  	.SALL 
+                             C   
+ 000A                        C  	.RADIX	10 
+ = 0000                      C  	OEMRAM=0D 
+                             C  ;Pascal program HFILE searches for the followin
+				g line - DO NOT MODIFY 
+                             C  ;** (VERSION SPECIFIC VALUES) *****************
+				******************************* 
+ = 0019                      C  	NMLINE=25		;Max screen display text lines 
+ = 0001                      C  	NBANKS=1		;Number of graphic planes 
+ = 0000                      C  	PALSIZ=0		;Size of OEM color palette 
+ = 0000                      C  	DBLCHR=0		;Editor support for KANJI chars 
+ = 0000                      C  	KANABS=0		;Kana BASIC (Japanese JIS codes) 
+ = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .
+				. 
+ = 0000                      C  	JISKTN=0		;&K, &J constants (KANJI) 
+ = 0001                      C  	SUPRSH=1		;1=super shift key feature 
+ = 000A                      C  	NMKEYF=10		;number of function keys 
+ = 000E                      C  	NMKEYT=14		;number of function key traps 
+ = 0001                      C  	FKEYON=1		;yes=display function keys 
+ = 0001                      C  	SCROLT=1		;Line 25 allocated for status only 
+ = 0001                      C  	PLAYSW=1		;for PLAY statement 
+ = 0001                      C  	BEEPSW=1		;for SOUND, BEEP statements 
+ = 0003                      C  	NMLPT=3			;number of line printers 
+ = 0001                      C  	CONSSW=1		;Device CONS: 
+ = 0002                      C  	NMCOMT=2		;number of COMmunications ports 
+ = 0001                      C  	NMPENT=1		;number of light pens 
+ = 0004                      C  	NMSTRT=4		;number of joysticks 
+ = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR)
+				 
+ = 0001                      C  	IBMLIK=1		;IBM compatibility package 
+ = 0001                      C  	IBMTOK=1		;IBM token compatibility 
+ = 0001                      C  	DYNCOM=1		;Dynamic communication buffers 
+                             C  ;** (END OF VERSION SPECIFIC VALUES) **********
+				******************************* 
+                             C  ;Pascal program HFILE searches for the previous
+				 line - DO NOT MODIFY 
+                             C  ; 
+ = 0015                      C  	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-2
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
+ = 0001                      C  	GW=1			;GW BASIC 
+ = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROU
+				T 
+ = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY
+				) 
+                             C  				; Support is in BINTRP.MAC and GWSTS.MAC 
+ = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed whe
+				n formatting 
+                             C  				;single precision numbers for output. 
+                             C  				; 0 := 7 digits 
+                             C  				; 1 := 6 digits 
+ = 0000                      C  	CASSW=0			;CASSETTE SWITCH 
+ = 0001                      C  	LABKEY=1		;^T (LABEL) key capability 
+ = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics)
+				 
+ = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stac
+				k) 
+ = 0001                      C  	GIO86=1			;BASIC-86 Generalized I/O 
+ = 0001                      C  	SCRNIO=1		;Screen editor 
+ = 0001                      C  	SCRN86=1		;8086 Screen editor 
+ = 0001                      C  	I8086=1			;CROSS ASSEMBLING FOR 8086 
+ = 0001                      C  	MULSEG=1		;MULTI-SEGMENT 8086 BASIC 
+ = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SE
+				T 
+ = 0001                      C  	TRUROM=1 
+ = 0000                      C  	SBC86=0			;SBC 86/02 BOARD? 
+ = 0001                      C  	SHORTJ=1		;USE INTRA-SEGMENT SHORT JUMPS 
+                             C  				;IN 8086 CODE 
+ = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDE
+				D ONLY) 
+ = 0000                      C  	SHTERR=0		;SHORT (2 CHAR) ERROR MESSAGES 
+ = 0000                      C  	SHTINS=0		;INSTR IN NON-FAST LEN2 VERSIONS 
+ = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2
+				 VERSIONS 
+ = 0000                      C  	SHTCHN=0		;ALLOW CHAIN IN NON-5.0 
+ = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK
+				 
+ = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NO
+				N-FAST 
+ = 0000                      C  	SHTREN=0		;ALLOW RENUM IN NON-FST VERSIONS 
+ = 0001                      C  	INKEYF=1		;ADDS INKEY$ FUNCTION 
+ = 0000                      C  	NOIOS=0			;NO I/O STATMENTS (INP,OUT, WAIT) 
+ = 0000                      C  	NOPEKS=0		;NO PEEK, POKE 
+ = 0000                      C  	NOUSR=0			;NO USR 
+ = 0000                      C  	NOCTLA=0		;NO CONTROL-A IN EXTENDED 
+ = 0000                      C  	NORUBT=0		;NO RUBOUT 
+ = 0000                      C  	NOROMP=0		;NO ROM PROGRAM FEATURE 
+ = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED
+				 
+ = 0000                      C  	NODOT=0			;NO DOT IN LEN2 
+ = 0000                      C  	NOEDIT=0		;NO EDIT COMMAND 
+ = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMIN
+				AL 
+                             C  				;AND FILES 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-3
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
+ = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN C
+				RDO & OUTCH1 
+ = 0000                      C  	NOVARP=0		;NO VARPTR FUNCTION 
+ = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 F
+				EATURES 
+ = 0001                      C  	FIVMEM=1 
+ = 0001                      C  	ANSI=1 
+ = 0001                      C  	FIVDSK=1		;5.0 NEW DSK CODE 
+ = 0001                      C  	FIVLPT=1		;WIDTH LPRINT AND 255 FEATURE 
+ = 0001                      C  	HEXOCT=1		;&H..., HEX$, &O..., OCT$ 
+ = 0000                      C  	BINCSW=0		;&B..., BIN$ 
+ = 0001                      C  	BLODSW=1		;BLOAD, BSAVE COMMANDS 
+ = 0001                      C  	MEMIMG=1		;MEMORY IMAGE FILES 
+ = 0001                      C  	GENBIN=1 
+                             C   
+ = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON 
+				ERROR) 
+ = 0000                      C  	COMMNT=0		;DONT WANT BIG COMMENT 
+ = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
+ = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
+ = 0000                      C  	INTFHW=0 
+ = 0000                      C  	RMX=0			;INTEL RMX VERSION 
+ = 0000                      C  	EDIT80=0		;FOR EDIT80 I/O ROUTINES 
+ = 0000                      C  	RSHACK=0 
+ = 0000                      C  	INTLEC=0 
+ = 0002                      C  	LENGTH=2		;  1 MEANS 8K, 2 MEANS 12K 
+ = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BAS
+				IC 
+ = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATION
+				S 
+                             C  				;TO MAKE ITSELF SMALLER & QUICKER 
+ = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE
+				 (=1) 
+ = 0001                      C  	GENIO=1			;USE G/P ROUTINES 
+ = 0001                      C  	CHSEAT=1		;CHSNS eats chars 
+ = 0000                      C  	GENDSK=0		;USE G/P DSK CODE 
+ = 0000                      C  	LONGI=0			;WHETHER WE ASK "TERMINAL WIDTH?" 
+                             C  				;AND WANT SIN-TAN-COS-ATN? 
+ = 0000                      C  	INSTSW=0		;FOR INSTR INSTRUCTION 
+ = 0001                      C  	SWAPSW=1		;FOR SWAP STATEMENT 
+ = 0000                      C  	MDS=0			;FOR INTEL MDS SYSTEMS 
+ = 0000                      C  	SBC=0			;FOR INTEL SINGLE BOARD COMPUTER 
+                             C  				;1=SBC 80/10, 2=SBC 80/20 
+ = 0001                      C  	PURE=1			;ON FOR PURE CODE 
+ = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RA
+				M 
+ = 0000                      C  	INTROM=0 
+ = 0001                      C  	LPTSW=1 
+ = 0001                      C  	NCRLPT=1 
+ = 0000                      C  	NCRCAS=0 
+ = 0000                      C  	ISC=0			;FOR ISC VERSION 
+ = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,C
+				ENT) 
+ = 0000                      C  	TSLPT=0 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-4
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
+                             C   
+ = 0000                      C  	DOS=0			;ON TO GEN ROUTINES FOR DOS 
+ = 0001                      C  	DISK=1			;FILE I/O FEATURES 
+ = 0000                      C  	TIMSHR=0		;NO TIME-SHARING DISK 
+ = 0000                      C  	TSDISK=0		;NO TIME-SHARING DISK FOR US 
+ = 0000                      C  	SPCDSK=0		;MAY HAVE MM'S DISK CODE 
+ = 0000                      C  	SPCNDS=0 
+ = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIEND
+				S 
+ = 0000                      C  	KEYSTA=0 
+ = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISI
+				S II DOS 
+ = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISI
+				S-II 
+ = 0001                      C  	CPM=1			;FOR CPM compatible operating systems 
+ = 0001                      C  	CPM2=1			;VERSION 2. CPM 
+ = 0000                      C  	CPM86=0			;FOR CP/M-86 operating system 
+ = 0001                      C  	SCP=1			;MS-DOS operating system 
+ = 0000                      C  	CPMCON=0 
+ = 0000                      C  	CPMSER=0		;CHECK CPM SERIAL #'S 
+ = 0000                      C  	CPMADD=0		;FOR VERSION TO RUN ON ADDS CPM 
+ = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 7
+				5 
+                             C  				;CP/M 
+ = 0000                      C  	CPMRSH=0		;FOR RADIO SHACK CPM/M 
+ = 0000                      C  	CPM110=0		;FOR CP/M @1100 HEX (INTERALIA) 
+ = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4
+				100H 
+ = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
+ = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
+ = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
+ = 0000                      C  	CPMCON=0 
+ = 0000                      C  	Z80=0 
+ = 0001                      C  	DISK=1 
+ = 0001                      C  	NCRLPT=1 
+ = 0001                      C  	RSTLES=1 
+ = 0000                      C  	DRVPOS=CPMADD 
+ = 0000                      C  	TRNCHR=CPMADD 
+ = 0000                      C  	INLADD=CPMADD 
+ = 0001                      C  	LISTEN=1		;ON MEANS LISTEN FOR ^C 
+ = 0001                      C  	LISTEN=1 
+ = 0000                      C  	LEN2=0 
+ = 0001                      C  	LEN2=1 
+ = 0001                      C  	HEXOCT=1 
+ = 0002                      C  	LENGTH=2 
+ = 0001                      C  	RSTLES=1 
+ = 0001                      C  	FIVLPT=1 
+ = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT V
+				ERSION 
+ = 0001                      C  	CONTRO=1		;ALLOW ^O 
+ = 0001                      C  	LEN3=LEN2 OR CASSW 
+                             C   
+                             C   
+                             C   
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-5
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
+ = 0001                      C  	STRING=1 
+ = 0001                      C  	NCRLPT=1 
+                             C   
+                             C  ; *** OEM Switches which need to be defaulted t
+				o 0 
+                             C  ; 
+ = 0000                      C  	CMPUTN=0 
+ = 0000                      C  	DUPONT=0 
+ = 0000                      C  	EXIDY=0 
+ = 0000                      C  	GESBC=0 
+ = 0000                      C  	HEATH=0 
+ = 0000                      C  	LOKHED=0 
+ = 0000                      C  	MOSTEK=0 
+ = 0000                      C  	TEK=0 
+ = 0000                      C  	TRSER2=0 
+ = 0000                      C  	NASCOM=0 
+ = 0000                      C  	NATROM=0 
+ = 0000                      C  	NCRBAS=0 
+ = 0000                      C  	NCRDEB=0 
+ = 0000                      C  	NCRDEB=0 
+ = 0000                      C  	NCRELS=0 
+ = 0000                      C  	ONTEL=0 
+ = 0000                      C  	PCS=0 
+ = 0000                      C  	SGSATS=0 
+ = 0000                      C  	ALTAIR=0 
+ = 0000                      C  	DMC=0 
+ = 0000                      C  	PANBAS=0 
+ = 0000                      C  	XTNSYS=0 
+ = 0000                      C  	NECBAS=0 
+                             C  ;**********************************************
+				********************* 
+                             C  ; Z80 related macros 
+                             C  ;**********************************************
+				********************* 
+ = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
+                             C  				;8080'S AND ZILOG Z-80'S 
+ = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INST
+				RUCTIONS 
+ = 0000                      C  	Z80=0 
+ = 0001                      C  	Z80=1 
+                             C  LDIR	MACRO 
+                             C  	MOV	WORD PTR A,WORD PTR M 
+                             C  	STAX	D 
+                             C  	INXF	H 
+                             C  	INXF	D 
+                             C  	DCXF	B 
+                             C  	MOV	WORD PTR A,WORD PTR B 
+                             C  	ORA	C 
+                             C  	JNZ	_-8D 
+                             C  ENDM 
+                             C  LDDR	MACRO 
+                             C  	MOV	WORD PTR A,WORD PTR M 
+                             C  	STAX	D 
+                             C  	DCXF	H 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-6
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
+                             C  	DCXF	D 
+                             C  	DCXF	B 
+                             C  	MOV	WORD PTR A,WORD PTR B 
+                             C  	ORA	C 
+                             C  	JNZ	_-8D 
+                             C  ENDM 
+                             C  DJNZ	MACRO	    DEST 
+                             C  	DCR	B 
+                             C  	JNZ	DEST 
+                             C  ENDM 
+                             C  ;**********************************************
+				********************* 
+                             C  ; Define reset routines. 
+                             C  ;**********************************************
+				********************* 
+                             C  FSIGN	MACRO 
+                             C  	CALL	SIGN 
+                             C  ENDM 
+                             C  PUSHM	MACRO 
+                             C  	MOV	WORD PTR C,WORD PTR M 
+                             C  	INX	H 
+                             C  	MOV	WORD PTR B,WORD PTR M 
+                             C  	INX	H 
+                             C  	PUSH	WORD PTR B 
+                             C  ENDM 
+                             C  SYNCHK	MACRO	X 
+                             C  	CALL	SYNCHR 
+                             C  	DB	OFFSET X 
+                             C  ENDM 
+                             C  OUTCHR	MACRO 
+                             C  	CALL	OUTDO 
+                             C  ENDM 
+                             C  CHRGET	MACRO 
+                             C  	CALL	CHRGTR 
+                             C  ENDM 
+                             C  COMPAR	MACRO 
+                             C  	CALL	DCOMPR 
+                             C  ENDM 
+                             C  GETYPE	MACRO 
+                             C  	CALL	GETYPR 
+                             C  ENDM 
+                             C  COMPAR	MACRO 
+                             C  	DB	73O 
+                             C  	DB	332O 
+                             C   ENDM 
+                             C  ACRLF	MACRO 
+                             C  	DB	13D 
+                             C  	DB	10D 
+                             C  ENDM 
+                             C  PUSHR	MACRO 
+                             C  	PUSH	WORD PTR D 
+                             C  	PUSH	WORD PTR B 
+                             C  ENDM 
+                             C  POPR	MACRO 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-7
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
+                             C  	POP	WORD PTR B 
+                             C  	POP	WORD PTR D 
+                             C  ENDM 
+                             C  MOVRI	MACRO	B,C,D,E 
+                             C  	DB	1O		; "LXI  B" 
+                             C  	DB	OFFSET C 
+                             C  	DB	OFFSET B 
+                             C  	DB	21O		; "LXI  D" 
+                             C  	DB	OFFSET E 
+                             C  	DB	OFFSET D 
+                             C  ENDM 
+                             C  INST	MACRO	X 
+                             C  	DB	OX 
+                             C  ENDM 
+                             C   
+                             C   
+ = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALL
+				Y CONTROL-O) 
+ = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTAL
+				S 
+                             C   
+ = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARA
+				CTERS 
+ = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SEC
+				TOR 
+ = 0050                      C  	LINLN=80D		;TERMINAL LINE LENGTH 
+ = 0084                      C  	LPTLEN=132D 
+ = 00FF                      C  	BUFLEN=255		;LONG LINES 
+ = 0028                      C  	NAMLEN=40D		;MAXIMUM LENGTH NAME -- 3 TO 127 
+                             C   
+ = 006E                      C  	NUMLEV=110D		;NUMBER OF STACK LEVELS RESERVED 
+                             C  				;BY AN EXPLICIT CALL TO GETSTK 
+ = 0004                      C  	STRSIZ=4 
+ = 0003                      C  	STRSIZ=3 
+ = 0003                      C  	NUMTMP=3		;NUMBER OF STRING TEMPORARIES 
+ = 000A                      C  	NUMTMP=10 
+                             C   
+ 0008                        C  	.RADIX	8 
+                             C  ; 
+                             C  ; Useful macros 
+                             C  ; 
+                             C   
+                             C  ACRLF   MACRO 
+                             C          DB      13D 
+                             C          DB      10D 
+                             C  ENDM 
+                             C   
+                             C  INS86   MACRO   A,B,C,D 
+                             C          DB      A&O 
+                             C  IFNB    <B> 
+                             C          DB      B&O 
+                             C  ENDIF 
+                             C  IFNB    <D> 
+                             C          DB      C&O 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-8
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
+                             C          DB      D&O 
+                             C  ENDIF 
+                             C  IFB     <D> 
+                             C   IFNB   <C> 
+                             C          DW      C 
+                             C    ENDIF 
+                             C   ENDIF 
+                             C  ENDM 
+                             C   
+                             C  CALLOS  MACRO 
+                             C          CALL    CPMENT 
+                             C  ENDM 
+                             C   
+                             C  POPR    MACRO 
+                             C          POP     CX 
+                             C          POP     DX 
+                             C  ENDM 
+                             C   
+                             C  ADR     MACRO   X 
+                             C          DW      X 
+                             C  ENDM 
+                             C   
+                             C  DC      MACRO   ARG 
+                             C          IRPC    ZZ,<ARG> 
+                             C              IFDIF       <ZZ>,<">
+                             C                  DB      "&ZZ&" 
+                             C                  _A="&ZZ&" 
+                             C              ENDIF 
+                             C          ENDM 
+                             C  ENDM 
+                             C  ; 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-9
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
+                             C          PAGE 
+                             C   
+                                 
+                                 
+                                	TITLE   BISTRS  BASIC Interpreter String  rout
+				ines/WHG/PGA etc. 
+                                 
+ 000A                           	.RADIX	10 
+                                 
+ = 0000                         TSHIBA=0 
+ = 0000                         PC8A=0 
+ = 0000                         ZENITH=0 
+ = 0000                         ALPCPM=0 
+ = 0000                         CAN8=0 
+ = 0000                         TRSHHC=0 
+ = 0000                         NECPPC=0 
+                                 
+ 0000                           DSEG	SEGMENT PUBLIC 'DATASG'		; Data Segment 
+                                	ASSUME DS:DSEG 
+                                	EXTRN	ARYTAB:WORD,DSCTMP:WORD,FRETOP:WORD,MEMS
+				IZ:WORD 
+                                	EXTRN	STREND:WORD,TEMPPT:WORD,TEMPST:WORD,VALT
+				YP:WORD,VARTAB:WORD 
+                                	EXTRN	TEMP8:WORD,ARYTA2:WORD 
+                                	EXTRN	TEMP9:WORD,PRMPRV:WORD 
+                                	EXTRN	FACLO:WORD 
+ 0000                           DSEG	ENDS			; End of data segment externals 
+                                 
+                                				; Code Segment ( terminated by END at botto
+				m of file ) 
+                                 
+                                	EXTRN	MOVRM:NEAR 
+                                	EXTRN	BLTUC:NEAR,CONINT:NEAR,CRFIN:NEAR,ERRLS:
+				NEAR,ERROR:NEAR 
+                                	EXTRN	ERRSO:NEAR,ERRST:NEAR 
+                                	EXTRN	EVAL:NEAR,FCERR:NEAR,FOUT:NEAR,FRMEQL:NE
+				AR,FRMEVL:NEAR 
+                                	EXTRN	FRMPRN:NEAR 
+                                	EXTRN	GETBYT:NEAR,OUTDO:NEAR,POPHRT:NEAR,PTRGE
+				T:NEAR,SIGNS:NEAR 
+                                	EXTRN	SNERR:NEAR 
+                                	EXTRN	TSTOP:NEAR,SNGFLT:NEAR,GIVDBL:NEAR,FIN:N
+				EAR,CHKSTR:NEAR 
+                                 
+                                	EXTRN	IADAHL:NEAR 
+                                	EXTRN	FINDBL:NEAR,GETBCD:NEAR,VMOVE:NEAR 
+                                	EXTRN	GETYPR:NEAR 
+                                	EXTRN	CHRGTR:NEAR,DCOMPR:NEAR,SYNCHR:NEAR 
+                                 
+                                	PUBLIC	STRPRT,STROUI,LEN,FRESTR,STRCMP,VAL,STR
+				LTI 
+                                	PUBLIC	FRETMS,FRETMP,RIGHT$,LEFT$,GARBA2,STR$ 
+                                	PUBLIC	FRE,STRLIT,STRCPY,CAT,STRLT3,MID$ 
+                                	PUBLIC	STRINI,STRIN1,STRAD1,PUTDEI,INCSTR 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-10
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
+                                 
+                                	PUBLIC	LHSMID 
+                                 
+                                ; 
+                                ; THE FOLLOWING ROUTINE COMPARES TWO STRINGS 
+                                ; ONE WITH DESC IN [D,E] OTHER WITH DESC. IN [F
+				ACLO, FACLO+1] 
+                                ; A=0 IF STRINGS EQUAL 
+                                ; A=377 IF B,C,D,E .GT. FACLO 
+                                ; A=1 IF B,C,D,E .LT. FACLO 
+                                ; 
+ 0000  E8 02E8 R                STRCMP:	CALL	FRESTR		;FREE UP THE FAC STRING, A
+				ND GET THE 
+                                				;POINTER TO THE FAC DESCRIPTOR IN [H,L] 
+ 0003  8A 07                    	MOV	AL,BYTE PTR [BX]	;SAVE THE LENGTH OF THE F
+				AC STRING IN [A] 
+ 0005  43                       	INC	BX 
+ 0006  8A 0F                    	MOV	CL,BYTE PTR [BX]	;SAVE THE POINTER AT THE 
+				FAC STRING 
+                                				;DATA IN [B,C] 
+ 0008  43                       	INC	BX 
+ 0009  8A 2F                    	MOV	CH,BYTE PTR [BX] 
+ 000B  5A                       	POP	DX		;GET THE STACK STRING POINTER 
+ 000C  51                       	PUSH	CX		;SAVE THE POINTER AT THE FAC STRING D
+				ATA 
+ 000D  50                       	PUSH	AX		;SAVE THE FAC STRING LENGTH 
+ 000E  E8 02F1 R                	CALL	FRETMP		;FREE UP THE STACK STRING AND RET
+				URN 
+                                				;THE POINTER TO THE STACK STRING DESCRIPTOR
+				 
+                                				;IN [H,L] 
+ 0011  58                       	POP	AX		;GET BACK LENGTH OF STRING 
+ 0012  8A F0                    	MOV	DH,AL		;[D]=LENGTH OF FAC STRING 
+ 0014  8A 17                    	MOV	DL,BYTE PTR [BX]	;[E]=LENGTH OF STACK STRI
+				NG 
+ 0016  43                       	INC	BX 
+ 0017  8A 0F                    	MOV	CL,BYTE PTR [BX]	;[B,C]=POINTER AT STACK S
+				TRING 
+ 0019  43                       	INC	BX 
+ 001A  8A 2F                    	MOV	CH,BYTE PTR [BX] 
+ 001C  5B                       	POP	BX		;GET BACK 2ND CHARACTER POINTER 
+ 001D  8A C2                    CSLOOP:	MOV	AL,DL		;BOTH STRINGS ENDED 
+ 001F  0A C6                    	OR	AL,DH		;TEST BY OR'ING THE LENGTHS TOGETHER
+				 
+ 0021  75 01                    	JNZ	SHORT $+3 
+ 0023  C3                       	RET			;IF SO, RETURN WITH A ZERO 
+ 0024  8A C6                    	MOV	AL,DH		;GET FACLO STRING LENGTH 
+ 0026  2C 01                    	SUB	AL,LOW 1	;SET CARRY AND MAKE [A]=255 IF [D
+				]=0 
+ 0028  73 01                    	JNB	SHORT $+3 
+ 002A  C3                       	RET			;RETURN IF THAT STRING ENDED 
+ 002B  32 C0                    	XOR	AL,AL		;MUST NOT HAVE BEEN ZERO, TEST CASE
+				 
+ 002D  3A C2                    	CMP	AL,DL		;OF B,C,D,E STRING HAVING ENDED FIR
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-11
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
+				ST 
+ 002F  FE C0                    	INC	AL		;RETURN WITH A=1 
+ 0031  72 01                    	JNAE	SHORT $+3 
+ 0033  C3                       	RET			;TEST THE CONDITION 
+                                ;HERE WHEN NEITHER STRING ENDED 
+ 0034  FE CE                    	DEC	DH		;DECREMENT BOTH CHARACTER COUNTS 
+ 0036  FE CA                    	DEC	DL 
+ 0038  8B F1                    	MOV	SI,CX 
+ 003A  8A 04                    	MOV	AL,[SI]		;GET CHARACTER FROM B,C,D,E STRIN
+				G 
+ 003C  41                       	INC	CX 
+ 003D  3A 07                    	CMP	AL,BYTE PTR [BX]	;COMPARE WITH FACLO STRIN
+				G 
+ 003F  9F                       	LAHF 
+ 0040  43                       	INC	BX		;BUMP POINTERS (INX DOESNT CLOBBER CC'
+				S) 
+ 0041  9E                       	SAHF 
+ 0042  74 D9                    	JZ	SHORT CSLOOP	;IF BOTH THE SAME, MUST BE MOR
+				E TO STRINGS 
+ 0044  F5                       	CMC			;HERE WHEN STRINGS DIFFER 
+ 0045  E9 0000 E                	JMP	SIGNS		;SET [A] ACCORDING TO CARRY 
+                                	SUBTTL  STRING FUNCTIONS 
+                                	EXTRN	FOUTO:NEAR,FOUTH:NEAR 
+                                	PUBLIC	STRO$,STRH$ 
+                                ; THE STRO$ FUNCTION TAKES A NUMBER AND GIVES 
+                                ; A STRING WITH THE CHARACTERS THE NUMBER WOULD
+				 GIVE IF 
+                                ; OUTPUT IN OCTAL 
+                                ; 
+ 0048  E8 0000 E                STRO$:	CALL	FOUTO		;PUT OCTAL NUMBER IN FBUFFR 
+ 004B  EB 08                    	JMP	SHORT STR$1	;JUMP INTO STR$ CODE 
+                                 
+                                ; STRH$ SAME AS STRO$ EXCEPT USES HEX INSTEAD O
+				F OCTAL 
+ 004D  E8 0000 E                STRH$:	CALL	FOUTH		;PUT HEX NUMBER IN FBUFFR 
+ 0050  EB 03                    	JMP	SHORT STR$1	;JUMP INTO STR$ CODE 
+                                ; 
+                                ; THE STR$ FUNCTION TAKES A NUMBER AND GIVES 
+                                ; A STRING WITH THE CHARACTERS THE OUTPUT OF TH
+				E NUMBER 
+                                ; WOULD HAVE GIVEN 
+                                ; 
+ 0052                           STR$: 
+                                				;IS A NUMERIC 
+ 0052  E8 0000 E                	CALL	FOUT		;DO ITS OUTPUT 
+ 0055  E8 0087 R                STR$1:	CALL	STRLIT		;SCAN IT AND TURN IT INTO A
+				 STRING 
+ 0058  E8 02EB R                	CALL	FREFAC		;FREE UP THE TEMP 
+ 005B  B9 035A R                	MOV	CX,OFFSET FINBCK 
+ 005E  51                       	PUSH	CX		;SET UP ANSWER IN NEW TEMP 
+                                ; 
+                                ; STRCPY CREATES A COPY OF THE STRING 
+                                ; WHOSE DESCRIPTOR IS POINTED TO BY [H,L]. 
+                                ; ON RETURN [D,E] POINTS TO DSCTMP 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-12
+STRING FUNCTIONS                                            
+
+                                ; WHICH HAS THE STRING INFO (LENGTH,WHERE COPIE
+				D TO) 
+                                ; 
+ 005F  8A 07                    STRCPY:	MOV	AL,BYTE PTR [BX]	;GET LENGTH 
+ 0061  43                       	INC	BX		;MOVE UP TO THE POINTER 
+ 0062  53                       	PUSH	BX		;GET POINTER TO POINTER OF ARG 
+ 0063  E8 0114 R                	CALL	GETSPA		;GET THE SPACE 
+ 0066  5B                       	POP	BX		;FIND OUT WHERE STRING TO COPY 
+ 0067  8A 0F                    	MOV	CL,BYTE PTR [BX] 
+ 0069  43                       	INC	BX 
+ 006A  8A 2F                    	MOV	CH,BYTE PTR [BX] 
+ 006C  E8 007C R                	CALL	STRAD2		;SETUP DSCTMP 
+ 006F  53                       	PUSH	BX		;SAVE POINTER TO DSCTMP 
+ 0070  8A D8                    	MOV	BL,AL		;GET CHARACTER COUNT INTO [L] 
+ 0072  E8 02D6 R                	CALL	MOVSTR		;MOVE THE CHARS IN 
+ 0075  5A                       	POP	DX		;RESTORE POINTER TO DSCTMP 
+ 0076  C3                       	RET			;RETURN 
+                                 
+ 0077  B0 01                    STRIN1:	MOV	AL,LOW 1	;MAKE ONE CHAR STRING (CHR
+				$, INKEY$) 
+ 0079  E8 0114 R                STRINI:	CALL	GETSPA		;GET SOME STRING SPACE ([A
+				] CHARS) 
+ 007C  BB 0000 E                STRAD2:	MOV	BX,OFFSET DSCTMP	;GET DESC. TEMP 
+ 007F  53                       STRAD1:	PUSH	BX		;SAVE DESC. POINTER 
+ 0080  88 07                    	MOV	BYTE PTR [BX],AL	;SAVE CHARACTER COUNT 
+ 0082  43                       PUTDEI:	INC	BX		;STORE [D,E]=POINTER TO FREE SP
+				ACE 
+ 0083  89 17                    	MOV	[BX],DX 
+ 0085  5B                       	POP	BX		;AND RESTORE [H,L] AS THE DESCRIPTOR P
+				OINTER 
+ 0086  C3                       	RET 
+                                ; 
+                                ; STRLT2 TAKES THE STRING LITERAL WHOSE FIRST C
+				HARACTER 
+                                ; IS POINTED BY [H,L]+1 AND BUILDS A DESCRIPTOR
+				 FOR IT. 
+                                ; THE DESCRIPTOR IS INITIALLY BUILT IN DSCTMP, 
+				BUT PUTNEW 
+                                ; TRANSFERS IT INTO A TEMPORARY AND LEAVES A PO
+				INTER 
+                                ; AT THE TEMPORARY IN FACLO. THE CHARACTERS OTH
+				ER THAN 
+                                ; ZERO THAT TERMINATE THE STRING SHOULD BE SET 
+				UP IN [B] 
+                                ; AND [D]. IT THE TERMINATOR IS A QUOTE, THE QU
+				OTE IS SKIPPED 
+                                ; OVER. LEADING QUOTES SHOULD BE SKIPPED BEFORE
+				 CALL. ON RETURN 
+                                ; THE CHARACTER AFTER THE STRING LITERAL IS POI
+				NTED TO 
+                                ; BY [H,L] AND IS IN [A], BUT THE CONDITION COD
+				ES ARE 
+                                ; NOT SET UP. 
+                                ; 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-13
+STRING FUNCTIONS                                            
+
+                                	PUBLIC	STRLT2 
+ 0087  4B                       STRLIT:	DEC	BX 
+ 0088  B5 22                    STRLTI:	MOV	CH,LOW 34	;ASSUME STR ENDS ON QUOTE
+				 
+ 008A  8A F5                    STRLT3:	MOV	DH,CH 
+ 008C  53                       STRLT2:	PUSH	BX		;SAVE POINTER TO START OF LITE
+				RAL 
+ 008D  B1 FF                    	MOV	CL,LOW 255	;INITIALIZE CHARACTER COUNT 
+ 008F  43                       STRGET:	INC	BX 
+ 0090  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET CHAR 
+ 0092  FE C1                    	INC	CL		;BUMP CHARACTER COUNT 
+ 0094  0A C0                    	OR	AL,AL		;IF 0, (END OF LINE) DONE 
+ 0096  74 08                    	JZ	SHORT STRFIN	;TEST 
+ 0098  3A C6                    	CMP	AL,DH 
+ 009A  74 04                    	JZ	SHORT STRFIN 
+ 009C  3A C5                    	CMP	AL,CH		;CLOSING QUOTE 
+ 009E  75 EF                    	JNZ	SHORT STRGET	;NO, GO BACK FOR MORE 
+ 00A0  3C 22                    STRFIN:	CMP	AL,LOW 34	;IF QUOTE TERMINATES THE 
+				STRING 
+ 00A2  75 03                    	JNZ	SHORT ??L000 
+ 00A4  E8 0000 E                	CALL	CHRGTR		;SKIP OVER THE QUOTE 
+ 00A7                           ??L000: 
+ 00A7  53                       	PUSH	BX		;SAVE POINTER AT END OF STRING 
+ 00A8  8A C5                    	MOV	AL,CH		;WERE WE SCANNING AN UNQUOTED STRIN
+				G? 
+ 00AA  3C 2C                    	CMP	AL,LOW 44 
+ 00AC  75 0D                    	JNZ	SHORT NTTRLS	;IF NOT, DON'T SUPPRESS TRAIL
+				ING SPACES 
+ 00AE  FE C1                    	INC	CL		;FIX [C] WHICH IS THE CHARACTER COUNT 
+ 00B0  FE C9                    LPTRLS:	DEC	CL		;DECREMENT UNTIL WE FIND A NON-
+				SPACE CHARACTER 
+ 00B2  74 07                    	JZ	SHORT NTTRLS	;DON'T GO PAST START (ALL SPAC
+				ES) 
+ 00B4  4B                       	DEC	BX		;LOOK AT PREVIOUS CHARACTER 
+ 00B5  8A 07                    	MOV	AL,BYTE PTR [BX] 
+ 00B7  3C 20                    	CMP	AL,LOW " " 
+ 00B9  74 F5                    	JZ	SHORT LPTRLS	;IF SO CONTINUE LOOKING 
+ 00BB  5B                       NTTRLS:	POP	BX 
+ 00BC  5E                       	POP	SI		;XTHL 
+ 00BD  87 F3                    	XCHG	SI,BX 
+ 00BF  56                       	PUSH	SI 
+ 00C0  43                       	INC	BX 
+ 00C1  87 DA                    	XCHG	BX,DX		;GET POINTER TO TEMP 
+ 00C3  8A C1                    	MOV	AL,CL		;GET CHARACTER COUNT IN A 
+ 00C5  E8 007C R                	CALL	STRAD2		;SAVE STR INFO 
+                                ; 
+                                ; SOME STRING FUNCTION IS RETURNING A RESULT IN
+				 DSCTMP 
+                                ; WE WANT TO SETUP A TEMP DESCRIPTOR WITH DCSTM
+				P IN IT 
+                                ; PUT A POINTER TO THE DESCRIPTOR IN FACLO AND 
+				FLAG THE 
+                                ; RESULT AS TYPE STRING 
+                                ; 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-14
+STRING FUNCTIONS                                            
+
+                                	PUBLIC	PUTNEW 
+ 00C8  BA 0000 E                PUTNEW:	MOV	DX,OFFSET DSCTMP	;[D,E] POINT AT RE
+				SULT DESCRIPTOR 
+                                	PUBLIC	PUTTMP 
+ 00CB  B0                       	DB	260O	; SKIP	;SKIP THE NEXT BYTE ("MVI AL,")
+				 
+ 00CC  52                       PUTTMP:	PUSH	DX		;SAVE A POINTER TO THE START O
+				F THE STRING 
+ 00CD  8B 1E 0000 E             	MOV	BX,TEMPPT	;[H,L]=POINTER TO FIRST FREE TEM
+				P 
+ 00D1  89 1E 0000 E             	MOV	FACLO,BX	;POINTER AT WHERE RESULT DESCRIPT
+				OR WILL BE 
+ 00D5  B0 03                    	MOV	AL,LOW 3 
+ 00D7  A2 0000 E                	MOV	BYTE PTR VALTYP,AL	;FLAG THIS AS A STRING 
+ 00DA  E8 0000 E                	CALL	VMOVE		;AND MOVE THE VALUE INTO A TEMPORA
+				RY 
+ 00DD  BA 0003 E                	MOV	DX,OFFSET DSCTMP+3	;IF THE CALL IS TO PUTT
+				MP, [D,E] 
+                                				;WILL NOT EQUAL DSCTMP +3 
+ 00E0  3B DA                    	CMP	BX,DX		;DSCTMP IS JUST BEYOND THE TEMPS 
+                                				;AND IF TEMPPT POINTS AT IT THERE 
+                                				;ARE NO FREE TEMPS 
+ 00E2  89 1E 0000 E             	MOV	TEMPPT,BX	;SAVE NEW TEMPORARY POINTER 
+ 00E6  5B                       	POP	BX		;GET THE TEXT POINTER 
+ 00E7  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET CURRENT CHARACTER IN
+				TO [A] 
+ 00E9  74 01                    	JZ	SHORT $+3 
+ 00EB  C3                       	RET 
+ 00EC  BA 0000 E                	MOV	DX,OFFSET ERRST	;"STRING TEMPORARY" ERROR 
+ 00EF  E9 0000 E                	JMP	ERROR		;GO TELL HIM 
+                                ; 
+                                ; PRINT THE STRING POINTED TO BY [H,L] WHICH EN
+				DS WITH A ZERO 
+                                ; IF THE STRING IS BELOW DSCTMP IT WILL BE COPI
+				ED INTO STRING SPACE 
+                                ; 
+ 00F2  43                       STROUI:	INC	BX		;POINT AT NEXT CHARACTER 
+                                	PUBLIC	DSOUT 
+ 00F3                           DSOUT:				;PRINT FROM THE DATA SEGMENT 
+ 00F3  E8 0087 R                	CALL	STRLIT		;GET A STRING LITERAL 
+                                ; 
+                                ; PRINT THE STRING WHOSE DESCRIPTOR IS POINTED 
+				TO BY FACLO. 
+                                ; 
+ 00F6  E8 02EB R                STRPRT:	CALL	FREFAC		;RETURN TEMP POINTER BY FA
+				CLO 
+ 00F9  E8 0000 E                	CALL	GETBCD		;[D]=LENGTH [B,C]=POINTER AT DATA
+				 
+ 00FC  FE C6                    	INC	DH		;INCREMENT AND DECREMENT EARLY 
+                                				;TO CHECK FOR NULL STRING 
+ 00FE  FE CE                    STRPR2:	DEC	DH		;DECREMENT THE LENGTH 
+ 0100  75 01                    	JNZ	SHORT $+3 
+ 0102  C3                       	RET			;ALL DONE 
+ 0103  8B F1                    	MOV	SI,CX 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-15
+STRING FUNCTIONS                                            
+
+ 0105  8A 04                    	MOV	AL,[SI]		;GET CHARACTER TO PRINT 
+ 0107  E8 0000 E                	CALL	OUTDO 
+ 010A  3C 0D                    	CMP	AL,LOW 13 
+ 010C  75 03                    	JNZ	SHORT ??L001 
+ 010E  E8 0000 E                	CALL	CRFIN 
+ 0111                           ??L001: 
+ 0111  41                       	INC	CX		;POINT TO THE NEXT CHARACTER 
+ 0112  EB EA                    	JMP	SHORT STRPR2	;AND PRINT IT... 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-16
+STRING FUNCTIONS                                            
+
+                                	PAGE 
+                                	SUBTTL  STRING GARBAGE COLLECTION - GETSPA, GA
+				RBAG 
+                                ; 
+                                ; GETSPA - GET SPACE FOR CHARACTER STRING 
+                                ; MAY FORCE GARBAGE COLLECTION. 
+                                ; 
+                                ; # OF CHARS (BYTES) IN [A] 
+                                ; RETURNS WITH POINTER IN [D,E] OTHERWISE IF CA
+				NT GET SPACE 
+                                ; BLOWS OFF TO "OUT OF STRING SPACE" TYPE ERROR
+				. 
+                                ; 
+                                	PUBLIC	GETSPA 
+ 0114  0A C0                    GETSPA:	OR	AL,AL		;MUST BE NON ZERO. SIGNAL NO 
+				GARBAG YET 
+ 0116  EB 02                    	JMP	SHORT TRYGI3 
+ 0118  58                       TRYGI2:	POP	AX 
+ 0119  9E                       	SAHF			;IN CASE COLLECTED WHAT WAS LENGTH? 
+ 011A                           TRYGI3: 
+ 011A  9F                       	LAHF 
+ 011B  50                       	PUSH	AX		;SAVE IT BACK 
+ 011C  8B 1E 0000 E             	MOV	BX,STREND 
+ 0120  87 DA                    	XCHG	BX,DX		;IN [D,E] 
+ 0122  8B 1E 0000 E             	MOV	BX,FRETOP	;GET TOP OF FREE SPACE IN [H,L] 
+ 0126  F6 D0                    	NOT	AL		;-# OF CHARS 
+ 0128  8A C8                    	MOV	CL,AL		;IN [B,C] 
+ 012A  B5 FF                    	MOV	CH,LOW 255 
+ 012C  03 D9                    	ADD	BX,CX		;SUBTRACT FROM TOP OF FREE 
+ 012E  43                       	INC	BX 
+ 012F  3B DA                    	CMP	BX,DX		;COMPARE THE TWO 
+ 0131  72 0F                    	JB	SHORT GARBAG	;NOT ENOUGH ROOM FOR STRING, O
+				FFAL TIME 
+ 0133  89 1E 0000 E             	MOV	FRETOP,BX	;SAVE NEW BOTTOM OF MEMORY 
+ 0137  43                       	INC	BX		;MOVE BACK TO POINT TO STRING 
+ 0138  87 DA                    	XCHG	BX,DX		;RETURN WITH POINTER IN [D,E] 
+ 013A  58                       	POP	AX 
+ 013B  9E                       	SAHF 
+ 013C  C3                       	RET 
+                                	PUBLIC	PPSWRT 
+ 013D  58                       PPSWRT:	POP	AX		; POP PSW 
+ 013E  86 C4                    	XCHG	AL,AH 
+ 0140  9E                       	SAHF			;GET CHARACTER COUNT 
+ 0141  C3                       	RET			;RETURN FROM GETSPA 
+                                 
+ 0142                           GARBAG: 
+ 0142  58                       	POP	AX 
+ 0143  9E                       	SAHF			;HAVE WE COLLECTED BEFORE? 
+ 0144  BA 0000 E                	MOV	DX,OFFSET ERRSO	;GET READY FOR OUT OF STRI
+				NG SPACE ERROR 
+ 0147  75 03                    	JNZ	SHORT ??L002 
+ 0149  E9 0000 E                	JMP	ERROR		;GO TELL USER HE LOST 
+ 014C                           ??L002: 
+ 014C  3A C0                    	CMP	AL,AL		;SET ZERO FLAG TO SAY WEVE GARBAGED
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-17
+STRING GARBAGE COLLECTION - GETSPA, GARBAG                  
+
+				 
+ 014E  9F                       	LAHF 
+ 014F  50                       	PUSH	AX		;SAVE FLAG BACK ON STACK 
+ 0150  B9 0118 R                	MOV	CX,OFFSET TRYGI2	;PLACE FOR GARBAG TO RETU
+				RN TO. 
+ 0153  51                       	PUSH	CX		;SAVE ON STACK 
+ 0154                           GARBA2: 
+ 0154  8B 1E 0000 E             	MOV	BX,MEMSIZ	;START FROM TOP DOWN 
+ 0158  89 1E 0000 E             FNDVAR:	MOV	FRETOP,BX	;LIKE SO 
+ 015C  BB 0000                  	MOV	BX,0		;GET DOUBLE ZERO 
+ 015F  53                       	PUSH	BX		;SAY DIDNT SEE VARS THIS PASS 
+ 0160  8B 1E 0000 E             	MOV	BX,STREND	;FORCE DVARS TO IGNORE STRINGS 
+                                				;IN THE PROGRAM TEXT (LITERALS, DATA) 
+ 0164  53                       	PUSH	BX		;FORCE FIND HIGH ADDRESS 
+ 0165  BB 0000 E                	MOV	BX,OFFSET TEMPST	;GET START OF STRING TEMP
+				S 
+ 0168  8B 16 0000 E             TVAR:	MOV	DX,TEMPPT	;SEE IF DONE 
+ 016C  3B DA                    	CMP	BX,DX		;TEST 
+ 016E  B9 0168 R                	MOV	CX,OFFSET TVAR	;FORCE JUMP TO TVAR 
+ 0171  74 03                    	JZ	SHORT ??L003 
+ 0173  E9 0212 R                	JMP	DVAR2		;DO TEMP VAR GARBAGE COLLECT 
+ 0176                           ??L003: 
+                                 
+ 0176  BB 0000 E                	MOV	BX,OFFSET PRMPRV	;SETUP ITERATION FOR PARA
+				METER BLOCKS 
+ 0179  89 1E 0000 E             	MOV	TEMP9,BX 
+ 017D  8B 1E 0000 E             	MOV	BX,ARYTAB	;GET STOPPING POINT IN [H,L] 
+ 0181  89 1E 0000 E             	MOV	ARYTA2,BX	;STORE IN STOP LOCATION 
+ 0185  8B 1E 0000 E             	MOV	BX,VARTAB	;GET STARTING POINT IN [H,L] 
+ 0189  8B 16 0000 E             SVAR:	MOV	DX,ARYTA2	;GET STOPPING LOCATION 
+ 018D  3B DA                    	CMP	BX,DX		;SEE IF AT END OF SIMPS 
+ 018F  74 1B                    	JZ	SHORT ARYVAR 
+ 0191  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET VALTYP 
+ 0193  43                       	INC	BX		;BUMP POINTER TWICE 
+ 0194  43                       	INC	BX		; 
+ 0195  43                       	INC	BX		;POINT AT THE VALUE 
+ 0196  50                       	PUSH	AX		;SAVE VALTYP 
+ 0197  E8 0000 E                	CALL	IADAHL		;AND SKIP OVER EXTRA CHARACTERS A
+				ND COUNT 
+ 019A  58                       	POP	AX 
+ 019B  3C 03                    	CMP	AL,LOW 3	;SEE IF ITS A STRING 
+ 019D  75 05                    	JNZ	SHORT SKPVAR	;IF NOT, JUST SKIP AROUND IT 
+ 019F  E8 0213 R                	CALL	DVARS		;COLLECT IT 
+ 01A2  32 C0                    	XOR	AL,AL		;AND DON'T SKIP ANYTHING MORE 
+ 01A4  8A D0                    SKPVAR:	MOV	DL,AL 
+ 01A6  B6 00                    	MOV	DH,LOW 0	;[D,E]=AMOUNT TO SKIP 
+ 01A8  03 DA                    	ADD	BX,DX 
+ 01AA  EB DD                    	JMP	SHORT SVAR	;GET NEXT ONE 
+ 01AC  8B 1E 0000 E             ARYVAR:	MOV	BX,TEMP9	;GET LINK IN PARAMETER BLO
+				CK CHAIN 
+ 01B0  8B 17                    	MOV	DX,[BX]		;GO BACK ONE LEVEL 
+ 01B2  0B D2                    	OR	DX,DX		;WAS THAT THE END? 
+ 01B4  8B 1E 0000 E             	MOV	BX,ARYTAB	;SETUP TO START ARRAYS 
+ 01B8  74 19                    	JZ	SHORT ARYVA4	;OTHERWISE GARBAGE COLLECT ARR
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-18
+STRING GARBAGE COLLECTION - GETSPA, GARBAG                  
+
+				AYS 
+ 01BA  87 DA                    	XCHG	BX,DX 
+ 01BC  89 1E 0000 E             	MOV	TEMP9,BX	;SETUP NEXT LINK IN CHAIN FOR ITE
+				RATION 
+ 01C0  43                       	INC	BX		;SKIP CHAIN POINTER 
+ 01C1  43                       	INC	BX 
+ 01C2  8B 17                    	MOV	DX,[BX]		;PICK UP THE LENGTH 
+ 01C4  43                       	INC	BX 
+ 01C5  43                       	INC	BX 
+ 01C6  87 DA                    	XCHG	BX,DX		;SET [D,E]= ACTUAL END ADDRESS BY 
+ 01C8  03 DA                    	ADD	BX,DX		;ADDING BASE TO LENGTH 
+ 01CA  89 1E 0000 E             	MOV	ARYTA2,BX	;SET UP STOP LOCATION 
+ 01CE  87 DA                    	XCHG	BX,DX 
+ 01D0  EB B7                    	JMP	SHORT SVAR 
+                                 
+ 01D2  59                       ARYVA2:	POP	CX		;GET RID OF STACK GARBAGE 
+ 01D3  8B 16 0000 E             ARYVA4:	MOV	DX,STREND	;GET END OF ARRAYS 
+ 01D7  3B DA                    	CMP	BX,DX		;SEE IF DONE WITH ARRAYS 
+ 01D9  75 03                    	JNZ	SHORT ??L004 
+ 01DB  EB 6F 90                 	JMP	GRBPAS		;YES, SEE IF DONE COLLECTING 
+ 01DE                           ??L004: 
+ 01DE  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET THE VALUE TYPE INTO 
+				[A] 
+ 01E0  43                       	INC	BX 
+ 01E1  50                       	PUSH	AX		;SAVE THE VALTYP 
+ 01E2  43                       	INC	BX		;SKIP THE NAME CHARACTERS 
+ 01E3  43                       	INC	BX 
+ 01E4  E8 0000 E                	CALL	IADAHL		;SKIP THE EXTRA CHARACTERS 
+ 01E7  8A 0F                    	MOV	CL,BYTE PTR [BX]	;PICK UP THE LENGTH 
+ 01E9  43                       	INC	BX 
+ 01EA  8A 2F                    	MOV	CH,BYTE PTR [BX] 
+ 01EC  43                       	INC	BX 
+ 01ED  58                       	POP	AX		;RESTORE THE VALTYP 
+ 01EE  53                       	PUSH	BX		;SAVE POINTER TO DIMS 
+ 01EF  03 D9                    	ADD	BX,CX		;ADD TO CURRENT POINTER POSITION 
+ 01F1  3C 03                    	CMP	AL,LOW 3	;SEE IF ITS A STRING 
+ 01F3  75 DD                    	JNZ	SHORT ARYVA2	;IF NOT JUST SKIP IT 
+ 01F5  89 1E 0000 E             	MOV	TEMP8,BX	;SAVE END OF ARRAY 
+ 01F9  5B                       	POP	BX		;GET BACK CURRENT POSITION 
+ 01FA  8A 0F                    	MOV	CL,BYTE PTR [BX]	;PICK UP NUMBER OF DIMS 
+ 01FC  B5 00                    	MOV	CH,LOW 0	;MAKE DOUBLE WITH HIGH ZERO 
+ 01FE  03 D9                    	ADD	BX,CX		;GO PAST DIMS 
+ 0200  03 D9                    	ADD	BX,CX		;BY ADDING ON TWICE #DIMS (2 BYTE G
+				UYS) 
+ 0202  43                       	INC	BX		;ONE MORE TO ACCOUNT FOR #DIMS. 
+ 0203  87 DA                    ARYSTR:	XCHG	BX,DX		;SAVE CURRENT POSIT IN [D,E
+				] 
+ 0205  8B 1E 0000 E             	MOV	BX,TEMP8	;GET END OF ARRAY 
+ 0209  87 DA                    	XCHG	BX,DX		;FIX [H,L] BACK TO CURRENT 
+ 020B  3B DA                    	CMP	BX,DX		;SEE IF AT END OF ARRAY 
+ 020D  74 C4                    	JZ	SHORT ARYVA4	;END OF ARRAY, TRY NEXT ARRAY 
+ 020F  B9 0203 R                	MOV	CX,OFFSET ARYSTR	;ADDR OF WHERE TO RETURN 
+				TO 
+ 0212  51                       DVAR2:	PUSH	CX		;GOES ON STACK 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-19
+STRING GARBAGE COLLECTION - GETSPA, GARBAG                  
+
+ 0213                           DVAR: 
+ 0213  32 C0                    DVARS:	XOR	AL,AL 
+ 0215  0A 07                    	OR	AL,BYTE PTR [BX]	;SEE IF ITS THE NULL STRIN
+				G 
+ 0217  9F                       	LAHF 
+ 0218  43                       	INC	BX 
+ 0219  9E                       	SAHF 
+ 021A  8A 17                    	MOV	DL,BYTE PTR [BX] 
+ 021C  9F                       	LAHF 
+ 021D  43                       	INC	BX 
+ 021E  9E                       	SAHF 
+ 021F  8A 37                    	MOV	DH,BYTE PTR [BX] 
+ 0221  9F                       	LAHF 
+ 0222  43                       	INC	BX		;[D,E]=POINTER AT THE VALUE 
+ 0223  9E                       	SAHF 
+ 0224  75 01                    	JNZ	SHORT $+3 
+ 0226  C3                       	RET			;NULL STRING, RETURN 
+ 0227  8B CB                    	MOV	CX,BX		;MOVE [H,L] TO [B,C] 
+ 0229  8B 1E 0000 E             	MOV	BX,FRETOP	;GET POINTER TO TOP OF STRING FR
+				EE SPACE 
+ 022D  3B DA                    	CMP	BX,DX		;IS THIS STRINGS POINTER .LT. FRETO
+				P 
+ 022F  8B D9                    	MOV	BX,CX		;MOVE [B,C] BACK TO [H,L] 
+ 0231  73 01                    	JNB	SHORT $+3 
+ 0233  C3                       	RET			;IF NOT, NO NEED TO MESS WITH IT FURTHUR
+				 
+ 0234  5B                       	POP	BX		;GET RETURN ADDRESS OFF STACK 
+ 0235  5E                       	POP	SI		;XTHL 
+ 0236  87 F3                    	XCHG	SI,BX 
+ 0238  56                       	PUSH	SI		;GET MAX SEEN SO FAR & SAVE RETURN AD
+				DRESS 
+ 0239  3B DA                    	CMP	BX,DX		;LETS SEE 
+ 023B  5E                       	POP	SI		;XTHL 
+ 023C  87 F3                    	XCHG	SI,BX 
+ 023E  56                       	PUSH	SI		;SAVE MAX SEEN & GET RETURN ADDRESS O
+				FF STACK 
+ 023F  53                       	PUSH	BX		;SAVE RETURN ADDRESS BACK 
+ 0240  8B D9                    	MOV	BX,CX		;MOVE [B,C] BACK TO [H,L] 
+ 0242  72 01                    	JNAE	SHORT $+3 
+ 0244  C3                       	RET			;IF NOT, LETS LOOK AT NEXT VAR 
+ 0245  59                       	POP	CX		;GET RETURN ADDR OFF STACK 
+ 0246  58                       	POP	AX		;POP OFF MAX SEEN 
+ 0247  58                       	POP	AX		;AND VARIABLE POINTER 
+ 0248  53                       	PUSH	BX		;SAVE NEW VARIABLE POINTER 
+ 0249  52                       	PUSH	DX		;AND NEW MAX POINTER 
+ 024A  51                       	PUSH	CX		;SAVE RETURN ADDRESS BACK 
+ 024B  C3                       	RET			;AND RETURN 
+                                ; 
+                                ; HERE WHEN MADE ONE COMPLETE PASS THRU STRING 
+				VARS 
+                                ; 
+ 024C  5A                       GRBPAS:	POP	DX		;POP OFF MAX POINTER 
+ 024D  5B                       	POP	BX		;AND GET VARIABLE POINTER 
+ 024E  0B DB                    	OR	BX,BX		;SEE IF ZERO POINTER 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-20
+STRING GARBAGE COLLECTION - GETSPA, GARBAG                  
+
+ 0250  75 01                    	JNZ	SHORT $+3 
+ 0252  C3                       	RET			;IF END OF COLLECTION, 
+                                				;THEN MAYBE RETURN TO GETSPA 
+ 0253  4B                       	DEC	BX		;CURRENTLY JUST PAST THE DESCRIPTOR 
+ 0254  8A 2F                    	MOV	CH,BYTE PTR [BX]	;[B]=HIGH BYTE OF DATA PO
+				INTER 
+ 0256  4B                       	DEC	BX 
+ 0257  8A 0F                    	MOV	CL,BYTE PTR [BX]	;[B,C]=POINTER AT STRING 
+				DATA 
+ 0259  53                       	PUSH	BX		;SAVE THIS LOCATION SO THE POINTER 
+                                				;CAN BE UPDATED AFTER THE STRING IS 
+                                				;MOVED 
+ 025A  4B                       	DEC	BX 
+ 025B  8A 1F                    	MOV	BL,BYTE PTR [BX]	;[L]=STRING LENGTH 
+ 025D  B7 00                    	MOV	BH,LOW 0	;[H,L] GET CHARACTER COUNT 
+ 025F  03 D9                    	ADD	BX,CX		;[H,L]=POINTER BEYOND STRING 
+ 0261  8A F5                    	MOV	DH,CH 
+ 0263  8A D1                    	MOV	DL,CL		;[D,E]=ORIGINAL POINTER 
+ 0265  4B                       	DEC	BX		;DON'T MOVE ONE BEYOND STRING 
+ 0266  8B CB                    	MOV	CX,BX		;GET TOP OF STRING IN [B,C] 
+ 0268  8B 1E 0000 E             	MOV	BX,FRETOP	;GET TOP OF FREE SPACE 
+ 026C  E8 0000 E                	CALL	BLTUC		;MOVE STRING 
+ 026F  5B                       	POP	BX		;GET BACK POINTER TO DESC. 
+ 0270  88 0F                    	MOV	BYTE PTR [BX],CL	;SAVE FIXED ADDR 
+ 0272  43                       	INC	BX		;MOVE POINTER 
+ 0273  88 2F                    	MOV	BYTE PTR [BX],CH	;HIGH PART 
+ 0275  8B D9                    	MOV	BX,CX		;[H,L]=NEW POINTER 
+ 0277  4B                       	DEC	BX		;FIX UP FRETOP 
+ 0278  E9 0158 R                	JMP	FNDVAR		;AND TRY TO FIND HIGH AGAIN 
+                                 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-21
+STRING GARBAGE COLLECTION - GETSPA, GARBAG                  
+
+                                	PAGE 
+                                	SUBTTL  STRING CONCATENATION 
+                                ; 
+                                ; THE FOLLOWING ROUTINE CONCATENATES TWO STRING
+				S 
+                                ; THE FACLO CONTAINS THE FIRST ONE AT THIS POIN
+				T, 
+                                ; [H,L] POINTS BEYOND THE + SIGN AFTER IT 
+                                ; 
+ 027B  51                       CAT:	PUSH	CX		;PUT OLD PRECEDENCE BACK ON 
+ 027C  53                       	PUSH	BX		;SAVE TEXT POINTER 
+ 027D  8B 1E 0000 E             	MOV	BX,FACLO	;GET POINTER TO STRING DESC. 
+ 0281  5E                       	POP	SI		;XTHL 
+ 0282  87 F3                    	XCHG	SI,BX 
+ 0284  56                       	PUSH	SI		;SAVE ON STACK & GET TEXT POINTER BAC
+				K 
+ 0285  E8 0000 E                	CALL	EVAL		;EVALUATE REST OF FORMULA 
+ 0288  5E                       	POP	SI		;XTHL 
+ 0289  87 F3                    	XCHG	SI,BX 
+ 028B  56                       	PUSH	SI		;SAVE TEXT POINTER, GET BACK DESC. 
+ 028C  E8 0000 E                	CALL	CHKSTR 
+ 028F  8A 07                    	MOV	AL,BYTE PTR [BX] 
+ 0291  53                       	PUSH	BX		;SAVE DESC. POINTER. 
+ 0292  8B 1E 0000 E             	MOV	BX,FACLO	;GET POINTER TO 2ND DESC. 
+ 0296  53                       	PUSH	BX		;SAVE IT 
+ 0297  02 07                    	ADD	AL,BYTE PTR [BX]	;ADD TWO LENGTHS TOGETHER
+				 
+ 0299  BA 0000 E                	MOV	DX,OFFSET ERRLS	;SEE IF RESULT .LT. 256 
+ 029C  73 03                    	JAE	SHORT ??L005 
+ 029E  E9 0000 E                	JMP	ERROR		;ERROR "LONG STRING" 
+ 02A1                           ??L005: 
+ 02A1  E8 0079 R                	CALL	STRINI		;GET INITIAL STRING 
+ 02A4  5A                       	POP	DX		;GET 2ND DESC. 
+ 02A5  E8 02F1 R                	CALL	FRETMP 
+ 02A8  5E                       	POP	SI		;XTHL 
+ 02A9  87 F3                    	XCHG	SI,BX 
+ 02AB  56                       	PUSH	SI		;SAVE POINTER TO IT 
+ 02AC  E8 02EF R                	CALL	FRETM2		;FREE UP 1ST TEMP 
+ 02AF  53                       	PUSH	BX		;SAVE DESC. POINTER (FIRST) 
+ = 0002                         	INCSTR=2 
+ = 0001                         	INCSTR=1 
+ 02B0  8B 1E 0001 E             	MOV	BX,DSCTMP+INCSTR	;GET POINTER TO FIRST 
+ 02B4  87 DA                    	XCHG	BX,DX		;IN [D,E] 
+ 02B6  E8 02C7 R                	CALL	MOVINS		;MOVE IN THE FIRST STRING 
+ 02B9  E8 02C7 R                	CALL	MOVINS		;AND THE SECOND 
+ 02BC  BB 0000 E                	MOV	BX,OFFSET TSTOP	;CAT REENTERS FORMULA EVAL
+				UATION AT TSTOP 
+ 02BF  5E                       	POP	SI		;XTHL 
+ 02C0  87 F3                    	XCHG	SI,BX 
+ 02C2  56                       	PUSH	SI 
+ 02C3  53                       	PUSH	BX		;TEXT POINTER OFF FIRST 
+ 02C4  E9 00C8 R                	JMP	PUTNEW		;THEN RETURN ADDRESS OF TSTOP 
+                                 
+                                 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-22
+STRING CONCATENATION                                        
+
+ 02C7  5B                       MOVINS:	POP	BX		;GET RETURN ADDR 
+ 02C8  5E                       	POP	SI		;XTHL 
+ 02C9  87 F3                    	XCHG	SI,BX 
+ 02CB  56                       	PUSH	SI		;PUT BACK, BUT GET DESC. 
+ 02CC  8A 07                    	MOV	AL,BYTE PTR [BX]	;[A]=STRING LENGTH 
+ 02CE  43                       	INC	BX 
+ 02CF  8A 0F                    	MOV	CL,BYTE PTR [BX]	;[B,C]=POINTER AT STRING 
+				DATA 
+ 02D1  43                       	INC	BX 
+ 02D2  8A 2F                    	MOV	CH,BYTE PTR [BX] 
+ 02D4  8A D8                    	MOV	BL,AL		;[L]=STRING LENGTH 
+ 02D6  FE C3                    MOVSTR:	INC	BL 
+ 02D8  FE CB                    MOVLP:	DEC	BL		;SET CC'S 
+ 02DA  75 01                    	JNZ	SHORT $+3 
+ 02DC  C3                       	RET			;0, NO BYTE TO MOVE 
+ 02DD  8B F1                    	MOV	SI,CX 
+ 02DF  8A 04                    	MOV	AL,[SI]		;GET CHAR 
+ 02E1  8B FA                    	MOV	DI,DX 
+ 02E3  AA                       	STOSB			;SAVE IT 
+ 02E4  41                       	INC	CX		;MOVE POINTERS 
+ 02E5  42                       	INC	DX 
+ 02E6  EB F0                    	JMP	SHORT MOVLP	;KEEP DOING IT 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-23
+STRING CONCATENATION                                        
+
+                                	PAGE 
+                                	SUBTTL  FREE UP STRING TEMPORARY - FRESTR, FRE
+				FAC, FRETMP, FRETMS 
+                                ; 
+                                ; FRETMP IS PASSED A POINTER TO A STRING DESCRI
+				PTOR IN [D,E] 
+                                ; THIS VALUE IS RETURNED IN [H,L]. ALL THE OTHE
+				R REGISTERS ARE MODIFIED. 
+                                ; A CHECK TO IS MADE TO SEE IF THE STRING DESCR
+				IPTOR [D,E] POINTS 
+                                ; TO IS THE LAST TEMPORARY DESCRIPTOR ALLOCATED
+				 BY PUTNEW. 
+                                ; IF SO, THE TEMPORARY IS FREED UP BY THE UPDAT
+				ING OF TEMPPT. 
+                                ; IF A TEMPORARY IS FREED UP, A FURTHER CHECK I
+				S MADE TO SEE IF THE 
+                                ; STRING DATA THAT THAT STRING TEMPORARY POINTE
+				D TO IS THE 
+                                ; THE LOWEST PART OF STRING SPACE IN USE. 
+                                ; IF SO, FRETMP IS UPDATED TO REFLECT THE FACT 
+				THAT THAT SPACE IS NO 
+                                ; LONGER IN USE. 
+                                ; 
+                                	PUBLIC	FREFAC 
+ 02E8  E8 0000 E                FRESTR:	CALL	CHKSTR		;MAKE SURE ITS A STRING 
+ 02EB  8B 1E 0000 E             FREFAC:	MOV	BX,FACLO 
+                                	PUBLIC	FRETM2 
+ 02EF  87 DA                    FRETM2:	XCHG	BX,DX		;FREE UP THE TEMP IN THE FA
+				CLO 
+ 02F1  E8 0315 R                FRETMP:	CALL	FRETMS		;FREE UP THE TEMPORARY 
+ 02F4  87 DA                    	XCHG	BX,DX		;PUT THE STRING POINTER INTO [H,L]
+				 
+ 02F6  74 01                    	JZ	SHORT $+3 
+ 02F8  C3                       	RET 
+ 02F9  52                       	PUSH	DX		;SAVE [D,E] TO RETURN IN [H,L] 
+ 02FA  8A F5                    	MOV	DH,CH		;[D,E]=POINTER AT STRING 
+ 02FC  8A D1                    	MOV	DL,CL 
+ 02FE  4A                       	DEC	DX		;SUBTRACT ONE 
+ 02FF  8A 0F                    	MOV	CL,BYTE PTR [BX]	;[C]=LENGTH OF THE STRING
+				 FREED UP 
+ 0301  8B 1E 0000 E             	MOV	BX,FRETOP	;SEE IF ITS THE FIRST 
+                                				;ONE IN STRING SPACE 
+ 0305  3B DA                    	CMP	BX,DX 
+ 0307  75 0A                    	JNZ	SHORT NOTLST	;NO SO DON'T ADD 
+ 0309  32 C0                    	XOR	AL,AL		;MUST EXPLICITLY ZERO A 
+ 030B  8A E8                    	MOV	CH,AL		;MAKE [B]=0 
+ 030D  03 D9                    	ADD	BX,CX		;ADD 
+ 030F  89 1E 0000 E             	MOV	FRETOP,BX	;AND UPDATE FRETOP 
+ 0313  5B                       NOTLST:	POP	BX		;GET POINTER AT CURRENT DESCRIP
+				TOR 
+ 0314  C3                       	RET 
+ 0315                           FRETMS: 
+ 0315  8B 1E 0000 E             	MOV	BX,TEMPPT	;GET TEMP POINTER 
+ 0319  4B                       	DEC	BX		;LOOK AT WHAT IS IN THE LAST TEMP 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-24
+FREE UP STRING TEMPORARY - FRESTR, FREFAC, FRETMP, FRETMS   
+
+ 031A  8A 2F                    	MOV	CH,BYTE PTR [BX]	;[B,C]=POINTER AT STRING 
+ 031C  4B                       	DEC	BX		;DECREMENT TEMPPT BY STRSIZ 
+ 031D  8A 0F                    	MOV	CL,BYTE PTR [BX] 
+ 031F  4B                       	DEC	BX 
+ 0320  3B DA                    	CMP	BX,DX		;SEE IF [D,E] POINT AT THE LAST 
+ 0322  74 01                    	JZ	SHORT $+3 
+ 0324  C3                       	RET			;RETURN NOW IF NOW FREEING DONE 
+ 0325  89 1E 0000 E             	MOV	TEMPPT,BX	;UPDATE THE TEMP POINTER SINCE 
+                                				;ITS BEEN DECREMENTED BY 4 
+ 0329  C3                       	RET 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-25
+FREE UP STRING TEMPORARY - FRESTR, FREFAC, FRETMP, FRETMS   
+
+                                	PAGE 
+                                	SUBTTL STRING FUNCTIONS - LEN, ASC, CHR$ 
+                                ; 
+                                ; THE FUNCTION LEN($) RETURNS THE LENGTH OF THE
+				 
+                                ; STRING PASSED AS AN ARGUMENT 
+                                ; 
+ 032A  B9 0000 E                LEN:	MOV	CX,OFFSET SNGFLT	;CALL SNGFLT WHEN DON
+				E 
+ 032D  51                       	PUSH	CX		;LIKE SO 
+ 032E  E8 02E8 R                LEN1:	CALL	FRESTR		;FREE UP TEMP POINTED TO BY 
+				FACLO 
+ 0331  32 C0                    	XOR	AL,AL		;FORCE NUMERIC FLAG 
+ 0333  8A F0                    	MOV	DH,AL		;SET HIGH OF [D,E] TO ZERO FOR VAL 
+ 0335  8A 07                    	MOV	AL,BYTE PTR [BX] 
+ 0337  0A C0                    	OR	AL,AL		;SET CONDITION CODES ON LENGTH 
+ 0339  C3                       	RET			;RETURN 
+                                 
+                                ; THE FOLLOWING IS THE ASC($) FUNCTION. IT RETU
+				RNS AN INTEGER 
+                                ; WHICH IS THE DECIMAL ASCII EQUIVALENT 
+                                ; 
+                                	PUBLIC	ASC,ASC2 
+ 033A                           ASC: 
+ 033A  B9 0000 E                	MOV	CX,OFFSET SNGFLT	;WHERE TO GO WHEN DONE 
+ 033D  51                       	PUSH	CX		;SAVE RETURN ADDR ON STACK 
+ 033E  E8 032E R                ASC2:	CALL	LEN1		;SET UP ORIGINAL STR 
+ 0341  75 03                    	JNZ	SHORT ??L006 
+ 0343  E9 0000 E                	JMP	FCERR		;NULL STR, BAD ARG. 
+ 0346                           ??L006: 
+ 0346  43                       	INC	BX		;BUMP POINTER 
+ 0347  8B 17                    	MOV	DX,[BX]		;[D,E]=POINTER AT STRING DATA 
+ 0349  8B F2                    	MOV	SI,DX 
+ 034B  8A 04                    	MOV	AL,[SI]		;[A]=FIRST CHARACTER 
+ 034D  C3                       	RET 
+                                ; 
+                                ; CHR$(#) CREATES A STRING WHICH CONTAINS AS IT
+				S ONLY 
+                                ; CHARACTER THE ASCII EQUIVALENT OF THE INTEGER
+				 ARG (#) 
+                                ; WHICH MUST BE .LE. 255. 
+                                ; 
+                                	PUBLIC	CHR$ 
+ 034E  E8 0077 R                CHR$:	CALL	STRIN1		;GET STRING IN DSCTMP 
+ 0351  E8 0000 E                	CALL	CONINT		;GET INTEGER IN RANGE 
+ = 0002                         	INCSTR=2 
+ = 0001                         	INCSTR=1 
+                                	PUBLIC	SETSTR,FINBCK 
+ 0354  8B 1E 0001 E             SETSTR:	MOV	BX,DSCTMP+INCSTR	;GET ADDR OF STR 
+ 0358  88 17                    	MOV	BYTE PTR [BX],DL	;SAVE ASCII BYTE 
+ 035A  59                       FINBCK:	POP	CX		;RETURN TO HIGHER LEVEL & 
+                                				;SKIP THE CHKNUM CALL. 
+ 035B  E9 00C8 R                	JMP	PUTNEW		;GO CALL PUTNEW 
+                                 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-26
+STRING FUNCTIONS - LEN, ASC, CHR$                           
+
+                                	PUBLIC	STRNG$ 
+ 035E  E8 0000 E                STRNG$:	CALL	CHRGTR		;GET NEXT CHAR FOLLOWING "
+				STRING$" 
+ 0361  E8 0000 E                	CALL	SYNCHR 
+ 0364  28                       	DB	OFFSET "("	;MAKE SURE LEFT PAREN 
+ 0365  E8 0000 E                	CALL	GETBYT		;EVALUATE FIRST ARG (LENGTH) 
+ 0368  52                       	PUSH	DX		;SAVE IT 
+ 0369  E8 0000 E                	CALL	SYNCHR 
+ 036C  2C                       	DB	OFFSET 54O	;COMMA 
+ 036D  E8 0000 E                	CALL	FRMEVL		;GET FORMULA ARG 2 
+ 0370  E8 0000 E                	CALL	SYNCHR 
+ 0373  29                       	DB	OFFSET ")"	;EXPECT RIGHT PAREN 
+ 0374  5E                       	POP	SI		;XTHL 
+ 0375  87 F3                    	XCHG	SI,BX 
+ 0377  56                       	PUSH	SI		;SAVE TEXT POINTER ON STACK, GET REP 
+				FACTOR 
+ 0378  53                       	PUSH	BX		;SAVE BACK REP FACTOR 
+ 0379  E8 0000 E                	CALL	GETYPR		;GET TYPE OF ARG 
+ 037C  74 05                    	JZ	SHORT STRSTR	;WAS A STRING 
+ 037E  E8 0000 E                	CALL	CONINT		;GET ASCII VALUE OF CHAR 
+ 0381  EB 03                    	JMP	SHORT CALSPA	;NOW CALL SPACE CODE 
+ 0383  E8 033E R                STRSTR:	CALL	ASC2		;GET VALUE OF CHAR IN [A] 
+ 0386  5A                       CALSPA:	POP	DX		;GET REP FACTOR IN [E] 
+ 0387  E8 038F R                	CALL	SPACE2		;INTO SPACE CODE, PUT DUMMY ENTRY
+				 
+                                				;ON STACK POPPED OFF BY FINBCK 
+                                 
+                                	PUBLIC	SPACE$ 
+ 038A  E8 0000 E                SPACE$:	CALL	CONINT		;GET NUMBER OF CHARS IN [E
+				] 
+ 038D  B0 20                    	MOV	AL,LOW 32	;GET SPACE CHAR 
+ 038F  50                       SPACE2:	PUSH	AX		;SAVE CHAR 
+ 0390  8A C2                    	MOV	AL,DL		;GET NUMBER OF CHARS IN [A] 
+ 0392  E8 0079 R                	CALL	STRINI		;GET A STRING THAT LONG 
+ 0395  8A E8                    	MOV	CH,AL		;COUNT OF CHARS BACK IN [B] 
+ 0397  58                       	POP	AX		;GET BACK CHAR TO PUT IN STRING 
+ 0398  FE C5                    	INC	CH		;TEST FOR NULL STRING 
+ 039A  FE CD                    	DEC	CH 
+ 039C  74 BC                    	JZ	SHORT FINBCK	;YES, ALL DONE 
+ 039E  8B 1E 0001 E             	MOV	BX,DSCTMP+INCSTR	;GET DESC. POINTER 
+ 03A2  88 07                    SPLP$:	MOV	BYTE PTR [BX],AL	;SAVE CHAR 
+ 03A4  43                       	INC	BX		;BUMP PTR 
+                                				;DECR COUNT 
+ 03A5  FE CD                    	DEC	CH 
+ 03A7  75 F9                    	JNZ	SHORT SPLP$	;KEEP STORING CHAR 
+ 03A9  EB AF                    	JMP	SHORT FINBCK	;PUT TEMP DESC WHEN DONE 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-27
+STRING FUNCTIONS - LEN, ASC, CHR$                           
+
+                                	PAGE 
+                                	SUBTTL STRING FUNCTIONS - LEFT$, RIGHT$, MID$ 
+                                ; 
+                                ; THE FOLLOWING IS THE LEFT$($,#) FUNCTION. 
+                                ; IT TAKES THE LEFTMOST # CHARS OF THE STR. 
+                                ; IF # IS .GT. THAN THE LEN OF THE STR, IT RETU
+				RNS THE WHOLE STR. 
+                                ; 
+ 03AB  E8 0453 R                LEFT$:	CALL	PREAM		;TEST THE PARAMETERS 
+ 03AE  32 C0                    	XOR	AL,AL		;LEFT NEVER CHANGES STRING POINTER 
+ 03B0  5E                       LEFT3:	POP	SI		;XTHL 
+ 03B1  87 F3                    	XCHG	SI,BX 
+ 03B3  56                       	PUSH	SI		;SAVE TEXT POINTER 
+ 03B4  8A C8                    	MOV	CL,AL		;OFFSET NOW IN [C] 
+ 03B6  B0                       	DB	260O	; SKIP	;SKIP THE NEXT BYTE WITH "MVI A
+				," 
+                                ; 
+                                ; THIS IS PRINT USINGS ENTRY POINT INTO LEFT$ 
+                                ; 
+                                	PUBLIC	LEFTUS 
+ 03B7  53                       LEFTUS:	PUSH	BX		;THIS IS A DUMMY PUSH TO OFFSE
+				T 
+                                				;THE EXTRA POP IN PUTNEW 
+ 03B8  53                       LEFT2:	PUSH	BX		;SAVE DESC. FOR  FRETMP 
+ 03B9  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET STRING LENGTH 
+ 03BB  3A C5                    	CMP	AL,CH		;ENTIRE STRING WANTED? 
+ 03BD  72 03                    	JB	SHORT ALLSTR	;IF #CHARS ASKED FOR.GE.LENGTH
+				,YES 
+ 03BF  8A C5                    	MOV	AL,CH		;GET TRUNCATED LENGTH OF STRING 
+ 03C1  BA                       	DB	272O	; SKIP	;SKIP OVER MVI USING "LXI D," 
+ 03C2  B1 00                    ALLSTR:	MOV	CL,LOW 0	;MAKE OFFSET ZERO 
+ 03C4  51                       	PUSH	CX		;SAVE OFFSET ON STACK 
+ 03C5  E8 0114 R                	CALL	GETSPA		;GET SPACE FOR NEW STRING 
+ 03C8  59                       	POP	CX		;GET BACK OFFSET 
+ 03C9  5B                       	POP	BX		;GET BACK DESC POINTER. 
+ 03CA  53                       	PUSH	BX		;BUT KEEP ON STACK 
+ 03CB  43                       	INC	BX		;MOVE TO STRING POINTER FIELD 
+ 03CC  8A 2F                    	MOV	CH,BYTE PTR [BX]	;GET POINTER LOW 
+ 03CE  43                       	INC	BX		; 
+ 03CF  8A 3F                    	MOV	BH,BYTE PTR [BX]	;POINTER HIGH 
+ 03D1  8A DD                    	MOV	BL,CH		;GET LOW IN  L 
+ 03D3  B5 00                    	MOV	CH,LOW 0	;GET READY TO ADD OFFSET TO POINT
+				ER 
+ 03D5  03 D9                    	ADD	BX,CX		;ADD  IT 
+ 03D7  8B CB                    	MOV	CX,BX		;GET OFFSET POINTER IN [B,C] 
+ 03D9  E8 007C R                	CALL	STRAD2		;SAVE INFO IN DSCTMP 
+ 03DC  8A D8                    	MOV	BL,AL		;GET#  OF CHARS TO  MOVE IN L 
+ 03DE  E8 02D6 R                	CALL	MOVSTR		;MOVE THEM IN 
+ 03E1  5A                       	POP	DX		;GET BACK DESC. POINTER 
+ 03E2  E8 02F1 R                	CALL	FRETMP		;FREE IT UP. 
+ 03E5  E9 00C8 R                	JMP	PUTNEW		;PUT TEMP IN TEMP LIST 
+                                 
+ 03E8  E8 0453 R                RIGHT$:	CALL	PREAM		;CHECK ARG 
+ 03EB  5A                       	POP	DX		;GET DESC. POINTER 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-28
+STRING FUNCTIONS - LEFT$, RIGHT$, MID$                      
+
+ 03EC  52                       	PUSH	DX		;SAVE BACK FOR LEFT 
+ 03ED  8B F2                    	MOV	SI,DX 
+ 03EF  8A 04                    	MOV	AL,[SI]		;GET PRESENT LEN OF STR 
+ 03F1  2A C5                    	SUB	AL,CH		;SUBTRACT 2ND PARM 
+ 03F3  EB BB                    	JMP	SHORT LEFT3	;CONTINUE WITH LEFT CODE 
+                                ; 
+                                ; MID ($,#) RETURNS STR WITH CHARS FROM # POSIT
+				ION 
+                                ; ONWARD. IF # IS GT LEN($) THEN RETURN NULL ST
+				RING. 
+                                ; MID ($,#,#) RETURNS STR WITH CHARS FROM # POS
+				ITION 
+                                ; FOR #2 CHARS. IF #2 GOES PAST END OF STRING, 
+				RETURN 
+                                ; AS MUCH AS POSSIBLE. 
+                                ; 
+ 03F5  87 DA                    MID$:	XCHG	BX,DX		;PUT THE TEXT POINTER IN [H,L
+				] 
+ 03F7  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET THE FIRST CHARACTER 
+ 03F9  E8 0459 R                	CALL	PREAM2		;GET OFFSET OFF STACK AND MAKE 
+ 03FC  FE C5                    	INC	CH 
+ 03FE  FE CD                    	DEC	CH		;SEE IF EQUAL TO ZERO 
+ 0400  75 03                    	JNZ	SHORT ??L007 
+ 0402  E9 0000 E                	JMP	FCERR		;IT MUST NOT BE 0 
+ 0405                           ??L007: 
+ 0405  51                       	PUSH	CX		;PUT OFFSET ON TO THE STACK 
+ 0406  E8 05C6 R                	CALL	MIDRST		;DUPLICATE OF CODE CONDITIONED OU
+				T 
+ 0409  58                       	POP	AX		; POP PSW 
+ 040A  86 C4                    	XCHG	AL,AH 
+ 040C  9E                       	SAHF			;GET OFFSET BACK IN A 
+ 040D  5E                       	POP	SI		;XTHL 
+ 040E  87 F3                    	XCHG	SI,BX 
+ 0410  56                       	PUSH	SI		;SAVE TEXT POINTER, GET DESC. 
+ 0411  B9 03B8 R                	MOV	CX,OFFSET LEFT2	;WHERE TO RETURN TO. 
+ 0414  51                       	PUSH	CX		;GOES ON STACK 
+ 0415  FE C8                    	DEC	AL		;SUB ONE FROM OFFSET 
+ 0417  3A 07                    	CMP	AL,BYTE PTR [BX]	;POINTER PAST END OF STR?
+				 
+ 0419  B5 00                    	MOV	CH,LOW 0	;ASSUME NULL LENGTH STR 
+ 041B  72 01                    	JNAE	SHORT $+3 
+ 041D  C3                       	RET			;YES, JUST USE NULL STR 
+ 041E  8A C8                    	MOV	CL,AL		;SAVE OFFSET OF CHARACTER POINTER 
+ 0420  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET PRESENT LEN OF STR 
+ 0422  2A C1                    	SUB	AL,CL		;SUBTRACT INDEX (2ND ARG) 
+ 0424  3A C2                    	CMP	AL,DL		;IS IT TRUNCATION 
+ 0426  8A E8                    	MOV	CH,AL		;GET CALCED LENGTH IN B 
+ 0428  73 01                    	JNB	SHORT $+3 
+ 042A  C3                       	RET			;IF NOT USE PARTIAL STR 
+ 042B  8A EA                    	MOV	CH,DL		;USE TRUNCATED LENGTH 
+ 042D  C3                       	RET			;RETURN TO LEFT2 
+                                ; 
+                                ; THE VAL FUNCTION TAKES A STRING AND TURN IT I
+				NTO 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-29
+STRING FUNCTIONS - LEFT$, RIGHT$, MID$                      
+
+                                ; A NUMBER BY INTERPRETING THE ASCII DIGITS. ET
+				C.. 
+                                ; EXCEPT FOR THE PROBLEM THAT A TERMINATOR MUST
+				 BE SUPPLIED 
+                                ; BY REPLACING THE CHARACTER BEYOND THE STRING,
+				 VAL 
+                                ; IS MERELY A CALL TO FLOATING INPUT (FIN). 
+                                ; 
+ 042E  E8 032E R                VAL:	CALL	LEN1		;DO SETUP, SET RESULT=REAL 
+ 0431  75 03                    	JNZ	SHORT ??L008 
+ 0433  E9 0000 E                	JMP	SNGFLT 
+ 0436                           ??L008:				;MAKE SURE TYPE SET UP OK IN EXTENDE
+				D 
+ 0436  8A D0                    	MOV	DL,AL		;GET LENGTH OF STR 
+ 0438  43                       	INC	BX		;TO HANDLE THE FACT THE IF 
+ 0439  8B 1F                    	MOV	BX,[BX]		;TWO STRINGS "1" AND "2" ARE STOR
+				ED 
+                                				;NEXT TO EACH OTHER 
+ 043B  53                       	PUSH	BX		;AND FIN IS CALLED POINTING TO 
+ 043C  03 DA                    	ADD	BX,DX		;THE FIRST TWELVE WILL BE RETURNED 
+ 043E  8A 2F                    	MOV	CH,BYTE PTR [BX]	;THE IDEA IS TO STORE 0 I
+				N THE 
+ 0440  88 37                    	MOV	BYTE PTR [BX],DH	;STRING BEYOND THE ONE VA
+				L 
+ 0442  5E                       	POP	SI		;XTHL 
+ 0443  87 F3                    	XCHG	SI,BX 
+ 0445  56                       	PUSH	SI		;IS BEING CALLED ON 
+ 0446  51                       	PUSH	CX		;THE FIRST CHARACTER OF THE NEXT STRI
+				NG 
+ 0447  4B                       	DEC	BX		;***CALL CHRGET TO MAKE SURE 
+ 0448  E8 0000 E                	CALL	CHRGTR		;VAL(" -3")=-3 
+ 044B  E8 0000 E                	CALL	FINDBL		;IN EXTENDED, GET ALL THE PRECISI
+				ON WE CAN 
+ 044E  59                       	POP	CX		;GET THE MODIFIED CHARACTER OF THE NEX
+				T 
+                                				;STRING INTO [B] 
+ 044F  5B                       	POP	BX		;GET THE POINTER TO THE MODIFIED CHARA
+				CTER 
+ 0450  88 2F                    	MOV	BYTE PTR [BX],CH	;RESTORE THE CHARACTER 
+                                				;IF STRING IS HIGHEST IN STRING SPACE 
+                                				;WE ARE MODIFYING [MEMSIZ] AND 
+                                				;THIS IS WHY [MEMSIZ] CAN'T BE USED TO STOR
+				E 
+                                				;STRING DATA BECAUSE WHAT IF THE 
+                                				;USER TOOK VAL OFF THAT HIGH STRING 
+ 0452  C3                       	RET 
+                                ;USED BY RIGHT$ AND LEFT$ FOR PARAMETER CHECKIN
+				G AND SETUP 
+ 0453  87 DA                    PREAM:	XCHG	BX,DX		;PUT THE TEXT POINTER IN [H,
+				L] 
+ 0455  E8 0000 E                	CALL	SYNCHR 
+ 0458  29                       	DB	OFFSET ")"	;PARAM LIST SHOULD END 
+                                ;USED BY MID$ FOR PARAMETER CHECKING AND SETUP 
+ 0459  59                       PREAM2:	POP	CX		;GET RETURN ADDR OFF STACK 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-30
+STRING FUNCTIONS - LEFT$, RIGHT$, MID$                      
+
+ 045A  5A                       	POP	DX		;GET LENGTH OF ARG OFF STACK 
+ 045B  51                       	PUSH	CX		;SAVE RETURN ADDR BACK ON 
+ 045C  8A EA                    	MOV	CH,DL		;SAVE INIT LENGTH 
+ 045E  C3                       	RET 
+                                 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-31
+STRING FUNCTIONS - LEFT$, RIGHT$, MID$                      
+
+                                	PAGE 
+                                	SUBTTL STRING FUNCTIONS - INSTR 
+                                 
+                                ; THIS IS THE INSTR FUCNTION. IT TAKES ONE OF T
+				WO 
+                                ; FORMS: INSTR(I%,S1$,S2$) OR INSTR(S1$,S2$) 
+                                ; IN THE FIRST FORM THE STRING S1$ IS SEARCHED 
+				FOR THE 
+                                ; CHARACTER S2$ STARTING AT CHARACTER POSITION 
+				I%. 
+                                ; THE SECOND FORM IS IDENTICAL, EXCEPT THAT THE
+				 SEARCH 
+                                ; STARTS AT POSITION 1. INSTR RETURNS THE CHARA
+				CTER 
+                                ; POSITION OF THE FIRST OCCURANCE OF S2$ IN S1$
+				. 
+                                ; IF S1$ IS NULL, 0 IS RETURNED. IF S2$ IS NULL
+				, THEN 
+                                ; I% IS RETURNED, UNLESS I% .GT. LEN(S1$) IN WH
+				ICH 
+                                ; CASE 0 IS RETURNED. 
+                                 
+                                	PUBLIC	INSTR 
+ 045F  E8 0000 E                INSTR:	CALL	CHRGTR		;EAT FIRST CHAR 
+ 0462  E8 0000 E                	CALL	FRMPRN		;EVALUATE FIRST ARG 
+ 0465  E8 0000 E                	CALL	GETYPR		;SET ZERO IF ARG A STRING. 
+ 0468  B0 01                    	MOV	AL,LOW 1	;IF SO, ASSUME, SEARCH STARTS AT 
+				FIRST CHAR 
+ 046A  50                       	PUSH	AX		;SAVE OFFSET IN CASE STRING 
+ 046B  74 16                    	JZ	SHORT WUZSTR	;WAS A STRING 
+ 046D  58                       	POP	AX		;GET RID OF SAVED OFFSET 
+ 046E  E8 0000 E                	CALL	CONINT		;FORCE ARG1 (I%) TO BE INTEGER 
+ 0471  0A C0                    	OR	AL,AL		;DONT ALLOW ZERO OFFSET 
+ 0473  75 03                    	JNZ	SHORT ??L009 
+ 0475  E9 0000 E                	JMP	FCERR		;KILL HIM. 
+ 0478                           ??L009: 
+ 0478  50                       	PUSH	AX		;SAVE FOR LATER 
+ 0479  E8 0000 E                	CALL	SYNCHR 
+ 047C  2C                       	DB	OFFSET 44	;EAT THE COMMA 
+ 047D  E8 0000 E                	CALL	FRMEVL		;EAT FIRST STRING ARG 
+ 0480  E8 0000 E                	CALL	CHKSTR		;BLOW UP IF NOT STRING 
+ 0483  E8 0000 E                WUZSTR:	CALL	SYNCHR 
+ 0486  2C                       	DB	OFFSET 44	;EAT COMMA AFTER ARG 
+ 0487  53                       	PUSH	BX		;SAVE THE TEXT POINTER 
+ 0488  8B 1E 0000 E             	MOV	BX,FACLO	;GET DESCRIPTOR POINTER 
+ 048C  5E                       	POP	SI		;XTHL 
+ 048D  87 F3                    	XCHG	SI,BX 
+ 048F  56                       	PUSH	SI		;PUT ON STACK & GET BACK TEXT PNT. 
+ 0490  E8 0000 E                	CALL	FRMEVL		;GET LAST ARG 
+ 0493  E8 0000 E                	CALL	SYNCHR 
+ 0496  29                       	DB	OFFSET ")"	;EAT RIGHT PAREN 
+ 0497  53                       	PUSH	BX		;SAVE TEXT POINTER 
+ 0498  E8 02E8 R                	CALL	FRESTR		;FREE UP TEMP & CHECK STRING 
+ 049B  87 DA                    	XCHG	BX,DX		;SAVE 2ND DESC. POINTER IN [D,E] 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-32
+STRING FUNCTIONS - INSTR                                    
+
+ 049D  59                       	POP	CX		;GET TEXT POINTER IN B 
+ 049E  5B                       	POP	BX		;DESC. POINTER FOR S1$ 
+ 049F  58                       	POP	AX		;OFFSET 
+ 04A0  51                       	PUSH	CX		;PUT TEXT POINTER ON BOTTOM 
+ 04A1  B9 0000 E                	MOV	CX,OFFSET POPHRT	;PUT ADDRESS OF POP H, RE
+				T ON 
+ 04A4  51                       	PUSH	CX		;PUSH IT 
+ 04A5  B9 0000 E                	MOV	CX,OFFSET SNGFLT	;NOW ADDRESS OF [A] RETUR
+				NER 
+ 04A8  51                       	PUSH	CX		;ONTO STACK 
+ 04A9  50                       	PUSH	AX		;SAVE OFFSET BACK 
+ 04AA  52                       	PUSH	DX		;SAVE DESC. OF S2 
+ 04AB  E8 02EF R                	CALL	FRETM2		;FREE UP S1 DESC. 
+ 04AE  5A                       	POP	DX		;RESTORE DESC. S2 
+ 04AF  58                       	POP	AX		;GET BACK OFFSET 
+ 04B0  8A E8                    	MOV	CH,AL		;SAVE UNMODIFIED OFFSET 
+ 04B2  FE C8                    	DEC	AL		;MAKE OFFSET OK 
+ 04B4  8A C8                    	MOV	CL,AL		;SAVE IN C 
+ 04B6  3A 07                    	CMP	AL,BYTE PTR [BX]	;IS IT BEYOND LENGTH OF S
+				1? 
+ 04B8  B0 00                    	MOV	AL,LOW 0	;IF SO, RETURN ZERO. (ERROR) 
+ 04BA  72 01                    	JNAE	SHORT $+3 
+ 04BC  C3                       	RET 
+ 04BD  8B F2                    	MOV	SI,DX 
+ 04BF  8A 04                    	MOV	AL,[SI]		;GET LENGTH OF S2$ 
+ 04C1  0A C0                    	OR	AL,AL		;NULL?? 
+ 04C3  8A C5                    	MOV	AL,CH		;GET OFFSET BACK 
+ 04C5  75 01                    	JNZ	SHORT $+3 
+ 04C7  C3                       	RET			;ALL IF S2 NULL, RETURN OFFSET 
+ 04C8  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET LENGTH OF S1$ 
+ 04CA  43                       	INC	BX		;BUMP POINTER 
+ 04CB  8A 2F                    	MOV	CH,BYTE PTR [BX]	;GET 1ST BYTE OF ADDRESS 
+ 04CD  43                       	INC	BX		;BUMP POINTER 
+ 04CE  8A 3F                    	MOV	BH,BYTE PTR [BX]	;GET 2ND BYTE 
+ 04D0  8A DD                    	MOV	BL,CH		;GET 1ST BYTE SET UP 
+ 04D2  B5 00                    	MOV	CH,LOW 0	;GET READY FOR DAD 
+ 04D4  03 D9                    	ADD	BX,CX		;NOW INDEXING INTO STRING 
+ 04D6  2A C1                    	SUB	AL,CL		;MAKE LENGTH OF STRING S1$ RIGHT 
+ 04D8  8A E8                    	MOV	CH,AL		;SAVE LENGTH OF 1ST STRING IN [B] 
+ 04DA  51                       	PUSH	CX		;SAVE COUNTER, OFFSET 
+ 04DB  52                       	PUSH	DX		;PUT 2ND DESC (S2$) ON STACK 
+ 04DC  5E                       	POP	SI		;XTHL 
+ 04DD  87 F3                    	XCHG	SI,BX 
+ 04DF  56                       	PUSH	SI		;GET 2ND DESC. POINTER 
+ 04E0  8A 0F                    	MOV	CL,BYTE PTR [BX]	;SET UP LENGTH 
+ 04E2  43                       	INC	BX		;BUMP POINTER 
+ 04E3  8B 17                    	MOV	DX,[BX]		;GET FIRST BYTE OF ADDRESS 
+ 04E5  5B                       	POP	BX		;RESTORE POINTER FOR 1ST STRING 
+                                 
+ 04E6  53                       CHK1:	PUSH	BX		;SAVE POSITION IN SEARCH STRING 
+ 04E7  52                       	PUSH	DX		;SAVE START OF SUBSTRING 
+ 04E8  51                       	PUSH	CX		;SAVE WHERE WE STARTED SEARCH 
+ 04E9  8B F2                    CHK:	MOV	SI,DX 
+ 04EB  8A 04                    	MOV	AL,[SI]		;GET CHAR FROM SUBSTRING 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-33
+STRING FUNCTIONS - INSTR                                    
+
+ 04ED  3A 07                    	CMP	AL,BYTE PTR [BX]	; = CHAR POINTER TO BY [H
+				,L] 
+ 04EF  75 1E                    	JNZ	SHORT OHWELL	;NO 
+ 04F1  42                       	INC	DX		;BUMP COMPARE POINTER 
+ 04F2  FE C9                    	DEC	CL		;END OF SEARCH STRING? 
+ 04F4  74 0C                    	JZ	SHORT GOTSTR	;WE FOUND IT! 
+ 04F6  43                       	INC	BX		;BUMP POINTER INTO STRING BEING SEARCH
+				ED 
+                                				;DECREMENT LENGTH OF SEARCH STRING 
+ 04F7  FE CD                    	DEC	CH 
+ 04F9  75 EE                    	JNZ	SHORT CHK	;END OF STRING, YOU LOSE 
+ 04FB  5A                       RETZER:	POP	DX		;GET RID OF POINTERS 
+ 04FC  5A                       	POP	DX		;GET RID OF GARB 
+ 04FD  59                       	POP	CX		;LIKE SO 
+ 04FE  5A                       RETZR1:	POP	DX 
+ 04FF  32 C0                    	XOR	AL,AL		;GO TO SNGFLT. 
+ 0501  C3                       	RET			;RETURN 
+                                 
+ 0502  5B                       GOTSTR:	POP	BX 
+ 0503  5A                       	POP	DX		;GET RID OF GARB 
+ 0504  5A                       	POP	DX		;GET RID OF EXCESS STACK 
+ 0505  59                       	POP	CX		;GET COUNTER, OFFSET 
+ 0506  8A C5                    	MOV	AL,CH		;GET ORIGINAL SOURCE COUNTER 
+ 0508  2A C7                    	SUB	AL,BH		;SUBTRACT FINAL COUNTER 
+ 050A  02 C1                    	ADD	AL,CL		;ADD ORIGINAL OFFSET (N1%) 
+ 050C  FE C0                    	INC	AL		;MAKE OFFSET OF ZERO = POSIT 1 
+ 050E  C3                       	RET			;DONE 
+                                 
+                                 
+ 050F  59                       OHWELL:	POP	CX 
+ 0510  5A                       	POP	DX		;POINT TO START OF SUBSTRING 
+ 0511  5B                       	POP	BX		;GET BACK WHERE WE STARTED TO COMPARE 
+ 0512  43                       	INC	BX		;AND POINT TO NEXT CHAR 
+                                				;DECR. # CHAR LEFT IN SOURCE STRING 
+ 0513  FE CD                    	DEC	CH 
+ 0515  75 CF                    	JNZ	SHORT CHK1	;TRY SEARCHING SOME MORE 
+ 0517  EB E5                    	JMP	SHORT RETZR1	;END OF STRING, RETURN 0 
+                                 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-34
+STRING FUNCTIONS - INSTR                                    
+
+                                	PAGE 
+                                	SUBTTL STRING FUNCTIONS - LEFT HAND SIDE MID$ 
+ 0519  E8 0000 E                LHSMID:	CALL	SYNCHR 
+ 051C  28                       	DB	OFFSET "("	;MUST HAVE ( 
+ 051D  E8 0000 E                	CALL	PTRGET		;GET A STRING VAR 
+ 0520  E8 0000 E                	CALL	CHKSTR		;MAKE SURE IT WAS A STRING 
+ 0523  53                       	PUSH	BX		;SAVE TEXT POINTER 
+ 0524  52                       	PUSH	DX		;SAVE DESC. POINTER 
+ 0525  87 DA                    	XCHG	BX,DX		;PUT DESC. POINTER IN [H,L] 
+ 0527  43                       	INC	BX		;MOVE TO ADDRESS FIELD 
+ 0528  8B 17                    	MOV	DX,[BX]		;GET ADDRESS OF LHS IN [D,E] 
+ 052A  8B 1E 0000 E             	MOV	BX,STREND	;SEE IF LHS STRING IS IN STRING 
+				SPACE 
+ 052E  3B DA                    	CMP	BX,DX		;BY COMPARING IT WITH STKTOP 
+ 0530  72 12                    	JB	SHORT NCPMID	;IF ALREADY IN STRING SPACE 
+                                				;DONT COPY. 
+ 0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
+                                	EXTRN	TXTTAB:WORD 
+ 0000                           DSEG	ENDS 
+ 0532  8B 1E 0000 E             	MOV	BX,TXTTAB 
+ 0536  3B DA                    	CMP	BX,DX		;Is this a fielded string? 
+ 0538  73 0A                    	JAE	SHORT NCPMID	;Yes, Don't copy!! 
+ 053A  5B                       NCP1:	POP	BX		;GET BACK DESC. POINTER 
+ 053B  53                       	PUSH	BX		;SAVE BACK ON STACK 
+ 053C  E8 005F R                	CALL	STRCPY		;COPY THE STRING LITERAL INTO STR
+				ING SPACE 
+ 053F  5B                       	POP	BX		;GET BACK DESC. POINTER 
+ 0540  53                       	PUSH	BX		;BACK ON STACK AGAIN 
+ 0541  E8 0000 E                	CALL	VMOVE		;MOVE NEW DESC. INTO OLD SLOT. 
+ 0544  5B                       NCPMID:	POP	BX		;GET DESC. POINTER 
+ 0545  5E                       	POP	SI		;XTHL 
+ 0546  87 F3                    	XCHG	SI,BX 
+ 0548  56                       	PUSH	SI		;GET TEXT POINTER TO [H,L] DESC. TO S
+				TACK 
+ 0549  E8 0000 E                	CALL	SYNCHR 
+ 054C  2C                       	DB	OFFSET 54O	;MUST HAVE COMMA 
+ 054D  E8 0000 E                	CALL	GETBYT		;GET ARG#2 (OFFSET INTO STRING) 
+ 0550  0A C0                    	OR	AL,AL		;MAKE SURE NOT ZERO 
+ 0552  75 03                    	JNZ	SHORT ??L010 
+ 0554  E9 0000 E                	JMP	FCERR		;BLOW HIM UP IF ZERO 
+ 0557                           ??L010: 
+ 0557  50                       	PUSH	AX		;SAVE ARG#2 ON STACK 
+ 0558  8A 07                    	MOV	AL,BYTE PTR [BX]	;RESTORE CURRENT CHAR 
+ 055A  E8 05C6 R                	CALL	MIDRST		;USE MID$ CODE TO EVALUATE POSIBL
+				E THIRD ARG. 
+ 055D  52                       	PUSH	DX		;SAVE THIRD ARG ([E]) ON STACK 
+                                				;MUST HAVE = SIGN 
+ 055E  E8 0000 E                	CALL	FRMEQL		;EVALUATE RHS OF THING. 
+ 0561  53                       	PUSH	BX		;SAVE TEXT POINTER. 
+ 0562  E8 02E8 R                	CALL	FRESTR		;FREE UP TEMP RHS IF ANY. 
+ 0565  87 DA                    	XCHG	BX,DX		;PUT RHS DESC. POINTER IN [D,E] 
+ 0567  5B                       	POP	BX		;TEXT POINTER TO [H,L] 
+ 0568  59                       	POP	CX		;ARG #3 TO C. 
+ 0569  58                       	POP	AX		;ARG #2 TO A. 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-35
+STRING FUNCTIONS - LEFT HAND SIDE MID$                      
+
+ 056A  8A E8                    	MOV	CH,AL		;AND [B] 
+ 056C  5E                       	POP	SI		;XTHL 
+ 056D  87 F3                    	XCHG	SI,BX 
+ 056F  56                       	PUSH	SI		;GET LHS DESC. POINTER TO [H,L] 
+                                				;TEXT POINTER TO STACK 
+ 0570  53                       	PUSH	BX		;SAVE TEXT POINTER 
+ 0571  BB 0000 E                	MOV	BX,OFFSET POPHRT	;GET ADDR TO RETURN TO 
+ 0574  5E                       	POP	SI		;XTHL 
+ 0575  87 F3                    	XCHG	SI,BX 
+ 0577  56                       	PUSH	SI		;SAVE ON STACK & GET BACK TXT PTR. 
+ 0578  8A C1                    	MOV	AL,CL		;GET ARG #3 
+ 057A  0A C0                    	OR	AL,AL		;SET CC'S 
+ 057C  75 01                    	JNZ	SHORT $+3 
+ 057E  C3                       	RET			;IF ZERO, DO NOTHING 
+ 057F  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET LENGTH OF LHS 
+ 0581  2A C5                    	SUB	AL,CH		;SEE HOW MANY CHARS IN EMAINDER OF 
+				STRING 
+ 0583  73 03                    	JAE	SHORT ??L011 
+ 0585  E9 0000 E                	JMP	FCERR		;CANT ASSIGN PAST LEN(LHS)! 
+ 0588                           ??L011: 
+ 0588  FE C0                    	INC	AL		;MAKE PROPER COUNT 
+ 058A  3A C1                    	CMP	AL,CL		;SEE IF # OF CHARS IS .GT. THIRD AR
+				G 
+ 058C  72 02                    	JB	SHORT BIGLEN	;IF SO, DONT TRUNCATE 
+ 058E  8A C1                    	MOV	AL,CL		;TRUNCATE BY USING 3RD ARG. 
+ 0590  8A CD                    BIGLEN:	MOV	CL,CH		;GET OFFSET OF STRING IN [C]
+				 
+ 0592  FE C9                    	DEC	CL		;MAKE PROPER OFFSET 
+ 0594  B5 00                    	MOV	CH,LOW 0	;SET UP [B,C] FOR LATER DAD B. 
+ 0596  52                       	PUSH	DX		;SAVE [D,E] 
+ 0597  43                       	INC	BX		;POINTER TO ADDRESS FIELD. 
+ 0598  8A 17                    	MOV	DL,BYTE PTR [BX]	;GET LOW BYTE IN [E] 
+ 059A  43                       	INC	BX		;BUMP POINTER 
+ 059B  8A 3F                    	MOV	BH,BYTE PTR [BX]	;GET HIGH BYTE IN [H] 
+ 059D  8A DA                    	MOV	BL,DL		;NOW COPY LOW BYTE BACK TO [L] 
+ 059F  03 D9                    	ADD	BX,CX		;ADD OFFSET 
+ 05A1  8A E8                    	MOV	CH,AL		;SET COUNT OF LHS IN [B] 
+ 05A3  5A                       	POP	DX		;RESTORE [D,E] 
+ 05A4  87 DA                    	XCHG	BX,DX		;MOVE RHS. DESC. POINTER TO [H,L] 
+ 05A6  8A 0F                    	MOV	CL,BYTE PTR [BX]	;GET LEN(RHS) IN [C] 
+ 05A8  43                       	INC	BX		;MOVE POINTER 
+ 05A9  8B 1F                    	MOV	BX,[BX]		;GET LOW BYTE OF ADDRESS IN [A] 
+ 05AB  87 DA                    	XCHG	BX,DX		;ADDRESS OF RHS NOW IN [D,E] 
+ 05AD  8A C1                    	MOV	AL,CL		;IS RHS NULL? 
+ 05AF  0A C0                    	OR	AL,AL		;TEST 
+ 05B1  75 01                    	JNZ	SHORT $+3 
+ 05B3  C3                       	RET			;THEN ALL DONE. 
+                                ; NOW ALL SET UP FOR ASSIGNMENT. 
+                                ; [H,L] = LHS POINTER 
+                                ; [D,E] = RHS POINTER 
+                                ; C = LEN(RHS) 
+                                ; B = LEN(LHS) 
+                                 
+ 05B4  8B F2                    MID$LP:	MOV	SI,DX 
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Page     1-36
+STRING FUNCTIONS - LEFT HAND SIDE MID$                      
+
+ 05B6  8A 04                    	MOV	AL,[SI]		;GET BYTE FROM RHS. 
+ 05B8  88 07                    	MOV	BYTE PTR [BX],AL	;STORE IN LHS 
+ 05BA  42                       	INC	DX		;BUMP RHS POINTER 
+ 05BB  43                       	INC	BX		;BUMP LHS POINTER. 
+ 05BC  FE C9                    	DEC	CL		;BUMP DOWN COUNT OF RHS. 
+ 05BE  75 01                    	JNZ	SHORT $+3 
+ 05C0  C3                       	RET			;IF ZERO, ALL DONE. 
+                                				;IF LHS ENDED, ALSO DONE. 
+ 05C1  FE CD                    	DEC	CH 
+ 05C3  75 EF                    	JNZ	SHORT MID$LP	;IF NOT DONE, MORE COPYING. 
+ 05C5  C3                       	RET			;BACK TO NEWSTT 
+                                 
+ 05C6  B2 FF                    MIDRST:	MOV	DL,LOW 255	;IF TWO ARG GUY, TRUNCAT
+				E. 
+ 05C8  3C 29                    	CMP	AL,LOW ")" 
+ 05CA  74 07                    	JZ	SHORT MID2	;[E] SAYS USE ALL CHARS 
+                                				;IF ONE ARGUMENT THIS IS CORRECT 
+ 05CC  E8 0000 E                	CALL	SYNCHR 
+ 05CF  2C                       	DB	OFFSET 44	;COMMA? MUST DELINEATE 3RD ARG. 
+ 05D0  E8 0000 E                	CALL	GETBYT		;GET ARGUMENT  IN  [E] 
+ 05D3  E8 0000 E                MID2:	CALL	SYNCHR 
+ 05D6  29                       	DB	OFFSET ")"	;MUST BE FOLLOWED BY ) 
+ 05D7  C3                       	RET			;ALL DONE. 
+                                 
+                                	SUBTTL FRE  FUNCTION AND INTEGER TO FLOATING  
+				ROUTINES 
+ 05D8                           FRE: 
+ 05D8  E8 0000 E                	CALL	GETYPR 
+ 05DB  74 03                    	JZ	SHORT ??L012 
+ 05DD  EB 07 90                 	JMP	CLCDIF 
+ 05E0                           ??L012: 
+ 05E0  E8 02EB R                	CALL	FREFAC		;FREE UP ARGUMENT AND SETUP 
+                                				;TO GIVE FREE STRING SPACE 
+ 05E3  E8 0154 R                	CALL	GARBA2		;DO GARBAGE COLLECTION 
+ 05E6  8B 16 0000 E             CLCDIF:	MOV	DX,STREND 
+ 05EA  8B 1E 0000 E             	MOV	BX,FRETOP	;TOP OF FREE AREA 
+ 05EE  E9 0000 E                	JMP	GIVDBL 
+                                 
+ 05F1                           CSEG	ENDS 
+                                	END 
+
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Symbols-1
+                                                             
+
+Macros:
+
+		N a m e			Lines
+
+ACRLF  . . . . . . . . . . . . .  	   2
+ADR  . . . . . . . . . . . . . .  	   1
+CALLOS . . . . . . . . . . . . .  	   1
+CHRGET . . . . . . . . . . . . .  	   1
+COMPAR . . . . . . . . . . . . .  	   2
+DC . . . . . . . . . . . . . . .  	   6
+DJNZ . . . . . . . . . . . . . .  	   2
+FSIGN  . . . . . . . . . . . . .  	   1
+GETYPE . . . . . . . . . . . . .  	   1
+INS86  . . . . . . . . . . . . .  	  13
+INST . . . . . . . . . . . . . .  	   1
+LDDR . . . . . . . . . . . . . .  	   8
+LDIR . . . . . . . . . . . . . .  	   8
+MOVRI  . . . . . . . . . . . . .  	   6
+OUTCHR . . . . . . . . . . . . .  	   1
+POPR . . . . . . . . . . . . . .  	   2
+PUSHM  . . . . . . . . . . . . .  	   5
+PUSHR  . . . . . . . . . . . . .  	   2
+SYNCHK . . . . . . . . . . . . .  	   2
+
+Segments and Groups:
+
+                N a m e         	Size	Align	Combine Class
+
+CSEG . . . . . . . . . . . . . .  	05F1	PARA	PUBLIC	'CODESG'
+DSEG . . . . . . . . . . . . . .  	0000	PARA	PUBLIC	'DATASG'
+
+Symbols:            
+
+                N a m e         	Type	Value	Attr         
+
+ALLSTR . . . . . . . . . . . . .  	L NEAR	03C2	CSEG
+ALPCPM . . . . . . . . . . . . .  	Number	0000	
+ALTAIR . . . . . . . . . . . . .  	Number	0000	
+ANSI . . . . . . . . . . . . . .  	Number	0001	
+ARYSTR . . . . . . . . . . . . .  	L NEAR	0203	CSEG
+ARYTA2 . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
+ARYTAB . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
+ARYVA2 . . . . . . . . . . . . .  	L NEAR	01D2	CSEG
+ARYVA4 . . . . . . . . . . . . .  	L NEAR	01D3	CSEG
+ARYVAR . . . . . . . . . . . . .  	L NEAR	01AC	CSEG
+ASC  . . . . . . . . . . . . . .  	L NEAR	033A	CSEG	Global
+ASC2 . . . . . . . . . . . . . .  	L NEAR	033E	CSEG	Global
+
+BASDEB . . . . . . . . . . . . .  	Number	0000	
+BEEPSW . . . . . . . . . . . . .  	Number	0001	
+BIGLEN . . . . . . . . . . . . .  	L NEAR	0590	CSEG
+BINCSW . . . . . . . . . . . . .  	Number	0000	
+BLODSW . . . . . . . . . . . . .  	Number	0001	
+BLTUC  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Symbols-2
+                                                             
+
+BUFLEN . . . . . . . . . . . . .  	Number	00FF	
+
+CALSPA . . . . . . . . . . . . .  	L NEAR	0386	CSEG
+CAN8 . . . . . . . . . . . . . .  	Number	0000	
+CASSW  . . . . . . . . . . . . .  	Number	0000	
+CAT  . . . . . . . . . . . . . .  	L NEAR	027B	CSEG	Global
+CHK  . . . . . . . . . . . . . .  	L NEAR	04E9	CSEG
+CHK1 . . . . . . . . . . . . . .  	L NEAR	04E6	CSEG
+CHKSTR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+CHR$ . . . . . . . . . . . . . .  	L NEAR	034E	CSEG	Global
+CHRGTR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+CHSEAT . . . . . . . . . . . . .  	Number	0001	
+CLCDIF . . . . . . . . . . . . .  	L NEAR	05E6	CSEG
+CLMWID . . . . . . . . . . . . .  	Number	000E	
+CMPUTN . . . . . . . . . . . . .  	Number	0000	
+COMMNT . . . . . . . . . . . . .  	Number	0000	
+CONINT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+CONSSW . . . . . . . . . . . . .  	Number	0001	
+CONTO  . . . . . . . . . . . . .  	Number	000F	
+CONTRO . . . . . . . . . . . . .  	Number	0001	
+CPM  . . . . . . . . . . . . . .  	Number	0001	
+CPM110 . . . . . . . . . . . . .  	Number	0000	
+CPM2 . . . . . . . . . . . . . .  	Number	0001	
+CPM86  . . . . . . . . . . . . .  	Number	0000	
+CPMA75 . . . . . . . . . . . . .  	Number	0000	
+CPMADD . . . . . . . . . . . . .  	Number	0000	
+CPMCON . . . . . . . . . . . . .  	Number	0000	
+CPMLIF . . . . . . . . . . . . .  	Number	0000	
+CPMMDS . . . . . . . . . . . . .  	Number	0000	
+CPMPER . . . . . . . . . . . . .  	Number	0000	
+CPMRSH . . . . . . . . . . . . .  	Number	0000	
+CPMSBC . . . . . . . . . . . . .  	Number	0000	
+CPMSER . . . . . . . . . . . . .  	Number	0000	
+CRFIN  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+CRONLY . . . . . . . . . . . . .  	Number	0000	
+CSLOOP . . . . . . . . . . . . .  	L NEAR	001D	CSEG
+
+DATPSC . . . . . . . . . . . . .  	Number	0080	
+DBLCHR . . . . . . . . . . . . .  	Number	0000	
+DBLTRN . . . . . . . . . . . . .  	Number	0000	
+DCOMPR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+DEBUG  . . . . . . . . . . . . .  	Text  		
+DISK . . . . . . . . . . . . . .  	Number	0001	
+DMC  . . . . . . . . . . . . . .  	Number	0000	
+DOS  . . . . . . . . . . . . . .  	Number	0000	
+DRVPOS . . . . . . . . . . . . .  	Number	0000	
+DSCTMP . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
+DSOUT  . . . . . . . . . . . . .  	L NEAR	00F3	CSEG	Global
+DUPONT . . . . . . . . . . . . .  	Number	0000	
+DVAR . . . . . . . . . . . . . .  	L NEAR	0213	CSEG
+DVAR2  . . . . . . . . . . . . .  	L NEAR	0212	CSEG
+DVARS  . . . . . . . . . . . . .  	L NEAR	0213	CSEG
+DYNCOM . . . . . . . . . . . . .  	Number	0001	
+
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Symbols-3
+                                                             
+
+EDIT80 . . . . . . . . . . . . .  	Number	0000	
+ERRLS  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+ERROR  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+ERRSO  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+ERRST  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+ESCCTL . . . . . . . . . . . . .  	Number	0000	
+EVAL . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+EXIDY  . . . . . . . . . . . . .  	Number	0000	
+
+FACLO  . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
+FAST . . . . . . . . . . . . . .  	Number	0001	
+FCERR  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+FIN  . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+FINBCK . . . . . . . . . . . . .  	L NEAR	035A	CSEG	Global
+FINDBL . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+FIVDSK . . . . . . . . . . . . .  	Number	0001	
+FIVEO  . . . . . . . . . . . . .  	Number	0001	
+FIVLPT . . . . . . . . . . . . .  	Number	0001	
+FIVMEM . . . . . . . . . . . . .  	Number	0001	
+FKEYON . . . . . . . . . . . . .  	Number	0001	
+FNDVAR . . . . . . . . . . . . .  	L NEAR	0158	CSEG
+FOUT . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+FOUTH  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+FOUTO  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+FRE  . . . . . . . . . . . . . .  	L NEAR	05D8	CSEG	Global
+FREFAC . . . . . . . . . . . . .  	L NEAR	02EB	CSEG	Global
+FRESTR . . . . . . . . . . . . .  	L NEAR	02E8	CSEG	Global
+FRETM2 . . . . . . . . . . . . .  	L NEAR	02EF	CSEG	Global
+FRETMP . . . . . . . . . . . . .  	L NEAR	02F1	CSEG	Global
+FRETMS . . . . . . . . . . . . .  	L NEAR	0315	CSEG	Global
+FRETOP . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
+FRMEQL . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+FRMEVL . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+FRMPRN . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+
+GARBA2 . . . . . . . . . . . . .  	L NEAR	0154	CSEG	Global
+GARBAG . . . . . . . . . . . . .  	L NEAR	0142	CSEG
+GENBIN . . . . . . . . . . . . .  	Number	0001	
+GENDSK . . . . . . . . . . . . .  	Number	0000	
+GENIO  . . . . . . . . . . . . .  	Number	0001	
+GESBC  . . . . . . . . . . . . .  	Number	0000	
+GETBCD . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+GETBYT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+GETSPA . . . . . . . . . . . . .  	L NEAR	0114	CSEG	Global
+GETYPR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+GIO86  . . . . . . . . . . . . .  	Number	0001	
+GIVDBL . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+GOTSTR . . . . . . . . . . . . .  	L NEAR	0502	CSEG
+GRBPAS . . . . . . . . . . . . .  	L NEAR	024C	CSEG
+GW . . . . . . . . . . . . . . .  	Number	0001	
+GWCASS . . . . . . . . . . . . .  	Number	0000	
+GWDBUG . . . . . . . . . . . . .  	Number	0000	
+
+HEATH  . . . . . . . . . . . . .  	Number	0000	
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Symbols-4
+                                                             
+
+HEXOCT . . . . . . . . . . . . .  	Number	0001	
+HGHBIT . . . . . . . . . . . . .  	Number	0001	
+
+I8086  . . . . . . . . . . . . .  	Number	0001	
+I8251  . . . . . . . . . . . . .  	Number	0000	
+IADAHL . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+IBMLIK . . . . . . . . . . . . .  	Number	0001	
+IBMTOK . . . . . . . . . . . . .  	Number	0001	
+INCSTR . . . . . . . . . . . . .  	Number	0001		Global
+INKEYF . . . . . . . . . . . . .  	Number	0001	
+INLADD . . . . . . . . . . . . .  	Number	0000	
+INSTR  . . . . . . . . . . . . .  	L NEAR	045F	CSEG	Global
+INSTSW . . . . . . . . . . . . .  	Number	0000	
+INTEL  . . . . . . . . . . . . .  	Number	0000	
+INTFHW . . . . . . . . . . . . .  	Number	0000	
+INTFSW . . . . . . . . . . . . .  	Number	0000	
+INTLEC . . . . . . . . . . . . .  	Number	0000	
+INTROM . . . . . . . . . . . . .  	Number	0000	
+ISC  . . . . . . . . . . . . . .  	Number	0000	
+ISIS . . . . . . . . . . . . . .  	Number	0000	
+
+JISKTN . . . . . . . . . . . . .  	Number	0000	
+
+KANABS . . . . . . . . . . . . .  	Number	0000	
+KANJFN . . . . . . . . . . . . .  	Number	0000	
+KEYSTA . . . . . . . . . . . . .  	Number	0000	
+KILLER . . . . . . . . . . . . .  	Number	0000	
+
+LABKEY . . . . . . . . . . . . .  	Number	0001	
+LEFT$  . . . . . . . . . . . . .  	L NEAR	03AB	CSEG	Global
+LEFT2  . . . . . . . . . . . . .  	L NEAR	03B8	CSEG
+LEFT3  . . . . . . . . . . . . .  	L NEAR	03B0	CSEG
+LEFTUS . . . . . . . . . . . . .  	L NEAR	03B7	CSEG	Global
+LEN  . . . . . . . . . . . . . .  	L NEAR	032A	CSEG	Global
+LEN1 . . . . . . . . . . . . . .  	L NEAR	032E	CSEG
+LEN2 . . . . . . . . . . . . . .  	Number	0001	
+LEN3 . . . . . . . . . . . . . .  	Number	0001	
+LENGTH . . . . . . . . . . . . .  	Number	0002	
+LHSMID . . . . . . . . . . . . .  	L NEAR	0519	CSEG	Global
+LINLN  . . . . . . . . . . . . .  	Number	0050	
+LISTEN . . . . . . . . . . . . .  	Number	0001	
+LNGVAR . . . . . . . . . . . . .  	Number	0001	
+LOKHED . . . . . . . . . . . . .  	Number	0000	
+LONGI  . . . . . . . . . . . . .  	Number	0000	
+LPT3 . . . . . . . . . . . . . .  	Number	0000	
+LPTLEN . . . . . . . . . . . . .  	Number	0084	
+LPTRLS . . . . . . . . . . . . .  	L NEAR	00B0	CSEG
+LPTSW  . . . . . . . . . . . . .  	Number	0001	
+
+MDS  . . . . . . . . . . . . . .  	Number	0000	
+MDSISS . . . . . . . . . . . . .  	Number	0000	
+MEMIMG . . . . . . . . . . . . .  	Number	0001	
+MEMSIZ . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
+MID$ . . . . . . . . . . . . . .  	L NEAR	03F5	CSEG	Global
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Symbols-5
+                                                             
+
+MID$LP . . . . . . . . . . . . .  	L NEAR	05B4	CSEG
+MID2 . . . . . . . . . . . . . .  	L NEAR	05D3	CSEG
+MIDRST . . . . . . . . . . . . .  	L NEAR	05C6	CSEG
+MOSTEK . . . . . . . . . . . . .  	Number	0000	
+MOVINS . . . . . . . . . . . . .  	L NEAR	02C7	CSEG
+MOVLP  . . . . . . . . . . . . .  	L NEAR	02D8	CSEG
+MOVRM  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+MOVSTR . . . . . . . . . . . . .  	L NEAR	02D6	CSEG
+MULSEG . . . . . . . . . . . . .  	Number	0001	
+
+NAMLEN . . . . . . . . . . . . .  	Number	0028	
+NASCOM . . . . . . . . . . . . .  	Number	0000	
+NATROM . . . . . . . . . . . . .  	Number	0000	
+NBANKS . . . . . . . . . . . . .  	Number	0001	
+NCP1 . . . . . . . . . . . . . .  	L NEAR	053A	CSEG
+NCPMID . . . . . . . . . . . . .  	L NEAR	0544	CSEG
+NCRBAS . . . . . . . . . . . . .  	Number	0000	
+NCRCAS . . . . . . . . . . . . .  	Number	0000	
+NCRDEB . . . . . . . . . . . . .  	Number	0000	
+NCRELS . . . . . . . . . . . . .  	Number	0000	
+NCRLPT . . . . . . . . . . . . .  	Number	0001	
+NECBAS . . . . . . . . . . . . .  	Number	0000	
+NECPPC . . . . . . . . . . . . .  	Number	0000	
+NMCOMT . . . . . . . . . . . . .  	Number	0002	
+NMKEYF . . . . . . . . . . . . .  	Number	000A	
+NMKEYT . . . . . . . . . . . . .  	Number	000E	
+NMLINE . . . . . . . . . . . . .  	Number	0019	
+NMLPT  . . . . . . . . . . . . .  	Number	0003	
+NMPENT . . . . . . . . . . . . .  	Number	0001	
+NMSTRT . . . . . . . . . . . . .  	Number	0004	
+NOATDL . . . . . . . . . . . . .  	Number	0000	
+NOCTLA . . . . . . . . . . . . .  	Number	0000	
+NODOT  . . . . . . . . . . . . .  	Number	0000	
+NOEDIT . . . . . . . . . . . . .  	Number	0000	
+NOIOS  . . . . . . . . . . . . .  	Number	0000	
+NONULL . . . . . . . . . . . . .  	Number	0000	
+NOPEKS . . . . . . . . . . . . .  	Number	0000	
+NOROMP . . . . . . . . . . . . .  	Number	0000	
+NORUBT . . . . . . . . . . . . .  	Number	0000	
+NOTLST . . . . . . . . . . . . .  	L NEAR	0313	CSEG
+NOUSR  . . . . . . . . . . . . .  	Number	0000	
+NOVARP . . . . . . . . . . . . .  	Number	0000	
+NTTRLS . . . . . . . . . . . . .  	L NEAR	00BB	CSEG
+NUMLEV . . . . . . . . . . . . .  	Number	006E	
+NUMTMP . . . . . . . . . . . . .  	Number	000A	
+NUMTRP . . . . . . . . . . . . .  	Number	0015	
+
+OEMRAM . . . . . . . . . . . . .  	Number	0000	
+OHWELL . . . . . . . . . . . . .  	L NEAR	050F	CSEG
+ONTEL  . . . . . . . . . . . . .  	Number	0000	
+OUTDO  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+
+PALSIZ . . . . . . . . . . . . .  	Number	0000	
+PANBAS . . . . . . . . . . . . .  	Number	0000	
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Symbols-6
+                                                             
+
+PC8A . . . . . . . . . . . . . .  	Number	0000	
+PCS  . . . . . . . . . . . . . .  	Number	0000	
+PLAYSW . . . . . . . . . . . . .  	Number	0001	
+POPHRT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+PPSWRT . . . . . . . . . . . . .  	L NEAR	013D	CSEG	Global
+PREAM  . . . . . . . . . . . . .  	L NEAR	0453	CSEG
+PREAM2 . . . . . . . . . . . . .  	L NEAR	0459	CSEG
+PRMPRV . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
+PTRGET . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+PURE . . . . . . . . . . . . . .  	Number	0001	
+PUTDEI . . . . . . . . . . . . .  	L NEAR	0082	CSEG	Global
+PUTNEW . . . . . . . . . . . . .  	L NEAR	00C8	CSEG	Global
+PUTTMP . . . . . . . . . . . . .  	L NEAR	00CC	CSEG	Global
+
+QUEUE  . . . . . . . . . . . . .  	Number	0001	
+
+REALIO . . . . . . . . . . . . .  	Number	0001	
+RETZER . . . . . . . . . . . . .  	L NEAR	04FB	CSEG
+RETZR1 . . . . . . . . . . . . .  	L NEAR	04FE	CSEG
+RIGHT$ . . . . . . . . . . . . .  	L NEAR	03E8	CSEG	Global
+RMX  . . . . . . . . . . . . . .  	Number	0000	
+RSHACK . . . . . . . . . . . . .  	Number	0000	
+RSTLES . . . . . . . . . . . . .  	Number	0001	
+
+SBC  . . . . . . . . . . . . . .  	Number	0000	
+SBC86  . . . . . . . . . . . . .  	Number	0000	
+SCP  . . . . . . . . . . . . . .  	Number	0001	
+SCRN86 . . . . . . . . . . . . .  	Number	0001	
+SCRNIO . . . . . . . . . . . . .  	Number	0001	
+SCROLT . . . . . . . . . . . . .  	Number	0001	
+SETSTR . . . . . . . . . . . . .  	L NEAR	0354	CSEG	Global
+SGSATS . . . . . . . . . . . . .  	Number	0000	
+SHORTJ . . . . . . . . . . . . .  	Number	0001	
+SHTCHN . . . . . . . . . . . . .  	Number	0000	
+SHTERR . . . . . . . . . . . . .  	Number	0000	
+SHTINS . . . . . . . . . . . . .  	Number	0000	
+SHTLHM . . . . . . . . . . . . .  	Number	0000	
+SHTLIN . . . . . . . . . . . . .  	Number	0000	
+SHTPRO . . . . . . . . . . . . .  	Number	0000	
+SHTREN . . . . . . . . . . . . .  	Number	0000	
+SIGNS  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+SIXDIG . . . . . . . . . . . . .  	Number	0000	
+SKPVAR . . . . . . . . . . . . .  	L NEAR	01A4	CSEG
+SMALL  . . . . . . . . . . . . .  	Number	0000	
+SNERR  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+SNGFLT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+SPACE$ . . . . . . . . . . . . .  	L NEAR	038A	CSEG	Global
+SPACE2 . . . . . . . . . . . . .  	L NEAR	038F	CSEG
+SPCDSK . . . . . . . . . . . . .  	Number	0000	
+SPCNDS . . . . . . . . . . . . .  	Number	0000	
+SPLP$  . . . . . . . . . . . . .  	L NEAR	03A2	CSEG
+STR$ . . . . . . . . . . . . . .  	L NEAR	0052	CSEG	Global
+STR$1  . . . . . . . . . . . . .  	L NEAR	0055	CSEG
+STRAD1 . . . . . . . . . . . . .  	L NEAR	007F	CSEG	Global
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Symbols-7
+                                                             
+
+STRAD2 . . . . . . . . . . . . .  	L NEAR	007C	CSEG
+STRCMP . . . . . . . . . . . . .  	L NEAR	0000	CSEG	Global
+STRCPY . . . . . . . . . . . . .  	L NEAR	005F	CSEG	Global
+STREND . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
+STRFIN . . . . . . . . . . . . .  	L NEAR	00A0	CSEG
+STRGET . . . . . . . . . . . . .  	L NEAR	008F	CSEG
+STRH$  . . . . . . . . . . . . .  	L NEAR	004D	CSEG	Global
+STRIN1 . . . . . . . . . . . . .  	L NEAR	0077	CSEG	Global
+STRING . . . . . . . . . . . . .  	Number	0001	
+STRINI . . . . . . . . . . . . .  	L NEAR	0079	CSEG	Global
+STRLIT . . . . . . . . . . . . .  	L NEAR	0087	CSEG	Global
+STRLT2 . . . . . . . . . . . . .  	L NEAR	008C	CSEG	Global
+STRLT3 . . . . . . . . . . . . .  	L NEAR	008A	CSEG	Global
+STRLTI . . . . . . . . . . . . .  	L NEAR	0088	CSEG	Global
+STRNG$ . . . . . . . . . . . . .  	L NEAR	035E	CSEG	Global
+STRO$  . . . . . . . . . . . . .  	L NEAR	0048	CSEG	Global
+STROUI . . . . . . . . . . . . .  	L NEAR	00F2	CSEG	Global
+STRPR2 . . . . . . . . . . . . .  	L NEAR	00FE	CSEG
+STRPRT . . . . . . . . . . . . .  	L NEAR	00F6	CSEG	Global
+STRSIZ . . . . . . . . . . . . .  	Number	0003	
+STRSTR . . . . . . . . . . . . .  	L NEAR	0383	CSEG
+SUPRSH . . . . . . . . . . . . .  	Number	0001	
+SVAR . . . . . . . . . . . . . .  	L NEAR	0189	CSEG
+SWAPSW . . . . . . . . . . . . .  	Number	0001	
+SYNCHR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+
+TEK  . . . . . . . . . . . . . .  	Number	0000	
+TEMP8  . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
+TEMP9  . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
+TEMPPT . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
+TEMPST . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
+TIMSHR . . . . . . . . . . . . .  	Number	0000	
+TRNCHR . . . . . . . . . . . . .  	Number	0000	
+TRSER2 . . . . . . . . . . . . .  	Number	0000	
+TRSHHC . . . . . . . . . . . . .  	Number	0000	
+TRUANS . . . . . . . . . . . . .  	Number	0000	
+TRUROM . . . . . . . . . . . . .  	Number	0001	
+TRYGI2 . . . . . . . . . . . . .  	L NEAR	0118	CSEG
+TRYGI3 . . . . . . . . . . . . .  	L NEAR	011A	CSEG
+TSDISK . . . . . . . . . . . . .  	Number	0000	
+TSHIBA . . . . . . . . . . . . .  	Number	0000	
+TSLPT  . . . . . . . . . . . . .  	Number	0000	
+TSTOP  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+TVAR . . . . . . . . . . . . . .  	L NEAR	0168	CSEG
+TXTTAB . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
+
+VAL  . . . . . . . . . . . . . .  	L NEAR	042E	CSEG	Global
+VALTYP . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
+VARTAB . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
+VMOVE  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
+
+WUZSTR . . . . . . . . . . . . .  	L NEAR	0483	CSEG
+
+XTNSYS . . . . . . . . . . . . .  	Number	0000	
+Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:19:13
+
+BISTRS  BASIC Interpreter String  routines/WHG/PGA etc.     Symbols-8
+                                                             
+
+
+Z80  . . . . . . . . . . . . . .  	Number	0001	
+Z80MAC . . . . . . . . . . . . .  	Number	0001	
+ZENITH . . . . . . . . . . . . .  	Number	0000	
+
+??L000 . . . . . . . . . . . . .  	L NEAR	00A7	CSEG
+??L001 . . . . . . . . . . . . .  	L NEAR	0111	CSEG
+??L002 . . . . . . . . . . . . .  	L NEAR	014C	CSEG
+??L003 . . . . . . . . . . . . .  	L NEAR	0176	CSEG
+??L004 . . . . . . . . . . . . .  	L NEAR	01DE	CSEG
+??L005 . . . . . . . . . . . . .  	L NEAR	02A1	CSEG
+??L006 . . . . . . . . . . . . .  	L NEAR	0346	CSEG
+??L007 . . . . . . . . . . . . .  	L NEAR	0405	CSEG
+??L008 . . . . . . . . . . . . .  	L NEAR	0436	CSEG
+??L009 . . . . . . . . . . . . .  	L NEAR	0478	CSEG
+??L010 . . . . . . . . . . . . .  	L NEAR	0557	CSEG
+??L011 . . . . . . . . . . . . .  	L NEAR	0588	CSEG
+??L012 . . . . . . . . . . . . .  	L NEAR	05E0	CSEG
+
+
+   1468 Source  Lines
+   1469 Total   Lines
+    381 Symbols
+
+  38350 Bytes symbol space free
+
+      0 Warning Errors
+      0 Severe  Errors
