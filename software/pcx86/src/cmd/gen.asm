@@ -820,77 +820,6 @@ ENDPROC	genLet
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genPrint
-;
-; Generate code to print.
-;
-; Inputs:
-;	DS:BX = offset of next TOKLET
-;	ES:DI -> next unused location in code block
-;
-; Outputs:
-;	Carry clear if successful, set if error
-;
-; Modifies:
-;	Any
-;
-DEFPROC	genPrint
-	GENPUSHB VAR_NONE		; push end-of-args marker (VAR_NONE)
-
-gp1:	mov	al,CLS_VAR or CLS_STR
-	call	peekNextToken
-	jc	gp8
-	jz	gp3
-	cmp	ah,CLS_STR
-	je	gp2
-	cmp	ah,VAR_STR
-	jne	gp3
-;
-; Handle string arguments here.
-;
-gp2:	push	ax
-	call	genExprStr
-	pop	ax
-	jc	gp9
-	jz	gp8
-
-	push	ax
-	GENPUSHB ah
-	pop	ax
-	jmp	short gp5
-;
-; Handle numeric arguments here.
-;
-gp3:	call	genExprNum
-	jc	gp9
-	jz	gp8
-
-gp4:	push	ax
-	GENPUSHB VAR_LONG
-	pop	ax
-;
-; Argument paths rejoin here to determine spacing requirements.
-;
-gp5:	mov	ah,VAR_SEMI
-	cmp	al,';'			; was the last symbol a semi-colon?
-	je	gp6			; yes
-	mov	ah,VAR_COMMA
-	cmp	al,','			; how about a comma?
-	jne	gp8			; no
-
-gp6:	GENPUSHB ah			; "MOV AL,[VAR_SEMI or VAR_COMMA]"
-	jmp	gp1			; contine processing arguments
-;
-; Arguments exhausted, generate the print call.
-;
-gp8:	GENCALL	printArgs
-	clc
-
-gp9:	ret
-ENDPROC	genPrint
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; addLabel
 ;
 ; Inputs:
@@ -1348,7 +1277,7 @@ sc4b:	cmp	al,SC_GENPB		; invoke GENPUSHB? (71h)
 	jmp	sc4
 ;
 ; To wrap up, scan the syntax table for a final SC_GENFN and then exit,
-; unless there's an SC_NXTOK entry, in which case we go back for more.
+; unless there's an SC_NXTOK entry, in which case we go back for more tokens.
 ;
 sc8:	mov	dx,-1
 sc8a:	lods	word ptr cs:[si]	; AL = next SC_* value

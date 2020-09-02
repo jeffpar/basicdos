@@ -67,7 +67,7 @@ m3:	PRINTF	<"%7u">,bx
 
 m4:	inc	bx		; BX = next dividend
 	or	bx,1		; bump it to odd if it isn't odd already
-	cmp	bx,32000
+	cmp	bx,10000
 	jae	m9
 
 m5:	cmp	bx,[maxSquared]	; dividend below square of max divisor?
@@ -79,7 +79,7 @@ m5:	cmp	bx,[maxSquared]	; dividend below square of max divisor?
 	mov	[advSquared],ax
 	jmp	m1
 
-m9:	PRINTF	<13,10,"total primes < 32000: %d",13,10>,nPrimes
+m9:	PRINTF	<13,10,"total primes < 10000: %d",13,10>,nPrimes
 	LEAVE
 	mov	ax,DOS_PSP_EXIT SHL 8
 	int	21h

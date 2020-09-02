@@ -54,6 +54,7 @@ DOS_TTY_STATUS	equ	0Bh	; get CON status (AL = 0 if nothing, or FFh)
 DOS_TTY_FLUSH	equ	0Ch	; flush and invoke 01h, 06h, 07h, 08h, or 0Ah
 DOS_DSK_RESET	equ	0Dh	; disk reset
 DOS_DSK_SETDRV	equ	0Eh	; set current drive (DL), return # drives (AL)
+DOS_FCB_OPEN	equ	0Fh	; open FCB (DS:DX)
 
 DOS_UTL		equ	18h	; BASIC-DOS utility functions
 DOS_UTL_STRLEN	equ   1800h	; return string (DS:SI) length (AX)
@@ -91,6 +92,7 @@ DOS_DSK_GETDRV	equ	19h	; get current drive (AL)
 DOS_DSK_SETDTA	equ	1Ah	; set DTA (DS:DX)
 DOS_MSC_SETVEC	equ	25h	; set vector (AL) to addr (DS:DX)
 DOS_PSP_CREATE	equ	26h	; create PSP (DX = segment)
+DOS_FCB_PARSE	equ	29h	; parse filespec (DS:SI) into FCB (ES:DI)
 DOS_DSK_GETDTA	equ	2Fh	; get DTA (ES:BX)
 DOS_MSC_GETVER	equ	30h	; get version (AL,AH,BH,BL,CX)
 DOS_DSK_GETDPB	equ	32h	; get DPB (DS:BX, AL=FFh if invalid drive)
@@ -125,6 +127,48 @@ DOS_DSK_FNEXT	equ	4Fh	; find next filespec (DTA)
 DOS_PSP_SET	equ	50h	; set current PSP (BX)
 DOS_PSP_GET	equ	51h	; get current PSP (BX)
 
+;
+; File Control Block (FCB)
+;
+FCB		struc
+FCB_DRIVE	db	?	; 00h: set to 1-based drive # on OPEN
+FCB_NAME	db     11 dup(?); 01h: upper-cased on OPEN
+FCB_CURBLK	dw	?	; 0Ch: set to 0 on OPEN
+FCB_RECSIZE	dw	?	; 0Eh: set to 128 on OPEN
+;
+; The above fields are all that fit in PSP_FCB1 and PSP_FCB2.
+;
+FCB_FILESIZE	dd	?	; 10h: from DIRENT.DIR_SIZE on OPEN
+FCB_DATE	dw	?	; 14h: from DIRENT.DIR_DATE on OPEN
+FCB_TIME	dw	?	; 16h: from DIRENT.DIR_TIME on OPEN
+;
+; The next 8 bytes are reserved.  PC DOS 2.0 appears to define them as:
+;
+FCB_DEVICE	db	?	; 18h: bit 7 set if logical device
+FCB_CLN		dw	?	; 19h: 1st cluster number
+FCB_CLN_REL	dw	?	; 1Bh: relative 0-based cluster number
+FCB_CLN_CUR	dw	?	; 1Dh: current cluster number
+FCB_UNUSED	db	?	; 1Fh
+;
+; The next two fields are NOT initialized on OPEN.  Set CURREC before doing a
+; sequential read or write, and set RELREC before doing a random read or write.
+;
+FCB_CURREC	db	?	; 20h: cur record
+FCB_RELREC	dd	?	; 21h: rel record (3 bytes if RECSIZE >= 64)
+FCB		ends
+
+;
+; Extended FCBs are FCBs preceded by the following 7 bytes:
+;
+EXFCB		struc
+EXFCB_FLAG	db	?	; -07h: flag byte containing 0FFh
+EXFCB_RESERVED	db	5 dup(?); -06h to -02h
+EXFCB_ATTR	db	?	; -01h: file attributes
+EXFCB		ends
+
+;
+; Modes for DOS_HDL_OPEN
+;
 MODE_ACC_READ	equ	00h
 MODE_ACC_WRITE	equ	01h
 MODE_ACC_BOTH	equ	02h
@@ -135,9 +179,12 @@ MODE_DENY_READ	equ	30h
 MODE_DENY_NONE	equ	40h
 MODE_INHERIT	equ	80h
 
-SEEK_BEG	equ	0
-SEEK_CUR	equ	1
-SEEK_END	equ	2
+;
+; Methods for DOS_HDL_SEEK
+;
+SEEK_BEG	equ	0	; or use DOS_HDL_SEEKBEG
+SEEK_CUR	equ	1	; or use DOS_HDL_SEEKCUR
+SEEK_END	equ	2	; or use DOS_HDL_SEEKEND
 
 ;
 ; Predefined Process File Table (PFT) numbers
@@ -189,7 +236,7 @@ PSP_EXTYPE	db	?	; 4Fh: BASIC-DOS: exit type (see EXTYPE_*)
 PSP_DISPATCH	db	3 dup(?); 50h: INT 21h/RETF
 PSP_RESERVED2	db	9 dup(?); 53h
 PSP_FCB1	db     16 dup(?); 5Ch
-PSP_FCB2	db     16 dup(?); 6ch
+PSP_FCB2	db     16 dup(?); 6Ch
 PSP_RESERVED3	db	4 dup(?); 7Ch
 PSP_CMDTAIL	db    128 dup(?); 80h: length byte, command tail, CR
 PSP		ends

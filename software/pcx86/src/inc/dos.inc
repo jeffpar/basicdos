@@ -134,29 +134,17 @@ MCBOWNER_NONE	equ	0	; free memory block
 MCBOWNER_SYSTEM	equ	0008h	; owned by the system
 
 ;
-; File Control Block (FCB)
-;
-FCB		struc
-FCB_DRV		db	?	; 00h
-FCB_NAME	db     11 dup(?); 01h
-FCB_CURBLK	dw	?	; 0Ch
-FCB_RECSIZE	dw	?	; 0Eh
-FCB_FILESIZE	dd	?	; 10h
-FCB_DATE	dw	?	; 14h
-FCB_TIME	dw	?	; 16h
-FCB		ends
-
-;
 ; System File Block (SFB)
 ;
-; For files, this is a superset of the directory entry (DIRENT).
+; For files, the SFB begins as a superset of the directory entry
+; (see DIRENT in disk.inc).  At offset 20h, additional fields are defined.
 ;
-; System File Handles (SFH) are indexes into the SFB table, whereas Process
-; File Handles (PFH) are indexes into a PSP's Process File Table (PFT).
+; System File Handles (SFH) are indexes into the SFB table (SFT), whereas
+; Process File Handles (PFH) are indexes into a PSP's Process File Table (PFT).
 ;
 SFB		struc
 SFB_NAME	db    11 dup (?); 00h: filename (E5=free,00=end)
-SFB_ATTR	db	?	; 0Bh: attribute bits (see below)
+SFB_ATTR	db	?	; 0Bh: attribute bits (see DIRATTR_*)
 SFB_DEVICE	dd	?	; 0Ch: device driver
 SFB_CONTEXT	dw	?	; 10h: device context (1st cluster if file)
 SFB_DRIVE	db	?	; 12h: drive # (-1 if not block device)
@@ -169,8 +157,13 @@ SFB_CLN		dw	?	; 1Ah: 1st cluster number of file
 SFB_SIZE	dd	?	; 1Ch: file size
 SFB_CURPOS	dd	?	; 20h: current file position
 SFB_CURCLN	dw	?	; 24h: current cluster number
+SFB_FLAGS	db	?	; 26h: see SFBF_* (initially zero)
+SFB_PADDING	db	?	; 27h
+SFB_FCB		dd	?	; 28h: FCB address, if SFBF_FCB set
 SFB		ends
 SFBSIG		equ	'F'
+
+SFBF_FCB	equ	01h	; SFB opened for FCB (see fcb_open)
 
 SFH_NONE	equ	0FFh	; if this SFH is in a PFT entry, it's unused
 

@@ -13,9 +13,198 @@ DOS	segment word public 'CODE'
 
 	EXTERNS	<bpb_total>,byte
 	EXTERNS	<scb_active>,word
+	EXTERNS	<sfb_open_fcb,sfb_find_fcb,sfb_seek,sfb_read>,near
+	EXTERNS	<mul_32_16>,near
 
-	EXTERNS	<FILENAME_CHARS>,byte
-	EXTERNS	<FILENAME_CHARS_LEN>,abs
+	EXTSTR	<FILENAME_CHARS>
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fcb_open (REG_AH = 0Fh)
+;
+; Open an SFB for the file.
+;
+; Inputs:
+;	REG_DS:REG_DX -> unopened FCB
+;
+; Outputs:
+;	REG_AL:
+;	  00h: found (and FCB filled in)
+;	  FFh: not found
+;
+; Modifies:
+;
+DEFPROC	fcb_open,DOS
+	mov	si,dx
+	mov	ds,[bp].REG_DS		; DS:SI -> FCB
+	ASSUME	DS:NOTHING
+	mov	ax,0FFFh		; AX = 0FFFh
+	mov	[bp].REG_AL,al		; assume failure
+	inc	ax			; AX = 1000h (AH = 10h, AL = 0)
+	call	sfb_open_fcb
+	jc	fo9
+	mov	di,si
+	push	ds
+	pop	es			; ES:DI -> FCB
+	mov	si,bx
+	push	cs
+	pop	ds			; DS:SI -> SFB
+	mov	[si].SFB_FCB.OFF,di
+	mov	[si].SFB_FCB.SEG,es	; set SFB_FCB
+	or	[si].SFB_FLAGS,SFBF_FCB	; mark SFB as originating as FCB
+	mov	al,[si].SFB_DRIVE
+	inc	ax
+	mov	es:[di].FCB_DRIVE,al	; set FCB_DRIVE to 1-based drive #
+	add	si,SFB_SIZE		; DS:SI -> SFB.SFB_SIZE
+	add	di,FCB_CURBLK		; ES:DI -> FCB.FCB_CURBLK
+	sub	ax,ax
+	mov	[bp].REG_AL,al		; set REG_AL to zero
+	stosw				; set FCB_CURBLK to zero
+	mov	ax,128
+	stosw				; set FCB_RECSIZE to 128
+	movsw
+	movsw				; set FCB_FILESIZE from SFB_SIZE
+	sub	si,(SFB_SIZE + 4) - SFB_DATE
+	movsw				; set FCB_DATE from SFB_DATE
+	sub	si,(SFB_DATE + 2) - SFB_TIME
+	movsw				; set FCB_TIME from SFB_TIME
+	add	si,SFB_CLN - (SFB_TIME + 2)
+	movsw				; set FCB_CLN from SFB_CLN
+fo9:	ret
+ENDPROC	fcb_open
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fcb_close (REG_AH = 10h)
+;
+; Update the matching directory entry from the FCB.
+;
+; Inputs:
+;	REG_DS:REG_DX -> FCB
+;
+; Outputs:
+;	REG_AL:
+;	  00h: found
+;	  FFh: not found
+;
+; Modifies:
+;
+DEFPROC	fcb_close,DOS
+	ret
+ENDPROC	fcb_close
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fcb_sread (REG_AH = 14h)
+;
+; Read a sequential record into the DTA.
+;
+; Inputs:
+;	REG_DS:REG_DX -> FCB
+;
+; Outputs:
+;	REG_AL:
+;	  00h: read successful
+;	  01h: EOF, empty record
+;	  02h: DTA too small
+;	  03h: EOF, partial record
+;
+; Modifies:
+;
+DEFPROC	fcb_sread,DOS
+	mov	cx,[bp].REG_DS		; CX:DX -> FCB
+	call	sfb_find_fcb
+	ret
+ENDPROC	fcb_sread
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fcb_rread (REG_AH = 21h)
+;
+; Read a random record (FCB_RELREC) into the DTA.  The current block
+; (FCB_CURBLK) and current record (FCB_CURREC) are set to agree with the
+; relative record (FCB_RELREC).  The record is then read into the DTA,
+; using the FCB's record size (FCB_RECSIZE).
+;
+; Inputs:
+;	REG_DS:REG_DX -> FCB
+;
+; Outputs:
+;	REG_AL:
+;	  00h: read successful
+;	  01h: EOF, empty record
+;	  02h: DTA too small
+;	  03h: EOF, partial record
+;
+; Modifies:
+;
+DEFPROC	fcb_rread,DOS
+	int 3
+	mov	cx,[bp].REG_DS		; CX:DX -> FCB
+	call	sfb_find_fcb
+	jc	fr9
+	mov	di,dx
+	mov	es,cx			; ES:DI -> FCB
+	ASSUME	ES:NOTHING
+;
+; At this point, DS:BX -> SFB and ES:DI -> FCB.
+;
+; Multiply the requested record (FCB_RELREC) by the record size (FCB_RECSIZE)
+; to get the offset.
+;
+	mov	cx,es:[di].FCB_RECSIZE
+	mov	ax,es:[di].FCB_RELREC.LOW
+	mov	dx,es:[di].FCB_RELREC.HIW
+	cmp	cx,64
+	jb	fr1
+	mov	dh,0
+fr1:	call	mul_32_16		; DX:AX = DX:AX * CX
+
+	xchg	dx,ax			; AX:DX
+	xchg	cx,ax			; CX:DX
+	mov	al,SEEK_BEG		; seek to absolute offset CX:DX
+	call	sfb_seek		; SEEK_BEG modifies only AX
+
+	xchg	ax,cx			; AX:DX
+	xchg	ax,dx			; DX:AX
+	mov	cx,16*1024		; CX = 16K
+	div	cx			; AX = block #
+	mov	es:[di].FCB_CURBLK,ax	; update FCB's current block
+	xchg	ax,dx			; AX = byte offset within block
+	sub	dx,dx
+	mov	cx,es:[di].FCB_RECSIZE	; CX = # bytes to read
+	div	cx			; AX = record # within block
+	ASSERT	Z,<test ah,ah>
+	mov	es:[di].FCB_CURREC,al
+
+	mov	al,IO_RAW		; TODO?
+	mov	si,[scb_active]
+	les	dx,[si].SCB_DTA		; ES:DX -> DTA
+	push	cx
+	push	dx
+	call	sfb_read
+	pop	di
+	pop	cx
+	mov	dl,0			; DL = default return code (00h)
+	jc	fr6
+	test	ax,ax
+	jnz	fr7
+fr6:	inc	dx			; DL = 01h (EOF, no data)
+	jmp	short fr8
+fr7:	cmp	ax,cx
+	je	fr8
+;
+; Fill the remainder of the DTA with zeros.
+;
+	sub	cx,ax			; CX = # of bytes to fill
+	add	di,ax
+	mov	al,0
+	rep	stosb
+
+	mov	dl,3			; DL = 03h (EOF, partial record)
+fr8:	mov	[bp].REG_AL,dl		; REG_AL = return code
+fr9:	ret
+ENDPROC	fcb_rread
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -66,7 +255,7 @@ ENDPROC	fcb_parse
 ;
 ; NOTE: My observations with PC DOS 2.0 are that "ignore leading separators"
 ; really means "ignore leading whitespace" (ie, spaces or tabs).  This has to
-; be one one of the more poorly documented APIs in terms of precise behavior.
+; be one of the more poorly documented APIs in terms of precise behavior.
 ;
 ; Inputs:
 ;	AH = parse flags
@@ -173,10 +362,10 @@ pf4:	cmp	bl,cl			; are we done with the current portion?
 pf4a:	inc	bx
 	jmp	pf4
 
-pf5:	cmp	cl,11			; did we just finish the extension?
+pf5:	cmp	cl,size FCB_NAME	; did we just finish the extension?
 	je	pf9			; yes
 	mov	bl,9			; BL -> extension
-	mov	cl,11			; CL -> extension limit
+	mov	cl,size FCB_NAME	; CL -> extension limit
 	sar	ah,1			; shift the parse flags
 	jmp	pf2
 ;

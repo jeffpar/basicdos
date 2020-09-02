@@ -50,18 +50,18 @@ val = ((offset $ - offset tbl) - 2) / (size TOKDEF)
 DATA	ENDS
 	endm
 
-SC_GENPB	equ	71h
-SC_CALFN	equ	72h
-SC_PKTOK	equ	73h
-SC_GTTOK	equ	74h
-SC_MATCH	equ	75h
-SC_MASYM	equ	76h
-SC_NXTOK	equ	77h
-SC_GENFN	equ	78h
+SC_GENPB	equ	71h		; do GENPUSHB
+SC_CALFN	equ	72h		; call function
+SC_PKTOK	equ	73h		; peek token
+SC_GTTOK	equ	74h		; get token
+SC_MATCH	equ	75h		; if token matches...
+SC_MASYM	equ	76h		; if CLS_SYM token matches...
+SC_NXTOK	equ	77h		; get next token
+SC_GENFN	equ	78h		; do GENCALL
 
-SCF_GENXNUM	equ	0
-SCF_GENXSTR	equ	1
-SCF_PRINTARGS	equ	2
+SCF_GENXNUM	equ	0		; -> genExprNum
+SCF_GENXSTR	equ	1		; -> genExprStr
+SCF_PRTARGS	equ	2		; -> printArgs
 
 ;
 ; Keywords with IDs >= GENCODE require code generation.

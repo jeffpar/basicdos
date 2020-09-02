@@ -13,7 +13,6 @@ CODE    SEGMENT
 	EXTERNS	<cmdDate,cmdDir,cmdExit,cmdHelp,cmdList,cmdLoad>,near
 	EXTERNS	<cmdMem,cmdNew,cmdRun,cmdTime,cmdType,cmdVer>,near
 	EXTERNS	<genCLS,genColor,genDefInt,genEcho,genGoto,genIf,genLet>,near
-	EXTERNS	<genPrint>,near
 	EXTERNS	<evalNegLong,evalNotLong>,near
 	EXTERNS	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>,near
 	EXTERNS	<evalModLong,evalExpLong,evalImpLong>,near
@@ -28,6 +27,7 @@ CODE    SEGMENT
 	DEFSTR	EXE_EXT,<".EXE",0>	; listed in the desired search order
 	DEFSTR	BAT_EXT,<".BAT",0>
 	DEFSTR	BAS_EXT,<".BAS",0>
+
 	DEFSTR	DIR_DEF,<"*.*",0>
 	DEFSTR	PERIOD,<".",0>
 	DEFSTR	SYS_MEM,<"<SYS>",0>
@@ -105,34 +105,34 @@ CODE    SEGMENT
 ; both the syntax and the code generation logic for a given keyword.
 ;
 	DEFLBL	synPrint,byte
-	db	SC_GENPB,VAR_NONE
-	db	SC_PKTOK,CLS_ANY
+	db	SC_GENPB,VAR_NONE	; start with VAR_NONE on the stack
+	db	SC_PKTOK,CLS_ANY	; peek for any token
 
-	db	SC_MASYM,';'
-	db	SC_GENPB,VAR_SEMI
+	db	SC_MASYM,';'		; semi-colon pushes
+	db	SC_GENPB,VAR_SEMI	; VAR_SEMI onto the stack
 
-	db	SC_MASYM,','
-	db	SC_GENPB,VAR_COMMA
+	db	SC_MASYM,','		; comma pushes
+	db	SC_GENPB,VAR_COMMA	; VAR_COMMA onto the stack
 
-	db	SC_MATCH,CLS_STR
-	db	SC_CALFN,SCF_GENXSTR
+	db	SC_MATCH,CLS_STR	; string constant
+	db	SC_CALFN,SCF_GENXSTR	; generates call to genExprStr
 	db	SC_GENPB,VAR_STR
 
-	db	SC_MATCH,VAR_STR
-	db	SC_CALFN,SCF_GENXSTR
+	db	SC_MATCH,VAR_STR	; string variable
+	db	SC_CALFN,SCF_GENXSTR	; also generates call to genExprStr
 	db	SC_GENPB,VAR_STR
 
-	db	SC_MATCH,CLS_ANY
-	db	SC_CALFN,SCF_GENXNUM
-	db	SC_GENPB,VAR_LONG
+	db	SC_MATCH,CLS_ANY	; anything else
+	db	SC_CALFN,SCF_GENXNUM	; generates call to genExprNum
+	db	SC_GENPB,VAR_LONG	; (failure triggers jump to next block)
 
-	db	SC_NXTOK,0
-	db	SC_GENFN,SCF_PRINTARGS,-1
+	db	SC_NXTOK,0		; check for more tokens if no failure
+	db	SC_GENFN,SCF_PRTARGS,-1	; otherwise generate call to printArgs
 
-	DEFLBL	SCF_TABLE,word			; synCheck function table
-	dw	genExprNum			; SCF_GENXNUM
-	dw	genExprStr			; SCF_GENXSTR
-	dw	printArgs			; SCF_PRINTARGS
+	DEFLBL	SCF_TABLE,word		; synCheck function table:
+	dw	genExprNum		; SCF_GENXNUM
+	dw	genExprStr		; SCF_GENXSTR
+	dw	printArgs		; SCF_PRTARGS
 
 CODE	ENDS
 
