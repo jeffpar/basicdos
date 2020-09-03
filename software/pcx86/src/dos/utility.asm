@@ -1027,13 +1027,6 @@ ENDPROC	utl_yield
 ;
 ; utl_sleep (AX = 1817h)
 ;
-; Converts DX from milliseconds (1000/second) to ticks (18.2/sec) and
-; issues an IOCTL to the CLOCK$ driver to wait the corresponding # of ticks.
-;
-; 1 tick is equivalent to approximately 55ms, so that's the granularity of
-; sleep requests (yeah, pretty granular, but it's not clear that the speed of
-; an IBM PC is fast enough to warrant more frequent context-switching).
-;
 ; Inputs:
 ;	REG_CX:REG_DX = # of milliseconds to sleep
 ;
@@ -1041,17 +1034,7 @@ ENDPROC	utl_yield
 ;	AX, BX, CX, DX, DI, ES
 ;
 DEFPROC	utl_sleep,DOS
-	sti
-	add	dx,27			; add 1/2 tick (as # ms) for rounding
-	adc	cx,0
-	mov	bx,55			; BX = divisor
-	xchg	ax,cx			; AX = high dividend
-	mov	cx,dx			; CX = low dividend
-	sub	dx,dx
-	div	bx			; AX = high quotient
-	xchg	ax,cx			; AX = low dividend, CX = high quotient
-	div	bx			; AX = low quotient
-	xchg	dx,ax			; CX:DX = # ticks
+	sti				; CX:DX = # ms
 	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_WAIT
 	les	di,clk_ptr
 	call	dev_request		; call the driver

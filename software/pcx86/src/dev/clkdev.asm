@@ -62,7 +62,7 @@ ENDPROC	ddclk_req
 ;	Varies
 ;
 ; Modifies:
-;	AX, DX
+;	AX, CX, DX
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddclk_ctlin
@@ -71,9 +71,30 @@ DEFPROC	ddclk_ctlin
 	cmp	al,IOCTL_WAIT
 	jne	dci9
 ;
-; For WAIT requests, we add this packet to an internal chain of "waiting"
-; packets, and then tell DOS that we're waiting; DOS will suspend the current
-; SCB until we notify DOS that this packet's conditions are satisfied.
+; For WAIT requests, convert # ms (1000/second to # ticks (18.2/sec).
+;
+; 1 tick is equivalent to approximately 55ms, so that's the granularity of
+; WAIT requests as well as all clock-driven context switches; context switches
+; can also be triggered by other hardware interrupts, like keyboard interrupts,
+; so this is not the full measure of context-switching granularity.
+;
+	mov	dx,es:[di].DDPRW_OFFSET
+	mov	cx,es:[di].DDPRW_LENGTH	; CX:DX = # ms
+	add	dx,27			; add 1/2 tick (as # ms) for rounding
+	adc	cx,0
+	mov	bx,55			; BX = divisor
+	xchg	ax,cx			; AX = high dividend
+	mov	cx,dx			; CX = low dividend
+	sub	dx,dx
+	div	bx			; AX = high quotient
+	xchg	ax,cx			; AX = low dividend, CX = high quotient
+	div	bx			; AX = low quotient
+	mov	es:[di].DDPRW_OFFSET,ax	; CX:AX = # ticks
+	mov	es:[di].DDPRW_LENGTH,cx
+;
+; Now add this packet to an internal chain of "waiting" packets, and tell
+; DOS that we're waiting; DOS will suspend the current SCB until we notify
+; it that this packet's conditions are satisfied.
 ;
 	cli
 	mov	ax,di
@@ -261,9 +282,9 @@ DEFPROC	ddclk_init,far
 	mov	es:[bx].DDPI_END.OFF,offset ddclk_init
 	mov	cs:[0].DDH_REQUEST,offset DEV:ddclk_req
 ;
-; Install an INT 08h hardware interrupt handler, which we will use to drive
-; calls to DOS_UTL_YIELD as soon as DOS tells us it's ready (which it will do
-; by setting the DDATTR_CLOCK bit in our header).
+; Install an INT 08h hardware interrupt handler, which we will use to service
+; WAIT requests, and which will also drive the DOS scheduler as soon as DOS has
+; initialized and revectored DDINT_ENTER/DDINT_LEAVE.
 ;
 	cli
 	mov	ax,offset ddclk_interrupt
