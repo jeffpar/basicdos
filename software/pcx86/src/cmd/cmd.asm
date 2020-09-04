@@ -495,32 +495,15 @@ DEFPROC	cmdDate
 	mov	ax,offset promptDate
 	call	getInput		; DS:SI -> string
 	jcxz	gt9			; do nothing on empty string
-;
-; User input validation here is probably unncessary, since DOS_MSC_SETDATE
-; is required to validate the inputs as well, but validation is almost free
-; with DOS_UTL_ATOI16, so we'll do it anyway.  There are some checks that
-; are unavoidable here also, like converting 2-digit years to 4-digit years.
-;
 	mov	di,offset VALID_DATE
-	push	cs
-	pop	es
-	ASSUME	ES:NOTHING		; ES:DI -> validation data
-	mov	bl,10			; BL = base 10
-	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
-	int	21h
+	mov	bh,'-'
+	call	getValues
 	jc	cdt8
-	mov	dh,al			; DH = month
-	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
-	int	21h
-	jc	cdt8
-	mov	dl,al			; DL = day
-	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
-	int	21h
-	jc	cdt8
+	xchg	dx,cx			; DH = month, DL = day, AX = year
 	cmp	ax,100
 	jae	cdt1
-	add	ax,1900			; 2-digit years are adjusted to
-	cmp	ax,1980			; 1980-2079
+	add	ax,1900			; 2-digit years are automatically
+	cmp	ax,1980			; adjusted to 4-digit years 1980-2079
 	jae	cdt1
 	add	ax,100
 cdt1:	xchg	cx,ax			; CX = year
@@ -534,7 +517,7 @@ cdt8:	PRINTF	<"Invalid date",13,10>
 	DEFLBL	promptDate,near
 	mov	ax,DOS_UTL_GETDATE
 	int	21h
-	PRINTF	<"Current date is %.3W %M-%02D-%Y",13,10,	"Enter new date: ">,ax,ax,ax,ax
+	PRINTF	<"Current date is %.3W %M-%02D-%Y",13,10,"Enter new date: ">,ax,ax,ax,ax
 cdt9:	ret
 ENDPROC	cmdDate
 
@@ -1014,33 +997,22 @@ DEFPROC	cmdTime
 	call	getInput		; DS:SI -> string
 	jcxz	cr9			; do nothing on empty string
 	mov	di,offset VALID_TIME
-	push	cs
-	pop	es
-	ASSUME	ES:NOTHING		; ES:DI -> validation data
-	mov	bl,10			; BL = base 10
-	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
-	int	21h
-	mov	ch,al			; CH = hours
-	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
-	int	21h
-	mov	cl,al			; CL = minutes
-	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
-	int	21h
-	mov	dh,al			; DH = seconds
-	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
-	int	21h
-	mov	dh,al			; DL = 1/100s
+	mov	bh,':'
+	call	getValues
+	jc	ctm8
 	mov	ah,DOS_MSC_SETTIME
 	int	21h			; set the time
 	test	al,al			; success?
 	jz	ctm9			; yes
-	PRINTF	<"Invalid time",13,10>
+ctm8:	PRINTF	<"Invalid time",13,10>
 	jmp	cmdTime
 
 	DEFLBL	promptTime,near
 	push	bx
 	mov	ah,DOS_MSC_GETTIME
 	int	21h
+	push	cx
+	push	dx
 	mov	al,ch			; AX = hours
 	cbw
 	mov	ch,ah			; CX = minutes
@@ -1048,6 +1020,8 @@ DEFPROC	cmdTime
 	mov	bh,ah			; BX = seconds
 	mov	dh,ah			; DX = 1/100s
 	PRINTF	<"Current time is %d:%02d:%02d.%02d",13,10,"Enter new time: ">,ax,cx,bx,dx
+	pop	dx
+	pop	cx
 	pop	bx
 ctm9:	ret
 ENDPROC	cmdTime
@@ -1314,7 +1288,7 @@ ENDPROC	chkString
 ;	DS:DI -> BUF_TOKEN
 ;
 ; Outputs:
-;	DS:SI -> string (with length CX)
+;	DS:SI -> CR-terminated string
 ;
 ; Modifies:
 ;	AX, CX, DX, SI
@@ -1325,15 +1299,99 @@ DEFPROC	getInput
 	jnc	gi9
 	call	ax			; AX = caller-supplied function
 	lea	si,[bx].LINEBUF
-	mov	byte ptr [si],11	; max of 10 chars (not incl. CR)
+	mov	byte ptr [si],12	; max of 12 chars (including CR)
 	mov	dx,si
 	mov	ah,DOS_TTY_INPUT
 	int	21h
 	PRINTF	<13,10>
-	mov	cl,[si+1]
+	inc	si
+	mov	cl,[si]
 	mov	ch,0			; CX = length of input (excl. CR)
+	inc	si			; skip ahead to the actual characters
 gi9:	ret
 ENDPROC	getInput
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getValues
+;
+; Used by cmdDate and cmdTime to get a series of delimited values.
+;
+; Inputs:
+;	BH = default delimiter
+;	SI -> DS-relative string data (CR-terminated)
+;	DI -> ES-relative validation data
+;
+; Outputs:
+;	CH, CL, DH, DL
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+DEFPROC	getValues
+	push	cs
+	pop	es
+	ASSUME	ES:NOTHING		; ES:DI -> validation data
+	call	getValue
+	jc	gvs9
+	mov	ch,al			; CH = hours
+	call	getValue
+	jc	gvs9
+	mov	cl,al			; CL = minutes
+	mov	bh,'.'
+	call	getValue
+	jc	gvs9
+	mov	dh,al			; DH = seconds
+	cmp	word ptr es:[di],0	; end of valiation data?
+	jl	gvs9			; yes
+	call	getValue
+	jc	gvs9
+	mov	dl,al			; DL = 1/100s
+gvs9:	ret
+ENDPROC	getValues
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getValue
+;
+; Used by getValues to get a single validated, delimited value.
+;
+; Data validation here is probably unnecessary, since DOS_MSC_SETDATE and
+; DOS_MSC_SETTIME are required to validate their inputs as well, but validation
+; is almost free with DOS_UTL_ATOI16.  In any case, we must perform some
+; delimiter checks as well.
+;
+; Inputs:
+;	BH = default delimiter
+;	SI -> DS-relative string data (CR-terminated)
+;	DI -> ES-relative validation data
+;
+; Outputs:
+;	If carry clear, AX = validated value
+;	If carry set, illegal value or delimiter
+;
+; Modifies:
+;	AX, SI, DI
+;
+DEFPROC	getValue
+	mov	bl,10			; BL = base 10
+	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
+	int	21h
+	; jc	gv9			; data validation error
+	dec	si
+	mov	bl,[si]			; BL = termination character
+	cmp	bl,CHR_RETURN		; CR?
+	je	gv9			; yes
+	inc	si
+	cmp	bl,bh			; expected termination character?
+	je	gv9			; yes
+	cmp	bh,'-'			; was dash specified?
+	jne	gv8			; no
+	cmp	bl,'/'			; yes, so allow slash as well
+	je	gv9			; no, not slash either
+gv8:	stc
+gv9:	ret
+ENDPROC	getValue
 
 CODE	ENDS
 
