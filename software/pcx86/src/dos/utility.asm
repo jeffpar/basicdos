@@ -17,7 +17,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_yield,scb_delock,scb_wait,scb_endwait>,near
 	EXTERNS	<mem_query>,near
 	EXTERNS	<psp_term_exitcode>,near
-	EXTERNS	<itoa,sprintf>,near
+	EXTERNS	<itoa,sprintf,add_date>,near
 
 	EXTERNS	<scb_locked,sfh_debug>,byte
 	EXTERNS	<scb_active>,word
@@ -920,6 +920,7 @@ DEFPROC	utl_ioctl,DOS
 	sti
 	mov	ax,[bp].REG_BX		; AX = command codes from BH,BL
 	mov	es,[bp].REG_ES		; ES:DI -> DDH
+	mov	bx,dx			; BX = REG_DX, CX = REG_CX
 	call	dev_request		; call the driver
 	ret
 ENDPROC	utl_ioctl
@@ -1036,7 +1037,8 @@ ENDPROC	utl_yield
 DEFPROC	utl_sleep,DOS
 	sti				; CX:DX = # ms
 	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_WAIT
-	les	di,clk_ptr
+	les	di,[clk_ptr]
+	mov	bx,dx			; BX = REG_DX, CX = REG_CX
 	call	dev_request		; call the driver
 	ret
 ENDPROC	utl_sleep
@@ -1192,6 +1194,72 @@ DEFPROC	utl_abort,DOS
 	xchg	ax,dx			; AL = exit code, AH = exit type
 	jmp	psp_term_exitcode
 ENDPROC	utl_abort
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_getdate (AX = 1820h)
+;
+; Inputs:
+;	None
+;
+; Outputs:
+; 	Returns AX with the date in "packed" format:
+;
+;	 Y  Y  Y  Y  Y  Y  Y  m  m  m  m  D  D  D  D  D
+;	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
+;
+;	where Y = year-1980 (0-127), m = month (1-12), and D = day (1-31).
+;
+DEFPROC	utl_getdate,DOS
+	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_GETDATE
+	DEFLBL	utl_get_date_time,near
+	sti
+	and	[bp].REG_FL,NOT FL_CARRY
+	les	di,[clk_ptr]
+	call	dev_request		; call the driver
+	mov	[bp].REG_AX,dx
+	ret
+ENDPROC	utl_getdate
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_gettime (AX = 1821h)
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	Returns AX the time in "packed" format:
+;
+;	 H  H  H  H  H  m  m  m  m  m  m  S  S  S  S  S
+;	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
+;
+;	where H = hours (1-12), m = minutes (0-59), and S = seconds / 2 (0-29)
+;
+DEFPROC	utl_gettime,DOS
+	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_GETTIME
+	jmp	utl_get_date_time
+ENDPROC	utl_gettime
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_incdate (AX = 1822h)
+;
+; Inputs:
+;	REG_CX = year (1980-2107)
+;	REG_DH = month
+;	REG_DL = day
+;
+; Outputs:
+;	Date value(s) advanced by 1 day.
+;
+DEFPROC	utl_incdate,DOS
+	sti
+	and	[bp].REG_FL,NOT FL_CARRY
+	mov	bx,1
+	call	add_date
+	ret
+ENDPROC	utl_incdate
 
 DOS	ends
 

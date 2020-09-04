@@ -11,12 +11,17 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<scb_active>,word
-	EXTERNS	<tty_read,write_string,dos_restart>,near
+	EXTERNS	<tty_read,write_string,dos_restart,dev_request>,near
 	EXTSTR	<STR_CTRLC>
 	IF REG_CHECK
 	EXTERNS	<dos_check>,near
 	ENDIF
+
+	EXTERNS	<scb_active>,word
+	EXTERNS	<clk_ptr>,dword
+
+	EXTERNS	<MONTH_DAYS>,byte
+	EXTERNS	<MONTHS,DAYS>,word
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -51,6 +56,170 @@ msv1:	xchg	di,ax			; ES:DI -> vector to write
 	clc
 	ret
 ENDPROC	msc_setvec
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; msc_getdate (REG_AH = 2Ah)
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	REG_CX = year (1980-2099)
+;	REG_DH = month (1-12)
+;	REG_DL = day (1-31)
+;	REG_AL = day of week (0-6 for Sun-Sat)
+;
+; Modifies:
+;	AX, CX, DX, SI
+;
+DEFPROC	msc_getdate,DOS
+	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_GETDATE
+	les	di,[clk_ptr]
+	call	dev_request		; call the driver
+;
+; The GETDATE request returns DX with the date in "packed" format:
+;
+;	 Y  Y  Y  Y  Y  Y  Y  m  m  m  m  D  D  D  D  D
+;	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
+;
+; where Y = year-1980 (0-127), m = month (1-12), and D = day (1-31).
+;
+	mov	ax,dx
+	call	day_of_week		; AX = day of week (0-6)
+	mov	[bp].REG_AL,al
+	mov	ax,dx
+	mov	cl,9
+	shr	ax,cl
+	add	ax,1980			; AX = year
+	mov	[bp].REG_CX,ax
+	mov	ax,dx
+	mov	cl,5
+	shr	ax,cl
+	and	al,0Fh			; AL = month
+	mov	[bp].REG_DH,al
+	and	dl,1Fh			; DL = day
+	mov	[bp].REG_DL,dl
+	ret
+ENDPROC	msc_getdate
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; msc_setdate (REG_AH = 2Bh)
+;
+; Inputs:
+;	REG_CX = year (1980-2099)
+;	REG_DH = month (1-12)
+;	REG_DL = day (1-31)
+;
+; Outputs:
+;	REG_AL = 0 if date valid, 0FFh if invalid
+;
+; Modifies:
+;	AX, BX, CX, DX, DI, ES
+;
+DEFPROC	msc_setdate,DOS
+	mov	byte ptr [bp].REG_AL,-1
+	sub	cx,1980			; CL = year (0-127)
+	jb	msd9
+	cmp	cx,128
+	cmc
+	jb	msd9
+	cmp	dh,1
+	jb	msd9
+	cmp	dh,13
+	cmc
+	jb	msd9
+	cmp	dl,1
+	jb	msd9
+	cmp	dl,32
+	cmc
+	jb	msd9
+;
+; TODO: Validate days properly.
+;
+	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_SETDATE
+	les	di,[clk_ptr]
+	mov	bx,dx			; BX = REG_DX, CX = REG_CX
+	call	dev_request		; call the driver
+	mov	byte ptr [bp].REG_AL,0
+msd9:	ret
+ENDPROC	msc_setdate
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; msc_gettime (REG_AH = 2Ch)
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	REG_CH = hours (0-23)
+;	REG_CL = minutes (0-59)
+;	REG_DH = seconds (0-59)
+;	REG_DL = hundredths
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+DEFPROC	msc_gettime,DOS
+	int 3
+	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_GETTIME
+	les	di,[clk_ptr]
+	call	dev_request		; call the driver
+;
+; The GETTIME request returns DX with the time in "packed" format:
+;
+;	 H  H  H  H  H  m  m  m  m  m  m  S  S  S  S  S
+;	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
+;
+; where H = hours (1-12), m = minutes (0-59), and S = seconds / 2 (0-29);
+; additionally, AL should contain hundredths (< 200).
+;
+	mov	bx,dx
+	mov	cl,11
+	shr	bx,cl
+	mov	[bp].REG_CH,bl		; BL = hours
+	mov	bx,dx
+	mov	cl,5
+	shr	bx,cl
+	and	bl,3Fh
+	mov	[bp].REG_CL,bl		; BL = minutes
+	and	dl,1Fh			; DL = seconds / 2
+	shl	dl,1			; DL = seconds
+	cmp	al,100			; hundredths >= 100?
+	jb	mgt9
+	sub	al,100
+	inc	dx
+mgt9:	mov	[bp].REG_DH,dl		; DL = seconds
+	mov	[bp].REG_AL,al		; AL = hundredths
+	ret
+ENDPROC	msc_gettime
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; msc_settime (REG_AH = 2Dh)
+;
+; Inputs:
+;	REG_CH = hours (0-23)
+;	REG_CL = minutes (0-59)
+;	REG_DH = seconds (0-59)
+;	REG_DL = hundredths
+;
+; Outputs:
+;	REG_AL = 0 if time valid, 0FFh if invalid
+;
+; Modifies:
+;	AX, BX, CX, DX, DI, ES
+;
+DEFPROC	msc_settime,DOS
+	int 3
+	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_SETTIME
+	les	di,[clk_ptr]
+	mov	bx,dx			; BX = REG_DX, CX = REG_CX
+	call	dev_request		; call the driver
+	ret
+ENDPROC	msc_settime
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -334,6 +503,126 @@ DEFPROC	get_vecoff,DOS
 	ASSERT	NC
 gv9:	ret
 ENDPROC	get_vecoff
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; add_date
+;
+; Inputs:
+;	BX = +/- days
+;	CX = year (1980-2107)
+;	DH = month
+;	DL = day
+;
+; Outputs:
+;	Date value(s) updated
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	add_date,DOS
+
+	ret
+ENDPROC	add_date
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; day_of_week
+;
+; For the given DATE, calculate the day of the week.  Given that Jan 1 1980
+; (DATE "zero") was a TUESDAY (day-of-week 2, since SUNDAY is day-of-week 0),
+; we simply calculate how many days have elapsed, add 2, and compute days mod 7.
+;
+; Since 2000 was one of those every-400-years leap years, the number of elapsed
+; leap days is a simple calculation as well.
+;
+; Note that since a DATE's year cannot be larger than 127, the number of days
+; for all elapsed years cannot exceed 128 * 365 + (128 / 4) or 46752, which is
+; happily a 16-bit quantity.
+;
+; TODO: This will need to special-case the year 2100 (which will NOT be a leap
+; year -- unless, of course, someone changes the rules before then), but only
+; if years > 2099 are allowed.  Years through 2107 can be encoded, but PC DOS
+; constrained user input such that only years <= 2099 were allowed.
+;
+; Inputs:
+;	AX = DATE in "packed" format:
+;
+;	 Y  Y  Y  Y  Y  Y  Y  m  m  m  m  D  D  D  D  D
+;	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
+;
+; 	where Y = year-1980 (0-127), m = month (1-12), and D = day (1-31)
+;
+; Outputs:
+;	AX = day of week (0-6)
+;	DS:SI -> DAY string
+;
+; Modifies:
+;	AX, SI
+;
+DEFPROC	day_of_week,DOS
+	ASSUME	ES:NOTHING
+	push	bx
+	push	cx
+	push	dx
+	push	di
+	sub	di,di			; DI = day accumulator
+	mov	bx,ax			; save the original date in BX
+	mov	cl,9
+	shr	ax,cl			; AX = # of full years elapsed
+	push	ax
+	shr	ax,1			; divide full years by 4
+	shr	ax,1			; to get number of leap days
+	add	di,ax			; add to DI
+	pop	ax
+	mov	si,ax			; save full years in SI
+;
+; If the number of full years in AX is zero, then we still have the leap
+; day in the first year to contend with, which we must always add UNLESS it's
+; the first year AND the month is less than March.  Check this condition
+; below, once we have the month.
+;
+	mov	dx,365
+	mul	dx			; AX = total days for full years
+	add	di,ax			; add to DI
+	mov	ax,bx			; AX = original date again
+	mov	cl,5
+	shr	ax,cl
+	and	ax,0Fh
+	dec	ax			; AX = # of full months elapsed
+	xchg	si,ax			; SI = # of full months
+
+	test	ax,ax			; year zero?
+	jnz	dow0			; no
+	cmp	si,2			; yes, does the date span Feb?
+	jb	dow1			; no
+dow0:	inc	di			; yes, so add one more leap day
+
+dow1:	dec	si
+	jl	dow2
+	mov	dl,[MONTH_DAYS][si]
+	mov	dh,0
+	add	di,dx			; add # of days in past month to DI
+	jmp	dow1
+dow2:	mov	ax,bx			; AX = original date again
+	and	ax,1Fh			; AX = day of the current month
+	add	di,ax
+	xchg	ax,di
+	inc	ax			; add 1 day (1st date was a Tues)
+	sub	dx,dx			; DX:AX = total days
+	mov	cx,7			; divide by length of week
+	div	cx
+	mov	si,dx			; SI = remainder from DX (0-6)
+	add	si,si			; convert day-of-week index to offset
+	mov	ax,[DAYS][si]		; AX -> day-of-week string
+	xchg	ax,si			; SI -> string
+	shr	ax,1			; AX = day of week (0-6)
+	pop	di
+	pop	dx
+	pop	cx
+	pop	bx
+	ret
+ENDPROC	day_of_week
 
 DOS	ends
 

@@ -25,6 +25,10 @@ CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CLOCK+DDATTR_CHAR+DDATTR_IOCTL,offset
 
 	DEFPTR	tmr_int,0		; timer hardware interrupt handler
 	DEFPTR	wait_ptr,-1		; chain of waiting packets
+	DEFBYTE	dateDay,3		; 1-31
+	DEFBYTE	dateMonth,9		; 1-12
+	DEFWORD	dateYear,2020		; 1980-
+	DEFLONG	ticksToday,786520	; ticks since midnight (noon default)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -66,20 +70,21 @@ ENDPROC	ddclk_req
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddclk_ctlin
-	mov	al,es:[di].DDP_UNIT
+	mov	al,es:[di].DDP_UNIT	; AL = IOCTL command
+	mov	cx,es:[di].DDPRW_LENGTH	; CX = IOCTL input value
+	mov	dx,es:[di].DDPRW_LBA	; DX = IOCTL input value
+	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_UNKCMD
 
 	cmp	al,IOCTL_WAIT
-	jne	dci9
+	jne	dci2
 ;
-; For WAIT requests, convert # ms (1000/second to # ticks (18.2/sec).
+; For WAIT requests, convert # ms in CX:DX (1000/second to # ticks (18.2/sec).
 ;
 ; 1 tick is equivalent to approximately 55ms, so that's the granularity of
 ; WAIT requests as well as all clock-driven context switches; context switches
 ; can also be triggered by other hardware interrupts, like keyboard interrupts,
 ; so this is not the full measure of context-switching granularity.
 ;
-	mov	dx,es:[di].DDPRW_OFFSET
-	mov	cx,es:[di].DDPRW_LENGTH	; CX:DX = # ms
 	add	dx,27			; add 1/2 tick (as # ms) for rounding
 	adc	cx,0
 	mov	bx,55			; BX = divisor
@@ -89,7 +94,7 @@ DEFPROC	ddclk_ctlin
 	div	bx			; AX = high quotient
 	xchg	ax,cx			; AX = low dividend, CX = high quotient
 	div	bx			; AX = low quotient
-	mov	es:[di].DDPRW_OFFSET,ax	; CX:AX = # ticks
+	mov	es:[di].DDPRW_LBA,ax	; CX:AX = # ticks
 	mov	es:[di].DDPRW_LENGTH,cx
 ;
 ; Now add this packet to an internal chain of "waiting" packets, and tell
@@ -111,7 +116,178 @@ DEFPROC	ddclk_ctlin
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	mov	ax,DOS_UTL_WAIT
 	int	21h
+	jmp	dci8
 
+dci2:	cmp	al,IOCTL_SETDATE
+	jne	dci3
+;
+; For SETDATE requests, CL = year (0-127), DH = month (1-12), DL = day (1-31).
+;
+	cli
+	mov	ch,0
+	add	cx,1980
+	mov	[dateYear],cx
+	mov	word ptr [dateDay],dx
+	sti
+	jmp	dci8
+
+dci3:	cmp	al,IOCTL_SETTIME
+	jne	dci4
+;
+; For SETTIME requests, we convert the hours (CH), minutes (CL), seconds
+; (DH), and hundredths (DL) to a number of ticks.  We start by converting
+; time to the total number of seconds (ignoring the hundredths).
+;
+	int 3
+	push	dx
+	mov	ax,3600			; AX = # seconds in 1 hour
+	mov	dl,ch
+	mov	dh,0
+	mul	dx			; DX:AX = # seconds in CH hours
+	xchg	bx,ax			; DX:BX
+	mov	al,60
+	mul	cl			; AX = # seconds in CL minutes
+	add	bx,ax
+	adc	dx,0			; DX:BX = # seconds in hours and mins
+	pop	ax			; AH = seconds, AL = hundredths
+	mov	al,ah			; AL = seconds
+	cbw				; AX = seconds
+	add	bx,ax
+	adc	dx,0			; DX:BX += seconds
+;
+; Now we'll convert total # seconds to total # ticks, by noting that
+; there are 1193180/65536 ticks/sec, so 1193180/65536 * seconds = ticks.
+; Seconds has an upper limit of 86400 for the day, so ticks has an upper
+; limit of 1573040.  Using the ratio 1573040/86400 = ticks/seconds, solve
+; for ticks: 1573040 * seconds / 86400, or 19663 * seconds / 1080.
+;
+	shr	dx,1			; DX:BX / 2 yields a max 43200
+	rcr	bx,1			; BX = seconds / 2
+	pushf				; save remainder, if any, for later
+	mov	ax,19663
+	mul	bx			; DX:AX = BX * 19663
+	mov	bx,540			; divisor is 1080 / 2
+;
+; Divide DX:AX by BX in stages, so that we don't risk division overflow.
+;
+	xchg	cx,ax			; save low dividend
+	xchg	ax,dx			; divide high dividend
+	sub	dx,dx			; DX:AX is new dividend
+	div	bx			; AX is high quotient
+	xchg	ax,cx			; move to CX, restore low dividend
+	div	bx			; AX is low quotient
+	mov	dx,cx			; DX:AX = quotient (# ticks)
+	popf				; did seconds / 2 produce a remainder?
+	jnc	dci3a			; no
+	add	ax,18			; yes, add 18.2 more ticks
+	adc	dx,0
+dci3a:	cli
+	mov	[ticksToday].LOW,ax
+	mov	[ticksToday].HIW,dx
+	sti
+	jmp	dci8
+
+dci4:	cmp	al,IOCTL_GETDATE
+	jne	dci5
+;
+; For GETDATE requests, return the date in "packed" format:
+;
+;	 Y  Y  Y  Y  Y  Y  Y  m  m  m  m  D  D  D  D  D
+;	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
+;
+; where Y = year-1980 (0-127), m = month (1-12), and D = day (1-31).
+;
+	cli
+	mov	dx,[dateYear]
+	sub	dx,1980
+	mov	cl,4			; make room for month (4 bits)
+	shl	dx,cl
+	or	dl,[dateMonth]
+	inc	cx
+	shl	dx,cl			; make room for day (5 bits)
+	or	dl,[dateDay]
+	sti
+	jmp	short dci8
+
+dci5:	cmp	al,IOCTL_GETTIME
+	jne	dci9
+;
+; For GETTIME requests, return the time in "packed" format:
+;
+;	 H  H  H  H  H  m  m  m  m  m  m  S  S  S  S  S
+;	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
+;
+; where H = hours (1-12), m = minutes (0-59), and S = seconds / 2 (0-29)
+;
+; However, we must first convert # ticks to hours/minutes/seconds.  There
+; are 32772 ticks per half-hour, 1092 ticks per minute, and 18 ticks per sec.
+;
+	int 3
+	cli
+	mov	ax,[ticksToday].LOW
+	mov	dx,[ticksToday].HIW
+	sti
+	mov	bx,32772
+	div	bx			; AX = # half-hours
+	shr	ax,1			; AX = # hours
+	xchg	cx,ax			; CL = # hours
+	xchg	ax,dx			; AX = # half-hour ticks remaining
+	mov	dx,0			; DX:AX
+	jnc	dci4a
+	adc	ax,32772		; DX:AX = # ticks remaining
+	adc	dx,0
+dci4a:	mov	bx,1092
+	div	bx			; AX = # minutes
+	mov	ch,al			; CH = # minutes
+	xchg	ax,dx			; AX = # ticks remaining
+	cwd
+	mov	bx,18
+	div	bx			; AX = # seconds
+	push	dx			; DX = # ticks remaining (< 18)
+;
+; Sanitize the time values now, ensuring we never return values out of bounds.
+;
+	cmp	al,60			; AL = # seconds
+	jb	dci4b
+	ASSERT	NEVER			; take a look
+	mov	al,0
+	inc	ch
+dci4b:	cmp	ch,60			; CH = # minutes
+	jb	dci4c
+	ASSERT	NEVER			; take a look
+	mov	ch,0
+	inc	cx
+dci4c:	cmp	cl,24			; CL = # hours
+	jb	dci4d
+	ASSERT	NEVER			; take a look
+	mov	cl,0
+;
+; Create the "packed" time format now.
+;
+dci4d:	mov	dl,cl			; start with hours (5 bits)
+	mov	cl,6			; make room for minutes (6 bits)
+	shl	dx,cl
+	or	dl,ch			; add the minutes
+	dec	cx			; make room for seconds / 2 (5 bits)
+	shl	dx,cl
+	pop	cx			; CX = # ticks remaining (from above)
+	shr	al,1			; AL = seconds / 2
+	jnc	dci4e
+	add	cx,18
+dci4e:	or	dl,al
+	xchg	ax,cx			; AL = # ticks remaining (< 36)
+;
+; At this point, the packed result is ready, but we'd also like to convert
+; the remaining ticks in AL to hundredths (< 200).  AL/36 = N/200.
+;
+	mov	ah,200
+	mul	ah			; AX = AL * 200
+	mov	cl,36
+	div	cl			; AL = (AL * 200) / 36
+
+dci8:	mov	es:[di].DDP_CONTEXT,dx	; return value goes in context field
+	mov	ah,DDSTAT_DONE SHR 8
+	mov	es:[di].DDP_STATUS,ax	; return AL in DDP_STATUS, too
 dci9:	ret
 ENDPROC	ddclk_ctlin
 
@@ -200,7 +376,29 @@ DEFPROC	ddclk_interrupt,far
 	mov	ax,cs
 	mov	ds,ax
 	ASSUME	DS:CODE
-	mov	bx,offset wait_ptr	; DS:BX -> ptr
+
+	add	[ticksToday].LOW,1
+	adc	[ticksToday].HIW,0
+;
+; The maximum ticks per day (1573040) is 0018:00B0.
+;
+	cmp	[ticksToday].HIW,18h
+	jb	ddi0a			; no overflow yet
+	int 3
+	ASSERT	Z
+	ja	ddi0			; total overflow (how'd that happen?)
+	cmp	[ticksToday].LOW,00B0h
+	jb	ddi0a
+ddi0:	mov	[ticksToday].LOW,0
+	mov	[ticksToday].HIW,0
+	mov	cx,[dateYear]
+	mov	dx,word ptr [dateDay]
+	mov	ax,DOS_UTL_INCDATE
+	int	21h
+	mov	[dateYear],cx
+	mov	word ptr [dateDay],dx
+
+ddi0a:	mov	bx,offset wait_ptr	; DS:BX -> ptr
 	les	di,[bx]			; ES:DI -> packet, if any
 	ASSUME	ES:NOTHING
 	sti
@@ -216,7 +414,7 @@ ddi1:	cmp	di,-1			; end of chain?
 ; how much time elapsed between the request's arrival and the first tick; that
 ; time could be almost zero, so think of the tick count as "full" ticks.
 ;
-	sub	es:[di].DDPRW_OFFSET,1
+	sub	es:[di].DDPRW_LBA,1
 	sbb	es:[di].DDPRW_LENGTH,0
 	jae	ddi6			; keep waiting
 ;
@@ -230,7 +428,7 @@ ddi2:	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 ; If ENDWAIT returns an error, we presume that we simply got ahead of the
 ; WAIT call, so rewind the count to zero and leave the packet on the list.
 ;
-	mov	es:[di].DDPRW_OFFSET,0
+	mov	es:[di].DDPRW_LBA,0
 	mov	es:[di].DDPRW_LENGTH,0
 	jmp	short ddi6
 ;
