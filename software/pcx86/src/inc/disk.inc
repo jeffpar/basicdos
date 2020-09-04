@@ -108,15 +108,15 @@ DIR_DATE	dw	?		; 18h: date of last write (see below)
 DIR_CLN		dw	?		; 1Ah: first cluster number of file
 DIR_SIZE	dd	?		; 1Ch: 32-bit file size
 DIRENT		ends
-
-DIRENT_END	equ	00h		; an optimization introduced in DOS 2
-DIRENT_DELETED	equ	0E5h
-
-DIRENT_SIZE	equ	(size DIRENT)	; 20h: size of directory entry in bytes
 ;
 ;   Time:   Bits 0-4 = seconds/2, bits 5-10 = minute, 11-15 = hour
 ;   Date:   Bits 0-4 = day, bits 5-8 = month, bits 9-15 = year-1980
 ;
+DIRENT_END	equ	00h		; optimization introduced in DOS 2
+DIRENT_DELETED	equ	0E5h
+
+DIRENT_SIZE	equ	(size DIRENT)	; 20h: size of directory entry in bytes
+
 DIRATTR_RDONLY	equ	00000001b	; write protect attribute
 DIRATTR_HIDDEN	equ	00000010b	; hidden file attribute
 DIRATTR_SYSTEM	equ	00000100b	; system file attribute

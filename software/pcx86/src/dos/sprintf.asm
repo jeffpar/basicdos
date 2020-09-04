@@ -11,9 +11,8 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<MONTH_DAYS>,byte
 	EXTERNS	<MONTHS,DAYS>,word
-	EXTERNS	<strlen>,near
+	EXTERNS	<strlen,day_of_week>,near
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -181,6 +180,7 @@ ENDPROC itoa
 ;
 ; Non-standard format types:
 ;	%U:	skip one 16-bit parameter on the stack; nothing output
+;	%W:	day of week, as string
 ;	%F:	month portion of a 16-bit DATE value, as string
 ;	%M:	month portion of a 16-bit DATE value, as number (1-12)
 ;	%D:	day portion of a 16-bit DATE value, as number (1-31)
@@ -458,7 +458,6 @@ pfw:	push	ds
 	push	cs
 	pop	ds
 	call	day_of_week		; convert AX from DATE to string pointer
-	xchg	si,ax			; DS:SI -> day string
 	mov	al,0
 	call	strlen			; AX = length
 	jmp	short pfs2a		; jump into the string code now
@@ -534,80 +533,6 @@ pf8:	pop	ax			; restore original format string address
 	xchg	ax,di			; AX = # of characters
 	ret
 ENDPROC	sprintf
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; day_of_week
-;
-; For the given DATE, calculate the day of the week.  Given that Jan 1 1980
-; (DATE "zero") was a TUESDAY (day-of-week 2, since SUNDAY is day-of-week 0),
-; we simply calculate how many days have elapsed, add 2, and compute days mod 7.
-;
-; Since 2000 was one of those every-400-years leap years, the number of elapsed
-; leap days is a simple calculation as well.
-;
-; Note that since a DATE's year cannot be larger than 127, the number of days
-; for all elapsed years cannot exceed 128 * 365 + (128 / 4) or 46752, which is
-; happily a 16-bit quantity.
-;
-; Inputs:
-;	AX = DATE
-;
-; Outputs:
-;	DS:AX -> DAY string
-;
-; Modifies:
-;	AX
-;
-DEFPROC	day_of_week,DOS
-	ASSUME	ES:NOTHING
-	push	bx
-	push	cx
-	push	dx
-	push	si
-	push	di
-	sub	di,di			; DI = day accumulator
-	mov	bx,ax			; save the original date in BX
-	mov	cl,9
-	shr	ax,cl			; AX = # of full years elapsed
-	push	ax
-	shr	ax,1			; divide full years by 4
-	shr	ax,1			; to get number of leap days
-	add	di,ax			; add to DI
-	pop	ax
-	mov	dx,365
-	mul	dx			; AX = total days for full years
-	add	di,ax			; add to DI
-	mov	ax,bx			; AX = original date again
-	mov	cl,5
-	shr	ax,cl
-	and	ax,0Fh
-	dec	ax			; AX = # of full months elapsed
-	xchg	si,ax
-dow1:	dec	si
-	jl	dow2
-	mov	dl,[MONTH_DAYS][si]
-	mov	dh,0
-	add	di,dx			; add # of days in past month to DI
-	jmp	dow1
-dow2:	mov	ax,bx			; AX = original date again
-	and	ax,1Fh			; AX = day of the current month
-	add	di,ax
-	xchg	ax,di
-	add	ax,2			; add 2 days (DATE "zero" was a Tues)
-	sub	dx,dx			; DX:AX = total days
-	mov	cx,7			; divide by length of week
-	div	cx
-	mov	si,dx			; SI = remainder from DX (0-6)
-	add	si,si			; convert day-of-week index into offset
-	mov	ax,[DAYS][si]		; AX -> day-of-week string
-	pop	di
-	pop	si
-	pop	dx
-	pop	cx
-	pop	bx
-	ret
-ENDPROC	day_of_week
 
 DOS	ends
 

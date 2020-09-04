@@ -17,7 +17,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_yield,scb_delock,scb_wait,scb_endwait>,near
 	EXTERNS	<mem_query>,near
 	EXTERNS	<psp_term_exitcode>,near
-	EXTERNS	<itoa,sprintf>,near
+	EXTERNS	<itoa,sprintf,add_date>,near
 
 	EXTERNS	<scb_locked,sfh_debug>,byte
 	EXTERNS	<scb_active>,word
@@ -920,6 +920,7 @@ DEFPROC	utl_ioctl,DOS
 	sti
 	mov	ax,[bp].REG_BX		; AX = command codes from BH,BL
 	mov	es,[bp].REG_ES		; ES:DI -> DDH
+	mov	bx,dx			; BX = REG_DX, CX = REG_CX
 	call	dev_request		; call the driver
 	ret
 ENDPROC	utl_ioctl
@@ -1027,13 +1028,6 @@ ENDPROC	utl_yield
 ;
 ; utl_sleep (AX = 1817h)
 ;
-; Converts DX from milliseconds (1000/second) to ticks (18.2/sec) and
-; issues an IOCTL to the CLOCK$ driver to wait the corresponding # of ticks.
-;
-; 1 tick is equivalent to approximately 55ms, so that's the granularity of
-; sleep requests (yeah, pretty granular, but it's not clear that the speed of
-; an IBM PC is fast enough to warrant more frequent context-switching).
-;
 ; Inputs:
 ;	REG_CX:REG_DX = # of milliseconds to sleep
 ;
@@ -1041,19 +1035,10 @@ ENDPROC	utl_yield
 ;	AX, BX, CX, DX, DI, ES
 ;
 DEFPROC	utl_sleep,DOS
-	sti
-	add	dx,27			; add 1/2 tick (as # ms) for rounding
-	adc	cx,0
-	mov	bx,55			; BX = divisor
-	xchg	ax,cx			; AX = high dividend
-	mov	cx,dx			; CX = low dividend
-	sub	dx,dx
-	div	bx			; AX = high quotient
-	xchg	ax,cx			; AX = low dividend, CX = high quotient
-	div	bx			; AX = low quotient
-	xchg	dx,ax			; CX:DX = # ticks
+	sti				; CX:DX = # ms
 	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_WAIT
-	les	di,clk_ptr
+	les	di,[clk_ptr]
+	mov	bx,dx			; BX = REG_DX, CX = REG_CX
 	call	dev_request		; call the driver
 	ret
 ENDPROC	utl_sleep
@@ -1209,6 +1194,74 @@ DEFPROC	utl_abort,DOS
 	xchg	ax,dx			; AL = exit code, AH = exit type
 	jmp	psp_term_exitcode
 ENDPROC	utl_abort
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_getdate (AX = 1820h)
+;
+; Inputs:
+;	None
+;
+; Outputs:
+; 	Returns AX with the date in "packed" format:
+;
+;	 Y  Y  Y  Y  Y  Y  Y  m  m  m  m  D  D  D  D  D
+;	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
+;
+;	where Y = year-1980 (0-127), m = month (1-12), and D = day (1-31).
+;
+DEFPROC	utl_getdate,DOS
+	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_GETDATE
+	DEFLBL	utl_get_date_time,near
+	sti
+	and	[bp].REG_FL,NOT FL_CARRY
+	les	di,[clk_ptr]
+	call	dev_request		; call the driver
+	mov	[bp].REG_AX,dx
+	ret
+ENDPROC	utl_getdate
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_gettime (AX = 1821h)
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	Returns AX the time in "packed" format:
+;
+;	 H  H  H  H  H  m  m  m  m  m  m  S  S  S  S  S
+;	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
+;
+;	where H = hours (1-12), m = minutes (0-59), and S = seconds / 2 (0-29)
+;
+DEFPROC	utl_gettime,DOS
+	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_GETTIME
+	jmp	utl_get_date_time
+ENDPROC	utl_gettime
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_incdate (AX = 1822h)
+;
+; Inputs:
+;	REG_CX = year (1980-2099)
+;	REG_DH = month
+;	REG_DL = day
+;
+; Outputs:
+;	Date value(s) advanced by 1 day.
+;
+DEFPROC	utl_incdate,DOS
+	sti
+	and	[bp].REG_FL,NOT FL_CARRY
+	mov	ax,1			; add 1 day to the date values
+	call	add_date
+	mov	[bp].REG_CX,cx		; update all the inputs
+	mov	[bp].REG_DX,dx		; we don't know which ones changed
+	ret
+ENDPROC	utl_incdate
 
 DOS	ends
 

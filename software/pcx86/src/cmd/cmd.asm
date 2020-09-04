@@ -14,7 +14,7 @@ CODE    SEGMENT
 
 	EXTERNS	<allocText,freeText,genCode,freeCode,freeVars,printStr>,near
 
-	EXTERNS	<KEYWORD_TOKENS>,word
+	EXTERNS	<KEYWORD_TOKENS,VALID_DATE,VALID_TIME>,word
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF,PERIOD>
 	EXTSTR	<STD_VER,DBG_VER>
 
@@ -266,7 +266,7 @@ m8:	PRINTF	<"Error loading %s: %d",13,10,13,10>,dx,ax
 ;
 m9:	lea	di,[bx].TOKENBUF	; DS:DI -> token buffer
 	cmp	ax,KEYWORD_GENCODE	; token ID < KEYWORD_GENCODE?
-	jb	m10			; yes, code generation not required
+	jb	m10			; yes, no code generation required
 ;
 ; The token is for a recognized keyword, so generate code.
 ;
@@ -479,8 +479,11 @@ ENDPROC	ctrlc
 ;
 ; cmdDate
 ;
+; Process date input of the form MM-DD-YYYY.
+;
 ; Inputs:
 ;	DS:BX -> heap
+;	DS:DI -> BUF_TOKEN
 ;
 ; Outputs:
 ;	None
@@ -489,7 +492,50 @@ ENDPROC	ctrlc
 ;	Any
 ;
 DEFPROC	cmdDate
-	ret
+	mov	ax,offset promptDate
+	call	getInput		; DS:SI -> string
+	jcxz	gt9			; do nothing on empty string
+;
+; User input validation here is probably unncessary, since DOS_MSC_SETDATE
+; is required to validate the inputs as well, but validation is almost free
+; with DOS_UTL_ATOI16, so we'll do it anyway.  There are some checks that
+; are unavoidable here also, like converting 2-digit years to 4-digit years.
+;
+	mov	di,offset VALID_DATE
+	push	cs
+	pop	es
+	ASSUME	ES:NOTHING		; ES:DI -> validation data
+	mov	bl,10			; BL = base 10
+	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
+	int	21h
+	jc	cdt8
+	mov	dh,al			; DH = month
+	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
+	int	21h
+	jc	cdt8
+	mov	dl,al			; DL = day
+	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
+	int	21h
+	jc	cdt8
+	cmp	ax,100
+	jae	cdt1
+	add	ax,1900			; 2-digit years are adjusted to
+	cmp	ax,1980			; 1980-2079
+	jae	cdt1
+	add	ax,100
+cdt1:	xchg	cx,ax			; CX = year
+	mov	ah,DOS_MSC_SETDATE
+	int	21h			; set the date
+	test	al,al			; success?
+	jz	cdt9			; yes
+cdt8:	PRINTF	<"Invalid date",13,10>
+	jmp	cmdDate
+
+	DEFLBL	promptDate,near
+	mov	ax,DOS_UTL_GETDATE
+	int	21h
+	PRINTF	<"Current date is %.3W %M-%02D-%Y",13,10,	"Enter new date: ">,ax,ax,ax,ax
+cdt9:	ret
 ENDPROC	cmdDate
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -651,6 +697,7 @@ ENDPROC	cmdExit
 ;
 ; Inputs:
 ;	DS:BX -> heap
+;	DS:DI -> BUF_TOKEN
 ;
 ; Outputs:
 ;	None
@@ -692,6 +739,7 @@ ENDPROC	cmdHelp
 ;
 ; Inputs:
 ;	DS:BX -> heap
+;	DS:DI -> BUF_TOKEN
 ;
 ; Outputs:
 ;	None
@@ -911,6 +959,7 @@ ENDPROC	cmdLoad
 ;
 ; Inputs:
 ;	DS:BX -> heap
+;	DS:DI -> BUF_TOKEN
 ;
 ; Outputs:
 ;	None
@@ -930,6 +979,7 @@ ENDPROC	cmdNew
 ;
 ; Inputs:
 ;	DS:BX -> heap
+;	DS:DI -> BUF_TOKEN
 ;
 ; Outputs:
 ;	None
@@ -942,7 +992,7 @@ DEFPROC	cmdRun
 	DEFLBL	cmdRunFlags,near
 	sub	si,si
 	call	genCode
-	ret
+cr9:	ret
 ENDPROC	cmdRun
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -951,6 +1001,7 @@ ENDPROC	cmdRun
 ;
 ; Inputs:
 ;	DS:BX -> heap
+;	DS:DI -> BUF_TOKEN
 ;
 ; Outputs:
 ;	None
@@ -959,7 +1010,46 @@ ENDPROC	cmdRun
 ;	Any
 ;
 DEFPROC	cmdTime
-	ret
+	mov	ax,offset promptTime
+	call	getInput		; DS:SI -> string
+	jcxz	cr9			; do nothing on empty string
+	mov	di,offset VALID_TIME
+	push	cs
+	pop	es
+	ASSUME	ES:NOTHING		; ES:DI -> validation data
+	mov	bl,10			; BL = base 10
+	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
+	int	21h
+	mov	ch,al			; CH = hours
+	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
+	int	21h
+	mov	cl,al			; CL = minutes
+	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
+	int	21h
+	mov	dh,al			; DH = seconds
+	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
+	int	21h
+	mov	dh,al			; DL = 1/100s
+	mov	ah,DOS_MSC_SETTIME
+	int	21h			; set the time
+	test	al,al			; success?
+	jz	ctm9			; yes
+	PRINTF	<"Invalid time",13,10>
+	jmp	cmdTime
+
+	DEFLBL	promptTime,near
+	push	bx
+	mov	ah,DOS_MSC_GETTIME
+	int	21h
+	mov	al,ch			; AX = hours
+	cbw
+	mov	ch,ah			; CX = minutes
+	mov	bl,dh
+	mov	bh,ah			; BX = seconds
+	mov	dh,ah			; DX = 1/100s
+	PRINTF	<"Current time is %d:%02d:%02d.%02d",13,10,"Enter new time: ">,ax,cx,bx,dx
+	pop	bx
+ctm9:	ret
 ENDPROC	cmdTime
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -970,6 +1060,7 @@ ENDPROC	cmdTime
 ;
 ; Inputs:
 ;	DS:BX -> heap
+;	DS:DI -> BUF_TOKEN
 ;
 ; Outputs:
 ;	None
@@ -1210,6 +1301,39 @@ DEFPROC	chkString
 	pop	si
 	ret
 ENDPROC	chkString
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getInput
+;
+; Use by cmdDate and cmdTime to set DS:SI to an input string (with length CX).
+;
+; Inputs:
+;	AX = function
+;	DS:BX -> heap
+;	DS:DI -> BUF_TOKEN
+;
+; Outputs:
+;	DS:SI -> string (with length CX)
+;
+; Modifies:
+;	AX, CX, DX, SI
+;
+DEFPROC	getInput
+	mov	dh,2
+	call	getToken
+	jnc	gi9
+	call	ax			; AX = caller-supplied function
+	lea	si,[bx].LINEBUF
+	mov	byte ptr [si],11	; max of 10 chars (not incl. CR)
+	mov	dx,si
+	mov	ah,DOS_TTY_INPUT
+	int	21h
+	PRINTF	<13,10>
+	mov	cl,[si+1]
+	mov	ch,0			; CX = length of input (excl. CR)
+gi9:	ret
+ENDPROC	getInput
 
 CODE	ENDS
 

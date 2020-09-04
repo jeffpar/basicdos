@@ -49,7 +49,11 @@ DDATTR_BLOCK	equ	0000h
 ; eventually implemented.
 ;
 IOCTL_CLOCK	equ	0C0h
-IOCTL_WAIT	equ	0C1h	; CLOCK$: wait # ticks in DDPRW_ADDR field
+IOCTL_WAIT	equ	0C1h	; CLOCK$: wait # ms in packet's LENGTH:OFFSET
+IOCTL_SETDATE	equ	0C2h	; CLOCK$: set yr,mon,day from CL,DH,DL
+IOCTL_SETTIME	equ	0C3h	; CLOCK$: set hr,min,sec,1/100 from CH,CL,DH,DL
+IOCTL_GETDATE	equ	0C4h	; CLOCK$: get formatted date
+IOCTL_GETTIME	equ	0C5h	; CLOCK$: get formatted time
 
 IOCTL_CON	equ	0D0h
 IOCTL_GETDIM	equ	0D1h	; CON: get context dimensions

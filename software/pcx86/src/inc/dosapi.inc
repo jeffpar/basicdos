@@ -86,6 +86,9 @@ DOS_UTL_UNLOCK	equ   181Ch	; unlock current SCB
 DOS_UTL_QRYMEM	equ   181Dh	; query memory block N (CL)
 DOS_UTL_QRYHDL	equ   181Eh	; query system file handle N (CL)
 DOS_UTL_ABORT	equ   181Fh	; abort with exit code (DL) and exit type (DH)
+DOS_UTL_GETDATE	equ   1820h	; get date (AX) in "packed" format
+DOS_UTL_GETTIME	equ   1821h	; get time (AX) in "packed" format
+DOS_UTL_INCDATE	equ   1822h	; increment date (CX=year, DH=month, DL=day)
 DOS_UTL_STDLEN	equ   1824h	; like STRLEN but w/24h (dollar) as terminator
 
 DOS_DSK_GETDRV	equ	19h	; get current drive (AL)
@@ -93,6 +96,10 @@ DOS_DSK_SETDTA	equ	1Ah	; set DTA (DS:DX)
 DOS_MSC_SETVEC	equ	25h	; set vector (AL) to addr (DS:DX)
 DOS_PSP_CREATE	equ	26h	; create PSP (DX = segment)
 DOS_FCB_PARSE	equ	29h	; parse filespec (DS:SI) into FCB (ES:DI)
+DOS_MSC_GETDATE	equ	2Ah	; get date (CX=year, DH=mon, DL=day, AL=wkday)
+DOS_MSC_SETDATE	equ	2Bh	; set date (CX=year, DH=mon, DL=day)
+DOS_MSC_GETTIME	equ	2Ch	; get time (CH=hour, CL=min, DH=sec, DL=1/100s)
+DOS_MSC_SETTIME	equ	2Dh	; set time (CH=hour, CL=min, DH=sec, DL=1/100s)
 DOS_DSK_GETDTA	equ	2Fh	; get DTA (ES:BX)
 DOS_MSC_GETVER	equ	30h	; get version (AL,AH,BH,BL,CX)
 DOS_DSK_GETDPB	equ	32h	; get DPB (DS:BX, AL=FFh if invalid drive)

@@ -143,7 +143,7 @@ si3b:	mov	si,offset CFG_MEMSIZE
 	push	ds
 	pop	es
 	ASSUME	ES:NOTHING		; ES:DI -> validation data
-	mov	bl,10
+	mov	bl,10			; BL = base 10
 	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
 	int	21h			; AX = value
 	jc	si4
@@ -293,7 +293,7 @@ si5:	mov	si,offset CFG_SESSIONS
 	push	es
 	push	ds
 	pop	es
-	mov	bl,10
+	mov	bl,10			; BL = base 10
 	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string, ES:DI -> validation
 	int	21h			; AX = new value
 	pop	es
@@ -311,7 +311,7 @@ si6:	mov	dx,size SCB
 	push	es
 	push	ds
 	pop	es
-	mov	bl,10
+	mov	bl,10			; BL = base 10
 	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string, ES:DI -> validation
 	int	21h			; AX = new value
 	pop	es
