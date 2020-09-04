@@ -122,28 +122,38 @@ DEFPROC	msc_setdate,DOS
 	mov	byte ptr [bp].REG_AL,-1
 	sub	cx,1980			; CL = year (0-127)
 	jb	msd9
-	cmp	cx,128
-	cmc
-	jb	msd9
-	cmp	dh,1
-	jb	msd9
-	cmp	dh,13
-	cmc
-	jb	msd9
+	cmp	cx,120			; original year <= 2099?
+	jae	msd9			; no
+
+	mov	bl,dh
+	mov	bh,0
+	dec	bx
+	cmp	bl,12
+	ja	msd9
+
 	cmp	dl,1
 	jb	msd9
-	cmp	dl,32
-	cmc
-	jb	msd9
+	cmp	dl,MONTH_DAYS[bx]
+	ja	msd9
 ;
-; TODO: Validate days properly.
+; As in add_date, if the month index is 1 (Feb) and the year is a leap year,
+; then recheck the day.  As noted in day_of_week, the leap year check is
+; simplified by our limited year range (1980-2099).
 ;
-	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_SETDATE
+	cmp	bl,1			; Feb?
+	jne	msd1			; no
+	test	cl,3			; leap year?
+	jnz	msd1			; no
+	cmp	dl,29			; day within the longer month?
+	jbe	msd9			; yes
+
+msd1:	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_SETDATE
 	les	di,[clk_ptr]
 	mov	bx,dx			; BX = REG_DX, CX = REG_CX
 	call	dev_request		; call the driver
 	mov	byte ptr [bp].REG_AL,0
-msd9:	ret
+msd9:	clc				; carry is not used for this call
+	ret
 ENDPROC	msc_setdate
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -163,7 +173,6 @@ ENDPROC	msc_setdate
 ;	AX, BX, CX, DX
 ;
 DEFPROC	msc_gettime,DOS
-	int 3
 	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_GETTIME
 	les	di,[clk_ptr]
 	call	dev_request		; call the driver
@@ -192,7 +201,7 @@ DEFPROC	msc_gettime,DOS
 	sub	al,100
 	inc	dx
 mgt9:	mov	[bp].REG_DH,dl		; DL = seconds
-	mov	[bp].REG_AL,al		; AL = hundredths
+	mov	[bp].REG_DL,al		; AL = hundredths
 	ret
 ENDPROC	msc_gettime
 
@@ -213,12 +222,21 @@ ENDPROC	msc_gettime
 ;	AX, BX, CX, DX, DI, ES
 ;
 DEFPROC	msc_settime,DOS
-	int 3
+	mov	byte ptr [bp].REG_AL,-1
+	cmp	ch,24
+	jae	mst9
+	cmp	cl,60
+	jae	mst9
+	cmp	dh,60
+	jae	mst9
+	cmp	dl,100
+	jae	mst9
 	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_SETTIME
 	les	di,[clk_ptr]
 	mov	bx,dx			; BX = REG_DX, CX = REG_CX
 	call	dev_request		; call the driver
-	ret
+	mov	byte ptr [bp].REG_AL,0
+mst9:	ret
 ENDPROC	msc_settime
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -508,9 +526,20 @@ ENDPROC	get_vecoff
 ;
 ; add_date
 ;
+; TODO: While it would be nice to make this a general-purpose function,
+; we only need to increment a date by 1 day, so that's all we do.  In the
+; future, consider factoring day_of_week into multiple functions:
+;
+;	date_to_days (convert a date to a day count)
+;	day_of_week (call date_to_days and calculate mod 7)
+;	days_to_date (convert a day count back to a date)
+;
+; Support for 32-bit day counts would be nice too, so that despite the 128
+; year limitation of DOS file dates, a wider range of dates could be supported.
+;
 ; Inputs:
-;	BX = +/- days
-;	CX = year (1980-2107)
+;	AX = +/- days
+;	CX = year (1980-2099)
 ;	DH = month
 ;	DL = day
 ;
@@ -518,11 +547,35 @@ ENDPROC	get_vecoff
 ;	Date value(s) updated
 ;
 ; Modifies:
-;	AX, CX, DX
+;	CX, DX
 ;
 DEFPROC	add_date,DOS
+	ASSERT	Z,<cmp ax,1>
+	mov	bl,dh
+	mov	bl,0
+	dec	bx			; BX = month index
+	add	dl,al			; advance day
+	cmp	dl,MONTH_DAYS[bx]	; exceeded the month's days?
+	jbe	ad9			; no
+;
+; If the month index is 1 (Feb) and the year is a leap year, then recheck
+; the day.  As noted in day_of_week, the leap year check is simplified by our
+; limited year range (1980-2099).
+;
+	cmp	bl,1			; Feb?
+	jne	ad1			; no
+	test	cl,3			; leap year?
+	jnz	ad1			; no
+	cmp	dl,29			; day within the longer month?
+	jbe	ad9			; yes
 
-	ret
+ad1:	mov	dl,1
+	inc	dh
+	cmp	dh,12
+	jbe	ad9
+	mov	dh,1
+	inc	cx
+ad9:	ret
 ENDPROC	add_date
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -530,11 +583,11 @@ ENDPROC	add_date
 ; day_of_week
 ;
 ; For the given DATE, calculate the day of the week.  Given that Jan 1 1980
-; (DATE "zero") was a TUESDAY (day-of-week 2, since SUNDAY is day-of-week 0),
-; we simply calculate how many days have elapsed, add 2, and compute days mod 7.
+; (DATE "one") was a TUESDAY (day-of-week 2, since SUNDAY is day-of-week 0),
+; we calculate how many days have elapsed, add 1, and compute days mod 7.
 ;
-; Since 2000 was one of those every-400-years leap years, the number of elapsed
-; leap days is a simple calculation as well.
+; Since 2000 was an every-400-years leap years, the number of elapsed leap
+; days is a simple calculation as well.
 ;
 ; Note that since a DATE's year cannot be larger than 127, the number of days
 ; for all elapsed years cannot exceed 128 * 365 + (128 / 4) or 46752, which is
@@ -542,8 +595,8 @@ ENDPROC	add_date
 ;
 ; TODO: This will need to special-case the year 2100 (which will NOT be a leap
 ; year -- unless, of course, someone changes the rules before then), but only
-; if years > 2099 are allowed.  Years through 2107 can be encoded, but PC DOS
-; constrained user input such that only years <= 2099 were allowed.
+; if years > 2099 are actually allowed.  Years through 2107 can be encoded, but
+; PC DOS constrained user input such that only years <= 2099 were allowed.
 ;
 ; Inputs:
 ;	AX = DATE in "packed" format:
@@ -554,8 +607,8 @@ ENDPROC	add_date
 ; 	where Y = year-1980 (0-127), m = month (1-12), and D = day (1-31)
 ;
 ; Outputs:
+;	CS:SI -> DAY string
 ;	AX = day of week (0-6)
-;	DS:SI -> DAY string
 ;
 ; Modifies:
 ;	AX, SI
@@ -576,12 +629,7 @@ DEFPROC	day_of_week,DOS
 	add	di,ax			; add to DI
 	pop	ax
 	mov	si,ax			; save full years in SI
-;
-; If the number of full years in AX is zero, then we still have the leap
-; day in the first year to contend with, which we must always add UNLESS it's
-; the first year AND the month is less than March.  Check this condition
-; below, once we have the month.
-;
+
 	mov	dx,365
 	mul	dx			; AX = total days for full years
 	add	di,ax			; add to DI
@@ -591,7 +639,10 @@ DEFPROC	day_of_week,DOS
 	and	ax,0Fh
 	dec	ax			; AX = # of full months elapsed
 	xchg	si,ax			; SI = # of full months
-
+;
+; The leap days calculation above did not account for the leap day in the
+; first year, which must be added ONLY if the number of months spans February.
+;
 	test	ax,ax			; year zero?
 	jnz	dow0			; no
 	cmp	si,2			; yes, does the date span Feb?
@@ -602,7 +653,7 @@ dow1:	dec	si
 	jl	dow2
 	mov	dl,[MONTH_DAYS][si]
 	mov	dh,0
-	add	di,dx			; add # of days in past month to DI
+	add	di,dx			; add # of days in month to DI
 	jmp	dow1
 dow2:	mov	ax,bx			; AX = original date again
 	and	ax,1Fh			; AX = day of the current month

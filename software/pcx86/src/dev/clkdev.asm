@@ -139,7 +139,7 @@ dci3:	cmp	al,IOCTL_SETTIME
 ; time to the total number of seconds (ignoring the hundredths).
 ;
 	int 3
-	push	dx
+	push	dx			; save DX
 	mov	ax,3600			; AX = # seconds in 1 hour
 	mov	dl,ch
 	mov	dh,0
@@ -149,7 +149,8 @@ dci3:	cmp	al,IOCTL_SETTIME
 	mul	cl			; AX = # seconds in CL minutes
 	add	bx,ax
 	adc	dx,0			; DX:BX = # seconds in hours and mins
-	pop	ax			; AH = seconds, AL = hundredths
+	pop	ax			; AH = seconds (from DX)
+	push	ax
 	mov	al,ah			; AL = seconds
 	cbw				; AX = seconds
 	add	bx,ax
@@ -181,8 +182,19 @@ dci3:	cmp	al,IOCTL_SETTIME
 	jnc	dci3a			; no
 	add	ax,18			; yes, add 18.2 more ticks
 	adc	dx,0
-dci3a:	cli
-	mov	[ticksToday].LOW,ax
+
+dci3a:	pop	cx			; CL = hundredths (from DX)
+	xchg	ax,cx			; AL = hundredths, DX:CX = tick count
+	mov	ah,18
+	mul	ah			; AX = hundredths * 18
+	mov	bl,100
+	div	bl			; AL = (hundredths * 18) / 100
+	cbw				; AX = # ticks for hundredths
+	add	cx,ax
+	adc	dx,0			; DX:CX += ticks for hundredths
+
+	cli
+	mov	[ticksToday].LOW,cx
 	mov	[ticksToday].HIW,dx
 	sti
 	jmp	dci8
@@ -220,7 +232,7 @@ dci5:	cmp	al,IOCTL_GETTIME
 ; where H = hours (1-12), m = minutes (0-59), and S = seconds / 2 (0-29)
 ;
 ; However, we must first convert # ticks to hours/minutes/seconds.  There
-; are 32772 ticks per half-hour, 1092 ticks per minute, and 18 ticks per sec.
+; are 32772 ticks per half-hour, 1092 ticks per minute, and 18.2 ticks per sec.
 ;
 	int 3
 	cli
@@ -384,13 +396,17 @@ DEFPROC	ddclk_interrupt,far
 ;
 	cmp	[ticksToday].HIW,18h
 	jb	ddi0a			; no overflow yet
-	int 3
 	ASSERT	Z
-	ja	ddi0			; total overflow (how'd that happen?)
+	ja	ddi0			; large overflow (how'd that happen?)
 	cmp	[ticksToday].LOW,00B0h
 	jb	ddi0a
 ddi0:	mov	[ticksToday].LOW,0
 	mov	[ticksToday].HIW,0
+;
+; We use a DOS utility function to increment the date, since DOS already
+; contains the required calendar data to properly increment a date (ie, it
+; is not a device-specific operation).
+;
 	mov	cx,[dateYear]
 	mov	dx,word ptr [dateDay]
 	mov	ax,DOS_UTL_INCDATE

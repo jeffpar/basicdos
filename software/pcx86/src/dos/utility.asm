@@ -1246,7 +1246,7 @@ ENDPROC	utl_gettime
 ; utl_incdate (AX = 1822h)
 ;
 ; Inputs:
-;	REG_CX = year (1980-2107)
+;	REG_CX = year (1980-2099)
 ;	REG_DH = month
 ;	REG_DL = day
 ;
@@ -1256,8 +1256,10 @@ ENDPROC	utl_gettime
 DEFPROC	utl_incdate,DOS
 	sti
 	and	[bp].REG_FL,NOT FL_CARRY
-	mov	bx,1
+	mov	ax,1			; add 1 day to the date values
 	call	add_date
+	mov	[bp].REG_CX,cx		; update all the inputs
+	mov	[bp].REG_DX,dx		; we don't know which ones changed
 	ret
 ENDPROC	utl_incdate
 
