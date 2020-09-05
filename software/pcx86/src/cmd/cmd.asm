@@ -242,9 +242,19 @@ m6:	lodsb
 	jne	m6
 	pop	di
 	mov	[di],cl			; set the cmd tail length
-	mov	[bx].EPB_FCB1.OFF,PSP_FCB1
+;
+; Parse the cmd tail into the FCBs that we're passing along as well.
+;
+	lea	si,[di+1]		; DS:SI -> string for DOS_FCB_PARSE
+	mov	di,PSP_FCB1		; ES:DI -> FCB to fill in
+	mov	ax,(DOS_FCB_PARSE SHL 8) or 01h
+	int	21h
+	mov	[bx].EPB_FCB1.OFF,di
 	mov	[bx].EPB_FCB1.SEG,es
-	mov	[bx].EPB_FCB2.OFF,PSP_FCB2
+	mov	di,PSP_FCB2		; ES:DI -> FCB to fill in
+	mov	ax,(DOS_FCB_PARSE SHL 8) or 01h
+	int	21h
+	mov	[bx].EPB_FCB2.OFF,di
 	mov	[bx].EPB_FCB2.SEG,es
 
 	mov	ax,DOS_PSP_EXEC
@@ -479,7 +489,9 @@ ENDPROC	ctrlc
 ;
 ; cmdDate
 ;
-; Process date input of the form MM-DD-YYYY.
+; Set a new system date (eg, "MM-DD-YY", "MM/DD/YYYY").  Omitted portions
+; of the date string default to the current date's values.  This intentionally
+; differs from cmdTime, where omitted portions always default to zero.
 ;
 ; Inputs:
 ;	DS:BX -> heap
@@ -519,7 +531,7 @@ cdt1:	mov	ah,DOS_MSC_SETDATE
 	xchg	dx,cx
 	jnc	cdt9			; if caller's carry clear, skip prompt
 	PRINTF	<"Current date is %.3W %M-%02D-%Y",13,10,"Enter new date: ">,ax,ax,ax,ax
-	stc
+	stc				; keep existing CX, DX as defaults
 cdt9:	ret
 ENDPROC	cmdDate
 
@@ -984,6 +996,9 @@ ENDPROC	cmdRun
 ;
 ; cmdTime
 ;
+; Set a new system time (eg, "HH:MM:SS.DD")  Any portion of the time string
+; that's omitted defaults to zero.
+;
 ; Inputs:
 ;	DS:BX -> heap
 ;	DS:DI -> BUF_TOKEN
@@ -1012,15 +1027,13 @@ DEFPROC	cmdTime
 	DEFLBL	promptTime,near
 	mov	ax,DOS_UTL_GETTIME	; DOS_UTL_GETTIME returns packed time
 	int	21h			; DOS_MSC_GETTIME does not
-	jnc	ctm9			; if caller's carry clear, skip prompt
-	push	cx
-	push	dx
+	jnc	ctm8			; if caller's carry clear, skip prompt
 	mov	cl,dh
 	mov	ch,0			; CX = seconds
 	mov	dh,0			; DX = hundredths
 	PRINTF	<"Current time is %H:%02N:%02d.%02d",13,10,"Enter new time: ">,ax,ax,cx,dx
-	pop	dx
-	pop	cx
+ctm8:	sub	cx,cx			; instead of retaining current values
+	sub	dx,dx			; set all defaults to zero
 	stc
 ctm9:	ret
 ENDPROC	cmdTime

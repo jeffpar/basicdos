@@ -493,7 +493,7 @@ ENDPROC utl_atoi32
 DEFPROC	utl_atoi32d,DOS
 	mov	bl,10			; always base 10
 	mov	cx,-1			; no specific length
-	mov	di,cx			; no validation
+	mov	di,-2			; no validation
 	jmp	utl_atoi_base		; utl_atoi returns a 32-bit value
 ENDPROC utl_atoi32d
 

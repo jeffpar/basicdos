@@ -317,7 +317,7 @@ pf1a:	inc	si			; skip colon
 	mov	dl,al			; DL = drive number (validate later)
 	inc	ax			; store 1-based drive number
 pf1b:	mov	es:[di+bx],al
-pf1c:	inc	bx
+pf1c:	inc	di
 	sar	ah,1
 ;
 ; Build filename at ES:DI+BX from the string at DS:SI, making sure that all
@@ -326,6 +326,8 @@ pf1c:	inc	bx
 pf2:	lodsb
 pf2a:	cmp	al,' '			; check character validity
 	jb	pf4			; invalid character
+	cmp	al,'.'
+	je	pf4a
 	cmp	al,'a'
 	jb	pf2b
 	cmp	al,'z'
@@ -341,37 +343,44 @@ pf2c:	cmp	al,'*'			; asterisk?
 	je	pf3			; yes, fill with wildcards
 pf2d:	push	cx
 	push	di
+	push	es
+	push	cs
+	pop	es
+	ASSUME	ES:DOS
 	mov	cx,FILENAME_CHARS_LEN
 	mov	di,offset FILENAME_CHARS
 	repne	scasb
+	pop	es
+	ASSUME	ES:NOTHING
 	pop	di
 	pop	cx
 	jne	pf4			; invalid character
 pf2e:	cmp	bl,cl
-	ja	pf2			; valid character but we're at limit
+	jae	pf2			; valid character but we're at limit
 	mov	es:[di+bx],al		; store it
 	inc	bx
 	jmp	pf2
 pf3:	or	dh,1			; wildcard present
 pf3a:	cmp	bl,cl
-	ja	pf2
+	jae	pf2
 	mov	byte ptr es:[di+bx],'?'	; store '?' until we reach the limit
 	inc	bx
 	jmp	pf3a
 ;
 ; Advance to next part of filename (filling with blanks as appropriate)
 ;
-pf4:	cmp	bl,cl			; are we done with the current portion?
-	ja	pf5			; yes
+pf4:	dec	si
+pf4a:	cmp	bl,cl			; are we done with the current portion?
+	jae	pf5			; yes
 	test	ah,01h			; leave the buffer unchanged?
-	jnz	pf4a			; yes
+	jnz	pf4b			; yes
 	mov	byte ptr es:[di+bx],' '	; store ' ' until we reach the limit
-pf4a:	inc	bx
-	jmp	pf4
+pf4b:	inc	bx
+	jmp	pf4a
 
 pf5:	cmp	cl,size FCB_NAME	; did we just finish the extension?
 	je	pf9			; yes
-	mov	bl,9			; BL -> extension
+	mov	bl,8			; BL -> extension
 	mov	cl,size FCB_NAME	; CL -> extension limit
 	sar	ah,1			; shift the parse flags
 	jmp	pf2
