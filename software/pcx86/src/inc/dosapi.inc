@@ -142,6 +142,10 @@ FCB_DRIVE	db	?	; 00h: set to 1-based drive # on OPEN
 FCB_NAME	db     11 dup(?); 01h: upper-cased on OPEN
 FCB_CURBLK	dw	?	; 0Ch: set to 0 on OPEN
 FCB_RECSIZE	dw	?	; 0Eh: set to 128 on OPEN
+FCB		ends
+
+FCBF		struc		; the "full" FCB structure
+FCB_START	db size FCB dup(?)
 ;
 ; The above fields are all that fit in PSP_FCB1 and PSP_FCB2.
 ;
@@ -162,16 +166,16 @@ FCB_UNUSED	db	?	; 1Fh
 ;
 FCB_CURREC	db	?	; 20h: cur record
 FCB_RELREC	dd	?	; 21h: rel record (3 bytes if RECSIZE >= 64)
-FCB		ends
+FCBF		ends
 
 ;
-; Extended FCBs are FCBs preceded by the following 7 bytes:
+; Extended FCBs are FCBs preceded by the following 7 bytes.
 ;
-EXFCB		struc
-EXFCB_FLAG	db	?	; -07h: flag byte containing 0FFh
-EXFCB_RESERVED	db	5 dup(?); -06h to -02h
-EXFCB_ATTR	db	?	; -01h: file attributes
-EXFCB		ends
+FCBEX		struc
+FCBEX_FLAG	db	?	; -07h: flag byte containing 0FFh
+FCBEX_RESERVED	db	5 dup(?); -06h to -02h
+FCBEX_ATTR	db	?	; -01h: file attributes
+FCBEX		ends
 
 ;
 ; Modes for DOS_HDL_OPEN
