@@ -65,6 +65,7 @@ ENDPROC	msc_setvec
 ;	None
 ;
 ; Outputs:
+;	AX = date in "packed" format
 ;	REG_CX = year (1980-2099)
 ;	REG_DH = month (1-12)
 ;	REG_DL = day (1-31)
@@ -80,10 +81,10 @@ DEFPROC	msc_getdate,DOS
 ;
 ; The GETDATE request returns DX with the date in "packed" format:
 ;
-;	 Y  Y  Y  Y  Y  Y  Y  m  m  m  m  D  D  D  D  D
+;	 Y  Y  Y  Y  Y  Y  Y  M  M  M  M  D  D  D  D  D
 ;	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
 ;
-; where Y = year-1980 (0-127), m = month (1-12), and D = day (1-31).
+; where Y = year-1980 (0-119), m = month (1-12), and D = day (1-31)
 ;
 	mov	ax,dx
 	call	day_of_week		; AX = day of week (0-6)
@@ -98,6 +99,7 @@ DEFPROC	msc_getdate,DOS
 	shr	ax,cl
 	and	al,0Fh			; AL = month
 	mov	[bp].REG_DH,al
+	mov	ax,dx			; AX = "packed" date
 	and	dl,1Fh			; DL = day
 	mov	[bp].REG_DL,dl
 	ret
@@ -164,6 +166,7 @@ ENDPROC	msc_setdate
 ;	None
 ;
 ; Outputs:
+;	AX = time in "packed" format
 ;	REG_CH = hours (0-23)
 ;	REG_CL = minutes (0-59)
 ;	REG_DH = seconds (0-59)
@@ -179,11 +182,11 @@ DEFPROC	msc_gettime,DOS
 ;
 ; The GETTIME request returns DX with the time in "packed" format:
 ;
-;	 H  H  H  H  H  m  m  m  m  m  m  S  S  S  S  S
+;	 H  H  H  H  H  M  M  M  M  M  M  S  S  S  S  S
 ;	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
 ;
-; where H = hours (1-12), m = minutes (0-59), and S = seconds / 2 (0-29);
-; additionally, AL should contain hundredths (< 200).
+; where H = hours (0-23), m = minutes (0-59), and S = seconds / 2 (0-29);
+; additionally, AL contains hundredths (< 200).
 ;
 	mov	bx,dx
 	mov	cl,11
@@ -194,14 +197,16 @@ DEFPROC	msc_gettime,DOS
 	shr	bx,cl
 	and	bl,3Fh
 	mov	[bp].REG_CL,bl		; BL = minutes
-	and	dl,1Fh			; DL = seconds / 2
-	shl	dl,1			; DL = seconds
-	cmp	al,100			; hundredths >= 100?
+	xchg	ax,dx			; AX = "packed" time
+	mov	dh,al
+	and	dh,1Fh			; DH = seconds / 2
+	shl	dh,1			; DH = seconds
+	cmp	dl,100			; hundredths >= 100?
 	jb	mgt9
-	sub	al,100
-	inc	dx
-mgt9:	mov	[bp].REG_DH,dl		; DL = seconds
-	mov	[bp].REG_DL,al		; AL = hundredths
+	sub	dl,100
+	inc	dh
+mgt9:	mov	[bp].REG_DH,dh		; DH = seconds
+	mov	[bp].REG_DL,dl		; DL = hundredths
 	ret
 ENDPROC	msc_gettime
 

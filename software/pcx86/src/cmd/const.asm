@@ -35,12 +35,6 @@ CODE    SEGMENT
 	DEFSTR	FREE_MEM,<"<FREE>",0>
 	DEFSTR	STD_VER,<0>
 	DEFSTR	DBG_VER,<"DEBUG",0>
-
-	DEFLBL	VALID_DATE,word
-	dw	1,1,12, 1,1,31, 2021,0,2099, -1
-
-	DEFLBL	VALID_TIME,word
-	dw	0,0,23, 0,0,59, 0,0,59, 0,0,100
 ;
 ; Table of BASIC-DOS expression operators
 ;

@@ -14,7 +14,7 @@ CODE    SEGMENT
 
 	EXTERNS	<allocText,freeText,genCode,freeCode,freeVars,printStr>,near
 
-	EXTERNS	<KEYWORD_TOKENS,VALID_DATE,VALID_TIME>,word
+	EXTERNS	<KEYWORD_TOKENS>,word
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF,PERIOD>
 	EXTSTR	<STD_VER,DBG_VER>
 
@@ -242,9 +242,19 @@ m6:	lodsb
 	jne	m6
 	pop	di
 	mov	[di],cl			; set the cmd tail length
-	mov	[bx].EPB_FCB1.OFF,PSP_FCB1
+;
+; Parse the cmd tail into the FCBs that we're passing along as well.
+;
+	lea	si,[di+1]		; DS:SI -> string for DOS_FCB_PARSE
+	mov	di,PSP_FCB1		; ES:DI -> FCB to fill in
+	mov	ax,(DOS_FCB_PARSE SHL 8) or 01h
+	int	21h
+	mov	[bx].EPB_FCB1.OFF,di
 	mov	[bx].EPB_FCB1.SEG,es
-	mov	[bx].EPB_FCB2.OFF,PSP_FCB2
+	mov	di,PSP_FCB2		; ES:DI -> FCB to fill in
+	mov	ax,(DOS_FCB_PARSE SHL 8) or 01h
+	int	21h
+	mov	[bx].EPB_FCB2.OFF,di
 	mov	[bx].EPB_FCB2.SEG,es
 
 	mov	ax,DOS_PSP_EXEC
@@ -479,7 +489,9 @@ ENDPROC	ctrlc
 ;
 ; cmdDate
 ;
-; Process date input of the form MM-DD-YYYY.
+; Set a new system date (eg, "MM-DD-YY", "MM/DD/YYYY").  Omitted portions
+; of the date string default to the current date's values.  This intentionally
+; differs from cmdTime, where omitted portions always default to zero.
 ;
 ; Inputs:
 ;	DS:BX -> heap
@@ -494,30 +506,32 @@ ENDPROC	ctrlc
 DEFPROC	cmdDate
 	mov	ax,offset promptDate
 	call	getInput		; DS:SI -> string
-	jcxz	gt9			; do nothing on empty string
-	mov	di,offset VALID_DATE
-	mov	bh,'-'
+	jc	gt9			; do nothing on empty string
+	mov	ah,'-'
 	call	getValues
-	jc	cdt8
-	xchg	dx,cx			; DH = month, DL = day, AX = year
-	cmp	ax,100
+	xchg	dx,cx			; DH = month, DL = day, CX = year
+	cmp	cx,100
 	jae	cdt1
-	add	ax,1900			; 2-digit years are automatically
-	cmp	ax,1980			; adjusted to 4-digit years 1980-2079
+	add	cx,1900			; 2-digit years are automatically
+	cmp	cx,1980			; adjusted to 4-digit years 1980-2079
 	jae	cdt1
-	add	ax,100
-cdt1:	xchg	cx,ax			; CX = year
-	mov	ah,DOS_MSC_SETDATE
+	add	cx,100
+cdt1:	mov	ah,DOS_MSC_SETDATE
 	int	21h			; set the date
 	test	al,al			; success?
 	jz	cdt9			; yes
-cdt8:	PRINTF	<"Invalid date",13,10>
+	PRINTF	<"Invalid date",13,10>
+	cmp	[di].TOK_CNT,0		; did we process a command-line token?
+	je	cdt9			; yes
 	jmp	cmdDate
 
 	DEFLBL	promptDate,near
-	mov	ax,DOS_UTL_GETDATE
-	int	21h
+	mov	ax,DOS_UTL_GETDATE	; DOS_UTL_GETDATE returns packed date
+	int	21h			; DOS_MSC_GETDATE does not
+	xchg	dx,cx
+	jnc	cdt9			; if caller's carry clear, skip prompt
 	PRINTF	<"Current date is %.3W %M-%02D-%Y",13,10,"Enter new date: ">,ax,ax,ax,ax
+	stc				; keep existing CX, DX as defaults
 cdt9:	ret
 ENDPROC	cmdDate
 
@@ -975,12 +989,15 @@ DEFPROC	cmdRun
 	DEFLBL	cmdRunFlags,near
 	sub	si,si
 	call	genCode
-cr9:	ret
+	ret
 ENDPROC	cmdRun
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; cmdTime
+;
+; Set a new system time (eg, "HH:MM:SS.DD")  Any portion of the time string
+; that's omitted defaults to zero.
 ;
 ; Inputs:
 ;	DS:BX -> heap
@@ -995,34 +1012,29 @@ ENDPROC	cmdRun
 DEFPROC	cmdTime
 	mov	ax,offset promptTime
 	call	getInput		; DS:SI -> string
-	jcxz	cr9			; do nothing on empty string
-	mov	di,offset VALID_TIME
-	mov	bh,':'
+	jc	ctm9			; do nothing on empty string
+	mov	ah,':'
 	call	getValues
-	jc	ctm8
 	mov	ah,DOS_MSC_SETTIME
 	int	21h			; set the time
 	test	al,al			; success?
 	jz	ctm9			; yes
-ctm8:	PRINTF	<"Invalid time",13,10>
+	PRINTF	<"Invalid time",13,10>
+	cmp	[di].TOK_CNT,0		; did we process a command-line token?
+	je	ctm9			; yes
 	jmp	cmdTime
 
 	DEFLBL	promptTime,near
-	push	bx
-	mov	ah,DOS_MSC_GETTIME
-	int	21h
-	push	cx
-	push	dx
-	mov	al,ch			; AX = hours
-	cbw
-	mov	ch,ah			; CX = minutes
-	mov	bl,dh
-	mov	bh,ah			; BX = seconds
-	mov	dh,ah			; DX = 1/100s
-	PRINTF	<"Current time is %d:%02d:%02d.%02d",13,10,"Enter new time: ">,ax,cx,bx,dx
-	pop	dx
-	pop	cx
-	pop	bx
+	mov	ax,DOS_UTL_GETTIME	; DOS_UTL_GETTIME returns packed time
+	int	21h			; DOS_MSC_GETTIME does not
+	jnc	ctm8			; if caller's carry clear, skip prompt
+	mov	cl,dh
+	mov	ch,0			; CX = seconds
+	mov	dh,0			; DX = hundredths
+	PRINTF	<"Current time is %H:%02N:%02d.%02d",13,10,"Enter new time: ">,ax,ax,cx,dx
+ctm8:	sub	cx,cx			; instead of retaining current values
+	sub	dx,dx			; set all defaults to zero
+	stc
 ctm9:	ret
 ENDPROC	cmdTime
 
@@ -1280,15 +1292,17 @@ ENDPROC	chkString
 ;
 ; getInput
 ;
-; Use by cmdDate and cmdTime to set DS:SI to an input string (with length CX).
+; Use by cmdDate and cmdTime to set DS:SI to an input string.
 ;
 ; Inputs:
-;	AX = function
+;	AX = data + prompt function
 ;	DS:BX -> heap
 ;	DS:DI -> BUF_TOKEN
 ;
 ; Outputs:
+;	CX, DX = default values from caller-supplied function
 ;	DS:SI -> CR-terminated string
+;	Carry clear if input exists, carry set if no input provided
 ;
 ; Modifies:
 ;	AX, CX, DX, SI
@@ -1296,19 +1310,22 @@ ENDPROC	chkString
 DEFPROC	getInput
 	mov	dh,2
 	call	getToken
-	jnc	gi9
 	call	ax			; AX = caller-supplied function
+	jnc	gi9
+	push	dx
 	lea	si,[bx].LINEBUF
 	mov	byte ptr [si],12	; max of 12 chars (including CR)
 	mov	dx,si
 	mov	ah,DOS_TTY_INPUT
 	int	21h
 	PRINTF	<13,10>
+	pop	dx
 	inc	si
-	mov	cl,[si]
-	mov	ch,0			; CX = length of input (excl. CR)
-	inc	si			; skip ahead to the actual characters
-gi9:	ret
+	cmp	byte ptr [si],1		; set carry if no characters
+	inc	si			; skip ahead to characters, if any
+	ret
+gi9:	mov	[di].TOK_CNT,0		; zero count to prevent reprocessing
+	ret
 ENDPROC	getInput
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1318,67 +1335,69 @@ ENDPROC	getInput
 ; Used by cmdDate and cmdTime to get a series of delimited values.
 ;
 ; Inputs:
-;	BH = default delimiter
+;	AH = default delimiter
 ;	SI -> DS-relative string data (CR-terminated)
-;	DI -> ES-relative validation data
 ;
 ; Outputs:
 ;	CH, CL, DH, DL
 ;
 ; Modifies:
-;	AX, BX, CX, DX, SI, DI
+;	AX, CX, DX, SI
 ;
 DEFPROC	getValues
-	push	cs
-	pop	es
-	ASSUME	ES:NOTHING		; ES:DI -> validation data
+	push	bx
+	xchg	bx,ax			; BH = delimiter
 	call	getValue
-	jc	gvs9
-	mov	ch,al			; CH = hours
-	call	getValue
-	jc	gvs9
-	mov	cl,al			; CL = minutes
+	jc	gvs2
+	mov	ch,al			; CH = 1st value (eg, month)
+gvs2:	call	getValue
+	jc	gvs3
+	mov	cl,al			; CL = 2nd value (eg, day)
+gvs3:	cmp	bh,':'
+	jne	gvs4
 	mov	bh,'.'
+gvs4:	call	getValue
+	jc	gvs5
+	mov	dx,ax			; DX = 3rd value (eg, year)
+gvs5:	cmp	bh,'-'			; are we dealing with a date?
+	je	gvs9			; yes
+	mov	dh,al			; DH = 3rd value (eg, seconds)
 	call	getValue
 	jc	gvs9
-	mov	dh,al			; DH = seconds
-	cmp	word ptr es:[di],0	; end of valiation data?
-	jl	gvs9			; yes
-	call	getValue
-	jc	gvs9
-	mov	dl,al			; DL = 1/100s
-gvs9:	ret
+	mov	dl,al			; DL = 4th value (eg, hundredths)
+gvs9:	pop	bx
+	ret
 ENDPROC	getValues
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; getValue
 ;
-; Used by getValues to get a single validated, delimited value.
+; Used by getValues to get a single delimited value.
 ;
-; Data validation here is probably unnecessary, since DOS_MSC_SETDATE and
-; DOS_MSC_SETTIME are required to validate their inputs as well, but validation
-; is almost free with DOS_UTL_ATOI16.  In any case, we must perform some
-; delimiter checks as well.
+; No data validation is performed here, since the DOS_MSC_SETDATE and
+; DOS_MSC_SETTIME functions are required to validate their inputs.
+;
+; If delimiter validation fails, an out-of-bounds value (-1) is returned.
 ;
 ; Inputs:
 ;	BH = default delimiter
 ;	SI -> DS-relative string data (CR-terminated)
-;	DI -> ES-relative validation data
 ;
 ; Outputs:
-;	If carry clear, AX = validated value
-;	If carry set, illegal value or delimiter
+;	If carry clear, AX = value (-1 if invalid delimiter)
+;	If carry set, no data
 ;
 ; Modifies:
-;	AX, SI, DI
+;	AX, SI
 ;
 DEFPROC	getValue
+	push	di
 	mov	bl,10			; BL = base 10
+	mov	di,-1			; DI = -1 (no validation data)
 	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
 	int	21h
-	; jc	gv9			; data validation error
-	dec	si
+	sbb	di,di			; DI = -1 if no data
 	mov	bl,[si]			; BL = termination character
 	cmp	bl,CHR_RETURN		; CR?
 	je	gv9			; yes
@@ -1389,8 +1408,11 @@ DEFPROC	getValue
 	jne	gv8			; no
 	cmp	bl,'/'			; yes, so allow slash as well
 	je	gv9			; no, not slash either
-gv8:	stc
-gv9:	ret
+gv8:	or	ax,-1			; return invalid value
+	sub	di,di			; and ensure carry will be clear
+gv9:	add	di,1			; otherwise, set carry if no data
+	pop	di
+	ret
 ENDPROC	getValue
 
 CODE	ENDS

@@ -140,6 +140,7 @@ ENDPROC	psp_term
 DEFPROC	psp_create,DOS
 	mov	dx,[bp].REG_DX
 	call	psp_setmem		; DX = PSP segment to update
+	ASSUME	ES:NOTHING
 ;
 ; On return from psp_setmem, ES = PSP segment and DI -> PSP_EXRET.
 ;
@@ -153,6 +154,7 @@ DEFPROC	psp_create,DOS
 
 	mov	ax,[psp_active]		; 16h: PSP_PARENT
 	stosw
+	xchg	dx,ax			; DX saves the caller's PSP
 ;
 ; Next up: the PFT (Process File Table); the first 5 PFT slots (PFHs) are
 ; predefined as STDIN (0), STDOUT (1), STDERR (2), STDAUX (3), and STDPRN (4),
@@ -185,22 +187,37 @@ DEFPROC	psp_create,DOS
 	stosw
 	mov	al,0CBh
 	stosb
-	mov	al,' '
-	mov	cl,size FCB_NAME
+;
+; Initialize the rest of the PSP by copying the caller's PSP data, if any.
+;
 	mov	di,PSP_FCB1
+	test	dx,dx			; is there a parent PSP?
+	jz	pc8			; no
+	mov	ds,dx			; yes, copy it
+	ASSUME	DS:NOTHING
+	ASSERT	Z,<cmp word ptr ds:[PSP_ABORT],20CDh>
+	mov	si,PSP_FCB1
+	mov	cx,(size PSP_FCB1 + size PSP_FCB2 + size PSP_RESERVED3 + size PSP_CMDTAIL) SHR 1
+	rep	movsw
+	jmp	short pc9
+
+pc8:	mov	al,' '
+	mov	cl,size FCB_NAME
 	rep	stosb
 	mov	cl,size FCB_NAME
 	mov	di,PSP_FCB2
 	rep	stosb
-	mov	di,PSP_CMDTAIL + 1
-	mov	al,0Dh
-	stosb				; done for now
-	ret
+	mov	di,PSP_CMDTAIL
+	mov	ax,0D00h
+	stosw
+pc9:	ret
 ENDPROC	psp_create
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; psp_exec (REG_AX = 4Bh)
+;
+; TODO: Add support for EPB_ENVSEG.
 ;
 ; Inputs:
 ;	REG_AL = exec code
@@ -222,9 +239,8 @@ DEFPROC	psp_exec,DOS
 	jc	px9
 ;
 ; Now we deal with the EPB we've been given.  load_program already set up
-; a default command tail in the PSP, but for this call, we must replace it.
-;
-; TODO: Add support for EPB_ENVSEG, EPB_FCB1, and EPB_FCB2.
+; a default command tail in the PSP, but for this call, we must replace it,
+; along with both FCBs.
 ;
 	push	si
 	push	di
@@ -233,13 +249,31 @@ DEFPROC	psp_exec,DOS
 	mov	ds,[bp].REG_ES
 	ASSUME	DS:NOTHING
 	mov	si,[bp].REG_BX
-	lds	si,[si].EPB_CMDTAIL
 	mov	es,[psp_active]
-	mov	di,PSP_CMDTAIL
+
+	push	ds
+	push	si
+	lds	si,[si].EPB_FCB1
+	mov	di,PSP_FCB1
+	mov	cx,size FCB
+	rep	movsb
+	pop	si
+	pop	ds
+	push	ds
+	push	si
+	lds	si,[si].EPB_FCB2
+	mov	di,PSP_FCB2
+	mov	cx,size FCB
+	rep	movsb
+	pop	si
+	pop	ds
+	lds	si,[si].EPB_CMDTAIL
+	add	di,size PSP_RESERVED3
 	mov	cl,[si]
 	mov	ch,0
 	add	cx,2
 	rep	movsb
+
 	pop	es
 	pop	ds
 	pop	di
@@ -403,7 +437,7 @@ lp1:	xchg	dx,ax			; DX = segment for new PSP
 lp2:	push	bx			; save original PSP
 	mov	[psp_active],dx		; we must update the *real* PSP now
 ;
-; Since we stashed pointer to the command-line in DI, let's parse it now,
+; Since we stashed the pointer to the command-line in DI, let's parse it now,
 ; separating the filename portion from the "tail" portion.
 ;
 	mov	dx,di
@@ -686,7 +720,7 @@ lp7b:	mov	ds:[PSP_START].OFF,100h
 	jbe	lp7c			; no
 	xchg	dx,ax			; yes, set DX to the larger value
 ;
-; Since there's COMDATA structure, fill in the relevant PSP fields.
+; Since there's a COMDATA structure, fill in the relevant PSP fields.
 ; In addition, if a code size is specified, checksum the code, and then
 ; see if there's another block with the same code.
 ;

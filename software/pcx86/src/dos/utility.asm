@@ -15,7 +15,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<chk_devname,dev_request,write_string>,near
 	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload>,near
 	EXTERNS	<scb_yield,scb_delock,scb_wait,scb_endwait>,near
-	EXTERNS	<mem_query>,near
+	EXTERNS	<mem_query,msc_getdate,msc_gettime>,near
 	EXTERNS	<psp_term_exitcode>,near
 	EXTERNS	<itoa,sprintf,add_date>,near
 
@@ -429,16 +429,19 @@ ai6:	cmp	byte ptr [bp].TMP_AL,0
 	into				; signal overflow if set
 
 ai6a:	cmp	di,-1			; validation data provided?
-	jne	ai6b			; yes
-	dec	si			; no, rewind SI to first non-digit
+	jg	ai6c			; yes
+	je	ai6b			; -1 for 16-bit result only
+	mov	[bp].REG_DX,dx		; -2 for 32-bit result (update REG_DX)
+ai6b:	dec	si			; rewind SI to first non-digit
 	add	ah,1			; (carry clear if one or more digits)
 	jmp	short ai9
-ai6b:	test	ah,ah			; any digits?
-	jz	ai6c			; yes
+
+ai6c:	test	ah,ah			; any digits?
+	jz	ai6d			; yes
 	mov	bx,es:[di]		; no, get the default value
 	stc
 	jmp	short ai8
-ai6c:	cmp	bx,es:[di+2]		; too small?
+ai6d:	cmp	bx,es:[di+2]		; too small?
 	jae	ai7			; no
 	mov	bx,es:[di+2]		; yes (carry set)
 	jmp	short ai8
@@ -447,10 +450,8 @@ ai7:	cmp	es:[di+4],bx		; too large?
 	mov	bx,es:[di+4]		; yes (carry set)
 ai8:	lea	di,[di+6]		; advance DI in case there are more
 	mov	[bp].REG_DI,di		; update REG_DI
-	jmp	short ai9a
 
-ai9:	mov	[bp].REG_DX,dx		; update REG_DX if no validation data
-ai9a:	mov	[bp].REG_AX,bx		; update REG_AX
+ai9:	mov	[bp].REG_AX,bx		; update REG_AX
 	mov	[bp].REG_SI,si		; update caller's SI, too
 	ret
 ENDPROC utl_atoi16
@@ -463,7 +464,7 @@ ENDPROC utl_atoi16
 ;
 ; Note these differences from utl_atoi16:
 ;
-;	1) Validation data is not supported (DI is preset to -1)
+;	1) Validation data is not supported (DI is preset to -2)
 ;	2) CX should contain the exact length (use -1 if unknown)
 ;	2) SI will point to the first unprocessed character, not PAST it
 ;
@@ -475,8 +476,8 @@ ENDPROC utl_atoi16
 ;	AX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	utl_atoi32,DOS
-	mov	di,-1			; no validation
-	jmp	utl_atoi		; utl_atoi returns a 32-bit value
+	mov	di,-2			; no validation, 32-bit result
+	jmp	utl_atoi
 ENDPROC utl_atoi32
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -492,7 +493,7 @@ ENDPROC utl_atoi32
 DEFPROC	utl_atoi32d,DOS
 	mov	bl,10			; always base 10
 	mov	cx,-1			; no specific length
-	mov	di,cx			; no validation
+	mov	di,-2			; no validation
 	jmp	utl_atoi_base		; utl_atoi returns a 32-bit value
 ENDPROC utl_atoi32d
 
@@ -1199,25 +1200,30 @@ ENDPROC	utl_abort
 ;
 ; utl_getdate (AX = 1820h)
 ;
+; Identical to msc_getdate, but also returns the "packed" date in AX
+; and does not modify carry.
+;
 ; Inputs:
 ;	None
 ;
 ; Outputs:
-; 	Returns AX with the date in "packed" format:
+; 	REG_AX = date in "packed" format:
 ;
-;	 Y  Y  Y  Y  Y  Y  Y  m  m  m  m  D  D  D  D  D
+;	 Y  Y  Y  Y  Y  Y  Y  M  M  M  M  D  D  D  D  D
 ;	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
 ;
-;	where Y = year-1980 (0-127), m = month (1-12), and D = day (1-31).
+;	where Y = year-1980 (0-119), M = month (1-12), and D = day (1-31)
+;
+;	REG_CX = year (1980-2099)
+;	REG_DH = month (1-12)
+;	REG_DL = day (1-31)
+;	REG_AL = day of week (0-6 for Sun-Sat)
 ;
 DEFPROC	utl_getdate,DOS
-	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_GETDATE
-	DEFLBL	utl_get_date_time,near
 	sti
-	and	[bp].REG_FL,NOT FL_CARRY
-	les	di,[clk_ptr]
-	call	dev_request		; call the driver
-	mov	[bp].REG_AX,dx
+	call	msc_getdate
+	mov	[bp].REG_AX,ax
+	clc
 	ret
 ENDPROC	utl_getdate
 
@@ -1225,20 +1231,31 @@ ENDPROC	utl_getdate
 ;
 ; utl_gettime (AX = 1821h)
 ;
+; Identical to msc_gettime, but also returns the "packed" date in AX
+; and does not modify carry.
+
 ; Inputs:
 ;	None
 ;
 ; Outputs:
-;	Returns AX the time in "packed" format:
+;	REG_AX = time in "packed" format:
 ;
-;	 H  H  H  H  H  m  m  m  m  m  m  S  S  S  S  S
+;	 H  H  H  H  H  M  M  M  M  M  M  S  S  S  S  S
 ;	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
 ;
-;	where H = hours (1-12), m = minutes (0-59), and S = seconds / 2 (0-29)
+;	where H = hours, M = minutes, and S = seconds / 2 (0-29)
+;
+;	REG_CH = hours (0-23)
+;	REG_CL = minutes (0-59)
+;	REG_DH = seconds (0-59)
+;	REG_DL = hundredths
 ;
 DEFPROC	utl_gettime,DOS
-	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_GETTIME
-	jmp	utl_get_date_time
+	sti
+	call	msc_gettime
+	mov	[bp].REG_AX,ax
+	clc
+	ret
 ENDPROC	utl_gettime
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
