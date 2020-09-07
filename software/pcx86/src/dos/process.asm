@@ -110,26 +110,10 @@ ENDPROC	psp_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; psp_create (REG_AH = 26h)
+; psp_copy (REG_AH = 26h)
 ;
-; Apparently, this is more of a "copy" function than a "create" function,
-; especially starting with DOS 2.0, which copies the PSP from the caller's
-; CS:0 (although the INT 22h/23h/24h addresses may still be copied from the
-; IVT).  As a result, any PSP "created" with this function automatically
-; "inherits" all of the caller's open files.
-;
-; Well, the first time we call it (from sysinit), there are no existing PSPs,
-; so there's nothing to copy.  And if we want to create a PSP with accurate
-; memory information, we either need more inputs OR we have to assume that the
-; new segment was allocated with DOS_MEM_ALLOC (we assume the latter).
-;
-; A new psp_create function (REG_AH = 55h) solved a few problems: it
-; automatically increments reference counts for all "inheritable" files, it
-; marks all "uninheritable" files as closed in the new PSP, and as of DOS 3.0,
-; it uses SI to specify a memory size.
-;
-; TODO: Mimic the "copy" behavior when we're not being called by sysinit (ie,
-; whenever psp_active is valid).
+; Initializes the PSP with current memory values and vectors and then copies
+; rest of the PSP from the active PSP.
 ;
 ; Inputs:
 ;	REG_DX = segment of new PSP
@@ -137,24 +121,40 @@ ENDPROC	psp_term
 ; Outputs:
 ;	None
 ;
-DEFPROC	psp_create,DOS
-	mov	dx,[bp].REG_DX
-	call	psp_setmem		; DX = PSP segment to update
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, DS, ES
+;
+DEFPROC	psp_copy,DOS
+	call	psp_init		; returns ES:DI -> PSP_PARENT
 	ASSUME	ES:NOTHING
-;
-; On return from psp_setmem, ES = PSP segment and DI -> PSP_EXRET.
-;
-; Copy current INT 22h (EXRET), INT 23h (CTRLC), and INT 24h (ERROR) vectors,
-; but copy them from the SCB, not the IVT.
-;
-	mov	bx,[scb_active]
-	lea	si,[bx].SCB_EXRET
-	mov	cx,6
+	ASSERT	NZ,<test ax,ax>
+	mov	ds,ax
+	ASSUME	DS:NOTHING
+	mov	si,PSP_PARENT
+	mov	cx,(size PSP - PSP_PARENT) SHR 1
 	rep	movsw
+	ret
+ENDPROC	psp_copy
 
-	mov	ax,[psp_active]		; 16h: PSP_PARENT
-	stosw
-	xchg	dx,ax			; DX saves the caller's PSP
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; psp_create (REG_AH = 55h)
+;
+; Creates a new PSP with a process file table filled with system file handles
+; from the active SCB.
+;
+; Inputs:
+;	REG_DX = segment of new PSP
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, DI, ES
+;
+DEFPROC	psp_create,DOS
+	call	psp_init		; returns ES:DI -> PSP_PARENT
+	stosw				; update PSP_PARENT
 ;
 ; Next up: the PFT (Process File Table); the first 5 PFT slots (PFHs) are
 ; predefined as STDIN (0), STDOUT (1), STDERR (2), STDAUX (3), and STDPRN (4),
@@ -177,31 +177,18 @@ DEFPROC	psp_create,DOS
 	mov	ah,1
 	call	sfh_addref		; add 1 ref to this SFH
 	mov	al,SFH_NONE		; AL = 0FFh (indicates unused entry)
-	mov	cl,15
+	mov	cl,15			; 15 more PFT slots left
 	rep	stosb			; finish up PSP_PFT (20 bytes total)
-	mov	cl,(100h - PSP_ENVSEG) SHR 1
+	mov	cl,(size PSP - PSP_ENVSEG) SHR 1
 	sub	ax,ax
 	rep	stosw			; zero the rest of the PSP
 	mov	di,PSP_DISPATCH
-	mov	ax,21CDh
+	mov	ax,OP_INT21
 	stosw
-	mov	al,0CBh
+	mov	al,OP_RETF
 	stosb
-;
-; Initialize the rest of the PSP by copying the caller's PSP data, if any.
-;
 	mov	di,PSP_FCB1
-	test	dx,dx			; is there a parent PSP?
-	jz	pc8			; no
-	mov	ds,dx			; yes, copy it
-	ASSUME	DS:NOTHING
-	ASSERT	Z,<cmp word ptr ds:[PSP_ABORT],20CDh>
-	mov	si,PSP_FCB1
-	mov	cx,(size PSP_FCB1 + size PSP_FCB2 + size PSP_RESERVED3 + size PSP_CMDTAIL) SHR 1
-	rep	movsw
-	jmp	short pc9
-
-pc8:	mov	al,' '
+	mov	al,' '
 	mov	cl,size FCB_NAME
 	rep	stosb
 	mov	cl,size FCB_NAME
@@ -210,8 +197,44 @@ pc8:	mov	al,' '
 	mov	di,PSP_CMDTAIL
 	mov	ax,0D00h
 	stosw
-pc9:	ret
+	ret
 ENDPROC	psp_create
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; psp_init
+;
+; Helper for psp_copy and psp_create APIs.  PSP fields up to (but not
+; including) PSP_PARENT are initialized.
+;
+; Inputs:
+;	REG_DX = segment of new PSP
+;
+; Outputs:
+;	AX = active PSP
+;	BX -> active SCB
+;	ES:DI -> PSP_PARENT of new PSP
+;
+; Modifies:
+;	AX, BX, CX, DX, DI, ES
+;
+DEFPROC	psp_init,DOS
+	mov	dx,[bp].REG_DX
+	call	psp_setmem		; DX = PSP segment to initialize
+	ASSUME	ES:NOTHING
+;
+; On return from psp_setmem, ES = PSP segment and DI -> PSP_EXRET.
+;
+; Copy current INT 22h (EXRET), INT 23h (CTRLC), and INT 24h (ERROR) vectors,
+; but copy them from the SCB, not the IVT.
+;
+	mov	bx,[scb_active]		; BX = active SCB
+	lea	si,[bx].SCB_EXRET
+	mov	cx,6
+	rep	movsw
+	mov	ax,[psp_active]		; AX = active PSP
+	ret
+ENDPROC	psp_init
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -698,7 +721,7 @@ lp7a:	add	dx,ax			; DX -> end of program file
 ; are running (info that should have been recorded in the PSP but never was).
 ;
 ; Additionally, in order to support executables with overlays down the road,
-; we'll need the file handle anyway.
+; I assume we'll want the file handle anyway.
 ;
 	; mov	ah,DOS_HDL_CLOSE
 	; int	21h			; close the file
@@ -953,9 +976,9 @@ ENDPROC	psp_calcsum
 ;
 ; psp_setmem
 ;
-; This is called by psp_create to initialize the first 10 bytes of the PSP,
-; as well as by load_program after a program has been loaded and the PSP has
-; been resized, requiring many of those bytes to be updated again.
+; This is called by psp_copy and psp_create to initialize the first 10 bytes
+; of the PSP, as well as by load_program after a program has been loaded and
+; the PSP has been resized, requiring many of those bytes to be updated again.
 ;
 ; Inputs:
 ;	DX = PSP segment

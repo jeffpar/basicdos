@@ -1128,11 +1128,20 @@ ENDPROC	utl_hotkey
 ; Inputs:
 ;	None
 ;
+; Outputs:
+;	REG_AX = CONSOLE context for the active SCB, zero if none (yet)
+;
 ; Modifies:
-;	AX, BX, DX
+;	AX, BX
 ;
 DEFPROC	utl_lock,DOS
 	LOCK_SCB
+	mov	ax,[scb_active]
+	test	ax,ax
+	jz	lck8
+	xchg	bx,ax
+	mov	ax,[bx].SCB_CONTEXT
+lck8:	mov	[bp].REG_AX,ax
 	ret
 ENDPROC	utl_lock
 
