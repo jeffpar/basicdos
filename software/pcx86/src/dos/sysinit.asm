@@ -368,6 +368,9 @@ si7a:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHCON>
 ; store each SFH in the SCB, so that every time a new program is loaded in the
 ; SCB, its PSP will receive the same SFHs.
 ;
+; In addition, DOS_HDL_OPEN returns the device context in DX (again, only
+; because no process handle table exists when these handles are being opened).
+;
 	mov	dx,offset AUX_DEVICE
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
@@ -386,8 +389,8 @@ si8:	mov	si,offset CFG_CONSOLE
 si9:	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
 	jc	open_error
-	mov	es:[bx].SCB_SFHCON,al
-	mov	es:[bx].SCB_CONTEXT,dx
+	mov	es:[bx].SCB_SFHCON,al	; AL = SFH (not PFH)
+	mov	es:[bx].SCB_CONTEXT,dx	; DX = CONSOLE device context
 ;
 ; Last but not least, open PRN.
 ;
@@ -395,7 +398,7 @@ si9:	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
 	jc	open_error
-	mov	es:[bx].SCB_SFHPRN,al
+	mov	es:[bx].SCB_SFHPRN,al	; AL = SFH
 	mov	ch,al			; CH = SFH for PRN
 ;
 ; See if there are any more CONSOLE contexts defined; if so, then for each

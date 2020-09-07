@@ -94,7 +94,7 @@ DOS_UTL_STDLEN	equ   1824h	; like STRLEN but w/24h (dollar) as terminator
 DOS_DSK_GETDRV	equ	19h	; get current drive (AL)
 DOS_DSK_SETDTA	equ	1Ah	; set DTA (DS:DX)
 DOS_MSC_SETVEC	equ	25h	; set vector (AL) to addr (DS:DX)
-DOS_PSP_CREATE	equ	26h	; create PSP (DX = segment)
+DOS_PSP_COPY	equ	26h	; copy PSP to segment (DX)
 DOS_FCB_PARSE	equ	29h	; parse filespec (DS:SI) into FCB (ES:DI)
 DOS_MSC_GETDATE	equ	2Ah	; get date (CX=year, DH=mon, DL=day, AL=wkday)
 DOS_MSC_SETDATE	equ	2Bh	; set date (CX=year, DH=mon, DL=day)
@@ -133,6 +133,7 @@ DOS_DSK_FNEXT	equ	4Fh	; find next filespec (DTA)
 
 DOS_PSP_SET	equ	50h	; set current PSP (BX)
 DOS_PSP_GET	equ	51h	; get current PSP (BX)
+DOS_PSP_CREATE	equ	55h	; create PSP in segment (DX)
 
 ;
 ; File Control Block (FCB)

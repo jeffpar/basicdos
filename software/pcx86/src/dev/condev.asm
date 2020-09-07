@@ -953,31 +953,77 @@ DEFPROC	ddcon_int10,far
 ; no other BIOS services alter BP.  So rather than let this odd behavior
 ; expose us to potential bugs downstream, we preserve BP, too.
 ;
-	push	ax
 	push	bp
+	push	ax
 ;
-; We increment bios_lock here for the same reason we do so in scroll: if a
-; CONSOLE context switch is allowed to occur in the middle of certain INT 10h
-; operations, inconsistencies can arise.  In particular, if the active adapter
-; (in EQUIP_FLAG) is changed in the middle of a scroll, the original adapter's
-; state may not be properly restored.
+; BIOS locking prevents focus switches and DOS locking prevents context
+; switches, both of which are problematic in the middle of certain INT 10h
+; operations, especially mode changes and scrolls.  Originally, the scroll
+; function issued its own locks, but locking at this level makes that
+; unnecessary now.
+;
+; Originally, the plan was to ignore apps that issue INT 10h and support only
+; "well-behaved" apps that use DOS/CONSOLE interfaces, but we can't ignore the
+; INT 10h functions we issue ourselves (like mode changes and scrolls), so we
+; may as well eventually extend our support to a broader set of calls.
+;
+; EQUIP_FLAG is the tip of the iceberg, which has to be updated for sessions
+; that operate across multiple adapters.  Other BIOS data, such as cursor
+; position, also varies across sessions, so if we want external INT 10h calls
+; to work, that data will need to be fetched from the CONSOLE context, updated
+; before the INT 10h call is issued, and propagated back to the CONSOLE after
+; the call returns.
 ;
 	inc	[bios_lock]
-	pushf
-	call	[video_int]
-	mov	bp,sp
-	xchg	ax,[bp+2]		; AX = original AX
-	cmp	ah,VIDEO_SETMODE
-	jne	i10x
+
 	push	es
 	sub	ax,ax
 	mov	es,ax
 	ASSUME	ES:BIOS
-	call	update_curtype
+;
+; DOS_UTL_LOCK has been updated to return the active session's CONSOLE
+; context in AX.  However, during system initialization, that context may
+; not exist yet.
+;
+	mov	ax,DOS_UTL_LOCK		; lock to ensure EQUIP_FLAG
+	int	21h			; remains stable for the duration
+	test	ax,ax			; some INT 10h calls may occur before
+	jz	i10a			; a context has been created
+	push	ds
+	mov	ds,ax
+	ASSERT	STRUCT,ds:[0],CT
+	mov	ax,ds:[CT_EQUIP]
+	xchg	es:[EQUIP_FLAG],ax	; swap EQUIP_FLAG
+	pop	ds
+	jmp	short i10b
+i10a:	mov	ax,es:[EQUIP_FLAG]	; just read EQUIP_FLAG, so the
+					; return path can always restore it
+i10b:	push	ax
+	push	es
+
+	mov	bp,sp
+	mov	ax,[bp+6]
+	mov	bp,[bp+8]
+
+	pushf
+	call	[video_int]
+
+	mov	bp,sp
+	xchg	ax,[bp+6]		; AX = original AX
 	pop	es
-i10x:	call	unlock_bios
-	pop	bp
+	cmp	ah,VIDEO_SETMODE
+	jne	i10x
+	call	update_curtype
+i10x:	pop	ax
+	mov	es:[EQUIP_FLAG],ax	; restore EQUIP_FLAG
+	pop	es
+
+	mov	ax,DOS_UTL_UNLOCK
+	int	21h
+	call	unlock_bios
+
 	pop	ax
+	pop	bp
 	iret
 ENDPROC	ddcon_int10
 
@@ -1543,19 +1589,9 @@ ENDPROC	pull_kbd
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	scroll
-	inc	[bios_lock]
-	mov	ax,DOS_UTL_LOCK		; we must lock to ensure EQUIP_FLAG
-	int	21h			; remains stable for the duration
 	push	bx
 	push	cx
 	push	dx
-	push	es
-	sub	ax,ax
-	mov	es,ax
-	ASSUME	ES:BIOS
-	mov	ax,ds:[CT_EQUIP]
-	xchg	es:[EQUIP_FLAG],ax	; swap EQUIP_FLAG
-	push	ax
 	xchg	ax,cx			; AL = # lines now
 	mov	cx,ds:[CT_CONPOS]
 	mov	dx,cx
@@ -1571,15 +1607,9 @@ scr1:	add	cx,ds:[CT_CURMIN]	; CH = row, CL = col of upper left
 scr2:	mov	bh,ds:[CT_COLOR].LOB	; BH = fill attributes
 	mov	ah,VIDEO_SCROLL		; scroll up # lines in AL
 	int	INT_VIDEO
-	pop	ax
-	mov	es:[EQUIP_FLAG],ax	; restore EQUIP_FLAG
-	pop	es
 	pop	dx
 	pop	cx
 	pop	bx
-	mov	ax,DOS_UTL_UNLOCK
-	int	21h
-	call	unlock_bios
 	ret
 ENDPROC	scroll
 
@@ -1640,9 +1670,8 @@ ENDPROC	show_cursor
 ;
 ; Switch focus to the next console context in our chain.
 ;
-; This is called from check_hotkey, which is called at interrupt time,
-; as well as whenever the bios_lock is released and a pending switch request
-; has been made.
+; This is called from check_hotkey, which is called at interrupt time, as
+; well as whenever the bios_lock is released with a switch request pending.
 ;
 ; Inputs:
 ;	CX = focus context, if any

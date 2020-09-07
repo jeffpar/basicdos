@@ -76,6 +76,7 @@ OP_JMP		equ	0E9h		; 16-bit displacement
 OP_JMPF		equ	0EAh		; 32-bit absolute address
 OP_STC		equ	0F9h
 
+OP_INT21	equ	021CDh		; INT 21h
 OP_ZERO_AX	equ	0C031h		; XOR AX,AX
 OP_MOV_AX_SP	equ	089E0h		; MOV AX,SP
 OP_POP_DX_AX	equ	05A58h		; POP AX, POP DX
