@@ -435,7 +435,7 @@ ENDPROC	checkSW
 ;	DS:DI -> BUF_TOKEN
 ;
 ; Outputs:
-;	If carry clear, DS:SI -> token, CX = length
+;	If carry clear, DS:SI -> token, CX = length, and ZF set
 ;
 ; Modifies:
 ;	CX, SI
@@ -451,7 +451,7 @@ DEFPROC	getToken
 	add	bx,bx			; BX = BX * 4 (size TOKLET)
 	mov	si,[di+bx].TOK_BUF.TOKLET_OFF
 	mov	cl,[di+bx].TOK_BUF.TOKLET_LEN
-	mov	ch,0
+	sub	ch,ch			; clear CF and set ZF
 	pop	bx
 gt9:	ret
 ENDPROC	getToken
@@ -519,7 +519,8 @@ DEFPROC	cmdDate
 cdt1:	mov	ah,DOS_MSC_SETDATE
 	int	21h			; set the date
 	test	al,al			; success?
-	jz	cdt9			; yes
+	stc
+	jz	promptDate		; yes, display new date and return
 	PRINTF	<"Invalid date",13,10>
 	cmp	[di].TOK_CNT,0		; did we process a command-line token?
 	je	cdt9			; yes
@@ -529,9 +530,13 @@ cdt1:	mov	ah,DOS_MSC_SETDATE
 	mov	ax,DOS_UTL_GETDATE	; DOS_UTL_GETDATE returns packed date
 	int	21h			; DOS_MSC_GETDATE does not
 	xchg	dx,cx
-	jnc	cdt9			; if caller's carry clear, skip prompt
-	PRINTF	<"Current date is %.3W %M-%02D-%Y",13,10,"Enter new date: ">,ax,ax,ax,ax
-	stc				; keep existing CX, DX as defaults
+	jnc	cdt9			; if caller's carry clear, skip output
+	pushf
+	PRINTF	<"Current date is %.3W %M-%02D-%Y",13,10>,ax,ax,ax,ax
+	popf				; do we need a prompt?
+	jz	cdt9			; no
+	PRINTF	<"Enter new date: ">
+	test	ax,ax			; clear CF and ZF
 cdt9:	ret
 ENDPROC	cmdDate
 
@@ -989,7 +994,7 @@ DEFPROC	cmdRun
 	DEFLBL	cmdRunFlags,near
 	sub	si,si
 	call	genCode
-	ret
+cr9:	ret
 ENDPROC	cmdRun
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1012,13 +1017,14 @@ ENDPROC	cmdRun
 DEFPROC	cmdTime
 	mov	ax,offset promptTime
 	call	getInput		; DS:SI -> string
-	jc	ctm9			; do nothing on empty string
+	jc	cr9			; do nothing on empty string
 	mov	ah,':'
 	call	getValues
 	mov	ah,DOS_MSC_SETTIME
 	int	21h			; set the time
 	test	al,al			; success?
-	jz	ctm9			; yes
+	stc
+	jz	promptTime		; yes, display new time and return
 	PRINTF	<"Invalid time",13,10>
 	cmp	[di].TOK_CNT,0		; did we process a command-line token?
 	je	ctm9			; yes
@@ -1031,8 +1037,12 @@ DEFPROC	cmdTime
 	mov	cl,dh
 	mov	ch,0			; CX = seconds
 	mov	dh,0			; DX = hundredths
-	PRINTF	<"Current time is %H:%02N:%02d.%02d",13,10,"Enter new time: ">,ax,ax,cx,dx
-	stc
+	pushf
+	PRINTF	<"Current time is %H:%02N:%02d.%02d",13,10>,ax,ax,cx,dx
+	popf
+	jz	ctm8
+	PRINTF	<"Enter new time: ">
+	test	ax,ax			; clear CF and ZF
 ctm8:	mov	cx,0			; instead of retaining current values
 	mov	dx,cx			; set all defaults to zero
 ctm9:	ret
@@ -1308,10 +1318,29 @@ ENDPROC	chkString
 ;	AX, CX, DX, SI
 ;
 DEFPROC	getInput
-	mov	dh,2
+	mov	dh,[iArg]
 	call	getToken
-	call	ax			; AX = caller-supplied function
-	jnc	gi9
+	jnc	gi1
+;
+; No input was provided, and we don't prompt unless /P was specified.
+;
+	push	ax
+	mov	al,'P'
+	call	checkSW
+	pop	ax
+	stc
+;
+; The prompt function performs three important steps:
+;
+;   1)	Load current values in CX, DX
+;   2)	If CF is set, print current values
+;   3)	If ZF is clear, prompt for new values and clear CF
+;
+gi1:	call	ax			; AX = caller-supplied function
+	jbe	gi9			; if CF or ZF set, we're done
+;
+; Request new values.
+;
 	push	dx
 	lea	si,[bx].LINEBUF
 	mov	byte ptr [si],12	; max of 12 chars (including CR)
@@ -1324,6 +1353,7 @@ DEFPROC	getInput
 	cmp	byte ptr [si],1		; set carry if no characters
 	inc	si			; skip ahead to characters, if any
 	ret
+
 gi9:	mov	[di].TOK_CNT,0		; zero count to prevent reprocessing
 	ret
 ENDPROC	getInput
