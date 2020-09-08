@@ -557,7 +557,7 @@ ENDPROC	get_vecoff
 DEFPROC	add_date,DOS
 	ASSERT	Z,<cmp ax,1>
 	mov	bl,dh
-	mov	bl,0
+	mov	bh,0
 	dec	bx			; BX = month index
 	add	dl,al			; advance day
 	cmp	dl,MONTH_DAYS[bx]	; exceeded the month's days?

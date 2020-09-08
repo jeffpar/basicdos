@@ -1025,16 +1025,16 @@ DEFPROC	cmdTime
 	jmp	cmdTime
 
 	DEFLBL	promptTime,near
+	jnc	ctm8
 	mov	ax,DOS_UTL_GETTIME	; DOS_UTL_GETTIME returns packed time
 	int	21h			; DOS_MSC_GETTIME does not
-	jnc	ctm8			; if caller's carry clear, skip prompt
 	mov	cl,dh
 	mov	ch,0			; CX = seconds
 	mov	dh,0			; DX = hundredths
 	PRINTF	<"Current time is %H:%02N:%02d.%02d",13,10,"Enter new time: ">,ax,ax,cx,dx
-ctm8:	sub	cx,cx			; instead of retaining current values
-	sub	dx,dx			; set all defaults to zero
 	stc
+ctm8:	mov	cx,0			; instead of retaining current values
+	mov	dx,cx			; set all defaults to zero
 ctm9:	ret
 ENDPROC	cmdTime
 
