@@ -530,7 +530,7 @@ lp5:	mov	byte ptr [bx],CHR_RETURN
 	push	ds
 	pop	es			; ES = PSP segment
 	mov	si,ax			; SI = # paras in file
-	add	ax,10h			; AX = # paras (plus PSP)
+	add	ax,50h			; AX = # paras (10h for PSP + 40h)
 	push	bx			; save file handle
 	xchg	bx,ax			; BX = new size in paras
 	mov	ah,DOS_MEM_REALLOC

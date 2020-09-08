@@ -112,6 +112,7 @@ m1a:	sub	ax,ax
 	mov	dh,1
 	call	getToken		; DS:SI -> token #1, CX = length
 	jc	m1
+	mov	[pArg],si		; save original filename ptr
 	lea	di,[bx].FILENAME
 	mov	ax,size FILENAME
 	cmp	cx,ax
@@ -217,15 +218,14 @@ m4b:	push	bx
 	cmp	dx,offset BAS_EXT
 	je	m4c
 	mov	al,GEN_BATCH
-m4c:	call	cmdRunFlags		; if cmdRUn returns normally
+m4c:	call	cmdRunFlags		; if cmdRun returns normally
 	call	freeText		; then free all the text blocks
 m4d:	jmp	m1
 ;
 ; COM and EXE files are EXEC'ed, which requires building EXECDATA.
 ;
 m5:	mov	dx,si			; DS:DX -> filename
-	mov	si,[bx].INPUTOFF
-	lea	si,[si].INP_BUF
+	mov	si,[pArg]		; recover original filename ptr
 	add	si,cx			; DS:SI -> cmd tail after filename
 	lea	bx,[bx].EXECDATA
 	mov	[bx].EPB_ENVSEG,0
