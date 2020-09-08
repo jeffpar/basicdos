@@ -660,7 +660,7 @@ dco2b:	mov	es:[di],ds
 	mov	ds:[CT_COLOR],0707h	; default fill and border attributes
 ;
 ; Importing the BIOS CURSOR_POSN into CURPOS seemed like a nice idea initially,
-; but now that we're clearing interior below, seems best to use a default.
+; but now that we're clearing interior below, it seems best to use a default.
 ;
 	sub	ax,ax
 	mov	es,ax
@@ -710,12 +710,19 @@ dco4:	mov	ds:[CT_PORT],dx
 	call	update_curtype
 dco4a:	mov	ds:[CT_CURTYPE],ax
 	mov	ds:[CT_DEFTYPE],ax
-
-	push	bx
-	call	draw_border		; draw the context's border, if any
+;
+; If we're creating a session on a secondary adapter, then like the mode
+; change above, we must temporarily change EQUIP_FLAG, because until we finish
+; this open call, the DOS_UTL_LOCK function will be unable to tell our INT 10h
+; hook what the correct context is.
+;
+	xchg	[EQUIP_FLAG],cx
+	push	cx
 	mov	cl,100
 	call	scroll			; clear the context's interior
-	pop	bx
+	pop	[EQUIP_FLAG]
+
+	call	draw_border		; draw the context's border, if any
 
 	mov	ax,ds
 	cmp	ax,[ct_focus]		; does new context have focus?
