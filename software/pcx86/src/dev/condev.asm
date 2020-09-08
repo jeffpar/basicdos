@@ -31,7 +31,9 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFABS	IOCTBL_SIZE,<($ - IOCTBL) SHR 1>
 
 	DEFLBL	CON_PARMS,word
-	dw	80,16,80, 25,4,25, 0,0,79, 0,0,24, 0,0,1, 0,0,1
+	dw	80,16,80, 25,4,25
+	DEFLBL	ZERO,word	; since we have all this constant data, use it
+	dw	0,0,79, 0,0,24, 0,0,1, 0,0,1
 
 	DEFLBL	DBL_BORDER,word
 	dw	0C9BBh,0BABAh,0C8BCh,0CDCDh
@@ -49,7 +51,7 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 
 	DEFWORD	ct_head,0	; head of context chain
 	DEFWORD	ct_focus,0	; segment of context with focus
-	DEFWORD	frame_seg,0
+	DEFWORD	frame_seg,0	; frame buffer segment of PRIMARY adapter
 	DEFBYTE	max_rows,25	; TODO: use this for something...
 	DEFBYTE	max_cols,80	; TODO: set to correct value in ddcon_init
 	DEFBYTE	bios_lock,0	; non-zero if BIOS lock in effect
@@ -934,6 +936,11 @@ ENDPROC	ddcon_int09
 ;
 ; ddcon_int10 (BIOS video services)
 ;
+; Originally, the plan was to ignore apps that issue INT 10h and support only
+; "well-behaved" apps that use DOS/CONSOLE interfaces, but we can't ignore the
+; INT 10h functions we issue ourselves (like mode changes and scrolls), so we
+; now perform BIOS data context switching on all INT 10h calls.
+;
 ; Inputs:
 ;	None
 ;
@@ -948,7 +955,8 @@ DEFPROC	ddcon_int10,far
 ;
 ; We preserve the original AX for inspection after the call (but we still
 ; return the updated AX), and we preserve BP, which has the added benefit of
-; fixing an INT 10h "bug" where certain functions would trash BP.
+; fixing an INT 10h "bug" where certain functions would trash BP, and makes
+; it easier for this code to access data on the stack.
 ;
 ; The BIOS says for INT 10h:
 ;
@@ -963,30 +971,13 @@ DEFPROC	ddcon_int10,far
 	push	bp
 	push	ax
 ;
-; BIOS locking prevents focus switches and DOS locking prevents context
+; BIOS locking prevents focus switches and DOS locking prevents session
 ; switches, both of which are problematic in the middle of certain INT 10h
 ; operations, especially mode changes and scrolls.  Originally, the scroll
 ; function issued its own locks, but locking at this level makes that
 ; unnecessary now.
 ;
-; Originally, the plan was to ignore apps that issue INT 10h and support only
-; "well-behaved" apps that use DOS/CONSOLE interfaces, but we can't ignore the
-; INT 10h functions we issue ourselves (like mode changes and scrolls), so we
-; may as well eventually extend our support to a broader set of calls.
-;
-; EQUIP_FLAG is the tip of the iceberg, which has to be updated for sessions
-; that operate across multiple adapters.  Other BIOS data, such as cursor
-; position, also varies across sessions, so if we want external INT 10h calls
-; to work, that data will need to be fetched from the CONSOLE context, updated
-; before the INT 10h call is issued, and propagated back to the CONSOLE after
-; the call returns.
-;
 	inc	[bios_lock]
-
-	push	es
-	sub	ax,ax
-	mov	es,ax
-	ASSUME	ES:BIOS
 ;
 ; DOS_UTL_LOCK has been updated to return the active session's CONSOLE
 ; context in AX.  However, during system initialization, that context may
@@ -994,37 +985,35 @@ DEFPROC	ddcon_int10,far
 ;
 	mov	ax,DOS_UTL_LOCK		; lock to ensure EQUIP_FLAG
 	int	21h			; remains stable for the duration
-	test	ax,ax			; some INT 10h calls may occur before
-	jz	i10a			; a context has been created
-	push	ds
-	mov	ds,ax
-	ASSERT	STRUCT,ds:[0],CT
-	mov	ax,ds:[CT_EQUIP]
-	xchg	es:[EQUIP_FLAG],ax	; swap EQUIP_FLAG
+	push	ax			; save the context segment
+	test	ax,ax			; is it valid?
+	jz	i10a			; no
+	push	ds			; yes
+	mov	ds,ax			; load it
+	call	update_biosdata		; returns current EQUIP_FLAG
 	pop	ds
-	jmp	short i10b
-i10a:	mov	ax,es:[EQUIP_FLAG]	; just read EQUIP_FLAG, so the
-					; return path can always restore it
-i10b:	push	ax
-	push	es
 
+i10a:	push	ax			; save EQUIP_FLAG
 	mov	bp,sp
-	mov	ax,[bp+6]
-	mov	bp,[bp+8]
+	mov	ax,[bp+4]		; AX = caller's AX
+	mov	bp,[bp+6]		; BP = caller's BP
 
 	pushf
-	call	[video_int]
+	call	[video_int]		; issue the original INT 10h
 
 	mov	bp,sp
-	xchg	ax,[bp+6]		; AX = original AX
-	pop	es
-	cmp	ah,VIDEO_SETMODE
-	jne	i10x
-	call	update_curtype
-i10x:	pop	ax
-	mov	es:[EQUIP_FLAG],ax	; restore EQUIP_FLAG
-	pop	es
+	mov	[bp+4],ax		; update AX return value on stack
+	mov	ax,[bp+2]		; get the context segment
+	test	ax,ax			; is it valid?
+	jz	i10x			; no
+	push	ds			; yes
+	mov	ds,ax			; load it
+	mov	ax,[bp]			; AX = EQUIP_FLAG from update_biosdata
+	call	update_context
+	pop	ds
 
+i10x:	pop	ax			; clean up the stack
+	pop	ax			; (eg, ADD SP,4)
 	mov	ax,DOS_UTL_UNLOCK
 	int	21h
 	call	unlock_bios
@@ -1345,7 +1334,6 @@ DEFPROC	draw_cursor
 	shr	bx,1			; screen offset to cell offset
 	mov	ah,CRTC_CURHI		; AH = 6845 CURSOR ADDR (HI) register
 	call	write_crtc16		; update cursor position using BX
-	call	update_biosdata
 	ret
 ENDPROC	draw_cursor
 
@@ -1635,18 +1623,30 @@ ENDPROC	scroll
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	set_curtype
 ;
-; While the following code works just fine (modifying AX, BX, DX instead of
-; AX, CX), it's better to use the BIOS, because later BIOSes perform cursor
-; emulation, which automatically converts CGA-based cursor sizes (0-7) to
-; higher-res values.
+; While the following code works just fine (aside from modifying slightly
+; different registers), it's better to use the BIOS, because it turns out
+; later BIOSes will perform cursor emulation, which automatically converts
+; CGA-based cursor sizes (0-7) to higher-res values.
 ;
 	; mov	bx,ds:[CT_CURTYPE]	; BX = new values
 	; mov	ah,CRTC_CURTOP		; AH = 6845 register #
 	; jmp	write_crtc16		; write them
-
+;
+; Unfortunately, when we call the BIOS here, we are NOT necessarily running
+; in the session for which the call is intended.  When we're called from
+; ddcon_setins, we are, but when we're called from show_cursor, which is
+; called from switch_focus, we may not be.
+;
+; The simplest solution is to call update_biosdata and then invoke the
+; original INT 10h code, bypassing ddcon_int10.  Be aware that this will be
+; required for any video BIOS call made on behalf of a context that is not
+; ALSO the running context.
+;
+	call	update_biosdata
 	mov	cx,ds:[CT_CURTYPE]
 	mov	ah,VIDEO_SETCTYPE
-	int	10h
+	pushf
+	call	[video_int]
 	ret
 ENDPROC	set_curtype
 
@@ -1717,9 +1717,6 @@ sf1:	mov	cx,[ct_head]
 	je	sf8			; nothing to do
 sf2:	xchg	cx,[ct_focus]
 	mov	ds,cx
-	IFDEF	MAYBE_SOMEDAY
-	call	update_context
-	ENDIF
 	call	draw_border		; redraw the border and hide
 	call	hide_cursor		; the cursor of the outgoing context
 	mov	ds,[ct_focus]
@@ -1779,15 +1776,11 @@ ENDPROC	unlock_bios
 ; state.  The main benefit is improved compatibility with apps that bypass our
 ; services (ie, access the BIOS directly).
 ;
-; Worst case, this function might need to be called on every session switch.
-; However, as discussed in scb_switch, calling drivers on every context switch
-; would require some new services and generate a lot of undesirable overhead.
-;
 ; Inputs:
 ;	DS = CONSOLE context
 ;
 ; Outputs:
-;	None
+;	AX = previous EQUIP_FLAG
 ;
 ; Modifies:
 ;	AX
@@ -1798,10 +1791,9 @@ DEFPROC	update_biosdata
 	sub	ax,ax
 	mov	es,ax
 	ASSUME	ES:BIOS
+	ASSERT	STRUCT,ds:[0],CT
 	mov	al,ds:[CT_MODE]
 	mov	[CRT_MODE],al
-	mov	ax,ds:[CT_EQUIP]
-	mov	[EQUIP_FLAG],ax
 	mov	ax,ds:[CT_PORT]
 	mov	[ADDR_6845],ax
 	mov	ax,ds:[CT_CURTYPE]
@@ -1809,6 +1801,8 @@ DEFPROC	update_biosdata
 	mov	ax,ds:[CT_CURPOS]	; AX = cursor pos within context
 	add	ax,ds:[CT_CONPOS]	; add context pos to get screen pos
 	mov	[CURSOR_POSN],ax
+	mov	ax,ds:[CT_EQUIP]
+	xchg	[EQUIP_FLAG],ax
 	pop	es
 	ret
 ENDPROC	update_biosdata
@@ -1817,15 +1811,11 @@ ENDPROC	update_biosdata
 ;
 ; update_context
 ;
-; This is the inverse of update_biosdata.  It may only be necessary if we
-; get more aggressive about maintaining BIOS state on a per-session basis.
-;
-; Worst case, this function might need to be called on every session switch.
-; However, as discussed in scb_switch, calling drivers on every context switch
-; would require some new services and generate a lot of undesirable overhead.
+; This is the reverse of update_biosdata.
 ;
 ; Inputs:
-;	DS = CONSOLE context (outgoing)
+;	DS = CONSOLE context
+;	AX = previous EQUIP_FLAG
 ;
 ; Outputs:
 ;	None
@@ -1833,24 +1823,22 @@ ENDPROC	update_biosdata
 ; Modifies:
 ;	AX
 ;
-	IFDEF	MAYBE_SOMEDAY
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	update_context
 	push	es
-	sub	ax,ax
-	mov	es,ax
+	mov	es,[ZERO]
 	ASSUME	ES:BIOS
+	mov	[EQUIP_FLAG],ax
 	mov	al,[CRT_MODE]
 	mov	ds:[CT_MODE],al
-	mov	ax,[CURSOR_MODE]
-	mov	ds:[CT_CURTYPE],ax
+	; mov	ax,[CURSOR_MODE]	; we don't trust CURSOR_MODE
+	; mov	ds:[CT_CURTYPE],ax	; update_curtype explains why
 	mov	ax,[CURSOR_POSN]
 	sub	ax,ds:[CT_CONPOS]
 	mov	ds:[CT_CURPOS],ax
 	pop	es
 	ret
 ENDPROC	update_context
-	ENDIF	; MAYBE_SOMEDAY
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2139,8 +2127,7 @@ ddn1:	mov	[frame_seg],dx
 	mov	[kbd_int].SEG,ax
 	sti
 ;
-; Install an INT 10h services handler to detect mode changes (and perhaps
-; more as we evolve).
+; Install an INT 10h services handler to reflect context data into BIOS data.
 ;
 	mov	ax,offset ddcon_int10
 	xchg	ds:[INT_VIDEO * 4].OFF,ax
