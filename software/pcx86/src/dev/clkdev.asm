@@ -179,7 +179,7 @@ dci3:	cmp	al,IOCTL_SETTIME
 	mov	dx,cx			; DX:AX = quotient (# ticks)
 	popf				; did seconds / 2 produce a remainder?
 	jnc	dci3a			; no
-	add	ax,18			; yes, add 18.2 more ticks
+	add	ax,18			; yes, add 18 more ticks
 	adc	dx,0
 
 dci3a:	pop	cx			; CL = hundredths (from DX)
@@ -231,20 +231,20 @@ dci5:	cmp	al,IOCTL_GETTIME
 ; where H = hours (1-12), M = minutes (0-59), and S = seconds / 2 (0-29)
 ;
 ; However, we must first convert # ticks to hours/minutes/seconds.  There
-; are 32772 ticks per half-hour, 1092 ticks per minute, and 18.2 ticks per sec.
+; are 32771 ticks per half-hour, 1092 ticks per minute, and 18 ticks per sec.
 ;
 	cli
 	mov	ax,[ticksToday].LOW
 	mov	dx,[ticksToday].HIW
 	sti
-	mov	bx,32772
+	mov	bx,32771
 	div	bx			; AX = # half-hours
 	shr	ax,1			; AX = # hours
 	xchg	cx,ax			; CL = # hours
 	xchg	ax,dx			; AX = # half-hour ticks remaining
 	mov	dx,0			; DX:AX
 	jnc	dci4a
-	adc	ax,32772		; DX:AX = # ticks remaining
+	adc	ax,32771		; DX:AX = # ticks remaining
 	adc	dx,0
 dci4a:	mov	bx,1092
 	div	bx			; AX = # minutes
