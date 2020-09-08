@@ -1285,7 +1285,7 @@ DEFPROC	utl_incdate,DOS
 	mov	ax,1			; add 1 day to the date values
 	call	add_date
 	mov	[bp].REG_CX,cx		; update all the inputs
-	mov	[bp].REG_DX,dx		; we don't know which ones changed
+	mov	[bp].REG_DX,dx		; since any or all may have changed
 	ret
 ENDPROC	utl_incdate
 

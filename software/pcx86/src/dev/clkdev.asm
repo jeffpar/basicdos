@@ -138,7 +138,6 @@ dci3:	cmp	al,IOCTL_SETTIME
 ; (DH), and hundredths (DL) to a number of ticks.  We start by converting
 ; time to the total number of seconds (ignoring the hundredths).
 ;
-	int 3
 	push	dx			; save DX
 	mov	ax,3600			; AX = # seconds in 1 hour
 	mov	dl,ch
@@ -204,10 +203,10 @@ dci4:	cmp	al,IOCTL_GETDATE
 ;
 ; For GETDATE requests, return the date in "packed" format:
 ;
-;	 Y  Y  Y  Y  Y  Y  Y  m  m  m  m  D  D  D  D  D
+;	 Y  Y  Y  Y  Y  Y  Y  M  M  M  M  D  D  D  D  D
 ;	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
 ;
-; where Y = year-1980 (0-127), m = month (1-12), and D = day (1-31).
+; where Y = year-1980 (0-127), M = month (1-12), and D = day (1-31).
 ;
 	cli
 	mov	dx,[dateYear]
@@ -226,15 +225,14 @@ dci5:	cmp	al,IOCTL_GETTIME
 ;
 ; For GETTIME requests, return the time in "packed" format:
 ;
-;	 H  H  H  H  H  m  m  m  m  m  m  S  S  S  S  S
+;	 H  H  H  H  H  M  M  M  M  M  M  S  S  S  S  S
 ;	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
 ;
-; where H = hours (1-12), m = minutes (0-59), and S = seconds / 2 (0-29)
+; where H = hours (1-12), M = minutes (0-59), and S = seconds / 2 (0-29)
 ;
 ; However, we must first convert # ticks to hours/minutes/seconds.  There
 ; are 32772 ticks per half-hour, 1092 ticks per minute, and 18.2 ticks per sec.
 ;
-	int 3
 	cli
 	mov	ax,[ticksToday].LOW
 	mov	dx,[ticksToday].HIW
@@ -290,7 +288,9 @@ dci4e:	or	dl,al
 	xchg	ax,cx			; AL = # ticks remaining (< 36)
 ;
 ; At this point, the packed result is ready, but we'd also like to convert
-; the remaining ticks in AL to hundredths (< 200).  AL/36 = N/200.
+; the remaining ticks in AL to hundredths (< 200).  AL/36 = N/200.  We return
+; up to 200 hundredths to compensate for the "packed" time containing only
+; the nearest EVEN second.
 ;
 	mov	ah,200
 	mul	ah			; AX = AL * 200
