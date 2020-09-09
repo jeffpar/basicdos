@@ -132,13 +132,14 @@ dci2:	cmp	al,IOCTL_SETDATE
 	jmp	dci8
 
 dci3:	cmp	al,IOCTL_SETTIME
-	jne	dci4
+	je	dci3a
+	jmp	dci4
 ;
 ; For SETTIME requests, we convert the hours (CH), minutes (CL), seconds
 ; (DH), and hundredths (DL) to a number of ticks.  We start by converting
-; time to the total number of seconds (ignoring the hundredths).
+; time to the total number of seconds (hundredths are dealt with later).
 ;
-	push	dx			; save DX
+dci3a:	push	dx			; save DX
 	mov	ax,3600			; AX = # seconds in 1 hour
 	mov	dl,ch
 	mov	dh,0
@@ -164,6 +165,7 @@ dci3:	cmp	al,IOCTL_SETTIME
 	shr	dx,1			; DX:BX / 2 yields a max 43200
 	rcr	bx,1			; BX = seconds / 2
 	pushf				; save remainder, if any, for later
+
 	mov	ax,19663
 	mul	bx			; DX:AX = BX * 19663
 	mov	bx,540			; divisor is 1080 / 2
@@ -176,14 +178,44 @@ dci3:	cmp	al,IOCTL_SETTIME
 	div	bx			; AX is high quotient
 	xchg	ax,cx			; move to CX, restore low dividend
 	div	bx			; AX is low quotient
-	mov	dx,cx			; DX:AX = quotient (# ticks)
-	popf				; did seconds / 2 produce a remainder?
-	jnc	dci3a			; no
-	add	ax,18			; yes, add 18 more ticks
-	adc	dx,0
 
-dci3a:	pop	cx			; CL = hundredths (from DX)
-	xchg	ax,cx			; AL = hundredths, DX:CX = tick count
+	IFDEF MAXDEBUG
+	DPRINTF	<"initial number of ticks: %ld",13,10>,ax,cx
+	DPRINTF	<"with remainder of %d after division by %d",13,10>,dx,bx
+	ENDIF
+;
+; CX:AX = quotient (# ticks).  DX/540 is a fractional tick, which we convert
+; to hundredths and add to the hundredths adjustment below.
+;
+	push	ax
+	xchg	ax,dx
+	mov	dl,100
+	div	dl
+	xchg	bx,ax			; BL = additional hundredths
+	mov	dx,cx
+	pop	cx			; DX:CX = tick count
+
+	IFDEF MAXDEBUG
+	mov	bh,0
+	DPRINTF	<"hundredths for fractional tick: %d",13,10>,bx
+	ENDIF
+
+	popf				; did seconds / 2 produce a remainder?
+	jnc	dci3b			; no
+	add	bl,100			; yes, add another 100 hundredths
+
+	IFDEF MAXDEBUG
+	DPRINTF	<"hundredths for additional second: %d",13,10>,bx
+	ENDIF
+
+dci3b:	pop	ax			; AL = hundredths (from original DX)
+	add	al,bl			; add any hundredths from above
+
+	IFDEF MAXDEBUG
+	mov	ah,0
+	DPRINTF	<"total hundredths: %d",13,10>,ax
+	ENDIF
+
 	mov	ah,18
 	mul	ah			; AX = hundredths * 18
 	mov	bl,100
@@ -191,6 +223,10 @@ dci3a:	pop	cx			; CL = hundredths (from DX)
 	cbw				; AX = # ticks for hundredths
 	add	cx,ax
 	adc	dx,0			; DX:CX += ticks for hundredths
+
+	IFDEF MAXDEBUG
+	DPRINTF	<"%04C:%04I: new tick count: %ld",13,10>,cx,dx
+	ENDIF
 
 	cli
 	mov	[ticksToday].LOW,cx
@@ -218,10 +254,11 @@ dci4:	cmp	al,IOCTL_GETDATE
 	shl	dx,cl			; make room for day (5 bits)
 	or	dl,[dateDay]
 	sti
-	jmp	short dci8
+	jmp	dci8
+dci4x:	jmp	dci9
 
 dci5:	cmp	al,IOCTL_GETTIME
-	jne	dci9
+	jne	dci4x
 ;
 ; For GETTIME requests, return the time in "packed" format:
 ;
@@ -231,50 +268,75 @@ dci5:	cmp	al,IOCTL_GETTIME
 ; where H = hours (1-12), M = minutes (0-59), and S = seconds / 2 (0-29)
 ;
 ; However, we must first convert # ticks to hours/minutes/seconds.  There
-; are 32771 ticks per half-hour, 1092 ticks per minute, and 18 ticks per sec.
+; are approximately 32771 ticks per half-hour, 1092 ticks per minute, and 18
+; ticks per sec.
 ;
 	cli
 	mov	ax,[ticksToday].LOW
 	mov	dx,[ticksToday].HIW
 	sti
-	mov	bx,32771
+
+	IFDEF MAXDEBUG
+	DPRINTF	<"%04C:%04I: current tick count: %ld",13,10>,ax,dx
+	ENDIF
+;
+; TODO: the true divisor is 32771.66748046875, so the remainder may be too
+; large; this appears to be good enough for now, but deal with it eventually.
+;
+	mov	bx,32772
 	div	bx			; AX = # half-hours
 	shr	ax,1			; AX = # hours
 	xchg	cx,ax			; CL = # hours
 	xchg	ax,dx			; AX = # half-hour ticks remaining
 	mov	dx,0			; DX:AX
-	jnc	dci4a
-	adc	ax,32771		; DX:AX = # ticks remaining
+	jnc	dci5a
+	add	ax,32772		; DX:AX = # ticks remaining
 	adc	dx,0
-dci4a:	mov	bx,1092
+
+dci5a:	mov	bx,1092
 	div	bx			; AX = # minutes
+;
+; The true divisor is 1092.388916015625, so the remainder may be too large;
+; multiply AX (# of minutes) by 3889 and divide by 10000 to yield the number
+; of ticks to reduce the remainder (DX) by.
+;
+	push	ax
+	push	dx
+	mov	bx,3889
+	mul	bx
+	mov	bx,10000
+	div	bx
+	pop	dx
+	sub	dx,ax
+	jae	dci5b
+	sub	dx,dx
+dci5b:	pop	ax
+
 	mov	ch,al			; CH = # minutes
 	xchg	ax,dx			; AX = # ticks remaining
-	cwd
-	mov	bx,18
+	mov	bx,10
+	mul	bx			; DX:AX = # ticks * 10
+	mov	bx,182
 	div	bx			; AX = # seconds
-	push	dx			; DX = # ticks remaining (< 18)
+	push	dx			; DX = # ticks * 10 remaining (< 182)
 ;
 ; Sanitize the time values now, ensuring we never return values out of bounds.
 ;
 	cmp	al,60			; AL = # seconds
-	jb	dci4b
-	ASSERT	NEVER			; take a look
+	jb	dci6
 	mov	al,0
 	inc	ch
-dci4b:	cmp	ch,60			; CH = # minutes
-	jb	dci4c
-	ASSERT	NEVER			; take a look
+dci6:	cmp	ch,60			; CH = # minutes
+	jb	dci6b
 	mov	ch,0
 	inc	cx
-dci4c:	cmp	cl,24			; CL = # hours
-	jb	dci4d
-	ASSERT	NEVER			; take a look
+dci6b:	cmp	cl,24			; CL = # hours
+	jb	dci7
 	mov	cl,0
 ;
 ; Create the "packed" time format now.
 ;
-dci4d:	mov	dl,cl			; start with hours (5 bits)
+dci7:	mov	dl,cl			; start with hours (5 bits)
 	mov	cl,6			; make room for minutes (6 bits)
 	shl	dx,cl
 	or	dl,ch			; add the minutes
@@ -282,20 +344,22 @@ dci4d:	mov	dl,cl			; start with hours (5 bits)
 	shl	dx,cl
 	pop	cx			; CX = # ticks remaining (from above)
 	shr	al,1			; AL = seconds / 2
-	jnc	dci4e
-	add	cx,18
-dci4e:	or	dl,al
-	xchg	ax,cx			; AL = # ticks remaining (< 36)
+	jnc	dci7a
+	add	cx,182
+dci7a:	or	dl,al
+	xchg	ax,cx			; AL = # ticks remaining (< 364)
 ;
 ; At this point, the packed result is ready, but we'd also like to convert
-; the remaining ticks in AL to hundredths (< 200).  AL/36 = N/200.  We return
+; the remaining ticks in AX to hundredths (< 200).  AX/364 = N/200.  We return
 ; up to 200 hundredths to compensate for the "packed" time containing only
 ; the nearest EVEN second.
 ;
-	mov	ah,200
-	mul	ah			; AX = AL * 200
-	mov	cl,36
-	div	cl			; AL = (AL * 200) / 36
+	push	dx
+	mov	cx,200
+	mul	cx			; DX:AX = AX * 200
+	mov	cx,364
+	div	cx			; AX = (AX * 200) / 364
+	pop	dx
 
 dci8:	mov	es:[di].DDP_CONTEXT,dx	; return value goes in context field
 	mov	ah,DDSTAT_DONE SHR 8
