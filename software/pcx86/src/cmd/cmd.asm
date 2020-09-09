@@ -1377,24 +1377,48 @@ ENDPROC	getInput
 DEFPROC	getValues
 	push	bx
 	xchg	bx,ax			; BH = delimiter
+
 	call	getValue
 	jc	gvs2
 	mov	ch,al			; CH = 1st value (eg, month)
+
 gvs2:	call	getValue
 	jc	gvs3
 	mov	cl,al			; CL = 2nd value (eg, day)
+
 gvs3:	cmp	bh,':'
 	jne	gvs4
 	mov	bh,'.'
+
 gvs4:	call	getValue
 	jc	gvs5
 	mov	dx,ax			; DX = 3rd value (eg, year)
+
 gvs5:	cmp	bh,'-'			; are we dealing with a date?
 	je	gvs9			; yes
+
 	mov	dh,al			; DH = 3rd value (eg, seconds)
-	call	getValue
+	push	dx
+	push	di
+	mov	bl,10			; BL = base 10
+	lea	dx,[si+2]
+	mov	di,-1			; DI = -1 (no validation data)
+	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
+	int	21h
+	jc	gvs8
+	sub	dx,si			; too many digits?
+	jc	gvs6			; yes
+	je	gvs7			; no, exactly 2 digits
+	mov	dl,10			; one digit must be multiplied by 10
+	mul	dl
+	jmp	short gvs7
+gvs6:	mov	al,-1
+gvs7:	clc
+gvs8:	pop	di
+	pop	dx
 	jc	gvs9
 	mov	dl,al			; DL = 4th value (eg, hundredths)
+
 gvs9:	pop	bx
 	ret
 ENDPROC	getValues
@@ -1419,7 +1443,7 @@ ENDPROC	getValues
 ;	If carry set, no data
 ;
 ; Modifies:
-;	AX, SI
+;	AX, BL, SI
 ;
 DEFPROC	getValue
 	push	di

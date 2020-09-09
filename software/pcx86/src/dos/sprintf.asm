@@ -179,7 +179,9 @@ ENDPROC itoa
 ;	%s:	string (near DS-relative pointer); use %ls for far pointer
 ;
 ; Non-standard format types:
-;	%U:	skip one 16-bit parameter on the stack; nothing output
+;	%C:	caller's CS
+;	%I:	caller's IP
+;	%U:	skips one 16-bit parameter on the stack; nothing output
 ;	%W:	day of week, as string
 ;	%F:	month portion of a 16-bit DATE value, as string
 ;	%M:	month portion of a 16-bit DATE value, as number (1-12)
@@ -296,7 +298,7 @@ pfpl2:	cmp	al,'W'			; %W (day-of-week as a string)?
 pfpl3:	cmp	al,'M'			; %M (month portion of DATE)?
 	jne	pfpm			; no
 	mov	dx,0F05h		; shift DATE right 5, mask with 0Fh
-	jmp	short pfda
+	jmp	pfda
 pfpm:	cmp	al,'D'			; %D (day portion of DATE)?
 	jne	pfpn			; no
 	mov	dx,1F00h		; shift DATE right 0, mask with 1Fh
@@ -339,9 +341,21 @@ pfpt:	cmp	al,'A'			; %A (AM or PM portion of TIME)?
 pfps2:	mov	[bp+si],ax
 	jmp	pfc
 pfpu:	cmp	al,'U'			; %U (skip one 16-bit parameter)?
-	jne	pfpz			; no
+	jne	pfpv			; no
 	add	si,2			; yes, bump parameter index
 	jmp	pf1			; and return to top
+pfpv:	cmp	al,'C'			; %C (CS register)?
+	jne	pfpw			; no
+	mov	ax,[bp].REG_CS		; yes, load caller's CS
+	jmp	short pfpx
+pfpw:	cmp	al,'I'			; %I (IP register)?
+	jne	pfpz			; no
+	mov	ax,[bp].REG_IP		; yes, load caller's IP
+	dec	ax
+	dec	ax			; rewind IP to the INT 21h
+pfpx:	mov	cl,16			; set base
+	sub	dx,dx			; zero high word
+	jmp	pfd1			; print as base-16 16-bit value
 
 pfpz:	mov	bx,dx			; error, didn't end with known letter
 	mov	al,'%'			; restore '%'
