@@ -11,7 +11,4 @@ DEL CMD\OBJ\*.MAP
 DEL TEST\OBJ\*.COM
 DEL TEST\OBJ\*.EXE
 DEL TEST\OBJ\*.MAP
-CD BOOT
-REM Use MK NODEBUG to create a non-debug release
-IF "%1"=="" MK DEBUG ALL
-IF NOT "%1"=="" MK %1 ALL
+MK %1

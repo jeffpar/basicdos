@@ -222,7 +222,7 @@ ENDPROC	utl_printf endp
 ; This is used by DEBUG code (specifically, the DPRINTF macro) to print
 ; to a "debug" device defined by a DEBUG= line in CONFIG.SYS.  However, this
 ; code is always left in place, in case we end up with a mix of DEBUG and
-; NODEBUG binaries.  Without this function, those calls would crash, due to
+; FINAL binaries.  Without this function, those calls would crash, due to
 ; how the format strings are stored after the INT 21h.
 ;
 ; Except for the output device, this function is identical to utl_printf.
