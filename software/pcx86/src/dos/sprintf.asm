@@ -179,8 +179,7 @@ ENDPROC itoa
 ;	%s:	string (near DS-relative pointer); use %ls for far pointer
 ;
 ; Non-standard format types:
-;	%C:	caller's CS
-;	%I:	caller's IP
+;	%P:	caller's address (REG_CS:REG_IP-2)
 ;	%U:	skips one 16-bit parameter on the stack; nothing output
 ;	%W:	day of week, as string
 ;	%F:	month portion of a 16-bit DATE value, as string
@@ -344,19 +343,14 @@ pfpu:	cmp	al,'U'			; %U (skip one 16-bit parameter)?
 	jne	pfpv			; no
 	add	si,2			; yes, bump parameter index
 	jmp	pf1			; and return to top
-pfpv:	cmp	al,'C'			; %C (CS register)?
-	jne	pfpw			; no
-	mov	ax,[bp].REG_CS		; yes, load caller's CS
-	jmp	short pfpx
-pfpw:	cmp	al,'I'			; %I (IP register)?
+pfpv:	cmp	al,'P'			; %P (CS:IP)?
 	jne	pfpz			; no
-	mov	ax,[bp].REG_IP		; yes, load caller's IP
+	mov	dx,[bp].REG_CS		; yes, load caller's CS:IP-2 into DX:AX
+	mov	ax,[bp].REG_IP
 	dec	ax
-	dec	ax			; rewind IP to the INT 21h
-pfpx:	mov	cl,16			; set base
-	sub	dx,dx			; zero high word
-	jmp	pfd1			; print as base-16 16-bit value
-
+	dec	ax
+	mov	cl,16			; set base
+	jmp	pfd1			; print as base-16 32-bit value
 pfpz:	mov	bx,dx			; error, didn't end with known letter
 	mov	al,'%'			; restore '%'
 	jmp	pf2

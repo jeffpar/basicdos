@@ -13,7 +13,7 @@ DOS	segment word public 'CODE'
 
 	EXTERNS	<FUNCTBL>,word
 	EXTERNS	<FUNCTBL_SIZE,UTILTBL_SIZE>,abs
-	EXTERNS	<scb_active>,word
+	EXTERNS	<scb_active,key_boot>,word
 	EXTERNS	<ddint_level>,byte
 	EXTERNS	<msc_sigctrlc_read,msc_sigerr>,near
 
@@ -25,8 +25,8 @@ DOS	segment word public 'CODE'
 ;
 ; dos_dverr (INT 00h)
 ;
-; If a "divide exception" occurs, this default handler reports it and
-; then aborts the current program.
+; If a "divide exception" occurs, this default handler reports it and then
+; aborts the current program.
 ;
 DEFPROC	dos_dverr,DOSFAR
 	IFDEF MAXDEBUG
@@ -51,7 +51,7 @@ ENDPROC	dos_dverr
 ; If an INT 01h instruction is executed, we treat it as an assertion failure.
 ;
 ; We make no effort to distinguish this from the FL_TRAP bit set in flags,
-; since that would presumably be done by a debugger, which should have replaced
+; since that would presumably be done by a debugger, which would have replaced
 ; the INT 01h vector with its own handler.
 ;
 DEFPROC	dos_sstep,DOSFAR
@@ -213,10 +213,20 @@ dc1:	sti
 	cmc
 	jb	dc9
 ;
+; If SHIFT+L was pressed at boot (and this is a DEBUG build), log DOS calls.
+;
+	IFDEF DEBUG
+	cmp	[key_boot].LOB,'L'
+	jne	dc1a
+	mov	bl,ah
+	mov	bh,0
+	DPRINTF	<"%04x:%04x: DOS function %02xh",13,10>,[bp].REG_CS,[bp].REG_IP,bx
+	ENDIF
+;
 ; If CTRLC checking is enabled for all (non-utility) functions and a CTRLC
 ; was detected (two conditions that we check with a single compare), signal it.
 ;
-	mov	bx,[scb_active]
+dc1a:	mov	bx,[scb_active]
 	test	bx,bx
 	jz	dc2			; TODO: always have an scb_active
 	ASSERT	STRUCT,[bx],SCB
@@ -434,7 +444,7 @@ ENDPROC	dos_ddint_leave
 DEFPROC	func_none,DOS
 	mov	al,ah
 	mov	ah,0
-	PRINTF	<"Unsupported DOS function %02xh",13,10,"called @%08lx",13,10>,ax,[bp].REG_IP,[bp].REG_CS
+	DPRINTF	<"%#010P: unsupported DOS function %02xh",13,10>,ax
 	mov	[bp].REG_AX,ERR_INVALID
 	stc
 	ret
