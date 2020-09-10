@@ -57,8 +57,8 @@ DEFPROC	allocBlock
 	cbw
 	stosw				; set BLK_FREE
 	mov	al,[si].BLK_SIG
-	stosw				; set BLK_RESERVED/BLK_PADDING
-	cmp	al,VBLKSIG
+	stosw				; set BLK_SIG/BLK_PAD
+	cmp	al,SIG_VBLK
 	jne	ab1
 	dec	di
 	mov	al,VAR_LONG
@@ -582,7 +582,7 @@ as1:	mov	dl,es:[di]
 ; If the target string does NOT reside in a string pool block, then it must
 ; always be copied.
 ;
-	cmp	es:[SBLK_RESERVED],SBLKSIG
+	cmp	es:[SBLK_SIG],SIG_SBLK
 	jne	as2			; target must be copied
 ;
 ; Check the target string to see if there's any (and enough) space after it.

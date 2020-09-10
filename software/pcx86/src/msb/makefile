@@ -1,0 +1,138 @@
+#
+# BASIC-DOS Makefile
+#
+# @author Jeff Parsons <Jeff@pcjs.org>
+# @copyright © 2012-2020 Jeff Parsons
+# @license MIT <https://www.pcjs.org/LICENSE.txt>
+#
+# This file is part of PCjs, a computer emulation software project at pcjs.org
+#
+ASM=MASM
+LINK=LINK
+AFLAGS=/D$(REL) /I.
+MAPSYM=MAPSYM
+
+#
+# Inference rules in the DOS MAKE utility apparently work only if the
+# files are in the same folder.  So for now, these rules must be copied
+# under each dependency.
+#
+.ASM.OBJ:
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\GWDATA.OBJ: GWDATA.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\GWMAIN.OBJ: GWMAIN.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\OEM.OBJ: OEM.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\GWEVAL.OBJ: GWEVAL.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\GWLIST.OBJ: GWLIST.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\IBMRES.OBJ: IBMRES.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\BIMISC.OBJ: BIMISC.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\DSKCOM.OBJ: DSKCOM.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\BIPTRG.OBJ: BIPTRG.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\BIPRTU.OBJ: BIPRTU.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\BISTRS.OBJ: BISTRS.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\FIVEO.OBJ: FIVEO.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\GENGRP.OBJ: GENGRP.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\ADVGRP.OBJ: ADVGRP.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\MACLNG.OBJ: MACLNG.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\GWSTS.OBJ: GWSTS.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\GIO86.OBJ: GIO86.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\GIODSK.OBJ: GIODSK.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\GIOKYB.OBJ: GIOKYB.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\GIOSCN.OBJ: GIOSCN.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\GIOLPT.OBJ: GIOLPT.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\GIOCOM.OBJ: GIOCOM.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\GIOCON.OBJ: GIOCON.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\GIOTBL.OBJ: GIOTBL.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\SCNEDT.OBJ: SCNEDT.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\SCNDRV.OBJ: SCNDRV.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\CALL86.OBJ: CALL86.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\NEXT86.OBJ: NEXT86.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\MATH.OBJ: MATH.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\KANJ86.OBJ: KANJ86.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\GIOCAS.OBJ: GIOCAS.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\ITSA86.OBJ: ITSA86.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\GWRAM.OBJ: GWRAM.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\GWINIT.OBJ: GWINIT.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\BIBOOT.OBJ: BIBOOT.ASM
+	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+
+OBJ\MSBASIC.EXE: OBJ\GWDATA.OBJ OBJ\GWMAIN.OBJ OBJ\OEM.OBJ OBJ\GWEVAL.OBJ \
+	OBJ\GWLIST.OBJ OBJ\IBMRES.OBJ OBJ\BIMISC.OBJ OBJ\DSKCOM.OBJ \
+	OBJ\BIPTRG.OBJ OBJ\BIPRTU.OBJ OBJ\BISTRS.OBJ OBJ\FIVEO.OBJ \
+	OBJ\GENGRP.OBJ OBJ\ADVGRP.OBJ OBJ\MACLNG.OBJ OBJ\GWSTS.OBJ \
+	OBJ\GIO86.OBJ OBJ\GIODSK.OBJ OBJ\GIOKYB.OBJ OBJ\GIOSCN.OBJ \
+	OBJ\GIOLPT.OBJ OBJ\GIOCOM.OBJ OBJ\GIOCON.OBJ OBJ\GIOTBL.OBJ \
+	OBJ\SCNEDT.OBJ OBJ\SCNDRV.OBJ OBJ\CALL86.OBJ OBJ\NEXT86.OBJ \
+	OBJ\MATH.OBJ OBJ\KANJ86.OBJ OBJ\GIOCAS.OBJ OBJ\ITSA86.OBJ \
+	OBJ\GWRAM.OBJ OBJ\GWINIT.OBJ OBJ\BIBOOT.OBJ
+	$(LINK) /MAP @$*.LRF
+	$(MAPSYM) $*

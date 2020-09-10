@@ -436,10 +436,16 @@ si12:	mov	si,offset CFG_DEBUG
 	int	21h
 	jc	si13
 	mov	es:[sfh_debug],al	; save SFH for DEBUG device
+
+si13:	mov	si,offset CFG_BOOTKEY
+	call	find_cfg		; look for "BOOTKEY="
+	jc	si14
+	mov	al,[di]
+	mov	byte ptr es:[key_boot],al
 ;
 ; Good time to print a "System ready" message, or something to that effect.
 ;
-si13:	mov	dx,offset SYS_MSG
+si14:	mov	dx,offset SYS_MSG
 	mov	ah,DOS_TTY_PRINT
 	int	21h
 ;
@@ -450,7 +456,7 @@ si13:	mov	dx,offset SYS_MSG
 	sub	bx,bx			; BX = SCB load count
 	sub	cx,cx			; CL = SCB #
 	mov	dx,offset SHELL_FILE	; DX = default shell
-si14:	mov	si,offset CFG_SHELL
+si15:	mov	si,offset CFG_SHELL
 	call	find_cfg		; look for "SHELL="
 	jc	si16			; not found
 	mov	dx,di
@@ -469,14 +475,14 @@ si16:	test	dx,dx			; do we still have a default?
 	inc	bx
 si17:	inc	cx			; advance SCB #
 	sub	dx,dx			; no more default
-	jmp	si14
+	jmp	si15
 
 si18:	PRINTF	<'Error loading "%ls": %d',13,10>,dx,ds,ax
 	jmp	si17
 ;
 ; Although it may appear that every SCB was started immediately after loading,
-; nothing can actually begin running until we obtain access to the CLOCK$ device
-; and revector all the hardware interrupt handlers that drive our scheduler.
+; nothing can actually run until we obtain access to the CLOCK$ device and
+; revector all the hardware interrupt handlers that drive our scheduler.
 ;
 si20:	test	bx,bx
 	jz	sierr2			; if no SCBs loaded, that's not good
@@ -514,9 +520,18 @@ si20:	test	bx,bx
 	stosw
 	mov	ax,ds
 	stosw
+;
+; If a boot key was typed, it overrides any BOOTKEY setting in CONFIG.SYS.
+;
 	mov	ax,[BOOT_KEY]		; copy the boot key, if any
-	mov	[key_boot],ax		; (DPRINTFs weren't safe until now)
-	sti
+	cmp	al,'0'			; alphanumeric key?
+	jb	si98			; no
+	cmp	al,'a'			; lower-case?
+	jb	si97			; no
+	sub	al,20h			; make upper-case
+si97:	mov	[key_boot],ax
+
+si98:	sti
 ;
 ; We're done.  On the next clock tick, scb_yield will switch to one of the
 ; SCBs we started, and it will never return here, because sysinit has no SCB.
@@ -700,6 +715,7 @@ CFG_SWITCHAR	db	9,"SWITCHAR="
 		dw	4,4,16
 CFG_FILES	db	6,"FILES="
 		dw	20,20,256
+CFG_BOOTKEY	db	8,"BOOTKEY="
 CFG_CONSOLE	db	8,"CONSOLE="
 CON_DEVICE	db	"CON:80,25",0	; default CONSOLE configuration
 CFG_DEBUG	db	6,"DEBUG="	; used to specify DEBUG device

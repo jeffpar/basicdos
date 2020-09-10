@@ -6,7 +6,7 @@ machines:
   - id: ibm5160
     type: pcx86
     config: /configs/pcx86/machine/ibm-5160-cga-512kb-debugger.json
-    autoType: $date\r$time\r
+    autoType: $date\r$time\r\D:\rMK\r
     autoStart: true
     messages: int
     autoMount:
@@ -30,8 +30,8 @@ files are also responsible for copying the resulting binaries to whatever
 diskette is currently in drive A:.
 
 By default, the binaries contain *DEBUG* code (eg, assertions and debugging
-aids).  To build non-debug binaries, type **MK NODEBUG**, or **MKCLEAN NODEBUG**
-if switching between *DEBUG* and *NODEBUG* binaries.  The **MKCLEAN.BAT** batch
+aids).  To build non-debug binaries, type **MK FINAL**, or **MKCLEAN FINAL**
+if switching between *DEBUG* and *FINAL* binaries.  The **MKCLEAN.BAT** batch
 file simply deletes all the binaries before running **MK.BAT**.
 
 {% include machine.html id="ibm5160" %}

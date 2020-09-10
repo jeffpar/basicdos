@@ -404,14 +404,14 @@ ERR_BADADDR	equ	9	; invalid memory segment
 ; COM programs designed to share code should access all their data via the
 ; offset stored at PSP_HEAP in the program's PSP.
 ;
-BASICDOS_SIG	equ	'DB'	; BASIC-DOS signature word ("BD")
+SIG_BASICDOS	equ	'DB'	; BASIC-DOS signature word ("BD")
 
 MINHEAP		equ	1024
 
 COMDATA	struc
 CD_CODESIZE	dw	?	; shared code size, in bytes
 CD_HEAPSIZE	dw	?	; additional heap space, in paras
-CD_SIG		dw	BASICDOS_SIG
+CD_SIG		dw	SIG_BASICDOS
 COMDATA	ends
 
 COMHEAP	macro	heap_size,code_limit
@@ -424,5 +424,5 @@ code_size equ offset DGROUP:code_limit
 data_size equ $ - code_limit
 	ENDIF
 heap_paras equ (heap_size - data_size + 15) SHR 4
-	COMDATA <code_size,heap_paras,BASICDOS_SIG>
+	COMDATA <code_size,heap_paras,SIG_BASICDOS>
 	endm

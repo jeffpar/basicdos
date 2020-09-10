@@ -280,7 +280,7 @@ ERROR	macro	msg
 ASSERT	macro	cond,op,value
 	IFNB	<value>
 	 IFIDN	<cond>,<STRUCT>	;; must use "STRUCT" instead of "STRUC" here...
-	ASSERT	Z,<cmp op&.&value&_RESERVED,value&SIG>
+	ASSERT	Z,<cmp op&.&value&_SIG,SIG_&value>
 	 ELSE
 	  IFE	cond op value
 	ERROR	<Assertion failed: cond op value>
@@ -312,7 +312,7 @@ DBGBRK	macro
 DBGINIT	macro	type,ptr,str
 	IFDEF DEBUG
 	IFIDN	<type>,<STRUCT>
-	mov	ptr&.&str&_RESERVED,str&SIG
+	mov	ptr&.&str&_SIG,SIG_&str
 	ELSE
 	%out	Unrecognized INIT parameter: type
 	ENDIF
@@ -328,22 +328,24 @@ ASSUMES	macro	seg1,seg2
 
 ASSUME1	macro	segreg,segment
 	ASSUME	segreg:segment
-	IFDIF	<segment>,<NOTHING>
+	IFDEF	DEBUG
+	 IFDIF <segment>,<NOTHING>
 	push	ax
 	push	dx
 	push	segreg
 	pop	ax
-	 IFIDN	<segment>,<BIOS>
+	  IFIDN <segment>,<BIOS>
 	ASSERT	Z,<test ax,ax>
-	 ELSE
-	  IFIDN	<segment>,<DOS>
+	  ELSE
+	   IFIDN <segment>,<DOS>
 	push	cs
 	pop	dx
 	ASSERT	Z,<cmp ax,dx>
+	   ENDIF
 	  ENDIF
-	 ENDIF
 	pop	dx
 	pop	ax
+	 ENDIF
 	ENDIF
 	endm
 

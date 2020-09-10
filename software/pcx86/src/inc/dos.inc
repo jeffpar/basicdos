@@ -88,7 +88,7 @@ SCB_NUM		db	?	; 01h: SCB #
 SCB_SFHCON	db	?	; 02h: SFH for CON
 SCB_SFHAUX	db	?	; 03h: SFH for AUX
 SCB_SFHPRN	db	?	; 04h: SFH for PRN
-SCB_RESERVED	db	?	; 05h (holds SCBSIG in DEBUG builds)
+SCB_SIG		db	?	; 05h (holds SIG_SCB in DEBUG builds)
 SCB_CURPSP	dw	?	; 06h: current PSP
 SCB_WAITID	dd	?	; 08h: wait ID if waiting, 0 if runnable
 SCB_STACK	dd	?	; 0Ch: pointer to session stack
@@ -104,8 +104,7 @@ SCB_CTRLP_ACT	db	?	; 25h: 1 if CTRLP active
 SCB_SWITCHAR	db	?	; 26h: current "switchar" (default is CHR_SLASH)
 SCB_PADDING	db	?
 SCB		ends
-
-SCBSIG		equ	'S'
+SIG_SCB		equ	'S'
 
 SCSTAT_INIT	equ	01h	; set if SCB initialized
 SCSTAT_LOAD	equ	02h	; set if session has loaded a program
@@ -150,7 +149,7 @@ SFB_CONTEXT	dw	?	; 10h: device context (1st cluster if file)
 SFB_DRIVE	db	?	; 12h: drive # (-1 if not block device)
 SFB_MODE	db	?	; 13h: open mode
 SFB_HANDLES	db	?	; 14h: number of process handles
-SFB_RESERVED	db	?	; 15h (holds SFBSIG in DEBUG builds)
+SFB_SIG		db	?	; 15h (holds SIG_SFB in DEBUG builds)
 SFB_TIME	dw	?	; 16h: time of last write (see below)
 SFB_DATE	dw	?	; 18h: date of last write (see below)
 SFB_CLN		dw	?	; 1Ah: 1st cluster number of file
@@ -161,7 +160,7 @@ SFB_FLAGS	db	?	; 26h: see SFBF_* (initially zero)
 SFB_PADDING	db	?	; 27h
 SFB_FCB		dd	?	; 28h: FCB address, if SFBF_FCB set
 SFB		ends
-SFBSIG		equ	'F'
+SIG_SFB		equ	'F'
 
 SFBF_FCB	equ	01h	; SFB opened for FCB (see fcb_open)
 
@@ -179,7 +178,7 @@ IO_DIRECT	equ	-1
 ; EXE File Header
 ;
 EXEHDR		struc
-EXE_SIG		dw	?	; 00h: EXESIG
+EXE_SIG		dw	?	; 00h: SIG_EXE
 EXE_NBLAST	dw	?	; 02h: # bytes in last block (0 if full)
 EXE_NBLOCKS	dw	?	; 04h: # blocks of EXE file data
 EXE_NRELOCS	dw	?	; 06h: # relocation entries
@@ -194,5 +193,4 @@ EXE_START_SEG	dw	?	; 16h: initial CS value
 EXE_OFFRELOC	dw	?	; 18h: offset of first relocation entry
 EXE_OVERLAY	dw	?	; 1Ah: 0 for main program
 EXEHDR		ends
-
-EXESIG		equ	5A4Dh	; "MZ"
+SIG_EXE		equ	5A4Dh	; "MZ"

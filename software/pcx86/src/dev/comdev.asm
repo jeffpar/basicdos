@@ -54,12 +54,11 @@ CT_STOPBITS	db	?	; 07h
 CT_PARITY	db	?	; 08h
 CT_REFS		db	?	; 09h
 CT_STATUS	db	?	; 0Ah: context status bits (CTSTAT_*)
-CT_RESERVED	db	?	; 0Bh
+CT_SIG		db	?	; 0Bh
 CT_INPUT	db	size RINGBUF dup (?)	; 0Ch
 CT_OUTPUT	db	size RINGBUF dup (?)	; 14h
 CONTEXT		ends
-
-CTSIG		equ	'O'
+SIG_CT		equ	'O'
 
 CTSTAT_XMTFULL	equ	01h	; transmitter buffer full
 CTSTAT_RCVOVFL	equ	02h	; receiver buffer overflow
@@ -368,9 +367,9 @@ dco1a:	mov	es,ax
 	stosw				; set CT_PARITY and CT_REFS
 	sub	ax,ax
 	IFDEF DEBUG
-	mov	ah,CTSIG
+	mov	ah,SIG_CT
 	ENDIF
-	stosw				; set CT_STATUS and CT_RESERVED
+	stosw				; set CT_STATUS and CT_SIG
 
 	mov	ax,size CONTEXT
 	stosw				; set CT_INPUT.BUFOFF
@@ -730,10 +729,11 @@ DEFPROC	get_parms
 	mov	dh,al			; DH = stop bits
 	mov	ax,DOS_UTL_ATOI16
 	int	21h
-	xchg	si,ax			; SI = input buffer length
+	push	ax			; AX = input buffer length
 	sub	di,6			; use the input limits for output, too
 	mov	ax,DOS_UTL_ATOI16
 	int	21h			; AX = output buffer length
+	pop	si			; SI = input buffer length
 	pop	es
 	pop	di
 	ret

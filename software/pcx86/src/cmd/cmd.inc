@@ -78,22 +78,22 @@ SCF_PRTARGS	equ	2		; -> printArgs
 BLK_DEF		struc
 BLK_NEXT	dw	?		; next block seg, if any
 BLK_HDR		db	?		; eg, size CBLK_HDR
-BLK_SIG		db	?		; eg, CBLKSIG
+BLK_SIG		db	?		; eg, SIG_CBLK
 BLK_DEF		ends
 
 ;
 ; Code Block (CBLK) definitions
 ;
 CBLK_HDR	struc
-CBLK_NEXT	dw	?		; next code block seg, if any
-CBLK_SIZE	dw	?		; size of code block, in bytes
-CBLK_FREE	dw	?		; offset of next free byte
-CBLK_RESERVED	db	?
-CBLK_PADDING	db	?
-CBLK_REFS	dw	?		; top of LBLREF stack, if any
+CBLK_NEXT	dw	?		; 00h: next code block seg, if any
+CBLK_SIZE	dw	?		; 02h: size of code block, in bytes
+CBLK_FREE	dw	?		; 04h: offset of next free byte
+CBLK_SIG	db	?		; 06h
+CBLK_PAD	db	?		; 07h
+CBLK_REFS	dw	?		; 08h: top of LBLREF stack, if any
 CBLK_HDR	ends
 CBLKLEN		equ	4096		; default code block size
-CBLKSIG		equ	'C'
+SIG_CBLK	equ	'C'
 
 ;
 ; Variable Block (VBLK) definitions
@@ -120,12 +120,12 @@ VBLK_HDR	struc
 VBLK_NEXT	dw	?		; next var block seg, if any
 VBLK_SIZE	dw	?		; size of var block, in bytes
 VBLK_FREE	dw	?		; offset of next free byte
-VBLK_RESERVED	db	?
+VBLK_SIG	db	?
 VBLK_ZERO	db	VAR_LONG
 		dd	0		; zero constant
 VBLK_HDR	ends
-VBLKSIG		equ	'V'
 VBLKLEN		equ	1024		; default var block size
+SIG_VBLK	equ	'V'
 
 ;
 ; String Block (SBLK) definitions
@@ -134,11 +134,11 @@ SBLK_HDR	struc
 SBLK_NEXT	dw	?		; next string block seg, if any
 SBLK_SIZE	dw	?		; size of string block, in bytes
 SBLK_FREE	dw	?		; offset of next free byte
-SBLK_RESERVED	db	?
-SBLK_PADDING	db	?
+SBLK_SIG	db	?
+SBLK_PAD	db	?
 SBLK_HDR	ends
-SBLKSIG		equ	'P'
 SBLKLEN		equ	2048		; default string block size
+SIG_SBLK	equ	'P'
 
 ;
 ; Text Block (TBLK) definitions
@@ -149,11 +149,11 @@ TBLK_HDR	struc
 TBLK_NEXT	dw	?		; next text block seg, if any
 TBLK_SIZE	dw	?		; size of text block, in bytes
 TBLK_FREE	dw	?		; offset of next free byte
-TBLK_RESERVED	db	?
-TBLK_PADDING	db	?
+TBLK_SIG	db	?
+TBLK_PAD	db	?
 TBLK_HDR	ends
-TBLKSIG		equ	'T'
 TBLKLEN		equ	1024		; default text block size
+SIG_TBLK	equ	'T'
 
 ;
 ; Operator definition
@@ -263,7 +263,7 @@ CODE_BLK	db	size BLK_DEF dup (?)
 VARS_BLK	db	size BLK_DEF dup (?)
 STRS_BLK	db	size BLK_DEF dup (?)
 TEXT_BLK	db	size BLK_DEF dup (?)
-ORIG_SP		dd	?
+ORIG_SP		dw	?
 ORIG_BP		dw	?
 CON_COLS	db	?
 CON_ROWS	db	?
@@ -275,3 +275,14 @@ FILENAME	db	16 dup (?)	; filename template ("X:XXXXXXXX.XXX")
 EXECDATA	db	size EPB dup (?); Exec Parameter Block
 STACK		dw	512 dup (?)
 CMD_HEAP	ends
+
+;
+; The initial stack frame created by the main function can also be
+; used to access the CMD_HEAP structure, using the [heap] macro; eg:
+;
+;	mov	al,[heap].CON_COLS
+;
+; This works because we know we enter the main function with exactly 2 words
+; pushed on the stack (a zero return address, and the original BP).
+;
+heap		equ	byte ptr [bp+4-size CMD_HEAP]
