@@ -328,22 +328,24 @@ ASSUMES	macro	seg1,seg2
 
 ASSUME1	macro	segreg,segment
 	ASSUME	segreg:segment
-	IFDIF	<segment>,<NOTHING>
+	IFDEF	DEBUG
+	 IFDIF <segment>,<NOTHING>
 	push	ax
 	push	dx
 	push	segreg
 	pop	ax
-	 IFIDN	<segment>,<BIOS>
+	  IFIDN <segment>,<BIOS>
 	ASSERT	Z,<test ax,ax>
-	 ELSE
-	  IFIDN	<segment>,<DOS>
+	  ELSE
+	   IFIDN <segment>,<DOS>
 	push	cs
 	pop	dx
 	ASSERT	Z,<cmp ax,dx>
+	   ENDIF
 	  ENDIF
-	 ENDIF
 	pop	dx
 	pop	ax
+	 ENDIF
 	ENDIF
 	endm
 
