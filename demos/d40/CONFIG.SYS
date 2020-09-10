@@ -1,5 +1,5 @@
 REM Demonstration of two 40-column sessions, with DEBUG output enabled
-BOOTKEY=D
+REM BOOTKEY=B
 MEMSIZE=128
 FILES=20
 SESSIONS=2
