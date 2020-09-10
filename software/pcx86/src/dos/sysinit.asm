@@ -521,11 +521,17 @@ si20:	test	bx,bx
 	mov	ax,ds
 	stosw
 ;
-; If a boot key was typed, it overrides any BOOTKEY setting in CONFIG.SYS.
+; If a boot key was typed, it overrides any BOOTKEY setting in CONFIG.SYS,
+; unless it was a control character (RETURN, ESC, etc), in which case we leave
+; the BOOTKEY setting alone.
+;
+; Currently, any alphanumeric boot key enables DPRINTF, and 'B' also triggers
+; a breakpoint following any DPRINTF.  If BOOTKEY has been set in CONFIG.SYS,
+; you can use the SPACEBAR to disable it.
 ;
 	mov	ax,[BOOT_KEY]		; copy the boot key, if any
-	cmp	al,'0'			; alphanumeric key?
-	jb	si98			; no
+	cmp	al,' '			; control character?
+	jb	si98			; yes, ignore
 	cmp	al,'a'			; lower-case?
 	jb	si97			; no
 	sub	al,20h			; make upper-case

@@ -242,7 +242,7 @@ DEFPROC	utl_dprintf,DOS
 	jb	dp1			; no
 	call	hprintf			; yes
 	ASSUME	DS:NOTHING,ES:NOTHING
-	cmp	[key_boot].LOB,'b'	; 'b' for break?
+	cmp	[key_boot].LOB,'B'	; 'b' for break?
 	jne	dp9			; no
 	DBGBRK
 	jmp	short dp9
