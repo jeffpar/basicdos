@@ -181,19 +181,18 @@ ENDPROC	utl_strupr
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	utl_printf,DOS
+	ASSUME	DS:NOTHING,ES:NOTHING
 	mov	bl,0
 	DEFLBL	hprintf,near		; BL = SFH (or 0 for STDOUT)
 	sti
 	push	ss
 	pop	es
-	ASSUME	ES:NOTHING
 	mov	cx,BUFLEN		; CX = length
 	sub	sp,cx
 	mov	di,sp			; ES:DI -> buffer on stack
 	push	bx
 	mov	bx,[bp].REG_IP
 	mov	ds,[bp].REG_CS		; DS:BX -> format string
-	ASSUME	DS:NOTHING
 	call	sprintf
 	mov	[bp].REG_AX,ax		; update REG_AX with count in AX
 	add	[bp].REG_IP,bx		; update REG_IP with length in BX
@@ -227,14 +226,6 @@ ENDPROC	utl_printf endp
 ;
 ; Except for the output device, this function is identical to utl_printf.
 ;
-; TODO: With some additional code, it would be easy enough to check sfh_debug
-; here, and if it's not set, calculate the length of the format string, add
-; that (+1) to the caller's REG_IP, and immediately return; that would
-; obviously be much faster than calling sprintf every time.  However, I'm
-; already wasting enough code on a DEBUG-only feature, and people shouldn't
-; normally be running DEBUG binaries anyway, so I don't feel the need to speed
-; this up.
-;
 ; Inputs:
 ;	format string follows the INT 21h
 ;	all other parameters must be pushed onto the stack, right to left
@@ -247,10 +238,20 @@ ENDPROC	utl_printf endp
 ;
 DEFPROC	utl_dprintf,DOS
 	mov	bl,[sfh_debug]
-	cmp	[key_boot].LOB,'A'	; special boot key pressed?
-	jae	hprintf			; yes
-	or	bl,-1			; no, disable all DPRINTF calls
-	jmp	hprintf
+	cmp	[key_boot].LOB,'0'	; any alphanumeric boot keys pressed?
+	jb	dp1			; no
+	call	hprintf			; yes
+	ASSUME	DS:NOTHING,ES:NOTHING
+	cmp	[key_boot].LOB,'b'	; 'b' for break?
+	jne	dp9			; no
+	DBGBRK
+	jmp	short dp9
+dp1:	lds	si,dword ptr [bp].REG_IP
+	mov	al,0			; AL = null terminator
+	call	strlen			; get length of string at CS:IP
+	inc	ax			; include null terminator
+	add	[bp].REG_IP,ax		; update REG_IP with length in AX
+dp9:	ret
 ENDPROC	utl_dprintf endp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

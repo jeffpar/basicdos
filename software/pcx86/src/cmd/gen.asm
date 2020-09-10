@@ -197,7 +197,7 @@ gc6:	push	ss
 ;
 ; TODO: Define the memory model for the generated code.  For now, the
 ; only requirement is that DS always point to the var block (which means
-; that all variables must fit in a single block).
+; that all variables must fit in a single var block).
 ;
 	push	bp
 	push	ds
@@ -216,7 +216,7 @@ gc7:	pushf
 	popf
 gc8:	jnc	gc9
 
-	PRINTF	<'Syntax error in line %d',13,10>,lineNumber
+	PRINTF	<"Syntax error in line %d",13,10>,lineNumber
 	stc
 
 gc9:	LEAVE
@@ -257,6 +257,7 @@ DEFPROC	genCommands
 	call	synCheck		; yes, process syntax table
 	jmp	short gcs8
 gcs7:	call	dx			; call dedicated generator function
+	mov	es:[CBLK_FREE],di
 gcs8:	jnc	genCommands
 gcs9:	ret
 ENDPROC	genCommands
@@ -741,6 +742,11 @@ DEFPROC	genIf
 	stosw
 	mov	ax,OP_JZ_SELF
 	stosw
+;
+; Before calling genCommands, we must peek at the next token and check for
+; a line number, because there could be an implied GOTO (ie, "THEN 10" instead
+; of "THEN GOTO 10").
+;
 	push	di			; ES:DI-1 -> JZ offset
 	call	genCommands
 gif8:	pop	ax			; AX = old DI
@@ -833,6 +839,7 @@ ENDPROC	genLet
 ;	CX, DX
 ;
 DEFPROC	addLabel
+	DPRINTF	<"%#010P: line %d: adding label %d...",13,10>,lineNumber,ax
 	mov	dx,di			; DX = current code gen offset
 	test	dx,LBL_RESOLVE		; is this a label reference?
 	jnz	al8			; yes, just add it
@@ -844,12 +851,12 @@ DEFPROC	addLabel
 	mov	cx,es:[CBLK_SIZE]
 	mov	di,es:[CBLK_REFS]
 	sub	cx,di
-	jcxz	al8			; stack is empty
 	shr	cx,1			; CX = # of words on LBLREF stack
+al0:	jcxz	al8			; stack is empty
 al1:	repne	scasw			; scan all words for label #
 	jne	al8			; nothing found
 	test	di,(size LBLREF)-1	; did we match the first LBLREF word?
-	jz	al1			; no (must have match LBL_IP instead)
+	jz	al0			; no (must have match LBL_IP instead)
 	test	word ptr es:[di],LBL_RESOLVE
 	stc
 	jz	al9			; duplicate definition
@@ -901,6 +908,7 @@ ENDPROC	addLabel
 ;	AX, CX, DX
 ;
 DEFPROC	findLabel
+	DPRINTF	<"%#010P: line %d: finding label %d...",13,10>,lineNumber,ax
 	push	di
 	mov	cx,es:[CBLK_SIZE]
 	mov	di,es:[CBLK_REFS]

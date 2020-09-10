@@ -6,7 +6,7 @@ machines:
   - id: ibm5160
     type: pcx86
     config: /configs/pcx86/machine/ibm-5160-cga-512kb-debugger.json
-    autoType: $date\r$time\r
+    autoType: $date\r$time\r\D:\rMK\r
     autoStart: true
     messages: int
     autoMount:

@@ -68,7 +68,7 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 CONTEXT		struc
 CT_NEXT		dw	?	; 00h: segment of next context, 0 if end
 CT_STATUS	db	?	; 02h: context status bits (CTSTAT_*)
-CT_RESERVED	db	?	; 03h: (holds CTSIG in DEBUG builds)
+CT_SIG		db	?	; 03h: (holds SIG_CT in DEBUG builds)
 CT_CONDIM	dw	?	; 04h: eg, context dimensions (0-based)
 CT_CONPOS	dw	?	; 06h: eg, context position (X,Y) of top left
 CT_CURPOS	dw	?	; 08h: eg, cursor X (lo) and Y (hi) position
@@ -87,7 +87,7 @@ CT_COLOR	dw	?	; 22h: fill (LO) and border (HI) attributes
 CT_CURTYPE	dw	?	; 24h: current cursor type (HI=top, LO=bottom)
 CT_DEFTYPE	dw	?	; 26h: default cursor type (HI=top, LO=bottom)
 CONTEXT		ends
-CTSIG		equ	'C'
+SIG_CT		equ	'C'
 
 CTSTAT_BORDER	equ	01h	; context has border
 CTSTAT_ADAPTER	equ	02h	; context is using alternate adapter

@@ -560,7 +560,7 @@ lpec2:	mov	ax,ERR_NOMEM
 	jmp	short lpec1
 
 lp6:	mov	di,dx			; ES:DI -> end of PSP
-	cmp	[di].EXE_SIG,EXESIG
+	cmp	[di].EXE_SIG,SIG_EXE
 	je	lp6a
 	jmp	lp7
 lp6a:	cmp	ax,size EXEHDR
@@ -727,7 +727,7 @@ lp7a:	add	dx,ax			; DX -> end of program file
 	; int	21h			; close the file
 	; jc	lpef
 ;
-; Check the word at [BX-2]: if it contains BASICDOS_SIG ("BD"), then the
+; Check the word at [BX-2]: if it contains SIG_BASICDOS ("BD"), then the
 ; image ends with a COMDATA, where the preceding word (CD_HEAPSIZE) specifies
 ; the program's desired additional memory (in paras).
 ;
@@ -735,7 +735,7 @@ lp7b:	mov	ds:[PSP_START].OFF,100h
 	mov	ds:[PSP_START].SEG,ds
 	mov	bx,dx			; BX -> end of program file
 	mov	dx,MINHEAP SHR 4	; minimum add'l space (1Kb in paras)
-	cmp	word ptr [bx-2],BASICDOS_SIG
+	cmp	word ptr [bx-2],SIG_BASICDOS
 	jne	lp7e
 	sub	bx,size COMDATA		; rewind BX to the COMDATA struc
 	mov	ax,[bx].CD_HEAPSIZE	; AX = heap size, in paras
