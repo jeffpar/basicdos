@@ -224,9 +224,7 @@ dci3b:	pop	ax			; AL = hundredths (from original DX)
 	add	cx,ax
 	adc	dx,0			; DX:CX += ticks for hundredths
 
-	IFDEF MAXDEBUG
-	DPRINTF	<"%04C:%04I: new tick count: %ld",13,10>,cx,dx
-	ENDIF
+	DPRINTF	<"%#010P: new tick count: %ld",13,10>,cx,dx
 
 	cli
 	mov	[ticksToday].LOW,cx
@@ -276,9 +274,7 @@ dci5:	cmp	al,IOCTL_GETTIME
 	mov	dx,[ticksToday].HIW
 	sti
 
-	IFDEF MAXDEBUG
-	DPRINTF	<"%04C:%04I: current tick count: %ld",13,10>,ax,dx
-	ENDIF
+	DPRINTF	<"%#010P: current tick count: %ld",13,10>,ax,dx
 ;
 ; TODO: the true divisor is 32771.66748046875, so the remainder may be too
 ; large; this appears to be good enough for now, but deal with it eventually.

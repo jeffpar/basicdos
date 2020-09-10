@@ -19,7 +19,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<psp_term_exitcode>,near
 	EXTERNS	<itoa,sprintf,add_date>,near
 
-	EXTERNS	<scb_locked,sfh_debug>,byte
+	EXTERNS	<scb_locked,sfh_debug,key_boot>,byte
 	EXTERNS	<scb_active>,word
 	EXTERNS	<scb_table,clk_ptr>,dword
 
@@ -232,7 +232,7 @@ ENDPROC	utl_printf endp
 ; that (+1) to the caller's REG_IP, and immediately return; that would
 ; obviously be much faster than calling sprintf every time.  However, I'm
 ; already wasting enough code on a DEBUG-only feature, and people shouldn't
-; normally be running DEBUG binaries anyway, so I don't feel any need to speed
+; normally be running DEBUG binaries anyway, so I don't feel the need to speed
 ; this up.
 ;
 ; Inputs:
@@ -247,6 +247,9 @@ ENDPROC	utl_printf endp
 ;
 DEFPROC	utl_dprintf,DOS
 	mov	bl,[sfh_debug]
+	cmp	[key_boot].LOB,'A'	; special boot key pressed?
+	jae	hprintf			; yes
+	or	bl,-1			; no, disable all DPRINTF calls
 	jmp	hprintf
 ENDPROC	utl_dprintf endp
 

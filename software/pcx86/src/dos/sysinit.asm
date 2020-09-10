@@ -12,7 +12,7 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<bpb_total,sfh_debug,def_switchar>,byte
-	EXTERNS	<mcb_head,mcb_limit,buf_head,scb_active>,word
+	EXTERNS	<mcb_head,mcb_limit,buf_head,key_boot,scb_active>,word
 	EXTERNS	<bpb_table,scb_table,sfb_table,clk_ptr>,dword
 	EXTERNS	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr,dos_opchk>,near
 	EXTERNS	<dos_term,dos_func,dos_exret,dos_ctrlc,dos_error,dos_default>,near
@@ -92,7 +92,7 @@ si1:	mov	ax,[MEMORY_SIZE]	; get available memory in Kb
 	push	ax			; push new offset on stack
 	ret
 ;
-; Initialize all the DOS vectors, while DS is still dos_seg and ES is BIOS.
+; Initialize all the DOS vectors.  DS is dos_seg; set ES to BIOS.
 ;
 	EVEN
 	DEFLBL	sysinit_high,near
@@ -104,7 +104,7 @@ si1:	mov	ax,[MEMORY_SIZE]	; get available memory in Kb
 	push	cs			; use all the space available
 	pop	ss			; directly below the sysinit code
 	mov	sp,offset sysinit_start
-	mov	es,cx
+	mov	es,cx			; CX is zero from above
 	ASSUME	ES:BIOS
 	mov	si,offset INT_TABLES
 si2:	lodsw
@@ -514,6 +514,8 @@ si20:	test	bx,bx
 	stosw
 	mov	ax,ds
 	stosw
+	mov	ax,[BOOT_KEY]		; copy the boot key, if any
+	mov	[key_boot],ax		; (DPRINTFs weren't safe until now)
 	sti
 ;
 ; We're done.  On the next clock tick, scb_yield will switch to one of the
