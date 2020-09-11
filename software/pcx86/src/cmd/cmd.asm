@@ -1447,8 +1447,8 @@ DEFPROC	getValue
 	int	21h
 	sbb	di,di			; DI = -1 if no data
 	mov	bl,[si]			; BL = termination character
-	cmp	bl,CHR_RETURN		; CR?
-	je	gv9			; yes
+	cmp	bl,CHR_RETURN		; CR (or null terminator)?
+	jbe	gv9			; presumably
 	inc	si
 	cmp	bl,bh			; expected termination character?
 	je	gv9			; yes
