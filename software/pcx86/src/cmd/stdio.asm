@@ -72,6 +72,8 @@ DEFPROC	doCmd,FAR
 	push	cx
 	push	di
 	rep	movsb
+	xchg	ax,cx			; AL = 0
+	stosb				; ensure the line is null-terminated
 	push	es
 	pop	ds
 	pop	si			; DS:SI -> LINEBUF
