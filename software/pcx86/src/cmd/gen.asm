@@ -14,7 +14,7 @@ CODE    SEGMENT
 	EXTERNS	<allocCode,freeCode,allocVars>,near
 	EXTERNS	<addVar,findVar,setVarLong>,near
 	EXTERNS	<appendStr,setStr,memError>,near
-	EXTERNS	<clearScreen,printArgs,printLine,setColor>,near
+	EXTERNS	<clearScreen,doCmd,printArgs,printLine,setColor>,near
 
 	EXTERNS	<KEYWORD_TOKENS,KEYOP_TOKENS,SYNTAX_TABLES,SCF_TABLE>,word
 	EXTERNS	<OPDEFS,RELOPS>,byte
@@ -45,8 +45,10 @@ DEFPROC	genCode
 	LOCVAR	nExpParens,word
 	LOCVAR	nExpPrevOp,word
 	LOCVAR	errCode,word
-	LOCVAR	pInput,word
-	LOCVAR	pCode,dword
+	LOCVAR	pInput,word		; original input address
+	LOCVAR	pCode,dword		; original start of generated code
+	LOCVAR	pLine,dword		; address of the current line
+	LOCVAR	cbLine,word		; length of the current line
 	LOCVAR	pTokNext,word
 	LOCVAR	pTokEnd,word
 	LOCVAR	pSynToken,word
@@ -134,9 +136,9 @@ gc3c:	test	[genFlags],GEN_ECHO
 	pop	cx
 
 gc4:	push	bx			; save heap offset
-	push	cx
-	push	ds
-	push	si			; save text pointer + length
+	mov	[cbLine],cx
+	mov	[pLine].OFF,si
+	mov	[pLine].SEG,ds		; save text pointer and length
 	push	es
 	push	di			; save code gen pointer
 
@@ -176,9 +178,8 @@ gc4:	push	bx			; save heap offset
 
 	call	genCommands		; generate code
 
-gc5:	pop	si
-	pop	ds
-	pop	cx			; restore text pointer + length
+gc5:	lds	si,[pLine]		; restore text pointer and length
+	mov	cx,[cbLine]
 	pop	bx			; restore heap offset
 	jc	gc6			; error
 
@@ -248,17 +249,31 @@ DEFPROC	genCommands
 	mov	ax,DOS_UTL_TOKID	; identify the token
 	int	21h			; at DS:SI (with length CX)
 	jc	gcs9			; can't identify
-	cmp	ax,KEYWORD_GENCODE	; keyword support generated code?
+	cmp	al,KEYWORD_GENCODE	; keyword support generated code?
 	jb	gcs9			; no
-	test	dx,dx			; command address?
+	cmp	al,KEYWORD_LANGUAGE	; is keyword part of the language?
+	jb	gcs2			; no
+gcs1:	test	dx,dx			; command address?
 	jz	gcs9			; no
 	cmp	dx,offset SYNTAX_TABLES	; syntax table address?
-	jb	gcs7			; no, dedicated generator function
+	jb	gcs6			; no, dedicated generator function
 	call	synCheck		; yes, process syntax table
 	jmp	short gcs8
-gcs7:	call	dx			; call dedicated generator function
-	mov	es:[CBLK_FREE],di
+;
+; For keywords that are BASIC-DOS extensions, we need to generate a call
+; to doCmd with a pointer to the full command-line and the keyword handler.
+; doCmd will then perform the traditional parse-and-execute logic.
+;
+gcs2:	xchg	ax,dx			; AX = handler address
+	mov	dx,offset genCmd
+	mov	[pTokEnd],bx		; mark the tokens fully processed
+
+gcs6:	call	dx			; call dedicated generator function
+
+gcs7:	mov	es:[CBLK_FREE],di
+
 gcs8:	jnc	genCommands
+
 gcs9:	ret
 ENDPROC	genCommands
 
@@ -283,6 +298,36 @@ DEFPROC	genCLS
 	clc
 	ret
 ENDPROC	genCLS
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genCmd
+;
+; Generate code for generic commands.
+;
+; Inputs:
+;	AX = handler
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genCmd
+	xchg	dx,ax
+	GENPUSH	dx
+	mov	cx,[pLine].OFF
+	mov	dx,[pLine].SEG
+	GENPUSH	dx,cx
+	mov	dx,[cbLine]
+	GENPUSH	dx
+	GENCALL	doCmd
+	clc
+	ret
+ENDPROC	genCmd
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
