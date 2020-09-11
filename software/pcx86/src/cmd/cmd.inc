@@ -65,12 +65,13 @@ SCF_PRTARGS	equ	2		; -> printArgs
 
 ;
 ; Keywords with IDs >= GENCODE require code generation.
-; Those with IDs < GENCODE and >= FILESPEC expect a filespec.
+; For IDs < GENCODE, an ID >= FILESPEC expect a filespec.
 ;
 ; Keywords are defined in the KEYWORD_TOKENS table in const.asm.
 ;
 	KEYWORD_FILESPEC equ	20
-	KEYWORD_GENCODE  equ	40
+	KEYWORD_GENCODE	 equ	40
+	KEYWORD_LANGUAGE equ	60
 ;
 ; Each of our block chains begins with a BLK_DEF, so that a common set of
 ; block functions (eg, allocBlock) can work with any chain.

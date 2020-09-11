@@ -342,7 +342,7 @@ ENDPROC	main
 ; capture anything from '0' to '?'.
 ;
 ; Inputs:
-;	DS:DI -> BUF_TOKEN
+;	DS:DI -> TOKENBUF
 ;
 ; Outputs:
 ;	DH = # of first non-switch argument (-1 if none)
@@ -436,7 +436,7 @@ ENDPROC	checkSW
 ;
 ; Inputs:
 ;	DH = token # (1-based)
-;	DS:DI -> BUF_TOKEN
+;	DS:DI -> TOKENBUF
 ;
 ; Outputs:
 ;	If carry clear, DS:SI -> token, CX = length, and ZF set
@@ -499,7 +499,7 @@ ENDPROC	ctrlc
 ; differs from cmdTime, where omitted portions always default to zero.
 ;
 ; Inputs:
-;	DS:DI -> BUF_TOKEN
+;	DS:DI -> TOKENBUF
 ;
 ; Outputs:
 ;	None
@@ -702,7 +702,7 @@ ENDPROC	cmdExit
 ; For now, all this does is print the names of all supported commands.
 ;
 ; Inputs:
-;	DS:DI -> BUF_TOKEN
+;	DS:DI -> TOKENBUF
 ;
 ; Outputs:
 ;	None
@@ -719,7 +719,7 @@ DEFPROC	cmdHelp
 	cbw
 	xchg	di,ax			; DI = size TOKDEF
 	mov	dl,8			; DL = # chars to be printed so far
-h1:	cmp	cs:[si].TOKDEF_ID,100
+h1:	cmp	cs:[si].TOKDEF_ID,200
 	jae	h3			; ignore token IDs >= 100
 	push	dx
 	mov	dl,cs:[si].TOKDEF_LEN
@@ -743,7 +743,7 @@ ENDPROC	cmdHelp
 ; cmdList
 ;
 ; Inputs:
-;	DS:DI -> BUF_TOKEN
+;	DS:DI -> TOKENBUF
 ;
 ; Outputs:
 ;	None
@@ -961,7 +961,7 @@ ENDPROC	cmdLoad
 ; cmdNew
 ;
 ; Inputs:
-;	DS:DI -> BUF_TOKEN
+;	DS:DI -> TOKENBUF
 ;
 ; Outputs:
 ;	None
@@ -980,7 +980,7 @@ ENDPROC	cmdNew
 ; cmdRun
 ;
 ; Inputs:
-;	DS:DI -> BUF_TOKEN
+;	DS:DI -> TOKENBUF
 ;
 ; Outputs:
 ;	None
@@ -1006,7 +1006,7 @@ ENDPROC	cmdRun
 ; that's omitted defaults to zero.
 ;
 ; Inputs:
-;	DS:DI -> BUF_TOKEN
+;	DS:DI -> TOKENBUF
 ;
 ; Outputs:
 ;	None
@@ -1055,7 +1055,7 @@ ENDPROC	cmdTime
 ; Prints the BASIC-DOS version.
 ;
 ; Inputs:
-;	DS:DI -> BUF_TOKEN
+;	DS:DI -> TOKENBUF
 ;
 ; Outputs:
 ;	None
@@ -1305,7 +1305,7 @@ ENDPROC	chkString
 ;
 ; Inputs:
 ;	AX = prompt function
-;	DS:DI -> BUF_TOKEN
+;	DS:DI -> TOKENBUF
 ;
 ; Outputs:
 ;	CX, DX = default values from caller-supplied function

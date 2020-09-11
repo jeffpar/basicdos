@@ -26,6 +26,7 @@ let disks = {
     ],
     "BASIC-DOS2": [
         "./demos/d40/CONFIG.SYS",
+        "./demos/d40/AUTOEXEC.BAT",
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",

@@ -186,7 +186,6 @@ name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 ; on the argument side of the stack are accounted for.
 ;
 ARGVAR	macro	name,type,len
-	DEFARG	name,type,%(2 + _PROCTYPE + _ARGBYTES)
 	IFB <len>
 	_ARGLEN = 1
 	ELSE
@@ -205,6 +204,7 @@ ARGVAR	macro	name,type,len
 	 ENDIF
 	ENDIF
 	_ARGBYTES = _ARGBYTES + _ARGLEN
+	DEFARG	name,type,%(_ARGBYTES)
 	endm
 
 DEFARG	macro	name,type,offset
@@ -245,7 +245,7 @@ ENTER	macro
 	sub	sp,_LOCBYTES
 	 ENDIF
 	ENDIF
-	_ARGINVERT = ((2 + _PROCTYPE) * 2) + (_ARGBYTES - _ARGLEN)
+	_ARGINVERT = (2 + _PROCTYPE + _ARGBYTES)
 	endm
 
 LEAVE	macro

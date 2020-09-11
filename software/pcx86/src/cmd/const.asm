@@ -137,29 +137,29 @@ CODE    SEGMENT
 CODE	ENDS
 
 	DEFTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
-	DEFTOK	TOK_CLS,    40, "CLS",    genCLS
-	DEFTOK	TOK_COLOR,  41, "COLOR",  genColor
-	DEFTOK	TOK_DATE,    1, "DATE",   cmdDate
-	DEFTOK	TOK_DEFINT, 42, "DEFINT", genDefInt
+	DEFTOK	TOK_CLS,    60, "CLS",    genCLS
+	DEFTOK	TOK_COLOR,  61, "COLOR",  genColor
+	DEFTOK	TOK_DATE,   40, "DATE",   cmdDate
+	DEFTOK	TOK_DEFINT, 62, "DEFINT", genDefInt
 	DEFTOK	TOK_DIR,    20, "DIR",    cmdDir
-	DEFTOK	TOK_ECHO,   43, "ECHO",   genEcho
-	DEFTOK	TOK_ELSE,  101, "ELSE"
-	DEFTOK	TOK_EXIT,    2, "EXIT",   cmdExit
-	DEFTOK	TOK_GOTO,   44, "GOTO",   genGoto
-	DEFTOK	TOK_HELP,    3, "HELP",   cmdHelp
-	DEFTOK	TOK_IF,     45, "IF",     genIf
-	DEFTOK	TOK_LET,    46, "LET",    genLet
-	DEFTOK	TOK_LIST,    4, "LIST",   cmdList
+	DEFTOK	TOK_ECHO,   63, "ECHO",   genEcho
+	DEFTOK	TOK_ELSE,  201, "ELSE"
+	DEFTOK	TOK_EXIT,    1, "EXIT",   cmdExit
+	DEFTOK	TOK_GOTO,   64, "GOTO",   genGoto
+	DEFTOK	TOK_HELP,   41, "HELP",   cmdHelp
+	DEFTOK	TOK_IF,     65, "IF",     genIf
+	DEFTOK	TOK_LET,    66, "LET",    genLet
+	DEFTOK	TOK_LIST,    2, "LIST",   cmdList
 	DEFTOK	TOK_LOAD,   21, "LOAD",   cmdLoad
-	DEFTOK	TOK_MEM,     5, "MEM",    cmdMem
-	DEFTOK	TOK_NEW,     6, "NEW",    cmdNew
-	DEFTOK	TOK_PRINT,  47, "PRINT",  synPrint
-	DEFTOK	TOK_REM,    48, "REM"
-	DEFTOK	TOK_RUN,     7, "RUN",    cmdRun
-	DEFTOK	TOK_THEN,  102, "THEN"
-	DEFTOK	TOK_TIME,    8, "TIME",   cmdTime
+	DEFTOK	TOK_MEM,    42, "MEM",    cmdMem
+	DEFTOK	TOK_NEW,     3, "NEW",    cmdNew
+	DEFTOK	TOK_PRINT,  67, "PRINT",  synPrint
+	DEFTOK	TOK_REM,    68, "REM"
+	DEFTOK	TOK_RUN,     4, "RUN",    cmdRun
+	DEFTOK	TOK_THEN,  202, "THEN"
+	DEFTOK	TOK_TIME,   43, "TIME",   cmdTime
 	DEFTOK	TOK_TYPE,   22, "TYPE",   cmdType
-	DEFTOK	TOK_VER,     9, "VER",    cmdVer
+	DEFTOK	TOK_VER,    44, "VER",    cmdVer
 	NUMTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
 
 	DEFTOKENS KEYOP_TOKENS,KEYOP_TOTAL
