@@ -434,32 +434,33 @@ ENDPROC	chk_filename
 ;	On failure, AX = error code, carry set
 ;
 ; Modifies:
-;	AX, CX, DX, SI
+;	AX, DX, SI
 ;
 DEFPROC	find_cln,DOS
 	ASSUMES	<DS,DOS>,<ES,NOTHING>
-	mov	dx,[bx].SFB_CLN
-	sub	si,si			; zero current position in CX:SI
-	sub	cx,cx
+	push	cx
+	sub	si,si			; SI:CX = cluster position
+	sub	cx,cx			; (starting at zero)
+	mov	dx,[bx].SFB_CLN		; DX = corresponding cluster #
 ;
-; If our current position in CX:SI, plus CLUSBYTES, is greater than CURPOS,
-; then we have reached the target cluster.
+; Add CLUSBYTES - 1 to the cluster position in SI:CX to produce a cluster
+; limit, then subtract CURPOS.  As long as that subtraction produces a borrow,
+; we haven't reached the target cluster yet.
 ;
-fc1:	add	si,[di].BPB_CLUSBYTES
-	adc	cx,0
-	push	cx			; save current position in CX:SI
-	push	si
-	sub	si,[bx].SFB_CURPOS.OFF
-	sbb	cx,[bx].SFB_CURPOS.SEG
+fc1:	mov	ax,[di].BPB_CLUSBYTES
+	dec	ax
+	add	cx,ax
+	adc	si,0			; SI:CX = cluster limit
+	mov	ax,cx
+	sub	ax,[bx].SFB_CURPOS.LOW
+	mov	ax,si
+	sbb	ax,[bx].SFB_CURPOS.HIW
 	jnc	fc9			; we've traversed enough clusters
 	call	get_cln			; DX = next CLN
-	pop	si
-	pop	cx			; restore current position in CX:SI
-	jnc	fc1
-	jmp	short fc9a
-fc9:	pop	si
-	pop	cx
-fc9a:	ret
+	jnc	fc1			; keep checking as long as no error
+
+fc9:	pop	cx
+	ret
 ENDPROC	find_cln
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

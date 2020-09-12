@@ -100,7 +100,7 @@ OP_MUL32	equ	01h		; verify 32-bit multiplication result
 OP_DIV32	equ	02h		; verify 32-bit division result
 
 OPCHECK	macro	op
-	IFDEF	DEBUG
+	IFDEF DEBUG
 	mov	cl,op
 	int	INT_UD			; INT 06h
 	ENDIF

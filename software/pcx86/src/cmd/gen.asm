@@ -249,6 +249,7 @@ DEFPROC	genCommands
 	mov	ax,DOS_UTL_TOKID	; identify the token
 	int	21h			; at DS:SI (with length CX)
 	jc	gcs9			; can't identify
+	mov	dx,cs:[si].CTD_FUNC	;
 	cmp	al,KEYWORD_GENCODE	; keyword support generated code?
 	jb	gcs9			; no
 	cmp	al,KEYWORD_LANGUAGE	; is keyword part of the language?
@@ -885,6 +886,7 @@ ENDPROC	genLet
 ;
 DEFPROC	addLabel
 	DPRINTF	<"%#010P: line %d: adding label %d...",13,10>,lineNumber,ax
+
 	mov	dx,di			; DX = current code gen offset
 	test	dx,LBL_RESOLVE		; is this a label reference?
 	jnz	al8			; yes, just add it
@@ -954,6 +956,7 @@ ENDPROC	addLabel
 ;
 DEFPROC	findLabel
 	DPRINTF	<"%#010P: line %d: finding label %d...",13,10>,lineNumber,ax
+
 	push	di
 	mov	cx,es:[CBLK_SIZE]
 	mov	di,es:[CBLK_REFS]

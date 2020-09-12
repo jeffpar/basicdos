@@ -69,7 +69,7 @@ DOS_UTL_ATOI32	equ   1809h	; convert string (DS:SI) to number (AX)
 DOS_UTL_ATOI32D	equ   180Ah	; convert decimal string (DS:SI) to number (AX)
 DOS_UTL_TOKIFY1	equ   180Bh	; tokenize string (DS:SI) using GENERIC syntax
 DOS_UTL_TOKIFY2	equ   180Ch	; tokenize string (DS:SI) using BASIC syntax
-DOS_UTL_TOKID	equ   180Dh	; convert string (DS:SI) into token ID
+DOS_UTL_TOKID	equ   180Dh	; convert string (DS:SI) into token ID (AX)
 DOS_UTL_GETDEV	equ   1810h	; get DDH (ES:DI) for device (DS:SI)
 DOS_UTL_IOCTL	equ   1811h	; issue IOCTL to device (ES:DI)
 DOS_UTL_LOAD	equ   1812h	; load program (DS:DX) into SCB (CL)
@@ -347,9 +347,8 @@ TOKTBL		ends
 
 TOKDEF		struc
 TOKDEF_ID	db	?	; ID of token
-TOKDEF_LEN	db	?	; length of token text
-TOKDEF_OFF	dw	?	; offset of token text
-TOKDEF_DATA	dw	?	; user-defined token data
+TOKDEF_LEN	db	?	; length of token string
+TOKDEF_OFF	dw	?	; offset of token string
 TOKDEF		ends
 
 CLS_OCT		equ	01h	; octal value

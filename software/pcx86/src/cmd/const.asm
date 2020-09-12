@@ -8,6 +8,7 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	include	cmd.inc
+	include	txt.inc
 
 CODE    SEGMENT
 	EXTERNS	<cmdDate,cmdDir,cmdExit,cmdHelp,cmdList,cmdLoad>,near
@@ -35,6 +36,7 @@ CODE    SEGMENT
 	DEFSTR	FREE_MEM,<"<FREE>",0>
 	DEFSTR	STD_VER,<0>
 	DEFSTR	DBG_VER,<"DEBUG",0>
+	DEFSTR	HELP_FILE,<"COMMAND.TXT",0>
 ;
 ; Table of BASIC-DOS expression operators
 ;
@@ -137,39 +139,39 @@ CODE    SEGMENT
 CODE	ENDS
 
 	DEFTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
-	DEFTOK	TOK_CLS,    60, "CLS",    genCLS
-	DEFTOK	TOK_COLOR,  61, "COLOR",  genColor
-	DEFTOK	TOK_DATE,   40, "DATE",   cmdDate
-	DEFTOK	TOK_DEFINT, 62, "DEFINT", genDefInt
-	DEFTOK	TOK_DIR,    20, "DIR",    cmdDir
-	DEFTOK	TOK_ECHO,   63, "ECHO",   genEcho
-	DEFTOK	TOK_ELSE,  201, "ELSE"
-	DEFTOK	TOK_EXIT,    1, "EXIT",   cmdExit
-	DEFTOK	TOK_GOTO,   64, "GOTO",   genGoto
-	DEFTOK	TOK_HELP,   41, "HELP",   cmdHelp
-	DEFTOK	TOK_IF,     65, "IF",     genIf
-	DEFTOK	TOK_LET,    66, "LET",    genLet
-	DEFTOK	TOK_LIST,    2, "LIST",   cmdList
-	DEFTOK	TOK_LOAD,   21, "LOAD",   cmdLoad
-	DEFTOK	TOK_MEM,    42, "MEM",    cmdMem
-	DEFTOK	TOK_NEW,     3, "NEW",    cmdNew
-	DEFTOK	TOK_PRINT,  67, "PRINT",  synPrint
-	DEFTOK	TOK_REM,    68, "REM"
-	DEFTOK	TOK_RUN,     4, "RUN",    cmdRun
-	DEFTOK	TOK_THEN,  202, "THEN"
-	DEFTOK	TOK_TIME,   43, "TIME",   cmdTime
-	DEFTOK	TOK_TYPE,   22, "TYPE",   cmdType
-	DEFTOK	TOK_VER,    44, "VER",    cmdVer
+	DEFTOK	CLS,    60, genCLS
+	DEFTOK	COLOR,  61, genColor
+	DEFTOK	DATE,   40, cmdDate
+	DEFTOK	DEFINT, 62, genDefInt
+	DEFTOK	DIR,    20, cmdDir
+	DEFTOK	ECHO,   63, genEcho
+	DEFTOK	ELSE,  201
+	DEFTOK	EXIT,    1, cmdExit
+	DEFTOK	GOTO,   64, genGoto
+	DEFTOK	HELP,   41, cmdHelp
+	DEFTOK	IF,     65  genIf
+	DEFTOK	LET,    66, genLet
+	DEFTOK	LIST,    2, cmdList
+	DEFTOK	LOAD,   21, cmdLoad
+	DEFTOK	MEM,    42, cmdMem
+	DEFTOK	NEW,     3, cmdNew
+	DEFTOK	PRINT,  67, synPrint
+	DEFTOK	REM,    68
+	DEFTOK	RUN,     4, cmdRun
+	DEFTOK	THEN,  202
+	DEFTOK	TIME,   43, cmdTime
+	DEFTOK	TYPE,   22, cmdType
+	DEFTOK	VER,    44, cmdVer
 	NUMTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
 
 	DEFTOKENS KEYOP_TOKENS,KEYOP_TOTAL
-	DEFTOK	TOK_AND,  'A', "AND"
-	DEFTOK	TOK_EQV,  'E', "EQV"
-	DEFTOK	TOK_IMP,  'I', "IMP"
-	DEFTOK	TOK_MOD,  'M', "MOD"
-	DEFTOK	TOK_NOT,  '~', "NOT"
-	DEFTOK	TOK_OR,   '|', "OR"
-	DEFTOK	TOK_XOR,  'X', "XOR"
+	DEFTOK	AND,   'A'
+	DEFTOK	EQV,   'E'
+	DEFTOK	IMP,   'I'
+	DEFTOK	MOD,   'M'
+	DEFTOK	NOT,   '~'
+	DEFTOK	OR,    '|'
+	DEFTOK	XOR,   'X'
 	NUMTOKENS KEYOP_TOKENS,KEYOP_TOTAL
 
 DATA	SEGMENT

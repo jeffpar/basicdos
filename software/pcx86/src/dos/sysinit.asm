@@ -425,7 +425,7 @@ si11:	or	es:[bx].SCB_STATUS,SCSTAT_INIT
 	jmp	si10
 
 	DEFLBL	open_error,near
-	PRINTF	<"%s open error %d">,dx,ax
+	PRINTF	<"Error opening %s: %d">,dx,ax
 	jmp	fatal_error
 
 si12:	mov	si,offset CFG_DEBUG
@@ -477,7 +477,7 @@ si17:	inc	cx			; advance SCB #
 	sub	dx,dx			; no more default
 	jmp	si15
 
-si18:	PRINTF	<'Error loading "%ls": %d',13,10>,dx,ds,ax
+si18:	PRINTF	<"Error loading %s: %d",13,10>,dx,ax
 	jmp	si17
 ;
 ; Although it may appear that every SCB was started immediately after loading,

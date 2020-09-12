@@ -175,8 +175,10 @@ ENDPROC itoa
 ;	%c:	8-bit character
 ;	%d:	signed 16-bit decimal integer; use %ld for 32-bit
 ;	%u:	unsigned 16-bit decimal integer; use %lu for 32-bit
-;	%x:	unsigned 16-bit hexadecimal integer: use %lx for 32-bit
 ;	%s:	string (near DS-relative pointer); use %ls for far pointer
+;
+; Standard format types in DEBUG-only builds:
+;	%x:	unsigned 16-bit hexadecimal integer: use %lx for 32-bit
 ;
 ; Non-standard format types:
 ;	%P:	caller's address (REG_CS:REG_IP-2)
@@ -241,22 +243,24 @@ pfpd:	cmp	al,'l'			; long value?
 	jne	pfpe
 	or	ch,PF_LONG		; yes
 	jmp	pfpa
-pfpe:	cmp	al,'d'			; decimal value?
+pfpe:	cmp	al,'d'			; %d: decimal value?
 	jne	pfpe1
 	or	ch,PF_SIGN		; yes, so mark as explicitly signed
 pfd0:	jmp	pfd
-pfpe1:	cmp	al,'c'			; character value?
+pfpe1:	cmp	al,'c'			; %c character value?
 	jne	pfpf
 	jmp	pfc
-pfpf:	cmp	al,'s'			; string value?
+pfpf:	cmp	al,'s'			; %s string value?
 	jne	pfpg
 	jmp	pfs			; yes
-pfpg:	cmp	al,'u'			; unsigned value?
+pfpg:	cmp	al,'u'			; %u unsigned value?
 	je	pfd0			; yes, unsigned values are the default
-	cmp	al,'x'			; hex value?
+	IFDEF DEBUG
+	cmp	al,'x'			; %x hex value?
 	jne	pfph
 	mov	cl,16			; use base 16 instead
-	jmp	pfd			; hex values are always unsigned as well
+	jmp	pfd			; hex values are always unsigned
+	ENDIF
 pfph:	cmp	al,'.'			; precision indicator?
 	jne	pfpi
 	or	ch,PF_PRECIS		; yes
@@ -401,6 +405,12 @@ pfda9:	mov	[bp+si],ax		; update the shifted/masked parameter
 ;
 ; Process %d, %u, and %x specifiers.
 ;
+; In order to support partial bit values, we'd like to use precision to mod
+; the value as follows: for %x, mod with (1 << (SPF_PRECIS << 2)), and
+; for %d, mod with (10 ^ SPF_PRECIS).  For now, this is only supported for %x.
+
+; TODO: Add precision support for %d and %u.
+;
 ; TODO: Any specified width is a minimum, not a maximum, and if the value
 ; is larger, itoa will not truncate it.  So unless we want to make worst-case
 ; length estimates for all numeric possibilities, we really need to pass our
@@ -424,6 +434,37 @@ pfdz:	jae	pfpz			; not enough room for specified length
 	jz	pfd1			; no
 	cwd				; yes, sign-extend AX to DX
 pfd1:	push	bx
+;
+; Limited support for precision is next.  The goal for now is to support
+; masking of hex values; eg, %0.2x will display only 2 hex digits (8 bits),
+; %0.3x will display only 3 hex digits (12 bits), etc.
+;
+	IFDEF DEBUG
+	cmp	cl,16			; base 16?
+	jne	pfd1b+1			; no, precision not supported
+	push	cx
+	mov	cx,[bp].SPF_PRECIS	; CX = precision
+	test	cx,cx			; precision set?
+	jl	pfd1b			; no
+	shl	cl,1
+	shl	cl,1			; CL = CL * 4 (# of bits precision)
+	cmp	cl,16			; more than 16 bits?
+	jae	pfd1a			; yes, leave AX alone
+	mov	bx,1
+	shl	bx,cl
+	dec	bx			; BX = 16-bit mask
+	and	ax,bx			; mask AX
+	sub	dx,dx			; and zero DX
+	jmp	short pfd1b		; all done
+pfd1a:	sub	cl,16			; more than 32 bits?
+	jae	pfd1b			; yes, leave DX alone
+	mov	bx,1
+	shl	bx,cl
+	dec	bx			; BX = 16-bit mask
+	and	dx,bx			; mask DX
+pfd1b:	pop	cx
+	ENDIF
+
 	mov	bx,cx			; set flags (BH) and base (BL)
 	mov	cx,[bp].SPF_WIDTH	; CX = length (0 if unspecified)
 	call	itoa

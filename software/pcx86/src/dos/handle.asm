@@ -284,8 +284,8 @@ so6:	push	cs
 	mov	word ptr [bx].SFB_DRIVE,ax
 	sub	ax,ax
 	mov	[bx].SFB_HANDLES,1	; one handle reference initially
-	mov	[bx].SFB_CURPOS.OFF,ax	; zero the initial file position
-	mov	[bx].SFB_CURPOS.SEG,ax
+	mov	[bx].SFB_CURPOS.LOW,ax	; zero the initial file position
+	mov	[bx].SFB_CURPOS.HIW,ax
 	mov	[bx].SFB_CURCLN,dx	; initial position cluster
 	mov	[bx].SFB_FLAGS,al	; zero flags
 	jmp	short so9		; return new SFB
@@ -347,10 +347,10 @@ sr0:	LOCK_SCB
 ; As a preliminary matter, make sure the requested number of bytes doesn't
 ; exceed the current file size; if it does, reduce it.
 ;
-sr0a:	mov	ax,[bx].SFB_SIZE.OFF
-	mov	dx,[bx].SFB_SIZE.SEG
-	sub	ax,[bx].SFB_CURPOS.OFF
-	sbb	dx,[bx].SFB_CURPOS.SEG
+sr0a:	mov	ax,[bx].SFB_SIZE.LOW
+	mov	dx,[bx].SFB_SIZE.HIW
+	sub	ax,[bx].SFB_CURPOS.LOW
+	sbb	dx,[bx].SFB_CURPOS.HIW
 	jnb	sr0b
 	sub	ax,ax			; no data available
 	cwd
@@ -370,7 +370,7 @@ sr1:	mov	dx,[bx].SFB_CURCLN
 	call	find_cln		; find cluster # for CURPOS
 	mov	[bx].SFB_CURCLN,dx
 
-sr1a:	mov	dx,[bx].SFB_CURPOS.OFF
+sr1a:	mov	dx,[bx].SFB_CURPOS.LOW
 	mov	ax,[di].BPB_CLUSBYTES
 	dec	ax
 	and	dx,ax			; DX = offset within current cluster
@@ -380,9 +380,9 @@ sr1a:	mov	dx,[bx].SFB_CURPOS.OFF
 	push	es
 
 	mov	bx,[bx].SFB_CURCLN
-	IFDEF MAXDEBUG
-	PRINTF	<"Reading cluster %#05x...",13,10>,bx
-	ENDIF
+
+	DPRINTF	<"Reading cluster %#05x...",13,10>,bx
+
 	sub	bx,2
 	jb	sr3			; invalid cluster #
 	xchg	ax,cx			; save CX
@@ -421,10 +421,10 @@ sr3:	pop	es
 ;
 ; Time for some bookkeeping: adjust the SFB's CURPOS by DX.
 ;
-	add	[bx].SFB_CURPOS.OFF,dx
-	adc	[bx].SFB_CURPOS.SEG,0
+	add	[bx].SFB_CURPOS.LOW,dx
+	adc	[bx].SFB_CURPOS.HIW,0
 	add	[bp].TMP_AX,dx		; update accumulation of bytes read
-	add	[bp].TMP_DX,dx
+	add	[bp].TMP_DX,dx		; update data buffer offset
 	ASSERT	NC
 ;
 ; We're now obliged to determine whether or not we've exhausted the current
@@ -432,7 +432,7 @@ sr3:	pop	es
 ;
 	mov	ax,[di].BPB_CLUSBYTES
 	dec	ax
-	test	[bx].SFB_CURPOS.OFF,ax	; is CURPOS at a cluster boundary?
+	test	[bx].SFB_CURPOS.LOW,ax	; is CURPOS at a cluster boundary?
 	jnz	sr4			; no
 	push	dx
 	sub	dx,dx
@@ -498,32 +498,39 @@ ENDPROC	sfb_read
 ;
 ; Outputs:
 ;	On success, carry clear, new position in CX:DX
-;	On failure, carry set, AX = error code
 ;
 ; Modifies:
-;	AX (and CX and DX if SEEK_CUR or SEEK_END)
+;	AX, CX, DX (although technically SEEK_BEG doesn't change CX:DX)
 ;
 DEFPROC	sfb_seek,DOS
 	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	push	si
 	sub	si,si
+	mov	[bx].SFB_CURCLN,si	; invalidate SFB_CURCLN
+;
+; Check the method against the middle value (SEEK_CUR).  It's presumed to
+; be SEEK_BEG if less than and SEEK_END if greater than.  Unlike PC DOS, we
+; don't return an error if the method isn't EXACTLY one of those values.
+;
 	cmp	al,SEEK_CUR
 	mov	ax,si			; SI:AX = offset for SEEK_BEG
-	jl	ss8
-	mov	ax,[bx].SFB_CURPOS.OFF
-	mov	si,[bx].SFB_CURPOS.SEG	; SI:AX = offset for SEEK_CUR
-	je	ss8
-	mov	ax,[bx].SFB_SIZE.OFF
-	mov	si,[bx].SFB_SIZE.SEG	; SI:AX = offset for SEEK_END
-ss8:	add	dx,ax
+	jl	ss7
+	mov	ax,[bx].SFB_CURPOS.LOW
+	mov	si,[bx].SFB_CURPOS.HIW	; SI:AX = offset for SEEK_CUR
+	je	ss7
+	mov	ax,[bx].SFB_SIZE.LOW
+	mov	si,[bx].SFB_SIZE.HIW	; SI:AX = offset for SEEK_END
+ss7:	add	dx,ax
 	adc	cx,si
-	mov	[bx].SFB_CURPOS.OFF,dx
-	mov	[bx].SFB_CURPOS.SEG,cx
+	mov	[bx].SFB_CURPOS.LOW,dx
+	mov	[bx].SFB_CURPOS.HIW,cx
 ;
-; TODO: Feels like we should return an error if carry is set (ie, overflow)....
+; TODO: Technically, we'll return an error of sorts if the addition resulted
+; in an overflow (ie, carry set).  However, no error code has been assigned to
+; that condition, and for some reason, PC DOS didn't consider that an error.
 ;
 	pop	si
-ss9:	ret
+	ret
 ENDPROC	sfb_seek
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

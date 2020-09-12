@@ -7,10 +7,18 @@
  * This file is part of PCjs, a computer emulation software project at <https://www.pcjs.org>.
  */
 
+let fs = require("fs");
 let path = require("path");
 let gulp = require("gulp");
 var glob = require("glob");
 let run = require("gulp-run-command").default;
+
+let files = {
+    "HELP": [
+        "./software/pcx86/src/cmd/COMMAND.TXT",
+        "./software/pcx86/src/cmd/txt.inc"
+    ]
+};
 
 let disks = {
     "BASIC-DOS1": [
@@ -18,6 +26,7 @@ let disks = {
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
+        "./software/pcx86/src/cmd/COMMAND.TXT",
         "./software/pcx86/src/test/obj/*.EXE",
         "./software/pcx86/src/test/obj/*.COM",
         "./software/pcx86/src/test/*.BAS",
@@ -30,6 +39,7 @@ let disks = {
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
+        "./software/pcx86/src/cmd/COMMAND.TXT",
         "./software/pcx86/src/test/obj/*.EXE",
         "./software/pcx86/src/test/obj/*.COM",
         "./software/pcx86/src/test/*.BAS",
@@ -41,6 +51,7 @@ let disks = {
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
+        "./software/pcx86/src/cmd/COMMAND.TXT",
         "./software/pcx86/src/test/obj/*.EXE",
         "./software/pcx86/src/test/obj/*.COM",
         "./software/pcx86/src/test/*.BAS",
@@ -52,6 +63,7 @@ let disks = {
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
+        "./software/pcx86/src/cmd/COMMAND.TXT",
         "./software/pcx86/src/test/obj/*.EXE",
         "./software/pcx86/src/test/obj/*.COM",
         "./software/pcx86/src/test/*.BAS",
@@ -63,6 +75,7 @@ let disks = {
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
+        "./software/pcx86/src/cmd/COMMAND.TXT",
         "./software/pcx86/src/test/obj/*.EXE",
         "./software/pcx86/src/test/obj/*.COM",
         "./software/pcx86/src/test/*.BAS",
@@ -72,22 +85,28 @@ let disks = {
     "BDS-BOOT": [
         "./software/pcx86/src/boot/*.asm",
         "./software/pcx86/src/inc/*.inc",
+        "./software/pcx86/src/boot/makefile",
         "./software/pcx86/src/boot/mk.bat"
     ],
     "BDS-DEV": [
         "./software/pcx86/src/dev/*.asm",
         "./software/pcx86/src/inc/*.inc",
+        "./software/pcx86/src/dev/makefile",
         "./software/pcx86/src/dev/mk.bat"
     ],
     "BDS-DOS": [
         "./software/pcx86/src/dos/*.asm",
+        "./software/pcx86/src/dos/*.lrf",
         "./software/pcx86/src/inc/*.inc",
+        "./software/pcx86/src/dos/makefile",
         "./software/pcx86/src/dos/mk.bat"
     ],
     "BDS-CMD": [
         "./software/pcx86/src/cmd/*.inc",
         "./software/pcx86/src/cmd/*.asm",
+        "./software/pcx86/src/cmd/*.lrf",
         "./software/pcx86/src/inc/*.inc",
+        "./software/pcx86/src/cmd/makefile",
         "./software/pcx86/src/cmd/mk.bat"
     ],
     "BDS-TEST": [
@@ -95,6 +114,7 @@ let disks = {
         "./software/pcx86/src/test/sleep.asm",
         "./software/pcx86/src/test/testdos.asm",
         "./software/pcx86/src/inc/*.inc",
+        "./software/pcx86/src/test/makefile",
         "./software/pcx86/src/test/mk.bat"
     ],
     "BDS-SRC": [
@@ -147,6 +167,34 @@ for (let diskName in disks) {
     watchTasks.push(watchTask);
     gulp.task(watchTask, function() {
         return gulp.watch(disks[diskName], gulp.series(buildTask));
+    });
+}
+
+for (let fileGroup in files) {
+    let buildTask = "BUILD-" + fileGroup;
+    let inputFile = files[fileGroup][0];
+    let outputFile = files[fileGroup][1];
+    gulp.task(buildTask, function(done) {
+        let sINC = "";
+        let sTXT = fs.readFileSync(inputFile, "utf8");
+        let match, reCmds = new RegExp("([A-Z]+)[\\S\\s]*?\r\n(\r\n|$)", "g");
+        while ((match = reCmds.exec(sTXT))) {
+            /*
+             * For each keyword found (eg, GOTO), generate the following:
+             *
+             *      TXT_GOTO_OFF    equ     0       ; offset of help for GOTO
+             *      TXT_GOTO_LEN    equ     0       ; length of help for GOTO
+             */
+            sINC += "TXT_" + match[1] + "_OFF\tequ\t" + match.index + "\r\n";
+            sINC += "TXT_" + match[1] + "_LEN\tequ\t" + match[0].length + "\r\n";
+        }
+        fs.writeFileSync(outputFile, sINC);
+        done();
+    });
+    let watchTask = "WATCH-" + fileGroup;
+    watchTasks.push(watchTask);
+    gulp.task(watchTask, function() {
+        return gulp.watch(inputFile, gulp.series(buildTask));
     });
 }
 
