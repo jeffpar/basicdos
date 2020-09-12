@@ -41,10 +41,12 @@ DEFPROC	cmdMem
 ; we'll need, since it's stored on caller's stack frame.
 ;
 	sub	dx,dx
+	IFDEF DEBUG
 	mov	al,'D'
 	call	checkSW
 	jz	mem0
 	inc	dx
+	ENDIF
 
 mem0:	ENTER
 	mov	[memSwitches],dx
@@ -52,12 +54,15 @@ mem0:	ENTER
 ; Before we get into memory blocks, show the amount of memory reserved
 ; for the BIOS and disk buffers.
 ;
-	push	es
+	push	es		; save ES
+
 	sub	di,di
 	mov	es,di
 	ASSUME	ES:BIOS
 	les	di,[DD_LIST]
 	ASSUME	ES:NOTHING
+
+	IFDEF DEBUG
 	sub	bx,bx
 	mov	ax,es
 	push	di
@@ -65,11 +70,14 @@ mem0:	ENTER
 	mov	si,offset SYS_MEM
 	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
 	pop	di
+	ENDIF
 ;
 ; Next, dump the list of resident built-in device drivers.
 ;
 drv1:	cmp	di,-1
 	je	drv9
+
+	IFDEF DEBUG
 	lea	si,[di].DDH_NAME
 	mov	bx,es
 	mov	cx,bx
@@ -79,30 +87,41 @@ drv1:	cmp	di,-1
 	mov	di,bx
 	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
 	pop	di
+	ENDIF
+
 	les	di,es:[di]
 	jmp	drv1
 ;
 ; Next, dump the size of the operating system, which resides between the
 ; built-in device drivers and the first memory block.
 ;
-drv9:	mov	bx,es		; ES = DOS data segment
-	mov	ax,es:[0]	; ES:[0] is mcb_head
-	mov	di,es:[2]	; ES:[2] is mcb_limit
+drv9:	mov	di,es:[2]	; ES:[2] is mcb_limit
 	mov	[memLimit],di
+
+	IFDEF DEBUG
+	mov	ax,es:[0]	; ES:[0] is mcb_head
+	mov	bx,es		; ES = DOS data segment
 	sub	ax,bx
 	mov	di,cs
 	mov	si,offset DOS_MEM
 	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
-	pop	es
+	ENDIF
+
+	pop	es		; restore ES
 	ASSUME	ES:CODE
 ;
 ; Next, examine all the memory blocks and display those that are used.
 ;
 	sub	cx,cx
 	mov	[memFree],cx
+
 mem1:	mov	dl,0		; DL = 0 (query all memory blocks)
+
+	IFDEF DEBUG
 	mov	di,cs		; DI:SI -> default owner name
 	mov	si,offset SYS_MEM
+	ENDIF
+
 	mov	ax,DOS_UTL_QRYMEM
 	int	21h
 	jc	mem9		; all done
@@ -112,15 +131,21 @@ mem1:	mov	dl,0		; DL = 0 (query all memory blocks)
 ;
 ; Let's include free blocks in the report now, too.
 ;
+	IFDEF DEBUG
 	mov	si,offset FREE_MEM
 	; jmp	short mem8
-
-mem2:	mov	ax,dx		; AX = # paras
+	ENDIF
+mem2:
+	IFDEF DEBUG
+	mov	ax,dx		; AX = # paras
 	push	cx
 	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
 	pop	cx
+	ENDIF
+
 mem8:	inc	cx
 	jmp	mem1
+
 mem9:	mov	ax,[memFree]	; AX = free memory (paras)
 ;
 ; Last but not least, dump the amount of free memory (ie, the sum of all the
@@ -155,6 +180,8 @@ ENDPROC	cmdMem
 ; Outputs:
 ;	None
 ;
+	IFDEF DEBUG
+
 DEFPROC	printKB
 	test	[memSwitches],1	; detail requested (/D)?
 	jz	pkb9		; no
@@ -177,6 +204,8 @@ DEFPROC	printKB
 	PRINTF	<"%#06x: %#06x %3d.%1dK %.8ls",13,10>,bx,ax,cx,dx,si,di
 pkb9:	ret
 ENDPROC	printKB
+
+	ENDIF
 
 CODE	ENDS
 
