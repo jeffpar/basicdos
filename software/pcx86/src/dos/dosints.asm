@@ -33,7 +33,11 @@ DEFPROC	dos_dverr,DOSFAR
 	DBGBRK
 	ENDIF
 	push	ax
+	IFNDEF	DEBUG
+	PRINTF	<"Division error",13,10>
+	ELSE
 	PRINTF	<"Division error @%U%08lx",13,10>
+	ENDIF
 	call	msc_sigerr
 	pop	ax
 	IFDEF DEBUG
@@ -60,7 +64,7 @@ DEFPROC	dos_sstep,DOSFAR
 	jnz	ss1
 	DBGBRK
 	push	ax
-	PRINTF	<"Assert @%U%08lx",13,10>
+	DPRINTF	<"Assert @%U%08lx",13,10>
 	pop	ax
 ss1:	dec	[asserts]
 	ENDIF
@@ -90,7 +94,11 @@ DEFPROC	dos_oferr,DOSFAR
 	DBGBRK
 	ENDIF
 	push	ax
+	IFNDEF	DEBUG
+	PRINTF	<"Overflow error",13,10>
+	ELSE
 	PRINTF	<"Overflow error @%U%08lx",13,10>
+	ENDIF
 	call	msc_sigerr
 	pop	ax
 	IFDEF DEBUG
@@ -220,7 +228,7 @@ dc1:	sti
 	jne	dc1a
 	mov	bl,ah
 	mov	bh,0
-	DPRINTF	<"%04x:%04x: DOS function %02xh",13,10>,[bp].REG_CS,[bp].REG_IP,bx
+	DPRINTF	<"%#010P: DOS function %02xh",13,10>,bx
 	ENDIF
 ;
 ; If CTRLC checking is enabled for all (non-utility) functions and a CTRLC

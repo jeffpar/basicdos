@@ -19,34 +19,59 @@ CODE	ENDS
 DATA    SEGMENT word public 'CODE'
 DATA	ENDS
 
-DEFTOK	macro	sym,val,str,func
+;
+; CTOKDEF is an extended version of TOKDEF containing function pointers,
+; as well as TXT file offsets and lengths.
+;
+CTOKDEF		struc
+CTD_ID		db	?	; ID of token
+CTD_LEN		db	?	; length of token string
+CTD_OFF		dw	?	; offset of token string
+CTD_FUNC	dw	?	; extended token data: function
+CTD_TXT_OFF	dw	?	; extended token data: TXT offset
+CTD_TXT_LEN	dw	?	; extended token data: TXT length
+CTOKDEF		ends
+
+DEFTOK	macro	sym,val,func
 	LOCAL	N1
-	public	sym
-sym	equ	val
+	public	TOK_&sym
+TOK_&sym equ val
 CODE	SEGMENT
 N1	label	byte
-	db	str
+	db	"&sym&"
 	len = offset $ - offset N1
 CODE	ENDS
 DATA	SEGMENT
+	faddr = 0
 	IFB <func>
-	TOKDEF	<val,len,offset DGROUP:N1>
+	CDEFTOK	val,%(len),<offset DGROUP:N1>,0,<TXT_&sym&_OFF>,<TXT_&sym&_LEN>
 	ELSE
-	TOKDEF	<val,len,offset DGROUP:N1,offset func>
+	CDEFTOK	val,%(len),<offset DGROUP:N1>,<offset func>,<TXT_&sym&_OFF>,<TXT_&sym&_LEN>
 	ENDIF
 DATA	ENDS
+	endm
+
+CDEFTOK	macro	val,len,off,func,txt_off,txt_len
+	IFNDEF txt_off
+	 IF1
+	%OUT No definition for txt_off
+	 ENDIF
+	CTOKDEF	<val,len,off,func,0,0>
+	ELSE
+	CTOKDEF	<val,len,off,func,txt_off,txt_len>
+	ENDIF
 	endm
 
 DEFTOKENS macro tbl,val
 DATA	SEGMENT
 	public	tbl
-tbl	TOKTBL	<val,size TOKDEF>
+tbl	TOKTBL	<val,size CTOKDEF>
 DATA	ENDS
 	endm
 
 NUMTOKENS macro tbl,val
 DATA	SEGMENT
-val = ((offset $ - offset tbl) - 2) / (size TOKDEF)
+val = ((offset $ - offset tbl) - 2) / (size CTOKDEF)
 DATA	ENDS
 	endm
 

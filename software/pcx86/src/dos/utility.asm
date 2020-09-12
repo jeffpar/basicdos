@@ -210,7 +210,7 @@ DEFPROC	utl_printf,DOS
 	call	sfb_write
 	jmp	short pf8
 pf7:	call	write_string		; write string to STDOUT
-pf8:	add	sp,BUFLEN
+pf8:	add	sp,BUFLEN		; carry should always be clear now
 	ret
 ENDPROC	utl_printf endp
 
@@ -224,7 +224,7 @@ ENDPROC	utl_printf endp
 ; FINAL binaries.  Without this function, those calls would crash, due to
 ; how the format strings are stored after the INT 21h.
 ;
-; Except for the output device, this function is identical to utl_printf.
+; Aside from the DEBUG-only features, this function is identical to utl_printf.
 ;
 ; Inputs:
 ;	format string follows the INT 21h
@@ -238,18 +238,18 @@ ENDPROC	utl_printf endp
 ;
 DEFPROC	utl_dprintf,DOS
 	mov	bl,[sfh_debug]
-	cmp	[key_boot].LOB,'0'	; any alphanumeric boot keys pressed?
+	cmp	[key_boot].LOB,'0'	; alphanumeric boot key pressed?
 	jb	dp1			; no
 	call	hprintf			; yes
 	ASSUME	DS:NOTHING,ES:NOTHING
-	cmp	[key_boot].LOB,'B'	; 'b' for break?
+	cmp	[key_boot].LOB,'B'	; 'B' for break?
 	jne	dp9			; no
-	DBGBRK
-	jmp	short dp9
+	DBGBRK				; yes
+	ret
 dp1:	lds	si,dword ptr [bp].REG_IP
 	mov	al,0			; AL = null terminator
 	call	strlen			; get length of string at CS:IP
-	inc	ax			; include null terminator
+	inc	ax			; count null terminator
 	add	[bp].REG_IP,ax		; update REG_IP with length in AX
 dp9:	ret
 ENDPROC	utl_dprintf endp
@@ -801,7 +801,7 @@ ENDPROC	tok_classify
 ;	REG_DS:REG_SI -> token
 ;	REG_CS:REG_DX -> TOKTBL followed by sorted array of TOKDEFs
 ; Outputs:
-;	If carry clear, AX = ID (TOKDEF_ID), DX = data (TOKDEF_DATA, if any)
+;	If carry clear, REG_AX = ID (TOKDEF_ID), REG_SI = offset of TOKDEF
 ;	If carry set, token not found
 ;
 ; Modifies:
@@ -872,11 +872,11 @@ td4:	inc	bx
 
 td8:	sub	ax,ax			; zero AX (and carry, too)
 	mov	al,es:[di+bx].TOKDEF_ID	; AX = token ID
-	mov	dx,es:[di+bx].TOKDEF_DATA; DX = user-defined token data
+	lea	dx,[di+bx]		; DX -> TOKDEF
 	pop	bx			; toss BX from stack
 
 td9:	jc	td10
-	mov	[bp].REG_DX,dx
+	mov	[bp].REG_SI,dx
 	mov	[bp].REG_AX,ax
 td10:	ret
 ENDPROC	utl_tokid

@@ -1,0 +1,57 @@
+CLS
+Clears the screen to the background color and moves the cursor
+to the top left corner of the session.
+
+COLOR *foreground*[,*background*[,*border*]]
+Sets the foreground (0-15), background (0-15), and border (0-255)
+colors of the session.  *background* values 8-15 and *border* values
+128-255 enable blinking.
+
+DATE [*date*] [/P]
+Sets the system date to *date* (or prompts for a date if /P) and
+then displays the date.  The date must be entered as M-D-Y or M/D/Y,
+where M is 1-12, D is 1-31, and Y is 0-99 or 1980-2099.  If D or Y
+are omitted, current values are assumed.
+
+DEFINT
+
+DIR
+
+ECHO
+
+EXIT
+
+GOTO
+
+HELP
+
+IF
+
+LET
+
+LIST
+
+LOAD
+
+MEM
+
+NEW
+
+PRINT
+
+REM
+
+RUN
+
+TIME [*time*] [/P]
+Sets the system time to *time* (or prompts for a time if /P) and
+then displays the time.  The time must be entered as H:M:S.D, where
+where H is 0-23, M is 0-59, S is 0-59, and D is 0-99.  If M, S, or D
+are omitted, zeros are assumed.
+
+TYPE
+Displays the contents of the specified file.
+
+VER
+Displays the BASIC-DOS version number and revision.
+

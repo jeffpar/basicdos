@@ -120,9 +120,9 @@ DEFPROC	fcb_sread,DOS
 	mov	cx,[bp].REG_DS		; CX:DX -> FCB
 	call	sfb_find_fcb
 ;
-; TODO
+; TODO: Implement.
 ;
-	ret
+fs9:	ret
 ENDPROC	fcb_sread
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -145,11 +145,12 @@ ENDPROC	fcb_sread
 ;	  03h: EOF, partial record
 ;
 ; Modifies:
+;	Any
 ;
 DEFPROC	fcb_rread,DOS
 	mov	cx,[bp].REG_DS		; CX:DX -> FCB
 	call	sfb_find_fcb
-	jc	fr9
+	jc	fs9			; TODO: decide how to treat this error
 	mov	di,dx
 	mov	es,cx			; ES:DI -> FCB
 	ASSUME	ES:NOTHING
@@ -170,8 +171,7 @@ fr1:	call	mul_32_16		; DX:AX = DX:AX * CX
 	xchg	dx,ax			; AX:DX
 	xchg	cx,ax			; CX:DX
 	mov	al,SEEK_BEG		; seek to absolute offset CX:DX
-	call	sfb_seek		; SEEK_BEG modifies only AX
-
+	call	sfb_seek
 	xchg	ax,cx			; AX:DX
 	xchg	ax,dx			; DX:AX
 	mov	cx,16*1024		; CX = 16K
@@ -184,9 +184,12 @@ fr1:	call	mul_32_16		; DX:AX = DX:AX * CX
 	ASSERT	Z,<test ah,ah>
 	mov	es:[di].FCB_CURREC,al
 
-	mov	al,IO_RAW		; TODO?
+	mov	al,IO_RAW		; TODO: matter for block devices?
 	mov	si,[scb_active]
 	les	dx,[si].SCB_DTA		; ES:DX -> DTA
+
+	DPRINTF	<"fcb_rread: requesting %#x bytes from %#lx into %04x:%04x",13,10>,cx,[bx].SFB_CURPOS.LOW,[bx].SFB_CURPOS.HIW,es,dx
+
 	push	cx
 	push	dx
 	call	sfb_read
@@ -210,6 +213,9 @@ fr7:	cmp	ax,cx
 
 	mov	dl,3			; DL = 03h (EOF, partial record)
 fr8:	mov	[bp].REG_AL,dl		; REG_AL = return code
+
+	DPRINTF	<"fcb_rread: returned %#.2x",13,10>,dx
+
 fr9:	ret
 ENDPROC	fcb_rread
 

@@ -16,7 +16,7 @@ CODE    SEGMENT
 
 	EXTERNS	<KEYWORD_TOKENS>,word
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF,PERIOD>
-	EXTSTR	<STD_VER,DBG_VER>
+	EXTSTR	<STD_VER,DBG_VER,HELP_FILE>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -135,6 +135,7 @@ m1b:	push	cx
 	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
 	int	21h			; identify the token
 	jc	m2
+	mov	dx,cs:[si].CTD_FUNC
 	mov	[pHandler],dx
 	jmp	m9			; token ID in AX
 ;
@@ -711,30 +712,78 @@ ENDPROC	cmdExit
 ;	Any
 ;
 DEFPROC	cmdHelp
-	mov	si,offset KEYWORD_TOKENS
-	lods	word ptr cs:[si]	; AL = # tokens, AH = size TOKDEF
+	mov	dh,2			; is there a second token?
+	call	getToken
+	jnc	h1
+	jmp	h5			; no
+;
+; Identify the second token (DS:SI) with length CX.
+;
+h1:	lea	dx,[KEYWORD_TOKENS]
+	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
+	int	21h
+	jc	h4			; unknown
+;
+; CS:SI -> CTOKDEF.  Load CTD_TXT_OFF into DX and CTD_TXT_LEN into CX.
+;
+	mov	dx,cs:[si].CTD_TXT_OFF
+	mov	cx,cs:[si].CTD_TXT_LEN
+	jcxz	h3			; no help indicated
+	push	cs
+	pop	ds
+	mov	si,offset HELP_FILE	; DS:SI -> filename
+	push	dx
+	call	openFile
+	pop	dx
+	jc	h3
+	push	cx
+	sub	cx,cx
+	call	seekFile		; seek to 0:DX
+	pop	cx
+	sub	sp,cx			; allocate CX bytes from the stack
+	mov	si,sp
+	call	readFile
+	jc	h2
+	mov	dx,si			; DS:DX -> help text
+	mov	bx,STDOUT
+	mov	ah,DOS_HDL_WRITE	; write to STDOUT
+	int	21h
+h2:	add	sp,cx			; deallocate the stack space
+	call	closeFile
+	ret
+
+h3:	PRINTF	<"No help available",13,10>
+	ret
+
+h4:	PRINTF	<"Unknown command: %.*s",13,10>,cx,si
+	ret
+;
+; Print all the known keywords.
+;
+h5:	mov	si,offset KEYWORD_TOKENS
+	lods	word ptr cs:[si]	; AL = # tokens, AH = size CTOKDEF
 	mov	cl,al
 	mov	ch,0			; CX = # tokens
 	mov	al,ah
 	cbw
-	xchg	di,ax			; DI = size TOKDEF
+	xchg	di,ax			; DI = size CTOKDEF
 	mov	dl,8			; DL = # chars to be printed so far
-h1:	cmp	cs:[si].TOKDEF_ID,200
-	jae	h3			; ignore token IDs >= 100
+h6:	cmp	cs:[si].CTD_ID,200
+	jae	h8			; ignore token IDs >= 100
 	push	dx
-	mov	dl,cs:[si].TOKDEF_LEN
+	mov	dl,cs:[si].CTD_LEN
 	mov	dh,0
-	PRINTF	<"%-8.*ls">,dx,cs:[si].TOKDEF_OFF,cs
+	PRINTF	<"%-8.*ls">,dx,cs:[si].CTD_OFF,cs
 	pop	dx
 	add	dl,al
 	cmp	cl,1
-	je	h2
+	je	h7
 	cmp	dl,[heap].CON_COLS
-	jb	h3
-h2:	PRINTF	<13,10>
+	jb	h8
+h7:	PRINTF	<13,10>
 	mov	dl,8
-h3:	add	si,di			; SI -> next TOKDEF
-	loop	h1
+h8:	add	si,di			; SI -> next CTOKDEF
+	loop	h6
 h9:	ret
 ENDPROC	cmdHelp
 
@@ -1075,7 +1124,7 @@ DEFPROC	cmdVer
 	mov	cx,offset STD_VER
 	jz	ver9
 	mov	cx,offset DBG_VER
-ver9:	PRINTF	<"BASIC-DOS Version %d.%d%d %ls",13,10,13,10>,ax,dx,bx,cx,cs
+ver9:	PRINTF	<13,10,"BASIC-DOS Version %d.%d%d %ls",13,10,13,10>,ax,dx,bx,cx,cs
 	ret
 ENDPROC	cmdver
 
@@ -1211,6 +1260,30 @@ DEFPROC	readFile
 rf9:	pop	bx
 	ret
 ENDPROC	readFile
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; seekFile
+;
+; Seek to the specified position.
+;
+; Inputs:
+;	CX:DX = absolute position
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX
+;
+DEFPROC	seekFile
+	push	bx
+	mov	bx,[hFile]
+	mov	ax,DOS_HDL_SEEKBEG
+	int	21h
+	pop	bx
+	ret
+ENDPROC	seekFile
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

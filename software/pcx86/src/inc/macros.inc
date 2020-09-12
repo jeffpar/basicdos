@@ -328,7 +328,7 @@ ASSUMES	macro	seg1,seg2
 
 ASSUME1	macro	segreg,segment
 	ASSUME	segreg:segment
-	IFDEF	DEBUG
+	IFDEF DEBUG
 	 IFDIF <segment>,<NOTHING>
 	push	ax
 	push	dx
@@ -375,9 +375,11 @@ PRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 
 DPRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	IFDEF DEBUG
-	push	ax
+	pushf			;; FPRINTF alters AX and flags
+	push	ax		;; so we have no choice but to push them
 	FPRINTF	DOS_UTL_DPRINTF,<format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	pop	ax
+	popf
 	ENDIF
 	endm
 
