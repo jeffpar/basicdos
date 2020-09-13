@@ -730,12 +730,14 @@ h1:	lea	dx,[KEYWORD_TOKENS]
 	mov	dx,cs:[si].CTD_TXT_OFF
 	mov	cx,cs:[si].CTD_TXT_LEN
 	jcxz	h3			; no help indicated
+	push	ds
 	push	cs
 	pop	ds
 	mov	si,offset HELP_FILE	; DS:SI -> filename
 	push	dx
 	call	openFile
 	pop	dx
+	pop	ds
 	jc	h3
 	push	cx
 	sub	cx,cx
