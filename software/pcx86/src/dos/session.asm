@@ -25,7 +25,7 @@ DOS	segment word public 'CODE'
 ; That is, thus far, the extent of our extremely simple scheduler.
 ;
 	EXTERNS	<scb_locked,def_switchar>,byte
-	EXTERNS	<scb_active,psp_active,scb_stoked>,word
+	EXTERNS	<scb_active,scb_stoked>,word
 	EXTERNS	<scb_table>,dword
 	EXTERNS	<dos_exit,load_program,sfh_close>,near
 
@@ -167,18 +167,13 @@ DEFPROC	scb_lock,DOS
 	call	get_scb
 	jc	sk9
 	inc	[scb_locked]
-	push	dx
 	mov	ax,bx			; AX = current SCB
 	xchg	bx,[scb_active]		; BX -> previous SCB, if any
 	test	bx,bx
 	jz	sk8
 	ASSERT	STRUCT,[bx],SCB
-	mov	dx,[psp_active]
-	mov	[bx].SCB_CURPSP,dx
 sk8:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
 	ASSERT	STRUCT,[bx],SCB
-	mov	dx,[bx].SCB_CURPSP
-	mov	[psp_active],dx
 	push	ds
 	push	es
 	push	ds
@@ -194,7 +189,6 @@ sk8:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
 	pop	es
 	pop	ds
 	ASSUME	DS:DOS
-	pop	dx
 sk9:	ret
 ENDPROC	scb_lock
 
@@ -209,20 +203,19 @@ ENDPROC	scb_lock
 ;	CX -> previous SCB
 ;
 ; Modifies:
-;	BX, DX (but not carry)
+;	BX
+;
+; Preserves:
+;	Flags
 ;
 DEFPROC	scb_unlock,DOS
 	ASSUME	ES:NOTHING
 	pushf
 	ASSERT	STRUCT,[bx],SCB
-	mov	dx,[psp_active]
-	mov	[bx].SCB_CURPSP,dx
 	mov	[scb_active],cx
 	jcxz	su9
 	mov	bx,cx			; BX -> previous SCB
 	ASSERT	STRUCT,[bx],SCB
-	mov	dx,[bx].SCB_CURPSP
-	mov	[psp_active],dx
 su9:	dec	[scb_locked]
 	popf
 	ret
@@ -409,9 +402,9 @@ ENDPROC	scb_yield
 ; scb_switch
 ;
 ; Switch to the specified session.  SCB locking is used to prevent switches
-; whenever large global data structures are in use (eg, disk buffers), but all
-; per-session data should be stored in the SCB, so that no global state needs
-; to be copied in or out.
+; whenever global data structures are being modified (eg, disk buffers), but
+; all per-session data should be stored in the SCB, so that no global state
+; needs to be copied in or out.
 ;
 ; The kinds of apps we ultimately want to support in BASIC-DOS sessions will
 ; determine whether we need to adopt additional measures, such as "swapping"
@@ -440,15 +433,11 @@ DEFPROC	scb_switch,DOS
 	test	bx,bx
 	jz	sw8
 	ASSERT	STRUCT,[bx],SCB
-	mov	dx,[psp_active]
-	mov	[bx].SCB_CURPSP,dx
 	add	sp,2			; toss 1 near-call return address
 	mov	[bx].SCB_STACK.SEG,ss
 	mov	[bx].SCB_STACK.OFF,sp
 sw8:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
 	ASSERT	STRUCT,[bx],SCB
-	mov	dx,[bx].SCB_CURPSP
-	mov	[psp_active],dx
 	mov	ss,[bx].SCB_STACK.SEG
 	mov	sp,[bx].SCB_STACK.OFF
 	ASSERT	NC

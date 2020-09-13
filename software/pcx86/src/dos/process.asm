@@ -12,7 +12,7 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<scb_locked>,byte
-	EXTERNS	<mcb_head,mcb_limit,scb_active,psp_active>,word
+	EXTERNS	<mcb_head,mcb_limit,scb_active>,word
 	EXTERNS	<sfh_addref,pfh_close,sfh_close>,near
 	EXTERNS	<getsize,freeAll,dos_exit,dos_ctrlc,dos_error>,near
 	EXTERNS	<get_scbnum,scb_unload,scb_yield>,near
@@ -36,7 +36,10 @@ DEFPROC	psp_term,DOS
 	DEFLBL	psp_term_exitcode,near
 	ASSERT	Z,<cmp [scb_locked],-1>	; SCBs should never be locked now
 
-	mov	es,[psp_active]
+	push	ax
+	call	get_psp
+	mov	es,ax
+	pop	ax
 	ASSUME	ES:NOTHING
 	mov	si,es:[PSP_PARENT]
 
@@ -48,7 +51,7 @@ DEFPROC	psp_term,DOS
 ; Close process file handles.
 ;
 pt1:	push	ax			; save exit code/type on stack
-	call	psp_close		; close all the process file handles
+	call	close_psp		; close all the process file handles
 ;
 ; Restore the SCB's CTRLC and ERROR handlers from the values in the PSP.
 ;
@@ -93,7 +96,8 @@ pt8:	mov	es,ax			; ES = PSP of parent
 	pop	cx			; we now have PSP_EXRET in CX:DX
 	pop	ax			; AX = exit code (saved on entry above)
 	mov	word ptr es:[PSP_EXCODE],ax
-	mov	[psp_active],es
+	mov	ax,es
+	call	set_psp
 	cli
 	mov	ss,es:[PSP_STACK].SEG
 	mov	sp,es:[PSP_STACK].OFF
@@ -232,7 +236,7 @@ DEFPROC	psp_init,DOS
 	lea	si,[bx].SCB_EXRET
 	mov	cx,6
 	rep	movsw
-	mov	ax,[psp_active]		; AX = active PSP
+	call	get_psp			; AX = active PSP
 	ret
 ENDPROC	psp_init
 
@@ -243,7 +247,7 @@ ENDPROC	psp_init
 ; TODO: Add support for EPB_ENVSEG.
 ;
 ; Inputs:
-;	REG_AL = exec code
+;	REG_AL = subfunction (only 0 and 1 are currently supported)
 ;	REG_DS:REG_DX -> name of program
 ;	REG_ES:REG_BX -> exec parameter block (EPB)
 ;
@@ -252,64 +256,97 @@ ENDPROC	psp_init
 ;	If error, carry set, AX = error code
 ;
 DEFPROC	psp_exec,DOS
-	cmp	al,0
-	jne	px9
+	cmp	al,2			; DOS_PSP_EXEC or DOS_PSP_EXEC1?
+	cmc
+	mov	ax,ERR_INVALID		; AX = error code if not
+	jnb	px1			; yes
+px0:	jmp	px9
 
-	mov	es,[bp].REG_DS		; ES:DX -> name of program
+px1:	mov	es,[bp].REG_DS		; ES:DX -> name of program
 	ASSUME	ES:NOTHING
 	call	load_program
 	ASSUME	DS:NOTHING
-	jc	px9
+	jc	px0			; hopefully AX contains an error code
 ;
 ; Now we deal with the EPB we've been given.  load_program already set up
-; a default command tail in the PSP, but for this call, we must replace it,
-; along with both FCBs.
+; default FCBs and CMDTAIL in the PSP, but for this call, we must replace them.
 ;
-	push	si
+	push	es			; save ES:DI (new program's stack)
 	push	di
-	push	ds
-	push	es
+
 	mov	ds,[bp].REG_ES
-	ASSUME	DS:NOTHING
-	mov	si,[bp].REG_BX
-	mov	es,[psp_active]
+	mov	si,[bp].REG_BX		; DS:SI is now caller's ES:BX (EPB)
+	call	get_psp
+	mov	es,ax			; ES -> PSP
 
 	push	ds
 	push	si
 	lds	si,[si].EPB_FCB1
 	mov	di,PSP_FCB1
 	mov	cx,size FCB
-	rep	movsb
+	rep	movsb			; fill in PSP_FCB1
 	pop	si
-	pop	ds
+	pop	ds			; DS:SI -> EPB again
 	push	ds
 	push	si
 	lds	si,[si].EPB_FCB2
 	mov	di,PSP_FCB2
 	mov	cx,size FCB
-	rep	movsb
+	rep	movsb			; fill in PSP_FCB2
 	pop	si
-	pop	ds
+	pop	ds			; DS:SI -> EPB again
+	push	ds
+	push	si
 	lds	si,[si].EPB_CMDTAIL
 	add	di,size PSP_RESERVED3
 	mov	cl,[si]
 	mov	ch,0
 	add	cx,2
-	rep	movsb
-
-	pop	es
-	pop	ds
-	pop	di
+	rep	movsb			; fill in PSP_CMDTAIL
 	pop	si
+	pop	ds			; DS:SI -> EPB again
+
+	pop	di			; recover ES:DI (new program's stack)
+	pop	es
+
+	cmp	[bp].REG_AL,cl		; was AL zero?
+	jne	px8			; no
 ;
-; Unlike scb_load, this is a "synchronous" operation, meaning we launch
-; the program ourselves.
+; This was a DOS_PSP_EXEC call, and unlike scb_load, it's a synchronous
+; exec, meaning we launch the program directly from this call.
 ;
 	cli
-	push	es
+	push	es			; switch to the new program's stack
 	pop	ss
 	mov	sp,di
-	jmp	dos_exit		; we'll let dos_exit turn interrupts on
+	jmp	dos_exit		; and let dos_exit turn interrupts on
+;
+; This was a DOS_PSP_EXEC1 call, an undocumented call that only loads the
+; program, fills in the undocumented EPB_INIT_SP and EPB_INIT_IP fields,
+; and then returns to the caller.
+;
+; Note that EPB_INIT_SP should be identical to PSP_STACK (PSP:2Eh) (well,
+; except that PSP_STACK is the original stack, whereas we return the stack
+; with a zero word pre-pushed), and EPB_INIT_IP should be identical to
+; PSP_START (PSP:40h); these are new PSP fields introduced by BASIC-DOS,
+; which a DOS_PSP_EXEC1 caller is unaware of.
+;
+; And in any case, the new PSP is no longer in ES; ES:DI now points to the
+; program's stack, which contains a REG_FRAME that the DOS_PSP_EXEC1 caller
+; can't use.
+;
+; So, we return SS:SP with the REG_FRAME popped off, along with the REG_CS
+; and REG_IP that was stored in the REG_FRAME.
+;
+px8:	mov	ax,di
+	add	ax,size REG_FRAME + REG_CHECK
+	mov	[si].EPB_INIT_SP.OFF,ax
+	mov	[si].EPB_INIT_SP.SEG,es	; return the program's SS:SP
+	les	di,dword ptr es:[di+REG_CHECK].REG_IP
+	mov	[si].EPB_INIT_IP.OFF,di
+	mov	[si].EPB_INIT_IP.SEG,es	; return the program's CS:IP
+	clc
+	ret
 
 px9:	mov	[bp].REG_AX,ax		; return any error code in REG_AX
 	ret
@@ -347,7 +384,8 @@ ENDPROC	psp_exit
 ;	AX
 ;
 DEFPROC	psp_retcode,DOS
-	mov	ds,[psp_active]
+	call	get_psp
+	mov	ds,ax
 	mov	ax,word ptr ds:[PSP_EXCODE]
 	mov	[bp].REG_AX,ax
 	ret
@@ -357,8 +395,6 @@ ENDPROC	psp_retcode
 ;
 ; psp_set (REG_AH = 50h)
 ;
-; In BASIC-DOS, this only changes SCB_CURPSP, NOT the global psp_active.
-;
 ; Inputs:
 ;	REG_BX = segment of new PSP
 ;
@@ -367,17 +403,12 @@ ENDPROC	psp_retcode
 ;
 DEFPROC	psp_set,DOS
 	mov	ax,[bp].REG_BX
-	mov	bx,[scb_active]
-	ASSERT	STRUCT,[bx],SCB
-	mov	[bx].SCB_CURPSP,ax
-	ret
+	jmp	set_psp
 ENDPROC	psp_set
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; psp_get (REG_AH = 51h)
-;
-; In BASIC-DOS, this only retrieves SCB_CURPSP, NOT the global psp_active.
 ;
 ; Inputs:
 ;	None
@@ -386,9 +417,7 @@ ENDPROC	psp_set
 ;	REG_BX = segment of current PSP
 ;
 DEFPROC	psp_get,DOS
-	mov	bx,[scb_active]
-	ASSERT	STRUCT,[bx],SCB
-	mov	ax,[bx].SCB_CURPSP
+	call	get_psp
 	mov	[bp].REG_BX,ax
 	ret
 ENDPROC	psp_get
@@ -439,8 +468,8 @@ lp1:	xchg	dx,ax			; DX = segment for new PSP
 	mov	ah,DOS_PSP_CREATE
 	int	21h			; create new PSP at DX
 
-	mov	bx,[psp_active]
-	test	bx,bx
+	call	get_psp
+	test	ax,ax
 	jz	lp2
 ;
 ; Let's update the PSP_STACK field in the current PSP before we switch
@@ -448,17 +477,18 @@ lp1:	xchg	dx,ax			; DX = segment for new PSP
 ; when this new program terminates.  PC DOS updates PSP_STACK on every
 ; DOS call, because it loves switching stacks; we do not.
 ;
-	mov	ds,bx
+	mov	ds,ax
 	ASSUME	DS:NOTHING
-	mov	ax,bp
+	mov	bx,bp
 	IF REG_CHECK
-	sub	ax,2
+	sub	bx,2
 	ENDIF
 	mov	ds:[PSP_STACK].SEG,ss
-	mov	ds:[PSP_STACK].OFF,ax
+	mov	ds:[PSP_STACK].OFF,bx
 
-lp2:	push	bx			; save original PSP
-	mov	[psp_active],dx		; we must update the *real* PSP now
+lp2:	push	ax			; save original PSP
+	xchg	ax,dx			; AX = new PSP
+	call	set_psp
 ;
 ; Since we stashed the pointer to the command-line in DI, let's parse it now,
 ; separating the filename portion from the "tail" portion.
@@ -488,7 +518,8 @@ lp3c:	xchg	bx,ax			; BX = file handle
 ; command-line now.  And before we do, let's also update the PSP EXRET address.
 ;
 	push	bx
-	mov	ds,[psp_active]		; DS = segment of new PSP
+	call	get_psp
+	mov	ds,ax			; DS = segment of new PSP
 	mov	ax,[bp].REG_IP
 	mov	ds:[PSP_EXRET].OFF,ax
 	mov	ax,[bp].REG_CS
@@ -626,7 +657,7 @@ lp6e:	add	ax,15
 	mov	cl,4
 	shr	ax,cl
 	add	dx,ax			; DX = next available segment
-	mov	ax,[psp_active]
+	call	get_psp
 	add	ax,10h			; AX = base segment of EXE
 	mov	cx,es:[EXE_NRELOCS]
 	mov	di,es:[EXE_OFFRELOC]	; ES:DI -> first relocation entry
@@ -855,8 +886,14 @@ lp8b:	mov	dx,es
 	std
 	mov	cx,ds:[PSP_START].SEG
 	mov	dx,ds:[PSP_START].OFF	; CX:DX = start address
+;
+; NOTE: Pushing a zero on the top of the program's stack is expected by
+; COM files, but what about EXE files?  Do they have the same expectation
+; or are we just wasting a word (or worse, confusing them)?
+;
 	sub	ax,ax
 	stosw				; store a zero at the top of the stack
+
 	mov	ax,FL_INTS
 	stosw				; REG_FL (with interrupts enabled)
 	xchg	ax,cx
@@ -901,12 +938,16 @@ lpef:	push	ax
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
-	call	psp_close
-	mov	es,[psp_active]
+	call	close_psp
+	call	get_psp
+	mov	es,ax
 	mov	ah,DOS_MEM_FREE
 	int	21h
 	pop	ax
-	pop	[psp_active]		; restore original PSP
+	pop	dx			; DX = original PSP
+	xchg	ax,dx			; AX = original PSP, DX = error code
+	call	set_psp			; update PSP
+	xchg	ax,dx			; AX = error code
 	stc
 
 lp9:	ret
@@ -1036,7 +1077,54 @@ ENDPROC	psp_setmem
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; psp_close
+; get_psp
+;
+; In BASIC-DOS, this replaces all references to (the now obsolete) psp_active.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	AX = segment of current PSP, zero if none
+;
+DEFPROC	get_psp,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	bx
+	sub	ax,ax
+	mov	bx,[scb_active]
+	test	bx,bx
+	jz	gp9
+	ASSERT	STRUCT,cs:[bx],SCB
+	mov	ax,cs:[bx].SCB_CURPSP
+gp9:	pop	bx
+	ret
+ENDPROC	get_psp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; set_psp
+;
+; In BASIC-DOS, this replaces all references to (the now obsolete) psp_active.
+;
+; Inputs:
+;	AX = segment of new PSP
+;
+; Outputs:
+;	None
+;
+DEFPROC	set_psp,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	bx
+	mov	bx,[scb_active]
+	ASSERT	STRUCT,cs:[bx],SCB
+	mov	cs:[bx].SCB_CURPSP,ax
+	pop	bx
+	ret
+ENDPROC	set_psp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; close_psp
 ;
 ; Inputs:
 ;	None
@@ -1047,14 +1135,14 @@ ENDPROC	psp_setmem
 ; Modifies:
 ;	AX, BX, CX, DX
 ;
-DEFPROC	psp_close,DOS
+DEFPROC	close_psp,DOS
 	mov	cx,size PSP_PFT
 	sub	bx,bx			; BX = handle (PFH)
 pc1:	call	pfh_close		; close process file handle
 	inc	bx
 	loop	pc1
 	ret
-ENDPROC	psp_close
+ENDPROC	close_psp
 
 DOS	ends
 

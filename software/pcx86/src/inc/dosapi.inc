@@ -106,8 +106,8 @@ DOS_DSK_GETDPB	equ	32h	; get DPB (DS:BX, AL=FFh if invalid drive)
 DOS_MSC_CTRLC	equ	33h	; get/set CTRLC state
 DOS_MSC_GETVEC	equ	35h	; get vector (AL) addr (ES:BX)
 DOS_DSK_GETINFO	equ	36h	; get disk info; eg, available clusters (BX)
-DOS_MSC_GETSWC	equ   3700h	; get switch char (DL)
-DOS_MSC_SETSWC	equ   3701h	; set switch char (DL)
+DOS_MSC_GETSWC	equ   3700h	; get switch char (DL) (undocumented)
+DOS_MSC_SETSWC	equ   3701h	; set switch char (DL) (undocumented)
 DOS_HDL_CREATE	equ	3Ch	; create handle for device/file (DS:DX)
 DOS_HDL_OPEN	equ	3Dh	; open handle for device/file (DS:DX)
 DOS_HDL_OPENRW	equ   3D02h	; open handle for R/W access
@@ -125,15 +125,16 @@ DOS_MEM_FREE	equ	49h	; free segment (ES)
 DOS_MEM_REALLOC	equ	4Ah	; reallocate size of segment (ES) to paras (BX)
 
 DOS_PSP_EXEC	equ   4B00h	; load program (DS:DX) with EPB (ES:BX)
+DOS_PSP_EXEC1	equ   4B01h	; load program w/o running (undocumented)
 DOS_PSP_EXIT	equ	4Ch	; exit program with return code (AL)
 DOS_PSP_RETCODE	equ	4Dh	; return exit code (AL) and exit type (AH)
 
 DOS_DSK_FFIRST	equ	4Eh	; find first filespec (DS:DX) with attr (CX)
 DOS_DSK_FNEXT	equ	4Fh	; find next filespec (DTA)
 
-DOS_PSP_SET	equ	50h	; set current PSP (BX)
-DOS_PSP_GET	equ	51h	; get current PSP (BX)
-DOS_PSP_CREATE	equ	55h	; create PSP in segment (DX)
+DOS_PSP_SET	equ	50h	; set current PSP (BX) (undocumented)
+DOS_PSP_GET	equ	51h	; get current PSP (BX) (undocumented)
+DOS_PSP_CREATE	equ	55h	; create PSP in segment (DX) (undocumented)
 
 ;
 ; File Control Block (FCB)
@@ -250,7 +251,7 @@ PSP_RESERVED2	db	9 dup(?); 53h
 PSP_FCB1	db     16 dup(?); 5Ch
 PSP_FCB2	db     16 dup(?); 6Ch
 PSP_RESERVED3	db	4 dup(?); 7Ch
-PSP_CMDTAIL	db    128 dup(?); 80h: length byte, command tail, CR
+PSP_CMDTAIL	db    128 dup(?); 80h: length byte, command tail, CHR_RETURN
 PSP		ends
 
 PSP_DTA		equ	PSP_CMDTAIL
@@ -259,10 +260,12 @@ PSP_DTA		equ	PSP_CMDTAIL
 ; Exec Parameter Block (EPB)
 ;
 EPB		struc
-EPB_ENVSEG	dw	?	; 00h: segment of environment (0 to copy parent)
+EPB_ENVSEG	dw	?	; 00h: seg of environment (0 to copy parent)
 EPB_CMDTAIL	dd	?	; 02h: pointer to well-formed command tail
 EPB_FCB1	dd	?	; 06h: pointer to FCB for PSP_FCB1
 EPB_FCB2	dd	?	; 0Ah: pointer to FCB for PSP_FCB2
+EPB_INIT_SP	dd	?	; 0Eh: init SS:SP (returned by DOS_PSP_EXEC1)
+EPB_INIT_IP	dd	?	; 0Eh: init CS:IP (returned by DOS_PSP_EXEC1)
 EPB		ends
 
 ;
@@ -371,13 +374,15 @@ CLS_VAR_DOUBLE	equ	0F0h	; CLS_VAR + VAR_DOUBLE (var ending with '#')
 ;
 ; DOS error codes (not to be confused with device error codes)
 ;
-ERR_INVALID	equ	1
-ERR_NOFILE	equ	2
-ERR_NOPATH	equ	3
+; TODO: Make this list complete (well, more complete than this anyway).
+;
+ERR_INVALID	equ	1	; invalid function
+ERR_NOFILE	equ	2	; file not found
+ERR_NOPATH	equ	3	; path not found (no paths in BASIC-DOS, yet)
 ERR_MAXFILES	equ	4	; too many open files
-ERR_ACCDENIED	equ	5
-ERR_BADHANDLE	equ	6
-ERR_BADMCB	equ	7	; invalid MCB found
+ERR_ACCDENIED	equ	5	; access denied
+ERR_BADHANDLE	equ	6	; invalid handle
+ERR_BADMCB	equ	7	; invalid MCB
 ERR_NOMEM	equ	8	; insufficient memory
 ERR_BADADDR	equ	9	; invalid memory segment
 

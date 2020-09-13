@@ -53,9 +53,9 @@ DATA	ENDS
 
 CDEFTOK	macro	val,len,off,func,txt_off,txt_len
 	IFNDEF txt_off
-	 IF1
-	%OUT No definition for txt_off
-	 ENDIF
+	;;  IF1
+	;; %OUT No definition for txt_off
+	;;  ENDIF
 	CTOKDEF	<val,len,off,func,0,0>
 	ELSE
 	CTOKDEF	<val,len,off,func,txt_off,txt_len>
