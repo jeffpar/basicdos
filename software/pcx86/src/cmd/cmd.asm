@@ -95,7 +95,7 @@ m1:	mov	ah,DOS_DSK_GETDRV
 	mov	[heap].INPUTOFF,dx
 	mov	ah,DOS_TTY_INPUT
 	int	21h
-	PRINTF	<13,10>
+	call	printCRLF
 
 m1a:	sub	ax,ax
 	mov	[swDigits],ax
@@ -358,41 +358,41 @@ DEFPROC	parseSW
 	mov	ax,DOS_MSC_GETSWC
 	int	21h			; DL = SWITCHAR
 	mov	dh,2			; start with the second token
-ps1:	call	getToken
-	jc	ps8
+psw1:	call	getToken
+	jc	psw8
 	lodsb
 	cmp	al,dl			; starts with SWITCHAR?
-	je	ps2			; yes
+	je	psw2			; yes
 	mov	[iArg],dh		; update iArg with first non-switch
-	jmp	short ps7		; no
-ps2:	lodsb				; consume option chars
+	jmp	short psw7		; no
+psw2:	lodsb				; consume option chars
 	cmp	al,'a'			; until we reach non-alphanumeric char
-	jb	ps3
+	jb	psw3
 	sub	al,20h
-ps3:	sub	al,'0'
-	jb	ps7			; not alphanumeric
+psw3:	sub	al,'0'
+	jb	psw7			; not alphanumeric
 	cmp	al,16
-	jae	ps5
+	jae	psw5
 	lea	bx,[swDigits]
-ps4:	mov	cl,al
+psw4:	mov	cl,al
 	mov	ax,1
 	shl	ax,cl
 	mov	[bx],ax			; set bit in word at [bx]
-	jmp	ps2			; go back for more option chars
-ps5:	sub	al,'A'-'0'
-	jb	ps7			; not alphanumeric
+	jmp	psw2			; go back for more option chars
+psw5:	sub	al,'A'-'0'
+	jb	psw7			; not alphanumeric
 	cmp	al,16			; in the range of the first 16?
-	jae	ps6			; no
+	jae	psw6			; no
 	lea	bx,[swLetters].LOW
-	jmp	ps4
-ps6:	sub	al,16
+	jmp	psw4
+psw6:	sub	al,16
 	cmp	al,10			; in the range of the next 10?
-	jae	ps7			; no
+	jae	psw7			; no
 	lea	bx,[swLetters].HIW
-	jmp	ps4
-ps7:	inc	dh			; advance to next token
-	jmp	ps1
-ps8:	mov	dh,[iArg]		; DH = first non-switch (-1 if none)
+	jmp	psw4
+psw7:	inc	dh			; advance to next token
+	jmp	psw1
+psw8:	mov	dh,[iArg]		; DH = first non-switch (-1 if none)
 	pop	bx
 	pop	ax
 	ret
@@ -700,7 +700,8 @@ ENDPROC	cmdExit
 ;
 ; cmdHelp
 ;
-; For now, all this does is print the names of all supported commands.
+; If a keyword is specified, display help for that keyword; otherwise,
+; display a list of all keywords.
 ;
 ; Inputs:
 ;	DS:DI -> TOKENBUF
@@ -712,7 +713,7 @@ ENDPROC	cmdExit
 ;	Any
 ;
 DEFPROC	cmdHelp
-	mov	dh,2			; is there a second token?
+	mov	dh,[iArg]		; is there a non-switch argument?
 	call	getToken
 	jnc	h1
 	jmp	h5			; no
@@ -740,15 +741,35 @@ h1:	lea	dx,[KEYWORD_TOKENS]
 	sub	cx,cx
 	call	seekFile		; seek to 0:DX
 	pop	cx
+	mov	al,CHR_CTRLZ
+	push	ax
 	sub	sp,cx			; allocate CX bytes from the stack
 	mov	si,sp
-	call	readFile
-	jc	h2
-	mov	dx,si			; DS:DX -> help text
-	mov	bx,STDOUT
-	mov	ah,DOS_HDL_WRITE	; write to STDOUT
-	int	21h
-h2:	add	sp,cx			; deallocate the stack space
+	call	readFile		; read CX bytes into DS:SI
+	jc	h2c
+;
+; Keep track of the current line's available characters (DL) and maximum
+; characters (DH), and print only whole words that will fit.
+;
+	mov	dl,[heap].CON_COLS	; DL = # available chars
+	dec	dx			; DL = # available chars - 1
+	mov	dh,dl
+h2:	call	getWord			; AX = next word length
+	test	al,al			; any more words?
+	jz	h2c			; no
+	cmp	al,dl			; will it fit on the line?
+	jbe	h2a			; yes
+	cmp	al,dh			; is it too large regardless?
+	jbe	h2b			; no
+h2a:	call	printChars		; print # chars in AL
+	call	printSpace		; print whitespace that follows
+	jz	h2c			; if ZF set, must have hit CHR_CTRLZ
+	jmp	h2
+h2b:	call	printNewLine
+	jmp	h2
+
+h2c:	add	sp,cx			; deallocate the stack space
+	pop	ax
 	call	closeFile
 	ret
 
@@ -758,7 +779,7 @@ h3:	PRINTF	<"No help available",13,10>
 h4:	PRINTF	<"Unknown command: %.*s",13,10>,cx,si
 	ret
 ;
-; Print all the known keywords.
+; Print all keywords with ID < KEYWORD_SECONDARY (200).
 ;
 h5:	mov	si,offset KEYWORD_TOKENS
 	lods	word ptr cs:[si]	; AL = # tokens, AH = size CTOKDEF
@@ -768,8 +789,8 @@ h5:	mov	si,offset KEYWORD_TOKENS
 	cbw
 	xchg	di,ax			; DI = size CTOKDEF
 	mov	dl,8			; DL = # chars to be printed so far
-h6:	cmp	cs:[si].CTD_ID,200
-	jae	h8			; ignore token IDs >= 100
+h6:	cmp	cs:[si].CTD_ID,KEYWORD_SECONDARY
+	jae	h8			; ignore token IDs >= 200
 	push	dx
 	mov	dl,cs:[si].CTD_LEN
 	mov	dh,0
@@ -780,12 +801,150 @@ h6:	cmp	cs:[si].CTD_ID,200
 	je	h7
 	cmp	dl,[heap].CON_COLS
 	jb	h8
-h7:	PRINTF	<13,10>
+h7:	call	printCRLF
 	mov	dl,8
 h8:	add	si,di			; SI -> next CTOKDEF
 	loop	h6
 h9:	ret
 ENDPROC	cmdHelp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getWord
+;
+; Inputs:
+;	DS:SI -> characters to print
+;
+; Outputs:
+;	AX = # of characters in next non-whitespace sequence (ie, "word")
+;
+; Modifies:
+;	AX
+;
+DEFPROC	getWord
+	push	si
+gw1:	lodsb
+	cmp	al,' '
+	ja	gw1
+	dec	si
+	pop	ax
+	sub	si,ax
+	xchg	si,ax
+	ret
+ENDPROC	getWord
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; printChar
+;
+; Inputs:
+;	AL = character
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX
+;
+DEFPROC	printChar
+	push	dx
+	xchg	dx,ax
+	mov	ah,DOS_TTY_WRITE
+	int	21h
+	pop	dx
+	ret
+ENDPROC	printChar
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; printChars
+;
+; Inputs:
+;	CX = character count
+;	DS:SI -> characters to print
+;	DL = avail characters on line
+;	DH = maximum characters on line
+;
+; Outputs:
+;	SI, DL updated as appropriate
+;
+; Modifies:
+;	AX, DX, SI
+;
+DEFPROC	printChars
+	push	ax
+	push	cx
+	cbw
+	xchg	cx,ax			; CX = count
+pc1:	lodsb
+	cmp	al,'*'			; just skip asterisks for now
+	je	pc2
+	call	printChar
+pc2:	loop	pc1
+	pop	cx
+	pop	ax
+	sub	dl,al			; reduce available chars on line
+	ret
+ENDPROC	printChars
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; printSpace
+;
+; Inputs:
+;	DS:SI -> characters to print
+;	DL = avail characters on line
+;	DH = maximum characters on line
+;
+; Outputs:
+;	SI, DL updated as appropriate
+;
+; Modifies:
+;	AX, DX, SI
+;
+DEFPROC	printSpace
+ps1:	cmp	dl,1			; if current line is almost full
+	jle	ps6			; print CRLF and then skip all space
+	lodsb
+	cmp	al,' '
+	ja	ps8
+	jb	ps5
+	call	printChar
+	dec	dx
+	jmp	ps1
+ps5:	dec	si
+	call	printNewLine
+ps6:	call	printNewLine
+ps7:	lodsb
+	cmp	al,CHR_CTRLZ		; end of text?
+	je	ps8			; yes
+	cmp	al,' '			; non-whitespace?
+	ja	ps8			; yes
+	jmp	ps7			; keep looping
+ps8:	dec	si
+ps9:	ret
+ENDPROC	printSpace
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; printNewLine
+;
+; Inputs:
+;	DL = avail characters on line
+;	DH = maximum characters on line
+;
+; Outputs:
+;	DL = DH
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	printNewLine
+	mov	dl,dh			; reset available characters in DL
+	DEFLBL	printCRLF,near
+	PRINTF	<13,10>			; most efficient CRLF ever!
+	ret
+ENDPROC	printNewLine
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1418,7 +1577,7 @@ gi1:	call	ax			; AX = caller-supplied function
 	mov	dx,si
 	mov	ah,DOS_TTY_INPUT
 	int	21h
-	PRINTF	<13,10>
+	call	printCRLF
 	pop	dx
 	inc	si
 	cmp	byte ptr [si],1		; set carry if no characters

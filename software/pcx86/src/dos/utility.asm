@@ -27,7 +27,7 @@ DOS	segment word public 'CODE'
 ;
 ; utl_strlen (AX = 1800h or 1824h)
 ;
-; Return the length of the REG_DS:SI string in AX, using the terminator in AL.
+; Return the length of the REG_DS:REG_SI string in AX, using terminator AL.
 ;
 ; Modifies:
 ;	AX
