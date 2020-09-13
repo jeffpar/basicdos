@@ -11,10 +11,10 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<get_sfh_sfb,scb_delock>,near
+	EXTERNS	<get_sfh_sfb,get_psp,scb_delock>,near
 
 	EXTERNS	<scb_locked>,byte
-	EXTERNS	<mcb_head,psp_active>,word
+	EXTERNS	<mcb_head>,word
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -259,7 +259,7 @@ a2:	mov	cx,es:[MCB_PARAS]	; CX = # paras this block
 a3:	mov	al,es:[MCB_SIG]		; AL = signature for new block
 	call	mcb_split
 
-a4:	mov	ax,[psp_active]
+a4:	call	get_psp
 	test	ax,ax
 	jnz	a5
 	mov	ax,MCBOWNER_SYSTEM	; no active PSP yet, so use this

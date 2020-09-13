@@ -24,7 +24,6 @@ DOS	segment word public 'CODE'
 	EXTERNS	scb_return,near
 
 	DEFWORD	scb_active,0		; offset of active SCB (zero if none)
-	DEFWORD	psp_active,0		; segment of active PSP (zero if none)
 	DEFWORD	buf_head,0		; head of buffer chain
 	DEFWORD	key_boot,0		; records key pressed at boot, if any
 	DEFPTR	clk_ptr,-1		; pointer to CLOCK$ DDH

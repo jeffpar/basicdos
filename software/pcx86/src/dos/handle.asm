@@ -13,11 +13,11 @@ DOS	segment word public 'CODE'
 
 	EXTERNS	<dev_request,scb_delock>,near
 	EXTERNS	<chk_devname,chk_filename>,near
-	EXTERNS	<get_bpb,find_cln,get_cln>,near
+	EXTERNS	<get_bpb,get_psp,find_cln,get_cln>,near
 	EXTERNS	<msc_sigctrlc,msc_sigctrlc_read>,near
 
 	EXTERNS	<scb_locked>,byte
-	EXTERNS	<scb_active,psp_active>,word
+	EXTERNS	<scb_active>,word
 	EXTERNS	<sfb_table>,dword
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -615,7 +615,7 @@ sc7:	sub	ax,ax
 	mov	[bx].SFB_DEVICE.SEG,ax	; mark SFB as unused
 sc8:	test	si,si			; valid PFH?
 	jl	sc9			; no
-	mov	ax,[psp_active]
+	call	get_psp
 	test	ax,ax			; if we're called by sysinit
 	jz	sc9			; there may be no valid PSP yet
 	push	ds
@@ -644,7 +644,7 @@ ENDPROC	sfb_close
 ;
 DEFPROC	sfb_get,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
-	mov	ax,[psp_active]		; if there's no PSP yet
+	call	get_psp			; if there's no PSP yet
 	test	ax,ax			; then BX must an SFH, not a PFH
 	jz	gs1
 	cmp	bl,size PSP_PFT		; is the PFH within PFT bounds?
@@ -712,7 +712,8 @@ ENDPROC	sfb_find_fcb
 ;
 DEFPROC	pft_alloc,DOS
 	ASSUMES	<DS,DOS>,<ES,DOS>
-	mov	di,[psp_active]		; get the current PSP
+	call	get_psp			; get the current PSP
+	xchg	di,ax
 	test	di,di			; if we're called by sysinit
 	jz	gp9			; there may be no valid PSP yet
 	mov	es,di
