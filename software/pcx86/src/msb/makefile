@@ -21,109 +21,109 @@ MAPSYM=MAPSYM
 	$(ASM) $(AFLAGS) $**,$@,$*.LST;
 
 OBJ\GWDATA.OBJ: GWDATA.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\GWMAIN.OBJ: GWMAIN.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\OEM.OBJ: OEM.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\GWEVAL.OBJ: GWEVAL.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\GWLIST.OBJ: GWLIST.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\IBMRES.OBJ: IBMRES.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\BIMISC.OBJ: BIMISC.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\DSKCOM.OBJ: DSKCOM.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\BIPTRG.OBJ: BIPTRG.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\BIPRTU.OBJ: BIPRTU.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\BISTRS.OBJ: BISTRS.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\FIVEO.OBJ: FIVEO.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\GENGRP.OBJ: GENGRP.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\ADVGRP.OBJ: ADVGRP.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\MACLNG.OBJ: MACLNG.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\GWSTS.OBJ: GWSTS.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\GIO86.OBJ: GIO86.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\GIODSK.OBJ: GIODSK.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\GIOKYB.OBJ: GIOKYB.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\GIOSCN.OBJ: GIOSCN.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\GIOLPT.OBJ: GIOLPT.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\GIOCOM.OBJ: GIOCOM.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\GIOCON.OBJ: GIOCON.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\GIOTBL.OBJ: GIOTBL.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\SCNEDT.OBJ: SCNEDT.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\SCNDRV.OBJ: SCNDRV.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\CALL86.OBJ: CALL86.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\NEXT86.OBJ: NEXT86.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\MATH.OBJ: MATH.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\KANJ86.OBJ: KANJ86.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\GIOCAS.OBJ: GIOCAS.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\ITSA86.OBJ: ITSA86.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\GWRAM.OBJ: GWRAM.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\GWINIT.OBJ: GWINIT.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\BIBOOT.OBJ: BIBOOT.ASM
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $**,$@,OBJ\$*.LST;
 
 OBJ\MSBASIC.EXE: OBJ\GWDATA.OBJ OBJ\GWMAIN.OBJ OBJ\OEM.OBJ OBJ\GWEVAL.OBJ \
 	OBJ\GWLIST.OBJ OBJ\IBMRES.OBJ OBJ\BIMISC.OBJ OBJ\DSKCOM.OBJ \
@@ -134,5 +134,7 @@ OBJ\MSBASIC.EXE: OBJ\GWDATA.OBJ OBJ\GWMAIN.OBJ OBJ\OEM.OBJ OBJ\GWEVAL.OBJ \
 	OBJ\SCNEDT.OBJ OBJ\SCNDRV.OBJ OBJ\CALL86.OBJ OBJ\NEXT86.OBJ \
 	OBJ\MATH.OBJ OBJ\KANJ86.OBJ OBJ\GIOCAS.OBJ OBJ\ITSA86.OBJ \
 	OBJ\GWRAM.OBJ OBJ\GWINIT.OBJ OBJ\BIBOOT.OBJ
-	$(LINK) /MAP @$*.LRF
+	$(LINK) @$*.LRF
+	CD OBJ
 	$(MAPSYM) $*
+	CD ..

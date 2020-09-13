@@ -186,7 +186,7 @@ ENDPROC	ddcon_ioctl
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_getdim
-	mov	dx,ds:[CT_CONDIM]
+	mov	dx,ds:[CT_CURDIM]
 	ret
 ENDPROC	ddcon_getdim
 

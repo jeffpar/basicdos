@@ -18,31 +18,31 @@ AFLAGS=/D$(REL) /I. /I..\INC
 # under each dependency.
 #
 .ASM.OBJ:
-	$(ASM) $(AFLAGS) $**,$@;
+	$(ASM) $(AFLAGS) $*.ASM,$@;
 
 .ASM.LST:
-	$(ASM) $(AFLAGS) $**,$@,$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$.OBJ,$@;
 
 OBJ\CMD.OBJ: CMD.ASM
-	$(ASM) $(AFLAGS) $**,$@;
+	$(ASM) $(AFLAGS) $*.ASM,$@;
 
 OBJ\EVAL.OBJ: EVAL.ASM
-	$(ASM) $(AFLAGS) $**,$@;
+	$(ASM) $(AFLAGS) $*.ASM,$@;
 
 OBJ\GEN.OBJ: GEN.ASM
-	$(ASM) $(AFLAGS) $**,$@;
+	$(ASM) $(AFLAGS) $*.ASM,$@;
 
 OBJ\MEM.OBJ: MEM.ASM
-	$(ASM) $(AFLAGS) $**,$@;
+	$(ASM) $(AFLAGS) $*.ASM,$@;
 
 OBJ\STDIO.OBJ: STDIO.ASM
-	$(ASM) $(AFLAGS) $**,$@;
+	$(ASM) $(AFLAGS) $*.ASM,$@;
 
 OBJ\VARS.OBJ: VARS.ASM
-	$(ASM) $(AFLAGS) $**,$@;
+	$(ASM) $(AFLAGS) $*.ASM,$@;
 
-OBJ\CONST.OBJ: CONST.ASM
-	$(ASM) $(AFLAGS) $**,$@;
+OBJ\CONST.OBJ: CONST.ASM TXT.INC
+	$(ASM) $(AFLAGS) $*.ASM,$@;
 
 OBJ\COMMAND.COM: OBJ\CMD.OBJ OBJ\EVAL.OBJ OBJ\GEN.OBJ OBJ\MEM.OBJ \
 	OBJ\STDIO.OBJ OBJ\VARS.OBJ OBJ\CONST.OBJ
