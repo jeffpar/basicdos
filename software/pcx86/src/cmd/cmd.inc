@@ -294,6 +294,7 @@ ORIG_SP		dw	?
 ORIG_BP		dw	?
 CON_COLS	db	?
 CON_ROWS	db	?
+PREV_TIME	dd	?		; where cmdTime saves last known time
 INPUTOFF	dw	?		; input offset (defaults to INPUTBUF)
 INPUTBUF	db	size BUF_INPUT dup (?)
 TOKENBUF	db	size BUF_TOKEN dup (?)

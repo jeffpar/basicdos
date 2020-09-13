@@ -18,4 +18,4 @@
 53 let advsquared = advsquared+2
 55 goto 15
 90 print:print "TOTAL PRIMES < 10000: ";primes
-99 end
+99 system
