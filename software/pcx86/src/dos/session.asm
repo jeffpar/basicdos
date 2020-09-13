@@ -409,9 +409,9 @@ ENDPROC	scb_yield
 ; scb_switch
 ;
 ; Switch to the specified session.  SCB locking is used to prevent switches
-; whenever large global data structures are in use (eg, disk buffers), but all
-; per-session data should be stored in the SCB, so that no global state needs
-; to be copied in or out.
+; whenever global data structures are being modified (eg, disk buffers), but
+; all per-session data should be stored in the SCB, so that no global state
+; needs to be copied in or out.
 ;
 ; The kinds of apps we ultimately want to support in BASIC-DOS sessions will
 ; determine whether we need to adopt additional measures, such as "swapping"

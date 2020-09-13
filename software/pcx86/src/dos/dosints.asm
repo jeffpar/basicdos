@@ -213,7 +213,6 @@ DEFPROC	dos_func,DOSFAR
 	mov	ah,FUNCTBL_SIZE		; the utility function table
 	add	ah,al			; follows the DOS function table
 	jmp	short dc2
-dc0:	jmp	msc_sigctrlc_read
 
 dc1:	sti
 	and	[bp].REG_FL,NOT FL_CARRY
@@ -239,7 +238,7 @@ dc1a:	mov	bx,[scb_active]
 	jz	dc2			; TODO: always have an scb_active
 	ASSERT	STRUCT,[bx],SCB
 	cmp	word ptr [bx].SCB_CTRLC_ALL,0101h
-	je	dc0			; signal CTRLC
+	je	dc10			; signal CTRLC
 ;
 ; While we assign DS and ES to the DOS segment on DOS function entry,
 ; we do NOT require or assume they will still be set that way on exit.
@@ -279,6 +278,7 @@ dc9:	adc	[bp].REG_FL,0
 	pop	ax
 	add	sp,size WS_TEMP
 	iret
+dc10:	jmp	msc_sigctrlc_read
 ENDPROC	dos_func
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

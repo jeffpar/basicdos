@@ -243,7 +243,7 @@ ENDPROC	psp_init
 ; TODO: Add support for EPB_ENVSEG.
 ;
 ; Inputs:
-;	REG_AL = exec code
+;	REG_AL = subfunction (only 0 and 1 are currently supported)
 ;	REG_DS:REG_DX -> name of program
 ;	REG_ES:REG_BX -> exec parameter block (EPB)
 ;
@@ -252,64 +252,96 @@ ENDPROC	psp_init
 ;	If error, carry set, AX = error code
 ;
 DEFPROC	psp_exec,DOS
-	cmp	al,0
-	jne	px9
+	cmp	al,2			; DOS_PSP_EXEC or DOS_PSP_EXEC1?
+	cmc
+	mov	ax,ERR_INVALID		; AX = error code if not
+	jnb	px1			; yes
+px0:	jmp	px9
 
-	mov	es,[bp].REG_DS		; ES:DX -> name of program
+px1:	mov	es,[bp].REG_DS		; ES:DX -> name of program
 	ASSUME	ES:NOTHING
 	call	load_program
 	ASSUME	DS:NOTHING
-	jc	px9
+	jc	px0			; hopefully AX contains an error code
 ;
 ; Now we deal with the EPB we've been given.  load_program already set up
-; a default command tail in the PSP, but for this call, we must replace it,
-; along with both FCBs.
+; default FCBs and CMDTAIL in the PSP, but for this call, we must replace them.
 ;
-	push	si
+	push	es			; save ES:DI (new program's stack)
 	push	di
-	push	ds
-	push	es
+
 	mov	ds,[bp].REG_ES
-	ASSUME	DS:NOTHING
-	mov	si,[bp].REG_BX
-	mov	es,[psp_active]
+	mov	si,[bp].REG_BX		; DS:SI is now caller's ES:BX (EPB)
+	mov	es,[psp_active]		; ES -> PSP
 
 	push	ds
 	push	si
 	lds	si,[si].EPB_FCB1
 	mov	di,PSP_FCB1
 	mov	cx,size FCB
-	rep	movsb
+	rep	movsb			; fill in PSP_FCB1
 	pop	si
-	pop	ds
+	pop	ds			; DS:SI -> EPB again
 	push	ds
 	push	si
 	lds	si,[si].EPB_FCB2
 	mov	di,PSP_FCB2
 	mov	cx,size FCB
-	rep	movsb
+	rep	movsb			; fill in PSP_FCB2
 	pop	si
-	pop	ds
+	pop	ds			; DS:SI -> EPB again
+	push	ds
+	push	si
 	lds	si,[si].EPB_CMDTAIL
 	add	di,size PSP_RESERVED3
 	mov	cl,[si]
 	mov	ch,0
 	add	cx,2
-	rep	movsb
-
-	pop	es
-	pop	ds
-	pop	di
+	rep	movsb			; fill in PSP_CMDTAIL
 	pop	si
+	pop	ds			; DS:SI -> EPB again
+
+	pop	di			; recover ES:DI (new program's stack)
+	pop	es
+
+	cmp	[bp].REG_AL,cl		; was AL zero?
+	jne	px8			; no
 ;
-; Unlike scb_load, this is a "synchronous" operation, meaning we launch
-; the program ourselves.
+; This was a DOS_PSP_EXEC call, and unlike scb_load, it's a synchronous
+; exec, meaning we launch the program directly from this call.
 ;
 	cli
-	push	es
+	push	es			; switch to the new program's stack
 	pop	ss
 	mov	sp,di
-	jmp	dos_exit		; we'll let dos_exit turn interrupts on
+	jmp	dos_exit		; and let dos_exit turn interrupts on
+;
+; This was a DOS_PSP_EXEC1 call, an undocumented call that only loads the
+; program, fills in the undocumented EPB_INIT_SP and EPB_INIT_IP fields,
+; and then returns to the caller.
+;
+; Note that EPB_INIT_SP should be identical to PSP_STACK (PSP:2Eh) (well,
+; except that PSP_STACK is the original stack, whereas we return the stack
+; with a zero word pre-pushed), and EPB_INIT_IP should be identical to
+; PSP_START (PSP:40h); these are new PSP fields introduced by BASIC-DOS,
+; which a DOS_PSP_EXEC1 caller is unaware of.
+;
+; And in any case, the new PSP is no longer in ES; ES:DI now points to the
+; program's stack, which contains a REG_FRAME that the DOS_PSP_EXEC1 caller
+; can't use.
+;
+; So, we return SS:SP with the REG_FRAME popped off, along with the REG_CS
+; and REG_IP that was stored in the REG_FRAME.
+;
+px8:	mov	ax,di
+	add	ax,size REG_FRAME + REG_CHECK
+	mov	[si].EPB_INIT_SP.OFF,ax
+	mov	[si].EPB_INIT_SP.SEG,es	; return the program's SS:SP
+	les	di,dword ptr es:[di+REG_CHECK].REG_IP
+	mov	[si].EPB_INIT_IP.OFF,di
+	mov	[si].EPB_INIT_IP.SEG,es	; return the program's CS:IP
+	clc
+	ret
 
 px9:	mov	[bp].REG_AX,ax		; return any error code in REG_AX
 	ret
@@ -855,8 +887,14 @@ lp8b:	mov	dx,es
 	std
 	mov	cx,ds:[PSP_START].SEG
 	mov	dx,ds:[PSP_START].OFF	; CX:DX = start address
+;
+; NOTE: Pushing a zero on the top of the program's stack is expected by
+; COM files, but what about EXE files?  Do they have the same expectation
+; or are we just wasting a word (or worse, confusing them)?
+;
 	sub	ax,ax
 	stosw				; store a zero at the top of the stack
+
 	mov	ax,FL_INTS
 	stosw				; REG_FL (with interrupts enabled)
 	xchg	ax,cx
