@@ -6,7 +6,7 @@ Sets the foreground (0-15), background (0-15), and border (0-255) colors of the 
 Values 8-15 for *background* and 128-255 for *border* enable blinking.
 
 DATE [*date*] [/P]
-Sets the system date to *date* (or prompts for a date if /P) and then displays the date.
+Sets the system date (or prompts for a date if /P) and then displays the date.
 The date must be entered as M-D-Y or M/D/Y, where M is 1-12, D is 1-31, and Y is 0-99 or 1980-2099.
 If D or Y are omitted, current values are assumed.
 
@@ -40,8 +40,8 @@ REM
 
 RUN
 
-TIME [*time*] [/P]
-Sets the system time to *time* (or prompts for a time if /P) and then displays the time.
+TIME [*time*] [/D] [/P]
+Sets the system time (or prompts for a time if /P) and then displays the time. /D displays elapsed time.
 The time must be entered as H:M:S.D, where where H is 0-23, M is 0-59, S is 0-59, and D is 0-99.
 If M, S, or D are omitted, zeros are assumed.
 

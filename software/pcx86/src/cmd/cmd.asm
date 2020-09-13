@@ -1205,7 +1205,7 @@ DEFPROC	cmdRun
 	lea	bx,[heap]
 	ASSERT	Z,<cmp bx,ds:[PSP_HEAP]>
 	call	genCode
-cr9:	ret
+	ret
 ENDPROC	cmdRun
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1213,7 +1213,8 @@ ENDPROC	cmdRun
 ; cmdTime
 ;
 ; Set a new system time (eg, "HH:MM:SS.DD")  Any portion of the time string
-; that's omitted defaults to zero.
+; that's omitted defaults to zero.  TIME /P prompts for a new time, and TIME /D
+; displays the difference between the current time and the previous time.
 ;
 ; Inputs:
 ;	DS:DI -> TOKENBUF
@@ -1225,9 +1226,50 @@ ENDPROC	cmdRun
 ;	Any
 ;
 DEFPROC	cmdTime
-	mov	ax,offset promptTime
+	mov	al,'D'			; /D present?
+	call	checkSW
+	jz	ctm3			; no
+
+	sub	ax,ax			; set ZF
+	mov	ax,DOS_UTL_GETTIME
+	int	21h
+	push	cx			; CX:DX = current time
+	push	dx
+	call	printTime
+	pop	dx
+	pop	cx
+	push	cx
+	push	dx
+	sub	dl,[heap].PREV_TIME.LOW.LOB
+	jnb	cmt1a
+	add	dl,100			; adjust hundredths
+	stc
+cmt1a:	sbb	dh,[heap].PREV_TIME.LOW.HIB
+	jnb	cmt1b
+	add	dh,60			; adjust seconds
+	stc
+cmt1b:	sbb	cl,[heap].PREV_TIME.HIW.LOB
+	jnb	cmt1c
+	add	cl,60			; adjust minutes
+	stc
+cmt1c:	sbb	ch,[heap].PREV_TIME.HIW.HIB
+	jnb	cmt1d
+	add	ch,24			; adjust hours
+cmt1d:	mov	al,ch
+	cbw				; AX = hours
+	mov	bl,cl
+	mov	bh,0			; BX = minutes
+	mov	cl,dh
+	mov	ch,0			; CX = seconds
+	mov	dh,0			; DX = hundredths
+	PRINTF	<"Elapsed time is %2d:%02d:%02d.%02d",13,10>,ax,bx,cx,dx
+	pop	[heap].PREV_TIME.LOW
+	pop	[heap].PREV_TIME.HIW
+ctm2:	ret
+
+ctm3:	mov	ax,offset promptTime
 	call	getInput		; DS:SI -> string
-	jc	cr9			; do nothing on empty string
+	jc	ctm2			; do nothing on empty string
 	mov	bh,':'
 	call	getValues
 	mov	ah,DOS_MSC_SETTIME
@@ -1244,11 +1286,14 @@ DEFPROC	cmdTime
 	jnc	ctm8
 	mov	ax,DOS_UTL_GETTIME	; DOS_UTL_GETTIME returns packed time
 	int	21h			; DOS_MSC_GETTIME does not
+	mov	[heap].PREV_TIME.LOW,dx
+	mov	[heap].PREV_TIME.HIW,cx
+	DEFLBL	printTime,near
 	mov	cl,dh
 	mov	ch,0			; CX = seconds
 	mov	dh,0			; DX = hundredths
 	pushf
-	PRINTF	<"Current time is %H:%02N:%02d.%02d",13,10>,ax,ax,cx,dx
+	PRINTF	<"Current time is %2H:%02N:%02d.%02d",13,10>,ax,ax,cx,dx
 	popf
 	jz	ctm8
 	PRINTF	<"Enter new time: ">
