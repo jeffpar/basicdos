@@ -44,6 +44,7 @@ FL_TRAP		equ	0100h
 FL_INTS		equ	0200h
 FL_DOWN		equ	0400h
 FL_OVFL		equ	0800h
+FL_DEFAULT	equ    0F202h
 
 ;
 ; Processor opcode definitions

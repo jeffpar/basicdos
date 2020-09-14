@@ -56,14 +56,14 @@ DEFPROC	main
 	pop	es
 	mov	dx,offset readfile
 	mov	ax,DOS_HDL_OPEN SHL 8
-	int	21h		; open a test file (ie, ourselves)
+	int	21h		; open a test file
 	mov	bx,offset execparms
 	mov	[bx].EPB_CMDTAIL.SEG,cs
 	mov	[bx].EPB_FCB1.SEG,cs
 	mov	[bx].EPB_FCB2.SEG,cs
 	mov	ax,DOS_PSP_EXEC
 	mov	dx,offset execfile
-	int	21h
+	int	21h		; exec a test file (ie, ourselves)
 	ENDIF
 
 	ret
@@ -72,8 +72,8 @@ ENDPROC	main
 hello		db		"Hello from CALL 5",13,10,'$'
 
 	IFDEF MAXDEBUG
-readfile	db		"CONFIG.SYS",0
-execfile	db		"EXEC.COM",0
+readfile	db		"config.sys",0
+execfile	db		"testdos.com",0
 execparms	EPB		<0,PSP_CMDTAIL,PSP_FCB1,PSP_FCB2>
 	ENDIF
 ;

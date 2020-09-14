@@ -36,6 +36,13 @@ DEFPROC	dos_dverr,DOSFAR
 	IFNDEF	DEBUG
 	PRINTF	<"Division error",13,10>
 	ELSE
+;
+; Print the 32-bit return address on the stack, and since it's already on
+; the stack, we don't have to push it, which means PRINTF won't try to pop it
+; either.  However, since we had to push AX (the only register that PRINTF
+; modifies), we must include a special PRINTF formatter (%U) that skips one
+; 16-bit value on the stack.
+;
 	PRINTF	<"Division error @%U%08lx",13,10>
 	ENDIF
 	call	msc_sigerr
@@ -63,8 +70,15 @@ DEFPROC	dos_sstep,DOSFAR
 	inc	[asserts]
 	jnz	ss1
 	DBGBRK
+;
+; Print the 32-bit return address on the stack, and since it's already on
+; the stack, we don't have to push it, which means PRINTF won't try to pop it
+; either.  However, since we have to push AX (the only register that PRINTF
+; modifies), we must include a special PRINTF formatter (%U) that skips one
+; 16-bit value on the stack.
+;
 	push	ax
-	DPRINTF	<"Assert @%U%08lx",13,10>
+	PRINTF	<"Assertion failure @%U%08lx",13,10>
 	pop	ax
 ss1:	dec	[asserts]
 	ENDIF
@@ -97,6 +111,13 @@ DEFPROC	dos_oferr,DOSFAR
 	IFNDEF	DEBUG
 	PRINTF	<"Overflow error",13,10>
 	ELSE
+;
+; Print the 32-bit return address on the stack, and since it's already on
+; the stack, we don't have to push it, which means PRINTF won't try to pop it
+; either.  However, since we had to push AX (the only register that PRINTF
+; modifies), we must include a special PRINTF formatter (%U) that skips one
+; 16-bit value on the stack.
+;
 	PRINTF	<"Overflow error @%U%08lx",13,10>
 	ENDIF
 	call	msc_sigerr
@@ -227,6 +248,10 @@ dc1:	sti
 	jne	dc1a
 	mov	bl,ah
 	mov	bh,0
+;
+; %P is a special formatter that prints the caller's REG_CS:REG_IP-2 in hex;
+; "#010" ensures it's printed with "0x" and 8 digits with leading zeroes.
+;
 	DPRINTF	<"%#010P: DOS function %02xh",13,10>,bx
 	ENDIF
 ;
@@ -264,6 +289,8 @@ dc9:	adc	[bp].REG_FL,0
 	pop	bp
 	ASSERT	Z,<cmp bp,offset dos_check>
 	ENDIF
+
+	DEFLBL	dos_exit2,near
 
 	pop	bp
 	pop	di
@@ -452,6 +479,10 @@ ENDPROC	dos_ddint_leave
 DEFPROC	func_none,DOS
 	mov	al,ah
 	mov	ah,0
+;
+; %P is a special formatter that prints the caller's REG_CS:REG_IP-2 in hex;
+; "#010" ensures it's printed with "0x" and 8 digits with leading zeroes.
+;
 	DPRINTF	<"%#010P: unsupported DOS function %02xh",13,10>,ax
 	mov	[bp].REG_AX,ERR_INVALID
 	stc

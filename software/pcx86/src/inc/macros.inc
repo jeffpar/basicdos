@@ -154,9 +154,9 @@ name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 ;
 ; List any ARGVARs in the order the arguments were pushed.  The actual offset
 ; of each ARGVAR will not be known until the ENTER macro is called, at which
-; point an _ARGINVERT value will be calculated to "invert" all the offsets,
-; so that the first ARGVAR offset will be the "farthest" on the stack (ie, the
-; first argument pushed).
+; point an adjustment will be calculated to "invert" all the offsets, so that
+; the first ARGVAR offset will be the "farthest" on the stack (ie, the first
+; argument pushed).
 ;
 ; The generated code will look like:
 ;
@@ -164,13 +164,13 @@ name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 ;	mov	bp,sp
 ;	sub	sp,4
 ;	...
-;	add	sp,4	; used instead of "mov sp,bp" in case BP is reused
+;	add	sp,4	; used instead of "mov sp,bp" in case BP gets altered
 ;	pop	bp
 ;	ret	4
 ;
 ; There's also a RETURN macro that will automatically generate the RET N
 ; instruction with N = _ARGBYTES, but if a function must leave a result on
-; the stack (like the evalDivLong example above), you must write the RET N.
+; the stack (like the evalDivLong example above), you must still use RET N.
 ;
 ; If you need the address of an ARGVAR or LOCVAR variable, use LEA:
 ;
@@ -182,7 +182,7 @@ name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 ; An effort is made to ensure all WORD and DWORD LOCVARs are evenly aligned;
 ; this is easy to do since the ENTER macro is in complete control of how much
 ; stack space to allocate.  However, no alignment adjustments are made for
-; ARGVAR definitions, so if you define any BYTE arguments, make sure ALL bytes
+; ARGVAR definitions, so if you define any BYTE arguments, make sure all bytes
 ; on the argument side of the stack are accounted for.
 ;
 ARGVAR	macro	name,type,len
@@ -309,6 +309,15 @@ DBGBRK	macro
 	ENDIF
 	endm
 
+;
+; In DEBUG builds only, "DBGINIT STRUCT" initializes a signature byte in the
+; specified structure; then you can use the "ASSERT STRUCT" form of the ASSERT
+; macro to include assertion checks to verify that the specified pointer
+; actually points to a structure of the specified type.
+;
+; Both macros use the word "STRUCT" rather than "STRUC" to avoid confusing
+; MASM.
+;
 DBGINIT	macro	type,ptr,str
 	IFDEF DEBUG
 	IFIDN	<type>,<STRUCT>
@@ -319,6 +328,13 @@ DBGINIT	macro	type,ptr,str
 	ENDIF
 	endm
 
+;
+; ASSUMES is recommended at the beginning of functions, to ensure that the
+; the function's entry conditions are 1) documented and 2) verified at runtime
+; (DEBUG builds only); eg:
+;
+;	ASSUMES	<DS,DOS>,<ES,NOTHING>
+;
 ASSUMES	macro	seg1,seg2
 	ASSUME1	seg1
 	IFNB	<seg2>
@@ -369,10 +385,17 @@ rmb1:	rep	movs msize ptr es:[di],msize ptr mseg:[si]
 rmb2:
 	endm
 
+;
+; Use the PRINTF macro to simplify calls to the DOS_UTL_PRINTF function.
+;
 PRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	FPRINTF	DOS_UTL_PRINTF,<format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	endm
 
+;
+; Use the DPRINTF macro to simplify calls to the DOS_UTL_DPRINTF function
+; (and to ensure they are generated only in DEBUG builds).
+;
 DPRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	IFDEF DEBUG
 	pushf			;; FPRINTF alters AX and flags
@@ -383,6 +406,17 @@ DPRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	ENDIF
 	endm
 
+;
+; There's no SPRINTF macro, but you can use FPRINTF to call DOS_UTL_SPRINTF;
+; pass your format string in DS:BX (don't use the macro's format parameter),
+; and set ES:DI and CX to the address and length of your output buffer.
+;
+;	FPRINTF	DOS_UTL_SPRINTF,,arg1,arg2,...
+;
+; NOTE: When passing 32-bit ("long") values to these macros, pass the low word
+; first, then the high word, so that the high word is pushed first.  Similarly,
+; when passing 32-bit ("far") pointers, pass the offset first, then segment.
+;
 FPRINTF	macro	func,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	argc = 0
 	IRP	arg,<a12,a11,a10,a9,a8,a7,a6,a5,a4,a3,a2,a1>
@@ -393,7 +427,9 @@ FPRINTF	macro	func,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	ENDM
 	mov	ax,func
 	int	INT_DOSFUNC
+	IFNB <format>
 	db	format,0
+	ENDIF
 	IF	argc NE 0
 	add	sp,argc * 2
 	ENDIF

@@ -14,7 +14,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_locked>,byte
 	EXTERNS	<mcb_head,mcb_limit,scb_active>,word
 	EXTERNS	<sfh_addref,pfh_close,sfh_close>,near
-	EXTERNS	<getsize,freeAll,dos_exit,dos_ctrlc,dos_error>,near
+	EXTERNS	<getsize,freeAll,dos_exit,dos_exit2,dos_ctrlc,dos_error>,near
 	EXTERNS	<get_scbnum,scb_unload,scb_yield>,near
 	IF REG_CHECK
 	EXTERNS	<dos_check>,near
@@ -101,13 +101,21 @@ pt8:	mov	es,ax			; ES = PSP of parent
 	cli
 	mov	ss,es:[PSP_STACK].SEG
 	mov	sp,es:[PSP_STACK].OFF
-	mov	bp,sp
 	IF REG_CHECK
-	add	bp,2
+	add	sp,2
 	ENDIF
-	mov	[bp].REG_CS,cx		; copy PSP_EXRET to caller's CS:IP
-	mov	[bp].REG_IP,dx		; (normally they will be identical)
-	jmp	dos_exit		; we'll let dos_exit turn interrupts on
+	mov	bp,sp
+;
+; When a program (eg, SYMDEB.EXE) loads another program using DOS_PSP_EXEC1,
+; it will necessarily be exec'ing the program itself, which means we can't be
+; sure the stack used at the time of loading will be identical to the stack
+; used at time of exec'ing.  So we will use dos_exit2 to bypass the REG_CHECK
+; *and* we will create a fresh IRET frame at the top of REG_FRAME.
+;
+	mov	[bp].REG_IP,dx		; copy PSP_EXRET to caller's CS:IP
+	mov	[bp].REG_CS,cx		; (normally they will be identical)
+	mov	word ptr [bp].REG_FL,FL_DEFAULT
+	jmp	dos_exit2		; we'll let dos_exit turn interrupts on
 
 pt9:	ret
 ENDPROC	psp_term
@@ -469,8 +477,7 @@ lp1:	xchg	dx,ax			; DX = segment for new PSP
 	int	21h			; create new PSP at DX
 
 	call	get_psp
-	test	ax,ax
-	jz	lp2
+	jz	lp2			; jump if no PSP exists yet
 ;
 ; Let's update the PSP_STACK field in the current PSP before we switch
 ; to the new PSP, since we rely on it to gracefully return to the caller
@@ -483,8 +490,8 @@ lp1:	xchg	dx,ax			; DX = segment for new PSP
 	IF REG_CHECK
 	sub	bx,2
 	ENDIF
-	mov	ds:[PSP_STACK].SEG,ss
 	mov	ds:[PSP_STACK].OFF,bx
+	mov	ds:[PSP_STACK].SEG,ss
 
 lp2:	push	ax			; save original PSP
 	xchg	ax,dx			; AX = new PSP
@@ -880,12 +887,12 @@ lp8b:	mov	dx,es
 	push	es
 	pop	ds
 	ASSUME	DS:NOTHING
-	les	di,ds:[PSP_STACK]	; ES = stack segment (NOT PSP)
+	les	di,ds:[PSP_STACK]	; ES:DI -> stack (NOT PSP)
 	dec	di
 	dec	di
 	std
-	mov	cx,ds:[PSP_START].SEG
 	mov	dx,ds:[PSP_START].OFF	; CX:DX = start address
+	mov	cx,ds:[PSP_START].SEG
 ;
 ; NOTE: Pushing a zero on the top of the program's stack is expected by
 ; COM files, but what about EXE files?  Do they have the same expectation
@@ -1085,7 +1092,7 @@ ENDPROC	psp_setmem
 ;	None
 ;
 ; Outputs:
-;	AX = segment of current PSP, zero if none
+;	AX = segment of current PSP (zero if none; ZF set as well)
 ;
 DEFPROC	get_psp,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
@@ -1096,6 +1103,7 @@ DEFPROC	get_psp,DOS
 	jz	gp9
 	ASSERT	STRUCT,cs:[bx],SCB
 	mov	ax,cs:[bx].SCB_CURPSP
+	test	ax,ax
 gp9:	pop	bx
 	ret
 ENDPROC	get_psp
