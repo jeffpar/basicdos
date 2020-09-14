@@ -168,7 +168,7 @@ ENDPROC	utl_strupr
 ; in the CODE segment following the INT 21h, which we automatically skip, and
 ; the next instruction should be an "ADD SP,N*2", assuming N word parameters.
 ;
-; See utl_sprintf for more details.
+; Use the PRINTF macro to simplify calls to this function.
 ;
 ; Inputs:
 ;	format string follows the INT 21h
@@ -179,6 +179,8 @@ ENDPROC	utl_strupr
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, DS, ES
+;
+; See sprintf.asm for more information on the format string.
 ;
 DEFPROC	utl_printf,DOS
 	ASSUME	DS:NOTHING,ES:NOTHING
@@ -224,7 +226,7 @@ ENDPROC	utl_printf endp
 ; FINAL binaries.  Without this function, those calls would crash, due to
 ; how the format strings are stored after the INT 21h.
 ;
-; Aside from the DEBUG-only features, this function is identical to utl_printf.
+; Use the DPRINTF macro to simplify calls to this function.
 ;
 ; Inputs:
 ;	format string follows the INT 21h
@@ -235,6 +237,8 @@ ENDPROC	utl_printf endp
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, DS, ES
+;
+; See sprintf.asm for more information on the format string.
 ;
 DEFPROC	utl_dprintf,DOS
 	mov	bl,[sfh_debug]
@@ -260,19 +264,13 @@ ENDPROC	utl_dprintf endp
 ;
 ; A CDECL-style calling convention is assumed, where all parameters EXCEPT
 ; for the format string are pushed from right to left, so that the first
-; (left-most) parameter is the last one pushed.  The format string is stored
-; in the CODE segment following the INT 21h, which we automatically skip, and
-; the next instruction should be an "ADD SP,N*2", assuming N word parameters.
-;
-; When passing 32-bit ("long") values to the PRINTF macro, pass the low word
-; first, then the high word, so that the high word is pushed first.  Similarly,
-; when passing 32-bit ("far") pointers, pass the offset first, then segment.
+; (left-most) parameter is the last one pushed.  The next instruction should
+; be an "ADD SP,N*2", assuming N word parameters.
 ;
 ; Inputs:
 ;	DS:BX -> format string
 ;	ES:DI -> output buffer
 ;	CX = length of buffer
-;	format string follows the INT 21h
 ;	all other parameters must be pushed onto the stack, right to left
 ;
 ; Outputs:
@@ -281,7 +279,7 @@ ENDPROC	utl_dprintf endp
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
-; See sprintf.asm for a list of supported format specifiers.
+; See sprintf.asm for more information on the format string.
 ;
 DEFPROC	utl_sprintf,DOS
 	sti

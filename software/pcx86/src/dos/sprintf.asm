@@ -171,18 +171,23 @@ ENDPROC itoa
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
-; Standard format types:
+; Standard formatters:
 ;	%c:	8-bit character
 ;	%d:	signed 16-bit decimal integer; use %ld for 32-bit
 ;	%u:	unsigned 16-bit decimal integer; use %lu for 32-bit
 ;	%s:	string (near DS-relative pointer); use %ls for far pointer
 ;
-; Standard format types in DEBUG-only builds:
-;	%x:	unsigned 16-bit hexadecimal integer: use %lx for 32-bit
+; Formatters also support flags '#' and '-' as well as width and precision
+; (eg, "-10.4s" prints 10 characters, left-justified, with max of 4 characters
+; from the given string).
 ;
-; Non-standard format types:
+; Standard formatters in DEBUG-only builds (to save space):
+;	%x:	unsigned 16-bit hexadecimal integer; use %lx for 32-bit,
+;		or a precision of ".2" for 8-bit
+;
+; Non-standard formatters:
 ;	%P:	caller's address (REG_CS:REG_IP-2)
-;	%U:	skips one 16-bit parameter on the stack; nothing output
+;	%U:	skip one 16-bit parameter on the stack; nothing output
 ;	%W:	day of week, as string
 ;	%F:	month portion of a 16-bit DATE value, as string
 ;	%M:	month portion of a 16-bit DATE value, as number (1-12)
@@ -196,8 +201,8 @@ ENDPROC itoa
 ;
 SPF_START	equ	TMP_AX		; buffer start address
 SPF_LIMIT	equ	TMP_BX		; buffer limit address
-SPF_WIDTH	equ	TMP_CX		; specifier width, if any
-SPF_PRECIS	equ	TMP_DX		; specifier precision, if any
+SPF_WIDTH	equ	TMP_CX		; formatter width, if any
+SPF_PRECIS	equ	TMP_DX		; formatter precision, if any
 
 DEFPROC	sprintf,DOS
 	ASSUME	DS:NOTHING, ES:NOTHING
@@ -211,7 +216,7 @@ pf1:	mov	al,[bx]			; AL = next format character
 	inc	bx
 	test	al,al
 	jz	pf3			; end of format string
-	cmp	al,'%'			; format specifier?
+	cmp	al,'%'			; formatter prefix?
 	je	pfp			; yes
 pf2:	cmp	di,[bp].SPF_LIMIT	; buffer full?
 	jae	pf1			; yes, but keep consuming format chars
@@ -220,7 +225,7 @@ pf2:	cmp	di,[bp].SPF_LIMIT	; buffer full?
 pf3:	jmp	pf8
 
 pfp:	mov	cx,10			; CH = print flags, CL = base
-	mov	dx,bx			; DX = where this specifier started
+	mov	dx,bx			; DX = where this formatter started
 	mov	word ptr [bp].SPF_WIDTH,0
 	mov	word ptr [bp].SPF_PRECIS,0FF00h
 pfpa:	mov	al,[bx]
@@ -359,12 +364,12 @@ pfpz:	mov	bx,dx			; error, didn't end with known letter
 	mov	al,'%'			; restore '%'
 	jmp	pf2
 ;
-; Helper code for DATE/TIME specifiers:
+; Helper code for DATE/TIME formatters:
 ;
 ; Take the next value from the stack (which must be either a 16-bit DATE or
 ; TIME), shift it right by the number in DL (or left if DL is negative), mask
 ; it with value in DH, and then put it back on the stack and continue as if
-; the specifier was %d.
+; the formatter was %d.
 ;
 ; Some masks are "special": 7F09h and FF09h are used to mask a year, so we
 ; also add 1980 to the result, and FF0Bh is used to mask an hour that needs to
@@ -403,7 +408,7 @@ pfda4:	cmp	ax,12			; and subtract 12 from anything > 12
 	sub	ax,12
 pfda9:	mov	[bp+si],ax		; update the shifted/masked parameter
 ;
-; Process %d, %u, and %x specifiers.
+; Process %d, %u, and %x formatters.
 ;
 ; In order to support partial bit values, we'd like to use precision to mod
 ; the value as follows: for %x, mod with (1 << (SPF_PRECIS << 2)), and
@@ -476,7 +481,7 @@ pfd2:	mov	dx,[bp+si]		; grab another stack parameter
 	add	si,2			; DX:AX = 32-bit value
 	jmp	pfd1
 ;
-; Process %F specifier, which we convert to a "fake" string parameter.
+; Process %F formatter, which we convert to a "fake" string parameter.
 ;
 pfm:	push	ds
 	mov	ax,[bp+si]		; get the DATE parameter
@@ -498,7 +503,7 @@ pfm:	push	ds
 	call	strlen			; AX = length
 	jmp	short pfs2a		; jump into the string code now
 ;
-; Process %W specifier, which we convert to a "fake" string parameter.
+; Process %W formatter, which we convert to a "fake" string parameter.
 ;
 pfw:	push	ds
 	mov	ax,[bp+si]		; get the DATE parameter
@@ -511,7 +516,7 @@ pfw:	push	ds
 	call	strlen			; AX = length
 	jmp	short pfs2a		; jump into the string code now
 ;
-; Process %c specifier, which we treat as a 1-character string.
+; Process %c formatter, which we treat as a 1-character string.
 ;
 pfc:	push	ds
 	lea	ax,[bp+si]
@@ -523,7 +528,7 @@ pfc:	push	ds
 	mov	ax,1			; AX = length
 	jmp	short pfs2a		; jump into the string code now
 ;
-; Process %s specifier.
+; Process %s formatter.
 ;
 pfs:	push	ds
 	mov	ax,[bp+si]		; %s implies DS-relative near pointer

@@ -1,5 +1,5 @@
 CLS
-Clears the screen to the background color and moves the cursor to the top left corner of the session.
+Clears the session using the background color and moves the cursor to the top left corner.
 
 COLOR *foreground*[,*background*[,*border*]]
 Sets the foreground (0-15), background (0-15), and border (0-255) colors of the session.
