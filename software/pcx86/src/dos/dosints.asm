@@ -290,6 +290,8 @@ dc9:	adc	[bp].REG_FL,0
 	ASSERT	Z,<cmp bp,offset dos_check>
 	ENDIF
 
+	DEFLBL	dos_exit2,near
+
 	pop	bp
 	pop	di
 	pop	es

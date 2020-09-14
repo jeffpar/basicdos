@@ -615,8 +615,7 @@ sc7:	sub	ax,ax
 	mov	[bx].SFB_DEVICE.SEG,ax	; mark SFB as unused
 sc8:	test	si,si			; valid PFH?
 	jl	sc9			; no
-	call	get_psp
-	test	ax,ax			; if we're called by sysinit
+	call	get_psp			; if we're called by sysinit
 	jz	sc9			; there may be no valid PSP yet
 	push	ds
 	mov	ds,ax
@@ -645,8 +644,7 @@ ENDPROC	sfb_close
 DEFPROC	sfb_get,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	call	get_psp			; if there's no PSP yet
-	test	ax,ax			; then BX must an SFH, not a PFH
-	jz	gs1
+	jz	gs1			; then BX must an SFH, not a PFH
 	cmp	bl,size PSP_PFT		; is the PFH within PFT bounds?
 	jae	gs8			; no
 	push	ds
@@ -713,8 +711,7 @@ ENDPROC	sfb_find_fcb
 DEFPROC	pft_alloc,DOS
 	ASSUMES	<DS,DOS>,<ES,DOS>
 	call	get_psp			; get the current PSP
-	xchg	di,ax
-	test	di,di			; if we're called by sysinit
+	xchg	di,ax			; if we're called by sysinit
 	jz	gp9			; there may be no valid PSP yet
 	mov	es,di
 	ASSUME	ES:NOTHING		; find a free handle entry

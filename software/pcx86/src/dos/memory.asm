@@ -260,7 +260,6 @@ a3:	mov	al,es:[MCB_SIG]		; AL = signature for new block
 	call	mcb_split
 
 a4:	call	get_psp
-	test	ax,ax
 	jnz	a5
 	mov	ax,MCBOWNER_SYSTEM	; no active PSP yet, so use this
 a5:	mov	es:[MCB_OWNER],ax
