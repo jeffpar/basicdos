@@ -141,6 +141,11 @@ oc9:	pop	ds
 	pop	ax
 	pop	bp
 	ENDIF
+;
+; Even if you mistakenly run a DEBUG binary on a non-DEBUG system (which
+; means all that's here is this IRET), any operation check should still be
+; innocuous (but that's neither guaranteed nor recommended).
+;
 	iret
 ENDPROC	dos_opchk
 
