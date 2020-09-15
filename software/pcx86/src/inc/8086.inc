@@ -98,8 +98,7 @@ OP_MOV_SP_BP	equ	0EC89h		; MOV SP,BP
 ; in a non-PCjs environment (or on a real machine), since BASIC-DOS system
 ; initialization installs an INT_UD handler to ignore them.  And if you
 ; somehow run a DEBUG binary on a non-DEBUG system, INT_UD will still be
-; set to an IRET (since the original IBM PC BIOS didn't initialize that
-; vector), so these operations should still be innocuous.
+; set to an IRET, so these operations should still be innocuous.
 ;
 OP_ASSERT	equ	090h		; signal an assertion failure
 OP_DBGBRK	equ	0CCh		; signal an internal breakpoint

@@ -310,11 +310,11 @@ FDC_DEVICE	dd	?		; 506h: FDC driver header
 DD_LIST		dd	?		; 50Ah: head of device driver list
 		db	20 dup (?)	; 50Eh: reserved
 DPT_ACTIVE	DPT	<>		; 522h: active DPT
-BOOT_KEY	dw	?		; set by boot sector
-		db	1 dup (?)	; paragraph padding
-DDINT_ENTER	db	5 dup (?)	; room for a 5-byte far jump
-DDINT_LEAVE	db	5 dup (?)	; room for a 5-byte far jump
-		db	6 dup (?)	; paragraph padding
+BOOT_KEY	dw	?		; 52Dh: set by boot sector
+		db	1 dup (?)	; 52Fh: paragraph padding
+DDINT_ENTER	db	5 dup (?)	; 530h: room for a 5-byte far jump
+DDINT_LEAVE	db	5 dup (?)	; 535h: room for a 5-byte far jump
+		db	6 dup (?)	; 53Ah: paragraph padding
 ;
 ; We move the boot sector from BOOT_SECTOR to FAT_SECTOR.
 ;

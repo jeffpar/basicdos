@@ -27562,13 +27562,11 @@ X86.helpINT = function(nIDT, nError, nCycles)
             let remainder = this.regEDI | (this.regESI << 16);
             switch(this.peekIPByte()) {
             case 0xCC:
-                if (DEBUG && this.flags.running) {
-                    if (DEBUGGER && this.dbg) {
-                        this.getIPByte();
-                        this.printMessage("debugger halting on INT 0x06,0xCC", DEBUGGER || this.bitsMessage);
-                        this.dbg.stopCPU();
-                        return;
-                    }
+                if (DEBUGGER && this.dbg && this.flags.running) {
+                    this.getIPByte();
+                    this.printMessage("debugger halting on INT 0x06,0xCC", DEBUGGER || this.bitsMessage);
+                    this.dbg.stopCPU();
+                    return;
                 }
                 break;
             case 0xFB:
@@ -27588,6 +27586,11 @@ X86.helpINT = function(nIDT, nError, nCycles)
                 }
                 break;
             }
+        }
+    }
+    if (nIDT == 0x13 && this.model <= X86.MODEL_8088) {
+        if (DEBUGGER && this.dbg && this.regEAX == 0x0201 && this.regEBX == 0x7C00 && this.segES.sel == 0) {
+            this.setShort(0x52D, 0x4442);       // on 8088 boot up, set a special "BD" boot indicator in low memory
         }
     }
     let addr = this.segCS.loadIDT(nIDT);
