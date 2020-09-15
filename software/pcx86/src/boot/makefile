@@ -18,11 +18,11 @@ AFLAGS=/D$(REL) /I..\INC
 # under each dependency.
 #
 .ASM.COM:
-	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ;
-	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE,OBJ\$*.MAP/MAP;
-	$(EXE2BIN) OBJ\$*.EXE $@
-	DEL OBJ\$*.OBJ
-	DEL OBJ\$*.EXE
+	$(ASM) $(AFLAGS) $**,$*.OBJ;
+	$(LINK) $*.OBJ,$*.EXE,$*.MAP/MAP;
+	$(EXE2BIN) $*.EXE $@
+	DEL $*.OBJ
+	DEL $*.EXE
 
 OBJ\BOOT.COM: BOOT.ASM
 	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ;

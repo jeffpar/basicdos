@@ -17,10 +17,6 @@ DOS	segment word public 'CODE'
 	EXTERNS	<ddint_level>,byte
 	EXTERNS	<msc_sigctrlc_read,msc_sigerr>,near
 
-	IFDEF DEBUG
-	DEFBYTE	asserts,-1		; prevent nested asserts
-	ENDIF
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; dos_dverr (INT 00h)
@@ -59,29 +55,10 @@ ENDPROC	dos_dverr
 ;
 ; dos_sstep (INT 01h)
 ;
-; If an INT 01h instruction is executed, we treat it as an assertion failure.
-;
-; We make no effort to distinguish this from the FL_TRAP bit set in flags,
-; since that would presumably be done by a debugger, which would have replaced
-; the INT 01h vector with its own handler.
+; If a trace interrupt (or an explicit INT 10h) occurs, and no debugger
+; is currently running, we catch it here and ignore it.
 ;
 DEFPROC	dos_sstep,DOSFAR
-	IFDEF DEBUG
-	inc	[asserts]
-	jnz	ss1
-	DBGBRK
-;
-; Print the 32-bit return address on the stack, and since it's already on
-; the stack, we don't have to push it, which means PRINTF won't try to pop it
-; either.  However, since we have to push AX (the only register that PRINTF
-; modifies), we must include a special PRINTF formatter (%U) that skips one
-; 16-bit value on the stack.
-;
-	push	ax
-	PRINTF	<"Assertion failure @%U%08lx",13,10>
-	pop	ax
-ss1:	dec	[asserts]
-	ENDIF
 	iret
 ENDPROC	dos_sstep
 
@@ -89,8 +66,8 @@ ENDPROC	dos_sstep
 ;
 ; dos_brkpt (INT 03h)
 ;
-; If a breakpoint instruction is executed, and no debugger is currently
-; running, we catch it here and ignore it.
+; If a breakpoint interrupt occurs, and no debugger is currently running,
+; we catch it here and ignore it.
 ;
 DEFPROC	dos_brkpt,DOSFAR
 	iret
@@ -134,16 +111,36 @@ ENDPROC	dos_oferr
 ;
 ; dos_opchk (INT 06h)
 ;
-; This interrupt is used by DEBUG builds to perform "operation checks";
-; eg:
+; This interrupt is used by DEBUG builds to perform "operation checks",
+; based on the byte that follows the INT 06h instruction; eg:
 ;
-;	CL = 01h: 32-bit multiply check
-;	CL = 02h: 32-bit division check
+;	90h: assertion failure
+;	CCh: breakpoint notification
+;	FBh: 32-bit multiply check
+;	FCh: 32-bit division check
 ;
 ; If the 8086 emulation environment isn't set up to intercept INT 06h and
 ; perform these checks, this handler ensures the checks are harmless.
 ;
 DEFPROC	dos_opchk,DOSFAR
+	IFDEF	DEBUG
+	push	bp
+	mov	bp,sp
+	push	ax
+	push	si
+	push	ds
+	lds	si,dword ptr [bp+2]	; DS:SI = CS:IP from stack
+	cld
+	lodsb
+	mov	[bp+2],si		; update CS:IP to skip OPCHECK byte
+	test	al,al			; OP_ASSERT?
+	jnz	oc9			; no
+	PRINTF	<"Assertion failure @%08lx",13,10>,si,ds
+oc9:	pop	ds
+	pop	si
+	pop	ax
+	pop	bp
+	ENDIF
 	iret
 ENDPROC	dos_opchk
 

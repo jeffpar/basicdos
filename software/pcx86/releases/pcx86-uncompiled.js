@@ -7,7 +7,7 @@
 /**
  * @define {string}
  */
-var APPVERSION = "2.04";                // this @define is overridden by the Closure Compiler with the version in machines.json
+var APPVERSION = "2.05";                // this @define is overridden by the Closure Compiler with the version in machines.json
 
 var COPYRIGHT = "Copyright © 2012-2020 Jeff Parsons <Jeff@pcjs.org>";
 
@@ -12994,7 +12994,7 @@ class CPULib extends Component {
         /*
          * Start running automatically on power-up, assuming there's no Debugger.
          */
-        if (this.flags.autoStart || this.flags.autoStart == null && !this.dbg) {
+        if (this.flags.autoStart || this.flags.autoStart == undefined && !this.dbg) {
             return this.startCPU(true);
         }
         return false;
@@ -16029,7 +16029,7 @@ class CPUx86 extends CPULib {
         this.nTotalCycles = a[1];   // a[0] was previously nBurstDivisor (no longer used)
         this.setSpeed(a[2]);        // old states didn't contain a value from getSpeed(), but setSpeed() checks
         if (a[3] != null) {         // less old states didn't preserve the original running state, so we must check it
-            this.flags.autoStart = a[3];
+            this.flags.autoStart = a[3] || undefined;   // prefer undefined over false, because false is a firm no-autoStart
         }
         if (a[4] != null) {
             this.restoreTimers(a[4]);
@@ -27548,7 +27548,8 @@ X86.helpINT = function(nIDT, nError, nCycles)
     let oldCS = this.getCS();
     let oldIP = this.getIP();
     /*
-     * Support for INT 06h operation checks.
+     * Support for INT 06h operation checks.  We no longer consume these special interrupts; we rely on the
+     * underlying operating system to deal with them.
      */
     if (nIDT == 0x06 && this.model <= X86.MODEL_8088) {
         let op = this.getSOWord(this.segCS, oldIP-2);
@@ -27558,14 +27559,22 @@ X86.helpINT = function(nIDT, nError, nCycles)
             let argB = this.getSOWord(this.segSS, this.regEBP+6) | (this.getSOWord(this.segSS, this.regEBP+8) << 16);
             let result = this.regEAX | (this.regEDX << 16);
             let remainder = this.regEDI | (this.regESI << 16);
-            switch(this.regECX & 0xff) {
-            case 0x01:
+            switch(this.peekIPByte()) {
+            case 0xCC:
+                if (DEBUG && this.flags.running) {
+                    if (DEBUGGER && this.dbg) {
+                        this.printMessage("debugger halting on INT 06h", DEBUGGER || this.bitsMessage);
+                        this.dbg.stopCPU();
+                    }
+                }
+                break;
+            case 0xFB:
                 actual = (argA * argB)|0;
                 if (result != actual) {
                     if (!COMPILED) this.printf(Messages.INT, "result %#x for %#x * %#x does not match actual: %#x\n", result, argA, argB, actual);
                 }
                 break;
-            case 0x02:
+            case 0xFC:
                 actual = (argA / argB)|0;
                 if (result != actual) {
                     if (!COMPILED) this.printf(Messages.INT, "result %#x for %#x / %#x does not match actual: %#x\n", result, argA, argB, actual);
@@ -35596,12 +35605,6 @@ X86.opRETF = function()
  */
 X86.opINT3 = function()
 {
-    if (DEBUG && this.flags.running) {
-        this.printMessage("debugger halting on INT 3", DEBUGGER || this.bitsMessage);
-        if (DEBUGGER && this.dbg) this.dbg.stopCPU();
-        return;
-    }
-
     /*
      * TODO: Consider swapping out this function whenever setProtMode() changes the mode to V86-mode.
      */
