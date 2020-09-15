@@ -348,8 +348,6 @@ px8:	mov	di,ax
 	add	ax,size REG_FRAME + REG_CHECK - 2
 	mov	[si].EPB_INIT_SP.OFF,ax
 	mov	[si].EPB_INIT_SP.SEG,dx	; return the program's SS:SP
-	; mov	es:[PSP_STACK].LOW,ax	; TODO: determine if mirroring the
-	; mov	es:[PSP_STACK].HIW,dx	; stack pointer in the PSP is useful
 	mov	es,dx
 	les	di,dword ptr es:[di+REG_CHECK].REG_IP
 	mov	[si].EPB_INIT_IP.OFF,di

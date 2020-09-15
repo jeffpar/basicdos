@@ -46246,8 +46246,7 @@ class Kbdx86 extends Component {
                 if (sHTMLType == 'led') {
                     this.bindings[id] = control;
                     control.onclick = function onClickCapsLock(event) {
-                        event.preventDefault();
-                        if (kbd.cmp) kbd.cmp.updateFocus();
+                        kbd.updateFocus(event);
                         return kbd.toggleCapsLock();
                     };
                     return true;
@@ -46258,8 +46257,7 @@ class Kbdx86 extends Component {
                 if (sHTMLType == 'led') {
                     this.bindings[id] = control;
                     control.onclick = function onClickNumLock(event) {
-                        event.preventDefault();
-                        if (kbd.cmp) kbd.cmp.updateFocus();
+                        kbd.updateFocus(event);
                         return kbd.toggleNumLock();
                     };
                     return true;
@@ -46270,8 +46268,7 @@ class Kbdx86 extends Component {
                 if (sHTMLType == 'led') {
                     this.bindings[id] = control;
                     control.onclick = function onClickScrollLock(event) {
-                        event.preventDefault();
-                        if (kbd.cmp) kbd.cmp.updateFocus();
+                        kbd.updateFocus(event);
                         return kbd.toggleScrollLock();
                     };
                     return true;
@@ -46289,8 +46286,7 @@ class Kbdx86 extends Component {
                     controlText.onclick = function(kbd, sKey, simCode) {
                         return function onKeyboardBindingClick(event) {
                             kbd.printf(Messages.EVENT + Messages.KEY, "%s clicked\n", sKey);
-                            event.preventDefault();                 // preventDefault() is necessary...
-                            if (kbd.cmp) kbd.cmp.updateFocus();     // ...for the updateFocus() call to actually work
+                            kbd.updateFocus(event);
                             kbd.sInjectBuffer = "";                 // key events should stop any injection currently in progress
                             kbd.updateShiftState(simCode, true);    // future-proofing if/when any LOCK keys are added to CLICKCODES
                             kbd.addActiveKey(simCode, true);
@@ -46353,8 +46349,7 @@ class Kbdx86 extends Component {
                      */
                     this.bindings[id] = control;
                     control.onclick = function onClickTest(event) {
-                        event.preventDefault();                     // preventDefault() is necessary...
-                        if (kbd.cmp) kbd.cmp.updateFocus();         // ...for the updateFocus() call to actually work
+                        kbd.updateFocus(event);
                         return kbd.injectKeys(sValue);
                     };
                     return true;
@@ -46363,6 +46358,20 @@ class Kbdx86 extends Component {
             }
         }
         return false;
+    }
+
+    /**
+     * updateFocus(event)
+     *
+     * Keyboard control event focus helper.
+     *
+     * @this {Kbdx86}
+     * @param {Object} event
+     */
+    updateFocus(event)
+    {
+        event.preventDefault();     // preventDefault() is necessary for the updateFocus() call to work
+        if (!this.fSoftKeyboard && this.cmp) this.cmp.updateFocus();
     }
 
     /**
