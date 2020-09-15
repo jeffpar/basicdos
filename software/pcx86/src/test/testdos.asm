@@ -25,7 +25,8 @@ DEFPROC	main
 ; with the same footprint in PC DOS, then we must still resize ourselves.
 ;
 	mov	bx,offset HEAP + MINHEAP
-	or	bl,0Eh		; adjust BX to top word of the paragraph
+	and	bl,0F0h
+	or	bl,0Eh		; BX adjusted to top word of top paragraph
 	mov	word ptr [bx],0	; store a zero there so we can simply return
 	mov	sp,bx		; lower the stack
 	mov	cl,4
@@ -44,6 +45,11 @@ DEFPROC	main
 ;
 	mov	ah,52h		; undocumented PC DOS "list-of-lists" function
 	int	21h
+
+	IFDEF MAXDEBUG
+	ASSERT	NC		; test the ASSERT macro
+	DBGBRK			; test the DBGBRK macro
+	ENDIF
 ;
 ; Test the CALL 5 interface.
 ;

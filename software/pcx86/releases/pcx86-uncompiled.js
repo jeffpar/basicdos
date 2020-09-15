@@ -27548,8 +27548,9 @@ X86.helpINT = function(nIDT, nError, nCycles)
     let oldCS = this.getCS();
     let oldIP = this.getIP();
     /*
-     * Support for INT 06h operation checks.  We no longer consume these special interrupts; we rely on the
-     * underlying operating system to deal with them.
+     * Support for INT 06h operation checks.  The only operation we consume is the one reserved for breakpoints,
+     * and only if our debugger is running.  All these should only occur in DEBUG builds of the underlying operating
+     * system, which should clean up after itself.
      */
     if (nIDT == 0x06 && this.model <= X86.MODEL_8088) {
         let op = this.getSOWord(this.segCS, oldIP-2);
@@ -27563,8 +27564,10 @@ X86.helpINT = function(nIDT, nError, nCycles)
             case 0xCC:
                 if (DEBUG && this.flags.running) {
                     if (DEBUGGER && this.dbg) {
-                        this.printMessage("debugger halting on INT 06h", DEBUGGER || this.bitsMessage);
+                        this.getIPByte();
+                        this.printMessage("debugger halting on INT 0x06,0xCC", DEBUGGER || this.bitsMessage);
                         this.dbg.stopCPU();
+                        return;
                     }
                 }
                 break;

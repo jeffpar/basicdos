@@ -133,7 +133,7 @@ DEFPROC	dos_opchk,DOSFAR
 	cld
 	lodsb
 	mov	[bp+2],si		; update CS:IP to skip OPCHECK byte
-	test	al,al			; OP_ASSERT?
+	cmp	al,OP_ASSERT		; OP_ASSERT?
 	jnz	oc9			; no
 	PRINTF	<"Assertion failure @%08lx",13,10>,si,ds
 oc9:	pop	ds
