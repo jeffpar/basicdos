@@ -314,8 +314,8 @@ px1:	mov	es,[bp].REG_DS		; ES:DX -> name of program
 	pop	si
 	pop	ds			; DS:SI -> EPB again
 
-	pop	di			; recover ES:DI (new program's stack)
-	pop	es
+	pop	ax			; recover new program's stack in DX:AX
+	pop	dx
 
 	cmp	[bp].REG_AL,cl		; was AL zero?
 	jne	px8			; no
@@ -324,32 +324,33 @@ px1:	mov	es,[bp].REG_DS		; ES:DX -> name of program
 ; exec, meaning we launch the program directly from this call.
 ;
 	cli
-	push	es			; switch to the new program's stack
-	pop	ss
-	mov	sp,di
+	mov	ss,dx			; switch to the new program's stack
+	mov	sp,ax
 	jmp	dos_exit		; and let dos_exit turn interrupts on
 ;
 ; This was a DOS_PSP_EXEC1 call, an undocumented call that only loads the
 ; program, fills in the undocumented EPB_INIT_SP and EPB_INIT_IP fields,
 ; and then returns to the caller.
 ;
-; Note that EPB_INIT_SP should be identical to PSP_STACK (PSP:2Eh) (well,
-; except that PSP_STACK is the original stack, whereas we return the stack
-; with a zero word pre-pushed), and EPB_INIT_IP should be identical to
-; PSP_START (PSP:40h); these are new PSP fields introduced by BASIC-DOS,
-; which a DOS_PSP_EXEC1 caller is unaware of.
+; Note that EPB_INIT_SP will normally be right below PSP_STACK (PSP:2Eh),
+; since we push a zero word on the stack, and EPB_INIT_IP is identical to
+; PSP_START (PSP:40h).
 ;
-; And in any case, the new PSP is no longer in ES; ES:DI now points to the
-; program's stack, which contains a REG_FRAME that the DOS_PSP_EXEC1 caller
-; can't use.
+; The new PSP is still in ES, and DX:AX now points to the program's stack,
+; which contains a REG_FRAME that the DOS_PSP_EXEC1 caller can't use.
+; So we return a stack pointer with the REG_FRAME popped off, along with the
+; REG_CS and REG_IP that was stored in the REG_FRAME.
 ;
-; So, we return SS:SP with the REG_FRAME popped off, along with the REG_CS
-; and REG_IP that was stored in the REG_FRAME.
+; TODO: Determine why SYMDEB.EXE requires us to subtract another word from
+; the stack pointer in AX, in addition to the zero word we already pushed.
 ;
-px8:	mov	ax,di
-	add	ax,size REG_FRAME + REG_CHECK
+px8:	mov	di,ax
+	add	ax,size REG_FRAME + REG_CHECK - 2
 	mov	[si].EPB_INIT_SP.OFF,ax
-	mov	[si].EPB_INIT_SP.SEG,es	; return the program's SS:SP
+	mov	[si].EPB_INIT_SP.SEG,dx	; return the program's SS:SP
+	; mov	es:[PSP_STACK].LOW,ax	; TODO: determine if mirroring the
+	; mov	es:[PSP_STACK].HIW,dx	; stack pointer in the PSP is useful
+	mov	es,dx
 	les	di,dword ptr es:[di+REG_CHECK].REG_IP
 	mov	[si].EPB_INIT_IP.OFF,di
 	mov	[si].EPB_INIT_IP.SEG,es	; return the program's CS:IP
