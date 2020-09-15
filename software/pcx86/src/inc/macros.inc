@@ -295,7 +295,7 @@ ASSERT	macro	cond,op,value
 	  IFDIF	<cond>,<NEVER>
 	J&cond	$+4
 	  ENDIF
-	int	1		;; use INT 01h to signal an assertion failure
+	OPCHECK	OP_ASSERT	;; use INT 06h to signal an assertion failure
 	  IFNB	<op>
 	popf
 	  ENDIF
@@ -305,7 +305,7 @@ ASSERT	macro	cond,op,value
 
 DBGBRK	macro
 	IFDEF DEBUG
-	int	3		;; use INT 03h to signal a debugger breakpoint
+	OPCHECK	OP_DBGBRK	;; use INT 06h to signal a debugger breakpoint
 	ENDIF
 	endm
 

@@ -3,7 +3,7 @@
 Warning: no stack segment
 
  Start  Stop   Length Name                   Class
- 00000H 00329H 0032AH CODE                   CODE
+ 00000H 0032CH 0032DH CODE                   CODE
  00330H 0033FH 00010H DATA                   DATA
 
  Origin   Group
@@ -19,7 +19,7 @@ Warning: no stack segment
  0000:003A       DATEYEAR
  0000:0058       DDCLK_CTLIN
  0000:0235       DDCLK_CTLOUT
- 0000:02F6       DDCLK_INIT
+ 0000:02F8       DDCLK_INIT
  0000:0240       DDCLK_INTERRUPT
  0000:0238       DDCLK_NONE
  0000:0236       DDCLK_READ
@@ -47,4 +47,4 @@ Warning: no stack segment
  0000:0237       DDCLK_WRITE
  0000:0238       DDCLK_NONE
  0000:0240       DDCLK_INTERRUPT
- 0000:02F6       DDCLK_INIT
+ 0000:02F8       DDCLK_INIT

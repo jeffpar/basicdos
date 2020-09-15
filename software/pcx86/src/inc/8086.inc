@@ -88,21 +88,26 @@ OP_MOV_SP_BP	equ	0EC89h		; MOV SP,BP
 
 ;
 ; Operation checks are sprinkled throughout DEBUG BASIC-DOS binaries to
-; perform arithmetic validation tests in the PCjs emulator.  They invoke
-; INT_UD (INT 06h) to trigger the check, since that interrupt had no defined
+; signal assertion failures and internal breakpoints, and also to perform
+; arithmetic validation tests in the PCjs emulator.  They invoke INT_UD
+; (INT 06h) to trigger the operation, since that interrupt had no defined
 ; purpose on 8086/8088 processors (every opcode did something).  The concept
-; of invalid opcodes came later, on the 80186.
+; of invalid opcodes came later, with the introduction of the 80186.
 ;
-; In case a DEBUG binary is run in a non-PCjs environment (or on a real
-; machine), BASIC-DOS system initialization sets the INT_UD vector to point
-; to an IRET, since the original IBM PC BIOS didn't initialize it.
+; With the exception of OP_ASSERT, these operations should have no effect
+; in a non-PCjs environment (or on a real machine), since BASIC-DOS system
+; initialization installs an INT_UD handler to ignore them.  And if you
+; somehow run a DEBUG binary on a non-DEBUG system, INT_UD will still be
+; set to an IRET, so these operations should still be innocuous.
 ;
-OP_MUL32	equ	01h		; verify 32-bit multiplication result
-OP_DIV32	equ	02h		; verify 32-bit division result
+OP_ASSERT	equ	090h		; signal an assertion failure
+OP_DBGBRK	equ	0CCh		; signal an internal breakpoint
+OP_MUL32	equ	0FBh		; verify 32-bit multiplication result
+OP_DIV32	equ	0FCh		; verify 32-bit division result
 
 OPCHECK	macro	op
 	IFDEF DEBUG
-	mov	cl,op
-	int	INT_UD			; INT 06h
+	int	INT_UD			;; INT 06h
+	db	op			;; next byte indicates the operation
 	ENDIF
 	endm

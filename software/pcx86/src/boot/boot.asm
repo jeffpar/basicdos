@@ -211,6 +211,10 @@ ENDPROC	printp
 ;
 DEFPROC	main,far			; now at BOOT_SECTOR_LO
 	mov	ds:[mybpb].BPB_DRIVE,dl	; save boot drive (DL) in BPB
+	IFDEF DEBUG
+	cmp	ds:[BOOT_KEY].LOB,cl	; boot key zero?
+	jne	m0			; no, force a boot prompt
+	ENDIF
 	test	dl,dl			; hard drive?
 	jl	find			; yes
 	mov	ah,HDC_GETPARMS		; get hard drive parameters
@@ -219,7 +223,7 @@ DEFPROC	main,far			; now at BOOT_SECTOR_LO
 	jc	find			; jump if call failed
 	test	dl,dl			; any hard disks?
 	jz	find			; jump if no hard disks
-	mov	si,offset product
+m0:	mov	si,offset product
 	call	print			; print the product name
 	call	print			; then the prompt
 	call	wait			; wait for a key

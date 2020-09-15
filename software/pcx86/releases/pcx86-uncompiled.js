@@ -7,7 +7,7 @@
 /**
  * @define {string}
  */
-var APPVERSION = "2.04";                // this @define is overridden by the Closure Compiler with the version in machines.json
+var APPVERSION = "2.05";                // this @define is overridden by the Closure Compiler with the version in machines.json
 
 var COPYRIGHT = "Copyright © 2012-2020 Jeff Parsons <Jeff@pcjs.org>";
 
@@ -12994,7 +12994,7 @@ class CPULib extends Component {
         /*
          * Start running automatically on power-up, assuming there's no Debugger.
          */
-        if (this.flags.autoStart || this.flags.autoStart == null && !this.dbg) {
+        if (this.flags.autoStart || this.flags.autoStart == undefined && !this.dbg) {
             return this.startCPU(true);
         }
         return false;
@@ -16029,7 +16029,7 @@ class CPUx86 extends CPULib {
         this.nTotalCycles = a[1];   // a[0] was previously nBurstDivisor (no longer used)
         this.setSpeed(a[2]);        // old states didn't contain a value from getSpeed(), but setSpeed() checks
         if (a[3] != null) {         // less old states didn't preserve the original running state, so we must check it
-            this.flags.autoStart = a[3];
+            this.flags.autoStart = a[3] || undefined;   // prefer undefined over false, because false is a firm no-autoStart
         }
         if (a[4] != null) {
             this.restoreTimers(a[4]);
@@ -27548,7 +27548,9 @@ X86.helpINT = function(nIDT, nError, nCycles)
     let oldCS = this.getCS();
     let oldIP = this.getIP();
     /*
-     * Support for INT 06h operation checks.
+     * Support for INT 06h operation checks.  The only operation we consume is the one reserved for breakpoints,
+     * and only if our debugger is running.  All these should only occur in DEBUG builds of the underlying operating
+     * system, which should clean up after itself.
      */
     if (nIDT == 0x06 && this.model <= X86.MODEL_8088) {
         let op = this.getSOWord(this.segCS, oldIP-2);
@@ -27558,14 +27560,22 @@ X86.helpINT = function(nIDT, nError, nCycles)
             let argB = this.getSOWord(this.segSS, this.regEBP+6) | (this.getSOWord(this.segSS, this.regEBP+8) << 16);
             let result = this.regEAX | (this.regEDX << 16);
             let remainder = this.regEDI | (this.regESI << 16);
-            switch(this.regECX & 0xff) {
-            case 0x01:
+            switch(this.peekIPByte()) {
+            case 0xCC:
+                if (DEBUGGER && this.dbg && this.flags.running) {
+                    this.getIPByte();
+                    this.printMessage("debugger halting on INT 0x06,0xCC", DEBUGGER || this.bitsMessage);
+                    this.dbg.stopCPU();
+                    return;
+                }
+                break;
+            case 0xFB:
                 actual = (argA * argB)|0;
                 if (result != actual) {
                     if (!COMPILED) this.printf(Messages.INT, "result %#x for %#x * %#x does not match actual: %#x\n", result, argA, argB, actual);
                 }
                 break;
-            case 0x02:
+            case 0xFC:
                 actual = (argA / argB)|0;
                 if (result != actual) {
                     if (!COMPILED) this.printf(Messages.INT, "result %#x for %#x / %#x does not match actual: %#x\n", result, argA, argB, actual);
@@ -27576,6 +27586,11 @@ X86.helpINT = function(nIDT, nError, nCycles)
                 }
                 break;
             }
+        }
+    }
+    if (nIDT == 0x13 && this.model <= X86.MODEL_8088) {
+        if (DEBUGGER && this.dbg && this.regEAX == 0x0201 && this.regEBX == 0x7C00 && this.segES.sel == 0) {
+            this.setShort(0x52D, 0x4442);       // on 8088 boot up, set a special "BD" boot indicator in low memory
         }
     }
     let addr = this.segCS.loadIDT(nIDT);
@@ -35596,12 +35611,6 @@ X86.opRETF = function()
  */
 X86.opINT3 = function()
 {
-    if (DEBUG && this.flags.running) {
-        this.printMessage("debugger halting on INT 3", DEBUGGER || this.bitsMessage);
-        if (DEBUGGER && this.dbg) this.dbg.stopCPU();
-        return;
-    }
-
     /*
      * TODO: Consider swapping out this function whenever setProtMode() changes the mode to V86-mode.
      */
@@ -46237,8 +46246,7 @@ class Kbdx86 extends Component {
                 if (sHTMLType == 'led') {
                     this.bindings[id] = control;
                     control.onclick = function onClickCapsLock(event) {
-                        event.preventDefault();
-                        if (kbd.cmp) kbd.cmp.updateFocus();
+                        kbd.updateFocus(event);
                         return kbd.toggleCapsLock();
                     };
                     return true;
@@ -46249,8 +46257,7 @@ class Kbdx86 extends Component {
                 if (sHTMLType == 'led') {
                     this.bindings[id] = control;
                     control.onclick = function onClickNumLock(event) {
-                        event.preventDefault();
-                        if (kbd.cmp) kbd.cmp.updateFocus();
+                        kbd.updateFocus(event);
                         return kbd.toggleNumLock();
                     };
                     return true;
@@ -46261,8 +46268,7 @@ class Kbdx86 extends Component {
                 if (sHTMLType == 'led') {
                     this.bindings[id] = control;
                     control.onclick = function onClickScrollLock(event) {
-                        event.preventDefault();
-                        if (kbd.cmp) kbd.cmp.updateFocus();
+                        kbd.updateFocus(event);
                         return kbd.toggleScrollLock();
                     };
                     return true;
@@ -46280,8 +46286,7 @@ class Kbdx86 extends Component {
                     controlText.onclick = function(kbd, sKey, simCode) {
                         return function onKeyboardBindingClick(event) {
                             kbd.printf(Messages.EVENT + Messages.KEY, "%s clicked\n", sKey);
-                            event.preventDefault();                 // preventDefault() is necessary...
-                            if (kbd.cmp) kbd.cmp.updateFocus();     // ...for the updateFocus() call to actually work
+                            kbd.updateFocus(event);
                             kbd.sInjectBuffer = "";                 // key events should stop any injection currently in progress
                             kbd.updateShiftState(simCode, true);    // future-proofing if/when any LOCK keys are added to CLICKCODES
                             kbd.addActiveKey(simCode, true);
@@ -46344,8 +46349,7 @@ class Kbdx86 extends Component {
                      */
                     this.bindings[id] = control;
                     control.onclick = function onClickTest(event) {
-                        event.preventDefault();                     // preventDefault() is necessary...
-                        if (kbd.cmp) kbd.cmp.updateFocus();         // ...for the updateFocus() call to actually work
+                        kbd.updateFocus(event);
                         return kbd.injectKeys(sValue);
                     };
                     return true;
@@ -46354,6 +46358,20 @@ class Kbdx86 extends Component {
             }
         }
         return false;
+    }
+
+    /**
+     * updateFocus(event)
+     *
+     * Keyboard control event focus helper.
+     *
+     * @this {Kbdx86}
+     * @param {Object} event
+     */
+    updateFocus(event)
+    {
+        event.preventDefault();     // preventDefault() is necessary for the updateFocus() call to work
+        if (!this.fSoftKeyboard && this.cmp) this.cmp.updateFocus();
     }
 
     /**
