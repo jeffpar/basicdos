@@ -302,7 +302,7 @@ ENDPROC	scb_start
 ;	Carry set on error (eg, invalid SCB #)
 ;
 DEFPROC	scb_stop,DOS
-	int 3
+	DBGBRK
 	ret
 ENDPROC	scb_stop
 

@@ -631,7 +631,7 @@ ENDPROC	genExprNum
 ;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	genExprStr
-	int 3
+	DBGBRK
 	call	genPushZeroLong
 
 gs1:	mov	al,CLS_VAR OR CLS_STR

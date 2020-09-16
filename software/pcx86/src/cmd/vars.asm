@@ -696,7 +696,7 @@ DEFPROC	setStr,FAR
 	ARGVAR	pSource,dword
 	ENTER
 	les	di,[pTargetVar]
-	int 3
+	DBGBRK
 ;
 ; The general case involves storing the source address in the target variable
 ; after first zeroing all the bytes referenced by the target variable.
