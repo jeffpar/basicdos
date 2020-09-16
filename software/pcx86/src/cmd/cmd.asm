@@ -89,7 +89,7 @@ m0:	push	ss
 m1:	mov	ah,DOS_DSK_GETDRV
 	int	21h
 	add	al,'A'			; AL = current drive letter
-	PRINTF	"%c>",ax
+	PRINTF	<"%c",CHR_GT>,ax
 
 	lea	dx,[heap].INPUTBUF
 	mov	[heap].INPUTOFF,dx

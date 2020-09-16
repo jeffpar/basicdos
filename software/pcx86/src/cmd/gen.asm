@@ -38,6 +38,10 @@ CODE    SEGMENT
 ;	Any
 ;
 DEFPROC	genCode
+	LOCVAR	pHeap,word
+	LOCVAR	pDefVars,word
+	LOCVAR	defType,byte
+	LOCVAR	nextToken,byte
 	LOCVAR	genFlags,byte
 	LOCVAR	nArgs,word
 	LOCVAR	nExpArgs,word
@@ -55,6 +59,7 @@ DEFPROC	genCode
 	LOCVAR	lineNumber,word
 	ENTER
 
+	mov	[pHeap],bx
 	test	al,GEN_BATCH
 	jz	gc0
 	or	al,GEN_ECHO
@@ -64,6 +69,8 @@ gc0:	mov	[genFlags],al
 	mov	[errCode],ax
 	mov	[pInput],si
 	mov	[lineNumber],ax
+	lea	ax,[bx].DEFVARS
+	mov	[pDefVars],ax
 
 	call	allocVars
 	jc	gce
@@ -135,7 +142,7 @@ gc3c:	test	[genFlags],GEN_ECHO
 	GENCALL	printLine
 	pop	cx
 
-gc4:	push	bx			; save heap offset
+gc4:	mov	bx,[pHeap]
 	mov	[cbLine],cx
 	mov	[pLine].OFF,si
 	mov	[pLine].SEG,ds		; save text pointer and length
@@ -180,7 +187,6 @@ gc4:	push	bx			; save heap offset
 
 gc5:	lds	si,[pLine]		; restore text pointer and length
 	mov	cx,[cbLine]
-	pop	bx			; restore heap offset
 	jc	gc6			; error
 
 	cmp	[pInput],0		; more text to parse?
@@ -202,7 +208,7 @@ gc6:	push	ss
 ;
 	push	bp
 	push	ds
-	mov	si,ds:[PSP_HEAP]
+	mov	si,[pHeap]
 	mov	ax,[si].VARS_BLK.BLK_NEXT
 	mov	ds,ax
 	ASSUME	DS:NOTHING
@@ -243,8 +249,7 @@ ENDPROC	genCode
 DEFPROC	genCommands
 	mov	al,CLS_KEYWORD
 	call	getNextToken
-	cmc
-	jnc	gcs9
+	jbe	gcs9			; out of tokens
 	lea	dx,[KEYWORD_TOKENS]	; CS:DX -> TOKTBL
 	mov	ax,DOS_UTL_TOKID	; identify the token
 	int	21h			; at DS:SI (with length CX)
@@ -362,7 +367,8 @@ ENDPROC	genColor
 ;
 ; genDefInt
 ;
-; Process "DEFINT" (TODO)
+; Process "DEFINT".  In BASIC-DOS, "DEFINT" really means "DEFLONG",
+; but we'll continue using the original keyword.
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs
@@ -375,12 +381,110 @@ ENDPROC	genColor
 ;	Any
 ;
 DEFPROC	genDefInt
-	mov	al,CLS_ANY		; consume all remaining tokens for now
+	mov	[defType],CLS_VAR_LONG
+
+	DEFLBL	genDefVar,near
+	call	getCharToken		; check for char
+	jbe	gdi8
+	mov	dl,al			; DL = 1st char of range
+	mov	dh,al			; DH = last char of range
+	mov	[nextToken],0
+
+	mov	al,CLS_SYM		; check for hyphen
 	call	getNextToken
-	ja	genDefInt
+	jc	gdi9			; error
+	jz	gdi3			; no more tokens
+	cmp	al,'-'
+	je	gdi2
+	sub	bx,size TOKLET		; we'll revisit this token below
+	jmp	short gdi3
+
+gdi2:	call	getCharToken		; check for another char
+	jbe	gdi8
+	mov	dh,al			; DH = new last char of range
+;
+; For every letter from DL through DH, set pDefVars[DL] to defType.
+;
+gdi3:	push	bx
+	mov	cl,dh
+	sub	cl,dl
+	mov	ch,0
+	inc	cx			; CX = # of letters to set
+	mov	al,[defType]		; AL = new default for each letter
+	mov	bx,[pDefVars]
+	sub	dl,'A'
+	add	bl,dl
+	adc	bh,ch			; BX -> 1st letter
+gdi3a:	mov	[bx],al
+	inc	bx
+	loop	gdi3a
+	pop	bx
+
+	mov	al,CLS_SYM		; check for comma
+	call	getNextToken
+	jbe	gdi9
+	cmp	al,','
+	je	genDefVar
+
+gdi8:	stc
+gdi9:	ret
+
+	DEFLBL	getCharToken,near
+	push	cx
+	mov	al,CLS_VAR		; token must be CLS_VAR
+	call	getNextToken
+	jbe	gct9
+	dec	cx			; is the length of token 1?
+	stc
+	jnz	gct9			; no
+	inc	cx			; yes (clear both ZF and CF)
 	clc
+gct9:	pop	cx
 	ret
 ENDPROC	genDefInt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genDefDbl
+;
+; Process "DEFDBL".  In BASIC-DOS, floating-point comes in only one flavor,
+; and this is it; "DEFSNG" is still allowed, but it's treated as "DEFDBL".
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genDefDbl
+	mov	[defType],CLS_VAR_DOUBLE
+	jmp	genDefVar
+ENDPROC	genDefDbl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genDefStr
+;
+; Process "DEFSTR".
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genDefStr
+	mov	[defType],CLS_VAR_STR
+	jmp	genDefVar
+ENDPROC	genDefStr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -563,7 +667,7 @@ gn6c:	cmp	dl,'('
 	je	gn6b
 	jmp	gn5a
 ;
-; When special (eg, no-arg) operators are encountered in the expression,
+; When special (eg, zero arg) operators are encountered in the expression,
 ; they are handled here.
 ;
 gn7:	cmp	al,'('
@@ -618,7 +722,7 @@ ENDPROC	genExprNum
 ; The generated code will call appendStr to append the string referenced in
 ; the code block to the string pointer on the stack.
 ;
-; Inputs:;
+; Inputs:
 ;	BX = offset of next TOKLET
 ;	ES:DI -> next unused location in code block
 ;
@@ -832,15 +936,8 @@ DEFPROC	genLet
 	mov	al,CLS_VAR
 	call	getNextToken
 	jbe	gl9
-;
-; If the variable has a specific type, then AL should be >= VAR_INT.
-; Otherwise, we default to VAR_LONG.
-;
-	mov	al,ah
-	cmp	al,VAR_INT
-	jae	gl1
-	mov	al,VAR_LONG
 
+	mov	al,ah			; AL = CLS
 gl1:	call	addVar			; DX -> var data
 	jc	gl9
 
@@ -855,7 +952,7 @@ gl1:	call	addVar			; DX -> var data
 	stc
 	jne	gl9
 
-	cmp	dl,VAR_STR		; check the new variable's type
+	cmp	dl,CLS_VAR_STR		; check the new variable's CLS
 	jne	gl2			; presumably numeric
 
 	call	genExprStr
@@ -1188,14 +1285,15 @@ ENDPROC	genPushVarLong
 ;
 ; Outputs if next token matches:
 ;	AH = CLS of token
-;	AL = symbol if CLS_SYM
+;	AL = 1st character of token (upper-cased)
 ;	CX = length of token
 ;	SI = offset of token
 ;	BX = offset of next TOKLET
 ;	ZF and CF clear
 ;
 ; Outputs if NO matching next token:
-;	ZF set if no matching token (AH is CLS), CF set if no more tokens
+;	ZF set if no more tokens (AX is zero)
+;	CF set if no matching token (AH is CLS)
 ;	BX, CX, and SI unchanged
 ;
 ; Modifies:
@@ -1205,29 +1303,56 @@ DEFPROC	getNextToken
 	cmp	bx,[pTokEnd]
 	jb	gt0
 	sub	ax,ax
-	stc
-	jmp	short gt9		; no more tokens
+	jmp	short gt9		; no more tokens (ZF set, CF clear)
 gt0:	mov	ah,[bx].TOKLET_CLS
 	test	al,ah
 	jnz	gt1
-	test	ah,CLS_WHITE		; whitespace token?
-	jz	gt9			; no (return ZF set)
-	add	bx,size TOKLET		; yes, ignore it
+	cmp	ah,CLS_WHITE		; whitespace token?
+	stc
+	jne	gt9			; no (CF set)
+	add	bx,size TOKLET		; yes, so ignore it
 	jmp	getNextToken
 
 gt1:	mov	si,[bx].TOKLET_OFF
 	mov	cl,[bx].TOKLET_LEN
 	mov	ch,0
 	add	bx,size TOKLET
+	mov	al,[si]			; AL = 1st character of token
+	cmp	al,'a'
+	jb	gt2
+	cmp	al,'z'
+	jz	gt2
+	sub	al,20h
 ;
-; If we're about to return a CLS_SYM that happens to be a colon,
-; then return ZF set (but not carry) to end the caller's token scan.
+; For variables, if the CLS is CLS_VAR_LONG or CLS_VAR_STR, then the type
+; was explicit (eg, ending with '%' or '$') and so we're done.  If the CLS is
+; simply CLS_VAR however, we must now determine the implicit type and update
+; the CLS appropriately.
 ;
-	cmp	ah,CLS_SYM
+gt2:	cmp	ah,CLS_VAR
+	jne	gt7
+	push	bx			; save BX
+	push	ax			; save AX
+	mov	bx,[pDefVars]
+	sub	al,'A'			; convert 1st letter to DEFVARS index
+	xlat				; look up the default VAR type
+	test	al,al			; has a default been set?
+	jnz	gt2a			; yes
+	mov	al,CLS_VAR_LONG		; no, default to CLS_VAR_LONG
+gt2a:	mov	ah,al
+	pop	bx			; we're really popping AX
+	mov	al,bl			; and restoring just AL
+	pop	bx			; restore BX
+	jmp	short gt8
+;
+; If we're about to return a CLS_SYM that happens to be a colon, then return
+; ZF set (but not carry) to end the caller's token scan.
+;
+gt7:	cmp	ah,CLS_SYM
 	jne	gt8
-	mov	al,[si]
 	cmp	al,':'
 	je	gt9
+
 gt8:	or	ah,0			; return both ZF and CF clear
 gt9:	ret
 ENDPROC	getNextToken
@@ -1265,7 +1390,7 @@ ENDPROC	peekNextToken
 DEFPROC	synCheck
 	mov	si,dx			; CS:SI -> syntax table
 ;
-; Loop until we find an SC_PKTOK that matches the next token.
+; Loop until we find an SC_PEKTK that matches the next token.
 ;
 sc1:	lods	word ptr cs:[si]	; AL = next SC_* value
 	test	al,al
@@ -1274,15 +1399,15 @@ sc1:	lods	word ptr cs:[si]	; AL = next SC_* value
 	jne	sc2			; no
 	GENPUSHB ah
 	jmp	sc1
-sc2:	cmp	al,SC_PKTOK		; invoke peekNextToken? (73h)
+sc2:	cmp	al,SC_PEKTK		; invoke peekNextToken? (73h)
 	jne	sc1			; no
 	mov	al,ah			; AL = mask for peekNextToken
 	push	si
-	mov	[pSynToken],si		; remember where the SC_PKTOK was
+	mov	[pSynToken],si		; remember where the SC_PEKTK was
 	call	peekNextToken
 	pop	si
-	jc	sc8			; nope, wrap it up
-	jz	sc1			; look for next SC_PKTOK
+	jz	sc8			; nope, wrap it up
+	jc	sc1			; look for next SC_PEKTK
 ;
 ; We found a token of the specified CLS, so look for a more specific match.
 ;
@@ -1306,11 +1431,11 @@ sc3b:	cmp	dh,ah			; match?
 	cmp	ah,CLS_ANY		; any CLS OK? (3Fh)
 	jne	sc3a			; no
 ;
-; Perform operations < SC_PKTOK.  If an operation reports an error (CF set),
+; Perform operations < SC_PEKTK.  If an operation reports an error (CF set),
 ; the call is terminated; if it reports no valid data (ZF set), we wrap it up.
 ;
 sc4:	lods	word ptr cs:[si]
-	sub	dx,dx			; allow SC_NXTOK
+	sub	dx,dx			; allow SC_NEXTK
 	cmp	al,SC_CALFN		; call an SCF function? (72h)
 	ja	sc8b			; done with match, wrap up
 	jne	sc4b			; no
@@ -1333,13 +1458,13 @@ sc4b:	cmp	al,SC_GENPB		; invoke GENPUSHB? (71h)
 	jmp	sc4
 ;
 ; To wrap up, scan the syntax table for a final SC_GENFN and then exit,
-; unless there's an SC_NXTOK entry, in which case we go back for more tokens.
+; unless there's an SC_NEXTK entry, in which case we go back for more tokens.
 ;
 sc8:	mov	dx,-1
 sc8a:	lods	word ptr cs:[si]	; AL = next SC_* value
 sc8b:	test	al,al			; end of table?
 sc8c:	jl	sc9			; OK, just leave
-	cmp	al,SC_NXTOK		; (76h)
+	cmp	al,SC_NEXTK		; (76h)
 	jne	sc8d
 	inc	dx			; should we look for more tokens?
 	jz	sc8			; no

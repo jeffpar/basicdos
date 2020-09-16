@@ -178,6 +178,7 @@ DEFPROC	tty_input,DOS
 	mov	es,[bp].REG_DS
 	ASSUME	ES:NOTHING
 	mov	di,dx			; ES:DI -> buffer
+	ASSERT	BE,<cmp byte ptr es:[di],128>
 
 	sub	cx,cx			; set insert mode OFF
 	mov	[bp].TMP_CX,cx		; TMP_CX tracks insert mode

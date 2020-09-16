@@ -77,12 +77,13 @@ DATA	ENDS
 
 SC_GENPB	equ	71h		; do GENPUSHB
 SC_CALFN	equ	72h		; call function
-SC_PKTOK	equ	73h		; peek token
-SC_GTTOK	equ	74h		; get token
-SC_MATCH	equ	75h		; if token matches...
-SC_MASYM	equ	76h		; if CLS_SYM token matches...
-SC_NXTOK	equ	77h		; get next token
-SC_GENFN	equ	78h		; do GENCALL
+SC_PEKTK	equ	73h		; peek token
+SC_GETTK	equ	74h		; get token
+SC_LENTK	equ	75h		; check token length
+SC_MATCH	equ	76h		; if token matches CLS...
+SC_MASYM	equ	77h		; if CLS_SYM token matches char...
+SC_NEXTK	equ	78h		; get next token
+SC_GENFN	equ	79h		; do GENCALL
 
 SCF_GENXNUM	equ	0		; -> genExprNum
 SCF_GENXSTR	equ	1		; -> genExprStr
@@ -125,16 +126,18 @@ SIG_CBLK	equ	'C'
 ;
 ; Variable Block (VBLK) definitions
 ;
-MAX_VARNAME	equ	01Fh		; max chars allowed in var name
-VAR_TYPE	equ	0E0h
-VAR_NONE	equ	000h
-VAR_INT		equ	020h		; 2 bytes of var data
-VAR_LONG	equ	040h		; 4 bytes of var data
-VAR_SINGLE	equ	060h		; 4 bytes of var data
-VAR_STR		equ	080h		; 4 bytes of ptr data (ptr)
-VAR_ARRAY	equ	0A0h		; 4 bytes of var data (ptr)
-VAR_FUNC	equ	0C0h		; 4 bytes of var data (ptr)
-VAR_DOUBLE	equ	0E0h		; 8 bytes of var data
+; VAR_TYPE (E0h) encompasses the following variable types in dosapi.inc
+;
+; VAR_NONE	equ	000h
+; VAR_INT	equ	020h	; 2 bytes of var data (TBD)
+; VAR_LONG	equ	040h	; 4 bytes of var data
+; VAR_SINGLE	equ	060h	; 4 bytes of var data
+; VAR_STR	equ	080h	; 4 bytes of ptr data (ptr)
+; VAR_ARRAY	equ	0A0h	; 4 bytes of var data (ptr)
+; VAR_FUNC	equ	0C0h	; 4 bytes of var data (ptr)
+; VAR_DOUBLE	equ	0E0h	; 8 bytes of var data
+;
+VAR_NAMELEN	equ	01Fh		; max chars allowed in var name
 
 ;
 ; Pseudo-variable types (used by printArgs)
@@ -294,7 +297,8 @@ ORIG_SP		dw	?
 ORIG_BP		dw	?
 CON_COLS	db	?
 CON_ROWS	db	?
-PREV_TIME	dd	?		; where cmdTime saves last known time
+PREV_TIME	dd	?		; last time displayed by cmdTime
+DEFVARS		db	26 dup (?)	; default var types for all 26 letters
 INPUTOFF	dw	?		; input offset (defaults to INPUTBUF)
 INPUTBUF	db	size BUF_INPUT dup (?)
 TOKENBUF	db	size BUF_TOKEN dup (?)
