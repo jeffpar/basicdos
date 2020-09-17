@@ -13,16 +13,14 @@
 CODE    SEGMENT
 	EXTERNS	<cmdDate,cmdDir,cmdExit,cmdHelp,cmdList,cmdLoad>,near
 	EXTERNS	<cmdMem,cmdNew,cmdRun,cmdTime,cmdType,cmdVer>,near
-	EXTERNS	<genCLS,genColor,genDefInt,genEcho,genGoto,genIf,genLet>,near
+	EXTERNS	<genCLS,genColor,genDefInt,genDefDbl,genDefStr>,near
+	EXTERNS	<genEcho,genGoto,genIf,genLet,genPrint>,near
 	EXTERNS	<evalNegLong,evalNotLong>,near
 	EXTERNS	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>,near
 	EXTERNS	<evalModLong,evalExpLong,evalImpLong>,near
 	EXTERNS	<evalEqvLong,evalXorLong,evalOrLong,evalAndLong>,near
 	EXTERNS	<evalEQLong,evalNELong,evalLTLong,evalGTLong>,near
 	EXTERNS	<evalLELong,evalGELong,evalShlLong,evalShrLong>,near
-
-	EXTERNS	<genExprNum,genExprStr>,near
-	EXTERNS	<printArgs>,near
 
 	DEFSTR	COM_EXT,<".COM",0>	; these 4 file extensions must be
 	DEFSTR	EXE_EXT,<".EXE",0>	; listed in the desired search order
@@ -101,6 +99,7 @@ CODE    SEGMENT
 	db	"==",'=',"<<",'S',">>",'R'
 	db	0
 
+	IFDEF	LATER
 	DEFLBL	SYNTAX_TABLES,word
 ;
 ; Syntax tables are a series of bytes processed by synCheck that define
@@ -108,7 +107,7 @@ CODE    SEGMENT
 ;
 	DEFLBL	synPrint,byte
 	db	SC_GENPB,VAR_NONE	; start with VAR_NONE on the stack
-	db	SC_PKTOK,CLS_ANY	; peek for any token
+	db	SC_PEKTK,CLS_ANY	; peek for any token
 
 	db	SC_MASYM,';'		; semi-colon pushes
 	db	SC_GENPB,VAR_SEMI	; VAR_SEMI onto the stack
@@ -120,7 +119,7 @@ CODE    SEGMENT
 	db	SC_CALFN,SCF_GENXSTR	; generates call to genExprStr
 	db	SC_GENPB,VAR_STR
 
-	db	SC_MATCH,VAR_STR	; string variable
+	db	SC_MATCH,CLS_VAR_STR	; string variable
 	db	SC_CALFN,SCF_GENXSTR	; also generates call to genExprStr
 	db	SC_GENPB,VAR_STR
 
@@ -128,13 +127,16 @@ CODE    SEGMENT
 	db	SC_CALFN,SCF_GENXNUM	; generates call to genExprNum
 	db	SC_GENPB,VAR_LONG	; (failure triggers jump to next block)
 
-	db	SC_NXTOK,0		; check for more tokens if no failure
+	db	SC_NEXTK,0		; check for more tokens if no failure
 	db	SC_GENFN,SCF_PRTARGS,-1	; otherwise generate call to printArgs
+
+	EXTERNS	<genExprNum,genExprStr,printArgs>,near
 
 	DEFLBL	SCF_TABLE,word		; synCheck function table:
 	dw	genExprNum		; SCF_GENXNUM
 	dw	genExprStr		; SCF_GENXSTR
 	dw	printArgs		; SCF_PRTARGS
+	ENDIF	; LATER
 
 CODE	ENDS
 
@@ -143,20 +145,23 @@ CODE	ENDS
 	DEFTOK	COLOR,  61, genColor
 	DEFTOK	DATE,   40, cmdDate
 	DEFTOK	DEFINT, 62, genDefInt
+	DEFTOK	DEFDBL, 63, genDefDbl
+	DEFTOK	DEFSNG, 64, genDefDbl
+	DEFTOK	DEFSTR, 65, genDefStr
 	DEFTOK	DIR,    20, cmdDir
-	DEFTOK	ECHO,   63, genEcho
+	DEFTOK	ECHO,   66, genEcho
 	DEFTOK	ELSE,  201
 	DEFTOK	EXIT,    1, cmdExit
-	DEFTOK	GOTO,   64, genGoto
+	DEFTOK	GOTO,   67, genGoto
 	DEFTOK	HELP,   41, cmdHelp
-	DEFTOK	IF,     65  genIf
-	DEFTOK	LET,    66, genLet
+	DEFTOK	IF,     68  genIf
+	DEFTOK	LET,    69, genLet
 	DEFTOK	LIST,    2, cmdList
 	DEFTOK	LOAD,   21, cmdLoad
 	DEFTOK	MEM,    42, cmdMem
 	DEFTOK	NEW,     3, cmdNew
-	DEFTOK	PRINT,  67, synPrint
-	DEFTOK	REM,    68
+	DEFTOK	PRINT,  70, genPrint
+	DEFTOK	REM,    71
 	DEFTOK	RUN,     4, cmdRun
 	DEFTOK	THEN,  202
 	DEFTOK	TIME,   43, cmdTime

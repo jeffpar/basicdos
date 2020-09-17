@@ -333,14 +333,14 @@ ENDPROC	freeStrSpace
 ;
 ; Variables start with a byte length (the length of the name), followed by
 ; the name of the variable, followed by the variable data.  The name length
-; is limited to MAX_VARNAME.
+; is limited to VAR_NAMELEN.
 ;
 ; Note that, except for numbers (integers and floating point values), the
 ; variable data is generally a far pointer to the actual data; for example, a
 ; string variable is just a far pointer to a location inside a string pool.
 ;
 ; Inputs:
-;	AL = VAR_*
+;	AL = CLS_VAR_*
 ;	CX = length of name
 ;	DS:SI -> variable name
 ;
@@ -351,8 +351,10 @@ ENDPROC	freeStrSpace
 ;	AX, CX, DX
 ;
 DEFPROC	addVar
+	and	al,VAR_TYPE		; convert CLS_VAR_* to VAR_TYPE
 	call	findVar
 	jnc	av10
+
 	push	di
 	push	es
 	mov	di,ds:[PSP_HEAP]
@@ -361,9 +363,9 @@ DEFPROC	addVar
 	mov	di,es:[VBLK_FREE]
 	push	ax
 
-	cmp	cx,MAX_VARNAME
+	cmp	cx,VAR_NAMELEN
 	jbe	av0
-	mov	cx,MAX_VARNAME
+	mov	cx,VAR_NAMELEN
 av0:	push	di
 	add	di,cx
 	mov	dl,2			; minimum associated data size
@@ -444,7 +446,8 @@ fv1:	mov	al,es:[di]
 	jmp	short retVar		; yes
 
 fv2:	mov	ah,al
-	and	al,MAX_VARNAME
+	and	ah,VAR_TYPE
+	and	al,VAR_NAMELEN
 	cmp	al,cl			; do the name lengths match?
 	jne	fv6			; no
 
@@ -521,20 +524,19 @@ ENDPROC	setVarLong
 ;
 ; appendStr
 ;
-; This is the first function that must consider how the string pool will work.
+; This is the first function to consider how the string pool will work.
 ;
 ; The pool will consist of zero or more blocks, each block will contain zero
 ; or more strings, and each string will consist of:
 ;
 ;	length byte (1-255)
-;	characters (up to 255 of them)
+;	characters (up to 255)
 ;
-; We can reserve length zero by saying that all empty strings will have a
-; null pointer.  This means that length of zero can be used to indicate unused
-; pool space.
+; Length zero is not used; empty strings have a null pointer.  Thus, a length
+; of zero can be used to indicate unused pool space.
 ;
-; This simplistic model makes it easy to append to a string if it's followed
-; by enough unused bytes.
+; This simplistic model makes it easy to append to a string if it's followed by
+; enough unused bytes.
 ;
 ; Input stack:
 ;	pointer to target string data
@@ -696,7 +698,7 @@ DEFPROC	setStr,FAR
 	ARGVAR	pSource,dword
 	ENTER
 	les	di,[pTargetVar]
-	int 3
+	DBGBRK
 ;
 ; The general case involves storing the source address in the target variable
 ; after first zeroing all the bytes referenced by the target variable.

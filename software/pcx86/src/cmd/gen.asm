@@ -16,9 +16,13 @@ CODE    SEGMENT
 	EXTERNS	<appendStr,setStr,memError>,near
 	EXTERNS	<clearScreen,doCmd,printArgs,printLine,setColor>,near
 
-	EXTERNS	<KEYWORD_TOKENS,KEYOP_TOKENS,SYNTAX_TABLES,SCF_TABLE>,word
+	EXTERNS	<KEYWORD_TOKENS,KEYOP_TOKENS>,word
 	EXTERNS	<OPDEFS,RELOPS>,byte
 	EXTERNS	<TOK_ELSE,TOK_THEN>,abs
+
+	IFDEF	LATER
+	EXTERNS	<SYNTAX_TABLES,SCF_TABLE>,word
+	ENDIF	; LATER
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -38,6 +42,10 @@ CODE    SEGMENT
 ;	Any
 ;
 DEFPROC	genCode
+	LOCVAR	pHeap,word
+	LOCVAR	pDefVars,word		; used by genDef*
+	LOCVAR	defToks,byte		; used by genExpr
+	LOCVAR	defType,byte		; used by genDef* and genExpr
 	LOCVAR	genFlags,byte
 	LOCVAR	nArgs,word
 	LOCVAR	nExpArgs,word
@@ -55,6 +63,7 @@ DEFPROC	genCode
 	LOCVAR	lineNumber,word
 	ENTER
 
+	mov	[pHeap],bx
 	test	al,GEN_BATCH
 	jz	gc0
 	or	al,GEN_ECHO
@@ -64,6 +73,8 @@ gc0:	mov	[genFlags],al
 	mov	[errCode],ax
 	mov	[pInput],si
 	mov	[lineNumber],ax
+	lea	ax,[bx].DEFVARS
+	mov	[pDefVars],ax
 
 	call	allocVars
 	jc	gce
@@ -135,7 +146,7 @@ gc3c:	test	[genFlags],GEN_ECHO
 	GENCALL	printLine
 	pop	cx
 
-gc4:	push	bx			; save heap offset
+gc4:	mov	bx,[pHeap]
 	mov	[cbLine],cx
 	mov	[pLine].OFF,si
 	mov	[pLine].SEG,ds		; save text pointer and length
@@ -180,7 +191,6 @@ gc4:	push	bx			; save heap offset
 
 gc5:	lds	si,[pLine]		; restore text pointer and length
 	mov	cx,[cbLine]
-	pop	bx			; restore heap offset
 	jc	gc6			; error
 
 	cmp	[pInput],0		; more text to parse?
@@ -202,7 +212,7 @@ gc6:	push	ss
 ;
 	push	bp
 	push	ds
-	mov	si,ds:[PSP_HEAP]
+	mov	si,[pHeap]
 	mov	ax,[si].VARS_BLK.BLK_NEXT
 	mov	ds,ax
 	ASSUME	DS:NOTHING
@@ -243,8 +253,7 @@ ENDPROC	genCode
 DEFPROC	genCommands
 	mov	al,CLS_KEYWORD
 	call	getNextToken
-	cmc
-	jnc	gcs9
+	jbe	gcs9			; out of tokens
 	lea	dx,[KEYWORD_TOKENS]	; CS:DX -> TOKTBL
 	mov	ax,DOS_UTL_TOKID	; identify the token
 	int	21h			; at DS:SI (with length CX)
@@ -256,10 +265,15 @@ DEFPROC	genCommands
 	jb	gcs2			; no
 gcs1:	test	dx,dx			; command address?
 	jz	gcs9			; no
+
+	IFDEF	LATER
 	cmp	dx,offset SYNTAX_TABLES	; syntax table address?
 	jb	gcs6			; no, dedicated generator function
 	call	synCheck		; yes, process syntax table
 	jmp	short gcs8
+	ELSE
+	jmp	short gcs6		; call generator function
+	ENDIF	; LATER
 ;
 ; For keywords that are BASIC-DOS extensions, we need to generate a call
 ; to doCmd with a pointer to the full command-line and the keyword handler.
@@ -347,7 +361,7 @@ ENDPROC	genCmd
 ;	Any
 ;
 DEFPROC	genColor
-	call	genExprNum
+	call	genExpr
 	jb	gco9
 	je	gco8
 	cmp	al,','			; was the last symbol a comma?
@@ -362,7 +376,13 @@ ENDPROC	genColor
 ;
 ; genDefInt
 ;
-; Process "DEFINT" (TODO)
+; Process "DEFINT".  In BASIC-DOS, "DEFINT" really means "DEFLONG", but we'll
+; continue using the original keyword.
+;
+; NOTE: Originally, I was concerned about parsing and updating letter ranges
+; as we go, because if a syntax error occurs midway, we'll end up with partial
+; changes.  Then I tried the same thing in MSBASIC, and I ended up with partial
+; changes.  So there you go.
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs
@@ -375,12 +395,105 @@ ENDPROC	genColor
 ;	Any
 ;
 DEFPROC	genDefInt
-	mov	al,CLS_ANY		; consume all remaining tokens for now
+	mov	[defType],VAR_LONG
+
+	DEFLBL	genDefVar,near
+	call	getCharToken		; check for char
+	jbe	gdi8
+	mov	dl,al			; DL = 1st char of range
+	mov	dh,al			; DH = last char of range
+
+	mov	al,CLS_SYM		; check for hyphen
 	call	getNextToken
-	ja	genDefInt
-	clc
+	jc	gdi9			; error
+	jz	gdi3			; no more tokens
+	cmp	al,'-'
+	je	gdi2
+	sub	bx,size TOKLET		; we'll revisit this token below
+	jmp	short gdi3
+
+gdi2:	call	getCharToken		; check for another char
+	jbe	gdi8
+	mov	dh,al			; DH = new last char of range
+;
+; For every letter from DL through DH, set pDefVars[DL] to defType.
+;
+gdi3:	push	bx
+	mov	cl,dh
+	sub	cl,dl
+	mov	ch,0
+	inc	cx			; CX = # of letters to set
+	mov	al,[defType]		; AL = new default for each letter
+	mov	bx,[pDefVars]
+	sub	dl,'A'
+	add	bl,dl
+	adc	bh,ch			; BX -> 1st letter
+gdi3a:	mov	[bx],al
+	inc	bx
+	loop	gdi3a
+	pop	bx
+
+	mov	al,CLS_SYM		; check for comma
+	call	getNextToken
+	jbe	gdi9
+	cmp	al,','
+	je	genDefVar
+
+gdi8:	stc
+gdi9:	ret
+
+	DEFLBL	getCharToken,near
+	mov	al,CLS_VAR		; token must be CLS_VAR
+	call	getNextToken
+	jbe	gdi8
+	dec	cx
+	jnz	gdi8			; and it must have a length of 1
+	inc	cx
 	ret
 ENDPROC	genDefInt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genDefDbl
+;
+; Process "DEFDBL".  In BASIC-DOS, floating-point comes in only one flavor,
+; and this is it; "DEFSNG" is still allowed, but it's treated as "DEFDBL".
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genDefDbl
+	mov	[defType],VAR_DOUBLE
+	jmp	genDefVar
+ENDPROC	genDefDbl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genDefStr
+;
+; Process "DEFSTR".
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genDefStr
+	mov	[defType],VAR_STR
+	jmp	genDefVar
+ENDPROC	genDefStr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -408,11 +521,11 @@ ENDPROC	genEcho
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genExprNum
+; genExpr
 ;
-; Generate code for a numeric expression.  To help catch errors up front,
-; maintain a count of values queued, compare that to the number of arguments
-; expected by all the operators, and also maintain an open parentheses count.
+; Generate code for an expression.  To help catch errors up front, maintain
+; a count of values queued, compare that to the number of arguments expected
+; by all the operators, and also maintain an open parentheses count.
 ;
 ; Inputs:
 ;	BX = offset of next TOKLET
@@ -427,30 +540,56 @@ ENDPROC	genEcho
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI
 ;
-DEFPROC	genExprNum
+DEFPROC	genExpr
 	sub	dx,dx
+	mov	word ptr [defType],dx	; defType = VAR_NONE, defToks = 0
 	mov	[nExpArgs],1		; count of expected arguments
 	mov	[nExpVals],dx		; count of values queued
 	mov	[nExpParens],dx		; count of open parentheses
 	mov	[nExpPrevOp],dx		; previous operator (none)
 	push	dx			; push end-of-operators marker (zero)
 
-gn1:	mov	al,CLS_NUM OR CLS_SYM OR CLS_VAR
+gn1:	mov	al,CLS_ANY		; CLS_NUM, CLS_SYM, CLS_VAR, CLS_STR
 	call	getNextToken
-	jbe	gn3x
+	jbe	gn2x
+	inc	[defToks]
 	cmp	ah,CLS_SYM
-	je	gn4
+	jne	gn1a
+	jmp	gn4			; process operator symbol
 ;
-; Non-operator cases: distinguish between variables and numbers.
+; Non-operator cases: distinguish between strings, variables and numbers.
 ;
-gn2:	mov	byte ptr [nExpPrevOp],-1; invalidate prevOp (intervening token)
-	test	ah,CLS_VAR		; variable?
-	jz	gn3			; no
+gn1a:	mov	byte ptr [nExpPrevOp],-1; invalidate prevOp (intervening token)
+	cmp	ah,CLS_VAR		; variable?
+	jb	gn1b			; no, string or number
+	test	ah,CLS_VAR		; variable with explicit type?
+	jnz	gn2a			; yes
+	jmp	short gn2		; no, must disambiguate from keywords
 ;
-; Some tokens initially classified as VAR are really keyword operators
+; Must be CLS_STR or CLS_NUM.  Handle CLS_STR here and CLS_NUM below.
+;
+gn1b:	test	ah,CLS_STR		; string?
+	jz	gn3			; no, must be number
+	mov	al,VAR_STR		; AL = VAR_STR
+	call	setExprType		; update expression type
+	jnz	gn2x
+	sub	cx,2			; CX = string length
+	ASSERT	NC
+	jcxz	gn1c			; empty string
+	inc	si			; DS:SI -> string contents
+	call	genPushStr
+	jmp	short gn2b
+
+gn1c:	DBGBRK
+	sub	cx,cx			; for empty strings, push null ptr
+	sub	dx,dx
+	call	genPushImmLong
+	jmp	short gn2b
+;
+; Some tokens initially classified as CLS_VAR are really keyword operators
 ; (eg, 'NOT', 'AND', 'XOR'), so check for those first.
 ;
-	mov	dx,offset KEYOP_TOKENS	; see if token is a KEYOP
+gn2:	mov	dx,offset KEYOP_TOKENS	; see if token is a KEYOP
 	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
 	int	21h
 	jnc	gn5			; jump to operator validation
@@ -460,15 +599,19 @@ gn2:	mov	byte ptr [nExpPrevOp],-1; invalidate prevOp (intervening token)
 	int	21h
 	jc	gn2a
 	mov	ah,CLS_KEYWORD
-	jmp	short gn3x		; jump to expression termination
+gn2x:	jmp	short gn3x		; jump to expression termination
 
 gn2a:	call	findVar			; no, check vars next
 ;
 ; We don't care if findVar succeeds or not, because even if it fails,
 ; it returns var type (AH) VAR_LONG with var data (DX) preset to zero.
 ;
-; TODO: Check AH for the var type and act accordingly.
+; We do, however, care about the var type (AH), which must be consistent
+; with the expression type (currently, VAR_LONG or VAR_STR).
 ;
+	mov	al,ah			; AL = var type
+	call	setExprType		; update expression type
+	jnz	gn3x			; error
 	call	genPushVarLong
 
 gn2b:	inc	[nExpVals]		; count another queued value
@@ -481,7 +624,10 @@ gn2b:	inc	[nExpVals]		; count another queued value
 ; Why? Because it's better for ATOI32 to know up front that we're dealing with
 ; a negative number, because then it can do precise overflow checks.
 ;
-gn3:	push	bx
+gn3:	mov	al,VAR_LONG		; AL = VAR_LONG
+	call	setExprType		; update expression type
+	jnz	gn3x			; error
+	push	bx
 	mov	bl,10			; BL = 10 (default base)
 	test	ah,CLS_OCT OR CLS_HEX	; octal or hex value?
 	jz	gn3a			; no
@@ -563,7 +709,7 @@ gn6c:	cmp	dl,'('
 	je	gn6b
 	jmp	gn5a
 ;
-; When special (eg, no-arg) operators are encountered in the expression,
+; When special (eg, zero arg) operators are encountered in the expression,
 ; they are handled here.
 ;
 gn7:	cmp	al,'('
@@ -603,80 +749,18 @@ gn9:	mov	cx,[nExpVals]
 	jne	gn10
 	inc	[nArgs]
 	test	cx,cx			; return ZF set if no values
-gn10:	ret
-ENDPROC	genExprNum
+gn10:	mov	dx,word ptr [defType]	; DL = expression type, DH = tokens
+	ret
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genExprStr
-;
-; Generate code for a string expression.  It begins by creating an empty
-; string (ie, null pointer) on the stack and beginning string operations
-; (ie, concatenations, if any).
-;
-; The common case is a string constant, which is stored in the code block.
-; The generated code will call appendStr to append the string referenced in
-; the code block to the string pointer on the stack.
-;
-; Inputs:;
-;	BX = offset of next TOKLET
-;	ES:DI -> next unused location in code block
-;
-; Outputs:
-;	CF clear if successful, set if error
-;	ZF clear if expression existed, set if not
-;	ES:DI -> next unused location in code block
-;
-; Modifies:
-;	AX, BX, CX, DX, SI, DI
-;
-DEFPROC	genExprStr
-	int 3
-	call	genPushZeroLong
+	DEFLBL	setExprType,near
+	cmp	[defType],al
+	je	set9
+	cmp	[defType],0
+	jne	set9
+	mov	[defType],al
+set9:	ret				; return ZF set if type is OK
 
-gs1:	mov	al,CLS_VAR OR CLS_STR
-	call	getNextToken
-	jbe	gs5
-
-	cmp	ah,CLS_STR
-	jne	gs2
-;
-; Handle string constant here.
-;
-	sub	cx,2			; CX = string length
-	ASSERT	NC
-	jcxz	gs4			; empty string, skip it
-	inc	si			; DS:SI -> string contents
-	PUSHSTR
-	jmp	short gs3
-;
-; Handle string variable here.
-;
-gs2:	cmp	ah,VAR_STR
-	ASSERT	Z
-	stc
-	jne	gs8
-	call	findVar			; find the variable
-	jc	gs8
-	cmp	ah,VAR_STR		; correct type?
-	stc
-	jne	gs8			; no
-	call	genPushVarLong
-gs3:	GENCALL	appendStr
-;
-; Check for concatenation (the only supported string operator).
-;
-gs4:	mov	al,CLS_SYM
-	call	getNextToken
-	jbe	gs5
-	cmp	al,'+'
-	je	gs1
-	stc
-
-gs5:
-
-gs8:	ret
-ENDPROC	genExprStr
+ENDPROC	genExpr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -776,7 +860,7 @@ ENDPROC	genGoto
 ;	Any
 ;
 DEFPROC	genIf
-	call	genExprNum
+	call	genExpr
 	jbe	gife
 	cmp	ah,CLS_KEYWORD
 	jne	gife
@@ -832,20 +916,13 @@ DEFPROC	genLet
 	mov	al,CLS_VAR
 	call	getNextToken
 	jbe	gl9
-;
-; If the variable has a specific type, then AL should be >= VAR_INT.
-; Otherwise, we default to VAR_LONG.
-;
-	mov	al,ah
-	cmp	al,VAR_INT
-	jae	gl1
-	mov	al,VAR_LONG
 
+	mov	al,ah			; AL = CLS
 gl1:	call	addVar			; DX -> var data
 	jc	gl9
 
 	push	ax
-	PUSH_DS_DX
+	call	genPushDSDX
 	mov	al,CLS_SYM
 	call	getNextToken
 	pop	dx
@@ -855,20 +932,58 @@ gl1:	call	addVar			; DX -> var data
 	stc
 	jne	gl9
 
-	cmp	dl,VAR_STR		; check the new variable's type
-	jne	gl2			; presumably numeric
-
-	call	genExprStr
+	call	genExpr
 	jc	gl9
-	GENCALL	setStr
-	jmp	short gl9
-
-gl2:	call	genExprNum
-	jc	gl9
-	GENCALL	setVarLong
+	GENCALL	setVarLong		; TODO: check expression type in DL
 
 gl9:	ret
 ENDPROC	genLet
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genPrint
+;
+; Generate code to print.
+;
+; Inputs:
+;	BX = offset of next TOKLET
+;	ES:DI -> next unused location in code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genPrint
+	GENPUSHB VAR_NONE		; push end-of-args marker (VAR_NONE)
+
+gp1:	call	genExpr
+	jnc	gp2
+	test	dh,dh			; if there were no tokens
+	stc				; then ignore the error
+	jnz	gp9			; (PRINT without args is allowed)
+
+gp2:	jz	gp8
+	push	ax
+	GENPUSHB VAR_LONG
+	pop	ax
+
+	mov	ah,VAR_SEMI
+	cmp	al,';'			; was the last symbol a semi-colon?
+	je	gp6			; yes
+	mov	ah,VAR_COMMA
+	cmp	al,','			; how about a comma?
+	jne	gp8			; no
+
+gp6:	GENPUSHB ah			; "MOV AL,[VAR_SEMI or VAR_COMMA]"
+	jmp	gp1			; contine processing arguments
+
+gp8:	GENCALL	printArgs
+	clc
+
+gp9:	ret
+ENDPROC	genPrint
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1007,10 +1122,10 @@ ENDPROC	genCallFar
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genPushImm
+; genPushDSDX
 ;
 ; Inputs:
-;	DX = value to push
+;	DS:DX = value to push
 ;
 ; Outputs:
 ;	None
@@ -1018,7 +1133,10 @@ ENDPROC	genCallFar
 ; Modifies:
 ;	AX, DX, DI
 ;
-DEFPROC	genPushImm
+DEFPROC	genPushDSDX
+	mov	al,OP_PUSH_DS
+	stosb
+	DEFLBL	genPushImm,near
 	mov	al,OP_MOV_AX
 	stosb
 	xchg	ax,dx
@@ -1026,7 +1144,7 @@ DEFPROC	genPushImm
 	mov	al,OP_PUSH_AX
 	stosb
 	ret
-ENDPROC	genPushImm
+ENDPROC	genPushDSDX
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1122,6 +1240,34 @@ ENDPROC	genPushImmLong
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; genPushStr
+;
+; Copies the string at DS:SI with length CX into the code segment,
+; pushing the far address of that string and then "leaping" over the string.
+;
+; Inputs:
+;	DS:SI -> string (with length CX)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, CX DI
+;
+DEFPROC	genPushStr
+	mov	ax,OP_PUSH_CS OR (OP_CALL SHL 8)
+	stosw
+	mov	ax,cx
+	inc	ax			;; +1 for length byte
+	stosw
+	mov	al,cl
+	stosb				;; store the length byte
+	rep	movsb			;; followed by all the characters
+	ret
+ENDPROC	genPushStr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; genPushZeroLong
 ;
 ; Inputs:
@@ -1188,14 +1334,15 @@ ENDPROC	genPushVarLong
 ;
 ; Outputs if next token matches:
 ;	AH = CLS of token
-;	AL = symbol if CLS_SYM
+;	AL = 1st character of token (upper-cased)
 ;	CX = length of token
 ;	SI = offset of token
 ;	BX = offset of next TOKLET
 ;	ZF and CF clear
 ;
 ; Outputs if NO matching next token:
-;	ZF set if no matching token (AH is CLS), CF set if no more tokens
+;	ZF set if no more tokens (AX is zero)
+;	CF set if no matching token (AH is CLS)
 ;	BX, CX, and SI unchanged
 ;
 ; Modifies:
@@ -1205,29 +1352,54 @@ DEFPROC	getNextToken
 	cmp	bx,[pTokEnd]
 	jb	gt0
 	sub	ax,ax
-	stc
-	jmp	short gt9		; no more tokens
+	jmp	short gt9		; no more tokens (ZF set, CF clear)
 gt0:	mov	ah,[bx].TOKLET_CLS
 	test	al,ah
 	jnz	gt1
-	test	ah,CLS_WHITE		; whitespace token?
-	jz	gt9			; no (return ZF set)
-	add	bx,size TOKLET		; yes, ignore it
+	cmp	ah,CLS_WHITE		; whitespace token?
+	stc
+	jne	gt9			; no (CF set)
+	add	bx,size TOKLET		; yes, so ignore it
 	jmp	getNextToken
 
 gt1:	mov	si,[bx].TOKLET_OFF
 	mov	cl,[bx].TOKLET_LEN
 	mov	ch,0
 	add	bx,size TOKLET
+	mov	al,[si]			; AL = 1st character of token
+	cmp	al,'a'			; ensure 1st character is upper-case
+	jb	gt2
+	sub	al,20h
 ;
-; If we're about to return a CLS_SYM that happens to be a colon,
-; then return ZF set (but not carry) to end the caller's token scan.
+; For variables, if the CLS is CLS_VAR_LONG or CLS_VAR_STR, then the type
+; was explicit (eg, ending with '%' or '$') and so we're done.  If the CLS is
+; simply CLS_VAR however, we must now determine the implicit type and update
+; the CLS appropriately.
 ;
-	cmp	ah,CLS_SYM
+gt2:	cmp	ah,CLS_VAR
+	jne	gt7
+	push	bx			; save BX
+	push	ax			; save AX
+	mov	bx,[pDefVars]
+	sub	al,'A'			; convert 1st letter to DEFVARS index
+	xlat				; look up the default VAR type
+	test	al,al			; has a default been set?
+	jnz	gt2a			; yes
+	mov	al,VAR_LONG		; no, default to VAR_LONG
+gt2a:	mov	ah,al
+	pop	bx			; we're really popping AX
+	mov	al,bl			; and restoring just AL
+	pop	bx			; restore BX
+	jmp	short gt8
+;
+; If we're about to return a CLS_SYM that happens to be a colon, then return
+; ZF set (but not carry) to end the caller's token scan.
+;
+gt7:	cmp	ah,CLS_SYM
 	jne	gt8
-	mov	al,[si]
 	cmp	al,':'
 	je	gt9
+
 gt8:	or	ah,0			; return both ZF and CF clear
 gt9:	ret
 ENDPROC	getNextToken
@@ -1262,10 +1434,11 @@ ENDPROC	peekNextToken
 ; Outputs:
 ;	Carry clear if successful, set if error
 ;
+	IFDEF	LATER
 DEFPROC	synCheck
 	mov	si,dx			; CS:SI -> syntax table
 ;
-; Loop until we find an SC_PKTOK that matches the next token.
+; Loop until we find an SC_PEKTK that matches the next token.
 ;
 sc1:	lods	word ptr cs:[si]	; AL = next SC_* value
 	test	al,al
@@ -1274,15 +1447,15 @@ sc1:	lods	word ptr cs:[si]	; AL = next SC_* value
 	jne	sc2			; no
 	GENPUSHB ah
 	jmp	sc1
-sc2:	cmp	al,SC_PKTOK		; invoke peekNextToken? (73h)
+sc2:	cmp	al,SC_PEKTK		; invoke peekNextToken? (73h)
 	jne	sc1			; no
 	mov	al,ah			; AL = mask for peekNextToken
 	push	si
-	mov	[pSynToken],si		; remember where the SC_PKTOK was
+	mov	[pSynToken],si		; remember where the SC_PEKTK was
 	call	peekNextToken
 	pop	si
-	jc	sc8			; nope, wrap it up
-	jz	sc1			; look for next SC_PKTOK
+	jz	sc8			; nope, wrap it up
+	jc	sc1			; look for next SC_PEKTK
 ;
 ; We found a token of the specified CLS, so look for a more specific match.
 ;
@@ -1306,11 +1479,11 @@ sc3b:	cmp	dh,ah			; match?
 	cmp	ah,CLS_ANY		; any CLS OK? (3Fh)
 	jne	sc3a			; no
 ;
-; Perform operations < SC_PKTOK.  If an operation reports an error (CF set),
+; Perform operations < SC_PEKTK.  If an operation reports an error (CF set),
 ; the call is terminated; if it reports no valid data (ZF set), we wrap it up.
 ;
 sc4:	lods	word ptr cs:[si]
-	sub	dx,dx			; allow SC_NXTOK
+	sub	dx,dx			; allow SC_NEXTK
 	cmp	al,SC_CALFN		; call an SCF function? (72h)
 	ja	sc8b			; done with match, wrap up
 	jne	sc4b			; no
@@ -1333,13 +1506,13 @@ sc4b:	cmp	al,SC_GENPB		; invoke GENPUSHB? (71h)
 	jmp	sc4
 ;
 ; To wrap up, scan the syntax table for a final SC_GENFN and then exit,
-; unless there's an SC_NXTOK entry, in which case we go back for more tokens.
+; unless there's an SC_NEXTK entry, in which case we go back for more tokens.
 ;
 sc8:	mov	dx,-1
 sc8a:	lods	word ptr cs:[si]	; AL = next SC_* value
 sc8b:	test	al,al			; end of table?
 sc8c:	jl	sc9			; OK, just leave
-	cmp	al,SC_NXTOK		; (76h)
+	cmp	al,SC_NEXTK		; (76h)
 	jne	sc8d
 	inc	dx			; should we look for more tokens?
 	jz	sc8			; no
@@ -1357,6 +1530,7 @@ sc8d:	cmp	al,SC_GENFN		; have we found SC_GENFN yet? (77h)
 	clc
 sc9:	ret
 ENDPROC	synCheck
+	ENDIF	; LATER
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1377,6 +1551,9 @@ ENDPROC	synCheck
 ;	AH, CX, DX
 ;
 DEFPROC	validateOp
+	cmp	[defType],VAR_STR
+	je	vo10
+
 	push	si
 	xchg	dx,ax			; DL = operator to validate
 	mov	al,CLS_SYM
@@ -1418,6 +1595,18 @@ vo8:	xchg	dx,ax
 vo9:	xchg	al,ah			; AL = operator, AH = precedence
 	pop	si
 	ret
+;
+; String operator validation is simple: if it's not '+', it's not valid.
+;
+; Well, OK, not that simple: relational operators will have to be allowed, too.
+;
+vo10:	cmp	al,'+'
+	stc
+	jne	vo11
+	mov	dx,offset appendStr	; DX = evaluator
+	mov	cx,2			; CX = 2 args
+	mov	ah,18			; AH = precedence
+vo11:	ret
 ENDPROC	validateOp
 
 CODE	ENDS

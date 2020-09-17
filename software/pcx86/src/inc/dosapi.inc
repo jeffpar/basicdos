@@ -354,22 +354,32 @@ TOKDEF_LEN	db	?	; length of token string
 TOKDEF_OFF	dw	?	; offset of token string
 TOKDEF		ends
 
+VAR_NONE	equ	000h
+VAR_INT		equ	020h	; 2 bytes of var data (TBD)
+VAR_LONG	equ	040h	; 4 bytes of var data
+VAR_SINGLE	equ	060h	; 4 bytes of var data
+VAR_STR		equ	080h	; 4 bytes of ptr data (ptr)
+VAR_ARRAY	equ	0A0h	; 4 bytes of var data (ptr)
+VAR_FUNC	equ	0C0h	; 4 bytes of var data (ptr)
+VAR_DOUBLE	equ	0E0h	; 8 bytes of var data
+VAR_TYPE	equ	0E0h
+
 CLS_OCT		equ	01h	; octal value
 CLS_HEX		equ	02h	; hexadecimal value
 CLS_DEC		equ	04h	; decimal value
 CLS_NUM		equ	07h	; any of the above
 CLS_STR		equ	08h	; string constant
 CLS_VAR		equ	10h	; identifier (eg, keyword or variable)
-CLS_KEYWORD	equ	18h	; var identified as keyword
+CLS_KEYWORD	equ	18h	; var later identified as a keyword
 CLS_SYM		equ	20h	; symbol
 CLS_ANY		equ	3Fh	;
-CLS_DQUOTE	equ	40h	; inside double quotes
+CLS_DQUOTE	equ	40h	; double quotes
 CLS_WHITE	equ	80h	; whitespace
-CLS_VAR_INT	equ	30h	; CLS_VAR + VAR_INT
-CLS_VAR_LONG	equ	50h	; CLS_VAR + VAR_LONG (var ending with '%')
-CLS_VAR_SINGLE	equ	70h	; CLS_VAR + VAR_SINGLE (var ending with '!')
-CLS_VAR_STR	equ	90h	; CLS_VAR + VAR_STR (var ending with '$')
-CLS_VAR_DOUBLE	equ	0F0h	; CLS_VAR + VAR_DOUBLE (var ending with '#')
+CLS_VAR_INT	equ	CLS_VAR OR VAR_INT	; 030h (TBD)
+CLS_VAR_LONG	equ	CLS_VAR OR VAR_LONG	; 050h (var ending with '%')
+CLS_VAR_SINGLE	equ	CLS_VAR OR VAR_SINGLE	; 070h (var ending with '!')
+CLS_VAR_STR	equ	CLS_VAR OR VAR_STR	; 090h (var ending with '$')
+CLS_VAR_DOUBLE	equ	CLS_VAR OR VAR_DOUBLE	; 0F0h (var ending with '#')
 
 ;
 ; DOS error codes (not to be confused with device error codes)

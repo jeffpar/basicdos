@@ -77,12 +77,13 @@ DATA	ENDS
 
 SC_GENPB	equ	71h		; do GENPUSHB
 SC_CALFN	equ	72h		; call function
-SC_PKTOK	equ	73h		; peek token
-SC_GTTOK	equ	74h		; get token
-SC_MATCH	equ	75h		; if token matches...
-SC_MASYM	equ	76h		; if CLS_SYM token matches...
-SC_NXTOK	equ	77h		; get next token
-SC_GENFN	equ	78h		; do GENCALL
+SC_PEKTK	equ	73h		; peek token
+SC_GETTK	equ	74h		; get token
+SC_LENTK	equ	75h		; check token length
+SC_MATCH	equ	76h		; if token matches CLS...
+SC_MASYM	equ	77h		; if CLS_SYM token matches char...
+SC_NEXTK	equ	78h		; get next token
+SC_GENFN	equ	79h		; do GENCALL
 
 SCF_GENXNUM	equ	0		; -> genExprNum
 SCF_GENXSTR	equ	1		; -> genExprStr
@@ -125,16 +126,18 @@ SIG_CBLK	equ	'C'
 ;
 ; Variable Block (VBLK) definitions
 ;
-MAX_VARNAME	equ	01Fh		; max chars allowed in var name
-VAR_TYPE	equ	0E0h
-VAR_NONE	equ	000h
-VAR_INT		equ	020h		; 2 bytes of var data
-VAR_LONG	equ	040h		; 4 bytes of var data
-VAR_SINGLE	equ	060h		; 4 bytes of var data
-VAR_STR		equ	080h		; 4 bytes of ptr data (ptr)
-VAR_ARRAY	equ	0A0h		; 4 bytes of var data (ptr)
-VAR_FUNC	equ	0C0h		; 4 bytes of var data (ptr)
-VAR_DOUBLE	equ	0E0h		; 8 bytes of var data
+; VAR_TYPE (E0h) encompasses the following variable types in dosapi.inc
+;
+; VAR_NONE	equ	000h
+; VAR_INT	equ	020h	; 2 bytes of var data (TBD)
+; VAR_LONG	equ	040h	; 4 bytes of var data
+; VAR_SINGLE	equ	060h	; 4 bytes of var data
+; VAR_STR	equ	080h	; 4 bytes of ptr data (ptr)
+; VAR_ARRAY	equ	0A0h	; 4 bytes of var data (ptr)
+; VAR_FUNC	equ	0C0h	; 4 bytes of var data (ptr)
+; VAR_DOUBLE	equ	0E0h	; 8 bytes of var data
+;
+VAR_NAMELEN	equ	01Fh		; max chars allowed in var name
 
 ;
 ; Pseudo-variable types (used by printArgs)
@@ -217,7 +220,7 @@ GEN_BATCH	equ	04h		; BAT file
 GEN_ECHO	equ	08h		; initially set if GEN_BATCH
 
 ;
-; Code generation macros
+; Code generation helper macros
 ;
 GENCALL	macro	func
 	IFDIF	<func>,<cx>
@@ -252,33 +255,7 @@ GENPUSHB macro	val
 	 ENDIF
 	ENDIF
 	endm
-;
-; PUSHSTR copies the string at DS:SI with length CL into the code segment,
-; pushing the far address of that string and then "leaping" over the string.
-;
-PUSHSTR	macro
-	mov	al,OP_PUSH_CS
-	stosb
-	mov	al,OP_CALL
-	stosb
-	mov	ax,cx
-	inc	ax			;; +1 for length byte
-	stosw
-	mov	al,cl
-	stosb				;; store the length byte
-	rep	movsb			;; followed by all the characters
-	endm
 
-PUSH_DS_DX macro
-	mov	al,OP_PUSH_DS
-	stosb
-	mov	al,OP_MOV_AX		;; "MOV AX,offset var data"
-	stosb
-	xchg	ax,dx			;; where DX is the offset of var data
-	stosw
-	mov	al,OP_PUSH_AX
-	stosb
-	endm
 ;
 ; Define the heap as a structure.  The first few fields (ie, all the BLK
 ; headers) are statically initialized, but the rest are left undefined so
@@ -294,7 +271,8 @@ ORIG_SP		dw	?
 ORIG_BP		dw	?
 CON_COLS	db	?
 CON_ROWS	db	?
-PREV_TIME	dd	?		; where cmdTime saves last known time
+PREV_TIME	dd	?		; last time displayed by cmdTime
+DEFVARS		db	26 dup (?)	; default var types for all 26 letters
 INPUTOFF	dw	?		; input offset (defaults to INPUTBUF)
 INPUTBUF	db	size BUF_INPUT dup (?)
 TOKENBUF	db	size BUF_TOKEN dup (?)
