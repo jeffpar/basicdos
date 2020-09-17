@@ -220,7 +220,7 @@ GEN_BATCH	equ	04h		; BAT file
 GEN_ECHO	equ	08h		; initially set if GEN_BATCH
 
 ;
-; Code generation macros
+; Code generation helper macros
 ;
 GENCALL	macro	func
 	IFDIF	<func>,<cx>
@@ -255,33 +255,7 @@ GENPUSHB macro	val
 	 ENDIF
 	ENDIF
 	endm
-;
-; PUSHSTR copies the string at DS:SI with length CL into the code segment,
-; pushing the far address of that string and then "leaping" over the string.
-;
-PUSHSTR	macro
-	mov	al,OP_PUSH_CS
-	stosb
-	mov	al,OP_CALL
-	stosb
-	mov	ax,cx
-	inc	ax			;; +1 for length byte
-	stosw
-	mov	al,cl
-	stosb				;; store the length byte
-	rep	movsb			;; followed by all the characters
-	endm
 
-PUSH_DS_DX macro
-	mov	al,OP_PUSH_DS
-	stosb
-	mov	al,OP_MOV_AX		;; "MOV AX,offset var data"
-	stosb
-	xchg	ax,dx			;; where DX is the offset of var data
-	stosw
-	mov	al,OP_PUSH_AX
-	stosb
-	endm
 ;
 ; Define the heap as a structure.  The first few fields (ie, all the BLK
 ; headers) are statically initialized, but the rest are left undefined so

@@ -446,6 +446,7 @@ fv1:	mov	al,es:[di]
 	jmp	short retVar		; yes
 
 fv2:	mov	ah,al
+	and	ah,VAR_TYPE
 	and	al,VAR_NAMELEN
 	cmp	al,cl			; do the name lengths match?
 	jne	fv6			; no

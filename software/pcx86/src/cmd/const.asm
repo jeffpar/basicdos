@@ -14,16 +14,13 @@ CODE    SEGMENT
 	EXTERNS	<cmdDate,cmdDir,cmdExit,cmdHelp,cmdList,cmdLoad>,near
 	EXTERNS	<cmdMem,cmdNew,cmdRun,cmdTime,cmdType,cmdVer>,near
 	EXTERNS	<genCLS,genColor,genDefInt,genDefDbl,genDefStr>,near
-	EXTERNS	<genEcho,genGoto,genIf,genLet>,near
+	EXTERNS	<genEcho,genGoto,genIf,genLet,genPrint>,near
 	EXTERNS	<evalNegLong,evalNotLong>,near
 	EXTERNS	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>,near
 	EXTERNS	<evalModLong,evalExpLong,evalImpLong>,near
 	EXTERNS	<evalEqvLong,evalXorLong,evalOrLong,evalAndLong>,near
 	EXTERNS	<evalEQLong,evalNELong,evalLTLong,evalGTLong>,near
 	EXTERNS	<evalLELong,evalGELong,evalShlLong,evalShrLong>,near
-
-	EXTERNS	<genExprNum,genExprStr>,near
-	EXTERNS	<printArgs>,near
 
 	DEFSTR	COM_EXT,<".COM",0>	; these 4 file extensions must be
 	DEFSTR	EXE_EXT,<".EXE",0>	; listed in the desired search order
@@ -102,6 +99,7 @@ CODE    SEGMENT
 	db	"==",'=',"<<",'S',">>",'R'
 	db	0
 
+	IFDEF	LATER
 	DEFLBL	SYNTAX_TABLES,word
 ;
 ; Syntax tables are a series of bytes processed by synCheck that define
@@ -132,10 +130,13 @@ CODE    SEGMENT
 	db	SC_NEXTK,0		; check for more tokens if no failure
 	db	SC_GENFN,SCF_PRTARGS,-1	; otherwise generate call to printArgs
 
+	EXTERNS	<genExprNum,genExprStr,printArgs>,near
+
 	DEFLBL	SCF_TABLE,word		; synCheck function table:
 	dw	genExprNum		; SCF_GENXNUM
 	dw	genExprStr		; SCF_GENXSTR
 	dw	printArgs		; SCF_PRTARGS
+	ENDIF	; LATER
 
 CODE	ENDS
 
@@ -159,7 +160,7 @@ CODE	ENDS
 	DEFTOK	LOAD,   21, cmdLoad
 	DEFTOK	MEM,    42, cmdMem
 	DEFTOK	NEW,     3, cmdNew
-	DEFTOK	PRINT,  70, synPrint
+	DEFTOK	PRINT,  70, genPrint
 	DEFTOK	REM,    71
 	DEFTOK	RUN,     4, cmdRun
 	DEFTOK	THEN,  202
