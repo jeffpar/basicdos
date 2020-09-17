@@ -254,7 +254,6 @@ DEFPROC	genCommands
 	mov	al,CLS_KEYWORD
 	call	getNextToken
 	jbe	gcs9			; out of tokens
-	mov	si,dx			; SI = offset of TOKDEF
 	mov	dx,cs:[si].CTD_FUNC	;
 	cmp	al,KEYWORD_GENCODE	; keyword support generated code?
 	jb	gcs9			; no
@@ -412,6 +411,8 @@ DEFPROC	genDefInt
 gdi2:	call	getCharToken		; check for another char
 	jbe	gdi8
 	mov	dh,al			; DH = new last char of range
+	cmp	dh,dl			; is the range in order?
+	jb	gdi8			; no, report error
 ;
 ; For every letter from DL through DH, set pDefVars[DL] to defType.
 ;
@@ -441,7 +442,9 @@ gdi9:	ret
 
 	DEFLBL	getCharToken,near
 	mov	al,CLS_VAR		; token must be CLS_VAR
+	push	dx
 	call	getNextToken
+	pop	dx
 	jbe	gdi8
 	dec	cx
 	jnz	gdi8			; and it must have a length of 1
@@ -1319,7 +1322,7 @@ ENDPROC	genPushVarLong
 ;	AH = CLS of token
 ;	AL = 1st character of token (upper-cased)
 ;	CX = length of token
-;	SI = offset of token
+;	SI = offset of token (or offset of TOKDEF if CLS_KEYWORD)
 ;	BX = offset of next TOKLET
 ;	ZF and CF clear
 ;
@@ -1337,15 +1340,19 @@ DEFPROC	getNextToken
 	jmp	short gt9		; no more tokens (ZF set, CF clear)
 
 gt0:	mov	ah,[bx].TOKLET_CLS
-	test	al,ah
+	test	ah,al
 	jnz	gt1
 	cmp	ah,CLS_WHITE		; whitespace token?
-	stc
+gt0a:	stc
 	jne	gt9			; no (CF set)
 	add	bx,size TOKLET		; yes, so ignore it
 	jmp	getNextToken
 
-gt1:	mov	si,[bx].TOKLET_OFF
+gt1:	cmp	al,CLS_KEYWORD		; looking for keyword?
+	jne	gt1a			; no
+	test	ah,CLS_STR		; yes, is token CLS_STR?
+	jnz	gt0a			; yes, can't be a keyword then
+gt1a:	mov	si,[bx].TOKLET_OFF
 	mov	cl,[bx].TOKLET_LEN
 	mov	ch,0
 	add	bx,size TOKLET
@@ -1362,27 +1369,24 @@ gt1:	mov	si,[bx].TOKLET_OFF
 gt2:	cmp	ah,CLS_VAR
 	jne	gt7
 
-	push	si
 	push	ax
 	mov	dx,offset KEYOP_TOKENS	; see if token is a KEYOP
 	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
 	int	21h
 	jc	gt2a
-	mov	ah,CLS_SYM
-	jmp	short gt2b
+	mov	ah,CLS_SYM		; AL = TOKDEF_ID, SI -> TOKDEF
+	pop	dx
+	jmp	short gt8
 gt2a:	mov	dx,offset KEYWORD_TOKENS; see if token is a KEYWORD
 	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
 	int	21h
-	jc	gt2c
-	mov	ah,CLS_KEYWORD
-gt2b:	mov	dx,si
-	pop	si
-	pop	si
+	jc	gt2b
+	mov	ah,CLS_KEYWORD		; AL = TOKDEF_ID, SI -> TOKDEF
+	pop	dx
 	jmp	short gt8
-gt2c:	pop	ax
-	pop	si
+gt2b:	pop	ax
 
-gt3:	push	bx
+	push	bx
 	push	ax
 	mov	bx,[pDefVars]
 	sub	al,'A'			; convert 1st letter to DEFVARS index
