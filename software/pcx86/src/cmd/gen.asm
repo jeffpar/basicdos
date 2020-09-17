@@ -254,10 +254,7 @@ DEFPROC	genCommands
 	mov	al,CLS_KEYWORD
 	call	getNextToken
 	jbe	gcs9			; out of tokens
-	lea	dx,[KEYWORD_TOKENS]	; CS:DX -> TOKTBL
-	mov	ax,DOS_UTL_TOKID	; identify the token
-	int	21h			; at DS:SI (with length CX)
-	jc	gcs9			; can't identify
+	mov	si,dx			; SI = offset of TOKDEF
 	mov	dx,cs:[si].CTD_FUNC	;
 	cmp	al,KEYWORD_GENCODE	; keyword support generated code?
 	jb	gcs9			; no
@@ -554,70 +551,55 @@ gn1:	mov	al,CLS_ANY		; CLS_NUM, CLS_SYM, CLS_VAR, CLS_STR
 	jbe	gn2x
 	inc	[defToks]
 	cmp	ah,CLS_SYM
-	jne	gn1a
-	jmp	gn4			; process operator symbol
+	je	gn4			; process CLS_SYM below
 ;
-; Non-operator cases: distinguish between strings, variables and numbers.
+; Non-operator (non-symbol) cases: keywords, variables, strings, and numbers.
 ;
-gn1a:	mov	byte ptr [nExpPrevOp],-1; invalidate prevOp (intervening token)
-	cmp	ah,CLS_VAR		; variable?
-	jb	gn1b			; no, string or number
-	test	ah,CLS_VAR		; variable with explicit type?
-	jnz	gn2a			; yes
-	jmp	short gn2		; no, must disambiguate from keywords
+	mov	byte ptr [nExpPrevOp],-1; invalidate prevOp (intervening token)
+	cmp	ah,CLS_KEYWORD
+	je	gn2x			; keywords not allowed in expressions
+	cmp	ah,CLS_VAR		; variable with type?
+	ASSERT	NE			; (type should be fully qualified now)
+	ja	gn2			; yes
 ;
 ; Must be CLS_STR or CLS_NUM.  Handle CLS_STR here and CLS_NUM below.
 ;
-gn1b:	test	ah,CLS_STR		; string?
+	test	ah,CLS_STR		; string?
 	jz	gn3			; no, must be number
 	mov	al,VAR_STR		; AL = VAR_STR
 	call	setExprType		; update expression type
 	jnz	gn2x
 	sub	cx,2			; CX = string length
 	ASSERT	NC
-	jcxz	gn1c			; empty string
+	jcxz	gn1a			; empty string
 	inc	si			; DS:SI -> string contents
 	call	genPushStr
-	jmp	short gn2b
+	jmp	short gn2a
 
-gn1c:	DBGBRK
+gn1a:	DBGBRK
 	sub	cx,cx			; for empty strings, push null ptr
 	sub	dx,dx
 	call	genPushImmLong
-	jmp	short gn2b
+	jmp	short gn2a
 ;
-; Some tokens initially classified as CLS_VAR are really keyword operators
-; (eg, 'NOT', 'AND', 'XOR'), so check for those first.
-;
-gn2:	mov	dx,offset KEYOP_TOKENS	; see if token is a KEYOP
-	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
-	int	21h
-	jnc	gn5			; jump to operator validation
-
-	mov	dx,offset KEYWORD_TOKENS; see if token is a KEYWORD
-	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
-	int	21h
-	jc	gn2a
-	mov	ah,CLS_KEYWORD
-gn2x:	jmp	short gn3x		; jump to expression termination
-
-gn2a:	call	findVar			; no, check vars next
-;
-; We don't care if findVar succeeds or not, because even if it fails,
-; it returns var type (AH) VAR_LONG with var data (DX) preset to zero.
+; Process CLS_VAR.  We don't care if findVar succeeds or not, because
+; even if it fails, it returns var type (AH) VAR_LONG with var data (DX)
+; preset to zero.
 ;
 ; We do, however, care about the var type (AH), which must be consistent
 ; with the expression type (currently, VAR_LONG or VAR_STR).
 ;
+gn2:	call	findVar			; no, check vars next
 	mov	al,ah			; AL = var type
 	call	setExprType		; update expression type
-	jnz	gn3x			; error
+	jnz	gn2x			; error
 	call	genPushVarLong
 
-gn2b:	inc	[nExpVals]		; count another queued value
+gn2a:	inc	[nExpVals]		; count another queued value
 	jmp	gn1
+gn2x:	jmp	short gn3x
 ;
-; Number must be a constant and CX must contain its exact length.
+; Process CLS_NUM.  Number is a constant and CX is its exact length.
 ;
 ; TODO: If the preceding character is a '-' and the top of the operator stack
 ; is 'N' (unary minus), consider decrementing SI and removing the operator.
@@ -644,14 +626,15 @@ gn3a:	mov	ax,DOS_UTL_ATOI32	; DS:SI -> numeric string (length CX)
 	xchg	cx,ax			; save result in DX:CX
 	pop	bx
 	GENPUSH	dx,cx
-	jmp	gn2b			; go count another queued value
+	jmp	gn2a			; go count another queued value
+
 gn3s:	mov	ah,CLS_SYM
-gn3x:	jmp	gn8
+gn3x:	jmp	short gn8
 ;
-; Before we try to validate the operator, we need to remap binary minus to
-; unary minus.  So, if we have a minus, and the previous token is undefined,
-; or another operator, or a left paren, it's unary.  Ditto for unary plus.
-; The internal identifiers for unary '-' and '+' are 'N' and 'P'.
+; Process CLS_SYM.  Before we try to validate the operator, we need to remap
+; binary minus to unary minus.  So, if we have a minus, and the previous token
+; is undefined, or another operator, or a left paren, it's unary.  Ditto for
+; unary plus.  The internal identifiers for unary '-' and '+' are 'N' and 'P'.
 ;
 gn4:	mov	ah,'N'
 	cmp	al,'-'
@@ -1343,16 +1326,16 @@ ENDPROC	genPushVarLong
 ; Outputs if NO matching next token:
 ;	ZF set if no more tokens (AX is zero)
 ;	CF set if no matching token (AH is CLS)
-;	BX, CX, and SI unchanged
 ;
 ; Modifies:
-;	AX, BX, CX, SI
+;	AX, BX, CX, DX, SI
 ;
 DEFPROC	getNextToken
 	cmp	bx,[pTokEnd]
 	jb	gt0
 	sub	ax,ax
 	jmp	short gt9		; no more tokens (ZF set, CF clear)
+
 gt0:	mov	ah,[bx].TOKLET_CLS
 	test	al,ah
 	jnz	gt1
@@ -1378,18 +1361,39 @@ gt1:	mov	si,[bx].TOKLET_OFF
 ;
 gt2:	cmp	ah,CLS_VAR
 	jne	gt7
-	push	bx			; save BX
-	push	ax			; save AX
+
+	push	si
+	push	ax
+	mov	dx,offset KEYOP_TOKENS	; see if token is a KEYOP
+	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
+	int	21h
+	jc	gt2a
+	mov	ah,CLS_SYM
+	jmp	short gt2b
+gt2a:	mov	dx,offset KEYWORD_TOKENS; see if token is a KEYWORD
+	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
+	int	21h
+	jc	gt2c
+	mov	ah,CLS_KEYWORD
+gt2b:	mov	dx,si
+	pop	si
+	pop	si
+	jmp	short gt8
+gt2c:	pop	ax
+	pop	si
+
+gt3:	push	bx
+	push	ax
 	mov	bx,[pDefVars]
 	sub	al,'A'			; convert 1st letter to DEFVARS index
 	xlat				; look up the default VAR type
 	test	al,al			; has a default been set?
-	jnz	gt2a			; yes
+	jnz	gt4			; yes
 	mov	al,VAR_LONG		; no, default to VAR_LONG
-gt2a:	mov	ah,al
+gt4:	mov	ah,al
 	pop	bx			; we're really popping AX
-	mov	al,bl			; and restoring just AL
-	pop	bx			; restore BX
+	mov	al,bl			; and restoring AL
+	pop	bx
 	jmp	short gt8
 ;
 ; If we're about to return a CLS_SYM that happens to be a colon, then return
@@ -1397,6 +1401,7 @@ gt2a:	mov	ah,al
 ;
 gt7:	cmp	ah,CLS_SYM
 	jne	gt8
+
 	cmp	al,':'
 	je	gt9
 
