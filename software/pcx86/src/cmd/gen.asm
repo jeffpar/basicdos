@@ -1321,7 +1321,7 @@ gt1:	mov	si,[bx].TOKLET_OFF
 	cmp	al,'a'
 	jb	gt2
 	cmp	al,'z'
-	jz	gt2
+	ja	gt2
 	sub	al,20h
 ;
 ; For variables, if the CLS is CLS_VAR_LONG or CLS_VAR_STR, then the type
