@@ -1342,7 +1342,7 @@ DEFPROC	getNextToken
 	cmp	bx,[pTokEnd]
 	jb	gt0
 	sub	ax,ax
-	jmp	short gt9		; no more tokens (ZF set, CF clear)
+	jmp	gt9			; no more tokens (ZF set, CF clear)
 
 gt0:	mov	ah,[bx].TOKLET_CLS
 	test	ah,al
@@ -1362,6 +1362,7 @@ gt1a:	mov	si,[bx].TOKLET_OFF
 	mov	cl,[bx].TOKLET_LEN
 	mov	ch,0
 	add	bx,size TOKLET
+	mov	dl,al			; DL = requested CLS
 	mov	al,[si]			; AL = 1st character of token
 	cmp	al,'a'			; ensure 1st character is upper-case
 	jb	gt2
@@ -1377,21 +1378,26 @@ gt2:	cmp	ah,CLS_VAR
 	jne	gt7
 
 	push	ax
+	push	dx
 	mov	dx,offset KEYOP_TOKENS	; see if token is a KEYOP
 	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
 	int	21h
 	jc	gt2a
 	mov	ah,CLS_SYM		; AL = TOKDEF_ID, SI -> TOKDEF
-	pop	dx
-	jmp	short gt8
+	jnc	gt2b
 gt2a:	mov	dx,offset KEYWORD_TOKENS; see if token is a KEYWORD
 	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
 	int	21h
-	jc	gt2b
+	jc	gt2c
 	mov	ah,CLS_KEYWORD		; AL = TOKDEF_ID, SI -> TOKDEF
+gt2b:	pop	dx
 	pop	dx
 	jmp	short gt8
-gt2b:	pop	ax
+gt2c:	pop	dx			; neither KEYOP nor KEYWORD
+	pop	ax
+	cmp	dl,CLS_KEYWORD		; and did we request a KEYWORD?
+	stc
+	je	gt9			; yes, return error
 
 	push	bx
 	push	ax
@@ -1431,10 +1437,15 @@ ENDPROC	getNextToken
 ; Inputs and outputs are the same as getNextToken, but we also save the
 ; offset of the next TOKLET, in case the caller wants to consume it.
 ;
+; Modifies:
+;	AX, CX, SI
+;
 DEFPROC	peekNextToken
 	push	bx
+	push	dx
 	call	getNextToken
 	mov	[pTokNext],bx
+	pop	dx
 	pop	bx
 	ret
 ENDPROC	peekNextToken

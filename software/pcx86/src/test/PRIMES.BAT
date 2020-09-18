@@ -30,4 +30,4 @@ let advsquared = advsquared + 2
 goto 15
 
 90 print
-print primes
+print "TOTAL PRIMES < 10000: ";primes
