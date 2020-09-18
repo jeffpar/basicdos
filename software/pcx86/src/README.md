@@ -12,7 +12,7 @@ Sources are divided into the following directories:
 
 The [BOOT](boot/) directory contains the code for the BASIC-DOS boot sector
 (`BOOT.COM`) along with a small PC DOS (*not* BASIC-DOS) utility (`WBOOT.COM`)
-to write the BASIC-DOS boot sector to the diskette is currently in drive A:.
+to write the BASIC-DOS boot sector to the diskette currently in drive A:.
 
 The [CMD](cmd/) directory contains the code for the BASIC-DOS Interpreter
 (`COMMAND.COM`) and help text (`COMMAND.TXT`).
@@ -35,6 +35,9 @@ arbitrary singly-linked hierarchy:
           +- bios.inc
              +- 8086.inc
                 +- macros.inc
+
+So a low-level source file may need to include only `8086.inc`, while a
+high-level source file may need to include `dos.inc`.
 
 However, since MASM started running out of symbol space when building some
 of the components, I moved "public" portions of `dos.inc` and `dev.inc`
