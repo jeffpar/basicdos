@@ -12,14 +12,10 @@ machines:
 ---
 
 The machine below is configured with both MDA and CGA adapters, each
-connected to its own monitor.  Other dual-monitor configurations include:
-
-  - [Dual Monitor Multi-Session Demo](multi/)
-
-In the demo below, BASIC-DOS has been configured for two sessions, with each
-session assigned to its own monitor.  At first glance, it might appear there
-are two machines running, but it really is just a single IBM PC running two
-BASIC-DOS sessions.
+connected to its own monitor, and BASIC-DOS has been configured for two
+sessions, with each session assigned to its own monitor.  At first glance,
+it might appear there are two machines running, but it really is just a
+single IBM PC running two BASIC-DOS sessions.
 
 Like all the other [BASIC-DOS Demos](../), use **SHIFT-TAB** to toggle
 keyboard focus between sessions.  Since these sessions don't use borders,
