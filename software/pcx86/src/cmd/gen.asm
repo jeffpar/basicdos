@@ -533,6 +533,7 @@ ENDPROC	genEcho
 ;
 ; Outputs:
 ;	AX = last result from getNextToken
+;	DL = expression type, DH = # tokens
 ;	CF clear if successful, set if error
 ;	ZF clear if expression existed, set if not
 ;	ES:DI -> next unused location in code block
@@ -735,7 +736,7 @@ gn9:	mov	cx,[nExpVals]
 	jne	gn10
 	inc	[nArgs]
 	test	cx,cx			; return ZF set if no values
-gn10:	mov	dx,word ptr [defType]	; DL = expression type, DH = tokens
+gn10:	mov	dx,word ptr [defType]	; DL = expression type, DH = # tokens
 	ret
 
 	DEFLBL	setExprType,near
@@ -949,10 +950,14 @@ gp1:	call	genExpr
 	test	dh,dh			; if there were no tokens
 	stc				; then ignore the error
 	jnz	gp9			; (PRINT without args is allowed)
-
 gp2:	jz	gp8
 	push	ax
-	GENPUSHB VAR_LONG
+	mov	al,VAR_LONG		; AL = default type
+	cmp	dl,al			; does that match the expression type?
+	je	gp3			; yes
+	mov	al,VAR_STR		; must be VAR_STR then
+	ASSERT	Z,<cmp dl,al>		; verify our assumption
+gp3:	GENPUSHB al
 	pop	ax
 
 	mov	ah,VAR_SEMI
@@ -1244,11 +1249,11 @@ DEFPROC	genPushStr
 	mov	ax,OP_PUSH_CS OR (OP_CALL SHL 8)
 	stosw
 	mov	ax,cx
-	inc	ax			;; +1 for length byte
+	inc	ax			; +1 for length byte
 	stosw
 	mov	al,cl
-	stosb				;; store the length byte
-	rep	movsb			;; followed by all the characters
+	stosb				; store the length byte
+	rep	movsb			; followed by all the characters
 	ret
 ENDPROC	genPushStr
 
@@ -1350,8 +1355,9 @@ gt0a:	stc
 
 gt1:	cmp	al,CLS_KEYWORD		; looking for keyword?
 	jne	gt1a			; no
-	test	ah,CLS_STR		; yes, is token CLS_STR?
-	jnz	gt0a			; yes, can't be a keyword then
+	cmp	ah,CLS_VAR		; yes, undecorated CLS_VAR?
+	jne	gt0a			; no, can't be a keyword then
+
 gt1a:	mov	si,[bx].TOKLET_OFF
 	mov	cl,[bx].TOKLET_LEN
 	mov	ch,0
@@ -1361,10 +1367,11 @@ gt1a:	mov	si,[bx].TOKLET_OFF
 	jb	gt2
 	sub	al,20h
 ;
-; For variables, if the CLS is CLS_VAR_LONG or CLS_VAR_STR, then the type
-; was explicit (eg, ending with '%' or '$') and so we're done.  If the CLS is
-; simply CLS_VAR however, we must now determine the implicit type and update
-; the CLS appropriately.
+; Any CLS_VAR with additional bits specifying the variable type (eg,
+; CLS_VAR_LONG, CLS_VAR_STR) is done.  Any vanilla CLS_VAR, however, must
+; be further identified.  We now check for keyword operators (like NOT) and
+; all other keywords.  Failing that, we assume it's a variable, so we look
+; up the variable's implicit type and update the CLS bits accordingly.
 ;
 gt2:	cmp	ah,CLS_VAR
 	jne	gt7
@@ -1395,6 +1402,7 @@ gt2b:	pop	ax
 	jnz	gt4			; yes
 	mov	al,VAR_LONG		; no, default to VAR_LONG
 gt4:	mov	ah,al
+	or	ah,CLS_VAR
 	pop	bx			; we're really popping AX
 	mov	al,bl			; and restoring AL
 	pop	bx

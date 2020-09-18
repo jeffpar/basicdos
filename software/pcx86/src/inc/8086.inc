@@ -71,11 +71,17 @@ OP_MOV_SI	equ	0BEh
 OP_MOV_DI	equ	0BFh
 OP_RETF_N	equ	0CAh
 OP_RETF		equ	0CBh
+OP_INT3		equ	0CCh
 OP_IRET		equ	0CFh
 OP_CALL		equ	0E8h		; 16-bit displacement
 OP_JMP		equ	0E9h		; 16-bit displacement
 OP_JMPF		equ	0EAh		; 32-bit absolute address
+OP_CLC		equ	0F8h
 OP_STC		equ	0F9h
+OP_CLI		equ	0FAh
+OP_STI		equ	0FBh
+OP_CLD		equ	0FCh
+OP_STD		equ	0FDh
 
 OP_INT21	equ	021CDh		; INT 21h
 OP_ZERO_AX	equ	0C031h		; XOR AX,AX
@@ -96,12 +102,12 @@ OP_MOV_SP_BP	equ	0EC89h		; MOV SP,BP
 ;
 ; With the exception of OP_ASSERT, these operations should have no effect
 ; in a non-PCjs environment (or on a real machine), since BASIC-DOS system
-; initialization installs an INT_UD handler to ignore them.  And if you
+; initialization installs an INT_UD handler to deal with them.  And if you
 ; somehow run a DEBUG binary on a non-DEBUG system, INT_UD will still be
-; set to an IRET, so these operations should still be innocuous.
+; set to an IRET, so the binaries should still run, albeit with side-effects.
 ;
-OP_ASSERT	equ	090h		; signal an assertion failure
 OP_DBGBRK	equ	0CCh		; signal an internal breakpoint
+OP_ASSERT	equ	0F9h		; signal an assertion failure
 OP_MUL32	equ	0FBh		; verify 32-bit multiplication result
 OP_DIV32	equ	0FCh		; verify 32-bit division result
 

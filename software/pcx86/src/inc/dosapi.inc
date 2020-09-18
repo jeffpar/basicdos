@@ -64,25 +64,25 @@ DOS_UTL_PRINTF	equ   1804h	; printf to console
 DOS_UTL_DPRINTF	equ   1805h	; printf to DEBUG context, if any
 DOS_UTL_SPRINTF	equ   1806h	; sprintf to buffer (ES:DI)
 DOS_UTL_ITOA	equ   1807h	; convert number (DX:SI) to string (ES:DI)
-DOS_UTL_ATOI16	equ   1808h	; convert string (DS:SI) to number (AX)
-DOS_UTL_ATOI32	equ   1809h	; convert string (DS:SI) to number (AX)
+DOS_UTL_ATOI16	equ   1808h	; convert string (DS:SI) to 16-bit number (AX)
+DOS_UTL_ATOI32	equ   1809h	; convert string (DS:SI) to 32-bit number (AX)
 DOS_UTL_ATOI32D	equ   180Ah	; convert decimal string (DS:SI) to number (AX)
 DOS_UTL_TOKIFY1	equ   180Bh	; tokenize string (DS:SI) using GENERIC syntax
 DOS_UTL_TOKIFY2	equ   180Ch	; tokenize string (DS:SI) using BASIC syntax
 DOS_UTL_TOKID	equ   180Dh	; convert string (DS:SI) into token ID (AX)
 DOS_UTL_GETDEV	equ   1810h	; get DDH (ES:DI) for device (DS:SI)
 DOS_UTL_IOCTL	equ   1811h	; issue IOCTL to device (ES:DI)
-DOS_UTL_LOAD	equ   1812h	; load program (DS:DX) into SCB (CL)
-DOS_UTL_START	equ   1813h	; start SCB (CL)
-DOS_UTL_STOP	equ   1814h	; stop SCB (CL)
-DOS_UTL_UNLOAD	equ   1815h	; unload program from SCB (CL)
+DOS_UTL_LOAD	equ   1812h	; load program (DS:DX) into session (CL)
+DOS_UTL_START	equ   1813h	; start session (CL)
+DOS_UTL_STOP	equ   1814h	; stop session (CL)
+DOS_UTL_UNLOAD	equ   1815h	; unload program from session (CL)
 DOS_UTL_YIELD	equ   1816h	; yield
 DOS_UTL_SLEEP	equ   1817h	; sleep DX milliseconds
 DOS_UTL_WAIT	equ   1818h	; wait until end wait
 DOS_UTL_ENDWAIT	equ   1819h	; end wait
 DOS_UTL_HOTKEY	equ   181Ah	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
-DOS_UTL_LOCK	equ   181Bh	; lock current SCB
-DOS_UTL_UNLOCK	equ   181Ch	; unlock current SCB
+DOS_UTL_LOCK	equ   181Bh	; lock current session
+DOS_UTL_UNLOCK	equ   181Ch	; unlock current session
 DOS_UTL_QRYMEM	equ   181Dh	; query memory block N (CL)
 DOS_UTL_QRYHDL	equ   181Eh	; query system file handle N (CL)
 DOS_UTL_ABORT	equ   181Fh	; abort with exit code (DL) and exit type (DH)
@@ -147,27 +147,27 @@ FCB_RECSIZE	dw	?	; 0Eh: set to 128 on OPEN
 FCB		ends
 
 FCBF		struc		; the "full" FCB structure
-FCB_START	db size FCB dup(?)
+FCBF_FCB	db size FCB dup(?)
 ;
 ; The above fields are all that fit in PSP_FCB1 and PSP_FCB2.
 ;
-FCB_FILESIZE	dd	?	; 10h: from DIRENT.DIR_SIZE on OPEN
-FCB_DATE	dw	?	; 14h: from DIRENT.DIR_DATE on OPEN
-FCB_TIME	dw	?	; 16h: from DIRENT.DIR_TIME on OPEN
+FCBF_FILESIZE	dd	?	; 10h: from DIRENT.DIR_SIZE on OPEN
+FCBF_DATE	dw	?	; 14h: from DIRENT.DIR_DATE on OPEN
+FCBF_TIME	dw	?	; 16h: from DIRENT.DIR_TIME on OPEN
 ;
 ; The next 8 bytes are reserved.  PC DOS 2.0 appears to define them as:
 ;
-FCB_DEVICE	db	?	; 18h: bit 7 set if logical device
-FCB_CLN		dw	?	; 19h: 1st cluster number
-FCB_CLN_REL	dw	?	; 1Bh: relative 0-based cluster number
-FCB_CLN_CUR	dw	?	; 1Dh: current cluster number
-FCB_UNUSED	db	?	; 1Fh
+FCBF_DEVICE	db	?	; 18h: bit 7 set if logical device
+FCBF_CLN	dw	?	; 19h: 1st cluster number
+FCBF_CLN_REL	dw	?	; 1Bh: relative 0-based cluster number
+FCBF_CLN_CUR	dw	?	; 1Dh: current cluster number
+FCBF_UNUSED	db	?	; 1Fh
 ;
 ; The next two fields are NOT initialized on OPEN.  Set CURREC before doing a
 ; sequential read or write, and set RELREC before doing a random read or write.
 ;
-FCB_CURREC	db	?	; 20h: cur record
-FCB_RELREC	dd	?	; 21h: rel record (3 bytes if RECSIZE >= 64)
+FCBF_CURREC	db	?	; 20h: cur record
+FCBF_RELREC	dd	?	; 21h: rel record (3 bytes if RECSIZE >= 64)
 FCBF		ends
 
 ;
@@ -207,7 +207,7 @@ STDOUT		equ	1
 STDERR		equ	2
 STDAUX		equ	3
 STDPRN		equ	4
-STDEXE		equ	5
+STDEXEC		equ	5	; BASIC-DOS: handle of executable (COM or EXE)
 
 ;
 ; Critical error (INT 24h) response codes
@@ -223,7 +223,7 @@ CRERR_FAIL	equ	3	; fail the system call in progress
 PSP		struc
 PSP_ABORT	dw	?	; 00h: INT 20h
 PSP_PARAS	dw	?	; 02h: paragraphs available
-PSP_SCB		db	?	; 04h: BASIC-DOS: SCB #
+PSP_SCB		db	?	; 04h: BASIC-DOS: session #
 PSP_FARCALL	db	?	; 05h: far call (9Ah)
 PSP_SIZE	dw	?	; 06h: size of PSP segment
 PSP_FCSEG	dw	?	; 08h: far call segment
@@ -233,16 +233,16 @@ PSP_ERROR	dd	?	; 12h: original INT 24h vector
 PSP_PARENT	dw	?	; 16h: PSP of parent
 PSP_PFT		db     20 dup(?); 18h: Process File Table
 PSP_ENVSEG	dw	?	; 2Ch
-PSP_STACK	dd	?	; 2Eh: BASIC-DOS: initial program stack
+PSP_STACK	dd	?	; 2Eh: BASIC-DOS: last program stack ptr
 PSP_HDLFREE	dw	?	; 32h: available handles
 PSP_HDLPTR	dd	?	; 34h: initially 0FFFF:0018h
 PSP_SHAREPSP	dd	?	; 38h
 PSP_DTAPREV	dd	?	; 3Ch: BASIC-DOS: prev DTA (restored on return)
 PSP_START	dd	?	; 40h: BASIC-DOS: initial program address
-PSP_CODESIZE	dw	?	; 44h: end of code, as defined by COMHEAP
-PSP_CHECKSUM	dw	?	; 46h: checksum of code
-PSP_HEAPSIZE	dw	?	; 48h: heap size, as defined by COMHEAP
-PSP_HEAP	dw	?	; 4Ah: heap offset, based on COMHEAP settings
+PSP_CODESIZE	dw	?	; 44h: BASIC-DOS: code size (see COMHEAP)
+PSP_CHECKSUM	dw	?	; 46h: BASIC-DOS: code checksum (see COMHEAP)
+PSP_HEAPSIZE	dw	?	; 48h: BASIC-DOS: heap size (see COMHEAP)
+PSP_HEAP	dw	?	; 4Ah: BASIC-DOS: heap offset (see COMHEAP)
 PSP_RESERVED1	dw	?	; 4Ch
 PSP_EXCODE	db	?	; 4Eh: BASIC-DOS: exit code, if any
 PSP_EXTYPE	db	?	; 4Fh: BASIC-DOS: exit type (see EXTYPE_*)
@@ -358,9 +358,9 @@ VAR_NONE	equ	000h
 VAR_INT		equ	020h	; 2 bytes of var data (TBD)
 VAR_LONG	equ	040h	; 4 bytes of var data
 VAR_SINGLE	equ	060h	; 4 bytes of var data
-VAR_STR		equ	080h	; 4 bytes of ptr data (ptr)
-VAR_ARRAY	equ	0A0h	; 4 bytes of var data (ptr)
-VAR_FUNC	equ	0C0h	; 4 bytes of var data (ptr)
+VAR_STR		equ	080h	; 4 bytes of ptr data (string ptr)
+VAR_ARRAY	equ	0A0h	; 4 bytes of var data (array ptr)
+VAR_FUNC	equ	0C0h	; 4 bytes of var data (function ptr)
 VAR_DOUBLE	equ	0E0h	; 8 bytes of var data
 VAR_TYPE	equ	0E0h
 
@@ -369,8 +369,8 @@ CLS_HEX		equ	02h	; hexadecimal value
 CLS_DEC		equ	04h	; decimal value
 CLS_NUM		equ	07h	; any of the above
 CLS_STR		equ	08h	; string constant
-CLS_VAR		equ	10h	; identifier (eg, keyword or variable)
-CLS_KEYWORD	equ	18h	; var later identified as a keyword
+CLS_VAR		equ	10h	; identifier (eg, keyword, var, keyop)
+CLS_KEYWORD	equ	18h	; identifier later identified as a keyword
 CLS_SYM		equ	20h	; symbol
 CLS_ANY		equ	3Fh	;
 CLS_DQUOTE	equ	40h	; double quotes
@@ -411,12 +411,13 @@ ERR_BADADDR	equ	9	; invalid memory segment
 ; top of the program's first 64Kb, whichever is lower.
 ;
 ; The COMHEAP macro also allows a COM file to define a range of shared code
-; starting at offset 100h; all copies of the program will use the same CS.
-; Successive copies will only contain the data following the end of the shared
-; code, plus whatever additional heap space was requested.
+; starting at offset 100h; every copy of the program will still have its own
+; memory segment in DS, ES, and SS, but only the first copy will have the same
+; CS.  Successive copies will contain only the code+data that follows the end
+; of the shared code, plus any requested heap space.
 ;
-; COM programs designed to share code should access all their data via the
-; offset stored at PSP_HEAP in the program's PSP.
+; BASIC-DOS COM programs can also obtain the offset of their heap via the
+; PSP_HEAP field in the program's PSP.
 ;
 SIG_BASICDOS	equ	'DB'	; BASIC-DOS signature word ("BD")
 
