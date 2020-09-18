@@ -63,13 +63,13 @@ DEFPROC	fcb_open,DOS
 	mov	ax,128
 	stosw				; set FCB_RECSIZE to 128
 	movsw
-	movsw				; set FCB_FILESIZE from SFB_SIZE
+	movsw				; set FCBF_FILESIZE from SFB_SIZE
 	sub	si,(SFB_SIZE + 4) - SFB_DATE
-	movsw				; set FCB_DATE from SFB_DATE
+	movsw				; set FCBF_DATE from SFB_DATE
 	sub	si,(SFB_DATE + 2) - SFB_TIME
-	movsw				; set FCB_TIME from SFB_TIME
+	movsw				; set FCBF_TIME from SFB_TIME
 	add	si,SFB_CLN - (SFB_TIME + 2)
-	movsw				; set FCB_CLN from SFB_CLN
+	movsw				; set FCBF_CLN from SFB_CLN
 fo9:	ret
 ENDPROC	fcb_open
 
@@ -129,9 +129,9 @@ ENDPROC	fcb_sread
 ;
 ; fcb_rread (REG_AH = 21h)
 ;
-; Read a random record (FCB_RELREC) into the DTA.  The current block
-; (FCB_CURBLK) and current record (FCB_CURREC) are set to agree with the
-; relative record (FCB_RELREC).  The record is then read into the DTA,
+; Read a random record (FCBF_RELREC) into the DTA.  The current block
+; (FCB_CURBLK) and current record (FCBF_CURREC) are set to agree with the
+; relative record (FCBF_RELREC).  The record is then read into the DTA,
 ; using the FCB's record size (FCB_RECSIZE).
 ;
 ; Inputs:
@@ -157,12 +157,12 @@ DEFPROC	fcb_rread,DOS
 ;
 ; At this point, DS:BX -> SFB and ES:DI -> FCB.
 ;
-; Multiply the requested record (FCB_RELREC) by the record size (FCB_RECSIZE)
+; Multiply the requested record (FCBF_RELREC) by the record size (FCB_RECSIZE)
 ; to get the offset.
 ;
 	mov	cx,es:[di].FCB_RECSIZE
-	mov	ax,es:[di].FCB_RELREC.LOW
-	mov	dx,es:[di].FCB_RELREC.HIW
+	mov	ax,es:[di].FCBF_RELREC.LOW
+	mov	dx,es:[di].FCBF_RELREC.HIW
 	cmp	cx,64
 	jb	fr1
 	mov	dh,0
@@ -182,7 +182,7 @@ fr1:	call	mul_32_16		; DX:AX = DX:AX * CX
 	mov	cx,es:[di].FCB_RECSIZE	; CX = # bytes to read
 	div	cx			; AX = record # within block
 	ASSERT	Z,<test ah,ah>
-	mov	es:[di].FCB_CURREC,al
+	mov	es:[di].FCBF_CURREC,al
 
 	mov	al,IO_RAW		; TODO: matter for block devices?
 	mov	si,[scb_active]

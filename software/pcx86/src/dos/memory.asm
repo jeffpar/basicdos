@@ -138,7 +138,7 @@ q7:	mov	dx,es:[MCB_PARAS]
 	mov	es,ax
 	push	ax
 	push	bx
-	mov	bl,es:[PSP_PFT][STDEXE]
+	mov	bl,es:[PSP_PFT][STDEXEC]
 	call	get_sfh_sfb
 	mov	si,bx
 	pop	bx

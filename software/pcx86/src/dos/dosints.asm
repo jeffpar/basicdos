@@ -114,8 +114,8 @@ ENDPROC	dos_oferr
 ; This interrupt is used by DEBUG builds to perform "operation checks",
 ; based on the byte that follows the INT 06h instruction; eg:
 ;
-;	90h: assertion failure
-;	CCh: breakpoint notification
+;	CCh: breakpoint
+;	F9h: assertion failure
 ;	FBh: 32-bit multiply check
 ;	FCh: 32-bit division check
 ;

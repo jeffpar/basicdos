@@ -91,7 +91,6 @@ EXTSTR	macro	names
 	EXTABS	name
 	ENDM
 	endm
-
 ;
 ; Tables are like pointers, where .OFF is the offset but .SEG is the limit.
 ; We don't need to record the segment, because offset is always DS-relative.
@@ -293,7 +292,7 @@ ASSERT	macro	cond,op,value
 	op
 	  ENDIF
 	  IFDIF	<cond>,<NEVER>
-	J&cond	$+4
+	J&cond	$+5
 	  ENDIF
 	OPCHECK	OP_ASSERT	;; use INT 06h to signal an assertion failure
 	  IFNB	<op>

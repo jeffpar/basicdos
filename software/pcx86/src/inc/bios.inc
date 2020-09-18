@@ -47,7 +47,8 @@ MODE_CO80	equ	03h
 MODE_MONO	equ	07h
 
 ;
-; INT_FDC (Floppy Disk Controller) and INT_HDC (Hard Disk Controller) functions
+; INT_FDC (Floppy Drive Controller) and INT_HDC (Hard Drive Controller)
+; functions
 ;
 FDC_READ	EQU	02h	;
 FDC_WRITE	EQU	03h	;

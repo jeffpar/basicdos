@@ -1,5 +1,5 @@
 ;
-; BASIC-DOS Floppy Disk Controller Device Driver
+; BASIC-DOS Floppy Drive Controller Device Driver
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
 ; @copyright © 2012-2020 Jeff Parsons

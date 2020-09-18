@@ -153,7 +153,7 @@ for (let diskName in disks) {
             dirPrev = dirNext;
         }
         diskFiles = "--files " + diskFiles;
-        archiveImage = " --output " + diskImage.replace(diskName, "archive/" + diskName).replace(".json",".img");
+        archiveImage = " --output " + diskImage.replace(diskName, "archive/" + diskName).replace(".json",".img") + " --writable";
         if (diskName.startsWith("BDS-")) {
             kbTarget = 320;
         } else {

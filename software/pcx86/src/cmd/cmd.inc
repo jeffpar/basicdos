@@ -140,11 +140,13 @@ SIG_CBLK	equ	'C'
 VAR_NAMELEN	equ	01Fh		; max chars allowed in var name
 
 ;
-; Pseudo-variable types (used by printArgs)
+; Internal variable types (used by printArgs)
 ;
 VAR_SEMI	equ	VAR_NONE OR 01h
 VAR_COMMA	equ	VAR_NONE OR 02h
 VAR_NEWLINE	equ	VAR_NONE OR 03h
+
+VAR_TSTR	equ	VAR_STR  OR 01h	; 4 bytes of ptr data (temp string ptr)
 
 VBLK_HDR	struc
 VBLK_NEXT	dw	?		; next var block seg, if any
@@ -222,13 +224,18 @@ GEN_ECHO	equ	08h		; initially set if GEN_BATCH
 ;
 ; Code generation helper macros
 ;
+; GENCALL generates a call the specified function (via CX).
+;
 GENCALL	macro	func
 	IFDIF	<func>,<cx>
 	mov	cx,offset func
 	ENDIF
 	call	genCallFar
 	endm
-
+;
+; GENPUSH generates code to push immediate 16-bit (via DX) or 32-bit
+; values (via DX:CX).
+;
 GENPUSH	macro	val1,val2
 	IFDIF	<val1>,<dx>
 	mov	dx,val1
@@ -242,7 +249,10 @@ GENPUSH	macro	val1,val2
 	call	genPushImm
 	ENDIF
 	endm
-
+;
+; GENPUSHB generates code to push an immediate byte value (via AL, AH,
+; or a constant that will be loaded via AL).
+;
 GENPUSHB macro	val
 	IFIDN	<val>,<al>
 	call	genPushImmByteAL
@@ -255,7 +265,6 @@ GENPUSHB macro	val
 	 ENDIF
 	ENDIF
 	endm
-
 ;
 ; Define the heap as a structure.  The first few fields (ie, all the BLK
 ; headers) are statically initialized, but the rest are left undefined so

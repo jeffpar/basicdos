@@ -142,52 +142,72 @@ p3:	mov	al,VAR_NEWLINE
 p4:	pop	bp
 	test	bp,bp			; end-of-args marker?
 	jz	p8			; yes
+
 	mov	al,[bp]			; AL = arg type
 	cmp	al,VAR_SEMI
-	je	p4
+	je	p4a
 	cmp	al,VAR_COMMA
 	jne	p5
 	PRINTF	<CHR_TAB>
+p4a:	mov	al,VAR_NONE		; if we end on this, there's no NEWLINE
 	jmp	p4
-
+;
+; Check for numeric types first.  VAR_LONG is it for now.
+;
 p5:	cmp	al,VAR_LONG
 	jne	p6
-	push	ax
 	mov	ax,[bp+2]
 	mov	dx,[bp+4]
 ;
-; As the itoa code in sprintf.asm explains, I use the '#' (hash) flag with
+; As the itoa code in sprintf.asm explains, we use the '#' (hash) flag with
 ; decimal output to signify that a space should precede positive values.
 ;
 	PRINTF	<"%#ld ">,ax,dx		; DX:AX = 32-bit value
-	pop	ax
+	jmp	p4
+;
+; Check for string types next.  VAR_STR is a normal string reference (eg,
+; a string constant in a code block, or a string variable in a string block),
+; whereas VAR_TSTR is a temporary string (eg, the result of some string
+; operation) which we must free after printing.
+;
+p6:	cmp	al,VAR_TSTR
+	jbe	p7
+	ASSERT	NEVER			; more types may be supported someday
 	jmp	p4
 
-p6:	cmp	al,VAR_STR
-	je	p7
-	cmp	al,CLS_STR
-	jne	p4			; TODO: error instead?
 p7:	push	ax
 	push	ds
 	lds	si,[bp+2]
 	lodsb
 	mov	ah,0			; AX = string length (255 max)
 ;
-; TODO: Don't use PRINTF for strings, since the default PRINTF buffer is
-; smaller than the maximum string size.  Just write the string to STDOUT using
-; a normal DOS call.
+; Write AX bytes from DS:SI to STDOUT.  PRINTF would be simpler, but it's
+; not a good idea, largely because the max length of string is greater than
+; our default PRINTF buffer, and because it would be slower with no benefit.
 ;
-	PRINTF	<"%.*ls ">,ax,si,ds	; DS:SI -> string
-	push	ds
-	pop	es
-	mov	di,si
-	call	freeStr			; ES:DI -> string data to free
+	push	bx
+	xchg	cx,ax			; CX = length
+	mov	dx,si			; DS:DX -> data
+	mov	bx,STDOUT
+	mov	ah,DOS_HDL_WRITE
+	int	21h
+	pop	bx
+
 	pop	ds
 	pop	ax
-	jmp	p4
+	cmp	al,VAR_TSTR		; if it's not VAR_TSTR
+	jne	p4			; then we're done
 
-p8:	cmp	al,VAR_NEWLINE		; did we want to start a new line?
-	jb	p9			; no
+	push	ds
+	pop	es
+	lea	di,[si-1]
+	call	freeStr			; ES:DI -> string data to free
+	jmp	p4
+;
+; We've reached the end of arguments, wrap it up.
+;
+p8:	test	al,al			; unless AL is zero
+	jz	p9			; we want to end on a new line
 	PRINTF	<13,10>
 
 p9:	pop	dx			; remove return address
