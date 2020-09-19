@@ -16,7 +16,7 @@ There are currently four BASIC-DOS demo configurations:
  1. [Single 25x80 session](?autoStart=true)
  2. [Two 40-column sessions](?autoMount={A:{name:"BASIC-DOS2"}})
  3. [Two 80-column sessions](?autoMount={A:{name:"BASIC-DOS3"}})
- 4. [Dual monitors](dual/)
+ 4. [Dual monitors with single sessions](dual/)
  5. [Dual monitors with multiple sessions](dual/multi/)
 
 The 40 and 80-column demos are configured with borders.  A double-wide border
