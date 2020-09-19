@@ -370,8 +370,8 @@ CLS_DEC		equ	04h	; decimal value
 CLS_NUM		equ	07h	; any of the above
 CLS_STR		equ	08h	; string constant
 CLS_VAR		equ	10h	; identifier (eg, keyword, var, keyop)
-CLS_KEYWORD	equ	18h	; identifier later identified as a keyword
 CLS_SYM		equ	20h	; symbol
+CLS_KEYWORD	equ	30h	; identifier later identified as a keyword
 CLS_ANY		equ	3Fh	;
 CLS_DQUOTE	equ	40h	; double quotes
 CLS_WHITE	equ	80h	; whitespace

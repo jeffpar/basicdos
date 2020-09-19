@@ -14,11 +14,12 @@ CODE    SEGMENT
 	EXTERNS	<allocCode,freeCode,allocVars>,near
 	EXTERNS	<addVar,findVar,setVarLong>,near
 	EXTERNS	<appendStr,setStr,memError>,near
-	EXTERNS	<clearScreen,doCmd,printArgs,printLine,setColor>,near
+	EXTERNS	<clearScreen,doCmd,printArgs,printEcho,printLine>,near
+	EXTERNS	<setColor,setFlags>,near
 
 	EXTERNS	<KEYWORD_TOKENS,KEYOP_TOKENS>,word
 	EXTERNS	<OPDEFS,RELOPS>,byte
-	EXTERNS	<TOK_ELSE,TOK_THEN>,abs
+	EXTERNS	<TOK_ELSE,TOK_OFF,TOK_ON,TOK_THEN>,abs
 
 	IFDEF	LATER
 	EXTERNS	<SYNTAX_TABLES,SCF_TABLE>,word
@@ -87,10 +88,10 @@ gc0:	mov	[genFlags],al
 	stosw				; to reset the stack and return
 ;
 ; ES:[CBLK_SIZE] is the absolute limit for pCode, but we also maintain
-; another field, ES:[CBLK_REFS], as the top of a LBLREF stack, and that
+; another field, ES:[CBLK_REFS], as the bottom of a LBLREF table, and that
 ; is the real limit that the code generator must be mindful of.
 ;
-; Initialize the LBLREF stack; it's empty when CBLK_REFS = CBLK_SIZE.
+; Initialize the LBLREF table; it's empty when CBLK_REFS = CBLK_SIZE.
 ;
 	mov	es:[CBLK_REFS],cx
 
@@ -119,7 +120,7 @@ gc3:	cmp	si,ds:[TBLK_FREE]
 	lodsw
 	test	ax,ax			; is there a label #?
 	jz	gc3a			; no
-	call	addLabel		; yes, add it to the LBLREF stack
+	call	addLabel		; yes, add it to the LBLREF table
 gc3a:	xchg	dx,ax			; DX = label #, if any
 	lodsb				; AL = length byte
 	mov	ah,0
@@ -499,7 +500,7 @@ ENDPROC	genDefStr
 ;
 ; genEcho
 ;
-; Process "ECHO"
+; Process "ECHO".  If "ECHO ON" or "ECHO OFF", generate call to setFlags.
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs
@@ -512,10 +513,24 @@ ENDPROC	genDefStr
 ;	Any
 ;
 DEFPROC	genEcho
-	mov	al,CLS_ANY
+	mov	al,CLS_KEYWORD
 	call	getNextToken
-	jbe	gec9
-	and	[genFlags],NOT GEN_ECHO	; clears carry in the process, too
+	jb	gec9
+	jnz	gec1
+	GENCALL	printEcho
+	ret
+gec1:	cmp	al,TOK_ON
+	jne	gec2
+	mov	ah,CMD_ECHO
+	jmp	short gec8
+gec2:	cmp	al,TOK_OFF
+	stc
+	jne	gec9
+	mov	ah,NOT CMD_ECHO
+gec8:	mov	al,OP_MOV_AL
+	stosw				; "MOV AL,xx" where XX is value in AH
+	GENCALL	setFlags
+	clc
 gec9:	ret
 ENDPROC	genEcho
 
@@ -823,6 +838,7 @@ ENDPROC	genGoto
 ;	pop	dx
 ;	or	ax,dx
 ;	jz	elseBlock
+;    thenBlock:
 ;	; Generate code for "THEN" block
 ;	; ...
 ;	jmp	nextBlock (optional; only needed if there's an "ELSE" block)
@@ -997,15 +1013,15 @@ DEFPROC	addLabel
 	test	dx,LBL_RESOLVE		; is this a label reference?
 	jnz	al8			; yes, just add it
 ;
-; For label definitions, we scan the LBLREF stack to ensure this
-; definition is unique.  We must also scan the stack for any unresolved
+; For label definitions, we scan the LBLREF table to ensure this
+; definition is unique.  We must also scan the table for any unresolved
 ; references and fix them up.
 ;
 	mov	cx,es:[CBLK_SIZE]
 	mov	di,es:[CBLK_REFS]
 	sub	cx,di
-	shr	cx,1			; CX = # of words on LBLREF stack
-al0:	jcxz	al8			; stack is empty
+	shr	cx,1			; CX = # of words on LBLREF table
+al0:	jcxz	al8			; table is empty
 al1:	repne	scasw			; scan all words for label #
 	jne	al8			; nothing found
 	test	di,(size LBLREF)-1	; did we match the first LBLREF word?
@@ -1067,8 +1083,8 @@ DEFPROC	findLabel
 	mov	cx,es:[CBLK_SIZE]
 	mov	di,es:[CBLK_REFS]
 	sub	cx,di
-	jcxz	fl8			; stack is empty
-	shr	cx,1			; CX = # of words on LBLREF stack
+	jcxz	fl8			; table is empty
+	shr	cx,1			; CX = # of words on LBLREF table
 fl1:	repne	scasw			; scan all words for label #
 	jne	fl8			; nothing found
 	test	di,(size LBLREF)-1	; did we match the first LBLREF word?
