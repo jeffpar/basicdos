@@ -316,6 +316,9 @@ ENDPROC	ddcon_movcur
 ;
 ; ddcon_setins
 ;
+; NOTE: There is no "insert mode" flag; the mode is considered OFF (0)
+; if bits 0-4 of CT_CURTYPE.HIB are set, and ON (1) if bits 0-4 are clear.
+;
 ; Inputs:
 ;	ES:DI -> DDPRW
 ;	CX = 0 to clear insert mode, 1 to set
@@ -325,16 +328,20 @@ ENDPROC	ddcon_movcur
 ;	DX = previous insert mode (0 if cleared, 1 if set)
 ;
 ; Modifies:
-;	AX, CX
+;	AX, CX, DX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_setins
 	mov	ax,ds:[CT_DEFTYPE]
 	ror	cl,1			; move CL bit 0 to bit 7 (and carry)
-	jnc	dsi1
-	and	ah,0E0h
-dsi1:	mov	ds:[CT_CURTYPE],ax
-	mov	ax,ds
+	jnc	dsi1			; "insert mode" requested?
+	and	ah,0E0h			; yes, clear bits 0-4 of CT_CURTYPE.HIB
+dsi1:	xchg	ds:[CT_CURTYPE],ax	; AX = previous CT_CURTYPE
+	sub	dx,dx
+	test	ah,1Fh			; were bits 0-4 clear?
+	jnz	dsi2			; no, DX = 0
+	inc	dx			; yes, DX = 1
+dsi2:	mov	ax,ds
 	cmp	ax,[ct_focus]		; does this context have focus?
 	jne	dsi9			; no, leave cursor alone
 	call	set_curtype		; update CT_CURTYPE

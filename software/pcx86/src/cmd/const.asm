@@ -160,10 +160,12 @@ CODE	ENDS
 	DEFTOK	LOAD,   21, cmdLoad
 	DEFTOK	MEM,    42, cmdMem
 	DEFTOK	NEW,     3, cmdNew
+	DEFTOK	OFF,   202
+	DEFTOK	ON,    203
 	DEFTOK	PRINT,  70, genPrint
 	DEFTOK	REM,    71
 	DEFTOK	RUN,     4, cmdRun
-	DEFTOK	THEN,  202
+	DEFTOK	THEN,  204
 	DEFTOK	TIME,   43, cmdTime
 	DEFTOK	TYPE,   22, cmdType
 	DEFTOK	VER,    44, cmdVer

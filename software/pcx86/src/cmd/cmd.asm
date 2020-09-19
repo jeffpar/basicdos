@@ -12,7 +12,8 @@
 CODE    SEGMENT
 	org	100h
 
-	EXTERNS	<allocText,freeText,genCode,freeCode,freeVars,printStr>,near
+	EXTERNS	<allocText,freeText,genCode,freeCode,freeVars>,near
+	EXTERNS	<writeStrCRLF>,near
 
 	EXTERNS	<KEYWORD_TOKENS>,word
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF,PERIOD>
@@ -44,6 +45,7 @@ DEFPROC	main
 	ENTER
 	mov	[heap].ORIG_SP,sp
 	mov	[heap].ORIG_BP,bp
+	mov	[heap].CMD_FLAGS,CMD_ECHO
 	mov	[hFile],ax
 	push	ds
 	push	cs
@@ -223,7 +225,8 @@ m4b:	push	dx
 	mov	al,GEN_BATCH
 m4c:	call	cmdRunFlags		; if cmdRun returns normally
 	call	freeText		; then free all the text blocks
-m4d:	jmp	m0
+m4d:	or	[heap].CMD_FLAGS,CMD_ECHO
+	jmp	m0
 ;
 ; COM and EXE files are EXEC'ed, which requires building EXECDATA.
 ;
@@ -975,18 +978,7 @@ l3:	cmp	si,ds:[TBLK_FREE]
 	jz	l4			; no
 	PRINTF	<"%5d">,ax
 l4:	PRINTF	<CHR_TAB>
-	mov	al,[si]
-	mov	ah,0
-	push	ax
-	push	si
-	push	ds
-	push	si
-	push	cs
-	call	near ptr printStr
-	pop	si
-	pop	ax
-	inc	si
-	add	si,ax
+	call	writeStrCRLF
 	jmp	l3
 l9:	ret
 ENDPROC	cmdList

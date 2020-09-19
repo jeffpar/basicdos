@@ -118,7 +118,7 @@ CBLK_SIZE	dw	?		; 02h: size of code block, in bytes
 CBLK_FREE	dw	?		; 04h: offset of next free byte
 CBLK_SIG	db	?		; 06h
 CBLK_PAD	db	?		; 07h
-CBLK_REFS	dw	?		; 08h: top of LBLREF stack, if any
+CBLK_REFS	dw	?		; 08h: bottom of LBLREF stack, if any
 CBLK_HDR	ends
 CBLKLEN		equ	4096		; default code block size
 SIG_CBLK	equ	'C'
@@ -200,7 +200,7 @@ OPDEF		ends
 ; Label reference
 ;
 ; As label definitions (eg, line numbers) are encountered by the code
-; generator, a LBLREF is pushed onto the current code block's LBLREF stack.
+; generator, a LBLREF is pushed onto the current code block's LBLREF table.
 ;
 ; Similarly, a LBLREF is pushed whenever a label reference (eg, GOTO line)
 ; is encountered.  If the label reference cannot be resolved immediately,
@@ -266,6 +266,11 @@ GENPUSHB macro	val
 	ENDIF
 	endm
 ;
+; Global interpreter flags
+;
+CMD_ECHO	equ	01h		; set if ECHO is "on"
+
+;
 ; Define the heap as a structure.  The first few fields (ie, all the BLK
 ; headers) are statically initialized, but the rest are left undefined so
 ; that they won't take up any space in the COM file.  The BASIC-DOS loader
@@ -280,6 +285,7 @@ ORIG_SP		dw	?
 ORIG_BP		dw	?
 CON_COLS	db	?
 CON_ROWS	db	?
+CMD_FLAGS	db	?		; see CMD_* flags
 PREV_TIME	dd	?		; last time displayed by cmdTime
 DEFVARS		db	26 dup (?)	; default var types for all 26 letters
 INPUTOFF	dw	?		; input offset (defaults to INPUTBUF)

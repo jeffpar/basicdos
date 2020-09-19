@@ -178,20 +178,12 @@ p6:	cmp	al,VAR_TSTR
 p7:	push	ax
 	push	ds
 	lds	si,[bp+2]
-	lodsb
-	mov	ah,0			; AX = string length (255 max)
 ;
 ; Write AX bytes from DS:SI to STDOUT.  PRINTF would be simpler, but it's
 ; not a good idea, largely because the max length of string is greater than
 ; our default PRINTF buffer, and because it would be slower with no benefit.
 ;
-	push	bx
-	xchg	cx,ax			; CX = length
-	mov	dx,si			; DS:DX -> data
-	mov	bx,STDOUT
-	mov	ah,DOS_HDL_WRITE
-	int	21h
-	pop	bx
+	call	writeStr
 
 	pop	ds
 	pop	ax
@@ -220,6 +212,29 @@ ENDPROC	printArgs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; printEcho
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
+DEFPROC	printEcho,FAR
+	mov	bx,ss:[PSP_HEAP]
+	test	ss:[bx].CMD_FLAGS,CMD_ECHO
+	jz	pe1
+	PRINTF	<"Echo is ON",13,10>
+	ret
+pe1:	PRINTF	<"Echo is OFF",13,10>
+	ret
+ENDPROC	printEcho
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; printLine
 ;
 ; Inputs:
@@ -232,9 +247,14 @@ ENDPROC	printArgs
 ;	AX, BX, CX, DX, SI
 ;
 DEFPROC	printLine,FAR
-	PRINTF	<13,10>
+	mov	bx,ss:[PSP_HEAP]
+	test	ss:[bx].CMD_FLAGS,CMD_ECHO
+	jnz	el1
+	ret	4
+
+el1:	PRINTF	<13,10>
 	;
-	; Fall into printStr
+	; Fall into printLine
 	;
 ENDPROC	printLine
 
@@ -252,22 +272,64 @@ ENDPROC	printLine
 ;	AX, BX, CX, DX, SI
 ;
 DEFPROC	printStr,FAR
+	PRINTF	<13,10>
 	ARGVAR	pStr,dword
 	ENTER
 	push	ds
 	lds	si,[pStr]		; DS:SI -> length-prefixed string
-	lodsb				; AL = length
-	mov	ah,0
-	xchg	cx,ax			; CX = length
-	mov	dx,si			; DS:DX -> string
-	mov	bx,STDOUT
-	mov	ah,DOS_HDL_WRITE
-	int	21h
+	call	writeStrCRLF
 	pop	ds
-	PRINTF	<13,10>
 	LEAVE
 	RETURN
 ENDPROC	printStr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; writeStr
+;
+; Inputs:
+;	DS:SI -> length-prefixed string
+;
+; Outputs:
+;	AX = # bytes printed
+;	SI updated to end of string
+;
+; Modifies:
+;	AX, CX, DX, SI
+;
+DEFPROC	writeStr
+	push	bx
+	lodsb				; AL = string length (255 max)
+	mov	ah,0
+	xchg	cx,ax			; CX = length
+	mov	dx,si			; DS:DX -> data
+	add	si,cx
+	mov	bx,STDOUT
+	mov	ah,DOS_HDL_WRITE
+	int	21h
+	pop	bx
+	ret
+ENDPROC	writeStr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; writeStrCRLF
+;
+; Inputs:
+;	DS:SI -> length-prefixed string
+;
+; Outputs:
+;	AX = # bytes written
+;	SI updated to end of string
+;
+; Modifies:
+;	AX, CX, DX, SI
+;
+DEFPROC	writeStrCRLF
+	call	writeStr
+	PRINTF	<13,10>
+	ret
+ENDPROC	writeStrCRLF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -329,6 +391,34 @@ sc5:	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_SETCOLOR
 	push	si
 	ret
 ENDPROC	setColor
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; setFlags
+;
+; If AL contains a single bit, that bit will be set in CMD_FLAGS;
+; otherwise, AL will be applied as a mask to CMD_FLAGS.
+;
+; Inputs:
+;	AL = bit to set or clear in CMD_FLAGS
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
+DEFPROC	setFlags,FAR
+	mov	bx,ss:[PSP_HEAP]
+	mov	ah,al
+	dec	ah			; AH = flags - 1
+	and	ah,al			; if (flags - 1) AND flags is zero
+	jz	sf1			; then AL contains a single bit to set
+	and	ss:[bx].CMD_FLAGS,al
+	xor	al,al
+sf1:	or	ss:[bx].CMD_FLAGS,al
+	ret
+ENDPROC	setFlags
 
 CODE	ENDS
 
