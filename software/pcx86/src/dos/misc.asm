@@ -407,7 +407,7 @@ ENDPROC	msc_sigctrlc
 ;	None
 ;
 ; Modifies:
-;	None
+;	AX
 ;
 DEFPROC	msc_sigerr
 	ASSUME	DS:NOTHING, ES:NOTHING

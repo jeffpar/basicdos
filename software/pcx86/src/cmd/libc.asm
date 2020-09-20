@@ -119,43 +119,43 @@ DEFPROC	printArgs,FAR
 	push	bx			; push end-of-args marker
 	mov	bx,bp
 
-p1:	mov	al,[bp]			; AL = arg type
+pa1:	mov	al,[bp]			; AL = arg type
 	test	al,al
-	jz	p3
-p2:	push	bp
+	jz	pa3
+pa2:	push	bp
 	lea	bp,[bp+2]
 	cmp	al,VAR_INT
-	jb	p1
+	jb	pa1
 	lea	bp,[bp+2]
-	je	p1
+	je	pa1
 	lea	bp,[bp+2]
 	cmp	al,VAR_DOUBLE
-	jb	p1
+	jb	pa1
 	lea	bp,[bp+4]
-	jmp	p1
+	jmp	pa1
 
-p3:	mov	al,VAR_NEWLINE
+pa3:	mov	al,VAR_NEWLINE
 	lea	bp,[bp+2]
 	sub	bp,bx
 	mov	bx,bp			; BX = # bytes to clean off stack
 
-p4:	pop	bp
+pa4:	pop	bp
 	test	bp,bp			; end-of-args marker?
-	jz	p8			; yes
+	jz	pa8			; yes
 
 	mov	al,[bp]			; AL = arg type
 	cmp	al,VAR_SEMI
-	je	p4a
+	je	pa4a
 	cmp	al,VAR_COMMA
-	jne	p5
+	jne	pa5
 	PRINTF	<CHR_TAB>
-p4a:	mov	al,VAR_NONE		; if we end on this, there's no NEWLINE
-	jmp	p4
+pa4a:	mov	al,VAR_NONE		; if we end on this, there's no NEWLINE
+	jmp	pa4
 ;
 ; Check for numeric types first.  VAR_LONG is it for now.
 ;
-p5:	cmp	al,VAR_LONG
-	jne	p6
+pa5:	cmp	al,VAR_LONG
+	jne	pa6
 	mov	ax,[bp+2]
 	mov	dx,[bp+4]
 ;
@@ -163,19 +163,19 @@ p5:	cmp	al,VAR_LONG
 ; decimal output to signify that a space should precede positive values.
 ;
 	PRINTF	<"%#ld ">,ax,dx		; DX:AX = 32-bit value
-	jmp	p4
+	jmp	pa4
 ;
 ; Check for string types next.  VAR_STR is a normal string reference (eg,
 ; a string constant in a code block, or a string variable in a string block),
 ; whereas VAR_TSTR is a temporary string (eg, the result of some string
 ; operation) which we must free after printing.
 ;
-p6:	cmp	al,VAR_TSTR
-	jbe	p7
+pa6:	cmp	al,VAR_TSTR
+	jbe	pa7
 	ASSERT	NEVER			; more types may be supported someday
-	jmp	p4
+	jmp	pa4
 
-p7:	push	ax
+pa7:	push	ax
 	push	ds
 	lds	si,[bp+2]
 ;
@@ -188,21 +188,21 @@ p7:	push	ax
 	pop	ds
 	pop	ax
 	cmp	al,VAR_TSTR		; if it's not VAR_TSTR
-	jne	p4			; then we're done
+	jne	pa4			; then we're done
 
 	push	ds
 	pop	es
 	lea	di,[si-1]
 	call	freeStr			; ES:DI -> string data to free
-	jmp	p4
+	jmp	pa4
 ;
 ; We've reached the end of arguments, wrap it up.
 ;
-p8:	test	al,al			; unless AL is zero
-	jz	p9			; we want to end on a new line
+pa8:	test	al,al			; unless AL is zero
+	jz	pa9			; we want to end on a new line
 	PRINTF	<13,10>
 
-p9:	pop	dx			; remove return address
+pa9:	pop	dx			; remove return address
 	pop	cx
 	add	sp,bx			; clean the stack
 	push	cx			; restore the return address
@@ -249,13 +249,9 @@ ENDPROC	printEcho
 DEFPROC	printLine,FAR
 	mov	bx,ss:[PSP_HEAP]
 	test	ss:[bx].CMD_FLAGS,CMD_ECHO
-	jnz	el1
+	jnz	pl1
 	ret	4
-
-el1:	PRINTF	<13,10>
-	;
-	; Fall into printLine
-	;
+pl1:	PRINTF	<13,10>			; fall into printStr
 ENDPROC	printLine
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -272,7 +268,6 @@ ENDPROC	printLine
 ;	AX, BX, CX, DX, SI
 ;
 DEFPROC	printStr,FAR
-	PRINTF	<13,10>
 	ARGVAR	pStr,dword
 	ENTER
 	push	ds

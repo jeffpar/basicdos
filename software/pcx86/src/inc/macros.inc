@@ -399,12 +399,12 @@ DPRINTF	macro	letter,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	LOCAL	D1,D2
 	IFDEF DEBUG
 	pushf			;; FPRINTF alters AX and flags
-	push	ax		;; so we have no choice but to push them
+	push	ax		;; and we alter DL
 	push	dx
 	mov	dl,letter
 	FPRINTF	DOS_UTL_DPRINTF,<format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
-	test	dl,dl
-	pop	dx
+	test	dl,dl		;; if DOS_UTL_PRINTF returns zero in DL
+	pop	dx		;; jump to the DBGBRK
 	pop	ax
 	jz	D1
 	popf
