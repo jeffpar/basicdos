@@ -229,8 +229,8 @@ ENDPROC	utl_printf endp
 ; Use the DPRINTF macro to simplify calls to this function.
 ;
 ; Inputs:
-;	DL = option letter
-;	format string follows the INT 21h
+;	option code (following INT 21h)
+;	format string (following the option code)
 ;	all other parameters must be pushed onto the stack, right to left
 ;
 ; Outputs:
@@ -243,18 +243,24 @@ ENDPROC	utl_printf endp
 ;
 DEFPROC	utl_dprintf,DOS
 	IFDEF	DEBUG
-	sub	dl,[key_boot].LOB	; does DPRINTF letter match boot key?
+	lds	si,dword ptr [bp].REG_IP
+	ASSUME	DS:NOTHING
+	lodsb				; AL = option code
+	mov	[bp].REG_IP,si
+	sub	al,[key_boot].LOB	; does option code match boot key?
 	jz	dp1			; yes
-	cmp	dl,20h			; maybe boot key is upper case letter?
+	cmp	al,20h			; maybe boot key is upper case letter?
 	jne	dp8			; no
-	mov	byte ptr [bp].REG_DL,0	; zero caller's DL to signal DBGBRK
-dp1:	mov	bl,[sfh_debug]
+dp1:	push	ax
+	mov	bl,[sfh_debug]
 	call	hprintf
+	pop	ax
+	mov	[bp].REG_AL,al		; update caller's AL to trip DBGBRK
 	ret
 	ENDIF	; DEBUG
 
-dp8:	lds	si,dword ptr [bp].REG_IP
-	mov	al,0			; AL = null terminator
+dp8:	mov	al,0			; AL = null terminator
+	mov	[bp].REG_AL,al		; update caller's AL to skip DBGBRK
 	call	strlen			; get length of string at CS:IP
 	inc	ax			; count null terminator
 	add	[bp].REG_IP,ax		; update REG_IP with length in AX
@@ -619,7 +625,7 @@ tf6a:	mov	al,ch			; AL = previous classification
 	lea	cx,[si-1]		; SI = end of token
 	sub	cx,dx			; CX = length of token
 
-	IFDEF MAXDEBUG
+	IFDEF	MAXDEBUG
 	cmp	byte ptr [bp].TMP_AL,-1
 	jne	tf6b
 	push	ax
@@ -627,7 +633,7 @@ tf6a:	mov	al,ch			; AL = previous classification
 	DPRINTF	't',<"token: '%.*ls' (%#04x)",13,10>,cx,dx,ds,ax
 	pop	ax
 tf6b:
-	ENDIF
+	ENDIF	; MAXDEBUG
 ;
 ; Update the TOKLET in the TOK_BUF at ES:DI, token index BX
 ;

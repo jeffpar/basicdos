@@ -388,7 +388,7 @@ rmb2:
 ; Use the PRINTF macro to simplify calls to the DOS_UTL_PRINTF function.
 ;
 PRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
-	FPRINTF	DOS_UTL_PRINTF,<format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
+	FPRINTF	DOS_UTL_PRINTF,,<format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	endm
 
 ;
@@ -399,14 +399,11 @@ DPRINTF	macro	letter,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	LOCAL	D1,D2
 	IFDEF DEBUG
 	pushf			;; FPRINTF alters AX and flags
-	push	ax		;; and we alter DL
-	push	dx
-	mov	dl,letter
-	FPRINTF	DOS_UTL_DPRINTF,<format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
-	test	dl,dl		;; if DOS_UTL_PRINTF returns zero in DL
-	pop	dx		;; jump to the DBGBRK
-	pop	ax
-	jz	D1
+	push	ax
+	FPRINTF	DOS_UTL_DPRINTF,letter,<format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
+	test	al,al		;; if DOS_UTL_PRINTF returns non-zero in AL
+	pop	ax		;; jump to the DBGBRK
+	jnz	D1
 	popf
 	jmp	short D2
 D1:	popf
@@ -426,7 +423,7 @@ D2:
 ; first, then the high word, so that the high word is pushed first.  Similarly,
 ; when passing 32-bit ("far") pointers, pass the offset first, then segment.
 ;
-FPRINTF	macro	func,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
+FPRINTF	macro	func,option,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	argc = 0
 	IRP	arg,<a12,a11,a10,a9,a8,a7,a6,a5,a4,a3,a2,a1>
 	IFNB	<arg>
@@ -436,7 +433,10 @@ FPRINTF	macro	func,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	ENDM
 	mov	ax,func
 	int	INT_DOSFUNC
-	IFNB <format>
+	IFNB	<option>
+	db	option
+	ENDIF
+	IFNB	<format>
 	db	format,0
 	ENDIF
 	IF	argc NE 0
