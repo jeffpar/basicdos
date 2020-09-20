@@ -396,15 +396,22 @@ PRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 ; (and to ensure they are generated only in DEBUG builds).
 ;
 DPRINTF	macro	letter,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
+	LOCAL	D1,D2
 	IFDEF DEBUG
 	pushf			;; FPRINTF alters AX and flags
 	push	ax		;; so we have no choice but to push them
 	push	dx
 	mov	dl,letter
 	FPRINTF	DOS_UTL_DPRINTF,<format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
+	test	dl,dl
 	pop	dx
 	pop	ax
+	jz	D1
 	popf
+	jmp	short D2
+D1:	popf
+	DBGBRK
+D2:
 	ENDIF
 	endm
 

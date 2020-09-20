@@ -247,14 +247,9 @@ DEFPROC	utl_dprintf,DOS
 	jz	dp1			; yes
 	cmp	dl,20h			; maybe boot key is upper case letter?
 	jne	dp8			; no
-dp1:	push	dx
-	mov	bl,[sfh_debug]
+	mov	byte ptr [bp].REG_DL,0	; zero caller's DL to signal DBGBRK
+dp1:	mov	bl,[sfh_debug]
 	call	hprintf
-	pop	dx
-	cmp	dl,20h			; if the boot key was upper case
-	jne	dp2			; then trigger a DBGBRK as well
-	DBGBRK
-dp2:	clc
 	ret
 	ENDIF	; DEBUG
 

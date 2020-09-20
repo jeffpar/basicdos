@@ -72,6 +72,7 @@ as0:	jmp	as9
 ; string will still be within limits.
 ;
 as1:	mov	dl,es:[di]
+	mov	dh,0
 	mov	cl,dl
 	mov	al,[si]
 	add	dl,al
