@@ -128,14 +128,25 @@ as2:	push	si			; push source
 	mov	bx,di
 	mov	dx,es			; DX:BX = new string address
 	stosb				; start with the new combined length
+;
+; This code to copy-and-zero target can be used ONLY if the target is in the
+; string pool (NOT if it's a string constant in a code block).
+;
+; 	sub	ax,ax
+; 	xchg	al,[si]
+; 	inc	si
+; 	xchg	cx,ax
+; as3:	mov	al,0
+; 	xchg	al,[si]
+; 	inc	si
+; 	stosb
+; 	loop	as3
+
+	lodsb
 	mov	ah,0
-	xchg	al,[si]
-	mov	cx,ax
-as3:	mov	al,0
-	xchg	al,[si]
-	inc	si
-	stosb
-	loop	as3
+	xchg	cx,ax
+	rep	movsb
+
 as4:	pop	ds			; recover source in DS:SI
 	pop	si
 	jc	as8
@@ -401,6 +412,8 @@ DEFPROC	findStrSpace
 	DPRINTF	's',<"findStrSpace: %d bytes",13,10>,dx
 	push	si
 	push	ds
+	push	ss
+	pop	ds
 	mov	si,ds:[PSP_HEAP]
 	lea	si,[si].STRS_BLK
 	mov	ah,0
