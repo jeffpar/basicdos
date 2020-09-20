@@ -46,6 +46,7 @@ CODE    SEGMENT
 DEFPROC	evalAddStr,FAR
 	ARGVAR	pTarget,dword
 	ARGVAR	pSource,dword
+	DPRINTF	's',<"evalAddStr",13,10>
 	ENTER
 	push	ds
 	lds	si,[pSource]
@@ -318,6 +319,7 @@ ENDPROC	evalGEStr
 ;	AX, CX, DI
 ;
 DEFPROC	freeStr
+	DPRINTF	's',<"freeStr: @%#08lx",13,10>,di,es
 	mov	cl,es:[di]		; CL = string length
 	mov	ch,0			; CX = length
 	inc	cx			; CX = length + length byte
@@ -343,9 +345,9 @@ ENDPROC	freeStr
 DEFPROC	setStr,FAR
 	ARGVAR	pTargetVar,dword
 	ARGVAR	pSource,dword
+	DPRINTF	's',<"setStr",13,10>
 	ENTER
 	les	di,[pTargetVar]
-	DBGBRK
 ;
 ; The general case involves storing the source address in the target variable
 ; after first zeroing all the bytes referenced by the target variable.
@@ -395,6 +397,7 @@ ENDPROC	setStr
 ;	AX, BX, CX, DI, ES
 ;
 DEFPROC	findStrSpace
+	DPRINTF	's',<"findStrSpace: %d bytes",13,10>,dx
 	push	si
 	push	ds
 	mov	si,ds:[PSP_HEAP]

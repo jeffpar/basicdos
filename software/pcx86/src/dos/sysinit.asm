@@ -525,16 +525,13 @@ si20:	test	bx,bx
 ; unless it was a control character (RETURN, ESC, etc), in which case we leave
 ; the BOOTKEY setting alone.
 ;
-; Currently, any alphanumeric boot key enables DPRINTF, and 'B' also triggers
-; a breakpoint following any DPRINTF.  If BOOTKEY has been set in CONFIG.SYS,
-; you can use the SPACEBAR to disable it.
+; Currently, any alphanumeric boot key enables DPRINTF, and any capital letter
+; also triggers a breakpoint following the DPRINTF.  If BOOTKEY has been set
+; in CONFIG.SYS, you can use the SPACEBAR to disable it.
 ;
 	mov	ax,[BOOT_KEY]		; copy the boot key, if any
 	cmp	al,' '			; control character?
 	jb	si98			; yes, ignore
-	cmp	al,'a'			; lower-case?
-	jb	si97			; no
-	sub	al,20h			; make upper-case
 si97:	mov	[key_boot],ax
 
 si98:	sti

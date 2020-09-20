@@ -395,11 +395,14 @@ PRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 ; Use the DPRINTF macro to simplify calls to the DOS_UTL_DPRINTF function
 ; (and to ensure they are generated only in DEBUG builds).
 ;
-DPRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
+DPRINTF	macro	letter,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	IFDEF DEBUG
 	pushf			;; FPRINTF alters AX and flags
 	push	ax		;; so we have no choice but to push them
+	push	dx
+	mov	dl,letter
 	FPRINTF	DOS_UTL_DPRINTF,<format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
+	pop	dx
 	pop	ax
 	popf
 	ENDIF

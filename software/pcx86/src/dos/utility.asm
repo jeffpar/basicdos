@@ -229,6 +229,7 @@ ENDPROC	utl_printf endp
 ; Use the DPRINTF macro to simplify calls to this function.
 ;
 ; Inputs:
+;	DL = option letter
 ;	format string follows the INT 21h
 ;	all other parameters must be pushed onto the stack, right to left
 ;
@@ -241,21 +242,28 @@ ENDPROC	utl_printf endp
 ; See sprintf.asm for more information on the format string.
 ;
 DEFPROC	utl_dprintf,DOS
+	IFDEF	DEBUG
+	sub	dl,[key_boot].LOB	; does DPRINTF letter match boot key?
+	jz	dp1			; yes
+	cmp	dl,20h			; maybe boot key is upper case letter?
+	jne	dp8			; no
+dp1:	push	dx
 	mov	bl,[sfh_debug]
-	cmp	[key_boot].LOB,'0'	; alphanumeric boot key pressed?
-	jb	dp1			; no
-	call	hprintf			; yes
-	ASSUME	DS:NOTHING,ES:NOTHING
-	cmp	[key_boot].LOB,'B'	; 'B' for break?
-	jne	dp9			; no
-	DBGBRK				; yes
+	call	hprintf
+	pop	dx
+	cmp	dl,20h			; if the boot key was upper case
+	jne	dp2			; then trigger a DBGBRK as well
+	DBGBRK
+dp2:	clc
 	ret
-dp1:	lds	si,dword ptr [bp].REG_IP
+	ENDIF	; DEBUG
+
+dp8:	lds	si,dword ptr [bp].REG_IP
 	mov	al,0			; AL = null terminator
 	call	strlen			; get length of string at CS:IP
 	inc	ax			; count null terminator
 	add	[bp].REG_IP,ax		; update REG_IP with length in AX
-dp9:	ret
+	ret
 ENDPROC	utl_dprintf endp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -621,7 +629,7 @@ tf6a:	mov	al,ch			; AL = previous classification
 	jne	tf6b
 	push	ax
 	mov	ah,0
-	DPRINTF	<"token: '%.*ls' (%#04x)",13,10>,cx,dx,ds,ax
+	DPRINTF	't',<"token: '%.*ls' (%#04x)",13,10>,cx,dx,ds,ax
 	pop	ax
 tf6b:
 	ENDIF

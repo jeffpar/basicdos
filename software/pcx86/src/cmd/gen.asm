@@ -693,7 +693,7 @@ gn5b:	pop	cx			; pop the evaluator as well
 	jcxz	gn6c			; no evaluator (eg, left paren)
 
 	IFDEF MAXDEBUG
-	DPRINTF	<"op %c, func @%08lx",13,10>,dx,cx,cs
+	DPRINTF	'o',<"op %c, func @%08lx",13,10>,dx,cx,cs
 	ENDIF
 
 	GENCALL	cx			; and generate call
@@ -730,7 +730,7 @@ gn8:	pop	cx
 
 	IFDEF MAXDEBUG
 	pop	ax
-	DPRINTF	<"op %c, func @%08lx...",13,10>,cx,ax,cs
+	DPRINTF	'o',<"op %c, func @%08lx...",13,10>,cx,ax,cs
 	xchg	cx,ax
 	ELSE
 	pop	cx			; CX = evaluator
@@ -1007,7 +1007,7 @@ ENDPROC	genPrint
 ;	CX, DX
 ;
 DEFPROC	addLabel
-	DPRINTF	<"%#010P: line %d: adding label %d...",13,10>,lineNumber,ax
+	DPRINTF	'l',<"%#010P: line %d: adding label %d...",13,10>,lineNumber,ax
 
 	mov	dx,di			; DX = current code gen offset
 	test	dx,LBL_RESOLVE		; is this a label reference?
@@ -1077,7 +1077,7 @@ ENDPROC	addLabel
 ;	AX, CX, DX
 ;
 DEFPROC	findLabel
-	DPRINTF	<"%#010P: line %d: finding label %d...",13,10>,lineNumber,ax
+	DPRINTF	'l',<"%#010P: line %d: finding label %d...",13,10>,lineNumber,ax
 
 	push	di
 	mov	cx,es:[CBLK_SIZE]
@@ -1215,7 +1215,7 @@ ENDPROC	genPushImmByteAL
 ;
 DEFPROC	genPushImmLong
 	IFDEF MAXDEBUG
-	DPRINTF	<"num %ld",13,10>,cx,dx
+	DPRINTF	'o',<"num %ld",13,10>,cx,dx
 	ENDIF
 	xchg	ax,dx			; AX has original DX
 	xchg	ax,cx			; AX contains CX, CX has original DX
