@@ -108,8 +108,7 @@ m1a:	sub	ax,ax
 	lea	si,[si].INP_BUF
 	lea	di,[heap].TOKENBUF	; ES:DI -> TOKENBUF
 	mov	[di].TOK_MAX,(size TOK_BUF) / (size TOKLET)
-	mov	ax,DOS_UTL_TOKIFY1
-	int	21h
+	DOSUTIL	DOS_UTL_TOKIFY1
 	jc	m0			; jump if no tokens
 ;
 ; Before trying to ID the token, let's copy it to the FILENAME buffer,
@@ -131,11 +130,9 @@ m1b:	push	cx
 	stosb
 	pop	si			; DS:SI -> copy of token in FILENAME
 	pop	cx
-	mov	ax,DOS_UTL_STRUPR
-	int	21h			; DS:SI -> token, CX = length
+	DOSUTIL	DOS_UTL_STRUPR		; DS:SI -> token, CX = length
 	lea	dx,[KEYWORD_TOKENS]
-	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
-	int	21h			; identify the token
+	DOSUTIL	DOS_UTL_TOKID		; CS:DX -> TOKTBL; identify the token
 	jc	m2
 	mov	dx,cs:[si].CTD_FUNC
 	mov	[pHandler],dx
@@ -323,8 +320,7 @@ m19:	push	cx
 	pop	cx
 	push	ss
 	pop	ds
-	mov	ax,DOS_UTL_STRUPR
-	int	21h			; DS:SI -> token, CX = length
+	DOSUTIL	DOS_UTL_STRUPR		; DS:SI -> token, CX = length
 	mov	[pArg],si
 	mov	[lenArg],cx
 m20:	cmp	[pHandler],0		; does handler exist?
@@ -535,8 +531,7 @@ cdt1:	mov	ah,DOS_MSC_SETDATE
 	jmp	cmdDate
 
 	DEFLBL	promptDate,near
-	mov	ax,DOS_UTL_GETDATE	; DOS_UTL_GETDATE returns packed date
-	int	21h			; DOS_MSC_GETDATE does not
+	DOSUTIL	DOS_UTL_GETDATE		; DOS_UTL_GETDATE returns packed date
 	xchg	dx,cx
 	jnc	cdt9			; if caller's carry clear, skip output
 	pushf
@@ -619,8 +614,7 @@ dir4:	lea	si,ds:[PSP_DTA].FFB_NAME
 ;
 	push	cx
 	push	dx
-	mov	ax,DOS_UTL_STRLEN
-	int	21h
+	DOSUTIL	DOS_UTL_STRLEN
 	xchg	cx,ax			; CX = total length
 	mov	dx,offset PERIOD
 	call	chkString		; does the filename contain a period?
@@ -724,8 +718,7 @@ DEFPROC	cmdHelp
 ; Identify the second token (DS:SI) with length CX.
 ;
 h1:	lea	dx,[KEYWORD_TOKENS]
-	mov	ax,DOS_UTL_TOKID	; CS:DX -> TOKTBL
-	int	21h
+	DOSUTIL	DOS_UTL_TOKID		; CS:DX -> TOKTBL
 	jc	h4			; unknown
 ;
 ; CS:SI -> CTOKDEF.  Load CTD_TXT_OFF into DX and CTD_TXT_LEN into CX.
@@ -1093,8 +1086,7 @@ lf5:	mov	[lineOffset],si
 	dec	si
 
 lf6:	push	dx
-	mov	ax,DOS_UTL_ATOI32D	; DS:SI -> decimal string
-	int	21h
+	DOSUTIL	DOS_UTL_ATOI32D		; DS:SI -> decimal string
 	ASSERT	Z,<test dx,dx>		; DX:AX is the result but keep only AX
 	mov	[lineLabel],ax
 	pop	dx
@@ -1223,8 +1215,7 @@ DEFPROC	cmdTime
 	jz	ctm3			; no
 
 	sub	ax,ax			; set ZF
-	mov	ax,DOS_UTL_GETTIME
-	int	21h
+	DOSUTIL	DOS_UTL_GETTIME
 	push	cx			; CX:DX = current time
 	push	dx
 	call	printTime
@@ -1276,8 +1267,7 @@ ctm3:	mov	ax,offset promptTime
 
 	DEFLBL	promptTime,near
 	jnc	ctm8
-	mov	ax,DOS_UTL_GETTIME	; DOS_UTL_GETTIME returns packed time
-	int	21h			; DOS_MSC_GETTIME does not
+	DOSUTIL	DOS_UTL_GETTIME		; DOS_UTL_GETTIME returns packed time
 	mov	[heap].PREV_TIME.LOW,dx
 	mov	[heap].PREV_TIME.HIW,cx
 	DEFLBL	printTime,near
@@ -1562,8 +1552,7 @@ DEFPROC	chkString
 	mov	di,si			; ES:DI -> target
 	push	si
 	mov	si,dx			; CS:SI -> source
-	mov	ax,DOS_UTL_STRSTR
-	int	21h			; if carry clear, DI updated
+	DOSUTIL	DOS_UTL_STRSTR		; if carry clear, DI updated
 	pop	si
 	ret
 ENDPROC	chkString
@@ -1669,8 +1658,7 @@ gvs5:	cmp	bh,'-'			; are we dealing with a date?
 	mov	bl,10			; BL = base 10
 	lea	dx,[si+2]
 	mov	di,-1			; DI = -1 (no validation data)
-	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
-	int	21h
+	DOSUTIL	DOS_UTL_ATOI16		; DS:SI -> string
 	jc	gvs8
 	sub	dx,si			; too many digits?
 	jc	gvs6			; yes
@@ -1714,8 +1702,7 @@ DEFPROC	getValue
 	push	di
 	mov	bl,10			; BL = base 10
 	mov	di,-1			; DI = -1 (no validation data)
-	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
-	int	21h
+	DOSUTIL	DOS_UTL_ATOI16		; DS:SI -> string
 	sbb	di,di			; DI = -1 if no data
 	mov	bl,[si]			; BL = termination character
 	cmp	bl,CHR_RETURN		; CR (or null terminator)?

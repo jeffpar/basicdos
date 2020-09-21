@@ -114,8 +114,7 @@ DEFPROC	ddclk_ctlin
 ; should contain a standard CX:DX tick count) has been decremented to zero.
 ;
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	mov	ax,DOS_UTL_WAIT
-	int	21h
+	DOSUTIL	DOS_UTL_WAIT
 	jmp	dci8
 
 dci2:	cmp	al,IOCTL_SETDATE
@@ -469,8 +468,7 @@ ddi0:	mov	[ticksToday].LOW,0
 ;
 	mov	cx,[dateYear]
 	mov	dx,word ptr [dateDay]
-	mov	ax,DOS_UTL_INCDATE
-	int	21h
+	DOSUTIL	DOS_UTL_INCDATE
 	mov	[dateYear],cx
 	mov	word ptr [dateDay],dx
 
@@ -497,8 +495,7 @@ ddi1:	cmp	di,-1			; end of chain?
 ; Notify DOS that the SCB associated with this packet is done waiting.
 ;
 ddi2:	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	mov	ax,DOS_UTL_ENDWAIT
-	int	21h
+	DOSUTIL	DOS_UTL_ENDWAIT
 	jnc	ddi3
 ;
 ; If ENDWAIT returns an error, we presume that we simply got ahead of the

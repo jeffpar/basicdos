@@ -548,9 +548,13 @@ lp5:	mov	byte ptr [bx],CHR_RETURN
 
 	sub	cx,cx
 	sub	dx,dx
+	mov	[bp].TMP_CX,cx
 	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_END
 	int	21h			; returns new file position in DX:AX
 	jc	lpec1
+	test	dx,dx
+	jnz	lp5a
+	mov	[bp].TMP_CX,ax		; record size ONLY if < 64K
 ;
 ; Now that we have a file size, we can reallocate the PSP segment to a size
 ; closer to what we actually need.  We won't know EXACTLY how much we need yet,
@@ -558,7 +562,7 @@ lp5:	mov	byte ptr [bx],CHR_RETURN
 ; have numerous unknowns at this point.  But having at LEAST as much memory
 ; as there are bytes in the file is a reasonable starting point.
 ;
-	add	ax,15
+lp5a:	add	ax,15
 	adc	dx,0			; round DX:AX to next paragraph
 	mov	cx,16
 	cmp	dx,cx			; can we safely divide DX:AX by 16?
@@ -588,6 +592,8 @@ lp5:	mov	byte ptr [bx],CHR_RETURN
 	push	es
 	pop	ds
 	mov	dx,size PSP
+	mov	[bp].TMP_ES,ds
+	mov	[bp].TMP_DX,dx
 	mov	cx,200h
 	mov	ah,DOS_HDL_READ		; BX = file handle, CX = # bytes
 	int	21h
@@ -756,9 +762,8 @@ lp7a:	add	dx,ax			; DX -> end of program file
 ; We could leave the executable file open and close it on process termination,
 ; because it provides us with valuable information about all the processes that
 ; are running (info that should have been recorded in the PSP but never was).
-;
-; The handle could eventually be useful for overlay support, too.  But for now,
-; we'll close the handle.
+; The handle could also be useful for overlay support, too.  But for now, we'll
+; close the handle.
 ;
 	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the file
@@ -818,6 +823,7 @@ lp7d:	call	psp_calcsum		; calc checksum for code
 	mov	ds:[PSP_HEAP],di	; record the new heap offset
 	rep	movsb
 	mov	bx,di
+	mov	[bp].TMP_CX,cx		; this program's data can't be cached
 
 lp7e:	add	bx,15
 	mov	cl,4

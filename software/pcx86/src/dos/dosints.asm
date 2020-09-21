@@ -184,8 +184,7 @@ DEFPROC	dos_restart,DOSFAR
 	DEFLBL	dos_abort,near
 	mov	al,0FFh			; AL = exit code
 	xchg	dx,ax			; DL = exit code, DH = exit type
-	mov	ax,DOS_UTL_ABORT
-	int	21h
+	DOSUTIL	DOS_UTL_ABORT
 	ASSERT	NEVER			; assert that we never get here
 ENDPROC dos_restart
 
@@ -226,16 +225,17 @@ DEFPROC	dos_func,DOSFAR
 	mov	es,bx
 	ASSUME	ES:DOS
 ;
-; Utility functions don't automatically re-enable interrupts, clear the carry,
+; Utility functions don't automatically re-enable interrupts, clear carry,
 ; or check for CTRLC, since some of them are called from interrupt handlers.
 ;
-	cmp	ah,DOS_UTL		; utility function?
-	jne	dc1			; no
-	cmp	al,UTILTBL_SIZE		; utility function within range?
+	cmp	ah,80h			; utility function?
+	jb	dc1			; no
+	sub	ah,80h
+	cmp	ah,UTILTBL_SIZE		; utility function within range?
 	jae	dos_exit		; no
-	mov	ah,FUNCTBL_SIZE		; the utility function table
-	add	ah,al			; follows the DOS function table
-	jmp	short dc2
+	mov	al,ah			; yes, it expects function # in AL
+	add	ah,FUNCTBL_SIZE		; the utility function table
+	jmp	short dc2		; follows the DOS function table
 
 dc1:	sti
 	and	[bp].REG_FL,NOT FL_CARRY
@@ -256,7 +256,7 @@ dc1:	sti
 ; If CTRLC checking is enabled for all (non-utility) functions and a CTRLC
 ; was detected (two conditions that we check with a single compare), signal it.
 ;
-dc1a:	mov	bx,[scb_active]
+	mov	bx,[scb_active]
 	test	bx,bx
 	jz	dc2			; TODO: always have an scb_active
 	ASSERT	STRUCT,[bx],SCB
@@ -266,6 +266,7 @@ dc1a:	mov	bx,[scb_active]
 ; While we assign DS and ES to the DOS segment on DOS function entry,
 ; we do NOT require or assume they will still be set that way on exit.
 ;
+	DEFLBL	dosutil_enter,near
 dc2:	sub	bx,bx
 	mov	bl,ah
 	add	bx,bx
@@ -408,6 +409,16 @@ ENDPROC	dos_call5
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; dos_util (INT 32h)
+;
+DEFPROC	dos_util,DOSFAR
+	cld
+	add	ah,80h
+	jmp	near ptr dos_func + 1	; avoid the same entry point as INT 21h
+ENDPROC	dos_util
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; dos_ddint_enter
 ;
 ; DDINT_ENTER is "revectored" here by sysinit.
@@ -459,7 +470,7 @@ DEFPROC	dos_ddint_leave,DOSFAR
 	cld
 	sub	sp,size WS_TEMP
 	push	ax
-	mov	ax,DOS_UTL_YIELD
+	mov	ah,DOS_UTL_YIELD + 80h
 	jmp	dos_enter
 ddl9:	iret
 ENDPROC	dos_ddint_leave

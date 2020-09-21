@@ -19,7 +19,7 @@ DOS	segment word public 'CODE'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_strlen (AX = 1800h or 1824h)
+; utl_strlen (AL = 00h or 24h)
 ;
 ; Return the length of the REG_DS:REG_SI string in AX, using terminator AL.
 ;
@@ -57,7 +57,7 @@ ENDPROC	utl_strlen
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_strstr (AX = 1801h)
+; utl_strstr (AL = 01h)
 ;
 ; Find string (CS:SI) in string (ES:DI)
 ;
@@ -120,7 +120,7 @@ ENDPROC	utl_strstr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_strupr (AX = 1803h)
+; utl_strupr (AL = 03h)
 ;
 ; Make the string at REG_DS:SI with length CX upper-case; use length 0
 ; if null-terminated.
@@ -154,7 +154,7 @@ ENDPROC	utl_strupr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_printf (AX = 1804h)
+; utl_printf (AL = 04h)
 ;
 ; A CDECL-style calling convention is assumed, where all parameters EXCEPT
 ; for the format string are pushed from right to left, so that the first
@@ -212,7 +212,7 @@ ENDPROC	utl_printf endp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_dprintf (AX = 1805h)
+; utl_dprintf (AL = 05h)
 ;
 ; This is used by DEBUG code (specifically, the DPRINTF macro) to print
 ; to a "debug" device defined by a DEBUG= line in CONFIG.SYS.  However, this
@@ -263,7 +263,7 @@ ENDPROC	utl_dprintf endp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_sprintf (AX = 1806h)
+; utl_sprintf (AL = 06h)
 ;
 ; A CDECL-style calling convention is assumed, where all parameters EXCEPT
 ; for the format string are pushed from right to left, so that the first
@@ -298,7 +298,7 @@ ENDPROC	utl_sprintf
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_itoa (AX = 1807h)
+; utl_itoa (AL = 07h)
 ;
 ; Convert the value DX:SI to a string representation at ES:DI, using base BL,
 ; flags BH (see itoa for PF definitions), minimum length CX (0 for no minimum).
@@ -322,7 +322,7 @@ ENDPROC	utl_itoa
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_atoi16 (AX = 1808h)
+; utl_atoi16 (AL = 08h)
 ;
 ; Convert string at DS:SI to number in AX using base BL, using validation
 ; values at ES:DI.  It will also advance SI past the first non-digit character
@@ -463,7 +463,7 @@ ENDPROC utl_atoi16
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_atoi32 (AX = 1809h)
+; utl_atoi32 (AL = 09h)
 ;
 ; Convert string at DS:SI (with length CX) to number in DX:AX using base BL.
 ;
@@ -487,7 +487,7 @@ ENDPROC utl_atoi32
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_atoi32d (AX = 180Ah)
+; utl_atoi32d (AL = 0Ah)
 ;
 ; Convert decimal string at DS:SI to number in DX:AX.
 ;
@@ -529,17 +529,17 @@ ENDPROC	mul_32_16
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_tokify (AX = 180Bh or 180Ch)
+; utl_tokify (AL = 0Bh or 0Ch)
 ;
-; DOS_UTL_TOKIFY1 (180Bh) performs GENERIC parsing, which means that only
+; DOS_UTL_TOKIFY1 (0Bh) performs GENERIC parsing, which means that only
 ; tokens separated by whitespace (or SWITCHAR) will be returned, and they
 ; will all be identified "generically" as CLS_STR.
 ;
-; DOS_UTL_TOKIFY2 (180Ch) performs BASIC parsing, which returns all tokens,
+; DOS_UTL_TOKIFY2 (0Ch) performs BASIC parsing, which returns all tokens,
 ; even whitespace sequences (CLS_WHITE).
 ;
 ; Inputs:
-;	REG_AL = 0Bh (TOKTYPE_GENERIC) or 0Ch (TOKTYPE_BASIC)
+;	AL = 0Bh (TOKTYPE_GENERIC) or 0Ch (TOKTYPE_BASIC)
 ;	REG_CL = length of string
 ;	REG_DS:REG_SI -> string to "tokify"
 ;	REG_ES:REG_DI -> BUF_TOKEN (filled in with token info)
@@ -556,7 +556,8 @@ DEFPROC	utl_tokify,DOS
 	and	[bp].REG_FL,NOT FL_CARRY
 	mov	bx,[scb_active]
 	mov	bl,[bx].SCB_SWITCHAR
-	mov	[bp].TMP_AH,bl		; TMP_AH = SWITCHAR
+	mov	[bp].TMP_BL,bl		; TMP_BL = SWITCHAR
+	mov	[bp].TMP_BH,al		; TMP_BH = TOKTYPE
 	mov	ds,[bp].REG_DS		; DS:SI -> BUF_INPUT
 	ASSUME	DS:NOTHING
 	mov	es,[bp].REG_ES		; ES:DI -> BUF_TOKEN
@@ -695,9 +696,9 @@ tc2a:	mov	ah,CLS_WHITE
 ;
 ; For generic parsing, everything is either whitespace or a string.
 ;
-tc3:	test	byte ptr [bp].REG_AL,TOKTYPE_GENERIC
+tc3:	test	byte ptr [bp].TMP_BH,TOKTYPE_GENERIC
 	jz	tc4
-	cmp	al,[bp].TMP_AH		; SWITCHAR?
+	cmp	al,[bp].TMP_BL		; SWITCHAR?
 	jne	tc3a			; no
 	cmp	ah,CLS_WHITE		; yes, any intervening whitespace?
 	je	tc3a			; yes
@@ -790,7 +791,7 @@ ENDPROC	tok_classify
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_tokid (AX = 180Dh)
+; utl_tokid (AL = 0Dh)
 ;
 ; The main advantage of this function is that, by requiring the TOKTBL
 ; to be sorted, it can use a binary search to find the token faster.  For
