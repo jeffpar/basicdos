@@ -501,10 +501,12 @@ si16:	test	dx,dx			; do we still have a default?
 ;
 	DOSUTIL	DOS_UTL_LOAD		; load SHELL DS:DX into specified SCB
 	jc	si18
+	test	ax,ax
+	jz	si16a
 	mov	[cbCacheData],ax
 	mov	[pCacheData].OFF,dx
 	mov	[pCacheData].SEG,es
-	DOSUTIL	DOS_UTL_START		; CL = SCB #
+si16a:	DOSUTIL	DOS_UTL_START		; CL = SCB #
 	inc	bx			; must be valid, so no error checking
 
 si17:	inc	cx			; advance SCB #

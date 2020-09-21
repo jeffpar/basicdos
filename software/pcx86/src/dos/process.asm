@@ -823,6 +823,7 @@ lp7d:	call	psp_calcsum		; calc checksum for code
 	mov	ds:[PSP_HEAP],di	; record the new heap offset
 	rep	movsb
 	mov	bx,di
+	mov	[bp].TMP_CX,cx		; this program's data can't be cached
 
 lp7e:	add	bx,15
 	mov	cl,4
