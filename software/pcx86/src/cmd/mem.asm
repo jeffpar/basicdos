@@ -534,8 +534,6 @@ mem0:	ENTER
 ; Before we get into memory blocks, show the amount of memory reserved
 ; for the BIOS and disk buffers.
 ;
-	push	es		; save ES
-
 	sub	di,di
 	mov	es,di
 	ASSUME	ES:BIOS
@@ -586,9 +584,6 @@ drv9:	mov	di,es:[2]	; ES:[2] is mcb_limit
 	mov	si,offset DOS_MEM
 	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
 	ENDIF	; DEBUG
-
-	pop	es		; restore ES
-	ASSUME	ES:CODE
 ;
 ; Next, examine all the memory blocks and display those that are used.
 ;

@@ -16,7 +16,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_locked>,byte
 	EXTERNS	<buf_head,scb_active>,word
 	EXTERNS	<bpb_table>,dword
-	EXTERNS	<bpb_total,file_name>,byte
+	EXTERNS	<bpb_total>,byte
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -236,7 +236,7 @@ DEFPROC	dsk_ffirst,DOS
 	push	cx
 	push	si
 	mov	cx,size FCB_NAME
-	mov	si,offset file_name + 1	; FFB_FILESPEC
+	lea	si,[bx].SCB_FILENAME + 1; FFB_FILESPEC
 	REPMOV	byte,CS
 	pop	si
 	pop	cx
@@ -302,7 +302,7 @@ DEFPROC	dsk_fnext,DOS
 	mov	dl,[si].FFB_DRIVE
 	push	si
 	lea	si,[si].FFB_FILESPEC
-	mov	di,offset file_name + 1
+	lea	di,[bx].SCB_FILENAME + 1
 	mov	cx,size FFB_FILESPEC
 	rep	movsb
 	pop	si
@@ -349,12 +349,13 @@ DEFPROC	chk_filename,DOS
 	push	cs
 	pop	es
 	ASSUME	ES:DOS
-	mov	di,offset file_name	; ES:DI -> filename buffer
 	push	bx
 	push	ax
+	mov	bx,[scb_active]
+	lea	di,[bx].SCB_FILENAME	; ES:DI -> filename buffer
 ;
 ; If AH = 10h, then we've already got a "parsed name", so instead
-; of calling parse_name, just copy the name to the file_name buffer.
+; of calling parse_name, just copy the name to the FILENAME buffer.
 ;
 	cmp	ah,10h
 	jne	cf3
@@ -364,7 +365,7 @@ DEFPROC	chk_filename,DOS
 	mov	bx,[scb_active]		; no, get SCB's default drive instead
 	ASSERT	STRUCT,es:[bx],SCB
 	mov	al,es:[bx].SCB_CURDRV
-cf2:	stosb				; store drive # in the file_name buffer
+cf2:	stosb				; store drive # in the FILENAME buffer
 	xchg	dx,ax			; DL = drive #
 	mov	cx,size FCB_NAME
 ;
@@ -387,14 +388,14 @@ cf2b:	stosb
 cf3:	call	parse_name		; DS:SI -> filename or filespec
 	jc	cf9			; bail on error
 ;
-; file_name has been successfully filled in, so we're ready to search
+; FILENAME has been successfully filled in, so we're ready to search
 ; directory sectors for a matching name.  This requires getting a fresh
 ; BPB for the drive.
 ;
 cf4:	call	get_bpb			; DL = drive # (from above)
 	jc	cf9
 ;
-; DI -> BPB.  Start a directory search for file_name.
+; DI -> BPB.  Start a directory search for FILENAME.
 ;
 	pop	ax
 	push	ax
@@ -613,7 +614,7 @@ ENDPROC	get_cln
 ;	AX = next DIRENT #, -1 if don't care
 ;	BL = file attributes, 0 if don't care
 ;	DI -> BPB
-;	DS:file_name contains filename
+;	SCB_FILENAME contains the filename
 ;
 ; Outputs:
 ;	On success, DS:SI -> DIRENT, AX = DIRENT #, carry clear
@@ -679,7 +680,10 @@ gd5:	cmp	byte ptr [si],DIRENT_END
 
 gd5a:	push	di
 	mov	cx,size FCB_NAME
-	mov	di,offset file_name + 1	; skip drive # for DIRENT comparison
+	push	bx
+	mov	bx,[scb_active]
+	lea	di,[bx].SCB_FILENAME + 1; skip drive # for DIRENT comparison
+	pop	bx
 gd5b:	mov	bh,es:[di]
 	inc	di
 	cmp	bh,'?'

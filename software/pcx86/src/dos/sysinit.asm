@@ -338,7 +338,7 @@ si7:	mov	dx,size SFB
 	sub	ax,bx			; AX = top segment - ES
 	dec	ax			; AX reduced by 1 para (for MCB)
 	stosw
-	mov	cl,size MCB_RESERVED
+	mov	cl,size MCB_RESERVED + size MCB_NAME
 	mov	al,0
 	rep	stosb
 
