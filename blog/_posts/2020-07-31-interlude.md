@@ -56,9 +56,9 @@ usual built-in DOS device drivers, although the only ones that really do
 much at this point are:
 
   - CON
-  - COM#
+  - COM1, COM2, etc.
   - CLOCK$
-  - FDC$
+  - FDC$ (yes, BASIC-DOS block drivers have names, too)
 
 BASIC-DOS device drivers are very similar to DOS drivers.  For example,
 they use similar header and request packet structures.  But there are also
@@ -91,8 +91,7 @@ and:
     SHELL=COMMAND.COM
 
 define two 40-column, 25-line sessions that are displayed side-by-side on
-an 80-column IBM PC monitor, each running their own copy of
-COMMAND.COM.
+an 80-column IBM PC monitor, each running their own copy of COMMAND.COM.
 
 Sessions define a *context* within which one or more DOS programs may run,
 and the system automatically multi-tasks between sessions, providing the
@@ -150,7 +149,7 @@ buffer).
 ### The FDC$ Driver
 
 This is a block device driver specifically designed for the IBM PC's floppy
-disk controller.  However, unlike the CONSOLE and COM drivers, it does *not*
+drive controller.  However, unlike the CONSOLE and COM drivers, it does *not*
 currently support asynchronous I/O.  I didn't feel like taking on that work
 just yet, so it's largely just a wrapper for the BIOS INT 13h READ and WRITE
 functions.
@@ -188,9 +187,9 @@ address crossed a 64K boundary, the FDC driver automatically detects and avoids
 such failures.
 
 There's no support in the system for hard errors (eg, the familiar "Abort,
-Retry, Ignore" prompts).  Any unrecoverable error is reported immediately back
-to the caller.  That'll change at some point -- probably after I add support
-to the CONSOLE driver for "popup" and background display contexts.
+Retry, Ignore" prompts).  Any error, recoverable or otherwise, is reported
+immediately back to the caller.  That'll change at some point -- probably after
+I add support to the CONSOLE driver for "popup" and background display contexts.
 
 ### BIOS Parameter Blocks
 

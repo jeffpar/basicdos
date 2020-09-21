@@ -133,10 +133,17 @@ si3a:	mov	al,0EAh			; DI -> INT_DOSCALL5 * 4
 	mov	al,[di]			; grab the character
 	mov	[def_switchar],al	; and update the default for all SCBs
 ;
+; Copy BOOT_KEY from the BIOS segment to key_boot in the DOS segment.
+;
+si3b:	mov	ax,[BOOT_KEY]		; copy the boot key
+	cmp	al,CHR_RETURN		; unless it's just a RETURN
+	je	si3c
+	mov	[key_boot],ax
+;
 ; For ease of configuration testing, allow MEMSIZE (eg, MEMSIZE=32) to set a
 ; new memory limit (Kb), assuming we have at least as much memory as specified.
 ;
-si3b:	mov	si,offset CFG_MEMSIZE
+si3c:	mov	si,offset CFG_MEMSIZE
 	call	find_cfg		; look for "MEMSIZE="
 	jc	si4
 	xchg	si,di
@@ -331,7 +338,7 @@ si7:	mov	dx,size SFB
 	sub	ax,bx			; AX = top segment - ES
 	dec	ax			; AX reduced by 1 para (for MCB)
 	stosw
-	mov	cl,size MCB_RESERVED
+	mov	cl,size MCB_RESERVED + size MCB_NAME
 	mov	al,0
 	rep	stosb
 
@@ -437,7 +444,9 @@ si12:	mov	si,offset CFG_DEBUG
 	jc	si13
 	mov	es:[sfh_debug],al	; save SFH for DEBUG device
 
-si13:	mov	si,offset CFG_BOOTKEY
+si13:	cmp	word ptr es:[key_boot],0
+	jne	si14			; skip if key_boot is already set
+	mov	si,offset CFG_BOOTKEY
 	call	find_cfg		; look for "BOOTKEY="
 	jc	si14
 	mov	al,[di]
@@ -520,24 +529,7 @@ si20:	test	bx,bx
 	stosw
 	mov	ax,ds
 	stosw
-;
-; If a boot key was typed, it overrides any BOOTKEY setting in CONFIG.SYS,
-; unless it was a control character (RETURN, ESC, etc), in which case we leave
-; the BOOTKEY setting alone.
-;
-; Currently, any alphanumeric boot key enables DPRINTF, and 'B' also triggers
-; a breakpoint following any DPRINTF.  If BOOTKEY has been set in CONFIG.SYS,
-; you can use the SPACEBAR to disable it.
-;
-	mov	ax,[BOOT_KEY]		; copy the boot key, if any
-	cmp	al,' '			; control character?
-	jb	si98			; yes, ignore
-	cmp	al,'a'			; lower-case?
-	jb	si97			; no
-	sub	al,20h			; make upper-case
-si97:	mov	[key_boot],ax
-
-si98:	sti
+	sti
 ;
 ; We're done.  On the next clock tick, scb_yield will switch to one of the
 ; SCBs we started, and it will never return here, because sysinit has no SCB.

@@ -12,16 +12,10 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<get_sfh_sfb,sfb_write>,near
-	EXTERNS	<chk_devname,dev_request,write_string>,near
-	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload>,near
-	EXTERNS	<scb_yield,scb_delock,scb_wait,scb_endwait>,near
-	EXTERNS	<mem_query,msc_getdate,msc_gettime>,near
-	EXTERNS	<psp_term_exitcode>,near
-	EXTERNS	<itoa,sprintf,add_date>,near
+	EXTERNS	<itoa,sprintf,write_string>,near
 
-	EXTERNS	<scb_locked,sfh_debug,key_boot>,byte
+	EXTERNS	<sfh_debug,key_boot>,byte
 	EXTERNS	<scb_active>,word
-	EXTERNS	<scb_table,clk_ptr>,dword
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -229,7 +223,8 @@ ENDPROC	utl_printf endp
 ; Use the DPRINTF macro to simplify calls to this function.
 ;
 ; Inputs:
-;	format string follows the INT 21h
+;	option code (following INT 21h)
+;	format string (following the option code)
 ;	all other parameters must be pushed onto the stack, right to left
 ;
 ; Outputs:
@@ -241,21 +236,29 @@ ENDPROC	utl_printf endp
 ; See sprintf.asm for more information on the format string.
 ;
 DEFPROC	utl_dprintf,DOS
+	IFDEF	DEBUG
+	lds	si,dword ptr [bp].REG_IP
+	ASSUME	DS:NOTHING
+	lodsb				; AL = option code
+	mov	[bp].REG_IP,si
+	sub	al,[key_boot].LOB	; does option code match boot key?
+	jz	dp1			; yes
+	cmp	al,20h			; maybe boot key is upper case letter?
+	jne	dp8			; no
+dp1:	push	ax
 	mov	bl,[sfh_debug]
-	cmp	[key_boot].LOB,'0'	; alphanumeric boot key pressed?
-	jb	dp1			; no
-	call	hprintf			; yes
-	ASSUME	DS:NOTHING,ES:NOTHING
-	cmp	[key_boot].LOB,'B'	; 'B' for break?
-	jne	dp9			; no
-	DBGBRK				; yes
+	call	hprintf
+	pop	ax
+	mov	[bp].REG_AL,al		; update caller's AL to trip DBGBRK
 	ret
-dp1:	lds	si,dword ptr [bp].REG_IP
-	mov	al,0			; AL = null terminator
+	ENDIF	; DEBUG
+
+dp8:	mov	al,0			; AL = null terminator
+	mov	[bp].REG_AL,al		; update caller's AL to skip DBGBRK
 	call	strlen			; get length of string at CS:IP
 	inc	ax			; count null terminator
 	add	[bp].REG_IP,ax		; update REG_IP with length in AX
-dp9:	ret
+	ret
 ENDPROC	utl_dprintf endp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -616,15 +619,15 @@ tf6a:	mov	al,ch			; AL = previous classification
 	lea	cx,[si-1]		; SI = end of token
 	sub	cx,dx			; CX = length of token
 
-	IFDEF MAXDEBUG
+	IFDEF	MAXDEBUG
 	cmp	byte ptr [bp].TMP_AL,-1
 	jne	tf6b
 	push	ax
 	mov	ah,0
-	DPRINTF	<"token: '%.*ls' (%#04x)",13,10>,cx,dx,ds,ax
+	DPRINTF	't',<"token: '%.*ls' (%#04x)",13,10>,cx,dx,ds,ax
 	pop	ax
 tf6b:
-	ENDIF
+	ENDIF	; MAXDEBUG
 ;
 ; Update the TOKLET in the TOK_BUF at ES:DI, token index BX
 ;
@@ -878,418 +881,6 @@ td9:	jc	td10
 	mov	[bp].REG_AX,ax
 td10:	ret
 ENDPROC	utl_tokid
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_getdev (AX = 1810h)
-;
-; Returns the DDH (Device Driver Header) in ES:DI for device name at DS:DX.
-;
-; Inputs:
-;	DS:DX -> device name
-;
-; Outputs:
-;	ES:DI -> DDH if success; carry set if not found
-;
-; Modifies:
-;	AX, CX, DI, ES (ie, whatever chk_devname modifies)
-;
-DEFPROC	utl_getdev,DOS
-	sti
-	mov	ds,[bp].REG_DS
-	ASSUME	DS:NOTHING
-	and	[bp].REG_FL,NOT FL_CARRY
-	mov	si,dx
-	call	chk_devname		; DS:SI -> device name
-	jc	gd9
-	mov	[bp].REG_DI,di
-	mov	[bp].REG_ES,es
-gd9:	ret
-ENDPROC	utl_getdev
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_ioctl (AX = 1811h)
-;
-; Inputs:
-;	REG_BX = IOCTL command (BH = DDC_IOCTLIN, BL = IOCTL command)
-;	REG_ES:REG_DI -> DDH
-;	Other registers will vary
-;
-; Modifies:
-;	AX, DI, ES
-;
-DEFPROC	utl_ioctl,DOS
-	sti
-	mov	ax,[bp].REG_BX		; AX = command codes from BH,BL
-	mov	es,[bp].REG_ES		; ES:DI -> DDH
-	mov	bx,dx			; BX = REG_DX, CX = REG_CX
-	call	dev_request		; call the driver
-	ret
-ENDPROC	utl_ioctl
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_load (AX = 1812h)
-;
-; Inputs:
-;	REG_CL = SCB #
-;	REG_DS:REG_DX = name of program (or command-line)
-;
-; Outputs:
-;	Carry clear if successful
-;	Carry set if error, AX = error code
-;
-; Modifies:
-;	AX, BX, CX, DX, DI, DS, ES
-;
-DEFPROC	utl_load,DOS
-	sti
-	mov	es,[bp].REG_DS
-	and	[bp].REG_FL,NOT FL_CARRY
-	ASSUME	DS:NOTHING		; CL = SCB #
-	jmp	scb_load		; ES:DX -> name of program
-ENDPROC	utl_load
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_start (AX = 1813h)
-;
-; "Start" the specified session.  Currently, all this does is mark the session
-; startable; actual starting will handled by scb_switch.
-;
-; Inputs:
-;	CL = SCB #
-;
-; Outputs:
-;	Carry clear if successful, BX -> SCB
-;	Carry set if error (eg, invalid SCB #)
-;
-DEFPROC	utl_start,DOS
-	sti
-	and	[bp].REG_FL,NOT FL_CARRY
- 	jmp	scb_start
-ENDPROC	utl_start
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_stop (AX = 1814h)
-;
-; "Stop" the specified session.
-;
-; Inputs:
-;	CL = SCB #
-;
-; Outputs:
-;	Carry clear if successful
-;	Carry set if error (eg, invalid SCB #)
-;
-DEFPROC	utl_stop,DOS
-	sti
-	and	[bp].REG_FL,NOT FL_CARRY
-	jmp	scb_stop
-ENDPROC	utl_stop
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_unload (AX = 1815h)
-;
-; Unload the current program from the specified session.
-;
-; Inputs:
-;	CL = SCB #
-;
-; Outputs:
-;	Carry clear if successful
-;	Carry set if error (eg, invalid SCB #)
-;
-DEFPROC	utl_unload,DOS
-	sti
-	and	[bp].REG_FL,NOT FL_CARRY
-	jmp	scb_unload
-ENDPROC	utl_unload
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_yield (AX = 1816h)
-;
-; Asynchronous interface to decide which SCB should run next.
-;
-; Inputs:
-;	None
-;
-; Modifies:
-;	AX, BX, DX
-;
-DEFPROC	utl_yield,DOS
-	sti
-	mov	ax,[scb_active]
-	jmp	scb_yield
-ENDPROC	utl_yield
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_sleep (AX = 1817h)
-;
-; Inputs:
-;	REG_CX:REG_DX = # of milliseconds to sleep
-;
-; Modifies:
-;	AX, BX, CX, DX, DI, ES
-;
-DEFPROC	utl_sleep,DOS
-	sti				; CX:DX = # ms
-	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_WAIT
-	les	di,[clk_ptr]
-	mov	bx,dx			; BX = REG_DX, CX = REG_CX
-	call	dev_request		; call the driver
-	ret
-ENDPROC	utl_sleep
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_wait (AX = 1818h)
-;
-; Synchronous interface to mark current SCB as waiting for the specified ID.
-;
-; Inputs:
-;	REG_DX:REG_DI == wait ID
-;
-; Outputs:
-;	None
-;
-DEFPROC	utl_wait,DOS
-	jmp	scb_wait
-ENDPROC	utl_wait
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_endwait (AX = 1819h)
-;
-; Asynchronous interface to examine all SCBs for the specified ID and clear it.
-;
-; Inputs:
-;	REG_DX:REG_DI == wait ID
-;
-; Outputs:
-;	Carry clear if found, set if not
-;
-DEFPROC	utl_endwait,DOS
-	and	[bp].REG_FL,NOT FL_CARRY
-	jmp	scb_endwait
-ENDPROC	utl_endwait
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_hotkey (AX = 181Ah)
-;
-; Inputs:
-;	REG_CX = CONSOLE context
-;	REG_DL = char code, REG_DH = scan code
-;
-; Outputs:
-;	Carry clear if successful, set if unprocessed
-;
-; Modifies:
-;	AX
-;
-DEFPROC	utl_hotkey,DOS
-	sti
-	xchg	ax,dx			; AL = char code, AH = scan code
-	and	[bp].REG_FL,NOT FL_CARRY
-;
-; Find the SCB with the matching context; that's the one with focus.
-;
-	mov	bx,[scb_table].OFF
-hk1:	cmp	[bx].SCB_CONTEXT,cx
-	je	hk2
-	add	bx,size SCB
-	cmp	bx,[scb_table].SEG
-	jb	hk1
-	stc
-	jmp	short hk9
-
-hk2:	cmp	al,CHR_CTRLC
-	jne	hk3
-	or	[bx].SCB_CTRLC_ACT,1
-
-hk3:	cmp	al,CHR_CTRLP
-	clc
-	jne	hk9
-	xor	[bx].SCB_CTRLP_ACT,1
-
-hk9:	ret
-ENDPROC	utl_hotkey
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_lock (AX = 181Bh)
-;
-; Asynchronous interface to lock the current SCB
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	REG_AX = CONSOLE context for the active SCB, zero if none (yet)
-;
-; Modifies:
-;	AX, BX
-;
-DEFPROC	utl_lock,DOS
-	LOCK_SCB
-	mov	ax,[scb_active]
-	test	ax,ax
-	jz	lck8
-	xchg	bx,ax
-	mov	ax,[bx].SCB_CONTEXT
-lck8:	mov	[bp].REG_AX,ax
-	ret
-ENDPROC	utl_lock
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_unlock (AX = 181Ch)
-;
-; Asynchronous interface to unlock the current SCB
-;
-; Inputs:
-;	None
-;
-; Modifies:
-;	AX, BX, DX
-;
-DEFPROC	utl_unlock,DOS
-	UNLOCK_SCB
-	ret
-ENDPROC	utl_unlock
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_qrymem (AX = 181Dh)
-;
-; Query info about memory blocks.
-;
-; Inputs:
-;	REG_CX = memory block # (0-based)
-;	REG_DL = memory block type (0 for any, 1 for free, 2 for used)
-;
-; Outputs:
-;	On success, carry clear:
-;		REG_ES:0 -> MCB
-;		REG_AX = owner ID (eg, PSP)
-;		REG_DX = size (in paragraphs)
-;		REG_DS:REG_BX -> owner name, if any
-;	On failure, carry set (ie, no more blocks of the requested type)
-;
-; Modifies:
-;	AX, BX, CX, DS, ES
-;
-DEFPROC	utl_qrymem,DOS
-	sti
-	and	[bp].REG_FL,NOT FL_CARRY
-	jmp	mem_query
-ENDPROC	utl_qrymem
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_abort (AX = 181Fh)
-;
-; Inputs:
-;	REG_DL = exit code
-;	REG_DH = exit type
-;
-; Outputs:
-;	None
-;
-DEFPROC	utl_abort,DOS
-	xchg	ax,dx			; AL = exit code, AH = exit type
-	jmp	psp_term_exitcode
-ENDPROC	utl_abort
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_getdate (AX = 1820h)
-;
-; Identical to msc_getdate, but also returns the "packed" date in AX
-; and does not modify carry.
-;
-; Inputs:
-;	None
-;
-; Outputs:
-; 	REG_AX = date in "packed" format:
-;
-;	 Y  Y  Y  Y  Y  Y  Y  M  M  M  M  D  D  D  D  D
-;	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
-;
-;	where Y = year-1980 (0-119), M = month (1-12), and D = day (1-31)
-;
-;	REG_CX = year (1980-2099)
-;	REG_DH = month (1-12)
-;	REG_DL = day (1-31)
-;	REG_AL = day of week (0-6 for Sun-Sat)
-;
-DEFPROC	utl_getdate,DOS
-	sti
-	call	msc_getdate
-	mov	[bp].REG_AX,ax
-	clc
-	ret
-ENDPROC	utl_getdate
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_gettime (AX = 1821h)
-;
-; Identical to msc_gettime, but also returns the "packed" date in AX
-; and does not modify carry.
-
-; Inputs:
-;	None
-;
-; Outputs:
-;	REG_AX = time in "packed" format:
-;
-;	 H  H  H  H  H  M  M  M  M  M  M  S  S  S  S  S
-;	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
-;
-;	where H = hours, M = minutes, and S = seconds / 2 (0-29)
-;
-;	REG_CH = hours (0-23)
-;	REG_CL = minutes (0-59)
-;	REG_DH = seconds (0-59)
-;	REG_DL = hundredths
-;
-DEFPROC	utl_gettime,DOS
-	sti
-	call	msc_gettime
-	mov	[bp].REG_AX,ax
-	clc
-	ret
-ENDPROC	utl_gettime
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_incdate (AX = 1822h)
-;
-; Inputs:
-;	REG_CX = year (1980-2099)
-;	REG_DH = month
-;	REG_DL = day
-;
-; Outputs:
-;	Date value(s) advanced by 1 day.
-;
-DEFPROC	utl_incdate,DOS
-	sti
-	and	[bp].REG_FL,NOT FL_CARRY
-	mov	ax,1			; add 1 day to the date values
-	call	add_date
-	mov	[bp].REG_CX,cx		; update all the inputs
-	mov	[bp].REG_DX,dx		; since any or all may have changed
-	ret
-ENDPROC	utl_incdate
 
 DOS	ends
 

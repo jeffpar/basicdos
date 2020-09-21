@@ -13,7 +13,7 @@ DOS	segment word public 'CODE'
 
 	EXTERNS	<FUNCTBL>,word
 	EXTERNS	<FUNCTBL_SIZE,UTILTBL_SIZE>,abs
-	EXTERNS	<scb_active,key_boot>,word
+	EXTERNS	<scb_active>,word
 	EXTERNS	<ddint_level>,byte
 	EXTERNS	<msc_sigctrlc_read,msc_sigerr>,near
 
@@ -242,20 +242,16 @@ dc1:	sti
 	cmp	ah,FUNCTBL_SIZE
 	cmc
 	jb	dc9
-;
-; If SHIFT+L was pressed at boot (and this is a DEBUG build), log DOS calls.
-;
-	IFDEF DEBUG
-	cmp	[key_boot].LOB,'L'
-	jne	dc1a
+
+	IFDEF	MAXDEBUG
 	mov	bl,ah
 	mov	bh,0
 ;
 ; %P is a special formatter that prints the caller's REG_CS:REG_IP-2 in hex;
 ; "#010" ensures it's printed with "0x" and 8 digits with leading zeroes.
 ;
-	DPRINTF	<"%#010P: DOS function %02xh",13,10>,bx
-	ENDIF
+	DPRINTF	'd',<"%#010P: DOS function %02xh",13,10>,bx
+	ENDIF	; MAXDEBUG
 ;
 ; If CTRLC checking is enabled for all (non-utility) functions and a CTRLC
 ; was detected (two conditions that we check with a single compare), signal it.
@@ -479,13 +475,16 @@ ENDPROC	dos_ddint_leave
 ;	REG_AX = ERR_INVALID, carry set
 ;
 DEFPROC	func_none,DOS
+	IFDEF	DEBUG
 	mov	al,ah
 	mov	ah,0
 ;
 ; %P is a special formatter that prints the caller's REG_CS:REG_IP-2 in hex;
 ; "#010" ensures it's printed with "0x" and 8 digits with leading zeroes.
 ;
-	DPRINTF	<"%#010P: unsupported DOS function %02xh",13,10>,ax
+	DPRINTF	'd',<"%#010P: unsupported DOS function %02xh",13,10>,ax
+	ENDIF	; DEBUG
+
 	mov	[bp].REG_AX,ERR_INVALID
 	stc
 	ret

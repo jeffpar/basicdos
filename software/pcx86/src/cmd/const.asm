@@ -22,6 +22,9 @@ CODE    SEGMENT
 	EXTERNS	<evalEQLong,evalNELong,evalLTLong,evalGTLong>,near
 	EXTERNS	<evalLELong,evalGELong,evalShlLong,evalShrLong>,near
 
+	EXTERNS	<evalEQStr,evalNEStr,evalLTStr,evalGTStr>,near
+	EXTERNS	<evalLEStr,evalGEStr,evalAddStr>,near
+
 	DEFSTR	COM_EXT,<".COM",0>	; these 4 file extensions must be
 	DEFSTR	EXE_EXT,<".EXE",0>	; listed in the desired search order
 	DEFSTR	BAT_EXT,<".BAT",0>
@@ -29,12 +32,15 @@ CODE    SEGMENT
 
 	DEFSTR	DIR_DEF,<"*.*",0>
 	DEFSTR	PERIOD,<".",0>
-	DEFSTR	SYS_MEM,<"<SYS>",0>
-	DEFSTR	DOS_MEM,<"<DOS>",0>
-	DEFSTR	FREE_MEM,<"<FREE>",0>
 	DEFSTR	STD_VER,<0>
 	DEFSTR	DBG_VER,<"DEBUG",0>
 	DEFSTR	HELP_FILE,<"COMMAND.TXT",0>
+
+	IFDEF	DEBUG
+	DEFSTR	SYS_MEM,<"<SYS>",0>
+	DEFSTR	DOS_MEM,<"<DOS>",0>
+	DEFSTR	FREE_MEM,<"<FREE>",0>
+	ENDIF	; DEBUG
 ;
 ; Table of BASIC-DOS expression operators
 ;
@@ -53,20 +59,21 @@ CODE    SEGMENT
 ; operators with a precedence higher than the opening parenthesis get popped.
 ;
 ; Note that all multi-character operators are converted to single character
-; operators internally, to simplify operator management; genExprNum takes care
+; operators internally, to simplify operator management; genExpr takes care
 ; of any keyword operators listed in the KEYOP_TOKENS table, and validateOp
 ; takes care of any any multi-symbol operators listed in the RELOPS table.
 ;
 ; We've also taken some liberties with the language, by allowing '~' and '|'
-; in addition to 'NOT' and 'OR', and by adding '>>' and '<<' arithmetic shift
-; operations.  It would have been nice to allow '&' in place of 'AND' as well,
-; but unfortunately '&' was already used to prefix hex and octal constants.
+; in addition to 'NOT' and 'OR', allowing '==' in addition to '=', and by
+; adding '>>' and '<<' arithmetic shift operations.  It would have been nice
+; to allow '&' in place of 'AND' as well, but unfortunately '&' was already
+; used to prefix hex and octal constants.
 ;
 ; TODO: Speaking of hex and octal constants, maybe someday we'll also allow
 ; "0x" and "0o" prefixes, and maybe even a C-inspired version of PRINT USING
 ; called... drum roll... PRINTF USING.
 ;
-	DEFLBL	OPDEFS,byte
+	DEFLBL	OPDEFS_LONG,byte
 	OPDEF	<'(',2,0>
 	OPDEF	<')',2,0>
 	OPDEF	<'^',26,evalExpLong>
@@ -78,26 +85,38 @@ CODE    SEGMENT
 	OPDEF	<'M',20,evalModLong>	; 'MOD'
 	OPDEF	<'+',18,evalAddLong>
 	OPDEF	<'-',18,evalSubLong>
-	OPDEF	<'S',16,evalShlLong>	; '<<'
-	OPDEF	<'R',16,evalShrLong>	; '>>'
-	OPDEF	<'=',14,evalEQLong>
+	OPDEF	<'S',16,evalShlLong>	; BASIC-DOS: '<<'
+	OPDEF	<'R',16,evalShrLong>	; BASIC-DOS: '>>'
+	OPDEF	<'=',14,evalEQLong>	; BASIC-DOS allows '==' as well
 	OPDEF	<'U',14,evalNELong>	; '<>' or '><'
 	OPDEF	<'<',14,evalLTLong>
 	OPDEF	<'>',14,evalGTLong>
 	OPDEF	<'L',14,evalLELong>	; '<=' or '=<'
 	OPDEF	<'G',14,evalGELong>	; '>=' or '=>'
-	OPDEF	<'~',13,evalNotLong>	; 'NOT'
+	OPDEF	<'~',13,evalNotLong>	; 'NOT' (BASIC-DOS allows '~' as well)
 	OPDEF	<'A',12,evalAndLong>	; 'AND'
-	OPDEF	<'|',10,evalOrLong>	; 'OR'
+	OPDEF	<'|',10,evalOrLong>	; 'OR'  (BASIC-DOS allows '|' as well)
 	OPDEF	<'X',8,evalXorLong>	; 'XOR'
 	OPDEF	<'E',6,evalEqvLong>	; 'EQV'
 	OPDEF	<'I',4,evalImpLong>	; 'IMP'
-	DEFBYTE	OPDEFS_END,0
+	db	0			; terminator
+
+	DEFLBL	OPDEFS_STR,byte
+	OPDEF	<'(',2,0>
+	OPDEF	<')',2,0>
+	OPDEF	<'+',18,evalAddStr>
+	OPDEF	<'=',14,evalEQStr>	; BASIC-DOS allows '==' as well
+	OPDEF	<'U',14,evalNEStr>	; '<>' or '><'
+	OPDEF	<'<',14,evalLTStr>
+	OPDEF	<'>',14,evalGTStr>
+	OPDEF	<'L',14,evalLEStr>	; '<=' or '=<'
+	OPDEF	<'G',14,evalGEStr>	; '>=' or '=>'
+	db	0			; terminator
 
 	DEFLBL	RELOPS,byte
 	db	"<>",'U',"><",'U',"<=",'L',"=<",'L',">=",'G',"=>",'G'
 	db	"==",'=',"<<",'S',">>",'R'
-	db	0
+	db	0			; terminator
 
 	IFDEF	LATER
 	DEFLBL	SYNTAX_TABLES,word
@@ -116,25 +135,24 @@ CODE    SEGMENT
 	db	SC_GENPB,VAR_COMMA	; VAR_COMMA onto the stack
 
 	db	SC_MATCH,CLS_STR	; string constant
-	db	SC_CALFN,SCF_GENXSTR	; generates call to genExprStr
+	db	SC_CALFN,SCF_GENEXPR	; generates call to genExpr
 	db	SC_GENPB,VAR_STR
 
 	db	SC_MATCH,CLS_VAR_STR	; string variable
-	db	SC_CALFN,SCF_GENXSTR	; also generates call to genExprStr
+	db	SC_CALFN,SCF_GENEXPR	; also generates call to genExpr
 	db	SC_GENPB,VAR_STR
 
 	db	SC_MATCH,CLS_ANY	; anything else
-	db	SC_CALFN,SCF_GENXNUM	; generates call to genExprNum
+	db	SC_CALFN,SCF_GENEXPR	; generates call to genExpr
 	db	SC_GENPB,VAR_LONG	; (failure triggers jump to next block)
 
 	db	SC_NEXTK,0		; check for more tokens if no failure
 	db	SC_GENFN,SCF_PRTARGS,-1	; otherwise generate call to printArgs
 
-	EXTERNS	<genExprNum,genExprStr,printArgs>,near
+	EXTERNS	<genExpr,printArgs>,near
 
 	DEFLBL	SCF_TABLE,word		; synCheck function table:
-	dw	genExprNum		; SCF_GENXNUM
-	dw	genExprStr		; SCF_GENXSTR
+	dw	genExpr			; SCF_GENEXPR
 	dw	printArgs		; SCF_PRTARGS
 	ENDIF	; LATER
 

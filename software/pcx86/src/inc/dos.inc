@@ -102,7 +102,8 @@ SCB_CTRLC_ALL	db	?	; 23h: 1 if CTRLC checking enabled on all calls
 SCB_CTRLC_ACT	db	?	; 24h: 1 if CTRLC active
 SCB_CTRLP_ACT	db	?	; 25h: 1 if CTRLP active
 SCB_SWITCHAR	db	?	; 26h: current "switchar" (default is CHR_SLASH)
-SCB_PADDING	db	?
+SCB_PADDING	db	?	; 27h
+SCB_FILENAME	db     12 dup(?); 28h: buffer for drive # and filename
 SCB		ends
 SIG_SCB		equ	'S'
 
@@ -124,7 +125,8 @@ MCB		struc
 MCB_SIG		db	?	; 00h: either MCBSIG_NEXT or MCBSIG_LAST
 MCB_OWNER	dw	?	; 01h: owner (PSP segment if > 8)
 MCB_PARAS	dw	?	; 03h: size of block in paragraphs
-MCB_RESERVED	db     11 dup(?); 05h: reserved
+MCB_RESERVED	db	3 dup(?); 05h
+MCB_NAME	db	8 dup(?); 08h: name of process (zero if none)
 MCB		ends
 
 MCBSIG_NEXT	equ	4Dh	; "M"

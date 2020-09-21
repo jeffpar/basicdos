@@ -14,7 +14,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<get_sfh_sfb,get_psp,scb_delock>,near
 
 	EXTERNS	<scb_locked>,byte
-	EXTERNS	<mcb_head>,word
+	EXTERNS	<mcb_head,scb_active>,word
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -97,10 +97,10 @@ ENDPROC	mem_realloc
 ;
 ; Outputs:
 ;	On success, carry clear:
-;		BX = segment
-;		AX = owner ID (eg, PSP)
-;		DX = size (in paragraphs)
-;		DI:SI -> owner name, if any
+;		REG_BX = segment
+;		REG_AX = owner ID (eg, PSP)
+;		REG_DX = size (in paragraphs)
+;		REG_DI:REG_SI -> process name, if any
 ;	On failure, carry set (ie, no more blocks of the requested type)
 ;
 ; Modifies:
@@ -135,17 +135,9 @@ q4:	cmp	es:[MCB_SIG],MCBSIG_LAST
 q7:	mov	dx,es:[MCB_PARAS]
 	cmp	ax,MCBOWNER_SYSTEM
 	jbe	q8
-	mov	es,ax
-	push	ax
-	push	bx
-	mov	bl,es:[PSP_PFT][STDEXEC]
-	call	get_sfh_sfb
-	mov	si,bx
-	pop	bx
-	pop	ax
-	jc	q8
-	mov	[bp].REG_DI,ds
-	mov	[bp].REG_SI,si		; REG_DI:REG_SI -> SFB_NAME
+	mov	[bp].REG_DI,es
+	mov	[bp].REG_SI,MCB_NAME	; DI:SI -> process name (or nulls)
+
 q8:	inc	bx
 	mov	[bp].REG_BX,bx
 	mov	[bp].REG_AX,ax
@@ -179,11 +171,39 @@ DEFPROC	mcb_init,DOS
 	stosw				; mov es:[MCB_OWNER],dx
 	xchg	ax,cx
 	stosw				; mov es:[MCB_PARAS],cx
-	mov	cl,size MCB_RESERVED
+	mov	cl,size MCB_RESERVED + size MCB_NAME
 	mov	al,0
 	rep	stosb
 	ret
 ENDPROC	mcb_init
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; mcb_setname
+;
+; Inputs:
+;	ES = segment
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	BX, CX, SI, DI
+;
+DEFPROC	mcb_setname,DOS
+	ASSUME	DS:DOS, ES:NOTHING
+	push	es
+	mov	di,es
+	dec	di
+	mov	es,di
+	mov	bx,[scb_active]
+	lea	si,[bx].SCB_FILENAME + 1
+	mov	cx,size MCB_NAME
+	mov	di,offset MCB_NAME
+	rep	movsb
+	pop	es
+	ret
+ENDPROC	mcb_setname
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

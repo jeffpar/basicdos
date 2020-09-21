@@ -15,7 +15,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<mcb_head,mcb_limit,scb_active>,word
 	EXTERNS	<sfh_addref,pfh_close,sfh_close>,near
 	EXTERNS	<getsize,freeAll,dos_exit,dos_exit2,dos_ctrlc,dos_error>,near
-	EXTERNS	<get_scbnum,scb_unload,scb_yield>,near
+	EXTERNS	<get_scbnum,mcb_setname,scb_unload,scb_yield>,near
 	IF REG_CHECK
 	EXTERNS	<dos_check>,near
 	ENDIF
@@ -733,7 +733,7 @@ lp6g:	push	es:[EXE_START_SEG]
 	pop	ds:[PSP_START].SEG
 	add	ds:[PSP_START].SEG,ax
 
-	DPRINTF	<"min,cur,max paragraphs: %#06x,%#06x,%#06x",13,10>,si,bx,di
+	DPRINTF	'p',<"min,cur,max paragraphs: %#06x,%#06x,%#06x",13,10>,si,bx,di
 
 	sub	dx,dx			; no heap
 	jmp	lp8			; realloc the PSP segment
@@ -753,19 +753,19 @@ lp7:	add	dx,ax
 	jmp	lpec
 lp7a:	add	dx,ax			; DX -> end of program file
 ;
-; We now leave the executable file open and close it on process termination,
+; We could leave the executable file open and close it on process termination,
 ; because it provides us with valuable information about all the processes that
 ; are running (info that should have been recorded in the PSP but never was).
 ;
-; Additionally, in order to support executables with overlays down the road,
-; I assume we'll want the file handle anyway.
+; The handle could eventually be useful for overlay support, too.  But for now,
+; we'll close the handle.
 ;
-	; mov	ah,DOS_HDL_CLOSE
-	; int	21h			; close the file
-	; jc	lpef
+	mov	ah,DOS_HDL_CLOSE
+	int	21h			; close the file
+	jc	lp8f
 ;
 ; Check the word at [BX-2]: if it contains SIG_BASICDOS ("BD"), then the
-; image ends with a COMDATA, where the preceding word (CD_HEAPSIZE) specifies
+; image ends with COMDATA, where the preceding word (CD_HEAPSIZE) specifies
 ; the program's desired additional memory (in paras).
 ;
 lp7b:	mov	ds:[PSP_START].OFF,100h
@@ -835,7 +835,7 @@ lp7f:	shl	di,cl			; ES:DI -> top of the segment
 lp8:	mov	ah,DOS_MEM_REALLOC	; resize ES memory block to BX
 	int	21h
 	jnc	lp8a
-	jmp	lpef			; TODO: try to use a smaller size?
+lp8f:	jmp	lpef			; TODO: try to use a smaller size?
 ;
 ; Zero the additional heap paragraphs requested, if any.
 ;
@@ -856,6 +856,7 @@ lp8b:	mov	dx,es
 	pop	ds
 	ASSUME	DS:DOS
 	call	psp_setmem		; DX = PSP segment to update
+	call	mcb_setname		; ES = PSP segment
 ;
 ; Since we're past the point of no return now, let's take care of some
 ; initialization outside of the program segment; namely, resetting the CTRLC

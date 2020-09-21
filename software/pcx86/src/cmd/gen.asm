@@ -13,12 +13,12 @@ CODE    SEGMENT
 
 	EXTERNS	<allocCode,freeCode,allocVars>,near
 	EXTERNS	<addVar,findVar,setVarLong>,near
-	EXTERNS	<appendStr,setStr,memError>,near
+	EXTERNS	<memError>,near
 	EXTERNS	<clearScreen,doCmd,printArgs,printEcho,printLine>,near
 	EXTERNS	<setColor,setFlags>,near
 
 	EXTERNS	<KEYWORD_TOKENS,KEYOP_TOKENS>,word
-	EXTERNS	<OPDEFS,RELOPS>,byte
+	EXTERNS	<OPDEFS_LONG,OPDEFS_STR,RELOPS>,byte
 	EXTERNS	<TOK_ELSE,TOK_OFF,TOK_ON,TOK_THEN>,abs
 
 	IFDEF	LATER
@@ -693,7 +693,7 @@ gn5b:	pop	cx			; pop the evaluator as well
 	jcxz	gn6c			; no evaluator (eg, left paren)
 
 	IFDEF MAXDEBUG
-	DPRINTF	<"op %c, func @%08lx",13,10>,dx,cx,cs
+	DPRINTF	'o',<"op %c, func @%08lx",13,10>,dx,cx,cs
 	ENDIF
 
 	GENCALL	cx			; and generate call
@@ -730,7 +730,7 @@ gn8:	pop	cx
 
 	IFDEF MAXDEBUG
 	pop	ax
-	DPRINTF	<"op %c, func @%08lx...",13,10>,cx,ax,cs
+	DPRINTF	'o',<"op %c, func @%08lx...",13,10>,cx,ax,cs
 	xchg	cx,ax
 	ELSE
 	pop	cx			; CX = evaluator
@@ -1007,7 +1007,7 @@ ENDPROC	genPrint
 ;	CX, DX
 ;
 DEFPROC	addLabel
-	DPRINTF	<"%#010P: line %d: adding label %d...",13,10>,lineNumber,ax
+	DPRINTF	'l',<"%#010P: line %d: adding label %d...",13,10>,lineNumber,ax
 
 	mov	dx,di			; DX = current code gen offset
 	test	dx,LBL_RESOLVE		; is this a label reference?
@@ -1077,7 +1077,7 @@ ENDPROC	addLabel
 ;	AX, CX, DX
 ;
 DEFPROC	findLabel
-	DPRINTF	<"%#010P: line %d: finding label %d...",13,10>,lineNumber,ax
+	DPRINTF	'l',<"%#010P: line %d: finding label %d...",13,10>,lineNumber,ax
 
 	push	di
 	mov	cx,es:[CBLK_SIZE]
@@ -1215,7 +1215,7 @@ ENDPROC	genPushImmByteAL
 ;
 DEFPROC	genPushImmLong
 	IFDEF MAXDEBUG
-	DPRINTF	<"num %ld",13,10>,cx,dx
+	DPRINTF	'o',<"num %ld",13,10>,cx,dx
 	ENDIF
 	xchg	ax,dx			; AX has original DX
 	xchg	ax,cx			; AX contains CX, CX has original DX
@@ -1595,17 +1595,14 @@ ENDPROC	synCheck
 ;	AH, CX, DX
 ;
 DEFPROC	validateOp
-	cmp	[defType],VAR_STR
-	je	vo10
-
 	push	si
 	xchg	dx,ax			; DL = operator to validate
 	mov	al,CLS_SYM
 	call	peekNextToken
 	jbe	vo2
+
 	mov	dh,al			; DX = potential 2-character operator
 	mov	si,offset RELOPS
-
 vo1:	lods	word ptr cs:[si]
 	test	al,al
 	jz	vo2
@@ -1614,8 +1611,12 @@ vo1:	lods	word ptr cs:[si]
 	jne	vo1
 	mov	bx,[pTokNext]
 	xchg	dx,ax			; DL = (new) operator to validate
+
 vo2:	mov	ah,dl			; AH = operator to validate
-	mov	si,offset OPDEFS
+	mov	si,offset OPDEFS_LONG
+	cmp	[defType],VAR_STR
+	jne	vo3
+	mov	si,offset OPDEFS_STR
 vo3:	lods	byte ptr cs:[si]
 	test	al,al
 	stc
@@ -1639,18 +1640,6 @@ vo8:	xchg	dx,ax
 vo9:	xchg	al,ah			; AL = operator, AH = precedence
 	pop	si
 	ret
-;
-; String operator validation is simple: if it's not '+', it's not valid.
-;
-; Well, OK, not that simple: relational operators will have to be allowed, too.
-;
-vo10:	cmp	al,'+'
-	stc
-	jne	vo11
-	mov	dx,offset appendStr	; DX = evaluator
-	mov	cx,2			; CX = 2 args
-	mov	ah,18			; AH = precedence
-vo11:	ret
 ENDPROC	validateOp
 
 CODE	ENDS
