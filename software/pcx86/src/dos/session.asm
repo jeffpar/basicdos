@@ -98,8 +98,8 @@ ENDPROC	get_scbnum
 ;
 ; Outputs:
 ;	Carry clear if successful:
-;		REG_DX:REG_AX -> program size
-;		REG_ES:REG_DI -> program image
+;		REG_AX = program size
+;		REG_ES:REG_DX -> program data
 ;	Carry set if error, AX = error code
 ;
 ; Modifies:
@@ -120,6 +120,8 @@ DEFPROC	scb_load,DOS
 ;
 ; Copy the TMP register results to the caller's registers.
 ;
+	mov	ax,[bp].TMP_CX
+	mov	[bp].REG_AX,ax
 	mov	ax,[bp].TMP_DX
 	mov	[bp].REG_DX,ax
 	mov	ax,[bp].TMP_ES

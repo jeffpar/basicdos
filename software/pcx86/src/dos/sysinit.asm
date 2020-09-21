@@ -27,12 +27,12 @@ DOS	segment word public 'CODE'
 	DEFWORD	cfg_data
 	DEFWORD	cfg_size
 
-	IFDEF	CACHE_LOAD
-	DEFPTR	pOrigInt21
+	DEFPTR	pCacheInt21
 	DEFPTR	pCacheFile
 	DEFPTR	pCacheData
+	DEFWORD	cbCacheData
 	DEFPTR	pCacheActive
-	ENDIF
+	DEFWORD	cbCacheActive
 
 	ASSUME	CS:DOS, DS:BIOS, ES:DOS, SS:NOTHING
 
@@ -471,17 +471,15 @@ si14:	mov	dx,offset SYS_MSG
 ; with a handler that looks for duplicate opens and returns a cached copy
 ; of the data for any load after the first.
 ;
-	IFDEF	CACHE_LOAD
 	mov	ax,(DOS_MSC_GETVEC SHL 8) OR 21h
 	int	21h
-	mov	[pOrigInt21].OFF,bx
-	mov	[pOrigInt21].SEG,es
+	mov	[pCacheInt21].OFF,bx
+	mov	[pCacheInt21].SEG,es
 	mov	dx,offset cache_int21
 	push	cs
 	pop	ds
 	mov	ax,(DOS_MSC_SETVEC SHL 8) OR 21h
 	int	21h
-	ENDIF
 ;
 ; For each SHELL definition, load the corresponding file into the next
 ; available SCB.  The first time through, CFG_SHELL is used as a fallback,
@@ -501,18 +499,11 @@ si16:	test	dx,dx			; do we still have a default?
 ; SCB, so that the program file can be opened and read using the SCB's PSP.
 ; It's unlocked after the load, but it won't start running until START is set.
 ;
-	IFDEF	CACHE_LOAD
-	call	cache_filename		; compare file (DS:CX) to pCacheFile
-	ENDIF
-
 	DOSUTIL	DOS_UTL_LOAD		; load SHELL DS:DX into specified SCB
 	jc	si18
-
-	IFDEF	CACHE_LOAD
-	mov	[pCacheData].OFF,di
+	mov	[cbCacheData],ax
+	mov	[pCacheData].OFF,dx
 	mov	[pCacheData].SEG,es
-	ENDIF
-
 	DOSUTIL	DOS_UTL_START		; CL = SCB #
 	inc	bx			; must be valid, so no error checking
 
@@ -523,17 +514,15 @@ si17:	inc	cx			; advance SCB #
 si18:	PRINTF	<"Error loading %s: %d",13,10>,dx,ax
 	jmp	si17
 ;
-; Although it may appear that every SCB was started immediately after loading,
-; nothing can actually run until we obtain access to the CLOCK$ device and
-; revector all the hardware interrupt handlers that drive our scheduler.
+; Although it may appear every SCB was started immediately after loading,
+; nothing can ACTUALLY run until we obtain access to the CLOCK$ device and
+; re-vector all the hardware interrupt handlers that drive our scheduler.
 ;
-si20:
-	IFDEF	CACHE_LOAD
-	DBGBRK
-	lds	dx,[pOrigInt21]		; restore INT 21h vector
+si20:	lds	dx,[pCacheInt21]	; restore INT 21h vector
 	mov	ax,(DOS_MSC_SETVEC SHL 8) OR 21h
 	int	21h
-	ENDIF
+	push	cs
+	pop	ds
 
 	test	bx,bx
 	jz	sierr2			; if no SCBs loaded, that's not good
@@ -550,8 +539,8 @@ si20:
 	mov	[clk_ptr].OFF,di
 	mov	[clk_ptr].SEG,es
 ;
-; Last but not least, "revector" the DDINT_ENTER and DDINT_LEAVE handlers
-; to dos_ddint_enter and dos_ddint_leave.
+; Last but not least, "revector" the DDINT_ENTER and DDINT_LEAVE handlers to
+; dos_ddint_enter and dos_ddint_leave.
 ;
 	sub	ax,ax
 	mov	es,ax
@@ -673,7 +662,7 @@ DEFPROC	init_table
 	shr	di,cl			; DI = length of table in paras
 	add	dx,di			; check for DS overflow
 	cmp	dx,1000h		; have we exceeded the DS 64K limit?
-	ja	sysinit_error		; yes, sadly
+	ja	sierr2			; yes, sadly
 	mov	ax,es
 	add	ax,di
 	mov	es,ax			; ES = next available paragraph
@@ -683,34 +672,14 @@ ENDPROC	init_table
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; cache_filename
-;
-; If new filename matches cached filename, set pCacheActive to pCacheData.
-;
-; Inputs:
-;	DS:DX -> new filename
-;
-; Outputs:
-;	Varies (function-specific)
-;
-	IFDEF	CACHE_LOAD
-
-DEFPROC	cache_filename
-	mov	si,dx
-	les	di,[pCacheFile]
-;
-; Compare DS:SI (new filename) to ES:DI (pCacheFile).
-;
-	DBGBRK
-	ret
-ENDPROC	cache_filename
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; cache_int21
 ;
-; The primary purpose of this function is to intercept read requests to a
-; previously loaded file (pCacheFile) and return the same data.
+; The sole purpose of this function is to intercept OPEN and READ requests
+; that occur during our DOS_UTL_LOAD operations, which we also know will be
+; completely sequential (and therefore our caching logic can be very simple).
+;
+; This allows us to preload multiple copies of COMMAND.COM into memory without
+; having to reread the file every time.
 ;
 ; Inputs:
 ;	AH = DOS function #
@@ -719,13 +688,74 @@ ENDPROC	cache_filename
 ;	Varies (function-specific)
 ;
 DEFPROC	cache_int21,FAR
-	DBGBRK
-	pushf
-	call	[pOrigInt21]
-	ret	2
-ENDPROC	cache_int21
+	cmp	ah,DOS_HDL_OPEN
+	jne	ci2
 
-	ENDIF	; CACHE_LOAD
+	push	ax
+	push	cx
+	push	si
+	push	di
+	push	es
+	mov	si,dx
+	sub	ax,ax
+	mov	[pCacheActive].OFF,ax	; no active cache data yet
+	DOSUTIL	DOS_UTL_STRLEN		; AX = length of string at DS:SI
+	xchg	cx,ax			; CX = length
+	les	di,[pCacheFile]		; ES:DI -> previous filename, if any
+	test	di,di			; is there a previous filename?
+	jz	ci1			; no
+	repe	cmpsb			; does previous filename match current?
+	jne	ci1			; no
+	mov	ax,[pCacheData].OFF	; yes, init active cache data
+	mov	[pCacheActive].OFF,ax
+	mov	ax,[pCacheData].SEG
+	mov	[pCacheActive].SEG,ax
+	mov	ax,[cbCacheData]
+	mov	[cbCacheActive],ax
+ci1:	mov	[pCacheFile].OFF,dx	; in any case, remember this filename
+	mov	[pCacheFile].SEG,ds
+	pop	es
+	pop	di
+	pop	si
+	pop	cx
+	pop	ax
+	jmp	short ci9
+
+ci2:	cmp	ah,DOS_HDL_READ
+	jne	ci9
+
+	push	cx
+	push	si
+	push	di
+	push	ds
+	push	es
+	push	ds
+	pop	es
+	mov	di,dx			; ES:DI -> destination
+	lds	si,[pCacheActive]	; DS:SI -> source data
+	test	si,si			; does any source data exist?
+	stc
+	jz	ci8			; no
+	mov	ax,cx			; AX = # bytes to copy
+	cmp	ax,[cbCacheActive]	; do we have as much data as requested?
+	jbe	ci3			; yes
+	mov	ax,[cbCacheActive]	; no
+ci3:	mov	cx,ax
+	rep	movsb
+	sub	[cbCacheActive],ax
+	add	[pCacheActive].OFF,ax
+	ASSERT	NC
+ci8:	pop	es
+	pop	ds
+	pop	di
+	pop	si
+	pop	cx
+	jnc	ci10
+
+ci9:	pushf
+	call	[pCacheInt21]
+ci10:	ret	2
+ENDPROC	cache_int21
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

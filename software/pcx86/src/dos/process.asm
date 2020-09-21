@@ -548,9 +548,13 @@ lp5:	mov	byte ptr [bx],CHR_RETURN
 
 	sub	cx,cx
 	sub	dx,dx
+	mov	[bp].TMP_CX,cx
 	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_END
 	int	21h			; returns new file position in DX:AX
 	jc	lpec1
+	test	dx,dx
+	jnz	lp5a
+	mov	[bp].TMP_CX,ax		; record size ONLY if < 64K
 ;
 ; Now that we have a file size, we can reallocate the PSP segment to a size
 ; closer to what we actually need.  We won't know EXACTLY how much we need yet,
@@ -558,7 +562,7 @@ lp5:	mov	byte ptr [bx],CHR_RETURN
 ; have numerous unknowns at this point.  But having at LEAST as much memory
 ; as there are bytes in the file is a reasonable starting point.
 ;
-	add	ax,15
+lp5a:	add	ax,15
 	adc	dx,0			; round DX:AX to next paragraph
 	mov	cx,16
 	cmp	dx,cx			; can we safely divide DX:AX by 16?
