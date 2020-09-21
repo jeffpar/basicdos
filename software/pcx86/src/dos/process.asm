@@ -588,6 +588,8 @@ lp5:	mov	byte ptr [bx],CHR_RETURN
 	push	es
 	pop	ds
 	mov	dx,size PSP
+	mov	[bp].TMP_ES,ds
+	mov	[bp].TMP_DX,dx
 	mov	cx,200h
 	mov	ah,DOS_HDL_READ		; BX = file handle, CX = # bytes
 	int	21h
@@ -756,9 +758,8 @@ lp7a:	add	dx,ax			; DX -> end of program file
 ; We could leave the executable file open and close it on process termination,
 ; because it provides us with valuable information about all the processes that
 ; are running (info that should have been recorded in the PSP but never was).
-;
-; The handle could eventually be useful for overlay support, too.  But for now,
-; we'll close the handle.
+; The handle could also be useful for overlay support, too.  But for now, we'll
+; close the handle.
 ;
 	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the file

@@ -16,7 +16,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<bpb_table,scb_table,sfb_table,clk_ptr>,dword
 	EXTERNS	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr,dos_opchk>,near
 	EXTERNS	<dos_term,dos_func,dos_exret,dos_ctrlc,dos_error,dos_default>,near
-	EXTERNS	<disk_read,disk_write,dos_tsr,dos_call5>,near
+	EXTERNS	<disk_read,disk_write,dos_tsr,dos_call5,dos_util>,near
 	EXTERNS	<dos_ddint_enter,dos_ddint_leave>,near
 
 	DEFLBL	sysinit_start
@@ -26,6 +26,13 @@ DOS	segment word public 'CODE'
 	DEFWORD	top_seg
 	DEFWORD	cfg_data
 	DEFWORD	cfg_size
+
+	IFDEF	CACHE_LOAD
+	DEFPTR	pOrigInt21
+	DEFPTR	pCacheFile
+	DEFPTR	pCacheData
+	DEFPTR	pCacheActive
+	ENDIF
 
 	ASSUME	CS:DOS, DS:BIOS, ES:DOS, SS:NOTHING
 
@@ -124,6 +131,11 @@ si3a:	mov	al,0EAh			; DI -> INT_DOSCALL5 * 4
 	stosw
 	mov	ax,ds
 	stosw
+	add	di,3			; DI -> INT_DOSUTIL * 4
+	mov	ax,offset dos_util
+	stosw
+	mov	ax,ds
+	stosw
 ;
 ; Let users override the default switch character '/' (eg, "SWITCHAR=-").
 ;
@@ -151,9 +163,8 @@ si3c:	mov	si,offset CFG_MEMSIZE
 	pop	es
 	ASSUME	ES:NOTHING		; ES:DI -> validation data
 	mov	bl,10			; BL = base 10
-	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string
-	int	21h			; AX = value
-	jc	si4
+	DOSUTIL	DOS_UTL_ATOI16		; DS:SI -> string
+	jc	si4			; AX = value
 	push	cx
 	mov	cl,6
 	shl	ax,cl
@@ -301,9 +312,8 @@ si5:	mov	si,offset CFG_SESSIONS
 	push	ds
 	pop	es
 	mov	bl,10			; BL = base 10
-	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string, ES:DI -> validation
-	int	21h			; AX = new value
-	pop	es
+	DOSUTIL	DOS_UTL_ATOI16		; DS:SI -> string, ES:DI -> validation
+	pop	es			; AX = new value
 si6:	mov	dx,size SCB
 	mov	bx,offset scb_table
 	call	init_table		; initialize table, update ES
@@ -319,9 +329,8 @@ si6:	mov	dx,size SCB
 	push	ds
 	pop	es
 	mov	bl,10			; BL = base 10
-	mov	ax,DOS_UTL_ATOI16	; DS:SI -> string, ES:DI -> validation
-	int	21h			; AX = new value
-	pop	es
+	DOSUTIL	DOS_UTL_ATOI16		; DS:SI -> string, ES:DI -> validation
+	pop	es			; AX = new value
 si7:	mov	dx,size SFB
 	mov	bx,offset sfb_table
 	call	init_table		; initialize table, update ES
@@ -458,6 +467,22 @@ si14:	mov	dx,offset SYS_MSG
 	mov	ah,DOS_TTY_PRINT
 	int	21h
 ;
+; Before we start loading SHELL definitions, we're going to hook INT 21h
+; with a handler that looks for duplicate opens and returns a cached copy
+; of the data for any load after the first.
+;
+	IFDEF	CACHE_LOAD
+	mov	ax,(DOS_MSC_GETVEC SHL 8) OR 21h
+	int	21h
+	mov	[pOrigInt21].OFF,bx
+	mov	[pOrigInt21].SEG,es
+	mov	dx,offset cache_int21
+	push	cs
+	pop	ds
+	mov	ax,(DOS_MSC_SETVEC SHL 8) OR 21h
+	int	21h
+	ENDIF
+;
 ; For each SHELL definition, load the corresponding file into the next
 ; available SCB.  The first time through, CFG_SHELL is used as a fallback,
 ; so even if there are no SHELL definitions, at least one will be loaded.
@@ -476,12 +501,21 @@ si16:	test	dx,dx			; do we still have a default?
 ; SCB, so that the program file can be opened and read using the SCB's PSP.
 ; It's unlocked after the load, but it won't start running until START is set.
 ;
-	mov	ax,DOS_UTL_LOAD		; load SHELL DS:DX into specified SCB
-	int	21h
+	IFDEF	CACHE_LOAD
+	call	cache_filename		; compare file (DS:CX) to pCacheFile
+	ENDIF
+
+	DOSUTIL	DOS_UTL_LOAD		; load SHELL DS:DX into specified SCB
 	jc	si18
-	mov	ax,DOS_UTL_START	; CL = SCB #
-	int	21h			; must be valid, so no error checking
-	inc	bx
+
+	IFDEF	CACHE_LOAD
+	mov	[pCacheData].OFF,di
+	mov	[pCacheData].SEG,es
+	ENDIF
+
+	DOSUTIL	DOS_UTL_START		; CL = SCB #
+	inc	bx			; must be valid, so no error checking
+
 si17:	inc	cx			; advance SCB #
 	sub	dx,dx			; no more default
 	jmp	si15
@@ -493,7 +527,15 @@ si18:	PRINTF	<"Error loading %s: %d",13,10>,dx,ax
 ; nothing can actually run until we obtain access to the CLOCK$ device and
 ; revector all the hardware interrupt handlers that drive our scheduler.
 ;
-si20:	test	bx,bx
+si20:
+	IFDEF	CACHE_LOAD
+	DBGBRK
+	lds	dx,[pOrigInt21]		; restore INT 21h vector
+	mov	ax,(DOS_MSC_SETVEC SHL 8) OR 21h
+	int	21h
+	ENDIF
+
+	test	bx,bx
 	jz	sierr2			; if no SCBs loaded, that's not good
 ;
 ; Functions like SLEEP need access to the clock device, so we save its
@@ -502,8 +544,7 @@ si20:	test	bx,bx
 ; interfaces (sfb_get, sfb_read, etc) with absolutely no benefit.
 ;
 	mov	dx,offset CLK_DEVICE
-	mov	ax,DOS_UTL_GETDEV
-	int	21h
+	DOSUTIL	DOS_UTL_GETDEV
 	jc	soerr1
 	mov	ds,[dos_seg]
 	mov	[clk_ptr].OFF,di
@@ -639,6 +680,52 @@ DEFPROC	init_table
 	pop	ax
 	ret
 ENDPROC	init_table
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cache_filename
+;
+; If new filename matches cached filename, set pCacheActive to pCacheData.
+;
+; Inputs:
+;	DS:DX -> new filename
+;
+; Outputs:
+;	Varies (function-specific)
+;
+	IFDEF	CACHE_LOAD
+
+DEFPROC	cache_filename
+	mov	si,dx
+	les	di,[pCacheFile]
+;
+; Compare DS:SI (new filename) to ES:DI (pCacheFile).
+;
+	DBGBRK
+	ret
+ENDPROC	cache_filename
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cache_int21
+;
+; The primary purpose of this function is to intercept read requests to a
+; previously loaded file (pCacheFile) and return the same data.
+;
+; Inputs:
+;	AH = DOS function #
+;
+; Outputs:
+;	Varies (function-specific)
+;
+DEFPROC	cache_int21,FAR
+	DBGBRK
+	pushf
+	call	[pOrigInt21]
+	ret	2
+ENDPROC	cache_int21
+
+	ENDIF	; CACHE_LOAD
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

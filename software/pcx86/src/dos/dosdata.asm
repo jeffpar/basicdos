@@ -13,8 +13,8 @@
 
 DOS	segment word public 'CODE'
 ;
-; This must be the first object module; we reuse the fake INT 20h
-; as mcb_head and overwrite the JMP with mcb_limit.
+; This must be the first object module; we reuse the fake INT 20h as mcb_head
+; and overwrite the JMP with mcb_limit.
 ;
 	DEFLBL	mcb_head,word
 	int	20h			; fake DOS terminate call

@@ -606,8 +606,7 @@ ddi3:	call	pull_input		; pull more input data
 ;
 ddi4:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	mov	ax,DOS_UTL_ENDWAIT
-	int	21h
+	DOSUTIL	DOS_UTL_ENDWAIT
 	ASSERT	NC
 ;
 ; If ENDWAIT returns an error, that could be a problem.  In the past, it
@@ -682,8 +681,7 @@ DEFPROC	add_packet
 ;
 	push	dx
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	mov	ax,DOS_UTL_WAIT
-	int	21h
+	DOSUTIL	DOS_UTL_WAIT
 	pop	dx
 	sti
 	ret
@@ -715,24 +713,19 @@ DEFPROC	get_parms
 	pop	es
 	mov	bl,10			; use base 10
 	mov	di,offset COM_PARMS	; ES:DI -> parm defaults/limits
-	mov	ax,DOS_UTL_ATOI16
-	int	21h			; updates SI, DI, and AX
+	DOSUTIL	DOS_UTL_ATOI16		; updates SI, DI, and AX
 	xchg	cx,ax			; CX = baud rate
 	lodsb
 	mov	bh,al			; BH = parity indicator ('N', 'O', 'E')
 	lodsb
-	mov	ax,DOS_UTL_ATOI16
-	int	21h
+	DOSUTIL	DOS_UTL_ATOI16
 	mov	dl,al			; DL = data bits
-	mov	ax,DOS_UTL_ATOI16
-	int	21h
+	DOSUTIL	DOS_UTL_ATOI16
 	mov	dh,al			; DH = stop bits
-	mov	ax,DOS_UTL_ATOI16
-	int	21h
+	DOSUTIL	DOS_UTL_ATOI16
 	push	ax			; AX = input buffer length
 	sub	di,6			; use the input limits for output, too
-	mov	ax,DOS_UTL_ATOI16
-	int	21h			; AX = output buffer length
+	DOSUTIL	DOS_UTL_ATOI16		; AX = output buffer length
 	pop	si			; SI = input buffer length
 	pop	es
 	pop	di

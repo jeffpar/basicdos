@@ -35,9 +35,10 @@ INT_DOSRES3	equ	2Dh	; reserved
 INT_DOSCMD	equ	2Eh	; COMMAND.COM operation
 INT_DOSMULTI	equ	2Fh	; multiplex function interface
 INT_DOSCALL5	equ	30h	; vector has FAR JMP (overwrites vector 31h too)
+INT_DOSUTIL	equ	32h	; DOS utility interface
 
 ;
-; DOS functions
+; INT_DOSFUNC functions
 ;
 DOS_PSP_TERM	equ	00h	; same function as INT 20h
 DOS_TTY_ECHO	equ	01h	; read char (AL) from CON and echo
@@ -55,42 +56,6 @@ DOS_TTY_FLUSH	equ	0Ch	; flush and invoke 01h, 06h, 07h, 08h, or 0Ah
 DOS_DSK_RESET	equ	0Dh	; disk reset
 DOS_DSK_SETDRV	equ	0Eh	; set current drive (DL), return # drives (AL)
 DOS_FCB_OPEN	equ	0Fh	; open FCB (DS:DX)
-
-DOS_UTL		equ	18h	; BASIC-DOS utility functions
-DOS_UTL_STRLEN	equ   1800h	; return string (DS:SI) length (AX)
-DOS_UTL_STRSTR	equ   1801h	; find string (DS:SI) in string (ES:DI)
-DOS_UTL_STRUPR	equ   1803h	; upper-case string (DS:SI)
-DOS_UTL_PRINTF	equ   1804h	; printf to console
-DOS_UTL_DPRINTF	equ   1805h	; printf to DEBUG context, if any
-DOS_UTL_SPRINTF	equ   1806h	; sprintf to buffer (ES:DI)
-DOS_UTL_ITOA	equ   1807h	; convert number (DX:SI) to string (ES:DI)
-DOS_UTL_ATOI16	equ   1808h	; convert string (DS:SI) to 16-bit number (AX)
-DOS_UTL_ATOI32	equ   1809h	; convert string (DS:SI) to 32-bit number (AX)
-DOS_UTL_ATOI32D	equ   180Ah	; convert decimal string (DS:SI) to number (AX)
-DOS_UTL_TOKIFY1	equ   180Bh	; tokenize string (DS:SI) using GENERIC syntax
-DOS_UTL_TOKIFY2	equ   180Ch	; tokenize string (DS:SI) using BASIC syntax
-DOS_UTL_TOKID	equ   180Dh	; convert string (DS:SI) into token ID (AX)
-DOS_UTL_GETDEV	equ   1810h	; get DDH (ES:DI) for device (DS:SI)
-DOS_UTL_IOCTL	equ   1811h	; issue IOCTL to device (ES:DI)
-DOS_UTL_LOAD	equ   1812h	; load program (DS:DX) into session (CL)
-DOS_UTL_START	equ   1813h	; start session (CL)
-DOS_UTL_STOP	equ   1814h	; stop session (CL)
-DOS_UTL_UNLOAD	equ   1815h	; unload program from session (CL)
-DOS_UTL_YIELD	equ   1816h	; yield
-DOS_UTL_SLEEP	equ   1817h	; sleep DX milliseconds
-DOS_UTL_WAIT	equ   1818h	; wait until end wait
-DOS_UTL_ENDWAIT	equ   1819h	; end wait
-DOS_UTL_HOTKEY	equ   181Ah	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
-DOS_UTL_LOCK	equ   181Bh	; lock current session
-DOS_UTL_UNLOCK	equ   181Ch	; unlock current session
-DOS_UTL_QRYMEM	equ   181Dh	; query memory block N (CL)
-DOS_UTL_QRYHDL	equ   181Eh	; query system file handle N (CL)
-DOS_UTL_ABORT	equ   181Fh	; abort with exit code (DL) and exit type (DH)
-DOS_UTL_GETDATE	equ   1820h	; get date (AX) in "packed" format
-DOS_UTL_GETTIME	equ   1821h	; get time (AX) in "packed" format
-DOS_UTL_INCDATE	equ   1822h	; increment date (CX=year, DH=month, DL=day)
-DOS_UTL_STDLEN	equ   1824h	; like STRLEN but w/24h (dollar) as terminator
-
 DOS_DSK_GETDRV	equ	19h	; get current drive (AL)
 DOS_DSK_SETDTA	equ	1Ah	; set DTA (DS:DX)
 DOS_MSC_SETVEC	equ	25h	; set vector (AL) to addr (DS:DX)
@@ -135,6 +100,43 @@ DOS_DSK_FNEXT	equ	4Fh	; find next filespec (DTA)
 DOS_PSP_SET	equ	50h	; set current PSP (BX) (undocumented)
 DOS_PSP_GET	equ	51h	; get current PSP (BX) (undocumented)
 DOS_PSP_CREATE	equ	55h	; create PSP in segment (DX) (undocumented)
+
+;
+; INT_DOSUTIL functions
+;
+DOS_UTL_STRLEN	equ	00h	; return string (DS:SI) length (AX)
+DOS_UTL_STRSTR	equ	01h	; find string (DS:SI) in string (ES:DI)
+DOS_UTL_STRUPR	equ	03h	; upper-case string (DS:SI)
+DOS_UTL_PRINTF	equ	04h	; printf to console
+DOS_UTL_DPRINTF	equ	05h	; printf to DEBUG context, if any
+DOS_UTL_SPRINTF	equ	06h	; sprintf to buffer (ES:DI)
+DOS_UTL_ITOA	equ	07h	; convert number (DX:SI) to string (ES:DI)
+DOS_UTL_ATOI16	equ	08h	; convert string (DS:SI) to 16-bit number (AX)
+DOS_UTL_ATOI32	equ	09h	; convert string (DS:SI) to 32-bit number (AX)
+DOS_UTL_ATOI32D	equ	0Ah	; convert decimal string (DS:SI) to number (AX)
+DOS_UTL_TOKIFY1	equ	0Bh	; tokenize string (DS:SI) using GENERIC syntax
+DOS_UTL_TOKIFY2	equ	0Ch	; tokenize string (DS:SI) using BASIC syntax
+DOS_UTL_TOKID	equ	0Dh	; convert string (DS:SI) into token ID (AX)
+DOS_UTL_GETDEV	equ	10h	; get DDH (ES:DI) for device (DS:SI)
+DOS_UTL_IOCTL	equ	11h	; issue IOCTL to device (ES:DI)
+DOS_UTL_LOAD	equ	12h	; load program (DS:DX) into session (CL)
+DOS_UTL_START	equ	13h	; start session (CL)
+DOS_UTL_STOP	equ	14h	; stop session (CL)
+DOS_UTL_UNLOAD	equ	15h	; unload program from session (CL)
+DOS_UTL_YIELD	equ	16h	; yield
+DOS_UTL_SLEEP	equ	17h	; sleep DX milliseconds
+DOS_UTL_WAIT	equ	18h	; wait until end wait
+DOS_UTL_ENDWAIT	equ	19h	; end wait
+DOS_UTL_HOTKEY	equ	1Ah	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
+DOS_UTL_LOCK	equ	1Bh	; lock current session
+DOS_UTL_UNLOCK	equ	1Ch	; unlock current session
+DOS_UTL_QRYMEM	equ	1Dh	; query memory block N (CL)
+DOS_UTL_QRYHDL	equ	1Eh	; query system file handle N (CL)
+DOS_UTL_ABORT	equ	1Fh	; abort with exit code (DL) and exit type (DH)
+DOS_UTL_GETDATE	equ	20h	; get date (AX) in "packed" format
+DOS_UTL_GETTIME	equ	21h	; get time (AX) in "packed" format
+DOS_UTL_INCDATE	equ	22h	; increment date (CX=year, DH=month, DL=day)
+DOS_UTL_STDLEN	equ	24h	; like STRLEN but w/24h (dollar) as terminator
 
 ;
 ; File Control Block (FCB)

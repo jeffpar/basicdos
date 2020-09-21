@@ -384,6 +384,10 @@ rmb1:	rep	movs msize ptr es:[di],msize ptr mseg:[si]
 rmb2:
 	endm
 
+DOSUTIL	macro	func
+	mov	ah,func
+	int	INT_DOSUTIL
+	endm
 ;
 ; Use the PRINTF macro to simplify calls to the DOS_UTL_PRINTF function.
 ;
@@ -431,8 +435,7 @@ FPRINTF	macro	func,option,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	push	arg
 	ENDIF
 	ENDM
-	mov	ax,func
-	int	INT_DOSFUNC
+	DOSUTIL	func
 	IFNB	<option>
 	db	option
 	ENDIF

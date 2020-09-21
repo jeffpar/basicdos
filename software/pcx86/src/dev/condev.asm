@@ -570,24 +570,18 @@ DEFPROC	ddcon_open
 	pop	es
 	mov	bl,10			; use base 10
 	mov	di,offset CON_PARMS	; ES:DI -> parm defaults/limits
-	mov	ax,DOS_UTL_ATOI16
-	int	21h			; updates SI, DI, and AX
+	DOSUTIL	DOS_UTL_ATOI16		; updates SI, DI, and AX
 	mov	cl,al			; CL = cols
-	mov	ax,DOS_UTL_ATOI16
-	int	21h
+	DOSUTIL	DOS_UTL_ATOI16
 	mov	ch,al			; CH = rows
-	mov	ax,DOS_UTL_ATOI16
-	int	21h
+	DOSUTIL	DOS_UTL_ATOI16
 	mov	dl,al			; DL = starting col
-	mov	ax,DOS_UTL_ATOI16
-	int	21h
+	DOSUTIL	DOS_UTL_ATOI16
 	mov	dh,al			; DH = starting row
-	mov	ax,DOS_UTL_ATOI16
-	int	21h
+	DOSUTIL	DOS_UTL_ATOI16
 	mov	bh,al			; BH = border (0 for none)
 	ASSERT	CTSTAT_BORDER,EQ,01h
-	mov	ax,DOS_UTL_ATOI16
-	int	21h
+	DOSUTIL	DOS_UTL_ATOI16
 	shl	al,1
 	or	bh,al			; BH includes adapter bit, too
 	ASSERT	CTSTAT_ADAPTER,EQ,02h
@@ -862,8 +856,7 @@ i09a:	push	ax
 	call	check_hotkey
 	jc	i09b
 	xchg	dx,ax			; DL = char code, DH = scan code
-	mov	ax,DOS_UTL_HOTKEY	; notify DOS
-	int	21h
+	DOSUTIL	DOS_UTL_HOTKEY		; notify DOS
 
 i09b:	mov	ds,cx			; DS = context
 	mov	cx,cs
@@ -899,8 +892,7 @@ i09d:	call	pull_kbd		; pull keyboard data
 ;
 i09e:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	mov	ax,DOS_UTL_ENDWAIT
-	int	21h
+	DOSUTIL	DOS_UTL_ENDWAIT
 	ASSERT	NC
 ;
 ; If ENDWAIT returns an error, that could be a problem.  In the past, it
@@ -990,8 +982,7 @@ DEFPROC	ddcon_int10,far
 ; context in AX.  However, during system initialization, that context may
 ; not exist yet.
 ;
-	mov	ax,DOS_UTL_LOCK		; lock to ensure EQUIP_FLAG
-	int	21h			; remains stable for the duration
+	DOSUTIL	DOS_UTL_LOCK		; ensure EQUIP_FLAG remains stable
 	push	ax			; save the context segment
 	test	ax,ax			; is it valid?
 	jz	i10a			; no
@@ -1021,8 +1012,7 @@ i10a:	push	ax			; save EQUIP_FLAG
 
 i10x:	pop	ax			; clean up the stack
 	pop	ax			; (eg, ADD SP,4)
-	mov	ax,DOS_UTL_UNLOCK
-	int	21h
+	DOSUTIL	DOS_UTL_UNLOCK
 	call	unlock_bios
 
 	pop	ax
@@ -1087,8 +1077,7 @@ DEFPROC	add_packet
 ;
 	push	dx
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	mov	ax,DOS_UTL_WAIT
-	int	21h
+	DOSUTIL	DOS_UTL_WAIT
 	pop	dx
 	sti
 	ret
@@ -1710,8 +1699,7 @@ DEFPROC	switch_focus
 	push	si
 	push	di
 	push	ds
-	mov	ax,DOS_UTL_LOCK		; lock the current session
-	int	21h
+	DOSUTIL	DOS_UTL_LOCK		; lock the current session
 	push	es
 	jcxz	sf8			; nothing to do
 	mov	ds,cx
@@ -1730,8 +1718,7 @@ sf2:	xchg	cx,[ct_focus]
 	call	draw_border		; redraw the border and show
 	call	show_cursor		; the cursor of the incoming context
 sf8:	pop	es
-	mov	ax,DOS_UTL_UNLOCK
-	int	21h
+	DOSUTIL	DOS_UTL_UNLOCK
 	pop	ds
 	pop	di
 	pop	si

@@ -97,7 +97,9 @@ ENDPROC	get_scbnum
 ;	ES:DX -> name of program (or command-line)
 ;
 ; Outputs:
-;	Carry clear if successful
+;	Carry clear if successful:
+;		REG_DX:REG_AX -> program size
+;		REG_ES:REG_DI -> program image
 ;	Carry set if error, AX = error code
 ;
 ; Modifies:
@@ -115,6 +117,14 @@ DEFPROC	scb_load,DOS
 	mov	bx,[scb_active]
 	jc	sl7
 	call	scb_init
+;
+; Copy the TMP register results to the caller's registers.
+;
+	mov	ax,[bp].TMP_DX
+	mov	[bp].REG_DX,ax
+	mov	ax,[bp].TMP_ES
+	mov	[bp].REG_ES,ax
+
 sl7:	pop	cx			; recover previous SCB
 	call	scb_unlock		; unlock
 sl8:	jnc	sl9
@@ -258,8 +268,7 @@ DEFPROC	scb_stoke,DOS
 	ASSUME	DS:NOTHING, ES:NOTHING
 	mov	[scb_stoked],offset scb_return
 	push	ax
-	mov	ax,DOS_UTL_YIELD
-	int	21h
+	DOSUTIL	DOS_UTL_YIELD
 	pop	ax
 	DEFLBL	scb_return,near
 	ret

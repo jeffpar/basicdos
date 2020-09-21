@@ -24,8 +24,7 @@ DEFPROC	main
 	cmp	[si],ah
 	je	s1
 	inc	si
-	mov	ax,DOS_UTL_ATOI32D
-	int	21h		; DX:AX = value (# of seconds)
+	DOSUTIL	DOS_UTL_ATOI32D	; DX:AX = value (# of seconds)
 ;
 ; Perform an unnecessary division, so we can verify that division error
 ; processing works (eg, by running "sleep 0").
@@ -43,8 +42,7 @@ s1:	push	ax
 	mul	dx		; DX:AX = AX * 1000 (# of milliseconds)
 	mov	cx,dx
 	xchg	dx,ax		; CX:DX = # of milliseconds
-	mov	ax,DOS_UTL_SLEEP
-	int	21h
+	DOSUTIL	DOS_UTL_SLEEP
 	PRINTF	<13,10,"feeling refreshed!",13,10>
 	int	20h
 ENDPROC	main

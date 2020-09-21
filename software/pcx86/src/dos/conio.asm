@@ -717,9 +717,8 @@ DEFPROC	con_ioctl,DOS
 	push	es
 	pop	ds
 	ASSUME	DS:NOTHING
-	mov	ah,DOS_HDL_IOCTL
 	mov	bx,STDIN
-	int	21h
+	DOSUTIL	<DOS_HDL_IOCTL + 80h>
 	jnc	ioc9
 	sub	ax,ax			; default value (STDIN redirected?)
 ioc9:	pop	ds
