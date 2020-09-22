@@ -777,10 +777,9 @@ lp7b:	mov	ds:[PSP_START].OFF,100h
 	mov	ds:[PSP_START].SEG,ds
 	mov	bx,dx			; BX -> end of program file
 	mov	dx,MINHEAP SHR 4	; minimum add'l space (1Kb in paras)
-	cmp	word ptr [bx-2],SIG_BASICDOS
+	cmp	word ptr [bx - 2],SIG_BASICDOS
 	jne	lp7e
-	sub	bx,size COMDATA		; rewind BX to the COMDATA struc
-	mov	ax,[bx].CD_HEAPSIZE	; AX = heap size, in paras
+	mov	ax,[bx - size COMDATA].CD_HEAPSIZE; AX = heap size, in paras
 	cmp	ax,dx			; larger than our minimum?
 	jbe	lp7c			; no
 	xchg	dx,ax			; yes, set DX to the larger value
@@ -789,10 +788,10 @@ lp7b:	mov	ds:[PSP_START].OFF,100h
 ; In addition, if a code size is specified, checksum the code, and then
 ; see if there's another block with the same code.
 ;
-lp7c:	mov	cx,[bx].CD_CODESIZE
+lp7c:	mov	cx,[bx - size COMDATA].CD_CODESIZE
 	mov	ds:[PSP_CODESIZE],cx	; record end of code
 	mov	ds:[PSP_HEAPSIZE],dx	; record heap size
-	mov	ds:[PSP_HEAP],bx	; by default, heap starts at COMDATA
+	mov	ds:[PSP_HEAP],bx	; by default, heap starts after COMDATA
 	jcxz	lp7d			; but if a code size was specified
 	mov	ds:[PSP_HEAP],cx	; heap starts at the end of the code
 
@@ -803,17 +802,9 @@ lp7d:	call	psp_calcsum		; calc checksum for code
 ; We found another copy of the code segment (CX), so we can move everything
 ; from PSP_CODESIZE to BX down to 100h, and then set BX to the new program end.
 ;
-; TODO: While sharing a code segment (more precisely, the initial code-only
-; portion of a COM segment) is a nice feature of BASIC-DOS, it would be even
-; nicer if we could do it without re-reading the entire COM image again.
-; We really need to 1) move the COMDATA structure near the beginning of the
-; image (ie, within the first 512 bytes), 2) include a precalculated checksum
-; of the code-only portion in COMDATA, and 3) search for an existing PSP with
-; a matching PSP_CHECKSUM.
-;
-; The bytes, if any, between PSP_CODESIZE and the COMDATA structure (which is
-; where BX is now pointing) represent statically initialized data that is also
-; considered part of the program's "heap".
+; The bytes, if any, between PSP_CODESIZE and the end of the COMDATA structure
+; (which is where BX is now pointing) represent statically initialized data
+; that is also considered part of the program's "heap".
 ;
 	mov	ds:[PSP_START].SEG,cx
 	mov	si,ds:[PSP_CODESIZE]
