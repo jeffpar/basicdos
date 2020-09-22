@@ -797,6 +797,7 @@ lp7c:	mov	cx,[bx - size COMDATA].CD_CODESIZE
 
 lp7d:	call	psp_calcsum		; calc checksum for code
 	mov	ds:[PSP_CHECKSUM],ax	; record checksum (zero if unspecified)
+	mov	di,bx			; DI -> uninitialized heap space
 	jcxz	lp7e
 ;
 ; We found another copy of the code segment (CX), so we can move everything
@@ -813,39 +814,34 @@ lp7d:	call	psp_calcsum		; calc checksum for code
 	mov	di,100h
 	mov	ds:[PSP_HEAP],di	; record the new heap offset
 	rep	movsb
-	mov	bx,di
-	mov	[bp].TMP_CX,cx		; this program's data can't be cached
+	mov	bx,di			; DI -> uninitialized heap space
+	mov	[bp].TMP_CX,cx		; this program image can't be cached
 
 lp7e:	add	bx,15
 	mov	cl,4
 	shr	bx,cl			; BX = size of program (in paras)
 	add	bx,dx			; add add'l space (in paras)
-
-	mov	di,bx
-	cmp	di,1000h
+	mov	ax,bx
+	cmp	ax,1000h
 	jb	lp7f
-	mov	di,1000h
-lp7f:	shl	di,cl			; ES:DI -> top of the segment
-	mov	ds:[PSP_STACK].OFF,di
+	mov	ax,1000h
+lp7f:	shl	ax,cl			; DS:AX -> top of the segment
+	mov	ds:[PSP_STACK].OFF,ax
 	mov	ds:[PSP_STACK].SEG,ds
 
-lp8:	mov	ah,DOS_MEM_REALLOC	; resize ES memory block to BX
+lp8:	mov	ah,DOS_MEM_REALLOC	; resize ES memory block to BX paras
 	int	21h
 	jnc	lp8a
 lp8f:	jmp	lpef			; TODO: try to use a smaller size?
 ;
-; Zero the additional heap paragraphs requested, if any.
+; Zero any additional heap paragraphs (DX) starting at ES:DI.
 ;
-lp8a:	test	dx,dx
-	jz	lp8b
-	sub	bx,dx			; BX = 1st para to zero
-	mov	cl,4
-	shl	bx,cl			; convert BX to offset within ES
-	dec	cx
-	shl	dx,cl			; convert # paras to number of words
+lp8a:	test	dx,dx			; additional heap?
+	jz	lp8b			; no
+	mov	cl,3
+	shl	dx,cl			; convert # paras to # words
 	mov	cx,dx
 	sub	ax,ax
-	mov	di,bx
 	rep	stosw			; zero the words
 
 lp8b:	mov	dx,es

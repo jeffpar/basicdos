@@ -135,6 +135,7 @@ DEFPROC	dos_opchk,DOSFAR
 	mov	[bp+2],si		; update CS:IP to skip OPCHECK byte
 	cmp	al,OP_ASSERT		; OP_ASSERT?
 	jnz	oc9			; no
+	sub	si,3			; display the address of the INT 06h
 	PRINTF	<"Assertion failure @%08lx",13,10>,si,ds
 oc9:	pop	ds
 	pop	si
