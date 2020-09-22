@@ -757,7 +757,7 @@ lp7:	add	dx,ax
 	int	21h
 	jnc	lp7a
 	jmp	lpec
-lp7a:	add	dx,ax			; DX -> end of program file
+lp7a:	add	dx,ax			; DX -> end of program image
 ;
 ; We could leave the executable file open and close it on process termination,
 ; because it provides us with valuable information about all the processes that
@@ -765,21 +765,22 @@ lp7a:	add	dx,ax			; DX -> end of program file
 ; The handle could also be useful for overlay support, too.  But for now, we'll
 ; close the handle.
 ;
-	mov	ah,DOS_HDL_CLOSE
+lp7b:	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the file
 	jc	lp8f
+
+	mov	ds:[PSP_START].OFF,100h
+	mov	ds:[PSP_START].SEG,ds
+	mov	di,dx			; DI -> uninitialized heap space
+	mov	dx,MINHEAP SHR 4	; DX = add'l space (1Kb in paras)
 ;
-; Check the word at [BX-2]: if it contains SIG_BASICDOS ("BD"), then the
+; Check the word at [DI-2]: if it contains SIG_BASICDOS ("BD"), then the
 ; image ends with COMDATA, where the preceding word (CD_HEAPSIZE) specifies
 ; the program's desired additional memory (in paras).
 ;
-lp7b:	mov	ds:[PSP_START].OFF,100h
-	mov	ds:[PSP_START].SEG,ds
-	mov	bx,dx			; BX -> end of program file
-	mov	dx,MINHEAP SHR 4	; minimum add'l space (1Kb in paras)
-	cmp	word ptr [bx - 2],SIG_BASICDOS
+	cmp	word ptr [di - 2],SIG_BASICDOS
 	jne	lp7e
-	mov	ax,[bx - size COMDATA].CD_HEAPSIZE; AX = heap size, in paras
+	mov	ax,[di - size COMDATA].CD_HEAPSIZE; AX = heap size, in paras
 	cmp	ax,dx			; larger than our minimum?
 	jbe	lp7c			; no
 	xchg	dx,ax			; yes, set DX to the larger value
@@ -788,36 +789,35 @@ lp7b:	mov	ds:[PSP_START].OFF,100h
 ; In addition, if a code size is specified, checksum the code, and then
 ; see if there's another block with the same code.
 ;
-lp7c:	mov	cx,[bx - size COMDATA].CD_CODESIZE
+lp7c:	mov	cx,[di - size COMDATA].CD_CODESIZE
 	mov	ds:[PSP_CODESIZE],cx	; record end of code
 	mov	ds:[PSP_HEAPSIZE],dx	; record heap size
-	mov	ds:[PSP_HEAP],bx	; by default, heap starts after COMDATA
+	mov	ds:[PSP_HEAP],di	; by default, heap starts after COMDATA
 	jcxz	lp7d			; but if a code size was specified
 	mov	ds:[PSP_HEAP],cx	; heap starts at the end of the code
 
 lp7d:	call	psp_calcsum		; calc checksum for code
 	mov	ds:[PSP_CHECKSUM],ax	; record checksum (zero if unspecified)
-	mov	di,bx			; DI -> uninitialized heap space
 	jcxz	lp7e
 ;
 ; We found another copy of the code segment (CX), so we can move everything
-; from PSP_CODESIZE to BX down to 100h, and then set BX to the new program end.
+; from PSP_CODESIZE to DI down to 100h, and then set DI to the new program end.
 ;
 ; The bytes, if any, between PSP_CODESIZE and the end of the COMDATA structure
-; (which is where BX is now pointing) represent statically initialized data
+; (which is where DI is now pointing) represent statically initialized data
 ; that is also considered part of the program's "heap".
 ;
 	mov	ds:[PSP_START].SEG,cx
 	mov	si,ds:[PSP_CODESIZE]
-	mov	cx,bx
+	mov	cx,di
 	sub	cx,si
 	mov	di,100h
 	mov	ds:[PSP_HEAP],di	; record the new heap offset
-	rep	movsb
-	mov	bx,di			; DI -> uninitialized heap space
+	rep	movsb			; DI -> uninitialized heap space
 	mov	[bp].TMP_CX,cx		; this program image can't be cached
 
-lp7e:	add	bx,15
+lp7e:	mov	bx,di			; BX = size of program image
+	add	bx,15
 	mov	cl,4
 	shr	bx,cl			; BX = size of program (in paras)
 	add	bx,dx			; add add'l space (in paras)
@@ -828,13 +828,15 @@ lp7e:	add	bx,15
 lp7f:	shl	ax,cl			; DS:AX -> top of the segment
 	mov	ds:[PSP_STACK].OFF,ax
 	mov	ds:[PSP_STACK].SEG,ds
-
 lp8:	mov	ah,DOS_MEM_REALLOC	; resize ES memory block to BX paras
 	int	21h
 	jnc	lp8a
 lp8f:	jmp	lpef			; TODO: try to use a smaller size?
 ;
-; Zero any additional heap paragraphs (DX) starting at ES:DI.
+; Zero any additional heap paragraphs (DX) starting at ES:DI.  Note that
+; although heap size is specified in paragraphs, it's not required to start
+; on a paragraph boundary, so there may be some unused (and uninitialized)
+; bytes at the end of the heap.
 ;
 lp8a:	test	dx,dx			; additional heap?
 	jz	lp8b			; no
