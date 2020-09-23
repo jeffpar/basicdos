@@ -337,7 +337,6 @@ DEFPROC	ddcon_setins
 	jnc	dsi1			; "insert mode" requested?
 	and	ah,0E0h			; yes, clear bits 0-4 of CT_CURTYPE.HIB
 dsi1:	xchg	ds:[CT_CURTYPE],ax	; AX = previous CT_CURTYPE
-	ASSERT	NE,<cmp ds:[CT_CURTYPE].HIB,0>
 	sub	dx,dx
 	test	ah,1Fh			; were bits 0-4 clear?
 	jnz	dsi2			; no, DX = 0
