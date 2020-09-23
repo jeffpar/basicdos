@@ -277,10 +277,10 @@ CMD_ECHO	equ	01h		; set if ECHO is "on"
 ; ensures that the remaining fields are zero-initialized.
 ;
 CMD_HEAP	struc
-CODE_BLK	db	size BLK_DEF dup (?)
-VARS_BLK	db	size BLK_DEF dup (?)
-STRS_BLK	db	size BLK_DEF dup (?)
-TEXT_BLK	db	size BLK_DEF dup (?)
+CBLK_DEF	db	size BLK_DEF dup (?)
+VBLK_DEF	db	size BLK_DEF dup (?)
+SBLK_DEF	db	size BLK_DEF dup (?)
+TBLK_DEF	db	size BLK_DEF dup (?)
 ORIG_SP		dw	?
 ORIG_BP		dw	?
 CON_COLS	db	?

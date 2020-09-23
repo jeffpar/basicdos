@@ -250,18 +250,22 @@ hk1:	cmp	[bx].SCB_CONTEXT,cx
 	cmp	bx,[scb_table].SEG
 	jb	hk1
 	stc
-	jmp	short hk9
+	ret
 
 hk2:	cmp	al,CHR_CTRLC
 	jne	hk3
 	or	[bx].SCB_CTRLC_ACT,1
 
 hk3:	cmp	al,CHR_CTRLP
-	clc
-	jne	hk9
+	jne	hk4
 	xor	[bx].SCB_CTRLP_ACT,1
 
-hk9:	ret
+hk4:	cmp	ah,SCAN_DEL
+	jne	hk9
+	or	[bx].SCB_STATUS,SCSTAT_FQUIT
+
+hk9:	clc
+	ret
 ENDPROC	utl_hotkey
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

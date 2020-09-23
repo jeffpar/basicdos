@@ -12,7 +12,7 @@
 
 CODE    SEGMENT
 	EXTERNS	<cmdDate,cmdDir,cmdExit,cmdHelp,cmdList,cmdLoad>,near
-	EXTERNS	<cmdMem,cmdNew,cmdRun,cmdTime,cmdType,cmdVer>,near
+	EXTERNS	<cmdMem,cmdNew,cmdRun,cmdRestart,cmdTime,cmdType,cmdVer>,near
 	EXTERNS	<genCLS,genColor,genDefInt,genDefDbl,genDefStr>,near
 	EXTERNS	<genEcho,genGoto,genIf,genLet,genPrint>,near
 	EXTERNS	<evalNegLong,evalNotLong>,near
@@ -182,7 +182,8 @@ CODE	ENDS
 	DEFTOK	ON,    203
 	DEFTOK	PRINT,  70, genPrint
 	DEFTOK	REM,    71
-	DEFTOK	RUN,     4, cmdRun
+	DEFTOK	RESTART, 4, cmdRestart
+	DEFTOK	RUN,     5, cmdRun
 	DEFTOK	THEN,  204
 	DEFTOK	TIME,   43, cmdTime
 	DEFTOK	TYPE,   22, cmdType

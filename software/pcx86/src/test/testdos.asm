@@ -56,6 +56,24 @@ DEFPROC	main
 	mov	dx,offset hello
 	mov	cl,DOS_TTY_PRINT
 	call	DOS
+;
+; Make a series of increasingly large memory allocations.
+;
+	mov	cx,10		; perform the series CX times
+m1:	sub	bx,bx		; start with a zero paragraph request
+m2:	mov	ah,DOS_MEM_ALLOC
+	int	21h
+	jc	m3
+	mov	es,ax		; ES = new segment
+	mov	ah,DOS_MEM_FREE
+	int	21h
+	ASSERT	NC
+	inc	bx		; ask for more one paragraph
+	jmp	m2
+m3:	mov	dx,offset progress
+	mov	ah,DOS_TTY_PRINT
+	int	21h
+	loop	m1
 
 	IFDEF MAXDEBUG
 	push	ds
@@ -76,6 +94,7 @@ DEFPROC	main
 ENDPROC	main
 
 hello		db		"Hello from CALL 5",13,10,'$'
+progress	db		".$"
 
 	IFDEF MAXDEBUG
 readfile	db		"config.sys",0

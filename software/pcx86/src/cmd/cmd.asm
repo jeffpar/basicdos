@@ -958,7 +958,7 @@ ENDPROC	printNewLine
 ;	Any
 ;
 DEFPROC	cmdList
-	lea	si,[heap].TEXT_BLK
+	lea	si,[heap].TBLK_DEF
 l2:	mov	cx,[si].TBLK_NEXT
 	jcxz	l9			; nothing left to parse
 	mov	ds,cx
@@ -1171,6 +1171,24 @@ ENDPROC	cmdNew
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; cmdRestart
+;
+; Inputs:
+;	DS:DI -> TOKENBUF
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cmdRestart
+	DOSUTIL	DOS_UTL_RESTART		; this shouldn't return
+	ret				; but just in case...
+ENDPROC	cmdRestart
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; cmdRun
 ;
 ; Inputs:
@@ -1183,7 +1201,8 @@ ENDPROC	cmdNew
 ;	Any
 ;
 DEFPROC	cmdRun
-	mov	al,GEN_BASIC
+	mov	al,GEN_BASIC		; RUNning a BASIC program
+	call	freeVars		; always gets a fresh set of variables
 	DEFLBL	cmdRunFlags,near
 	sub	si,si
 	lea	bx,[heap]

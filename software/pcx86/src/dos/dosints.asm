@@ -137,6 +137,7 @@ DEFPROC	dos_opchk,DOSFAR
 	jnz	oc9			; no
 	sub	si,3			; display the address of the INT 06h
 	PRINTF	<"Assertion failure @%08lx",13,10>,si,ds
+	DBGBRK
 oc9:	pop	ds
 	pop	si
 	pop	ax

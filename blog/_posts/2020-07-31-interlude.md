@@ -34,11 +34,15 @@ until version 2.0, over 1.5 years after the IBM PC and PC DOS were introduced.
 Installable device drivers (using the **DEVICE** keyword) aren't supported
 yet, but support does exist for:
 
-  - **DEBUG** (eg, DEBUG=COM1:9600,N,8,1 will enable debug messages to COM1)
-  - **FILES** (eg, FILES=20 will allocate memory for up to 20 files)
-  - **MEMSIZE** (eg, MEMSIZE=32 will limit system memory usage to 32K)
-  - **SESSIONS** (eg, SESSIONS=4 will allocate memory for up to 4 sessions)
-  - **SHELL** (eg, SHELL=SHELL.COM will load SHELL.COM instead of COMMAND.COM)
+  - **BOOTKEY** (eg, BOOTKEY=D to simulate pressing 'D' at the boot prompt)
+  - **CONSOLE** (eg, CONSOLE=CON:40,25,0,0,1 to create a 40-column console)
+  - **DEBUG** (eg, DEBUG=COM1:9600,N,8,1 to enable debug messages to COM1)
+  - **FILES** (eg, FILES=20 to allocate memory for up to 20 files)
+  - **MEMSIZE** (eg, MEMSIZE=32 to limit system memory usage to 32K)
+  - **REM** (for remarks -- although any unrecognized line will be ignored)
+  - **SESSIONS** (eg, SESSIONS=4 to allocate memory for up to 4 sessions)
+  - **SHELL** (eg, SHELL=COMMAND.COM AUTOEXEC.BAT)
+  - **SWITCHAR** (eg, SWITCHAR=- if you'd rather type "DATE -P" instead of "DATE /P")
 
 Sessions are one of the cool new features of BASIC-DOS.  More on that below,
 when I talk about the **CONSOLE** driver.
@@ -194,8 +198,8 @@ I add support to the CONSOLE driver for "popup" and background display contexts.
 ### BIOS Parameter Blocks
 
 While the BPB is a diskette structure that was introduced in PC DOS 2.00,
-BASIC-DOS had the, um, "foresight" to include that feature in BASIC-DOS 1.00
--- with some extensions as well.
+BASIC-DOS had the foresight to include that feature in BASIC-DOS 1.00 -- with
+some extensions as well.
 
 BASIC-DOS on-disk BPBs have a few additional fields that relieve the boot
 code from making unnecessary calculations (eg, the locations of the first root
@@ -215,6 +219,7 @@ BPB operations, but the memory for BPBs is allocated by DOS.
 
 ## The DOS "Kernel"
 
-**IBMDOS.COM** is the second file loaded by the boot code. 
-
-More about that component in the next blog post....
+**IBMDOS.COM** is the second file loaded by the boot code.  It installs handlers
+for all the usual INT 2xh software interrupts, the INT 30h vector for the old
+"CALL 5" CP/M-style interface, and the INT 32h vector for a new set of BASIC-DOS
+"utility" functions.

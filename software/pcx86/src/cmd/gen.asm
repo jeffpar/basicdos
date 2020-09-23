@@ -106,7 +106,7 @@ gc0:	mov	[genFlags],al
 gce:	call	memError
 	jmp	gc9
 
-gc1:	lea	si,[bx].TEXT_BLK
+gc1:	lea	si,[bx].TBLK_DEF
 gc2:	mov	cx,[si].TBLK_NEXT
 	clc
 	jcxz	gc3b			; nothing left to parse
@@ -213,7 +213,7 @@ gc6:	push	ss
 	push	bp
 	push	ds
 	mov	si,[pHeap]
-	mov	ax,[si].VARS_BLK.BLK_NEXT
+	mov	ax,[si].VBLK_DEF.BLK_NEXT
 	mov	ds,ax
 	ASSUME	DS:NOTHING
 	call	[pCode]			; execute the code buffer
@@ -357,11 +357,12 @@ ENDPROC	genCmd
 ;	Any
 ;
 DEFPROC	genColor
-	call	genExpr
+	mov	word ptr [nArgs],0
+gco1:	call	genExpr
 	jb	gco9
 	je	gco8
 	cmp	al,','			; was the last symbol a comma?
-	je	genColor		; yes, go back for more
+	je	gco1			; yes, go back for more
 gco8:	GENPUSH	nArgs
 	GENCALL	setColor
 	clc
@@ -456,8 +457,8 @@ ENDPROC	genDefInt
 ;
 ; genDefDbl
 ;
-; Process "DEFDBL".  In BASIC-DOS, floating-point comes in only one flavor,
-; and this is it; "DEFSNG" is still allowed, but it's treated as "DEFDBL".
+; Process "DEFDBL".  In BASIC-DOS, floating-point will comes in only one
+; flavor, and this is it; "DEFSNG" is allowed, but it's treated as "DEFDBL".
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs
