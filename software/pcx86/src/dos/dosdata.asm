@@ -80,7 +80,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<utl_strlen,utl_strstr,utl_strupr>,near
 	EXTERNS	<utl_atoi16,utl_atoi32,utl_atoi32d>,near
 	EXTERNS	<utl_itoa,utl_printf,utl_dprintf,utl_sprintf>,near
-	EXTERNS	<utl_tokify,utl_tokid,utl_getdev>,near
+	EXTERNS	<utl_tokify,utl_tokid,utl_restart,utl_getdev>,near
 	EXTERNS	<utl_ioctl,utl_load,utl_start,utl_stop,utl_unload>,near
 	EXTERNS	<utl_yield,utl_sleep,utl_wait,utl_endwait,utl_hotkey>,near
 	EXTERNS	<utl_lock,utl_unlock,utl_qrymem,utl_abort>,near
@@ -116,7 +116,7 @@ DOS	segment word public 'CODE'
 	dw	utl_strlen,  utl_strstr,  func_none,   utl_strupr	;00h-03h
 	dw	utl_printf,  utl_dprintf, utl_sprintf, utl_itoa		;04h-07h
 	dw	utl_atoi16,  utl_atoi32,  utl_atoi32d, utl_tokify	;08h-0Bh
-	dw	utl_tokify,  utl_tokid,   func_none,   func_none	;0Ch-0Fh
+	dw	utl_tokify,  utl_tokid,   func_none,   utl_restart	;0Ch-0Fh
 	dw	utl_getdev,  utl_ioctl,   utl_load,    utl_start	;10h-13h
 	dw	utl_stop,    utl_unload,  utl_yield,   utl_sleep	;14h-17h
 	dw	utl_wait,    utl_endwait, utl_hotkey,  utl_lock		;18h-1Bh

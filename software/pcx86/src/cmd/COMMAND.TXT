@@ -38,6 +38,9 @@ PRINT
 
 REM
 
+RESTART
+Restart ("reboot") the system.
+
 RUN
 
 TIME [*time*] [/D] [/P]

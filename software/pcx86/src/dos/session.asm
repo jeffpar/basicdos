@@ -27,7 +27,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_locked,def_switchar>,byte
 	EXTERNS	<scb_active,scb_stoked>,word
 	EXTERNS	<scb_table>,dword
-	EXTERNS	<dos_exit,load_program,sfh_close>,near
+	EXTERNS	<dos_exit,load_program,sfh_close,psp_term_exitcode>,near
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -442,16 +442,27 @@ DEFPROC	scb_switch,DOS
 	mov	ax,bx
 	xchg	bx,[scb_active]		; BX -> previous SCB
 	test	bx,bx
-	jz	sw8
+	jz	sw6
 	ASSERT	STRUCT,[bx],SCB
 	add	sp,2			; toss 1 near-call return address
 	mov	[bx].SCB_STACK.SEG,ss
 	mov	[bx].SCB_STACK.OFF,sp
-sw8:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
+sw6:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
 	ASSERT	STRUCT,[bx],SCB
 	mov	ss,[bx].SCB_STACK.SEG
 	mov	sp,[bx].SCB_STACK.OFF
-	ASSERT	NC
+;
+; TODO: Finish support for the FQUIT ("forced quit") bit.
+;
+	test	[bx].SCB_STATUS,SCSTAT_FQUIT
+	jz	sw8
+sw7:	sti
+	and	[bx].SCB_STATUS,NOT SCSTAT_FQUIT
+	PRINTF	<"Forced quit detected",13,10>
+	mov	ax,(EXTYPE_FQUIT SHL 8) OR 0FFh
+	call	psp_term_exitcode	; attempt forced quit
+
+sw8:	ASSERT	NC
 	jmp	dos_exit		; we'll let dos_exit turn interrupts on
 sw9:	sti
 	ret

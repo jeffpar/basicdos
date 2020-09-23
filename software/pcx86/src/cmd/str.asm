@@ -415,7 +415,7 @@ DEFPROC	findStrSpace
 	push	ss
 	pop	ds
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].STRS_BLK
+	lea	si,[si].SBLK_DEF
 	mov	ah,0
 
 fss1:	mov	cx,[si]

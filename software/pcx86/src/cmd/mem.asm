@@ -178,7 +178,7 @@ ENDPROC	freeAllBlocks
 ;
 DEFPROC	allocCode
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].CODE_BLK
+	lea	si,[si].CBLK_DEF
 	mov	cx,CBLKLEN
 	jmp	allocBlock
 ENDPROC	allocCode
@@ -187,7 +187,7 @@ ENDPROC	allocCode
 ;
 ; freeCode
 ;
-; Frees all code blocks and resets the CODE_BLK chain.
+; Frees all code blocks and resets the CBLK chain.
 ;
 ; Inputs:
 ;	None
@@ -200,7 +200,7 @@ ENDPROC	allocCode
 ;
 DEFPROC	freeCode
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].CODE_BLK
+	lea	si,[si].CBLK_DEF
 	jmp	freeAllBlocks
 ENDPROC	freeCode
 
@@ -219,7 +219,7 @@ ENDPROC	freeCode
 ;
 DEFPROC	allocText
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].TEXT_BLK
+	lea	si,[si].TBLK_DEF
 	jmp	allocBlock
 ENDPROC	allocText
 
@@ -227,7 +227,7 @@ ENDPROC	allocText
 ;
 ; freeText
 ;
-; Frees all text blocks and resets the TEXT_BLK chain.
+; Frees all text blocks and resets the TBLK chain.
 ;
 ; Inputs:
 ;	None
@@ -240,7 +240,7 @@ ENDPROC	allocText
 ;
 DEFPROC	freeText
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].TEXT_BLK
+	lea	si,[si].TBLK_DEF
 	jmp	freeAllBlocks
 ENDPROC	freeText
 
@@ -261,7 +261,7 @@ ENDPROC	freeText
 ;
 DEFPROC	allocVars
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].VARS_BLK
+	lea	si,[si].VBLK_DEF
 	cmp	[si].BLK_NEXT,0
 	jne	al9
 	mov	cx,VBLKLEN
@@ -286,7 +286,7 @@ ENDPROC	allocVars
 ;
 DEFPROC	freeVars
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].VARS_BLK
+	lea	si,[si].VBLK_DEF
 	jmp	freeAllBlocks
 ENDPROC	freeVars
 
@@ -294,7 +294,7 @@ ENDPROC	freeVars
 ;
 ; allocStrSpace
 ;
-; Allocates an SBLK and adds it to the STRS_BLK chain.
+; Allocates an SBLK and adds it to the SBLK chain.
 ;
 ; Inputs:
 ;	None
@@ -307,7 +307,7 @@ ENDPROC	freeVars
 ;
 DEFPROC	allocStrSpace
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].STRS_BLK
+	lea	si,[si].SBLK_DEF
 	mov	cx,SBLKLEN
 	jmp	allocBlock
 ENDPROC	allocStrSpace
@@ -316,7 +316,7 @@ ENDPROC	allocStrSpace
 ;
 ; freeStrSpace
 ;
-; Frees all SBLKs and resets the STRS_BLK chain.
+; Frees all SBLKs and resets the SBLK chain.
 ;
 ; Inputs:
 ;	None
@@ -329,7 +329,7 @@ ENDPROC	allocStrSpace
 ;
 DEFPROC	freeStrSpace
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].STRS_BLK
+	lea	si,[si].SBLK_DEF
 	jmp	freeAllBlocks
 ENDPROC	freeStrSpace
 
@@ -364,7 +364,7 @@ DEFPROC	addVar
 	push	di
 	push	es
 	mov	di,ds:[PSP_HEAP]
-	mov	es,[di].VARS_BLK.BLK_NEXT
+	mov	es,[di].VBLK_DEF.BLK_NEXT
 	ASSERT	STRUCT,es:[0],VBLK
 	mov	di,es:[VBLK_FREE]
 	push	ax
@@ -437,7 +437,7 @@ DEFPROC	findVar
 	push	di
 	push	es
 	mov	di,ds:[PSP_HEAP]
-	mov	es,[di].VARS_BLK.BLK_NEXT
+	mov	es,[di].VBLK_DEF.BLK_NEXT
 	ASSERT	STRUCT,es:[0],VBLK
 	mov	di,size VBLK_HDR	; ES:DI -> first var in block
 	push	ax

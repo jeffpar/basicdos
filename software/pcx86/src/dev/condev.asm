@@ -838,12 +838,42 @@ ENDPROC	ddcon_none
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_int09,far
 	call	far ptr DDINT_ENTER
-	pushf
+	jc	i09c
+
+	push	ax
+	in	al,60h			; peek at the scan code
+	cmp	al,SCAN_DEL		; DEL key pressed?
+	jne	i09b			; no
+	push	ds
+	sub	ax,ax
+	mov	ds,ax
+	mov	al,ds:[KB_FLAG]		; CTRL and ALT pressed as well?
+	and	al,CTL_SHIFT OR ALT_SHIFT
+	cmp	al,CTL_SHIFT OR ALT_SHIFT
+	jne	i09a			; no
+;
+; After notifying DOS of the "CTRL-ALT-DEL" hotkey, we're going to
+; clear the CTL_SHIFT flag in order to let the BIOS process the interrupt
+; without rebooting the machine.
+;
+	push	cx
+	push	dx
+	mov	cx,[ct_focus]		; CX = context
+	mov	dx,SCAN_DEL SHL 8	; DL = char code (0), DH = scan code
+	DOSUTIL	DOS_UTL_HOTKEY		; notify DOS
+	and	ds:[KB_FLAG],NOT CTL_SHIFT
+	pop	dx
+	pop	cx
+i09a:	pop	ds
+i09b:	pop	ax
+	clc
+
+i09c:	pushf
 	call	[kbd_int]
-	jnc	i09a			; carry set if DOS isn't ready
+	jnc	i09d			; carry set if DOS isn't ready
 	jmp	i09x
 
-i09a:	push	ax
+i09d:	push	ax
 	push	bx
 	push	cx
 	push	dx
@@ -854,43 +884,43 @@ i09a:	push	ax
 	sti
 	mov	cx,[ct_focus]		; CX = context
 	call	check_hotkey
-	jc	i09b
+	jc	i09e
 	xchg	dx,ax			; DL = char code, DH = scan code
 	DOSUTIL	DOS_UTL_HOTKEY		; notify DOS
 
-i09b:	mov	ds,cx			; DS = context
+i09e:	mov	ds,cx			; DS = context
 	mov	cx,cs
 	mov	es,cx
 	mov	bx,offset wait_ptr	; CX:BX -> ptr
 	les	di,es:[bx]		; ES:DI -> packet, if any
 	ASSUME	ES:NOTHING
 
-i09c:	cmp	di,-1			; end of chain?
+i09f:	cmp	di,-1			; end of chain?
 	je	i09w			; yes
 
 	ASSERT	STRUCT,es:[di],DDP
 
 	mov	dx,ds
 	cmp	es:[di].DDP_CONTEXT,dx	; packet from console with focus?
-	jne	i09f			; no
+	jne	i09i			; no
 
 	cmp	es:[di].DDP_CMD,DDC_READ; READ packet?
-	je	i09d			; yes, look for keyboard data
+	je	i09g			; yes, look for keyboard data
 ;
 ; For WRITE packets (which we'll assume this is for now), we need to end the
 ; wait if the context is no longer paused (ie, check_hotkey may have unpaused).
 ;
 	ASSERT	STRUCT,ds:[0],CT
 	test	ds:[CT_STATUS],CTSTAT_PAUSED
-	jz	i09e			; yes, we're no longer paused
-	jmp	short i09f		; still paused, check next packet
+	jz	i09h			; yes, we're no longer paused
+	jmp	short i09i		; still paused, check next packet
 
-i09d:	call	pull_kbd		; pull keyboard data
-	jc	i09f			; not enough data, check next packet
+i09g:	call	pull_kbd		; pull keyboard data
+	jc	i09i			; not enough data, check next packet
 ;
 ; Notify DOS that this packet is done waiting.
 ;
-i09e:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
+i09h:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	DOSUTIL	DOS_UTL_ENDWAIT
 	ASSERT	NC
@@ -915,11 +945,11 @@ i09e:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	stc				; set carry to indicate yield
 	jmp	short i09w
 
-i09f:	lea	bx,[di].DDP_PTR		; update prev addr ptr in CX:BX
+i09i:	lea	bx,[di].DDP_PTR		; update prev addr ptr in CX:BX
 	mov	cx,es
 
 	les	di,es:[di].DDP_PTR
-	jmp	i09c
+	jmp	i09f
 
 i09w:	pop	es
 	pop	ds

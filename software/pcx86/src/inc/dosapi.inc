@@ -117,6 +117,7 @@ DOS_UTL_ATOI32D	equ	0Ah	; convert decimal string (DS:SI) to number (AX)
 DOS_UTL_TOKIFY1	equ	0Bh	; tokenize string (DS:SI) using GENERIC syntax
 DOS_UTL_TOKIFY2	equ	0Ch	; tokenize string (DS:SI) using BASIC syntax
 DOS_UTL_TOKID	equ	0Dh	; convert string (DS:SI) into token ID (AX)
+DOS_UTL_RESTART	equ	0Fh	; restart ("reboot") the system
 DOS_UTL_GETDEV	equ	10h	; get DDH (ES:DI) for device (DS:SI)
 DOS_UTL_IOCTL	equ	11h	; issue IOCTL to device (ES:DI)
 DOS_UTL_LOAD	equ	12h	; load program (DS:DX) into session (CL)
@@ -279,6 +280,7 @@ EXTYPE_ERROR	equ	2	; critical error termination
 EXTYPE_KEEP	equ	3	; INT 21h AH=31h (keep process)
 EXTYPE_DVERR	equ	4	; BASIC-DOS: divide error
 EXTYPE_OVERR	equ	5	; BASIC-DOS: overflow error
+EXTYPE_FQUIT	equ	6	; BASIC-DOS: forced quit
 
 ;
 ; Find File Block (FFB)

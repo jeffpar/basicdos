@@ -802,6 +802,7 @@ ENDPROC	tok_classify
 ;	REG_CX = token length
 ;	REG_DS:REG_SI -> token
 ;	REG_CS:REG_DX -> TOKTBL followed by sorted array of TOKDEFs
+;
 ; Outputs:
 ;	If carry clear, REG_AX = ID (TOKDEF_ID), REG_SI = offset of TOKDEF
 ;	If carry set, token not found
@@ -882,6 +883,28 @@ td9:	jc	td10
 	mov	[bp].REG_AX,ax
 td10:	ret
 ENDPROC	utl_tokid
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_restart (AL = 0Fh)
+;
+; TODO: Ensure any disk modifications (once we support disk modifications)
+; have been written.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX
+;
+DEFPROC	utl_restart,DOS
+	cli
+	db	OP_JMPF
+	dw	00000h,0FFFFh
+ENDPROC	utl_restart
 
 DOS	ends
 
