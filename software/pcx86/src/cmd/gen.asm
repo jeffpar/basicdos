@@ -44,6 +44,7 @@ CODE    SEGMENT
 ;
 DEFPROC	genCode
 	LOCVAR	pHeap,word
+	LOCVAR	defVarSeg,word		; default VBLK segment
 	LOCVAR	pDefVars,word		; used by genDef*
 	LOCVAR	defToks,byte		; used by genExpr
 	LOCVAR	defType,byte		; used by genDef* and genExpr
@@ -79,6 +80,8 @@ gc0:	mov	[genFlags],al
 
 	call	allocVars
 	jc	gce
+	mov	ax,[bx].VBLK_DEF.BLK_NEXT
+	mov	[defVarSeg],ax		; stash the default VBLK segment
 	call	allocCode
 	jc	gce
 	ASSUME	ES:NOTHING		; ES:DI -> code block
@@ -212,9 +215,7 @@ gc6:	push	ss
 ;
 	push	bp
 	push	ds
-	mov	si,[pHeap]
-	mov	ax,[si].VBLK_DEF.BLK_NEXT
-	mov	ds,ax
+	mov	ds,[defVarSeg]
 	ASSUME	DS:NOTHING
 	call	[pCode]			; execute the code buffer
 	pop	ds
@@ -602,13 +603,16 @@ gn1a:	DBGBRK
 	jmp	short gn2a
 ;
 ; Process CLS_VAR.  We don't care if findVar succeeds or not, because
-; even if it fails, it returns var type (AH) VAR_LONG with var data (DX)
-; preset to zero.
+; even if it fails, it returns var type (AH) VAR_LONG with var data (DX:SI)
+; set to a zero constant.  However, var type (AH) must still be consistent
+; with the expression type.
 ;
-; We do, however, care about the var type (AH), which must be consistent
-; with the expression type (currently, VAR_LONG or VAR_STR).
+; If the var type is VAR_FUNC, then DL is the return type (eg, VAR_LONG) and
+; the var data (DS:SI) points to parameter info; at this point, we are required
+; to take a detour into a parenthetical series of expressions, each resulting
+; in a pushed parameter for the aforementioned VAR_FUNC.
 ;
-gn2:	call	findVar			; no, check vars next
+gn2:	call	findVar
 	mov	al,ah			; AL = var type
 	call	setExprType		; update expression type
 	jnz	gn2x			; error
@@ -919,11 +923,11 @@ DEFPROC	genLet
 	jbe	gl9
 
 	mov	al,ah			; AL = CLS
-gl1:	call	addVar			; DX -> var data
+gl1:	call	addVar			; DX:SI -> var data
 	jc	gl9
 
 	push	ax
-	call	genPushDSDX
+	call	genPushVarPtr
 	mov	al,CLS_SYM
 	call	getNextToken
 	pop	dx
@@ -1127,10 +1131,10 @@ ENDPROC	genCallFar
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genPushDSDX
+; genPushVarPtr
 ;
 ; Inputs:
-;	DS:DX = value to push
+;	DX:SI = value to push
 ;
 ; Outputs:
 ;	None
@@ -1138,9 +1142,14 @@ ENDPROC	genCallFar
 ; Modifies:
 ;	AX, DX, DI
 ;
-DEFPROC	genPushDSDX
-	mov	al,OP_PUSH_DS
+DEFPROC	genPushVarPtr
+	cmp	dx,[defVarSeg]
+	je	gpvp1
+	call	genPushImm
+	jmp	short gpvp2
+gpvp1:	mov	al,OP_PUSH_DS
 	stosb
+gpvp2:	mov	dx,si
 	DEFLBL	genPushImm,near
 	mov	al,OP_MOV_AX
 	stosb
@@ -1149,7 +1158,7 @@ DEFPROC	genPushDSDX
 	mov	al,OP_PUSH_AX
 	stosb
 	ret
-ENDPROC	genPushDSDX
+ENDPROC	genPushVarPtr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1299,27 +1308,45 @@ ENDPROC	genPushZeroLong
 ; Generates code to push 4-byte variable data onto stack (eg, a VAR_LONG
 ; integer or a VAR_STR pointer).
 ;
-; DX must contain the var block offset of the variable, which the generated
-; code will load using SI, so that it can use a pair of LODSW instructions to
-; load the variable's data and push onto the stack.
+; DX:SI points to the variable data, and if DX == defVarSeg, then the
+; generated code can assume DS:SI; otherwise, we must generate code to load
+; the segment as well.
+;
+; The generated code will then use a pair of LODSW instructions to load the
+; variable data into AX:DX and push it on the stack (yes, ordinarily we'd use
+; DX:AX, but that's not the natural order a pair of LODSW provides).
 ;
 ; Inputs:
-;	DS:DX -> var data
+;	DX:SI -> var data
 ;
 ; Outputs:
 ;	None
 ;
 ; Modifies:
-;	AX, DX, DI
+;	AX, DX, SI, DI
 ;
 DEFPROC	genPushVarLong
-	mov	al,OP_MOV_SI		; "MOV SI,offset var data"
+	cmp	dx,[defVarSeg]
+	je	gpvl1
+	mov	al,OP_MOV_AX
 	stosb
 	xchg	ax,dx
 	stosw
-	mov	ax,OP_LODSW OR (OP_XCHG_DX SHL 8)
+	mov	ax,OP_MOV_ES_AX
 	stosw
-	mov	ax,OP_LODSW OR (OP_PUSH_AX SHL 8)
+gpvl1:	mov	al,OP_MOV_SI		; "MOV SI,offset var data"
+	stosb
+	xchg	ax,si
+	stosw
+	je	gpvl2
+	mov	al,OP_SEG_ES
+	stosb
+gpvl2:	mov	ax,OP_LODSW OR (OP_XCHG_DX SHL 8)
+	stosw
+	je	gpvl3
+	mov	al,OP_SEG_ES
+	stosb
+gpvl3:	mov	ax,OP_LODSW OR (OP_PUSH_AX SHL 8)
 	stosw
 	mov	al,OP_PUSH_DX
 	stosb

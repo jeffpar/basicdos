@@ -413,6 +413,7 @@ f2a:	mov	cx,es:[MCB_PARAS]	; yes, merge current with previous
 ; Mark the candidate block free, and if the next block is NOT free, we're done.
 ;
 f3:	mov	es:[MCB_OWNER],dx	; happily, DX is zero
+	mov	es:[MCB_NAME],dl
 	cmp	es:[MCB_SIG],MCBSIG_LAST; is there a next block?
 	je	f9			; no (and carry is clear)
 	mov	dx,bx			; yes, save this block as new previous

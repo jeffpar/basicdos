@@ -99,6 +99,7 @@ KEYWORD_FILESPEC  equ	20
 KEYWORD_GENCODE   equ	40
 KEYWORD_LANGUAGE  equ	60
 KEYWORD_SECONDARY equ	200		; secondary keywords (eg, THEN, ELSE)
+
 ;
 ; Each of our block chains begins with a BLK_DEF, so that a common set of
 ; block functions (eg, allocBlock) can work with any chain.
@@ -153,8 +154,7 @@ VBLK_NEXT	dw	?		; next var block seg, if any
 VBLK_SIZE	dw	?		; size of var block, in bytes
 VBLK_FREE	dw	?		; offset of next free byte
 VBLK_SIG	db	?
-VBLK_ZERO	db	VAR_LONG
-		dd	0		; zero constant
+VBLK_PAD	db	?
 VBLK_HDR	ends
 VBLKLEN		equ	1024		; default var block size
 SIG_VBLK	equ	'V'
