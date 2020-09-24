@@ -363,9 +363,9 @@ VAR_INT		equ	020h	; 2 bytes of var data (TBD)
 VAR_LONG	equ	040h	; 4 bytes of var data
 VAR_SINGLE	equ	060h	; 4 bytes of var data
 VAR_STR		equ	080h	; 4 bytes of ptr data (string ptr)
-VAR_ARRAY	equ	0A0h	; 4 bytes of var data (array ptr)
-VAR_FUNC	equ	0C0h	; 4 bytes of var data (function ptr)
-VAR_DOUBLE	equ	0E0h	; 8 bytes of var data
+VAR_DOUBLE	equ	0A0h	; 8 bytes of var data
+VAR_FUNC	equ	0C0h	; variable data based on func signature
+VAR_ARRAY	equ	0E0h	; variable data based on array signature
 VAR_TYPE	equ	0E0h
 
 CLS_OCT		equ	01h	; octal value

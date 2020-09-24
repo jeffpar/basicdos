@@ -12,6 +12,7 @@
 CODE    SEGMENT
 
 	EXTERNS	<checkSW>,near
+	EXTERNS	<PREDEF_VARS,PREDEF_ZERO>,byte
 
 	IFDEF	DEBUG
 	EXTSTR	<SYS_MEM,DOS_MEM,FREE_MEM>
@@ -351,23 +352,28 @@ ENDPROC	freeStrSpace
 ;	DS:SI -> variable name
 ;
 ; Outputs:
-;	If carry clear, AH = var type, DX -> var data
+;	If carry clear, AH = var type, DX:SI -> var data
 ;
 ; Modifies:
 ;	AX, CX, DX
 ;
 DEFPROC	addVar
-	and	al,VAR_TYPE		; convert CLS_VAR_* to VAR_TYPE
-	call	findVar
-	jnc	av10
-
+	push	bx
 	push	di
 	push	es
+	and	al,VAR_TYPE		; convert CLS_VAR_* to VAR_TYPE
+	ASSERT	C,<cmp cx,256>		; validate size (and that CH is zero)
+	mov	bl,al			; save var type
+	mov	di,si			; save var name
+	call	findVar
+	jnc	av9
+
+	mov	ah,bl			; restore var type to AH
+	mov	si,di			; restore var name to SI
 	mov	di,ds:[PSP_HEAP]
 	mov	es,[di].VBLK_DEF.BLK_NEXT
 	ASSERT	STRUCT,es:[0],VBLK
 	mov	di,es:[VBLK_FREE]
-	push	ax
 
 	cmp	cx,VAR_NAMELEN
 	jbe	av0
@@ -380,6 +386,7 @@ av0:	push	di
 	mov	dl,4
 	cmp	al,VAR_DOUBLE
 	jb	av1
+	ASSERT	Z			; not ready for VAR_FUNC or VAR_ARRAY
 	mov	dl,8
 av1:	mov	dh,0
 	add	di,dx
@@ -392,7 +399,6 @@ av1:	mov	dh,0
 ; first byte, the variable name in the following bytes, and zero-initialized
 ; data in the remaining bytes.
 ;
-	mov	ah,al			; AH = var type
 	or	al,cl
 	stosb
 av2:	lodsb				; rep movsb would be nice here
@@ -410,12 +416,14 @@ av3:	stosb
 	ASSERT	AE
 	je	av8
 	stosb				; ensure there's always a zero after
-av8:	jmp	retVar
 
-av9:	pop	ax
-	pop	es
+av8:	mov	si,dx
+	mov	dx,es			; DX:SI -> var data
+
+av9:	pop	es
 	pop	di
-av10:	ret
+	pop	bx
+	ret
 ENDPROC	addVar
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -427,29 +435,40 @@ ENDPROC	addVar
 ;	DS:SI -> variable name
 ;
 ; Outputs:
-;	If carry clear, AH = var type, DX -> var data
-;	If carry set, AH = VAR_LONG, DX -> zero constant
+;	If carry clear, AH = var type, DX:SI -> var data
+;	If carry set, AH = VAR_LONG, DX:SI -> zero constant
 ;
 ; Modifies:
-;	AH, DX
+;	AX, DX, SI
 ;
 DEFPROC	findVar
 	push	di
 	push	es
-	mov	di,ds:[PSP_HEAP]
+
+	push	cs
+	pop	es
+	mov	di,offset PREDEF_VARS
+	jmp	short fv1
+
+fv0:	mov	di,ds:[PSP_HEAP]
 	mov	es,[di].VBLK_DEF.BLK_NEXT
 	ASSERT	STRUCT,es:[0],VBLK
 	mov	di,size VBLK_HDR	; ES:DI -> first var in block
-	push	ax
 
 fv1:	mov	al,es:[di]
 	inc	di
 	test	al,al			; end of variables in the block?
 	jnz	fv2			; no
+	mov	ax,cs			; TODO: integrate PREDEF_VARS and
+	mov	dx,es			; and the rest of the var blocks better
+	cmp	ax,dx
+	je	fv0
 	stc
-	mov	ah,VAR_LONG
-	mov	dx,offset VBLK_ZERO + 1
-	jmp	short retVar		; yes
+	mov	dx,cs
+	mov	si,offset PREDEF_ZERO	; DX:SI -> zero constant
+	lods	byte ptr cs:[si]
+	mov	ah,al
+	jmp	short fv9
 
 fv2:	mov	ah,al
 	and	ah,VAR_TYPE
@@ -461,7 +480,7 @@ fv2:	mov	ah,al
 	push	cx
 	push	si
 	push	di
-fv3:	lodsb				; rep cmpsb would be nice here
+fv3:	lodsb				; TODO: rep cmpsb would be nice here
 	cmp	al,'a'			; especially since it doesn't use AL
 	jb	fv4			; but tokens are not upper-cased first
 	sub	al,20h
@@ -473,24 +492,30 @@ fv5:	pop	di
 	pop	si
 	pop	cx
 	pop	ax
-	je	retVar			; match!
+	je	fv8			; match!
 
-fv6:	add	al,2			; add at least 2 bytes for data
-	cmp	ah,VAR_INT		; just an INT?
-	jbe	fv7			; yes, good enough
-	add	al,2			; add 2 more data bytes
-	cmp	ah,VAR_DOUBLE		; good enough?
-	jb	fv7			; yes
-	add	al,4			; no, add 4 more (for a total of 8)
-fv7:	cbw
-	add	di,ax			; bump to next variable
+fv6:	mov	dh,ah
+	cbw
+	add	di,ax			; DI -> past var name
+	ASSERT	A,<cmp dh,VAR_INT>	; no support for VAR_INT at this point
+	cmp	dh,VAR_DOUBLE
+	je	fv6b
+	jb	fv6c
+	inc	di			; skip FUNC or ARRAY type
+	mov	al,[di]			; AL = FUNC or ARRAY signature length
+	inc	di			; skip signature length now
+	cbw
+	cmp	dh,VAR_ARRAY
+	jne	fv6a
+	shl	ax,1
+fv6a:	add	di,ax
+	jmp	fv6c
+fv6b:	add	di,4
+fv6c:	add	di,4			; DI bumped to next variable
 	jmp	fv1			; keep looking
 
-	DEFLBL	retVar,near
-	mov	di,dx
-	pop	dx
-	mov	al,dl			; AH = var type (AL unchanged)
-	mov	dx,di			; DX -> var data
+fv8:	mov	si,dx
+	mov	dx,es			; DX:SI -> var data
 
 fv9:	pop	es
 	pop	di

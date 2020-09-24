@@ -130,8 +130,9 @@ pa2:	push	bp
 	lea	bp,[bp+2]
 	cmp	al,VAR_DOUBLE
 	jb	pa1
-	lea	bp,[bp+4]
-	jmp	pa1
+	ASSERT	Z			; if AL > VAR_DOUBLE that's trouble
+	lea	bp,[bp+4]		; because we don't know how to print
+	jmp	pa1			; VAR_FUNC or VAR_ARRAY variables
 
 pa3:	mov	al,VAR_NEWLINE
 	lea	bp,[bp+2]

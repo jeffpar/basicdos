@@ -787,6 +787,23 @@ ENDPROC	evalGELong
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; evalRndLong
+;
+; Inputs:
+;	1 32-bit arg on stack (popped)
+;
+; Outputs:
+;	1 32-bit result on stack (pushed)
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	evalRndLong,FAR
+	ret
+ENDPROC	evalRndLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; evalShlLong
 ;
 ; Inputs:

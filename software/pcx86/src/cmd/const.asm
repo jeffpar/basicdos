@@ -11,6 +11,7 @@
 	include	txt.inc
 
 CODE    SEGMENT
+
 	EXTERNS	<cmdDate,cmdDir,cmdExit,cmdHelp,cmdList,cmdLoad>,near
 	EXTERNS	<cmdMem,cmdNew,cmdRun,cmdRestart,cmdTime,cmdType,cmdVer>,near
 	EXTERNS	<genCLS,genColor,genDefInt,genDefDbl,genDefStr>,near
@@ -20,7 +21,8 @@ CODE    SEGMENT
 	EXTERNS	<evalModLong,evalExpLong,evalImpLong>,near
 	EXTERNS	<evalEqvLong,evalXorLong,evalOrLong,evalAndLong>,near
 	EXTERNS	<evalEQLong,evalNELong,evalLTLong,evalGTLong>,near
-	EXTERNS	<evalLELong,evalGELong,evalShlLong,evalShrLong>,near
+	EXTERNS	<evalLELong,evalGELong,evalRndLong>,near
+	EXTERNS	<evalShlLong,evalShrLong>,near
 
 	EXTERNS	<evalEQStr,evalNEStr,evalLTStr,evalGTStr>,near
 	EXTERNS	<evalLEStr,evalGEStr,evalAddStr>,near
@@ -117,6 +119,16 @@ CODE    SEGMENT
 	db	"<>",'U',"><",'U',"<=",'L',"=<",'L',">=",'G',"=>",'G'
 	db	"==",'=',"<<",'S',">>",'R'
 	db	0			; terminator
+
+	DEFLBL	PREDEF_VARS,byte
+	db	VAR_FUNC + 4,"RND%"
+	db	VAR_LONG,1,VAR_LONG	; returns VAR_LONG; 1 VAR_LONG parm
+	dw	offset evalRndLong,0
+	db	0
+
+	DEFLBL	PREDEF_ZERO,byte
+	db	VAR_LONG
+	dd	0			; predefined LONG zero constant
 
 	IFDEF	LATER
 	DEFLBL	SYNTAX_TABLES,word
