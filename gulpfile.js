@@ -110,9 +110,9 @@ let disks = {
         "./software/pcx86/src/cmd/mk.bat"
     ],
     "BDS-TEST": [
-        "./software/pcx86/src/test/primes.*",
-        "./software/pcx86/src/test/sleep.asm",
-        "./software/pcx86/src/test/testdos.asm",
+        "./software/pcx86/src/test/*.asm",
+        "./software/pcx86/src/test/*.BAS",
+        "./software/pcx86/src/test/*.BAT",
         "./software/pcx86/src/inc/*.inc",
         "./software/pcx86/src/test/makefile",
         "./software/pcx86/src/test/mk.bat"
