@@ -338,7 +338,42 @@ TOK_BUF		db	128 * (size TOKLET) dup (?)
 BUF_TOKEN	ends
 
 TOKTYPE_BASIC	equ	0	; default parsing
-TOKTYPE_GENERIC	equ	1	; generic whitespace parsing only
+TOKTYPE_GENERIC	equ	1	; generic whitespace-separated parsing
+
+;
+; TOKTYPE_BASIC parsing includes some knowledge of BASIC variable types
+; (eg, CLS_VAR_LONG), which is why these variable types are defined here
+; rather than in the interpreter.
+;
+VAR_NONE	equ	000h
+VAR_INT		equ	020h	; 2 bytes of var data (TBD)
+VAR_LONG	equ	040h	; 4 bytes of var data
+VAR_SINGLE	equ	060h	; 4 bytes of var data
+VAR_STR		equ	080h	; 4 bytes of ptr data (string ptr)
+VAR_DOUBLE	equ	0A0h	; 8 bytes of var data
+VAR_FUNC	equ	0C0h	; variable data based on func signature
+VAR_ARRAY	equ	0E0h	; variable data based on array signature
+VAR_TYPE	equ	0E0h
+
+;
+; Token class (CLS) bits, used during token classification.
+;
+CLS_OCT		equ	01h	; octal value
+CLS_HEX		equ	02h	; hexadecimal value
+CLS_DEC		equ	04h	; decimal value
+CLS_NUM		equ	07h	; any of the above
+CLS_STR		equ	08h	; string constant
+CLS_VAR		equ	10h	; identifier (eg, keyword, var, keyop)
+CLS_SYM		equ	20h	; symbol
+CLS_KEYWORD	equ	30h	; identifier later identified as a keyword
+CLS_ANY		equ	3Fh	;
+CLS_DQUOTE	equ	40h	; double quotes
+CLS_WHITE	equ	80h	; whitespace
+CLS_VAR_INT	equ	CLS_VAR OR VAR_INT	; 030h (TBD)
+CLS_VAR_LONG	equ	CLS_VAR OR VAR_LONG	; 050h (var ending with '%')
+CLS_VAR_SINGLE	equ	CLS_VAR OR VAR_SINGLE	; 070h (var ending with '!')
+CLS_VAR_STR	equ	CLS_VAR OR VAR_STR	; 090h (var ending with '$')
+CLS_VAR_DOUBLE	equ	CLS_VAR OR VAR_DOUBLE	; 0F0h (var ending with '#')
 
 ;
 ; After DOS_UTL_TOKIFY breaks a string into tokens, use DOS_UTL_TOKID
@@ -357,33 +392,6 @@ TOKDEF_ID	db	?	; ID of token
 TOKDEF_LEN	db	?	; length of token string
 TOKDEF_OFF	dw	?	; offset of token string
 TOKDEF		ends
-
-VAR_NONE	equ	000h
-VAR_INT		equ	020h	; 2 bytes of var data (TBD)
-VAR_LONG	equ	040h	; 4 bytes of var data
-VAR_SINGLE	equ	060h	; 4 bytes of var data
-VAR_STR		equ	080h	; 4 bytes of ptr data (string ptr)
-VAR_DOUBLE	equ	0A0h	; 8 bytes of var data
-VAR_FUNC	equ	0C0h	; variable data based on func signature
-VAR_ARRAY	equ	0E0h	; variable data based on array signature
-VAR_TYPE	equ	0E0h
-
-CLS_OCT		equ	01h	; octal value
-CLS_HEX		equ	02h	; hexadecimal value
-CLS_DEC		equ	04h	; decimal value
-CLS_NUM		equ	07h	; any of the above
-CLS_STR		equ	08h	; string constant
-CLS_VAR		equ	10h	; identifier (eg, keyword, var, keyop)
-CLS_SYM		equ	20h	; symbol
-CLS_KEYWORD	equ	30h	; identifier later identified as a keyword
-CLS_ANY		equ	3Fh	;
-CLS_DQUOTE	equ	40h	; double quotes
-CLS_WHITE	equ	80h	; whitespace
-CLS_VAR_INT	equ	CLS_VAR OR VAR_INT	; 030h (TBD)
-CLS_VAR_LONG	equ	CLS_VAR OR VAR_LONG	; 050h (var ending with '%')
-CLS_VAR_SINGLE	equ	CLS_VAR OR VAR_SINGLE	; 070h (var ending with '!')
-CLS_VAR_STR	equ	CLS_VAR OR VAR_STR	; 090h (var ending with '$')
-CLS_VAR_DOUBLE	equ	CLS_VAR OR VAR_DOUBLE	; 0F0h (var ending with '#')
 
 ;
 ; DOS error codes (not to be confused with device error codes)

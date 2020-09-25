@@ -34,8 +34,9 @@ DEFPROC	main
 	LOCVAR	pTextLimit,word		; current text block limit
 ;
 ; Before invoking ENTER, we ensure the stack is aligned with the CMD_HEAP
-; structure; the BASIC-DOS loader may have given us some extra memory at the
-; top of the segment, but it's not convenient to use.
+; structure; the BASIC-DOS loader may have given us some extra stack memory
+; top of the segment, but this allows the main module to access the heap via
+; BP (ie, [heap]) instead of loading another register (eg, BX) with [PSP_HEAP].
 ;
 	mov	bx,ds:[PSP_HEAP]
 	lea	sp,[bx + size CMD_HEAP]

@@ -163,7 +163,7 @@ name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 ;	mov	bp,sp
 ;	sub	sp,4
 ;	...
-;	add	sp,4	; used instead of "mov sp,bp" in case BP gets altered
+;	mov	sp,bp	; used instead of "add sp,N" to avoid altering flags
 ;	pop	bp
 ;	ret	4
 ;
@@ -242,6 +242,7 @@ ENTER	macro
 	mov	bp,sp
 	 IF _LOCBYTES GT 0
 	sub	sp,_LOCBYTES
+	ASSERT	Z,<test sp,1>		;; make sure the stack isn't "odd"
 	 ENDIF
 	ENDIF
 	_ARGINVERT = (2 + _PROCTYPE + _ARGBYTES)
@@ -250,7 +251,13 @@ ENTER	macro
 LEAVE	macro
 	IF _LOCBYTES GT 0 OR _ARGBYTES GT 0
 	 IF _LOCBYTES GT 0
-	add	sp,_LOCBYTES
+	  IF DEBUG
+	push	ax
+	lea	ax,[bp-_LOCBYTES-2]	;; make sure someone didn't reuse BP
+	ASSERT	Z,<cmp ax,sp>
+	pop	ax
+	  ENDIF
+	mov	sp,bp
 	 ENDIF
 	pop	bp
 	ENDIF
@@ -269,6 +276,10 @@ ENDPROC	macro	name
 name	endp
 	endm
 
+;
+; This macro displays an error message and attempts to force an assembly
+; error by using an invalid keyword (".ERROR").
+;
 ERROR	macro	msg
 	IF1
 	%out 	msg
@@ -276,9 +287,47 @@ ERROR	macro	msg
 	.ERROR
 	endm
 
+;
+; In DEBUG builds only, "DBGINIT STRUCT" initializes a signature byte in the
+; specified structure; then you can use the "ASSERT STRUCT" form of the ASSERT
+; macro to include assertion checks to verify that the specified pointer
+; actually points to a structure of the specified type.
+;
+; Both macros use the word "STRUCT" rather than "STRUC" to avoid confusing
+; MASM.
+;
+DBGINIT	macro	type,ptr,str
+	IFDEF DEBUG
+	IFIDN	<type>,<STRUCT>
+	mov	ptr&.&str&_SIG,SIG_&str
+	ELSE
+	%out	Unrecognized INIT parameter: type
+	ENDIF
+	ENDIF
+	endm
+
+;
+; ASSERT generates assembly-time assertions when all three parameters
+; are used; eg:
+;
+;	ASSERT	<((SIZE CMD_HEAP) AND 1)>,EQ,0
+;
+; Otherwise, it generates code to perform a run-time assertion, which can
+; either be a "STRUCT" pointer verification, as in:
+;
+;	ASSERT	STRUCT,es:[bx],SCB
+;
+; or an assertion based on processor flags ("cond") set by an instruction
+; ("op"), as in:
+;
+;	ASSERT	Z,<test dx,dx>	; assert that DX is zero
+;
+; Run-time assertions are present only in DEBUG builds, and the instructions
+; are wrapped with PUSHF/POPF to avoid side-effects.
+;
 ASSERT	macro	cond,op,value
 	IFNB	<value>
-	 IFIDN	<cond>,<STRUCT>	;; must use "STRUCT" instead of "STRUC" here...
+	 IFIDN	<cond>,<STRUCT>	;; must use "STRUCT" instead of "STRUC" here
 	ASSERT	Z,<cmp op&.&value&_SIG,SIG_&value>
 	 ELSE
 	  IFE	cond op value
@@ -302,28 +351,13 @@ ASSERT	macro	cond,op,value
 	ENDIF
 	endm
 
+;
+; DBGBRK generates an INT3 (OP_INT3) that's preceded by INT 06h, so if the
+; PCjs debugger isn't present, the built-in INT 06h handler will skip over it.
+;
 DBGBRK	macro
 	IFDEF DEBUG
 	OPCHECK	OP_DBGBRK	;; use INT 06h to signal a debugger breakpoint
-	ENDIF
-	endm
-
-;
-; In DEBUG builds only, "DBGINIT STRUCT" initializes a signature byte in the
-; specified structure; then you can use the "ASSERT STRUCT" form of the ASSERT
-; macro to include assertion checks to verify that the specified pointer
-; actually points to a structure of the specified type.
-;
-; Both macros use the word "STRUCT" rather than "STRUC" to avoid confusing
-; MASM.
-;
-DBGINIT	macro	type,ptr,str
-	IFDEF DEBUG
-	IFIDN	<type>,<STRUCT>
-	mov	ptr&.&str&_SIG,SIG_&str
-	ELSE
-	%out	Unrecognized INIT parameter: type
-	ENDIF
 	ENDIF
 	endm
 
@@ -376,12 +410,12 @@ ASSUME1	macro	segreg,segment
 ; Fortunately, PCjs simulates the errata, so I was able to catch it.
 ; TODO: It would be even better if PCjs displayed a warning when it happened.
 ;
-REPMOV	macro	msize,mseg
-	local	rmb1,rmb2
-rmb1:	rep	movs msize ptr es:[di],msize ptr mseg:[si]
-	jcxz	rmb2
-	jmp	rmb1
-rmb2:
+REPMOV	macro	size,seg
+	local	rm1,rm2
+rm1:	rep	movs size ptr es:[di],size ptr seg:[si]
+	jcxz	rm2
+	jmp	rm1
+rm2:
 	endm
 
 DOSUTIL	macro	func

@@ -127,16 +127,7 @@ SIG_CBLK	equ	'C'
 ;
 ; Variable Block (VBLK) definitions
 ;
-; VAR_TYPE (E0h) encompasses the following variable types in dosapi.inc
-;
-; VAR_NONE	equ	000h
-; VAR_INT	equ	020h	; 2 bytes of var data (TBD)
-; VAR_LONG	equ	040h	; 4 bytes of var data
-; VAR_SINGLE	equ	060h	; 4 bytes of var data
-; VAR_STR	equ	080h	; 4 bytes of ptr data (ptr)
-; VAR_ARRAY	equ	0A0h	; 4 bytes of var data (ptr)
-; VAR_FUNC	equ	0C0h	; 4 bytes of var data (ptr)
-; VAR_DOUBLE	equ	0E0h	; 8 bytes of var data
+; VAR_TYPE (E0h) encompasses all the variable types in dosapi.inc
 ;
 VAR_NAMELEN	equ	01Fh		; max chars allowed in var name
 
@@ -224,13 +215,23 @@ GEN_ECHO	equ	08h		; initially set if GEN_BATCH
 ;
 ; Code generation helper macros
 ;
-; GENCALL generates a call the specified function (via CX).
+; GENCALL generates a call the specified function.
 ;
-GENCALL	macro	func
-	IFDIF	<func>,<cx>
-	mov	cx,offset func
-	ENDIF
+GENCALL	macro	seg,off
+	IFB	<off>			;; if there's no off parameter
+	 IFDIF	<seg>,<cx>
+	mov	cx,offset seg		;; then seg is really a function name
+	 ENDIF
+	call	genCallCS		;; inside the CS segment
+	ELSE
+	 IFDIF	<off>,<cx>
+	mov	cx,off
+	 ENDIF
+	 IFDIF	<seg>,<dx>
+	mov	dx,seg			;; otherwise DX:CX is the function addr
+	 ENDIF
 	call	genCallFar
+	ENDIF
 	endm
 ;
 ; GENPUSH generates code to push immediate 16-bit (via DX) or 32-bit
@@ -286,7 +287,10 @@ ORIG_BP		dw	?
 CON_COLS	db	?
 CON_ROWS	db	?
 CMD_FLAGS	db	?		; see CMD_* flags
+CMD_PADDING	db	?
 PREV_TIME	dd	?		; last time displayed by cmdTime
+TOKNEXT		dw	?
+TOKEND		dw	?
 DEFVARS		db	26 dup (?)	; default var types for all 26 letters
 INPUTOFF	dw	?		; input offset (defaults to INPUTBUF)
 INPUTBUF	db	size BUF_INPUT dup (?)
@@ -297,13 +301,15 @@ EXECDATA	db	size EPB dup (?); Exec Parameter Block
 STACK		dw	512 dup (?)
 CMD_HEAP	ends
 
+	ASSERT	<((SIZE CMD_HEAP) AND 1)>,EQ,0
+
 ;
 ; The initial stack frame created by the main function can also be
 ; used to access the CMD_HEAP structure, using the [heap] macro; eg:
 ;
 ;	mov	al,[heap].CON_COLS
 ;
-; This works because we know we enter the main function with exactly 2 words
-; pushed on the stack (a zero return address, and the original BP).
+; This works because the main function explicitly aligns the stack with
+; CMD_HEAP and then pushes exactly 2 words before setting BP.
 ;
 heap		equ	byte ptr [bp+4-size CMD_HEAP]
