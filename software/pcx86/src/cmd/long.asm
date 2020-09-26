@@ -789,6 +789,10 @@ ENDPROC	evalGELong
 ;
 ; evalRndLong
 ;
+; If the arg is negative, it's used to re-seed the generator; if it's zero,
+; we return the last pseudo-random number; any other value (ie, 1 to MAXINT)
+; is ignored and we simply produce the next pseudo-random number.
+;
 ; Inputs:
 ;	1 32-bit arg on stack (popped)
 ;
@@ -799,6 +803,10 @@ ENDPROC	evalGELong
 ;	AX, CX, DX
 ;
 DEFPROC	evalRndLong,FAR
+	ARGVAR	seed,dword
+	ENTER
+	inc	[seed].LOW
+	LEAVE
 	ret
 ENDPROC	evalRndLong
 

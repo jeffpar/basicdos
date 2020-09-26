@@ -44,39 +44,31 @@ CODE    SEGMENT
 ;
 DEFPROC	genCode
 	LOCVAR	pHeap,word
+	LOCVAR	codeSeg,word		; code segment
 	LOCVAR	defVarSeg,word		; default VBLK segment
-	LOCVAR	pDefVars,word		; used by genDef*
-	LOCVAR	defToks,byte		; used by genExpr
-	LOCVAR	defType,byte		; used by genDef* and genExpr
+	LOCVAR	defType,byte		; used by genDef*
 	LOCVAR	genFlags,byte
-	LOCVAR	nArgs,word
-	LOCVAR	nExpArgs,word
-	LOCVAR	nExpVals,word
-	LOCVAR	nExpParens,word
-	LOCVAR	nExpPrevOp,word
 	LOCVAR	errCode,word
 	LOCVAR	pInput,word		; original input address
 	LOCVAR	pCode,dword		; original start of generated code
 	LOCVAR	pLine,dword		; address of the current line
 	LOCVAR	cbLine,word		; length of the current line
-	LOCVAR	pTokNext,word
-	LOCVAR	pTokEnd,word
-	LOCVAR	pSynToken,word
 	LOCVAR	lineNumber,word
+	IFDEF	LATER
+	LOCVAR	pSynToken,word
+	ENDIF
 	ENTER
 
 	mov	[pHeap],bx
+	mov	[codeSeg],cs
 	test	al,GEN_BATCH
 	jz	gc0
 	or	al,GEN_ECHO
 gc0:	mov	[genFlags],al
 	sub	ax,ax
-	mov	[nArgs],ax
 	mov	[errCode],ax
 	mov	[pInput],si
 	mov	[lineNumber],ax
-	lea	ax,[bx].DEFVARS
-	mov	[pDefVars],ax
 
 	call	allocVars
 	jc	gce
@@ -124,8 +116,7 @@ gc3:	cmp	si,ds:[TBLK_FREE]
 	test	ax,ax			; is there a label #?
 	jz	gc3a			; no
 	call	addLabel		; yes, add it to the LBLREF table
-gc3a:	xchg	dx,ax			; DX = label #, if any
-	lodsb				; AL = length byte
+gc3a:	lodsb				; AL = length byte
 	mov	ah,0
 	xchg	cx,ax			; CX = length of line
 	jcxz	gc3			; empty line, nothing to do
@@ -146,7 +137,7 @@ gc3c:	test	[genFlags],GEN_ECHO
 	jz	gc4
 	push	cx
 	lea	cx,[si-1]
-	GENPUSH	ds,cx			; DX:CX -> string (at the length byte)
+	GENPUSH	ds,cx			; DS:CX -> string (at the length byte)
 	GENCALL	printLine
 	pop	cx
 
@@ -188,7 +179,8 @@ gc4:	mov	bx,[pHeap]
 	add	ax,ax
 	add	ax,ax
 	add	ax,bx
-	mov	[pTokEnd],ax
+	mov	si,ds:[PSP_HEAP]
+	mov	[si].TOKEND,ax
 
 	call	genCommands		; generate code
 
@@ -278,7 +270,8 @@ gcs1:	test	dx,dx			; command address?
 ;
 gcs2:	xchg	ax,dx			; AX = handler address
 	mov	dx,offset genCmd
-	mov	[pTokEnd],bx		; mark the tokens fully processed
+	mov	si,ds:[PSP_HEAP]
+	mov	[si].TOKEND,bx		; mark the tokens fully processed
 
 gcs6:	call	dx			; call dedicated generator function
 
@@ -307,7 +300,6 @@ ENDPROC	genCommands
 ;
 DEFPROC	genCLS
 	GENCALL	clearScreen
-	clc
 	ret
 ENDPROC	genCLS
 
@@ -337,7 +329,6 @@ DEFPROC	genCmd
 	mov	dx,[cbLine]
 	GENPUSH	dx
 	GENCALL	doCmd
-	clc
 	ret
 ENDPROC	genCmd
 
@@ -358,15 +349,15 @@ ENDPROC	genCmd
 ;	Any
 ;
 DEFPROC	genColor
-	mov	word ptr [nArgs],0
+	sub	cx,cx
 gco1:	call	genExpr
 	jb	gco9
 	je	gco8
+	inc	cx
 	cmp	al,','			; was the last symbol a comma?
 	je	gco1			; yes, go back for more
-gco8:	GENPUSH	nArgs
+gco8:	GENPUSH	cx
 	GENCALL	setColor
-	clc
 gco9:	ret
 ENDPROC	genColor
 
@@ -401,8 +392,7 @@ DEFPROC	genDefInt
 	mov	dl,al			; DL = 1st char of range
 	mov	dh,al			; DH = last char of range
 
-	mov	al,CLS_SYM		; check for hyphen
-	call	getNextToken
+	call	getNextSymbol		; check for hyphen
 	jc	gdi9			; error
 	jz	gdi3			; no more tokens
 	cmp	al,'-'
@@ -416,7 +406,7 @@ gdi2:	call	getCharToken		; check for another char
 	cmp	dh,dl			; is the range in order?
 	jb	gdi8			; no, report error
 ;
-; For every letter from DL through DH, set pDefVars[DL] to defType.
+; For every letter from DL through DH, set DEFVARS[DL] to defType.
 ;
 gdi3:	push	bx
 	mov	cl,dh
@@ -424,7 +414,8 @@ gdi3:	push	bx
 	mov	ch,0
 	inc	cx			; CX = # of letters to set
 	mov	al,[defType]		; AL = new default for each letter
-	mov	bx,[pDefVars]
+	mov	bx,ds:[PSP_HEAP]
+	lea	bx,[bx].DEFVARS
 	sub	dl,'A'
 	add	bl,dl
 	adc	bh,ch			; BX -> 1st letter
@@ -433,8 +424,7 @@ gdi3a:	mov	[bx],al
 	loop	gdi3a
 	pop	bx
 
-	mov	al,CLS_SYM		; check for comma
-	call	getNextToken
+	call	getNextSymbol		; check for comma
 	jbe	gdi9
 	cmp	al,','
 	je	genDefVar
@@ -531,7 +521,6 @@ gec2:	cmp	al,TOK_OFF
 gec8:	mov	al,OP_MOV_AL
 	stosw				; "MOV AL,xx" where XX is value in AH
 	GENCALL	setFlags
-	clc
 gec9:	ret
 ENDPROC	genEcho
 
@@ -555,72 +544,81 @@ ENDPROC	genEcho
 ;	ES:DI -> next unused location in code block
 ;
 ; Modifies:
-;	AX, BX, CX, DX, SI, DI
+;	AX, BX, DX, DI
 ;
 DEFPROC	genExpr
+	LOCVAR	exprToks,byte
+	LOCVAR	exprType,byte
+	LOCVAR	exprArgs,word
+	LOCVAR	exprVals,word
+	LOCVAR	exprParens,word
+	LOCVAR	exprPrevOp,word
+	ENTER
+	push	cx
+	push	si
 	sub	dx,dx
-	mov	word ptr [defType],dx	; defType = VAR_NONE, defToks = 0
-	mov	[nExpArgs],1		; count of expected arguments
-	mov	[nExpVals],dx		; count of values queued
-	mov	[nExpParens],dx		; count of open parentheses
-	mov	[nExpPrevOp],dx		; previous operator (none)
+	mov	word ptr [exprType],dx	; exprType = VAR_NONE, exprToks = 0
+	mov	[exprArgs],1		; count of expected arguments
+	mov	[exprVals],dx		; count of values queued
+	mov	[exprParens],dx		; count of open parentheses
+	mov	[exprPrevOp],dx		; previous operator (none)
 	push	dx			; push end-of-operators marker (zero)
 
-gn1:	mov	al,CLS_ANY		; CLS_NUM, CLS_SYM, CLS_VAR, CLS_STR
+ge1:	mov	al,CLS_ANY		; CLS_NUM, CLS_SYM, CLS_VAR, CLS_STR
 	call	getNextToken
-	jbe	gn2x
-	inc	[defToks]
+	jbe	ge2x
+	inc	[exprToks]
 	cmp	ah,CLS_SYM
-	je	gn4			; process CLS_SYM below
+	je	ge1b			; process CLS_SYM below
 ;
 ; Non-operator (non-symbol) cases: keywords, variables, strings, and numbers.
 ;
-	mov	byte ptr [nExpPrevOp],-1; invalidate prevOp (intervening token)
+	mov	byte ptr [exprPrevOp],-1; invalidate prevOp (intervening token)
 	cmp	ah,CLS_KEYWORD
-	je	gn2x			; keywords not allowed in expressions
+	je	ge2x			; keywords not allowed in expressions
 	cmp	ah,CLS_VAR		; variable with type?
 	ASSERT	NE			; (type should be fully qualified now)
-	ja	gn2			; yes
+	ja	ge2			; yes
 ;
 ; Must be CLS_STR or CLS_NUM.  Handle CLS_STR here and CLS_NUM below.
 ;
 	test	ah,CLS_STR		; string?
-	jz	gn3			; no, must be number
+	jz	ge3			; no, must be number
 	mov	al,VAR_STR		; AL = VAR_STR
 	call	setExprType		; update expression type
-	jnz	gn2x
+	jnz	ge2x
 	sub	cx,2			; CX = string length
 	ASSERT	NC
-	jcxz	gn1a			; empty string
+	jcxz	ge1a			; empty string
 	inc	si			; DS:SI -> string contents
 	call	genPushStr
-	jmp	short gn2a
+	jmp	short ge2c
 
-gn1a:	DBGBRK
+ge1a:	DBGBRK
 	sub	cx,cx			; for empty strings, push null ptr
 	sub	dx,dx
 	call	genPushImmLong
-	jmp	short gn2a
+	jmp	short ge2c
+ge1b:	jmp	short ge4
 ;
 ; Process CLS_VAR.  We don't care if findVar succeeds or not, because
 ; even if it fails, it returns var type (AH) VAR_LONG with var data (DX:SI)
 ; set to a zero constant.  However, var type (AH) must still be consistent
 ; with the expression type.
 ;
-; If the var type is VAR_FUNC, then DL is the return type (eg, VAR_LONG) and
-; the var data (DS:SI) points to parameter info; at this point, we are required
-; to take a detour into a parenthetical series of expressions, each resulting
-; in a pushed parameter for the aforementioned VAR_FUNC.
-;
-gn2:	call	findVar
-	mov	al,ah			; AL = var type
+ge2:	call	findVar
+	cmp	ah,VAR_FUNC
+	jne	ge2a
+	call	genFuncExpr		; process the function expression
+	jnc	ge2b			; AH = return type
+	jmp	short ge3x
+ge2a:	call	genPushVarLong
+ge2b:	mov	al,ah			; AL = var type
 	call	setExprType		; update expression type
-	jnz	gn2x			; error
-	call	genPushVarLong
-
-gn2a:	inc	[nExpVals]		; count another queued value
-	jmp	gn1
-gn2x:	jmp	short gn3x
+	jnz	ge3x			; error
+ge2c:	inc	[exprVals]		; count another queued value
+	jmp	ge1
+ge2x:	jmp	short ge3x
 ;
 ; Process CLS_NUM.  Number is a constant and CX is its exact length.
 ;
@@ -629,107 +627,111 @@ gn2x:	jmp	short gn3x
 ; Why? Because it's better for ATOI32 to know up front that we're dealing with
 ; a negative number, because then it can do precise overflow checks.
 ;
-gn3:	mov	al,VAR_LONG		; AL = VAR_LONG
+ge3:	mov	al,VAR_LONG		; AL = VAR_LONG
 	call	setExprType		; update expression type
-	jnz	gn3x			; error
+	jnz	ge3x			; error
 	push	bx
 	mov	bl,10			; BL = 10 (default base)
 	test	ah,CLS_OCT OR CLS_HEX	; octal or hex value?
-	jz	gn3a			; no
+	jz	ge3a			; no
 	inc	si			; yes, skip leading ampersand
 	shl	ah,1
 	shl	ah,1
 	shl	ah,1
 	mov	bl,ah			; BL = 8 or 16 (new base)
 	cmp	byte ptr [si],'9'	; is next character a digit?
-	jbe	gn3a			; yes
+	jbe	ge3a			; yes
 	inc	si			; no, skip it (must be 'O' or 'H')
-gn3a:	DOSUTIL	DOS_UTL_ATOI32		; DS:SI -> numeric string (length CX)
+ge3a:	DOSUTIL	DOS_UTL_ATOI32		; DS:SI -> numeric string (length CX)
 	xchg	cx,ax			; save result in DX:CX
 	pop	bx
 	GENPUSH	dx,cx
-	jmp	gn2a			; go count another queued value
-
-gn3s:	mov	ah,CLS_SYM
-gn3x:	jmp	short gn8
+	jmp	ge2c			; go count another queued value
+ge3x:	jmp	short ge8
 ;
 ; Process CLS_SYM.  Before we try to validate the operator, we need to remap
 ; binary minus to unary minus.  So, if we have a minus, and the previous token
 ; is undefined, or another operator, or a left paren, it's unary.  Ditto for
 ; unary plus.  The internal identifiers for unary '-' and '+' are 'N' and 'P'.
 ;
-gn4:	mov	ah,'N'
+ge4:	mov	ah,'N'
 	cmp	al,'-'
-	je	gn4a
+	je	ge4a
 	mov	ah,'P'
 	cmp	al,'+'
-	jne	gn5
-gn4a:	mov	cx,[nExpPrevOp]
-	jcxz	gn4b
+	jne	ge5
+ge4a:	mov	cx,[exprPrevOp]
+	jcxz	ge4b
 	cmp	cl,')'			; do NOT remap if preceded by ')'
-	je	gn5
+	je	ge5
 	cmp	cl,-1			; another operator (including '(')?
-	je	gn5			; no
-gn4b:	mov	al,ah			; remap the operator
+	je	ge5			; no
+ge4b:	mov	al,ah			; remap the operator
 ;
 ; Verify that the symbol is a valid operator.
 ;
-gn5:	call	validateOp		; AL = operator to validate
-	jc	gn3s			; error (reset AH to CLS_SYM)
-	mov	[nExpPrevOp],ax
+ge5:	call	validateOp		; AL = operator to validate
+	jc	ge7b			; error (reset AH to CLS_SYM)
+	mov	[exprPrevOp],ax
 	sub	si,si
-	jcxz	gn7			; handle no-arg operators below
+	jcxz	ge7			; handle no-arg operators below
 	dec	cx
-	add	[nExpArgs],cx
+	add	[exprArgs],cx
 	mov	si,dx			; SI = current evaluator
 ;
 ; Operator is valid, so peek at the operator stack and pop if the top
 ; operator precedence >= current operator precedence.
 ;
-gn5a:	pop	dx			; "peek"
+ge5a:	pop	dx			; "peek"
 	cmp	dh,ah			; top precedence > current?
-	jb	gn6			; no
-	ja	gn5b			; yes
+	jb	ge6			; no
+	ja	ge5b			; yes
 	test	dh,1			; unary operator?
-	jnz	gn6			; yes, hold off
-gn5b:	pop	cx			; pop the evaluator as well
-	jcxz	gn6c			; no evaluator (eg, left paren)
+	jnz	ge6			; yes, hold off
+ge5b:	pop	cx			; pop the evaluator as well
+	jcxz	ge6c			; no evaluator (eg, left paren)
 
 	IFDEF MAXDEBUG
 	DPRINTF	'o',<"op %c, func @%08lx",13,10>,dx,cx,cs
 	ENDIF
 
 	GENCALL	cx			; and generate call
-	jmp	gn5a
+	jmp	ge5a
 
-gn6:	push	dx			; "unpeek"
-gn6a:	push	si			; push current evaluator
+ge6:	push	dx			; "unpeek"
+ge6a:	push	si			; push current evaluator
 	push	ax			; push current operator/precedence
-gn6b:	jmp	gn1			; next token
+ge6b:	jmp	ge1			; next token
 ;
 ; We just popped an operator with no evaluator; if it's a left paren,
-; we're done; otherwise, ignore it (eg, unary '+').
+; we're done; otherwise, igeore it (eg, unary '+').
 ;
-gn6c:	cmp	dl,'('
-	je	gn6b
-	jmp	gn5a
+ge6c:	cmp	dl,'('
+	je	ge6b
+	jmp	ge5a
 ;
 ; When special (eg, zero arg) operators are encountered in the expression,
 ; they are handled here.
 ;
-gn7:	cmp	al,'('
-	jne	gn7a
-	inc	[nExpParens]
-	jmp	gn6a
-gn7a:	ASSERT	Z,<cmp al,')'>
-	dec	[nExpParens]
-	jmp	gn5a
+ge7:	cmp	al,'('
+	jne	ge7a
+	inc	[exprParens]
+	jmp	ge6a
+;
+; When parsing one in a series of comma-delimited expressions, all of which
+; may be parenthesized, we must treat the closing parenthesis no differently
+; than the commas.
+;
+ge7a:	ASSERT	Z,<cmp al,')'>
+	dec	[exprParens]
+	jge	ge5a
+ge7b:	mov	ah,CLS_SYM
 ;
 ; We have reached the (presumed) end of the expression, so start popping
 ; the operator stack.
 ;
-gn8:	pop	cx
-	jcxz	gn9			; all done
+ge8:	pop	cx
+	jcxz	ge9			; all done
 
 	IFDEF MAXDEBUG
 	pop	ax
@@ -739,33 +741,142 @@ gn8:	pop	cx
 	pop	cx			; CX = evaluator
 	ENDIF
 
-	jcxz	gn8
+	jcxz	ge8
 	GENCALL	cx
-	jmp	gn8
+	jmp	ge8
 ;
 ; Verify the number of values queued matches the number of expected arguments.
 ;
-gn9:	mov	cx,[nExpVals]
-	cmp	cx,[nExpArgs]
+ge9:	mov	cx,[exprVals]
+	cmp	cx,[exprArgs]
 	stc
-	jne	gn10
-	cmp	[nExpParens],0
+	jne	ge10
+	cmp	[exprParens],0
 	stc
-	jne	gn10
-	inc	[nArgs]
+	jg	ge10
 	test	cx,cx			; return ZF set if no values
-gn10:	mov	dx,word ptr [defType]	; DL = expression type, DH = # tokens
-	ret
+ge10:	mov	dx,word ptr [exprType]	; DL = expression type, DH = # tokens
+	pop	si
+	pop	cx
+	LEAVE
+	RETURN
 
 	DEFLBL	setExprType,near
-	cmp	[defType],al
+	cmp	[exprType],al
 	je	set9
-	cmp	[defType],0
+	cmp	[exprType],0
 	jne	set9
-	mov	[defType],al
+	mov	[exprType],al
 set9:	ret				; return ZF set if type is OK
 
 ENDPROC	genExpr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genFuncExpr
+;
+; Generate code for "func(parm1,parm2,...)".  The func variable has already
+; been parsed and DX:SI has been set to the corresponding function data.
+;
+; NOTE: Function data for predefined functions is actually at CS:SI, but
+; since we must also support user-defined functions, we can't assume that.
+; This is why we must use the loadFuncData helper function, instead of simple
+; LODSW CS: instructions.
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;	DX:SI -> function data
+;
+; Outputs:
+;	Carry clear if successful, AH = return type
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genFuncExpr
+	LOCVAR	nFuncParms,byte
+	LOCVAR	nFuncType,byte
+	LOCVAR	pFuncData,dword
+	ENTER
+	sub	cx,cx			; CX = 0 if no parms supplied
+	call	peekNextSymbol		; check for parenthesis
+	jb	gfe9
+	mov	[pFuncData].OFF,si
+	mov	[pFuncData].SEG,dx
+	push	ax
+	call	loadFuncData
+	mov	word ptr [nFuncType],ax	; nFuncType = AL, nFuncParms = AH
+	pop	ax
+	jz	gfe1
+	cmp	al,'('
+	jne	gfe1
+	inc	cx			; CX = 1 if one or more parms supplied
+	call	getNextSymbol		; consume the parenthesis
+
+gfe1:	dec	[nFuncParms]		; more parameters?
+	jl	gfe6			; no
+	jcxz	gfe3			; yes, but no (more) have been supplied
+
+	call	genExpr			; process parameter expression
+	jbe	gfe3			; no value supplied
+
+	push	ax			; save last symbol from genExpr
+	call	loadFuncData		; AL = parameter type
+	cmp	al,dl			; does it match expression type?
+	pop	ax			; restore last symbol
+	jne	gfe9			; no, error
+
+	cmp	ah,CLS_SYM		; was last token a symbol?
+	jne	gfe9			; no, error
+	cmp	al,')'			; yes, closing parenthesis?
+	jne	gfe2			; no
+	sub	cx,cx			; zero number of remaining parms
+	jmp	gfe1
+
+gfe2:	cmp	al,','			; comma?
+	jne	gfe9			; no, error
+	test	cl,cl			; are more parameters allowed?
+	jz	gfe9			; no
+	jmp	gfe1
+
+gfe3:	call	loadFuncData
+	cmp	al,VAR_LONG		; TODO: currently supports default
+	stc				; parameter values for VAR_LONG only
+	jne	gfe9
+	mov	al,ah			; AL = default value
+	cbw
+	cwd				; DX:AX = default value
+	xchg	cx,ax			; DX:CX
+	call	genPushImmLong		; push it
+	sub	cx,cx
+	jmp	gfe1			; continue processing parameters
+
+gfe6:	jcxz	gfe7
+	cmp	al,')'
+	jne	gfe9			; something is malformed
+gfe7:	call	loadFuncData		; AX = function address offset
+	xchg	cx,ax
+	call	loadFuncData		; AX = function address segment
+	xchg	dx,ax
+	test	dx,dx
+	jnz	gfe8
+	mov	dx,cs
+gfe8:	GENCALL	dx,cx			; generate call to function DX:CX
+	mov	ah,[nFuncType]		; AH = return type
+	jmp	short gfe10		; GENCALL should have cleared carry
+gfe9:	stc
+gfe10:	LEAVE
+	ret
+
+	DEFLBL	loadFuncData,near
+	push	ds
+	lds	si,[pFuncData]
+	lodsw
+	mov	[pFuncData].OFF,si
+	pop	ds
+	ret
+ENDPROC	genFuncExpr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -926,10 +1037,12 @@ DEFPROC	genLet
 gl1:	call	addVar			; DX:SI -> var data
 	jc	gl9
 
+	cmp	dx,[codeSeg]		; constants cannot be "let"
+	stc				; TODO: Generate an error message
+	je	gl9			; more specific than "Syntax error"
 	push	ax
 	call	genPushVarPtr
-	mov	al,CLS_SYM
-	call	getNextToken
+	call	getNextSymbol
 	pop	dx
 	jbe	gl9
 
@@ -961,8 +1074,7 @@ ENDPROC	genLet
 ;	Any
 ;
 DEFPROC	genPrint
-	GENPUSHB VAR_NONE		; push end-of-args marker (VAR_NONE)
-
+	GENPUSHB VAR_NONE		; push end-of-args marker
 gp1:	call	genExpr
 	jnc	gp2
 	test	dh,dh			; if there were no tokens
@@ -970,27 +1082,22 @@ gp1:	call	genExpr
 	jnz	gp9			; (PRINT without args is allowed)
 gp2:	jz	gp8
 	push	ax
-	mov	al,VAR_LONG		; AL = default type
+	mov	al,VAR_LONG		; AL = default type (40h)
 	cmp	dl,al			; does that match the expression type?
 	je	gp3			; yes
-	mov	al,VAR_STR		; must be VAR_STR then
+	mov	al,VAR_STR		; must be VAR_STR then (80h)
 	ASSERT	Z,<cmp dl,al>		; verify our assumption
 gp3:	GENPUSHB al
 	pop	ax
-
 	mov	ah,VAR_SEMI
 	cmp	al,';'			; was the last symbol a semi-colon?
 	je	gp6			; yes
 	mov	ah,VAR_COMMA
 	cmp	al,','			; how about a comma?
 	jne	gp8			; no
-
 gp6:	GENPUSHB ah			; "MOV AL,[VAR_SEMI or VAR_COMMA]"
 	jmp	gp1			; contine processing arguments
-
-gp8:	GENCALL	printArgs
-	clc
-
+gp8:	GENCALL	printArgs		; all done
 gp9:	ret
 ENDPROC	genPrint
 
@@ -1106,28 +1213,31 @@ ENDPROC	findLabel
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genCallFar
+; genCallCS
 ;
 ; Inputs:
-;	CS:CX -> function to call
+;	CS:CX -> function to call (or DX:CX if using genCallFar)
 ;
 ; Outputs:
-;	None
+;	Carry clear
 ;
 ; Modifies:
-;	CX, DI
+;	CX, DX, DI
 ;
-DEFPROC	genCallFar
+DEFPROC	genCallCS
+	mov	dx,cs
+	DEFLBL	genCallFar,near
 	push	ax
 	mov	al,OP_CALLF
 	stosb
 	xchg	ax,cx
 	stosw
-	mov	ax,cs
+	xchg	ax,dx
 	stosw
 	pop	ax
+	clc
 	ret
-ENDPROC	genCallFar
+ENDPROC	genCallCS
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1323,9 +1433,10 @@ ENDPROC	genPushZeroLong
 ;	None
 ;
 ; Modifies:
-;	AX, DX, SI, DI
+;	DX, SI, DI
 ;
 DEFPROC	genPushVarLong
+	push	ax
 	cmp	dx,[defVarSeg]
 	je	gpvl1
 	mov	al,OP_MOV_AX
@@ -1350,15 +1461,33 @@ gpvl3:	mov	ax,OP_LODSW OR (OP_PUSH_AX SHL 8)
 	stosw
 	mov	al,OP_PUSH_DX
 	stosb
+	pop	ax
 	ret
 ENDPROC	genPushVarLong
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; getNextSymbol
+;
+; Call getNextToken with AL = CLS_SYM, updating BX and preserving CX, DX, SI.
+;
+DEFPROC	getNextSymbol
+	push	cx
+	push	dx
+	push	si
+	mov	al,CLS_SYM
+	call	getNextToken
+	pop	si
+	pop	dx
+	pop	cx
+	ret
+ENDPROC	getNextSymbol
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; getNextToken
 ;
-; Return the next token if it matches the criteria in AL; by default,
-; we ignore whitespace tokens.
+; Return the next token if it matches the criteria in AL (ignores whitespace).
 ;
 ; Inputs:
 ;	AL = CLS bits
@@ -1380,24 +1509,26 @@ ENDPROC	genPushVarLong
 ;	AX, BX, CX, DX, SI
 ;
 DEFPROC	getNextToken
-	cmp	bx,[pTokEnd]
-	jb	gt0
+	push	di
+gt0:	mov	di,ds:[PSP_HEAP]
+	cmp	bx,[di].TOKEND
+	jb	gt0a
 	sub	ax,ax
 	jmp	gt9			; no more tokens (ZF set, CF clear)
 
-gt0:	mov	ah,[bx].TOKLET_CLS
+gt0a:	mov	ah,[bx].TOKLET_CLS
 	test	ah,al
 	jnz	gt1
 	cmp	ah,CLS_WHITE		; whitespace token?
-gt0a:	stc
+gt0b:	stc
 	jne	gt9			; no (CF set)
 	add	bx,size TOKLET		; yes, so ignore it
-	jmp	getNextToken
+	jmp	gt0
 
 gt1:	cmp	al,CLS_KEYWORD		; looking for keyword?
 	jne	gt1a			; no
 	cmp	ah,CLS_VAR		; yes, undecorated CLS_VAR?
-	jne	gt0a			; no, can't be a keyword then
+	jne	gt0b			; no, can't be a keyword then
 
 gt1a:	mov	si,[bx].TOKLET_OFF
 	mov	cl,[bx].TOKLET_LEN
@@ -1440,7 +1571,7 @@ gt2c:	pop	dx			; neither KEYOP nor KEYWORD
 
 	push	bx
 	push	ax
-	mov	bx,[pDefVars]
+	lea	bx,[di].DEFVARS
 	sub	al,'A'			; convert 1st letter to DEFVARS index
 	xlat				; look up the default VAR type
 	test	al,al			; has a default been set?
@@ -1463,18 +1594,36 @@ gt7:	cmp	ah,CLS_SYM
 	je	gt9
 
 gt8:	or	ah,0			; return both ZF and CF clear
-gt9:	ret
+gt9:	pop	di
+	ret
 ENDPROC	getNextToken
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; peekNextSymbol
+;
+; Peek and return the next symbol, if any.  TODO: Remove if no callers.
+;
+; Inputs and outputs are the same as getNextSymbol, but we also save the
+; offset of the next TOKLET, in case the caller wants to consume the token.
+;
+; Modifies:
+;	AX
+;
+DEFPROC	peekNextSymbol
+	push	bx
+	call	getNextSymbol
+	jmp	short peekReturn
+ENDPROC	peekNextSymbol
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; peekNextToken
 ;
-; Return the next token if it matches the criteria in AL; by default,
-; we ignore whitespace tokens.
+; Peek and return the next token, if it matches the criteria in AL.
 ;
 ; Inputs and outputs are the same as getNextToken, but we also save the
-; offset of the next TOKLET, in case the caller wants to consume it.
+; offset of the next TOKLET, in case the caller wants to consume the token.
 ;
 ; Modifies:
 ;	AX, CX, SI
@@ -1483,9 +1632,12 @@ DEFPROC	peekNextToken
 	push	bx
 	push	dx
 	call	getNextToken
-	mov	[pTokNext],bx
 	pop	dx
-	pop	bx
+	DEFLBL	peekReturn,near
+	push	bx
+	mov	bx,ds:[PSP_HEAP]
+	pop	ds:[bx].TOKNEXT		; save BX in TOKNEXT in case the
+	pop	bx			; caller wants to advance after peeking
 	ret
 ENDPROC	peekNextToken
 
@@ -1594,7 +1746,6 @@ sc8d:	cmp	al,SC_GENFN		; have we found SC_GENFN yet? (77h)
 	xchg	si,ax			; SI -> SCF function
 	mov	cx,cs:SCF_TABLE[si]
 	GENCALL cx
-	clc
 sc9:	ret
 ENDPROC	synCheck
 	ENDIF	; LATER
@@ -1632,12 +1783,13 @@ vo1:	lods	word ptr cs:[si]
 	cmp	ax,dx			; match?
 	lods	byte ptr cs:[si]
 	jne	vo1
-	mov	bx,[pTokNext]
+	mov	bx,ds:[PSP_HEAP]
+	mov	bx,[bx].TOKNEXT		; load TOKNEXT saved by peekNextToken
 	xchg	dx,ax			; DL = (new) operator to validate
 
 vo2:	mov	ah,dl			; AH = operator to validate
 	mov	si,offset OPDEFS_LONG
-	cmp	[defType],VAR_STR
+	cmp	[exprType],VAR_STR
 	jne	vo3
 	mov	si,offset OPDEFS_STR
 vo3:	lods	byte ptr cs:[si]

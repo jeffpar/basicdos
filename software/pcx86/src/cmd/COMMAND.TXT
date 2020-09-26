@@ -3,7 +3,7 @@ Clears the session using the background color and moves the cursor to the top le
 
 COLOR *foreground*[,*background*[,*border*]]
 Sets the foreground (0-15), background (0-15), and border (0-255) colors of the session.
-Values 8-15 for *background* and 128-255 for *border* enable blinking.
+For blinking colors, use 8-15 for *background* and 128-255 for *border*.
 
 DATE [*date*] [/P]
 Sets the system date (or prompts for a date if /P) and then displays the date.
@@ -30,6 +30,9 @@ LIST
 
 LOAD
 
+MAXINT
+Constant equal to the largest positive integer.
+
 MEM
 
 NEW
@@ -39,7 +42,10 @@ PRINT
 REM
 
 RESTART
-Restart ("reboot") the system.
+Restarts ("reboots") the system.
+
+RND%(N)
+Generates a random integer between 0 and MAXINT, inclusive.
 
 RUN
 

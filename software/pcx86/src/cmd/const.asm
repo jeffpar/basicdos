@@ -121,8 +121,11 @@ CODE    SEGMENT
 	db	0			; terminator
 
 	DEFLBL	PREDEF_VARS,byte
+	db	VAR_LONG + 6,"MAXINT"	; TODO: Should this be "MAXINT%"?
+	dd	7FFFFFFFh
 	db	VAR_FUNC + 4,"RND%"
-	db	VAR_LONG,1,VAR_LONG	; returns VAR_LONG; 1 VAR_LONG parm
+	db	VAR_LONG,1		; returns VAR_LONG, 1 parameter
+	db	VAR_LONG,1		; 1st parameter: VAR_LONG, 1=default
 	dw	offset evalRndLong,0
 	db	0
 

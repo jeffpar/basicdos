@@ -391,8 +391,8 @@ ENDPROC	setColor
 ;
 ; setFlags
 ;
-; If AL contains a single bit, that bit will be set in CMD_FLAGS;
-; otherwise, AL will be applied as a mask to CMD_FLAGS.
+; If AL contains a single bit, that bit will be set in CMD_FLAGS; otherwise,
+; AL will be applied as a mask to CMD_FLAGS.
 ;
 ; Inputs:
 ;	AL = bit to set or clear in CMD_FLAGS
