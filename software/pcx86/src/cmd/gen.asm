@@ -44,6 +44,7 @@ CODE    SEGMENT
 ;
 DEFPROC	genCode
 	LOCVAR	pHeap,word
+	LOCVAR	codeSeg,word		; code segment
 	LOCVAR	defVarSeg,word		; default VBLK segment
 	LOCVAR	defType,byte		; used by genDef*
 	LOCVAR	genFlags,byte
@@ -59,6 +60,7 @@ DEFPROC	genCode
 	ENTER
 
 	mov	[pHeap],bx
+	mov	[codeSeg],cs
 	test	al,GEN_BATCH
 	jz	gc0
 	or	al,GEN_ECHO
@@ -562,60 +564,61 @@ DEFPROC	genExpr
 	mov	[exprPrevOp],dx		; previous operator (none)
 	push	dx			; push end-of-operators marker (zero)
 
-gn1:	mov	al,CLS_ANY		; CLS_NUM, CLS_SYM, CLS_VAR, CLS_STR
+ge1:	mov	al,CLS_ANY		; CLS_NUM, CLS_SYM, CLS_VAR, CLS_STR
 	call	getNextToken
-	jbe	gn2x
+	jbe	ge2x
 	inc	[exprToks]
 	cmp	ah,CLS_SYM
-	je	gn4s			; process CLS_SYM below
+	je	ge1b			; process CLS_SYM below
 ;
 ; Non-operator (non-symbol) cases: keywords, variables, strings, and numbers.
 ;
 	mov	byte ptr [exprPrevOp],-1; invalidate prevOp (intervening token)
 	cmp	ah,CLS_KEYWORD
-	je	gn2x			; keywords not allowed in expressions
+	je	ge2x			; keywords not allowed in expressions
 	cmp	ah,CLS_VAR		; variable with type?
 	ASSERT	NE			; (type should be fully qualified now)
-	ja	gn2			; yes
+	ja	ge2			; yes
 ;
 ; Must be CLS_STR or CLS_NUM.  Handle CLS_STR here and CLS_NUM below.
 ;
 	test	ah,CLS_STR		; string?
-	jz	gn3			; no, must be number
+	jz	ge3			; no, must be number
 	mov	al,VAR_STR		; AL = VAR_STR
 	call	setExprType		; update expression type
-	jnz	gn2x
+	jnz	ge2x
 	sub	cx,2			; CX = string length
 	ASSERT	NC
-	jcxz	gn1a			; empty string
+	jcxz	ge1a			; empty string
 	inc	si			; DS:SI -> string contents
 	call	genPushStr
-	jmp	short gn2b
+	jmp	short ge2c
 
-gn1a:	DBGBRK
+ge1a:	DBGBRK
 	sub	cx,cx			; for empty strings, push null ptr
 	sub	dx,dx
 	call	genPushImmLong
-	jmp	short gn2b
-gn4s:	jmp	short gn4
+	jmp	short ge2c
+ge1b:	jmp	short ge4
 ;
 ; Process CLS_VAR.  We don't care if findVar succeeds or not, because
 ; even if it fails, it returns var type (AH) VAR_LONG with var data (DX:SI)
 ; set to a zero constant.  However, var type (AH) must still be consistent
 ; with the expression type.
 ;
-gn2:	call	findVar
+ge2:	call	findVar
 	cmp	ah,VAR_FUNC
-	jne	gn2a
+	jne	ge2a
 	call	genFuncExpr		; process the function expression
-gn2a:	mov	al,ah			; AL = var type
+	jnc	ge2b			; AH = return type
+	jmp	short ge3x
+ge2a:	call	genPushVarLong
+ge2b:	mov	al,ah			; AL = var type
 	call	setExprType		; update expression type
-	jnz	gn2x			; error
-	call	genPushVarLong
-
-gn2b:	inc	[exprVals]		; count another queued value
-	jmp	gn1
-gn2x:	jmp	short gn3x
+	jnz	ge3x			; error
+ge2c:	inc	[exprVals]		; count another queued value
+	jmp	ge1
+ge2x:	jmp	short ge3x
 ;
 ; Process CLS_NUM.  Number is a constant and CX is its exact length.
 ;
@@ -624,56 +627,54 @@ gn2x:	jmp	short gn3x
 ; Why? Because it's better for ATOI32 to know up front that we're dealing with
 ; a negative number, because then it can do precise overflow checks.
 ;
-gn3:	mov	al,VAR_LONG		; AL = VAR_LONG
+ge3:	mov	al,VAR_LONG		; AL = VAR_LONG
 	call	setExprType		; update expression type
-	jnz	gn3x			; error
+	jnz	ge3x			; error
 	push	bx
 	mov	bl,10			; BL = 10 (default base)
 	test	ah,CLS_OCT OR CLS_HEX	; octal or hex value?
-	jz	gn3a			; no
+	jz	ge3a			; no
 	inc	si			; yes, skip leading ampersand
 	shl	ah,1
 	shl	ah,1
 	shl	ah,1
 	mov	bl,ah			; BL = 8 or 16 (new base)
 	cmp	byte ptr [si],'9'	; is next character a digit?
-	jbe	gn3a			; yes
+	jbe	ge3a			; yes
 	inc	si			; no, skip it (must be 'O' or 'H')
-gn3a:	DOSUTIL	DOS_UTL_ATOI32		; DS:SI -> numeric string (length CX)
+ge3a:	DOSUTIL	DOS_UTL_ATOI32		; DS:SI -> numeric string (length CX)
 	xchg	cx,ax			; save result in DX:CX
 	pop	bx
 	GENPUSH	dx,cx
-	jmp	gn2b			; go count another queued value
-
-gn3s:	mov	ah,CLS_SYM
-gn3x:	jmp	short gn8
+	jmp	ge2c			; go count another queued value
+ge3x:	jmp	short ge8
 ;
 ; Process CLS_SYM.  Before we try to validate the operator, we need to remap
 ; binary minus to unary minus.  So, if we have a minus, and the previous token
 ; is undefined, or another operator, or a left paren, it's unary.  Ditto for
 ; unary plus.  The internal identifiers for unary '-' and '+' are 'N' and 'P'.
 ;
-gn4:	mov	ah,'N'
+ge4:	mov	ah,'N'
 	cmp	al,'-'
-	je	gn4a
+	je	ge4a
 	mov	ah,'P'
 	cmp	al,'+'
-	jne	gn5
-gn4a:	mov	cx,[exprPrevOp]
-	jcxz	gn4b
+	jne	ge5
+ge4a:	mov	cx,[exprPrevOp]
+	jcxz	ge4b
 	cmp	cl,')'			; do NOT remap if preceded by ')'
-	je	gn5
+	je	ge5
 	cmp	cl,-1			; another operator (including '(')?
-	je	gn5			; no
-gn4b:	mov	al,ah			; remap the operator
+	je	ge5			; no
+ge4b:	mov	al,ah			; remap the operator
 ;
 ; Verify that the symbol is a valid operator.
 ;
-gn5:	call	validateOp		; AL = operator to validate
-	jc	gn3s			; error (reset AH to CLS_SYM)
+ge5:	call	validateOp		; AL = operator to validate
+	jc	ge7b			; error (reset AH to CLS_SYM)
 	mov	[exprPrevOp],ax
 	sub	si,si
-	jcxz	gn7			; handle no-arg operators below
+	jcxz	ge7			; handle no-arg operators below
 	dec	cx
 	add	[exprArgs],cx
 	mov	si,dx			; SI = current evaluator
@@ -681,50 +682,56 @@ gn5:	call	validateOp		; AL = operator to validate
 ; Operator is valid, so peek at the operator stack and pop if the top
 ; operator precedence >= current operator precedence.
 ;
-gn5a:	pop	dx			; "peek"
+ge5a:	pop	dx			; "peek"
 	cmp	dh,ah			; top precedence > current?
-	jb	gn6			; no
-	ja	gn5b			; yes
+	jb	ge6			; no
+	ja	ge5b			; yes
 	test	dh,1			; unary operator?
-	jnz	gn6			; yes, hold off
-gn5b:	pop	cx			; pop the evaluator as well
-	jcxz	gn6c			; no evaluator (eg, left paren)
+	jnz	ge6			; yes, hold off
+ge5b:	pop	cx			; pop the evaluator as well
+	jcxz	ge6c			; no evaluator (eg, left paren)
 
 	IFDEF MAXDEBUG
 	DPRINTF	'o',<"op %c, func @%08lx",13,10>,dx,cx,cs
 	ENDIF
 
 	GENCALL	cx			; and generate call
-	jmp	gn5a
+	jmp	ge5a
 
-gn6:	push	dx			; "unpeek"
-gn6a:	push	si			; push current evaluator
+ge6:	push	dx			; "unpeek"
+ge6a:	push	si			; push current evaluator
 	push	ax			; push current operator/precedence
-gn6b:	jmp	gn1			; next token
+ge6b:	jmp	ge1			; next token
 ;
 ; We just popped an operator with no evaluator; if it's a left paren,
-; we're done; otherwise, ignore it (eg, unary '+').
+; we're done; otherwise, igeore it (eg, unary '+').
 ;
-gn6c:	cmp	dl,'('
-	je	gn6b
-	jmp	gn5a
+ge6c:	cmp	dl,'('
+	je	ge6b
+	jmp	ge5a
 ;
 ; When special (eg, zero arg) operators are encountered in the expression,
 ; they are handled here.
 ;
-gn7:	cmp	al,'('
-	jne	gn7a
+ge7:	cmp	al,'('
+	jne	ge7a
 	inc	[exprParens]
-	jmp	gn6a
-gn7a:	ASSERT	Z,<cmp al,')'>
+	jmp	ge6a
+;
+; When parsing one in a series of comma-delimited expressions, all of which
+; may be parenthesized, we must treat the closing parenthesis no differently
+; than the commas.
+;
+ge7a:	ASSERT	Z,<cmp al,')'>
 	dec	[exprParens]
-	jmp	gn5a
+	jge	ge5a
+ge7b:	mov	ah,CLS_SYM
 ;
 ; We have reached the (presumed) end of the expression, so start popping
 ; the operator stack.
 ;
-gn8:	pop	cx
-	jcxz	gn9			; all done
+ge8:	pop	cx
+	jcxz	ge9			; all done
 
 	IFDEF MAXDEBUG
 	pop	ax
@@ -734,21 +741,21 @@ gn8:	pop	cx
 	pop	cx			; CX = evaluator
 	ENDIF
 
-	jcxz	gn8
+	jcxz	ge8
 	GENCALL	cx
-	jmp	gn8
+	jmp	ge8
 ;
 ; Verify the number of values queued matches the number of expected arguments.
 ;
-gn9:	mov	cx,[exprVals]
+ge9:	mov	cx,[exprVals]
 	cmp	cx,[exprArgs]
 	stc
-	jne	gn10
+	jne	ge10
 	cmp	[exprParens],0
 	stc
-	jne	gn10
+	jg	ge10
 	test	cx,cx			; return ZF set if no values
-gn10:	mov	dx,word ptr [exprType]	; DL = expression type, DH = # tokens
+ge10:	mov	dx,word ptr [exprType]	; DL = expression type, DH = # tokens
 	pop	si
 	pop	cx
 	LEAVE
@@ -769,51 +776,105 @@ ENDPROC	genExpr
 ; genFuncExpr
 ;
 ; Generate code for "func(parm1,parm2,...)".  The func variable has already
-; been parsed and DX:SI has been set accordingly.
+; been parsed and DX:SI has been set to the corresponding function data.
+;
+; NOTE: Function data for predefined functions is actually at CS:SI, but
+; since we must also support user-defined functions, we can't assume that.
+; This is why we must use the loadFuncData helper function, instead of simple
+; LODSW CS: instructions.
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs
 ;	ES:DI -> code block
-;	DX:SI -> function signature
+;	DX:SI -> function data
 ;
 ; Outputs:
-;	Carry clear if successful, set if error
+;	Carry clear if successful, AH = return type
 ;
 ; Modifies:
 ;	Any
 ;
 DEFPROC	genFuncExpr
-	DBGBRK
-	call	getNextSymbol
-	jbe	gfe9
+	LOCVAR	nFuncParms,byte
+	LOCVAR	nFuncType,byte
+	LOCVAR	pFuncData,dword
+	ENTER
+	sub	cx,cx			; CX = 0 if no parms supplied
+	call	peekNextSymbol		; check for parenthesis
+	jb	gfe9
+	mov	[pFuncData].OFF,si
+	mov	[pFuncData].SEG,dx
+	push	ax
+	call	loadFuncData
+	mov	word ptr [nFuncType],ax	; nFuncType = AL, nFuncParms = AH
+	pop	ax
+	jz	gfe1
 	cmp	al,'('
+	jne	gfe1
+	inc	cx			; CX = 1 if one or more parms supplied
+	call	getNextSymbol		; consume the parenthesis
+
+gfe1:	dec	[nFuncParms]		; more parameters?
+	jl	gfe6			; no
+	jcxz	gfe3			; yes, but no (more) have been supplied
+
+	call	genExpr			; process parameter expression
+	jbe	gfe3			; no value supplied
+
+	push	ax			; save last symbol from genExpr
+	call	loadFuncData		; AL = parameter type
+	cmp	al,dl			; does it match expression type?
+	pop	ax			; restore last symbol
+	jne	gfe9			; no, error
+
+	cmp	ah,CLS_SYM		; was last token a symbol?
+	jne	gfe9			; no, error
+	cmp	al,')'			; yes, closing parenthesis?
+	jne	gfe2			; no
+	sub	cx,cx			; zero number of remaining parms
+	jmp	gfe1
+
+gfe2:	cmp	al,','			; comma?
+	jne	gfe9			; no, error
+	test	cl,cl			; are more parameters allowed?
+	jz	gfe9			; no
+	jmp	gfe1
+
+gfe3:	call	loadFuncData
+	cmp	al,VAR_LONG		; TODO: currently supports default
+	stc				; parameter values for VAR_LONG only
 	jne	gfe9
-	lodsb
-	mov	ch,al			; CH = function return type
-	lodsb
-	mov	cl,al			; CL = function parameter count
-gfe1:	call	genExpr
-	jbe	gfe9
-	lodsb				; AL = parameter type
-	cmp	al,dl			; match expression type from genExpr?
-	jne	gfe9			; no
-	call	getNextSymbol
+	mov	al,ah			; AL = default value
+	cbw
+	cwd				; DX:AX = default value
+	xchg	cx,ax			; DX:CX
+	call	genPushImmLong		; push it
+	sub	cx,cx
+	jmp	gfe1			; continue processing parameters
+
+gfe6:	jcxz	gfe7
 	cmp	al,')'
-	je	gfe2
-	cmp	al,','
-	jne	gfe9
-	dec	cl
-	jnz	gfe1
-gfe2:	lodsw				; AX = function address
+	jne	gfe9			; something is malformed
+gfe7:	call	loadFuncData		; AX = function address offset
 	xchg	cx,ax
-	lodsw
+	call	loadFuncData		; AX = function address segment
 	xchg	dx,ax
 	test	dx,dx
-	jnz	gfe3
+	jnz	gfe8
 	mov	dx,cs
-gfe3:	GENCALL	dx,cx			; generate call to function DX:CX
-	ret
+gfe8:	GENCALL	dx,cx			; generate call to function DX:CX
+	mov	ah,[nFuncType]		; AH = return type
+	jmp	short gfe10		; GENCALL should have cleared carry
 gfe9:	stc
+gfe10:	LEAVE
+	ret
+
+	DEFLBL	loadFuncData,near
+	push	ds
+	lds	si,[pFuncData]
+	lodsw
+	mov	[pFuncData].OFF,si
+	pop	ds
 	ret
 ENDPROC	genFuncExpr
 
@@ -976,6 +1037,9 @@ DEFPROC	genLet
 gl1:	call	addVar			; DX:SI -> var data
 	jc	gl9
 
+	cmp	dx,[codeSeg]		; constants cannot be "let"
+	stc				; TODO: Generate an error message
+	je	gl9			; more specific than "Syntax error"
 	push	ax
 	call	genPushVarPtr
 	call	getNextSymbol
@@ -1149,21 +1213,21 @@ ENDPROC	findLabel
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genCallFar
+; genCallCS
 ;
 ; Inputs:
-;	CS:CX -> function to call
+;	CS:CX -> function to call (or DX:CX if using genCallFar)
 ;
 ; Outputs:
 ;	Carry clear
 ;
 ; Modifies:
-;	CX, DI
+;	CX, DX, DI
 ;
 DEFPROC	genCallCS
-	push	dx
 	mov	dx,cs
-gcc1:	push	ax
+	DEFLBL	genCallFar,near
+	push	ax
 	mov	al,OP_CALLF
 	stosb
 	xchg	ax,cx
@@ -1171,13 +1235,8 @@ gcc1:	push	ax
 	xchg	ax,dx
 	stosw
 	pop	ax
-	pop	dx
 	clc
 	ret
-	DEFLBL	genCallFar,near
-	DBGBRK
-	push	dx
-	jmp	gcc1
 ENDPROC	genCallCS
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1374,9 +1433,10 @@ ENDPROC	genPushZeroLong
 ;	None
 ;
 ; Modifies:
-;	AX, DX, SI, DI
+;	DX, SI, DI
 ;
 DEFPROC	genPushVarLong
+	push	ax
 	cmp	dx,[defVarSeg]
 	je	gpvl1
 	mov	al,OP_MOV_AX
@@ -1401,6 +1461,7 @@ gpvl3:	mov	ax,OP_LODSW OR (OP_PUSH_AX SHL 8)
 	stosw
 	mov	al,OP_PUSH_DX
 	stosb
+	pop	ax
 	ret
 ENDPROC	genPushVarLong
 
@@ -1408,7 +1469,7 @@ ENDPROC	genPushVarLong
 ;
 ; getNextSymbol
 ;
-; Call getNextToken with AL = CLS_SYM, preserving CX, DX, SI.
+; Call getNextToken with AL = CLS_SYM, updating BX and preserving CX, DX, SI.
 ;
 DEFPROC	getNextSymbol
 	push	cx
@@ -1426,8 +1487,7 @@ ENDPROC	getNextSymbol
 ;
 ; getNextToken
 ;
-; Return the next token if it matches the criteria in AL; by default,
-; we ignore whitespace tokens.
+; Return the next token if it matches the criteria in AL (ignores whitespace).
 ;
 ; Inputs:
 ;	AL = CLS bits
@@ -1540,13 +1600,30 @@ ENDPROC	getNextToken
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; peekNextSymbol
+;
+; Peek and return the next symbol, if any.  TODO: Remove if no callers.
+;
+; Inputs and outputs are the same as getNextSymbol, but we also save the
+; offset of the next TOKLET, in case the caller wants to consume the token.
+;
+; Modifies:
+;	AX
+;
+DEFPROC	peekNextSymbol
+	push	bx
+	call	getNextSymbol
+	jmp	short peekReturn
+ENDPROC	peekNextSymbol
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; peekNextToken
 ;
-; Return the next token if it matches the criteria in AL; by default,
-; we ignore whitespace tokens.
+; Peek and return the next token, if it matches the criteria in AL.
 ;
 ; Inputs and outputs are the same as getNextToken, but we also save the
-; offset of the next TOKLET, in case the caller wants to consume it.
+; offset of the next TOKLET, in case the caller wants to consume the token.
 ;
 ; Modifies:
 ;	AX, CX, SI
@@ -1555,11 +1632,12 @@ DEFPROC	peekNextToken
 	push	bx
 	push	dx
 	call	getNextToken
+	pop	dx
+	DEFLBL	peekReturn,near
 	push	bx
 	mov	bx,ds:[PSP_HEAP]
-	pop	ds:[bx].TOKNEXT
-	pop	dx
-	pop	bx
+	pop	ds:[bx].TOKNEXT		; save BX in TOKNEXT in case the
+	pop	bx			; caller wants to advance after peeking
 	ret
 ENDPROC	peekNextToken
 
@@ -1706,7 +1784,7 @@ vo1:	lods	word ptr cs:[si]
 	lods	byte ptr cs:[si]
 	jne	vo1
 	mov	bx,ds:[PSP_HEAP]
-	mov	bx,[bx].TOKNEXT
+	mov	bx,[bx].TOKNEXT		; load TOKNEXT saved by peekNextToken
 	xchg	dx,ax			; DL = (new) operator to validate
 
 vo2:	mov	ah,dl			; AH = operator to validate

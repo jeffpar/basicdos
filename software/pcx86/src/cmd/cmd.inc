@@ -272,7 +272,7 @@ GENPUSHB macro	val
 CMD_ECHO	equ	01h		; set if ECHO is "on"
 
 ;
-; Define the heap as a structure.  The first few fields (ie, all the BLK
+; Define the heap as a structure.  The first few fields (ie, all the BLK_DEF
 ; headers) are statically initialized, but the rest are left undefined so
 ; that they won't take up any space in the COM file.  The BASIC-DOS loader
 ; ensures that the remaining fields are zero-initialized.
@@ -282,6 +282,10 @@ CBLK_DEF	db	size BLK_DEF dup (?)
 VBLK_DEF	db	size BLK_DEF dup (?)
 SBLK_DEF	db	size BLK_DEF dup (?)
 TBLK_DEF	db	size BLK_DEF dup (?)
+INPUTBUF	db	size BUF_INPUT dup (?)
+TOKENBUF	db	size BUF_TOKEN dup (?)
+LINEBUF		db	256 dup (?)
+STACK		dw	512 dup (?)
 ORIG_SP		dw	?
 ORIG_BP		dw	?
 CON_COLS	db	?
@@ -289,27 +293,23 @@ CON_ROWS	db	?
 CMD_FLAGS	db	?		; see CMD_* flags
 CMD_PADDING	db	?
 PREV_TIME	dd	?		; last time displayed by cmdTime
+INPUTOFF	dw	?		; input offset (defaults to INPUTBUF)
 TOKNEXT		dw	?
 TOKEND		dw	?
 DEFVARS		db	26 dup (?)	; default var types for all 26 letters
-INPUTOFF	dw	?		; input offset (defaults to INPUTBUF)
-INPUTBUF	db	size BUF_INPUT dup (?)
-TOKENBUF	db	size BUF_TOKEN dup (?)
-LINEBUF		db	256 dup (?)
 FILENAME	db	16 dup (?)	; filename template ("X:XXXXXXXX.XXX")
 EXECDATA	db	size EPB dup (?); Exec Parameter Block
-STACK		dw	512 dup (?)
 CMD_HEAP	ends
 
 	ASSERT	<((SIZE CMD_HEAP) AND 1)>,EQ,0
 
 ;
-; The initial stack frame created by the main function can also be
-; used to access the CMD_HEAP structure, using the [heap] macro; eg:
+; The initial stack frame created by the main function can also be used to
+; access the CMD_HEAP structure, using the [heap] equate; eg:
 ;
 ;	mov	al,[heap].CON_COLS
 ;
-; This works because the main function explicitly aligns the stack with
-; CMD_HEAP and then pushes exactly 2 words before setting BP.
+; This works because the main function explicitly aligns SP with the top
+; of the STACK in CMD_HEAP and then pushes exactly 2 words before setting BP.
 ;
-heap		equ	byte ptr [bp+4-size CMD_HEAP]
+heap		equ	byte ptr [bp+4-(STACK + size STACK)]
