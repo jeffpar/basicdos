@@ -823,7 +823,8 @@ rnd1:	mov	ax,25173
 	mov	ax,25173
 	mul	bx
 	add	ax,13849		; AX = new low word
-	xor	cx,ax			; mix some bits into the high word
+	and	cx,dx			; turn off some high bits
+	xor	ax,dx			; and toggle some low bits
 	mov	bx,ss:[PSP_HEAP]
 	mov	ss:[bx].RND_SEED.HIW,cx
 	mov	ss:[bx].RND_SEED.LOW,ax
