@@ -293,6 +293,7 @@ CON_ROWS	db	?
 CMD_FLAGS	db	?		; see CMD_* flags
 CMD_PADDING	db	?
 PREV_TIME	dd	?		; last time displayed by cmdTime
+RND_SEED	dd	?		; pseudo-random number seed
 INPUTOFF	dw	?		; input offset (defaults to INPUTBUF)
 TOKNEXT		dw	?
 TOKEND		dw	?
