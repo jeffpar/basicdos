@@ -800,12 +800,37 @@ ENDPROC	evalGELong
 ;	1 32-bit result on stack (pushed)
 ;
 ; Modifies:
-;	AX, CX, DX
+;	AX, BX, CX, DX
 ;
 DEFPROC	evalRndLong,FAR
 	ARGVAR	seed,dword
 	ENTER
-	inc	[seed].LOW
+	mov	dx,[seed].HIW
+	mov	ax,[seed].LOW
+	mov	cx,ax
+	or	cx,dx
+	mov	bx,ss:[PSP_HEAP]
+	mov	cx,ss:[bx].RND_SEED.HIW
+	mov	bx,ss:[bx].RND_SEED.LOW
+	jz	rnd9
+	jge	rnd1
+	mov	bx,ax			; set CX:BX to new seed (from DX:AX)
+	mov	cx,dx
+rnd1:	mov	ax,25173
+	mul	cx
+	add	ax,13849
+	xchg	cx,ax			; CX = new high word
+	mov	ax,25173
+	mul	bx
+	add	ax,13849		; AX = new low word
+	xor	cx,ax			; mix some bits into the high word
+	mov	bx,ss:[PSP_HEAP]
+	mov	ss:[bx].RND_SEED.HIW,cx
+	mov	ss:[bx].RND_SEED.LOW,ax
+	xchg	bx,ax
+rnd9:	and	cx,7FFFh		; never return a negative result
+	mov	[seed].HIW,cx
+	mov	[seed].LOW,bx
 	LEAVE
 	ret
 ENDPROC	evalRndLong
