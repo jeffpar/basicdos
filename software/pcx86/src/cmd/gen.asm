@@ -800,15 +800,17 @@ DEFPROC	genFuncExpr
 	LOCVAR	pFuncData,dword
 	ENTER
 	sub	cx,cx			; CX = 0 if no parms supplied
-	call	peekNextSymbol		; check for parenthesis
-	jb	gfe9
 	mov	[pFuncData].OFF,si
 	mov	[pFuncData].SEG,dx
-	push	ax
 	call	loadFuncData
 	mov	word ptr [nFuncType],ax	; nFuncType = AL, nFuncParms = AH
-	pop	ax
-	jz	gfe1
+;
+; NOTE: peekNextSymbol can "fail" for any number of reasons, including
+; the fact that not all operators that may follow an unparenthesized function
+; reference are symbols (eg, "MOD").  So we must be very forgiving here.
+;
+	call	peekNextSymbol		; check for parenthesis
+	jbe	gfe1
 	cmp	al,'('
 	jne	gfe1
 	inc	cx			; CX = 1 if one or more parms supplied
