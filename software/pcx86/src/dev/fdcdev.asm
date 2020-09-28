@@ -7,6 +7,9 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	include	macros.inc
+	include	bios.inc
+	include	disk.inc
 	include	dev.inc
 
 DEV	group	CODE,DATA
@@ -139,7 +142,7 @@ bb1:	push	ds
 	push	di
 	mov	bl,[si].BPB_DRIVE
 	lds	si,[ddbuf_ptr]	; BL = drive #
-	add	si,BPB_OFFSET	; DS:SI -> our own buffer
+	add	si,BOOT_BPB	; DS:SI -> our own buffer
 	mov	cx,size BPB SHR 1
 	rep	movsw
 	mov	ah,TIME_GETTICKS

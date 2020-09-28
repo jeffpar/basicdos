@@ -7,13 +7,16 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	include	macros.inc
+	include	8086.inc
+	include	devapi.inc
 	include	dos.inc
 
 DOS	segment word public 'CODE'
 
 	EXTERNS	<strlen,sfb_get,sfb_read,sfb_write,dev_request>,near
 
-	ASSUME	CS:DOS, DS:DOS, ES:BIOS, SS:NOTHING
+	ASSUME	CS:DOS, DS:DOS, ES:DOS, SS:NOTHING
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

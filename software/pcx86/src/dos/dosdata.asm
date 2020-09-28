@@ -7,7 +7,8 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-	include	bios.inc
+	include	macros.inc
+	include	devapi.inc
 
 	EXTERNS	<sysinit>,near
 

@@ -7,7 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-	include	bios.inc
+
 ;
 ; Media IDs
 ;
@@ -17,7 +17,7 @@ MEDIA_180K	equ	0FCh
 MEDIA_360K	equ	0FDh
 MEDIA_HARD	equ	0F8h
 
-BPB_OFFSET	equ	3		; BPB offset within boot sector
+BOOT_BPB	equ	3		; BPB offset within boot sector
 
 ;
 ; The venerable BIOS Parameter Block (BPB).

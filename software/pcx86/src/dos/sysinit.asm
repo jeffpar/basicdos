@@ -7,6 +7,11 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	include	macros.inc
+	include	8086.inc
+	include	bios.inc
+	include	disk.inc
+	include	devapi.inc
 	include	dos.inc
 
 DOS	segment word public 'CODE'

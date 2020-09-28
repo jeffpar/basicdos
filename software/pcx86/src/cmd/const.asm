@@ -21,8 +21,8 @@ CODE    SEGMENT
 	EXTERNS	<evalModLong,evalExpLong,evalImpLong>,near
 	EXTERNS	<evalEqvLong,evalXorLong,evalOrLong,evalAndLong>,near
 	EXTERNS	<evalEQLong,evalNELong,evalLTLong,evalGTLong>,near
-	EXTERNS	<evalLELong,evalGELong,evalRndLong>,near
-	EXTERNS	<evalShlLong,evalShrLong>,near
+	EXTERNS	<evalLELong,evalGELong,evalShlLong,evalShrLong>,near
+	EXTERNS	<fnRndLong>,near
 
 	EXTERNS	<evalEQStr,evalNEStr,evalLTStr,evalGTStr>,near
 	EXTERNS	<evalLEStr,evalGEStr,evalAddStr>,near
@@ -126,7 +126,7 @@ CODE    SEGMENT
 	db	VAR_FUNC + 4,"RND%"
 	db	VAR_LONG,1		; returns VAR_LONG, 1 parameter
 	db	VAR_LONG,1		; 1st parameter: VAR_LONG, 1=default
-	dw	offset evalRndLong,0
+	dw	offset fnRndLong,0
 	db	0
 
 	DEFLBL	PREDEF_ZERO,byte

@@ -7,6 +7,8 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	include	macros.inc
+	include	bios.inc
 	include	dev.inc
 	include	dosapi.inc
 
@@ -859,7 +861,7 @@ DEFPROC	ddcon_int09,far
 	push	cx
 	push	dx
 	mov	cx,[ct_focus]		; CX = context
-	mov	dx,SCAN_DEL SHL 8	; DL = char code (0), DH = scan code
+	mov	dx,CHR_CTRLD		; DL = char code, DH = scan code
 	DOSUTIL	DOS_UTL_HOTKEY		; notify DOS
 	and	ds:[KB_FLAG],NOT CTL_SHIFT
 	pop	dx

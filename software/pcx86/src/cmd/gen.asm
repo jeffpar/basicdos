@@ -8,6 +8,7 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	include	cmd.inc
+	include	8086.inc
 
 CODE    SEGMENT
 
@@ -810,11 +811,18 @@ DEFPROC	genFuncExpr
 ; reference are symbols (eg, "MOD").  So we must be very forgiving here.
 ;
 	call	peekNextSymbol		; check for parenthesis
-	jbe	gfe1
+	jbe	gfe0
 	cmp	al,'('
-	jne	gfe1
+	jne	gfe0
 	inc	cx			; CX = 1 if one or more parms supplied
 	call	getNextSymbol		; consume the parenthesis
+;
+; For VAR_LONG functions, the generated stack frame needs to begin with room
+; for a VAR_LONG return value; we use genPushLong instead of genPushZeroLong
+; because it generates less code AND it doesn't matter what value gets pushed.
+;
+gfe0:	ASSERT	Z,<cmp [nFuncType],VAR_LONG>
+	call	genPushLong
 
 gfe1:	dec	[nFuncParms]		; more parameters?
 	jl	gfe6			; no
@@ -1408,6 +1416,7 @@ ENDPROC	genPushStr
 DEFPROC	genPushZeroLong
 	mov	ax,OP_ZERO_AX
 	stosw
+	DEFLBL	genPushLong,near
 	mov	ax,OP_PUSH_AX OR (OP_PUSH_AX SHL 8)
 	stosw
 	ret
