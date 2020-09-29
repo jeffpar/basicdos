@@ -14,7 +14,7 @@ CODE    SEGMENT
 
 	EXTERNS	<cmdDate,cmdDir,cmdExit,cmdHelp,cmdList,cmdLoad>,near
 	EXTERNS	<cmdMem,cmdNew,cmdRun,cmdRestart,cmdTime,cmdType,cmdVer>,near
-	EXTERNS	<genCLS,genColor,genDefInt,genDefDbl,genDefStr>,near
+	EXTERNS	<genCLS,genColor,genDef,genDefInt,genDefDbl,genDefStr>,near
 	EXTERNS	<genEcho,genGoto,genIf,genLet,genPrint>,near
 	EXTERNS	<evalNegLong,evalNotLong>,near
 	EXTERNS	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>,near
@@ -177,26 +177,27 @@ CODE	ENDS
 	DEFTOK	CLS,    60, genCLS
 	DEFTOK	COLOR,  61, genColor
 	DEFTOK	DATE,   40, cmdDate
-	DEFTOK	DEFINT, 62, genDefInt
-	DEFTOK	DEFDBL, 63, genDefDbl
-	DEFTOK	DEFSNG, 64, genDefDbl
-	DEFTOK	DEFSTR, 65, genDefStr
+	DEFTOK	DEF,    62, genDef
+	DEFTOK	DEFINT, 63, genDefInt
+	DEFTOK	DEFDBL, 64, genDefDbl
+	DEFTOK	DEFSNG, 65, genDefDbl
+	DEFTOK	DEFSTR, 66, genDefStr
 	DEFTOK	DIR,    20, cmdDir
-	DEFTOK	ECHO,   66, genEcho
+	DEFTOK	ECHO,   67, genEcho
 	DEFTOK	ELSE,  201
 	DEFTOK	EXIT,    1, cmdExit
-	DEFTOK	GOTO,   67, genGoto
+	DEFTOK	GOTO,   68, genGoto
 	DEFTOK	HELP,   41, cmdHelp
-	DEFTOK	IF,     68  genIf
-	DEFTOK	LET,    69, genLet
+	DEFTOK	IF,     69  genIf
+	DEFTOK	LET,    70, genLet
 	DEFTOK	LIST,    2, cmdList
 	DEFTOK	LOAD,   21, cmdLoad
 	DEFTOK	MEM,    42, cmdMem
 	DEFTOK	NEW,     3, cmdNew
 	DEFTOK	OFF,   202
 	DEFTOK	ON,    203
-	DEFTOK	PRINT,  70, genPrint
-	DEFTOK	REM,    71
+	DEFTOK	PRINT,  71, genPrint
+	DEFTOK	REM,    72
 	DEFTOK	RESTART, 4, cmdRestart
 	DEFTOK	RUN,     5, cmdRun
 	DEFTOK	THEN,  204

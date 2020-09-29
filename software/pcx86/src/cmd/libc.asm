@@ -123,11 +123,9 @@ pa1:	mov	al,[bp]			; AL = arg type
 	jz	pa3
 pa2:	push	bp
 	lea	bp,[bp+2]
-	cmp	al,VAR_INT
+	cmp	al,VAR_LONG		; if AL < VAR_LONG that's trouble
 	jb	pa1
-	lea	bp,[bp+2]
-	je	pa1
-	lea	bp,[bp+2]
+	lea	bp,[bp+4]
 	cmp	al,VAR_DOUBLE
 	jb	pa1
 	ASSERT	Z			; if AL > VAR_DOUBLE that's trouble

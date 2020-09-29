@@ -281,7 +281,7 @@ LEAVE	macro
 	 IF _LOCBYTES GT 0
 	  IFDEF DEBUG
 	push	ax
-	lea	ax,[bp-_LOCBYTES-2]	;; verify that BP wasn't altered
+	lea	ax,[bp-_LOCBYTES-4]	;; verify that BP wasn't altered
 	ASSERT	Z,<cmp ax,sp>
 	pop	ax
 	  ENDIF

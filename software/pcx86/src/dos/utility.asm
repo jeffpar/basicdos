@@ -600,13 +600,13 @@ tf3:	call	tok_classify		; AH = next classification
 	jne	tf3b
 	mov	ah,CLS_VAR_LONG
 	jmp	short tf3e
-tf3b:	cmp	al,'!'
+tf3b:	cmp	al,'$'
 	jne	tf3c
-	mov	ah,CLS_VAR_SINGLE
-	jmp	short tf3e
-tf3c:	cmp	al,'$'
-	jne	tf3d
 	mov	ah,CLS_VAR_STR
+	jmp	short tf3e
+tf3c:	cmp	al,'!'
+	jne	tf3d
+	mov	ah,CLS_VAR_SINGLE
 	jmp	short tf3e
 tf3d:	cmp	al,'#'
 	jne	tf6a

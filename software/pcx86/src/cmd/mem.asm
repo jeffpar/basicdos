@@ -381,14 +381,14 @@ DEFPROC	addVar
 	mov	cx,VAR_NAMELEN
 av0:	push	di
 	add	di,cx
-	mov	dl,2			; minimum associated data size
-	cmp	al,VAR_INT
-	jbe	av1
+	mov	dl,1			; minimum associated data size
+	cmp	al,VAR_LONG
+	jb	av1
 	mov	dl,4
 	cmp	al,VAR_DOUBLE
 	jb	av1
 	ASSERT	Z			; not ready for VAR_FUNC or VAR_ARRAY
-	mov	dl,8
+	add	dl,4
 av1:	mov	dh,0
 	add	di,dx
 	inc	di			; one for the length byte
@@ -498,21 +498,24 @@ fv5:	pop	di
 fv6:	mov	dh,ah
 	cbw
 	add	di,ax			; DI -> past var name
-	ASSERT	A,<cmp dh,VAR_INT>	; no support for VAR_INT at this point
-	cmp	dh,VAR_DOUBLE
-	je	fv6b
-	jb	fv6c
+	cmp	dh,VAR_PARM
+	jne	fv6a
+	inc	di
+	jmp	fv1
+fv6a:	cmp	dh,VAR_DOUBLE
+	je	fv6c
+	jb	fv6d
 	inc	di			; skip FUNC or ARRAY type
 	mov	al,[di]			; AL = FUNC or ARRAY signature length
 	inc	di			; skip signature length now
 	cbw
 	cmp	dh,VAR_ARRAY
-	jne	fv6a
+	jne	fv6b
 	shl	ax,1
-fv6a:	add	di,ax
-	jmp	fv6c
-fv6b:	add	di,4
-fv6c:	add	di,4			; DI bumped to next variable
+fv6b:	add	di,ax
+	jmp	fv6d
+fv6c:	add	di,4
+fv6d:	add	di,4			; DI bumped to next variable
 	jmp	fv1			; keep looking
 
 fv8:	mov	si,dx

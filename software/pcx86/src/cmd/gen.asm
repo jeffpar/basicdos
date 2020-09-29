@@ -364,6 +364,34 @@ ENDPROC	genColor
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; genDef
+;
+; Generate code for "DEF fn(parms)=expr".
+;
+; Although we do rely on genExpr to generate the code for "expr", we first
+; create a special "temp" var block containing all the variables in "parms",
+; and then make sure when genExpr calls findVar, it searches the temp block
+; first.  Also, the temp vars
+;
+; Note that we do NOT require the function name to begin with "FN" like
+; MSBASIC does.
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genDef
+	ret
+ENDPROC	genDef
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; genDefInt
 ;
 ; Process "DEFINT".  In BASIC-DOS, "DEFINT" really means "DEFLONG", but we'll

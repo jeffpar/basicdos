@@ -346,10 +346,10 @@ TOKTYPE_GENERIC	equ	1	; generic whitespace-separated parsing
 ; rather than in the interpreter.
 ;
 VAR_NONE	equ	000h
-VAR_INT		equ	020h	; 2 bytes of var data (TBD)
+VAR_PARM	equ	020h	; 1 byte of var data (the var type)
 VAR_LONG	equ	040h	; 4 bytes of var data
-VAR_SINGLE	equ	060h	; 4 bytes of var data
-VAR_STR		equ	080h	; 4 bytes of ptr data (string ptr)
+VAR_STR		equ	060h	; 4 bytes of ptr data (string ptr)
+VAR_SINGLE	equ	080h	; 4 bytes of var data
 VAR_DOUBLE	equ	0A0h	; 8 bytes of var data
 VAR_FUNC	equ	0C0h	; variable data based on func signature
 VAR_ARRAY	equ	0E0h	; variable data based on array signature
@@ -369,7 +369,6 @@ CLS_KEYWORD	equ	30h	; identifier later identified as a keyword
 CLS_ANY		equ	3Fh	;
 CLS_DQUOTE	equ	40h	; double quotes
 CLS_WHITE	equ	80h	; whitespace
-CLS_VAR_INT	equ	CLS_VAR OR VAR_INT	; 030h (TBD)
 CLS_VAR_LONG	equ	CLS_VAR OR VAR_LONG	; 050h (var ending with '%')
 CLS_VAR_SINGLE	equ	CLS_VAR OR VAR_SINGLE	; 070h (var ending with '!')
 CLS_VAR_STR	equ	CLS_VAR OR VAR_STR	; 090h (var ending with '$')
