@@ -962,13 +962,13 @@ ENDPROC	printNewLine
 ;	Any
 ;
 DEFPROC	cmdList
-	lea	si,[heap].TBLK_DEF
-l2:	mov	cx,[si].TBLK_NEXT
+	lea	si,[heap].TBLKDEF
+l2:	mov	cx,[si].BLK_NEXT
 	jcxz	l9			; nothing left to parse
 	mov	ds,cx
 	ASSUME	DS:NOTHING
-	mov	si,size TBLK_HDR
-l3:	cmp	si,ds:[TBLK_FREE]
+	mov	si,size TBLK
+l3:	cmp	si,ds:[BLK_FREE]
 	jae	l2			; advance to next block in chain
 	lodsw
 	test	ax,ax			; is there a label #?
@@ -1131,7 +1131,7 @@ lf8:	mov	ax,[lineLabel]
 	push	cx
 	mov	cx,dx
 	rep	movsb
-	mov	es:[TBLK_FREE],di
+	mov	es:[BLK_FREE],di
 	pop	cx
 	mov	ax,si
 	sub	ax,[lineOffset]

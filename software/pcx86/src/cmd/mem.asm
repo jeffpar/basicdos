@@ -25,8 +25,8 @@ CODE    SEGMENT
 ;
 ; allocBlock
 ;
-; Allocates a block of memory for the given block chain.  All blocks must
-; begin with the following:
+; Allocates a block of memory for the given block chain.  All chains begin
+; with a BLKDEF, and all blocks begin with a BLKHDR:
 ;
 ;	BLK_NEXT (segment of next block in chain)
 ;	BLK_SIZE (size of block, in bytes)
@@ -61,20 +61,12 @@ DEFPROC	allocBlock
 	stosw				; set BLK_NEXT
 	mov	ax,cx
 	stosw				; set BLK_SIZE
-	mov	al,[si].BLK_HDR
+	mov	al,[si].BDEF_HDR
 	cbw
 	stosw				; set BLK_FREE
-	mov	al,[si].BLK_SIG
+	mov	al,[si].BDEF_SIG
 	stosw				; set BLK_SIG/BLK_PAD
-	cmp	al,SIG_VBLK
-	jne	ab1
-	dec	di
-	mov	al,VAR_LONG
-	stosb				; initialize VBLK_ZERO
 	sub	ax,ax
-	stosw
-	stosw
-ab1:	sub	ax,ax
 	sub	cx,di
 	shr	cx,1
 	rep	stosw			; zero out the rest of the block
@@ -84,14 +76,14 @@ ab1:	sub	ax,ax
 ; Block is initialized, append to the header chain now.
 ;
 ab2:	push	ds
-	mov	di,si			; DS:DI -> first segment in chain
+	lea	di,[si].BDEF_NEXT	; DS:DI -> first segment in chain
 ab3:	mov	cx,[di]			; at the end yet?
 	jcxz	ab4			; yes
 	mov	ds,cx
 	sub	di,di
 	jmp	ab3
 ab4:	mov	[di],es			; chain updated
-	mov	di,es:[CBLK_FREE]	; ES:DI -> first available byte
+	mov	di,es:[BLK_FREE]	; ES:DI -> first available byte
 	pop	ds
 	clc
 	jmp	short ab9
@@ -130,7 +122,7 @@ fb1:	mov	cx,[si]
 	mov	ds,cx
 	sub	si,si
 	jmp	fb1
-fb2:	mov	ax,es:[CBLK_NEXT]
+fb2:	mov	ax,es:[BLK_NEXT]
 	mov	[si],ax
 	pop	ds
 fb9:	mov	ah,DOS_MEM_FREE
@@ -180,7 +172,7 @@ ENDPROC	freeAllBlocks
 ;
 DEFPROC	allocCode
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].CBLK_DEF
+	lea	si,[si].CBLKDEF
 	mov	cx,CBLKLEN
 	jmp	allocBlock
 ENDPROC	allocCode
@@ -202,7 +194,7 @@ ENDPROC	allocCode
 ;
 DEFPROC	freeCode
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].CBLK_DEF
+	lea	si,[si].CBLKDEF
 	jmp	freeAllBlocks
 ENDPROC	freeCode
 
@@ -221,7 +213,7 @@ ENDPROC	freeCode
 ;
 DEFPROC	allocText
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].TBLK_DEF
+	lea	si,[si].TBLKDEF
 	jmp	allocBlock
 ENDPROC	allocText
 
@@ -242,7 +234,7 @@ ENDPROC	allocText
 ;
 DEFPROC	freeText
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].TBLK_DEF
+	lea	si,[si].TBLKDEF
 	jmp	freeAllBlocks
 ENDPROC	freeText
 
@@ -263,13 +255,32 @@ ENDPROC	freeText
 ;
 DEFPROC	allocVars
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].VBLK_DEF
-	cmp	[si].BLK_NEXT,0
+	lea	si,[si].VBLKDEF
+	cmp	[si].BDEF_NEXT,0
 	jne	al9
 	mov	cx,VBLKLEN
 	jmp	allocBlock
 al9:	ret
 ENDPROC	allocVars
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; allocTempVars
+;
+; Allocates a temp var block and makes it active, returning previous chain.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	AX = segment of previous block chain
+;
+; Modifies:
+;	AX, CX, SI, DI, ES
+;
+DEFPROC	allocTempVars
+	ret
+ENDPROC	allocTempVars
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -288,7 +299,7 @@ ENDPROC	allocVars
 ;
 DEFPROC	freeVars
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].VBLK_DEF
+	lea	si,[si].VBLKDEF
 	jmp	freeAllBlocks
 ENDPROC	freeVars
 
@@ -309,7 +320,7 @@ ENDPROC	freeVars
 ;
 DEFPROC	allocStrSpace
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].SBLK_DEF
+	lea	si,[si].SBLKDEF
 	mov	cx,SBLKLEN
 	jmp	allocBlock
 ENDPROC	allocStrSpace
@@ -331,7 +342,7 @@ ENDPROC	allocStrSpace
 ;
 DEFPROC	freeStrSpace
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].SBLK_DEF
+	lea	si,[si].SBLKDEF
 	jmp	freeAllBlocks
 ENDPROC	freeStrSpace
 
@@ -348,7 +359,7 @@ ENDPROC	freeStrSpace
 ; string variable is just a far pointer to a location inside a string pool.
 ;
 ; Inputs:
-;	AL = CLS_VAR_*
+;	AH = var type (VAR_*)
 ;	CX = length of name
 ;	DS:SI -> variable name
 ;
@@ -362,19 +373,18 @@ DEFPROC	addVar
 	push	bx
 	push	di
 	push	es
-	and	al,VAR_TYPE		; convert CLS_VAR_* to VAR_TYPE
 	ASSERT	C,<cmp cx,256>		; validate size (and that CH is zero)
-	mov	bl,al			; save var type
+	mov	bh,ah			; save var type
 	mov	di,si			; save var name
 	call	findVar
 	jnc	av9
 
-	mov	ah,bl			; restore var type to AH
+	mov	ah,bh			; restore var type to AH
 	mov	si,di			; restore var name to SI
 	mov	di,ds:[PSP_HEAP]
-	mov	es,[di].VBLK_DEF.BLK_NEXT
+	mov	es,[di].VBLKDEF.BDEF_NEXT
 	ASSERT	STRUCT,es:[0],VBLK
-	mov	di,es:[VBLK_FREE]
+	mov	di,es:[BLK_FREE]
 
 	cmp	cx,VAR_NAMELEN
 	jbe	av0
@@ -392,7 +402,7 @@ av0:	push	di
 av1:	mov	dh,0
 	add	di,dx
 	inc	di			; one for the length byte
-	cmp	es:[VBLK_SIZE],di	; enough room?
+	cmp	es:[BLK_SIZE],di	; enough room?
 	pop	di
 	jb	av9			; no (carry set)
 ;
@@ -412,8 +422,8 @@ av3:	stosb
 	mov	al,0
 	mov	dx,di			; DX = offset of variable's data
 	rep	stosb
-	mov	es:[VBLK_FREE],di
-	cmp	es:[VBLK_SIZE],di
+	mov	es:[BLK_FREE],di
+	cmp	es:[BLK_SIZE],di
 	ASSERT	AE
 	je	av8
 	stosb				; ensure there's always a zero after
@@ -452,9 +462,9 @@ DEFPROC	findVar
 	jmp	short fv1
 
 fv0:	mov	di,ds:[PSP_HEAP]
-	mov	es,[di].VBLK_DEF.BLK_NEXT
+	mov	es,[di].VBLKDEF.BDEF_NEXT
 	ASSERT	STRUCT,es:[0],VBLK
-	mov	di,size VBLK_HDR	; ES:DI -> first var in block
+	mov	di,size VBLK		; ES:DI -> first var in block
 
 fv1:	mov	al,es:[di]
 	inc	di

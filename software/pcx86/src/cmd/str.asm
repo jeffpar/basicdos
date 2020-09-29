@@ -81,7 +81,7 @@ as1:	mov	dl,es:[di]
 ; If the target string does NOT reside in a string pool block, then it must
 ; always be copied.
 ;
-	cmp	es:[SBLK_SIG],SIG_SBLK
+	cmp	es:[BLK_SIG],SIG_SBLK
 	jne	as2			; target must be copied
 ;
 ; Check the target string to see if there's any (and enough) space after it.
@@ -90,7 +90,7 @@ as1:	mov	dl,es:[di]
 	mov	bx,di			; BX -> target also
 	add	di,cx
 	inc	di			; DI -> 1st byte after string
-	mov	cx,es:[SBLK_SIZE]
+	mov	cx,es:[BLK_SIZE]
 	sub	cx,di			; CX = max possible chars available
 	mov	ah,0			; AX = length of source string
 	cmp	cx,ax			; less than we need?
@@ -415,15 +415,15 @@ DEFPROC	findStrSpace
 	push	ss
 	pop	ds
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].SBLK_DEF
+	lea	si,[si].SBLKDEF
 	mov	ah,0
 
 fss1:	mov	cx,[si]
 	jcxz	fss6			; end of chain
 
 	mov	es,cx
-	mov	di,size SBLK_HDR	; ES:DI -> next location to check
-	mov	bx,es:[SBLK_SIZE]	; BX = limit
+	mov	di,size SBLK		; ES:DI -> next location to check
+	mov	bx,es:[BLK_SIZE]	; BX = limit
 
 fss2:	cmp	di,bx
 	jae	fss4
@@ -446,7 +446,7 @@ fss3:	add	di,dx
 
 fss4:	push	es
 	pop	ds
-	sub	si,si			; DS:SI -> SBLK_NEXT
+	sub	si,si			; DS:SI -> BLK_NEXT
 	jmp	fss1
 
 fss5:	sub	di,dx			; ES:DI -> available space

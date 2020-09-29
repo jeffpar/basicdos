@@ -101,27 +101,33 @@ KEYWORD_LANGUAGE  equ	60
 KEYWORD_SECONDARY equ	200		; secondary keywords (eg, THEN, ELSE)
 
 ;
-; Each of our block chains begins with a BLK_DEF, so that a common set of
-; block functions (eg, allocBlock) can work with any chain.
+; Each of our block chains begins with a BLKDEF, so that a common set of
+; block functions (eg, allocBlock) can work with any chain, and each block
+; begins with a BLKHDR.
 ;
-BLK_DEF		struc
-BLK_NEXT	dw	?		; next block seg, if any
-BLK_HDR		db	?		; eg, size CBLK_HDR
-BLK_SIG		db	?		; eg, SIG_CBLK
-BLK_DEF		ends
+BLKDEF		struc
+BDEF_NEXT	dw	?		; next block seg, if any
+BDEF_HDR	db	?		; eg, size CBLK
+BDEF_SIG	db	?		; eg, SIG_CBLK
+BLKDEF		ends
+
+BLKHDR		struc
+BLK_NEXT	dw	?		; 00h: next block seg, if any
+BLK_SIZE	dw	?		; 02h: size of block, in bytes
+BLK_FREE	dw	?		; 04h: offset of next free byte
+BLK_SIG		db	?		; 06h
+BLK_PAD		db	?		; 07h
+BLKHDR		ends
 
 ;
 ; Code Block (CBLK) definitions
 ;
-CBLK_HDR	struc
-CBLK_NEXT	dw	?		; 00h: next code block seg, if any
-CBLK_SIZE	dw	?		; 02h: size of code block, in bytes
-CBLK_FREE	dw	?		; 04h: offset of next free byte
-CBLK_SIG	db	?		; 06h
-CBLK_PAD	db	?		; 07h
+CBLK		struc
+CBLK_HDR	db size	BLKHDR dup (?)	; 00h
 CBLK_REFS	dw	?		; 08h: bottom of LBLREF stack, if any
-CBLK_HDR	ends
+CBLK		ends
 CBLKLEN		equ	4096		; default code block size
+CBLK_SIG	equ	BLK_SIG
 SIG_CBLK	equ	'C'
 
 ;
@@ -140,27 +146,21 @@ VAR_NEWLINE	equ	VAR_NONE OR 03h
 
 VAR_TSTR	equ	VAR_STR  OR 01h	; 4 bytes of ptr data (temp string ptr)
 
-VBLK_HDR	struc
-VBLK_NEXT	dw	?		; next var block seg, if any
-VBLK_SIZE	dw	?		; size of var block, in bytes
-VBLK_FREE	dw	?		; offset of next free byte
-VBLK_SIG	db	?
-VBLK_PAD	db	?
-VBLK_HDR	ends
+VBLK		struc
+VBLK_HDR	db size	BLKHDR dup (?)	; 00h
+VBLK		ends
 VBLKLEN		equ	1024		; default var block size
+VBLK_SIG	equ	BLK_SIG
 SIG_VBLK	equ	'V'
 
 ;
 ; String Block (SBLK) definitions
 ;
-SBLK_HDR	struc
-SBLK_NEXT	dw	?		; next string block seg, if any
-SBLK_SIZE	dw	?		; size of string block, in bytes
-SBLK_FREE	dw	?		; offset of next free byte
-SBLK_SIG	db	?
-SBLK_PAD	db	?
-SBLK_HDR	ends
+SBLK		struc
+SBLK_HDR	db size	BLKHDR dup (?)	; 00h
+SBLK		ends
 SBLKLEN		equ	2048		; default string block size
+SBLK_SIG	equ	BLK_SIG
 SIG_SBLK	equ	'P'
 
 ;
@@ -168,14 +168,11 @@ SIG_SBLK	equ	'P'
 ;
 ; TODO: Increase default TBLKLEN after we've finished testing the small size.
 ;
-TBLK_HDR	struc
-TBLK_NEXT	dw	?		; next text block seg, if any
-TBLK_SIZE	dw	?		; size of text block, in bytes
-TBLK_FREE	dw	?		; offset of next free byte
-TBLK_SIG	db	?
-TBLK_PAD	db	?
-TBLK_HDR	ends
+TBLK		struc
+TBLK_HDR	db size	BLKHDR dup (?)	; 00h
+TBLK		ends
 TBLKLEN		equ	1024		; default text block size
+TBLK_SIG	equ	BLK_SIG
 SIG_TBLK	equ	'T'
 
 ;
@@ -272,20 +269,20 @@ GENPUSHB macro	val
 CMD_ECHO	equ	01h		; set if ECHO is "on"
 
 ;
-; Define the heap as a structure.  The first few fields (ie, all the BLK_DEF
-; headers) are statically initialized, but the rest are left undefined so
+; Define the heap as a structure.  The first few fields (ie, all the BLKDEF
+; structures) are statically initialized, but the rest are left undefined so
 ; that they won't take up any space in the COM file.  The BASIC-DOS loader
 ; ensures that the remaining fields are zero-initialized.
 ;
 CMD_HEAP	struc
-CBLK_DEF	db	size BLK_DEF dup (?)
-VBLK_DEF	db	size BLK_DEF dup (?)
-SBLK_DEF	db	size BLK_DEF dup (?)
-TBLK_DEF	db	size BLK_DEF dup (?)
-INPUTBUF	db	size BUF_INPUT dup (?)
-TOKENBUF	db	size BUF_TOKEN dup (?)
-LINEBUF		db	256 dup (?)
-STACK		dw	512 dup (?)
+CBLKDEF		db size BLKDEF dup (?)	; code block chain
+VBLKDEF		db size BLKDEF dup (?)	; variable block chain
+SBLKDEF		db size BLKDEF dup (?)	; string block chain
+TBLKDEF		db size BLKDEF dup (?)	; text block chain
+INPUTBUF	db size BUFINP dup (?)
+TOKENBUF	db size BUFTOK dup (?)
+LINEBUF		db 256 dup (?)
+STACK		dw 512 dup (?)
 ORIG_SP		dw	?
 ORIG_BP		dw	?
 CON_COLS	db	?
@@ -297,9 +294,9 @@ RND_SEED	dd	?		; pseudo-random number seed
 INPUTOFF	dw	?		; input offset (defaults to INPUTBUF)
 TOKNEXT		dw	?
 TOKEND		dw	?
-DEFVARS		db	26 dup (?)	; default var types for all 26 letters
-FILENAME	db	16 dup (?)	; filename template ("X:XXXXXXXX.XXX")
-EXECDATA	db	size EPB dup (?); Exec Parameter Block
+DEFVARS		db 26 dup (?)		; default var types for all 26 letters
+FILENAME	db 16 dup (?)		; filename template ("X:XXXXXXXX.XXX")
+EXECDATA	db size EPB dup (?)	; Exec Parameter Block
 CMD_HEAP	ends
 
 	ASSERT	<((SIZE CMD_HEAP) AND 1)>,EQ,0

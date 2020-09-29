@@ -35,7 +35,7 @@ CODE    SEGMENT
 ; Inputs:
 ;	AL = GEN flags (eg, GEN_BATCH)
 ;	DS:BX -> heap
-;	DS:SI -> BUF_INPUT (or null to parse preloaded text)
+;	DS:SI -> BUFINP (or null to parse preloaded text)
 ;
 ; Outputs:
 ;	None
@@ -73,7 +73,7 @@ gc0:	mov	[genFlags],al
 
 	call	allocVars
 	jc	gce
-	mov	ax,[bx].VBLK_DEF.BLK_NEXT
+	mov	ax,[bx].VBLKDEF.BLK_NEXT
 	mov	[defVarSeg],ax		; stash the default VBLK segment
 	call	allocCode
 	jc	gce
@@ -83,11 +83,11 @@ gc0:	mov	[genFlags],al
 	mov	ax,OP_MOV_BP_SP		; make it easy for endProgram
 	stosw				; to reset the stack and return
 ;
-; ES:[CBLK_SIZE] is the absolute limit for pCode, but we also maintain
+; ES:[BLK_SIZE] is the absolute limit for pCode, but we also maintain
 ; another field, ES:[CBLK_REFS], as the bottom of a LBLREF table, and that
 ; is the real limit that the code generator must be mindful of.
 ;
-; Initialize the LBLREF table; it's empty when CBLK_REFS = CBLK_SIZE.
+; Initialize the LBLREF table; it's empty when CBLK_REFS = BLK_SIZE.
 ;
 	mov	es:[CBLK_REFS],cx
 
@@ -102,15 +102,15 @@ gc0:	mov	[genFlags],al
 gce:	call	memError
 	jmp	gc9
 
-gc1:	lea	si,[bx].TBLK_DEF
-gc2:	mov	cx,[si].TBLK_NEXT
+gc1:	lea	si,[bx].TBLKDEF
+gc2:	mov	cx,[si].BLK_NEXT
 	clc
 	jcxz	gc3b			; nothing left to parse
 	mov	ds,cx
 	ASSUME	DS:NOTHING
-	mov	si,size TBLK_HDR
+	mov	si,size TBLK
 
-gc3:	cmp	si,ds:[TBLK_FREE]
+gc3:	cmp	si,ds:[BLK_FREE]
 	jae	gc2			; advance to next block in chain
 	inc	[lineNumber]
 	lodsw
@@ -276,7 +276,7 @@ gcs2:	xchg	ax,dx			; AX = handler address
 
 gcs6:	call	dx			; call dedicated generator function
 
-gcs7:	mov	es:[CBLK_FREE],di
+gcs7:	mov	es:[BLK_FREE],di
 
 gcs8:	jnc	genCommands
 
@@ -368,10 +368,10 @@ ENDPROC	genColor
 ;
 ; Generate code for "DEF fn(parms)=expr".
 ;
-; Although we do rely on genExpr to generate the code for "expr", we first
+; We rely on genExpr to generate the code for "expr", which requires us to
 ; create a special "temp" var block containing all the variables in "parms",
 ; and then make sure when genExpr calls findVar, it searches the temp block
-; first.  Also, the temp vars
+; first.
 ;
 ; Note that we do NOT require the function name to begin with "FN" like
 ; MSBASIC does.
@@ -1071,8 +1071,8 @@ DEFPROC	genLet
 	call	getNextToken
 	jbe	gl9
 
-	mov	al,ah			; AL = CLS
-gl1:	call	addVar			; DX:SI -> var data
+	and	ah,VAR_TYPE		; convert CLS_VAR_* to VAR_*
+	call	addVar			; DX:SI -> var data
 	jc	gl9
 
 	cmp	dx,[codeSeg]		; constants cannot be "let"
@@ -1164,7 +1164,7 @@ DEFPROC	addLabel
 ; definition is unique.  We must also scan the table for any unresolved
 ; references and fix them up.
 ;
-	mov	cx,es:[CBLK_SIZE]
+	mov	cx,es:[BLK_SIZE]
 	mov	di,es:[CBLK_REFS]
 	sub	cx,di
 	shr	cx,1			; CX = # of words on LBLREF table
@@ -1227,7 +1227,7 @@ DEFPROC	findLabel
 	DPRINTF	'l',<"%#010P: line %d: finding label %d...",13,10>,lineNumber,ax
 
 	push	di
-	mov	cx,es:[CBLK_SIZE]
+	mov	cx,es:[BLK_SIZE]
 	mov	di,es:[CBLK_REFS]
 	sub	cx,di
 	jcxz	fl8			; table is empty

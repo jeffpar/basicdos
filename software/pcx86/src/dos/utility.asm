@@ -545,10 +545,10 @@ ENDPROC	mul_32_16
 ;	AL = 0Bh (TOKTYPE_GENERIC) or 0Ch (TOKTYPE_BASIC)
 ;	REG_CL = length of string
 ;	REG_DS:REG_SI -> string to "tokify"
-;	REG_ES:REG_DI -> BUF_TOKEN (filled in with token info)
+;	REG_ES:REG_DI -> BUFTOK (filled in with token info)
 ;
 ; Outputs:
-;	Carry clear if tokens found; AX = # tokens, BUF_TOKEN updated
+;	Carry clear if tokens found; AX = # tokens, BUFTOK updated
 ;	Carry set if no tokens found
 ;
 ; Modifies:
@@ -561,9 +561,9 @@ DEFPROC	utl_tokify,DOS
 	mov	bl,[bx].SCB_SWITCHAR
 	mov	[bp].TMP_BL,bl		; TMP_BL = SWITCHAR
 	mov	[bp].TMP_BH,al		; TMP_BH = TOKTYPE
-	mov	ds,[bp].REG_DS		; DS:SI -> BUF_INPUT
+	mov	ds,[bp].REG_DS		; DS:SI -> string
 	ASSUME	DS:NOTHING
-	mov	es,[bp].REG_ES		; ES:DI -> BUF_TOKEN
+	mov	es,[bp].REG_ES		; ES:DI -> BUFTOK
 	ASSUME	ES:NOTHING
 	mov	ch,0
 	mov	[bp].TMP_CX,cx		; TMP_CX = length
