@@ -122,12 +122,12 @@ CODE    SEGMENT
 
 	DEFLBL	PREDEF_VARS,byte
 	db	VAR_LONG + 6,"MAXINT"	; TODO: Should this be "MAXINT%"?
-	dd	7FFFFFFFh
+	dd	7FFFFFFFh		; largest positive value
 	db	VAR_FUNC + 4,"RND%"
-	db	VAR_LONG,1		; returns VAR_LONG, 1 parameter
-	db	VAR_LONG,1		; 1st parameter: VAR_LONG, 1=default
-	dw	offset fnRndLong,0
-	db	0
+	db	VAR_LONG,1		; returns VAR_LONG with 1 parameter
+	db	VAR_LONG,1		; 1st parameter: VAR_LONG, default=1
+	dw	offset fnRndLong,0	; 0 implies our own CODE segment
+	db	0			; terminator
 
 	DEFLBL	PREDEF_ZERO,byte
 	db	VAR_LONG
@@ -217,13 +217,15 @@ CODE	ENDS
 	NUMTOKENS KEYOP_TOKENS,KEYOP_TOTAL
 
 DATA	SEGMENT
-
+;
+; This is where non-constant data begins; it must be at the end of the file.
+;
 	DEFLBL	BEG_HEAP,word
-	BLKDEF	<0,size CBLK,SIG_CBLK>
-	BLKDEF	<0,size VBLK,SIG_VBLK>
-	BLKDEF	<0,size SBLK,SIG_SBLK>
-	BLKDEF	<0,size TBLK,SIG_TBLK>
-	COMHEAP	<size CMD_HEAP>,BEG_HEAP
+	BLKDEF	<0,CBLKLEN,size CBLK,SIG_CBLK>
+	BLKDEF	<0,VBLKLEN,size VBLK,SIG_VBLK>
+	BLKDEF	<0,SBLKLEN,size SBLK,SIG_SBLK>
+	BLKDEF	<0,TBLKLEN,size TBLK,SIG_TBLK>
+	COMHEAP	<size CMD_HEAP>,BEG_HEAP	; this must be the last item...
 
 DATA	ENDS
 

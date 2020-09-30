@@ -12,7 +12,7 @@
 CODE    SEGMENT
 	org	100h
 
-	EXTERNS	<allocText,freeText,genCode,freeCode,freeVars>,near
+	EXTERNS	<allocText,freeAllText,genCode,freeAllCode,freeAllVars>,near
 	EXTERNS	<writeStrCRLF>,near
 
 	EXTERNS	<KEYWORD_TOKENS>,word
@@ -225,7 +225,7 @@ m4b:	push	dx
 	je	m4c
 	mov	al,GEN_BATCH
 m4c:	call	cmdRunFlags		; if cmdRun returns normally
-	call	freeText		; automatically free all text blocks
+	call	freeAllText		; automatically free all text blocks
 m4d:	or	[heap].CMD_FLAGS,CMD_ECHO
 	jmp	m0
 ;
@@ -490,7 +490,7 @@ DEFPROC	ctrlc,FAR
 	mov	sp,[bx].ORIG_SP
 	mov	bp,[bx].ORIG_BP
 	call	closeFile
-	call	freeCode
+	call	freeAllCode
 	jmp	m0
 ENDPROC	ctrlc
 
@@ -1016,7 +1016,7 @@ lf1:	call	openFile		; open the specified file
 	jmp	lf1
 lf1a:	jmp	openError
 
-lf1b:	call	freeText		; free any pre-existing blocks
+lf1b:	call	freeAllText		; free any pre-existing blocks
 	test	dx,dx
 	jnz	lf2
 	add	ax,TBLKLEN
@@ -1145,7 +1145,7 @@ lf8:	mov	ax,[lineLabel]
 
 lf10:	PRINTF	<"Invalid file format",13,10,13,10>
 
-lf11:	call	freeText
+lf11:	call	freeAllText
 	stc
 
 lf12:	pushf
@@ -1168,8 +1168,8 @@ ENDPROC	cmdLoad
 ;	Any
 ;
 DEFPROC	cmdNew
-	call	freeText
-	call	freeVars
+	call	freeAllText
+	call	freeAllVars
 	ret
 ENDPROC	cmdNew
 
@@ -1210,7 +1210,7 @@ DEFPROC	cmdRun
 	DEFLBL	cmdRunFlags,near
 	cmp	al,GEN_BASIC
 	jne	cr1			; BASIC programs
-	call	freeVars		; always gets a fresh set of variables
+	call	freeAllVars		; always gets a fresh set of variables
 cr1:	sub	si,si
 	lea	bx,[heap]
 	ASSERT	Z,<cmp bx,ds:[PSP_HEAP]>

@@ -346,7 +346,7 @@ TOKTYPE_GENERIC	equ	1	; generic whitespace-separated parsing
 ; rather than in the interpreter.
 ;
 VAR_NONE	equ	000h
-VAR_PARM	equ	020h	; 1 byte of var data (the var type)
+VAR_PARM	equ	020h	; 2 bytes of var data (var type, parm offset)
 VAR_LONG	equ	040h	; 4 bytes of var data
 VAR_STR		equ	060h	; 4 bytes of ptr data (string ptr)
 VAR_SINGLE	equ	080h	; 4 bytes of var data

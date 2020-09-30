@@ -107,6 +107,7 @@ KEYWORD_SECONDARY equ	200		; secondary keywords (eg, THEN, ELSE)
 ;
 BLKDEF		struc
 BDEF_NEXT	dw	?		; next block seg, if any
+BDEF_SIZE	dw	?		; default size for block allocations
 BDEF_HDR	db	?		; eg, size CBLK
 BDEF_SIG	db	?		; eg, SIG_CBLK
 BLKDEF		ends

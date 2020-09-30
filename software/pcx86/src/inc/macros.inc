@@ -276,14 +276,16 @@ ENTER	macro
 	_ARGINVERT = (2 + _PROCTYPE + _ARGBYTES)
 	endm
 
-LEAVE	macro
+LEAVE	macro	nocheck
 	IF _LOCBYTES GT 0 OR _ARGBYTES GT 0
 	 IF _LOCBYTES GT 0
-	  IFDEF DEBUG
+	  IFB <nocheck>			;; some functions will leave data on
+	   IFDEF DEBUG			;; the stack, hence the nocheck option
 	push	ax
 	lea	ax,[bp-_LOCBYTES-4]	;; verify that BP wasn't altered
 	ASSERT	Z,<cmp ax,sp>
 	pop	ax
+	   ENDIF
 	  ENDIF
 	mov	sp,bp
 	 ENDIF
