@@ -1,7 +1,6 @@
 .DS_Store
 .history
 .sass-cache
-.vscode
 archive
 /_site
 /node_modules

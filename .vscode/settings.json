@@ -1,0 +1,55 @@
+{
+  "editor.rulers": [79],
+  "editor.acceptSuggestionOnCommitCharacter": false,
+  "editor.quickSuggestions": {
+      "other": false,
+      "comments": false,
+      "strings": false
+  },
+  "[javascript]": {
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true
+  },
+  "[json]": {
+    "editor.insertSpaces": true,
+    "editor.tabSize": 2,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true
+  },
+  "[masm]": {
+    "editor.insertSpaces": false,
+    "editor.tabSize": 8,
+    "files.eol": "\r\n",
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true
+  },
+  "[vb]": {
+    "editor.insertSpaces": false,
+    "editor.tabSize": 8,
+    "files.eol": "\r\n",
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true
+  },
+  "[bat]": {
+    "editor.insertSpaces": false,
+    "editor.tabSize": 8,
+    "files.eol": "\r\n"
+  },
+  "[makefile]": {
+    "editor.insertSpaces": false,
+    "editor.tabSize": 8,
+    "files.eol": "\r\n"
+  },
+  "[plaintext]": {
+    "editor.insertSpaces": false,
+    "editor.tabSize": 8,
+    "files.eol": "\r\n"
+  },
+  "editor.smoothScrolling": true
+}

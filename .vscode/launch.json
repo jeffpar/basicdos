@@ -1,0 +1,43 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+        "type": "chrome",
+        "request": "launch",
+        "name": "BASIC-DOS Demo",
+        "url": "http://localhost:4040/maplebar/",
+        "webRoot": "${workspaceFolder}"
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "BASIC-DOS Demo with Dual Monitors",
+      "url": "http://localhost:4040/maplebar/dual/",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "BASIC-DOS Demo with Dual Monitors and Sessions",
+      "url": "http://localhost:4040/maplebar/dual/multi/",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "BASIC-DOS Dev Machine",
+      "url": "http://localhost:4040/maplebar/dev/",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "BASIC-DOS Dev+Dual Monitors",
+      "url": "http://localhost:4040/maplebar/dual/dev/",
+      "webRoot": "${workspaceFolder}"
+    },
+  ]
+}
