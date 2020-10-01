@@ -214,7 +214,7 @@ ENDPROC	shrinkCode
 ; freeCode
 ;
 ; Inputs:
-;	ES -> code
+;	ES -> code block
 ;
 ; Outputs:
 ;	Carry clear if successful, set if error
@@ -248,6 +248,44 @@ DEFPROC	freeAllCode
 	lea	si,[si].CBLKDEF
 	jmp	freeAllBlocks
 ENDPROC	freeAllCode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; allocFunc
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	If successful, carry clear, ES:DI -> first available byte, CX = length
+;
+; Modifies:
+;	AX, CX, SI, DI, ES
+;
+DEFPROC	allocFunc
+	mov	si,ds:[PSP_HEAP]
+	lea	si,[si].FBLKDEF
+	jmp	allocBlock
+ENDPROC	allocFunc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; freeFunc
+;
+; Inputs:
+;	ES -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	AX, CX, SI, DI, ES
+;
+DEFPROC	freeFunc
+	mov	si,ds:[PSP_HEAP]
+	lea	si,[si].FBLKDEF
+	jmp	freeBlock
+ENDPROC	freeFunc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -394,7 +432,7 @@ ENDPROC	freeTempVars
 ;
 ; freeAllVars
 ;
-; Frees all VBLKS and resets the chain.
+; Free all FBLKs and VBLKs.
 ;
 ; Inputs:
 ;	None
@@ -406,9 +444,14 @@ ENDPROC	freeTempVars
 ;	CX, SI
 ;
 DEFPROC	freeAllVars
+	call	freeStrSpace
+	mov	si,ds:[PSP_HEAP]
+	lea	si,[si].FBLKDEF
+	call	freeAllBlocks
 	mov	si,ds:[PSP_HEAP]
 	lea	si,[si].VBLKDEF
-	jmp	freeAllBlocks
+	call	freeAllBlocks
+	ret
 ENDPROC	freeAllVars
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -629,12 +672,8 @@ fv5:	pop	di
 fv6:	mov	dl,al
 	mov	dh,0
 	add	di,dx			; DI -> past var name
-	push	si
-	mov	si,di
-	mov	dx,es
 	call	getVarLen
 	add	di,ax
-	pop	si
 	jmp	fv1			; keep looking
 
 fv8:	mov	si,dx
@@ -673,8 +712,8 @@ ENDPROC	getVar
 ; getVarLen
 ;
 ; Inputs:
-;	AH = var type (from addVar or findVar)
-;	DX:SI -> var data (from addVar or findVar)
+;	AH = var type
+;	ES:DI -> var data
 ;
 ; Outputs:
 ;	AX = length of var data
@@ -684,8 +723,6 @@ ENDPROC	getVar
 ;
 DEFPROC	getVarLen
 	push	cx
-	push	ds
-	mov	ds,dx
 	sub	cx,cx
 	cmp	ah,VAR_PARM
 	jb	gvl9
@@ -699,12 +736,11 @@ DEFPROC	getVarLen
 	add	cx,4			; VAR_DOUBLE is 8 bytes
 	jmp	short gvl9
 gvl1:	add	cx,4			; VAR_FUNC also has 4-byte addr
-	mov	al,[si+1]		; AL = VAR_FUNC or VAR_ARRAY length
+	mov	al,es:[di+1]		; AL = VAR_FUNC or VAR_ARRAY length
 	cbw
 	add	ax,ax
 	add	cx,ax
 gvl9:	xchg	ax,cx			; AX = length of var data
-	pop	ds
 	pop	cx
 	ret
 ENDPROC	getVarLen
@@ -735,18 +771,35 @@ DEFPROC	removeVar
 	cmp	di,dx			; predefined variable?
 	stc
 	je	rv8			; yes
+
 	push	es
 	push	cx
-	call	getVarLen		; AX = length of var data at DX:SI
 	mov	es,dx
 	mov	di,si			; ES:DI -> var data
+	mov	dh,ah			; DH = var type
+	call	getVarLen		; AX = length of var data at ES:DI
 	inc	cx			; CX = total length of name
-	sub	di,cx			; ES:DI -> var name
-	add	cx,ax			; CX = total length (name + data)
-	mov	al,VAR_DEAD
+	sub	di,cx			; ES:DI -> name name
+	add	cx,ax			; CX = total length of name + data
+
+	cmp	dh,VAR_FUNC
+	jne	rv1
+	push	cx
+	push	es
+	push	di
+	add	di,cx
+	mov	es,es:[di-2]
+	call	freeFunc		; ES = function segment
+	ASSERT	NC
+	pop	di
+	pop	es
+	pop	cx
+
+rv1:	mov	al,VAR_DEAD
 	rep	stosb
 	pop	cx
 	pop	es
+
 rv8:	pop	di
 rv9:	pop	si
 	ret

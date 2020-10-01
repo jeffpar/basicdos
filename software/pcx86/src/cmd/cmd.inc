@@ -132,6 +132,17 @@ CBLK_SIG	equ	BLK_SIG
 SIG_CBLK	equ	'C'
 
 ;
+; Function Block (FBLK) definitions
+;
+FBLK		struc
+FBLK_HDR	db size	BLKHDR dup (?)	; 00h
+FBLK_REFS	dw	?		; 08h: bottom of LBLREF stack, if any
+FBLK		ends
+FBLKLEN		equ	1024		; default code block size
+FBLK_SIG	equ	BLK_SIG
+SIG_FBLK	equ	'F'
+
+;
 ; Variable Block (VBLK) definitions
 ;
 ; VAR_TYPE (E0h) encompasses all the variable types in dosapi.inc
@@ -163,7 +174,7 @@ SBLK_HDR	db size	BLKHDR dup (?)	; 00h
 SBLK		ends
 SBLKLEN		equ	2048		; default string block size
 SBLK_SIG	equ	BLK_SIG
-SIG_SBLK	equ	'P'
+SIG_SBLK	equ	'S'
 
 ;
 ; Text Block (TBLK) definitions
@@ -278,6 +289,7 @@ CMD_ECHO	equ	01h		; set if ECHO is "on"
 ;
 CMD_HEAP	struc
 CBLKDEF		db size BLKDEF dup (?)	; code block chain
+FBLKDEF		db size BLKDEF dup (?)	; function block chain
 VBLKDEF		db size BLKDEF dup (?)	; variable block chain
 SBLKDEF		db size BLKDEF dup (?)	; string block chain
 TBLKDEF		db size BLKDEF dup (?)	; text block chain
