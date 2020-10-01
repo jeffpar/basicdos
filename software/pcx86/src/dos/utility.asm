@@ -628,7 +628,7 @@ tf6a:	mov	al,ch			; AL = previous classification
 	jne	tf6b
 	push	ax
 	mov	ah,0
-	DPRINTF	't',<"token: '%.*ls' (%#04x)",13,10>,cx,dx,ds,ax
+	DPRINTF	't',<"token: '%.*ls' (%#04x)\r\n">,cx,dx,ds,ax
 	pop	ax
 tf6b:
 	ENDIF	; MAXDEBUG

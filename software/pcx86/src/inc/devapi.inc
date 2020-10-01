@@ -91,11 +91,12 @@ CHR_CTRLW	equ	17h
 CHR_CTRLX	equ	18h	; alias for SCAN_DOWN
 CHR_CTRLY	equ	19h
 CHR_CTRLZ	equ	1Ah
-CHR_ESC		equ	1Bh
+CHR_ESCAPE	equ	1Bh
 CHR_SPACE	equ	20h
 CHR_DQUOTE	equ	22h
 CHR_SQUOTE	equ	27h
 CHR_SLASH	equ	2Fh
 CHR_LT		equ	3Ch
 CHR_GT		equ	3Eh
+CHR_BSLASH	equ	5Ch
 CHR_DEL		equ	7Fh	; alias for SCAN_DEL

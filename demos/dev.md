@@ -15,12 +15,10 @@ machines:
 ---
 
 The PC XT below serves as both a development and test machine.  The diskette
-in drive A: will boot a recent version of BASIC-DOS, unless you press **Esc**
-to boot from drive C:.  Even though hard disks didn't exist when BASIC-DOS
-was "created," we knew that IBM PCs would eventually have them, so if the boot
-sector detects a hard disk, it will prompt you; otherwise, it will boot straight
-into BASIC-DOS.  All the other [BASIC-DOS Demos](../) run on floppy-based IBM
-PCs, so no prompt will appear.
+in drive A: will load a recent version of BASIC-DOS, unless the boot sector
+detects a hard disk and you press **Esc** at the boot prompt.  All the
+[BASIC-DOS Demos](../) run on original floppy-based IBM PCs, so no prompt will
+appear.
 
 This machine contains two 10Mb hard disks: drive C: contains all the tools
 used to build BASIC-DOS, and drive D: contains all the source code.

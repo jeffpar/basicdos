@@ -1580,7 +1580,7 @@ pl7:	mov	[bx],al
 	test	al,ac
 	jnz	pl8
 	xchg	al,ah
-	DPRINTF	'k',<"null character, scan code %#04x",13,10>,ax
+	DPRINTF	'k',<"null character, scan code %#04x\r\n">,ax
 	ENDIF
 pl8:	inc	bx
 	mov	es:[di].DDPRW_ADDR.OFF,bx

@@ -32,14 +32,15 @@
     "editor.insertSpaces": false,
     "editor.tabSize": 8,
     "files.eol": "\r\n",
-    "files.trimTrailingWhitespace": true,
     "files.insertFinalNewline": true,
     "files.trimFinalNewlines": true
   },
   "[bat]": {
     "editor.insertSpaces": false,
     "editor.tabSize": 8,
-    "files.eol": "\r\n"
+    "files.eol": "\r\n",
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true
   },
   "[makefile]": {
     "editor.insertSpaces": false,

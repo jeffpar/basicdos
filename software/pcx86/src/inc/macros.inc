@@ -196,7 +196,7 @@ name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 ;
 ; An effort is made to ensure all WORD and DWORD LOCVARs are evenly aligned;
 ; this is easy to do since the ENTER macro is in complete control of how much
-; stack space to allocate.  However, no alignment adjustments are made for
+; stack space to allocate.  However, no alignment adjustments can be made for
 ; ARGVAR definitions, so if you define any BYTE arguments, make sure all bytes
 ; on the argument side of the stack are accounted for.
 ;
@@ -323,8 +323,7 @@ ERROR	macro	msg
 ; macro to include assertion checks to verify that the specified pointer
 ; actually points to a structure of the specified type.
 ;
-; Both macros use the word "STRUCT" rather than "STRUC" to avoid confusing
-; MASM.
+; The macros use the word "STRUCT" rather than "STRUC" to avoid confusing MASM.
 ;
 DBGINIT	macro	type,ptr,str
 	IFDEF DEBUG
@@ -353,8 +352,8 @@ DBGINIT	macro	type,ptr,str
 ;	ASSERT	Z		; assert that Z is set
 ;	ASSERT	Z,<test dx,dx>	; assert that DX is zero
 ;
-; Run-time assertions are present only in DEBUG builds, and any optional
-; instruction is wrapped with PUSHF/POPF to prevent side-effects.
+; Run-time assertions are present only in DEBUG builds, and are wrapped with
+; PUSHF/POPF if an optional instruction is used.
 ;
 ASSERT	macro	cond,op,value
 	IFNB	<value>
@@ -383,7 +382,7 @@ ASSERT	macro	cond,op,value
 	endm
 
 ;
-; DBGBRK generates an INT3 (OP_INT3) that's preceded by INT 06h, so if the
+; DBGBRK generates an INT3 (OP_INT03) that's preceded by INT 06h, so if the
 ; PCjs debugger isn't present, the built-in INT 06h handler will skip over it.
 ;
 DBGBRK	macro
@@ -455,7 +454,7 @@ rm2:
 ; with an unused INT 21h function # in AH and the utility function # in AL,
 ; but utility functions like DOS_UTL_PRINTF that expect data bytes to follow
 ; the INT instruction will not work with code that "hooks" INT 21h.  So we now
-; use a dedicated interrupt that expects the utility function in AH.
+; use a dedicated interrupt that expects the utility function # in AH.
 ;
 DOSUTIL	macro	func
 	mov	ah,func
@@ -482,7 +481,7 @@ DPRINTF	macro	letter,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	LOCAL	D1,D2
 	IFDEF DEBUG
 	pushf			;; CCALL may alter flags
-	push	ax		;; DOS_UTL_PRINTF alters AX
+	push	ax		;; DOS_UTL_DPRINTF alters AX
 	CCALL	DOS_UTL_DPRINTF,<letter,format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	test	al,al		;; if DOS_UTL_DPRINTF returns non-zero in AL
 	pop	ax		;; jump to the DBGBRK

@@ -411,7 +411,7 @@ ws2:	mov	ah,TIME_GETTICKS
 	ELSE
 	mov	ah,KBD_READ
 	int	INT_KBD
-	cmp	al,CHR_ESC	; escape key?
+	cmp	al,CHR_ESCAPE	; escape key?
 	xchg	cx,ax		; CL = char code, CH = scan code
 	jne	ws9
 	sub	cx,cx		; yes, zero CX

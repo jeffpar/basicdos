@@ -85,10 +85,10 @@ gc0:	mov	[genFlags],al
 	stosw				; to reset the stack and return
 ;
 ; ES:[BLK_SIZE] is the absolute limit for pCode, but we also maintain
-; another field, ES:[CBLK_REFS], as the bottom of a LBLREF table, and that
-; is the real limit that the code generator must be mindful of.
+; ES:[CBLK_REFS] as the bottom of the block's LBLREF table, and that is
+; the real limit that the code generator must be mindful of.
 ;
-; Initialize the LBLREF table; it's empty when CBLK_REFS = BLK_SIZE.
+; Initialize the block's LBLREF table; it's empty when CBLK_REFS = BLK_SIZE.
 ;
 	mov	es:[CBLK_REFS],cx
 
@@ -127,6 +127,7 @@ gc3a:	lodsb				; AL = length byte
 ; code to print the line, unless it starts with a '@', in which case, skip
 ; over the '@'.
 ;
+	DPRINTF	'b',<"%.*ls\r\n">,cx,si,ds
 	cmp	byte ptr [si],'@'
 	jne	gc3c
 	inc	si
@@ -140,7 +141,7 @@ gc3b:	jmp	short gc6
 ; before every line.
 ;
 ; TODO: Come up with a method for shutting this off except when really needed;
-; GEN_ECHO is not it, because it's always TRUE for BAT files and always FALSE
+; GEN_ECHO is not it, because that's always TRUE for BAT files and always FALSE
 ; for BAS files.
 ;
 gc3c:	test	[genFlags],GEN_ECHO
@@ -384,6 +385,12 @@ ENDPROC	genColor
 ; Note that we do NOT require the function name to begin with "FN" like
 ; MSBASIC does.
 ;
+; TODO: We shouldn't allow DEF to redefine a function that already exists,
+; but since BAT files inherit existing var blocks, we permit it (see call to
+; removeVar).  Unfortunately, all removeVar does is mark the existing var
+; data as DEAD, and addVar doesn't currently reuse DEAD space, so memory will
+; grow until you force the var blocks to be deleted.
+;
 ; Inputs:
 ;	DS:BX -> TOKLETs
 ;	ES:DI -> code block
@@ -416,7 +423,7 @@ DEFPROC	genDef
 ;
 ; We're going to save the VAR_FUNC var info on the stack until we have a
 ; complete description for addVar; we already have the return type (AH), but
-; we still need the parameter info and the generated code for the expression.
+; we also need the parameter count and the generated code for the expression.
 ;
 	sub	dx,dx
 	mov	[segVars],dx
@@ -771,15 +778,15 @@ ge1:	mov	al,CLS_ANY		; CLS_NUM, CLS_SYM, CLS_VAR, CLS_STR
 	call	getNextToken
 	jbe	ge2x
 	inc	[exprToks]
-	cmp	ah,CLS_SYM
+	cmp	ah,CLS_SYM		; 20h?
 	je	ge1b			; process CLS_SYM below
 ;
 ; Non-operator (non-symbol) cases: keywords, variables, strings, and numbers.
 ;
 	mov	byte ptr [exprPrevOp],-1; invalidate prevOp (intervening token)
-	cmp	ah,CLS_KEYWORD
+	cmp	ah,CLS_KEYWORD		; 30h?
 	je	ge2x			; keywords not allowed in expressions
-	cmp	ah,CLS_VAR		; variable with type?
+	cmp	ah,CLS_VAR		; 10h? (variable with type?)
 	ASSERT	NE			; (type should be fully qualified now)
 	ja	ge2			; yes
 ;
@@ -810,8 +817,8 @@ ge1b:	jmp	short ge4
 ; with the expression type.
 ;
 ge2:	call	findVar
-	cmp	ah,VAR_PARM
-	jne	ge2a
+	cmp	ah,VAR_PARM		; 20h?
+	jne	ge2a			; no
 ;
 ; VAR_PARM variables are present only in temp var blocks created by genDef,
 ; so genDef must have called us with a parameter count.
@@ -820,7 +827,7 @@ ge2:	call	findVar
 	call	genFuncParm
 	jmp	short ge2b
 
-ge2a:	cmp	ah,VAR_FUNC
+ge2a:	cmp	ah,VAR_FUNC		; C0h?
 	jne	ge2c
 	call	genFuncExpr		; process the function expression
 ge2b:	jnc	ge2d			; AH = return type
@@ -907,7 +914,7 @@ ge5b:	pop	cx			; pop the evaluator as well
 	jcxz	ge6c			; no evaluator (eg, left paren)
 
 	IFDEF MAXDEBUG
-	DPRINTF	'o',<"op %c, func @%08lx",13,10>,dx,cx,cs
+	DPRINTF	'o',<"op %c, func @%08lx\r\n">,dx,cx,cs
 	ENDIF
 
 	GENCALL	cx			; and generate call
@@ -950,7 +957,7 @@ ge8:	pop	cx
 
 	IFDEF MAXDEBUG
 	pop	ax
-	DPRINTF	'o',<"op %c, func @%08lx...",13,10>,cx,ax,cs
+	DPRINTF	'o',<"op %c, func @%08lx...\r\n">,cx,ax,cs
 	xchg	cx,ax
 	ELSE
 	pop	cx			; CX = evaluator
@@ -1382,7 +1389,7 @@ ENDPROC	genPrint
 ;	CX, DX
 ;
 DEFPROC	addLabel
-	DPRINTF	'l',<"%#010P: line %d: adding label %d...",13,10>,lineNumber,ax
+	DPRINTF	'l',<"%#010P: line %d: adding label %d...\r\n">,lineNumber,ax
 
 	mov	dx,di			; DX = current code gen offset
 	test	dx,LBL_RESOLVE		; is this a label reference?
@@ -1452,7 +1459,7 @@ ENDPROC	addLabel
 ;	AX, CX, DX
 ;
 DEFPROC	findLabel
-	DPRINTF	'l',<"%#010P: line %d: finding label %d...",13,10>,lineNumber,ax
+	DPRINTF	'l',<"%#010P: line %d: finding label %d...\r\n">,lineNumber,ax
 
 	push	di
 	mov	cx,es:[BLK_SIZE]
@@ -1654,7 +1661,7 @@ ENDPROC	genPushImmByteAL
 ;
 DEFPROC	genPushImmLong
 	IFDEF MAXDEBUG
-	DPRINTF	'o',<"num %ld",13,10>,cx,dx
+	DPRINTF	'o',<"num %ld\r\n">,cx,dx
 	ENDIF
 	xchg	ax,dx			; AX has original DX
 	xchg	ax,cx			; AX contains CX, CX has original DX

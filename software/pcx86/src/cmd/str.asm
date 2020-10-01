@@ -46,7 +46,7 @@ CODE    SEGMENT
 DEFPROC	evalAddStr,FAR
 	ARGVAR	pTarget,dword
 	ARGVAR	pSource,dword
-	DPRINTF	's',<"evalAddStr",13,10>
+	DPRINTF	's',<"evalAddStr\r\n">
 	ENTER
 	push	ds
 	lds	si,[pSource]
@@ -331,7 +331,7 @@ ENDPROC	evalGEStr
 ;	AX, CX, DI
 ;
 DEFPROC	freeStr
-	DPRINTF	's',<"freeStr: @%#08lx",13,10>,di,es
+	DPRINTF	's',<"freeStr: @%#08lx\r\n">,di,es
 	mov	cl,es:[di]		; CL = string length
 	mov	ch,0			; CX = length
 	inc	cx			; CX = length + length byte
@@ -357,7 +357,7 @@ ENDPROC	freeStr
 DEFPROC	setStr,FAR
 	ARGVAR	pTargetVar,dword
 	ARGVAR	pSource,dword
-	DPRINTF	's',<"setStr",13,10>
+	DPRINTF	's',<"setStr\r\n">
 	ENTER
 	les	di,[pTargetVar]
 ;
@@ -409,7 +409,7 @@ ENDPROC	setStr
 ;	AX, BX, CX, DI, ES
 ;
 DEFPROC	findStrSpace
-	DPRINTF	's',<"findStrSpace: %d bytes",13,10>,dx
+	DPRINTF	's',<"findStrSpace: %d bytes\r\n">,dx
 	push	si
 	push	ds
 	push	ss

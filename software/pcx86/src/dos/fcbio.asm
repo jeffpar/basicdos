@@ -190,7 +190,7 @@ fr1:	call	mul_32_16		; DX:AX = DX:AX * CX
 	mov	si,[scb_active]
 	les	dx,[si].SCB_DTA		; ES:DX -> DTA
 
-	DPRINTF	'f',<"fcb_rread: requesting %#x bytes from %#lx into %04x:%04x",13,10>,cx,[bx].SFB_CURPOS.LOW,[bx].SFB_CURPOS.HIW,es,dx
+	DPRINTF	'f',<"fcb_rread: requesting %#x bytes from %#lx into %04x:%04x\r\n">,cx,[bx].SFB_CURPOS.LOW,[bx].SFB_CURPOS.HIW,es,dx
 
 	push	cx
 	push	dx
@@ -216,7 +216,7 @@ fr7:	cmp	ax,cx
 	mov	dl,3			; DL = 03h (EOF, partial record)
 fr8:	mov	[bp].REG_AL,dl		; REG_AL = return code
 
-	DPRINTF	'f',<"fcb_rread: returned %#.2x",13,10>,dx
+	DPRINTF	'f',<"fcb_rread: returned %#.2x\r\n">,dx
 
 fr9:	ret
 ENDPROC	fcb_rread

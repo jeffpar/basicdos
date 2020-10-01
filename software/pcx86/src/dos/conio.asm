@@ -213,7 +213,7 @@ ti3:	cmp	al,CHR_BACKSPACE
 	jc	ti2a			; carry set if there's a char to delete
 	jmp	ti1
 
-ti4:	cmp	al,CHR_ESC
+ti4:	cmp	al,CHR_ESCAPE
 	jne	ti5
 ti4a:	call	con_end
 	call	con_erase

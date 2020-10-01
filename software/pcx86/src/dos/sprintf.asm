@@ -8,6 +8,7 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	include	macros.inc
+	include	devapi.inc
 	include	dos.inc
 
 DOS	segment word public 'CODE'
@@ -148,13 +149,13 @@ ENDPROC itoa
 ; A semi-CDECL-style calling convention is assumed, where all parameters
 ; EXCEPT for the format string are pushed from right to left, so that the
 ; first (left-most) parameter is the last one pushed.  The format string
-; is stored in the CODE segment following the INT 21h, which we automatically
+; is stored in the code segment following the INT 21h, which we automatically
 ; skip, and the next instruction should be an "ADD SP,N*2", assuming N word
 ; parameters.
 ;
 ; When printing 32-bit ("long") values, push the high word first, then the
 ; low word; similarly, when pushing far ("long") pointers, push the segment
-; first, then the offset.  When using the PRINTF macro, list the low word
+; first, then the offset.  When using the CCALL macro, list the low word
 ; first, then the high word; the macro takes care of pushing the parameters
 ; in reverse order.
 ;
@@ -215,7 +216,35 @@ DEFPROC	sprintf,DOS
 	push	bx			; save original format string address
 pf1:	mov	al,[bx]			; AL = next format character
 	inc	bx
-	test	al,al
+;
+; Support for so-called "escape sequences" (ie, backslash-prefixed control
+; characters) is limited and not really encouraged, in part because it's just
+; as easy to mix in control characters directly and use 1 byte instead of 2,
+; but they're convenient for things like DPRINTF, where space isn't a concern.
+;
+; Anything other than \b, \e, \r, \n, and \t will simply output the character
+; following the backslash -- which is exactly what you want in the case of \\.
+;
+	cmp	al,'\'
+	jne	pf1z
+	mov	al,[bx]
+	inc	bx
+	cmp	al,'b'
+	jne	pf1a
+	mov	al,CHR_BACKSPACE	; \b becomes 8
+pf1a:	cmp	al,'e'
+	jne	pf1b
+	mov	al,CHR_ESCAPE		; \e becomes 27 (my own "invention")
+pf1b:	cmp	al,'r'
+	jne	pf1c
+	mov	al,CHR_RETURN		; \r becomes 13
+pf1c:	cmp	al,'n'
+	jne	pf1d
+	mov	al,CHR_LINEFEED		; \n becomes 10
+pf1d:	cmp	al,'t'
+	jne	pf1z
+	mov	al,CHR_TAB		; \t becomes 9
+pf1z:	test	al,al
 	jz	pf3			; end of format string
 	cmp	al,'%'			; formatter prefix?
 	je	pfp			; yes
@@ -512,7 +541,7 @@ pfw:	push	ds
 	push	si
 	push	cs
 	pop	ds
-	call	day_of_week		; convert AX from DATE to string pointer
+	call	day_of_week		; convert AX from DATE to string ptr
 	mov	al,0
 	call	strlen			; AX = length
 	jmp	short pfs2a		; jump into the string code now
@@ -582,7 +611,7 @@ pfs5:	xchg	cx,ax
 	pop	ds
 	jmp	pf1			; all done with %s
 
-pf8:	pop	ax			; restore original format string address
+pf8:	pop	ax			; restore original format string addr
 	sub	bx,ax			; BX = length of format string + 1
 	sub	di,[bp].SPF_START
 	xchg	ax,di			; AX = # of characters

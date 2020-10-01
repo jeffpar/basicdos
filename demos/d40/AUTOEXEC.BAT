@@ -3,6 +3,3 @@ COLOR 7,1
 DATE /P
 TIME /P
 VER
-DEF ADD(A,B)=A+B
-PRINT "RND%(10) ="; RND%(10)
-PRINT "2 + 2 ="; ADD(2,2)

@@ -494,6 +494,8 @@ DEFPROC	addVar
 	ASSERT	STRUCT,es:[0],VBLK
 	mov	di,es:[BLK_FREE]
 
+	DPRINTF	'b',<"adding variable %.*ls\r\n">,cx,si,ds
+
 	sub	dx,dx
 	cmp	cx,VAR_NAMELEN
 	jbe	av1
@@ -571,8 +573,8 @@ ENDPROC	addVar
 ;	AX, DX, SI
 ;
 DEFPROC	findVar
-	push	di
 	push	es
+	push	di
 
 	push	cs
 	pop	es
@@ -586,8 +588,9 @@ fv0:	mov	di,ds:[PSP_HEAP]
 
 fv1:	mov	al,es:[di]
 	inc	di
-	test	al,al			; end of variables in the block?
-	jnz	fv2			; no
+	cmp	al,VAR_DEAD		; end of variables in the block?
+	je	fv1			; no, dead byte
+	ja	fv2			; no, existing variable
 	mov	ax,cs			; TODO: integrate PREDEF_VARS and
 	mov	dx,es			; and the rest of the var blocks better
 	cmp	ax,dx
@@ -637,8 +640,8 @@ fv6:	mov	dl,al
 fv8:	mov	si,dx
 	mov	dx,es			; DX:SI -> var data
 
-fv9:	pop	es
-	pop	di
+fv9:	pop	di
+	pop	es
 	ret
 ENDPROC	findVar
 
@@ -683,8 +686,10 @@ DEFPROC	getVarLen
 	push	cx
 	push	ds
 	mov	ds,dx
-	mov	cx,2
+	sub	cx,cx
 	cmp	ah,VAR_PARM
+	jb	gvl9
+	mov	cx,2
 	je	gvl9			; VAR_PARM is always 2 bytes
 	cmp	ah,VAR_FUNC
 	jae	gvl1
@@ -720,28 +725,29 @@ ENDPROC	getVarLen
 ;	AX, DX
 ;
 DEFPROC	removeVar
+	DPRINTF	'b',<"removing variable %.*ls\r\n">,cx,si,ds
 	push	si
 	call	findVar			; does var exist?
 	cmc
 	jnc	rv9			; exit if not
-	mov	ax,cs
-	cmp	ax,dx			; predefined variable?
+	push	di			; AH = var type, DX:SI -> var data
+	mov	di,cs
+	cmp	di,dx			; predefined variable?
 	stc
-	je	rv9			; yes
-	call	getVarLen		; AX = length of var data at DX:SI
-	push	cx
-	push	di
+	je	rv8			; yes
 	push	es
+	push	cx
+	call	getVarLen		; AX = length of var data at DX:SI
 	mov	es,dx
 	mov	di,si			; ES:DI -> var data
 	inc	cx			; CX = total length of name
 	sub	di,cx			; ES:DI -> var name
 	add	cx,ax			; CX = total length (name + data)
-	mov	al,0
+	mov	al,VAR_DEAD
 	rep	stosb
-	pop	es
-	pop	di
 	pop	cx
+	pop	es
+rv8:	pop	di
 rv9:	pop	si
 	ret
 ENDPROC	removeVar

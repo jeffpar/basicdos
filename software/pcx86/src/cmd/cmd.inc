@@ -141,9 +141,10 @@ VAR_NAMELEN	equ	01Fh		; max chars allowed in var name
 ;
 ; Internal variable types (used by printArgs)
 ;
-VAR_SEMI	equ	VAR_NONE OR 01h
-VAR_COMMA	equ	VAR_NONE OR 02h
-VAR_NEWLINE	equ	VAR_NONE OR 03h
+VAR_DEAD	equ	VAR_NONE OR 01h
+VAR_SEMI	equ	VAR_NONE OR 02h
+VAR_COMMA	equ	VAR_NONE OR 03h
+VAR_NEWLINE	equ	VAR_NONE OR 04h
 
 VAR_TSTR	equ	VAR_STR  OR 01h	; 4 bytes of ptr data (temp string ptr)
 
