@@ -12,7 +12,8 @@
 
 CODE    SEGMENT
 
-	EXTERNS	<allocCode,shrinkCode,freeCode,freeAllCode,allocVars>,near
+	EXTERNS	<allocCode,shrinkCode,freeCode,freeAllCode>,near
+	EXTERNS	<allocVars,allocFunc,freeFunc>,near
 	EXTERNS	<allocTempVars,updateTempVars,freeTempVars>,near
 	EXTERNS	<addVar,findVar,getVar,removeVar,setVar,setVarLong>,near
 	EXTERNS	<memError>,near
@@ -487,10 +488,10 @@ gd2:	call	getNextSymbol
 	call	updateTempVars
 ;
 ; Similar to what we did with allocTempVars (if there was a parameter list),
-; we call allocCode to create a fresh code buffer for genExpr.
+; we call allocFunc to create a fresh code buffer for genExpr.
 ;
 gd3:	mov	es:[BLK_FREE],di
-	call	allocCode
+	call	allocFunc
 	jc	gd8
 
 	push	di
@@ -559,7 +560,7 @@ gd5:	pop	di			; ES:DI -> generated code
 	clc
 	jmp	short gd9
 
-gd7:	call	freeCode		; on error, free the code block in ES
+gd7:	call	freeFunc		; on error, free the code block in ES
 ;
 ; Error paths converge here.  Even if parameter info is still pushed on the
 ; stack, the LEAVE macro automatically cleans up the stack.
