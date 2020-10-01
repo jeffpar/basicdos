@@ -134,7 +134,15 @@ gc3a:	lodsb				; AL = length byte
 	jz	gc3
 	jmp	short gc4
 gc3b:	jmp	short gc6
-
+;
+; One of the annoying things about the ECHO state is that, since we can't
+; be sure what the state of ECHO will be at runtime, we must inject printLine
+; before every line.
+;
+; TODO: Come up with a method for shutting this off except when really needed;
+; GEN_ECHO is not it, because it's always TRUE for BAT files and always FALSE
+; for BAS files.
+;
 gc3c:	test	[genFlags],GEN_ECHO
 	jz	gc4
 	push	cx
@@ -410,8 +418,10 @@ DEFPROC	genDef
 ; complete description for addVar; we already have the return type (AH), but
 ; we still need the parameter info and the generated code for the expression.
 ;
+	sub	dx,dx
+	mov	[segVars],dx
 	mov	[fnType],ah
-	mov	[fnParms],0
+	mov	[fnParms],dl
 	mov	[fnNameLen],cx
 	mov	[fnNameOff],si
 ;
@@ -457,11 +467,11 @@ gd1:	mov	al,CLS_VAR
 	je	gd1
 	cmp	al,')'
 	je	gd2
-gd1x:	jmp	short gd8
+gd1x:	jmp	gd8
 
 gd2:	call	getNextSymbol
 	cmp	al,'='			; expression to follow?
-	jne	gd8			; no
+	jne	gd1x			; no
 ;
 ; Time to add the original var block(s) back to the chain, so that genExpr
 ; has access to both the parameter variables we just added and all globals.
@@ -477,17 +487,42 @@ gd3:	mov	es:[BLK_FREE],di
 	jc	gd8
 
 	push	di
+	IFDEF	MAXDEBUG
+	mov	ax,OP_INT06
+	stosw
+	mov	al,OP_INT03
+	stosb
+	ENDIF
+	mov	al,OP_PUSH_BP
+	stosb
+	mov	ax,OP_MOV_BP_SP
+	stosw
 	mov	al,[fnParms]
 	call	genExpr
-	mov	al,OP_RETF
-	stosb
+	mov	cl,[fnParms]
+	mov	ch,0
+	add	cx,cx
+	add	cx,cx
+	add	cx,6
+	call	genPopBPOffset
+	inc	cx
+	inc	cx
+	call	genPopBPOffset
+	mov	ax,OP_POP_BP OR (OP_RETF_N SHL 8)
+	stosw
+	sub	cx,8
+	xchg	ax,cx
+	stosw
 	call	shrinkCode
 ;
 ; ES contains the generated code, so we're ready to add the VAR_FUNC now.
-; But first, call freeTempVars and restore var block to its original state.
+; But first, call freeTempVars and restore var block to its original state,
+; if we allocated a temp block for parameters.
 ;
+	cmp	[segVars],0
+	je	gd3a
 	call	freeTempVars
-	mov	cx,[fnNameLen]
+gd3a:	mov	cx,[fnNameLen]
 	mov	si,[fnNameOff]
 	call	removeVar		; remove any existing function var
 	jc	gd7			; error (predefined)
@@ -1472,6 +1507,34 @@ ENDPROC	genCallCS
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; genPopBPOffset
+;
+; Inputs:
+;	CX = offset
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, DI
+;
+DEFPROC	genPopBPOffset
+	cmp	cx,7Fh
+	ja	gpo1
+	mov	ax,OP_POP_BP8
+	stosw
+	mov	al,cl
+	stosb
+	ret
+gpo1:	mov	ax,OP_POP_BP16
+	stosw
+	mov	ax,cx
+	stosw
+	ret
+ENDPROC	genPopBPOffset
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; genPushBPOffset
 ;
 ; Inputs:
@@ -1481,17 +1544,17 @@ ENDPROC	genCallCS
 ;	None
 ;
 ; Modifies:
-;	AX, DX, DI
+;	AX, DI
 ;
 DEFPROC	genPushBPOffset
 	cmp	cx,7Fh
-	ja	gpbp1
+	ja	gpu1
 	mov	ax,OP_PUSH_BP8
 	stosw
 	mov	al,cl
 	stosb
 	ret
-gpbp1:	mov	ax,OP_PUSH_BP16
+gpu1:	mov	ax,OP_PUSH_BP16
 	stosw
 	mov	ax,cx
 	stosw

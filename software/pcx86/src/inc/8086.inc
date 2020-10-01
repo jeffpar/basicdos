@@ -43,9 +43,11 @@ OP_SEG_ES	equ	026h
 OP_PUSH_AX	equ	050h
 OP_PUSH_DX	equ	052h
 OP_PUSH_BX	equ	053h
+OP_PUSH_BP	equ	055h
 OP_PUSH_DI	equ	057h
 OP_POP_AX	equ	058h
 OP_POP_DX	equ	05Ah
+OP_POP_BP	equ	05Dh
 OP_XCHG_DX	equ	092h
 OP_CWD		equ	099h
 OP_CALLF	equ	09Ah		; 32-bit absolute address
@@ -58,7 +60,7 @@ OP_MOV_SI	equ	0BEh
 OP_MOV_DI	equ	0BFh
 OP_RETF_N	equ	0CAh
 OP_RETF		equ	0CBh
-OP_INT3		equ	0CCh
+OP_INT03	equ	0CCh		; INT3
 OP_IRET		equ	0CFh
 OP_CALL		equ	0E8h		; 16-bit displacement
 OP_JMP		equ	0E9h		; 16-bit displacement
@@ -70,7 +72,10 @@ OP_STI		equ	0FBh
 OP_CLD		equ	0FCh
 OP_STD		equ	0FDh
 
+OP_INT06	equ	006CDh		; INT 06h
 OP_INT21	equ	021CDh		; INT 21h
+OP_POP_BP8	equ	0468Fh		; POP [BP+nn]
+OP_POP_BP16	equ	0868Fh		; POP [BP+nnnn]
 OP_ZERO_AX	equ	0C031h		; XOR AX,AX
 OP_MOV_DS_AX	equ	0D88Eh		; MOV DS,AX
 OP_MOV_ES_AX	equ	0C08Eh		; MOV ES,AX
