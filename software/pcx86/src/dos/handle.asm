@@ -7,6 +7,9 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	include	macros.inc
+	include	disk.inc
+	include	dev.inc
 	include	dos.inc
 
 DOS	segment word public 'CODE'
@@ -381,7 +384,7 @@ sr1a:	mov	dx,[bx].SFB_CURPOS.LOW
 
 	mov	bx,[bx].SFB_CURCLN
 
-	DPRINTF	'f',<"Reading cluster %#05x...",13,10>,bx
+	DPRINTF	'f',<"Reading cluster %#05x...\r\n">,bx
 
 	sub	bx,2
 	jb	sr3			; invalid cluster #

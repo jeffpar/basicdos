@@ -8,11 +8,13 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	include	cmd.inc
+	include	8086.inc
 
 CODE    SEGMENT
 
-	EXTERNS	<allocCode,freeCode,allocVars>,near
-	EXTERNS	<addVar,findVar,setVarLong>,near
+	EXTERNS	<allocCode,shrinkCode,freeCode,freeAllCode,allocVars>,near
+	EXTERNS	<allocTempVars,updateTempVars,freeTempVars>,near
+	EXTERNS	<addVar,findVar,getVar,removeVar,setVar,setVarLong>,near
 	EXTERNS	<memError>,near
 	EXTERNS	<clearScreen,doCmd,printArgs,printEcho,printLine>,near
 	EXTERNS	<setColor,setFlags>,near
@@ -34,7 +36,7 @@ CODE    SEGMENT
 ; Inputs:
 ;	AL = GEN flags (eg, GEN_BATCH)
 ;	DS:BX -> heap
-;	DS:SI -> BUF_INPUT (or null to parse preloaded text)
+;	DS:SI -> BUFINP (or null to parse preloaded text)
 ;
 ; Outputs:
 ;	None
@@ -46,7 +48,7 @@ DEFPROC	genCode
 	LOCVAR	pHeap,word
 	LOCVAR	codeSeg,word		; code segment
 	LOCVAR	defVarSeg,word		; default VBLK segment
-	LOCVAR	defType,byte		; used by genDef*
+	LOCVAR	defType,byte		; used by genDefInt, etc.
 	LOCVAR	genFlags,byte
 	LOCVAR	errCode,word
 	LOCVAR	pInput,word		; original input address
@@ -72,7 +74,7 @@ gc0:	mov	[genFlags],al
 
 	call	allocVars
 	jc	gce
-	mov	ax,[bx].VBLK_DEF.BLK_NEXT
+	mov	ax,[bx].VBLKDEF.BLK_NEXT
 	mov	[defVarSeg],ax		; stash the default VBLK segment
 	call	allocCode
 	jc	gce
@@ -82,11 +84,11 @@ gc0:	mov	[genFlags],al
 	mov	ax,OP_MOV_BP_SP		; make it easy for endProgram
 	stosw				; to reset the stack and return
 ;
-; ES:[CBLK_SIZE] is the absolute limit for pCode, but we also maintain
-; another field, ES:[CBLK_REFS], as the bottom of a LBLREF table, and that
-; is the real limit that the code generator must be mindful of.
+; ES:[BLK_SIZE] is the absolute limit for pCode, but we also maintain
+; ES:[CBLK_REFS] as the bottom of the block's LBLREF table, and that is
+; the real limit that the code generator must be mindful of.
 ;
-; Initialize the LBLREF table; it's empty when CBLK_REFS = CBLK_SIZE.
+; Initialize the block's LBLREF table; it's empty when CBLK_REFS = BLK_SIZE.
 ;
 	mov	es:[CBLK_REFS],cx
 
@@ -101,15 +103,15 @@ gc0:	mov	[genFlags],al
 gce:	call	memError
 	jmp	gc9
 
-gc1:	lea	si,[bx].TBLK_DEF
-gc2:	mov	cx,[si].TBLK_NEXT
+gc1:	lea	si,[bx].TBLKDEF
+gc2:	mov	cx,[si].BLK_NEXT
 	clc
 	jcxz	gc3b			; nothing left to parse
 	mov	ds,cx
 	ASSUME	DS:NOTHING
-	mov	si,size TBLK_HDR
+	mov	si,size TBLK
 
-gc3:	cmp	si,ds:[TBLK_FREE]
+gc3:	cmp	si,ds:[BLK_FREE]
 	jae	gc2			; advance to next block in chain
 	inc	[lineNumber]
 	lodsw
@@ -125,6 +127,7 @@ gc3a:	lodsb				; AL = length byte
 ; code to print the line, unless it starts with a '@', in which case, skip
 ; over the '@'.
 ;
+	DPRINTF	'b',<"%.*ls\r\n">,cx,si,ds
 	cmp	byte ptr [si],'@'
 	jne	gc3c
 	inc	si
@@ -132,7 +135,15 @@ gc3a:	lodsb				; AL = length byte
 	jz	gc3
 	jmp	short gc4
 gc3b:	jmp	short gc6
-
+;
+; One of the annoying things about the ECHO state is that, since we can't
+; be sure what the state of ECHO will be at runtime, we must inject printLine
+; before every line.
+;
+; TODO: Come up with a method for shutting this off except when really needed;
+; GEN_ECHO is not it, because that's always TRUE for BAT files and always FALSE
+; for BAS files.
+;
 gc3c:	test	[genFlags],GEN_ECHO
 	jz	gc4
 	push	cx
@@ -216,7 +227,7 @@ gc6:	push	ss
 	clc
 
 gc7:	pushf
-	call	freeCode
+	call	freeAllCode
 	popf
 gc8:	jnc	gc9
 
@@ -275,7 +286,7 @@ gcs2:	xchg	ax,dx			; AX = handler address
 
 gcs6:	call	dx			; call dedicated generator function
 
-gcs7:	mov	es:[CBLK_FREE],di
+gcs7:	mov	es:[BLK_FREE],di
 
 gcs8:	jnc	genCommands
 
@@ -363,6 +374,205 @@ ENDPROC	genColor
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; genDef
+;
+; Generate code for "DEF fn(parms)=expr".
+;
+; We rely on genExpr to generate the code for "expr", which requires us to
+; create a temp var block containing all the variables in "parms", so that
+; when genExpr calls findVar, it searches the temp var block first.
+;
+; Note that we do NOT require the function name to begin with "FN" like
+; MSBASIC does.
+;
+; TODO: We shouldn't allow DEF to redefine a function that already exists,
+; but since BAT files inherit existing var blocks, we permit it (see call to
+; removeVar).  Unfortunately, all removeVar does is mark the existing var
+; data as DEAD, and addVar doesn't currently reuse DEAD space, so memory will
+; grow until you force the var blocks to be deleted.
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genDef
+	LOCVAR	segVars,word
+	LOCVAR	fnParms,byte
+	LOCVAR	fnType,byte
+	LOCVAR	fnNameLen,word
+	LOCVAR	fnNameOff,word
+;
+; Unlike other "gen" functions, if this function generates anything,
+; it goes into a new code block, not the current code block, so we save
+; and restore ES:DI before the ENTER and after LEAVE (since we depend
+; on LEAVE to clean up data left on the stack in the event of an error).
+;
+	push	es
+	push	di
+	ENTER
+	mov	al,CLS_VAR
+	call	getNextToken
+	jbe	gd1x
+	and	ah,VAR_TYPE		; convert CLS_VAR_* to VAR_*
+;
+; We're going to save the VAR_FUNC var info on the stack until we have a
+; complete description for addVar; we already have the return type (AH), but
+; we also need the parameter count and the generated code for the expression.
+;
+	sub	dx,dx
+	mov	[segVars],dx
+	mov	[fnType],ah
+	mov	[fnParms],dl
+	mov	[fnNameLen],cx
+	mov	[fnNameOff],si
+;
+; The parameter list is next, and it's optional.
+;
+	call	getNextSymbol
+	jbe	gd1x
+	cmp	al,'='
+	je	gd3			; no parameters
+	cmp	al,'('
+	jne	gd1x			; command appears to be invalid
+;
+; Allocate a temp var block and then work through all the parameters.
+;
+	call	allocTempVars		; returns original var block in DX
+	mov	[segVars],dx
+
+	sub	dx,dx			; DX = parm offset
+gd1:	mov	al,CLS_VAR
+	call	getNextToken
+	jz	gd1x			; ran out of parameters
+	jb	gd2
+	mov	dl,ah
+	and	dl,VAR_TYPE		; DL = parm type
+	mov	ah,VAR_PARM
+	inc	dh
+	jz	gd1x			; too many parameters
+	push	dx
+	call	addVar
+	pop	ax
+	push	ax
+	jc	gd1x			; unable to add the parameter
+;
+; AX contains the parm info that was in DX prior to calling addVar
+; (AL = parm type, AH = parm offset).  Store AX in the var data (DX:SI).
+;
+	inc	[fnParms]
+	call	setVar
+	xchg	dx,ax			; restore DX (done with the var data)
+	call	getNextSymbol
+	jbe	gd1x
+	cmp	al,','
+	je	gd1
+	cmp	al,')'
+	je	gd2
+gd1x:	jmp	gd8
+
+gd2:	call	getNextSymbol
+	cmp	al,'='			; expression to follow?
+	jne	gd1x			; no
+;
+; Time to add the original var block(s) back to the chain, so that genExpr
+; has access to both the parameter variables we just added and all globals.
+;
+	mov	dx,[segVars]
+	call	updateTempVars
+;
+; Similar to what we did with allocTempVars (if there was a parameter list),
+; we call allocCode to create a fresh code buffer for genExpr.
+;
+gd3:	mov	es:[BLK_FREE],di
+	call	allocCode
+	jc	gd8
+
+	push	di
+	IFDEF	MAXDEBUG
+	mov	ax,OP_INT06
+	stosw
+	mov	al,OP_INT03
+	stosb
+	ENDIF
+	mov	al,OP_PUSH_BP
+	stosb
+	mov	ax,OP_MOV_BP_SP
+	stosw
+	mov	al,[fnParms]
+	call	genExpr
+	mov	cl,[fnParms]
+	mov	ch,0
+	add	cx,cx
+	add	cx,cx
+	add	cx,6
+	call	genPopBPOffset
+	inc	cx
+	inc	cx
+	call	genPopBPOffset
+	mov	ax,OP_POP_BP OR (OP_RETF_N SHL 8)
+	stosw
+	sub	cx,8
+	xchg	ax,cx
+	stosw
+	call	shrinkCode
+;
+; ES contains the generated code, so we're ready to add the VAR_FUNC now.
+; But first, call freeTempVars and restore var block to its original state,
+; if we allocated a temp block for parameters.
+;
+	cmp	[segVars],0
+	je	gd3a
+	call	freeTempVars
+gd3a:	mov	cx,[fnNameLen]
+	mov	si,[fnNameOff]
+	call	removeVar		; remove any existing function var
+	jc	gd7			; error (predefined)
+	mov	ah,VAR_FUNC
+	mov	al,[fnParms]
+	call	addVar			; add new function var
+	jc	gd7			; error (eg, out of memory)
+;
+; DX:SI -> VAR_FUNC var data.  Set the function return type and # parameters,
+; followed by each of the parameters types and offsets.
+;
+	mov	di,-(_LOCBYTES)
+	mov	ax,word ptr [fnType]
+gd4:	call	setVar
+	dec	[fnParms]
+	jl	gd5
+	dec	di
+	dec	di
+	mov	ax,[bp+di]		; TODO: set AH to a default value
+	jmp	gd4			; instead of the parm #?
+
+gd5:	pop	di			; ES:DI -> generated code
+	mov	ax,di
+	call	setVar
+	mov	ax,es
+	call	setVar			; function address updated
+	clc
+	jmp	short gd9
+
+gd7:	call	freeCode		; on error, free the code block in ES
+;
+; Error paths converge here.  Even if parameter info is still pushed on the
+; stack, the LEAVE macro automatically cleans up the stack.
+;
+gd8:	stc
+gd9:	LEAVE	CLEANUP
+	pop	di
+	pop	es
+	RETURN
+ENDPROC	genDef
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; genDefInt
 ;
 ; Process "DEFINT".  In BASIC-DOS, "DEFINT" really means "DEFLONG", but we'll
@@ -434,9 +644,7 @@ gdi9:	ret
 
 	DEFLBL	getCharToken,near
 	mov	al,CLS_VAR		; token must be CLS_VAR
-	push	dx
 	call	getNextToken
-	pop	dx
 	jbe	gdi8
 	dec	cx
 	jnz	gdi8			; and it must have a length of 1
@@ -549,6 +757,7 @@ ENDPROC	genEcho
 DEFPROC	genExpr
 	LOCVAR	exprToks,byte
 	LOCVAR	exprType,byte
+	LOCVAR	exprParms,byte
 	LOCVAR	exprArgs,word
 	LOCVAR	exprVals,word
 	LOCVAR	exprParens,word
@@ -556,6 +765,7 @@ DEFPROC	genExpr
 	ENTER
 	push	cx
 	push	si
+	mov	[exprParms],al		; parm count (only from genDef)
 	sub	dx,dx
 	mov	word ptr [exprType],dx	; exprType = VAR_NONE, exprToks = 0
 	mov	[exprArgs],1		; count of expected arguments
@@ -568,15 +778,15 @@ ge1:	mov	al,CLS_ANY		; CLS_NUM, CLS_SYM, CLS_VAR, CLS_STR
 	call	getNextToken
 	jbe	ge2x
 	inc	[exprToks]
-	cmp	ah,CLS_SYM
+	cmp	ah,CLS_SYM		; 20h?
 	je	ge1b			; process CLS_SYM below
 ;
 ; Non-operator (non-symbol) cases: keywords, variables, strings, and numbers.
 ;
 	mov	byte ptr [exprPrevOp],-1; invalidate prevOp (intervening token)
-	cmp	ah,CLS_KEYWORD
+	cmp	ah,CLS_KEYWORD		; 30h?
 	je	ge2x			; keywords not allowed in expressions
-	cmp	ah,CLS_VAR		; variable with type?
+	cmp	ah,CLS_VAR		; 10h? (variable with type?)
 	ASSERT	NE			; (type should be fully qualified now)
 	ja	ge2			; yes
 ;
@@ -592,13 +802,13 @@ ge1:	mov	al,CLS_ANY		; CLS_NUM, CLS_SYM, CLS_VAR, CLS_STR
 	jcxz	ge1a			; empty string
 	inc	si			; DS:SI -> string contents
 	call	genPushStr
-	jmp	short ge2c
+	jmp	short ge2e
 
 ge1a:	DBGBRK
 	sub	cx,cx			; for empty strings, push null ptr
 	sub	dx,dx
 	call	genPushImmLong
-	jmp	short ge2c
+	jmp	short ge2e
 ge1b:	jmp	short ge4
 ;
 ; Process CLS_VAR.  We don't care if findVar succeeds or not, because
@@ -607,16 +817,28 @@ ge1b:	jmp	short ge4
 ; with the expression type.
 ;
 ge2:	call	findVar
-	cmp	ah,VAR_FUNC
-	jne	ge2a
+	cmp	ah,VAR_PARM		; 20h?
+	jne	ge2a			; no
+;
+; VAR_PARM variables are present only in temp var blocks created by genDef,
+; so genDef must have called us with a parameter count.
+;
+	mov	cl,[exprParms]
+	call	genFuncParm
+	jmp	short ge2b
+
+ge2a:	cmp	ah,VAR_FUNC		; C0h?
+	jne	ge2c
 	call	genFuncExpr		; process the function expression
-	jnc	ge2b			; AH = return type
+ge2b:	jnc	ge2d			; AH = return type
 	jmp	short ge3x
-ge2a:	call	genPushVarLong
-ge2b:	mov	al,ah			; AL = var type
+
+ge2c:	call	genPushVarLong
+
+ge2d:	mov	al,ah			; AL = var type
 	call	setExprType		; update expression type
 	jnz	ge3x			; error
-ge2c:	inc	[exprVals]		; count another queued value
+ge2e:	inc	[exprVals]		; count another queued value
 	jmp	ge1
 ge2x:	jmp	short ge3x
 ;
@@ -646,7 +868,7 @@ ge3a:	DOSUTIL	DOS_UTL_ATOI32		; DS:SI -> numeric string (length CX)
 	xchg	cx,ax			; save result in DX:CX
 	pop	bx
 	GENPUSH	dx,cx
-	jmp	ge2c			; go count another queued value
+	jmp	ge2e			; go count another queued value
 ge3x:	jmp	short ge8
 ;
 ; Process CLS_SYM.  Before we try to validate the operator, we need to remap
@@ -692,7 +914,7 @@ ge5b:	pop	cx			; pop the evaluator as well
 	jcxz	ge6c			; no evaluator (eg, left paren)
 
 	IFDEF MAXDEBUG
-	DPRINTF	'o',<"op %c, func @%08lx",13,10>,dx,cx,cs
+	DPRINTF	'o',<"op %c, func @%08lx\r\n">,dx,cx,cs
 	ENDIF
 
 	GENCALL	cx			; and generate call
@@ -735,7 +957,7 @@ ge8:	pop	cx
 
 	IFDEF MAXDEBUG
 	pop	ax
-	DPRINTF	'o',<"op %c, func @%08lx...",13,10>,cx,ax,cs
+	DPRINTF	'o',<"op %c, func @%08lx...\r\n">,cx,ax,cs
 	xchg	cx,ax
 	ELSE
 	pop	cx			; CX = evaluator
@@ -810,11 +1032,18 @@ DEFPROC	genFuncExpr
 ; reference are symbols (eg, "MOD").  So we must be very forgiving here.
 ;
 	call	peekNextSymbol		; check for parenthesis
-	jbe	gfe1
+	jbe	gfe0
 	cmp	al,'('
-	jne	gfe1
+	jne	gfe0
 	inc	cx			; CX = 1 if one or more parms supplied
 	call	getNextSymbol		; consume the parenthesis
+;
+; For VAR_LONG functions, the generated stack frame needs to begin with room
+; for a VAR_LONG return value; we use genPushLong instead of genPushZeroLong
+; because it generates less code AND it doesn't matter what value gets pushed.
+;
+gfe0:	ASSERT	Z,<cmp [nFuncType],VAR_LONG>
+	call	genPushLong
 
 gfe1:	dec	[nFuncParms]		; more parameters?
 	jl	gfe6			; no
@@ -879,6 +1108,48 @@ gfe10:	LEAVE
 	pop	ds
 	ret
 ENDPROC	genFuncExpr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genFuncparm
+;
+; Generate code for accessing parameter N (of CL parameters).
+;
+; For example, if CL is 3 and the parameter # is 2, calculate the
+; parameter offset ((count - parm #) * 4 + 6) and generate the code:
+;
+;	push	[bp+(offset+2)]
+;	push	[bp+(offset+0)]
+;
+; Inputs:
+;	CL = parm count
+;	DX:SI -> parm data
+;	ES:DI -> code block
+;
+; Outputs:
+;	If carry clear, AH = parm type (from parm data)
+;
+; Modifies:
+;	AX, DI
+;
+DEFPROC	genFuncParm
+	call	getVar			; AL = parm type, AH = parm #
+	sub	cl,ah
+	jc	gfp9			; parm # inconsistency
+	mov	ah,al
+	push	ax
+	mov	ch,0
+	add	cx,cx
+	add	cx,cx
+	add	cx,8			; adjust CX for high word first
+	call	genPushBPOffset
+	dec	cx
+	dec	cx			; then back down to the low word
+	call	genPushBPOffset
+	pop	ax
+	clc
+gfp9:	ret
+ENDPROC	genFuncParm
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1035,8 +1306,8 @@ DEFPROC	genLet
 	call	getNextToken
 	jbe	gl9
 
-	mov	al,ah			; AL = CLS
-gl1:	call	addVar			; DX:SI -> var data
+	and	ah,VAR_TYPE		; convert CLS_VAR_* to VAR_*
+	call	addVar			; DX:SI -> var data
 	jc	gl9
 
 	cmp	dx,[codeSeg]		; constants cannot be "let"
@@ -1118,7 +1389,7 @@ ENDPROC	genPrint
 ;	CX, DX
 ;
 DEFPROC	addLabel
-	DPRINTF	'l',<"%#010P: line %d: adding label %d...",13,10>,lineNumber,ax
+	DPRINTF	'l',<"%#010P: line %d: adding label %d...\r\n">,lineNumber,ax
 
 	mov	dx,di			; DX = current code gen offset
 	test	dx,LBL_RESOLVE		; is this a label reference?
@@ -1128,7 +1399,7 @@ DEFPROC	addLabel
 ; definition is unique.  We must also scan the table for any unresolved
 ; references and fix them up.
 ;
-	mov	cx,es:[CBLK_SIZE]
+	mov	cx,es:[BLK_SIZE]
 	mov	di,es:[CBLK_REFS]
 	sub	cx,di
 	shr	cx,1			; CX = # of words on LBLREF table
@@ -1188,10 +1459,10 @@ ENDPROC	addLabel
 ;	AX, CX, DX
 ;
 DEFPROC	findLabel
-	DPRINTF	'l',<"%#010P: line %d: finding label %d...",13,10>,lineNumber,ax
+	DPRINTF	'l',<"%#010P: line %d: finding label %d...\r\n">,lineNumber,ax
 
 	push	di
-	mov	cx,es:[CBLK_SIZE]
+	mov	cx,es:[BLK_SIZE]
 	mov	di,es:[CBLK_REFS]
 	sub	cx,di
 	jcxz	fl8			; table is empty
@@ -1240,6 +1511,62 @@ DEFPROC	genCallCS
 	clc
 	ret
 ENDPROC	genCallCS
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genPopBPOffset
+;
+; Inputs:
+;	CX = offset
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, DI
+;
+DEFPROC	genPopBPOffset
+	cmp	cx,7Fh
+	ja	gpo1
+	mov	ax,OP_POP_BP8
+	stosw
+	mov	al,cl
+	stosb
+	ret
+gpo1:	mov	ax,OP_POP_BP16
+	stosw
+	mov	ax,cx
+	stosw
+	ret
+ENDPROC	genPopBPOffset
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genPushBPOffset
+;
+; Inputs:
+;	CX = offset
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, DI
+;
+DEFPROC	genPushBPOffset
+	cmp	cx,7Fh
+	ja	gpu1
+	mov	ax,OP_PUSH_BP8
+	stosw
+	mov	al,cl
+	stosb
+	ret
+gpu1:	mov	ax,OP_PUSH_BP16
+	stosw
+	mov	ax,cx
+	stosw
+	ret
+ENDPROC	genPushBPOffset
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1334,7 +1661,7 @@ ENDPROC	genPushImmByteAL
 ;
 DEFPROC	genPushImmLong
 	IFDEF MAXDEBUG
-	DPRINTF	'o',<"num %ld",13,10>,cx,dx
+	DPRINTF	'o',<"num %ld\r\n">,cx,dx
 	ENDIF
 	xchg	ax,dx			; AX has original DX
 	xchg	ax,cx			; AX contains CX, CX has original DX
@@ -1408,6 +1735,7 @@ ENDPROC	genPushStr
 DEFPROC	genPushZeroLong
 	mov	ax,OP_ZERO_AX
 	stosw
+	DEFLBL	genPushLong,near
 	mov	ax,OP_PUSH_AX OR (OP_PUSH_AX SHL 8)
 	stosw
 	ret
@@ -1475,12 +1803,10 @@ ENDPROC	genPushVarLong
 ;
 DEFPROC	getNextSymbol
 	push	cx
-	push	dx
 	push	si
 	mov	al,CLS_SYM
 	call	getNextToken
 	pop	si
-	pop	dx
 	pop	cx
 	ret
 ENDPROC	getNextSymbol
@@ -1508,9 +1834,10 @@ ENDPROC	getNextSymbol
 ;	CF set if no matching token (AH is CLS)
 ;
 ; Modifies:
-;	AX, BX, CX, DX, SI
+;	AX, BX, CX, SI
 ;
 DEFPROC	getNextToken
+	push	dx
 	push	di
 gt0:	mov	di,ds:[PSP_HEAP]
 	cmp	bx,[di].TOKEND
@@ -1597,6 +1924,7 @@ gt7:	cmp	ah,CLS_SYM
 
 gt8:	or	ah,0			; return both ZF and CF clear
 gt9:	pop	di
+	pop	dx
 	ret
 ENDPROC	getNextToken
 
@@ -1632,9 +1960,7 @@ ENDPROC	peekNextSymbol
 ;
 DEFPROC	peekNextToken
 	push	bx
-	push	dx
 	call	getNextToken
-	pop	dx
 	DEFLBL	peekReturn,near
 	push	bx
 	mov	bx,ds:[PSP_HEAP]

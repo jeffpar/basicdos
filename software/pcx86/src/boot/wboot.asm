@@ -7,7 +7,10 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-	include	dos.inc
+	include	macros.inc
+	include	bios.inc
+	include	devapi.inc
+	include	dosapi.inc
 
 CODE    SEGMENT
 

@@ -14,15 +14,15 @@ CODE    SEGMENT
 
 	EXTERNS	<cmdDate,cmdDir,cmdExit,cmdHelp,cmdList,cmdLoad>,near
 	EXTERNS	<cmdMem,cmdNew,cmdRun,cmdRestart,cmdTime,cmdType,cmdVer>,near
-	EXTERNS	<genCLS,genColor,genDefInt,genDefDbl,genDefStr>,near
+	EXTERNS	<genCLS,genColor,genDef,genDefInt,genDefDbl,genDefStr>,near
 	EXTERNS	<genEcho,genGoto,genIf,genLet,genPrint>,near
 	EXTERNS	<evalNegLong,evalNotLong>,near
 	EXTERNS	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>,near
 	EXTERNS	<evalModLong,evalExpLong,evalImpLong>,near
 	EXTERNS	<evalEqvLong,evalXorLong,evalOrLong,evalAndLong>,near
 	EXTERNS	<evalEQLong,evalNELong,evalLTLong,evalGTLong>,near
-	EXTERNS	<evalLELong,evalGELong,evalRndLong>,near
-	EXTERNS	<evalShlLong,evalShrLong>,near
+	EXTERNS	<evalLELong,evalGELong,evalShlLong,evalShrLong>,near
+	EXTERNS	<fnRndLong>,near
 
 	EXTERNS	<evalEQStr,evalNEStr,evalLTStr,evalGTStr>,near
 	EXTERNS	<evalLEStr,evalGEStr,evalAddStr>,near
@@ -122,12 +122,12 @@ CODE    SEGMENT
 
 	DEFLBL	PREDEF_VARS,byte
 	db	VAR_LONG + 6,"MAXINT"	; TODO: Should this be "MAXINT%"?
-	dd	7FFFFFFFh
+	dd	7FFFFFFFh		; largest positive value
 	db	VAR_FUNC + 4,"RND%"
-	db	VAR_LONG,1		; returns VAR_LONG, 1 parameter
-	db	VAR_LONG,1		; 1st parameter: VAR_LONG, 1=default
-	dw	offset evalRndLong,0
-	db	0
+	db	VAR_LONG,1		; returns VAR_LONG with 1 parameter
+	db	VAR_LONG,1		; 1st parameter: VAR_LONG, default=1
+	dw	offset fnRndLong,0	; 0 implies our own CODE segment
+	db	0			; terminator
 
 	DEFLBL	PREDEF_ZERO,byte
 	db	VAR_LONG
@@ -177,26 +177,27 @@ CODE	ENDS
 	DEFTOK	CLS,    60, genCLS
 	DEFTOK	COLOR,  61, genColor
 	DEFTOK	DATE,   40, cmdDate
-	DEFTOK	DEFINT, 62, genDefInt
+	DEFTOK	DEF,    62, genDef
 	DEFTOK	DEFDBL, 63, genDefDbl
-	DEFTOK	DEFSNG, 64, genDefDbl
-	DEFTOK	DEFSTR, 65, genDefStr
+	DEFTOK	DEFINT, 64, genDefInt
+	DEFTOK	DEFSNG, 65, genDefDbl
+	DEFTOK	DEFSTR, 66, genDefStr
 	DEFTOK	DIR,    20, cmdDir
-	DEFTOK	ECHO,   66, genEcho
+	DEFTOK	ECHO,   67, genEcho
 	DEFTOK	ELSE,  201
 	DEFTOK	EXIT,    1, cmdExit
-	DEFTOK	GOTO,   67, genGoto
+	DEFTOK	GOTO,   68, genGoto
 	DEFTOK	HELP,   41, cmdHelp
-	DEFTOK	IF,     68  genIf
-	DEFTOK	LET,    69, genLet
+	DEFTOK	IF,     69  genIf
+	DEFTOK	LET,    70, genLet
 	DEFTOK	LIST,    2, cmdList
 	DEFTOK	LOAD,   21, cmdLoad
 	DEFTOK	MEM,    42, cmdMem
 	DEFTOK	NEW,     3, cmdNew
 	DEFTOK	OFF,   202
 	DEFTOK	ON,    203
-	DEFTOK	PRINT,  70, genPrint
-	DEFTOK	REM,    71
+	DEFTOK	PRINT,  71, genPrint
+	DEFTOK	REM,    72
 	DEFTOK	RESTART, 4, cmdRestart
 	DEFTOK	RUN,     5, cmdRun
 	DEFTOK	THEN,  204
@@ -216,13 +217,15 @@ CODE	ENDS
 	NUMTOKENS KEYOP_TOKENS,KEYOP_TOTAL
 
 DATA	SEGMENT
-
+;
+; This is where non-constant data begins; it must be at the end of the file.
+;
 	DEFLBL	BEG_HEAP,word
-	BLK_DEF	<0,size CBLK_HDR,SIG_CBLK>
-	BLK_DEF	<0,size VBLK_HDR,SIG_VBLK>
-	BLK_DEF	<0,size SBLK_HDR,SIG_SBLK>
-	BLK_DEF	<0,size TBLK_HDR,SIG_TBLK>
-	COMHEAP	<size CMD_HEAP>,BEG_HEAP
+	BLKDEF	<0,CBLKLEN,size CBLK,SIG_CBLK>
+	BLKDEF	<0,VBLKLEN,size VBLK,SIG_VBLK>
+	BLKDEF	<0,SBLKLEN,size SBLK,SIG_SBLK>
+	BLKDEF	<0,TBLKLEN,size TBLK,SIG_TBLK>
+	COMHEAP	<size CMD_HEAP>,BEG_HEAP	; this must be the last item...
 
 DATA	ENDS
 

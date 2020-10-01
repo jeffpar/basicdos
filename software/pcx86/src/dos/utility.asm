@@ -7,6 +7,9 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	include	macros.inc
+	include	8086.inc
+	include	devapi.inc
 	include	dos.inc
 
 DOS	segment word public 'CODE'
@@ -542,10 +545,10 @@ ENDPROC	mul_32_16
 ;	AL = 0Bh (TOKTYPE_GENERIC) or 0Ch (TOKTYPE_BASIC)
 ;	REG_CL = length of string
 ;	REG_DS:REG_SI -> string to "tokify"
-;	REG_ES:REG_DI -> BUF_TOKEN (filled in with token info)
+;	REG_ES:REG_DI -> BUFTOK (filled in with token info)
 ;
 ; Outputs:
-;	Carry clear if tokens found; AX = # tokens, BUF_TOKEN updated
+;	Carry clear if tokens found; AX = # tokens, BUFTOK updated
 ;	Carry set if no tokens found
 ;
 ; Modifies:
@@ -558,9 +561,9 @@ DEFPROC	utl_tokify,DOS
 	mov	bl,[bx].SCB_SWITCHAR
 	mov	[bp].TMP_BL,bl		; TMP_BL = SWITCHAR
 	mov	[bp].TMP_BH,al		; TMP_BH = TOKTYPE
-	mov	ds,[bp].REG_DS		; DS:SI -> BUF_INPUT
+	mov	ds,[bp].REG_DS		; DS:SI -> string
 	ASSUME	DS:NOTHING
-	mov	es,[bp].REG_ES		; ES:DI -> BUF_TOKEN
+	mov	es,[bp].REG_ES		; ES:DI -> BUFTOK
 	ASSUME	ES:NOTHING
 	mov	ch,0
 	mov	[bp].TMP_CX,cx		; TMP_CX = length
@@ -597,13 +600,13 @@ tf3:	call	tok_classify		; AH = next classification
 	jne	tf3b
 	mov	ah,CLS_VAR_LONG
 	jmp	short tf3e
-tf3b:	cmp	al,'!'
+tf3b:	cmp	al,'$'
 	jne	tf3c
-	mov	ah,CLS_VAR_SINGLE
-	jmp	short tf3e
-tf3c:	cmp	al,'$'
-	jne	tf3d
 	mov	ah,CLS_VAR_STR
+	jmp	short tf3e
+tf3c:	cmp	al,'!'
+	jne	tf3d
+	mov	ah,CLS_VAR_SINGLE
 	jmp	short tf3e
 tf3d:	cmp	al,'#'
 	jne	tf6a
@@ -625,7 +628,7 @@ tf6a:	mov	al,ch			; AL = previous classification
 	jne	tf6b
 	push	ax
 	mov	ah,0
-	DPRINTF	't',<"token: '%.*ls' (%#04x)",13,10>,cx,dx,ds,ax
+	DPRINTF	't',<"token: '%.*ls' (%#04x)\r\n">,cx,dx,ds,ax
 	pop	ax
 tf6b:
 	ENDIF	; MAXDEBUG

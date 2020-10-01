@@ -8,6 +8,7 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	include	cmd.inc
+	include	bios.inc
 
 CODE    SEGMENT
 
@@ -24,16 +25,16 @@ CODE    SEGMENT
 ;
 ; allocBlock
 ;
-; Allocates a block of memory for the given block chain.  All blocks must
-; begin with the following:
+; Allocates a block of memory for the given block chain.  All chains begin
+; with a BLKDEF, and all blocks begin with a BLKHDR:
 ;
 ;	BLK_NEXT (segment of next block in chain)
 ;	BLK_SIZE (size of block, in bytes)
 ;	BLK_FREE (offset of next free byte in block)
 ;
 ; Inputs:
-;	CX = size of block, in bytes
 ;	SI = offset of block chain head
+;	CX = size of block, in bytes (if calling allocBlockSize)
 ;
 ; Outputs:
 ;	If successful, carry clear, ES:DI -> first available byte in new block
@@ -42,6 +43,8 @@ CODE    SEGMENT
 ;	AX, DI, ES
 ;
 DEFPROC	allocBlock
+	mov	cx,[si].BDEF_SIZE
+	DEFLBL	allocBlockSize,near
 	push	bx
 	push	cx
 	mov	bx,cx
@@ -60,20 +63,12 @@ DEFPROC	allocBlock
 	stosw				; set BLK_NEXT
 	mov	ax,cx
 	stosw				; set BLK_SIZE
-	mov	al,[si].BLK_HDR
+	mov	al,[si].BDEF_HDR
 	cbw
 	stosw				; set BLK_FREE
-	mov	al,[si].BLK_SIG
+	mov	al,[si].BDEF_SIG
 	stosw				; set BLK_SIG/BLK_PAD
-	cmp	al,SIG_VBLK
-	jne	ab1
-	dec	di
-	mov	al,VAR_LONG
-	stosb				; initialize VBLK_ZERO
 	sub	ax,ax
-	stosw
-	stosw
-ab1:	sub	ax,ax
 	sub	cx,di
 	shr	cx,1
 	rep	stosw			; zero out the rest of the block
@@ -83,14 +78,14 @@ ab1:	sub	ax,ax
 ; Block is initialized, append to the header chain now.
 ;
 ab2:	push	ds
-	mov	di,si			; DS:DI -> first segment in chain
+	lea	di,[si].BDEF_NEXT	; DS:DI -> first segment in chain
 ab3:	mov	cx,[di]			; at the end yet?
 	jcxz	ab4			; yes
 	mov	ds,cx
 	sub	di,di
 	jmp	ab3
 ab4:	mov	[di],es			; chain updated
-	mov	di,es:[CBLK_FREE]	; ES:DI -> first available byte
+	mov	di,es:[BLK_FREE]	; ES:DI -> first available byte
 	pop	ds
 	clc
 	jmp	short ab9
@@ -123,17 +118,18 @@ DEFPROC	freeBlock
 	push	ds			; DS:SI -> first segment in chain
 	mov	ax,es
 fb1:	mov	cx,[si]
-	jcxz	fb9			; ended without match, free anyway
+	ASSERT	NZ,<test cx,cx>
+	jcxz	fb9			; ended without match, free anyway?
 	cmp	cx,ax			; find a match yet?
 	je	fb2			; yes
 	mov	ds,cx
 	sub	si,si
 	jmp	fb1
-fb2:	mov	ax,es:[CBLK_NEXT]
+fb2:	mov	ax,es:[BLK_NEXT]
 	mov	[si],ax
-	pop	ds
-fb9:	mov	ah,DOS_MEM_FREE
+fb9:	mov	ah,DOS_MEM_FREE		; free segment in ES
 	int	21h
+	pop	ds
 	pop	ax
 	ret
 ENDPROC	freeBlock
@@ -179,14 +175,62 @@ ENDPROC	freeAllBlocks
 ;
 DEFPROC	allocCode
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].CBLK_DEF
-	mov	cx,CBLKLEN
+	lea	si,[si].CBLKDEF
 	jmp	allocBlock
 ENDPROC	allocCode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; shrinkCode
+;
+; Inputs:
+;	ES:DI -> next unused byte
+;
+; Outputs:
+;	If successful, code block in ES is shrunk
+;
+; Modifies:
+;	AX
+;
+DEFPROC	shrinkCode
+	push	bx
+	push	cx
+	mov	es:[BLK_FREE],di
+	mov	bx,di
+	add	bx,15
+	mov	cl,4
+	shr	bx,cl
+	mov	ah,DOS_MEM_REALLOC
+	int	21h
+	jc	sc9
+	mov	es:[BLK_SIZE],di
+sc9:	pop	cx
+	pop	bx
+	ret
+ENDPROC	shrinkCode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; freeCode
+;
+; Inputs:
+;	ES -> code
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	AX, CX, SI, DI, ES
+;
+DEFPROC	freeCode
+	mov	si,ds:[PSP_HEAP]
+	lea	si,[si].CBLKDEF
+	jmp	freeBlock
+ENDPROC	freeCode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; freeAllCode
 ;
 ; Frees all code blocks and resets the CBLK chain.
 ;
@@ -199,11 +243,11 @@ ENDPROC	allocCode
 ; Modifies:
 ;	CX, SI
 ;
-DEFPROC	freeCode
+DEFPROC	freeAllCode
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].CBLK_DEF
+	lea	si,[si].CBLKDEF
 	jmp	freeAllBlocks
-ENDPROC	freeCode
+ENDPROC	freeAllCode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -220,13 +264,13 @@ ENDPROC	freeCode
 ;
 DEFPROC	allocText
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].TBLK_DEF
-	jmp	allocBlock
+	lea	si,[si].TBLKDEF
+	jmp	allocBlockSize
 ENDPROC	allocText
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; freeText
+; freeAllText
 ;
 ; Frees all text blocks and resets the TBLK chain.
 ;
@@ -239,11 +283,11 @@ ENDPROC	allocText
 ; Modifies:
 ;	CX, SI
 ;
-DEFPROC	freeText
+DEFPROC	freeAllText
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].TBLK_DEF
+	lea	si,[si].TBLKDEF
 	jmp	freeAllBlocks
-ENDPROC	freeText
+ENDPROC	freeAllText
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -262,17 +306,93 @@ ENDPROC	freeText
 ;
 DEFPROC	allocVars
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].VBLK_DEF
-	cmp	[si].BLK_NEXT,0
+	lea	si,[si].VBLKDEF
+	cmp	[si].BDEF_NEXT,0
 	jne	al9
-	mov	cx,VBLKLEN
 	jmp	allocBlock
 al9:	ret
 ENDPROC	allocVars
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; freeVars
+; allocTempVars
+;
+; Allocates a temp var block and makes it active, returning previous chain.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	If carry clear, DX = segment of previous block chain
+;
+; Modifies:
+;	AX, CX, DX, SI
+;
+DEFPROC	allocTempVars
+	push	di
+	push	es
+	mov	si,ds:[PSP_HEAP]
+	lea	si,[si].VBLKDEF
+	sub	dx,dx
+	xchg	[si].BDEF_NEXT,dx
+	call	allocBlock
+	pop	es
+	pop	di
+	ret
+ENDPROC	allocTempVars
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; updateTempVars
+;
+; Adds the specified block(s) to the var block chain.
+;
+; Inputs:
+;	DX = segment of block(s) to restore
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	SI
+;
+DEFPROC	updateTempVars
+	push	es
+	mov	si,ds:[PSP_HEAP]	; we know there's only one block
+	mov	es,[si].VBLKDEF.BDEF_NEXT
+	mov	es:[BLK_NEXT],dx	; so we can simply update its BLK_NEXT
+	pop	es
+	ret
+ENDPROC	updateTempVars
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; freeTempVars
+;
+; Frees the first (temp) var block.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	CX, SI
+;
+DEFPROC	freeTempVars
+	push	es
+	mov	si,ds:[PSP_HEAP]
+	lea	si,[si].VBLKDEF
+	mov	es,[si].BDEF_NEXT
+	call	freeBlock
+	pop	es
+	ret
+ENDPROC	freeTempVars
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; freeAllVars
 ;
 ; Frees all VBLKS and resets the chain.
 ;
@@ -285,11 +405,11 @@ ENDPROC	allocVars
 ; Modifies:
 ;	CX, SI
 ;
-DEFPROC	freeVars
+DEFPROC	freeAllVars
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].VBLK_DEF
+	lea	si,[si].VBLKDEF
 	jmp	freeAllBlocks
-ENDPROC	freeVars
+ENDPROC	freeAllVars
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -308,8 +428,7 @@ ENDPROC	freeVars
 ;
 DEFPROC	allocStrSpace
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].SBLK_DEF
-	mov	cx,SBLKLEN
+	lea	si,[si].SBLKDEF
 	jmp	allocBlock
 ENDPROC	allocStrSpace
 
@@ -330,7 +449,7 @@ ENDPROC	allocStrSpace
 ;
 DEFPROC	freeStrSpace
 	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].SBLK_DEF
+	lea	si,[si].SBLKDEF
 	jmp	freeAllBlocks
 ENDPROC	freeStrSpace
 
@@ -342,12 +461,13 @@ ENDPROC	freeStrSpace
 ; the name of the variable, followed by the variable data.  The name length
 ; is limited to VAR_NAMELEN.
 ;
-; Note that, except for numbers (integers and floating point values), the
-; variable data is generally a far pointer to the actual data; for example, a
-; string variable is just a far pointer to a location inside a string pool.
+; This function must also reserve the total space required for the var data.
+; That's 2 bytes for VAR_PARM, 4 bytes for VAR_LONG and VAR_STR, and
+; 2 + parm count * 2 + 4 for VAR_FUNC.
 ;
 ; Inputs:
-;	AL = CLS_VAR_*
+;	AH = var type (VAR_*)
+;	AL = parm count (if AH = VAR_FUNC)
 ;	CX = length of name
 ;	DS:SI -> variable name
 ;
@@ -355,43 +475,53 @@ ENDPROC	freeStrSpace
 ;	If carry clear, AH = var type, DX:SI -> var data
 ;
 ; Modifies:
-;	AX, CX, DX
+;	AX, CX, DX, SI
 ;
 DEFPROC	addVar
 	push	bx
 	push	di
 	push	es
-	and	al,VAR_TYPE		; convert CLS_VAR_* to VAR_TYPE
 	ASSERT	C,<cmp cx,256>		; validate size (and that CH is zero)
-	mov	bl,al			; save var type
+	mov	bx,ax			; save var type
 	mov	di,si			; save var name
 	call	findVar
-	jnc	av9
+	jnc	av1x
 
-	mov	ah,bl			; restore var type to AH
+	mov	al,bh			; AL = var type
 	mov	si,di			; restore var name to SI
 	mov	di,ds:[PSP_HEAP]
-	mov	es,[di].VBLK_DEF.BLK_NEXT
+	mov	es,[di].VBLKDEF.BDEF_NEXT
 	ASSERT	STRUCT,es:[0],VBLK
-	mov	di,es:[VBLK_FREE]
+	mov	di,es:[BLK_FREE]
 
+	DPRINTF	'b',<"adding variable %.*ls\r\n">,cx,si,ds
+
+	sub	dx,dx
 	cmp	cx,VAR_NAMELEN
-	jbe	av0
-	mov	cx,VAR_NAMELEN
-av0:	push	di
-	add	di,cx
-	mov	dl,2			; minimum associated data size
-	cmp	al,VAR_INT
 	jbe	av1
-	mov	dl,4
+	mov	cx,VAR_NAMELEN
+av1:	push	di
+	add	di,cx
+	inc	dx
+	inc	dx
+	cmp	al,VAR_LONG
+	jb	av3
+	inc	dx
+	inc	dx
 	cmp	al,VAR_DOUBLE
-	jb	av1
-	ASSERT	Z			; not ready for VAR_FUNC or VAR_ARRAY
-	mov	dl,8
-av1:	mov	dh,0
-	add	di,dx
+	jb	av3
+	ja	av2
+	add	dx,dx
+	jmp	short av3
+av1x:	jmp	short av9
+
+av2:	ASSERT	Z,<cmp al,VAR_FUNC>
+	mov	dl,bl			; DX = parm count
+	add	dx,dx			; DX = DX * 2
+	add	dx,6			; DX += return type + code ptr
+av3:	add	di,dx
 	inc	di			; one for the length byte
-	cmp	es:[VBLK_SIZE],di	; enough room?
+	cmp	es:[BLK_SIZE],di	; enough room?
 	pop	di
 	jb	av9			; no (carry set)
 ;
@@ -401,24 +531,25 @@ av1:	mov	dh,0
 ;
 	or	al,cl
 	stosb
-av2:	lodsb				; rep movsb would be nice here
+av4:	lodsb				; rep movsb would be nice here
 	cmp	al,'a'			; but we upper-case the var name now
-	jb	av3
+	jb	av5
 	sub	al,20h
-av3:	stosb
-	loop	av2
-	mov	cl,dl
-	mov	al,0
-	mov	dx,di			; DX = offset of variable's data
+av5:	stosb
+	loop	av4
+	mov	al,cl			; AL = 0
+	mov	cx,dx			; CX = size of var data
+	mov	dx,di			; DX = offset of var data
 	rep	stosb
-	mov	es:[VBLK_FREE],di
-	cmp	es:[VBLK_SIZE],di
+	mov	es:[BLK_FREE],di
+	cmp	es:[BLK_SIZE],di
 	ASSERT	AE
 	je	av8
 	stosb				; ensure there's always a zero after
 
 av8:	mov	si,dx
 	mov	dx,es			; DX:SI -> var data
+	xchg	ax,bx			; restore AH, AL
 
 av9:	pop	es
 	pop	di
@@ -442,8 +573,8 @@ ENDPROC	addVar
 ;	AX, DX, SI
 ;
 DEFPROC	findVar
-	push	di
 	push	es
+	push	di
 
 	push	cs
 	pop	es
@@ -451,14 +582,15 @@ DEFPROC	findVar
 	jmp	short fv1
 
 fv0:	mov	di,ds:[PSP_HEAP]
-	mov	es,[di].VBLK_DEF.BLK_NEXT
+	mov	es,[di].VBLKDEF.BDEF_NEXT
 	ASSERT	STRUCT,es:[0],VBLK
-	mov	di,size VBLK_HDR	; ES:DI -> first var in block
+	mov	di,size VBLK		; ES:DI -> first var in block
 
 fv1:	mov	al,es:[di]
 	inc	di
-	test	al,al			; end of variables in the block?
-	jnz	fv2			; no
+	cmp	al,VAR_DEAD		; end of variables in the block?
+	je	fv1			; no, dead byte
+	ja	fv2			; no, existing variable
 	mov	ax,cs			; TODO: integrate PREDEF_VARS and
 	mov	dx,es			; and the rest of the var blocks better
 	cmp	ax,dx
@@ -494,33 +626,156 @@ fv5:	pop	di
 	pop	ax
 	je	fv8			; match!
 
-fv6:	mov	dh,ah
-	cbw
-	add	di,ax			; DI -> past var name
-	ASSERT	A,<cmp dh,VAR_INT>	; no support for VAR_INT at this point
-	cmp	dh,VAR_DOUBLE
-	je	fv6b
-	jb	fv6c
-	inc	di			; skip FUNC or ARRAY type
-	mov	al,[di]			; AL = FUNC or ARRAY signature length
-	inc	di			; skip signature length now
-	cbw
-	cmp	dh,VAR_ARRAY
-	jne	fv6a
-	shl	ax,1
-fv6a:	add	di,ax
-	jmp	fv6c
-fv6b:	add	di,4
-fv6c:	add	di,4			; DI bumped to next variable
+fv6:	mov	dl,al
+	mov	dh,0
+	add	di,dx			; DI -> past var name
+	push	si
+	mov	si,di
+	mov	dx,es
+	call	getVarLen
+	add	di,ax
+	pop	si
 	jmp	fv1			; keep looking
 
 fv8:	mov	si,dx
 	mov	dx,es			; DX:SI -> var data
 
-fv9:	pop	es
-	pop	di
+fv9:	pop	di
+	pop	es
 	ret
 ENDPROC	findVar
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getVar
+;
+; Load AX with the var data at DX:SI and advance SI.
+;
+; Inputs:
+;	DX:SI -> var data
+;
+; Outputs:
+;	AX = data
+;
+; Modifies:
+;	SI
+;
+DEFPROC	getVar
+	push	ds
+	mov	ds,dx
+	lodsw
+	pop	ds
+	ret
+ENDPROC	getVar
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getVarLen
+;
+; Inputs:
+;	AH = var type (from addVar or findVar)
+;	DX:SI -> var data (from addVar or findVar)
+;
+; Outputs:
+;	AX = length of var data
+;
+; Modifies:
+;	AX
+;
+DEFPROC	getVarLen
+	push	cx
+	push	ds
+	mov	ds,dx
+	sub	cx,cx
+	cmp	ah,VAR_PARM
+	jb	gvl9
+	mov	cx,2
+	je	gvl9			; VAR_PARM is always 2 bytes
+	cmp	ah,VAR_FUNC
+	jae	gvl1
+	add	cx,2			; other values are at least 4 bytes
+	cmp	ah,VAR_DOUBLE
+	jb	gvl9
+	add	cx,4			; VAR_DOUBLE is 8 bytes
+	jmp	short gvl9
+gvl1:	add	cx,4			; VAR_FUNC also has 4-byte addr
+	mov	al,[si+1]		; AL = VAR_FUNC or VAR_ARRAY length
+	cbw
+	add	ax,ax
+	add	cx,ax
+gvl9:	xchg	ax,cx			; AX = length of var data
+	pop	ds
+	pop	cx
+	ret
+ENDPROC	getVarLen
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; removeVar
+;
+; Inputs:
+;	CX = length of name
+;	DS:SI -> variable name
+;
+; Outputs:
+;	If carry clear, variable removed (or does not exist)
+;	If carry set, variable predefined (cannot be removed)
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	removeVar
+	DPRINTF	'b',<"removing variable %.*ls\r\n">,cx,si,ds
+	push	si
+	call	findVar			; does var exist?
+	cmc
+	jnc	rv9			; exit if not
+	push	di			; AH = var type, DX:SI -> var data
+	mov	di,cs
+	cmp	di,dx			; predefined variable?
+	stc
+	je	rv8			; yes
+	push	es
+	push	cx
+	call	getVarLen		; AX = length of var data at DX:SI
+	mov	es,dx
+	mov	di,si			; ES:DI -> var data
+	inc	cx			; CX = total length of name
+	sub	di,cx			; ES:DI -> var name
+	add	cx,ax			; CX = total length (name + data)
+	mov	al,VAR_DEAD
+	rep	stosb
+	pop	cx
+	pop	es
+rv8:	pop	di
+rv9:	pop	si
+	ret
+ENDPROC	removeVar
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; setVar
+;
+; Store AX in the var data at DX:SI and advance SI.
+;
+; Inputs:
+;	AX = data
+;	DX:SI -> var data
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	SI
+;
+DEFPROC	setVar
+	push	ds
+	mov	ds,dx
+	mov	[si],ax
+	add	si,2
+	pop	ds
+	ret
+ENDPROC	setVar
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

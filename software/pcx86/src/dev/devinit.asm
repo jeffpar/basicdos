@@ -7,6 +7,9 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	include	macros.inc
+	include	8086.inc
+	include	bios.inc
 	include	dev.inc
 
 DEV	segment para public 'CODE'

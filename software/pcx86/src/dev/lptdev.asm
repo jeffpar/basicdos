@@ -7,6 +7,8 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	include	macros.inc
+	include	bios.inc
 	include	dev.inc
 
 DEV	group	CODE1,CODE2,CODE3,INIT,DATA

@@ -64,3 +64,39 @@ IOCTL_SETINS	equ	0D5h	; CON: set INSERT mode ON (CL=1) or OFF (CL=0)
 IOCTL_SCROLL	equ	0D6h	; CON: scroll (or clear) interior of context
 IOCTL_GETCOLOR	equ	0D7h	; CON: get fill (DL) and border (DH) colors
 IOCTL_SETCOLOR	equ	0D8h	; CON: set fill (CL) and border (CH) colors
+
+;
+; Character codes that we care about.
+;
+CHR_CTRLA	equ	01h
+CHR_CTRLB	equ	02h
+CHR_CTRLC	equ	03h
+CHR_CTRLD	equ	04h	; alias for SCAN_RIGHT and SCAN_F1
+CHR_CTRLE	equ	05h	; alias for SCAN_UP and SCAN_F3
+CHR_CTRLF	equ	06h
+CHR_CTRLG	equ	07h
+CHR_BACKSPACE	equ	08h
+CHR_TAB		equ	09h
+CHR_LINEFEED	equ	0Ah
+CHR_VTAB	equ	0Bh
+CHR_RETURN	equ	0Dh
+CHR_CTRLP	equ	10h
+CHR_CTRLQ	equ	11h
+CHR_CTRLR	equ	12h
+CHR_CTRLS	equ	13h	; alias for SCAN_LEFT
+CHR_CTRLT	equ	14h
+CHR_CTRLU	equ	15h
+CHR_CTRLV	equ	16h	; alias for SCAN_INS
+CHR_CTRLW	equ	17h
+CHR_CTRLX	equ	18h	; alias for SCAN_DOWN
+CHR_CTRLY	equ	19h
+CHR_CTRLZ	equ	1Ah
+CHR_ESCAPE	equ	1Bh
+CHR_SPACE	equ	20h
+CHR_DQUOTE	equ	22h
+CHR_SQUOTE	equ	27h
+CHR_SLASH	equ	2Fh
+CHR_LT		equ	3Ch
+CHR_GT		equ	3Eh
+CHR_BSLASH	equ	5Ch
+CHR_DEL		equ	7Fh	; alias for SCAN_DEL

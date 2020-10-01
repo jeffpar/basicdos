@@ -7,6 +7,9 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	include	macros.inc
+	include	8086.inc
+	include	devapi.inc
 	include	dos.inc
 
 DOS	segment word public 'CODE'
@@ -739,7 +742,7 @@ lp6g:	push	es:[EXE_START_SEG]
 	pop	ds:[PSP_START].SEG
 	add	ds:[PSP_START].SEG,ax
 
-	DPRINTF	'p',<"min,cur,max paragraphs: %#06x,%#06x,%#06x",13,10>,si,bx,di
+	DPRINTF	'p',<"min,cur,max paragraphs: %#06x,%#06x,%#06x\r\n">,si,bx,di
 
 	sub	dx,dx			; no heap
 	jmp	lp8			; realloc the PSP segment

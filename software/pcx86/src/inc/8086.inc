@@ -7,7 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-	include	macros.inc
+
 ;
 ; Processor-defined interrupt vectors
 ;
@@ -18,21 +18,6 @@ INT_BP		EQU	03h	; #BP (breakpoint trap)
 INT_OF		EQU	04h	; #OF (overflow trap)
 INT_BR		EQU	05h	; #BR (BOUND error fault; 80186 and up)
 INT_UD		EQU	06h	; #UD (undefined opcode fault; 80186 and up)
-
-REG16	struc
-LOB		db	?
-HIB		db	?
-REG16	ends
-
-REG32	struc
-LOW		dw	?
-HIW		dw	?
-REG32	ends
-
-FARPTR	struc
-OFF		dw	?
-SEG		dw	?
-FARPTR	ends
 
 ;
 ; Processor flag definitions
@@ -58,9 +43,11 @@ OP_SEG_ES	equ	026h
 OP_PUSH_AX	equ	050h
 OP_PUSH_DX	equ	052h
 OP_PUSH_BX	equ	053h
+OP_PUSH_BP	equ	055h
 OP_PUSH_DI	equ	057h
 OP_POP_AX	equ	058h
 OP_POP_DX	equ	05Ah
+OP_POP_BP	equ	05Dh
 OP_XCHG_DX	equ	092h
 OP_CWD		equ	099h
 OP_CALLF	equ	09Ah		; 32-bit absolute address
@@ -73,7 +60,7 @@ OP_MOV_SI	equ	0BEh
 OP_MOV_DI	equ	0BFh
 OP_RETF_N	equ	0CAh
 OP_RETF		equ	0CBh
-OP_INT3		equ	0CCh
+OP_INT03	equ	0CCh		; INT3
 OP_IRET		equ	0CFh
 OP_CALL		equ	0E8h		; 16-bit displacement
 OP_JMP		equ	0E9h		; 16-bit displacement
@@ -85,7 +72,10 @@ OP_STI		equ	0FBh
 OP_CLD		equ	0FCh
 OP_STD		equ	0FDh
 
+OP_INT06	equ	006CDh		; INT 06h
 OP_INT21	equ	021CDh		; INT 21h
+OP_POP_BP8	equ	0468Fh		; POP [BP+nn]
+OP_POP_BP16	equ	0868Fh		; POP [BP+nnnn]
 OP_ZERO_AX	equ	0C031h		; XOR AX,AX
 OP_MOV_DS_AX	equ	0D88Eh		; MOV DS,AX
 OP_MOV_ES_AX	equ	0C08Eh		; MOV ES,AX
@@ -95,29 +85,5 @@ OP_OR_AX_DX	equ	0D009h		; OR  AX,DX
 OP_JZ_SELF	equ	0FE74h		; JZ  $
 OP_MOV_BP_SP	equ	0E589h		; MOV BP,SP
 OP_MOV_SP_BP	equ	0EC89h		; MOV SP,BP
-
-;
-; Operation checks are sprinkled throughout DEBUG BASIC-DOS binaries to
-; signal assertion failures and internal breakpoints, and also to perform
-; arithmetic validation tests in the PCjs emulator.  They invoke INT_UD
-; (INT 06h) to trigger the operation, since that interrupt had no defined
-; purpose on 8086/8088 processors (every opcode did something).  The concept
-; of invalid opcodes came later, with the introduction of the 80186.
-;
-; With the exception of OP_ASSERT, these operations should have no effect
-; in a non-PCjs environment (or on a real machine), since BASIC-DOS system
-; initialization installs an INT_UD handler to deal with them.  And if you
-; somehow run a DEBUG binary on a non-DEBUG system, INT_UD will still be
-; set to an IRET, so the binaries should still run, albeit with side-effects.
-;
-OP_DBGBRK	equ	0CCh		; signal an internal breakpoint
-OP_ASSERT	equ	0F9h		; signal an assertion failure
-OP_MUL32	equ	0FBh		; verify 32-bit multiplication result
-OP_DIV32	equ	0FCh		; verify 32-bit division result
-
-OPCHECK	macro	op
-	IFDEF DEBUG
-	int	INT_UD			;; INT 06h
-	db	op			;; next byte indicates the operation
-	ENDIF
-	endm
+OP_PUSH_BP8	equ	076FFh		; PUSH [BP+nn]
+OP_PUSH_BP16	equ	0B6FFh		; PUSH [BP+nnnn]

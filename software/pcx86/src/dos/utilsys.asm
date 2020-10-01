@@ -7,6 +7,9 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	include	macros.inc
+	include	8086.inc
+	include	dev.inc
 	include	dos.inc
 
 DOS	segment word public 'CODE'
@@ -260,7 +263,7 @@ hk3:	cmp	al,CHR_CTRLP
 	jne	hk4
 	xor	[bx].SCB_CTRLP_ACT,1
 
-hk4:	cmp	ah,SCAN_DEL
+hk4:	cmp	al,CHR_CTRLD
 	jne	hk9
 	or	[bx].SCB_STATUS,SCSTAT_FQUIT
 

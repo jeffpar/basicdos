@@ -7,6 +7,9 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	include	macros.inc
+	include	8086.inc
+	include	bios.inc
 	include	dos.inc
 
 DOS	segment word public 'CODE'
@@ -252,7 +255,7 @@ dc1:	sti
 ; %P is a special formatter that prints the caller's REG_CS:REG_IP-2 in hex;
 ; "#010" ensures it's printed with "0x" and 8 digits with leading zeroes.
 ;
-	DPRINTF	'd',<"%#010P: DOS function %02xh",13,10>,bx
+	DPRINTF	'd',<"%#010P: DOS function %02xh\r\n">,bx
 	ENDIF	; MAXDEBUG
 ;
 ; If CTRLC checking is enabled for all (non-utility) functions and a CTRLC
@@ -495,7 +498,7 @@ DEFPROC	func_none,DOS
 ; %P is a special formatter that prints the caller's REG_CS:REG_IP-2 in hex;
 ; "#010" ensures it's printed with "0x" and 8 digits with leading zeroes.
 ;
-	DPRINTF	'd',<"%#010P: unsupported DOS function %02xh",13,10>,ax
+	DPRINTF	'd',<"%#010P: unsupported DOS function %02xh\r\n">,ax
 	ENDIF	; DEBUG
 
 	mov	[bp].REG_AX,ERR_INVALID

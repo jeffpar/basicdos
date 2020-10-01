@@ -12,7 +12,7 @@
 CODE    SEGMENT
 	org	100h
 
-	EXTERNS	<allocText,freeText,genCode,freeCode,freeVars>,near
+	EXTERNS	<allocText,freeAllText,genCode,freeAllCode,freeAllVars>,near
 	EXTERNS	<writeStrCRLF>,near
 
 	EXTERNS	<KEYWORD_TOKENS>,word
@@ -203,9 +203,11 @@ m4a:	jmp	m8
 ; BAT files are LOAD'ed and then immediately RUN.  We may as well do the same
 ; for BAS files; you can always use the "LOAD" command to load without running.
 ;
-; BAT file operation differs in other respects.  For example, each line of a
-; BAT file is displayed before it's executed, unless prefixed with '@'.  This
-; is why we must call cmdRunFlags with GEN_BASIC or GEN_BATCH as appropriate.
+; BAT file operation does differ in some respects.  For example, any existing
+; variables remain in memory prior to executing a BAT file, but all variables
+; are freed prior to running a BAS file.  Also, each line of a BAT file is
+; displayed before it's executed, unless prefixed with '@'.  These differences
+; are why we must call cmdRunFlags with GEN_BASIC or GEN_BATCH as appropriate.
 ;
 ; Another side-effect of an implied LOAD+RUN operation is that we free the
 ; loaded program (ie, all text blocks) when it finishes running.  Any variables
@@ -217,13 +219,13 @@ m4a:	jmp	m8
 m4b:	push	dx
 	call	cmdLoad
 	pop	dx
-	jc	m4d			; don't RUN if there was a LOAD error
+	jc	m4d			; don't RUN if LOAD error
 	mov	al,GEN_BASIC
 	cmp	dx,offset BAS_EXT
 	je	m4c
 	mov	al,GEN_BATCH
 m4c:	call	cmdRunFlags		; if cmdRun returns normally
-	call	freeText		; then free all the text blocks
+	call	freeAllText		; automatically free all text blocks
 m4d:	or	[heap].CMD_FLAGS,CMD_ECHO
 	jmp	m0
 ;
@@ -488,7 +490,7 @@ DEFPROC	ctrlc,FAR
 	mov	sp,[bx].ORIG_SP
 	mov	bp,[bx].ORIG_BP
 	call	closeFile
-	call	freeCode
+	call	freeAllCode
 	jmp	m0
 ENDPROC	ctrlc
 
@@ -960,13 +962,13 @@ ENDPROC	printNewLine
 ;	Any
 ;
 DEFPROC	cmdList
-	lea	si,[heap].TBLK_DEF
-l2:	mov	cx,[si].TBLK_NEXT
+	lea	si,[heap].TBLKDEF
+l2:	mov	cx,[si].BLK_NEXT
 	jcxz	l9			; nothing left to parse
 	mov	ds,cx
 	ASSUME	DS:NOTHING
-	mov	si,size TBLK_HDR
-l3:	cmp	si,ds:[TBLK_FREE]
+	mov	si,size TBLK
+l3:	cmp	si,ds:[BLK_FREE]
 	jae	l2			; advance to next block in chain
 	lodsw
 	test	ax,ax			; is there a label #?
@@ -1014,7 +1016,7 @@ lf1:	call	openFile		; open the specified file
 	jmp	lf1
 lf1a:	jmp	openError
 
-lf1b:	call	freeText		; free any pre-existing blocks
+lf1b:	call	freeAllText		; free any pre-existing blocks
 	test	dx,dx
 	jnz	lf2
 	add	ax,TBLKLEN
@@ -1129,7 +1131,7 @@ lf8:	mov	ax,[lineLabel]
 	push	cx
 	mov	cx,dx
 	rep	movsb
-	mov	es:[TBLK_FREE],di
+	mov	es:[BLK_FREE],di
 	pop	cx
 	mov	ax,si
 	sub	ax,[lineOffset]
@@ -1143,7 +1145,7 @@ lf8:	mov	ax,[lineLabel]
 
 lf10:	PRINTF	<"Invalid file format",13,10,13,10>
 
-lf11:	call	freeText
+lf11:	call	freeAllText
 	stc
 
 lf12:	pushf
@@ -1166,8 +1168,8 @@ ENDPROC	cmdLoad
 ;	Any
 ;
 DEFPROC	cmdNew
-	call	freeText
-	call	freeVars
+	call	freeAllText
+	call	freeAllVars
 	ret
 ENDPROC	cmdNew
 
@@ -1194,6 +1196,7 @@ ENDPROC	cmdRestart
 ; cmdRun
 ;
 ; Inputs:
+;	AL = GEN_BASIC or GEN_BATCH (if calling cmdRunFlags)
 ;	DS:DI -> TOKENBUF
 ;
 ; Outputs:
@@ -1203,10 +1206,12 @@ ENDPROC	cmdRestart
 ;	Any
 ;
 DEFPROC	cmdRun
-	mov	al,GEN_BASIC		; RUNning a BASIC program
-	call	freeVars		; always gets a fresh set of variables
+	mov	al,GEN_BASIC		; RUN implies GEN_BASIC behavior
 	DEFLBL	cmdRunFlags,near
-	sub	si,si
+	cmp	al,GEN_BASIC
+	jne	cr1			; BASIC programs
+	call	freeAllVars		; always gets a fresh set of variables
+cr1:	sub	si,si
 	lea	bx,[heap]
 	ASSERT	Z,<cmp bx,ds:[PSP_HEAP]>
 	call	genCode

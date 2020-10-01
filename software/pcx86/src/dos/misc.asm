@@ -7,6 +7,8 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	include	macros.inc
+	include	dev.inc
 	include	dos.inc
 
 DOS	segment word public 'CODE'
@@ -45,7 +47,7 @@ DEFPROC	msc_setvec,DOS
 	jnc	msv1
 	sub	di,di
 	mov	es,di
-	ASSUME	ES:BIOS
+	ASSUME	ES:NOTHING
 msv1:	xchg	di,ax			; ES:DI -> vector to write
 	cli
 	mov	ax,[bp].REG_DX
@@ -454,7 +456,7 @@ DEFPROC	msc_getvec,DOS
 	jnc	mgv1
 	sub	si,si
 	mov	ds,si
-	ASSUME	DS:BIOS
+	ASSUME	DS:NOTHING
 mgv1:	xchg	si,ax			; DS:SI -> vector to read
 	cli
 	lodsw

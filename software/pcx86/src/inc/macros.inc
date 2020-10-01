@@ -9,6 +9,21 @@
 ;
 	PAGE	,132
 
+REG16	struc
+LOB	db	?
+HIB	db	?
+REG16	ends
+
+REG32	struc
+LOW	dw	?
+HIW	dw	?
+REG32	ends
+
+FARPTR	struc
+OFF	dw	?
+SEG	dw	?
+FARPTR	ends
+
 EXTERNS	macro	list,type
 	IRP	l,<list>
 	extrn	l:type
@@ -107,6 +122,7 @@ DEFPROC	macro	name,type
 	public	name
 	_ARGLEN = 0
 	_ARGBYTES = 0
+	_RETBYTES = 0
 	_LOCBYTES = 0
 	_PROCTYPE = 2
 	IFIDN	<type>,<DOS>
@@ -136,9 +152,10 @@ name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 	endm
 
 ;
-; ARGVAR and LOCVAR are used inside DEFPROC, like so:
+; RETVAR, ARGVAR, and LOCVAR are used inside DEFPROC, like so:
 ;
-;	DEFPROC	evalDivLong,FAR
+;	DEFPROC	divLong,FAR
+;	RETVAR	retDivLong,dword
 ;	ARGVAR	divA,dword
 ;	ARGVAR	divB,dword
 ;	LOCVAR	bitCount,byte
@@ -148,14 +165,14 @@ name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 ;	ENTER
 ;	...
 ;	LEAVE
-;	RET	4
-;	ENDPROC evalDivLong
+;	RETURN
+;	ENDPROC divLong
 ;
-; List any ARGVARs in the order the arguments were pushed.  The actual offset
-; of each ARGVAR will not be known until the ENTER macro is called, at which
-; point an adjustment will be calculated to "invert" all the offsets, so that
-; the first ARGVAR offset will be the "farthest" on the stack (ie, the first
-; argument pushed).
+; List the RETVAR, if any, first, followed by any ARGVARs in the order the
+; arguments were pushed.  The actual offset of each ARGVAR will not be known
+; until the ENTER macro is called, at which point an adjustment will be
+; calculated to "invert" all the offsets, so that the first ARGVAR offset will
+; be the "farthest" on the stack (ie, the first argument pushed).
 ;
 ; The generated code will look like:
 ;
@@ -163,15 +180,14 @@ name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 ;	mov	bp,sp
 ;	sub	sp,4
 ;	...
-;	mov	sp,bp	; used instead of "add sp,N" to avoid altering flags
+;	mov	sp,bp	; used instead of "add sp,4" to avoid altering flags
 ;	pop	bp
-;	ret	4
+;	ret	8
 ;
-; There's also a RETURN macro that will automatically generate the RET N
-; instruction with N = _ARGBYTES, but if a function must leave a result on
-; the stack (like the evalDivLong example above), you must still use RET N.
+; The RETURN macro automatically generates the appropriate RET N instruction,
+; where N = _ARGBYTES - _RETBYTES.
 ;
-; If you need the address of an ARGVAR or LOCVAR variable, use LEA:
+; If you need the address of any RETVAR, ARGVAR, or LOCVAR variable, use LEA:
 ;
 ;	lea	di,resultType
 ;
@@ -180,7 +196,7 @@ name	proc	type	;; we'll leave whatever ASSUMEs are active in place
 ;
 ; An effort is made to ensure all WORD and DWORD LOCVARs are evenly aligned;
 ; this is easy to do since the ENTER macro is in complete control of how much
-; stack space to allocate.  However, no alignment adjustments are made for
+; stack space to allocate.  However, no alignment adjustments can be made for
 ; ARGVAR definitions, so if you define any BYTE arguments, make sure all bytes
 ; on the argument side of the stack are accounted for.
 ;
@@ -204,6 +220,18 @@ ARGVAR	macro	name,type,len
 	ENDIF
 	_ARGBYTES = _ARGBYTES + _ARGLEN
 	DEFARG	name,type,%(_ARGBYTES)
+	endm
+
+;
+; For functions using a PASCAL-style calling convention that want to return a
+; value on the stack, the caller must reserve space for the value on the stack
+; *before* pushing any arguments, and the function must use RETVAR to declare
+; the return variable *before* declaring any ARGVARs.  The function should also
+; use the RETURN macro to pop the ARGVARs; RETVAR will be left on the stack.
+;
+RETVAR	macro	name,type,len
+	ARGVAR	name,type,len
+	_RETBYTES = _ARGLEN
 	endm
 
 DEFARG	macro	name,type,offset
@@ -242,20 +270,22 @@ ENTER	macro
 	mov	bp,sp
 	 IF _LOCBYTES GT 0
 	sub	sp,_LOCBYTES
-	ASSERT	Z,<test sp,1>		;; make sure the stack isn't "odd"
+	ASSERT	Z,<test sp,1>		;; verify stack is evenly aligned
 	 ENDIF
 	ENDIF
 	_ARGINVERT = (2 + _PROCTYPE + _ARGBYTES)
 	endm
 
-LEAVE	macro
+LEAVE	macro	nocheck
 	IF _LOCBYTES GT 0 OR _ARGBYTES GT 0
 	 IF _LOCBYTES GT 0
-	  IF DEBUG
+	  IFB <nocheck>			;; some functions will leave data on
+	   IFDEF DEBUG			;; the stack, hence the nocheck option
 	push	ax
-	lea	ax,[bp-_LOCBYTES-2]	;; make sure someone didn't reuse BP
+	lea	ax,[bp-_LOCBYTES-4]	;; verify that BP wasn't altered
 	ASSERT	Z,<cmp ax,sp>
 	pop	ax
+	   ENDIF
 	  ENDIF
 	mov	sp,bp
 	 ENDIF
@@ -265,7 +295,7 @@ LEAVE	macro
 
 RETURN	macro
 	IF _ARGBYTES GT 0
-	ret	_ARGBYTES
+	ret	_ARGBYTES - _RETBYTES
 	ELSE
 	ret
 	ENDIF
@@ -278,7 +308,7 @@ name	endp
 
 ;
 ; This macro displays an error message and attempts to force an assembly
-; error by using an invalid keyword (".ERROR").
+; error by using an invalid MASM keyword (".ERROR").
 ;
 ERROR	macro	msg
 	IF1
@@ -293,8 +323,7 @@ ERROR	macro	msg
 ; macro to include assertion checks to verify that the specified pointer
 ; actually points to a structure of the specified type.
 ;
-; Both macros use the word "STRUCT" rather than "STRUC" to avoid confusing
-; MASM.
+; The macros use the word "STRUCT" rather than "STRUC" to avoid confusing MASM.
 ;
 DBGINIT	macro	type,ptr,str
 	IFDEF DEBUG
@@ -317,13 +346,14 @@ DBGINIT	macro	type,ptr,str
 ;
 ;	ASSERT	STRUCT,es:[bx],SCB
 ;
-; or an assertion based on processor flags ("cond") set by an instruction
-; ("op"), as in:
+; or an assertion based on processor flags ("cond") set by an optional
+; instruction ("op"); for example:
 ;
+;	ASSERT	Z		; assert that Z is set
 ;	ASSERT	Z,<test dx,dx>	; assert that DX is zero
 ;
-; Run-time assertions are present only in DEBUG builds, and the instructions
-; are wrapped with PUSHF/POPF to avoid side-effects.
+; Run-time assertions are present only in DEBUG builds, and are wrapped with
+; PUSHF/POPF if an optional instruction is used.
 ;
 ASSERT	macro	cond,op,value
 	IFNB	<value>
@@ -352,7 +382,7 @@ ASSERT	macro	cond,op,value
 	endm
 
 ;
-; DBGBRK generates an INT3 (OP_INT3) that's preceded by INT 06h, so if the
+; DBGBRK generates an INT3 (OP_INT03) that's preceded by INT 06h, so if the
 ; PCjs debugger isn't present, the built-in INT 06h handler will skip over it.
 ;
 DBGBRK	macro
@@ -362,7 +392,7 @@ DBGBRK	macro
 	endm
 
 ;
-; ASSUMES is recommended at the beginning of functions, to ensure that the
+; ASSUMES is recommended at the beginning of DOS functions, to ensure the
 ; the function's entry conditions are 1) documented and 2) verified at runtime
 ; (DEBUG builds only); eg:
 ;
@@ -418,6 +448,14 @@ rm1:	rep	movs size ptr es:[di],size ptr seg:[si]
 rm2:
 	endm
 
+;
+; DOS "utility" functions should be always be called with this macro, so that
+; we can easily change the implementation.  They were originally implemented
+; with an unused INT 21h function # in AH and the utility function # in AL,
+; but utility functions like DOS_UTL_PRINTF that expect data bytes to follow
+; the INT instruction will not work with code that "hooks" INT 21h.  So we now
+; use a dedicated interrupt that expects the utility function # in AH.
+;
 DOSUTIL	macro	func
 	mov	ah,func
 	int	INT_DOSUTIL
@@ -425,8 +463,14 @@ DOSUTIL	macro	func
 ;
 ; Use the PRINTF macro to simplify calls to the DOS_UTL_PRINTF function.
 ;
+; There's no SPRINTF macro, but you can use CCALL to call DOS_UTL_SPRINTF;
+; pass your format string in DS:BX (don't use the macro's format parameter),
+; and set ES:DI and CX to the address and length of your output buffer.
+;
+;	CCALL	DOS_UTL_SPRINTF,,arg1,arg2,...
+;
 PRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
-	FPRINTF	DOS_UTL_PRINTF,,<format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
+	CCALL	DOS_UTL_PRINTF,<format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	endm
 
 ;
@@ -436,10 +480,10 @@ PRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 DPRINTF	macro	letter,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	LOCAL	D1,D2
 	IFDEF DEBUG
-	pushf			;; FPRINTF alters AX and flags
-	push	ax
-	FPRINTF	DOS_UTL_DPRINTF,letter,<format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
-	test	al,al		;; if DOS_UTL_PRINTF returns non-zero in AL
+	pushf			;; CCALL may alter flags
+	push	ax		;; DOS_UTL_DPRINTF alters AX
+	CCALL	DOS_UTL_DPRINTF,<letter,format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
+	test	al,al		;; if DOS_UTL_DPRINTF returns non-zero in AL
 	pop	ax		;; jump to the DBGBRK
 	jnz	D1
 	popf
@@ -451,17 +495,17 @@ D2:
 	endm
 
 ;
-; There's no SPRINTF macro, but you can use FPRINTF to call DOS_UTL_SPRINTF;
-; pass your format string in DS:BX (don't use the macro's format parameter),
-; and set ES:DI and CX to the address and length of your output buffer.
+; CCALL simulates a C-style (aka CDECL) calling convention, with the macro
+; pushing the parameters right-to-left and cleaning up the stack afterward.
 ;
-;	FPRINTF	DOS_UTL_SPRINTF,,arg1,arg2,...
+; One downside to this convention is that it can't be used with functions that
+; return information in flags, like CF or ZF, due to the "add sp" instruction.
 ;
 ; NOTE: When passing 32-bit ("long") values to these macros, pass the low word
 ; first, then the high word, so that the high word is pushed first.  Similarly,
 ; when passing 32-bit ("far") pointers, pass the offset first, then segment.
 ;
-FPRINTF	macro	func,option,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
+CCALL	macro	func,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	argc = 0
 	IRP	arg,<a12,a11,a10,a9,a8,a7,a6,a5,a4,a3,a2,a1>
 	IFNB	<arg>
@@ -470,13 +514,36 @@ FPRINTF	macro	func,option,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	ENDIF
 	ENDM
 	DOSUTIL	func
-	IFNB	<option>
-	db	option
-	ENDIF
 	IFNB	<format>
 	db	format,0
 	ENDIF
 	IF	argc NE 0
 	add	sp,argc * 2
+	ENDIF
+	endm
+
+;
+; Operation checks are sprinkled throughout DEBUG BASIC-DOS binaries to
+; signal assertion failures and internal breakpoints, and also to perform
+; arithmetic validation tests in the PCjs emulator.  They invoke INT_UD
+; (INT 06h) to trigger the operation, since that interrupt had no defined
+; purpose on 8086/8088 processors (every opcode did something).  The concept
+; of invalid opcodes came later, with the introduction of the 80186.
+;
+; With the exception of OP_ASSERT, these operations should have no effect
+; in a non-PCjs environment (or on a real machine), since BASIC-DOS system
+; initialization installs an INT_UD handler to deal with them.  And if you
+; somehow run a DEBUG binary on a non-DEBUG system, INT_UD will still be
+; set to an IRET, so the binaries should still run, albeit with side-effects.
+;
+OP_DBGBRK	equ	0CCh		; signal an internal breakpoint
+OP_ASSERT	equ	0F9h		; signal an assertion failure
+OP_MUL32	equ	0FBh		; verify 32-bit multiplication result
+OP_DIV32	equ	0FCh		; verify 32-bit division result
+
+OPCHECK	macro	op
+	IFDEF DEBUG
+	int	06h			;; INT 06h
+	db	op			;; next byte indicates the operation
 	ENDIF
 	endm
