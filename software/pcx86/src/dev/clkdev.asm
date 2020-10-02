@@ -28,8 +28,8 @@ CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CLOCK+DDATTR_CHAR+DDATTR_IOCTL,offset
 
 	DEFPTR	tmr_int,0		; timer hardware interrupt handler
 	DEFPTR	wait_ptr,-1		; chain of waiting packets
-	DEFBYTE	dateDay,3		; 1-31
-	DEFBYTE	dateMonth,9		; 1-12
+	DEFBYTE	dateDay,2		; 1-31
+	DEFBYTE	dateMonth,10		; 1-12
 	DEFWORD	dateYear,2020		; 1980-
 	DEFLONG	ticksToday,786520	; ticks since midnight (noon default)
 
