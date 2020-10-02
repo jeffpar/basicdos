@@ -24,6 +24,14 @@ HELP
 
 IF
 
+KEYS
+CTRL-A Line start  CTRL-F Line end\
+CTRL-E Line up     CTRL-X Line down\
+CTRL-S Char left   CTRL-D Char right\
+CTRL-G Char del    CTRL-V Insert\
+CTRL-C Abort       ESC    Erase
+CTRL-ALT-DEL kills the current program. Use RESTART to restart the system.
+
 LET
 
 LIST

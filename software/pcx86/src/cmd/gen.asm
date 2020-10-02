@@ -179,7 +179,7 @@ gc4:	mov	bx,[pHeap]
 	pop	cx			; DS:SI -> LINEBUF (with length CX)
 
 	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
-	DOSUTIL	DOS_UTL_TOKIFY2
+	DOSUTIL	TOKIFY2
 	mov	bx,di
 	push	es
 	pop	ds
@@ -865,7 +865,7 @@ ge3:	mov	al,VAR_LONG		; AL = VAR_LONG
 	cmp	byte ptr [si],'9'	; is next character a digit?
 	jbe	ge3a			; yes
 	inc	si			; no, skip it (must be 'O' or 'H')
-ge3a:	DOSUTIL	DOS_UTL_ATOI32		; DS:SI -> numeric string (length CX)
+ge3a:	DOSUTIL	ATOI32			; DS:SI -> numeric string (length CX)
 	xchg	cx,ax			; save result in DX:CX
 	pop	bx
 	GENPUSH	dx,cx
@@ -1172,7 +1172,7 @@ DEFPROC	genGoto
 	mov	al,CLS_NUM
 	call	getNextToken
 	jbe	gg9
-	DOSUTIL	DOS_UTL_ATOI32D		; DS:SI -> decimal string
+	DOSUTIL	ATOI32D			; DS:SI -> decimal string
 	call	findLabel
 ;
 ; If carry is clear, then we found the specified label # (ie, it must have
@@ -1882,12 +1882,12 @@ gt2:	cmp	ah,CLS_VAR
 	push	ax
 	push	dx
 	mov	dx,offset KEYOP_TOKENS	; see if token is a KEYOP
-	DOSUTIL	DOS_UTL_TOKID		; CS:DX -> TOKTBL
+	DOSUTIL	TOKID			; CS:DX -> TOKTBL
 	jc	gt2a
 	mov	ah,CLS_SYM		; AL = TOKDEF_ID, SI -> TOKDEF
 	jnc	gt2b
 gt2a:	mov	dx,offset KEYWORD_TOKENS; see if token is a KEYWORD
-	DOSUTIL	DOS_UTL_TOKID		; CS:DX -> TOKTBL
+	DOSUTIL	TOKID			; CS:DX -> TOKTBL
 	jc	gt2c
 	mov	ah,CLS_KEYWORD		; AL = TOKDEF_ID, SI -> TOKDEF
 gt2b:	pop	dx

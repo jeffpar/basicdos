@@ -168,7 +168,7 @@ si3c:	mov	si,offset CFG_MEMSIZE
 	pop	es
 	ASSUME	ES:NOTHING		; ES:DI -> validation data
 	mov	bl,10			; BL = base 10
-	DOSUTIL	DOS_UTL_ATOI16		; DS:SI -> string
+	DOSUTIL	ATOI16			; DS:SI -> string
 	jc	si4			; AX = value
 	push	cx
 	mov	cl,6
@@ -317,7 +317,7 @@ si5:	mov	si,offset CFG_SESSIONS
 	push	ds
 	pop	es
 	mov	bl,10			; BL = base 10
-	DOSUTIL	DOS_UTL_ATOI16		; DS:SI -> string, ES:DI -> validation
+	DOSUTIL	ATOI16			; DS:SI -> string, ES:DI -> validation
 	pop	es			; AX = new value
 si6:	mov	dx,size SCB
 	mov	bx,offset scb_table
@@ -334,7 +334,7 @@ si6:	mov	dx,size SCB
 	push	ds
 	pop	es
 	mov	bl,10			; BL = base 10
-	DOSUTIL	DOS_UTL_ATOI16		; DS:SI -> string, ES:DI -> validation
+	DOSUTIL	ATOI16			; DS:SI -> string, ES:DI -> validation
 	pop	es			; AX = new value
 si7:	mov	dx,size SFB
 	mov	bx,offset sfb_table
@@ -504,14 +504,14 @@ si16:	test	dx,dx			; do we still have a default?
 ; SCB, so that the program file can be opened and read using the SCB's PSP.
 ; It's unlocked after the load, but it won't start running until START is set.
 ;
-	DOSUTIL	DOS_UTL_LOAD		; load SHELL DS:DX into specified SCB
+	DOSUTIL	LOAD			; load SHELL DS:DX into specified SCB
 	jc	si18
 	test	ax,ax
 	jz	si16a
 	mov	[cbCacheData],ax
 	mov	[pCacheData].OFF,dx
 	mov	[pCacheData].SEG,es
-si16a:	DOSUTIL	DOS_UTL_START		; CL = SCB #
+si16a:	DOSUTIL	START			; CL = SCB #
 	inc	bx			; must be valid, so no error checking
 
 si17:	inc	cx			; advance SCB #
@@ -540,7 +540,7 @@ si20:	lds	dx,[pCacheInt21]	; restore INT 21h vector
 ; interfaces (sfb_get, sfb_read, etc) with absolutely no benefit.
 ;
 	mov	dx,offset CLK_DEVICE
-	DOSUTIL	DOS_UTL_GETDEV
+	DOSUTIL	GETDEV
 	jc	soerr1
 	mov	ds,[dos_seg]
 	mov	[clk_ptr].OFF,di
@@ -682,7 +682,7 @@ ENDPROC	init_table
 ; cache_int21
 ;
 ; The sole purpose of this function is to intercept OPEN and READ requests
-; that occur during our DOS_UTL_LOAD operations, which we also know will be
+; that occur during our DOSUTIL LOAD operations, which we also know will be
 ; completely sequential (and therefore our caching logic can be very simple).
 ;
 ; This allows us to preload multiple copies of COMMAND.COM into memory without
@@ -706,7 +706,7 @@ DEFPROC	cache_int21,FAR
 	mov	si,dx
 	sub	ax,ax
 	mov	[pCacheActive].OFF,ax	; no active cache data yet
-	DOSUTIL	DOS_UTL_STRLEN		; AX = length of string at DS:SI
+	DOSUTIL	STRLEN			; AX = length of string at DS:SI
 	xchg	cx,ax			; CX = length
 	les	di,[pCacheFile]		; ES:DI -> previous filename, if any
 	test	di,di			; is there a previous filename?

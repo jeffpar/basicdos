@@ -272,7 +272,7 @@ DEFPROC	scb_stoke,DOS
 	ASSUME	DS:NOTHING, ES:NOTHING
 	mov	[scb_stoked],offset scb_return
 	push	ax
-	DOSUTIL	DOS_UTL_YIELD
+	DOSUTIL	YIELD
 	pop	ax
 	DEFLBL	scb_return,near
 	ret
@@ -364,8 +364,8 @@ ENDPROC	scb_unload
 ;
 ; There are currently two conditions to consider:
 ;
-;	1) A DOS_UTL_YIELD request
-;	2) A DOS_UTL_WAIT request
+;	1) A DOSUTIL YIELD request
+;	2) A DOSUTIL WAIT request
 ;
 ; In the first case, we want to return if no other SCB is ready; this
 ; is important when we're called from an interrupt handler.
@@ -374,7 +374,7 @@ ENDPROC	scb_unload
 ; current SCB when its wait condition is satisfied.
 ;
 ; Inputs:
-;	AX = scb_active when called from DOS_UTL_YIELD, zero otherwise
+;	AX = scb_active when called from DOSUTIL YIELD, zero otherwise
 ;
 ; Modifies:
 ;	BX, DX
@@ -454,14 +454,14 @@ sw6:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
 	mov	ss,[bx].SCB_STACK.SEG
 	mov	sp,[bx].SCB_STACK.OFF
 ;
-; TODO: Finish support for the FQUIT ("forced quit") bit.
+; TODO: Finish support for the KILL bit.
 ;
-	test	[bx].SCB_STATUS,SCSTAT_FQUIT
+	test	[bx].SCB_STATUS,SCSTAT_KILL
 	jz	sw8
 sw7:	sti
-	and	[bx].SCB_STATUS,NOT SCSTAT_FQUIT
+	and	[bx].SCB_STATUS,NOT SCSTAT_KILL
 	PRINTF	<"Forced quit detected",13,10>
-	mov	ax,(EXTYPE_FQUIT SHL 8) OR 0FFh
+	mov	ax,(EXTYPE_KILL SHL 8) OR 0FFh
 	call	psp_term_exitcode	; attempt forced quit
 
 sw8:	ASSERT	NC

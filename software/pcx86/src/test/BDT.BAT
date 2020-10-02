@@ -2,7 +2,7 @@ REM BASIC-DOS Test #1
 REM Print Fibonacci numbers
 @ECHO OFF
 COLOR 7,1
-DEF ADD(A,B)=A+B+1
+DEF ADD(A,B)=A+B
 LET A = 0:LET B = 1
 10 PRINT A;
 LET C = ADD(A,B)
@@ -13,4 +13,7 @@ PRINT
 REM BASIC-DOS Test #2
 REM Print random numbers
 @ECHO OFF
-PRINT "RND% ="; RND%
+LET A = 0
+20 PRINT "RND% ="; RND%
+LET A = A + 1
+IF A < 10 THEN GOTO 20

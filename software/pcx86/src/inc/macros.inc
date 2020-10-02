@@ -457,7 +457,11 @@ rm2:
 ; use a dedicated interrupt that expects the utility function # in AH.
 ;
 DOSUTIL	macro	func
+	IFNDEF	DOS_UTL_&func
 	mov	ah,func
+	ELSE
+	mov	ah,DOS_UTL_&func
+	ENDIF
 	int	INT_DOSUTIL
 	endm
 ;

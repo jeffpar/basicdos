@@ -74,7 +74,7 @@ CHR_CTRLC	equ	03h
 CHR_CTRLD	equ	04h	; alias for SCAN_RIGHT and SCAN_F1
 CHR_CTRLE	equ	05h	; alias for SCAN_UP and SCAN_F3
 CHR_CTRLF	equ	06h
-CHR_CTRLG	equ	07h
+CHR_CTRLG	equ	07h	; alias for CHR_DEL
 CHR_BACKSPACE	equ	08h
 CHR_TAB		equ	09h
 CHR_LINEFEED	equ	0Ah

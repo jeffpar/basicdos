@@ -265,7 +265,7 @@ hk3:	cmp	al,CHR_CTRLP
 
 hk4:	cmp	al,CHR_CTRLD
 	jne	hk9
-	or	[bx].SCB_STATUS,SCSTAT_FQUIT
+	or	[bx].SCB_STATUS,SCSTAT_KILL
 
 hk9:	clc
 	ret

@@ -110,7 +110,7 @@ m1a:	sub	ax,ax
 	lea	si,[si].INP_BUF
 	lea	di,[heap].TOKENBUF	; ES:DI -> TOKENBUF
 	mov	[di].TOK_MAX,(size TOK_BUF) / (size TOKLET)
-	DOSUTIL	DOS_UTL_TOKIFY1
+	DOSUTIL	TOKIFY1
 	jc	m0			; jump if no tokens
 ;
 ; Before trying to ID the token, let's copy it to the FILENAME buffer,
@@ -119,7 +119,8 @@ m1a:	sub	ax,ax
 	mov	dh,1
 	call	getToken		; DS:SI -> token #1, CX = length
 	jc	m0
-	mov	[pArg],si		; save original filename ptr
+	mov	[pArg],si		; save original filename ptr and length
+	mov	[lenArg],cx
 	lea	di,[heap].FILENAME
 	mov	ax,size FILENAME
 	cmp	cx,ax
@@ -132,9 +133,9 @@ m1b:	push	cx
 	stosb
 	pop	si			; DS:SI -> copy of token in FILENAME
 	pop	cx
-	DOSUTIL	DOS_UTL_STRUPR		; DS:SI -> token, CX = length
+	DOSUTIL	STRUPR			; DS:SI -> token, CX = length
 	lea	dx,[KEYWORD_TOKENS]
-	DOSUTIL	DOS_UTL_TOKID		; CS:DX -> TOKTBL; identify the token
+	DOSUTIL	TOKID			; CS:DX -> TOKTBL; identify the token
 	jc	m2
 	mov	dx,cs:[si].CTD_FUNC
 	mov	[pHandler],dx
@@ -297,6 +298,8 @@ m9:	lea	di,[heap].TOKENBUF	; DS:DI -> token buffer
 ; we find prior to the first non-switch argument.
 ;
 m10:	call	parseSW			; parse all switch arguments, if any
+	mov	si,[pArg]
+	mov	cx,[lenArg]
 	cmp	ax,KEYWORD_FILESPEC	; token ID < KEYWORD_FILESPEC?
 	jb	m20			; yes, command does not use a filespec
 ;
@@ -324,7 +327,7 @@ m19:	push	cx
 	pop	cx
 	push	ss
 	pop	ds
-	DOSUTIL	DOS_UTL_STRUPR		; DS:SI -> token, CX = length
+	DOSUTIL	STRUPR			; DS:SI -> token, CX = length
 	mov	[pArg],si
 	mov	[lenArg],cx
 m20:	cmp	[pHandler],0		; does handler exist?
@@ -535,7 +538,7 @@ cdt1:	mov	ah,DOS_MSC_SETDATE
 	jmp	cmdDate
 
 	DEFLBL	promptDate,near
-	DOSUTIL	DOS_UTL_GETDATE		; DOS_UTL_GETDATE returns packed date
+	DOSUTIL	GETDATE			; GETDATE returns packed date
 	xchg	dx,cx
 	jnc	cdt9			; if caller's carry clear, skip output
 	pushf
@@ -618,7 +621,7 @@ dir4:	lea	si,ds:[PSP_DTA].FFB_NAME
 ;
 	push	cx
 	push	dx
-	DOSUTIL	DOS_UTL_STRLEN
+	DOSUTIL	STRLEN
 	xchg	cx,ax			; CX = total length
 	mov	dx,offset PERIOD
 	call	chkString		; does the filename contain a period?
@@ -716,13 +719,14 @@ ENDPROC	cmdExit
 DEFPROC	cmdHelp
 	mov	dh,[iArg]		; is there a non-switch argument?
 	call	getToken
-	jnc	h1
+	jnc	doHelp
 	jmp	h5			; no
 ;
 ; Identify the second token (DS:SI) with length CX.
 ;
-h1:	lea	dx,[KEYWORD_TOKENS]
-	DOSUTIL	DOS_UTL_TOKID		; CS:DX -> TOKTBL
+	DEFLBL	doHelp,near
+	lea	dx,[KEYWORD_TOKENS]
+	DOSUTIL	TOKID			; CS:DX -> TOKTBL
 	jc	h4			; unknown
 ;
 ; CS:SI -> CTOKDEF.  Load CTD_TXT_OFF into DX and CTD_TXT_LEN into CX.
@@ -880,10 +884,16 @@ DEFPROC	printChars
 	xchg	cx,ax			; CX = count
 pc1:	lodsb
 	cmp	al,'*'			; just skip asterisks for now
-	je	pc2
-	call	printChar
-pc2:	loop	pc1
+	je	pc8
+	cmp	al,'\'			; lines ending with backslash
+	jne	pc2			; trigger a single newline and
+	call	skipSpace		; skip remaining whitespace
 	pop	cx
+	pop	ax
+	ret
+pc2:	call	printChar
+pc8:	loop	pc1
+pc9:	pop	cx
 	pop	ax
 	sub	dl,al			; reduce available chars on line
 	ret
@@ -906,21 +916,24 @@ ENDPROC	printChars
 ;
 DEFPROC	printSpace
 ps1:	cmp	dl,1			; if current line is almost full
-	jle	ps6			; print CRLF and then skip all space
+	jle	skipSpace		; print CRLF and then skip all space
 	lodsb
-	cmp	al,' '
+	cmp	al,CHR_TAB
+	je	ps2
+	cmp	al,CHR_SPACE
 	ja	ps8
 	jb	ps5
-	call	printChar
+ps2:	call	printChar
 	dec	dx
 	jmp	ps1
 ps5:	dec	si
 	call	printNewLine
-ps6:	call	printNewLine
+	DEFLBL	skipSpace,near
+	call	printNewLine
 ps7:	lodsb
 	cmp	al,CHR_CTRLZ		; end of text?
 	je	ps8			; yes
-	cmp	al,' '			; non-whitespace?
+	cmp	al,CHR_SPACE		; non-whitespace?
 	ja	ps8			; yes
 	jmp	ps7			; keep looping
 ps8:	dec	si
@@ -943,10 +956,28 @@ ENDPROC	printSpace
 ;
 DEFPROC	printNewLine
 	mov	dl,dh			; reset available characters in DL
-	DEFLBL	printCRLF,near
-	PRINTF	<13,10>			; most efficient CRLF ever!
+	DEFLBL	printCRLF,near		; the most efficient CR/LF output ever!
+	PRINTF	<13,10>
 	ret
 ENDPROC	printNewLine
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmdKeys
+;
+; Inputs:
+;	DS:DI -> TOKENBUF
+;	DS:SI -> token, CX = length
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cmdKeys
+	jmp	doHelp
+ENDPROC	cmdKeys
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1090,7 +1121,7 @@ lf5:	mov	[lineOffset],si
 	dec	si
 
 lf6:	push	dx
-	DOSUTIL	DOS_UTL_ATOI32D		; DS:SI -> decimal string
+	DOSUTIL	ATOI32D			; DS:SI -> decimal string
 	ASSERT	Z,<test dx,dx>		; DX:AX is the result but keep only AX
 	mov	[lineLabel],ax
 	pop	dx
@@ -1187,7 +1218,7 @@ ENDPROC	cmdNew
 ;	Any
 ;
 DEFPROC	cmdRestart
-	DOSUTIL	DOS_UTL_RESTART		; this shouldn't return
+	DOSUTIL	RESTART			; this shouldn't return
 	ret				; but just in case...
 ENDPROC	cmdRestart
 
@@ -1241,7 +1272,7 @@ DEFPROC	cmdTime
 	jz	ctm3			; no
 
 	sub	ax,ax			; set ZF
-	DOSUTIL	DOS_UTL_GETTIME
+	DOSUTIL	GETTIME
 	push	cx			; CX:DX = current time
 	push	dx
 	call	printTime
@@ -1293,7 +1324,7 @@ ctm3:	mov	ax,offset promptTime
 
 	DEFLBL	promptTime,near
 	jnc	ctm8
-	DOSUTIL	DOS_UTL_GETTIME		; DOS_UTL_GETTIME returns packed time
+	DOSUTIL	GETTIME			; GETTIME returns packed time
 	mov	[heap].PREV_TIME.LOW,dx
 	mov	[heap].PREV_TIME.HIW,cx
 	DEFLBL	printTime,near
@@ -1578,7 +1609,7 @@ DEFPROC	chkString
 	mov	di,si			; ES:DI -> target
 	push	si
 	mov	si,dx			; CS:SI -> source
-	DOSUTIL	DOS_UTL_STRSTR		; if carry clear, DI updated
+	DOSUTIL	STRSTR			; if carry clear, DI updated
 	pop	si
 	ret
 ENDPROC	chkString
@@ -1684,7 +1715,7 @@ gvs5:	cmp	bh,'-'			; are we dealing with a date?
 	mov	bl,10			; BL = base 10
 	lea	dx,[si+2]
 	mov	di,-1			; DI = -1 (no validation data)
-	DOSUTIL	DOS_UTL_ATOI16		; DS:SI -> string
+	DOSUTIL	ATOI16			; DS:SI -> string
 	jc	gvs8
 	sub	dx,si			; too many digits?
 	jc	gvs6			; yes
@@ -1728,7 +1759,7 @@ DEFPROC	getValue
 	push	di
 	mov	bl,10			; BL = base 10
 	mov	di,-1			; DI = -1 (no validation data)
-	DOSUTIL	DOS_UTL_ATOI16		; DS:SI -> string
+	DOSUTIL	ATOI16			; DS:SI -> string
 	sbb	di,di			; DI = -1 if no data
 	mov	bl,[si]			; BL = termination character
 	cmp	bl,CHR_RETURN		; CR (or null terminator)?

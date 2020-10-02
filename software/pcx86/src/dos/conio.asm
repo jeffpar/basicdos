@@ -203,6 +203,8 @@ ti2:	cmp	al,CHR_RETURN
 	je	ti8
 
 	cmp	al,CHR_DEL
+	je	ti2a
+	cmp	al,CHR_CTRLG
 	jne	ti3
 ti2a:	call	con_del
 	jmp	ti1
@@ -721,7 +723,7 @@ DEFPROC	con_ioctl,DOS
 	pop	ds
 	ASSUME	DS:NOTHING
 	mov	bx,STDIN
-	DOSUTIL	<DOS_HDL_IOCTL + 80h>
+	DOSUTIL	HDLCTL			; issue DOS_HDL_IOCTL as a DOSUTIL call
 	jnc	ioc9
 	sub	ax,ax			; default value (STDIN redirected?)
 ioc9:	pop	ds
