@@ -590,7 +590,7 @@ ISRFN1:
 		cmp	si, [bx+0Eh]
 		jz	short loc_52F2
 		inc	si
-		cmp	si, 80h	; 'Ä'
+		cmp	si, 80h	; 'ÔøΩ'
 		jbe	short loc_52DC
 		xor	si, si
 loc_52DC:
@@ -695,7 +695,7 @@ CKCOM1:
 		mov	byte ptr cs:[bx+1Ch], 10h ; IRQ4 bit
 		mov	cs:[bx], ax
 		mov	cs:[bx+16h], si
-		add	si, 81h	; 'Å'
+		add	si, 81h	; 'ÔøΩ'
 		mov	cs:[bx+14h], si
 		add	si, dx
 		mov	bx, offset CM2CTL
@@ -708,7 +708,7 @@ CKCOM2:
 		mov	byte ptr cs:[bx+1Ch], 8	; IRQ3 bit
 		mov	cs:[bx], ax
 		mov	cs:[bx+16h], si
-		add	si, 81h	; 'Å'
+		add	si, 81h	; 'ÔøΩ'
 		mov	cs:[bx+14h], si
 		add	si, dx
 SCBFX:
@@ -769,7 +769,7 @@ INICOM		proc near
 		jnz	short BADFNM
 		add	di, 12h
 		add	dx, 3
-		mov	al, 80h	; 'Ä'
+		mov	al, 80h	; 'ÔøΩ'
 		out	dx, al
 		sub	dx, 3
 		mov	ax, [di]
@@ -986,7 +986,7 @@ SNDLOP:
 		cli
 		mov	si, [bx+0Eh]
 		inc	si
-		cmp	si, 80h	; 'Ä'
+		cmp	si, 80h	; 'ÔøΩ'
 		jbe	short loc_5555
 		xor	si, si
 
@@ -1553,7 +1553,7 @@ NOBRK:
 		or	al, al
 		jz	short NONASC
 		mov	ah, 0
-		cmp	al, 0FEh ; '˛'
+		cmp	al, 0FEh ; 'ÔøΩ'
 		jb	short CHKESC
 		mov	ah, 0FFh
 		jnz	short TWOKEY
@@ -1633,7 +1633,7 @@ SCNXLT		db 0FAh, 73h, 2	dup(0FAh), 75h,	74h, 4 dup(0F9h), 47h
 INKMAP		proc near
 		push	bx
 		jb	short loc_58DE
-		cmp	al, 0FEh ; '˛'
+		cmp	al, 0FEh ; 'ÔøΩ'
 		jnz	short loc_58DA
 		mov	ax, dx
 loc_58D3:
@@ -1674,9 +1674,9 @@ loc_58F2:
 		mov	ah, 0
 		add	bx, ax
 		mov	al, cs:[bx]
-		cmp	al, 0FAh ; '˙'
+		cmp	al, 0FAh ; 'ÔøΩ'
 		jz	short loc_58DC
-		cmp	al, 0FEh ; '˛'
+		cmp	al, 0FEh ; 'ÔøΩ'
 		jb	short loc_58D3
 		jmp	short loc_58DA
 ; ---------------------------------------------------------------------------
@@ -2256,7 +2256,7 @@ sub_5BF8	proc near
 		shl	bx, 1
 loc_5C14:
 		add	bx, ax
-		add	bx, 0F0h ; ''
+		add	bx, 0F0h ; 'ÔøΩ'
 		mov	cx, 4
 		cmp	byte ptr ds:var_640, 1
 		jnz	short loc_5C26
@@ -3768,7 +3768,7 @@ TMRISR		proc far
 		test	EVTSET,	2	; Speaker on?
 		jnz	short TMRIS1	; If not, turn it off now
 		in	al, 61h		; PC/XT	PPI port B bits:
-					; 0: Tmr 2 gate	ÕÀÕ OR	03H=spkr ON
+					; 0: Tmr 2 gate	ÔøΩÔøΩÔøΩ OR	03H=spkr ON
 					; 1: Tmr 2 data	Õº  AND	0fcH=spkr OFF
 					; 3: 1=read high switches
 					; 4: 0=enable RAM parity checking
@@ -3777,7 +3777,7 @@ TMRISR		proc far
 					; 7: 0=enable kbrd
 		and	al, 0FDh
 		out	61h, al		; PC/XT	PPI port B bits:
-					; 0: Tmr 2 gate	ÕÀÕ OR	03H=spkr ON
+					; 0: Tmr 2 gate	ÔøΩÔøΩÔøΩ OR	03H=spkr ON
 					; 1: Tmr 2 data	Õº  AND	0fcH=spkr OFF
 					; 3: 1=read high switches
 					; 4: 0=enable RAM parity checking
@@ -3809,7 +3809,7 @@ loc_64EF:
 		and	EVTSET,	0FDh	; Clear	speaker	event bit
 		cli
 		in	al, 61h		; PC/XT	PPI port B bits:
-					; 0: Tmr 2 gate	ÕÀÕ OR	03H=spkr ON
+					; 0: Tmr 2 gate	ÔøΩÔøΩÔøΩ OR	03H=spkr ON
 					; 1: Tmr 2 data	Õº  AND	0fcH=spkr OFF
 					; 3: 1=read high switches
 					; 4: 0=enable RAM parity checking
@@ -3818,7 +3818,7 @@ loc_64EF:
 					; 7: 0=enable kbrd
 		and	al, 0FDh
 		out	61h, al		; PC/XT	PPI port B bits:
-					; 0: Tmr 2 gate	ÕÀÕ OR	03H=spkr ON
+					; 0: Tmr 2 gate	ÔøΩÔøΩÔøΩ OR	03H=spkr ON
 					; 1: Tmr 2 data	Õº  AND	0fcH=spkr OFF
 					; 3: 1=read high switches
 					; 4: 0=enable RAM parity checking
@@ -3839,7 +3839,7 @@ loc_6518:
 		jnz	short loc_6528
 		cli
 		in	al, 61h		; PC/XT	PPI port B bits:
-					; 0: Tmr 2 gate	ÕÀÕ OR	03H=spkr ON
+					; 0: Tmr 2 gate	ÔøΩÔøΩÔøΩ OR	03H=spkr ON
 					; 1: Tmr 2 data	Õº  AND	0fcH=spkr OFF
 					; 3: 1=read high switches
 					; 4: 0=enable RAM parity checking
@@ -3856,7 +3856,7 @@ loc_6528:
 		out	42h, al		; Timer	8253-5 (AT: 8254.2).
 		cli
 		in	al, 61h		; PC/XT	PPI port B bits:
-					; 0: Tmr 2 gate	ÕÀÕ OR	03H=spkr ON
+					; 0: Tmr 2 gate	ÔøΩÔøΩÔøΩ OR	03H=spkr ON
 					; 1: Tmr 2 data	Õº  AND	0fcH=spkr OFF
 					; 3: 1=read high switches
 					; 4: 0=enable RAM parity checking
@@ -3866,7 +3866,7 @@ loc_6528:
 		or	al, 3
 loc_6533:
 		out	61h, al		; PC/XT	PPI port B bits:
-					; 0: Tmr 2 gate	ÕÀÕ OR	03H=spkr ON
+					; 0: Tmr 2 gate	ÔøΩÔøΩÔøΩ OR	03H=spkr ON
 					; 1: Tmr 2 data	Õº  AND	0fcH=spkr OFF
 					; 3: 1=read high switches
 					; 4: 0=enable RAM parity checking
@@ -3974,7 +3974,7 @@ DONOTE		proc near
 		mov	CURNOT,	bx
 		and	EVTSET,	0FDh	; Clear	event bit
 		in	al, 61h		; PC/XT	PPI port B bits:
-					; 0: Tmr 2 gate	ÕÀÕ OR	03H=spkr ON
+					; 0: Tmr 2 gate	ÔøΩÔøΩÔøΩ OR	03H=spkr ON
 					; 1: Tmr 2 data	Õº  AND	0fcH=spkr OFF
 					; 3: 1=read high switches
 					; 4: 0=enable RAM parity checking
@@ -3983,7 +3983,7 @@ DONOTE		proc near
 					; 7: 0=enable kbrd
 		and	al, 0FDh
 		out	61h, al		; PC/XT	PPI port B bits:
-					; 0: Tmr 2 gate	ÕÀÕ OR	03H=spkr ON
+					; 0: Tmr 2 gate	ÔøΩÔøΩÔøΩ OR	03H=spkr ON
 					; 1: Tmr 2 data	Õº  AND	0fcH=spkr OFF
 					; 3: 1=read high switches
 					; 4: 0=enable RAM parity checking

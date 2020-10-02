@@ -1026,7 +1026,6 @@ ENDPROC	printKB
 ;	AX
 ;
 DEFPROC	memError
-	DBGBRK
 	PRINTF	<"Not enough memory (%#06x)",13,10>,ax
 	stc
 	ret
