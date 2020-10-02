@@ -132,7 +132,7 @@ for (let diskName in disks) {
     if (disks[diskName].length == 1) {
         kbTarget = 10000;
         diskFiles = "--dir " + path.dirname(disks[diskName][0]);
-        archiveImage = " --output " + diskImage.replace(diskName, "archive/" + diskName).replace(".json",".hdd");
+        archiveImage = " --normalize --output " + diskImage.replace(diskName, "archive/" + diskName).replace(".json",".hdd");
     } else {
         let dirPrev = "";
         for (let i = 0; i < disks[diskName].length; i++) {

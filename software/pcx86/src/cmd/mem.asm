@@ -2,7 +2,7 @@
 ; BASIC-DOS Memory Management Functions
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright © 2012-2020 Jeff Parsons
+; @copyright (c) 2012-2020 Jeff Parsons
 ; @license MIT <https://www.pcjs.org/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
@@ -1026,6 +1026,7 @@ ENDPROC	printKB
 ;	AX
 ;
 DEFPROC	memError
+	DBGBRK
 	PRINTF	<"Not enough memory (%#06x)",13,10>,ax
 	stc
 	ret
