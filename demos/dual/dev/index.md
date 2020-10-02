@@ -9,7 +9,7 @@ machines:
     autoType: $date\r$time\r
     autoStart: true
     autoMount:
-      A: "BASIC-DOS4"
+      A: "BASIC-DOS5"
       B: "BDS-BOOT"
 ---
 

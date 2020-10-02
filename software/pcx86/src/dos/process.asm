@@ -2,7 +2,7 @@
 ; BASIC-DOS Process Services
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright © 2012-2020 Jeff Parsons
+; @copyright (c) 2012-2020 Jeff Parsons
 ; @license MIT <https://www.pcjs.org/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
@@ -18,7 +18,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<mcb_head,mcb_limit,scb_active>,word
 	EXTERNS	<sfh_addref,pfh_close,sfh_close>,near
 	EXTERNS	<getsize,freeAll,dos_exit,dos_exit2,dos_ctrlc,dos_error>,near
-	EXTERNS	<get_scbnum,mcb_setname,scb_unload,scb_yield>,near
+	EXTERNS	<get_scbnum,mcb_setname,scb_delock,scb_unload,scb_yield>,near
 	IF REG_CHECK
 	EXTERNS	<dos_check>,near
 	ENDIF
@@ -455,11 +455,13 @@ DEFPROC	load_program,DOS
 ; to allocate the largest possible block now.  We'll shrink it down once
 ; we know how large the program is.
 ;
-; Perhaps someday there will be a DOS_MEM_REALLOC function that can move a
-; block for callers that can deal with movable blocks.  However, the utility
-; of such a function might be minimal, since it still couldn't rearrange any
-; blocks allocated by other callers.
+; TODO: Allocating all memory can get us into trouble with other sessions,
+; if they need any memory while this function is running.  So, while I
+; originally didn't want to wrap this entire operation with LOCK_SCB, because
+; 1) it's lengthy and 2) everything it does other than the memory allocations
+; is session-local, that's the only solution I have available at the moment.
 ;
+	LOCK_SCB
 	mov	bx,0A000h		; alloc a PSP segment
 	mov	ah,DOS_MEM_ALLOC	; with a size that should fail
 	int	21h			; in order to get max paras avail
@@ -955,7 +957,8 @@ lpef:	push	ax
 	xchg	ax,dx			; AX = error code
 	stc
 
-lp9:	ret
+lp9:	UNLOCK_SCB
+	ret
 ENDPROC	load_program
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
