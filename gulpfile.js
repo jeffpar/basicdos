@@ -27,11 +27,11 @@ let disks = {
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
         "./software/pcx86/src/cmd/COMMAND.TXT",
+        "./software/pcx86/src/msb/obj/MSBASIC.EXE",
         "./software/pcx86/src/test/obj/*.EXE",
         "./software/pcx86/src/test/obj/*.COM",
-        "./software/pcx86/src/test/*.BAS",
         "./software/pcx86/src/test/*.BAT",
-        "./software/pcx86/src/msb/obj/MSBASIC.EXE"
+        "./software/pcx86/src/test/*.BAS"
     ],
     "BASIC-DOS2": [
         "./demos/d40/CONFIG.SYS",
@@ -40,11 +40,11 @@ let disks = {
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
         "./software/pcx86/src/cmd/COMMAND.TXT",
+        "./software/pcx86/src/msb/obj/MSBASIC.EXE",
         "./software/pcx86/src/test/obj/*.EXE",
         "./software/pcx86/src/test/obj/*.COM",
-        "./software/pcx86/src/test/*.BAS",
         "./software/pcx86/src/test/*.BAT",
-        "./software/pcx86/src/msb/obj/MSBASIC.EXE"
+        "./software/pcx86/src/test/*.BAS"
     ],
     "BASIC-DOS3": [
         "./demos/d80/CONFIG.SYS",
@@ -52,11 +52,11 @@ let disks = {
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
         "./software/pcx86/src/cmd/COMMAND.TXT",
+        "./software/pcx86/src/msb/obj/MSBASIC.EXE",
         "./software/pcx86/src/test/obj/*.EXE",
         "./software/pcx86/src/test/obj/*.COM",
-        "./software/pcx86/src/test/*.BAS",
         "./software/pcx86/src/test/*.BAT",
-        "./software/pcx86/src/msb/obj/MSBASIC.EXE"
+        "./software/pcx86/src/test/*.BAS"
     ],
     "BASIC-DOS4": [
         "./demos/dual/CONFIG.SYS",
@@ -64,11 +64,11 @@ let disks = {
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
         "./software/pcx86/src/cmd/COMMAND.TXT",
+        "./software/pcx86/src/msb/obj/MSBASIC.EXE",
         "./software/pcx86/src/test/obj/*.EXE",
         "./software/pcx86/src/test/obj/*.COM",
-        "./software/pcx86/src/test/*.BAS",
         "./software/pcx86/src/test/*.BAT",
-        "./software/pcx86/src/msb/obj/MSBASIC.EXE"
+        "./software/pcx86/src/test/*.BAS"
     ],
     "BASIC-DOS5": [
         "./demos/dual/multi/CONFIG.SYS",
@@ -76,11 +76,11 @@ let disks = {
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
         "./software/pcx86/src/cmd/COMMAND.TXT",
+        "./software/pcx86/src/msb/obj/MSBASIC.EXE",
         "./software/pcx86/src/test/obj/*.EXE",
         "./software/pcx86/src/test/obj/*.COM",
-        "./software/pcx86/src/test/*.BAS",
         "./software/pcx86/src/test/*.BAT",
-        "./software/pcx86/src/msb/obj/MSBASIC.EXE"
+        "./software/pcx86/src/test/*.BAS"
     ],
     "BDS-BOOT": [
         "./software/pcx86/src/boot/*.asm",

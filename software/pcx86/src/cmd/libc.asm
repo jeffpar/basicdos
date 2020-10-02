@@ -80,7 +80,7 @@ DEFPROC	doCmd,FAR
 	pop	cx			; CX = length of line in LINEBUF
 	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
 	mov	[di].TOK_MAX,(size TOK_BUF) / (size TOKLET)
-	DOSUTIL	DOS_UTL_TOKIFY1
+	DOSUTIL	TOKIFY1
 	ASSERT	NC
 	push	dx			; save the handler address
 	call	parseSW			; parse all switch arguments, if any

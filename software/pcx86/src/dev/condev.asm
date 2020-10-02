@@ -553,7 +553,7 @@ ENDPROC	ddcon_write
 ;
 ; Notes:
 ;	We presume that the current SCB is locked for duration of this call;
-;	if that presumption ever proves false, then use the DOS_UTL_LOCK API.
+;	if that presumption ever proves false, then use the DOSUTIL LOCK API.
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_open
@@ -572,18 +572,18 @@ DEFPROC	ddcon_open
 	pop	es
 	mov	bl,10			; use base 10
 	mov	di,offset CON_PARMS	; ES:DI -> parm defaults/limits
-	DOSUTIL	DOS_UTL_ATOI16		; updates SI, DI, and AX
+	DOSUTIL	ATOI16			; updates SI, DI, and AX
 	mov	cl,al			; CL = cols
-	DOSUTIL	DOS_UTL_ATOI16
+	DOSUTIL	ATOI16
 	mov	ch,al			; CH = rows
-	DOSUTIL	DOS_UTL_ATOI16
+	DOSUTIL	ATOI16
 	mov	dl,al			; DL = starting col
-	DOSUTIL	DOS_UTL_ATOI16
+	DOSUTIL	ATOI16
 	mov	dh,al			; DH = starting row
-	DOSUTIL	DOS_UTL_ATOI16
+	DOSUTIL	ATOI16
 	mov	bh,al			; BH = border (0 for none)
 	ASSERT	CTSTAT_BORDER,EQ,01h
-	DOSUTIL	DOS_UTL_ATOI16
+	DOSUTIL	ATOI16
 	shl	al,1
 	or	bh,al			; BH includes adapter bit, too
 	ASSERT	CTSTAT_ADAPTER,EQ,02h
@@ -718,7 +718,7 @@ dco4a:	mov	ds:[CT_CURTYPE],ax
 ;
 ; If we're creating a session on a secondary adapter, then like the mode
 ; change above, we must temporarily change EQUIP_FLAG, because until we finish
-; this open call, the DOS_UTL_LOCK function will be unable to tell our INT 10h
+; this open call, the DOSUTIL LOCK function will be unable to tell our INT 10h
 ; hook what the correct context is.
 ;
 	xchg	[EQUIP_FLAG],cx
@@ -862,7 +862,7 @@ DEFPROC	ddcon_int09,far
 	push	dx
 	mov	cx,[ct_focus]		; CX = context
 	mov	dx,CHR_CTRLD		; DL = char code, DH = scan code
-	DOSUTIL	DOS_UTL_HOTKEY		; notify DOS
+	DOSUTIL	HOTKEY			; notify DOS
 	and	ds:[KB_FLAG],NOT CTL_SHIFT
 	pop	dx
 	pop	cx
@@ -888,7 +888,7 @@ i09d:	push	ax
 	call	check_hotkey
 	jc	i09e
 	xchg	dx,ax			; DL = char code, DH = scan code
-	DOSUTIL	DOS_UTL_HOTKEY		; notify DOS
+	DOSUTIL	HOTKEY			; notify DOS
 
 i09e:	mov	ds,cx			; DS = context
 	mov	cx,cs
@@ -924,7 +924,7 @@ i09g:	call	pull_kbd		; pull keyboard data
 ;
 i09h:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	DOSUTIL	DOS_UTL_ENDWAIT
+	DOSUTIL	ENDWAIT
 	ASSERT	NC
 ;
 ; If ENDWAIT returns an error, that could be a problem.  In the past, it
@@ -1010,11 +1010,11 @@ DEFPROC	ddcon_int10,far
 ;
 	inc	[bios_lock]
 ;
-; DOS_UTL_LOCK has been updated to return the active session's CONSOLE
+; DOSUTIL LOCK has been updated to return the active session's CONSOLE
 ; context in AX.  However, during system initialization, that context may
 ; not exist yet.
 ;
-	DOSUTIL	DOS_UTL_LOCK		; ensure EQUIP_FLAG remains stable
+	DOSUTIL	LOCK			; ensure EQUIP_FLAG remains stable
 	push	ax			; save the context segment
 	test	ax,ax			; is it valid?
 	jz	i10a			; no
@@ -1044,7 +1044,7 @@ i10a:	push	ax			; save EQUIP_FLAG
 
 i10x:	pop	ax			; clean up the stack
 	pop	ax			; (eg, ADD SP,4)
-	DOSUTIL	DOS_UTL_UNLOCK
+	DOSUTIL	UNLOCK
 	call	unlock_bios
 
 	pop	ax
@@ -1109,7 +1109,7 @@ DEFPROC	add_packet
 ;
 	push	dx
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	DOSUTIL	DOS_UTL_WAIT
+	DOSUTIL	WAIT
 	pop	dx
 	sti
 	ret
@@ -1120,7 +1120,7 @@ ENDPROC	add_packet
 ; check_hotkey
 ;
 ; Check for key combinations considered "hotkeys" by BASIC-DOS; if a hotkey
-; is detected, carry is cleared, indicating that a DOS_UTL_HOTKEY notification
+; is detected, carry is cleared, indicating that a DOSUTIL HOTKEY notification
 ; should be issued.
 ;
 ; For example, CTRLC (and CTRL_BREAK, which we convert to CTRLC) are considered
@@ -1731,7 +1731,7 @@ DEFPROC	switch_focus
 	push	si
 	push	di
 	push	ds
-	DOSUTIL	DOS_UTL_LOCK		; lock the current session
+	DOSUTIL	LOCK			; lock the current session
 	push	es
 	jcxz	sf8			; nothing to do
 	mov	ds,cx
@@ -1750,7 +1750,7 @@ sf2:	xchg	cx,[ct_focus]
 	call	draw_border		; redraw the border and show
 	call	show_cursor		; the cursor of the incoming context
 sf8:	pop	es
-	DOSUTIL	DOS_UTL_UNLOCK
+	DOSUTIL	UNLOCK
 	pop	ds
 	pop	di
 	pop	si

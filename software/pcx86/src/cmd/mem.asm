@@ -930,7 +930,7 @@ mem1:	mov	dl,0		; DL = 0 (query all memory blocks)
 	mov	si,offset SYS_MEM
 	ENDIF	; DEBUG
 
-	DOSUTIL	DOS_UTL_QRYMEM
+	DOSUTIL	QRYMEM
 	jc	mem9		; all done
 	test	ax,ax		; free block (is OWNER zero?)
 	jne	mem2		; no

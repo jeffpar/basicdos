@@ -48,7 +48,7 @@ DEFPROC	psp_term,DOS
 
 	test	si,si			; if there's a parent
 	jnz	pt1			; then the SCB is still healthy
-	cmp	es:[PSP_SCB],0		; are we allowed to kill this SCB?
+	cmp	es:[PSP_SCB],0		; are we allowed to terminate this SCB?
 	je	pt7			; no
 ;
 ; Close process file handles.

@@ -189,7 +189,7 @@ DEFPROC	dos_restart,DOSFAR
 	DEFLBL	dos_abort,near
 	mov	al,0FFh			; AL = exit code
 	xchg	dx,ax			; DL = exit code, DH = exit type
-	DOSUTIL	DOS_UTL_ABORT
+	DOSUTIL	ABORT
 	ASSERT	NEVER			; assert that we never get here
 ENDPROC dos_restart
 
