@@ -25,11 +25,11 @@ HELP
 IF
 
 KEYS
-CTRL-A Line start  CTRL-F Line end\
-CTRL-E Line up     CTRL-X Line down\
-CTRL-S Char left   CTRL-D Char right\
-CTRL-G Char del    CTRL-V Insert\
-CTRL-C Abort       ESC    Erase
+CTRL-A  Home   CTRL-F  End\
+CTRL-E  Up     CTRL-X  Down\
+CTRL-S  Left   CTRL-D  Right\
+CTRL-G  Del    CTRL-V  Ins\
+CTRL-C  Abort  ESC     Erase
 CTRL-ALT-DEL kills the current program. Use RESTART to restart the system.
 
 LET
@@ -56,6 +56,8 @@ RND%(N)
 Generates a random integer between 0 and MAXINT, inclusive.
 
 RUN
+Runs the currently loaded BAS (or BAT) file.  Program files can also be run directly.
+If no file extension is specified, files with COM, EXE, BAT, and BAS extensions are checked, in that order.
 
 TIME [*time*] [/D] [/P]
 Sets the system time (or prompts for a time if /P) and then displays the time. /D displays elapsed time.
