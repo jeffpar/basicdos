@@ -24,10 +24,6 @@ CODE    SEGMENT
 	EXTERNS	<OPDEFS_LONG,OPDEFS_STR,RELOPS>,byte
 	EXTERNS	<TOK_ELSE,TOK_OFF,TOK_ON,TOK_THEN>,abs
 
-	IFDEF	LATER
-	EXTERNS	<SYNTAX_TABLES,SCF_TABLE>,word
-	ENDIF	; LATER
-
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -37,7 +33,7 @@ CODE    SEGMENT
 ; Inputs:
 ;	AL = GEN flags (eg, GEN_BATCH)
 ;	DS:BX -> heap
-;	DS:SI -> BUFINP (or null to parse preloaded text)
+;	DS:SI -> INPUTBUF (for single line) or null (for all lines in TBLKDEF)
 ;
 ; Outputs:
 ;	None
@@ -57,9 +53,6 @@ DEFPROC	genCode
 	LOCVAR	pLine,dword		; address of the current line
 	LOCVAR	cbLine,word		; length of the current line
 	LOCVAR	lineNumber,word
-	IFDEF	LATER
-	LOCVAR	pSynToken,word
-	ENDIF
 	ENTER
 
 	mov	[pHeap],bx
@@ -76,7 +69,7 @@ gc0:	mov	[genFlags],al
 	call	allocVars
 	jc	gce
 	mov	ax,[bx].VBLKDEF.BLK_NEXT
-	mov	[defVarSeg],ax		; stash the default VBLK segment
+	mov	[defVarSeg],ax		; save the first (default) VBLK segment
 	call	allocCode
 	jc	gce
 	ASSUME	ES:NOTHING		; ES:DI -> code block
@@ -141,10 +134,6 @@ gc3b:	jmp	short gc6
 ; be sure what the state of ECHO will be at runtime, we must inject printLine
 ; before every line.
 ;
-; TODO: Come up with a method for shutting this off except when really needed;
-; GEN_ECHO is not it, because that's always TRUE for BAT files and always FALSE
-; for BAS files.
-;
 gc3c:	test	[genFlags],GEN_ECHO
 	jz	gc4
 	push	cx
@@ -152,7 +141,10 @@ gc3c:	test	[genFlags],GEN_ECHO
 	GENPUSH	ds,cx			; DS:CX -> string (at the length byte)
 	GENCALL	printLine
 	pop	cx
-
+;
+; This is where INPUTBUF and TBLKDEF paths re-converge with one line of code
+; (at DS:SI with length CX).
+;
 gc4:	mov	bx,[pHeap]
 	mov	[cbLine],cx
 	mov	[pLine].OFF,si
@@ -163,9 +155,9 @@ gc4:	mov	bx,[pHeap]
 	push	ss
 	pop	es
 ;
-; Copy the line (at DS:SI with length CX) to LINEBUF, so that we
-; can use a single segment (DS) to address both LINEBUF and TOKENBUF
-; once ES has been restored to the code gen segment.
+; Copy the line (at DS:SI with length CX) to LINEBUF, so that we can use a
+; single segment (DS) to address both LINEBUF and TOKENBUF once ES has been
+; restored to the code gen segment.
 ;
 	push	cx
 	push	es
@@ -213,9 +205,8 @@ gc6:	push	ss
 	mov	al,OP_RETF		; terminate the code in the buffer
 	stosb
 ;
-; TODO: Define the memory model for the generated code.  For now, the
-; only requirement is that DS always point to the var block (which means
-; that all variables must fit in a single var block).
+; The memory model for the generated code is simple: CS is the current
+; code block, SS is the heap, DS is the first var block, and ES is scratch.
 ;
 	push	bp
 	push	ds
@@ -266,15 +257,7 @@ DEFPROC	genCommands
 	jb	gcs2			; no
 gcs1:	test	dx,dx			; command address?
 	jz	gcs9			; no
-
-	IFDEF	LATER
-	cmp	dx,offset SYNTAX_TABLES	; syntax table address?
-	jb	gcs6			; no, dedicated generator function
-	call	synCheck		; yes, process syntax table
-	jmp	short gcs8
-	ELSE
 	jmp	short gcs6		; call generator function
-	ENDIF	; LATER
 ;
 ; For keywords that are BASIC-DOS extensions, we need to generate a call
 ; to doCmd with a pointer to the full command-line and the keyword handler.
@@ -375,7 +358,7 @@ ENDPROC	genColor
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genDef
+; genDefFn
 ;
 ; Generate code for "DEF fn(parms)=expr".
 ;
@@ -402,17 +385,17 @@ ENDPROC	genColor
 ; Modifies:
 ;	Any
 ;
-DEFPROC	genDef
+DEFPROC	genDefFn
 	LOCVAR	segVars,word
 	LOCVAR	fnParms,byte
 	LOCVAR	fnType,byte
 	LOCVAR	fnNameLen,word
 	LOCVAR	fnNameOff,word
 ;
-; Unlike other "gen" functions, if this function generates anything,
-; it goes into a new code block, not the current code block, so we save
-; and restore ES:DI before the ENTER and after LEAVE (since we depend
-; on LEAVE to clean up data left on the stack in the event of an error).
+; Unlike other "gen" functions, if this function generates anything, it
+; goes into a new code block, not the current code block, so we save and
+; restore ES:DI before the ENTER and after LEAVE (since we depend on LEAVE
+; to "CLEANUP" any data left on the stack in the event of an error).
 ;
 	push	es
 	push	di
@@ -505,8 +488,15 @@ gd3:	mov	es:[BLK_FREE],di
 	stosb
 	mov	ax,OP_MOV_BP_SP
 	stosw
+;
+; At this point, if we're defining a "function expression", then all we
+; do is call genExpr.  Otherwise, if we're defining a "function block", then
+; we must call genCommands and getNextLine in a loop until we encounter a
+; RETURN command.
+;
 	mov	al,[fnParms]
 	call	genExpr
+
 	mov	cl,[fnParms]
 	mov	ch,0
 	add	cx,cx
@@ -549,8 +539,9 @@ gd4:	call	setVar
 	jl	gd5
 	dec	di
 	dec	di
-	mov	ax,[bp+di]		; TODO: set AH to a default value
-	jmp	gd4			; instead of the parm #?
+	mov	ax,[bp+di]		; AH = parm offset, which
+	mov	ah,PARM_REQUIRED	; must be replaced with parm flags
+	jmp	gd4
 
 gd5:	pop	di			; ES:DI -> generated code
 	mov	ax,di
@@ -570,7 +561,7 @@ gd9:	LEAVE	CLEANUP
 	pop	di
 	pop	es
 	RETURN
-ENDPROC	genDef
+ENDPROC	genDefFn
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -766,7 +757,7 @@ DEFPROC	genExpr
 	ENTER
 	push	cx
 	push	si
-	mov	[exprParms],al		; parm count (only from genDef)
+	mov	[exprParms],al		; parm count (only from genDefFn)
 	sub	dx,dx
 	mov	word ptr [exprType],dx	; exprType = VAR_NONE, exprToks = 0
 	mov	[exprArgs],1		; count of expected arguments
@@ -821,8 +812,8 @@ ge2:	call	findVar
 	cmp	ah,VAR_PARM		; 20h?
 	jne	ge2a			; no
 ;
-; VAR_PARM variables are present only in temp var blocks created by genDef,
-; so genDef must have called us with a parameter count.
+; VAR_PARM variables are present only in temp var blocks created by genDefFn,
+; so genDefFn must have called us with a parameter count.
 ;
 	mov	cl,[exprParms]
 	call	genFuncParm
@@ -1071,12 +1062,17 @@ gfe2:	cmp	al,','			; comma?
 	test	cl,cl			; are more parameters allowed?
 	jz	gfe9			; no
 	jmp	gfe1
-
+;
+; No parameter value was supplied, so if the parameter isn't optional,
+; that's an error.
+;
 gfe3:	call	loadFuncData
 	cmp	al,VAR_LONG		; TODO: currently supports default
 	stc				; parameter values for VAR_LONG only
 	jne	gfe9
 	mov	al,ah			; AL = default value
+	test	al,al			; negative? (eg, PARM_REQUIRED)
+	jl	gfe9			; yes, parameter is NOT optional
 	cbw
 	cwd				; DX:AX = default value
 	xchg	cx,ax			; DX:CX
@@ -1969,115 +1965,6 @@ DEFPROC	peekNextToken
 	pop	bx			; caller wants to advance after peeking
 	ret
 ENDPROC	peekNextToken
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; synCheck
-;
-; Inputs:
-;	CS:DX -> syntax table
-;	DS:BX -> TOKLETs
-;	ES:DI -> code block
-;
-; Outputs:
-;	Carry clear if successful, set if error
-;
-	IFDEF	LATER
-DEFPROC	synCheck
-	mov	si,dx			; CS:SI -> syntax table
-;
-; Loop until we find an SC_PEKTK that matches the next token.
-;
-sc1:	lods	word ptr cs:[si]	; AL = next SC_* value
-	test	al,al
-	jl	sc8c
-	cmp	al,SC_GENPB		; invoke GENPUSHB? (71h)
-	jne	sc2			; no
-	GENPUSHB ah
-	jmp	sc1
-sc2:	cmp	al,SC_PEKTK		; invoke peekNextToken? (73h)
-	jne	sc1			; no
-	mov	al,ah			; AL = mask for peekNextToken
-	push	si
-	mov	[pSynToken],si		; remember where the SC_PEKTK was
-	call	peekNextToken
-	pop	si
-	jz	sc8			; nope, wrap it up
-	jc	sc1			; look for next SC_PEKTK
-;
-; We found a token of the specified CLS, so look for a more specific match.
-;
-sc3:	xchg	dx,ax			; DH = token CLS, DL = token char
-sc3a:	lods	word ptr cs:[si]	; AL = next SC_* value
-	cmp	al,SC_MATCH		; (74h)
-	je	sc3b
-	cmp	al,SC_MASYM		; (75h)
-	ja	sc8			; never found a match, wrap up
-	jne	sc3a
-	mov	al,ah
-	mov	ah,CLS_SYM
-	cmp	dx,ax
-	jne	sc3a
-	push	si
-	call	getNextToken
-	pop	si
-	jmp	short sc4
-sc3b:	cmp	dh,ah			; match?
-	je	sc4			; yes
-	cmp	ah,CLS_ANY		; any CLS OK? (3Fh)
-	jne	sc3a			; no
-;
-; Perform operations < SC_PEKTK.  If an operation reports an error (CF set),
-; the call is terminated; if it reports no valid data (ZF set), we wrap it up.
-;
-sc4:	lods	word ptr cs:[si]
-	sub	dx,dx			; allow SC_NEXTK
-	cmp	al,SC_CALFN		; call an SCF function? (72h)
-	ja	sc8b			; done with match, wrap up
-	jne	sc4b			; no
-	mov	al,ah
-	cbw				; AX = SCF #
-	add	ax,ax			; convert to word offset
-	push	si
-	xchg	si,ax			; SI -> SCF function
-	call	cs:SCF_TABLE[si]
-	pop	si
-	jc	sc9
-	jz	sc8
-	test	ax,ax			; was there a previous token?
-	jz	sc4			; no
-	sub	bx,size TOKLET		; yes, back up to the previous token
-	jmp	sc4
-sc4b:	cmp	al,SC_GENPB		; invoke GENPUSHB? (71h)
-	jne	sc2			; no
-	GENPUSHB ah
-	jmp	sc4
-;
-; To wrap up, scan the syntax table for a final SC_GENFN and then exit,
-; unless there's an SC_NEXTK entry, in which case we go back for more tokens.
-;
-sc8:	mov	dx,-1
-sc8a:	lods	word ptr cs:[si]	; AL = next SC_* value
-sc8b:	test	al,al			; end of table?
-sc8c:	jl	sc9			; OK, just leave
-	cmp	al,SC_NEXTK		; (76h)
-	jne	sc8d
-	inc	dx			; should we look for more tokens?
-	jz	sc8			; no
-	mov	si,[pSynToken]
-	sub	si,2			; go peek for more tokens
-	jmp	sc1
-sc8d:	cmp	al,SC_GENFN		; have we found SC_GENFN yet? (77h)
-	jne	sc8a			; no
-	mov	al,ah
-	cbw				; AX = SCF #
-	add	ax,ax			; convert to word offset
-	xchg	si,ax			; SI -> SCF function
-	mov	cx,cs:SCF_TABLE[si]
-	GENCALL cx
-sc9:	ret
-ENDPROC	synCheck
-	ENDIF	; LATER
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
