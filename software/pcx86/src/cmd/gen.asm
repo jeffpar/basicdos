@@ -33,7 +33,7 @@ CODE    SEGMENT
 ; Inputs:
 ;	AL = GEN flags (eg, GEN_BATCH)
 ;	DS:BX -> heap
-;	DS:SI -> INPUTBUF (for single line) or null (for all lines in TBLKDEF)
+;	DS:SI -> INPUTBUF (for single line) or null (for TBLKs)
 ;
 ; Outputs:
 ;	None
@@ -42,29 +42,29 @@ CODE    SEGMENT
 ;	Any
 ;
 DEFPROC	genCode
-	LOCVAR	pHeap,word
 	LOCVAR	codeSeg,word		; code segment
 	LOCVAR	defVarSeg,word		; default VBLK segment
 	LOCVAR	defType,byte		; used by genDefInt, etc.
-	LOCVAR	genFlags,byte
-	LOCVAR	errCode,word
-	LOCVAR	pInput,word		; original input address
 	LOCVAR	pCode,dword		; original start of generated code
-	LOCVAR	pLine,dword		; address of the current line
-	LOCVAR	cbLine,word		; length of the current line
-	LOCVAR	lineNumber,word
 	ENTER
 
-	mov	[pHeap],bx
 	mov	[codeSeg],cs
 	test	al,GEN_BATCH
-	jz	gc0
+	jz	gc1
 	or	al,GEN_ECHO
-gc0:	mov	[genFlags],al
-	sub	ax,ax
-	mov	[errCode],ax
-	mov	[pInput],si
-	mov	[lineNumber],ax
+gc1:	mov	[bx].GEN_FLAGS,al
+
+	sub	cx,cx
+	mov	[bx].ERR_CODE,cx
+	mov	[bx].LINE_NUM,cx
+	mov	dx,ds
+	test	si,si
+	jnz	gc2
+	mov	dx,[bx].TBLKDEF.BLK_NEXT
+	mov	si,size TBLK
+gc2:	mov	[bx].LINE_PTR.OFF,si
+	mov	[bx].LINE_PTR.SEG,dx
+	mov	[bx].LINE_LEN,cx	; CX = previous length (0)
 
 	call	allocVars
 	jc	gce
@@ -75,128 +75,14 @@ gc0:	mov	[genFlags],al
 	ASSUME	ES:NOTHING		; ES:DI -> code block
 	mov	[pCode].OFF,di
 	mov	[pCode].SEG,es
+
 	mov	ax,OP_MOV_BP_SP		; make it easy for endProgram
 	stosw				; to reset the stack and return
-;
-; ES:[BLK_SIZE] is the absolute limit for pCode, but we also maintain
-; ES:[CBLK_REFS] as the bottom of the block's LBLREF table, and that is
-; the real limit that the code generator must be mindful of.
-;
-; Initialize the block's LBLREF table; it's empty when CBLK_REFS = BLK_SIZE.
-;
-	mov	es:[CBLK_REFS],cx
 
-	mov	si,[pInput]
-	test	si,si
-	jz	gc1
-	mov	cl,[si].INP_CNT
-	mov	ch,0
-	lea	si,[si].INP_BUF
-	jmp	short gc4
-
-gce:	call	memError
-	jmp	gc9
-
-gc1:	lea	si,[bx].TBLKDEF
-gc2:	mov	cx,[si].BLK_NEXT
-	clc
-	jcxz	gc3b			; nothing left to parse
-	mov	ds,cx
-	ASSUME	DS:NOTHING
-	mov	si,size TBLK
-
-gc3:	cmp	si,ds:[BLK_FREE]
-	jae	gc2			; advance to next block in chain
-	inc	[lineNumber]
-	lodsw
-	test	ax,ax			; is there a label #?
-	jz	gc3a			; no
-	call	addLabel		; yes, add it to the LBLREF table
-gc3a:	lodsb				; AL = length byte
-	mov	ah,0
-	xchg	cx,ax			; CX = length of line
-	jcxz	gc3			; empty line, nothing to do
-;
-; As a preliminary matter, if we're processing a BAT file, then generate
-; code to print the line, unless it starts with a '@', in which case, skip
-; over the '@'.
-;
-	DPRINTF	'b',<"%.*ls\r\n">,cx,si,ds
-	cmp	byte ptr [si],'@'
-	jne	gc3c
-	inc	si
-	dec	cx
-	jz	gc3
-	jmp	short gc4
-gc3b:	jmp	short gc6
-;
-; One of the annoying things about the ECHO state is that, since we can't
-; be sure what the state of ECHO will be at runtime, we must inject printLine
-; before every line.
-;
-gc3c:	test	[genFlags],GEN_ECHO
-	jz	gc4
-	push	cx
-	lea	cx,[si-1]
-	GENPUSH	ds,cx			; DS:CX -> string (at the length byte)
-	GENCALL	printLine
-	pop	cx
-;
-; This is where INPUTBUF and TBLKDEF paths re-converge with one line of code
-; (at DS:SI with length CX).
-;
-gc4:	mov	bx,[pHeap]
-	mov	[cbLine],cx
-	mov	[pLine].OFF,si
-	mov	[pLine].SEG,ds		; save text pointer and length
-	push	es
-	push	di			; save code gen pointer
-
-	push	ss
-	pop	es
-;
-; Copy the line (at DS:SI with length CX) to LINEBUF, so that we can use a
-; single segment (DS) to address both LINEBUF and TOKENBUF once ES has been
-; restored to the code gen segment.
-;
-	push	cx
-	push	es
-	lea	di,[bx].LINEBUF
-	push	di
-	rep	movsb
-	xchg	ax,cx			; AL = 0
-	stosb				; null-terminate for good measure
-	pop	si
-	pop	ds
-	pop	cx			; DS:SI -> LINEBUF (with length CX)
-
-	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
-	DOSUTIL	TOKIFY2
-	mov	bx,di
-	push	es
-	pop	ds
-	add	bx,offset TOK_BUF	; DS:BX -> TOKLET array
-	pop	di
-	pop	es			; restore code gen pointer
-	jc	gc5
-
-	add	ax,ax
-	add	ax,ax
-	add	ax,bx
-	mov	si,ds:[PSP_HEAP]
-	mov	[si].TOKEND,ax
-
+gc4:	call	getNextLine
+	jc	gc6
 	call	genCommands		; generate code
-
-gc5:	lds	si,[pLine]		; restore text pointer and length
-	mov	cx,[cbLine]
-	jc	gc6			; error
-
-	cmp	[pInput],0		; more text to parse?
-	jne	gc6			; no (just a single line)
-
-	add	si,cx			; advance past previous line of text
-	jmp	gc3			; and check for more
+	jnc	gc4
 
 gc6:	push	ss
 	pop	ds
@@ -223,8 +109,12 @@ gc7:	pushf
 	popf
 gc8:	jnc	gc9
 
-	PRINTF	<"Syntax error in line %d",13,10>,lineNumber
+	mov	bx,ds:[PSP_HEAP]
+	PRINTF	<"Syntax error in line %d",13,10>,[bx].LINE_NUM
 	stc
+	jmp	short gc9
+
+gce:	call	memError
 
 gc9:	LEAVE
 	ret
@@ -316,12 +206,14 @@ ENDPROC	genCLS
 ;	Any
 ;
 DEFPROC	genCmd
+	DBGBRK
 	xchg	dx,ax
 	GENPUSH	dx
-	mov	cx,[pLine].OFF
-	mov	dx,[pLine].SEG
+	mov	si,ds:[PSP_HEAP]
+	mov	cx,[si].LINE_PTR.OFF
+	mov	dx,[si].LINE_PTR.SEG
 	GENPUSH	dx,cx
-	mov	dx,[cbLine]
+	mov	dx,[si].LINE_LEN
 	GENPUSH	dx
 	GENCALL	doCmd
 	ret
@@ -1282,7 +1174,7 @@ ENDPROC	genIf
 ;
 ; genLet
 ;
-; Generate code to "let" a variable equal some expression.  We'll start with
+; Generate code to "LET" a variable equal some expression.  We'll start with
 ; 32-bit integer ("long") variables.  We'll also start with the assumption
 ; that it's OK to alloc the variable at "gen" time, so that the only code we
 ; have to generate (and execute later) is code that sets the variable, using
@@ -1331,7 +1223,7 @@ ENDPROC	genLet
 ;
 ; genPrint
 ;
-; Generate code to print.
+; Generate code to "PRINT" a series of values.
 ;
 ; Inputs:
 ;	BX = offset of next TOKLET
@@ -1373,6 +1265,26 @@ ENDPROC	genPrint
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; genReturn
+;
+; Generate code to "RETURN [optional value]".
+;
+; Inputs:
+;	BX = offset of next TOKLET
+;	ES:DI -> next unused location in code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genReturn
+	ret
+ENDPROC	genReturn
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; addLabel
 ;
 ; Inputs:
@@ -1386,9 +1298,9 @@ ENDPROC	genPrint
 ;	CX, DX
 ;
 DEFPROC	addLabel
-	DPRINTF	'l',<"%#010P: line %d: adding label %d...\r\n">,lineNumber,ax
-
 	mov	dx,di			; DX = current code gen offset
+	mov	di,ss:[PSP_HEAP]
+	DPRINTF	'l',<"%#010P: line %d: adding label %d...\r\n">,ss:[di].LINE_NUM,ax
 	test	dx,LBL_RESOLVE		; is this a label reference?
 	jnz	al8			; yes, just add it
 ;
@@ -1456,9 +1368,9 @@ ENDPROC	addLabel
 ;	AX, CX, DX
 ;
 DEFPROC	findLabel
-	DPRINTF	'l',<"%#010P: line %d: finding label %d...\r\n">,lineNumber,ax
-
 	push	di
+	mov	di,ss:[PSP_HEAP]
+	DPRINTF	'l',<"%#010P: line %d: finding label %d...\r\n">,ss:[di].LINE_NUM,ax
 	mov	cx,es:[BLK_SIZE]
 	mov	di,es:[CBLK_REFS]
 	sub	cx,di
@@ -1794,6 +1706,126 @@ ENDPROC	genPushVarLong
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; getNextLine
+;
+; Inputs:
+;	DS = heap segment
+;
+; Outputs:
+;	If carry clear, DS:BX -> TOKLET array
+;
+; Modifies:
+;	Any
+;
+DEFPROC	getNextLine
+	DBGBRK
+	push	ds
+	mov	bx,ds:[PSP_HEAP]	; DS:BX -> heap
+	mov	cx,[bx].LINE_LEN
+	lds	si,[bx].LINE_PTR
+	ASSUME	DS:NOTHING
+
+	mov	ax,ss
+	cmp	ax,dx			; is LINE_PTR in the heap?
+	jne	gnl0			; no
+	test	cx,cx			; yes, we must be using INPUTBUF
+	stc				; have we already processed it?
+	jnz	gnl4x			; yes
+	mov	cl,[si].INP_CNT		; CX = length
+	lea	si,[si].INP_BUF		; DS:SI -> line
+	jmp	short gnl4
+
+gnl0:	add	si,cx			; advance to the next line
+gnl1:	cmp	si,ds:[BLK_FREE]	; still working the same TBLK?
+	jb	gnl2			; yes
+	mov	dx,ds:[BLK_NEXT]	; no, advance to next TBLK in chain
+	cmp	dx,1			; is there another segment?
+	jb	gnl4x			; no
+	mov	ds,dx
+	mov	si,size TBLK		; DS:SI -> next line
+gnl2:	inc	ss:[bx].LINE_NUM
+	lodsw
+	test	ax,ax			; is there a label #?
+	jz	gnl3			; no
+	call	addLabel		; yes, add it to the LBLREF table
+gnl3:	lodsb				; AL = length byte
+	mov	ah,0
+	xchg	cx,ax			; CX = length of line
+	jcxz	gnl1
+;
+; As a preliminary matter, if we're processing a BAT file, then generate
+; code to print the line, unless it starts with a '@', in which case, skip
+; over the '@'.
+;
+gnl4:	DPRINTF	'b',<"%.*ls\r\n">,cx,si,ds
+	cmp	byte ptr [si],'@'
+	jne	gnl5
+	inc	si
+	dec	cx
+	jz	gnl1
+	jmp	short gnl6
+gnl4x:	jmp	short gnl9
+;
+; One of the annoying things about the ECHO state is that, since we can't
+; be sure what the state of ECHO will be at runtime, we must inject printLine
+; before every line.
+;
+gnl5:	test	ss:[bx].GEN_FLAGS,GEN_ECHO
+	jz	gnl6
+	push	cx
+	lea	cx,[si-1]
+	GENPUSH	ds,cx			; DS:CX -> string (at the length byte)
+	GENCALL	printLine
+	pop	cx
+;
+; Ready to process the line of code at DS:SI with length CX.
+;
+gnl6:	mov	ss:[bx].LINE_PTR.OFF,si
+	mov	ss:[bx].LINE_PTR.SEG,ds
+	mov	ss:[bx].LINE_LEN,cx
+
+	push	es
+	push	di			; save code gen pointer
+	push	ss
+	pop	es			; ES -> heap
+;
+; Copy the line (at DS:SI with length CX) to LINEBUF, so that we can use a
+; single segment (DS) to address both LINEBUF and TOKENBUF once ES has been
+; restored to the code gen segment.
+;
+	push	cx
+	push	es
+	lea	di,[bx].LINEBUF		; ES:DI -> LINEBUF
+	push	di
+	rep	movsb
+	xchg	ax,cx			; AL = 0
+	stosb				; null-terminate for good measure
+	pop	si
+	pop	ds
+	pop	cx			; DS:SI -> LINEBUF (with length CX)
+
+	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
+	DOSUTIL	TOKIFY2
+	mov	bx,di
+	add	bx,offset TOK_BUF	; ES:BX -> TOKLET array
+	pop	di
+	pop	es			; restore code gen pointer
+	jc	gnl9
+
+	add	ax,ax
+	add	ax,ax
+	add	ax,bx
+	pop	ds			; DS:BX -> TOKLET array
+	mov	si,ds:[PSP_HEAP]
+	mov	[si].TOKEND,ax
+	ret
+
+gnl9:	pop	ds
+	ret
+ENDPROC	getNextLine
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; getNextSymbol
 ;
 ; Call getNextToken with AL = CLS_SYM, updating BX and preserving CX, DX, SI.
@@ -1836,34 +1868,34 @@ ENDPROC	getNextSymbol
 DEFPROC	getNextToken
 	push	dx
 	push	di
-gt0:	mov	di,ds:[PSP_HEAP]
+gnt0:	mov	di,ds:[PSP_HEAP]
 	cmp	bx,[di].TOKEND
-	jb	gt0a
+	jb	gnt0a
 	sub	ax,ax
-	jmp	gt9			; no more tokens (ZF set, CF clear)
+	jmp	gnt9			; no more tokens (ZF set, CF clear)
 
-gt0a:	mov	ah,[bx].TOKLET_CLS
+gnt0a:	mov	ah,[bx].TOKLET_CLS
 	test	ah,al
-	jnz	gt1
+	jnz	gnt1
 	cmp	ah,CLS_WHITE		; whitespace token?
-gt0b:	stc
-	jne	gt9			; no (CF set)
+gnt0b:	stc
+	jne	gnt9			; no (CF set)
 	add	bx,size TOKLET		; yes, so ignore it
-	jmp	gt0
+	jmp	gnt0
 
-gt1:	cmp	al,CLS_KEYWORD		; looking for keyword?
-	jne	gt1a			; no
+gnt1:	cmp	al,CLS_KEYWORD		; looking for keyword?
+	jne	gnt1a			; no
 	cmp	ah,CLS_VAR		; yes, undecorated CLS_VAR?
-	jne	gt0b			; no, can't be a keyword then
+	jne	gnt0b			; no, can't be a keyword then
 
-gt1a:	mov	si,[bx].TOKLET_OFF
+gnt1a:	mov	si,[bx].TOKLET_OFF
 	mov	cl,[bx].TOKLET_LEN
 	mov	ch,0
 	add	bx,size TOKLET
 	mov	dl,al			; DL = requested CLS
 	mov	al,[si]			; AL = 1st character of token
 	cmp	al,'a'			; ensure 1st character is upper-case
-	jb	gt2
+	jb	gnt2
 	sub	al,20h
 ;
 ; Any CLS_VAR with additional bits specifying the variable type (eg,
@@ -1872,28 +1904,28 @@ gt1a:	mov	si,[bx].TOKLET_OFF
 ; all other keywords.  Failing that, we assume it's a variable, so we look
 ; up the variable's implicit type and update the CLS bits accordingly.
 ;
-gt2:	cmp	ah,CLS_VAR
-	jne	gt7
+gnt2:	cmp	ah,CLS_VAR
+	jne	gnt7
 
 	push	ax
 	push	dx
 	mov	dx,offset KEYOP_TOKENS	; see if token is a KEYOP
 	DOSUTIL	TOKID			; CS:DX -> TOKTBL
-	jc	gt2a
+	jc	gnt2a
 	mov	ah,CLS_SYM		; AL = TOKDEF_ID, SI -> TOKDEF
-	jnc	gt2b
-gt2a:	mov	dx,offset KEYWORD_TOKENS; see if token is a KEYWORD
+	jnc	gnt2b
+gnt2a:	mov	dx,offset KEYWORD_TOKENS; see if token is a KEYWORD
 	DOSUTIL	TOKID			; CS:DX -> TOKTBL
-	jc	gt2c
+	jc	gnt2c
 	mov	ah,CLS_KEYWORD		; AL = TOKDEF_ID, SI -> TOKDEF
-gt2b:	pop	dx
+gnt2b:	pop	dx
 	pop	dx
-	jmp	short gt8
-gt2c:	pop	dx			; neither KEYOP nor KEYWORD
+	jmp	short gnt8
+gnt2c:	pop	dx			; neither KEYOP nor KEYWORD
 	pop	ax
 	cmp	dl,CLS_KEYWORD		; and did we request a KEYWORD?
 	stc
-	je	gt9			; yes, return error
+	je	gnt9			; yes, return error
 
 	push	bx
 	push	ax
@@ -1901,26 +1933,26 @@ gt2c:	pop	dx			; neither KEYOP nor KEYWORD
 	sub	al,'A'			; convert 1st letter to DEFVARS index
 	xlat				; look up the default VAR type
 	test	al,al			; has a default been set?
-	jnz	gt4			; yes
+	jnz	gnt4			; yes
 	mov	al,VAR_LONG		; no, default to VAR_LONG
-gt4:	mov	ah,al
+gnt4:	mov	ah,al
 	or	ah,CLS_VAR
 	pop	bx			; we're really popping AX
 	mov	al,bl			; and restoring AL
 	pop	bx
-	jmp	short gt8
+	jmp	short gnt8
 ;
 ; If we're about to return a CLS_SYM that happens to be a colon, then return
 ; ZF set (but not carry) to end the caller's token scan.
 ;
-gt7:	cmp	ah,CLS_SYM
-	jne	gt8
+gnt7:	cmp	ah,CLS_SYM
+	jne	gnt8
 
 	cmp	al,':'
-	je	gt9
+	je	gnt9
 
-gt8:	or	ah,0			; return both ZF and CF clear
-gt9:	pop	di
+gnt8:	or	ah,0			; return both ZF and CF clear
+gnt9:	pop	di
 	pop	dx
 	ret
 ENDPROC	getNextToken

@@ -311,16 +311,20 @@ ORIG_BP		dw	?		; 7A4h
 CON_COLS	db	?		; 7A6h
 CON_ROWS	db	?		; 7A7h
 CMD_FLAGS	db	?		; 7A8h: see CMD_* flags
-CMD_PADDING	db	?		; 7A9h
-PREV_TIME	dd	?		; 7AAh: last time displayed by cmdTime
-RND_SEED	dd	?		; 7AEh: pseudo-random number seed
-INPUTOFF	dw	?		; 7B2h: input offset (default INPUTBUF)
-TOKNEXT		dw	?		; 7B4h
-TOKEND		dw	?		; 7B6h
-DEFVARS		db 26 dup (?)		; 7B8h: default types for 26 letters
-FILENAME	db 16 dup (?)		; 7D0h: template ("X:XXXXXXXX.XXX")
-EXECDATA	db size EPB dup (?)	; 7E0h: Exec Parameter Block
-CMD_HEAP	ends			; 7F6h
+GEN_FLAGS	db	?		; 7A9h: see GEN_* flags
+LINE_PTR	dd	?		; 7AAh
+LINE_LEN	dw	?		; 7AEh
+LINE_NUM	dw	?		; 7B0h
+ERR_CODE	dw	?		; 7B2h
+PREV_TIME	dd	?		; 7B4h: last time displayed by cmdTime
+RND_SEED	dd	?		; 7B8h: pseudo-random number seed
+INPUTOFF	dw	?		; 7BCh: input offset (default INPUTBUF)
+TOKNEXT		dw	?		; 7BEh
+TOKEND		dw	?		; 7C0h
+DEFVARS		db 26 dup (?)		; 7C2h: default types for 26 letters
+FILENAME	db 16 dup (?)		; 7DAh: template ("X:XXXXXXXX.XXX")
+EXECDATA	db size EPB dup (?)	; 7EAh: Exec Parameter Block
+CMD_HEAP	ends			; 800h
 
 	ASSERT	<((SIZE CMD_HEAP) AND 1)>,EQ,0
 

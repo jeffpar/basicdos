@@ -165,7 +165,7 @@ ENDPROC	freeAllBlocks
 ; allocCode
 ;
 ; Inputs:
-;	None
+;	DS:BX -> heap
 ;
 ; Outputs:
 ;	If successful, carry clear, ES:DI -> first available byte, CX = length
@@ -174,9 +174,19 @@ ENDPROC	freeAllBlocks
 ;	AX, CX, SI, DI, ES
 ;
 DEFPROC	allocCode
-	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].CBLKDEF
-	jmp	allocBlock
+	lea	si,[bx].CBLKDEF
+	DEFLBL	allocCodeBlock,near
+	call	allocBlock
+	jc	ac9
+;
+; ES:[BLK_SIZE] is the absolute limit for generated code, but we also maintain
+; ES:[CBLK_REFS] as the bottom of the block's LBLREF table, and that's the real
+; limit that the code generator must be mindful of.
+;
+; Initialize the block's LBLREF table; it's empty when CBLK_REFS = BLK_SIZE.
+;
+	mov	es:[CBLK_REFS],cx
+ac9:	ret
 ENDPROC	allocCode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -265,7 +275,7 @@ ENDPROC	freeAllCode
 DEFPROC	allocFunc
 	mov	si,ds:[PSP_HEAP]
 	lea	si,[si].FBLKDEF
-	jmp	allocBlock
+	jmp	allocCodeBlock
 ENDPROC	allocFunc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -334,7 +344,7 @@ ENDPROC	freeAllText
 ; Allocates a var block if one is not already allocated.
 ;
 ; Inputs:
-;	None
+;	DS:BX -> heap
 ;
 ; Outputs:
 ;	If successful, carry clear, ES:DI -> first available byte, CX = length
@@ -343,8 +353,7 @@ ENDPROC	freeAllText
 ;	AX, CX, SI, DI, ES
 ;
 DEFPROC	allocVars
-	mov	si,ds:[PSP_HEAP]
-	lea	si,[si].VBLKDEF
+	lea	si,[bx].VBLKDEF
 	cmp	[si].BDEF_NEXT,0
 	jne	al9
 	jmp	allocBlock
