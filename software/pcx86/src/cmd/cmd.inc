@@ -230,6 +230,7 @@ GEN_IMM		equ	01h		; immediate mode
 GEN_BASIC	equ	02h		; BAS file
 GEN_BATCH	equ	04h		; BAT file
 GEN_ECHO	equ	08h		; initially set if GEN_BATCH
+GEN_DEF		equ	10h		; DEF function in progress
 
 ;
 ; Code generation helper macros
@@ -312,10 +313,11 @@ CON_COLS	db	?		; 7A6h
 CON_ROWS	db	?		; 7A7h
 CMD_FLAGS	db	?		; 7A8h: see CMD_* flags
 GEN_FLAGS	db	?		; 7A9h: see GEN_* flags
-LINE_PTR	dd	?		; 7AAh
-LINE_LEN	dw	?		; 7AEh
-LINE_NUM	dw	?		; 7B0h
-ERR_CODE	dw	?		; 7B2h
+ERR_CODE	db	?		; 7AAh
+DEF_PARMS	db	?		; 7ABh
+LINE_PTR	dd	?		; 7ACh
+LINE_LEN	dw	?		; 7B0h
+LINE_NUM	dw	?		; 7B2h
 PREV_TIME	dd	?		; 7B4h: last time displayed by cmdTime
 RND_SEED	dd	?		; 7B8h: pseudo-random number seed
 INPUTOFF	dw	?		; 7BCh: input offset (default INPUTBUF)

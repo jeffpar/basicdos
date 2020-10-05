@@ -55,7 +55,7 @@ DEFPROC	genCode
 gc1:	mov	[bx].GEN_FLAGS,al
 
 	sub	cx,cx
-	mov	[bx].ERR_CODE,cx
+	mov	[bx].ERR_CODE,cl
 	mov	[bx].LINE_NUM,cx
 	mov	dx,ds
 	test	si,si
@@ -80,7 +80,8 @@ gc2:	mov	[bx].LINE_PTR.OFF,si
 	stosw				; to reset the stack and return
 
 gc4:	call	getNextLine
-	jc	gc6
+	cmc
+	jnc	gc6
 	call	genCommands		; generate code
 	jnc	gc4
 
@@ -145,9 +146,9 @@ DEFPROC	genCommands
 	jb	gcs9			; no
 	cmp	al,KEYWORD_LANGUAGE	; is keyword part of the language?
 	jb	gcs2			; no
-gcs1:	test	dx,dx			; command address?
+	test	dx,dx			; command address?
 	jz	gcs9			; no
-	jmp	short gcs6		; call generator function
+	jmp	short gcs3		; call generator function
 ;
 ; For keywords that are BASIC-DOS extensions, we need to generate a call
 ; to doCmd with a pointer to the full command-line and the keyword handler.
@@ -158,11 +159,9 @@ gcs2:	xchg	ax,dx			; AX = handler address
 	mov	si,ds:[PSP_HEAP]
 	mov	[si].TOKEND,bx		; mark the tokens fully processed
 
-gcs6:	call	dx			; call dedicated generator function
-
-gcs7:	mov	es:[BLK_FREE],di
-
-gcs8:	jnc	genCommands
+gcs3:	call	dx			; call dedicated generator function
+	mov	es:[BLK_FREE],di
+	jnc	genCommands
 
 gcs9:	ret
 ENDPROC	genCommands
@@ -206,7 +205,6 @@ ENDPROC	genCLS
 ;	Any
 ;
 DEFPROC	genCmd
-	DBGBRK
 	xchg	dx,ax
 	GENPUSH	dx
 	mov	si,ds:[PSP_HEAP]
@@ -281,17 +279,26 @@ DEFPROC	genDefFn
 	LOCVAR	segVars,word
 	LOCVAR	fnParms,byte
 	LOCVAR	fnType,byte
+	LOCVAR	fnBlock,byte
 	LOCVAR	fnNameLen,word
 	LOCVAR	fnNameOff,word
+	LOCVAR	fnParmOff,word
 ;
 ; Unlike other "gen" functions, if this function generates anything, it
 ; goes into a new code block, not the current code block, so we save and
 ; restore ES:DI before the ENTER and after LEAVE (since we depend on LEAVE
 ; to "CLEANUP" any data left on the stack in the event of an error).
 ;
+	mov	es:[BLK_FREE],di
 	push	es
 	push	di
 	ENTER
+
+	mov	si,ds:[PSP_HEAP]
+	test	[si].GEN_FLAGS,GEN_DEF
+	jnz	gd1x			; nested DEF fn not allowed
+	or	[si].GEN_FLAGS,GEN_DEF
+
 	mov	al,CLS_VAR
 	call	getNextToken
 	jbe	gd1x
@@ -304,14 +311,27 @@ DEFPROC	genDefFn
 	sub	dx,dx
 	mov	[segVars],dx
 	mov	[fnType],ah
+	mov	[fnBlock],1
 	mov	[fnParms],dl
 	mov	[fnNameLen],cx
-	mov	[fnNameOff],si
+;
+; Copy the function name onto the stack, because if this is a function block,
+; the buffer containing the name will be overwritten before we can call addVar.
+;
+	inc	cx
+	and	cl,NOT 1		; increase length to next EVEN value
+	sub	sp,cx
+	mov	di,sp			; ES:DI is available for reuse
+	mov	[fnNameOff],di
+	push	ss			; since we saved them on entry above
+	pop	es
+	rep	movsb
 ;
 ; The parameter list is next, and it's optional.
 ;
 	call	getNextSymbol
-	jbe	gd1x
+	jbe	gd3			; assume it's a block
+	dec	[fnBlock]		; switch assumption to non-block
 	cmp	al,'='
 	je	gd3			; no parameters
 	cmp	al,'('
@@ -323,6 +343,7 @@ DEFPROC	genDefFn
 	mov	[segVars],dx
 
 	sub	dx,dx			; DX = parm offset
+	mov	[fnParmOff],sp		; top of parm info on stack
 gd1:	mov	al,CLS_VAR
 	call	getNextToken
 	jz	gd1x			; ran out of parameters
@@ -350,24 +371,26 @@ gd1:	mov	al,CLS_VAR
 	je	gd1
 	cmp	al,')'
 	je	gd2
-gd1x:	jmp	gd8
+gd1x:	jmp	short gd3x
 
-gd2:	call	getNextSymbol
+gd2:	inc	[fnBlock]		; revert to block assumption
+	call	getNextSymbol
+	jbe	gd2a			; no symbols, assumption is good
+	dec	[fnBlock]		; more symbols, so revert to non-block
 	cmp	al,'='			; expression to follow?
-	jne	gd1x			; no
+	jne	gd3x			; no
 ;
 ; Time to add the original var block(s) back to the chain, so that genExpr
 ; has access to both the parameter variables we just added and all globals.
 ;
-	mov	dx,[segVars]
+gd2a:	mov	dx,[segVars]
 	call	updateTempVars
 ;
 ; Similar to what we did with allocTempVars (if there was a parameter list),
 ; we call allocFunc to create a fresh code buffer for genExpr.
 ;
-gd3:	mov	es:[BLK_FREE],di
-	call	allocFunc
-	jc	gd8
+gd3:	call	allocFunc
+	jc	gd3x
 
 	push	di
 	IFDEF	MAXDEBUG
@@ -386,10 +409,30 @@ gd3:	mov	es:[BLK_FREE],di
 ; we must call genCommands and getNextLine in a loop until we encounter a
 ; RETURN command.
 ;
-	mov	al,[fnParms]
-	call	genExpr
+	mov	si,ds:[PSP_HEAP]
+	mov	al,[fnParms]		; set DEF_PARMS in case
+	mov	[si].DEF_PARMS,al	; genExpr encounters any VAR_PARMs
 
-	mov	cl,[fnParms]
+	cmp	[fnBlock],0		; function expression?
+	jne	gd3a			; no
+	call	genExpr			; yes
+	jnc	gd3c
+gd3x:	jmp	short gd8
+
+gd3a:	push	si
+	call	getNextLine		; function block
+	jc	gd3b			; ran out of lines before RETURN
+	call	genCommands		; generate some code
+gd3b:	pop	si
+	jc	gd3x
+	test	[si].GEN_FLAGS,GEN_DEF	; did a RETURN clear GEN_DEF?
+	jnz	gd3a			; not yet
+;
+; genExpr generates code that leaves the result on the stack, so to wrap up
+; this function call, we must generate code that pops that result into the
+; return variable on the stack (which genFuncExpr allocated prior to the call).
+;
+gd3c:	mov	cl,[fnParms]
 	mov	ch,0
 	add	cx,cx
 	add	cx,cx
@@ -410,10 +453,10 @@ gd3:	mov	es:[BLK_FREE],di
 ; if we allocated a temp block for parameters.
 ;
 	cmp	[segVars],0
-	je	gd3a
+	je	gd3d
 	call	freeTempVars
-gd3a:	mov	cx,[fnNameLen]
-	mov	si,[fnNameOff]
+gd3d:	mov	cx,[fnNameLen]
+	mov	si,[fnNameOff]		; DS:SI -> function name on stack
 	call	removeVar		; remove any existing function var
 	jc	gd7			; error (predefined)
 	mov	ah,VAR_FUNC
@@ -424,15 +467,15 @@ gd3a:	mov	cx,[fnNameLen]
 ; DX:SI -> VAR_FUNC var data.  Set the function return type and # parameters,
 ; followed by each of the parameters types and offsets.
 ;
-	mov	di,-(_LOCBYTES)
+	mov	di,[fnParmOff]		; DI = top of parm info on stack
 	mov	ax,word ptr [fnType]
 gd4:	call	setVar
 	dec	[fnParms]
 	jl	gd5
 	dec	di
 	dec	di
-	mov	ax,[bp+di]		; AH = parm offset, which
-	mov	ah,PARM_REQUIRED	; must be replaced with parm flags
+	mov	ax,[di]			; AH = parm offset
+	mov	ah,PARM_REQUIRED	; which we replace with parm flags
 	jmp	gd4
 
 gd5:	pop	di			; ES:DI -> generated code
@@ -625,7 +668,7 @@ ENDPROC	genEcho
 ; by all the operators, and also maintain an open parentheses count.
 ;
 ; Inputs:
-;	BX = offset of next TOKLET
+;	DS:BX -> next TOKLET
 ;	ES:DI -> next unused location in code block
 ;
 ; Outputs:
@@ -649,6 +692,8 @@ DEFPROC	genExpr
 	ENTER
 	push	cx
 	push	si
+	mov	si,ds:[PSP_HEAP]
+	mov	al,[si].DEF_PARMS
 	mov	[exprParms],al		; parm count (only from genDefFn)
 	sub	dx,dx
 	mov	word ptr [exprType],dx	; exprType = VAR_NONE, exprToks = 0
@@ -1000,7 +1045,7 @@ ENDPROC	genFuncExpr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genFuncparm
+; genFuncParm
 ;
 ; Generate code for accessing parameter N (of CL parameters).
 ;
@@ -1280,7 +1325,13 @@ ENDPROC	genPrint
 ;	Any
 ;
 DEFPROC	genReturn
-	ret
+	mov	si,ds:[PSP_HEAP]
+	test	[si].GEN_FLAGS,GEN_DEF
+	jz	gr9
+	call	genExpr
+	jc	gr9
+	and	[si].GEN_FLAGS,NOT GEN_DEF
+gr9:	ret
 ENDPROC	genReturn
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1712,19 +1763,18 @@ ENDPROC	genPushVarLong
 ;	DS = heap segment
 ;
 ; Outputs:
-;	If carry clear, DS:BX -> TOKLET array
+;	If carry clear, DS:BX -> TOKLET array (TOKEND set to end)
 ;
 ; Modifies:
 ;	Any
 ;
 DEFPROC	getNextLine
-	DBGBRK
-	push	ds
 	mov	bx,ds:[PSP_HEAP]	; DS:BX -> heap
 	mov	cx,[bx].LINE_LEN
 	lds	si,[bx].LINE_PTR
 	ASSUME	DS:NOTHING
 
+	mov	dx,ds
 	mov	ax,ss
 	cmp	ax,dx			; is LINE_PTR in the heap?
 	jne	gnl0			; no
@@ -1787,7 +1837,7 @@ gnl6:	mov	ss:[bx].LINE_PTR.OFF,si
 	push	es
 	push	di			; save code gen pointer
 	push	ss
-	pop	es			; ES -> heap
+	pop	es			; ES = heap
 ;
 ; Copy the line (at DS:SI with length CX) to LINEBUF, so that we can use a
 ; single segment (DS) to address both LINEBUF and TOKENBUF once ES has been
@@ -1807,7 +1857,7 @@ gnl6:	mov	ss:[bx].LINE_PTR.OFF,si
 	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
 	DOSUTIL	TOKIFY2
 	mov	bx,di
-	add	bx,offset TOK_BUF	; ES:BX -> TOKLET array
+	add	bx,offset TOK_BUF	; DS:BX -> TOKLET array
 	pop	di
 	pop	es			; restore code gen pointer
 	jc	gnl9
@@ -1815,13 +1865,9 @@ gnl6:	mov	ss:[bx].LINE_PTR.OFF,si
 	add	ax,ax
 	add	ax,ax
 	add	ax,bx
-	pop	ds			; DS:BX -> TOKLET array
 	mov	si,ds:[PSP_HEAP]
 	mov	[si].TOKEND,ax
-	ret
-
-gnl9:	pop	ds
-	ret
+gnl9:	ret
 ENDPROC	getNextLine
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
