@@ -2,7 +2,8 @@ REM BASIC-DOS Test #1
 REM Print Fibonacci numbers
 @ECHO OFF
 COLOR 7,1
-DEF ADD(A,B)=A+B
+DEF ADD(A,B)
+RETURN A+B
 LET A = 0:LET B = 1
 10 PRINT A;
 LET C = ADD(A,B)

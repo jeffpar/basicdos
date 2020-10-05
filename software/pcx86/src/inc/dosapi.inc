@@ -269,8 +269,8 @@ EPB_CMDTAIL	dd	?	; 02h: pointer to well-formed command tail
 EPB_FCB1	dd	?	; 06h: pointer to FCB for PSP_FCB1
 EPB_FCB2	dd	?	; 0Ah: pointer to FCB for PSP_FCB2
 EPB_INIT_SP	dd	?	; 0Eh: init SS:SP (returned by DOS_PSP_EXEC1)
-EPB_INIT_IP	dd	?	; 0Eh: init CS:IP (returned by DOS_PSP_EXEC1)
-EPB		ends
+EPB_INIT_IP	dd	?	; 12h: init CS:IP (returned by DOS_PSP_EXEC1)
+EPB		ends		; 16h
 
 ;
 ; Exit types (returned with exit code on DOS_PSP_RETCODE calls)
@@ -297,7 +297,7 @@ FFB_TIME	dw	?	; 16h: file time
 FFB_DATE	dw	?	; 18h: file date
 FFB_SIZE	dd	?	; 1Ah: file size
 FFB_NAME	db    13 dup (?); 1Eh: file name (null-terminated)
-FFB		ends
+FFB		ends		; 2Bh
 
 ;
 ; itoa flag definitions (see sprintf.asm)

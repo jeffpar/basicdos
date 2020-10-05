@@ -14,8 +14,8 @@ CODE    SEGMENT
 
 	EXTERNS	<cmdDate,cmdDir,cmdExit,cmdHelp,cmdKeys,cmdList,cmdLoad>,near
 	EXTERNS	<cmdMem,cmdNew,cmdRun,cmdRestart,cmdTime,cmdType,cmdVer>,near
-	EXTERNS	<genCLS,genColor,genDef,genDefInt,genDefDbl,genDefStr>,near
-	EXTERNS	<genEcho,genGoto,genIf,genLet,genPrint>,near
+	EXTERNS	<genCLS,genColor,genDefFn,genDefInt,genDefDbl,genDefStr>,near
+	EXTERNS	<genEcho,genGoto,genIf,genLet,genPrint,genReturn>,near
 	EXTERNS	<evalNegLong,evalNotLong>,near
 	EXTERNS	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>,near
 	EXTERNS	<evalModLong,evalExpLong,evalImpLong>,near
@@ -125,7 +125,7 @@ CODE    SEGMENT
 	dd	7FFFFFFFh		; largest positive value
 	db	VAR_FUNC + 4,"RND%"
 	db	VAR_LONG,1		; returns VAR_LONG with 1 parameter
-	db	VAR_LONG,1		; 1st parameter: VAR_LONG, default=1
+	db	VAR_LONG,PARM_OPT_ONE	; 1st parameter: VAR_LONG, optional
 	dw	offset fnRndLong,0	; 0 implies our own CODE segment
 	db	0			; terminator
 
@@ -133,51 +133,13 @@ CODE    SEGMENT
 	db	VAR_LONG
 	dd	0			; predefined LONG zero constant
 
-	IFDEF	LATER
-	DEFLBL	SYNTAX_TABLES,word
-;
-; Syntax tables are a series of bytes processed by synCheck that define
-; both the syntax and the code generation logic for a given keyword.
-;
-	DEFLBL	synPrint,byte
-	db	SC_GENPB,VAR_NONE	; start with VAR_NONE on the stack
-	db	SC_PEKTK,CLS_ANY	; peek for any token
-
-	db	SC_MASYM,';'		; semi-colon pushes
-	db	SC_GENPB,VAR_SEMI	; VAR_SEMI onto the stack
-
-	db	SC_MASYM,','		; comma pushes
-	db	SC_GENPB,VAR_COMMA	; VAR_COMMA onto the stack
-
-	db	SC_MATCH,CLS_STR	; string constant
-	db	SC_CALFN,SCF_GENEXPR	; generates call to genExpr
-	db	SC_GENPB,VAR_STR
-
-	db	SC_MATCH,CLS_VAR_STR	; string variable
-	db	SC_CALFN,SCF_GENEXPR	; also generates call to genExpr
-	db	SC_GENPB,VAR_STR
-
-	db	SC_MATCH,CLS_ANY	; anything else
-	db	SC_CALFN,SCF_GENEXPR	; generates call to genExpr
-	db	SC_GENPB,VAR_LONG	; (failure triggers jump to next block)
-
-	db	SC_NEXTK,0		; check for more tokens if no failure
-	db	SC_GENFN,SCF_PRTARGS,-1	; otherwise generate call to printArgs
-
-	EXTERNS	<genExpr,printArgs>,near
-
-	DEFLBL	SCF_TABLE,word		; synCheck function table:
-	dw	genExpr			; SCF_GENEXPR
-	dw	printArgs		; SCF_PRTARGS
-	ENDIF	; LATER
-
 CODE	ENDS
 
 	DEFTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
 	DEFTOK	CLS,    60, genCLS
 	DEFTOK	COLOR,  61, genColor
 	DEFTOK	DATE,   40, cmdDate
-	DEFTOK	DEF,    62, genDef
+	DEFTOK	DEF,    62, genDefFn
 	DEFTOK	DEFDBL, 63, genDefDbl
 	DEFTOK	DEFINT, 64, genDefInt
 	DEFTOK	DEFSNG, 65, genDefDbl
@@ -200,6 +162,7 @@ CODE	ENDS
 	DEFTOK	PRINT,  71, genPrint
 	DEFTOK	REM,    72
 	DEFTOK	RESTART, 5, cmdRestart
+	DEFTOK	RETURN, 73, genReturn
 	DEFTOK	RUN,     6, cmdRun
 	DEFTOK	THEN,  204
 	DEFTOK	TIME,   43, cmdTime

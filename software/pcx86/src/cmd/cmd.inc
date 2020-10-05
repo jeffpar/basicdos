@@ -143,14 +143,23 @@ FBLK_SIG	equ	BLK_SIG
 SIG_FBLK	equ	'F'
 
 ;
-; Variable Block (VBLK) definitions
+; Parameter flags
 ;
-; VAR_TYPE (E0h) encompasses all the variable types in dosapi.inc
+; Predefined functions can have optional parameters; user-defined functions
+; cannot, only because there is currently no syntax for declaring them and
+; their corresponding default value.
+;
+PARM_OPT_ZERO	equ	00h		; optional parameter (default is zero)
+PARM_OPT_ONE	equ	01h		; optional parameter (default is one)
+PARM_REQUIRED	equ	0FFh		; required parameter
+
+;
+; Variable Block (VBLK) definitions
 ;
 VAR_NAMELEN	equ	01Fh		; max chars allowed in var name
 
 ;
-; Internal variable types (used by printArgs)
+; Internal variable types (used by printArgs and others)
 ;
 VAR_DEAD	equ	VAR_NONE OR 01h
 VAR_SEMI	equ	VAR_NONE OR 02h
@@ -221,6 +230,7 @@ GEN_IMM		equ	01h		; immediate mode
 GEN_BASIC	equ	02h		; BAS file
 GEN_BATCH	equ	04h		; BAT file
 GEN_ECHO	equ	08h		; initially set if GEN_BATCH
+GEN_DEF		equ	10h		; DEF function in progress
 
 ;
 ; Code generation helper macros
@@ -288,30 +298,35 @@ CMD_ECHO	equ	01h		; set if ECHO is "on"
 ; ensures that the remaining fields are zero-initialized.
 ;
 CMD_HEAP	struc
-CBLKDEF		db size BLKDEF dup (?)	; code block chain
-FBLKDEF		db size BLKDEF dup (?)	; function block chain
-VBLKDEF		db size BLKDEF dup (?)	; variable block chain
-SBLKDEF		db size BLKDEF dup (?)	; string block chain
-TBLKDEF		db size BLKDEF dup (?)	; text block chain
-INPUTBUF	db size BUFINP dup (?)
-TOKENBUF	db size BUFTOK dup (?)
-LINEBUF		db 256 dup (?)
-STACK		dw 512 dup (?)
-ORIG_SP		dw	?
-ORIG_BP		dw	?
-CON_COLS	db	?
-CON_ROWS	db	?
-CMD_FLAGS	db	?		; see CMD_* flags
-CMD_PADDING	db	?
-PREV_TIME	dd	?		; last time displayed by cmdTime
-RND_SEED	dd	?		; pseudo-random number seed
-INPUTOFF	dw	?		; input offset (defaults to INPUTBUF)
-TOKNEXT		dw	?
-TOKEND		dw	?
-DEFVARS		db 26 dup (?)		; default var types for all 26 letters
-FILENAME	db 16 dup (?)		; filename template ("X:XXXXXXXX.XXX")
-EXECDATA	db size EPB dup (?)	; Exec Parameter Block
-CMD_HEAP	ends
+CBLKDEF		db size BLKDEF dup (?)	; 000h: code block chain
+FBLKDEF		db size BLKDEF dup (?)	; 006h: function block chain
+VBLKDEF		db size BLKDEF dup (?)	; 00Ch: variable block chain
+SBLKDEF		db size BLKDEF dup (?)	; 012h: string block chain
+TBLKDEF		db size BLKDEF dup (?)	; 018h: text block chain
+INPUTBUF	db size BUFINP dup (?)	; 01Eh
+TOKENBUF	db size BUFTOK dup (?)	; 0A0h
+LINEBUF		db 256 dup (?)		; 2A2h
+STACK		dw 512 dup (?)		; 3A2h
+ORIG_SP		dw	?		; 7A2h
+ORIG_BP		dw	?		; 7A4h
+CON_COLS	db	?		; 7A6h
+CON_ROWS	db	?		; 7A7h
+CMD_FLAGS	db	?		; 7A8h: see CMD_* flags
+GEN_FLAGS	db	?		; 7A9h: see GEN_* flags
+ERR_CODE	db	?		; 7AAh
+DEF_PARMS	db	?		; 7ABh
+LINE_PTR	dd	?		; 7ACh
+LINE_LEN	dw	?		; 7B0h
+LINE_NUM	dw	?		; 7B2h
+PREV_TIME	dd	?		; 7B4h: last time displayed by cmdTime
+RND_SEED	dd	?		; 7B8h: pseudo-random number seed
+INPUTOFF	dw	?		; 7BCh: input offset (default INPUTBUF)
+TOKNEXT		dw	?		; 7BEh
+TOKEND		dw	?		; 7C0h
+DEFVARS		db 26 dup (?)		; 7C2h: default types for 26 letters
+FILENAME	db 16 dup (?)		; 7DAh: template ("X:XXXXXXXX.XXX")
+EXECDATA	db size EPB dup (?)	; 7EAh: Exec Parameter Block
+CMD_HEAP	ends			; 800h
 
 	ASSERT	<((SIZE CMD_HEAP) AND 1)>,EQ,0
 
