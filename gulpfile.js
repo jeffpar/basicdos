@@ -23,6 +23,7 @@ let files = {
 let disks = {
     "BASIC-DOS1": [
         "./demos/s80/CONFIG.SYS",
+        "./demos/d40/AUTOEXEC.BAT",
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
@@ -48,6 +49,7 @@ let disks = {
     ],
     "BASIC-DOS3": [
         "./demos/d80/CONFIG.SYS",
+        "./demos/d40/AUTOEXEC.BAT",
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
@@ -60,6 +62,7 @@ let disks = {
     ],
     "BASIC-DOS4": [
         "./demos/dual/CONFIG.SYS",
+        "./demos/d40/AUTOEXEC.BAT",
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
@@ -72,6 +75,7 @@ let disks = {
     ],
     "BASIC-DOS5": [
         "./demos/dual/multi/CONFIG.SYS",
+        "./demos/d40/AUTOEXEC.BAT",
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",

@@ -154,7 +154,7 @@ CODE	ENDS
 	DEFTOK	KEYS,    2, cmdKeys
 	DEFTOK	LET,    70, genLet
 	DEFTOK	LIST,    3, cmdList
-	DEFTOK	LOAD,   21, cmdLoad
+	DEFTOK	LOAD,   10, cmdLoad
 	DEFTOK	MEM,    42, cmdMem
 	DEFTOK	NEW,     4, cmdNew
 	DEFTOK	OFF,   202
@@ -166,7 +166,7 @@ CODE	ENDS
 	DEFTOK	RUN,     6, cmdRun
 	DEFTOK	THEN,  204
 	DEFTOK	TIME,   43, cmdTime
-	DEFTOK	TYPE,   22, cmdType
+	DEFTOK	TYPE,   21, cmdType
 	DEFTOK	VER,    44, cmdVer
 	NUMTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
 

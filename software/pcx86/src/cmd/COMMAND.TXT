@@ -53,7 +53,7 @@ CTRL-E  Up     CTRL-X  Down\
 CTRL-S  Left   CTRL-D  Right\
 CTRL-G  Del    CTRL-V  Ins\
 CTRL-C  Abort  ESC     Erase
-CTRL-ALT-DEL kills the current program. Use RESTART to restart the system.
+CTRL-ALT-DEL is currently disabled. Use RESTART to restart the system.
 
 LET *variable*=*expression*
 Assigns the value of the *expression* to the *variable*.  Values cannot be assigned to predefined variables.

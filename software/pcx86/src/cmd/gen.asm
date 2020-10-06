@@ -141,25 +141,23 @@ DEFPROC	genCommands
 	mov	al,CLS_KEYWORD
 	call	getNextToken
 	jbe	gcs9			; out of tokens
-	mov	dx,cs:[si].CTD_FUNC	;
-	cmp	al,KEYWORD_GENCODE	; keyword support generated code?
+	mov	cx,cs:[si].CTD_FUNC	;
+	cmp	al,KEYWORD_GENSPEC	; keyword support generated code?
 	jb	gcs9			; no
 	cmp	al,KEYWORD_LANGUAGE	; is keyword part of the language?
 	jb	gcs2			; no
-	test	dx,dx			; command address?
-	jz	gcs9			; no
+	jcxz	gcs9			; no command address
 	jmp	short gcs3		; call generator function
 ;
 ; For keywords that are BASIC-DOS extensions, we need to generate a call
 ; to doCmd with a pointer to the full command-line and the keyword handler.
 ; doCmd will then perform the traditional parse-and-execute logic.
 ;
-gcs2:	xchg	ax,dx			; AX = handler address
-	mov	dx,offset genCmd
-	mov	si,ds:[PSP_HEAP]
-	mov	[si].TOKEND,bx		; mark the tokens fully processed
+gcs2:	cbw				; AX = keyword ID
+	mov	dx,cx			; DX = handler address
+	mov	cx,offset genCmd
 
-gcs3:	call	dx			; call dedicated generator function
+gcs3:	call	cx			; call dedicated generator function
 	mov	es:[BLK_FREE],di
 	jnc	genCommands
 
@@ -194,7 +192,8 @@ ENDPROC	genCLS
 ; Generate code for generic commands.
 ;
 ; Inputs:
-;	AX = handler
+;	AL = keyword ID
+;	DX = handler offset
 ;	DS:BX -> TOKLETs
 ;	ES:DI -> code block
 ;
@@ -205,15 +204,16 @@ ENDPROC	genCLS
 ;	Any
 ;
 DEFPROC	genCmd
-	xchg	dx,ax
-	GENPUSH	dx
+	push	ax
+	GENPUSH	dx			; push handler offset
+	pop	dx
+	GENPUSH	dx			; push keyword ID
 	mov	si,ds:[PSP_HEAP]
-	mov	cx,[si].LINE_PTR.OFF
-	mov	dx,[si].LINE_PTR.SEG
+	mov	cx,[bx - size TOKLET].TOKLET_OFF
+	mov	dx,ds			; DX:CX -> command line
 	GENPUSH	dx,cx
-	mov	dx,[si].LINE_LEN
-	GENPUSH	dx
 	GENCALL	doCmd
+	mov	[si].TOKEND,bx		; mark the tokens fully processed
 	ret
 ENDPROC	genCmd
 
