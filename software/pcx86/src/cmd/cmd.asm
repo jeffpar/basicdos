@@ -309,7 +309,8 @@ ENDPROC	main
 ;
 ; Inputs:
 ;	AX = keyword ID
-;	DX -> offset of handler
+;	DS:DI -> TOKENBUF
+;	CS:DX -> offset of handler
 ;
 ; Outputs:
 ;	None
@@ -334,17 +335,19 @@ DEFPROC	nonBASIC
 	mov	si,offset DIR_DEF
 	mov	cx,DIR_DEF_LEN - 1
 	jmp	short nb2
-nb1:	lea	di,[heap].FILENAME	; DS:SI -> token, CX = length
-	mov	ax,size FILENAME-1
+nb1:	mov	ax,size FILENAME-1	; DS:SI -> token, CX = length
 	cmp	cx,ax
 	jbe	nb2
 	xchg	cx,ax
-nb2:	push	cx
+nb2:	push	di
+	lea	di,[heap].FILENAME
+	push	cx
 	push	di
 	rep	movsb
 	mov	byte ptr es:[di],0
 	pop	si			; DS:SI -> copy of token in FILENAME
 	pop	cx
+	pop	di
 	push	ss
 	pop	ds
 	DOSUTIL	STRUPR			; DS:SI -> token, CX = length

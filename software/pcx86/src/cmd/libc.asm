@@ -47,7 +47,8 @@ ENDPROC	clearScreen
 ; Inputs:
 ;	[pHandler] -> handler offset
 ;	[idKeyword] -> keyword ID
-;	[pCmdLine] -> seg:off of command line (null-terminated)
+;	[cbCmdLine] == length of command line
+;	[pCmdLine] -> seg:off of command line
 ;
 ; Outputs:
 ;	None
@@ -58,18 +59,26 @@ ENDPROC	clearScreen
 DEFPROC	doCmd,FAR
 	ARGVAR	pHandler,word
 	ARGVAR	idKeyword,word
+	ARGVAR	cbCmdLine,word
 	ARGVAR	pCmdLine,dword
 	ENTER
 	push	ds
 	push	[idKeyword]
 	mov	dx,[pHandler]
-	lds	si,[pCmdLine]		; DS:SI -> LINEBUF
-	mov	bx,ds:[PSP_HEAP]
-	mov	bp,ds:[bx].ORIG_BP	; can't access ARGVARs anymore
-	DOSUTIL	STRLEN
-	xchg	cx,ax			; CX = length of command at DS:SI
+	mov	cx,[cbCmdLine]		; CX = length
+	lds	si,[pCmdLine]		; DS:SI -> command
 	push	ss
 	pop	es
+	mov	bx,es:[PSP_HEAP]
+	mov	bp,es:[bx].ORIG_BP	; can't access ARGVARs anymore
+	lea	di,[bx].LINEBUF		; ES:DI -> LINEBUF
+	push	cx
+	push	es
+	push	di
+	rep	movsb
+	pop	si
+	pop	ds			; DS:SI -> LINEBUF
+	pop	cx
 	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
 	mov	[di].TOK_MAX,(size TOK_BUF) / (size TOKLET)
 	DOSUTIL	TOKIFY1
@@ -78,7 +87,7 @@ DEFPROC	doCmd,FAR
 	call	nonBASIC
 	pop	ds
 	LEAVE
-	ret	8
+	RETURN
 ENDPROC	doCmd
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

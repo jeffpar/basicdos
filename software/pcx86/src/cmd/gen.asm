@@ -209,9 +209,18 @@ DEFPROC	genCmd
 	pop	dx
 	GENPUSH	dx			; push keyword ID
 	mov	si,ds:[PSP_HEAP]
-	mov	cx,[bx - size TOKLET].TOKLET_OFF
-	mov	dx,ds			; DX:CX -> command line
-	GENPUSH	dx,cx
+	mov	ax,[bx - size TOKLET].TOKLET_OFF
+	lea	cx,[si].LINEBUF
+	sub	ax,cx			; AX = # bytes preceding command
+	mov	cx,[si].LINE_LEN
+	sub	cx,ax
+	push	ax
+	GENPUSH	cx			; push length of command line
+	mov	cx,[si].LINE_PTR.OFF
+	pop	ax
+	add	cx,ax
+	mov	dx,[si].LINE_PTR.SEG	; DX:CX -> command line
+	GENPUSH	dx,cx			; push pointer to command line
 	GENCALL	doCmd
 	mov	[si].TOKEND,bx		; mark the tokens fully processed
 	ret
