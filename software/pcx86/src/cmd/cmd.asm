@@ -283,7 +283,7 @@ m8:	PRINTF	<"Error loading %s: %d",13,10,13,10>,dx,ax
 ; the level of additional parsing required, if any.
 ;
 m9:	lea	di,[heap].TOKENBUF	; DS:DI -> token buffer
-	cmp	ax,KEYWORD_GENCODE	; token ID < KEYWORD_GENCODE?
+	cmp	ax,KEYWORD_GENSPEC	; token ID < KEYWORD_GENSPEC? (20)
 	jb	m10			; yes, no code generation required
 ;
 ; The token is for a recognized keyword, so generate code.
@@ -294,48 +294,70 @@ m9:	lea	di,[heap].TOKENBUF	; DS:DI -> token buffer
 	call	genCode
 	jmp	m0
 ;
-; For non-BASIC commands, check for any switches first and record any that
-; we find prior to the first non-switch argument.
+; For non-BASIC commands, check for switches first, record any that we find
+; prior to the first non-switch argument, and then invoke the command handler.
 ;
-m10:	call	parseSW			; parse all switch arguments, if any
-	mov	si,[pArg]
-	mov	cx,[lenArg]
+m10:	call	nonBASIC
+	jmp	m0
+ENDPROC	main
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; nonBASIC
+;
+; Process non-BASIC command.
+;
+; Inputs:
+;	AX = keyword ID
+;	DS:DI -> TOKENBUF
+;	CS:DX -> offset of handler
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	nonBASIC
+	push	dx
+	call	parseSW			; parse all switch arguments, if any
 	cmp	ax,KEYWORD_FILESPEC	; token ID < KEYWORD_FILESPEC?
-	jb	m20			; yes, command does not use a filespec
+	jb	nb8			; yes, command does not use a filespec
 ;
 ; The token is for a command that expects a filespec, so fix up the next
 ; token (index in DH).  If there is no token, then use defaults loaded into
 ; SI and CX.
 ;
 	call	getToken		; DH = 1st non-switch argument (or -1)
-	jnc	m18
+	jnc	nb1
 	push	cs
 	pop	ds
 	mov	si,offset DIR_DEF
 	mov	cx,DIR_DEF_LEN - 1
-	jmp	short m19
-m18:	lea	di,[heap].FILENAME	; DS:SI -> token, CX = length
-	mov	ax,size FILENAME-1
+	jmp	short nb2
+nb1:	mov	ax,size FILENAME-1	; DS:SI -> token, CX = length
 	cmp	cx,ax
-	jbe	m19
+	jbe	nb2
 	xchg	cx,ax
-m19:	push	cx
+nb2:	push	di
+	lea	di,[heap].FILENAME
+	push	cx
 	push	di
 	rep	movsb
 	mov	byte ptr es:[di],0
 	pop	si			; DS:SI -> copy of token in FILENAME
 	pop	cx
+	pop	di
 	push	ss
 	pop	ds
 	DOSUTIL	STRUPR			; DS:SI -> token, CX = length
-	mov	[pArg],si
-	mov	[lenArg],cx
-m20:	cmp	[pHandler],0		; does handler exist?
-	je	m99			; no
+
+nb8:	pop	cx			; CX = handler (originally in DX)
+	jcxz	nb9
 	lea	bx,[heap]
-	call	[pHandler]		; call the token handler
-m99:	jmp	m0
-ENDPROC	main
+	call	cx			; call the token handler
+nb9:	ret
+ENDPROC	nonBASIC
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -566,48 +588,50 @@ ENDPROC	cmdDate
 ;	Any
 ;
 DEFPROC	cmdDir
-	push	bp
+	mov	[pArg],si
+	mov	[lenArg],cx
 ;
 ; If filespec begins with ":", extract drive letter, and if it ends
 ; with ":" as well, append DIR_DEF ("*.*").
 ;
+dir1:	push	bp
 	mov	dl,0			; DL = default drive #
 	mov	di,cx			; DI = length of filespec
 	cmp	cx,2
-	jb	dir0
+	jb	dir2
 	cmp	byte ptr [si+1],':'
-	jne	dir0
+	jne	dir2
 	mov	al,[si]
 	sub	al,'A'-1
-	jb	dir0a
+	jb	dirx
 	mov	dl,al			; DL = specific drive # (1-based)
-dir0:	mov	ah,DOS_DSK_GETINFO
+dir2:	mov	ah,DOS_DSK_GETINFO
 	int	21h			; get disk info for drive
-	jnc	dir1
-dir0a:	jmp	dir8
+	jnc	dir3
+dirx:	jmp	dir8
 ;
 ; We primarily want the cluster size, in bytes, which this call doesn't
 ; provide directly; we must multiply bytes per sector (CX) by sectors per
 ; cluster (AX).
 ;
-dir1:	mov	bp,bx			; BP = available clusters
+dir3:	mov	bp,bx			; BP = available clusters
 	mul	cx			; DX:AX = bytes per cluster
 	xchg	bx,ax			; BX = bytes per cluster
 
-dir2:	add	di,si			; DI -> end of filespec
+	add	di,si			; DI -> end of filespec
 	cmp	byte ptr [di-1],':'
-	jne	dir3
+	jne	dir3a
 	push	si
 	mov	cx,DIR_DEF_LEN
 	mov	si,offset DIR_DEF
 	REPMOV	byte,CS
 	pop	si
 
-dir3:	sub	cx,cx			; CX = attributes
+dir3a:	sub	cx,cx			; CX = attributes
 	mov	dx,si			; DX -> filespec
 	mov	ah,DOS_DSK_FFIRST
 	int	21h
-	jc	dir0a
+	jc	dirx
 ;
 ; Use DX to maintain the total number of clusters, and CX to maintain
 ; the total number of files.
@@ -674,7 +698,7 @@ dir7:	xchg	ax,dx			; AX = total # of clusters used
 	jz	dir9
 	mov	si,[pArg]
 	mov	cx,[lenArg]
-	jmp	cmdDir
+	jmp	dir1
 
 dir8:	PRINTF	<"Unable to find %s (%d)",13,10,13,10>,si,ax
 	pop	bp
@@ -967,7 +991,6 @@ ENDPROC	printNewLine
 ;
 ; Inputs:
 ;	DS:DI -> TOKENBUF
-;	DS:SI -> token, CX = length
 ;
 ; Outputs:
 ;	None

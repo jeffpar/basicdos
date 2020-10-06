@@ -1,3 +1,7 @@
+@ECHO OFF
+DATE /P
+TIME /P
+@ECHO ON
 REM BASIC-DOS Test #1
 REM Print Fibonacci numbers
 @ECHO OFF
@@ -9,4 +13,5 @@ LET A = 0:LET B = 1
 LET C = ADD(A,B)
 LET A = B:LET B = C
 IF A < 1000000 THEN GOTO 10
+COLOR 7,0
 PRINT

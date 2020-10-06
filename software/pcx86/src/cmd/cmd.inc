@@ -90,14 +90,14 @@ SCF_GENXSTR	equ	1		; -> genExprStr
 SCF_PRTARGS	equ	2		; -> printArgs
 
 ;
-; Keywords with IDs >= GENCODE require code generation.
-; For IDs < GENCODE, an ID >= FILESPEC expect a filespec.
+; Keywords with IDs >= GENSPEC support code generation.
 ;
 ; Keywords are defined in the KEYWORD_TOKENS table in const.asm.
 ;
-KEYWORD_FILESPEC  equ	20
-KEYWORD_GENCODE   equ	40
-KEYWORD_LANGUAGE  equ	60
+KEYWORD_FILESPEC  equ	10		; >= 10 expect a filespec
+KEYWORD_GENSPEC   equ	20		; >= 20 gen code (w/filespec)
+KEYWORD_GENCODE   equ	40		; >= 40 gen code (no filespec)
+KEYWORD_LANGUAGE  equ	60		; >= 60 are part of the language
 KEYWORD_SECONDARY equ	200		; secondary keywords (eg, THEN, ELSE)
 
 ;
@@ -256,6 +256,8 @@ GENCALL	macro	seg,off
 ;
 ; GENPUSH generates code to push immediate 16-bit (via DX) or 32-bit
 ; values (via DX:CX).
+;
+; Modifies: AX, DX (and CX if GENPUSH dx,cx)
 ;
 GENPUSH	macro	val1,val2
 	IFDIF	<val1>,<dx>
