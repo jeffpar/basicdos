@@ -306,29 +306,29 @@ VBLKDEF		db size BLKDEF dup (?)	; 00Ch: variable block chain
 SBLKDEF		db size BLKDEF dup (?)	; 012h: string block chain
 TBLKDEF		db size BLKDEF dup (?)	; 018h: text block chain
 INPUTBUF	db size BUFINP dup (?)	; 01Eh
-TOKENBUF	db size BUFTOK dup (?)	; 0A0h
-LINEBUF		db 256 dup (?)		; 2A2h
-STACK		dw 512 dup (?)		; 3A2h
-ORIG_SP		dw	?		; 7A2h
-ORIG_BP		dw	?		; 7A4h
-CON_COLS	db	?		; 7A6h
-CON_ROWS	db	?		; 7A7h
-CMD_FLAGS	db	?		; 7A8h: see CMD_* flags
-GEN_FLAGS	db	?		; 7A9h: see GEN_* flags
-ERR_CODE	db	?		; 7AAh
-DEF_PARMS	db	?		; 7ABh
-LINE_PTR	dd	?		; 7ACh
-LINE_LEN	dw	?		; 7B0h
-LINE_NUM	dw	?		; 7B2h
-PREV_TIME	dd	?		; 7B4h: last time displayed by cmdTime
-RND_SEED	dd	?		; 7B8h: pseudo-random number seed
-INPUTOFF	dw	?		; 7BCh: input offset (default INPUTBUF)
-TOKNEXT		dw	?		; 7BEh
-TOKEND		dw	?		; 7C0h
-DEFVARS		db 26 dup (?)		; 7C2h: default types for 26 letters
-FILENAME	db 16 dup (?)		; 7DAh: template ("X:XXXXXXXX.XXX")
-EXECDATA	db size EPB dup (?)	; 7EAh: Exec Parameter Block
-CMD_HEAP	ends			; 800h
+TOKENBUF	db size BUFTOK dup (?)	; 120h
+STACK		dw 512 dup (?)		; 322h
+ORIG_SP		dw	?		; 722h
+ORIG_BP		dw	?		; 724h
+CON_COLS	db	?		; 726h
+CON_ROWS	db	?		; 727h
+CMD_FLAGS	db	?		; 728h: see CMD_* flags
+GEN_FLAGS	db	?		; 729h: see GEN_* flags
+ERR_CODE	db	?		; 72Ah
+DEF_PARMS	db	?		; 72Bh
+LINE_PTR	dd	?		; 72Ch
+LINE_LEN	dw	?		; 730h
+LINE_NUM	dw	?		; 732h
+PREV_TIME	dd	?		; 734h: last time displayed by cmdTime
+RND_SEED	dd	?		; 738h: pseudo-random number seed
+INPUTOFF	dw	?		; 73Ch: input offset (default INPUTBUF)
+TOKNEXT		dw	?		; 73Eh
+TOKEND		dw	?		; 740h
+LINEBUF		db 256 dup (?)		; 742h
+DEFVARS		db 26 dup (?)		; 842h: default types for 26 letters
+FILENAME	db 16 dup (?)		; 85Ch: template ("X:XXXXXXXX.XXX")
+EXECDATA	db size EPB dup (?)	; 86Ch: Exec Parameter Block
+CMD_HEAP	ends			; 882h
 
 	ASSERT	<((SIZE CMD_HEAP) AND 1)>,EQ,0
 

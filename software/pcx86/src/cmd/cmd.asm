@@ -78,7 +78,7 @@ DEFPROC	main
 ; and then jump into the command-processing code below.
 ;
 	mov	[heap].INPUTOFF,PSP_CMDTAIL-1
-	mov	word ptr [heap].INPUTBUF.INP_MAX,size INP_BUF
+	mov	word ptr [heap].INPUTBUF.INP_MAX,size INP_BUF - 1
 	cmp	ds:[PSP_CMDTAIL],0
 	jne	m1a			; use INPUTOFF -> PSP_CMDTAIL
 ;
@@ -1683,8 +1683,7 @@ gi1:	call	ax			; AX = caller-supplied function
 	lea	si,[heap].LINEBUF
 	mov	byte ptr [si],12	; max of 12 chars (including CR)
 	mov	dx,si
-	mov	ah,DOS_TTY_INPUT
-	int	21h
+	DOSUTIL	READLN			; interactive version of DOS_TTY_INPUT
 	call	printCRLF
 	pop	dx
 	inc	si

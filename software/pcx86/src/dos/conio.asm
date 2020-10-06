@@ -166,117 +166,27 @@ ENDPROC	tty_print
 ;
 ; tty_input (REG_AH = 0Ah)
 ;
+; Reads a CHR_RETURN-terminated line of console input into BUFINP.
+;
+; If BUFINP.INP_MAX is zero, INP_CNT will be set to zero, no data will be
+; returned, and the call will return immediately.  If BUFINP.INP_MAX is one,
+; no data except CHR_RETURN will be returned, and INP_CNT will be zero.
+;
+; Note that INP_MAX is limited to 255 and therefore INP_CNT is limited to 254.
+;
 ; Inputs:
-;	REG_DS:REG_DX -> input buffer; 1st byte must be preset to max chars
+;	REG_DS:REG_DX -> BUFINP with INP_MAX preset to max chars
 ;
 ; Outputs:
-;	Stores input characters in the input buffer starting at the 3rd byte;
-;	upon receiving CHR_RETURN, the 2nd byte of buffer is set to number of
-;	characters received (excluding the CHR_RETURN).
+;	Characters are stored in BUFINP.INP_BUF (including the CHR_RETURN);
+;	INP_CNT is set to the number of characters (excluding the CHR_RETURN)
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, ES
 ;
 DEFPROC	tty_input,DOS
-	mov	es,[bp].REG_DS
-	ASSUME	ES:NOTHING
-	mov	di,dx			; ES:DI -> buffer
-	ASSERT	BE,<cmp byte ptr es:[di],128>
-
-	sub	cx,cx			; set insert mode OFF
-	mov	[bp].TMP_CX,cx		; TMP_CX tracks insert mode
-	mov	al,IOCTL_SETINS
-	call	con_ioctl
-	mov	[bp].TMP_DX,ax		; save original insert mode
-
-	mov	al,IOCTL_GETPOS
-	call	con_ioctl		; AL = starting column
-	xchg	dx,ax			; DL = starting column
-	mov	dh,0			; DH = # display characters
-	sub	bx,bx			; ES:DI+BX+2 -> next buffer position
-
-ti1:	call	tty_read
-	jnc	ti2
-	jmp	ti9
-
-ti2:	cmp	al,CHR_RETURN
-	je	ti8
-
-	cmp	al,CHR_DEL
-	je	ti2a
-	cmp	al,CHR_CTRLG
-	jne	ti3
-ti2a:	call	con_del
-	jmp	ti1
-
-ti3:	cmp	al,CHR_BACKSPACE
-	jne	ti4
-	call	con_left
-	jc	ti2a			; carry set if there's a char to delete
-	jmp	ti1
-
-ti4:	cmp	al,CHR_ESCAPE
-	jne	ti5
-ti4a:	call	con_end
-	call	con_erase
-	jmp	ti1
-
-ti5:	cmp	al,CHR_CTRLX
-	je	ti4a
-	cmp	al,CHR_CTRLS
-	jne	ti6
-	call	con_left
-	jmp	ti1
-
-ti6:	cmp	al,CHR_CTRLA
-	jne	ti6a
-	call	con_beg
-	jmp	ti1
-
-ti6a:	cmp	al,CHR_CTRLF
-	jne	ti6b
-	call	con_end
-	jmp	ti1
-
-ti6b:	cmp	al,CHR_CTRLD
-	jne	ti6c
-	call	con_right
-	jmp	ti1
-
-ti6c:	cmp	al,CHR_CTRLE
-	jne	ti6d
-	call	con_recall
-	jmp	ti1
-
-ti6d:	cmp	al,CHR_CTRLV
-	jne	ti7
-	xor	byte ptr [bp].TMP_CL,1	; toggle insert mode
-	mov	cl,[bp].TMP_CL
-	mov	al,IOCTL_SETINS
-	call	con_ioctl
-	jmp	ti1
-
-ti7:	call	con_add
-	jmp	ti1
-;
-; BL indicates the current position within the buffer, and historically
-; that's where we'd put the final character (RETURN); however, we now allow
-; the cursor to move within the displayed data, so we need to use the end
-; of the displayed data (according to DH) as the actual end.
-;
-ti8:	push	ax
-	call	con_end
-	pop	ax
-	mov	bl,dh			; return all displayed chars
-	mov	es:[di+bx+2],al		; store the final character (RETURN)
-	call	con_out
-
-	mov	cx,[bp].TMP_DX		; restore original insert mode
-	mov	al,IOCTL_SETINS
-	call	con_ioctl
-
-ti9:	mov	es:[di+1],bl		; return character count in 2nd byte
-	ret
+	mov	byte ptr [bp].TMP_AH,0	; TMP_AH = 0 for normal input
+	jmp	read_line
 ENDPROC	tty_input
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -462,7 +372,7 @@ DEFPROC	con_erase
 	mov	ch,0
 	jcxz	ttx9
 	mov	al,CHR_BACKSPACE
-ttx1:	call	con_out
+ttx1:	call	con_out			; AL = char to display
 	loop	ttx1
 ttx9:	sub	dh,bl			; reduce displayed characters by BL
 	sub	bx,bx			; and reset BX
@@ -513,7 +423,7 @@ ENDPROC	con_getdlen
 DEFPROC	con_getclen
 	mov	cl,bl			; CL = # of characters
 	DEFLBL	con_getlen,near
-	lea	si,[di+2]		; ES:SI -> all characters
+	lea	si,[di].INP_BUF		; ES:SI -> all characters
 	mov	al,IOCTL_GETLEN		; DL = starting column
 	call	con_ioctl		; get display length values in AX
 	xchg	cx,ax			; CH = total length, CL = length delta
@@ -546,7 +456,7 @@ DEFPROC	con_getelen
 	mov	cl,dh
 	sub	cl,bl			; CX = # displayed chars at position
 	mov	dl,al			; DL = current position
-	lea	si,[di+bx+2]		; ES:SI -> characters at position
+	lea	si,[di].INP_BUF[bx]	; ES:SI -> characters at position
 	mov	al,IOCTL_GETLEN
 	call	con_ioctl		; get display length values in AX
 	mov	ch,ah			; CH = display length from position
@@ -606,7 +516,7 @@ ENDPROC	con_left
 ;	AX, BX, CX, DX, SI
 ;
 DEFPROC	con_next,near
-	mov	ah,es:[di]		; AH = max count
+	mov	ah,es:[di].INP_MAX	; AH = max count
 	sub	ah,bl			; AH = space remaining
 	cmp	ah,1			; room for at least one more?
 	jb	ttn9			; no
@@ -692,10 +602,10 @@ ENDPROC	con_recall
 ;	AX, BX, CX, DX, SI
 ;
 DEFPROC	con_right
-	cmp	bl,es:[di+1]		; more existing chars?
+	cmp	bl,es:[di].INP_CNT	; more existing chars?
 	cmc
 	jb	ttr9			; no, ignore movement
-	mov	al,es:[di+bx+2]		; yes, fetch next character
+	mov	al,es:[di].INP_BUF[bx]	; yes, fetch next character
 	call	con_next		; and (re)display it
 ttr9:	ret
 ENDPROC	con_right
@@ -737,7 +647,7 @@ ENDPROC	con_ioctl
 ;
 ; Inputs:
 ;	AL = character
-;	TMP_AX = 1 to insert, 0 to replace, -1 to delete
+;	TMP_AL = 1 to insert, 0 to replace, -1 to delete
 ;	BX = # characters preceding cursor
 ;	DH = # characters displayed
 ;	DL = starting column (required for display length calculations)
@@ -762,10 +672,10 @@ DEFPROC	con_modify
 ;
 	push	ax
 	push	bx
-	inc	byte ptr es:[di+1]
-ttm1:	xchg	al,es:[di+bx+2]
+	inc	byte ptr es:[di].INP_CNT
+ttm1:	xchg	al,es:[di].INP_BUF[bx]
 	inc	bx
-	cmp	bl,es:[di+1]
+	cmp	bl,es:[di].INP_CNT
 	jb	ttm1
 	cmp	bl,dh			; have we added to displayed chars?
 	jbe	ttm11			; no
@@ -778,12 +688,12 @@ ttm11:	pop	bx
 ;
 ; Replace character at BX with AL and increment BX.
 ;
-ttm2:	mov	es:[di+bx+2],al
-	call	con_out
+ttm2:	mov	es:[di].INP_BUF[bx],al
+	call	con_out			; AL = char to display
 	inc	bx
-	cmp	bl,es:[di+1]		; have we extended existing chars?
+	cmp	bl,es:[di].INP_CNT	; have we extended existing chars?
 	jbe	ttm2a			; no
-	mov	es:[di+1],bl		; yes
+	mov	es:[di].INP_CNT,bl	; yes
 ttm2a:	cmp	bl,dh			; have we added to displayed chars?
 	jbe	ttm7			; no
 	inc	dh			; yes
@@ -792,12 +702,12 @@ ttm2a:	cmp	bl,dh			; have we added to displayed chars?
 ; Delete character at BX, shifting all higher characters down.
 ;
 ttm3:	push	bx
-	dec	byte ptr es:[di+1]
+	dec	byte ptr es:[di].INP_CNT
 	jmp	short ttm3b
 ttm3a:	inc	bx			; start shifting characters down
-	mov	al,es:[di+bx+2]
-	mov	es:[di+bx+1],al
-ttm3b:	cmp	bl,es:[di+1]
+	mov	al,es:[di].INP_BUF[bx]
+	mov	es:[di].INP_BUF[bx-1],al
+ttm3b:	cmp	bl,es:[di].INP_CNT
 	jb	ttm3a
 	pop	bx
 	dec	cx			; adjust length of displayed chars
@@ -816,7 +726,7 @@ ttm7a:	test	cl,cl
 	cmp	byte ptr [bp].TMP_AL,0
 	je	ttm7c
 ttm7b:	mov	al,es:[si]
-	call	con_out
+	call	con_out			; AL = char to display
 ttm7c:	inc	si
 	dec	cl
 	jnz	ttm7b
@@ -824,13 +734,13 @@ ttm7c:	inc	si
 ttm7d:	sub	ch,ah			; is the old display length longer?
 	jbe	ttm8			; no
 	mov	al,CHR_SPACE
-ttm7e:	call	con_out
+ttm7e:	call	con_out			; AL = char to display
 	inc	ah
 	dec	ch
 	jnz	ttm7e
 ;
 ; AH contains the length of all the displayed characters from SI, and that's
-; normally how many cols we want to rewind the cursor -- unless TMP_AX >= 0,
+; normally how many cols we want to rewind the cursor -- unless TMP_AL >= 0,
 ; in which case we need to reduce AH by the display length of the single char
 ; at SI.
 ;
@@ -900,6 +810,126 @@ rc9:	pop	ax			; AX = character
 	pop	bx
 	ret
 ENDPROC	read_char
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; read_line
+;
+; Internal function for normal console input (tty_input, REG_AH = 0Ah) and
+; interactive console input (utl_readln, REG_AH = 23h).
+;
+; Inputs:
+;	TMP_AH = 0 for normal input, 1 for interactive input
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	read_line,DOS
+	mov	es,[bp].REG_DS
+	ASSUME	ES:NOTHING
+	mov	di,dx			; ES:DI -> buffer
+	sub	bx,bx			; ES:DI+BX+2 -> next buffer position
+
+	cmp	bl,es:[di].INP_MAX	; if no room at all
+	je	tix			; then immediately bail
+
+	sub	cx,cx			; set insert mode OFF
+	mov	[bp].TMP_CX,cx		; TMP_CX tracks insert mode
+	mov	al,IOCTL_SETINS
+	call	con_ioctl
+	mov	[bp].TMP_DX,ax		; save original insert mode
+
+	mov	al,IOCTL_GETPOS
+	call	con_ioctl		; AL = starting column
+	xchg	dx,ax			; DL = starting column
+	mov	dh,0			; DH = # display characters
+
+ti1:	call	tty_read
+	jnc	ti2
+tix:	jmp	ti9
+
+ti2:	cmp	al,CHR_RETURN
+	je	ti8
+
+	cmp	al,CHR_DEL
+	je	ti2a
+	cmp	al,CHR_CTRLG
+	jne	ti3
+ti2a:	call	con_del
+	jmp	ti1
+
+ti3:	cmp	al,CHR_BACKSPACE
+	jne	ti4
+	call	con_left
+	jc	ti2a			; carry set if there's a char to delete
+	jmp	ti1
+
+ti4:	cmp	al,CHR_ESCAPE
+	jne	ti5
+ti4a:	call	con_end
+	call	con_erase
+	jmp	ti1
+
+ti5:	cmp	al,CHR_CTRLX
+	je	ti4a
+	cmp	al,CHR_CTRLS
+	jne	ti6
+	call	con_left
+	jmp	ti1
+
+ti6:	cmp	al,CHR_CTRLA
+	jne	ti6a
+	call	con_beg
+	jmp	ti1
+
+ti6a:	cmp	al,CHR_CTRLF
+	jne	ti6b
+	call	con_end
+	jmp	ti1
+
+ti6b:	cmp	al,CHR_CTRLD
+	jne	ti6c
+	call	con_right
+	jmp	ti1
+
+ti6c:	cmp	al,CHR_CTRLE
+	jne	ti6d
+	call	con_recall
+	jmp	ti1
+
+ti6d:	cmp	al,CHR_CTRLV
+	jne	ti7
+	xor	byte ptr [bp].TMP_CL,1	; toggle insert mode
+	mov	cl,[bp].TMP_CL
+	mov	al,IOCTL_SETINS
+	call	con_ioctl
+	jmp	ti1
+
+ti7:	call	con_add
+	jmp	ti1
+;
+; BL indicates the current position within the buffer, and historically
+; that's where we'd put the final character (RETURN); however, we now allow
+; the cursor to move within the displayed data, so we need to use the end
+; of the displayed data (according to DH) as the actual end.
+;
+ti8:	push	ax
+	call	con_end
+	pop	ax
+	mov	bl,dh			; return all displayed chars
+	mov	es:[di].INP_BUF[bx],al	; store the final character (RETURN)
+	call	con_out			; AL = char to display
+
+	mov	cx,[bp].TMP_DX		; restore original insert mode
+	mov	al,IOCTL_SETINS
+	call	con_ioctl
+
+ti9:	mov	es:[di].INP_CNT,bl	; return character count in 2nd byte
+	ret
+ENDPROC	read_line
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
