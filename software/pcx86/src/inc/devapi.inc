@@ -71,14 +71,15 @@ IOCTL_SETCOLOR	equ	0D8h	; CON: set fill (CL) and border (CH) colors
 CHR_CTRLA	equ	01h
 CHR_CTRLB	equ	02h
 CHR_CTRLC	equ	03h
-CHR_CTRLD	equ	04h	; alias for SCAN_RIGHT and SCAN_F1
-CHR_CTRLE	equ	05h	; alias for SCAN_UP and SCAN_F3
+CHR_CTRLD	equ	04h	; alias for SCAN_RIGHT
+CHR_CTRLE	equ	05h	; alias for SCAN_UP
 CHR_CTRLF	equ	06h
 CHR_CTRLG	equ	07h	; alias for CHR_DEL
 CHR_BACKSPACE	equ	08h
 CHR_TAB		equ	09h
 CHR_LINEFEED	equ	0Ah
-CHR_VTAB	equ	0Bh
+CHR_CTRLK	equ	0Bh	; alias for SCAN_F1 (aka VTAB)
+CHR_CTRLL	equ	0Ch	; alias for SCAN_F3
 CHR_RETURN	equ	0Dh
 CHR_CTRLP	equ	10h
 CHR_CTRLQ	equ	11h

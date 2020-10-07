@@ -815,8 +815,10 @@ ENDPROC	read_char
 ;
 ; read_line
 ;
-; Internal function for normal console input (tty_input, REG_AH = 0Ah) and
-; interactive console input (utl_readln, REG_AH = 23h).
+; Internal function for normal console input (tty_input, REG_AH = 0Ah)
+; and interactive console input (utl_readln, REG_AH = 23h).
+;
+; TODO: Use CTRLW for word left and CTRLR for word right?
 ;
 ; Inputs:
 ;	TMP_AH = 0 for normal input, 1 for interactive input
@@ -851,20 +853,19 @@ ti1:	call	tty_read
 	jnc	ti2
 tix:	jmp	ti9
 
-ti2:	cmp	al,CHR_RETURN
-	je	ti8
-
-	cmp	al,CHR_DEL
+ti2:	cmp	al,CHR_DEL
 	je	ti2a
-	cmp	al,CHR_CTRLG
+	cmp	al,CHR_CTRLG		; alias for DEL
 	jne	ti3
 ti2a:	call	con_del
 	jmp	ti1
 
-ti3:	cmp	al,CHR_BACKSPACE
+ti3:	cmp	al,CHR_RETURN
+	je	ti8
+	cmp	al,CHR_BACKSPACE
 	jne	ti4
 	call	con_left
-	jc	ti2a			; carry set if there's a char to delete
+	jc	ti2a			; carry set if character to delete
 	jmp	ti1
 
 ti4:	cmp	al,CHR_ESCAPE
@@ -873,9 +874,13 @@ ti4a:	call	con_end
 	call	con_erase
 	jmp	ti1
 
-ti5:	cmp	al,CHR_CTRLX
-	je	ti4a
-	cmp	al,CHR_CTRLS
+ti5:	cmp	al,CHR_CTRLX		; alias for DOWN ARROW
+	jne	ti5a
+	cmp	byte ptr [bp].TMP_AH,0	; interactive mode?
+	je	ti4a			; no
+	jmp	short ti10		; yes, return key in AX
+
+ti5a:	cmp	al,CHR_CTRLS
 	jne	ti6
 	call	con_left
 	jmp	ti1
@@ -890,17 +895,25 @@ ti6a:	cmp	al,CHR_CTRLF
 	call	con_end
 	jmp	ti1
 
-ti6b:	cmp	al,CHR_CTRLD
-	jne	ti6c
-	call	con_right
-	jmp	ti1
-
-ti6c:	cmp	al,CHR_CTRLE
+ti6b:	cmp	al,CHR_CTRLD		; alias for RIGHT ARROW
+	je	ti6c
+	cmp	al,CHR_CTRLK		; alias for F1
 	jne	ti6d
-	call	con_recall
+ti6c:	call	con_right
 	jmp	ti1
 
-ti6d:	cmp	al,CHR_CTRLV
+ti6d:	cmp	al,CHR_CTRLL		; alias for F3
+	je	ti6e
+	cmp	al,CHR_CTRLE		; alias for UP ARROW
+	jne	ti6f
+	cmp	byte ptr [bp].TMP_AH,0	; interactive mode?
+	je	ti6e			; no
+	jmp	short ti10		; yes, return key in AX
+
+ti6e:	call	con_recall
+	jmp	ti1
+
+ti6f:	cmp	al,CHR_CTRLV
 	jne	ti7
 	xor	byte ptr [bp].TMP_CL,1	; toggle insert mode
 	mov	cl,[bp].TMP_CL
@@ -928,6 +941,10 @@ ti8:	push	ax
 	call	con_ioctl
 
 ti9:	mov	es:[di].INP_CNT,bl	; return character count in 2nd byte
+	ret
+
+ti10:	cbw
+	mov	[bp].REG_AX,ax
 	ret
 ENDPROC	read_line
 

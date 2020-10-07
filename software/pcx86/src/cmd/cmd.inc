@@ -90,15 +90,13 @@ SCF_GENXSTR	equ	1		; -> genExprStr
 SCF_PRTARGS	equ	2		; -> printArgs
 
 ;
-; Keywords with IDs >= GENSPEC support code generation.
+; Keywords with IDs >= BASIC support code generation.
 ;
 ; Keywords are defined in the KEYWORD_TOKENS table in const.asm.
 ;
-KEYWORD_FILESPEC  equ	10		; >= 10 expect a filespec
-KEYWORD_GENSPEC   equ	20		; >= 20 gen code (w/filespec)
-KEYWORD_GENCODE   equ	40		; >= 40 gen code (no filespec)
-KEYWORD_LANGUAGE  equ	60		; >= 60 are part of the language
-KEYWORD_SECONDARY equ	200		; secondary keywords (eg, THEN, ELSE)
+KEYWORD_FILE	equ	20		; file-based command
+KEYWORD_BASIC	equ	40		; BASIC keywords
+KEYWORD_CLAUSE	equ	200		; secondary keywords (eg, THEN, ELSE)
 
 ;
 ; Each of our block chains begins with a BLKDEF, so that a common set of
