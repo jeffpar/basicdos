@@ -219,16 +219,19 @@ DEFPROC	con_add,near
 	cmp	bl,dh			; cursor at the end?
 	jb	tta0			; no
 	mov	ah,1			; AH = 1
-tta0:	cmp	al,CHR_TAB
-	jne	tta1
+tta0:	cmp	al,CHR_SPACE
+	jae	tta1
+	inc	ah			; worst case for a control char
+tta1:	cmp	al,CHR_TAB
+	jne	tta2
 	mov	ah,8			; AH = 8 (worst case for a tab)
-tta1:	add	ch,ah			; could this overflow display length?
+tta2:	add	ch,ah			; could this overflow display length?
 	jc	tta9			; yes
 	mov	cx,[bp].TMP_CX		; CX = 0 (replace) or 1 (insert)
 	mov	ah,bl
-	jcxz	tta2
+	jcxz	tta3
 	mov	ah,dh
-tta2:	inc	ah
+tta3:	inc	ah
 	cmp	ah,es:[di]
 	cmc
 	jb	tta9
