@@ -85,7 +85,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<utl_ioctl,utl_load,utl_start,utl_stop,utl_unload>,near
 	EXTERNS	<utl_yield,utl_sleep,utl_wait,utl_endwait,utl_hotkey>,near
 	EXTERNS	<utl_lock,utl_unlock,utl_qrymem,utl_abort>,near
-	EXTERNS	<utl_getdate,utl_gettime,utl_incdate,utl_readln>,near
+	EXTERNS	<utl_getdate,utl_gettime,utl_incdate,utl_editln>,near
 	EXTERNS	<func_none>,near
 
 	DEFLBL	FUNCTBL,word
@@ -122,7 +122,7 @@ DOS	segment word public 'CODE'
 	dw	utl_stop,    utl_unload,  utl_yield,   utl_sleep	;14h-17h
 	dw	utl_wait,    utl_endwait, utl_hotkey,  utl_lock		;18h-1Bh
 	dw	utl_unlock,  utl_qrymem,  func_none,   utl_abort	;1Ch-1Fh
-	dw	utl_getdate, utl_gettime, utl_incdate, utl_readln	;20h-23h
+	dw	utl_getdate, utl_gettime, utl_incdate, utl_editln	;20h-23h
 	dw	utl_strlen						;24h
 	DEFABS	UTILTBL_SIZE,<($ - UTILTBL) SHR 1>
 

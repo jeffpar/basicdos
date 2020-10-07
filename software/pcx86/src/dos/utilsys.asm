@@ -443,25 +443,26 @@ ENDPROC	utl_incdate
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_readln (AL = 23h)
+; utl_editln (AL = 23h)
 ;
-; Similar to DOS function tty_input (REG_AH = 0Ah) but returns special
-; keys in AX.
+; Similar to DOS function tty_input (REG_AH = 0Ah) but returns editing
+; notifications for selected keys (eg, UP and DOWN keys).
 ;
 ; Inputs:
 ;	REG_DS:REG_DX -> BUFINP with INP_MAX preset to max chars
 ;
 ; Outputs:
+;	AX = last editing action
 ;	Characters are stored in BUFINP.INP_BUF (including the CHR_RETURN);
 ;	INP_CNT is set to the number of characters (excluding the CHR_RETURN)
 ;
-DEFPROC	utl_readln,DOS
+DEFPROC	utl_editln,DOS
 	sti
 	and	[bp].REG_FL,NOT FL_CARRY
-	mov	byte ptr [bp].TMP_AH,1	; TMP_AH = 1 for interactive input
+	mov	byte ptr [bp].TMP_AH,1	; TMP_AH = 1 for editing notifications
 	call	read_line
 	ret
-ENDPROC	utl_readln
+ENDPROC	utl_editln
 
 DOS	ends
 

@@ -44,16 +44,19 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	dw	0DABFh,0B3B3h,0C0D9h,0C4C4h
 
 	DEFLBL	SCAN_MAP,byte
-	db	SCAN_F1,   CHR_CTRLK
-	db	SCAN_RIGHT,CHR_CTRLD
-	db	SCAN_F3,   CHR_CTRLL
-	db	SCAN_UP,   CHR_CTRLE
-	db	SCAN_LEFT, CHR_CTRLS
-	db	SCAN_DEL,  CHR_DEL
-	db	SCAN_DOWN, CHR_CTRLX
-	db	SCAN_INS,  CHR_CTRLV
-	db	SCAN_HOME, CHR_CTRLA
-	db	SCAN_END,  CHR_CTRLF
+	db	SCAN_F1,         CHR_CTRLD
+	db	SCAN_F3,         CHR_CTRLL
+	db	SCAN_HOME,       CHR_CTRLW
+	db	SCAN_UP,         CHR_CTRLE
+	db	SCAN_LEFT,       CHR_CTRLS
+	db	SCAN_RIGHT,      CHR_CTRLD
+	db	SCAN_END,        CHR_CTRLR
+	db	SCAN_DOWN,       CHR_CTRLX
+	db	SCAN_INS,        CHR_CTRLV
+	db	SCAN_DEL,        CHR_DEL
+	db	SCAN_CTRL_LEFT,  CHR_CTRLA
+	db	SCAN_CTRL_RIGHT, CHR_CTRLF
+	db	SCAN_CTRL_END,   CHR_CTRLK
 	db	0
 
 	DEFWORD	ct_head,0	; head of context chain
@@ -1582,7 +1585,7 @@ pl6:	pop	si
 
 pl7:	mov	[bx],al
 	IFDEF MAXDEBUG
-	test	al,ac
+	test	al,al
 	jnz	pl8
 	xchg	al,ah
 	DPRINTF	'k',<"null character, scan code %#04x\r\n">,ax
