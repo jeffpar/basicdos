@@ -93,8 +93,15 @@ SCAN_RIGHT	equ	4Dh	; right-arrow
 SCAN_END	equ	4Fh	; end
 SCAN_DOWN	equ	50h	; down-arrow
 SCAN_PGDN	equ	51h	; page-down
-SCAN_INS	equ	52h	; ins
-SCAN_DEL	equ	53h	; del
+SCAN_INS	equ	52h	; insert
+SCAN_DEL	equ	53h	; delete
+SCAN_CTRL_LEFT	equ	73h	; ctrl-left-arrow
+SCAN_CTRL_RIGHT	equ	74h	; ctrl-right-arrow
+SCAN_CTRL_END	equ	75h	; ctrl-end
+SCAN_CTRL_PGDN	equ	76h	; ctrl-page-down
+SCAN_CTRL_HOME	equ	77h	; ctrl-home
+SCAN_CTRL_PGUP	equ	84h	; ctrl-page-up
+
 
 ;
 ; INT_TIME functions

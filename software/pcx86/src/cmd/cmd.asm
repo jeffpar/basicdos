@@ -77,8 +77,8 @@ DEFPROC	main
 ; INPUTOFF (which ordinarily points to INPUTBUF) to PSP_CMD_TAIL-1 instead,
 ; and then jump into the command-processing code below.
 ;
-	mov	[heap].INPUTOFF,PSP_CMDTAIL-1
-	mov	word ptr [heap].INPUTBUF.INP_MAX,size INP_BUF
+	mov	[heap].INPUTOFF,PSP_CMDTAIL - 1
+	mov	word ptr [heap].INPUTBUF.INP_MAX,size INP_BUF - 1
 	cmp	ds:[PSP_CMDTAIL],0
 	jne	m1a			; use INPUTOFF -> PSP_CMDTAIL
 ;
@@ -283,10 +283,10 @@ m8:	PRINTF	<"Error loading %s: %d",13,10,13,10>,dx,ax
 ; the level of additional parsing required, if any.
 ;
 m9:	lea	di,[heap].TOKENBUF	; DS:DI -> token buffer
-	cmp	ax,KEYWORD_GENSPEC	; token ID < KEYWORD_GENSPEC? (20)
+	cmp	ax,KEYWORD_BASIC	; token ID < KEYWORD_BASIC? (40)
 	jb	m10			; yes, no code generation required
 ;
-; The token is for a recognized keyword, so generate code.
+; The token is for a BASIC keyword, so code generation is required.
 ;
 	mov	al,GEN_IMM
 	lea	bx,[heap]
@@ -294,18 +294,23 @@ m9:	lea	di,[heap].TOKENBUF	; DS:DI -> token buffer
 	call	genCode
 	jmp	m0
 ;
-; For non-BASIC commands, check for switches first, record any that we find
-; prior to the first non-switch argument, and then invoke the command handler.
+; For non-BASIC commands, check for switches, record any that we find prior
+; to the first non-switch argument, and then invoke the command handler.
 ;
-m10:	call	nonBASIC
+m10:	call	cmdDOS
 	jmp	m0
 ENDPROC	main
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; nonBASIC
+; cmdDOS
 ;
-; Process non-BASIC command.
+; Process any non-BASIC command.  We allow such commands inside both BAS and
+; BAT files, with the caveat that the rest of the line is treated as a DOS
+; command (eg, you can't use a colon to append another BASIC command).
+;
+; TODO: There are still ambiguities to resolve.  For example, a simple DOS
+; command like "B:" will generate a syntax error if present in a BAS/BAT file.
 ;
 ; Inputs:
 ;	AX = keyword ID
@@ -318,11 +323,11 @@ ENDPROC	main
 ; Modifies:
 ;	Any
 ;
-DEFPROC	nonBASIC
+DEFPROC	cmdDOS
 	push	dx
 	call	parseSW			; parse all switch arguments, if any
-	cmp	ax,KEYWORD_FILESPEC	; token ID < KEYWORD_FILESPEC?
-	jb	nb8			; yes, command does not use a filespec
+	cmp	ax,KEYWORD_FILE		; does token require a filespec? (20)
+	jb	nb8			; no
 ;
 ; The token is for a command that expects a filespec, so fix up the next
 ; token (index in DH).  If there is no token, then use defaults loaded into
@@ -357,7 +362,7 @@ nb8:	pop	cx			; CX = handler (originally in DX)
 	lea	bx,[heap]
 	call	cx			; call the token handler
 nb9:	ret
-ENDPROC	nonBASIC
+ENDPROC	cmdDOS
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -809,7 +814,7 @@ h3:	PRINTF	<"No help available",13,10>
 h4:	PRINTF	<"Unknown command: %.*s",13,10>,cx,si
 	ret
 ;
-; Print all keywords with ID < KEYWORD_SECONDARY (200).
+; Print all keywords with ID < KEYWORD_CLAUSE (200).
 ;
 h5:	mov	si,offset KEYWORD_TOKENS
 	lods	word ptr cs:[si]	; AL = # tokens, AH = size CTOKDEF
@@ -819,7 +824,7 @@ h5:	mov	si,offset KEYWORD_TOKENS
 	cbw
 	xchg	di,ax			; DI = size CTOKDEF
 	mov	dl,8			; DL = # chars to be printed so far
-h6:	cmp	cs:[si].CTD_ID,KEYWORD_SECONDARY
+h6:	cmp	cs:[si].CTD_ID,KEYWORD_CLAUSE
 	jae	h8			; ignore token IDs >= 200
 	push	dx
 	mov	dl,cs:[si].CTD_LEN

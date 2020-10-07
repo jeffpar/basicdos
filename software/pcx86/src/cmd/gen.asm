@@ -17,7 +17,7 @@ CODE    SEGMENT
 	EXTERNS	<allocTempVars,updateTempVars,freeTempVars>,near
 	EXTERNS	<addVar,findVar,getVar,removeVar,setVar,setVarLong>,near
 	EXTERNS	<memError>,near
-	EXTERNS	<clearScreen,doCmd,printArgs,printEcho,printLine>,near
+	EXTERNS	<clearScreen,callDOS,printArgs,printEcho,printLine>,near
 	EXTERNS	<setColor,setFlags>,near
 
 	EXTERNS	<KEYWORD_TOKENS,KEYOP_TOKENS>,word
@@ -142,20 +142,18 @@ DEFPROC	genCommands
 	call	getNextToken
 	jbe	gcs9			; out of tokens
 	mov	cx,cs:[si].CTD_FUNC	;
-	cmp	al,KEYWORD_GENSPEC	; keyword support generated code?
-	jb	gcs9			; no
-	cmp	al,KEYWORD_LANGUAGE	; is keyword part of the language?
+	cmp	al,KEYWORD_BASIC	; BASIC keyword?
 	jb	gcs2			; no
 	jcxz	gcs9			; no command address
 	jmp	short gcs3		; call generator function
 ;
-; For keywords that are BASIC-DOS extensions, we need to generate a call
-; to doCmd with a pointer to the full command-line and the keyword handler.
-; doCmd will then perform the traditional parse-and-execute logic.
+; For non-BASIC keywords, generate callDOS code with a pointer to the
+; full command-line and the keyword handler.  callDOS will then perform
+; the traditional parse-and-execute logic.
 ;
 gcs2:	cbw				; AX = keyword ID
 	mov	dx,cx			; DX = handler address
-	mov	cx,offset genCmd
+	mov	cx,offset genDOS
 
 gcs3:	call	cx			; call dedicated generator function
 	mov	es:[BLK_FREE],di
@@ -187,9 +185,9 @@ ENDPROC	genCLS
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genCmd
+; genDOS
 ;
-; Generate code for generic commands.
+; Generate code for DOS commands.
 ;
 ; Inputs:
 ;	AL = keyword ID
@@ -203,7 +201,7 @@ ENDPROC	genCLS
 ; Modifies:
 ;	Any
 ;
-DEFPROC	genCmd
+DEFPROC	genDOS
 	push	ax
 	GENPUSH	dx			; push handler offset
 	pop	dx
@@ -221,10 +219,10 @@ DEFPROC	genCmd
 	add	cx,ax
 	mov	dx,[si].LINE_PTR.SEG	; DX:CX -> command line
 	GENPUSH	dx,cx			; push pointer to command line
-	GENCALL	doCmd
+	GENCALL	callDOS
 	mov	[si].TOKEND,bx		; mark the tokens fully processed
 	ret
-ENDPROC	genCmd
+ENDPROC	genDOS
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -137,6 +137,7 @@ DOS_UTL_ABORT	equ	1Fh	; abort with exit code (DL) and exit type (DH)
 DOS_UTL_GETDATE	equ	20h	; get date (AX) in "packed" format
 DOS_UTL_GETTIME	equ	21h	; get time (AX) in "packed" format
 DOS_UTL_INCDATE	equ	22h	; increment date (CX=year, DH=month, DL=day)
+DOS_UTL_READLN	equ	23h	; read line (DS:DX) from CON
 DOS_UTL_STDLEN	equ	24h	; like STRLEN but w/24h (dollar) as terminator
 DOS_UTL_HDLCTL	equ	(DOS_HDL_IOCTL + 80h)
 
@@ -318,7 +319,7 @@ BUFLEN	equ	120		; max stack space to use as printf buffer
 BUFINP		struc
 INP_MAX		db	?
 INP_CNT		db	?
-INP_BUF		db	128 dup (?)
+INP_BUF		db	256 dup (?)
 BUFINP		ends
 
 ;

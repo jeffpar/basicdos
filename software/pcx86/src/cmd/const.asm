@@ -89,7 +89,7 @@ CODE    SEGMENT
 	OPDEF	<'-',18,evalSubLong>
 	OPDEF	<'S',16,evalShlLong>	; BASIC-DOS: '<<'
 	OPDEF	<'R',16,evalShrLong>	; BASIC-DOS: '>>'
-	OPDEF	<'=',14,evalEQLong>	; BASIC-DOS allows '==' as well
+	OPDEF	<'=',14,evalEQLong>	; (BASIC-DOS allows '==' as well)
 	OPDEF	<'U',14,evalNELong>	; '<>' or '><'
 	OPDEF	<'<',14,evalLTLong>
 	OPDEF	<'>',14,evalGTLong>
@@ -136,38 +136,38 @@ CODE    SEGMENT
 CODE	ENDS
 
 	DEFTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
-	DEFTOK	CLS,    60, genCLS
-	DEFTOK	COLOR,  61, genColor
-	DEFTOK	DATE,   40, cmdDate
-	DEFTOK	DEF,    62, genDefFn
-	DEFTOK	DEFDBL, 63, genDefDbl
-	DEFTOK	DEFINT, 64, genDefInt
-	DEFTOK	DEFSNG, 65, genDefDbl
-	DEFTOK	DEFSTR, 66, genDefStr
+	DEFTOK	CLS,    40, genCLS
+	DEFTOK	COLOR,  41, genColor
+	DEFTOK	DATE,   10, cmdDate
+	DEFTOK	DEF,    42, genDefFn
+	DEFTOK	DEFDBL, 43, genDefDbl
+	DEFTOK	DEFINT, 44, genDefInt
+	DEFTOK	DEFSNG, 45, genDefDbl
+	DEFTOK	DEFSTR, 46, genDefStr
 	DEFTOK	DIR,    20, cmdDir
-	DEFTOK	ECHO,   67, genEcho
+	DEFTOK	ECHO,   47, genEcho
 	DEFTOK	ELSE,  201
 	DEFTOK	EXIT,    1, cmdExit
-	DEFTOK	GOTO,   68, genGoto
-	DEFTOK	HELP,   41, cmdHelp
-	DEFTOK	IF,     69  genIf
-	DEFTOK	KEYS,    2, cmdKeys
-	DEFTOK	LET,    70, genLet
-	DEFTOK	LIST,    3, cmdList
-	DEFTOK	LOAD,   10, cmdLoad
-	DEFTOK	MEM,    42, cmdMem
-	DEFTOK	NEW,     4, cmdNew
+	DEFTOK	GOTO,   48, genGoto
+	DEFTOK	HELP,    2, cmdHelp
+	DEFTOK	IF,     49  genIf
+	DEFTOK	KEYS,    3, cmdKeys
+	DEFTOK	LET,    50, genLet
+	DEFTOK	LIST,    4, cmdList
+	DEFTOK	LOAD,   21, cmdLoad
+	DEFTOK	MEM,     5, cmdMem
+	DEFTOK	NEW,     6, cmdNew
 	DEFTOK	OFF,   202
 	DEFTOK	ON,    203
-	DEFTOK	PRINT,  71, genPrint
-	DEFTOK	REM,    72
-	DEFTOK	RESTART, 5, cmdRestart
-	DEFTOK	RETURN, 73, genReturn
-	DEFTOK	RUN,     6, cmdRun
+	DEFTOK	PRINT,  51, genPrint
+	DEFTOK	REM,    52
+	DEFTOK	RESTART, 7, cmdRestart
+	DEFTOK	RETURN, 53, genReturn
+	DEFTOK	RUN,     8, cmdRun
 	DEFTOK	THEN,  204
-	DEFTOK	TIME,   43, cmdTime
-	DEFTOK	TYPE,   21, cmdType
-	DEFTOK	VER,    44, cmdVer
+	DEFTOK	TIME,   11, cmdTime
+	DEFTOK	TYPE,   22, cmdType
+	DEFTOK	VER,     9, cmdVer
 	NUMTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
 
 	DEFTOKENS KEYOP_TOKENS,KEYOP_TOTAL

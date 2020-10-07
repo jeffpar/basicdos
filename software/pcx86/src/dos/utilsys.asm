@@ -19,7 +19,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_yield,scb_delock,scb_wait,scb_endwait>,near
 	EXTERNS	<mem_query,msc_getdate,msc_gettime>,near
 	EXTERNS	<psp_term_exitcode>,near
-	EXTERNS	<add_date>,near
+	EXTERNS	<add_date,read_line>,near
 
 	EXTERNS	<scb_locked>,byte
 	EXTERNS	<scb_active>,word
@@ -440,6 +440,29 @@ DEFPROC	utl_incdate,DOS
 	mov	[bp].REG_DX,dx		; since any or all may have changed
 	ret
 ENDPROC	utl_incdate
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_editln (AL = 23h)
+;
+; Similar to DOS function tty_input (REG_AH = 0Ah) but returns editing
+; notifications for selected keys (eg, UP and DOWN keys).
+;
+; Inputs:
+;	REG_DS:REG_DX -> BUFINP with INP_MAX preset to max chars
+;
+; Outputs:
+;	AX = last editing action
+;	Characters are stored in BUFINP.INP_BUF (including the CHR_RETURN);
+;	INP_CNT is set to the number of characters (excluding the CHR_RETURN)
+;
+DEFPROC	utl_editln,DOS
+	sti
+	and	[bp].REG_FL,NOT FL_CARRY
+	mov	byte ptr [bp].TMP_AH,1	; TMP_AH = 1 for editing notifications
+	call	read_line
+	ret
+ENDPROC	utl_editln
 
 DOS	ends
 
