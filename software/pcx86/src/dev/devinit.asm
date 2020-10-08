@@ -89,9 +89,7 @@ i2:	mov	dx,[si]		; DX = original size of this driver
 	pop	di
 	pop	si
 	pop	dx
-
 	pop	ax		; toss DDH_REQUEST address
-	pop	ax		; recover the driver segment
 
 	sub	bx,bx
 	mov	es,bx
@@ -118,20 +116,25 @@ i2:	mov	dx,[si]		; DX = original size of this driver
 ; around (start at the high address and move down to low address); otherwise,
 ; we'll end up trashing some of the memory we're moving.
 ;
+	sub	ax,ax
 	cmp	di,si
 	jb	i3
+	mov	ax,cx
+	add	ax,2		; AX = adjustment for DI after reverse move
 	add	si,cx
 	sub	si,2
 	add	di,cx
 	sub	di,2
 	std
 i3:	shr	cx,1
-	rep	movsw		; DI = new end of drivers
+	rep	movsw
+	add	di,ax		; DI = new end of drivers
 	cld
 	pop	si
 	mov	dx,bx
 
-i4:	test	dx,dx
+i4:	pop	ax		; recover the driver segment
+	test	dx,dx
 	jz	i8		; jump if driver not required
 	sub	cx,cx		; AX:CX -> driver header
 ;
@@ -159,8 +162,8 @@ i4:	test	dx,dx
 ;
 ; because it's simpler, but later decided to keep the list in memory order.
 ;
-; In addition, I now store the next available segment in the SEG portion of the
-; final driver pointer (-1 in the OFF portion still means end of list).
+; In addition, I now store the next available segment in the SEG portion of
+; the final driver pointer (-1 in the OFF portion still means end of list).
 ;
 i7:	push	di
 	lea	di,[DD_LIST]
@@ -177,7 +180,7 @@ i7b:	mov	es:[di].DDH_NEXT_OFF,cx
 	mov	[si].DDH_NEXT_OFF,-1
 	pop	di
 
-i8:	add	si,dx		; SI -> next driver (after adding original size)
+i8:	add	si,dx		; SI -> next driver, after adding original size
 	jmp	i1
 
 i9:	add	sp,DDP_MAXSIZE
