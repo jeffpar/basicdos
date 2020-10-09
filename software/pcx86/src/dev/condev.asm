@@ -452,7 +452,6 @@ DEFPROC	ddcon_read
 ; bother checking the keyboard buffer.  We still won't block non-blocking
 ; requests, but no data will be returned as long as we're out-of-focus.
 ;
-	cli
 	mov	dx,es:[di].DDP_CONTEXT
 	cmp	dx,[ct_focus]
 	jne	dcr0
@@ -939,7 +938,7 @@ i09h:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 ; was because we got ahead of the WAIT call.  One thought was to make the
 ; driver's WAIT code more resilient, and double-check that the request had
 ; really been satisfied, but I eventually resolved the race by making the
-; pull_kbd/add_packet/utl_wait path atomic (ie, no interrupts).
+; pull_kbd/add_packet/wait path atomic (ie, no interrupts).
 ;
 ; TODO: Consider lighter-weight solutions to this race condition.
 ;
@@ -1544,23 +1543,25 @@ ENDPROC	move_cursor
 DEFPROC	pull_kbd
 	push	bx
 	push	ds
-	sub	bx,bx
+
+pl1:	sub	bx,bx
 	mov	ds,bx
 	ASSUME	DS:BIOS
+	cli
 	mov	bx,[BUFFER_HEAD]
-pl2:	cmp	bx,[BUFFER_TAIL]
+	cmp	bx,[BUFFER_TAIL]
 	stc
-	je	pl9			; BIOS buffer empty
+	je	pl3			; BIOS buffer empty
 	mov	ax,[BIOS_DATA][bx]	; AL = char code, AH = scan code
 	add	bx,2
 	cmp	bx,offset KB_BUFFER - offset BIOS_DATA + size KB_BUFFER
-	jne	pl3
+	jne	pl2
 	sub	bx,size KB_BUFFER
-pl3:	mov	[BUFFER_HEAD],bx
+pl2:	mov	[BUFFER_HEAD],bx
+	clc
+pl3:	sti
+	jc	pl9
 
-	push	bx
-	push	ds
-	lds	bx,es:[di].DDPRW_ADDR	; DS:BX -> next read/write address
 	test	al,al			; ASCII zero?
 	jz	pl4			; yes, must be a special-function key
 	cmp	al,0E0h			; ditto for E0h, which future keyboards
@@ -1583,7 +1584,9 @@ pl5:	lods	byte ptr cs:[si]
 	jne	pl5			; no
 pl6:	pop	si
 
-pl7:	mov	[bx],al
+pl7:	lds	bx,es:[di].DDPRW_ADDR	; DS:BX -> next read/write address
+	ASSUME	DS:NOTHING
+	mov	[bx],al
 	IFDEF MAXDEBUG
 	test	al,al
 	jnz	pl8
@@ -1592,11 +1595,10 @@ pl7:	mov	[bx],al
 	ENDIF
 pl8:	inc	bx
 	mov	es:[di].DDPRW_ADDR.OFF,bx
-	pop	ds
-	pop	bx
 	dec	es:[di].DDPRW_LENGTH	; have we satisfied the request yet?
-	jnz	pl2			; no
+	jnz	pl1			; no
 	clc
+
 pl9:	pop	ds
 	ASSUME	DS:NOTHING
 	pop	bx

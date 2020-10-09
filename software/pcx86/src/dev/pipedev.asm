@@ -34,6 +34,9 @@ CT_DATA		db    128 dup(?); 06h: data buffer
 CONTEXT		ends
 SIG_CT		equ	'P'
 
+CTSTAT_EWAIT	equ	01h	; set on empty-wait condition
+CTSTAT_FWAIT	equ	02h	; set on full-wait condition
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Driver request
@@ -76,16 +79,7 @@ DEFPROC	ddpipe_read
 	mov	cx,es:[di].DDPRW_LENGTH
 	jcxz	ddr9
 
-ddr2:	call	pull_data
-	jnc	ddr9
-;
-; For READ requests that cannot be satisifed, we add this packet to an
-; internal chain of "reading" packets, and then tell DOS that we're waiting;
-; DOS will suspend the current SCB until we notify DOS that this packet's
-; conditions are satisfied.
-;
-	call	add_packet
-	jmp	ddr2			; when this returns, try reading again
+	call	pull_data
 
 ddr9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	ret
@@ -107,16 +101,7 @@ DEFPROC	ddpipe_write
 	mov	cx,es:[di].DDPRW_LENGTH
 	jcxz	ddw9
 
-ddw2:	call	push_data
-	jnc	ddw9
-;
-; For WRITE requests that cannot be satisifed, we add this packet to an
-; internal chain of "writing" packets, and then tell DOS that we're waiting;
-; DOS will suspend the current SCB until we notify DOS that this packet's
-; conditions are satisfied.
-;
-	call	add_packet
-	jmp	ddw2			; when this returns, try writing again
+	call	push_data
 
 ddw9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	ret
@@ -131,6 +116,10 @@ ENDPROC	ddpipe_write
 ;	[DDP].DDP_PTR -> context descriptor (eg, "PIPE$")
 ;
 ; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, DS
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddpipe_open
@@ -167,6 +156,10 @@ ENDPROC	ddpipe_open
 ;	DS = device context
 ;
 ; Outputs:
+;	None
+;
+; Modifies:
+;	AX, CX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddpipe_close
@@ -189,6 +182,7 @@ ENDPROC	ddpipe_close
 ;	ES:DI -> DDP
 ;
 ; Outputs:
+;	None
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddpipe_none
@@ -199,29 +193,6 @@ ENDPROC	ddpipe_none
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; add_packet
-;
-; The WAIT condition will be satisfied when enough data is received (for
-; a READ packet) or when the buffer is no longer full (for a WRITE packet).
-;
-; Inputs:
-;	ES:DI -> DDP
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	AX, DX
-;
-	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	add_packet
-	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	DOSUTIL	WAIT
-	ret
-ENDPROC	add_packet
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; pull_data
 ;
 ; Inputs:
@@ -229,23 +200,39 @@ ENDPROC	add_packet
 ;	DS = device context
 ;
 ; Outputs:
-;	Carry clear if request satisfied, set if not
+;	Returns after request has been satisfied
 ;
 ; Modifies:
-;	AX, BX
+;	AX, BX, DX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	pull_data
-pl1:	mov	bx,ds:[CT_HEAD]
+	cli
+pl0:	mov	bx,ds:[CT_HEAD]
 	cmp	bx,ds:[CT_TAIL]
-	stc
-	je	pl9			; buffer empty
-	mov	al,ds:[CT_DATA][bx]	; AL = data byte
+	jne	pl1
+;
+; There's no data, so issue WAIT and try again when it returns.
+;
+	ASSERT	Z,<test ds:[CT_STATUS],CTSTAT_EWAIT OR CTSTAT_FWAIT>
+	or	ds:[CT_STATUS],CTSTAT_EWAIT
+	call	wait_data
+	ASSERT	Z,<test ds:[CT_STATUS],CTSTAT_EWAIT>
+	jmp	pl0
+pl1:	mov	al,ds:[CT_DATA][bx]	; AL = data byte
 	inc	bx
 	cmp	bx,size CT_DATA
 	jne	pl2
 	sub	bx,bx
 pl2:	mov	ds:[CT_HEAD],bx
+;
+; We just made some room.  If CTSTAT_FWAIT is set, clear it and issue ENDWAIT.
+;
+	test	ds:[CT_STATUS],CTSTAT_FWAIT
+	jz	pl3
+	and	ds:[CT_STATUS],NOT CTSTAT_FWAIT
+	call	endwait_data
+pl3:	sti
 	push	ds
 	lds	bx,es:[di].DDPRW_ADDR	; DS:BX -> next read/write address
 	mov	[bx],al
@@ -253,9 +240,8 @@ pl2:	mov	ds:[CT_HEAD],bx
 	mov	es:[di].DDPRW_ADDR.OFF,bx
 	pop	ds
 	dec	es:[di].DDPRW_LENGTH	; have we satisfied the request yet?
-	jnz	pl1			; no
-	clc
-pl9:	ret
+	jnz	pull_data		; no
+	ret
 ENDPROC	pull_data
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -270,20 +256,28 @@ ENDPROC	pull_data
 ;	Carry clear if request satisfied, set if not
 ;
 ; Modifies:
-;	AX, BX
+;	AX, BX, DX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	push_data
-ps1:	mov	bx,ds:[CT_TAIL]
+	cli
+ps0:	mov	bx,ds:[CT_TAIL]
 	mov	dx,bx
 	inc	dx
 	cmp	dx,size CT_DATA
-	jne	ps2
+	jne	ps1
 	sub	dx,dx
-ps2:	cmp	dx,ds:[CT_HEAD]
-	stc
-	je	ps9			; buffer full
-	mov	ds:[CT_TAIL],dx
+ps1:	cmp	dx,ds:[CT_HEAD]
+	jne	ps2
+;
+; The buffer is full, so issue WAIT and try again when it returns.
+;
+	ASSERT	Z,<test ds:[CT_STATUS],CTSTAT_EWAIT OR CTSTAT_FWAIT>
+	or	ds:[CT_STATUS],CTSTAT_FWAIT
+	call	wait_data
+	ASSERT	Z,<test ds:[CT_STATUS],CTSTAT_FWAIT>
+	jmp	ps0
+ps2:	mov	ds:[CT_TAIL],dx
 	push	ds
 	push	bx
 	lds	bx,es:[di].DDPRW_ADDR	; DS:BX -> next read/write address
@@ -293,11 +287,62 @@ ps2:	cmp	dx,ds:[CT_HEAD]
 	pop	bx
 	pop	ds
 	mov	ds:[CT_DATA][bx],al	; AL = data byte
+;
+; We just added some data.  If CTSTAT_EWAIT is set, clear it and issue ENDWAIT.
+;
+	test	ds:[CT_STATUS],CTSTAT_EWAIT
+	jz	ps3
+	and	ds:[CT_STATUS],NOT CTSTAT_EWAIT
+	call	endwait_data
+ps3:	sti
 	dec	es:[di].DDPRW_LENGTH	; have we satisfied the request yet?
-	jnz	ps1			; no
-	clc
-ps9:	ret
+	jnz	push_data		; no
+	ret
 ENDPROC	push_data
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; wait_data
+;
+; Inputs:
+;	DS = device context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	wait_data
+	push	di
+	mov	dx,ds
+	sub	di,di
+	DOSUTIL	WAIT
+	pop	di
+	ret
+ENDPROC	wait_data
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; endwait_data
+;
+; Inputs:
+;	DS = device context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	endwait_data
+	push	di
+	mov	dx,ds
+	sub	di,di
+	DOSUTIL	ENDWAIT
+	pop	di
+	ret
+ENDPROC	endwait_data
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
