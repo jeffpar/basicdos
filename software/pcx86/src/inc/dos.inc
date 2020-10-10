@@ -83,25 +83,27 @@ TMP_DH		equ	TMP_DX.HIB
 SCB		struc
 SCB_STATUS	db	?	; 00h: SCB status
 SCB_NUM		db	?	; 01h: SCB #
-SCB_SFHCON	db	?	; 02h: SFH for CON
-SCB_SFHAUX	db	?	; 03h: SFH for AUX
-SCB_SFHPRN	db	?	; 04h: SFH for PRN
-SCB_SIG		db	?	; 05h (holds SIG_SCB in DEBUG builds)
-SCB_CURPSP	dw	?	; 06h: current PSP
-SCB_WAITID	dd	?	; 08h: wait ID if waiting, 0 if runnable
-SCB_STACK	dd	?	; 0Ch: pointer to session stack
-SCB_EXRET	dd	?	; 10h: current EXRET handler
-SCB_CTRLC	dd	?	; 14h: current CTRLC handler
-SCB_ERROR	dd	?	; 18h: current ERROR handler
-SCB_DTA		dd	?	; 1Ch: current DTA (Disk Transfer Address)
-SCB_CONTEXT	dw	?	; 20h: CONSOLE context (from device driver)
-SCB_CURDRV	db	?	; 22h: current drive #
-SCB_CTRLC_ALL	db	?	; 23h: 1 if CTRLC checking enabled on all calls
-SCB_CTRLC_ACT	db	?	; 24h: 1 if CTRLC active
-SCB_CTRLP_ACT	db	?	; 25h: 1 if CTRLP active
-SCB_SWITCHAR	db	?	; 26h: current "switchar" (default is CHR_SLASH)
-SCB_PADDING	db	?	; 27h
-SCB_FILENAME	db     12 dup(?); 28h: buffer for drive # and filename
+SCB_SFHIN	db	?	; 02h: SFH for STDIN
+SCB_SFHOUT	db	?	; 03h: SFH for STDOUT
+SCB_SFHERR	db	?	; 04h: SFH for STDERR
+SCB_SFHAUX	db	?	; 05h: SFH for STDAUX
+SCB_SFHPRN	db	?	; 06h: SFH for STDPRN
+SCB_SIG		db	?	; 07h (holds SIG_SCB in DEBUG builds)
+SCB_CURPSP	dw	?	; 08h: current PSP
+SCB_WAITID	dd	?	; 0Ah: wait ID if waiting, 0 if runnable
+SCB_STACK	dd	?	; 0Eh: pointer to session stack
+SCB_EXRET	dd	?	; 12h: current EXRET handler
+SCB_CTRLC	dd	?	; 16h: current CTRLC handler
+SCB_ERROR	dd	?	; 1Ah: current ERROR handler
+SCB_DTA		dd	?	; 1Eh: current DTA (Disk Transfer Address)
+SCB_CONTEXT	dw	?	; 22h: CONSOLE context (from device driver)
+SCB_CURDRV	db	?	; 24h: current drive #
+SCB_CTRLC_ALL	db	?	; 25h: 1 if CTRLC checking enabled on all calls
+SCB_CTRLC_ACT	db	?	; 26h: 1 if CTRLC active
+SCB_CTRLP_ACT	db	?	; 27h: 1 if CTRLP active
+SCB_SWITCHAR	db	?	; 28h: current "switchar" (default is CHR_SLASH)
+SCB_PADDING	db	?	; 29h
+SCB_FILENAME	db     12 dup(?); 2Ah: buffer for drive # and filename
 SCB		ends
 SIG_SCB		equ	'S'
 

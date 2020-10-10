@@ -117,13 +117,37 @@ ENDPROC	get_scbnum
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; scb_init
+;
+; Initialize the SCB in preparation for program loading.
+;
+; Inputs:
+;	DS:BX -> SCB (Session Control Block)
+;	ES:DI -> SPB (Session Parameter Block)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	scb_init,DOS
+	ASSUME	ES:NOTHING
+	ASSERT	STRUCT,[bx],SCB
+;
+; If the caller supplied any non-default SFH values, plug them into the SCB.
+;
+
+;
+; Take care of any remaining initialization now.
+;
+	mov	al,[def_switchar]
+	mov	[bx].SCB_SWITCHAR,al
+	ret
+ENDPROC	scb_init
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; scb_load
 ;
 ; Load a program into an available session.
-;
-; TODO: Add support for a session startup block that allows the CONSOLE
-; and other system handles to be specified for this session.  Currently, we
-; are called only from sysinit, which creates all the system handles itself.
 ;
 ; Inputs:
 ;	REG_ES:REG_BX -> SPB (Session Parameter Block)
@@ -146,18 +170,26 @@ DEFPROC	scb_load,DOS
 	mov	di,[bp].REG_BX
 	mov	es,[bp].REG_ES		; ES:DI -> SPB
 	ASSUME	ES:NOTHING
+	call	scb_init		; initialize the SCB for loading
+	push	bx			; save SCB
 	mov	dx,es:[di].SPB_CMDLINE.OFF
 	mov	es,es:[di].SPB_CMDLINE.SEG
 	call	load_program		; ES:DX -> command line
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
-	mov	bx,[scb_active]
-	jc	sl7
-	call	scb_init
+	pop	bx			; BX -> current SCB again
+	jc	sl7			; exit on load error
 ;
-; Copy the TMP register results to the caller's registers.
+; If successful, load_program returns the initial program stack in ES:DI.
 ;
+; In addition, it records cache information in the TMP registers, which most
+; most callers can/will ignore, but which sysinit uses to speed up successive
+; LOAD requests.
+;
+	mov	[bx].SCB_STACK.OFF,di	; ES:DI == initial stack
+	mov	[bx].SCB_STACK.SEG,es
+	or	[bx].SCB_STATUS,SCSTAT_LOAD
 	mov	al,[bx].SCB_NUM
 	mov	[bp].REG_CL,al		; REG_CL = session (SCB) #
 	mov	ax,[bp].TMP_CX
@@ -173,30 +205,6 @@ sl8:	jnc	sl9
 	mov	[bp].REG_AX,ax		; return error code to caller
 sl9:	ret
 ENDPROC	scb_load
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; scb_init
-;
-; Mark the specified session as "loaded" and ready to start.
-;
-; Inputs:
-;	BX -> SCB
-;	ES:DI = initial stack pointer
-;
-; Modifies:
-;	AX
-;
-DEFPROC	scb_init,DOS
-	ASSUME	ES:NOTHING
-	ASSERT	STRUCT,[bx],SCB
-	mov	[bx].SCB_STACK.OFF,di
-	mov	[bx].SCB_STACK.SEG,es
-	mov	al,[def_switchar]
-	mov	[bx].SCB_SWITCHAR,al
-	or	[bx].SCB_STATUS,SCSTAT_LOAD
-	ret
-ENDPROC	scb_init
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -382,9 +390,9 @@ DEFPROC	scb_unload,DOS
 	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	call	get_scb
  	jc	sud9
-	mov	cx,3			; close this session's system handles
+	mov	cx,5			; close this session's system handles
 	push	bx			; (for reasons given in the TODO above)
-	lea	si,[bx].SCB_SFHCON
+	lea	si,[bx].SCB_SFHIN
 sud1:	mov	bl,-1
 	xchg	bl,[si]
 	call	sfh_close

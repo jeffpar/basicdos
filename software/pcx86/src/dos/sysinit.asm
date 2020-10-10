@@ -360,18 +360,17 @@ si7:	mov	dx,size SFB
 	ASSUME	ES:DOS
 	mov	es:[mcb_head],bx
 ;
-; The following SCB initialization should be limited to invariant SCB fields
-; (eg, SCB_NUM); alternatively, make sure everything we do here is done in
-; scb_init instead.
+; Pre-initialize all the SCBs, by assigning them unique SCB_NUM values
+; and setting their default CON/AUX/PRN system file handles to SFH_NONE (-1).
 ;
-	dec	cx
-	mov	ah,ch
+	mov	ah,SFH_NONE
+	dec	cx			; CL,CH = SFH_NONE
 	mov	bx,es:[scb_table].OFF
 	push	bx			; initialize the SCBs
 	or	es:[bx].SCB_STATUS,SCSTAT_INIT
-si7a:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHCON>
-	ASSERT	<SCB_SFHAUX + 1>,EQ,<SCB_SFHPRN>
+si7a:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHIN>
 	mov	word ptr es:[bx].SCB_NUM,ax
+	mov	word ptr es:[bx].SCB_SFHOUT,cx
 	mov	word ptr es:[bx].SCB_SFHAUX,cx
 	DBGINIT	STRUCT,es:[bx],SCB
 	inc	ax
@@ -410,7 +409,9 @@ si8:	mov	si,offset CFG_CONSOLE
 si9:	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 	int	21h
 	jc	open_error
-	mov	es:[bx].SCB_SFHCON,al	; AL = SFH (not PFH)
+	mov	es:[bx].SCB_SFHIN,al	; AL = SFH (not PFH)
+	mov	es:[bx].SCB_SFHOUT,al	; AL = SFH (not PFH)
+	mov	es:[bx].SCB_SFHERR,al	; AL = SFH (not PFH)
 	mov	es:[bx].SCB_CONTEXT,dx	; DX = CONSOLE device context
 ;
 ; Last but not least, open PRN.
@@ -439,7 +440,9 @@ si10:	mov	si,offset CFG_CONSOLE
 	mov	dx,offset CONERR
 	jmp	print_error
 si11:	or	es:[bx].SCB_STATUS,SCSTAT_INIT
-	mov	es:[bx].SCB_SFHCON,al
+	mov	es:[bx].SCB_SFHIN,al
+	mov	es:[bx].SCB_SFHOUT,al
+	mov	es:[bx].SCB_SFHERR,al
 	mov	es:[bx].SCB_CONTEXT,dx
 	mov	word ptr es:[bx].SCB_SFHAUX,cx
 	ASSERT	<SCB_SFHAUX + 1>,EQ,<SCB_SFHPRN>
@@ -490,7 +493,7 @@ si14:	mov	dx,offset SYS_MSG
 ; available SCB.  The first time through, CFG_SHELL is used as a fallback,
 ; so even if there are no SHELL definitions, at least one will be loaded.
 ;
-	sub	sp,size SPB		; create SPB on the stack
+	sub	sp,size SPB		; alloc SPB from the stack
 
 	sub	dx,dx			; DX = SCB load count
 	mov	bx,offset SHELL_FILE	; BX = default shell
@@ -515,12 +518,12 @@ si16:	test	bx,bx			; do we still have a default?
 	mov	ax,ds
 	stosw				; SPB_CMDLINE.OFF <- DS
 	xchg	ax,bx			; AX = 0 again
-	dec	ax			; AX = -1
-	stosw				; SPB_SFHIN  <- -1
-	stosw				; SPB_SFHOUT <- -1
-	stosw				; SPB_SFHERR <- -1
-	stosw				; SPB_SFHAUX <- -1
-	stosw				; SPB_SFHPRN <- -1
+	dec	ax			; AX = -1 (mainly, SFH_DEFAULT)
+	stosw				; SPB_SFHIN  <- SFH_DEFAULT
+	stosw				; SPB_SFHOUT <- SFH_DEFAULT
+	stosw				; SPB_SFHERR <- SFH_DEFAULT
+	stosw				; SPB_SFHAUX <- SFH_DEFAULT
+	stosw				; SPB_SFHPRN <- SFH_DEFAULT
 	mov	bx,sp			; ES:BX -> SPB
 	DOSUTIL	LOAD			; load specified SHELL into an SCB
 	jc	si18
@@ -542,7 +545,10 @@ si18:	PRINTF	<"Error loading %s: %d",13,10>,dx,ax
 ; nothing can ACTUALLY run until we obtain access to the CLOCK$ device and
 ; re-vector all the hardware interrupt handlers that drive our scheduler.
 ;
-si20:	lds	dx,[pCacheInt21]	; restore INT 21h vector
+si20:	add	sp,size SPB		; free SPB on the stack
+					; (somewhat moot, but let's stay tidy)
+
+	lds	dx,[pCacheInt21]	; restore INT 21h vector
 	mov	ax,(DOS_MSC_SETVEC SHL 8) OR 21h
 	int	21h
 	push	cs

@@ -165,7 +165,7 @@ ENDPROC	psp_copy
 ;	None
 ;
 ; Modifies:
-;	AX, BX, CX, DX, DI, ES
+;	AX, BX, CX, DX, SI, DI, ES
 ;
 DEFPROC	psp_create,DOS
 	call	psp_init		; returns ES:DI -> PSP_PARENT
@@ -173,24 +173,16 @@ DEFPROC	psp_create,DOS
 ;
 ; Next up: the PFT (Process File Table); the first 5 PFT slots (PFHs) are
 ; predefined as STDIN (0), STDOUT (1), STDERR (2), STDAUX (3), and STDPRN (4),
-; and apparently we're supposed to open an SFB for AUX first, CON second,
-; and PRN third, so that the SFHs for the first five handles will always be:
-; 1, 1, 1, 0, and 2.
+; and apparently we should open SFBs for AUX first, CON second, and PRN third,
+; so that the SFHs for the first five handles will always be 1, 1, 1, 0, and 2.
 ;
-	mov	al,[bx].SCB_SFHCON
-	stosb
-	stosb
-	stosb
-	mov	ah,3
-	call	sfh_addref		; add 3 refs to this SFH
-	mov	al,[bx].SCB_SFHAUX
-	stosb
 	mov	ah,1
-	call	sfh_addref		; add 1 ref to this SFH
-	mov	al,[bx].SCB_SFHPRN
+	mov	cx,5
+	lea	si,[bx].SCB_SFHIN
+pc1:	lodsb
 	stosb
-	mov	ah,1
-	call	sfh_addref		; add 1 ref to this SFH
+	call	sfh_addref
+	loop	pc1
 	mov	al,SFH_NONE		; AL = 0FFh (indicates unused entry)
 	mov	cl,15			; 15 more PFT slots left
 	rep	stosb			; finish up PSP_PFT (20 bytes total)
@@ -1147,9 +1139,9 @@ ENDPROC	set_psp
 DEFPROC	close_psp,DOS
 	mov	cx,size PSP_PFT
 	sub	bx,bx			; BX = handle (PFH)
-pc1:	call	pfh_close		; close process file handle
+cp1:	call	pfh_close		; close process file handle
 	inc	bx
-	loop	pc1
+	loop	cp1
 	ret
 ENDPROC	close_psp
 
