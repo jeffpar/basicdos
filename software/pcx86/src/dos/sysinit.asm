@@ -518,12 +518,12 @@ si16:	test	bx,bx			; do we still have a default?
 	mov	ax,ds
 	stosw				; SPB_CMDLINE.OFF <- DS
 	xchg	ax,bx			; AX = 0 again
-	dec	ax			; AX = -1 (mainly, SFH_DEFAULT)
-	stosw				; SPB_SFHIN  <- SFH_DEFAULT
-	stosw				; SPB_SFHOUT <- SFH_DEFAULT
-	stosw				; SPB_SFHERR <- SFH_DEFAULT
-	stosw				; SPB_SFHAUX <- SFH_DEFAULT
-	stosw				; SPB_SFHPRN <- SFH_DEFAULT
+	dec	ax			; AX = -1 (mainly, SFH_NONE)
+	stosb				; SPB_SFHIN  <- SFH_NONE
+	stosb				; SPB_SFHOUT <- SFH_NONE
+	stosb				; SPB_SFHERR <- SFH_NONE
+	stosb				; SPB_SFHAUX <- SFH_NONE
+	stosb				; SPB_SFHPRN <- SFH_NONE
 	mov	bx,sp			; ES:BX -> SPB
 	DOSUTIL	LOAD			; load specified SHELL into an SCB
 	jc	si18

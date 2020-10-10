@@ -126,15 +126,25 @@ ENDPROC	get_scbnum
 ;	ES:DI -> SPB (Session Parameter Block)
 ;
 ; Modifies:
-;	AX
+;	AX, CX, SI
 ;
 DEFPROC	scb_init,DOS
 	ASSUME	ES:NOTHING
 	ASSERT	STRUCT,[bx],SCB
 ;
-; If the caller supplied any non-default SFH values, plug them into the SCB.
+; Copy any valid SFHs into the SCB.
 ;
-
+	push	di
+	mov	cx,5
+	lea	si,[di].SPB_SFHIN	; ES:SI -> 1st SFH in the SPB
+	lea	di,[bx].SCB_SFHIN	; DS:DI -> 1st SFH in the SCB
+si1:	lods	byte ptr es:[si]
+	cmp	al,SFH_NONE		; was an SFH supplied?
+	je	si2			; no
+	mov	[di],al			; update the SCB
+si2:	inc	di
+	loop	si1
+	pop	di
 ;
 ; Take care of any remaining initialization now.
 ;
@@ -393,7 +403,7 @@ DEFPROC	scb_unload,DOS
 	mov	cx,5			; close this session's system handles
 	push	bx			; (for reasons given in the TODO above)
 	lea	si,[bx].SCB_SFHIN
-sud1:	mov	bl,-1
+sud1:	mov	bl,SFH_NONE
 	xchg	bl,[si]
 	call	sfh_close
 	inc	si
