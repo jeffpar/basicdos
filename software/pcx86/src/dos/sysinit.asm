@@ -281,7 +281,7 @@ si4c:	jnz	sierr1			; hmm, CLUSSECS wasn't a power-of-two
 ; divided by sectors per cluster, or just another shift using CLUSLOG2).
 ;
 	mov	ax,[di].BPB_DISKSECS
-	sub	ax,[di].BPB_LBADATA	; AX = DISKSECS - LBADATA = data sectors
+	sub	ax,[di].BPB_LBADATA	; AX = DISKSECS-LBADATA (data sectors)
 	shr	ax,cl			; AX = data clusters
 	mov	[di].BPB_CLUSTERS,ax
 
@@ -490,32 +490,49 @@ si14:	mov	dx,offset SYS_MSG
 ; available SCB.  The first time through, CFG_SHELL is used as a fallback,
 ; so even if there are no SHELL definitions, at least one will be loaded.
 ;
-	sub	bx,bx			; BX = SCB load count
-	sub	cx,cx			; CL = SCB #
-	mov	dx,offset SHELL_FILE	; DX = default shell
+	sub	sp,size SPB		; create SPB on the stack
+
+	sub	dx,dx			; DX = SCB load count
+	mov	bx,offset SHELL_FILE	; BX = default shell
 si15:	mov	si,offset CFG_SHELL
 	call	find_cfg		; look for "SHELL="
 	jc	si16			; not found
-	mov	dx,di
-si16:	test	dx,dx			; do we still have a default?
+	mov	bx,di
+si16:	test	bx,bx			; do we still have a default?
 	jz	si20			; no, done loading
 ;
-; Note that during the LOAD process, the target SCB is locked as the active
-; SCB, so that the program file can be opened and read using the SCB's PSP.
-; It's unlocked after the load, but it won't start running until START is set.
+; Note that during the LOAD process, the SCB is locked and active, so that
+; the program file can be opened and read using the SCB's PSP.  It's unlocked
+; when the load finishes, but it won't start running until after START is set.
 ;
-	DOSUTIL	LOAD			; load SHELL DS:DX into specified SCB
+	push	ss
+	pop	es
+	mov	di,sp			; ES:DI -> SPB on stack
+	sub	ax,ax
+	stosw				; SPB_ENVSEG <- 0
+	xchg	ax,bx
+	stosw				; SPB_CMDLINE.OFF <- BX
+	mov	ax,ds
+	stosw				; SPB_CMDLINE.OFF <- DS
+	xchg	ax,bx			; AX = 0 again
+	dec	ax			; AX = -1
+	stosw				; SPB_SFHIN  <- -1
+	stosw				; SPB_SFHOUT <- -1
+	stosw				; SPB_SFHERR <- -1
+	stosw				; SPB_SFHAUX <- -1
+	stosw				; SPB_SFHPRN <- -1
+	mov	bx,sp			; ES:BX -> SPB
+	DOSUTIL	LOAD			; load specified SHELL into an SCB
 	jc	si18
 	test	ax,ax
 	jz	si16a
 	mov	[cbCacheData],ax
-	mov	[pCacheData].OFF,dx
+	mov	[pCacheData].OFF,bx
 	mov	[pCacheData].SEG,es
-si16a:	DOSUTIL	START			; CL = SCB #
-	inc	bx			; must be valid, so no error checking
+si16a:	DOSUTIL	START			; CL = SCB # (from the LOAD call)
+	inc	dx			; must be valid, so no error checking
 
-si17:	inc	cx			; advance SCB #
-	sub	dx,dx			; no more default
+si17:	sub	bx,bx			; no default shell now
 	jmp	si15
 
 si18:	PRINTF	<"Error loading %s: %d",13,10>,dx,ax
@@ -531,7 +548,7 @@ si20:	lds	dx,[pCacheInt21]	; restore INT 21h vector
 	push	cs
 	pop	ds
 
-	test	bx,bx
+	test	dx,dx
 	jz	sierr2			; if no SCBs loaded, that's not good
 ;
 ; Functions like SLEEP need access to the clock device, so we save its
@@ -686,7 +703,7 @@ ENDPROC	init_table
 ; completely sequential (and therefore our caching logic can be very simple).
 ;
 ; This allows us to preload multiple copies of COMMAND.COM into memory without
-; having to reread the file every time.
+; having to reread the file from disk every time.
 ;
 ; Inputs:
 ;	AH = DOS function #

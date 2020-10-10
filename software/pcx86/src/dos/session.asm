@@ -33,48 +33,23 @@ DOS	segment word public 'CODE'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; find_scb
-;
-; Finds the first free SCB.
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	On success, carry clear, BX -> SCB
-;	On failure, carry set
-;
-; Modifies:
-;	BX
-;
-DEFPROC	find_scb,DOS
-	mov	bx,[scb_table].OFF
-fs1:	test	[bx].SCB_STATUS,SCSTAT_LOAD
-	jz	fs9
-	add	bx,size SCB
-	cmp	bx,[scb_table].SEG
-	jb	fs1
-	stc
-fs9:	ret
-ENDPROC	find_scb
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; get_scb
+;
+; Returns the specified SCB.
 ;
 ; Inputs:
 ;	CL = SCB # (-1 for first free SCB)
 ;
 ; Outputs:
-;	On success, carry clear, BX -> specified SCB
-;	On failure, carry set (if SCB invalid or not initialized for use)
+;	On success, carry clear, BX -> SCB
+;	On failure, carry set (SCB uninitialized, unavailable, or invalid)
 ;
 ; Modifies:
 ;	BX
 ;
 DEFPROC	get_scb,DOS
 	cmp	cl,-1
-	je	find_scb
+	je	get_free_scb
 	push	ax
 	mov	al,size SCB
 	mul	cl
@@ -89,6 +64,33 @@ DEFPROC	get_scb,DOS
 gs9:	pop	ax
 	ret
 ENDPROC	get_scb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_free_scb
+;
+; Returns the first free (unloaded) SCB.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	On success, carry clear, BX -> SCB
+;	On failure, carry set (SCB unavailable)
+;
+; Modifies:
+;	BX
+;
+DEFPROC	get_free_scb,DOS
+	mov	bx,[scb_table].OFF
+fs1:	test	[bx].SCB_STATUS,SCSTAT_LOAD
+	jz	fs9
+	add	bx,size SCB
+	cmp	bx,[scb_table].SEG
+	jb	fs1
+	stc
+fs9:	ret
+ENDPROC	get_free_scb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -117,31 +119,36 @@ ENDPROC	get_scbnum
 ;
 ; scb_load
 ;
-; Load a program into the specified session.
+; Load a program into an available session.
 ;
 ; TODO: Add support for a session startup block that allows the CONSOLE
 ; and other system handles to be specified for this session.  Currently, we
 ; are called only from sysinit, which creates all the system handles itself.
 ;
 ; Inputs:
-;	CL = SCB # (-1 for first free SCB)
-;	ES:DX -> name of program (or command-line)
+;	REG_ES:REG_BX -> SPB (Session Parameter Block)
 ;
 ; Outputs:
 ;	Carry clear if successful:
+;		REG_CL = session (SCB) #
 ;		REG_AX = program size
-;		REG_ES:REG_DX -> program data
-;	Carry set if error, AX = error code
+;		REG_ES:REG_BX -> program data
+;	Carry set if error, AX = error code (eg, no SCB, no program, etc)
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	scb_load,DOS
-	ASSUME	ES:NOTHING
-	call	scb_lock
+	mov	cl,-1
+	call	scb_lock		; lock a free SCB
 	jc	sl8
 	push	ax			; save previous SCB
-	call	load_program
+	mov	di,[bp].REG_BX
+	mov	es,[bp].REG_ES		; ES:DI -> SPB
+	ASSUME	ES:NOTHING
+	mov	dx,es:[di].SPB_CMDLINE.OFF
+	mov	es,es:[di].SPB_CMDLINE.SEG
+	call	load_program		; ES:DX -> command line
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
@@ -151,12 +158,14 @@ DEFPROC	scb_load,DOS
 ;
 ; Copy the TMP register results to the caller's registers.
 ;
+	mov	al,[bx].SCB_NUM
+	mov	[bp].REG_CL,al		; REG_CL = session (SCB) #
 	mov	ax,[bp].TMP_CX
-	mov	[bp].REG_AX,ax
-	mov	ax,[bp].TMP_DX
-	mov	[bp].REG_DX,ax
+	mov	[bp].REG_AX,ax		; REG_AX = program size
+	mov	ax,[bp].TMP_BX
+	mov	[bp].REG_BX,ax
 	mov	ax,[bp].TMP_ES
-	mov	[bp].REG_ES,ax
+	mov	[bp].REG_ES,ax		; REG_ES:REG_BX -> program data
 
 sl7:	pop	cx			; recover previous SCB
 	call	scb_unlock		; unlock
@@ -207,9 +216,9 @@ ENDPROC	scb_init
 ;
 DEFPROC	scb_lock,DOS
 	ASSUME	ES:NOTHING
+	inc	[scb_locked]
 	call	get_scb
 	jc	sk9
-	inc	[scb_locked]
 	mov	ax,bx			; AX = current SCB
 	xchg	bx,[scb_active]		; BX -> previous SCB, if any
 	test	bx,bx
@@ -232,7 +241,9 @@ sk8:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
 	pop	es
 	pop	ds
 	ASSUME	DS:DOS
-sk9:	ret
+	ret
+sk9:	dec	[scb_locked]
+	ret
 ENDPROC	scb_lock
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -268,8 +279,8 @@ ENDPROC	scb_unlock
 ;
 ; scb_release
 ;
-; Handler invoked via UNLOCK_SCB to unlock the SCB and check for
-; a deferred yield request if we're completely unlocked.
+; Handler invoked via UNLOCK_SCB to unlock the SCB and check for a deferred
+; yield request if we're completely unlocked.
 ;
 ; Inputs:
 ;	None

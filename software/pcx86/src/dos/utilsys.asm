@@ -79,8 +79,7 @@ ENDPROC	utl_ioctl
 ; utl_load (AL = 12h)
 ;
 ; Inputs:
-;	REG_CL = SCB #
-;	REG_DS:REG_DX = name of program (or command-line)
+;	REG_ES:REG_BX -> SPB (Session Parameter Block)
 ;
 ; Outputs:
 ;	Carry clear if successful
@@ -91,10 +90,8 @@ ENDPROC	utl_ioctl
 ;
 DEFPROC	utl_load,DOS
 	sti
-	mov	es,[bp].REG_DS
 	and	[bp].REG_FL,NOT FL_CARRY
-	ASSUME	DS:NOTHING		; CL = SCB #
-	jmp	scb_load		; ES:DX -> name of program
+	jmp	scb_load
 ENDPROC	utl_load
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

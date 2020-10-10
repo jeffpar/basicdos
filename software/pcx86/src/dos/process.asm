@@ -598,7 +598,7 @@ lp5a:	add	ax,15
 	pop	ds
 	mov	dx,size PSP
 	mov	[bp].TMP_ES,ds
-	mov	[bp].TMP_DX,dx
+	mov	[bp].TMP_BX,dx
 	mov	cx,200h
 	mov	ah,DOS_HDL_READ		; BX = file handle, CX = # bytes
 	int	21h

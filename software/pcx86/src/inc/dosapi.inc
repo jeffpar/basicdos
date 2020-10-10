@@ -212,7 +212,6 @@ STDOUT		equ	1
 STDERR		equ	2
 STDAUX		equ	3
 STDPRN		equ	4
-STDEXEC		equ	5	; BASIC-DOS: handle of executable (COM or EXE)
 
 ;
 ; Critical error (INT 24h) response codes
@@ -272,6 +271,21 @@ EPB_FCB2	dd	?	; 0Ah: pointer to FCB for PSP_FCB2
 EPB_INIT_SP	dd	?	; 0Eh: init SS:SP (returned by DOS_PSP_EXEC1)
 EPB_INIT_IP	dd	?	; 12h: init CS:IP (returned by DOS_PSP_EXEC1)
 EPB		ends		; 16h
+
+;
+; Session Parameter Block (SPB)
+;
+SPB		struc
+SPB_ENVSEG	dw	?	; 00h: seg of environment (0 to copy caller)
+SPB_CMDLINE	dd	?	; 02h: pointer to command line (NOT just tail)
+SPB_SFHIN	dw	?	; 06h: SFH for STDIN
+SPB_SFHOUT	dw	?	; 08h: SFH for STDOUT
+SPB_SFHERR	dw	?	; 0Ah: SFH for STDERR
+SPB_SFHAUX	dw	?	; 0Ch: SFH for STDAUX
+SPB_SFHPRN	dw	?	; 0Eh: SFH for STDPRN
+SPB		ends		; 10h
+SFH_SHARED	equ	4000h	; SFH is shared (add reference on load)
+SFH_DEFAULT	equ	8000h	; SFH is default (all other bits ignored)
 
 ;
 ; Exit types (returned with exit code on DOS_PSP_RETCODE calls)

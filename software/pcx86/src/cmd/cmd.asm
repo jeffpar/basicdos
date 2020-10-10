@@ -305,7 +305,37 @@ ENDPROC	main
 ;
 ; cmdTest
 ;
-; Process test commands.
+; Process test commands.  Our first test command is a pipe test: the logical
+; equivalent of "TYPE CONFIG.SYS | CASE".  Once the plumbing is working, we'll
+; add support for pipe syntax from the command-line.
+;
+; Here are the basic steps for our first pipe test:
+;
+;	1) Open a pipe ("PIPE$")
+;	2) Obtain a free SCB
+;	3) Set the SCB's STDIN SFH to the pipe's SFH
+;	4) Set the SCB's STDOUT SFH to our own STDOUT SFH
+;	5) Load (not start) "CASE.COM" in the SCB
+;	6) Temporarily set our STDOUT SFH to the pipe's SFH
+;	7) Start the SCB
+;	8) Invoke cmdType to perform "TYPE CONFIG.SYS"
+;	9) Restore our STDOUT SFH to its original value
+;
+; There is no explicit closing of the pipe or freeing of the SCB, because
+; all the SCB and pipe cleanup is done when "CASE.COM" unloads from the SCB.
+; However, error handling is a separate consideration; obviously, if scb_load
+; fails, we'll have to close the pipe ourselves.
+;
+; Since scb_unload will be calling sfh_close for all SFHs in the SCB, we must
+; indicate to scb_load which SFHs are being "transferred" vs. "shared" (ie,
+; the STDIN SFH is transferred, but the STDOUT SFH is shared).  scb_load must
+; add a reference to the latter but not the former, so that when the SCB frees
+; all its SFHs, only the pipe SFH will actually be freed.
+;
+; The ordering of the steps above is somewhat aribtrary and will probably be
+; changed and/or condensed over time, but we have to start somewhere.  In fact,
+; steps 2-5 will likely be folded into a single enhanced SCB LOAD interface,
+; which may also perform step 7 (ie, load and start).
 ;
 ; Inputs:
 ;	DS:DI -> TOKENBUF
