@@ -36,6 +36,9 @@ DEFTOK	macro	sym,val,func
 	LOCAL	N1
 	public	TOK_&sym
 TOK_&sym equ val
+	IFNB <func>
+	EXTERNS	<func>,near
+	ENDIF
 CODE	SEGMENT
 N1	label	byte
 	db	"&sym&"

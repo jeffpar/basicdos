@@ -18,7 +18,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<mcb_head,mcb_limit,scb_active>,word
 	EXTERNS	<sfh_addref,pfh_close,sfh_close>,near
 	EXTERNS	<getsize,freeAll,dos_exit,dos_exit2,dos_ctrlc,dos_error>,near
-	EXTERNS	<get_scbnum,mcb_setname,scb_delock,scb_unload,scb_yield>,near
+	EXTERNS	<get_scbnum,mcb_setname,scb_release,scb_unload,scb_yield>,near
 	IF REG_CHECK
 	EXTERNS	<dos_check>,near
 	ENDIF

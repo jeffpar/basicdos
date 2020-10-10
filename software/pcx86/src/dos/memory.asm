@@ -12,7 +12,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<get_sfh_sfb,get_psp,scb_delock>,near
+	EXTERNS	<get_sfh_sfb,get_psp,scb_release>,near
 
 	EXTERNS	<scb_locked>,byte
 	EXTERNS	<mcb_head,scb_active>,word

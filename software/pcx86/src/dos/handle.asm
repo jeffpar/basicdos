@@ -14,7 +14,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<dev_request,scb_delock>,near
+	EXTERNS	<dev_request,scb_release>,near
 	EXTERNS	<chk_devname,chk_filename>,near
 	EXTERNS	<get_bpb,get_psp,find_cln,get_cln>,near
 	EXTERNS	<msc_sigctrlc,msc_sigctrlc_read>,near

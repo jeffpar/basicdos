@@ -16,7 +16,7 @@ DOS	segment word public 'CODE'
 
 	EXTERNS	<chk_devname,dev_request>,near
 	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload>,near
-	EXTERNS	<scb_yield,scb_delock,scb_wait,scb_endwait>,near
+	EXTERNS	<scb_yield,scb_release,scb_wait,scb_endwait>,near
 	EXTERNS	<mem_query,msc_getdate,msc_gettime>,near
 	EXTERNS	<psp_term_exitcode>,near
 	EXTERNS	<add_date,read_line>,near

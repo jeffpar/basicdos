@@ -115,7 +115,7 @@ LOCK_SCB macro
 	endm
 
 UNLOCK_SCB macro
-	jmp	scb_delock
+	jmp	scb_release
 	endm
 ;
 ; Memory Control Block (MCB)

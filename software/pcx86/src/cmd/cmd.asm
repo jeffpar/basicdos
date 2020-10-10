@@ -303,6 +303,27 @@ ENDPROC	main
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; cmdTest
+;
+; Process test commands.
+;
+; Inputs:
+;	DS:DI -> TOKENBUF
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+	IFDEF	DEBUG
+DEFPROC	cmdTest
+	ret
+ENDPROC	cmdTest
+	ENDIF
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; cmdDOS
 ;
 ; Process any non-BASIC command.  We allow such commands inside both BAS and

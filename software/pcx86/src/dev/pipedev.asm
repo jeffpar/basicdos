@@ -133,6 +133,7 @@ DEFPROC	ddpipe_open
 	DBGINIT	STRUCT,ds:[0],CT
 
 	sub	ax,ax
+	mov	ds:[CT_STATUS],al
 	mov	ds:[CT_HEAD],ax
 	mov	ds:[CT_TAIL],ax
 	jmp	short ddo9
@@ -314,10 +315,12 @@ ENDPROC	push_data
 ;	AX, DX
 ;
 DEFPROC	wait_data
+	mov	ah,DOS_UTL_WAIT
+	DEFLBL	wait_call,near
 	push	di
 	mov	dx,ds
 	sub	di,di
-	DOSUTIL	WAIT
+	DOSUTIL	ah
 	pop	di
 	ret
 ENDPROC	wait_data
@@ -336,12 +339,8 @@ ENDPROC	wait_data
 ;	AX, DX
 ;
 DEFPROC	endwait_data
-	push	di
-	mov	dx,ds
-	sub	di,di
-	DOSUTIL	ENDWAIT
-	pop	di
-	ret
+	mov	ah,DOS_UTL_ENDWAIT
+	jmp	wait_call
 ENDPROC	endwait_data
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

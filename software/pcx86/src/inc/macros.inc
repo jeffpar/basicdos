@@ -449,7 +449,7 @@ rm2:
 	endm
 
 ;
-; DOS "utility" functions should be always be called with this macro, so that
+; DOS "utility" functions should always be called with this macro, so that
 ; we can easily change the implementation.  They were originally implemented
 ; with an unused INT 21h function # in AH and the utility function # in AL,
 ; but utility functions like DOS_UTL_PRINTF that expect data bytes to follow
@@ -457,10 +457,12 @@ rm2:
 ; use a dedicated interrupt that expects the utility function # in AH.
 ;
 DOSUTIL	macro	func
-	IFNDEF	DOS_UTL_&func
+	IFDIF	<func>,<ah>
+	 IFNDEF	DOS_UTL_&func
 	mov	ah,func
-	ELSE
+	 ELSE
 	mov	ah,DOS_UTL_&func
+	 ENDIF
 	ENDIF
 	int	INT_DOSUTIL
 	endm

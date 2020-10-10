@@ -33,10 +33,37 @@ DOS	segment word public 'CODE'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; find_scb
+;
+; Finds the first free SCB.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	On success, carry clear, BX -> SCB
+;	On failure, carry set
+;
+; Modifies:
+;	BX
+;
+DEFPROC	find_scb,DOS
+	mov	bx,[scb_table].OFF
+fs1:	test	[bx].SCB_STATUS,SCSTAT_LOAD
+	jz	fs9
+	add	bx,size SCB
+	cmp	bx,[scb_table].SEG
+	jb	fs1
+	stc
+fs9:	ret
+ENDPROC	find_scb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; get_scb
 ;
 ; Inputs:
-;	CL = SCB #
+;	CL = SCB # (-1 for first free SCB)
 ;
 ; Outputs:
 ;	On success, carry clear, BX -> specified SCB
@@ -46,6 +73,8 @@ DOS	segment word public 'CODE'
 ;	BX
 ;
 DEFPROC	get_scb,DOS
+	cmp	cl,-1
+	je	find_scb
 	push	ax
 	mov	al,size SCB
 	mul	cl
@@ -95,7 +124,7 @@ ENDPROC	get_scbnum
 ; are called only from sysinit, which creates all the system handles itself.
 ;
 ; Inputs:
-;	CL = SCB #
+;	CL = SCB # (-1 for first free SCB)
 ;	ES:DX -> name of program (or command-line)
 ;
 ; Outputs:
@@ -237,7 +266,7 @@ ENDPROC	scb_unlock
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; scb_delock
+; scb_release
 ;
 ; Handler invoked via UNLOCK_SCB to unlock the SCB and check for
 ; a deferred yield request if we're completely unlocked.
@@ -248,13 +277,13 @@ ENDPROC	scb_unlock
 ; Modifies:
 ;	None
 ;
-DEFPROC	scb_delock,DOS
+DEFPROC	scb_release,DOS
 	ASSUME	DS:NOTHING, ES:NOTHING
 	dec	[scb_locked]
 	jge	scb_return
 	ASSERT	Z,<cmp [scb_locked],-1>
 	jmp	[scb_stoked]
-ENDPROC	scb_delock
+ENDPROC	scb_release
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
