@@ -56,7 +56,6 @@ DEFPROC	ddpipe_req,far
 ddq1:	mov	bh,0
 	add	bx,bx
 	mov	ds,es:[di].DDP_CONTEXT	; DS = device context (if any)
-	DBGBRK
 	call	CMDTBL[bx]
 	ret
 ENDPROC	ddpipe_req

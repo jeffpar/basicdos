@@ -373,7 +373,6 @@ DEFPROC	cmdTest
 	DOSUTIL	LOAD			; load CMDLINE into an SCB
 	lea	sp,[di + size SPB]	; clean up the stack
 	jc	ct8
-	DBGBRK
 	DOSUTIL	START			; start the SCB (CL = SCB #)
 	push	bx
 	xchg	ds:[PSP_PFT][STDOUT],dl	; modify our STDOUT SFH

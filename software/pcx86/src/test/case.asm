@@ -16,7 +16,6 @@ CODE    SEGMENT
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 DEFPROC	main
-	DBGBRK
 	mov	bx,STDIN
 	mov	cx,1
 	sub	dx,dx

@@ -84,7 +84,7 @@ m3:	mov	dx,offset progress
 	push	ds
 	pop	es
 	mov	dx,offset readfile
-	mov	ax,DOS_HDL_OPEN SHL 8
+	mov	ax,DOS_HDL_OPENRO
 	int	21h		; open a test file
 	mov	bx,offset execparms
 	mov	[bx].EPB_CMDTAIL.SEG,cs
