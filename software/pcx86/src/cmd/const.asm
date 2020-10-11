@@ -33,6 +33,7 @@ CODE    SEGMENT
 	DEFSTR	STD_VER,<0>
 	DEFSTR	DBG_VER,<"DEBUG",0>
 	DEFSTR	HELP_FILE,<"COMMAND.TXT",0>
+	DEFSTR	PIPE_NAME,<"PIPE$",0>
 
 	IFDEF	DEBUG
 	DEFSTR	SYS_MEM,<"<SYS>",0>
@@ -181,7 +182,7 @@ CODE	ENDS
 
 DATA	SEGMENT
 ;
-; This is where non-constant data begins; it must be at the end of the file.
+; This is where per-process data begins; it must be at the end of the file.
 ;
 	DEFLBL	BEG_HEAP,word
 	BLKDEF	<0,CBLKLEN,size CBLK,SIG_CBLK>

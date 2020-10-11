@@ -53,12 +53,10 @@ DEFPROC	ddpipe_req,far
 	cmp	bl,CMDTBL_SIZE
 	jb	ddq1
 	mov	bl,0
-ddq1:	push	cs
-	pop	ds
-	ASSUME	DS:CODE
-	mov	bh,0
+ddq1:	mov	bh,0
 	add	bx,bx
-	mov	ds,es:[di].DDP_CONTEXT	; DS = device context
+	mov	ds,es:[di].DDP_CONTEXT	; DS = device context (if any)
+	DBGBRK
 	call	CMDTBL[bx]
 	ret
 ENDPROC	ddpipe_req
@@ -121,7 +119,7 @@ ENDPROC	ddpipe_write
 ; Modifies:
 ;	AX, BX, DS
 ;
-	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddpipe_open
 	mov	bx,(size CONTEXT + 15) SHR 4
 	mov	ah,DOS_MEM_ALLOC
@@ -185,7 +183,7 @@ ENDPROC	ddpipe_close
 ; Outputs:
 ;	None
 ;
-	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddpipe_none
 	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_UNKCMD
 	stc

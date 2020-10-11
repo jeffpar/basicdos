@@ -367,7 +367,6 @@ si7:	mov	dx,size SFB
 	dec	cx			; CL,CH = SFH_NONE
 	mov	bx,es:[scb_table].OFF
 	push	bx			; initialize the SCBs
-	or	es:[bx].SCB_STATUS,SCSTAT_INIT
 si7a:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHIN>
 	mov	word ptr es:[bx].SCB_NUM,ax
 	mov	word ptr es:[bx].SCB_SFHOUT,cx
@@ -392,7 +391,7 @@ si7a:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHIN>
 ; because no process handle table exists when these handles are being opened).
 ;
 	mov	dx,offset AUX_DEVICE
-	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
+	mov	ax,DOS_HDL_OPENRW
 	int	21h
 	jc	open_error
 	mov	es:[bx].SCB_SFHAUX,al
@@ -406,7 +405,7 @@ si8:	mov	si,offset CFG_CONSOLE
 	call	find_cfg		; look for "CONSOLE="
 	jc	si9			; not found
 	mov	dx,di
-si9:	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
+si9:	mov	ax,DOS_HDL_OPENRW
 	int	21h
 	jc	open_error
 	mov	es:[bx].SCB_SFHIN,al	; AL = SFH (not PFH)
@@ -417,7 +416,7 @@ si9:	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
 ; Last but not least, open PRN.
 ;
 	mov	dx,offset PRN_DEVICE
-	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
+	mov	ax,DOS_HDL_OPENRW
 	int	21h
 	jc	open_error
 	mov	es:[bx].SCB_SFHPRN,al	; AL = SFH
@@ -431,7 +430,7 @@ si10:	mov	si,offset CFG_CONSOLE
 	call	find_cfg		; look for another "CONSOLE="
 	jc	si12			; no more
 	mov	dx,di
-	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
+	mov	ax,DOS_HDL_OPENRW
 	int	21h
 	jc	open_error
 	add	bx,size SCB
@@ -439,8 +438,7 @@ si10:	mov	si,offset CFG_CONSOLE
 	jb	si11
 	mov	dx,offset CONERR
 	jmp	print_error
-si11:	or	es:[bx].SCB_STATUS,SCSTAT_INIT
-	mov	es:[bx].SCB_SFHIN,al
+si11:	mov	es:[bx].SCB_SFHIN,al
 	mov	es:[bx].SCB_SFHOUT,al
 	mov	es:[bx].SCB_SFHERR,al
 	mov	es:[bx].SCB_CONTEXT,dx
@@ -456,7 +454,7 @@ si12:	mov	si,offset CFG_DEBUG
 	call	find_cfg		; look for "DEBUG="
 	jc	si13			; not found
 	mov	dx,di
-	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
+	mov	ax,DOS_HDL_OPENRW
 	int	21h
 	jc	si13
 	mov	es:[sfh_debug],al	; save SFH for DEBUG device
@@ -511,20 +509,19 @@ si16:	test	bx,bx			; do we still have a default?
 	push	ss
 	pop	es
 	mov	di,sp			; ES:DI -> SPB on stack
-	sub	ax,ax
-	stosw				; SPB_ENVSEG <- 0
+	mov	ax,-1
+	stosw				; SPB_ENVSEG <- -1
 	xchg	ax,bx
 	stosw				; SPB_CMDLINE.OFF <- BX
 	mov	ax,ds
 	stosw				; SPB_CMDLINE.OFF <- DS
-	xchg	ax,bx			; AX = 0 again
-	dec	ax			; AX = -1 (mainly, SFH_NONE)
+	xchg	ax,bx			; AX = -1 again (aka SFH_NONE)
 	stosb				; SPB_SFHIN  <- SFH_NONE
 	stosb				; SPB_SFHOUT <- SFH_NONE
 	stosb				; SPB_SFHERR <- SFH_NONE
 	stosb				; SPB_SFHAUX <- SFH_NONE
 	stosb				; SPB_SFHPRN <- SFH_NONE
-	mov	bx,sp			; ES:BX -> SPB
+	mov	di,sp			; ES:DI -> SPB on stack
 	DOSUTIL	LOAD			; load specified SHELL into an SCB
 	jc	si18
 	test	ax,ax

@@ -17,18 +17,19 @@ CODE    SEGMENT
 
 	EXTERNS	<KEYWORD_TOKENS>,word
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF,PERIOD>
-	EXTSTR	<STD_VER,DBG_VER,HELP_FILE>
+	EXTSTR	<STD_VER,DBG_VER,HELP_FILE,PIPE_NAME>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
 DEFPROC	main
 	LOCVAR	iArg,byte		; # of first non-switch argument
+	LOCVAR	sfhOut,byte
 	LOCVAR	pArg,word		; saves arg ptr command handler
 	LOCVAR	lenArg,word		; saves arg len command handler
 	LOCVAR	pHandler,word		; saves address of command handler
 	LOCVAR	swDigits,word		; bit mask of digit switches, if any
 	LOCVAR	swLetters,dword		; bit mask of letter switches, if any
-	LOCVAR	hFile,word		; file handle
+	LOCVAR	hFile,word		; file handle, if any
 	LOCVAR	lineLabel,word		; current line label
 	LOCVAR	lineOffset,word		; current line offset
 	LOCVAR	pTextLimit,word		; current text block limit
@@ -49,6 +50,7 @@ DEFPROC	main
 	ASSERT	Z,<cmp bp,[bx].ORIG_BP>
 	mov	[heap].CMD_FLAGS,CMD_ECHO
 	mov	[hFile],ax
+	mov	[sfhOut],-1
 	push	ds
 	push	cs
 	pop	ds
@@ -334,9 +336,68 @@ ENDPROC	main
 ; Modifies:
 ;	Any
 ;
+TEST_CASE	db	"CASE.COM",0
+TEST_FILE	db	"CONFIG.SYS",0
+TEST_FILE_LEN	equ	($ - TEST_FILE)
+
 	IFDEF	DEBUG
 DEFPROC	cmdTest
-	ret
+	push	ds
+	push	cs
+	pop	ds
+	mov	dx,offset PIPE_NAME	; DS:DX -> PIPE_NAME
+	mov	ax,DOS_HDL_OPENRW
+	int	21h
+	pop	ds
+	jc	ct9
+	xchg	bx,ax			; BX = pipe handle
+
+	sub	sp,size SPB
+	mov	di,sp			; ES:DI -> SPB on stack
+	sub	ax,ax
+	stosw				; SPB_ENVSEG <- 0
+	mov	ax,offset TEST_CASE
+	stosw				; SPB_CMDLINE.OFF
+	mov	ax,cs
+	stosw				; SPB_CMDLINE.SEG
+	mov	al,ds:[PSP_PFT][bx]
+	stosb				; SPB_SFHIN
+	xchg	dx,ax			; DL = SPB_SFHIN
+	mov	al,ds:[PSP_PFT][STDOUT]
+	stosb				; SPB_SFHOUT
+	stosb				; SPB_SFHERR
+	mov	al,-1
+	stosb				; SPB_SFHAUX
+	stosb				; SPB_SFHPRN
+	mov	di,sp			; ES:DI -> SPB on stack
+	DOSUTIL	LOAD			; load CMDLINE into an SCB
+	lea	sp,[di + size SPB]	; clean up the stack
+	jc	ct8
+	DBGBRK
+	DOSUTIL	START			; start the SCB (CL = SCB #)
+	push	bx
+	xchg	ds:[PSP_PFT][STDOUT],dl	; modify our STDOUT SFH
+	mov	[sfhOut],dl
+	mov	di,ds:[PSP_HEAP]
+	lea	di,[di].FILENAME
+	push	di
+	mov	cx,TEST_FILE_LEN
+	push	cx
+	mov	si,offset TEST_FILE
+	REPMOV	byte,CS
+	pop	cx
+	dec	cx
+	pop	si
+	call	cmdType			; DS:SI -> FILENAME
+	mov	dl,-1
+	xchg	dl,[sfhOut]
+	mov	ds:[PSP_PFT][STDOUT],dl	; restore our STDOUT SFH
+	pop	bx
+
+ct8:	mov	ah,DOS_HDL_CLOSE
+	int	21h			; close the pipe
+
+ct9:	ret
 ENDPROC	cmdTest
 	ENDIF
 
@@ -537,7 +598,7 @@ ENDPROC	getToken
 ;
 ; ctrlc
 ;
-; CTRLC handler: resets the program stack, closes any open file, frees any
+; CTRLC handler: resets the program stack, closes any open handles, frees any
 ; active code buffer, and then jumps to our start address.
 ;
 ; Inputs:
@@ -559,7 +620,12 @@ DEFPROC	ctrlc,FAR
 	mov	sp,[bx].ORIG_SP
 	mov	bp,[bx].ORIG_BP
 	call	closeFile
-	call	freeAllCode
+	mov	dl,-1
+	xchg	dl,[sfhOut]
+	cmp	dl,-1
+	je	cc9
+	mov	ds:[PSP_PFT][STDOUT],dl
+cc9:	call	freeAllCode
 	jmp	m0
 ENDPROC	ctrlc
 
@@ -1491,7 +1557,7 @@ DEFPROC	openFile
 	push	bx
 	push	cx
 	mov	dx,si			; DX -> filename
-	mov	ax,DOS_HDL_OPEN SHL 8
+	mov	ax,DOS_HDL_OPENRO
 	int	21h
 	jc	of9
 	mov	[hFile],ax		; save file handle

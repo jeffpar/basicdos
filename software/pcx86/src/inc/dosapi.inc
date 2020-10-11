@@ -75,6 +75,8 @@ DOS_MSC_GETSWC	equ   3700h	; get switch char (DL) (undocumented)
 DOS_MSC_SETSWC	equ   3701h	; set switch char (DL) (undocumented)
 DOS_HDL_CREATE	equ	3Ch	; create handle for device/file (DS:DX)
 DOS_HDL_OPEN	equ	3Dh	; open handle for device/file (DS:DX)
+DOS_HDL_OPENRO	equ   3D00h	; open handle for R/O access
+DOS_HDL_OPENWO	equ   3D01h	; open handle for W/O access
 DOS_HDL_OPENRW	equ   3D02h	; open handle for R/W access
 DOS_HDL_CLOSE	equ	3Eh	; close handle (BX)
 DOS_HDL_READ	equ	3Fh	; read (CX) bytes at (DS:DX) with handle (BX)
@@ -187,13 +189,13 @@ FCBEX		ends
 ;
 ; Modes for DOS_HDL_OPEN
 ;
-MODE_ACC_READ	equ	00h
-MODE_ACC_WRITE	equ	01h
-MODE_ACC_BOTH	equ	02h
+MODE_ACC_RO	equ	00h
+MODE_ACC_WO	equ	01h
+MODE_ACC_RW	equ	02h
 MODE_COMPAT	equ	00h
-MODE_DENY_BOTH	equ	10h
-MODE_DENY_WRITE	equ	20h
-MODE_DENY_READ	equ	30h
+MODE_DENY_RW	equ	10h
+MODE_DENY_WR	equ	20h
+MODE_DENY_RD	equ	30h
 MODE_DENY_NONE	equ	40h
 MODE_INHERIT	equ	80h
 

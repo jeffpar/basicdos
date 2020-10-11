@@ -150,6 +150,7 @@ si2:	inc	di
 ;
 	mov	al,[def_switchar]
 	mov	[bx].SCB_SWITCHAR,al
+	or	[bx].SCB_STATUS,SCSTAT_INIT
 	ret
 ENDPROC	scb_init
 
@@ -160,13 +161,13 @@ ENDPROC	scb_init
 ; Load a program into an available session.
 ;
 ; Inputs:
-;	REG_ES:REG_BX -> SPB (Session Parameter Block)
+;	REG_ES:REG_DI -> SPB (Session Parameter Block)
 ;
 ; Outputs:
 ;	Carry clear if successful:
 ;		REG_CL = session (SCB) #
-;		REG_AX = program size
-;		REG_ES:REG_BX -> program data
+;		REG_AX = program size (if SPB_ENVSEG is -1)
+;		REG_ES:REG_BX -> program data (if SPB_ENVSEG is -1)
 ;	Carry set if error, AX = error code (eg, no SCB, no program, etc)
 ;
 ; Modifies:
@@ -177,17 +178,20 @@ DEFPROC	scb_load,DOS
 	call	scb_lock		; lock a free SCB
 	jc	sl8
 	push	ax			; save previous SCB
-	mov	di,[bp].REG_BX
+	mov	di,[bp].REG_DI
 	mov	es,[bp].REG_ES		; ES:DI -> SPB
 	ASSUME	ES:NOTHING
 	call	scb_init		; initialize the SCB for loading
 	push	bx			; save SCB
+	mov	bx,es:[di].SPB_ENVSEG
+	push	bx			; BX = ENVSEG, if any
 	mov	dx,es:[di].SPB_CMDLINE.OFF
 	mov	es,es:[di].SPB_CMDLINE.SEG
 	call	load_program		; ES:DX -> command line
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
+	pop	dx			; DX = ENVSEG
 	pop	bx			; BX -> current SCB again
 	jc	sl7			; exit on load error
 ;
@@ -203,6 +207,8 @@ DEFPROC	scb_load,DOS
 	mov	al,[bx].SCB_NUM
 	mov	[bp].REG_CL,al		; REG_CL = session (SCB) #
 	mov	ax,[bp].TMP_CX
+	inc	dx			; was ENVSEG -1?
+	jnz	sl7			; no
 	mov	[bp].REG_AX,ax		; REG_AX = program size
 	mov	ax,[bp].TMP_BX
 	mov	[bp].REG_BX,ax

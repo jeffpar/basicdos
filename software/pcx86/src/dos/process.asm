@@ -511,7 +511,7 @@ lp3a:	mov	es:[di],ch		; null-terminate the filename
 lp3b:	mov	cl,al			; CL = original terminator
 	push	es
 	pop	ds			; DS:DX -> name of program
-	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
+	mov	ax,DOS_HDL_OPENRO
 	int	21h			; open the file
 	jnc	lp3c
 	jmp	lpef
