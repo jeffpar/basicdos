@@ -889,7 +889,7 @@ ENDPROC	utl_tokid
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_restart (AL = 0Fh)
+; utl_restart (AL = 0Eh)
 ;
 ; TODO: Ensure any disk modifications (once we support disk modifications)
 ; have been written.

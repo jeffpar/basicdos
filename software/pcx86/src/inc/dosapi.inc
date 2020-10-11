@@ -119,13 +119,14 @@ DOS_UTL_ATOI32D	equ	0Ah	; convert decimal string (DS:SI) to number (AX)
 DOS_UTL_TOKIFY1	equ	0Bh	; tokenize string (DS:SI) using GENERIC syntax
 DOS_UTL_TOKIFY2	equ	0Ch	; tokenize string (DS:SI) using BASIC syntax
 DOS_UTL_TOKID	equ	0Dh	; convert string (DS:SI) into token ID (AX)
-DOS_UTL_RESTART	equ	0Fh	; restart ("reboot") the system
-DOS_UTL_GETDEV	equ	10h	; get DDH (ES:DI) for device (DS:SI)
-DOS_UTL_IOCTL	equ	11h	; issue IOCTL to device (ES:DI)
-DOS_UTL_LOAD	equ	12h	; load program (DS:DX) into session (CL)
-DOS_UTL_START	equ	13h	; start session (CL)
-DOS_UTL_STOP	equ	14h	; stop session (CL)
-DOS_UTL_UNLOAD	equ	15h	; unload program from session (CL)
+DOS_UTL_RESTART	equ	0Eh	; restart ("reboot") the system
+DOS_UTL_GETDEV	equ	0Fh	; get DDH (ES:DI) for device (DS:SI)
+DOS_UTL_IOCTL	equ	10h	; issue IOCTL to device (ES:DI)
+DOS_UTL_LOAD	equ	11h	; load program (DS:DX) into session (CL)
+DOS_UTL_START	equ	12h	; start session (CL)
+DOS_UTL_STOP	equ	13h	; stop session (CL)
+DOS_UTL_END	equ	14h	; end session (CL)
+DOS_UTL_WAITEND	equ	15h	; wait for session to end (CL)
 DOS_UTL_YIELD	equ	16h	; yield
 DOS_UTL_SLEEP	equ	17h	; sleep DX milliseconds
 DOS_UTL_WAIT	equ	18h	; wait until end wait

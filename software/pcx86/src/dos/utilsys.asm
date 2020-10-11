@@ -15,7 +15,7 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<chk_devname,dev_request>,near
-	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload>,near
+	EXTERNS	<scb_load,scb_start,scb_stop,scb_end,scb_waitend>,near
 	EXTERNS	<scb_yield,scb_release,scb_wait,scb_endwait>,near
 	EXTERNS	<mem_query,msc_getdate,msc_gettime>,near
 	EXTERNS	<psp_term_exitcode>,near
@@ -27,7 +27,7 @@ DOS	segment word public 'CODE'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_getdev (AL = 10h)
+; utl_getdev (AL = 0Fh)
 ;
 ; Returns the DDH (Device Driver Header) in ES:DI for device name at DS:DX.
 ;
@@ -55,7 +55,7 @@ ENDPROC	utl_getdev
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_ioctl (AL = 11h)
+; utl_ioctl (AL = 10h)
 ;
 ; Inputs:
 ;	REG_BX = IOCTL command (BH = DDC_IOCTLIN, BL = IOCTL command)
@@ -76,7 +76,7 @@ ENDPROC	utl_ioctl
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_load (AL = 12h)
+; utl_load (AL = 11h)
 ;
 ; Inputs:
 ;	REG_ES:REG_DI -> SPB (Session Parameter Block)
@@ -96,7 +96,7 @@ ENDPROC	utl_load
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_start (AL = 13h)
+; utl_start (AL = 12h)
 ;
 ; "Start" the specified session.  Currently, all this does is mark the session
 ; startable; actual starting will handled by scb_switch.
@@ -116,7 +116,7 @@ ENDPROC	utl_start
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_stop (AL = 14h)
+; utl_stop (AL = 13h)
 ;
 ; "Stop" the specified session.
 ;
@@ -135,9 +135,9 @@ ENDPROC	utl_stop
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_unload (AL = 15h)
+; utl_end (AL = 14h)
 ;
-; Unload the current program from the specified session.
+; End the current program in the specified session.
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -146,11 +146,30 @@ ENDPROC	utl_stop
 ;	Carry clear if successful
 ;	Carry set if error (eg, invalid SCB #)
 ;
-DEFPROC	utl_unload,DOS
+DEFPROC	utl_end,DOS
 	sti
 	and	[bp].REG_FL,NOT FL_CARRY
-	jmp	scb_unload
-ENDPROC	utl_unload
+	jmp	scb_end
+ENDPROC	utl_end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_waitend (AL = 15h)
+;
+; Wait for all programs in the specified session to end.
+;
+; Inputs:
+;	CL = SCB #
+;
+; Outputs:
+;	Carry clear if successful
+;	Carry set if error (eg, invalid SCB #)
+;
+DEFPROC	utl_waitend,DOS
+	sti
+	and	[bp].REG_FL,NOT FL_CARRY
+	jmp	scb_waitend
+ENDPROC	utl_waitend
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

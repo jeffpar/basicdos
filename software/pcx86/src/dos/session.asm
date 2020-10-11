@@ -369,7 +369,7 @@ ENDPROC	scb_start
 ;
 ; scb_stop
 ;
-; TODO: "Stop" the specified session.
+; TODO: "Stop" (ie, suspend) the specified session.
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -388,9 +388,6 @@ ENDPROC	scb_stop
 ; scb_unload
 ;
 ; Unload the current program from the specified session.
-;
-; TODO: Until an API is added to call scb_load to start new sessions, this
-; session is dead in the water, so we may as well close its system handles now.
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -419,6 +416,46 @@ sud1:	mov	bl,SFH_NONE
 	and	[bx].SCB_STATUS,NOT (SCSTAT_LOAD OR SCSTAT_START)
 sud9:	ret
 ENDPROC	scb_unload
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; scb_end
+;
+; TODO: End the current program in the specified session.
+;
+; Inputs:
+;	CL = SCB #
+;
+; Outputs:
+;	Carry clear on success (AX = 0)
+;	Carry set on error (eg, invalid SCB #)
+;
+; Modifies:
+;
+DEFPROC	scb_end,DOS
+	ASSUMES	<DS,DOS>,<ES,DOS>
+	ret
+ENDPROC	scb_end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; scb_waitend
+;
+; TODO: Wait for all programs in the specified session to end.
+;
+; Inputs:
+;	CL = SCB #
+;
+; Outputs:
+;	Carry clear on success (AX = 0)
+;	Carry set on error (eg, invalid SCB #)
+;
+; Modifies:
+;
+DEFPROC	scb_waitend,DOS
+	ASSUMES	<DS,DOS>,<ES,DOS>
+	ret
+ENDPROC	scb_waitend
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
