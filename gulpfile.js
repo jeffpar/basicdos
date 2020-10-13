@@ -15,7 +15,7 @@ let run = require("gulp-run-command").default;
 
 let files = {
     "HELP": [
-        "./software/pcx86/src/cmd/COMMAND.TXT",
+        "./software/pcx86/src/cmd/HELP.TXT",
         "./software/pcx86/src/cmd/txt.inc"
     ]
 };
@@ -27,7 +27,7 @@ let disks = {
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
-        "./software/pcx86/src/cmd/COMMAND.TXT",
+        "./software/pcx86/src/cmd/HELP.TXT",
         "./software/pcx86/src/msb/obj/MSBASIC.EXE",
         "./software/pcx86/src/test/obj/*.EXE",
         "./software/pcx86/src/test/obj/*.COM",
@@ -40,7 +40,7 @@ let disks = {
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
-        "./software/pcx86/src/cmd/COMMAND.TXT",
+        "./software/pcx86/src/cmd/HELP.TXT",
         "./software/pcx86/src/msb/obj/MSBASIC.EXE",
         "./software/pcx86/src/test/obj/*.EXE",
         "./software/pcx86/src/test/obj/*.COM",
@@ -53,7 +53,7 @@ let disks = {
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
-        "./software/pcx86/src/cmd/COMMAND.TXT",
+        "./software/pcx86/src/cmd/HELP.TXT",
         "./software/pcx86/src/msb/obj/MSBASIC.EXE",
         "./software/pcx86/src/test/obj/*.EXE",
         "./software/pcx86/src/test/obj/*.COM",
@@ -66,7 +66,7 @@ let disks = {
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
-        "./software/pcx86/src/cmd/COMMAND.TXT",
+        "./software/pcx86/src/cmd/HELP.TXT",
         "./software/pcx86/src/msb/obj/MSBASIC.EXE",
         "./software/pcx86/src/test/obj/*.EXE",
         "./software/pcx86/src/test/obj/*.COM",
@@ -79,7 +79,7 @@ let disks = {
         "./software/pcx86/src/dev/obj/IBMBIO.COM",
         "./software/pcx86/src/dos/obj/IBMDOS.COM",
         "./software/pcx86/src/cmd/obj/COMMAND.COM",
-        "./software/pcx86/src/cmd/COMMAND.TXT",
+        "./software/pcx86/src/cmd/HELP.TXT",
         "./software/pcx86/src/msb/obj/MSBASIC.EXE",
         "./software/pcx86/src/test/obj/*.EXE",
         "./software/pcx86/src/test/obj/*.COM",
