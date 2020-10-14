@@ -48,11 +48,16 @@ IF *expression* THEN *command*
 Evaluates the *expression*, and if it is TRUE (non-zero), then the *command* is executed.
 
 KEYS
-CTRL-A  Home   CTRL-F  End\
-CTRL-E  Up     CTRL-X  Down\
-CTRL-S  Left   CTRL-D  Right\
-CTRL-G  Del    CTRL-V  Ins\
-CTRL-C  Abort  ESC     Erase
+CTRL-E  Up        CTRL-X  Down\
+CTRL-S  Left      CTRL-D  Right\
+CTRL-W  Home      CTRL-R  End\
+CTRL-A  Word Left CTRL-F  Word Right\
+CTRL-G  Delete Char\
+CTRL-K  Erase to End\
+CTRL-V  Toggle Insert\
+CTRL-C  Abort\
+DELETE  Delete Previous Char\
+ESCAPE  Erase Line
 CTRL-ALT-DEL is currently disabled. Use RESTART to restart the system.
 
 LET *variable*=*expression*
