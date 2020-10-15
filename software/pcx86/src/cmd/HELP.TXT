@@ -51,7 +51,7 @@ KEYS
 CTRL-E  Up        CTRL-X  Down\
 CTRL-S  Left      CTRL-D  Right\
 CTRL-W  Home      CTRL-R  End\
-CTRL-A  Word Left CTRL-F  Word Right\
+CTRL-A  Left Word CTRL-F  Right Word\
 CTRL-G  Delete Char\
 CTRL-K  Erase to End\
 CTRL-V  Toggle Insert\
