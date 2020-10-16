@@ -48,17 +48,17 @@ IF *expression* THEN *command*
 Evaluates the *expression*, and if it is TRUE (non-zero), then the *command* is executed.
 
 KEYS
-CTRL-E  Up        CTRL-X  Down\
-CTRL-S  Left      CTRL-D  Right\
-CTRL-W  Home      CTRL-R  End\
-CTRL-A  Left Word CTRL-F  Right Word\
+CTRL-E  Up         CTRL-X  Down\
+CTRL-S  Left       CTRL-D  Right\
+CTRL-W  Home       CTRL-R  End\
+CTRL-A  Left Word  CTRL-F  Right Word\
 CTRL-G  Delete Char\
 CTRL-K  Erase to End\
 CTRL-V  Toggle Insert\
 CTRL-C  Abort\
 DELETE  Delete Previous Char\
 ESCAPE  Erase Line
-CTRL-ALT-DEL is currently disabled. Use RESTART to restart the system.
+CTRL-ALT-DEL is reserved for killing sessions. Use RESTART to restart the system.
 
 LET *variable*=*expression*
 Assigns the value of the *expression* to the *variable*.  Values cannot be assigned to predefined variables.

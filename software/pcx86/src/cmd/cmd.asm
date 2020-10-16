@@ -963,10 +963,14 @@ ENDPROC	cmdHelp
 DEFPROC	getWord
 	push	si
 gw1:	lodsb
-	cmp	al,' '
+	cmp	al,'\'			; we need to include any backslash
+	jne	gw2			; in the word length, but we're not
+	inc	dx			; printing it, so increase line length
+	jmp	short gw3
+gw2:	cmp	al,' '
 	ja	gw1
 	dec	si
-	pop	ax
+gw3:	pop	ax
 	sub	si,ax
 	xchg	si,ax
 	ret
