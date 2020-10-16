@@ -216,6 +216,9 @@ STDERR		equ	2
 STDAUX		equ	3
 STDPRN		equ	4
 
+SFH_NONE	equ	0FFh	; if this SFH is in a PFT entry, it's unused
+SCB_NONE	equ	0FFh
+
 ;
 ; Critical error (INT 24h) response codes
 ;

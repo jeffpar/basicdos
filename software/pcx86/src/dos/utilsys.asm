@@ -166,7 +166,6 @@ ENDPROC	utl_end
 ;	Carry set if error (eg, invalid SCB #)
 ;
 DEFPROC	utl_waitend,DOS
-	sti
 	and	[bp].REG_FL,NOT FL_CARRY
 	jmp	scb_waitend
 ENDPROC	utl_waitend

@@ -36,6 +36,7 @@ SIG_CT		equ	'P'
 
 CTSTAT_EWAIT	equ	01h	; set on empty-wait condition
 CTSTAT_FWAIT	equ	02h	; set on full-wait condition
+CTSTAT_TRUNC	equ	04h	; set when pipe is being "truncated"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -77,6 +78,9 @@ DEFPROC	ddpipe_read
 	jcxz	ddr9
 
 	call	pull_data
+	jnc	ddr9
+	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_RDFAULT
+	ret
 
 ddr9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	ret
@@ -96,9 +100,12 @@ ENDPROC	ddpipe_read
 DEFPROC	ddpipe_write
 	ASSERT	STRUCT,ds:[0],CT
 	mov	cx,es:[di].DDPRW_LENGTH
-	jcxz	ddw9
+	jcxz	ddw8
 
 	call	push_data
+	jmp	short ddw9
+
+ddw8:	or	ds:[CT_STATUS],CTSTAT_TRUNC
 
 ddw9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	ret
@@ -212,11 +219,15 @@ pl0:	mov	bx,ds:[CT_HEAD]
 ;
 ; There's no data, so issue WAIT and try again when it returns.
 ;
+	test	ds:[CT_STATUS],CTSTAT_TRUNC
+	stc
+	jnz	pl9
 	ASSERT	Z,<test ds:[CT_STATUS],CTSTAT_EWAIT OR CTSTAT_FWAIT>
 	or	ds:[CT_STATUS],CTSTAT_EWAIT
 	call	wait_data
 	ASSERT	Z,<test ds:[CT_STATUS],CTSTAT_EWAIT>
 	jmp	pl0
+
 pl1:	mov	al,ds:[CT_DATA][bx]	; AL = data byte
 	inc	bx
 	cmp	bx,size CT_DATA
@@ -239,7 +250,8 @@ pl3:	sti
 	pop	ds
 	dec	es:[di].DDPRW_LENGTH	; have we satisfied the request yet?
 	jnz	pull_data		; no
-	ret
+	clc
+pl9:	ret
 ENDPROC	pull_data
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

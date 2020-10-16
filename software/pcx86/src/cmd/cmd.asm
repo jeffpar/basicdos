@@ -24,6 +24,7 @@ CODE    SEGMENT
 DEFPROC	main
 	LOCVAR	iArg,byte		; # of first non-switch argument
 	LOCVAR	sfhOut,byte
+	LOCVAR	scbActive,byte
 	LOCVAR	pArg,word		; saves arg ptr command handler
 	LOCVAR	lenArg,word		; saves arg len command handler
 	LOCVAR	pHandler,word		; saves address of command handler
@@ -50,7 +51,7 @@ DEFPROC	main
 	ASSERT	Z,<cmp bp,[bx].ORIG_BP>
 	mov	[heap].CMD_FLAGS,CMD_ECHO
 	mov	[hFile],ax
-	mov	[sfhOut],-1
+	mov	[sfhOut],SFH_NONE
 	push	ds
 	push	cs
 	pop	ds
@@ -322,10 +323,8 @@ ENDPROC	main
 ;	6) Temporarily set our own STDOUT SFH to the pipe's SFH
 ;	7) Invoke cmdType to perform "TYPE CONFIG.SYS"
 ;	8) Restore our own STDOUT SFH to its original value
-;	9) Close the pipe
-;
-; The ordering of the steps above is somewhat aribtrary and may be changed
-; and/or condensed over time, but we have to start somewhere.
+;	9) Truncate and close the pipe
+;	10) Wait for the session to finish (ie, unload)
 ;
 ; Inputs:
 ;	DS:DI -> TOKENBUF
@@ -351,7 +350,7 @@ DEFPROC	cmdTest
 	pop	ds
 	jc	ct9
 	xchg	bx,ax			; BX = pipe handle
-
+	mov	[scbActive],SCB_NONE
 	sub	sp,size SPB
 	mov	di,sp			; ES:DI -> SPB on stack
 	sub	ax,ax
@@ -366,14 +365,15 @@ DEFPROC	cmdTest
 	mov	al,ds:[PSP_PFT][STDOUT]
 	stosb				; SPB_SFHOUT
 	stosb				; SPB_SFHERR
-	mov	al,-1
+	mov	al,SFH_NONE
 	stosb				; SPB_SFHAUX
 	stosb				; SPB_SFHPRN
 	mov	di,sp			; ES:DI -> SPB on stack
 	DOSUTIL	LOAD			; load CMDLINE into an SCB
 	lea	sp,[di + size SPB]	; clean up the stack
 	jc	ct8
-	DOSUTIL	START			; start the SCB (CL = SCB #)
+	mov	[scbActive],cl
+	DOSUTIL	START			; start the SCB # specified in CL
 	push	bx
 	xchg	ds:[PSP_PFT][STDOUT],dl	; modify our STDOUT SFH
 	mov	[sfhOut],dl
@@ -388,14 +388,20 @@ DEFPROC	cmdTest
 	dec	cx
 	pop	si
 	call	cmdType			; DS:SI -> FILENAME
-	mov	dl,-1
+	mov	dl,SFH_NONE
 	xchg	dl,[sfhOut]
 	mov	ds:[PSP_PFT][STDOUT],dl	; restore our STDOUT SFH
 	pop	bx
-
+	sub	cx,cx			; CX = 0 for "truncating" write
+	mov	ah,DOS_HDL_WRITE
+	int	21h			; issue final write
 ct8:	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the pipe
-
+	mov	cl,SCB_NONE
+	xchg	cl,[scbActive]
+	cmp	cl,SCB_NONE
+	je	ct9
+	DOSUTIL	WAITEND
 ct9:	ret
 ENDPROC	cmdTest
 	ENDIF
@@ -619,9 +625,9 @@ DEFPROC	ctrlc,FAR
 	mov	sp,[bx].ORIG_SP
 	mov	bp,[bx].ORIG_BP
 	call	closeFile
-	mov	dl,-1
+	mov	dl,SFH_NONE
 	xchg	dl,[sfhOut]
-	cmp	dl,-1
+	cmp	dl,SFH_NONE
 	je	cc9
 	mov	ds:[PSP_PFT][STDOUT],dl
 cc9:	call	freeAllCode

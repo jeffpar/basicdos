@@ -346,7 +346,7 @@ ENDPROC	scb_stoke
 ;
 ; scb_start
 ;
-; "Start" the specified session (actual starting will handled by scb_switch).
+; Start the specified session (actual starting will handled by scb_switch).
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -369,7 +369,7 @@ ENDPROC	scb_start
 ;
 ; scb_stop
 ;
-; TODO: "Stop" (ie, suspend) the specified session.
+; TODO: Stop (ie, suspend) the specified session.
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -404,7 +404,7 @@ DEFPROC	scb_unload,DOS
 	call	get_scb
  	jc	sud9
 	mov	cx,5			; close this session's system handles
-	push	bx			; (for reasons given in the TODO above)
+	push	bx
 	lea	si,[bx].SCB_SFHIN
 sud1:	mov	bl,SFH_NONE
 	xchg	bl,[si]
@@ -414,6 +414,13 @@ sud1:	mov	bl,SFH_NONE
 	pop	bx
 	xchg	ax,cx			; make sure AX is zero
 	and	[bx].SCB_STATUS,NOT (SCSTAT_LOAD OR SCSTAT_START)
+;
+; In case another session was waiting for this sesion to unload, call endwait.
+;
+	mov	di,bx
+	mov	dx,ds			; DX:DI = SCB address (the wait ID)
+	call	scb_endwait
+
 sud9:	ret
 ENDPROC	scb_unload
 
@@ -441,20 +448,30 @@ ENDPROC	scb_end
 ;
 ; scb_waitend
 ;
-; TODO: Wait for all programs in the specified session to end.
+; Wait for all programs in the specified session to end.
 ;
 ; Inputs:
 ;	CL = SCB #
 ;
 ; Outputs:
-;	Carry clear on success (AX = 0)
-;	Carry set on error (eg, invalid SCB #)
+;	Carry clear on success, set on error
 ;
 ; Modifies:
 ;
 DEFPROC	scb_waitend,DOS
 	ASSUMES	<DS,DOS>,<ES,DOS>
-	ret
+	call	get_scb
+	jc	swe9
+	test	[bx].SCB_STATUS,SCSTAT_LOAD
+	jz	swe9
+;
+; Turn this call into a standard scb_wait call, where the wait ID in DX:DI
+; is the target SCB address (instead of the usual driver packet address).
+;
+	mov	di,bx
+	mov	dx,ds
+	jmp	scb_wait
+swe9:	ret
 ENDPROC	scb_waitend
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
