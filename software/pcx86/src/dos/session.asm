@@ -417,6 +417,7 @@ sud1:	mov	bl,SFH_NONE
 ;
 ; In case another session was waiting for this sesion to unload, call endwait.
 ;
+	DBGBRK
 	mov	di,bx
 	mov	dx,ds			; DX:DI = SCB address (the wait ID)
 	call	scb_endwait
@@ -468,6 +469,7 @@ DEFPROC	scb_waitend,DOS
 ; Turn this call into a standard scb_wait call, where the wait ID in DX:DI
 ; is the target SCB address (instead of the usual driver packet address).
 ;
+	DBGBRK
 	mov	di,bx
 	mov	dx,ds
 	jmp	scb_wait

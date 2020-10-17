@@ -19,7 +19,10 @@ CODE1	segment para public 'CODE'
 	DEFLEN	LPT1_LEN,<LPT1>
 	DEFLEN	LPT1_INIT,<LPT1,LPT2,LPT3>
 LPT1	DDH	<LPT1_LEN,,DDATTR_OPEN+DDATTR_CHAR,LPT1_INIT,-1,202020203154504Ch>
-
+;
+; Every LPT driver instance must define the next group of variables in
+; the same location/order as shown below.
+;
 	DEFPTR	ddlpt_cmdp		; ddlpt_cmd pointer
 	DEFWORD	port_base,0
 
@@ -64,7 +67,10 @@ CODE2	segment para public 'CODE'
 	DEFLEN	LPT2_LEN,<LPT2>
 	DEFLEN	LPT2_INIT,<LPT2,LPT3>
 LPT2	DDH	<LPT2_LEN,,DDATTR_CHAR,LPT2_INIT,-1,202020203254504Ch>
-
+;
+; Every LPT driver instance must define the next group of variables in
+; the same location/order as shown below.
+;
 	DEFPTR	ddlpt_cmdp2		; ddlpt_cmd pointer
 	DEFWORD	port_base2,0
 
@@ -95,7 +101,10 @@ CODE3	segment para public 'CODE'
 	DEFLEN	LPT3_LEN,<LPT3,ddlpt_init>,16
 	DEFLEN	LPT3_INIT,<LPT3>
 LPT3	DDH	<LPT3_LEN,,DDATTR_CHAR,LPT3_INIT,-1,202020203354504Ch>
-
+;
+; Every LPT driver instance must define the next group of variables in
+; the same location/order as shown below.
+;
 	DEFPTR	ddlpt_cmdp3		; ddlpt_cmd pointer
 	DEFWORD	port_base3,0
 

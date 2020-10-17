@@ -323,7 +323,7 @@ ENDPROC	main
 ;	6) Temporarily set our own STDOUT SFH to the pipe's SFH
 ;	7) Invoke cmdType to perform "TYPE CONFIG.SYS"
 ;	8) Restore our own STDOUT SFH to its original value
-;	9) Truncate and close the pipe
+;	9) Truncate and close the pipe (on our end)
 ;	10) Wait for the session to finish (ie, unload)
 ;
 ; Inputs:
