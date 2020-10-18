@@ -29,7 +29,8 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_locked,def_switchar>,byte
 	EXTERNS	<scb_active,scb_stoked>,word
 	EXTERNS	<scb_table>,dword
-	EXTERNS	<dos_exit,load_program,sfh_close,psp_term_exitcode>,near
+	EXTERNS	<dos_exit,load_program,psp_term_exitcode>,near
+	EXTERNS	<sfh_addref,sfh_close>,near
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -126,7 +127,7 @@ ENDPROC	get_scbnum
 ;	ES:DI -> SPB (Session Parameter Block)
 ;
 ; Modifies:
-;	AX, CX, SI
+;	AX, CX, DX, SI
 ;
 DEFPROC	scb_init,DOS
 	ASSUME	ES:NOTHING
@@ -136,13 +137,19 @@ DEFPROC	scb_init,DOS
 ;
 	push	di
 	mov	cx,5
+	mov	dx,es:[di].SPB_ENVSEG
 	lea	si,[di].SPB_SFHIN	; ES:SI -> 1st SFH in the SPB
 	lea	di,[bx].SCB_SFHIN	; DS:DI -> 1st SFH in the SCB
 si1:	lods	byte ptr es:[si]
 	cmp	al,SFH_NONE		; was an SFH supplied?
 	je	si2			; no
 	mov	[di],al			; update the SCB
-si2:	inc	di
+si2:	cmp	dx,-1			; is SPB_ENVSEG -1 (from sysinit)?
+	je	si3			; yes, so leave SFH alone
+	mov	al,[di]			; AL = SFH (no harm if SFH_NONE)
+	mov	ah,1			; add 1 session ref
+	call	sfh_addref		; (in addition to any program refs)
+si3:	inc	di
 	loop	si1
 	pop	di
 ;
@@ -417,7 +424,6 @@ sud1:	mov	bl,SFH_NONE
 ;
 ; In case another session was waiting for this sesion to unload, call endwait.
 ;
-	DBGBRK
 	mov	di,bx
 	mov	dx,ds			; DX:DI = SCB address (the wait ID)
 	call	scb_endwait
@@ -469,7 +475,6 @@ DEFPROC	scb_waitend,DOS
 ; Turn this call into a standard scb_wait call, where the wait ID in DX:DI
 ; is the target SCB address (instead of the usual driver packet address).
 ;
-	DBGBRK
 	mov	di,bx
 	mov	dx,ds
 	jmp	scb_wait
@@ -638,8 +643,9 @@ se1:	ASSERT	STRUCT,[bx],SCB
 	mov	[bx].SCB_WAITID.SEG,0
 	jmp	short se9
 se2:	add	bx,size SCB
-	cmp	[scb_table].SEG,bx
-	jnb	se1
+	cmp	bx,[scb_table].SEG
+	cmc
+	jnc	se1
 se9:	sti
 	ret
 ENDPROC	scb_endwait

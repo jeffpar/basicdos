@@ -221,11 +221,7 @@ so9a:	mov	ax,ERR_NOFILE
 so1:	mov	ax,DDC_OPEN SHL 8	; ES:DI -> driver
 	sub	dx,dx			; no initial context
 	call	dev_request		; issue the DDC_OPEN request
-;
-; TODO: Decide what to do with device error codes; we're currently
-; overwriting them with DOS error codes.
-;
-	jc	so9a			; failed
+	jc	so9a			; failed (TODO: map device error?)
 	mov	al,-1			; no drive # for devices
 
 so1a:	push	ds			;
@@ -263,17 +259,35 @@ so5:	add	si,size SFB
 	test	bx,bx			; was there a free SFB?
 	jz	so8			; no, tell the driver sorry
 
-	test	al,al			; was a DIRENT provided?
-	jl	so6			; no
 	push	di
 	push	es
 	push	cs
 	pop	es
 	ASSUME	ES:DOS
 	mov	di,bx			; ES:DI -> SFB (a superset of DIRENT)
+	test	al,al			; was a DIRENT provided?
+	jl	so5a			; no
 	mov	cx,size DIRENT SHR 1
 	rep	movsw			; copy the DIRENT into the SFB
-	pop	es
+	jmp	short so5b
+;
+; There's no DIRENT for a device, so let's copy DDH.DDH_NAME to SFB_NAME
+; and zero the rest of the DIRENT space in the SFB.
+;
+so5a:	pop	ds
+	pop	si			; DS:SI -> DDH
+	push	si
+	push	ds
+	add	si,offset DDH_NAME
+	mov	cx,size DDH_NAME SHR 1
+	rep	movsw
+	push	ax
+	xchg	ax,cx
+	mov	cx,(size DIRENT - size DDH_NAME) SHR 1
+	rep	stosw
+	pop	ax
+
+so5b:	pop	es
 	ASSUME	ES:NOTHING
 	pop	di
 

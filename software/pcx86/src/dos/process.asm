@@ -87,6 +87,7 @@ pt1:	push	ax			; save exit code/type on stack
 ;
 ; If this is a parent-less program, mark the SCB as unloaded and yield.
 ;
+	call	set_psp			; update SCB_CURPSP (even if zero)
 	test	ax,ax
 	jnz	pt8
 	call	scb_unload		; mark SCB # CL as unloaded
@@ -99,8 +100,6 @@ pt8:	mov	es,ax			; ES = PSP of parent
 	pop	cx			; we now have PSP_EXRET in CX:DX
 	pop	ax			; AX = exit code (saved on entry above)
 	mov	word ptr es:[PSP_EXCODE],ax
-	mov	ax,es
-	call	set_psp
 	cli
 	mov	ss,es:[PSP_STACK].SEG
 	mov	sp,es:[PSP_STACK].OFF

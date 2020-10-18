@@ -104,7 +104,7 @@ SCB_CTRLP_ACT	db	?	; 27h: 1 if CTRLP active
 SCB_SWITCHAR	db	?	; 28h: current "switchar" (default is CHR_SLASH)
 SCB_PADDING	db	?	; 29h
 SCB_FILENAME	db     12 dup(?); 2Ah: buffer for drive # and filename
-SCB		ends
+SCB		ends		; 36h bytes (1Bh words)
 SIG_SCB		equ	'S'
 
 SCSTAT_INIT	equ	01h	; set if SCB initialized
