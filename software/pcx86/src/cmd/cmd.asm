@@ -27,7 +27,6 @@ DEFPROC	main
 	LOCVAR	scbActive,byte
 	LOCVAR	pArg,word		; saves arg ptr command handler
 	LOCVAR	lenArg,word		; saves arg len command handler
-	LOCVAR	pHandler,word		; saves address of command handler
 	LOCVAR	swDigits,word		; bit mask of digit switches, if any
 	LOCVAR	swLetters,dword		; bit mask of letter switches, if any
 	LOCVAR	hFile,word		; file handle, if any
@@ -141,7 +140,6 @@ m1b:	push	cx
 	DOSUTIL	TOKID			; CS:DX -> TOKTBL; identify the token
 	jc	m2
 	mov	dx,cs:[si].CTD_FUNC
-	mov	[pHandler],dx
 	jmp	m9			; token ID in AX
 ;
 ; First token is unrecognized, so we'll assume DS:SI contains either
@@ -435,8 +433,7 @@ DEFPROC	cmdDOS
 	jb	nb8			; no
 ;
 ; The token is for a command that expects a filespec, so fix up the next
-; token (index in DH).  If there is no token, then use defaults loaded into
-; SI and CX.
+; token (index in DH).  If there is no token, load defaults into SI and CX.
 ;
 	call	getToken		; DH = 1st non-switch argument (or -1)
 	jnc	nb1
