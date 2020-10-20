@@ -325,7 +325,7 @@ pf1a:	inc	si			; skip colon
 	mov	dl,al			; DL = drive number (validate later)
 	inc	ax			; store 1-based drive number
 pf1b:	mov	es:[di+bx],al
-pf1c:	inc	di
+pf1c:	inc	di			; advance DI past FCB_DRIVE
 	sar	ah,1
 ;
 ; Build filename at ES:DI+BX from the string at DS:SI, making sure that all
@@ -395,7 +395,8 @@ pf5:	cmp	cl,size FCB_NAME	; did we just finish the extension?
 ;
 ; Last but not least, validate the drive number
 ;
-pf9:	cmp	dl,[bpb_total]
+pf9:	dec	di			; rewind DI to FCB_DRIVE
+	cmp	dl,[bpb_total]
 	cmc				; carry clear if >= 0 and < bpb_total
 	ret
 ENDPROC	parse_name

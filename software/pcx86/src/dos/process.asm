@@ -264,52 +264,18 @@ DEFPROC	psp_exec,DOS
 	jnb	px1			; yes
 px0:	jmp	px9
 
-px1:	mov	es,[bp].REG_DS		; ES:DX -> name of program
-	ASSUME	ES:NOTHING
-	call	load_program
+px1:	mov	ds,[bp].REG_DS
 	ASSUME	DS:NOTHING
+	mov	si,dx			; DS:SI -> name of program (from DS:DX)
+	call	load_program
+	ASSUME	ES:NOTHING
 	jc	px0			; hopefully AX contains an error code
 ;
-; Now we deal with the EPB we've been given.  load_program already set up
-; default FCBs and CMDTAIL in the PSP, but for this call, we must replace them.
+; Use load_parms to move the CMDTAIL and FCBs from the EBP to the PSP.
 ;
-	push	es			; save ES:DI (new program's stack)
-	push	di
-
 	mov	ds,[bp].REG_ES
-	mov	si,[bp].REG_BX		; DS:SI is now caller's ES:BX (EPB)
-	call	get_psp
-	mov	es,ax			; ES -> PSP
-
-	push	ds
-	push	si
-	lds	si,[si].EPB_FCB1
-	mov	di,PSP_FCB1
-	mov	cx,size FCB
-	rep	movsb			; fill in PSP_FCB1
-	pop	si
-	pop	ds			; DS:SI -> EPB again
-	push	ds
-	push	si
-	lds	si,[si].EPB_FCB2
-	mov	di,PSP_FCB2
-	mov	cx,size FCB
-	rep	movsb			; fill in PSP_FCB2
-	pop	si
-	pop	ds			; DS:SI -> EPB again
-	push	ds
-	push	si
-	lds	si,[si].EPB_CMDTAIL
-	add	di,size PSP_RESERVED3
-	mov	cl,[si]
-	mov	ch,0
-	add	cx,2
-	rep	movsb			; fill in PSP_CMDTAIL
-	pop	si
-	pop	ds			; DS:SI -> EPB again
-
-	pop	ax			; recover new program's stack in DX:AX
-	pop	dx
+	mov	si,[bp].REG_BX		; DS:SI -> EPB (from ES:BX)
+	call	load_parms
 
 	cmp	[bp].REG_AL,cl		; was AL zero?
 	jne	px8			; no
@@ -425,10 +391,147 @@ ENDPROC	psp_get
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; load_command
+;
+; This is a wrapper around load_program, which takes care of splitting a
+; command-line into a program name and a command tail, as well as creating
+; the (up to) two initial FCBs.
+;
+; Inputs:
+;	DS:SI -> command-line
+;
+; Outputs:
+;	If successful, carry clear, DX:AX -> new stack (from load_program)
+;	If error, carry set, AX = error code
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, DS, ES
+;
+DEFPROC	load_command,DOS
+	ASSUME	DS:NOTHING,ES:NOTHING
+
+	push	si			; save starting point
+lc1:	lodsb
+	cmp	al,CHR_SPACE
+	ja	lc1
+	dec	si
+	mov	byte ptr [si],0
+	mov	bx,si			; AL = separator, BX -> separator
+	pop	si
+
+	push	ax
+	push	bx
+	push	ds
+	push	si
+	call	load_program		; DS:SI -> program name
+	pop	si
+	pop	ds
+	pop	bx
+	pop	ax
+	jc	lc9
+;
+; DS:SI -> command-line again, AL = separator, BX -> separator,
+; and ES:DI is the new program's stack pointer.
+;
+	push	bp
+	sub	sp,size EPB + size FCB + size FCB
+	mov	bp,sp			; BP -> EPB followed by two FCBs
+	push	es
+	push	di
+	mov	[bp].EPB_ENVSEG,0
+	mov	[bx],al			; restore separator
+	mov	[bp].EPB_CMDTAIL.OFF,bx
+	mov	[bp].EPB_CMDTAIL.SEG,ds
+	mov	si,bx			; DS:SI -> string for DOS_FCB_PARSE
+	push	ss
+	pop	es
+	lea	di,[bp + size EPB]	; ES:DI -> 1st FCB to fill in
+	mov	ax,(DOS_FCB_PARSE SHL 8) or 01h
+	int	21h
+	mov	[bp].EPB_FCB1.OFF,di
+	mov	[bp].EPB_FCB1.SEG,es
+;
+; TODO: Advance SI.
+;
+	lea	di,[bp + size EPB + size FCB]
+	mov	ax,(DOS_FCB_PARSE SHL 8) or 01h
+	int	21h
+	mov	[bp].EPB_FCB2.OFF,di
+	mov	[bp].EPB_FCB2.SEG,es
+	pop	di
+	pop	es			; ES:DI -> new stack
+	push	ss
+	pop	ds
+	mov	si,bp			; DS:SI -> EBP
+	call	load_parms
+	add	sp,size EPB + size FCB + size FCB
+	pop	bp
+	ASSERT	NC
+
+lc9:	ret
+ENDPROC	load_command
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; load_parms
+;
+; Inputs:
+;	DS:SI -> EPB
+;	ES:DI -> new stack
+;
+; Outputs:
+;	ES -> PSP
+;	DX:AX -> new stack
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	load_parms,DOS
+	ASSUME	DS:NOTHING,ES:NOTHING
+	push	es			; save ES:DI (new program's stack)
+	push	di
+
+	call	get_psp
+	mov	es,ax			; ES -> PSP
+
+	push	ds
+	push	si
+	lds	si,[si].EPB_FCB1
+	mov	di,PSP_FCB1
+	mov	cx,size FCB
+	rep	movsb			; fill in PSP_FCB1
+	pop	si
+	pop	ds			; DS:SI -> EPB again
+	push	ds
+	push	si
+	lds	si,[si].EPB_FCB2
+	mov	di,PSP_FCB2
+	mov	cx,size FCB
+	rep	movsb			; fill in PSP_FCB2
+	pop	si
+	pop	ds			; DS:SI -> EPB again
+	push	ds
+	push	si
+	lds	si,[si].EPB_CMDTAIL
+	add	di,size PSP_RESERVED3
+	mov	cl,[si]
+	mov	ch,0
+	add	cx,2
+	rep	movsb			; fill in PSP_CMDTAIL
+	pop	si
+	pop	ds			; DS:SI -> EPB again
+
+	pop	ax			; recover new program's stack in DX:AX
+	pop	dx
+	ret
+ENDPROC	load_parms
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; load_program
 ;
 ; Inputs:
-;	ES:DX -> name of program (or command-line)
+;	DS:SI -> name of program
 ;
 ; Outputs:
 ;	If successful, carry clear, ES:DI -> new stack
@@ -438,7 +541,7 @@ ENDPROC	psp_get
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	load_program,DOS
-	ASSUME	ES:NOTHING
+	ASSUME	DS:NOTHING,ES:NOTHING
 ;
 ; I used to start off with a small allocation (10h paras), since that's
 ; all we initially need for the PSP, but that can get us into trouble later
@@ -467,81 +570,42 @@ lp0:	jmp	lp9			; abort
 
 lp1:	mov	[bp].TMP_DX,bx		; TMP_DX = size of segment (in paras)
 	xchg	dx,ax			; DX = segment for new PSP
-	xchg	di,ax			; DI = command-line (previously in DX)
-
 	mov	ah,DOS_PSP_CREATE
 	int	21h			; create new PSP at DX
-
+;
+; Let's update the PSP_STACK field in the current PSP before we switch to
+; the new PSP, since we rely on it to gracefully return to the caller when
+; this new program terminates.  PC DOS updates PSP_STACK on every DOS call,
+; because it loves switching stacks; we do not.
+;
 	call	get_psp
 	jz	lp2			; jump if no PSP exists yet
-;
-; Let's update the PSP_STACK field in the current PSP before we switch
-; to the new PSP, since we rely on it to gracefully return to the caller
-; when this new program terminates.  PC DOS updates PSP_STACK on every
-; DOS call, because it loves switching stacks; we do not.
-;
-	mov	ds,ax
-	ASSUME	DS:NOTHING
+	mov	es,ax
+	ASSUME	ES:NOTHING
 	mov	bx,bp
 	IF REG_CHECK
 	sub	bx,2
 	ENDIF
-	mov	ds:[PSP_STACK].OFF,bx
-	mov	ds:[PSP_STACK].SEG,ss
+	mov	es:[PSP_STACK].OFF,bx
+	mov	es:[PSP_STACK].SEG,ss
 
 lp2:	push	ax			; save original PSP
 	xchg	ax,dx			; AX = new PSP
 	call	set_psp
-;
-; Since we stashed the pointer to the command-line in DI, let's parse it now,
-; separating the filename portion from the "tail" portion.
-;
-	mov	dx,di
-	mov	cx,14			; CX = max filename length
-lp3:	mov	al,es:[di]
-	test	al,al
-	jz	lp3b
-	cmp	al,' '
-	je	lp3a
-	cmp	al,CHR_RETURN
-	je	lp3a
-	inc	di
-	loop	lp3
-lp3a:	mov	es:[di],ch		; null-terminate the filename
-lp3b:	mov	cl,al			; CL = original terminator
-	push	es
-	pop	ds			; DS:DX -> name of program
+
+	mov	dx,si			; DS:DX -> name of program
 	mov	ax,DOS_HDL_OPENRO
 	int	21h			; open the file
 	jnc	lp3c
 	jmp	lpef
 lp3c:	xchg	bx,ax			; BX = file handle
-;
-; Since we successfully opened the filename, let's massage the rest of the
-; command-line now.  And before we do, let's also update the PSP EXRET address.
-;
-	push	bx
+
 	call	get_psp
 	mov	ds,ax			; DS = segment of new PSP
 	mov	ax,[bp].REG_IP
-	mov	ds:[PSP_EXRET].OFF,ax
+	mov	ds:[PSP_EXRET].OFF,ax	; update the PSP's EXRET address
 	mov	ax,[bp].REG_CS
 	mov	ds:[PSP_EXRET].SEG,ax
-
-	mov	bx,offset PSP_CMDTAIL+1
-	mov	es:[di],cl		; restore the original terminator
-lp4:	mov	al,es:[di]
-	inc	di
-	test	al,al
-	jz	lp5
-	mov	[bx],al
-	inc	bx
-	cmp	bl,0FFh
-	jb	lp4
-lp5:	mov	byte ptr [bx],CHR_RETURN
-	sub	bx,offset PSP_CMDTAIL+1
-	mov	ds:[PSP_CMDTAIL],bl
-	pop	bx
 
 	sub	cx,cx
 	sub	dx,dx
@@ -559,6 +623,9 @@ lp5:	mov	byte ptr [bx],CHR_RETURN
 ; point.  But having at LEAST as much memory as there are bytes in the file
 ; (plus a little extra) is necessary for the next stage of the loading process.
 ;
+; How much is "a little extra"?  Currently, it's 40h paragraphs (1Kb).  See
+; the discussion below ("Determine a reasonable amount to add to the minimum").
+;
 lp5a:	add	ax,15
 	adc	dx,0			; round DX:AX to next paragraph
 	mov	cx,16
@@ -567,7 +634,7 @@ lp5a:	add	ax,15
 	div	cx			; AX = # paras
 	mov	si,ax			; SI = # paras in file
 	add	ax,50h			; AX = min paras (10h for PSP + 40h)
-	cmp	ax,[bp].TMP_DX		; can the segment accomodate that much?
+	cmp	ax,[bp].TMP_DX		; can the segment accommodate that?
 	ja	lpec2			; no
 
 	sub	cx,cx

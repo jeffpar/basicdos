@@ -261,6 +261,9 @@ m6:	lodsb
 	int	21h
 	mov	[bx].EPB_FCB1.OFF,di
 	mov	[bx].EPB_FCB1.SEG,es
+;
+; TODO: Advance SI.
+;
 	mov	di,PSP_FCB2		; ES:DI -> FCB to fill in
 	mov	ax,(DOS_FCB_PARSE SHL 8) or 01h
 	int	21h

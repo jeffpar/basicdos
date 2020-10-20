@@ -29,7 +29,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_locked,def_switchar>,byte
 	EXTERNS	<scb_active,scb_stoked>,word
 	EXTERNS	<scb_table>,dword
-	EXTERNS	<dos_exit,load_program,psp_term_exitcode>,near
+	EXTERNS	<dos_exit,load_command,psp_term_exitcode>,near
 	EXTERNS	<sfh_addref,sfh_close>,near
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -192,29 +192,29 @@ DEFPROC	scb_load,DOS
 	push	bx			; save SCB
 	mov	bx,es:[di].SPB_ENVSEG
 	push	bx			; BX = ENVSEG, if any
-	mov	dx,es:[di].SPB_CMDLINE.OFF
-	mov	es,es:[di].SPB_CMDLINE.SEG
-	call	load_program		; ES:DX -> command line
+	lds	si,es:[di].SPB_CMDLINE
+	ASSUME	DS:NOTHING
+	call	load_command		; DI:SI -> command-line
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
-	pop	dx			; DX = ENVSEG
+	pop	cx			; CX = ENVSEG
 	pop	bx			; BX -> current SCB again
 	jc	sl7			; exit on load error
 ;
-; If successful, load_program returns the initial program stack in ES:DI.
+; If successful, load_command returns the initial program stack in DX:AX.
 ;
 ; In addition, it records cache information in the TMP registers, which most
 ; most callers can/will ignore, but which sysinit uses to speed up successive
 ; LOAD requests.
 ;
-	mov	[bx].SCB_STACK.OFF,di	; ES:DI == initial stack
-	mov	[bx].SCB_STACK.SEG,es
+	mov	[bx].SCB_STACK.OFF,ax	; DX:AX == initial stack
+	mov	[bx].SCB_STACK.SEG,dx
 	or	[bx].SCB_STATUS,SCSTAT_LOAD
 	mov	al,[bx].SCB_NUM
 	mov	[bp].REG_CL,al		; REG_CL = session (SCB) #
 	mov	ax,[bp].TMP_CX
-	inc	dx			; was ENVSEG -1?
+	inc	cx			; was ENVSEG -1?
 	jnz	sl7			; no
 	mov	[bp].REG_AX,ax		; REG_AX = program size
 	mov	ax,[bp].TMP_BX
