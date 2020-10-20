@@ -203,13 +203,14 @@ m4:	mov	dx,offset COM_EXT
 m4a:	jmp	m8
 ;
 ; BAT files are LOAD'ed and then immediately RUN.  We may as well do the same
-; for BAS files; you can always use the "LOAD" command to load without running.
+; for BAS files; you can always use the LOAD command to load without running.
 ;
 ; BAT file operation does differ in some respects.  For example, any existing
 ; variables remain in memory prior to executing a BAT file, but all variables
 ; are freed prior to running a BAS file.  Also, each line of a BAT file is
-; displayed before it's executed, unless prefixed with '@'.  These differences
-; are why we must call cmdRunFlags with GEN_BASIC or GEN_BATCH as appropriate.
+; displayed before it's executed, unless prefixed with '@' or an ECHO command
+; has turned echo off.  These differences are why we must call cmdRunFlags with
+; GEN_BASIC or GEN_BATCH as appropriate.
 ;
 ; Another side-effect of an implied LOAD+RUN operation is that we free the
 ; loaded program (ie, all text blocks) when it finishes running.  Any variables

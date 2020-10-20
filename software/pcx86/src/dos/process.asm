@@ -465,7 +465,8 @@ DEFPROC	load_program,DOS
 	jnc	lp1
 lp0:	jmp	lp9			; abort
 
-lp1:	xchg	dx,ax			; DX = segment for new PSP
+lp1:	mov	[bp].TMP_DX,bx		; TMP_DX = size of segment (in paras)
+	xchg	dx,ax			; DX = segment for new PSP
 	xchg	di,ax			; DI = command-line (previously in DX)
 
 	mov	ah,DOS_PSP_CREATE
@@ -552,11 +553,11 @@ lp5:	mov	byte ptr [bx],CHR_RETURN
 	jnz	lp5a
 	mov	[bp].TMP_CX,ax		; record size ONLY if < 64K
 ;
-; Now that we have a file size, we can reallocate the PSP segment to a size
-; closer to what we actually need.  We won't know EXACTLY how much we need yet,
-; because there might be a COMHEAP signature if it's a COM file, and EXE files
-; have numerous unknowns at this point.  But having at LEAST as much memory
-; as there are bytes in the file is a reasonable starting point.
+; Now that we have a file size, verify that the PSP segment is large enough.
+; We don't know EXACTLY how much we need yet, because there might be a COMHEAP
+; signature if it's a COM file, and EXE files have numerous unknowns at this
+; point.  But having at LEAST as much memory as there are bytes in the file
+; (plus a little extra) is necessary for the next stage of the loading process.
 ;
 lp5a:	add	ax,15
 	adc	dx,0			; round DX:AX to next paragraph
@@ -564,16 +565,10 @@ lp5a:	add	ax,15
 	cmp	dx,cx			; can we safely divide DX:AX by 16?
 	ja	lpec2			; no, the program is much too large
 	div	cx			; AX = # paras
-	push	ds
-	pop	es			; ES = PSP segment
 	mov	si,ax			; SI = # paras in file
-	add	ax,50h			; AX = # paras (10h for PSP + 40h)
-	push	bx			; save file handle
-	xchg	bx,ax			; BX = new size in paras
-	mov	ah,DOS_MEM_REALLOC
-	int	21h			; resize the segment
-	pop	bx			; restore file handle
-	jc	lpec1			; we could be more forgiving; oh well
+	add	ax,50h			; AX = min paras (10h for PSP + 40h)
+	cmp	ax,[bp].TMP_DX		; can the segment accomodate that much?
+	ja	lpec2			; no
 
 	sub	cx,cx
 	sub	dx,dx
@@ -585,8 +580,8 @@ lp5a:	add	ax,15
 ; whether it's a COM or EXE file, we're going to read the first 512 bytes (or
 ; less if that's all there is) and decide what to do next.
 ;
-	push	es
-	pop	ds
+	push	ds
+	pop	es			; DS = ES = PSP segment
 	mov	dx,size PSP
 	mov	[bp].TMP_ES,ds
 	mov	[bp].TMP_BX,dx
@@ -598,7 +593,7 @@ lpec1:	jmp	lpec
 lpec2:	mov	ax,ERR_NOMEM
 	jmp	short lpec1
 
-lp6:	mov	di,dx			; ES:DI -> end of PSP
+lp6:	mov	di,dx			; DS:DI -> end of PSP
 	cmp	[di].EXE_SIG,SIG_EXE
 	je	lp6a
 	jmp	lp7
@@ -610,13 +605,13 @@ lp6a:	cmp	ax,size EXEHDR
 ; there is to read, read that as well, and then read the rest of the file
 ; into the bottom of the allocated memory.
 ;
-	mov	dx,es
+	mov	dx,ds
 	add	dx,si
 	add	dx,10h
 	sub	dx,[di].EXE_PARASHDR
 
 	push	si			; save allocated paras
-	push	es			; save allocated segment
+	push	es
 	mov	si,di			; DS:SI -> actual EXEHDR
 	sub	di,di
 	mov	es,dx			; ES:DI -> space for EXEHDR
