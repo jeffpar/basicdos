@@ -275,8 +275,7 @@ px1:	mov	ds,[bp].REG_DS
 ;
 	mov	ds,[bp].REG_ES
 	mov	si,[bp].REG_BX		; DS:SI -> EPB (from ES:BX)
-	call	load_parms
-
+	call	load_parms		; DX:AX -> new stack and CX = 0
 	cmp	[bp].REG_AL,cl		; was AL zero?
 	jne	px8			; no
 ;
@@ -394,11 +393,16 @@ ENDPROC	psp_get
 ; load_command
 ;
 ; This is a wrapper around load_program, which takes care of splitting a
-; command-line into a program name and a command tail, as well as creating
+; command line into a program name and a command tail, as well as creating
 ; the (up to) two initial FCBs.
 ;
+; NOTE: The command line at DS:SI is modified by this function in order to
+; build the command tail required by load_parms.  The command line could be
+; restored before returning, but this is a new interface and it doesn't seem
+; worthwhile.
+;
 ; Inputs:
-;	DS:SI -> command-line
+;	DS:SI -> command line
 ;
 ; Outputs:
 ;	If successful, carry clear, DX:AX -> new stack (from load_program)
@@ -427,10 +431,10 @@ lc1:	lodsb
 	pop	si
 	pop	ds
 	pop	bx
-	pop	ax
-	jc	lc9
+	pop	cx
+	jc	lc9			; if carry set, AX should be error code
 ;
-; DS:SI -> command-line again, AL = separator, BX -> separator,
+; DS:SI -> command line again, CL = separator, BX = separator address,
 ; and ES:DI is the new program's stack pointer.
 ;
 	push	bp
@@ -439,10 +443,14 @@ lc1:	lodsb
 	push	es
 	push	di
 	mov	[bp].EPB_ENVSEG,0
-	mov	[bx],al			; restore separator
+	mov	[bx],cl			; restore separator
+	mov	si,bx
+	DOSUTIL	STRLEN			; AX = # chars at DS:SI
+	ASSERT	BE,<cmp ax,126>
+	dec	bx
+	mov	[bx],al			; set length (modifies command line)
 	mov	[bp].EPB_CMDTAIL.OFF,bx
 	mov	[bp].EPB_CMDTAIL.SEG,ds
-	mov	si,bx			; DS:SI -> string for DOS_FCB_PARSE
 	push	ss
 	pop	es
 	lea	di,[bp + size EPB]	; ES:DI -> 1st FCB to fill in
@@ -451,7 +459,7 @@ lc1:	lodsb
 	mov	[bp].EPB_FCB1.OFF,di
 	mov	[bp].EPB_FCB1.SEG,es
 ;
-; TODO: Advance SI.
+; TODO: Advance SI for 2nd FCB.
 ;
 	lea	di,[bp + size EPB + size FCB]
 	mov	ax,(DOS_FCB_PARSE SHL 8) or 01h
@@ -475,16 +483,21 @@ ENDPROC	load_command
 ;
 ; load_parms
 ;
+; NOTE: While EPB_CMDTAIL should normally end with a CHR_RETURN, load_command
+; doesn't bother, because it knows we copy only the specified number of tail
+; characters and then output CHR_RETURN.
+;
 ; Inputs:
 ;	DS:SI -> EPB
 ;	ES:DI -> new stack
 ;
 ; Outputs:
+;	CX = 0
 ;	ES -> PSP
 ;	DX:AX -> new stack
 ;
 ; Modifies:
-;	AX, CX, DX
+;	AX, CX, DX, DI
 ;
 DEFPROC	load_parms,DOS
 	ASSUME	DS:NOTHING,ES:NOTHING
@@ -516,8 +529,10 @@ DEFPROC	load_parms,DOS
 	add	di,size PSP_RESERVED3
 	mov	cl,[si]
 	mov	ch,0
-	add	cx,2
+	inc	cx
 	rep	movsb			; fill in PSP_CMDTAIL
+	mov	al,CHR_RETURN
+	stosb
 	pop	si
 	pop	ds			; DS:SI -> EPB again
 
