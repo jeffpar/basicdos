@@ -396,11 +396,6 @@ ENDPROC	psp_get
 ; command line into a program name and a command tail, as well as creating
 ; the (up to) two initial FCBs.
 ;
-; NOTE: The command line at DS:SI is modified by this function in order to
-; build the command tail required by load_parms.  The command line could be
-; restored before returning, but this is a new interface and it doesn't seem
-; worthwhile.
-;
 ; Inputs:
 ;	DS:SI -> command line
 ;
@@ -434,9 +429,10 @@ lc1:	lodsb
 	pop	cx
 	jc	lc9			; if carry set, AX should be error code
 ;
-; DS:SI -> command line again, CL = separator, BX = separator address,
-; and ES:DI is the new program's stack pointer.
+; DS:SI -> command line, CL = separator, BX = separator address, and ES:DI
+; is the new program's stack pointer.
 ;
+	push	ds
 	push	bp
 	sub	sp,size EPB + size FCB + size FCB
 	mov	bp,sp			; BP -> EPB followed by two FCBs
@@ -448,7 +444,7 @@ lc1:	lodsb
 	DOSUTIL	STRLEN			; AX = # chars at DS:SI
 	ASSERT	BE,<cmp ax,126>
 	dec	bx
-	mov	[bx],al			; set length (modifies command line)
+	xchg	[bx],cl			; set length
 	mov	[bp].EPB_CMDTAIL.OFF,bx
 	mov	[bp].EPB_CMDTAIL.SEG,ds
 	push	ss
@@ -474,6 +470,8 @@ lc1:	lodsb
 	call	load_parms
 	add	sp,size EPB + size FCB + size FCB
 	pop	bp
+	pop	ds
+	mov	[bx],cl			; restore byte overwritten by length
 	ASSERT	NC
 
 lc9:	ret
@@ -497,12 +495,13 @@ ENDPROC	load_command
 ;	DX:AX -> new stack
 ;
 ; Modifies:
-;	AX, CX, DX, DI
+;	AX, DX, DI
 ;
 DEFPROC	load_parms,DOS
 	ASSUME	DS:NOTHING,ES:NOTHING
 	push	es			; save ES:DI (new program's stack)
 	push	di
+	push	cx
 
 	call	get_psp
 	mov	es,ax			; ES -> PSP
@@ -536,6 +535,7 @@ DEFPROC	load_parms,DOS
 	pop	si
 	pop	ds			; DS:SI -> EPB again
 
+	pop	cx
 	pop	ax			; recover new program's stack in DX:AX
 	pop	dx
 	ret
