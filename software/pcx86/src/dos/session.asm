@@ -30,7 +30,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_active,scb_stoked>,word
 	EXTERNS	<scb_table>,dword
 	EXTERNS	<dos_exit,load_command,psp_term_exitcode>,near
-	EXTERNS	<sfh_addref,sfh_close>,near
+	EXTERNS	<sfh_add_ref,sfh_context,sfh_close>,near
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -148,13 +148,18 @@ si2:	cmp	dx,-1			; is SPB_ENVSEG -1 (from sysinit)?
 	je	si3			; yes, so leave SFH alone
 	mov	al,[di]			; AL = SFH (no harm if SFH_NONE)
 	mov	ah,1			; add 1 session ref
-	call	sfh_addref		; (in addition to any program refs)
+	call	sfh_add_ref		; (in addition to any program refs)
 si3:	inc	di
 	loop	si1
 	pop	di
 ;
-; Take care of any remaining initialization now.
+; Take care of any remaining initialization now, including set the SCB's
+; output context, if any.
 ;
+	mov	al,[bx].SCB_SFHOUT
+	call	sfh_context
+	mov	[bx].SCB_CONTEXT,ax
+
 	mov	al,[def_switchar]
 	mov	[bx].SCB_SWITCHAR,al
 	or	[bx].SCB_STATUS,SCSTAT_INIT

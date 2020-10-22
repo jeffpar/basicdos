@@ -411,7 +411,6 @@ si9:	mov	ax,DOS_HDL_OPENRW
 	mov	es:[bx].SCB_SFHIN,al	; AL = SFH (not PFH)
 	mov	es:[bx].SCB_SFHOUT,al	; AL = SFH (not PFH)
 	mov	es:[bx].SCB_SFHERR,al	; AL = SFH (not PFH)
-	mov	es:[bx].SCB_CONTEXT,dx	; DX = CONSOLE device context
 ;
 ; Last but not least, open PRN.
 ;
@@ -441,7 +440,6 @@ si10:	mov	si,offset CFG_CONSOLE
 si11:	mov	es:[bx].SCB_SFHIN,al
 	mov	es:[bx].SCB_SFHOUT,al
 	mov	es:[bx].SCB_SFHERR,al
-	mov	es:[bx].SCB_CONTEXT,dx
 	mov	word ptr es:[bx].SCB_SFHAUX,cx
 	ASSERT	<SCB_SFHAUX + 1>,EQ,<SCB_SFHPRN>
 	jmp	si10

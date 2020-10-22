@@ -14,7 +14,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<get_sfh_sfb,sfb_write>,near
+	EXTERNS	<sfb_from_sfh,sfb_write>,near
 	EXTERNS	<itoa,sprintf,write_string>,near
 
 	EXTERNS	<sfh_debug,key_boot>,byte
@@ -203,7 +203,7 @@ DEFPROC	utl_printf,DOS
 	test	bl,bl			; SFH?
 	jz	pf7			; no
 	jl	pf8			; DEBUG output not enabled
-	call	get_sfh_sfb		; BX -> SFB
+	call	sfb_from_sfh		; BX -> SFB
 	jc	pf7
 	mov	al,IO_COOKED
 	call	sfb_write

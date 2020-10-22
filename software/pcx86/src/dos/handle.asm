@@ -32,11 +32,11 @@ DOS	segment word public 'CODE'
 ;	REG_DS:REG_DX -> name of device/file
 ;
 ; Outputs:
-;	On success, REG_AX = PFH (or SFH if no valid PSP), carry clear
-;	On failure, REG_AX = error, carry set
+;	On success, carry clear, REG_AX = PFH (or SFH if no active PSP)
+;	On failure, carry set, REG_AX = error
 ;
 DEFPROC	hdl_open,DOS
-	call	pft_alloc		; ES:DI = free handle entry
+	call	pfh_alloc		; ES:DI = free handle entry
 	ASSUME	ES:NOTHING
 	jc	ho9
 	push	di			; save free handle entry
@@ -47,7 +47,7 @@ DEFPROC	hdl_open,DOS
 	call	sfb_open
 	pop	di			; restore handle entry
 	jc	ho9
-	call	pft_set			; update handle entry
+	call	pfh_set			; update handle entry
 ho9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
 	ret
 ENDPROC	hdl_open
@@ -174,7 +174,7 @@ DEFPROC	hdl_ioctl,DOS
 	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
 	call	sfb_get
 	pop	ax
-	jc	hio9
+	jc	hi9
 	les	di,[bx].SFB_DEVICE	; ES:DI -> driver
 	mov	bx,[bx].SFB_CONTEXT	; BX = context
 	xchg	bx,dx			; DX = context, BX = REG_DX
@@ -182,9 +182,9 @@ DEFPROC	hdl_ioctl,DOS
 	mov	ds,[bp].REG_DS		; in case DS:SI is required as well
 	ASSUME	DS:NOTHING
 	call	dev_request
-	jc	hio9
+	jc	hi9
 	xchg	ax,dx			; AX = result
-hio9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY set
+hi9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY set
 	ret
 ENDPROC	hdl_ioctl
 
@@ -661,24 +661,24 @@ ENDPROC	sfb_close
 DEFPROC	sfb_get,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	call	get_psp			; if there's no PSP yet
-	jz	gs1			; then BX must an SFH, not a PFH
+	jz	sg1			; then BX must an SFH, not a PFH
 	cmp	bl,size PSP_PFT		; is the PFH within PFT bounds?
-	jae	gs8			; no
+	jae	sg8			; no
 	push	ds
 	mov	ds,ax
 	ASSUME	DS:NOTHING
 	mov	bl,ds:[PSP_PFT][bx]	; BL = SFH
 	pop	ds
 
-	DEFLBL	get_sfh_sfb,near
-gs1:	mov	al,size SFB		; convert SFH to SFB
+	DEFLBL	sfb_from_sfh,near
+sg1:	mov	al,size SFB		; convert SFH to SFB
 	mul	bl
 	add	ax,[sfb_table].OFF
 	cmp	ax,[sfb_table].SEG	; is the SFB valid?
 	xchg	bx,ax			; BX -> SFB
-	jb	gs9			; yes
-gs8:	mov	ax,ERR_BADHANDLE
-gs9:	cmc
+	jb	sg9			; yes
+sg8:	mov	ax,ERR_BADHANDLE
+sg9:	cmc
 	ret
 ENDPROC	sfb_get
 
@@ -713,7 +713,7 @@ ENDPROC	sfb_find_fcb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; pft_alloc
+; pfh_alloc
 ;
 ; Inputs:
 ;	None
@@ -725,30 +725,30 @@ ENDPROC	sfb_find_fcb
 ; Modifies:
 ;	AX, BX, CX, DI, ES
 ;
-DEFPROC	pft_alloc,DOS
+DEFPROC	pfh_alloc,DOS
 	ASSUMES	<DS,DOS>,<ES,DOS>
 	call	get_psp			; get the current PSP
 	xchg	di,ax			; if we're called by sysinit
-	jz	gp9			; there may be no valid PSP yet
+	jz	pa9			; there may be no valid PSP yet
 	mov	es,di
 	ASSUME	ES:NOTHING		; find a free handle entry
 	mov	al,SFH_NONE		; AL = 0FFh (indicates unused entry)
 	mov	cx,size PSP_PFT
 	mov	di,offset PSP_PFT
 	repne	scasb
-	jne	gp8			; if no entry, return error w/carry set
+	jne	pa8			; if no entry, return error w/carry set
 	dec	di			; rewind to entry
-	jmp	short gp9
-gp8:	mov	ax,ERR_MAXFILES
+	jmp	short pa9
+pa8:	mov	ax,ERR_MAXFILES
 	stc
-gp9:	ret
-ENDPROC	pft_alloc
+pa9:	ret
+ENDPROC	pfh_alloc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; pft_set
+; pfh_set
 ;
-; This returns a PFT # (aka PFH or Process File Handle) if pft_alloc found
+; This returns a PFT # (aka PFH or Process File Handle) if pfh_alloc found
 ; a valid PSP; otherwise, it returns the SFB # (aka SFH or System File Handle).
 ;
 ; Inputs:
@@ -761,7 +761,7 @@ ENDPROC	pft_alloc
 ; Modifies:
 ;	AX, BX, CX, DI
 ;
-DEFPROC	pft_set,DOS
+DEFPROC	pfh_set,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	xchg	ax,bx			; AX = SFB address
 	sub	ax,[sfb_table].OFF
@@ -769,38 +769,12 @@ DEFPROC	pft_set,DOS
 	div	cl			; AL = SFB # (from SFB address)
 	ASSERT	Z,<test ah,ah>		; assert that the remainder is zero
 	test	di,di			; did we find a free PFT entry?
-	jnz	sp8			; yes
-	mov	[bp].REG_DX,dx		; no, return context in REG_DX
-	jmp	short sp9		; and return the SFB # in REG_AX
-sp8:	stosb				; yes, store SFB # in the PFT entry
+	jz	ps9			; no
+	stosb				; yes, store SFB # in the PFT entry
 	sub	di,offset PSP_PFT + 1	; convert PFT entry into PFH
 	xchg	ax,di			; AX = handle
-sp9:	ret
-ENDPROC	pft_set
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; sfh_addref
-;
-; Inputs:
-;	AL = SFH
-;	AH = # refs
-;
-; Modifies:
-;	None
-;
-DEFPROC	sfh_addref,DOS
-	push	bx
-	mov	bl,al
-	push	ax
-	call	get_sfh_sfb
-	pop	ax
-	jc	sfa9
-	add	[bx].SFB_HANDLES,ah
-	ASSERT	NC
-sfa9:	pop	bx
-	ret
-ENDPROC	sfh_addref
+ps9:	ret
+ENDPROC	pfh_set
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -823,16 +797,40 @@ DEFPROC	pfh_close,DOS
 	push	si
 	mov	si,bx			; SI = PFH
 	call	sfb_get
-	jc	pfc9
+	jc	pc9
 	push	di
 	push	es
 	call	sfb_close		; BX -> SFB, SI = PFH
 	pop	es
 	pop	di
-pfc9:	pop	si
+pc9:	pop	si
 	pop	bx
 	ret
 ENDPROC	pfh_close
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; sfh_add_ref
+;
+; Inputs:
+;	AL = SFH
+;	AH = # refs
+;
+; Modifies:
+;	None
+;
+DEFPROC	sfh_add_ref,DOS
+	push	bx
+	mov	bl,al
+	push	ax
+	call	sfb_from_sfh
+	pop	ax
+	jc	sha9
+	add	[bx].SFB_HANDLES,ah
+	ASSERT	NC
+sha9:	pop	bx
+	ret
+ENDPROC	sfh_add_ref
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -853,18 +851,42 @@ ENDPROC	pfh_close
 DEFPROC	sfh_close,DOS
 	push	bx
 	push	si
-	call	get_sfh_sfb
-	jc	sfc9
+	call	sfb_from_sfh
+	jc	shc9
 	push	di
 	push	es
 	mov	si,-1			; no PFH
 	call	sfb_close		; BX -> SFB
 	pop	es
 	pop	di
-sfc9:	pop	si
+shc9:	pop	si
 	pop	bx
 	ret
 ENDPROC	sfh_close
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; sfh_context
+;
+; Inputs:
+;	AL = SFH
+;
+; Outputs:
+;	AX = context (carry clear), zero if none (carry set)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	sfh_context,DOS
+	push	bx
+	mov	bl,al
+	call	sfb_from_sfh
+	mov	ax,0
+	jc	shx9
+	mov	ax,[bx].SFB_CONTEXT
+shx9:	pop	bx
+	ret
+ENDPROC	sfh_context
 
 DOS	ends
 

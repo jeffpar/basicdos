@@ -16,8 +16,9 @@ DOS	segment word public 'CODE'
 
 	EXTERNS	<scb_locked>,byte
 	EXTERNS	<mcb_head,mcb_limit,scb_active>,word
-	EXTERNS	<sfh_addref,pfh_close,sfh_close>,near
-	EXTERNS	<getsize,freeAll,dos_exit,dos_exit2,dos_ctrlc,dos_error>,near
+	EXTERNS	<sfh_add_ref,pfh_close,sfh_close>,near
+	EXTERNS	<mcb_getsize,mcb_free_all>,near
+	EXTERNS	<dos_exit,dos_exit2,dos_ctrlc,dos_error>,near
 	EXTERNS	<get_scbnum,mcb_setname,scb_release,scb_unload,scb_yield>,near
 	IF REG_CHECK
 	EXTERNS	<dos_check>,near
@@ -81,7 +82,7 @@ pt1:	push	ax			; save exit code/type on stack
 	push	ax
 	push	si			; save PSP of parent
 	mov	ax,es
-	call	freeAll			; free all blocks owned by PSP in AX
+	call	mcb_free_all		; free all blocks owned by PSP in AX
 	pop	ax			; restore PSP of parent
 	pop	cx			; CL = SCB #
 ;
@@ -180,7 +181,7 @@ DEFPROC	psp_create,DOS
 	lea	si,[bx].SCB_SFHIN
 pc1:	lodsb
 	stosb
-	call	sfh_addref
+	call	sfh_add_ref
 	loop	pc1
 	mov	al,SFH_NONE		; AL = 0FFh (indicates unused entry)
 	mov	cl,15			; 15 more PFT slots left
@@ -1110,7 +1111,7 @@ ENDPROC	psp_calcsum
 DEFPROC	psp_setmem,DOS
 	ASSUME	ES:NOTHING
 	mov	bx,[mcb_limit]		; BX = fallback memory limit
-	call	getsize			; if segment has a size, get it
+	call	mcb_getsize		; if segment has a size, get it
 	jc	ps1			; nope, use BX
 	mov	bx,dx
 	add	bx,ax			; BX = actual memory limit
