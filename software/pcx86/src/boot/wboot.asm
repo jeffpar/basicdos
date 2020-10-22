@@ -174,9 +174,9 @@ create:	mov	ah,DOS_HDL_CREATE
 	jc	ecreat
 	mov	ah,DOS_HDL_CLOSE	; AH = 3Eh (CLOSE FILE)
 	int	21h
-	mov	al,0			; exit with zero return code
 
-done:	mov	dx,offset success
+done:	mov	al,0			; exit with zero return code
+	mov	dx,offset success
 
 msg:	push	ax
 	mov	ah,DOS_TTY_PRINT
