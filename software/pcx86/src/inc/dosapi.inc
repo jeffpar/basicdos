@@ -240,7 +240,7 @@ PSP_FCSEG	dw	?	; 08h: far call segment
 PSP_EXRET	dd	?	; 0Ah: original INT 22h vector
 PSP_CTRLC	dd	?	; 0Eh: original INT 23h vector
 PSP_ERROR	dd	?	; 12h: original INT 24h vector
-PSP_PARENT	dw	?	; 16h: PSP of parent
+PSP_PARENT	dw	?	; 16h: PSP of parent (zero if none)
 PSP_PFT		db     20 dup(?); 18h: Process File Table
 PSP_ENVSEG	dw	?	; 2Ch
 PSP_STACK	dd	?	; 2Eh: BASIC-DOS: last program stack ptr

@@ -252,38 +252,38 @@ ENDPROC	utl_endwait
 ;	Carry clear if successful, set if unprocessed
 ;
 ; Modifies:
-;	AX
+;	AX, BX, CX, DX
 ;
 DEFPROC	utl_hotkey,DOS
 	sti
-	xchg	ax,dx			; AL = char code, AH = scan code
+	xchg	ax,dx			; AL = char, AH = scan code
 	and	[bp].REG_FL,NOT FL_CARRY
 ;
-; Find the SCB with the matching context; that's the one with focus.
+; Find all SCBs with a matching context; all matching SCBs are presumed
+; running inside the console that currently has focus.
 ;
+; TODO: Decide if we need to deliver hotkey signals with greater precision
+; (ie, to exactly one SCB), and if so, which SCB that should be.
+;
+	sub	dx,dx			; DX = matching SCB count
 	mov	bx,[scb_table].OFF
 hk1:	cmp	[bx].SCB_CONTEXT,cx
-	je	hk2
-	add	bx,size SCB
-	cmp	bx,[scb_table].SEG
-	jb	hk1
-	stc
-	ret
-
+	jne	hk8
+	inc	dx			; match
 hk2:	cmp	al,CHR_CTRLC
 	jne	hk3
 	or	[bx].SCB_CTRLC_ACT,1
-
 hk3:	cmp	al,CHR_CTRLP
 	jne	hk4
 	xor	[bx].SCB_CTRLP_ACT,1
-
 hk4:	cmp	al,CHR_CTRLD
 	jne	hk9
 	or	[bx].SCB_STATUS,SCSTAT_KILL
-
-hk9:	clc
-	ret
+hk8:	add	bx,size SCB		; advance to the next SCB
+	cmp	bx,[scb_table].SEG
+	jb	hk1
+	cmp	dx,1			; set carry if DX is zero (no SCBs)
+hk9:	ret
 ENDPROC	utl_hotkey
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

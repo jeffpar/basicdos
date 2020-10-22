@@ -154,8 +154,11 @@ si3:	inc	di
 	pop	di
 ;
 ; Take care of any remaining initialization now, including set the SCB's
-; output context, if any.
+; parent, output context (if any), etc.
 ;
+	mov	ax,[scb_active]		; the caller is the presumed parent
+	mov	[bx].SCB_PARENT,ax
+
 	mov	al,[bx].SCB_SFHOUT
 	call	sfh_context
 	mov	[bx].SCB_CONTEXT,ax

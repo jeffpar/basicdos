@@ -73,7 +73,7 @@ TMP_DH		equ	TMP_DX.HIB
 ; we'll pretend all the apps we care about are well-behaved, which means if
 ; they want to set any of the EXRET/CTRLC/ERROR handlers, they'll use the
 ; DOS_SET_VECTOR function, which will update the SCB vectors below, rather
-; than the actual IVT vectors.
+; than the actual IVT vectors (22h/23h/24h).
 ;
 ; That will save scb_switch from having to save/restore IVT vectors on every
 ; switch.  If it turns out I care about running non-well-behaved apps later,
@@ -89,22 +89,23 @@ SCB_SFHERR	db	?	; 04h: SFH for STDERR
 SCB_SFHAUX	db	?	; 05h: SFH for STDAUX
 SCB_SFHPRN	db	?	; 06h: SFH for STDPRN
 SCB_SIG		db	?	; 07h (holds SIG_SCB in DEBUG builds)
-SCB_CURPSP	dw	?	; 08h: current PSP
-SCB_WAITID	dd	?	; 0Ah: wait ID if waiting, 0 if runnable
-SCB_STACK	dd	?	; 0Eh: pointer to session stack
-SCB_EXRET	dd	?	; 12h: current EXRET handler
-SCB_CTRLC	dd	?	; 16h: current CTRLC handler
-SCB_ERROR	dd	?	; 1Ah: current ERROR handler
-SCB_DTA		dd	?	; 1Eh: current DTA (Disk Transfer Address)
-SCB_CONTEXT	dw	?	; 22h: CONSOLE context (from device driver)
-SCB_CURDRV	db	?	; 24h: current drive #
-SCB_CTRLC_ALL	db	?	; 25h: 1 if CTRLC checking enabled on all calls
-SCB_CTRLC_ACT	db	?	; 26h: 1 if CTRLC active
-SCB_CTRLP_ACT	db	?	; 27h: 1 if CTRLP active
-SCB_SWITCHAR	db	?	; 28h: current "switchar" (default is CHR_SLASH)
-SCB_PADDING	db	?	; 29h
-SCB_FILENAME	db     12 dup(?); 2Ah: buffer for drive # and filename
-SCB		ends		; 36h bytes (1Bh words)
+SCB_PARENT	dw	?	; 08h: SCB of parent (zero if none)
+SCB_CURPSP	dw	?	; 0Ah: current PSP
+SCB_WAITID	dd	?	; 0Ch: wait ID if waiting, 0 if runnable
+SCB_STACK	dd	?	; 10h: pointer to session stack
+SCB_EXRET	dd	?	; 14h: current EXRET handler
+SCB_CTRLC	dd	?	; 18h: current CTRLC handler
+SCB_ERROR	dd	?	; 1Ch: current ERROR handler
+SCB_DTA		dd	?	; 20h: current DTA (Disk Transfer Address)
+SCB_CONTEXT	dw	?	; 24h: CONSOLE context (from device driver)
+SCB_CURDRV	db	?	; 26h: current drive #
+SCB_CTRLC_ALL	db	?	; 27h: 1 if CTRLC checking enabled on all calls
+SCB_CTRLC_ACT	db	?	; 28h: 1 if CTRLC active
+SCB_CTRLP_ACT	db	?	; 29h: 1 if CTRLP active
+SCB_SWITCHAR	db	?	; 2Ah: current "switchar" (default is CHR_SLASH)
+SCB_PADDING	db	?	; 2Bh
+SCB_FILENAME	db     12 dup(?); 2Ch: buffer for drive # and filename
+SCB		ends		; 38h bytes (1Ch words)
 SIG_SCB		equ	'S'
 
 SCSTAT_INIT	equ	01h	; set if SCB initialized

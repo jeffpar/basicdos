@@ -13,9 +13,8 @@ AFLAGS=/D$(REL) /I.
 MAPSYM=MAPSYM
 
 #
-# Inference rules in the DOS MAKE utility apparently work only if the
-# files are in the same folder.  So for now, these rules must be copied
-# under each dependency.
+# Inference rules in the DOS MAKE utility apparently work only if the files
+# are in the same folder.  So for now, each dependency must copy these rules.
 #
 .ASM.OBJ:
 	$(ASM) $(AFLAGS) $**,$@,$*.LST;
