@@ -847,19 +847,18 @@ ENDPROC	cache_int21
 	dw	-1			; end of tables (should end at INT 30h)
 	DEFLBL	INT_TABLES_END
 
-CFG_MEMSIZE	db	8,"MEMSIZE="
-		dw	640,16,640
-CFG_SESSIONS	db	9,"SESSIONS="
-		dw	4,4,16
-CFG_SWITCHAR	db	9,"SWITCHAR="
-		dw	4,4,16
-CFG_FILES	db	6,"FILES="
-		dw	20,20,256
 CFG_BOOTKEY	db	8,"BOOTKEY="
 CFG_CONSOLE	db	8,"CONSOLE="
 CON_DEVICE	db	"CON:80,25",0	; default CONSOLE configuration
 CFG_DEBUG	db	6,"DEBUG="	; used to specify DEBUG device
+CFG_FILES	db	6,"FILES="
+		dw	20,8,255
+CFG_MEMSIZE	db	8,"MEMSIZE="
+		dw	640,16,640
+CFG_SESSIONS	db	9,"SESSIONS="
+		dw	4,1,32		; TODO: Decide if 32 session limit OK
 CFG_SHELL	db	6,"SHELL="
+CFG_SWITCHAR	db	9,"SWITCHAR="
 
 AUX_DEVICE	db	"AUX",0
 PRN_DEVICE	db	"PRN",0

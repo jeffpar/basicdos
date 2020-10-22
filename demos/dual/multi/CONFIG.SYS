@@ -1,6 +1,6 @@
 REM Demonstration of dual monitors with multiple sessions per monitor
 FILES=20
-SESSIONS=4
+SESSIONS=8
 DEBUG=COM1:9600,N,8,1,0
 CONSOLE=CON:40,25,0,0,1
 SHELL=COMMAND.COM BD1.BAT

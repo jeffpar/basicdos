@@ -1,3 +1,3 @@
 REM Demonstration of a single-session configuration
-SESSIONS=1
+SESSIONS=3
 SHELL=COMMAND.COM
