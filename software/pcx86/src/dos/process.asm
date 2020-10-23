@@ -195,8 +195,8 @@ px1:	dec	bx			; restore BX pointer to EPB
 ;
 	mov	ds,[bp].REG_ES
 	mov	bx,[bp].REG_BX		; DS:BX -> EPB (from ES:BX)
-	call	load_args		; DX:AX -> new stack and CX = 0
-	cmp	[bp].REG_AL,cl		; was AL zero?
+	call	load_args		; DX:AX -> new stack
+	cmp	byte ptr [bp].REG_AL,0	; was AL zero?
 	jne	px8			; no
 ;
 ; This was a DOS_PSP_EXEC call, and unlike scb_load, it's a synchronous
@@ -489,18 +489,18 @@ ENDPROC	load_command
 ;	ES:DI -> new stack
 ;
 ; Outputs:
-;	CX = 0
 ;	ES -> PSP
 ;	DX:AX -> new stack
 ;
 ; Modifies:
-;	AX, CX, DX, DI, ES
+;	AX, DX, DI, ES
 ;
 DEFPROC	load_args,DOS
 	ASSUME	DS:NOTHING,ES:NOTHING
 
 	push	es			; save ES:DI (new program's stack)
 	push	di
+	push	cx
 	push	si
 	call	get_psp
 	mov	es,ax			; ES -> PSP
@@ -543,8 +543,9 @@ la2:	pop	ds
 	pop	ds			; DS:BX -> EPB again
 
 	pop	si
-	pop	ax			; recover new program's stack in DX:AX
-	pop	dx
+	pop	cx
+	pop	ax
+	pop	dx			; recover new program's stack in DX:AX
 	ret
 ENDPROC	load_args
 

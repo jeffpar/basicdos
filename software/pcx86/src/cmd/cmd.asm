@@ -252,20 +252,7 @@ m6:	lodsb
 	jne	m6
 	pop	di
 	mov	[di],cl			; set the cmd tail length
-;
-; Parse the cmd tail into the FCBs that we're passing along as well.
-;
-	lea	si,[di+1]		; DS:SI -> string for DOS_FCB_PARSE
-	mov	di,PSP_FCB1		; ES:DI -> FCB to fill in
-	mov	ax,(DOS_FCB_PARSE SHL 8) or 01h
-	int	21h
-	mov	[bx].EPB_FCB1.OFF,di
-	mov	[bx].EPB_FCB1.SEG,es
-	mov	di,PSP_FCB2		; ES:DI -> FCB to fill in
-	mov	ax,(DOS_FCB_PARSE SHL 8) or 01h
-	int	21h
-	mov	[bx].EPB_FCB2.OFF,di
-	mov	[bx].EPB_FCB2.SEG,es
+	mov	[bx].EPB_FCB1.OFF,-1	; let the EXEC function build the FCBs
 
 	mov	ax,DOS_PSP_EXEC
 	int	21h			; EXEC program at DS:DX
