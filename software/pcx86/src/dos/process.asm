@@ -153,6 +153,163 @@ ENDPROC	psp_copy
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; psp_exec (REG_AX = 4Bh)
+;
+; NOTE: If REG_BX = -1, then load_command is used instead of load_program.
+;
+; TODO: Add support for EPB_ENVSEG.
+;
+; Inputs:
+;	REG_AL = subfunction (only 0 and 1 are currently supported)
+;	REG_ES:REG_BX -> Exec Parameter Block (EPB)
+;	REG_DS:REG_DX -> program name or command line
+;
+; Outputs:
+;	If successful, carry clear
+;	If error, carry set, AX = error code
+;
+DEFPROC	psp_exec,DOS
+	cmp	al,2			; DOS_PSP_EXEC or DOS_PSP_EXEC1?
+	cmc
+	mov	ax,ERR_INVALID		; AX = error code if not
+	jc	px9
+
+	mov	ds,[bp].REG_DS
+	ASSUME	DS:NOTHING
+	mov	si,dx			; DS:SI -> program/command (from DS:DX)
+	inc	bx			; BX = -1?
+	jnz	px1			; no
+;
+; No EPB was provided, so treat DS:SI as a command line.
+;
+	call	load_command		; load the program and parse the tail
+	jc	px9			; AX should contain an error code
+	jmp	short px2		; otherwise, launch the program
+
+px1:	dec	bx			; restore BX pointer to EPB
+	call	load_program		; load the program
+	ASSUME	ES:NOTHING
+	jc	px9			; AX should contain an error code
+;
+; Use load_args to build the FCBs and CMDTAIL in the PSP from the EBP.
+;
+	mov	ds,[bp].REG_ES
+	mov	bx,[bp].REG_BX		; DS:BX -> EPB (from ES:BX)
+	call	load_args		; DX:AX -> new stack and CX = 0
+	cmp	[bp].REG_AL,cl		; was AL zero?
+	jne	px8			; no
+;
+; This was a DOS_PSP_EXEC call, and unlike scb_load, it's a synchronous
+; exec, meaning we launch the program directly from this call.
+;
+px2:	cli
+	mov	ss,dx			; switch to the new program's stack
+	mov	sp,ax
+	jmp	dos_exit		; and let dos_exit turn interrupts on
+;
+; This was a DOS_PSP_EXEC1 call, an undocumented call that only loads the
+; program, fills in the undocumented EPB_INIT_SP and EPB_INIT_IP fields,
+; and then returns to the caller.
+;
+; Note that EPB_INIT_SP will normally be right below PSP_STACK (PSP:2Eh),
+; since we push a zero word on the stack, and EPB_INIT_IP is identical to
+; PSP_START (PSP:40h).
+;
+; The new PSP is still in ES, and DX:AX now points to the program's stack,
+; which contains a REG_FRAME that the DOS_PSP_EXEC1 caller can't use.
+; So we return a stack pointer with the REG_FRAME popped off, along with the
+; REG_CS and REG_IP that was stored in the REG_FRAME.
+;
+; TODO: Determine why SYMDEB.EXE requires us to subtract another word from
+; the stack pointer in AX, in addition to the zero word we already pushed.
+;
+px8:	mov	di,ax
+	add	ax,size REG_FRAME + REG_CHECK - 2
+	mov	[bx].EPB_INIT_SP.OFF,ax
+	mov	[bx].EPB_INIT_SP.SEG,dx	; return the program's SS:SP
+	mov	es,dx
+	les	di,dword ptr es:[di+REG_CHECK].REG_IP
+	mov	[bx].EPB_INIT_IP.OFF,di
+	mov	[bx].EPB_INIT_IP.SEG,es	; return the program's CS:IP
+	clc
+	ret
+
+px9:	mov	[bp].REG_AX,ax		; return any error code in REG_AX
+	ret
+ENDPROC	psp_exec
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; psp_exit (REG_AH = 4Ch)
+;
+; Inputs:
+;	REG_AL = return code
+;
+; Outputs:
+;	None
+;
+DEFPROC	psp_exit,DOS
+	mov	ah,EXTYPE_NORMAL
+	jmp	psp_term_exitcode
+ENDPROC	psp_exit
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; psp_retcode (REG_AH = 4Dh)
+;
+; Returns the exit code (AL) and exit type (AH) from the child process.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	REG_AL = exit code
+;	REG_AH = exit type (see EXTYPE_*)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	psp_retcode,DOS
+	call	get_psp
+	mov	ds,ax
+	mov	ax,word ptr ds:[PSP_EXCODE]
+	mov	[bp].REG_AX,ax
+	ret
+ENDPROC	psp_retcode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; psp_set (REG_AH = 50h)
+;
+; Inputs:
+;	REG_BX = segment of new PSP
+;
+; Outputs:
+;	None
+;
+DEFPROC	psp_set,DOS
+	mov	ax,[bp].REG_BX
+	jmp	set_psp
+ENDPROC	psp_set
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; psp_get (REG_AH = 51h)
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	REG_BX = segment of current PSP
+;
+DEFPROC	psp_get,DOS
+	call	get_psp
+	mov	[bp].REG_BX,ax
+	ret
+ENDPROC	psp_get
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; psp_create (REG_AH = 55h)
 ;
 ; Creates a new PSP with a process file table filled with system file handles
@@ -245,152 +402,6 @@ ENDPROC	psp_init
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; psp_exec (REG_AX = 4Bh)
-;
-; TODO: Add support for EPB_ENVSEG.
-;
-; Inputs:
-;	REG_AL = subfunction (only 0 and 1 are currently supported)
-;	REG_DS:REG_DX -> name of program
-;	REG_ES:REG_BX -> exec parameter block (EPB)
-;
-; Outputs:
-;	If successful, carry clear
-;	If error, carry set, AX = error code
-;
-DEFPROC	psp_exec,DOS
-	cmp	al,2			; DOS_PSP_EXEC or DOS_PSP_EXEC1?
-	cmc
-	mov	ax,ERR_INVALID		; AX = error code if not
-	jnb	px1			; yes
-px0:	jmp	px9
-
-px1:	mov	ds,[bp].REG_DS
-	ASSUME	DS:NOTHING
-	mov	si,dx			; DS:SI -> name of program (from DS:DX)
-	call	load_program
-	ASSUME	ES:NOTHING
-	jc	px0			; hopefully AX contains an error code
-;
-; Use load_parms to move the CMDTAIL and FCBs from the EBP to the PSP.
-;
-	mov	ds,[bp].REG_ES
-	mov	si,[bp].REG_BX		; DS:SI -> EPB (from ES:BX)
-	call	load_parms		; DX:AX -> new stack and CX = 0
-	cmp	[bp].REG_AL,cl		; was AL zero?
-	jne	px8			; no
-;
-; This was a DOS_PSP_EXEC call, and unlike scb_load, it's a synchronous
-; exec, meaning we launch the program directly from this call.
-;
-	cli
-	mov	ss,dx			; switch to the new program's stack
-	mov	sp,ax
-	jmp	dos_exit		; and let dos_exit turn interrupts on
-;
-; This was a DOS_PSP_EXEC1 call, an undocumented call that only loads the
-; program, fills in the undocumented EPB_INIT_SP and EPB_INIT_IP fields,
-; and then returns to the caller.
-;
-; Note that EPB_INIT_SP will normally be right below PSP_STACK (PSP:2Eh),
-; since we push a zero word on the stack, and EPB_INIT_IP is identical to
-; PSP_START (PSP:40h).
-;
-; The new PSP is still in ES, and DX:AX now points to the program's stack,
-; which contains a REG_FRAME that the DOS_PSP_EXEC1 caller can't use.
-; So we return a stack pointer with the REG_FRAME popped off, along with the
-; REG_CS and REG_IP that was stored in the REG_FRAME.
-;
-; TODO: Determine why SYMDEB.EXE requires us to subtract another word from
-; the stack pointer in AX, in addition to the zero word we already pushed.
-;
-px8:	mov	di,ax
-	add	ax,size REG_FRAME + REG_CHECK - 2
-	mov	[si].EPB_INIT_SP.OFF,ax
-	mov	[si].EPB_INIT_SP.SEG,dx	; return the program's SS:SP
-	mov	es,dx
-	les	di,dword ptr es:[di+REG_CHECK].REG_IP
-	mov	[si].EPB_INIT_IP.OFF,di
-	mov	[si].EPB_INIT_IP.SEG,es	; return the program's CS:IP
-	clc
-	ret
-
-px9:	mov	[bp].REG_AX,ax		; return any error code in REG_AX
-	ret
-ENDPROC	psp_exec
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; psp_exit (REG_AH = 4Ch)
-;
-; Inputs:
-;	REG_AL = return code
-;
-; Outputs:
-;	None
-;
-DEFPROC	psp_exit,DOS
-	mov	ah,EXTYPE_NORMAL
-	jmp	psp_term_exitcode
-ENDPROC	psp_exit
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; psp_retcode (REG_AH = 4Dh)
-;
-; Returns the exit code (AL) and exit type (AH) from the child process.
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	REG_AL = exit code
-;	REG_AH = exit type (see EXTYPE_*)
-;
-; Modifies:
-;	AX
-;
-DEFPROC	psp_retcode,DOS
-	call	get_psp
-	mov	ds,ax
-	mov	ax,word ptr ds:[PSP_EXCODE]
-	mov	[bp].REG_AX,ax
-	ret
-ENDPROC	psp_retcode
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; psp_set (REG_AH = 50h)
-;
-; Inputs:
-;	REG_BX = segment of new PSP
-;
-; Outputs:
-;	None
-;
-DEFPROC	psp_set,DOS
-	mov	ax,[bp].REG_BX
-	jmp	set_psp
-ENDPROC	psp_set
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; psp_get (REG_AH = 51h)
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	REG_BX = segment of current PSP
-;
-DEFPROC	psp_get,DOS
-	call	get_psp
-	mov	[bp].REG_BX,ax
-	ret
-ENDPROC	psp_get
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; load_command
 ;
 ; This is a wrapper around load_program, which takes care of splitting a
@@ -401,7 +412,7 @@ ENDPROC	psp_get
 ;	DS:SI -> command line
 ;
 ; Outputs:
-;	If successful, carry clear, DX:AX -> new stack (from load_program)
+;	If successful, carry clear, DX:AX -> new stack (from load_args)
 ;	If error, carry set, AX = error code
 ;
 ; Modifies:
@@ -428,17 +439,15 @@ lc1:	lodsb
 	pop	ds
 	pop	bx
 	pop	cx
-	jc	lc9			; if carry set, AX should be error code
+	jc	lc9			; if carry set, AX is error code
 ;
-; DS:SI -> command line, CL = separator, BX = separator address, and ES:DI
-; is the new program's stack pointer.
+; DS:SI -> command line, CL = separator, BX = separator address, and
+; ES:DI -> new program's stack.
 ;
 	push	ds
 	push	bp
-	sub	sp,size EPB + size FCB + size FCB
+	sub	sp,size EPB
 	mov	bp,sp			; BP -> EPB followed by two FCBs
-	push	es
-	push	di
 	mov	[bp].EPB_ENVSEG,0
 	mov	[bx],cl			; restore separator
 	mov	si,bx
@@ -448,28 +457,14 @@ lc1:	lodsb
 	xchg	[bx],cl			; set length
 	mov	[bp].EPB_CMDTAIL.OFF,bx
 	mov	[bp].EPB_CMDTAIL.SEG,ds
+	mov	[bp].EPB_FCB1.OFF,-1	; tell load_args to build the FCBs
+	push	bx
+	mov	bx,bp
 	push	ss
-	pop	es
-	lea	di,[bp + size EPB]	; ES:DI -> 1st FCB to fill in
-	mov	ax,(DOS_FCB_PARSE SHL 8) or 01h
-	int	21h
-	mov	[bp].EPB_FCB1.OFF,di
-	mov	[bp].EPB_FCB1.SEG,es
-;
-; TODO: Advance SI for 2nd FCB.
-;
-	lea	di,[bp + size EPB + size FCB]
-	mov	ax,(DOS_FCB_PARSE SHL 8) or 01h
-	int	21h
-	mov	[bp].EPB_FCB2.OFF,di
-	mov	[bp].EPB_FCB2.SEG,es
-	pop	di
-	pop	es			; ES:DI -> new stack
-	push	ss
-	pop	ds
-	mov	si,bp			; DS:SI -> EBP
-	call	load_parms
-	add	sp,size EPB + size FCB + size FCB
+	pop	ds			; DS:BX -> EBP
+	call	load_args
+	pop	bx
+	add	sp,size EPB
 	pop	bp
 	pop	ds
 	mov	[bx],cl			; restore byte overwritten by length
@@ -480,14 +475,17 @@ ENDPROC	load_command
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; load_parms
+; load_args
 ;
-; NOTE: While EPB_CMDTAIL should normally end with a CHR_RETURN, load_command
-; doesn't bother, because it knows we copy only the specified number of tail
-; characters and then output CHR_RETURN.
+; NOTE: If EPB_FCB1.OFF is -1, then this function will build both FCBs
+; from the command tail at EPB_CMDTAIL.
+;
+; NOTE: While EPB_CMDTAIL normally ends with a CHR_RETURN, load_command
+; doesn't bother, because it knows load_args will copy only the specified
+; number of tail characters and then output CHR_RETURN.
 ;
 ; Inputs:
-;	DS:SI -> EPB
+;	DS:BX -> EPB
 ;	ES:DI -> new stack
 ;
 ; Outputs:
@@ -496,51 +494,59 @@ ENDPROC	load_command
 ;	DX:AX -> new stack
 ;
 ; Modifies:
-;	AX, DX, DI
+;	AX, CX, DX, DI, ES
 ;
-DEFPROC	load_parms,DOS
+DEFPROC	load_args,DOS
 	ASSUME	DS:NOTHING,ES:NOTHING
+
 	push	es			; save ES:DI (new program's stack)
 	push	di
-	push	cx
-
+	push	si
 	call	get_psp
 	mov	es,ax			; ES -> PSP
 
 	push	ds
-	push	si
-	lds	si,[si].EPB_FCB1
-	mov	di,PSP_FCB1
-	mov	cx,size FCB
+	mov	di,PSP_FCB1		; ES:DI -> PSP_FCB1
+	lds	si,[bx].EPB_FCB1
+	cmp	si,-1
+	jne	la1
+	pop	ds
+	push	ds			; DS:BX -> EPB again
+	lds	si,[bx].EPB_CMDTAIL
+	inc	si
+	mov	ax,(DOS_FCB_PARSE SHL 8) or 01h
+	int	21h
+	mov	ax,(DOS_FCB_PARSE SHL 8) or 01h
+	mov	di,PSP_FCB2
+	int	21h
+	jmp	short la2
+
+la1:	mov	cx,size FCB
 	rep	movsb			; fill in PSP_FCB1
-	pop	si
-	pop	ds			; DS:SI -> EPB again
-	push	ds
-	push	si
-	lds	si,[si].EPB_FCB2
+	pop	ds
+	push	ds			; DS:BX -> EPB again
+	lds	si,[bx].EPB_FCB2
 	mov	di,PSP_FCB2
 	mov	cx,size FCB
 	rep	movsb			; fill in PSP_FCB2
-	pop	si
-	pop	ds			; DS:SI -> EPB again
-	push	ds
-	push	si
-	lds	si,[si].EPB_CMDTAIL
-	add	di,size PSP_RESERVED3
+
+la2:	pop	ds
+	push	ds			; DS:BX -> EPB again
+	lds	si,[bx].EPB_CMDTAIL
+	mov	di,PSP_CMDTAIL
 	mov	cl,[si]
 	mov	ch,0
 	inc	cx
 	rep	movsb			; fill in PSP_CMDTAIL
 	mov	al,CHR_RETURN
 	stosb
-	pop	si
-	pop	ds			; DS:SI -> EPB again
+	pop	ds			; DS:BX -> EPB again
 
-	pop	cx
+	pop	si
 	pop	ax			; recover new program's stack in DX:AX
 	pop	dx
 	ret
-ENDPROC	load_parms
+ENDPROC	load_args
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -202,7 +202,7 @@ DEFPROC	scb_load,DOS
 	push	bx			; BX = ENVSEG, if any
 	lds	si,es:[di].SPB_CMDLINE
 	ASSUME	DS:NOTHING
-	call	load_command		; DI:SI -> command line
+	call	load_command		; DS:SI -> command line
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
