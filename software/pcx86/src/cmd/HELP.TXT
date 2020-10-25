@@ -58,7 +58,7 @@ CTRL-V  Toggle Insert\
 CTRL-C  Abort\
 DELETE  Delete Previous Char\
 ESCAPE  Erase Line
-CTRL-ALT-DEL is reserved for killing sessions. Use RESTART to restart the system.
+CTRL-ALT-DEL is reserved for resetting sessions. Use RESTART to restart the system.
 
 LET *variable*=*expression*
 Assigns the value of the *expression* to the *variable*.  Values cannot be assigned to predefined variables.
@@ -110,6 +110,6 @@ VER
 Displays the BASIC-DOS version number and revision.
 
 Unsupported Commands
-The BASIC-DOS file system is currently read-only.  Until read-write support is implemented, the following commands cannot be supported:
+The BASIC-DOS file system is currently read-only.  Until read-write support is implemented, the following commands are not supported:
 COPY, DEL, EDIT, REN, SAVE.
 
