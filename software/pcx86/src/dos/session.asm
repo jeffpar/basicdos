@@ -587,15 +587,15 @@ sw6:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
 	mov	ss,[bx].SCB_STACK.SEG
 	mov	sp,[bx].SCB_STACK.OFF
 ;
-; TODO: Finish support for the KILL bit.
+; TODO: Finish support for the RESET bit.
 ;
-	test	[bx].SCB_STATUS,SCSTAT_KILL
+	test	[bx].SCB_STATUS,SCSTAT_RESET
 	jz	sw8
 sw7:	sti
-	and	[bx].SCB_STATUS,NOT SCSTAT_KILL
-	PRINTF	<"Forced quit detected",13,10>
-	mov	ax,(EXTYPE_KILL SHL 8) OR 0FFh
-	call	psp_term_exitcode	; attempt forced quit
+	and	[bx].SCB_STATUS,NOT SCSTAT_RESET
+	PRINTF	<"Reset request detected",13,10>
+	mov	ax,(EXTYPE_RESET SHL 8) OR 0FFh
+	call	psp_term_exitcode	; attempt reset
 
 sw8:	ASSERT	NC
 	jmp	dos_exit		; we'll let dos_exit turn interrupts on

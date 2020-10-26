@@ -278,7 +278,7 @@ hk3:	cmp	al,CHR_CTRLP
 	xor	[bx].SCB_CTRLP_ACT,1
 hk4:	cmp	al,CHR_CTRLD
 	jne	hk9
-	or	[bx].SCB_STATUS,SCSTAT_KILL
+	or	[bx].SCB_STATUS,SCSTAT_RESET
 hk8:	add	bx,size SCB		; advance to the next SCB
 	cmp	bx,[scb_table].SEG
 	jb	hk1

@@ -301,7 +301,7 @@ EXTYPE_ERROR	equ	2	; critical error termination
 EXTYPE_KEEP	equ	3	; INT 21h AH=31h (keep process)
 EXTYPE_DVERR	equ	4	; BASIC-DOS: divide error
 EXTYPE_OVERR	equ	5	; BASIC-DOS: overflow error
-EXTYPE_KILL	equ	6	; BASIC-DOS: kill (via CTRL-ALT-DEL)
+EXTYPE_RESET	equ	6	; BASIC-DOS: reset (via CTRL-ALT-DEL)
 
 ;
 ; Find File Block (FFB)
