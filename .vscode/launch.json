@@ -5,11 +5,11 @@
   "version": "0.2.0",
   "configurations": [
     {
-        "type": "chrome",
-        "request": "launch",
-        "name": "BASIC-DOS Demo",
-        "url": "http://localhost:4040/maplebar/",
-        "webRoot": "${workspaceFolder}"
+      "type": "chrome",
+      "request": "launch",
+      "name": "BASIC-DOS Demo",
+      "url": "http://localhost:4040/maplebar/",
+      "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
@@ -28,16 +28,26 @@
     {
       "type": "chrome",
       "request": "launch",
-      "name": "BASIC-DOS Dev Machine",
+      "name": "BASIC-DOS Development Machine",
       "url": "http://localhost:4040/maplebar/dev/",
       "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
       "request": "launch",
-      "name": "BASIC-DOS Dev+Dual Monitors",
+      "name": "BASIC-DOS Development Machine with Dual Monitors",
       "url": "http://localhost:4040/maplebar/dual/dev/",
       "webRoot": "${workspaceFolder}"
     },
+    {
+      "name": "gulp: watch",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/gulp/bin/gulp.js",
+      "args": ["watch"],
+      "cwd": "${workspaceFolder}",
+      "stopOnEntry": false,
+      "console": "internalConsole"
+    }
   ]
 }

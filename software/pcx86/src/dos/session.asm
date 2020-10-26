@@ -34,68 +34,7 @@ DOS	segment word public 'CODE'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; get_scb
-;
-; Returns the specified SCB.
-;
-; Inputs:
-;	CL = SCB # (-1 for first free SCB)
-;
-; Outputs:
-;	On success, carry clear, BX -> SCB
-;	On failure, carry set (SCB uninitialized, unavailable, or invalid)
-;
-; Modifies:
-;	BX
-;
-DEFPROC	get_scb,DOS
-	cmp	cl,-1
-	je	get_free_scb
-	push	ax
-	mov	al,size SCB
-	mul	cl
-	add	ax,[scb_table].OFF
-	cmp	ax,[scb_table].SEG
-	cmc
-	jb	gs9
-	xchg	bx,ax
-	test	[bx].SCB_STATUS,SCSTAT_INIT
-	jnz	gs9
-	stc
-gs9:	pop	ax
-	ret
-ENDPROC	get_scb
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; get_free_scb
-;
-; Returns the first free (unloaded) SCB.
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	On success, carry clear, BX -> SCB
-;	On failure, carry set (SCB unavailable)
-;
-; Modifies:
-;	BX
-;
-DEFPROC	get_free_scb,DOS
-	mov	bx,[scb_table].OFF
-fs1:	test	[bx].SCB_STATUS,SCSTAT_LOAD
-	jz	fs9
-	add	bx,size SCB
-	cmp	bx,[scb_table].SEG
-	jb	fs1
-	stc
-fs9:	ret
-ENDPROC	get_free_scb
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; get_scbnum
+; scb_getnum
 ;
 ; Inputs:
 ;	None
@@ -106,7 +45,7 @@ ENDPROC	get_free_scb
 ; Modifies:
 ;	AX
 ;
-DEFPROC	get_scbnum,DOS
+DEFPROC	scb_getnum,DOS
 	ASSUME	ES:NOTHING
 	push	bx
 	mov	bx,[scb_active]
@@ -114,60 +53,7 @@ DEFPROC	get_scbnum,DOS
 	mov	al,[bx].SCB_NUM
 gsn9:	pop	bx
 	ret
-ENDPROC	get_scbnum
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; scb_init
-;
-; Initialize the SCB in preparation for program loading.
-;
-; Inputs:
-;	DS:BX -> SCB (Session Control Block)
-;	ES:DI -> SPB (Session Parameter Block)
-;
-; Modifies:
-;	AX, CX, DX, SI
-;
-DEFPROC	scb_init,DOS
-	ASSUME	ES:NOTHING
-	ASSERT	STRUCT,[bx],SCB
-;
-; Copy any valid SFHs into the SCB.
-;
-	push	di
-	mov	cx,5
-	mov	dx,es:[di].SPB_ENVSEG
-	lea	si,[di].SPB_SFHIN	; ES:SI -> 1st SFH in the SPB
-	lea	di,[bx].SCB_SFHIN	; DS:DI -> 1st SFH in the SCB
-si1:	lods	byte ptr es:[si]
-	cmp	al,SFH_NONE		; was an SFH supplied?
-	je	si2			; no
-	mov	[di],al			; update the SCB
-si2:	cmp	dx,-1			; is SPB_ENVSEG -1 (from sysinit)?
-	je	si3			; yes, so leave SFH alone
-	mov	al,[di]			; AL = SFH (no harm if SFH_NONE)
-	mov	ah,1			; add 1 session ref
-	call	sfh_add_ref		; (in addition to any program refs)
-si3:	inc	di
-	loop	si1
-	pop	di
-;
-; Take care of any remaining initialization now, including set the SCB's
-; parent, output context (if any), etc.
-;
-	mov	ax,[scb_active]		; the caller is the presumed parent
-	mov	[bx].SCB_PARENT,ax
-
-	mov	al,[bx].SCB_SFHOUT
-	call	sfh_context
-	mov	[bx].SCB_CONTEXT,ax
-
-	mov	al,[def_switchar]
-	mov	[bx].SCB_SWITCHAR,al
-	or	[bx].SCB_STATUS,SCSTAT_INIT
-	ret
-ENDPROC	scb_init
+ENDPROC	scb_getnum
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -196,7 +82,7 @@ DEFPROC	scb_load,DOS
 	mov	di,[bp].REG_DI
 	mov	es,[bp].REG_ES		; ES:DI -> SPB
 	ASSUME	ES:NOTHING
-	call	scb_init		; initialize the SCB for loading
+	call	init_scb		; initialize the SCB for loading
 	push	bx			; save SCB
 	mov	bx,es:[di].SPB_ENVSEG
 	push	bx			; BX = ENVSEG, if any
@@ -657,6 +543,120 @@ se2:	add	bx,size SCB
 se9:	sti
 	ret
 ENDPROC	scb_endwait
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_scb
+;
+; Returns the specified SCB.
+;
+; Inputs:
+;	CL = SCB # (-1 for first free SCB)
+;
+; Outputs:
+;	On success, carry clear, BX -> SCB
+;	On failure, carry set (SCB uninitialized, unavailable, or invalid)
+;
+; Modifies:
+;	BX
+;
+DEFPROC	get_scb,DOS
+	cmp	cl,-1
+	je	get_free_scb
+	push	ax
+	mov	al,size SCB
+	mul	cl
+	add	ax,[scb_table].OFF
+	cmp	ax,[scb_table].SEG
+	cmc
+	jb	gs9
+	xchg	bx,ax
+	test	[bx].SCB_STATUS,SCSTAT_INIT
+	jnz	gs9
+	stc
+gs9:	pop	ax
+	ret
+ENDPROC	get_scb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_free_scb
+;
+; Returns the first free (unloaded) SCB.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	On success, carry clear, BX -> SCB
+;	On failure, carry set (SCB unavailable)
+;
+; Modifies:
+;	BX
+;
+DEFPROC	get_free_scb,DOS
+	mov	bx,[scb_table].OFF
+fs1:	test	[bx].SCB_STATUS,SCSTAT_LOAD
+	jz	fs9
+	add	bx,size SCB
+	cmp	bx,[scb_table].SEG
+	jb	fs1
+	stc
+fs9:	ret
+ENDPROC	get_free_scb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; init_scb
+;
+; Initialize the SCB in preparation for program loading.
+;
+; Inputs:
+;	DS:BX -> SCB (Session Control Block)
+;	ES:DI -> SPB (Session Parameter Block)
+;
+; Modifies:
+;	AX, CX, DX, SI
+;
+DEFPROC	init_scb,DOS
+	ASSUME	ES:NOTHING
+	ASSERT	STRUCT,[bx],SCB
+;
+; Copy any valid SFHs into the SCB.
+;
+	push	di
+	mov	cx,5
+	mov	dx,es:[di].SPB_ENVSEG
+	lea	si,[di].SPB_SFHIN	; ES:SI -> 1st SFH in the SPB
+	lea	di,[bx].SCB_SFHIN	; DS:DI -> 1st SFH in the SCB
+si1:	lods	byte ptr es:[si]
+	cmp	al,SFH_NONE		; was an SFH supplied?
+	je	si2			; no
+	mov	[di],al			; update the SCB
+si2:	cmp	dx,-1			; is SPB_ENVSEG -1 (from sysinit)?
+	je	si3			; yes, so leave SFH alone
+	mov	al,[di]			; AL = SFH (no harm if SFH_NONE)
+	mov	ah,1			; add 1 session ref
+	call	sfh_add_ref		; (in addition to any program refs)
+si3:	inc	di
+	loop	si1
+	pop	di
+;
+; Take care of any remaining initialization now, including set the SCB's
+; parent, output context (if any), etc.
+;
+	mov	ax,[scb_active]		; the caller is the presumed parent
+	mov	[bx].SCB_PARENT,ax
+
+	mov	al,[bx].SCB_SFHOUT
+	call	sfh_context
+	mov	[bx].SCB_CONTEXT,ax
+
+	mov	al,[def_switchar]
+	mov	[bx].SCB_SWITCHAR,al
+	or	[bx].SCB_STATUS,SCSTAT_INIT
+	ret
+ENDPROC	init_scb
 
 DOS	ends
 

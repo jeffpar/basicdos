@@ -19,7 +19,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<sfh_add_ref,pfh_close,sfh_close>,near
 	EXTERNS	<mcb_getsize,mcb_free_all>,near
 	EXTERNS	<dos_exit,dos_exit2,dos_ctrlc,dos_error>,near
-	EXTERNS	<get_scbnum,mcb_setname,scb_release,scb_unload,scb_yield>,near
+	EXTERNS	<mcb_setname,scb_getnum,scb_release,scb_unload,scb_yield>,near
 	IF REG_CHECK
 	EXTERNS	<dos_check>,near
 	ENDIF
@@ -55,7 +55,7 @@ DEFPROC	psp_term,DOS
 ; Close process file handles.
 ;
 pt1:	push	ax			; save exit code/type on stack
-	call	close_psp		; close all the process file handles
+	call	psp_close		; close all the process file handles
 ;
 ; Restore the SCB's CTRLC and ERROR handlers from the values in the PSP.
 ;
@@ -366,42 +366,6 @@ ENDPROC	psp_create
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; psp_init
-;
-; Helper for psp_copy and psp_create APIs.  PSP fields up to (but not
-; including) PSP_PARENT are initialized.
-;
-; Inputs:
-;	REG_DX = segment of new PSP
-;
-; Outputs:
-;	AX = active PSP
-;	BX -> active SCB
-;	ES:DI -> PSP_PARENT of new PSP
-;
-; Modifies:
-;	AX, BX, CX, DX, DI, ES
-;
-DEFPROC	psp_init,DOS
-	mov	dx,[bp].REG_DX
-	call	psp_setmem		; DX = PSP segment to initialize
-	ASSUME	ES:NOTHING
-;
-; On return from psp_setmem, ES = PSP segment and DI -> PSP_EXRET.
-;
-; Copy current INT 22h (EXRET), INT 23h (CTRLC), and INT 24h (ERROR) vectors,
-; but copy them from the SCB, not the IVT.
-;
-	mov	bx,[scb_active]		; BX = active SCB
-	lea	si,[bx].SCB_EXRET
-	mov	cx,6
-	rep	movsw
-	call	get_psp			; AX = active PSP
-	ret
-ENDPROC	psp_init
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; load_command
 ;
 ; This is a wrapper around load_program, which takes care of splitting a
@@ -566,17 +530,17 @@ ENDPROC	load_args
 DEFPROC	load_program,DOS
 	ASSUME	DS:NOTHING,ES:NOTHING
 ;
-; I used to start off with a small allocation (10h paras), since that's
+; We used to start off with a small allocation (10h paras), since that's
 ; all we initially need for the PSP, but that can get us into trouble later
 ; if there isn't enough free space after the block.  So it's actually best
 ; to allocate the largest possible block now.  We'll shrink it down once
 ; we know how large the program is.
 ;
 ; TODO: Allocating all memory can get us into trouble with other sessions,
-; if they need any memory while this function is running.  So, while I
+; if they need any memory while this function is running.  So, while we
 ; originally didn't want to wrap this entire operation with LOCK_SCB, because
 ; 1) it's lengthy and 2) everything it does other than the memory allocations
-; is session-local, that's the only solution I have available at the moment.
+; is session-local, that's the only solution we have available at the moment.
 ;
 	LOCK_SCB
 	mov	bx,0A000h		; alloc a PSP segment
@@ -801,13 +765,28 @@ lp6g:	push	es:[EXE_START_SEG]
 ;
 ; I also discovered that if I tried to load "SYMDEB E.COM" (where E.COM was an
 ; 11-byte COM file) with 8 more paras available (96Fh total), the system would
-; crash while trying to load E.COM.  I didn't investigate further (yet), so it
-; is unclear if the cause is a DOS/EXEC bug or a SYMDEB bug.
+; crash while trying to load E.COM.  I haven't investigated further, so it's
+; unclear if the cause is a DOS/EXEC bug or a SYMDEB bug.
 ;
 ; Anyway, since BASIC-DOS can successfully load SYMDEB.EXE 4.0 with only 92Bh
 ; paras (considerably less than 967h), either we're being insufficiently
 ; conservative, or PC DOS had some EXEC overhead (perhaps in the transient
 ; portion of COMMAND.COM) that it couldn't eliminate.
+;
+; NOTE: DEBUG.COM from PC DOS 2.00 has a file size of 11904 bytes (image size
+; 2F80h) and resets its stack pointer to 2AE2h, which is an area that's too
+; small to safely run in BASIC-DOS:
+;
+;	083B:011C BCE22A           MOV      SP,2AE2
+;	...
+;	083B:0211 BCE22A           MOV      SP,2AE2
+;
+; If we want to run such apps (which we don't), we'll have to detect them and
+; implement stack switching (which we won't).
+;
+; DEBUG.COM from PC DOS 1.00 has a file size of 6049 bytes (image size 18A1h)
+; and resets its stack pointer to 17F8h, but it's less susceptible to problems
+; since copyright and error message strings are located below the stack.
 ;
 	add	bx,40h			; add another 1Kb (in paras)
 
@@ -842,9 +821,9 @@ lp7a:	add	dx,ax			; DX -> end of program image
 ;
 ; We could leave the executable file open and close it on process termination,
 ; because it provides us with valuable information about all the processes that
-; are running (info that should have been recorded in the PSP but never was).
-; The handle could also be useful for overlay support, too.  But for now, we'll
-; close the handle.
+; are running (info that perhaps should have been recorded in the PSP).  The
+; handle could eventually be useful for overlay support, too.  But for now,
+; we close the handle, just like PC DOS.
 ;
 lp7b:	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the file
@@ -937,8 +916,7 @@ lp8b:	mov	dx,es
 ; Since we're past the point of no return now, let's take care of some
 ; initialization outside of the program segment; namely, resetting the CTRLC
 ; and ERROR handlers to their default values.  And as always, we set these
-; handlers inside the SCB rather than the IVT (ie, exactly as DOS_MSC_SETVEC
-; does).
+; handlers inside the SCB rather than the IVT (exactly as DOS_MSC_SETVEC does).
 ;
 	mov	bx,[scb_active]
 	mov	[bx].SCB_CTRLC.OFF,offset dos_ctrlc
@@ -1021,7 +999,7 @@ lpef:	push	ax
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
-	call	close_psp
+	call	psp_close
 	call	get_psp
 	mov	es,ax
 	mov	ah,DOS_MEM_FREE
@@ -1099,6 +1077,64 @@ ENDPROC	psp_calcsum
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; psp_close
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+DEFPROC	psp_close,DOS
+	mov	cx,size PSP_PFT
+	sub	bx,bx			; BX = handle (PFH)
+cp1:	call	pfh_close		; close process file handle
+	inc	bx
+	loop	cp1
+	ret
+ENDPROC	psp_close
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; psp_init
+;
+; Helper for psp_copy and psp_create APIs.  PSP fields up to (but not
+; including) PSP_PARENT are initialized.
+;
+; Inputs:
+;	REG_DX = segment of new PSP
+;
+; Outputs:
+;	AX = active PSP
+;	BX -> active SCB
+;	ES:DI -> PSP_PARENT of new PSP
+;
+; Modifies:
+;	AX, BX, CX, DX, DI, ES
+;
+DEFPROC	psp_init,DOS
+	mov	dx,[bp].REG_DX
+	call	psp_setmem		; DX = PSP segment to initialize
+	ASSUME	ES:NOTHING
+;
+; On return from psp_setmem, ES = PSP segment and DI -> PSP_EXRET.
+;
+; Copy current INT 22h (EXRET), INT 23h (CTRLC), and INT 24h (ERROR) vectors,
+; but copy them from the SCB, not the IVT.
+;
+	mov	bx,[scb_active]		; BX = active SCB
+	lea	si,[bx].SCB_EXRET
+	mov	cx,6
+	rep	movsw
+	call	get_psp			; AX = active PSP
+	ret
+ENDPROC	psp_init
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; psp_setmem
 ;
 ; This is called by psp_copy and psp_create to initialize the first 10 bytes
@@ -1135,7 +1171,7 @@ ps1:	mov	es,dx
 	xchg	ax,bx
 	stosw				; 02h: PSP_PARAS (ie, memory limit)
 	xchg	bx,ax			; save PSP_PARAS in BX
-	call	get_scbnum		; 04h: SCB #
+	call	scb_getnum		; 04h: SCB #
 	mov	ah,9Ah			; 05h: PSP_FARCALL (9Ah)
 	stosw
 	sub	bx,dx			; BX = PSP_PARAS - PSP segment
@@ -1206,28 +1242,6 @@ DEFPROC	set_psp,DOS
 	pop	bx
 	ret
 ENDPROC	set_psp
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; close_psp
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	AX, BX, CX, DX
-;
-DEFPROC	close_psp,DOS
-	mov	cx,size PSP_PFT
-	sub	bx,bx			; BX = handle (PFH)
-cp1:	call	pfh_close		; close process file handle
-	inc	bx
-	loop	cp1
-	ret
-ENDPROC	close_psp
 
 DOS	ends
 
