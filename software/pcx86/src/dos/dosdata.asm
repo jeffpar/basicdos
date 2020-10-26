@@ -17,25 +17,26 @@ DOS	segment word public 'CODE'
 ; This must be the first object module; we reuse the fake INT 20h as mcb_head
 ; and overwrite the JMP with mcb_limit.
 ;
-	DEFLBL	mcb_head,word
+	DEFLBL	mcb_head,word		; 1st memory paragraph
 	int	20h			; fake DOS terminate call
-	DEFLBL	mcb_limit,word
-	jmp	sysinit
 
-	EXTERNS	scb_return,near
+	DEFLBL	clk_ptr,dword		; pointer to CLOCK$ DDH
+	jmp	sysinit			; (msc_getvars assumes at mcb_head+2)
+	nop
 
+	DEFTBL	<bpb_table,sfb_table,scb_table>
+
+	DEFWORD	mcb_limit,0		; 1st unavailable paragraph
 	DEFWORD	scb_active,0		; offset of active SCB (zero if none)
 	DEFWORD	buf_head,0		; head of buffer chain
 	DEFWORD	key_boot,0		; records key pressed at boot, if any
-	DEFPTR	clk_ptr,-1		; pointer to CLOCK$ DDH
+	EXTERNS	scb_return,near
 	DEFWORD	scb_stoked,<offset scb_return>
 	DEFBYTE	scb_locked,-1		; -1 if unlocked, >=0 if locked
 	DEFBYTE	bpb_total,0		; total number of BPBs
 	DEFBYTE	ddint_level,0		; device driver interrupt level
 	DEFBYTE	sfh_debug,-1		; system file handle for DEBUG device
 	DEFBYTE	def_switchar,'/'
-
-	DEFTBL	<bpb_table,scb_table,sfb_table>
 ;
 ; Constants
 ;
@@ -74,7 +75,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<fcb_open,fcb_close,fcb_sread,fcb_rread,fcb_parse>,near
 	EXTERNS	<msc_getdate,msc_setdate,msc_gettime,msc_settime>,near
 	EXTERNS	<msc_setvec,msc_getver,msc_setctrlc,msc_getvec,msc_getswc>,near
-	EXTERNS	<psp_exec,psp_exit,psp_retcode>,near
+	EXTERNS	<msc_getvars,psp_exec,psp_exit,psp_retcode>,near
 	EXTERNS	<psp_copy,psp_set,psp_get,psp_create>,near
 	EXTERNS	<hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek,hdl_ioctl>,near
 	EXTERNS	<mem_alloc,mem_free,mem_realloc>,near
@@ -109,7 +110,7 @@ DOS	segment word public 'CODE'
 	dw	hdl_ioctl,   func_none,   func_none,   func_none	;44h-47h
 	dw	mem_alloc,   mem_free,    mem_realloc, psp_exec		;48h-4Bh
 	dw	psp_exit,    psp_retcode, dsk_ffirst,  dsk_fnext	;4Ch-4Fh
-	dw	psp_set,     psp_get,     func_none,   func_none	;50h-53h
+	dw	psp_set,     psp_get,     msc_getvars, func_none	;50h-53h
 	dw	func_none,   psp_create					;54h-55h
 	DEFABS	FUNCTBL_SIZE,<($ - FUNCTBL) SHR 1>
 
