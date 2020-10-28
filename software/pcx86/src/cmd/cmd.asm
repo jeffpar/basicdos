@@ -447,10 +447,11 @@ nb2:	push	di
 	pop	ds
 	DOSUTIL	STRUPR			; DS:SI -> token, CX = length
 
-nb8:	pop	cx			; CX = handler (originally in DX)
-	jcxz	nb9
+nb8:	pop	dx			; DX = handler again
+	test	dx,dx
+	jz	nb9
 	lea	bx,[heap]
-	call	cx			; call the token handler
+	call	dx			; call the token handler
 nb9:	ret
 ENDPROC	cmdDOS
 
@@ -738,7 +739,6 @@ dir3a:	sub	cx,cx			; CX = attributes
 ;
 	sub	dx,dx
 	sub	cx,cx
-
 dir4:	lea	si,ds:[PSP_DTA].FFB_NAME
 ;
 ; Beginning of "stupid" code to separate filename into name and extension.
