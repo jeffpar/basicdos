@@ -507,9 +507,29 @@ ENDPROC utl_atoi32d
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; div_32_16
+;
+; Divide DX:AX by CX, returning quotient in DX:AX and remainder in BX.
+;
+; Modifies:
+;	AX, BX, DX
+;
+DEFPROC	div_32_16
+	mov	bx,ax			; save low dividend in BX
+	mov	ax,dx			; divide high dividend
+	sub	dx,dx			; DX:AX = new dividend
+	div	cx			; AX = high quotient
+	xchg	ax,bx			; move to BX, restore low dividend
+	div	cx			; AX = low quotient
+	xchg	dx,bx			; DX:AX = new quotient, BX = remainder
+	ret
+ENDPROC	div_32_16
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; mul_32_16
 ;
-; Multiply DX:AX by CX, leaving result in DX:AX.
+; Multiply DX:AX by CX, returning result in DX:AX.
 ;
 ; Modifies:
 ;	AX, DX

@@ -15,7 +15,7 @@ The [BOOT](boot/) directory contains the code for the BASIC-DOS boot sector
 to write the BASIC-DOS boot sector to the diskette currently in drive A:.
 
 The [CMD](cmd/) directory contains the code for the BASIC-DOS Interpreter
-(`COMMAND.COM`) and help text (`COMMAND.TXT`).
+(`COMMAND.COM`) and help text (`HELP.TXT`).
 
 The [DEV](dev/) directory contains all the BASIC-DOS device drivers.
 The drivers are built as a separate .COM files, which are then concatenated
@@ -26,37 +26,33 @@ drivers and removing any unnecessary drivers from memory.
 
 The [DOS](dos/) directory contains the BASIC-DOS "kernel" (`IBMDOS.COM`).
 
-The [INC](inc/) directory contains all the include files, which use a somewhat
-arbitrary singly-linked hierarchy:
+The [INC](inc/) directory contains all the include files:
 
     dos.inc
-    +- dev.inc
-       +- disk.inc
-          +- bios.inc
-             +- 8086.inc
-                +- macros.inc
+    +-- dosapi.inc
+    dev.inc
+    +-- devapi.inc
+    disk.inc
+    bios.inc
+    8086.inc
+    macros.inc
 
-So a low-level source file may need to include only `8086.inc`, while a
-high-level source file may need to include `dos.inc`.
+A low-level source file may need to include only `8086.inc`, while a high-level
+source file may need files higher on the list (eg, `dos.inc`).
 
-However, since MASM started running out of symbol space when building some
-of the components, I moved "public" portions of `dos.inc` and `dev.inc`
-into `dosapi.inc` and `devapi.inc`.
-
-So now a device driver like the CONSOLE driver (`CONDEV.ASM`) can include
-`dev.inc` and `dosapi.inc` instead of `dos.inc`.  The CONSOLE driver is a
-more complex driver that requires access to special DOS "utility" interfaces,
-whereas most drivers, like the Floppy Drive Controller driver (`FDCDEV.ASM`),
-need only include `dev.inc`.
+Since MASM started running out of symbol space when building some of the
+components, I moved "public" portions of `dos.inc` and `dev.inc` into
+`dosapi.inc` and `devapi.inc`, respectively.  Use only the latter whenever
+possible.
 
 The [TEST](test/) directory contains an assortment of test programs, some of
 which assemble into `.COM` and `.EXE` files, while others are ready-to-run
 `.BAT` and `.BAS` files.
 
 Last but not least, the [MSB](msb/) directory contains a buildable copy of
-Microsoft BASIC ("GW-BASIC"), using the open-sourced files from
-[GitHub](https://github.com/microsoft/GW-BASIC) and
-[OS/2 Museum](msb/OEM.ASM).
+Microsoft BASIC ("GW-BASIC"), using the open-source files from
+[GitHub](https://github.com/microsoft/GW-BASIC) and a reverse-engineered OEM
+source file courtesy of the [OS/2 Museum](msb/OEM.ASM).
 
 ## The BASIC-DOS Build Process
 

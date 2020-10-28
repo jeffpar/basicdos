@@ -72,7 +72,8 @@ DOS	segment word public 'CODE'
 	EXTERNS	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>,near
 	EXTERNS	<dsk_flush,dsk_getdrv,dsk_setdrv,dsk_setdta,dsk_getdta>,near
 	EXTERNS	<dsk_getinfo,dsk_ffirst,dsk_fnext>,near
-	EXTERNS	<fcb_open,fcb_close,fcb_sread,fcb_rread,fcb_parse>,near
+	EXTERNS	<fcb_open,fcb_close,fcb_sread,fcb_rread,fcb_setrrec>,near
+	EXTERNS	<fcb_rbread,fcb_parse>,near
 	EXTERNS	<msc_getdate,msc_setdate,msc_gettime,msc_settime>,near
 	EXTERNS	<msc_setvec,msc_getver,msc_setctrlc,msc_getvec,msc_getswc>,near
 	EXTERNS	<msc_getvars,psp_exec,psp_exit,psp_retcode>,near
@@ -99,7 +100,7 @@ DOS	segment word public 'CODE'
 	dw	func_none,   dsk_getdrv,  dsk_setdta,  func_none	;18h-1Bh
 	dw	func_none,   func_none,   func_none,   func_none	;1Ch-1Fh
 	dw	func_none,   fcb_rread,   func_none,   func_none	;20h-23h
-	dw	func_none,   msc_setvec,  psp_copy,    func_none	;24h-27h
+	dw	fcb_setrrec, msc_setvec,  psp_copy,    fcb_rbread	;24h-27h
 	dw	func_none,   fcb_parse,   msc_getdate, msc_setdate	;28h-2Bh
 	dw	msc_gettime, msc_settime, func_none,   dsk_getdta	;2Ch-2Fh
 	dw	msc_getver,  func_none,   func_none,   msc_setctrlc	;30h-33h

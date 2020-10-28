@@ -101,6 +101,7 @@ DOS_DSK_FNEXT	equ	4Fh	; find next filespec (DTA)
 
 DOS_PSP_SET	equ	50h	; set current PSP (BX) (undocumented)
 DOS_PSP_GET	equ	51h	; get current PSP (BX) (undocumented)
+DOS_MSC_GETVARS	equ	52h	; get variables pointer (ES:BX) (undocumented)
 DOS_PSP_CREATE	equ	55h	; create PSP in segment (DX) (undocumented)
 
 ;
@@ -128,9 +129,9 @@ DOS_UTL_STOP	equ	13h	; stop session (CL)
 DOS_UTL_END	equ	14h	; end session (CL)
 DOS_UTL_WAITEND	equ	15h	; wait for session to end (CL)
 DOS_UTL_YIELD	equ	16h	; yield
-DOS_UTL_SLEEP	equ	17h	; sleep DX milliseconds
-DOS_UTL_WAIT	equ	18h	; wait until end wait
-DOS_UTL_ENDWAIT	equ	19h	; end wait
+DOS_UTL_SLEEP	equ	17h	; sleep (DX) milliseconds
+DOS_UTL_WAIT	equ	18h	; wait on ID (DX:DI) until end wait
+DOS_UTL_ENDWAIT	equ	19h	; end wait on ID (DX:DI)
 DOS_UTL_HOTKEY	equ	1Ah	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
 DOS_UTL_LOCK	equ	1Bh	; lock current session
 DOS_UTL_UNLOCK	equ	1Ch	; unlock current session
@@ -141,7 +142,7 @@ DOS_UTL_GETDATE	equ	20h	; get date (AX) in "packed" format
 DOS_UTL_GETTIME	equ	21h	; get time (AX) in "packed" format
 DOS_UTL_INCDATE	equ	22h	; increment date (CX=year, DH=month, DL=day)
 DOS_UTL_READLN	equ	23h	; read line (DS:DX) from CON
-DOS_UTL_STDLEN	equ	24h	; like STRLEN but w/24h (dollar) as terminator
+DOS_UTL_STDLEN	equ	24h	; like STRLEN but w/24h ('$') as terminator
 DOS_UTL_HDLCTL	equ	(DOS_HDL_IOCTL + 80h)
 
 ;

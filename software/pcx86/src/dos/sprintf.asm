@@ -14,7 +14,7 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<MONTHS,DAYS>,word
-	EXTERNS	<strlen,day_of_week>,near
+	EXTERNS	<strlen,day_of_week,div_32_16>,near
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -63,18 +63,14 @@ ia1:	test	bh,PF_HASH
 
 ia2:	push	bx			; save flags and base
 	push	cx			; save requested length
-	mov	bh,0
+	mov	cl,bl
+	mov	ch,0
 	mov	bp,sp
 
-ia3:	mov	cx,ax			; save low dividend in CX
-	mov	ax,dx			; divide high dividend
-	sub	dx,dx			; DX:AX is new dividend
-	div	bx			; AX is high quotient
-	xchg	ax,cx			; move to CX, restore low dividend
-	div	bx			; AX is low quotient
-	push	dx			; save remainder
-	mov	dx,cx			; new quotient in DX:AX
-	or	cx,ax			; is new quotient zero?
+ia3:	call	div_32_16		; DX:AX = DX:AX / CX
+	push	bx			; push remainder onto stack
+	mov	bx,dx
+	or	bx,ax			; is new quotient zero?
 	jnz	ia3			; no, use as next dividend
 
 	mov	cx,[bp]			; recover requested length
