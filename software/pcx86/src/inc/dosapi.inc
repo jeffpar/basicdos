@@ -34,7 +34,7 @@ INT_DOSRES2	equ	2Ch	; reserved
 INT_DOSRES3	equ	2Dh	; reserved
 INT_DOSCMD	equ	2Eh	; COMMAND.COM operation
 INT_DOSMULTI	equ	2Fh	; multiplex function interface
-INT_DOSCALL5	equ	30h	; vector has FAR JMP (overwrites vector 31h too)
+INT_DOSCALL5	equ	30h	; vector w/FAR JMP (overwrites vector 31h, too)
 INT_DOSUTIL	equ	32h	; DOS utility interface
 
 ;
@@ -86,19 +86,15 @@ DOS_HDL_SEEKBEG	equ   4200h	; seek from beginning
 DOS_HDL_SEEKCUR	equ   4201h	; seek from current position
 DOS_HDL_SEEKEND	equ   4202h	; seek from end
 DOS_HDL_IOCTL	equ   	44h	; send device request (AL) for handle (BX)
-
 DOS_MEM_ALLOC	equ	48h	; allocate (BX) paras (returns segment AX)
 DOS_MEM_FREE	equ	49h	; free segment (ES)
 DOS_MEM_REALLOC	equ	4Ah	; reallocate size of segment (ES) to paras (BX)
-
 DOS_PSP_EXEC	equ   4B00h	; load program (DS:DX) with EPB (ES:BX)
 DOS_PSP_EXEC1	equ   4B01h	; load program w/o running (undocumented)
 DOS_PSP_EXIT	equ	4Ch	; exit program with return code (AL)
 DOS_PSP_RETCODE	equ	4Dh	; return exit code (AL) and exit type (AH)
-
 DOS_DSK_FFIRST	equ	4Eh	; find first filespec (DS:DX) with attr (CX)
 DOS_DSK_FNEXT	equ	4Fh	; find next filespec (DTA)
-
 DOS_PSP_SET	equ	50h	; set current PSP (BX) (undocumented)
 DOS_PSP_GET	equ	51h	; get current PSP (BX) (undocumented)
 DOS_MSC_GETVARS	equ	52h	; get variables pointer (ES:BX) (undocumented)
@@ -187,6 +183,11 @@ FCBEX_FLAG	db	?	; -07h: flag byte containing 0FFh
 FCBEX_RESERVED	db	5 dup(?); -06h to -02h
 FCBEX_ATTR	db	?	; -01h: file attributes
 FCBEX		ends
+
+FCBERR_OK	equ	00h	; read successful
+FCBERR_EOF	equ	01h	; EOF, empty record
+FCBERR_DTA	equ	02h	; DTA too small
+FCBERR_PARTIAL	equ	03h	; EOF, partial record
 
 ;
 ; Modes for DOS_HDL_OPEN
