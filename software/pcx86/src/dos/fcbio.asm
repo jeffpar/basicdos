@@ -406,15 +406,18 @@ pf1:	sar	ah,1
 	je	pf1a			; yes
 	dec	si
 	test	ah,01h			; update drive #?
-	jnz	pf1c			; no
+	jnz	pf1d			; no
 	mov	al,0			; yes, specify 0 for default drive
-	jmp	short pf1b
+	jmp	short pf1c
 pf1a:	inc	si			; skip colon
 	sub	al,'A'			; AL = drive number
-	mov	dl,al			; DL = drive number (validate later)
+	cmp	al,20h			; possibly lower case?
+	jb	pf1b			; no
+	sub	al,20h			; yes
+pf1b:	mov	dl,al			; DL = drive number (validate later)
 	inc	ax			; store 1-based drive number
-pf1b:	mov	es:[di+bx],al
-pf1c:	inc	di			; advance DI past FCB_DRIVE
+pf1c:	mov	es:[di+bx],al
+pf1d:	inc	di			; advance DI past FCB_DRIVE
 	sar	ah,1
 ;
 ; Build filename at ES:DI+BX from the string at DS:SI, making sure that all
