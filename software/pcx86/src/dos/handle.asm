@@ -544,7 +544,7 @@ ss7:	add	dx,ax
 ;
 ; TODO: Technically, we'll return an error of sorts if the addition resulted
 ; in an overflow (ie, carry set).  However, no error code has been assigned to
-; that condition, and for some reason, PC DOS didn't consider that an error.
+; that condition, and I'm not sure PC DOS considered that an error.
 ;
 	pop	si
 	ret

@@ -58,8 +58,10 @@ DOS_DSK_SETDRV	equ	0Eh	; set current drive (DL), return # drives (AL)
 DOS_FCB_OPEN	equ	0Fh	; open FCB (DS:DX)
 DOS_DSK_GETDRV	equ	19h	; get current drive (AL)
 DOS_DSK_SETDTA	equ	1Ah	; set DTA (DS:DX)
+DOS_FCB_SETREL	equ	24h	; set relative record for FCB (DS:DX)
 DOS_MSC_SETVEC	equ	25h	; set vector (AL) to addr (DS:DX)
 DOS_PSP_COPY	equ	26h	; copy PSP to segment (DX)
+DOS_FCB_RBREAD	equ	27h	; read (CX) records for FCB (DS:DX)
 DOS_FCB_PARSE	equ	29h	; parse filespec (DS:SI) into FCB (ES:DI)
 DOS_MSC_GETDATE	equ	2Ah	; get date (CX=year, DH=mon, DL=day, AL=wkday)
 DOS_MSC_SETDATE	equ	2Bh	; set date (CX=year, DH=mon, DL=day)
@@ -144,6 +146,9 @@ DOS_UTL_HDLCTL	equ	(DOS_HDL_IOCTL + 80h)
 ;
 ; File Control Block (FCB)
 ;
+; Only these 4 FCB fields fit in PSP_FCB1 and PSP_FCB2.  FCBF defines
+; the "full" FCB structure.
+;
 FCB		struc
 FCB_DRIVE	db	?	; 00h: set to 1-based drive # on OPEN
 FCB_NAME	db     11 dup(?); 01h: upper-cased on OPEN
@@ -153,9 +158,6 @@ FCB		ends
 
 FCBF		struc		; the "full" FCB structure
 FCBF_FCB	db size FCB dup(?)
-;
-; The above fields are all that fit in PSP_FCB1 and PSP_FCB2.
-;
 FCBF_FILESIZE	dd	?	; 10h: from DIRENT.DIR_SIZE on OPEN
 FCBF_DATE	dw	?	; 14h: from DIRENT.DIR_DATE on OPEN
 FCBF_TIME	dw	?	; 16h: from DIRENT.DIR_TIME on OPEN
@@ -168,10 +170,11 @@ FCBF_CLN_REL	dw	?	; 1Bh: relative 0-based cluster number
 FCBF_CLN_CUR	dw	?	; 1Dh: current cluster number
 FCBF_UNUSED	db	?	; 1Fh
 ;
-; The next two fields are NOT initialized on OPEN.  Set CURREC before doing a
-; sequential read or write, and set RELREC before doing a random read or write.
+; The next two fields are NOT initialized on OPEN.  Set CURREC (along with
+; CURBLK) before a sequential read or write, and set RELREC before a random
+; read or write.
 ;
-FCBF_CURREC	db	?	; 20h: cur record
+FCBF_CURREC	db	?	; 20h: cur record (0-127; 128 records/block)
 FCBF_RELREC	dd	?	; 21h: rel record (3 bytes if RECSIZE >= 64)
 FCBF		ends
 

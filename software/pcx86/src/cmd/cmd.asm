@@ -115,6 +115,11 @@ m1a:	sub	ax,ax
 	DOSUTIL	TOKIFY1
 	jc	m0			; jump if no tokens
 ;
+; Determine the extent of the next command; pipe and redirection characters
+; establish boundaries.
+;
+	nop				; TODO
+;
 ; Before trying to ID the first token, let's copy it to the FILENAME buffer,
 ; upper-case it, and null-terminate it.
 ;

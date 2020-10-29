@@ -14,21 +14,25 @@
 
 DOS	segment word public 'CODE'
 ;
-; This must be the first object module; we reuse the fake INT 20h as mcb_head
-; and overwrite the JMP with mcb_limit.
+; This must be the first object module; sysinit will overwrite the fake
+; INT 20h with buf_head and the JMP SYSINIT with clk_ptr.
 ;
-	DEFLBL	mcb_head,word		; 1st memory paragraph
-	int	20h			; fake DOS terminate call
+	DEFLBL	buf_head,word		; 00h: head of buffer chain
+	int	20h			; fake DOS terminate call @CS:0000h
 
-	DEFLBL	clk_ptr,dword		; pointer to CLOCK$ DDH
-	jmp	sysinit			; (msc_getvars assumes at mcb_head+2)
+	DEFLBL	clk_ptr,dword		; 02h: pointer to CLOCK$ DDH
+	jmp	sysinit			; boot.asm assumes our entry @CS:0002h
 	nop
-
+;
+; INT 21h function 52h (msc_getvars) returns ES:BX -> mcb_head + 2.
+;
+; cmdMem assumes that mcb_head and mcb_limit are at offsets 6 and 8 in the
+; DOS segment, but third-party code should not make that assumption.
+;
+	DEFWORD	mcb_head,0		; 06h: 1st memory paragraph
+	DEFWORD	mcb_limit,0		; 08h: 1st unavailable paragraph
 	DEFTBL	<bpb_table,sfb_table,scb_table>
-
-	DEFWORD	mcb_limit,0		; 1st unavailable paragraph
 	DEFWORD	scb_active,0		; offset of active SCB (zero if none)
-	DEFWORD	buf_head,0		; head of buffer chain
 	DEFWORD	key_boot,0		; records key pressed at boot, if any
 	EXTERNS	scb_return,near
 	DEFWORD	scb_stoked,<offset scb_return>

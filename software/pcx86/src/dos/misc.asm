@@ -19,6 +19,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<dos_check>,near
 	ENDIF
 
+	EXTERNS	<mcb_head>,word
 	EXTERNS	<clk_ptr>,dword
 	EXTERNS	<scb_active>,word
 
@@ -516,14 +517,14 @@ ENDPROC	msc_getswc
 ;	None
 ;
 ; Outputs:
-;	REG_ES:REG_BX -> variables
+;	REG_ES:REG_BX-2 -> mcb_head
 ;
 ; Modifies:
 ;	None
 ;
 DEFPROC	msc_getvars,DOS
 	mov	[bp].REG_ES,ds
-	mov	[bp].REG_BX,offset clk_ptr
+	mov	[bp].REG_BX,offset mcb_head + 2
 	ret
 ENDPROC	msc_getvars
 

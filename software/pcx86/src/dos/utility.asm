@@ -615,7 +615,7 @@ tf3:	call	tok_classify		; AH = next classification
 ; Let's merge CLS_SYM with CLS_VAR to make life simpler downstream.
 ;
 	cmp	ch,CLS_VAR
-	jne	tf6a
+	jne	tf6
 	cmp	al,'%'
 	jne	tf3b
 	mov	ah,CLS_VAR_LONG
@@ -721,16 +721,22 @@ tc2a:	mov	ah,CLS_WHITE
 ;
 tc3:	test	byte ptr [bp].TMP_BH,TOKTYPE_GENERIC
 	jz	tc4
+	cmp	al,'|'			; pipe char?
+	je	tc3b			; yes
+	cmp	al,'<'			; input redirection char?
+	je	tc3b			; yes
+	cmp	al,'>'			; output redirection char?
+	je	tc3b			; yes
 	cmp	al,[bp].TMP_BL		; SWITCHAR?
-	jne	tc3a			; no
-	cmp	ah,CLS_WHITE		; yes, any intervening whitespace?
-	je	tc3a			; yes
-	mov	ah,CLS_SYM		; no, so force a transition
+	jne	tc3c			; no
+	cmp	ah,CLS_WHITE		; any intervening whitespace?
+	je	tc3c			; yes
+tc3b:	mov	ah,CLS_SYM		; no, force a transition
 	ret
-tc3a:	cmp	ch,CLS_SYM		; did we force a transition?
-	jne	tc3b			; no
+tc3c:	cmp	ch,CLS_SYM		; did we force a transition?
+	jne	tc3d			; no
 	mov	ch,CLS_STR		; yes, revert to string
-tc3b:	mov	ah,CLS_STR		; and call anything else a string
+tc3d:	mov	ah,CLS_STR		; and call anything else a string
 	ret
 ;
 ; Check for digits next.
