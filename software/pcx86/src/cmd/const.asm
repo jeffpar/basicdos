@@ -12,10 +12,6 @@
 
 CODE    SEGMENT
 
-	EXTERNS	<cmdDate,cmdDir,cmdExit,cmdHelp,cmdKeys,cmdList,cmdLoad>,near
-	EXTERNS	<cmdMem,cmdNew,cmdRun,cmdRestart,cmdTime,cmdType,cmdVer>,near
-	EXTERNS	<genCLS,genColor,genDefFn,genDefInt,genDefDbl,genDefStr>,near
-	EXTERNS	<genEcho,genGoto,genIf,genLet,genPrint,genReturn>,near
 	EXTERNS	<evalNegLong,evalNotLong>,near
 	EXTERNS	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>,near
 	EXTERNS	<evalModLong,evalExpLong,evalImpLong>,near
@@ -36,7 +32,8 @@ CODE    SEGMENT
 	DEFSTR	PERIOD,<".",0>
 	DEFSTR	STD_VER,<0>
 	DEFSTR	DBG_VER,<"DEBUG",0>
-	DEFSTR	HELP_FILE,<"COMMAND.TXT",0>
+	DEFSTR	HELP_FILE,<"HELP.TXT",0>
+	DEFSTR	PIPE_NAME,<"PIPE$",0>
 
 	IFDEF	DEBUG
 	DEFSTR	SYS_MEM,<"<SYS>",0>
@@ -164,6 +161,9 @@ CODE	ENDS
 	DEFTOK	RESTART, 7, cmdRestart
 	DEFTOK	RETURN, 53, genReturn
 	DEFTOK	RUN,     8, cmdRun
+	IFDEF DEBUG
+	DEFTOK	TEST,   39, cmdTest
+	ENDIF
 	DEFTOK	THEN,  204
 	DEFTOK	TIME,   11, cmdTime
 	DEFTOK	TYPE,   22, cmdType
@@ -182,7 +182,7 @@ CODE	ENDS
 
 DATA	SEGMENT
 ;
-; This is where non-constant data begins; it must be at the end of the file.
+; This is where per-process data begins; it must be at the end of the file.
 ;
 	DEFLBL	BEG_HEAP,word
 	BLKDEF	<0,CBLKLEN,size CBLK,SIG_CBLK>

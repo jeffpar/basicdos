@@ -1789,7 +1789,7 @@ DEFPROC	getNextLine
 	stc				; have we already processed it?
 	jnz	gnl4x			; yes
 	mov	cl,[si].INP_CNT		; CX = length
-	lea	si,[si].INP_BUF		; DS:SI -> line
+	lea	si,[si].INP_DATA		; DS:SI -> line
 	jmp	short gnl4
 
 gnl0:	add	si,cx			; advance to the next line
@@ -1864,7 +1864,7 @@ gnl6:	mov	ss:[bx].LINE_PTR.OFF,si
 	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
 	DOSUTIL	TOKIFY2
 	mov	bx,di
-	add	bx,offset TOK_BUF	; DS:BX -> TOKLET array
+	add	bx,offset TOK_DATA	; DS:BX -> TOKLET array
 	pop	di
 	pop	es			; restore code gen pointer
 	jc	gnl9

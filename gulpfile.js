@@ -15,77 +15,45 @@ let run = require("gulp-run-command").default;
 
 let files = {
     "HELP": [
-        "./software/pcx86/src/cmd/COMMAND.TXT",
+        "./software/pcx86/src/cmd/HELP.TXT",
         "./software/pcx86/src/cmd/txt.inc"
     ]
 };
 
+let demoFiles = [
+    "./software/pcx86/src/dev/obj/IBMBIO.COM",
+    "./software/pcx86/src/dos/obj/IBMDOS.COM",
+    "./software/pcx86/src/cmd/obj/COMMAND.COM",
+    "./software/pcx86/src/cmd/HELP.TXT",
+    "./software/pcx86/src/test/PRIMES.BA*",
+    "./software/pcx86/src/test/obj/*.EXE",
+    "./software/pcx86/src/test/obj/*.COM",
+    "./software/pcx86/src/test/BD*.BAT",
+    "./software/pcx86/src/test/bin/*.EXE",
+    "./software/pcx86/src/msb/obj/*.EXE"
+];
+
 let disks = {
     "BASIC-DOS1": [
         "./demos/s80/CONFIG.SYS",
-        "./demos/d40/AUTOEXEC.BAT",
-        "./software/pcx86/src/dev/obj/IBMBIO.COM",
-        "./software/pcx86/src/dos/obj/IBMDOS.COM",
-        "./software/pcx86/src/cmd/obj/COMMAND.COM",
-        "./software/pcx86/src/cmd/COMMAND.TXT",
-        "./software/pcx86/src/msb/obj/MSBASIC.EXE",
-        "./software/pcx86/src/test/obj/*.EXE",
-        "./software/pcx86/src/test/obj/*.COM",
-        "./software/pcx86/src/test/*.BAT",
-        "./software/pcx86/src/test/*.BAS"
-    ],
+        "./demos/d40/AUTOEXEC.BAT"
+    ].concat(demoFiles),
     "BASIC-DOS2": [
         "./demos/d40/CONFIG.SYS",
-        "./demos/d40/AUTOEXEC.BAT",
-        "./software/pcx86/src/dev/obj/IBMBIO.COM",
-        "./software/pcx86/src/dos/obj/IBMDOS.COM",
-        "./software/pcx86/src/cmd/obj/COMMAND.COM",
-        "./software/pcx86/src/cmd/COMMAND.TXT",
-        "./software/pcx86/src/msb/obj/MSBASIC.EXE",
-        "./software/pcx86/src/test/obj/*.EXE",
-        "./software/pcx86/src/test/obj/*.COM",
-        "./software/pcx86/src/test/*.BAT",
-        "./software/pcx86/src/test/*.BAS"
-    ],
+        "./demos/d40/AUTOEXEC.BAT"
+    ].concat(demoFiles),
     "BASIC-DOS3": [
         "./demos/d80/CONFIG.SYS",
         "./demos/d40/AUTOEXEC.BAT",
-        "./software/pcx86/src/dev/obj/IBMBIO.COM",
-        "./software/pcx86/src/dos/obj/IBMDOS.COM",
-        "./software/pcx86/src/cmd/obj/COMMAND.COM",
-        "./software/pcx86/src/cmd/COMMAND.TXT",
-        "./software/pcx86/src/msb/obj/MSBASIC.EXE",
-        "./software/pcx86/src/test/obj/*.EXE",
-        "./software/pcx86/src/test/obj/*.COM",
-        "./software/pcx86/src/test/*.BAT",
-        "./software/pcx86/src/test/*.BAS"
-    ],
+    ].concat(demoFiles),
     "BASIC-DOS4": [
         "./demos/dual/CONFIG.SYS",
         "./demos/d40/AUTOEXEC.BAT",
-        "./software/pcx86/src/dev/obj/IBMBIO.COM",
-        "./software/pcx86/src/dos/obj/IBMDOS.COM",
-        "./software/pcx86/src/cmd/obj/COMMAND.COM",
-        "./software/pcx86/src/cmd/COMMAND.TXT",
-        "./software/pcx86/src/msb/obj/MSBASIC.EXE",
-        "./software/pcx86/src/test/obj/*.EXE",
-        "./software/pcx86/src/test/obj/*.COM",
-        "./software/pcx86/src/test/*.BAT",
-        "./software/pcx86/src/test/*.BAS"
-    ],
+    ].concat(demoFiles),
     "BASIC-DOS5": [
         "./demos/dual/multi/CONFIG.SYS",
         "./demos/d40/AUTOEXEC.BAT",
-        "./software/pcx86/src/dev/obj/IBMBIO.COM",
-        "./software/pcx86/src/dos/obj/IBMDOS.COM",
-        "./software/pcx86/src/cmd/obj/COMMAND.COM",
-        "./software/pcx86/src/cmd/COMMAND.TXT",
-        "./software/pcx86/src/msb/obj/MSBASIC.EXE",
-        "./software/pcx86/src/test/obj/*.EXE",
-        "./software/pcx86/src/test/obj/*.COM",
-        "./software/pcx86/src/test/*.BAT",
-        "./software/pcx86/src/test/*.BAS"
-    ],
+    ].concat(demoFiles),
     "BDS-BOOT": [
         "./software/pcx86/src/boot/*.asm",
         "./software/pcx86/src/inc/*.inc",
@@ -164,7 +132,7 @@ for (let diskName in disks) {
             diskFiles += " --boot ./software/pcx86/src/boot/obj/BOOT.COM";
         }
     }
-    let cmd = "node ${PCJS}/tools/modules/diskimage.js " + diskFiles + " --output " + diskImage + archiveImage + " --target=" + kbTarget + " --overwrite";
+    let cmd = "node \"${PCJS}/tools/modules/diskimage.js\" " + diskFiles + " --output " + diskImage + archiveImage + " --target=" + kbTarget + " --overwrite";
     cmd = cmd.replace(/\$\{([^}]+)\}/g, (_,n) => process.env[n]);
     gulp.task(buildTask, run(cmd));
     let watchTask = "WATCH-" + diskName;

@@ -14,28 +14,33 @@
 
 DOS	segment word public 'CODE'
 ;
-; This must be the first object module; we reuse the fake INT 20h as mcb_head
-; and overwrite the JMP with mcb_limit.
+; This must be the first object module; sysinit will overwrite the fake
+; INT 20h with buf_head and the JMP SYSINIT with clk_ptr.
 ;
-	DEFLBL	mcb_head,word
-	int	20h			; fake DOS terminate call
-	DEFLBL	mcb_limit,word
-	jmp	sysinit
+	DEFLBL	buf_head,word		; 00h: head of buffer chain
+	int	20h			; fake DOS terminate call @CS:0000h
 
-	EXTERNS	scb_return,near
-
+	DEFLBL	clk_ptr,dword		; 02h: pointer to CLOCK$ DDH
+	jmp	sysinit			; boot.asm assumes our entry @CS:0002h
+	nop
+;
+; INT 21h function 52h (msc_getvars) returns ES:BX -> mcb_head + 2.
+;
+; cmdMem assumes that mcb_head and mcb_limit are at offsets 6 and 8 in the
+; DOS segment, but third-party code should not make that assumption.
+;
+	DEFWORD	mcb_head,0		; 06h: 1st memory paragraph
+	DEFWORD	mcb_limit,0		; 08h: 1st unavailable paragraph
+	DEFTBL	<bpb_table,sfb_table,scb_table>
 	DEFWORD	scb_active,0		; offset of active SCB (zero if none)
-	DEFWORD	buf_head,0		; head of buffer chain
 	DEFWORD	key_boot,0		; records key pressed at boot, if any
-	DEFPTR	clk_ptr,-1		; pointer to CLOCK$ DDH
+	EXTERNS	scb_return,near
 	DEFWORD	scb_stoked,<offset scb_return>
 	DEFBYTE	scb_locked,-1		; -1 if unlocked, >=0 if locked
 	DEFBYTE	bpb_total,0		; total number of BPBs
 	DEFBYTE	ddint_level,0		; device driver interrupt level
 	DEFBYTE	sfh_debug,-1		; system file handle for DEBUG device
 	DEFBYTE	def_switchar,'/'
-
-	DEFTBL	<bpb_table,scb_table,sfb_table>
 ;
 ; Constants
 ;
@@ -71,18 +76,19 @@ DOS	segment word public 'CODE'
 	EXTERNS	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>,near
 	EXTERNS	<dsk_flush,dsk_getdrv,dsk_setdrv,dsk_setdta,dsk_getdta>,near
 	EXTERNS	<dsk_getinfo,dsk_ffirst,dsk_fnext>,near
-	EXTERNS	<fcb_open,fcb_close,fcb_sread,fcb_rread,fcb_parse>,near
+	EXTERNS	<fcb_open,fcb_close,fcb_sread,fcb_rread,fcb_setrel>,near
+	EXTERNS	<fcb_rbread,fcb_parse>,near
 	EXTERNS	<msc_getdate,msc_setdate,msc_gettime,msc_settime>,near
 	EXTERNS	<msc_setvec,msc_getver,msc_setctrlc,msc_getvec,msc_getswc>,near
-	EXTERNS	<psp_exec,psp_exit,psp_retcode>,near
+	EXTERNS	<msc_getvars,psp_exec,psp_exit,psp_retcode>,near
 	EXTERNS	<psp_copy,psp_set,psp_get,psp_create>,near
 	EXTERNS	<hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek,hdl_ioctl>,near
 	EXTERNS	<mem_alloc,mem_free,mem_realloc>,near
 	EXTERNS	<utl_strlen,utl_strstr,utl_strupr>,near
 	EXTERNS	<utl_atoi16,utl_atoi32,utl_atoi32d>,near
 	EXTERNS	<utl_itoa,utl_printf,utl_dprintf,utl_sprintf>,near
-	EXTERNS	<utl_tokify,utl_tokid,utl_restart,utl_getdev>,near
-	EXTERNS	<utl_ioctl,utl_load,utl_start,utl_stop,utl_unload>,near
+	EXTERNS	<utl_tokify,utl_tokid,utl_restart,utl_getdev,utl_ioctl>,near
+	EXTERNS	<utl_load,utl_start,utl_stop,utl_end,utl_waitend>,near
 	EXTERNS	<utl_yield,utl_sleep,utl_wait,utl_endwait,utl_hotkey>,near
 	EXTERNS	<utl_lock,utl_unlock,utl_qrymem,utl_abort>,near
 	EXTERNS	<utl_getdate,utl_gettime,utl_incdate,utl_editln>,near
@@ -98,7 +104,7 @@ DOS	segment word public 'CODE'
 	dw	func_none,   dsk_getdrv,  dsk_setdta,  func_none	;18h-1Bh
 	dw	func_none,   func_none,   func_none,   func_none	;1Ch-1Fh
 	dw	func_none,   fcb_rread,   func_none,   func_none	;20h-23h
-	dw	func_none,   msc_setvec,  psp_copy,    func_none	;24h-27h
+	dw	fcb_setrel,  msc_setvec,  psp_copy,    fcb_rbread	;24h-27h
 	dw	func_none,   fcb_parse,   msc_getdate, msc_setdate	;28h-2Bh
 	dw	msc_gettime, msc_settime, func_none,   dsk_getdta	;2Ch-2Fh
 	dw	msc_getver,  func_none,   func_none,   msc_setctrlc	;30h-33h
@@ -109,7 +115,7 @@ DOS	segment word public 'CODE'
 	dw	hdl_ioctl,   func_none,   func_none,   func_none	;44h-47h
 	dw	mem_alloc,   mem_free,    mem_realloc, psp_exec		;48h-4Bh
 	dw	psp_exit,    psp_retcode, dsk_ffirst,  dsk_fnext	;4Ch-4Fh
-	dw	psp_set,     psp_get,     func_none,   func_none	;50h-53h
+	dw	psp_set,     psp_get,     msc_getvars, func_none	;50h-53h
 	dw	func_none,   psp_create					;54h-55h
 	DEFABS	FUNCTBL_SIZE,<($ - FUNCTBL) SHR 1>
 
@@ -117,9 +123,9 @@ DOS	segment word public 'CODE'
 	dw	utl_strlen,  utl_strstr,  func_none,   utl_strupr	;00h-03h
 	dw	utl_printf,  utl_dprintf, utl_sprintf, utl_itoa		;04h-07h
 	dw	utl_atoi16,  utl_atoi32,  utl_atoi32d, utl_tokify	;08h-0Bh
-	dw	utl_tokify,  utl_tokid,   func_none,   utl_restart	;0Ch-0Fh
-	dw	utl_getdev,  utl_ioctl,   utl_load,    utl_start	;10h-13h
-	dw	utl_stop,    utl_unload,  utl_yield,   utl_sleep	;14h-17h
+	dw	utl_tokify,  utl_tokid,   utl_restart, utl_getdev	;0Ch-0Fh
+	dw	utl_ioctl,   utl_load,    utl_start,   utl_stop		;10h-13h
+	dw	utl_end,     utl_waitend, utl_yield,   utl_sleep	;14h-17h
 	dw	utl_wait,    utl_endwait, utl_hotkey,  utl_lock		;18h-1Bh
 	dw	utl_unlock,  utl_qrymem,  func_none,   utl_abort	;1Ch-1Fh
 	dw	utl_getdate, utl_gettime, utl_incdate, utl_editln	;20h-23h

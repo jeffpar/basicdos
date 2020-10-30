@@ -36,6 +36,9 @@ DEFTOK	macro	sym,val,func
 	LOCAL	N1
 	public	TOK_&sym
 TOK_&sym equ val
+	IFNB <func>
+	EXTERNS	<func>,near
+	ENDIF
 CODE	SEGMENT
 N1	label	byte
 	db	"&sym&"
@@ -303,8 +306,8 @@ FBLKDEF		db size BLKDEF dup (?)	; 006h: function block chain
 VBLKDEF		db size BLKDEF dup (?)	; 00Ch: variable block chain
 SBLKDEF		db size BLKDEF dup (?)	; 012h: string block chain
 TBLKDEF		db size BLKDEF dup (?)	; 018h: text block chain
-INPUTBUF	db size BUFINP dup (?)	; 01Eh
-TOKENBUF	db size BUFTOK dup (?)	; 120h
+INPUTBUF	db size INPBUF dup (?)	; 01Eh
+TOKENBUF	db size TOKBUF dup (?)	; 120h
 STACK		dw 512 dup (?)		; 322h
 ORIG_SP		dw	?		; 722h
 ORIG_BP		dw	?		; 724h

@@ -12,7 +12,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<get_sfh_sfb,get_psp,scb_delock>,near
+	EXTERNS	<get_psp,scb_release>,near
 
 	EXTERNS	<scb_locked>,byte
 	EXTERNS	<mcb_head,scb_active>,word
@@ -50,7 +50,7 @@ ENDPROC	mem_alloc
 ;
 DEFPROC	mem_free,DOS
 	mov	ax,[bp].REG_ES		; AX = segment to free
-	call	free
+	call	mcb_free
 	jnc	mf9
 	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY set
 mf9:	ret
@@ -76,7 +76,7 @@ ENDPROC	mem_free
 DEFPROC	mem_realloc,DOS
 	mov	dx,[bp].REG_ES		; DX = segment to realloc
 	mov	bx,[bp].REG_BX		; BX = # new paras requested
-	call	realloc
+	call	mcb_realloc
 	jnc	mr9
 	mov	[bp].REG_BX,bx
 	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY set
@@ -310,10 +310,10 @@ ENDPROC	alloc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; realloc
+; mcb_realloc
 ;
 ; Inputs:
-;	DX = segment to realloc (from REG_ES if via INT 21h)
+;	DX = segment to mcb_realloc (from REG_ES if via INT 21h)
 ;	BX = new size (in paragraphs)
 ;
 ; Outputs:
@@ -323,7 +323,7 @@ ENDPROC	alloc
 ; Modifies:
 ;	AX, BX, CX, DX, DI, ES
 ;
-DEFPROC realloc,DOS
+DEFPROC mcb_realloc,DOS
 	ASSUME	ES:NOTHING
 	LOCK_SCB
 	dec	dx
@@ -359,11 +359,11 @@ r8a:	stc
 
 r9:	UNLOCK_SCB
 	ret
-ENDPROC	realloc
+ENDPROC	mcb_realloc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; free
+; mcb_free
 ;
 ; When freeing a block, it's important to merge it with any free block that
 ; immediately precedes or follows it.  And since the MCBs are singly-linked,
@@ -379,7 +379,7 @@ ENDPROC	realloc
 ; Modifies:
 ;	AX, BX, CX, DX, ES
 ;
-DEFPROC	free,DOS
+DEFPROC	mcb_free,DOS
 	ASSUME	ES:NOTHING
 	LOCK_SCB
 
@@ -447,11 +447,11 @@ f8a:	stc
 
 f9:	UNLOCK_SCB
 	ret
-ENDPROC	free
+ENDPROC	mcb_free
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; freeAll
+; mcb_free_all
 ;
 ; Used during process termination to free all blocks "owned" by a PSP.
 ;
@@ -465,7 +465,7 @@ ENDPROC	free
 ; Modifies:
 ;	AX, BX, CX, DX, ES
 ;
-DEFPROC	freeAll,DOS
+DEFPROC	mcb_free_all,DOS
 	ASSUME	ES:NOTHING
 	LOCK_SCB
 	mov	bx,[mcb_head]
@@ -476,7 +476,7 @@ fa1:	mov	es,bx
 	push	ax			; save owner
 	mov	ax,es			; AX = MCB
 	inc	ax			; AX = segment
-	call	free			; free the segment
+	call	mcb_free		; free the segment
 	pop	ax			; restore owner
 	jc	fa9			; assuming free was successful
 	mov	bx,es			; we can pick up where free left off
@@ -490,11 +490,11 @@ fa8:	cmp	es:[MCB_SIG],MCBSIG_LAST
 
 fa9:	UNLOCK_SCB
 	ret
-ENDPROC	freeAll
+ENDPROC	mcb_free_all
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; getsize
+; mcb_getsize
 ;
 ; Returns the size (in paras) of a segment IFF it's a valid memory block.
 ;
@@ -514,7 +514,7 @@ ENDPROC	freeAll
 ; Modifies:
 ;	AX, CX
 ;
-DEFPROC	getsize,DOS
+DEFPROC	mcb_getsize,DOS
 	ASSUME	ES:NOTHING
 	LOCK_SCB
 	push	bx
@@ -537,7 +537,7 @@ gs9:	inc	dx			; restore DX
 	pop	bx
 	UNLOCK_SCB
 	ret
-ENDPROC	getsize
+ENDPROC	mcb_getsize
 
 DOS	ends
 

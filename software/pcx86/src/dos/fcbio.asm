@@ -16,7 +16,7 @@ DOS	segment word public 'CODE'
 	EXTERNS	<bpb_total>,byte
 	EXTERNS	<scb_active>,word
 	EXTERNS	<sfb_open_fcb,sfb_find_fcb,sfb_seek,sfb_read,sfb_close>,near
-	EXTERNS	<mul_32_16>,near
+	EXTERNS	<div_32_16,mul_32_16>,near
 
 	EXTSTR	<FILENAME_CHARS>
 
@@ -92,8 +92,7 @@ ENDPROC	fcb_open
 ; Modifies:
 ;
 DEFPROC	fcb_close,DOS
-	mov	cx,[bp].REG_DS		; CX:DX -> FCB
-	call	sfb_find_fcb
+	call	get_fcb
 	jc	fc9
 	mov	si,-1			; SI = -1 (no PFH)
 	call	sfb_close		; BX -> SFB
@@ -110,116 +109,156 @@ ENDPROC	fcb_close
 ;	REG_DS:REG_DX -> FCB
 ;
 ; Outputs:
-;	REG_AL:
-;	  00h: read successful
-;	  01h: EOF, empty record
-;	  02h: DTA too small
-;	  03h: EOF, partial record
+;	REG_AL = FCBERR result
 ;
 ; Modifies:
 ;
 DEFPROC	fcb_sread,DOS
-	mov	cx,[bp].REG_DS		; CX:DX -> FCB
-	call	sfb_find_fcb
+	call	get_fcb
+	jc	fsr9
+	ASSUME	ES:NOTHING		; DS:BX -> SFB, ES:DI -> FCB
 ;
 ; TODO: Implement.
 ;
-fs9:	ret
+fsr9:	ret
 ENDPROC	fcb_sread
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; fcb_rread (REG_AH = 21h)
 ;
-; Read a random record (FCBF_RELREC) into the DTA.  The current block
-; (FCB_CURBLK) and current record (FCBF_CURREC) are set to agree with the
-; relative record (FCBF_RELREC).  The record is then read into the DTA,
-; using the FCB's record size (FCB_RECSIZE).
+; FCB Random Read.  From the MS-DOS 3.3 Programmer's Reference:
+;
+;	Function 21h reads (into the Disk Transfer Address) the record
+;	pointed to by the Relative Record (FCBF_RELREC @21h) of the FCB.
+;	DX must contain the offset (from the segment address in DS) of an
+;	opened FCB.
+;
+;	Current Block (FCB_CURBLK @0Ch) and Current Record (FCBF_CURREC @20h)
+;	are set to agree with the Relative Record (FCBF_RELREC @21h).  The
+;	record is then loaded at the Disk Transfer Address.  The record length
+;	is taken from the Record Size (FCB_RECSIZE @0Eh) of the FCB.
 ;
 ; Inputs:
 ;	REG_DS:REG_DX -> FCB
 ;
 ; Outputs:
-;	REG_AL:
-;	  00h: read successful
-;	  01h: EOF, empty record
-;	  02h: DTA too small
-;	  03h: EOF, partial record
+;	REG_AL = FCBERR result
 ;
 ; Modifies:
 ;	Any
 ;
 DEFPROC	fcb_rread,DOS
-	mov	cx,[bp].REG_DS		; CX:DX -> FCB
-	call	sfb_find_fcb
-	jc	fs9			; TODO: decide how to treat this error
-	mov	di,dx
-	mov	es,cx			; ES:DI -> FCB
-	ASSUME	ES:NOTHING
-;
-; At this point, DS:BX -> SFB and ES:DI -> FCB.
-;
-; Multiply the requested record (FCBF_RELREC) by the record size (FCB_RECSIZE)
-; to get the offset.
-;
-	mov	cx,es:[di].FCB_RECSIZE
-	mov	ax,es:[di].FCBF_RELREC.LOW
-	mov	dx,es:[di].FCBF_RELREC.HIW
-	cmp	cx,64
-	jb	fr1
-	mov	dh,0
-fr1:	call	mul_32_16		; DX:AX = DX:AX * CX
-
-	xchg	dx,ax			; AX:DX
-	xchg	cx,ax			; CX:DX
-	mov	al,SEEK_BEG		; seek to absolute offset CX:DX
-	call	sfb_seek
-	xchg	ax,cx			; AX:DX
-	xchg	ax,dx			; DX:AX
-	mov	cx,16*1024		; CX = 16K
-	div	cx			; AX = block #
-	mov	es:[di].FCB_CURBLK,ax	; update FCB's current block
-	xchg	ax,dx			; AX = byte offset within block
-	sub	dx,dx
-	mov	cx,es:[di].FCB_RECSIZE	; CX = # bytes to read
-	div	cx			; AX = record # within block
-	ASSERT	Z,<test ah,ah>
-	mov	es:[di].FCBF_CURREC,al
-
-	mov	al,IO_RAW		; TODO: matter for block devices?
-	mov	si,[scb_active]
-	les	dx,[si].SCB_DTA		; ES:DX -> DTA
-
-	DPRINTF	'f',<"fcb_rread: requesting %#x bytes from %#lx into %04x:%04x\r\n">,cx,[bx].SFB_CURPOS.LOW,[bx].SFB_CURPOS.HIW,es,dx
-
-	push	cx
-	push	dx
-	call	sfb_read
-	pop	di			; ES:DI -> DTA now
-	pop	cx
-	mov	dl,0			; DL = default return code (00h)
-	jc	fr6
-	test	ax,ax
-	jnz	fr7
-fr6:	inc	dx			; DL = 01h (EOF, no data)
-	jmp	short fr8
-fr7:	cmp	ax,cx
-	je	fr8
-;
-; Fill the remainder of the DTA with zeros.
-;
-	sub	cx,ax			; CX = # of bytes to fill
-	add	di,ax
-	mov	al,0
-	rep	stosb
-
-	mov	dl,3			; DL = 03h (EOF, partial record)
-fr8:	mov	[bp].REG_AL,dl		; REG_AL = return code
-
-	DPRINTF	'f',<"fcb_rread: returned %#.2x\r\n">,dx
-
-fr9:	ret
+	call	get_fcb
+	jc	frr9
+	ASSUME	ES:NOTHING		; DS:BX -> SFB, ES:DI -> FCB
+	mov	cx,1			; CX = record count
+	call	seek_fcb		; set CUR fields and seek
+	call	read_fcb		; read CX bytes and set DL to result
+	mov	[bp].REG_AL,dl		; REG_AL = result
+frr9:	ret
 ENDPROC	fcb_rread
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fcb_setrel (REG_AH = 24h)
+;
+; FCB Set Relative Record.  From the MS-DOS 3.3 Programmer's Reference:
+;
+;	Function 24h sets the Relative Record (FCBF_RELREC @21h) to the file
+;	address specified by the Current Block (FCB_CURBLK @0Ch) and Current
+;	Record (FCBF_CURREC @20h).  DX must contain the offset (from the
+;	segment address in DS) of an opened FCB.  You use this call to set the
+;	file pointer before a Random Read or Write (Functions 21h, 22h, 27h,
+;	or 28h).
+;
+; So, whereas Function 21h multiplies FCBF_RELREC by FCB_RECSIZE to get an
+; offset, which it then divides by 16K to get FCB_CURBLK (and divides the
+; remainder by FCB_RECSIZE to obtain FCBF_CURREC), we must do the reverse.
+;
+; Calculates (FCB_CURBLK * 16K) + (FCBF_CURREC * FCB_RECSIZE) and then divides
+; by FCB_RECSIZE to obtain the corresponding FCBF_RELREC.
+;
+; Inputs:
+;	REG_DS:REG_DX -> FCB
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	fcb_setrel,DOS
+	call	get_fcb
+	jc	fsrl9
+	ASSUME	ES:NOTHING		; DS:BX -> SFB, ES:DI -> FCB
+	mov	ax,es:[di].FCB_CURBLK
+	mov	dx,16*1024
+	mul	dx			; DX:AX = FCB_CURBLK * 16K
+	mov	cx,dx
+	xchg	si,ax			; CX:SI = DX:AX
+	mov	al,es:[di].FCBF_CURREC
+	mov	ah,0
+	mov	dx,es:[di].FCB_RECSIZE
+	push	dx			; save FCB_RECSIZE
+	mul	dx			; DX:AX = FCBF_CURREC * FCB_RECSIZE
+	add	ax,si
+	adc	dx,cx			; DX:AX += FCB_CURBLK * 16K
+	pop	cx			; CX = FCB_RECSIZE
+	call	div_32_16		; DX:AX /= CX (remainder in BX)
+	mov	es:[di].FCBF_RELREC.LOW,ax
+	mov	es:[di].FCBF_RELREC.HIW,dx
+fsrl9:	ret
+ENDPROC	fcb_setrel
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fcb_rbread (REG_AH = 27h)
+;
+; FCB Random Block Read.  From the MS-DOS 3.3 Programmer's Reference:
+;
+;	Function 27h reads one or more records from a specified file to
+;	the Disk Transfer Address.  DX must contain the offset (from the
+;	segment address in DS) of an opened FCB.  CX contains the number
+;	of records to read.  Reading starts at the record specified by the
+;	Relative Record (FCBF_RELREC @21h); you must set this field with
+;	Function 24h (Set Relative Record) before calling this function.
+;
+;	DOS calculates the number of bytes to read by multiplying the
+;	value in CX by the Record Size (offset 0EH) of the FCB.
+;
+;	CX returns the number of records read.  The Current Block
+;	(FCB_CURBLK @0Ch), Current Record (FCBF_CURREC @20h), and Relative
+;	Record (FBBF_RELREC @21h) are set to address the next record.
+;
+; Inputs:
+;	REG_DS:REG_DX -> FCB
+;	REG_CX = # records to read
+;
+; Outputs:
+;	REG_AL = FCBERR result
+;	REG_CX = # records successfully read
+;
+; Modifies:
+;	Any
+;
+DEFPROC	fcb_rbread,DOS
+	call	get_fcb
+	jc	frbr9
+	ASSUME	ES:NOTHING		; DS:BX -> SFB, ES:DI -> FCB
+	mov	cx,[bp].REG_CX		; CX = # records
+	call	seek_fcb		; set CUR fields and seek
+	call	read_fcb		; read CX bytes and set DL to result
+	mov	[bp].REG_AL,dl		; REG_AL = result
+	jnc	frbr1
+	sub	ax,ax			; on error, set count to zero
+frbr1:	mov	cx,es:[di].FCB_RECSIZE
+	sub	dx,dx
+	div	cx			; AX = # bytes read / FCB_RECSIZE
+	mov	[bp].REG_CX,ax		; REG_CX = # records read
+	call	inc_fcb			; advance to the next record
+frbr9:	ret
+ENDPROC	fcb_rbread
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -263,6 +302,56 @@ fp8:	mov	[bp].REG_AL,al		; update caller's AL
 	mov	[bp].REG_SI,si		; update caller's SI
 	ret
 ENDPROC	fcb_parse
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_fcb
+;
+; Inputs:
+;	REG_DS:REG_DX -> FCB
+;
+; Outputs:
+;	If carry clear:
+;	  DS:BX -> SFB
+;	  ES:DI -> FCB
+;	Otherwise, carry set
+;
+; Modifies:
+;	BX, CX, DI, ES
+;
+DEFPROC	get_fcb,DOS
+	mov	cx,[bp].REG_DS		; CX:DX -> FCB
+	call	sfb_find_fcb
+	jc	gf9
+	mov	di,dx
+	mov	es,cx			; ES:DI -> FCB
+	ret
+gf9:	mov	byte ptr [bp].REG_AL,FCBERR_EOF	; TODO: verify this error code
+	ret
+ENDPROC	get_fcb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; inc_fcb
+;
+; Advance FCBF_RELREC and update the FCB_CURBLK and FCBF_CURREC fields.
+;
+; Inputs:
+;	AX = # records to advance
+;	ES:DI -> FCB
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	inc_fcb
+	add	es:[di].FCBF_RELREC.LOW,ax
+	adc	es:[di].FCBF_RELREC.HIW,0
+	call	setcur_fcb
+	ret
+ENDPROC	inc_fcb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -317,15 +406,18 @@ pf1:	sar	ah,1
 	je	pf1a			; yes
 	dec	si
 	test	ah,01h			; update drive #?
-	jnz	pf1c			; no
+	jnz	pf1d			; no
 	mov	al,0			; yes, specify 0 for default drive
-	jmp	short pf1b
+	jmp	short pf1c
 pf1a:	inc	si			; skip colon
 	sub	al,'A'			; AL = drive number
-	mov	dl,al			; DL = drive number (validate later)
+	cmp	al,20h			; possibly lower case?
+	jb	pf1b			; no
+	sub	al,20h			; yes
+pf1b:	mov	dl,al			; DL = drive number (validate later)
 	inc	ax			; store 1-based drive number
-pf1b:	mov	es:[di+bx],al
-pf1c:	inc	di
+pf1c:	mov	es:[di+bx],al
+pf1d:	inc	di			; advance DI past FCB_DRIVE
 	sar	ah,1
 ;
 ; Build filename at ES:DI+BX from the string at DS:SI, making sure that all
@@ -395,10 +487,156 @@ pf5:	cmp	cl,size FCB_NAME	; did we just finish the extension?
 ;
 ; Last but not least, validate the drive number
 ;
-pf9:	cmp	dl,[bpb_total]
+pf9:	dec	di			; rewind DI to FCB_DRIVE
+	cmp	dl,[bpb_total]
 	cmc				; carry clear if >= 0 and < bpb_total
 	ret
 ENDPROC	parse_name
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; read_fcb
+;
+; Read CX bytes for FCB at ES:DI into current DTA.
+;
+; Inputs:
+;	CX = # bytes
+;	DS:BX -> SFB
+;	ES:DI -> FCB
+;
+; Outputs:
+;	AX = # bytes read
+;	DL = FCBERR result
+;
+; Modifies:
+;	AX, CX, DX, SI
+;
+DEFPROC	read_fcb
+	mov	al,IO_RAW		; TODO: matter for block devices?
+	push	es
+	push	di
+	push	es:[di].FCB_RECSIZE
+	mov	si,[scb_active]
+	les	dx,[si].SCB_DTA		; ES:DX -> DTA
+
+	DPRINTF	'f',<"read_fcb: requesting %#x bytes from %#lx into %04x:%04x\r\n">,cx,[bx].SFB_CURPOS.LOW,[bx].SFB_CURPOS.HIW,es,dx
+
+	push	cx
+	push	dx
+	call	sfb_read
+	pop	di			; ES:DI -> DTA now
+	pop	cx
+	mov	dl,FCBERR_OK		; DL = 00h (FCBERR_OK)
+	pop	si			; SI = FCB_RECSIZE
+	jc	rf4
+	test	ax,ax
+	jnz	rf5
+rf4:	sub	ax,ax			; TODO: throw away error code?
+	inc	dx			; DL = 01h (FCBERR_EOF)
+	jmp	short rf8
+
+rf5:	sub	cx,ax			; did we read # bytes requested?
+	jz	rf8			; yes
+;
+; Fill the remainder of the last incomplete record (if any) with zeros.
+;
+	xchg	ax,cx			; CX = # bytes read
+	sub	dx,dx			; DX:AX = # bytes not read
+	div	si			; DX = remainder from DX:AX / SI
+	xchg	cx,dx			; CX = # of bytes to fill
+	add	di,dx
+	mov	al,0
+	rep	stosb
+	xchg	ax,dx			; AX = # bytes read
+	mov	dl,FCBERR_PARTIAL	; DL = 03h (FCBERR_PARTIAL)
+
+rf8:	DPRINTF	'f',<"read_fcb: read %#x bytes (result %#.2x)\r\n">,ax,dx
+
+	pop	di
+	pop	es
+	ret
+ENDPROC	read_fcb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; seek_fcb
+;
+; Set the FCB_CURBLK and FCBF_CURREC fields to match the FCBF_RELREC field,
+; and then seek to FCBF_RELREC * FCB_RECSIZE.
+;
+; Inputs:
+;	CX = # records
+;	ES:DI -> FCB
+;
+; Outputs:
+;	CX = # bytes to read
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	seek_fcb
+	push	cx			; CX = # records
+	call	setcur_fcb
+	call	mul_32_16		; DX:AX = DX:AX * CX
+	xchg	dx,ax
+	xchg	cx,ax			; CX:DX = offset
+	mov	al,SEEK_BEG		; seek to absolute offset CX:DX
+	call	sfb_seek
+	pop	ax			; AX = # records
+	mul	es:[di].FCB_RECSIZE
+	ASSERT	Z,<test dx,dx>
+	xchg	cx,ax			; CX = # bytes to read
+	ret
+ENDPROC	seek_fcb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; setcur_fcb
+;
+; Set the FCB_CURBLK and FCBF_CURREC fields to match the FCBF_RELREC field.
+;
+; Note that block size is always FCB_RECSIZE * 128 (a block is defined as 128
+; records), so FCB_CURBLK is FCBF_RELREC/128 and FCBF_CURREC is the remainder.
+;
+; Inputs:
+;	ES:DI -> FCB
+;
+; Outputs:
+;	CX = FCB_RECSIZE
+;	DX:AX = FCBF_RELREC
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	setcur_fcb
+	mov	ax,es:[di].FCBF_RELREC.LOW
+	mov	dx,es:[di].FCBF_RELREC.HIW
+	mov	cx,es:[di].FCB_RECSIZE	; CX = FCB_RECSIZE
+	cmp	cx,64
+	jb	sc1
+	mov	dh,0			; use only 3 bytes if RECSIZE >= 64
+;
+; Even if DX:AX was reduced to FFFFFFh by virtue of RECSIZE >= 64, division
+; by 128 (80h) would not be safe (DX:AX would have to be reduced to 7FFFFFh),
+; so we must always use div_32_16.  However, all that does is prevent a
+; division overflow; if DX is non-zero on return, the caller is requesting a
+; relative record that's too large.  TODO: How should we deal with that?
+;
+sc1:	push	dx
+	push	ax
+	push	bx
+	push	cx
+	mov	cx,128
+	call	div_32_16		; DX:AX /= 128 (BX = remainder)
+	ASSERT	Z,<test dx,dx>
+	mov	es:[di].FCB_CURBLK,ax	; update FCB's current block
+	mov	es:[di].FCBF_CURREC,bl	; update FCB's current record
+	pop	cx
+	pop	bx
+	pop	ax
+	pop	dx
+	ret
+ENDPROC	setcur_fcb
 
 DOS	ends
 

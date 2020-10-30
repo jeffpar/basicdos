@@ -15,8 +15,8 @@
 DOS	segment word public 'CODE'
 
 	EXTERNS	<chk_devname,dev_request>,near
-	EXTERNS	<scb_load,scb_start,scb_stop,scb_unload>,near
-	EXTERNS	<scb_yield,scb_delock,scb_wait,scb_endwait>,near
+	EXTERNS	<scb_load,scb_start,scb_stop,scb_end,scb_waitend>,near
+	EXTERNS	<scb_yield,scb_release,scb_wait,scb_endwait>,near
 	EXTERNS	<mem_query,msc_getdate,msc_gettime>,near
 	EXTERNS	<psp_term_exitcode>,near
 	EXTERNS	<add_date,read_line>,near
@@ -27,7 +27,7 @@ DOS	segment word public 'CODE'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_getdev (AL = 10h)
+; utl_getdev (AL = 0Fh)
 ;
 ; Returns the DDH (Device Driver Header) in ES:DI for device name at DS:DX.
 ;
@@ -55,7 +55,7 @@ ENDPROC	utl_getdev
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_ioctl (AL = 11h)
+; utl_ioctl (AL = 10h)
 ;
 ; Inputs:
 ;	REG_BX = IOCTL command (BH = DDC_IOCTLIN, BL = IOCTL command)
@@ -76,11 +76,10 @@ ENDPROC	utl_ioctl
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_load (AL = 12h)
+; utl_load (AL = 11h)
 ;
 ; Inputs:
-;	REG_CL = SCB #
-;	REG_DS:REG_DX = name of program (or command-line)
+;	REG_ES:REG_DI -> SPB (Session Parameter Block)
 ;
 ; Outputs:
 ;	Carry clear if successful
@@ -91,15 +90,13 @@ ENDPROC	utl_ioctl
 ;
 DEFPROC	utl_load,DOS
 	sti
-	mov	es,[bp].REG_DS
 	and	[bp].REG_FL,NOT FL_CARRY
-	ASSUME	DS:NOTHING		; CL = SCB #
-	jmp	scb_load		; ES:DX -> name of program
+	jmp	scb_load
 ENDPROC	utl_load
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_start (AL = 13h)
+; utl_start (AL = 12h)
 ;
 ; "Start" the specified session.  Currently, all this does is mark the session
 ; startable; actual starting will handled by scb_switch.
@@ -119,7 +116,7 @@ ENDPROC	utl_start
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_stop (AL = 14h)
+; utl_stop (AL = 13h)
 ;
 ; "Stop" the specified session.
 ;
@@ -138,9 +135,9 @@ ENDPROC	utl_stop
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_unload (AL = 15h)
+; utl_end (AL = 14h)
 ;
-; Unload the current program from the specified session.
+; End the current program in the specified session.
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -149,11 +146,29 @@ ENDPROC	utl_stop
 ;	Carry clear if successful
 ;	Carry set if error (eg, invalid SCB #)
 ;
-DEFPROC	utl_unload,DOS
+DEFPROC	utl_end,DOS
 	sti
 	and	[bp].REG_FL,NOT FL_CARRY
-	jmp	scb_unload
-ENDPROC	utl_unload
+	jmp	scb_end
+ENDPROC	utl_end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_waitend (AL = 15h)
+;
+; Wait for all programs in the specified session to end.
+;
+; Inputs:
+;	CL = SCB #
+;
+; Outputs:
+;	Carry clear if successful
+;	Carry set if error (eg, invalid SCB #)
+;
+DEFPROC	utl_waitend,DOS
+	and	[bp].REG_FL,NOT FL_CARRY
+	jmp	scb_waitend
+ENDPROC	utl_waitend
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -237,38 +252,38 @@ ENDPROC	utl_endwait
 ;	Carry clear if successful, set if unprocessed
 ;
 ; Modifies:
-;	AX
+;	AX, BX, CX, DX
 ;
 DEFPROC	utl_hotkey,DOS
 	sti
-	xchg	ax,dx			; AL = char code, AH = scan code
+	xchg	ax,dx			; AL = char, AH = scan code
 	and	[bp].REG_FL,NOT FL_CARRY
 ;
-; Find the SCB with the matching context; that's the one with focus.
+; Find all SCBs with a matching context; all matching SCBs are presumed
+; running inside the console that currently has focus.
 ;
+; TODO: Decide if we need to deliver hotkey signals with greater precision
+; (ie, to exactly one SCB), and if so, which SCB that should be.
+;
+	sub	dx,dx			; DX = matching SCB count
 	mov	bx,[scb_table].OFF
 hk1:	cmp	[bx].SCB_CONTEXT,cx
-	je	hk2
-	add	bx,size SCB
-	cmp	bx,[scb_table].SEG
-	jb	hk1
-	stc
-	ret
-
+	jne	hk8
+	inc	dx			; match
 hk2:	cmp	al,CHR_CTRLC
 	jne	hk3
 	or	[bx].SCB_CTRLC_ACT,1
-
 hk3:	cmp	al,CHR_CTRLP
 	jne	hk4
 	xor	[bx].SCB_CTRLP_ACT,1
-
 hk4:	cmp	al,CHR_CTRLD
 	jne	hk9
-	or	[bx].SCB_STATUS,SCSTAT_KILL
-
-hk9:	clc
-	ret
+	or	[bx].SCB_STATUS,SCSTAT_RESET
+hk8:	add	bx,size SCB		; advance to the next SCB
+	cmp	bx,[scb_table].SEG
+	jb	hk1
+	cmp	dx,1			; set carry if DX is zero (no SCBs)
+hk9:	ret
 ENDPROC	utl_hotkey
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -449,11 +464,11 @@ ENDPROC	utl_incdate
 ; notifications for selected keys (eg, UP and DOWN keys).
 ;
 ; Inputs:
-;	REG_DS:REG_DX -> BUFINP with INP_MAX preset to max chars
+;	REG_DS:REG_DX -> INPBUF with INP_MAX preset to max chars
 ;
 ; Outputs:
 ;	AX = last editing action
-;	Characters are stored in BUFINP.INP_BUF (including the CHR_RETURN);
+;	Characters are stored in INPBUF.INP_DATA (including the CHR_RETURN);
 ;	INP_CNT is set to the number of characters (excluding the CHR_RETURN)
 ;
 DEFPROC	utl_editln,DOS

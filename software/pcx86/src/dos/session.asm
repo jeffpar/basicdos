@@ -29,41 +29,12 @@ DOS	segment word public 'CODE'
 	EXTERNS	<scb_locked,def_switchar>,byte
 	EXTERNS	<scb_active,scb_stoked>,word
 	EXTERNS	<scb_table>,dword
-	EXTERNS	<dos_exit,load_program,sfh_close,psp_term_exitcode>,near
+	EXTERNS	<dos_exit,load_command,psp_term_exitcode>,near
+	EXTERNS	<sfh_add_ref,sfh_context,sfh_close>,near
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; get_scb
-;
-; Inputs:
-;	CL = SCB #
-;
-; Outputs:
-;	On success, carry clear, BX -> specified SCB
-;	On failure, carry set (if SCB invalid or not initialized for use)
-;
-; Modifies:
-;	BX
-;
-DEFPROC	get_scb,DOS
-	push	ax
-	mov	al,size SCB
-	mul	cl
-	add	ax,[scb_table].OFF
-	cmp	ax,[scb_table].SEG
-	cmc
-	jb	gs9
-	xchg	bx,ax
-	test	[bx].SCB_STATUS,SCSTAT_INIT
-	jnz	gs9
-	stc
-gs9:	pop	ax
-	ret
-ENDPROC	get_scb
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; get_scbnum
+; scb_getnum
 ;
 ; Inputs:
 ;	None
@@ -74,7 +45,7 @@ ENDPROC	get_scb
 ; Modifies:
 ;	AX
 ;
-DEFPROC	get_scbnum,DOS
+DEFPROC	scb_getnum,DOS
 	ASSUME	ES:NOTHING
 	push	bx
 	mov	bx,[scb_active]
@@ -82,52 +53,68 @@ DEFPROC	get_scbnum,DOS
 	mov	al,[bx].SCB_NUM
 gsn9:	pop	bx
 	ret
-ENDPROC	get_scbnum
+ENDPROC	scb_getnum
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; scb_load
 ;
-; Load a program into the specified session.
-;
-; TODO: Add support for a session startup block that allows the CONSOLE
-; and other system handles to be specified for this session.  Currently, we
-; are called only from sysinit, which creates all the system handles itself.
+; Load a program into an available session.
 ;
 ; Inputs:
-;	CL = SCB #
-;	ES:DX -> name of program (or command-line)
+;	REG_ES:REG_DI -> SPB (Session Parameter Block)
 ;
 ; Outputs:
 ;	Carry clear if successful:
-;		REG_AX = program size
-;		REG_ES:REG_DX -> program data
-;	Carry set if error, AX = error code
+;		REG_CL = session (SCB) #
+;		REG_AX = program size (if SPB_ENVSEG is -1)
+;		REG_ES:REG_BX -> program data (if SPB_ENVSEG is -1)
+;	Carry set if error, AX = error code (eg, no SCB, no program, etc)
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	scb_load,DOS
-	ASSUME	ES:NOTHING
-	call	scb_lock
+	mov	cl,-1
+	call	scb_lock		; lock a free SCB
 	jc	sl8
 	push	ax			; save previous SCB
-	call	load_program
+	mov	di,[bp].REG_DI
+	mov	es,[bp].REG_ES		; ES:DI -> SPB
+	ASSUME	ES:NOTHING
+	call	init_scb		; initialize the SCB for loading
+	push	bx			; save SCB
+	mov	bx,es:[di].SPB_ENVSEG
+	push	bx			; BX = ENVSEG, if any
+	lds	si,es:[di].SPB_CMDLINE
+	ASSUME	DS:NOTHING
+	call	load_command		; DS:SI -> command line
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
-	mov	bx,[scb_active]
-	jc	sl7
-	call	scb_init
+	pop	cx			; CX = ENVSEG
+	pop	bx			; BX -> current SCB again
+	jc	sl7			; exit on load error
 ;
-; Copy the TMP register results to the caller's registers.
+; If successful, load_command returns the initial program stack in DX:AX.
 ;
+; In addition, it records cache information in the TMP registers, which most
+; most callers can/will ignore, but which sysinit uses to speed up successive
+; LOAD requests.
+;
+	mov	[bx].SCB_STACK.OFF,ax	; DX:AX == initial stack
+	mov	[bx].SCB_STACK.SEG,dx
+	or	[bx].SCB_STATUS,SCSTAT_LOAD
+	mov	al,[bx].SCB_NUM
+	mov	[bp].REG_CL,al		; REG_CL = session (SCB) #
 	mov	ax,[bp].TMP_CX
-	mov	[bp].REG_AX,ax
-	mov	ax,[bp].TMP_DX
-	mov	[bp].REG_DX,ax
+	inc	cx			; was ENVSEG -1?
+	jnz	sl7			; no
+	mov	[bp].REG_AX,ax		; REG_AX = program size
+	mov	ax,[bp].TMP_BX
+	mov	[bp].REG_BX,ax
 	mov	ax,[bp].TMP_ES
-	mov	[bp].REG_ES,ax
+	mov	[bp].REG_ES,ax		; REG_ES:REG_BX -> program data
 
 sl7:	pop	cx			; recover previous SCB
 	call	scb_unlock		; unlock
@@ -135,30 +122,6 @@ sl8:	jnc	sl9
 	mov	[bp].REG_AX,ax		; return error code to caller
 sl9:	ret
 ENDPROC	scb_load
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; scb_init
-;
-; Mark the specified session as "loaded" and ready to start.
-;
-; Inputs:
-;	BX -> SCB
-;	ES:DI = initial stack pointer
-;
-; Modifies:
-;	AX
-;
-DEFPROC	scb_init,DOS
-	ASSUME	ES:NOTHING
-	ASSERT	STRUCT,[bx],SCB
-	mov	[bx].SCB_STACK.OFF,di
-	mov	[bx].SCB_STACK.SEG,es
-	mov	al,[def_switchar]
-	mov	[bx].SCB_SWITCHAR,al
-	or	[bx].SCB_STATUS,SCSTAT_LOAD
-	ret
-ENDPROC	scb_init
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -178,9 +141,9 @@ ENDPROC	scb_init
 ;
 DEFPROC	scb_lock,DOS
 	ASSUME	ES:NOTHING
+	inc	[scb_locked]
 	call	get_scb
 	jc	sk9
-	inc	[scb_locked]
 	mov	ax,bx			; AX = current SCB
 	xchg	bx,[scb_active]		; BX -> previous SCB, if any
 	test	bx,bx
@@ -203,7 +166,9 @@ sk8:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
 	pop	es
 	pop	ds
 	ASSUME	DS:DOS
-sk9:	ret
+	ret
+sk9:	dec	[scb_locked]
+	ret
 ENDPROC	scb_lock
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -237,10 +202,10 @@ ENDPROC	scb_unlock
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; scb_delock
+; scb_release
 ;
-; Handler invoked via UNLOCK_SCB to unlock the SCB and check for
-; a deferred yield request if we're completely unlocked.
+; Handler invoked via UNLOCK_SCB to unlock the SCB and check for a deferred
+; yield request if we're completely unlocked.
 ;
 ; Inputs:
 ;	None
@@ -248,13 +213,13 @@ ENDPROC	scb_unlock
 ; Modifies:
 ;	None
 ;
-DEFPROC	scb_delock,DOS
+DEFPROC	scb_release,DOS
 	ASSUME	DS:NOTHING, ES:NOTHING
 	dec	[scb_locked]
 	jge	scb_return
 	ASSERT	Z,<cmp [scb_locked],-1>
 	jmp	[scb_stoked]
-ENDPROC	scb_delock
+ENDPROC	scb_release
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -282,7 +247,7 @@ ENDPROC	scb_stoke
 ;
 ; scb_start
 ;
-; "Start" the specified session (actual starting will handled by scb_switch).
+; Start the specified session (actual starting will handled by scb_switch).
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -305,7 +270,7 @@ ENDPROC	scb_start
 ;
 ; scb_stop
 ;
-; TODO: "Stop" the specified session.
+; TODO: Stop (ie, suspend) the specified session.
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -325,9 +290,6 @@ ENDPROC	scb_stop
 ;
 ; Unload the current program from the specified session.
 ;
-; TODO: Until an API is added to call scb_load to start new sessions, this
-; session is dead in the water, so we may as well close its system handles now.
-;
 ; Inputs:
 ;	CL = SCB #
 ;
@@ -342,10 +304,10 @@ DEFPROC	scb_unload,DOS
 	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	call	get_scb
  	jc	sud9
-	mov	cx,3			; close this session's system handles
-	push	bx			; (for reasons given in the TODO above)
-	lea	si,[bx].SCB_SFHCON
-sud1:	mov	bl,-1
+	mov	cx,5			; close this session's system handles
+	push	bx
+	lea	si,[bx].SCB_SFHIN
+sud1:	mov	bl,SFH_NONE
 	xchg	bl,[si]
 	call	sfh_close
 	inc	si
@@ -353,8 +315,65 @@ sud1:	mov	bl,-1
 	pop	bx
 	xchg	ax,cx			; make sure AX is zero
 	and	[bx].SCB_STATUS,NOT (SCSTAT_LOAD OR SCSTAT_START)
+;
+; In case another session was waiting for this sesion to unload, call endwait.
+;
+	mov	di,bx
+	mov	dx,ds			; DX:DI = SCB address (the wait ID)
+	call	scb_endwait
+
 sud9:	ret
 ENDPROC	scb_unload
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; scb_end
+;
+; TODO: End the current program in the specified session.
+;
+; Inputs:
+;	CL = SCB #
+;
+; Outputs:
+;	Carry clear on success (AX = 0)
+;	Carry set on error (eg, invalid SCB #)
+;
+; Modifies:
+;
+DEFPROC	scb_end,DOS
+	ASSUMES	<DS,DOS>,<ES,DOS>
+	ret
+ENDPROC	scb_end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; scb_waitend
+;
+; Wait for all programs in the specified session to end.
+;
+; Inputs:
+;	CL = SCB #
+;
+; Outputs:
+;	Carry clear on success, set on error
+;
+; Modifies:
+;
+DEFPROC	scb_waitend,DOS
+	ASSUMES	<DS,DOS>,<ES,DOS>
+	call	get_scb
+	jc	swe9
+	test	[bx].SCB_STATUS,SCSTAT_LOAD
+	jz	swe9
+;
+; Turn this call into a standard scb_wait call, where the wait ID in DX:DI
+; is the target SCB address (instead of the usual driver packet address).
+;
+	mov	di,bx
+	mov	dx,ds
+	jmp	scb_wait
+swe9:	ret
+ENDPROC	scb_waitend
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -454,15 +473,15 @@ sw6:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
 	mov	ss,[bx].SCB_STACK.SEG
 	mov	sp,[bx].SCB_STACK.OFF
 ;
-; TODO: Finish support for the KILL bit.
+; TODO: Finish support for the RESET bit.
 ;
-	test	[bx].SCB_STATUS,SCSTAT_KILL
+	test	[bx].SCB_STATUS,SCSTAT_RESET
 	jz	sw8
 sw7:	sti
-	and	[bx].SCB_STATUS,NOT SCSTAT_KILL
-	PRINTF	<"Forced quit detected",13,10>
-	mov	ax,(EXTYPE_KILL SHL 8) OR 0FFh
-	call	psp_term_exitcode	; attempt forced quit
+	and	[bx].SCB_STATUS,NOT SCSTAT_RESET
+	PRINTF	<"Reset request detected",13,10>
+	mov	ax,(EXTYPE_RESET SHL 8) OR 0FFh
+	call	psp_term_exitcode	; attempt reset
 
 sw8:	ASSERT	NC
 	jmp	dos_exit		; we'll let dos_exit turn interrupts on
@@ -518,11 +537,126 @@ se1:	ASSERT	STRUCT,[bx],SCB
 	mov	[bx].SCB_WAITID.SEG,0
 	jmp	short se9
 se2:	add	bx,size SCB
-	cmp	[scb_table].SEG,bx
-	jnb	se1
+	cmp	bx,[scb_table].SEG
+	cmc
+	jnc	se1
 se9:	sti
 	ret
 ENDPROC	scb_endwait
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_scb
+;
+; Returns the specified SCB.
+;
+; Inputs:
+;	CL = SCB # (-1 for first free SCB)
+;
+; Outputs:
+;	On success, carry clear, BX -> SCB
+;	On failure, carry set (SCB uninitialized, unavailable, or invalid)
+;
+; Modifies:
+;	BX
+;
+DEFPROC	get_scb,DOS
+	cmp	cl,-1
+	je	get_free_scb
+	push	ax
+	mov	al,size SCB
+	mul	cl
+	add	ax,[scb_table].OFF
+	cmp	ax,[scb_table].SEG
+	cmc
+	jb	gs9
+	xchg	bx,ax
+	test	[bx].SCB_STATUS,SCSTAT_INIT
+	jnz	gs9
+	stc
+gs9:	pop	ax
+	ret
+ENDPROC	get_scb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_free_scb
+;
+; Returns the first free (unloaded) SCB.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	On success, carry clear, BX -> SCB
+;	On failure, carry set (SCB unavailable)
+;
+; Modifies:
+;	BX
+;
+DEFPROC	get_free_scb,DOS
+	mov	bx,[scb_table].OFF
+fs1:	test	[bx].SCB_STATUS,SCSTAT_LOAD
+	jz	fs9
+	add	bx,size SCB
+	cmp	bx,[scb_table].SEG
+	jb	fs1
+	stc
+fs9:	ret
+ENDPROC	get_free_scb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; init_scb
+;
+; Initialize the SCB in preparation for program loading.
+;
+; Inputs:
+;	DS:BX -> SCB (Session Control Block)
+;	ES:DI -> SPB (Session Parameter Block)
+;
+; Modifies:
+;	AX, CX, DX, SI
+;
+DEFPROC	init_scb,DOS
+	ASSUME	ES:NOTHING
+	ASSERT	STRUCT,[bx],SCB
+;
+; Copy any valid SFHs into the SCB.
+;
+	push	di
+	mov	cx,5
+	mov	dx,es:[di].SPB_ENVSEG
+	lea	si,[di].SPB_SFHIN	; ES:SI -> 1st SFH in the SPB
+	lea	di,[bx].SCB_SFHIN	; DS:DI -> 1st SFH in the SCB
+si1:	lods	byte ptr es:[si]
+	cmp	al,SFH_NONE		; was an SFH supplied?
+	je	si2			; no
+	mov	[di],al			; update the SCB
+si2:	cmp	dx,-1			; is SPB_ENVSEG -1 (from sysinit)?
+	je	si3			; yes, so leave SFH alone
+	mov	al,[di]			; AL = SFH (no harm if SFH_NONE)
+	mov	ah,1			; add 1 session ref
+	call	sfh_add_ref		; (in addition to any program refs)
+si3:	inc	di
+	loop	si1
+	pop	di
+;
+; Take care of any remaining initialization now, including set the SCB's
+; parent, output context (if any), etc.
+;
+	mov	ax,[scb_active]		; the caller is the presumed parent
+	mov	[bx].SCB_PARENT,ax
+
+	mov	al,[bx].SCB_SFHOUT
+	call	sfh_context
+	mov	[bx].SCB_CONTEXT,ax
+
+	mov	al,[def_switchar]
+	mov	[bx].SCB_SWITCHAR,al
+	or	[bx].SCB_STATUS,SCSTAT_INIT
+	ret
+ENDPROC	init_scb
 
 DOS	ends
 

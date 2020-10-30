@@ -14,7 +14,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<get_sfh_sfb,sfb_write>,near
+	EXTERNS	<sfb_from_sfh,sfb_write>,near
 	EXTERNS	<itoa,sprintf,write_string>,near
 
 	EXTERNS	<sfh_debug,key_boot>,byte
@@ -203,7 +203,7 @@ DEFPROC	utl_printf,DOS
 	test	bl,bl			; SFH?
 	jz	pf7			; no
 	jl	pf8			; DEBUG output not enabled
-	call	get_sfh_sfb		; BX -> SFB
+	call	sfb_from_sfh		; BX -> SFB
 	jc	pf7
 	mov	al,IO_COOKED
 	call	sfb_write
@@ -507,9 +507,29 @@ ENDPROC utl_atoi32d
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; div_32_16
+;
+; Divide DX:AX by CX, returning quotient in DX:AX and remainder in BX.
+;
+; Modifies:
+;	AX, BX, DX
+;
+DEFPROC	div_32_16
+	mov	bx,ax			; save low dividend in BX
+	mov	ax,dx			; divide high dividend
+	sub	dx,dx			; DX:AX = new dividend
+	div	cx			; AX = high quotient
+	xchg	ax,bx			; move to BX, restore low dividend
+	div	cx			; AX = low quotient
+	xchg	dx,bx			; DX:AX = new quotient, BX = remainder
+	ret
+ENDPROC	div_32_16
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; mul_32_16
 ;
-; Multiply DX:AX by CX, leaving result in DX:AX.
+; Multiply DX:AX by CX, returning result in DX:AX.
 ;
 ; Modifies:
 ;	AX, DX
@@ -545,10 +565,10 @@ ENDPROC	mul_32_16
 ;	AL = 0Bh (TOKTYPE_GENERIC) or 0Ch (TOKTYPE_BASIC)
 ;	REG_CL = length of string
 ;	REG_DS:REG_SI -> string to "tokify"
-;	REG_ES:REG_DI -> BUFTOK (filled in with token info)
+;	REG_ES:REG_DI -> TOKBUF (filled in with token info)
 ;
 ; Outputs:
-;	Carry clear if tokens found; AX = # tokens, BUFTOK updated
+;	Carry clear if tokens found; AX = # tokens, TOKBUF updated
 ;	Carry set if no tokens found
 ;
 ; Modifies:
@@ -563,7 +583,7 @@ DEFPROC	utl_tokify,DOS
 	mov	[bp].TMP_BH,al		; TMP_BH = TOKTYPE
 	mov	ds,[bp].REG_DS		; DS:SI -> string
 	ASSUME	DS:NOTHING
-	mov	es,[bp].REG_ES		; ES:DI -> BUFTOK
+	mov	es,[bp].REG_ES		; ES:DI -> TOKBUF
 	ASSUME	ES:NOTHING
 	mov	ch,0
 	mov	[bp].TMP_CX,cx		; TMP_CX = length
@@ -595,7 +615,7 @@ tf3:	call	tok_classify		; AH = next classification
 ; Let's merge CLS_SYM with CLS_VAR to make life simpler downstream.
 ;
 	cmp	ch,CLS_VAR
-	jne	tf6a
+	jne	tf6
 	cmp	al,'%'
 	jne	tf3b
 	mov	ah,CLS_VAR_LONG
@@ -633,14 +653,14 @@ tf6a:	mov	al,ch			; AL = previous classification
 tf6b:
 	ENDIF	; MAXDEBUG
 ;
-; Update the TOKLET in the TOK_BUF at ES:DI, token index BX
+; Update the TOKLET in the TOK_DATA at ES:DI, token index BX
 ;
 	push	bx
 	add	bx,bx
 	add	bx,bx			; BX = BX * 4 (size TOKLET)
-	mov	es:[di+bx].TOK_BUF.TOKLET_CLS,al
-	mov	es:[di+bx].TOK_BUF.TOKLET_LEN,cl
-	mov	es:[di+bx].TOK_BUF.TOKLET_OFF,dx
+	mov	es:[di+bx].TOK_DATA.TOKLET_CLS,al
+	mov	es:[di+bx].TOK_DATA.TOKLET_LEN,cl
+	mov	es:[di+bx].TOK_DATA.TOKLET_OFF,dx
 	pop	bx
 	inc	bx			; and increment token index
 
@@ -701,16 +721,22 @@ tc2a:	mov	ah,CLS_WHITE
 ;
 tc3:	test	byte ptr [bp].TMP_BH,TOKTYPE_GENERIC
 	jz	tc4
+	cmp	al,'|'			; pipe char?
+	je	tc3b			; yes
+	cmp	al,'<'			; input redirection char?
+	je	tc3b			; yes
+	cmp	al,'>'			; output redirection char?
+	je	tc3b			; yes
 	cmp	al,[bp].TMP_BL		; SWITCHAR?
-	jne	tc3a			; no
-	cmp	ah,CLS_WHITE		; yes, any intervening whitespace?
-	je	tc3a			; yes
-	mov	ah,CLS_SYM		; no, so force a transition
+	jne	tc3c			; no
+	cmp	ah,CLS_WHITE		; any intervening whitespace?
+	je	tc3c			; yes
+tc3b:	mov	ah,CLS_SYM		; no, force a transition
 	ret
-tc3a:	cmp	ch,CLS_SYM		; did we force a transition?
-	jne	tc3b			; no
+tc3c:	cmp	ch,CLS_SYM		; did we force a transition?
+	jne	tc3d			; no
 	mov	ch,CLS_STR		; yes, revert to string
-tc3b:	mov	ah,CLS_STR		; and call anything else a string
+tc3d:	mov	ah,CLS_STR		; and call anything else a string
 	ret
 ;
 ; Check for digits next.
@@ -889,7 +915,7 @@ ENDPROC	utl_tokid
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_restart (AL = 0Fh)
+; utl_restart (AL = 0Eh)
 ;
 ; TODO: Ensure any disk modifications (once we support disk modifications)
 ; have been written.

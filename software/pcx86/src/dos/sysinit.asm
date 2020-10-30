@@ -281,7 +281,7 @@ si4c:	jnz	sierr1			; hmm, CLUSSECS wasn't a power-of-two
 ; divided by sectors per cluster, or just another shift using CLUSLOG2).
 ;
 	mov	ax,[di].BPB_DISKSECS
-	sub	ax,[di].BPB_LBADATA	; AX = DISKSECS - LBADATA = data sectors
+	sub	ax,[di].BPB_LBADATA	; AX = DISKSECS-LBADATA (data sectors)
 	shr	ax,cl			; AX = data clusters
 	mov	[di].BPB_CLUSTERS,ax
 
@@ -360,18 +360,16 @@ si7:	mov	dx,size SFB
 	ASSUME	ES:DOS
 	mov	es:[mcb_head],bx
 ;
-; The following SCB initialization should be limited to invariant SCB fields
-; (eg, SCB_NUM); alternatively, make sure everything we do here is done in
-; scb_init instead.
+; Pre-initialize all the SCBs, by assigning them unique SCB_NUM values
+; and setting their default CON/AUX/PRN system file handles to SFH_NONE (-1).
 ;
-	dec	cx
-	mov	ah,ch
+	mov	ah,SFH_NONE
+	dec	cx			; CL,CH = SFH_NONE
 	mov	bx,es:[scb_table].OFF
 	push	bx			; initialize the SCBs
-	or	es:[bx].SCB_STATUS,SCSTAT_INIT
-si7a:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHCON>
-	ASSERT	<SCB_SFHAUX + 1>,EQ,<SCB_SFHPRN>
+si7a:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHIN>
 	mov	word ptr es:[bx].SCB_NUM,ax
+	mov	word ptr es:[bx].SCB_SFHOUT,cx
 	mov	word ptr es:[bx].SCB_SFHAUX,cx
 	DBGINIT	STRUCT,es:[bx],SCB
 	inc	ax
@@ -393,7 +391,7 @@ si7a:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHCON>
 ; because no process handle table exists when these handles are being opened).
 ;
 	mov	dx,offset AUX_DEVICE
-	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
+	mov	ax,DOS_HDL_OPENRW
 	int	21h
 	jc	open_error
 	mov	es:[bx].SCB_SFHAUX,al
@@ -407,16 +405,17 @@ si8:	mov	si,offset CFG_CONSOLE
 	call	find_cfg		; look for "CONSOLE="
 	jc	si9			; not found
 	mov	dx,di
-si9:	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
+si9:	mov	ax,DOS_HDL_OPENRW
 	int	21h
 	jc	open_error
-	mov	es:[bx].SCB_SFHCON,al	; AL = SFH (not PFH)
-	mov	es:[bx].SCB_CONTEXT,dx	; DX = CONSOLE device context
+	mov	es:[bx].SCB_SFHIN,al	; AL = SFH (not PFH)
+	mov	es:[bx].SCB_SFHOUT,al	; AL = SFH (not PFH)
+	mov	es:[bx].SCB_SFHERR,al	; AL = SFH (not PFH)
 ;
 ; Last but not least, open PRN.
 ;
 	mov	dx,offset PRN_DEVICE
-	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
+	mov	ax,DOS_HDL_OPENRW
 	int	21h
 	jc	open_error
 	mov	es:[bx].SCB_SFHPRN,al	; AL = SFH
@@ -430,7 +429,7 @@ si10:	mov	si,offset CFG_CONSOLE
 	call	find_cfg		; look for another "CONSOLE="
 	jc	si12			; no more
 	mov	dx,di
-	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
+	mov	ax,DOS_HDL_OPENRW
 	int	21h
 	jc	open_error
 	add	bx,size SCB
@@ -438,9 +437,9 @@ si10:	mov	si,offset CFG_CONSOLE
 	jb	si11
 	mov	dx,offset CONERR
 	jmp	print_error
-si11:	or	es:[bx].SCB_STATUS,SCSTAT_INIT
-	mov	es:[bx].SCB_SFHCON,al
-	mov	es:[bx].SCB_CONTEXT,dx
+si11:	mov	es:[bx].SCB_SFHIN,al
+	mov	es:[bx].SCB_SFHOUT,al
+	mov	es:[bx].SCB_SFHERR,al
 	mov	word ptr es:[bx].SCB_SFHAUX,cx
 	ASSERT	<SCB_SFHAUX + 1>,EQ,<SCB_SFHPRN>
 	jmp	si10
@@ -453,7 +452,7 @@ si12:	mov	si,offset CFG_DEBUG
 	call	find_cfg		; look for "DEBUG="
 	jc	si13			; not found
 	mov	dx,di
-	mov	ax,(DOS_HDL_OPEN SHL 8) OR MODE_ACC_BOTH
+	mov	ax,DOS_HDL_OPENRW
 	int	21h
 	jc	si13
 	mov	es:[sfh_debug],al	; save SFH for DEBUG device
@@ -490,32 +489,48 @@ si14:	mov	dx,offset SYS_MSG
 ; available SCB.  The first time through, CFG_SHELL is used as a fallback,
 ; so even if there are no SHELL definitions, at least one will be loaded.
 ;
-	sub	bx,bx			; BX = SCB load count
-	sub	cx,cx			; CL = SCB #
-	mov	dx,offset SHELL_FILE	; DX = default shell
+	sub	sp,size SPB		; alloc SPB from the stack
+
+	sub	dx,dx			; DX = SCB load count
+	mov	bx,offset SHELL_FILE	; BX = default shell
 si15:	mov	si,offset CFG_SHELL
 	call	find_cfg		; look for "SHELL="
 	jc	si16			; not found
-	mov	dx,di
-si16:	test	dx,dx			; do we still have a default?
+	mov	bx,di
+si16:	test	bx,bx			; do we still have a default?
 	jz	si20			; no, done loading
 ;
-; Note that during the LOAD process, the target SCB is locked as the active
-; SCB, so that the program file can be opened and read using the SCB's PSP.
-; It's unlocked after the load, but it won't start running until START is set.
+; Note that during the LOAD process, the SCB is locked and active, so that
+; the program file can be opened and read using the SCB's PSP.  It's unlocked
+; when the load finishes, but it won't start running until after START is set.
 ;
-	DOSUTIL	LOAD			; load SHELL DS:DX into specified SCB
+	push	ss
+	pop	es
+	mov	di,sp			; ES:DI -> SPB on stack
+	mov	ax,-1
+	stosw				; SPB_ENVSEG <- -1
+	xchg	ax,bx
+	stosw				; SPB_CMDLINE.OFF <- BX
+	mov	ax,ds
+	stosw				; SPB_CMDLINE.OFF <- DS
+	xchg	ax,bx			; AX = -1 again (aka SFH_NONE)
+	stosb				; SPB_SFHIN  <- SFH_NONE
+	stosb				; SPB_SFHOUT <- SFH_NONE
+	stosb				; SPB_SFHERR <- SFH_NONE
+	stosb				; SPB_SFHAUX <- SFH_NONE
+	stosb				; SPB_SFHPRN <- SFH_NONE
+	mov	di,sp			; ES:DI -> SPB on stack
+	DOSUTIL	LOAD			; load specified SHELL into an SCB
 	jc	si18
 	test	ax,ax
 	jz	si16a
 	mov	[cbCacheData],ax
-	mov	[pCacheData].OFF,dx
+	mov	[pCacheData].OFF,bx
 	mov	[pCacheData].SEG,es
-si16a:	DOSUTIL	START			; CL = SCB #
-	inc	bx			; must be valid, so no error checking
+si16a:	DOSUTIL	START			; CL = SCB # (from the LOAD call)
+	inc	dx			; must be valid, so no error checking
 
-si17:	inc	cx			; advance SCB #
-	sub	dx,dx			; no more default
+si17:	sub	bx,bx			; no default shell now
 	jmp	si15
 
 si18:	PRINTF	<"Error loading %s: %d",13,10>,dx,ax
@@ -525,13 +540,16 @@ si18:	PRINTF	<"Error loading %s: %d",13,10>,dx,ax
 ; nothing can ACTUALLY run until we obtain access to the CLOCK$ device and
 ; re-vector all the hardware interrupt handlers that drive our scheduler.
 ;
-si20:	lds	dx,[pCacheInt21]	; restore INT 21h vector
+si20:	add	sp,size SPB		; free SPB on the stack
+					; (somewhat moot, but let's stay tidy)
+
+	lds	dx,[pCacheInt21]	; restore INT 21h vector
 	mov	ax,(DOS_MSC_SETVEC SHL 8) OR 21h
 	int	21h
 	push	cs
 	pop	ds
 
-	test	bx,bx
+	test	dx,dx
 	jz	sierr2			; if no SCBs loaded, that's not good
 ;
 ; Functions like SLEEP need access to the clock device, so we save its
@@ -686,7 +704,7 @@ ENDPROC	init_table
 ; completely sequential (and therefore our caching logic can be very simple).
 ;
 ; This allows us to preload multiple copies of COMMAND.COM into memory without
-; having to reread the file every time.
+; having to reread the file from disk every time.
 ;
 ; Inputs:
 ;	AH = DOS function #
@@ -829,19 +847,18 @@ ENDPROC	cache_int21
 	dw	-1			; end of tables (should end at INT 30h)
 	DEFLBL	INT_TABLES_END
 
-CFG_MEMSIZE	db	8,"MEMSIZE="
-		dw	640,16,640
-CFG_SESSIONS	db	9,"SESSIONS="
-		dw	4,4,16
-CFG_SWITCHAR	db	9,"SWITCHAR="
-		dw	4,4,16
-CFG_FILES	db	6,"FILES="
-		dw	20,20,256
 CFG_BOOTKEY	db	8,"BOOTKEY="
 CFG_CONSOLE	db	8,"CONSOLE="
 CON_DEVICE	db	"CON:80,25",0	; default CONSOLE configuration
 CFG_DEBUG	db	6,"DEBUG="	; used to specify DEBUG device
+CFG_FILES	db	6,"FILES="
+		dw	20,8,255
+CFG_MEMSIZE	db	8,"MEMSIZE="
+		dw	640,16,640
+CFG_SESSIONS	db	9,"SESSIONS="
+		dw	4,1,32		; TODO: Decide if 32 session limit OK
 CFG_SHELL	db	6,"SHELL="
+CFG_SWITCHAR	db	9,"SWITCHAR="
 
 AUX_DEVICE	db	"AUX",0
 PRN_DEVICE	db	"PRN",0

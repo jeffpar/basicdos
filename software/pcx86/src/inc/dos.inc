@@ -73,7 +73,7 @@ TMP_DH		equ	TMP_DX.HIB
 ; we'll pretend all the apps we care about are well-behaved, which means if
 ; they want to set any of the EXRET/CTRLC/ERROR handlers, they'll use the
 ; DOS_SET_VECTOR function, which will update the SCB vectors below, rather
-; than the actual IVT vectors.
+; than the actual IVT vectors (22h/23h/24h).
 ;
 ; That will save scb_switch from having to save/restore IVT vectors on every
 ; switch.  If it turns out I care about running non-well-behaved apps later,
@@ -83,39 +83,42 @@ TMP_DH		equ	TMP_DX.HIB
 SCB		struc
 SCB_STATUS	db	?	; 00h: SCB status
 SCB_NUM		db	?	; 01h: SCB #
-SCB_SFHCON	db	?	; 02h: SFH for CON
-SCB_SFHAUX	db	?	; 03h: SFH for AUX
-SCB_SFHPRN	db	?	; 04h: SFH for PRN
-SCB_SIG		db	?	; 05h (holds SIG_SCB in DEBUG builds)
-SCB_CURPSP	dw	?	; 06h: current PSP
-SCB_WAITID	dd	?	; 08h: wait ID if waiting, 0 if runnable
-SCB_STACK	dd	?	; 0Ch: pointer to session stack
-SCB_EXRET	dd	?	; 10h: current EXRET handler
-SCB_CTRLC	dd	?	; 14h: current CTRLC handler
-SCB_ERROR	dd	?	; 18h: current ERROR handler
-SCB_DTA		dd	?	; 1Ch: current DTA (Disk Transfer Address)
-SCB_CONTEXT	dw	?	; 20h: CONSOLE context (from device driver)
-SCB_CURDRV	db	?	; 22h: current drive #
-SCB_CTRLC_ALL	db	?	; 23h: 1 if CTRLC checking enabled on all calls
-SCB_CTRLC_ACT	db	?	; 24h: 1 if CTRLC active
-SCB_CTRLP_ACT	db	?	; 25h: 1 if CTRLP active
-SCB_SWITCHAR	db	?	; 26h: current "switchar" (default is CHR_SLASH)
-SCB_PADDING	db	?	; 27h
-SCB_FILENAME	db     12 dup(?); 28h: buffer for drive # and filename
-SCB		ends
+SCB_SFHIN	db	?	; 02h: SFH for STDIN
+SCB_SFHOUT	db	?	; 03h: SFH for STDOUT
+SCB_SFHERR	db	?	; 04h: SFH for STDERR
+SCB_SFHAUX	db	?	; 05h: SFH for STDAUX
+SCB_SFHPRN	db	?	; 06h: SFH for STDPRN
+SCB_SIG		db	?	; 07h (holds SIG_SCB in DEBUG builds)
+SCB_PARENT	dw	?	; 08h: SCB of parent (zero if none)
+SCB_CURPSP	dw	?	; 0Ah: current PSP
+SCB_WAITID	dd	?	; 0Ch: wait ID if waiting, 0 if runnable
+SCB_STACK	dd	?	; 10h: pointer to session stack
+SCB_EXRET	dd	?	; 14h: current EXRET handler
+SCB_CTRLC	dd	?	; 18h: current CTRLC handler
+SCB_ERROR	dd	?	; 1Ch: current ERROR handler
+SCB_DTA		dd	?	; 20h: current DTA (Disk Transfer Address)
+SCB_CONTEXT	dw	?	; 24h: CONSOLE context (from device driver)
+SCB_CURDRV	db	?	; 26h: current drive #
+SCB_CTRLC_ALL	db	?	; 27h: 1 if CTRLC checking enabled on all calls
+SCB_CTRLC_ACT	db	?	; 28h: 1 if CTRLC active
+SCB_CTRLP_ACT	db	?	; 29h: 1 if CTRLP active
+SCB_SWITCHAR	db	?	; 2Ah: current "switchar" (default is CHR_SLASH)
+SCB_PADDING	db	?	; 2Bh
+SCB_FILENAME	db     12 dup(?); 2Ch: buffer for drive # and filename
+SCB		ends		; 38h bytes (1Ch words)
 SIG_SCB		equ	'S'
 
 SCSTAT_INIT	equ	01h	; set if SCB initialized
 SCSTAT_LOAD	equ	02h	; set if session has loaded a program
 SCSTAT_START	equ	04h	; set if session program can be started
-SCSTAT_KILL	equ	08h	; set if session kill (CTRL-ALT-DEL) requested
+SCSTAT_RESET	equ	08h	; set if session reset (CTRL-ALT-DEL) requested
 
 LOCK_SCB macro
 	inc	[scb_locked]
 	endm
 
 UNLOCK_SCB macro
-	jmp	scb_delock
+	jmp	scb_release
 	endm
 ;
 ; Memory Control Block (MCB)

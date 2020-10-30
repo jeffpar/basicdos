@@ -20,11 +20,15 @@ CODE	segment para public 'CODE'
 	DEFLEN	COM1_LEN,<COM1>
 	DEFLEN	COM1_INIT,<COM1,COM2,COM3,COM4>
 COM1	DDH	<COM1_LEN,,DDATTR_OPEN+DDATTR_CHAR,COM1_INIT,ddcom_int1,20202020314D4F43h>
-
+;
+; Every COM driver instance must define the next group of variables in
+; the same location/order as shown below.
+;
 	DEFPTR	ddcom_cmdp	; ddcom_cmd pointer
 	DEFPTR	ddcom_intp	; ddcom_int pointer
 	DEFWORD	ct_seg,0	; active context, if any
 	DEFWORD	card_num,0	; card number
+
 	DEFPTR	wait_ptr,-1	; chain of waiting packets
 
 	DEFLBL	CMDTBL,word
@@ -615,7 +619,7 @@ ddi4:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 ; was because we got ahead of the WAIT call.  One thought was to make the
 ; driver's WAIT code more resilient, and double-check that the request had
 ; really been satisfied, but I eventually resolved the race by making the
-; pull_input/add_packet/utl_wait path atomic (ie, no interrupts).
+; pull_input/add_packet/wait path atomic (ie, no interrupts).
 ;
 ; TODO: Consider lighter-weight solutions to this race condition.
 ;
@@ -1168,7 +1172,10 @@ CODE2	segment para public 'CODE'
 	DEFLEN	COM2_LEN,<COM2>
 	DEFLEN	COM2_INIT,<COM2,COM3,COM4>
 COM2	DDH	<COM2_LEN,,DDATTR_CHAR,COM2_INIT,ddcom_int2,20202020324D4F43h>
-
+;
+; Every COM driver instance must define the next group of variables in
+; the same location/order as shown below.
+;
 	DEFPTR	ddcom_cmdp2
 	DEFPTR	ddcom_intp2
 	DEFWORD	ct_seg2,0
@@ -1208,7 +1215,10 @@ CODE3	segment para public 'CODE'
 	DEFLEN	COM3_LEN,<COM3>
 	DEFLEN	COM3_INIT,<COM3,COM4>
 COM3	DDH	<COM3_LEN,,DDATTR_CHAR,COM3_INIT,ddcom_int3,20202020334D4F43h>
-
+;
+; Every COM driver instance must define the next group of variables in
+; the same location/order as shown below.
+;
 	DEFPTR	ddcom_cmdp3
 	DEFPTR	ddcom_intp3
 	DEFWORD	ct_seg3,0
@@ -1248,7 +1258,10 @@ CODE4	segment para public 'CODE'
 	DEFLEN	COM4_LEN,<COM4,ddcom_init>,16
 	DEFLEN	COM4_INIT,<COM4>
 COM4	DDH	<COM4_LEN,,DDATTR_CHAR,COM4_INIT,ddcom_int4,20202020344D4F43h>
-
+;
+; Every COM driver instance must define the next group of variables in
+; the same location/order as shown below.
+;
 	DEFPTR	ddcom_cmdp4
 	DEFPTR	ddcom_intp4
 	DEFWORD	ct_seg4,0

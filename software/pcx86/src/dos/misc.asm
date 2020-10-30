@@ -19,8 +19,9 @@ DOS	segment word public 'CODE'
 	EXTERNS	<dos_check>,near
 	ENDIF
 
-	EXTERNS	<scb_active>,word
+	EXTERNS	<mcb_head>,word
 	EXTERNS	<clk_ptr>,dword
+	EXTERNS	<scb_active>,word
 
 	EXTERNS	<MONTH_DAYS>,byte
 	EXTERNS	<MONTHS,DAYS>,word
@@ -500,6 +501,32 @@ gsw1:	dec	al
 gsw2:	mov	byte ptr [bp].REG_AL,0FFh; (unsupported subfunction)
 gsw9:	ret
 ENDPROC	msc_getswc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; msc_getvars (REG_AH = 52h)
+;
+; Get address of BASIC-DOS variables in REG_ES:REG_BX.
+;
+; NOTE: The only variable located at the same offset as PC DOS is mcb_head
+; (REG_BX-2).  Attempting to support most other variables would be pointless,
+; because we don't have a Drive Parameter Table (just BPBs), the SFBs in our
+; System File Table are completely different, etc.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	REG_ES:REG_BX-2 -> mcb_head
+;
+; Modifies:
+;	None
+;
+DEFPROC	msc_getvars,DOS
+	mov	[bp].REG_ES,ds
+	mov	[bp].REG_BX,offset mcb_head + 2
+	ret
+ENDPROC	msc_getvars
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

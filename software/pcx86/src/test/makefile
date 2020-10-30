@@ -13,9 +13,8 @@ EXE2BIN=EXE2BIN
 AFLAGS=/D$(REL) /I..\INC
 
 #
-# Inference rules in the DOS MAKE utility apparently work only if the
-# files are in the same folder.  So for now, these rules must be copied
-# under each dependency.
+# Inference rules in the DOS MAKE utility apparently work only if the files
+# are in the same folder.  So for now, each dependency must copy these rules.
 #
 .ASM.COM:
 	$(ASM) $(AFLAGS) $**,$*.OBJ;
@@ -28,6 +27,13 @@ AFLAGS=/D$(REL) /I..\INC
 	$(ASM) $(AFLAGS) $**,$*.OBJ;
 	$(LINK) $*.OBJ,$*.EXE;
 	DEL $*.OBJ
+
+OBJ\CASE.COM: CASE.ASM
+	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ;
+	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE;
+	$(EXE2BIN) OBJ\$*.EXE $@
+	DEL OBJ\$*.OBJ
+	DEL OBJ\$*.EXE
 
 OBJ\PRIMES.EXE: PRIMES.ASM
 	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ;
