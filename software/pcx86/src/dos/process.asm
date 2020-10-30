@@ -418,6 +418,7 @@ lc1:	lodsb
 	DOSUTIL	STRLEN			; AX = # chars at DS:SI
 	ASSERT	BE,<cmp ax,126>
 	dec	bx
+	xchg	cx,ax			; CX = length
 	xchg	[bx],cl			; set length
 	mov	[bp].EPB_CMDTAIL.OFF,bx
 	mov	[bp].EPB_CMDTAIL.SEG,ds

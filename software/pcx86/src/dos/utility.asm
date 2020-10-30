@@ -565,10 +565,10 @@ ENDPROC	mul_32_16
 ;	AL = 0Bh (TOKTYPE_GENERIC) or 0Ch (TOKTYPE_BASIC)
 ;	REG_CL = length of string
 ;	REG_DS:REG_SI -> string to "tokify"
-;	REG_ES:REG_DI -> BUFTOK (filled in with token info)
+;	REG_ES:REG_DI -> TOKBUF (filled in with token info)
 ;
 ; Outputs:
-;	Carry clear if tokens found; AX = # tokens, BUFTOK updated
+;	Carry clear if tokens found; AX = # tokens, TOKBUF updated
 ;	Carry set if no tokens found
 ;
 ; Modifies:
@@ -583,7 +583,7 @@ DEFPROC	utl_tokify,DOS
 	mov	[bp].TMP_BH,al		; TMP_BH = TOKTYPE
 	mov	ds,[bp].REG_DS		; DS:SI -> string
 	ASSUME	DS:NOTHING
-	mov	es,[bp].REG_ES		; ES:DI -> BUFTOK
+	mov	es,[bp].REG_ES		; ES:DI -> TOKBUF
 	ASSUME	ES:NOTHING
 	mov	ch,0
 	mov	[bp].TMP_CX,cx		; TMP_CX = length
@@ -653,14 +653,14 @@ tf6a:	mov	al,ch			; AL = previous classification
 tf6b:
 	ENDIF	; MAXDEBUG
 ;
-; Update the TOKLET in the TOK_BUF at ES:DI, token index BX
+; Update the TOKLET in the TOK_DATA at ES:DI, token index BX
 ;
 	push	bx
 	add	bx,bx
 	add	bx,bx			; BX = BX * 4 (size TOKLET)
-	mov	es:[di+bx].TOK_BUF.TOKLET_CLS,al
-	mov	es:[di+bx].TOK_BUF.TOKLET_LEN,cl
-	mov	es:[di+bx].TOK_BUF.TOKLET_OFF,dx
+	mov	es:[di+bx].TOK_DATA.TOKLET_CLS,al
+	mov	es:[di+bx].TOK_DATA.TOKLET_LEN,cl
+	mov	es:[di+bx].TOK_DATA.TOKLET_OFF,dx
 	pop	bx
 	inc	bx			; and increment token index
 

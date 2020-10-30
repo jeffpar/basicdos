@@ -464,11 +464,11 @@ ENDPROC	utl_incdate
 ; notifications for selected keys (eg, UP and DOWN keys).
 ;
 ; Inputs:
-;	REG_DS:REG_DX -> BUFINP with INP_MAX preset to max chars
+;	REG_DS:REG_DX -> INPBUF with INP_MAX preset to max chars
 ;
 ; Outputs:
 ;	AX = last editing action
-;	Characters are stored in BUFINP.INP_BUF (including the CHR_RETURN);
+;	Characters are stored in INPBUF.INP_DATA (including the CHR_RETURN);
 ;	INP_CNT is set to the number of characters (excluding the CHR_RETURN)
 ;
 DEFPROC	utl_editln,DOS

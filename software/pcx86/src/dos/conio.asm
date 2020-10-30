@@ -166,19 +166,19 @@ ENDPROC	tty_print
 ;
 ; tty_input (REG_AH = 0Ah)
 ;
-; Reads a CHR_RETURN-terminated line of console input into BUFINP.
+; Reads a CHR_RETURN-terminated line of console input into INPBUF.
 ;
-; If BUFINP.INP_MAX is zero, INP_CNT will be set to zero, no data will be
-; returned, and the call will return immediately.  If BUFINP.INP_MAX is one,
+; If INPBUF.INP_MAX is zero, INP_CNT will be set to zero, no data will be
+; returned, and the call will return immediately.  If INPBUF.INP_MAX is one,
 ; no data except CHR_RETURN will be returned, and INP_CNT will be zero.
 ;
 ; Note that INP_MAX is limited to 255 and therefore INP_CNT is limited to 254.
 ;
 ; Inputs:
-;	REG_DS:REG_DX -> BUFINP with INP_MAX preset to max chars
+;	REG_DS:REG_DX -> INPBUF with INP_MAX preset to max chars
 ;
 ; Outputs:
-;	Characters are stored in BUFINP.INP_BUF (including the CHR_RETURN);
+;	Characters are stored in INPBUF.INP_DATA (including the CHR_RETURN);
 ;	INP_CNT is set to the number of characters (excluding the CHR_RETURN)
 ;
 ; Modifies:
@@ -432,7 +432,7 @@ ENDPROC	con_erase
 ;	AX
 ;
 DEFPROC	con_gettype
-	mov	al,es:[di].INP_BUF[bx]
+	mov	al,es:[di].INP_DATA[bx]
 	mov	ah,0
 	cmp	al,'0'
 	jb	cgt9
@@ -495,7 +495,7 @@ ENDPROC	con_getdlen
 DEFPROC	con_getclen
 	mov	cl,bl			; CL = # of characters
 	DEFLBL	con_getlen,near
-	lea	si,[di].INP_BUF		; ES:SI -> all characters
+	lea	si,[di].INP_DATA		; ES:SI -> all characters
 	mov	al,IOCTL_GETLEN		; DL = starting column
 	call	con_ioctl		; get display length values in AX
 	xchg	cx,ax			; CH = total length, CL = length delta
@@ -528,7 +528,7 @@ DEFPROC	con_getelen
 	mov	cl,dh
 	sub	cl,bl			; CX = # displayed chars at position
 	mov	dl,al			; DL = current position
-	lea	si,[di].INP_BUF[bx]	; ES:SI -> characters at position
+	lea	si,[di].INP_DATA[bx]	; ES:SI -> characters at position
 	mov	al,IOCTL_GETLEN
 	call	con_ioctl		; get display length values in AX
 	mov	ch,ah			; CH = display length from position
@@ -677,7 +677,7 @@ DEFPROC	con_right
 	cmp	bl,es:[di].INP_CNT	; more existing chars?
 	cmc
 	jb	cr9			; no, ignore movement
-	mov	al,es:[di].INP_BUF[bx]	; yes, fetch next character
+	mov	al,es:[di].INP_DATA[bx]	; yes, fetch next character
 	call	con_next		; and (re)display it
 cr9:	ret
 ENDPROC	con_right
@@ -829,7 +829,7 @@ DEFPROC	con_modify
 	push	ax
 	push	bx
 	inc	byte ptr es:[di].INP_CNT
-cm1:	xchg	al,es:[di].INP_BUF[bx]
+cm1:	xchg	al,es:[di].INP_DATA[bx]
 	inc	bx
 	cmp	bl,es:[di].INP_CNT
 	jb	cm1
@@ -844,7 +844,7 @@ cm11:	pop	bx
 ;
 ; Replace character at BX with AL and increment BX.
 ;
-cm2:	mov	es:[di].INP_BUF[bx],al
+cm2:	mov	es:[di].INP_DATA[bx],al
 	call	con_out			; AL = char to display
 	inc	bx
 	cmp	bl,es:[di].INP_CNT	; have we extended existing chars?
@@ -861,8 +861,8 @@ cm3:	push	bx
 	dec	byte ptr es:[di].INP_CNT
 	jmp	short cm3b
 cm3a:	inc	bx			; start shifting characters down
-	mov	al,es:[di].INP_BUF[bx]
-	mov	es:[di].INP_BUF[bx-1],al
+	mov	al,es:[di].INP_DATA[bx]
+	mov	es:[di].INP_DATA[bx-1],al
 cm3b:	cmp	bl,es:[di].INP_CNT
 	jb	cm3a
 	pop	bx
@@ -1100,7 +1100,7 @@ rl8:	push	ax
 	call	con_end
 	pop	ax
 	mov	bl,dh			; return all displayed chars
-	mov	es:[di].INP_BUF[bx],al	; store the final character (RETURN)
+	mov	es:[di].INP_DATA[bx],al	; store the final character (RETURN)
 	call	con_out			; AL = char to display
 
 	mov	cx,[bp].TMP_DX		; restore original insert mode

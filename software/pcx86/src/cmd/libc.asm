@@ -60,7 +60,7 @@ DEFPROC	callDOS,FAR
 	pop	ds			; DS:SI -> LINEBUF
 	pop	cx
 	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
-	mov	[di].TOK_MAX,(size TOK_BUF) / (size TOKLET)
+	mov	[di].TOK_MAX,(size TOK_DATA) / (size TOKLET)
 	DOSUTIL	TOKIFY1
 	ASSERT	NC
 	pop	ax			; AX = keyword ID
