@@ -104,11 +104,7 @@ m1:	mov	ah,DOS_DSK_GETDRV
 	int	21h
 	call	printCRLF
 
-m2:	sub	ax,ax
-	mov	[swDigits],ax
-	mov	[swLetters].LOW,ax
-	mov	[swLetters].HIW,ax
-	mov	si,[heap].INPUTOFF
+m2:	mov	si,[heap].INPUTOFF
 	mov	cl,[si].INP_CNT
 	lea	si,[si].INP_DATA
 	lea	di,[heap].TOKENBUF	; ES:DI -> TOKENBUF
@@ -187,15 +183,67 @@ DEFPROC	parseCmd
 ;
 	mov	dh,[iArg]
 	call	getToken		; DS:SI -> 1st token, CX = length
-	jc	pc2x
+	jc	pc9
+
 	mov	[pArg],si		; save original filename ptr and length
+	mov	[lenArg],cx
+
+	lea	dx,[KEYWORD_TOKENS]
+	DOSUTIL	TOKID			; CS:DX -> TOKTBL; identify the token
+	jnc	pc1
+
+	call	parseExt
+	jmp	short pc9
+;
+; We arrive here if the token was recognized.  The token ID in AX determines
+; the level of additional parsing required, if any.
+;
+pc1:	mov	dx,cs:[si].CTD_FUNC
+	lea	di,[heap].TOKENBUF	; DS:DI -> token buffer
+	cmp	ax,KEYWORD_BASIC	; token ID < KEYWORD_BASIC? (40)
+	jb	pc2			; yes, no code generation required
+;
+; The token is for a BASIC keyword, so code generation is required.
+;
+	mov	al,GEN_IMM
+	lea	bx,[heap]
+	mov	si,[heap].INPUTOFF
+	call	genCode
+	jmp	short pc9
+;
+; For non-BASIC commands, check for switches, record any that we find prior
+; to the first non-switch argument, and then invoke the command handler.
+;
+pc2:	call	cmdDOS
+
+pc9:	ret
+ENDPROC	parseCmd
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; parseExt
+;
+; Parse an external command.
+;
+; Inputs:
+;	CX = command length
+;	DS:SI -> command string
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	parseExt
+	mov	[pArg],si		; save original filename ptr
 	mov	[lenArg],cx
 	lea	di,[heap].FILENAME
 	mov	ax,size FILENAME
 	cmp	cx,ax
-	jb	pc1
+	jb	pe1
 	xchg	cx,ax
-pc1:	push	cx
+pe1:	push	cx
 	push	di
 	rep	movsb
 	mov	al,0
@@ -203,71 +251,65 @@ pc1:	push	cx
 	pop	si			; DS:SI -> copy of token in FILENAME
 	pop	cx
 	DOSUTIL	STRUPR			; DS:SI -> token, CX = length
-	lea	dx,[KEYWORD_TOKENS]
-	DOSUTIL	TOKID			; CS:DX -> TOKTBL; identify the token
-	jc	pc2
-	mov	dx,cs:[si].CTD_FUNC
-	jmp	pc7			; token ID in AX
 ;
-; First token is unrecognized, so we'll assume DS:SI contains either
-; a drive specification or a program name.
+; Decide whether DS:SI contains a drive specification or a program name.
 ;
-pc2:	cmp	cl,2			; two characters only?
-	jne	pc3			; no
+pe2:	cmp	cl,2			; two characters only?
+	jne	pe3			; no
 	cmp	byte ptr [si+1],':'
-	jne	pc3			; not a valid drive specification
+	jne	pe3			; not a valid drive specification
 	mov	cl,[si]			; CL = drive letter
 	mov	dl,cl
 	sub	dl,'A'			; DL = drive number
 	cmp	dl,26
-	jae	pc2a			; out of range
+	jae	pe2a			; out of range
 	mov	ah,DOS_DSK_SETDRV
 	int	21h			; attempt to set the drive number in DL
-	jnc	pc2x			; success
-pc2a:	PRINTF	<"Drive %c: invalid",13,10,13,10>,cx
-pc2x:	jmp	pc9
+	jnc	pe2x			; success
+pe2a:	PRINTF	<"Drive %c: invalid",13,10,13,10>,cx
+pe2x:	jmp	pe9
 ;
 ; Not a drive letter, so presumably DS:SI contains a program name.
 ;
-pc3:	mov	dx,offset PERIOD
+pe3:	mov	dx,offset PERIOD
 	call	chkString		; any periods in string at DS:SI?
-	jnc	pc4			; yes
+	jnc	pe4			; yes
 ;
-; There's no period, so append extensions in a well-defined order:
-; .COM, .EXE, .BAT, and finally .BAS.
+; There's no period, so append extensions in a well-defined order (ie, .COM,
+; .EXE, .BAT, and finally .BAS).
 ;
 	mov	dx,offset COM_EXT
-pc3a:	call	addString
+pe3a:	call	addString
 	call	findFile
-	jnc	pc4
+	jnc	pe4
 	add	dx,COM_EXT_LEN
 	cmp	dx,offset BAS_EXT
-	jbe	pc3a
+	jbe	pe3a
 	mov	dx,di			; DX -> FILENAME
 	add	di,cx			; every extension failed
 	mov	byte ptr [di],0		; so clear the last one we tried
 	mov	ax,ERR_NOFILE		; and report an error
-	jmp	short pc4a
+	jmp	short pe4a
 ;
 ; The filename contains a period, so let's verify the extension and the
 ; action; for example, only .COM or .EXE files should be EXEC'ed (it would
 ; not be a good idea to execute, say, CONFIG.SYS).
 ;
-pc4:	mov	dx,offset COM_EXT
+pe4:	mov	dx,offset COM_EXT
 	call	chkString
-	jnc	pc5
+	jnc	pe5
 	mov	dx,offset EXE_EXT
 	call	chkString
-	jnc	pc5
+	jnc	pe5
 	mov	dx,offset BAT_EXT
 	call	chkString
-	jnc	pc4b
+	jnc	pe4b
 	mov	dx,offset BAS_EXT
 	call	chkString
-	jnc	pc4b
+	jnc	pe4b
 	mov	dx,di			; filename was none of the above
 	mov	ax,ERR_INVALID		; so report an error
-pc4a:	jmp	pc6a
+pe4a:	jmp	pe8
 ;
 ; BAT files are LOAD'ed and then immediately RUN.  We may as well do the same
 ; for BAS files; you can always use the LOAD command to load without running.
@@ -286,22 +328,22 @@ pc4a:	jmp	pc6a
 ; Note that if the execution is aborted (eg, critical error, CTRLC signal),
 ; the program remains loaded, available for LIST'ing, RUN'ing, etc.
 ;
-pc4b:	push	dx
+pe4b:	push	dx
 	call	cmdLoad
 	pop	dx
-	jc	pc4d			; don't RUN if LOAD error
+	jc	pe4d			; don't RUN if LOAD error
 	mov	al,GEN_BASIC
 	cmp	dx,offset BAS_EXT
-	je	pc4c
+	je	pe4c
 	mov	al,GEN_BATCH
-pc4c:	call	cmdRunFlags		; if cmdRun returns normally
+pe4c:	call	cmdRunFlags		; if cmdRun returns normally
 	call	freeAllText		; automatically free all text blocks
-pc4d:	or	[heap].CMD_FLAGS,CMD_ECHO
-	jmp	short pc6x
+pe4d:	or	[heap].CMD_FLAGS,CMD_ECHO
+	jmp	short pe7
 ;
 ; COM and EXE files are EXEC'ed, which requires building EXECDATA.
 ;
-pc5:	mov	dx,si			; DS:DX -> filename
+pe5:	mov	dx,si			; DS:DX -> filename
 	mov	si,[pArg]		; recover original filename ptr
 	add	si,cx			; DS:SI -> cmd tail after filename
 	lea	bx,[heap].EXECDATA
@@ -312,50 +354,206 @@ pc5:	mov	dx,si			; DS:DX -> filename
 	mov	[bx].EPB_CMDTAIL.SEG,es
 	inc	di			; use our tail space to build new tail
 	mov	cx,-1
-pc6:	lodsb
+pe6:	lodsb
 	stosb
 	inc	cx
 	cmp	al,CHR_RETURN
-	jne	pc6
+	jne	pe6
 	pop	di
 	mov	[di],cl			; set the cmd tail length
 	mov	[bx].EPB_FCB1.OFF,-1	; let the EXEC function build the FCBs
 
 	mov	ax,DOS_PSP_EXEC
 	int	21h			; EXEC program at DS:DX
-	jc	pc6a
+	jc	pe8
 	mov	ah,DOS_PSP_RETCODE
 	int	21h
 	mov	dl,ah
 	mov	ah,0
 	mov	dh,0
 	PRINTF	<"Return code %d (%d)",13,10,13,10>,ax,dx
-pc6x:	jmp	short pc9
+pe7:	jmp	short pe9
 
-pc6a:	PRINTF	<"Error loading %s: %d",13,10,13,10>,dx,ax
-	jmp	short pc9
+pe8:	PRINTF	<"Error loading %s: %d",13,10,13,10>,dx,ax
+	jmp	short pe9
+
+pe9:	ret
+ENDPROC	parseExt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; We arrive here if the token was recognized.  The token ID determines
-; the level of additional parsing required, if any.
+; parseSW
 ;
-pc7:	lea	di,[heap].TOKENBUF	; DS:DI -> token buffer
-	cmp	ax,KEYWORD_BASIC	; token ID < KEYWORD_BASIC? (40)
-	jb	pc8			; yes, no code generation required
+; Switch tokens start with the system's SWITCHAR and may contain 1 or more
+; alphanumeric characters, each of which is converted to a bit in either
+; swDigits or swLetters.
 ;
-; The token is for a BASIC keyword, so code generation is required.
+; Actually, alphanumeric is not entirely true anymore: in swDigits, we now
+; capture anything from '0' to '?'.
 ;
-	mov	al,GEN_IMM
+; Inputs:
+;	DS:DI -> TOKENBUF
+;
+; Outputs:
+;	DH = # of first non-switch argument (-1 if none)
+;
+; Modifies:
+;	CX, DX, SI
+;
+DEFPROC	parseSW
+	push	ax
+	push	bx
+	sub	ax,ax
+	mov	[swDigits],ax
+	mov	[swLetters].LOW,ax
+	mov	[swLetters].HIW,ax
+	dec	ax
+	mov	[iArg],al
+	mov	ax,DOS_MSC_GETSWC
+	int	21h			; DL = SWITCHAR
+	mov	dh,2			; start with the second token
+pw1:	call	getToken
+	jc	pw8
+	lodsb
+	cmp	al,dl			; starts with SWITCHAR?
+	je	pw2			; yes
+	mov	[iArg],dh		; update iArg with first non-switch
+	jmp	short pw7		; no
+pw2:	lodsb				; consume option chars
+	cmp	al,'a'			; until we reach non-alphanumeric char
+	jb	pw3
+	sub	al,20h
+pw3:	sub	al,'0'
+	jb	pw7			; not alphanumeric
+	cmp	al,16
+	jae	pw5
+	lea	bx,[swDigits]
+pw4:	mov	cl,al
+	mov	ax,1
+	shl	ax,cl
+	mov	[bx],ax			; set bit in word at [bx]
+	jmp	pw2			; go back for more option chars
+pw5:	sub	al,'A'-'0'
+	jb	pw7			; not alphanumeric
+	cmp	al,16			; in the range of the first 16?
+	jae	pw6			; no
+	lea	bx,[swLetters].LOW
+	jmp	pw4
+pw6:	sub	al,16
+	cmp	al,10			; in the range of the next 10?
+	jae	pw7			; no
+	lea	bx,[swLetters].HIW
+	jmp	pw4
+pw7:	inc	dh			; advance to next token
+	jmp	pw1
+pw8:	mov	dh,[iArg]		; DH = first non-switch (-1 if none)
+	pop	bx
+	pop	ax
+	ret
+ENDPROC	parseSW
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; checkSW
+;
+; Inputs:
+;	AL = letter or digit (or special characters, such as ':' and '?')
+;
+; Outputs:
+;	ZF clear if switch letter present, set otherwise
+;
+; Modifies:
+;	AX, CX
+;
+DEFPROC	checkSW
+	push	bx
+	lea	bx,[swDigits]
+	sub	al,'A'
+	jae	cw1
+	add	al,'A'-'0'
+	jmp	short cw2
+cw1:	lea	bx,[swLetters]
+	cmp	al,16
+	jb	cw2
+	sub	al,16
+	add	bx,2
+cw2:	xchg	cx,ax
+	mov	ax,1
+	shl	ax,cl
+	test	[bx],ax
+	pop	bx
+	ret
+ENDPROC	checkSW
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmdDOS
+;
+; Process any non-BASIC command.  We allow such commands inside both BAS and
+; BAT files, with the caveat that the rest of the line is treated as a DOS
+; command (eg, you can't use a colon to append another BASIC command).
+;
+; TODO: There are still ambiguities to resolve.  For example, a simple DOS
+; command like "B:" will generate a syntax error if present in a BAS/BAT file.
+;
+; Inputs:
+;	CX = command length
+;	DS:SI -> command string
+;	DS:DI -> TOKENBUF
+;	AX = keyword ID, if any
+;	CS:DX -> offset of handler, if any
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cmdDOS
+	push	dx
+	test	ax,ax			; has command already been ID'ed?
+	jnz	do1			; yes
+	call	parseExt		; no, assume it's an external command
+	jmp	short do9
+
+do1:	call	parseSW			; parse all switch arguments, if any
+	cmp	ax,KEYWORD_FILE		; does token require a filespec? (20)
+	jb	do8			; no
+;
+; The token is for a command that expects a filespec, so fix up the next
+; token (index in DH).  If there is no token, load defaults into SI and CX.
+;
+	call	getToken		; DH = 1st non-switch argument (or -1)
+	jnc	do6
+	push	cs
+	pop	ds
+	mov	si,offset DIR_DEF
+	mov	cx,DIR_DEF_LEN - 1
+	jmp	short do7
+do6:	mov	ax,size FILENAME-1	; DS:SI -> token, CX = length
+	cmp	cx,ax
+	jbe	do7
+	xchg	cx,ax
+do7:	push	di
+	lea	di,[heap].FILENAME
+	push	cx
+	push	di
+	rep	movsb
+	mov	byte ptr es:[di],0
+	pop	si			; DS:SI -> copy of token in FILENAME
+	pop	cx
+	pop	di
+	push	ss
+	pop	ds
+	DOSUTIL	STRUPR			; DS:SI -> token, CX = length
+
+do8:	pop	dx			; DX = handler again
+	test	dx,dx
+	jz	do9
 	lea	bx,[heap]
-	mov	si,[heap].INPUTOFF
-	call	genCode
-	jmp	short pc9
-;
-; For non-BASIC commands, check for switches, record any that we find prior
-; to the first non-switch argument, and then invoke the command handler.
-;
-pc8:	call	cmdDOS
-pc9:	ret
-ENDPROC	parseCmd
+	call	dx			; call the token handler
+do9:	ret
+ENDPROC	cmdDOS
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -458,169 +656,6 @@ ts8:	mov	ah,DOS_HDL_CLOSE
 ts9:	ret
 ENDPROC	cmdTest
 	ENDIF
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; cmdDOS
-;
-; Process any non-BASIC command.  We allow such commands inside both BAS and
-; BAT files, with the caveat that the rest of the line is treated as a DOS
-; command (eg, you can't use a colon to append another BASIC command).
-;
-; TODO: There are still ambiguities to resolve.  For example, a simple DOS
-; command like "B:" will generate a syntax error if present in a BAS/BAT file.
-;
-; Inputs:
-;	AX = keyword ID
-;	DS:DI -> TOKENBUF
-;	CS:DX -> offset of handler
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	Any
-;
-DEFPROC	cmdDOS
-	push	dx
-	call	parseSW			; parse all switch arguments, if any
-	cmp	ax,KEYWORD_FILE		; does token require a filespec? (20)
-	jb	do8			; no
-;
-; The token is for a command that expects a filespec, so fix up the next
-; token (index in DH).  If there is no token, load defaults into SI and CX.
-;
-	call	getToken		; DH = 1st non-switch argument (or -1)
-	jnc	do1
-	push	cs
-	pop	ds
-	mov	si,offset DIR_DEF
-	mov	cx,DIR_DEF_LEN - 1
-	jmp	short do2
-do1:	mov	ax,size FILENAME-1	; DS:SI -> token, CX = length
-	cmp	cx,ax
-	jbe	do2
-	xchg	cx,ax
-do2:	push	di
-	lea	di,[heap].FILENAME
-	push	cx
-	push	di
-	rep	movsb
-	mov	byte ptr es:[di],0
-	pop	si			; DS:SI -> copy of token in FILENAME
-	pop	cx
-	pop	di
-	push	ss
-	pop	ds
-	DOSUTIL	STRUPR			; DS:SI -> token, CX = length
-
-do8:	pop	dx			; DX = handler again
-	test	dx,dx
-	jz	do9
-	lea	bx,[heap]
-	call	dx			; call the token handler
-do9:	ret
-ENDPROC	cmdDOS
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; parseSW
-;
-; Switch tokens start with the system's SWITCHAR and may contain 1 or more
-; alphanumeric characters, each of which is converted to a bit in either
-; swDigits or swLetters.
-;
-; Actually, alphanumeric is not entirely true anymore: in swDigits, we now
-; capture anything from '0' to '?'.
-;
-; Inputs:
-;	DS:DI -> TOKENBUF
-;
-; Outputs:
-;	DH = # of first non-switch argument (-1 if none)
-;
-; Modifies:
-;	CX, DX, SI
-;
-DEFPROC	parseSW
-	push	ax
-	push	bx
-	mov	[iArg],-1
-	mov	ax,DOS_MSC_GETSWC
-	int	21h			; DL = SWITCHAR
-	mov	dh,2			; start with the second token
-pw1:	call	getToken
-	jc	pw8
-	lodsb
-	cmp	al,dl			; starts with SWITCHAR?
-	je	pw2			; yes
-	mov	[iArg],dh		; update iArg with first non-switch
-	jmp	short pw7		; no
-pw2:	lodsb				; consume option chars
-	cmp	al,'a'			; until we reach non-alphanumeric char
-	jb	pw3
-	sub	al,20h
-pw3:	sub	al,'0'
-	jb	pw7			; not alphanumeric
-	cmp	al,16
-	jae	pw5
-	lea	bx,[swDigits]
-pw4:	mov	cl,al
-	mov	ax,1
-	shl	ax,cl
-	mov	[bx],ax			; set bit in word at [bx]
-	jmp	pw2			; go back for more option chars
-pw5:	sub	al,'A'-'0'
-	jb	pw7			; not alphanumeric
-	cmp	al,16			; in the range of the first 16?
-	jae	pw6			; no
-	lea	bx,[swLetters].LOW
-	jmp	pw4
-pw6:	sub	al,16
-	cmp	al,10			; in the range of the next 10?
-	jae	pw7			; no
-	lea	bx,[swLetters].HIW
-	jmp	pw4
-pw7:	inc	dh			; advance to next token
-	jmp	pw1
-pw8:	mov	dh,[iArg]		; DH = first non-switch (-1 if none)
-	pop	bx
-	pop	ax
-	ret
-ENDPROC	parseSW
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; checkSW
-;
-; Inputs:
-;	AL = letter or digit (or special characters, such as ':' and '?')
-;
-; Outputs:
-;	ZF clear if switch letter present, set otherwise
-;
-; Modifies:
-;	AX, CX
-;
-DEFPROC	checkSW
-	push	bx
-	lea	bx,[swDigits]
-	sub	al,'A'
-	jae	cw1
-	add	al,'A'-'0'
-	jmp	short cw2
-cw1:	lea	bx,[swLetters]
-	cmp	al,16
-	jb	cw2
-	sub	al,16
-	add	bx,2
-cw2:	xchg	cx,ax
-	mov	ax,1
-	shl	ax,cl
-	test	[bx],ax
-	pop	bx
-	ret
-ENDPROC	checkSW
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

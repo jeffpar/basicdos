@@ -63,7 +63,7 @@ DEFPROC	callDOS,FAR
 	mov	[di].TOK_MAX,(size TOK_DATA) / (size TOKLET)
 	DOSUTIL	TOKIFY1
 	ASSERT	NC
-	pop	ax			; AX = keyword ID
+	pop	ax			; AX = keyword ID, if any
 	call	cmdDOS
 	pop	ds
 	LEAVE

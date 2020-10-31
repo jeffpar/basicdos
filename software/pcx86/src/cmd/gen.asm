@@ -140,12 +140,15 @@ ENDPROC	genCode
 DEFPROC	genCommands
 	mov	al,CLS_KEYWORD
 	call	getNextToken
-	jbe	gcs9			; out of tokens
+	jb	gcs1
+	je	gcs9			; out of tokens
 	mov	cx,cs:[si].CTD_FUNC	;
 	cmp	al,KEYWORD_BASIC	; BASIC keyword?
 	jb	gcs2			; no
 	jcxz	gcs9			; no command address
 	jmp	short gcs3		; call generator function
+
+gcs1:	sub	ax,ax			; call genDOS w/o an ID
 ;
 ; For non-BASIC keywords, generate callDOS code with a pointer to the
 ; full command-line and the keyword handler.  callDOS will then perform

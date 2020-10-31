@@ -4,6 +4,7 @@ DATE 8
 DATE /P
 TIME /P
 @ECHO ON
+TESTS
 REM BASIC-DOS Test #1
 REM Print Fibonacci numbers
 @ECHO OFF
