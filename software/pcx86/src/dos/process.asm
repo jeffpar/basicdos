@@ -212,13 +212,13 @@ px2:	cli
 ; and then returns to the caller.
 ;
 ; Note that EPB_INIT_SP will normally be right below PSP_STACK (PSP:2Eh),
-; since we push a zero word on the stack, and EPB_INIT_IP is identical to
+; since we push a zero word on the stack, and EPB_INIT_IP should match
 ; PSP_START (PSP:40h).
 ;
-; The new PSP is still in ES, and DX:AX now points to the program's stack,
-; which contains a REG_FRAME that the DOS_PSP_EXEC1 caller can't use.
-; So we return a stack pointer with the REG_FRAME popped off, along with the
-; REG_CS and REG_IP that was stored in the REG_FRAME.
+; The current PSP is the new PSP (which is still in ES) and DX:AX now points
+; to the program's stack.  However, the stack we created contains our usual
+; REG_FRAME, which the caller has no use for, so we remove it, but we still
+; return the REG_CS and REG_IP that was stored in the REG_FRAME.
 ;
 ; TODO: Determine why SYMDEB.EXE requires us to subtract another word from
 ; the stack pointer in AX, in addition to the zero word we already pushed.
@@ -227,15 +227,6 @@ px8:	mov	di,ax
 	add	ax,size REG_FRAME + REG_CHECK - 2
 	mov	[bx].EPB_INIT_SP.OFF,ax
 	mov	[bx].EPB_INIT_SP.SEG,dx	; return the program's SS:SP
-;
-; TODO: Reverting the PSP seems like the right thing to do, but it causes
-; SYMDEB to blow up.  Investigate.
-;
-	;
-	; mov	ax,es:[PSP_PARENT]	; while ES still contains the new PSP
-	; call	set_psp			; revert to the caller's PSP
-	;
-
 	mov	es,dx
 	les	di,dword ptr es:[di+REG_CHECK].REG_IP
 	mov	[bx].EPB_INIT_IP.OFF,di
