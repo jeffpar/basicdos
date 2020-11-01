@@ -221,10 +221,11 @@ px2:	cli
 ; return the REG_CS and REG_IP that was stored in the REG_FRAME.
 ;
 ; TODO: Determine why SYMDEB.EXE requires us to subtract another word from
-; the stack pointer in AX, in addition to the zero word we already pushed.
+; the stack pointer in AX (see the -2 below), in addition to the zero word
+; we already pushed.
 ;
 px8:	mov	di,ax
-	add	ax,size REG_FRAME + REG_CHECK - 2
+	add	ax,size REG_FRAME-2 + REG_CHECK
 	mov	[bx].EPB_INIT_SP.OFF,ax
 	mov	[bx].EPB_INIT_SP.SEG,dx	; return the program's SS:SP
 	mov	es,dx

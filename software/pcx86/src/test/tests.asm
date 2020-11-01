@@ -37,10 +37,11 @@ DEFPROC	main
 	int	21h
 ;
 ; In PC DOS 2.x, the DOS_MSC_GETVARS function (52h) sets ES:BX-2 to the
-; address of the first MCB segment, and ES:BX+4 points to the SFT.
+; address of the first MCB segment, ES:BX+4 points to the SFT, etc.  However,
+; all you can rely on in BASIC-DOS is ES:BX-2.
 ;
 	mov	ah,DOS_MSC_GETVARS
-	int	21h		; ES:[BX-2] -> mcb_head
+	int	21h		; ES:BX-2 -> mcb_head
 ;
 ; Test the CALL 5 interface.
 ;
@@ -83,14 +84,13 @@ m3:	mov	dx,offset progress
 	mov	ax,DOS_PSP_EXEC1
 	mov	dx,offset execfile
 	int	21h		; exec (but don't launch)
-
-	mov	ah,DOS_PSP_GET	; check the current PSP
-	int	21h
-
-	mov	bx,cs
-	mov	ah,DOS_PSP_SET	; ensure the current PSP is ours
-	int	21h
-
+;
+; If the exec was successful, an INT 20h terminate call is the simplest way
+; to clean up the process (ie, free the program's memory, handles, etc),
+; because the current PSP is the new PSP.  And if it wasn't successful, then
+; we'll simply terminate ourselves.
+;
+	int	20h
 	ret
 ENDPROC	main
 

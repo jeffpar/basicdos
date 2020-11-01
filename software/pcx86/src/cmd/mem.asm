@@ -917,11 +917,11 @@ drv1:	cmp	di,-1
 ;
 drv9:	mov	ah,DOS_MSC_GETVARS
 	int	21h
-	mov	di,es:[bx]	; ES:[BX] is mcb_limit
+	mov	di,es:[bx]	; ES:BX -> mcb_limit
 	mov	[memLimit],di
 
 	IFDEF	DEBUG
-	mov	ax,es:[bx-2]	; ES:[BX-2] is mcb_head
+	mov	ax,es:[bx-2]	; ES:BX-2 -> mcb_head
 	mov	bx,es		; BX = DOS data segment
 	sub	ax,bx
 	mov	di,cs
