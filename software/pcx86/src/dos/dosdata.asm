@@ -24,10 +24,7 @@ DOS	segment word public 'CODE'
 	jmp	sysinit			; boot.asm assumes our entry @CS:0002h
 	nop
 ;
-; INT 21h function 52h (msc_getvars) returns ES:BX -> mcb_head + 2.
-;
-; cmdMem assumes that mcb_head and mcb_limit are at offsets 6 and 8 in the
-; DOS segment, but third-party code should not make that assumption.
+; INT 21h function 52h (msc_getvars) returns ES:BX -> mcb_head + 2 (mcb_limit).
 ;
 	DEFWORD	mcb_head,0		; 06h: 1st memory paragraph
 	DEFWORD	mcb_limit,0		; 08h: 1st unavailable paragraph

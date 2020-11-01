@@ -1589,16 +1589,19 @@ ENDPROC	cmdTime
 DEFPROC	cmdVer
 	mov	ah,DOS_MSC_GETVER
 	int	21h
-	mov	al,ah
-	cbw
-	mov	dl,bh
-	mov	dh,ah
-	mov	bh,ah
-	test	cx,1
+	mov	al,ah			; AH = BASIC-DOS major version
+	cbw				; moved to AX
+	mov	dl,bh			; BH = BASIC-DOS minor version
+	mov	dh,ah			; moved to DX
+	add	bl,'@'			; BL = BASIC-DOS revision
+	cmp	bl,'@'
+	ja	ver1
+	mov	bl,' '
+ver1:	test	cx,1			; CX bit 0 set if BASIC-DOS DEBUG build
 	mov	cx,offset STD_VER
 	jz	ver9
 	mov	cx,offset DBG_VER
-ver9:	PRINTF	<13,10,"BASIC-DOS Version %d.%d%d %ls",13,10,13,10>,ax,dx,bx,cx,cs
+ver9:	PRINTF	<13,10,"BASIC-DOS Version %d.%02d%c %ls",13,10,13,10>,ax,dx,bx,cx,cs
 	ret
 ENDPROC	cmdver
 

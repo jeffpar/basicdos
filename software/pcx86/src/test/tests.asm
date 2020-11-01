@@ -36,21 +36,11 @@ DEFPROC	main
 	mov	ah,DOS_MEM_REALLOC
 	int	21h
 ;
-; The "list-of-lists" function isn't supported in BASIC-DOS, since we have
-; no interest in tying ourselves to internal PC DOS data structures that don't
-; exist in the BASIC-DOS timeline, but this call is helpful for examining them
-; when we're running under PC DOS.
+; In PC DOS 2.x, the DOS_MSC_GETVARS function (52h) sets ES:BX-2 to the
+; address of the first MCB segment, and ES:BX+4 points to the SFT.
 ;
-; For example, in PC DOS 2.x, the word at ES:BX-2 contains the first MCB
-; segment, and the dword at ES:BX+4 points to the SFT.
-;
-	mov	ah,52h		; undocumented PC DOS "list-of-lists" function
-	int	21h
-
-	IFDEF MAXDEBUG
-	ASSERT	NC		; test the ASSERT macro
-	DBGBRK			; test the DBGBRK macro
-	ENDIF
+	mov	ah,DOS_MSC_GETVARS
+	int	21h		; ES:[BX-2] -> mcb_head
 ;
 ; Test the CALL 5 interface.
 ;
@@ -62,7 +52,7 @@ DEFPROC	main
 	mov	dx,offset alloctest
 	call	print
 
-	mov	cx,10		; perform the series CX times
+	mov	cx,3		; perform the series CX times
 m1:	sub	bx,bx		; start with a zero paragraph request
 m2:	mov	ah,DOS_MEM_ALLOC
 	int	21h
@@ -80,20 +70,22 @@ m3:	mov	dx,offset progress
 	mov	dx,offset passed
 	call	print
 
-	IFDEF MAXDEBUG
 	push	ds
 	pop	es
-	mov	dx,offset readfile
+	mov	dx,offset execfile
 	mov	ax,DOS_HDL_OPENRO
-	int	21h		; open a test file
+	int	21h		; open file (and neglect to close it)
+
 	mov	bx,offset execparms
 	mov	[bx].EPB_CMDTAIL.SEG,cs
 	mov	[bx].EPB_FCB1.SEG,cs
 	mov	[bx].EPB_FCB2.SEG,cs
-	mov	ax,DOS_PSP_EXEC
+	mov	ax,DOS_PSP_EXEC1
 	mov	dx,offset execfile
-	int	21h		; exec a test file (ie, ourselves)
-	ENDIF
+	int	21h		; exec (but don't launch)
+	DBGBRK			; break to examine
+	mov	ah,DOS_PSP_GET	; check the current PSP
+	int	21h
 
 	ret
 ENDPROC	main
@@ -111,11 +103,8 @@ passed		db		"passed",13,10,'$'
 progress	db		".$"
 alloctest	db		"memory test$"
 
-	IFDEF MAXDEBUG
-readfile	db		"config.sys",0
-execfile	db		"testdos.com",0
+execfile	db		"tests.com",0
 execparms	EPB		<0,PSP_CMDTAIL,PSP_FCB1,PSP_FCB2>
-	ENDIF
 ;
 ; COMHEAP 0 means we don't need a heap, but BASIC-DOS will still allocate a
 ; minimum amount of heap space, because that's where our initial stack lives.
