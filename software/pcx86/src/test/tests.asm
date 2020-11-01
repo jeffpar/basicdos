@@ -83,8 +83,12 @@ m3:	mov	dx,offset progress
 	mov	ax,DOS_PSP_EXEC1
 	mov	dx,offset execfile
 	int	21h		; exec (but don't launch)
-	DBGBRK			; break to examine
+
 	mov	ah,DOS_PSP_GET	; check the current PSP
+	int	21h
+
+	mov	bx,cs
+	mov	ah,DOS_PSP_SET	; ensure the current PSP is ours
 	int	21h
 
 	ret
