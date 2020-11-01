@@ -18,9 +18,7 @@ VERSION_STR	macro
 		db	'0' + VERSION_MINOR / 10
 		db	'0' + VERSION_MINOR MOD 10
 		IF VERSION_REV
-		db	'@' + VERSION_REV
-		ELSE
-		db	' '
+		db	'A' + VERSION_REV - 1
 		ENDIF
 		endm
 ;

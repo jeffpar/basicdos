@@ -1594,10 +1594,10 @@ DEFPROC	cmdVer
 	mov	dl,bh			; BH = BASIC-DOS minor version
 	mov	dh,ah			; moved to DX
 	add	bl,'@'			; BL = BASIC-DOS revision
-	cmp	bl,'@'
-	ja	ver1
-	mov	bl,' '
-ver1:	test	cx,1			; CX bit 0 set if BASIC-DOS DEBUG build
+	cmp	bl,'@'			; is revision a letter?
+	ja	ver1			; yes
+	mov	bl,' '			; no, change it to space
+ver1:	test	cx,1			; CX bit 0 set if BASIC-DOS DEBUG ver
 	mov	cx,offset STD_VER
 	jz	ver9
 	mov	cx,offset DBG_VER
