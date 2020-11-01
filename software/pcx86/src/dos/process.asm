@@ -227,9 +227,14 @@ px8:	mov	di,ax
 	add	ax,size REG_FRAME + REG_CHECK - 2
 	mov	[bx].EPB_INIT_SP.OFF,ax
 	mov	[bx].EPB_INIT_SP.SEG,dx	; return the program's SS:SP
-
-	mov	ax,es:[PSP_PARENT]	; while ES still contains the new PSP
-	call	set_psp			; revert to the caller's PSP
+;
+; TODO: Reverting the PSP seems like the right thing to do, but it causes
+; SYMDEB to blow up.  Investigate.
+;
+	;
+	; mov	ax,es:[PSP_PARENT]	; while ES still contains the new PSP
+	; call	set_psp			; revert to the caller's PSP
+	;
 
 	mov	es,dx
 	les	di,dword ptr es:[di+REG_CHECK].REG_IP
