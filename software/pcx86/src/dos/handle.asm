@@ -247,7 +247,7 @@ so3:	test	dx,dx			; any context?
 	je	so7			; yes, this SFB will suffice
 so4:	test	bx,bx			; are we still looking for a free SFB?
 	jnz	so5			; no
-	cmp	[si].SFB_HANDLES,bl	; is this one free?
+	cmp	[si].SFB_REFS,bl	; is this one free?
 	jne	so5			; no
 	mov	bx,si			; yes, remember it
 so5:	add	si,size SFB
@@ -300,7 +300,7 @@ so6:	push	cs
 	mov	[bx].SFB_CONTEXT,dx	; set DRIVE (AL) and MODE (AH) next
 	mov	word ptr [bx].SFB_DRIVE,ax
 	sub	ax,ax
-	mov	[bx].SFB_HANDLES,1	; one handle reference initially
+	mov	[bx].SFB_REFS,1		; one handle reference initially
 	mov	[bx].SFB_CURPOS.LOW,ax	; zero the initial file position
 	mov	[bx].SFB_CURPOS.HIW,ax
 	mov	[bx].SFB_CURCLN,dx	; initial position cluster
@@ -310,7 +310,7 @@ so6:	push	cs
 so7:	pop	ax			; throw away any DIRENT on the stack
 	pop	ax
 	mov	bx,si			; return matching SFB
-	inc	[bx].SFB_HANDLES
+	inc	[bx].SFB_REFS
 	jmp	short so9
 
 so8:	test	al,al			; did we issue DDC_OPEN?
@@ -618,7 +618,7 @@ ENDPROC	sfb_write
 ;
 DEFPROC	sfb_close,DOS
 	LOCK_SCB
-	dec	[bx].SFB_HANDLES
+	dec	[bx].SFB_REFS
 	jnz	sc8
 	mov	al,[bx].SFB_DRIVE	; did we issue a DDC_OPEN?
 	test	al,al			; for this SFB?
@@ -826,7 +826,7 @@ DEFPROC	sfh_add_ref,DOS
 	call	sfb_from_sfh
 	pop	ax
 	jc	sha9
-	add	[bx].SFB_HANDLES,ah
+	add	[bx].SFB_REFS,ah
 	ASSERT	NC
 sha9:	pop	bx
 	ret

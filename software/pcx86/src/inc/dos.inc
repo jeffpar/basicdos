@@ -102,7 +102,7 @@ SCB_CURDRV	db	?	; 26h: current drive #
 SCB_CTRLC_ALL	db	?	; 27h: 1 if CTRLC checking enabled on all calls
 SCB_CTRLC_ACT	db	?	; 28h: 1 if CTRLC active
 SCB_CTRLP_ACT	db	?	; 29h: 1 if CTRLP active
-SCB_SWITCHAR	db	?	; 2Ah: current "switchar" (default is CHR_SLASH)
+SCB_SWITCHAR	db	?	; 2Ah: current switch char (eg, CHR_SLASH)
 SCB_PADDING	db	?	; 2Bh
 SCB_FILENAME	db     12 dup(?); 2Ch: buffer for drive # and filename
 SCB		ends		; 38h bytes (1Ch words)
@@ -152,7 +152,7 @@ SFB_DEVICE	dd	?	; 0Ch: device driver
 SFB_CONTEXT	dw	?	; 10h: device context (1st cluster if file)
 SFB_DRIVE	db	?	; 12h: drive # (-1 if not block device)
 SFB_MODE	db	?	; 13h: open mode
-SFB_HANDLES	db	?	; 14h: number of process handles
+SFB_REFS	db	?	; 14h: number of process handle references
 SFB_SIG		db	?	; 15h (holds SIG_SFB in DEBUG builds)
 SFB_TIME	dw	?	; 16h: time of last write (see below)
 SFB_DATE	dw	?	; 18h: date of last write (see below)
@@ -162,7 +162,8 @@ SFB_CURPOS	dd	?	; 20h: current file position
 SFB_CURCLN	dw	?	; 24h: current cluster number
 SFB_FLAGS	db	?	; 26h: see SFBF_* (initially zero)
 SFB_PADDING	db	?	; 27h
-SFB_FCB		dd	?	; 28h: FCB address, if SFBF_FCB set
+SFB_OWNER	dw	?	; 28h: PSP of owner (used if SFBF_FCB set)
+SFB_FCB		dd	?	; 2Ah: FCB address, if SFBF_FCB set
 SFB		ends
 SIG_SFB		equ	'F'
 
