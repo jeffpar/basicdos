@@ -211,25 +211,27 @@ px2:	cli
 ; program, fills in the undocumented EPB_INIT_SP and EPB_INIT_IP fields,
 ; and then returns to the caller.
 ;
-; Note that EPB_INIT_SP will normally be right below PSP_STACK (PSP:2Eh),
-; since we push a zero word on the stack, and EPB_INIT_IP should match
-; PSP_START (PSP:40h).
+; Note that EPB_INIT_SP will normally be PSP_STACK (PSP:2Eh) - 2, since we
+; push a zero on the stack, and EPB_INIT_IP should match PSP_START (PSP:40h).
 ;
 ; The current PSP is the new PSP (which is still in ES) and DX:AX now points
 ; to the program's stack.  However, the stack we created contains our usual
-; REG_FRAME, which the caller has no use for, so we remove it, but we still
-; return the REG_CS and REG_IP that was stored in the REG_FRAME.
+; REG_FRAME, which the caller has no use for, so we remove it.  In fact, the
+; new stack is supposed to contain only the initial value for REG_AX, which
+; we take care of below.
 ;
-; TODO: Determine why SYMDEB.EXE requires us to subtract another word from
-; the stack pointer in AX (see the -2 below), in addition to the zero word
-; we already pushed.
-;
-px8:	mov	di,ax
-	add	ax,size REG_FRAME-2 + REG_CHECK
+px8:
+	IF REG_CHECK
+	add	ax,REG_CHECK
+	ENDIF
+	mov	di,ax
+	add	ax,size REG_FRAME-2	; leave just REG_FL on the stack
 	mov	[bx].EPB_INIT_SP.OFF,ax
 	mov	[bx].EPB_INIT_SP.SEG,dx	; return the program's SS:SP
-	mov	es,dx
-	les	di,dword ptr es:[di+REG_CHECK].REG_IP
+	mov	es,dx			; ES:DI -> REG_FRAME
+	mov	ax,es:[di].REG_AX
+	mov	es:[di].REG_FL,ax	; store REG_AX in place of REG_FL
+	les	di,dword ptr es:[di].REG_IP
 	mov	[bx].EPB_INIT_IP.OFF,di
 	mov	[bx].EPB_INIT_IP.SEG,es	; return the program's CS:IP
 	clc
@@ -967,6 +969,11 @@ lp8b:	mov	dx,es
 	REPT (size WS_TEMP) SHR 1
 	stosw				; REG_WS
 	ENDM
+;
+; TODO: Set AL to 0FFh if the 1st filespec drive is invalid; ditto for AH
+; if the 2nd filespec drive is invalid.  I don't believe any of the other
+; general-purpose registers have any special predefined values, so zero is OK.
+;
 	stosw				; REG_AX
 	stosw				; REG_BX
 	stosw				; REG_CX
