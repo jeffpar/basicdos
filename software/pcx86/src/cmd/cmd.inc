@@ -322,11 +322,9 @@ LINE_LEN	dw	?		; 730h
 LINE_NUM	dw	?		; 732h
 PREV_TIME	dd	?		; 734h: last time displayed by cmdTime
 RND_SEED	dd	?		; 738h: pseudo-random number seed
-INPUTOFF	dw	?		; 73Ch: input offset (default INPUTBUF)
+INPUT_BUF	dw	?		; 73Ch: input offset (default INPUTBUF)
 TOKLET_NEXT	dw	?		; 73Eh
 TOKLET_END	dw	?		; 740h
-TOKEN_ID	dw	?		; 742h
-TOKEN_FN	dw	?		; 744h
 LINEBUF		db 256 dup (?)		; 746h
 DEFVARS		db 26 dup (?)		; 846h: default types for 26 letters
 FILENAME	db 16 dup (?)		; 860h: template ("X:XXXXXXXX.XXX")

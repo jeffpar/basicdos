@@ -834,7 +834,7 @@ ENDPROC	tok_classify
 ;
 ; Outputs:
 ;	If carry clear, REG_AX = ID (TOKDEF_ID), REG_SI = offset of TOKDEF
-;	If carry set, token not found
+;	If carry set, token not found, REG_AX = 0
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, DI, DS, ES
@@ -855,7 +855,7 @@ DEFPROC	utl_tokid,DOS
 td0:	mov	ax,-1
 	cmp	[bp].TMP_BL,dl		; top index = bottom index?
 	stc
-	je	td10			; yes, no match
+	je	td9			; yes, no match
 	mov	bl,dl
 	mov	bh,0
 	add	bl,[bp].TMP_BL
@@ -907,10 +907,14 @@ td8:	sub	ax,ax			; zero AX (and carry, too)
 	lea	dx,[di+bx]		; DX -> TOKDEF
 	pop	bx			; toss BX from stack
 
-td9:	jc	td10
-	mov	[bp].REG_SI,dx
-	mov	[bp].REG_AX,ax
-td10:	ret
+td9:	jnc	td9a
+	mov	ax,0
+	jmp	short td9b
+
+td9a:	mov	[bp].REG_SI,dx
+td9b:	mov	[bp].REG_AX,ax
+
+	ret
 ENDPROC	utl_tokid
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

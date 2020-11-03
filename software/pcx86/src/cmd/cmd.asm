@@ -26,6 +26,11 @@ DEFPROC	main
 	LOCVAR	cArgs,byte		; # of arguments for next command
 	LOCVAR	sfhOut,byte
 	LOCVAR	scbActive,byte
+
+	LOCVAR	pToken,word		; variables for parseDOS
+	LOCVAR	cbToken,word
+	LOCVAR	endTokens,word
+
 	LOCVAR	pArg,word		; saves arg ptr command handler
 	LOCVAR	lenArg,word		; saves arg len command handler
 	LOCVAR	swDigits,word		; bit mask of digit switches, if any
@@ -76,13 +81,13 @@ DEFPROC	main
 ; of the SHELL= lines in CONFIG.SYS.
 ;
 ; Our approach is simple (perhaps even too simple): if a tail exists, set
-; INPUTOFF (which ordinarily points to INPUTBUF) to PSP_CMD_TAIL-1 instead,
+; INPUT_BUF (which ordinarily points to INPUTBUF) to PSP_CMD_TAIL-1 instead,
 ; and then jump into the command-processing code below.
 ;
-	mov	[heap].INPUTOFF,PSP_CMDTAIL - 1
+	mov	[heap].INPUT_BUF,PSP_CMDTAIL - 1
 	mov	word ptr [heap].INPUTBUF.INP_MAX,size INP_DATA - 1
 	cmp	ds:[PSP_CMDTAIL],0
-	jne	m2			; use INPUTOFF -> PSP_CMDTAIL
+	jne	m2			; use INPUT_BUF -> PSP_CMDTAIL
 ;
 ; Since all command handlers loop back to this point, we shouldn't assume
 ; that these registers (eg, DS, ES) will still contain their original values.
@@ -98,12 +103,12 @@ m1:	mov	ah,DOS_DSK_GETDRV
 	PRINTF	<"%c",CHR_GT>,ax
 
 	lea	dx,[heap].INPUTBUF
-	mov	[heap].INPUTOFF,dx
+	mov	[heap].INPUT_BUF,dx
 	mov	ah,DOS_TTY_INPUT
 	int	21h
 	call	printCRLF
 
-m2:	mov	si,[heap].INPUTOFF
+m2:	mov	si,[heap].INPUT_BUF
 	mov	cl,[si].INP_CNT
 	lea	si,[si].INP_DATA
 	lea	di,[heap].TOKENBUF	; ES:DI -> TOKENBUF
@@ -144,14 +149,13 @@ DEFPROC	parseCmd
 
 	lea	dx,[KEYWORD_TOKENS]
 	DOSUTIL	TOKID			; CS:DX -> TOKTBL; identify the token
-	jnc	pc1
-	sub	ax,ax
-	jmp	short pc2
+	jc	pc2
 ;
 ; We arrive here if the token was recognized.  The token ID in AX determines
 ; the level of additional parsing required, if any.
 ;
 pc1:	mov	dx,cs:[si].CTD_FUNC
+	mov	si,[pArg]		; restore SI (changed by TOKID)
 	lea	di,[heap].TOKENBUF	; DS:DI -> token buffer
 	cmp	ax,KEYWORD_BASIC	; token ID < KEYWORD_BASIC? (40)
 	jb	pc2			; yes, no code generation required
@@ -160,7 +164,7 @@ pc1:	mov	dx,cs:[si].CTD_FUNC
 ;
 	mov	al,GEN_IMM
 	lea	bx,[heap]
-	mov	si,[heap].INPUTOFF
+	mov	si,[heap].INPUT_BUF
 	call	genCode
 	jmp	short pc9
 ;
@@ -200,30 +204,58 @@ DEFPROC	parseDOS
 ; process it, replace it with a null, call cmdDOS, and then restore it and
 ; continue scanning TOKENBUF.
 ;
-	mov	[heap].TOKEN_ID,ax
-	mov	[heap].TOKEN_FN,dx
+	mov	[pToken],si
+	mov	[cbToken],cx
 
 	mov	al,[di].TOK_CNT
 	ASSERT	Z,<test ah,ah>
-	shl	ax,1
-	shl	ax,1
-	mov	[heap].TOKLET_END,ax	; limit for TOKLET offset in BX
+	add	ax,ax
+	add	ax,ax
+	ASSERT	<size TOKLET>,EQ,4
+	mov	[endTokens],ax		; limit for TOKLET offset in BX
 
-; 	sub	bx,bx			; BX = offset of next TOKLET
-; pd1:	cmp	bx,[heap].TOKLET_END
-; 	jae	pd8
-; 	cmp	[di].TOK_DATA[bx].TOKLET_CLS,CLS_SYM
-; 	jne	pd2
-; ;
-; ; TODO: Decide what to do with this symbol (ie, if it's '|', create a pipe).
-; ;
-; 	jmp	short pd9		; process preceding command
+	sub	bx,bx			; BX = offset of next TOKLET
+	sub	si,si
+pd1:	cmp	bx,[endTokens]
+	je	pd4
+	ja	pd9
+	cmp	[di].TOK_DATA[bx].TOKLET_CLS,CLS_SYM
+	je	pd3
+pd2:	add	bx,size TOKLET
+	jmp	pd1
 
-	mov	ax,[heap].TOKEN_ID
-	mov	dx,[heap].TOKEN_FN
-	call	cmdDOS			; execute
+pd3:	mov	al,0
+	mov	si,[di].TOK_DATA[bx].TOKLET_OFF
+	xchg	[si],al			; null-terminated (AL = symbol)
 
-	ret
+pd4:	push	ax
+	push	si
+	mov	si,[pToken]
+	mov	cx,[cbToken]
+
+	push	si
+	lea	dx,[KEYWORD_TOKENS]
+	DOSUTIL	TOKID			; CS:DX -> TOKTBL; identify token
+	jc	pd5
+	mov	dx,cs:[si].CTD_FUNC
+pd5:	pop	si
+
+	push	bx
+	push	di
+	push	ds
+	call	cmdDOS
+	pop	ds
+	pop	di
+	pop	bx
+
+	pop	si
+	pop	ax
+	test	si,si			; anything to restore?
+	jz	pd9			; no, we must be done
+	mov	[si],al			; restore symbol
+	jmp	pd2			; loop back for more commands, if any
+
+pd9:	ret
 ENDPROC	parseDOS
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
