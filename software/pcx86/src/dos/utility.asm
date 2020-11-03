@@ -837,7 +837,7 @@ ENDPROC	tok_classify
 ;	If carry set, token not found
 ;
 ; Modifies:
-;	AX
+;	AX, BX, CX, DX, DI, DS, ES
 ;
 DEFPROC	utl_tokid,DOS
 	sti

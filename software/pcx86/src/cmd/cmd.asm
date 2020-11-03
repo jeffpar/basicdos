@@ -112,54 +112,8 @@ m2:	mov	si,[heap].INPUTOFF
 	jc	m0			; jump if no tokens
 
 	mov	[heap].CMD_FLAGS,CMD_ECHO
-	mov	[iArg],1
 	call	parseCmd
 	jmp	m0
-
-; 	shl	ax,1
-; 	shl	ax,1
-; 	mov	[heap].TOKEND,ax	; limit for TOKLET offset in BX
-; ;
-; ; Determine the extent (CX) of the next command (SI); pipe and redirection
-; ; symbols establish boundaries.
-; ;
-; 	sub	ax,ax			; AX = token #
-; 	sub	bx,bx			; BX = offset of next TOKLET
-; m3:	sub	cx,cx			; CX = extent (initially zero)
-; m4:	cmp	bx,[heap].TOKEND
-; 	jae	m8
-; 	inc	ax			; update token #
-; 	cmp	[di].TOK_DATA[bx].TOKLET_CLS,CLS_SYM
-; 	jne	m5
-; 	jcxz	m7			; no preceding command (TODO: error?)
-; ;
-; ; TODO: Decide what to do with this symbol (ie, if it's '|', create a pipe).
-; ;
-; 	jmp	short m9		; process preceding command
-
-; m5:	test	cx,cx
-; 	mov	cx,[di].TOK_DATA[bx].TOKLET_OFF
-; 	jnz	m6
-; 	mov	si,cx			; SI = start of next command
-; 	mov	[iArg],al
-; m6:	add	cl,[di].TOK_DATA[bx].TOKLET_LEN
-; 	adc	ch,0			; CX -> end of next token to include
-; m7:	add	bx,size TOKLET
-; 	jmp	m4
-; m8:	jcxz	m1			; out of commands
-
-; m9:	sub	cx,si			; CX = length of next command at SI
-; 	push	ax			; save token #
-; 	sub	al,[iArg]
-; 	inc	ax
-; 	mov	[cArgs],al
-; 	push	bx			; save TOKLET offset
-; 	push	di			; save TOKENBUF pointer
-; 	call	parseCmd		; parse it
-; 	pop	di
-; 	pop	bx
-; 	pop	ax
-; 	jmp	m3
 
 ENDPROC	main
 
@@ -181,7 +135,7 @@ DEFPROC	parseCmd
 ; Before trying to ID the first token, let's copy it to the FILENAME buffer,
 ; upper-case it, and null-terminate it.
 ;
-	mov	dh,[iArg]
+	mov	dh,1
 	call	getToken		; DS:SI -> 1st token, CX = length
 	jc	pc9
 
@@ -191,9 +145,8 @@ DEFPROC	parseCmd
 	lea	dx,[KEYWORD_TOKENS]
 	DOSUTIL	TOKID			; CS:DX -> TOKTBL; identify the token
 	jnc	pc1
-
-	call	parseFile
-	jmp	short pc9
+	sub	ax,ax
+	jmp	short pc2
 ;
 ; We arrive here if the token was recognized.  The token ID in AX determines
 ; the level of additional parsing required, if any.
@@ -211,13 +164,67 @@ pc1:	mov	dx,cs:[si].CTD_FUNC
 	call	genCode
 	jmp	short pc9
 ;
-; For non-BASIC commands, check for switches, record any that we find prior
-; to the first non-switch argument, and then invoke the command handler.
+; For non-BASIC commands, we have either a built-in command or an external
+; program/command file.  For built-in commands, we check for switches, record
+; any that we find prior to the first non-switch argument, and then invoke the
+; command handler.
 ;
-pc2:	call	cmdDOS
+pc2:	call	parseDOS		; DS:SI -> 1st token, CX = length
 
 pc9:	ret
 ENDPROC	parseCmd
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; parseDOS
+;
+; Parse one or more DOS (ie, built-in or external) commands.  This deals
+; with pipe and redirection symbols and feeds discrete commands to cmdDOS.
+;
+; Inputs:
+;	DS:DI -> TOKENBUF
+;	DS:SI -> 1st token
+;	CX = token length
+;	AX = keyword ID, if any
+;	CS:DX -> offset of handler, if any
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	parseDOS
+;
+; Scan the TOKENBUF for a redirection symbol; if one is found, save it,
+; process it, replace it with a null, call cmdDOS, and then restore it and
+; continue scanning TOKENBUF.
+;
+	mov	[heap].TOKEN_ID,ax
+	mov	[heap].TOKEN_FN,dx
+
+	mov	al,[di].TOK_CNT
+	ASSERT	Z,<test ah,ah>
+	shl	ax,1
+	shl	ax,1
+	mov	[heap].TOKLET_END,ax	; limit for TOKLET offset in BX
+
+; 	sub	bx,bx			; BX = offset of next TOKLET
+; pd1:	cmp	bx,[heap].TOKLET_END
+; 	jae	pd8
+; 	cmp	[di].TOK_DATA[bx].TOKLET_CLS,CLS_SYM
+; 	jne	pd2
+; ;
+; ; TODO: Decide what to do with this symbol (ie, if it's '|', create a pipe).
+; ;
+; 	jmp	short pd9		; process preceding command
+
+	mov	ax,[heap].TOKEN_ID
+	mov	dx,[heap].TOKEN_FN
+	call	cmdDOS			; execute
+
+	ret
+ENDPROC	parseDOS
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -226,8 +233,9 @@ ENDPROC	parseCmd
 ; Parse an external command file (ie, COM/EXE/BAT/BAS file).
 ;
 ; Inputs:
-;	CX = command length
-;	DS:SI -> command string
+;	DS:DI -> TOKENBUF
+;	DS:SI -> 1st token
+;	CX = token length
 ;
 ; Outputs:
 ;	None
@@ -241,9 +249,9 @@ DEFPROC	parseFile
 	lea	di,[heap].FILENAME
 	mov	ax,size FILENAME
 	cmp	cx,ax
-	jb	pe1
+	jb	pf1
 	xchg	cx,ax
-pe1:	push	cx
+pf1:	push	cx
 	push	di
 	rep	movsb
 	mov	al,0
@@ -252,64 +260,64 @@ pe1:	push	cx
 	pop	cx
 	DOSUTIL	STRUPR			; DS:SI -> token, CX = length
 ;
-; Decide whether DS:SI contains a drive specification or a program name.
+; Determine whether DS:SI contains a drive specification or a program name.
 ;
-pe2:	cmp	cl,2			; two characters only?
-	jne	pe3			; no
+pf2:	cmp	cl,2			; two characters only?
+	jne	pf3			; no
 	cmp	byte ptr [si+1],':'
-	jne	pe3			; not a valid drive specification
+	jne	pf3			; not a valid drive specification
 	mov	cl,[si]			; CL = drive letter
 	mov	dl,cl
 	sub	dl,'A'			; DL = drive number
 	cmp	dl,26
-	jae	pe2a			; out of range
+	jae	pf2a			; out of range
 	mov	ah,DOS_DSK_SETDRV
 	int	21h			; attempt to set the drive number in DL
-	jnc	pe2x			; success
-pe2a:	PRINTF	<"Drive %c: invalid",13,10,13,10>,cx
-pe2x:	jmp	pe9
+	jnc	pf2x			; success
+pf2a:	PRINTF	<"Drive %c: invalid",13,10,13,10>,cx
+pf2x:	jmp	pf9
 ;
 ; Not a drive letter, so presumably DS:SI contains a program name.
 ;
-pe3:	mov	dx,offset PERIOD
+pf3:	mov	dx,offset PERIOD
 	call	chkString		; any periods in string at DS:SI?
-	jnc	pe4			; yes
+	jnc	pf4			; yes
 ;
 ; There's no period, so append extensions in a well-defined order (ie, .COM,
 ; .EXE, .BAT, and finally .BAS).
 ;
 	mov	dx,offset COM_EXT
-pe3a:	call	addString
+pf3a:	call	addString
 	call	findFile
-	jnc	pe4
+	jnc	pf4
 	add	dx,COM_EXT_LEN
 	cmp	dx,offset BAS_EXT
-	jbe	pe3a
+	jbe	pf3a
 	mov	dx,di			; DX -> FILENAME
 	add	di,cx			; every extension failed
 	mov	byte ptr [di],0		; so clear the last one we tried
 	mov	ax,ERR_NOFILE		; and report an error
-	jmp	short pe4a
+	jmp	short pf4a
 ;
 ; The filename contains a period, so let's verify the extension and the
 ; action; for example, only .COM or .EXE files should be EXEC'ed (it would
 ; not be a good idea to execute, say, CONFIG.SYS).
 ;
-pe4:	mov	dx,offset COM_EXT
+pf4:	mov	dx,offset COM_EXT
 	call	chkString
-	jnc	pe5
+	jnc	pf5
 	mov	dx,offset EXE_EXT
 	call	chkString
-	jnc	pe5
+	jnc	pf5
 	mov	dx,offset BAT_EXT
 	call	chkString
-	jnc	pe4b
+	jnc	pf4b
 	mov	dx,offset BAS_EXT
 	call	chkString
-	jnc	pe4b
+	jnc	pf4b
 	mov	dx,di			; filename was none of the above
 	mov	ax,ERR_INVALID		; so report an error
-pe4a:	jmp	pe8
+pf4a:	jmp	pf8
 ;
 ; BAT files are LOAD'ed and then immediately RUN.  We may as well do the same
 ; for BAS files; you can always use the LOAD command to load without running.
@@ -328,21 +336,21 @@ pe4a:	jmp	pe8
 ; Note that if the execution is aborted (eg, critical error, CTRLC signal),
 ; the program remains loaded, available for LIST'ing, RUN'ing, etc.
 ;
-pe4b:	push	dx
+pf4b:	push	dx
 	call	cmdLoad
 	pop	dx
-	jc	pe7			; don't RUN if LOAD error
+	jc	pf7			; don't RUN if LOAD error
 	mov	al,GEN_BASIC
 	cmp	dx,offset BAS_EXT
-	je	pe4c
+	je	pf4c
 	mov	al,GEN_BATCH
-pe4c:	call	cmdRunFlags		; if cmdRun returns normally
+pf4c:	call	cmdRunFlags		; if cmdRun returns normally
 	call	freeAllText		; automatically free all text blocks
-	jmp	short pe7
+	jmp	short pf7
 ;
 ; COM and EXE files are EXEC'ed, which requires building EXECDATA.
 ;
-pe5:	mov	dx,si			; DS:DX -> filename
+pf5:	mov	dx,si			; DS:DX -> filename
 	mov	si,[pArg]		; recover original filename ptr
 	add	si,cx			; DS:SI -> cmd tail after filename
 	lea	bx,[heap].EXECDATA
@@ -352,31 +360,34 @@ pe5:	mov	dx,si			; DS:DX -> filename
 	mov	[bx].EPB_CMDTAIL.OFF,di
 	mov	[bx].EPB_CMDTAIL.SEG,es
 	inc	di			; use our tail space to build new tail
-	mov	cx,-1
-pe6:	lodsb
+	sub	cx,cx
+pf6:	lodsb
+	cmp	al,CHR_RETURN		; command line may end with CHR_RETURN
+	jbe	pf6a			; or null; we don't really care
 	stosb
-	inc	cx
-	cmp	al,CHR_RETURN
-	jne	pe6
+	inc	cx			; store and count all other characters
+	jmp	pf6
+pf6a:	mov	al,CHR_RETURN		; regardless how the command line ends,
+	stosb				; terminate the tail with CHR_RETURN
 	pop	di
 	mov	[di],cl			; set the cmd tail length
 	mov	[bx].EPB_FCB1.OFF,-1	; let the EXEC function build the FCBs
 
 	mov	ax,DOS_PSP_EXEC
 	int	21h			; EXEC program at DS:DX
-	jc	pe8
+	jc	pf8
 	mov	ah,DOS_PSP_RETCODE
 	int	21h
 	mov	dl,ah
 	mov	ah,0
 	mov	dh,0
 	PRINTF	<"Return code %d (%d)",13,10,13,10>,ax,dx
-pe7:	jmp	short pe9
+pf7:	jmp	short pf9
 
-pe8:	PRINTF	<"Error loading %s: %d",13,10,13,10>,dx,ax
-	jmp	short pe9
+pf8:	PRINTF	<"Error loading %s: %d",13,10,13,10>,dx,ax
+	jmp	short pf9
 
-pe9:	ret
+pf9:	ret
 ENDPROC	parseFile
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -492,13 +503,16 @@ ENDPROC	checkSW
 ; BAT files, with the caveat that the rest of the line is treated as a DOS
 ; command (eg, you can't use a colon to append another BASIC command).
 ;
+; If AX is non-zero, we have a built-in command; DX should be the handler.
+; Otherwise, we call parseFile to load an external program or command file.
+;
 ; TODO: There are still ambiguities to resolve.  For example, a simple DOS
 ; command like "B:" will generate a syntax error if present in a BAS/BAT file.
 ;
 ; Inputs:
-;	CX = command length
-;	DS:SI -> command string
 ;	DS:DI -> TOKENBUF
+;	DS:SI -> 1st token
+;	CX = token length
 ;	AX = keyword ID, if any
 ;	CS:DX -> offset of handler, if any
 ;
@@ -509,13 +523,13 @@ ENDPROC	checkSW
 ;	Any
 ;
 DEFPROC	cmdDOS
-	push	dx
 	test	ax,ax			; has command already been ID'ed?
 	jnz	do1			; yes
 	call	parseFile		; no, assume it's an external file
 	jmp	short do9
 
-do1:	call	parseSW			; parse all switch arguments, if any
+do1:	push	dx
+	call	parseSW			; parse all switch arguments, if any
 	cmp	ax,KEYWORD_FILE		; does token require a filespec? (20)
 	jb	do8			; no
 ;
@@ -551,6 +565,7 @@ do8:	pop	dx			; DX = handler again
 	jz	do9
 	lea	bx,[heap]
 	call	dx			; call the token handler
+
 do9:	ret
 ENDPROC	cmdDOS
 
@@ -1889,7 +1904,7 @@ gi1:	call	ax			; AX = caller-supplied function
 ;
 	push	dx
 	lea	si,[heap].LINEBUF
-	mov	byte ptr [si],12	; max of 12 chars (including CR)
+	mov	word ptr [si].INP_MAX,12; max of 12 chars (including CR)
 	mov	dx,si
 	mov	ah,DOS_TTY_INPUT
 	int	21h

@@ -11,7 +11,7 @@
 
 CODE    SEGMENT
 
-	EXTERNS	<cmdDOS,freeStr>,near
+	EXTERNS	<parseDOS,freeStr>,near
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
@@ -64,7 +64,8 @@ DEFPROC	callDOS,FAR
 	DOSUTIL	TOKIFY1
 	ASSERT	NC
 	pop	ax			; AX = keyword ID, if any
-	call	cmdDOS
+	mov	cl,[di].TOK_DATA[0].TOKLET_LEN
+	call	parseDOS		; CX = length of first token only
 	pop	ds
 	LEAVE
 	RETURN
