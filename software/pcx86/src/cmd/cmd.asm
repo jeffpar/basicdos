@@ -49,7 +49,6 @@ DEFPROC	main
 	mov	[heap].ORIG_SP,sp
 	mov	[heap].ORIG_BP,bp
 	ASSERT	Z,<cmp bp,[bx].ORIG_BP>
-	mov	[heap].CMD_FLAGS,CMD_ECHO
 	mov	[hFile],ax
 	mov	[sfhOut],SFH_NONE
 	push	ds
@@ -112,6 +111,7 @@ m2:	mov	si,[heap].INPUTOFF
 	DOSUTIL	TOKIFY1
 	jc	m0			; jump if no tokens
 
+	mov	[heap].CMD_FLAGS,CMD_ECHO
 	mov	[iArg],1
 	call	parseCmd
 	jmp	m0
@@ -192,7 +192,7 @@ DEFPROC	parseCmd
 	DOSUTIL	TOKID			; CS:DX -> TOKTBL; identify the token
 	jnc	pc1
 
-	call	parseExt
+	call	parseFile
 	jmp	short pc9
 ;
 ; We arrive here if the token was recognized.  The token ID in AX determines
@@ -221,9 +221,9 @@ ENDPROC	parseCmd
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; parseExt
+; parseFile
 ;
-; Parse an external command.
+; Parse an external command file (ie, COM/EXE/BAT/BAS file).
 ;
 ; Inputs:
 ;	CX = command length
@@ -235,7 +235,7 @@ ENDPROC	parseCmd
 ; Modifies:
 ;	Any
 ;
-DEFPROC	parseExt
+DEFPROC	parseFile
 	mov	[pArg],si		; save original filename ptr
 	mov	[lenArg],cx
 	lea	di,[heap].FILENAME
@@ -331,14 +331,13 @@ pe4a:	jmp	pe8
 pe4b:	push	dx
 	call	cmdLoad
 	pop	dx
-	jc	pe4d			; don't RUN if LOAD error
+	jc	pe7			; don't RUN if LOAD error
 	mov	al,GEN_BASIC
 	cmp	dx,offset BAS_EXT
 	je	pe4c
 	mov	al,GEN_BATCH
 pe4c:	call	cmdRunFlags		; if cmdRun returns normally
 	call	freeAllText		; automatically free all text blocks
-pe4d:	or	[heap].CMD_FLAGS,CMD_ECHO
 	jmp	short pe7
 ;
 ; COM and EXE files are EXEC'ed, which requires building EXECDATA.
@@ -378,7 +377,7 @@ pe8:	PRINTF	<"Error loading %s: %d",13,10,13,10>,dx,ax
 	jmp	short pe9
 
 pe9:	ret
-ENDPROC	parseExt
+ENDPROC	parseFile
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -513,7 +512,7 @@ DEFPROC	cmdDOS
 	push	dx
 	test	ax,ax			; has command already been ID'ed?
 	jnz	do1			; yes
-	call	parseExt		; no, assume it's an external command
+	call	parseFile		; no, assume it's an external file
 	jmp	short do9
 
 do1:	call	parseSW			; parse all switch arguments, if any
