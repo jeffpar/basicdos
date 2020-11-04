@@ -27,8 +27,6 @@ DEFPROC	main
 	LOCVAR	sfhOut,byte
 	LOCVAR	scbActive,byte
 
-	LOCVAR	pToken,word		; variables for parseDOS
-	LOCVAR	cbToken,word
 	LOCVAR	endTokens,word
 
 	LOCVAR	pArg,word		; saves arg ptr command handler
@@ -185,6 +183,9 @@ ENDPROC	parseCmd
 ; Parse one or more DOS (ie, built-in or external) commands.  This deals
 ; with pipe and redirection symbols and feeds discrete commands to cmdDOS.
 ;
+; This is effectively a wrapper around cmdDOS; if redirection support wasn't
+; required, you could call cmdDOS instead.
+;
 ; Inputs:
 ;	DS:DI -> TOKENBUF
 ;	DS:SI -> 1st token
@@ -204,64 +205,72 @@ DEFPROC	parseDOS
 ; process it, replace it with a null, call cmdDOS, and then restore it and
 ; continue scanning TOKENBUF.
 ;
-	mov	[pToken],si
-	mov	[cbToken],cx
-
 	mov	al,[di].TOK_CNT
 	ASSERT	Z,<test ah,ah>
 	add	ax,ax
 	add	ax,ax
-	ASSERT	<size TOKLET>,EQ,4
-	mov	[endTokens],ax		; limit for TOKLET offset in BX
-
+	ASSERT	<size TOKLET>,EQ,4	; AX = end of TOKLETs
 	sub	bx,bx			; BX = offset of next TOKLET
 	mov	[iArg],bl
-pd1:	sub	si,si
-pd2:	cmp	bx,[endTokens]
-	je	pd4
-	ja	pd9
+
+pd1:	push	ax			; save end of TOKLETs
+	sub	cx,cx
+	sub	si,si
+	sub	dx,dx			; DX is set if we hit a symbol
+pd2:	cmp	bx,ax			; reached end of TOKLETs?
+	je	pd5			; yes
+	ja	pd9			; definitely
 	cmp	[di].TOK_DATA[bx].TOKLET_CLS,CLS_SYM
-	je	pd3
-	add	bx,size TOKLET
+	je	pd4
+	test	si,si			; do we have an initial token yet?
+	jnz	pd3			; yes
+	mov	si,[di].TOK_DATA[bx].TOKLET_OFF
+	mov	cl,[di].TOK_DATA[bx].TOKLET_LEN
+pd3:	add	bx,size TOKLET
 	jmp	pd2
 
-pd3:	mov	al,0
-	mov	si,[di].TOK_DATA[bx].TOKLET_OFF
-	xchg	[si],al			; null-terminated (AL = symbol)
+pd4:	push	bx
+	mov	al,0
+	mov	bx,[di].TOK_DATA[bx].TOKLET_OFF
+	xchg	[bx],al			; null-terminated (AL = symbol)
+	mov	dx,bx			; DX is offset of symbol
+	pop	bx
 
-pd4:	push	ax
-	push	si
-	mov	si,[pToken]
-	mov	cx,[cbToken]
+pd5:	jcxz	pd8			; no valid initial token
+	push	ax
+	push	dx			; save the symbol and its offset
 
 	push	si
 	lea	dx,[KEYWORD_TOKENS]
 	DOSUTIL	TOKID			; CS:DX -> TOKTBL; identify token
-	jc	pd5
+	jc	pd6
 	mov	dx,cs:[si].CTD_FUNC
-pd5:	pop	si
+pd6:	pop	si
 
-	push	bx
-	push	di
+	push	bx			; cmdDOS can modify all registers
+	push	di			; so save anything not already saved
 	push	ds
 	call	cmdDOS
 	pop	ds
 	pop	di
 	pop	bx
 
-	pop	si
+	pop	si			; restore the symbol and its offset
 	pop	ax
-	test	si,si			; anything to restore?
+	test	si,si			; does a symbol offset exist?
 	jz	pd9			; no, we must be done
 	mov	[si],al			; restore symbol
-	add	bx,size TOKLET
+
+pd8:	add	bx,size TOKLET
 	mov	ax,bx
 	shr	ax,1
 	shr	ax,1
 	mov	[iArg],al
+	pop	ax			; restore end of TOKLETs
 	jmp	pd1			; loop back for more commands, if any
 
-pd9:	ret
+pd9:	pop	ax			; discard end of TOKLETs
+	ret
 ENDPROC	parseDOS
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
