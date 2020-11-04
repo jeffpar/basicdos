@@ -140,7 +140,7 @@ DEFPROC	parseCmd
 ; Before trying to ID the first token, let's copy it to the FILENAME buffer,
 ; upper-case it, and null-terminate it.
 ;
-	mov	dh,1
+	mov	dh,0
 	call	getToken		; DS:SI -> 1st token, CX = length
 	jc	pc9
 
@@ -215,13 +215,14 @@ DEFPROC	parseDOS
 	mov	[endTokens],ax		; limit for TOKLET offset in BX
 
 	sub	bx,bx			; BX = offset of next TOKLET
+	mov	[iArg],bl
 	sub	si,si
 pd1:	cmp	bx,[endTokens]
 	je	pd4
 	ja	pd9
 	cmp	[di].TOK_DATA[bx].TOKLET_CLS,CLS_SYM
 	je	pd3
-pd2:	add	bx,size TOKLET
+	add	bx,size TOKLET
 	jmp	pd1
 
 pd3:	mov	al,0
@@ -253,7 +254,12 @@ pd5:	pop	si
 	test	si,si			; anything to restore?
 	jz	pd9			; no, we must be done
 	mov	[si],al			; restore symbol
-	jmp	pd2			; loop back for more commands, if any
+	add	bx,size TOKLET
+	mov	ax,bx
+	shr	ax,1
+	shr	ax,1
+	mov	[iArg],al
+	jmp	pd1			; loop back for more commands, if any
 
 pd9:	ret
 ENDPROC	parseDOS
@@ -437,7 +443,7 @@ ENDPROC	parseFile
 ;	DS:DI -> TOKENBUF
 ;
 ; Outputs:
-;	DH = # of first non-switch argument (-1 if none)
+;	DH = # of first non-switch argument
 ;
 ; Modifies:
 ;	CX, DX, SI
@@ -449,18 +455,15 @@ DEFPROC	parseSW
 	mov	[swDigits],ax
 	mov	[swLetters].LOW,ax
 	mov	[swLetters].HIW,ax
-	dec	ax
-	mov	[iArg],al
 	mov	ax,DOS_MSC_GETSWC
 	int	21h			; DL = SWITCHAR
-	mov	dh,2			; start with the second token
+	mov	dh,[iArg]
+	inc	dh			; DH = 1st argument to inspect
 pw1:	call	getToken
 	jc	pw8
 	lodsb
 	cmp	al,dl			; starts with SWITCHAR?
-	je	pw2			; yes
-	mov	[iArg],dh		; update iArg with first non-switch
-	jmp	short pw7		; no
+	jne	pw8			; no
 pw2:	lodsb				; consume option chars
 	cmp	al,'a'			; until we reach non-alphanumeric char
 	jb	pw3
@@ -488,8 +491,8 @@ pw6:	sub	al,16
 	jmp	pw4
 pw7:	inc	dh			; advance to next token
 	jmp	pw1
-pw8:	mov	dh,[iArg]		; DH = first non-switch (-1 if none)
-	pop	bx
+pw8:	mov	[iArg],dh
+	pop	bx			; DH = first non-switch argument
 	pop	ax
 	ret
 ENDPROC	parseSW
@@ -568,7 +571,7 @@ do1:	push	dx
 ; The token is for a command that expects a filespec, so fix up the next
 ; token (index in DH).  If there is no token, load defaults into SI and CX.
 ;
-	call	getToken		; DH = 1st non-switch argument (or -1)
+	call	getToken		; DH = 1st non-switch argument
 	jnc	do6
 	push	cs
 	pop	ds
@@ -708,7 +711,7 @@ ENDPROC	cmdTest
 ; getToken
 ;
 ; Inputs:
-;	DH = token # (1-based)
+;	DH = token # (0-based)
 ;	DS:DI -> TOKENBUF
 ;
 ; Outputs:
@@ -718,14 +721,15 @@ ENDPROC	cmdTest
 ;	CX, SI
 ;
 DEFPROC	getToken
-	cmp	[di].TOK_CNT,dh
+	cmp	dh,[di].TOK_CNT
+	cmc
 	jb	gt9
 	push	bx
 	mov	bl,dh
-	mov	bh,0
-	dec	bx			; BX = 0-based index
+	mov	bh,0			; BX = 0-based index
 	add	bx,bx
 	add	bx,bx			; BX = BX * 4 (size TOKLET)
+	ASSERT	<size TOKLET>,EQ,4
 	mov	si,[di+bx].TOK_DATA.TOKLET_OFF
 	mov	cl,[di+bx].TOK_DATA.TOKLET_LEN
 	sub	ch,ch			; clear CF and set ZF
