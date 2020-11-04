@@ -247,7 +247,7 @@ pd5:	jcxz	pd8			; no valid initial token
 	mov	dx,cs:[si].CTD_FUNC
 pd6:	pop	si
 
-	push	bx			; cmdDOS can modify all registers
+	push	bx			; cmdDOS can modify any registers
 	push	di			; so save anything not already saved
 	push	ds
 	call	cmdDOS
@@ -724,7 +724,7 @@ ENDPROC	cmdTest
 ;	DS:DI -> TOKENBUF
 ;
 ; Outputs:
-;	If carry clear, DS:SI -> token, CX = length, and ZF set
+;	If carry clear, DS:SI -> token, CX = length (and ZF set)
 ;
 ; Modifies:
 ;	CX, SI
@@ -741,8 +741,10 @@ DEFPROC	getToken
 	ASSERT	<size TOKLET>,EQ,4
 	mov	si,[di+bx].TOK_DATA.TOKLET_OFF
 	mov	cl,[di+bx].TOK_DATA.TOKLET_LEN
-	sub	ch,ch			; clear CF and set ZF
-	pop	bx
+	cmp	byte ptr [si],1		; if token is a null, treat as error
+	jb	gt8
+	sub	ch,ch			; set ZF on success, too
+gt8:	pop	bx
 gt9:	ret
 ENDPROC	getToken
 
