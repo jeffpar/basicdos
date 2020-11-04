@@ -216,14 +216,14 @@ DEFPROC	parseDOS
 
 	sub	bx,bx			; BX = offset of next TOKLET
 	mov	[iArg],bl
-	sub	si,si
-pd1:	cmp	bx,[endTokens]
+pd1:	sub	si,si
+pd2:	cmp	bx,[endTokens]
 	je	pd4
 	ja	pd9
 	cmp	[di].TOK_DATA[bx].TOKLET_CLS,CLS_SYM
 	je	pd3
 	add	bx,size TOKLET
-	jmp	pd1
+	jmp	pd2
 
 pd3:	mov	al,0
 	mov	si,[di].TOK_DATA[bx].TOKLET_OFF

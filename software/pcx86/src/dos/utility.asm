@@ -731,9 +731,11 @@ tc3:	test	byte ptr [bp].TMP_BH,TOKTYPE_GENERIC
 	jne	tc3c			; no
 	cmp	ah,CLS_WHITE		; any intervening whitespace?
 	je	tc3c			; yes
-tc3b:	mov	ah,CLS_SYM		; no, force a transition
+	mov	ah,CLS_VAR		; no, force a transition
 	ret
-tc3c:	cmp	ch,CLS_SYM		; did we force a transition?
+tc3b:	mov	ah,CLS_SYM
+	ret
+tc3c:	cmp	ch,CLS_VAR		; did we force a transition?
 	jne	tc3d			; no
 	mov	ch,CLS_STR		; yes, revert to string
 tc3d:	mov	ah,CLS_STR		; and call anything else a string
