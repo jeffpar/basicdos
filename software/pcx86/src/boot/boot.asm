@@ -424,7 +424,7 @@ ENDPROC	wait
 product		db	"BASIC-DOS "
 		VERSION_STR
 crlf		db	13,10,0
-prompt		db	"Press any key to start...",0
+prompt		db	"Press a key to start...",0
 errmsg1		db	"System boot error, halted",0
 	IFDEF LATER
 errmsg2		db	"System file(s) missing, halted",0

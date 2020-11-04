@@ -322,14 +322,14 @@ LINE_LEN	dw	?		; 730h
 LINE_NUM	dw	?		; 732h
 PREV_TIME	dd	?		; 734h: last time displayed by cmdTime
 RND_SEED	dd	?		; 738h: pseudo-random number seed
-INPUTOFF	dw	?		; 73Ch: input offset (default INPUTBUF)
-TOKNEXT		dw	?		; 73Eh
-TOKEND		dw	?		; 740h
-LINEBUF		db 256 dup (?)		; 742h
-DEFVARS		db 26 dup (?)		; 842h: default types for 26 letters
-FILENAME	db 16 dup (?)		; 85Ch: template ("X:XXXXXXXX.XXX")
-EXECDATA	db size EPB dup (?)	; 86Ch: Exec Parameter Block
-CMD_HEAP	ends			; 882h
+INPUT_BUF	dw	?		; 73Ch: input offset (default INPUTBUF)
+TOKLET_NEXT	dw	?		; 73Eh
+TOKLET_END	dw	?		; 740h
+LINEBUF		db 256 dup (?)		; 746h
+DEFVARS		db 26 dup (?)		; 846h: default types for 26 letters
+FILENAME	db 16 dup (?)		; 860h: template ("X:XXXXXXXX.XXX")
+EXECDATA	db size EPB dup (?)	; 870h: Exec Parameter Block
+CMD_HEAP	ends			; 886h
 
 	ASSERT	<((SIZE CMD_HEAP) AND 1)>,EQ,0
 

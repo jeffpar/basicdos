@@ -140,12 +140,15 @@ ENDPROC	genCode
 DEFPROC	genCommands
 	mov	al,CLS_KEYWORD
 	call	getNextToken
-	jbe	gcs9			; out of tokens
+	jb	gcs1
+	je	gcs9			; out of tokens
 	mov	cx,cs:[si].CTD_FUNC	;
 	cmp	al,KEYWORD_BASIC	; BASIC keyword?
 	jb	gcs2			; no
 	jcxz	gcs9			; no command address
 	jmp	short gcs3		; call generator function
+
+gcs1:	sub	ax,ax			; call genDOS w/o an ID
 ;
 ; For non-BASIC keywords, generate callDOS code with a pointer to the
 ; full command-line and the keyword handler.  callDOS will then perform
@@ -220,7 +223,7 @@ DEFPROC	genDOS
 	mov	dx,[si].LINE_PTR.SEG	; DX:CX -> command line
 	GENPUSH	dx,cx			; push pointer to command line
 	GENCALL	callDOS
-	mov	[si].TOKEND,bx		; mark the tokens fully processed
+	mov	[si].TOKLET_END,bx	; mark the tokens fully processed
 	ret
 ENDPROC	genDOS
 
@@ -1770,7 +1773,7 @@ ENDPROC	genPushVarLong
 ;	DS = heap segment
 ;
 ; Outputs:
-;	If carry clear, DS:BX -> TOKLET array (TOKEND set to end)
+;	If carry clear, DS:BX -> TOKLET array (TOKLET_END set to end)
 ;
 ; Modifies:
 ;	Any
@@ -1873,7 +1876,7 @@ gnl6:	mov	ss:[bx].LINE_PTR.OFF,si
 	add	ax,ax
 	add	ax,bx
 	mov	si,ds:[PSP_HEAP]
-	mov	[si].TOKEND,ax
+	mov	[si].TOKLET_END,ax
 gnl9:	ret
 ENDPROC	getNextLine
 
@@ -1922,7 +1925,7 @@ DEFPROC	getNextToken
 	push	dx
 	push	di
 gnt0:	mov	di,ds:[PSP_HEAP]
-	cmp	bx,[di].TOKEND
+	cmp	bx,[di].TOKLET_END
 	jb	gnt0a
 	sub	ax,ax
 	jmp	gnt9			; no more tokens (ZF set, CF clear)
@@ -2046,7 +2049,7 @@ DEFPROC	peekNextToken
 	DEFLBL	peekReturn,near
 	push	bx
 	mov	bx,ds:[PSP_HEAP]
-	pop	ds:[bx].TOKNEXT		; save BX in TOKNEXT in case the
+	pop	ds:[bx].TOKLET_NEXT	; save BX in TOKLET_NEXT in case the
 	pop	bx			; caller wants to advance after peeking
 	ret
 ENDPROC	peekNextToken
@@ -2085,7 +2088,7 @@ vo1:	lods	word ptr cs:[si]
 	lods	byte ptr cs:[si]
 	jne	vo1
 	mov	bx,ds:[PSP_HEAP]
-	mov	bx,[bx].TOKNEXT		; load TOKNEXT saved by peekNextToken
+	mov	bx,[bx].TOKLET_NEXT	; load TOKLET saved by peekNextToken
 	xchg	dx,ax			; DL = (new) operator to validate
 
 vo2:	mov	ah,dl			; AH = operator to validate

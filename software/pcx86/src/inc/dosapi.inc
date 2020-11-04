@@ -9,11 +9,17 @@
 ;
 
 VERSION_MAJOR	equ	0
-VERSION_MINOR	equ	1
-VERSION_REV	equ	0
+VERSION_MINOR	equ	20
+VERSION_REV	equ	1
 
 VERSION_STR	macro
-		db	'0'+VERSION_MAJOR,'.','0'+VERSION_MINOR,'0'+VERSION_REV
+		db	'0' + VERSION_MAJOR
+		db	'.'
+		db	'0' + VERSION_MINOR / 10
+		db	'0' + VERSION_MINOR MOD 10
+		IF VERSION_REV
+		db	'A' + VERSION_REV - 1
+		ENDIF
 		endm
 ;
 ; DOS interrupt vector table (IVT) usage

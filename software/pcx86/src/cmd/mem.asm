@@ -915,12 +915,14 @@ drv1:	cmp	di,-1
 ; Next, dump the size of the operating system, which resides between the
 ; built-in device drivers and the first memory block.
 ;
-drv9:	mov	di,es:[8]	; ES:[8] is mcb_limit
+drv9:	mov	ah,DOS_MSC_GETVARS
+	int	21h
+	mov	di,es:[bx]	; ES:BX -> mcb_limit
 	mov	[memLimit],di
 
 	IFDEF	DEBUG
-	mov	ax,es:[6]	; ES:[6] is mcb_head
-	mov	bx,es		; ES = DOS data segment
+	mov	ax,es:[bx-2]	; ES:BX-2 -> mcb_head
+	mov	bx,es		; BX = DOS data segment
 	sub	ax,bx
 	mov	di,cs
 	mov	si,offset DOS_MEM
