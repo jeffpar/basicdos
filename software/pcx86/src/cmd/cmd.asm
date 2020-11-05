@@ -27,8 +27,6 @@ DEFPROC	main
 	LOCVAR	sfhOut,byte
 	LOCVAR	scbActive,byte
 
-	LOCVAR	endTokens,word
-
 	LOCVAR	pArg,word		; saves arg ptr command handler
 	LOCVAR	lenArg,word		; saves arg len command handler
 	LOCVAR	swDigits,word		; bit mask of digit switches, if any
