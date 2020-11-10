@@ -7,7 +7,7 @@
 /**
  * @define {string}
  */
-var APPVERSION = "2.05";                // this @define is overridden by the Closure Compiler with the version in machines.json
+var APPVERSION = "2.06";                // this @define is overridden by the Closure Compiler with the version in machines.json
 
 var COPYRIGHT = "Copyright © 2012-2020 Jeff Parsons <Jeff@pcjs.org>";
 
@@ -3013,11 +3013,7 @@ class Web {
         }
         else {
             sURI = "data:application/" + sType + (fBase64? ";base64" : "") + ",";
-            if (!Web.isUserAgent("Firefox")) {
-                sURI += (fBase64? sData : encodeURI(sData));
-            } else {
-                sURI += (fBase64? sData : encodeURIComponent(sData));
-            }
+            sURI += (fBase64? sData : encodeURIComponent(sData));
         }
         if (!sURI) {
             sAlert = 'Operation unsupported by your browser.';
@@ -83100,15 +83096,15 @@ function downloadPC(sURL, sCSS, nErrorCode, aMachineInfo)
         sAlert += '<script src="' + sScript + '"></script>\n';
 
         /*
-         * I've updated embedMachine() in embed.js to use these defaults whenever the XML file is omitted, so if our
-         * values match those defaults, we can omit both the XML and XSL file parameters and display a simplified call.
+         * embedMachine() would use these defaults whenever the XML file was omitted, but that changed with the
+         * introduction of JSON-based configs, so when using XML-based configs, those parameters must be explicit.
+         *
+         *      if (sXMLFile == "machine.xml" && sXSLFile == "components.xsl") {
+         *          sXMLFile = sXSLFile = "";
+         *      }
          */
-        if (sXMLFile == "machine.xml" && sXSLFile == "components.xsl") {
-            sXMLFile = sXSLFile = "";
-        } else {
-            sXMLFile = ',"' + sXMLFile + '"';
-            sXSLFile = ',"' + sXSLFile + '"';
-        }
+        sXMLFile = ',"' + sXMLFile + '"';
+        sXSLFile = ',"' + sXSLFile + '"';
 
         sAlert += '<script>embedPCx86("' + idMachine + '"' + sXMLFile + sXSLFile + ');</script>\n\n';
         sAlert += 'The machine should appear where the <div> is located.';
