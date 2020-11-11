@@ -89,8 +89,8 @@ SCB_SFHERR	db	?	; 04h: SFH for STDERR
 SCB_SFHAUX	db	?	; 05h: SFH for STDAUX
 SCB_SFHPRN	db	?	; 06h: SFH for STDPRN
 SCB_SIG		db	?	; 07h (holds SIG_SCB in DEBUG builds)
-SCB_PARENT	dw	?	; 08h: SCB of parent (zero if none)
-SCB_CURPSP	dw	?	; 0Ah: current PSP
+SCB_PARENT	dw	?	; 08h: SCB of parent, if any
+SCB_PSP		dw	?	; 0Ah: PSP active within this session
 SCB_WAITID	dd	?	; 0Ch: wait ID if waiting, 0 if runnable
 SCB_STACK	dd	?	; 10h: pointer to session stack
 SCB_EXRET	dd	?	; 14h: current EXRET handler
@@ -104,8 +104,9 @@ SCB_CTRLC_ACT	db	?	; 28h: 1 if CTRLC active
 SCB_CTRLP_ACT	db	?	; 29h: 1 if CTRLP active
 SCB_SWITCHAR	db	?	; 2Ah: current switch char (eg, CHR_SLASH)
 SCB_PADDING	db	?	; 2Bh
-SCB_FILENAME	db     12 dup(?); 2Ch: buffer for drive # and filename
-SCB		ends		; 38h bytes (1Ch words)
+SCB_OWNER	dw	?	; 2Ch: PSP of owner, if any
+SCB_FILENAME	db     12 dup(?); 2Eh: buffer for drive # and filename
+SCB		ends		; 3Ah bytes (1Dh words)
 SIG_SCB		equ	'S'
 
 SCSTAT_INIT	equ	01h	; set if SCB initialized

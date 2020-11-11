@@ -643,7 +643,7 @@ si3:	inc	di
 	pop	di
 ;
 ; Take care of any remaining initialization now, including set the SCB's
-; parent, output context (if any), etc.
+; parent (if any), output context (if any), etc.
 ;
 	mov	ax,[scb_active]		; the caller is the presumed parent
 	mov	[bx].SCB_PARENT,ax

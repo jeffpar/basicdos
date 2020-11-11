@@ -88,7 +88,7 @@ pt1:	push	ax			; save exit code/type on stack
 ;
 ; If this is a parent-less program, mark the SCB as unloaded and yield.
 ;
-	call	set_psp			; update SCB_CURPSP (even if zero)
+	call	set_psp			; update SCB_PSP (even if zero)
 	test	ax,ax
 	jnz	pt8
 	call	scb_unload		; mark SCB # CL as unloaded
@@ -1224,7 +1224,7 @@ DEFPROC	get_psp,DOS
 	test	bx,bx
 	jz	gp9
 	ASSERT	STRUCT,cs:[bx],SCB
-	mov	ax,cs:[bx].SCB_CURPSP
+	mov	ax,cs:[bx].SCB_PSP
 	test	ax,ax
 gp9:	pop	bx
 	ret
@@ -1247,7 +1247,7 @@ DEFPROC	set_psp,DOS
 	push	bx
 	mov	bx,[scb_active]
 	ASSERT	STRUCT,cs:[bx],SCB
-	mov	cs:[bx].SCB_CURPSP,ax
+	mov	cs:[bx].SCB_PSP,ax
 	pop	bx
 	ret
 ENDPROC	set_psp
