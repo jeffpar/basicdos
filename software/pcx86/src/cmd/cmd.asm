@@ -418,9 +418,11 @@ pf6a:	mov	al,CHR_RETURN		; regardless how the command line ends,
 	mov	[di],cl			; set the cmd tail length
 	mov	[bx].EPB_FCB1.OFF,-1	; let the EXEC function build the FCBs
 
-	mov	ax,DOS_PSP_EXEC
-	int	21h			; EXEC program at DS:DX
+	mov	ax,DOS_PSP_EXEC1
+	int	21h			; load program at DS:DX
 	jc	pf8
+	mov	ax,DOS_PSP_EXEC2
+	int	21h			; start program specified by ES:BX
 	mov	ah,DOS_PSP_RETCODE
 	int	21h
 	mov	dl,ah

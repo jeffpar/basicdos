@@ -101,13 +101,10 @@ pt8:	mov	es,ax			; ES = PSP of parent
 	pop	cx			; we now have PSP_EXRET in CX:DX
 	pop	ax			; AX = exit code (saved on entry above)
 	mov	word ptr es:[PSP_EXCODE],ax
+
 	cli
 	mov	ss,es:[PSP_STACK].SEG
 	mov	sp,es:[PSP_STACK].OFF
-	IF REG_CHECK
-	add	sp,2
-	ENDIF
-	mov	bp,sp
 ;
 ; When a program (eg, SYMDEB.EXE) loads another program using DOS_PSP_EXEC1,
 ; it will necessarily be exec'ing the program itself, which means we can't be
@@ -115,10 +112,14 @@ pt8:	mov	es,ax			; ES = PSP of parent
 ; used at time of exec'ing.  So we will use dos_exit2 to bypass the REG_CHECK
 ; *and* we will create a fresh IRET frame at the top of REG_FRAME.
 ;
+	IF REG_CHECK
+	add	sp,2
+	ENDIF
+	mov	bp,sp
 	mov	[bp].REG_IP,dx		; copy PSP_EXRET to caller's CS:IP
 	mov	[bp].REG_CS,cx		; (normally they will be identical)
 	mov	word ptr [bp].REG_FL,FL_DEFAULT
-	jmp	dos_exit2		; we'll let dos_exit turn interrupts on
+	jmp	dos_exit2		; let dos_exit turn interrupts back on
 
 pt9:	ret
 ENDPROC	psp_term
@@ -160,7 +161,10 @@ ENDPROC	psp_copy
 ; TODO: Add support for EPB_ENVSEG.
 ;
 ; Inputs:
-;	REG_AL = subfunction (only 0 and 1 are currently supported)
+;	REG_AL = subfunction
+;		0: load program
+;		1: load program w/o starting
+;		2: start program
 ;	REG_ES:REG_BX -> Exec Parameter Block (EPB)
 ;	REG_DS:REG_DX -> program name or command line
 ;
@@ -169,10 +173,10 @@ ENDPROC	psp_copy
 ;	If error, carry set, AX = error code
 ;
 DEFPROC	psp_exec,DOS
-	cmp	al,2			; DOS_PSP_EXEC or DOS_PSP_EXEC1?
-	cmc
+	cmp	al,2			; valid subfunction?
 	mov	ax,ERR_INVALID		; AX = error code if not
-	jc	px9
+	ja	px9
+	je	px5
 
 	mov	ds,[bp].REG_DS
 	ASSUME	DS:NOTHING
@@ -197,7 +201,7 @@ px1:	dec	bx			; restore BX pointer to EPB
 	mov	bx,[bp].REG_BX		; DS:BX -> EPB (from ES:BX)
 	call	load_args		; DX:AX -> new stack
 	cmp	byte ptr [bp].REG_AL,0	; was AL zero?
-	jne	px8			; no
+	jne	px4			; no
 ;
 ; This was a DOS_PSP_EXEC call, and unlike scb_load, it's a synchronous
 ; exec, meaning we launch the program directly from this call.
@@ -207,7 +211,7 @@ px2:	cli
 	mov	sp,ax
 	jmp	dos_exit		; and let dos_exit turn interrupts on
 ;
-; This was a DOS_PSP_EXEC1 call, an undocumented call that only loads the
+; This is a DOS_PSP_EXEC1 call: an undocumented call that only loads the
 ; program, fills in the undocumented EPB_INIT_SP and EPB_INIT_IP fields,
 ; and then returns to the caller.
 ;
@@ -220,7 +224,7 @@ px2:	cli
 ; new stack is supposed to contain only the initial value for REG_AX, which
 ; we take care of below.
 ;
-px8:
+px4:
 	IF REG_CHECK
 	add	ax,REG_CHECK
 	ENDIF
@@ -236,8 +240,35 @@ px8:
 	mov	[bx].EPB_INIT_IP.SEG,es	; return the program's CS:IP
 	clc
 	ret
+;
+; This is a DOS_PSP_EXEC2 "start" request.  ES:BX must point to a previously
+; initialized EPB with EPB_INIT_SP pointing to REG_FL in a REG_FRAME, and the
+; current PSP must be the new PSP (ie, exactly as DOS_PSP_EXEC1 left it).
+;
+; In addition, we copy the caller's REG_CS:REG_IP into PSP_EXRET, because we
+; don't want the program returning to the original EXEC call on termination.
+;
+px5:	mov	ds,[bp].REG_ES
+	mov	bx,[bp].REG_BX		; DS:BX -> EPB (from ES:BX)
+	lds	bx,[bx].EPB_INIT_SP	; DS:BX -> stack (@REG_FL)
+	sub	bx,size REG_FRAME-2	; DS:BX -> REG_FRAME
+	mov	[bx].REG_FL,FL_DEFAULT	; fix REG_FL
+	mov	dx,ds
+	call	get_psp
+	jz	px6
+	mov	ds,ax			; DS -> new PSP
+	mov	ax,[bp].REG_IP
+	mov	ds:[PSP_EXRET].OFF,ax
+	mov	ax,[bp].REG_CS
+	mov	ds:[PSP_EXRET].SEG,ax
+px6:	xchg	ax,bx			; DX:AX -> REG_FRAME
+	IF REG_CHECK
+	sub	ax,REG_CHECK
+	ENDIF
+	jmp	px2
 
 px9:	mov	[bp].REG_AX,ax		; return any error code in REG_AX
+	stc
 	ret
 ENDPROC	psp_exec
 
@@ -959,7 +990,7 @@ lp8b:	mov	dx,es
 	sub	ax,ax
 	stosw				; store a zero at the top of the stack
 
-	mov	ax,FL_INTS
+	mov	ax,FL_DEFAULT
 	stosw				; REG_FL (with interrupts enabled)
 	xchg	ax,cx
 	stosw				; REG_CS
