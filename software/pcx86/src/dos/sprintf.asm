@@ -171,8 +171,8 @@ ENDPROC itoa
 ;
 ; Standard formatters:
 ;	%c:	8-bit character
-;	%d:	signed 16-bit decimal integer; use %ld for 32-bit
-;	%u:	unsigned 16-bit decimal integer; use %lu for 32-bit
+;	%d:	signed 16-bit decimal integer (%bd for 8-bit, %ld for 32-bit)
+;	%u:	unsigned 16-bit decimal integer (%bu for 8-bit, %lu for 32-bit)
 ;	%s:	string (near DS-relative pointer); use %ls for far pointer
 ;
 ; Formatters also support flags '#' and '-' as well as width and precision
@@ -180,8 +180,8 @@ ENDPROC itoa
 ; from the given string).
 ;
 ; Standard formatters in DEBUG-only builds (to save space):
-;	%x:	unsigned 16-bit hexadecimal integer; use %lx for 32-bit,
-;		or a precision of ".2" for 8-bit
+;	%x:	unsigned 16-bit hex integer (%bx for 8-bit, %lx for 32-bit);
+;		use precision of ".n" to display n digits
 ;
 ; Non-standard formatters:
 ;	%P:	caller's address (REG_CS:REG_IP-2)
@@ -196,6 +196,7 @@ ENDPROC itoa
 ;	%H:	hour portion of a 16-bit TIME value, as number (0-23)
 ;	%N:	minute portion of a 16-bit TIME value, as number (0-59)
 ;	%S:	second portion of a 16-bit TIME value, as number (0-59)
+;	%A:	'a' if AM, 'p' if PM (from 16-bit TIME value)
 ;
 SPF_START	equ	TMP_AX		; buffer start address
 SPF_LIMIT	equ	TMP_BX		; buffer limit address
@@ -270,14 +271,18 @@ pfpc:	cmp	al,'0'			; zero-padding indicator
 	jnz	pfpj			; no
 	or	ch,PF_ZERO		; yes
 	jmp	pfpa
-pfpd:	cmp	al,'l'			; long value?
+pfpd:	cmp	al,'b'			; byte value?
+	jne	pfpd1
+	or	ch,PF_BYTE		; yes
+	jmp	pfpa
+pfpd1:	cmp	al,'l'			; long value?
 	jne	pfpe
 	or	ch,PF_LONG		; yes
 	jmp	pfpa
 pfpe:	cmp	al,'d'			; %d: decimal value?
 	jne	pfpe1
 	or	ch,PF_SIGN		; yes, so mark as explicitly signed
-pfd0:	jmp	pfd
+pfpe0:	jmp	pfd
 pfpe1:	cmp	al,'c'			; %c character value?
 	jne	pfpf
 	jmp	pfc
@@ -285,12 +290,12 @@ pfpf:	cmp	al,'s'			; %s string value?
 	jne	pfpg
 	jmp	pfs			; yes
 pfpg:	cmp	al,'u'			; %u unsigned value?
-	je	pfd0			; yes, unsigned values are the default
+	je	pfpe0			; yes, unsigned values are the default
 	IFDEF DEBUG
 	cmp	al,'x'			; %x hex value?
 	jne	pfph
 	mov	cl,16			; use base 16 instead
-	jmp	pfd			; hex values are always unsigned
+	jmp	pfpe0			; hex values are always unsigned
 	ENDIF
 pfph:	cmp	al,'.'			; precision indicator?
 	jne	pfpi
@@ -457,13 +462,23 @@ pfd:	mov	ax,[bp].SPF_WIDTH
 pfdz:	jae	pfpz			; not enough room for specified length
 
 	mov	ax,[bp+si]		; grab a stack parameter
-	add	si,2
-	test	ch,PF_LONG
-	jnz	pfd2
 	sub	dx,dx			; DX:AX = 16-bit value
+	add	si,2
+	test	ch,ch			; PF_BYTE set?
+	ASSERT	PF_BYTE,EQ,80h
+	jns	pfd0			; no
+	mov	ah,0			; DX:AX = 8-bit value
 	test	ch,PF_SIGN		; signed value?
-	jz	pfd1			; no
-	cwd				; yes, sign-extend AX to DX
+	jz	pfd0			; no
+	cbw				; DX:AX = signed 8-bit value
+pfd0:	test	ch,PF_SIGN		; signed value?
+	jz	pfd0a			; no
+	cwd				; DX:AX = signed 16-bit value
+pfd0a:	test	ch,PF_LONG
+	jz	pfd1
+	mov	dx,[bp+si]		; grab another stack parameter
+	add	si,2			; DX:AX = 32-bit value
+
 pfd1:	push	bx
 ;
 ; Limited support for precision is next.  The goal for now is to support
@@ -502,10 +517,6 @@ pfd1b:	pop	cx
 	add	di,ax			; adjust DI by number of digits
 	pop	bx
 	jmp	pf1
-
-pfd2:	mov	dx,[bp+si]		; grab another stack parameter
-	add	si,2			; DX:AX = 32-bit value
-	jmp	pfd1
 ;
 ; Process %F formatter, which we convert to a "fake" string parameter.
 ;

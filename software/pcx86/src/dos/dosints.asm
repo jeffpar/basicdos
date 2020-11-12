@@ -250,12 +250,11 @@ dc1:	sti
 
 	IFDEF	MAXDEBUG
 	mov	bl,ah
-	mov	bh,0
 ;
 ; %P is a special formatter that prints the caller's REG_CS:REG_IP-2 in hex;
 ; "#010" ensures it's printed with "0x" and 8 digits with leading zeroes.
 ;
-	DPRINTF	'd',<"%#010P: DOS function %02xh\r\n">,bx
+	DPRINTF	'd',<"%#010P: DOS function %02bxh\r\n">,bx
 	ENDIF	; MAXDEBUG
 ;
 ; If CTRLC checking is enabled for all (non-utility) functions and a CTRLC
@@ -493,12 +492,11 @@ ENDPROC	dos_ddint_leave
 DEFPROC	func_none,DOS
 	IFDEF	DEBUG
 	mov	al,ah
-	mov	ah,0
 ;
 ; %P is a special formatter that prints the caller's REG_CS:REG_IP-2 in hex;
 ; "#010" ensures it's printed with "0x" and 8 digits with leading zeroes.
 ;
-	DPRINTF	'd',<"%#010P: unsupported DOS function %02xh\r\n">,ax
+	DPRINTF	'd',<"%#010P: unsupported DOS function %02bxh\r\n">,ax
 	ENDIF	; DEBUG
 
 	mov	[bp].REG_AX,ERR_INVALID

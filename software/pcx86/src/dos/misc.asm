@@ -134,7 +134,7 @@ DEFPROC	msc_setdate,DOS
 	mov	bh,0
 	dec	bx
 	cmp	bl,12
-	ja	msd9
+	jae	msd9
 
 	cmp	dl,1
 	jb	msd9

@@ -341,6 +341,7 @@ PF_LONG   equ	08h		; long value (32 bits); default is 16
 PF_SIGN   equ	10h		; signed value
 PF_WIDTH  equ	20h		; width encountered
 PF_PRECIS equ	40h		; precision encountered (after '.')
+PF_BYTE   equ	80h		; byte value (8 bits); default is 16
 
 BUFLEN	equ	120		; max stack space to use as printf buffer
 

@@ -425,10 +425,8 @@ pf6a:	mov	al,CHR_RETURN		; regardless how the command line ends,
 	int	21h			; start program specified by ES:BX
 	mov	ah,DOS_PSP_RETCODE
 	int	21h
-	mov	dl,ah
-	mov	ah,0
-	mov	dh,0
-	PRINTF	<"Return code %d (%d)",13,10,13,10>,ax,dx
+	mov	dl,ah			; AL = exit code, DL = exit type
+	PRINTF	<"Return code %bd (%bd)",13,10,13,10>,ax,dx
 pf7:	jmp	short pf9
 
 pf8:	PRINTF	<"Error loading %s: %d",13,10,13,10>,dx,ax
@@ -1585,14 +1583,10 @@ tm1b:	sbb	cl,[heap].PREV_TIME.HIW.LOB
 tm1c:	sbb	ch,[heap].PREV_TIME.HIW.HIB
 	jnb	tm1d
 	add	ch,24			; adjust hours
-tm1d:	mov	al,ch
-	cbw				; AX = hours
-	mov	bl,cl
-	mov	bh,0			; BX = minutes
-	mov	cl,dh
-	mov	ch,0			; CX = seconds
-	mov	dh,0			; DX = hundredths
-	PRINTF	<"Elapsed time is %2d:%02d:%02d.%02d",13,10>,ax,bx,cx,dx
+tm1d:	mov	al,ch			; AL = hours
+	mov	bl,cl			; BL = minutes
+	mov	cl,dh			; CL = seconds, DL = hundredths
+	PRINTF	<"Elapsed time is %2bu:%02bu:%02bu.%02bu",13,10>,ax,bx,cx,dx
 	pop	[heap].PREV_TIME.LOW
 	pop	[heap].PREV_TIME.HIW
 tm2:	ret
@@ -1618,11 +1612,9 @@ tm3:	mov	ax,offset promptTime
 	mov	[heap].PREV_TIME.LOW,dx
 	mov	[heap].PREV_TIME.HIW,cx
 	DEFLBL	printTime,near
-	mov	cl,dh
-	mov	ch,0			; CX = seconds
-	mov	dh,0			; DX = hundredths
+	mov	cl,dh			; CL = seconds, DL = hundredths
 	pushf
-	PRINTF	<"Current time is %2H:%02N:%02d.%02d",13,10>,ax,ax,cx,dx
+	PRINTF	<"Current time is %2H:%02N:%02bu.%02bu",13,10>,ax,ax,cx,dx
 	popf
 	jz	tm8
 	PRINTF	<"Enter new time: ">
