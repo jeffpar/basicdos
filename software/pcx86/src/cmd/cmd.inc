@@ -300,7 +300,7 @@ CMD_ECHO	equ	01h		; set if ECHO is "on"
 ; that they won't take up any space in the COM file.  The BASIC-DOS loader
 ; ensures that the remaining fields are zero-initialized.
 ;
-CMD_HEAP	struc
+CMDHEAP		struc
 CBLKDEF		db size BLKDEF dup (?)	; 000h: code block chain
 FBLKDEF		db size BLKDEF dup (?)	; 006h: function block chain
 VBLKDEF		db size BLKDEF dup (?)	; 00Ch: variable block chain
@@ -311,35 +311,41 @@ TOKENBUF	db size TOKBUF dup (?)	; 120h
 STACK		dw 512 dup (?)		; 322h
 ORIG_SP		dw	?		; 722h
 ORIG_BP		dw	?		; 724h
-CON_COLS	db	?		; 726h
-CON_ROWS	db	?		; 727h
-CMD_FLAGS	db	?		; 728h: see CMD_* flags
-GEN_FLAGS	db	?		; 729h: see GEN_* flags
-ERR_CODE	db	?		; 72Ah
-DEF_PARMS	db	?		; 72Bh
-LINE_PTR	dd	?		; 72Ch
-LINE_LEN	dw	?		; 730h
-LINE_NUM	dw	?		; 732h
-PREV_TIME	dd	?		; 734h: last time displayed by cmdTime
-RND_SEED	dd	?		; 738h: pseudo-random number seed
-INPUT_BUF	dw	?		; 73Ch: input offset (default INPUTBUF)
-TOKLET_NEXT	dw	?		; 73Eh
-TOKLET_END	dw	?		; 740h
-LINEBUF		db 256 dup (?)		; 746h
-DEFVARS		db 26 dup (?)		; 846h: default types for 26 letters
-FILENAME	db 16 dup (?)		; 860h: template ("X:XXXXXXXX.XXX")
-EXECDATA	db size EPB dup (?)	; 870h: Exec Parameter Block
-CMD_HEAP	ends			; 886h
+HDL_FILE	dw	?		; 726h
+CMD_SIG		db	?		; 728h
+CMD_PAD		db	?		; 729h
+CON_COLS	db	?		; 72Ah
+CON_ROWS	db	?		; 72Bh
+CMD_FLAGS	db	?		; 72Ch: see CMD_* flags
+GEN_FLAGS	db	?		; 72Dh: see GEN_* flags
+ERR_CODE	db	?		; 72Eh
+DEF_PARMS	db	?		; 72Fh
+LINE_PTR	dd	?		; 730h
+LINE_LEN	dw	?		; 734h
+LINE_NUM	dw	?		; 736h
+PREV_TIME	dd	?		; 738h: last time displayed by cmdTime
+RND_SEED	dd	?		; 73Ch: pseudo-random number seed
+INPUT_BUF	dw	?		; 740h: input offset (default INPUTBUF)
+TOKLET_NEXT	dw	?		; 742h
+TOKLET_END	dw	?		; 744h
+SW_DIGITS	dw	?		; 746h: bit mask of digit switches
+SW_LETTERS	dd	?		; 748h: bit mask of letter switches
+LINEBUF		db 256 dup (?)		; 74Ch
+DEFVARS		db 26 dup (?)		; 84Ch: default types for 26 letters
+FILENAME	db 16 dup (?)		; 866h: template ("X:XXXXXXXX.XXX")
+EXECDATA	db size EPB dup (?)	; 876h: Exec Parameter Block
+CMDHEAP		ends			; 88Ch
+SIG_CMD		equ	'H'
 
-	ASSERT	<((SIZE CMD_HEAP) AND 1)>,EQ,0
+	ASSERT	<SIZE CMDHEAP>,EQ,88Ch
 
 ;
 ; The initial stack frame created by the main function can also be used to
-; access the CMD_HEAP structure, using the [heap] equate; eg:
+; access the CMDHEAP structure, using the [heap] equate; eg:
 ;
 ;	mov	al,[heap].CON_COLS
 ;
 ; This works because the main function explicitly aligns SP with the top
-; of the STACK in CMD_HEAP and then pushes exactly 2 words before setting BP.
+; of the STACK in CMDHEAP and then pushes exactly 2 words before setting BP.
 ;
 heap		equ	byte ptr [bp+4-(STACK + size STACK)]

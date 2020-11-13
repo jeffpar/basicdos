@@ -190,7 +190,7 @@ DATA	SEGMENT
 	BLKDEF	<0,VBLKLEN,size VBLK,SIG_VBLK>
 	BLKDEF	<0,SBLKLEN,size SBLK,SIG_SBLK>
 	BLKDEF	<0,TBLKLEN,size TBLK,SIG_TBLK>
-	COMHEAP	<size CMD_HEAP>,BEG_HEAP	; this must be the last item...
+	COMHEAP	<size CMDHEAP>,BEG_HEAP		; this must be the last item...
 
 DATA	ENDS
 

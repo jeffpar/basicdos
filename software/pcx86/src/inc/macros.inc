@@ -339,7 +339,7 @@ DBGINIT	macro	type,ptr,str
 ; ASSERT generates assembly-time assertions when all three parameters
 ; are used; eg:
 ;
-;	ASSERT	<((SIZE CMD_HEAP) AND 1)>,EQ,0
+;	ASSERT	<((SIZE CMDHEAP) AND 1)>,EQ,0
 ;
 ; Otherwise, it generates code to perform a run-time assertion, which can
 ; either be a "STRUCT" pointer verification, as in:

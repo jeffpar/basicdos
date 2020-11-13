@@ -165,7 +165,7 @@ ENDPROC	freeAllBlocks
 ; allocCode
 ;
 ; Inputs:
-;	DS:BX -> heap
+;	BX -> CMDHEAP
 ;
 ; Outputs:
 ;	If successful, carry clear, ES:DI -> first available byte, CX = length
@@ -344,7 +344,7 @@ ENDPROC	freeAllText
 ; Allocates a var block if one is not already allocated.
 ;
 ; Inputs:
-;	DS:BX -> heap
+;	BX -> CMDHEAP
 ;
 ; Outputs:
 ;	If successful, carry clear, ES:DI -> first available byte, CX = length
@@ -846,7 +846,7 @@ ENDPROC	setVar
 ; Prints memory usage.  Use /D to display segment-level detail.
 ;
 ; Inputs:
-;	DS:BX -> heap (not used)
+;	BX -> CMDHEAP (not used)
 ;
 ; Outputs:
 ;	None

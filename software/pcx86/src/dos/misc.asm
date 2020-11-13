@@ -620,7 +620,7 @@ ENDPROC	add_date
 ; (DATE "one") was a TUESDAY (day-of-week 2, since SUNDAY is day-of-week 0),
 ; we calculate how many days have elapsed, add 1, and compute days mod 7.
 ;
-; Since 2000 was an every-400-years leap years, the number of elapsed leap
+; Since 2000 was an every-400-years leap year, the number of elapsed leap
 ; days is a simple calculation as well.
 ;
 ; Note that since a DATE's year cannot be larger than 127, the number of days
