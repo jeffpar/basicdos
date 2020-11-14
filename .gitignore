@@ -1,5 +1,6 @@
 .DS_Store
 .history
+.jekyll-metadata
 .sass-cache
 archive
 /_site

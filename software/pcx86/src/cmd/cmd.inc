@@ -78,20 +78,6 @@ val = ((offset $ - offset tbl) - 2) / (size CTOKDEF)
 DATA	ENDS
 	endm
 
-SC_GENPB	equ	71h		; do GENPUSHB
-SC_CALFN	equ	72h		; call function
-SC_PEKTK	equ	73h		; peek token
-SC_GETTK	equ	74h		; get token
-SC_LENTK	equ	75h		; check token length
-SC_MATCH	equ	76h		; if token matches CLS...
-SC_MASYM	equ	77h		; if CLS_SYM token matches char...
-SC_NEXTK	equ	78h		; get next token
-SC_GENFN	equ	79h		; do GENCALL
-
-SCF_GENXNUM	equ	0		; -> genExprNum
-SCF_GENXSTR	equ	1		; -> genExprStr
-SCF_PRTARGS	equ	2		; -> printArgs
-
 ;
 ; Keywords with IDs >= BASIC support code generation.
 ;
@@ -313,31 +299,33 @@ ORIG_SP		dw	?		; 722h
 ORIG_BP		dw	?		; 724h
 HDL_FILE	dw	?		; 726h
 CMD_SIG		db	?		; 728h
-CMD_PAD		db	?		; 729h
-CON_COLS	db	?		; 72Ah
-CON_ROWS	db	?		; 72Bh
-CMD_FLAGS	db	?		; 72Ch: see CMD_* flags
-GEN_FLAGS	db	?		; 72Dh: see GEN_* flags
-ERR_CODE	db	?		; 72Eh
-DEF_PARMS	db	?		; 72Fh
-LINE_PTR	dd	?		; 730h
-LINE_LEN	dw	?		; 734h
-LINE_NUM	dw	?		; 736h
-PREV_TIME	dd	?		; 738h: last time displayed by cmdTime
-RND_SEED	dd	?		; 73Ch: pseudo-random number seed
-INPUT_BUF	dw	?		; 740h: input offset (default INPUTBUF)
-TOKLET_NEXT	dw	?		; 742h
-TOKLET_END	dw	?		; 744h
-SW_DIGITS	dw	?		; 746h: bit mask of digit switches
-SW_LETTERS	dd	?		; 748h: bit mask of letter switches
-LINEBUF		db 256 dup (?)		; 74Ch
-DEFVARS		db 26 dup (?)		; 84Ch: default types for 26 letters
-FILENAME	db 16 dup (?)		; 866h: template ("X:XXXXXXXX.XXX")
-EXECDATA	db size EPB dup (?)	; 876h: Exec Parameter Block
-CMDHEAP		ends			; 88Ch
+CMD_ARG		db	?		; 729h: index of 1st arg
+CMD_ARGPTR	dw	?		; 72Ah: offset of current arg
+CMD_ARGLEN	dw	?		; 72Ch: length of current arg
+CON_COLS	db	?		; 72Eh
+CON_ROWS	db	?		; 72Fh
+CMD_FLAGS	db	?		; 730h: see CMD_* flags
+GEN_FLAGS	db	?		; 731h: see GEN_* flags
+ERR_CODE	db	?		; 732h
+DEF_PARMS	db	?		; 733h
+LINE_PTR	dd	?		; 734h
+LINE_LEN	dw	?		; 738h
+LINE_NUM	dw	?		; 73Ah
+PREV_TIME	dd	?		; 73Ch: last time displayed by cmdTime
+RND_SEED	dd	?		; 740h: pseudo-random number seed
+INPUT_BUF	dw	?		; 744h: input offset (default INPUTBUF)
+TOKLET_NEXT	dw	?		; 746h
+TOKLET_END	dw	?		; 748h
+SW_DIGITS	dw	?		; 74Ah: bit mask of digit switches
+SW_LETTERS	dd	?		; 74Ch: bit mask of letter switches
+LINEBUF		db 256 dup (?)		; 750h
+DEFVARS		db 26 dup (?)		; 850h: default types for 26 letters
+FILENAME	db 16 dup (?)		; 86Ah: template ("X:XXXXXXXX.XXX")
+EXECDATA	db size EPB dup (?)	; 87Ah: Exec Parameter Block
+CMDHEAP		ends			; 890h
 SIG_CMD		equ	'H'
 
-	ASSERT	<SIZE CMDHEAP>,EQ,88Ch
+	ASSERT	<SIZE CMDHEAP>,EQ,890h
 
 ;
 ; The initial stack frame created by the main function can also be used to

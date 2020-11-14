@@ -22,13 +22,8 @@ CODE    SEGMENT
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
 DEFPROC	main
-	LOCVAR	iArg,byte		; first arg for next command
-	LOCVAR	cArgs,byte		; # of arguments for next command
 	LOCVAR	sfhOut,byte
 	LOCVAR	scbActive,byte
-
-	LOCVAR	pArg,word		; saves arg ptr command handler
-	LOCVAR	lenArg,word		; saves arg len command handler
 ;
 ; Before invoking ENTER, ensure the stack is aligned with the CMDHEAP
 ; structure; the BASIC-DOS loader assumes we'll be happy with a stack at the
@@ -41,8 +36,6 @@ DEFPROC	main
 	DPRINTF	'p',<"Set COMMAND stack @%08lx\r\n">,ax,ss
 
 	xchg	sp,ax
-	sub	ax,ax
-	push	ax
 
 	ENTER
 	mov	[bx].ORIG_SP,sp
@@ -139,8 +132,8 @@ DEFPROC	parseCmd
 	call	getToken		; DS:SI -> 1st token, CX = length
 	jc	pc9
 
-	mov	[pArg],si		; save original filename ptr and length
-	mov	[lenArg],cx
+	mov	[bx].CMD_ARGPTR,si	; save original filename ptr and length
+	mov	[bx].CMD_ARGLEN,cx
 
 	lea	dx,[KEYWORD_TOKENS]
 	DOSUTIL	TOKID			; CS:DX -> TOKTBL; identify the token
@@ -150,7 +143,7 @@ DEFPROC	parseCmd
 ; the level of additional parsing required, if any.
 ;
 pc1:	mov	dx,cs:[si].CTD_FUNC
-	mov	si,[pArg]		; restore SI (changed by TOKID)
+	mov	si,[bx].CMD_ARGPTR	; restore SI (changed by TOKID)
 	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
 	cmp	ax,KEYWORD_BASIC	; token ID < KEYWORD_BASIC? (40)
 	jb	pc2			; yes, no code generation required
@@ -202,13 +195,15 @@ DEFPROC	parseDOS
 ; process it, replace it with a null, call cmdDOS, and then restore it and
 ; continue scanning TOKENBUF.
 ;
+	push	bp
+	mov	bp,ds:[PSP_HEAP]
 	mov	al,[di].TOK_CNT
 	ASSERT	Z,<test ah,ah>
 	add	ax,ax
 	add	ax,ax
 	ASSERT	<size TOKLET>,EQ,4	; AX = end of TOKLETs
 	sub	bx,bx			; BX = offset of next TOKLET
-	mov	[iArg],bl		; initialize iArg to 0
+	mov	[bp].CMD_ARG,bl		; initialize CMD_ARG to 0
 
 pd1:	push	ax			; save end of TOKLETs
 	sub	cx,cx
@@ -244,7 +239,7 @@ pd5:	jcxz	pd8			; no valid initial token
 	mov	dx,cs:[si].CTD_FUNC
 pd6:	pop	si
 
-	push	bx			; cmdDOS can modify any registers
+	push	bx			; cmdDOS can modify most registers
 	push	di			; so save anything not already saved
 	push	ds
 	mov	bx,ds:[PSP_HEAP]
@@ -263,11 +258,12 @@ pd8:	add	bx,size TOKLET
 	mov	ax,bx
 	shr	ax,1
 	shr	ax,1
-	mov	[iArg],al
+	mov	[bp].CMD_ARG,al
 	pop	ax			; restore end of TOKLETs
 	jmp	pd1			; loop back for more commands, if any
 
 pd9:	pop	ax			; discard end of TOKLETs
+	pop	bp
 	ret
 ENDPROC	parseDOS
 
@@ -302,7 +298,7 @@ DEFPROC	parseSW
 	mov	[bx].SW_LETTERS.HIW,ax
 	mov	ax,DOS_MSC_GETSWC
 	int	21h			; DL = SWITCHAR
-	mov	dh,[iArg]
+	mov	dh,[bx].CMD_ARG
 	inc	dh			; DH = 1st argument to inspect
 pw1:	call	getToken
 	jc	pw8
@@ -336,7 +332,7 @@ pw6:	sub	al,16
 	jmp	pw4
 pw7:	inc	dh			; advance to next token
 	jmp	pw1
-pw8:	mov	[iArg],dh
+pw8:	mov	[bx].CMD_ARG,dh
 	pop	di			; DH = first non-switch argument
 	pop	ax
 	ret
@@ -470,8 +466,8 @@ ENDPROC	cmdDOS
 ;	Any
 ;
 DEFPROC	cmdFile
-	mov	[pArg],si		; save original filename ptr
-	mov	[lenArg],cx
+	mov	[bx].CMD_ARGPTR,si	; save original filename ptr
+	mov	[bx].CMD_ARGLEN,cx
 	lea	di,[bx].FILENAME
 	mov	ax,size FILENAME
 	cmp	cx,ax
@@ -577,7 +573,7 @@ pf4c:	call	cmdRunFlags		; if cmdRun returns normally
 ; COM and EXE files are EXEC'ed, which requires building EXECDATA.
 ;
 pf5:	mov	dx,si			; DS:DX -> filename
-	mov	si,[pArg]		; recover original filename ptr
+	mov	si,[bx].CMD_ARGPTR	; recover original filename ptr
 	add	si,cx			; DS:SI -> cmd tail after filename
 	lea	bx,[bx].EXECDATA
 	mov	[bx].EPB_ENVSEG,0
@@ -684,11 +680,12 @@ DEFPROC	cmdTest
 	jc	ts8
 	mov	[scbActive],cl
 	DOSUTIL	START			; start the SCB # specified in CL
+
 	push	bx
 	xchg	ds:[PSP_PFT][STDOUT],dl	; modify our STDOUT SFH
 	mov	[sfhOut],dl
-	mov	di,ds:[PSP_HEAP]
-	lea	di,[di].FILENAME
+	mov	bx,ds:[PSP_HEAP]	; DS:BX -> CMDHEAP
+	lea	di,[bx].FILENAME
 	push	di
 	mov	cx,TEST_FILE_LEN
 	push	cx
@@ -697,12 +694,12 @@ DEFPROC	cmdTest
 	pop	cx
 	dec	cx
 	pop	si
-	mov	bx,ds:[PSP_HEAP]	; DS:BX -> CMDHEAP
 	call	cmdType			; DS:SI -> FILENAME
 	mov	dl,SFH_NONE
 	xchg	dl,[sfhOut]
 	mov	ds:[PSP_PFT][STDOUT],dl	; restore our STDOUT SFH
 	pop	bx
+
 	sub	cx,cx			; CX = 0 for "truncating" write
 	mov	ah,DOS_HDL_WRITE
 	int	21h			; issue final write
@@ -857,8 +854,8 @@ ENDPROC	cmdDate
 ;	Any
 ;
 DEFPROC	cmdDir
-	mov	[pArg],si
-	mov	[lenArg],cx
+	mov	[bx].CMD_ARGPTR,si
+	mov	[bx].CMD_ARGLEN,cx
 ;
 ; If filespec begins with ":", extract drive letter, and if it ends
 ; with ":" as well, append DIR_DEF ("*.*").
@@ -965,8 +962,8 @@ di7:	xchg	ax,dx			; AX = total # of clusters used
 	mov	bx,ds:[PSP_HEAP]
 	call	checkSW
 	jz	di9
-	mov	si,[pArg]
-	mov	cx,[lenArg]
+	mov	si,[bx].CMD_ARGPTR
+	mov	cx,[bx].CMD_ARGLEN
 	jmp	di1
 
 di8:	PRINTF	<"Unable to find %s (%d)",13,10,13,10>,si,ax
@@ -1011,7 +1008,7 @@ ENDPROC	cmdExit
 ;	Any
 ;
 DEFPROC	cmdHelp
-	mov	dh,[iArg]		; is there a non-switch argument?
+	mov	dh,[bx].CMD_ARG		; is there a non-switch argument?
 	call	getToken
 	jnc	doHelp
 	jmp	h5			; no
@@ -1943,9 +1940,9 @@ ENDPROC	chkString
 ; Use by cmdDate and cmdTime to set DS:SI to an input string.
 ;
 ; Inputs:
-;	AX = prompt function
 ;	BX -> CMDHEAP
 ;	DI -> TOKENBUF
+;	AX = prompt function
 ;
 ; Outputs:
 ;	CX, DX = default values from caller-supplied function
@@ -1956,7 +1953,7 @@ ENDPROC	chkString
 ;	AX, CX, DX, SI
 ;
 DEFPROC	getInput
-	mov	dh,[iArg]
+	mov	dh,[bx].CMD_ARG
 	call	getToken
 	jnc	gi1
 ;
