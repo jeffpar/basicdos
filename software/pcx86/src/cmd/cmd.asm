@@ -30,14 +30,17 @@ DEFPROC	main
 	LOCVAR	pArg,word		; saves arg ptr command handler
 	LOCVAR	lenArg,word		; saves arg len command handler
 ;
-; Before invoking ENTER, we ensure the stack is aligned with the CMDHEAP
+; Before invoking ENTER, ensure the stack is aligned with the CMDHEAP
 ; structure; the BASIC-DOS loader assumes we'll be happy with a stack at the
-; very top of the segment, but this allows the main module to access the heap
-; via [heap] (BP) instead of loading PSP_HEAP into another register (BX).
+; top of the segment, but our stack is in a specific location within the heap.
 ;
 	mov	bx,ds:[PSP_HEAP]
 	DBGINIT	STRUCT,[bx],CMD
-	lea	sp,[bx].STACK + size STACK
+	lea	ax,[bx].STACK + size STACK
+
+	DPRINTF	'p',<"Set COMMAND stack @%08lx\r\n">,ax,ss
+
+	xchg	sp,ax
 	sub	ax,ax
 	push	ax
 

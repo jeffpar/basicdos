@@ -618,9 +618,8 @@ lp2:	push	ax			; save original PSP
 	mov	dx,si			; DS:DX -> name of program
 	mov	ax,DOS_HDL_OPENRO
 	int	21h			; open the file
-	jnc	lp3c
-	jmp	lpef
-lp3c:	xchg	bx,ax			; BX = file handle
+	jc	lpef1
+	xchg	bx,ax			; BX = file handle
 
 	call	get_psp
 	mov	ds,ax			; DS = segment of new PSP
@@ -636,7 +635,7 @@ lp3c:	xchg	bx,ax			; BX = file handle
 	int	21h			; returns new file position in DX:AX
 	jc	lpec1
 	test	dx,dx
-	jnz	lp5a
+	jnz	lp3
 	mov	[bp].TMP_CX,ax		; record size ONLY if < 64K
 ;
 ; Now that we have a file size, verify that the PSP segment is large enough.
@@ -648,7 +647,7 @@ lp3c:	xchg	bx,ax			; BX = file handle
 ; How much is "a little extra"?  Currently, it's 40h paragraphs (1Kb).  See
 ; the discussion below ("Determine a reasonable amount to add to the minimum").
 ;
-lp5a:	add	ax,15
+lp3:	add	ax,15
 	adc	dx,0			; round DX:AX to next paragraph
 	mov	cx,16
 	cmp	dx,cx			; can we safely divide DX:AX by 16?
@@ -665,9 +664,8 @@ lp5a:	add	ax,15
 	int	21h			; reset file position to beginning
 	jc	lpec1
 ;
-; We're going to make this code executable-agnostic, which means regardless
-; whether it's a COM or EXE file, we're going to read the first 512 bytes (or
-; less if that's all there is) and decide what to do next.
+; Regardless whether this is a COM or EXE file, we're going to read the first
+; 512 bytes (or less if that's all there is) and decide what to do next.
 ;
 	push	ds
 	pop	es			; DS = ES = PSP segment
@@ -686,6 +684,8 @@ lp6:	mov	di,dx			; DS:DI -> end of PSP
 	cmp	[di].EXE_SIG,SIG_EXE
 	je	lp6a
 	jmp	lp7
+lpef1:	jmp	lpef
+
 lp6a:	cmp	ax,size EXEHDR
 	jb	lpec2			; file too small
 ;
@@ -791,12 +791,14 @@ lp6g:	push	es:[EXE_START_SEG]
 ; More info on SYMDEB.EXE 4.0 and PC DOS 2.00: it seems the smallest amount of
 ; free memory where DOS 2.0 will still load SYMDEB is when COMMAND.COM "owns"
 ; at least 967h paras in the final memory segment (CHKDSK reports 38336 bytes
-; free at that point).  The PSP that SYMDEB created under those conditions was
-; located at 7FAFh (this was on a 512K machine so the para limit was 8000h),
-; so the PSP had 51h paragraphs available to it.  However, SYMDEB could not
-; load even a tiny (11-byte) COM file; it would report "EXEC failure", which
-; seems odd with 51h paragraphs available.  Also, the word at 7FAF:0006 (memory
-; size) contained 8460h, which seems way too large.
+; free at that point; SYMDEB.EXE is 37021 bytes).
+;
+; The PSP that SYMDEB created under those conditions was located at 7FAFh
+; (this was on a 512K machine so the para limit was 8000h), so the PSP had 51h
+; paragraphs available to it.  However, SYMDEB could not load even a tiny
+; (11-byte) COM file; it would report "EXEC failure", which seems odd with 51h
+; paragraphs available.  Also, the word at 7FAF:0006 (memory size) contained
+; 8460h, which seems way too large.
 ;
 ; I also discovered that if I tried to load "SYMDEB E.COM" (where E.COM was an
 ; 11-byte COM file) with 8 more paras available (96Fh total), the system would
@@ -834,7 +836,7 @@ lp6g:	push	es:[EXE_START_SEG]
 	pop	ds:[PSP_START].SEG
 	add	ds:[PSP_START].SEG,ax
 
-	DPRINTF	'p',<"min,cur,max paragraphs: %#06x,%#06x,%#06x\r\n">,si,bx,di
+	DPRINTF	'p',<"New PSP %04x, %04x paras, min,max=%04x,%04x\r\n">,ds,bx,si,di
 
 	sub	dx,dx			; no heap
 	jmp	lp8			; realloc the PSP segment
@@ -843,16 +845,15 @@ lp6g:	push	es:[EXE_START_SEG]
 ;
 lp7:	add	dx,ax
 	cmp	ax,cx
-	jb	lp7b			; we must have already finished
+	jb	lp7a			; we must have already finished
 	sub	si,20h
 	mov	cl,4
 	shl	si,cl
 	mov	cx,si			; CX = maximum # bytes left to read
 	mov	ah,DOS_HDL_READ
 	int	21h
-	jnc	lp7a
-	jmp	lpec
-lp7a:	add	dx,ax			; DX -> end of program image
+	jc	lpec3
+	add	dx,ax			; DX -> end of program image
 ;
 ; We could leave the executable file open and close it on process termination,
 ; because it provides us with valuable information about all the processes that
@@ -860,11 +861,13 @@ lp7a:	add	dx,ax			; DX -> end of program image
 ; handle could eventually be useful for overlay support, too.  But for now,
 ; we close the handle, just like PC DOS.
 ;
-lp7b:	mov	ah,DOS_HDL_CLOSE
+lp7a:	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the file
-	jc	lp8f
+	jnc	lp7b
+	jmp	lpef
+lpec3:	jmp	lpec
 
-	mov	ds:[PSP_START].OFF,100h
+lp7b:	mov	ds:[PSP_START].OFF,100h
 	mov	ds:[PSP_START].SEG,ds
 	mov	di,dx			; DI -> uninitialized heap space
 	mov	dx,MINHEAP SHR 4	; DX = add'l space (1Kb in paras)
@@ -923,10 +926,13 @@ lp7e:	mov	bx,di			; BX = size of program image
 lp7f:	shl	ax,cl			; DS:AX -> top of the segment
 	mov	ds:[PSP_STACK].OFF,ax
 	mov	ds:[PSP_STACK].SEG,ds
+
+	DPRINTF	'p',<"New PSP %04x, %04x paras, stack @%08lx\r\n">,ds,bx,ax,ds
+
 lp8:	mov	ah,DOS_MEM_REALLOC	; resize ES memory block to BX paras
 	int	21h
 	jnc	lp8a
-lp8f:	jmp	lpef			; TODO: try to use a smaller size?
+	jmp	lpef
 ;
 ; Zero any additional heap paragraphs (DX) starting at ES:DI.  Note that
 ; although heap size is specified in paragraphs, it's not required to start
