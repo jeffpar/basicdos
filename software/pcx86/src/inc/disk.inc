@@ -91,7 +91,7 @@ SIG_BPB		equ	'B'
 ; DPB		ends
 ;
 ; Interesting side note about DPB_FATSECS: it was changed to a WORD in DOS 4.0,
-; which had unfortunate side-effects (see Feb 1989 PC TEch Journal article by
+; which had unfortunate side-effects (see Feb 1989 PC Tech Journal article by
 ; Ted Mirecki).
 ;
 
@@ -99,7 +99,7 @@ CLN_BAD		equ	0FF7h
 CLN_END		equ	0FF8h
 
 DIRENT		struc
-DIR_NAME	db	11 dup (?)	; 00h: filename (E5=free,00=end)
+DIR_NAME	db	11 dup (?)	; 00h: filename (E5=free, 00=end)
 DIR_ATTR	db	?		; 0Bh: attribute bits (see below)
 DIR_PAD		db	10 dup (?)	; 0Ch: reserved for expansion
 DIR_TIME	dw	?		; 16h: time of last write (see below)

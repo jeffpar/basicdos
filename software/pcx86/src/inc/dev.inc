@@ -43,7 +43,7 @@ DDC_SETLOGDEV	equ	24	; Set Logical Device
 DDP		struc
 DDP_LEN		db	?	; 00h: length of packet
 DDP_UNIT	db	?	; 01h: unit # (block devices only)
-DDP_CMD		db	?	; 02h: command #
+DDP_CMD		db	?	; 02h: command # (see DDC_*)
 DDP_STATUS	dw	?	; 03h: status
 DDP_SIG		db	?	; 05h (holds SIG_DDP in DEBUG builds)
 DDP_CONTEXT	dw	?	; 06h: device context, if any

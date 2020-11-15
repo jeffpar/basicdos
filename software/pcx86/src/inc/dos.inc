@@ -132,8 +132,8 @@ MCB_RESERVED	db	3 dup(?); 05h
 MCB_NAME	db	8 dup(?); 08h: name of process (zero if none)
 MCB		ends
 
-MCBSIG_NEXT	equ	4Dh	; "M"
-MCBSIG_LAST	equ	5Ah	; "Z"
+MCBSIG_NEXT	equ	4Dh	; 'M'
+MCBSIG_LAST	equ	5Ah	; 'Z'
 MCBOWNER_NONE	equ	0	; free memory block
 MCBOWNER_SYSTEM	equ	0008h	; owned by the system
 
