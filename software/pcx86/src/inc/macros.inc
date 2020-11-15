@@ -24,12 +24,6 @@ OFF	dw	?
 SEG	dw	?
 FARPTR	ends
 
-EXTERNS	macro	list,type
-	IRP	l,<list>
-	extrn	l:type
-	ENDM
-	endm
-
 DEFABS	macro	name,value
 	public	name
 name	equ	value
@@ -96,16 +90,42 @@ DEFSTR	macro	name,value
 	name&_LEN equ ($ - name)
 	endm
 
-EXTABS	macro	name
-	extrn	name&_LEN:abs
-	endm
-
-EXTSTR	macro	names
-	IRP	name,<names>
-	extrn	name:byte
-	EXTABS	name
+EXTERNS	macro	list,type
+	IRP	l,<list>
+	extrn	l:type
 	ENDM
 	endm
+
+EXTABS	macro	names
+	EXTERNS	<names>,abs
+	endm
+
+EXTNEAR	macro	names
+	EXTERNS	<names>,near
+	endm
+
+EXTBYTE	macro	names
+	EXTERNS	<names>,byte
+	endm
+
+EXTWORD	macro	names
+	EXTERNS	<names>,word
+	endm
+
+EXTLONG	macro	names
+	EXTERNS	<names>,dword
+	endm
+
+EXTLEN	macro	name
+	extrn	name&_LEN:abs
+	endm
+EXTSTR	macro	names
+	IRP	name,<names>
+	EXTBYTE	name
+	EXTLEN	name
+	ENDM
+	endm
+
 ;
 ; Tables are like pointers, where .OFF is the offset but .SEG is the limit.
 ; We don't need to record the segment, because offset is always DS-relative.

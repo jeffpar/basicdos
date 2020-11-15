@@ -13,18 +13,18 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<tty_read,write_string,dos_restart,dev_request>,near
+	EXTNEAR	<tty_read,write_string,dos_restart,dev_request>
 	EXTSTR	<STR_CTRLC>
 	IF REG_CHECK
-	EXTERNS	<dos_check>,near
+	EXTNEAR	<dos_check>
 	ENDIF
 
-	EXTERNS	<mcb_head>,word
-	EXTERNS	<clk_ptr>,dword
-	EXTERNS	<scb_active>,word
+	EXTWORD	<mcb_head>
+	EXTLONG	<clk_ptr>
+	EXTWORD	<scb_active>
 
-	EXTERNS	<MONTH_DAYS>,byte
-	EXTERNS	<MONTHS,DAYS>,word
+	EXTBYTE	<MONTH_DAYS>
+	EXTWORD	<MONTHS,DAYS>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

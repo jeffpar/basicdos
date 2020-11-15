@@ -14,11 +14,11 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<sfb_from_sfh,sfb_write>,near
-	EXTERNS	<itoa,sprintf,write_string>,near
+	EXTNEAR	<sfb_from_sfh,sfb_write>
+	EXTNEAR	<itoa,sprintf,write_string>
 
-	EXTERNS	<sfh_debug,key_boot>,byte
-	EXTERNS	<scb_active>,word
+	EXTBYTE	<sfh_debug,key_boot>
+	EXTWORD	<scb_active>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

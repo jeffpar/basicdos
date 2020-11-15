@@ -12,17 +12,17 @@
 
 CODE    SEGMENT
 
-	EXTERNS	<allocCode,shrinkCode,freeCode,freeAllCode>,near
-	EXTERNS	<allocVars,allocFunc,freeFunc>,near
-	EXTERNS	<allocTempVars,updateTempVars,freeTempVars>,near
-	EXTERNS	<addVar,findVar,getVar,removeVar,setVar,setVarLong>,near
-	EXTERNS	<memError>,near
-	EXTERNS	<clearScreen,callDOS,printArgs,printEcho,printLine>,near
-	EXTERNS	<setColor,setFlags>,near
+	EXTNEAR	<allocCode,shrinkCode,freeCode,freeAllCode>
+	EXTNEAR	<allocVars,allocFunc,freeFunc>
+	EXTNEAR	<allocTempVars,updateTempVars,freeTempVars>
+	EXTNEAR	<addVar,findVar,getVar,removeVar,setVar,setVarLong>
+	EXTNEAR	<memError>
+	EXTNEAR	<clearScreen,callDOS,printArgs,printEcho,printLine>
+	EXTNEAR	<setColor,setFlags>
 
-	EXTERNS	<KEYWORD_TOKENS,KEYOP_TOKENS>,word
-	EXTERNS	<OPDEFS_LONG,OPDEFS_STR,RELOPS>,byte
-	EXTERNS	<TOK_ELSE,TOK_OFF,TOK_ON,TOK_THEN>,abs
+	EXTWORD	<KEYWORD_TOKENS,KEYOP_TOKENS>
+	EXTBYTE	<OPDEFS_LONG,OPDEFS_STR,RELOPS>
+	EXTABS	<TOK_ELSE,TOK_OFF,TOK_ON,TOK_THEN>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 

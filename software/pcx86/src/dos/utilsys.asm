@@ -14,16 +14,16 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<chk_devname,dev_request>,near
-	EXTERNS	<scb_load,scb_start,scb_stop,scb_end,scb_waitend>,near
-	EXTERNS	<scb_yield,scb_release,scb_wait,scb_endwait>,near
-	EXTERNS	<mem_query,msc_getdate,msc_gettime>,near
-	EXTERNS	<psp_term_exitcode>,near
-	EXTERNS	<add_date,read_line>,near
+	EXTNEAR	<chk_devname,dev_request>
+	EXTNEAR	<scb_load,scb_start,scb_stop,scb_end,scb_waitend>
+	EXTNEAR	<scb_yield,scb_release,scb_wait,scb_endwait>
+	EXTNEAR	<mem_query,msc_getdate,msc_gettime>
+	EXTNEAR	<psp_term_exitcode>
+	EXTNEAR	<add_date,read_line>
 
-	EXTERNS	<scb_locked>,byte
-	EXTERNS	<scb_active>,word
-	EXTERNS	<scb_table,clk_ptr>,dword
+	EXTBYTE	<scb_locked>
+	EXTWORD	<scb_active>
+	EXTLONG	<scb_table,clk_ptr>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

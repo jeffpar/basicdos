@@ -14,14 +14,14 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<dev_request,scb_release>,near
-	EXTERNS	<chk_devname,chk_filename>,near
-	EXTERNS	<get_bpb,get_psp,find_cln,get_cln>,near
-	EXTERNS	<msc_sigctrlc,msc_sigctrlc_read>,near
+	EXTNEAR	<dev_request,scb_release>
+	EXTNEAR	<chk_devname,chk_filename>
+	EXTNEAR	<get_bpb,get_psp,find_cln,get_cln>
+	EXTNEAR	<msc_sigctrlc,msc_sigctrlc_read>
 
-	EXTERNS	<scb_locked>,byte
-	EXTERNS	<scb_active>,word
-	EXTERNS	<sfb_table>,dword
+	EXTBYTE	<scb_locked>
+	EXTWORD	<scb_active>
+	EXTLONG	<sfb_table>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

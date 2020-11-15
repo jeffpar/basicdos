@@ -14,7 +14,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<strlen,sfb_get,sfb_read,sfb_write,dev_request>,near
+	EXTNEAR	<strlen,sfb_get,sfb_read,sfb_write,dev_request>
 
 	ASSUME	CS:DOS, DS:DOS, ES:DOS, SS:NOTHING
 

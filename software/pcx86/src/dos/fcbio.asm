@@ -13,10 +13,10 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<bpb_total>,byte
-	EXTERNS	<scb_active>,word
-	EXTERNS	<sfb_open_fcb,sfb_find_fcb,sfb_seek,sfb_read,sfb_close>,near
-	EXTERNS	<div_32_16,mul_32_16>,near
+	EXTBYTE	<bpb_total>
+	EXTWORD	<scb_active>
+	EXTNEAR	<sfb_open_fcb,sfb_find_fcb,sfb_seek,sfb_read,sfb_close>
+	EXTNEAR	<div_32_16,mul_32_16>
 
 	EXTSTR	<FILENAME_CHARS>
 

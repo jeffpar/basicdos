@@ -16,13 +16,13 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<bpb_total,sfh_debug,def_switchar>,byte
-	EXTERNS	<mcb_head,mcb_limit,buf_head,key_boot,scb_active>,word
-	EXTERNS	<bpb_table,scb_table,sfb_table,clk_ptr>,dword
-	EXTERNS	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr,dos_opchk>,near
-	EXTERNS	<dos_term,dos_func,dos_exret,dos_ctrlc,dos_error,dos_default>,near
-	EXTERNS	<disk_read,disk_write,dos_tsr,dos_call5,dos_util>,near
-	EXTERNS	<dos_ddint_enter,dos_ddint_leave>,near
+	EXTBYTE	<bpb_total,sfh_debug,def_switchar>
+	EXTWORD	<mcb_head,mcb_limit,buf_head,key_boot,scb_active>
+	EXTLONG	<bpb_table,scb_table,sfb_table,clk_ptr>
+	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr,dos_opchk>
+	EXTNEAR	<dos_term,dos_func,dos_exret,dos_ctrlc,dos_error,dos_default>
+	EXTNEAR	<disk_read,disk_write,dos_tsr,dos_call5,dos_util>
+	EXTNEAR	<dos_ddint_enter,dos_ddint_leave>
 
 	DEFLBL	sysinit_start
 

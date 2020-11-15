@@ -26,11 +26,11 @@ DOS	segment word public 'CODE'
 ;
 ; That is, thus far, the extent of our extremely simple scheduler.
 ;
-	EXTERNS	<scb_locked,def_switchar>,byte
-	EXTERNS	<scb_active,scb_stoked>,word
-	EXTERNS	<scb_table>,dword
-	EXTERNS	<dos_exit,load_command,psp_term_exitcode>,near
-	EXTERNS	<sfh_add_ref,sfh_context,sfh_close>,near
+	EXTBYTE	<scb_locked,def_switchar>
+	EXTWORD	<scb_active,scb_stoked>
+	EXTLONG	<scb_table>
+	EXTNEAR	<dos_exit,load_command,psp_term_exitcode>
+	EXTNEAR	<sfh_add_ref,sfh_context,sfh_close>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

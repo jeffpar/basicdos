@@ -12,10 +12,10 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<get_psp,scb_release>,near
+	EXTNEAR	<get_psp,scb_release>
 
-	EXTERNS	<scb_locked>,byte
-	EXTERNS	<mcb_head,scb_active>,word
+	EXTBYTE	<scb_locked>
+	EXTWORD	<mcb_head,scb_active>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

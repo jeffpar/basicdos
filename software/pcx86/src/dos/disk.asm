@@ -15,12 +15,12 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<dev_request,parse_name,scb_release>,near
+	EXTNEAR	<dev_request,parse_name,scb_release>
 
-	EXTERNS	<scb_locked>,byte
-	EXTERNS	<buf_head,scb_active>,word
-	EXTERNS	<bpb_table>,dword
-	EXTERNS	<bpb_total>,byte
+	EXTBYTE	<scb_locked>
+	EXTWORD	<buf_head,scb_active>
+	EXTLONG	<bpb_table>
+	EXTBYTE	<bpb_total>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

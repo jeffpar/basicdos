@@ -11,7 +11,7 @@
 
 CODE    SEGMENT
 
-	EXTERNS	<parseDOS,freeStr>,near
+	EXTNEAR	<parseDOS,freeStr>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 

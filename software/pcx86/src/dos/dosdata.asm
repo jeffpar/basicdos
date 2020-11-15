@@ -10,7 +10,7 @@
 	include	macros.inc
 	include	devapi.inc
 
-	EXTERNS	<sysinit>,near
+	EXTNEAR	<sysinit>
 
 DOS	segment word public 'CODE'
 ;
@@ -68,28 +68,28 @@ DOS	segment word public 'CODE'
 	DEFWORD	DAYS,<SUN,MON,TUE,WED,THU,FRI,SAT>
 	DEFBYTE	MONTH_DAYS,<31,28,31,30,31,30,31,31,30,31,30,31>
 
-	EXTERNS	<psp_term>,near
-	EXTERNS	<tty_echo,tty_write,aux_read,aux_write,prn_write,tty_io>,near
-	EXTERNS	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>,near
-	EXTERNS	<dsk_flush,dsk_getdrv,dsk_setdrv,dsk_setdta,dsk_getdta>,near
-	EXTERNS	<dsk_getinfo,dsk_ffirst,dsk_fnext>,near
-	EXTERNS	<fcb_open,fcb_close,fcb_sread,fcb_rread,fcb_setrel>,near
-	EXTERNS	<fcb_rbread,fcb_parse>,near
-	EXTERNS	<msc_getdate,msc_setdate,msc_gettime,msc_settime>,near
-	EXTERNS	<msc_setvec,msc_getver,msc_setctrlc,msc_getvec,msc_getswc>,near
-	EXTERNS	<msc_getvars,psp_exec,psp_exit,psp_retcode>,near
-	EXTERNS	<psp_copy,psp_set,psp_get,psp_create>,near
-	EXTERNS	<hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek,hdl_ioctl>,near
-	EXTERNS	<mem_alloc,mem_free,mem_realloc>,near
-	EXTERNS	<utl_strlen,utl_strstr,utl_strupr>,near
-	EXTERNS	<utl_atoi16,utl_atoi32,utl_atoi32d>,near
-	EXTERNS	<utl_itoa,utl_printf,utl_dprintf,utl_sprintf>,near
-	EXTERNS	<utl_tokify,utl_tokid,utl_restart,utl_getdev,utl_ioctl>,near
-	EXTERNS	<utl_load,utl_start,utl_stop,utl_end,utl_waitend>,near
-	EXTERNS	<utl_yield,utl_sleep,utl_wait,utl_endwait,utl_hotkey>,near
-	EXTERNS	<utl_lock,utl_unlock,utl_qrymem,utl_abort>,near
-	EXTERNS	<utl_getdate,utl_gettime,utl_incdate,utl_editln>,near
-	EXTERNS	<func_none>,near
+	EXTNEAR	<psp_term>
+	EXTNEAR	<tty_echo,tty_write,aux_read,aux_write,prn_write,tty_io>
+	EXTNEAR	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>
+	EXTNEAR	<dsk_flush,dsk_getdrv,dsk_setdrv,dsk_setdta,dsk_getdta>
+	EXTNEAR	<dsk_getinfo,dsk_ffirst,dsk_fnext>
+	EXTNEAR	<fcb_open,fcb_close,fcb_sread,fcb_rread,fcb_setrel>
+	EXTNEAR	<fcb_rbread,fcb_parse>
+	EXTNEAR	<msc_getdate,msc_setdate,msc_gettime,msc_settime>
+	EXTNEAR	<msc_setvec,msc_getver,msc_setctrlc,msc_getvec,msc_getswc>
+	EXTNEAR	<msc_getvars,psp_exec,psp_exit,psp_retcode>
+	EXTNEAR	<psp_copy,psp_set,psp_get,psp_create>
+	EXTNEAR	<hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek,hdl_ioctl>
+	EXTNEAR	<mem_alloc,mem_free,mem_realloc>
+	EXTNEAR	<utl_strlen,utl_strstr,utl_strupr>
+	EXTNEAR	<utl_atoi16,utl_atoi32,utl_atoi32d>
+	EXTNEAR	<utl_itoa,utl_printf,utl_dprintf,utl_sprintf>
+	EXTNEAR	<utl_tokify,utl_tokid,utl_restart,utl_getdev,utl_ioctl>
+	EXTNEAR	<utl_load,utl_start,utl_stop,utl_end,utl_waitend>
+	EXTNEAR	<utl_yield,utl_sleep,utl_wait,utl_endwait,utl_hotkey>
+	EXTNEAR	<utl_lock,utl_unlock,utl_qrymem,utl_abort>
+	EXTNEAR	<utl_getdate,utl_gettime,utl_incdate,utl_editln>
+	EXTNEAR	<func_none>
 
 	DEFLBL	FUNCTBL,word
 	dw	psp_term,    tty_echo,    tty_write,   aux_read		;00h-03h

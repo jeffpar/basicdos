@@ -14,14 +14,14 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<scb_locked>,byte
-	EXTERNS	<mcb_head,mcb_limit,scb_active>,word
-	EXTERNS	<sfh_add_ref,pfh_close,sfh_close>,near
-	EXTERNS	<mcb_getsize,mcb_free_all>,near
-	EXTERNS	<dos_exit,dos_exit2,dos_ctrlc,dos_error>,near
-	EXTERNS	<mcb_setname,scb_getnum,scb_release,scb_unload,scb_yield>,near
+	EXTBYTE	<scb_locked>
+	EXTWORD	<mcb_head,mcb_limit,scb_active>
+	EXTNEAR	<sfh_add_ref,pfh_close,sfh_close>
+	EXTNEAR	<mcb_getsize,mcb_free_all>
+	EXTNEAR	<dos_exit,dos_exit2,dos_ctrlc,dos_error>
+	EXTNEAR	<mcb_setname,scb_getnum,scb_release,scb_unload,scb_yield>
 	IF REG_CHECK
-	EXTERNS	<dos_check>,near
+	EXTNEAR	<dos_check>
 	ENDIF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

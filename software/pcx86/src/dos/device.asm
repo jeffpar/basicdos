@@ -15,9 +15,9 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<bpb_table>,dword
+	EXTLONG	<bpb_table>
 	IF REG_CHECK
-	EXTERNS	<dos_check>,near
+	EXTNEAR	<dos_check>
 	ENDIF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

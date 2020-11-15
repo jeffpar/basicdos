@@ -14,11 +14,11 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<FUNCTBL>,word
-	EXTERNS	<FUNCTBL_SIZE,UTILTBL_SIZE>,abs
-	EXTERNS	<scb_active>,word
-	EXTERNS	<ddint_level>,byte
-	EXTERNS	<msc_sigctrlc_read,msc_sigerr>,near
+	EXTWORD	<FUNCTBL>
+	EXTABS	<FUNCTBL_SIZE,UTILTBL_SIZE>
+	EXTWORD	<scb_active>
+	EXTBYTE	<ddint_level>
+	EXTNEAR	<msc_sigctrlc_read,msc_sigerr>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

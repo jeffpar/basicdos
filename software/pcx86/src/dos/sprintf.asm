@@ -13,8 +13,8 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<MONTHS,DAYS>,word
-	EXTERNS	<strlen,day_of_week,div_32_16>,near
+	EXTWORD	<MONTHS,DAYS>
+	EXTNEAR	<strlen,day_of_week,div_32_16>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -12,16 +12,16 @@
 
 CODE    SEGMENT
 
-	EXTERNS	<evalNegLong,evalNotLong>,near
-	EXTERNS	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>,near
-	EXTERNS	<evalModLong,evalExpLong,evalImpLong>,near
-	EXTERNS	<evalEqvLong,evalXorLong,evalOrLong,evalAndLong>,near
-	EXTERNS	<evalEQLong,evalNELong,evalLTLong,evalGTLong>,near
-	EXTERNS	<evalLELong,evalGELong,evalShlLong,evalShrLong>,near
-	EXTERNS	<fnRndLong>,near
+	EXTNEAR	<evalNegLong,evalNotLong>
+	EXTNEAR	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>
+	EXTNEAR	<evalModLong,evalExpLong,evalImpLong>
+	EXTNEAR	<evalEqvLong,evalXorLong,evalOrLong,evalAndLong>
+	EXTNEAR	<evalEQLong,evalNELong,evalLTLong,evalGTLong>
+	EXTNEAR	<evalLELong,evalGELong,evalShlLong,evalShrLong>
+	EXTNEAR	<fnRndLong>
 
-	EXTERNS	<evalEQStr,evalNEStr,evalLTStr,evalGTStr>,near
-	EXTERNS	<evalLEStr,evalGEStr,evalAddStr>,near
+	EXTNEAR	<evalEQStr,evalNEStr,evalLTStr,evalGTStr>
+	EXTNEAR	<evalLEStr,evalGEStr,evalAddStr>
 
 	DEFSTR	COM_EXT,<".COM",0>	; these 4 file extensions must be
 	DEFSTR	EXE_EXT,<".EXE",0>	; listed in the desired search order

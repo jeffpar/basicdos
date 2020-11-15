@@ -12,10 +12,9 @@
 CODE    SEGMENT
 	org	100h
 
-	EXTERNS	<allocText,freeAllText,genCode,freeAllCode,freeAllVars>,near
-	EXTERNS	<writeStrCRLF>,near
-
-	EXTERNS	<KEYWORD_TOKENS>,word
+	EXTNEAR	<allocText,freeAllText,genCode,freeAllCode,freeAllVars>
+	EXTNEAR	<writeStrCRLF>
+	EXTWORD	<KEYWORD_TOKENS>
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF,PERIOD>
 	EXTSTR	<STD_VER,DBG_VER,HELP_FILE,PIPE_NAME>
 
@@ -27,7 +26,10 @@ DEFPROC	main
 ;
 ; Before invoking ENTER, ensure the stack is aligned with the CMDHEAP
 ; structure; the BASIC-DOS loader assumes we'll be happy with a stack at the
-; top of the segment, but our stack is in a specific location within the heap.
+; top of the segment, but our stack is in a specific location within CMDHEAP.
+;
+; TODO: Consider adding a STACKPTR field to the COMDATA structure so that a
+; COM file can be explicit about where it wants the stack.
 ;
 	mov	bx,ds:[PSP_HEAP]
 	DBGINIT	STRUCT,[bx],CMD
@@ -58,6 +60,15 @@ DEFPROC	main
 	mov	word ptr [bx].CON_COLS,ax
 
 	PRINTF	<"BASIC-DOS Interpreter",13,10,13,10>
+;
+; Originally, "the plan" was to use Microsoft's MBF (Microsoft Binary Format)
+; floating-point code, because who really wants to write a "new" floating-point
+; emulation library from scratch?  I went down that path back in the 1980's,
+; probably during my "Mandelbrot phase", but I can't find the code I wrote, and
+; now that that Microsoft has open-sourced GW-BASIC, it makes more sense to use
+; theirs.  However, that hasn't happened yet; for now, BASIC-DOS is just an
+; "Integer BASIC".  When that changes, MSLIB will be defined.
+;
 	IFDEF	MSLIB
 	PRINTF	<"BASIC MATH library functions",13,10,"Copyright (c) Microsoft Corporation",13,10,13,10>
 	ENDIF
