@@ -14,7 +14,7 @@ machines:
       B: "PC DOS 2.00 (Disk 1)"
 ---
 
-The PC XT below serves as both a [development](#development-notes) and test
+The PC XT below serves as both a [Development](#development-notes) and Test
 machine.  The diskette in drive A: loads the latest version of [BASIC-DOS](../),
 which allows you to press **Esc** to boot from the hard disk and rebuild
 BASIC-DOS.
