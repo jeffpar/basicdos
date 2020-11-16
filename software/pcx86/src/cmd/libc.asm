@@ -47,7 +47,6 @@ DEFPROC	callDOS,FAR
 	push	ss
 	pop	es
 	mov	bx,es:[PSP_HEAP]
-	mov	bp,es:[bx].ORIG_BP	; can't access ARGVARs anymore
 	lea	di,[bx].LINEBUF		; ES:DI -> LINEBUF
 	ASSERT	B,<cmp cx,size LINEBUF>
 	push	cx

@@ -21,12 +21,9 @@ CODE    SEGMENT
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
 DEFPROC	main
-	LOCVAR	sfhOut,byte
-	LOCVAR	scbActive,byte
 ;
-; Before invoking ENTER, ensure the stack is aligned with the CMDHEAP
-; structure; the BASIC-DOS loader assumes we'll be happy with a stack at the
-; top of the segment, but our stack is in a specific location within CMDHEAP.
+; The BASIC-DOS loader assumes we'll be happy with a stack at the top of
+; the segment, but our stack is in a specific location within CMDHEAP.
 ;
 ; TODO: Consider adding a STACKPTR field to the COMDATA structure so that a
 ; COM file can be explicit about where it wants the stack.
@@ -38,12 +35,12 @@ DEFPROC	main
 	DPRINTF	'p',<"Set COMMAND stack @%08lx\r\n">,ax,ss
 
 	xchg	sp,ax
-
-	ENTER
-	mov	[bx].ORIG_SP,sp
-	mov	[bx].ORIG_BP,bp
-	mov	[bx].HDL_FILE,ax
-	mov	[sfhOut],SFH_NONE
+	sub	ax,ax
+	mov	[bx].HDL_INPUT,ax
+	mov	[bx].HDL_OUTPUT,ax	; initialize NUM_PIPES and NUM_SCBS
+	mov	word ptr [bx].NUM_PIPES,ax
+	dec	ax			; initialize SFH_STDIN and SFH_STDOUT
+	mov	word ptr [bx].SFH_STDIN,ax
 	push	ds
 	push	cs
 	pop	ds
@@ -67,7 +64,7 @@ DEFPROC	main
 ; probably during my "Mandelbrot phase", but I can't find the code I wrote, and
 ; now that that Microsoft has open-sourced GW-BASIC, it makes more sense to use
 ; theirs.  However, that hasn't happened yet; for now, BASIC-DOS is just an
-; "Integer BASIC".  When that changes, MSLIB will be defined.
+; "Integer BASIC".  If/when that changes, MSLIB will be defined.
 ;
 	IFDEF	MSLIB
 	PRINTF	<"BASIC MATH library functions",13,10,"Copyright (c) Microsoft Corporation",13,10,13,10>
@@ -658,6 +655,8 @@ TEST_FILE_LEN	equ	($ - TEST_FILE)
 
 	IFDEF	DEBUG
 DEFPROC	cmdTest
+	push	bp
+	mov	bp,bx			; use SS:BP instead of DS:BX for heap
 	push	ds
 	push	cs
 	pop	ds
@@ -667,7 +666,7 @@ DEFPROC	cmdTest
 	pop	ds
 	jc	ts9
 	xchg	bx,ax			; BX = pipe handle
-	mov	[scbActive],SCB_NONE
+	mov	[bp].SCB_ARRAY[0],SCB_NONE
 	sub	sp,size SPB
 	mov	di,sp			; ES:DI -> SPB on stack
 	sub	ax,ax
@@ -689,14 +688,12 @@ DEFPROC	cmdTest
 	DOSUTIL	LOAD			; load CMDLINE into an SCB
 	lea	sp,[di + size SPB]	; clean up the stack
 	jc	ts8
-	mov	[scbActive],cl
+	mov	[bp].SCB_ARRAY[0],cl
 	DOSUTIL	START			; start the SCB # specified in CL
 
-	push	bx
 	xchg	ds:[PSP_PFT][STDOUT],dl	; modify our STDOUT SFH
-	mov	[sfhOut],dl
-	mov	bx,ds:[PSP_HEAP]	; DS:BX -> CMDHEAP
-	lea	di,[bx].FILENAME
+	mov	[bp].SFH_STDOUT,dl
+	lea	di,[bp].FILENAME
 	push	di
 	mov	cx,TEST_FILE_LEN
 	push	cx
@@ -705,11 +702,15 @@ DEFPROC	cmdTest
 	pop	cx
 	dec	cx
 	pop	si
+
+	push	bx
+	mov	bx,bp			; BX -> CMDHEAP
 	call	cmdType			; DS:SI -> FILENAME
-	mov	dl,SFH_NONE
-	xchg	dl,[sfhOut]
-	mov	ds:[PSP_PFT][STDOUT],dl	; restore our STDOUT SFH
 	pop	bx
+
+	mov	dl,SFH_NONE
+	xchg	dl,[bp].SFH_STDOUT
+	mov	ss:[PSP_PFT][STDOUT],dl	; restore our STDOUT SFH
 
 	sub	cx,cx			; CX = 0 for "truncating" write
 	mov	ah,DOS_HDL_WRITE
@@ -717,11 +718,13 @@ DEFPROC	cmdTest
 ts8:	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the pipe
 	mov	cl,SCB_NONE
-	xchg	cl,[scbActive]
+	xchg	cl,[bp].SCB_ARRAY[0]
 	cmp	cl,SCB_NONE
 	je	ts9
 	DOSUTIL	WAITEND
-ts9:	ret
+
+ts9:	pop	bp
+	ret
 ENDPROC	cmdTest
 	ENDIF
 
@@ -771,7 +774,7 @@ ENDPROC	getToken
 ; Outputs:
 ;	DS = ES = SS
 ;	BX -> CMDHEAP
-;	SP and BP reset
+;	SP reset
 ;
 ; Modifies:
 ;	Any
@@ -782,11 +785,10 @@ DEFPROC	ctrlc,FAR
 	push	ss
 	pop	es
 	mov	bx,ds:[PSP_HEAP]
-	mov	sp,[bx].ORIG_SP
-	mov	bp,[bx].ORIG_BP
-	call	closeFile
+	lea	sp,[bx].STACK + size STACK
+	call	closeInput
 	mov	dl,SFH_NONE
-	xchg	dl,[sfhOut]
+	xchg	dl,[bx].SFH_STDOUT
 	cmp	dl,SFH_NONE
 	je	cc9
 	mov	ds:[PSP_PFT][STDOUT],dl
@@ -1041,19 +1043,19 @@ DEFPROC	cmdHelp
 	pop	ds
 	mov	si,offset HELP_FILE	; DS:SI -> filename
 	push	dx
-	call	openFile
+	call	openInput
 	pop	dx
 	pop	ds
 	jc	h3
 	push	cx
 	sub	cx,cx
-	call	seekFile		; seek to 0:DX
+	call	seekInput		; seek to 0:DX
 	pop	cx
 	mov	al,CHR_CTRLZ
 	push	ax
 	sub	sp,cx			; allocate CX bytes from the stack
 	mov	si,sp
-	call	readFile		; read CX bytes into DS:SI
+	call	readInput		; read CX bytes into DS:SI
 	jc	h2c
 ;
 ; Keep track of the current line's available characters (DL) and maximum
@@ -1078,7 +1080,7 @@ h2b:	call	printNewLine
 
 h2c:	add	sp,cx			; deallocate the stack space
 	pop	ax
-	call	closeFile
+	call	closeInput
 	ret
 
 h3:	PRINTF	<"No help available",13,10>
@@ -1350,7 +1352,7 @@ DEFPROC	cmdLoad
 	mov	dx,offset BAS_EXT
 	call	addString
 
-lf1:	call	openFile		; open the specified file
+lf1:	call	openInput		; open the specified file
 	jnc	lf1b
 	cmp	si,di			; was there an extension?
 	jne	lf1a			; yes, give up
@@ -1416,7 +1418,7 @@ lf4:	mov	si,[pLineBuf]		; DS:SI has been adjusted
 	mov	ax,size LINEBUF
 	sub	ax,cx
 	xchg	cx,ax
-	call	readFile
+	call	readInput
 	pop	si
 	pop	cx
 	jc	lf4x
@@ -1494,7 +1496,7 @@ lf11:	call	freeAllText
 	stc
 
 lf12:	pushf
-	call	closeFile
+	call	closeInput
 	popf
 	LEAVE
 	ret
@@ -1709,14 +1711,14 @@ ENDPROC	cmdver
 ;
 DEFPROC	cmdType
 	ASSERT	STRUCT,[bx],CMD
-	call	openFile		; SI -> filename
+	call	openInput		; SI -> filename
 	jc	openError
 	mov	si,PSP_DTA		; SI -> DTA (used as a read buffer)
 ty1:	mov	cx,size PSP_DTA		; CX = number of bytes to read
-	call	readFile
-	jc	closeFile
+	call	readInput
+	jc	closeInput
 	test	ax,ax			; anything read?
-	jz	closeFile		; no
+	jz	closeInput		; no
 	push	bx
 	mov	bx,STDOUT
 	xchg	cx,ax			; CX = number of bytes to write
@@ -1728,7 +1730,7 @@ ENDPROC	cmdType
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; openFile
+; openInput
 ;
 ; Open the specified file; used by "LOAD" and "TYPE".  As an added bonus,
 ; return the size of the file in DX:AX.
@@ -1738,12 +1740,12 @@ ENDPROC	cmdType
 ;	DS:SI -> filename
 ;
 ; Outputs:
-;	If carry clear, HDL_FILE is updated, and DX:AX is the file size
+;	If carry clear, HDL_INPUT is updated, and DX:AX is the file size
 ;
 ; Modifies:
 ;	AX, DX
 ;
-DEFPROC	openFile
+DEFPROC	openInput
 	push	bx
 	push	cx
 	mov	dx,si			; DX -> filename
@@ -1751,7 +1753,7 @@ DEFPROC	openFile
 	int	21h
 	jc	of9
 	ASSERT	STRUCT,[bx],CMD
-	mov	[bx].HDL_FILE,ax	; save file handle
+	mov	[bx].HDL_INPUT,ax	; save file handle
 	xchg	bx,ax			; BX = handle
 	sub	cx,cx
 	sub	dx,dx
@@ -1771,11 +1773,11 @@ of9:	pop	cx
 	PRINTF	<"Unable to open %s (%d)",13,10,13,10>,dx,ax
 	stc
 	ret
-ENDPROC	openFile
+ENDPROC	openInput
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; closeFile
+; closeInput
 ;
 ; Close the default file handle.
 ;
@@ -1788,11 +1790,11 @@ ENDPROC	openFile
 ; Modifies:
 ;	AX
 ;
-DEFPROC	closeFile
+DEFPROC	closeInput
 	push	bx
 	sub	ax,ax
 	ASSERT	STRUCT,[bx],CMD
-	xchg	ax,[bx].HDL_FILE
+	xchg	ax,[bx].HDL_INPUT
 	test	ax,ax
 	jz	cf9
 	xchg	bx,ax
@@ -1800,11 +1802,11 @@ DEFPROC	closeFile
 	int	21h
 cf9:	pop	bx
 	ret
-ENDPROC	closeFile
+ENDPROC	closeInput
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; readFile
+; readInput
 ;
 ; Read CX bytes from the default file into the buffer at DS:SI.
 ;
@@ -1820,11 +1822,11 @@ ENDPROC	closeFile
 ; Modifies:
 ;	AX, DX
 ;
-DEFPROC	readFile
+DEFPROC	readInput
 	push	bx
 	mov	dx,si
 	ASSERT	STRUCT,[bx],CMD
-	mov	bx,[bx].HDL_FILE
+	mov	bx,[bx].HDL_INPUT
 	mov	ah,DOS_HDL_READ
 	int	21h
 	jnc	rf9
@@ -1832,11 +1834,11 @@ DEFPROC	readFile
 	stc
 rf9:	pop	bx
 	ret
-ENDPROC	readFile
+ENDPROC	readInput
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; seekFile
+; seekInput
 ;
 ; Seek to the specified position.
 ;
@@ -1850,15 +1852,15 @@ ENDPROC	readFile
 ; Modifies:
 ;	AX
 ;
-DEFPROC	seekFile
+DEFPROC	seekInput
 	push	bx
 	ASSERT	STRUCT,[bx],CMD
-	mov	bx,[bx].HDL_FILE
+	mov	bx,[bx].HDL_INPUT
 	mov	ax,DOS_HDL_SEEKBEG
 	int	21h
 	pop	bx
 	ret
-ENDPROC	seekFile
+ENDPROC	seekInput
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1882,9 +1884,9 @@ ENDPROC	seekFile
 ;
 DEFPROC	findFile
 	push	dx
-	call	openFile		; returns file size too, but we
+	call	openInput		; returns file size too, but we
 	jc	ff9			; don't care (TODO: any perf impact)?
-	call	closeFile
+	call	closeInput
 ff9:	pop	dx
 	ret
 ENDPROC	findFile

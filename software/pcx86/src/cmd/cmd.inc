@@ -294,38 +294,43 @@ SBLKDEF		db size BLKDEF dup (?)	; 012h: string block chain
 TBLKDEF		db size BLKDEF dup (?)	; 018h: text block chain
 INPUTBUF	db size INPBUF dup (?)	; 01Eh
 TOKENBUF	db size TOKBUF dup (?)	; 120h
-STACK		dw 512 dup (?)		; 322h
-ORIG_SP		dw	?		; 722h
-ORIG_BP		dw	?		; 724h
-HDL_FILE	dw	?		; 726h
-CMD_SIG		db	?		; 728h
-CMD_ARG		db	?		; 729h: index of 1st arg
-CMD_ARGPTR	dw	?		; 72Ah: offset of current arg
-CMD_ARGLEN	dw	?		; 72Ch: length of current arg
-CON_COLS	db	?		; 72Eh
-CON_ROWS	db	?		; 72Fh
-CMD_FLAGS	db	?		; 730h: see CMD_* flags
-GEN_FLAGS	db	?		; 731h: see GEN_* flags
-ERR_CODE	db	?		; 732h
-DEF_PARMS	db	?		; 733h
-LINE_PTR	dd	?		; 734h
-LINE_LEN	dw	?		; 738h
-LINE_NUM	dw	?		; 73Ah
-PREV_TIME	dd	?		; 73Ch: last time displayed by cmdTime
-RND_SEED	dd	?		; 740h: pseudo-random number seed
-INPUT_BUF	dw	?		; 744h: input offset (default INPUTBUF)
-TOKLET_NEXT	dw	?		; 746h
-TOKLET_END	dw	?		; 748h
-SW_DIGITS	dw	?		; 74Ah: bit mask of digit switches
-SW_LETTERS	dd	?		; 74Ch: bit mask of letter switches
-LINEBUF		db 256 dup (?)		; 750h
-DEFVARS		db 26 dup (?)		; 850h: default types for 26 letters
-FILENAME	db 16 dup (?)		; 86Ah: template ("X:XXXXXXXX.XXX")
-EXECDATA	db size EPB dup (?)	; 87Ah: Exec Parameter Block
-CMDHEAP		ends			; 890h
+STACK		dw  512 dup (?)		; 322h
+HDL_INPUT	dw	?		; 722h: 0 if unused
+HDL_OUTPUT	dw	?		; 724h: 0 if unused
+NUM_PIPES	db	?		; 726h: 0 if none used (8 max)
+NUM_SCBS	db	?		; 727h: 0 if none used (8 max)
+HDL_PIPES	dw    8 dup (?)		; 728h: handles for up to 8 pipes
+SCB_ARRAY	db    8 dup (?)		; 738h: IDs for up to 8 sessions
+SFH_STDIN	db	?		; 740h: SFH_NONE (-1) if unused
+SFH_STDOUT	db	?		; 741h: SFH_NONE (-1) if unused
+CMD_SIG		db	?		; 742h: SIG_CMD
+CMD_ARG		db	?		; 743h: index of 1st arg
+CON_COLS	db	?		; 744h: # cols in console
+CON_ROWS	db	?		; 745h: # rols in console
+CMD_FLAGS	db	?		; 746h: see CMD_* flags
+GEN_FLAGS	db	?		; 747h: see GEN_* flags
+ERR_CODE	db	?		; 748h
+DEF_PARMS	db	?		; 749h
+CMD_ARGPTR	dw	?		; 74Ah: offset of current arg
+CMD_ARGLEN	dw	?		; 74Ch: length of current arg
+LINE_NUM	dw	?		; 74Eh
+LINE_LEN	dw	?		; 750h
+LINE_PTR	dd	?		; 752h
+PREV_TIME	dd	?		; 756h: last time displayed by cmdTime
+RND_SEED	dd	?		; 75Ah: pseudo-random number seed
+INPUT_BUF	dw	?		; 75Eh: input offset (default INPUTBUF)
+TOKLET_NEXT	dw	?		; 760h
+TOKLET_END	dw	?		; 762h
+SW_DIGITS	dw	?		; 764h: bit mask of digit switches
+SW_LETTERS	dd	?		; 766h: bit mask of letter switches
+LINEBUF		db  256 dup (?)		; 76Ah
+DEFVARS		db   26 dup (?)		; 86Ah: default types for 26 letters
+FILENAME	db   16 dup (?)		; 884h: template ("X:XXXXXXXX.XXX")
+EXECDATA	db size EPB dup (?)	; 894h: Exec Parameter Block
+CMDHEAP		ends			; 8AAh
 SIG_CMD		equ	'H'
 
-	ASSERT	<SIZE CMDHEAP>,EQ,890h
+	ASSERT	<SIZE CMDHEAP>,EQ,8AAh
 
 ;
 ; The initial stack frame created by the main function can also be used to
