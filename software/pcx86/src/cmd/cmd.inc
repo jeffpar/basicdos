@@ -303,7 +303,7 @@ SFH_STDOUT	db	?		; 331h: SFH_NONE (-1) if unused
 CMD_SIG		db	?		; 332h: SIG_CMD
 CMD_ARG		db	?		; 333h: index of 1st arg
 CON_COLS	db	?		; 334h: # cols in console
-CON_ROWS	db	?		; 335h: # rols in console
+CON_ROWS	db	?		; 335h: # rows in console
 CMD_FLAGS	db	?		; 336h: see CMD_* flags
 GEN_FLAGS	db	?		; 337h: see GEN_* flags
 ERR_CODE	db	?		; 338h
@@ -324,6 +324,16 @@ LINEBUF		db  256 dup (?)		; 35Ah
 DEFVARS		db   26 dup (?)		; 45Ah: default types for 26 letters
 FILENAME	db   16 dup (?)		; 474h: template ("X:XXXXXXXX.XXX")
 EXECDATA	db size EPB dup (?)	; 484h: Exec Parameter Block
+;
+; The BASIC-DOS loader always set the stack pointer for a COM file to the top
+; of the segment, which means we must declare our stack at the end of CMDHEAP.
+; The entire heap is zero-initialized and we don't want any interrupts trashing
+; memory that we rely on being zeroed.
+;
+; TODO: Consider adding a STACKPTR field to the COMDATA structure so that a
+; COM file can request the stack be located elsewhere, since there's no way for
+; us to prevent a hardware interrupt from arriving before switching stacks.
+;
 STACK		dw  512 dup (?)		; 49Ah
 CMDHEAP		ends			; 89Ah
 SIG_CMD		equ	'H'

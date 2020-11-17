@@ -29,25 +29,14 @@ DEFPROC	main
 	int	21h
 	jnc	m0			; carry clear if BASIC-DOS
 	mov	dx,offset WRONG_OS
-	mov	ah,DOS_TTY_PRINT
-	int	21h
+	mov	ah,DOS_TTY_PRINT	; use DOS_TTY_PRINT instead of PRINTF
+	int	21h			; since PC DOS wouldn't understand that
 	ret
 	DEFSTR	WRONG_OS,<"BASIC-DOS required",13,10,'$'>
 
 m0:	mov	bx,ds:[PSP_HEAP]
 	DBGINIT	STRUCT,[bx],CMD
 	mov	word ptr [bx].CON_COLS,ax
-;
-; The BASIC-DOS loader assumes we'll be happy with a stack at the top of
-; the segment, but we declare our stack at a specific location within CMDHEAP.
-; However, to prevent interrupts from trashing any zero-initialized portions
-; of CMDHEAP, we still position the stack at the top end of the heap.
-;
-; TODO: Consider adding a STACKPTR field to the COMDATA structure so that a
-; COM file can be explicit about where it wants the stack.
-;
-	lea	sp,[bx].STACK + size STACK
-	DPRINTF	'p',<"Set COMMAND stack @%08lx\r\n">,sp,ss
 	sub	ax,ax
 	mov	[bx].HDL_INPUT,ax
 	mov	[bx].HDL_OUTPUT,ax
@@ -122,6 +111,68 @@ m2:	mov	si,[bx].INPUT_BUF
 	call	cleanUp
 	jmp	m1
 ENDPROC	main
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cleanUp
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	DS = ES = SS
+;	BX -> CMDHEAP
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cleanUp
+	push	ss
+	pop	ds
+	push	ss
+	pop	es
+
+	mov	bx,5
+cu1:	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	inc	bx
+	cmp	bx,size PSP_PFT
+	jb	cu1
+
+	mov	bx,ds:[PSP_HEAP]
+	mov	[bx].HDL_INPUT,0
+
+	mov	dl,SFH_NONE
+	xchg	dl,[bx].SFH_STDOUT
+	cmp	dl,SFH_NONE
+	je	cu9
+	mov	ds:[PSP_PFT][STDOUT],dl
+cu9:	ret
+ENDPROC	cleanUp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ctrlc
+;
+; CTRLC handler to clean up the last operation, reset the program stack,
+; free any active code buffer, and then jump to our start address.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	DS = ES = SS
+;	BX -> CMDHEAP
+;
+; Modifies:
+;	Any
+;
+DEFPROC	ctrlc,FAR
+	call	cleanUp
+	lea	sp,[bx].STACK + size STACK
+	call	freeAllCode
+	jmp	m1
+ENDPROC	ctrlc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -776,68 +827,6 @@ DEFPROC	getToken
 gt8:	pop	bx
 gt9:	ret
 ENDPROC	getToken
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; cleanUp
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	DS = ES = SS
-;	BX -> CMDHEAP
-;
-; Modifies:
-;	Any
-;
-DEFPROC	cleanUp
-	push	ss
-	pop	ds
-	push	ss
-	pop	es
-
-	mov	bx,5
-cu1:	mov	ah,DOS_HDL_CLOSE
-	int	21h
-	inc	bx
-	cmp	bx,size PSP_PFT
-	jb	cu1
-
-	mov	bx,ds:[PSP_HEAP]
-	mov	[bx].HDL_INPUT,0
-
-	mov	dl,SFH_NONE
-	xchg	dl,[bx].SFH_STDOUT
-	cmp	dl,SFH_NONE
-	je	cu9
-	mov	ds:[PSP_PFT][STDOUT],dl
-cu9:	ret
-ENDPROC	cleanUp
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; ctrlc
-;
-; CTRLC handler to clean up the last operation, free any active code buffer,
-; reset the program stack, and then jump to our start address.
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	DS = ES = SS
-;	BX -> CMDHEAP
-;
-; Modifies:
-;	Any
-;
-DEFPROC	ctrlc,FAR
-	call	cleanUp
-	call	freeAllCode
-	lea	sp,[bx].STACK + size STACK
-	jmp	m1
-ENDPROC	ctrlc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1732,7 +1721,7 @@ ver1:	test	cx,1			; CX bit 0 set if BASIC-DOS DEBUG ver
 	mov	cx,offset DBG_VER
 ver9:	PRINTF	<13,10,"BASIC-DOS Version %bd.%02bd%c %ls",13,10,13,10>,ax,dx,bx,cx,cs
 	ret
-ENDPROC	cmdver
+ENDPROC	cmdVer
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
