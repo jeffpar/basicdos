@@ -22,25 +22,42 @@ CODE    SEGMENT
 
 DEFPROC	main
 ;
+; Get the current session's screen dimensions (AL=cols, AH=rows).
+;
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETDIM
+	mov	bx,STDOUT
+	int	21h
+	jnc	m0			; carry clear if BASIC-DOS
+	mov	dx,offset WRONG_OS
+	mov	ah,DOS_TTY_PRINT
+	int	21h
+	ret
+	DEFSTR	WRONG_OS,<"BASIC-DOS required",13,10,'$'>
+
+m0:	mov	bx,ds:[PSP_HEAP]
+	DBGINIT	STRUCT,[bx],CMD
+	mov	word ptr [bx].CON_COLS,ax
+;
 ; The BASIC-DOS loader assumes we'll be happy with a stack at the top of
-; the segment, but our stack is in a specific location within CMDHEAP.
+; the segment, but we declare our stack at a specific location within CMDHEAP.
+; However, to prevent interrupts from trashing any zero-initialized portions
+; of CMDHEAP, we still position the stack at the top end of the heap.
 ;
 ; TODO: Consider adding a STACKPTR field to the COMDATA structure so that a
 ; COM file can be explicit about where it wants the stack.
 ;
-	mov	bx,ds:[PSP_HEAP]
-	DBGINIT	STRUCT,[bx],CMD
-	lea	ax,[bx].STACK + size STACK
-
-	DPRINTF	'p',<"Set COMMAND stack @%08lx\r\n">,ax,ss
-
-	xchg	sp,ax
+	lea	sp,[bx].STACK + size STACK
+	DPRINTF	'p',<"Set COMMAND stack @%08lx\r\n">,sp,ss
 	sub	ax,ax
 	mov	[bx].HDL_INPUT,ax
-	mov	[bx].HDL_OUTPUT,ax	; initialize NUM_PIPES and NUM_SCBS
-	mov	word ptr [bx].NUM_PIPES,ax
+	mov	[bx].HDL_OUTPUT,ax
+	mov	[bx].NUM_SCBS,ax
 	dec	ax			; initialize SFH_STDIN and SFH_STDOUT
 	mov	word ptr [bx].SFH_STDIN,ax
+;
+; Install CTRLC handler.  DS = CS only for the first instance; additional
+; instances of the interpreter will have their own DS but share a common CS.
+;
 	push	ds
 	push	cs
 	pop	ds
@@ -48,13 +65,6 @@ DEFPROC	main
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	int	21h
 	pop	ds
-
-	push	bx
-	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETDIM
-	mov	bx,STDOUT
-	int	21h
-	pop	bx
-	mov	word ptr [bx].CON_COLS,ax
 
 	PRINTF	<"BASIC-DOS Interpreter",13,10,13,10>
 ;
@@ -88,7 +98,7 @@ DEFPROC	main
 m1:	mov	ah,DOS_DSK_GETDRV
 	int	21h
 	add	al,'A'			; AL = current drive letter
-	PRINTF	<"%c",CHR_GT>,ax
+	PRINTF	<"%c",CHR_GT>,ax	; print drive letter and '>' symbol
 
 	lea	dx,[bx].INPUTBUF
 	mov	[bx].INPUT_BUF,dx
@@ -109,11 +119,7 @@ m2:	mov	si,[bx].INPUT_BUF
 ;
 ; Since command handlers may change most registers, restore our defaults.
 ;
-	push	ss
-	pop	ds
-	push	ss
-	pop	es
-	mov	bx,ds:[PSP_HEAP]
+	call	cleanUp
 	jmp	m1
 ENDPROC	main
 
@@ -204,7 +210,8 @@ DEFPROC	parseDOS
 ; continue scanning TOKENBUF.
 ;
 	push	bp
-	mov	bp,ds:[PSP_HEAP]
+	mov	bp,bx			; use BP to access CMDHEAP instead
+	ASSERT	STRUCT,[bp],CMD
 	mov	al,[di].TOK_CNT
 	ASSERT	Z,<test ah,ah>
 	add	ax,ax
@@ -233,8 +240,17 @@ pd4:	push	bx
 	mov	al,0
 	mov	bx,[di].TOK_DATA[bx].TOKLET_OFF
 	xchg	[bx],al			; null-terminated (AL = symbol)
-	mov	dx,bx			; DX is offset of symbol
+;
+; If the symbol is '|', open a pipe.
+;
+	cmp	al,'|'
+	clc
+	jne	pd4a
+	call	openPipe
+
+pd4a:	mov	dx,bx			; DX is offset of symbol
 	pop	bx
+	jc	pd9
 
 pd5:	jcxz	pd8			; no valid initial token
 	push	ax
@@ -250,7 +266,7 @@ pd6:	pop	si
 	push	bx			; cmdDOS can modify most registers
 	push	di			; so save anything not already saved
 	push	ds
-	mov	bx,ds:[PSP_HEAP]
+	mov	bx,bp
 	call	cmdDOS
 	pop	ds
 	pop	di
@@ -752,8 +768,8 @@ DEFPROC	getToken
 	add	bx,bx
 	add	bx,bx			; BX = BX * 4 (size TOKLET)
 	ASSERT	<size TOKLET>,EQ,4
-	mov	si,[di+bx].TOK_DATA.TOKLET_OFF
-	mov	cl,[di+bx].TOK_DATA.TOKLET_LEN
+	mov	si,[di].TOK_DATA[bx].TOKLET_OFF
+	mov	cl,[di].TOK_DATA[bx].TOKLET_LEN
 	cmp	byte ptr [si],1		; if token is a null, treat as error
 	jb	gt8
 	sub	ch,ch			; set ZF on success, too
@@ -763,10 +779,7 @@ ENDPROC	getToken
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ctrlc
-;
-; CTRLC handler: resets the program stack, closes any open handles, frees any
-; active code buffer, and then jumps to our start address.
+; cleanUp
 ;
 ; Inputs:
 ;	None
@@ -774,25 +787,55 @@ ENDPROC	getToken
 ; Outputs:
 ;	DS = ES = SS
 ;	BX -> CMDHEAP
-;	SP reset
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cleanUp
+	push	ss
+	pop	ds
+	push	ss
+	pop	es
+
+	mov	bx,5
+cu1:	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	inc	bx
+	cmp	bx,size PSP_PFT
+	jb	cu1
+
+	mov	bx,ds:[PSP_HEAP]
+	mov	[bx].HDL_INPUT,0
+
+	mov	dl,SFH_NONE
+	xchg	dl,[bx].SFH_STDOUT
+	cmp	dl,SFH_NONE
+	je	cu9
+	mov	ds:[PSP_PFT][STDOUT],dl
+cu9:	ret
+ENDPROC	cleanUp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ctrlc
+;
+; CTRLC handler to clean up the last operation, free any active code buffer,
+; reset the program stack, and then jump to our start address.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	DS = ES = SS
+;	BX -> CMDHEAP
 ;
 ; Modifies:
 ;	Any
 ;
 DEFPROC	ctrlc,FAR
-	push	ss
-	pop	ds
-	push	ss
-	pop	es
-	mov	bx,ds:[PSP_HEAP]
+	call	cleanUp
+	call	freeAllCode
 	lea	sp,[bx].STACK + size STACK
-	call	closeInput
-	mov	dl,SFH_NONE
-	xchg	dl,[bx].SFH_STDOUT
-	cmp	dl,SFH_NONE
-	je	cc9
-	mov	ds:[PSP_PFT][STDOUT],dl
-cc9:	call	freeAllCode
 	jmp	m1
 ENDPROC	ctrlc
 
@@ -1677,10 +1720,8 @@ ENDPROC	cmdTime
 DEFPROC	cmdVer
 	mov	ah,DOS_MSC_GETVER
 	int	21h
-	mov	al,ah			; AH = BASIC-DOS major version
-	cbw				; moved to AX
-	mov	dl,bh			; BH = BASIC-DOS minor version
-	mov	dh,ah			; moved to DX
+	mov	al,ah			; AL = BASIC-DOS major version
+	mov	dl,bh			; DL = BASIC-DOS minor version
 	add	bl,'@'			; BL = BASIC-DOS revision
 	cmp	bl,'@'			; is revision a letter?
 	ja	ver1			; yes
@@ -1689,7 +1730,7 @@ ver1:	test	cx,1			; CX bit 0 set if BASIC-DOS DEBUG ver
 	mov	cx,offset STD_VER
 	jz	ver9
 	mov	cx,offset DBG_VER
-ver9:	PRINTF	<13,10,"BASIC-DOS Version %d.%02d%c %ls",13,10,13,10>,ax,dx,bx,cx,cs
+ver9:	PRINTF	<13,10,"BASIC-DOS Version %bd.%02bd%c %ls",13,10,13,10>,ax,dx,bx,cx,cs
 	ret
 ENDPROC	cmdver
 
@@ -1770,7 +1811,7 @@ of9:	pop	cx
 	pop	bx
 	ret
 	DEFLBL	openError,near
-	PRINTF	<"Unable to open %s (%d)",13,10,13,10>,dx,ax
+	PRINTF	<"Unable to open %ls (%d)",13,10,13,10>,si,ds,ax
 	stc
 	ret
 ENDPROC	openInput
@@ -1861,6 +1902,39 @@ DEFPROC	seekInput
 	pop	bx
 	ret
 ENDPROC	seekInput
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; openPipe
+;
+; Open a pipe.  If successful, the caller will use the handle (AX)
+; to extract the corresponding SFH from PSP_PFT and store it in both the
+; current session's PSP_PFT STDOUT slot and the next session's SPB_SFHIN.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	If carry clear, AX is new pipe handle
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	openPipe
+	push	ds
+	push	cs
+	pop	ds
+	mov	dx,offset PIPE_NAME	; DS:DX -> PIPE_NAME
+	mov	ax,DOS_HDL_OPENRW
+	int	21h
+	jnc	op1
+	push	si
+	mov	si,dx
+	call	openError
+	pop	si
+op1:	pop	ds
+	ret
+ENDPROC	openPipe
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
