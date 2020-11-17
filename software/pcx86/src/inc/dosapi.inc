@@ -265,14 +265,14 @@ PSP_CODESIZE	dw	?	; 44h: BASIC-DOS: code size (see COMHEAP)
 PSP_CHECKSUM	dw	?	; 46h: BASIC-DOS: code checksum (see COMHEAP)
 PSP_HEAPSIZE	dw	?	; 48h: BASIC-DOS: heap size (see COMHEAP)
 PSP_HEAP	dw	?	; 4Ah: BASIC-DOS: heap offset (see COMHEAP)
-PSP_RESERVED1	dw	?	; 4Ch
+		dw	?	; 4Ch
 PSP_EXCODE	db	?	; 4Eh: BASIC-DOS: exit code, if any
 PSP_EXTYPE	db	?	; 4Fh: BASIC-DOS: exit type (see EXTYPE_*)
 PSP_DISPATCH	db	3 dup(?); 50h: INT 21h/RETF
-PSP_RESERVED2	db	9 dup(?); 53h
+		db	9 dup(?); 53h
 PSP_FCB1	db     16 dup(?); 5Ch
 PSP_FCB2	db     16 dup(?); 6Ch
-PSP_RESERVED3	db	4 dup(?); 7Ch
+		db	4 dup(?); 7Ch
 PSP_CMDTAIL	db    128 dup(?); 80h: length byte, command tail, CHR_RETURN
 PSP		ends
 
@@ -301,7 +301,7 @@ SPB_SFHOUT	db	?	; 07h: SFH for STDOUT
 SPB_SFHERR	db	?	; 08h: SFH for STDERR
 SPB_SFHAUX	db	?	; 09h: SFH for STDAUX
 SPB_SFHPRN	db	?	; 0Ah: SFH for STDPRN
-SPB_PADDING	db	?	; 0Bh
+		db	?	; 0Bh: padding
 SPB		ends		; 0Ch
 
 ;
@@ -322,7 +322,7 @@ FFB		struc
 FFB_DRIVE	db	?	; 00h: drive #
 FFB_SATTR	db	?	; 01h: search attributes
 FFB_FILESPEC	db    11 dup (?); 02h: filespec
-FFB_PADDING	db     6 dup (?); 0Dh
+FFB_RESERVED	db     6 dup (?); 0Dh: reserved
 FFB_DIRNUM	dw	?	; 13h: DIRENT #
 FFB_ATTR	db	?	; 15h: file attr
 FFB_TIME	dw	?	; 16h: file time

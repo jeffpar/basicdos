@@ -40,8 +40,9 @@ m0:	mov	bx,ds:[PSP_HEAP]
 	sub	ax,ax
 	mov	[bx].HDL_INPUT,ax
 	mov	[bx].HDL_OUTPUT,ax
-	mov	[bx].NUM_SCBS,ax
+	mov	[bx].HDL_PIPE,ax
 	dec	ax			; initialize SFH_STDIN and SFH_STDOUT
+	mov	word ptr [bx].SCB_NEXT,ax
 	mov	word ptr [bx].SFH_STDIN,ax
 ;
 ; Install CTRLC handler.  DS = CS only for the first instance; additional
@@ -318,6 +319,14 @@ pd6:	pop	si
 	push	di			; so save anything not already saved
 	push	ds
 	mov	bx,bp
+;
+; When a pipe exists, cmdDOS must behave differently:
+;
+;   For built-in commands, the command must be deferred until the end.
+;
+;   For external commands, the command must be a COM/EXE file, and it must
+;   only be loaded, not executed; execution must be deferred until the end.
+;
 	call	cmdDOS
 	pop	ds
 	pop	di
@@ -733,7 +742,7 @@ DEFPROC	cmdTest
 	pop	ds
 	jc	ts9
 	xchg	bx,ax			; BX = pipe handle
-	mov	[bp].SCB_ARRAY[0],SCB_NONE
+	mov	[bp].SCB_NEXT,SCB_NONE
 	sub	sp,size SPB
 	mov	di,sp			; ES:DI -> SPB on stack
 	sub	ax,ax
@@ -755,7 +764,7 @@ DEFPROC	cmdTest
 	DOSUTIL	LOAD			; load CMDLINE into an SCB
 	lea	sp,[di + size SPB]	; clean up the stack
 	jc	ts8
-	mov	[bp].SCB_ARRAY[0],cl
+	mov	[bp].SCB_NEXT,cl
 	DOSUTIL	START			; start the SCB # specified in CL
 
 	xchg	ds:[PSP_PFT][STDOUT],dl	; modify our STDOUT SFH
@@ -785,7 +794,7 @@ DEFPROC	cmdTest
 ts8:	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the pipe
 	mov	cl,SCB_NONE
-	xchg	cl,[bp].SCB_ARRAY[0]
+	xchg	cl,[bp].SCB_NEXT
 	cmp	cl,SCB_NONE
 	je	ts9
 	DOSUTIL	WAITEND

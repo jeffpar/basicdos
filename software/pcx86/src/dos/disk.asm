@@ -244,7 +244,7 @@ DEFPROC	dsk_ffirst,DOS
 	REPMOV	byte,CS
 	pop	si
 	pop	cx
-	add	di,size FFB_PADDING
+	add	di,size FFB_RESERVED
 	ASSERT	Z,<cmp di,80h + offset FFB_DIRNUM>
 	xchg	ax,cx
 	ASSERT	Z,<test ah,ah>		; assert DIRENT # < 256 (for now)

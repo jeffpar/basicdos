@@ -15,7 +15,7 @@ ELSE
 REG_CHECK	equ	2	; add a DEBUG marker before REG_FRAME
 ENDIF
 
-WS_TEMP		struc		; REG_WS workspace used for CTRLC dispatcing
+WS_TEMP		struc		; REG_WS workspace used for CTRLC dispatching
 JMP_IP		dw	?	; 00h
 JMP_CS		dw	?	; 02h
 RET_IP		dw	?	; 04h
@@ -69,7 +69,7 @@ TMP_DH		equ	TMP_DX.HIB
 ;
 ; Session Control Block (SCB)
 ;
-; SIDEBAR: To miminize the amount of per-process information in the IVT,
+; SIDEBAR: To minimize the amount of per-process information in the IVT,
 ; we'll pretend all the apps we care about are well-behaved, which means if
 ; they want to set any of the EXRET/CTRLC/ERROR handlers, they'll use the
 ; DOS_SET_VECTOR function, which will update the SCB vectors below, rather
@@ -103,7 +103,7 @@ SCB_CTRLC_ALL	db	?	; 27h: 1 if CTRLC checking enabled on all calls
 SCB_CTRLC_ACT	db	?	; 28h: 1 if CTRLC active
 SCB_CTRLP_ACT	db	?	; 29h: 1 if CTRLP active
 SCB_SWITCHAR	db	?	; 2Ah: current switch char (eg, CHR_SLASH)
-SCB_PADDING	db	?	; 2Bh
+		db	?	; 2Bh: padding
 SCB_OWNER	dw	?	; 2Ch: PSP of owner, if any
 SCB_FILENAME	db     12 dup(?); 2Eh: buffer for drive # and filename
 SCB		ends		; 3Ah bytes (1Dh words)
@@ -162,7 +162,7 @@ SFB_SIZE	dd	?	; 1Ch: file size
 SFB_CURPOS	dd	?	; 20h: current file position
 SFB_CURCLN	dw	?	; 24h: current cluster number
 SFB_FLAGS	db	?	; 26h: see SFBF_* (initially zero)
-SFB_PADDING	db	?	; 27h
+		db	?	; 27h: padding
 SFB_OWNER	dw	?	; 28h: PSP of owner (used if SFBF_FCB set)
 SFB_FCB		dd	?	; 2Ah: FCB address, if SFBF_FCB set
 SFB		ends
