@@ -211,7 +211,7 @@ DEFPROC	utl_printf,DOS
 pf7:	call	write_string		; write string to STDOUT
 pf8:	add	sp,BUFLEN		; carry should always be clear now
 	ret
-ENDPROC	utl_printf endp
+ENDPROC	utl_printf
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -262,7 +262,7 @@ dp8:	mov	al,0			; AL = null terminator
 	inc	ax			; count null terminator
 	add	[bp].REG_IP,ax		; update REG_IP with length in AX
 	ret
-ENDPROC	utl_dprintf endp
+ENDPROC	utl_dprintf
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -759,7 +759,7 @@ tc4a:	cmp	ah,CLS_OCT OR CLS_HEX
 	jne	tc4b
 	and	ah,CLS_OCT
 	mov	ch,ah			; change previous class as well
-tc4b:	ret				; to avoid unnecesary token transition
+tc4b:	ret				; to avoid unnecessary token transition
 ;
 ; Check for letters next.
 ;
@@ -782,7 +782,7 @@ cl5a:	cmp	al,'A'
 	jne	cl5c
 	and	ah,CLS_HEX
 cl5b:	mov	ch,ah			; change previous class as well
-	ret				; to avoid unnecesary token transition
+	ret				; to avoid unnecessary token transition
 cl5c:	cmp	al,'O'
 	jne	cl5d
 	and	ah,CLS_OCT
@@ -826,7 +826,7 @@ ENDPROC	tok_classify
 ;
 ; The main advantage of this function is that, by requiring the TOKTBL
 ; to be sorted, it can use a binary search to find the token faster.  For
-; small token tables, that's probably insigificant, but for larger tables
+; small token tables, that's probably insignificant, but for larger tables
 ; (eg, BASIC keywords), the difference will presumably add up.
 ;
 ; Inputs:

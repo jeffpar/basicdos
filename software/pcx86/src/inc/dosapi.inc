@@ -296,11 +296,11 @@ EPB		ends		; 16h
 SPB		struc
 SPB_ENVSEG	dw	?	; 00h: seg of environment (0 to copy caller)
 SPB_CMDLINE	dd	?	; 02h: pointer to command line (NOT just tail)
-SPB_SFHIN	db	?	; 06h: SFH for STDIN
-SPB_SFHOUT	db	?	; 07h: SFH for STDOUT
-SPB_SFHERR	db	?	; 08h: SFH for STDERR
-SPB_SFHAUX	db	?	; 09h: SFH for STDAUX
-SPB_SFHPRN	db	?	; 0Ah: SFH for STDPRN
+SPB_SFHIN	db	?	; 06h: SFH for STDIN  (SFH_NONE for default)
+SPB_SFHOUT	db	?	; 07h: SFH for STDOUT (SFH_NONE for default)
+SPB_SFHERR	db	?	; 08h: SFH for STDERR (SFH_NONE for default)
+SPB_SFHAUX	db	?	; 09h: SFH for STDAUX (SFH_NONE for default)
+SPB_SFHPRN	db	?	; 0Ah: SFH for STDPRN (SFH_NONE for default)
 		db	?	; 0Bh: padding
 SPB		ends		; 0Ch
 

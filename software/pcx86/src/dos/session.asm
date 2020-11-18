@@ -316,7 +316,7 @@ sud1:	mov	bl,SFH_NONE
 	xchg	ax,cx			; make sure AX is zero
 	and	[bx].SCB_STATUS,NOT (SCSTAT_LOAD OR SCSTAT_START)
 ;
-; In case another session was waiting for this sesion to unload, call endwait.
+; In case another session was waiting for this session to unload, call endwait.
 ;
 	mov	di,bx
 	mov	dx,ds			; DX:DI = SCB address (the wait ID)

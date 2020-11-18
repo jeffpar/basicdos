@@ -618,7 +618,7 @@ lp2:	push	ax			; save original PSP
 	mov	dx,si			; DS:DX -> name of program
 	mov	ax,DOS_HDL_OPENRO
 	int	21h			; open the file
-	jc	lpef1
+	jc	lpf1
 	xchg	bx,ax			; BX = file handle
 
 	call	get_psp
@@ -633,7 +633,7 @@ lp2:	push	ax			; save original PSP
 	mov	[bp].TMP_CX,cx
 	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_END
 	int	21h			; returns new file position in DX:AX
-	jc	lpec1
+	jc	lpc1
 	test	dx,dx
 	jnz	lp3
 	mov	[bp].TMP_CX,ax		; record size ONLY if < 64K
@@ -651,18 +651,18 @@ lp3:	add	ax,15
 	adc	dx,0			; round DX:AX to next paragraph
 	mov	cx,16
 	cmp	dx,cx			; can we safely divide DX:AX by 16?
-	ja	lpec2			; no, the program is much too large
+	ja	lpc2			; no, the program is much too large
 	div	cx			; AX = # paras
 	mov	si,ax			; SI = # paras in file
 	add	ax,50h			; AX = min paras (10h for PSP + 40h)
 	cmp	ax,[bp].TMP_DX		; can the segment accommodate that?
-	ja	lpec2			; no
+	ja	lpc2			; no
 
 	sub	cx,cx
 	sub	dx,dx
 	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_BEG
 	int	21h			; reset file position to beginning
-	jc	lpec1
+	jc	lpc1
 ;
 ; Regardless whether this is a COM or EXE file, we're going to read the first
 ; 512 bytes (or less if that's all there is) and decide what to do next.
@@ -676,18 +676,18 @@ lp3:	add	ax,15
 	mov	ah,DOS_HDL_READ		; BX = file handle, CX = # bytes
 	int	21h
 	jnc	lp6
-lpec1:	jmp	lpec
-lpec2:	mov	ax,ERR_NOMEM
-	jmp	short lpec1
+lpc1:	jmp	lpc
+lpc2:	mov	ax,ERR_NOMEM
+	jmp	short lpc1
 
 lp6:	mov	di,dx			; DS:DI -> end of PSP
 	cmp	[di].EXE_SIG,SIG_EXE
 	je	lp6a
 	jmp	lp7
-lpef1:	jmp	lpef
+lpf1:	jmp	lpf
 
 lp6a:	cmp	ax,size EXEHDR
-	jb	lpec2			; file too small
+	jb	lpc2			; file too small
 ;
 ; Load the EXE file.  First, we move all the header data we've already read
 ; to the top of the allocated memory, then determine how much more header data
@@ -724,7 +724,7 @@ lp6b:	mov	ds,dx
 	jcxz	lp6c
 	mov	ah,DOS_HDL_READ		; BX = file handle, CX = # bytes
 	int	21h
-	jc	lpec1
+	jc	lpc1
 
 lp6c:	push	es
 	push	ds
@@ -736,7 +736,7 @@ lp6d:	mov	ds,dx
 	mov	cx,32 * 1024		; read 32K at a time
 	mov	ah,DOS_HDL_READ		; BX = file handle, CX = # bytes
 	int	21h
-	jc	lpec1
+	jc	lpc1
 	mov	dx,ds
 	cmp	ax,cx			; done?
 	jb	lp6e			; presumably
@@ -852,7 +852,7 @@ lp7:	add	dx,ax
 	mov	cx,si			; CX = maximum # bytes left to read
 	mov	ah,DOS_HDL_READ
 	int	21h
-	jc	lpec3
+	jc	lpc3
 	add	dx,ax			; DX -> end of program image
 ;
 ; We could leave the executable file open and close it on process termination,
@@ -864,13 +864,13 @@ lp7:	add	dx,ax
 lp7a:	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the file
 	jnc	lp7b
-	jmp	lpef
-lpec3:	jmp	lpec
+	jmp	lpf
+lpc3:	jmp	lpc
 
 lp7b:	mov	ds:[PSP_START].OFF,100h
 	mov	ds:[PSP_START].SEG,ds
 	mov	di,dx			; DI -> uninitialized heap space
-	mov	dx,MINHEAP SHR 4	; DX = add'l space (1Kb in paras)
+	mov	dx,MINHEAP SHR 4	; DX = additional space (1Kb in paras)
 ;
 ; Check the word at [DI-2]: if it contains SIG_BASICDOS ("BD"), then the
 ; image ends with COMDATA, where the preceding word (CD_HEAPSIZE) specifies
@@ -918,7 +918,7 @@ lp7e:	mov	bx,di			; BX = size of program image
 	add	bx,15
 	mov	cl,4
 	shr	bx,cl			; BX = size of program (in paras)
-	add	bx,dx			; add add'l space (in paras)
+	add	bx,dx			; add additional space (in paras)
 	mov	ax,bx
 	cmp	ax,1000h
 	jb	lp7f
@@ -932,7 +932,7 @@ lp7f:	shl	ax,cl			; DS:AX -> top of the segment
 lp8:	mov	ah,DOS_MEM_REALLOC	; resize ES memory block to BX paras
 	int	21h
 	jnc	lp8a
-	jmp	lpef
+	jmp	lpf
 ;
 ; Zero any additional heap paragraphs (DX) starting at ES:DI.  Note that
 ; although heap size is specified in paragraphs, it's not required to start
@@ -1036,12 +1036,12 @@ lp8b:	mov	dx,es
 ;
 ; Error paths (eg, close the file handle, free the memory for the new PSP)
 ;
-lpec:	push	ax
+lpc:	push	ax
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
 	pop	ax
 
-lpef:	push	ax
+lpf:	push	ax
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
