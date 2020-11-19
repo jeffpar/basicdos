@@ -300,8 +300,8 @@ HDL_INPIPE	dw	?		; 326h: 0 if unused
 HDL_OUTPIPE	dw	?		; 328h: 0 if unused
 SCB_NEXT	db	?		; 32Ah: SCB_NONE (-1) if unused
 		db	?		; 32Bh: unused
-SFH_STDIN	db	?		; 32Ch: SFH_NONE (-1) if unused
-SFH_STDOUT	db	?		; 32Dh: SFH_NONE (-1) if unused
+SFH_STDIN	db	?		; 32Ch: original STDIN
+SFH_STDOUT	db	?		; 32Dh: original STDOUT
 CMD_SIG		db	?		; 32Eh: SIG_CMD
 CMD_ARG		db	?		; 32Fh: index of 1st arg
 CON_COLS	db	?		; 330h: # cols in console

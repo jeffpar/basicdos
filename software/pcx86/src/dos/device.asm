@@ -158,6 +158,7 @@ dr5:	push	es			; create far pointer to DDH_REQUEST
 	push	bp
 	push	ds
 
+	ASSERT	NZ,<cmp word ptr [bp-2],0>
 	call	dword ptr [bp-4]	; far call to DDH_REQUEST
 
 	pop	ds

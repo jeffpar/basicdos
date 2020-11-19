@@ -676,10 +676,12 @@ sg1:	mov	al,size SFB		; convert SFH to SFB
 	add	ax,[sfb_table].OFF
 	cmp	ax,[sfb_table].SEG	; is the SFB valid?
 	xchg	bx,ax			; BX -> SFB
-	jb	sg9			; yes
+	jae	sg8
+	cmp	cs:[bx].SFB_REFS,0	; is the SFB open?
+	jne	sg9			; yes (carry clear)
 sg8:	mov	ax,ERR_BADHANDLE
-sg9:	cmc
-	ret
+	stc
+sg9:	ret
 ENDPROC	sfb_get
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

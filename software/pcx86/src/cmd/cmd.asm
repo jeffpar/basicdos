@@ -37,6 +37,8 @@ DEFPROC	main
 m0:	mov	bx,ds:[PSP_HEAP]
 	DBGINIT	STRUCT,[bx],CMD
 	mov	word ptr [bx].CON_COLS,ax
+	mov	ax,word ptr ds:[PSP_PFT][STDIN]
+	mov	word ptr [bx].SFH_STDIN,ax
 ;
 ; Install CTRLC handler.  DS = CS only for the first instance; additional
 ; instances of the interpreter will have their own DS but share a common CS.
@@ -92,9 +94,8 @@ m1:	mov	ah,DOS_DSK_GETDRV
 m2:	sub	ax,ax
 	mov	[bx].HDL_INPUT,ax
 	mov	[bx].HDL_OUTPUT,ax
-	dec	ax			; initialize SFH_STDIN and SFH_STDOUT
-	mov	word ptr [bx].SCB_NEXT,ax
-	mov	word ptr [bx].SFH_STDIN,ax
+	dec	ax
+	mov	[bx].SCB_NEXT,al
 
 	mov	si,[bx].INPUT_BUF
 	mov	cl,[si].INP_CNT
@@ -106,10 +107,6 @@ m2:	sub	ax,ax
 
 	mov	[bx].CMD_FLAGS,CMD_ECHO
 	call	parseCmd
-;
-; Since command handlers may change most registers, restore our defaults.
-;
-	call	cleanUp
 	jmp	m1
 ENDPROC	main
 
@@ -128,25 +125,22 @@ ENDPROC	main
 ;	Any
 ;
 DEFPROC	cleanUp
+	pushf
 	push	ss
 	pop	ds
 	push	ss
 	pop	es
-
 	mov	bx,5
 cu1:	mov	ah,DOS_HDL_CLOSE
 	int	21h
 	inc	bx
 	cmp	bx,size PSP_PFT
 	jb	cu1
-
 	mov	bx,ds:[PSP_HEAP]
-	mov	al,SFH_NONE
-	xchg	al,[bx].SFH_STDOUT
-	cmp	al,SFH_NONE
-	je	cu9
-	mov	ds:[PSP_PFT][STDOUT],al
-cu9:	ret
+	mov	ax,word ptr [bx].SFH_STDIN
+	mov	word ptr ds:[PSP_PFT][STDIN],ax
+	popf
+	ret
 ENDPROC	cleanUp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -213,6 +207,7 @@ pc1:	mov	dx,cs:[si].CTD_FUNC
 	mov	al,GEN_IMM
 	mov	si,[bx].INPUT_BUF
 	call	genCode
+	call	cleanUp
 	jmp	short pc9
 ;
 ; For non-BASIC commands, we have either a built-in command or an external
@@ -265,9 +260,9 @@ DEFPROC	parseDOS
 	ASSERT	<size TOKLET>,EQ,4	; AX = end of TOKLETs
 	sub	bx,bx			; BX = offset of next TOKLET
 	mov	[bp].CMD_ARG,bl		; initialize CMD_ARG to 0
-	mov	[bp].CMD_DEFER[0],bx
-	mov	[bp].HDL_INPIPE,bx
-	mov	[bp].HDL_OUTPIPE,bx
+	mov	[bp].CMD_DEFER[0],bx	; no deferred command (yet)
+	mov	[bp].HDL_INPIPE,bx	; no input pipe (yet)
+	mov	[bp].HDL_OUTPIPE,bx	; and no output pipe (yet)
 
 pd1:	push	ax			; save end of TOKLETs
 	sub	cx,cx
@@ -297,12 +292,11 @@ pd4:	push	bx
 	call	openPipe		; yes, open a pipe
 	jc	pd4a
 	mov	[bp].HDL_OUTPIPE,ax
-	cmp	[bp].SFH_STDOUT,SFH_NONE; have we already replaced STDOUT?
-	jne	pd4a			; yes
-	xchg	bx,ax			; no, so put the pipe handle in BX
-	mov	al,ds:[PSP_PFT][bx]	; to get its SFH
-	xchg	ds:[PSP_PFT][STDOUT],al	; then replace the STDOUT SFH
-	mov	[bp].SFH_STDOUT,al	; and save the original STDOUT SFH
+	cmp	[bp].CMD_ARG,0		; first command on line?
+	jne	pd4a			; no
+	xchg	bx,ax			; yes, put pipe handle in BX
+	mov	al,ds:[PSP_PFT][bx]	; get its SFH
+	mov	ds:[PSP_PFT][STDOUT],al	; and then replace the STDOUT SFH
 pd4a:	pop	bx
 	jc	pd9
 
@@ -360,7 +354,7 @@ pd9:	jc	pd9a
 	mov	ax,[bp].CMD_DEFER[0]
 	test	ax,ax			; is there a deferred command?
 	jz	pd9a			; no
-	DBGBRK
+
 	mov	dx,[bp].CMD_DEFER[2]
 	mov	si,[bp].CMD_DEFER[4]
 	mov	cx,[bp].CMD_DEFER[6]
@@ -379,7 +373,8 @@ pd9:	jc	pd9a
 	je	pd9a
 	DOSUTIL	WAITEND
 
-pd9a:	pop	ax			; discard end of TOKLETs
+pd9a:	call	cleanUp
+	pop	ax			; discard end of TOKLETs
 	pop	bp
 	ret
 ENDPROC	parseDOS
@@ -589,10 +584,11 @@ cf5:	DOSUTIL	STRLEN			; AX = length of filename in LINEBUF
 	mov	dx,si			; DS:DX -> filename
 	mov	si,[bp].CMD_ARGPTR	; recover original filename
 	add	si,cx			; DS:SI -> tail after original filename
-	cmp	[bp].CMD_ARG,0		; is this the first command?
+	sub	cx,cx
+	cmp	[bp].CMD_ARG,cl		; is this the first command?
 	jne	cf6			; no, use DOS_UTL_LOAD instead
 	lea	bx,[bp].EXECDATA
-	mov	[bx].EPB_ENVSEG,0
+	mov	[bx].EPB_ENVSEG,cx	; set ENVSEG to zero for now
 	mov	di,dx			; we used to set DI to PSP_CMDTAIL
 	add	di,ax			; but the filename is now in LINEBUF
 	inc	di			; so use the remaining space in LINEBUF
@@ -600,7 +596,6 @@ cf5:	DOSUTIL	STRLEN			; AX = length of filename in LINEBUF
 	mov	[bx].EPB_CMDTAIL.OFF,di
 	mov	[bx].EPB_CMDTAIL.SEG,es
 	inc	di			; use our tail space to build new tail
-	sub	cx,cx
 cf5a:	lodsb
 	cmp	al,CHR_RETURN		; command line may end with CHR_RETURN
 	jbe	cf5b			; or null; we don't really care
@@ -625,18 +620,21 @@ cf5b:	mov	al,CHR_RETURN		; regardless how the command line ends,
 cf5c:	mov	si,dx
 	jmp	cf8
 
-cf6:	DBGBRK
-	mov	di,dx			; DI -> filename in LINEBUF
+cf6:	mov	di,dx			; DI -> filename in LINEBUF
 	push	di
 	add	di,ax			; DI -> null
-	mov	al,' '			; replace null terminator with space
+	mov	al,' '			; replace null with space
 	stosb
 cf6a:	lodsb
-	cmp	al,CHR_RETURN		; command line may end with CHR_RETURN
+	cmp	al,CHR_RETURN		; tail may end with CHR_RETURN
 	jbe	cf6b			; or null; we don't really care
+	inc	cx
 	stosb
 	jmp	cf6a
-cf6b:	mov	al,0			; regardless how the command line ends,
+cf6b:	dec	di			; assume the tail is empty
+	jcxz	cf6c			; correct
+	inc	di			; no, so don't rewind DI after all
+cf6c:	mov	al,0			; regardless how the tail ends,
 	stosb				; null-terminate the new command line
 	pop	si			; SI -> new command line
 	sub	sp,size SPB
@@ -647,21 +645,23 @@ cf6b:	mov	al,0			; regardless how the command line ends,
 	stosw				; SPB_CMDLINE.OFF
 	mov	ax,ds
 	stosw				; SPB_CMDLINE.SEG
-	mov	al,ds:[PSP_PFT][STDIN]
+	mov	al,[bp].SFH_STDIN
 	mov	bx,[bp].HDL_INPIPE
 	test	bx,bx
-	jz	cf6c
+	jz	cf7
 	mov	al,ds:[PSP_PFT][bx]
-cf6c:	stosb				; SPB_SFHIN
-	mov	al,ds:[PSP_PFT][STDOUT]
+cf7:	stosb				; SPB_SFHIN
+	mov	al,[bp].SFH_STDOUT
 	mov	bx,[bp].HDL_OUTPIPE
 	test	bx,bx
-	jz	cf6d
+	jz	cf7a
 	mov	al,ds:[PSP_PFT][bx]
-cf6d:	stosb				; SPB_SFHOUT
+cf7a:	stosb				; SPB_SFHOUT
+	mov	al,ds:[PSP_PFT][STDERR]
 	stosb				; SPB_SFHERR
-	mov	al,SFH_NONE
+	mov	al,ds:[PSP_PFT][STDAUX]
 	stosb				; SPB_SFHAUX
+	mov	al,ds:[PSP_PFT][STDPRN]
 	stosb				; SPB_SFHPRN
 	mov	di,sp			; ES:DI -> SPB on stack
 	DOSUTIL	LOAD			; load CMDLINE into an SCB
@@ -751,8 +751,7 @@ DEFPROC	cmdTest
 	mov	[bp].SCB_NEXT,cl
 	DOSUTIL	START			; start the SCB # specified in CL
 
-	xchg	ds:[PSP_PFT][STDOUT],dl	; modify our STDOUT SFH
-	mov	[bp].SFH_STDOUT,dl
+	mov	ds:[PSP_PFT][STDOUT],dl	; modify our STDOUT SFH
 	lea	di,[bp].LINEBUF
 	push	di
 	mov	cx,TEST_FILE_LEN
@@ -767,10 +766,6 @@ DEFPROC	cmdTest
 	mov	bx,bp			; BX -> CMDHEAP
 	call	cmdType			; DS:SI -> LINEBUF
 	pop	bx
-
-	mov	dl,SFH_NONE
-	xchg	dl,[bp].SFH_STDOUT
-	mov	ss:[PSP_PFT][STDOUT],dl	; restore our STDOUT SFH
 
 	sub	cx,cx			; CX = 0 for "truncating" write
 	mov	ah,DOS_HDL_WRITE
