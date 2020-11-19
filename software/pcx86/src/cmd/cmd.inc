@@ -37,7 +37,7 @@ DEFTOK	macro	sym,val,func
 	public	TOK_&sym
 TOK_&sym equ val
 	IFNB <func>
-	EXTERNS	<func>,near
+	EXTNEAR	<func>
 	ENDIF
 CODE	SEGMENT
 N1	label	byte
@@ -77,20 +77,6 @@ DATA	SEGMENT
 val = ((offset $ - offset tbl) - 2) / (size CTOKDEF)
 DATA	ENDS
 	endm
-
-SC_GENPB	equ	71h		; do GENPUSHB
-SC_CALFN	equ	72h		; call function
-SC_PEKTK	equ	73h		; peek token
-SC_GETTK	equ	74h		; get token
-SC_LENTK	equ	75h		; check token length
-SC_MATCH	equ	76h		; if token matches CLS...
-SC_MASYM	equ	77h		; if CLS_SYM token matches char...
-SC_NEXTK	equ	78h		; get next token
-SC_GENFN	equ	79h		; do GENCALL
-
-SCF_GENXNUM	equ	0		; -> genExprNum
-SCF_GENXSTR	equ	1		; -> genExprStr
-SCF_PRTARGS	equ	2		; -> printArgs
 
 ;
 ; Keywords with IDs >= BASIC support code generation.
@@ -300,7 +286,7 @@ CMD_ECHO	equ	01h		; set if ECHO is "on"
 ; that they won't take up any space in the COM file.  The BASIC-DOS loader
 ; ensures that the remaining fields are zero-initialized.
 ;
-CMD_HEAP	struc
+CMDHEAP		struc
 CBLKDEF		db size BLKDEF dup (?)	; 000h: code block chain
 FBLKDEF		db size BLKDEF dup (?)	; 006h: function block chain
 VBLKDEF		db size BLKDEF dup (?)	; 00Ch: variable block chain
@@ -308,38 +294,61 @@ SBLKDEF		db size BLKDEF dup (?)	; 012h: string block chain
 TBLKDEF		db size BLKDEF dup (?)	; 018h: text block chain
 INPUTBUF	db size INPBUF dup (?)	; 01Eh
 TOKENBUF	db size TOKBUF dup (?)	; 120h
-STACK		dw 512 dup (?)		; 322h
-ORIG_SP		dw	?		; 722h
-ORIG_BP		dw	?		; 724h
-CON_COLS	db	?		; 726h
-CON_ROWS	db	?		; 727h
-CMD_FLAGS	db	?		; 728h: see CMD_* flags
-GEN_FLAGS	db	?		; 729h: see GEN_* flags
-ERR_CODE	db	?		; 72Ah
-DEF_PARMS	db	?		; 72Bh
-LINE_PTR	dd	?		; 72Ch
-LINE_LEN	dw	?		; 730h
-LINE_NUM	dw	?		; 732h
-PREV_TIME	dd	?		; 734h: last time displayed by cmdTime
-RND_SEED	dd	?		; 738h: pseudo-random number seed
-INPUT_BUF	dw	?		; 73Ch: input offset (default INPUTBUF)
-TOKLET_NEXT	dw	?		; 73Eh
-TOKLET_END	dw	?		; 740h
-LINEBUF		db 256 dup (?)		; 746h
-DEFVARS		db 26 dup (?)		; 846h: default types for 26 letters
-FILENAME	db 16 dup (?)		; 860h: template ("X:XXXXXXXX.XXX")
-EXECDATA	db size EPB dup (?)	; 870h: Exec Parameter Block
-CMD_HEAP	ends			; 886h
+HDL_INPUT	dw	?		; 322h: 0 if unused
+HDL_OUTPUT	dw	?		; 324h: 0 if unused
+HDL_INPIPE	dw	?		; 326h: 0 if unused
+HDL_OUTPIPE	dw	?		; 328h: 0 if unused
+SCB_NEXT	db	?		; 32Ah: SCB_NONE (-1) if unused
+		db	?		; 32Bh: unused
+SFH_STDIN	db	?		; 32Ch: original STDIN
+SFH_STDOUT	db	?		; 32Dh: original STDOUT
+CMD_SIG		db	?		; 32Eh: SIG_CMD
+CMD_ARG		db	?		; 32Fh: index of 1st arg
+CON_COLS	db	?		; 330h: # cols in console
+CON_ROWS	db	?		; 331h: # rows in console
+CMD_FLAGS	db	?		; 332h: see CMD_* flags
+GEN_FLAGS	db	?		; 333h: see GEN_* flags
+ERR_CODE	db	?		; 334h
+DEF_PARMS	db	?		; 335h
+CMD_ARGPTR	dw	?		; 336h: offset of current arg
+CMD_ARGLEN	dw	?		; 338h: length of current arg
+CMD_DEFER	dw    4 dup (?)		; 33Ah: regs for deferred command
+LINE_NUM	dw	?		; 342h
+LINE_LEN	dw	?		; 344h
+LINE_PTR	dd	?		; 346h
+PREV_TIME	dd	?		; 34Ah: last time displayed by cmdTime
+RND_SEED	dd	?		; 34Eh: pseudo-random number seed
+INPUT_BUF	dw	?		; 352h: input offset (default INPUTBUF)
+TOKLET_NEXT	dw	?		; 354h
+TOKLET_END	dw	?		; 356h
+SW_DIGITS	dw	?		; 358h: bit mask of digit switches
+SW_LETTERS	dd	?		; 35Ah: bit mask of letter switches
+LINEBUF		db  256 dup (?)		; 35Eh
+DEFVARS		db   26 dup (?)		; 45Eh: default types for 26 letters
+EXECDATA	db size EPB dup (?)	; 478h: Exec Parameter Block
+;
+; The BASIC-DOS loader always set the stack pointer for a COM file to the top
+; of the segment, which means we must declare our stack at the end of CMDHEAP.
+; The entire heap is zero-initialized and we don't want any interrupts trashing
+; memory that we rely on being zeroed.
+;
+; TODO: Consider adding a STACKPTR field to the COMDATA structure so that a
+; COM file can request the stack be located elsewhere, since there's no way for
+; us to prevent a hardware interrupt from arriving before switching stacks.
+;
+STACK		dw  512 dup (?)		; 48Eh
+CMDHEAP		ends			; 88Eh
+SIG_CMD		equ	'H'
 
-	ASSERT	<((SIZE CMD_HEAP) AND 1)>,EQ,0
+	ASSERT	<SIZE CMDHEAP>,EQ,88Eh
 
 ;
 ; The initial stack frame created by the main function can also be used to
-; access the CMD_HEAP structure, using the [heap] equate; eg:
+; access the CMDHEAP structure, using the [heap] equate; eg:
 ;
 ;	mov	al,[heap].CON_COLS
 ;
 ; This works because the main function explicitly aligns SP with the top
-; of the STACK in CMD_HEAP and then pushes exactly 2 words before setting BP.
+; of the STACK in CMDHEAP and then pushes exactly 2 words before setting BP.
 ;
 heap		equ	byte ptr [bp+4-(STACK + size STACK)]

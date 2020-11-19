@@ -11,7 +11,7 @@
 
 CODE    SEGMENT
 
-	EXTERNS	<parseDOS,freeStr>,near
+	EXTNEAR	<parseDOS,freeStr>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
@@ -44,21 +44,33 @@ DEFPROC	callDOS,FAR
 	mov	dx,[pHandler]
 	mov	cx,[cbCmdLine]		; CX = length
 	lds	si,[pCmdLine]		; DS:SI -> command
+;
+; The line at DS:SI may be sitting in LINEBUF, which is large enough to
+; accommodate lines up to 255 characters.  However, DOS commands (at least
+; external commands) are more constrained; for example, command tails
+; are limited to 127 characters (see PSP_CMDTAIL).
+;
+; Since cmdFile (the function that processes external commands) also wants
+; to use LINEBUF, we're going to copy as much as we can to space available
+; in the PSP; but instead of starting at PSP_CMDTAIL, we'll start at PSP_FCB2,
+; which provides enough room for a filename plus a command tail.
+;
 	push	ss
 	pop	es
-	mov	bx,es:[PSP_HEAP]
-	mov	bp,es:[bx].ORIG_BP	; can't access ARGVARs anymore
-	lea	di,[bx].LINEBUF		; ES:DI -> LINEBUF
-	ASSERT	B,<cmp cx,size LINEBUF>
-	push	cx
+	mov	di,PSP_FCB2		; ES:DI -> PSP_FCB2
+	cmp	cx,size PSP - PSP_FCB2 - 1
+	jbe	cd1
+	mov	cx,size PSP - PSP_FCB2 - 1
+cd1:	push	cx
 	push	es
 	push	di
 	rep	movsb
 	mov	al,0			; null-terminate for good measure
 	stosb
 	pop	si
-	pop	ds			; DS:SI -> LINEBUF
+	pop	ds			; DS:SI -> PSP_FCB2
 	pop	cx
+	mov	bx,es:[PSP_HEAP]
 	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
 	mov	[di].TOK_MAX,(size TOK_DATA) / (size TOKLET)
 	DOSUTIL	TOKIFY1

@@ -39,7 +39,7 @@ yet, but support does exist for:
   - **DEBUG** (eg, DEBUG=COM1:9600,N,8,1 to enable debug messages to COM1)
   - **FILES** (eg, FILES=20 to allocate memory for up to 20 files)
   - **MEMSIZE** (eg, MEMSIZE=32 to limit system memory usage to 32K)
-  - **REM** (for remarks -- although any unrecognized line will be ignored)
+  - **REM** (for remarks -- although any unrecognized line will be ignored, too)
   - **SESSIONS** (eg, SESSIONS=4 to allocate memory for up to 4 sessions)
   - **SHELL** (eg, SHELL=COMMAND.COM AUTOEXEC.BAT)
   - **SWITCHAR** (eg, SWITCHAR=- if you'd rather type "DATE -P" instead of "DATE /P")
@@ -55,7 +55,7 @@ followed by a small bit code to call each driver's INIT function.  If a driver
 reports that it isn't needed (eg, if no serial or parallel adapter is present),
 then the driver is discarded.
 
-If you use the `MEM` command, you'll see that BASIC-DOS includes all the
+If you type the `MEM /D` command, you'll see that BASIC-DOS includes all the
 usual built-in DOS device drivers, although the only ones that really do
 much at this point are:
 
@@ -63,6 +63,7 @@ much at this point are:
   - COM1, COM2, etc.
   - CLOCK$
   - FDC$ (yes, BASIC-DOS block drivers have names, too)
+  - PIPE$ (ie, a true pipe device)
 
 BASIC-DOS device drivers are very similar to DOS drivers.  For example,
 they use similar header and request packet structures.  But there are also
@@ -99,7 +100,7 @@ an 80-column IBM PC monitor, each running their own copy of COMMAND.COM.
 
 Sessions define a *context* within which one or more DOS programs may run,
 and the system automatically multi-tasks between sessions, providing the
-benefits a multi-tasking operating system while still supporting the traditional
+benefits a multi-tasking operating system while also supporting the traditional
 DOS application model.
 
 At the moment, the CONSOLE driver is fairly dumb -- it will create contexts

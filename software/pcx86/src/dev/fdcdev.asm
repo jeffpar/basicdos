@@ -84,7 +84,7 @@ DEFPROC	ddfdc_mediachk
 	sbb	cx,ds:[si].BPB_TIMESTAMP.SEG
 	jb	mc1		; underflow, use default
 	test	cx,cx		; large difference?
-	jnz	mc1		; yes, use defaut
+	jnz	mc1		; yes, use default
 	cmp	dx,38		; more than 2 seconds of ticks?
 	jae	mc1		; yes, use default
 	inc	ax		; change from UNKNOWN to UNCHANGED
@@ -193,7 +193,7 @@ bb6:	shr	al,1
 bb7:	ASSERT	Z		; assert CLUSSECS was a power-of-two
 	mov	es:[di].BPB_CLUSLOG2,cl
 	mov	ax,es:[di].BPB_SECBYTES
-	shl	ax,cl		; use CLOSLOG2 to calculate CLUSBYTES
+	shl	ax,cl		; use CLUSLOG2 to calculate CLUSBYTES
 	mov	es:[di].BPB_CLUSBYTES,ax
 ;
 ; Finally, calculate total clusters on the disk (total data sectors

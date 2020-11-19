@@ -140,7 +140,7 @@ BUF_NEXT	dw	?	; 02h: next buffer header paragraph
 BUF_SIZE	dw	?	; 04h: size of buffer (in bytes)
 BUF_DRIVE	db	?	; 06h: drive number of buffer data
 BUF_SIG		db	?	; 07h: (holds SIG_BUF in DEBUG builds)
-BUF_PADDING	dw	?	; 08h: unused
+		dw	?	; 08h: padding
 BUF_LBA		dw	?	; 0Ah: LBA of buffer data
 BUF_TIMESTAMP	dd	?	; 0Ch: timestamp of buffer data
 BUFHDR		ends

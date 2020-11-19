@@ -26,7 +26,7 @@ DEFPROC	main
 	pop	dx		; DX = data (if any)
 	jc	m9		; read failed
 	cmp	ax,cx		; any data returned?
-	jb	m9		; nox
+	jb	m9		; no
 ;
 ; Change the case of the data
 ;
@@ -40,6 +40,7 @@ m1:	push	dx
 	mov	bx,STDOUT
 	mov	ah,DOS_HDL_WRITE
 	int	21h
+	pop	dx
 	jnc	main
 m9:	int	20h
 ENDPROC	main

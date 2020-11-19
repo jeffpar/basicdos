@@ -12,8 +12,8 @@
 
 CODE    SEGMENT
 
-	EXTERNS	<checkSW>,near
-	EXTERNS	<PREDEF_VARS,PREDEF_ZERO>,byte
+	EXTNEAR	<checkSW>
+	EXTBYTE	<PREDEF_VARS,PREDEF_ZERO>
 
 	IFDEF	DEBUG
 	EXTSTR	<SYS_MEM,DOS_MEM,FREE_MEM>
@@ -150,12 +150,13 @@ ENDPROC	freeBlock
 ;	CX, SI
 ;
 DEFPROC	freeAllBlocks
+	clc
 	push	es
 fa1:	mov	cx,[si]
 	jcxz	fa9			; end of chain
 	mov	es,cx
 	call	freeBlock		; ES = segment of block to free
-	jmp	fa1
+	jnc	fa1
 fa9:	pop	es
 	ret
 ENDPROC	freeAllBlocks
@@ -165,7 +166,7 @@ ENDPROC	freeAllBlocks
 ; allocCode
 ;
 ; Inputs:
-;	DS:BX -> heap
+;	BX -> CMDHEAP
 ;
 ; Outputs:
 ;	If successful, carry clear, ES:DI -> first available byte, CX = length
@@ -344,7 +345,7 @@ ENDPROC	freeAllText
 ; Allocates a var block if one is not already allocated.
 ;
 ; Inputs:
-;	DS:BX -> heap
+;	BX -> CMDHEAP
 ;
 ; Outputs:
 ;	If successful, carry clear, ES:DI -> first available byte, CX = length
@@ -846,7 +847,7 @@ ENDPROC	setVar
 ; Prints memory usage.  Use /D to display segment-level detail.
 ;
 ; Inputs:
-;	DS:BX -> heap (not used)
+;	BX -> CMDHEAP (not used)
 ;
 ; Outputs:
 ;	None

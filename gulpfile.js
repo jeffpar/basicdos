@@ -91,7 +91,8 @@ let disks = {
     ],
     "BDS-SRC": [
         "./software/pcx86/src/**"
-    ]
+    ],
+    "PCDOS200-C400": "./software/pcx86/disks/PCDOS200-C400.json"
 };
 
 let watchTasks = [];
@@ -101,7 +102,12 @@ for (let diskName in disks) {
     let archiveImage = "";
     let diskFiles = "";
     let kbTarget = 160;
-    if (disks[diskName].length == 1) {
+    if (typeof disks[diskName] == "string") {
+        kbTarget = 10000;
+        diskFiles = "--disk " + disks[diskName];
+        diskImage = diskImage.replace(diskName, "archive/" + diskName).replace(".json",".hdd");
+    }
+    else if (disks[diskName].length == 1) {
         kbTarget = 10000;
         diskFiles = "--dir " + path.dirname(disks[diskName][0]);
         archiveImage = " --normalize --output " + diskImage.replace(diskName, "archive/" + diskName).replace(".json",".hdd");

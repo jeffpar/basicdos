@@ -12,17 +12,17 @@
 
 CODE    SEGMENT
 
-	EXTERNS	<allocCode,shrinkCode,freeCode,freeAllCode>,near
-	EXTERNS	<allocVars,allocFunc,freeFunc>,near
-	EXTERNS	<allocTempVars,updateTempVars,freeTempVars>,near
-	EXTERNS	<addVar,findVar,getVar,removeVar,setVar,setVarLong>,near
-	EXTERNS	<memError>,near
-	EXTERNS	<clearScreen,callDOS,printArgs,printEcho,printLine>,near
-	EXTERNS	<setColor,setFlags>,near
+	EXTNEAR	<allocCode,shrinkCode,freeCode,freeAllCode>
+	EXTNEAR	<allocVars,allocFunc,freeFunc>
+	EXTNEAR	<allocTempVars,updateTempVars,freeTempVars>
+	EXTNEAR	<addVar,findVar,getVar,removeVar,setVar,setVarLong>
+	EXTNEAR	<memError>
+	EXTNEAR	<clearScreen,callDOS,printArgs,printEcho,printLine>
+	EXTNEAR	<setColor,setFlags>
 
-	EXTERNS	<KEYWORD_TOKENS,KEYOP_TOKENS>,word
-	EXTERNS	<OPDEFS_LONG,OPDEFS_STR,RELOPS>,byte
-	EXTERNS	<TOK_ELSE,TOK_OFF,TOK_ON,TOK_THEN>,abs
+	EXTWORD	<KEYWORD_TOKENS,KEYOP_TOKENS>
+	EXTBYTE	<OPDEFS_LONG,OPDEFS_STR,RELOPS>
+	EXTABS	<TOK_ELSE,TOK_OFF,TOK_ON,TOK_THEN>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -865,7 +865,7 @@ ge6a:	push	si			; push current evaluator
 ge6b:	jmp	ge1			; next token
 ;
 ; We just popped an operator with no evaluator; if it's a left paren,
-; we're done; otherwise, igeore it (eg, unary '+').
+; we're done; otherwise, ignore it (eg, unary '+').
 ;
 ge6c:	cmp	dl,'('
 	je	ge6b
@@ -1194,11 +1194,11 @@ ENDPROC	genGoto
 ;
 DEFPROC	genIf
 	call	genExpr
-	jbe	gife
+	jbe	gif9
 	cmp	ah,CLS_KEYWORD
-	jne	gife
+	jne	gif9
 	cmp	al,TOK_THEN
-	jne	gife
+	jne	gif9
 	mov	ax,OP_POP_DX_AX
 	stosw
 	mov	ax,OP_OR_AX_DX
@@ -1221,7 +1221,7 @@ gif8:	pop	ax			; AX = old DI
 	add	di,dx
 	ASSERT	NC
 	ret
-gife:	stc
+gif9:	stc
 	ret
 ENDPROC	genIf
 
@@ -1313,7 +1313,7 @@ gp3:	GENPUSHB al
 	cmp	al,','			; how about a comma?
 	jne	gp8			; no
 gp6:	GENPUSHB ah			; "MOV AL,[VAR_SEMI or VAR_COMMA]"
-	jmp	gp1			; contine processing arguments
+	jmp	gp1			; continue processing arguments
 gp8:	GENCALL	printArgs		; all done
 gp9:	ret
 ENDPROC	genPrint
@@ -1553,12 +1553,12 @@ ENDPROC	genPushBPOffset
 ;
 DEFPROC	genPushVarPtr
 	cmp	dx,[defVarSeg]
-	je	gpvp1
+	je	gpv1
 	call	genPushImm
-	jmp	short gpvp2
-gpvp1:	mov	al,OP_PUSH_DS
+	jmp	short gpv2
+gpv1:	mov	al,OP_PUSH_DS
 	stosb
-gpvp2:	mov	dx,si
+gpv2:	mov	dx,si
 	DEFLBL	genPushImm,near
 	mov	al,OP_MOV_AX
 	stosb
@@ -1611,7 +1611,7 @@ ENDPROC	genPushImmByteAL
 ;	MOV	AX,xxxx
 ;	CWD
 ;	PUSH	DX
-;	PUSX	AX
+;	PUSH	AX
 ;
 ; and if CX (xxxx) is zero, it can be simplified to a 4-byte sequence
 ; (ie, genPushZeroLong):
@@ -1639,7 +1639,7 @@ DEFPROC	genPushImmLong
 	cmp	dx,cx			; same as original DX?
 	xchg	cx,ax			; AX contains original DX, CX restored
 	xchg	dx,ax			; DX restored
-	jne	gpil7			; no, DX is not the same
+	jne	gpi7			; no, DX is not the same
 	jcxz	genPushZeroLong		; jump if we can zero AX as well
 	mov	al,OP_MOV_AX
 	stosb
@@ -1647,8 +1647,8 @@ DEFPROC	genPushImmLong
 	stosw
 	mov	ax,OP_CWD OR (OP_PUSH_DX SHL 8)
 	stosw
-	jmp	short gpil8
-gpil7:	mov	al,OP_MOV_AX
+	jmp	short gpi8
+gpi7:	mov	al,OP_MOV_AX
 	stosb
 	xchg	ax,dx
 	stosw
@@ -1656,7 +1656,7 @@ gpil7:	mov	al,OP_MOV_AX
 	stosw
 	xchg	ax,cx
 	stosw
-gpil8:	mov	al,OP_PUSH_AX
+gpi8:	mov	al,OP_PUSH_AX
 	stosb
 	ret
 ENDPROC	genPushImmLong
@@ -1738,26 +1738,26 @@ ENDPROC	genPushZeroLong
 DEFPROC	genPushVarLong
 	push	ax
 	cmp	dx,[defVarSeg]
-	je	gpvl1
+	je	gpl1
 	mov	al,OP_MOV_AX
 	stosb
 	xchg	ax,dx
 	stosw
 	mov	ax,OP_MOV_ES_AX
 	stosw
-gpvl1:	mov	al,OP_MOV_SI		; "MOV SI,offset var data"
+gpl1:	mov	al,OP_MOV_SI		; "MOV SI,offset var data"
 	stosb
 	xchg	ax,si
 	stosw
-	je	gpvl2
+	je	gpl2
 	mov	al,OP_SEG_ES
 	stosb
-gpvl2:	mov	ax,OP_LODSW OR (OP_XCHG_DX SHL 8)
+gpl2:	mov	ax,OP_LODSW OR (OP_XCHG_DX SHL 8)
 	stosw
-	je	gpvl3
+	je	gpl3
 	mov	al,OP_SEG_ES
 	stosb
-gpvl3:	mov	ax,OP_LODSW OR (OP_PUSH_AX SHL 8)
+gpl3:	mov	ax,OP_LODSW OR (OP_PUSH_AX SHL 8)
 	stosw
 	mov	al,OP_PUSH_DX
 	stosb

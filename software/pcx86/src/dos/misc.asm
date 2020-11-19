@@ -13,18 +13,18 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<tty_read,write_string,dos_restart,dev_request>,near
+	EXTNEAR	<tty_read,write_string,dos_restart,dev_request>
 	EXTSTR	<STR_CTRLC>
 	IF REG_CHECK
-	EXTERNS	<dos_check>,near
+	EXTNEAR	<dos_check>
 	ENDIF
 
-	EXTERNS	<mcb_head>,word
-	EXTERNS	<clk_ptr>,dword
-	EXTERNS	<scb_active>,word
+	EXTWORD	<mcb_head>
+	EXTLONG	<clk_ptr>
+	EXTWORD	<scb_active>
 
-	EXTERNS	<MONTH_DAYS>,byte
-	EXTERNS	<MONTHS,DAYS>,word
+	EXTBYTE	<MONTH_DAYS>
+	EXTWORD	<MONTHS,DAYS>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -134,7 +134,7 @@ DEFPROC	msc_setdate,DOS
 	mov	bh,0
 	dec	bx
 	cmp	bl,12
-	ja	msd9
+	jae	msd9
 
 	cmp	dl,1
 	jb	msd9
@@ -620,7 +620,7 @@ ENDPROC	add_date
 ; (DATE "one") was a TUESDAY (day-of-week 2, since SUNDAY is day-of-week 0),
 ; we calculate how many days have elapsed, add 1, and compute days mod 7.
 ;
-; Since 2000 was an every-400-years leap years, the number of elapsed leap
+; Since 2000 was an every-400-years leap year, the number of elapsed leap
 ; days is a simple calculation as well.
 ;
 ; Note that since a DATE's year cannot be larger than 127, the number of days

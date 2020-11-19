@@ -52,11 +52,11 @@ CTRL-E  Up         CTRL-X  Down\
 CTRL-S  Left       CTRL-D  Right\
 CTRL-W  Home       CTRL-R  End\
 CTRL-A  Left Word  CTRL-F  Right Word\
-CTRL-G  Delete Char\
+CTRL-G  Del Char\
 CTRL-K  Erase to End\
 CTRL-V  Toggle Insert\
 CTRL-C  Abort\
-DELETE  Delete Previous Char\
+DELETE  Del Left Char\
 ESCAPE  Erase Line
 CTRL-ALT-DEL is reserved for resetting sessions. Use RESTART to restart the system.
 
@@ -85,7 +85,7 @@ REM
 Used for program remarks.  The rest of the line is not executed.
 
 RESTART
-Restarts ("reboots") the system.
+Restarts the system.
 
 RETURN [*expression*]
 Ends a function block and returns the specified *expression*.

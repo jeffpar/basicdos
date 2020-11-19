@@ -13,10 +13,10 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<bpb_total>,byte
-	EXTERNS	<scb_active>,word
-	EXTERNS	<sfb_open_fcb,sfb_find_fcb,sfb_seek,sfb_read,sfb_close>,near
-	EXTERNS	<div_32_16,mul_32_16>,near
+	EXTBYTE	<bpb_total>
+	EXTWORD	<scb_active>
+	EXTNEAR	<sfb_open_fcb,sfb_find_fcb,sfb_seek,sfb_read,sfb_close>
+	EXTNEAR	<div_32_16,mul_32_16>
 
 	EXTSTR	<FILENAME_CHARS>
 
@@ -190,7 +190,7 @@ ENDPROC	fcb_rread
 ;
 DEFPROC	fcb_setrel,DOS
 	call	get_fcb
-	jc	fsrl9
+	jc	fsl9
 	ASSUME	ES:NOTHING		; DS:BX -> SFB, ES:DI -> FCB
 	mov	ax,es:[di].FCB_CURBLK
 	mov	dx,16*1024
@@ -208,7 +208,7 @@ DEFPROC	fcb_setrel,DOS
 	call	div_32_16		; DX:AX /= CX (remainder in BX)
 	mov	es:[di].FCBF_RELREC.LOW,ax
 	mov	es:[di].FCBF_RELREC.HIW,dx
-fsrl9:	ret
+fsl9:	ret
 ENDPROC	fcb_setrel
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -244,20 +244,20 @@ ENDPROC	fcb_setrel
 ;
 DEFPROC	fcb_rbread,DOS
 	call	get_fcb
-	jc	frbr9
+	jc	frb9
 	ASSUME	ES:NOTHING		; DS:BX -> SFB, ES:DI -> FCB
 	mov	cx,[bp].REG_CX		; CX = # records
 	call	seek_fcb		; set CUR fields and seek
 	call	read_fcb		; read CX bytes and set DL to result
 	mov	[bp].REG_AL,dl		; REG_AL = result
-	jnc	frbr1
+	jnc	frb1
 	sub	ax,ax			; on error, set count to zero
-frbr1:	mov	cx,es:[di].FCB_RECSIZE
+frb1:	mov	cx,es:[di].FCB_RECSIZE
 	sub	dx,dx
 	div	cx			; AX = # bytes read / FCB_RECSIZE
 	mov	[bp].REG_CX,ax		; REG_CX = # records read
 	call	inc_fcb			; advance to the next record
-frbr9:	ret
+frb9:	ret
 ENDPROC	fcb_rbread
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

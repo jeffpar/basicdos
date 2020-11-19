@@ -310,9 +310,12 @@ section {
     color: #eaeaea;
   }
   h1, h2, h3, h4, h5, h6 {
-    color: #ffcc00;
+    color: #9370db;
   }
   strong {
+    font-weight: 700;
+  }
+  p strong {
     color: #c9a30d;
     font-weight: 700;
   }

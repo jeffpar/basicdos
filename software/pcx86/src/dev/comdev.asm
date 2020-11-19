@@ -216,7 +216,7 @@ dcr1a:	mov	ds,ax
 	call	pull_input
 	jnc	dcr9
 ;
-; For READ requests that cannot be satisifed, we add this packet to an
+; For READ requests that cannot be satisfied, we add this packet to an
 ; internal chain of "reading" packets, and then tell DOS that we're waiting;
 ; DOS will suspend the current SCB until we notify DOS that this packet's
 ; conditions are satisfied.
@@ -269,7 +269,7 @@ dcw2:	push	es
 dcw3:	test	es:[CT_STATUS],CTSTAT_XMTFULL
 	jz	dcw4
 ;
-; For WRITE requests that cannot be satisifed, we add this packet to an
+; For WRITE requests that cannot be satisfied, we add this packet to an
 ; internal chain of "writing" packets, and then tell DOS that we're waiting;
 ; DOS will suspend the current SCB until we notify DOS that this packet's
 ; conditions are satisfied.
@@ -558,7 +558,7 @@ DEFPROC	ddcom_int,far
 ;
 ddi0:	mov	al,20h			; EOI the interrupt to ensure
 	out	20h,al			; we don't block other interrupts
-	jmp	ddix
+	jmp	ddi10
 
 ddi1:	push	bx
 	push	dx
@@ -648,7 +648,7 @@ ddi9:	pop	es
 	pop	dx
 	pop	bx
 
-ddix:	pop	ax
+ddi10:	pop	ax
 	pop	cx
 	jmp	far ptr DDINT_LEAVE
 ENDPROC	ddcom_int

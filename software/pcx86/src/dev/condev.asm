@@ -88,7 +88,7 @@ CT_CURDIM	dw	?	; 0Eh: width and height (for cursor movement)
 CT_EQUIP	dw	?	; 10h: BIOS equipment flags (snapshot)
 CT_PORT		dw	?	; 12h: eg, 3D4h
 CT_MODE		db	?	; 14h: active video mode (see MODE_*)
-CT_PADDING	db	?	; 15h
+		db	?	; 15h: padding
 CT_SCROFF	dw	?	; 16h: eg, 2000 (offset of off-screen memory)
 CT_SCREEN	dd	?	; 18h: eg, B800:00A2h with full-screen border
 CT_BUFFER	dd	?	; 1Ch: used only for background contexts
@@ -459,7 +459,7 @@ DEFPROC	ddcon_read
 	call	pull_kbd
 	jnc	dcr8
 ;
-; For READ requests that cannot be satisifed, we add this packet to an
+; For READ requests that cannot be satisfied, we add this packet to an
 ; internal chain of "reading" packets, and then tell DOS that we're waiting;
 ; DOS will suspend the current SCB until we notify DOS that this packet's
 ; conditions are satisfied.
@@ -514,7 +514,7 @@ dcw2:	push	es
 dcw3:	test	es:[CT_STATUS],CTSTAT_PAUSED
 	jz	dcw4
 ;
-; For WRITE requests that cannot be satisifed, we add this packet to an
+; For WRITE requests that cannot be satisfied, we add this packet to an
 ; internal chain of "writing" packets, and then tell DOS that we're waiting;
 ; DOS will suspend the current SCB until we notify DOS that this packet's
 ; conditions are satisfied.
@@ -1978,10 +1978,10 @@ DEFPROC	write_context
 	jmp	short wc8
 
 wc1:	cmp	al,CHR_LINEFEED		; LINEFEED?
-	je	wclf			; yes
+	je	wc6			; yes
 
 	cmp	al,CHR_TAB		; TAB?
-	je	wcht			; yes
+	je	wc4			; yes
 
 	cmp	al,CHR_BACKSPACE	; BACKSPACE?
 	je	wc7			; yes
@@ -1996,20 +1996,20 @@ wc1:	cmp	al,CHR_LINEFEED		; LINEFEED?
 	add	cl,'A'-1
 	jmp	short wc7
 
-wcht:	mov	bl,dl			; emulate a (horizontal) TAB
+wc4:	mov	bl,dl			; emulate a (horizontal) TAB
 	sub	bl,ds:[CT_CURMIN].LOB
 	and	bl,07h
 	neg	bl
 	add	bl,8
 	mov	cl,CHR_SPACE
-wcsp:	call	draw_char
+wc5:	call	draw_char
 	cmp	dl,ds:[CT_CURMIN].LOB	; did the column wrap back around?
 	jle	wc8			; yes, stop
 	dec	bl
-	jnz	wcsp
+	jnz	wc5
 	jmp	short wc8
 
-wclf:	call	draw_linefeed		; emulate a LINEFEED
+wc6:	call	draw_linefeed		; emulate a LINEFEED
 	jmp	short wc8
 
 wc7:	call	draw_char		; draw character (CL) at CURPOS (DL,DH)

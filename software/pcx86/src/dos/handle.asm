@@ -14,14 +14,14 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<dev_request,scb_release>,near
-	EXTERNS	<chk_devname,chk_filename>,near
-	EXTERNS	<get_bpb,get_psp,find_cln,get_cln>,near
-	EXTERNS	<msc_sigctrlc,msc_sigctrlc_read>,near
+	EXTNEAR	<dev_request,scb_release>
+	EXTNEAR	<chk_devname,chk_filename>
+	EXTNEAR	<get_bpb,get_psp,find_cln,get_cln>
+	EXTNEAR	<msc_sigctrlc,msc_sigctrlc_read>
 
-	EXTERNS	<scb_locked>,byte
-	EXTERNS	<scb_active>,word
-	EXTERNS	<sfb_table>,dword
+	EXTBYTE	<scb_locked>
+	EXTWORD	<scb_active>
+	EXTLONG	<sfb_table>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -317,7 +317,7 @@ so8:	test	al,al			; did we issue DDC_OPEN?
 	jge	so8a			; no
 	mov	ax,DDC_CLOSE SHL 8	; ES:DI -> driver, DX = context
 	call	dev_request		; issue the DDC_CLOSE request
-so8a:	mov	ax,ERR_MAXFILES
+so8a:	mov	ax,ERR_NOHANDLE
 	stc				; return no SFB (and BX is zero)
 
 so9:	pop	es
@@ -676,10 +676,12 @@ sg1:	mov	al,size SFB		; convert SFH to SFB
 	add	ax,[sfb_table].OFF
 	cmp	ax,[sfb_table].SEG	; is the SFB valid?
 	xchg	bx,ax			; BX -> SFB
-	jb	sg9			; yes
+	jae	sg8
+	cmp	cs:[bx].SFB_REFS,0	; is the SFB open?
+	jne	sg9			; yes (carry clear)
 sg8:	mov	ax,ERR_BADHANDLE
-sg9:	cmc
-	ret
+	stc
+sg9:	ret
 ENDPROC	sfb_get
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -720,7 +722,7 @@ ENDPROC	sfb_find_fcb
 ;
 ; Outputs:
 ;	On success, ES:DI -> PFT, carry clear (DI will be zero if no PSP)
-;	On failure, AX = ERR_MAXFILES, carry set
+;	On failure, AX = ERR_NOHANDLE, carry set
 ;
 ; Modifies:
 ;	AX, BX, CX, DI, ES
@@ -739,7 +741,7 @@ DEFPROC	pfh_alloc,DOS
 	jne	pa8			; if no entry, return error w/carry set
 	dec	di			; rewind to entry
 	jmp	short pa9
-pa8:	mov	ax,ERR_MAXFILES
+pa8:	mov	ax,ERR_NOHANDLE
 	stc
 pa9:	ret
 ENDPROC	pfh_alloc

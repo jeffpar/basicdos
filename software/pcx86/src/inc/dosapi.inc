@@ -9,7 +9,7 @@
 ;
 
 VERSION_MAJOR	equ	0
-VERSION_MINOR	equ	20
+VERSION_MINOR	equ	21
 VERSION_REV	equ	1
 
 VERSION_STR	macro
@@ -98,7 +98,8 @@ DOS_MEM_ALLOC	equ	48h	; allocate (BX) paras (returns segment AX)
 DOS_MEM_FREE	equ	49h	; free segment (ES)
 DOS_MEM_REALLOC	equ	4Ah	; reallocate size of segment (ES) to paras (BX)
 DOS_PSP_EXEC	equ   4B00h	; load program (DS:DX) with EPB (ES:BX)
-DOS_PSP_EXEC1	equ   4B01h	; load program w/o launching (undocumented)
+DOS_PSP_EXEC1	equ   4B01h	; load program w/o starting (undocumented)
+DOS_PSP_EXEC2	equ   4B02h	; start program (BASIC-DOS only)
 DOS_PSP_EXIT	equ	4Ch	; exit program with return code (AL)
 DOS_PSP_RETCODE	equ	4Dh	; return exit code (AL) and exit type (AH)
 DOS_DSK_FFIRST	equ	4Eh	; find first filespec (DS:DX) with attr (CX)
@@ -264,14 +265,14 @@ PSP_CODESIZE	dw	?	; 44h: BASIC-DOS: code size (see COMHEAP)
 PSP_CHECKSUM	dw	?	; 46h: BASIC-DOS: code checksum (see COMHEAP)
 PSP_HEAPSIZE	dw	?	; 48h: BASIC-DOS: heap size (see COMHEAP)
 PSP_HEAP	dw	?	; 4Ah: BASIC-DOS: heap offset (see COMHEAP)
-PSP_RESERVED1	dw	?	; 4Ch
+		dw	?	; 4Ch
 PSP_EXCODE	db	?	; 4Eh: BASIC-DOS: exit code, if any
 PSP_EXTYPE	db	?	; 4Fh: BASIC-DOS: exit type (see EXTYPE_*)
 PSP_DISPATCH	db	3 dup(?); 50h: INT 21h/RETF
-PSP_RESERVED2	db	9 dup(?); 53h
+		db	9 dup(?); 53h
 PSP_FCB1	db     16 dup(?); 5Ch
 PSP_FCB2	db     16 dup(?); 6Ch
-PSP_RESERVED3	db	4 dup(?); 7Ch
+		db	4 dup(?); 7Ch
 PSP_CMDTAIL	db    128 dup(?); 80h: length byte, command tail, CHR_RETURN
 PSP		ends
 
@@ -295,12 +296,12 @@ EPB		ends		; 16h
 SPB		struc
 SPB_ENVSEG	dw	?	; 00h: seg of environment (0 to copy caller)
 SPB_CMDLINE	dd	?	; 02h: pointer to command line (NOT just tail)
-SPB_SFHIN	db	?	; 06h: SFH for STDIN
-SPB_SFHOUT	db	?	; 07h: SFH for STDOUT
-SPB_SFHERR	db	?	; 08h: SFH for STDERR
-SPB_SFHAUX	db	?	; 09h: SFH for STDAUX
-SPB_SFHPRN	db	?	; 0Ah: SFH for STDPRN
-SPB_PADDING	db	?	; 0Bh
+SPB_SFHIN	db	?	; 06h: SFH for STDIN  (SFH_NONE for default)
+SPB_SFHOUT	db	?	; 07h: SFH for STDOUT (SFH_NONE for default)
+SPB_SFHERR	db	?	; 08h: SFH for STDERR (SFH_NONE for default)
+SPB_SFHAUX	db	?	; 09h: SFH for STDAUX (SFH_NONE for default)
+SPB_SFHPRN	db	?	; 0Ah: SFH for STDPRN (SFH_NONE for default)
+		db	?	; 0Bh: padding
 SPB		ends		; 0Ch
 
 ;
@@ -321,7 +322,7 @@ FFB		struc
 FFB_DRIVE	db	?	; 00h: drive #
 FFB_SATTR	db	?	; 01h: search attributes
 FFB_FILESPEC	db    11 dup (?); 02h: filespec
-FFB_PADDING	db     6 dup (?); 0Dh
+FFB_RESERVED	db     6 dup (?); 0Dh: reserved
 FFB_DIRNUM	dw	?	; 13h: DIRENT #
 FFB_ATTR	db	?	; 15h: file attr
 FFB_TIME	dw	?	; 16h: file time
@@ -340,6 +341,7 @@ PF_LONG   equ	08h		; long value (32 bits); default is 16
 PF_SIGN   equ	10h		; signed value
 PF_WIDTH  equ	20h		; width encountered
 PF_PRECIS equ	40h		; precision encountered (after '.')
+PF_BYTE   equ	80h		; byte value (8 bits); default is 16
 
 BUFLEN	equ	120		; max stack space to use as printf buffer
 
@@ -425,19 +427,22 @@ TOKDEF_OFF	dw	?	; offset of token string
 TOKDEF		ends
 
 ;
-; DOS error codes (not to be confused with device error codes)
+; DOS error codes (not to be confused with device error codes).
 ;
 ; TODO: Make this list complete (well, more complete than this anyway).
 ;
 ERR_INVALID	equ	1	; invalid function
 ERR_NOFILE	equ	2	; file not found
 ERR_NOPATH	equ	3	; path not found (no paths in BASIC-DOS, yet)
-ERR_MAXFILES	equ	4	; too many open files
+ERR_NOHANDLE	equ	4	; out of handles
 ERR_ACCDENIED	equ	5	; access denied
 ERR_BADHANDLE	equ	6	; invalid handle
 ERR_BADMCB	equ	7	; invalid MCB
-ERR_NOMEM	equ	8	; insufficient memory
+ERR_NOMEMORY	equ	8	; out of memory
 ERR_BADADDR	equ	9	; invalid memory segment
+
+ERR_BADSESSION	equ	100	; invalid session
+ERR_NOSESSION	equ	101	; out of sessions
 
 ;
 ; MINHEAP is the minimum number of bytes we allocate for a COM binary, on

@@ -11,7 +11,7 @@
 
 CODE    SEGMENT
 
-	EXTERNS	<allocStrSpace>,near
+	EXTNEAR	<allocStrSpace>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 

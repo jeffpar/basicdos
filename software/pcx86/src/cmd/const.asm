@@ -12,16 +12,16 @@
 
 CODE    SEGMENT
 
-	EXTERNS	<evalNegLong,evalNotLong>,near
-	EXTERNS	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>,near
-	EXTERNS	<evalModLong,evalExpLong,evalImpLong>,near
-	EXTERNS	<evalEqvLong,evalXorLong,evalOrLong,evalAndLong>,near
-	EXTERNS	<evalEQLong,evalNELong,evalLTLong,evalGTLong>,near
-	EXTERNS	<evalLELong,evalGELong,evalShlLong,evalShrLong>,near
-	EXTERNS	<fnRndLong>,near
+	EXTNEAR	<evalNegLong,evalNotLong>
+	EXTNEAR	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>
+	EXTNEAR	<evalModLong,evalExpLong,evalImpLong>
+	EXTNEAR	<evalEqvLong,evalXorLong,evalOrLong,evalAndLong>
+	EXTNEAR	<evalEQLong,evalNELong,evalLTLong,evalGTLong>
+	EXTNEAR	<evalLELong,evalGELong,evalShlLong,evalShrLong>
+	EXTNEAR	<fnRndLong>
 
-	EXTERNS	<evalEQStr,evalNEStr,evalLTStr,evalGTStr>,near
-	EXTERNS	<evalLEStr,evalGEStr,evalAddStr>,near
+	EXTNEAR	<evalEQStr,evalNEStr,evalLTStr,evalGTStr>
+	EXTNEAR	<evalLEStr,evalGEStr,evalAddStr>
 
 	DEFSTR	COM_EXT,<".COM",0>	; these 4 file extensions must be
 	DEFSTR	EXE_EXT,<".EXE",0>	; listed in the desired search order
@@ -161,9 +161,6 @@ CODE	ENDS
 	DEFTOK	RESTART, 7, cmdRestart
 	DEFTOK	RETURN, 53, genReturn
 	DEFTOK	RUN,     8, cmdRun
-	IFDEF DEBUG
-	DEFTOK	TEST,   39, cmdTest
-	ENDIF
 	DEFTOK	THEN,  204
 	DEFTOK	TIME,   11, cmdTime
 	DEFTOK	TYPE,   22, cmdType
@@ -190,7 +187,7 @@ DATA	SEGMENT
 	BLKDEF	<0,VBLKLEN,size VBLK,SIG_VBLK>
 	BLKDEF	<0,SBLKLEN,size SBLK,SIG_SBLK>
 	BLKDEF	<0,TBLKLEN,size TBLK,SIG_TBLK>
-	COMHEAP	<size CMD_HEAP>,BEG_HEAP	; this must be the last item...
+	COMHEAP	<size CMDHEAP>,BEG_HEAP		; this must be the last item...
 
 DATA	ENDS
 

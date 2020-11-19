@@ -14,14 +14,14 @@
 
 DOS	segment word public 'CODE'
 
-	EXTERNS	<scb_locked>,byte
-	EXTERNS	<mcb_head,mcb_limit,scb_active>,word
-	EXTERNS	<sfh_add_ref,pfh_close,sfh_close>,near
-	EXTERNS	<mcb_getsize,mcb_free_all>,near
-	EXTERNS	<dos_exit,dos_exit2,dos_ctrlc,dos_error>,near
-	EXTERNS	<mcb_setname,scb_getnum,scb_release,scb_unload,scb_yield>,near
+	EXTBYTE	<scb_locked>
+	EXTWORD	<mcb_head,mcb_limit,scb_active>
+	EXTNEAR	<sfh_add_ref,pfh_close,sfh_close>
+	EXTNEAR	<mcb_getsize,mcb_free_all>
+	EXTNEAR	<dos_exit,dos_exit2,dos_ctrlc,dos_error>
+	EXTNEAR	<mcb_setname,scb_getnum,scb_release,scb_unload,scb_yield>
 	IF REG_CHECK
-	EXTERNS	<dos_check>,near
+	EXTNEAR	<dos_check>
 	ENDIF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -88,10 +88,11 @@ pt1:	push	ax			; save exit code/type on stack
 ;
 ; If this is a parent-less program, mark the SCB as unloaded and yield.
 ;
-	call	set_psp			; update SCB_CURPSP (even if zero)
+	call	set_psp			; update SCB_PSP (even if zero)
 	test	ax,ax
 	jnz	pt8
 	call	scb_unload		; mark SCB # CL as unloaded
+	jc	pt7
 	jmp	scb_yield		; and call scb_yield with AX = zero
 	ASSERT	NEVER
 pt7:	jmp	short pt9
@@ -101,13 +102,10 @@ pt8:	mov	es,ax			; ES = PSP of parent
 	pop	cx			; we now have PSP_EXRET in CX:DX
 	pop	ax			; AX = exit code (saved on entry above)
 	mov	word ptr es:[PSP_EXCODE],ax
+
 	cli
 	mov	ss,es:[PSP_STACK].SEG
 	mov	sp,es:[PSP_STACK].OFF
-	IF REG_CHECK
-	add	sp,2
-	ENDIF
-	mov	bp,sp
 ;
 ; When a program (eg, SYMDEB.EXE) loads another program using DOS_PSP_EXEC1,
 ; it will necessarily be exec'ing the program itself, which means we can't be
@@ -115,10 +113,14 @@ pt8:	mov	es,ax			; ES = PSP of parent
 ; used at time of exec'ing.  So we will use dos_exit2 to bypass the REG_CHECK
 ; *and* we will create a fresh IRET frame at the top of REG_FRAME.
 ;
+	IF REG_CHECK
+	add	sp,2
+	ENDIF
+	mov	bp,sp
 	mov	[bp].REG_IP,dx		; copy PSP_EXRET to caller's CS:IP
 	mov	[bp].REG_CS,cx		; (normally they will be identical)
 	mov	word ptr [bp].REG_FL,FL_DEFAULT
-	jmp	dos_exit2		; we'll let dos_exit turn interrupts on
+	jmp	dos_exit2		; let dos_exit turn interrupts back on
 
 pt9:	ret
 ENDPROC	psp_term
@@ -160,7 +162,10 @@ ENDPROC	psp_copy
 ; TODO: Add support for EPB_ENVSEG.
 ;
 ; Inputs:
-;	REG_AL = subfunction (only 0 and 1 are currently supported)
+;	REG_AL = subfunction
+;		0: load program
+;		1: load program w/o starting
+;		2: start program
 ;	REG_ES:REG_BX -> Exec Parameter Block (EPB)
 ;	REG_DS:REG_DX -> program name or command line
 ;
@@ -169,10 +174,10 @@ ENDPROC	psp_copy
 ;	If error, carry set, AX = error code
 ;
 DEFPROC	psp_exec,DOS
-	cmp	al,2			; DOS_PSP_EXEC or DOS_PSP_EXEC1?
-	cmc
+	cmp	al,2			; valid subfunction?
 	mov	ax,ERR_INVALID		; AX = error code if not
-	jc	px9
+	ja	px9
+	je	px5
 
 	mov	ds,[bp].REG_DS
 	ASSUME	DS:NOTHING
@@ -197,7 +202,7 @@ px1:	dec	bx			; restore BX pointer to EPB
 	mov	bx,[bp].REG_BX		; DS:BX -> EPB (from ES:BX)
 	call	load_args		; DX:AX -> new stack
 	cmp	byte ptr [bp].REG_AL,0	; was AL zero?
-	jne	px8			; no
+	jne	px4			; no
 ;
 ; This was a DOS_PSP_EXEC call, and unlike scb_load, it's a synchronous
 ; exec, meaning we launch the program directly from this call.
@@ -207,7 +212,7 @@ px2:	cli
 	mov	sp,ax
 	jmp	dos_exit		; and let dos_exit turn interrupts on
 ;
-; This was a DOS_PSP_EXEC1 call, an undocumented call that only loads the
+; This is a DOS_PSP_EXEC1 call: an undocumented call that only loads the
 ; program, fills in the undocumented EPB_INIT_SP and EPB_INIT_IP fields,
 ; and then returns to the caller.
 ;
@@ -220,7 +225,7 @@ px2:	cli
 ; new stack is supposed to contain only the initial value for REG_AX, which
 ; we take care of below.
 ;
-px8:
+px4:
 	IF REG_CHECK
 	add	ax,REG_CHECK
 	ENDIF
@@ -236,8 +241,35 @@ px8:
 	mov	[bx].EPB_INIT_IP.SEG,es	; return the program's CS:IP
 	clc
 	ret
+;
+; This is a DOS_PSP_EXEC2 "start" request.  ES:BX must point to a previously
+; initialized EPB with EPB_INIT_SP pointing to REG_FL in a REG_FRAME, and the
+; current PSP must be the new PSP (ie, exactly as DOS_PSP_EXEC1 left it).
+;
+; In addition, we copy the caller's REG_CS:REG_IP into PSP_EXRET, because we
+; don't want the program returning to the original EXEC call on termination.
+;
+px5:	mov	ds,[bp].REG_ES
+	mov	bx,[bp].REG_BX		; DS:BX -> EPB (from ES:BX)
+	lds	bx,[bx].EPB_INIT_SP	; DS:BX -> stack (@REG_FL)
+	sub	bx,size REG_FRAME-2	; DS:BX -> REG_FRAME
+	mov	[bx].REG_FL,FL_DEFAULT	; fix REG_FL
+	mov	dx,ds
+	call	get_psp
+	jz	px6
+	mov	ds,ax			; DS -> new PSP
+	mov	ax,[bp].REG_IP
+	mov	ds:[PSP_EXRET].OFF,ax
+	mov	ax,[bp].REG_CS
+	mov	ds:[PSP_EXRET].SEG,ax
+px6:	xchg	ax,bx			; DX:AX -> REG_FRAME
+	IF REG_CHECK
+	sub	ax,REG_CHECK
+	ENDIF
+	jmp	px2
 
 px9:	mov	[bp].REG_AX,ax		; return any error code in REG_AX
+	stc
 	ret
 ENDPROC	psp_exec
 
@@ -587,9 +619,8 @@ lp2:	push	ax			; save original PSP
 	mov	dx,si			; DS:DX -> name of program
 	mov	ax,DOS_HDL_OPENRO
 	int	21h			; open the file
-	jnc	lp3c
-	jmp	lpef
-lp3c:	xchg	bx,ax			; BX = file handle
+	jc	lpf1
+	xchg	bx,ax			; BX = file handle
 
 	call	get_psp
 	mov	ds,ax			; DS = segment of new PSP
@@ -603,9 +634,9 @@ lp3c:	xchg	bx,ax			; BX = file handle
 	mov	[bp].TMP_CX,cx
 	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_END
 	int	21h			; returns new file position in DX:AX
-	jc	lpec1
+	jc	lpc1
 	test	dx,dx
-	jnz	lp5a
+	jnz	lp3
 	mov	[bp].TMP_CX,ax		; record size ONLY if < 64K
 ;
 ; Now that we have a file size, verify that the PSP segment is large enough.
@@ -617,26 +648,25 @@ lp3c:	xchg	bx,ax			; BX = file handle
 ; How much is "a little extra"?  Currently, it's 40h paragraphs (1Kb).  See
 ; the discussion below ("Determine a reasonable amount to add to the minimum").
 ;
-lp5a:	add	ax,15
+lp3:	add	ax,15
 	adc	dx,0			; round DX:AX to next paragraph
 	mov	cx,16
 	cmp	dx,cx			; can we safely divide DX:AX by 16?
-	ja	lpec2			; no, the program is much too large
+	ja	lpc2			; no, the program is much too large
 	div	cx			; AX = # paras
 	mov	si,ax			; SI = # paras in file
 	add	ax,50h			; AX = min paras (10h for PSP + 40h)
 	cmp	ax,[bp].TMP_DX		; can the segment accommodate that?
-	ja	lpec2			; no
+	ja	lpc2			; no
 
 	sub	cx,cx
 	sub	dx,dx
 	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_BEG
 	int	21h			; reset file position to beginning
-	jc	lpec1
+	jc	lpc1
 ;
-; We're going to make this code executable-agnostic, which means regardless
-; whether it's a COM or EXE file, we're going to read the first 512 bytes (or
-; less if that's all there is) and decide what to do next.
+; Regardless whether this is a COM or EXE file, we're going to read the first
+; 512 bytes (or less if that's all there is) and decide what to do next.
 ;
 	push	ds
 	pop	es			; DS = ES = PSP segment
@@ -647,16 +677,18 @@ lp5a:	add	ax,15
 	mov	ah,DOS_HDL_READ		; BX = file handle, CX = # bytes
 	int	21h
 	jnc	lp6
-lpec1:	jmp	lpec
-lpec2:	mov	ax,ERR_NOMEM
-	jmp	short lpec1
+lpc1:	jmp	lpc
+lpc2:	mov	ax,ERR_NOMEMORY
+	jmp	short lpc1
 
 lp6:	mov	di,dx			; DS:DI -> end of PSP
 	cmp	[di].EXE_SIG,SIG_EXE
 	je	lp6a
 	jmp	lp7
+lpf1:	jmp	lpf
+
 lp6a:	cmp	ax,size EXEHDR
-	jb	lpec2			; file too small
+	jb	lpc2			; file too small
 ;
 ; Load the EXE file.  First, we move all the header data we've already read
 ; to the top of the allocated memory, then determine how much more header data
@@ -693,7 +725,7 @@ lp6b:	mov	ds,dx
 	jcxz	lp6c
 	mov	ah,DOS_HDL_READ		; BX = file handle, CX = # bytes
 	int	21h
-	jc	lpec1
+	jc	lpc1
 
 lp6c:	push	es
 	push	ds
@@ -705,7 +737,7 @@ lp6d:	mov	ds,dx
 	mov	cx,32 * 1024		; read 32K at a time
 	mov	ah,DOS_HDL_READ		; BX = file handle, CX = # bytes
 	int	21h
-	jc	lpec1
+	jc	lpc1
 	mov	dx,ds
 	cmp	ax,cx			; done?
 	jb	lp6e			; presumably
@@ -760,12 +792,14 @@ lp6g:	push	es:[EXE_START_SEG]
 ; More info on SYMDEB.EXE 4.0 and PC DOS 2.00: it seems the smallest amount of
 ; free memory where DOS 2.0 will still load SYMDEB is when COMMAND.COM "owns"
 ; at least 967h paras in the final memory segment (CHKDSK reports 38336 bytes
-; free at that point).  The PSP that SYMDEB created under those conditions was
-; located at 7FAFh (this was on a 512K machine so the para limit was 8000h),
-; so the PSP had 51h paragraphs available to it.  However, SYMDEB could not
-; load even a tiny (11-byte) COM file; it would report "EXEC failure", which
-; seems odd with 51h paragraphs available.  Also, the word at 7FAF:0006 (memory
-; size) contained 8460h, which seems way too large.
+; free at that point; SYMDEB.EXE is 37021 bytes).
+;
+; The PSP that SYMDEB created under those conditions was located at 7FAFh
+; (this was on a 512K machine so the para limit was 8000h), so the PSP had 51h
+; paragraphs available to it.  However, SYMDEB could not load even a tiny
+; (11-byte) COM file; it would report "EXEC failure", which seems odd with 51h
+; paragraphs available.  Also, the word at 7FAF:0006 (memory size) contained
+; 8460h, which seems way too large.
 ;
 ; I also discovered that if I tried to load "SYMDEB E.COM" (where E.COM was an
 ; 11-byte COM file) with 8 more paras available (96Fh total), the system would
@@ -803,7 +837,7 @@ lp6g:	push	es:[EXE_START_SEG]
 	pop	ds:[PSP_START].SEG
 	add	ds:[PSP_START].SEG,ax
 
-	DPRINTF	'p',<"min,cur,max paragraphs: %#06x,%#06x,%#06x\r\n">,si,bx,di
+	DPRINTF	'p',<"New PSP %04x, %04x paras, min,max=%04x,%04x\r\n">,ds,bx,si,di
 
 	sub	dx,dx			; no heap
 	jmp	lp8			; realloc the PSP segment
@@ -812,16 +846,15 @@ lp6g:	push	es:[EXE_START_SEG]
 ;
 lp7:	add	dx,ax
 	cmp	ax,cx
-	jb	lp7b			; we must have already finished
+	jb	lp7a			; we must have already finished
 	sub	si,20h
 	mov	cl,4
 	shl	si,cl
 	mov	cx,si			; CX = maximum # bytes left to read
 	mov	ah,DOS_HDL_READ
 	int	21h
-	jnc	lp7a
-	jmp	lpec
-lp7a:	add	dx,ax			; DX -> end of program image
+	jc	lpc3
+	add	dx,ax			; DX -> end of program image
 ;
 ; We could leave the executable file open and close it on process termination,
 ; because it provides us with valuable information about all the processes that
@@ -829,14 +862,16 @@ lp7a:	add	dx,ax			; DX -> end of program image
 ; handle could eventually be useful for overlay support, too.  But for now,
 ; we close the handle, just like PC DOS.
 ;
-lp7b:	mov	ah,DOS_HDL_CLOSE
+lp7a:	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the file
-	jc	lp8f
+	jnc	lp7b
+	jmp	lpf
+lpc3:	jmp	lpc
 
-	mov	ds:[PSP_START].OFF,100h
+lp7b:	mov	ds:[PSP_START].OFF,100h
 	mov	ds:[PSP_START].SEG,ds
 	mov	di,dx			; DI -> uninitialized heap space
-	mov	dx,MINHEAP SHR 4	; DX = add'l space (1Kb in paras)
+	mov	dx,MINHEAP SHR 4	; DX = additional space (1Kb in paras)
 ;
 ; Check the word at [DI-2]: if it contains SIG_BASICDOS ("BD"), then the
 ; image ends with COMDATA, where the preceding word (CD_HEAPSIZE) specifies
@@ -884,7 +919,7 @@ lp7e:	mov	bx,di			; BX = size of program image
 	add	bx,15
 	mov	cl,4
 	shr	bx,cl			; BX = size of program (in paras)
-	add	bx,dx			; add add'l space (in paras)
+	add	bx,dx			; add additional space (in paras)
 	mov	ax,bx
 	cmp	ax,1000h
 	jb	lp7f
@@ -892,10 +927,13 @@ lp7e:	mov	bx,di			; BX = size of program image
 lp7f:	shl	ax,cl			; DS:AX -> top of the segment
 	mov	ds:[PSP_STACK].OFF,ax
 	mov	ds:[PSP_STACK].SEG,ds
+
+	DPRINTF	'p',<"New PSP %04x, %04x paras, stack @%08lx\r\n">,ds,bx,ax,ds
+
 lp8:	mov	ah,DOS_MEM_REALLOC	; resize ES memory block to BX paras
 	int	21h
 	jnc	lp8a
-lp8f:	jmp	lpef			; TODO: try to use a smaller size?
+	jmp	lpf
 ;
 ; Zero any additional heap paragraphs (DX) starting at ES:DI.  Note that
 ; although heap size is specified in paragraphs, it's not required to start
@@ -959,7 +997,7 @@ lp8b:	mov	dx,es
 	sub	ax,ax
 	stosw				; store a zero at the top of the stack
 
-	mov	ax,FL_INTS
+	mov	ax,FL_DEFAULT
 	stosw				; REG_FL (with interrupts enabled)
 	xchg	ax,cx
 	stosw				; REG_CS
@@ -999,12 +1037,12 @@ lp8b:	mov	dx,es
 ;
 ; Error paths (eg, close the file handle, free the memory for the new PSP)
 ;
-lpec:	push	ax
+lpc:	push	ax
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
 	pop	ax
 
-lpef:	push	ax
+lpf:	push	ax
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
@@ -1224,7 +1262,7 @@ DEFPROC	get_psp,DOS
 	test	bx,bx
 	jz	gp9
 	ASSERT	STRUCT,cs:[bx],SCB
-	mov	ax,cs:[bx].SCB_CURPSP
+	mov	ax,cs:[bx].SCB_PSP
 	test	ax,ax
 gp9:	pop	bx
 	ret
@@ -1247,7 +1285,7 @@ DEFPROC	set_psp,DOS
 	push	bx
 	mov	bx,[scb_active]
 	ASSERT	STRUCT,cs:[bx],SCB
-	mov	cs:[bx].SCB_CURPSP,ax
+	mov	cs:[bx].SCB_PSP,ax
 	pop	bx
 	ret
 ENDPROC	set_psp

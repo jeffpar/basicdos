@@ -85,13 +85,17 @@ m3:	mov	dx,offset progress
 	mov	dx,offset execfile
 	int	21h		; exec (but don't launch)
 ;
-; If the exec was successful, an INT 20h terminate call is the simplest way
-; to clean up the process (ie, free the program's memory, handles, etc),
-; because the current PSP is the new PSP.  And if it wasn't successful, then
-; we'll simply terminate ourselves.
+; If the exec was successful, an INT 21h termination call is the simplest
+; way to clean up the process (ie, free the program's memory, handles, etc),
+; because the current PSP is the new PSP.  After termination, control will
+; return here again, and we'll gracefully terminate ourselves.
 ;
-	int	20h
-	ret
+; In BASIC-DOS, we could also use INT 20h here, but PC DOS requires that CS
+; contain the PSP being terminated when calling INT 20h (BASIC-DOS does not).
+;
+	mov	ax,DOS_PSP_EXIT SHL 8
+	int	21h
+	ret			; a return is not necessary, but just in case
 ENDPROC	main
 
 DEFPROC	print

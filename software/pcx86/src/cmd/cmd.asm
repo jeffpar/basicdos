@@ -12,48 +12,37 @@
 CODE    SEGMENT
 	org	100h
 
-	EXTERNS	<allocText,freeAllText,genCode,freeAllCode,freeAllVars>,near
-	EXTERNS	<writeStrCRLF>,near
-
-	EXTERNS	<KEYWORD_TOKENS>,word
+	EXTNEAR	<allocText,freeAllText,genCode,freeAllCode,freeAllVars>
+	EXTNEAR	<writeStrCRLF>
+	EXTWORD	<KEYWORD_TOKENS>
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF,PERIOD>
 	EXTSTR	<STD_VER,DBG_VER,HELP_FILE,PIPE_NAME>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
 DEFPROC	main
-	LOCVAR	iArg,byte		; first arg for next command
-	LOCVAR	cArgs,byte		; # of arguments for next command
-	LOCVAR	sfhOut,byte
-	LOCVAR	scbActive,byte
-
-	LOCVAR	endTokens,word
-
-	LOCVAR	pArg,word		; saves arg ptr command handler
-	LOCVAR	lenArg,word		; saves arg len command handler
-	LOCVAR	swDigits,word		; bit mask of digit switches, if any
-	LOCVAR	swLetters,dword		; bit mask of letter switches, if any
-	LOCVAR	hFile,word		; file handle, if any
-	LOCVAR	lineLabel,word		; current line label
-	LOCVAR	lineOffset,word		; current line offset
-	LOCVAR	pTextLimit,word		; current text block limit
 ;
-; Before invoking ENTER, we ensure the stack is aligned with the CMD_HEAP
-; structure; the BASIC-DOS loader assumes we'll be happy with a stack at the
-; very top of the segment, but this allows the main module to access the heap
-; via [heap] (BP) instead of loading PSP_HEAP into another register (BX).
+; Get the current session's screen dimensions (AL=cols, AH=rows).
 ;
-	mov	bx,ds:[PSP_HEAP]
-	lea	sp,[bx].STACK + size STACK
-	sub	ax,ax
-	push	ax
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETDIM
+	mov	bx,STDOUT
+	int	21h
+	jnc	m0			; carry clear if BASIC-DOS
+	mov	dx,offset WRONG_OS
+	mov	ah,DOS_TTY_PRINT	; use DOS_TTY_PRINT instead of PRINTF
+	int	21h			; since PC DOS wouldn't understand that
+	ret
+	DEFSTR	WRONG_OS,<"BASIC-DOS required",13,10,'$'>
 
-	ENTER
-	mov	[heap].ORIG_SP,sp
-	mov	[heap].ORIG_BP,bp
-	ASSERT	Z,<cmp bp,[bx].ORIG_BP>
-	mov	[hFile],ax
-	mov	[sfhOut],SFH_NONE
+m0:	mov	bx,ds:[PSP_HEAP]
+	DBGINIT	STRUCT,[bx],CMD
+	mov	word ptr [bx].CON_COLS,ax
+	mov	ax,word ptr ds:[PSP_PFT][STDIN]
+	mov	word ptr [bx].SFH_STDIN,ax
+;
+; Install CTRLC handler.  DS = CS only for the first instance; additional
+; instances of the interpreter will have their own DS but share a common CS.
+;
 	push	ds
 	push	cs
 	pop	ds
@@ -62,12 +51,16 @@ DEFPROC	main
 	int	21h
 	pop	ds
 
-	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETDIM
-	mov	bx,STDOUT
-	int	21h
-	mov	word ptr [heap].CON_COLS,ax
-
 	PRINTF	<"BASIC-DOS Interpreter",13,10,13,10>
+;
+; Originally, "the plan" was to use Microsoft's MBF (Microsoft Binary Format)
+; floating-point code, because who really wants to write a "new" floating-point
+; emulation library from scratch?  I went down that path back in the 1980's,
+; probably during my "Mandelbrot phase", but I can't find the code I wrote, and
+; now that that Microsoft has open-sourced GW-BASIC, it makes more sense to use
+; theirs.  However, that hasn't happened yet; for now, BASIC-DOS is just an
+; "Integer BASIC".  If/when that changes, MSLIB will be defined.
+;
 	IFDEF	MSLIB
 	PRINTF	<"BASIC MATH library functions",13,10,"Copyright (c) Microsoft Corporation",13,10,13,10>
 	ENDIF
@@ -82,50 +75,105 @@ DEFPROC	main
 ; INPUT_BUF (which ordinarily points to INPUTBUF) to PSP_CMD_TAIL-1 instead,
 ; and then jump into the command-processing code below.
 ;
-	mov	[heap].INPUT_BUF,PSP_CMDTAIL - 1
-	mov	word ptr [heap].INPUTBUF.INP_MAX,size INP_DATA - 1
+	mov	[bx].INPUT_BUF,PSP_CMDTAIL - 1
+	mov	word ptr [bx].INPUTBUF.INP_MAX,size INP_DATA - 1
 	cmp	ds:[PSP_CMDTAIL],0
 	jne	m2			; use INPUT_BUF -> PSP_CMDTAIL
-;
-; Since all command handlers loop back to this point, we shouldn't assume
-; that these registers (eg, DS, ES) will still contain their original values.
-;
-m0:	push	ss
-	pop	ds
-	push	ss
-	pop	es
 
 m1:	mov	ah,DOS_DSK_GETDRV
 	int	21h
 	add	al,'A'			; AL = current drive letter
-	PRINTF	<"%c",CHR_GT>,ax
+	PRINTF	<"%c",CHR_GT>,ax	; print drive letter and '>' symbol
 
-	lea	dx,[heap].INPUTBUF
-	mov	[heap].INPUT_BUF,dx
+	lea	dx,[bx].INPUTBUF
+	mov	[bx].INPUT_BUF,dx
 	mov	ah,DOS_TTY_INPUT
 	int	21h
 	call	printCRLF
 
-m2:	mov	si,[heap].INPUT_BUF
+m2:	sub	ax,ax
+	mov	[bx].HDL_INPUT,ax
+	mov	[bx].HDL_OUTPUT,ax
+	dec	ax
+	mov	[bx].SCB_NEXT,al
+
+	mov	si,[bx].INPUT_BUF
 	mov	cl,[si].INP_CNT
 	lea	si,[si].INP_DATA
-	lea	di,[heap].TOKENBUF	; ES:DI -> TOKENBUF
+	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
 	mov	[di].TOK_MAX,(size TOK_DATA) / (size TOKLET)
 	DOSUTIL	TOKIFY1
-	jc	m0			; jump if no tokens
+	jc	m1			; jump if no tokens
 
-	mov	[heap].CMD_FLAGS,CMD_ECHO
+	mov	[bx].CMD_FLAGS,CMD_ECHO
 	call	parseCmd
-	jmp	m0
-
+	jmp	m1
 ENDPROC	main
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cleanUp
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	DS = ES = SS
+;	BX -> CMDHEAP
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cleanUp
+	pushf
+	push	ss
+	pop	ds
+	push	ss
+	pop	es
+	mov	bx,5
+cu1:	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	inc	bx
+	cmp	bx,size PSP_PFT
+	jb	cu1
+	mov	bx,ds:[PSP_HEAP]
+	mov	ax,word ptr [bx].SFH_STDIN
+	mov	word ptr ds:[PSP_PFT][STDIN],ax
+	popf
+	ret
+ENDPROC	cleanUp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ctrlc
+;
+; CTRLC handler to clean up the last operation, reset the program stack,
+; free any active code buffer, and then jump to our start address.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	DS = ES = SS
+;	BX -> CMDHEAP
+;
+; Modifies:
+;	Any
+;
+DEFPROC	ctrlc,FAR
+	call	cleanUp
+	lea	sp,[bx].STACK + size STACK
+	call	freeAllCode
+	jmp	m1
+ENDPROC	ctrlc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; parseCmd
 ;
 ; Inputs:
-;	DS:DI -> TOKENBUF
+;	BX -> CMDHEAP
+;	DI -> TOKENBUF
 ;
 ; Outputs:
 ;	None
@@ -134,16 +182,12 @@ ENDPROC	main
 ;	Any
 ;
 DEFPROC	parseCmd
-;
-; Before trying to ID the first token, let's copy it to the FILENAME buffer,
-; upper-case it, and null-terminate it.
-;
 	mov	dh,0
 	call	getToken		; DS:SI -> 1st token, CX = length
 	jc	pc9
 
-	mov	[pArg],si		; save original filename ptr and length
-	mov	[lenArg],cx
+	mov	[bx].CMD_ARGPTR,si	; save original filename ptr and length
+	mov	[bx].CMD_ARGLEN,cx
 
 	lea	dx,[KEYWORD_TOKENS]
 	DOSUTIL	TOKID			; CS:DX -> TOKTBL; identify the token
@@ -153,17 +197,17 @@ DEFPROC	parseCmd
 ; the level of additional parsing required, if any.
 ;
 pc1:	mov	dx,cs:[si].CTD_FUNC
-	mov	si,[pArg]		; restore SI (changed by TOKID)
-	lea	di,[heap].TOKENBUF	; DS:DI -> token buffer
+	mov	si,[bx].CMD_ARGPTR	; restore SI (changed by TOKID)
+	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
 	cmp	ax,KEYWORD_BASIC	; token ID < KEYWORD_BASIC? (40)
 	jb	pc2			; yes, no code generation required
 ;
 ; The token is for a BASIC keyword, so code generation is required.
 ;
 	mov	al,GEN_IMM
-	lea	bx,[heap]
-	mov	si,[heap].INPUT_BUF
+	mov	si,[bx].INPUT_BUF
 	call	genCode
+	call	cleanUp
 	jmp	short pc9
 ;
 ; For non-BASIC commands, we have either a built-in command or an external
@@ -187,8 +231,9 @@ ENDPROC	parseCmd
 ; required, you could call cmdDOS instead.
 ;
 ; Inputs:
-;	DS:DI -> TOKENBUF
-;	DS:SI -> 1st token
+;	BX -> CMDHEAP
+;	DI -> TOKENBUF
+;	SI -> 1st token
 ;	CX = token length
 ;	AX = keyword ID, if any
 ;	CS:DX -> offset of handler, if any
@@ -205,13 +250,19 @@ DEFPROC	parseDOS
 ; process it, replace it with a null, call cmdDOS, and then restore it and
 ; continue scanning TOKENBUF.
 ;
+	push	bp
+	mov	bp,bx			; use BP to access CMDHEAP instead
+	ASSERT	STRUCT,[bp],CMD
 	mov	al,[di].TOK_CNT
 	ASSERT	Z,<test ah,ah>
 	add	ax,ax
 	add	ax,ax
 	ASSERT	<size TOKLET>,EQ,4	; AX = end of TOKLETs
 	sub	bx,bx			; BX = offset of next TOKLET
-	mov	[iArg],bl
+	mov	[bp].CMD_ARG,bl		; initialize CMD_ARG to 0
+	mov	[bp].CMD_DEFER[0],bx	; no deferred command (yet)
+	mov	[bp].HDL_INPIPE,bx	; no input pipe (yet)
+	mov	[bp].HDL_OUTPIPE,bx	; and no output pipe (yet)
 
 pd1:	push	ax			; save end of TOKLETs
 	sub	cx,cx
@@ -219,7 +270,7 @@ pd1:	push	ax			; save end of TOKLETs
 	sub	dx,dx			; DX is set if we hit a symbol
 pd2:	cmp	bx,ax			; reached end of TOKLETs?
 	je	pd5			; yes
-	ja	pd9			; definitely
+	ja	pd3a			; definitely
 	cmp	[di].TOK_DATA[bx].TOKLET_CLS,CLS_SYM
 	je	pd4
 	test	si,si			; do we have an initial token yet?
@@ -228,13 +279,26 @@ pd2:	cmp	bx,ax			; reached end of TOKLETs?
 	mov	cl,[di].TOK_DATA[bx].TOKLET_LEN
 pd3:	add	bx,size TOKLET
 	jmp	pd2
+pd3a:	jmp	pd9
 
 pd4:	push	bx
 	mov	al,0
 	mov	bx,[di].TOK_DATA[bx].TOKLET_OFF
 	xchg	[bx],al			; null-terminated (AL = symbol)
 	mov	dx,bx			; DX is offset of symbol
-	pop	bx
+	cmp	al,'|'			; pipe symbol?
+	clc
+	jne	pd4a			; no
+	call	openPipe		; yes, open a pipe
+	jc	pd4a
+	mov	[bp].HDL_OUTPIPE,ax
+	cmp	[bp].CMD_ARG,0		; first command on line?
+	jne	pd4a			; no
+	xchg	bx,ax			; yes, put pipe handle in BX
+	mov	al,ds:[PSP_PFT][bx]	; get its SFH
+	mov	ds:[PSP_PFT][STDOUT],al	; and then replace the STDOUT SFH
+pd4a:	pop	bx
+	jc	pd9
 
 pd5:	jcxz	pd8			; no valid initial token
 	push	ax
@@ -243,20 +307,34 @@ pd5:	jcxz	pd8			; no valid initial token
 	push	si
 	lea	dx,[KEYWORD_TOKENS]
 	DOSUTIL	TOKID			; CS:DX -> TOKTBL; identify token
-	jc	pd6
+	jc	pd5a
 	mov	dx,cs:[si].CTD_FUNC
-pd6:	pop	si
+pd5a:	pop	si
+	jc	pd6
+	cmp	[bp].HDL_OUTPIPE,0
+	je	pd6
+;
+; We have an internal command, which must be deferred when a pipe exists.
+;
+	ASSERT	NZ,<test ax,ax>		; AX must be non-zero, too
+	mov	[bp].CMD_DEFER[0],ax
+	mov	[bp].CMD_DEFER[2],dx
+	mov	[bp].CMD_DEFER[4],si
+	mov	[bp].CMD_DEFER[6],cx
+	jmp	short pd6a
 
-	push	bx			; cmdDOS can modify any registers
+pd6:	push	bx			; cmdDOS can modify most registers
 	push	di			; so save anything not already saved
 	push	ds
+	mov	bx,bp
 	call	cmdDOS
 	pop	ds
 	pop	di
 	pop	bx
 
-	pop	si			; restore the symbol and its offset
+pd6a:	pop	si			; restore the symbol and its offset
 	pop	ax
+	jc	pd9
 	test	si,si			; does a symbol offset exist?
 	jz	pd9			; no, we must be done
 	mov	[si],al			; restore symbol
@@ -265,106 +343,211 @@ pd8:	add	bx,size TOKLET
 	mov	ax,bx
 	shr	ax,1
 	shr	ax,1
-	mov	[iArg],al
+	mov	[bp].CMD_ARG,al
+	sub	ax,ax
+	xchg	[bp].HDL_OUTPIPE,ax
+	mov	[bp].HDL_INPIPE,ax
 	pop	ax			; restore end of TOKLETs
 	jmp	pd1			; loop back for more commands, if any
 
-pd9:	pop	ax			; discard end of TOKLETs
+pd9:	jc	pd9a
+	mov	ax,[bp].CMD_DEFER[0]
+	test	ax,ax			; is there a deferred command?
+	jz	pd9a			; no
+
+	mov	dx,[bp].CMD_DEFER[2]
+	mov	si,[bp].CMD_DEFER[4]
+	mov	cx,[bp].CMD_DEFER[6]
+	mov	bx,bp
+	call	cmdDOS			; invoke deferred command
+
+	sub	cx,cx			; CX = 0 for "truncating" write
+	mov	bx,[bp].HDL_INPIPE
+	mov	ah,DOS_HDL_WRITE
+	int	21h			; issue final write
+	mov	ah,DOS_HDL_CLOSE
+	int	21h			; close the pipe
+	mov	cl,SCB_NONE
+	xchg	cl,[bp].SCB_NEXT
+	cmp	cl,SCB_NONE
+	je	pd9a
+	DOSUTIL	WAITEND
+
+pd9a:	call	cleanUp
+	pop	ax			; discard end of TOKLETs
+	pop	bp
 	ret
 ENDPROC	parseDOS
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; parseFile
+; cmdDOS
 ;
-; Parse an external command file (ie, COM/EXE/BAT/BAS file).
+; Process any non-BASIC command.  We allow such commands inside both BAS and
+; BAT files, with the caveat that the rest of the line is treated as a DOS
+; command (eg, you can't use a colon to append another BASIC command).
+;
+; If AX is non-zero, we have a built-in command; DX should be the handler.
+; Otherwise, we call cmdFile to load an external program or command file.
+;
+; TODO: There are still ambiguities to resolve.  For example, a simple DOS
+; command like "B:" will generate a syntax error if present in a BAS/BAT file.
 ;
 ; Inputs:
-;	DS:DI -> TOKENBUF
-;	DS:SI -> 1st token
+;	BX -> CMDHEAP
+;	DI -> TOKENBUF
+;	SI -> 1st token
 ;	CX = token length
+;	AX = keyword ID, if any
+;	CS:DX -> offset of handler, if any
 ;
 ; Outputs:
-;	None
+;	Carry clear if successful, set if error
 ;
 ; Modifies:
 ;	Any
 ;
-DEFPROC	parseFile
-	mov	[pArg],si		; save original filename ptr
-	mov	[lenArg],cx
-	lea	di,[heap].FILENAME
-	mov	ax,size FILENAME
+DEFPROC	cmdDOS
+	test	ax,ax			; has command already been ID'ed?
+	jnz	cd1			; yes
+	call	cmdFile			; no, assume it's an external file
+	jmp	short cd9
+
+cd1:	push	dx
+	call	parseSW			; parse all switch arguments, if any
+	cmp	ax,KEYWORD_FILE		; does token require a filespec? (20)
+	jb	cd8			; no
+;
+; The token is for a command that expects a filespec, so fix up the next
+; token (index in DH).  If there is no token, load defaults into SI and CX.
+;
+	call	getToken		; DH = 1st non-switch argument
+	jnc	cd6
+	push	cs
+	pop	ds
+	mov	si,offset DIR_DEF
+	mov	cx,DIR_DEF_LEN - 1
+	jmp	short cd7
+cd6:	mov	ax,15			; DS:SI -> token, CX = length
 	cmp	cx,ax
-	jb	pf1
+	jbe	cd7
 	xchg	cx,ax
-pf1:	push	cx
+cd7:	push	di
+	lea	di,[bx].LINEBUF
+	push	cx
+	push	di
+	rep	movsb
+	mov	byte ptr es:[di],0
+	pop	si			; DS:SI -> copy of token in LINEBUF
+	pop	cx
+	pop	di
+	push	ss
+	pop	ds
+	DOSUTIL	STRUPR			; DS:SI -> token, CX = length
+
+cd8:	pop	dx			; DX = handler again
+	test	dx,dx
+	jz	cd9
+	call	dx			; call the token handler
+	clc				; TODO: make handlers set/clear carry
+cd9:	ret
+ENDPROC	cmdDOS
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmdFile
+;
+; Process an external command file (ie, COM/EXE/BAT/BAS file).
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	DI -> TOKENBUF
+;	SI -> 1st token
+;	CX = token length
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cmdFile
+	push	bp
+	mov	bp,bx
+	mov	[bp].CMD_ARGPTR,si	; save original filename ptr
+	mov	[bp].CMD_ARGLEN,cx
+	lea	di,[bp].LINEBUF
+	mov	ax,15
+	cmp	cx,ax
+	jb	cf1
+	xchg	cx,ax
+cf1:	push	cx
 	push	di
 	rep	movsb
 	mov	al,0
 	stosb
-	pop	si			; DS:SI -> copy of token in FILENAME
+	pop	si			; DS:SI -> copy of token in LINEBUF
 	pop	cx
 	DOSUTIL	STRUPR			; DS:SI -> token, CX = length
 ;
 ; Determine whether DS:SI contains a drive specification or a program name.
 ;
-pf2:	cmp	cl,2			; two characters only?
-	jne	pf3			; no
+cf2:	cmp	cl,2			; two characters only?
+	jne	cf3			; no
 	cmp	byte ptr [si+1],':'
-	jne	pf3			; not a valid drive specification
+	jne	cf3			; not a valid drive specification
 	mov	cl,[si]			; CL = drive letter
 	mov	dl,cl
 	sub	dl,'A'			; DL = drive number
 	cmp	dl,26
-	jae	pf2a			; out of range
+	jae	cf2a			; out of range
 	mov	ah,DOS_DSK_SETDRV
 	int	21h			; attempt to set the drive number in DL
-	jnc	pf2x			; success
-pf2a:	PRINTF	<"Drive %c: invalid",13,10,13,10>,cx
-pf2x:	jmp	pf9
+	jnc	cf2x			; success
+cf2a:	PRINTF	<"Drive %c: invalid",13,10,13,10>,cx
+cf2x:	jmp	cf9
 ;
 ; Not a drive letter, so presumably DS:SI contains a program name.
 ;
-pf3:	mov	dx,offset PERIOD
+cf3:	mov	dx,offset PERIOD
 	call	chkString		; any periods in string at DS:SI?
-	jnc	pf4			; yes
+	jnc	cf4			; yes
 ;
 ; There's no period, so append extensions in a well-defined order (ie, .COM,
 ; .EXE, .BAT, and finally .BAS).
 ;
 	mov	dx,offset COM_EXT
-pf3a:	call	addString
+cf3a:	call	addString
 	call	findFile
-	jnc	pf4
+	jnc	cf4
 	add	dx,COM_EXT_LEN
 	cmp	dx,offset BAS_EXT
-	jbe	pf3a
-	mov	dx,di			; DX -> FILENAME
+	jbe	cf3a
+	mov	dx,di			; DX -> LINEBUF
 	add	di,cx			; every extension failed
 	mov	byte ptr [di],0		; so clear the last one we tried
 	mov	ax,ERR_NOFILE		; and report an error
-	jmp	short pf4a
+	jmp	short cf4a
 ;
 ; The filename contains a period, so let's verify the extension and the
 ; action; for example, only .COM or .EXE files should be EXEC'ed (it would
 ; not be a good idea to execute, say, CONFIG.SYS).
 ;
-pf4:	mov	dx,offset COM_EXT
+cf4:	mov	dx,offset COM_EXT
 	call	chkString
-	jnc	pf5
+	jnc	cf5
 	mov	dx,offset EXE_EXT
 	call	chkString
-	jnc	pf5
+	jnc	cf5
 	mov	dx,offset BAT_EXT
 	call	chkString
-	jnc	pf4b
+	jnc	cf4b
 	mov	dx,offset BAS_EXT
 	call	chkString
-	jnc	pf4b
-	mov	dx,di			; filename was none of the above
+	jnc	cf4b
+	mov	si,di			; filename was none of the above
 	mov	ax,ERR_INVALID		; so report an error
-pf4a:	jmp	pf8
+cf4a:	jmp	cf8
 ;
 ; BAT files are LOAD'ed and then immediately RUN.  We may as well do the same
 ; for BAS files; you can always use the LOAD command to load without running.
@@ -383,59 +566,117 @@ pf4a:	jmp	pf8
 ; Note that if the execution is aborted (eg, critical error, CTRLC signal),
 ; the program remains loaded, available for LIST'ing, RUN'ing, etc.
 ;
-pf4b:	push	dx
+cf4b:	push	dx
 	call	cmdLoad
 	pop	dx
-	jc	pf7			; don't RUN if LOAD error
+	jc	cf4d			; don't RUN if LOAD error
 	mov	al,GEN_BASIC
 	cmp	dx,offset BAS_EXT
-	je	pf4c
+	je	cf4c
 	mov	al,GEN_BATCH
-pf4c:	call	cmdRunFlags		; if cmdRun returns normally
+cf4c:	call	cmdRunFlags		; if cmdRun returns normally
 	call	freeAllText		; automatically free all text blocks
-	jmp	short pf7
+cf4d:	jmp	cf9
 ;
-; COM and EXE files are EXEC'ed, which requires building EXECDATA.
+; COM and EXE files must be loaded via either DOS_PSP_EXEC or DOS_UTL_LOAD
 ;
-pf5:	mov	dx,si			; DS:DX -> filename
-	mov	si,[pArg]		; recover original filename ptr
-	add	si,cx			; DS:SI -> cmd tail after filename
-	lea	bx,[heap].EXECDATA
-	mov	[bx].EPB_ENVSEG,0
-	mov	di,PSP_CMDTAIL
+cf5:	DOSUTIL	STRLEN			; AX = length of filename in LINEBUF
+	mov	dx,si			; DS:DX -> filename
+	mov	si,[bp].CMD_ARGPTR	; recover original filename
+	add	si,cx			; DS:SI -> tail after original filename
+	sub	cx,cx
+	cmp	[bp].CMD_ARG,cl		; is this the first command?
+	jne	cf6			; no, use DOS_UTL_LOAD instead
+	lea	bx,[bp].EXECDATA
+	mov	[bx].EPB_ENVSEG,cx	; set ENVSEG to zero for now
+	mov	di,dx			; we used to set DI to PSP_CMDTAIL
+	add	di,ax			; but the filename is now in LINEBUF
+	inc	di			; so use the remaining space in LINEBUF
 	push	di
 	mov	[bx].EPB_CMDTAIL.OFF,di
 	mov	[bx].EPB_CMDTAIL.SEG,es
 	inc	di			; use our tail space to build new tail
-	sub	cx,cx
-pf6:	lodsb
+cf5a:	lodsb
 	cmp	al,CHR_RETURN		; command line may end with CHR_RETURN
-	jbe	pf6a			; or null; we don't really care
+	jbe	cf5b			; or null; we don't really care
 	stosb
 	inc	cx			; store and count all other characters
-	jmp	pf6
-pf6a:	mov	al,CHR_RETURN		; regardless how the command line ends,
+	jmp	cf5a
+cf5b:	mov	al,CHR_RETURN		; regardless how the command line ends,
 	stosb				; terminate the tail with CHR_RETURN
 	pop	di
 	mov	[di],cl			; set the cmd tail length
 	mov	[bx].EPB_FCB1.OFF,-1	; let the EXEC function build the FCBs
-
-	mov	ax,DOS_PSP_EXEC
-	int	21h			; EXEC program at DS:DX
-	jc	pf8
+	mov	ax,DOS_PSP_EXEC1
+	int	21h			; load program at DS:DX
+	jc	cf5c
+	mov	ax,DOS_PSP_EXEC2
+	int	21h			; start program specified by ES:BX
 	mov	ah,DOS_PSP_RETCODE
 	int	21h
-	mov	dl,ah
-	mov	ah,0
-	mov	dh,0
-	PRINTF	<"Return code %d (%d)",13,10,13,10>,ax,dx
-pf7:	jmp	short pf9
+	mov	dl,ah			; AL = exit code, DL = exit type
+	PRINTF	<"Return code %bd (%bd)",13,10,13,10>,ax,dx
+	jmp	cf9
+cf5c:	mov	si,dx
+	jmp	cf8
 
-pf8:	PRINTF	<"Error loading %s: %d",13,10,13,10>,dx,ax
-	jmp	short pf9
+cf6:	mov	di,dx			; DI -> filename in LINEBUF
+	push	di
+	add	di,ax			; DI -> null
+	mov	al,' '			; replace null with space
+	stosb
+cf6a:	lodsb
+	cmp	al,CHR_RETURN		; tail may end with CHR_RETURN
+	jbe	cf6b			; or null; we don't really care
+	inc	cx
+	stosb
+	jmp	cf6a
+cf6b:	dec	di			; assume the tail is empty
+	jcxz	cf6c			; correct
+	inc	di			; no, so don't rewind DI after all
+cf6c:	mov	al,0			; regardless how the tail ends,
+	stosb				; null-terminate the new command line
+	pop	si			; SI -> new command line
+	sub	sp,size SPB
+	mov	di,sp			; ES:DI -> SPB on stack
+	sub	ax,ax
+	stosw				; SPB_ENVSEG <- 0
+	mov	ax,si
+	stosw				; SPB_CMDLINE.OFF
+	mov	ax,ds
+	stosw				; SPB_CMDLINE.SEG
+	mov	al,[bp].SFH_STDIN
+	mov	bx,[bp].HDL_INPIPE
+	test	bx,bx
+	jz	cf7
+	mov	al,ds:[PSP_PFT][bx]
+cf7:	stosb				; SPB_SFHIN
+	mov	al,[bp].SFH_STDOUT
+	mov	bx,[bp].HDL_OUTPIPE
+	test	bx,bx
+	jz	cf7a
+	mov	al,ds:[PSP_PFT][bx]
+cf7a:	stosb				; SPB_SFHOUT
+	mov	al,ds:[PSP_PFT][STDERR]
+	stosb				; SPB_SFHERR
+	mov	al,ds:[PSP_PFT][STDAUX]
+	stosb				; SPB_SFHAUX
+	mov	al,ds:[PSP_PFT][STDPRN]
+	stosb				; SPB_SFHPRN
+	mov	di,sp			; ES:DI -> SPB on stack
+	DOSUTIL	LOAD			; load CMDLINE into an SCB
+	lea	sp,[di + size SPB]	; clean up the stack
+	jc	cf8
+	mov	[bp].SCB_NEXT,cl
+	DOSUTIL	START			; start the SCB # specified in CL
+	jmp	short cf9
 
-pf9:	ret
-ENDPROC	parseFile
+cf8:	call	openError		; report error (AX) opening file (SI)
+	stc
+
+cf9:	pop	bp
+	ret
+ENDPROC	cmdFile
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -443,13 +684,14 @@ ENDPROC	parseFile
 ;
 ; Switch tokens start with the system's SWITCHAR and may contain 1 or more
 ; alphanumeric characters, each of which is converted to a bit in either
-; swDigits or swLetters.
+; SW_DIGITS or SW_LETTERS.
 ;
-; Actually, alphanumeric is not entirely true anymore: in swDigits, we now
+; Actually, alphanumeric is not entirely true anymore: in SW_DIGITS, we now
 ; capture anything from '0' to '?'.
 ;
 ; Inputs:
-;	DS:DI -> TOKENBUF
+;	BX -> CMDHEAP
+;	DI -> TOKENBUF
 ;
 ; Outputs:
 ;	DH = # of first non-switch argument
@@ -459,14 +701,15 @@ ENDPROC	parseFile
 ;
 DEFPROC	parseSW
 	push	ax
-	push	bx
+	push	di
 	sub	ax,ax
-	mov	[swDigits],ax
-	mov	[swLetters].LOW,ax
-	mov	[swLetters].HIW,ax
+	ASSERT	STRUCT,[bx],CMD
+	mov	[bx].SW_DIGITS,ax
+	mov	[bx].SW_LETTERS.LOW,ax
+	mov	[bx].SW_LETTERS.HIW,ax
 	mov	ax,DOS_MSC_GETSWC
 	int	21h			; DL = SWITCHAR
-	mov	dh,[iArg]
+	mov	dh,[bx].CMD_ARG
 	inc	dh			; DH = 1st argument to inspect
 pw1:	call	getToken
 	jc	pw8
@@ -481,27 +724,27 @@ pw3:	sub	al,'0'
 	jb	pw7			; not alphanumeric
 	cmp	al,16
 	jae	pw5
-	lea	bx,[swDigits]
+	lea	di,[bx].SW_DIGITS
 pw4:	mov	cl,al
 	mov	ax,1
 	shl	ax,cl
-	mov	[bx],ax			; set bit in word at [bx]
+	mov	[di],ax			; set bit in word at [DI]
 	jmp	pw2			; go back for more option chars
 pw5:	sub	al,'A'-'0'
 	jb	pw7			; not alphanumeric
 	cmp	al,16			; in the range of the first 16?
 	jae	pw6			; no
-	lea	bx,[swLetters].LOW
+	lea	di,[bx].SW_LETTERS.LOW
 	jmp	pw4
 pw6:	sub	al,16
 	cmp	al,10			; in the range of the next 10?
 	jae	pw7			; no
-	lea	bx,[swLetters].HIW
+	lea	di,[bx].SW_LETTERS.HIW
 	jmp	pw4
 pw7:	inc	dh			; advance to next token
 	jmp	pw1
-pw8:	mov	[iArg],dh
-	pop	bx			; DH = first non-switch argument
+pw8:	mov	[bx].CMD_ARG,dh
+	pop	di			; DH = first non-switch argument
 	pop	ax
 	ret
 ENDPROC	parseSW
@@ -511,6 +754,7 @@ ENDPROC	parseSW
 ; checkSW
 ;
 ; Inputs:
+;	BX -> CMDHEAP
 ;	AL = letter or digit (or special characters, such as ':' and '?')
 ;
 ; Outputs:
@@ -520,200 +764,25 @@ ENDPROC	parseSW
 ;	AX, CX
 ;
 DEFPROC	checkSW
-	push	bx
-	lea	bx,[swDigits]
+	push	di
+	ASSERT	STRUCT,[bx],CMD
+	lea	di,[bx].SW_DIGITS
 	sub	al,'A'
 	jae	cw1
 	add	al,'A'-'0'
 	jmp	short cw2
-cw1:	lea	bx,[swLetters]
+cw1:	lea	di,[bx].SW_LETTERS
 	cmp	al,16
 	jb	cw2
 	sub	al,16
-	add	bx,2
+	add	di,2
 cw2:	xchg	cx,ax
 	mov	ax,1
 	shl	ax,cl
-	test	[bx],ax
-	pop	bx
+	test	[di],ax
+	pop	di
 	ret
 ENDPROC	checkSW
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; cmdDOS
-;
-; Process any non-BASIC command.  We allow such commands inside both BAS and
-; BAT files, with the caveat that the rest of the line is treated as a DOS
-; command (eg, you can't use a colon to append another BASIC command).
-;
-; If AX is non-zero, we have a built-in command; DX should be the handler.
-; Otherwise, we call parseFile to load an external program or command file.
-;
-; TODO: There are still ambiguities to resolve.  For example, a simple DOS
-; command like "B:" will generate a syntax error if present in a BAS/BAT file.
-;
-; Inputs:
-;	DS:DI -> TOKENBUF
-;	DS:SI -> 1st token
-;	CX = token length
-;	AX = keyword ID, if any
-;	CS:DX -> offset of handler, if any
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	Any
-;
-DEFPROC	cmdDOS
-	test	ax,ax			; has command already been ID'ed?
-	jnz	do1			; yes
-	call	parseFile		; no, assume it's an external file
-	jmp	short do9
-
-do1:	push	dx
-	call	parseSW			; parse all switch arguments, if any
-	cmp	ax,KEYWORD_FILE		; does token require a filespec? (20)
-	jb	do8			; no
-;
-; The token is for a command that expects a filespec, so fix up the next
-; token (index in DH).  If there is no token, load defaults into SI and CX.
-;
-	call	getToken		; DH = 1st non-switch argument
-	jnc	do6
-	push	cs
-	pop	ds
-	mov	si,offset DIR_DEF
-	mov	cx,DIR_DEF_LEN - 1
-	jmp	short do7
-do6:	mov	ax,size FILENAME-1	; DS:SI -> token, CX = length
-	cmp	cx,ax
-	jbe	do7
-	xchg	cx,ax
-do7:	push	di
-	lea	di,[heap].FILENAME
-	push	cx
-	push	di
-	rep	movsb
-	mov	byte ptr es:[di],0
-	pop	si			; DS:SI -> copy of token in FILENAME
-	pop	cx
-	pop	di
-	push	ss
-	pop	ds
-	DOSUTIL	STRUPR			; DS:SI -> token, CX = length
-
-do8:	pop	dx			; DX = handler again
-	test	dx,dx
-	jz	do9
-	lea	bx,[heap]
-	call	dx			; call the token handler
-
-do9:	ret
-ENDPROC	cmdDOS
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; cmdTest
-;
-; Process test commands.  Our first test command is a pipe test: the logical
-; equivalent of "TYPE CONFIG.SYS | CASE".  Once the plumbing is working, we'll
-; add support for parsing pipe syntax from the command-line, so that you can
-; actually type that command.
-;
-; Here are the basic steps for our first pipe test:
-;
-;	1) Open a pipe ("PIPE$")
-;	2) Create an SPB (Session Parameter Block)
-;	3) Set the SPB's STDIN SFH to the pipe's SFH
-;	4) Set the SPB's STDOUT SFH to our own STDOUT SFH
-;	5) Load and start "CASE.COM" using the SPB
-;	6) Temporarily set our own STDOUT SFH to the pipe's SFH
-;	7) Invoke cmdType to perform "TYPE CONFIG.SYS"
-;	8) Restore our own STDOUT SFH to its original value
-;	9) Truncate and close the pipe (on our end)
-;	10) Wait for the session to finish (ie, unload)
-;
-; Inputs:
-;	DS:DI -> TOKENBUF
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	Any
-;
-TEST_CASE	db	"CASE.COM",0
-TEST_FILE	db	"CONFIG.SYS",0
-TEST_FILE_LEN	equ	($ - TEST_FILE)
-
-	IFDEF	DEBUG
-DEFPROC	cmdTest
-	push	ds
-	push	cs
-	pop	ds
-	mov	dx,offset PIPE_NAME	; DS:DX -> PIPE_NAME
-	mov	ax,DOS_HDL_OPENRW
-	int	21h
-	pop	ds
-	jc	ts9
-	xchg	bx,ax			; BX = pipe handle
-	mov	[scbActive],SCB_NONE
-	sub	sp,size SPB
-	mov	di,sp			; ES:DI -> SPB on stack
-	sub	ax,ax
-	stosw				; SPB_ENVSEG <- 0
-	mov	ax,offset TEST_CASE
-	stosw				; SPB_CMDLINE.OFF
-	mov	ax,cs
-	stosw				; SPB_CMDLINE.SEG
-	mov	al,ds:[PSP_PFT][bx]
-	stosb				; SPB_SFHIN
-	xchg	dx,ax			; DL = SPB_SFHIN
-	mov	al,ds:[PSP_PFT][STDOUT]
-	stosb				; SPB_SFHOUT
-	stosb				; SPB_SFHERR
-	mov	al,SFH_NONE
-	stosb				; SPB_SFHAUX
-	stosb				; SPB_SFHPRN
-	mov	di,sp			; ES:DI -> SPB on stack
-	DOSUTIL	LOAD			; load CMDLINE into an SCB
-	lea	sp,[di + size SPB]	; clean up the stack
-	jc	ts8
-	mov	[scbActive],cl
-	DOSUTIL	START			; start the SCB # specified in CL
-	push	bx
-	xchg	ds:[PSP_PFT][STDOUT],dl	; modify our STDOUT SFH
-	mov	[sfhOut],dl
-	mov	di,ds:[PSP_HEAP]
-	lea	di,[di].FILENAME
-	push	di
-	mov	cx,TEST_FILE_LEN
-	push	cx
-	mov	si,offset TEST_FILE
-	REPMOV	byte,CS
-	pop	cx
-	dec	cx
-	pop	si
-	call	cmdType			; DS:SI -> FILENAME
-	mov	dl,SFH_NONE
-	xchg	dl,[sfhOut]
-	mov	ds:[PSP_PFT][STDOUT],dl	; restore our STDOUT SFH
-	pop	bx
-	sub	cx,cx			; CX = 0 for "truncating" write
-	mov	ah,DOS_HDL_WRITE
-	int	21h			; issue final write
-ts8:	mov	ah,DOS_HDL_CLOSE
-	int	21h			; close the pipe
-	mov	cl,SCB_NONE
-	xchg	cl,[scbActive]
-	cmp	cl,SCB_NONE
-	je	ts9
-	DOSUTIL	WAITEND
-ts9:	ret
-ENDPROC	cmdTest
-	ENDIF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -721,7 +790,7 @@ ENDPROC	cmdTest
 ;
 ; Inputs:
 ;	DH = token # (0-based)
-;	DS:DI -> TOKENBUF
+;	DI -> TOKENBUF
 ;
 ; Outputs:
 ;	If carry clear, DS:SI -> token, CX = length (and ZF set)
@@ -739,49 +808,14 @@ DEFPROC	getToken
 	add	bx,bx
 	add	bx,bx			; BX = BX * 4 (size TOKLET)
 	ASSERT	<size TOKLET>,EQ,4
-	mov	si,[di+bx].TOK_DATA.TOKLET_OFF
-	mov	cl,[di+bx].TOK_DATA.TOKLET_LEN
+	mov	si,[di].TOK_DATA[bx].TOKLET_OFF
+	mov	cl,[di].TOK_DATA[bx].TOKLET_LEN
 	cmp	byte ptr [si],1		; if token is a null, treat as error
 	jb	gt8
 	sub	ch,ch			; set ZF on success, too
 gt8:	pop	bx
 gt9:	ret
 ENDPROC	getToken
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; ctrlc
-;
-; CTRLC handler: resets the program stack, closes any open handles, frees any
-; active code buffer, and then jumps to our start address.
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	DS = ES = SS
-;	SP and BP reset
-;
-; Modifies:
-;	Any
-;
-DEFPROC	ctrlc,FAR
-	push	ss
-	pop	ds
-	push	ss
-	pop	es
-	mov	bx,ds:[PSP_HEAP]
-	mov	sp,[bx].ORIG_SP
-	mov	bp,[bx].ORIG_BP
-	call	closeFile
-	mov	dl,SFH_NONE
-	xchg	dl,[sfhOut]
-	cmp	dl,SFH_NONE
-	je	cc9
-	mov	ds:[PSP_PFT][STDOUT],dl
-cc9:	call	freeAllCode
-	jmp	m0
-ENDPROC	ctrlc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -792,7 +826,8 @@ ENDPROC	ctrlc
 ; differs from cmdTime, where omitted portions always default to zero.
 ;
 ; Inputs:
-;	DS:DI -> TOKENBUF
+;	BX -> CMDHEAP
+;	DI -> TOKENBUF
 ;
 ; Outputs:
 ;	None
@@ -804,7 +839,7 @@ DEFPROC	cmdDate
 	mov	ax,offset promptDate
 	call	getInput		; DS:SI -> string
 	jc	gt9			; do nothing on empty string
-	mov	bh,'-'
+	mov	ah,'-'
 	call	getValues
 	xchg	dx,cx			; DH = month, DL = day, CX = year
 	cmp	cx,100
@@ -843,6 +878,7 @@ ENDPROC	cmdDate
 ; Print a directory listing for the specified filespec.
 ;
 ; Inputs:
+;	BX -> CMDHEAP
 ;	DS:SI -> filespec (with length CX)
 ;
 ; Outputs:
@@ -852,8 +888,8 @@ ENDPROC	cmdDate
 ;	Any
 ;
 DEFPROC	cmdDir
-	mov	[pArg],si
-	mov	[lenArg],cx
+	mov	[bx].CMD_ARGPTR,si
+	mov	[bx].CMD_ARGLEN,cx
 ;
 ; If filespec begins with ":", extract drive letter, and if it ends
 ; with ":" as well, append DIR_DEF ("*.*").
@@ -957,10 +993,11 @@ di7:	xchg	ax,dx			; AX = total # of clusters used
 ;
 	pop	bp
 	mov	al,'L'
+	mov	bx,ds:[PSP_HEAP]
 	call	checkSW
 	jz	di9
-	mov	si,[pArg]
-	mov	cx,[lenArg]
+	mov	si,[bx].CMD_ARGPTR
+	mov	cx,[bx].CMD_ARGLEN
 	jmp	di1
 
 di8:	PRINTF	<"Unable to find %s (%d)",13,10,13,10>,si,ax
@@ -974,7 +1011,7 @@ ENDPROC	cmdDir
 ; cmdExit
 ;
 ; Inputs:
-;	None
+;	BX -> CMDHEAP
 ;
 ; Outputs:
 ;	None
@@ -995,7 +1032,8 @@ ENDPROC	cmdExit
 ; display a list of all keywords.
 ;
 ; Inputs:
-;	DS:DI -> TOKENBUF
+;	BX -> CMDHEAP
+;	DI -> TOKENBUF
 ;
 ; Outputs:
 ;	None
@@ -1004,7 +1042,7 @@ ENDPROC	cmdExit
 ;	Any
 ;
 DEFPROC	cmdHelp
-	mov	dh,[iArg]		; is there a non-switch argument?
+	mov	dh,[bx].CMD_ARG		; is there a non-switch argument?
 	call	getToken
 	jnc	doHelp
 	jmp	h5			; no
@@ -1026,25 +1064,25 @@ DEFPROC	cmdHelp
 	pop	ds
 	mov	si,offset HELP_FILE	; DS:SI -> filename
 	push	dx
-	call	openFile
+	call	openInput
 	pop	dx
 	pop	ds
 	jc	h3
 	push	cx
 	sub	cx,cx
-	call	seekFile		; seek to 0:DX
+	call	seekInput		; seek to 0:DX
 	pop	cx
 	mov	al,CHR_CTRLZ
 	push	ax
 	sub	sp,cx			; allocate CX bytes from the stack
 	mov	si,sp
-	call	readFile		; read CX bytes into DS:SI
+	call	readInput		; read CX bytes into DS:SI
 	jc	h2c
 ;
 ; Keep track of the current line's available characters (DL) and maximum
 ; characters (DH), and print only whole words that will fit.
 ;
-	mov	dl,[heap].CON_COLS	; DL = # available chars
+	mov	dl,[bx].CON_COLS	; DL = # available chars
 	dec	dx			; DL = # available chars - 1
 	mov	dh,dl
 h2:	call	getWord			; AX = next word length
@@ -1063,7 +1101,7 @@ h2b:	call	printNewLine
 
 h2c:	add	sp,cx			; deallocate the stack space
 	pop	ax
-	call	closeFile
+	call	closeInput
 	ret
 
 h3:	PRINTF	<"No help available",13,10>
@@ -1092,7 +1130,8 @@ h6:	cmp	cs:[si].CTD_ID,KEYWORD_CLAUSE
 	add	dl,al
 	cmp	cl,1
 	je	h7
-	cmp	dl,[heap].CON_COLS
+	ASSERT	STRUCT,[bx],CMD
+	cmp	dl,[bx].CON_COLS
 	jb	h8
 h7:	call	printCRLF
 	mov	dl,8
@@ -1257,7 +1296,7 @@ ENDPROC	printNewLine
 ; cmdKeys
 ;
 ; Inputs:
-;	DS:DI -> TOKENBUF
+;	DI -> TOKENBUF
 ;
 ; Outputs:
 ;	None
@@ -1274,7 +1313,8 @@ ENDPROC	cmdKeys
 ; cmdList
 ;
 ; Inputs:
-;	DS:DI -> TOKENBUF
+;	BX -> CMDHEAP
+;	DI -> TOKENBUF
 ;
 ; Outputs:
 ;	None
@@ -1283,7 +1323,7 @@ ENDPROC	cmdKeys
 ;	Any
 ;
 DEFPROC	cmdList
-	lea	si,[heap].TBLKDEF
+	lea	si,[bx].TBLKDEF
 li2:	mov	cx,[si].BLK_NEXT
 	jcxz	li9			; nothing left to parse
 	mov	ds,cx
@@ -1320,6 +1360,12 @@ ENDPROC	cmdList
 ;	Any
 ;
 DEFPROC	cmdLoad
+	LOCVAR	lineLabel,word		; current line label
+	LOCVAR	lineOffset,word		; current line offset
+	LOCVAR	pTextLimit,word		; current text block limit
+	LOCVAR	pLineBuf,word
+
+	ENTER
 	ASSUME	DS:DATA
 	mov	dx,offset PERIOD
 	call	chkString
@@ -1327,7 +1373,7 @@ DEFPROC	cmdLoad
 	mov	dx,offset BAS_EXT
 	call	addString
 
-lf1:	call	openFile		; open the specified file
+lf1:	call	openInput		; open the specified file
 	jnc	lf1b
 	cmp	si,di			; was there an extension?
 	jne	lf1a			; yes, give up
@@ -1335,7 +1381,8 @@ lf1:	call	openFile		; open the specified file
 	call	addString
 	sub	di,di			; zap DI so that we don't try again
 	jmp	lf1
-lf1a:	jmp	openError
+lf1a:	call	openError		; report error (AX) opening file (SI)
+	jmp	lf13
 
 lf1b:	call	freeAllText		; free any pre-existing blocks
 	test	dx,dx
@@ -1352,7 +1399,8 @@ lf2a:	xchg	cx,ax			; CX = size of initial text block
 ; then add the label # (2 bytes), line length (1 byte), and line contents
 ; (not including any leading space or terminating CR/LF) to the text block.
 ;
-	lea	bx,[heap].LINEBUF
+	lea	ax,[bx].LINEBUF
+	mov	[pLineBuf],ax
 	sub	cx,cx			; DS:SI contains zero bytes now
 
 lf3:	jcxz	lf4
@@ -1370,19 +1418,19 @@ lf3b:	xchg	si,dx			; restore SI; DX is how far we got
 ; everything at DS:SI down to LINEBUF, fill in the rest of LINEBUF, and try
 ; again.
 ;
-	cmp	si,bx			; is current line already at LINEBUF?
+	cmp	si,[pLineBuf]		; is current line already at LINEBUF?
 	je	lf4y			; yes, we're done
 	push	cx
 	push	di
 	push	es
 	push	ds
 	pop	es
-	mov	di,bx
+	mov	di,[pLineBuf]
 	rep	movsb
 	pop	es
 	pop	di
 	pop	cx
-lf4:	mov	si,bx			; DS:SI has been adjusted
+lf4:	mov	si,[pLineBuf]		; DS:SI has been adjusted
 ;
 ; At DS:SI+CX, read (size LINEBUF - CX) more bytes.
 ;
@@ -1392,7 +1440,7 @@ lf4:	mov	si,bx			; DS:SI has been adjusted
 	mov	ax,size LINEBUF
 	sub	ax,cx
 	xchg	cx,ax
-	call	readFile
+	call	readInput
 	pop	si
 	pop	cx
 	jc	lf4x
@@ -1470,8 +1518,10 @@ lf11:	call	freeAllText
 	stc
 
 lf12:	pushf
-	call	closeFile
+	call	closeInput
 	popf
+
+lf13:	LEAVE
 	ret
 ENDPROC	cmdLoad
 
@@ -1480,7 +1530,7 @@ ENDPROC	cmdLoad
 ; cmdNew
 ;
 ; Inputs:
-;	DS:DI -> TOKENBUF
+;	DI -> TOKENBUF
 ;
 ; Outputs:
 ;	None
@@ -1499,7 +1549,7 @@ ENDPROC	cmdNew
 ; cmdRestart
 ;
 ; Inputs:
-;	DS:DI -> TOKENBUF
+;	DI -> TOKENBUF
 ;
 ; Outputs:
 ;	None
@@ -1517,8 +1567,9 @@ ENDPROC	cmdRestart
 ; cmdRun
 ;
 ; Inputs:
+;	BX -> CMDHEAP
+;	DI -> TOKENBUF
 ;	AL = GEN_BASIC or GEN_BATCH (if calling cmdRunFlags)
-;	DS:DI -> TOKENBUF
 ;
 ; Outputs:
 ;	None
@@ -1533,8 +1584,7 @@ DEFPROC	cmdRun
 	jne	ru1			; BASIC programs
 	call	freeAllVars		; always gets a fresh set of variables
 ru1:	sub	si,si
-	lea	bx,[heap]
-	ASSERT	Z,<cmp bx,ds:[PSP_HEAP]>
+	ASSERT	STRUCT,[bx],CMD
 	call	genCode
 	ret
 ENDPROC	cmdRun
@@ -1548,7 +1598,8 @@ ENDPROC	cmdRun
 ; displays the difference between the current time and the previous time.
 ;
 ; Inputs:
-;	DS:DI -> TOKENBUF
+;	BX -> CMDHEAP
+;	DI -> TOKENBUF
 ;
 ; Outputs:
 ;	None
@@ -1568,39 +1619,38 @@ DEFPROC	cmdTime
 	call	printTime
 	pop	dx
 	pop	cx
+
 	push	cx
 	push	dx
-	sub	dl,[heap].PREV_TIME.LOW.LOB
+	push	bx
+	sub	dl,[bx].PREV_TIME.LOW.LOB
 	jnb	tm1a
 	add	dl,100			; adjust hundredths
 	stc
-tm1a:	sbb	dh,[heap].PREV_TIME.LOW.HIB
+tm1a:	sbb	dh,[bx].PREV_TIME.LOW.HIB
 	jnb	tm1b
 	add	dh,60			; adjust seconds
 	stc
-tm1b:	sbb	cl,[heap].PREV_TIME.HIW.LOB
+tm1b:	sbb	cl,[bx].PREV_TIME.HIW.LOB
 	jnb	tm1c
 	add	cl,60			; adjust minutes
 	stc
-tm1c:	sbb	ch,[heap].PREV_TIME.HIW.HIB
+tm1c:	sbb	ch,[bx].PREV_TIME.HIW.HIB
 	jnb	tm1d
 	add	ch,24			; adjust hours
-tm1d:	mov	al,ch
-	cbw				; AX = hours
-	mov	bl,cl
-	mov	bh,0			; BX = minutes
-	mov	cl,dh
-	mov	ch,0			; CX = seconds
-	mov	dh,0			; DX = hundredths
-	PRINTF	<"Elapsed time is %2d:%02d:%02d.%02d",13,10>,ax,bx,cx,dx
-	pop	[heap].PREV_TIME.LOW
-	pop	[heap].PREV_TIME.HIW
+tm1d:	mov	al,ch			; AL = hours
+	mov	bl,cl			; BL = minutes
+	mov	cl,dh			; CL = seconds, DL = hundredths
+	PRINTF	<"Elapsed time is %2bu:%02bu:%02bu.%02bu",13,10>,ax,bx,cx,dx
+	pop	bx
+	pop	[bx].PREV_TIME.LOW
+	pop	[bx].PREV_TIME.HIW
 tm2:	ret
 
 tm3:	mov	ax,offset promptTime
 	call	getInput		; DS:SI -> string
 	jc	tm2			; do nothing on empty string
-	mov	bh,':'
+	mov	ah,':'
 	call	getValues
 	mov	ah,DOS_MSC_SETTIME
 	int	21h			; set the time
@@ -1615,14 +1665,13 @@ tm3:	mov	ax,offset promptTime
 	DEFLBL	promptTime,near
 	jnc	tm8
 	DOSUTIL	GETTIME			; GETTIME returns packed time
-	mov	[heap].PREV_TIME.LOW,dx
-	mov	[heap].PREV_TIME.HIW,cx
+	mov	[bx].PREV_TIME.LOW,dx
+	mov	[bx].PREV_TIME.HIW,cx
+
 	DEFLBL	printTime,near
-	mov	cl,dh
-	mov	ch,0			; CX = seconds
-	mov	dh,0			; DX = hundredths
+	mov	cl,dh			; CL = seconds, DL = hundredths
 	pushf
-	PRINTF	<"Current time is %2H:%02N:%02d.%02d",13,10>,ax,ax,cx,dx
+	PRINTF	<"Current time is %2H:%02N:%02bu.%02bu",13,10>,ax,ax,cx,dx
 	popf
 	jz	tm8
 	PRINTF	<"Enter new time: ">
@@ -1639,7 +1688,8 @@ ENDPROC	cmdTime
 ; Prints the BASIC-DOS version.
 ;
 ; Inputs:
-;	DS:DI -> TOKENBUF
+;	BX -> CMDHEAP
+;	DI -> TOKENBUF
 ;
 ; Outputs:
 ;	None
@@ -1650,10 +1700,8 @@ ENDPROC	cmdTime
 DEFPROC	cmdVer
 	mov	ah,DOS_MSC_GETVER
 	int	21h
-	mov	al,ah			; AH = BASIC-DOS major version
-	cbw				; moved to AX
-	mov	dl,bh			; BH = BASIC-DOS minor version
-	mov	dh,ah			; moved to DX
+	mov	al,ah			; AL = BASIC-DOS major version
+	mov	dl,bh			; DL = BASIC-DOS minor version
 	add	bl,'@'			; BL = BASIC-DOS revision
 	cmp	bl,'@'			; is revision a letter?
 	ja	ver1			; yes
@@ -1662,9 +1710,9 @@ ver1:	test	cx,1			; CX bit 0 set if BASIC-DOS DEBUG ver
 	mov	cx,offset STD_VER
 	jz	ver9
 	mov	cx,offset DBG_VER
-ver9:	PRINTF	<13,10,"BASIC-DOS Version %d.%02d%c %ls",13,10,13,10>,ax,dx,bx,cx,cs
+ver9:	PRINTF	<13,10,"BASIC-DOS Version %bd.%02bd%c %ls",13,10,13,10>,ax,dx,bx,cx,cs
 	ret
-ENDPROC	cmdver
+ENDPROC	cmdVer
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1673,6 +1721,7 @@ ENDPROC	cmdver
 ; Read the specified file and write the contents to STDOUT.
 ;
 ; Inputs:
+;	BX -> CMDHEAP
 ;	DS:SI -> filespec (with length CX)
 ;
 ; Outputs:
@@ -1682,45 +1731,50 @@ ENDPROC	cmdver
 ;	Any
 ;
 DEFPROC	cmdType
-	call	openFile		; SI -> filename
-	jc	openError
+	ASSERT	STRUCT,[bx],CMD
+	call	openInput		; SI -> filename
+	jc	openError		; report error (AX) opening file (SI)
 	mov	si,PSP_DTA		; SI -> DTA (used as a read buffer)
 ty1:	mov	cx,size PSP_DTA		; CX = number of bytes to read
-	call	readFile
-	jc	closeFile
+	call	readInput
+	jc	closeInput
 	test	ax,ax			; anything read?
-	jz	closeFile		; no
+	jz	closeInput		; no
+	push	bx
 	mov	bx,STDOUT
 	xchg	cx,ax			; CX = number of bytes to write
 	mov	ah,DOS_HDL_WRITE
 	int	21h
+	pop	bx
 	jmp	ty1
 ENDPROC	cmdType
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; openFile
+; openInput
 ;
 ; Open the specified file; used by "LOAD" and "TYPE".  As an added bonus,
 ; return the size of the file in DX:AX.
 ;
 ; Inputs:
+;	BX -> CMDHEAP
 ;	DS:SI -> filename
 ;
 ; Outputs:
-;	If carry clear, [hFile] is updated, and DX:AX is the file size
+;	If carry clear, HDL_INPUT is updated, and DX:AX is the file size
 ;
 ; Modifies:
 ;	AX, DX
 ;
-DEFPROC	openFile
+DEFPROC	openInput
 	push	bx
 	push	cx
 	mov	dx,si			; DX -> filename
 	mov	ax,DOS_HDL_OPENRO
 	int	21h
 	jc	of9
-	mov	[hFile],ax		; save file handle
+	ASSERT	STRUCT,[bx],CMD
+	mov	[bx].HDL_INPUT,ax	; save file handle
 	xchg	bx,ax			; BX = handle
 	sub	cx,cx
 	sub	dx,dx
@@ -1736,20 +1790,20 @@ DEFPROC	openFile
 of9:	pop	cx
 	pop	bx
 	ret
-	DEFLBL	openError,near
-	PRINTF	<"Unable to open %s (%d)",13,10,13,10>,dx,ax
+	DEFLBL	openError,near		; report error (AX) opening file (SI)
+	PRINTF	<"Unable to open %s (%d)",13,10,13,10>,si,ax
 	stc
 	ret
-ENDPROC	openFile
+ENDPROC	openInput
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; closeFile
+; closeInput
 ;
 ; Close the default file handle.
 ;
 ; Inputs:
-;	None
+;	BX -> CMDHEAP
 ;
 ; Outputs:
 ;	None
@@ -1757,25 +1811,28 @@ ENDPROC	openFile
 ; Modifies:
 ;	AX
 ;
-DEFPROC	closeFile
+DEFPROC	closeInput
 	push	bx
-	mov	bx,[hFile]
-	test	bx,bx
-	jz	cf9
+	sub	ax,ax
+	ASSERT	STRUCT,[bx],CMD
+	xchg	ax,[bx].HDL_INPUT
+	test	ax,ax
+	jz	ci9
+	xchg	bx,ax
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
-	mov	[hFile],0
-cf9:	pop	bx
+ci9:	pop	bx
 	ret
-ENDPROC	closeFile
+ENDPROC	closeInput
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; readFile
+; readInput
 ;
 ; Read CX bytes from the default file into the buffer at DS:SI.
 ;
 ; Inputs:
+;	BX -> CMDHEAP
 ;	CX = number of bytes
 ;	DS:SI -> buffer
 ;
@@ -1786,26 +1843,28 @@ ENDPROC	closeFile
 ; Modifies:
 ;	AX, DX
 ;
-DEFPROC	readFile
+DEFPROC	readInput
 	push	bx
 	mov	dx,si
-	mov	bx,[hFile]
+	ASSERT	STRUCT,[bx],CMD
+	mov	bx,[bx].HDL_INPUT
 	mov	ah,DOS_HDL_READ
 	int	21h
-	jnc	rf9
+	jnc	ri9
 	PRINTF	<"Unable to read file",13,10,13,10>
 	stc
-rf9:	pop	bx
+ri9:	pop	bx
 	ret
-ENDPROC	readFile
+ENDPROC	readInput
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; seekFile
+; seekInput
 ;
 ; Seek to the specified position.
 ;
 ; Inputs:
+;	BX -> CMDHEAP
 ;	CX:DX = absolute position
 ;
 ; Outputs:
@@ -1814,14 +1873,50 @@ ENDPROC	readFile
 ; Modifies:
 ;	AX
 ;
-DEFPROC	seekFile
+DEFPROC	seekInput
 	push	bx
-	mov	bx,[hFile]
+	ASSERT	STRUCT,[bx],CMD
+	mov	bx,[bx].HDL_INPUT
 	mov	ax,DOS_HDL_SEEKBEG
 	int	21h
 	pop	bx
 	ret
-ENDPROC	seekFile
+ENDPROC	seekInput
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; openPipe
+;
+; Open a pipe.  If successful, the caller will use the handle (AX)
+; to extract the corresponding SFH from PSP_PFT and store it in both the
+; current session's PSP_PFT STDOUT slot and the next session's SPB_SFHIN.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	If carry clear, AX is new pipe handle
+;
+; Modifies:
+;	AX
+;
+DEFPROC	openPipe
+	push	dx
+	push	ds
+	push	cs
+	pop	ds
+	mov	dx,offset PIPE_NAME	; DS:DX -> PIPE_NAME
+	mov	ax,DOS_HDL_OPENRW
+	int	21h
+	jnc	op1
+	push	si
+	mov	si,dx
+	call	openError		; report error (AX) opening file (SI)
+	pop	si
+op1:	pop	ds
+	pop	dx
+	ret
+ENDPROC	openPipe
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1845,9 +1940,9 @@ ENDPROC	seekFile
 ;
 DEFPROC	findFile
 	push	dx
-	call	openFile		; returns file size too, but we
+	call	openInput		; returns file size too, but we
 	jc	ff9			; don't care (TODO: any perf impact)?
-	call	closeFile
+	call	closeInput
 ff9:	pop	dx
 	ret
 ENDPROC	findFile
@@ -1914,8 +2009,9 @@ ENDPROC	chkString
 ; Use by cmdDate and cmdTime to set DS:SI to an input string.
 ;
 ; Inputs:
+;	BX -> CMDHEAP
+;	DI -> TOKENBUF
 ;	AX = prompt function
-;	DS:DI -> TOKENBUF
 ;
 ; Outputs:
 ;	CX, DX = default values from caller-supplied function
@@ -1926,7 +2022,7 @@ ENDPROC	chkString
 ;	AX, CX, DX, SI
 ;
 DEFPROC	getInput
-	mov	dh,[iArg]
+	mov	dh,[bx].CMD_ARG
 	call	getToken
 	jnc	gi1
 ;
@@ -1950,7 +2046,7 @@ gi1:	call	ax			; AX = caller-supplied function
 ; Request new values.
 ;
 	push	dx
-	lea	si,[heap].LINEBUF
+	lea	si,[bx].LINEBUF
 	mov	word ptr [si].INP_MAX,12; max of 12 chars (including CR)
 	mov	dx,si
 	mov	ah,DOS_TTY_INPUT
@@ -1973,16 +2069,18 @@ ENDPROC	getInput
 ; Used by cmdDate and cmdTime to get a series of delimited values.
 ;
 ; Inputs:
-;	BH = default delimiter
+;	AH = default delimiter
 ;	SI -> DS-relative string data (CR-terminated)
 ;
 ; Outputs:
 ;	CH, CL, DH, DL
 ;
 ; Modifies:
-;	AX, BX, CX, DX, SI
+;	AX, CX, DX, SI
 ;
 DEFPROC	getValues
+	push	bx
+	xchg	bx,ax			; BH = default delimiter
 	call	getValue
 	jc	gvs2
 	mov	ch,al			; CH = 1st value (eg, month)
@@ -2023,7 +2121,8 @@ gvs8:	pop	di
 	jc	gvs9
 	mov	dl,al			; DL = 4th value (eg, hundredths)
 
-gvs9:	ret
+gvs9:	pop	bx
+	ret
 ENDPROC	getValues
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
