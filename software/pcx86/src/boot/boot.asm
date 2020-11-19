@@ -19,7 +19,7 @@ BOOT	segment word public 'CODE'
 
 ;
 ; We "ORG" at BOOT_SECTOR_LO rather than BOOT_SECTOR, because after part1
-; finishes, we're runing at BOOT_SECTOR_LO.
+; finishes, we're running at BOOT_SECTOR_LO.
 ;
 	org	BOOT_SECTOR_LO
         ASSUME	CS:BOOT, DS:NOTHING, ES:NOTHING, SS:NOTHING

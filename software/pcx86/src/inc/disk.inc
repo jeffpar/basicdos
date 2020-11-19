@@ -50,7 +50,7 @@ BPB_LBADATA	dw	?		; 26h: LBA of 1st data sector
 BPB		ends
 ;
 ; Beyond our on-disk additions to the BPB, we also have internal additions,
-; hence the extended BPB (BPBEX) structure.  We do this intead of defining yet
+; hence the extended BPB (BPBEX) structure.  We do this instead of defining yet
 ; another structure -- like, say, a Drive Parameter Block (DPB).
 ;
 BPBEX		struc			; our internal structure for bpb_table

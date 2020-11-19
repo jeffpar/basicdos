@@ -161,9 +161,6 @@ CODE	ENDS
 	DEFTOK	RESTART, 7, cmdRestart
 	DEFTOK	RETURN, 53, genReturn
 	DEFTOK	RUN,     8, cmdRun
-	IFDEF DEBUG
-	DEFTOK	TEST,   39, cmdTest
-	ENDIF
 	DEFTOK	THEN,  204
 	DEFTOK	TIME,   11, cmdTime
 	DEFTOK	TYPE,   22, cmdType

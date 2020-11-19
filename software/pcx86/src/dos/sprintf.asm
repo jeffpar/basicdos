@@ -223,7 +223,7 @@ pf1:	mov	al,[bx]			; AL = next format character
 ; following the backslash -- which is exactly what you want in the case of \\.
 ;
 	cmp	al,'\'
-	jne	pf1z
+	jne	pf1e
 	mov	al,[bx]
 	inc	bx
 	cmp	al,'b'
@@ -239,9 +239,9 @@ pf1c:	cmp	al,'n'
 	jne	pf1d
 	mov	al,CHR_LINEFEED		; \n becomes 10
 pf1d:	cmp	al,'t'
-	jne	pf1z
+	jne	pf1e
 	mov	al,CHR_TAB		; \t becomes 9
-pf1z:	test	al,al
+pf1e:	test	al,al
 	jz	pf3			; end of format string
 	cmp	al,'%'			; formatter prefix?
 	je	pfp			; yes
@@ -255,70 +255,70 @@ pfp:	mov	cx,10			; CH = print flags, CL = base
 	mov	dx,bx			; DX = where this formatter started
 	mov	word ptr [bp].SPF_WIDTH,0
 	mov	word ptr [bp].SPF_PRECIS,0FF00h
-pfpa:	mov	al,[bx]
+pfp1:	mov	al,[bx]
 	inc	bx
 	cmp	al,'-'			; left-alignment indicator?
-	jne	pfpb
+	jne	pfp2
 	or	ch,PF_LEFT		; yes
-	jmp	pfpa
-pfpb:	cmp	al,'#'			; prefix indicator?
-	jne	pfpc
+	jmp	pfp1
+pfp2:	cmp	al,'#'			; prefix indicator?
+	jne	pfp3
 	or	ch,PF_HASH		; yes
-	jmp	pfpa
-pfpc:	cmp	al,'0'			; zero-padding indicator
-	jne	pfpd
+	jmp	pfp1
+pfp3:	cmp	al,'0'			; zero-padding indicator
+	jne	pfp4
 	test	ch,PF_WIDTH OR PF_PRECIS; maybe, leading zero?
-	jnz	pfpj			; no
+	jnz	pfp10			; no
 	or	ch,PF_ZERO		; yes
-	jmp	pfpa
-pfpd:	cmp	al,'b'			; byte value?
-	jne	pfpd1
+	jmp	pfp1
+pfp4:	cmp	al,'b'			; byte value?
+	jne	pfp4a
 	or	ch,PF_BYTE		; yes
-	jmp	pfpa
-pfpd1:	cmp	al,'l'			; long value?
-	jne	pfpe
+	jmp	pfp1
+pfp4a:	cmp	al,'l'			; long value?
+	jne	pfp5
 	or	ch,PF_LONG		; yes
-	jmp	pfpa
-pfpe:	cmp	al,'d'			; %d: decimal value?
-	jne	pfpe1
+	jmp	pfp1
+pfp5:	cmp	al,'d'			; %d: decimal value?
+	jne	pfp5b
 	or	ch,PF_SIGN		; yes, so mark as explicitly signed
-pfpe0:	jmp	pfd
-pfpe1:	cmp	al,'c'			; %c character value?
-	jne	pfpf
+pfp5a:	jmp	pfd
+pfp5b:	cmp	al,'c'			; %c character value?
+	jne	pfp6
 	jmp	pfc
-pfpf:	cmp	al,'s'			; %s string value?
-	jne	pfpg
+pfp6:	cmp	al,'s'			; %s string value?
+	jne	pfp7
 	jmp	pfs			; yes
-pfpg:	cmp	al,'u'			; %u unsigned value?
-	je	pfpe0			; yes, unsigned values are the default
+pfp7:	cmp	al,'u'			; %u unsigned value?
+	je	pfp5a			; yes, unsigned values are the default
 	IFDEF DEBUG
 	cmp	al,'x'			; %x hex value?
-	jne	pfph
+	jne	pfp8
 	mov	cl,16			; use base 16 instead
-	jmp	pfpe0			; hex values are always unsigned
+	jmp	pfp5a			; hex values are always unsigned
 	ENDIF
-pfph:	cmp	al,'.'			; precision indicator?
-	jne	pfpi
+pfp8:	cmp	al,'.'			; precision indicator?
+	jne	pfp9
 	or	ch,PF_PRECIS		; yes
-	jmp	pfpa
-pfpi:	cmp	al,'*'			; asterisk?
-	jne	pfpi2
+	jmp	pfp1
+pfp9:	cmp	al,'*'			; asterisk?
+	jne	pfp9a
 	mov	ax,[bp+si]		; grab a stack parameter
 	add	si,2			; and use that as the PRECIS or WIDTH
-	jmp	short pfpj2
-pfpi2:	cmp	al,'1'			; possible number?
-	jb	pfpl			; no
+	jmp	short pfp10a
+pfp9a:	cmp	al,'1'			; possible number?
+	jb	pfp12			; no
 	cmp	al,'9'
-	ja	pfpl			; no
-pfpj:	sub	al,'0'
-pfpj2:	push	dx
+	ja	pfp12			; no
+pfp10:	sub	al,'0'
+pfp10a:	push	dx
 	push	si
 	mov	si,offset SPF_PRECIS
 	test	ch,PF_PRECIS		; is this a precision number?
-	jnz	pfpk			; yes
+	jnz	pfp11			; yes
 	mov	si,offset SPF_WIDTH
 	or	ch,PF_WIDTH		; no, so it must be a width number
-pfpk:	cbw
+pfp11:	cbw
 	xchg	dx,ax			; DX = value of next digit
 	mov	al,[bp+si]		; load SPF value as an 8-bit value
 	mov	ah,10			; (we assume it never goes over 255)
@@ -327,47 +327,47 @@ pfpk:	cbw
 	mov	[bp+si],ax		; update SPF value as a 16-bit value
 	pop	si
 	pop	dx
-	jmp	pfpa
-pfpl:	cmp	al,'F'			; %F (month as a string)?
-	jne	pfpl2			; no
+	jmp	pfp1
+pfp12:	cmp	al,'F'			; %F (month as a string)?
+	jne	pfp12a			; no
 	jmp	pfm
-pfpl2:	cmp	al,'W'			; %W (day-of-week as a string)?
-	jne	pfpl3			; no
+pfp12a:	cmp	al,'W'			; %W (day-of-week as a string)?
+	jne	pfp12b			; no
 	jmp	pfw
-pfpl3:	cmp	al,'M'			; %M (month portion of DATE)?
-	jne	pfpm			; no
+pfp12b:	cmp	al,'M'			; %M (month portion of DATE)?
+	jne	pfp13			; no
 	mov	dx,0F05h		; shift DATE right 5, mask with 0Fh
-	jmp	pfda
-pfpm:	cmp	al,'D'			; %D (day portion of DATE)?
-	jne	pfpn			; no
+	jmp	pda
+pfp13:	cmp	al,'D'			; %D (day portion of DATE)?
+	jne	pfp14			; no
 	mov	dx,1F00h		; shift DATE right 0, mask with 1Fh
-	jmp	short pfda
-pfpn:	cmp	al,'X'			; %X (year portion of DATE)?
-	jne	pfpo			; no
+	jmp	short pda
+pfp14:	cmp	al,'X'			; %X (year portion of DATE)?
+	jne	pfp15			; no
 	mov	dx,7F09h		; shift DATE right 9, mask with 7Fh
-	jmp	short pfda
-pfpo:	cmp	al,'Y'			; %Y (year portion of DATE)?
-	jne	pfpp			; no
+	jmp	short pda
+pfp15:	cmp	al,'Y'			; %Y (year portion of DATE)?
+	jne	pfp16			; no
 	mov	dx,0FF09h		; shift DATE right 9, mask with FFh
-	jmp	short pfda
-pfpp:	cmp	al,'G'			; %G (12-hour portion of TIME)?
-	jne	pfpq			; no
+	jmp	short pda
+pfp16:	cmp	al,'G'			; %G (12-hour portion of TIME)?
+	jne	pfp17			; no
 	mov	dx,0FF0Bh		; shift TIME right 11, mask with FFh
-	jmp	short pfda
-pfpq:	cmp	al,'H'			; %H (24-hour portion of TIME)?
-	jne	pfpr			; no
+	jmp	short pda
+pfp17:	cmp	al,'H'			; %H (24-hour portion of TIME)?
+	jne	pfp18			; no
 	mov	dx,1F0Bh		; shift TIME right 11, mask with 1Fh
-	jmp	short pfda
-pfpr:	cmp	al,'N'			; %N (minute portion of TIME)?
-	jne	pfps			; no
+	jmp	short pda
+pfp18:	cmp	al,'N'			; %N (minute portion of TIME)?
+	jne	pfp19			; no
 	mov	dx,3F05h		; shift TIME right 5, mask with 0Fh
-	jmp	short pfda
-pfps:	cmp	al,'S'			; %S (second portion of TIME)?
-	jne	pfpt			; no
+	jmp	short pda
+pfp19:	cmp	al,'S'			; %S (second portion of TIME)?
+	jne	pfp20			; no
 	mov	dx,1FFFh		; shift TIME left 1, mask with 1Fh
-	jmp	short pfda
-pfpt:	cmp	al,'A'			; %A (AM or PM portion of TIME)?
-	jne	pfpu			; no
+	jmp	short pda
+pfp20:	cmp	al,'A'			; %A (AM or PM portion of TIME)?
+	jne	pfp21			; no
 	mov	ax,[bp+si]		; get the TIME
 	push	cx
 	mov	cl,11
@@ -375,23 +375,23 @@ pfpt:	cmp	al,'A'			; %A (AM or PM portion of TIME)?
 	pop	cx
 	cmp	al,12			; is hour < 12?
 	mov	al,'a'
-	jb	pfps2			; yes, use 'a'
+	jb	pfp20a			; yes, use 'a'
 	mov	al,'p'			; no, use 'p'
-pfps2:	mov	[bp+si],ax
+pfp20a:	mov	[bp+si],ax
 	jmp	pfc
-pfpu:	cmp	al,'U'			; %U (skip one 16-bit parameter)?
-	jne	pfpv			; no
+pfp21:	cmp	al,'U'			; %U (skip one 16-bit parameter)?
+	jne	pfp22			; no
 	add	si,2			; yes, bump parameter index
 	jmp	pf1			; and return to top
-pfpv:	cmp	al,'P'			; %P (CS:IP)?
-	jne	pfpz			; no
+pfp22:	cmp	al,'P'			; %P (CS:IP)?
+	jne	pfp23			; no
 	mov	dx,[bp].REG_CS		; yes, load caller's CS:IP-2 into DX:AX
 	mov	ax,[bp].REG_IP
 	dec	ax
 	dec	ax
 	mov	cl,16			; set base
-	jmp	pfd1			; print as base-16 32-bit value
-pfpz:	mov	bx,dx			; error, didn't end with known letter
+	jmp	pfd4			; print as base-16 32-bit value
+pfp23:	mov	bx,dx			; error, didn't end with known letter
 	mov	al,'%'			; restore '%'
 	jmp	pf2
 ;
@@ -407,37 +407,37 @@ pfpz:	mov	bx,dx			; error, didn't end with known letter
 ; be converted to 12-hour format (FFh is an overbroad mask, but since there
 ; are no bits to the left of the hour, it's OK).
 ;
-pfda:	mov	ax,[bp+si]		; grab the next stack parameter
+pda:	mov	ax,[bp+si]		; grab the next stack parameter
 	push	cx
 	mov	cl,dl
 	test	dl,dl
-	jge	pfda1
+	jge	pda1
 	neg	cl
 	shl	ax,cl
-	jmp	short pfda2
-pfda1:	shr	ax,cl
-pfda2:	pop	cx
+	jmp	short pda2
+pda1:	shr	ax,cl
+pda2:	pop	cx
 	and	al,dh
 	mov	ah,0
 	cmp	dl,09h			; mask used specifically for year?
-	jne	pfda3			; no
+	jne	pda3			; no
 	add	ax,1980			; yes, so add 1980
 	cmp	dh,7Fh			; mask also used for 2-digit year?
-	jne	pfda9			; no
+	jne	pda9			; no
 	mov	dl,100			; yes, so divide AX by 100
 	div	dl
 	mov	al,ah			; and move the remainder into AL
 	cbw
-	jmp	short pfda9
-pfda3:	cmp	dx,0FF0Bh		; mask used specifically for 12-hour?
-	jne	pfda9			; no
+	jmp	short pda9
+pda3:	cmp	dx,0FF0Bh		; mask used specifically for 12-hour?
+	jne	pda9			; no
 	test	ax,ax
-	jnz	pfda4
+	jnz	pda4
 	mov	ax,12			; transform 0 to 12
-pfda4:	cmp	ax,12			; and subtract 12 from anything > 12
-	jbe	pfda9
+pda4:	cmp	ax,12			; and subtract 12 from anything > 12
+	jbe	pda9
 	sub	ax,12
-pfda9:	mov	[bp+si],ax		; update the shifted/masked parameter
+pda9:	mov	[bp+si],ax		; update the shifted/masked parameter
 ;
 ; Process %d, %u, and %x formatters.
 ;
@@ -452,34 +452,34 @@ pfda9:	mov	[bp+si],ax		; update the shifted/masked parameter
 ; length estimates for all numeric possibilities, we really need to pass our
 ; buffer limit to itoa, so that it can guarantee the buffer never overflows.
 ;
-; Another option would be to pass the minimum in CL and the maxiumum (LIMIT-DI)
+; Another option would be to pass the minimum in CL and the maximum (LIMIT-DI)
 ; in CH; that would make it possible for itoa to perform bounds checking, too,
 ; but actually implementing that checking would be rather messy.
 ;
 pfd:	mov	ax,[bp].SPF_WIDTH
 	add	ax,di
 	cmp	ax,[bp].SPF_LIMIT
-pfdz:	jae	pfpz			; not enough room for specified length
+	jae	pfp23			; not enough room for specified length
 
 	mov	ax,[bp+si]		; grab a stack parameter
 	sub	dx,dx			; DX:AX = 16-bit value
 	add	si,2
 	test	ch,ch			; PF_BYTE set?
 	ASSERT	PF_BYTE,EQ,80h
-	jns	pfd0			; no
+	jns	pfd2			; no
 	mov	ah,0			; DX:AX = 8-bit value
 	test	ch,PF_SIGN		; signed value?
-	jz	pfd0			; no
+	jz	pfd2			; no
 	cbw				; DX:AX = signed 8-bit value
-pfd0:	test	ch,PF_SIGN		; signed value?
-	jz	pfd0a			; no
+pfd2:	test	ch,PF_SIGN		; signed value?
+	jz	pfd3			; no
 	cwd				; DX:AX = signed 16-bit value
-pfd0a:	test	ch,PF_LONG
-	jz	pfd1
+pfd3:	test	ch,PF_LONG
+	jz	pfd4
 	mov	dx,[bp+si]		; grab another stack parameter
 	add	si,2			; DX:AX = 32-bit value
 
-pfd1:	push	bx
+pfd4:	push	bx
 ;
 ; Limited support for precision is next.  The goal for now is to support
 ; masking of hex values; eg, %0.2x will display only 2 hex digits (8 bits),
@@ -487,28 +487,28 @@ pfd1:	push	bx
 ;
 	IFDEF DEBUG
 	cmp	cl,16			; base 16?
-	jne	pfd1b+1			; no, precision not supported
+	jne	pfd6+1			; no, precision not supported
 	push	cx
 	mov	cx,[bp].SPF_PRECIS	; CX = precision
 	test	cx,cx			; precision set?
-	jl	pfd1b			; no
+	jl	pfd6			; no
 	shl	cl,1
 	shl	cl,1			; CL = CL * 4 (# of bits precision)
 	cmp	cl,16			; more than 16 bits?
-	jae	pfd1a			; yes, leave AX alone
+	jae	pfd5			; yes, leave AX alone
 	mov	bx,1
 	shl	bx,cl
 	dec	bx			; BX = 16-bit mask
 	and	ax,bx			; mask AX
 	sub	dx,dx			; and zero DX
-	jmp	short pfd1b		; all done
-pfd1a:	sub	cl,16			; more than 32 bits?
-	jae	pfd1b			; yes, leave DX alone
+	jmp	short pfd6		; all done
+pfd5:	sub	cl,16			; more than 32 bits?
+	jae	pfd6			; yes, leave DX alone
 	mov	bx,1
 	shl	bx,cl
 	dec	bx			; BX = 16-bit mask
 	and	dx,bx			; mask DX
-pfd1b:	pop	cx
+pfd6:	pop	cx
 	ENDIF
 
 	mov	bx,cx			; set flags (BH) and base (BL)
