@@ -300,7 +300,7 @@ a6:	cmp	es:[MCB_SIG],MCBSIG_LAST; last block?
 a7:	mov	ax,ERR_BADMCB
 	jmp	short a8a
 
-a8:	mov	ax,ERR_NOMEM
+a8:	mov	ax,ERR_NOMEMORY
 	mov	bx,dx			; BX = max # paras available
 a8a:	stc
 
@@ -354,7 +354,7 @@ r7:	mov	ax,ERR_BADMCB
 	jmp	short r8a
 
 r8:	mov	bx,cx			; BX = maximum # of paras available
-	mov	ax,ERR_NOMEM
+	mov	ax,ERR_NOMEMORY
 r8a:	stc
 
 r9:	UNLOCK_SCB

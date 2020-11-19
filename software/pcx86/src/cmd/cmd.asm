@@ -294,7 +294,6 @@ pd4:	push	bx
 	cmp	al,'|'			; pipe symbol?
 	clc
 	jne	pd4a			; no
-	DBGBRK
 	call	openPipe		; yes, open a pipe
 	jc	pd4a
 	mov	[bp].HDL_OUTPIPE,ax
@@ -341,6 +340,7 @@ pd6:	push	bx			; cmdDOS can modify most registers
 
 pd6a:	pop	si			; restore the symbol and its offset
 	pop	ax
+	jc	pd9
 	test	si,si			; does a symbol offset exist?
 	jz	pd9			; no, we must be done
 	mov	[si],al			; restore symbol
@@ -356,7 +356,30 @@ pd8:	add	bx,size TOKLET
 	pop	ax			; restore end of TOKLETs
 	jmp	pd1			; loop back for more commands, if any
 
-pd9:	pop	ax			; discard end of TOKLETs
+pd9:	jc	pd9a
+	mov	ax,[bp].CMD_DEFER[0]
+	test	ax,ax			; is there a deferred command?
+	jz	pd9a			; no
+	DBGBRK
+	mov	dx,[bp].CMD_DEFER[2]
+	mov	si,[bp].CMD_DEFER[4]
+	mov	cx,[bp].CMD_DEFER[6]
+	mov	bx,bp
+	call	cmdDOS			; invoke deferred command
+
+	sub	cx,cx			; CX = 0 for "truncating" write
+	mov	bx,[bp].HDL_INPIPE
+	mov	ah,DOS_HDL_WRITE
+	int	21h			; issue final write
+	mov	ah,DOS_HDL_CLOSE
+	int	21h			; close the pipe
+	mov	cl,SCB_NONE
+	xchg	cl,[bp].SCB_NEXT
+	cmp	cl,SCB_NONE
+	je	pd9a
+	DOSUTIL	WAITEND
+
+pd9a:	pop	ax			; discard end of TOKLETs
 	pop	bp
 	ret
 ENDPROC	parseDOS
@@ -384,7 +407,7 @@ ENDPROC	parseDOS
 ;	CS:DX -> offset of handler, if any
 ;
 ; Outputs:
-;	None
+;	Carry clear if successful, set if error
 ;
 ; Modifies:
 ;	Any
@@ -431,7 +454,7 @@ cd8:	pop	dx			; DX = handler again
 	test	dx,dx
 	jz	cd9
 	call	dx			; call the token handler
-
+	clc				; TODO: make handlers set/clear carry
 cd9:	ret
 ENDPROC	cmdDOS
 
@@ -448,7 +471,7 @@ ENDPROC	cmdDOS
 ;	CX = token length
 ;
 ; Outputs:
-;	None
+;	Carry clear if successful, set if error
 ;
 ; Modifies:
 ;	Any
@@ -649,6 +672,7 @@ cf6d:	stosb				; SPB_SFHOUT
 	jmp	short cf9
 
 cf8:	call	openError		; report error (AX) opening file (SI)
+	stc
 
 cf9:	pop	bp
 	ret

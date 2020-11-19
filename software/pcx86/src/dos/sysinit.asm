@@ -251,7 +251,7 @@ si4a:	mov	ax,ds
 	mov	[di].BPB_TIMESTAMP.OFF,dx
 	mov	[di].BPB_TIMESTAMP.SEG,cx
 ;
-; Calculate BPBEX values like BPB_CLOSLOG2 and BPB_CLUSBYTES for the "boot"
+; Calculate BPBEX values like BPB_CLUSLOG2 and BPB_CLUSBYTES for the "boot"
 ; BPB, and then initialize other BPBEX values (eg, BPB_DEVICE) for all BPBs.
 ;
 ; TODO: It would be nicer to leverage the FDC's buildbpb function to do some
@@ -265,13 +265,13 @@ si4a:	mov	ax,ds
 	test	al,al
 	jnz	si4b			; make sure CLUSSECS is non-zero
 
-sierr1:	jmp	sysinit_error
+sie0:	jmp	sysinit_error
 
 si4b:	shr	al,1
 	jc	si4c
 	inc	cx
 	jmp	si4b
-si4c:	jnz	sierr1			; hmm, CLUSSECS wasn't a power-of-two
+si4c:	jnz	sie0			; hmm, CLUSSECS wasn't a power-of-two
 	mov	[di].BPB_CLUSLOG2,cl
 	mov	ax,[di].BPB_SECBYTES	; use that to also calculate CLUSBYTES
 	shl	ax,cl
@@ -550,7 +550,7 @@ si20:	add	sp,size SPB		; free SPB on the stack
 	pop	ds
 
 	test	dx,dx
-	jz	sierr2			; if no SCBs loaded, that's not good
+	jz	sie2			; if no SCBs loaded, that's not good
 ;
 ; Functions like SLEEP need access to the clock device, so we save its
 ; address in clk_ptr.  While we could open the device normally and obtain a
@@ -559,7 +559,7 @@ si20:	add	sp,size SPB		; free SPB on the stack
 ;
 	mov	dx,offset CLK_DEVICE
 	DOSUTIL	GETDEV
-	jc	soerr1
+	jc	sie1
 	mov	ds,[dos_seg]
 	mov	[clk_ptr].OFF,di
 	mov	[clk_ptr].SEG,es
@@ -591,9 +591,9 @@ si20:	add	sp,size SPB		; free SPB on the stack
 ;
 si99:	jmp	si99
 
-soerr1:	jmp	open_error
+sie1:	jmp	open_error
 
-sierr2:	jmp	sysinit_error
+sie2:	jmp	sysinit_error
 
 ENDPROC	sysinit
 
@@ -687,7 +687,7 @@ DEFPROC	init_table
 	shr	di,cl			; DI = length of table in paras
 	add	dx,di			; check for DS overflow
 	cmp	dx,1000h		; have we exceeded the DS 64K limit?
-	ja	sierr2			; yes, sadly
+	ja	sie2			; yes, sadly
 	mov	ax,es
 	add	ax,di
 	mov	es,ax			; ES = next available paragraph

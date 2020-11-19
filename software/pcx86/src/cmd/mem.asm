@@ -150,12 +150,13 @@ ENDPROC	freeBlock
 ;	CX, SI
 ;
 DEFPROC	freeAllBlocks
+	clc
 	push	es
 fa1:	mov	cx,[si]
 	jcxz	fa9			; end of chain
 	mov	es,cx
 	call	freeBlock		; ES = segment of block to free
-	jmp	fa1
+	jnc	fa1
 fa9:	pop	es
 	ret
 ENDPROC	freeAllBlocks

@@ -317,7 +317,7 @@ so8:	test	al,al			; did we issue DDC_OPEN?
 	jge	so8a			; no
 	mov	ax,DDC_CLOSE SHL 8	; ES:DI -> driver, DX = context
 	call	dev_request		; issue the DDC_CLOSE request
-so8a:	mov	ax,ERR_MAXFILES
+so8a:	mov	ax,ERR_NOHANDLE
 	stc				; return no SFB (and BX is zero)
 
 so9:	pop	es
@@ -720,7 +720,7 @@ ENDPROC	sfb_find_fcb
 ;
 ; Outputs:
 ;	On success, ES:DI -> PFT, carry clear (DI will be zero if no PSP)
-;	On failure, AX = ERR_MAXFILES, carry set
+;	On failure, AX = ERR_NOHANDLE, carry set
 ;
 ; Modifies:
 ;	AX, BX, CX, DI, ES
@@ -739,7 +739,7 @@ DEFPROC	pfh_alloc,DOS
 	jne	pa8			; if no entry, return error w/carry set
 	dec	di			; rewind to entry
 	jmp	short pa9
-pa8:	mov	ax,ERR_MAXFILES
+pa8:	mov	ax,ERR_NOHANDLE
 	stc
 pa9:	ret
 ENDPROC	pfh_alloc

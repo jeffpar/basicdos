@@ -427,19 +427,22 @@ TOKDEF_OFF	dw	?	; offset of token string
 TOKDEF		ends
 
 ;
-; DOS error codes (not to be confused with device error codes)
+; DOS error codes (not to be confused with device error codes).
 ;
 ; TODO: Make this list complete (well, more complete than this anyway).
 ;
 ERR_INVALID	equ	1	; invalid function
 ERR_NOFILE	equ	2	; file not found
 ERR_NOPATH	equ	3	; path not found (no paths in BASIC-DOS, yet)
-ERR_MAXFILES	equ	4	; too many open files
+ERR_NOHANDLE	equ	4	; out of handles
 ERR_ACCDENIED	equ	5	; access denied
 ERR_BADHANDLE	equ	6	; invalid handle
 ERR_BADMCB	equ	7	; invalid MCB
-ERR_NOMEM	equ	8	; insufficient memory
+ERR_NOMEMORY	equ	8	; out of memory
 ERR_BADADDR	equ	9	; invalid memory segment
+
+ERR_BADSESSION	equ	100	; invalid session
+ERR_NOSESSION	equ	101	; out of sessions
 
 ;
 ; MINHEAP is the minimum number of bytes we allocate for a COM binary, on

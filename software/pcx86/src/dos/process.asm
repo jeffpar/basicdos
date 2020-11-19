@@ -92,6 +92,7 @@ pt1:	push	ax			; save exit code/type on stack
 	test	ax,ax
 	jnz	pt8
 	call	scb_unload		; mark SCB # CL as unloaded
+	jc	pt7
 	jmp	scb_yield		; and call scb_yield with AX = zero
 	ASSERT	NEVER
 pt7:	jmp	short pt9
@@ -677,7 +678,7 @@ lp3:	add	ax,15
 	int	21h
 	jnc	lp6
 lpc1:	jmp	lpc
-lpc2:	mov	ax,ERR_NOMEM
+lpc2:	mov	ax,ERR_NOMEMORY
 	jmp	short lpc1
 
 lp6:	mov	di,dx			; DS:DI -> end of PSP

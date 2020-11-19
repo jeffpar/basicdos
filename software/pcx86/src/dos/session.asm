@@ -254,15 +254,17 @@ ENDPROC	scb_stoke
 ;
 ; Outputs:
 ;	Carry clear on success, BX -> SCB
-;	Carry set on error (eg, invalid SCB #)
+;	Carry set on error (eg, invalid SCB #), AX = error code
 ;
 DEFPROC	scb_start,DOS
  	call	get_scb
  	jc	ss9
 	test	[bx].SCB_STATUS,SCSTAT_LOAD
-	stc
-	jz	ss9
+	jz	ss8
 	or	[bx].SCB_STATUS,SCSTAT_START
+	ret
+ss8:	mov	ax,ERR_BADSESSION
+	stc
 ss9:	ret
 ENDPROC	scb_start
 
@@ -295,7 +297,7 @@ ENDPROC	scb_stop
 ;
 ; Outputs:
 ;	Carry clear on success (AX = 0)
-;	Carry set on error (eg, invalid SCB #)
+;	Carry set on error (eg, invalid SCB #), AX = error code
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI
@@ -321,7 +323,7 @@ sud1:	mov	bl,SFH_NONE
 	mov	di,bx
 	mov	dx,ds			; DX:DI = SCB address (the wait ID)
 	call	scb_endwait
-
+	clc
 sud9:	ret
 ENDPROC	scb_unload
 
@@ -342,7 +344,7 @@ ENDPROC	scb_unload
 ;
 DEFPROC	scb_end,DOS
 	ASSUMES	<DS,DOS>,<ES,DOS>
-	ret
+sc9:	ret
 ENDPROC	scb_end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -362,9 +364,9 @@ ENDPROC	scb_end
 DEFPROC	scb_waitend,DOS
 	ASSUMES	<DS,DOS>,<ES,DOS>
 	call	get_scb
-	jc	swe9
+	jc	sc9
 	test	[bx].SCB_STATUS,SCSTAT_LOAD
-	jz	swe9
+	jz	sc9
 ;
 ; Turn this call into a standard scb_wait call, where the wait ID in DX:DI
 ; is the target SCB address (instead of the usual driver packet address).
@@ -372,7 +374,6 @@ DEFPROC	scb_waitend,DOS
 	mov	di,bx
 	mov	dx,ds
 	jmp	scb_wait
-swe9:	ret
 ENDPROC	scb_waitend
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -555,27 +556,25 @@ ENDPROC	scb_endwait
 ;
 ; Outputs:
 ;	On success, carry clear, BX -> SCB
-;	On failure, carry set (SCB uninitialized, unavailable, or invalid)
+;	On failure, carry set, AX = error code
 ;
 ; Modifies:
-;	BX
+;	AX, BX
 ;
 DEFPROC	get_scb,DOS
 	cmp	cl,-1
 	je	get_free_scb
-	push	ax
 	mov	al,size SCB
 	mul	cl
 	add	ax,[scb_table].OFF
 	cmp	ax,[scb_table].SEG
-	cmc
-	jb	gs9
+	jae	gs8
 	xchg	bx,ax
 	test	[bx].SCB_STATUS,SCSTAT_INIT
 	jnz	gs9
+gs8:	mov	ax,ERR_BADSESSION
 	stc
-gs9:	pop	ax
-	ret
+gs9:	ret
 ENDPROC	get_scb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -589,7 +588,7 @@ ENDPROC	get_scb
 ;
 ; Outputs:
 ;	On success, carry clear, BX -> SCB
-;	On failure, carry set (SCB unavailable)
+;	On failure, carry set (SCB unavailable), AX = ERR_NOSESSION
 ;
 ; Modifies:
 ;	BX
@@ -601,6 +600,7 @@ fs1:	test	[bx].SCB_STATUS,SCSTAT_LOAD
 	add	bx,size SCB
 	cmp	bx,[scb_table].SEG
 	jb	fs1
+	mov	ax,ERR_NOSESSION
 	stc
 fs9:	ret
 ENDPROC	get_free_scb

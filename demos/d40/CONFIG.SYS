@@ -2,7 +2,7 @@ REM Demonstration of two 40-column sessions, with DEBUG output enabled
 REM BOOTKEY=B
 MEMSIZE=128
 FILES=20
-SESSIONS=2
+SESSIONS=4
 REM DEBUG=COM1
 DEBUG=COM1:9600,N,8,1,0
 CONSOLE=CON:40,25,0,0,1
