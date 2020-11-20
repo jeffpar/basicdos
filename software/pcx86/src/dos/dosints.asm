@@ -219,11 +219,14 @@ DEFPROC	dos_func,DOSFAR
 	push	bp
 	mov	bp,sp
 
-	IF REG_CHECK
-	call	dos_check
-	DEFLBL	dos_check,near
+	IF REG_CHECK			; in DEBUG builds, use CALL to push
+	call	dos_check		; a marker ("dos_check") onto the stack
+	DEFLBL	dos_check,near		; which REG_CHECK checks will verify
 	ENDIF
-
+;
+; While we assign DS and ES to the DOS segment on DOS function entry, we
+; do NOT assume they will still be set that way when the FUNCTBL call returns.
+;
 	mov	bx,cs
 	mov	ds,bx
 	ASSUME	DS:DOS
@@ -241,6 +244,7 @@ DEFPROC	dos_func,DOSFAR
 	mov	bl,ah
 	add	bl,FUNCTBL_SIZE		; the utility function table
 	jmp	short dc3		; follows the DOS function table
+dc0:	jmp	msc_sigctrlc_read
 
 dc1:	sti
 	and	[bp].REG_FL,NOT FL_CARRY
@@ -265,17 +269,12 @@ dc1:	sti
 	jz	dc2			; TODO: always have an scb_active
 	ASSERT	STRUCT,[bx],SCB
 	cmp	word ptr [bx].SCB_CTRLC_ALL,0101h
-	je	dc10			; signal CTRLC
-;
-; While we assign DS and ES to the DOS segment on DOS function entry,
-; we do NOT require or assume they will still be set that way on exit.
-;
-	DEFLBL	dosutil_enter,near
+	je	dc0			; signal CTRLC
 dc2:	mov	bl,ah
-dc3:	mov	bh,0
-	add	bx,bx
+dc3:	mov	bh,0			; BX = function #
+	add	bx,bx			; convert function # to word offset
 ;
-; For convenience, all general-purpose registers except BX, DS, and ES still
+; For convenience, general-purpose registers AX, CX, DX, SI, DI, and SS
 ; contain their original values.
 ;
 	call	FUNCTBL[bx]
@@ -288,8 +287,8 @@ dc9:	adc	[bp].REG_FL,0
 
 	DEFLBL	dos_exit,near
 
-	IF REG_CHECK
-	pop	bp
+	IF REG_CHECK			; in DEBUG builds, check the "marker"
+	pop	bp			; that we pushed above
 	ASSERT	Z,<cmp bp,offset dos_check>
 	ENDIF
 
@@ -308,7 +307,6 @@ dc9:	adc	[bp].REG_FL,0
 	pop	ax
 	add	sp,size WS_TEMP
 	iret
-dc10:	jmp	msc_sigctrlc_read
 ENDPROC	dos_func
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -415,6 +413,10 @@ ENDPROC	dos_call5
 ;
 ; dos_util (INT 32h)
 ;
+; We could jump straight to dos_func after adjusting the function number,
+; but if a breakpoint has been set on dos_func, we'd rather not have dos_util
+; calls triggering it as well; hence the redundant CLD and jmp + 1.
+;
 DEFPROC	dos_util,DOSFAR
 	cld
 	add	ah,80h
@@ -464,7 +466,7 @@ DEFPROC	dos_ddint_leave,DOSFAR
 ; which scb_yield will misinterpret as a WAIT rather than a YIELD.  That's
 ; OK, but only so long as at least one SCB is runnable, and only so long as
 ; scb_active NEVER goes to zero again, lest we run the risk of blowing the
-; stack, as successive timer interrupts attempt to yield and fail.
+; stack, as successive timer interrupts attempt to yield and keep failing.
 ;
 ; There was no risk of that when scb_yield locked the SCBs first, but we
 ; prefer to no longer do that, because we want every yield to at least take
