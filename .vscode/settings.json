@@ -6,6 +6,17 @@
       "comments": false,
       "strings": false
   },
+  "workbench.colorTheme": "Atom One Dark",
+  "workbench.colorCustomizations": {
+    "[Atom One Dark]": {
+      "debugToolBar.background": "#21252B"
+    }
+  },
+  "editor.tokenColorCustomizations": {
+    "[Atom One Dark]": {
+        "comments": "#47856b"
+    }
+  },
   "[javascript]": {
     "editor.insertSpaces": true,
     "editor.tabSize": 4,
@@ -508,6 +519,7 @@
     "biosdata",
     "brkpt",
     "calcsum",
+    "checksw",
     "cmdheap",
     "cmdp",
     "cmdtail",
@@ -610,6 +622,7 @@
     "outbuflen",
     "overbroad",
     "paren",
+    "parsesw",
     "patrickl",
     "pcjs",
     "popf",

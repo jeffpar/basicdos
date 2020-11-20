@@ -476,12 +476,16 @@ rm2:
 ; the INT instruction will not work with code that "hooks" INT 21h.  So we now
 ; use a dedicated interrupt that expects the utility function # in AH.
 ;
-DOSUTIL	macro	func
-	IFDIF	<func>,<ah>
-	 IFNDEF	DOS_UTL_&func
+DOSUTIL	macro	func,option
+	IFNB 	<option>
+	mov	ax,(DOS_UTL_&func SHL 8) OR (option)
+	ELSE
+	 IFDIF	<func>,<ah>
+	  IFNDEF	DOS_UTL_&func
 	mov	ah,func
-	 ELSE
+	  ELSE
 	mov	ah,DOS_UTL_&func
+	  ENDIF
 	 ENDIF
 	ENDIF
 	int	INT_DOSUTIL

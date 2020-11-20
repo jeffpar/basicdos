@@ -84,11 +84,11 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<utl_strlen,utl_strstr,utl_strupr>
 	EXTNEAR	<utl_atoi16,utl_atoi32,utl_atoi32d>
 	EXTNEAR	<utl_itoa,utl_printf,utl_dprintf,utl_sprintf>
-	EXTNEAR	<utl_tokify,utl_tokid,utl_restart,utl_getdev,utl_ioctl>
-	EXTNEAR	<utl_load,utl_start,utl_stop,utl_end,utl_waitend>
-	EXTNEAR	<utl_yield,utl_sleep,utl_wait,utl_endwait,utl_hotkey>
-	EXTNEAR	<utl_lock,utl_unlock,utl_qrymem,utl_abort>
-	EXTNEAR	<utl_getdate,utl_gettime,utl_incdate,utl_editln>
+	EXTNEAR	<utl_tokify,utl_tokid,utl_parsesw,utl_checksw>
+	EXTNEAR	<utl_getdev,utl_ioctl,utl_load,utl_start,utl_stop,utl_end>
+	EXTNEAR	<utl_waitend,utl_yield,utl_sleep,utl_wait,utl_endwait>
+	EXTNEAR	<utl_hotkey,utl_lock,utl_unlock,utl_qrymem,utl_abort>
+	EXTNEAR	<utl_getdate,utl_gettime,utl_incdate,utl_editln,utl_restart>
 	EXTNEAR	<func_none>
 
 	DEFLBL	FUNCTBL,word
@@ -120,13 +120,13 @@ DOS	segment word public 'CODE'
 	dw	utl_strlen,  utl_strstr,  func_none,   utl_strupr	;00h-03h
 	dw	utl_printf,  utl_dprintf, utl_sprintf, utl_itoa		;04h-07h
 	dw	utl_atoi16,  utl_atoi32,  utl_atoi32d, utl_tokify	;08h-0Bh
-	dw	utl_tokify,  utl_tokid,   utl_restart, utl_getdev	;0Ch-0Fh
-	dw	utl_ioctl,   utl_load,    utl_start,   utl_stop		;10h-13h
-	dw	utl_end,     utl_waitend, utl_yield,   utl_sleep	;14h-17h
-	dw	utl_wait,    utl_endwait, utl_hotkey,  utl_lock		;18h-1Bh
-	dw	utl_unlock,  utl_qrymem,  func_none,   utl_abort	;1Ch-1Fh
+	dw	utl_tokify,  utl_tokid,   utl_parsesw, utl_checksw	;0Ch-0Fh
+	dw	utl_getdev,  utl_ioctl,   utl_load,    utl_start	;10h-13h
+	dw	utl_stop,    utl_end,     utl_waitend, utl_yield	;14h-17h
+	dw	utl_sleep,   utl_wait,    utl_endwait, utl_hotkey	;18h-1Bh
+	dw	utl_lock,    utl_unlock,  utl_qrymem,  utl_abort	;1Ch-1Fh
 	dw	utl_getdate, utl_gettime, utl_incdate, utl_editln	;20h-23h
-	dw	utl_strlen						;24h
+	dw	utl_strlen,  utl_restart				;24h-25h
 	DEFABS	UTILTBL_SIZE,<($ - UTILTBL) SHR 1>
 
 DOS	ends

@@ -119,35 +119,36 @@ DOS_UTL_PRINTF	equ	04h	; printf to console
 DOS_UTL_DPRINTF	equ	05h	; printf to DEBUG context, if any
 DOS_UTL_SPRINTF	equ	06h	; sprintf to buffer (ES:DI)
 DOS_UTL_ITOA	equ	07h	; convert number (DX:SI) to string (ES:DI)
-DOS_UTL_ATOI16	equ	08h	; convert string (DS:SI) to 16-bit number (AX)
-DOS_UTL_ATOI32	equ	09h	; convert string (DS:SI) to 32-bit number (AX)
-DOS_UTL_ATOI32D	equ	0Ah	; convert decimal string (DS:SI) to number (AX)
-DOS_UTL_TOKIFY1	equ	0Bh	; tokenize string (DS:SI) using GENERIC syntax
+DOS_UTL_ATOI16	equ	08h	; convert string (DS:SI) to 16-bit num (AX)
+DOS_UTL_ATOI32	equ	09h	; convert string (DS:SI) to 32-bit num (DX:AX)
+DOS_UTL_ATOI32D	equ	0Ah	; convert decimal string to 32-bit num (DX:AX)
+DOS_UTL_TOKIFY1	equ	0Bh	; tokenize string (DS:SI) using generic syntax
 DOS_UTL_TOKIFY2	equ	0Ch	; tokenize string (DS:SI) using BASIC syntax
 DOS_UTL_TOKID	equ	0Dh	; convert string (DS:SI) into token ID (AX)
-DOS_UTL_RESTART	equ	0Eh	; restart ("reboot") the system
-DOS_UTL_GETDEV	equ	0Fh	; get DDH (ES:DI) for device (DS:SI)
-DOS_UTL_IOCTL	equ	10h	; issue IOCTL to device (ES:DI)
-DOS_UTL_LOAD	equ	11h	; load program (DS:DX) into session (CL)
-DOS_UTL_START	equ	12h	; start session (CL)
-DOS_UTL_STOP	equ	13h	; stop session (CL)
-DOS_UTL_END	equ	14h	; end session (CL)
-DOS_UTL_WAITEND	equ	15h	; wait for session to end (CL)
-DOS_UTL_YIELD	equ	16h	; yield
-DOS_UTL_SLEEP	equ	17h	; sleep (DX) milliseconds
-DOS_UTL_WAIT	equ	18h	; wait on ID (DX:DI) until end wait
-DOS_UTL_ENDWAIT	equ	19h	; end wait on ID (DX:DI)
-DOS_UTL_HOTKEY	equ	1Ah	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
-DOS_UTL_LOCK	equ	1Bh	; lock current session
-DOS_UTL_UNLOCK	equ	1Ch	; unlock current session
-DOS_UTL_QRYMEM	equ	1Dh	; query memory block N (CL)
-DOS_UTL_QRYHDL	equ	1Eh	; query system file handle N (CL)
+DOS_UTL_PARSESW	equ	0Eh	; parse TOKBUF (ES:DI) for switches
+DOS_UTL_CHECKSW	equ	0Fh	; check switches
+DOS_UTL_GETDEV	equ	10h	; get DDH (ES:DI) for device (DS:SI)
+DOS_UTL_IOCTL	equ	11h	; issue IOCTL to device (ES:DI)
+DOS_UTL_LOAD	equ	12h	; load program (DS:DX) into session (CL)
+DOS_UTL_START	equ	13h	; start session (CL)
+DOS_UTL_STOP	equ	14h	; stop session (CL)
+DOS_UTL_END	equ	15h	; end session (CL)
+DOS_UTL_WAITEND	equ	16h	; wait for session to end (CL)
+DOS_UTL_YIELD	equ	17h	; yield
+DOS_UTL_SLEEP	equ	18h	; sleep (DX) milliseconds
+DOS_UTL_WAIT	equ	19h	; wait on ID (DX:DI) until end wait
+DOS_UTL_ENDWAIT	equ	1Ah	; end wait on ID (DX:DI)
+DOS_UTL_HOTKEY	equ	1Bh	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
+DOS_UTL_LOCK	equ	1Ch	; lock current session
+DOS_UTL_UNLOCK	equ	1Dh	; unlock current session
+DOS_UTL_QRYMEM	equ	1Eh	; query memory block N (CL)
 DOS_UTL_ABORT	equ	1Fh	; abort with exit code (DL) and exit type (DH)
 DOS_UTL_GETDATE	equ	20h	; get date (AX) in "packed" format
 DOS_UTL_GETTIME	equ	21h	; get time (AX) in "packed" format
 DOS_UTL_INCDATE	equ	22h	; increment date (CX=year, DH=month, DL=day)
-DOS_UTL_READLN	equ	23h	; read line (DS:DX) from CON
+DOS_UTL_EDITLN	equ	23h	; edit line (DS:DX)
 DOS_UTL_STDLEN	equ	24h	; like STRLEN but w/24h ('$') as terminator
+DOS_UTL_RESTART	equ	25h	; restart ("reboot") the system
 DOS_UTL_HDLCTL	equ	(DOS_HDL_IOCTL + 80h)
 
 ;
@@ -269,7 +270,9 @@ PSP_HEAP	dw	?	; 4Ah: BASIC-DOS: heap offset (see COMHEAP)
 PSP_EXCODE	db	?	; 4Eh: BASIC-DOS: exit code, if any
 PSP_EXTYPE	db	?	; 4Fh: BASIC-DOS: exit type (see EXTYPE_*)
 PSP_DISPATCH	db	3 dup(?); 50h: INT 21h/RETF
-		db	9 dup(?); 53h
+		db	3 dup(?); 53h: unused
+PSP_DIGITS	dw	?	; 56h: digit switches (see DOS_UTL_PARSESW)
+PSP_LETTERS	dd	?	; 58h: letters switches (see DOS_UTL_PARSESW)
 PSP_FCB1	db     16 dup(?); 5Ch
 PSP_FCB2	db     16 dup(?); 6Ch
 		db	4 dup(?); 7Ch
