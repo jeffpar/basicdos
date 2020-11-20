@@ -22,15 +22,16 @@ DOS	segment word public 'CODE'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_strlen (AL = 00h or 24h)
+; utl_strlen (AH = 00h or 24h)
 ;
-; Return the length of the REG_DS:REG_SI string in AX, using terminator AL.
+; Return the length of the REG_DS:REG_SI string in AX, using terminator AH.
 ;
 ; Modifies:
 ;	AX
 ;
 DEFPROC	utl_strlen,DOS
 	sti
+	mov	al,ah			; AL = terminator
 	mov	ds,[bp].REG_DS
 	ASSUME	DS:NOTHING
 	call	strlen
@@ -60,7 +61,7 @@ ENDPROC	utl_strlen
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_strstr (AL = 01h)
+; utl_strstr (AH = 01h)
 ;
 ; Find string (CS:SI) in string (ES:DI)
 ;
@@ -123,7 +124,7 @@ ENDPROC	utl_strstr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_strupr (AL = 03h)
+; utl_strupr (AH = 03h)
 ;
 ; Make the string at REG_DS:SI with length CX upper-case; use length 0
 ; if null-terminated.
@@ -157,7 +158,7 @@ ENDPROC	utl_strupr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_printf (AL = 04h)
+; utl_printf (AH = 04h)
 ;
 ; A CDECL-style calling convention is assumed, where all parameters EXCEPT
 ; for the format string are pushed from right to left, so that the first
@@ -215,7 +216,7 @@ ENDPROC	utl_printf
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_dprintf (AL = 05h)
+; utl_dprintf (AH = 05h)
 ;
 ; This is used by DEBUG code (specifically, the DPRINTF macro) to print
 ; to a "debug" device defined by a DEBUG= line in CONFIG.SYS.  However, this
@@ -266,7 +267,7 @@ ENDPROC	utl_dprintf
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_sprintf (AL = 06h)
+; utl_sprintf (AH = 06h)
 ;
 ; A CDECL-style calling convention is assumed, where all parameters EXCEPT
 ; for the format string are pushed from right to left, so that the first
@@ -301,7 +302,7 @@ ENDPROC	utl_sprintf
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_itoa (AL = 07h)
+; utl_itoa (AH = 07h)
 ;
 ; Convert the value DX:SI to a string representation at ES:DI, using base BL,
 ; flags BH (see itoa for PF definitions), minimum length CX (0 for no minimum).
@@ -325,7 +326,7 @@ ENDPROC	utl_itoa
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_atoi16 (AL = 08h)
+; utl_atoi16 (AH = 08h)
 ;
 ; Convert string at DS:SI to number in AX using base BL, using validation
 ; values at ES:DI.  It will also advance SI past the first non-digit character
@@ -466,7 +467,7 @@ ENDPROC utl_atoi16
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_atoi32 (AL = 09h)
+; utl_atoi32 (AH = 09h)
 ;
 ; Convert string at DS:SI (with length CX) to number in DX:AX using base BL.
 ;
@@ -490,7 +491,7 @@ ENDPROC utl_atoi32
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_atoi32d (AL = 0Ah)
+; utl_atoi32d (AH = 0Ah)
 ;
 ; Convert decimal string at DS:SI to number in DX:AX.
 ;
@@ -552,9 +553,9 @@ ENDPROC	mul_32_16
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_tokify (AL = 0Bh or 0Ch)
+; utl_tokify (AH = 0Bh or 0Ch)
 ;
-; DOS_UTL_TOKIFY1 (0Bh) performs GENERIC parsing, which means that only
+; DOS_UTL_TOKIFY1 (0Bh) performs generic parsing, which means that only
 ; tokens separated by whitespace (or SWITCHAR) will be returned, and they
 ; will all be identified "generically" as CLS_STR.
 ;
@@ -562,10 +563,10 @@ ENDPROC	mul_32_16
 ; even whitespace sequences (CLS_WHITE).
 ;
 ; Inputs:
-;	AL = 0Bh (TOKTYPE_GENERIC) or 0Ch (TOKTYPE_BASIC)
+;	AH = 0Bh (TOKTYPE_GENERIC) or 0Ch (TOKTYPE_BASIC)
 ;	REG_CL = length of string
 ;	REG_DS:REG_SI -> string to "tokify"
-;	REG_ES:REG_DI -> TOKBUF (filled in with token info)
+;	REG_ES:REG_DI -> TOKBUF (to be filled with token info)
 ;
 ; Outputs:
 ;	Carry clear if tokens found; AX = # tokens, TOKBUF updated
@@ -577,6 +578,7 @@ ENDPROC	mul_32_16
 DEFPROC	utl_tokify,DOS
 	sti
 	and	[bp].REG_FL,NOT FL_CARRY
+	mov	al,ah
 	mov	bx,[scb_active]
 	mov	bl,[bx].SCB_SWITCHAR
 	mov	[bp].TMP_BL,bl		; TMP_BL = SWITCHAR
@@ -589,7 +591,7 @@ DEFPROC	utl_tokify,DOS
 	mov	[bp].TMP_CX,cx		; TMP_CX = length
 
 	sub	bx,bx			; BX = token index
-	mov	ah,0			; AH = initial classification
+	cbw				; AH = initial classification (0)
 	test	al,TOKTYPE_GENERIC
 	mov	al,-1
 	jz	tf0			; for generic parsing
@@ -822,7 +824,7 @@ ENDPROC	tok_classify
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_tokid (AL = 0Dh)
+; utl_tokid (AH = 0Dh)
 ;
 ; The main advantage of this function is that, by requiring the TOKTBL
 ; to be sorted, it can use a binary search to find the token faster.  For
@@ -921,25 +923,129 @@ ENDPROC	utl_tokid
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_restart (AL = 0Eh)
+; utl_parsesw (AH = 0Eh)
 ;
-; TODO: Ensure any disk modifications (once we support disk modifications)
-; have been written.
+; Switch tokens start with the system's SWITCHAR and may contain 1 or more
+; alphanumeric characters, each of which is converted to a bit in either
+; PSP_DIGITS or PSP_LETTERS.
+;
+; Actually, alphanumeric is not entirely true anymore: in PSP_DIGITS, we now
+; capture anything from '0' to '?'.
 ;
 ; Inputs:
-;	None
+;	REG_DL = 1st token to parse
+;	REG_ES:REG_DI -> TOKBUF (filled with token info)
 ;
 ; Outputs:
-;	None
+;	REG_DL advanced
+;	PSP_DIGITS, PSP_LETTERS updated
 ;
 ; Modifies:
-;	AX
+;	AX, BX, CX, DX, SI, DI, DS
 ;
-DEFPROC	utl_restart,DOS
-	cli
-	db	OP_JMPF
-	dw	00000h,0FFFFh
-ENDPROC	utl_restart
+DEFPROC	utl_parsesw,DOS
+	sti
+	mov	bx,[scb_active]
+	ASSERT	STRUCT,[bx],SCB
+	mov	dl,[bx].SCB_SWITCHAR	; DL = SWITCHAR
+	mov	es,[bx].SCB_PSP
+	ASSUME	ES:NOTHING
+	sub	ax,ax
+	push	di
+	mov	di,PSP_DIGITS
+	stosw				; zero PSP_DIGITS
+	stosw				; zero PSP_LETTERS.LOW
+	stosw				; zero PSP_LETTERS.HIW
+	xchg	bx,ax			; BH = 0
+	mov	bl,[bp].REG_DL		; BX = token index
+	mov	ds,[bp].REG_ES
+	pop	di			; DS:DI -> TOKBUF
+	ASSUME	DS:NOTHING
+
+pw1:	cmp	bl,[di].TOK_CNT
+	jae	pw8
+	push	bx
+	add	bx,bx
+	add	bx,bx			; BX = BX * 4 (size TOKLET)
+	ASSERT	<size TOKLET>,EQ,4
+	mov	si,[di].TOK_DATA[bx].TOKLET_OFF
+	pop	bx
+	lodsb
+	cmp	al,dl			; starts with SWITCHAR?
+	jne	pw8			; no
+	push	di
+pw2:	lodsb				; consume option chars
+	cmp	al,'a'			; until we reach non-alphanumeric char
+	jb	pw3
+	sub	al,20h
+pw3:	sub	al,'0'
+	jb	pw7			; not alphanumeric
+	cmp	al,16
+	jae	pw5
+	mov	di,PSP_DIGITS
+pw4:	mov	cl,al
+	mov	ax,1
+	shl	ax,cl
+	or	es:[di],ax		; set bit in word at ES:DI
+	jmp	pw2			; go back for more option chars
+pw5:	sub	al,'A'-'0'
+	jb	pw7			; not alphanumeric
+	cmp	al,16			; in the range of the first 16?
+	jae	pw6			; no
+	mov	di,PSP_LETTERS
+	jmp	pw4
+pw6:	sub	al,16
+	cmp	al,10			; in the range of the next 10?
+	jae	pw7			; no
+	mov	di,PSP_LETTERS+2
+	jmp	pw4
+pw7:	inc	bx			; advance token index
+	pop	di
+	jmp	pw1
+
+pw8:	mov	[bp].REG_DL,bl		; return updated token index
+	clc
+	ret
+ENDPROC	utl_parsesw
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_checksw (AH = 0Fh)
+;
+; Inputs:
+;	REG_AL = letter or digit (or special characters, such as ':' and '?')
+;	PSP_DIGITS, PSP_LETTERS set
+;
+; Outputs:
+;	ZF clear if switch letter present, set otherwise
+;
+; Modifies:
+;
+DEFPROC	utl_checksw,DOS
+	sti
+	and	[bp].REG_FL,NOT (FL_CARRY OR FL_ZERO)
+	mov	bx,[scb_active]
+	ASSERT	STRUCT,[bx],SCB
+	mov	es,[bx].SCB_PSP
+	ASSUME	ES:NOTHING
+	mov	di,PSP_DIGITS
+	sub	al,'A'
+	jae	cw1
+	add	al,'A'-'0'
+	jmp	short cw2
+cw1:	mov	di,PSP_LETTERS
+	cmp	al,16
+	jb	cw2
+	sub	al,16
+	add	di,2
+cw2:	xchg	cx,ax
+	mov	ax,1
+	shl	ax,cl
+	test	es:[di],ax
+	jnz	cw9
+	or	[bp].REG_FL,FL_ZERO
+cw9:	ret
+ENDPROC	utl_checksw
 
 DOS	ends
 

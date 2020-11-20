@@ -414,7 +414,12 @@ DEFPROC	cmdDOS
 	jmp	short cd9
 
 cd1:	push	dx
-	call	parseSW			; parse all switch arguments, if any
+	mov	dl,[bx].CMD_ARG
+	inc	dx
+	push	ax
+	DOSUTIL	PARSESW			; parse all switch arguments, if any
+	mov	[bx].CMD_ARG,dl
+	pop	ax
 	cmp	ax,KEYWORD_FILE		; does token require a filespec? (20)
 	jb	cd8			; no
 ;
@@ -680,112 +685,6 @@ ENDPROC	cmdFile
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; parseSW
-;
-; Switch tokens start with the system's SWITCHAR and may contain 1 or more
-; alphanumeric characters, each of which is converted to a bit in either
-; SW_DIGITS or SW_LETTERS.
-;
-; Actually, alphanumeric is not entirely true anymore: in SW_DIGITS, we now
-; capture anything from '0' to '?'.
-;
-; Inputs:
-;	BX -> CMDHEAP
-;	DI -> TOKENBUF
-;
-; Outputs:
-;	DH = # of first non-switch argument
-;
-; Modifies:
-;	CX, DX, SI
-;
-DEFPROC	parseSW
-	push	ax
-	push	di
-	sub	ax,ax
-	ASSERT	STRUCT,[bx],CMD
-	mov	[bx].SW_DIGITS,ax
-	mov	[bx].SW_LETTERS.LOW,ax
-	mov	[bx].SW_LETTERS.HIW,ax
-	mov	ax,DOS_MSC_GETSWC
-	int	21h			; DL = SWITCHAR
-	mov	dh,[bx].CMD_ARG
-	inc	dh			; DH = 1st argument to inspect
-pw1:	call	getToken
-	jc	pw8
-	lodsb
-	cmp	al,dl			; starts with SWITCHAR?
-	jne	pw8			; no
-pw2:	lodsb				; consume option chars
-	cmp	al,'a'			; until we reach non-alphanumeric char
-	jb	pw3
-	sub	al,20h
-pw3:	sub	al,'0'
-	jb	pw7			; not alphanumeric
-	cmp	al,16
-	jae	pw5
-	lea	di,[bx].SW_DIGITS
-pw4:	mov	cl,al
-	mov	ax,1
-	shl	ax,cl
-	mov	[di],ax			; set bit in word at [DI]
-	jmp	pw2			; go back for more option chars
-pw5:	sub	al,'A'-'0'
-	jb	pw7			; not alphanumeric
-	cmp	al,16			; in the range of the first 16?
-	jae	pw6			; no
-	lea	di,[bx].SW_LETTERS.LOW
-	jmp	pw4
-pw6:	sub	al,16
-	cmp	al,10			; in the range of the next 10?
-	jae	pw7			; no
-	lea	di,[bx].SW_LETTERS.HIW
-	jmp	pw4
-pw7:	inc	dh			; advance to next token
-	jmp	pw1
-pw8:	mov	[bx].CMD_ARG,dh
-	pop	di			; DH = first non-switch argument
-	pop	ax
-	ret
-ENDPROC	parseSW
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; checkSW
-;
-; Inputs:
-;	BX -> CMDHEAP
-;	AL = letter or digit (or special characters, such as ':' and '?')
-;
-; Outputs:
-;	ZF clear if switch letter present, set otherwise
-;
-; Modifies:
-;	AX, CX
-;
-DEFPROC	checkSW
-	push	di
-	ASSERT	STRUCT,[bx],CMD
-	lea	di,[bx].SW_DIGITS
-	sub	al,'A'
-	jae	cw1
-	add	al,'A'-'0'
-	jmp	short cw2
-cw1:	lea	di,[bx].SW_LETTERS
-	cmp	al,16
-	jb	cw2
-	sub	al,16
-	add	di,2
-cw2:	xchg	cx,ax
-	mov	ax,1
-	shl	ax,cl
-	test	[di],ax
-	pop	di
-	ret
-ENDPROC	checkSW
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; getToken
 ;
 ; Inputs:
@@ -992,9 +891,8 @@ di7:	xchg	ax,dx			; AX = total # of clusters used
 ; For testing purposes: if /L is specified, display the directory in a "loop".
 ;
 	pop	bp
-	mov	al,'L'
 	mov	bx,ds:[PSP_HEAP]
-	call	checkSW
+	DOSUTIL	CHECKSW,'L'
 	jz	di9
 	mov	si,[bx].CMD_ARGPTR
 	mov	cx,[bx].CMD_ARGLEN
@@ -1608,8 +1506,7 @@ ENDPROC	cmdRun
 ;	Any
 ;
 DEFPROC	cmdTime
-	mov	al,'D'			; /D present?
-	call	checkSW
+	DOSUTIL	CHECKSW,'D'		; /D present?
 	jz	tm3			; no
 
 	sub	ax,ax			; set ZF
@@ -2029,8 +1926,7 @@ DEFPROC	getInput
 ; No input was provided, and we don't prompt unless /P was specified.
 ;
 	push	ax
-	mov	al,'P'
-	call	checkSW
+	DOSUTIL	CHECKSW,'P'
 	pop	ax
 	stc
 ;

@@ -238,9 +238,9 @@ DEFPROC	dos_func,DOSFAR
 	sub	ah,80h
 	cmp	ah,UTILTBL_SIZE		; utility function within range?
 	jae	dos_exit		; no
-	mov	al,ah			; yes, it expects function # in AL
-	add	ah,FUNCTBL_SIZE		; the utility function table
-	jmp	short dc2		; follows the DOS function table
+	mov	bl,ah
+	add	bl,FUNCTBL_SIZE		; the utility function table
+	jmp	short dc3		; follows the DOS function table
 
 dc1:	sti
 	and	[bp].REG_FL,NOT FL_CARRY
@@ -271,8 +271,8 @@ dc1:	sti
 ; we do NOT require or assume they will still be set that way on exit.
 ;
 	DEFLBL	dosutil_enter,near
-dc2:	sub	bx,bx
-	mov	bl,ah
+dc2:	mov	bl,ah
+dc3:	mov	bh,0
 	add	bx,bx
 ;
 ; For convenience, all general-purpose registers except BX, DS, and ES still

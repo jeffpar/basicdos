@@ -321,11 +321,9 @@ RND_SEED	dd	?		; 34Eh: pseudo-random number seed
 INPUT_BUF	dw	?		; 352h: input offset (default INPUTBUF)
 TOKLET_NEXT	dw	?		; 354h
 TOKLET_END	dw	?		; 356h
-SW_DIGITS	dw	?		; 358h: bit mask of digit switches
-SW_LETTERS	dd	?		; 35Ah: bit mask of letter switches
-LINEBUF		db  256 dup (?)		; 35Eh
-DEFVARS		db   26 dup (?)		; 45Eh: default types for 26 letters
-EXECDATA	db size EPB dup (?)	; 478h: Exec Parameter Block
+LINEBUF		db  256 dup (?)		; 358h
+DEFVARS		db   26 dup (?)		; 458h: default types for 26 letters
+EXECDATA	db size EPB dup (?)	; 472h: Exec Parameter Block
 ;
 ; The BASIC-DOS loader always set the stack pointer for a COM file to the top
 ; of the segment, which means we must declare our stack at the end of CMDHEAP.
@@ -336,11 +334,11 @@ EXECDATA	db size EPB dup (?)	; 478h: Exec Parameter Block
 ; COM file can request the stack be located elsewhere, since there's no way for
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
-STACK		dw  512 dup (?)		; 48Eh
-CMDHEAP		ends			; 88Eh
+STACK		dw  512 dup (?)		; 488h
+CMDHEAP		ends			; 888h
 SIG_CMD		equ	'H'
 
-	ASSERT	<SIZE CMDHEAP>,EQ,88Eh
+	ASSERT	<SIZE CMDHEAP>,EQ,888h
 
 ;
 ; The initial stack frame created by the main function can also be used to

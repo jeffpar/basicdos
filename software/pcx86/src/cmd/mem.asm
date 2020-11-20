@@ -12,7 +12,6 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<checkSW>
 	EXTBYTE	<PREDEF_VARS,PREDEF_ZERO>
 
 	IFDEF	DEBUG
@@ -865,8 +864,7 @@ DEFPROC	cmdMem
 ;
 	sub	dx,dx
 	IFDEF	DEBUG
-	mov	al,'D'
-	call	checkSW
+	DOSUTIL	CHECKSW,'D'
 	jz	mem0
 	inc	dx
 	ENDIF	; DEBUG
