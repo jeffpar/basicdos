@@ -289,6 +289,7 @@ pd4:	push	bx
 	cmp	al,'|'			; pipe symbol?
 	clc
 	jne	pd4a			; no
+	push	ax
 	call	openPipe		; yes, open a pipe
 	jc	pd4a
 	mov	[bp].HDL_OUTPIPE,ax
@@ -297,7 +298,8 @@ pd4:	push	bx
 	xchg	bx,ax			; yes, put pipe handle in BX
 	mov	al,ds:[PSP_PFT][bx]	; get its SFH
 	mov	ds:[PSP_PFT][STDOUT],al	; and then replace the STDOUT SFH
-pd4a:	pop	bx
+pd4a:	pop	ax
+	pop	bx
 	jc	pd9
 
 pd5:	jcxz	pd8			; no valid initial token
@@ -321,6 +323,8 @@ pd5a:	pop	si
 	mov	[bp].CMD_DEFER[2],dx
 	mov	[bp].CMD_DEFER[4],si
 	mov	[bp].CMD_DEFER[6],cx
+	mov	al,[bp].CMD_ARG
+	mov	byte ptr [bp].CMD_DEFER[8],al
 	jmp	short pd6a
 
 pd6:	push	bx			; cmdDOS can modify most registers
@@ -358,6 +362,8 @@ pd9:	jc	pd9a
 	mov	dx,[bp].CMD_DEFER[2]
 	mov	si,[bp].CMD_DEFER[4]
 	mov	cx,[bp].CMD_DEFER[6]
+	mov	bl,byte ptr [bp].CMD_DEFER[8]
+	mov	[bp].CMD_ARG,bl
 	mov	bx,bp
 	call	cmdDOS			; invoke deferred command
 
@@ -414,11 +420,11 @@ DEFPROC	cmdDOS
 	jmp	short cd9
 
 cd1:	push	dx
-	mov	dl,[bx].CMD_ARG
-	inc	dx
+	mov	dh,[bx].CMD_ARG
+	inc	dh
 	push	ax
 	DOSUTIL	PARSESW			; parse all switch arguments, if any
-	mov	[bx].CMD_ARG,dl
+	mov	[bx].CMD_ARG,dh
 	pop	ax
 	cmp	ax,KEYWORD_FILE		; does token require a filespec? (20)
 	jb	cd8			; no
@@ -707,10 +713,13 @@ DEFPROC	getToken
 	add	bx,bx
 	add	bx,bx			; BX = BX * 4 (size TOKLET)
 	ASSERT	<size TOKLET>,EQ,4
+	cmp	[di].TOK_DATA[bx].TOKLET_CLS,CLS_SYM
+	stc				; treat symbol as end-of-tokens
+	je	gt8
 	mov	si,[di].TOK_DATA[bx].TOKLET_OFF
 	mov	cl,[di].TOK_DATA[bx].TOKLET_LEN
-	cmp	byte ptr [si],1		; if token is a null, treat as error
-	jb	gt8
+	; cmp	byte ptr [si],1		; if token is a null, treat as error
+	; jb	gt8			; TODO: When does this happen now?
 	sub	ch,ch			; set ZF on success, too
 gt8:	pop	bx
 gt9:	ret

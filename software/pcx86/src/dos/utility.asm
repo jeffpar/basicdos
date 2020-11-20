@@ -933,11 +933,11 @@ ENDPROC	utl_tokid
 ; capture anything from '0' to '?'.
 ;
 ; Inputs:
-;	REG_DL = 1st token to parse
+;	REG_DH = 1st token to parse
 ;	REG_ES:REG_DI -> TOKBUF (filled with token info)
 ;
 ; Outputs:
-;	REG_DL advanced
+;	REG_DH advanced
 ;	PSP_DIGITS, PSP_LETTERS updated
 ;
 ; Modifies:
@@ -957,7 +957,7 @@ DEFPROC	utl_parsesw,DOS
 	stosw				; zero PSP_LETTERS.LOW
 	stosw				; zero PSP_LETTERS.HIW
 	xchg	bx,ax			; BH = 0
-	mov	bl,[bp].REG_DL		; BX = token index
+	mov	bl,[bp].REG_DH		; BX = token index
 	mov	ds,[bp].REG_ES
 	pop	di			; DS:DI -> TOKBUF
 	ASSUME	DS:NOTHING
@@ -1003,7 +1003,7 @@ pw7:	inc	bx			; advance token index
 	pop	di
 	jmp	pw1
 
-pw8:	mov	[bp].REG_DL,bl		; return updated token index
+pw8:	mov	[bp].REG_DH,bl		; return updated token index
 	clc
 	ret
 ENDPROC	utl_parsesw
@@ -1013,11 +1013,11 @@ ENDPROC	utl_parsesw
 ; utl_checksw (AH = 0Fh)
 ;
 ; Inputs:
-;	REG_AL = letter or digit (or special characters, such as ':' and '?')
-;	PSP_DIGITS, PSP_LETTERS set
+;	REG_AL = letter or digit (or special character; eg ':', '?')
+;	PSP_DIGITS and PSP_LETTERS set (by a previous DOS_UTL_PARSESW call)
 ;
 ; Outputs:
-;	ZF clear if switch letter present, set otherwise
+;	ZF clear if switch character present, set otherwise
 ;
 ; Modifies:
 ;
