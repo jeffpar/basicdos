@@ -89,22 +89,22 @@ SCB_SFHERR	db	?	; 04h: SFH for STDERR
 SCB_SFHAUX	db	?	; 05h: SFH for STDAUX
 SCB_SFHPRN	db	?	; 06h: SFH for STDPRN
 SCB_SIG		db	?	; 07h (holds SIG_SCB in DEBUG builds)
-SCB_PARENT	dw	?	; 08h: SCB of parent, if any
-SCB_PSP		dw	?	; 0Ah: PSP active within this session
-SCB_WAITID	dd	?	; 0Ch: wait ID if waiting, 0 if runnable
-SCB_STACK	dd	?	; 10h: pointer to session stack
-SCB_EXRET	dd	?	; 14h: current EXRET handler
-SCB_CTRLC	dd	?	; 18h: current CTRLC handler
-SCB_ERROR	dd	?	; 1Ch: current ERROR handler
-SCB_DTA		dd	?	; 20h: current DTA (Disk Transfer Address)
-SCB_CONTEXT	dw	?	; 24h: CONSOLE context (from device driver)
-SCB_CURDRV	db	?	; 26h: current drive #
-SCB_CTRLC_ALL	db	?	; 27h: 1 if CTRLC checking enabled on all calls
-SCB_CTRLC_ACT	db	?	; 28h: 1 if CTRLC active
-SCB_CTRLP_ACT	db	?	; 29h: 1 if CTRLP active
-SCB_SWITCHAR	db	?	; 2Ah: current switch char (eg, CHR_SLASH)
-		db	?	; 2Bh: padding
-SCB_OWNER	dw	?	; 2Ch: PSP of owner, if any
+SCB_CURDRV	db	?	; 08h: current drive #
+SCB_SWITCHAR	db	?	; 09h: current switch char (eg, CHR_SLASH)
+SCB_CONTEXT	dw	?	; 0Ah: CONSOLE context (from device driver)
+SCB_OWNER	dw	?	; 0Ch: PSP of owner, if any
+SCB_PSP		dw	?	; 0Eh: PSP active within this session
+SCB_WAITID	dd	?	; 10h: wait ID if waiting, 0 if runnable
+SCB_STACK	dd	?	; 14h: pointer to session stack
+SCB_EXRET	dd	?	; 18h: current EXRET handler
+SCB_CTRLC	dd	?	; 1Ch: current CTRLC handler
+SCB_ERROR	dd	?	; 20h: current ERROR handler
+SCB_DTA		dd	?	; 24h: current DTA (Disk Transfer Address)
+SCB_PARENT	dw	?	; 28h: SCB of parent, if any
+SCB_CTRLC_ALL	db	?	; 2Ah: 1 if CTRLC checking enabled on all calls
+SCB_CTRLC_ACT	db	?	; 2Bh: 1 if CTRLC active
+SCB_CTRLP_ACT	db	?	; 2Ch: 1 if CTRLP active
+		db	?	; 2Dh: padding
 SCB_FILENAME	db     12 dup(?); 2Eh: buffer for drive # and filename
 SCB		ends		; 3Ah bytes (1Dh words)
 SIG_SCB		equ	'S'

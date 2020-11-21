@@ -519,7 +519,7 @@ si16:	test	bx,bx			; do we still have a default?
 	stosb				; SPB_SFHERR <- SFH_NONE
 	stosb				; SPB_SFHAUX <- SFH_NONE
 	stosb				; SPB_SFHPRN <- SFH_NONE
-	mov	di,sp			; ES:DI -> SPB on stack
+	mov	bx,sp			; ES:BX -> SPB on stack
 	DOSUTIL	LOAD			; load specified SHELL into an SCB
 	jc	si18
 	test	ax,ax

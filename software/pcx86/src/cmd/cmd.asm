@@ -674,9 +674,9 @@ cf7a:	stosb				; SPB_SFHOUT
 	stosb				; SPB_SFHAUX
 	mov	al,ds:[PSP_PFT][STDPRN]
 	stosb				; SPB_SFHPRN
-	mov	di,sp			; ES:DI -> SPB on stack
+	mov	bx,sp			; ES:BX -> SPB on stack
 	DOSUTIL	LOAD			; load CMDLINE into an SCB
-	lea	sp,[di + size SPB]	; clean up the stack
+	lea	sp,[bx + size SPB]	; clean up the stack
 	jc	cf8
 	mov	[bp].SCB_NEXT,cl
 	DOSUTIL	START			; start the SCB # specified in CL

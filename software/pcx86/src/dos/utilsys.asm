@@ -79,7 +79,7 @@ ENDPROC	utl_ioctl
 ; utl_load (AH = 12h)
 ;
 ; Inputs:
-;	REG_ES:REG_DI -> SPB (Session Parameter Block)
+;	REG_ES:REG_BX -> SPB (Session Parameter Block)
 ;
 ; Outputs:
 ;	Carry clear if successful

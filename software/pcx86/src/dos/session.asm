@@ -62,7 +62,7 @@ ENDPROC	scb_getnum
 ; Load a program into an available session.
 ;
 ; Inputs:
-;	REG_ES:REG_DI -> SPB (Session Parameter Block)
+;	REG_ES:REG_BX -> SPB (Session Parameter Block)
 ;
 ; Outputs:
 ;	Carry clear if successful:
@@ -79,10 +79,10 @@ DEFPROC	scb_load,DOS
 	call	scb_lock		; lock a free SCB
 	jc	sl8
 	push	ax			; save previous SCB
-	mov	di,[bp].REG_DI
+	mov	di,[bp].REG_BX
 	mov	es,[bp].REG_ES		; ES:DI -> SPB
 	ASSUME	ES:NOTHING
-	call	init_scb		; initialize the SCB for loading
+	call	init_scb		; initialize the SCB
 	push	bx			; save SCB
 	mov	bx,es:[di].SPB_ENVSEG
 	push	bx			; BX = ENVSEG, if any
@@ -107,9 +107,9 @@ DEFPROC	scb_load,DOS
 	or	[bx].SCB_STATUS,SCSTAT_LOAD
 	mov	al,[bx].SCB_NUM
 	mov	[bp].REG_CL,al		; REG_CL = session (SCB) #
-	mov	ax,[bp].TMP_CX
 	inc	cx			; was ENVSEG -1?
-	jnz	sl7			; no
+	jnz	sl7			; no, leave REG_AX, REG_ES:REG_BX alone
+	mov	ax,[bp].TMP_CX
 	mov	[bp].REG_AX,ax		; REG_AX = program size
 	mov	ax,[bp].TMP_BX
 	mov	[bp].REG_BX,ax
@@ -609,9 +609,13 @@ ENDPROC	get_free_scb
 ;
 ; init_scb
 ;
-; Initialize the SCB in preparation for program loading.
+; Initialize the SCB in preparation for program loading.  Now that
+; COMMAND.COM is using the LOAD interface to start background processes,
+; more initialization is required (eg, copying the current SCB's settings,
+; such as SCB_CURDRV).
 ;
 ; Inputs:
+;	AX = previous SCB
 ;	DS:BX -> SCB (Session Control Block)
 ;	ES:DI -> SPB (Session Parameter Block)
 ;
@@ -619,12 +623,32 @@ ENDPROC	get_free_scb
 ;	AX, CX, DX, SI
 ;
 DEFPROC	init_scb,DOS
+	push	di
 	ASSUME	ES:NOTHING
 	ASSERT	STRUCT,[bx],SCB
 ;
-; Copy any valid SFHs into the SCB.
+; Before we overlay the SCB handles with those from the SPB, we start by
+; copying the current SCB's handles (if any).  Ditto for the SCB's parent
+; (if any), switch character, current drive, etc.
 ;
-	push	di
+	mov	[bx].SCB_PARENT,ax	; TODO: What shall we do with this?
+	xchg	si,ax			; DS:SI -> previous SCB
+	mov	al,0			; AL = CURDRV
+	mov	ah,[def_switchar]	; AH = SWITCHAR
+	test	si,si
+	jz	si0
+	lea	si,[si].SCB_SFHIN	; DS:SI -> SFHIN of previous SCB
+	lodsw				; load SFHIN, SFHOUT
+	mov	word ptr [bx].SCB_SFHIN,ax
+	lodsw				; load SFHERR, SFHAUX
+	mov	word ptr [bx].SCB_SFHERR,ax
+	lodsw				; load SFHPRN
+	mov	[bx].SCB_SFHPRN,al
+	lodsw				; load CURDRV, SWITCHAR
+si0:	mov	word ptr [bx].SCB_CURDRV,ax
+;
+; Now copy any valid SFHs from the SPB into the SCB.
+;
 	mov	cx,5
 	mov	dx,es:[di].SPB_ENVSEG
 	lea	si,[di].SPB_SFHIN	; ES:SI -> 1st SFH in the SPB
@@ -640,21 +664,15 @@ si2:	cmp	dx,-1			; is SPB_ENVSEG -1 (from sysinit)?
 	call	sfh_add_ref		; (in addition to any program refs)
 si3:	inc	di
 	loop	si1
-	pop	di
 ;
-; Take care of any remaining initialization now, including set the SCB's
-; parent (if any), output context (if any), etc.
+; Now that we're done fiddling with SFHs, get the CONSOLE context from SFHOUT.
 ;
-	mov	ax,[scb_active]		; the caller is the presumed parent
-	mov	[bx].SCB_PARENT,ax
-
 	mov	al,[bx].SCB_SFHOUT
 	call	sfh_context
 	mov	[bx].SCB_CONTEXT,ax
 
-	mov	al,[def_switchar]
-	mov	[bx].SCB_SWITCHAR,al
 	or	[bx].SCB_STATUS,SCSTAT_INIT
+	pop	di
 	ret
 ENDPROC	init_scb
 
