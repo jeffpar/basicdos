@@ -589,7 +589,7 @@ cf4c:	call	cmdRunFlags		; if cmdRun returns normally
 	call	freeAllText		; automatically free all text blocks
 cf4d:	jmp	cf9
 ;
-; COM and EXE files must be loaded via either DOS_PSP_EXEC or DOS_UTL_LOAD
+; COM and EXE files must be loaded via either DOS_PSP_EXEC or DOS_UTL_LOAD.
 ;
 cf5:	DOSUTIL	STRLEN			; AX = length of filename in LINEBUF
 	mov	dx,si			; DS:DX -> filename
@@ -630,22 +630,18 @@ cf5b:	mov	al,CHR_RETURN		; regardless how the command line ends,
 	jmp	cf9
 cf5c:	mov	si,dx
 	jmp	cf8
-
+;
+; Use DOS_UTL_LOAD to load the external program into a background session.
+;
 cf6:	mov	di,dx			; DI -> filename in LINEBUF
 	push	di
 	add	di,ax			; DI -> null
-	mov	al,' '			; replace null with space
-	stosb
 cf6a:	lodsb
 	cmp	al,CHR_RETURN		; tail may end with CHR_RETURN
 	jbe	cf6b			; or null; we don't really care
-	inc	cx
 	stosb
 	jmp	cf6a
-cf6b:	dec	di			; assume the tail is empty
-	jcxz	cf6c			; correct
-	inc	di			; no, so don't rewind DI after all
-cf6c:	mov	al,0			; regardless how the tail ends,
+cf6b:	mov	al,0			; regardless how the tail ends,
 	stosb				; null-terminate the new command line
 	pop	si			; SI -> new command line
 	sub	sp,size SPB

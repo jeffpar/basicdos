@@ -637,7 +637,7 @@ DEFPROC	init_scb,DOS
 	mov	ah,[def_switchar]	; AH = SWITCHAR
 	test	si,si
 	jz	si0
-	lea	si,[si].SCB_SFHIN	; DS:SI -> SFHIN of previous SCB
+	lodsw				; DS:SI -> SFHIN of previous SCB
 	lodsw				; load SFHIN, SFHOUT
 	mov	word ptr [bx].SCB_SFHIN,ax
 	lodsw				; load SFHERR, SFHAUX

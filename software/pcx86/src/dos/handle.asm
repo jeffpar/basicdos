@@ -359,7 +359,7 @@ sr0:	LOCK_SCB
 	mov	dl,ah			; DL = drive #
 	call	get_bpb			; DI -> BPB if no error
 	jnc	sr0a
-	jmp	sr7
+	jmp	sr6
 ;
 ; As a preliminary matter, make sure the requested number of bytes doesn't
 ; exceed the current file size; if it does, reduce it.
@@ -434,7 +434,7 @@ sr2:	mov	ah,DDC_READ
 sr3:	pop	es
 	pop	di			; BPB pointer restored
 	pop	bx			; SFB pointer restored
-	jc	sr7
+	jc	sr6
 ;
 ; Time for some bookkeeping: adjust the SFB's CURPOS by DX.
 ;
@@ -457,7 +457,7 @@ sr3:	pop	es
 	call	get_cln
 	xchg	ax,dx
 	pop	dx
-	jc	sr7
+	jc	sr6
 	mov	[bx].SFB_CURCLN,ax
 sr4:	sub	cx,dx			; have we exhausted the read count yet?
 	jbe	sr5
@@ -466,8 +466,9 @@ sr4:	sub	cx,dx			; have we exhausted the read count yet?
 sr5:	ASSERT	NC
 	mov	ax,[bp].TMP_AX
 
-sr7:	UNLOCK_SCB
+sr6:	UNLOCK_SCB
 	jmp	short sr9
+sr7:	jmp	msc_sigctrlc
 
 sr8:	push	ds
 	push	es
@@ -486,16 +487,16 @@ sr8:	push	ds
 ; If the driver is a STDIN device, and the I/O request was not "raw", then
 ; we need to check the returned data for CTRLC and signal it appropriately.
 ;
-	xchg	ax,cx			; AX = original byte count
+	test	ax,ax			; any bytes returned?
+	jz	sr8a			; no
 	test	es:[di].DDH_ATTR,DDATTR_STDIN
 	jz	sr8a
 	ASSERT	IO_RAW,EQ,0
 	test	bl,bl			; IO_RAW (or IO_DIRECT) request?
 	jle	sr8a			; yes
 	cmp	byte ptr [si],CHR_CTRLC
+	je	sr7
 	clc
-	jne	sr8a
-	jmp	msc_sigctrlc
 
 sr8a:	pop	es
 	pop	ds

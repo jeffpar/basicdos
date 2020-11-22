@@ -171,11 +171,15 @@ dr5:	push	es			; create far pointer to DDH_REQUEST
 	pop	es			; ES restored
 
 	mov	ax,[bp].DDP_STATUS
+	mov	bx,[bp].DDPRW_LENGTH	; BX = # bytes remaining
 	mov	dx,[bp].DDP_CONTEXT
 	add	sp,DDP_MAXSIZE
 	test	ax,DDSTAT_ERROR
-	jz	dr9
-	stc				; AL contains device error code
+	stc
+	jnz	dr9
+	mov	ax,cx			; AX = # bytes originally requested
+	sub	ax,bx			; AX = # bytes returned (if read/write)
+	clc
 
 dr9:	pop	bp
 	pop	bx
