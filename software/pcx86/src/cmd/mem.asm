@@ -9,7 +9,7 @@
 ;
 	include	cmd.inc
 	include	bios.inc
-	include	dos.inc		; the MEM command dumps DOS data structures
+	include	dos.inc
 
 CODE    SEGMENT
 
@@ -84,12 +84,12 @@ drv1:	cmp	di,-1
 drv9:	mov	ah,DOS_MSC_GETVARS
 	int	21h
 	sub	bx,2		; ES:BX -> DOSVARS
-	mov	di,es:[bx].DV_MCB_HEAD
+	mov	di,es:[bx].DV_MCB_LIMIT
 	mov	[memLimit],di
 	push	bx
 
 	IFDEF	DEBUG
-	mov	ax,es:[bx-2]	; ES:BX-2 -> mcb_head
+	mov	ax,es:[bx].DV_MCB_HEAD
 	mov	bx,es		; BX = DOS data segment
 	sub	ax,bx
 	mov	di,cs
@@ -132,11 +132,31 @@ mem2:
 mem8:	inc	cx
 	jmp	mem1
 
-mem9:	mov	ax,[memFree]	; AX = free memory (paras)
+mem9:	pop	bx
+;
+; ES:BX should point to DOSVARS once again.  We'll start by dumping open SFBs.
+;
+	IFDEF	DEBUG
+	TESTSW	<'F'>		; files requested (/F)?
+	jz	mem12
+	sub	cx,cx
+	mov	di,es:[bx].DV_SFB_TABLE.OFF
+	PRINTF	"Address   SFH Name      Refs\r\n"
+mem10:	mov	al,es:[di].SFB_REFS
+	test	al,al
+	jz	mem11
+	lea	si,[di].SFB_NAME
+	PRINTF	"%#010lx %2bd %-11.11ls %2bd\r\n",di,es,cx,si,es,ax
+mem11:	inc	cx
+	add	di,size SFB
+	cmp	di,es:[bx].DV_SFB_TABLE.SEG
+	jb	mem10
+	ENDIF	; DEBUG
 ;
 ; Last but not least, dump the amount of free memory (ie, the sum of all the
 ; free blocks that we did NOT display above).
 ;
+mem12:	mov	ax,[memFree]	; AX = free memory (paras)
 	mov	cx,16
 	mul	cx		; DX:AX = free memory (in bytes)
 	xchg	si,ax
@@ -144,25 +164,8 @@ mem9:	mov	ax,[memFree]	; AX = free memory (paras)
 	mov	ax,[memLimit]
 	mul	cx		; DX:AX = total memory (in bytes)
 	PRINTF	<"%8ld bytes",13,10,"%8ld bytes free",13,10>,ax,dx,si,di
-	pop	bx
-;
-; ES:BX should still point to DOSVARS.  We'll start by dumping open SFBs.
-;
-	IFDEF	DEBUG
-	TESTSW	<'F'>		; files requested (/F)?
-	jz	mem99
-	mov	di,es:[bx].DV_SFB_TABLE.OFF
-mem10:	mov	al,es:[di].SFB_REFS
-	test	al,al
-	jz	mem19
-	lea	si,[di].SFB_NAME
-	PRINTF	"%#010lx: %.11ls %2bd\r\n",di,es,si,es,ax
-mem19:	add	di,size SFB
-	cmp	di,es:[bx].DV_SFB_TABLE.SEG
-	jb	mem10
-	ENDIF	; DEBUG
 
-mem99:	LEAVE
+	LEAVE
 	ret
 ENDPROC	cmdMem
 
