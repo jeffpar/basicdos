@@ -11,6 +11,7 @@
 	include	8086.inc
 	include	devapi.inc
 	include	dos.inc
+	include	dosapi.inc
 
 DOS	segment word public 'CODE'
 

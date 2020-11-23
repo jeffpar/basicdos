@@ -8,19 +8,6 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 
-VERSION_MAJOR	equ	0
-VERSION_MINOR	equ	21
-VERSION_REV	equ	1
-
-VERSION_STR	macro
-		db	'0' + VERSION_MAJOR
-		db	'.'
-		db	'0' + VERSION_MINOR / 10
-		db	'0' + VERSION_MINOR MOD 10
-		IF VERSION_REV
-		db	'A' + VERSION_REV - 1
-		ENDIF
-		endm
 ;
 ; DOS interrupt vector table (IVT) usage
 ;
@@ -475,6 +462,14 @@ TESTSW	macro	syms
 	ENDIF
 	ERROR <No switches tested: syms>
 	endm
+
+DOSVARS		struc
+DV_MCB_HEAD	dw	?	; -02h: first memory segment
+DV_MCB_LIMIT	dw	?	;  00h: first unavailable segment
+DV_BPB_TABLE	dd	?	;  02h: offset, limit of BPBs
+DV_SFB_TABLE	dd	?	;  06h: offset, limit of SFBs
+DV_SCB_TABLE	dd	?	;  0Ah: offset, limit of SCBs
+DOSVARS		ends
 
 ;
 ; DOS error codes (not to be confused with device error codes).

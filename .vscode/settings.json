@@ -231,6 +231,7 @@
     "DOSRES",
     "DOSTERM",
     "DOSTSR",
+    "DOSVARS",
     "DPRINTF",
     "DQUOTE",
     "DRIVEHEADS",

@@ -10,6 +10,7 @@
 	include	macros.inc
 	include	bios.inc
 	include	dos.inc
+	include	dosapi.inc
 
 DOS	segment word public 'CODE'
 

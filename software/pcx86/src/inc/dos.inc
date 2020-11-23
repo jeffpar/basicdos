@@ -7,7 +7,20 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-	include	dosapi.inc
+
+VERSION_MAJOR	equ	0
+VERSION_MINOR	equ	21
+VERSION_REV	equ	2
+
+VERSION_STR	macro
+		db	'0' + VERSION_MAJOR
+		db	'.'
+		db	'0' + VERSION_MINOR / 10
+		db	'0' + VERSION_MINOR MOD 10
+		IF VERSION_REV
+		db	'A' + VERSION_REV - 1
+		ENDIF
+		endm
 
 IFNDEF DEBUG
 REG_CHECK	equ	0	; no REG_FRAME marker on stack

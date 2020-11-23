@@ -11,7 +11,7 @@
 	include	bios.inc
 	include	disk.inc
 	include	devapi.inc
-	include	dosapi.inc
+	include	dos.inc
 
 	; TWAIT equ 16			; timed wait is now disabled
 
