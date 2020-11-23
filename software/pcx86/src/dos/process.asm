@@ -175,9 +175,10 @@ ENDPROC	psp_copy
 ;
 DEFPROC	psp_exec,DOS
 	cmp	al,2			; valid subfunction?
-	mov	ax,ERR_INVALID		; AX = error code if not
-	ja	px9
 	je	px5
+	cmc
+	mov	ax,ERR_INVALID
+	jc	px4			; AX = error code if not
 
 	mov	ds,[bp].REG_DS
 	ASSUME	DS:NOTHING
@@ -188,13 +189,13 @@ DEFPROC	psp_exec,DOS
 ; No EPB was provided, so treat DS:SI as a command line.
 ;
 	call	load_command		; load the program and parse the tail
-	jc	px9			; AX should contain an error code
+	jc	px4			; AX should contain an error code
 	jmp	short px2		; otherwise, launch the program
 
 px1:	dec	bx			; restore BX pointer to EPB
 	call	load_program		; load the program
 	ASSUME	ES:NOTHING
-	jc	px9			; AX should contain an error code
+	jc	px4			; AX should contain an error code
 ;
 ; Use load_args to build the FCBs and CMDTAIL in the PSP from the EBP.
 ;
@@ -202,7 +203,7 @@ px1:	dec	bx			; restore BX pointer to EPB
 	mov	bx,[bp].REG_BX		; DS:BX -> EPB (from ES:BX)
 	call	load_args		; DX:AX -> new stack
 	cmp	byte ptr [bp].REG_AL,0	; was AL zero?
-	jne	px4			; no
+	jne	px3			; no
 ;
 ; This was a DOS_PSP_EXEC call, and unlike scb_load, it's a synchronous
 ; exec, meaning we launch the program directly from this call.
@@ -225,8 +226,7 @@ px2:	cli
 ; new stack is supposed to contain only the initial value for REG_AX, which
 ; we take care of below.
 ;
-px4:
-	IF REG_CHECK
+px3:	IF REG_CHECK
 	add	ax,REG_CHECK
 	ENDIF
 	mov	di,ax
@@ -241,6 +241,7 @@ px4:
 	mov	[bx].EPB_INIT_IP.SEG,es	; return the program's CS:IP
 	clc
 	ret
+px4:	jmp	short px9
 ;
 ; This is a DOS_PSP_EXEC2 "start" request.  ES:BX must point to a previously
 ; initialized EPB with EPB_INIT_SP pointing to REG_FL in a REG_FRAME, and the
@@ -250,19 +251,33 @@ px4:
 ; don't want the program returning to the original EXEC call on termination.
 ;
 px5:	mov	ds,[bp].REG_ES
-	mov	bx,[bp].REG_BX		; DS:BX -> EPB (from ES:BX)
-	lds	bx,[bx].EPB_INIT_SP	; DS:BX -> stack (@REG_FL)
-	sub	bx,size REG_FRAME-2	; DS:BX -> REG_FRAME
-	mov	[bx].REG_FL,FL_DEFAULT	; fix REG_FL
+	mov	bx,[bp].REG_BX		; DS:BX -> EPB (from REG_ES:REG_BX)
+	les	di,[bx].EPB_INIT_IP	; ES:DI = REG_CS:REG_IP for program
+	lds	si,[bx].EPB_INIT_SP	; DS:SI -> stack (@REG_FL)
+	sub	si,size REG_FRAME-2	; DS:SI -> REG_FRAME
+	mov	[si].REG_FL,FL_DEFAULT	; fix REG_FL
+	mov	[si].REG_CS,es
+	mov	[si].REG_IP,di		; update REG_CS:REG_IP on frame
 	mov	dx,ds
 	call	get_psp
 	jz	px6
 	mov	ds,ax			; DS -> new PSP
+
+	push	ds
+	mov	ds,ds:[PSP_PARENT]	; in addition, the stack ptr
+	mov	ax,bp			; that load_program normally saves
+	IF REG_CHECK			; in the previous PSP is based on the
+	sub	ax,2			; assumption that the same INT 21h
+	ENDIF				; both loaded and exec'ed us
+	mov	ds:[PSP_STACK].OFF,ax	;
+	mov	ds:[PSP_STACK].SEG,ss	; so, re-save the current stack ptr
+	pop	ds
+
 	mov	ax,[bp].REG_IP
 	mov	ds:[PSP_EXRET].OFF,ax
 	mov	ax,[bp].REG_CS
 	mov	ds:[PSP_EXRET].SEG,ax
-px6:	xchg	ax,bx			; DX:AX -> REG_FRAME
+px6:	xchg	ax,si			; DX:AX -> REG_FRAME
 	IF REG_CHECK
 	sub	ax,REG_CHECK
 	ENDIF
@@ -347,8 +362,8 @@ ENDPROC	psp_get
 ;
 ; psp_create (REG_AH = 55h)
 ;
-; Creates a new PSP with a process file table filled with system file handles
-; from the active SCB.
+; Creates a new PSP with a process file table filled with file handles
+; from the parent PSP, or failing that, file handles from the active SCB.
 ;
 ; Inputs:
 ;	REG_DX = segment of new PSP
@@ -363,21 +378,30 @@ DEFPROC	psp_create,DOS
 	call	psp_init		; returns ES:DI -> PSP_PARENT
 	stosw				; update PSP_PARENT
 ;
-; Next up: the PFT (Process File Table); the first 5 PFT slots (PFHs) are
-; predefined as STDIN (0), STDOUT (1), STDERR (2), STDAUX (3), and STDPRN (4),
-; and apparently we should open SFBs for AUX first, CON second, and PRN third,
-; so that the SFHs for the first five handles will always be 1, 1, 1, 0, and 2.
+; If there's a parent PSP, we copy all the handles from it; otherwise,
+; we copy the first 5 handles from the SCB and fill the rest with SFH_NONE.
 ;
-	mov	ah,1
+	test	ax,ax
+	jz	pc0
+	mov	ds,ax
+	ASSUME	DS:NOTHING
+	mov	si,PSP_PFT
+	mov	cx,size PSP_PFT
+	jmp	short pc1
+
+pc0:	inc	ah			; AH = 1
 	mov	cx,5
 	lea	si,[bx].SCB_SFHIN
 pc1:	lodsb
 	stosb
 	call	sfh_add_ref
 	loop	pc1
+
+	mov	cx,PSP_PFT + size PSP_PFT
+	sub	cx,di			; CX = # handles left
 	mov	al,SFH_NONE		; AL = 0FFh (indicates unused entry)
-	mov	cl,15			; 15 more PFT slots left
 	rep	stosb			; finish up PSP_PFT (20 bytes total)
+
 	mov	cl,(size PSP - PSP_ENVSEG) SHR 1
 	sub	ax,ax
 	rep	stosw			; zero the rest of the PSP

@@ -130,16 +130,31 @@ DEFPROC	cleanUp
 	pop	ds
 	push	ss
 	pop	es
-	mov	bx,5
+	mov	bx,5			; close all non-STD handles
 cu1:	mov	ah,DOS_HDL_CLOSE
 	int	21h
 	inc	bx
 	cmp	bx,size PSP_PFT
 	jb	cu1
-	mov	bx,ds:[PSP_HEAP]
+	mov	bx,ds:[PSP_HEAP]	; and then restore the STD ones
 	mov	ax,word ptr [bx].SFH_STDIN
 	mov	word ptr ds:[PSP_PFT][STDIN],ax
-	popf
+;
+; If we successfully loaded another program but then ran into some error
+; before we could start the program, we MUST clean it up, and currently, the
+; only viable way to do that is execute it but with a fake CS:IP (ie, one
+; that points to its own termination handler at PSP:0).
+;
+	mov	cx,[bx].CMD_PROCESS	; does a loaded program exist?
+	jcxz	cu9			; no
+	push	bx
+	mov	bp,bx
+	lea	bx,[bx].EXECDATA
+	mov	[bx].EPB_INIT_IP.LOW,0	; set the program's CS:IP to PSP:0
+	mov	[bx].EPB_INIT_IP.HIW,cx
+	call	cmdExec			; this should be a very fast "EXEC"
+	pop	bx
+cu9:	popf
 	ret
 ENDPROC	cleanUp
 
@@ -293,11 +308,13 @@ pd4:	push	bx
 	call	openPipe		; yes, open a pipe
 	jc	pd4a
 	mov	[bp].HDL_OUTPIPE,ax
+
 	cmp	[bp].CMD_ARG,0		; first command on line?
 	jne	pd4a			; no
 	xchg	bx,ax			; yes, put pipe handle in BX
 	mov	al,ds:[PSP_PFT][bx]	; get its SFH
 	mov	ds:[PSP_PFT][STDOUT],al	; and then replace the STDOUT SFH
+
 pd4a:	pop	ax
 	pop	bx
 	jc	pd9
@@ -323,8 +340,8 @@ pd5a:	pop	si
 	mov	[bp].CMD_DEFER[2],dx
 	mov	[bp].CMD_DEFER[4],si
 	mov	[bp].CMD_DEFER[6],cx
-	mov	al,[bp].CMD_ARG
-	mov	byte ptr [bp].CMD_DEFER[8],al
+	mov	ax,[bp].HDL_OUTPIPE
+	mov	[bp].CMD_DEFER[8],ax
 	jmp	short pd6a
 
 pd6:	push	bx			; cmdDOS can modify most registers
@@ -354,20 +371,27 @@ pd8:	add	bx,size TOKLET
 	pop	ax			; restore end of TOKLETs
 	jmp	pd1			; loop back for more commands, if any
 
-pd9:	jc	pd9a
+pd9:	jc	pd9c
 	mov	ax,[bp].CMD_DEFER[0]
 	test	ax,ax			; is there a deferred command?
-	jz	pd9a			; no
+	jz	pd9c			; no
+	js	pd9a			; yes, but it's external
+
+	mov	si,[bp].CMD_DEFER[8]	; SI = pipe handle
+	mov	dl,ds:[PSP_PFT][si]	; get its SFH
+	mov	ds:[PSP_PFT][STDOUT],dl	; and then replace the STDOUT SFH
 
 	mov	dx,[bp].CMD_DEFER[2]
 	mov	si,[bp].CMD_DEFER[4]
 	mov	cx,[bp].CMD_DEFER[6]
-	mov	bl,byte ptr [bp].CMD_DEFER[8]
-	mov	[bp].CMD_ARG,bl
+	mov	[bp].CMD_ARG,0
 	mov	bx,bp
-	call	cmdDOS			; invoke deferred command
+	call	cmdDOS			; invoke deferred internal command
+	jmp	short pd9b
 
-	sub	cx,cx			; CX = 0 for "truncating" write
+pd9a:	call	cmdExec			; invoke deferred external command
+
+pd9b:	sub	cx,cx			; CX = 0 for "truncating" write
 	mov	bx,[bp].HDL_INPIPE
 	mov	ah,DOS_HDL_WRITE
 	int	21h			; issue final write
@@ -376,10 +400,10 @@ pd9:	jc	pd9a
 	mov	cl,SCB_NONE
 	xchg	cl,[bp].SCB_NEXT
 	cmp	cl,SCB_NONE
-	je	pd9a
+	je	pd9c
 	DOSUTIL	WAITEND
 
-pd9a:	call	cleanUp
+pd9c:	call	cleanUp
 	pop	ax			; discard end of TOKLETs
 	pop	bp
 	ret
@@ -463,6 +487,39 @@ cd8:	pop	dx			; DX = handler again
 	clc				; TODO: make handlers set/clear carry
 cd9:	ret
 ENDPROC	cmdDOS
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmdExec
+;
+; Execute a previously loaded program (EXECDATA must already be filled in).
+;
+; Inputs:
+;	BP -> CMDHEAP
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cmdExec
+	sub	bx,bx
+	xchg	bx,[bp].CMD_PROCESS
+	test	bx,bx
+	jz	ce9
+	mov	ah,DOS_PSP_SET
+	int	21h
+	lea	bx,[bp].EXECDATA
+	DEFLBL	cmdStart,near
+	mov	ax,DOS_PSP_EXEC2
+	int	21h			; start program specified by ES:BX
+	mov	ah,DOS_PSP_RETCODE
+	int	21h
+	mov	dl,ah			; AL = exit code, DL = exit type
+	PRINTF	<"Return code %bd (%bd)",13,10,13,10>,ax,dx
+ce9:	ret
+ENDPROC	cmdExec
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -589,7 +646,7 @@ cf4c:	call	cmdRunFlags		; if cmdRun returns normally
 	call	freeAllText		; automatically free all text blocks
 cf4d:	jmp	cf9
 ;
-; COM and EXE files must be loaded via either DOS_PSP_EXEC or DOS_UTL_LOAD
+; COM and EXE files must be loaded via either DOS_PSP_EXEC or DOS_UTL_LOAD.
 ;
 cf5:	DOSUTIL	STRLEN			; AX = length of filename in LINEBUF
 	mov	dx,si			; DS:DX -> filename
@@ -620,32 +677,38 @@ cf5b:	mov	al,CHR_RETURN		; regardless how the command line ends,
 	mov	[bx].EPB_FCB1.OFF,-1	; let the EXEC function build the FCBs
 	mov	ax,DOS_PSP_EXEC1
 	int	21h			; load program at DS:DX
-	jc	cf5c
-	mov	ax,DOS_PSP_EXEC2
-	int	21h			; start program specified by ES:BX
-	mov	ah,DOS_PSP_RETCODE
+	jc	cf5e
+;
+; Unfortunately, at this late stage, if a pipe exists, we must defer the EXEC.
+;
+	cmp	[bp].HDL_OUTPIPE,0
+	je	cf5c
+	mov	[bp].CMD_DEFER[0],-1	; set (negative) deferred EXEC code
+	mov	ah,DOS_PSP_GET
 	int	21h
-	mov	dl,ah			; AL = exit code, DL = exit type
-	PRINTF	<"Return code %bd (%bd)",13,10,13,10>,ax,dx
-	jmp	cf9
-cf5c:	mov	si,dx
-	jmp	cf8
+	mov	[bp].CMD_PROCESS,bx	; save new PSP for the deferred EXEC
+	mov	bx,ss
+	mov	ah,DOS_PSP_SET
+	int	21h			; and finally, revert to our own PSP
+	jmp	short cf5d
 
+cf5c:	call	cmdStart
+cf5d:	jmp	short cf9
+
+cf5e:	mov	si,dx
+	jmp	cf8
+;
+; Use DOS_UTL_LOAD to load the external program into a background session.
+;
 cf6:	mov	di,dx			; DI -> filename in LINEBUF
 	push	di
 	add	di,ax			; DI -> null
-	mov	al,' '			; replace null with space
-	stosb
 cf6a:	lodsb
 	cmp	al,CHR_RETURN		; tail may end with CHR_RETURN
 	jbe	cf6b			; or null; we don't really care
-	inc	cx
 	stosb
 	jmp	cf6a
-cf6b:	dec	di			; assume the tail is empty
-	jcxz	cf6c			; correct
-	inc	di			; no, so don't rewind DI after all
-cf6c:	mov	al,0			; regardless how the tail ends,
+cf6b:	mov	al,0			; regardless how the tail ends,
 	stosb				; null-terminate the new command line
 	pop	si			; SI -> new command line
 	sub	sp,size SPB
@@ -674,9 +737,9 @@ cf7a:	stosb				; SPB_SFHOUT
 	stosb				; SPB_SFHAUX
 	mov	al,ds:[PSP_PFT][STDPRN]
 	stosb				; SPB_SFHPRN
-	mov	di,sp			; ES:DI -> SPB on stack
+	mov	bx,sp			; ES:BX -> SPB on stack
 	DOSUTIL	LOAD			; load CMDLINE into an SCB
-	lea	sp,[di + size SPB]	; clean up the stack
+	lea	sp,[bx + size SPB]	; clean up the stack
 	jc	cf8
 	mov	[bp].SCB_NEXT,cl
 	DOSUTIL	START			; start the SCB # specified in CL

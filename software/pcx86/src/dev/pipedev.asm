@@ -220,7 +220,6 @@ pl0:	mov	bx,ds:[CT_HEAD]
 ; There's no data, so issue WAIT and try again when it returns.
 ;
 	test	ds:[CT_STATUS],CTSTAT_TRUNC
-	stc
 	jnz	pl9
 	ASSERT	Z,<test ds:[CT_STATUS],CTSTAT_EWAIT OR CTSTAT_FWAIT>
 	or	ds:[CT_STATUS],CTSTAT_EWAIT

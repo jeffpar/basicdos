@@ -324,6 +324,7 @@ TOKLET_END	dw	?		; 358h
 LINEBUF		db  256 dup (?)		; 35Ah
 DEFVARS		db   26 dup (?)		; 45Ah: default types for 26 letters
 EXECDATA	db size EPB dup (?)	; 474h: Exec Parameter Block
+CMD_PROCESS	dw	?		; 48Ah: PSP of loaded process, if any
 ;
 ; The BASIC-DOS loader always set the stack pointer for a COM file to the top
 ; of the segment, which means we must declare our stack at the end of CMDHEAP.
@@ -334,11 +335,11 @@ EXECDATA	db size EPB dup (?)	; 474h: Exec Parameter Block
 ; COM file can request the stack be located elsewhere, since there's no way for
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
-STACK		dw  512 dup (?)		; 48Ah
-CMDHEAP		ends			; 88Ah
+STACK		dw  512 dup (?)		; 48Ch
+CMDHEAP		ends			; 88Ch
 SIG_CMD		equ	'H'
 
-	ASSERT	<SIZE CMDHEAP>,EQ,88Ah
+	ASSERT	<SIZE CMDHEAP>,EQ,88Ch
 
 ;
 ; The initial stack frame created by the main function can also be used to

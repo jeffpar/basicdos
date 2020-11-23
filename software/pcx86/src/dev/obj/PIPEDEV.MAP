@@ -3,7 +3,7 @@
 Warning: no stack segment
 
  Start  Stop   Length Name                   Class
- 00000H 001C8H 001C9H CODE                   CODE
+ 00000H 001C7H 001C8H CODE                   CODE
  001D0H 001DFH 00010H DATA                   DATA
 
  Origin   Group
@@ -14,18 +14,18 @@ Warning: no stack segment
  0000:0012       CMDTBL
  0000:000F  Abs  CMDTBL_SIZE
  0000:00C2       DDPIPE_CLOSE
- 0000:01BB       DDPIPE_INIT
+ 0000:01BA       DDPIPE_INIT
  0000:00D5       DDPIPE_NONE
  0000:0093       DDPIPE_OPEN
  0000:004B       DDPIPE_READ
  0000:0030       DDPIPE_REQ
  0000:0070       DDPIPE_WRITE
- 0000:01B7       ENDWAIT_DATA
+ 0000:01B6       ENDWAIT_DATA
  0000:0000       PIPE
  0000:00DD       PULL_DATA
- 0000:0147       PUSH_DATA
- 0000:01AE       WAIT_CALL
- 0000:01AC       WAIT_DATA
+ 0000:0146       PUSH_DATA
+ 0000:01AD       WAIT_CALL
+ 0000:01AB       WAIT_DATA
 
   Address         Publics by Value
 
@@ -39,8 +39,8 @@ Warning: no stack segment
  0000:00C2       DDPIPE_CLOSE
  0000:00D5       DDPIPE_NONE
  0000:00DD       PULL_DATA
- 0000:0147       PUSH_DATA
- 0000:01AC       WAIT_DATA
- 0000:01AE       WAIT_CALL
- 0000:01B7       ENDWAIT_DATA
- 0000:01BB       DDPIPE_INIT
+ 0000:0146       PUSH_DATA
+ 0000:01AB       WAIT_DATA
+ 0000:01AD       WAIT_CALL
+ 0000:01B6       ENDWAIT_DATA
+ 0000:01BA       DDPIPE_INIT
