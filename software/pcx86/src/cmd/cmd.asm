@@ -1726,7 +1726,7 @@ ENDPROC	cmdType
 ; return the size of the file in DX:AX.
 ;
 ; Inputs:
-;	BX -> CMDHEAP
+;	SS:BX -> CMDHEAP
 ;	DS:SI -> filename
 ;
 ; Outputs:
@@ -1742,8 +1742,8 @@ DEFPROC	openInput
 	mov	ax,DOS_HDL_OPENRO
 	int	21h
 	jc	of9
-	ASSERT	STRUCT,[bx],CMD
-	mov	[bx].HDL_INPUT,ax	; save file handle
+	ASSERT	STRUCT,ss:[bx],CMD
+	mov	ss:[bx].HDL_INPUT,ax	; save file handle
 	xchg	bx,ax			; BX = handle
 	sub	cx,cx
 	sub	dx,dx
