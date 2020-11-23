@@ -362,8 +362,8 @@ ENDPROC	psp_get
 ;
 ; psp_create (REG_AH = 55h)
 ;
-; Creates a new PSP with a process file table filled with system file handles
-; from the active SCB.
+; Creates a new PSP with a process file table filled with file handles
+; from the parent PSP, or failing that, file handles from the active SCB.
 ;
 ; Inputs:
 ;	REG_DX = segment of new PSP
@@ -378,21 +378,30 @@ DEFPROC	psp_create,DOS
 	call	psp_init		; returns ES:DI -> PSP_PARENT
 	stosw				; update PSP_PARENT
 ;
-; Next up: the PFT (Process File Table); the first 5 PFT slots (PFHs) are
-; predefined as STDIN (0), STDOUT (1), STDERR (2), STDAUX (3), and STDPRN (4),
-; and apparently we should open SFBs for AUX first, CON second, and PRN third,
-; so that the SFHs for the first five handles will always be 1, 1, 1, 0, and 2.
+; If there's a parent PSP, we copy all the handles from it; otherwise,
+; we copy the first 5 handles from the SCB and fill the rest with SFH_NONE.
 ;
-	mov	ah,1
+	test	ax,ax
+	jz	pc0
+	mov	ds,ax
+	ASSUME	DS:NOTHING
+	mov	si,PSP_PFT
+	mov	cx,size PSP_PFT
+	jmp	short pc1
+
+pc0:	inc	ah			; AH = 1
 	mov	cx,5
 	lea	si,[bx].SCB_SFHIN
 pc1:	lodsb
 	stosb
 	call	sfh_add_ref
 	loop	pc1
+
+	mov	cx,PSP_PFT + size PSP_PFT
+	sub	cx,di			; CX = # handles left
 	mov	al,SFH_NONE		; AL = 0FFh (indicates unused entry)
-	mov	cl,15			; 15 more PFT slots left
 	rep	stosb			; finish up PSP_PFT (20 bytes total)
+
 	mov	cl,(size PSP - PSP_ENVSEG) SHR 1
 	sub	ax,ax
 	rep	stosw			; zero the rest of the PSP

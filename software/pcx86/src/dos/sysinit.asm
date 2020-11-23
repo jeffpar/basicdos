@@ -380,7 +380,8 @@ si7a:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHIN>
 ;
 ; Before we create any sessions (and our first PSPs), we need to open all the
 ; devices required for the 5 STD handles.  And we open AUX first, purely for
-; historical reasons.
+; historical reasons (by opening AUX first, CON second, and PRN third, the SFHs
+; for the first five handles will always be 1, 1, 1, 0, and 2).
 ;
 ; Since no PSP exists yet, DOS_HDL_OPEN will return system file handles, not
 ; process file handles.  Which is exactly what we want, because we're going to

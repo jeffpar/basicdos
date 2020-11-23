@@ -660,18 +660,18 @@ ENDPROC	sfb_close
 ;	AX, BX
 ;
 DEFPROC	sfb_get,DOS
-	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	call	get_psp			; if there's no PSP yet
 	jz	sg1			; then BX must an SFH, not a PFH
 	cmp	bl,size PSP_PFT		; is the PFH within PFT bounds?
 	jae	sg8			; no
 	push	ds
 	mov	ds,ax
-	ASSUME	DS:NOTHING
 	mov	bl,ds:[PSP_PFT][bx]	; BL = SFH
 	pop	ds
 
 	DEFLBL	sfb_from_sfh,near
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 sg1:	mov	al,size SFB		; convert SFH to SFB
 	mul	bl
 	add	ax,[sfb_table].OFF
@@ -700,6 +700,7 @@ ENDPROC	sfb_get
 ;	BX
 ;
 DEFPROC	sfb_find_fcb,DOS
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	mov	bx,[sfb_table].OFF
 sff1:	test	[bx].SFB_FLAGS,SFBF_FCB
 	jz	sff8
@@ -729,12 +730,11 @@ ENDPROC	sfb_find_fcb
 ;	AX, BX, CX, DI, ES
 ;
 DEFPROC	pfh_alloc,DOS
-	ASSUMES	<DS,DOS>,<ES,DOS>
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	call	get_psp			; get the current PSP
 	xchg	di,ax			; if we're called by sysinit
 	jz	pa9			; there may be no valid PSP yet
-	mov	es,di
-	ASSUME	ES:NOTHING		; find a free handle entry
+	mov	es,di			; find a free handle entry
 	mov	al,SFH_NONE		; AL = 0FFh (indicates unused entry)
 	mov	cx,size PSP_PFT
 	mov	di,offset PSP_PFT
@@ -796,6 +796,7 @@ ENDPROC	pfh_set
 ;	AX, DX
 ;
 DEFPROC	pfh_close,DOS
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	push	bx
 	push	si
 	mov	si,bx			; SI = PFH
@@ -823,13 +824,14 @@ ENDPROC	pfh_close
 ;	None
 ;
 DEFPROC	sfh_add_ref,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	push	bx
 	mov	bl,al
 	push	ax
 	call	sfb_from_sfh
 	pop	ax
 	jc	sha9
-	add	[bx].SFB_REFS,ah
+	add	cs:[bx].SFB_REFS,ah
 	ASSERT	NC
 sha9:	pop	bx
 	ret
@@ -852,6 +854,7 @@ ENDPROC	sfh_add_ref
 ;	AX, DX
 ;
 DEFPROC	sfh_close,DOS
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	push	bx
 	push	si
 	call	sfb_from_sfh
@@ -881,6 +884,7 @@ ENDPROC	sfh_close
 ;	AX
 ;
 DEFPROC	sfh_context,DOS
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	push	bx
 	mov	bl,al
 	call	sfb_from_sfh

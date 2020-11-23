@@ -308,11 +308,13 @@ pd4:	push	bx
 	call	openPipe		; yes, open a pipe
 	jc	pd4a
 	mov	[bp].HDL_OUTPIPE,ax
+
 	cmp	[bp].CMD_ARG,0		; first command on line?
 	jne	pd4a			; no
 	xchg	bx,ax			; yes, put pipe handle in BX
 	mov	al,ds:[PSP_PFT][bx]	; get its SFH
 	mov	ds:[PSP_PFT][STDOUT],al	; and then replace the STDOUT SFH
+
 pd4a:	pop	ax
 	pop	bx
 	jc	pd9
@@ -338,8 +340,8 @@ pd5a:	pop	si
 	mov	[bp].CMD_DEFER[2],dx
 	mov	[bp].CMD_DEFER[4],si
 	mov	[bp].CMD_DEFER[6],cx
-	mov	al,[bp].CMD_ARG
-	mov	byte ptr [bp].CMD_DEFER[8],al
+	mov	ax,[bp].HDL_OUTPIPE
+	mov	[bp].CMD_DEFER[8],ax
 	jmp	short pd6a
 
 pd6:	push	bx			; cmdDOS can modify most registers
@@ -375,11 +377,14 @@ pd9:	jc	pd9c
 	jz	pd9c			; no
 	js	pd9a			; yes, but it's external
 
+	mov	si,[bp].CMD_DEFER[8]	; SI = pipe handle
+	mov	dl,ds:[PSP_PFT][si]	; get its SFH
+	mov	ds:[PSP_PFT][STDOUT],dl	; and then replace the STDOUT SFH
+
 	mov	dx,[bp].CMD_DEFER[2]
 	mov	si,[bp].CMD_DEFER[4]
 	mov	cx,[bp].CMD_DEFER[6]
-	mov	bl,byte ptr [bp].CMD_DEFER[8]
-	mov	[bp].CMD_ARG,bl
+	mov	[bp].CMD_ARG,0
 	mov	bx,bp
 	call	cmdDOS			; invoke deferred internal command
 	jmp	short pd9b
