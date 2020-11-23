@@ -7,8 +7,9 @@ permalink: /maplebar/blog/2020/07/31/
 
 I originally thought about blogging about the progress of BASIC-DOS every day,
 but it turns I'd much rather be writing code than blog entries, and no one
-would really be that interested anyway.  The Git repository has all the daily
-gory details if anyone cares.
+would really be that interested anyway.  The GitHub
+[repository](https://github.com/jeffpar/basicdos) has all the daily details
+if anyone really cares.
 
 But, after more than two months into the project, an update is probably overdue.
 
@@ -32,7 +33,7 @@ the system can be tailored to your needs.  PC DOS didn't support **CONFIG.SYS**
 until version 2.0, over 1.5 years after the IBM PC and PC DOS were introduced.
 
 Installable device drivers (using the **DEVICE** keyword) aren't supported
-yet, but support does exist for:
+yet, but support does exist for the following configuration options:
 
   - **BOOTKEY** (eg, BOOTKEY=D to simulate pressing 'D' at the boot prompt)
   - **CONSOLE** (eg, CONSOLE=CON:40,25,0,0,1 to create a 40-column console)
@@ -62,7 +63,7 @@ much at this point are:
   - CON
   - COM1, COM2, etc.
   - CLOCK$
-  - FDC$ (yes, BASIC-DOS block drivers have names, too)
+  - FDC$ (yes, BASIC-DOS block drivers can have names, too)
   - PIPE$ (ie, a true pipe device)
 
 BASIC-DOS device drivers are very similar to DOS drivers.  For example,
