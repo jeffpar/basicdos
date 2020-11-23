@@ -1008,45 +1008,6 @@ pw8:	mov	[bp].REG_DH,bl		; return updated token index
 	ret
 ENDPROC	utl_parsesw
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_checksw (AH = 0Fh)
-;
-; Inputs:
-;	REG_AL = letter or digit (or special character; eg ':', '?')
-;	PSP_DIGITS and PSP_LETTERS set (by a previous DOS_UTL_PARSESW call)
-;
-; Outputs:
-;	ZF clear if switch character present, set otherwise
-;
-; Modifies:
-;
-DEFPROC	utl_checksw,DOS
-	sti
-	and	[bp].REG_FL,NOT (FL_CARRY OR FL_ZERO)
-	mov	bx,[scb_active]
-	ASSERT	STRUCT,[bx],SCB
-	mov	es,[bx].SCB_PSP
-	ASSUME	ES:NOTHING
-	mov	di,PSP_DIGITS
-	sub	al,'A'
-	jae	cw1
-	add	al,'A'-'0'
-	jmp	short cw2
-cw1:	mov	di,PSP_LETTERS
-	cmp	al,16
-	jb	cw2
-	sub	al,16
-	add	di,2
-cw2:	xchg	cx,ax
-	mov	ax,1
-	shl	ax,cl
-	test	es:[di],ax
-	jnz	cw9
-	or	[bp].REG_FL,FL_ZERO
-cw9:	ret
-ENDPROC	utl_checksw
-
 DOS	ends
 
 	end

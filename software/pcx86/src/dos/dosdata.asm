@@ -31,7 +31,7 @@ DOS	segment word public 'CODE'
 	DEFTBL	<bpb_table,sfb_table,scb_table>
 	DEFWORD	scb_active,0		; offset of active SCB (zero if none)
 	DEFWORD	key_boot,0		; records key pressed at boot, if any
-	EXTERNS	scb_return,near
+	EXTNEAR	scb_return
 	DEFWORD	scb_stoked,<offset scb_return>
 	DEFBYTE	scb_locked,-1		; -1 if unlocked, >=0 if locked
 	DEFBYTE	bpb_total,0		; total number of BPBs
@@ -84,7 +84,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<utl_strlen,utl_strstr,utl_strupr>
 	EXTNEAR	<utl_atoi16,utl_atoi32,utl_atoi32d>
 	EXTNEAR	<utl_itoa,utl_printf,utl_dprintf,utl_sprintf>
-	EXTNEAR	<utl_tokify,utl_tokid,utl_parsesw,utl_checksw>
+	EXTNEAR	<utl_tokify,utl_tokid,utl_parsesw>
 	EXTNEAR	<utl_getdev,utl_ioctl,utl_load,utl_start,utl_stop,utl_end>
 	EXTNEAR	<utl_waitend,utl_yield,utl_sleep,utl_wait,utl_endwait>
 	EXTNEAR	<utl_hotkey,utl_lock,utl_unlock,utl_qrymem,utl_abort>
@@ -120,7 +120,7 @@ DOS	segment word public 'CODE'
 	dw	utl_strlen,  utl_strstr,  func_none,   utl_strupr	;00h-03h
 	dw	utl_printf,  utl_dprintf, utl_sprintf, utl_itoa		;04h-07h
 	dw	utl_atoi16,  utl_atoi32,  utl_atoi32d, utl_tokify	;08h-0Bh
-	dw	utl_tokify,  utl_tokid,   utl_parsesw, utl_checksw	;0Ch-0Fh
+	dw	utl_tokify,  utl_tokid,   utl_parsesw, func_none	;0Ch-0Fh
 	dw	utl_getdev,  utl_ioctl,   utl_load,    utl_start	;10h-13h
 	dw	utl_stop,    utl_end,     utl_waitend, utl_yield	;14h-17h
 	dw	utl_sleep,   utl_wait,    utl_endwait, utl_hotkey	;18h-1Bh

@@ -857,20 +857,7 @@ ENDPROC	setVar
 DEFPROC	cmdMem
 	LOCVAR	memFree,word	; free paras
 	LOCVAR	memLimit,word	; max available paras
-	LOCVAR	memSwitches,word
-;
-; Before we create our own stack frame, get any switch information
-; we'll need, since it's stored on caller's stack frame.
-;
-	sub	dx,dx
-	IFDEF	DEBUG
-	DOSUTIL	CHECKSW,'D'
-	jz	mem0
-	inc	dx
-	ENDIF	; DEBUG
-
-mem0:	ENTER
-	mov	[memSwitches],dx
+	ENTER
 ;
 ; Before we get into memory blocks, show the amount of memory reserved
 ; for the BIOS and disk buffers.
@@ -999,7 +986,7 @@ ENDPROC	cmdMem
 ;
 	IFDEF	DEBUG
 DEFPROC	printKB
-	test	[memSwitches],1	; detail requested (/D)?
+	TESTSW	<'D'>		; detail requested (/D)?
 	jz	pkb9		; no
 	push	ax
 	push	bx

@@ -963,9 +963,9 @@ di7:	xchg	ax,dx			; AX = total # of clusters used
 ; For testing purposes: if /L is specified, display the directory in a "loop".
 ;
 	pop	bp
-	mov	bx,ds:[PSP_HEAP]
-	DOSUTIL	CHECKSW,'L'
+	TESTSW	<'L'>
 	jz	di9
+	mov	bx,ds:[PSP_HEAP]
 	mov	si,[bx].CMD_ARGPTR
 	mov	cx,[bx].CMD_ARGLEN
 	jmp	di1
@@ -1578,7 +1578,7 @@ ENDPROC	cmdRun
 ;	Any
 ;
 DEFPROC	cmdTime
-	DOSUTIL	CHECKSW,'D'		; /D present?
+	TESTSW	<'D'>			; /D present?
 	jz	tm3			; no
 
 	sub	ax,ax			; set ZF
@@ -1998,7 +1998,7 @@ DEFPROC	getInput
 ; No input was provided, and we don't prompt unless /P was specified.
 ;
 	push	ax
-	DOSUTIL	CHECKSW,'P'
+	TESTSW	<'P'>
 	pop	ax
 	stc
 ;
