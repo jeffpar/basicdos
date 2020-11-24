@@ -142,8 +142,8 @@ cu1:	mov	ah,DOS_HDL_CLOSE
 ;
 ; If we successfully loaded another program but then ran into some error
 ; before we could start the program, we MUST clean it up, and currently, the
-; only viable way to do that is execute it but with a fake CS:IP (ie, one
-; that points to its own termination handler at PSP:0).
+; only viable way to do that is execute it with a "suicide" option: set its
+; CS:IP to point to its own termination code at PSP:0.
 ;
 	mov	cx,[bx].CMD_PROCESS	; does a loaded program exist?
 	jcxz	cu9			; no

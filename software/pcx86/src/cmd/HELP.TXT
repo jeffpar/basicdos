@@ -74,7 +74,7 @@ Constant equal to the largest positive integer.
 
 MEM
 Displays used and available memory.
-In DEBUG builds, /D displays memory blocks and /F displays open files.
+In DEBUG builds, /D displays memory blocks, /F displays open files, and /S displays active sessions.
 
 NEW
 Erases the loaded program, functions, and variables.
