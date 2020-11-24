@@ -8,19 +8,6 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 
-VERSION_MAJOR	equ	0
-VERSION_MINOR	equ	21
-VERSION_REV	equ	1
-
-VERSION_STR	macro
-		db	'0' + VERSION_MAJOR
-		db	'.'
-		db	'0' + VERSION_MINOR / 10
-		db	'0' + VERSION_MINOR MOD 10
-		IF VERSION_REV
-		db	'A' + VERSION_REV - 1
-		ENDIF
-		endm
 ;
 ; DOS interrupt vector table (IVT) usage
 ;
@@ -126,7 +113,6 @@ DOS_UTL_TOKIFY1	equ	0Bh	; tokenize string (DS:SI) using generic syntax
 DOS_UTL_TOKIFY2	equ	0Ch	; tokenize string (DS:SI) using BASIC syntax
 DOS_UTL_TOKID	equ	0Dh	; convert string (DS:SI) into token ID (AX)
 DOS_UTL_PARSESW	equ	0Eh	; parse TOKBUF (ES:DI) for switches
-DOS_UTL_CHECKSW	equ	0Fh	; check switches
 DOS_UTL_GETDEV	equ	10h	; get DDH (ES:DI) for device (DS:SI)
 DOS_UTL_IOCTL	equ	11h	; issue IOCTL to device (ES:DI)
 DOS_UTL_LOAD	equ	12h	; load program (DS:DX) into session (CL)
@@ -428,6 +414,62 @@ TOKDEF_ID	db	?	; ID of token
 TOKDEF_LEN	db	?	; length of token string
 TOKDEF_OFF	dw	?	; offset of token string
 TOKDEF		ends
+
+;
+; Use TESTSW to test for switches that have been parsed with DOS_UTL_PARSESW;
+; eg:
+;
+;	TESTSW	<'D'>
+;	jnz	doSwitch
+;
+; WARNING: You can test multiple switches (eg, <'D','E'>) with a single
+; test, but the burden is on you to make sure all the switch bits are in the
+; same word (ie, PSP_DIGITS, PSP_LETTERS.LOW, or PSP_LETTERS.HIW).
+;
+TESTSW	macro	syms
+	_SWVAL = 0
+	_SWOFF = -1
+	IRP	sym,<syms>
+	 IF	sym GE 'Q'
+	_SWVAL = _SWVAL OR (1 SHL (sym - 'Q'))
+	_SWOFF = 4
+	 ELSE
+	  IF	sym GE 'A'
+	_SWVAL = _SWVAL OR (1 SHL (sym - 'A'))
+	_SWOFF = 2
+	  ELSE
+	   IF	sym GE '0'
+	_SWVAL = _SWVAL OR (1 SHL (sym - '0'))
+	_SWOFF = 0
+	   ELSE
+	ERROR <Unrecognized switch: sym>
+	EXITM
+	   ENDIF
+	  ENDIF
+	 ENDIF
+	ENDM
+	IF	(_SWOFF GE 0) AND (_SWVAL NE 0)
+	 IFE	(_SWVAL AND 0FF00h)
+	test	byte ptr ds:[PSP_DIGITS + _SWOFF],_SWVAL
+	EXITM
+	 ENDIF
+	 IFE	(_SWVAL AND 000FFh)
+	test	byte ptr ds:[PSP_DIGITS + _SWOFF + 1],_SWVAL SHR 8
+	EXITM
+	 ENDIF
+	test	ds:[PSP_DIGITS + _SWOFF],_SWVAL
+	EXITM
+	ENDIF
+	ERROR <No switches tested: syms>
+	endm
+
+DOSVARS		struc
+DV_MCB_HEAD	dw	?	; -02h: first memory segment
+DV_MCB_LIMIT	dw	?	;  00h: first unavailable segment
+DV_BPB_TABLE	dd	?	;  02h: offset, limit of BPBs
+DV_SFB_TABLE	dd	?	;  06h: offset, limit of SFBs
+DV_SCB_TABLE	dd	?	;  0Ah: offset, limit of SCBs
+DOSVARS		ends
 
 ;
 ; DOS error codes (not to be confused with device error codes).

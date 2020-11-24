@@ -12,7 +12,7 @@ If D or Y are omitted, current values are assumed.
 
 DEF *function*(*parms*)[=expression]
 Defines a function expression or function block.  Function expressions must fit on a single line and can be defined at any time.
-Function blocks may contain multiple lines and must end with a RETURN.  The function name does not need to begin with FN.
+Function blocks may contain multiple lines and must end with a RETURN command.  The function name does not need to begin with FN.
 
 DEFDBL [*letter(s)*]
 Defines the first letter(s) of variables that will default to double-precision floating-point values.
@@ -74,6 +74,7 @@ Constant equal to the largest positive integer.
 
 MEM
 Displays used and available memory.
+In DEBUG builds, /D displays memory blocks and /F displays open files.
 
 NEW
 Erases the loaded program, functions, and variables.

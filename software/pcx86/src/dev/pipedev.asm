@@ -107,6 +107,12 @@ DEFPROC	ddpipe_write
 
 ddw8:	or	ds:[CT_STATUS],CTSTAT_TRUNC
 
+	test	ds:[CT_STATUS],CTSTAT_EWAIT
+	jz	ddw9
+	DBGBRK
+	and	ds:[CT_STATUS],NOT CTSTAT_EWAIT
+	call	endwait_data
+
 ddw9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	ret
 ENDPROC	ddpipe_write

@@ -11,6 +11,7 @@
 	include	8086.inc
 	include	devapi.inc
 	include	dos.inc
+	include	dosapi.inc
 
 DOS	segment word public 'CODE'
 
@@ -389,11 +390,11 @@ DEFPROC	psp_create,DOS
 	mov	cx,size PSP_PFT
 	jmp	short pc1
 
-pc0:	inc	ah			; AH = 1
-	mov	cx,5
+pc0:	mov	cx,5
 	lea	si,[bx].SCB_SFHIN
 pc1:	lodsb
 	stosb
+	mov	ah,1
 	call	sfh_add_ref
 	loop	pc1
 
@@ -770,7 +771,12 @@ lp6d:	mov	ds,dx
 ;
 ; Time to start working through the relocation entries in the ES segment.
 ;
-lp6e:	add	ax,15
+lp6e:	push	ax
+	mov	ah,DOS_HDL_CLOSE
+	int	21h			; close the file
+	pop	ax
+	jc	lpf1
+	add	ax,15
 	mov	cl,4
 	shr	ax,cl
 	add	dx,ax			; DX = next available segment
@@ -865,6 +871,8 @@ lp6g:	push	es:[EXE_START_SEG]
 
 	sub	dx,dx			; no heap
 	jmp	lp8			; realloc the PSP segment
+lpf2:	jmp	lpf
+lpc3:	jmp	lpc
 ;
 ; Load the COM file.  All we have to do is finish reading it.
 ;
@@ -879,20 +887,10 @@ lp7:	add	dx,ax
 	int	21h
 	jc	lpc3
 	add	dx,ax			; DX -> end of program image
-;
-; We could leave the executable file open and close it on process termination,
-; because it provides us with valuable information about all the processes that
-; are running (info that perhaps should have been recorded in the PSP).  The
-; handle could eventually be useful for overlay support, too.  But for now,
-; we close the handle, just like PC DOS.
-;
 lp7a:	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the file
-	jnc	lp7b
-	jmp	lpf
-lpc3:	jmp	lpc
-
-lp7b:	mov	ds:[PSP_START].OFF,100h
+	jc	lpf2
+	mov	ds:[PSP_START].OFF,100h
 	mov	ds:[PSP_START].SEG,ds
 	mov	di,dx			; DI -> uninitialized heap space
 	mov	dx,MINHEAP SHR 4	; DX = additional space (1Kb in paras)
