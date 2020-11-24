@@ -24,7 +24,8 @@ CODE    SEGMENT
 ;
 ; cmdMem
 ;
-; Prints memory usage.  Use /D to display segment-level detail.
+; Prints memory usage.  Use /D to display memory blocks, /F to display open
+; files, and /S to display active sessions.
 ;
 ; Inputs:
 ;	BX -> CMDHEAP (not used)
@@ -50,19 +51,23 @@ DEFPROC	cmdMem
 	ASSUME	ES:NOTHING
 
 	IFDEF	DEBUG
-	sub	bx,bx
+	TESTSW	<'D'>
+	jz	mem0
+	PRINTF	"Seg   Owner Paras    KB  Desc\r\n"
+mem0:	sub	bx,bx
 	mov	ax,es
 	push	di
 	mov	di,cs
 	mov	si,offset SYS_MEM
+	sub	dx,dx		; DX = owner (none)
 	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
 	pop	di
 	ENDIF	; DEBUG
 ;
 ; Next, dump the list of resident built-in device drivers.
 ;
-drv1:	cmp	di,-1
-	je	drv9
+mem1:	cmp	di,-1
+	je	mem2
 
 	IFDEF	DEBUG
 	lea	si,[di].DDH_NAME
@@ -77,12 +82,12 @@ drv1:	cmp	di,-1
 	ENDIF	; DEBUG
 
 	les	di,es:[di]
-	jmp	drv1
+	jmp	mem1
 ;
 ; Next, dump the size of the operating system, which resides between the
 ; built-in device drivers and the first memory block.
 ;
-drv9:	mov	ah,DOS_MSC_GETVARS
+mem2:	mov	ah,DOS_MSC_GETVARS
 	int	21h
 	sub	bx,2		; ES:BX -> DOSVARS
 	mov	di,es:[bx].DV_MCB_LIMIT
@@ -103,7 +108,7 @@ drv9:	mov	ah,DOS_MSC_GETVARS
 	sub	cx,cx
 	mov	[memFree],cx
 
-mem1:	mov	dl,0		; DL = 0 (query all memory blocks)
+mem3:	mov	dl,0		; DL = 0 (query all memory blocks)
 
 	IFDEF	DEBUG
 	mov	di,cs		; DI:SI -> default owner name
@@ -113,7 +118,7 @@ mem1:	mov	dl,0		; DL = 0 (query all memory blocks)
 	DOSUTIL	QRYMEM
 	jc	mem9		; all done
 	test	ax,ax		; free block (is OWNER zero?)
-	jne	mem2		; no
+	jne	mem4		; no
 	add	[memFree],dx	; yes, add to total free paras
 ;
 ; Let's include free blocks in the report now, too.
@@ -122,16 +127,16 @@ mem1:	mov	dl,0		; DL = 0 (query all memory blocks)
 	mov	si,offset FREE_MEM
 	; jmp	short mem8
 	ENDIF	; DEBUG
-mem2:
-	IFDEF	DEBUG
-	mov	ax,dx		; AX = # paras
+
+mem4:	IFDEF	DEBUG
+	xchg	ax,dx		; AX = # paras, DX = owner
 	push	cx
 	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
 	pop	cx
 	ENDIF	; DEBUG
 
 mem8:	inc	cx
-	jmp	mem1
+	jmp	mem3
 
 mem9:	call	printCRLF
 	pop	bx
@@ -140,26 +145,43 @@ mem9:	call	printCRLF
 ;
 	IFDEF	DEBUG
 	TESTSW	<'F'>		; files requested (/F)?
-	jz	mem12
+	jz	mem20
 	sub	cx,cx
 	mov	di,es:[bx].DV_SFB_TABLE.OFF
-	PRINTF	"Address   SFH Name       Refs\r\n"
-mem10:	mov	al,es:[di].SFB_REFS
+	PRINTF	"Address SFH Name       Refs\r\n"
+mem11:	mov	al,es:[di].SFB_REFS
 	test	al,al
-	jz	mem11
+	jz	mem12
 	lea	si,[di].SFB_NAME
-	PRINTF	"%#010lx %2bd %-11.11ls  %2bd\r\n",di,es,cx,si,es,ax
-mem11:	inc	cx
+	PRINTF	"%08lx %2bd %-11.11ls  %2bd\r\n",di,es,cx,si,es,ax
+mem12:	inc	cx
 	add	di,size SFB
 	cmp	di,es:[bx].DV_SFB_TABLE.SEG
-	jb	mem10
+	jb	mem11
+	call	printCRLF
+
+mem20:	TESTSW	<'S'>		; sessions requested (/S)?
+	jnz	mem21		; yes
+	jmp	mem30
+mem21:	mov	di,es:[bx].DV_SCB_TABLE.OFF
+	PRINTF	"No Fl PSP  CON  WaitID   Stack\r\n"
+mem22:	mov	ax,word ptr es:[di].SCB_STATUS
+	test	al,SCSTAT_LOAD
+	jz	mem23
+	mov	cl,ah
+	lds	si,es:[di].SCB_STACK
+	ASSUME	DS:NOTHING
+	PRINTF	"%2d %02bx %04x %04x %08lx %08lx\r\n",cx,ax,es:[di].SCB_PSP,es:[di].SCB_CONTEXT,es:[di].SCB_WAITID.LOW,es:[di].SCB_WAITID.HIW,si,ds
+mem23:	add	di,size SCB
+	cmp	di,es:[bx].DV_SCB_TABLE.SEG
+	jb	mem22
 	call	printCRLF
 	ENDIF	; DEBUG
 ;
 ; Last but not least, dump the amount of free memory (ie, the sum of all the
 ; free blocks that we did NOT display above).
 ;
-mem12:	mov	ax,[memFree]	; AX = free memory (paras)
+mem30:	mov	ax,[memFree]	; AX = free memory (paras)
 	mov	cx,16
 	mul	cx		; DX:AX = free memory (in bytes)
 	xchg	si,ax
@@ -184,6 +206,7 @@ ENDPROC	cmdMem
 ;
 ; Inputs:
 ;	AX = size in paragraphs
+;	DX = owner (zero if none)
 ;	BX = segment of memory block
 ;	DI:SI -> "owner" name for memory block
 ;
@@ -194,8 +217,10 @@ ENDPROC	cmdMem
 DEFPROC	printKB
 	TESTSW	<'D'>		; detail requested (/D)?
 	jz	pkb9		; no
+	push	bp
 	push	ax
 	push	bx
+	push	dx
 	mov	bx,64
 	sub	dx,dx		; DX:AX = paragraphs
 	div	bx		; AX = Kb
@@ -207,10 +232,12 @@ DEFPROC	printKB
 	or	ax,31		; round up without adding
 	div	bx		; AX = tenths of Kb
 	ASSERT	NZ,<cmp ax,10>
-	xchg	dx,ax		; save tenths in DX
+	xchg	bp,ax		; save tenths in BP
+	pop	dx
 	pop	bx
 	pop	ax
-	PRINTF	<"%#06x: %#06x %3d.%1dK %.8ls",13,10>,bx,ax,cx,dx,si,di
+	PRINTF	<"%04x  %04x  %04x %3d.%1dK  %.8ls",13,10>,bx,dx,ax,cx,bp,si,di
+	pop	bp
 pkb9:	ret
 ENDPROC	printKB
 	ENDIF	; DEBUG
