@@ -164,7 +164,7 @@ mem20:	TESTSW	<'S'>		; sessions requested (/S)?
 	jnz	mem21		; yes
 	jmp	mem30
 mem21:	mov	di,es:[bx].DV_SCB_TABLE.OFF
-	PRINTF	"No Fl PSP  CON  WaitID   Stack\r\n"
+	PRINTF	"No Fl PSP  Ctx  WaitID   Stack\r\n"
 mem22:	mov	ax,word ptr es:[di].SCB_STATUS
 	test	al,SCSTAT_LOAD
 	jz	mem23
