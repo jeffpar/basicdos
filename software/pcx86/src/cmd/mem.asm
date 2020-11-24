@@ -14,6 +14,7 @@
 CODE    SEGMENT
 
 	IFDEF	DEBUG
+	EXTNEAR	<printCRLF>
 	EXTSTR	<SYS_MEM,DOS_MEM,FREE_MEM>
 	ENDIF	; DEBUG
 
@@ -132,7 +133,8 @@ mem2:
 mem8:	inc	cx
 	jmp	mem1
 
-mem9:	pop	bx
+mem9:	call	printCRLF
+	pop	bx
 ;
 ; ES:BX should point to DOSVARS once again.  We'll start by dumping open SFBs.
 ;
@@ -151,6 +153,7 @@ mem11:	inc	cx
 	add	di,size SFB
 	cmp	di,es:[bx].DV_SFB_TABLE.SEG
 	jb	mem10
+	call	printCRLF
 	ENDIF	; DEBUG
 ;
 ; Last but not least, dump the amount of free memory (ie, the sum of all the
