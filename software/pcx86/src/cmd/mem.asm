@@ -141,12 +141,12 @@ mem9:	pop	bx
 	jz	mem12
 	sub	cx,cx
 	mov	di,es:[bx].DV_SFB_TABLE.OFF
-	PRINTF	"Address   SFH Name      Refs\r\n"
+	PRINTF	"Address   SFH Name       Refs\r\n"
 mem10:	mov	al,es:[di].SFB_REFS
 	test	al,al
 	jz	mem11
 	lea	si,[di].SFB_NAME
-	PRINTF	"%#010lx %2bd %-11.11ls %2bd\r\n",di,es,cx,si,es,ax
+	PRINTF	"%#010lx %2bd %-11.11ls  %2bd\r\n",di,es,cx,si,es,ax
 mem11:	inc	cx
 	add	di,size SFB
 	cmp	di,es:[bx].DV_SFB_TABLE.SEG
