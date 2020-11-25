@@ -139,12 +139,16 @@ mem5:	IFDEF	DEBUG
 mem8:	inc	cx
 	jmp	mem4
 
-mem9:	call	printCRLF
-	pop	bx
+mem9:	pop	bx
+	IFDEF	DEBUG
+	TESTSW	<'D'>
+	jz	mem10
+	call	printCRLF
+	ENDIF
 ;
 ; ES:BX should point to DOSVARS once again.  We'll start by dumping open SFBs.
 ;
-	IFDEF	DEBUG
+mem10:	IFDEF	DEBUG
 	TESTSW	<'F'>		; files requested (/F)?
 	jz	mem20
 	sub	cx,cx
@@ -197,11 +201,12 @@ mem30:	mov	ax,[memFree]	; AX = free memory (paras)
 	PRINTF	<"%8ld bytes",13,10>,ax,dx
 	call	countLine
 	PRINTF	<"%8ld bytes free",13,10>,si,di
+	call	countLine
 
 	IFDEF	DEBUG
 	TESTSW	<'L'>
 	jz	mem99
-	call	countLine
+	call	printCRLF
 	jmp	mem0
 	ENDIF	; DEBUG
 

@@ -1,5 +1,5 @@
 {
-  "name": "IBM PC, 64Kb RAM, Dual Floppy Drives, CGA, Debugger",
+  "name": "IBM PC, 64Kb RAM, Dual Floppy Drives, CGA",
   "defaults": {
     "ram": "64K",
     "fpu": "None",
