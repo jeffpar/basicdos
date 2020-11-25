@@ -85,7 +85,7 @@ m1:	mov	ah,DOS_DSK_GETDRV
 	add	al,'A'			; AL = current drive letter
 	PRINTF	<"%c",CHR_GT>,ax	; print drive letter and '>' symbol
 
-	mov	[bx].CMD_ROWS,1
+	mov	[bx].CMD_ROWS,0
 	lea	dx,[bx].INPUTBUF
 	mov	[bx].INPUT_BUF,dx
 	mov	ah,DOS_TTY_INPUT
@@ -1307,8 +1307,8 @@ ENDPROC	countLine
 ;
 DEFPROC	printEOL
 	mov	dl,dh			; reset available characters in DL
-	DEFLBL	printCRLF,near		; the most efficient CR/LF output ever!
-	PRINTF	<13,10>
+	DEFLBL	printCRLF,near
+	PRINTF	<13,10>			; print CHR_RETURN, CHR_LINEFEED
 	call	countLine
 	ret
 ENDPROC	printEOL
