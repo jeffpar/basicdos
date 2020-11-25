@@ -388,7 +388,7 @@ DEFPROC	ddfdc_none
 	ret
 ENDPROC	ddfdc_none
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Get CHS from LBA in AX, using BPB at SI
 ;
@@ -425,7 +425,7 @@ DEFPROC	get_chs
 	ret
 ENDPROC	get_chs
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; Read 1 sector into our internal buffer
 ;
@@ -450,7 +450,7 @@ rb1:	push	es
 	les	bp,[ddbuf_ptr]	; ES:BP -> our own buffer
 	call	readwrite_sectors
 	pop	es
-	jc	rb9		; TODO: can errors "damage" the buffer contents?
+	jc	rb9		; TODO: can errors damage the buffer contents?
 	mov	al,[si].BPB_DRIVE
 	mov	[ddbuf_drv],al
 	mov	[ddbuf_lba],dx

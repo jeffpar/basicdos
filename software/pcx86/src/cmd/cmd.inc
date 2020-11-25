@@ -299,16 +299,16 @@ HDL_OUTPUT	dw	?		; 324h: 0 if unused
 HDL_INPIPE	dw	?		; 326h: 0 if unused
 HDL_OUTPIPE	dw	?		; 328h: 0 if unused
 SCB_NEXT	db	?		; 32Ah: SCB_NONE (-1) if unused
-		db	?		; 32Bh: unused
-SFH_STDIN	db	?		; 32Ch: original STDIN
-SFH_STDOUT	db	?		; 32Dh: original STDOUT
-CMD_SIG		db	?		; 32Eh: SIG_CMD
-CMD_ARG		db	?		; 32Fh: index of 1st arg
+SFH_STDIN	db	?		; 32Bh: original STDIN
+SFH_STDOUT	db	?		; 32Ch: original STDOUT
+CMD_SIG		db	?		; 32Dh: SIG_CMD
+CMD_ARG		db	?		; 32Eh: index of 1st arg
+ERR_CODE	db	?		; 32Fh
 CON_COLS	db	?		; 330h: # cols in console
 CON_ROWS	db	?		; 331h: # rows in console
-CMD_FLAGS	db	?		; 332h: see CMD_* flags
-GEN_FLAGS	db	?		; 333h: see GEN_* flags
-ERR_CODE	db	?		; 334h
+CMD_ROWS	db	?		; 332h: # lines printed for cmd
+CMD_FLAGS	db	?		; 333h: see CMD_* flags
+GEN_FLAGS	db	?		; 334h: see GEN_* flags
 DEF_PARMS	db	?		; 335h
 CMD_ARGPTR	dw	?		; 336h: offset of current arg
 CMD_ARGLEN	dw	?		; 338h: length of current arg

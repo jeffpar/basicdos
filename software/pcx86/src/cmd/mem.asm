@@ -13,8 +13,8 @@
 
 CODE    SEGMENT
 
+	EXTNEAR	<countLine,printCRLF>
 	IFDEF	DEBUG
-	EXTNEAR	<printCRLF>
 	EXTSTR	<SYS_MEM,DOS_MEM,FREE_MEM>
 	ENDIF	; DEBUG
 
@@ -44,7 +44,7 @@ DEFPROC	cmdMem
 ; Before we get into memory blocks, show the amount of memory reserved
 ; for the BIOS and disk buffers.
 ;
-	sub	di,di
+mem0:	sub	di,di
 	mov	es,di
 	ASSUME	ES:BIOS
 	les	di,[DD_LIST]
@@ -52,9 +52,10 @@ DEFPROC	cmdMem
 
 	IFDEF	DEBUG
 	TESTSW	<'D'>
-	jz	mem0
+	jz	mem1
 	PRINTF	"Seg   Owner Paras    KB  Desc\r\n"
-mem0:	sub	bx,bx
+	call	countLine
+mem1:	sub	bx,bx
 	mov	ax,es
 	push	di
 	mov	di,cs
@@ -66,8 +67,8 @@ mem0:	sub	bx,bx
 ;
 ; Next, dump the list of resident built-in device drivers.
 ;
-mem1:	cmp	di,-1
-	je	mem2
+mem2:	cmp	di,-1
+	je	mem3
 
 	IFDEF	DEBUG
 	lea	si,[di].DDH_NAME
@@ -82,12 +83,12 @@ mem1:	cmp	di,-1
 	ENDIF	; DEBUG
 
 	les	di,es:[di]
-	jmp	mem1
+	jmp	mem2
 ;
 ; Next, dump the size of the operating system, which resides between the
 ; built-in device drivers and the first memory block.
 ;
-mem2:	mov	ah,DOS_MSC_GETVARS
+mem3:	mov	ah,DOS_MSC_GETVARS
 	int	21h
 	sub	bx,2		; ES:BX -> DOSVARS
 	mov	di,es:[bx].DV_MCB_LIMIT
@@ -108,7 +109,7 @@ mem2:	mov	ah,DOS_MSC_GETVARS
 	sub	cx,cx
 	mov	[memFree],cx
 
-mem3:	mov	dl,0		; DL = 0 (query all memory blocks)
+mem4:	mov	dl,0		; DL = 0 (query all memory blocks)
 
 	IFDEF	DEBUG
 	mov	di,cs		; DI:SI -> default owner name
@@ -118,7 +119,7 @@ mem3:	mov	dl,0		; DL = 0 (query all memory blocks)
 	DOSUTIL	QRYMEM
 	jc	mem9		; all done
 	test	ax,ax		; free block (is OWNER zero?)
-	jne	mem4		; no
+	jne	mem5		; no
 	add	[memFree],dx	; yes, add to total free paras
 ;
 ; Let's include free blocks in the report now, too.
@@ -128,7 +129,7 @@ mem3:	mov	dl,0		; DL = 0 (query all memory blocks)
 	; jmp	short mem8
 	ENDIF	; DEBUG
 
-mem4:	IFDEF	DEBUG
+mem5:	IFDEF	DEBUG
 	xchg	ax,dx		; AX = # paras, DX = owner
 	push	cx
 	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
@@ -136,7 +137,7 @@ mem4:	IFDEF	DEBUG
 	ENDIF	; DEBUG
 
 mem8:	inc	cx
-	jmp	mem3
+	jmp	mem4
 
 mem9:	call	printCRLF
 	pop	bx
@@ -149,11 +150,13 @@ mem9:	call	printCRLF
 	sub	cx,cx
 	mov	di,es:[bx].DV_SFB_TABLE.OFF
 	PRINTF	"Address SFH Name       Refs\r\n"
+	call	countLine
 mem11:	mov	al,es:[di].SFB_REFS
 	test	al,al
 	jz	mem12
 	lea	si,[di].SFB_NAME
 	PRINTF	"%08lx %2bd %-11.11ls  %2bd\r\n",di,es,cx,si,es,ax
+	call	countLine
 mem12:	inc	cx
 	add	di,size SFB
 	cmp	di,es:[bx].DV_SFB_TABLE.SEG
@@ -165,13 +168,16 @@ mem20:	TESTSW	<'S'>		; sessions requested (/S)?
 	jmp	mem30
 mem21:	mov	di,es:[bx].DV_SCB_TABLE.OFF
 	PRINTF	"No Fl PSP  Ctx  WaitID   Stack\r\n"
+	call	countLine
 mem22:	mov	ax,word ptr es:[di].SCB_STATUS
 	test	al,SCSTAT_LOAD
 	jz	mem23
 	mov	cl,ah
+	push	ds
 	lds	si,es:[di].SCB_STACK
-	ASSUME	DS:NOTHING
 	PRINTF	"%2d %02bx %04x %04x %08lx %08lx\r\n",cx,ax,es:[di].SCB_PSP,es:[di].SCB_CONTEXT,es:[di].SCB_WAITID.LOW,es:[di].SCB_WAITID.HIW,si,ds
+	pop	ds
+	call	countLine
 mem23:	add	di,size SCB
 	cmp	di,es:[bx].DV_SCB_TABLE.SEG
 	jb	mem22
@@ -188,9 +194,18 @@ mem30:	mov	ax,[memFree]	; AX = free memory (paras)
 	mov	di,dx		; DI:SI = free memory
 	mov	ax,[memLimit]
 	mul	cx		; DX:AX = total memory (in bytes)
-	PRINTF	<"%8ld bytes",13,10,"%8ld bytes free",13,10>,ax,dx,si,di
+	PRINTF	<"%8ld bytes",13,10>,ax,dx
+	call	countLine
+	PRINTF	<"%8ld bytes free",13,10>,si,di
 
-	LEAVE
+	IFDEF	DEBUG
+	TESTSW	<'L'>
+	jz	mem99
+	call	countLine
+	jmp	mem0
+	ENDIF	; DEBUG
+
+mem99:	LEAVE
 	ret
 ENDPROC	cmdMem
 
@@ -237,6 +252,7 @@ DEFPROC	printKB
 	pop	bx
 	pop	ax
 	PRINTF	<"%04x  %04x  %04x %3d.%1dK  %.8ls",13,10>,bx,dx,ax,cx,bp,si,di
+	call	countLine
 	pop	bp
 pkb9:	ret
 ENDPROC	printKB
