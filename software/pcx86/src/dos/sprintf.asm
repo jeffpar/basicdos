@@ -187,7 +187,7 @@ ENDPROC itoa
 ; Non-standard formatters:
 ;	%P:	caller's address (REG_CS:REG_IP-2)
 ;	%U:	skip one 16-bit parameter on the stack; nothing output
-;	%W:	day of week, as string
+;	%W:	day of week from a 16-bit DATE value, as string
 ;	%F:	month portion of a 16-bit DATE value, as string
 ;	%M:	month portion of a 16-bit DATE value, as number (1-12)
 ;	%D:	day portion of a 16-bit DATE value, as number (1-31)
@@ -216,13 +216,14 @@ pf1:	mov	al,[bx]			; AL = next format character
 	inc	bx
 ;
 ; Support for so-called "escape sequences" (ie, backslash-prefixed control
-; characters) is limited and not really encouraged, in part because it's just
-; as easy to mix in control characters directly and use 1 byte instead of 2,
-; but they're convenient for things like DPRINTF, where space isn't a concern.
+; characters) is limited to DEBUG-only builds, only because it's just as easy
+; to mix control characters directly and use 1 byte instead of 2.  But they're
+; convenient for DPRINTF macros, where space isn't a concern.
 ;
 ; Anything other than \b, \e, \r, \n, and \t will simply output the character
 ; following the backslash -- which is exactly what you want in the case of \\.
 ;
+	IFDEF DEBUG
 	cmp	al,'\'
 	jne	pf1e
 	mov	al,[bx]
@@ -232,7 +233,7 @@ pf1:	mov	al,[bx]			; AL = next format character
 	mov	al,CHR_BACKSPACE	; \b becomes 8
 pf1a:	cmp	al,'e'
 	jne	pf1b
-	mov	al,CHR_ESCAPE		; \e becomes 27 (my own "invention")
+	mov	al,CHR_ESCAPE		; \e becomes 27 (non-standard)
 pf1b:	cmp	al,'r'
 	jne	pf1c
 	mov	al,CHR_RETURN		; \r becomes 13
@@ -242,6 +243,8 @@ pf1c:	cmp	al,'n'
 pf1d:	cmp	al,'t'
 	jne	pf1e
 	mov	al,CHR_TAB		; \t becomes 9
+	ENDIF	; DEBUG
+
 pf1e:	test	al,al
 	jz	pf3			; end of format string
 	cmp	al,'%'			; formatter prefix?

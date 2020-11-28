@@ -16,7 +16,7 @@ CODE    SEGMENT
 	EXTNEAR	<writeStrCRLF>
 	EXTWORD	<KEYWORD_TOKENS>
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF,PERIOD>
-	EXTSTR	<STD_VER,DBG_VER,HELP_FILE,PIPE_NAME>
+	EXTSTR	<VER_FINAL,VER_DEBUG,HELP_FILE,PIPE_NAME>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -193,7 +193,7 @@ ENDPROC	ctrlc
 ;	Any
 ;
 DEFPROC	parseCmd
-	mov	dh,0
+	mov	dl,0
 	call	getToken		; DS:SI -> 1st token, CX = length
 	jc	pc9
 
@@ -443,17 +443,16 @@ DEFPROC	cmdDOS
 	jmp	short cd9
 
 cd1:	push	dx
-	mov	dh,[bx].CMD_ARG
-	inc	dh
-	push	ax
-	DOSUTIL	PARSESW			; parse all switch arguments, if any
-	mov	[bx].CMD_ARG,dh
+	mov	dx,0FF01h		; DL = 1 (DH = 0FFh for no limit)
+	push	ax			; to limit token parsing if needed
+	DOSUTIL	PARSESW			; parse switch tokens
+	mov	[bx].CMD_ARG,dl		; update index of 1st non-switch token
 	pop	ax
 	cmp	ax,KEYWORD_FILE		; does token require a filespec? (20)
 	jb	cd8			; no
 ;
 ; The token is for a command that expects a filespec, so fix up the next
-; token (index in DH).  If there is no token, use defaults from SI and CX.
+; token (index in DL).  If there is no token, use defaults from SI and CX.
 ;
 	mov	si,offset DIR_DEF
 	mov	cx,DIR_DEF_LEN - 1
@@ -738,7 +737,7 @@ ENDPROC	cmdFile
 ; Inputs:
 ;	SI = default filespec
 ;	CX = default filespec length (zero if no default)
-;	DH = token # (0-based)
+;	DL = token # (0-based)
 ;	DI -> TOKENBUF
 ;
 ; Outputs:
@@ -748,7 +747,7 @@ ENDPROC	cmdFile
 ;	CX, SI
 ;
 DEFPROC	getFileName
-	call	getToken		; DH = 1st non-switch argument
+	call	getToken		; DL = 1st non-switch argument
 	jnc	gf1
 	jcxz	gf9			; bail if no default was provided
 	push	cs			; assumes default is in CS segment
@@ -779,7 +778,7 @@ ENDPROC	getFileName
 ; getToken
 ;
 ; Inputs:
-;	DH = token # (0-based)
+;	DL = token # (0-based)
 ;	DI -> TOKENBUF
 ;
 ; Outputs:
@@ -789,11 +788,11 @@ ENDPROC	getFileName
 ;	CX, SI
 ;
 DEFPROC	getToken
-	cmp	dh,[di].TOK_CNT
+	cmp	dl,[di].TOK_CNT
 	cmc
 	jb	gt9
 	push	bx
-	mov	bl,dh
+	mov	bl,dl
 	mov	bh,0			; BX = 0-based index
 	add	bx,bx
 	add	bx,bx			; BX = BX * 4 (size TOKLET)
@@ -831,8 +830,8 @@ DEFPROC	cmdCopy
 	jc	openError		; report error (AX) opening file (SI)
 	cmp	[bx].HDL_OUTPUT,0	; do we already have an output file?
 	jne	cc1			; yes
-	mov	dh,[bx].CMD_ARG
-	inc	dh
+	mov	dl,[bx].CMD_ARG
+	inc	dx			; DL = DL + 1
 	sub	cx,cx			; no default filespec in this case
 	call	getFileName
 	jnc	cc0
@@ -1092,7 +1091,7 @@ ENDPROC	cmdExit
 ;	Any
 ;
 DEFPROC	cmdHelp
-	mov	dh,[bx].CMD_ARG		; is there a non-switch argument?
+	mov	dl,[bx].CMD_ARG		; is there a non-switch argument?
 	call	getToken
 	jnc	doHelp
 	jmp	h5			; no
@@ -1820,14 +1819,15 @@ DEFPROC	cmdVer
 	mov	al,ah			; AL = BASIC-DOS major version
 	mov	dl,bh			; DL = BASIC-DOS minor version
 	add	bl,'@'			; BL = BASIC-DOS revision
-	cmp	bl,'@'			; is revision a letter?
-	ja	ver1			; yes
+	test	cx,1			; CX bit 0 set if BASIC-DOS DEBUG ver
+	mov	cx,offset VER_FINAL
+	jz	ver1
+	mov	cx,offset VER_DEBUG
+ver1:	cmp	bl,'@'			; is revision a letter?
+	ja	ver2			; yes
 	mov	bl,' '			; no, change it to space
-ver1:	test	cx,1			; CX bit 0 set if BASIC-DOS DEBUG ver
-	mov	cx,offset STD_VER
-	jz	ver9
-	mov	cx,offset DBG_VER
-ver9:	PRINTF	<13,10,"BASIC-DOS Version %bd.%02bd%c %ls",13,10,13,10>,ax,dx,bx,cx,cs
+	inc	cx			; and skip the leading DEBUG space
+ver2:	PRINTF	<13,10,"BASIC-DOS Version %bd.%02bd%c%ls",13,10,13,10>,ax,dx,bx,cx,cs
 	ret
 ENDPROC	cmdVer
 
@@ -2178,7 +2178,7 @@ ENDPROC	chkString
 ;	AX, CX, DX, SI
 ;
 DEFPROC	getInput
-	mov	dh,[bx].CMD_ARG
+	mov	dl,[bx].CMD_ARG
 	call	getToken
 	jnc	gi1
 ;

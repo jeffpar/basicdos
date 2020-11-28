@@ -32,7 +32,7 @@ NOTE: Until floating-point support is added, all numeric variables are integers,
 DEFSTR [*letter(s)*]
 Defines the first letter(s) of variables that will default to string values.  Unless DEFSTR is used, all string variables must be defined using the $ suffix.
 
-DIR [*filespec*]
+DIR [*filespec*] [/P]
 Displays a directory listing of all files matching the given *filespec* (or all files if none is specified).
 
 ECHO [ON|OFF]
