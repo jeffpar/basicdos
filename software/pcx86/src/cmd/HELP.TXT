@@ -5,6 +5,9 @@ COLOR *foreground*[,*background*[,*border*]]
 Sets the foreground (0-15), background (0-15), and border (0-255) colors of the session.
 For blinking colors, use 8-15 for *background* and 128-255 for *border*.
 
+COPY *input* *output*
+Copies the contents of the input file or device to the output file or device.
+
 DATE [*date*] [/P]
 Sets the system date (or prompts for a date if /P) and then displays the date.
 The date must be entered as M-D-Y or M/D/Y, where M is 1-12, D is 1-31, and Y is 0-99 or 1980-2099.

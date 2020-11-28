@@ -92,13 +92,7 @@ m1:	mov	ah,DOS_DSK_GETDRV
 	int	21h
 	call	printCRLF
 
-m2:	sub	ax,ax
-	mov	[bx].HDL_INPUT,ax
-	mov	[bx].HDL_OUTPUT,ax
-	dec	ax
-	mov	[bx].SCB_NEXT,al
-
-	mov	si,[bx].INPUT_BUF
+m2:	mov	si,[bx].INPUT_BUF
 	mov	cl,[si].INP_CNT
 	lea	si,[si].INP_DATA
 	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
@@ -142,9 +136,10 @@ cu1:	mov	ah,DOS_HDL_CLOSE
 	mov	word ptr ds:[PSP_PFT][STDIN],ax
 ;
 ; If we successfully loaded another program but then ran into some error
-; before we could start the program, we MUST clean it up, and currently, the
-; only viable way to do that is execute it with a "suicide" option: set its
-; CS:IP to point to its own termination code at PSP:0.
+; before we could start the program, we MUST clean it up, and the best way
+; to do that is to let normal termination processing free all its resources.
+; So we execute it with a "suicide" option (ie, setting its CS:IP to its own
+; termination code at PSP:0).
 ;
 	mov	cx,[bx].CMD_PROCESS	; does a loaded program exist?
 	jcxz	cu9			; no
@@ -277,8 +272,11 @@ DEFPROC	parseDOS
 	sub	bx,bx			; BX = offset of next TOKLET
 	mov	[bp].CMD_ARG,bl		; initialize CMD_ARG to 0
 	mov	[bp].CMD_DEFER[0],bx	; no deferred command (yet)
+	mov	[bp].HDL_INPUT,bx
+	mov	[bp].HDL_OUTPUT,bx
 	mov	[bp].HDL_INPIPE,bx	; no input pipe (yet)
 	mov	[bp].HDL_OUTPIPE,bx	; and no output pipe (yet)
+	mov	[bp].SCB_NEXT,-1
 
 pd1:	push	ax			; save end of TOKLETs
 	sub	cx,cx
@@ -455,31 +453,11 @@ cd1:	push	dx
 	jb	cd8			; no
 ;
 ; The token is for a command that expects a filespec, so fix up the next
-; token (index in DH).  If there is no token, load defaults into SI and CX.
+; token (index in DH).  If there is no token, use defaults from SI and CX.
 ;
-	call	getToken		; DH = 1st non-switch argument
-	jnc	cd6
-	push	cs
-	pop	ds
 	mov	si,offset DIR_DEF
 	mov	cx,DIR_DEF_LEN - 1
-	jmp	short cd7
-cd6:	mov	ax,15			; DS:SI -> token, CX = length
-	cmp	cx,ax
-	jbe	cd7
-	xchg	cx,ax
-cd7:	push	di
-	lea	di,[bx].LINEBUF
-	push	cx
-	push	di
-	rep	movsb
-	mov	byte ptr es:[di],0
-	pop	si			; DS:SI -> copy of token in LINEBUF
-	pop	cx
-	pop	di
-	push	ss
-	pop	ds
-	DOSUTIL	STRUPR			; DS:SI -> token, CX = length
+	call	getFileName
 
 cd8:	pop	dx			; DX = handler again
 	test	dx,dx
@@ -755,6 +733,49 @@ ENDPROC	cmdFile
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; getFileName
+;
+; Inputs:
+;	SI = default filespec
+;	CX = default filespec length (zero if no default)
+;	DH = token # (0-based)
+;	DI -> TOKENBUF
+;
+; Outputs:
+;	If carry clear, DS:SI -> filespec, CX = length
+;
+; Modifies:
+;	CX, SI
+;
+DEFPROC	getFileName
+	call	getToken		; DH = 1st non-switch argument
+	jnc	gf1
+	jcxz	gf9			; bail if no default was provided
+	push	cs			; assumes default is in CS segment
+	pop	ds
+	jmp	short gf2
+gf1:	mov	ax,15			; DS:SI -> token, CX = length
+	cmp	cx,ax
+	jbe	gf2
+	xchg	cx,ax
+gf2:	push	di
+	lea	di,[bx].LINEBUF
+	push	cx
+	push	di
+	rep	movsb
+	mov	byte ptr es:[di],0
+	pop	si			; DS:SI -> copy of token in LINEBUF
+	pop	cx
+	pop	di
+	push	ss
+	pop	ds
+	DOSUTIL	STRUPR			; DS:SI -> token, CX = length
+	clc
+gf9:	ret
+ENDPROC	getFileName
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; getToken
 ;
 ; Inputs:
@@ -782,12 +803,64 @@ DEFPROC	getToken
 	je	gt8
 	mov	si,[di].TOK_DATA[bx].TOKLET_OFF
 	mov	cl,[di].TOK_DATA[bx].TOKLET_LEN
-	; cmp	byte ptr [si],1		; if token is a null, treat as error
-	; jb	gt8			; TODO: When does this happen now?
+	ASSERT	NB,<cmp byte ptr [si],1>
 	sub	ch,ch			; set ZF on success, too
 gt8:	pop	bx
 gt9:	ret
 ENDPROC	getToken
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmdCopy
+;
+; Copy the specified input file to the specified output file.
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	DS:SI -> filespec (with length CX)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cmdCopy
+	ASSERT	STRUCT,[bx],CMD
+	call	openInput		; SI -> filename
+	jc	openError		; report error (AX) opening file (SI)
+	cmp	[bx].HDL_OUTPUT,0	; do we already have an output file?
+	jne	cc1			; yes
+	mov	dh,[bx].CMD_ARG
+	inc	dh
+	sub	cx,cx			; no default filespec in this case
+	call	getFileName
+	jnc	cc0
+	PRINTF	<"Missing output file",13,10>
+	jmp	short cc9
+cc0:	call	openOutput
+	jc	openError
+cc1:	mov	si,PSP_DTA		; SI -> DTA (used as a read buffer)
+cc2:	mov	cx,size PSP_DTA		; CX = number of bytes to read
+	call	readInput
+	jc	cc8
+	test	ax,ax			; anything read?
+	jz	cc8			; no
+	xchg	cx,ax			; CX = number of bytes to write
+	call	writeOutput
+	jnc	cc2
+;
+; NOTE: We no longer explicitly close the input and output files, either on
+; success or failure, simply because we now rely on the cleanUp function to be
+; invoked at the end of every command -- which, among other things, closes all
+; non-STD file handles that are still open.
+;
+cc8:	ret
+	DEFLBL	openError,near		; report error (AX) opening file (SI)
+	PRINTF	<"Unable to open %s (%d)",13,10,13,10>,si,ax
+cc9:	stc
+	ret
+ENDPROC	cmdCopy
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -810,7 +883,7 @@ ENDPROC	getToken
 DEFPROC	cmdDate
 	mov	ax,offset promptDate
 	call	getInput		; DS:SI -> string
-	jc	gt9			; do nothing on empty string
+	jc	cc9			; do nothing on empty string
 	mov	ah,'-'
 	call	getValues
 	xchg	dx,cx			; DH = month, DL = day, CX = year
@@ -1406,7 +1479,8 @@ lf1:	call	openInput		; open the specified file
 lf1a:	call	openError		; report error (AX) opening file (SI)
 	jmp	lf13
 
-lf1b:	call	freeAllText		; free any pre-existing blocks
+lf1b:	call	sizeInput		; set DX:AX to size of input file
+	call	freeAllText		; free any pre-existing blocks
 	test	dx,dx
 	jnz	lf2
 	add	ax,TBLKLEN
@@ -1704,6 +1778,28 @@ ENDPROC	cmdTime
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; cmdType
+;
+; Read the specified file and write the contents to STDOUT.
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	DS:SI -> filespec (with length CX)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cmdType
+	ASSERT	STRUCT,[bx],CMD
+	mov	[bx].HDL_OUTPUT,STDOUT
+	jmp	cmdCopy
+ENDPROC	cmdType
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; cmdVer
 ;
 ; Prints the BASIC-DOS version.
@@ -1737,85 +1833,55 @@ ENDPROC	cmdVer
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; cmdType
-;
-; Read the specified file and write the contents to STDOUT.
-;
-; Inputs:
-;	BX -> CMDHEAP
-;	DS:SI -> filespec (with length CX)
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	Any
-;
-DEFPROC	cmdType
-	ASSERT	STRUCT,[bx],CMD
-	call	openInput		; SI -> filename
-	jc	openError		; report error (AX) opening file (SI)
-	mov	si,PSP_DTA		; SI -> DTA (used as a read buffer)
-ty1:	mov	cx,size PSP_DTA		; CX = number of bytes to read
-	call	readInput
-	jc	closeInput
-	test	ax,ax			; anything read?
-	jz	closeInput		; no
-	push	bx
-	mov	bx,STDOUT
-	xchg	cx,ax			; CX = number of bytes to write
-	mov	ah,DOS_HDL_WRITE
-	int	21h
-	pop	bx
-	jmp	ty1
-ENDPROC	cmdType
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; openInput
 ;
-; Open the specified file; used by "LOAD" and "TYPE".  As an added bonus,
-; return the size of the file in DX:AX.
+; Open the specified input file; used by "COPY", "LOAD", etc.
 ;
 ; Inputs:
 ;	SS:BX -> CMDHEAP
 ;	DS:SI -> filename
 ;
 ; Outputs:
-;	If carry clear, HDL_INPUT is updated, and DX:AX is the file size
+;	If carry clear, HDL_INPUT is updated
 ;
 ; Modifies:
 ;	AX, DX
 ;
 DEFPROC	openInput
-	push	bx
-	push	cx
 	mov	dx,si			; DX -> filename
 	mov	ax,DOS_HDL_OPENRO
 	int	21h
-	jc	of9
+	jc	oi9
 	ASSERT	STRUCT,ss:[bx],CMD
 	mov	ss:[bx].HDL_INPUT,ax	; save file handle
-	xchg	bx,ax			; BX = handle
-	sub	cx,cx
-	sub	dx,dx
-	mov	ax,DOS_HDL_SEEKEND
-	int	21h
-	push	ax
-	push	dx
-	sub	cx,cx
-	mov	ax,DOS_HDL_SEEKBEG
-	int	21h
-	pop	dx
-	pop	ax
-of9:	pop	cx
-	pop	bx
-	ret
-	DEFLBL	openError,near		; report error (AX) opening file (SI)
-	PRINTF	<"Unable to open %s (%d)",13,10,13,10>,si,ax
-	stc
-	ret
+oi9:	ret
 ENDPROC	openInput
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; openOutput
+;
+; Open the specified output file; used by "COPY", "SAVE", etc.
+;
+; Inputs:
+;	SS:BX -> CMDHEAP
+;	DS:SI -> filename
+;
+; Outputs:
+;	If carry clear, HDL_OUTPUT is updated
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	openOutput
+	mov	dx,si			; DX -> filename
+	mov	ax,DOS_HDL_OPENRW
+	int	21h
+	jc	oo9
+	ASSERT	STRUCT,ss:[bx],CMD
+	mov	ss:[bx].HDL_OUTPUT,ax	; save file handle
+oo9:	ret
+ENDPROC	openOutput
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1882,7 +1948,7 @@ ENDPROC	readInput
 ;
 ; seekInput
 ;
-; Seek to the specified position.
+; Seek to the specified position of the input file.
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -1903,6 +1969,75 @@ DEFPROC	seekInput
 	pop	bx
 	ret
 ENDPROC	seekInput
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; sizeInput
+;
+; Return the size of the input file.
+;
+; Inputs:
+;	BX -> CMDHEAP
+;
+; Outputs:
+;	If carry clear, DX:AX is the file size
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	sizeInput
+	push	bx
+	push	cx
+	ASSERT	STRUCT,ss:[bx],CMD
+	mov	bx,ss:[bx].HDL_INPUT	; BX = handle
+	sub	cx,cx
+	sub	dx,dx
+	mov	ax,DOS_HDL_SEEKEND
+	int	21h
+	jc	si9
+	push	ax
+	push	dx
+	sub	cx,cx
+	mov	ax,DOS_HDL_SEEKBEG
+	int	21h
+	pop	dx
+	pop	ax
+si9:	pop	cx
+	pop	bx
+	ret
+ENDPROC	sizeInput
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; writeOutput
+;
+; Write CX bytes to the default file frm the buffer at DS:SI.
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	CX = number of bytes
+;	DS:SI -> buffer
+;
+; Outputs:
+;	If carry clear, AX = number of bytes written
+;	If carry set, an error message was printed
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	writeOutput
+	push	bx
+	mov	dx,si
+	ASSERT	STRUCT,[bx],CMD
+	mov	bx,[bx].HDL_OUTPUT
+	mov	ah,DOS_HDL_WRITE
+	int	21h
+	jnc	wo9
+	PRINTF	<"Unable to write file",13,10,13,10>
+	stc
+wo9:	pop	bx
+	ret
+ENDPROC	writeOutput
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1961,8 +2096,8 @@ ENDPROC	openPipe
 ;
 DEFPROC	findFile
 	push	dx
-	call	openInput		; returns file size too, but we
-	jc	ff9			; don't care (TODO: any perf impact)?
+	call	openInput
+	jc	ff9
 	call	closeInput
 ff9:	pop	dx
 	ret

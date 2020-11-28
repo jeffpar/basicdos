@@ -135,13 +135,14 @@ CODE	ENDS
 	DEFTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
 	DEFTOK	CLS,    40, genCLS
 	DEFTOK	COLOR,  41, genColor
+	DEFTOK	COPY,   20, cmdCopy
 	DEFTOK	DATE,   10, cmdDate
 	DEFTOK	DEF,    42, genDefFn
 	DEFTOK	DEFDBL, 43, genDefDbl
 	DEFTOK	DEFINT, 44, genDefInt
 	DEFTOK	DEFSNG, 45, genDefDbl
 	DEFTOK	DEFSTR, 46, genDefStr
-	DEFTOK	DIR,    20, cmdDir
+	DEFTOK	DIR,    21, cmdDir
 	DEFTOK	ECHO,   47, genEcho
 	DEFTOK	ELSE,  201
 	DEFTOK	EXIT,    1, cmdExit
@@ -151,7 +152,7 @@ CODE	ENDS
 	DEFTOK	KEYS,    3, cmdKeys
 	DEFTOK	LET,    50, genLet
 	DEFTOK	LIST,    4, cmdList
-	DEFTOK	LOAD,   21, cmdLoad
+	DEFTOK	LOAD,   22, cmdLoad
 	DEFTOK	MEM,     5, cmdMem
 	DEFTOK	NEW,     6, cmdNew
 	DEFTOK	OFF,   202
@@ -163,7 +164,7 @@ CODE	ENDS
 	DEFTOK	RUN,     8, cmdRun
 	DEFTOK	THEN,  204
 	DEFTOK	TIME,   11, cmdTime
-	DEFTOK	TYPE,   22, cmdType
+	DEFTOK	TYPE,   23, cmdType
 	DEFTOK	VER,     9, cmdVer
 	NUMTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
 
