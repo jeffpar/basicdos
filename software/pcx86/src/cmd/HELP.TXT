@@ -5,6 +5,9 @@ COLOR *foreground*[,*background*[,*border*]]
 Sets the foreground (0-15), background (0-15), and border (0-255) colors of the session.
 For blinking colors, use 8-15 for *background* and 128-255 for *border*.
 
+COPY *input* *output*
+Copies the contents of the input file or device to the output file or device.
+
 DATE [*date*] [/P]
 Sets the system date (or prompts for a date if /P) and then displays the date.
 The date must be entered as M-D-Y or M/D/Y, where M is 1-12, D is 1-31, and Y is 0-99 or 1980-2099.
@@ -29,7 +32,7 @@ NOTE: Until floating-point support is added, all numeric variables are integers,
 DEFSTR [*letter(s)*]
 Defines the first letter(s) of variables that will default to string values.  Unless DEFSTR is used, all string variables must be defined using the $ suffix.
 
-DIR [*filespec*]
+DIR [*filespec*] [/P]
 Displays a directory listing of all files matching the given *filespec* (or all files if none is specified).
 
 ECHO [ON|OFF]

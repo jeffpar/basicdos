@@ -15,6 +15,8 @@
 
 DOS	segment word public 'CODE'
 
+	EXTNEAR	<copy_name>
+	EXTWORD	<scb_active>
 	EXTLONG	<bpb_table>
 	IF REG_CHECK
 	EXTNEAR	<dos_check>
@@ -35,8 +37,26 @@ DOS	segment word public 'CODE'
 ;	CX, DI, ES
 ;
 DEFPROC	chk_devname,DOS
-	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
-	sub	di,di
+	ASSUME	DS:NOTHING,ES:NOTHING
+	push	ax
+	push	si
+	push	ds
+
+	mov	di,[scb_active]		; if there's no SCB
+	test	di,di			; then use DS:SI as-is
+	jz	cd0
+	push	cs
+	pop	es
+	ASSUME	ES:DOS
+	ASSERT	STRUCT,es:[di],SCB
+	lea	di,[di].SCB_FILENAME + 1
+	push	di
+	call	copy_name
+	pop	si
+	push	es
+	pop	ds			; DS:SI -> SCB_FILENAME + 1
+
+cd0:	sub	di,di
 	mov	es,di
 	ASSUME	ES:BIOS
 	les	di,[DD_LIST]
@@ -64,7 +84,11 @@ cd3:	pop	di
 	je	cd9			; jump if all our compares succeeded
 	les	di,es:[di]		; otherwise, on to the next device
 	jmp	cd1
-cd9:	ret
+
+cd9:	pop	ds
+	pop	si
+	pop	ax
+	ret
 ENDPROC	chk_devname
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

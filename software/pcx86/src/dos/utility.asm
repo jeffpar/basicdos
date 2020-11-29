@@ -934,12 +934,13 @@ ENDPROC	utl_tokid
 ; capture anything from '0' to '?'.
 ;
 ; Inputs:
-;	REG_DH = 1st token to parse
+;	REG_DL = 1st token to parse
+;	REG_DH = # non-switch tokens to ignore (0 to ignore none)
 ;	REG_ES:REG_DI -> TOKBUF (filled with token info)
 ;
 ; Outputs:
-;	REG_DH advanced
 ;	PSP_DIGITS, PSP_LETTERS updated
+;	REG_DL set to first non-switch token
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, DS
@@ -948,7 +949,7 @@ DEFPROC	utl_parsesw,DOS
 	sti
 	mov	bx,[scb_active]
 	ASSERT	STRUCT,[bx],SCB
-	mov	dl,[bx].SCB_SWITCHAR	; DL = SWITCHAR
+	mov	ch,[bx].SCB_SWITCHAR	; CH = SWITCHAR
 	mov	es,[bx].SCB_PSP
 	ASSUME	ES:NOTHING
 	sub	ax,ax
@@ -957,14 +958,14 @@ DEFPROC	utl_parsesw,DOS
 	stosw				; zero PSP_DIGITS
 	stosw				; zero PSP_LETTERS.LOW
 	stosw				; zero PSP_LETTERS.HIW
-	xchg	bx,ax			; BH = 0
-	mov	bl,[bp].REG_DH		; BX = token index
+	xchg	bx,ax			; BX = 0
+	mov	dx,[bp].REG_DX		; DL = token index
+	mov	bl,dl			; BX = token index
 	mov	ds,[bp].REG_ES
 	pop	di			; DS:DI -> TOKBUF
 	ASSUME	DS:NOTHING
-
 pw1:	cmp	bl,[di].TOK_CNT
-	jae	pw8
+	jae	pw9
 	push	bx
 	add	bx,bx
 	add	bx,bx			; BX = BX * 4 (size TOKLET)
@@ -972,15 +973,15 @@ pw1:	cmp	bl,[di].TOK_CNT
 	mov	si,[di].TOK_DATA[bx].TOKLET_OFF
 	pop	bx
 	lodsb
-	cmp	al,dl			; starts with SWITCHAR?
-	jne	pw8			; no
 	push	di
+	cmp	al,ch			; starts with SWITCHAR?
+	jne	pw7			; no
 pw2:	lodsb				; consume option chars
 	cmp	al,'a'			; until we reach non-alphanumeric char
 	jb	pw3
 	sub	al,20h
 pw3:	sub	al,'0'
-	jb	pw7			; not alphanumeric
+	jb	pw8			; not alphanumeric
 	cmp	al,16
 	jae	pw5
 	mov	di,PSP_DIGITS
@@ -990,22 +991,30 @@ pw4:	mov	cl,al
 	or	es:[di],ax		; set bit in word at ES:DI
 	jmp	pw2			; go back for more option chars
 pw5:	sub	al,'A'-'0'
-	jb	pw7			; not alphanumeric
+	jb	pw8			; not alphanumeric
 	cmp	al,16			; in the range of the first 16?
 	jae	pw6			; no
 	mov	di,PSP_LETTERS
 	jmp	pw4
 pw6:	sub	al,16
 	cmp	al,10			; in the range of the next 10?
-	jae	pw7			; no
+	jae	pw8			; no
 	mov	di,PSP_LETTERS+2
 	jmp	pw4
-pw7:	inc	bx			; advance token index
-	pop	di
-	jmp	pw1
-
-pw8:	mov	[bp].REG_DH,bl		; return updated token index
-	clc
+pw7:	test	dl,dl			; already find a non-switch token?
+	js	pw8			; yes
+	mov	dl,bl			; no, so remember this one
+	or	dl,80h			; mark it
+pw8:	pop	di
+	dec	dh			; have we reached the limit?
+	jz	pw9			; yes
+	inc	bx			; advance token index
+	jmp	pw1			; keep looping
+pw9:	test	dl,dl			; already find a non-switch token?
+	js	pw10			; yes
+	mov	dl,bl			; no, so remember this one
+pw10:	and	dl,7Fh			; unmark it (and clear carry)
+	mov	[bp].REG_DL,dl		; return first non-switch token
 	ret
 ENDPROC	utl_parsesw
 

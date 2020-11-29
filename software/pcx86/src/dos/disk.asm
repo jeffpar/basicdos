@@ -16,7 +16,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTNEAR	<dev_request,parse_name,scb_release>
+	EXTNEAR	<dev_request,copy_name,parse_name,scb_release>
 
 	EXTBYTE	<scb_locked>
 	EXTWORD	<buf_head,scb_active>
@@ -357,6 +357,7 @@ DEFPROC	chk_filename,DOS
 	push	bx
 	push	ax
 	mov	bx,[scb_active]
+	ASSERT	STRUCT,es:[bx],SCB
 	lea	di,[bx].SCB_FILENAME	; ES:DI -> filename buffer
 ;
 ; If AH = 10h, then we've already got a "parsed name", so instead
@@ -366,28 +367,11 @@ DEFPROC	chk_filename,DOS
 	jne	cf3
 	lodsb				; AL = FCB_DRIVE
 	dec	al			; convert 1-based drive # to 0-based
-	jge	cf2			; looks good
-	mov	bx,[scb_active]		; no, get SCB's default drive instead
-	ASSERT	STRUCT,es:[bx],SCB
+	jge	cf1			; looks good
 	mov	al,es:[bx].SCB_CURDRV
-cf2:	stosb				; store drive # in the FILENAME buffer
+cf1:	stosb				; store drive # in the FILENAME buffer
 	xchg	dx,ax			; DL = drive #
-	mov	cx,size FCB_NAME
-;
-; Even though callers have provided a "parsed name", they are apparently NOT
-; required to also upper-case it.
-;
-; TODO: Expand this code to a separate function which, like parse_name, upper-
-; cases and validates all characters against FILENAME_CHARS.
-;
-cf2a:	lodsb
-	cmp	al,'a'
-	jb	cf2b
-	cmp	al,'z'
-	ja	cf2b
-	sub	al,20h
-cf2b:	stosb
-	loop	cf2a
+	call	copy_name
 	jmp	short cf4
 
 cf3:	call	parse_name		; DS:SI -> filename or filespec

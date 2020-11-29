@@ -20,9 +20,9 @@
 ; of future multitasking, but the fact virtually no driver was ever really
 ; written to support that made the whole exercise rather pointless.  Drivers
 ; rarely implemented a "request packet queue" (they typically used a global
-; variable to store a single packet address), largely because they knew DOS
-; would simply call their INTERRUPT handler immediately after calling their
-; STRATEGY handler.
+; variable to store a single packet address), because they knew DOS would
+; simply call their INTERRUPT handler immediately after calling their STRATEGY
+; handler.
 ;
 DDH		struc
 DDH_NEXT_OFF	dw	?	; 00h: offset of next DDH (or FFFFh)

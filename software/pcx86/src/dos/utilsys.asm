@@ -38,7 +38,7 @@ DOS	segment word public 'CODE'
 ;	ES:DI -> DDH if success; carry set if not found
 ;
 ; Modifies:
-;	AX, CX, DI, ES (ie, whatever chk_devname modifies)
+;	CX, DX, DI, ES (ie, whatever chk_devname modifies)
 ;
 DEFPROC	utl_getdev,DOS
 	sti
