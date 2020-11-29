@@ -78,8 +78,8 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 ;
 CONTEXT		struc
 CT_NEXT		dw	?	; 00h: segment of next context, 0 if end
-CT_STATUS	db	?	; 02h: context status bits (CTSTAT_*)
-CT_SIG		db	?	; 03h: (holds SIG_CT in DEBUG builds)
+CT_REFS		db	?	; 02h: # of references
+CT_STATUS	db	?	; 03h: context status bits (CTSTAT_*)
 CT_CONDIM	dw	?	; 04h: eg, context dimensions (0-based)
 CT_CONPOS	dw	?	; 06h: eg, context position (X,Y) of top left
 CT_CURPOS	dw	?	; 08h: eg, cursor X (lo) and Y (hi) position
@@ -89,7 +89,7 @@ CT_CURDIM	dw	?	; 0Eh: width and height (for cursor movement)
 CT_EQUIP	dw	?	; 10h: BIOS equipment flags (snapshot)
 CT_PORT		dw	?	; 12h: eg, 3D4h
 CT_MODE		db	?	; 14h: active video mode (see MODE_*)
-		db	?	; 15h: padding
+CT_SIG		db	?	; 15h: (holds SIG_CT in DEBUG builds)
 CT_SCROFF	dw	?	; 16h: eg, 2000 (offset of off-screen memory)
 CT_SCREEN	dd	?	; 18h: eg, B800:00A2h with full-screen border
 CT_BUFFER	dd	?	; 1Ch: used only for background contexts
@@ -558,6 +558,7 @@ ENDPROC	ddcon_write
 ;	[DDP].DDP_PTR -> context descriptor (eg, "CON:80,25")
 ;
 ; Outputs:
+;	[DDP].DDP_CONTEXT set with
 ;
 ; Notes:
 ;	We presume that the current SCB is locked for duration of this call;
@@ -572,11 +573,23 @@ DEFPROC	ddcon_open
 	lds	si,es:[di].DDP_PTR
 	ASSUME	DS:NOTHING
 ;
-; We know that DDP_PTR must point to a string containing "CON:" at the
-; very least, so we skip those 4 bytes.
+; We know that DDP_PTR must point to a string containing "CON" at the
+; very least, so we skip those 3 bytes.
 ;
-	add	si,4			; DS:SI -> parms
-	push	cs
+	add	si,3			; DS:SI -> descriptor, if any
+	lodsb				; AL = 1st character of descriptor
+	cmp	al,':'			; is it a colon?
+	je	dco0			; yes
+	pop	ds
+	DOSUTIL	LOCK			; get the current context in AX
+	mov	ds,ax
+	ASSERT	STRUCT,ds:[0],CT
+	inc	ds:[CT_REFS]
+	DOSUTIL	UNLOCK
+	clc
+	jmp	dco7
+
+dco0:	push	cs
 	pop	es
 	mov	bl,10			; use base 10
 	mov	di,offset CON_PARMS	; ES:DI -> parm defaults/limits
@@ -622,7 +635,8 @@ dco1:	mov	ds,ax
 ;	mov	ds:[CT_NEXT],ax
 ;
 dco2:	mov	ds:[CT_NEXT],0
-	mov	ds:[CT_STATUS],bh
+	mov	bl,1			; set CT_REFS to 1 and CT_STATUS to BH
+	mov	word ptr ds:[CT_REFS],bx
 	sub	si,si			; no CURTYPE yet
 	mov	di,offset ct_head
 	push	cs
@@ -739,13 +753,13 @@ dco4a:	mov	ds:[CT_CURTYPE],ax
 
 	mov	ax,ds
 	cmp	ax,[ct_focus]		; does new context have focus?
-	je	dco5			; yes
+	je	dco6			; yes
 	call	hide_cursor		; no, so hide cursor
 	push	ds			; and restore BIOS with data from focus
 	mov	ds,[ct_focus]
 	call	update_biosdata
 	pop	ds
-dco5:	clc
+dco6:	clc
 ;
 ; At the moment, the only possible error is a failure to allocate memory.
 ;
@@ -773,28 +787,32 @@ ENDPROC	ddcon_open
 DEFPROC	ddcon_close
 	mov	cx,es:[di].DDP_CONTEXT
 	jcxz	dcc8			; no context
-	cmp	[ct_focus],cx
-	jne	dcc0
+
+	push	es
+	mov	es,cx
+	dec	es:[CT_REFS]
+	jnz	dcc7
+
+dcc1:	cmp	[ct_focus],cx
+	jne	dcc2
 	call	switch_focus
 	ASSERT	NZ,<cmp [ct_focus],cx>
 ;
 ; Remove the context from our chain
 ;
-dcc0:	xchg	ax,cx			; AX = context to free
-	push	es
-	push	ds
+dcc2:	push	ds
+	xchg	ax,cx			; AX = context to free
 	mov	bx,offset ct_head	; DS:BX -> 1st context
-dcc1:	mov	cx,[bx].CT_NEXT
+dcc3:	mov	cx,[bx].CT_NEXT
 	ASSERT	NZ,<test cx,cx>
-	jcxz	dcc2			; context not found
+	jcxz	dcc4			; context not found
 	cmp	cx,ax
-	je	dcc2
+	je	dcc4
 	mov	ds,cx
 	ASSUME	DS:NOTHING
 	sub	bx,bx			; DS:BX -> next context
-	jmp	dcc1			; keep looking
-dcc2:	mov	es,ax
-	mov	cx,es:[CT_NEXT]		; move this context's CT_NEXT
+	jmp	dcc3			; keep looking
+dcc4:	mov	cx,es:[CT_NEXT]		; move this context's CT_NEXT
 	mov	[bx].CT_NEXT,cx		; to the previous context's CT_NEXT
 	mov	ds,ax
 	mov	cl,0			; clear the entire context
@@ -804,9 +822,10 @@ dcc2:	mov	es,ax
 ;
 ; We are now free to free the context segment in ES
 ;
-dcc3:	mov	ah,DOS_MEM_FREE
+	mov	ah,DOS_MEM_FREE
 	int	INT_DOSFUNC
-	pop	es
+
+dcc7:	pop	es
 
 dcc8:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	ret
