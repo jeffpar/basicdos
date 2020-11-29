@@ -269,14 +269,16 @@ DEFPROC	parseDOS
 	add	ax,ax
 	add	ax,ax
 	ASSERT	<size TOKLET>,EQ,4	; AX = end of TOKLETs
-	sub	bx,bx			; BX = offset of next TOKLET
-	mov	[bp].CMD_ARG,bl		; initialize CMD_ARG to 0
+	sub	bx,bx			; BX = 0
+	mov	[bp].CMD_ARG,bl		; initialize CMD_ARG
 	mov	[bp].CMD_DEFER[0],bx	; no deferred command (yet)
-	mov	[bp].HDL_INPUT,bx
-	mov	[bp].HDL_OUTPUT,bx
 	mov	[bp].HDL_INPIPE,bx	; no input pipe (yet)
 	mov	[bp].HDL_OUTPIPE,bx	; and no output pipe (yet)
-	mov	[bp].SCB_NEXT,-1
+	dec	bx			; BX = -1
+	mov	[bp].HDL_INPUT,bx
+	mov	[bp].HDL_OUTPUT,bx
+	mov	[bp].SCB_NEXT,bl
+	inc	bx			; BX = 0 again (offset of 1st TOKLET)
 
 pd1:	push	ax			; save end of TOKLETs
 	sub	cx,cx
@@ -286,7 +288,7 @@ pd2:	cmp	bx,ax			; reached end of TOKLETs?
 	je	pd5			; yes
 	ja	pd3a			; definitely
 	cmp	[di].TOK_DATA[bx].TOKLET_CLS,CLS_SYM
-	je	pd4
+	je	pd4			; process symbol
 	test	si,si			; do we have an initial token yet?
 	jnz	pd3			; yes
 	mov	si,[di].TOK_DATA[bx].TOKLET_OFF
@@ -294,29 +296,49 @@ pd2:	cmp	bx,ax			; reached end of TOKLETs?
 pd3:	add	bx,size TOKLET
 	jmp	pd2
 pd3a:	jmp	pd9
+;
+; There must be more tokens after the symbol; otherwise, it's a syntax error.
+;
+pd4:	sub	ax,size TOKLET		; reduce the limit
+	cmp	bx,ax			; is there at least one more token?
+	jb	pd4a			; yes
+	stc
+	jmp	pd9c			; bail on error
 
-pd4:	push	bx
+pd4a:	push	bx
 	mov	al,0
 	mov	bx,[di].TOK_DATA[bx].TOKLET_OFF
 	xchg	[bx],al			; null-terminated (AL = symbol)
 	mov	dx,bx			; DX is offset of symbol
-	cmp	al,'|'			; pipe symbol?
-	clc
-	jne	pd4a			; no
+	pop	bx
+;
+; Similarly, the symbol must be valid; otherwise, it's a syntax error.
+;
 	push	ax
-	call	openPipe		; yes, open a pipe
-	jc	pd4a
+	cmp	al,'|'			; pipe symbol?
+	jne	pd4b			; no
+	call	openPipe		; open pipe
+	jc	pd4d			; bail on error
 	mov	[bp].HDL_OUTPIPE,ax
+	jmp	short pd4c
 
-	cmp	[bp].CMD_ARG,0		; first command on line?
-	jne	pd4a			; no
+pd4b:	cmp	al,'>'			; output redirection symbol?
+	stc
+	jne	pd4d			; no
+	mov	al,1			; AL = 1 (request write-only handle)
+	call	openHandle		; open handle
+	jc	pd4d			; bail on error
+
+pd4c:	cmp	[bp].CMD_ARG,0		; first command on line?
+	jne	pd4d			; no
+	push	bx
 	xchg	bx,ax			; yes, put pipe handle in BX
 	mov	al,ds:[PSP_PFT][bx]	; get its SFH
 	mov	ds:[PSP_PFT][STDOUT],al	; and then replace the STDOUT SFH
-
-pd4a:	pop	ax
 	pop	bx
-	jc	pd9
+
+pd4d:	pop	ax
+	jc	pd9			; bail on error
 
 pd5:	jcxz	pd8			; no valid initial token
 	push	ax
@@ -374,7 +396,7 @@ pd9:	jc	pd9c
 	mov	ax,[bp].CMD_DEFER[0]
 	test	ax,ax			; is there a deferred command?
 	jz	pd9c			; no
-	js	pd9a			; yes, but it's external
+	js	pd9a			; yes, but it's external (-1)
 
 	mov	si,[bp].CMD_DEFER[8]	; SI = pipe handle
 	mov	dl,ds:[PSP_PFT][si]	; get its SFH
@@ -661,7 +683,7 @@ cf5b:	mov	al,CHR_RETURN		; regardless how the command line ends,
 ;
 	cmp	[bp].HDL_OUTPIPE,0
 	je	cf5c
-	mov	[bp].CMD_DEFER[0],-1	; set (negative) deferred EXEC code
+	mov	[bp].CMD_DEFER[0],-1	; set deferred EXEC code (-1)
 	mov	ah,DOS_PSP_GET
 	int	21h
 	mov	[bp].CMD_PROCESS,bx	; save new PSP for the deferred EXEC
@@ -722,10 +744,7 @@ cf7a:	stosb				; SPB_SFHOUT
 	mov	[bp].SCB_NEXT,cl
 	DOSUTIL	START			; start the SCB # specified in CL
 	jmp	short cf9
-
 cf8:	call	openError		; report error (AX) opening file (SI)
-	stc
-
 cf9:	pop	bp
 	ret
 ENDPROC	cmdFile
@@ -829,7 +848,7 @@ DEFPROC	cmdCopy
 	call	openInput		; SI -> filename
 	jc	openError		; report error (AX) opening file (SI)
 	cmp	[bx].HDL_OUTPUT,0	; do we already have an output file?
-	jne	cc1			; yes
+	jge	cc1			; yes
 	mov	dl,[bx].CMD_ARG
 	inc	dx			; DL = DL + 1
 	sub	cx,cx			; no default filespec in this case
@@ -856,7 +875,9 @@ cc2:	mov	cx,size PSP_DTA		; CX = number of bytes to read
 ;
 cc8:	ret
 	DEFLBL	openError,near		; report error (AX) opening file (SI)
+	push	ax
 	PRINTF	<"Unable to open %s (%d)",13,10,13,10>,si,ax
+	pop	ax
 cc9:	stc
 	ret
 ENDPROC	cmdCopy
@@ -2041,6 +2062,48 @@ ENDPROC	writeOutput
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; openHandle
+;
+; Open a handle for redirection.
+;
+; Inputs:
+;	AL = 0 for read-only, 1 for write-only
+;	DI -> TOKENBUF
+;	BX = token offset
+;
+; Outputs:
+;	BX = next token offset
+;	If carry clear, AX is new handle; otherwise, AX is error
+;
+; Modifies:
+;	AX, BX
+;
+DEFPROC	openHandle
+	push	cx
+	push	dx
+	push	si
+	sub	cx,cx
+	add	bx,size TOKLET
+	mov	si,[di].TOK_DATA[bx].TOKLET_OFF
+	mov	cl,[di].TOK_DATA[bx].TOKLET_LEN
+	mov	dx,si
+	add	si,cx
+	xchg	[si],ch			; null-terminate the token
+	mov	ah,DOS_HDL_OPEN
+	int	21h
+	jnc	oh1
+	xchg	si,dx
+	call	openError		; report error (AX) opening file (SI)
+	mov	si,dx
+oh1:	mov	[si],ch			; restore the token separator
+	pop	si
+	pop	dx
+	pop	cx
+	ret
+ENDPROC	openHandle
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; openPipe
 ;
 ; Open a pipe.  If successful, the caller will use the handle (AX)
@@ -2051,7 +2114,7 @@ ENDPROC	writeOutput
 ;	None
 ;
 ; Outputs:
-;	If carry clear, AX is new pipe handle
+;	If carry clear, AX is new pipe handle; otherwise, AX is error
 ;
 ; Modifies:
 ;	AX

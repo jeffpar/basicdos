@@ -356,6 +356,38 @@ ENDPROC	inc_fcb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; copy_name
+;
+; Inputs:
+;	DS:SI -> device or filename
+;	ES:DI -> filename buffer
+;
+; Outputs:
+;	filename buffer filled in
+;
+; Modifies:
+;	AX, CX, SI, DI
+;
+DEFPROC	copy_name,DOS
+	ASSUMES	<DS,NOTHING>,<ES,DOS>
+	mov	cx,size FCB_NAME
+;
+; TODO: Expand this code to a separate function which, like parse_name, upper-
+; cases and validates all characters against FILENAME_CHARS.
+;
+cn2:	lodsb
+	cmp	al,'a'
+	jb	cn3
+	cmp	al,'z'
+	ja	cn3
+	sub	al,20h
+cn3:	stosb
+	loop	cn2
+	ret
+ENDPROC	copy_name
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; parse_name
 ;
 ; NOTE: My observations with PC DOS 2.0 are that "ignore leading separators"
