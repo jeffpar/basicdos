@@ -289,11 +289,10 @@ section {
     margin-top: -20px;
   }
 
-  section {
-    margin-top: 40px;
-  }
   nav {
-    display: none;
+    .title {
+      display: none;
+    }
   }
 }
 
