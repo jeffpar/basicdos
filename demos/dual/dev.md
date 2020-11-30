@@ -1,7 +1,7 @@
 ---
 layout: page
 title: BASIC-DOS Development Machine with Dual Monitors
-permalink: /maplebar/dual/dev/
+permalink: /maplebar/demos/dual/dev/
 machines:
   - id: ibm5160
     type: pcx86
@@ -14,7 +14,7 @@ machines:
 ---
 
 The PC XT below is similar to our original PC XT
-[Development Machine](/maplebar/dev/), but with dual monitors,
+[Development Machine](../../dev/), but with dual monitors,
 making it ideal for both dual monitor development *and* testing.
 
 {% include machine.html id="ibm5160" %}

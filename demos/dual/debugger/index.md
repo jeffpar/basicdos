@@ -1,7 +1,7 @@
 ---
 layout: page
 title: BASIC-DOS with Dual Monitors and Debugger
-permalink: /maplebar/dual/debugger/
+permalink: /maplebar/demos/dual/debugger/
 machines:
   - id: ibm5150
     type: pcx86

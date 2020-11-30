@@ -8,35 +8,35 @@
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS Demo",
-      "url": "http://localhost:4040/maplebar/",
+      "url": "http://localhost:4040/maplebar/demos/",
       "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS Demo with Dual Monitors",
-      "url": "http://localhost:4040/maplebar/dual/",
+      "url": "http://localhost:4040/maplebar/demos/dual/",
       "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS Demo with Dual Monitors and Sessions",
-      "url": "http://localhost:4040/maplebar/dual/multi/",
+      "url": "http://localhost:4040/maplebar/demos/dual/multi/",
       "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS Development Machine",
-      "url": "http://localhost:4040/maplebar/dev/",
+      "url": "http://localhost:4040/maplebar/demos/dev/",
       "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS Development Machine with Dual Monitors",
-      "url": "http://localhost:4040/maplebar/dual/dev/",
+      "url": "http://localhost:4040/maplebar/demos/dual/dev/",
       "webRoot": "${workspaceFolder}"
     },
     {

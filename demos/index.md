@@ -1,7 +1,7 @@
 ---
 layout: page
 title: BASIC-DOS Demos
-permalink: /maplebar/
+permalink: /maplebar/demos/
 machines:
   - id: ibm5150
     type: pcx86
@@ -24,7 +24,7 @@ indicates which session has keyboard focus.  Use **SHIFT-TAB** to toggle focus.
 
 BASIC-DOS development was performed on this PC XT [Development Machine](dev/).
 A development machine with [Dual Monitors](dual/dev/) is also available.
-There's also a [blog](blog/), but I've been doing a poor job keeping it
+There's also a [blog](../blog/), but I've been doing a poor job keeping it
 up-to-date.  There's just too much code to write and test.
 
 ### **CONFIG.SYS** from the BASIC-DOS1 Diskette

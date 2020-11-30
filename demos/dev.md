@@ -1,7 +1,7 @@
 ---
 layout: page
 title: BASIC-DOS Development Machine
-permalink: /maplebar/dev/
+permalink: /maplebar/demos/dev/
 machines:
   - id: ibm5160
     type: pcx86
