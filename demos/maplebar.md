@@ -1,7 +1,7 @@
 ---
 layout: default
 heading: Welcome to "Project Maple Bar"
-permalink: /maplebar
+permalink: /maplebar/
 ---
 
 ## Welcome to "Project Maple Bar"
