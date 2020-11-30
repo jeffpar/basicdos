@@ -9,6 +9,7 @@ right_brace: "}"
 encoding: UTF-8
 google_analytics: UA-49658648-4
 theme: jekyll-theme-midnight
+betaurl: /maplebar
 
 github:
   owner_name: jeffpar

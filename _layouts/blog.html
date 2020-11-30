@@ -9,7 +9,7 @@ layout: default
   <h2 class="page-heading">{{ page.title }}</h2>
 
   <ul class="post-list">
-    {%- for post in site.posts -%}
+    {%- for post in site.posts reversed -%}
       <li>
         <h3>
           <a class="post-link" href="{{ post.url | prepend: site.baseurl }}">{{ post.title }}</a>
