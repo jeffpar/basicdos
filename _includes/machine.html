@@ -82,7 +82,7 @@
     {%- if machine_name != page.title %}
     <h3>{{ machine_name }}</h3>
     {%- endif %}
-    <div class="pcjs-chassis" style="{{ machine_style }}">
+    <div class="pcjs-chassis"{% if machine_style != "" %} style="{{ machine_style }}"{% endif %}>
   {%- for machine_component in machine.components -%}
     {%- assign config = nil -%}
     {%- comment -%}A machine_component with no "config" AND no "id" is assumed to simply be a string, containing the path to a config file.{%- endcomment -%}
@@ -185,7 +185,7 @@
               {%- if control_group != "" -%}
         </div>
               {%- endif %}
-        <div class="pcjs-group{{ control_class }}" style="{{ control_style }}">
+        <div class="pcjs-group{{ control_class }}"{% if control_style != "" %} style="{{ control_style }}"{% endif %}>
               {%- capture control_group -%}{{ control.group }}.{{ control.id }}{%- endcapture -%}
               {%- continue -%}
             {%- endif %}
@@ -218,7 +218,7 @@
             <div class="{{ machine_type }}-binding pcjs-{{ control.type }}" data-value="{type:'{{ control.type }}',binding:'{{ control.id }}',value:''}"></div>
             <div style="clear:both"></div>
             {%- elsif control.type == "list" %}
-            <select class="{{ machine_type }}-binding" data-value="{type:'{{ control.type }}',binding:'{{ control.id }}'}" style="">
+            <select class="{{ machine_type }}-binding" data-value="{type:'{{ control.type }}',binding:'{{ control.id }}'}">
               {%- if control.options -%}
                 {%- for option in control.options %}
               <option value="{{ option[0] }}">{{ option[1] }}</option>
@@ -263,7 +263,7 @@
         {%- endcapture -%}
       {%- endif -%}
     {%- endif %}
-      <div id="{{ machine_id }}.{{ component_id }}" class="pcjs-{{ component.class }} {{ machine_type }}-{{ component.class }} {{ machine_type }}-component" style="{{ component_style }}">{{ component_title }}{{ component_controls }}
+      <div id="{{ machine_id }}.{{ component_id }}" class="pcjs-{{ component.class }} {{ machine_type }}-{{ component.class }} {{ machine_type }}-component"{% if component_style != "" %} style="{{ component_style }}"{% endif %}>{{ component_title }}{{ component_controls }}
         <div class="{{ machine_type }}-{{ component.class }}-object{{ component_class }}" data-value="{{ component_config }}">{{ component_elements }}</div>
       </div>
   {%- endfor -%}
