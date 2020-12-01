@@ -1255,8 +1255,7 @@ DEFPROC	genLet
 	jc	gl9
 
 	cmp	dx,[codeSeg]		; constants cannot be "let"
-	stc				; TODO: Generate an error message
-	je	gl9			; more specific than "Syntax error"
+	je	gl9			; TODO: Generate a better error message
 	push	ax
 	call	genPushVarPtr
 	call	getNextSymbol
@@ -1264,14 +1263,15 @@ DEFPROC	genLet
 	jbe	gl9
 
 	cmp	al,'='
-	stc
 	jne	gl9
 
 	call	genExpr
 	jc	gl9
 	GENCALL	setVarLong		; TODO: check expression type in DL
+	ret
 
-gl9:	ret
+gl9:	stc
+	ret
 ENDPROC	genLet
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
