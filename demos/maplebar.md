@@ -2,6 +2,7 @@
 layout: default
 heading: Welcome to "Project Maple Bar"
 permalink: /maplebar/
+preview: /assets/images/maplebar.jpg
 ---
 
 ## Welcome to "Project Maple Bar"
