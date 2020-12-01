@@ -14,8 +14,8 @@ machines:
 There are currently four BASIC-DOS demo configurations:
 
  1. [Single 25x80 session](?autoStart=true)
- 2. [Two 40-column sessions](?autoMount=%7B A:%7B name:"BASIC-DOS2"%7D%7D)
- 3. [Two 80-column sessions](?autoMount=%7B A:%7B name:"BASIC-DOS3"%7D%7D)
+ 2. [Two 40-column sessions](?autoMount=%7B%20A:%7B%20name:%22BASIC-DOS2%22%7D%7D)
+ 3. [Two 80-column sessions](?autoMount=%7B%20A:%7B%20name:%22BASIC-DOS3%22%7D%7D)
  4. [Dual monitors with single sessions](dual/)
  5. [Dual monitors with multiple sessions](dual/multi/)
 
