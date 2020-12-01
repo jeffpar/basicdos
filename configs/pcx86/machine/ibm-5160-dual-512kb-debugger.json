@@ -132,7 +132,7 @@
         {
           "name": "10Mb Hard Disk",
           "type": 3,
-          "path":"/software/pcx86/disks/BDS-SRC.json"
+          "path":"/software/pcx86/disks/BDSRC.json"
         }
       ],
       "controls": [

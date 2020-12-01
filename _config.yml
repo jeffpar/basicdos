@@ -23,6 +23,6 @@ exclude:
   - gulpfile.js
   - "package*.json"
   - "**/archive"
-  - "**/src"
+  - "**/bdsrc"
   - /.history
   - /node_modules
