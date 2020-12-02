@@ -100,7 +100,6 @@ m2:	mov	si,[bx].INPUT_BUF
 	DOSUTIL	TOKIFY1
 	jc	m1			; jump if no tokens
 
-	mov	[bx].CMD_FLAGS,CMD_ECHO
 	call	parseCmd
 	jmp	m1
 ENDPROC	main
