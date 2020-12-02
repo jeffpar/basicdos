@@ -657,12 +657,12 @@ DEFPROC	genEcho
 	ret
 gec1:	cmp	al,TOK_ON
 	jne	gec2
-	mov	ah,CMD_ECHO
+	mov	ah,NOT CMD_NOECHO
 	jmp	short gec8
 gec2:	cmp	al,TOK_OFF
 	stc
 	jne	gec9
-	mov	ah,NOT CMD_ECHO
+	mov	ah,CMD_NOECHO
 gec8:	mov	al,OP_MOV_AL
 	stosw				; "MOV AL,xx" where XX is value in AH
 	GENCALL	setFlags

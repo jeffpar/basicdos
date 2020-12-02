@@ -12,6 +12,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<parseDOS,freeStr>
+	EXTSTR	<STR_ON,STR_OFF>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
@@ -234,15 +235,15 @@ ENDPROC	printArgs
 ;	None
 ;
 ; Modifies:
-;	AX, BX, CX, DX, SI
+;	AX, BX
 ;
 DEFPROC	printEcho,FAR
 	mov	bx,ss:[PSP_HEAP]
-	test	ss:[bx].CMD_FLAGS,CMD_ECHO
+	test	ss:[bx].CMD_FLAGS,CMD_NOECHO
+	mov	bx,offset STR_ON
 	jz	pe1
-	PRINTF	<"Echo is ON",13,10>
-	ret
-pe1:	PRINTF	<"Echo is OFF",13,10>
+	mov	bx,offset STR_OFF
+pe1:	PRINTF	<"ECHO is %ls",13,10>,bx,cs
 	ret
 ENDPROC	printEcho
 
@@ -261,8 +262,8 @@ ENDPROC	printEcho
 ;
 DEFPROC	printLine,FAR
 	mov	bx,ss:[PSP_HEAP]
-	test	ss:[bx].CMD_FLAGS,CMD_ECHO
-	jnz	pl1
+	test	ss:[bx].CMD_FLAGS,CMD_NOECHO
+	jz	pl1
 	ret	4
 pl1:	PRINTF	<13,10>			; fall into printStr
 ENDPROC	printLine

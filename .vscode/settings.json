@@ -405,6 +405,7 @@
     "NBLAST",
     "NBLOCKS",
     "NDREAD",
+    "NOECHO",
     "NOFILE",
     "NOHANDLE",
     "NOMEM",
