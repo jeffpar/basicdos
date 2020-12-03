@@ -315,18 +315,20 @@ DEF_PARMS	db	?		; 335h
 CMD_ARGPTR	dw	?		; 336h: offset of current arg
 CMD_ARGLEN	dw	?		; 338h: length of current arg
 CMD_DEFER	dw    5 dup (?)		; 33Ah: regs for deferred command
-LINE_NUM	dw	?		; 344h
-LINE_LEN	dw	?		; 346h
-LINE_PTR	dd	?		; 348h
-PREV_TIME	dd	?		; 34Ch: last time displayed by cmdTime
-RND_SEED	dd	?		; 350h: pseudo-random number seed
-INPUT_BUF	dw	?		; 354h: input offset (default INPUTBUF)
-TOKLET_NEXT	dw	?		; 356h
-TOKLET_END	dw	?		; 358h
-LINEBUF		db  256 dup (?)		; 35Ah
-DEFVARS		db   26 dup (?)		; 45Ah: default types for 26 letters
-EXECDATA	db size EPB dup (?)	; 474h: Exec Parameter Block
-CMD_PROCESS	dw	?		; 48Ah: PSP of loaded process, if any
+EXIT_CODE	db	?		; 344h: exit code from last EXEC
+EXIT_TYPE	db	?		; 345h: exit type from last EXEC
+LINE_NUM	dw	?		; 346h
+LINE_LEN	dw	?		; 348h
+LINE_PTR	dd	?		; 34Ah
+PREV_TIME	dd	?		; 34Eh: last time displayed by cmdTime
+RND_SEED	dd	?		; 352h: pseudo-random number seed
+INPUT_BUF	dw	?		; 356h: input offset (default INPUTBUF)
+TOKLET_NEXT	dw	?		; 358h
+TOKLET_END	dw	?		; 35Ah
+LINEBUF		db  256 dup (?)		; 35Ch
+DEFVARS		db   26 dup (?)		; 45Ch: default types for 26 letters
+EXECDATA	db size EPB dup (?)	; 476h: Exec Parameter Block
+CMD_PROCESS	dw	?		; 48Ch: PSP of loaded process, if any
 ;
 ; The BASIC-DOS loader always set the stack pointer for a COM file to the top
 ; of the segment, which means we must declare our stack at the end of CMDHEAP.
@@ -337,11 +339,11 @@ CMD_PROCESS	dw	?		; 48Ah: PSP of loaded process, if any
 ; COM file can request the stack be located elsewhere, since there's no way for
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
-STACK		dw  512 dup (?)		; 48Ch
-CMDHEAP		ends			; 88Ch
+STACK		dw  512 dup (?)		; 48Eh
+CMDHEAP		ends			; 88Eh
 SIG_CMD		equ	'H'
 
-	ASSERT	<SIZE CMDHEAP>,EQ,88Ch
+	ASSERT	<SIZE CMDHEAP>,EQ,88Eh
 
 ;
 ; The initial stack frame created by the main function can also be used to

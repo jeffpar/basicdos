@@ -855,7 +855,49 @@ ENDPROC	evalShrLong
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; fnRndLong
+; getErrorLevel
+;
+; To support the ERRORLEVEL "condition parameter" introduced in PC DOS 2.00,
+; we have a predefined function named ERRORLEVEL that takes no parameters;
+; parameter-less functions do not require (or even allow) parentheses.  This
+; differs from the RND function, which does not require parentheses but DOES
+; allow them, since it supports one optional parameter.
+;
+; While we would prefer to define ERRORLEVEL as a LONG, predefined variables
+; exist in our shared code segment, which works well for constants but not for
+; values that are unique to each instance of the interpreter.
+;
+; Also, despite our nod to PC DOS 2.00 by using the same lengthy name, we will
+; not be adopting the same unusual syntax.  In PC DOS, "ERRORLEVEL n" is a
+; boolean expression that's true if "ERRORLEVEL >= n"; in BASIC-DOS, just use
+; the latter.  PC DOS also permitted "NOT ERRORLEVEL n"; in BASIC-DOS, use
+; "ERRORLEVEL < n", or "NOT (ERRORLEVEL >= n)" if you really want to use NOT.
+;
+; Inputs:
+;	32-bit return value
+;
+; Outputs:
+;	32-bit return value updated
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+DEFPROC	getErrorLevel,FAR
+	RETVAR	retErrorLevel,dword
+	ENTER
+	mov	bx,ss:[PSP_HEAP]
+	mov	al,ss:[bx].EXIT_CODE
+	mov	ah,0
+	cwd
+	mov	[retErrorLevel].HIW,dx
+	mov	[retErrorLevel].LOW,ax
+	LEAVE
+	RETURN
+ENDPROC	getErrorLevel
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getRndLong
 ;
 ; If the arg is negative, it's used to re-seed the generator; if it's zero,
 ; we return the last pseudo-random number; any other value (ie, 1 to MAXINT)
@@ -871,7 +913,7 @@ ENDPROC	evalShrLong
 ; Modifies:
 ;	AX, BX, CX, DX
 ;
-DEFPROC	fnRndLong,FAR
+DEFPROC	getRndLong,FAR
 	RETVAR	retRndLong,dword
 	ARGVAR	seed,dword
 	ENTER
@@ -904,7 +946,7 @@ rnd9:	and	cx,7FFFh		; never return a negative result
 	mov	[retRndLong].LOW,bx
 	LEAVE
 	RETURN
-ENDPROC	fnRndLong
+ENDPROC	getRndLong
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

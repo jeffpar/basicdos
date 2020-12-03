@@ -136,9 +136,10 @@ cu1:	mov	ah,DOS_HDL_CLOSE
 ;
 ; If we successfully loaded another program but then ran into some error
 ; before we could start the program, we MUST clean it up, and the best way
-; to do that is to let normal termination processing free all its resources.
-; So we execute it with a "suicide" option (ie, setting its CS:IP to its own
-; termination code at PSP:0).
+; to do that is to let normal termination processing free all the resources.
+;
+; So we execute it with a "suicide" option, setting its CS:IP to its own
+; termination code at PSP:0.
 ;
 	mov	cx,[bx].CMD_PROCESS	; does a loaded program exist?
 	jcxz	cu9			; no
@@ -515,6 +516,8 @@ DEFPROC	cmdExec
 	int	21h			; start program specified by ES:BX
 	mov	ah,DOS_PSP_RETCODE
 	int	21h
+	ASSERT	STRUCT,[bp],CMD
+	mov	word ptr [bp].EXIT_CODE,ax
 	mov	dl,ah			; AL = exit code, DL = exit type
 	PRINTF	<"Return code %bd (%bd)",13,10,13,10>,ax,dx
 ce9:	ret

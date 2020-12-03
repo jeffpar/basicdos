@@ -259,6 +259,7 @@
     "ENVSEG",
     "EOIs",
     "ERRCODE",
+    "ERRORLEVEL",
     "EVAL",
     "EWAIT",
     "EXCODE",
