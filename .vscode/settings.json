@@ -747,6 +747,7 @@
     "sysinit",
     "tequ",
     "tokenbuf",
+    "tokenizes",
     "tokid",
     "tokify",
     "toklet",

@@ -209,7 +209,6 @@ DEFPROC	parseCmd
 ;
 pc1:	mov	dx,cs:[si].CTD_FUNC
 	mov	si,[bx].CMD_ARGPTR	; restore SI (changed by TOKID)
-	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
 	cmp	ax,KEYWORD_BASIC	; token ID < KEYWORD_BASIC? (40)
 	jb	pc2			; yes, no code generation required
 ;
@@ -636,9 +635,7 @@ cf4a:	jmp	cf8
 ; Note that if the execution is aborted (eg, critical error, CTRLC signal),
 ; the program remains loaded, available for LIST'ing, RUN'ing, etc.
 ;
-cf4b:	push	dx
-	call	cmdLoad
-	pop	dx
+cf4b:	call	cmdLoad
 	jc	cf4d			; don't RUN if LOAD error
 	mov	al,GEN_BASIC
 	cmp	dx,offset BAS_EXT
@@ -1464,44 +1461,56 @@ ENDPROC	cmdList
 ;
 ; Opens the specified file and loads it into one or more text blocks.
 ;
+; For files with a BAT_EXT, we also want to replace every "%0", "%1", etc,
+; with tokens from TOKENBUF.  Unfortunately, if we must support the "SHIFT"
+; command (which changes the order of the tokens at runtime), we can't perform
+; those replacements now.  getNextLine would be the next logical point, but
+; since it tokenizes each line in the file as well, it would have to use a
+; separate buffer to avoid overwriting TOKENBUF.
+;
 ; TODO: Shrink the final text block to the amount of text actually loaded.
 ;
 ; Inputs:
 ;	DS:SI -> filespec (with length CX)
+;	DX -> one of: BAT_EXT, BAS_EXT, or cmdLoad
 ;
 ; Outputs:
 ;	Carry clear if successful, set if error (the main function doesn't
 ;	care whether this succeeds, but other callers do).
 ;
 ; Modifies:
-;	Any
+;	Any except DX
 ;
 DEFPROC	cmdLoad
 	LOCVAR	lineLabel,word		; current line label
 	LOCVAR	lineOffset,word		; current line offset
 	LOCVAR	pTextLimit,word		; current text block limit
 	LOCVAR	pLineBuf,word
+	LOCVAR	pFileExt,word
 
 	ENTER
 	ASSUME	DS:DATA
-	mov	dx,offset PERIOD
+	mov	[pFileExt],dx
+	cmp	dx,offset cmdLoad	; called with an ambiguous name?
+	jne	lf1a			; no
+	mov	dx,offset PERIOD	; yes, so check it
 	call	chkString
 	jnc	lf1			; period exists, use filename as-is
 	mov	dx,offset BAS_EXT
 	call	addString
 
 lf1:	call	openInput		; open the specified file
-	jnc	lf1b
+	jnc	lf1c
 	cmp	si,di			; was there an extension?
-	jne	lf1a			; yes, give up
+	jne	lf1b			; yes, give up
 	mov	dx,offset BAT_EXT
 	call	addString
-	sub	di,di			; zap DI so that we don't try again
+lf1a:	sub	di,di			; zap DI so that we don't try again
 	jmp	lf1
-lf1a:	call	openError		; report error (AX) opening file (SI)
+lf1b:	call	openError		; report error (AX) opening file (SI)
 	jmp	lf13
 
-lf1b:	call	sizeInput		; set DX:AX to size of input file
+lf1c:	call	sizeInput		; set DX:AX to size of input file
 	call	freeAllText		; free any pre-existing blocks
 	test	dx,dx
 	jnz	lf2
@@ -1639,7 +1648,8 @@ lf12:	pushf
 	call	closeInput
 	popf
 
-lf13:	LEAVE
+lf13:	mov	dx,[pFileExt]		; restore DX for cmdFile calls
+	LEAVE
 	ret
 ENDPROC	cmdLoad
 

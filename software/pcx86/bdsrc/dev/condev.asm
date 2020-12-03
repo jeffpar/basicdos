@@ -579,8 +579,10 @@ DEFPROC	ddcon_open
 	add	si,3			; DS:SI -> descriptor, if any
 	lodsb				; AL = 1st character of descriptor
 	cmp	al,':'			; is it a colon?
-	je	dco0			; yes
-	pop	ds
+	jne	dco0			; no
+	cmp	byte ptr [si],0		; anything after the colon?
+	jne	dco1			; yes
+dco0:	pop	ds
 	DOSUTIL	LOCK			; get the current context in AX
 	mov	ds,ax
 	ASSERT	STRUCT,ds:[0],CT
@@ -589,7 +591,7 @@ DEFPROC	ddcon_open
 	clc
 	jmp	dco7
 
-dco0:	push	cs
+dco1:	push	cs
 	pop	es
 	mov	bl,10			; use base 10
 	mov	di,offset CON_PARMS	; ES:DI -> parm defaults/limits
@@ -616,10 +618,10 @@ dco0:	push	cs
 	mov	ah,DOS_MEM_ALLOC
 	int	INT_DOSFUNC
 	pop	bx
-	jnc	dco1
+	jnc	dco1a
 	jmp	dco7
 
-dco1:	mov	ds,ax
+dco1a:	mov	ds,ax
 	ASSUME	DS:NOTHING
 	DBGINIT	STRUCT,ds:[0],CT
 
