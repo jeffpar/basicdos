@@ -1461,13 +1461,6 @@ ENDPROC	cmdList
 ;
 ; Opens the specified file and loads it into one or more text blocks.
 ;
-; For files with a BAT_EXT, we also want to replace every "%0", "%1", etc,
-; with tokens from TOKENBUF.  Unfortunately, if we must support the "SHIFT"
-; command (which changes the order of the tokens at runtime), we can't perform
-; those replacements now.  getNextLine would be the next logical point, but
-; since it tokenizes each line in the file as well, it would have to use a
-; separate buffer to avoid overwriting TOKENBUF.
-;
 ; TODO: Shrink the final text block to the amount of text actually loaded.
 ;
 ; Inputs:
@@ -1476,7 +1469,7 @@ ENDPROC	cmdList
 ;
 ; Outputs:
 ;	Carry clear if successful, set if error (the main function doesn't
-;	care whether this succeeds, but other callers do).
+;	care whether this succeeds, but other callers do)
 ;
 ; Modifies:
 ;	Any except DX
@@ -1693,6 +1686,29 @@ ENDPROC	cmdRestart
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; cmdRun
+;
+; For GEN_BATCH files, the PC DOS 2.00 convention would be to replace every
+; "%0", "%1", etc, with tokens from TOKENBUF.  That convention is unfeasible
+; in BASIC-DOS because 1) that syntax doesn't jibe with BASIC, and 2) the
+; values of "%0", "%1", etc can change at run-time, so a line containing any
+; of those references would have to be reparsed and regenerated every time it
+; was executed.
+;
+; That's not going to happen, so command-line arguments in BASIC-DOS need to
+; be handled differently.  The good news is that BASIC never had a documented
+; means of accessing command-line arguments, so we can do whatever makes the
+; most sense.  And that seems to be creating a predefined string array
+; (eg, _ARG$) filled with the tokens from TOKENBUF, along with a new function
+; (eg, SHIFT) that shifts array values the same way the PC DOS 2.00 "SHIFT"
+; command shifts arguments.
+;
+; And it makes sense to create that array at this point, so you can provide
+; a fresh set of command-line arguments with every "RUN" invocation.
+;
+; Environment variables pose a similar challenge, and it's not clear that
+; the first release of BASIC-DOS will support them -- but if it did, creating
+; a similar predefined string array (eg, _ENV$) from an existing environment
+; block would make the most sense.
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
