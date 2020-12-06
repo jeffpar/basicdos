@@ -304,12 +304,9 @@ ENDPROC	utl_hotkey
 ;
 DEFPROC	utl_lock,DOS
 	LOCK_SCB
-	mov	ax,[scb_active]
-	test	ax,ax
-	jz	lck8
-	xchg	bx,ax
+	mov	bx,[scb_active]
 	mov	ax,[bx].SCB_CONTEXT
-lck8:	mov	[bp].REG_AX,ax
+	mov	[bp].REG_AX,ax
 	ret
 ENDPROC	utl_lock
 

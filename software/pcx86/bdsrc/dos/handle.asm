@@ -34,7 +34,7 @@ DOS	segment word public 'CODE'
 ;
 ; Outputs:
 ;	On success, carry clear, REG_AX = PFH (or SFH if no active PSP)
-;	On failure, carry set, REG_AX = error
+;	On failure, carry set, REG_AX = error code
 ;
 DEFPROC	hdl_open,DOS
 	call	pfh_alloc		; ES:DI = free handle entry
@@ -62,7 +62,7 @@ ENDPROC	hdl_open
 ;
 ; Outputs:
 ;	On success, carry clear
-;	On failure, carry set, REG_AX = error
+;	On failure, carry set, REG_AX = error code
 ;
 DEFPROC	hdl_close,DOS
 	mov	bx,[bp].REG_BX		; BX = Process File Handle
@@ -83,7 +83,7 @@ ENDPROC	hdl_close
 ;
 ; Outputs:
 ;	On success, REG_AX = bytes read, carry clear
-;	On failure, REG_AX = error, carry set
+;	On failure, REG_AX = error code, carry set
 ;
 DEFPROC	hdl_read,DOS
 	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
@@ -109,7 +109,7 @@ ENDPROC	hdl_read
 ;
 ; Outputs:
 ;	On success, REG_AX = bytes written, carry clear
-;	On failure, REG_AX = error, carry set
+;	On failure, REG_AX = error code, carry set
 ;
 DEFPROC	hdl_write,DOS
 	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
@@ -137,7 +137,7 @@ ENDPROC	hdl_write
 ;
 ; Outputs:
 ;	On success, carry clear, REG_DX:REG_AX = new file location
-;	On failure, carry set, REG_AX = error
+;	On failure, carry set, REG_AX = error code
 ;
 DEFPROC	hdl_seek,DOS
 	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
@@ -160,22 +160,22 @@ ENDPROC	hdl_seek
 ; hdl_ioctl (REG_AH = 44h)
 ;
 ; Inputs:
-;	REG_AL = subfunction (see IOCTL_*)
+;	REG_AL = sub-function code (see IOCTL_* in devapi.inc)
 ;	REG_BX = handle
 ;	REG_CX = IOCTL-specific data
 ;	REG_DX = IOCTL-specific data
 ;	REG_DS:REG_SI -> optional IOCTL-specific data
 ;
 ; Outputs:
-;	On success, carry clear
-;	On failure, carry set, REG_AX = error
+;	On success, carry clear, REG_DX = result
+;	On failure, carry set, REG_AX = error code
 ;
 DEFPROC	hdl_ioctl,DOS
 	push	ax
 	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
 	call	sfb_get
 	pop	ax
-	jc	hi9
+	jc	hs8			; return error in REG_AX
 	les	di,[bx].SFB_DEVICE	; ES:DI -> driver
 	mov	bx,[bx].SFB_CONTEXT	; BX = context
 	xchg	bx,dx			; DX = context, BX = REG_DX
@@ -183,9 +183,8 @@ DEFPROC	hdl_ioctl,DOS
 	mov	ds,[bp].REG_DS		; in case DS:SI is required as well
 	ASSUME	DS:NOTHING
 	call	dev_request
-	jc	hi9
-	xchg	ax,dx			; AX = result
-hi9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY set
+	jc	hs8			; return error in REG_AX
+	mov	[bp].REG_DX,dx		; REG_DX = result
 	ret
 ENDPROC	hdl_ioctl
 
@@ -790,7 +789,7 @@ ENDPROC	pfh_set
 ;
 ; Outputs:
 ;	On success, carry clear
-;	On failure, carry set, REG_AX = error
+;	On failure, carry set, REG_AX = error code
 ;
 ; Modifies:
 ;	AX, DX
@@ -848,7 +847,7 @@ ENDPROC	sfh_add_ref
 ;
 ; Outputs:
 ;	On success, carry clear
-;	On failure, carry set, REG_AX = error
+;	On failure, carry set, REG_AX = error code
 ;
 ; Modifies:
 ;	AX, DX

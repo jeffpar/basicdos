@@ -43,10 +43,21 @@ DDATTR_CHAR	equ	8000h	; set if character device, clear if block
 DDATTR_BLOCK	equ	0000h
 
 ;
-; IOCTL operations for assorted devices
+; IOCTL sub-function (AL) codes
 ;
-; Once again, our IOCTL interface is a simplification of what PC DOS
+; Once again, our IOCTL interface is a subset/simplification of what PC DOS
 ; eventually implemented.
+;
+IOCTL_GETDATA	equ	000h	; get device data (DX)
+IOCTL_SETDATA	equ	001h	; set device data (DX)
+IOCTL_SNDCDATA	equ	002h	; send (CX) bytes of char ctl data (DS:DX)
+IOCTL_RCVCDATA	equ	003h	; receive (CX) bytes of char ctl data (DS:DX)
+IOCTL_SNDBDATA	equ	004h	; send (CX) bytes of block ctl data (DS:DX)
+IOCTL_RCVBDATA	equ	005h	; receive (CX) bytes of block ctl data (DS:DX)
+IOCTL_INSTATUS	equ	006h	; check input status (AL)
+IOCTL_OUTSTATUS	equ	007h	; check output status (AL)
+;
+; BASIC-DOS specific IOCTL sub-functions start here.
 ;
 IOCTL_CLOCK	equ	0C0h
 IOCTL_WAIT	equ	0C1h	; CLOCK$: wait # ms in packet's LENGTH:OFFSET

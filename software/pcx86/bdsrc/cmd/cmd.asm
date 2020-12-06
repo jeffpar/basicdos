@@ -36,7 +36,7 @@ DEFPROC	main
 
 m0:	mov	bx,ds:[PSP_HEAP]
 	DBGINIT	STRUCT,[bx],CMD
-	mov	word ptr [bx].CON_COLS,ax
+	mov	word ptr [bx].CON_COLS,dx
 	mov	ax,word ptr ds:[PSP_PFT][STDIN]
 	mov	word ptr [bx].SFH_STDIN,ax
 ;
