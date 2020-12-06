@@ -21,16 +21,18 @@ CODE	segment para public 'CODE'
 CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_CHAR,offset ddcon_init,-1,20202020204E4F43h>
 
 	DEFLBL	CMDTBL,word
-	dw	ddcon_none,   ddcon_none,   ddcon_none,   ddcon_ioctl	; 0-3
-	dw	ddcon_read,   ddcon_none,   ddcon_none,   ddcon_none	; 4-7
-	dw	ddcon_write,  ddcon_none,   ddcon_none,   ddcon_none	; 8-11
-	dw	ddcon_none,   ddcon_open,   ddcon_close			; 12-14
+	dw	ddcon_none,   ddcon_none,   ddcon_none,   ddcon_ioctl	; 00-03
+	dw	ddcon_read,   ddcon_none,   ddcon_none,   ddcon_none	; 04-07
+	dw	ddcon_write,  ddcon_none,   ddcon_none,   ddcon_none	; 08-0B
+	dw	ddcon_none,   ddcon_open,   ddcon_close			; 0C-0E
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
 	DEFLBL	IOCTBL,word
-	dw	ddcon_none,   ddcon_getdim, ddcon_getpos, ddcon_getlen
-	dw	ddcon_movcur, ddcon_setins, ddcon_scroll, ddcon_getclr
-	dw	ddcon_setclr
+	dw	ddcon_getdd,  ddcon_none,   ddcon_none,   ddcon_none	; 00-03
+	dw	ddcon_none,   ddcon_none,   ddcon_none,   ddcon_none	; 04-07
+	dw	ddcon_none,   ddcon_getdim, ddcon_getpos, ddcon_getlen	; C0-C3
+	dw	ddcon_movcur, ddcon_setins, ddcon_scroll, ddcon_getclr	; C4-C7
+	dw	ddcon_setclr						; C8
 	DEFABS	IOCTBL_SIZE,<($ - IOCTBL) SHR 1>
 
 	DEFLBL	CON_PARMS,word
@@ -155,17 +157,19 @@ ENDPROC	ddcon_req
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_ioctl
-	mov	bl,es:[di].DDP_UNIT
-	sub	bl,IOCTL_CON
-	mov	dx,es:[di].DDP_CONTEXT
-	test	dx,dx
-	jz	dio0
+	mov	bl,es:[di].DDP_UNIT	; IOCTL code passed in DDP_UNIT
+	cmp	bl,IOCTL_OUTSTATUS	; standard sub-function code?
+	jbe	dio1			; yes
+	sub	bl,IOCTL_CON - 8	; no, BASIC-DOS specific sub-function
+dio1:	mov	dx,es:[di].DDP_CONTEXT
+	test	dx,dx			; was a context provided?
+	jz	dio2			; no, force call to ddcon_none
 	mov	ds,dx
 	ASSUME	DS:NOTHING
-	cmp	bl,IOCTBL_SIZE
-	jb	dio1
-dio0:	mov	bl,0
-dio1:	mov	bh,0
+	cmp	bl,IOCTBL_SIZE		; table entry exist?
+	jb	dio3			; yes
+dio2:	mov	bl,8			; no, use entry for C0h (ddcon_none)
+dio3:	mov	bh,0
 	add	bx,bx
 	mov	cx,es:[di].DDPRW_LENGTH	; CX = IOCTL input value
 	mov	dx,es:[di].DDPRW_LBA	; DX = IOCTL input value
@@ -179,6 +183,30 @@ dio7:	mov	es:[di].DDP_CONTEXT,dx	; return pos or length in packet context
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 dio9:	ret
 ENDPROC	ddcon_ioctl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_getdd (AL = 00h: Get Device Data)
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;	DS = CONSOLE context
+;
+; Outputs:
+;	DX = device data bits
+;
+; Modifies:
+;	DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_getdd
+;
+; This is enough to make PC DOS 2.00 BASICA start successfully on BASIC-DOS.
+; I haven't checked but it's probably verifying STDIN/STDOUT wasn't redirected.
+;
+	mov	dx,80D3h		; TODO: define and return "real" bits
+	ret
+ENDPROC	ddcon_getdd
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

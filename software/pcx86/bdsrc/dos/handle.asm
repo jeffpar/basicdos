@@ -185,6 +185,11 @@ DEFPROC	hdl_ioctl,DOS
 	call	dev_request
 	jc	hs8			; return error in REG_AX
 	mov	[bp].REG_DX,dx		; REG_DX = result
+;
+; TODO: PC DOS 2.00 apparently returns the result in REG_AX as well as REG_DX.
+; If we wish to do the same, then xchg ax,dx and jmp hs8.  However, there's no
+; need if no one depended on that behavior.
+;
 	ret
 ENDPROC	hdl_ioctl
 
