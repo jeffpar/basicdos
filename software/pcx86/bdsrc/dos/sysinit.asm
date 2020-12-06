@@ -369,6 +369,7 @@ si7:	mov	dx,size SFB
 	mov	ah,SFH_NONE
 	dec	cx			; CL,CH = SFH_NONE
 	mov	bx,es:[scb_table].OFF
+	mov	es:[scb_active],bx
 	push	bx			; initialize the SCBs
 si7a:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHIN>
 	mov	word ptr es:[bx].SCB_NUM,ax
@@ -432,16 +433,17 @@ si9:	mov	ax,DOS_HDL_OPENRW
 si10:	mov	si,offset CFG_CONSOLE
 	call	find_cfg		; look for another "CONSOLE="
 	jc	si12			; no more
-	mov	dx,di
-	mov	ax,DOS_HDL_OPENRW
-	int	21h
-	jc	open_error
 	add	bx,size SCB
 	cmp	bx,es:[scb_table].SEG
 	jb	si11
 	mov	dx,offset CONERR
 	jmp	print_error
-si11:	mov	es:[bx].SCB_SFHIN,al
+si11:	mov	es:[scb_active],bx
+	mov	dx,di
+	mov	ax,DOS_HDL_OPENRW
+	int	21h
+	jc	open_error
+	mov	es:[bx].SCB_SFHIN,al
 	mov	es:[bx].SCB_SFHOUT,al
 	mov	es:[bx].SCB_SFHERR,al
 	mov	word ptr es:[bx].SCB_SFHAUX,cx
@@ -571,7 +573,11 @@ si20:	add	sp,size SPB		; free SPB on the stack
 ; Last but not least, "revector" the DDINT_ENTER and DDINT_LEAVE handlers to
 ; dos_ddint_enter and dos_ddint_leave.
 ;
+; TODO: Think about how we can avoid zeroing scb_active here and eliminate the
+; "null SCB" tests in scb_yield and scb_switch.
+;
 	sub	ax,ax
+	mov	[scb_active],ax
 	mov	es,ax
 	ASSUME	ES:BIOS
 	cli

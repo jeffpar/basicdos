@@ -1281,12 +1281,10 @@ DEFPROC	get_psp,DOS
 	push	bx
 	sub	ax,ax
 	mov	bx,[scb_active]
-	test	bx,bx
-	jz	gp9
 	ASSERT	STRUCT,cs:[bx],SCB
 	mov	ax,cs:[bx].SCB_PSP
 	test	ax,ax
-gp9:	pop	bx
+	pop	bx
 	ret
 ENDPROC	get_psp
 

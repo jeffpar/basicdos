@@ -266,12 +266,10 @@ dc1:	sti
 ; was detected (two conditions that we check with a single compare), signal it.
 ;
 	mov	bx,[scb_active]
-	test	bx,bx
-	jz	dc2			; TODO: always have an scb_active
 	ASSERT	STRUCT,[bx],SCB
 	cmp	word ptr [bx].SCB_CTRLC_ALL,0101h
 	je	dc0			; signal CTRLC
-dc2:	mov	bl,ah
+	mov	bl,ah
 dc3:	mov	bh,0			; BX = function #
 	add	bx,bx			; convert function # to word offset
 ;
@@ -462,8 +460,8 @@ DEFPROC	dos_ddint_leave,DOSFAR
 ;
 ; If both Z and C are set, then enter DOS to perform a reschedule.
 ;
-; TODO: Once sysinit has revectored DDINT_LEAVE, we're off and running, but
-; the very first call to scb_yield will occur while scb_active is still zero,
+; TODO: Once sysinit has revectored DDINT_LEAVE, we're off and running,
+; but the very first call to scb_yield will occur while scb_active is zero,
 ; which scb_yield will misinterpret as a WAIT rather than a YIELD.  That's
 ; OK, but only so long as at least one SCB is runnable, and only so long as
 ; scb_active NEVER goes to zero again, lest we run the risk of blowing the

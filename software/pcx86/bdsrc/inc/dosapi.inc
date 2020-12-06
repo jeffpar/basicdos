@@ -113,8 +113,8 @@ DOS_UTL_TOKIFY1	equ	0Bh	; tokenize string (DS:SI) using generic syntax
 DOS_UTL_TOKIFY2	equ	0Ch	; tokenize string (DS:SI) using BASIC syntax
 DOS_UTL_TOKID	equ	0Dh	; convert string (DS:SI) into token ID (AX)
 DOS_UTL_PARSESW	equ	0Eh	; parse TOKBUF (ES:DI) for switches
-DOS_UTL_GETDEV	equ	10h	; get DDH (ES:DI) for device (DS:SI)
-DOS_UTL_IOCTL	equ	11h	; issue IOCTL to device (ES:DI)
+DOS_UTL_GETDEV	equ	0Fh	; get DDH (ES:DI) for device (DS:SI)
+DOS_UTL_GETCSN	equ	10h	; get current session number (CL)
 DOS_UTL_LOAD	equ	12h	; load program (DS:DX) into session (CL)
 DOS_UTL_START	equ	13h	; start session (CL)
 DOS_UTL_STOP	equ	14h	; stop session (CL)

@@ -588,9 +588,8 @@ sw7:	mov	ah,DDC_WRITE
 	ASSERT	IO_RAW,EQ,0
 	test	al,al			; IO_RAW (or IO_DIRECT) request?
 	jle	sw8			; yes
-	mov	bx,cs:[scb_active]	; TODO: always have an scb_active
-	test	bx,bx
-	jz	sw8
+	mov	bx,cs:[scb_active]
+	ASSERT	STRUCT,cs:[bx],SCB
 	cmp	cs:[bx].SCB_CTRLC_ACT,0
 	je	sw8
 	push	cs

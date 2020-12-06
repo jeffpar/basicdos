@@ -336,7 +336,7 @@ DEFPROC	msc_sigctrlc,DOSFAR
 	pop	ds
 	ASSUME	DS:DOS
 	mov	bx,[scb_active]
-	ASSERT	NZ,<test bx,bx>		; TODO: verify there's an SCB
+	ASSERT	STRUCT,[bx],SCB
 	jmp	short msg0
 
 	DEFLBL	msc_sigctrlc_read,near

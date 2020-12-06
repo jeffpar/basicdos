@@ -147,10 +147,8 @@ DEFPROC	scb_lock,DOS
 	jc	sk9
 	mov	ax,bx			; AX = current SCB
 	xchg	bx,[scb_active]		; BX -> previous SCB, if any
-	test	bx,bx
-	jz	sk8
 	ASSERT	STRUCT,[bx],SCB
-sk8:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
+	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
 	ASSERT	STRUCT,[bx],SCB
 	push	ds
 	push	es
@@ -193,10 +191,9 @@ DEFPROC	scb_unlock,DOS
 	pushf
 	ASSERT	STRUCT,[bx],SCB
 	mov	[scb_active],cx
-	jcxz	su9
 	mov	bx,cx			; BX -> previous SCB
 	ASSERT	STRUCT,[bx],SCB
-su9:	dec	[scb_locked]
+	dec	[scb_locked]
 	popf
 	ret
 ENDPROC	scb_unlock
@@ -403,8 +400,8 @@ ENDPROC	scb_waitend
 DEFPROC	scb_yield,DOS
 	sti
 	mov	bx,[scb_active]
-	test	bx,bx
-	jz	sy2
+	test	bx,bx			; TODO: this "null SCB" test is useful
+	jz	sy2			; only when sysinit is kick-starting us
 	test	ax,ax			; is this yield due to a WAIT?
 	jz	sy1			; yes, so spin until we find an SCB
 	mov	bx,ax
@@ -464,8 +461,8 @@ DEFPROC	scb_switch,DOS
 	je	sw9			; yes
 	mov	ax,bx
 	xchg	bx,[scb_active]		; BX -> previous SCB
-	test	bx,bx
-	jz	sw6
+	test	bx,bx			; TODO: this "null SCB" test is useful
+	jz	sw6			; only when sysinit is kick-starting us
 	ASSERT	STRUCT,[bx],SCB
 	add	sp,2			; toss 1 near-call return address
 	mov	[bx].SCB_STACK.SEG,ss
@@ -636,8 +633,9 @@ DEFPROC	init_scb,DOS
 	xchg	si,ax			; DS:SI -> previous SCB
 	mov	al,0			; AL = CURDRV
 	mov	ah,[def_switchar]	; AH = SWITCHAR
-	test	si,si
-	jz	si0
+	mov	dx,es:[di].SPB_ENVSEG	; is SPB_ENVSEG -1?
+	inc	dx
+	jz	si0			; yes, don't copy handles
 	lodsw				; DS:SI -> SFHIN of previous SCB
 	lodsw				; load SFHIN, SFHOUT
 	mov	word ptr [bx].SCB_SFHIN,ax
@@ -647,23 +645,24 @@ DEFPROC	init_scb,DOS
 	mov	[bx].SCB_SFHPRN,al
 	lodsw				; load CURDRV, SWITCHAR
 si0:	mov	word ptr [bx].SCB_CURDRV,ax
+	dec	dx
 ;
 ; Now copy any valid SFHs from the SPB into the SCB.
 ;
 	mov	cx,5
-	mov	dx,es:[di].SPB_ENVSEG
 	lea	si,[di].SPB_SFHIN	; ES:SI -> 1st SFH in the SPB
 	lea	di,[bx].SCB_SFHIN	; DS:DI -> 1st SFH in the SCB
 si1:	lods	byte ptr es:[si]
 	cmp	al,SFH_NONE		; was an SFH supplied?
 	je	si2			; no
 	mov	[di],al			; update the SCB
-si2:	cmp	dx,-1			; is SPB_ENVSEG -1 (from sysinit)?
-	je	si3			; yes, so leave SFH alone
+si2:	inc	dx			; is SPB_ENVSEG -1 (from sysinit)?
+	jz	si3			; yes, so leave SFH alone
 	mov	al,[di]			; AL = SFH (no harm if SFH_NONE)
 	mov	ah,1			; add 1 session ref
 	call	sfh_add_ref		; (in addition to any program refs)
 si3:	inc	di
+	dec	dx
 	loop	si1
 ;
 ; Now that we're done fiddling with SFHs, get the CONSOLE context from SFHOUT.
