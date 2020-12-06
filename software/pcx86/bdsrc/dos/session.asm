@@ -399,14 +399,12 @@ ENDPROC	scb_waitend
 ;
 DEFPROC	scb_yield,DOS
 	sti
-	mov	bx,[scb_active]
-	test	bx,bx			; TODO: this "null SCB" test is useful
-	jz	sy2			; only when sysinit is kick-starting us
-	test	ax,ax			; is this yield due to a WAIT?
-	jz	sy1			; yes, so spin until we find an SCB
 	mov	bx,ax
-	ASSERT	STRUCT,[bx],SCB
-sy1:	add	bx,size SCB
+	test	ax,ax			; is this yield due to a WAIT?
+	jnz	sy1			; no
+	mov	bx,[scb_active]		; yes, spin until we find an SCB
+sy1:	ASSERT	STRUCT,[bx],SCB
+	add	bx,size SCB
 	cmp	bx,[scb_table].SEG
 	jb	sy3
 sy2:	mov	bx,[scb_table].OFF
@@ -461,13 +459,11 @@ DEFPROC	scb_switch,DOS
 	je	sw9			; yes
 	mov	ax,bx
 	xchg	bx,[scb_active]		; BX -> previous SCB
-	test	bx,bx			; TODO: this "null SCB" test is useful
-	jz	sw6			; only when sysinit is kick-starting us
 	ASSERT	STRUCT,[bx],SCB
 	add	sp,2			; toss 1 near-call return address
 	mov	[bx].SCB_STACK.SEG,ss
 	mov	[bx].SCB_STACK.OFF,sp
-sw6:	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
+	xchg	bx,ax			; BX -> current SCB, AX -> previous SCB
 	ASSERT	STRUCT,[bx],SCB
 	mov	ss,[bx].SCB_STACK.SEG
 	mov	sp,[bx].SCB_STACK.OFF
@@ -483,7 +479,7 @@ sw7:	sti
 	call	psp_term_exitcode	; attempt reset
 
 sw8:	ASSERT	NC
-	jmp	dos_exit		; we'll let dos_exit turn interrupts on
+	jmp	dos_exit		; we let dos_exit turn interrupts on
 sw9:	sti
 	ret
 ENDPROC	scb_switch
