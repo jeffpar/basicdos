@@ -85,7 +85,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<utl_atoi16,utl_atoi32,utl_atoi32d>
 	EXTNEAR	<utl_itoa,utl_printf,utl_dprintf,utl_sprintf>
 	EXTNEAR	<utl_tokify,utl_tokid,utl_parsesw>
-	EXTNEAR	<utl_getdev,utl_ioctl,utl_load,utl_start,utl_stop,utl_end>
+	EXTNEAR	<utl_getdev,utl_getcsn,utl_load,utl_start,utl_stop,utl_end>
 	EXTNEAR	<utl_waitend,utl_yield,utl_sleep,utl_wait,utl_endwait>
 	EXTNEAR	<utl_hotkey,utl_lock,utl_unlock,utl_qrymem,utl_abort>
 	EXTNEAR	<utl_getdate,utl_gettime,utl_incdate,utl_editln,utl_restart>
@@ -120,8 +120,8 @@ DOS	segment word public 'CODE'
 	dw	utl_strlen,  utl_strstr,  func_none,   utl_strupr	;00h-03h
 	dw	utl_printf,  utl_dprintf, utl_sprintf, utl_itoa		;04h-07h
 	dw	utl_atoi16,  utl_atoi32,  utl_atoi32d, utl_tokify	;08h-0Bh
-	dw	utl_tokify,  utl_tokid,   utl_parsesw, func_none	;0Ch-0Fh
-	dw	utl_getdev,  utl_ioctl,   utl_load,    utl_start	;10h-13h
+	dw	utl_tokify,  utl_tokid,   utl_parsesw, utl_getdev	;0Ch-0Fh
+	dw	utl_getcsn,  func_none,   utl_load,    utl_start	;10h-13h
 	dw	utl_stop,    utl_end,     utl_waitend, utl_yield	;14h-17h
 	dw	utl_sleep,   utl_wait,    utl_endwait, utl_hotkey	;18h-1Bh
 	dw	utl_lock,    utl_unlock,  utl_qrymem,  utl_abort	;1Ch-1Fh

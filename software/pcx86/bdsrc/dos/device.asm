@@ -42,9 +42,7 @@ DEFPROC	chk_devname,DOS
 	push	si
 	push	ds
 
-	mov	di,[scb_active]		; if there's no SCB
-	test	di,di			; then use DS:SI as-is
-	jz	cd0
+	mov	di,[scb_active]
 	push	cs
 	pop	es
 	ASSUME	ES:DOS

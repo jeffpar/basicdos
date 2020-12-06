@@ -36,7 +36,7 @@ DEFPROC	main
 
 m0:	mov	bx,ds:[PSP_HEAP]
 	DBGINIT	STRUCT,[bx],CMD
-	mov	word ptr [bx].CON_COLS,ax
+	mov	word ptr [bx].CON_COLS,dx
 	mov	ax,word ptr ds:[PSP_PFT][STDIN]
 	mov	word ptr [bx].SFH_STDIN,ax
 ;
@@ -136,9 +136,10 @@ cu1:	mov	ah,DOS_HDL_CLOSE
 ;
 ; If we successfully loaded another program but then ran into some error
 ; before we could start the program, we MUST clean it up, and the best way
-; to do that is to let normal termination processing free all its resources.
-; So we execute it with a "suicide" option (ie, setting its CS:IP to its own
-; termination code at PSP:0).
+; to do that is to let normal termination processing free all the resources.
+;
+; So we execute it with a "suicide" option, setting its CS:IP to its own
+; termination code at PSP:0.
 ;
 	mov	cx,[bx].CMD_PROCESS	; does a loaded program exist?
 	jcxz	cu9			; no
@@ -208,7 +209,6 @@ DEFPROC	parseCmd
 ;
 pc1:	mov	dx,cs:[si].CTD_FUNC
 	mov	si,[bx].CMD_ARGPTR	; restore SI (changed by TOKID)
-	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
 	cmp	ax,KEYWORD_BASIC	; token ID < KEYWORD_BASIC? (40)
 	jb	pc2			; yes, no code generation required
 ;
@@ -515,6 +515,8 @@ DEFPROC	cmdExec
 	int	21h			; start program specified by ES:BX
 	mov	ah,DOS_PSP_RETCODE
 	int	21h
+	ASSERT	STRUCT,[bp],CMD
+	mov	word ptr [bp].EXIT_CODE,ax
 	mov	dl,ah			; AL = exit code, DL = exit type
 	PRINTF	<"Return code %bd (%bd)",13,10,13,10>,ax,dx
 ce9:	ret
@@ -633,9 +635,7 @@ cf4a:	jmp	cf8
 ; Note that if the execution is aborted (eg, critical error, CTRLC signal),
 ; the program remains loaded, available for LIST'ing, RUN'ing, etc.
 ;
-cf4b:	push	dx
-	call	cmdLoad
-	pop	dx
+cf4b:	call	cmdLoad
 	jc	cf4d			; don't RUN if LOAD error
 	mov	al,GEN_BASIC
 	cmp	dx,offset BAS_EXT
@@ -1465,40 +1465,45 @@ ENDPROC	cmdList
 ;
 ; Inputs:
 ;	DS:SI -> filespec (with length CX)
+;	DX -> one of: BAT_EXT, BAS_EXT, or cmdLoad
 ;
 ; Outputs:
 ;	Carry clear if successful, set if error (the main function doesn't
-;	care whether this succeeds, but other callers do).
+;	care whether this succeeds, but other callers do)
 ;
 ; Modifies:
-;	Any
+;	Any except DX
 ;
 DEFPROC	cmdLoad
 	LOCVAR	lineLabel,word		; current line label
 	LOCVAR	lineOffset,word		; current line offset
 	LOCVAR	pTextLimit,word		; current text block limit
 	LOCVAR	pLineBuf,word
+	LOCVAR	pFileExt,word
 
 	ENTER
 	ASSUME	DS:DATA
-	mov	dx,offset PERIOD
+	mov	[pFileExt],dx
+	cmp	dx,offset cmdLoad	; called with an ambiguous name?
+	jne	lf1a			; no
+	mov	dx,offset PERIOD	; yes, so check it
 	call	chkString
 	jnc	lf1			; period exists, use filename as-is
 	mov	dx,offset BAS_EXT
 	call	addString
 
 lf1:	call	openInput		; open the specified file
-	jnc	lf1b
+	jnc	lf1c
 	cmp	si,di			; was there an extension?
-	jne	lf1a			; yes, give up
+	jne	lf1b			; yes, give up
 	mov	dx,offset BAT_EXT
 	call	addString
-	sub	di,di			; zap DI so that we don't try again
+lf1a:	sub	di,di			; zap DI so that we don't try again
 	jmp	lf1
-lf1a:	call	openError		; report error (AX) opening file (SI)
+lf1b:	call	openError		; report error (AX) opening file (SI)
 	jmp	lf13
 
-lf1b:	call	sizeInput		; set DX:AX to size of input file
+lf1c:	call	sizeInput		; set DX:AX to size of input file
 	call	freeAllText		; free any pre-existing blocks
 	test	dx,dx
 	jnz	lf2
@@ -1636,7 +1641,8 @@ lf12:	pushf
 	call	closeInput
 	popf
 
-lf13:	LEAVE
+lf13:	mov	dx,[pFileExt]		; restore DX for cmdFile calls
+	LEAVE
 	ret
 ENDPROC	cmdLoad
 
@@ -1680,6 +1686,29 @@ ENDPROC	cmdRestart
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; cmdRun
+;
+; For GEN_BATCH files, the PC DOS 2.00 convention would be to replace every
+; "%0", "%1", etc, with tokens from TOKENBUF.  That convention is unfeasible
+; in BASIC-DOS because 1) that syntax doesn't jibe with BASIC, and 2) the
+; values of "%0", "%1", etc can change at run-time, so a line containing any
+; of those references would have to be reparsed and regenerated every time it
+; was executed.
+;
+; That's not going to happen, so command-line arguments in BASIC-DOS need to
+; be handled differently.  The good news is that BASIC never had a documented
+; means of accessing command-line arguments, so we can do whatever makes the
+; most sense.  And that seems to be creating a predefined string array
+; (eg, _ARG$) filled with the tokens from TOKENBUF, along with a new function
+; (eg, SHIFT) that shifts array values the same way the PC DOS 2.00 "SHIFT"
+; command shifts arguments.
+;
+; And it makes sense to create that array at this point, so you can provide
+; a fresh set of command-line arguments with every "RUN" invocation.
+;
+; Environment variables pose a similar challenge, and it's not clear that
+; the first release of BASIC-DOS will support them -- but if it did, creating
+; a similar predefined string array (eg, _ENV$) from an existing environment
+; block would make the most sense.
 ;
 ; Inputs:
 ;	BX -> CMDHEAP

@@ -496,7 +496,7 @@ ENDPROC	con_getdlen
 DEFPROC	con_getclen
 	mov	cl,bl			; CL = # of characters
 	DEFLBL	con_getlen,near
-	lea	si,[di].INP_DATA		; ES:SI -> all characters
+	lea	si,[di].INP_DATA	; ES:SI -> all characters
 	mov	al,IOCTL_GETLEN		; DL = starting column
 	call	con_ioctl		; get display length values in AX
 	xchg	cx,ax			; CH = total length, CL = length delta
@@ -785,15 +785,18 @@ ENDPROC	con_rword
 ;
 DEFPROC	con_ioctl,DOS
 	push	bx
+	push	dx
 	push	ds
 	push	es
 	pop	ds
 	ASSUME	DS:NOTHING
 	mov	bx,STDIN
 	DOSUTIL	HDLCTL			; issue DOS_HDL_IOCTL as a DOSUTIL call
+	xchg	ax,dx			; move result from DX to AX
 	jnc	ioc9
 	sub	ax,ax			; default value (STDIN redirected?)
 ioc9:	pop	ds
+	pop	dx
 	pop	bx
 	ret
 ENDPROC	con_ioctl

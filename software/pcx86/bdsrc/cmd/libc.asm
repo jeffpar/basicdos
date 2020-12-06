@@ -97,7 +97,7 @@ ENDPROC	callDOS
 ;	None
 ;
 ; Modifies:
-;	AX, BX, CX
+;	AX, BX, CX, DX
 ;
 DEFPROC	clearScreen,FAR
 	mov	bx,STDOUT
@@ -358,8 +358,8 @@ ENDPROC	writeStrCRLF
 DEFPROC	setColor,FAR
 	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETCOLOR
 	mov	bx,STDOUT
-	int	21h
-	xchg	dx,ax			; DX = current colors
+	int	21h			; DX = current colors
+	ASSERT	NC			; (assuming success)
 	pop	si
 	pop	di			; DI:SI = return address
 	pop	cx			; CX = # args
@@ -405,11 +405,11 @@ ENDPROC	setColor
 ;
 ; setFlags
 ;
-; If AL contains a single bit, that bit will be set in CMD_FLAGS; otherwise,
-; AL will be applied as a mask to CMD_FLAGS.
+; If AL contains a single bit, that bit will be set in CMD_FLAGS;
+; otherwise, AL will be used as a mask to clear bit(s) in CMD_FLAGS.
 ;
 ; Inputs:
-;	AL = bit to set or clear in CMD_FLAGS
+;	AL = bit to set (eg, CMD_NOECHO) or clear (eg, NOT CMD_ECHO)
 ;
 ; Outputs:
 ;	None

@@ -24,7 +24,7 @@ DOS	segment word public 'CODE'
 	EXTLONG	<bpb_table,scb_table,sfb_table,clk_ptr>
 	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr,dos_opchk>
 	EXTNEAR	<dos_term,dos_func,dos_exret,dos_ctrlc,dos_error,dos_default>
-	EXTNEAR	<disk_read,disk_write,dos_tsr,dos_call5,dos_util>
+	EXTNEAR	<disk_read,disk_write,dos_tsr,dos_call5,dos_util,dos_exit>
 	EXTNEAR	<dos_ddint_enter,dos_ddint_leave>
 
 	DEFLBL	sysinit_start
@@ -369,6 +369,7 @@ si7:	mov	dx,size SFB
 	mov	ah,SFH_NONE
 	dec	cx			; CL,CH = SFH_NONE
 	mov	bx,es:[scb_table].OFF
+	mov	es:[scb_active],bx
 	push	bx			; initialize the SCBs
 si7a:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHIN>
 	mov	word ptr es:[bx].SCB_NUM,ax
@@ -432,16 +433,17 @@ si9:	mov	ax,DOS_HDL_OPENRW
 si10:	mov	si,offset CFG_CONSOLE
 	call	find_cfg		; look for another "CONSOLE="
 	jc	si12			; no more
-	mov	dx,di
-	mov	ax,DOS_HDL_OPENRW
-	int	21h
-	jc	open_error
 	add	bx,size SCB
 	cmp	bx,es:[scb_table].SEG
 	jb	si11
 	mov	dx,offset CONERR
 	jmp	print_error
-si11:	mov	es:[bx].SCB_SFHIN,al
+si11:	mov	es:[scb_active],bx
+	mov	dx,di
+	mov	ax,DOS_HDL_OPENRW
+	int	21h
+	jc	open_error
+	mov	es:[bx].SCB_SFHIN,al
 	mov	es:[bx].SCB_SFHOUT,al
 	mov	es:[bx].SCB_SFHERR,al
 	mov	word ptr es:[bx].SCB_SFHAUX,cx
@@ -556,10 +558,10 @@ si20:	add	sp,size SPB		; free SPB on the stack
 	test	dx,dx
 	jz	sie2			; if no SCBs loaded, that's not good
 ;
-; Functions like SLEEP need access to the clock device, so we save its
-; address in clk_ptr.  While we could open the device normally and obtain a
-; system file handle, that would require the utility functions to use SFB
-; interfaces (sfb_get, sfb_read, etc) with absolutely no benefit.
+; Utility functions like SLEEP need access to the clock device, so we save
+; its address in clk_ptr.  While we could open the device normally and obtain
+; a system file handle, that would require the utility functions to use SFB
+; interfaces (sfb_get, sfb_read, etc) with no benefit.
 ;
 	mov	dx,offset CLK_DEVICE
 	DOSUTIL	GETDEV
@@ -568,8 +570,8 @@ si20:	add	sp,size SPB		; free SPB on the stack
 	mov	[clk_ptr].OFF,di
 	mov	[clk_ptr].SEG,es
 ;
-; Last but not least, "revector" the DDINT_ENTER and DDINT_LEAVE handlers to
-; dos_ddint_enter and dos_ddint_leave.
+; "Revector" the DDINT_ENTER and DDINT_LEAVE handlers to dos_ddint_enter and
+; dos_ddint_leave.
 ;
 	sub	ax,ax
 	mov	es,ax
@@ -588,12 +590,24 @@ si20:	add	sp,size SPB		; free SPB on the stack
 	stosw
 	mov	ax,ds
 	stosw
-	sti
 ;
-; We're done.  On the next clock tick, scb_yield will switch to one of the
-; SCBs we started, and it will never return here, because sysinit has no SCB.
+; Activate and start running the first session.  We must mimic scb_switch
+; rather than calling it, because we're not switching SCBs (sysinit is not
+; a session).
 ;
-si99:	jmp	si99
+; The end of sysinit used to just turn on interrupts and spin, knowing that
+; the first scb_yield would never return here, but that required us to also
+; zero scb_active and include "null SCB" tests in scb_yield and scb_switch;
+; this approach eliminates the need for those special tests.
+;
+	mov	bx,[scb_table].OFF
+	mov	[scb_active],bx
+	mov	ss,[bx].SCB_STACK.SEG
+	mov	sp,[bx].SCB_STACK.OFF
+	push	ds
+	mov	ax,offset dos_exit
+	push	ax
+	ret				; we let dos_exit turn interrupts on
 
 sie1:	jmp	open_error
 

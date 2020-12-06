@@ -27,7 +27,7 @@ DOS	segment word public 'CODE'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_getdev (AH = 10h)
+; utl_getdev (AH = 0Fh)
 ;
 ; Returns the DDH (Device Driver Header) in ES:DI for device name at DS:DX.
 ;
@@ -55,24 +55,25 @@ ENDPROC	utl_getdev
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_ioctl (AH = 11h)
+; utl_getcsn (AH = 10h)
 ;
 ; Inputs:
-;	REG_BX = IOCTL command (BH = DDC_IOCTLIN, BL = IOCTL command)
-;	REG_ES:REG_DI -> DDH
-;	Other registers will vary
+;	None
+;
+; Outputs:
+;	REG_CL = current session #, carry clear
 ;
 ; Modifies:
-;	AX, DI, ES
+;	AX, BX
 ;
-DEFPROC	utl_ioctl,DOS
+DEFPROC	utl_getcsn,DOS
 	sti
-	mov	ax,[bp].REG_BX		; AX = command codes from BH,BL
-	mov	es,[bp].REG_ES		; ES:DI -> DDH
-	mov	bx,dx			; BX = REG_DX, CX = REG_CX
-	call	dev_request		; call the driver
+	and	[bp].REG_FL,NOT FL_CARRY
+	mov	bx,[scb_active]
+	mov	al,[bx].SCB_NUM
+	mov	[bp].REG_CL,al
 	ret
-ENDPROC	utl_ioctl
+ENDPROC	utl_getcsn
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -303,12 +304,9 @@ ENDPROC	utl_hotkey
 ;
 DEFPROC	utl_lock,DOS
 	LOCK_SCB
-	mov	ax,[scb_active]
-	test	ax,ax
-	jz	lck8
-	xchg	bx,ax
+	mov	bx,[scb_active]
 	mov	ax,[bx].SCB_CONTEXT
-lck8:	mov	[bp].REG_AX,ax
+	mov	[bp].REG_AX,ax
 	ret
 ENDPROC	utl_lock
 

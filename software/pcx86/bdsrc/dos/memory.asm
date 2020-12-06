@@ -31,7 +31,7 @@ DOS	segment word public 'CODE'
 ;
 DEFPROC	mem_alloc,DOS
 	mov	bx,[bp].REG_BX		; BX = # paras requested
-	call	alloc
+	call	mcb_alloc
 	jnc	ma9
 	mov	[bp].REG_BX,bx
 ma9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
@@ -225,7 +225,11 @@ ENDPROC	mcb_setname
 ;
 DEFPROC	mcb_split,DOS
 	ASSUME	DS:NOTHING
-	push	es
+	cmp	bx,cx			; are the sizes identical?
+	jne	sp1			; no
+	mov	es:[MCB_SIG],al		; yes, no actual split required
+	jmp	short sp9
+sp1:	push	es
 	mov	dx,es
 	add	dx,bx
 	inc	dx
@@ -236,13 +240,13 @@ DEFPROC	mcb_split,DOS
 	call	mcb_init
 	pop	es			; ES:0 -> back to found block
 	mov	es:[MCB_SIG],MCBSIG_NEXT
-	mov	es:[MCB_PARAS],bx
+sp9:	mov	es:[MCB_PARAS],bx
 	ret
 ENDPROC	mcb_split
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; alloc
+; mcb_alloc
 ;
 ; Inputs:
 ;	BX = paragraphs requested (from REG_BX if via INT 21h)
@@ -254,7 +258,7 @@ ENDPROC	mcb_split
 ; Modifies:
 ;	AX, BX, CX, DX, DI, ES
 ;
-DEFPROC alloc,DOS
+DEFPROC mcb_alloc,DOS
 	ASSUME	ES:NOTHING
 	LOCK_SCB
 	mov	es,[mcb_head]
@@ -307,14 +311,14 @@ a8a:	stc
 
 a9:	UNLOCK_SCB
 	ret
-ENDPROC	alloc
+ENDPROC	mcb_alloc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; mcb_realloc
 ;
 ; Inputs:
-;	DX = segment to mcb_realloc (from REG_ES if via INT 21h)
+;	DX = segment to realloc (from REG_ES if via INT 21h)
 ;	BX = new size (in paragraphs)
 ;
 ; Outputs:
