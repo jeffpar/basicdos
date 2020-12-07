@@ -48,6 +48,7 @@ OP_PUSH_DI	equ	057h
 OP_POP_AX	equ	058h
 OP_POP_DX	equ	05Ah
 OP_POP_BP	equ	05Dh
+OP_NOP		equ	090h
 OP_XCHG_DX	equ	092h
 OP_CWD		equ	099h
 OP_CALLF	equ	09Ah		; 32-bit absolute address

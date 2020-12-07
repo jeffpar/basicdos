@@ -20,7 +20,8 @@ DEV	segment para public 'CODE'
 ; It must also be a DWORD, because the BOOT code assumes that our entry
 ; point is CS:0004.
 ;
-	DEFPTR	EOD,-1
+	DEFWORD	EOD,-1
+	db	OP_IRET,OP_NOP
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -38,6 +39,15 @@ DEV	segment para public 'CODE'
         ASSUME	CS:DEV, DS:BIOS, ES:BIOS, SS:NOTHING
 
 DEFPROC	devinit,far
+;
+; Runtime driver ASSERTs may trigger INT_UD interrupts that we don't want to
+; crash (the original IBM PC did NOT initialize all the low interrupt vectors),
+; so install a temporary INT_UD handler; sysinit will initialize it properly.
+;
+	IFDEF	DEBUG
+	mov	word ptr [IVT+INT_UD*4].OFF,offset devinit - 2
+	mov	word ptr [IVT+INT_UD*4].SEG,cs
+	ENDIF	; DEBUG
 ;
 ; Perform some preliminary BIOS data initialization; in particular,
 ; DDINT_ENTER and DDINT_LEAVE entry points for hardware interrupt handlers.

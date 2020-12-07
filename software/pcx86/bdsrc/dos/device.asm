@@ -130,8 +130,9 @@ DEFPROC	dev_request,DOS
 
 	DBGINIT	STRUCT,[bp],DDP
 
-	mov	word ptr [bp].DDP_UNIT,ax; sets DDP_UNIT (AL) and DDP_CMD (AH)
+	mov	word ptr [bp].DDP_UNIT,ax; set DDP_UNIT (AL) and DDP_CMD (AH)
 	mov	[bp].DDP_STATUS,0
+	mov	[bp].DDP_CODE,al	; set DDP_CODE for IOCTLs
 	mov	[bp].DDP_CONTEXT,dx
 
 	cmp	ah,DDC_OPEN
