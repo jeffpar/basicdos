@@ -7,7 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-	include	devapi.inc
+
 ;
 ; Device driver commands (see DDP_CMD)
 ;

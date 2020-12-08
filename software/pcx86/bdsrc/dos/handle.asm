@@ -10,6 +10,7 @@
 	include	macros.inc
 	include	disk.inc
 	include	dev.inc
+	include	devapi.inc
 	include	dos.inc
 	include	dosapi.inc
 

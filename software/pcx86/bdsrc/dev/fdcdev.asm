@@ -12,6 +12,7 @@
 	include	bios.inc
 	include	disk.inc
 	include	dev.inc
+	include	devapi.inc
 
 DEV	group	CODE,DATA
 

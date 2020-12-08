@@ -10,6 +10,7 @@
 	include	macros.inc
 	include	bios.inc
 	include	dev.inc
+	include	devapi.inc
 
 DEV	group	CODE1,CODE2,CODE3,INIT,DATA
 

@@ -28,14 +28,15 @@ The [DOS](dos/) directory contains the BASIC-DOS "kernel" (`IBMDOS.COM`).
 
 The [INC](inc/) directory contains all the include files:
 
-    dos.inc
-    +-- dosapi.inc
-    dev.inc
-    +-- devapi.inc
-    disk.inc
-    bios.inc
-    8086.inc
     macros.inc
+    8086.inc
+    bios.inc
+    disk.inc
+    dev.inc
+    devapi.inc
+    dos.inc
+    dosapi.inc
+    version.inc
 
 A low-level source file may need to include only `8086.inc`, while a high-level
 source file may need files higher on the list (eg, `dos.inc`).
