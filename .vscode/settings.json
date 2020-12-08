@@ -599,6 +599,7 @@
     "bgnd",
     "biosdata",
     "brkpt",
+    "buildable",
     "calcsum",
     "checksw",
     "chipset",
