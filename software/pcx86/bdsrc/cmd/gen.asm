@@ -61,6 +61,8 @@ gc1:	mov	[bx].GEN_FLAGS,al
 	test	si,si
 	jnz	gc2
 	mov	dx,[bx].TBLKDEF.BLK_NEXT
+	test	dx,dx			; anything to run?
+	jz	gc9			; no (TODO: display a message?)
 	mov	si,size TBLK
 gc2:	mov	[bx].LINE_PTR.OFF,si
 	mov	[bx].LINE_PTR.SEG,dx
@@ -1792,7 +1794,7 @@ DEFPROC	getNextLine
 	stc				; have we already processed it?
 	jnz	gnl4x			; yes
 	mov	cl,[si].INP_CNT		; CX = length
-	lea	si,[si].INP_DATA		; DS:SI -> line
+	lea	si,[si].INP_DATA	; DS:SI -> line
 	jmp	short gnl4
 
 gnl0:	add	si,cx			; advance to the next line

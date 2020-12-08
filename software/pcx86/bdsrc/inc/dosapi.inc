@@ -49,8 +49,11 @@ DOS_TTY_FLUSH	equ	0Ch	; flush and invoke 01h, 06h, 07h, 08h, or 0Ah
 DOS_DSK_RESET	equ	0Dh	; disk reset
 DOS_DSK_SETDRV	equ	0Eh	; set current drive (DL), return # drives (AL)
 DOS_FCB_OPEN	equ	0Fh	; open FCB (DS:DX)
+DOS_FCB_CLOSE	equ	10h	; close FCB (DS:DX)
+DOS_FCB_SREAD	equ	14h	; read sequential record for FCB (DS:DX)
 DOS_DSK_GETDRV	equ	19h	; get current drive (AL)
 DOS_DSK_SETDTA	equ	1Ah	; set DTA (DS:DX)
+DOS_FCB_RREAD	equ	21h	; read random record for FCB (DS:DX)
 DOS_FCB_SETREL	equ	24h	; set relative record for FCB (DS:DX)
 DOS_MSC_SETVEC	equ	25h	; set vector (AL) to addr (DS:DX)
 DOS_PSP_COPY	equ	26h	; copy PSP to segment (DX)
@@ -68,11 +71,11 @@ DOS_MSC_GETVEC	equ	35h	; get vector (AL) addr (ES:BX)
 DOS_DSK_GETINFO	equ	36h	; get disk info; eg, available clusters (BX)
 DOS_MSC_GETSWC	equ   3700h	; get switch char (DL) (undocumented)
 DOS_MSC_SETSWC	equ   3701h	; set switch char (DL) (undocumented)
-DOS_HDL_CREATE	equ	3Ch	; create handle for device/file (DS:DX)
-DOS_HDL_OPEN	equ	3Dh	; open handle for device/file (DS:DX)
-DOS_HDL_OPENRO	equ   3D00h	; open handle for R/O access
-DOS_HDL_OPENWO	equ   3D01h	; open handle for W/O access
-DOS_HDL_OPENRW	equ   3D02h	; open handle for R/W access
+DOS_HDL_CREATE	equ	3Ch	; return handle for new file (DS:DX)
+DOS_HDL_OPEN	equ	3Dh	; return handle for device/file (DS:DX)
+DOS_HDL_OPENRO	equ   3D00h	; return handle with R/O access
+DOS_HDL_OPENWO	equ   3D01h	; return handle with W/O access
+DOS_HDL_OPENRW	equ   3D02h	; return handle with R/W access
 DOS_HDL_CLOSE	equ	3Eh	; close handle (BX)
 DOS_HDL_READ	equ	3Fh	; read (CX) bytes at (DS:DX) with handle (BX)
 DOS_HDL_WRITE	equ	40h	; write (CX) bytes at (DS:DX) with handle (BX)

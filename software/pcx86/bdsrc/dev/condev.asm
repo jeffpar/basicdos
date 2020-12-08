@@ -92,13 +92,25 @@ CT_EQUIP	dw	?	; 10h: BIOS equipment flags (snapshot)
 CT_PORT		dw	?	; 12h: eg, 3D4h
 CT_MODE		db	?	; 14h: active video mode (see MODE_*)
 CT_SIG		db	?	; 15h: (holds SIG_CT in DEBUG builds)
-CT_SCROFF	dw	?	; 16h: eg, 2000 (offset of off-screen memory)
-CT_SCREEN	dd	?	; 18h: eg, B800:00A2h with full-screen border
-CT_BUFFER	dd	?	; 1Ch: used only for background contexts
-CT_BUFLEN	dw	?	; 20h: eg, 4000 for full-screen 25*80*2 buffer
-CT_COLOR	dw	?	; 22h: fill (LO) and border (HI) attributes
-CT_CURTYPE	dw	?	; 24h: current cursor type (HI=top, LO=bottom)
-CT_DEFTYPE	dw	?	; 26h: default cursor type (HI=top, LO=bottom)
+CT_COLS		dw	?	; 16h: eg, 80 (50h; ie, column width of screen)
+CT_SCROFF	dw	?	; 18h: eg, 2000 (offset of off-screen memory)
+CT_SCREEN	dd	?	; 1Ah: eg, B800:00A2h with full-screen border
+CT_BUFFER	dd	?	; 1Eh: used only for background contexts
+CT_BUFLEN	dw	?	; 22h: eg, 4000 for full-screen 25*80*2 buffer
+CT_COLOR	dw	?	; 24h: fill (LO) and border (HI) attributes
+CT_CURTYPE	dw	?	; 26h: current cursor type (HI=top, LO=bottom)
+CT_DEFTYPE	dw	?	; 28h: default cursor type (HI=top, LO=bottom)
+;
+; Context save region, used to save critical BIOS data area variables around
+; BIOS operations.  TODO: Decide where/how to handle TBD variables.
+;
+CTS_MODE	db	?	; 2Ah: saves CRT_MODE before writing CT_MODE
+CTS_PAGE	db	?	; 2Bh: saves ACTIVE_PAGE before writing TBD
+CTS_COLS	dw	?	; 2Ch: saves CRT_COLS before writing CT_COLS
+CTS_LEN		dw	?	; 2Eh: saves CRT_LEN before writing TBD
+CTS_START	dw	?	; 30h: saves CRT_START before writing TBD
+CTS_CURTYPE	dw	?	; 32h: saves CURSOR_MODE before writing CT_CURTYPE
+CTS_PORT	dw	?	; 34h: saves ADDR_6845 before writing CT_PORT
 CONTEXT		ends
 SIG_CT		equ	'C'
 
@@ -157,7 +169,7 @@ ENDPROC	ddcon_req
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_ioctl
-	mov	bl,es:[di].DDP_UNIT	; IOCTL code passed in DDP_UNIT
+	mov	bl,es:[di].DDP_CODE	; IOCTL code from DDP_CODE
 	cmp	bl,IOCTL_OUTSTATUS	; standard sub-function code?
 	jbe	dio1			; yes
 	sub	bl,IOCTL_CON - 8	; no, BASIC-DOS specific sub-function
@@ -204,7 +216,8 @@ DEFPROC	ddcon_getdd
 ; This is enough to make PC DOS 2.00 BASICA start successfully on BASIC-DOS.
 ; I haven't checked but it's probably verifying STDIN/STDOUT wasn't redirected.
 ;
-	mov	dx,80D3h		; TODO: define and return "real" bits
+	; mov	dx,[CON].DDH_ATTR	; TODO: PC DOS 2.00 returns 80D3h
+	mov	dx,80D3h
 	ret
 ENDPROC	ddcon_getdd
 
@@ -618,7 +631,10 @@ dco0:	pop	ds
 	DOSUTIL	UNLOCK
 	clc
 	jmp	dco7
-
+;
+; The device name consists of "CON:...."  We're not sure what "...." is yet,
+; but hopefully it conforms to the context descriptor format described above.
+;
 dco1:	push	cs
 	pop	es
 	mov	bl,10			; use base 10
@@ -737,6 +753,7 @@ dco2b:	mov	es:[di],ds
 	mov	bl,[CRT_MODE]
 	mov	cx,[EQUIP_FLAG]		; snapshot the equipment flags
 	mov	dx,[ADDR_6845]		; get the adapter's port address
+	push	[CRT_COLS]
 
 	test	bh,CTSTAT_ADAPTER
 	jz	dco4
@@ -757,7 +774,8 @@ dco3:	mov	bl,al			; BL = new video mode
 	xchg	[EQUIP_FLAG],cx
 dco3a:	pop	ax
 
-dco4:	mov	ds:[CT_PORT],dx
+dco4:	pop	ds:[CT_COLS]
+	mov	ds:[CT_PORT],dx
 	mov	ds:[CT_EQUIP],cx
 	mov	ds:[CT_MODE],bl
 	mov	ds:[CT_SCREEN].SEG,ax
@@ -1878,15 +1896,27 @@ DEFPROC	update_biosdata
 	mov	es,ax
 	ASSUME	ES:BIOS
 	ASSERT	STRUCT,ds:[0],CT
+
 	mov	al,ds:[CT_MODE]
-	mov	[CRT_MODE],al
+	xchg	[CRT_MODE],al
+	mov	ds:[CTS_MODE],al
+
+	mov	ax,ds:[CT_COLS]
+	xchg	[CRT_COLS],ax
+	mov	ds:[CTS_COLS],ax
+
 	mov	ax,ds:[CT_PORT]
-	mov	[ADDR_6845],ax
+	xchg	[ADDR_6845],ax
+	mov	ds:[CTS_PORT],ax
+
 	mov	ax,ds:[CT_CURTYPE]
-	mov	[CURSOR_MODE],ax
+	xchg	[CURSOR_MODE],ax
+	mov	ds:[CTS_CURTYPE],ax
+
 	mov	ax,ds:[CT_CURPOS]	; AX = cursor pos within context
 	add	ax,ds:[CT_CONPOS]	; add context pos to get screen pos
 	mov	[CURSOR_POSN],ax
+
 	mov	ax,ds:[CT_EQUIP]
 	xchg	[EQUIP_FLAG],ax
 	pop	es
@@ -1915,10 +1945,21 @@ DEFPROC	update_context
 	mov	es,[ZERO]
 	ASSUME	ES:BIOS
 	mov	[EQUIP_FLAG],ax
-	mov	al,[CRT_MODE]
+
+	mov	al,ds:[CTS_MODE]
+	xchg	[CRT_MODE],al
 	mov	ds:[CT_MODE],al
+
+	mov	ax,ds:[CTS_COLS]
+	xchg	[CRT_COLS],ax
+	mov	ds:[CT_COLS],ax
+
+	mov	ax,ds:[CTS_PORT]
+	mov	[ADDR_6845],ax
+
 	; mov	ax,[CURSOR_MODE]	; we don't trust CURSOR_MODE
 	; mov	ds:[CT_CURTYPE],ax	; update_curtype explains why
+
 	mov	ax,[CURSOR_POSN]
 	sub	ax,ds:[CT_CONPOS]
 	mov	ds:[CT_CURPOS],ax

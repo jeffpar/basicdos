@@ -573,7 +573,7 @@ OP_DIV32	equ	0FCh		; verify 32-bit division result
 
 OPCHECK	macro	op
 	IFDEF DEBUG
-	int	06h			;; INT 06h
+	int	06h			;; INT INT_UD
 	db	op			;; next byte indicates the operation
 	ENDIF
 	endm

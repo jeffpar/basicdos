@@ -131,7 +131,7 @@ ENDPROC	psp_term
 ; psp_copy (REG_AH = 26h)
 ;
 ; Initializes the PSP with current memory values and vectors and then copies
-; rest of the PSP from the active PSP.
+; rest of the PSP from the current PSP.
 ;
 ; Inputs:
 ;	REG_DX = segment of new PSP
@@ -143,8 +143,13 @@ ENDPROC	psp_term
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	psp_copy,DOS
-	call	psp_init		; returns ES:DI -> PSP_PARENT
+	mov	bx,[mcb_limit]		; BX = PSP paras (default)
+	call	get_psp
+	jz	pcp1
+	mov	es,ax
 	ASSUME	ES:NOTHING
+	mov	bx,es:[PSP_PARAS]	; BX = PSP_PARAS from current PSP
+pcp1:	call	psp_init		; returns ES:DI -> PSP_PARENT
 	ASSERT	NZ,<test ax,ax>
 	mov	ds,ax
 	ASSUME	DS:NOTHING
@@ -376,6 +381,7 @@ ENDPROC	psp_get
 ;	AX, BX, CX, DX, SI, DI, ES
 ;
 DEFPROC	psp_create,DOS
+	mov	bx,[mcb_limit]		; BX = PSP paras (default)
 	call	psp_init		; returns ES:DI -> PSP_PARENT
 	stosw				; update PSP_PARENT
 ;
@@ -810,8 +816,6 @@ lp6g:	push	es:[EXE_START_SEG]
 	sub	ax,10h
 	mov	es,ax			; ES = PSP segment
 	sub	dx,ax			; DX = base # paras
-	add	dx,si			; DX = base + minimum
-	mov	bx,dx			; BX = realloc size (in paras)
 ;
 ; TODO: Determine a reasonable amount to add to the minimum.  SYMDEB.EXE 4.0
 ; was the first non-BASIC-DOS EXE I tried to load, and if I provided only its
@@ -841,6 +845,30 @@ lp6g:	push	es:[EXE_START_SEG]
 ; conservative, or PC DOS had some EXEC overhead (perhaps in the transient
 ; portion of COMMAND.COM) that it couldn't eliminate.
 ;
+	cmp	si,40h			; is additional minimum at least 1Kb?
+	jae	lp6h			; yes
+	mov	si,40h			; no, set minimum to 1Kb (in paras)
+lp6h:	add	dx,si			; DX = base + minimum
+
+	mov	ds,ax			; DS = PSP segment
+	add	ax,10h			; AX = EXE base segment (again)
+	pop	ds:[PSP_STACK].OFF
+	pop	ds:[PSP_STACK].SEG
+	add	ds:[PSP_STACK].SEG,ax
+	pop	ds:[PSP_START].OFF
+	pop	ds:[PSP_START].SEG
+	add	ds:[PSP_START].SEG,ax
+
+	DPRINTF	'p',<"New PSP %04x, %04x paras, min,max=%04x,%04x\r\n">,ds,dx,si,di
+
+	mov	bx,dx			; BX = realloc size (in paras)
+	sub	dx,dx			; no heap
+	jmp	lp8			; realloc the PSP segment
+lpf2:	jmp	lpf
+lpc3:	jmp	lpc
+;
+; Load the COM file.  All we have to do is finish reading it.
+;
 ; NOTE: DEBUG.COM from PC DOS 2.00 has a file size of 11904 bytes (image size
 ; 2F80h) and resets its stack pointer to 2AE2h, which is an area that's too
 ; small to safely run in BASIC-DOS:
@@ -855,26 +883,6 @@ lp6g:	push	es:[EXE_START_SEG]
 ; DEBUG.COM from PC DOS 1.00 has a file size of 6049 bytes (image size 18A1h)
 ; and resets its stack pointer to 17F8h, but it's less susceptible to problems
 ; since copyright and error message strings are located below the stack.
-;
-	add	bx,40h			; add another 1Kb (in paras)
-
-	mov	ds,ax			; DS = PSP segment
-	add	ax,10h			; AX = EXE base segment (again)
-	pop	ds:[PSP_STACK].OFF
-	pop	ds:[PSP_STACK].SEG
-	add	ds:[PSP_STACK].SEG,ax
-	pop	ds:[PSP_START].OFF
-	pop	ds:[PSP_START].SEG
-	add	ds:[PSP_START].SEG,ax
-
-	DPRINTF	'p',<"New PSP %04x, %04x paras, min,max=%04x,%04x\r\n">,ds,bx,si,di
-
-	sub	dx,dx			; no heap
-	jmp	lp8			; realloc the PSP segment
-lpf2:	jmp	lpf
-lpc3:	jmp	lpc
-;
-; Load the COM file.  All we have to do is finish reading it.
 ;
 lp7:	add	dx,ax
 	cmp	ax,cx
@@ -974,7 +982,7 @@ lp8b:	mov	dx,es
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
-	call	psp_setmem		; DX = PSP segment to update
+	call	psp_setmem		; DX = PSP segment, BX = PSP paras
 	call	mcb_setname		; ES = PSP segment
 ;
 ; Since we're past the point of no return now, let's take care of some
@@ -1174,6 +1182,7 @@ ENDPROC	psp_close
 ; including) PSP_PARENT are initialized.
 ;
 ; Inputs:
+;	BX = PSP paras (default)
 ;	REG_DX = segment of new PSP
 ;
 ; Outputs:
@@ -1186,7 +1195,7 @@ ENDPROC	psp_close
 ;
 DEFPROC	psp_init,DOS
 	mov	dx,[bp].REG_DX
-	call	psp_setmem		; DX = PSP segment to initialize
+	call	psp_setmem		; DX = PSP segment, BX = PSP paras
 	ASSUME	ES:NOTHING
 ;
 ; On return from psp_setmem, ES = PSP segment and DI -> PSP_EXRET.
@@ -1211,6 +1220,7 @@ ENDPROC	psp_init
 ; the PSP has been resized, requiring many of those bytes to be updated again.
 ;
 ; Inputs:
+;	BX = PSP paras (default; ignored if PSP segment has size)
 ;	DX = PSP segment
 ;
 ; Outputs:
@@ -1222,9 +1232,8 @@ ENDPROC	psp_init
 ;
 DEFPROC	psp_setmem,DOS
 	ASSUME	ES:NOTHING
-	mov	bx,[mcb_limit]		; BX = fallback memory limit
-	call	mcb_getsize		; if segment has a size, get it
-	jc	ps1			; nope, use BX
+	call	mcb_getsize		; if PSP segment has size, get it
+	jc	ps1			; otherwise, use PSP paras in BX
 	mov	bx,dx
 	add	bx,ax			; BX = actual memory limit
 	ASSERT	NZ,<test cx,cx>
