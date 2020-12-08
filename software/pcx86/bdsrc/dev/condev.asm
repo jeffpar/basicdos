@@ -216,7 +216,8 @@ DEFPROC	ddcon_getdd
 ; This is enough to make PC DOS 2.00 BASICA start successfully on BASIC-DOS.
 ; I haven't checked but it's probably verifying STDIN/STDOUT wasn't redirected.
 ;
-	mov	dx,80D3h		; TODO: define and return "real" bits
+	; mov	dx,[CON].DDH_ATTR	; TODO: PC DOS 2.00 returns 80D3h
+	mov	dx,80D3h
 	ret
 ENDPROC	ddcon_getdd
 
