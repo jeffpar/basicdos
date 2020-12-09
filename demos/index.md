@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS Demos
+title: BASIC-DOS Demo
 permalink: /maplebar/demos/
 machines:
   - id: ibm5150
@@ -10,22 +10,6 @@ machines:
 ---
 
 {% include machine.html id="ibm5150" %}
-
-There are currently four BASIC-DOS demo configurations:
-
- 1. [Single 25x80 session](?autoStart=true)
- 2. [Two 40-column sessions](?autoMount=%7B%20A:%7B%20name:%22BASIC-DOS2%22%7D%7D)
- 3. [Two 80-column sessions](?autoMount=%7B%20A:%7B%20name:%22BASIC-DOS3%22%7D%7D)
- 4. [Dual monitors with single sessions](dual/)
- 5. [Dual monitors with multiple sessions](dual/multi/)
-
-The 40 and 80-column demos are configured with borders.  A double-wide border
-indicates which session has keyboard focus.  Use **SHIFT-TAB** to toggle focus.
-
-BASIC-DOS development was performed on this PC XT [Development Machine](dev/).
-A development machine with [Dual Monitors](dual/dev/) is also available.
-There's also a [blog](../blog/), but I've been doing a poor job keeping it
-up-to-date.  There's just too much code to write and test.
 
 ### **CONFIG.SYS** from the BASIC-DOS1 Diskette
 

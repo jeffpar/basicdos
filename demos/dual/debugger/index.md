@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS with Dual Monitors and Debugger
+title: BASIC-DOS Demo with Dual Monitors
 permalink: /maplebar/demos/dual/debugger/
 machines:
   - id: ibm5150

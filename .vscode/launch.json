@@ -28,15 +28,15 @@
     {
       "type": "chrome",
       "request": "launch",
-      "name": "BASIC-DOS Development Machine",
-      "url": "http://localhost:4040/maplebar/demos/dev/",
+      "name": "BASIC-DOS Build Machine",
+      "url": "http://localhost:4040/maplebar/build/",
       "webRoot": "${workspaceFolder}"
     },
     {
       "type": "chrome",
       "request": "launch",
-      "name": "BASIC-DOS Development Machine with Dual Monitors",
-      "url": "http://localhost:4040/maplebar/demos/dual/dev/",
+      "name": "BASIC-DOS Build Machine with Dual Monitors",
+      "url": "http://localhost:4040/maplebar/build/dual/",
       "webRoot": "${workspaceFolder}"
     },
     {
