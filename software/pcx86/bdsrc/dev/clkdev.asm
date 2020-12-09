@@ -75,7 +75,7 @@ ENDPROC	ddclk_req
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddclk_ctlin
-	mov	al,es:[di].DDP_UNIT	; AL = IOCTL command
+	mov	al,es:[di].DDP_CODE	; AL = IOCTL code
 	mov	cx,es:[di].DDPRW_LENGTH	; CX = IOCTL input value
 	mov	dx,es:[di].DDPRW_LBA	; DX = IOCTL input value
 	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_UNKCMD

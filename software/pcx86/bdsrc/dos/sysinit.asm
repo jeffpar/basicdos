@@ -548,7 +548,6 @@ si18:	PRINTF	<"Error loading %s: %d",13,10>,dx,ax
 ;
 si20:	add	sp,size SPB		; free SPB on the stack
 					; (somewhat moot, but let's stay tidy)
-
 	lds	dx,[pCacheInt21]	; restore INT 21h vector
 	mov	ax,(DOS_MSC_SETVEC SHL 8) OR 21h
 	int	21h
@@ -600,8 +599,8 @@ si20:	add	sp,size SPB		; free SPB on the stack
 ; zero scb_active and include "null SCB" tests in scb_yield and scb_switch;
 ; this approach eliminates the need for those special tests.
 ;
-	mov	bx,[scb_table].OFF
-	mov	[scb_active],bx
+	mov	bx,[scb_table].OFF	; BX -> the first SCB
+	mov	[scb_active],bx		; make it active (for consistency)
 	mov	ss,[bx].SCB_STACK.SEG
 	mov	sp,[bx].SCB_STACK.OFF
 	push	ds
@@ -847,19 +846,19 @@ ENDPROC	cache_int21
 ;
 ; Initialization data
 ;
-; Labels are capitalized to indicate their static (constant) nature.
+; Labels are capitalized to indicate that the data is R/O, not R/W.
 ;
 	DEFLBL	INT_TABLES,word
-	dw	(INT_DV * 4)		; set diverr and single-step vectors
+	dw	(INT_DV * 4)		; 00h: diverr and single-step vectors
 	dw	dos_dverr,dos_sstep,0
-	dw	(INT_BP * 4)		; set breakpoint and overflow vectors
+	dw	(INT_BP * 4)		; 03h: breakpoint and overflow vectors
 	dw	dos_brkpt,dos_oferr,0
-	dw	(INT_UD * 4)		; initialize the INT_UD vector
+	dw	(INT_UD * 4)		; 06h: initialize the INT_UD vector
 	dw	dos_opchk,0		; in case the OPCHECK macro is enabled
-	dw	(INT_DOSTERM * 4)	; next, set all the DOS vectors
+	dw	(INT_DOSTERM * 4)	; 20h: initialize all the DOS vectors
 	dw	dos_term,dos_func,dos_exret,dos_ctrlc
 	dw	dos_error,disk_read,disk_write,dos_tsr,dos_default,0
-	dw	(INT_DOSNET * 4)
+	dw	(INT_DOSNET * 4)	; 2Ah
 	dw	dos_default,dos_default,dos_default
 	dw	dos_default,dos_default,dos_default,0
 	dw	-1			; end of tables (should end at INT 30h)
