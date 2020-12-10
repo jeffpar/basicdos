@@ -7,6 +7,7 @@ machines:
     type: pcx86
     config: /configs/pcx86/machine/ibm-5150-cga-64kb.json
     debugger: available
+    sizeRAM: 128
 ---
 
 {% include machine.html id="ibm5150" %}
