@@ -11,10 +11,10 @@
 32 if printed < 5 then goto 40
 33 print:let printed=0
 40 let dividend = (dividend+1) or 1
-41 if dividend >= 10000 then goto 90
+41 if dividend >= 1000 then goto 90
 50 if dividend < maxsquared then goto 15
 51 let maxdivisor = maxdivisor+1
 52 let maxsquared = maxsquared+advsquared
 53 let advsquared = advsquared+2
 55 goto 15
-90 print:print "TOTAL PRIMES < 10000: ";primes
+90 print:print "TOTAL PRIMES < 1000: ";primes

@@ -10,6 +10,7 @@
 	include	macros.inc
 	include	8086.inc
 	include	dev.inc
+	include	devapi.inc
 	include	dos.inc
 
 DOS	segment word public 'CODE'

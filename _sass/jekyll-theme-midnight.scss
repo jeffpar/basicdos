@@ -85,7 +85,9 @@ p strong {
 }
 
 section img {
+  width: 100%;
   max-width: 100%;
+  border: 5px solid #555;
 }
 
 blockquote {

@@ -3,7 +3,7 @@
 Warning: no stack segment
 
  Start  Stop   Length Name                   Class
- 00000H 032F6H 032F7H DOS                    CODE
+ 00000H 032F5H 032F6H DOS                    CODE
 
   Address         Publics by Name
 
@@ -248,7 +248,7 @@ Warning: no stack segment
  0000:0003  Abs  STR_ESC_LEN
  0000:00DA       SUN
  0000:2CC2       SYSINIT
- 0000:32F7       SYSINIT_END
+ 0000:32F6       SYSINIT_END
  0000:31A6       SYSINIT_ERROR
  0000:2D1E       SYSINIT_HIGH
  0000:2CA4       SYSINIT_START
@@ -607,4 +607,4 @@ Warning: no stack segment
  0000:31AF       FATAL_ERROR
  0000:31B8       INT_TABLES
  0000:31F6       INT_TABLES_END
- 0000:32F7       SYSINIT_END
+ 0000:32F6       SYSINIT_END

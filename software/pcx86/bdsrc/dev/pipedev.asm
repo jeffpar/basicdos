@@ -9,6 +9,7 @@
 ;
 	include	macros.inc
 	include	dev.inc
+	include	devapi.inc
 	include	dosapi.inc
 
 DEV	group	CODE,DATA

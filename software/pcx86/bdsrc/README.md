@@ -26,24 +26,28 @@ drivers and removing any unnecessary drivers from memory.
 
 The [DOS](dos/) directory contains the BASIC-DOS "kernel" (`IBMDOS.COM`).
 
-The [INC](inc/) directory contains all the include files:
+The [INC](inc/) directory contains all the BASIC-DOS include files:
 
-    dos.inc
-    +-- dosapi.inc
-    dev.inc
-    +-- devapi.inc
-    disk.inc
-    bios.inc
-    8086.inc
     macros.inc
+    8086.inc
+    bios.inc
+    disk.inc
+    dev.inc
+    devapi.inc
+    dos.inc
+    dosapi.inc
+    version.inc
 
-A low-level source file may need to include only `8086.inc`, while a high-level
-source file may need files higher on the list (eg, `dos.inc`).
+A low-level source file may need to include only `macros.inc` and `8086.inc`,
+while a high-level source file may need to include more.
 
-Since MASM started running out of symbol space when building some of the
-components, I moved "public" portions of `dos.inc` and `dev.inc` into
-`dosapi.inc` and `devapi.inc`, respectively.  Use only the latter whenever
-possible.
+When MASM ran out of symbol space building some of the components,
+I started separating *private* definitions from *public* ones (eg,
+`dos.inc` and `dosapi.inc`).
+
+The line between public and private is not formal; for example, EXEHDR is
+arguably a public structure, but since it's not required by any DOS API, it's
+defined in `dos.inc` rather than `dosapi.inc`.
 
 The [TEST](test/) directory contains an assortment of test programs, some of
 which assemble into `.COM` and `.EXE` files, while others are ready-to-run
@@ -56,7 +60,7 @@ source file courtesy of the [OS/2 Museum](msb/OEM.ASM).
 
 ## The BASIC-DOS Build Process
 
-The [BASIC-DOS Development Machine](https://basicdos.com/maplebar/dev/)
+The [BASIC-DOS Build Machine](https://basicdos.com/maplebar/build/)
 contains two 10Mb hard disks: drive C: contains all the tools used to build
 BASIC-DOS, and drive D: contains all the source code.
 

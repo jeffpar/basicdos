@@ -55,9 +55,9 @@ m0:	mov	bx,ds:[PSP_HEAP]
 ;
 ; Originally, "the plan" was to use Microsoft's MBF (Microsoft Binary Format)
 ; floating-point code, because who really wants to write a "new" floating-point
-; emulation library from scratch?  I went down that path back in the 1980's,
-; probably during my "Mandelbrot phase", but I can't find the code I wrote, and
-; now that that Microsoft has open-sourced GW-BASIC, it makes more sense to use
+; emulation library from scratch?  I went down that path back in the 1980s,
+; probably during my "Mandelbrot phase", but I can't find the code I wrote,
+; and now that Microsoft has open-sourced GW-BASIC, it makes more sense to use
 ; theirs.  However, that hasn't happened yet; for now, BASIC-DOS is just an
 ; "Integer BASIC".  If/when that changes, MSLIB will be defined.
 ;

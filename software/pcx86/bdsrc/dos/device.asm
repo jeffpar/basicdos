@@ -11,6 +11,7 @@
 	include	bios.inc
 	include	disk.inc
 	include	dev.inc
+	include	devapi.inc
 	include	dos.inc
 
 DOS	segment word public 'CODE'

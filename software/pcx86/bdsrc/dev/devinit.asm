@@ -11,6 +11,7 @@
 	include	8086.inc
 	include	bios.inc
 	include	dev.inc
+	include	devapi.inc
 
 DEV	segment para public 'CODE'
 

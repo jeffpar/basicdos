@@ -46,11 +46,13 @@
             <menu>
               {%- if page.public %}
               <li class="internal"><a href="/blog/">Blog</a></li>
+              <li class="internal"><a href="/build/">Build</a></li>
               <li class="internal"><a href="/demos/">Demos</a></li>
               <li class="internal"><a href="/docs/">Docs</a></li>
               {%- else %}
               <li class="internal"><a href="{{ site.betaurl }}/blog/">Blog</a></li>
-              <li class="internal"><a href="{{ site.betaurl }}/demos/">Demos</a></li>
+              <li class="internal"><a href="{{ site.betaurl }}/build/">Build</a></li>
+              <li class="internal"><a href="{{ site.betaurl }}/">Demos</a></li>
               <li class="internal"><a href="{{ site.betaurl }}/docs/">Docs</a></li>
               {%- endif %}
               <li class="external"><a href="{{ site.github.repository_url }}">Repo</a></li>

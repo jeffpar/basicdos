@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS with Dual Monitors and Sessions
+title: BASIC-DOS Demo with "Dueling Monitors"
 permalink: /maplebar/demos/dual/multi/
 machines:
   - id: ibm5150
