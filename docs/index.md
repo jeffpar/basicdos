@@ -57,6 +57,9 @@ little help from [OS/2 Museum](http://www.os2museum.com/wp/well-hello/).
 
 ### PC DOS Compatibility
 
+BASIC-DOS supports the same PC DOS .COM and .EXE executable formats, public
+data structures, and many of the same PC DOS APIs.  Strict compatibility is not
+
 In some ways, BASIC-DOS is more primitive than PC DOS 1.00.  File system
 functions are read-only (files cannot be created, written, renamed, or deleted),
 although that will change in the coming months.
@@ -71,15 +74,15 @@ becoming a unified DOS *and* BASIC command interpreter.
 
 ### BASIC Operations
 
-At the moment, the set of available BASIC commands is *very* basic: DEF, GOTO,
-IF, LET, and PRINT.  But those are enough to write some simple programs.  Only
-integer constants, variables, and operators are supported (no floating-point
-yet).  String variables can be created, but there are no string operations yet
-either.
+At the moment, the set of available BASIC commands is *very* basic: CLS, COLOR,
+DEF, GOTO, IF ... THEN, LET, and PRINT.  But those are enough to write some
+simple programs.  Numeric support is limited to integer constants, variables,
+and operators (no floating-point yet).  String variables can be created and
+printed, but no string operations are available yet.
 
 **PRIMES.BAS** was the first BASIC program written to run in both BASIC-DOS and
-**MSBASIC**.  Type `MSBASIC PRIMES` to run it with the Microsoft BASIC interpreter
-first.  After it prints:
+**MSBASIC**.  Type `MSBASIC PRIMES` to run it with the Microsoft BASIC
+interpreter first.  After it prints:
 
     TOTAL PRIMES < 1000:  168
 
@@ -87,14 +90,14 @@ type `SYSTEM` to return to the BASIC-DOS prompt.  Then type `PRIMES.BAS` to
 load and run the same program directly within BASIC-DOS.
 
 Notice how much *faster* BASIC-DOS execution is.  And BASIC-DOS performs
-full 32-bit integer operations, while MSBASIC only does 16-bit operations.
+full 32-bit integer operations, while MSBASIC can only do 16-bit operations.
 
 ### BASIC Files vs. Batch Files
 
 There are three versions of the **PRIMES** program on the demo diskette: the
-**BAS** file just discussed, a **BAT** version that is largely identical but
-omits unnecessary line numbers, and an **EXE** version that was written in
-assembly language.
+**BAS** file just discussed, a **BAT** version that uses line numbers (ie,
+labels) only where needed, and an **EXE** version that was written in assembly
+language.
 
 When processing a filename, BASIC-DOS uses the same search order as PC DOS:
 **.COM**, **.EXE**, and **.BAT**.  And if none of those are found, it also
@@ -122,9 +125,14 @@ operators are available as well.
 
 Notice that BASIC-DOS 1) doesn't require function names to begin with "FN",
 2) it allows them to be defined at the command prompt (ie, what IBM PC BASIC
-calls "Direct Mode", also known as "Immediate Mode"), and 3) it allows
-multi-line function definitions, enabling the creation of more sophisticated
-functions.
+calls "Direct Mode", also known as Immediate Mode), and 3) it allows
+multi-line function definitions within BASIC files, enabling the creation of
+more sophisticated functions.
+
+Take this opportunity to experiment with BASIC-DOS line-editing, which combines
+all the editing features of both PC DOS and PC BASIC, improving the PC DOS
+editing experience.  Use the BASIC-DOS `HELP` command to list available editing
+keys (`HELP KEYS`).
 
 ### Pipes and Redirection
 
@@ -142,7 +150,7 @@ For a command such as:
 
     TYPE PRIMES.BAS | CASE
 
-the interpreter opens a PIPE$ handle to create a simple FIFO queue and passes
+the interpreter opens a PIPE$ handle to create a FIFO queue and passes
 the handle as STDIN for a new background session running CASE.COM, a simple
 BASIC-DOS I/O filter program that upper-cases letters.
 
@@ -151,7 +159,7 @@ BASIC-DOS I/O filter program that upper-cases letters.
 BASIC-DOS supports a task unit known as a "session".  Sessions represent
 separate execution environments.  Each session can run one or more programs,
 each with their own assigned memory blocks, but they all share the same file
-system, the same memory pool, etc.
+system, memory pool, etc.
 
 Moreover, sessions can run entirely in the *background*, or they can be
 assigned to specific regions of the screen.  The next two machines illustrate
@@ -176,9 +184,9 @@ system below, because each session has exclusive access to an entire screen.
 It's important to note that BASIC-DOS is *not* attempting to create the
 illusion of a "virtual machine" for each session.  That would require swapping
 global memory (eg, ROM BIOS Data) on every context-switch, which would be
-prohibitively expensive.  And it's completely unnecessary, as long as all
-BASIC-DOS apps rely exclusively on BASIC-DOS APIs.  Most ROM BIOS APIs and
-data should be reserved for exclusive use by BASIC-DOS itself.
+prohibitively expensive.  And it's completely unnecessary, as long as BASIC-DOS
+apps rely exclusively on BASIC-DOS APIs.  Most ROM BIOS APIs and data should
+be reserved for exclusive use by BASIC-DOS itself.
 
 Even though, in selected demos, I will sometimes run PC DOS applications like
 **MSBASIC**, the fact that they work is a happy coincidence.  Most actually do
@@ -189,6 +197,6 @@ inevitable.
 
 In fact, the "stack" issue is a major difference between BASIC-DOS and PC DOS:
 BASIC-DOS *never* switches stacks within in a session.  The BASIC-DOS philosophy
-is simple: apps should provide ample stack space, and all BASIC-DOS APIs should
+is simple: apps should provide ample stack space, and BASIC-DOS APIs should
 be re-entrant.  PC DOS, by contrast, evolved complicated stack switching
-procedures and rules that BASIC-DOS plans to avoid at all costs.
+procedures and re-entrancy rules that BASIC-DOS plans to avoid at all costs.
