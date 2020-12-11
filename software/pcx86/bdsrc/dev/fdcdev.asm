@@ -79,19 +79,23 @@ DEFPROC	ddfdc_mediachk
 	ASSUME	DS:NOTHING	; DS:SI -> BPB
 	mov	ah,TIME_GETTICKS
 	int	INT_TIME	; CX:DX is current tick count
-	mov	ax,MC_UNKNOWN	; default to UNKNOWN
 	push	cx
 	push	dx
-	sub	dx,ds:[si].BPB_TIMESTAMP.OFF
-	sbb	cx,ds:[si].BPB_TIMESTAMP.SEG
+	mov	ax,[si].BPB_TIMESTAMP.OFF
+	mov	bx,[si].BPB_TIMESTAMP.SEG
+	or	ax,bx
+	mov	ax,MC_UNKNOWN	; default to UNKNOWN
+	jz	mc1		; existing timestamp is zero, treat as UNKNOWN
+	sub	dx,[si].BPB_TIMESTAMP.OFF
+	sbb	cx,bx
 	jb	mc1		; underflow, use default
 	test	cx,cx		; large difference?
 	jnz	mc1		; yes, use default
 	cmp	dx,38		; more than 2 seconds of ticks?
 	jae	mc1		; yes, use default
 	inc	ax		; change from UNKNOWN to UNCHANGED
-mc1:	pop	ds:[si].BPB_TIMESTAMP.OFF
-	pop	ds:[si].BPB_TIMESTAMP.SEG
+mc1:	pop	[si].BPB_TIMESTAMP.OFF
+	pop	[si].BPB_TIMESTAMP.SEG
 	mov	es:[di].DDP_CONTEXT,ax
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	ret

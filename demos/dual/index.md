@@ -9,6 +9,7 @@ machines:
     debugger: available
     autoMount:
       A: "BASIC-DOS4"
+      B: "PC DOS 2.00 (Disk 2)"
 ---
 
 The machine below is configured with both MDA and CGA adapters, each

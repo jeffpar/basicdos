@@ -10,7 +10,6 @@ machines:
     autoStart: true
     autoMount:
       A: "BASIC-DOS5"
-      B: "BDS-BOOT"
 ---
 
 The IBM PC XT below is similar to our original [Build Machine](../), but
