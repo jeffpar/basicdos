@@ -65,4 +65,4 @@ sessions.
 
 {% include machine.html id="ibm5150-3" %}
 
-Next: [Dueling Sessions](../part5/)
+Next: [Were Dual Monitors Ever This Cool?](../part5/)
