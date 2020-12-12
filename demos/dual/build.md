@@ -12,8 +12,9 @@ machines:
       A: "BASIC-DOS5"
 ---
 
-The IBM PC XT below is similar to our original [Build Machine](../), but
-with dual monitors, making it ideal for dual monitor testing and debugging.
+The IBM PC XT below is similar to our original [Build Machine](../),
+for Dual Monitor development and testing.
+
 For more information, see the [Build Notes](../#basic-dos-build-notes).
 
 {% include machine.html id="ibm5160" %}

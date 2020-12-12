@@ -225,3 +225,9 @@ BPB operations, but the memory for BPBs is allocated by DOS.
 for all the usual INT 2xh software interrupts, the INT 30h vector for the old
 "CALL 5" CP/M-style interface, and the INT 32h vector for a new set of BASIC-DOS
 "utility" functions.
+
+## To Be Continued...
+
+There will be more on kernel internals in a future post, as well as a discussion
+of the "meat and potatoes" of BASIC-DOS: a unified DOS/BASIC command interpreter
+known as... **COMMAND.COM**.
