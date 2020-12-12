@@ -14,10 +14,10 @@ machines:
 
 There are three versions of the **PRIMES** program on the `BASIC-DOS1` diskette:
 the **BAS** file previously demonstrated, a **BAT** version that uses line numbers
-("labels)" only where needed, and an **EXE** version that was written in assembly
-language.  The source code for the assembly language version can be found in the
-BASIC-DOS [Build Machine](/maplebar/build/), along with the rest of the BASIC-DOS
-source code.
+only as needed (as labels), and an **EXE** version that was written in assembly
+language.  The source code for the assembly language version can be found in both
+the BASIC-DOS [Repository]({{ site.github.repository_url }}) and [Build Machine](/maplebar/build/),
+along with the rest of the BASIC-DOS source code.
 
 When processing an external filename, BASIC-DOS searches for extensions in the
 same order as PC DOS: **.COM**, **.EXE**, and **.BAT**.  And if none of those
