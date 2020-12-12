@@ -1,7 +1,7 @@
 ---
 layout: page
-title: BASIC-DOS Demo with Dual Monitors
-permalink: /maplebar/demos/dual/
+title: BASIC-DOS with Dual Monitors
+permalink: /maplebar/dual/
 machines:
   - id: ibm5150
     type: pcx86

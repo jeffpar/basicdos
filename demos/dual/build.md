@@ -1,7 +1,7 @@
 ---
 layout: page
 title: BASIC-DOS Build Machine with Dual Monitors
-permalink: /maplebar/build/dual/
+permalink: /maplebar/dual/build/
 machines:
   - id: ibm5160
     type: pcx86
@@ -12,9 +12,9 @@ machines:
       A: "BASIC-DOS5"
 ---
 
-The IBM PC XT below is similar to our original [Build Machine](../),
+The IBM PC XT below is similar to our original [Build Machine](../../build/),
 for Dual Monitor development and testing.
 
-For more information, see the [Build Notes](../#basic-dos-build-notes).
+For more information, see the [Build Notes](../../build/#basic-dos-build-notes).
 
 {% include machine.html id="ibm5160" %}

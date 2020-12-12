@@ -1,7 +1,7 @@
 ---
 layout: page
-title: BASIC-DOS Demo with Debugger
-permalink: /maplebar/demos/debugger/
+title: BASIC-DOS with Debugger
+permalink: /maplebar/debugger/
 machines:
   - id: ibm5150
     type: pcx86

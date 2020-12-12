@@ -12,7 +12,7 @@ machines:
       B: "PC DOS 2.00 (Disk 2)"
 ---
 
-### Dueling Sessions
+### Were Dual Monitors Ever This Cool?
 
 Foreground sessions are even more useful on Dual Monitor systems, like the
 one below, because each session has exclusive access to an entire screen.
@@ -21,6 +21,11 @@ Use SHIFT-TAB to switch to the Color Display, press SPACE to start `DONKEY`,
 and appreciate how well an IBM PC could actually run two programs simultaneously.
 
 {% include machine.html id="ibm5150-4" %}
+
+There's also a "[Dueling Monitors](../../dual/multi/)" demo featuring FOUR active
+sessions (two per monitor).  This may be pushing the IBM PC a bit too far,
+but any session that's waiting for input (ie, blocked) has no impact on the
+scheduler.
 
 It's important to note that BASIC-DOS is *not* attempting to emulate a
 "virtual machine" within each session.  That would require swapping global
@@ -51,4 +56,4 @@ system down, wasted memory, and were generally painful.
 
 Let's just say that BASIC-DOS will never support a `STACKS` keyword in CONFIG.SYS.
 
-This is the end of the preview -- for now.
+That's the end of the preview, for now.

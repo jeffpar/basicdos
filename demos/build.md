@@ -14,9 +14,8 @@ machines:
       B: "PC DOS 2.00 (Disk 1)"
 ---
 
-The IBM PC XT below serves as both a BASIC-DOS
-[Build Machine](#basic-dos-build-machine) and test machine.
-It's also available with [Dual Monitors](dual/).
+The IBM PC XT below serves as both a BASIC-DOS Build Machine.
+It's also available with [Dual Monitors](../dual/build/).
 
 BASIC-DOS doesn't support hard disks, but the BASIC-DOS diskette in drive A:
 will detect the hard disk and allow you to boot from it if you press **Esc**.
