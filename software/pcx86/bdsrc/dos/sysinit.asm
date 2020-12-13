@@ -116,9 +116,11 @@ si1:	mov	ax,[MEMORY_SIZE]	; get available memory in Kb
 ; of whatever stack the BIOS set up for booting (the IBM PC uses 30h:100h).
 ; There just weren't any particularly known good safe places, until now.
 ;
+	cli				; guard against early 8088 errata
 	push	cs			; use all the space available
 	pop	ss			; directly below the sysinit code
 	mov	sp,offset sysinit_start
+	sti
 	mov	es,cx			; CX is zero from above
 	ASSUME	ES:BIOS
 	mov	si,offset INT_TABLES
@@ -391,9 +393,6 @@ si7a:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHIN>
 ; process file handles.  Which is exactly what we want, because we're going to
 ; store each SFH in the SCB, so that every time a new program is loaded in the
 ; SCB, its PSP will receive the same SFHs.
-;
-; In addition, DOS_HDL_OPEN returns the device context in DX (again, only
-; because no process handle table exists when these handles are being opened).
 ;
 	mov	dx,offset AUX_DEVICE
 	mov	ax,DOS_HDL_OPENRW
