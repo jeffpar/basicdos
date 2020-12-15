@@ -988,7 +988,7 @@ di3:	mov	bp,bx			; BP = available clusters
 	push	si
 	mov	cx,DIR_DEF_LEN
 	mov	si,offset DIR_DEF
-	REPMOV	byte,CS
+	REPS	MOVS,ES,CS,BYTE
 	pop	si
 
 di3a:	sub	cx,cx			; CX = attributes

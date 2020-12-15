@@ -126,16 +126,16 @@ si1:	mov	ax,[MEMORY_SIZE]	; get available memory in Kb
 	mov	si,offset INT_TABLES
 si2:	lodsw
 	test	ax,ax			; any more tables?
-	jl	si3a			; no
+	jl	si2b			; no
 	xchg	di,ax			; DI -> first vector for table
-si3:	lodsw				; load vector offset
+si2a:	lodsw				; load vector offset
 	test	ax,ax			; end of sub-table?
 	jz	si2			; yes
 	stosw				; store vector offset
 	mov	ax,ds
 	stosw				; store vector segment
-	jmp	si3
-si3a:	mov	al,0EAh			; DI -> INT_DOSCALL5 * 4
+	jmp	si2a
+si2b:	mov	al,0EAh			; DI -> INT_DOSCALL5 * 4
 	stosb
 	mov	ax,offset dos_call5
 	stosw
@@ -147,29 +147,39 @@ si3a:	mov	al,0EAh			; DI -> INT_DOSCALL5 * 4
 	mov	ax,ds
 	stosw
 ;
+; The current SP is sysinit_start, and relative to SS, that's safe place
+; for our stack, whereas relative to DS, it's the start of DOS table space,
+; and while the SCBs will be our first table, we have to temporarily set
+; scb_active to that same region, so that any DOS or DOSUTIL calls we make
+; will not barf due to the lack of an active SCB.
+;
+	mov	bx,sp
+	DBGINIT	STRUCT,[bx],SCB
+	mov	[scb_active],bx		; set temporary SCB
+;
 ; Let users override the default switch character '/' (eg, "SWITCHAR=-").
 ;
 	mov	si,offset CFG_SWITCHAR
 	call	find_cfg		; look for "SWITCHAR="
-	jc	si3b
+	jc	si3
 	mov	al,[di]			; grab the character
 	mov	[def_switchar],al	; and update the default for all SCBs
 ;
 ; Copy BOOT_KEY from the BIOS segment to key_boot in the DOS segment.
 ;
-si3b:	mov	ax,[BOOT_KEY]		; copy the boot key
+si3:	mov	ax,[BOOT_KEY]		; copy the boot key
 	cmp	al,CHR_RETURN		; unless it's just a RETURN
-	je	si3c
+	je	si3a
 	mov	[key_boot],ax
 ;
 ; For ease of configuration testing, allow MEMSIZE (eg, MEMSIZE=32) to set a
 ; new memory limit (Kb), assuming we have at least as much memory as specified.
 ;
-si3c:	mov	si,offset CFG_MEMSIZE
+si3a:	mov	si,offset CFG_MEMSIZE
 	call	find_cfg		; look for "MEMSIZE="
 	jc	si4
 	xchg	si,di
-	push	ds
+	push	cs
 	pop	es
 	ASSUME	ES:NOTHING		; ES:DI -> validation data
 	mov	bl,10			; BL = base 10
@@ -186,7 +196,8 @@ si3c:	mov	si,offset CFG_MEMSIZE
 ;
 ; Now set ES to the first available paragraph for resident DOS tables.
 ;
-si4:	mov	ax,offset sysinit_start
+si4:	mov	ax,sp			;
+	ASSERT	Z,<cmp ax,offset sysinit_start>
 	test	al,0Fh			; started on a paragraph boundary?
 	jz	si4a			; yes
 	inc	dx			; no, so skip to next paragraph
@@ -194,13 +205,30 @@ si4a:	mov	ax,ds
 	add	ax,dx
 	mov	es,ax			; ES = first free (low) paragraph
 	ASSUME	ES:NOTHING
-	mov	ds,cx
+;
+; The first resident table (scb_table) contains our Session Control Blocks.
+; Look for a "SESSIONS=" line in CFG_FILE.
+;
+si5:	mov	si,offset CFG_SESSIONS
+	call	find_cfg		; look for "SESSIONS="
+	jc	si5a			; if not found, AX will be min value
+	xchg	si,di
+	push	es
+	push	cs
+	pop	es
+	mov	bl,10			; BL = base 10
+	DOSUTIL	ATOI16			; DS:SI -> string, ES:DI -> validation
+	pop	es			; AX = new value
+si5a:	mov	dx,size SCB
+	mov	bx,offset scb_table
+	call	init_table		; initialize table, update ES
+;
+; The next resident table (bpb_table) contains all the system BPBs.
+;
+	sub	ax,ax
+	mov	ds,ax
 	ASSUME	DS:BIOS
-;
-; The first resident table (bpb_table) contains all the system BPBs.
-;
-	mov	al,[FDC_UNITS]
-	cbw
+	mov	al,[FDC_UNITS]		; AX = # drives
 	mov	dx,size BPBEX
 	mov	bx,offset bpb_table
 	call	init_table		; initialize table, update ES
@@ -243,7 +271,8 @@ si4a:	mov	ax,ds
 	mov	di,es:[bpb_table].OFF
 	add	di,ax
 	cmp	di,es:[bpb_table].SEG
-	jnb	si5
+	ASSERT	B
+	jnb	si6b
 	mov	cx,(size BPB) SHR 1
 	push	di
 	rep	movsw
@@ -268,15 +297,15 @@ si4a:	mov	ax,ds
 	sub	cx,cx
 	mov	al,[di].BPB_CLUSSECS	; calculate LOG2 of CLUSSECS in CX
 	test	al,al
-	jnz	si4b			; make sure CLUSSECS is non-zero
+	jnz	si6			; make sure CLUSSECS is non-zero
 
 sie0:	jmp	sysinit_error
 
-si4b:	shr	al,1
-	jc	si4c
+si6:	shr	al,1
+	jc	si6a
 	inc	cx
-	jmp	si4b
-si4c:	jnz	sie0			; hmm, CLUSSECS wasn't a power-of-two
+	jmp	si6
+si6a:	jnz	sie0			; hmm, CLUSSECS wasn't a power-of-two
 	mov	[di].BPB_CLUSLOG2,cl
 	mov	ax,[di].BPB_SECBYTES	; use that to also calculate CLUSBYTES
 	shl	ax,cl
@@ -290,63 +319,47 @@ si4c:	jnz	sie0			; hmm, CLUSSECS wasn't a power-of-two
 	shr	ax,cl			; AX = data clusters
 	mov	[di].BPB_CLUSTERS,ax
 
-	pop	ax			; restore FDC pointer in DX:AX
+si6b:	pop	ax			; restore FDC pointer in DX:AX
 	pop	dx
 	pop	cx			; restore # BPBs in CL
+
 	mov	di,[bpb_table].OFF	; DI -> first BPB
-si4d:	DBGINIT	STRUCT,[di],BPB
+si6c:	DBGINIT	STRUCT,[di],BPB
 	mov	[di].BPB_DEVICE.OFF,ax
 	mov	[di].BPB_DEVICE.SEG,dx
 	cmp	[di].BPB_SECBYTES,0	; is this BPB initialized?
-	jne	si4e			; yes
+	jne	si6d			; yes
 	mov	[di].BPB_DRIVE,ch	; no, fill in the drive #
-si4e:	add	di,size BPBEX
+si6d:	add	di,size BPBEX
 	inc	ch
 	dec	cl
-	jnz	si4d
+	jnz	si6c
 
 	pop	es
 	ASSUME	ES:NOTHING
-	push	cs
-	pop	ds
-	ASSUME	DS:DOS
-;
-; The next resident table (scb_table) contains our Session Control Blocks.
-; Look for a "SESSIONS=" line in CFG_FILE.
-;
-si5:	mov	si,offset CFG_SESSIONS
-	call	find_cfg		; look for "SESSIONS="
-	jc	si6			; if not found, AX will be min value
-	xchg	si,di
-	push	es
-	push	ds
-	pop	es
-	mov	bl,10			; BL = base 10
-	DOSUTIL	ATOI16			; DS:SI -> string, ES:DI -> validation
-	pop	es			; AX = new value
-si6:	mov	dx,size SCB
-	mov	bx,offset scb_table
-	call	init_table		; initialize table, update ES
 ;
 ; The next resident table (sfb_table) contains our System File Blocks.
 ; Look for a "FILES=" line in CFG_FILE.
 ;
-	mov	si,offset CFG_FILES
+si7:	mov	si,offset CFG_FILES
 	call	find_cfg		; look for "FILES="
-	jc	si7			; if not found, AX will be min value
+	jc	si7a			; if not found, AX will be min value
 	xchg	si,di
 	push	es
-	push	ds
+	push	cs
 	pop	es
 	mov	bl,10			; BL = base 10
 	DOSUTIL	ATOI16			; DS:SI -> string, ES:DI -> validation
 	pop	es			; AX = new value
-si7:	mov	dx,size SFB
+si7a:	mov	dx,size SFB
 	mov	bx,offset sfb_table
 	call	init_table		; initialize table, update ES
 ;
 ; After all the resident tables have been created, initialize the MCB chain.
 ;
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
 	mov	bx,es
 	sub	di,di
 	mov	al,MCBSIG_LAST
@@ -371,9 +384,9 @@ si7:	mov	dx,size SFB
 	mov	ah,SFH_NONE
 	dec	cx			; CL,CH = SFH_NONE
 	mov	bx,es:[scb_table].OFF
-	mov	es:[scb_active],bx
+	mov	es:[scb_active],bx	; make the first SCB active
 	push	bx			; initialize the SCBs
-si7a:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHIN>
+si7b:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHIN>
 	mov	word ptr es:[bx].SCB_NUM,ax
 	mov	word ptr es:[bx].SCB_SFHOUT,cx
 	mov	word ptr es:[bx].SCB_SFHAUX,cx
@@ -381,7 +394,7 @@ si7a:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHIN>
 	inc	ax
 	add	bx,size SCB
 	cmp	bx,es:[scb_table].SEG
-	jb	si7a
+	jb	si7b
 	pop	bx
 ;
 ; Before we create any sessions (and our first PSPs), we need to open all the
@@ -437,7 +450,7 @@ si10:	mov	si,offset CFG_CONSOLE
 	jb	si11
 	mov	dx,offset CONERR
 	jmp	print_error
-si11:	mov	es:[scb_active],bx
+si11:	mov	es:[scb_active],bx	; make the next SCB active
 	mov	dx,di
 	mov	ax,DOS_HDL_OPENRW
 	int	21h
@@ -617,7 +630,7 @@ ENDPROC	sysinit
 ;
 ; find_cfg
 ;
-; Search for length-prefixed string at SI in CFG_FILE, and if found,
+; Search for length-prefixed string at CS:SI in CFG_FILE, and if found,
 ; set DI to 1st character after match.
 ;
 ; Outputs:
@@ -628,22 +641,24 @@ ENDPROC	sysinit
 ;	AX, SI, DI
 ;
 DEFPROC	find_cfg
-	ASSUME	DS:DOS, ES:NOTHING
+	ASSUME	DS:NOTHING, ES:NOTHING
 	push	bx
 	push	cx
 	push	dx
 	push	es
-	push	ds
+	push	cs
 	pop	es
 	ASSUME	ES:DOS
 	mov	bx,si
 	mov	di,[cfg_data]		; DI points to CFG_FILE data
 	mov	dx,di
 	add	dx,[cfg_size]		; DX points to end of CFG_FILE data
-fc1:	lodsb				; 1st byte at SI is length
+fc1:	lods	byte ptr cs:[si]	; 1st byte at CS:SI is length
 	cbw
 	xchg	cx,ax			; CX = length of string to find
-	repe	cmpsb
+	cli				; avoid 8086 string interrupt errata
+	repe	cmps byte ptr cs:[si],es:[di]
+	sti
 	jne	fc2
 	mov	es:[di-1],cl		; zap the CFG match to prevent reuse
 	jmp	short fc9		; found it!
@@ -657,7 +672,7 @@ fc2:	add	si,cx			; move SI forward to the minimum value
 	jne	fc8			; couldn't find another LINEFEED
 	mov	si,bx
 	jmp	fc1
-fc8:	mov	ax,[si]			; return the minimum value at SI
+fc8:	mov	ax,cs:[si]		; return the minimum value at SI
 fc9:	pop	es
 	ASSUME	ES:NOTHING
 	pop	dx
@@ -670,8 +685,8 @@ ENDPROC	find_cfg
 ;
 ; init_table
 ;
-; Initializes table with AX entries of length DX at ES:0, stores DS-relative
-; table offset at [BX], table limit at [BX+2], and finally, adjusts ES.
+; Initializes table with AX entries of length DX at ES:0, stores DOS segment-
+; relative table offset at [BX], table limit at [BX+2], and finally adjusts ES.
 ;
 ; Outputs:
 ;	Nothing

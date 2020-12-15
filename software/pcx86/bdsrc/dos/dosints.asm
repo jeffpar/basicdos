@@ -235,8 +235,6 @@ DEFPROC	dos_func,DOSFAR
 	ASSUME	ES:DOS
 
 	mov	bx,[scb_active]
-	test	bx,bx
-	jz	dc0
 	ASSERT	STRUCT,[bx],SCB
 	inc	[bx].SCB_INDOS
 ;
@@ -297,8 +295,6 @@ dc8:	adc	[bp].REG_FL,0
 	ENDIF
 
 	mov	bx,[scb_active]
-	test	bx,bx
-	jz	dos_exit2
 	ASSERT	STRUCT,cs:[bx],SCB
 	dec	cs:[bx].SCB_INDOS
 	; ASSERT	GE

@@ -243,7 +243,7 @@ DEFPROC	dsk_ffirst,DOS
 	push	si
 	mov	cx,size FCB_NAME
 	lea	si,[bx].SCB_FILENAME + 1; FFB_FILESPEC
-	REPMOV	byte,CS
+	REPS	MOVS,ES,CS,BYTE
 	pop	si
 	pop	cx
 	add	di,size FFB_RESERVED

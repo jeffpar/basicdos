@@ -449,8 +449,8 @@ ASSUME1	macro	segreg,segment
 	endm
 
 ;
-; Use this macro (ie, REPMOV byte,CS instead of rep movsb cs:...) to avoid
-; an errata on the 8086.
+; Use this macro (ie, REPS MOVS,ES,CS,BYTE instead of rep movsb cs:...) to
+; avoid an errata on the 8086.
 ;
 ; See: https://www.pcjs.org/documents/manuals/intel/8086/ for details.
 ;
@@ -460,9 +460,9 @@ ASSUME1	macro	segreg,segment
 ; Fortunately, PCjs simulates the errata, so I was able to catch it.
 ; TODO: It would be even better if PCjs displayed a warning when it happened.
 ;
-REPMOV	macro	size,seg
+REPS	macro	op,s1,s2,size
 	local	rm1,rm2
-rm1:	rep	movs size ptr es:[di],size ptr seg:[si]
+rm1:	rep	op size ptr s1:[di],size ptr s2:[si]
 	jcxz	rm2
 	jmp	rm1
 rm2:
