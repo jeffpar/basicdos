@@ -42,7 +42,7 @@ outperforms PC DOS in several respects.  More on that later.
 
 Like PC DOS, BASIC-DOS supports a FAT file system, **COM** and **EXE**
 executable formats, and many of the same PC DOS APIs, commands, and data
-structures, including DOS-compatible Program Segment Prefixes (PSPs) and
+structures, including Program Segment Prefixes (PSPs) and
 File Control Blocks (FCBs).
 
 However, compatibility is *not* the primary goal of BASIC-DOS.  The true
