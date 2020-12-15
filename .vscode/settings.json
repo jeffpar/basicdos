@@ -66,6 +66,7 @@
   "editor.smoothScrolling": true,
   "cSpell.words": [
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    "ABORT'ed",
     "ACCDENIED",
     "ADDLABEL",
     "ADDSTRING",
@@ -353,6 +354,7 @@
     "IFNB",
     "IFNDEF",
     "INCDATE",
+    "INDOS",
     "INFLUSH",
     "INLEN",
     "INPBUF",

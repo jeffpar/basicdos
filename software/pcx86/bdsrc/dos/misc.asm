@@ -370,6 +370,8 @@ msg1:	IF REG_CHECK
 	mov	[bp].REG_WS.RET_IP,offset dos_restart
 	mov	bx,[scb_active]
 	ASSERT	STRUCT,[bx],SCB
+	dec	[bx].SCB_INDOS
+	; ASSERT	GE
 ;
 ; At this point, we're effectively issuing an INT 23h (INT_DOSCTRLC), but it
 ; has to be simulated, because we're using the SCB CTRLC address rather than

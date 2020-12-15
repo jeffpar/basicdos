@@ -8,6 +8,7 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	include	macros.inc
+	include	8086.inc
 	include	bios.inc
 	include	dos.inc
 	include	dosapi.inc
@@ -30,7 +31,7 @@ DOS	segment word public 'CODE'
 	EXTBYTE	<scb_locked,def_switchar>
 	EXTWORD	<scb_active,scb_stoked>
 	EXTLONG	<scb_table>
-	EXTNEAR	<dos_exit,load_command,psp_term_exitcode>
+	EXTNEAR	<dos_check,dos_exit,load_command,psp_term_exitcode>
 	EXTNEAR	<sfh_add_ref,sfh_context,sfh_close>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -467,16 +468,13 @@ DEFPROC	scb_switch,DOS
 	ASSERT	STRUCT,[bx],SCB
 	mov	ss,[bx].SCB_STACK.SEG
 	mov	sp,[bx].SCB_STACK.OFF
-;
-; TODO: Finish support for the RESET bit.
-;
-	test	[bx].SCB_STATUS,SCSTAT_RESET
+	test	[bx].SCB_STATUS,SCSTAT_ABORT
 	jz	sw8
 sw7:	sti
-	and	[bx].SCB_STATUS,NOT SCSTAT_RESET
-	PRINTF	<"Reset request detected",13,10>
-	mov	ax,(EXTYPE_RESET SHL 8) OR 0FFh
-	call	psp_term_exitcode	; attempt reset
+	and	[bx].SCB_STATUS,NOT SCSTAT_ABORT
+	PRINTF	<"Abort key detected",13,10>
+	; mov	ax,(EXTYPE_RESET SHL 8) OR 0FFh
+	; call	psp_term_exitcode	; attempt reset
 
 sw8:	ASSERT	NC
 	jmp	dos_exit		; we let dos_exit turn interrupts on
@@ -501,6 +499,9 @@ DEFPROC	scb_wait,DOS
 	mov	bx,[scb_active]
 	ASSERT	STRUCT,[bx],SCB
 	ASSERT	Z,<cmp [bx].SCB_WAITID.SEG,0>
+	test	[bx].SCB_STATUS,SCSTAT_ABORT
+	stc				; if the ABORT bit is (still?) set
+	jnz	sw9			; then fail the wait
 	mov	[bx].SCB_WAITID.OFF,di
 	mov	[bx].SCB_WAITID.SEG,dx
 	sti
@@ -538,6 +539,51 @@ se2:	add	bx,size SCB
 se9:	sti
 	ret
 ENDPROC	scb_endwait
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; scb_abort
+;
+; Set the SCB's ABORT bit and clear any WAIT condition.
+;
+; Inputs:
+;	BX -> SCB
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None
+;
+DEFPROC	scb_abort,DOS
+	push	ax
+	push	dx
+	sub	ax,ax
+	cwd				; DX:AX = zero
+	cli
+	or	[bx].SCB_STATUS,SCSTAT_ABORT
+	xchg	ax,[bx].SCB_WAITID.OFF
+	xchg	dx,[bx].SCB_WAITID.SEG	; zero WAITID
+	or	ax,dx			; was it already zero?
+	jz	sa9			; yes
+	DBGBRK
+	push	ds
+	push	si
+	lds	si,[bx].SCB_STACK	; DS:SI -> SCB's stack
+	ASSUME	DS:NOTHING
+	IF REG_CHECK			; in DEBUG builds, skip the "marker"
+	ASSERT	Z,<cmp word ptr [si],offset dos_check>
+	add	si,2			; DS:SI -> REG_FRAME
+	ENDIF
+	or	[si].REG_FL,FL_CARRY	; force carry set on return from WAIT
+	pop	si
+	pop	ds
+	ASSUME	DS:DOS
+sa9:	sti
+	pop	dx
+	pop	ax
+	ret
+ENDPROC	scb_abort
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

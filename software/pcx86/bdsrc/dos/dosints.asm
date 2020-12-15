@@ -233,11 +233,17 @@ DEFPROC	dos_func,DOSFAR
 	ASSUME	DS:DOS
 	mov	es,bx
 	ASSUME	ES:DOS
+
+	mov	bx,[scb_active]
+	test	bx,bx
+	jz	dc0
+	ASSERT	STRUCT,[bx],SCB
+	inc	[bx].SCB_INDOS
 ;
 ; Utility functions don't automatically re-enable interrupts, clear carry,
 ; or check for CTRLC, since some of them are called from interrupt handlers.
 ;
-	cmp	ah,80h			; utility function?
+dc0:	cmp	ah,80h			; utility function?
 	jb	dc1			; no
 	sub	ah,80h
 	cmp	ah,UTILTBL_SIZE		; utility function within range?
@@ -245,30 +251,29 @@ DEFPROC	dos_func,DOSFAR
 	mov	bl,ah
 	add	bl,FUNCTBL_SIZE		; the utility function table
 	jmp	short dc3		; follows the DOS function table
-dc0:	jmp	msc_sigctrlc_read
 
 dc1:	sti
 	and	[bp].REG_FL,NOT FL_CARRY
 	cmp	ah,FUNCTBL_SIZE
 	cmc
-	jb	dc9
+	jb	dc8
 
 	IFDEF	MAXDEBUG
-	mov	bl,ah
+	push	ax
+	mov	al,ah
 ;
 ; %P is a special formatter that prints the caller's REG_CS:REG_IP-2 in hex;
 ; "#010" ensures it's printed with "0x" and 8 digits with leading zeroes.
 ;
-	DPRINTF	'd',<"%#010P: DOS function %02bxh\r\n">,bx
+	DPRINTF	'd',<"%#010P: DOS function %02bxh\r\n">,ax
+	pop	ax
 	ENDIF	; MAXDEBUG
 ;
 ; If CTRLC checking is enabled for all (non-utility) functions and a CTRLC
 ; was detected (two conditions that we check with a single compare), signal it.
 ;
-	mov	bx,[scb_active]
-	ASSERT	STRUCT,[bx],SCB
 	cmp	word ptr [bx].SCB_CTRLC_ALL,0101h
-	je	dc0			; signal CTRLC
+	je	dc9			; signal CTRLC
 	mov	bl,ah
 dc3:	mov	bh,0			; BX = function #
 	add	bx,bx			; convert function # to word offset
@@ -282,7 +287,7 @@ dc3:	mov	bh,0			; BX = function #
 ; We'd just as soon IRET to the caller (which also restores their D flag),
 ; so we now update FL_CARRY on the stack (which we already cleared on entry).
 ;
-dc9:	adc	[bp].REG_FL,0
+dc8:	adc	[bp].REG_FL,0
 
 	DEFLBL	dos_exit,near
 
@@ -290,6 +295,13 @@ dc9:	adc	[bp].REG_FL,0
 	pop	bp			; that we pushed above
 	ASSERT	Z,<cmp bp,offset dos_check>
 	ENDIF
+
+	mov	bx,[scb_active]
+	test	bx,bx
+	jz	dos_exit2
+	ASSERT	STRUCT,cs:[bx],SCB
+	dec	cs:[bx].SCB_INDOS
+	; ASSERT	GE
 
 	DEFLBL	dos_exit2,near
 
@@ -306,6 +318,8 @@ dc9:	adc	[bp].REG_FL,0
 	pop	ax
 	add	sp,size WS_TEMP
 	iret
+
+dc9:	jmp	msc_sigctrlc_read
 ENDPROC	dos_func
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

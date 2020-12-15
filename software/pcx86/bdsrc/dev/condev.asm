@@ -520,6 +520,9 @@ dcr1:	mov	ds,dx
 	ASSERT	STRUCT,ds:[0],CT
 	or	ds:[CT_STATUS],CTSTAT_INPUT
 	call	add_packet
+	jnc	dcr8
+	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_RDFAULT
+	jmp	short dcr9
 
 dcr8:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 
@@ -539,7 +542,7 @@ ENDPROC	ddcon_read
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_write
 	mov	cx,es:[di].DDPRW_LENGTH
-	jcxz	dcw9
+	jcxz	dcw8
 
 	lds	si,es:[di].DDPRW_ADDR
 	ASSUME	DS:NOTHING
@@ -550,7 +553,7 @@ DEFPROC	ddcon_write
 dcw1:	lodsb
 	call	write_char
 	loop	dcw1
-	jmp	short dcw9
+	jmp	short dcw8
 
 dcw2:	push	es
 	mov	es,dx
@@ -566,15 +569,17 @@ dcw3:	test	es:[CT_STATUS],CTSTAT_PAUSED
 	mov	es:[di].DDPRW_LENGTH,cx
 	mov	es:[di].DDPRW_ADDR.OFF,si
 	call	add_packet
-	jmp	dcw2			; when this returns, try writing again
+	jnc	dcw2			; if return is OK, try writing again
+	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_WRFAULT
+	jmp	short dcw9
 
 dcw4:	lodsb
 	call	write_context
 	loop	dcw3
 	pop	es
 
-dcw9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
-	ret
+dcw8:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+dcw9:	ret
 ENDPROC	ddcon_write
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1001,17 +1006,15 @@ i09g:	call	pull_kbd		; pull keyboard data
 i09h:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	DOSUTIL	ENDWAIT
-	ASSERT	NC
 ;
-; If ENDWAIT returns an error, that could be a problem.  In the past, it
-; was because we got ahead of the WAIT call.  One thought was to make the
-; driver's WAIT code more resilient, and double-check that the request had
-; really been satisfied, but I eventually resolved the race by making the
-; pull_kbd/add_packet/wait path atomic (ie, no interrupts).
+; If carry is set, ENDWAIT failed.  There are two cases: 1) the WAIT request
+; hasn't been set yet (ie, a race condition), and 2) the WAIT request was
+; aborted (nothing we can do about that).
 ;
-; TODO: Consider lighter-weight solutions to this race condition.
+; TODO: To avoid the potential race condition, the entire pull_kbd + add_packet
+; path disables interrupts.  Consider lighter-weight solutions.
 ;
-; Anyway, assuming no race conditions, proceed with the packet removal now.
+; In any case, proceed with the packet removal now.
 ;
 	cli
 	mov	ax,es:[di].DDP_PTR.OFF
@@ -1165,7 +1168,7 @@ ENDPROC	ddcon_int29
 ;	ES:DI -> DDP
 ;
 ; Outputs:
-;	None
+;	Carry clear UNLESS the wait has been ABORT'ed
 ;
 ; Modifies:
 ;	AX

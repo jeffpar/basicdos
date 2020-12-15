@@ -103,7 +103,7 @@ SCB_PARENT	dw	?	; 28h: SCB of parent, if any
 SCB_CTRLC_ALL	db	?	; 2Ah: 1 if CTRLC checking enabled on all calls
 SCB_CTRLC_ACT	db	?	; 2Bh: 1 if CTRLC active
 SCB_CTRLP_ACT	db	?	; 2Ch: 1 if CTRLP active
-		db	?	; 2Dh: padding
+SCB_INDOS	db	?	; 2Dh: DOS entrance count
 SCB_FILENAME	db     12 dup(?); 2Eh: buffer for drive # and filename
 SCB		ends		; 3Ah bytes (1Dh words)
 SIG_SCB		equ	'S'
@@ -111,7 +111,7 @@ SIG_SCB		equ	'S'
 SCSTAT_INIT	equ	01h	; set if SCB initialized
 SCSTAT_LOAD	equ	02h	; set if session has loaded a program
 SCSTAT_START	equ	04h	; set if session program can be started
-SCSTAT_RESET	equ	08h	; set if session reset (CTRL-ALT-DEL) requested
+SCSTAT_ABORT	equ	08h	; set if session abort (CTRL-ALT-DEL) signalled
 
 LOCK_SCB macro
 	inc	[scb_locked]

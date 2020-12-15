@@ -16,7 +16,7 @@
 DOS	segment word public 'CODE'
 
 	EXTNEAR	<chk_devname,dev_request>
-	EXTNEAR	<scb_load,scb_start,scb_stop,scb_end,scb_waitend>
+	EXTNEAR	<scb_load,scb_start,scb_stop,scb_end,scb_waitend,scb_abort>
 	EXTNEAR	<scb_yield,scb_release,scb_wait,scb_endwait>
 	EXTNEAR	<mem_query,msc_getdate,msc_gettime>
 	EXTNEAR	<psp_term_exitcode>
@@ -219,9 +219,10 @@ ENDPROC	utl_sleep
 ;	REG_DX:REG_DI == wait ID
 ;
 ; Outputs:
-;	None
+;	Carry clear UNLESS the wait has been ABORT'ed
 ;
 DEFPROC	utl_wait,DOS
+	and	[bp].REG_FL,NOT FL_CARRY
 	jmp	scb_wait
 ENDPROC	utl_wait
 
@@ -280,7 +281,7 @@ hk3:	cmp	al,CHR_CTRLP
 	xor	[bx].SCB_CTRLP_ACT,1
 hk4:	cmp	al,CHR_CTRLD
 	jne	hk9
-	or	[bx].SCB_STATUS,SCSTAT_RESET
+	; call	scb_abort
 hk8:	add	bx,size SCB		; advance to the next SCB
 	cmp	bx,[scb_table].SEG
 	jb	hk1
