@@ -223,6 +223,23 @@ si5a:	mov	dx,size SCB
 	mov	bx,offset scb_table
 	call	init_table		; initialize table, update ES
 ;
+; Initialize all the SCBs, by assigning them unique SCB_NUM values and
+; setting their default CON/AUX/PRN system file handles to SFH_NONE (-1).
+;
+	mov	ax,SFH_NONE SHL 8	; AL = 0, AH = SFH_NONE
+	cwd				; DL = SFH_NONE, DH = SFH_NONE
+	mov	bx,[scb_table].OFF
+	mov	[scb_active],bx		; make the first SCB active
+si5b:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHIN>
+	mov	word ptr [bx].SCB_NUM,ax
+	mov	word ptr [bx].SCB_SFHOUT,dx
+	mov	word ptr [bx].SCB_SFHAUX,dx
+	DBGINIT	STRUCT,[bx],SCB
+	inc	ax
+	add	bx,size SCB
+	cmp	bx,[scb_table].SEG
+	jb	si5b
+;
 ; The next resident table (bpb_table) contains all the system BPBs.
 ;
 	sub	ax,ax
@@ -378,25 +395,6 @@ si7a:	mov	dx,size SFB
 	ASSUME	ES:DOS
 	mov	es:[mcb_head],bx
 ;
-; Pre-initialize all the SCBs, by assigning them unique SCB_NUM values
-; and setting their default CON/AUX/PRN system file handles to SFH_NONE (-1).
-;
-	mov	ah,SFH_NONE
-	dec	cx			; CL,CH = SFH_NONE
-	mov	bx,es:[scb_table].OFF
-	mov	es:[scb_active],bx	; make the first SCB active
-	push	bx			; initialize the SCBs
-si7b:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHIN>
-	mov	word ptr es:[bx].SCB_NUM,ax
-	mov	word ptr es:[bx].SCB_SFHOUT,cx
-	mov	word ptr es:[bx].SCB_SFHAUX,cx
-	DBGINIT	STRUCT,es:[bx],SCB
-	inc	ax
-	add	bx,size SCB
-	cmp	bx,es:[scb_table].SEG
-	jb	si7b
-	pop	bx
-;
 ; Before we create any sessions (and our first PSPs), we need to open all the
 ; devices required for the 5 STD handles.  And we open AUX first, purely for
 ; historical reasons (by opening AUX first, CON second, and PRN third, the SFHs
@@ -411,6 +409,7 @@ si7b:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHIN>
 	mov	ax,DOS_HDL_OPENRW
 	int	21h
 	jc	open_error
+	mov	bx,es:[scb_active]	; BX -> SCB
 	mov	es:[bx].SCB_SFHAUX,al
 	mov	cl,al			; CL = SFH for AUX
 ;

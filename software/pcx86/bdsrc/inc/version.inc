@@ -9,7 +9,7 @@
 ;
 
 VERSION_MAJOR	equ	0
-VERSION_MINOR	equ	25
+VERSION_MINOR	equ	26
 VERSION_REV	equ	0	; 0 for no rev, 1 for rev A, 2 for rev B, etc.
 
 VERSION_STR	macro

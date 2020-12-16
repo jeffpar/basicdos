@@ -212,11 +212,13 @@ px1:	dec	bx			; restore BX pointer to EPB
 	jne	px3			; no
 ;
 ; This was a DOS_PSP_EXEC call, and unlike scb_load, it's a synchronous
-; exec, meaning we launch the program directly from this call.
+; operation, meaning we launch the program directly from this call.
 ;
 px2:	cli
 	mov	ss,dx			; switch to the new program's stack
 	mov	sp,ax
+	mov	bx,[scb_active]
+	inc	cs:[bx].SCB_INDOS
 	jmp	dos_exit		; and let dos_exit turn interrupts on
 ;
 ; This is a DOS_PSP_EXEC1 call: an undocumented call that only loads the
