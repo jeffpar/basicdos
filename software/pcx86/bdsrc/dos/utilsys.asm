@@ -281,7 +281,7 @@ hk3:	cmp	al,CHR_CTRLP
 	xor	[bx].SCB_CTRLP_ACT,1
 hk4:	cmp	al,CHR_CTRLD
 	jne	hk9
-	; call	scb_abort
+	call	scb_abort
 hk8:	add	bx,size SCB		; advance to the next SCB
 	cmp	bx,[scb_table].SEG
 	jb	hk1

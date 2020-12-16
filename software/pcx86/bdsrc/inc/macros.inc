@@ -339,9 +339,13 @@ ERROR	macro	msg
 
 ;
 ; In DEBUG builds only, "DBGINIT STRUCT" initializes a signature byte in the
-; specified structure; then you can use the "ASSERT STRUCT" form of the ASSERT
-; macro to include assertion checks to verify that the specified pointer
-; actually points to a structure of the specified type.
+; specified structure; eg:
+;
+;	DBGINIT	STRUCT,es:[bx],SCB
+;
+; then you can use the "ASSERT STRUCT" form of the ASSERT macro to include
+; assertion checks to verify that the specified pointer actually points to a
+; structure of the specified type.
 ;
 ; The macros use the word "STRUCT" rather than "STRUC" to avoid confusing MASM.
 ;
@@ -357,7 +361,7 @@ DBGINIT	macro	type,ptr,str
 
 ;
 ; ASSERT generates assembly-time assertions when all three parameters
-; are used; eg:
+; are used (and the first parameter is not "STRUCT"); eg:
 ;
 ;	ASSERT	<((SIZE CMDHEAP) AND 1)>,EQ,0
 ;
@@ -372,8 +376,8 @@ DBGINIT	macro	type,ptr,str
 ;	ASSERT	Z		; assert that Z is set
 ;	ASSERT	Z,<test dx,dx>	; assert that DX is zero
 ;
-; Run-time assertions are present only in DEBUG builds, and are wrapped with
-; PUSHF/POPF if an optional instruction is used.
+; Run-time assertions are present only in DEBUG builds, and any optional
+; instruction is wrapped with PUSHF/POPF.
 ;
 ASSERT	macro	cond,op,value
 	IFNB	<value>
@@ -563,8 +567,9 @@ CCALL	macro	func,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 ; With the exception of OP_ASSERT, these operations should have no effect
 ; in a non-PCjs environment (or on a real machine), since BASIC-DOS system
 ; initialization installs an INT_UD handler to deal with them.  And if you
-; somehow run a DEBUG binary on a non-DEBUG system, INT_UD will still be
-; set to an IRET, so the binaries should still run, albeit with side-effects.
+; somehow run a DEBUG binary on a non-DEBUG system, INT_UD will still be set
+; to an IRET, so the binaries should still run, although the byte following
+; INT may cause side-effects.
 ;
 OP_DBGBRK	equ	0CCh		; signal an internal breakpoint
 OP_ASSERT	equ	0F9h		; signal an assertion failure

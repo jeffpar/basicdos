@@ -614,6 +614,7 @@ si20:	add	sp,size SPB		; free SPB on the stack
 	mov	[scb_active],bx		; make it active (for consistency)
 	mov	ss,[bx].SCB_STACK.SEG
 	mov	sp,[bx].SCB_STACK.OFF
+	inc	[bx].SCB_INDOS
 	push	ds
 	mov	ax,offset dos_exit
 	push	ax

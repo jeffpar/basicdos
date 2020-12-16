@@ -297,7 +297,30 @@ dc8:	adc	[bp].REG_FL,0
 	mov	bx,[scb_active]
 	ASSERT	STRUCT,cs:[bx],SCB
 	dec	cs:[bx].SCB_INDOS
-	; ASSERT	GE
+	ASSERT	GE
+	jnz	dos_exit2
+;
+; Whenever the session's INDOS count returns to zero, check for a pending
+; SCSTAT_ABORT, and self-terminate the current process.
+;
+	test	cs:[bx].SCB_STATUS,SCSTAT_ABORT
+	jz	dos_exit2
+	DBGBRK
+	and	cs:[bx].SCB_STATUS,NOT SCSTAT_ABORT
+	mov	ax,cs:[bx].SCB_PSP
+	mov	[bp].REG_WS.JMP_CS,ax
+	mov	[bp].REG_WS.JMP_IP,0
+	pop	bp
+	pop	di
+	pop	es
+	pop	si
+	pop	ds
+	pop	dx
+	pop	cx
+	pop	bx
+	pop	ax
+	add	sp,size WS_TEMP - 4
+	ret
 
 	DEFLBL	dos_exit2,near
 

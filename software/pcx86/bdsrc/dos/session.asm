@@ -107,6 +107,7 @@ DEFPROC	scb_load,DOS
 	mov	[bx].SCB_STACK.OFF,ax	; DX:AX == initial stack
 	mov	[bx].SCB_STACK.SEG,dx
 	or	[bx].SCB_STATUS,SCSTAT_LOAD
+	inc	[bx].SCB_INDOS
 	mov	al,[bx].SCB_NUM
 	mov	[bp].REG_CL,al		; REG_CL = session (SCB) #
 	inc	cx			; was ENVSEG -1?
@@ -500,8 +501,8 @@ DEFPROC	scb_wait,DOS
 	ASSERT	STRUCT,[bx],SCB
 	ASSERT	Z,<cmp [bx].SCB_WAITID.SEG,0>
 	test	[bx].SCB_STATUS,SCSTAT_ABORT
-	stc				; if the ABORT bit is (still?) set
-	jnz	sw9			; then fail the wait
+	stc				; as long as the ABORT bit is set
+	jnz	sw9			; fail the wait
 	mov	[bx].SCB_WAITID.OFF,di
 	mov	[bx].SCB_WAITID.SEG,dx
 	sti
@@ -566,6 +567,8 @@ DEFPROC	scb_abort,DOS
 	xchg	dx,[bx].SCB_WAITID.SEG	; zero WAITID
 	or	ax,dx			; was it already zero?
 	jz	sa9			; yes
+	cmp	bx,[scb_active]		; are we in the context of the SCB?
+	je	sa9			; yes, we must unwind normally
 	DBGBRK
 	push	ds
 	push	si
