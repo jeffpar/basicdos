@@ -87,7 +87,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<utl_tokify,utl_tokid,utl_parsesw>
 	EXTNEAR	<utl_getdev,utl_getcsn,utl_load,utl_start,utl_stop,utl_end>
 	EXTNEAR	<utl_waitend,utl_yield,utl_sleep,utl_wait,utl_endwait>
-	EXTNEAR	<utl_hotkey,utl_lock,utl_unlock,utl_qrymem,utl_abort>
+	EXTNEAR	<utl_hotkey,utl_lock,utl_unlock,utl_qrymem,utl_term>
 	EXTNEAR	<utl_getdate,utl_gettime,utl_incdate,utl_editln,utl_restart>
 	EXTNEAR	<func_none>
 
@@ -124,7 +124,7 @@ DOS	segment word public 'CODE'
 	dw	utl_getcsn,  func_none,   utl_load,    utl_start	;10h-13h
 	dw	utl_stop,    utl_end,     utl_waitend, utl_yield	;14h-17h
 	dw	utl_sleep,   utl_wait,    utl_endwait, utl_hotkey	;18h-1Bh
-	dw	utl_lock,    utl_unlock,  utl_qrymem,  utl_abort	;1Ch-1Fh
+	dw	utl_lock,    utl_unlock,  utl_qrymem,  utl_term		;1Ch-1Fh
 	dw	utl_getdate, utl_gettime, utl_incdate, utl_editln	;20h-23h
 	dw	utl_strlen,  utl_restart				;24h-25h
 	DEFABS	UTILTBL_SIZE,<($ - UTILTBL) SHR 1>

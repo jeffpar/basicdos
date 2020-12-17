@@ -118,6 +118,7 @@ SIG_CT		equ	'C'
 CTSTAT_BORDER	equ	01h	; context has border
 CTSTAT_ADAPTER	equ	02h	; context is using alternate adapter
 CTSTAT_SKIPMODE	equ	04h	; set to skip the mode set for the adapter
+CTSTAT_ABORT	equ	08h	; ABORT condition detected
 CTSTAT_INPUT	equ	40h	; context is waiting for input
 CTSTAT_PAUSED	equ	80h	; context is paused (triggered by CTRLS hotkey)
 
@@ -681,7 +682,7 @@ dco1a:	mov	ds,ax
 ;
 ; Inserting the new context at the head of the chain (ct_head) is the
 ; simplest way to update the chain, but we prefer to chain the contexts
-; in the order they were created, for more natural context switching.
+; in the order they were created, to provide more natural focus cycling.
 ;
 ;	xchg	[ct_head],ax
 ;	mov	ds:[CT_NEXT],ax
@@ -852,7 +853,7 @@ dcc1:	cmp	[ct_focus],cx
 	call	switch_focus
 	ASSERT	NZ,<cmp [ct_focus],cx>
 ;
-; Remove the context from our chain
+; Remove the context from our chain.
 ;
 dcc2:	push	ds
 	xchg	ax,cx			; AX = context to free
@@ -874,7 +875,7 @@ dcc4:	mov	cx,es:[CT_NEXT]		; move this context's CT_NEXT
 	pop	ds
 	ASSUME	DS:CODE
 ;
-; We are now free to free the context segment in ES
+; We are now free to free the context segment in ES.
 ;
 	mov	ah,DOS_MEM_FREE
 	int	INT_DOSFUNC
@@ -940,13 +941,17 @@ DEFPROC	ddcon_int09,far
 ; without rebooting the machine.
 ;
 	push	cx
-	push	dx
 	mov	cx,[ct_focus]		; CX = context
+	jcxz	i09
+	push	dx
 	mov	dx,CHR_CTRLD		; DL = char code, DH = scan code
 	DOSUTIL	HOTKEY			; notify DOS
 	and	ds:[KB_FLAG],NOT CTL_SHIFT
+	mov	ds,cx
+	ASSERT	STRUCT,ds:[0],CT
+	or	ds:[CT_STATUS],CTSTAT_ABORT
 	pop	dx
-	pop	cx
+i09:	pop	cx
 i09a:	pop	ds
 i09b:	pop	ax
 	clc
@@ -991,7 +996,7 @@ i09f:	cmp	di,-1			; end of chain?
 	je	i09g			; yes, look for keyboard data
 ;
 ; For WRITE packets (which we'll assume this is for now), we need to end the
-; wait if the context is no longer paused (ie, check_hotkey may have unpaused).
+; wait if the context is no longer paused (ie, if check_hotkey cleared PAUSED).
 ;
 	ASSERT	STRUCT,ds:[0],CT
 	test	ds:[CT_STATUS],CTSTAT_PAUSED
@@ -999,7 +1004,9 @@ i09f:	cmp	di,-1			; end of chain?
 	jmp	short i09i		; still paused, check next packet
 
 i09g:	call	pull_kbd		; pull keyboard data
-	jc	i09i			; not enough data, check next packet
+	jnc	i09h
+	test	ds:[CT_STATUS],CTSTAT_ABORT
+	jz	i09i			; not enough data, and no ABORT pending
 ;
 ; Notify DOS that this packet is done waiting.
 ;
@@ -1008,13 +1015,13 @@ i09h:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	DOSUTIL	ENDWAIT
 ;
 ; If carry is set, ENDWAIT failed.  There are two cases: 1) the WAIT request
-; hasn't been set yet (ie, a race condition), and 2) the WAIT request was
+; hasn't been set yet (eg, a race condition), and 2) the WAIT request was
 ; aborted (nothing we can do about that).
 ;
 ; TODO: To avoid the potential race condition, the entire pull_kbd + add_packet
 ; path disables interrupts.  Consider lighter-weight solutions.
 ;
-; In any case, proceed with the packet removal now.
+; In any case, proceed with packet removal now.
 ;
 	cli
 	mov	ax,es:[di].DDP_PTR.OFF
@@ -1032,7 +1039,9 @@ i09i:	lea	bx,[di].DDP_PTR		; update prev addr ptr in CX:BX
 	les	di,es:[di].DDP_PTR
 	jmp	i09f
 
-i09w:	pop	es
+i09w:	ASSERT	STRUCT,ds:[0],CT
+	and	ds:[CT_STATUS],NOT CTSTAT_ABORT
+	pop	es
 	pop	ds
 	pop	di
 	pop	dx
@@ -1166,7 +1175,7 @@ ENDPROC	ddcon_int29
 ;
 ; Inputs:
 ;	ES:DI -> DDP
-;
+;b4
 ; Outputs:
 ;	Carry clear UNLESS the wait has been ABORT'ed
 ;

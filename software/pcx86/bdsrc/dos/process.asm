@@ -96,7 +96,7 @@ pt1:	push	ax			; save exit code/type on stack
 	jc	pt7
 	jmp	scb_yield		; and call scb_yield with AX = zero
 	ASSERT	NEVER
-pt7:	jmp	short pt9
+pt7:	ret
 
 pt8:	mov	es,ax			; ES = PSP of parent
 	pop	dx
@@ -122,8 +122,6 @@ pt8:	mov	es,ax			; ES = PSP of parent
 	mov	[bp].REG_CS,cx		; (normally they will be identical)
 	mov	word ptr [bp].REG_FL,FL_DEFAULT
 	jmp	dos_exit2		; let dos_exit turn interrupts back on
-
-pt9:	ret
 ENDPROC	psp_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -414,7 +412,7 @@ pc1:	lodsb
 	mov	cl,(size PSP - PSP_ENVSEG) SHR 1
 	sub	ax,ax
 	rep	stosw			; zero the rest of the PSP
-	mov	di,PSP_DISPATCH
+	mov	di,PSP_DOSCALL
 	mov	ax,OP_INT21
 	stosw
 	mov	al,OP_RETF
@@ -1246,13 +1244,13 @@ DEFPROC	psp_setmem,DOS
 	mov	es:[MCB_OWNER],dx	; set MCB owner to PSP
 ps1:	mov	es,dx
 	sub	di,di			; start building the new PSP at ES:0
-	mov	ax,20CDh
+	mov	ax,OP_INT20
 	stosw				; 00h: PSP_EXIT
 	xchg	ax,bx
 	stosw				; 02h: PSP_PARAS (ie, memory limit)
 	xchg	bx,ax			; save PSP_PARAS in BX
 	call	scb_getnum		; 04h: SCB #
-	mov	ah,9Ah			; 05h: PSP_FARCALL (9Ah)
+	mov	ah,OP_CALLF		; 05h: PSP_CALL5 far call opcode (9Ah)
 	stosw
 	sub	bx,dx			; BX = PSP_PARAS - PSP segment
 	sub	ax,ax			; default to 64K

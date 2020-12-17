@@ -358,7 +358,7 @@ ENDPROC	utl_qrymem
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_abort (AH = 1Fh)
+; utl_term (AH = 1Fh)
 ;
 ; Inputs:
 ;	REG_DL = exit code
@@ -367,10 +367,10 @@ ENDPROC	utl_qrymem
 ; Outputs:
 ;	None
 ;
-DEFPROC	utl_abort,DOS
+DEFPROC	utl_term,DOS
 	xchg	ax,dx			; AL = exit code, AH = exit type
 	jmp	psp_term_exitcode
-ENDPROC	utl_abort
+ENDPROC	utl_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

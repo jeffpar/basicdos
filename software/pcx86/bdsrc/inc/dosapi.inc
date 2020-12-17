@@ -131,7 +131,7 @@ DOS_UTL_HOTKEY	equ	1Bh	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
 DOS_UTL_LOCK	equ	1Ch	; lock current session
 DOS_UTL_UNLOCK	equ	1Dh	; unlock current session
 DOS_UTL_QRYMEM	equ	1Eh	; query memory block N (CL)
-DOS_UTL_ABORT	equ	1Fh	; abort with exit code (DL) and exit type (DH)
+DOS_UTL_TERM	equ	1Fh	; terminate with exit code (DL) and type (DH)
 DOS_UTL_GETDATE	equ	20h	; get date (AX) in "packed" format
 DOS_UTL_GETTIME	equ	21h	; get time (AX) in "packed" format
 DOS_UTL_INCDATE	equ	22h	; increment date (CX=year, DH=month, DL=day)
@@ -233,10 +233,10 @@ CRERR_FAIL	equ	3	; fail the system call in progress
 ; Program Segment Prefix (PSP)
 ;
 PSP		struc
-PSP_ABORT	dw	?	; 00h: INT 20h
+PSP_TERMCALL	dw	?	; 00h: INT 20h terminate call
 PSP_PARAS	dw	?	; 02h: paragraphs available
 PSP_SCB		db	?	; 04h: BASIC-DOS: session #
-PSP_FARCALL	db	?	; 05h: far call (9Ah)
+PSP_CALL5	db	?	; 05h: far call (9Ah)
 PSP_SIZE	dw	?	; 06h: size of PSP segment
 PSP_FCSEG	dw	?	; 08h: far call segment
 PSP_EXRET	dd	?	; 0Ah: original INT 22h vector
@@ -258,7 +258,7 @@ PSP_HEAP	dw	?	; 4Ah: BASIC-DOS: heap offset (see COMHEAP)
 		dw	?	; 4Ch
 PSP_EXCODE	db	?	; 4Eh: BASIC-DOS: exit code, if any
 PSP_EXTYPE	db	?	; 4Fh: BASIC-DOS: exit type (see EXTYPE_*)
-PSP_DISPATCH	db	3 dup(?); 50h: INT 21h/RETF
+PSP_DOSCALL	db	3 dup(?); 50h: INT 21h/RETF
 		db	3 dup(?); 53h: unused
 PSP_DIGITS	dw	?	; 56h: digit switches (see DOS_UTL_PARSESW)
 PSP_LETTERS	dd	?	; 58h: letters switches (see DOS_UTL_PARSESW)
@@ -305,7 +305,7 @@ EXTYPE_ERROR	equ	2	; critical error termination
 EXTYPE_KEEP	equ	3	; INT 21h AH=31h (keep process)
 EXTYPE_DVERR	equ	4	; BASIC-DOS: divide error
 EXTYPE_OVERR	equ	5	; BASIC-DOS: overflow error
-EXTYPE_RESET	equ	6	; BASIC-DOS: reset (via CTRL-ALT-DEL)
+EXTYPE_ABORT	equ	6	; BASIC-DOS: abort session (via CTRL-ALT-DEL)
 
 ;
 ; Find File Block (FFB)

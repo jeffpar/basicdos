@@ -387,14 +387,14 @@ ENDPROC	scb_waitend
 ;	1) A DOSUTIL YIELD request
 ;	2) A DOSUTIL WAIT request
 ;
-; In the first case, we want to return if no other SCB is ready; this
-; is important when we're called from an interrupt handler.
+; In the first case, we want to return if no other SCB is ready; this is
+; important when we're called from an interrupt handler.
 ;
-; In the second case, we never return; at best, we will simply switch to the
-; current SCB when its wait condition is satisfied.
+; In the second case, we never return; we will simply switch to the first
+; SCB we find whose wait condition is satisfied.
 ;
 ; Inputs:
-;	AX = scb_active when called from DOSUTIL YIELD, zero otherwise
+;	AX = active SCB when called from DOSUTIL YIELD, zero if DOSUTIL WAIT
 ;
 ; Modifies:
 ;	BX, DX
@@ -405,19 +405,18 @@ DEFPROC	scb_yield,DOS
 	test	ax,ax			; is this yield due to a WAIT?
 	jnz	sy1			; no
 	mov	bx,[scb_active]		; yes, spin until we find an SCB
-sy1:	ASSERT	STRUCT,[bx],SCB
-	add	bx,size SCB
+sy1:	add	bx,size SCB
 	cmp	bx,[scb_table].SEG
-	jb	sy3
-sy2:	mov	bx,[scb_table].OFF
-sy3:	cmp	bx,ax			; have we looped to where we started?
+	jb	sy2
+	mov	bx,[scb_table].OFF
+sy2:	ASSERT	STRUCT,[bx],SCB
+	cmp	bx,ax			; have we returned to active SCB?
 	je	sy9			; yes
 	test	[bx].SCB_STATUS,SCSTAT_START
-	jz	sy1			; ignore this SCB, hasn't been started
-	ASSERT	STRUCT,[bx],SCB
+	jz	sy1			; ignore this SCB, hasn't started
 	mov	dx,[bx].SCB_WAITID.OFF
 	or	dx,[bx].SCB_WAITID.SEG
-	jnz	sy1
+	jnz	sy1			; ignore this SCB, it's still waiting
 	inc	[scb_locked]
 	jz	scb_switch		; we were not already locked, so switch
 	test	ax,ax			; yield?
@@ -439,14 +438,12 @@ ENDPROC	scb_yield
 ;
 ; The kinds of apps we ultimately want to support in BASIC-DOS sessions will
 ; determine whether we need to adopt additional measures, such as "swapping"
-; global data (eg, BIOS data) in or out of the SCB.
+; global (eg, BIOS) data in or out of the SCB.
 ;
-; Our CONSOLE driver is a good example.  For now, it performs some minor BIOS
-; updates on the relatively infrequent "focus" switches that can occur between
-; contexts on different video adapters, but if that proves to be ineffective,
-; we may need to perform session-switch notifications to the drivers, so that
-; they can do their own "state swapping" every time we're about to switch to a
-; new SCB.
+; Our CONSOLE driver is a good example.  It already performs some BIOS updates
+; on INT 10h operations, but if that proves to be insufficient, we may need to
+; provide session-switch notifications to the drivers, so that they can do
+; their own "state swapping" every time we're about to switch to a new session.
 ;
 ; The incentives for avoiding that are high, because these switches will become
 ; very expensive, and IBM PCs are not all that fast.
@@ -458,7 +455,7 @@ DEFPROC	scb_switch,DOS
 	cli
 	dec	[scb_locked]
 	cmp	bx,[scb_active]		; is this SCB already active?
-	je	sw9			; yes
+	je	sw7			; yes
 	mov	ax,bx
 	xchg	bx,[scb_active]		; BX -> previous SCB
 	ASSERT	STRUCT,[bx],SCB
@@ -469,16 +466,11 @@ DEFPROC	scb_switch,DOS
 	ASSERT	STRUCT,[bx],SCB
 	mov	ss,[bx].SCB_STACK.SEG
 	mov	sp,[bx].SCB_STACK.OFF
-	test	[bx].SCB_STATUS,SCSTAT_ABORT
-	jz	sw8
-sw7:	sti
-	and	[bx].SCB_STATUS,NOT SCSTAT_ABORT
-	PRINTF	<"Abort key detected",13,10>
-	; mov	ax,(EXTYPE_RESET SHL 8) OR 0FFh
-	; call	psp_term_exitcode	; attempt reset
-
-sw8:	ASSERT	NC
+	ASSERT	NC
 	jmp	dos_exit		; we let dos_exit turn interrupts on
+sw7:	test	[bx].SCB_STATUS,SCSTAT_ABORT
+	jz	sw9
+sw8:	stc
 sw9:	sti
 	ret
 ENDPROC	scb_switch
@@ -501,8 +493,7 @@ DEFPROC	scb_wait,DOS
 	ASSERT	STRUCT,[bx],SCB
 	ASSERT	Z,<cmp [bx].SCB_WAITID.SEG,0>
 	test	[bx].SCB_STATUS,SCSTAT_ABORT
-	stc				; as long as the ABORT bit is set
-	jnz	sw9			; fail the wait
+	jnz	sw8			; fail the wait if ABORT is set
 	mov	[bx].SCB_WAITID.OFF,di
 	mov	[bx].SCB_WAITID.SEG,dx
 	sti
@@ -545,7 +536,8 @@ ENDPROC	scb_endwait
 ;
 ; scb_abort
 ;
-; Set the SCB's ABORT bit and clear any WAIT condition.
+; Sets the SCB's ABORT bit and clears any WAIT condition.  Called on ABORT
+; "hot key" notifications.
 ;
 ; Inputs:
 ;	BX -> SCB
@@ -567,21 +559,19 @@ DEFPROC	scb_abort,DOS
 	xchg	dx,[bx].SCB_WAITID.SEG	; zero WAITID
 	or	ax,dx			; was it already zero?
 	jz	sa9			; yes
-	cmp	bx,[scb_active]		; are we in the context of the SCB?
-	je	sa9			; yes, we must unwind normally
-	DBGBRK
-	push	ds
-	push	si
-	lds	si,[bx].SCB_STACK	; DS:SI -> SCB's stack
-	ASSUME	DS:NOTHING
-	IF REG_CHECK			; in DEBUG builds, skip the "marker"
-	ASSERT	Z,<cmp word ptr [si],offset dos_check>
-	add	si,2			; DS:SI -> REG_FRAME
-	ENDIF
-	or	[si].REG_FL,FL_CARRY	; force carry set on return from WAIT
-	pop	si
-	pop	ds
-	ASSUME	DS:DOS
+	; DBGBRK
+	; push	ds
+	; push	si
+	; lds	si,[bx].SCB_STACK	; DS:SI -> SCB's stack
+	; ASSUME	DS:NOTHING
+	; IF REG_CHECK			; in DEBUG builds, skip the "marker"
+	; ASSERT	Z,<cmp word ptr [si],offset dos_check>
+	; add	si,2			; DS:SI -> REG_FRAME
+	; ENDIF
+	; or	[si].REG_FL,FL_CARRY	; force carry set on return from WAIT
+	; pop	si
+	; pop	ds
+	; ASSUME	DS:DOS
 sa9:	sti
 	pop	dx
 	pop	ax

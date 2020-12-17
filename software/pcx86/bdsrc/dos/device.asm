@@ -19,9 +19,6 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<copy_name>
 	EXTWORD	<scb_active>
 	EXTLONG	<bpb_table>
-	IF REG_CHECK
-	EXTNEAR	<dos_check>
-	ENDIF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

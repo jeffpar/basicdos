@@ -190,7 +190,7 @@ DEFPROC	dos_restart,DOSFAR
 	DEFLBL	dos_abort,near
 	mov	al,0FFh			; AL = exit code
 	xchg	dx,ax			; DL = exit code, DH = exit type
-	DOSUTIL	ABORT
+	DOSUTIL	TERM
 	ASSERT	NEVER			; assert that we never get here
 ENDPROC dos_restart
 
@@ -220,7 +220,7 @@ DEFPROC	dos_func,DOSFAR
 	push	bp
 	mov	bp,sp
 
-	IF REG_CHECK			; in DEBUG builds, use CALL to push
+dc0:	IF REG_CHECK			; in DEBUG builds, use CALL to push
 	call	dos_check		; a marker ("dos_check") onto the stack
 	DEFLBL	dos_check,near		; which REG_CHECK checks will verify
 	ENDIF
@@ -241,20 +241,20 @@ DEFPROC	dos_func,DOSFAR
 ; Utility functions don't automatically re-enable interrupts, clear carry,
 ; or check for CTRLC, since some of them are called from interrupt handlers.
 ;
-dc0:	cmp	ah,80h			; utility function?
+	cmp	ah,80h			; utility function?
 	jb	dc1			; no
 	sub	ah,80h
 	cmp	ah,UTILTBL_SIZE		; utility function within range?
 	jae	dos_exit		; no
 	mov	bl,ah
 	add	bl,FUNCTBL_SIZE		; the utility function table
-	jmp	short dc3		; follows the DOS function table
+	jmp	short dc2		; follows the DOS function table
 
 dc1:	sti
 	and	[bp].REG_FL,NOT FL_CARRY
 	cmp	ah,FUNCTBL_SIZE
 	cmc
-	jb	dc8
+	jb	dc3
 
 	IFDEF	MAXDEBUG
 	push	ax
@@ -271,9 +271,9 @@ dc1:	sti
 ; was detected (two conditions that we check with a single compare), signal it.
 ;
 	cmp	word ptr [bx].SCB_CTRLC_ALL,0101h
-	je	dc9			; signal CTRLC
+	je	dc4			; signal CTRLC
 	mov	bl,ah
-dc3:	mov	bh,0			; BX = function #
+dc2:	mov	bh,0			; BX = function #
 	add	bx,bx			; convert function # to word offset
 ;
 ; For convenience, general-purpose registers AX, CX, DX, SI, DI, and SS
@@ -285,45 +285,38 @@ dc3:	mov	bh,0			; BX = function #
 ; We'd just as soon IRET to the caller (which also restores their D flag),
 ; so we now update FL_CARRY on the stack (which we already cleared on entry).
 ;
-dc8:	adc	[bp].REG_FL,0
+dc3:	adc	[bp].REG_FL,0
 
 	DEFLBL	dos_exit,near
-
 	IF REG_CHECK			; in DEBUG builds, check the "marker"
-	pop	bp			; that we pushed above
-	ASSERT	Z,<cmp bp,offset dos_check>
+	pop	bx			; that we pushed on entry
+	ASSERT	Z,<cmp bx,offset dos_check>
 	ENDIF
-
+;
+; Whenever the session's INDOS count returns to zero, check for a pending
+; SCSTAT_ABORT; if set, clear it, and simulate a DOSUTIL TERM session abort.
+;
 	mov	bx,[scb_active]
 	ASSERT	STRUCT,cs:[bx],SCB
 	dec	cs:[bx].SCB_INDOS
 	ASSERT	GE
 	jnz	dos_exit2
-;
-; Whenever the session's INDOS count returns to zero, check for a pending
-; SCSTAT_ABORT, and self-terminate the current process.
-;
 	test	cs:[bx].SCB_STATUS,SCSTAT_ABORT
 	jz	dos_exit2
-	DBGBRK
 	and	cs:[bx].SCB_STATUS,NOT SCSTAT_ABORT
-	mov	ax,cs:[bx].SCB_PSP
-	mov	[bp].REG_WS.JMP_CS,ax
-	mov	[bp].REG_WS.JMP_IP,0
-	pop	bp
-	pop	di
-	pop	es
-	pop	si
-	pop	ds
-	pop	dx
-	pop	cx
-	pop	bx
-	pop	ax
-	add	sp,size WS_TEMP - 4
-	ret
+;
+; WARNING: This simulation of DOSUTIL TERM takes a shortcut by not updating
+; REG_AH or REG_DX in REG_FRAME, but neither utl_term nor psp_term_exitcode
+; rely on REG_FRAME for their inputs, so while this is not completely kosher,
+; we'll be fine.
+;
+	mov	dx,(EXTYPE_ABORT SHL 8) OR 0FFh
+	mov	ah,DOS_UTL_TERM + 80h
+	jmp	dc0
+
+dc4:	jmp	msc_sigctrlc_read
 
 	DEFLBL	dos_exit2,near
-
 	pop	bp
 	pop	di
 	pop	es
@@ -337,8 +330,6 @@ dc8:	adc	[bp].REG_FL,0
 	pop	ax
 	add	sp,size WS_TEMP
 	iret
-
-dc9:	jmp	msc_sigctrlc_read
 ENDPROC	dos_func
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

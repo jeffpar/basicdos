@@ -74,6 +74,7 @@ OP_CLD		equ	0FCh
 OP_STD		equ	0FDh
 
 OP_INT06	equ	006CDh		; INT 06h
+OP_INT20	equ	020CDh		; INT 20h
 OP_INT21	equ	021CDh		; INT 21h
 OP_POP_BP8	equ	0468Fh		; POP [BP+nn]
 OP_POP_BP16	equ	0868Fh		; POP [BP+nnnn]
