@@ -23,8 +23,8 @@ DOS	segment word public 'CODE'
 	EXTWORD	<mcb_head,mcb_limit,buf_head,key_boot,scb_active>
 	EXTLONG	<bpb_table,scb_table,sfb_table,clk_ptr>
 	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr,dos_opchk>
-	EXTNEAR	<dos_term,dos_func,dos_exret,dos_ctrlc,dos_error,dos_default>
-	EXTNEAR	<disk_read,disk_write,dos_tsr,dos_call5,dos_util,dos_exit>
+	EXTNEAR	<dos_term,dos_func,dos_exit,dos_ctrlc,dos_error,dos_default>
+	EXTNEAR	<disk_read,disk_write,dos_tsr,dos_call5,dos_util,dos_leave>
 	EXTNEAR	<dos_ddint_enter,dos_ddint_leave>
 
 	DEFLBL	sysinit_start
@@ -615,9 +615,9 @@ si20:	add	sp,size SPB		; free SPB on the stack
 	mov	ss,[bx].SCB_STACK.SEG
 	mov	sp,[bx].SCB_STACK.OFF
 	push	ds
-	mov	ax,offset dos_exit
+	mov	ax,offset dos_leave
 	push	ax
-	ret				; we let dos_exit turn interrupts on
+	ret				; we let dos_leave turn interrupts on
 
 sie1:	jmp	open_error
 
@@ -869,7 +869,7 @@ ENDPROC	cache_int21
 	dw	(INT_UD * 4)		; 06h: initialize the INT_UD vector
 	dw	dos_opchk,0		; in case the OPCHECK macro is enabled
 	dw	(INT_DOSTERM * 4)	; 20h: initialize all the DOS vectors
-	dw	dos_term,dos_func,dos_exret,dos_ctrlc
+	dw	dos_term,dos_func,dos_exit,dos_ctrlc
 	dw	dos_error,disk_read,disk_write,dos_tsr,dos_default,0
 	dw	(INT_DOSNET * 4)	; 2Ah
 	dw	dos_default,dos_default,dos_default

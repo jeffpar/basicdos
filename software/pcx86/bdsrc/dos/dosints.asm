@@ -140,7 +140,7 @@ DEFPROC	dos_opchk,DOSFAR
 	cmp	al,OP_ASSERT		; OP_ASSERT?
 	jnz	oc9			; no
 	sub	si,3			; display the address of the INT 06h
-	PRINTF	<"Assertion failure @%08lx",13,10>,si,ds
+	; PRINTF	<"Assertion failure @%08lx",13,10>,si,ds
 	DBGBRK
 oc9:	pop	ds
 	pop	si
@@ -162,8 +162,8 @@ ENDPROC	dos_opchk
 ; NOTE: In PC DOS, this interrupt, as well as INT 21h AH=00h, apparently
 ; requires the call to be made from the segment containing the PSP (CS == PSP).
 ; We do not.  Also, the underlying function here (DOS_PSP_TERM) sets a default
-; exit code (we use zero), whereas DOS_PSP_EXIT (4Ch) allows any exit code to
-; be returned.
+; exit code (we use zero), whereas DOS_PSP_RETURN (4Ch) allows any exit code
+; to be returned.
 ;
 DEFPROC	dos_term,DOSFAR
 	mov	ah,DOS_PSP_TERM
@@ -175,7 +175,7 @@ ENDPROC	dos_term
 ;
 ; dos_restart
 ;
-; Default CTRLC response handler; if carry is set, call DOS_PSP_EXIT with
+; Default CTRLC response handler; if carry is set, call DOS_PSP_RETURN with
 ; (arbitrary) exit code -1.
 ;
 ; Inputs:
@@ -208,11 +208,10 @@ DEFPROC	dos_func,DOSFAR
 	cld				; we assume CLD everywhere
 	sub	sp,size WS_TEMP
 	push	ax			; order of pushes must match REG_FRAME
-
-	DEFLBL	dos_enter,near
 	push	bx
 	push	cx
 	push	dx
+	DEFLBL	dos_enter,near
 	push	ds
 	push	si
 	push	es
@@ -245,7 +244,7 @@ dc0:	IF REG_CHECK			; in DEBUG builds, use CALL to push
 	jb	dc1			; no
 	sub	ah,80h
 	cmp	ah,UTILTBL_SIZE		; utility function within range?
-	jae	dos_exit		; no
+	jae	dos_leave		; no
 	mov	bl,ah
 	add	bl,FUNCTBL_SIZE		; the utility function table
 	jmp	short dc2		; follows the DOS function table
@@ -287,28 +286,31 @@ dc2:	mov	bh,0			; BX = function #
 ;
 dc3:	adc	[bp].REG_FL,0
 
-	DEFLBL	dos_exit,near
+	DEFLBL	dos_leave,near
 	IF REG_CHECK			; in DEBUG builds, check the "marker"
 	pop	bx			; that we pushed on entry
 	ASSERT	Z,<cmp bx,offset dos_check>
 	ENDIF
 ;
 ; Whenever the session's INDOS count returns to zero, check for a pending
-; SCSTAT_ABORT; if set, clear it, and simulate a DOSUTIL TERM session abort.
+; SCSTAT_ABORT; if set AND we're not in the middle of a hardware interrupt,
+; clear the ABORT condition and simulate a DOSUTIL TERM session abort.
 ;
 	mov	bx,[scb_active]
 	ASSERT	STRUCT,cs:[bx],SCB
 	dec	cs:[bx].SCB_INDOS
 	ASSERT	GE
-	jnz	dos_exit2
+	jnz	dos_leave2
 	test	cs:[bx].SCB_STATUS,SCSTAT_ABORT
-	jz	dos_exit2
+	jz	dos_leave2
+	cmp	[ddint_level],0		; do NOT abort if the console driver
+	jne	dos_leave2		; is still in the signalling phase
 	and	cs:[bx].SCB_STATUS,NOT SCSTAT_ABORT
 ;
 ; WARNING: This simulation of DOSUTIL TERM takes a shortcut by not updating
 ; REG_AH or REG_DX in REG_FRAME, but neither utl_term nor psp_term_exitcode
 ; rely on REG_FRAME for their inputs, so while this is not completely kosher,
-; we'll be fine.
+; we'll be fine.  The same is true for the termination code in dos_ddint_leave.
 ;
 	mov	dx,(EXTYPE_ABORT SHL 8) OR 0FFh
 	mov	ah,DOS_UTL_TERM + 80h
@@ -316,7 +318,7 @@ dc3:	adc	[bp].REG_FL,0
 
 dc4:	jmp	msc_sigctrlc_read
 
-	DEFLBL	dos_exit2,near
+	DEFLBL	dos_leave2,near
 	pop	bp
 	pop	di
 	pop	es
@@ -334,12 +336,12 @@ ENDPROC	dos_func
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dos_exret (INT 22h handler)
+; dos_exit (INT 22h handler)
 ;
-DEFPROC	dos_exret,DOSFAR
+DEFPROC	dos_exit,DOSFAR
 	ASSERT	NEVER			; assert that we never get here
 	jmp	near ptr dos_term
-ENDPROC	dos_exret
+ENDPROC	dos_exit
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -484,23 +486,25 @@ DEFPROC	dos_ddint_leave,DOSFAR
 ;
 ; If both Z and C are set, then enter DOS to perform a reschedule.
 ;
-; TODO: Once sysinit has revectored DDINT_LEAVE, we're off and running,
-; but the very first call to scb_yield will occur while scb_active is zero,
-; which scb_yield will misinterpret as a WAIT rather than a YIELD.  That's
-; OK, but only so long as at least one SCB is runnable, and only so long as
-; scb_active NEVER goes to zero again, lest we run the risk of blowing the
-; stack, as successive timer interrupts attempt to yield and keep failing.
-;
-; There was no risk of that when scb_yield locked the SCBs first, but we
-; prefer to no longer do that, because we want every yield to at least take
-; a quick look at all the SCBs and "stoke" any SCB that would have started
-; running earlier if another SCB hadn't been holding the lock.
+; However, we first take a peek at the current SCB's INDOS count and
+; ABORT flag; if the count is zero and the flag is set, force termination.
 ;
 	cld
 	sub	sp,size WS_TEMP
 	push	ax
+	push	bx
+	push	cx
+	push	dx
 	mov	ah,DOS_UTL_YIELD + 80h
-	jmp	dos_enter
+	mov	bx,cs:[scb_active]
+	cmp	cs:[bx].SCB_INDOS,0
+	jne	ddl8
+	test	cs:[bx].SCB_STATUS,SCSTAT_ABORT
+	jz	ddl8
+	and	cs:[bx].SCB_STATUS,NOT SCSTAT_ABORT
+	mov	dx,(EXTYPE_ABORT SHL 8) OR 0FFh
+	mov	ah,DOS_UTL_TERM + 80h
+ddl8:	jmp	dos_enter
 ddl9:	iret
 ENDPROC	dos_ddint_leave
 

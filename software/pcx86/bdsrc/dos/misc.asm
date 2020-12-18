@@ -550,12 +550,12 @@ DEFPROC	get_vecoff,DOS
 	mov	ah,0			; AX = vector #
 	add	ax,ax
 	add	ax,ax			; AX = vector # * 4
-	cmp	ax,INT_DOSEXRET * 4
+	cmp	ax,INT_DOSEXIT * 4
 	jb	gv9			; use IVT (carry set)
 	cmp	ax,INT_DOSERROR * 4 + 4
 	cmc
 	jb	gv9			; use IVT (carry set)
-	sub	ax,(INT_DOSEXRET * 4) - offset SCB_EXRET
+	sub	ax,(INT_DOSEXIT * 4) - offset SCB_EXIT
 	add	ax,[scb_active]		; AX = vector offset in current SCB
 	ASSERT	NC
 gv9:	ret

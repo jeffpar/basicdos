@@ -959,7 +959,7 @@ i09b:	pop	ax
 i09c:	pushf
 	call	[kbd_int]
 	jnc	i09d			; carry set if DOS isn't ready
-	jmp	i09x
+	jmp	i09z
 
 i09d:	push	ax
 	push	bx
@@ -1029,8 +1029,7 @@ i09h:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	mov	es,cx
 	mov	es:[bx].OFF,ax
 	mov	es:[bx].SEG,dx
-	sti
-	stc				; set carry to indicate yield
+	or	ds:[CT_STATUS],CTSTAT_ABORT
 	jmp	short i09w
 
 i09i:	lea	bx,[di].DDP_PTR		; update prev addr ptr in CX:BX
@@ -1040,15 +1039,18 @@ i09i:	lea	bx,[di].DDP_PTR		; update prev addr ptr in CX:BX
 	jmp	i09f
 
 i09w:	ASSERT	STRUCT,ds:[0],CT
+	test	ds:[CT_STATUS],CTSTAT_ABORT
+	jz	i09x
 	and	ds:[CT_STATUS],NOT CTSTAT_ABORT
-	pop	es
+	stc
+i09x:	pop	es
 	pop	ds
 	pop	di
 	pop	dx
 	pop	cx
 	pop	bx
 	pop	ax
-i09x:	jmp	far ptr DDINT_LEAVE
+i09z:	jmp	far ptr DDINT_LEAVE
 ENDPROC	ddcon_int09
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

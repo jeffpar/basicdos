@@ -182,7 +182,7 @@ msg:	push	ax
 	mov	ah,DOS_TTY_PRINT
 	int	21h
 	pop	ax
-exit:	mov	ah,DOS_PSP_EXIT		; exit with return code in AL
+exit:	mov	ah,DOS_PSP_RETURN	; return to caller with exit code in AL
 	int	21h
 ENDPROC	main
 

@@ -31,7 +31,7 @@ DOS	segment word public 'CODE'
 	EXTBYTE	<scb_locked,def_switchar>
 	EXTWORD	<scb_active,scb_stoked>
 	EXTLONG	<scb_table>
-	EXTNEAR	<dos_check,dos_exit,load_command,psp_term_exitcode>
+	EXTNEAR	<dos_check,dos_leave,load_command,psp_term_exitcode>
 	EXTNEAR	<sfh_add_ref,sfh_context,sfh_close>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -107,9 +107,15 @@ DEFPROC	scb_load,DOS
 	mov	[bx].SCB_STACK.OFF,ax	; DX:AX == initial stack
 	mov	[bx].SCB_STACK.SEG,dx
 	or	[bx].SCB_STATUS,SCSTAT_LOAD
-	inc	[bx].SCB_INDOS
 	mov	al,[bx].SCB_NUM
 	mov	[bp].REG_CL,al		; REG_CL = session (SCB) #
+	mov	[bx].SCB_ENVSEG,cx
+;
+; Since we start the SCB's first program by going through dos_leave, we need
+; to bump SCB_INDOS (TODO: Consider whether this is really a job for init_scb).
+;
+	inc	[bx].SCB_INDOS
+
 	inc	cx			; was ENVSEG -1?
 	jnz	sl7			; no, leave REG_AX, REG_ES:REG_BX alone
 	mov	ax,[bp].TMP_CX
@@ -157,11 +163,11 @@ DEFPROC	scb_lock,DOS
 	push	ds
 	pop	es
 	ASSUME	ES:DOS
-	lea	di,[bx].SCB_EXRET	; ES:DI -> SCB vectors
+	lea	di,[bx].SCB_EXIT	; ES:DI -> SCB vectors
 	sub	si,si
 	mov	ds,si
 	ASSUME	DS:BIOS
-	mov	si,INT_DOSEXRET * 4	; DS:SI -> IVT vectors
+	mov	si,INT_DOSEXIT * 4	; DS:SI -> IVT vectors
 	mov	cx,6			; move 3 vectors (6 words)
 	rep	movsw
 	pop	es
@@ -288,9 +294,9 @@ ENDPROC	scb_stop
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; scb_unload
+; scb_close
 ;
-; Unload the current program from the specified session.
+; Close the specified session.
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -302,7 +308,7 @@ ENDPROC	scb_stop
 ; Modifies:
 ;	AX, BX, CX, DX, SI
 ;
-DEFPROC	scb_unload,DOS
+DEFPROC	scb_close,DOS
 	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	call	get_scb
  	jc	sud9
@@ -318,14 +324,14 @@ sud1:	mov	bl,SFH_NONE
 	xchg	ax,cx			; make sure AX is zero
 	and	[bx].SCB_STATUS,NOT (SCSTAT_LOAD OR SCSTAT_START)
 ;
-; In case another session was waiting for this session to unload, call endwait.
+; In case another session was waiting for this session to close, call endwait.
 ;
 	mov	di,bx
 	mov	dx,ds			; DX:DI = SCB address (the wait ID)
 	call	scb_endwait
 	clc
 sud9:	ret
-ENDPROC	scb_unload
+ENDPROC	scb_close
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -411,7 +417,7 @@ sy1:	add	bx,size SCB
 	mov	bx,[scb_table].OFF
 sy2:	ASSERT	STRUCT,[bx],SCB
 	cmp	bx,ax			; have we returned to active SCB?
-	je	sy9			; yes
+	je	scb_check_abort		; yes (go check for ABORT)
 	test	[bx].SCB_STATUS,SCSTAT_START
 	jz	sy1			; ignore this SCB, hasn't started
 	mov	dx,[bx].SCB_WAITID.OFF
@@ -455,7 +461,7 @@ DEFPROC	scb_switch,DOS
 	cli
 	dec	[scb_locked]
 	cmp	bx,[scb_active]		; is this SCB already active?
-	je	sw7			; yes
+	je	scb_check_abort		; yes
 	mov	ax,bx
 	xchg	bx,[scb_active]		; BX -> previous SCB
 	ASSERT	STRUCT,[bx],SCB
@@ -467,8 +473,10 @@ DEFPROC	scb_switch,DOS
 	mov	ss,[bx].SCB_STACK.SEG
 	mov	sp,[bx].SCB_STACK.OFF
 	ASSERT	NC
-	jmp	dos_exit		; we let dos_exit turn interrupts on
-sw7:	test	[bx].SCB_STATUS,SCSTAT_ABORT
+	jmp	dos_leave		; we let dos_leave turn interrupts on
+
+	DEFLBL	scb_check_abort,near
+	test	[bx].SCB_STATUS,SCSTAT_ABORT
 	jz	sw9
 sw8:	stc
 sw9:	sti
@@ -557,21 +565,22 @@ DEFPROC	scb_abort,DOS
 	or	[bx].SCB_STATUS,SCSTAT_ABORT
 	xchg	ax,[bx].SCB_WAITID.OFF
 	xchg	dx,[bx].SCB_WAITID.SEG	; zero WAITID
-	or	ax,dx			; was it already zero?
-	jz	sa9			; yes
-	; DBGBRK
-	; push	ds
-	; push	si
-	; lds	si,[bx].SCB_STACK	; DS:SI -> SCB's stack
-	; ASSUME	DS:NOTHING
-	; IF REG_CHECK			; in DEBUG builds, skip the "marker"
-	; ASSERT	Z,<cmp word ptr [si],offset dos_check>
-	; add	si,2			; DS:SI -> REG_FRAME
-	; ENDIF
-	; or	[si].REG_FL,FL_CARRY	; force carry set on return from WAIT
-	; pop	si
-	; pop	ds
-	; ASSUME	DS:DOS
+
+;	or	ax,dx			; was it already zero?
+;	jz	sa9			; yes
+;	push	ds
+;	push	si
+;	lds	si,[bx].SCB_STACK	; DS:SI -> SCB's stack
+;	ASSUME	DS:NOTHING
+;	IF REG_CHECK			; in DEBUG builds, skip the "marker"
+;	ASSERT	Z,<cmp word ptr [si],offset dos_check>
+;	add	si,2			; DS:SI -> REG_FRAME
+;	ENDIF
+;	or	[si].REG_FL,FL_CARRY	; force carry set on return from WAIT
+;	pop	si
+;	pop	ds
+;	ASSUME	DS:DOS
+
 sa9:	sti
 	pop	dx
 	pop	ax

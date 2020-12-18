@@ -77,7 +77,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<fcb_rbread,fcb_parse>
 	EXTNEAR	<msc_getdate,msc_setdate,msc_gettime,msc_settime>
 	EXTNEAR	<msc_setvec,msc_getver,msc_setctrlc,msc_getvec,msc_getswc>
-	EXTNEAR	<msc_getvars,psp_exec,psp_exit,psp_retcode>
+	EXTNEAR	<msc_getvars,psp_exec,psp_return,psp_retcode>
 	EXTNEAR	<psp_copy,psp_set,psp_get,psp_create>
 	EXTNEAR	<hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek,hdl_ioctl>
 	EXTNEAR	<mem_alloc,mem_free,mem_realloc>
@@ -111,7 +111,7 @@ DOS	segment word public 'CODE'
 	dw	hdl_write,   func_none,   hdl_seek,    func_none	;40h-43h
 	dw	hdl_ioctl,   func_none,   func_none,   func_none	;44h-47h
 	dw	mem_alloc,   mem_free,    mem_realloc, psp_exec		;48h-4Bh
-	dw	psp_exit,    psp_retcode, dsk_ffirst,  dsk_fnext	;4Ch-4Fh
+	dw	psp_return,  psp_retcode, dsk_ffirst,  dsk_fnext	;4Ch-4Fh
 	dw	psp_set,     psp_get,     msc_getvars, func_none	;50h-53h
 	dw	func_none,   psp_create					;54h-55h
 	DEFABS	FUNCTBL_SIZE,<($ - FUNCTBL) SHR 1>

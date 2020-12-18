@@ -82,7 +82,7 @@ m5:	cmp	bx,[maxSquared]	; dividend below square of max divisor?
 
 m9:	PRINTF	<13,10,"total primes < 10000: %d",13,10>,nPrimes
 	LEAVE
-	mov	ax,DOS_PSP_EXIT SHL 8
+	mov	ax,DOS_PSP_RETURN SHL 8
 	int	21h
 ENDPROC	main
 

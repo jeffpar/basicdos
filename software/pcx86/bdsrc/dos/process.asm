@@ -19,8 +19,8 @@ DOS	segment word public 'CODE'
 	EXTWORD	<mcb_head,mcb_limit,scb_active>
 	EXTNEAR	<sfh_add_ref,pfh_close,sfh_close>
 	EXTNEAR	<mcb_getsize,mcb_free_all>
-	EXTNEAR	<dos_exit,dos_exit2,dos_ctrlc,dos_error>
-	EXTNEAR	<mcb_setname,scb_getnum,scb_release,scb_unload,scb_yield>
+	EXTNEAR	<dos_leave,dos_leave2,dos_ctrlc,dos_error>
+	EXTNEAR	<mcb_setname,scb_getnum,scb_release,scb_close,scb_yield>
 	IF REG_CHECK
 	EXTNEAR	<dos_check>
 	ENDIF
@@ -46,11 +46,18 @@ DEFPROC	psp_term,DOS
 	mov	es,ax
 	pop	ax
 	ASSUME	ES:NOTHING
+	mov	bx,[scb_active]		; BX -> SCB
 	mov	si,es:[PSP_PARENT]
-
-	test	si,si			; if there's a parent
+	test	si,si			; if program has a parent
 	jnz	pt1			; then the SCB is still healthy
-	cmp	es:[PSP_SCB],0		; are we allowed to terminate this SCB?
+;
+; TODO: Ordinarily, when the last program in a session terminates, we also
+; close the session, but until we have UI for restarting predefined sessions
+; (ie, those defined in CONFIG.SYS and started by sysinit with ENVSEG of -1),
+; we're going to temporarily prevent them from being closed -- which means
+; refusing to terminate the session's lone remaining program.
+;
+	cmp	[bx].SCB_ENVSEG,-1	; allow this to close the SCB?
 	je	pt7			; no
 ;
 ; Close process file handles.
@@ -60,9 +67,8 @@ pt1:	push	ax			; save exit code/type on stack
 ;
 ; Restore the SCB's CTRLC and ERROR handlers from the values in the PSP.
 ;
-	mov	bx,[scb_active]
-	push	es:[PSP_EXRET].SEG	; push PSP_EXRET (exec return address)
-	push	es:[PSP_EXRET].OFF
+	push	es:[PSP_EXIT].SEG	; push PSP_EXIT (exit return address)
+	push	es:[PSP_EXIT].OFF
 
 	mov	ax,es:[PSP_CTRLC].OFF	; brute-force restoration
 	mov	[bx].SCB_CTRLC.OFF,ax	; of CTRLC and ERROR handlers
@@ -78,6 +84,11 @@ pt1:	push	ax			; save exit code/type on stack
 	mov	[bx].SCB_DTA.OFF,ax	; (PC DOS may require every process
 	mov	ax,es:[PSP_DTAPREV].SEG	; to restore this itself after an exec)
 	mov	[bx].SCB_DTA.SEG,ax
+;
+; Just as scb_load had to bump SCB_INDOS, we must now reduce it, because
+; this call isn't returning anywhere.
+;
+	dec	[bx].SCB_INDOS
 
 	mov	al,es:[PSP_SCB]		; save SCB #
 	push	ax
@@ -87,12 +98,12 @@ pt1:	push	ax			; save exit code/type on stack
 	pop	ax			; restore PSP of parent
 	pop	cx			; CL = SCB #
 ;
-; If this is a parent-less program, mark the SCB as unloaded and yield.
+; If this is a parent-less program, close the SCB and yield.
 ;
 	call	set_psp			; update SCB_PSP (even if zero)
 	test	ax,ax
 	jnz	pt8
-	call	scb_unload		; mark SCB # CL as unloaded
+	call	scb_close		; close SCB # CL
 	jc	pt7
 	jmp	scb_yield		; and call scb_yield with AX = zero
 	ASSERT	NEVER
@@ -100,7 +111,7 @@ pt7:	ret
 
 pt8:	mov	es,ax			; ES = PSP of parent
 	pop	dx
-	pop	cx			; we now have PSP_EXRET in CX:DX
+	pop	cx			; we now have PSP_EXIT in CX:DX
 	pop	ax			; AX = exit code (saved on entry above)
 	mov	word ptr es:[PSP_EXCODE],ax
 
@@ -111,17 +122,17 @@ pt8:	mov	es,ax			; ES = PSP of parent
 ; When a program (eg, SYMDEB.EXE) loads another program using DOS_PSP_EXEC1,
 ; it will necessarily be exec'ing the program itself, which means we can't be
 ; sure the stack used at the time of loading will be identical to the stack
-; used at time of exec'ing.  So we will use dos_exit2 to bypass the REG_CHECK
+; used at time of exec'ing.  So we will use dos_leave2 to bypass the REG_CHECK
 ; *and* we will create a fresh IRET frame at the top of REG_FRAME.
 ;
 	IF REG_CHECK
 	add	sp,2
 	ENDIF
 	mov	bp,sp
-	mov	[bp].REG_IP,dx		; copy PSP_EXRET to caller's CS:IP
+	mov	[bp].REG_IP,dx		; copy PSP_EXIT to caller's CS:IP
 	mov	[bp].REG_CS,cx		; (normally they will be identical)
 	mov	word ptr [bp].REG_FL,FL_DEFAULT
-	jmp	dos_exit2		; let dos_exit turn interrupts back on
+	jmp	dos_leave2		; let dos_leave turn interrupts back on
 ENDPROC	psp_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -182,24 +193,31 @@ DEFPROC	psp_exec,DOS
 	je	px5
 	cmc
 	mov	ax,ERR_INVALID
-	jc	px4			; AX = error code if not
+	jc	pxx			; AX = error code if not
 
 	mov	ds,[bp].REG_DS
 	ASSUME	DS:NOTHING
 	mov	si,dx			; DS:SI -> program/command (from DS:DX)
 	inc	bx			; BX = -1?
-	jnz	px1			; no
+	jnz	px3			; no
 ;
 ; No EPB was provided, so treat DS:SI as a command line.
 ;
 	call	load_command		; load the program and parse the tail
-	jc	px4			; AX should contain an error code
-	jmp	short px2		; otherwise, launch the program
+	jc	pxx			; AX should contain an error code
+;
+; This was a DOS_PSP_EXEC call, and unlike scb_load, it's a synchronous
+; operation, meaning we launch the program directly from this call.
+;
+px1:	cli
+	mov	ss,dx			; switch to the new program's stack
+	mov	sp,ax
+	jmp	dos_leave		; and let dos_leave turn interrupts on
 
-px1:	dec	bx			; restore BX pointer to EPB
+px3:	dec	bx			; restore BX pointer to EPB
 	call	load_program		; load the program
 	ASSUME	ES:NOTHING
-	jc	px4			; AX should contain an error code
+	jc	pxx			; AX should contain an error code
 ;
 ; Use load_args to build the FCBs and CMDTAIL in the PSP from the EBP.
 ;
@@ -207,17 +225,7 @@ px1:	dec	bx			; restore BX pointer to EPB
 	mov	bx,[bp].REG_BX		; DS:BX -> EPB (from ES:BX)
 	call	load_args		; DX:AX -> new stack
 	cmp	byte ptr [bp].REG_AL,0	; was AL zero?
-	jne	px3			; no
-;
-; This was a DOS_PSP_EXEC call, and unlike scb_load, it's a synchronous
-; operation, meaning we launch the program directly from this call.
-;
-px2:	cli
-	mov	ss,dx			; switch to the new program's stack
-	mov	sp,ax
-	mov	bx,[scb_active]
-	inc	cs:[bx].SCB_INDOS
-	jmp	dos_exit		; and let dos_exit turn interrupts on
+	je	px1			; no
 ;
 ; This is a DOS_PSP_EXEC1 call: an undocumented call that only loads the
 ; program, fills in the undocumented EPB_INIT_SP and EPB_INIT_IP fields,
@@ -232,7 +240,7 @@ px2:	cli
 ; new stack is supposed to contain only the initial value for REG_AX, which
 ; we take care of below.
 ;
-px3:	IF REG_CHECK
+px4:	IF REG_CHECK
 	add	ax,REG_CHECK
 	ENDIF
 	mov	di,ax
@@ -247,13 +255,13 @@ px3:	IF REG_CHECK
 	mov	[bx].EPB_INIT_IP.SEG,es	; return the program's CS:IP
 	clc
 	ret
-px4:	jmp	short px9
+pxx:	jmp	short px9
 ;
 ; This is a DOS_PSP_EXEC2 "start" request.  ES:BX must point to a previously
 ; initialized EPB with EPB_INIT_SP pointing to REG_FL in a REG_FRAME, and the
 ; current PSP must be the new PSP (ie, exactly as DOS_PSP_EXEC1 left it).
 ;
-; In addition, we copy the caller's REG_CS:REG_IP into PSP_EXRET, because we
+; In addition, we copy the caller's REG_CS:REG_IP into PSP_EXIT, because we
 ; don't want the program returning to the original EXEC call on termination.
 ;
 px5:	mov	ds,[bp].REG_ES
@@ -266,7 +274,7 @@ px5:	mov	ds,[bp].REG_ES
 	mov	[si].REG_IP,di		; update REG_CS:REG_IP on frame
 	mov	dx,ds
 	call	get_psp
-	jz	px6
+	jz	px7
 	mov	ds,ax			; DS -> new PSP
 
 	push	ds
@@ -280,14 +288,14 @@ px5:	mov	ds,[bp].REG_ES
 	pop	ds
 
 	mov	ax,[bp].REG_IP
-	mov	ds:[PSP_EXRET].OFF,ax
+	mov	ds:[PSP_EXIT].OFF,ax
 	mov	ax,[bp].REG_CS
-	mov	ds:[PSP_EXRET].SEG,ax
-px6:	xchg	ax,si			; DX:AX -> REG_FRAME
+	mov	ds:[PSP_EXIT].SEG,ax
+px7:	xchg	ax,si			; DX:AX -> REG_FRAME
 	IF REG_CHECK
 	sub	ax,REG_CHECK
 	ENDIF
-	jmp	px2
+	jmp	px1
 
 px9:	mov	[bp].REG_AX,ax		; return any error code in REG_AX
 	stc
@@ -296,7 +304,7 @@ ENDPROC	psp_exec
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; psp_exit (REG_AH = 4Ch)
+; psp_return (REG_AH = 4Ch)
 ;
 ; Inputs:
 ;	REG_AL = return code
@@ -304,10 +312,10 @@ ENDPROC	psp_exec
 ; Outputs:
 ;	None
 ;
-DEFPROC	psp_exit,DOS
+DEFPROC	psp_return,DOS
 	mov	ah,EXTYPE_NORMAL
 	jmp	psp_term_exitcode
-ENDPROC	psp_exit
+ENDPROC	psp_return
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -656,9 +664,9 @@ lp2:	push	ax			; save original PSP
 	call	get_psp
 	mov	ds,ax			; DS = segment of new PSP
 	mov	ax,[bp].REG_IP
-	mov	ds:[PSP_EXRET].OFF,ax	; update the PSP's EXRET address
+	mov	ds:[PSP_EXIT].OFF,ax	; update the PSP's exit address
 	mov	ax,[bp].REG_CS
-	mov	ds:[PSP_EXRET].SEG,ax
+	mov	ds:[PSP_EXIT].SEG,ax
 
 	sub	cx,cx
 	sub	dx,dx
@@ -1163,14 +1171,16 @@ ENDPROC	psp_calcsum
 ;	None
 ;
 ; Modifies:
-;	AX, BX, CX, DX
+;	AX, CX, DX
 ;
 DEFPROC	psp_close,DOS
+	push	bx
 	mov	cx,size PSP_PFT
 	sub	bx,bx			; BX = handle (PFH)
 cp1:	call	pfh_close		; close process file handle
 	inc	bx
 	loop	cp1
+	pop	bx
 	ret
 ENDPROC	psp_close
 
@@ -1198,13 +1208,13 @@ DEFPROC	psp_init,DOS
 	call	psp_setmem		; DX = PSP segment, BX = PSP paras
 	ASSUME	ES:NOTHING
 ;
-; On return from psp_setmem, ES = PSP segment and DI -> PSP_EXRET.
+; On return from psp_setmem, ES = PSP segment and DI -> PSP_EXIT.
 ;
-; Copy current INT 22h (EXRET), INT 23h (CTRLC), and INT 24h (ERROR) vectors,
+; Copy current INT 22h (EXIT), INT 23h (CTRLC), and INT 24h (ERROR) vectors,
 ; but copy them from the SCB, not the IVT.
 ;
 	mov	bx,[scb_active]		; BX = active SCB
-	lea	si,[bx].SCB_EXRET
+	lea	si,[bx].SCB_EXIT
 	mov	cx,6
 	rep	movsw
 	call	get_psp			; AX = active PSP
@@ -1225,7 +1235,7 @@ ENDPROC	psp_init
 ;
 ; Outputs:
 ;	ES = PSP segment
-;	DI -> PSP_EXRET of PSP
+;	DI -> PSP_EXIT of PSP
 ;
 ; Modifies:
 ;	AX, BX, CX, DI, ES

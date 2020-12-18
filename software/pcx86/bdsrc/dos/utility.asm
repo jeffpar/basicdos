@@ -556,11 +556,11 @@ ENDPROC	mul_32_16
 ;
 ; utl_tokify (AH = 0Bh or 0Ch)
 ;
-; DOS_UTL_TOKIFY1 (0Bh) performs generic parsing, which means that only
+; DOS_UTL_TOKEN1 (0Bh) performs generic parsing, which means that only
 ; tokens separated by whitespace (or SWITCHAR) will be returned, and they
 ; will all be identified "generically" as CLS_STR.
 ;
-; DOS_UTL_TOKIFY2 (0Ch) performs BASIC parsing, which returns all tokens,
+; DOS_UTL_TOKEN2 (0Ch) performs BASIC parsing, which returns all tokens,
 ; even whitespace sequences (CLS_WHITE).
 ;
 ; Inputs:
