@@ -97,7 +97,7 @@ m2:	mov	si,[bx].INPUT_BUF
 	lea	si,[si].INP_DATA
 	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
 	mov	[di].TOK_MAX,(size TOK_DATA) / (size TOKLET)
-	DOSUTIL	TOKIFY1
+	DOSUTIL	TOKEN1
 	jc	m1			; jump if no tokens
 
 	call	parseCmd

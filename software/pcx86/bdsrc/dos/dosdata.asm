@@ -33,9 +33,13 @@ DOS	segment word public 'CODE'
 	DEFWORD	key_boot,0		; records key pressed at boot, if any
 	EXTNEAR	scb_return
 	DEFWORD	scb_stoked,<offset scb_return>
-	DEFBYTE	scb_locked,-1		; -1 if unlocked, >=0 if locked
+;
+; scb_locked and int_level are required to be addressable as a single word.
+;
+	DEFBYTE	scb_locked,-1		; -1 if unlocked, >= 0 if locked
+	DEFBYTE	int_level,-1		; device driver interrupt level
+
 	DEFBYTE	bpb_total,0		; total number of BPBs
-	DEFBYTE	ddint_level,0		; device driver interrupt level
 	DEFBYTE	sfh_debug,-1		; system file handle for DEBUG device
 	DEFBYTE	def_switchar,'/'
 ;

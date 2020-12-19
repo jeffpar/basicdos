@@ -18,8 +18,8 @@ DOS	segment word public 'CODE'
 	EXTWORD	<FUNCTBL>
 	EXTABS	<FUNCTBL_SIZE,UTILTBL_SIZE>
 	EXTWORD	<scb_active>
-	EXTBYTE	<ddint_level>
-	EXTNEAR	<msc_sigctrlc_read,msc_sigerr>
+	EXTBYTE	<scb_locked,int_level>
+	EXTNEAR	<msc_readctrlc,msc_sigerr>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -303,20 +303,20 @@ dc3:	adc	[bp].REG_FL,0
 	jnz	dos_leave2
 	test	cs:[bx].SCB_STATUS,SCSTAT_ABORT
 	jz	dos_leave2
-	cmp	[ddint_level],0		; do NOT abort if the console driver
-	jne	dos_leave2		; is still in the signalling phase
+	cmp	word ptr [scb_locked],-1; do NOT abort if session or driver
+	jne	dos_leave2		; lock levels are >= 0
 	and	cs:[bx].SCB_STATUS,NOT SCSTAT_ABORT
 ;
 ; WARNING: This simulation of DOSUTIL TERM takes a shortcut by not updating
-; REG_AH or REG_DX in REG_FRAME, but neither utl_term nor psp_term_exitcode
-; rely on REG_FRAME for their inputs, so while this is not completely kosher,
-; we'll be fine.  The same is true for the termination code in dos_ddint_leave.
+; REG_AH or REG_DX in REG_FRAME, but neither utl_term nor psp_termcode rely
+; on REG_FRAME for their inputs, so while this is not completely kosher, we'll
+; be fine.  The same is true for the termination code in int_leave.
 ;
 	mov	dx,(EXTYPE_ABORT SHL 8) OR 0FFh
 	mov	ah,DOS_UTL_TERM + 80h
 	jmp	dc0
 
-dc4:	jmp	msc_sigctrlc_read
+dc4:	jmp	msc_readctrlc
 
 	DEFLBL	dos_leave2,near
 	pop	bp
@@ -450,7 +450,7 @@ ENDPROC	dos_util
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dos_ddint_enter
+; int_enter
 ;
 ; DDINT_ENTER is "revectored" here by sysinit.
 ;
@@ -460,31 +460,31 @@ ENDPROC	dos_util
 ; Outputs:
 ; 	Carry clear (DOS interrupt processing enabled)
 ;
-DEFPROC	dos_ddint_enter,DOSFAR
-	inc	[ddint_level]
+DEFPROC	int_enter,DOSFAR
+	inc	[int_level]
 	clc
 	ret
-ENDPROC	dos_ddint_enter
+ENDPROC	int_enter
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dos_ddint_leave
+; int_leave
 ;
 ; DDINT_LEAVE is "revectored" here by sysinit.
 ;
 ; Inputs:
-;	Carry set to reschedule, assuming ddint_level has dropped to zero
+;	Carry set to reschedule, assuming int_level has dropped below zero
 ;
 ; Outputs:
 ; 	None
 ;
-DEFPROC	dos_ddint_leave,DOSFAR
+DEFPROC	int_leave,DOSFAR
 	cli
-	dec	[ddint_level]
-	jnz	ddl9
+	dec	[int_level]
+	jge	ddl9
 	jnc	ddl9
 ;
-; If both Z and C are set, then enter DOS to perform a reschedule.
+; Enter DOS to perform a reschedule.
 ;
 ; However, we first take a peek at the current SCB's INDOS count and
 ; ABORT flag; if the count is zero and the flag is set, force termination.
@@ -506,7 +506,7 @@ DEFPROC	dos_ddint_leave,DOSFAR
 	mov	ah,DOS_UTL_TERM + 80h
 ddl8:	jmp	dos_enter
 ddl9:	iret
-ENDPROC	dos_ddint_leave
+ENDPROC	int_leave
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

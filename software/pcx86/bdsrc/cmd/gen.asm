@@ -1867,7 +1867,7 @@ gnl6:	mov	ss:[bx].LINE_PTR.OFF,si
 	pop	cx			; DS:SI -> LINEBUF (with length CX)
 
 	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
-	DOSUTIL	TOKIFY2
+	DOSUTIL	TOKEN2
 	mov	bx,di
 	add	bx,offset TOK_DATA	; DS:BX -> TOKLET array
 	pop	di

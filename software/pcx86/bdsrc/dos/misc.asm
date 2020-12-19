@@ -340,7 +340,7 @@ DEFPROC	msc_sigctrlc,DOSFAR
 	ASSERT	STRUCT,[bx],SCB
 	jmp	short msg0
 
-	DEFLBL	msc_sigctrlc_read,near
+	DEFLBL	msc_readctrlc,near
 	ASSERT	STRUCT,[bx],SCB
 	cmp	[bx].SCB_CTRLC_ACT,0
 	je	msg1

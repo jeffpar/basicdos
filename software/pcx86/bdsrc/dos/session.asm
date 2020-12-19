@@ -31,7 +31,7 @@ DOS	segment word public 'CODE'
 	EXTBYTE	<scb_locked,def_switchar>
 	EXTWORD	<scb_active,scb_stoked>
 	EXTLONG	<scb_table>
-	EXTNEAR	<dos_check,dos_leave,load_command,psp_term_exitcode>
+	EXTNEAR	<dos_check,dos_leave,load_command,psp_termcode>
 	EXTNEAR	<sfh_add_ref,sfh_context,sfh_close>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -417,7 +417,7 @@ sy1:	add	bx,size SCB
 	mov	bx,[scb_table].OFF
 sy2:	ASSERT	STRUCT,[bx],SCB
 	cmp	bx,ax			; have we returned to active SCB?
-	je	scb_check_abort		; yes (go check for ABORT)
+	je	scb_test		; yes (go check for ABORT)
 	test	[bx].SCB_STATUS,SCSTAT_START
 	jz	sy1			; ignore this SCB, hasn't started
 	mov	dx,[bx].SCB_WAITID.OFF
@@ -461,7 +461,7 @@ DEFPROC	scb_switch,DOS
 	cli
 	dec	[scb_locked]
 	cmp	bx,[scb_active]		; is this SCB already active?
-	je	scb_check_abort		; yes
+	je	scb_test		; yes
 	mov	ax,bx
 	xchg	bx,[scb_active]		; BX -> previous SCB
 	ASSERT	STRUCT,[bx],SCB
@@ -475,7 +475,7 @@ DEFPROC	scb_switch,DOS
 	ASSERT	NC
 	jmp	dos_leave		; we let dos_leave turn interrupts on
 
-	DEFLBL	scb_check_abort,near
+	DEFLBL	scb_test,near
 	test	[bx].SCB_STATUS,SCSTAT_ABORT
 	jz	sw9
 sw8:	stc
@@ -675,20 +675,22 @@ DEFPROC	init_scb,DOS
 ;
 	mov	[bx].SCB_PARENT,ax	; TODO: What shall we do with this?
 	xchg	si,ax			; DS:SI -> previous SCB
-	mov	al,0			; AL = CURDRV
-	mov	ah,[def_switchar]	; AH = SWITCHAR
+	mov	cl,0			; CL = CURDRV
+	mov	ch,[def_switchar]	; CH = SWITCHAR
 	mov	dx,es:[di].SPB_ENVSEG	; is SPB_ENVSEG -1?
 	inc	dx
 	jz	si0			; yes, don't copy handles
-	lodsw				; DS:SI -> SFHIN of previous SCB
+	mov	cx,word ptr [si].SCB_CURDRV
+	ASSERT	<SCB_SFHIN>,EQ,2
+	lodsw				; use LODSW as a quick SI += 2
 	lodsw				; load SFHIN, SFHOUT
 	mov	word ptr [bx].SCB_SFHIN,ax
 	lodsw				; load SFHERR, SFHAUX
 	mov	word ptr [bx].SCB_SFHERR,ax
-	lodsw				; load SFHPRN
+	lodsb				; load SFHPRN
 	mov	[bx].SCB_SFHPRN,al
-	lodsw				; load CURDRV, SWITCHAR
-si0:	mov	word ptr [bx].SCB_CURDRV,ax
+	ASSERT	<SCB_CURDRV+1>,EQ,<SCB_SWITCHAR>
+si0:	mov	word ptr [bx].SCB_CURDRV,cx
 	dec	dx
 ;
 ; Now copy any valid SFHs from the SPB into the SCB.
@@ -715,7 +717,7 @@ si3:	inc	di
 	call	sfh_context
 	mov	[bx].SCB_CONTEXT,ax
 
-	or	[bx].SCB_STATUS,SCSTAT_INIT
+	mov	[bx].SCB_STATUS,SCSTAT_INIT
 	pop	di
 	ret
 ENDPROC	init_scb

@@ -38,7 +38,7 @@ DOS	segment word public 'CODE'
 DEFPROC	psp_term,DOS
 	sub	ax,ax			; default exit code/type
 
-	DEFLBL	psp_term_exitcode,near
+	DEFLBL	psp_termcode,near
 	ASSERT	Z,<cmp [scb_locked],-1>	; SCBs should never be locked now
 
 	push	ax
@@ -53,12 +53,12 @@ DEFPROC	psp_term,DOS
 ;
 ; TODO: Ordinarily, when the last program in a session terminates, we also
 ; close the session, but until we have UI for restarting predefined sessions
-; (ie, those defined in CONFIG.SYS and started by sysinit with ENVSEG of -1),
-; we're going to temporarily prevent them from being closed -- which means
-; refusing to terminate the session's lone remaining program.
+; (ie, those defined in CONFIG.SYS and started by sysinit), we're going to
+; temporarily prevent them from being closed -- which means refusing to
+; terminate the session's lone remaining program.
 ;
-	cmp	[bx].SCB_ENVSEG,-1	; allow this to close the SCB?
-	je	pt7			; no
+	cmp	[bx].SCB_ENVSEG,-1	; should we allow the session to close?
+	je	pt7			; no (sysinit started it)
 ;
 ; Close process file handles.
 ;
@@ -314,7 +314,7 @@ ENDPROC	psp_exec
 ;
 DEFPROC	psp_return,DOS
 	mov	ah,EXTYPE_NORMAL
-	jmp	psp_term_exitcode
+	jmp	psp_termcode
 ENDPROC	psp_return
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

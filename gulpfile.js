@@ -133,7 +133,7 @@ for (let diskName in disks) {
         diskFiles = "--files " + diskFiles;
         archiveImage = " --output " + diskImage.replace(diskName, "archive/" + diskName).replace(".json",".img") + " --writable";
         if (diskName.startsWith("BDS-")) {
-            kbTarget = 320;
+            kbTarget = 360;
         } else {
             diskFiles += " --boot ./software/pcx86/bdsrc/boot/obj/BOOT.COM";
         }

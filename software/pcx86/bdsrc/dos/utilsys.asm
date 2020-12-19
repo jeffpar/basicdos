@@ -18,8 +18,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<chk_devname,dev_request>
 	EXTNEAR	<scb_load,scb_start,scb_stop,scb_end,scb_waitend,scb_abort>
 	EXTNEAR	<scb_yield,scb_release,scb_wait,scb_endwait>
-	EXTNEAR	<mem_query,msc_getdate,msc_gettime>
-	EXTNEAR	<psp_term_exitcode>
+	EXTNEAR	<mem_query,msc_getdate,msc_gettime,psp_termcode>
 	EXTNEAR	<add_date,read_line>
 
 	EXTBYTE	<scb_locked>
@@ -270,7 +269,9 @@ DEFPROC	utl_hotkey,DOS
 ;
 	sub	dx,dx			; DX = matching SCB count
 	mov	bx,[scb_table].OFF
-hk1:	cmp	[bx].SCB_CONTEXT,cx
+hk1:	test	[bx].SCB_STATUS,SCSTAT_START
+	jz	hk8			; unstarted sessions are ignored
+	cmp	[bx].SCB_CONTEXT,cx
 	jne	hk8
 	inc	dx			; match
 hk2:	cmp	al,CHR_CTRLC
@@ -369,7 +370,7 @@ ENDPROC	utl_qrymem
 ;
 DEFPROC	utl_term,DOS
 	xchg	ax,dx			; AL = exit code, AH = exit type
-	jmp	psp_term_exitcode
+	jmp	psp_termcode
 ENDPROC	utl_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

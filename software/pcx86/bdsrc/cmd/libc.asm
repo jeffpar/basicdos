@@ -74,7 +74,7 @@ cd1:	push	cx
 	mov	bx,es:[PSP_HEAP]
 	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
 	mov	[di].TOK_MAX,(size TOK_DATA) / (size TOKLET)
-	DOSUTIL	TOKIFY1
+	DOSUTIL	TOKEN1
 	ASSERT	NC
 	pop	ax			; AX = keyword ID, if any
 	mov	cl,[di].TOK_DATA[0].TOKLET_LEN

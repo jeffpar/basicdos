@@ -25,7 +25,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr,dos_opchk>
 	EXTNEAR	<dos_term,dos_func,dos_exit,dos_ctrlc,dos_error,dos_default>
 	EXTNEAR	<disk_read,disk_write,dos_tsr,dos_call5,dos_util,dos_leave>
-	EXTNEAR	<dos_ddint_enter,dos_ddint_leave>
+	EXTNEAR	<int_enter,int_leave>
 
 	DEFLBL	sysinit_start
 
@@ -580,8 +580,7 @@ si20:	add	sp,size SPB		; free SPB on the stack
 	mov	[clk_ptr].OFF,di
 	mov	[clk_ptr].SEG,es
 ;
-; "Revector" the DDINT_ENTER and DDINT_LEAVE handlers to dos_ddint_enter and
-; dos_ddint_leave.
+; "Revector" DDINT_ENTER and DDINT_LEAVE to int_enter and int_leave.
 ;
 	sub	ax,ax
 	mov	es,ax
@@ -590,13 +589,13 @@ si20:	add	sp,size SPB		; free SPB on the stack
 	mov	di,offset DDINT_ENTER
 	mov	al,OP_JMPF
 	stosb
-	mov	ax,offset dos_ddint_enter
+	mov	ax,offset int_enter
 	stosw
 	mov	ax,ds
 	stosw
 	mov	al,OP_JMPF
 	stosb
-	mov	ax,offset dos_ddint_leave
+	mov	ax,offset int_leave
 	stosw
 	mov	ax,ds
 	stosw

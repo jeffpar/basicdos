@@ -19,7 +19,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<dev_request,scb_release>
 	EXTNEAR	<chk_devname,chk_filename>
 	EXTNEAR	<get_bpb,get_psp,find_cln,get_cln>
-	EXTNEAR	<msc_sigctrlc,msc_sigctrlc_read>
+	EXTNEAR	<msc_sigctrlc,msc_readctrlc>
 
 	EXTBYTE	<scb_locked>
 	EXTWORD	<scb_active>
@@ -599,7 +599,7 @@ sw7:	mov	ah,DDC_WRITE
 	je	sw8
 	push	cs
 	pop	ds
-	jmp	msc_sigctrlc_read
+	jmp	msc_readctrlc
 
 sw8:	call	dev_request		; issue the DDC_WRITE request
 sw9:	ret
