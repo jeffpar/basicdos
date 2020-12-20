@@ -29,7 +29,7 @@
     {%- if page.preview != nil %}
     <meta name="twitter:image" property="og:image" content="{{ page.preview | prepend: site.baseurl | prepend: site.url }}">
     {%- else %}
-    <meta name="twitter:image" property="og:image" content="{{ '/assets/images/LCM_at_Night.jpg' | prepend: site.baseurl | prepend: site.url }}">
+    <meta name="twitter:image" property="og:image" content="{{ '/assets/images/LCM.jpg' | prepend: site.baseurl | prepend: site.url }}">
     {%- endif %}
     <link rel="canonical" href="{{ page.url | replace:'index.html','' | prepend: site.baseurl | prepend: site.url }}">
     <link rel="stylesheet" href="{{ '/assets/css/style.css?v=' | append: site.github.build_revision | relative_url }}">
