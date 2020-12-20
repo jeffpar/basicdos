@@ -60,7 +60,7 @@ source file courtesy of the [OS/2 Museum](msb/OEM.ASM).
 
 ## The BASIC-DOS Build Process
 
-The [BASIC-DOS Build Machine](https://basicdos.com/maplebar/build/)
+The [BASIC-DOS Build Machine](https://basicdos.com/build/)
 contains two 10Mb hard disks: drive C: contains all the tools used to build
 BASIC-DOS, and drive D: contains all the source code.
 

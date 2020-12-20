@@ -1,7 +1,7 @@
 ---
 layout: page
 title: BASIC-DOS Documentation
-permalink: /maplebar/docs/
+permalink: /docs/
 ---
 
 TBD

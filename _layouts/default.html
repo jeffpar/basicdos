@@ -40,21 +40,14 @@
     <div class="wrapper">
       <section>
         <div id="title">
-          <h1>{{ site.title | default: site.github.repository_name }}</h1>
+          <h1><a href="{{ site.betaurl }}/">{{ site.title | default: site.github.repository_name }}</a></h1>
           <p>{{ site.description | default: site.github.project_tagline }}</p> 
           <div id="header">
             <menu>
-              {%- if page.public %}
-              <li class="internal"><a href="/blog/">Blog</a></li>
-              <li class="internal"><a href="/build/">Build</a></li>
-              <li class="internal"><a href="/docs/">Docs</a></li>
-              <li class="internal"><a href="/preview/">Preview</a></li>
-              {%- else %}
               <li class="internal"><a href="{{ site.betaurl }}/blog/">Blog</a></li>
               <li class="internal"><a href="{{ site.betaurl }}/build/">Build</a></li>
               <li class="internal"><a href="{{ site.betaurl }}/docs/">Docs</a></li>
               <li class="internal"><a href="{{ site.betaurl }}/preview/">Preview</a></li>
-              {%- endif %}
               <li class="external"><a href="{{ site.github.repository_url }}">Repo</a></li>
               <li class="title">Source</li>
             </menu>
