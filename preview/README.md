@@ -36,7 +36,7 @@ of **SYMDEB** (Microsoft's Symbolic Debug Utility v4.00) and **MSBASIC.EXE**,
 which was built from Microsoft's [GW-BASIC](https://github.com/microsoft/GW-BASIC)
 open-source files, with a little help from [OS/2 Museum](http://www.os2museum.com/wp/well-hello/).
 These two files are used for early testing and debugging only, and they
-will not be distributed with BASIC-DOS.
+will not be distributed with the finished BASIC-DOS product.
 
 NOTE: All preview binaries shown here are *DEBUG* versions, which means that
 all run-time assertions are enabled, so file sizes and memory usage are larger

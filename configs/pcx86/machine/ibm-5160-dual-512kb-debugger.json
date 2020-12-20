@@ -10,6 +10,7 @@
   },
   "machine": {
     "type": "pcx86",
+    "class": "dual",
     "name": "PCx86",
     "version": "2.06",
     "factory": "embedPCx86",

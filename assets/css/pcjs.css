@@ -5,7 +5,13 @@
 }
 */
 .machine {
-  margin: 0 0 2em;
+  margin: 0 auto;
+  max-width: 800px;
+  overflow: auto;
+  padding-bottom: 16px;
+}
+.dual {
+  max-width: 100%;
 }
 .machine h3 {
   color: #6091b7;
