@@ -14,7 +14,7 @@ has all the gory details for anyone who really cares.
 But, with the target release date only 8 months away now, an update seemed
 overdue.
 
-## The Boot Sector
+### The Boot Sector
 
 This is where development started.  And I'm happy to report that the boot
 sector is in good shape.  It includes features that I don't think existed in
@@ -27,7 +27,7 @@ In addition, the boot sector will prompt you if a hard disk is detected, and
 if you press the Esc key, you can boot from the hard disk instead of the
 BASIC-DOS diskette.
 
-## System Configuration (CONFIG.SYS)
+### System Configuration (CONFIG.SYS)
 
 The BASIC-DOS boot code also loads **CONFIG.SYS** into memory, so that
 the system can be tailored to your needs.  PC DOS didn't support **CONFIG.SYS**
@@ -49,7 +49,7 @@ yet, but support does exist for the following configuration options:
 Sessions are one of the cool new features of BASIC-DOS.  More on that below,
 when I talk about the **CONSOLE** driver.
 
-## Built-in Device Drivers (IBMBIO.COM)
+### Built-in Device Drivers (IBMBIO.COM)
 
 **IBMBIO.COM** is the first file loaded by the boot sector, and it's little
 more than the concatenation of all the standard (built-in) device drivers,
@@ -79,7 +79,7 @@ unified **REQUEST** entry point that doesn't need to preserve any registers,
 and both the BASIC-DOS **CON** and **COM** drivers support interrupt-driven
 I/O.
 
-### The Console Driver (CON)
+#### The Console Driver (CON)
 
 The Console ("CON") driver is a cornerstone of **Sessions**, one of the
 major features of BASIC-DOS.
@@ -142,7 +142,7 @@ defines two full-screen border-less contexts, each assigned to a different
 monitor.  In this case, the presence of a blinking cursor is your sole visual
 cue as to which context has focus.
 
-### The Serial Driver (eg, COM1)
+#### The Serial Driver (eg, COM1)
 
 For each serial device present in the machine, an instance of the **COM**
 driver will be installed.  You can open a COM device with just the bare name
@@ -151,7 +151,7 @@ device, or with a full descriptor ("COM1:9600,N,8,1,64,128") to also enable
 buffered asynchronous I/O (eg, a 64-byte input buffer and a 128-byte output
 buffer).
 
-### The Floppy Drive Controller Driver (FDC$)
+#### The Floppy Drive Controller Driver (FDC$)
 
 This is a block device driver specifically designed for the IBM PC's floppy
 drive controller.  However, unlike the CONSOLE and COM drivers, it does *not*
@@ -193,7 +193,7 @@ Retry, Ignore" prompts).  Any error, recoverable or otherwise, is reported
 immediately back to the caller.  That'll change at some point -- probably after
 I add support to the CONSOLE driver for "popup" and background display contexts.
 
-### BIOS Parameter Blocks (BPBs)
+#### BIOS Parameter Blocks (BPBs)
 
 While the BIOS Parameter Block (BPB) is a diskette structure that wasn't
 introduced until PC DOS 2.00, it seemed like an important feature to include
@@ -214,7 +214,7 @@ BASIC-DOS preallocates an Extended BPB for every drive in the system, and
 the FDC driver supports MEDIA CHECK and BUILD BPB operations similar to those
 that PC DOS eventually supported.
 
-## The DOS Operating System (IBMDOS.COM)
+### The DOS Operating System (IBMDOS.COM)
 
 **IBMDOS.COM** is the second file loaded by the boot code.  It installs handlers
 for all the usual INT 2xh software interrupts, the INT 30h vector for the old
@@ -263,7 +263,7 @@ BASIC-DOS will attempt to terminate the current program in the focus session.
 Miscellaneous operations include date/time manipulation functions, editing
 functions, object enumeration functions, etc.
 
-## The Command Interpreter (COMMAND.COM)
+### The Command Interpreter (COMMAND.COM)
 
 **COMMAND.COM** is intended to be a unified DOS/BASIC command interpreter
 that eliminates the need for a special "batch language," "environment variables,"
@@ -298,4 +298,4 @@ file handles.
 
 Try the `HELP` command for a list of commands implemented so far.
 
-## To Be Continued...
+### To Be Continued...
