@@ -12,7 +12,7 @@ machines:
       B: "PC DOS 2.00 (Disk 2)"
 ---
 
-### Were Dual Monitors Ever This Cool?
+### Part 5: Were Dual Monitors Ever This Cool?
 
 Foreground sessions are even more useful on Dual Monitor systems, like the
 one below, because each session has exclusive access to an entire screen.

@@ -11,7 +11,7 @@ much rather be writing code than documenting it, and no one would really be
 that interested anyway.  The GitHub [repository](https://github.com/jeffpar/basicdos)
 has all the gory details for anyone who really cares.
 
-But, with the target release date only 8 months away now, an update seemed
+But, with the target release date only 8 months away now, an update seems
 overdue.
 
 ### The Boot Sector
@@ -81,7 +81,7 @@ I/O.
 
 #### The Console Driver (CON)
 
-The Console ("CON") driver is a cornerstone of **Sessions**, one of the
+The Console ("CON") driver is a cornerstone of **SESSIONS**, one of the
 major features of BASIC-DOS.
 
 BASIC-DOS supports a default of 4 sessions (which you can change with the
@@ -101,11 +101,11 @@ define two 40-column, 25-line sessions that are displayed side-by-side on
 an 80-column IBM PC monitor, each running their own copy of COMMAND.COM.
 
 Sessions define a *context* within which one or more DOS programs may run,
-and the system automatically multi-tasks between sessions, providing the
-benefits a multi-tasking operating system while also supporting the traditional
+and the system automatically multitasks between sessions, providing the
+benefits a multitasking operating system while also supporting the traditional
 DOS application model.
 
-At the moment, the CONSOLE driver is fairly dumb -- it will create contexts
+At the moment, the Console driver is fairly dumb -- it will create contexts
 with any size and position, without regard for other contexts, so if you
 define two or more overlapping contexts, expect to see a mess on the screen.
 
@@ -114,7 +114,7 @@ a string following the device name and colon; eg:
 
     CON:40,25,40,0,1,0
 
-The 6 possible values in a CONSOLE descriptor are:
+The 6 possible values in a Console descriptor are:
 
   1. number of columns
   2. number of rows
@@ -154,12 +154,12 @@ buffer).
 #### The Floppy Drive Controller Driver (FDC$)
 
 This is a block device driver specifically designed for the IBM PC's floppy
-drive controller.  However, unlike the CONSOLE and COM drivers, it does *not*
+drive controller.  However, unlike the Console and Serial drivers, it does *not*
 currently support asynchronous I/O.  I didn't feel like taking on that work
 just yet, so it's largely just a wrapper for the BIOS INT 13h READ and WRITE
 functions.
 
-And because it relies entirely on the BIOS, it needs the DOS kernel to "lock"
+Because it relies entirely on the BIOS, it needs the DOS kernel to "lock"
 the session while any disk operation is in progress, so that there's no risk
 of a context-switch in the middle of a disk operation.  That obviously isn't
 ideal, but replicating all the BIOS functionality to support asynchronous disk
@@ -254,16 +254,16 @@ utility from having to duplicate the same functionality.  They do come at the
 cost of an increased memory footprint, but the hope is that the benefits will
 outweigh the cost.
 
-Session operations provide the ability to start and stop sessions, and wait for
+Session operations provide the ability to start and stop sessions, wait for
 sessions to complete, as well as traditional multitasking functions such as
 yield, sleep, wait, and end-wait.  Also note that CTRL-ALT-DEL is intercepted
-by the CON driver and transformed into a session "hot key" notification;
-BASIC-DOS will attempt to terminate the current program in the focus session.
+by the Console driver and transformed into a session "hot key" notification;
+BASIC-DOS will attempt to terminate the current program in the session with focus.
 
 Miscellaneous operations include date/time manipulation functions, editing
-functions, object enumeration functions, etc.
+functions, object enumeration functions, and more.
 
-### The Command Interpreter (COMMAND.COM)
+### The Interpreter (COMMAND.COM)
 
 **COMMAND.COM** is intended to be a unified DOS/BASIC command interpreter
 that eliminates the need for a special "batch language," "environment variables,"
@@ -278,8 +278,8 @@ No special switches are required (eg, /P or /K).  Each copy of **COMMAND.COM**
 loaded during the system initialization ("SYSINIT") phase remains
 permanently loaded.  Unlike PC DOS, COMMAND.COM is not divided into "resident"
 and "transient" sections.  Instead, it's divided in "shared" and "instance"
-sections, so that every copy of **COMMAND.COM** shares the same code and
-read-only data.
+sections, so every copy of **COMMAND.COM** shares the same code and read-only
+data, making each additional copy very small.
 
 At the command prompt, you can launch DOS and BASIC programs, and type
 a variety of DOS and BASIC commands.  You can define your own variables
@@ -295,6 +295,14 @@ will "pipe" the output of the `TYPE` command to CASE.COM, a simple BASIC-DOS
 I/O filter program that upper-cases all input.  And in BASIC-DOS, these commands
 are running *simultaneously*, as separate sessions sharing the same console and
 file handles.
+
+PC DOS didn't support pipe operations version 2.00, and even then, pipes were
+simulated with temporary files, requiring a writable disk with enough free space
+to hold all the piped output, and the filters were run sequentially rather than
+in parallel.
+
+BASIC-DOS is free from those limitations, and the amount of piped data can be
+unlimited.
 
 Try the `HELP` command for a list of commands implemented so far.
 

@@ -18,7 +18,7 @@ machines:
     autoType: MEM /S\r
 ---
 
-### Pipes and Sessions
+### Part 4: Pipes and Sessions
 
 In PC DOS, pipes require a writable disk with enough disk space to contain the
 entire pipe output; in other words, pipe operations are really just "faked"
@@ -65,4 +65,4 @@ sessions.
 
 {% include machine.html id="ibm5150-3" %}
 
-Next: [Were Dual Monitors Ever This Cool?](../part5/)
+### Next: [Part 5: Were Dual Monitors Ever This Cool?](../part5/)

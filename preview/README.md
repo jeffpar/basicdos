@@ -71,4 +71,4 @@ And, true to its name, BASIC-DOS has begun incorporating BASIC language
 functionality into the command interpreter.  COMMAND.COM is on its way to
 becoming a unified DOS *and* BASIC command interpreter.
 
-### Next: [BASIC Operations](part2/)
+### Next: [Part 2: BASIC Operations](part2/)

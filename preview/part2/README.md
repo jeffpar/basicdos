@@ -10,7 +10,7 @@ machines:
     autoType: MSBASIC PRIMES\r
 ---
 
-### BASIC Operations
+### Part 2: BASIC Operations
 
 At the moment, the set of available BASIC commands is *very* basic: CLS, COLOR,
 DEF, GOTO, IF ... THEN, LET, and PRINT.  But those are enough to write some
@@ -37,4 +37,4 @@ Notice how much *faster* BASIC-DOS execution is.  And BASIC-DOS is performing
 full 32-bit integer operations -- twice the precision of MSBASIC integer
 operations.
 
-### Next: [BASIC Files vs. Batch Files](../part3/)
+### Next: [Part 3: BASIC Files vs. Batch Files](../part3/)
