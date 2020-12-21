@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Conception
+title: Perspiration
 date: 2020-12-12 11:00:00
 permalink: /blog/2020/12/12/
 ---
@@ -11,7 +11,7 @@ much rather be writing code than documenting it, and no one would really be
 that interested anyway.  The GitHub [repository](https://github.com/jeffpar/basicdos)
 has all the gory details for anyone who really cares.
 
-But, with the target release date only 8 months away now, an update seems
+But, with the target release date only 8 months away now, an update is long
 overdue.
 
 ### The Boot Sector

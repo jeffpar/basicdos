@@ -2,7 +2,7 @@
 ; BASIC-DOS Device Driver Definitions
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright (c) 2012-2020 Jeff Parsons
+; @copyright (c) 2020-2021 Jeff Parsons
 ; @license MIT <https://www.pcjs.org/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org

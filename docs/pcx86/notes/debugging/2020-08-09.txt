@@ -6,7 +6,7 @@ have happened).
 ---
 
 PCx86 v2.04
-Copyright © 2012-2020 Jeff Parsons <Jeff@pcjs.org>
+Copyright © 2020-2021 Jeff Parsons <Jeff@pcjs.org>
 License: MIT <https://www.pcjs.org/LICENSE.txt>
 Loading /software/pcx86/roms/BASIC110.json.......
 Loading /software/pcx86/roms/XTBIOS-REV1.json.......

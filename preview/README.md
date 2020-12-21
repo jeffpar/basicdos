@@ -17,6 +17,10 @@ This is a preview of an unfinished product.
 
 ### Introducing BASIC-DOS for the IBM PC
 
+This is a "sneak peek" at BASIC-DOS, the first version of DOS that *could*
+have been created for the IBM PC, with the benefit of more time and
+[incredible foresight](/blog/).
+
 The machine shown below is an IBM PC (Model 5150) with two floppy
 disk drives and a Color Graphics Adapter (CGA) connected to a Color Monitor.
 The machine was originally configured with 64K of RAM, but it has been

@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Inception
+title: Inspiration
 date: 2020-05-17 11:00:00
 permalink: /blog/2020/05/17/
 ---
