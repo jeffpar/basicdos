@@ -6,7 +6,7 @@ machines:
   - id: ibm5150-4
     type: pcx86
     config: /configs/pcx86/machine/ibm-5150-dual-256kb.json
-    debugger: /demos/dual/debugger/
+    debugger: /demos/dual/debugger
     autoMount:
       A: "BASIC-DOS4"
       B: "PC DOS 2.00 (Disk 2)"
@@ -22,10 +22,9 @@ and appreciate how well an IBM PC could actually run two programs simultaneously
 
 {% include machine.html id="ibm5150-4" %}
 
-There's also a "[Dueling Monitors](../../dual/multi/)" demo featuring FOUR active
-sessions (two per monitor).  This may be pushing the IBM PC a bit too far,
-but any session that's waiting for input (ie, blocked) has no impact on the
-scheduler.
+There's also a "[Dueling Monitors](../../demos/dual/multi/)" demo featuring
+FOUR active sessions (two per monitor).  This may be pushing the IBM PC a bit
+too far, but any session that's waiting for input has no impact on performance.
 
 It's important to note that BASIC-DOS is *not* attempting to emulate a
 "virtual machine" within each session.  That would require swapping global

@@ -57,11 +57,11 @@ followed by a small bit code to call each driver's INIT function.  If a driver
 reports that it isn't needed (eg, if no serial or parallel adapter is present),
 then the driver is discarded.
 
-If you type the `MEM /D` command, you'll see that BASIC-DOS most of the
+If you type the `MEM /D` command, you'll see that BASIC-DOS has most of the
 usual built-in DOS device drivers, although the only ones that really do
 much at this point are:
 
-  - CON (ie, a unified screen and keyboard driver)
+  - CON (combined screen and keyboard driver)
   - COM1, COM2, etc.
   - CLOCK$
   - FDC$ (yes, BASIC-DOS block drivers can have names, too)
@@ -155,15 +155,13 @@ buffer).
 
 This is a block device driver specifically designed for the IBM PC's floppy
 drive controller.  However, unlike the Console and Serial drivers, it does *not*
-currently support asynchronous I/O.  I didn't feel like taking on that work
-just yet, so it's largely just a wrapper for the BIOS INT 13h READ and WRITE
-functions.
+currently support asynchronous I/O.  I didn't feel like taking on that work,
+so it's largely just a wrapper for the BIOS INT 13h READ and WRITE functions.
 
 Because it relies entirely on the BIOS, it needs the DOS kernel to "lock"
 the session while any disk operation is in progress, so that there's no risk
 of a context-switch in the middle of a disk operation.  That obviously isn't
-ideal, but replicating all the BIOS functionality to support asynchronous disk
-I/O is a big chunk of work.
+ideal, but again, it saves a lot of work.
 
 However, the FDC driver does more than simply wrap INT 13h calls.  It improves
 on the BIOS interfaces by supporting:
@@ -178,7 +176,7 @@ of a sector, that request can more or less go straight to the FDC driver.  And
 since the driver does its own buffering, such requests can usually be satisfied
 without hitting the disk again.
 
-The BIOS only supports multi-sector requests as long as all the sectors are
+The BIOS supports multi-sector requests only as long as all the sectors are
 on the same track; the FDC driver eliminates that requirement, by breaking
 the request into multiple BIOS requests as appropriate.  Multi-sector requests
 can even include partial sector requests, starting and/or stopping on
@@ -191,7 +189,7 @@ such failures.
 There's no support in the system for hard errors (eg, the familiar "Abort,
 Retry, Ignore" prompts).  Any error, recoverable or otherwise, is reported
 immediately back to the caller.  That'll change at some point -- probably after
-I add support to the CONSOLE driver for "popup" and background display contexts.
+I add support to the Console driver for "popup" and background display contexts.
 
 #### BIOS Parameter Blocks (BPBs)
 
@@ -201,18 +199,18 @@ in BASIC-DOS.
 
 BPBs on BASIC-DOS diskettes have a few additional fields that relieve the boot
 code from making unnecessary calculations (eg, the locations of the first root
-directory and data sectors), and the in-memory BPBs (aka Extended BPBs) have
-even more.  The use of Extended BPBs eliminates the need for other data structures,
-such as Drive Parameter Blocks (DPBs) found in later versions of PC DOS.
+directory and data sectors), and when they are loaded into memory, they
+become Extended BPBs.
+
+Every drive is assigned an Extended BPB, which eliminates the need for other
+data structures, such as Drive Parameter Blocks (DPBs) found in later versions
+of PC DOS, and the FDC driver supports MEDIA CHECK and BUILD BPB operations
+similar to those that PC DOS eventually supported.
 
 BPB support means that BASIC-DOS can read any standard PC diskette, as long as
 the BIOS can read it.  However, diskettes with subdirectories won't be fully
 usable, at least not until the day comes -- if ever -- that BASIC-DOS supports
-subdirectories.
-
-BASIC-DOS preallocates an Extended BPB for every drive in the system, and
-the FDC driver supports MEDIA CHECK and BUILD BPB operations similar to those
-that PC DOS eventually supported.
+them.
 
 ### The DOS Operating System (IBMDOS.COM)
 
@@ -229,17 +227,17 @@ provides a read-only file system.  This will change in the coming months.
 
 The memory management architecture introduced in PC DOS 2.00 has been adopted
 by BASIC-DOS, with one significant difference: when a program is loaded, it is
-*not* allocated all available memory.  It is provided with an ample stack, but
-if it wants more memory, it must explicitly allocate it.
+*not* allocated all available memory.  It is provided with an ample stack, so
+that BASIC-DOS *never* has to switch stacks, but if the program wants more
+memory, it must explicitly allocate it.
 
-If an EXE file specifies a minimum memory allocation larger than the
-BASIC-DOS minimum, BASIC-DOS will attempt to honor it.  Moreover, COM files can
-also request an additional amount of "heap" memory at load time by including a
-special structure and BASIC-DOS heap signature ("BD") at the end of the file.
+Memory allocations are not partitioned in any way.  Every allocation, regardless
+of which program or session requests it, comes from the same global memory pool.
 
-Unlike other "early" operating systems, BASIC-DOS does not create fixed memory
-partitions.  All session memory is allocated from the same global BASIC-DOS
-memory pool.
+EXE files can specify a minimum load-time memory allocation, which BASIC-DOS
+will try to honor.  Even COM files can request additional "heap" memory at load
+time by appending a special structure and a BASIC-DOS heap signature ("BD") to
+the end of the file.
 
 Utility functions are loosely organized into a few major groups:
 
@@ -256,9 +254,9 @@ outweigh the cost.
 
 Session operations provide the ability to start and stop sessions, wait for
 sessions to complete, as well as traditional multitasking functions such as
-yield, sleep, wait, and end-wait.  Also note that CTRL-ALT-DEL is intercepted
-by the Console driver and transformed into a session "hot key" notification;
-BASIC-DOS will attempt to terminate the current program in the session with focus.
+yield, sleep, wait, etc.  Also note that CTRL-ALT-DEL is intercepted by the
+Console driver and transformed into a session "hot key" notification; BASIC-DOS
+will attempt to terminate the current program in the session with focus.
 
 Miscellaneous operations include date/time manipulation functions, editing
 functions, object enumeration functions, and more.
@@ -266,7 +264,7 @@ functions, object enumeration functions, and more.
 ### The Interpreter (COMMAND.COM)
 
 **COMMAND.COM** is intended to be a unified DOS/BASIC command interpreter
-that eliminates the need for a special "batch language," "environment variables,"
+that eliminates the need for a special "batch language", "environment variables",
 etc.
 
 There's no hard-coded support for an **AUTOEXEC.BAT**, but it's easily
@@ -275,11 +273,11 @@ added with a single line to **CONFIG.SYS**:
     SHELL=COMMAND.COM AUTOEXEC.BAT
 
 No special switches are required (eg, /P or /K).  Each copy of **COMMAND.COM**
-loaded during the system initialization ("SYSINIT") phase remains
+loaded during the system initialization (aka "SYSINIT") phase remains
 permanently loaded.  Unlike PC DOS, COMMAND.COM is not divided into "resident"
 and "transient" sections.  Instead, it's divided in "shared" and "instance"
 sections, so every copy of **COMMAND.COM** shares the same code and read-only
-data, making each additional copy very small.
+data, making each additional copy's footprint much smaller.
 
 At the command prompt, you can launch DOS and BASIC programs, and type
 a variety of DOS and BASIC commands.  You can define your own variables
@@ -301,9 +299,9 @@ simulated with temporary files, requiring a writable disk with enough free space
 to hold all the piped output, and the filters were run sequentially rather than
 in parallel.
 
-BASIC-DOS is free from those limitations, and the amount of piped data can be
-unlimited.
+BASIC-DOS is free of those limitations.  No disk operations are required,
+and the amount of piped data can be *unlimited*.
 
-Try the `HELP` command for a list of commands implemented so far.
+See the `HELP` command for a list of commands implemented so far.
 
 ### To Be Continued...

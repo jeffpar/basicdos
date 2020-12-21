@@ -14,7 +14,7 @@ want to make the first PC operating system as compelling and powerful as
 possible.
 
 So, we have more time to prepare than Microsoft originally did, and we have
-the benefit of hindsight (or foresight, if it was really 1980).
+the benefit of hindsight (or foresight, since it's 1980).
 
 For example, we know that higher capacity diskettes and hard disks will soon
 become available, so maybe we can make some early design decisions about the
@@ -39,6 +39,6 @@ larger than 16-bit -- to create programs that take *full* advantage of this new
 processor, instead of perpetuating limitations found on other older platforms
 (eg, 6502 and 8080-based systems).
 
-And what should we call this operating system?  DOS-BASIC?
+And what should we call this operating system?  DOS-BASIC?  BASIC-DOS?
 
-BASIC-DOS!
+Let's see what the future holds.
