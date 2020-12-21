@@ -1,7 +1,7 @@
 ## BASIC-DOS Source Files
 
-Copyright (c) 2020-2021 Jeff Parsons (Jeff@pcjs.org)
-Released under MIT License: https://basicdos.com/LICENSE.txt
+Copyright (c) 2020-2021 [Jeff Parsons](mailto:Jeff@pcjs.org)   
+Released under MIT License: https://basicdos.com/LICENSE.txt  
 For more information: https://github.com/jeffpar/basicdos
 
 Sources are divided into the following directories:
