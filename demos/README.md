@@ -2,7 +2,6 @@
 layout: default
 heading: BASIC-DOS Demos
 permalink: /demos/
-preview: /assets/images/maplebar.jpg
 machines:
   - id: ibm5150
     type: pcx86
