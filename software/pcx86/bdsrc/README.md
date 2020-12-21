@@ -1,5 +1,9 @@
 ## BASIC-DOS Source Files
 
+Copyright (c) 2020-2021 Jeff Parsons (Jeff@pcjs.org)
+Released under MIT License: https://basicdos.com/LICENSE.txt
+For more information: https://github.com/jeffpar/basicdos
+
 Sources are divided into the following directories:
 
   - [BOOT](boot/)
@@ -58,6 +62,14 @@ Microsoft BASIC ("GW-BASIC"), using the open-source files from
 [GitHub](https://github.com/microsoft/GW-BASIC) and a reverse-engineered OEM
 source file courtesy of the [OS/2 Museum](msb/OEM.ASM).
 
+NOTE: The Microsoft BASIC source files in the [MSB](msb/) directory are
+copyright (c) Microsoft Corporation; see the [MIT License](msb/LICENSE).
+
+The Microsoft BASIC files are included for reference and testing purposes only
+and will *not* be part of the final BASIC-DOS distribution.  Any excerpts
+incorporated into BASIC-DOS will be separately identified with the required
+notices.
+
 ## The BASIC-DOS Build Process
 
 The [BASIC-DOS Build Machine](https://basicdos.com/build/)
@@ -73,3 +85,4 @@ By default, the binaries contain *DEBUG* code (eg, assertions and debugging
 aids).  To build non-debug binaries, type **MK FINAL**, or **MKCLEAN FINAL**
 if switching between *DEBUG* and *FINAL* binaries.  The **MKCLEAN.BAT** batch
 file simply deletes all the binaries before running **MK.BAT**.
+

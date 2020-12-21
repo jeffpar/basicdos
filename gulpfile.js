@@ -2,7 +2,7 @@
  * @fileoverview Gulp file for basicdos.com
  * @author Jeff Parsons <Jeff@pcjs.org>
  * @copyright © 2020-2021 Jeff Parsons
- * @license MIT <https://www.basicdos.com/LICENSE.txt>
+ * @license MIT <https://basicdos.com/LICENSE.txt>
  *
  * This file is part of PCjs, a computer emulation software project at <https://www.pcjs.org>.
  */
