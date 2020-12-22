@@ -2,8 +2,8 @@
 ; BASIC-DOS Utility Services
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright (c) 2012-2020 Jeff Parsons
-; @license MIT <https://www.pcjs.org/LICENSE.txt>
+; @copyright (c) 2020-2021 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
@@ -16,10 +16,9 @@
 DOS	segment word public 'CODE'
 
 	EXTNEAR	<chk_devname,dev_request>
-	EXTNEAR	<scb_load,scb_start,scb_stop,scb_end,scb_waitend>
+	EXTNEAR	<scb_load,scb_start,scb_stop,scb_end,scb_waitend,scb_abort>
 	EXTNEAR	<scb_yield,scb_release,scb_wait,scb_endwait>
-	EXTNEAR	<mem_query,msc_getdate,msc_gettime>
-	EXTNEAR	<psp_term_exitcode>
+	EXTNEAR	<mem_query,msc_getdate,msc_gettime,psp_termcode>
 	EXTNEAR	<add_date,read_line>
 
 	EXTBYTE	<scb_locked>
@@ -219,9 +218,10 @@ ENDPROC	utl_sleep
 ;	REG_DX:REG_DI == wait ID
 ;
 ; Outputs:
-;	None
+;	Carry clear UNLESS the wait has been ABORT'ed
 ;
 DEFPROC	utl_wait,DOS
+	and	[bp].REG_FL,NOT FL_CARRY
 	jmp	scb_wait
 ENDPROC	utl_wait
 
@@ -269,7 +269,9 @@ DEFPROC	utl_hotkey,DOS
 ;
 	sub	dx,dx			; DX = matching SCB count
 	mov	bx,[scb_table].OFF
-hk1:	cmp	[bx].SCB_CONTEXT,cx
+hk1:	test	[bx].SCB_STATUS,SCSTAT_START
+	jz	hk8			; unstarted sessions are ignored
+	cmp	[bx].SCB_CONTEXT,cx
 	jne	hk8
 	inc	dx			; match
 hk2:	cmp	al,CHR_CTRLC
@@ -280,7 +282,7 @@ hk3:	cmp	al,CHR_CTRLP
 	xor	[bx].SCB_CTRLP_ACT,1
 hk4:	cmp	al,CHR_CTRLD
 	jne	hk9
-	or	[bx].SCB_STATUS,SCSTAT_RESET
+	call	scb_abort
 hk8:	add	bx,size SCB		; advance to the next SCB
 	cmp	bx,[scb_table].SEG
 	jb	hk1
@@ -357,7 +359,7 @@ ENDPROC	utl_qrymem
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_abort (AH = 1Fh)
+; utl_term (AH = 1Fh)
 ;
 ; Inputs:
 ;	REG_DL = exit code
@@ -366,10 +368,10 @@ ENDPROC	utl_qrymem
 ; Outputs:
 ;	None
 ;
-DEFPROC	utl_abort,DOS
+DEFPROC	utl_term,DOS
 	xchg	ax,dx			; AL = exit code, AH = exit type
-	jmp	psp_term_exitcode
-ENDPROC	utl_abort
+	jmp	psp_termcode
+ENDPROC	utl_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

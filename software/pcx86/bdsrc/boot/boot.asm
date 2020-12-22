@@ -2,8 +2,8 @@
 ; BASIC-DOS Boot Code
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright (c) 2012-2020 Jeff Parsons
-; @license MIT <https://www.pcjs.org/LICENSE.txt>
+; @copyright (c) 2020-2021 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
@@ -49,7 +49,12 @@ mybpb:		BPB	<,512,1,1,2,64,320,MEDIA_160K,1,8,1,0,0,0,8,3,7>
 DEV_FILE	db	"IBMBIO  COM"
 DOS_FILE	db	"IBMDOS  COM"
 CFG_FILE	db	"CONFIG  SYS",-1
-
+;
+; This intermediate jump could be eliminated if I used a long jump above,
+; but I wanted to make this boot sector unique in the annals of "future" boot
+; sectors, by using CLD (FCh) as the first opcode.  Will it confuse "future"
+; Intel boot sector detection code?  Maybe.  Do I care?  No.
+;
 start1:	jmp	short part1		; can't quite make it in one jump
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -1,7 +1,7 @@
 ---
 layout: page
 title: BASIC-DOS Preview
-permalink: /maplebar/preview/part3/
+permalink: /preview/part3/
 machines:
   - id: ibm5150
     type: pcx86
@@ -10,18 +10,18 @@ machines:
     autoType: TYPE BD1.BAT\r\rBD1\r
 ---
 
-### BASIC Files vs. Batch Files
+### Part 3: BASIC Files vs. Batch Files
 
 There are three versions of the **PRIMES** program on the `BASIC-DOS1` diskette:
 the **BAS** file previously demonstrated, a **BAT** version that uses line numbers
 only as needed (as labels), and an **EXE** version that was written in assembly
 language.  The source code for the assembly language version can be found in both
-the BASIC-DOS [Repository]({{ site.github.repository_url }}) and [Build Machine](../../build/),
-along with the rest of the BASIC-DOS source code.
+the BASIC-DOS [Repository]({{ site.github.repository_url }}/blob/master/software/pcx86/bdsrc/test/primes.asm)
+and [Build Machine](/build/), along with the rest of the BASIC-DOS source code.
 
 When processing an external filename, BASIC-DOS searches for extensions in the
-same order as PC DOS: **.COM**, **.EXE**, and **.BAT**.  And if none of those
-are found, it also searches for a **.BAS** file.  And unlike PC DOS, you can
+same order as PC DOS: **COM**, **EXE**, and **BAT**.  And if none of those
+are found, it also searches for a **BAS** file.  And unlike PC DOS, you can
 override the search order with an *explicit* file extension.
 
 Let's take a look at the **BD1.BAT** batch file in the machine below.
@@ -32,6 +32,9 @@ As in PC DOS 2.00, an `ECHO` command has been added to control the echoing
 of lines in a batch file.  However, the only `ECHO` options are *ON* and *OFF*,
 because if you want to echo something else, well, BASIC already has a command
 for that: `PRINT`.
+
+You can also treat the batch file exactly like a BASIC file, with commands
+like `LOAD BD1.BAT`, `LIST`, and `RUN`.
 
 Variables, including function definitions, remain in memory after a batch file
 (or BASIC program) has been run.  So the ADD function defined by **BD1.BAT**
@@ -49,9 +52,9 @@ calls "Direct Mode", aka Immediate Mode), and 3) it allows multi-line function
 definitions within BASIC files, enabling the creation of more sophisticated
 functions.
 
-Take this opportunity to experiment with BASIC-DOS line-editing, which combines
-all the editing features of both PC DOS and PC BASIC, improving the PC DOS
-editing experience.  Use the BASIC-DOS `HELP` command to list available editing
-keys (`HELP KEYS`).
+Also take this opportunity to experiment with BASIC-DOS line-editing, which
+combines all the editing features of both PC DOS and PC BASIC, improving the
+PC DOS editing experience.  Use the BASIC-DOS `HELP` command to list available
+editing keys (`HELP KEYS`).
 
-Next: [Pipes and Sessions](../part4/)
+### Next: [Part 4: Pipes and Sessions](../part4/)

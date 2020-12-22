@@ -2,8 +2,8 @@
 ; BASIC-DOS Boot Sector Updater
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright (c) 2012-2020 Jeff Parsons
-; @license MIT <https://www.pcjs.org/LICENSE.txt>
+; @copyright (c) 2020-2021 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
@@ -182,7 +182,7 @@ msg:	push	ax
 	mov	ah,DOS_TTY_PRINT
 	int	21h
 	pop	ax
-exit:	mov	ah,DOS_PSP_EXIT		; exit with return code in AL
+exit:	mov	ah,DOS_PSP_RETURN	; return to caller with exit code in AL
 	int	21h
 ENDPROC	main
 

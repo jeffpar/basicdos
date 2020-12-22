@@ -2,8 +2,8 @@
 ; BASIC-DOS Device Services
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright (c) 2012-2020 Jeff Parsons
-; @license MIT <https://www.pcjs.org/LICENSE.txt>
+; @copyright (c) 2020-2021 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
@@ -19,9 +19,6 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<copy_name>
 	EXTWORD	<scb_active>
 	EXTLONG	<bpb_table>
-	IF REG_CHECK
-	EXTNEAR	<dos_check>
-	ENDIF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

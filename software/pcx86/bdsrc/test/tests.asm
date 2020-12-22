@@ -2,8 +2,8 @@
 ; BASIC-DOS Miscellaneous DOS Tests
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright (c) 2012-2020 Jeff Parsons
-; @license MIT <https://www.pcjs.org/LICENSE.txt>
+; @copyright (c) 2020-2021 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
@@ -93,7 +93,7 @@ m3:	mov	dx,offset progress
 ; In BASIC-DOS, we could also use INT 20h here, but PC DOS requires that CS
 ; contain the PSP being terminated when calling INT 20h (BASIC-DOS does not).
 ;
-	mov	ax,DOS_PSP_EXIT SHL 8
+	mov	ax,DOS_PSP_RETURN SHL 8
 	int	21h
 	ret			; a return is not necessary, but just in case
 ENDPROC	main

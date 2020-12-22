@@ -2,8 +2,8 @@
 ; BASIC-DOS Driver/Application Interface Entry Points
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright (c) 2012-2020 Jeff Parsons
-; @license MIT <https://www.pcjs.org/LICENSE.txt>
+; @copyright (c) 2020-2021 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
@@ -18,8 +18,8 @@ DOS	segment word public 'CODE'
 	EXTWORD	<FUNCTBL>
 	EXTABS	<FUNCTBL_SIZE,UTILTBL_SIZE>
 	EXTWORD	<scb_active>
-	EXTBYTE	<ddint_level>
-	EXTNEAR	<msc_sigctrlc_read,msc_sigerr>
+	EXTBYTE	<scb_locked,int_level>
+	EXTNEAR	<msc_readctrlc,msc_sigerr>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -140,7 +140,7 @@ DEFPROC	dos_opchk,DOSFAR
 	cmp	al,OP_ASSERT		; OP_ASSERT?
 	jnz	oc9			; no
 	sub	si,3			; display the address of the INT 06h
-	PRINTF	<"Assertion failure @%08lx",13,10>,si,ds
+	; PRINTF	<"Assertion failure @%08lx",13,10>,si,ds
 	DBGBRK
 oc9:	pop	ds
 	pop	si
@@ -162,8 +162,8 @@ ENDPROC	dos_opchk
 ; NOTE: In PC DOS, this interrupt, as well as INT 21h AH=00h, apparently
 ; requires the call to be made from the segment containing the PSP (CS == PSP).
 ; We do not.  Also, the underlying function here (DOS_PSP_TERM) sets a default
-; exit code (we use zero), whereas DOS_PSP_EXIT (4Ch) allows any exit code to
-; be returned.
+; exit code (we use zero), whereas DOS_PSP_RETURN (4Ch) allows any exit code
+; to be returned.
 ;
 DEFPROC	dos_term,DOSFAR
 	mov	ah,DOS_PSP_TERM
@@ -175,7 +175,7 @@ ENDPROC	dos_term
 ;
 ; dos_restart
 ;
-; Default CTRLC response handler; if carry is set, call DOS_PSP_EXIT with
+; Default CTRLC response handler; if carry is set, call DOS_PSP_RETURN with
 ; (arbitrary) exit code -1.
 ;
 ; Inputs:
@@ -190,7 +190,7 @@ DEFPROC	dos_restart,DOSFAR
 	DEFLBL	dos_abort,near
 	mov	al,0FFh			; AL = exit code
 	xchg	dx,ax			; DL = exit code, DH = exit type
-	DOSUTIL	ABORT
+	DOSUTIL	TERM
 	ASSERT	NEVER			; assert that we never get here
 ENDPROC dos_restart
 
@@ -208,11 +208,10 @@ DEFPROC	dos_func,DOSFAR
 	cld				; we assume CLD everywhere
 	sub	sp,size WS_TEMP
 	push	ax			; order of pushes must match REG_FRAME
-
-	DEFLBL	dos_enter,near
 	push	bx
 	push	cx
 	push	dx
+	DEFLBL	dos_enter,near
 	push	ds
 	push	si
 	push	es
@@ -220,7 +219,7 @@ DEFPROC	dos_func,DOSFAR
 	push	bp
 	mov	bp,sp
 
-	IF REG_CHECK			; in DEBUG builds, use CALL to push
+dc0:	IF REG_CHECK			; in DEBUG builds, use CALL to push
 	call	dos_check		; a marker ("dos_check") onto the stack
 	DEFLBL	dos_check,near		; which REG_CHECK checks will verify
 	ENDIF
@@ -233,6 +232,10 @@ DEFPROC	dos_func,DOSFAR
 	ASSUME	DS:DOS
 	mov	es,bx
 	ASSUME	ES:DOS
+
+	mov	bx,[scb_active]
+	ASSERT	STRUCT,[bx],SCB
+	inc	[bx].SCB_INDOS
 ;
 ; Utility functions don't automatically re-enable interrupts, clear carry,
 ; or check for CTRLC, since some of them are called from interrupt handlers.
@@ -241,36 +244,35 @@ DEFPROC	dos_func,DOSFAR
 	jb	dc1			; no
 	sub	ah,80h
 	cmp	ah,UTILTBL_SIZE		; utility function within range?
-	jae	dos_exit		; no
+	jae	dos_leave		; no
 	mov	bl,ah
 	add	bl,FUNCTBL_SIZE		; the utility function table
-	jmp	short dc3		; follows the DOS function table
-dc0:	jmp	msc_sigctrlc_read
+	jmp	short dc2		; follows the DOS function table
 
 dc1:	sti
 	and	[bp].REG_FL,NOT FL_CARRY
 	cmp	ah,FUNCTBL_SIZE
 	cmc
-	jb	dc9
+	jb	dc3
 
 	IFDEF	MAXDEBUG
-	mov	bl,ah
+	push	ax
+	mov	al,ah
 ;
 ; %P is a special formatter that prints the caller's REG_CS:REG_IP-2 in hex;
 ; "#010" ensures it's printed with "0x" and 8 digits with leading zeroes.
 ;
-	DPRINTF	'd',<"%#010P: DOS function %02bxh\r\n">,bx
+	DPRINTF	'd',<"%#010P: DOS function %02bxh\r\n">,ax
+	pop	ax
 	ENDIF	; MAXDEBUG
 ;
 ; If CTRLC checking is enabled for all (non-utility) functions and a CTRLC
 ; was detected (two conditions that we check with a single compare), signal it.
 ;
-	mov	bx,[scb_active]
-	ASSERT	STRUCT,[bx],SCB
 	cmp	word ptr [bx].SCB_CTRLC_ALL,0101h
-	je	dc0			; signal CTRLC
+	je	dc4			; signal CTRLC
 	mov	bl,ah
-dc3:	mov	bh,0			; BX = function #
+dc2:	mov	bh,0			; BX = function #
 	add	bx,bx			; convert function # to word offset
 ;
 ; For convenience, general-purpose registers AX, CX, DX, SI, DI, and SS
@@ -282,17 +284,41 @@ dc3:	mov	bh,0			; BX = function #
 ; We'd just as soon IRET to the caller (which also restores their D flag),
 ; so we now update FL_CARRY on the stack (which we already cleared on entry).
 ;
-dc9:	adc	[bp].REG_FL,0
+dc3:	adc	[bp].REG_FL,0
 
-	DEFLBL	dos_exit,near
-
+	DEFLBL	dos_leave,near
 	IF REG_CHECK			; in DEBUG builds, check the "marker"
-	pop	bp			; that we pushed above
-	ASSERT	Z,<cmp bp,offset dos_check>
+	pop	bx			; that we pushed on entry
+	ASSERT	Z,<cmp bx,offset dos_check>
 	ENDIF
+;
+; Whenever the session's INDOS count returns to zero, check for a pending
+; SCSTAT_ABORT; if set AND we're not in the middle of a hardware interrupt,
+; clear the ABORT condition and simulate a DOSUTIL TERM session abort.
+;
+	mov	bx,[scb_active]
+	ASSERT	STRUCT,cs:[bx],SCB
+	dec	cs:[bx].SCB_INDOS
+	ASSERT	GE
+	jnz	dos_leave2
+	test	cs:[bx].SCB_STATUS,SCSTAT_ABORT
+	jz	dos_leave2
+	cmp	word ptr [scb_locked],-1; do NOT abort if session or driver
+	jne	dos_leave2		; lock levels are >= 0
+	and	cs:[bx].SCB_STATUS,NOT SCSTAT_ABORT
+;
+; WARNING: This simulation of DOSUTIL TERM takes a shortcut by not updating
+; REG_AH or REG_DX in REG_FRAME, but neither utl_term nor psp_termcode rely
+; on REG_FRAME for their inputs, so while this is not completely kosher, we'll
+; be fine.  The same is true for the termination code in int_leave.
+;
+	mov	dx,(EXTYPE_ABORT SHL 8) OR 0FFh
+	mov	ah,DOS_UTL_TERM + 80h
+	jmp	dc0
 
-	DEFLBL	dos_exit2,near
+dc4:	jmp	msc_readctrlc
 
+	DEFLBL	dos_leave2,near
 	pop	bp
 	pop	di
 	pop	es
@@ -310,12 +336,12 @@ ENDPROC	dos_func
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dos_exret (INT 22h handler)
+; dos_exit (INT 22h handler)
 ;
-DEFPROC	dos_exret,DOSFAR
+DEFPROC	dos_exit,DOSFAR
 	ASSERT	NEVER			; assert that we never get here
 	jmp	near ptr dos_term
-ENDPROC	dos_exret
+ENDPROC	dos_exit
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -424,7 +450,7 @@ ENDPROC	dos_util
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dos_ddint_enter
+; int_enter
 ;
 ; DDINT_ENTER is "revectored" here by sysinit.
 ;
@@ -434,51 +460,53 @@ ENDPROC	dos_util
 ; Outputs:
 ; 	Carry clear (DOS interrupt processing enabled)
 ;
-DEFPROC	dos_ddint_enter,DOSFAR
-	inc	[ddint_level]
+DEFPROC	int_enter,DOSFAR
+	inc	[int_level]
 	clc
 	ret
-ENDPROC	dos_ddint_enter
+ENDPROC	int_enter
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dos_ddint_leave
+; int_leave
 ;
 ; DDINT_LEAVE is "revectored" here by sysinit.
 ;
 ; Inputs:
-;	Carry set to reschedule, assuming ddint_level has dropped to zero
+;	Carry set to reschedule, assuming int_level has dropped below zero
 ;
 ; Outputs:
 ; 	None
 ;
-DEFPROC	dos_ddint_leave,DOSFAR
+DEFPROC	int_leave,DOSFAR
 	cli
-	dec	[ddint_level]
-	jnz	ddl9
+	dec	[int_level]
+	jge	ddl9
 	jnc	ddl9
 ;
-; If both Z and C are set, then enter DOS to perform a reschedule.
+; Enter DOS to perform a reschedule.
 ;
-; TODO: Once sysinit has revectored DDINT_LEAVE, we're off and running,
-; but the very first call to scb_yield will occur while scb_active is zero,
-; which scb_yield will misinterpret as a WAIT rather than a YIELD.  That's
-; OK, but only so long as at least one SCB is runnable, and only so long as
-; scb_active NEVER goes to zero again, lest we run the risk of blowing the
-; stack, as successive timer interrupts attempt to yield and keep failing.
-;
-; There was no risk of that when scb_yield locked the SCBs first, but we
-; prefer to no longer do that, because we want every yield to at least take
-; a quick look at all the SCBs and "stoke" any SCB that would have started
-; running earlier if another SCB hadn't been holding the lock.
+; However, we first take a peek at the current SCB's INDOS count and
+; ABORT flag; if the count is zero and the flag is set, force termination.
 ;
 	cld
 	sub	sp,size WS_TEMP
 	push	ax
+	push	bx
+	push	cx
+	push	dx
 	mov	ah,DOS_UTL_YIELD + 80h
-	jmp	dos_enter
+	mov	bx,cs:[scb_active]
+	cmp	cs:[bx].SCB_INDOS,0
+	jne	ddl8
+	test	cs:[bx].SCB_STATUS,SCSTAT_ABORT
+	jz	ddl8
+	and	cs:[bx].SCB_STATUS,NOT SCSTAT_ABORT
+	mov	dx,(EXTYPE_ABORT SHL 8) OR 0FFh
+	mov	ah,DOS_UTL_TERM + 80h
+ddl8:	jmp	dos_enter
 ddl9:	iret
-ENDPROC	dos_ddint_leave
+ENDPROC	int_leave
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

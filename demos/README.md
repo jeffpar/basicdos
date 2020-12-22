@@ -1,7 +1,7 @@
 ---
-layout: page
-title: BASIC-DOS Demos
-permalink: /maplebar/
+layout: default
+heading: BASIC-DOS Demos
+permalink: /demos/
 machines:
   - id: ibm5150
     type: pcx86
@@ -22,11 +22,8 @@ There are currently five BASIC-DOS demo configurations:
 The 40 and 80-column demos are configured with borders.  A double-wide border
 indicates which session has keyboard focus.  Use **SHIFT-TAB** to toggle focus.
 
-BASIC-DOS development was performed on this PC XT [Build Machine](build/).
-It's also available with [Dual Monitors](dual/build/).
-
-There's also a [blog](blog/), but I've been doing a poor job keeping it
-up-to-date.  There's just too much code to write and test.
+BASIC-DOS development was performed on this PC XT [Build Machine](../build/).
+It's also available with [Dual Monitors](../build/dual/).
 
 ### **CONFIG.SYS** from the BASIC-DOS1 Diskette
 

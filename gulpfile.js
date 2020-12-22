@@ -1,8 +1,8 @@
 /**
  * @fileoverview Gulp file for basicdos.com
  * @author Jeff Parsons <Jeff@pcjs.org>
- * @copyright © 2012-2020 Jeff Parsons
- * @license MIT <https://www.basicdos.com/LICENSE.txt>
+ * @copyright © 2020-2021 Jeff Parsons
+ * @license MIT <https://basicdos.com/LICENSE.txt>
  *
  * This file is part of PCjs, a computer emulation software project at <https://www.pcjs.org>.
  */
@@ -133,7 +133,7 @@ for (let diskName in disks) {
         diskFiles = "--files " + diskFiles;
         archiveImage = " --output " + diskImage.replace(diskName, "archive/" + diskName).replace(".json",".img") + " --writable";
         if (diskName.startsWith("BDS-")) {
-            kbTarget = 320;
+            kbTarget = 360;
         } else {
             diskFiles += " --boot ./software/pcx86/bdsrc/boot/obj/BOOT.COM";
         }

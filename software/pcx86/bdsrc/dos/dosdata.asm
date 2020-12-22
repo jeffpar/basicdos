@@ -2,8 +2,8 @@
 ; BASIC-DOS Resident Data Definitions
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright (c) 2012-2020 Jeff Parsons
-; @license MIT <https://www.pcjs.org/LICENSE.txt>
+; @copyright (c) 2020-2021 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
@@ -33,9 +33,13 @@ DOS	segment word public 'CODE'
 	DEFWORD	key_boot,0		; records key pressed at boot, if any
 	EXTNEAR	scb_return
 	DEFWORD	scb_stoked,<offset scb_return>
-	DEFBYTE	scb_locked,-1		; -1 if unlocked, >=0 if locked
+;
+; scb_locked and int_level are required to be addressable as a single word.
+;
+	DEFBYTE	scb_locked,-1		; -1 if unlocked, >= 0 if locked
+	DEFBYTE	int_level,-1		; device driver interrupt level
+
 	DEFBYTE	bpb_total,0		; total number of BPBs
-	DEFBYTE	ddint_level,0		; device driver interrupt level
 	DEFBYTE	sfh_debug,-1		; system file handle for DEBUG device
 	DEFBYTE	def_switchar,'/'
 ;
@@ -77,7 +81,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<fcb_rbread,fcb_parse>
 	EXTNEAR	<msc_getdate,msc_setdate,msc_gettime,msc_settime>
 	EXTNEAR	<msc_setvec,msc_getver,msc_setctrlc,msc_getvec,msc_getswc>
-	EXTNEAR	<msc_getvars,psp_exec,psp_exit,psp_retcode>
+	EXTNEAR	<msc_getvars,psp_exec,psp_return,psp_retcode>
 	EXTNEAR	<psp_copy,psp_set,psp_get,psp_create>
 	EXTNEAR	<hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek,hdl_ioctl>
 	EXTNEAR	<mem_alloc,mem_free,mem_realloc>
@@ -87,7 +91,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<utl_tokify,utl_tokid,utl_parsesw>
 	EXTNEAR	<utl_getdev,utl_getcsn,utl_load,utl_start,utl_stop,utl_end>
 	EXTNEAR	<utl_waitend,utl_yield,utl_sleep,utl_wait,utl_endwait>
-	EXTNEAR	<utl_hotkey,utl_lock,utl_unlock,utl_qrymem,utl_abort>
+	EXTNEAR	<utl_hotkey,utl_lock,utl_unlock,utl_qrymem,utl_term>
 	EXTNEAR	<utl_getdate,utl_gettime,utl_incdate,utl_editln,utl_restart>
 	EXTNEAR	<func_none>
 
@@ -111,7 +115,7 @@ DOS	segment word public 'CODE'
 	dw	hdl_write,   func_none,   hdl_seek,    func_none	;40h-43h
 	dw	hdl_ioctl,   func_none,   func_none,   func_none	;44h-47h
 	dw	mem_alloc,   mem_free,    mem_realloc, psp_exec		;48h-4Bh
-	dw	psp_exit,    psp_retcode, dsk_ffirst,  dsk_fnext	;4Ch-4Fh
+	dw	psp_return,  psp_retcode, dsk_ffirst,  dsk_fnext	;4Ch-4Fh
 	dw	psp_set,     psp_get,     msc_getvars, func_none	;50h-53h
 	dw	func_none,   psp_create					;54h-55h
 	DEFABS	FUNCTBL_SIZE,<($ - FUNCTBL) SHR 1>
@@ -124,7 +128,7 @@ DOS	segment word public 'CODE'
 	dw	utl_getcsn,  func_none,   utl_load,    utl_start	;10h-13h
 	dw	utl_stop,    utl_end,     utl_waitend, utl_yield	;14h-17h
 	dw	utl_sleep,   utl_wait,    utl_endwait, utl_hotkey	;18h-1Bh
-	dw	utl_lock,    utl_unlock,  utl_qrymem,  utl_abort	;1Ch-1Fh
+	dw	utl_lock,    utl_unlock,  utl_qrymem,  utl_term		;1Ch-1Fh
 	dw	utl_getdate, utl_gettime, utl_incdate, utl_editln	;20h-23h
 	dw	utl_strlen,  utl_restart				;24h-25h
 	DEFABS	UTILTBL_SIZE,<($ - UTILTBL) SHR 1>

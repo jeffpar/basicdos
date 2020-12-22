@@ -2,8 +2,8 @@
 ; BASIC-DOS Primes Demo
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright (c) 2012-2020 Jeff Parsons
-; @license MIT <https://www.pcjs.org/LICENSE.txt>
+; @copyright (c) 2020-2021 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
@@ -82,7 +82,7 @@ m5:	cmp	bx,[maxSquared]	; dividend below square of max divisor?
 
 m9:	PRINTF	<13,10,"total primes < 10000: %d",13,10>,nPrimes
 	LEAVE
-	mov	ax,DOS_PSP_EXIT SHL 8
+	mov	ax,DOS_PSP_RETURN SHL 8
 	int	21h
 ENDPROC	main
 

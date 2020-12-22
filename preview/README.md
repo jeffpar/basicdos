@@ -1,7 +1,8 @@
 ---
 layout: page
 title: BASIC-DOS Preview
-permalink: /maplebar/preview/part1/
+permalink: /preview/
+preview: /assets/images/maplebar.jpg
 machines:
   - id: ibm5150
     type: pcx86
@@ -10,7 +11,15 @@ machines:
     autoType: DATE\rTIME\rDIR\r
 ---
 
-### Welcome to this "Sneak Peek" of BASIC-DOS
+BASIC-DOS is still in development.  The target release date is August 12, 2021.
+
+This is a preview of an unfinished product.
+
+### Introducing BASIC-DOS for the IBM PC
+
+This is a "sneak peek" at BASIC-DOS, the first version of DOS that *could*
+have been created for the IBM PC, with the benefit of more time and
+[incredible foresight](/blog/).
 
 The machine shown below is an IBM PC (Model 5150) with two floppy
 disk drives and a Color Graphics Adapter (CGA) connected to a Color Monitor.
@@ -31,7 +40,7 @@ of **SYMDEB** (Microsoft's Symbolic Debug Utility v4.00) and **MSBASIC.EXE**,
 which was built from Microsoft's [GW-BASIC](https://github.com/microsoft/GW-BASIC)
 open-source files, with a little help from [OS/2 Museum](http://www.os2museum.com/wp/well-hello/).
 These two files are used for early testing and debugging only, and they
-will not be distributed with BASIC-DOS.
+will not be distributed with the finished BASIC-DOS product.
 
 NOTE: All preview binaries shown here are *DEBUG* versions, which means that
 all run-time assertions are enabled, so file sizes and memory usage are larger
@@ -42,7 +51,7 @@ outperforms PC DOS in several respects.  More on that later.
 
 Like PC DOS, BASIC-DOS supports a FAT file system, **COM** and **EXE**
 executable formats, and many of the same PC DOS APIs, commands, and data
-structures, including DOS-compatible Program Segment Prefixes (PSPs) and
+structures, including Program Segment Prefixes (PSPs) and
 File Control Blocks (FCBs).
 
 However, compatibility is *not* the primary goal of BASIC-DOS.  The true
@@ -66,4 +75,4 @@ And, true to its name, BASIC-DOS has begun incorporating BASIC language
 functionality into the command interpreter.  COMMAND.COM is on its way to
 becoming a unified DOS *and* BASIC command interpreter.
 
-### Next: [BASIC Operations](../part2/)
+### Next: [Part 2: BASIC Operations](part2/)

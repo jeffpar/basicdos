@@ -2,8 +2,8 @@
 ; BASIC-DOS Miscellaneous Services
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright (c) 2012-2020 Jeff Parsons
-; @license MIT <https://www.pcjs.org/LICENSE.txt>
+; @copyright (c) 2020-2021 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
@@ -340,7 +340,7 @@ DEFPROC	msc_sigctrlc,DOSFAR
 	ASSERT	STRUCT,[bx],SCB
 	jmp	short msg0
 
-	DEFLBL	msc_sigctrlc_read,near
+	DEFLBL	msc_readctrlc,near
 	ASSERT	STRUCT,[bx],SCB
 	cmp	[bx].SCB_CTRLC_ACT,0
 	je	msg1
@@ -370,6 +370,8 @@ msg1:	IF REG_CHECK
 	mov	[bp].REG_WS.RET_IP,offset dos_restart
 	mov	bx,[scb_active]
 	ASSERT	STRUCT,[bx],SCB
+	dec	[bx].SCB_INDOS
+	; ASSERT	GE
 ;
 ; At this point, we're effectively issuing an INT 23h (INT_DOSCTRLC), but it
 ; has to be simulated, because we're using the SCB CTRLC address rather than
@@ -548,12 +550,12 @@ DEFPROC	get_vecoff,DOS
 	mov	ah,0			; AX = vector #
 	add	ax,ax
 	add	ax,ax			; AX = vector # * 4
-	cmp	ax,INT_DOSEXRET * 4
+	cmp	ax,INT_DOSEXIT * 4
 	jb	gv9			; use IVT (carry set)
 	cmp	ax,INT_DOSERROR * 4 + 4
 	cmc
 	jb	gv9			; use IVT (carry set)
-	sub	ax,(INT_DOSEXRET * 4) - offset SCB_EXRET
+	sub	ax,(INT_DOSEXIT * 4) - offset SCB_EXIT
 	add	ax,[scb_active]		; AX = vector offset in current SCB
 	ASSERT	NC
 gv9:	ret

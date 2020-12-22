@@ -2,8 +2,8 @@
 ; BASIC-DOS Library Console Functions
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright (c) 2012-2020 Jeff Parsons
-; @license MIT <https://www.pcjs.org/LICENSE.txt>
+; @copyright (c) 2020-2021 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
@@ -74,7 +74,7 @@ cd1:	push	cx
 	mov	bx,es:[PSP_HEAP]
 	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
 	mov	[di].TOK_MAX,(size TOK_DATA) / (size TOKLET)
-	DOSUTIL	TOKIFY1
+	DOSUTIL	TOKEN1
 	ASSERT	NC
 	pop	ax			; AX = keyword ID, if any
 	mov	cl,[di].TOK_DATA[0].TOKLET_LEN

@@ -1,7 +1,7 @@
 ---
 layout: page
 title: BASIC-DOS Build Machine
-permalink: /maplebar/build/
+permalink: /build/
 machines:
   - id: ibm5160
     type: pcx86
@@ -15,7 +15,7 @@ machines:
 ---
 
 The IBM PC XT below serves as both a BASIC-DOS Build Machine.
-It's also available with [Dual Monitors](../dual/build/).
+It's also available with [Dual Monitors](dual/).
 
 BASIC-DOS doesn't support hard disks, but the BASIC-DOS diskette in drive A:
 will detect the hard disk and allow you to boot from it if you press **Esc**.
@@ -45,9 +45,3 @@ By default, the binaries contain *DEBUG* code (eg, assertions and debugging
 aids).  To build non-debug binaries, type **MK FINAL**, or **MKCLEAN FINAL**
 if switching between *DEBUG* and *FINAL* binaries.  The **MKCLEAN.BAT** batch
 file simply deletes all the binaries before running **MK.BAT**.
-
-### **CONFIG.SYS** from the BASIC-DOS2 Diskette
-
-```
-{% include_relative d40/CONFIG.SYS %}
-```

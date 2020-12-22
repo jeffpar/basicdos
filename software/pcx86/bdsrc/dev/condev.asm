@@ -2,8 +2,8 @@
 ; BASIC-DOS Logical (CON) I/O Device Driver
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright (c) 2012-2020 Jeff Parsons
-; @license MIT <https://www.pcjs.org/LICENSE.txt>
+; @copyright (c) 2020-2021 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
@@ -118,6 +118,7 @@ SIG_CT		equ	'C'
 CTSTAT_BORDER	equ	01h	; context has border
 CTSTAT_ADAPTER	equ	02h	; context is using alternate adapter
 CTSTAT_SKIPMODE	equ	04h	; set to skip the mode set for the adapter
+CTSTAT_ABORT	equ	08h	; ABORT condition detected
 CTSTAT_INPUT	equ	40h	; context is waiting for input
 CTSTAT_PAUSED	equ	80h	; context is paused (triggered by CTRLS hotkey)
 
@@ -520,6 +521,9 @@ dcr1:	mov	ds,dx
 	ASSERT	STRUCT,ds:[0],CT
 	or	ds:[CT_STATUS],CTSTAT_INPUT
 	call	add_packet
+	jnc	dcr8
+	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_RDFAULT
+	jmp	short dcr9
 
 dcr8:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 
@@ -539,7 +543,7 @@ ENDPROC	ddcon_read
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_write
 	mov	cx,es:[di].DDPRW_LENGTH
-	jcxz	dcw9
+	jcxz	dcw8
 
 	lds	si,es:[di].DDPRW_ADDR
 	ASSUME	DS:NOTHING
@@ -550,7 +554,7 @@ DEFPROC	ddcon_write
 dcw1:	lodsb
 	call	write_char
 	loop	dcw1
-	jmp	short dcw9
+	jmp	short dcw8
 
 dcw2:	push	es
 	mov	es,dx
@@ -566,15 +570,17 @@ dcw3:	test	es:[CT_STATUS],CTSTAT_PAUSED
 	mov	es:[di].DDPRW_LENGTH,cx
 	mov	es:[di].DDPRW_ADDR.OFF,si
 	call	add_packet
-	jmp	dcw2			; when this returns, try writing again
+	jnc	dcw2			; if return is OK, try writing again
+	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_WRFAULT
+	jmp	short dcw9
 
 dcw4:	lodsb
 	call	write_context
 	loop	dcw3
 	pop	es
 
-dcw9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
-	ret
+dcw8:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+dcw9:	ret
 ENDPROC	ddcon_write
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -676,7 +682,7 @@ dco1a:	mov	ds,ax
 ;
 ; Inserting the new context at the head of the chain (ct_head) is the
 ; simplest way to update the chain, but we prefer to chain the contexts
-; in the order they were created, for more natural context switching.
+; in the order they were created, to provide more natural focus cycling.
 ;
 ;	xchg	[ct_head],ax
 ;	mov	ds:[CT_NEXT],ax
@@ -847,7 +853,7 @@ dcc1:	cmp	[ct_focus],cx
 	call	switch_focus
 	ASSERT	NZ,<cmp [ct_focus],cx>
 ;
-; Remove the context from our chain
+; Remove the context from our chain.
 ;
 dcc2:	push	ds
 	xchg	ax,cx			; AX = context to free
@@ -869,7 +875,7 @@ dcc4:	mov	cx,es:[CT_NEXT]		; move this context's CT_NEXT
 	pop	ds
 	ASSUME	DS:CODE
 ;
-; We are now free to free the context segment in ES
+; We are now free to free the context segment in ES.
 ;
 	mov	ah,DOS_MEM_FREE
 	int	INT_DOSFUNC
@@ -935,13 +941,17 @@ DEFPROC	ddcon_int09,far
 ; without rebooting the machine.
 ;
 	push	cx
-	push	dx
 	mov	cx,[ct_focus]		; CX = context
+	jcxz	i09
+	push	dx
 	mov	dx,CHR_CTRLD		; DL = char code, DH = scan code
 	DOSUTIL	HOTKEY			; notify DOS
 	and	ds:[KB_FLAG],NOT CTL_SHIFT
+	mov	ds,cx
+	ASSERT	STRUCT,ds:[0],CT
+	or	ds:[CT_STATUS],CTSTAT_ABORT
 	pop	dx
-	pop	cx
+i09:	pop	cx
 i09a:	pop	ds
 i09b:	pop	ax
 	clc
@@ -949,7 +959,7 @@ i09b:	pop	ax
 i09c:	pushf
 	call	[kbd_int]
 	jnc	i09d			; carry set if DOS isn't ready
-	jmp	i09x
+	jmp	i09z
 
 i09d:	push	ax
 	push	bx
@@ -986,7 +996,7 @@ i09f:	cmp	di,-1			; end of chain?
 	je	i09g			; yes, look for keyboard data
 ;
 ; For WRITE packets (which we'll assume this is for now), we need to end the
-; wait if the context is no longer paused (ie, check_hotkey may have unpaused).
+; wait if the context is no longer paused (ie, if check_hotkey cleared PAUSED).
 ;
 	ASSERT	STRUCT,ds:[0],CT
 	test	ds:[CT_STATUS],CTSTAT_PAUSED
@@ -994,24 +1004,24 @@ i09f:	cmp	di,-1			; end of chain?
 	jmp	short i09i		; still paused, check next packet
 
 i09g:	call	pull_kbd		; pull keyboard data
-	jc	i09i			; not enough data, check next packet
+	jnc	i09h
+	test	ds:[CT_STATUS],CTSTAT_ABORT
+	jz	i09i			; not enough data, and no ABORT pending
 ;
 ; Notify DOS that this packet is done waiting.
 ;
 i09h:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	DOSUTIL	ENDWAIT
-	ASSERT	NC
 ;
-; If ENDWAIT returns an error, that could be a problem.  In the past, it
-; was because we got ahead of the WAIT call.  One thought was to make the
-; driver's WAIT code more resilient, and double-check that the request had
-; really been satisfied, but I eventually resolved the race by making the
-; pull_kbd/add_packet/wait path atomic (ie, no interrupts).
+; If carry is set, ENDWAIT failed.  There are two cases: 1) the WAIT request
+; hasn't been set yet (eg, a race condition), and 2) the WAIT request was
+; aborted (nothing we can do about that).
 ;
-; TODO: Consider lighter-weight solutions to this race condition.
+; TODO: To avoid the potential race condition, the entire pull_kbd + add_packet
+; path disables interrupts.  Consider lighter-weight solutions.
 ;
-; Anyway, assuming no race conditions, proceed with the packet removal now.
+; In any case, proceed with packet removal now.
 ;
 	cli
 	mov	ax,es:[di].DDP_PTR.OFF
@@ -1019,8 +1029,7 @@ i09h:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	mov	es,cx
 	mov	es:[bx].OFF,ax
 	mov	es:[bx].SEG,dx
-	sti
-	stc				; set carry to indicate yield
+	or	ds:[CT_STATUS],CTSTAT_ABORT
 	jmp	short i09w
 
 i09i:	lea	bx,[di].DDP_PTR		; update prev addr ptr in CX:BX
@@ -1029,14 +1038,19 @@ i09i:	lea	bx,[di].DDP_PTR		; update prev addr ptr in CX:BX
 	les	di,es:[di].DDP_PTR
 	jmp	i09f
 
-i09w:	pop	es
+i09w:	ASSERT	STRUCT,ds:[0],CT
+	test	ds:[CT_STATUS],CTSTAT_ABORT
+	jz	i09x
+	and	ds:[CT_STATUS],NOT CTSTAT_ABORT
+	stc
+i09x:	pop	es
 	pop	ds
 	pop	di
 	pop	dx
 	pop	cx
 	pop	bx
 	pop	ax
-i09x:	jmp	far ptr DDINT_LEAVE
+i09z:	jmp	far ptr DDINT_LEAVE
 ENDPROC	ddcon_int09
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1163,9 +1177,9 @@ ENDPROC	ddcon_int29
 ;
 ; Inputs:
 ;	ES:DI -> DDP
-;
+;b4
 ; Outputs:
-;	None
+;	Carry clear UNLESS the wait has been ABORT'ed
 ;
 ; Modifies:
 ;	AX

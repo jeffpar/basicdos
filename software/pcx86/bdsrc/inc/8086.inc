@@ -2,8 +2,8 @@
 ; BASIC-DOS ROM BIOS Interface and Data Area Definitions
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright (c) 2012-2020 Jeff Parsons
-; @license MIT <https://www.pcjs.org/LICENSE.txt>
+; @copyright (c) 2020-2021 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
@@ -74,6 +74,7 @@ OP_CLD		equ	0FCh
 OP_STD		equ	0FDh
 
 OP_INT06	equ	006CDh		; INT 06h
+OP_INT20	equ	020CDh		; INT 20h
 OP_INT21	equ	021CDh		; INT 21h
 OP_POP_BP8	equ	0468Fh		; POP [BP+nn]
 OP_POP_BP16	equ	0868Fh		; POP [BP+nnnn]

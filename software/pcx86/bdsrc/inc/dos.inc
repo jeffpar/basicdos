@@ -2,8 +2,8 @@
 ; BASIC-DOS Operating System Definitions
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright (c) 2012-2020 Jeff Parsons
-; @license MIT <https://www.pcjs.org/LICENSE.txt>
+; @copyright (c) 2020-2021 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
@@ -70,7 +70,7 @@ TMP_DH		equ	TMP_DX.HIB
 ;
 ; SIDEBAR: To minimize the amount of per-process information in the IVT,
 ; we'll pretend all the apps we care about are well-behaved, which means if
-; they want to set any of the EXRET/CTRLC/ERROR handlers, they'll use the
+; they want to set any of the EXIT/CTRLC/ERROR handlers, they'll use the
 ; DOS_SET_VECTOR function, which will update the SCB vectors below, rather
 ; than the actual IVT vectors (22h/23h/24h).
 ;
@@ -88,14 +88,13 @@ SCB_SFHERR	db	?	; 04h: SFH for STDERR
 SCB_SFHAUX	db	?	; 05h: SFH for STDAUX
 SCB_SFHPRN	db	?	; 06h: SFH for STDPRN
 SCB_SIG		db	?	; 07h (holds SIG_SCB in DEBUG builds)
-SCB_CURDRV	db	?	; 08h: current drive #
-SCB_SWITCHAR	db	?	; 09h: current switch char (eg, CHR_SLASH)
+SCB_ENVSEG	dw	?	; 08h: just a copy of SPB_ENVSEG for now
 SCB_CONTEXT	dw	?	; 0Ah: CONSOLE context (from device driver)
 SCB_OWNER	dw	?	; 0Ch: PSP of owner, if any
 SCB_PSP		dw	?	; 0Eh: PSP active within this session
 SCB_WAITID	dd	?	; 10h: wait ID if waiting, 0 if runnable
 SCB_STACK	dd	?	; 14h: pointer to session stack
-SCB_EXRET	dd	?	; 18h: current EXRET handler
+SCB_EXIT	dd	?	; 18h: current EXIT handler
 SCB_CTRLC	dd	?	; 1Ch: current CTRLC handler
 SCB_ERROR	dd	?	; 20h: current ERROR handler
 SCB_DTA		dd	?	; 24h: current DTA (Disk Transfer Address)
@@ -103,15 +102,17 @@ SCB_PARENT	dw	?	; 28h: SCB of parent, if any
 SCB_CTRLC_ALL	db	?	; 2Ah: 1 if CTRLC checking enabled on all calls
 SCB_CTRLC_ACT	db	?	; 2Bh: 1 if CTRLC active
 SCB_CTRLP_ACT	db	?	; 2Ch: 1 if CTRLP active
-		db	?	; 2Dh: padding
-SCB_FILENAME	db     12 dup(?); 2Eh: buffer for drive # and filename
-SCB		ends		; 3Ah bytes (1Dh words)
+SCB_INDOS	db	?	; 2Dh: active DOS/DOSUTIL call count
+SCB_CURDRV	db	?	; 2Eh: current drive #
+SCB_SWITCHAR	db	?	; 2Fh: current switch char (eg, CHR_SLASH)
+SCB_FILENAME	db     12 dup(?); 30h: buffer for drive # and filename
+SCB		ends		; 3Ch bytes (1Eh words)
 SIG_SCB		equ	'S'
 
 SCSTAT_INIT	equ	01h	; set if SCB initialized
 SCSTAT_LOAD	equ	02h	; set if session has loaded a program
 SCSTAT_START	equ	04h	; set if session program can be started
-SCSTAT_RESET	equ	08h	; set if session reset (CTRL-ALT-DEL) requested
+SCSTAT_ABORT	equ	08h	; set if session abort (CTRL-ALT-DEL) signalled
 
 LOCK_SCB macro
 	inc	[scb_locked]

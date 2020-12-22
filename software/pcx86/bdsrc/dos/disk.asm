@@ -2,8 +2,8 @@
 ; BASIC-DOS Disk Services
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright (c) 2012-2020 Jeff Parsons
-; @license MIT <https://www.pcjs.org/LICENSE.txt>
+; @copyright (c) 2020-2021 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
@@ -243,7 +243,7 @@ DEFPROC	dsk_ffirst,DOS
 	push	si
 	mov	cx,size FCB_NAME
 	lea	si,[bx].SCB_FILENAME + 1; FFB_FILESPEC
-	REPMOV	byte,CS
+	REPS	MOVS,ES,CS,BYTE
 	pop	si
 	pop	cx
 	add	di,size FFB_RESERVED

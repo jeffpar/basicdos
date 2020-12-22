@@ -2,8 +2,8 @@
 # BASIC-DOS Makefile
 #
 # @author Jeff Parsons <Jeff@pcjs.org>
-# @copyright (c) 2012-2020 Jeff Parsons
-# @license MIT <https://www.pcjs.org/LICENSE.txt>
+# @copyright (c) 2020-2021 Jeff Parsons
+# @license MIT <https://basicdos.com/LICENSE.txt>
 #
 # This file is part of PCjs, a computer emulation software project at pcjs.org
 #
@@ -70,7 +70,7 @@ OBJ\SYSINIT.OBJ: SYSINIT.ASM ..\INC\DOS.INC ..\INC\VERSION.INC
 OBJ\IBMDOS.EXE: OBJ\DOSDATA.OBJ OBJ\DOSINTS.OBJ OBJ\CONIO.OBJ OBJ\DEVICE.OBJ \
 	OBJ\DISK.OBJ OBJ\FCBIO.OBJ OBJ\HANDLE.OBJ OBJ\MEMORY.OBJ OBJ\MISC.OBJ \
 	OBJ\PROCESS.OBJ OBJ\SESSION.OBJ OBJ\SPRINTF.OBJ OBJ\UTILITY.OBJ \
-	OBJ\UTILSYS.OBJ OBJ\SYSINIT.OBJ
+	OBJ\UTILSYS.OBJ OBJ\SYSINIT.OBJ IBMDOS.LRF
 	$(LINK) @$*.LRF
 
 OBJ\IBMDOS.COM: OBJ\IBMDOS.EXE

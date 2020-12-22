@@ -2,14 +2,14 @@
 ; BASIC-DOS Operating System Version
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright (c) 2012-2020 Jeff Parsons
-; @license MIT <https://www.pcjs.org/LICENSE.txt>
+; @copyright (c) 2020-2021 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 
 VERSION_MAJOR	equ	0
-VERSION_MINOR	equ	25
+VERSION_MINOR	equ	27
 VERSION_REV	equ	0	; 0 for no rev, 1 for rev A, 2 for rev B, etc.
 
 VERSION_STR	macro

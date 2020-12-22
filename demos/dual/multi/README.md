@@ -1,7 +1,7 @@
 ---
 layout: page
 title: BASIC-DOS with "Dueling Monitors"
-permalink: /maplebar/dual/multi/
+permalink: /demos/dual/multi/
 machines:
   - id: ibm5150
     type: pcx86

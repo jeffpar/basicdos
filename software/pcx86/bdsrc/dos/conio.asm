@@ -2,8 +2,8 @@
 ; BASIC-DOS Console I/O Services
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright (c) 2012-2020 Jeff Parsons
-; @license MIT <https://www.pcjs.org/LICENSE.txt>
+; @copyright (c) 2020-2021 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
@@ -136,7 +136,7 @@ ENDPROC	tty_in
 ;
 DEFPROC	tty_read,DOS
 	mov	al,IO_COOKED
-ttr1:	call	read_char
+ttr1:	call	read_char		; TODO: deal with carry set on ABORT?
 	mov	[bp].REG_AL,al
 	ret
 ENDPROC	tty_read
@@ -187,7 +187,7 @@ ENDPROC	tty_print
 ;
 DEFPROC	tty_input,DOS
 	mov	byte ptr [bp].TMP_AH,0	; TMP_AH = 0 for normal input
-	jmp	read_line
+	jmp	read_line		; TODO: deal with carry set on ABORT?
 ENDPROC	tty_input
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

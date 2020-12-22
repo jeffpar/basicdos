@@ -2,12 +2,13 @@
 ; BASIC-DOS Session Services
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright (c) 2012-2020 Jeff Parsons
-; @license MIT <https://www.pcjs.org/LICENSE.txt>
+; @copyright (c) 2020-2021 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	include	macros.inc
+	include	8086.inc
 	include	bios.inc
 	include	dos.inc
 	include	dosapi.inc
@@ -30,7 +31,7 @@ DOS	segment word public 'CODE'
 	EXTBYTE	<scb_locked,def_switchar>
 	EXTWORD	<scb_active,scb_stoked>
 	EXTLONG	<scb_table>
-	EXTNEAR	<dos_exit,load_command,psp_term_exitcode>
+	EXTNEAR	<dos_check,dos_leave,load_command,psp_termcode>
 	EXTNEAR	<sfh_add_ref,sfh_context,sfh_close>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -108,6 +109,13 @@ DEFPROC	scb_load,DOS
 	or	[bx].SCB_STATUS,SCSTAT_LOAD
 	mov	al,[bx].SCB_NUM
 	mov	[bp].REG_CL,al		; REG_CL = session (SCB) #
+	mov	[bx].SCB_ENVSEG,cx
+;
+; Since we start the SCB's first program by going through dos_leave, we need
+; to bump SCB_INDOS (TODO: Consider whether this is really a job for init_scb).
+;
+	inc	[bx].SCB_INDOS
+
 	inc	cx			; was ENVSEG -1?
 	jnz	sl7			; no, leave REG_AX, REG_ES:REG_BX alone
 	mov	ax,[bp].TMP_CX
@@ -155,11 +163,11 @@ DEFPROC	scb_lock,DOS
 	push	ds
 	pop	es
 	ASSUME	ES:DOS
-	lea	di,[bx].SCB_EXRET	; ES:DI -> SCB vectors
+	lea	di,[bx].SCB_EXIT	; ES:DI -> SCB vectors
 	sub	si,si
 	mov	ds,si
 	ASSUME	DS:BIOS
-	mov	si,INT_DOSEXRET * 4	; DS:SI -> IVT vectors
+	mov	si,INT_DOSEXIT * 4	; DS:SI -> IVT vectors
 	mov	cx,6			; move 3 vectors (6 words)
 	rep	movsw
 	pop	es
@@ -286,9 +294,9 @@ ENDPROC	scb_stop
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; scb_unload
+; scb_close
 ;
-; Unload the current program from the specified session.
+; Close the specified session.
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -300,7 +308,7 @@ ENDPROC	scb_stop
 ; Modifies:
 ;	AX, BX, CX, DX, SI
 ;
-DEFPROC	scb_unload,DOS
+DEFPROC	scb_close,DOS
 	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	call	get_scb
  	jc	sud9
@@ -316,14 +324,14 @@ sud1:	mov	bl,SFH_NONE
 	xchg	ax,cx			; make sure AX is zero
 	and	[bx].SCB_STATUS,NOT (SCSTAT_LOAD OR SCSTAT_START)
 ;
-; In case another session was waiting for this session to unload, call endwait.
+; In case another session was waiting for this session to close, call endwait.
 ;
 	mov	di,bx
 	mov	dx,ds			; DX:DI = SCB address (the wait ID)
 	call	scb_endwait
 	clc
 sud9:	ret
-ENDPROC	scb_unload
+ENDPROC	scb_close
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -385,14 +393,14 @@ ENDPROC	scb_waitend
 ;	1) A DOSUTIL YIELD request
 ;	2) A DOSUTIL WAIT request
 ;
-; In the first case, we want to return if no other SCB is ready; this
-; is important when we're called from an interrupt handler.
+; In the first case, we want to return if no other SCB is ready; this is
+; important when we're called from an interrupt handler.
 ;
-; In the second case, we never return; at best, we will simply switch to the
-; current SCB when its wait condition is satisfied.
+; In the second case, we never return; we will simply switch to the first
+; SCB we find whose wait condition is satisfied.
 ;
 ; Inputs:
-;	AX = scb_active when called from DOSUTIL YIELD, zero otherwise
+;	AX = active SCB when called from DOSUTIL YIELD, zero if DOSUTIL WAIT
 ;
 ; Modifies:
 ;	BX, DX
@@ -403,19 +411,18 @@ DEFPROC	scb_yield,DOS
 	test	ax,ax			; is this yield due to a WAIT?
 	jnz	sy1			; no
 	mov	bx,[scb_active]		; yes, spin until we find an SCB
-sy1:	ASSERT	STRUCT,[bx],SCB
-	add	bx,size SCB
+sy1:	add	bx,size SCB
 	cmp	bx,[scb_table].SEG
-	jb	sy3
-sy2:	mov	bx,[scb_table].OFF
-sy3:	cmp	bx,ax			; have we looped to where we started?
-	je	sy9			; yes
+	jb	sy2
+	mov	bx,[scb_table].OFF
+sy2:	ASSERT	STRUCT,[bx],SCB
+	cmp	bx,ax			; have we returned to active SCB?
+	je	scb_test		; yes (go check for ABORT)
 	test	[bx].SCB_STATUS,SCSTAT_START
-	jz	sy1			; ignore this SCB, hasn't been started
-	ASSERT	STRUCT,[bx],SCB
+	jz	sy1			; ignore this SCB, hasn't started
 	mov	dx,[bx].SCB_WAITID.OFF
 	or	dx,[bx].SCB_WAITID.SEG
-	jnz	sy1
+	jnz	sy1			; ignore this SCB, it's still waiting
 	inc	[scb_locked]
 	jz	scb_switch		; we were not already locked, so switch
 	test	ax,ax			; yield?
@@ -437,14 +444,12 @@ ENDPROC	scb_yield
 ;
 ; The kinds of apps we ultimately want to support in BASIC-DOS sessions will
 ; determine whether we need to adopt additional measures, such as "swapping"
-; global data (eg, BIOS data) in or out of the SCB.
+; global (eg, BIOS) data in or out of the SCB.
 ;
-; Our CONSOLE driver is a good example.  For now, it performs some minor BIOS
-; updates on the relatively infrequent "focus" switches that can occur between
-; contexts on different video adapters, but if that proves to be ineffective,
-; we may need to perform session-switch notifications to the drivers, so that
-; they can do their own "state swapping" every time we're about to switch to a
-; new SCB.
+; Our CONSOLE driver is a good example.  It already performs some BIOS updates
+; on INT 10h operations, but if that proves to be insufficient, we may need to
+; provide session-switch notifications to the drivers, so that they can do
+; their own "state swapping" every time we're about to switch to a new session.
 ;
 ; The incentives for avoiding that are high, because these switches will become
 ; very expensive, and IBM PCs are not all that fast.
@@ -456,7 +461,7 @@ DEFPROC	scb_switch,DOS
 	cli
 	dec	[scb_locked]
 	cmp	bx,[scb_active]		; is this SCB already active?
-	je	sw9			; yes
+	je	scb_test		; yes
 	mov	ax,bx
 	xchg	bx,[scb_active]		; BX -> previous SCB
 	ASSERT	STRUCT,[bx],SCB
@@ -467,19 +472,13 @@ DEFPROC	scb_switch,DOS
 	ASSERT	STRUCT,[bx],SCB
 	mov	ss,[bx].SCB_STACK.SEG
 	mov	sp,[bx].SCB_STACK.OFF
-;
-; TODO: Finish support for the RESET bit.
-;
-	test	[bx].SCB_STATUS,SCSTAT_RESET
-	jz	sw8
-sw7:	sti
-	and	[bx].SCB_STATUS,NOT SCSTAT_RESET
-	PRINTF	<"Reset request detected",13,10>
-	mov	ax,(EXTYPE_RESET SHL 8) OR 0FFh
-	call	psp_term_exitcode	; attempt reset
+	ASSERT	NC
+	jmp	dos_leave		; we let dos_leave turn interrupts on
 
-sw8:	ASSERT	NC
-	jmp	dos_exit		; we let dos_exit turn interrupts on
+	DEFLBL	scb_test,near
+	test	[bx].SCB_STATUS,SCSTAT_ABORT
+	jz	sw9
+sw8:	stc
 sw9:	sti
 	ret
 ENDPROC	scb_switch
@@ -501,6 +500,8 @@ DEFPROC	scb_wait,DOS
 	mov	bx,[scb_active]
 	ASSERT	STRUCT,[bx],SCB
 	ASSERT	Z,<cmp [bx].SCB_WAITID.SEG,0>
+	test	[bx].SCB_STATUS,SCSTAT_ABORT
+	jnz	sw8			; fail the wait if ABORT is set
 	mov	[bx].SCB_WAITID.OFF,di
 	mov	[bx].SCB_WAITID.SEG,dx
 	sti
@@ -538,6 +539,53 @@ se2:	add	bx,size SCB
 se9:	sti
 	ret
 ENDPROC	scb_endwait
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; scb_abort
+;
+; Sets the SCB's ABORT bit and clears any WAIT condition.  Called on ABORT
+; "hot key" notifications.
+;
+; Inputs:
+;	BX -> SCB
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None
+;
+DEFPROC	scb_abort,DOS
+	push	ax
+	push	dx
+	sub	ax,ax
+	cwd				; DX:AX = zero
+	cli
+	or	[bx].SCB_STATUS,SCSTAT_ABORT
+	xchg	ax,[bx].SCB_WAITID.OFF
+	xchg	dx,[bx].SCB_WAITID.SEG	; zero WAITID
+
+;	or	ax,dx			; was it already zero?
+;	jz	sa9			; yes
+;	push	ds
+;	push	si
+;	lds	si,[bx].SCB_STACK	; DS:SI -> SCB's stack
+;	ASSUME	DS:NOTHING
+;	IF REG_CHECK			; in DEBUG builds, skip the "marker"
+;	ASSERT	Z,<cmp word ptr [si],offset dos_check>
+;	add	si,2			; DS:SI -> REG_FRAME
+;	ENDIF
+;	or	[si].REG_FL,FL_CARRY	; force carry set on return from WAIT
+;	pop	si
+;	pop	ds
+;	ASSUME	DS:DOS
+
+sa9:	sti
+	pop	dx
+	pop	ax
+	ret
+ENDPROC	scb_abort
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -627,20 +675,22 @@ DEFPROC	init_scb,DOS
 ;
 	mov	[bx].SCB_PARENT,ax	; TODO: What shall we do with this?
 	xchg	si,ax			; DS:SI -> previous SCB
-	mov	al,0			; AL = CURDRV
-	mov	ah,[def_switchar]	; AH = SWITCHAR
+	mov	cl,0			; CL = CURDRV
+	mov	ch,[def_switchar]	; CH = SWITCHAR
 	mov	dx,es:[di].SPB_ENVSEG	; is SPB_ENVSEG -1?
 	inc	dx
 	jz	si0			; yes, don't copy handles
-	lodsw				; DS:SI -> SFHIN of previous SCB
+	mov	cx,word ptr [si].SCB_CURDRV
+	ASSERT	<SCB_SFHIN>,EQ,2
+	lodsw				; use LODSW as a quick SI += 2
 	lodsw				; load SFHIN, SFHOUT
 	mov	word ptr [bx].SCB_SFHIN,ax
 	lodsw				; load SFHERR, SFHAUX
 	mov	word ptr [bx].SCB_SFHERR,ax
-	lodsw				; load SFHPRN
+	lodsb				; load SFHPRN
 	mov	[bx].SCB_SFHPRN,al
-	lodsw				; load CURDRV, SWITCHAR
-si0:	mov	word ptr [bx].SCB_CURDRV,ax
+	ASSERT	<SCB_CURDRV+1>,EQ,<SCB_SWITCHAR>
+si0:	mov	word ptr [bx].SCB_CURDRV,cx
 	dec	dx
 ;
 ; Now copy any valid SFHs from the SPB into the SCB.
@@ -667,7 +717,7 @@ si3:	inc	di
 	call	sfh_context
 	mov	[bx].SCB_CONTEXT,ax
 
-	or	[bx].SCB_STATUS,SCSTAT_INIT
+	mov	[bx].SCB_STATUS,SCSTAT_INIT
 	pop	di
 	ret
 ENDPROC	init_scb

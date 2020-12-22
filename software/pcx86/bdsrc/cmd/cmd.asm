@@ -2,8 +2,8 @@
 ; BASIC-DOS Command Interpreter
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright (c) 2012-2020 Jeff Parsons
-; @license MIT <https://www.pcjs.org/LICENSE.txt>
+; @copyright (c) 2020-2021 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
@@ -97,7 +97,7 @@ m2:	mov	si,[bx].INPUT_BUF
 	lea	si,[si].INP_DATA
 	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
 	mov	[di].TOK_MAX,(size TOK_DATA) / (size TOKLET)
-	DOSUTIL	TOKIFY1
+	DOSUTIL	TOKEN1
 	jc	m1			; jump if no tokens
 
 	call	parseCmd
@@ -988,7 +988,7 @@ di3:	mov	bp,bx			; BP = available clusters
 	push	si
 	mov	cx,DIR_DEF_LEN
 	mov	si,offset DIR_DEF
-	REPMOV	byte,CS
+	REPS	MOVS,ES,CS,BYTE
 	pop	si
 
 di3a:	sub	cx,cx			; CX = attributes

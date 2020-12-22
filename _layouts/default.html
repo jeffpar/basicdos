@@ -7,7 +7,7 @@
   |___/_/ \_\___/___\___|  |___/ \___/|___/
   -->
 {% comment %}
-  BASICDOS website © 2020 by Jeff Parsons (@jeffpar)
+  BASIC-DOS website © 2020-2021 by Jeff Parsons (@jeffpar)
   ASCII art from http://patorjk.com/software/taag/#p=display&f=Small&t=BASIC-DOS
 {% endcomment %}
   <head>
@@ -29,7 +29,7 @@
     {%- if page.preview != nil %}
     <meta name="twitter:image" property="og:image" content="{{ page.preview | prepend: site.baseurl | prepend: site.url }}">
     {%- else %}
-    <meta name="twitter:image" property="og:image" content="{{ '/assets/images/LCM_at_Night.jpg' | prepend: site.baseurl | prepend: site.url }}">
+    <meta name="twitter:image" property="og:image" content="{{ '/assets/images/LCM.jpg' | prepend: site.baseurl | prepend: site.url }}">
     {%- endif %}
     <link rel="canonical" href="{{ page.url | replace:'index.html','' | prepend: site.baseurl | prepend: site.url }}">
     <link rel="stylesheet" href="{{ '/assets/css/style.css?v=' | append: site.github.build_revision | relative_url }}">
@@ -40,21 +40,14 @@
     <div class="wrapper">
       <section>
         <div id="title">
-          <h1>{{ site.title | default: site.github.repository_name }}</h1>
+          <h1><a href="{{ site.betaurl }}/">{{ site.title | default: site.github.repository_name }}</a></h1>
           <p>{{ site.description | default: site.github.project_tagline }}</p> 
           <div id="header">
             <menu>
-              {%- if page.public %}
-              <li class="internal"><a href="/blog/">Blog</a></li>
-              <li class="internal"><a href="/build/">Build</a></li>
-              <li class="internal"><a href="/docs/">Docs</a></li>
-              <li class="internal"><a href="/preview/">Preview</a></li>
-              {%- else %}
               <li class="internal"><a href="{{ site.betaurl }}/blog/">Blog</a></li>
               <li class="internal"><a href="{{ site.betaurl }}/build/">Build</a></li>
               <li class="internal"><a href="{{ site.betaurl }}/docs/">Docs</a></li>
               <li class="internal"><a href="{{ site.betaurl }}/preview/">Preview</a></li>
-              {%- endif %}
               <li class="external"><a href="{{ site.github.repository_url }}">Repo</a></li>
               <li class="title">Source</li>
             </menu>
@@ -63,6 +56,10 @@
           <span class="credits right">Project maintained by <a href="{{ site.github.owner_url }}">{{ site.github.owner_name }}</a></span>
         </div>
         {{ content }}
+        <p>
+          <span class="credits left">Copyright (c) 2020-2021 <a href="mailto:Jeff@pcjs.org">Jeff Parsons</a></span>
+          <span class="credits right">Released under <a href="https://basicdos.com/LICENSE.txt">MIT License</a></span>
+        </p>
       </section>
     </div>
     {% include scripts.html -%}

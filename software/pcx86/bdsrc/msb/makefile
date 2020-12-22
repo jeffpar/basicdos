@@ -2,8 +2,8 @@
 # BASIC-DOS Makefile
 #
 # @author Jeff Parsons <Jeff@pcjs.org>
-# @copyright (c) 2012-2020 Jeff Parsons
-# @license MIT <https://www.pcjs.org/LICENSE.txt>
+# @copyright (c) 2020-2021 Jeff Parsons
+# @license MIT <https://basicdos.com/LICENSE.txt>
 #
 # This file is part of PCjs, a computer emulation software project at pcjs.org
 #
@@ -132,8 +132,11 @@ OBJ\MSBASIC.EXE: OBJ\GWDATA.OBJ OBJ\GWMAIN.OBJ OBJ\OEM.OBJ OBJ\GWEVAL.OBJ \
 	OBJ\GIOLPT.OBJ OBJ\GIOCOM.OBJ OBJ\GIOCON.OBJ OBJ\GIOTBL.OBJ \
 	OBJ\SCNEDT.OBJ OBJ\SCNDRV.OBJ OBJ\CALL86.OBJ OBJ\NEXT86.OBJ \
 	OBJ\MATH.OBJ OBJ\KANJ86.OBJ OBJ\GIOCAS.OBJ OBJ\ITSA86.OBJ \
-	OBJ\GWRAM.OBJ OBJ\GWINIT.OBJ OBJ\BIBOOT.OBJ
+	OBJ\GWRAM.OBJ OBJ\GWINIT.OBJ OBJ\BIBOOT.OBJ MSBASIC.LRF MSBASIC.PAT
 	$(LINK) @$*.LRF
 	CD OBJ
+	REN MSBASIC.EXE MSBASIC.TMP
+	SYMDEB MSBASIC.TMP < ..\MSBASIC.PAT
+	REN MSBASIC.TMP MSBASIC.EXE
 	$(MAPSYM) $*
 	CD ..

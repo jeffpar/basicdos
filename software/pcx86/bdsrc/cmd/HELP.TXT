@@ -35,6 +35,9 @@ Displays a directory listing of all files matching the given *filespec* (or all 
 ECHO [ON|OFF]
 Controls the echo of lines in a BAT file.
 
+ERRORLEVEL
+Constant equal to the return code from the last program executed.
+
 EXIT
 Exits the interpreter if there is a previously loaded copy.
 

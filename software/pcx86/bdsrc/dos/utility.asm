@@ -2,8 +2,8 @@
 ; BASIC-DOS Utility Services
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright (c) 2012-2020 Jeff Parsons
-; @license MIT <https://www.pcjs.org/LICENSE.txt>
+; @copyright (c) 2020-2021 Jeff Parsons
+; @license MIT <https://basicdos.com/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
@@ -556,11 +556,11 @@ ENDPROC	mul_32_16
 ;
 ; utl_tokify (AH = 0Bh or 0Ch)
 ;
-; DOS_UTL_TOKIFY1 (0Bh) performs generic parsing, which means that only
+; DOS_UTL_TOKEN1 (0Bh) performs generic parsing, which means that only
 ; tokens separated by whitespace (or SWITCHAR) will be returned, and they
 ; will all be identified "generically" as CLS_STR.
 ;
-; DOS_UTL_TOKIFY2 (0Ch) performs BASIC parsing, which returns all tokens,
+; DOS_UTL_TOKEN2 (0Ch) performs BASIC parsing, which returns all tokens,
 ; even whitespace sequences (CLS_WHITE).
 ;
 ; Inputs:
