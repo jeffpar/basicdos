@@ -16,11 +16,8 @@
 
 DOS	segment word public 'CODE'
 
-	EXTNEAR	<tty_read,write_string,dos_restart,dev_request>
+	EXTNEAR	<dos_check,dos_restart,dev_request,tty_read,write_string>
 	EXTSTR	<STR_CTRLC>
-	IF REG_CHECK
-	EXTNEAR	<dos_check>
-	ENDIF
 
 	EXTWORD	<mcb_head>
 	EXTLONG	<clk_ptr>

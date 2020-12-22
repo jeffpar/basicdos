@@ -221,8 +221,8 @@ DEFPROC	dos_func,DOSFAR
 
 dc0:	IF REG_CHECK			; in DEBUG builds, use CALL to push
 	call	dos_check		; a marker ("dos_check") onto the stack
-	DEFLBL	dos_check,near		; which REG_CHECK checks will verify
-	ENDIF
+	ENDIF				; which REG_CHECK checks will verify
+	DEFLBL	dos_check,near
 ;
 ; While we assign DS and ES to the DOS segment on DOS function entry, we
 ; do NOT assume they will still be set that way when the FUNCTBL call returns.
