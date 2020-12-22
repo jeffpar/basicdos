@@ -269,7 +269,7 @@
   {%- endfor -%}
     </div>
   {%- if machine_debugger %}
-    <div class="pcjs-reference" style="padding-left:8px">[<a href="{% if machine_debugger == "available" %}debugger{% else %}{{ machine_debugger }}{% endif %}/" onclick="pcjsOnClick(this)">Debugger</a>]</div>
+    <div class="pcjs-reference" style="padding-left:8px">[<a href="{% if machine_debugger == "available" %}debugger{% else %}{{ machine_debugger }}{% endif %}/">Debugger</a>]</div>
   {%- endif %}
     <div class="pcjs-copyright">
   {%- assign machine_name = machine_data.name | default: "PCjs Machines" %}

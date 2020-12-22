@@ -13,7 +13,7 @@
     "name": "PCx86",
     "version": "2.06",
     "factory": "embedPCx86",
-    "script": "/software/pcx86/releases/pcx86-uncompiled.js"
+    "script": "/software/pcx86/releases/pcx86.js"
   },
   "components": [
     {

@@ -100,6 +100,8 @@ and:
 define two 40-column, 25-line sessions that are displayed side-by-side on
 an 80-column IBM PC monitor, each running their own copy of COMMAND.COM.
 
+![BASIC-DOS Demo #2](/assets/images/BASIC-DOS2.png)
+
 Sessions define a *context* within which one or more DOS programs may run,
 and the system automatically multitasks between sessions, providing the
 benefits a multitasking operating system while also supporting the traditional
@@ -305,3 +307,5 @@ and the amount of piped data can be *unlimited*.
 See the `HELP` command for a list of commands implemented so far.
 
 ### To Be Continued...
+
+In the meantime, check out the [Preview](/preview/).

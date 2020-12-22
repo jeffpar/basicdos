@@ -8,9 +8,9 @@ body {
   font:14px/1.5 "OpenSansRegular", "Helvetica Neue", Helvetica, Arial, sans-serif;
   color:#f0e7d5;
   font-weight: normal;
-  background: #252525;
+  background: #21252B;
   background-attachment: fixed !important;
-  background: linear-gradient(#2a2a29, #1c1c1c);
+  background: linear-gradient(#282C34,#21252B);
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -103,7 +103,6 @@ code {
   font-family: Monaco, Bitstream Vera Sans Mono, Lucida Console, Terminal, monospace;
   color: lightgreen;
   font-size: 13px;
-  margin: 0 4px;
   padding: 0;
   border-radius: 2px;
 }
@@ -163,7 +162,7 @@ dt {
 #header {
   height: 60px;
   width: 100%;
-  background: url(../images/nav-bg.gif) #353535;
+  background: #333842;
   box-shadow: 0px 1px 3px rgba(0,0,0,.25);
 
   menu {
@@ -301,8 +300,9 @@ section {
 
 @media (prefers-color-scheme: dark) {
   body {
-    background-color: #252525;
     color: #eaeaea;
+    background: #21252B;
+    background: linear-gradient(#282C34,#21252B);
   }
   h1, h2, h3, h4, h5, h6 {
     color: #9370db;
