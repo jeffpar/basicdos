@@ -19,11 +19,8 @@ DOS	segment word public 'CODE'
 	EXTWORD	<mcb_head,mcb_limit,scb_active>
 	EXTNEAR	<sfh_add_ref,pfh_close,sfh_close>
 	EXTNEAR	<mcb_getsize,mcb_free_all>
-	EXTNEAR	<dos_leave,dos_leave2,dos_ctrlc,dos_error>
+	EXTNEAR	<dos_check,dos_leave,dos_leave2,dos_ctrlc,dos_error>
 	EXTNEAR	<mcb_setname,scb_getnum,scb_release,scb_close,scb_yield>
-	IF REG_CHECK
-	EXTNEAR	<dos_check>
-	ENDIF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
