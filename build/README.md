@@ -45,3 +45,38 @@ By default, the binaries contain *DEBUG* code (eg, assertions and debugging
 aids).  To build non-debug binaries, type **MK FINAL**, or **MKCLEAN FINAL**
 if switching between *DEBUG* and *FINAL* binaries.  The **MKCLEAN.BAT** batch
 file simply deletes all the binaries before running **MK.BAT**.
+
+### Developing with Visual Studio Code
+
+[Visual Studio Code](https://code.visualstudio.com) has been the IDE of choice
+for all BASIC-DOS development.  You'll find that the BASIC-DOS [repository](https://github.com/jeffpar/basicdos)
+includes a `.vscode` folder with a [tasks.json](https://github.com/jeffpar/basicdos/blob/master/.vscode/tasks.json)
+that defines several tasks that should be configured to start when VS Code loads
+the BASIC-DOS project.
+
+The first task (`bundle: serve`) starts up the Jekyll web server.  Make sure
+you've successfully run both `npm install` and `bundle install` in your local
+copy of the BASIC-DOS repository.  Once your server is installed and running,
+verify you can access the BASIC-DOS Build Machine at `http://localhost:4040/build/`.
+
+The second task (`gulp: watch`) starts several file-watcher tasks that rebuild
+the BASIC-DOS source disk image whenever a BASIC-DOS source file has been changed
+locally (eg, by the VS Code editor).
+
+Note that this task also requires the PCjs [DiskImage](https://github.com/jeffpar/pcjs/tree/master/tools#pcjs-diskimage-utility),
+so you should clone the [PCjs](https://github.com/jeffpar/pcjs) repository and set the
+environment variable `PCJS` to the fully-qualified name of the directory containing
+that clone.  Verify that `diskimage` works; eg:
+
+    node $PCJS/tools/modules/diskimage.js
+
+    DiskImage v2.04
+    Copyright © 2012-2020 Jeff Parsons <Jeff@pcjs.org>
+
+    nothing to do
+
+Every time the Gulp task builds a new disk image, the Jekyll web server should
+automatically detect the change and rebuild the web site (on macOS, that entire
+process only takes a few seconds).  When that's done, refresh your web browser
+to reload the BASIC-DOS Build Machine, press **Esc**, and let the **MK** command
+rebuild any BASIC-DOS binaries that are out-of-date.
