@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS Documentation
+title: Documentation
 permalink: /docs/
 ---
 
