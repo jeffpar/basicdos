@@ -41,4 +41,4 @@ processor, instead of perpetuating limitations found on other older platforms
 
 And what should we call this operating system?  DOS-BASIC?  BASIC-DOS?
 
-Let's see what [the future](/blog/2020/05/17/) holds.
+Let's see what [the future](/blog/2020/12/12/) holds.
