@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS Preview
+title: Preview
 permalink: /preview/
 preview: /assets/images/maplebar.jpg
 machines:

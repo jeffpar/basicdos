@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS Build Machine with Dual Monitors
+title: Build Machine with Dual Monitors
 permalink: /build/dual/
 machines:
   - id: ibm5160

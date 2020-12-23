@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS Build Machine
+title: Build Machine
 permalink: /build/
 machines:
   - id: ibm5160

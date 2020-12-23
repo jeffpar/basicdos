@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS Preview
+title: Preview
 permalink: /preview/part2/
 machines:
   - id: ibm5150
