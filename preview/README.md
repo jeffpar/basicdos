@@ -69,7 +69,9 @@ limitations that will be addressed in the coming months.
 
 In other ways, BASIC-DOS leap-frogs PC DOS 1.00, by adding the ability to
 read PC DOS 2.00-formatted diskettes, load PC DOS 2.00-style device drivers,
-perform handle-based I/O, support pipe and redirection operations, and more.
+perform handle-based I/O, support pipe and redirection operations, and last
+but not least, preemptive multitasking of multiple DOS applications across
+multiple screens or portions of a single screen.
 
 And, true to its name, BASIC-DOS has begun incorporating BASIC language
 functionality into the command interpreter.  COMMAND.COM is on its way to
