@@ -14,7 +14,7 @@ machines:
       B: "PC DOS 2.00 (Disk 1)"
 ---
 
-The IBM PC XT below serves as both a BASIC-DOS Build Machine.
+The IBM PC XT below serves as both a BASIC-DOS build machine and test machine.
 It's also available with [Dual Monitors](dual/).
 
 BASIC-DOS doesn't support hard disks, but the BASIC-DOS diskette in drive A:
@@ -25,7 +25,7 @@ See the [Build Notes](#basic-dos-build-notes) below.
 
 ### BASIC-DOS Build Notes
 
-The BASIC-DOS build machine contains two 10Mb hard disks:
+The BASIC-DOS Build Machine contains two 10Mb hard disks:
 
   - Drive C: contains PC DOS 2.00 and all the tools used to build BASIC-DOS
   - Drive D: contains the BASIC-DOS source code
@@ -70,8 +70,9 @@ locally (eg, by the VS Code editor).
 Note that this task also requires the PCjs
 [DiskImage](https://github.com/jeffpar/pcjs/tree/master/tools#pcjs-diskimage-utility)
 utility, so you should clone the [PCjs](https://github.com/jeffpar/pcjs)
-repository and set the environment variable `PCJS` to the fully-qualified name
-of the directory containing that clone.  Verify that `diskimage` works; eg:
+repository, run the usual `npm install`, and then set the environment variable
+`PCJS` to the fully-qualified name of the directory containing the clone.  Then
+verify that `diskimage` works; eg:
 
     node $PCJS/tools/modules/diskimage.js
 
@@ -80,13 +81,13 @@ of the directory containing that clone.  Verify that `diskimage` works; eg:
 
     nothing to do
 
-Every time the Gulp task builds a new disk image, the Jekyll web server should
-automatically detect the change and rebuild the web site (on macOS, that entire
-process takes only a few seconds).  When that's done, refresh your web browser
-to reload the BASIC-DOS Build Machine, press **Esc**, and let the **MK** command
-rebuild any BASIC-DOS binaries that are out-of-date.
+Every time the BASIC-DOS Gulp task builds a new disk image, the Jekyll web
+server should automatically detect the change and rebuild the web site (on
+macOS, that entire process takes only a few seconds).  When that's done,
+refresh your web browser to reload the BASIC-DOS Build Machine, press **Esc**,
+and let the **MK** command rebuild any BASIC-DOS binaries that are out-of-date.
 
-If you want to copy the binaries from the Build Machine back to your local
+If you then want to copy the binaries from the Build Machine back to your local
 machine, click the Build Machine's `Save HD1` button, be sure to tell your
 browser you *really* want to download and keep `BDSRC.img`, and then use the
 PCjs `diskimage` utility to extract files from the virtual hard disk;
@@ -97,5 +98,7 @@ eg:
 
 Be very careful when using commands like those shown above.  It's easy to lose
 your work if it turns out the Build Machine's disk image was stale (eg, the
-file-watcher didn't actually run, or the web server didn't rebuild the site, or
-the web browser wasn't refreshed).
+file watcher didn't actually run, or the web server didn't actually rebuild the
+site with a new disk image, or you didn't actually refresh your web browser).
+
+That's a lot of "actuallies."
