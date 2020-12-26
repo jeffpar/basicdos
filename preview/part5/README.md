@@ -55,4 +55,5 @@ system down, wasted memory, and were generally painful.
 
 Let's just say that BASIC-DOS will never support a `STACKS` keyword in CONFIG.SYS.
 
-That's the end of the current preview.  Enjoy the [Demos](/demos/).
+That's the end of the current preview.  All the demos featured in the preview
+are also available in our set of [Demo Configurations](/demos/).
