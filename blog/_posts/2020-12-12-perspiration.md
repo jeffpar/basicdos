@@ -277,7 +277,7 @@ added with a single line to **CONFIG.SYS**:
 No special switches are required (eg, /P or /K).  Each copy of **COMMAND.COM**
 loaded during the system initialization (aka "SYSINIT") phase remains
 permanently loaded.  Unlike PC DOS, COMMAND.COM is not divided into "resident"
-and "transient" sections.  Instead, it's divided in "shared" and "instance"
+and "transient" sections.  Instead, it's divided into "shared" and "instance"
 sections, so every copy of **COMMAND.COM** shares the same code and read-only
 data, making each additional copy's footprint much smaller.
 
@@ -298,11 +298,10 @@ file handles.
 
 PC DOS didn't support pipe operations version 2.00, and even then, pipes were
 simulated with temporary files, requiring a writable disk with enough free space
-to hold all the piped output, and the filters were run sequentially rather than
-in parallel.
+to hold all the piped output, and the filters ran sequentially.
 
-BASIC-DOS is free of those limitations.  No disk operations are required,
-and the amount of piped data can be *unlimited*.
+BASIC-DOS is free of those limitations.  No disk operations are required, the
+pipe filters run in parallel, and the amount of piped data can be *unlimited*.
 
 See the `HELP` command for a list of commands implemented so far.
 
