@@ -307,4 +307,5 @@ See the `HELP` command for a list of commands implemented so far.
 
 ### To Be Continued...
 
-In the meantime, check out the [Preview](/preview/).
+In the meantime, check out the [Preview](/preview/), which highlights a few
+of our original [Demos](/demos/).

@@ -34,7 +34,6 @@ type `SYSTEM` to return to the BASIC-DOS prompt.
 Next, type `PRIMES.BAS` to load and run the same program with BASIC-DOS.
 
 Notice how much *faster* BASIC-DOS execution is.  And BASIC-DOS is performing
-full 32-bit integer operations -- twice the precision of MSBASIC integer
-operations.
+full 32-bit integer operations (MSBASIC integer operations are only 16-bit).
 
 ### Next: [Part 3: BASIC Files vs. Batch Files](../part3/)

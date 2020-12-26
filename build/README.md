@@ -14,12 +14,19 @@ machines:
       B: "PC DOS 2.00 (Disk 1)"
 ---
 
-The IBM PC XT below serves as both a BASIC-DOS build machine and test machine.
-It's also available with [Dual Monitors](dual/).
+This IBM PC XT from [PCjs Machines](https://www.pcjs.org) serves as
+both a BASIC-DOS build machine and test machine.  It's also been configured
+to run several times faster than a normal 4.77Mhz IBM PC, in order to improve
+build time -- there *are* limits to our desire to relive the original IBM PC
+experience.
 
-BASIC-DOS doesn't support hard disks, but the BASIC-DOS diskette in drive A:
-will detect the hard disk and allow you to boot from it if you press **Esc**.
-See the [Build Notes](#basic-dos-build-notes) below.  
+Since BASIC-DOS is designed for the IBM PC, it doesn't support hard disks,
+but it does have the ability to *detect* a hard disk and boot from it if you
+press **Esc**.  This allows a machine to always have a BASIC-DOS diskette in
+drive A: without being forced to boot from it.
+
+See the [Build Notes](#basic-dos-build-notes) below for more details.  The
+Build Machine is also available with [Dual Monitors](dual/).
 
 {% include machine.html id="ibm5160" %}
 
@@ -37,9 +44,12 @@ but the batch files are also responsible for copying the built binaries to the
 BASIC-DOS diskette currently in drive A:.
 
 If the batch files finish successfully, reboot the machine (press Ctrl-Alt-Del)
-and then press **Enter** instead of **Esc** at the BASIC-DOS boot prompt; the
-boot prompt only appears if BASIC-DOS detects a hard disk (or the PCjs Debugger
-is present).
+and then press **Enter** instead of **Esc** at the BASIC-DOS boot prompt.
+You should now be running BASIC-DOS on the IBM PC XT, which BASIC-DOS treats as
+an IBM PC.
+
+NOTE: The boot prompt appears only if BASIC-DOS detects a hard disk *or* the
+PCjs Debugger is present.
 
 By default, the binaries contain *DEBUG* code (eg, assertions and debugging
 aids).  To build non-debug binaries, type **MK FINAL**, or **MKCLEAN FINAL**
@@ -50,8 +60,8 @@ file simply deletes all the binaries before running **MK.BAT**.
 
 [Visual Studio Code](https://code.visualstudio.com) has been the IDE of choice
 for all BASIC-DOS development.  VS Code can't build the source code directly,
-but it makes it easy to start a web server running your own copy of the BASIC-DOS
-Build Machine.  The BASIC-DOS [repository](https://github.com/jeffpar/basicdos)
+but it can start a web server running your own copy of the BASIC-DOS Build
+Machine.  The BASIC-DOS [repository](https://github.com/jeffpar/basicdos)
 includes a `.vscode` folder with a [tasks.json](https://github.com/jeffpar/basicdos/blob/master/.vscode/tasks.json)
 that defines several tasks that should be configured to start when VS Code loads
 the BASIC-DOS project.
