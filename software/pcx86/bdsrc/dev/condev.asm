@@ -666,7 +666,7 @@ dco1:	push	cs
 
 	push	bx
 	mov	bx,(size CONTEXT + 15) SHR 4
-	mov	ah,DOS_MEM_ALLOC
+	mov	ax,DOS_MEM_ALLOC SHL 8
 	int	INT_DOSFUNC
 	pop	bx
 	jnc	dco1a

@@ -55,7 +55,7 @@ DEFPROC	main
 
 	mov	cx,3		; perform the series CX times
 m1:	sub	bx,bx		; start with a zero paragraph request
-m2:	mov	ah,DOS_MEM_ALLOC
+m2:	mov	ax,DOS_MEM_ALLOC SHL 8
 	int	21h
 	jc	m3
 	mov	es,ax		; ES = new segment

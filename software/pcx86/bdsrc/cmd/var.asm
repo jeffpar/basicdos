@@ -49,6 +49,7 @@ DEFPROC	allocBlock
 	shr	bx,cl
 	xchg	cx,ax
 	mov	ah,DOS_MEM_ALLOC
+	mov	al,[si].BDEF_SIG
 	int	21h
 	jc	ab8
 

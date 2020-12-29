@@ -135,7 +135,7 @@ ENDPROC	ddpipe_write
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddpipe_open
 	mov	bx,(size CONTEXT + 15) SHR 4
-	mov	ah,DOS_MEM_ALLOC
+	mov	ax,DOS_MEM_ALLOC SHL 8
 	int	INT_DOSFUNC
 	jc	ddo8
 

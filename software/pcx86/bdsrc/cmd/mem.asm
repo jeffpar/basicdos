@@ -15,7 +15,8 @@ CODE    SEGMENT
 
 	EXTNEAR	<countLine,printCRLF>
 	IFDEF	DEBUG
-	EXTSTR	<SYS_MEM,DOS_MEM,FREE_MEM>
+	EXTSTR	<SYS_MEM,DOS_MEM,FREE_MEM,BLK_NAMES>
+	EXTABS	<BLK_WORDS>
 	ENDIF	; DEBUG
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
@@ -58,10 +59,13 @@ mem0:	sub	di,di
 mem1:	sub	bx,bx
 	mov	ax,es
 	push	di
-	mov	di,cs
-	mov	si,offset SYS_MEM
+	push	es
+	push	cs
+	pop	es
+	mov	di,offset SYS_MEM
 	sub	dx,dx		; DX = owner (none)
-	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
+	call	printKB		; BX = seg, AX = # paras, ES:DI -> name
+	pop	es
 	pop	di
 	ENDIF	; DEBUG
 ;
@@ -71,14 +75,12 @@ mem2:	cmp	di,-1
 	je	mem3
 
 	IFDEF	DEBUG
-	lea	si,[di].DDH_NAME
 	mov	bx,es
-	mov	cx,bx
 	mov	ax,es:[di].DDH_NEXT_SEG
-	sub	ax,cx		; AX = # paras
+	sub	ax,bx		; AX = # paras
 	push	di
-	mov	di,bx
-	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
+	lea	di,[di].DDH_NAME
+	call	printKB		; BX = seg, AX = # paras, ES:DI -> name
 	pop	di
 	ENDIF	; DEBUG
 
@@ -93,15 +95,18 @@ mem3:	mov	ah,DOS_MSC_GETVARS
 	sub	bx,2		; ES:BX -> DOSVARS
 	mov	di,es:[bx].DV_MCB_LIMIT
 	mov	[memLimit],di
+
 	push	bx
+	push	es
 
 	IFDEF	DEBUG
 	mov	ax,es:[bx].DV_MCB_HEAD
 	mov	bx,es		; BX = DOS data segment
 	sub	ax,bx
-	mov	di,cs
-	mov	si,offset DOS_MEM
-	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
+	push	cs
+	pop	es
+	mov	di,offset DOS_MEM
+	call	printKB		; BX = seg, AX = # paras, ES:DI -> name
 	ENDIF	; DEBUG
 ;
 ; Next, examine all the memory blocks and display those that are used.
@@ -112,8 +117,9 @@ mem3:	mov	ah,DOS_MSC_GETVARS
 mem4:	mov	dl,0		; DL = 0 (query all memory blocks)
 
 	IFDEF	DEBUG
-	mov	di,cs		; DI:SI -> default owner name
-	mov	si,offset SYS_MEM
+	push	cs
+	pop	es		; ES:DI -> default owner name
+	mov	di,offset SYS_MEM
 	ENDIF	; DEBUG
 
 	DOSUTIL	QRYMEM
@@ -125,21 +131,21 @@ mem4:	mov	dl,0		; DL = 0 (query all memory blocks)
 ; Let's include free blocks in the report now, too.
 ;
 	IFDEF	DEBUG
-	mov	si,offset FREE_MEM
+	mov	di,offset FREE_MEM
 	; jmp	short mem8
 	ENDIF	; DEBUG
 
 mem5:	IFDEF	DEBUG
 	xchg	ax,dx		; AX = # paras, DX = owner
-	push	cx
-	call	printKB		; BX = seg, AX = # paras, DI:SI -> name
-	pop	cx
+	call	printKB		; BX = seg, AX = # paras, ES:DI -> name
 	ENDIF	; DEBUG
 
 mem8:	inc	cx
 	jmp	mem4
 
-mem9:	pop	bx
+mem9:	pop	es
+	pop	bx
+
 	IFDEF	DEBUG
 	TESTSW	<'D'>
 	jz	mem10
@@ -228,16 +234,21 @@ ENDPROC	cmdMem
 ;	AX = size in paragraphs
 ;	DX = owner (zero if none)
 ;	BX = segment of memory block
-;	DI:SI -> "owner" name for memory block
+;	ES:DI -> "owner" name for memory block
 ;
 ; Outputs:
 ;	None
+;
+; Modifies:
+;	AX, SI, DI, ES
 ;
 	IFDEF	DEBUG
 DEFPROC	printKB
 	TESTSW	<'D'>		; detail requested (/D)?
 	jz	pkb9		; no
 	push	bp
+	push	cx
+
 	push	ax
 	push	bx
 	push	dx
@@ -256,8 +267,24 @@ DEFPROC	printKB
 	pop	dx
 	pop	bx
 	pop	ax
-	PRINTF	<"%04x  %04x  %04x %3d.%1dK  %.8ls",13,10>,bx,dx,ax,cx,bp,si,di
+
+	cmp	di,5		; DI = offset MCB_TYPE?
+	jne	pkb8		; no
+	mov	al,'<'
+	mov	ah,es:[di]	; AH = MCB_TYPE
+	push	cs
+	pop	es
+	mov	di,offset BLK_NAMES
+	mov	cx,BLK_WORDS
+	repne	scasw
+	jne	pkb8
+	dec	di
+	dec	di
+
+pkb8:	PRINTF	<"%04x  %04x  %04x %3d.%1dK  %.8ls",13,10>,bx,dx,ax,cx,bp,di,es
 	call	countLine
+
+	pop	cx
 	pop	bp
 pkb9:	ret
 ENDPROC	printKB

@@ -347,7 +347,7 @@ dco1:	lds	si,es:[di].DDP_PTR
 	mov	cl,4
 	shr	ax,cl
 	xchg	bx,ax			; BX = required length, in paras
-	mov	ah,DOS_MEM_ALLOC
+	mov	ax,DOS_MEM_ALLOC SHL 8
 	int	INT_DOSFUNC
 	jnc	dco1a
 	jmp	dco7

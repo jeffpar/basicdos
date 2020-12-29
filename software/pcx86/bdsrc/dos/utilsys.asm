@@ -342,10 +342,10 @@ ENDPROC	utl_unlock
 ;
 ; Outputs:
 ;	On success, carry clear:
-;		REG_ES:0 -> MCB
+;		REG_BX = segment
 ;		REG_AX = owner ID (eg, PSP)
 ;		REG_DX = size (in paragraphs)
-;		REG_DS:REG_BX -> owner name, if any
+;		REG_ES:REG_DI -> name of process or type, if any
 ;	On failure, carry set (ie, no more blocks of the requested type)
 ;
 ; Modifies:
