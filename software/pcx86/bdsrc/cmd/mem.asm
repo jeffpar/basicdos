@@ -240,7 +240,7 @@ ENDPROC	cmdMem
 ;	None
 ;
 ; Modifies:
-;	AX, SI, DI, ES
+;	AX, DI, ES
 ;
 	IFDEF	DEBUG
 DEFPROC	printKB
@@ -270,16 +270,20 @@ DEFPROC	printKB
 
 	cmp	di,5		; DI = offset MCB_TYPE?
 	jne	pkb8		; no
+	push	ax
+	push	cx
 	mov	al,'<'
 	mov	ah,es:[di]	; AH = MCB_TYPE
 	push	cs
 	pop	es
 	mov	di,offset BLK_NAMES
 	mov	cx,BLK_WORDS
-	repne	scasw
-	jne	pkb8
+	repne	scasw		; did we find a matching block name?
+	jne	pkb7		; no (ES:DI -> BLK_UNKNOWN)
+	dec	di		; yes, rewind to start of name
 	dec	di
-	dec	di
+pkb7:	pop	cx
+	pop	ax
 
 pkb8:	PRINTF	<"%04x  %04x  %04x %3d.%1dK  %.8ls",13,10>,bx,dx,ax,cx,bp,di,es
 	call	countLine
