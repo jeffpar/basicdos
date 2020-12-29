@@ -616,13 +616,13 @@ DEFPROC	load_program,DOS
 ;
 	LOCK_SCB
 	mov	bx,0A000h		; alloc a PSP segment
-	mov	ah,DOS_MEM_ALLOC	; with a size that should fail
+	mov	ax,DOS_MEM_ALLOC SHL 8	; with a size that should fail
 	int	21h			; in order to get max paras avail
 	ASSERT	C
 	jnc	lp1			; if it didn't fail, use it anyway?
 	cmp	bx,11h			; enough memory to do anything useful?
 	jb	lp0			; no
-	mov	ah,DOS_MEM_ALLOC	; BX = max paras avail
+	mov	ax,DOS_MEM_ALLOC SHL 8	; BX = max paras avail
 	int	21h			; returns a new segment in AX
 	jnc	lp1
 lp0:	jmp	lp9			; abort

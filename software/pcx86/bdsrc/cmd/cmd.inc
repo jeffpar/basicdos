@@ -116,7 +116,7 @@ CBLK_REFS	dw	?		; 08h: bottom of LBLREF stack, if any
 CBLK		ends
 CBLKLEN		equ	4096		; default code block size
 CBLK_SIG	equ	BLK_SIG
-SIG_CBLK	equ	'C'
+SIG_CBLK	equ	'C'		; must match MCBTYPE_CBLK
 
 ;
 ; Function Block (FBLK) definitions
@@ -127,7 +127,7 @@ FBLK_REFS	dw	?		; 08h: bottom of LBLREF stack, if any
 FBLK		ends
 FBLKLEN		equ	1024		; default code block size
 FBLK_SIG	equ	BLK_SIG
-SIG_FBLK	equ	'F'
+SIG_FBLK	equ	'F'		; must match MCBTYPE_FBLK
 
 ;
 ; Parameter flags
@@ -160,7 +160,7 @@ VBLK_HDR	db size	BLKHDR dup (?)	; 00h
 VBLK		ends
 VBLKLEN		equ	1024		; default var block size
 VBLK_SIG	equ	BLK_SIG
-SIG_VBLK	equ	'V'
+SIG_VBLK	equ	'V'		; must match MCBTYPE_VBLK
 
 ;
 ; String Block (SBLK) definitions
@@ -170,7 +170,7 @@ SBLK_HDR	db size	BLKHDR dup (?)	; 00h
 SBLK		ends
 SBLKLEN		equ	2048		; default string block size
 SBLK_SIG	equ	BLK_SIG
-SIG_SBLK	equ	'S'
+SIG_SBLK	equ	'S'		; must match MCBTYPE_SBLK
 
 ;
 ; Text Block (TBLK) definitions
@@ -182,7 +182,7 @@ TBLK_HDR	db size	BLKHDR dup (?)	; 00h
 TBLK		ends
 TBLKLEN		equ	1024		; default text block size
 TBLK_SIG	equ	BLK_SIG
-SIG_TBLK	equ	'T'
+SIG_TBLK	equ	'T'		; must match MCBTYPE_TBLK
 
 ;
 ; Operator definition

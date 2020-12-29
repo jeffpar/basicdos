@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: sheet
 title: Documentation
 permalink: /docs/
 ---

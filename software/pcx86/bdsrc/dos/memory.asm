@@ -23,6 +23,7 @@ DOS	segment word public 'CODE'
 ; mem_alloc (REG_AH = 48h)
 ;
 ; Inputs:
+;	REG_AL = MCBTYPE
 ;	REG_BX = paragraphs requested
 ;
 ; Outputs:
@@ -102,11 +103,11 @@ ENDPROC	mem_realloc
 ;		REG_BX = segment
 ;		REG_AX = owner ID (eg, PSP)
 ;		REG_DX = size (in paragraphs)
-;		REG_DI:REG_SI -> process name, if any
+;		REG_ES:REG_DI -> name of process or type, if any
 ;	On failure, carry set (ie, no more blocks of the requested type)
 ;
 ; Modifies:
-;	AX, BX, CX, DS, ES
+;	AX, BX, CX, DI, ES
 ;
 DEFPROC	mem_query,DOS
 	LOCK_SCB
@@ -135,15 +136,18 @@ q4:	cmp	es:[MCB_SIG],MCBSIG_LAST
 	jmp	q1
 
 q7:	mov	dx,es:[MCB_PARAS]
-	cmp	ax,MCBOWNER_SYSTEM
-	jbe	q8
-	mov	[bp].REG_DI,es
-	mov	[bp].REG_SI,MCB_NAME	; DI:SI -> process name (or nulls)
-
-q8:	inc	bx
-	mov	[bp].REG_BX,bx
 	mov	[bp].REG_AX,ax
 	mov	[bp].REG_DX,dx
+	cmp	ax,MCBOWNER_SYSTEM
+	jbe	q8
+	mov	di,MCB_NAME
+	cmp	byte ptr es:[di],0
+	jne	q7a
+	mov	di,MCB_TYPE
+q7a:	mov	[bp].REG_DI,di
+	mov	[bp].REG_ES,es		; REG_ES:REG_DI -> string
+q8:	inc	bx
+	mov	[bp].REG_BX,bx
 	clc
 q9:	UNLOCK_SCB
 	ret
@@ -249,6 +253,7 @@ ENDPROC	mcb_split
 ; mcb_alloc
 ;
 ; Inputs:
+;	AL = MCBTYPE
 ;	BX = paragraphs requested (from REG_BX if via INT 21h)
 ;
 ; Outputs:
@@ -261,6 +266,7 @@ ENDPROC	mcb_split
 DEFPROC mcb_alloc,DOS
 	ASSUME	ES:NOTHING
 	LOCK_SCB
+	push	ax			; save AX
 	mov	es,[mcb_head]
 	sub	dx,dx			; DX = largest free block so far
 a1:	mov	al,es:[MCB_SIG]
@@ -289,6 +295,8 @@ a4:	call	get_psp
 	jnz	a5
 	mov	ax,MCBOWNER_SYSTEM	; no active PSP yet, so use this
 a5:	mov	es:[MCB_OWNER],ax
+	pop	ax			; AL = MCBTYPE again
+	mov	es:[MCB_TYPE],al
 	mov	ax,es
 	inc	ax			; return ES+1 in AX, with CARRY clear
 	clc
@@ -307,7 +315,8 @@ a7:	mov	ax,ERR_BADMCB
 
 a8:	mov	ax,ERR_NOMEMORY
 	mov	bx,dx			; BX = max # paras available
-a8a:	stc
+a8a:	pop	dx			; throw away AX
+	stc
 
 a9:	UNLOCK_SCB
 	ret

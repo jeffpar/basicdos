@@ -128,14 +128,23 @@ MCB		struc
 MCB_SIG		db	?	; 00h: either MCBSIG_NEXT or MCBSIG_LAST
 MCB_OWNER	dw	?	; 01h: owner (PSP segment if > 8)
 MCB_PARAS	dw	?	; 03h: size of block in paragraphs
-MCB_RESERVED	db	3 dup(?); 05h
+MCB_TYPE	db	?	; 05h: one of MCBTYPE values
+MCB_RESERVED	dw	?	; 06h
 MCB_NAME	db	8 dup(?); 08h: name of process (zero if none)
 MCB		ends
 
 MCBSIG_NEXT	equ	4Dh	; 'M'
 MCBSIG_LAST	equ	5Ah	; 'Z'
+
 MCBOWNER_NONE	equ	0	; free memory block
 MCBOWNER_SYSTEM	equ	0008h	; owned by the system
+
+MCBTYPE_NONE	equ	0	; no specified block type
+MCBTYPE_CBLK	equ	'C'	; code block
+MCBTYPE_FBLK	equ	'F'	; function block
+MCBTYPE_VBLK	equ	'V'	; variable block
+MCBTYPE_SBLK	equ	'S'	; string block
+MCBTYPE_TBLK	equ	'T'	; text block
 
 ;
 ; System File Block (SFB)

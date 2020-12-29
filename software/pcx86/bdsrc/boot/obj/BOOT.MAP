@@ -15,7 +15,7 @@ Warning: no stack segment
  0000:05E5       PART1
  0000:0553       PART1_COPY
  0000:05E5       PART1_COPY_END
- 0000:074D       PART1_END
+ 0000:074C       PART1_END
  0000:0760       PART2
  0000:08C7       PART2_COPY
  0000:0959       PART2_END
@@ -39,7 +39,7 @@ Warning: no stack segment
  0000:0615       MAIN
  0000:06BF       FIND_DIRENT
  0000:06F7       WAIT
- 0000:074D       PART1_END
+ 0000:074C       PART1_END
  0000:0760       PART2
  0000:07B3       PART3
  0000:07E2       READ_DATA
