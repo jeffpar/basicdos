@@ -6,6 +6,7 @@
       "comments": false,
       "strings": false
   },
+  "editor.wordWrap": "off",
   "workbench.colorTheme": "Atom One Dark",
   "workbench.colorCustomizations": {
     "[Atom One Dark]": {
@@ -28,6 +29,13 @@
     "editor.insertSpaces": true,
     "editor.tabSize": 2,
     "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true
+  },
+  "[markdown]": {
+    "editor.insertSpaces": false,
+    "editor.tabSize": 4,
+    "files.trimTrailingWhitespace": false,
     "files.insertFinalNewline": true,
     "files.trimFinalNewlines": true
   },
