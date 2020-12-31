@@ -247,7 +247,31 @@ section {
       text-align: center;
     }
   }
-  
+
+  .sheet {
+    position: relative;
+    width: 500px;
+    height: 640px;
+    border: 1px solid black;
+    background-color: white;
+    color: black;
+    display: block;
+    margin: 0 auto 16px;
+    padding: 16px;
+
+    .footer-left {
+      position: absolute;
+      bottom: 0;
+      left: 16px;
+    }
+
+    .footer-right {
+      position: absolute;
+      bottom: 0;
+      left: 480px;
+    }
+  }
+
   .credits {
     font-size: 11px;
     font-family: 'OpenSansRegular', "Helvetica Neue", Helvetica, Arial, sans-serif;
