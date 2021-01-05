@@ -13,4 +13,4 @@ BASIC-DOS operations are organized in the following groups:
 - [Programming operations](program/)
 - [System operations](system/)
 
-{% include sheet/footer.html prev="../lang/" next="device/" %}
+{% include sheet/footer.html prev="Language:../lang/" next="Device Operations:device/" %}

@@ -6,7 +6,7 @@ permalink: /docs/pcx86/bdman/contents/
 
 {% include sheet/header.html %}
 
-1. [Starting BASIC-DOS](../intro/)
+1. [Using BASIC-DOS](../intro/)
 2. [The BASIC-DOS Language](../lang/)
 3. [BASIC-DOS Operations](../ops/)
 

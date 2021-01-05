@@ -13,4 +13,4 @@ Disk operations include:
 - LOAD
 - TYPE
 
-{% include sheet/footer.html prev="../device/screen/" next="../program/" %}
+{% include sheet/footer.html prev="Screen Operations:../device/screen/" next="Programming:../program/" %}

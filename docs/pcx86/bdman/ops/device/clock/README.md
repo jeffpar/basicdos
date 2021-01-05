@@ -11,4 +11,4 @@ Clock operations include the following commands:
 - DATE
 - TIME
 
-{% include sheet/footer.html prev="../" next="../keyboard/" %}
+{% include sheet/footer.html prev="Device Operations:../" next="Keyboard Operations:../keyboard/" %}

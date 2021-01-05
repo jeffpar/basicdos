@@ -1,4 +1,5 @@
 
-
-<span class="footer-left"><a href="{{ include.prev }}">Prev</a></span>
-<span class="footer-right"><a href="{{ include.next }}">Next</a></span>
+{%- assign prev_parts = include.prev | split: ':' -%}
+{%- assign next_parts = include.next | split: ':' -%}
+<span class="footer-left"><a href="{{ prev_parts[1] | default: prev_parts[0] }}">&laquo;&nbsp;{%- if prev_parts[1] -%}{{ prev_parts[0] }}{%- else -%}Prev{%- endif -%}</a></span>
+<span class="footer-right"><a href="{{ next_parts[1] | default: next_parts[0] }}">{%- if next_parts[1] -%}{{ next_parts[0] }}{%- else -%}Next{%- endif -%}&nbsp;&raquo;</a></span>

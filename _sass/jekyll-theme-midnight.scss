@@ -261,14 +261,17 @@ section {
 
     .footer-left {
       position: absolute;
-      bottom: 0;
-      left: 16px;
+      bottom: 8px;
+      left: 5%;
+      white-space: nowrap;
     }
 
     .footer-right {
       position: absolute;
-      bottom: 0;
-      left: 480px;
+      bottom: 8px;
+      left: 95%;
+      transform: translateX(-95%);
+      white-space: nowrap;
     }
   }
 

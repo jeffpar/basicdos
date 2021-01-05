@@ -11,4 +11,4 @@ Keyboard operations include the following commands:
 - INPUT
 - PAUSE
 
-{% include sheet/footer.html prev="../clock/" next="../screen/" %}
+{% include sheet/footer.html prev="Clock Operations:../clock/" next="Screen Operations:../screen/" %}

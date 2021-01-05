@@ -1,6 +1,6 @@
 ---
 layout: sheet
-title: Starting BASIC-DOS
+title: Using BASIC-DOS
 permalink: /docs/pcx86/bdman/intro/
 ---
 
@@ -8,4 +8,4 @@ permalink: /docs/pcx86/bdman/intro/
 
 Insert a BASIC-DOS diskette in drive A: and power the machine on.
 
-{% include sheet/footer.html prev="../contents/" next="../lang/" %}
+{% include sheet/footer.html prev="Contents:../contents/" next="Language:../lang/" %}

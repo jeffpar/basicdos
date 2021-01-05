@@ -13,4 +13,4 @@ Screen operations include the following commands:
 - ECHO
 - PRINT
 
-{% include sheet/footer.html prev="../keyboard/" next="../../disk/" %}
+{% include sheet/footer.html prev="Keyboard Operations:../keyboard/" next="Disk Operations:../../disk/" %}

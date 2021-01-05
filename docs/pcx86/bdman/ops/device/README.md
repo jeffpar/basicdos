@@ -12,4 +12,4 @@ Device operations are organized in the following groups:
 - [Keyboard operations](keyboard/)
 - [Screen operations](screen/)
 
-{% include sheet/footer.html prev="../" next="clock/" %}
+{% include sheet/footer.html prev="Operations:../" next="Clock Operations:clock/" %}
