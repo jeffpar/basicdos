@@ -1,16 +1,16 @@
 ---
 layout: sheet
-title: BASIC-DOS Disk Operations
+title: BASIC-DOS Disk Commands
 permalink: /docs/pcx86/bdman/ops/disk/
 ---
 
-{% include sheet/header.html %}
+{% include header.html %}
 
-Disk operations include:
+Disk commands include:
 
 - COPY
 - DIR
 - LOAD
 - TYPE
 
-{% include sheet/footer.html prev="Screen Operations:../device/screen/" next="Programming:../program/" %}
+{% include footer.html prev="Screen Commands:../device/screen/" next="Programming Operations:../program/" %}

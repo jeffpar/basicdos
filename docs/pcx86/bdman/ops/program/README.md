@@ -1,17 +1,17 @@
 ---
 layout: sheet
-title: BASIC-DOS Programming
+title: BASIC-DOS Programming Operations
 permalink: /docs/pcx86/bdman/ops/program/
 ---
 
-{% include sheet/header.html %}
+{% include header.html %}
 
 Programming operations are divided into [Commands](#commands),
 [Functions](#functions), and [Variables](#variables).
 
 ### Commands
 
-- DEF
+- [DEF](cmd/def/)
 - GOSUB
 - GOTO
 - IF ... THEN
@@ -31,4 +31,4 @@ Predefined variables include:
 - ERRORLEVEL
 - MAXINT
 
-{% include sheet/footer.html prev="../disk/" next="../system/" %}
+{% include footer.html prev="Disk Commands:../disk/" next="DEF:cmd/def/" %}

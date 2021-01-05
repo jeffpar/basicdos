@@ -1,15 +1,15 @@
 ---
 layout: sheet
-title: BASIC-DOS Device Operations
+title: BASIC-DOS Device Commands
 permalink: /docs/pcx86/bdman/ops/device/
 ---
 
-{% include sheet/header.html %}
+{% include header.html %}
 
-Device operations are organized in the following groups:
+Device commands include:
 
-- [Clock operations](clock/)
-- [Keyboard operations](keyboard/)
-- [Screen operations](screen/)
+- [Clock commands](clock/)
+- [Keyboard commands](keyboard/)
+- [Screen commands](screen/)
 
-{% include sheet/footer.html prev="Operations:../" next="Clock Operations:clock/" %}
+{% include footer.html prev="Operations:../" next="Clock Commands:clock/" %}

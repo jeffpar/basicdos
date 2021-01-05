@@ -1,16 +1,16 @@
 ---
 layout: sheet
-title: BASIC-DOS Screen Operations
+title: BASIC-DOS Screen Commands
 permalink: /docs/pcx86/bdman/ops/device/screen/
 ---
 
-{% include sheet/header.html %}
+{% include header.html %}
 
-Screen operations include the following commands:
+Screen commands include:
 
 - CLS
 - COLOR
 - ECHO
 - PRINT
 
-{% include sheet/footer.html prev="Keyboard Operations:../keyboard/" next="Disk Operations:../../disk/" %}
+{% include footer.html prev="Keyboard Commands:../keyboard/" next="Disk Commands:../../disk/" %}

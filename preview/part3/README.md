@@ -33,9 +33,6 @@ of lines in a batch file.  However, the only `ECHO` options are *ON* and *OFF*,
 because if you want to echo something else, well, BASIC already has a command
 for that: `PRINT`.
 
-You can also treat the batch file exactly like a BASIC file, with commands
-like `LOAD BD1.BAT`, `LIST`, and `RUN`.
-
 Variables, including function definitions, remain in memory after a batch file
 (or BASIC program) has been run.  So the ADD function defined by **BD1.BAT**
 is still available, and can be used by any BASIC command or expression typed

@@ -259,6 +259,16 @@ section {
     margin: 0 auto 16px;
     padding: 16px;
 
+    a {
+      color: #c9a30d;
+    }
+
+    blockquote {
+      font-style: normal;
+      color: green;
+      border-left: 0;
+    }
+
     .footer-left {
       position: absolute;
       bottom: 8px;

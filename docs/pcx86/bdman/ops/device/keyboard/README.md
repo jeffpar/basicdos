@@ -1,14 +1,14 @@
 ---
 layout: sheet
-title: BASIC-DOS Keyboard Operations
+title: BASIC-DOS Keyboard Commands
 permalink: /docs/pcx86/bdman/ops/device/keyboard/
 ---
 
-{% include sheet/header.html %}
+{% include header.html %}
 
-Keyboard operations include the following commands:
+Keyboard commands include:
 
 - INPUT
 - PAUSE
 
-{% include sheet/footer.html prev="Clock Operations:../clock/" next="Screen Operations:../screen/" %}
+{% include footer.html prev="Clock Commands:../clock/" next="Screen Commands:../screen/" %}

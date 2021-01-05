@@ -1,14 +1,14 @@
 ---
 layout: sheet
-title: BASIC-DOS Clock Operations
+title: BASIC-DOS Clock Commands
 permalink: /docs/pcx86/bdman/ops/device/clock/
 ---
 
-{% include sheet/header.html %}
+{% include header.html %}
 
-Clock operations include the following commands:
+Clock commands include:
 
 - DATE
 - TIME
 
-{% include sheet/footer.html prev="Device Operations:../" next="Keyboard Operations:../keyboard/" %}
+{% include footer.html prev="Device Commands:../" next="Keyboard Commands:../keyboard/" %}

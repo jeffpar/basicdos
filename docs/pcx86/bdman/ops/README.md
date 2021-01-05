@@ -4,13 +4,13 @@ title: BASIC-DOS Operations
 permalink: /docs/pcx86/bdman/ops/
 ---
 
-{% include sheet/header.html %}
+{% include header.html %}
 
 BASIC-DOS operations are organized in the following groups:
 
-- [Device operations](device/)
-- [Disk operations](disk/)
+- [Device commands](device/)
+- [Disk commands](disk/)
 - [Programming operations](program/)
-- [System operations](system/)
+- [System commands](system/)
 
-{% include sheet/footer.html prev="Language:../lang/" next="Device Operations:device/" %}
+{% include footer.html prev="Language:../lang/" next="Device Commands:device/" %}

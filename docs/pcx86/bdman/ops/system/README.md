@@ -1,12 +1,12 @@
 ---
 layout: sheet
-title: BASIC-DOS System Operations
+title: BASIC-DOS System Commands
 permalink: /docs/pcx86/bdman/ops/system/
 ---
 
-{% include sheet/header.html %}
+{% include header.html %}
 
-System operations include:
+System commands include:
 
 - EDIT
 - LIST
@@ -15,4 +15,4 @@ System operations include:
 - RUN
 - VER
 
-{% include sheet/footer.html prev="../program/" next="/docs/" %}
+{% include footer.html prev="Programming:../program/" next="" %}
