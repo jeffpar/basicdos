@@ -13,4 +13,4 @@ Disk commands include:
 - LOAD
 - TYPE
 
-{% include footer.html prev="Screen Commands:../device/screen/" next="Programming Operations:../program/" %}
+{% include footer.html prev="Device Commands:../device/" next="Program Commands:../program/" %}

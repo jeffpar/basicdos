@@ -15,4 +15,4 @@ System commands include:
 - RUN
 - VER
 
-{% include footer.html prev="Programming:../program/" next="" %}
+{% include footer.html prev="Program Commands:../program/" next="" %}

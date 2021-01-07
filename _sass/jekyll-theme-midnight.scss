@@ -258,6 +258,7 @@ section {
     display: block;
     margin: 0 auto 16px;
     padding: 16px;
+    overflow: scroll;
 
     a {
       color: #c9a30d;
@@ -269,18 +270,25 @@ section {
       border-left: 0;
     }
 
+    .highlight, pre, code {
+      color: green;
+      background-color: white;
+      border: 0;
+      box-shadow: none;
+      text-shadow: none;
+    }
+
+    pre {
+      padding: 0 24px;
+    }
+
     .footer-left {
-      position: absolute;
-      bottom: 8px;
-      left: 5%;
+      float: left;
       white-space: nowrap;
     }
 
     .footer-right {
-      position: absolute;
-      bottom: 8px;
-      left: 95%;
-      transform: translateX(-95%);
+      float: right;
       white-space: nowrap;
     }
   }
