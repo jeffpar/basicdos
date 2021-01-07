@@ -8,4 +8,4 @@ permalink: /docs/pcx86/bdman/lang/
 
 The BASIC-DOS language supports a variety of commands and expressions.
 
-{% include footer.html prev="Introduction:../intro/" next="Operations:../ops/" %}
+{% include footer.html prev="Introduction:../intro/" next="Commands:../cmd/" %}
