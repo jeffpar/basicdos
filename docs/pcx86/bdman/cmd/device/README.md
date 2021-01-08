@@ -1,12 +1,12 @@
 ---
 layout: sheet
-title: BASIC-DOS Device Commands
+title: Device Commands
 permalink: /docs/pcx86/bdman/cmd/device/
 ---
 
 {% include header.html %}
 
-Device commands include:
+BASIC-DOS device commands include:
 
 - [Clock commands](clock/)
   - DATE
@@ -20,4 +20,4 @@ Device commands include:
   - ECHO
   - PRINT
 
-{% include footer.html prev="Commands:../" next="Disk Commands:../disk/" %}
+{% include footer.html prev="BASIC-DOS Commands:../" next="Disk Commands:../disk/" %}

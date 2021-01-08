@@ -1,14 +1,17 @@
 ---
 layout: sheet
-title: BASIC-DOS Programming
-permalink: /docs/pcx86/bdman/cmd/program/
+title: BASIC Commands
+permalink: /docs/pcx86/bdman/cmd/basic/
 ---
 
 {% include header.html %}
 
-BASIC-DOS programs consist of:
+BASIC-DOS supports a subset of the BASIC programming language, enabling
+the creation of simple BASIC programs.
 
-- [Commands](../)
+BASIC programs can use any BASIC-DOS [Commands](../) in combination with any
+BASIC commands using the following BASIC language elements:
+
 - [Statements](#statements)
 - [Functions](#functions)
 - [Variables](#variables)
@@ -34,4 +37,4 @@ Predefined variables include:
 - ERRORLEVEL
 - MAXINT
 
-{% include footer.html prev="Disk Commands:../disk/" next="System Commands:../system/" %}
+{% include footer.html prev="BASIC-DOS Commands:../" next="Device Commands:../device/" %}

@@ -11,4 +11,4 @@ Keyboard commands include:
 - INPUT
 - PAUSE
 
-{% include footer.html prev="Clock Commands:../clock/" next="Screen Commands:../screen/" %}
+{% include footer.html prev="Device Commands:../" next="Screen Commands:../screen/" %}

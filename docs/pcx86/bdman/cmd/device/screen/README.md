@@ -13,4 +13,4 @@ Screen commands include:
 - ECHO
 - PRINT
 
-{% include footer.html prev="Keyboard Commands:../keyboard/" next="Disk Commands:../../disk/" %}
+{% include footer.html prev="Device Commands:../" next="Disk Commands:../../disk/" %}

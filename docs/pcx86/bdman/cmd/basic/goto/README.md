@@ -1,7 +1,7 @@
 ---
 layout: sheet
-title: BASIC-DOS Program Commands
-permalink: /docs/pcx86/bdman/cmd/program/goto/
+title: BASIC-DOS BASIC Commands
+permalink: /docs/pcx86/bdman/cmd/basic/goto/
 ---
 
 {% include header.html topic="GOTO" %}
@@ -32,4 +32,4 @@ BASIC-DOS does *not* require all lines within a program to begin with a line
 number.  Only those lines that are the target of a GOTO statement must be
 numbered.
 
-{% include footer.html prev="DEF:../def/" next="IF:../if/" %}
+{% include footer.html prev="BASIC Commands:../"  next="IF:../if/" %}

@@ -1,16 +1,16 @@
 ---
 layout: sheet
-title: BASIC-DOS Disk Commands
+title: Disk Commands
 permalink: /docs/pcx86/bdman/cmd/disk/
 ---
 
 {% include header.html %}
 
-Disk commands include:
+BASIC-DOS disk commands include:
 
 - COPY
 - DIR
 - LOAD
 - TYPE
 
-{% include footer.html prev="Device Commands:../device/" next="Programming:../program/" %}
+{% include footer.html prev="BASIC-DOS Commands:../" next="External Commands:../external/" %}

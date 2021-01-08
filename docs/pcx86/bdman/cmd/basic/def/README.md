@@ -1,7 +1,7 @@
 ---
 layout: sheet
-title: BASIC-DOS Program Commands
-permalink: /docs/pcx86/bdman/cmd/program/def/
+title: BASIC-DOS BASIC Commands
+permalink: /docs/pcx86/bdman/cmd/basic/def/
 ---
 
 {% include header.html topic="DEF" %}
@@ -39,4 +39,4 @@ BASIC-DOS does *not* require function names to begin with the letters **FN**,
 it allows single-line functions to be defined immediately (in "Direct Mode"),
 and it allows multi-line functions.
 
-{% include footer.html prev="Programming:../" next="GOTO:../goto/" %}
+{% include footer.html prev="BASIC Commands:../" next="GOTO:../goto/" %}

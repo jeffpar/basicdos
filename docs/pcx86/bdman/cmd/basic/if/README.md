@@ -1,7 +1,7 @@
 ---
 layout: sheet
-title: BASIC-DOS Program Commands
-permalink: /docs/pcx86/bdman/cmd/program/if/
+title: BASIC-DOS BASIC Commands
+permalink: /docs/pcx86/bdman/cmd/basic/if/
 ---
 
 {% include header.html topic="IF" %}
@@ -11,4 +11,4 @@ it executes *statement(s)* following the **THEN** keyword:
 
 > IF *expression* THEN *statement(s)*
 
-{% include footer.html prev="GOTO:../goto/" next="LET:../let/" %}
+{% include footer.html prev="BASIC Commands:../" next="LET:../let/" %}

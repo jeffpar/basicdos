@@ -1,7 +1,7 @@
 ---
 layout: sheet
-title: BASIC-DOS Program Commands
-permalink: /docs/pcx86/bdman/cmd/program/return/
+title: BASIC-DOS BASIC Commands
+permalink: /docs/pcx86/bdman/cmd/basic/return/
 ---
 
 {% include header.html topic="RETURN" %}
@@ -11,4 +11,4 @@ multi-line function:
 
 > RETURN [*expression*]
 
-{% include footer.html prev="LET:../let/" next="System Commands:../../system/" %}
+{% include footer.html prev="BASIC Commands:../" next="Device Commands:../../device/" %}
