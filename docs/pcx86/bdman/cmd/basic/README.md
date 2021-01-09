@@ -10,7 +10,7 @@ BASIC-DOS supports a subset of the BASIC programming language, enabling
 the creation of simple BASIC programs.
 
 BASIC programs can use any BASIC-DOS [Commands](../) in combination with any
-BASIC commands using the following BASIC language elements:
+of the following BASIC language elements:
 
 - [Statements](#statements)
 - [Functions](#functions)

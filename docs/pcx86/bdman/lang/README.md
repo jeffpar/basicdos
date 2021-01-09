@@ -13,4 +13,4 @@ BASIC-DOS command prompt.
 BASIC programs are a sequence of lines.  Each line begins with an optional
 *line number* followed by one or more commands.
 
-{% include footer.html prev="Contents:../" next="BASIC-DOS Configuration:../cfg/" %}
+{% include footer.html prev="Contents:../" next="Configuring BASIC-DOS:../cfg/" %}
