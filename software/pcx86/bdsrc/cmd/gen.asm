@@ -271,11 +271,10 @@ ENDPROC	genColor
 ; Note that we do NOT require the function name to begin with "FN" like
 ; MSBASIC does.
 ;
-; TODO: We shouldn't allow DEF to redefine a function that already exists,
-; but since BAT files inherit existing var blocks, we permit it (see call to
-; removeVar).  Unfortunately, all removeVar does is mark the existing var
-; data as DEAD, and addVar doesn't currently reuse DEAD space, so memory will
-; grow until you force the var blocks to be deleted.
+; TODO: We must allow DEF to redefine a function that already exists, hence
+; the call to removeVar.  However, all removeVar does is mark the existing var
+; data as DEAD, and addVar doesn't currently reuse DEAD space, so memory usage
+; could grow without limit until we've implemented some cleanup code.
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs
@@ -595,7 +594,7 @@ ENDPROC	genDefInt
 ;
 ; genDefDbl
 ;
-; Process "DEFDBL".  In BASIC-DOS, floating-point will comes in only one
+; Process "DEFDBL".  In BASIC-DOS, floating-point will come in only one
 ; flavor, and this is it; "DEFSNG" is allowed, but it's treated as "DEFDBL".
 ;
 ; Inputs:
@@ -719,23 +718,23 @@ ge1:	mov	al,CLS_ANY		; CLS_NUM, CLS_SYM, CLS_VAR, CLS_STR
 	call	getNextToken
 	jbe	ge2x
 	inc	[exprToks]
-	cmp	ah,CLS_SYM		; 20h?
+	cmp	ah,CLS_SYM		; symbol? (20h)
 	je	ge1b			; process CLS_SYM below
 ;
 ; Non-operator (non-symbol) cases: keywords, variables, strings, and numbers.
 ;
 	mov	byte ptr [exprPrevOp],-1; invalidate prevOp (intervening token)
-	cmp	ah,CLS_KEYWORD		; 30h?
+	cmp	ah,CLS_KEYWORD		; keyword? (30h)
 	je	ge2x			; keywords not allowed in expressions
-	cmp	ah,CLS_VAR		; 10h? (variable with type?)
+	cmp	ah,CLS_VAR		; variable with type? (10h)
 	ASSERT	NE			; (type should be fully qualified now)
 	ja	ge2			; yes
 ;
 ; Must be CLS_STR or CLS_NUM.  Handle CLS_STR here and CLS_NUM below.
 ;
-	test	ah,CLS_STR		; string?
+	test	ah,CLS_STR		; string? (08h)
 	jz	ge3			; no, must be number
-	mov	al,VAR_STR		; AL = VAR_STR
+	mov	al,VAR_STR		; AL = VAR_STR (60h)
 	call	setExprType		; update expression type
 	jnz	ge2x
 	sub	cx,2			; CX = string length
@@ -758,7 +757,7 @@ ge1b:	jmp	short ge4
 ; with the expression type.
 ;
 ge2:	call	findVar
-	cmp	ah,VAR_PARM		; 20h?
+	cmp	ah,VAR_PARM		; parameter? (20h)
 	jne	ge2a			; no
 ;
 ; VAR_PARM variables are present only in temp var blocks created by genDefFn,
@@ -768,7 +767,7 @@ ge2:	call	findVar
 	call	genFuncParm
 	jmp	short ge2b
 
-ge2a:	cmp	ah,VAR_FUNC		; C0h?
+ge2a:	cmp	ah,VAR_FUNC		; function? (C0h)
 	jne	ge2c
 	call	genFuncExpr		; process the function expression
 ge2b:	jnc	ge2d			; AH = return type
@@ -795,8 +794,8 @@ ge3:	mov	al,VAR_LONG		; AL = VAR_LONG
 	jnz	ge3x			; error
 	push	bx
 	mov	bl,10			; BL = 10 (default base)
-	test	ah,CLS_OCT OR CLS_HEX	; octal or hex value?
-	jz	ge3a			; no
+	cmp	ah,CLS_OCT OR CLS_HEX	; octal or hex value?
+	ja	ge3a			; no
 	inc	si			; yes, skip leading ampersand
 	shl	ah,1
 	shl	ah,1
@@ -1114,7 +1113,7 @@ ENDPROC	genFuncParm
 ;	Any
 ;
 DEFPROC	genGoto
-	mov	al,CLS_NUM
+	mov	al,CLS_DEC
 	call	getNextToken
 	jbe	gg9
 	DOSUTIL	ATOI32D			; DS:SI -> decimal string
@@ -1308,10 +1307,10 @@ gp2:	jz	gp8
 	ASSERT	Z,<cmp dl,al>		; verify our assumption
 gp3:	GENPUSHB al
 	pop	ax
-	mov	ah,VAR_SEMI
+	mov	ah,VAR_SEMI		; semi-colon (02h)
 	cmp	al,';'			; was the last symbol a semi-colon?
 	je	gp6			; yes
-	mov	ah,VAR_COMMA
+	mov	ah,VAR_COMMA		; comma (03h)
 	cmp	al,','			; how about a comma?
 	jne	gp8			; no
 gp6:	GENPUSHB ah			; "MOV AL,[VAR_SEMI or VAR_COMMA]"

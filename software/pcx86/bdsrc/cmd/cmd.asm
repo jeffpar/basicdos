@@ -53,13 +53,13 @@ m0:	mov	bx,ds:[PSP_HEAP]
 
 	PRINTF	<"BASIC-DOS Interpreter",13,10,13,10>
 ;
-; Originally, "the plan" was to use Microsoft's MBF (Microsoft Binary Format)
-; floating-point code, because who really wants to write a "new" floating-point
-; emulation library from scratch?  I went down that path back in the 1980s,
+; The plan is to use Microsoft's MBF (Microsoft Binary Format) floating-point
+; code, because who really wants to write a "new" floating-point emulation
+; library from scratch these days?  I went down that path back in the 1980s,
 ; probably during my "Mandelbrot phase", but I can't find the code I wrote,
 ; and now that Microsoft has open-sourced GW-BASIC, it makes more sense to use
-; theirs.  However, that hasn't happened yet; for now, BASIC-DOS is just an
-; "Integer BASIC".  If/when that changes, MSLIB will be defined.
+; theirs.  Until that happens, BASIC-DOS is just an "Integer BASIC", and when
+; that changes, MSLIB will be defined.
 ;
 	IFDEF	MSLIB
 	PRINTF	<"BASIC MATH library functions",13,10,"Copyright (c) Microsoft Corporation",13,10,13,10>

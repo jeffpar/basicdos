@@ -5,7 +5,7 @@
   "tasks": [
     {
       "type": "shell",
-      "label": "bundle: serve --port 4040",
+      "label": "bundle serve --port 4040",
       "command": "bundle exec jekyll serve --host=0.0.0.0 --port 4040 --config _config.yml,_developer.yml",
       "problemMatcher": [],
       "runOptions": {
@@ -14,7 +14,7 @@
     },
     {
       "type": "gulp",
-      "label": "gulp: watch",
+      "label": "gulp watch",
       "task": "watch",
       "problemMatcher": [],
       "group": {

@@ -1,5 +1,5 @@
 ---
-layout: default
+layout: page
 heading: BASIC-DOS Demos
 permalink: /demos/
 machines:

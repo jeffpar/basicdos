@@ -247,7 +247,52 @@ section {
       text-align: center;
     }
   }
-  
+
+  .sheet {
+    position: relative;
+    width: 500px;
+    height: 640px;
+    border: 1px solid black;
+    background-color: white;
+    color: black;
+    display: block;
+    margin: 0 auto 16px;
+    padding: 16px;
+    overflow: scroll;
+
+    a {
+      color: #c9a30d;
+    }
+
+    blockquote {
+      font-style: normal;
+      color: green;
+      border-left: 0;
+    }
+
+    .highlight, pre, code {
+      color: green;
+      background-color: white;
+      border: 0;
+      box-shadow: none;
+      text-shadow: none;
+    }
+
+    pre {
+      padding: 0 24px;
+    }
+
+    .footer-left {
+      float: left;
+      white-space: nowrap;
+    }
+
+    .footer-right {
+      float: right;
+      white-space: nowrap;
+    }
+  }
+
   .credits {
     font-size: 11px;
     font-family: 'OpenSansRegular', "Helvetica Neue", Helvetica, Arial, sans-serif;
