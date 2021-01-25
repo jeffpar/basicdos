@@ -40,7 +40,7 @@
       "webRoot": "${workspaceFolder}"
     },
     {
-      "name": "gulp: watch",
+      "name": "gulp watch",
       "type": "node",
       "request": "launch",
       "program": "${workspaceFolder}/node_modules/gulp/bin/gulp.js",

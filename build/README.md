@@ -66,12 +66,12 @@ includes a `.vscode` folder with a [tasks.json](https://github.com/jeffpar/basic
 that defines several tasks that should be configured to start when VS Code loads
 the BASIC-DOS project.
 
-The first task (`bundle: serve`) starts up the Jekyll web server.  Make sure
+The first task (`bundle serve`) starts up the Jekyll web server.  Make sure
 you've successfully run both `npm install` and `bundle install` in your local
 copy of the BASIC-DOS repository.  Once your server is installed and running,
 verify you can access the BASIC-DOS Build Machine at `http://localhost:4040/build/`.
 
-The second task (`gulp: watch`) starts a file-watcher task that rebuilds
+The second task (`gulp watch`) starts a file-watcher task that rebuilds
 the BASIC-DOS source disk image whenever a BASIC-DOS source file has been changed
 locally (eg, by the VS Code editor).
 
@@ -89,7 +89,7 @@ verify that `diskimage` works; eg:
 
     nothing to do
 
-Every time the BASIC-DOS `gulp: watch` task builds a new disk image, the Jekyll
+Every time the BASIC-DOS `gulp watch` task builds a new disk image, the Jekyll
 web server should automatically detect the change and rebuild the web site (on
 macOS, that entire process takes only a few seconds).  When that's done,
 refresh your web browser to reload the BASIC-DOS Build Machine, press **Esc**,

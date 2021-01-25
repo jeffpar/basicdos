@@ -794,8 +794,8 @@ ge3:	mov	al,VAR_LONG		; AL = VAR_LONG
 	jnz	ge3x			; error
 	push	bx
 	mov	bl,10			; BL = 10 (default base)
-	test	ah,CLS_OCT OR CLS_HEX	; octal or hex value?
-	jz	ge3a			; no
+	cmp	ah,CLS_OCT OR CLS_HEX	; octal or hex value?
+	ja	ge3a			; no
 	inc	si			; yes, skip leading ampersand
 	shl	ah,1
 	shl	ah,1
@@ -1113,7 +1113,7 @@ ENDPROC	genFuncParm
 ;	Any
 ;
 DEFPROC	genGoto
-	mov	al,CLS_NUM
+	mov	al,CLS_DEC
 	call	getNextToken
 	jbe	gg9
 	DOSUTIL	ATOI32D			; DS:SI -> decimal string

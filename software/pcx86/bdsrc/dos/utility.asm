@@ -646,7 +646,7 @@ tf6a:	mov	al,ch			; AL = previous classification
 	lea	cx,[si-1]		; SI = end of token
 	sub	cx,dx			; CX = length of token
 
-	IFDEF	MAXDEBUG
+	IFDEF	DEBUG
 	cmp	byte ptr [bp].TMP_AL,-1
 	jne	tf6b
 	push	ax
@@ -654,7 +654,7 @@ tf6a:	mov	al,ch			; AL = previous classification
 	DPRINTF	't',<"token: '%.*ls' (%#04x)\r\n">,cx,dx,ds,ax
 	pop	ax
 tf6b:
-	ENDIF	; MAXDEBUG
+	ENDIF	; DEBUG
 ;
 ; Update the TOKLET in the TOK_DATA at ES:DI, token index BX
 ;
@@ -791,9 +791,9 @@ cl5c:	cmp	al,'O'
 	and	ah,CLS_OCT
 	jmp	short cl5b
 ;
-; Letters can start or continue CLS_VAR, or continue CLS_HEX if < 'G'; however,
-; as with octal numbers, we'll worry about the validity of a hex number later,
-; during evaluation.
+; Letters can start or continue CLS_VAR, or continue CLS_HEX if <= 'F';
+; however, as with octal numbers, we'll worry about the validity of a hex
+; number later, during evaluation.
 ;
 cl5d:	test	ah,CLS_HEX OR CLS_VAR
 	jnz	cl5e
@@ -807,7 +807,8 @@ cl6:	cmp	al,'.'
 	jne	cl7
 	test	ah,CLS_VAR
 	jnz	cl6a
-	mov	ah,CLS_DEC
+	mov	ah,CLS_FLOAT		; update current class
+	mov	ch,ah			; change previous class as well
 cl6a:	ret
 ;
 ; Ampersands are leading characters for hex and octal values.

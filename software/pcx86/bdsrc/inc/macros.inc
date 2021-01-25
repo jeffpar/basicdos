@@ -8,6 +8,11 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	PAGE	,132
+;
+; If MSLIB is true, it means we use Microsoft's MBF (Microsoft Binary Format)
+; floating-point code.
+;
+MSLIB	equ	1
 
 REG16	struc
 LOB	db	?

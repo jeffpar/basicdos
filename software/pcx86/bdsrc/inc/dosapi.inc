@@ -382,12 +382,15 @@ VAR_ARRAY	equ	0E0h	; variable data based on array signature
 VAR_TYPE	equ	0E0h
 
 ;
-; Token class (CLS) bits, used during token classification.
+; Token class (CLS) bits, used during token classification.  There aren't
+; enough discrete bits in a byte for all the classes we care about, so some
+; must use non-sensical combinations (eg, CLS_FLOAT).
 ;
 CLS_OCT		equ	01h	; octal value
 CLS_HEX		equ	02h	; hexadecimal value
 CLS_DEC		equ	04h	; decimal value
-CLS_NUM		equ	07h	; any of the above
+CLS_FLOAT	equ	05h	; floating-point value
+CLS_NUM		equ	07h	; some type of numeric constant
 CLS_STR		equ	08h	; string constant
 CLS_VAR		equ	10h	; identifier (eg, keyword, var, keyop)
 CLS_SYM		equ	20h	; symbol
@@ -398,7 +401,7 @@ CLS_WHITE	equ	80h	; whitespace
 CLS_VAR_LONG	equ	CLS_VAR OR VAR_LONG	; 050h (var ending with '%')
 CLS_VAR_SINGLE	equ	CLS_VAR OR VAR_SINGLE	; 070h (var ending with '!')
 CLS_VAR_STR	equ	CLS_VAR OR VAR_STR	; 090h (var ending with '$')
-CLS_VAR_DOUBLE	equ	CLS_VAR OR VAR_DOUBLE	; 0F0h (var ending with '#')
+CLS_VAR_DOUBLE	equ	CLS_VAR OR VAR_DOUBLE	; 0B0h (var ending with '#')
 
 ;
 ; After DOS_UTL_TOKEN breaks a string into tokens, use DOS_UTL_TOKID
