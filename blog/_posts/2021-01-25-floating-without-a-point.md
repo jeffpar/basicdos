@@ -44,7 +44,7 @@ show that the BASIC-DOS parser now identifies numbers with decimal points as
 a new token class.  It's a trivial change, and just the first of many (probably
 hundreds) of steps to fully support floating-point operations.
 
-I would love to work on multiple features simultanesously, but I'm a lousy
+I would love to work on multiple features simultaneously, but I'm a lousy
 multitasker, and I have to choose something, so I choose floating-point.
 
 ![Screenshot](/assets/images/Screenshot_2021-01-25.png)
