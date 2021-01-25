@@ -757,6 +757,7 @@
     "movsb",
     "movsw",
     "mslib",
+    "multitasker",
     "mybpb",
     "nocheck",
     "nokogiri",
