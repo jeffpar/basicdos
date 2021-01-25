@@ -3,6 +3,7 @@ layout: post
 title: Floating Without a Point
 date: 2021-01-25 11:00:00
 permalink: /blog/2021/01/25/
+preview: /assets/images/Screenshot_2021-01-25.png
 ---
 
 It's been a month since I rolled out the first preview of BASIC-DOS, and
