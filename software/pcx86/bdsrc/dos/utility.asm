@@ -759,68 +759,81 @@ tc4:	cmp	al,'0'
 	jnz	tc4a
 	mov	ah,CLS_DEC		; must be decimal
 tc4a:	cmp	ah,CLS_OCT OR CLS_HEX
-	jne	tc4b
+	jne	tc6a			; exit
 	and	ah,CLS_OCT
-	mov	ch,ah			; change previous class as well
-tc4b:	ret				; to avoid unnecessary token transition
+	jmp	short tc7a		; change previous class and exit
 ;
 ; Check for letters next.
 ;
 tc5:	cmp	al,'a'
-	jb	cl5a			; may be a letter, but not lowercase
+	jb	tc5a			; may be a letter, but not lowercase
 	cmp	al,'z'
-	ja	cl6			; not a letter
+	ja	tc7			; not a letter
 	sub	al,'a'-'A'
-cl5a:	cmp	al,'A'
-	jb	cl6			; not a letter
+tc5a:	cmp	al,'A'
+	jb	tc7			; not a letter
 	cmp	al,'Z'
-	ja	cl6			; not a letter
+	ja	tc7			; not a letter
+;
+; If we're on the heels of a decimal number (either integer or float),
+; then an 'E' is allowed to indicate an exponent (which makes it definitively
+; float).  'D' is also allowed to indicate the exponent of a double-precision
+; value, but it makes no difference to us, since ALL our floats are doubles.
+;
+	cmp	al,'D'			; the letter 'D'?
+	je	tc5b			; yes
+	cmp	al,'E'			; the letter 'E'?
+	jne	tc5c			; no
+tc5b:	test	ah,CLS_DEC		; preceded by some decimal value?
+	jz	tc5c			; no
+	mov	ah,CLS_FLOAT		; definitively float now
+	jmp	short tc7a		; change previous class and exit
 ;
 ; If we're on the heels of an ampersand, check for letters that determine
 ; the base of the number ('H' for hex, 'O' for octal).
 ;
-	cmp	ah,CLS_OCT OR CLS_HEX	; did we see an ampersand previously?
-	jne	cl5d			; no
+tc5c:	cmp	ah,CLS_OCT OR CLS_HEX	; did we see an ampersand previously?
+	jne	tc6			; no
 	cmp	al,'H'
-	jne	cl5c
+	jne	tc5d
 	and	ah,CLS_HEX
-cl5b:	mov	ch,ah			; change previous class as well
-	ret				; to avoid unnecessary token transition
-cl5c:	cmp	al,'O'
-	jne	cl5d
+	jmp	short tc7a		; change previous class and exit
+
+tc5d:	cmp	al,'O'
+	jne	tc6
 	and	ah,CLS_OCT
-	jmp	short cl5b
+	jmp	short tc7a		; change previous class and exit
 ;
 ; Letters can start or continue CLS_VAR, or continue CLS_HEX if <= 'F';
 ; however, as with octal numbers, we'll worry about the validity of a hex
 ; number later, during evaluation.
 ;
-cl5d:	test	ah,CLS_HEX OR CLS_VAR
-	jnz	cl5e
+tc6:	test	ah,CLS_HEX OR CLS_VAR
+	jnz	tc6a
 	mov	ah,CLS_VAR		; must be a variable
-cl5e:	ret
+tc6a:	ret
 ;
 ; Periods can be a decimal point, so it can start or continue CLS_DEC,
 ; or continue CLS_VAR.
 ;
-cl6:	cmp	al,'.'
-	jne	cl7
+tc7:	cmp	al,'.'
+	jne	tc8
 	test	ah,CLS_VAR
-	jnz	cl6a
+	jnz	tc7b
 	mov	ah,CLS_FLOAT		; update current class
-	mov	ch,ah			; change previous class as well
-cl6a:	ret
+tc7a:	mov	ch,ah			; change previous class, too
+tc7b:	ret
 ;
 ; Ampersands are leading characters for hex and octal values.
 ;
-cl7:	cmp	al,'&'			; leading char for hex or octal?
-	jne	cl8			; no
+tc8:	cmp	al,'&'			; leading char for hex or octal?
+	jne	tc9			; no
 	mov	ah,CLS_OCT OR CLS_HEX
 	ret
 ;
 ; Everything else is just a symbol at this point.
 ;
-cl8:	mov	ah,CLS_SYM
+tc9:	mov	ah,CLS_SYM
 	ret
 ENDPROC	tok_classify
 

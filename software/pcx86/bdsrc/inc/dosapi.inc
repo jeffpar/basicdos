@@ -384,7 +384,16 @@ VAR_TYPE	equ	0E0h
 ;
 ; Token class (CLS) bits, used during token classification.  There aren't
 ; enough discrete bits in a byte for all the classes we care about, so some
-; must use non-sensical combinations (eg, CLS_FLOAT).
+; must use non-sensical combinations (eg, CLS_FLOAT is CLS_OCT + CLS_DEC).
+;
+; However, it's only semi-non-sensical, because you know you have *either*
+; a decimal integer *or* a decimal float whenever CLS_DEC is set; if you need
+; more specificity, then you must determine whether the CLS_FLOAT bits
+; contain *only* CLS_DEC.
+;
+; Other seemingly contradictory combinations are used internally; for example,
+; CLS_OCT + CLS_HEX temporarily indicates that an ampersand has been detected,
+; and therefore either an octal or hex value may follow it.
 ;
 CLS_OCT		equ	01h	; octal value
 CLS_HEX		equ	02h	; hexadecimal value
