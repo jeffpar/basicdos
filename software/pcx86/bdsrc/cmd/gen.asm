@@ -15,7 +15,7 @@ CODE    SEGMENT
 	EXTNEAR	<allocCode,shrinkCode,freeCode,freeAllCode>
 	EXTNEAR	<allocVars,allocFunc,freeFunc>
 	EXTNEAR	<allocTempVars,updateTempVars,freeTempVars>
-	EXTNEAR	<addVar,findVar,getVar,removeVar,setVar,setVarLong>
+	EXTNEAR	<addVar,getVar,removeVar,setVar,setVarLong>
 	EXTNEAR	<memError>
 	EXTNEAR	<clearScreen,callDOS,printArgs,printEcho,printLine>
 	EXTNEAR	<setColor,setFlags>
@@ -265,8 +265,8 @@ ENDPROC	genColor
 ; Generate code for "DEF fn(parms)=expr".
 ;
 ; We rely on genExpr to generate the code for "expr", which requires us to
-; create a temp var block containing all the variables in "parms", so that
-; when genExpr calls findVar, it searches the temp var block first.
+; create a temp var block containing all the variables in "parms", so when
+; genExpr calls findVar (via addVar), it searches the temp var block first.
 ;
 ; Note that we do NOT require the function name to begin with "FN" like
 ; MSBASIC does.
@@ -751,12 +751,19 @@ ge1a:	DBGBRK
 	jmp	short ge2e
 ge1b:	jmp	short ge4
 ;
-; Process CLS_VAR.  We don't care if findVar succeeds or not, because
-; even if it fails, it returns var type (AH) VAR_LONG with var data (DX:SI)
-; set to a zero constant.  However, var type (AH) must still be consistent
-; with the expression type.
+; Process CLS_VAR_*.  Instead of calling findVar, we now call addVar,
+; because variables can be referenced before they're defined, so missing
+; variables must be created on first reference; addVar still gives findVar
+; first crack at locating the variable.
 ;
-ge2:	call	findVar
+; When things were originally limping along, a call to findVar would return
+; a reference to a VAR_LONG zero constant whenever the variable didn't exist;
+; that was good enough for early testing, but we're past that point now.
+;
+; Note that var type (AH) must still be consistent with expression type.
+;
+ge2:	and	ah,NOT CLS_VAR		; convert AH from CLS_VAR_* to VAR_*
+	call	addVar
 	cmp	ah,VAR_PARM		; parameter? (20h)
 	jne	ge2a			; no
 ;

@@ -408,8 +408,8 @@ CLS_ANY		equ	3Fh	;
 CLS_DQUOTE	equ	40h	; double quotes
 CLS_WHITE	equ	80h	; whitespace
 CLS_VAR_LONG	equ	CLS_VAR OR VAR_LONG	; 050h (var ending with '%')
-CLS_VAR_SINGLE	equ	CLS_VAR OR VAR_SINGLE	; 070h (var ending with '!')
-CLS_VAR_STR	equ	CLS_VAR OR VAR_STR	; 090h (var ending with '$')
+CLS_VAR_STR	equ	CLS_VAR OR VAR_STR	; 070h (var ending with '$')
+CLS_VAR_SINGLE	equ	CLS_VAR OR VAR_SINGLE	; 090h (var ending with '!')
 CLS_VAR_DOUBLE	equ	CLS_VAR OR VAR_DOUBLE	; 0B0h (var ending with '#')
 
 ;

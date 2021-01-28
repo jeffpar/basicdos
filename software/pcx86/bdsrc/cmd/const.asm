@@ -134,10 +134,6 @@ CODE    SEGMENT
 	dw	offset getRndLong,0	; 0 implies our own CODE segment
 	db	0			; terminator
 
-	DEFLBL	PREDEF_ZERO,byte
-	db	VAR_LONG
-	dd	0			; predefined LONG zero constant
-
 CODE	ENDS
 
 	DEFTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL

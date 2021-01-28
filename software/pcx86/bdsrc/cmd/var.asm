@@ -12,7 +12,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<memError>
-	EXTBYTE	<PREDEF_VARS,PREDEF_ZERO>
+	EXTBYTE	<PREDEF_VARS>
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 
@@ -511,8 +511,8 @@ ENDPROC	freeStrSpace
 ; is limited to VAR_NAMELEN.
 ;
 ; This function must also reserve the total space required for the var data.
-; That's 2 bytes for VAR_PARM, 4 bytes for VAR_LONG and VAR_STR, and
-; 2 + parm count * 2 + 4 for VAR_FUNC.
+; That's 1 word for VAR_PARM, 2 words for VAR_LONG and VAR_STR, 4 words for
+; VAR_DOUBLE, and (1 + parm count + 2) words for VAR_FUNC.
 ;
 ; Inputs:
 ;	AH = var type (VAR_*)
@@ -616,7 +616,6 @@ ENDPROC	addVar
 ;
 ; Outputs:
 ;	If carry clear, AH = var type, DX:SI -> var data
-;	If carry set, AH = VAR_LONG, DX:SI -> zero constant
 ;
 ; Modifies:
 ;	AX, DX, SI
@@ -644,12 +643,8 @@ fv1:	mov	al,es:[di]
 	mov	dx,es			; and the rest of the var blocks better
 	cmp	ax,dx
 	je	fv0
-	stc
-	mov	dx,cs
-	mov	si,offset PREDEF_ZERO	; DX:SI -> zero constant
-	lods	byte ptr cs:[si]
-	mov	ah,al
-	jmp	short fv9
+	stc				; TODO: if AX (CS) always less than
+	jmp	short fv9		; DX (ES), carry will already be set
 
 fv2:	mov	ah,al
 	and	ah,VAR_TYPE
@@ -682,7 +677,8 @@ fv6:	mov	dl,al
 	add	di,ax
 	jmp	fv1			; keep looking
 
-fv8:	mov	si,dx
+fv8:	DBGBRK
+	mov	si,dx
 	mov	dx,es			; DX:SI -> var data
 
 fv9:	pop	di
