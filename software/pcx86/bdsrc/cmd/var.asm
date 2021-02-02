@@ -677,8 +677,7 @@ fv6:	mov	dl,al
 	add	di,ax
 	jmp	fv1			; keep looking
 
-fv8:	DBGBRK
-	mov	si,dx
+fv8:	mov	si,dx
 	mov	dx,es			; DX:SI -> var data
 
 fv9:	pop	di

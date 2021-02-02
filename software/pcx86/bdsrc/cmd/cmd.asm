@@ -62,7 +62,7 @@ m0:	mov	bx,ds:[PSP_HEAP]
 ; that changes, MSLIB will be defined.
 ;
 	IFDEF	MSLIB
-	PRINTF	<"BASIC MATH library functions",13,10,"Copyright (c) Microsoft Corporation",13,10,13,10>
+	PRINTF	<"BASIC floating-point functions",13,10,"Copyright (c) Microsoft Corporation",13,10,13,10>
 	ENDIF
 ;
 ; Check the PSP_CMDTAIL for a startup command.  Startup commands must be

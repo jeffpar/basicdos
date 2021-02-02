@@ -114,7 +114,7 @@ ENDPROC	clearScreen
 ; Used by "PRINT [args]"
 ;
 ; Since expressions are evaluated left-to-right, their results are pushed
-; left-to-right as well.  Since the number of parameters is variable, we
+; left-to-right as well.  And since the number of parameters is variable, we
 ; walk the stacked parameters back to the beginning, pushing the offset of
 ; each as we go, and then popping and printing our way back to the end again.
 ;
@@ -185,29 +185,26 @@ pa5:	cmp	al,VAR_LONG
 ; operation) which we must free after printing.
 ;
 pa6:	cmp	al,VAR_TSTR
-	jbe	pa7
-	ASSERT	NEVER			; more types may be supported someday
-	jmp	pa4
+	ja	pa4			; not a string type
 
-pa7:	push	ax
-	push	ds
-	lds	si,[bp+2]
+pa7:	push	ds			; save DS
+	lds	si,[bp+2]		; DS:SI = string pointer
+	mov	cx,ds
+	jcxz	pa7a			; nothing to do for null pointer
 ;
-; Write AX bytes from DS:SI to STDOUT.  PRINTF would be simpler, but it's
-; not a good idea, largely because the max length of string is greater than
-; our default PRINTF buffer, and because it would be slower with no benefit.
+; Write N bytes from DS:SI to STDOUT (where N is a byte length at [SI]).
 ;
+	lea	di,[si-1]		; preload DI for possible freeStr
+	pushf
 	call	writeStr
-
-	pop	ds
-	pop	ax
-	cmp	al,VAR_TSTR		; if it's not VAR_TSTR
-	jne	pa4			; then we're done
+	popf
+	jne	pa7a			; if AL was not VAR_TSTR, we're done
 
 	push	ds
 	pop	es
-	lea	di,[si-1]
 	call	freeStr			; ES:DI -> string data to free
+
+pa7a:	pop	ds			; restore DS
 	jmp	pa4
 ;
 ; We've reached the end of arguments, wrap it up.

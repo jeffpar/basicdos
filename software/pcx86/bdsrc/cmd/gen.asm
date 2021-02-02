@@ -756,11 +756,7 @@ ge1b:	jmp	short ge4
 ; variables must be created on first reference; addVar still gives findVar
 ; first crack at locating the variable.
 ;
-; When things were originally limping along, a call to findVar would return
-; a reference to a VAR_LONG zero constant whenever the variable didn't exist;
-; that was good enough for early testing, but we're past that point now.
-;
-; Note that var type (AH) must still be consistent with expression type.
+; Note that var type (AH) must also be consistent with expression type.
 ;
 ge2:	and	ah,NOT CLS_VAR		; convert AH from CLS_VAR_* to VAR_*
 	call	addVar
@@ -1264,10 +1260,10 @@ DEFPROC	genLet
 
 	cmp	dx,[codeSeg]		; constants cannot be "let"
 	je	gl9			; TODO: Generate a better error message
-	push	ax
+	push	ax			; AH is still var type (from addVar)
 	call	genPushVarPtr
 	call	getNextSymbol
-	pop	dx
+	pop	cx			; CH is now the var type (from addVar)
 	jbe	gl9
 
 	cmp	al,'='
@@ -1275,7 +1271,9 @@ DEFPROC	genLet
 
 	call	genExpr
 	jc	gl9
-	GENCALL	setVarLong		; TODO: check expression type in DL
+	cmp	dl,ch			; does genExpr type match var type?
+	jne	gl9			; TODO: generate "type mismatch" error
+	GENCALL	setVarLong
 	ret
 
 gl9:	stc
@@ -1300,7 +1298,8 @@ ENDPROC	genLet
 ;
 DEFPROC	genPrint
 	GENPUSHB VAR_NONE		; push end-of-args marker
-gp1:	call	genExpr
+gp1:	DBGBRK
+	call	genExpr
 	jnc	gp2
 	test	dh,dh			; if there were no tokens
 	stc				; then ignore the error
@@ -1310,7 +1309,7 @@ gp2:	jz	gp8
 	mov	al,VAR_LONG		; AL = default type (40h)
 	cmp	dl,al			; does that match the expression type?
 	je	gp3			; yes
-	mov	al,VAR_STR		; must be VAR_STR then (80h)
+	mov	al,VAR_STR		; must be VAR_STR then (60h)
 	ASSERT	Z,<cmp dl,al>		; verify our assumption
 gp3:	GENPUSHB al
 	pop	ax
