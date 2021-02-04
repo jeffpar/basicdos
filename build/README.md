@@ -64,7 +64,8 @@ but it can start a web server running your own copy of the BASIC-DOS Build
 Machine.  The BASIC-DOS [repository](https://github.com/jeffpar/basicdos)
 includes a `.vscode` folder with a [tasks.json](https://github.com/jeffpar/basicdos/blob/master/.vscode/tasks.json)
 that defines several tasks that should be configured to start when VS Code loads
-the BASIC-DOS project.
+the BASIC-DOS project (use the `Manage Automatic Tasks in Folder` command in
+VSCode's Command Palette to `Allow Automatic Tasks in Folder`).
 
 The first task (`bundle serve`) starts up the Jekyll web server.  Make sure
 you've successfully run both `npm install` and `bundle install` in your local

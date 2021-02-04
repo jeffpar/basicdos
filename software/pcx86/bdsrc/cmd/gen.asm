@@ -21,7 +21,8 @@ CODE    SEGMENT
 	EXTNEAR	<setColor,setFlags>
 
 	EXTWORD	<KEYWORD_TOKENS,KEYOP_TOKENS>
-	EXTBYTE	<OPDEFS_LONG,OPDEFS_STR,RELOPS>
+	EXTBYTE	<OPDEFS,RELOPS>
+	EXTWORD	<OPEVAL_LONG,OPEVAL_STR>
 	EXTABS	<TOK_ELSE,TOK_OFF,TOK_ON,TOK_THEN>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -674,9 +675,18 @@ ENDPROC	genEcho
 ;
 ; genExpr
 ;
-; Generate code for an expression.  To help catch errors up front, maintain
-; a count of values queued, compare that to the number of arguments expected
-; by all the operators, and also maintain an open parentheses count.
+; Generate code for an expression.
+;
+; The code block at ES:DI serves as an operand queue, the stack at SP serves
+; as an operator stack, and with the introduction of DOUBLE and STR operands,
+; we now maintain a type stack (typeStack) as well.  Unlike the stack at SP,
+; the type stack grows upward; the top of the stack (typeTop) starts at zero
+; and is incremented as type values are "pushed" (as operands are queued) and
+; decremented as type values are "popped" (as operators are processed).
+;
+; To catch common errors, we maintain an open parentheses count (exprParens),
+; which must be zero at the end, and a queued operand count (exprQueued), which
+; must equal the number of arguments expected by all operators (exprArgs).
 ;
 ; Inputs:
 ;	DS:BX -> next TOKLET
@@ -694,12 +704,13 @@ ENDPROC	genEcho
 ;
 DEFPROC	genExpr
 	LOCVAR	exprToks,byte
-	LOCVAR	exprType,byte
 	LOCVAR	exprParms,byte
-	LOCVAR	exprArgs,word
-	LOCVAR	exprVals,word
-	LOCVAR	exprParens,word
+	LOCVAR	exprArgs,word		; count of expected arguments
+	LOCVAR	exprQueued,word		; count of queued operands
+	LOCVAR	exprParens,word		; count of open parentheses
 	LOCVAR	exprPrevOp,word
+	LOCVAR	typeTop,word		; top (offset) of values in type stack
+	LOCVAR	typeStack,byte,32	; arbitrarily limited to 32
 	ENTER
 	push	cx
 	push	si
@@ -707,11 +718,12 @@ DEFPROC	genExpr
 	mov	al,[si].DEF_PARMS
 	mov	[exprParms],al		; parm count (only from genDefFn)
 	sub	dx,dx
-	mov	word ptr [exprType],dx	; exprType = VAR_NONE, exprToks = 0
-	mov	[exprArgs],1		; count of expected arguments
-	mov	[exprVals],dx		; count of values queued
-	mov	[exprParens],dx		; count of open parentheses
-	mov	[exprPrevOp],dx		; previous operator (none)
+	mov	[exprToks],dl		; zero total tokens
+	mov	[exprArgs],1
+	mov	[exprQueued],dx		; zero queued operands
+	mov	[exprParens],dx		; zero open parentheses
+	mov	[exprPrevOp],dx		; zero previous operator (none)
+	mov	[typeTop],dx		; type stack initially empty
 	push	dx			; push end-of-operators marker (zero)
 
 ge1:	mov	al,CLS_ANY		; CLS_NUM, CLS_SYM, CLS_VAR, CLS_STR
@@ -734,9 +746,8 @@ ge1:	mov	al,CLS_ANY		; CLS_NUM, CLS_SYM, CLS_VAR, CLS_STR
 ;
 	test	ah,CLS_STR		; string? (08h)
 	jz	ge3			; no, must be number
-	mov	al,VAR_STR		; AL = VAR_STR (60h)
-	call	setExprType		; update expression type
-	jnz	ge2x
+	mov	dl,VAR_STR		; DL = VAR_STR (60h)
+	call	pushType		; push operand type
 	sub	cx,2			; CX = string length
 	ASSERT	NC
 	jcxz	ge1a			; empty string
@@ -778,10 +789,9 @@ ge2b:	jnc	ge2d			; AH = return type
 
 ge2c:	call	genPushVarLong
 
-ge2d:	mov	al,ah			; AL = var type
-	call	setExprType		; update expression type
-	jnz	ge3x			; error
-ge2e:	inc	[exprVals]		; count another queued value
+ge2d:	mov	dl,ah			; DL = var type
+	call	pushType		; update expression type
+ge2e:	inc	[exprQueued]		; count another queued value
 	jmp	ge1
 ge2x:	jmp	short ge3x
 ;
@@ -792,9 +802,8 @@ ge2x:	jmp	short ge3x
 ; Why? Because it's better for ATOI32 to know up front that we're dealing with
 ; a negative number, because then it can do precise overflow checks.
 ;
-ge3:	mov	al,VAR_LONG		; AL = VAR_LONG
-	call	setExprType		; update expression type
-	jnz	ge3x			; error
+ge3:	mov	dl,VAR_LONG		; DL = VAR_LONG
+	call	pushType		; update expression type
 	push	bx
 	mov	bl,10			; BL = 10 (default base)
 	cmp	ah,CLS_OCT OR CLS_HEX	; octal or hex value?
@@ -842,7 +851,7 @@ ge5:	call	validateOp		; AL = operator to validate
 	jcxz	ge7			; handle no-arg operators below
 	dec	cx
 	add	[exprArgs],cx
-	mov	si,dx			; SI = current evaluator
+	mov	si,dx			; SI = current operator index
 ;
 ; Operator is valid, so peek at the operator stack and pop if the top
 ; operator precedence >= current operator precedence.
@@ -853,18 +862,13 @@ ge5a:	pop	dx			; "peek"
 	ja	ge5b			; yes
 	test	dh,1			; unary operator?
 	jnz	ge6			; yes, hold off
-ge5b:	pop	cx			; pop the evaluator as well
-	jcxz	ge6c			; no evaluator (eg, left paren)
-
-	IFDEF MAXDEBUG
-	DPRINTF	'o',<"op %c, func @%08lx\r\n">,dx,cx,cs
-	ENDIF
-
-	GENCALL	cx			; and generate call
+ge5b:	pop	cx			; pop the operator index as well
+	jcxz	ge6c			; no operator index (eg, left paren)
+	call	genOp
 	jmp	ge5a
 
 ge6:	push	dx			; "unpeek"
-ge6a:	push	si			; push current evaluator
+ge6a:	push	si			; push current operator index
 	push	ax			; push current operator/precedence
 ge6b:	jmp	ge1			; next token
 ;
@@ -897,42 +901,72 @@ ge7b:	mov	ah,CLS_SYM
 ;
 ge8:	pop	cx
 	jcxz	ge9			; all done
-
-	IFDEF MAXDEBUG
-	pop	ax
-	DPRINTF	'o',<"op %c, func @%08lx...\r\n">,cx,ax,cs
-	xchg	cx,ax
-	ELSE
-	pop	cx			; CX = evaluator
-	ENDIF
-
-	jcxz	ge8
-	GENCALL	cx
+	mov	dx,cx
+	pop	cx			; CX = operator index
+	call	genOp
 	jmp	ge8
 ;
-; Verify the number of values queued matches the number of expected arguments.
+; Verify number of queued operands matches the number of expected arguments.
 ;
-ge9:	mov	cx,[exprVals]
+ge9:	mov	cx,[exprQueued]
 	cmp	cx,[exprArgs]
 	stc
 	jne	ge10
 	cmp	[exprParens],0
 	stc
 	jg	ge10
-	test	cx,cx			; return ZF set if no values
-ge10:	mov	dx,word ptr [exprType]	; DL = expression type, DH = # tokens
+	test	cx,cx			; return ZF set if no operands
+ge10:	call	popType			; DL = expression type
+	mov	dh,[exprToks]		; DH = # tokens
 	pop	si
 	pop	cx
 	LEAVE
 	RETURN
 
-	DEFLBL	setExprType,near
-	cmp	[exprType],al
-	je	set9
-	cmp	[exprType],0
-	jne	set9
-	mov	[exprType],al
-set9:	ret				; return ZF set if type is OK
+	DEFLBL	pushType,near
+	push	si
+	mov	si,[typeTop]
+	ASSERT	B,<cmp si,32>		; we'll deal with poss. overflow later
+	mov	[typeStack][si],dl
+	inc	si
+	mov	[typeTop],si
+	pop	si
+	ret
+
+	DEFLBL	popType,near
+	push	si
+	mov	si,[typeTop]
+	ASSERT	NZ,<test si,si>		; we'll deal with poss. underflow later
+	lea	si,[si-1]		; decrement without altering flags
+	mov	dl,[typeStack][si]
+	mov	[typeTop],si
+	pop	si
+	ret
+;
+; "Pop" N types from the type stack and then "push" the operator's new type.
+;
+; N is 2 if DH is even and 1 if DH is odd.
+;
+	DEFLBL	genOp,near
+	IFDEF MAXDEBUG
+	DPRINTF	'o',<"op %c, func @%08lx\r\n">,dx,cx,cs
+	ENDIF
+	jcxz	go9			; jump if no operator index
+	call	popType
+	test	dh,1
+	mov	dh,dl			; DH = 1st type
+	jnz	go1
+	call	popType			; DL = 2nd type
+go1:	mov	dl,VAR_LONG
+	call	pushType
+	push	si
+	dec	cx
+	mov	si,cx
+	add	si,cx
+	mov	cx,OPEVAL_LONG[si]
+	GENCALL	cx			; generate call to operator evaluator
+	pop	si
+go9:	ret
 
 ENDPROC	genExpr
 
@@ -2074,7 +2108,11 @@ ENDPROC	peekNextToken
 ;	AL = operator
 ;
 ; Outputs:
-;	If carry clear, AL = op, AH = precedence, CX = # args, DX = evaluator
+;	If carry clear:
+;		AL = operator
+;		AH = precedence
+;		CX = # args
+;		DX = operator index
 ;
 ; Modifies:
 ;	AH, CX, DX
@@ -2099,10 +2137,7 @@ vo1:	lods	word ptr cs:[si]
 	xchg	dx,ax			; DL = (new) operator to validate
 
 vo2:	mov	ah,dl			; AH = operator to validate
-	mov	si,offset OPDEFS_LONG
-	cmp	[exprType],VAR_STR
-	jne	vo3
-	mov	si,offset OPDEFS_STR
+	mov	si,offset OPDEFS
 vo3:	lods	byte ptr cs:[si]
 	test	al,al
 	stc
@@ -2121,8 +2156,9 @@ vo7:	lods	byte ptr cs:[si]	; AL = precedence, AH = operator
 	jnz	vo8			; yes, just 1 arg
 	inc	cx			; no, op requires 2 args
 vo8:	xchg	dx,ax
-	lods	word ptr cs:[si]	; AX = evaluator
-	xchg	dx,ax			; DX = evaluator, AX = op/prec
+	lods	byte ptr cs:[si]	; AL = operator index
+	cbw
+	xchg	dx,ax			; DX = operator index, AX = op/prec
 vo9:	xchg	al,ah			; AL = operator, AH = precedence
 	pop	si
 	ret

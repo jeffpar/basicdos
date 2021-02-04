@@ -18,10 +18,11 @@ CODE    SEGMENT
 	EXTNEAR	<evalEqvLong,evalXorLong,evalOrLong,evalAndLong>
 	EXTNEAR	<evalEQLong,evalNELong,evalLTLong,evalGTLong>
 	EXTNEAR	<evalLELong,evalGELong,evalShlLong,evalShrLong>
-	EXTNEAR	<getErrorLevel,getRndLong>
 
-	EXTNEAR	<evalEQStr,evalNEStr,evalLTStr,evalGTStr>
-	EXTNEAR	<evalLEStr,evalGEStr,evalAddStr>
+	EXTNEAR	<evalAddStr>
+	EXTNEAR	<evalEQStr,evalNEStr,evalLTStr,evalGTStr,evalLEStr,evalGEStr>
+
+	EXTNEAR	<getErrorLevel,getRndLong>
 
 	DEFSTR	COM_EXT,<".COM",0>	; these 4 file extensions must be
 	DEFSTR	EXE_EXT,<".EXE",0>	; listed in the desired search order
@@ -73,49 +74,73 @@ CODE    SEGMENT
 ; to allow '&' in place of 'AND' as well, but unfortunately '&' was already
 ; used to prefix hex and octal constants.
 ;
+; TODO: Determine what parser change impacted the ability to use '~' and '|'
+; as alternative operators, because they no longer work (and, for example, a
+; command such as "PRINT 1~4" now prints "1" instead of generating an error).
+;
 ; TODO: Speaking of hex and octal constants, maybe someday we'll also allow
 ; "0x" and "0o" prefixes, and maybe even a C-inspired version of PRINT USING
 ; called... drum roll... PRINTF USING.
 ;
-	DEFLBL	OPDEFS_LONG,byte
+	DEFLBL	OPDEFS,byte
 	OPDEF	<'(',2,0>
 	OPDEF	<')',2,0>
-	OPDEF	<'^',26,evalExpLong>
-	OPDEF	<'P',25,0>		; unary '+'
-	OPDEF	<'N',25,evalNegLong>	; unary '-'
-	OPDEF	<'*',24,evalMulLong>
-	OPDEF	<'/',24,evalDivLong>
-	OPDEF	<'\',22,evalDivLong>
-	OPDEF	<'M',20,evalModLong>	; 'MOD'
-	OPDEF	<'+',18,evalAddLong>
-	OPDEF	<'-',18,evalSubLong>
-	OPDEF	<'S',16,evalShlLong>	; BASIC-DOS: '<<'
-	OPDEF	<'R',16,evalShrLong>	; BASIC-DOS: '>>'
-	OPDEF	<'=',14,evalEQLong>	; (BASIC-DOS allows '==' as well)
-	OPDEF	<'U',14,evalNELong>	; '<>' or '><'
-	OPDEF	<'<',14,evalLTLong>
-	OPDEF	<'>',14,evalGTLong>
-	OPDEF	<'L',14,evalLELong>	; '<=' or '=<'
-	OPDEF	<'G',14,evalGELong>	; '>=' or '=>'
-	OPDEF	<'~',13,evalNotLong>	; 'NOT' (BASIC-DOS allows '~' as well)
-	OPDEF	<'A',12,evalAndLong>	; 'AND'
-	OPDEF	<'|',10,evalOrLong>	; 'OR'  (BASIC-DOS allows '|' as well)
-	OPDEF	<'X',8,evalXorLong>	; 'XOR'
-	OPDEF	<'E',6,evalEqvLong>	; 'EQV'
-	OPDEF	<'I',4,evalImpLong>	; 'IMP'
+	OPDEF	<'^',28,OPIDX_EXP>
+	OPDEF	<'P',27,0>		; unary '+'
+	OPDEF	<'N',27,OPIDX_NEG>	; unary '-'
+	OPDEF	<'*',26,OPIDX_MUL>
+	OPDEF	<'/',26,OPIDX_DIV>
+	OPDEF	<'\',24,OPIDX_IDIV>
+	OPDEF	<'M',22,OPIDX_MOD>	; 'MOD'
+	OPDEF	<'+',20,OPIDX_ADD>
+	OPDEF	<'-',20,OPIDX_SUB>
+	OPDEF	<'S',16,OPIDX_SHL>	; BASIC-DOS: '<<'
+	OPDEF	<'R',16,OPIDX_SHR>	; BASIC-DOS: '>>'
+	OPDEF	<'=',14,OPIDX_EQ>	; (BASIC-DOS allows '==' as well)
+	OPDEF	<'U',14,OPIDX_NE>	; '<>' or '><'
+	OPDEF	<'<',14,OPIDX_LT>
+	OPDEF	<'>',14,OPIDX_GT>
+	OPDEF	<'L',14,OPIDX_LE>	; '<=' or '=<'
+	OPDEF	<'G',14,OPIDX_GE>	; '>=' or '=>'
+	OPDEF	<'~',13,OPIDX_NOT>	; 'NOT' (BASIC-DOS allows '~' as well)
+	OPDEF	<'A',12,OPIDX_AND>	; 'AND'
+	OPDEF	<'|',10,OPIDX_OR>	; 'OR'  (BASIC-DOS allows '|' as well)
+	OPDEF	<'X',8,OPIDX_XOR>	; 'XOR'
+	OPDEF	<'E',6,OPIDX_EQV>	; 'EQV'
+	OPDEF	<'I',4,OPIDX_IMP>	; 'IMP'
 	db	0			; terminator
 
-	DEFLBL	OPDEFS_STR,byte
-	OPDEF	<'(',2,0>
-	OPDEF	<')',2,0>
-	OPDEF	<'+',18,evalAddStr>
-	OPDEF	<'=',14,evalEQStr>	; BASIC-DOS allows '==' as well
-	OPDEF	<'U',14,evalNEStr>	; '<>' or '><'
-	OPDEF	<'<',14,evalLTStr>
-	OPDEF	<'>',14,evalGTStr>
-	OPDEF	<'L',14,evalLEStr>	; '<=' or '=<'
-	OPDEF	<'G',14,evalGEStr>	; '>=' or '=>'
-	db	0			; terminator
+	DEFLBL	OPEVAL_LONG,word
+	dw	evalExpLong
+	dw	evalNegLong
+	dw	evalMulLong
+	dw	evalDivLong
+	dw	evalDivLong
+	dw	evalModLong
+	dw	evalAddLong
+	dw	evalSubLong
+	dw	evalShlLong
+	dw	evalShrLong
+	dw	evalEQLong
+	dw	evalNELong
+	dw	evalLTLong
+	dw	evalGTLong
+	dw	evalLELong
+	dw	evalGELong
+	dw	evalNotLong
+	dw	evalAndLong
+	dw	evalOrLong
+	dw	evalXorLong
+	dw	evalEqvLong
+	dw	evalImpLong
+
+	DEFLBL	OPEVAL_STR,word
+	dw	evalEQStr
+	dw	evalNEStr
+	dw	evalLTStr
+	dw	evalGTStr
+	dw	evalLEStr
+	dw	evalGEStr
 
 	DEFLBL	RELOPS,byte
 	db	"<>",'U',"><",'U',"<=",'L',"=<",'L',">=",'G',"=>",'G'

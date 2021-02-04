@@ -167,6 +167,14 @@ ENDPROC	evalAddStr
 ;
 ; evalEQStr
 ;
+; Comparing strings requires comparing corresponding bytes until the bytes
+; are unequal or until the end of both strings is reached.  The result of the
+; final byte comparison determines the return value.
+;
+; Null pointers indicate empty strings and can be detected by checking either
+; the segment OR the offset for zero; both will be zero, but it's sufficient to
+; check only one, since non-null pointers never have a zero segment OR offset.
+;
 ; Inputs:
 ;	2 32-bit args on stack (popped)
 ;
@@ -179,48 +187,61 @@ ENDPROC	evalAddStr
 DEFPROC	evalEQStr,FAR
 	mov	bx,offset evalEQ
 	DEFLBL	evalRelStr,near
-	ARGVAR	eqA,dword
-	ARGVAR	eqB,dword
+	ARGVAR	pStrA,dword
+	ARGVAR	pStrB,dword
 	ENTER
-	mov	cx,[eqA].LOW
-	mov	dx,[eqB].LOW
-	mov	ax,[eqA].HIW
-	cmp	ax,[eqB].HIW
-	jmp	bx
-evalEQ:	jne	evalF
-	cmp	cx,dx
-	jne	evalF
-	jmp	short evalT
+	push	ds
+	sub	cx,cx			; CL = len of strA, CH = len of strB
+	lds	si,[pStrA]
+	les	di,[pStrB]
+	test	si,si
+	jz	es1
+	lodsb
+	mov	cl,al
+es1:	test	di,di
+	jz	es2
+	mov	ch,es:[di]
+	inc	di
+;
+; We're ready to start comparing corresponding bytes; the lengths in CL and CH
+; determine whether we can really fetch another byte from DS:[SI] and ES:[DI],
+; respectively; otherwise, the zeros we preload in AL and AH are used instead.
+;
+es2:	sub	ax,ax
+	jcxz	es5			; end of both strings has been reached
+	test	cl,cl
+	jz	es3
+	lodsb				; AL = next byte from strA
+	dec	cx			; CL = CL - 1
+es3:	test	ch,ch
+	jz	es4
+	mov	ah,es:[di]		; AH = next byte from strB
+	inc	di			;
+	dec	ch			; CH = CH - 1
+es4:	cmp	al,ah
+	je	es2
+es5:	jmp	bx
+
+evalEQ:	je	evalT
+	jmp	short evalF
 evalNE:	jne	evalT
-	cmp	cx,dx
-	jne	evalT
 	jmp	short evalF
-evalLT:	jl	evalT
-	jg	evalF
-	cmp	cx,dx
-	jl	evalT
+evalLT:	jb	evalT
 	jmp	short evalF
-evalGT:	jg	evalT
-	jl	evalF
-	cmp	cx,dx
-	jg	evalT
+evalGT:	ja	evalT
 	jmp	short evalF
-evalLE:	jl	evalT
-	jg	evalF
-	cmp	cx,dx
-	jle	evalT
+evalLE:	jbe	evalT
 	jmp	short evalF
-evalGE:	jg	evalT
-	jl	evalF
-	cmp	cx,dx
-	jge	evalT
-	jmp	short evalF
+evalGE:	jb	evalF
+
 evalT:	mov	ax,-1
 	jmp	short evalX
+
 evalF:	sub	ax,ax
 evalX:	cwd
-	mov	[eqA].LOW,ax
-	mov	[eqA].HIW,dx
+	mov	[pStrA].LOW,ax
+	mov	[pStrA].HIW,dx
+	pop	ds
 	LEAVE
 	ret	4
 ENDPROC	evalEQStr

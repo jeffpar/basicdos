@@ -185,13 +185,39 @@ TBLK_SIG	equ	BLK_SIG
 SIG_TBLK	equ	'T'		; must match MCBTYPE_TBLK
 
 ;
-; Operator definition
+; Operator definition structure
 ;
 OPDEF		struc
 OP_CHR		db	?		; ASCII character
 OP_PREC		db	?		; precedence value
-OP_EVAL		dw	?		; offset of evaluator
+OP_IDX		db	?		; index (OPIDX_*) of evaluator
 OPDEF		ends
+
+;
+; Operator indexes into OPEVAL (operator evaluator) tables
+;
+OPIDX_EXP	equ	1
+OPIDX_NEG	equ	2
+OPIDX_MUL	equ	3
+OPIDX_DIV	equ	4
+OPIDX_IDIV	equ	5
+OPIDX_MOD	equ	6
+OPIDX_ADD	equ	7
+OPIDX_SUB	equ	8
+OPIDX_SHL	equ	9
+OPIDX_SHR	equ	10
+OPIDX_EQ	equ	11
+OPIDX_NE	equ	12
+OPIDX_LT	equ	13
+OPIDX_GT	equ	14
+OPIDX_LE	equ	15
+OPIDX_GE	equ	16
+OPIDX_NOT	equ	17
+OPIDX_AND	equ	18
+OPIDX_OR	equ	19
+OPIDX_XOR	equ	20
+OPIDX_EQV	equ	21
+OPIDX_IMP	equ	22
 
 ;
 ; Label reference

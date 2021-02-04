@@ -447,6 +447,8 @@
     "OPENRO",
     "OPENRW",
     "OPENWO",
+    "OPEVAL",
+    "OPIDX",
     "OUTBUSY",
     "OUTFLUSH",
     "OUTLEN",

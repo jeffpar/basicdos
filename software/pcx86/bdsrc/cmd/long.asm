@@ -657,10 +657,11 @@ DEFPROC	evalEQLong,FAR
 	mov	ax,[eqA].HIW
 	cmp	ax,[eqB].HIW
 	jmp	bx
+
 evalEQ:	jne	evalF
 	cmp	cx,dx
-	jne	evalF
-	jmp	short evalT
+	je	evalT
+	jmp	short evalF
 evalNE:	jne	evalT
 	cmp	cx,dx
 	jne	evalT
@@ -683,10 +684,11 @@ evalLE:	jl	evalT
 evalGE:	jg	evalT
 	jl	evalF
 	cmp	cx,dx
-	jge	evalT
-	jmp	short evalF
+	jl	evalF
+
 evalT:	mov	ax,-1
 	jmp	short evalX
+
 evalF:	sub	ax,ax
 evalX:	cwd
 	mov	[eqA].LOW,ax
