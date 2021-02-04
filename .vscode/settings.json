@@ -94,6 +94,7 @@
     "ARGVAR",
     "ARGVARs",
     "ASCIIZ",
+    "ATOF",
     "ATOI",
     "AUXDEV",
     "BADADDR",

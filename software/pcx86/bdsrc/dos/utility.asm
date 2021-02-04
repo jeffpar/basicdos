@@ -554,17 +554,53 @@ ENDPROC	mul_32_16
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_tokify (AH = 0Bh or 0Ch)
+; utl_atof64 (AH = 0Ch)
 ;
-; DOS_UTL_TOKEN1 (0Bh) performs generic parsing, which means that only
+; Returns:
+;
+; Modifies:
+;
+DEFPROC	utl_atof64,DOS
+	ret
+ENDPROC utl_atof64
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_f64i32 (AH = 0Eh)
+;
+; Returns:
+;
+; Modifies:
+;
+DEFPROC	utl_f64i32,DOS
+	ret
+ENDPROC utl_f64i32
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_i32f64 (AH = 10h)
+;
+; Returns:
+;
+; Modifies:
+;
+DEFPROC	utl_i32f64,DOS
+	ret
+ENDPROC utl_i32f64
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_tokify (AH = 11h or 12h)
+;
+; DOS_UTL_TOKEN1 (11h) performs generic parsing, which means that only
 ; tokens separated by whitespace (or SWITCHAR) will be returned, and they
 ; will all be identified "generically" as CLS_STR.
 ;
-; DOS_UTL_TOKEN2 (0Ch) performs BASIC parsing, which returns all tokens,
+; DOS_UTL_TOKEN2 (12h) performs BASIC parsing, which returns all tokens,
 ; even whitespace sequences (CLS_WHITE).
 ;
 ; Inputs:
-;	AH = 0Bh (TOKTYPE_GENERIC) or 0Ch (TOKTYPE_BASIC)
+;	AH = 11h (TOKTYPE_GENERIC) or 12h (TOKTYPE_BASIC)
 ;	REG_CL = length of string
 ;	REG_DS:REG_SI -> string to "tokify"
 ;	REG_ES:REG_DI -> TOKBUF (to be filled with token info)
@@ -839,7 +875,7 @@ ENDPROC	tok_classify
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_tokid (AH = 0Dh)
+; utl_tokid (AH = 13h)
 ;
 ; The main advantage of this function is that, by requiring the TOKTBL
 ; to be sorted, it can use a binary search to find the token faster.  For
@@ -938,7 +974,7 @@ ENDPROC	utl_tokid
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_parsesw (AH = 0Eh)
+; utl_parsesw (AH = 14h)
 ;
 ; Switch tokens start with the system's SWITCHAR and may contain 1 or more
 ; alphanumeric characters, each of which is converted to a bit in either

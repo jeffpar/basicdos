@@ -87,6 +87,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<mem_alloc,mem_free,mem_realloc>
 	EXTNEAR	<utl_strlen,utl_strstr,utl_strupr>
 	EXTNEAR	<utl_atoi16,utl_atoi32,utl_atoi32d>
+	EXTNEAR	<utl_atof64,utl_f64i32,utl_i32f64>
 	EXTNEAR	<utl_itoa,utl_printf,utl_dprintf,utl_sprintf>
 	EXTNEAR	<utl_tokify,utl_tokid,utl_parsesw>
 	EXTNEAR	<utl_getdev,utl_getcsn,utl_load,utl_start,utl_stop,utl_end>
@@ -96,41 +97,42 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<func_none>
 
 	DEFLBL	FUNCTBL,word
-	dw	psp_term,    tty_echo,    tty_write,   aux_read		;00h-03h
-	dw	aux_write,   prn_write,   tty_io,      tty_in		;04h-07h
-	dw	tty_read,    tty_print,   tty_input,   tty_status	;08h-0Bh
-	dw	tty_flush,   dsk_flush,   dsk_setdrv,  fcb_open		;0Ch-0Fh
-	dw	fcb_close,   func_none,   func_none,   func_none	;10h-13h
-	dw	fcb_sread,   func_none,   func_none,   func_none	;14h-17h
-	dw	func_none,   dsk_getdrv,  dsk_setdta,  func_none	;18h-1Bh
-	dw	func_none,   func_none,   func_none,   func_none	;1Ch-1Fh
-	dw	func_none,   fcb_rread,   func_none,   func_none	;20h-23h
-	dw	fcb_setrel,  msc_setvec,  psp_copy,    fcb_rbread	;24h-27h
-	dw	func_none,   fcb_parse,   msc_getdate, msc_setdate	;28h-2Bh
-	dw	msc_gettime, msc_settime, func_none,   dsk_getdta	;2Ch-2Fh
-	dw	msc_getver,  func_none,   func_none,   msc_setctrlc	;30h-33h
-	dw	func_none,   msc_getvec,  dsk_getinfo, msc_getswc	;34h-37h
-	dw	func_none,   func_none,   func_none,   func_none	;38h-3Bh
-	dw	func_none,   hdl_open,    hdl_close,   hdl_read		;3Ch-3Fh
-	dw	hdl_write,   func_none,   hdl_seek,    func_none	;40h-43h
-	dw	hdl_ioctl,   func_none,   func_none,   func_none	;44h-47h
-	dw	mem_alloc,   mem_free,    mem_realloc, psp_exec		;48h-4Bh
-	dw	psp_return,  psp_retcode, dsk_ffirst,  dsk_fnext	;4Ch-4Fh
-	dw	psp_set,     psp_get,     msc_getvars, func_none	;50h-53h
-	dw	func_none,   psp_create					;54h-55h
+	dw	psp_term,    tty_echo,    tty_write,   aux_read		;00-03
+	dw	aux_write,   prn_write,   tty_io,      tty_in		;04-07
+	dw	tty_read,    tty_print,   tty_input,   tty_status	;08-0B
+	dw	tty_flush,   dsk_flush,   dsk_setdrv,  fcb_open		;0C-0F
+	dw	fcb_close,   func_none,   func_none,   func_none	;10-13
+	dw	fcb_sread,   func_none,   func_none,   func_none	;14-17
+	dw	func_none,   dsk_getdrv,  dsk_setdta,  func_none	;18-1B
+	dw	func_none,   func_none,   func_none,   func_none	;1C-1F
+	dw	func_none,   fcb_rread,   func_none,   func_none	;20-23
+	dw	fcb_setrel,  msc_setvec,  psp_copy,    fcb_rbread	;24-27
+	dw	func_none,   fcb_parse,   msc_getdate, msc_setdate	;28-2B
+	dw	msc_gettime, msc_settime, func_none,   dsk_getdta	;2C-2F
+	dw	msc_getver,  func_none,   func_none,   msc_setctrlc	;30-33
+	dw	func_none,   msc_getvec,  dsk_getinfo, msc_getswc	;34-37
+	dw	func_none,   func_none,   func_none,   func_none	;38-3B
+	dw	func_none,   hdl_open,    hdl_close,   hdl_read		;3C-3F
+	dw	hdl_write,   func_none,   hdl_seek,    func_none	;40-43
+	dw	hdl_ioctl,   func_none,   func_none,   func_none	;44-47
+	dw	mem_alloc,   mem_free,    mem_realloc, psp_exec		;48-4B
+	dw	psp_return,  psp_retcode, dsk_ffirst,  dsk_fnext	;4C-4F
+	dw	psp_set,     psp_get,     msc_getvars, func_none	;50-53
+	dw	func_none,   psp_create					;54-55
 	DEFABS	FUNCTBL_SIZE,<($ - FUNCTBL) SHR 1>
 
 	DEFLBL	UTILTBL,word
-	dw	utl_strlen,  utl_strstr,  func_none,   utl_strupr	;00h-03h
-	dw	utl_printf,  utl_dprintf, utl_sprintf, utl_itoa		;04h-07h
-	dw	utl_atoi16,  utl_atoi32,  utl_atoi32d, utl_tokify	;08h-0Bh
-	dw	utl_tokify,  utl_tokid,   utl_parsesw, utl_getdev	;0Ch-0Fh
-	dw	utl_getcsn,  func_none,   utl_load,    utl_start	;10h-13h
-	dw	utl_stop,    utl_end,     utl_waitend, utl_yield	;14h-17h
-	dw	utl_sleep,   utl_wait,    utl_endwait, utl_hotkey	;18h-1Bh
-	dw	utl_lock,    utl_unlock,  utl_qrymem,  utl_term		;1Ch-1Fh
-	dw	utl_getdate, utl_gettime, utl_incdate, utl_editln	;20h-23h
-	dw	utl_strlen,  utl_restart				;24h-25h
+	dw	utl_strlen,  utl_strstr,  func_none,   utl_strupr	;00-03
+	dw	utl_printf,  utl_dprintf, utl_sprintf, utl_itoa		;04-07
+	dw	utl_atoi16,  utl_atoi32,  utl_atoi32d, func_none	;08-0B
+	dw	utl_atof64,  func_none,   utl_f64i32,  func_none	;0C-0F
+	dw	utl_i32f64,  utl_tokify,  utl_tokify,  utl_tokid	;10-13
+	dw	utl_parsesw, utl_getdev,  utl_getcsn,  func_none	;14-17
+	dw	utl_load,    utl_start,   utl_stop,    utl_end		;18-1B
+	dw	utl_waitend, utl_yield,   utl_sleep,   utl_wait		;1C-1F
+	dw	utl_endwait, utl_hotkey,  utl_lock,    utl_unlock	;20-23
+	dw	utl_strlen,  utl_qrymem,  utl_term,    utl_getdate	;24-27
+	dw	utl_gettime, utl_incdate, utl_editln,  utl_restart	;28-2B
 	DEFABS	UTILTBL_SIZE,<($ - UTILTBL) SHR 1>
 
 DOS	ends
