@@ -85,29 +85,29 @@ CODE    SEGMENT
 	DEFLBL	OPDEFS,byte
 	OPDEF	<'(',2,0>
 	OPDEF	<')',2,0>
-	OPDEF	<'^',28,OPIDX_EXP>
+	OPDEF	<'^',28,OPEVAL_EXP>
 	OPDEF	<'P',27,0>		; unary '+'
-	OPDEF	<'N',27,OPIDX_NEG>	; unary '-'
-	OPDEF	<'*',26,OPIDX_MUL>
-	OPDEF	<'/',26,OPIDX_DIV>
-	OPDEF	<'\',24,OPIDX_IDIV>
-	OPDEF	<'M',22,OPIDX_MOD>	; 'MOD'
-	OPDEF	<'+',20,OPIDX_ADD>
-	OPDEF	<'-',20,OPIDX_SUB>
-	OPDEF	<'S',16,OPIDX_SHL>	; BASIC-DOS: '<<'
-	OPDEF	<'R',16,OPIDX_SHR>	; BASIC-DOS: '>>'
-	OPDEF	<'=',14,OPIDX_EQ>	; (BASIC-DOS allows '==' as well)
-	OPDEF	<'U',14,OPIDX_NE>	; '<>' or '><'
-	OPDEF	<'<',14,OPIDX_LT>
-	OPDEF	<'>',14,OPIDX_GT>
-	OPDEF	<'L',14,OPIDX_LE>	; '<=' or '=<'
-	OPDEF	<'G',14,OPIDX_GE>	; '>=' or '=>'
-	OPDEF	<'~',13,OPIDX_NOT>	; 'NOT' (BASIC-DOS allows '~' as well)
-	OPDEF	<'A',12,OPIDX_AND>	; 'AND'
-	OPDEF	<'|',10,OPIDX_OR>	; 'OR'  (BASIC-DOS allows '|' as well)
-	OPDEF	<'X',8,OPIDX_XOR>	; 'XOR'
-	OPDEF	<'E',6,OPIDX_EQV>	; 'EQV'
-	OPDEF	<'I',4,OPIDX_IMP>	; 'IMP'
+	OPDEF	<'N',27,OPEVAL_NEG>	; unary '-'
+	OPDEF	<'*',26,OPEVAL_MUL>
+	OPDEF	<'/',26,OPEVAL_DIV>
+	OPDEF	<'\',24,OPEVAL_IDIV>
+	OPDEF	<'M',22,OPEVAL_MOD>	; 'MOD'
+	OPDEF	<'+',20,OPEVAL_ADD>
+	OPDEF	<'-',20,OPEVAL_SUB>
+	OPDEF	<'S',16,OPEVAL_SHL>	; BASIC-DOS: '<<'
+	OPDEF	<'R',16,OPEVAL_SHR>	; BASIC-DOS: '>>'
+	OPDEF	<'=',14,OPEVAL_EQ>	; (BASIC-DOS allows '==' as well)
+	OPDEF	<'U',14,OPEVAL_NE>	; '<>' or '><'
+	OPDEF	<'<',14,OPEVAL_LT>
+	OPDEF	<'>',14,OPEVAL_GT>
+	OPDEF	<'L',14,OPEVAL_LE>	; '<=' or '=<'
+	OPDEF	<'G',14,OPEVAL_GE>	; '>=' or '=>'
+	OPDEF	<'~',13,OPEVAL_NOT>	; 'NOT' (BASIC-DOS allows '~' as well)
+	OPDEF	<'A',12,OPEVAL_AND>	; 'AND'
+	OPDEF	<'|',10,OPEVAL_OR>	; 'OR'  (BASIC-DOS allows '|' as well)
+	OPDEF	<'X',8,OPEVAL_XOR>	; 'XOR'
+	OPDEF	<'E',6,OPEVAL_EQV>	; 'EQV'
+	OPDEF	<'I',4,OPEVAL_IMP>	; 'IMP'
 	db	0			; terminator
 
 	DEFLBL	OPEVAL_LONG,word

@@ -190,34 +190,34 @@ SIG_TBLK	equ	'T'		; must match MCBTYPE_TBLK
 OPDEF		struc
 OP_CHR		db	?		; ASCII character
 OP_PREC		db	?		; precedence value
-OP_IDX		db	?		; index (OPIDX_*) of evaluator
+OP_IDX		db	?		; index (OPEVAL_*) of evaluator
 OPDEF		ends
 
 ;
 ; Operator indexes into OPEVAL (operator evaluator) tables
 ;
-OPIDX_EXP	equ	1
-OPIDX_NEG	equ	2
-OPIDX_MUL	equ	3
-OPIDX_DIV	equ	4
-OPIDX_IDIV	equ	5
-OPIDX_MOD	equ	6
-OPIDX_ADD	equ	7
-OPIDX_SUB	equ	8
-OPIDX_SHL	equ	9
-OPIDX_SHR	equ	10
-OPIDX_EQ	equ	11
-OPIDX_NE	equ	12
-OPIDX_LT	equ	13
-OPIDX_GT	equ	14
-OPIDX_LE	equ	15
-OPIDX_GE	equ	16
-OPIDX_NOT	equ	17
-OPIDX_AND	equ	18
-OPIDX_OR	equ	19
-OPIDX_XOR	equ	20
-OPIDX_EQV	equ	21
-OPIDX_IMP	equ	22
+OPEVAL_EXP	equ	1
+OPEVAL_NEG	equ	2
+OPEVAL_MUL	equ	3
+OPEVAL_DIV	equ	4
+OPEVAL_IDIV	equ	5
+OPEVAL_MOD	equ	6
+OPEVAL_ADD	equ	7
+OPEVAL_SUB	equ	8
+OPEVAL_SHL	equ	9
+OPEVAL_SHR	equ	10
+OPEVAL_EQ	equ	11
+OPEVAL_NE	equ	12
+OPEVAL_LT	equ	13
+OPEVAL_GT	equ	14
+OPEVAL_LE	equ	15
+OPEVAL_GE	equ	16
+OPEVAL_NOT	equ	17
+OPEVAL_AND	equ	18
+OPEVAL_OR	equ	19
+OPEVAL_XOR	equ	20
+OPEVAL_EQV	equ	21
+OPEVAL_IMP	equ	22
 
 ;
 ; Label reference

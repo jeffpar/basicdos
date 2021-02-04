@@ -677,16 +677,16 @@ ENDPROC	genEcho
 ;
 ; Generate code for an expression.
 ;
-; The code block at ES:DI serves as an operand queue, the stack at SP serves
-; as an operator stack, and with the introduction of DOUBLE and STR operands,
-; we now maintain a type stack (typeStack) as well.  Unlike the stack at SP,
-; the type stack grows upward; the top of the stack (typeTop) starts at zero
-; and is incremented as type values are "pushed" (as operands are queued) and
-; decremented as type values are "popped" (as operators are processed).
+; The code block at ES:DI serves as the operand queue, the stack at SP serves
+; as the operator stack, and with LONG operands being joined by DOUBLE and STR
+; operands, we now maintain a type stack (typeStack) as well.  Unlike the stack
+; at SP, the type stack grows upward; the top of the stack (typeTop) starts at
+; zero and is incremented as type values are "pushed" (as operands are queued)
+; and decremented as type values are "popped" (as operators are processed).
 ;
-; To catch common errors, we maintain an open parentheses count (exprParens),
-; which must be zero at the end, and a queued operand count (exprQueued), which
-; must equal the number of arguments expected by all operators (exprArgs).
+; At the end, the type stack must have a single value, representing the type
+; of the entire expression, and the open parentheses count (exprParens) must be
+; zero.
 ;
 ; Inputs:
 ;	DS:BX -> next TOKLET
@@ -705,11 +705,9 @@ ENDPROC	genEcho
 DEFPROC	genExpr
 	LOCVAR	exprToks,byte
 	LOCVAR	exprParms,byte
-	LOCVAR	exprArgs,word		; count of expected arguments
-	LOCVAR	exprQueued,word		; count of queued operands
 	LOCVAR	exprParens,word		; count of open parentheses
 	LOCVAR	exprPrevOp,word
-	LOCVAR	typeTop,word		; top (offset) of values in type stack
+	LOCVAR	typeTop,word		; top (offset) of types in typeStack
 	LOCVAR	typeStack,byte,32	; arbitrarily limited to 32
 	ENTER
 	push	cx
@@ -719,8 +717,6 @@ DEFPROC	genExpr
 	mov	[exprParms],al		; parm count (only from genDefFn)
 	sub	dx,dx
 	mov	[exprToks],dl		; zero total tokens
-	mov	[exprArgs],1
-	mov	[exprQueued],dx		; zero queued operands
 	mov	[exprParens],dx		; zero open parentheses
 	mov	[exprPrevOp],dx		; zero previous operator (none)
 	mov	[typeTop],dx		; type stack initially empty
@@ -753,13 +749,13 @@ ge1:	mov	al,CLS_ANY		; CLS_NUM, CLS_SYM, CLS_VAR, CLS_STR
 	jcxz	ge1a			; empty string
 	inc	si			; DS:SI -> string contents
 	call	genPushStr
-	jmp	short ge2e
+	jmp	ge1
 
 ge1a:	DBGBRK
 	sub	cx,cx			; for empty strings, push null ptr
 	sub	dx,dx
 	call	genPushImmLong
-	jmp	short ge2e
+	jmp	ge1
 ge1b:	jmp	short ge4
 ;
 ; Process CLS_VAR_*.  Instead of calling findVar, we now call addVar,
@@ -785,15 +781,13 @@ ge2a:	cmp	ah,VAR_FUNC		; function? (C0h)
 	jne	ge2c
 	call	genFuncExpr		; process the function expression
 ge2b:	jnc	ge2d			; AH = return type
-	jmp	short ge3x
+ge2x:	jmp	short ge3x
 
 ge2c:	call	genPushVarLong
 
 ge2d:	mov	dl,ah			; DL = var type
 	call	pushType		; update expression type
-ge2e:	inc	[exprQueued]		; count another queued value
 	jmp	ge1
-ge2x:	jmp	short ge3x
 ;
 ; Process CLS_NUM.  Number is a constant and CX is its exact length.
 ;
@@ -820,7 +814,7 @@ ge3a:	DOSUTIL	ATOI32			; DS:SI -> numeric string (length CX)
 	xchg	cx,ax			; save result in DX:CX
 	pop	bx
 	GENPUSH	dx,cx
-	jmp	ge2e			; go count another queued value
+	jmp	ge1			; go count another queued value
 ge3x:	jmp	short ge8
 ;
 ; Process CLS_SYM.  Before we try to validate the operator, we need to remap
@@ -849,8 +843,6 @@ ge5:	call	validateOp		; AL = operator to validate
 	mov	[exprPrevOp],ax
 	sub	si,si
 	jcxz	ge7			; handle no-arg operators below
-	dec	cx
-	add	[exprArgs],cx
 	mov	si,dx			; SI = current operator index
 ;
 ; Operator is valid, so peek at the operator stack and pop if the top
@@ -906,18 +898,12 @@ ge8:	pop	cx
 	call	genOp
 	jmp	ge8
 ;
-; Verify number of queued operands matches the number of expected arguments.
+; Verify there are no open parentheses, then pop the final type from typeStack.
 ;
-ge9:	mov	cx,[exprQueued]
-	cmp	cx,[exprArgs]
-	stc
-	jne	ge10
-	cmp	[exprParens],0
-	stc
-	jg	ge10
-	test	cx,cx			; return ZF set if no operands
-ge10:	call	popType			; DL = expression type
-	mov	dh,[exprToks]		; DH = # tokens
+ge9:	add	[exprParens],-1		; if exprParens is NOT zero
+	jc	ge9a			; then adding -1 will set carry
+	call	popType			; DL = expression type
+ge9a:	mov	dh,[exprToks]		; DH = # tokens
 	pop	si
 	pop	cx
 	LEAVE
@@ -936,11 +922,12 @@ ge10:	call	popType			; DL = expression type
 	DEFLBL	popType,near
 	push	si
 	mov	si,[typeTop]
-	ASSERT	NZ,<test si,si>		; we'll deal with poss. underflow later
+	test	si,si
+	jz	pt9			; return ZF set if no types
 	lea	si,[si-1]		; decrement without altering flags
 	mov	dl,[typeStack][si]
 	mov	[typeTop],si
-	pop	si
+pt9:	pop	si
 	ret
 ;
 ; "Pop" N types from the type stack and then "push" the operator's new type.
