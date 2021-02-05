@@ -19,10 +19,13 @@ CODE    SEGMENT
 	EXTNEAR	<memError>
 	EXTNEAR	<clearScreen,callDOS,printArgs,printEcho,printLine>
 	EXTNEAR	<setColor,setFlags>
+	EXTNEAR	<convLong1ToDouble,convLong2ToDouble>
+	EXTNEAR	<convDouble1ToLong,convDouble2ToLong>
+	EXTNEAR	<conv1DoubleToLong,conv2DoubleToLong>
 
 	EXTWORD	<KEYWORD_TOKENS,KEYOP_TOKENS>
 	EXTBYTE	<OPDEFS,RELOPS>
-	EXTWORD	<OPEVAL_LONG,OPEVAL_STR>
+	EXTWORD	<EVAL_LONG,EVAL_DOUBLE,EVAL_STR>
 	EXTABS	<TOK_ELSE,TOK_OFF,TOK_ON,TOK_THEN>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -678,11 +681,13 @@ ENDPROC	genEcho
 ; Generate code for an expression.
 ;
 ; The code block at ES:DI serves as the operand queue, the stack at SP serves
-; as the operator stack, and with LONG operands being joined by DOUBLE and STR
-; operands, we now maintain a type stack (typeStack) as well.  Unlike the stack
-; at SP, the type stack grows upward; the top of the stack (typeTop) starts at
-; zero and is incremented as type values are "pushed" (as operands are queued)
-; and decremented as type values are "popped" (as operators are processed).
+; as the operator stack, and with VAR_LONG operands being joined by VAR_DOUBLE
+; and VAR_STR operands, we must now maintain a type stack (typeStack) as well.
+;
+; Unlike the stack at SP, the type stack grows upward; the top of the stack
+; (typeTop) starts at zero and is incremented as type values are "pushed"
+; (as operands are queued) and decremented as type values are "popped" (as
+; operators are processed).
 ;
 ; At the end, the type stack must have a single value, representing the type
 ; of the entire expression, and the open parentheses count (exprParens) must be
@@ -705,7 +710,7 @@ ENDPROC	genEcho
 DEFPROC	genExpr
 	LOCVAR	exprToks,byte
 	LOCVAR	exprParms,byte
-	LOCVAR	exprParens,word		; count of open parentheses
+	LOCVAR	exprParens,word
 	LOCVAR	exprPrevOp,word
 	LOCVAR	typeTop,word		; top (offset) of types in typeStack
 	LOCVAR	typeStack,byte,32	; arbitrarily limited to 32
@@ -901,7 +906,7 @@ ge8:	pop	cx
 ; Verify there are no open parentheses, then pop the final type from typeStack.
 ;
 ge9:	add	[exprParens],-1		; if exprParens is NOT zero
-	jc	ge9a			; then adding -1 will set carry
+	jc	ge9a			; then adding -1 will force carry
 	call	popType			; DL = expression type
 ge9a:	mov	dh,[exprToks]		; DH = # tokens
 	pop	si
@@ -909,50 +914,175 @@ ge9a:	mov	dh,[exprToks]		; DH = # tokens
 	LEAVE
 	RETURN
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; pushType (genExpr internal function)
+;
+; Inputs:
+;	DL = VAR_*
+;
+; Outputs:
+;	typeTop incremented
+;
+; Modifies:
+;	flags
+;
 	DEFLBL	pushType,near
 	push	si
 	mov	si,[typeTop]
-	ASSERT	B,<cmp si,32>		; we'll deal with poss. overflow later
+	ASSERT	B,<cmp si,32>		; TODO: deal with possible overflow
 	mov	[typeStack][si],dl
 	inc	si
 	mov	[typeTop],si
 	pop	si
 	ret
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; popType (genExpr internal function)
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	ZF clear and DL = VAR_* (ZF set if no type exists)
+;
+; Modifies:
+;	DL, flags
+;
 	DEFLBL	popType,near
 	push	si
 	mov	si,[typeTop]
 	test	si,si
-	jz	pt9			; return ZF set if no types
+	jz	pt9			; return ZF set if stack empty
 	lea	si,[si-1]		; decrement without altering flags
 	mov	dl,[typeStack][si]
 	mov	[typeTop],si
 pt9:	pop	si
 	ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; "Pop" N types from the type stack and then "push" the operator's new type.
+; genOp (genExpr internal function)
 ;
-; N is 2 if DH is even and 1 if DH is odd.
+; Pop N types (where N is 2 if the operator precedence is even and 1 if odd)
+; from the type stack, push the operator's new type, and generate code for the
+; operator's evaluator.
+;
+; Some type mismatches are automatic errors (eg, whenever one type is VAR_STR,
+; as strings can only operate with other strings).  All other mismatches are
+; necessarily between VAR_LONG and VAR_DOUBLE, and whether the int should be
+; converted to a float or vice versa depends on the operator.
+;
+; For example, all arithmetic and relational operators must "promote" ints
+; to floats, with the exception of '\' (integer division), which must "demote"
+; floats to ints.  All logical operators (which for our purposes also includes
+; shift operators) must also "demote" their operands to ints.  Demotion means
+; rounding to the nearest 32-bit integer (eg, 7.5 becomes 8, -7.4 becomes -7).
+;
+; Some type matches are also automatic errors (eg, when the types are VAR_STR
+; and the operator is neither "+" nor relational).  However, there's no special
+; logic for that; the error is indicated by a zero evaluator (see EVAL_STR).
+;
+; Inputs:
+;	CX = operator index (OPEVAL_*)
+;	DL = operator symbol (from OPDEFS)
+;	DH = operator precedence (from OPDEFS)
+;
+; Outputs:
+;	Carry clear if successful, set if error (ie, type mismatch)
+;
+; Modifies:
+;	CX, DX, DI
 ;
 	DEFLBL	genOp,near
 	IFDEF MAXDEBUG
 	DPRINTF	'o',<"op %c, func @%08lx\r\n">,dx,cx,cs
 	ENDIF
-	jcxz	go9			; jump if no operator index
+	jcxz	go2x			; jump if no operator index
+
+	push	si
 	call	popType
 	test	dh,1
-	mov	dh,dl			; DH = 1st type
+	mov	dh,dl			; DH = type of 2nd arg pushed
 	jnz	go1
-	call	popType			; DL = 2nd type
-go1:	mov	dl,VAR_LONG
-	call	pushType
-	push	si
+	call	popType			; DL = type of 1st arg pushed
+
+go1:	cmp	dl,dh			; type mismatch?
+	jne	go3			; yes, handle below
+	cmp	dl,VAR_STR
+	jne	go2
+	cmp	cl,OPEVAL_ADD		; adding two strings produces string
+	je	go8a
+	jmp	short go8		; all other string ops return integers
+;
+; The types match, so the worst case in this situation is having to demote
+; all float args to integers, which in turn requires us to check for one arg
+; (ie, NOT) or two args (ie, everything else).
+;
+go2:	cmp	cl,OPEVAL_EQ
+	jb	go8a
+	cmp	dh,VAR_LONG
+	je	go8
+	cmp	cl,OPEVAL_NOT
+	jb	go8
+	mov	cx,offset conv1DoubleToLong
+	je	go2a
+	mov	cx,offset conv2DoubleToLong
+go2a:	push	dx
+	GENCALL	cx
+	pop	dx
+	jmp	short go8
+go2x:	jmp	short go9
+;
+; Deal with type mismatches here.
+;
+go3:	cmp	dl,VAR_STR		; if the 1st arg...
+	je	go8x
+	cmp	dh,VAR_STR		; or the 2nd arg are strings
+	je	go8x			; then it's a guaranteed type mismatch
+	cmp	cl,OPEVAL_NOT
+	jae	go3b
+	cmp	dl,VAR_LONG
+	mov	cx,offset convLong1ToDouble
+	jne	go3a
+	mov	cx,offset convLong2ToDouble
+go3a:	GENCALL	cx
+	mov	dx,VAR_DOUBLE OR (VAR_DOUBLE SHL 8)
+	jmp	short go8a
+
+go3b:	cmp	dl,VAR_DOUBLE
+	mov	cx,offset convDouble1ToLong
+	jne	go3c
+	mov	cx,offset convDouble2ToLong
+go3c:	GENCALL	cx
+	mov	dx,VAR_LONG OR (VAR_LONG SHL 8)
+	jmp	short go8a
+
+go8:	mov	dl,VAR_LONG
+;
+; When we arrive here, DL has been determined to be the type of the result,
+; and DH is the (possibly promoted) type of all inputs, and therefore it will
+; determine which table we extract the operator evaluator from.
+;
+go8a:	call	pushType		; DL = type to push
+	mov	si,offset EVAL_LONG
+	cmp	dh,VAR_LONG
+	je	go8b
+	mov	si,offset EVAL_DOUBLE
+	cmp	dh,VAR_DOUBLE
+	je	go8b
+	mov	si,offset EVAL_STR
+go8b:	jcxz	go8x			; no evaluator implies an error
 	dec	cx
-	mov	si,cx
 	add	si,cx
-	mov	cx,OPEVAL_LONG[si]
+	add	si,cx
+	mov	cx,cs:[si]
 	GENCALL	cx			; generate call to operator evaluator
-	pop	si
+	jmp	short go8c		; (GENCALL also clears carry)
+go8x:	stc
+go8c:	pop	si
+
 go9:	ret
 
 ENDPROC	genExpr
@@ -1319,8 +1449,7 @@ ENDPROC	genLet
 ;
 DEFPROC	genPrint
 	GENPUSHB VAR_NONE		; push end-of-args marker
-gp1:	DBGBRK
-	call	genExpr
+gp1:	call	genExpr
 	jnc	gp2
 	test	dh,dh			; if there were no tokens
 	stc				; then ignore the error

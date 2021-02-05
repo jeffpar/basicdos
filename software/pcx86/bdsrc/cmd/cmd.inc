@@ -196,23 +196,23 @@ OPDEF		ends
 ;
 ; Operator indexes into OPEVAL (operator evaluator) tables
 ;
-OPEVAL_EXP	equ	1
-OPEVAL_NEG	equ	2
+OPEVAL_NEG	equ	1
+OPEVAL_EXP	equ	2		; output type matches promoted inputs
 OPEVAL_MUL	equ	3
 OPEVAL_DIV	equ	4
-OPEVAL_IDIV	equ	5
-OPEVAL_MOD	equ	6
-OPEVAL_ADD	equ	7
-OPEVAL_SUB	equ	8
-OPEVAL_SHL	equ	9
-OPEVAL_SHR	equ	10
-OPEVAL_EQ	equ	11
-OPEVAL_NE	equ	12
-OPEVAL_LT	equ	13
-OPEVAL_GT	equ	14
-OPEVAL_LE	equ	15
-OPEVAL_GE	equ	16
-OPEVAL_NOT	equ	17
+OPEVAL_ADD	equ	5
+OPEVAL_SUB	equ	6
+OPEVAL_EQ	equ	7		; output type is int, inputs promoted
+OPEVAL_NE	equ	8
+OPEVAL_LT	equ	9
+OPEVAL_GT	equ	10
+OPEVAL_LE	equ	11
+OPEVAL_GE	equ	12
+OPEVAL_NOT	equ	13		; output type matches demoted inputs
+OPEVAL_IDIV	equ	14
+OPEVAL_MOD	equ	15
+OPEVAL_SHL	equ	16
+OPEVAL_SHR	equ	17
 OPEVAL_AND	equ	18
 OPEVAL_OR	equ	19
 OPEVAL_XOR	equ	20

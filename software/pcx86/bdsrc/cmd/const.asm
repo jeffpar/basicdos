@@ -110,17 +110,13 @@ CODE    SEGMENT
 	OPDEF	<'I',4,OPEVAL_IMP>	; 'IMP'
 	db	0			; terminator
 
-	DEFLBL	OPEVAL_LONG,word
-	dw	evalExpLong
+	DEFLBL	EVAL_LONG,word
 	dw	evalNegLong
+	dw	evalExpLong
 	dw	evalMulLong
 	dw	evalDivLong
-	dw	evalDivLong
-	dw	evalModLong
 	dw	evalAddLong
 	dw	evalSubLong
-	dw	evalShlLong
-	dw	evalShrLong
 	dw	evalEQLong
 	dw	evalNELong
 	dw	evalLTLong
@@ -128,19 +124,49 @@ CODE    SEGMENT
 	dw	evalLELong
 	dw	evalGELong
 	dw	evalNotLong
+	dw	evalDivLong
+	dw	evalModLong
+	dw	evalShlLong
+	dw	evalShrLong
 	dw	evalAndLong
 	dw	evalOrLong
 	dw	evalXorLong
 	dw	evalEqvLong
 	dw	evalImpLong
 
-	DEFLBL	OPEVAL_STR,word
+	DEFLBL	EVAL_DOUBLE,word
+	dw	0 ; evalNegDouble
+	dw	0 ; evalExpDouble
+	dw	0 ; evalMulDouble
+	dw	0 ; evalDivDouble
+	dw	0 ; evalAddDouble
+	dw	0 ; evalSubDouble
+	dw	0 ; evalEQDouble
+	dw	0 ; evalNEDouble
+	dw	0 ; evalLTDouble
+	dw	0 ; evalGTDouble
+	dw	0 ; evalLEDouble
+	dw	0 ; evalGEDouble
+	dw	0
+	dw	0
+	dw	0
+	dw	0
+	dw	0
+	dw	0
+	dw	0
+	dw	0
+	dw	0
+	dw	0
+
+	DEFLBL	EVAL_STR,word
+	dw	0,0,0,0,evalAddStr,0
 	dw	evalEQStr
 	dw	evalNEStr
 	dw	evalLTStr
 	dw	evalGTStr
 	dw	evalLEStr
 	dw	evalGEStr
+	dw	0,0,0,0,0,0,0,0,0,0
 
 	DEFLBL	RELOPS,byte
 	db	"<>",'U',"><",'U',"<=",'L',"=<",'L',">=",'G',"=>",'G'

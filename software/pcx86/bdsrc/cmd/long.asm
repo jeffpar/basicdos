@@ -857,6 +857,154 @@ ENDPROC	evalShrLong
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; conv1DoubleToLong
+;
+; Inputs:
+;	1 64-bit float on stack (popped)
+;
+; Outputs:
+;	1 32-bit integer on stack (pushed)
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	conv1DoubleToLong,FAR
+	DBGBRK
+	ret
+ENDPROC	conv1DoubleToLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; conv2DoubleToLong
+;
+; Inputs:
+;	2 64-bit floats on stack (popped)
+;
+; Outputs:
+;	2 32-bit integers on stack (pushed)
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	conv2DoubleToLong,FAR
+	DBGBRK
+	ret
+ENDPROC	conv2DoubleToLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; convLong1ToDouble
+;
+; Inputs:
+;	1 32-bit integer on stack
+;	1 64-bit float on stack
+;
+; Outputs:
+;	2 64-bit floats on stack
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	convLong1ToDouble,FAR
+	DBGBRK
+	ret
+ENDPROC	convLong1ToDouble
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; convLong2ToDouble
+;
+; Inputs:
+;	1 64-bit float on stack
+;	1 32-bit integer on stack
+;
+; Outputs:
+;	2 64-bit floats on stack
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	convLong2ToDouble,FAR
+	DBGBRK
+	ret
+ENDPROC	convLong2ToDouble
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; convDouble1ToLong
+;
+; Inputs:
+;	1 64-bit float on stack
+;	1 32-bit integer on stack
+;
+; Outputs:
+;	2 32-bit integers on stack
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	convDouble1ToLong,FAR
+	DBGBRK
+	ret
+ENDPROC	convDouble1ToLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; convDouble2ToLong
+;
+; Inputs:
+;	1 32-bit integer on stack
+;	1 64-bit float on stack
+;
+; Outputs:
+;	2 32-bit integers on stack
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	convDouble2ToLong,FAR
+	DBGBRK
+	ret
+ENDPROC	convDouble2ToLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; conv1LongToDouble
+;
+; Inputs:
+;	1 32-bit integer on stack (popped)
+;
+; Outputs:
+;	1 64-bit float on stack (pushed)
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	conv1LongToDouble,FAR
+	DBGBRK
+	ret
+ENDPROC	conv1LongToDouble
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; conv2LongToDouble
+;
+; Inputs:
+;	2 32-bit integers on stack (popped)
+;
+; Outputs:
+;	2 64-bit floats on stack (pushed)
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	conv2LongToDouble,FAR
+	DBGBRK
+	ret
+ENDPROC	conv2LongToDouble
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; getErrorLevel
 ;
 ; To support the ERRORLEVEL "condition parameter" introduced in PC DOS 2.00,
