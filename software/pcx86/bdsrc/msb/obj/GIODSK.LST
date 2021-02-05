@@ -1,5 +1,5 @@
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
 GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-1
                                                             
 
@@ -15,24 +15,21 @@ GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-1
                              C  ; [ This translation created 10-Feb-83 by Versi
 				on 4.3 ] 
                              C   
-                             C  	SUBTTL  Common file to produce 2-segment 8086 
-				GW-CPM BASIC 
+                             C  	PAGE	,132D 
+                             C  	SUBTTL  Common file to produce 2-segment 8086 GW-CPM BASIC 
                              C   
                              C  	.SALL 
                              C   
  000A                        C  	.RADIX	10 
  = 0000                      C  	OEMRAM=0D 
-                             C  ;Pascal program HFILE searches for the followin
-				g line - DO NOT MODIFY 
-                             C  ;** (VERSION SPECIFIC VALUES) *****************
-				******************************* 
+                             C  ;Pascal program HFILE searches for the following line - DO NOT MODIFY 
+                             C  ;** (VERSION SPECIFIC VALUES) ************************************************ 
  = 0019                      C  	NMLINE=25		;Max screen display text lines 
  = 0001                      C  	NBANKS=1		;Number of graphic planes 
  = 0000                      C  	PALSIZ=0		;Size of OEM color palette 
  = 0000                      C  	DBLCHR=0		;Editor support for KANJI chars 
  = 0000                      C  	KANABS=0		;Kana BASIC (Japanese JIS codes) 
- = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .
-				. 
+ = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .. 
  = 0000                      C  	JISKTN=0		;&K, &J constants (KANJI) 
  = 0001                      C  	SUPRSH=1		;1=super shift key feature 
  = 000A                      C  	NMKEYF=10		;number of function keys 
@@ -46,61 +43,48 @@ GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-1
  = 0002                      C  	NMCOMT=2		;number of COMmunications ports 
  = 0001                      C  	NMPENT=1		;number of light pens 
  = 0004                      C  	NMSTRT=4		;number of joysticks 
- = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR)
-				 
+ = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR) 
  = 0001                      C  	IBMLIK=1		;IBM compatibility package 
  = 0001                      C  	IBMTOK=1		;IBM token compatibility 
  = 0001                      C  	DYNCOM=1		;Dynamic communication buffers 
-                             C  ;** (END OF VERSION SPECIFIC VALUES) **********
-				******************************* 
-                             C  ;Pascal program HFILE searches for the previous
-				 line - DO NOT MODIFY 
+                             C  ;** (END OF VERSION SPECIFIC VALUES) ***************************************** 
+                             C  ;Pascal program HFILE searches for the previous line - DO NOT MODIFY 
                              C  ; 
  = 0015                      C  	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
+ = 0001                      C  	GW=1			;GW BASIC 
+ = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROUT 
+ = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY) 
+                             C  				; Support is in BINTRP.MAC and GWSTS.MAC 
+ = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
+                             C  				;single precision numbers for output. 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
 GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
- = 0001                      C  	GW=1			;GW BASIC 
- = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROU
-				T 
- = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY
-				) 
-                             C  				; Support is in BINTRP.MAC and GWSTS.MAC 
- = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed whe
-				n formatting 
-                             C  				;single precision numbers for output. 
                              C  				; 0 := 7 digits 
                              C  				; 1 := 6 digits 
  = 0000                      C  	CASSW=0			;CASSETTE SWITCH 
  = 0001                      C  	LABKEY=1		;^T (LABEL) key capability 
- = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics)
-				 
- = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stac
-				k) 
+ = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics) 
+ = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stack) 
  = 0001                      C  	GIO86=1			;BASIC-86 Generalized I/O 
  = 0001                      C  	SCRNIO=1		;Screen editor 
  = 0001                      C  	SCRN86=1		;8086 Screen editor 
  = 0001                      C  	I8086=1			;CROSS ASSEMBLING FOR 8086 
  = 0001                      C  	MULSEG=1		;MULTI-SEGMENT 8086 BASIC 
- = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SE
-				T 
+ = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SET 
  = 0001                      C  	TRUROM=1 
  = 0000                      C  	SBC86=0			;SBC 86/02 BOARD? 
  = 0001                      C  	SHORTJ=1		;USE INTRA-SEGMENT SHORT JUMPS 
                              C  				;IN 8086 CODE 
- = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDE
-				D ONLY) 
+ = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDED ONLY) 
  = 0000                      C  	SHTERR=0		;SHORT (2 CHAR) ERROR MESSAGES 
  = 0000                      C  	SHTINS=0		;INSTR IN NON-FAST LEN2 VERSIONS 
- = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2
-				 VERSIONS 
+ = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2 VERSIONS 
  = 0000                      C  	SHTCHN=0		;ALLOW CHAIN IN NON-5.0 
- = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK
-				 
- = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NO
-				N-FAST 
+ = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK 
+ = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NON-FAST 
  = 0000                      C  	SHTREN=0		;ALLOW RENUM IN NON-FST VERSIONS 
  = 0001                      C  	INKEYF=1		;ADDS INKEY$ FUNCTION 
  = 0000                      C  	NOIOS=0			;NO I/O STATMENTS (INP,OUT, WAIT) 
@@ -109,23 +93,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	NOCTLA=0		;NO CONTROL-A IN EXTENDED 
  = 0000                      C  	NORUBT=0		;NO RUBOUT 
  = 0000                      C  	NOROMP=0		;NO ROM PROGRAM FEATURE 
- = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED
-				 
+ = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED 
  = 0000                      C  	NODOT=0			;NO DOT IN LEN2 
  = 0000                      C  	NOEDIT=0		;NO EDIT COMMAND 
- = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMIN
-				AL 
+ = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMINAL 
                              C  				;AND FILES 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-3
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
- = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN C
-				RDO & OUTCH1 
+ = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN CRDO & OUTCH1 
  = 0000                      C  	NOVARP=0		;NO VARPTR FUNCTION 
- = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 F
-				EATURES 
+ = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 FEATURES 
  = 0001                      C  	FIVMEM=1 
  = 0001                      C  	ANSI=1 
  = 0001                      C  	FIVDSK=1		;5.0 NEW DSK CODE 
@@ -136,24 +111,25 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0001                      C  	MEMIMG=1		;MEMORY IMAGE FILES 
  = 0001                      C  	GENBIN=1 
                              C   
- = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON 
-				ERROR) 
+ = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON ERROR) 
  = 0000                      C  	COMMNT=0		;DONT WANT BIG COMMENT 
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-3
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	RMX=0			;INTEL RMX VERSION 
  = 0000                      C  	EDIT80=0		;FOR EDIT80 I/O ROUTINES 
  = 0000                      C  	RSHACK=0 
  = 0000                      C  	INTLEC=0 
  = 0002                      C  	LENGTH=2		;  1 MEANS 8K, 2 MEANS 12K 
- = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BAS
-				IC 
- = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATION
-				S 
+ = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BASIC 
+ = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATIONS 
                              C  				;TO MAKE ITSELF SMALLER & QUICKER 
- = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE
-				 (=1) 
+ = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE (=1) 
  = 0001                      C  	GENIO=1			;USE G/P ROUTINES 
  = 0001                      C  	CHSEAT=1		;CHSNS eats chars 
  = 0000                      C  	GENDSK=0		;USE G/P DSK CODE 
@@ -165,21 +141,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	SBC=0			;FOR INTEL SINGLE BOARD COMPUTER 
                              C  				;1=SBC 80/10, 2=SBC 80/20 
  = 0001                      C  	PURE=1			;ON FOR PURE CODE 
- = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RA
-				M 
+ = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RAM 
  = 0000                      C  	INTROM=0 
  = 0001                      C  	LPTSW=1 
  = 0001                      C  	NCRLPT=1 
  = 0000                      C  	NCRCAS=0 
  = 0000                      C  	ISC=0			;FOR ISC VERSION 
- = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,C
-				ENT) 
+ = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,CENT) 
  = 0000                      C  	TSLPT=0 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-4
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C   
  = 0000                      C  	DOS=0			;ON TO GEN ROUTINES FOR DOS 
  = 0001                      C  	DISK=1			;FILE I/O FEATURES 
@@ -187,13 +156,10 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	TSDISK=0		;NO TIME-SHARING DISK FOR US 
  = 0000                      C  	SPCDSK=0		;MAY HAVE MM'S DISK CODE 
  = 0000                      C  	SPCNDS=0 
- = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIEND
-				S 
+ = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIENDS 
  = 0000                      C  	KEYSTA=0 
- = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISI
-				S II DOS 
- = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISI
-				S-II 
+ = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISIS II DOS 
+ = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISIS-II 
  = 0001                      C  	CPM=1			;FOR CPM compatible operating systems 
  = 0001                      C  	CPM2=1			;VERSION 2. CPM 
  = 0000                      C  	CPM86=0			;FOR CP/M-86 operating system 
@@ -201,16 +167,19 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMCON=0 
  = 0000                      C  	CPMSER=0		;CHECK CPM SERIAL #'S 
  = 0000                      C  	CPMADD=0		;FOR VERSION TO RUN ON ADDS CPM 
- = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 7
-				5 
+ = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 75 
                              C  				;CP/M 
  = 0000                      C  	CPMRSH=0		;FOR RADIO SHACK CPM/M 
  = 0000                      C  	CPM110=0		;FOR CP/M @1100 HEX (INTERALIA) 
- = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4
-				100H 
+ = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4100H 
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-4
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	CPMCON=0 
  = 0000                      C  	Z80=0 
  = 0001                      C  	DISK=1 
@@ -227,23 +196,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0002                      C  	LENGTH=2 
  = 0001                      C  	RSTLES=1 
  = 0001                      C  	FIVLPT=1 
- = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT V
-				ERSION 
+ = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT VERSION 
  = 0001                      C  	CONTRO=1		;ALLOW ^O 
  = 0001                      C  	LEN3=LEN2 OR CASSW 
                              C   
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-5
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
  = 0001                      C  	STRING=1 
  = 0001                      C  	NCRLPT=1 
                              C   
-                             C  ; *** OEM Switches which need to be defaulted t
-				o 0 
+                             C  ; *** OEM Switches which need to be defaulted to 0 
                              C  ; 
  = 0000                      C  	CMPUTN=0 
  = 0000                      C  	DUPONT=0 
@@ -268,15 +230,17 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	PANBAS=0 
  = 0000                      C  	XTNSYS=0 
  = 0000                      C  	NECBAS=0 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Z80 related macros 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-5
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  				;8080'S AND ZILOG Z-80'S 
- = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INST
-				RUCTIONS 
+ = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INSTRUCTIONS 
  = 0000                      C  	Z80=0 
  = 0001                      C  	Z80=1 
                              C  LDIR	MACRO 
@@ -293,11 +257,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	MOV	WORD PTR A,WORD PTR M 
                              C  	STAX	D 
                              C  	DCXF	H 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-6
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  	DCXF	D 
                              C  	DCXF	B 
                              C  	MOV	WORD PTR A,WORD PTR B 
@@ -308,11 +267,9 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	DCR	B 
                              C  	JNZ	DEST 
                              C  ENDM 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Define reset routines. 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  FSIGN	MACRO 
                              C  	CALL	SIGN 
                              C  ENDM 
@@ -336,6 +293,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-6
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  GETYPE	MACRO 
                              C  	CALL	GETYPR 
                              C  ENDM 
@@ -352,11 +314,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	PUSH	WORD PTR B 
                              C  ENDM 
                              C  POPR	MACRO 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-7
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  	POP	WORD PTR B 
                              C  	POP	WORD PTR D 
                              C  ENDM 
@@ -373,15 +330,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDM 
                              C   
                              C   
- = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALL
-				Y CONTROL-O) 
- = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTAL
-				S 
+ = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALLY CONTROL-O) 
+ = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTALS 
                              C   
- = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARA
-				CTERS 
- = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SEC
-				TOR 
+ = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARACTERS 
+ = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SECTOR 
  = 0050                      C  	LINLN=80D		;TERMINAL LINE LENGTH 
  = 0084                      C  	LPTLEN=132D 
  = 00FF                      C  	BUFLEN=255		;LONG LINES 
@@ -399,6 +352,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-7
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  ACRLF   MACRO 
                              C          DB      13D 
                              C          DB      10D 
@@ -411,11 +369,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDIF 
                              C  IFNB    <D> 
                              C          DB      C&O 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-8
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C          DB      D&O 
                              C  ENDIF 
                              C  IFB     <D> 
@@ -447,9 +400,9 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-9
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
@@ -457,8 +410,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                  
                                  
                                 	SUBTTL  GLOBAL TEMPS and DEFS 
-                                	TITLE   GIODSK - BASIC-86 Generalized I/O Disk
-				 Driver 
+                                	TITLE   GIODSK - BASIC-86 Generalized I/O Disk Driver 
                                  
                                 COMMENT	* 
                                  
@@ -466,17 +418,13 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                 COPYRIGHT (C) 1982 BY MICROSOFT 
                                 --------- --- ---- -- --------- 
                                  
-                                        T. Corbett      Microsoft   for BASIC-8
-				6 Generalized I/O 
-                                                        Based on code written f
-				or BASCOM-86 
+                                        T. Corbett      Microsoft   for BASIC-86 Generalized I/O 
+                                                        Based on code written for BASCOM-86 
                                         * 
                              C  	INCLUDE	GIO86U.INC 
-                             C  ; [ This translation created 12-Jan-83 by Versi
-				on 4.3 ] 
+                             C  ; [ This translation created 12-Jan-83 by Version 4.3 ] 
                              C   
-                             C  	SUBTTL GIO86U - Device Independent I/O Constan
-				ts and Macros 
+                             C  	SUBTTL GIO86U - Device Independent I/O Constants and Macros 
                              C   
                              C  COMMENT	* 
                              C   
@@ -484,8 +432,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COPYRIGHT (C) 1982 BY MICROSOFT 
                              C  --------- --- ---- -- --------- 
                              C   
-                             C          Programmer: Tom Corbett,  Microsoft Inc
-				. 
+                             C          Programmer: Tom Corbett,  Microsoft Inc. 
                              C   
                              C          * 
                              C   
@@ -503,54 +450,44 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 000A                      C  	ASCLF=10D		;Line Feed 
  = 000D                      C  	ASCCR=13D		;Carriage Return 
  = 0013                      C  	ASCCTS=19D		;CTL-S 
- = 001A                      C  	ASCCTZ=26D		;Control Z (End-of-file for some d
-				evices) 
+ = 001A                      C  	ASCCTZ=26D		;Control Z (End-of-file for some devices) 
  = 001B                      C  	ASCESC=27D		;Escape 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-10
-GIO86U - Device Independent I/O Constants and Macros        
-
  = 0020                      C  	ASCSPC=32D		;Space 
                              C   
-                             C  ;Special File ID's (identified by 1st byte of f
-				ile) 
+                             C  ;Special File ID's (identified by 1st byte of file) 
                              C  ; 
  = 00FF                      C  	BINFID=255D		;files created by SAVE "fn" 
  = 00FE                      C  	PROFID=254D		;files created by SAVE "fn",P 
  = 00FD                      C  	BSVFID=253D		;files created by BSAVE "fn" 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-9
+GIO86U - Device Independent I/O Constants and Macros        
+
                              C   
                              C  ;Generalized I/O Function Codes: 
                              C  ; 
  = 0000                      C  	_OFFST=0		;initialize count 
-                             C  	ROFFST	G_EOF,2		;test EOF for file opened to t
-				his device 
+                             C  	ROFFST	G_EOF,2		;test EOF for file opened to this device 
                              C  	ROFFST	G_LOC,2		;LOC 
                              C  	ROFFST	G_LOF,2		;LOF 
-                             C  	ROFFST	G_CLS,2		;perform special CLOSE functio
-				ns for this device 
+                             C  	ROFFST	G_CLS,2		;perform special CLOSE functions for this device 
                              C  	ROFFST	G_SWD,2		;set device width 
-                             C  	ROFFST	G_RND,2		;GET/PUT random record from/to
-				 this device 
-                             C  	ROFFST	G_OPN,2		;perform special OPEN function
-				s for this device 
-                             C  	ROFFST	G_SIN,2		;input 1 byte from file opened
-				 on this device 
-                             C  	ROFFST	G_SOT,2		;output 1 byte to file opened 
-				on this device 
+                             C  	ROFFST	G_RND,2		;GET/PUT random record from/to this device 
+                             C  	ROFFST	G_OPN,2		;perform special OPEN functions for this device 
+                             C  	ROFFST	G_SIN,2		;input 1 byte from file opened on this device 
+                             C  	ROFFST	G_SOT,2		;output 1 byte to file opened on this device 
                              C  	ROFFST	G_GPS,2		;POS 
                              C  	ROFFST	G_GWD,2		;get device width 
                              C  	ROFFST	G_SCW,2		;set device column width 
                              C  	ROFFST	G_GCW,2		;get device column width 
-                             C  	ROFFST	G_BIN,2		;block input from file opened 
-				on this device 
-                             C  	ROFFST	G_BOT,2		;block output to file opened o
-				n this device 
+                             C  	ROFFST	G_BIN,2		;block input from file opened on this device 
+                             C  	ROFFST	G_BOT,2		;block output to file opened on this device 
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-11
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-10
 GIO86U - Device Independent I/O Constants and Macros        
 
                              C          PAGE 
@@ -559,11 +496,9 @@ GIO86U - Device Independent I/O Constants and Macros
  = 0000                         CPM86=0 
                                  
                              C  	INCLUDE	MSDOSU.INC 
-                             C  ; [ This translation created 12-Jan-83 by Versi
-				on 4.3 ] 
+                             C  ; [ This translation created 12-Jan-83 by Version 4.3 ] 
                              C   
-                             C  	SUBTTL    MSDOSU - MS-DOS Constants and Data-S
-				tructure Definitions 
+                             C  	SUBTTL    MSDOSU - MS-DOS Constants and Data-Structure Definitions 
                              C   
                              C  COMMENT	* 
                              C   
@@ -607,102 +542,79 @@ GIO86U - Device Independent I/O Constants and Macros
  = 0022                      C  	C_RNDW=34D		;Random write 
  = 0027                      C  	C_RBR=39D		;Random Block Read 
  = 0029                      C  	C_PARS=41D		;Parse Filename 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-12
+                             C   
+ = 000B                      C  	FNAML=11D		;number of bytes in Filename with extension 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-11
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
 
-                             C   
- = 000B                      C  	FNAML=11D		;number of bytes in Filename with e
-				xtension 
  = 0080                      C  	DATPSC=128D		;bytes per sector 
  = 0026                      C  	FCBSIZ=38D		;File Control Block size 
                              C   
                              C  ;MS-DOS FILE-DATA-BLOCK Record Definition 
                              C  ; 
  = 0000                      C  	_OFFST=0		;initialize count 
-                             C  	ROFFST	F_NUL1,1	;not used by basic interpreter
-				 
+                             C  	ROFFST	F_NUL1,1	;not used by basic interpreter 
                              C  	ROFFST	F_NUM,1		;file number 0..255 
-                             C  	ROFFST	F_NUL2,2	;not used by basic interpreter
-				 
-                             C  	ROFFST	F_NEXT,2	;thread for linked list, [MEMS
-				IZ]=end 
+                             C  	ROFFST	F_NUL2,2	;not used by basic interpreter 
+                             C  	ROFFST	F_NEXT,2	;thread for linked list, [MEMSIZ]=end 
                              C  	ROFFST	F_MODE,1	;file mode: 
  = 0001                      C  	MD_SQI=1D		;sequential input 
  = 0002                      C  	MD_SQO=2D		;sequential output 
  = 0004                      C  	MD_RND=4D		;random 
  = 0008                      C  	MD_APP=8D		;append 
-                             C  	ROFFST	F_FCB,FCBSIZ	;File Control Block: used 
-				to communicate with OS 
-                             C  	ROFFST	F_CLOC,2	;for seq files: num sectors re
-				ad/written   (LOCOFS) 
+                             C  	ROFFST	F_FCB,FCBSIZ	;File Control Block: used to communicate with OS 
+                             C  	ROFFST	F_CLOC,2	;for seq files: num sectors read/written   (LOCOFS) 
                              C  				;for rnd files: last record number + 1 
-                             C  	ROFFST	F_ORCT,1	;"Original Byte Count"        
-				             (ORNOFS) 
+                             C  	ROFFST	F_ORCT,1	;"Original Byte Count"                     (ORNOFS) 
                              C  				;for seq input: #bytes in sector when read 
                              C  				;for seq output: #bytes in output sector 
                              C  				;for random files: bytes per sector 
-                             C  	ROFFST	F_BREM,1	;number of bytes till end-of-b
-				uffer        (NMLOFS) 
+                             C  	ROFFST	F_BREM,1	;number of bytes till end-of-buffer        (NMLOFS) 
                              C  	ROFFST	F_CODE,1	;file encoding: 
  = 0000                      C  	FC_ASC=0		;Ascii SAVE, Data files 
  = 0001                      C  	FC_BIN=1		;binary file (BSAVE, binary SAVE) 
-                             C  	ROFFST	F_BAKC,1	;holds next sequential input w
-				hen F.FLBS.FL.BKC is true 
-                             C  	ROFFST	F_NUL3,1	;not used by basic interpreter
-				 
-                             C  	ROFFST	F_DEV,1		;Device number                
-				             (FL.DSK) 
+                             C  	ROFFST	F_BAKC,1	;holds next sequential input when F.FLBS.FL.BKC is true 
+                             C  	ROFFST	F_NUL3,1	;not used by basic interpreter 
+                             C  	ROFFST	F_DEV,1		;Device number                             (FL.DSK) 
                              C  	ROFFST	F_WID,1		;File width 
-                             C  	ROFFST	F_NUL4,1	;not used by basic interpreter
-				 
+                             C  	ROFFST	F_NUL4,1	;not used by basic interpreter 
                              C  	ROFFST	F_FLGS,1	;flags 
- = 0080                      C  	FL_BKC=200O		;when true, F.BAKC contains next 
-				sequential input 
-                             C  	ROFFST	F_POS,1		;Current column position      
-				             (FL.OPS) 
-                             C  	ROFFST	FDBSIZ,0	;size of device independent pa
-				rt of FDB 
+ = 0080                      C  	FL_BKC=200O		;when true, F.BAKC contains next sequential input 
+                             C  	ROFFST	F_POS,1		;Current column position                   (FL.OPS) 
+                             C  	ROFFST	FDBSIZ,0	;size of device independent part of FDB 
                              C  				;device dependant FDB entries start here 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-13
-MSDOSU - MS-DOS Constants and Data-Structure Definitions    
-
-                             C  	ROFFST	DATOFS,DATPSC	;Operating System interfa
-				ce buffer 
-                             C  	ROFFST	FD_SIZ,2	;variable record length for ra
-				ndom files 
-                             C  	ROFFST	FD_PHY,2	;current physical record numbe
-				r 
-                             C  	ROFFST	FD_LOG,2	;current logical record number
-				 
+                             C  	ROFFST	DATOFS,DATPSC	;Operating System interface buffer 
+                             C  	ROFFST	FD_SIZ,2	;variable record length for random files 
+                             C  	ROFFST	FD_PHY,2	;current physical record number 
+                             C  	ROFFST	FD_LOG,2	;current logical record number 
                              C  	ROFFST	F_NUL5,1	;Future use 
-                             C  	ROFFST	FD_OPS,2	;current output position for s
-				equential I/O 
+                             C  	ROFFST	FD_OPS,2	;current output position for sequential I/O 
                              C  	ROFFST	FD_DAT,0	;field buffer of random file 
                              C   
                              C  ; OFFSETS INTO MSDOS FCB 
                              C  ; 
- = 0007                      C  	FCB_DV=F_FCB+0D		;DRIVE (0=default, 1=A:, 2=B:
-				, ...) 
+ = 0007                      C  	FCB_DV=F_FCB+0D		;DRIVE (0=default, 1=A:, 2=B:, ...) 
  = 0008                      C  	FCB_FN=F_FCB+1D		;FILE NAME 
  = 0010                      C  	FCB_FT=F_FCB+9D		;EXTENSION 
- = 0013                      C  	FCB_EX=F_FCB+12D	;FILE EXTENT (identifies bloc
-				k of 128 logical records) 
+ = 0013                      C  	FCB_EX=F_FCB+12D	;FILE EXTENT (identifies block of 128 logical records) 
  = 0015                      C  	FCB_RC=F_FCB+14D	;RECORD SIZE 
  = 0017                      C  	FCB_FS=F_FCB+16D	;FILE SIZE IN BYTES 
  = 001B                      C  	FCB_DT=F_FCB+20D	;Date of last write to file 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-12
+MSDOSU - MS-DOS Constants and Data-Structure Definitions    
+
  = 001D                      C  	FCB_DT=F_FCB+22D	;Time of last write to file 
  = 0027                      C  	FCB_NR=F_FCB+32D	;NEXT RECORD NUMBER 
- = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Numbe
-				r 
+ = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Number 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-14
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-13
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
 
                              C          PAGE 
@@ -713,13 +625,10 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                  
                                  
                                 	EXTRN	CHRGTR:NEAR,SYNCHR:NEAR,OUTDO:NEAR 
-                                	EXTRN	DERNMF:NEAR,DERBFM:NEAR,DERBRN:NEAR,DERF
-				AO:NEAR,FCERR:NEAR 
+                                	EXTRN	DERNMF:NEAR,DERBFM:NEAR,DERBRN:NEAR,DERFAO:NEAR,FCERR:NEAR 
                                 	EXTRN	DERTMF:NEAR 
-                                	EXTRN	DERFAE:NEAR,DERFNF:NEAR,DERIOE:NEAR,DERD
-				FL:NEAR,DERFOV:NEAR 
-                                	EXTRN	CONIA:NEAR,MAKINT:NEAR,MOVE1:NEAR,$NORMD
-				:NEAR 
+                                	EXTRN	DERFAE:NEAR,DERFNF:NEAR,DERIOE:NEAR,DERDFL:NEAR,DERFOV:NEAR 
+                                	EXTRN	CONIA:NEAR,MAKINT:NEAR,MOVE1:NEAR,$NORMD:NEAR 
                                 	EXTRN	DEVBOT:NEAR 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	ASSUME DS:DSEG 
@@ -735,35 +644,21 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 ; 
                                 	PUBLIC	DSKDSP 
  0000                           DSKDSP: 
- 0000  001E R                   	DW	(DSKEOF)	;test EOF for file opened to this 
-				device 
- 0002  0051 R                   	DW	(DSKLOC)	;LOC - sequential records / last r
-				andom record 
+ 0000  001E R                   	DW	(DSKEOF)	;test EOF for file opened to this device 
+ 0002  0051 R                   	DW	(DSKLOC)	;LOC - sequential records / last random record 
  0004  005F R                   	DW	(DSKLOF)	;LOF - file size 
- 0006  01A1 R                   	DW	(DSKCLS)	;perform special CLOSE functions f
-				or this device 
+ 0006  01A1 R                   	DW	(DSKCLS)	;perform special CLOSE functions for this device 
  0008  0000 E                   	DW	(FCERR)		;set device width 
- 000A  026C R                   	DW	(DSKRND)	;GET/PUT random record from/to thi
-				s device 
- 000C  0089 R                   	DW	(DSKOPN)	;perform special OPEN functions fo
-				r this device 
- 000E  01C0 R                   	DW	(DSKSIN)	;input 1 byte from file opened on 
-				this device 
- 0010  0228 R                   	DW	(DSKSOT)	;output 1 byte to file opened on t
-				his device 
+ 000A  026C R                   	DW	(DSKRND)	;GET/PUT random record from/to this device 
+ 000C  0089 R                   	DW	(DSKOPN)	;perform special OPEN functions for this device 
+ 000E  01C0 R                   	DW	(DSKSIN)	;input 1 byte from file opened on this device 
+ 0010  0228 R                   	DW	(DSKSOT)	;output 1 byte to file opened on this device 
  0012  0081 R                   	DW	(DSKGPS)	;POS 
  0014  0085 R                   	DW	(DSKGWD)	;get device width 
  0016  0088 R                   	DW	(DSKSCW)	;set device comma width 
  0018  0088 R                   	DW	(DSKGCW)	;get device comma width 
- 001A  0437 R                   	DW	(DFSTLD)	;block input from file opened on t
-				his device 
- 001C  0000 E                   	DW	(DEVBOT)	;block output to file opened on th
-				is device 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-15
-MSDOSU - MS-DOS Constants and Data-Structure Definitions    
-
+ 001A  0437 R                   	DW	(DFSTLD)	;block input from file opened on this device 
+ 001C  0000 E                   	DW	(DEVBOT)	;block output to file opened on this device 
                                  
                                 	SUBTTL  Misc. Disk Routines 
                                  
@@ -772,28 +667,27 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 ; Exit  - [BX] = -1 if EOF, 0 if not EOF 
                                 ; 
  001E                           DSKEOF: 
- 001E  80 7C 06 02              	CMP	BYTE PTR F_MODE[SI],LOW OFFSET MD_SQO	;EOF
-				( ) is Illegal 
+ 001E  80 7C 06 02              	CMP	BYTE PTR F_MODE[SI],LOW OFFSET MD_SQO	;EOF( ) is Illegal 
  0022  74 2A                    	JE	ER_BFM		; for Sequential Output 
  0024                           ORNCHK: 
  0024  32 C0                    	XOR	AL,AL 
- 0026  38 44 2F                 	CMP	BYTE PTR F_ORCT[SI],AL	;zero if End of Fil
-				e 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-14
+Misc. Disk Routines                                         
+
+ 0026  38 44 2F                 	CMP	BYTE PTR F_ORCT[SI],AL	;zero if End of File 
  0029  74 1C                    	JE	WASEOF		;Brif EOF 
- 002B  80 7C 06 04              	CMP	BYTE PTR F_MODE[SI],LOW OFFSET MD_RND	;If 
-				mode is Random 
+ 002B  80 7C 06 04              	CMP	BYTE PTR F_MODE[SI],LOW OFFSET MD_RND	;If mode is Random 
  002F  74 1A                    	JZ	NOTEOF		; then don't return true EOF 
- 0031  38 44 30                 	CMP	BYTE PTR F_BREM[SI],AL	;Any bytes left in 
-				buffer? 
+ 0031  38 44 30                 	CMP	BYTE PTR F_BREM[SI],AL	;Any bytes left in buffer? 
  0034  75 05                    	JNZ	CHKCTZ		;Yes, look for Control-Z 
  0036  E8 0356 R                	CALL	$READS		;Fill the Buffer 
  0039  EB E9                    	JMP	SHORT ORNCHK	; and try again... 
  003B                           CHKCTZ: 
  003B  BB 0080                  	MOV	BX,OFFSET DATPSC 
- 003E  2A 5C 30                 	SUB	BL,BYTE PTR F_BREM[SI]	;[BX] = char offset
-				 
- 0041  80 78 39 1A              	CMP	BYTE PTR DATOFS[BX+SI],LOW OFFSET ASCCTZ	;
-				check for EOF 
+ 003E  2A 5C 30                 	SUB	BL,BYTE PTR F_BREM[SI]	;[BX] = char offset 
+ 0041  80 78 39 1A              	CMP	BYTE PTR DATOFS[BX+SI],LOW OFFSET ASCCTZ	;check for EOF 
  0045  75 04                    	JNZ	NOTEOF		;Brif next char not EOF 
  0047                           WASEOF: 
  0047  BB FFFF                  	MOV	BX,-1		; -1 if EOF 
@@ -810,26 +704,17 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 ; 
  0051                           DSKLOC: 
  0051  80 7C 06 04              	CMP	BYTE PTR F_MODE[SI],LOW OFFSET MD_RND 
- 0055  8B 5C 2D                 	MOV	BX,WORD PTR F_CLOC[SI]	;Use current for Se
-				quential 
+ 0055  8B 5C 2D                 	MOV	BX,WORD PTR F_CLOC[SI]	;Use current for Sequential 
  0058  75 04                    	JNE	LOC1 
- 005A  8B 9C 00BD               	MOV	BX,WORD PTR FD_LOG[SI]	;Use logical for Ra
-				ndom 
+ 005A  8B 9C 00BD               	MOV	BX,WORD PTR FD_LOG[SI]	;Use logical for Random 
  005E  C3                       LOC1:	RET 
                                  
                                 ;DSKLOF - return file size in bytes. 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-16
-Misc. Disk Routines                                         
-
                                 ; Entry - SI points to File-Data-Block. 
-                                ; Exit  - [Floating-Point-Accumulator] = result
-				. 
+                                ; Exit  - [Floating-Point-Accumulator] = result. 
                                 ; 
  005F                           DSKLOF: 
- 005F  8D 54 17                 	LEA	DX,DWORD PTR FCB_FS[SI]	;[DX] points to fi
-				le size 
+ 005F  8D 54 17                 	LEA	DX,DWORD PTR FCB_FS[SI]	;[DX] points to file size 
  0062  BB FFFF E                	MOV	BX,OFFSET DFACLO-1	;[BX] Target 
  0065  C6 07 00                 	MOV	BYTE PTR 0[BX],LOW 0	;zero overflow byte 
  0068  43                       	INC	BX 
@@ -837,26 +722,27 @@ Misc. Disk Routines
  006B  E8 0000 E                	CALL	MOVE1		;Move file length to FAC 
  006E  88 2E 0001 E             	MOV	BYTE PTR FAC+1,CH	;zero sign 
  0072  89 0F                    	MOV	WORD PTR 0[BX],CX	;zero high bytes of FAC 
- 0074  C7 47 02 B800            	MOV	WORD PTR 2[BX],OFFSET ((128+56)*256)	;Init
-				ialize Exponent 
+ 0074  C7 47 02 B800            	MOV	WORD PTR 2[BX],OFFSET ((128+56)*256)	;Initialize Exponent 
  0079  C6 06 0000 E 08          	MOV	BYTE PTR VALTYP,LOW 8	;Dbl prec value 
  007E  E9 0000 E                	JMP	$NORMD		;Normalize value 
                                 ;DSKGPS - return current file position. 
                                 ; Entry - SI points to File-Data-Block. 
-                                ; Exit  - [AH] = current file column. (0-relati
-				ve) 
+                                ; Exit  - [AH] = current file column. (0-relative) 
                                 ;         All other registers preserved 
                                 ; 
- 0081  8A 64 38                 DSKGPS:	MOV	AH,BYTE PTR F_POS[SI]	;[AH]=current
-				 column 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-15
+Misc. Disk Routines                                         
+
+ 0081  8A 64 38                 DSKGPS:	MOV	AH,BYTE PTR F_POS[SI]	;[AH]=current column 
  0084  C3                       	RET 
                                  
                                 ;DSKGWD - get device width 
                                 ; Exit  - [AH] = device width as set by xxxSWD 
                                 ;         All other registers preserved 
                                 ; 
- 0085  B4 FF                    DSKGWD:	MOV	AH,LOW 255D	;disk files always have
-				 infinite width 
+ 0085  B4 FF                    DSKGWD:	MOV	AH,LOW 255D	;disk files always have infinite width 
  0087  C3                       	RET 
                                  
                                 ;DSKSCW - set device comma width 
@@ -867,94 +753,68 @@ Misc. Disk Routines
  0088                           DSKSCW: 
                                  
                                 ;DSKGCW - get device comma width 
-                                ; Exit  - [BX] = device comma width as set by x
-				xxSCW 
+                                ; Exit  - [BX] = device comma width as set by xxxSCW 
                                 ;         All other registers preserved 
                                 ; 
  0088  C3                       DSKGCW:	RET 
                                  
-                                	SUBTTL  OPEN hook for Disk and all Directory h
-				andling 
+                                	SUBTTL  OPEN hook for Disk and all Directory handling 
                                  
                                 	EXTRN	INIFDB:NEAR 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-17
-OPEN hook for Disk and all Directory handling               
-
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	FILMOD:WORD,FREFDB:WORD 
  0000                           DSEG	ENDS 
                                  
                                  
-                                ;DSKOPN - perform any device dependent open fun
-				ctions. 
+                                ;DSKOPN - perform any device dependent open functions. 
                                 ; Entry - [AL] = FILDEV = device id 
                                 ;                0 if default device, 
                                 ;                1..n for Disk A:, B:, ... 
                                 ;                -1..-n for non-disk devices 
                                 ;         [BX] = file number (0..n) 
-                                ;         [CX] = random record size if [FILMOD]
-				 = random 
-                                ;                (if [CX] = 0, use default reco
-				rd size) 
-                                ;         [DI] = device offset (2=DSKD, 4=SCRN,
-				 etc.) 
+                                ;         [CX] = random record size if [FILMOD] = random 
+                                ;                (if [CX] = 0, use default record size) 
+                                ;         [DI] = device offset (2=DSKD, 4=SCRN, etc.) 
                                 ;         [FILMOD] = file mode 
-                                ;                    MD.SQI = 1 ;sequential inp
-				ut 
-                                ;                    MD.SQO = 2 ;sequential out
-				put 
+                                ;                    MD.SQI = 1 ;sequential input 
+                                ;                    MD.SQO = 2 ;sequential output 
                                 ;                    MD.RND = 3 ;random 
                                 ;                    MD.APP = 4 ;append 
                                 ;         [FILNAM] = filename 
-                                ;         [FILEXT] = 1..3 byte filename extensi
-				on 
+                                ;         [FILEXT] = 1..3 byte filename extension 
                                 ; Exit  - [SI] points to new FDB 
-                                ;         FDB is linked into FDB chain with all
-				 standard 
+                                ;         FDB is linked into FDB chain with all standard 
                                 ;         fields initialized. 
                                 ;         All other registers are preserved. 
                                 ; 
- 0089                           DSKOPN:				;note: save [AL]=device ID till INIF
-				DB 
+ 0089                           DSKOPN:				;note: save [AL]=device ID till INIFDB 
  0089  80 3E 0000 E 04          	CMP	BYTE PTR FILMOD,LOW OFFSET MD_RND 
- 008E  75 07                    	JNZ	DSKOP2		;branch if not OPEN RANDOM 
- 0090  0B C9                    	OR	CX,CX 
- 0092  75 03                    	JNZ	DSKOP2		;branch if user requested Record-S
-				ize 
- 0094  B9 0080                  	MOV	CX,OFFSET DATPSC	;default to Bytes per Sec
-				tor 
- 0097  51                       DSKOP2:	PUSH	CX		;save user requested Random-Re
-				cord-Size 
- 0098  81 C1 0089               	ADD	CX,OFFSET FD_DAT-FDBSIZ	;add standard Disk
-				 FDB requirements 
- 009C  B4 FF                    	MOV	AH,LOW 255D	;all file-modes are legal for 
-				Disk 
- 009E  BA 00FF                  	MOV	DX,255D		;[DH]=initial file column positio
-				n 
-                                				;[DL]=initial file width 
- 00A1  E8 0000 E                	CALL	INIFDB		;SI points to new file's FDB 
- 00A4  89 36 0000 E             	MOV	WORD PTR FREFDB,SI	;save pointer to FDB so
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-18
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-16
 OPEN hook for Disk and all Directory handling               
 
-				 FINPRT will 
+ 008E  75 07                    	JNZ	DSKOP2		;branch if not OPEN RANDOM 
+ 0090  0B C9                    	OR	CX,CX 
+ 0092  75 03                    	JNZ	DSKOP2		;branch if user requested Record-Size 
+ 0094  B9 0080                  	MOV	CX,OFFSET DATPSC	;default to Bytes per Sector 
+ 0097  51                       DSKOP2:	PUSH	CX		;save user requested Random-Record-Size 
+ 0098  81 C1 0089               	ADD	CX,OFFSET FD_DAT-FDBSIZ	;add standard Disk FDB requirements 
+ 009C  B4 FF                    	MOV	AH,LOW 255D	;all file-modes are legal for Disk 
+ 009E  BA 00FF                  	MOV	DX,255D		;[DH]=initial file column position 
+                                				;[DL]=initial file width 
+ 00A1  E8 0000 E                	CALL	INIFDB		;SI points to new file's FDB 
+ 00A4  89 36 0000 E             	MOV	WORD PTR FREFDB,SI	;save pointer to FDB so FINPRT will 
                                 				;release it if error occurs before file 
                                 				;gets completely opened. 
  00A8  56                       	PUSH	SI		;save FDB pointer 
- 00A9  8D 7C 07                 	LEA	DI,DWORD PTR FCB_DV[SI]	;DI points to file
-				name field within FDB 
+ 00A9  8D 7C 07                 	LEA	DI,DWORD PTR FCB_DV[SI]	;DI points to filename field within FDB 
  00AC  BE 0000 E                	MOV	SI,OFFSET FILNAM 
  00AF  B9 000C                  	MOV	CX,OFFSET FNAML+1	;Moving drive,name,ext 
  00B2  FC                       	CLD			;Set Post-Increment mode 
  00B3  F3/ A4                    REP	MOVSB			; to FDB's FCB 
- 00B5  88 0D                    	MOV	BYTE PTR 0[DI],CL	;Make sure ext field is 
-				zero 
- 00B7  83 C7 14                 	ADD	DI,OFFSET FCB_NR-FCB_EX	;Advance to NR fie
-				ld 
+ 00B5  88 0D                    	MOV	BYTE PTR 0[DI],CL	;Make sure ext field is zero 
+ 00B7  83 C7 14                 	ADD	DI,OFFSET FCB_NR-FCB_EX	;Advance to NR field 
  00BA  8B C1                    	MOV	AX,CX		;[AX]=0 
  00BC  FC                       	CLD			;Set Post-Increment mode 
  00BD  AB                       	STOSW 
@@ -969,8 +829,7 @@ OPEN hook for Disk and all Directory handling
  00CE  75 03                    	JNZ	NTOAPP		;Brif not open append 
  00D0  E8 03E3 R                	CALL	CHKFOP		;check for file already open 
  00D3                           NTOAPP: 
- 00D3  8D 54 07                 	LEA	DX,DWORD PTR F_FCB[SI]	;[DX] = FCB for DOS
-				 calls 
+ 00D3  8D 54 07                 	LEA	DX,DWORD PTR F_FCB[SI]	;[DX] = FCB for DOS calls 
  00D6  3C 02                    	CMP	AL,LOW OFFSET MD_SQO 
  00D8  75 12                    	JNZ	OPNFIL		;Brif not sequential output 
  00DA  E8 03E3 R                	CALL	CHKFOP		;must be unique 
@@ -987,19 +846,18 @@ OPEN hook for Disk and all Directory handling
  00F4  A0 0000 E                	MOV	AL,BYTE PTR FILMOD	;Mode 
  00F7  3C 08                    	CMP	AL,LOW OFFSET MD_APP 
  00F9  75 04                    	JNZ	NTAPNF		;Brif not append 
- 00FB  B0 02                    	MOV	AL,LOW OFFSET MD_SQO	; else change to seq 
-				output 
+ 00FB  B0 02                    	MOV	AL,LOW OFFSET MD_SQO	; else change to seq output 
  00FD  EB E2                    	JMP	SHORT MAKFIL 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-17
+OPEN hook for Disk and all Directory handling               
+
  00FF                           NTAPNF: 
  00FF  3C 04                    	CMP	AL,LOW OFFSET MD_RND	;If not Random 
  0101  75 02                    	JNZ	ER_FNF		; then File not found error 
  0103  EB DC                    	JMP	SHORT MAKFIL	;and create new 
  0105                           ER_FNF: 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-19
-OPEN hook for Disk and all Directory handling               
-
  0105  E9 0000 E                	JMP	DERFNF		;"File not found" 
  0108                           OPNSET: 
  0108  C7 44 15 0080            	MOV	WORD PTR FCB_RC[SI],128	;Record len = 128 
@@ -1012,53 +870,36 @@ OPEN hook for Disk and all Directory handling
  011C  3C 08                    	CMP	AL,LOW OFFSET MD_APP 
  011E  74 1C                    	JZ	APPFIN		;Brif finish append open 
  0120  3C 01                    	CMP	AL,LOW OFFSET MD_SQI 
- 0122  75 03                    	JNZ	OPNFIN		;If not input get text pointer/exi
-				t 
+ 0122  75 03                    	JNZ	OPNFIN		;If not input get text pointer/exit 
  0124  E8 0356 R                	CALL	$READS		;Read 1st data block into buffer 
- 0127  C7 06 0000 E 0000        OPNFIN:	MOV	WORD PTR FREFDB,0	;file is complete
-				ly open. 
+ 0127  C7 06 0000 E 0000        OPNFIN:	MOV	WORD PTR FREFDB,0	;file is completely open. 
                                 				;FINPRT won't release FDB. 
  012D  C3                       	RET 
  012E                           RNDFIN: 
- 012E  8D BC 00BB               	LEA	DI,DWORD PTR FD_PHY[SI]	;zero FD.PHY, FD.L
-				OG, FD.OPS, sector buffer 
- 0132  B9 0007                  	MOV	CX,OFFSET (FD_DAT-FD_PHY)	;number of bytes
-				 to be cleared 
+ 012E  8D BC 00BB               	LEA	DI,DWORD PTR FD_PHY[SI]	;zero FD.PHY, FD.LOG, FD.OPS, sector buffer 
+ 0132  B9 0007                  	MOV	CX,OFFSET (FD_DAT-FD_PHY)	;number of bytes to be cleared 
  0135  33 C0                    	XOR	AX,AX		;zeros 
  0137  FC                       	CLD			;Set Post-Increment mode 
- 0138  F3/ AA                    REP	STOSB			;zero data buffer and variable cel
-				ls 
+ 0138  F3/ AA                    REP	STOSB			;zero data buffer and variable cells 
  013A  EB EB                    	JMP	SHORT OPNFIN 
                                  
-                                ; Append - Seek to eof, read a sector, find byt
-				e eof, 
-                                ;          correct no. of bytes remaining, fini
-				sh up 
-                                ;          by changing file mode to sequential 
-				output. 
+                                ; Append - Seek to eof, read a sector, find byte eof, 
+                                ;          correct no. of bytes remaining, finish up 
+                                ;          by changing file mode to sequential output. 
  013C                           APPFIN: 
- 013C  39 4C 17                 	CMP	WORD PTR FCB_FS[SI],CX	;Test for empty fil
-				e 
+ 013C  39 4C 17                 	CMP	WORD PTR FCB_FS[SI],CX	;Test for empty file 
  013F  75 0B                    	JNZ	NTZRF1		;Brif file not empty 
  0141  39 4C 19                 	CMP	WORD PTR FCB_FS+2[SI],CX 
  0144  75 06                    	JNZ	NTZRF1 
- 0146  C6 44 06 02              	MOV	BYTE PTR F_MODE[SI],LOW OFFSET MD_SQO	;Cha
-				nge mode to Seq output 
+ 0146  C6 44 06 02              	MOV	BYTE PTR F_MODE[SI],LOW OFFSET MD_SQO	;Change mode to Seq output 
  014A  EB DB                    	JMP	SHORT OPNFIN	; and exit 
  014C                           NTZRF1: 
- 014C  8D 7C 28                 	LEA	DI,DWORD PTR FCB_RN[SI]	;DI points to rand
-				om record# field 
+ 014C  8D 7C 28                 	LEA	DI,DWORD PTR FCB_RN[SI]	;DI points to random record# field 
  014F  56                       	PUSH	SI		;Save FDB pointer 
  0150  83 C6 17                 	ADD	SI,OFFSET FCB_FS	;Move to File Size 
- 0153  F6 04 7F                 	TEST	BYTE PTR 0[SI],LOW 127D	;See if multiple 
-				of 128 
+ 0153  F6 04 7F                 	TEST	BYTE PTR 0[SI],LOW 127D	;See if multiple of 128 
  0156  FC                       	CLD			;Set Post-Inc mode for next 10 lines 
  0157  9C                       	PUSHF			;and remember 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-20
-OPEN hook for Disk and all Directory handling               
-
  0158  AC                       	LODSB			;Get low order of size 
  0159  02 C0                    	ADD	AL,AL		;Rotate hi bit into carry 
  015B  AD                       	LODSW			;Get middle word 
@@ -1066,6 +907,11 @@ OPEN hook for Disk and all Directory handling
  015E  AB                       	STOSW			;Save low word of rec no. 
  015F  AC                       	LODSB			;Get high byte 
  0160  B4 00                    	MOV	AH,LOW 0	;Clear hi byte of rec no. 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-18
+OPEN hook for Disk and all Directory handling               
+
  0162  13 C0                    	ADC	AX,AX		;consider carry 
  0164  AB                       	STOSW			;Store hi word of rec no. 
  0165  9D                       	POPF			;get record flag 
@@ -1079,8 +925,7 @@ OPEN hook for Disk and all Directory handling
  0174                           REDEOF: 
  0174  E8 01D4 R                	CALL	DSKINP		;read until EOF 
  0177  72 07                    	JB	SETSQM		;Brif physical EOF 
- 0179  3C 1A                    	CMP	AL,LOW OFFSET ASCCTZ	;check for logical eo
-				f (ctl Z) 
+ 0179  3C 1A                    	CMP	AL,LOW OFFSET ASCCTZ	;check for logical eof (ctl Z) 
  017B  74 08                    	JZ	SETSQO		;Brif found eof 
  017D  42                       	INC	DX 
  017E  EB F4                    	JMP	SHORT REDEOF 
@@ -1088,16 +933,13 @@ OPEN hook for Disk and all Directory handling
  0180  33 D2                    	XOR	DX,DX		;zero count since next sector 
  0182  E8 0197 R                	CALL	BAKURN		;backup since read to far 
  0185                           SETSQO: 
- 0185  C6 44 06 02              	MOV	BYTE PTR F_MODE[SI],LOW OFFSET MD_SQO	;now
-				 we're Seq output 
+ 0185  C6 44 06 02              	MOV	BYTE PTR F_MODE[SI],LOW OFFSET MD_SQO	;now we're Seq output 
  0189  8D 7C 2D                 	LEA	DI,DWORD PTR F_CLOC[SI] 
  018C  33 C0                    	XOR	AX,AX 
  018E  FC                       	CLD			;Set Post-Increment mode 
  018F  AB                       	STOSW			;zero curloc since empty 
- 0190  88 15                    	MOV	BYTE PTR 0[DI],DL	;store no. of bytes left
-				 
- 0192  88 44 38                 	MOV	BYTE PTR F_POS[SI],AL	;zero print position
-				 
+ 0190  88 15                    	MOV	BYTE PTR 0[DI],DL	;store no. of bytes left 
+ 0192  88 44 38                 	MOV	BYTE PTR F_POS[SI],AL	;zero print position 
  0195  EB 90                    	JMP	SHORT OPNFIN 
  0197                           BAKURN: 
  0197  83 6C 28 01              	SUB	WORD PTR FCB_RN[SI],1	;Random rec no. -1 
@@ -1107,24 +949,15 @@ OPEN hook for Disk and all Directory handling
                                  
                                 	SUBTTL  CLOSE (CLSFIL) hook for Disk files 
                                  
-                                ;DSKCLS - perform any device dependent close fu
-				nctions. 
+                                ;DSKCLS - perform any device dependent close functions. 
                                 ; Entry - SI points to File-Data-Block. 
                                 ; Exit  - All registers used. 
-                                ;         This routine is called before BASIC r
-				eleases the 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-21
-CLOSE (CLSFIL) hook for Disk files                          
-
-                                ;         file-data-block associated with this 
-				file. 
+                                ;         This routine is called before BASIC releases the 
+                                ;         file-data-block associated with this file. 
                                 ; 
  01A1                           DSKCLS: 
  01A1  80 7C 06 02              	CMP	BYTE PTR F_MODE[SI],LOW OFFSET MD_SQO 
- 01A5  75 0E                    	JNE	NOFORC		;Don't dump buffer unless Seq Outp
-				ut 
+ 01A5  75 0E                    	JNE	NOFORC		;Don't dump buffer unless Seq Output 
  01A7  B0 1A                    	MOV	AL,LOW OFFSET ASCCTZ 
  01A9  E8 023F R                	CALL	FILOU4		;Write EOF char 
  01AC  80 7C 2F 00              	CMP	BYTE PTR F_ORCT[SI],LOW 0 
@@ -1133,6 +966,11 @@ CLOSE (CLSFIL) hook for Disk files
  01B5                           NOFORC: 
  01B5  E8 03AC R                	CALL	SETBUF		;Set DMA addr 
  01B8  8D 54 07                 	LEA	DX,DWORD PTR F_FCB[SI]	;[DX] = FCB 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-19
+CLOSE (CLSFIL) hook for Disk files                          
+
                                 	CALLOS	C_CLOS		;Close the file 
  01BF  C3                       	RET 
                                  
@@ -1156,8 +994,7 @@ CLOSE (CLSFIL) hook for Disk files
  01D3  C3                       	RET 
                                  
                                 ;DSKINP - get next byte from file [SI] 
-                                ; Exit  - Carry set if EOF, else [AL]=next byte
-				 from file 
+                                ; Exit  - Carry set if EOF, else [AL]=next byte from file 
                                 ;         All other registers preserved 
                                 ; 
  01D4                           DSKINP: 
@@ -1165,23 +1002,16 @@ CLOSE (CLSFIL) hook for Disk files
  01D8  75 02                    	JNE	SINP1		;Brif not Random 
  01DA  EB 2E                    	JMP	SHORT SINP50	;Do Serial input from random 
  01DC                           SINP1: 
- 01DC  80 7C 06 02              	CMP	BYTE PTR F_MODE[SI],LOW OFFSET MD_SQO	;If 
-				trying input on output file 
+ 01DC  80 7C 06 02              	CMP	BYTE PTR F_MODE[SI],LOW OFFSET MD_SQO	;If trying input on output file 
  01E0  74 24                    	JE	FILLS1		; then give "Input past end" 
  01E2  80 7C 30 00              	CMP	BYTE PTR F_BREM[SI],LOW 0 
  01E6  74 13                    	JE	FILLSQ		;If buffer empty, get another 
  01E8  53                       	PUSH	BX 
  01E9  33 DB                    	XOR	BX,BX 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-22
-Disk Sequential Input                                       
-
  01EB  8A 5C 2F                 	MOV	BL,BYTE PTR F_ORCT[SI] 
  01EE  2A 5C 30                 	SUB	BL,BYTE PTR F_BREM[SI] 
  01F1  FE 4C 30                 	DEC	BYTE PTR F_BREM[SI]	;number left -1 
- 01F4  8A 40 39                 	MOV	AL,BYTE PTR DATOFS[BX+SI]	;Get the charact
-				er 
+ 01F4  8A 40 39                 	MOV	AL,BYTE PTR DATOFS[BX+SI]	;Get the character 
  01F7  5B                       	POP	BX 
  01F8  0A C0                    	OR	AL,AL		;Clear carry 
  01FA  C3                       	RET 
@@ -1195,18 +1025,21 @@ Disk Sequential Input
  0207  B0 1A                    	MOV	AL,LOW OFFSET ASCCTZ	; and EOF character 
  0209  C3                       	RET 
                                  
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-20
+Disk Sequential Input                                       
+
  020A                           SINP50:				;Serial Input from Random File 
  020A  53                       	PUSH	BX 
  020B  E8 0215 R                	CALL	FOVCHK		;Field overflow check 
- 020E  8A 80 00C1               	MOV	AL,BYTE PTR FD_DAT-1[BX+SI]	;Get character
-				 
+ 020E  8A 80 00C1               	MOV	AL,BYTE PTR FD_DAT-1[BX+SI]	;Get character 
  0212  F8                       	CLC 
  0213  5B                       	POP	BX 
  0214  C3                       	RET 
  0215                           FOVCHK: 
  0215  8B 9C 00C0               	MOV	BX,WORD PTR FD_OPS[SI]	;Get current posn 
- 0219  3B 9C 00B9               	CMP	BX,WORD PTR FD_SIZ[SI]	;check for end of f
-				ield 
+ 0219  3B 9C 00B9               	CMP	BX,WORD PTR FD_SIZ[SI]	;check for end of field 
  021D  74 06                    	JE	ER_FOV		;Brif field overflow 
  021F  43                       	INC	BX		;posn +1 
  0220  89 9C 00C0               	MOV	WORD PTR FD_OPS[SI],BX	;store new posn 
@@ -1222,20 +1055,13 @@ Disk Sequential Input
                                 ; Exit  - All registers preserved. 
                                 ; 
  0228                           DSKSOT: 
- 0228  80 7C 06 01              	CMP	BYTE PTR F_MODE[SI],LOW OFFSET MD_SQI	;If 
-				input then must be echoing 
+ 0228  80 7C 06 01              	CMP	BYTE PTR F_MODE[SI],LOW OFFSET MD_SQI	;If input then must be echoing 
  022C  74 2F                    	JZ	FILOUX		; or "Extra ignored", so toss it 
  022E  80 7C 06 04              	CMP	BYTE PTR F_MODE[SI],LOW OFFSET MD_RND 
  0232  75 0B                    	JNZ	FILOU4		;branch if sequential access 
  0234  53                       	PUSH	BX		;Do Serial output to random 
  0235  E8 0215 R                	CALL	FOVCHK		;check for FIELD overflow 
- 0238  88 80 00C1               	MOV	BYTE PTR FD_DAT-1[BX+SI],AL	;store charact
-				er 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-23
-Disk Sequential Output                                      
-
+ 0238  88 80 00C1               	MOV	BYTE PTR FD_DAT-1[BX+SI],AL	;store character 
  023C  5B                       	POP	BX 
  023D  EB 16                    	JMP	SHORT SOUTPS	;Update posn and exit 
  023F                           FILOU4: 
@@ -1245,24 +1071,26 @@ Disk Sequential Output
  0248                           SOUT2: 
  0248  53                       	PUSH	BX 
  0249  33 DB                    	XOR	BX,BX 
- 024B  8A 5C 2F                 	MOV	BL,BYTE PTR F_ORCT[SI]	;[BX] = Buffer offs
-				et 
+ 024B  8A 5C 2F                 	MOV	BL,BYTE PTR F_ORCT[SI]	;[BX] = Buffer offset 
  024E  88 40 39                 	MOV	BYTE PTR DATOFS[BX+SI],AL	;store char 
  0251  5B                       	POP	BX 
  0252  FE 44 2F                 	INC	BYTE PTR F_ORCT[SI] 
  0255                           SOUTPS: 
  0255  3C 0D                    	CMP	AL,LOW OFFSET ASCCR 
  0257  75 05                    	JNE	SOUT3 
- 0259  C6 44 38 00              	MOV	BYTE PTR F_POS[SI],LOW 0	;reset posn on CR
-				 
+ 0259  C6 44 38 00              	MOV	BYTE PTR F_POS[SI],LOW 0	;reset posn on CR 
  025D                           FILOUX: 
  025D  C3                       	RET 
                                  
  025E                           SOUT3: 
  025E  3C 20                    	CMP	AL,LOW " " 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-21
+Disk Sequential Output                                      
+
  0260  F5                       	CMC 
- 0261  80 54 38 00              	ADC	BYTE PTR F_POS[SI],LOW 0	;posn +1  if prin
-				table char 
+ 0261  80 54 38 00              	ADC	BYTE PTR F_POS[SI],LOW 0	;posn +1  if printable char 
  0265  C3                       	RET 
                                  
                                  
@@ -1279,35 +1107,25 @@ Disk Sequential Output
                                 ; Entry  - [AL] = function to be performed: 
                                 ;                 0: get next record 
                                 ;                 1: put next record 
-                                ;                 2: get record [DX] (1-relativ
-				e) 
-                                ;                 3: put record [DX] (1-relativ
-				e) 
+                                ;                 2: get record [DX] (1-relative) 
+                                ;                 3: put record [DX] (1-relative) 
                                 ;          [SI] points to File-Data-Block 
                                 ; Exit   - All registers are used. 
                                 ; 
  026C                           DSKRND: 
  026C  A8 02                    	TEST	AL,LOW OFFSET RELFLG 
  026E  75 07                    	JNZ	RAND1		;Brif not relative I/O 
- 0270  8B 94 00BD               	MOV	DX,WORD PTR FD_LOG[SI]	;[DX] = current log
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-24
-GET and PUT for Disk Files                                  
-
-				ical record 
+ 0270  8B 94 00BD               	MOV	DX,WORD PTR FD_LOG[SI]	;[DX] = current logical record 
  0274  42                       	INC	DX		;Logical +1 
  0275  EB 04                    	JMP	SHORT RAND2 
  0277                           RAND1: 
  0277  0B D2                    	OR	DX,DX		;See if ok 
  0279  7E EB                    	JLE	ER_BRN		;Error if record number .LEQ. 0 
  027B                           RAND2: 
- 027B  89 94 00BD               	MOV	WORD PTR FD_LOG[SI],DX	;Store next logical
-				 
+ 027B  89 94 00BD               	MOV	WORD PTR FD_LOG[SI],DX	;Store next logical 
  027F  4A                       	DEC	DX		;[DX] = current logical 
  0280  C7 84 00C0 0000          	MOV	WORD PTR FD_OPS[SI],0	;Clear output posn 
- 0286  8B 9C 00B9               	MOV	BX,WORD PTR FD_SIZ[SI]	;[BX] = logical rec
-				ord length 
+ 0286  8B 9C 00B9               	MOV	BX,WORD PTR FD_SIZ[SI]	;[BX] = logical record length 
  028A  53                       	PUSH	BX 
  028B  81 FB 0080               	CMP	BX,OFFSET DATPSC	;Logical = Physical? 
  028F  74 16                    	JE	RAND3		;Brif so 
@@ -1325,23 +1143,24 @@ GET and PUT for Disk Files
  02A5  EB 02                    	JMP	SHORT RAND4 
  02A7                           RAND3: 
  02A7  33 DB                    	XOR	BX,BX		;[BX] (offset = 0) 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-22
+GET and PUT for Disk Files                                  
+
                                  
                                 ; [DX] = physical record number 
                                 ; [BX] = offset into physical record 
  02A9                           RAND4: 
  02A9  89 16 0000 E             	MOV	WORD PTR RECRD,DX	;Save record no. 
- 02AD  8D 8C 00C2               	LEA	CX,DWORD PTR FD_DAT[SI]	;[CX] = Field buff
-				er addr 
- 02B1  89 0E 0000 E             	MOV	WORD PTR LBUFF,CX	;Save Logical buffer add
-				r 
+ 02AD  8D 8C 00C2               	LEA	CX,DWORD PTR FD_DAT[SI]	;[CX] = Field buffer addr 
+ 02B1  89 0E 0000 E             	MOV	WORD PTR LBUFF,CX	;Save Logical buffer addr 
  02B5  5A                       	POP	DX		;Get record length 
                                  
-                                ; [DX] = bytes left to transfer (initially reco
-				rd length) 
+                                ; [DX] = bytes left to transfer (initially record length) 
                                 ; [BX] = offset into current record 
  02B6                           NXTOPD: 
- 02B6  8D 4C 39                 	LEA	CX,DWORD PTR DATOFS[SI]	;[CX] = Physical b
-				uffer addr 
+ 02B6  8D 4C 39                 	LEA	CX,DWORD PTR DATOFS[SI]	;[CX] = Physical buffer addr 
  02B9  03 CB                    	ADD	CX,BX		;       + offset 
  02BB  89 0E 0000 E             	MOV	WORD PTR PBUFF,CX	;Save physical offset 
  02BF  B9 0080                  	MOV	CX,OFFSET DATPSC 
@@ -1349,11 +1168,6 @@ GET and PUT for Disk Files
  02C4  3B CA                    	CMP	CX,DX		;want smaller of bufl, recl 
  02C6  72 02                    	JB	DATMOF		;[CX] = left in buffer 
  02C8  8B CA                    	MOV	CX,DX		;[CX] = left in record 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-25
-GET and PUT for Disk Files                                  
-
  02CA                           DATMOF: 
  02CA  A8 01                    	TEST	AL,LOW OFFSET PGFLAG 
  02CC  74 22                    	JZ	FIVDRD		;Brif read (GET) 
@@ -1388,6 +1202,11 @@ GET and PUT for Disk Files
  0302  73 01                    	JNB	EVENPL 
  0304  A4                       	MOVSB 
  0305                           EVENPL: 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-23
+GET and PUT for Disk Files                                  
+
  0305  59                       	POP	CX 
  0306  5E                       	POP	SI 
  0307                           NXFVBF: 
@@ -1405,29 +1224,21 @@ GET and PUT for Disk Files
  0318  0C 04                    	OR	AL,LOW OFFSET DIRFLG	;Set write flag 
  031A  EB 02                    	JMP	SHORT PGSUB1 
  031C                           GETSUB: 
- 031C  24 FB                    	AND	AL,LOW OFFSET 255-DIRFLG	;Clear write flag
-				 (read) 
+ 031C  24 FB                    	AND	AL,LOW OFFSET 255-DIRFLG	;Clear write flag (read) 
  031E                           PGSUB1: 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-26
-GET and PUT for Disk Files                                  
-
  031E  50                       	PUSH	AX 
  031F  53                       	PUSH	BX 
  0320  51                       	PUSH	CX 
  0321  52                       	PUSH	DX 
  0322  8B 1E 0000 E             	MOV	BX,WORD PTR RECRD	;Get record no. 
  0326  43                       	INC	BX 
- 0327  3B 9C 00BB               	CMP	BX,WORD PTR FD_PHY[SI]	;current record in 
-				buffer? 
+ 0327  3B 9C 00BB               	CMP	BX,WORD PTR FD_PHY[SI]	;current record in buffer? 
  032B  75 04                    	JNE	NTREDS		;Brif not 
  032D  A8 04                    	TEST	AL,LOW OFFSET DIRFLG	;Was it read? 
  032F  74 20                    	JZ	PGRET		; then got it 
  0331                           NTREDS: 
  0331  4B                       	DEC	BX 
- 0332  89 5C 2D                 	MOV	WORD PTR F_CLOC[SI],BX	;Set CURLOC to phys
-				ical rec. 
+ 0332  89 5C 2D                 	MOV	WORD PTR F_CLOC[SI],BX	;Set CURLOC to physical rec. 
  0335  C6 44 2F 80              	MOV	BYTE PTR F_ORCT[SI],LOW OFFSET DATPSC 
  0339  C6 44 30 80              	MOV	BYTE PTR F_BREM[SI],LOW OFFSET DATPSC 
  033D  89 5C 28                 	MOV	WORD PTR FCB_RN[SI],BX	;Set record number 
@@ -1450,6 +1261,11 @@ GET and PUT for Disk Files
                                 ; Entry - SI points to FDB 
                                 ; Exit  - [AL] = 0 if no error.  FLAGS used. 
                                 ;         All other registers are preserved 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-24
+Primitive Disk sector I/O routines                          
+
                                 ; 
  0356                           $READS: 
  0356  51                       	PUSH	CX 
@@ -1466,18 +1282,10 @@ GET and PUT for Disk Files
  036E  0A C0                    	OR	AL,AL 
  0370  B0 00                    	MOV	AL,LOW 0	;Len = 0 for EOF 
  0372  75 02                    	JNZ	READ1 
- 0374  B0 80                    	MOV	AL,LOW OFFSET DATPSC	; else len = sector s
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-27
-Primitive Disk sector I/O routines                          
-
-				ize 
+ 0374  B0 80                    	MOV	AL,LOW OFFSET DATPSC	; else len = sector size 
  0376                           READ1: 
- 0376  88 44 2F                 	MOV	BYTE PTR F_ORCT[SI],AL	;Clear offset into 
-				buffer 
- 0379  88 44 30                 	MOV	BYTE PTR F_BREM[SI],AL	;Set number of byte
-				s left 
+ 0376  88 44 2F                 	MOV	BYTE PTR F_ORCT[SI],AL	;Clear offset into buffer 
+ 0379  88 44 30                 	MOV	BYTE PTR F_BREM[SI],AL	;Set number of bytes left 
  037C  0A C0                    	OR	AL,AL		;zero if EOF 
  037E  5F                       	POP	DI 
  037F  59                       	POP	CX 
@@ -1489,8 +1297,7 @@ Primitive Disk sector I/O routines
                                 ; 
  0381                           $WRITS: 
  0381  50                       	PUSH	AX 
- 0382  C6 44 2F 00              	MOV	BYTE PTR F_ORCT[SI],LOW 0	;Clear buffer of
-				fset 
+ 0382  C6 44 2F 00              	MOV	BYTE PTR F_ORCT[SI],LOW 0	;Clear buffer offset 
  0386  E8 03AC R                	CALL	SETBUF		;Set DMA 
  0389  B4 22                    	MOV	AH,LOW OFFSET C_RNDW 
  038B  E8 03B6 R                	CALL	ACCFIL		;Write Random 
@@ -1500,8 +1307,7 @@ Primitive Disk sector I/O routines
  0394  74 13                    	JZ	ER_IOE		;Brif error extending file 
  0396  FE C8                    	DEC	AL 
  0398  75 07                    	JNZ	WRITE1 
- 039A  C6 44 06 01              	MOV	BYTE PTR F_MODE[SI],LOW OFFSET MD_SQI	;So 
-				CLOSE won't give same error 
+ 039A  C6 44 06 01              	MOV	BYTE PTR F_MODE[SI],LOW OFFSET MD_SQI	;So CLOSE won't give same error 
                                 				;when it tries to output CTL-Z EOF 
  039E  E9 0000 E                	JMP	DERDFL		;"Disk Full" 
  03A1                           WRITE1: 
@@ -1514,10 +1320,14 @@ Primitive Disk sector I/O routines
                                  
                                 ;Set OS I/O buffer address to DATOFS(.SI) 
                                 ; 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-25
+Primitive Disk sector I/O routines                          
+
  03AC                           SETBUF: 
  03AC  52                       	PUSH	DX 
- 03AD  8D 54 39                 	LEA	DX,DWORD PTR DATOFS[SI]	;[DX] = Data buffe
-				r addr 
+ 03AD  8D 54 39                 	LEA	DX,DWORD PTR DATOFS[SI]	;[DX] = Data buffer addr 
                                 	CALLOS	C_BUFF 
  03B4  5A                       	POP	DX 
  03B5  C3                       	RET 
@@ -1526,17 +1336,11 @@ Primitive Disk sector I/O routines
  03B6  52                       	PUSH	DX 
  03B7  8D 54 07                 	LEA	DX,DWORD PTR F_FCB[SI]	;[DX] = FCB 
                                 	CALLOS			;Do OS I/O Op 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-28
-Primitive Disk sector I/O routines                          
-
  03BC  FF 44 28                 	INC	WORD PTR FCB_RN[SI]	;Record no. +1 
  03BF  75 03                    	JNZ	ACCFL1 
  03C1  FF 44 2A                 	INC	WORD PTR FCB_RN+2[SI]	;High order +1 
  03C4                           ACCFL1: 
- 03C4  80 FC 22                 	CMP	AH,LOW OFFSET C_RNDW	;Was it Random Write?
-				 
+ 03C4  80 FC 22                 	CMP	AH,LOW OFFSET C_RNDW	;Was it Random Write? 
  03C7  75 12                    	JNE	ACCFL2		;Brif not 
  03C9  0A C0                    	OR	AL,AL		; else map into 1.4 errors 
  03CB  74 14                    	JZ	ACCRET		;Brif no errors 
@@ -1562,8 +1366,7 @@ Primitive Disk sector I/O routines
  0000                           DSEG	ENDS 
                                  
                                 ; Entry: SI points to FDB in question 
-                                ; Exit:  Control returns to DERFAO if file is o
-				pen 
+                                ; Exit:  Control returns to DERFAO if file is open 
                                 ; Uses:  CX,DI 
                                 ; 
  03E3                           CHKFOP: 
@@ -1572,12 +1375,15 @@ Primitive Disk sector I/O routines
  03E8  75 09                    	JNE	NTCRDV 
                                 	CALLOS	C_GDRV 
  03EE  FE C0                    	INC	AL		;Convert A: to 1.. etc. 
- 03F0  88 44 07                 	MOV	BYTE PTR FCB_DV[SI],AL	;Store real drive n
-				o. 
+ 03F0  88 44 07                 	MOV	BYTE PTR FCB_DV[SI],AL	;Store real drive no. 
  03F3                           NTCRDV: 
- 03F3  8B 3E 0000 E             	MOV	DI,WORD PTR FILTAB	;Start with first FDB i
-				n chain 
+ 03F3  8B 3E 0000 E             	MOV	DI,WORD PTR FILTAB	;Start with first FDB in chain 
  03F7                           CHKNFL: 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-26
+CHKFOP - Check for file already OPEN                        
+
  03F7  3B 3E 0000 E             	CMP	DI,WORD PTR STKLOW 
  03FB  74 2D                    	JE	CHKFLX		;branch if at end of FDB chain 
  03FD  3B F7                    	CMP	SI,DI 
@@ -1585,35 +1391,25 @@ Primitive Disk sector I/O routines
  0401  56                       	PUSH	SI 
  0402  57                       	PUSH	DI 
  0403  83 C6 07                 	ADD	SI,OFFSET F_FCB 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-29
-CHKFOP - Check for file already OPEN                        
-
  0406  83 C7 07                 	ADD	DI,OFFSET F_FCB 
  0409  B9 000C                  	MOV	CX,OFFSET FNAML+1 
-                                ;compare filenames, mapping lower case to upper
-				 case 
+                                ;compare filenames, mapping lower case to upper case 
  040C                           CMPLOP: 
- 040C  8A 04                    	MOV	AL,BYTE PTR 0[SI]	;get char from filename1
-				 
+ 040C  8A 04                    	MOV	AL,BYTE PTR 0[SI]	;get char from filename1 
  040E  E8 042C R                	CALL	MAKUPC		;[AL]=uppercase([AL]) 
  0411  8A E0                    	MOV	AH,AL 
- 0413  8A 05                    	MOV	AL,BYTE PTR 0[DI]	;get char from filename2
-				 
+ 0413  8A 05                    	MOV	AL,BYTE PTR 0[DI]	;get char from filename2 
  0415  E8 042C R                	CALL	MAKUPC		;[AL]=uppercase([AL]) 
  0418  3A C4                    	CMP	AL,AH 
  041A  75 07                    	JNE	NTSAME		;branch if not the same filename 
  041C  46                       	INC	SI		;bump filename1 pointer 
  041D  47                       	INC	DI		;bump filename2 pointer 
- 041E  E2 EC                    	LOOP	CMPLOP		;compare all characters in filena
-				mes 
+ 041E  E2 EC                    	LOOP	CMPLOP		;compare all characters in filenames 
  0420  E9 0000 E                	JMP	DERFAO		;error, file already open 
  0423  5F                       NTSAME:	POP	DI 
  0424  5E                       	POP	SI 
  0425                           IGNTFL: 
- 0425  8B 7D 04                 	MOV	DI,WORD PTR F_NEXT[DI]	;get next FDB in ch
-				ain 
+ 0425  8B 7D 04                 	MOV	DI,WORD PTR F_NEXT[DI]	;get next FDB in chain 
  0428  EB CD                    	JMP	SHORT CHKNFL 
  042A                           CHKFLX: 
  042A  58                       	POP	AX 
@@ -1628,8 +1424,7 @@ CHKFOP - Check for file already OPEN
  0436                           NOTLC: 
  0436  C3                       	RET 
                                  
-                                	SUBTTL  DFSTLD - Fast Binary Program Load (fro
-				m DISK) 
+                                	SUBTTL  DFSTLD - Fast Binary Program Load (from DISK) 
                                  
                                 	PUBLIC	DFSTLD 
                                 	EXTRN	OUTLOD:NEAR 
@@ -1639,20 +1434,16 @@ CHKFOP - Check for file already OPEN
                                  
                                 ;DFSTLD - read block of memory from Disk 
                                 ; Entry - [BX] = offset of destination 
-                                ;         [CX] = maximum number of bytes to rea
-				d 
+                                ;         [CX] = maximum number of bytes to read 
                                 ;         [DX] = data segment of destinanation 
-                                ;         PTRFIL points to FDB of file to be lo
-				aded 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-30
+                                ;         PTRFIL points to FDB of file to be loaded 
+                                ; Exit  - BX points 1 byte beyond last byte read 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-27
 DFSTLD - Fast Binary Program Load (from DISK)               
 
-                                ; Exit  - BX points 1 byte beyond last byte rea
-				d 
-                                ;         Carry set reached end-of-file before 
-				CX bytes were read 
+                                ;         Carry set reached end-of-file before CX bytes were read 
                                 ; 
  0437                           DFSTLD: 
  0437  53                       	PUSH	BX		;save start adr 
@@ -1660,14 +1451,11 @@ DFSTLD - Fast Binary Program Load (from DISK)
  0439  1E                       	PUSH	DS		;save BASIC's Data Segment adr 
  043A  53                       	PUSH	BX		;save start adr 
  043B  52                       	PUSH	DX		;save block read Data Segment adr 
- 043C  8B 36 0000 E             	MOV	SI,WORD PTR PTRFIL	;SI points to current F
-				DB 
+ 043C  8B 36 0000 E             	MOV	SI,WORD PTR PTRFIL	;SI points to current FDB 
  0440  8A 44 2F                 	MOV	AL,BYTE PTR F_ORCT[SI] 
- 0443  2A 44 30                 	SUB	AL,BYTE PTR F_BREM[SI]	;[AL]=# bytes read 
-				so far 
+ 0443  2A 44 30                 	SUB	AL,BYTE PTR F_BREM[SI]	;[AL]=# bytes read so far 
  0446  88 44 28                 	MOV	BYTE PTR FCB_RN[SI],AL	;set next rec # 
- 0449  C7 44 15 0001            	MOV	WORD PTR FCB_RC[SI],1	;Set File logical re
-				cord size = 1 byte 
+ 0449  C7 44 15 0001            	MOV	WORD PTR FCB_RC[SI],1	;Set File logical record size = 1 byte 
  044E  1F                       	POP	DS		;[DS]=segment adr of block read 
  044F  5A                       	POP	DX		;[DX]=start adr 
                                 	CALLOS	C_BUFF		;Set DMA to TXTTAB 
@@ -1676,19 +1464,16 @@ DFSTLD - Fast Binary Program Load (from DISK)
  0458  59                       	POP	CX		;[CX]=max number of bytes to read 
                                 	CALLOS	C_RBR		;Load the Program! 
  045D  5B                       	POP	BX		;BX points to start of load 
- 045E  03 D9                    	ADD	BX,CX		;BX points 1 byte beyond last byte 
-				read 
+ 045E  03 D9                    	ADD	BX,CX		;BX points 1 byte beyond last byte read 
  0460  3C 01                    	CMP	AL,LOW 1 
  0462  F5                       	CMC			;set carry if [AL] exceeds 1 (EOF) 
  0463  C3                       	RET 
                                  
                                 	SUBTTL  PROSAV - Protected SAVE 
                                 	PUBLIC	PROSAV,CMPFBC 
-                                	EXTRN	SCCPTR:NEAR,GTMPRT:NEAR,BINPSV:NEAR,$EXP
-				CN:NEAR,$LOGP:NEAR 
+                                	EXTRN	SCCPTR:NEAR,GTMPRT:NEAR,BINPSV:NEAR,$EXPCN:NEAR,$LOGP:NEAR 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-                                	EXTRN	TXTTAB:WORD,VARTAB:WORD,CURLIN:WORD,PROF
-				LG:WORD,TEMP:WORD 
+                                	EXTRN	TXTTAB:WORD,VARTAB:WORD,CURLIN:WORD,PROFLG:WORD,TEMP:WORD 
  0000                           DSEG	ENDS 
                                  
  0464  E8 0000 E                PROSAV:	CALL	CHRGTR		;skip "P" 
@@ -1700,26 +1485,23 @@ DFSTLD - Fast Binary Program Load (from DISK)
  0476  E8 04DC R                	CALL	PDECOD		;Decode binary 
  0479  E9 0000 E                	JMP	GTMPRT		;return to NEWSTT 
                                  
- 047C  BB 00B9                  GETFSZ:	MOV	BX,OFFSET FD_SIZ	;Point to record s
-				ize 
+ 047C  BB 00B9                  GETFSZ:	MOV	BX,OFFSET FD_SIZ	;Point to record size 
  047F  EB 03                    	JMP	SHORT GETFP1	;Continue 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-31
-PROSAV - Protected SAVE                                     
-
- 0481  BB 00C0                  GETFPS:	MOV	BX,OFFSET FD_OPS	;Point to output p
-				osition 
+ 0481  BB 00C0                  GETFPS:	MOV	BX,OFFSET FD_OPS	;Point to output position 
  0484  03 D9                    GETFP1:	ADD	BX,CX		;Add offset into buffer 
  0486  8B 17                    	MOV	DX,WORD PTR 0[BX]	;Get value 
  0488  C3                       	RET 
                                  
- 0489  8B CB                    CMPFBC:	MOV	CX,BX		;Copy file data block into [
-				CX] 
+ 0489  8B CB                    CMPFBC:	MOV	CX,BX		;Copy file data block into [CX] 
  048B  E8 0481 R                CMPFPS:	CALL	GETFPS		;Get present posit 
  048E  52                       	PUSH	DX		;Save it 
  048F  E8 047C R                	CALL	GETFSZ		;Get file size 
  0492  8B DA                    	MOV	BX,DX		;into [BX] 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-28
+PROSAV - Protected SAVE                                     
+
  0494  5A                       	POP	DX		;Get back posit 
  0495  3B DA                    	CMP	BX,DX		;See if were at end 
  0497  C3                       RET12:	RET 
@@ -1728,8 +1510,7 @@ PROSAV - Protected SAVE
  = 000D                         	N2=13D			;Number of bytes to use from SINCON 
                                  
                                 	PUBLIC	PENCOD 
- 0498  B9 0D0B                  PENCOD:	MOV	CX,OFFSET N1+N2*256D	;Initialize bo
-				th counters 
+ 0498  B9 0D0B                  PENCOD:	MOV	CX,OFFSET N1+N2*256D	;Initialize both counters 
  049B  8B 1E 0000 E             	MOV	BX,WORD PTR TXTTAB	;Starting point 
  049F  8B D3                    	MOV	DX,BX		;Into [DX] 
  04A1  8B 1E 0000 E             ENCDBL:	MOV	BX,WORD PTR VARTAB	;At end? 
@@ -1762,16 +1543,10 @@ PROSAV - Protected SAVE
  04D4  FE CD                    CNTZER:	DEC	CH		;dedecrement counter-2 
  04D6  75 C9                    	JNZ	ENCDBL		;Still non-zero, go for more 
  04D8  B5 0D                    	MOV	CH,LOW OFFSET N2	;Re-initialize counter 2 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-32
-PROSAV - Protected SAVE                                     
-
  04DA  EB C5                    	JMP	SHORT ENCDBL	;Keep going until done 
                                 	PUBLIC	PROLOD 
  04DC                           PROLOD: 
- 04DC  B9 0D0B                  PDECOD:	MOV	CX,OFFSET N1+N2*256	;Initialize bot
-				h counters 
+ 04DC  B9 0D0B                  PDECOD:	MOV	CX,OFFSET N1+N2*256	;Initialize both counters 
  04DF  8B 1E 0000 E             	MOV	BX,WORD PTR TXTTAB	;Starting point 
  04E3  8B D3                    	MOV	DX,BX		;Into [D,E] 
  04E5  8B 1E 0000 E             DECDBL:	MOV	BX,WORD PTR VARTAB	;At end? 
@@ -1781,6 +1556,11 @@ PROSAV - Protected SAVE
  04F0  8A C5                    	MOV	AL,CH 
  04F2  98                       	CBW 
  04F3  03 D8                    	ADD	BX,AX 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-29
+PROSAV - Protected SAVE                                     
+
  04F5  8B F2                    	MOV	SI,DX 
  04F7  FC                       	CLD			;Set Post-Increment mode 
  04F8  AC                       	LODSB			;[AL]=byte from program 
@@ -1802,8 +1582,7 @@ PROSAV - Protected SAVE
  0514  75 02                    	JNZ	CNTZR2		;Still non-Zero 
  0516  B1 0B                    	MOV	CL,LOW OFFSET N1	;Re-initialize counter 1 
  0518  FE CD                    CNTZR2:	DEC	CH 
- 051A  75 C9                    	JNZ	DECDBL		;Decrement counter-2, Still non-ze
-				ro, go for more 
+ 051A  75 C9                    	JNZ	DECDBL		;Decrement counter-2, Still non-zero, go for more 
  051C  B5 0D                    	MOV	CH,LOW OFFSET N2	;Re-initialize counter 2 
  051E  EB C5                    	JMP	SHORT DECDBL	;Keep going until done 
                                  
@@ -1816,65 +1595,51 @@ PROSAV - Protected SAVE
  0529  C3                       	RET 
                                  
  052A  9C                       PROCHK:	PUSHF			;Save flags 
- 052B  A0 0000 E                	MOV	AL,BYTE PTR PROFLG	;Is this a protected fi
-				le? 
+ 052B  A0 0000 E                	MOV	AL,BYTE PTR PROFLG	;Is this a protected file? 
  052E  0A C0                    	OR	AL,AL		;Set CC's 
  0530  75 02                    	JNZ	FCERRA		;Yes, give error 
  0532  9D                       	POPF			;Restore flags 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-33
-PROSAV - Protected SAVE                                     
-
  0533  C3                       	RET 
                                  
  0534  E9 0000 E                FCERRA:	JMP	FCERR 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-34
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-30
 PROSAV - Protected SAVE                                     
 
                                 	PAGE 
                                 	SUBTTL  KILL, FILES, NAME commands 
                                  
                                 	PUBLIC	FILES,KILL,NAME 
-                                	EXTRN	FRMEVL:NEAR,FRESTR:NEAR,CRDO:NEAR,POLKEY
-				:NEAR 
+                                	EXTRN	FRMEVL:NEAR,FRESTR:NEAR,CRDO:NEAR,POLKEY:NEAR 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	LINLEN:WORD,BUF:WORD 
  0000                           DSEG	ENDS 
                                  
                                 ;Assumptions: 
-                                ; FILNAM and FILNA2 are 33 byte buffers (for te
-				mp FCBs) 
+                                ; FILNAM and FILNA2 are 33 byte buffers (for temp FCBs) 
                                  
                                 ;FILES [ filename ] 
                                 ; FILES command [List the Directory] 
-                                ; If filename is omitted, all files on the logg
-				ed 
+                                ; If filename is omitted, all files on the logged 
                                 ; disk are listed. 
-                                ; If supplied, all files matching filename or w
-				ildcards 
+                                ; If supplied, all files matching filename or wildcards 
                                 ; are listed. 
                                 ; 
  0537                           FILES: 
  0537  74 17                    	JE	NOARG		;Brif no filename argument given 
- 0539  E8 0655 R                	CALL	NAMFIL		;[SI] points to 1st byte of filen
-				ame 
+ 0539  E8 0655 R                	CALL	NAMFIL		;[SI] points to 1st byte of filename 
                                 				;[CX] = number of bytes in filename 
  053C  80 F9 02                 	CMP	CL,LOW 2 
  053F  75 23                    	JNE	GOTNAM		;branch if not "<drive>:" 
  0541  8B 04                    	MOV	AX,WORD PTR 0[SI]	;[AX]=filename 
  0543  80 FC 3A                 	CMP	AH,LOW ":" 
  0546  75 1C                    	JNE	GOTNAM		;branch if not "<drive>:" 
- 0548  BE 0002 E                	MOV	SI,OFFSET FILNA2+2	;[SI] points to buffer 
-				for building filename 
- 054B  A3 0000 E                	MOV	WORD PTR FILNA2,AX	;Store <drive>: in file
-				name buffer 
+ 0548  BE 0002 E                	MOV	SI,OFFSET FILNA2+2	;[SI] points to buffer for building filename 
+ 054B  A3 0000 E                	MOV	WORD PTR FILNA2,AX	;Store <drive>: in filename buffer 
  054E  EB 05                    	JMP	SHORT ALFILS	;append "*.*" to name 
  0550                           NOARG: 
- 0550  BE 0000 E                	MOV	SI,OFFSET FILNA2	;[SI] points to buffer fo
-				r building filename 
+ 0550  BE 0000 E                	MOV	SI,OFFSET FILNA2	;[SI] points to buffer for building filename 
  0553  33 C9                    	XOR	CX,CX 
  0555                           ALFILS: 
  0555  C7 04 2E2A               	MOV	WORD PTR 0[SI],OFFSET (400O*".")+"*" 
@@ -1882,34 +1647,30 @@ PROSAV - Protected SAVE
  055E  83 C1 03                 	ADD	CX,3		;[CX] = number of bytes in filename 
  0561  BE 0000 E                	MOV	SI,OFFSET FILNA2	;[SI] points to filename 
  0564                           GOTNAM: 
- 0564  E8 066A R                	CALL	FILFCB		;FILNAM=un-opened FCB for filenam
-				e 
- 0567  BA 0000 E                	MOV	DX,OFFSET FILNA2	;tells OS to put FCB for 
-				matching directory 
+ 0564  E8 066A R                	CALL	FILFCB		;FILNAM=un-opened FCB for filename 
+ 0567  BA 0000 E                	MOV	DX,OFFSET FILNA2	;tells OS to put FCB for matching directory 
                                 	CALLOS	C_BUFF		; entries in FILNA2 
  056E  8B D7                    	MOV	DX,DI		;[DX] = search FCB (FILNAM) 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-35
-KILL, FILES, NAME commands                                  
-
                                 	CALLOS	C_SEAR		;Search 1st 
  0574  FE C0                    	INC	AL 
  0576  75 03                    	JNZ	FILNXT		;Brif found 
  0578  E9 0000 E                	JMP	DERFNF		; else complain 
  057B                           FILNXT: 
- 057B  E8 0000 E                	CALL	POLKEY		;Allow CTL-C, CTL-S between every
-				 filename 
+ 057B  E8 0000 E                	CALL	POLKEY		;Allow CTL-C, CTL-S between every filename 
  057E  BE 0001 E                	MOV	SI,OFFSET FILNA2+1	;Point at name 
  0581  B9 000B                  	MOV	CX,OFFSET FNAML	;Characters in name 
  0584                           MORNAM: 
  0584  FC                       	CLD			;Set Post-Increment mode 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-31
+KILL, FILES, NAME commands                                  
+
  0585  AC                       	LODSB			;Get character 
  0586  E8 0000 E                	CALL	OUTDO		;Output it 
  0589  83 F9 04                 	CMP	CX,4 
  058C  75 0B                    	JNE	NOTEXT		;Not at extension break 
- 058E  8A 04                    	MOV	AL,BYTE PTR 0[SI]	;Get 1st char of extensi
-				on 
+ 058E  8A 04                    	MOV	AL,BYTE PTR 0[SI]	;Get 1st char of extension 
  0590  3C 20                    	CMP	AL,LOW " " 
  0592  74 02                    	JE	PRISPA		;Blank extension - print space 
  0594  B0 2E                    	MOV	AL,LOW "."	;Print . 
@@ -1931,31 +1692,22 @@ KILL, FILES, NAME commands
  05B0                           NWFILN: 
  05B0  E8 0000 E                	CALL	CRDO		;Type CR/LF 
  05B3                           NEXTFL: 
- 05B3  BA 0000 E                	MOV	DX,OFFSET FILNAM	;[DX] points to search te
-				mplate 
+ 05B3  BA 0000 E                	MOV	DX,OFFSET FILNAM	;[DX] points to search template 
  05B6  32 C0                    	XOR	AL,AL 
                                 	CALLOS	C_SEAR+1	;Search next 
  05BC  3C FF                    	CMP	AL,LOW 255D 
  05BE  75 BB                    	JNE	FILNXT		;branch if still more 
                                 EXTRN	CRDONZ:NEAR 
- 05C0  E9 0000 E                	JMP	CRDONZ		;carriage return if not in column 
-				0 
+ 05C0  E9 0000 E                	JMP	CRDONZ		;carriage return if not in column 0 
                                  
                                 ;KILL filename 
                                 ; Entry - [BX] = text pointer 
                                 ; Exit -  [BX] = text pointer 
                                 ; 
  05C3                           KILL: 
- 05C3  E8 0655 R                	CALL	NAMFIL		;[SI] points to 1st byte of filen
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-36
-KILL, FILES, NAME commands                                  
-
-				ame 
+ 05C3  E8 0655 R                	CALL	NAMFIL		;[SI] points to 1st byte of filename 
                                 				;[CX] = number of bytes in filename 
- 05C6  E8 066A R                	CALL	FILFCB		;FILNAM=un-opened FCB for filenam
-				e 
+ 05C6  E8 066A R                	CALL	FILFCB		;FILNAM=un-opened FCB for filename 
  05C9  53                       	PUSH	BX		;save text pointer 
  05CA  BA 0000 E                	MOV	DX,OFFSET FILNAM 
  05CD  52                       	PUSH	DX		;Save FCB pointer 
@@ -1966,10 +1718,13 @@ KILL, FILES, NAME commands
  05D9  5A                       KILL2:	POP	DX		;DX points to FCB 
  05DA  52                       	PUSH	DX 
                                 	CALLOS	C_CLOS		;Close file 
- 05DF  BE FFF9 E                	MOV	SI,OFFSET FILNAM-F_FCB	;Pretend we are FDB
-				 
- 05E2  E8 03E3 R                	CALL	CHKFOP		;Check for conflict with open fil
-				es 
+ 05DF  BE FFF9 E                	MOV	SI,OFFSET FILNAM-F_FCB	;Pretend we are FDB 
+ 05E2  E8 03E3 R                	CALL	CHKFOP		;Check for conflict with open files 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-32
+KILL, FILES, NAME commands                                  
+
                                 				;jumps to error if file is now opened 
  05E5  5A                       	POP	DX		;DX points to FCB 
                                 	CALLOS	C_DELE		;Delete file 
@@ -1981,70 +1736,54 @@ KILL, FILES, NAME commands
                                 ; Exit  - [BX] = text pointer 
                                 ; 
  05EC                           NAME: 
- 05EC  E8 0655 R                	CALL	NAMFIL		;[SI] points to 1st byte of old f
-				ilename 
+ 05EC  E8 0655 R                	CALL	NAMFIL		;[SI] points to 1st byte of old filename 
                                 				;[CX] = number of bytes in filename 
  05EF  53                       	PUSH	BX		;save text pointer 
- 05F0  E8 066A R                	CALL	FILFCB		;FILNAM=un-opened FCB for old fil
-				ename 
- 05F3  BA 0000 E                	MOV	DX,OFFSET FILNA2	;tells OS to put FCB for 
-				matching directory 
+ 05F0  E8 066A R                	CALL	FILFCB		;FILNAM=un-opened FCB for old filename 
+ 05F3  BA 0000 E                	MOV	DX,OFFSET FILNA2	;tells OS to put FCB for matching directory 
                                 	CALLOS	C_BUFF		; entries in FILNA2 
  05FA  8B D7                    	MOV	DX,DI		;[DX] = search FCB (FILNAM) 
                                 	CALLOS	C_SEAR		;Search 1st 
  0600  FE C0                    	INC	AL 
  0602  74 4B                    	JZ	NA_FNF		;File not found 
- 0604  BE FFF9 E                	MOV	SI,OFFSET FILNAM-F_FCB	;Pretend we are FDB
-				 
- 0607  E8 03E3 R                	CALL	CHKFOP		;Check for conflict with open fil
-				es 
+ 0604  BE FFF9 E                	MOV	SI,OFFSET FILNAM-F_FCB	;Pretend we are FDB 
+ 0607  E8 03E3 R                	CALL	CHKFOP		;Check for conflict with open files 
                                 				;jumps to error if file is now opened 
- 060A  BE 0000 E                	MOV	SI,OFFSET FILNAM	;save old filename in FIL
-				NA2 
+ 060A  BE 0000 E                	MOV	SI,OFFSET FILNAM	;save old filename in FILNA2 
  060D  BF 0000 E                	MOV	DI,OFFSET FILNA2 
  0610  B9 000C                  	MOV	CX,OFFSET FNAML+1	;+1 for drive 
  0613  FC                       	CLD			;Set Post-Increment mode 
- 0614  F3/ A4                    REP	MOVSB			;Move drive,name,ext from FILNAM t
-				o FILNA2 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-37
-KILL, FILES, NAME commands                                  
-
+ 0614  F3/ A4                    REP	MOVSB			;Move drive,name,ext from FILNAM to FILNA2 
  0616  5B                       	POP	BX		;text pointer 
  0617  E8 0000 E                	CALL	SYNCHR 
  061A  41                       	DB	OFFSET "A"	; must see "AS" 
  061B  E8 0000 E                	CALL	SYNCHR 
  061E  53                       	DB	OFFSET "S" 
- 061F  E8 0655 R                	CALL	NAMFIL		;[SI] points to 1st byte of newfi
-				lename 
+ 061F  E8 0655 R                	CALL	NAMFIL		;[SI] points to 1st byte of newfilename 
                                 				;[CX] = number of bytes in filename 
  0622  53                       	PUSH	BX		;text pointer 
- 0623  E8 066A R                	CALL	FILFCB		;FILNAM=un-opened FCB for new fil
-				ename 
- 0626  A0 0000 E                	MOV	AL,BYTE PTR FILNAM	;[AL]=drive for New fil
-				ename 
+ 0623  E8 066A R                	CALL	FILFCB		;FILNAM=un-opened FCB for new filename 
+ 0626  A0 0000 E                	MOV	AL,BYTE PTR FILNAM	;[AL]=drive for New filename 
  0629  0A C0                    	OR	AL,AL		;test drive id of New filename 
  062B  74 09                    	JZ	SAMDRV		;branch if default drive 
- 062D  3A 06 0000 E             	CMP	AL,BYTE PTR FILNA2	;Compare with drive of 
-				original name 
- 0631  74 03                    	JZ	SAMDRV		;branch if both drives are the same
-				 
+ 062D  3A 06 0000 E             	CMP	AL,BYTE PTR FILNA2	;Compare with drive of original name 
+ 0631  74 03                    	JZ	SAMDRV		;branch if both drives are the same 
                                 EXTRN	DERRAD:NEAR 
  0633  E9 0000 E                	JMP	DERRAD		;Rename Across Disks Error 
  0636                           SAMDRV: 
- 0636  BE 0001 E                	MOV	SI,OFFSET FILNAM+1	;move new filename,ext 
-				to FILNA2+17 
- 0639  BF 0011 E                	MOV	DI,OFFSET FILNA2+17D	;[DI] = dest for new 
-				file name 
+ 0636  BE 0001 E                	MOV	SI,OFFSET FILNAM+1	;move new filename,ext to FILNA2+17 
+ 0639  BF 0011 E                	MOV	DI,OFFSET FILNA2+17D	;[DI] = dest for new file name 
  063C  B9 000B                  	MOV	CX,OFFSET FNAML	;No drive code 
  063F  FC                       	CLD			;Set Post-Increment mode 
  0640  F3/ A4                    REP	MOVSB			;Move name 
- 0642  BA 0000 E                	MOV	DX,OFFSET FILNA2	;Point to FCB which conta
-				ins both filenames 
+ 0642  BA 0000 E                	MOV	DX,OFFSET FILNA2	;Point to FCB which contains both filenames 
                                 	CALLOS	C_RENA		;Rename file 
- 0649  FE C0                    	INC	AL		;error if attempted to create file whi
-				ch 
+ 0649  FE C0                    	INC	AL		;error if attempted to create file which 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-33
+KILL, FILES, NAME commands                                  
+
  064B  74 05                    	JE	NA_FAE		; already existed 
  064D  5B                       	POP	BX		;text pointer 
  064E  C3                       	RET 
@@ -2052,24 +1791,17 @@ KILL, FILES, NAME commands
  064F  E9 0000 E                NA_FNF:	JMP	DERFNF		;file not found 
  0652  E9 0000 E                NA_FAE:	JMP	DERFAE		;file already exists 
                                  
-                                ;NAMFIL - Scan a file name for NAME, KILL, or F
-				ILES command 
+                                ;NAMFIL - Scan a file name for NAME, KILL, or FILES command 
                                 ; Entry - [BX] = text pointer 
                                 ; Exit  - [BX] = text pointer 
                                 ;         [SI] points to 1st byte of filename 
-                                ;         [CX] = number of bytes in filename st
-				ring 
+                                ;         [CX] = number of bytes in filename string 
                                 ; Uses  - [AX] 
                                 ; 
  0655                           NAMFIL: 
  0655  E8 0000 E                	CALL	FRMEVL		;Evaluate string 
  0658  53                       	PUSH	BX		;save text pointer 
  0659  E8 0000 E                	CALL	FRESTR		;Free the temp 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-38
-KILL, FILES, NAME commands                                  
-
  065C  8A 0F                    	MOV	CL,BYTE PTR 0[BX] 
  065E  32 ED                    	XOR	CH,CH		;[CX] = String len 
  0660  E3 05                    	JCXZ	ER_NMF		;If null then bad name 
@@ -2079,83 +1811,59 @@ KILL, FILES, NAME commands
                                  
  0667  E9 0000 E                ER_NMF:	JMP	DERNMF		;"Bad file name" 
                                  
-                                ;FILFCB - Given filename "d:name:ext", create a
-				n un-opened FCB 
+                                ;FILFCB - Given filename "d:name:ext", create an un-opened FCB 
                                 ; Entry - [SI] = points 1st byte of filename 
-                                ;         [CX] = number of bytes in filename st
-				ring 
-                                ; Exit  - FILNAM is un-opened FCB equivalent fo
-				r filename 
-                                ;         [DI] points to 1st byte of FCB FILNAM
-				 
-                                ;         [AL] = FF if illegal drive or filenam
-				e, 
-                                ;                 1 if filename contained any "
-				?" or "*" characters 
+                                ;         [CX] = number of bytes in filename string 
+                                ; Exit  - FILNAM is un-opened FCB equivalent for filename 
+                                ;         [DI] points to 1st byte of FCB FILNAM 
+                                ;         [AL] = FF if illegal drive or filename, 
+                                ;                 1 if filename contained any "?" or "*" characters 
                                 ;                 0 otherwise 
                                 ; Uses  - BUF 
                                 ; 
  066A                           FILFCB: 
- 066A  BF 0000 E                	MOV	DI,OFFSET BUF	;move filename to BUF buffer
-				 
+ 066A  BF 0000 E                	MOV	DI,OFFSET BUF	;move filename to BUF buffer 
  066D  FC                       	CLD			;Set Post-Increment mode 
                                  
- 066E  32 E4                    STRTNM:	XOR	AH,AH		;Count of chars in name port
-				ion:=0. 
+ 066E  32 E4                    STRTNM:	XOR	AH,AH		;Count of chars in name portion:=0. 
  0670  0B C9                    NAMORE:	OR	CX,CX		;Anything left? 
- 0672  74 26                    	JE	TRMSTR		;No, go terminate the string in BUF
-				. 
- 0674  8A 04                    	MOV	AL,BYTE PTR 0[SI]	;Yes, AL:=get next char 
-				of string. 
+ 0672  74 26                    	JE	TRMSTR		;No, go terminate the string in BUF. 
+ 0674  8A 04                    	MOV	AL,BYTE PTR 0[SI]	;Yes, AL:=get next char of string. 
  0676  A4                       	MOVSB			;Copy it to BUF. 
  0677  49                       	DEC	CX		;Decrement the length. 
- 0678  3C 3A                    	CMP	AL,LOW ":"	;Colon indicating we were looki
-				ng at a 
+ 0678  3C 3A                    	CMP	AL,LOW ":"	;Colon indicating we were looking at a 
                                 				;device name? 
- 067A  74 F2                    	JE	STRTNM		;Yes, restart the count since we ar
-				e now 
+ 067A  74 F2                    	JE	STRTNM		;Yes, restart the count since we are now 
                                 				;looking at the filename. 
- 067C  3C 2E                    	CMP	AL,LOW "."	;No, dot indicating start of ex
-				tension? 
+ 067C  3C 2E                    	CMP	AL,LOW "."	;No, dot indicating start of extension? 
  067E  74 14                    	JE	FINNAM		;Yes, end of name. 
- 0680  3C 2A                    	CMP	AL,LOW "*"	;The asterisk wild card also te
-				rminates the 
- 0682  74 10                    	JE	FINNAM		;name for our purposes. 
- 0684  80 FC 08                 	CMP	AH,LOW 8D	;Have we already seen 8 name cha
-				racters? 
- 0687  73 04                    	JAE	LNGNAM		;Yes, the excess chars become the 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-39
+ 0680  3C 2A                    	CMP	AL,LOW "*"	;The asterisk wild card also terminates the 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-34
 KILL, FILES, NAME commands                                  
 
-				extension. 
- 0689  FE C4                    	INC	AH		;No, increment the name character coun
-				t. 
+ 0682  74 10                    	JE	FINNAM		;name for our purposes. 
+ 0684  80 FC 08                 	CMP	AH,LOW 8D	;Have we already seen 8 name characters? 
+ 0687  73 04                    	JAE	LNGNAM		;Yes, the excess chars become the extension. 
+ 0689  FE C4                    	INC	AH		;No, increment the name character count. 
  068B  EB E3                    	JMP	SHORT NAMORE	;Go look at the next char. 
                                  
- 068D  C6 45 FF 2E              LNGNAM:	MOV	BYTE PTR -1[DI],LOW "."	;Put in the
-				 dot so the extra chars look 
+ 068D  C6 45 FF 2E              LNGNAM:	MOV	BYTE PTR -1[DI],LOW "."	;Put in the dot so the extra chars look 
  0691  88 05                    	MOV	BYTE PTR 0[DI],AL	;like an extension. 
  0693  47                       	INC	DI 
  0694  0B C9                    FINNAM:	OR	CX,CX		;Anything left? 
- 0696  74 02                    	JE	TRMSTR		;No, terminate the string.  (Avoid 
-				REP with 
+ 0696  74 02                    	JE	TRMSTR		;No, terminate the string.  (Avoid REP with 
                                                      ;a zero count.) 
- 0698  F3/ A4                    REP	MOVSB			;Copy the remainder of the string 
-				to BUF. 
- 069A  C6 05 00                 TRMSTR:	MOV	BYTE PTR 0[DI],LOW 0	;store string 
-				terminator 
- 069D  BE 0000 E                	MOV	SI,OFFSET BUF	;parse 0 terminated filename
-				 in BUF 
+ 0698  F3/ A4                    REP	MOVSB			;Copy the remainder of the string to BUF. 
+ 069A  C6 05 00                 TRMSTR:	MOV	BYTE PTR 0[DI],LOW 0	;store string terminator 
+ 069D  BE 0000 E                	MOV	SI,OFFSET BUF	;parse 0 terminated filename in BUF 
  06A0  BF 0000 E                	MOV	DI,OFFSET FILNAM	; filling FDB FILNAM 
  06A3  32 C0                    	XOR	AL,AL		; don't skip any separators 
                                 	CALLOS	C_PARS 
  06A9  0A C0                    	OR	AL,AL		;test for legal filename 
- 06AB  75 09                    	JNE	FLFCBX		;branch if error or non-empty file
-				name 
- 06AD  80 3E 0001 E 20          	CMP	BYTE PTR FILNAM+1,LOW " "	;test 1st byte o
-				f filename 
+ 06AB  75 09                    	JNE	FLFCBX		;branch if error or non-empty filename 
+ 06AD  80 3E 0001 E 20          	CMP	BYTE PTR FILNAM+1,LOW " "	;test 1st byte of filename 
  06B2  75 02                    	JNE	FLFCBX		;branch if non-empty filename 
  06B4  FE C8                    	DEC	AL		;[AL] = FF (illegal filename) 
  06B6                           FLFCBX: 
@@ -2183,32 +1891,29 @@ KILL, FILES, NAME commands
  06CE  C3                       	RET 
                                  
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
-GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-40
-RESET and SYSTEM statements                                 
-
                                 ; SYSTEM - Exit BASIC 
                                  
                                 	PUBLIC	SYSTEM,SYSTME 
                                  
                                 	EXTRN	GWTERM:NEAR 
                                  
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
+GIODSK - BASIC-86 Generalized I/O Disk Driver               Page     1-35
+RESET and SYSTEM statements                                 
+
  06CF                           SYSTEM: 
  06CF  75 FD                    	JNZ	RESETX		;If wasn't EOS 
  06D1  E8 0000 E                	CALL	CLSALL		;Close all files 
  06D4                           SYSTME: 
                                 EXTRN	GIOTRM:NEAR 
- 06D4  E8 0000 E                	CALL	GIOTRM		;call device termination routines
-				 
- 06D7  E8 0000 E                	CALL	GWTERM		;Do OEM specific termination proc
-				essing 
+ 06D4  E8 0000 E                	CALL	GIOTRM		;call device termination routines 
+ 06D7  E8 0000 E                	CALL	GWTERM		;Do OEM specific termination processing 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	CPMEXT:WORD	;MSDOS exit jump vector. 
  0000                           DSEG	ENDS 
                                 ;translator can't handle JMPI ,adr yet 
- 06DA  FF 36 0002 E             	PUSH	WORD PTR CPMEXT+2	;put segment adr on sta
-				ck 
+ 06DA  FF 36 0002 E             	PUSH	WORD PTR CPMEXT+2	;put segment adr on stack 
  06DE  FF 36 0000 E             	PUSH	WORD PTR CPMEXT	;put offset on stack 
  06E2                           dumy  PROC    FAR 
  06E2  CB                       	RET			;intra-segment return 
@@ -2217,8 +1922,8 @@ RESET and SYSTEM statements
  06E3                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
 GIODSK - BASIC-86 Generalized I/O Disk Driver               Symbols-1
                                                              
 
@@ -2276,8 +1981,8 @@ ASCLF  . . . . . . . . . . . . .  	Number	000A
 ASCSPC . . . . . . . . . . . . .  	Number	0020	
 ASCTAB . . . . . . . . . . . . .  	Number	0009	
 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
 GIODSK - BASIC-86 Generalized I/O Disk Driver               Symbols-2
                                                              
 
@@ -2335,8 +2040,8 @@ C_BUFF . . . . . . . . . . . . .  	Number	001A
 C_CLOS . . . . . . . . . . . . .  	Number	0010	
 C_DCIO . . . . . . . . . . . . .  	Number	0006	
 C_DELE . . . . . . . . . . . . .  	Number	0013	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
 GIODSK - BASIC-86 Generalized I/O Disk Driver               Symbols-3
                                                              
 
@@ -2394,8 +2099,8 @@ DSKOPN . . . . . . . . . . . . .  	L NEAR	0089	CSEG
 DSKRND . . . . . . . . . . . . .  	L NEAR	026C	CSEG
 DSKSCW . . . . . . . . . . . . .  	L NEAR	0088	CSEG
 DSKSIN . . . . . . . . . . . . .  	L NEAR	01C0	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
 GIODSK - BASIC-86 Generalized I/O Disk Driver               Symbols-4
                                                              
 
@@ -2453,8 +2158,8 @@ FILNAM . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 FILNXT . . . . . . . . . . . . .  	L NEAR	057B	CSEG
 FILOU4 . . . . . . . . . . . . .  	L NEAR	023F	CSEG
 FILOUX . . . . . . . . . . . . .  	L NEAR	025D	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
 GIODSK - BASIC-86 Generalized I/O Disk Driver               Symbols-5
                                                              
 
@@ -2512,8 +2217,8 @@ GWDBUG . . . . . . . . . . . . .  	Number	0000
 GWTERM . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 G_BIN  . . . . . . . . . . . . .  	Number	001A	
 G_BOT  . . . . . . . . . . . . .  	Number	001C	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
 GIODSK - BASIC-86 Generalized I/O Disk Driver               Symbols-6
                                                              
 
@@ -2571,8 +2276,8 @@ LINLN  . . . . . . . . . . . . .  	Number	0050
 LISTEN . . . . . . . . . . . . .  	Number	0001	
 LNGNAM . . . . . . . . . . . . .  	L NEAR	068D	CSEG
 LNGVAR . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
 GIODSK - BASIC-86 Generalized I/O Disk Driver               Symbols-7
                                                              
 
@@ -2630,8 +2335,8 @@ NODOT  . . . . . . . . . . . . .  	Number	0000
 NOEDIT . . . . . . . . . . . . .  	Number	0000	
 NOFORC . . . . . . . . . . . . .  	L NEAR	01B5	CSEG
 NOFVRD . . . . . . . . . . . . .  	L NEAR	02D7	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
 GIODSK - BASIC-86 Generalized I/O Disk Driver               Symbols-8
                                                              
 
@@ -2689,8 +2394,8 @@ PROSAV . . . . . . . . . . . . .  	L NEAR	0464	CSEG	Global
 PTRFIL . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 PTRGPS . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 PTRWID . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
 GIODSK - BASIC-86 Generalized I/O Disk Driver               Symbols-9
                                                              
 
@@ -2748,8 +2453,8 @@ SPCNDS . . . . . . . . . . . . .  	Number	0000
 STKLOW . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 STRING . . . . . . . . . . . . .  	Number	0001	
 STRSIZ . . . . . . . . . . . . .  	Number	0003	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:25:59
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:34:29
+ 
 GIODSK - BASIC-86 Generalized I/O Disk Driver               Symbols-10
                                                              
 
@@ -2792,11 +2497,11 @@ $WRITS . . . . . . . . . . . . .  	L NEAR	0381	CSEG
 _OFFST . . . . . . . . . . . . .  	Number	00C2	
 
 
-   1742 Source  Lines
-   1913 Total   Lines
+   1743 Source  Lines
+   1914 Total   Lines
     508 Symbols
 
-  34210 Bytes symbol space free
+  34190 Bytes symbol space free
 
       0 Warning Errors
       0 Severe  Errors

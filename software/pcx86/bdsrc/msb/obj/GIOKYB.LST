@@ -1,5 +1,5 @@
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-1
                                                             
 
@@ -15,24 +15,21 @@ GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-1
                              C  ; [ This translation created 10-Feb-83 by Versi
 				on 4.3 ] 
                              C   
-                             C  	SUBTTL  Common file to produce 2-segment 8086 
-				GW-CPM BASIC 
+                             C  	PAGE	,132D 
+                             C  	SUBTTL  Common file to produce 2-segment 8086 GW-CPM BASIC 
                              C   
                              C  	.SALL 
                              C   
  000A                        C  	.RADIX	10 
  = 0000                      C  	OEMRAM=0D 
-                             C  ;Pascal program HFILE searches for the followin
-				g line - DO NOT MODIFY 
-                             C  ;** (VERSION SPECIFIC VALUES) *****************
-				******************************* 
+                             C  ;Pascal program HFILE searches for the following line - DO NOT MODIFY 
+                             C  ;** (VERSION SPECIFIC VALUES) ************************************************ 
  = 0019                      C  	NMLINE=25		;Max screen display text lines 
  = 0001                      C  	NBANKS=1		;Number of graphic planes 
  = 0000                      C  	PALSIZ=0		;Size of OEM color palette 
  = 0000                      C  	DBLCHR=0		;Editor support for KANJI chars 
  = 0000                      C  	KANABS=0		;Kana BASIC (Japanese JIS codes) 
- = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .
-				. 
+ = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .. 
  = 0000                      C  	JISKTN=0		;&K, &J constants (KANJI) 
  = 0001                      C  	SUPRSH=1		;1=super shift key feature 
  = 000A                      C  	NMKEYF=10		;number of function keys 
@@ -46,61 +43,48 @@ GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-1
  = 0002                      C  	NMCOMT=2		;number of COMmunications ports 
  = 0001                      C  	NMPENT=1		;number of light pens 
  = 0004                      C  	NMSTRT=4		;number of joysticks 
- = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR)
-				 
+ = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR) 
  = 0001                      C  	IBMLIK=1		;IBM compatibility package 
  = 0001                      C  	IBMTOK=1		;IBM token compatibility 
  = 0001                      C  	DYNCOM=1		;Dynamic communication buffers 
-                             C  ;** (END OF VERSION SPECIFIC VALUES) **********
-				******************************* 
-                             C  ;Pascal program HFILE searches for the previous
-				 line - DO NOT MODIFY 
+                             C  ;** (END OF VERSION SPECIFIC VALUES) ***************************************** 
+                             C  ;Pascal program HFILE searches for the previous line - DO NOT MODIFY 
                              C  ; 
  = 0015                      C  	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
+ = 0001                      C  	GW=1			;GW BASIC 
+ = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROUT 
+ = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY) 
+                             C  				; Support is in BINTRP.MAC and GWSTS.MAC 
+ = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
+                             C  				;single precision numbers for output. 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
- = 0001                      C  	GW=1			;GW BASIC 
- = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROU
-				T 
- = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY
-				) 
-                             C  				; Support is in BINTRP.MAC and GWSTS.MAC 
- = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed whe
-				n formatting 
-                             C  				;single precision numbers for output. 
                              C  				; 0 := 7 digits 
                              C  				; 1 := 6 digits 
  = 0000                      C  	CASSW=0			;CASSETTE SWITCH 
  = 0001                      C  	LABKEY=1		;^T (LABEL) key capability 
- = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics)
-				 
- = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stac
-				k) 
+ = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics) 
+ = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stack) 
  = 0001                      C  	GIO86=1			;BASIC-86 Generalized I/O 
  = 0001                      C  	SCRNIO=1		;Screen editor 
  = 0001                      C  	SCRN86=1		;8086 Screen editor 
  = 0001                      C  	I8086=1			;CROSS ASSEMBLING FOR 8086 
  = 0001                      C  	MULSEG=1		;MULTI-SEGMENT 8086 BASIC 
- = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SE
-				T 
+ = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SET 
  = 0001                      C  	TRUROM=1 
  = 0000                      C  	SBC86=0			;SBC 86/02 BOARD? 
  = 0001                      C  	SHORTJ=1		;USE INTRA-SEGMENT SHORT JUMPS 
                              C  				;IN 8086 CODE 
- = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDE
-				D ONLY) 
+ = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDED ONLY) 
  = 0000                      C  	SHTERR=0		;SHORT (2 CHAR) ERROR MESSAGES 
  = 0000                      C  	SHTINS=0		;INSTR IN NON-FAST LEN2 VERSIONS 
- = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2
-				 VERSIONS 
+ = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2 VERSIONS 
  = 0000                      C  	SHTCHN=0		;ALLOW CHAIN IN NON-5.0 
- = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK
-				 
- = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NO
-				N-FAST 
+ = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK 
+ = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NON-FAST 
  = 0000                      C  	SHTREN=0		;ALLOW RENUM IN NON-FST VERSIONS 
  = 0001                      C  	INKEYF=1		;ADDS INKEY$ FUNCTION 
  = 0000                      C  	NOIOS=0			;NO I/O STATMENTS (INP,OUT, WAIT) 
@@ -109,23 +93,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	NOCTLA=0		;NO CONTROL-A IN EXTENDED 
  = 0000                      C  	NORUBT=0		;NO RUBOUT 
  = 0000                      C  	NOROMP=0		;NO ROM PROGRAM FEATURE 
- = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED
-				 
+ = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED 
  = 0000                      C  	NODOT=0			;NO DOT IN LEN2 
  = 0000                      C  	NOEDIT=0		;NO EDIT COMMAND 
- = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMIN
-				AL 
+ = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMINAL 
                              C  				;AND FILES 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-3
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
- = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN C
-				RDO & OUTCH1 
+ = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN CRDO & OUTCH1 
  = 0000                      C  	NOVARP=0		;NO VARPTR FUNCTION 
- = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 F
-				EATURES 
+ = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 FEATURES 
  = 0001                      C  	FIVMEM=1 
  = 0001                      C  	ANSI=1 
  = 0001                      C  	FIVDSK=1		;5.0 NEW DSK CODE 
@@ -136,24 +111,25 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0001                      C  	MEMIMG=1		;MEMORY IMAGE FILES 
  = 0001                      C  	GENBIN=1 
                              C   
- = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON 
-				ERROR) 
+ = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON ERROR) 
  = 0000                      C  	COMMNT=0		;DONT WANT BIG COMMENT 
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-3
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	RMX=0			;INTEL RMX VERSION 
  = 0000                      C  	EDIT80=0		;FOR EDIT80 I/O ROUTINES 
  = 0000                      C  	RSHACK=0 
  = 0000                      C  	INTLEC=0 
  = 0002                      C  	LENGTH=2		;  1 MEANS 8K, 2 MEANS 12K 
- = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BAS
-				IC 
- = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATION
-				S 
+ = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BASIC 
+ = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATIONS 
                              C  				;TO MAKE ITSELF SMALLER & QUICKER 
- = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE
-				 (=1) 
+ = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE (=1) 
  = 0001                      C  	GENIO=1			;USE G/P ROUTINES 
  = 0001                      C  	CHSEAT=1		;CHSNS eats chars 
  = 0000                      C  	GENDSK=0		;USE G/P DSK CODE 
@@ -165,21 +141,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	SBC=0			;FOR INTEL SINGLE BOARD COMPUTER 
                              C  				;1=SBC 80/10, 2=SBC 80/20 
  = 0001                      C  	PURE=1			;ON FOR PURE CODE 
- = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RA
-				M 
+ = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RAM 
  = 0000                      C  	INTROM=0 
  = 0001                      C  	LPTSW=1 
  = 0001                      C  	NCRLPT=1 
  = 0000                      C  	NCRCAS=0 
  = 0000                      C  	ISC=0			;FOR ISC VERSION 
- = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,C
-				ENT) 
+ = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,CENT) 
  = 0000                      C  	TSLPT=0 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-4
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C   
  = 0000                      C  	DOS=0			;ON TO GEN ROUTINES FOR DOS 
  = 0001                      C  	DISK=1			;FILE I/O FEATURES 
@@ -187,13 +156,10 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	TSDISK=0		;NO TIME-SHARING DISK FOR US 
  = 0000                      C  	SPCDSK=0		;MAY HAVE MM'S DISK CODE 
  = 0000                      C  	SPCNDS=0 
- = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIEND
-				S 
+ = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIENDS 
  = 0000                      C  	KEYSTA=0 
- = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISI
-				S II DOS 
- = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISI
-				S-II 
+ = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISIS II DOS 
+ = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISIS-II 
  = 0001                      C  	CPM=1			;FOR CPM compatible operating systems 
  = 0001                      C  	CPM2=1			;VERSION 2. CPM 
  = 0000                      C  	CPM86=0			;FOR CP/M-86 operating system 
@@ -201,16 +167,19 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMCON=0 
  = 0000                      C  	CPMSER=0		;CHECK CPM SERIAL #'S 
  = 0000                      C  	CPMADD=0		;FOR VERSION TO RUN ON ADDS CPM 
- = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 7
-				5 
+ = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 75 
                              C  				;CP/M 
  = 0000                      C  	CPMRSH=0		;FOR RADIO SHACK CPM/M 
  = 0000                      C  	CPM110=0		;FOR CP/M @1100 HEX (INTERALIA) 
- = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4
-				100H 
+ = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4100H 
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-4
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	CPMCON=0 
  = 0000                      C  	Z80=0 
  = 0001                      C  	DISK=1 
@@ -227,23 +196,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0002                      C  	LENGTH=2 
  = 0001                      C  	RSTLES=1 
  = 0001                      C  	FIVLPT=1 
- = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT V
-				ERSION 
+ = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT VERSION 
  = 0001                      C  	CONTRO=1		;ALLOW ^O 
  = 0001                      C  	LEN3=LEN2 OR CASSW 
                              C   
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-5
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
  = 0001                      C  	STRING=1 
  = 0001                      C  	NCRLPT=1 
                              C   
-                             C  ; *** OEM Switches which need to be defaulted t
-				o 0 
+                             C  ; *** OEM Switches which need to be defaulted to 0 
                              C  ; 
  = 0000                      C  	CMPUTN=0 
  = 0000                      C  	DUPONT=0 
@@ -268,15 +230,17 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	PANBAS=0 
  = 0000                      C  	XTNSYS=0 
  = 0000                      C  	NECBAS=0 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Z80 related macros 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-5
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  				;8080'S AND ZILOG Z-80'S 
- = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INST
-				RUCTIONS 
+ = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INSTRUCTIONS 
  = 0000                      C  	Z80=0 
  = 0001                      C  	Z80=1 
                              C  LDIR	MACRO 
@@ -293,11 +257,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	MOV	WORD PTR A,WORD PTR M 
                              C  	STAX	D 
                              C  	DCXF	H 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-6
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  	DCXF	D 
                              C  	DCXF	B 
                              C  	MOV	WORD PTR A,WORD PTR B 
@@ -308,11 +267,9 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	DCR	B 
                              C  	JNZ	DEST 
                              C  ENDM 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Define reset routines. 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  FSIGN	MACRO 
                              C  	CALL	SIGN 
                              C  ENDM 
@@ -336,6 +293,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-6
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  GETYPE	MACRO 
                              C  	CALL	GETYPR 
                              C  ENDM 
@@ -352,11 +314,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	PUSH	WORD PTR B 
                              C  ENDM 
                              C  POPR	MACRO 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-7
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  	POP	WORD PTR B 
                              C  	POP	WORD PTR D 
                              C  ENDM 
@@ -373,15 +330,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDM 
                              C   
                              C   
- = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALL
-				Y CONTROL-O) 
- = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTAL
-				S 
+ = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALLY CONTROL-O) 
+ = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTALS 
                              C   
- = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARA
-				CTERS 
- = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SEC
-				TOR 
+ = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARACTERS 
+ = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SECTOR 
  = 0050                      C  	LINLN=80D		;TERMINAL LINE LENGTH 
  = 0084                      C  	LPTLEN=132D 
  = 00FF                      C  	BUFLEN=255		;LONG LINES 
@@ -399,6 +352,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-7
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  ACRLF   MACRO 
                              C          DB      13D 
                              C          DB      10D 
@@ -411,11 +369,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDIF 
                              C  IFNB    <D> 
                              C          DB      C&O 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-8
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C          DB      D&O 
                              C  ENDIF 
                              C  IFB     <D> 
@@ -447,17 +400,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-9
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
                                  
                                  
-                                	TITLE   GIOKYB - Machine Independent Keyboard 
-				Device Driver Code 
+                                	TITLE   GIOKYB - Machine Independent Keyboard Device Driver Code 
                                  
                                 COMMENT	* 
                                  
@@ -467,11 +419,9 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                  
                                 	* 
                              C  	INCLUDE	GIO86U.INC 
-                             C  ; [ This translation created 12-Jan-83 by Versi
-				on 4.3 ] 
+                             C  ; [ This translation created 12-Jan-83 by Version 4.3 ] 
                              C   
-                             C  	SUBTTL GIO86U - Device Independent I/O Constan
-				ts and Macros 
+                             C  	SUBTTL GIO86U - Device Independent I/O Constants and Macros 
                              C   
                              C  COMMENT	* 
                              C   
@@ -479,8 +429,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COPYRIGHT (C) 1982 BY MICROSOFT 
                              C  --------- --- ---- -- --------- 
                              C   
-                             C          Programmer: Tom Corbett,  Microsoft Inc
-				. 
+                             C          Programmer: Tom Corbett,  Microsoft Inc. 
                              C   
                              C          * 
                              C   
@@ -498,54 +447,44 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 000A                      C  	ASCLF=10D		;Line Feed 
  = 000D                      C  	ASCCR=13D		;Carriage Return 
  = 0013                      C  	ASCCTS=19D		;CTL-S 
- = 001A                      C  	ASCCTZ=26D		;Control Z (End-of-file for some d
-				evices) 
+ = 001A                      C  	ASCCTZ=26D		;Control Z (End-of-file for some devices) 
  = 001B                      C  	ASCESC=27D		;Escape 
  = 0020                      C  	ASCSPC=32D		;Space 
                              C   
-                             C  ;Special File ID's (identified by 1st byte of f
-				ile) 
+                             C  ;Special File ID's (identified by 1st byte of file) 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-10
-GIO86U - Device Independent I/O Constants and Macros        
-
  = 00FF                      C  	BINFID=255D		;files created by SAVE "fn" 
  = 00FE                      C  	PROFID=254D		;files created by SAVE "fn",P 
  = 00FD                      C  	BSVFID=253D		;files created by BSAVE "fn" 
                              C   
                              C  ;Generalized I/O Function Codes: 
                              C  ; 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-9
+GIO86U - Device Independent I/O Constants and Macros        
+
  = 0000                      C  	_OFFST=0		;initialize count 
-                             C  	ROFFST	G_EOF,2		;test EOF for file opened to t
-				his device 
+                             C  	ROFFST	G_EOF,2		;test EOF for file opened to this device 
                              C  	ROFFST	G_LOC,2		;LOC 
                              C  	ROFFST	G_LOF,2		;LOF 
-                             C  	ROFFST	G_CLS,2		;perform special CLOSE functio
-				ns for this device 
+                             C  	ROFFST	G_CLS,2		;perform special CLOSE functions for this device 
                              C  	ROFFST	G_SWD,2		;set device width 
-                             C  	ROFFST	G_RND,2		;GET/PUT random record from/to
-				 this device 
-                             C  	ROFFST	G_OPN,2		;perform special OPEN function
-				s for this device 
-                             C  	ROFFST	G_SIN,2		;input 1 byte from file opened
-				 on this device 
-                             C  	ROFFST	G_SOT,2		;output 1 byte to file opened 
-				on this device 
+                             C  	ROFFST	G_RND,2		;GET/PUT random record from/to this device 
+                             C  	ROFFST	G_OPN,2		;perform special OPEN functions for this device 
+                             C  	ROFFST	G_SIN,2		;input 1 byte from file opened on this device 
+                             C  	ROFFST	G_SOT,2		;output 1 byte to file opened on this device 
                              C  	ROFFST	G_GPS,2		;POS 
                              C  	ROFFST	G_GWD,2		;get device width 
                              C  	ROFFST	G_SCW,2		;set device column width 
                              C  	ROFFST	G_GCW,2		;get device column width 
-                             C  	ROFFST	G_BIN,2		;block input from file opened 
-				on this device 
-                             C  	ROFFST	G_BOT,2		;block output to file opened o
-				n this device 
+                             C  	ROFFST	G_BIN,2		;block input from file opened on this device 
+                             C  	ROFFST	G_BOT,2		;block output to file opened on this device 
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-11
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-10
 GIO86U - Device Independent I/O Constants and Macros        
 
                              C          PAGE 
@@ -555,8 +494,7 @@ GIO86U - Device Independent I/O Constants and Macros
                                 ;Generic Switches 
                                 ; 
  = 0000                         CPM86=0 
- = 0001                         IBMCSR=IBMLIK			;IBM compatible cursor interfac
-				e 
+ = 0001                         IBMCSR=IBMLIK			;IBM compatible cursor interface 
                                  
                                 ;OEM Switches 
                                 ; 
@@ -568,11 +506,9 @@ GIO86U - Device Independent I/O Constants and Macros
                                  
                                  
                              C  	INCLUDE	MSDOSU.INC 
-                             C  ; [ This translation created 12-Jan-83 by Versi
-				on 4.3 ] 
+                             C  ; [ This translation created 12-Jan-83 by Version 4.3 ] 
                              C   
-                             C  	SUBTTL    MSDOSU - MS-DOS Constants and Data-S
-				tructure Definitions 
+                             C  	SUBTTL    MSDOSU - MS-DOS Constants and Data-Structure Definitions 
                              C   
                              C  COMMENT	* 
                              C   
@@ -602,14 +538,14 @@ GIO86U - Device Independent I/O Constants and Macros
  = 0005                      C  	C_PRTO=5D		;Printer output 
  = 0006                      C  	C_DCIO=6D		;Direct console I/O 
  = 000D                      C  	C_REST=13D		;INITIALIZE BDOS 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-12
-MSDOSU - MS-DOS Constants and Data-Structure Definitions    
-
  = 000E                      C  	C_SDRV=14D		;SET CURRENTLY SELECTED DRIVE 
  = 000F                      C  	C_OPEN=15D 
  = 0010                      C  	C_CLOS=16D 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-11
+MSDOSU - MS-DOS Constants and Data-Structure Definitions    
+
  = 0011                      C  	C_SEAR=17D		;SEARCH FOR FILE 
  = 0013                      C  	C_DELE=19D 
  = 0014                      C  	C_READ=20D 
@@ -622,104 +558,80 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  = 0027                      C  	C_RBR=39D		;Random Block Read 
  = 0029                      C  	C_PARS=41D		;Parse Filename 
                              C   
- = 000B                      C  	FNAML=11D		;number of bytes in Filename with e
-				xtension 
+ = 000B                      C  	FNAML=11D		;number of bytes in Filename with extension 
  = 0080                      C  	DATPSC=128D		;bytes per sector 
  = 0026                      C  	FCBSIZ=38D		;File Control Block size 
                              C   
                              C  ;MS-DOS FILE-DATA-BLOCK Record Definition 
                              C  ; 
  = 0000                      C  	_OFFST=0		;initialize count 
-                             C  	ROFFST	F_NUL1,1	;not used by basic interpreter
-				 
+                             C  	ROFFST	F_NUL1,1	;not used by basic interpreter 
                              C  	ROFFST	F_NUM,1		;file number 0..255 
-                             C  	ROFFST	F_NUL2,2	;not used by basic interpreter
-				 
-                             C  	ROFFST	F_NEXT,2	;thread for linked list, [MEMS
-				IZ]=end 
+                             C  	ROFFST	F_NUL2,2	;not used by basic interpreter 
+                             C  	ROFFST	F_NEXT,2	;thread for linked list, [MEMSIZ]=end 
                              C  	ROFFST	F_MODE,1	;file mode: 
  = 0001                      C  	MD_SQI=1D		;sequential input 
  = 0002                      C  	MD_SQO=2D		;sequential output 
  = 0004                      C  	MD_RND=4D		;random 
  = 0008                      C  	MD_APP=8D		;append 
-                             C  	ROFFST	F_FCB,FCBSIZ	;File Control Block: used 
-				to communicate with OS 
-                             C  	ROFFST	F_CLOC,2	;for seq files: num sectors re
-				ad/written   (LOCOFS) 
+                             C  	ROFFST	F_FCB,FCBSIZ	;File Control Block: used to communicate with OS 
+                             C  	ROFFST	F_CLOC,2	;for seq files: num sectors read/written   (LOCOFS) 
                              C  				;for rnd files: last record number + 1 
-                             C  	ROFFST	F_ORCT,1	;"Original Byte Count"        
-				             (ORNOFS) 
+                             C  	ROFFST	F_ORCT,1	;"Original Byte Count"                     (ORNOFS) 
                              C  				;for seq input: #bytes in sector when read 
                              C  				;for seq output: #bytes in output sector 
                              C  				;for random files: bytes per sector 
-                             C  	ROFFST	F_BREM,1	;number of bytes till end-of-b
-				uffer        (NMLOFS) 
+                             C  	ROFFST	F_BREM,1	;number of bytes till end-of-buffer        (NMLOFS) 
                              C  	ROFFST	F_CODE,1	;file encoding: 
  = 0000                      C  	FC_ASC=0		;Ascii SAVE, Data files 
  = 0001                      C  	FC_BIN=1		;binary file (BSAVE, binary SAVE) 
-                             C  	ROFFST	F_BAKC,1	;holds next sequential input w
-				hen F.FLBS.FL.BKC is true 
-                             C  	ROFFST	F_NUL3,1	;not used by basic interpreter
-				 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-13
-MSDOSU - MS-DOS Constants and Data-Structure Definitions    
-
-                             C  	ROFFST	F_DEV,1		;Device number                
-				             (FL.DSK) 
+                             C  	ROFFST	F_BAKC,1	;holds next sequential input when F.FLBS.FL.BKC is true 
+                             C  	ROFFST	F_NUL3,1	;not used by basic interpreter 
+                             C  	ROFFST	F_DEV,1		;Device number                             (FL.DSK) 
                              C  	ROFFST	F_WID,1		;File width 
-                             C  	ROFFST	F_NUL4,1	;not used by basic interpreter
-				 
+                             C  	ROFFST	F_NUL4,1	;not used by basic interpreter 
                              C  	ROFFST	F_FLGS,1	;flags 
- = 0080                      C  	FL_BKC=200O		;when true, F.BAKC contains next 
-				sequential input 
-                             C  	ROFFST	F_POS,1		;Current column position      
-				             (FL.OPS) 
-                             C  	ROFFST	FDBSIZ,0	;size of device independent pa
-				rt of FDB 
+ = 0080                      C  	FL_BKC=200O		;when true, F.BAKC contains next sequential input 
+                             C  	ROFFST	F_POS,1		;Current column position                   (FL.OPS) 
+                             C  	ROFFST	FDBSIZ,0	;size of device independent part of FDB 
                              C  				;device dependant FDB entries start here 
                              C   
-                             C  	ROFFST	DATOFS,DATPSC	;Operating System interfa
-				ce buffer 
-                             C  	ROFFST	FD_SIZ,2	;variable record length for ra
-				ndom files 
-                             C  	ROFFST	FD_PHY,2	;current physical record numbe
-				r 
-                             C  	ROFFST	FD_LOG,2	;current logical record number
-				 
+                             C  	ROFFST	DATOFS,DATPSC	;Operating System interface buffer 
+                             C  	ROFFST	FD_SIZ,2	;variable record length for random files 
+                             C  	ROFFST	FD_PHY,2	;current physical record number 
+                             C  	ROFFST	FD_LOG,2	;current logical record number 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-12
+MSDOSU - MS-DOS Constants and Data-Structure Definitions    
+
                              C  	ROFFST	F_NUL5,1	;Future use 
-                             C  	ROFFST	FD_OPS,2	;current output position for s
-				equential I/O 
+                             C  	ROFFST	FD_OPS,2	;current output position for sequential I/O 
                              C  	ROFFST	FD_DAT,0	;field buffer of random file 
                              C   
                              C  ; OFFSETS INTO MSDOS FCB 
                              C  ; 
- = 0007                      C  	FCB_DV=F_FCB+0D		;DRIVE (0=default, 1=A:, 2=B:
-				, ...) 
+ = 0007                      C  	FCB_DV=F_FCB+0D		;DRIVE (0=default, 1=A:, 2=B:, ...) 
  = 0008                      C  	FCB_FN=F_FCB+1D		;FILE NAME 
  = 0010                      C  	FCB_FT=F_FCB+9D		;EXTENSION 
- = 0013                      C  	FCB_EX=F_FCB+12D	;FILE EXTENT (identifies bloc
-				k of 128 logical records) 
+ = 0013                      C  	FCB_EX=F_FCB+12D	;FILE EXTENT (identifies block of 128 logical records) 
  = 0015                      C  	FCB_RC=F_FCB+14D	;RECORD SIZE 
  = 0017                      C  	FCB_FS=F_FCB+16D	;FILE SIZE IN BYTES 
  = 001B                      C  	FCB_DT=F_FCB+20D	;Date of last write to file 
  = 001D                      C  	FCB_DT=F_FCB+22D	;Time of last write to file 
  = 0027                      C  	FCB_NR=F_FCB+32D	;NEXT RECORD NUMBER 
- = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Numbe
-				r 
+ = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Number 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-14
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-13
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
 
                              C          PAGE 
                                  
                                  
                                 	PUBLIC	KYBDSP,KYBINI,KYBTRM 
-                                	EXTRN	SCNSWD:NEAR,SCNGWD:NEAR,SCNSOT:NEAR,SCNG
-				PS:NEAR,SCNGCW:NEAR 
+                                	EXTRN	SCNSWD:NEAR,SCNGWD:NEAR,SCNSOT:NEAR,SCNGPS:NEAR,SCNGCW:NEAR 
                                 	EXTRN	SCNSCW:NEAR 
                                 	EXTRN	MAKINT:NEAR,INIFDB:NEAR,DERBFM:NEAR 
                                 	EXTRN	INITQ:NEAR,GETQ:NEAR,PUTQ:NEAR 
@@ -728,88 +640,59 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  = FF03                         	CTLBRK=65283D		;&HFF03 is Ctl-Break 
  = FF13                         	CTLPAS=65299D		;&HFF13 is Ctl-Pause 
                                  
-                                ; Keyboard Data-Flow/Control-Structure for GIO8
-				6: 
+                                ; Keyboard Data-Flow/Control-Structure for GIO86: 
                                 ; 
-                                ;    PLAY, LIST, NEWSTT                        
-				                    INCHRI 
-                                ;    --------+---------                        
-				              (fixed length input) 
-                                ;            !                                 
-				  INLIN               ! 
-                                ;            !                              (Sc
-				reen Editor)     KYBSIN/CHGET 
-                                ;         CHKINT                               
-				    !        (Device Indep. input) 
-                                ;     +-------------+                          
-				    !                 ! 
-                                ;     !             !                          
-				    +-----------------+ 
-                                ;     !             !                          
-				             ! 
-                                ;     !             !                  INKEY$  
-				           KEYIN 
-                                ;     !           POLKEY                 !     
-				             ! 
-                                ;     !             !                    +-----
-				---------+---+ 
-                                ;     !        +----+--------+-------+         
-				         ! 
-                                ;     !        !    !        !       !         
-				       CHSNS (get 1 KEY {may be 2 bytes} 
-                                ;     !        !  CNTCCN  KEYTRP  PKEYQ        
-				         !    function key expansion) 
-                                ;     !        !    !                !      ---
-				---+     ! 
-                                ;     !        +----+              PUTQ --> ! !
-				 ! !--> CONIN (get 1 byte from queue) 
-                                ;     !             !                       ---
-				---+ 
-                                ;  POLLEV         KEYINP(OEM supplied)      (qu
-				eue) 
+                                ;    PLAY, LIST, NEWSTT                                            INCHRI 
+                                ;    --------+---------                                      (fixed length input) 
+                                ;            !                                   INLIN               ! 
+                                ;            !                              (Screen Editor)     KYBSIN/CHGET 
+                                ;         CHKINT                                   !        (Device Indep. input) 
+                                ;     +-------------+                              !                 ! 
+                                ;     !             !                              +-----------------+ 
+                                ;     !             !                                       ! 
+                                ;     !             !                  INKEY$             KEYIN 
+                                ;     !           POLKEY                 !                  ! 
+                                ;     !             !                    +--------------+---+ 
+                                ;     !        +----+--------+-------+                  ! 
+                                ;     !        !    !        !       !                CHSNS (get 1 KEY {may be 2 bytes} 
+                                ;     !        !  CNTCCN  KEYTRP  PKEYQ                 !    function key expansion) 
+                                ;     !        !    !                !      ------+     ! 
+                                ;     !        +----+              PUTQ --> ! ! ! !--> CONIN (get 1 byte from queue) 
+                                ;     !             !                       ------+ 
+                                ;  POLLEV         KEYINP(OEM supplied)      (queue) 
                                 ;(OEM supp.)      (maps to MS Univ keyboard) 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-15
-MSDOSU - MS-DOS Constants and Data-Structure Definitions    
-
                                 ;(test for trapable event) 
                                  
                                 ;Keyboard Dispatch Table 
                                 ; 
  0000                           KYBDSP: 
- 0000  0041 R                   	DW	(KYBEOF)	;test EOF for file opened to this 
-				device 
+ 0000  0041 R                   	DW	(KYBEOF)	;test EOF for file opened to this device 
  0002  0052 R                   	DW	(KYBLOC)	;LOC 
  0004  0064 R                   	DW	(KYBLOF)	;LOF 
- 0006  006F R                   	DW	(KYBCLS)	;perform special CLOSE functions f
-				or this device 
+ 0006  006F R                   	DW	(KYBCLS)	;perform special CLOSE functions for this device 
  0008  0000 E                   	DW	(SCNSWD)	;set device width 
- 000A  0000 E                   	DW	(DERBFM)	;GET/PUT random record from/to thi
-				s device 
- 000C  0070 R                   	DW	(KYBOPN)	;perform special OPEN functions fo
-				r this device 
- 000E  009D R                   	DW	(KYBSIN)	;input 1 byte from file opened on 
-				this device 
- 0010  0000 E                   	DW	(SCNSOT)	;output 1 byte to file opened on t
-				his device 
+ 000A  0000 E                   	DW	(DERBFM)	;GET/PUT random record from/to this device 
+ 000C  0070 R                   	DW	(KYBOPN)	;perform special OPEN functions for this device 
+ 000E  009D R                   	DW	(KYBSIN)	;input 1 byte from file opened on this device 
+ 0010  0000 E                   	DW	(SCNSOT)	;output 1 byte to file opened on this device 
  0012  0000 E                   	DW	(SCNGPS)	;POS 
  0014  0000 E                   	DW	(SCNGWD)	;get device width 
  0016  0000 E                   	DW	(SCNSCW)	;set device comma width 
  0018  0000 E                   	DW	(SCNGCW)	;get device comma Width 
- 001A  0000 E                   	DW	(DEVBIN)	;block input from file opened on t
-				his device 
- 001C  0000 E                   	DW	(DEVBOT)	;block output to file opened on th
-				is device 
+ 001A  0000 E                   	DW	(DEVBIN)	;block input from file opened on this device 
+ 001C  0000 E                   	DW	(DEVBOT)	;block output to file opened on this device 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-14
+MSDOSU - MS-DOS Constants and Data-Structure Definitions    
+
                                  
                                 	SUBTTL Keyboard Primitive I/O Routines 
                                  
                                 	EXTRN	BCHRSI:NEAR 
                                  
-                                ;KYBINI puts the keyboard device server in an i
-				nitial state. 
-                                ; It is called at initialization time and after
-				 CTL-C. 
+                                ;KYBINI puts the keyboard device server in an initial state. 
+                                ; It is called at initialization time and after CTL-C. 
                                 ; On exit, all registers are preserved. 
                                 ; 
                                 	EXTRN	FINPRT:NEAR,PDCBAX:NEAR 
@@ -825,19 +708,10 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  0022  9C                       	PUSHF 
  0023  56                       	PUSH	SI 
  0024  33 C0                    	XOR	AX,AX 
- 0026  A3 0000 E                	MOV	WORD PTR CMDOFF,AX	;[CMDOFF]=0 (no soft ke
-				y) 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-16
-Keyboard Primitive I/O Routines                             
-
- 0029  BE 0000 E                	MOV	SI,OFFSET KYBQDS	;SI = keyboard queue desc
-				riptor 
- 002C  BB 0000 E                	MOV	BX,OFFSET KYBQUE	;BX points to 1st byte of
-				 queue buff 
- 002F  B8 0000 E                	MOV	AX,OFFSET KYBQSZ	;AX = size of keyboard qu
-				eue 
+ 0026  A3 0000 E                	MOV	WORD PTR CMDOFF,AX	;[CMDOFF]=0 (no soft key) 
+ 0029  BE 0000 E                	MOV	SI,OFFSET KYBQDS	;SI = keyboard queue descriptor 
+ 002C  BB 0000 E                	MOV	BX,OFFSET KYBQUE	;BX points to 1st byte of queue buff 
+ 002F  B8 0000 E                	MOV	AX,OFFSET KYBQSZ	;AX = size of keyboard queue 
  0032  E8 0000 E                	CALL	INITQ		;Initialize keyboard queue 
  0035  E8 0000 E                	CALL	FINPRT		;reset PTRFIL to Keyboard/CRT 
  0038  5E                       	POP	SI 
@@ -846,21 +720,17 @@ Keyboard Primitive I/O Routines
                                  
                                 	PUBLIC	KYBCLR 
                                 ;KYBCLR - Clear the keyboard buffer 
-                                ;This routine has been documented to OEMs.  The
-				 routine is intended to support 
-                                ;the IBM poke which clears the keyboard buffer.
-				 
+                                ;This routine has been documented to OEMs.  The routine is intended to support 
+                                ;the IBM poke which clears the keyboard buffer. 
                                 ;Entry - none 
                                 ;Exit  - none 
-                                ;        Segment registers and stack preserved.
-				 
+                                ;        Segment registers and stack preserved. 
                                 ; 
- 003D  E8 001E R                KYBCLR:	CALL	KYBINI		;Initialize the keyboard b
-				uffer 
+ 003D  E8 001E R                KYBCLR:	CALL	KYBINI		;Initialize the keyboard buffer 
  0040  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-17
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-15
 Keyboard Primitive I/O Routines                             
 
                                 	PAGE 
@@ -880,17 +750,14 @@ Keyboard Primitive I/O Routines
  0050  4B                       YKYEOF:	DEC	BX		;BX=-1, end-of-file is true 
  0051  C3                       KYBTRM:	RET 
                                  
-                                ;KYBLOC - Number of Bytes in input buffer for K
-				EYBOARD device. 
+                                ;KYBLOC - Number of Bytes in input buffer for KEYBOARD device. 
                                 ; Entry - SI points to File-Data-Block. 
                                 ; Exit  - [BX] = result. 
                                 ; 
  0052  56                       KYBLOC:	PUSH	SI		;save FDB pointer 
- 0053  BE 0000 E                	MOV	SI,OFFSET KYBQDS	;SI points to KYB queue d
-				escriptor 
+ 0053  BE 0000 E                	MOV	SI,OFFSET KYBQDS	;SI points to KYB queue descriptor 
                                 EXTRN	NUMQ:NEAR 
- 0056  E8 0000 E                	CALL	NUMQ		;[AX]=number of bytes queued in KYB
-				 Q 
+ 0056  E8 0000 E                	CALL	NUMQ		;[AX]=number of bytes queued in KYB Q 
  0059  5E                       	POP	SI 
  005A  8B D8                    	MOV	BX,AX		;return result in BX 
  005C  F6 44 37 80              	TEST	BYTE PTR F_FLGS[SI],LOW OFFSET FL_BKC 
@@ -898,63 +765,48 @@ Keyboard Primitive I/O Routines
  0062  43                       	INC	BX 
  0063  C3                       KYLOCX:	RET 
                                  
-                                ;KYBLOF - number of bytes free in KEYBOARD inpu
-				t buffer. 
+                                ;KYBLOF - number of bytes free in KEYBOARD input buffer. 
                                 ; Entry - SI points to File-Data-Block. 
-                                ; Exit  - [Floating-Point-Accumulator] = result
-				. 
+                                ; Exit  - [Floating-Point-Accumulator] = result. 
                                 ; 
- 0064  BE 0000 E                KYBLOF:	MOV	SI,OFFSET KYBQDS	;SI points to KYB 
-				queue descriptor 
+ 0064  BE 0000 E                KYBLOF:	MOV	SI,OFFSET KYBQDS	;SI points to KYB queue descriptor 
                                 EXTRN	LFTQ:NEAR 
- 0067  E8 0000 E                	CALL	LFTQ		;[AX]=number of bytes free in KYB Q
-				 
+ 0067  E8 0000 E                	CALL	LFTQ		;[AX]=number of bytes free in KYB Q 
  006A  8B D8                    	MOV	BX,AX 
  006C  E9 0000 E                	JMP	MAKINT		;return result in FAC 
                                  
-                                ;KYBCLS - perform any device dependent close fu
-				nctions. 
+                                ;KYBCLS - perform any device dependent close functions. 
                                 ; Entry - SI points to File-Data-Block. 
                                 ; Exit  - All registers preserved. 
-                                ;         This routine is called before BASIC r
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-18
-Keyboard Primitive I/O Routines                             
-
-				eleases the 
-                                ;         file-data-block associated with this 
-				file. 
+                                ;         This routine is called before BASIC releases the 
+                                ;         file-data-block associated with this file. 
                                 ; 
  006F                           KYBCLS: 
  006F  C3                       RET11:	RET 
                                  
-                                ;KYBOPN - perform any device dependent open fun
-				ctions. 
+                                ;KYBOPN - perform any device dependent open functions. 
                                 ; Entry - [AL]=  device id 
                                 ;                0 if default device, 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-16
+Keyboard Primitive I/O Routines                             
+
                                 ;                1..n for Disk A:, B:, ... 
                                 ;                -1..-n for non-disk devices 
                                 ;         [BX] = file number (0..n) 
-                                ;         [CX] = random record size if [FILMOD]
-				 = random 
-                                ;                (if [CX] = 0, use default reco
-				rd size) 
-                                ;         [DI] = device offset (2=KYBD, 4=SCRN,
-				 etc.) 
+                                ;         [CX] = random record size if [FILMOD] = random 
+                                ;                (if [CX] = 0, use default record size) 
+                                ;         [DI] = device offset (2=KYBD, 4=SCRN, etc.) 
                                 ;         [FILMOD] = file mode 
-                                ;                    MD.SQI = 1 ;sequential inp
-				ut 
-                                ;                    MD.SQO = 2 ;sequential out
-				put 
+                                ;                    MD.SQI = 1 ;sequential input 
+                                ;                    MD.SQO = 2 ;sequential output 
                                 ;                    MD.RND = 3 ;random 
                                 ;                    MD.APP = 4 ;append 
                                 ;         [FILNAM] = filename 
-                                ;         [FILEXT] = 1..3 byte filename extensi
-				on 
+                                ;         [FILEXT] = 1..3 byte filename extension 
                                 ; Exit  - [SI] points to new FDB 
-                                ;         FDB is linked into FDB chain with all
-				 standard 
+                                ;         FDB is linked into FDB chain with all standard 
                                 ;         fields initialized. 
                                 ;         All other registers are preserved. 
                                 ; 
@@ -965,23 +817,15 @@ Keyboard Primitive I/O Routines
  0000                           DSEG	ENDS 
  0072  80 3E 0000 E 04          	CMP	BYTE PTR FILMOD,LOW OFFSET MD_RND 
  0077  75 04                    	JNZ	KYBOPX		;Leave the mode as it is 
- 0079  88 26 0000 E             	MOV	BYTE PTR FILMOD,AH	;Force the mode to INPU
-				T 
+ 0079  88 26 0000 E             	MOV	BYTE PTR FILMOD,AH	;Force the mode to INPUT 
  007D                           KYBOPX: 
  007D  E9 0000 E                	JMP	INIFDB 
                                  
                                 ;KYBSIN - Sequential Input. 
                                 ; Entry - SI points to File-Data-Block. 
                                 ; Exit  - [AL] = next byte from Keyboard File 
-                                ;         carry set if EOF (CTL-Z read) (only i
-				f SI points to FDB (non 0)) 
-                                ;         (Note: SI must be preserved for KYBEO
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-19
-Keyboard Primitive I/O Routines                             
-
-				F to work) 
+                                ;         carry set if EOF (CTL-Z read) (only if SI points to FDB (non 0)) 
+                                ;         (Note: SI must be preserved for KYBEOF to work) 
                                 ;         All other registers preserved 
                                 ; 
                                  
@@ -996,38 +840,32 @@ Keyboard Primitive I/O Routines
  0080  A0 0000 E                	MOV	AL,BYTE PTR SAVKEY 
  0083  80 3E 0000 E 00          	CMP	BYTE PTR SAVKYF,LOW 0D 
  0088  C6 06 0000 E 00          	MOV	BYTE PTR SAVKYF,LOW 0D 
- 008D  75 40                    	JNZ	KBSINX		;Send second bytes through unfilte
-				red 
+ 008D  75 40                    	JNZ	KBSINX		;Send second bytes through unfiltered 
  008F                           KEYGET: 
  008F  F9                       	STC 
- 0090  E8 03C0 R                	CALL	STCTYP		;Set new cursor type to user mode
-				 (PSW.C set) 
- 0093  E8 00E8 R                	CALL	KEYSIN		;Read a key from the OS (could be
-				 a null fkey) 
- 0096  E8 0000 E                	CALL	INFMAP		;OEM fixed length input map routi
-				ne 
- 0099  74 F4                    	JZ	KEYGET		;OEM filtered out the key - get the
-				 next 
+ 0090  E8 03C0 R                	CALL	STCTYP		;Set new cursor type to user mode (PSW.C set) 
+ 0093  E8 00E8 R                	CALL	KEYSIN		;Read a key from the OS (could be a null fkey) 
+ 0096  E8 0000 E                	CALL	INFMAP		;OEM fixed length input map routine 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-17
+Keyboard Primitive I/O Routines                             
+
+ 0099  74 F4                    	JZ	KEYGET		;OEM filtered out the key - get the next 
  009B  EB 15                    	JMP	SHORT KYBSI2	;Process as other keys 
  009D                           CHGET: 
  009D  A0 0000 E                KYBSIN:	MOV	AL,BYTE PTR SAVKEY 
  00A0  80 3E 0000 E 00          	CMP	BYTE PTR SAVKYF,LOW 0D 
- 00A5  C6 06 0000 E 00          	MOV	BYTE PTR SAVKYF,LOW 0	;clear 2nd-byte of 2
-				-byte sequence flag 
- 00AA  75 23                    	JNZ	KBSINX		;branch if 2nd-key of 2-byte seque
-				nce 
- 00AC  E8 03C0 R                	CALL	STCTYP		;Set to insert or overwrite curso
-				r (PSW.C reset) 
- 00AF  E8 00D0 R                	CALL	KEYIN		;[AX]=next character from keyboard
-				 
+ 00A5  C6 06 0000 E 00          	MOV	BYTE PTR SAVKYF,LOW 0	;clear 2nd-byte of 2-byte sequence flag 
+ 00AA  75 23                    	JNZ	KBSINX		;branch if 2nd-key of 2-byte sequence 
+ 00AC  E8 03C0 R                	CALL	STCTYP		;Set to insert or overwrite cursor (PSW.C reset) 
+ 00AF  E8 00D0 R                	CALL	KEYIN		;[AX]=next character from keyboard 
  00B2                           KYBSI2: 
- 00B2  72 10                    	JB	KBSIN2		;branch if got 2-byte sequence (f-k
-				ey/KANJI) 
+ 00B2  72 10                    	JB	KBSIN2		;branch if got 2-byte sequence (f-key/KANJI) 
  00B4  9C                       	PUSHF 
  00B5  0B F6                    	OR	SI,SI 
  00B7  74 08                    	JZ	KB1X		;branch if no FDB 
- 00B9  3C 1A                    	CMP	AL,LOW OFFSET ASCCTZ	;CTL-Z=eof for keyboa
-				rd 
+ 00B9  3C 1A                    	CMP	AL,LOW OFFSET ASCCTZ	;CTL-Z=eof for keyboard 
  00BB  75 04                    	JNE	KB1X		;branch if not EOF 
  00BD  9D                       	POPF 
  00BE  F9                       	STC			;return EOF indication 
@@ -1035,71 +873,51 @@ Keyboard Primitive I/O Routines
  00C1  9D                       KB1X:	POPF 
  00C2  EB 0B                    	JMP	SHORT KBSINX 
  00C4                           KBSIN2: 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-20
-Keyboard Primitive I/O Routines                             
-
- 00C4  A2 0000 E                	MOV	BYTE PTR SAVKEY,AL	;save 2nd byte of 2-byt
-				e sequence 
- 00C7  C6 06 0000 E FF          	MOV	BYTE PTR SAVKYF,LOW 255D	;Set saved key fl
-				ag 
+ 00C4  A2 0000 E                	MOV	BYTE PTR SAVKEY,AL	;save 2nd byte of 2-byte sequence 
+ 00C7  C6 06 0000 E FF          	MOV	BYTE PTR SAVKYF,LOW 255D	;Set saved key flag 
  00CC  86 E0                    	XCHG	AH,AL		;return 1st byte to user 
  00CE  F8                       	CLC			;clear carry (not EOF) 
  00CF  C3                       KBSINX:	RET 
                                  
                                 ;KEYIN turns cursor on if no key is available. 
-                                ; It then waits for key from keyboard (if one w
-				asn't already there). 
-                                ; Exit - if Z is true, no key was ready, else [
-				AX]=key 
-                                ;        if C is true, returns 16 bit character
-				 
-                                ;        Soft keys are expanded if not being tr
-				apped, and not null. 
-                                ;        if NZ AND NC AND [AL] = FF then a two 
-				byte character is returned 
-                                ;               in DX.  The character is an OEM
-				 specific special character. 
+                                ; It then waits for key from keyboard (if one wasn't already there). 
+                                ; Exit - if Z is true, no key was ready, else [AX]=key 
+                                ;        if C is true, returns 16 bit character 
+                                ;        Soft keys are expanded if not being trapped, and not null. 
+                                ;        if NZ AND NC AND [AL] = FF then a two byte character is returned 
+                                ;               in DX.  The character is an OEM specific special character. 
                                 ;        All other registers are preserved. 
                                 ; 
                                 	PUBLIC	KEYIN 
  00D0                           KEYIN: 
- 00D0  E8 00E8 R                IGNNFK:	CALL	KEYSIN		;Get a key (possibly a nul
-				l function key) 
+ 00D0  E8 00E8 R                IGNNFK:	CALL	KEYSIN		;Get a key (possibly a null function key) 
  00D3  9C                       	PUSHF 
  00D4  73 10                    	JAE	NOTNFK		;branch if not 2-byte key code 
  00D6  80 FC 80                 	CMP	AH,LOW 200O 
- 00D9  75 0B                    	JNE	NOTNFK		;branch if definitely not a null F
-				unction key 
+ 00D9  75 0B                    	JNE	NOTNFK		;branch if definitely not a null Function key 
  00DB  3C 20                    	CMP	AL,LOW 40O 
- 00DD  72 07                    	JB	NOTNFK		;branch if definitely not a null Fu
-				nction key 
+ 00DD  72 07                    	JB	NOTNFK		;branch if definitely not a null Function key 
  00DF  3C 41                    	CMP	AL,LOW 101O 
- 00E1  73 03                    	JAE	NOTNFK		;branch if definitely not a null F
-				unction key 
+ 00E1  73 03                    	JAE	NOTNFK		;branch if definitely not a null Function key 
  00E3  9D                       	POPF 
  00E4  EB EA                    	JMP	SHORT IGNNFK	;ignore null Function key 
                                  
  00E6  9D                       NOTNFK:	POPF 
  00E7  C3                       	RET 
                                  
-                                ;KEYSIN - Get a key.  This routine will return 
-				null function keys. 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-18
+Keyboard Primitive I/O Routines                             
+
+                                ;KEYSIN - Get a key.  This routine will return null function keys. 
                                 ;Entry - none 
-                                ;Exit  - PSW.C set indicates a two byte key cod
-				e 
+                                ;Exit  - PSW.C set indicates a two byte key code 
                                 ; 
  00E8  E8 01F5 R                KEYSIN:	CALL	CHSNS		;try to get next key 
  00EB  75 0D                    	JNE	KEYINX		;Return with key if there is one. 
  00ED  52                       	PUSH	DX 
- 00EE  E8 0000 E                	CALL	SCNPOS		;[DH]=1 relative column (cursor p
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-21
-Keyboard Primitive I/O Routines                             
-
-				osition) 
+ 00EE  E8 0000 E                	CALL	SCNPOS		;[DH]=1 relative column (cursor position) 
                                 				;[DL]=1 relative line 
  00F1  E8 03D5 R                	CALL	SETCSR		;Set the cursor 
  00F4  5A                       	POP	DX 
@@ -1107,51 +925,38 @@ Keyboard Primitive I/O Routines
  00F8  74 FB                    	JE	CHWAIT		;No, wait 
  00FA  9C                       KEYINX:	PUSHF 
  00FB  50                       	PUSH	AX 
- 00FC  C6 06 0000 E 03          	MOV	BYTE PTR CSRTYP,LOW 3D	;Indicate user curs
-				or 
+ 00FC  C6 06 0000 E 03          	MOV	BYTE PTR CSRTYP,LOW 3D	;Indicate user cursor 
  0101  E8 03D5 R                	CALL	SETCSR		;Set the cursor 
  0104  58                       	POP	AX 
  0105  9D                       	POPF 
  0106  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-22
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-19
 Keyboard Primitive I/O Routines                             
 
                                 	PAGE 
-                                	SUBTTL  Keyboard Interrupt/Trap Checking in an
-				 Operating System Environment 
+                                	SUBTTL  Keyboard Interrupt/Trap Checking in an Operating System Environment 
                                  
-                                ;POLKEY is called from several places in BASIC 
-				to "poll" the keyboard. 
-                                ; Exit - DI is used.  All other registers are p
-				reserved. 
-                                ;        If CTL C was typed, Control does not r
-				eturn to caller. 
+                                ;POLKEY is called from several places in BASIC to "poll" the keyboard. 
+                                ; Exit - DI is used.  All other registers are preserved. 
+                                ;        If CTL C was typed, Control does not return to caller. 
                                 ; 
                                 ; Function: 
                                 ;       get key from operating system 
-                                ;       while keyboard data is ready to be read
-				 begin 
+                                ;       while keyboard data is ready to be read begin 
                                 ;         get key 
-                                ;         if key is CTL-C, reset soft-key point
-				er, key-queue, AUTFLG, SEMFLG 
-                                ;            call SNDRST to reset background so
-				und, 
-                                ;            and exit to CNTCCN (resets stack a
-				nd jumps to STOP) 
-                                ;         if key is CTL-S, pause until non-CTL-
-				S key is pressed 
-                                ;         if key is 1st byte of Function Key, c
-				ontinue getting keys 
-                                ;            until it definitely is or is not a
-				 function key. 
+                                ;         if key is CTL-C, reset soft-key pointer, key-queue, AUTFLG, SEMFLG 
+                                ;            call SNDRST to reset background sound, 
+                                ;            and exit to CNTCCN (resets stack and jumps to STOP) 
+                                ;         if key is CTL-S, pause until non-CTL-S key is pressed 
+                                ;         if key is 1st byte of Function Key, continue getting keys 
+                                ;            until it definitely is or is not a function key. 
                                 ;         if it was a function key then begin 
                                 ;            if trapping is enabled then 
                                 ;               trap it 
                                 ;            else 
-                                ;               queue function key code for CHS
-				NS 
+                                ;               queue function key code for CHSNS 
                                 ;            end {it was a function key} 
                                 ;         else {it was not a function key} 
                                 ;           queue key for CHSNS 
@@ -1160,8 +965,7 @@ Keyboard Primitive I/O Routines
                                 	PUBLIC	POLKEY 
                                 	EXTRN	KEYTRP:NEAR,KEYINP:NEAR 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-                                	EXTRN	AUTFLG:WORD,SEMFLG:WORD,SAVSTK:WORD,SAVT
-				XT:WORD 
+                                	EXTRN	AUTFLG:WORD,SEMFLG:WORD,SAVSTK:WORD,SAVTXT:WORD 
  0000                           DSEG	ENDS 
                                  
  0107  57                       POLKEY:	PUSH	DI 
@@ -1172,41 +976,33 @@ Keyboard Primitive I/O Routines
  010C  52                       	PUSH	DX 
  010D                           GETKLP: 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-23
-Keyboard Interrupt/Trap Checking in an Operating System Envi
-
                                 	EXTRN	MSDCCF:WORD	;MSDOS Ctl-C Interrupt flag 
  0000                           DSEG	ENDS 
  010D  F6 06 0000 E FF          	TEST	BYTE PTR MSDCCF,LOW 255D 
- 0112  75 5D                    	JNZ	ITSCTC		;Branch if Ctl-C interrupt detecte
-				d 
- 0114  E8 0000 E                	CALL	KEYINP		;[AX]=next key from keyboard if o
-				ne exists 
+ 0112  75 5D                    	JNZ	ITSCTC		;Branch if Ctl-C interrupt detected 
+ 0114  E8 0000 E                	CALL	KEYINP		;[AX]=next key from keyboard if one exists 
  0117  74 20                    	JE	POLKXI		;branch if no key present 
- 0119  73 3F                    	JAE	NOTTWO		;branch if not 2-byte key sequence
-				 
- 011B  80 FC FF                 	CMP	AH,LOW 255D	;Test for control function ran
-				ge 
+ 0119  73 3F                    	JAE	NOTTWO		;branch if not 2-byte key sequence 
+ 011B  80 FC FF                 	CMP	AH,LOW 255D	;Test for control function range 
  011E  75 05                    	JNZ	NTCTLFN		;Not a control function 
- 0120  E8 0199 R                	CALL	TRPCHK		;Check for trapping in this range
-				 
+ 0120  E8 0199 R                	CALL	TRPCHK		;Check for trapping in this range 
  0123  75 E8                    	JNZ	GETKLP		;Trap set - get next key 
  0125                           NTCTLFN: 
  0125  80 FC 80                 	CMP	AH,LOW 128D 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-20
+Keyboard Interrupt/Trap Checking in an Operating System Envi
+
  0128  75 13                    	JNE	NOTFUN		;branch if not function key 
  012A  50                       	PUSH	AX		;save key-code 
  012B  2C 20                    	SUB	AL,LOW 32D	;[AL]=0 for 1st function key 
- 012D  3C 0E                    	CMP	AL,LOW OFFSET NMKEYT	;see if its a trapabl
-				e function key 
+ 012D  3C 0E                    	CMP	AL,LOW OFFSET NMKEYT	;see if its a trapable function key 
  012F  73 0B                    	JAE	NOFUN1		;branch if not 
  0131  E8 0000 E                	CALL	KEYTRP		;Trap key if event is ON 
  0134  58                       	POP	AX		;restore key code 
- 0135  75 D6                    	JNZ	GETKLP		;branch if Key was trapped (don't 
-				queue) 
- 0137  EB 04                    	JMP	SHORT NOTFUN	;Not trapped function key (qu
-				eue key) 
+ 0135  75 D6                    	JNZ	GETKLP		;branch if Key was trapped (don't queue) 
+ 0137  EB 04                    	JMP	SHORT NOTFUN	;Not trapped function key (queue key) 
  0139  EB 57 90                 POLKXI:	JMP	POLKYX 
                                  
  013C  58                       NOFUN1:	POP	AX		;Restore key code 
@@ -1217,60 +1013,47 @@ Keyboard Interrupt/Trap Checking in an Operating System Envi
  0145  74 40                    	JE	ITSINT		;branch if CTL S 
  0147                           NOTRAP: 
  0147  50                       	PUSH	AX 
- 0148  E8 0000 E                	CALL	LFTQ		;[AX]=number of bytes free in KYB Q
-				 
+ 0148  E8 0000 E                	CALL	LFTQ		;[AX]=number of bytes free in KYB Q 
  014B  3D 0003                  	CMP	AX,3D		;Test for space in keyboard queue 
  014E  58                       	POP	AX		;Restore key code 
  014F  72 BC                    	JB	GETKLP		;Loop for next key (interrupt?) 
  0151  86 E0                    	XCHG	AH,AL 
- 0153  E8 01E3 R                	CALL	PKQUE		;append 1st byte of sequence to ke
-				y queue 
+ 0153  E8 01E3 R                	CALL	PKQUE		;append 1st byte of sequence to key queue 
  0156  86 E0                    	XCHG	AH,AL 
- 0158  EB 32                    	JMP	SHORT QUEKEY	;append 2nd byte of sequence 
-				to key queue 
+ 0158  EB 32                    	JMP	SHORT QUEKEY	;append 2nd byte of sequence to key queue 
  015A                           NOTTWO: 
- 015A  3C FE                    	CMP	AL,LOW 254D	;Test for three byte char (IBM
-				 "scan codes") 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-24
-Keyboard Interrupt/Trap Checking in an Operating System Envi
-
+ 015A  3C FE                    	CMP	AL,LOW 254D	;Test for three byte char (IBM "scan codes") 
  015C  75 11                    	JNZ	QONEBT		;Queue a one byte character 
  015E  50                       	PUSH	AX 
- 015F  E8 0000 E                	CALL	LFTQ		;[AX]=number of bytes free in KYB Q
-				 
+ 015F  E8 0000 E                	CALL	LFTQ		;[AX]=number of bytes free in KYB Q 
  0162  3D 0004                  	CMP	AX,4D		;Test for space in keyboard queue 
  0165  58                       	POP	AX		;Restore key code 
  0166  72 A5                    	JB	GETKLP		;Loop for next key (interrupt?) 
  0168  E8 01E3 R                	CALL	PKQUE		;Queue the first byte 
  016B  8B C2                    	MOV	AX,DX		;Get second and third bytes 
- 016D  EB D8                    	JMP	SHORT NOTRAP	;Go queue the second and thir
-				d bytes 
+ 016D  EB D8                    	JMP	SHORT NOTRAP	;Go queue the second and third bytes 
  016F                           QONEBT: 
- 016F  EB 1B                    	JMP	SHORT QUEKEY	;else queue the key for CHSNS
-				 
+ 016F  EB 1B                    	JMP	SHORT QUEKEY	;else queue the key for CHSNS 
  0171                           ITSCTC: 
- 0171  E8 001E R                	CALL	KYBINI		;clear keyboard queue, reset PTRF
-				IL 
- 0174  C6 06 0000 E 00          	MOV	BYTE PTR MSDCCF,LOW 0D	;Reset Ctl-Break in
-				terrupt flag 
+ 0171  E8 001E R                	CALL	KYBINI		;clear keyboard queue, reset PTRFIL 
+ 0174  C6 06 0000 E 00          	MOV	BYTE PTR MSDCCF,LOW 0D	;Reset Ctl-Break interrupt flag 
                                 	EXTRN	SNDRST:NEAR 
  0179  E8 0000 E                	CALL	SNDRST		;reset background music 
- 017C  8B 26 0000 E             	MOV	SP,WORD PTR SAVSTK	;[SP]=SP of interrupted
-				 statement 
- 0180  8B 1E 0000 E             	MOV	BX,WORD PTR SAVTXT	;[BX]=text pointer of i
-				nterrupted stmt 
- 0184  B8 FF03                  	MOV	AX,OFFSET CTLBRK	;[AX]=Key Code for BREAK 
-				(CTL-C) 
+ 017C  8B 26 0000 E             	MOV	SP,WORD PTR SAVSTK	;[SP]=SP of interrupted statement 
+ 0180  8B 1E 0000 E             	MOV	BX,WORD PTR SAVTXT	;[BX]=text pointer of interrupted stmt 
+ 0184  B8 FF03                  	MOV	AX,OFFSET CTLBRK	;[AX]=Key Code for BREAK (CTL-C) 
  0187  E8 01BA R                ITSINT:	CALL	CNTCCN		;process CTL C or S 
  018A  EB 81                    	JMP	GETKLP		;dont queue CTL-S or CTL-C 
                                  
  018C  E8 01E3 R                QUEKEY:	CALL	PKQUE		;queue key [AL] for CHSNS 
  018F  E9 010D R                	JMP	GETKLP		;get next key 
                                  
-                                ;At this point, Keyboard input queue from OS is
-				 flushed. 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-21
+Keyboard Interrupt/Trap Checking in an Operating System Envi
+
+                                ;At this point, Keyboard input queue from OS is flushed. 
                                 ; 
  0192  5A                       POLKYX:	POP	DX		;restore caller's registers 
  0193  59                       	POP	CX 
@@ -1282,39 +1065,29 @@ Keyboard Interrupt/Trap Checking in an Operating System Envi
                                  
                                 ;TRPCHK - Check for key trapping 
                                 ;Entry - AX = key code 
-                                ;Exit  - PSW.Z set indicates key was not trappe
-				d 
+                                ;Exit  - PSW.Z set indicates key was not trapped 
                                 ; 
  0199  50                       TRPCHK:	PUSH	AX		;Save key code 
- 019A  BB 01EB R                	MOV	BX,OFFSET TRPKTB-1	;BX points before 1st b
-				yte of key trap table 
+ 019A  BB 01EB R                	MOV	BX,OFFSET TRPKTB-1	;BX points before 1st byte of key trap table 
  019D  43                       CHKTRP:	INC	BX 
  019E  2E: 8A 27                	MOV	AH,BYTE PTR CS:0[BX] 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-25
-Keyboard Interrupt/Trap Checking in an Operating System Envi
-
- 01A1  43                       	INC	BX		;BX points to Trap Key ID for key [AH]
-				 
+ 01A1  43                       	INC	BX		;BX points to Trap Key ID for key [AH] 
  01A2  0A E4                    	OR	AH,AH		;test for end-of-table 
  01A4  74 0A                    	JE	NTRAP		;branch if not a trappable key 
  01A6  3A E0                    	CMP	AH,AL 
- 01A8  75 F3                    	JNE	CHKTRP		;branch if they don't match (conti
-				nue search) 
+ 01A8  75 F3                    	JNE	CHKTRP		;branch if they don't match (continue search) 
  01AA  2E: 8A 07                	MOV	AL,BYTE PTR CS:0[BX]	;[AL]=key-trap id 
  01AD  E8 0000 E                	CALL	KEYTRP		;Trap key if event is ON 
  01B0  58                       NTRAP:	POP	AX		;Restore key code 
  01B1  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-26
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-22
 Keyboard Interrupt/Trap Checking in an Operating System Envi
 
                                 	PAGE 
                                 	SUBTTL  CHKKYB - OEM Version of POLKEY 
-                                ;CHKKYB - This is the OEM version of POLKEY.  I
-				t is documented to the OEM as 
+                                ;CHKKYB - This is the OEM version of POLKEY.  It is documented to the OEM as 
                                 ;the way to check for keyboard interrupts. 
                                 ;Entry - All segment registers must be set 
                                 ;        to the BASIC configuration 
@@ -1327,55 +1100,45 @@ Keyboard Interrupt/Trap Checking in an Operating System Envi
  01B7  5D                       	POP	BP 
  01B8  5E                       	POP	SI 
  01B9  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-27
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-23
 CHKKYB - OEM Version of POLKEY                              
 
                                 	PAGE 
                                 	SUBTTL  CNTCCN, PKQUE, TRPKTB 
-                                ;CNTCCN performs special action upon receipt of
-				 CTL-S or CTL-C 
+                                ;CNTCCN performs special action upon receipt of CTL-S or CTL-C 
                                 ; 
                                 	EXTRN	CTRLPT:NEAR,STOP:NEAR 
  01BA                           CNTCCN: 
  01BA  3D FF13                  	CMP	AX,OFFSET CTLPAS	;check for PAUSE 
  01BD  75 0A                    	JNZ	NOTCTS		;branch if not 
  01BF  E8 0000 E                GOTCTS:	CALL	KEYINP 
- 01C2  74 FB                    	JZ	GOTCTS		;wait for resume key (anything but 
-				CTL S) 
+ 01C2  74 FB                    	JZ	GOTCTS		;wait for resume key (anything but CTL S) 
  01C4  3D FF13                  	CMP	AX,OFFSET CTLPAS	;check for PAUSE 
  01C7  74 F6                    	JE	GOTCTS		;branch if got another CTL-S 
  01C9                           NOTCTS: 
  01C9  3D FF03                  	CMP	AX,OFFSET CTLBRK	;check for Ctl-Break 
  01CC  75 CA                    	JNE	RET8		;return if not CTL-C 
- 01CE  E8 0000 E                	CALL	EDTBRK		;Clear editor flags and position 
-				cursor 
- 01D1  E8 0000 E                	CALL	SCNBRK		;Clear flags associated with scre
-				en driver 
+ 01CE  E8 0000 E                	CALL	EDTBRK		;Clear editor flags and position cursor 
+ 01D1  E8 0000 E                	CALL	SCNBRK		;Clear flags associated with screen driver 
  01D4  50                       	PUSH	AX 
  01D5  E8 0000 E                	CALL	FINPRT		;Reset I/O 
  01D8  58                       	POP	AX 
- 01D9  A1 0000 E                	MOV	AX,WORD PTR CURLIN	;Print "BREAK" message 
-				in program mode only 
+ 01D9  A1 0000 E                	MOV	AX,WORD PTR CURLIN	;Print "BREAK" message in program mode only 
  01DC  22 C4                    	AND	AL,AH		;AL=^D255 if direct mode 
- 01DE  32 E4                    	XOR	AH,AH		;Set PSW.Z so STOP won't give Synta
-				x Error 
+ 01DE  32 E4                    	XOR	AH,AH		;Set PSW.Z so STOP won't give Syntax Error 
  01E0  E9 0000 E                	JMP	STOP 
                                  
-                                ;PKQUE appends [AL] to the keyboard circular qu
-				eue 
+                                ;PKQUE appends [AL] to the keyboard circular queue 
                                 ; 
  01E3  56                       PKQUE:	PUSH	SI 
- 01E4  BE 0000 E                	MOV	SI,OFFSET KYBQDS	;SI = keyboard queue desc
-				riptor 
- 01E7  E8 0000 E                	CALL	PUTQ		;append [AL] to keyboard queue (rea
-				d by CHSNS) 
+ 01E4  BE 0000 E                	MOV	SI,OFFSET KYBQDS	;SI = keyboard queue descriptor 
+ 01E7  E8 0000 E                	CALL	PUTQ		;append [AL] to keyboard queue (read by CHSNS) 
  01EA  5E                       	POP	SI 
  01EB  C3                       	RET 
                                  
-                                ;Keyboard Trap Table (for KEY TRAPPING of non-s
-				oft keys) 
+                                ;Keyboard Trap Table (for KEY TRAPPING of non-soft keys) 
                                 ; Referenced by POLKEY 
                                 ; 
  01EC                           TRPKTB: 
@@ -1384,89 +1147,70 @@ CHKKYB - OEM Version of POLKEY
  01F0  1C 0C                    	DB	28D,OFFSET NMKEYF+2	;ON KEY (Cursor Right) 
  01F2  1F 0D                    	DB	31D,OFFSET NMKEYF+3	;ON KEY (Cursor Down) 
  01F4  00                       	DB	0		;end-of-table 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-28
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-24
 CNTCCN, PKQUE, TRPKTB                                       
 
                                 	PAGE 
-                                	SUBTTL  Machine independent Keyboard input rou
-				tines CHSNS, INKEY$ 
+                                	SUBTTL  Machine independent Keyboard input routines CHSNS, INKEY$ 
                                 	PUBLIC	CHSNS 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	CMDOFF:WORD,STRTAB:WORD 
  0000                           DSEG	ENDS 
                                  
                                 ;Get key from keyboard if one is ready. 
-                                ;Exit  - if Z is true, no key was ready, else [
-				AX]=key 
-                                ;        if C is true, returns 16 bit character
-				 
-                                ;        Soft keys are expanded if not being tr
-				apped, and not null. 
-                                ;        if NZ AND NC AND [AL] = FF then a two 
-				byte character is returned 
-                                ;               in DX.  The character is an OEM
-				 specific special character. 
+                                ;Exit  - if Z is true, no key was ready, else [AX]=key 
+                                ;        if C is true, returns 16 bit character 
+                                ;        Soft keys are expanded if not being trapped, and not null. 
+                                ;        if NZ AND NC AND [AL] = FF then a two byte character is returned 
+                                ;               in DX.  The character is an OEM specific special character. 
                                 ;        All other registers are preserved. 
                                 ; 
  01F5  53                       CHSNS:	PUSH	BX		;save caller's registers 
  01F6  51                       	PUSH	CX 
  01F7  56                       	PUSH	SI 
  01F8  57                       	PUSH	DI 
- 01F9  32 D2                    CHSNSI:	XOR	DL,DL		;clear high byte of 2-byte s
-				equence 
+ 01F9  32 D2                    CHSNSI:	XOR	DL,DL		;clear high byte of 2-byte sequence 
  01FB  E8 0258 R                CHSNS0:	CALL	CONIN		;check for SOFTKEY 
  01FE  75 06                    	JNZ	CHSNSS		;BRIF key found 
  0200  0A D2                    	OR	DL,DL 
- 0202  74 43                    	JZ	CHSNSX		;BRIF no key sensed and not 2nd of 
-				2 bytes 
- 0204  EB F5                    	JMP	SHORT CHSNS0	;BRIF need 2nd byte of 2 byte
-				 character 
+ 0202  74 43                    	JZ	CHSNSX		;BRIF no key sensed and not 2nd of 2 bytes 
+ 0204  EB F5                    	JMP	SHORT CHSNS0	;BRIF need 2nd byte of 2 byte character 
                                  
  0206  0A D2                    CHSNSS:	OR	DL,DL 
- 0208  75 09                    	JNZ	CHSNS2		;BRIF 2nd byte of 2 byte character
-				 
- 020A  E8 024C R                	CALL	CKDBLK		;see if this is the 1st byte of 2
-				-byte seq 
+ 0208  75 09                    	JNZ	CHSNS2		;BRIF 2nd byte of 2 byte character 
+ 020A  E8 024C R                	CALL	CKDBLK		;see if this is the 1st byte of 2-byte seq 
  020D  73 22                    	JAE	CHSNG1		;branch not 
  020F  8A D0                    	MOV	DL,AL		;Put first byte in [DL] 
  0211  EB E8                    	JMP	SHORT CHSNS0	;Go get 2nd byte 
  0213  8A E2                    CHSNS2:	MOV	AH,DL		;Put 1st byte in [AH] 
- 0215  80 FC 80                 	CMP	AH,LOW 200O	;Check for 8080 code which rep
-				resents single 80 
+ 0215  80 FC 80                 	CMP	AH,LOW 200O	;Check for 8080 code which represents single 80 
  0218  75 04                    	JNZ	CHSN2A 
  021A  3A E0                    	CMP	AH,AL 
  021C  74 13                    	JZ	CHSNG1		;Return 80 for 8080 char code 
- 021E  E8 026B R                CHSN2A:	CALL	CHKFKY		;see if AX is a non-null f
-				unction key 
- 0221  74 09                    	JZ	CHSNS3		;BRIF not a string key that needs e
-				xpansion 
- 0223  72 0C                    	JB	CHSNG1		;BRIF is super shift key(return fir
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-29
-Machine independent Keyboard input routines CHSNS, INKEY$   
-
-				st byte now) 
+ 021E  E8 026B R                CHSN2A:	CALL	CHKFKY		;see if AX is a non-null function key 
+ 0221  74 09                    	JZ	CHSNS3		;BRIF not a string key that needs expansion 
+ 0223  72 0C                    	JB	CHSNG1		;BRIF is super shift key(return first byte now) 
  0225  C6 06 0000 E 00          	MOV	BYTE PTR F_SUPR,LOW 0 
- 022A  EB CD                    	JMP	SHORT CHSNSI	;Is string key, get first exp
-				ansion and return 
+ 022A  EB CD                    	JMP	SHORT CHSNSI	;Is string key, get first expansion and return 
  022C                           CHSNS3: 
- 022C  0A E4                    	OR	AH,AH		;else NZ, C Indicates 2 byte charact
-				er 
+ 022C  0A E4                    	OR	AH,AH		;else NZ, C Indicates 2 byte character 
  022E  F9                       	STC 
  022F  EB 16                    	JMP	SHORT CHSNSX 
- 0231  0A C0                    CHSNG1:	OR	AL,AL		;set NZ, no-carry (got 1 byte
-				) 
- 0233  B4 00                    	MOV	AH,LOW 0	;high-byte = 0 for single byte ch
-				aracters 
+ 0231  0A C0                    CHSNG1:	OR	AL,AL		;set NZ, no-carry (got 1 byte) 
+ 0233  B4 00                    	MOV	AH,LOW 0	;high-byte = 0 for single byte characters 
                                 ;Check for 3 byte sequence case 
  0235  9C                       	PUSHF 
  0236  3C FE                    	CMP	AL,LOW 254D	;Test for three byte sequence 
  0238  75 0C                    	JNZ	CHSNG2		;Not a three byte sequence 
  023A  50                       	PUSH	AX		;Save first byte 
  023B  E8 0258 R                	CALL	CONIN		;Get second byte 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-25
+Machine independent Keyboard input routines CHSNS, INKEY$   
+
  023E  8A F0                    	MOV	DH,AL 
  0240  E8 0258 R                	CALL	CONIN		;Get third byte 
  0243  8A D0                    	MOV	DL,AL 
@@ -1486,43 +1230,29 @@ Machine independent Keyboard input routines CHSNS, INKEY$
  024F  74 06                    	JE	CKDBLX		;branch if 1st of 2-byte sequence 
  0251  3C FF                    	CMP	AL,LOW 255D 
  0253  F9                       	STC 
- 0254  74 01                    	JE	CKDBLX		;BRIF 1st byte of two byte control 
-				function 
+ 0254  74 01                    	JE	CKDBLX		;BRIF 1st byte of two byte control function 
  0256  F8                       	CLC 
  0257  C3                       CKDBLX:	RET 
                                  
-                                ;CONIN gets the next key from the soft-key bein
-				g expanded (if any). 
-                                ; If no soft-key is active, it calls POLKEY to 
-				get and queue key from OS, 
-                                ; afterwhich it trys to get a key from the keyb
-				oard queue. 
-                                ; On exit, Flags.Z is set if no key is ready, e
-				lse [AL]=key 
+                                ;CONIN gets the next key from the soft-key being expanded (if any). 
+                                ; If no soft-key is active, it calls POLKEY to get and queue key from OS, 
+                                ; afterwhich it trys to get a key from the keyboard queue. 
+                                ; On exit, Flags.Z is set if no key is ready, else [AL]=key 
                                 ; 
  0258  53                       CONIN:	PUSH	BX 
  0259  E8 02EC R                	CALL	GETFKY		;expand soft-key if active 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-30
-Machine independent Keyboard input routines CHSNS, INKEY$   
-
  025C  75 0B                    	JNZ	CONINX		;branch if expanding soft-key 
  025E  56                       	PUSH	SI 
- 025F  E8 0107 R                	CALL	POLKEY		;try to get and queue key from OS
-				 
+ 025F  E8 0107 R                	CALL	POLKEY		;try to get and queue key from OS 
  0262  BE 0000 E                	MOV	SI,OFFSET KYBQDS 
  0265  E8 0000 E                	CALL	GETQ		;[AL]=next key from keyboard queue 
  0268  5E                       	POP	SI 
  0269  5B                       CONINX:	POP	BX 
  026A  C3                       	RET 
                                  
-                                ;Returns with FLAGS.NZ if AX is Universal key c
-				ode for non-null Soft-key 
-                                ;Also sets FLAGS.NC for softkey and FLAGS.C for
-				 super shift key 
-                                ;       (note that for super shift the first ch
-				aracter is in AL and must 
+                                ;Returns with FLAGS.NZ if AX is Universal key code for non-null Soft-key 
+                                ;Also sets FLAGS.NC for softkey and FLAGS.C for super shift key 
+                                ;       (note that for super shift the first character is in AL and must 
                                 ;           be returned) 
                                 ; 
  026B  80 FC 80                 CHKFKY:	CMP	AH,LOW 200O 
@@ -1532,16 +1262,18 @@ Machine independent Keyboard input routines CHSNS, INKEY$
  0273  72 15                    	JB	NTFKY1		;branch if not soft-key 
  0275  3C 0A                    	CMP	AL,LOW OFFSET NMKEYF 
  0277  73 11                    	JAE	NTFKY1		;branch if not soft-key 
- 0279  B3 10                    	MOV	BL,LOW 16D	;else, tell CHSNS to expand sof
-				t-key 
+ 0279  B3 10                    	MOV	BL,LOW 16D	;else, tell CHSNS to expand soft-key 
  027B  F6 E3                    	MUL	BL		;[AX]=16 * function-key id 
  027D  05 0000 E                	ADD	AX,OFFSET STRTAB	;Get soft-key address 
- 0280  A3 0000 E                	MOV	WORD PTR CMDOFF,AX	;save soft-key pointer 
-				for soft-key expansion 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-26
+Machine independent Keyboard input routines CHSNS, INKEY$   
+
+ 0280  A3 0000 E                	MOV	WORD PTR CMDOFF,AX	;save soft-key pointer for soft-key expansion 
  0283  8B D8                    	MOV	BX,AX 
  0285  58                       	POP	AX 
- 0286  80 3F 00                 	CMP	BYTE PTR 0[BX],LOW 0	;set FLAGS.Z if null 
-				soft-key (and FLAGS.NC 
+ 0286  80 3F 00                 	CMP	BYTE PTR 0[BX],LOW 0	;set FLAGS.Z if null soft-key (and FLAGS.NC 
  0289  C3                       	RET			; not super shift) 
  028A                           NTFKY1: 
  028A  72 0A                    	JB	NTFKY9		;BRIF not super shift key 
@@ -1553,41 +1285,27 @@ Machine independent Keyboard input routines CHSNS, INKEY$
  0294  72 04                    	JB	SUPRKY		;BRIF is super shift key 
  0296                           NTFKY9: 
  0296  58                       	POP	AX 
- 0297  32 DB                    NTFKYX:	XOR	BL,BL		;set FLAGS.Z - not soft-key(
-				and FLAGS.NC not 
+ 0297  32 DB                    NTFKYX:	XOR	BL,BL		;set FLAGS.Z - not soft-key(and FLAGS.NC not 
  0299  C3                       	RET			;super shift) 
                                  
-                                	EXTRN	MAPSUP:NEAR,$FN:NEAR,$USR:NEAR,ALPTAB:NE
-				AR 
+                                	EXTRN	MAPSUP:NEAR,$FN:NEAR,$USR:NEAR,ALPTAB:NEAR 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	F_SUPR:WORD 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-31
-Machine independent Keyboard input routines CHSNS, INKEY$   
-
  0000                           DSEG	ENDS 
  029A                           SUPRKY: 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	CURLIN:WORD 
  0000                           DSEG	ENDS 
- 029A  83 3E 0000 E FF          	CMP	WORD PTR CURLIN,65535D	;Test for direct mo
-				de 
- 029F  75 F5                    	JNZ	NTFKY9		;Not direct mode - don't expand Su
-				pershift key 
+ 029A  83 3E 0000 E FF          	CMP	WORD PTR CURLIN,65535D	;Test for direct mode 
+ 029F  75 F5                    	JNZ	NTFKY9		;Not direct mode - don't expand Supershift key 
  02A1  51                       	PUSH	CX 
- 02A2  E8 0000 E                	CALL	MAPSUP		;Map super shift key to letter in
-				 AL and count 
- 02A5  32 C9                    	XOR	CL,CL		;Interface doc says CH contains cou
-				nt 
- 02A7  E3 31                    	JCXZ	SUPKY9		;Request to inhibit SKey expansio
-				n 
+ 02A2  E8 0000 E                	CALL	MAPSUP		;Map super shift key to letter in AL and count 
+ 02A5  32 C9                    	XOR	CL,CL		;Interface doc says CH contains count 
+ 02A7  E3 31                    	JCXZ	SUPKY9		;Request to inhibit SKey expansion 
  02A9  2C 41                    	SUB	AL,LOW "A"	; in CH 
-                                ;Scan for CHth reserved word in table that incl
-				udes words starting with letter 
+                                ;Scan for CHth reserved word in table that includes words starting with letter 
                                 ;in AL 
-                                ;Set up for CONIN to return the reserved word l
-				etters one at a time and return 
+                                ;Set up for CONIN to return the reserved word letters one at a time and return 
                                 ;AL now. 
  02AB  B7 00                    	MOV	BH,LOW 0 
  02AD  8A D8                    	MOV	BL,AL 
@@ -1595,246 +1313,183 @@ Machine independent Keyboard input routines CHSNS, INKEY$
  02B1  53                       	PUSH	BX		;Save ALPTAB offset 
  02B2  81 C3 0000 E             	ADD	BX,OFFSET ALPTAB 
  02B6                           SUPKY0: 
- 02B6  2E: 8B 1F                	MOV	BX,WORD PTR CS:0[BX]	;Get start of reserve
-				d words for this letter 
+ 02B6  2E: 8B 1F                	MOV	BX,WORD PTR CS:0[BX]	;Get start of reserved words for this letter 
  02B9                           SUPKY1: 
  02B9  2E: F6 07 FF             	TEST	BYTE PTR CS:0[BX],LOW 377O 
- 02BD  74 21                    	JZ	SUPKYZ		;BRIF did not find super key defini
-				tion(abort) 
+ 02BD  74 21                    	JZ	SUPKYZ		;BRIF did not find super key definition(abort) 
  02BF  FE CD                    	DEC	CH 
  02C1  74 0C                    	JZ	SUPKYX		;BRIF found the reserved word 
  02C3  4B                       	DEC	BX 
  02C4  43                       SUPKY2:	INC	BX 
  02C5  2E: F6 07 FF             	TEST	BYTE PTR CS:0[BX],LOW 377O 
- 02C9  79 F9                    	JNS	SUPKY2		;BRIF not at the end of this reser
-				ved word 
+ 02C9  79 F9                    	JNS	SUPKY2		;BRIF not at the end of this reserved word 
  02CB  43                       	INC	BX		;Skip end of string 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-27
+Machine independent Keyboard input routines CHSNS, INKEY$   
+
  02CC  43                       	INC	BX		;Skip token value 
  02CD  EB EA                    	JMP	SHORT SUPKY1	;Check next reserved word 
                                 ;Found the reserved word 
- 02CF  89 1E 0000 E             SUPKYX:	MOV	WORD PTR CMDOFF,BX	;Set up for stri
-				ng key input 
+ 02CF  89 1E 0000 E             SUPKYX:	MOV	WORD PTR CMDOFF,BX	;Set up for string key input 
  02D3  FE CD                    	DEC	CH 
- 02D5  88 2E 0000 E             	MOV	BYTE PTR F_SUPR,CH	;Set super shift key fl
-				ag 
+ 02D5  88 2E 0000 E             	MOV	BYTE PTR F_SUPR,CH	;Set super shift key flag 
  02D9  5B                       	POP	BX 
  02DA  59                       SUPKY9:	POP	CX 
  02DB  58                       	POP	AX 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-32
-Machine independent Keyboard input routines CHSNS, INKEY$   
-
  02DC  0B C0                    	OR	AX,AX		;Set FLAGS.NZ 
- 02DE  F9                       	STC			;Else return AL=first char, FLAGS.NZ and
-				 
- 02DF  C3                       	RET			;FLAGS.C When key not found then single 
-				char 
-                                				; returned as first expansion character.  N
-				o 
-                                				;expansion takes place since expansion tabl
-				e 
+ 02DE  F9                       	STC			;Else return AL=first char, FLAGS.NZ and 
+ 02DF  C3                       	RET			;FLAGS.C When key not found then single char 
+                                				; returned as first expansion character.  No 
+                                				;expansion takes place since expansion table 
                                 				;not initialized. 
-                                ;Did not find reserved word in ALPTAB, perhaps 
-				its in ALPTAX 
+                                ;Did not find reserved word in ALPTAB, perhaps its in ALPTAX 
                                 	EXTRN	ALPTAX:NEAR 
  02E0  5B                       SUPKYZ:	POP	BX 
  02E1  0A FF                    	OR	BH,BH 
- 02E3  75 F5                    	JNZ	SUPKY9		;BRIF already checked ALPTAX, exit
-				 
- 02E5  51                       	PUSH	CX		;Put non-zero high byte on stack(so a
-				bove 
+ 02E3  75 F5                    	JNZ	SUPKY9		;BRIF already checked ALPTAX, exit 
+ 02E5  51                       	PUSH	CX		;Put non-zero high byte on stack(so above 
                                 				; branch is taken) 
  02E6  81 C3 0000 E             	ADD	BX,OFFSET ALPTAX 
- 02EA  EB CA                    	JMP	SHORT SUPKY0	;Continue scan of reserved wo
-				rds 
+ 02EA  EB CA                    	JMP	SHORT SUPKY0	;Continue scan of reserved words 
                                  
                                  
-                                ;GETFKY: Called to retrieve a character from th
-				e SOFTKEY buffer. 
-                                ;Supershift key strings are expanded to end in 
-				a space unless the last character 
+                                ;GETFKY: Called to retrieve a character from the SOFTKEY buffer. 
+                                ;Supershift key strings are expanded to end in a space unless the last character 
                                 ; is a "(" or if the token is $FN or $USR. 
                                 ; 
                                 ; Entry - CMDOFF is the index into the buffer 
-                                ;         F.SUPR = ^O0   - not a supershift sof
-				tkey 
-                                ;                  ^O377 - Supershift (CMDOFF p
-				oints to character) 
-                                ;                  Other - Supershift (F.SUPR i
-				s the next character) 
+                                ;         F.SUPR = ^O0   - not a supershift softkey 
+                                ;                  ^O377 - Supershift (CMDOFF points to character) 
+                                ;                  Other - Supershift (F.SUPR is the next character) 
                                 ; Exit  - flags.Z set   - no key available 
-                                ;                 reset - AL contains character
-				 
+                                ;                 reset - AL contains character 
                                 ;         BX is used. 
                                 ; 
- 02EC  83 3E 0000 E 00          GETFKY:	CMP	WORD PTR CMDOFF,0D	;Softkey availab
-				le? 
+ 02EC  83 3E 0000 E 00          GETFKY:	CMP	WORD PTR CMDOFF,0D	;Softkey available? 
  02F1  74 06                    	JZ	GETFKX		;No special key available 
  02F3  E8 02FA R                	CALL	GTSFKY		;Get a softkey 
  02F6  E8 0310 R                	CALL	EOKTST		;Test for end of softkey 
  02F9  C3                       GETFKX:	RET 
                                  
- 02FA  8B 1E 0000 E             GTSFKY:	MOV	BX,WORD PTR CMDOFF	;Get char. offse
-				t 
+ 02FA  8B 1E 0000 E             GTSFKY:	MOV	BX,WORD PTR CMDOFF	;Get char. offset 
  02FE  A0 0000 E                	MOV	AL,BYTE PTR F_SUPR	;Get super-shift flag 
- 0301  A8 FF                    	TEST	AL,LOW 377O	;Super-shift key in progress?
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-33
-Machine independent Keyboard input routines CHSNS, INKEY$   
-
-				 
+ 0301  A8 FF                    	TEST	AL,LOW 377O	;Super-shift key in progress? 
  0303  74 05                    	JZ	NOTSUP		;Not a super-shift key 
- 0305  3C FF                    	CMP	AL,LOW 377O	;F.SUPR is ^O377 or current ch
-				aracter 
+ 0305  3C FF                    	CMP	AL,LOW 377O	;F.SUPR is ^O377 or current character 
  0307  75 06                    	JNZ	GTSFKX		;Got the key 
                                 				;Super-shifts are in the CS: 
  0309  2E                       	DB	2EH		; Code segment override 
- 030A  8A 07                    NOTSUP:	MOV	AL,BYTE PTR 0[BX]	;Get next charact
-				er 
+ 030A  8A 07                    NOTSUP:	MOV	AL,BYTE PTR 0[BX]	;Get next character 
  030C  32 E4                    	XOR	AH,AH		;Clear high byte 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-28
+Machine independent Keyboard input routines CHSNS, INKEY$   
+
  030E  43                       	INC	BX		;Index to next key 
  030F  C3                       GTSFKX:	RET 
                                  
  0310                           EOKTST: 
- 0310  F6 06 0000 E FF          	TEST	BYTE PTR F_SUPR,LOW 377O	;Super-shift key
-				 expansion? 
+ 0310  F6 06 0000 E FF          	TEST	BYTE PTR F_SUPR,LOW 377O	;Super-shift key expansion? 
  0315  74 26                    	JZ	EFKTST		;No - testing end of function key 
- 0317  0A C0                    	OR	AL,AL		;Test highbit (indicates end of key 
-				word) 
+ 0317  0A C0                    	OR	AL,AL		;Test highbit (indicates end of key word) 
  0319  79 16                    	JNS	NOHGBT		;Not highbit terminated 
  031B  24 7F                    	AND	AL,LOW 177O	;Map out high bit 
  031D  3C 28                    	CMP	AL,LOW "("	;Supershift key ending in "("? 
  031F  74 27                    	JZ	EOKTRU		;Yes, don't end in space 
- 0321  2E: 80 3F 00 E           	CMP	BYTE PTR CS:0[BX],LOW OFFSET $USR	;$USR to
-				ken? 
+ 0321  2E: 80 3F 00 E           	CMP	BYTE PTR CS:0[BX],LOW OFFSET $USR	;$USR token? 
  0325  74 21                    	JZ	EOKTRU		;Yes, don't end in space 
- 0327  2E: 80 3F 00 E           	CMP	BYTE PTR CS:0[BX],LOW OFFSET $FN	;$FN toke
-				n? 
+ 0327  2E: 80 3F 00 E           	CMP	BYTE PTR CS:0[BX],LOW OFFSET $FN	;$FN token? 
  032B  74 1B                    	JZ	EOKTRU		;Yes, don't end in space 
  032D  B3 20                    	MOV	BL,LOW " "	;End in a space 
  032F  EB 1A                    	JMP	SHORT EOKSSX	; and exit 
                                  
- 0331  FE 06 0000 E             NOHGBT:	INC	BYTE PTR F_SUPR	;Test for last char
-				. in F.SUPR 
- 0335  FE 0E 0000 E             	DEC	BYTE PTR F_SUPR	;(Depends on 128 chars in 
-				keyword char. set) 
- 0339  78 14                    	JS	EOKTSX		;Last char NOT from F.SUPR (F.SUPR 
-				was 377) 
- 033B  EB 0B                    	JMP	SHORT EOKTRU	;Last char from F.SUPR - end 
-				of supershift 
+ 0331  FE 06 0000 E             NOHGBT:	INC	BYTE PTR F_SUPR	;Test for last char. in F.SUPR 
+ 0335  FE 0E 0000 E             	DEC	BYTE PTR F_SUPR	;(Depends on 128 chars in keyword char. set) 
+ 0339  78 14                    	JS	EOKTSX		;Last char NOT from F.SUPR (F.SUPR was 377) 
+ 033B  EB 0B                    	JMP	SHORT EOKTRU	;Last char from F.SUPR - end of supershift 
                                 				;Test must always leave FLAGS.Z reset 
  033D  0A C0                    EFKTST:	OR	AL,AL		;Test for null function key 
  033F  74 07                    	JZ	EOKTRU		;Null F key incountered 
- 0341  F6 07 FF                 	TEST	BYTE PTR 0[BX],LOW 377O	;Test for end of 
-				function key 
+ 0341  F6 07 FF                 	TEST	BYTE PTR 0[BX],LOW 377O	;Test for end of function key 
  0344  75 09                    	JNZ	EOKTSX		;Not end of function key 
- 0346  0B E4                    	OR	SP,SP		;There is always a character at this
-				 point 
+ 0346  0B E4                    	OR	SP,SP		;There is always a character at this point 
  0348  BB 0000                  EOKTRU:	MOV	BX,0D		;Prepare to turn off CMDOFF 
  034B                           EOKSSX: 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	F_SUPR:WORD 
  0000                           DSEG	ENDS 
- 034B  88 1E 0000 E             	MOV	BYTE PTR F_SUPR,BL	;Turn off current super
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-34
-Machine independent Keyboard input routines CHSNS, INKEY$   
-
-				shift key expansion 
- 034F  89 1E 0000 E             EOKTSX:	MOV	WORD PTR CMDOFF,BX	;Store new softk
-				ey expansion index 
+ 034B  88 1E 0000 E             	MOV	BYTE PTR F_SUPR,BL	;Turn off current supershift key expansion 
+ 034F  89 1E 0000 E             EOKTSX:	MOV	WORD PTR CMDOFF,BX	;Store new softkey expansion index 
  0353  C3                       	RET 
                                  
                                  
-                                ;SFTOFF - Turn off softkey expansion for the cu
-				rrent softkey.  This routine 
-                                ;         has been documented to OEMs for use i
-				n implementing PEEK/POKE 
-                                ;         filters for addresses documented to I
-				BM BASIC users. 
+                                ;SFTOFF - Turn off softkey expansion for the current softkey.  This routine 
+                                ;         has been documented to OEMs for use in implementing PEEK/POKE 
+                                ;         filters for addresses documented to IBM BASIC users. 
                                 ; 
                                 	PUBLIC	SFTOFF 
- 0354  C7 06 0000 E 0000        SFTOFF:	MOV	WORD PTR CMDOFF,0D	;Stop soft key e
-				xpansion 
- 035A  C6 06 0000 E 00          	MOV	BYTE PTR F_SUPR,LOW 0D	;Turn off super shi
-				ft flag 
+ 0354  C7 06 0000 E 0000        SFTOFF:	MOV	WORD PTR CMDOFF,0D	;Stop soft key expansion 
+ 035A  C6 06 0000 E 00          	MOV	BYTE PTR F_SUPR,LOW 0D	;Turn off super shift flag 
  035F  C3                       	RET 
                                  
-                                ;KYBSNS - Detect whether keys are available in 
-				the keyboard buffer. 
-                                ;         This routine has been documented to O
-				EMs for use in implementation 
-                                ;         of PEEK/POKE filters for addresses do
-				cumented to IBM BASIC users. 
+                                ;KYBSNS - Detect whether keys are available in the keyboard buffer. 
+                                ;         This routine has been documented to OEMs for use in implementation 
+                                ;         of PEEK/POKE filters for addresses documented to IBM BASIC users. 
                                 ;Entry - none 
-                                ;Exit  - PSW.Z set indicates that the keyboard 
-				buffer is empty. 
+                                ;Exit  - PSW.Z set indicates that the keyboard buffer is empty. 
                                 ;        all registers preserved 
                                 ; 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-29
+Machine independent Keyboard input routines CHSNS, INKEY$   
+
                                 	PUBLIC	KYBSNS 
                                 	EXTRN	NUMQ:NEAR 
  0360  50                       KYBSNS:	PUSH	AX 
  0361  56                       	PUSH	SI 
- 0362  BE 0000 E                	MOV	SI,OFFSET KYBQDS	;SI = keyboard queue desc
-				riptor 
+ 0362  BE 0000 E                	MOV	SI,OFFSET KYBQDS	;SI = keyboard queue descriptor 
  0365  E8 0000 E                	CALL	NUMQ		;Get the number of keys available 
  0368  0B C0                    	OR	AX,AX		;Set flags 
  036A  5E                       	POP	SI 
  036B  58                       	POP	AX 
  036C  C3                       	RET 
                                  
-                                ;FKYSNS - Sense the availability of a softkey. 
-				 This routine is documented to 
-                                ;         IBMLIK OEMs for support of a PEEK/POK
-				E address documented by IBM. 
+                                ;FKYSNS - Sense the availability of a softkey.  This routine is documented to 
+                                ;         IBMLIK OEMs for support of a PEEK/POKE address documented by IBM. 
                                 ;Entry - none 
-                                ;Exit  - PSW.C set indicates softkey expansion 
-				is in progress 
-                                ;        PSW.Z set indicates that the next soft
-				key is not the last key 
+                                ;Exit  - PSW.C set indicates softkey expansion is in progress 
+                                ;        PSW.Z set indicates that the next softkey is not the last key 
                                 ;              of a supershift key. 
                                 ;        All registers preserved 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-35
-Machine independent Keyboard input routines CHSNS, INKEY$   
-
                                 ; 
                                 	PUBLIC	FKYSNS 
- 036D  80 3E 0000 E 00          FKYSNS:	CMP	BYTE PTR CMDOFF,LOW 0D	;Test for ex
-				pansion in progress 
+ 036D  80 3E 0000 E 00          FKYSNS:	CMP	BYTE PTR CMDOFF,LOW 0D	;Test for expansion in progress 
  0372  74 0F                    	JZ	FKYSNX		;Expansion not in progress 
- 0374  80 3E 0000 E FF          	CMP	BYTE PTR F_SUPR,LOW 255D	;Test for super-s
-				hift expansion 
+ 0374  80 3E 0000 E FF          	CMP	BYTE PTR F_SUPR,LOW 255D	;Test for super-shift expansion 
  0379  74 07                    	JZ	FKYSNW		;SS key but not last key 
- 037B  80 3E 0000 E 00          	CMP	BYTE PTR F_SUPR,LOW 0D	;Test for super-shi
-				ft expansion 
- 0380  74 00                    	JZ	FKYSNW		;Function key expansion in progress
-				 
+ 037B  80 3E 0000 E 00          	CMP	BYTE PTR F_SUPR,LOW 0D	;Test for super-shift expansion 
+ 0380  74 00                    	JZ	FKYSNW		;Function key expansion in progress 
  0382                           FKYSNW: 
  0382  F9                       	STC 
  0383  C3                       FKYSNX:	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-36
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-30
 Machine independent Keyboard input routines CHSNS, INKEY$   
 
                                 	PAGE 
-                                ;INKEY$ - get key from key-queue if one exists,
-				 else return null string. 
-                                ; Returns 2-byte string for DBLCHR.  For functi
-				on keys, returns next char 
-                                ; of function key if key is not null.  If F-key
-				 is null, it returns 
+                                ;INKEY$ - get key from key-queue if one exists, else return null string. 
+                                ; Returns 2-byte string for DBLCHR.  For function keys, returns next char 
+                                ; of function key if key is not null.  If F-key is null, it returns 
                                 ; 2-byte string which identifies function key. 
                                 ; 
                                 	PUBLIC	INKEY 
                                 	EXTRN	INKMAP:NEAR,INFMAP:NEAR 
-                                	EXTRN	STRINI:NEAR,STRIN1:NEAR,SETSTR:NEAR,PUTN
-				EW:NEAR,CHRGTR:NEAR 
+                                	EXTRN	STRINI:NEAR,STRIN1:NEAR,SETSTR:NEAR,PUTNEW:NEAR,CHRGTR:NEAR 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	DSCPTR:WORD,VALTYP:WORD,FACLO:WORD 
  0000                           DSEG	ENDS 
@@ -1851,8 +1506,7 @@ Machine independent Keyboard input routines CHSNS, INKEY$
  0397  E8 0000 E                	CALL	STRINI		;initialize 2-byte string 
  039A  8B 1E 0000 E             	MOV	BX,WORD PTR DSCPTR 
  039E  5A                       	POP	DX		;restore char code 
- 039F  86 F2                    	XCHG	DH,DL		;return high-byte in left end of s
-				tring 
+ 039F  86 F2                    	XCHG	DH,DL		;return high-byte in left end of string 
  03A1  89 17                    	MOV	WORD PTR 0[BX],DX 
  03A3  E9 0000 E                	JMP	PUTNEW 
  03A6  50                       INKEY1:	PUSH	AX 
@@ -1860,34 +1514,28 @@ Machine independent Keyboard input routines CHSNS, INKEY$
  03AA  58                       	POP	AX 
  03AB  8A D0                    	MOV	DL,AL 
  03AD  86 E0                    	XCHG	AH,AL		;put bytes in correct order 
- 03AF  E8 0000 E                	CALL	SETSTR		;STUFF IN DESCRIPTOR AND GOTO PUT
-				NEW 
+ 03AF  E8 0000 E                	CALL	SETSTR		;STUFF IN DESCRIPTOR AND GOTO PUTNEW 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	DSEGZ:WORD 
  0000                           DSEG	ENDS 
- 03B2  BB 0000 E                NULRT:	MOV	BX,OFFSET DSEGZ	;GUARANTEED ZERO IN 
-				DATA SEGMENT 
+ 03B2  BB 0000 E                NULRT:	MOV	BX,OFFSET DSEGZ	;GUARANTEED ZERO IN DATA SEGMENT 
  03B5  89 1E 0000 E             	MOV	WORD PTR FACLO,BX 
  03B9  C6 06 0000 E 03          	MOV	BYTE PTR VALTYP,LOW 3 
  03BE  5B                       	POP	BX		;restore text pointer 
  03BF  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-37
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
+GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-31
 Machine independent Keyboard input routines CHSNS, INKEY$   
 
                                 	PAGE 
                                 	SUBTTL  Cursor Support 
                                  
                                 ;STCTYP Set the new cursor type 
-                                ;       This routine determines the next cursor
-				 type. 
-                                ;Entry - PSW.C set indicates the cursor must be
-				 the user cursor 
-                                ;        PSW.C reset indicates the cursor must 
-				be the insert mode 
-                                ;              cursor or the overstrike cursor.
-				 
+                                ;       This routine determines the next cursor type. 
+                                ;Entry - PSW.C set indicates the cursor must be the user cursor 
+                                ;        PSW.C reset indicates the cursor must be the insert mode 
+                                ;              cursor or the overstrike cursor. 
                                 ;EXIT  - All registers preserved 
                                 ; 
                                 	PUBLIC	STCTYP 
@@ -1898,18 +1546,15 @@ Machine independent Keyboard input routines CHSNS, INKEY$
  03C1  B0 03                    	MOV	AL,LOW 3D	;Assume user cursor 
  03C3  72 0B                    	JB	CSRSET		;Assumption correct 
  03C5  FE C8                    	DEC	AL		;Assume overwrite mode cursor 
- 03C7  F6 06 0000 E FF          	TEST	BYTE PTR F_INST,LOW 255D	;Test for insert
-				 mode 
+ 03C7  F6 06 0000 E FF          	TEST	BYTE PTR F_INST,LOW 255D	;Test for insert mode 
  03CC  74 02                    	JZ	CSRSET		;Ovewrite mode discovered 
  03CE  FE C8                    	DEC	AL		;Set for insert mode 
  03D0  A2 0000 E                CSRSET:	MOV	BYTE PTR CSRTYP,AL	;Save the type 
  03D3  58                       	POP	AX 
  03D4  C3                       	RET 
                                  
-                                ;SETCSR - Set the cursor to the new cursor type
-				. 
-                                ;         This routine ensures that the cursor 
-				is set to the new cursor type. 
+                                ;SETCSR - Set the cursor to the new cursor type. 
+                                ;         This routine ensures that the cursor is set to the new cursor type. 
                                 ;Entry - none 
                                 ;Exit  - all registers preserved 
                                 ; 
@@ -1920,25 +1565,18 @@ Machine independent Keyboard input routines CHSNS, INKEY$
                                 	PUBLIC	SETCSR 
  03D5  50                       SETCSR:	PUSH	AX 
  03D6  A0 0000 E                	MOV	AL,BYTE PTR CSRTYP	;Get cursor type 
- 03D9  38 06 0000 E             	CMP	BYTE PTR CSRFLG,AL	;Test for cursor change
-				 
- 03DD  A2 0000 E                	MOV	BYTE PTR CSRFLG,AL	;Remember the new curso
-				r type 
+ 03D9  38 06 0000 E             	CMP	BYTE PTR CSRFLG,AL	;Test for cursor change 
+ 03DD  A2 0000 E                	MOV	BYTE PTR CSRFLG,AL	;Remember the new cursor type 
  03E0  74 03                    	JZ	CSROK		;Cursor already set properly 
  03E2  E8 0000 E                	CALL	CSRDSP		;Display the cursor 
  03E5  58                       CSROK:	POP	AX 
  03E6  C3                       	RET 
                                  
  03E7                           CSEG	ENDS 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
-GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-38
-Cursor Support                                              
-
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
 GIOKYB - Machine Independent Keyboard Device Driver Code    Symbols-1
                                                              
 
@@ -1996,8 +1634,8 @@ AUTFLG . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 BASDEB . . . . . . . . . . . . .  	Number	0000	
 BCHRSI . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 BEEPSW . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
 GIOKYB - Machine Independent Keyboard Device Driver Code    Symbols-2
                                                              
 
@@ -2055,8 +1693,8 @@ CRONLY . . . . . . . . . . . . .  	Number	0000
 CSRDSP . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 CSRFLG . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 CSROK  . . . . . . . . . . . . .  	L NEAR	03E5	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
 GIOKYB - Machine Independent Keyboard Device Driver Code    Symbols-3
                                                              
 
@@ -2114,8 +1752,8 @@ EXIDY  . . . . . . . . . . . . .  	Number	0000
 FACLO  . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 FAST . . . . . . . . . . . . . .  	Number	0001	
 FCBSIZ . . . . . . . . . . . . .  	Number	0026	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
 GIOKYB - Machine Independent Keyboard Device Driver Code    Symbols-4
                                                              
 
@@ -2173,8 +1811,8 @@ GENBIN . . . . . . . . . . . . .  	Number	0001
 GENDSK . . . . . . . . . . . . .  	Number	0000	
 GENIO  . . . . . . . . . . . . .  	Number	0001	
 GESBC  . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
 GIOKYB - Machine Independent Keyboard Device Driver Code    Symbols-5
                                                              
 
@@ -2232,8 +1870,8 @@ INTFHW . . . . . . . . . . . . .  	Number	0000
 INTFSW . . . . . . . . . . . . .  	Number	0000	
 INTHND . . . . . . . . . . . . .  	Number	0001	
 INTLEC . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
 GIOKYB - Machine Independent Keyboard Device Driver Code    Symbols-6
                                                              
 
@@ -2291,8 +1929,8 @@ LPT3 . . . . . . . . . . . . . .  	Number	0000
 LPTLEN . . . . . . . . . . . . .  	Number	0084	
 LPTSW  . . . . . . . . . . . . .  	Number	0001	
 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
 GIOKYB - Machine Independent Keyboard Device Driver Code    Symbols-7
                                                              
 
@@ -2350,8 +1988,8 @@ NTCTLFN  . . . . . . . . . . . .  	L NEAR	0125	CSEG
 NTFKY1 . . . . . . . . . . . . .  	L NEAR	028A	CSEG
 NTFKY9 . . . . . . . . . . . . .  	L NEAR	0296	CSEG
 NTFKYX . . . . . . . . . . . . .  	L NEAR	0297	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
 GIOKYB - Machine Independent Keyboard Device Driver Code    Symbols-8
                                                              
 
@@ -2409,8 +2047,8 @@ SCP  . . . . . . . . . . . . . .  	Number	0001
 SCRN86 . . . . . . . . . . . . .  	Number	0001	
 SCRNIO . . . . . . . . . . . . .  	Number	0001	
 SCROLT . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
 GIOKYB - Machine Independent Keyboard Device Driver Code    Symbols-9
                                                              
 
@@ -2468,8 +2106,8 @@ YKYEOF . . . . . . . . . . . . .  	L NEAR	0050	CSEG
 
 Z80  . . . . . . . . . . . . . .  	Number	0001	
 Z80MAC . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:27:04
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+ 
 GIOKYB - Machine Independent Keyboard Device Driver Code    Symbols-10
                                                              
 
@@ -2479,11 +2117,11 @@ $USR . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 _OFFST . . . . . . . . . . . . .  	Number	00C2	
 
 
-   1415 Source  Lines
-   1498 Total   Lines
+   1416 Source  Lines
+   1499 Total   Lines
     475 Symbols
 
-  35210 Bytes symbol space free
+  35190 Bytes symbol space free
 
       0 Warning Errors
       0 Severe  Errors

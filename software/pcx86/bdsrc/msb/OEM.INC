@@ -1,5 +1,6 @@
 ; [ This translation created 10-Feb-83 by Version 4.3 ]
 
+	PAGE	,132D
 	SUBTTL  Common file to produce 2-segment 8086 GW-CPM BASIC
 
 	.SALL

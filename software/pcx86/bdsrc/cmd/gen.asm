@@ -975,10 +975,10 @@ pt9:	pop	si
 ; converted to a float or vice versa depends on the operator.
 ;
 ; For example, all arithmetic and relational operators must "promote" ints
-; to floats, with the exception of '\' (integer division), which must "demote"
-; floats to ints.  All logical operators (which for our purposes also includes
-; shift operators) must also "demote" their operands to ints.  Demotion means
-; rounding to the nearest 32-bit integer (eg, 7.5 becomes 8, -7.4 becomes -7).
+; to floats, with the exception of '\' (integer division) and MOD, which must
+; "demote" floats to ints.  Ditto for logical operators (and shift operators).
+; Demotion means rounding to the nearest 32-bit integer (eg, 7.5 becomes 8,
+; -7.4 becomes -7).
 ;
 ; Some type matches are also automatic errors (eg, when the types are VAR_STR
 ; and the operator is neither "+" nor relational).  However, there's no special
@@ -1016,16 +1016,13 @@ go1:	cmp	dl,dh			; type mismatch?
 	je	go8a
 	jmp	short go8		; all other string ops return integers
 ;
-; The types match, so the worst case in this situation is having to demote
-; all float args to integers, which in turn requires us to check for one arg
-; (ie, NOT) or two args (ie, everything else).
+; The types match, so if they're both integer, there's nothing else to do.
+; If they're both float, operators NOT and above require demotion to integer.
 ;
-go2:	cmp	cl,OPEVAL_EQ
-	jb	go8a
-	cmp	dh,VAR_LONG
-	je	go8
+go2:	cmp	dh,VAR_LONG
+	je	go8a
 	cmp	cl,OPEVAL_NOT
-	jb	go8
+	jb	go8a
 	mov	cx,offset conv1DoubleToLong
 	je	go2a
 	mov	cx,offset conv2DoubleToLong
@@ -1041,6 +1038,10 @@ go3:	cmp	dl,VAR_STR		; if the 1st arg...
 	je	go8x
 	cmp	dh,VAR_STR		; or the 2nd arg are strings
 	je	go8x			; then it's a guaranteed type mismatch
+;
+; A float and an int walk into a bar.  If the bar is "NOT" or above,
+; the float must be demoted to int.  Otherwise, the int must be promoted.
+;
 	cmp	cl,OPEVAL_NOT
 	jae	go3b
 	cmp	dl,VAR_LONG
@@ -1061,11 +1062,11 @@ go3c:	GENCALL	cx
 
 go8:	mov	dl,VAR_LONG
 ;
-; When we arrive here, DL has been determined to be the type of the result,
-; and DH is the (possibly promoted) type of all inputs, and therefore it will
-; determine which table we extract the operator evaluator from.
+; At this point, DL is the result type and DH is the (possibly promoted)
+; input(s) type.  The latter indicates which table the evaluator comes from.
 ;
 go8a:	call	pushType		; DL = type to push
+	jcxz	go8x			; no evaluator implies an error
 	mov	si,offset EVAL_LONG
 	cmp	dh,VAR_LONG
 	je	go8b
@@ -1073,8 +1074,7 @@ go8a:	call	pushType		; DL = type to push
 	cmp	dh,VAR_DOUBLE
 	je	go8b
 	mov	si,offset EVAL_STR
-go8b:	jcxz	go8x			; no evaluator implies an error
-	dec	cx
+go8b:	dec	cx
 	add	si,cx
 	add	si,cx
 	mov	cx,cs:[si]
@@ -1082,7 +1082,6 @@ go8b:	jcxz	go8x			; no evaluator implies an error
 	jmp	short go8c		; (GENCALL also clears carry)
 go8x:	stc
 go8c:	pop	si
-
 go9:	ret
 
 ENDPROC	genExpr

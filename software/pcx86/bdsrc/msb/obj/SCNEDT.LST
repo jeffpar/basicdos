@@ -1,5 +1,5 @@
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
 SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-1
                                                             
 
@@ -15,24 +15,21 @@ SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-1
                              C  ; [ This translation created 10-Feb-83 by Versi
 				on 4.3 ] 
                              C   
-                             C  	SUBTTL  Common file to produce 2-segment 8086 
-				GW-CPM BASIC 
+                             C  	PAGE	,132D 
+                             C  	SUBTTL  Common file to produce 2-segment 8086 GW-CPM BASIC 
                              C   
                              C  	.SALL 
                              C   
  000A                        C  	.RADIX	10 
  = 0000                      C  	OEMRAM=0D 
-                             C  ;Pascal program HFILE searches for the followin
-				g line - DO NOT MODIFY 
-                             C  ;** (VERSION SPECIFIC VALUES) *****************
-				******************************* 
+                             C  ;Pascal program HFILE searches for the following line - DO NOT MODIFY 
+                             C  ;** (VERSION SPECIFIC VALUES) ************************************************ 
  = 0019                      C  	NMLINE=25		;Max screen display text lines 
  = 0001                      C  	NBANKS=1		;Number of graphic planes 
  = 0000                      C  	PALSIZ=0		;Size of OEM color palette 
  = 0000                      C  	DBLCHR=0		;Editor support for KANJI chars 
  = 0000                      C  	KANABS=0		;Kana BASIC (Japanese JIS codes) 
- = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .
-				. 
+ = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .. 
  = 0000                      C  	JISKTN=0		;&K, &J constants (KANJI) 
  = 0001                      C  	SUPRSH=1		;1=super shift key feature 
  = 000A                      C  	NMKEYF=10		;number of function keys 
@@ -46,61 +43,48 @@ SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-1
  = 0002                      C  	NMCOMT=2		;number of COMmunications ports 
  = 0001                      C  	NMPENT=1		;number of light pens 
  = 0004                      C  	NMSTRT=4		;number of joysticks 
- = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR)
-				 
+ = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR) 
  = 0001                      C  	IBMLIK=1		;IBM compatibility package 
  = 0001                      C  	IBMTOK=1		;IBM token compatibility 
  = 0001                      C  	DYNCOM=1		;Dynamic communication buffers 
-                             C  ;** (END OF VERSION SPECIFIC VALUES) **********
-				******************************* 
-                             C  ;Pascal program HFILE searches for the previous
-				 line - DO NOT MODIFY 
+                             C  ;** (END OF VERSION SPECIFIC VALUES) ***************************************** 
+                             C  ;Pascal program HFILE searches for the previous line - DO NOT MODIFY 
                              C  ; 
  = 0015                      C  	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
+ = 0001                      C  	GW=1			;GW BASIC 
+ = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROUT 
+ = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY) 
+                             C  				; Support is in BINTRP.MAC and GWSTS.MAC 
+ = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
+                             C  				;single precision numbers for output. 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
 SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
- = 0001                      C  	GW=1			;GW BASIC 
- = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROU
-				T 
- = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY
-				) 
-                             C  				; Support is in BINTRP.MAC and GWSTS.MAC 
- = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed whe
-				n formatting 
-                             C  				;single precision numbers for output. 
                              C  				; 0 := 7 digits 
                              C  				; 1 := 6 digits 
  = 0000                      C  	CASSW=0			;CASSETTE SWITCH 
  = 0001                      C  	LABKEY=1		;^T (LABEL) key capability 
- = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics)
-				 
- = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stac
-				k) 
+ = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics) 
+ = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stack) 
  = 0001                      C  	GIO86=1			;BASIC-86 Generalized I/O 
  = 0001                      C  	SCRNIO=1		;Screen editor 
  = 0001                      C  	SCRN86=1		;8086 Screen editor 
  = 0001                      C  	I8086=1			;CROSS ASSEMBLING FOR 8086 
  = 0001                      C  	MULSEG=1		;MULTI-SEGMENT 8086 BASIC 
- = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SE
-				T 
+ = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SET 
  = 0001                      C  	TRUROM=1 
  = 0000                      C  	SBC86=0			;SBC 86/02 BOARD? 
  = 0001                      C  	SHORTJ=1		;USE INTRA-SEGMENT SHORT JUMPS 
                              C  				;IN 8086 CODE 
- = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDE
-				D ONLY) 
+ = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDED ONLY) 
  = 0000                      C  	SHTERR=0		;SHORT (2 CHAR) ERROR MESSAGES 
  = 0000                      C  	SHTINS=0		;INSTR IN NON-FAST LEN2 VERSIONS 
- = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2
-				 VERSIONS 
+ = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2 VERSIONS 
  = 0000                      C  	SHTCHN=0		;ALLOW CHAIN IN NON-5.0 
- = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK
-				 
- = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NO
-				N-FAST 
+ = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK 
+ = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NON-FAST 
  = 0000                      C  	SHTREN=0		;ALLOW RENUM IN NON-FST VERSIONS 
  = 0001                      C  	INKEYF=1		;ADDS INKEY$ FUNCTION 
  = 0000                      C  	NOIOS=0			;NO I/O STATMENTS (INP,OUT, WAIT) 
@@ -109,23 +93,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	NOCTLA=0		;NO CONTROL-A IN EXTENDED 
  = 0000                      C  	NORUBT=0		;NO RUBOUT 
  = 0000                      C  	NOROMP=0		;NO ROM PROGRAM FEATURE 
- = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED
-				 
+ = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED 
  = 0000                      C  	NODOT=0			;NO DOT IN LEN2 
  = 0000                      C  	NOEDIT=0		;NO EDIT COMMAND 
- = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMIN
-				AL 
+ = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMINAL 
                              C  				;AND FILES 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
-SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-3
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
- = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN C
-				RDO & OUTCH1 
+ = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN CRDO & OUTCH1 
  = 0000                      C  	NOVARP=0		;NO VARPTR FUNCTION 
- = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 F
-				EATURES 
+ = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 FEATURES 
  = 0001                      C  	FIVMEM=1 
  = 0001                      C  	ANSI=1 
  = 0001                      C  	FIVDSK=1		;5.0 NEW DSK CODE 
@@ -136,24 +111,25 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0001                      C  	MEMIMG=1		;MEMORY IMAGE FILES 
  = 0001                      C  	GENBIN=1 
                              C   
- = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON 
-				ERROR) 
+ = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON ERROR) 
  = 0000                      C  	COMMNT=0		;DONT WANT BIG COMMENT 
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
+SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-3
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	RMX=0			;INTEL RMX VERSION 
  = 0000                      C  	EDIT80=0		;FOR EDIT80 I/O ROUTINES 
  = 0000                      C  	RSHACK=0 
  = 0000                      C  	INTLEC=0 
  = 0002                      C  	LENGTH=2		;  1 MEANS 8K, 2 MEANS 12K 
- = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BAS
-				IC 
- = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATION
-				S 
+ = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BASIC 
+ = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATIONS 
                              C  				;TO MAKE ITSELF SMALLER & QUICKER 
- = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE
-				 (=1) 
+ = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE (=1) 
  = 0001                      C  	GENIO=1			;USE G/P ROUTINES 
  = 0001                      C  	CHSEAT=1		;CHSNS eats chars 
  = 0000                      C  	GENDSK=0		;USE G/P DSK CODE 
@@ -165,21 +141,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	SBC=0			;FOR INTEL SINGLE BOARD COMPUTER 
                              C  				;1=SBC 80/10, 2=SBC 80/20 
  = 0001                      C  	PURE=1			;ON FOR PURE CODE 
- = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RA
-				M 
+ = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RAM 
  = 0000                      C  	INTROM=0 
  = 0001                      C  	LPTSW=1 
  = 0001                      C  	NCRLPT=1 
  = 0000                      C  	NCRCAS=0 
  = 0000                      C  	ISC=0			;FOR ISC VERSION 
- = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,C
-				ENT) 
+ = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,CENT) 
  = 0000                      C  	TSLPT=0 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
-SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-4
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C   
  = 0000                      C  	DOS=0			;ON TO GEN ROUTINES FOR DOS 
  = 0001                      C  	DISK=1			;FILE I/O FEATURES 
@@ -187,13 +156,10 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	TSDISK=0		;NO TIME-SHARING DISK FOR US 
  = 0000                      C  	SPCDSK=0		;MAY HAVE MM'S DISK CODE 
  = 0000                      C  	SPCNDS=0 
- = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIEND
-				S 
+ = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIENDS 
  = 0000                      C  	KEYSTA=0 
- = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISI
-				S II DOS 
- = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISI
-				S-II 
+ = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISIS II DOS 
+ = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISIS-II 
  = 0001                      C  	CPM=1			;FOR CPM compatible operating systems 
  = 0001                      C  	CPM2=1			;VERSION 2. CPM 
  = 0000                      C  	CPM86=0			;FOR CP/M-86 operating system 
@@ -201,16 +167,19 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMCON=0 
  = 0000                      C  	CPMSER=0		;CHECK CPM SERIAL #'S 
  = 0000                      C  	CPMADD=0		;FOR VERSION TO RUN ON ADDS CPM 
- = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 7
-				5 
+ = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 75 
                              C  				;CP/M 
  = 0000                      C  	CPMRSH=0		;FOR RADIO SHACK CPM/M 
  = 0000                      C  	CPM110=0		;FOR CP/M @1100 HEX (INTERALIA) 
- = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4
-				100H 
+ = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4100H 
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
+SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-4
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	CPMCON=0 
  = 0000                      C  	Z80=0 
  = 0001                      C  	DISK=1 
@@ -227,23 +196,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0002                      C  	LENGTH=2 
  = 0001                      C  	RSTLES=1 
  = 0001                      C  	FIVLPT=1 
- = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT V
-				ERSION 
+ = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT VERSION 
  = 0001                      C  	CONTRO=1		;ALLOW ^O 
  = 0001                      C  	LEN3=LEN2 OR CASSW 
                              C   
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
-SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-5
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
  = 0001                      C  	STRING=1 
  = 0001                      C  	NCRLPT=1 
                              C   
-                             C  ; *** OEM Switches which need to be defaulted t
-				o 0 
+                             C  ; *** OEM Switches which need to be defaulted to 0 
                              C  ; 
  = 0000                      C  	CMPUTN=0 
  = 0000                      C  	DUPONT=0 
@@ -268,15 +230,17 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	PANBAS=0 
  = 0000                      C  	XTNSYS=0 
  = 0000                      C  	NECBAS=0 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Z80 related macros 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
+SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-5
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  				;8080'S AND ZILOG Z-80'S 
- = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INST
-				RUCTIONS 
+ = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INSTRUCTIONS 
  = 0000                      C  	Z80=0 
  = 0001                      C  	Z80=1 
                              C  LDIR	MACRO 
@@ -293,11 +257,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	MOV	WORD PTR A,WORD PTR M 
                              C  	STAX	D 
                              C  	DCXF	H 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
-SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-6
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  	DCXF	D 
                              C  	DCXF	B 
                              C  	MOV	WORD PTR A,WORD PTR B 
@@ -308,11 +267,9 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	DCR	B 
                              C  	JNZ	DEST 
                              C  ENDM 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Define reset routines. 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  FSIGN	MACRO 
                              C  	CALL	SIGN 
                              C  ENDM 
@@ -336,6 +293,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
+SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-6
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  GETYPE	MACRO 
                              C  	CALL	GETYPR 
                              C  ENDM 
@@ -352,11 +314,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	PUSH	WORD PTR B 
                              C  ENDM 
                              C  POPR	MACRO 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
-SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-7
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  	POP	WORD PTR B 
                              C  	POP	WORD PTR D 
                              C  ENDM 
@@ -373,15 +330,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDM 
                              C   
                              C   
- = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALL
-				Y CONTROL-O) 
- = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTAL
-				S 
+ = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALLY CONTROL-O) 
+ = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTALS 
                              C   
- = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARA
-				CTERS 
- = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SEC
-				TOR 
+ = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARACTERS 
+ = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SECTOR 
  = 0050                      C  	LINLN=80D		;TERMINAL LINE LENGTH 
  = 0084                      C  	LPTLEN=132D 
  = 00FF                      C  	BUFLEN=255		;LONG LINES 
@@ -399,6 +352,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
+SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-7
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  ACRLF   MACRO 
                              C          DB      13D 
                              C          DB      10D 
@@ -411,11 +369,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDIF 
                              C  IFNB    <D> 
                              C          DB      C&O 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
-SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-8
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C          DB      D&O 
                              C  ENDIF 
                              C  IFB     <D> 
@@ -447,17 +400,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
-SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-9
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
+SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
                                  
                                  
-                                	TITLE   SCNEDT  Screen Oriented Editor for GW-
-				BASIC 
+                                	TITLE   SCNEDT  Screen Oriented Editor for GW-BASIC 
                                 	SUBTTL  DATA DEFINITIONS 
                                  
                                  
@@ -468,11 +420,9 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                         * 
                                  
                              C  	INCLUDE	GIO86U.INC 
-                             C  ; [ This translation created 12-Jan-83 by Versi
-				on 4.3 ] 
+                             C  ; [ This translation created 12-Jan-83 by Version 4.3 ] 
                              C   
-                             C  	SUBTTL GIO86U - Device Independent I/O Constan
-				ts and Macros 
+                             C  	SUBTTL GIO86U - Device Independent I/O Constants and Macros 
                              C   
                              C  COMMENT	* 
                              C   
@@ -480,8 +430,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COPYRIGHT (C) 1982 BY MICROSOFT 
                              C  --------- --- ---- -- --------- 
                              C   
-                             C          Programmer: Tom Corbett,  Microsoft Inc
-				. 
+                             C          Programmer: Tom Corbett,  Microsoft Inc. 
                              C   
                              C          * 
                              C   
@@ -499,54 +448,44 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 000A                      C  	ASCLF=10D		;Line Feed 
  = 000D                      C  	ASCCR=13D		;Carriage Return 
  = 0013                      C  	ASCCTS=19D		;CTL-S 
- = 001A                      C  	ASCCTZ=26D		;Control Z (End-of-file for some d
-				evices) 
+ = 001A                      C  	ASCCTZ=26D		;Control Z (End-of-file for some devices) 
  = 001B                      C  	ASCESC=27D		;Escape 
  = 0020                      C  	ASCSPC=32D		;Space 
                              C   
-                             C  ;Special File ID's (identified by 1st byte of f
-				ile) 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
-SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-10
-GIO86U - Device Independent I/O Constants and Macros        
-
+                             C  ;Special File ID's (identified by 1st byte of file) 
                              C  ; 
  = 00FF                      C  	BINFID=255D		;files created by SAVE "fn" 
  = 00FE                      C  	PROFID=254D		;files created by SAVE "fn",P 
  = 00FD                      C  	BSVFID=253D		;files created by BSAVE "fn" 
                              C   
                              C  ;Generalized I/O Function Codes: 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
+SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-9
+GIO86U - Device Independent I/O Constants and Macros        
+
                              C  ; 
  = 0000                      C  	_OFFST=0		;initialize count 
-                             C  	ROFFST	G_EOF,2		;test EOF for file opened to t
-				his device 
+                             C  	ROFFST	G_EOF,2		;test EOF for file opened to this device 
                              C  	ROFFST	G_LOC,2		;LOC 
                              C  	ROFFST	G_LOF,2		;LOF 
-                             C  	ROFFST	G_CLS,2		;perform special CLOSE functio
-				ns for this device 
+                             C  	ROFFST	G_CLS,2		;perform special CLOSE functions for this device 
                              C  	ROFFST	G_SWD,2		;set device width 
-                             C  	ROFFST	G_RND,2		;GET/PUT random record from/to
-				 this device 
-                             C  	ROFFST	G_OPN,2		;perform special OPEN function
-				s for this device 
-                             C  	ROFFST	G_SIN,2		;input 1 byte from file opened
-				 on this device 
-                             C  	ROFFST	G_SOT,2		;output 1 byte to file opened 
-				on this device 
+                             C  	ROFFST	G_RND,2		;GET/PUT random record from/to this device 
+                             C  	ROFFST	G_OPN,2		;perform special OPEN functions for this device 
+                             C  	ROFFST	G_SIN,2		;input 1 byte from file opened on this device 
+                             C  	ROFFST	G_SOT,2		;output 1 byte to file opened on this device 
                              C  	ROFFST	G_GPS,2		;POS 
                              C  	ROFFST	G_GWD,2		;get device width 
                              C  	ROFFST	G_SCW,2		;set device column width 
                              C  	ROFFST	G_GCW,2		;get device column width 
-                             C  	ROFFST	G_BIN,2		;block input from file opened 
-				on this device 
-                             C  	ROFFST	G_BOT,2		;block output to file opened o
-				n this device 
+                             C  	ROFFST	G_BIN,2		;block input from file opened on this device 
+                             C  	ROFFST	G_BOT,2		;block output to file opened on this device 
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
-SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-11
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
+SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-10
 GIO86U - Device Independent I/O Constants and Macros        
 
                              C          PAGE 
@@ -574,79 +513,58 @@ GIO86U - Device Independent I/O Constants and Macros
                                 	PUBLIC	PINLIN		; Program line input 
                                 				;on exit:       BX=addr of input -1 
                                  
-                                	PUBLIC	INLIN		; BASIC INPUT Statements line in
-				put 
+                                	PUBLIC	INLIN		; BASIC INPUT Statements line input 
                                 				;on exit:       BX=addr of input -1 
                                  
-                                	PUBLIC	SINLIN		; BASIC INPUT Statements redo l
-				ine input 
+                                	PUBLIC	SINLIN		; BASIC INPUT Statements redo line input 
                                 				;on exit:       BX=addr of input -1 
                                  
-                                	PUBLIC	QINLIN		; BASIC INPUT Statements with o
-				utput of "?" first 
+                                	PUBLIC	QINLIN		; BASIC INPUT Statements with output of "?" first 
                                 				;on exit:       BX=addr of input -1 
                                  
-                                	PUBLIC	SCNSEM		; BASIC INPUT statement scan fo
-				r semicolon 
+                                	PUBLIC	SCNSEM		; BASIC INPUT statement scan for semicolon 
                                 				;on exit:       SEMFLG flag set 
-                                	PUBLIC	EDTBRK		; BASIC received break, reiniti
-				alize routine 
+                                	PUBLIC	EDTBRK		; BASIC received break, reinitialize routine 
                                  
-                                	PUBLIC	ERREDT		; BASIC Syntax error auto-edit 
-				on ERRLIN 
-                                				;on exit:       Removes return and jumps to
-				 MAIN after 
-                                				;               listing ERRLIN and position
-				ing cursor at 
+                                	PUBLIC	ERREDT		; BASIC Syntax error auto-edit on ERRLIN 
+                                				;on exit:       Removes return and jumps to MAIN after 
+                                				;               listing ERRLIN and positioning cursor at 
                                 				;               start of line. 
                                  
                                 	PUBLIC	EDIT		; EDIT Statement 
-                                				;on exit:       Same as ERREDT, except take
-				s line number 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
-SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-12
-GIO86U - Device Independent I/O Constants and Macros        
-
+                                				;on exit:       Same as ERREDT, except takes line number 
                                 				;               to list as argument. 
                                  
-                                ;       INTERN  EDITRT          ; AUTO Program 
-				line input processing 
+                                ;       INTERN  EDITRT          ; AUTO Program line input processing 
                                 				;on exit:       BX=addr of input(BUF) 
-                                				;               it also puts PSW on stack w
-				ith carry 
-                                				;               set and jumps to EDENT for 
-				exit 
+                                				;               it also puts PSW on stack with carry 
+                                				;               set and jumps to EDENT for exit 
                                  
                                  
                                 ;EXTERNAL ROUTINES: 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
+SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-11
+GIO86U - Device Independent I/O Constants and Macros        
+
                                  
                                 	EXTRN	OUTDO:NEAR	; Character output(GIO86) 
-                                	EXTRN	KEYIN:NEAR	; Key input(expands any strin
-				g keys-GIOKYB) 
-                                	EXTRN	SCNMRK:NEAR	; Mark current posn as start
-				 of line(SCNDRV) 
-                                	EXTRN	SCNRDL:NEAR	; Read current logical line(
-				SCNDRV) 
+                                	EXTRN	KEYIN:NEAR	; Key input(expands any string keys-GIOKYB) 
+                                	EXTRN	SCNMRK:NEAR	; Mark current posn as start of line(SCNDRV) 
+                                	EXTRN	SCNRDL:NEAR	; Read current logical line(SCNDRV) 
                                 	EXTRN	CRDO:NEAR	; BASIC new line routine 
-                                	EXTRN	CHRGTR:NEAR	; BASIC character scan routi
-				ne 
+                                	EXTRN	CHRGTR:NEAR	; BASIC character scan routine 
                                  
                                 ;DATA (DEFINED IN RAM MODULE) 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	ASSUME DS:DSEG 
-                                	EXTRN	F_EDPG:WORD	; Flag - =^O377 indicates pr
-				ogram statement edit 
-                                	EXTRN	SEMFLG:WORD	; Flag - zero indicates INPU
-				T; statement(no crlf 
+                                	EXTRN	F_EDPG:WORD	; Flag - =^O377 indicates program statement edit 
+                                	EXTRN	SEMFLG:WORD	; Flag - zero indicates INPUT; statement(no crlf 
                                 				;       at end of input line) 
-                                	EXTRN	F_INST:WORD	; Flag - =^O377 indicates in
-				sert mode 
-                                	EXTRN	BUF:WORD	; Buffer where line of data is 
-				returned 
+                                	EXTRN	F_INST:WORD	; Flag - =^O377 indicates insert mode 
+                                	EXTRN	BUF:WORD	; Buffer where line of data is returned 
                                 				;   NOTE: assumes non-blank at BUF-1 
-                                	EXTRN	F_EDIT:WORD	; Flag - non-zero indicates 
-				INLIN active 
+                                	EXTRN	F_EDIT:WORD	; Flag - non-zero indicates INLIN active 
                                 	EXTRN	AUTFLG:WORD	; AUTO mode flag 
                                 	EXTRN	CSRX:WORD	; Cursor column (1..n) 
                                 	EXTRN	CSRY:WORD	; Cursor line (1..n) 
@@ -662,11 +580,6 @@ GIO86U - Device Independent I/O Constants and Macros
  = 0001                         	CHREDT=1		; EDiT 
  = 0002                         	CHRBKW=2		; BacK Word 
  = 0003                         	CHRCAN=3		; CANcel 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
-SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-13
-GIO86U - Device Independent I/O Constants and Macros        
-
  = 0004                         	CHRHCN=4		; Hard CaNcel 
  = 0005                         	CHRCLE=5		; CLear to End of line 
  = 0006                         	CHRFDW=6		; ForwarD Word 
@@ -688,13 +601,17 @@ GIO86U - Device Independent I/O Constants and Macros
                                 	SUBTTL  Entry points for editing 
                                  
                                  
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
+SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-12
+Entry points for editing                                    
+
                                  
                                 ;ENTRY: PINLIN, QINLIN, INLIN, SINLIN 
                                 ; 
                                 ;PROGRAM STATEMENT INPUT 
                                 PUBLIC	PINLIN 
- 0000  E8 0187 R                PINLIN:	CALL	DSKCHI		; Don't return if Loading 
-				ASCII File 
+ 0000  E8 0187 R                PINLIN:	CALL	DSKCHI		; Don't return if Loading ASCII File 
  0003  F9                       	STC			; Indicate program statement input 
  0004  EB 0C                    	JMP	SHORT INLIN0 
                                  
@@ -711,30 +628,18 @@ GIO86U - Device Independent I/O Constants and Macros
                                  
                                 ;INPUT STATEMENT REDO 
                                 PUBLIC	SINLIN 
- 0010  0A C0                    SINLIN:	OR	AL,AL		; Indicate INPUT statement li
-				ne input 
+ 0010  0A C0                    SINLIN:	OR	AL,AL		; Indicate INPUT statement line input 
                                  
  0012                           INLIN0: 
- 0012  1A C0                    	SBB	AL,AL		; If INPUT statement AL=0, else AL=
-				-1 
+ 0012  1A C0                    	SBB	AL,AL		; If INPUT statement AL=0, else AL=-1 
  0014  A2 0000 E                	MOV	BYTE PTR F_EDPG,AL	; Save flag 
- 0017  A0 0000 E                	MOV	AL,BYTE PTR F_EDIT	; Get old value of F.ED
-				IT(in case of EDIT statement) 
- 001A  C6 06 0000 E FF          	MOV	BYTE PTR F_EDIT,LOW 377O	; Indicate execut
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
-SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-14
-Entry points for editing                                    
-
-				ing INLIN 
+ 0017  A0 0000 E                	MOV	AL,BYTE PTR F_EDIT	; Get old value of F.EDIT(in case of EDIT statement) 
+ 001A  C6 06 0000 E FF          	MOV	BYTE PTR F_EDIT,LOW 377O	; Indicate executing INLIN 
  001F  E8 0000 E                	CALL	SCNMRK		; Set up for edit 
-                                				;   If AL=1 then move cursor to start of lo
-				gical 
+                                				;   If AL=1 then move cursor to start of logical 
                                 				;       line which preceeds current. 
-                                				;   Else if ZF=1 then set up FSTPOS, LSTPOS
-				 
-                                				;        if ZF=0 then FSTPOS=0,0; LSTPOS=ma
-				x,max 
+                                				;   Else if ZF=1 then set up FSTPOS, LSTPOS 
+                                				;        if ZF=0 then FSTPOS=0,0; LSTPOS=max,max 
                                 	SUBTTL  MAIN loop of editor 
                                  
                                  
@@ -746,50 +651,39 @@ Entry points for editing
  0022  F8                       	CLC			; Signal for insert or overwrite cursor 
  0023  E8 0000 E                	CALL	STCTYP		; Set new cursor type 
  0026  E8 0000 E                	CALL	KEYIN		; AX=key value 
-                                ;At this point we can have three classes of cha
-				racters: 
-                                ;   CF=1 indicates 2 byte char with 2 sub class
-				es: 
-                                ;       AH=FF indicates editor control function
-				 
-                                ;       AH<>FF indicates 2 byte character to ec
-				ho 
+                                ;At this point we can have three classes of characters: 
+                                ;   CF=1 indicates 2 byte char with 2 sub classes: 
+                                ;       AH=FF indicates editor control function 
+                                ;       AH<>FF indicates 2 byte character to echo 
                                 ;   CF=0 indicates 1 or 3 byte key 
-                                ;       AL=FF indicates a 3 byte key with scan 
-				code in DX - these are ignored 
-                                ;       AL<>FF indicates a 1 byte key to echo, 
-				except if char is CR. 
- 0029  72 0A                    	JB	INL2BY		; BRIF 2-byte character, check for 
-				editor controls 
+                                ;       AL=FF indicates a 3 byte key with scan code in DX - these are ignored 
+                                ;       AL<>FF indicates a 1 byte key to echo, except if char is CR. 
+ 0029  72 0A                    	JB	INL2BY		; BRIF 2-byte character, check for editor controls 
  002B  3C 0D                    	CMP	AL,LOW OFFSET CHRRET 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
+SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-13
+MAIN loop of editor                                         
+
  002D  74 39                    	JZ	INLRET		; BRIF CR, terminate line input 
                                 ;** IF CURRENT_CHAR IS SPECIAL THREE BYTE CHAR 
  002F  3C FE                    	CMP	AL,LOW 254D	; Test for 3-byte character 
                                 ;** *** IGNORE THIS CHAR 
  0031  74 EF                    	JZ	INLLOP		; BRIF to ignore 3-byte character 
- 0033  EB 18                    	JMP	SHORT INLOP0	; Not 3-bytes, just echo sing
-				le byte 
+ 0033  EB 18                    	JMP	SHORT INLOP0	; Not 3-bytes, just echo single byte 
  0035                           INL2BY: 
                                 ;** IF CURRENT_CHAR IS CONTROL_CHAR 
  0035  80 FC FF                 	CMP	AH,LOW 255D 
- 0038  75 13                    	JNZ	INLOP0		; BRIF not editor control characte
-				r, echo char 
+ 0038  75 13                    	JNZ	INLOP0		; BRIF not editor control character, echo char 
  003A  3C 7F                    	CMP	AL,LOW 177O 
  003C  74 04                    	JZ	INLP0		; BRIF is a control character 
  003E  3C 20                    	CMP	AL,LOW " " 
  0040  73 0B                    	JNB	INLOP0		; BRIF is not a control character 
  0042                           INLP0: 
-                                ;** IF CURRENT_CHAR IS <CR> RETURN CURRENT LOGI
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
-SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-15
-MAIN loop of editor                                         
-
-				CAL LINE 
+                                ;** IF CURRENT_CHAR IS <CR> RETURN CURRENT LOGICAL LINE 
  0042  3C 0D                    	CMP	AL,LOW OFFSET CHRRET 
  0044  74 22                    	JZ	INLRET		; BRIF is carriage return(EOL) 
-                                ;** IF (CURRENT_CHAR=<HELP> AND INPUT_MODE=PROG
-				RAM) DO EDIT ON KBUF 
+                                ;** IF (CURRENT_CHAR=<HELP> AND INPUT_MODE=PROGRAM) DO EDIT ON KBUF 
  0046  3C 01                    	CMP	AL,LOW OFFSET CHREDT 
  0048  75 03                    	JNZ	INLOP0 
  004A  E9 014D R                	JMP	INLHLP		; BRIF help char, do edit on KBUF 
@@ -818,18 +712,21 @@ MAIN loop of editor
                                 ;READ LOGICAL LINE INTO BUF 
  0068  BB 0000 E                INLRET:	MOV	BX,OFFSET BUF	; Put data into BUF 
  006B  B9 00FF                  	MOV	CX,255D		; CX=Max number of bytes to move 
- 006E  F6 06 0000 E FF          	TEST	BYTE PTR F_EDPG,LOW 377O	; Set zero flag 
-				if program statement input 
+ 006E  F6 06 0000 E FF          	TEST	BYTE PTR F_EDPG,LOW 377O	; Set zero flag if program statement input 
  0073  9C                       	PUSHF 
  0074  8A 16 0000 E             	MOV	DL,BYTE PTR CSRY	; (DH,DL) = (CSRX,CSRY) 
  0078  8A 36 0000 E             	MOV	DH,BYTE PTR CSRX 
  007C  E8 0000 E                	CALL	SCNRDL		; Read the logical line into BUF 
                                 				; BX=address of last char in BUF plus one 
                                 ;IF PROGRAM_STATEMENT_INPUT BEGIN 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
+SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-14
+Exit, return current logical line                           
+
  007F  9D                       	POPF 
  0080  74 26                    	JZ	INCRTX		; BRIF not statement input 
-                                ;** WHILE POSN.NE.BEGIN_OF_LINE AND [POSN].NE.B
-				LANK AND [POSN].NE.LF BEGIN 
+                                ;** WHILE POSN.NE.BEGIN_OF_LINE AND [POSN].NE.BLANK AND [POSN].NE.LF BEGIN 
  0082  8B CB                    	MOV	CX,BX 
  0084  81 E9 0000 E             	SUB	CX,OFFSET BUF	; CX=count of chars in BUF 
  0088  74 1E                    	JZ	INCRTX		; BUF is empty 
@@ -839,21 +736,14 @@ MAIN loop of editor
  008E  B0 20                    INLOT0:	MOV	AL,LOW " " 
                                 ;** *** POSN=POSN-1 
  0090  FD                       INLOT1:	STD			; Scan backwards 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
-SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-16
-Exit, return current logical line                           
-
- 0091  F3/ AE                    REPE	SCASB			; This works for blank line("," a
-				t BUF-1) 
+ 0091  F3/ AE                    REPE	SCASB			; This works for blank line("," at BUF-1) 
  0093  47                       	INC	DI		; [DI] = last valid data 
  0094  B0 20                    	MOV	AL,LOW " " 
  0096  38 05                    	CMP	BYTE PTR 0[DI],AL 
  0098  74 06                    	JZ	INLOT2		; BRIF more trailing blanks 
  009A  B0 0A                    	MOV	AL,LOW OFFSET CHRLNF 
  009C  3A 05                    	CMP	AL,BYTE PTR 0[DI] 
- 009E  75 04                    	JNZ	INLOT3		; BRIF not more trailing linefeeds
-				 
+ 009E  75 04                    	JNZ	INLOT3		; BRIF not more trailing linefeeds 
  00A0  0A C9                    INLOT2:	OR	CL,CL 
  00A2  75 EC                    	JNZ	INLOT1		; BRIF not at beginning of buffer 
                                 ;** *** END 
@@ -861,66 +751,54 @@ Exit, return current logical line
  00A4  8B DF                    INLOT3:	MOV	BX,DI 
  00A6  5F                       	POP	DI 
  00A7  43                       	INC	BX 
- 00A8  C6 07 00                 INCRTX:	MOV	BYTE PTR 0[BX],LOW 0	; Terminate BU
-				F 
+ 00A8  C6 07 00                 INCRTX:	MOV	BYTE PTR 0[BX],LOW 0	; Terminate BUF 
                                 ;** UPDATE CURSOR POSN, RETURN 
  00AB  F6 06 0000 E FF          	TEST	BYTE PTR SEMFLG,LOW 377O 
- 00B0  75 0E                    	JNZ	INCRTF		; BRIF if INPUT<semicolon> stateme
-				nt 
+ 00B0  75 0E                    	JNZ	INCRTF		; BRIF if INPUT<semicolon> statement 
  00B2  B8 000E                  	MOV	AX,OFFSET CHRAPP 
  00B5  E8 0000 E                	CALL	OUTDO		; Move to end of logical 
  00B8  C6 06 0000 E 00          	MOV	BYTE PTR F_EDIT,LOW 0 
- 00BD  E8 0000 E                	CALL	CRDO		; Move to first posn beyond this lo
-				gical 
+ 00BD  E8 0000 E                	CALL	CRDO		; Move to first posn beyond this logical 
  00C0  BB FFFF E                INCRTF:	MOV	BX,OFFSET BUF-1	; Return BUF - 1 
  00C3  9C                       	PUSHF 
- 00C4  E8 00EC R                	CALL	CLRFLG		; Clear miscellaneous status flag
-				s 
+ 00C4  E8 00EC R                	CALL	CLRFLG		; Clear miscellaneous status flags 
  00C7  9D                       	POPF 
  00C8  C3                       	RET 
                                  
                                  
-                                ;SUBROUTINE EDTBRK              ; Routine which
-				 initializes when break detected 
-                                ;**                             ; This is calle
-				d by the STOP code 
+                                ;SUBROUTINE EDTBRK              ; Routine which initializes when break detected 
+                                ;**                             ; This is called by the STOP code 
                                 ;** 
  00C9                           EDTBRK: 
                                 	EXTRN	SETCSR:NEAR 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	CSRTYP:WORD 
  0000                           DSEG	ENDS 
- 00C9  C6 06 0000 E 00          	MOV	BYTE PTR CSRTYP,LOW 0D	; Indicate cursor o
-				ff 
+ 00C9  C6 06 0000 E 00          	MOV	BYTE PTR CSRTYP,LOW 0D	; Indicate cursor off 
  00CE  E8 0000 E                	CALL	SETCSR 
  00D1  E8 00EC R                	CALL	CLRFLG		; Clear editor flags 
  00D4  50                       	PUSH	AX 
- 00D5  B0 0E                    	MOV	AL,LOW OFFSET CHRAPP 
- 00D7  A2 0000 E                	MOV	BYTE PTR F_EDIT,AL 
- 00DA  E8 0000 E                	CALL	OUTDO		; Move cursor to end of logical li
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
-SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-17
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
+SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-15
 Exit, return current logical line                           
 
-				ne 
+ 00D5  B0 0E                    	MOV	AL,LOW OFFSET CHRAPP 
+ 00D7  A2 0000 E                	MOV	BYTE PTR F_EDIT,AL 
+ 00DA  E8 0000 E                	CALL	OUTDO		; Move cursor to end of logical line 
  00DD  C6 06 0000 E 00          	MOV	BYTE PTR F_EDIT,LOW 0	; Reset edit mode 
- 00E2  E8 0000 E                	CALL	CRDO		; Move cursor to next physical line
-				 
+ 00E2  E8 0000 E                	CALL	CRDO		; Move cursor to next physical line 
  00E5  58                       	POP	AX 
  00E6  C6 06 0000 E 00          	MOV	BYTE PTR AUTFLG,LOW 0	; Reset AUTO mode 
  00EB  C3                       	RET 
                                 ;** END SUBROUTINE EDTBRK 
                                  
-                                ;SUBROUTINE CLRFLG              ; Routine which
-				 clears flags 
+                                ;SUBROUTINE CLRFLG              ; Routine which clears flags 
                                 ;** 
- 00EC  C6 06 0000 E 00          CLRFLG:	MOV	BYTE PTR F_EDIT,LOW 0	; No longer i
-				n INLIN 
+ 00EC  C6 06 0000 E 00          CLRFLG:	MOV	BYTE PTR F_EDIT,LOW 0	; No longer in INLIN 
  00F1  C6 06 0000 E 00          	MOV	BYTE PTR F_EDPG,LOW 0	; Not program edit 
  00F6  C6 06 0000 E 00          	MOV	BYTE PTR F_INST,LOW 0	; Not insert mode 
- 00FB  C6 06 0000 E 00          	MOV	BYTE PTR SEMFLG,LOW 0	; Not INPUT; stateme
-				nt 
+ 00FB  C6 06 0000 E 00          	MOV	BYTE PTR SEMFLG,LOW 0	; Not INPUT; statement 
  0100  C3                       	RET 
                                 ;** END SUBROUTINE CLRFLG 
                                  
@@ -928,10 +806,8 @@ Exit, return current logical line
                                  
                                  
                                  
-                                	EXTRN	MAIN:NEAR,LINSPC:NEAR,FNDLIN:NEAR,DEPTR:
-				NEAR,LISPRT:NEAR 
-                                	EXTRN	LINPRT:NEAR,FCERR:NEAR,USERR:NEAR,BUFLIN
-				:NEAR 
+                                	EXTRN	MAIN:NEAR,LINSPC:NEAR,FNDLIN:NEAR,DEPTR:NEAR,LISPRT:NEAR 
+                                	EXTRN	LINPRT:NEAR,FCERR:NEAR,USERR:NEAR,BUFLIN:NEAR 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	DOT:WORD,ERRFLG:WORD,ERRLIN:WORD 
  0000                           DSEG	ENDS 
@@ -941,8 +817,7 @@ Exit, return current logical line
                                 PUBLIC	EDIT 
  0101  E8 0000 E                EDIT:	CALL	LINSPC		; LINE NUMBER IN DE 
  0104  75 41                    	JNZ	EFCERR		; STATEMENT MUST HAVE ENDED 
- 0106  5B                       EREDIT:	POP	BX		; REMOVE NEWSTT(OR CALL FROM MA
-				IN)RETURN 
+ 0106  5B                       EREDIT:	POP	BX		; REMOVE NEWSTT(OR CALL FROM MAIN)RETURN 
  0107  89 16 0000 E             	MOV	WORD PTR DOT,DX 
  010B  E8 0000 E                	CALL	FNDLIN		; FIND LINE 
  010E  73 3A                    	JNB	EUSERR		; LINE DOES NOT EXIST 
@@ -953,36 +828,29 @@ Exit, return current logical line
  0116  43                       	INC	BX 
  0117  43                       	INC	BX 
  0118  53                       ERED3:	PUSH	BX 
- 0119  C6 06 0000 E 01          	MOV	BYTE PTR F_EDIT,LOW 1	; SET FLAG INDICATIN
-				G IN EDIT MODE 
+ 0119  C6 06 0000 E 01          	MOV	BYTE PTR F_EDIT,LOW 1	; SET FLAG INDICATING IN EDIT MODE 
                                 				; (FORCES OPEN LINES DURING LIST) 
-                                				; (AND TELLS INLIN TO START AT BEGIN OF LOG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
-SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-18
-EDIT code                                                   
-
-				ICAL) 
+                                				; (AND TELLS INLIN TO START AT BEGIN OF LOGICAL) 
  011E  87 DA                    	XCHG	BX,DX 
  0120  E8 0000 E                ERED4:	CALL	LINPRT		; PRINT THE LINE NUMBER 
  0123  5B                       	POP	BX 
- 0124  80 3F 09                 	CMP	BYTE PTR 0[BX],LOW 9D	; LINE START WITH TA
-				B? 
+ 0124  80 3F 09                 	CMP	BYTE PTR 0[BX],LOW 9D	; LINE START WITH TAB? 
  0127  74 05                    	JZ	ERED5 
  0129  B0 20                    	MOV	AL,LOW " " 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
+SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-16
+EDIT code                                                   
+
  012B  E8 0000 E                	CALL	OUTDO		; NO, PUT SPACE OUT 
                                 ;ENTRY FOR EDIT ON KBUF IS HERE 
  012E                           ERED5: 
- 012E  C6 06 0000 E 01          	MOV	BYTE PTR F_EDIT,LOW 1	; SET FLAG INDICATIN
-				G IN EDIT MODE 
+ 012E  C6 06 0000 E 01          	MOV	BYTE PTR F_EDIT,LOW 1	; SET FLAG INDICATING IN EDIT MODE 
                                 				; (FORCES OPEN LINES DURING LIST) 
-                                				; (AND TELLS INLIN TO START AT BEGIN OF LOG
-				ICAL) 
- 0133  E8 0000 E                	CALL	BUFLIN		; PUT LINE IN BUF AND SET UP HLPB
-				FA 
+                                				; (AND TELLS INLIN TO START AT BEGIN OF LOGICAL) 
+ 0133  E8 0000 E                	CALL	BUFLIN		; PUT LINE IN BUF AND SET UP HLPBFA 
  0136  BB 0000 E                	MOV	BX,OFFSET BUF 
- 0139  E8 0000 E                	CALL	LISPRT		; PRINT THE LINE AND SET UP HLPCS
-				R 
+ 0139  E8 0000 E                	CALL	LISPRT		; PRINT THE LINE AND SET UP HLPCSR 
  013C  8A 1E 0000 E             	MOV	BL,BYTE PTR CSRY 
  0140  8A 3E 0000 E             	MOV	BH,BYTE PTR CSRX 
  0144  E9 0000 E                	JMP	MAIN 
@@ -992,8 +860,7 @@ EDIT code
                                 ;Help key edit 
                                 ; 
  014D  F6 06 0000 E FF          INLHLP:	TEST	BYTE PTR F_EDPG,LOW 377O 
- 0152  75 03                    	JNZ	INLHL0		; BRIF do help edit on program sta
-				tement 
+ 0152  75 03                    	JNZ	INLHL0		; BRIF do help edit on program statement 
                                 ;Help during input statement 
  0154  E9 0058 R                	JMP	INLOP3		; Just output char 
                                  
@@ -1003,42 +870,37 @@ EDIT code
                                  
                                 ;See if edit on error line number 
  0158  8B 16 0000 E             	MOV	DX,WORD PTR ERRLIN 
- 015C  E8 017B R                	CALL	ERRED2		; If exists,do edit on error line
-				 number 
+ 015C  E8 017B R                	CALL	ERRED2		; If exists,do edit on error line number 
                                  
                                 ;See if edit on current line number 
  015F  8B 16 0000 E             	MOV	DX,WORD PTR CURLIN 
- 0163  E8 017B R                	CALL	ERRED2		; If exists,do edit on current li
-				ne number 
+ 0163  E8 017B R                	CALL	ERRED2		; If exists,do edit on current line number 
                                 ;ERRLIN AND CURLIN ARE DIRECT, DO EDIT ON KBUF 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	KBUF:WORD,CURLIN:WORD 
  0000                           DSEG	ENDS 
                                 	EXTRN	SCNEXT:NEAR,DEPTR:NEAR 
- 0166  E8 0000 E                	CALL	DEPTR		; Remove line pointers from progra
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
-SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-19
-EDIT code                                                   
-
-				m 
+ 0166  E8 0000 E                	CALL	DEPTR		; Remove line pointers from program 
  0169  BB 0000 E                	MOV	BX,OFFSET KBUF 
  016C  53                       	PUSH	BX 
  016D  4B                       	DEC	BX 
- 016E  E8 0000 E                	CALL	SCNEXT		; Remove any line pointers from K
-				BUF 
+ 016E  E8 0000 E                	CALL	SCNEXT		; Remove any line pointers from KBUF 
  0171  5B                       	POP	BX 
  0172  EB BA                    	JMP	SHORT ERED5 
                                  
                                 ;AUTOMATIC EDIT FOR ERRORS 
                                 ; 
                                 PUBLIC	ERREDT 
- 0174  A2 0000 E                ERREDT:	MOV	BYTE PTR ERRFLG,AL	; Reset the flag
-				 to call edit 
+ 0174  A2 0000 E                ERREDT:	MOV	BYTE PTR ERRFLG,AL	; Reset the flag to call edit 
  0177  8B 16 0000 E             	MOV	DX,WORD PTR ERRLIN	; Get the line number 
  017B  83 FA FF                 ERRED2:	CMP	DX,177777O	; See if it was direct 
  017E  74 06                    	JZ	ERRED3		; Go back if direct 
  0180  0B D2                    	OR	DX,DX 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
+SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-17
+EDIT code                                                   
+
  0182  74 02                    	JZ	ERRED3		; Go back if zero 
  0184  EB 80                    	JMP	EREDIT 
  0186  C3                       ERRED3:	RET 
@@ -1049,45 +911,29 @@ EDIT code
                                 ;LOAD ASCII: 
                                 ;  PROGRAM LINE INPUT FROM DISK 
                                 ; 
-                                	EXTRN	ISFLIO:NEAR,OUTDO:NEAR,INCHR:NEAR,LBOERR
-				:NEAR 
+                                	EXTRN	ISFLIO:NEAR,OUTDO:NEAR,INCHR:NEAR,LBOERR:NEAR 
  0187                           DSKCHI: 
- 0187  E8 0000 E                	CALL	ISFLIO		; Set FLAGS.NZ if PTRFIL points t
-				o active file 
+ 0187  E8 0000 E                	CALL	ISFLIO		; Set FLAGS.NZ if PTRFIL points to active file 
  018A  75 01                    	JNZ	ISLOAD		; BRIF LOAD statement 
  018C  C3                       	RET			; If so use special screen io 
  018D  58                       ISLOAD:	POP	AX		; Discard Return Address 
- 018E  B1 FF                    	MOV	CL,LOW OFFSET BUFLEN	; Setup the maximum c
-				haracter count 
- 0190  BB 0000 E                	MOV	BX,OFFSET BUF	; Place we are going to stoe
-				r the line 
- 0193  E8 0000 E                LOPBUF:	CALL	INCHR		; Get a character from the 
-				file 
+ 018E  B1 FF                    	MOV	CL,LOW OFFSET BUFLEN	; Setup the maximum character count 
+ 0190  BB 0000 E                	MOV	BX,OFFSET BUF	; Place we are going to stoer the line 
+ 0193  E8 0000 E                LOPBUF:	CALL	INCHR		; Get a character from the file 
                                 				; (will call indskc and handle eof) 
  0196  88 07                    	MOV	BYTE PTR 0[BX],AL	; Store the character 
  0198  3C 0D                    	CMP	AL,LOW 13D	; Is it the end (a CR) 
  019A  75 08                    	JNZ	INOTCR		; Not a [CR] 
- 019C  80 7F FF 0A              	CMP	BYTE PTR -1[BX],LOW 10D	; Preceeded by a l
-				ine feed? 
+ 019C  80 7F FF 0A              	CMP	BYTE PTR -1[BX],LOW 10D	; Preceeded by a line feed? 
  01A0  74 F1                    	JZ	LOPBUF		; Yes, ignore the [CR] 
- 01A2  EB 14                    	JMP	SHORT FINLIN	; No, this is the end of a li
-				ne 
+ 01A2  EB 14                    	JMP	SHORT FINLIN	; No, this is the end of a line 
  01A4                           INOTCR: 
  01A4  0A C9                    	OR	CL,CL 
- 01A6  74 17                    	JE	LTLONG		; Branch if line is too long to fit
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
-SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-20
-ASCII LOAD and SAVE line handler                            
-
-				 in BUF 
- 01A8  3C 0A                    	CMP	AL,LOW 10D	; LEADING LINE FEEDS MUST BE IG
-				NORED 
+ 01A6  74 17                    	JE	LTLONG		; Branch if line is too long to fit in BUF 
+ 01A8  3C 0A                    	CMP	AL,LOW 10D	; LEADING LINE FEEDS MUST BE IGNORED 
  01AA  75 05                    	JNZ	INOTLF 
- 01AC  80 F9 FF                 	CMP	CL,LOW OFFSET BUFLEN	; CL=BUFLEN if this i
-				s the 1st char on the line 
- 01AF  74 E2                    	JZ	LOPBUF		; Branch if this was a leading line
-				-feed 
+ 01AC  80 F9 FF                 	CMP	CL,LOW OFFSET BUFLEN	; CL=BUFLEN if this is the 1st char on the line 
+ 01AF  74 E2                    	JZ	LOPBUF		; Branch if this was a leading line-feed 
  01B1  43                       INOTLF:	INC	BX		; ADVANCE THE POINTER 
  01B2  FE C9                    	DEC	CL 
  01B4  EB DD                    	JMP	SHORT LOPBUF	; DO NEXT CHAR 
@@ -1097,13 +943,11 @@ ASCII LOAD and SAVE line handler
  01BB  BB FFFF E                	MOV	BX,OFFSET BUF-1	; POINT AT BUFMIN 
  01BE  C3                       	RET 
                                  
- 01BF  E9 0000 E                LTLONG:	JMP	LBOERR		; Report LINE BUFFER OVERFL
-				OW error 
+ 01BF  E9 0000 E                LTLONG:	JMP	LBOERR		; Report LINE BUFFER OVERFLOW error 
                                 				; (This program wasn't created by BASIC) 
                                  
                                 ;SAVE ASCII: 
-                                ;   PROGRAM LISTING CHAR OUTPUT TO DISK(CONVERT
-				 <LF> TO <LF><CR>) 
+                                ;   PROGRAM LISTING CHAR OUTPUT TO DISK(CONVERT <LF> TO <LF><CR>) 
                                 ; 
                                 PUBLIC	OUTCH1 
  01C2  3C 0A                    OUTCH1:	CMP	AL,LOW OFFSET CHRLNF 
@@ -1111,6 +955,11 @@ ASCII LOAD and SAVE line handler
  01C6  E9 0000 E                	JMP	OUTDO 
  01C9                           OUTCH0: 
                                 	EXTRN	ISFLIO:NEAR 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
+SCNEDT  Screen Oriented Editor for GW-BASIC                 Page     1-18
+ASCII LOAD and SAVE line handler                            
+
  01C9  E8 0000 E                	CALL	ISFLIO 
  01CC  75 04                    	JNZ	OUTCH2		; branch if outputting to file 
  01CE  E8 0000 E                	CALL	OUTDO 
@@ -1124,8 +973,8 @@ ASCII LOAD and SAVE line handler
  01DD                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
 SCNEDT  Screen Oriented Editor for GW-BASIC                 Symbols-1
                                                              
 
@@ -1183,8 +1032,8 @@ BEEPSW . . . . . . . . . . . . .  	Number	0001
 BINCSW . . . . . . . . . . . . .  	Number	0000	
 BINFID . . . . . . . . . . . . .  	Number	00FF	
 BLODSW . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
 SCNEDT  Screen Oriented Editor for GW-BASIC                 Symbols-2
                                                              
 
@@ -1242,8 +1091,8 @@ CRONLY . . . . . . . . . . . . .  	Number	0000
 CSRTYP . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 CSRX . . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 CSRY . . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
 SCNEDT  Screen Oriented Editor for GW-BASIC                 Symbols-3
                                                              
 
@@ -1301,8 +1150,8 @@ GESBC  . . . . . . . . . . . . .  	Number	0000
 GIO86  . . . . . . . . . . . . .  	Number	0001	
 GW . . . . . . . . . . . . . . .  	Number	0001	
 GWCASS . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
 SCNEDT  Screen Oriented Editor for GW-BASIC                 Symbols-4
                                                              
 
@@ -1360,8 +1209,8 @@ INSTSW . . . . . . . . . . . . .  	Number	0000
 INTEL  . . . . . . . . . . . . .  	Number	0000	
 INTFHW . . . . . . . . . . . . .  	Number	0000	
 INTFSW . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
 SCNEDT  Screen Oriented Editor for GW-BASIC                 Symbols-5
                                                              
 
@@ -1419,8 +1268,8 @@ NCRELS . . . . . . . . . . . . .  	Number	0000
 NCRLPT . . . . . . . . . . . . .  	Number	0001	
 NECBAS . . . . . . . . . . . . .  	Number	0000	
 NMCOMT . . . . . . . . . . . . .  	Number	0002	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
 SCNEDT  Screen Oriented Editor for GW-BASIC                 Symbols-6
                                                              
 
@@ -1478,8 +1327,8 @@ SCNSEM . . . . . . . . . . . . .  	L NEAR	005D	CSEG	Global
 SCNSMR . . . . . . . . . . . . .  	L NEAR	0067	CSEG
 SCP  . . . . . . . . . . . . . .  	Number	0001	
 SCRKEY . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:47
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:07
+ 
 SCNEDT  Screen Oriented Editor for GW-BASIC                 Symbols-7
                                                              
 
@@ -1529,11 +1378,11 @@ Z80MAC . . . . . . . . . . . . .  	Number	0001
 _OFFST . . . . . . . . . . . . .  	Number	001E	
 
 
-    879 Source  Lines
-    911 Total   Lines
+    880 Source  Lines
+    912 Total   Lines
     354 Symbols
 
-  39290 Bytes symbol space free
+  39270 Bytes symbol space free
 
       0 Warning Errors
       0 Severe  Errors

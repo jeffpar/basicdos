@@ -1,5 +1,5 @@
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-1
                                                             
 
@@ -15,24 +15,21 @@ GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-1
                              C  ; [ This translation created 10-Feb-83 by Versi
 				on 4.3 ] 
                              C   
-                             C  	SUBTTL  Common file to produce 2-segment 8086 
-				GW-CPM BASIC 
+                             C  	PAGE	,132D 
+                             C  	SUBTTL  Common file to produce 2-segment 8086 GW-CPM BASIC 
                              C   
                              C  	.SALL 
                              C   
  000A                        C  	.RADIX	10 
  = 0000                      C  	OEMRAM=0D 
-                             C  ;Pascal program HFILE searches for the followin
-				g line - DO NOT MODIFY 
-                             C  ;** (VERSION SPECIFIC VALUES) *****************
-				******************************* 
+                             C  ;Pascal program HFILE searches for the following line - DO NOT MODIFY 
+                             C  ;** (VERSION SPECIFIC VALUES) ************************************************ 
  = 0019                      C  	NMLINE=25		;Max screen display text lines 
  = 0001                      C  	NBANKS=1		;Number of graphic planes 
  = 0000                      C  	PALSIZ=0		;Size of OEM color palette 
  = 0000                      C  	DBLCHR=0		;Editor support for KANJI chars 
  = 0000                      C  	KANABS=0		;Kana BASIC (Japanese JIS codes) 
- = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .
-				. 
+ = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .. 
  = 0000                      C  	JISKTN=0		;&K, &J constants (KANJI) 
  = 0001                      C  	SUPRSH=1		;1=super shift key feature 
  = 000A                      C  	NMKEYF=10		;number of function keys 
@@ -46,61 +43,48 @@ GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-1
  = 0002                      C  	NMCOMT=2		;number of COMmunications ports 
  = 0001                      C  	NMPENT=1		;number of light pens 
  = 0004                      C  	NMSTRT=4		;number of joysticks 
- = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR)
-				 
+ = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR) 
  = 0001                      C  	IBMLIK=1		;IBM compatibility package 
  = 0001                      C  	IBMTOK=1		;IBM token compatibility 
  = 0001                      C  	DYNCOM=1		;Dynamic communication buffers 
-                             C  ;** (END OF VERSION SPECIFIC VALUES) **********
-				******************************* 
-                             C  ;Pascal program HFILE searches for the previous
-				 line - DO NOT MODIFY 
+                             C  ;** (END OF VERSION SPECIFIC VALUES) ***************************************** 
+                             C  ;Pascal program HFILE searches for the previous line - DO NOT MODIFY 
                              C  ; 
  = 0015                      C  	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
+ = 0001                      C  	GW=1			;GW BASIC 
+ = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROUT 
+ = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY) 
+                             C  				; Support is in BINTRP.MAC and GWSTS.MAC 
+ = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
+                             C  				;single precision numbers for output. 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
- = 0001                      C  	GW=1			;GW BASIC 
- = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROU
-				T 
- = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY
-				) 
-                             C  				; Support is in BINTRP.MAC and GWSTS.MAC 
- = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed whe
-				n formatting 
-                             C  				;single precision numbers for output. 
                              C  				; 0 := 7 digits 
                              C  				; 1 := 6 digits 
  = 0000                      C  	CASSW=0			;CASSETTE SWITCH 
  = 0001                      C  	LABKEY=1		;^T (LABEL) key capability 
- = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics)
-				 
- = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stac
-				k) 
+ = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics) 
+ = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stack) 
  = 0001                      C  	GIO86=1			;BASIC-86 Generalized I/O 
  = 0001                      C  	SCRNIO=1		;Screen editor 
  = 0001                      C  	SCRN86=1		;8086 Screen editor 
  = 0001                      C  	I8086=1			;CROSS ASSEMBLING FOR 8086 
  = 0001                      C  	MULSEG=1		;MULTI-SEGMENT 8086 BASIC 
- = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SE
-				T 
+ = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SET 
  = 0001                      C  	TRUROM=1 
  = 0000                      C  	SBC86=0			;SBC 86/02 BOARD? 
  = 0001                      C  	SHORTJ=1		;USE INTRA-SEGMENT SHORT JUMPS 
                              C  				;IN 8086 CODE 
- = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDE
-				D ONLY) 
+ = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDED ONLY) 
  = 0000                      C  	SHTERR=0		;SHORT (2 CHAR) ERROR MESSAGES 
  = 0000                      C  	SHTINS=0		;INSTR IN NON-FAST LEN2 VERSIONS 
- = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2
-				 VERSIONS 
+ = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2 VERSIONS 
  = 0000                      C  	SHTCHN=0		;ALLOW CHAIN IN NON-5.0 
- = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK
-				 
- = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NO
-				N-FAST 
+ = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK 
+ = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NON-FAST 
  = 0000                      C  	SHTREN=0		;ALLOW RENUM IN NON-FST VERSIONS 
  = 0001                      C  	INKEYF=1		;ADDS INKEY$ FUNCTION 
  = 0000                      C  	NOIOS=0			;NO I/O STATMENTS (INP,OUT, WAIT) 
@@ -109,23 +93,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	NOCTLA=0		;NO CONTROL-A IN EXTENDED 
  = 0000                      C  	NORUBT=0		;NO RUBOUT 
  = 0000                      C  	NOROMP=0		;NO ROM PROGRAM FEATURE 
- = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED
-				 
+ = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED 
  = 0000                      C  	NODOT=0			;NO DOT IN LEN2 
  = 0000                      C  	NOEDIT=0		;NO EDIT COMMAND 
- = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMIN
-				AL 
+ = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMINAL 
                              C  				;AND FILES 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
-GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-3
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
- = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN C
-				RDO & OUTCH1 
+ = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN CRDO & OUTCH1 
  = 0000                      C  	NOVARP=0		;NO VARPTR FUNCTION 
- = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 F
-				EATURES 
+ = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 FEATURES 
  = 0001                      C  	FIVMEM=1 
  = 0001                      C  	ANSI=1 
  = 0001                      C  	FIVDSK=1		;5.0 NEW DSK CODE 
@@ -136,24 +111,25 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0001                      C  	MEMIMG=1		;MEMORY IMAGE FILES 
  = 0001                      C  	GENBIN=1 
                              C   
- = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON 
-				ERROR) 
+ = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON ERROR) 
  = 0000                      C  	COMMNT=0		;DONT WANT BIG COMMENT 
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
+GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-3
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	RMX=0			;INTEL RMX VERSION 
  = 0000                      C  	EDIT80=0		;FOR EDIT80 I/O ROUTINES 
  = 0000                      C  	RSHACK=0 
  = 0000                      C  	INTLEC=0 
  = 0002                      C  	LENGTH=2		;  1 MEANS 8K, 2 MEANS 12K 
- = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BAS
-				IC 
- = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATION
-				S 
+ = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BASIC 
+ = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATIONS 
                              C  				;TO MAKE ITSELF SMALLER & QUICKER 
- = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE
-				 (=1) 
+ = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE (=1) 
  = 0001                      C  	GENIO=1			;USE G/P ROUTINES 
  = 0001                      C  	CHSEAT=1		;CHSNS eats chars 
  = 0000                      C  	GENDSK=0		;USE G/P DSK CODE 
@@ -165,21 +141,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	SBC=0			;FOR INTEL SINGLE BOARD COMPUTER 
                              C  				;1=SBC 80/10, 2=SBC 80/20 
  = 0001                      C  	PURE=1			;ON FOR PURE CODE 
- = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RA
-				M 
+ = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RAM 
  = 0000                      C  	INTROM=0 
  = 0001                      C  	LPTSW=1 
  = 0001                      C  	NCRLPT=1 
  = 0000                      C  	NCRCAS=0 
  = 0000                      C  	ISC=0			;FOR ISC VERSION 
- = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,C
-				ENT) 
+ = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,CENT) 
  = 0000                      C  	TSLPT=0 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
-GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-4
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C   
  = 0000                      C  	DOS=0			;ON TO GEN ROUTINES FOR DOS 
  = 0001                      C  	DISK=1			;FILE I/O FEATURES 
@@ -187,13 +156,10 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	TSDISK=0		;NO TIME-SHARING DISK FOR US 
  = 0000                      C  	SPCDSK=0		;MAY HAVE MM'S DISK CODE 
  = 0000                      C  	SPCNDS=0 
- = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIEND
-				S 
+ = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIENDS 
  = 0000                      C  	KEYSTA=0 
- = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISI
-				S II DOS 
- = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISI
-				S-II 
+ = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISIS II DOS 
+ = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISIS-II 
  = 0001                      C  	CPM=1			;FOR CPM compatible operating systems 
  = 0001                      C  	CPM2=1			;VERSION 2. CPM 
  = 0000                      C  	CPM86=0			;FOR CP/M-86 operating system 
@@ -201,16 +167,19 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMCON=0 
  = 0000                      C  	CPMSER=0		;CHECK CPM SERIAL #'S 
  = 0000                      C  	CPMADD=0		;FOR VERSION TO RUN ON ADDS CPM 
- = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 7
-				5 
+ = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 75 
                              C  				;CP/M 
  = 0000                      C  	CPMRSH=0		;FOR RADIO SHACK CPM/M 
  = 0000                      C  	CPM110=0		;FOR CP/M @1100 HEX (INTERALIA) 
- = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4
-				100H 
+ = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4100H 
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
+GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-4
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	CPMCON=0 
  = 0000                      C  	Z80=0 
  = 0001                      C  	DISK=1 
@@ -227,23 +196,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0002                      C  	LENGTH=2 
  = 0001                      C  	RSTLES=1 
  = 0001                      C  	FIVLPT=1 
- = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT V
-				ERSION 
+ = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT VERSION 
  = 0001                      C  	CONTRO=1		;ALLOW ^O 
  = 0001                      C  	LEN3=LEN2 OR CASSW 
                              C   
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
-GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-5
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
  = 0001                      C  	STRING=1 
  = 0001                      C  	NCRLPT=1 
                              C   
-                             C  ; *** OEM Switches which need to be defaulted t
-				o 0 
+                             C  ; *** OEM Switches which need to be defaulted to 0 
                              C  ; 
  = 0000                      C  	CMPUTN=0 
  = 0000                      C  	DUPONT=0 
@@ -268,15 +230,17 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	PANBAS=0 
  = 0000                      C  	XTNSYS=0 
  = 0000                      C  	NECBAS=0 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Z80 related macros 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
+GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-5
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  				;8080'S AND ZILOG Z-80'S 
- = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INST
-				RUCTIONS 
+ = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INSTRUCTIONS 
  = 0000                      C  	Z80=0 
  = 0001                      C  	Z80=1 
                              C  LDIR	MACRO 
@@ -293,11 +257,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	MOV	WORD PTR A,WORD PTR M 
                              C  	STAX	D 
                              C  	DCXF	H 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
-GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-6
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  	DCXF	D 
                              C  	DCXF	B 
                              C  	MOV	WORD PTR A,WORD PTR B 
@@ -308,11 +267,9 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	DCR	B 
                              C  	JNZ	DEST 
                              C  ENDM 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Define reset routines. 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  FSIGN	MACRO 
                              C  	CALL	SIGN 
                              C  ENDM 
@@ -336,6 +293,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
+GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-6
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  GETYPE	MACRO 
                              C  	CALL	GETYPR 
                              C  ENDM 
@@ -352,11 +314,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	PUSH	WORD PTR B 
                              C  ENDM 
                              C  POPR	MACRO 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
-GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-7
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  	POP	WORD PTR B 
                              C  	POP	WORD PTR D 
                              C  ENDM 
@@ -373,15 +330,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDM 
                              C   
                              C   
- = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALL
-				Y CONTROL-O) 
- = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTAL
-				S 
+ = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALLY CONTROL-O) 
+ = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTALS 
                              C   
- = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARA
-				CTERS 
- = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SEC
-				TOR 
+ = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARACTERS 
+ = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SECTOR 
  = 0050                      C  	LINLN=80D		;TERMINAL LINE LENGTH 
  = 0084                      C  	LPTLEN=132D 
  = 00FF                      C  	BUFLEN=255		;LONG LINES 
@@ -399,6 +352,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
+GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-7
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  ACRLF   MACRO 
                              C          DB      13D 
                              C          DB      10D 
@@ -411,11 +369,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDIF 
                              C  IFNB    <D> 
                              C          DB      C&O 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
-GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-8
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C          DB      D&O 
                              C  ENDIF 
                              C  IFB     <D> 
@@ -447,19 +400,17 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
-GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-9
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
+GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
                                  
                                  
-                                	TITLE   GIOTBL - Device Name Table, Dispatch T
-				able Address Tables 
-                                ;                Initialization and Termination
-				 Dispatch Tables 
+                                	TITLE   GIOTBL - Device Name Table, Dispatch Table Address Tables 
+                                ;                Initialization and Termination Dispatch Tables 
                                  
                                 COMMENT	* 
                                  
@@ -469,11 +420,9 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                  
                                         * 
                              C  	INCLUDE	GIO86U.INC 
-                             C  ; [ This translation created 12-Jan-83 by Versi
-				on 4.3 ] 
+                             C  ; [ This translation created 12-Jan-83 by Version 4.3 ] 
                              C   
-                             C  	SUBTTL GIO86U - Device Independent I/O Constan
-				ts and Macros 
+                             C  	SUBTTL GIO86U - Device Independent I/O Constants and Macros 
                              C   
                              C  COMMENT	* 
                              C   
@@ -481,8 +430,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COPYRIGHT (C) 1982 BY MICROSOFT 
                              C  --------- --- ---- -- --------- 
                              C   
-                             C          Programmer: Tom Corbett,  Microsoft Inc
-				. 
+                             C          Programmer: Tom Corbett,  Microsoft Inc. 
                              C   
                              C          * 
                              C   
@@ -500,67 +448,54 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 000A                      C  	ASCLF=10D		;Line Feed 
  = 000D                      C  	ASCCR=13D		;Carriage Return 
  = 0013                      C  	ASCCTS=19D		;CTL-S 
- = 001A                      C  	ASCCTZ=26D		;Control Z (End-of-file for some d
-				evices) 
+ = 001A                      C  	ASCCTZ=26D		;Control Z (End-of-file for some devices) 
  = 001B                      C  	ASCESC=27D		;Escape 
  = 0020                      C  	ASCSPC=32D		;Space 
                              C   
-                             C  ;Special File ID's (identified by 1st byte of f
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
-GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-10
-GIO86U - Device Independent I/O Constants and Macros        
-
-				ile) 
+                             C  ;Special File ID's (identified by 1st byte of file) 
                              C  ; 
  = 00FF                      C  	BINFID=255D		;files created by SAVE "fn" 
  = 00FE                      C  	PROFID=254D		;files created by SAVE "fn",P 
  = 00FD                      C  	BSVFID=253D		;files created by BSAVE "fn" 
                              C   
                              C  ;Generalized I/O Function Codes: 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
+GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-9
+GIO86U - Device Independent I/O Constants and Macros        
+
                              C  ; 
  = 0000                      C  	_OFFST=0		;initialize count 
-                             C  	ROFFST	G_EOF,2		;test EOF for file opened to t
-				his device 
+                             C  	ROFFST	G_EOF,2		;test EOF for file opened to this device 
                              C  	ROFFST	G_LOC,2		;LOC 
                              C  	ROFFST	G_LOF,2		;LOF 
-                             C  	ROFFST	G_CLS,2		;perform special CLOSE functio
-				ns for this device 
+                             C  	ROFFST	G_CLS,2		;perform special CLOSE functions for this device 
                              C  	ROFFST	G_SWD,2		;set device width 
-                             C  	ROFFST	G_RND,2		;GET/PUT random record from/to
-				 this device 
-                             C  	ROFFST	G_OPN,2		;perform special OPEN function
-				s for this device 
-                             C  	ROFFST	G_SIN,2		;input 1 byte from file opened
-				 on this device 
-                             C  	ROFFST	G_SOT,2		;output 1 byte to file opened 
-				on this device 
+                             C  	ROFFST	G_RND,2		;GET/PUT random record from/to this device 
+                             C  	ROFFST	G_OPN,2		;perform special OPEN functions for this device 
+                             C  	ROFFST	G_SIN,2		;input 1 byte from file opened on this device 
+                             C  	ROFFST	G_SOT,2		;output 1 byte to file opened on this device 
                              C  	ROFFST	G_GPS,2		;POS 
                              C  	ROFFST	G_GWD,2		;get device width 
                              C  	ROFFST	G_SCW,2		;set device column width 
                              C  	ROFFST	G_GCW,2		;get device column width 
-                             C  	ROFFST	G_BIN,2		;block input from file opened 
-				on this device 
-                             C  	ROFFST	G_BOT,2		;block output to file opened o
-				n this device 
+                             C  	ROFFST	G_BIN,2		;block input from file opened on this device 
+                             C  	ROFFST	G_BOT,2		;block output to file opened on this device 
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
-GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-11
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
+GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-10
 GIO86U - Device Independent I/O Constants and Macros        
 
                              C          PAGE 
                                  
                                 	.SALL 
                                  
-                             C  	INCLUDE	MSDOSU.INC	;MSDOS Constant Definitions
-				 
-                             C  ; [ This translation created 12-Jan-83 by Versi
-				on 4.3 ] 
+                             C  	INCLUDE	MSDOSU.INC	;MSDOS Constant Definitions 
+                             C  ; [ This translation created 12-Jan-83 by Version 4.3 ] 
                              C   
-                             C  	SUBTTL    MSDOSU - MS-DOS Constants and Data-S
-				tructure Definitions 
+                             C  	SUBTTL    MSDOSU - MS-DOS Constants and Data-Structure Definitions 
                              C   
                              C  COMMENT	* 
                              C   
@@ -604,102 +539,79 @@ GIO86U - Device Independent I/O Constants and Macros
  = 0022                      C  	C_RNDW=34D		;Random write 
  = 0027                      C  	C_RBR=39D		;Random Block Read 
  = 0029                      C  	C_PARS=41D		;Parse Filename 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
-GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-12
+                             C   
+ = 000B                      C  	FNAML=11D		;number of bytes in Filename with extension 
+ = 0080                      C  	DATPSC=128D		;bytes per sector 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
+GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-11
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
 
-                             C   
- = 000B                      C  	FNAML=11D		;number of bytes in Filename with e
-				xtension 
- = 0080                      C  	DATPSC=128D		;bytes per sector 
  = 0026                      C  	FCBSIZ=38D		;File Control Block size 
                              C   
                              C  ;MS-DOS FILE-DATA-BLOCK Record Definition 
                              C  ; 
  = 0000                      C  	_OFFST=0		;initialize count 
-                             C  	ROFFST	F_NUL1,1	;not used by basic interpreter
-				 
+                             C  	ROFFST	F_NUL1,1	;not used by basic interpreter 
                              C  	ROFFST	F_NUM,1		;file number 0..255 
-                             C  	ROFFST	F_NUL2,2	;not used by basic interpreter
-				 
-                             C  	ROFFST	F_NEXT,2	;thread for linked list, [MEMS
-				IZ]=end 
+                             C  	ROFFST	F_NUL2,2	;not used by basic interpreter 
+                             C  	ROFFST	F_NEXT,2	;thread for linked list, [MEMSIZ]=end 
                              C  	ROFFST	F_MODE,1	;file mode: 
  = 0001                      C  	MD_SQI=1D		;sequential input 
  = 0002                      C  	MD_SQO=2D		;sequential output 
  = 0004                      C  	MD_RND=4D		;random 
  = 0008                      C  	MD_APP=8D		;append 
-                             C  	ROFFST	F_FCB,FCBSIZ	;File Control Block: used 
-				to communicate with OS 
-                             C  	ROFFST	F_CLOC,2	;for seq files: num sectors re
-				ad/written   (LOCOFS) 
+                             C  	ROFFST	F_FCB,FCBSIZ	;File Control Block: used to communicate with OS 
+                             C  	ROFFST	F_CLOC,2	;for seq files: num sectors read/written   (LOCOFS) 
                              C  				;for rnd files: last record number + 1 
-                             C  	ROFFST	F_ORCT,1	;"Original Byte Count"        
-				             (ORNOFS) 
+                             C  	ROFFST	F_ORCT,1	;"Original Byte Count"                     (ORNOFS) 
                              C  				;for seq input: #bytes in sector when read 
                              C  				;for seq output: #bytes in output sector 
                              C  				;for random files: bytes per sector 
-                             C  	ROFFST	F_BREM,1	;number of bytes till end-of-b
-				uffer        (NMLOFS) 
+                             C  	ROFFST	F_BREM,1	;number of bytes till end-of-buffer        (NMLOFS) 
                              C  	ROFFST	F_CODE,1	;file encoding: 
  = 0000                      C  	FC_ASC=0		;Ascii SAVE, Data files 
  = 0001                      C  	FC_BIN=1		;binary file (BSAVE, binary SAVE) 
-                             C  	ROFFST	F_BAKC,1	;holds next sequential input w
-				hen F.FLBS.FL.BKC is true 
-                             C  	ROFFST	F_NUL3,1	;not used by basic interpreter
-				 
-                             C  	ROFFST	F_DEV,1		;Device number                
-				             (FL.DSK) 
+                             C  	ROFFST	F_BAKC,1	;holds next sequential input when F.FLBS.FL.BKC is true 
+                             C  	ROFFST	F_NUL3,1	;not used by basic interpreter 
+                             C  	ROFFST	F_DEV,1		;Device number                             (FL.DSK) 
                              C  	ROFFST	F_WID,1		;File width 
-                             C  	ROFFST	F_NUL4,1	;not used by basic interpreter
-				 
+                             C  	ROFFST	F_NUL4,1	;not used by basic interpreter 
                              C  	ROFFST	F_FLGS,1	;flags 
- = 0080                      C  	FL_BKC=200O		;when true, F.BAKC contains next 
-				sequential input 
-                             C  	ROFFST	F_POS,1		;Current column position      
-				             (FL.OPS) 
-                             C  	ROFFST	FDBSIZ,0	;size of device independent pa
-				rt of FDB 
+ = 0080                      C  	FL_BKC=200O		;when true, F.BAKC contains next sequential input 
+                             C  	ROFFST	F_POS,1		;Current column position                   (FL.OPS) 
+                             C  	ROFFST	FDBSIZ,0	;size of device independent part of FDB 
                              C  				;device dependant FDB entries start here 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
-GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-13
-MSDOSU - MS-DOS Constants and Data-Structure Definitions    
-
-                             C  	ROFFST	DATOFS,DATPSC	;Operating System interfa
-				ce buffer 
-                             C  	ROFFST	FD_SIZ,2	;variable record length for ra
-				ndom files 
-                             C  	ROFFST	FD_PHY,2	;current physical record numbe
-				r 
-                             C  	ROFFST	FD_LOG,2	;current logical record number
-				 
+                             C  	ROFFST	DATOFS,DATPSC	;Operating System interface buffer 
+                             C  	ROFFST	FD_SIZ,2	;variable record length for random files 
+                             C  	ROFFST	FD_PHY,2	;current physical record number 
+                             C  	ROFFST	FD_LOG,2	;current logical record number 
                              C  	ROFFST	F_NUL5,1	;Future use 
-                             C  	ROFFST	FD_OPS,2	;current output position for s
-				equential I/O 
+                             C  	ROFFST	FD_OPS,2	;current output position for sequential I/O 
                              C  	ROFFST	FD_DAT,0	;field buffer of random file 
                              C   
                              C  ; OFFSETS INTO MSDOS FCB 
                              C  ; 
- = 0007                      C  	FCB_DV=F_FCB+0D		;DRIVE (0=default, 1=A:, 2=B:
-				, ...) 
+ = 0007                      C  	FCB_DV=F_FCB+0D		;DRIVE (0=default, 1=A:, 2=B:, ...) 
  = 0008                      C  	FCB_FN=F_FCB+1D		;FILE NAME 
  = 0010                      C  	FCB_FT=F_FCB+9D		;EXTENSION 
- = 0013                      C  	FCB_EX=F_FCB+12D	;FILE EXTENT (identifies bloc
-				k of 128 logical records) 
+ = 0013                      C  	FCB_EX=F_FCB+12D	;FILE EXTENT (identifies block of 128 logical records) 
  = 0015                      C  	FCB_RC=F_FCB+14D	;RECORD SIZE 
  = 0017                      C  	FCB_FS=F_FCB+16D	;FILE SIZE IN BYTES 
  = 001B                      C  	FCB_DT=F_FCB+20D	;Date of last write to file 
  = 001D                      C  	FCB_DT=F_FCB+22D	;Time of last write to file 
- = 0027                      C  	FCB_NR=F_FCB+32D	;NEXT RECORD NUMBER 
- = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Numbe
-				r 
-                             C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
+GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-12
+MSDOSU - MS-DOS Constants and Data-Structure Definitions    
 
-GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-14
+ = 0027                      C  	FCB_NR=F_FCB+32D	;NEXT RECORD NUMBER 
+ = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Number 
+                             C   
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
+GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-13
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
 
                              C          PAGE 
@@ -721,32 +633,23 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 	EXTRN	LPTDSP:NEAR,LPTINI:NEAR,LPTTRM:NEAR 
                                 	EXTRN	COMDSP:NEAR,COMINI:NEAR,COMTRM:NEAR 
                                 	EXTRN	CONDSP:NEAR,_RET:NEAR 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
-GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-15
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
+GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-14
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
 
                                 	PAGE 
                                 	SUBTTL  Device name table 
                                  
-                                ;**********************************************
-				******************* 
-                                ;***                                           
-				                 *** 
-                                ;***  Note:                                    
-				                 *** 
-                                ;***    When adding additional devices, be sure
-				 to update       *** 
-                                ;***    OEMRAM to add device control blocks if 
-				necessary.       *** 
-                                ;***    Change $1STSD and $LSTSD if necessary. 
-				 Change NMCOMT   *** 
-                                ;***    in switch file if adding COM device.   
-				                 *** 
-                                ;***                                           
-				                 *** 
-                                ;**********************************************
-				******************** 
+                                ;***************************************************************** 
+                                ;***                                                            *** 
+                                ;***  Note:                                                     *** 
+                                ;***    When adding additional devices, be sure to update       *** 
+                                ;***    OEMRAM to add device control blocks if necessary.       *** 
+                                ;***    Change $1STSD and $LSTSD if necessary.  Change NMCOMT   *** 
+                                ;***    in switch file if adding COM device.                    *** 
+                                ;***                                                            *** 
+                                ;****************************************************************** 
                                  
                                 NDEV	MACRO	NAM,DSPADR,INIADR,TRMADR,N 
                                 	DEV	NAM&N,DSPADR,INIADR,TRMADR 
@@ -755,36 +658,27 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 NAMES	MACRO 
                                 	DEV	KYBD,KYBDSP,KYBINI,KYBTRM	;Keyboard 
                                 	DEV	SCRN,SCNDSP,SCNINI,SCNTRM	;Crt 
-                                	DEV	CONS,CONDSP,_RET,_RET	;Raw-I/O Crt (Esc Se
-				quences) 
+                                	DEV	CONS,CONDSP,_RET,_RET	;Raw-I/O Crt (Esc Sequences) 
                                 	NLPT=0 
                                 REPT	NMLPT 
                                 	NLPT=NLPT+1 
-                                	NDEV	LPT,LPTDSP,LPTINI,LPTTRM,%NLPT	;Line prin
-				ter 
+                                	NDEV	LPT,LPTDSP,LPTINI,LPTTRM,%NLPT	;Line printer 
                                 ENDM 
                                 	NCAS=0 
                                 REPT	GWCASS 
                                 	NCAS=NCAS+1 
-                                	NDEV	CAS,CASDSP,CASINI,CASTRM,%NCAS	;Line prin
-				ter 
+                                	NDEV	CAS,CASDSP,CASINI,CASTRM,%NCAS	;Line printer 
                                 ENDM 
                                 	NCOM=0 
                                 REPT	NMCOMT 
                                 	NCOM=NCOM+1 
-                                	NDEV	COM,COMDSP,COMINI,COMTRM,%NCOM	;COM chann
-				el NCOM 
+                                	NDEV	COM,COMDSP,COMINI,COMTRM,%NCOM	;COM channel NCOM 
                                 ENDM 
                                 ENDM 
                                  
                                  
                                 ;Generate DEVTBL ( text followed by device # ) 
                                 ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
-GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-16
-Device name table                                           
-
  = 00FF                         	NUM=377O 
                                 DEV	MACRO	NAM,DSPADR,INIADR,TRMADR 
                                 	PUBLIC	$_&NAM 
@@ -798,16 +692,19 @@ Device name table
  0028  00                       	DB	0		;0 ends table 
                                  
  = 0008                         	$_NDEV=377O-NUM		;number of non-disk Devices 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
+GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-15
+Device name table                                           
+
                                  
-                                ;Generate DEVPTR ( Addresses of dispatch tables
-				 ) 
+                                ;Generate DEVPTR ( Addresses of dispatch tables ) 
                                 ; 
                                 DEV	MACRO	NAM,DSPADR,INIADR,TRMADR 
                                 	DW	OFFSET DSPADR 
                                 ENDM 
  0029                           _DVPTR: 
- 0029  0000 E                   	DW	(DSKDSP)	;1st entry in dispatch table is Di
-				sk Dispatch table 
+ 0029  0000 E                   	DW	(DSKDSP)	;1st entry in dispatch table is Disk Dispatch table 
                                 	NAMES			;then 1 entry for each device 
                                  
                                 ;Generate Initialization Dispatch table 
@@ -816,8 +713,7 @@ Device name table
                                 	DW	OFFSET INIADR 
                                 ENDM 
  003B                           _DVINI: 
-                                	NAMES			;address of initialization routine for
-				 each device 
+                                	NAMES			;address of initialization routine for each device 
                                  
                                 ;Generate Termination Dispatch table 
                                 ; 
@@ -825,14 +721,13 @@ Device name table
                                 	DW	OFFSET TRMADR 
                                 ENDM 
  004B                           _DVTRM: 
-                                	NAMES			;address of termination routine for ea
-				ch device 
+                                	NAMES			;address of termination routine for each device 
                                  
  005B                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Symbols-1
                                                              
 
@@ -890,8 +785,8 @@ BASDEB . . . . . . . . . . . . .  	Number	0000
 BEEPSW . . . . . . . . . . . . .  	Number	0001	
 BINCSW . . . . . . . . . . . . .  	Number	0000	
 BINFID . . . . . . . . . . . . .  	Number	00FF	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Symbols-2
                                                              
 
@@ -949,8 +844,8 @@ DBLCHR . . . . . . . . . . . . .  	Number	0000
 DBLTRN . . . . . . . . . . . . .  	Number	0000	
 DEBUG  . . . . . . . . . . . . .  	Text  		
 DISK . . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Symbols-3
                                                              
 
@@ -1008,8 +903,8 @@ F_NUL5 . . . . . . . . . . . . .  	Number	00BF
 F_NUM  . . . . . . . . . . . . .  	Number	0001	
 F_ORCT . . . . . . . . . . . . .  	Number	002F	
 F_POS  . . . . . . . . . . . . .  	Number	0038	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Symbols-4
                                                              
 
@@ -1067,8 +962,8 @@ KILLER . . . . . . . . . . . . .  	Number	0000
 KYBDSP . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 KYBINI . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 KYBTRM . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Symbols-5
                                                              
 
@@ -1126,8 +1021,8 @@ NOEDIT . . . . . . . . . . . . .  	Number	0000
 NOIOS  . . . . . . . . . . . . .  	Number	0000	
 NONULL . . . . . . . . . . . . .  	Number	0000	
 NOPEKS . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Symbols-6
                                                              
 
@@ -1185,8 +1080,8 @@ SUPRSH . . . . . . . . . . . . .  	Number	0001
 SWAPSW . . . . . . . . . . . . .  	Number	0001	
 
 TEK  . . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:30:18
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+ 
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Symbols-7
                                                              
 
@@ -1220,11 +1115,11 @@ _OFFST . . . . . . . . . . . . .  	Number	00C2
 _RET . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 
 
-    648 Source  Lines
-    927 Total   Lines
+    649 Source  Lines
+    928 Total   Lines
     338 Symbols
 
-  40416 Bytes symbol space free
+  40396 Bytes symbol space free
 
       0 Warning Errors
       0 Severe  Errors

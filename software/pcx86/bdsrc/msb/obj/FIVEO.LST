@@ -1,5 +1,5 @@
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-1
                                                             
 
@@ -15,24 +15,21 @@ FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-1
                              C  ; [ This translation created 10-Feb-83 by Versi
 				on 4.3 ] 
                              C   
-                             C  	SUBTTL  Common file to produce 2-segment 8086 
-				GW-CPM BASIC 
+                             C  	PAGE	,132D 
+                             C  	SUBTTL  Common file to produce 2-segment 8086 GW-CPM BASIC 
                              C   
                              C  	.SALL 
                              C   
  000A                        C  	.RADIX	10 
  = 0000                      C  	OEMRAM=0D 
-                             C  ;Pascal program HFILE searches for the followin
-				g line - DO NOT MODIFY 
-                             C  ;** (VERSION SPECIFIC VALUES) *****************
-				******************************* 
+                             C  ;Pascal program HFILE searches for the following line - DO NOT MODIFY 
+                             C  ;** (VERSION SPECIFIC VALUES) ************************************************ 
  = 0019                      C  	NMLINE=25		;Max screen display text lines 
  = 0001                      C  	NBANKS=1		;Number of graphic planes 
  = 0000                      C  	PALSIZ=0		;Size of OEM color palette 
  = 0000                      C  	DBLCHR=0		;Editor support for KANJI chars 
  = 0000                      C  	KANABS=0		;Kana BASIC (Japanese JIS codes) 
- = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .
-				. 
+ = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .. 
  = 0000                      C  	JISKTN=0		;&K, &J constants (KANJI) 
  = 0001                      C  	SUPRSH=1		;1=super shift key feature 
  = 000A                      C  	NMKEYF=10		;number of function keys 
@@ -46,61 +43,48 @@ FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-1
  = 0002                      C  	NMCOMT=2		;number of COMmunications ports 
  = 0001                      C  	NMPENT=1		;number of light pens 
  = 0004                      C  	NMSTRT=4		;number of joysticks 
- = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR)
-				 
+ = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR) 
  = 0001                      C  	IBMLIK=1		;IBM compatibility package 
  = 0001                      C  	IBMTOK=1		;IBM token compatibility 
  = 0001                      C  	DYNCOM=1		;Dynamic communication buffers 
-                             C  ;** (END OF VERSION SPECIFIC VALUES) **********
-				******************************* 
-                             C  ;Pascal program HFILE searches for the previous
-				 line - DO NOT MODIFY 
+                             C  ;** (END OF VERSION SPECIFIC VALUES) ***************************************** 
+                             C  ;Pascal program HFILE searches for the previous line - DO NOT MODIFY 
                              C  ; 
  = 0015                      C  	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
+ = 0001                      C  	GW=1			;GW BASIC 
+ = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROUT 
+ = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY) 
+                             C  				; Support is in BINTRP.MAC and GWSTS.MAC 
+ = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
+                             C  				;single precision numbers for output. 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
- = 0001                      C  	GW=1			;GW BASIC 
- = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROU
-				T 
- = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY
-				) 
-                             C  				; Support is in BINTRP.MAC and GWSTS.MAC 
- = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed whe
-				n formatting 
-                             C  				;single precision numbers for output. 
                              C  				; 0 := 7 digits 
                              C  				; 1 := 6 digits 
  = 0000                      C  	CASSW=0			;CASSETTE SWITCH 
  = 0001                      C  	LABKEY=1		;^T (LABEL) key capability 
- = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics)
-				 
- = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stac
-				k) 
+ = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics) 
+ = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stack) 
  = 0001                      C  	GIO86=1			;BASIC-86 Generalized I/O 
  = 0001                      C  	SCRNIO=1		;Screen editor 
  = 0001                      C  	SCRN86=1		;8086 Screen editor 
  = 0001                      C  	I8086=1			;CROSS ASSEMBLING FOR 8086 
  = 0001                      C  	MULSEG=1		;MULTI-SEGMENT 8086 BASIC 
- = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SE
-				T 
+ = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SET 
  = 0001                      C  	TRUROM=1 
  = 0000                      C  	SBC86=0			;SBC 86/02 BOARD? 
  = 0001                      C  	SHORTJ=1		;USE INTRA-SEGMENT SHORT JUMPS 
                              C  				;IN 8086 CODE 
- = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDE
-				D ONLY) 
+ = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDED ONLY) 
  = 0000                      C  	SHTERR=0		;SHORT (2 CHAR) ERROR MESSAGES 
  = 0000                      C  	SHTINS=0		;INSTR IN NON-FAST LEN2 VERSIONS 
- = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2
-				 VERSIONS 
+ = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2 VERSIONS 
  = 0000                      C  	SHTCHN=0		;ALLOW CHAIN IN NON-5.0 
- = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK
-				 
- = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NO
-				N-FAST 
+ = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK 
+ = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NON-FAST 
  = 0000                      C  	SHTREN=0		;ALLOW RENUM IN NON-FST VERSIONS 
  = 0001                      C  	INKEYF=1		;ADDS INKEY$ FUNCTION 
  = 0000                      C  	NOIOS=0			;NO I/O STATMENTS (INP,OUT, WAIT) 
@@ -109,23 +93,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	NOCTLA=0		;NO CONTROL-A IN EXTENDED 
  = 0000                      C  	NORUBT=0		;NO RUBOUT 
  = 0000                      C  	NOROMP=0		;NO ROM PROGRAM FEATURE 
- = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED
-				 
+ = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED 
  = 0000                      C  	NODOT=0			;NO DOT IN LEN2 
  = 0000                      C  	NOEDIT=0		;NO EDIT COMMAND 
- = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMIN
-				AL 
+ = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMINAL 
                              C  				;AND FILES 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-3
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
- = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN C
-				RDO & OUTCH1 
+ = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN CRDO & OUTCH1 
  = 0000                      C  	NOVARP=0		;NO VARPTR FUNCTION 
- = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 F
-				EATURES 
+ = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 FEATURES 
  = 0001                      C  	FIVMEM=1 
  = 0001                      C  	ANSI=1 
  = 0001                      C  	FIVDSK=1		;5.0 NEW DSK CODE 
@@ -136,24 +111,25 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0001                      C  	MEMIMG=1		;MEMORY IMAGE FILES 
  = 0001                      C  	GENBIN=1 
                              C   
- = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON 
-				ERROR) 
+ = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON ERROR) 
  = 0000                      C  	COMMNT=0		;DONT WANT BIG COMMENT 
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-3
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	RMX=0			;INTEL RMX VERSION 
  = 0000                      C  	EDIT80=0		;FOR EDIT80 I/O ROUTINES 
  = 0000                      C  	RSHACK=0 
  = 0000                      C  	INTLEC=0 
  = 0002                      C  	LENGTH=2		;  1 MEANS 8K, 2 MEANS 12K 
- = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BAS
-				IC 
- = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATION
-				S 
+ = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BASIC 
+ = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATIONS 
                              C  				;TO MAKE ITSELF SMALLER & QUICKER 
- = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE
-				 (=1) 
+ = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE (=1) 
  = 0001                      C  	GENIO=1			;USE G/P ROUTINES 
  = 0001                      C  	CHSEAT=1		;CHSNS eats chars 
  = 0000                      C  	GENDSK=0		;USE G/P DSK CODE 
@@ -165,21 +141,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	SBC=0			;FOR INTEL SINGLE BOARD COMPUTER 
                              C  				;1=SBC 80/10, 2=SBC 80/20 
  = 0001                      C  	PURE=1			;ON FOR PURE CODE 
- = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RA
-				M 
+ = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RAM 
  = 0000                      C  	INTROM=0 
  = 0001                      C  	LPTSW=1 
  = 0001                      C  	NCRLPT=1 
  = 0000                      C  	NCRCAS=0 
  = 0000                      C  	ISC=0			;FOR ISC VERSION 
- = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,C
-				ENT) 
+ = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,CENT) 
  = 0000                      C  	TSLPT=0 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-4
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C   
  = 0000                      C  	DOS=0			;ON TO GEN ROUTINES FOR DOS 
  = 0001                      C  	DISK=1			;FILE I/O FEATURES 
@@ -187,13 +156,10 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	TSDISK=0		;NO TIME-SHARING DISK FOR US 
  = 0000                      C  	SPCDSK=0		;MAY HAVE MM'S DISK CODE 
  = 0000                      C  	SPCNDS=0 
- = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIEND
-				S 
+ = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIENDS 
  = 0000                      C  	KEYSTA=0 
- = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISI
-				S II DOS 
- = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISI
-				S-II 
+ = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISIS II DOS 
+ = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISIS-II 
  = 0001                      C  	CPM=1			;FOR CPM compatible operating systems 
  = 0001                      C  	CPM2=1			;VERSION 2. CPM 
  = 0000                      C  	CPM86=0			;FOR CP/M-86 operating system 
@@ -201,16 +167,19 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMCON=0 
  = 0000                      C  	CPMSER=0		;CHECK CPM SERIAL #'S 
  = 0000                      C  	CPMADD=0		;FOR VERSION TO RUN ON ADDS CPM 
- = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 7
-				5 
+ = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 75 
                              C  				;CP/M 
  = 0000                      C  	CPMRSH=0		;FOR RADIO SHACK CPM/M 
  = 0000                      C  	CPM110=0		;FOR CP/M @1100 HEX (INTERALIA) 
- = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4
-				100H 
+ = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4100H 
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-4
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	CPMCON=0 
  = 0000                      C  	Z80=0 
  = 0001                      C  	DISK=1 
@@ -227,23 +196,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0002                      C  	LENGTH=2 
  = 0001                      C  	RSTLES=1 
  = 0001                      C  	FIVLPT=1 
- = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT V
-				ERSION 
+ = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT VERSION 
  = 0001                      C  	CONTRO=1		;ALLOW ^O 
  = 0001                      C  	LEN3=LEN2 OR CASSW 
                              C   
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-5
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
  = 0001                      C  	STRING=1 
  = 0001                      C  	NCRLPT=1 
                              C   
-                             C  ; *** OEM Switches which need to be defaulted t
-				o 0 
+                             C  ; *** OEM Switches which need to be defaulted to 0 
                              C  ; 
  = 0000                      C  	CMPUTN=0 
  = 0000                      C  	DUPONT=0 
@@ -268,15 +230,17 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	PANBAS=0 
  = 0000                      C  	XTNSYS=0 
  = 0000                      C  	NECBAS=0 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Z80 related macros 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-5
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  				;8080'S AND ZILOG Z-80'S 
- = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INST
-				RUCTIONS 
+ = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INSTRUCTIONS 
  = 0000                      C  	Z80=0 
  = 0001                      C  	Z80=1 
                              C  LDIR	MACRO 
@@ -293,11 +257,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	MOV	WORD PTR A,WORD PTR M 
                              C  	STAX	D 
                              C  	DCXF	H 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-6
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  	DCXF	D 
                              C  	DCXF	B 
                              C  	MOV	WORD PTR A,WORD PTR B 
@@ -308,11 +267,9 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	DCR	B 
                              C  	JNZ	DEST 
                              C  ENDM 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Define reset routines. 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  FSIGN	MACRO 
                              C  	CALL	SIGN 
                              C  ENDM 
@@ -336,6 +293,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-6
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  GETYPE	MACRO 
                              C  	CALL	GETYPR 
                              C  ENDM 
@@ -352,11 +314,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	PUSH	WORD PTR B 
                              C  ENDM 
                              C  POPR	MACRO 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-7
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  	POP	WORD PTR B 
                              C  	POP	WORD PTR D 
                              C  ENDM 
@@ -373,15 +330,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDM 
                              C   
                              C   
- = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALL
-				Y CONTROL-O) 
- = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTAL
-				S 
+ = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALLY CONTROL-O) 
+ = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTALS 
                              C   
- = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARA
-				CTERS 
- = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SEC
-				TOR 
+ = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARACTERS 
+ = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SECTOR 
  = 0050                      C  	LINLN=80D		;TERMINAL LINE LENGTH 
  = 0084                      C  	LPTLEN=132D 
  = 00FF                      C  	BUFLEN=255		;LONG LINES 
@@ -399,6 +352,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-7
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  ACRLF   MACRO 
                              C          DB      13D 
                              C          DB      10D 
@@ -411,11 +369,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDIF 
                              C  IFNB    <D> 
                              C          DB      C&O 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-8
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C          DB      D&O 
                              C  ENDIF 
                              C  IFB     <D> 
@@ -447,17 +400,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-9
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
                                  
                                  
-                                	TITLE FIVEO 5.0 Features -WHILE/WEND, CALL, CH
-				AIN, WRITE /P. Allen 
+                                	TITLE FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. Allen 
                                  
                                 	.SALL 
  000A                           	.RADIX	10 
@@ -467,11 +419,9 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                         	LABEL=PC8A 
  = 0000                         OKI=0 
                              C  	INCLUDE	GIO86U.INC 
-                             C  ; [ This translation created 12-Jan-83 by Versi
-				on 4.3 ] 
+                             C  ; [ This translation created 12-Jan-83 by Version 4.3 ] 
                              C   
-                             C  	SUBTTL GIO86U - Device Independent I/O Constan
-				ts and Macros 
+                             C  	SUBTTL GIO86U - Device Independent I/O Constants and Macros 
                              C   
                              C  COMMENT	* 
                              C   
@@ -479,8 +429,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COPYRIGHT (C) 1982 BY MICROSOFT 
                              C  --------- --- ---- -- --------- 
                              C   
-                             C          Programmer: Tom Corbett,  Microsoft Inc
-				. 
+                             C          Programmer: Tom Corbett,  Microsoft Inc. 
                              C   
                              C          * 
                              C   
@@ -498,64 +447,52 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 000A                      C  	ASCLF=10D		;Line Feed 
  = 000D                      C  	ASCCR=13D		;Carriage Return 
  = 0013                      C  	ASCCTS=19D		;CTL-S 
- = 001A                      C  	ASCCTZ=26D		;Control Z (End-of-file for some d
-				evices) 
+ = 001A                      C  	ASCCTZ=26D		;Control Z (End-of-file for some devices) 
  = 001B                      C  	ASCESC=27D		;Escape 
  = 0020                      C  	ASCSPC=32D		;Space 
                              C   
-                             C  ;Special File ID's (identified by 1st byte of f
-				ile) 
+                             C  ;Special File ID's (identified by 1st byte of file) 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-10
-GIO86U - Device Independent I/O Constants and Macros        
-
  = 00FF                      C  	BINFID=255D		;files created by SAVE "fn" 
  = 00FE                      C  	PROFID=254D		;files created by SAVE "fn",P 
  = 00FD                      C  	BSVFID=253D		;files created by BSAVE "fn" 
                              C   
                              C  ;Generalized I/O Function Codes: 
                              C  ; 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-9
+GIO86U - Device Independent I/O Constants and Macros        
+
  = 0000                      C  	_OFFST=0		;initialize count 
-                             C  	ROFFST	G_EOF,2		;test EOF for file opened to t
-				his device 
+                             C  	ROFFST	G_EOF,2		;test EOF for file opened to this device 
                              C  	ROFFST	G_LOC,2		;LOC 
                              C  	ROFFST	G_LOF,2		;LOF 
-                             C  	ROFFST	G_CLS,2		;perform special CLOSE functio
-				ns for this device 
+                             C  	ROFFST	G_CLS,2		;perform special CLOSE functions for this device 
                              C  	ROFFST	G_SWD,2		;set device width 
-                             C  	ROFFST	G_RND,2		;GET/PUT random record from/to
-				 this device 
-                             C  	ROFFST	G_OPN,2		;perform special OPEN function
-				s for this device 
-                             C  	ROFFST	G_SIN,2		;input 1 byte from file opened
-				 on this device 
-                             C  	ROFFST	G_SOT,2		;output 1 byte to file opened 
-				on this device 
+                             C  	ROFFST	G_RND,2		;GET/PUT random record from/to this device 
+                             C  	ROFFST	G_OPN,2		;perform special OPEN functions for this device 
+                             C  	ROFFST	G_SIN,2		;input 1 byte from file opened on this device 
+                             C  	ROFFST	G_SOT,2		;output 1 byte to file opened on this device 
                              C  	ROFFST	G_GPS,2		;POS 
                              C  	ROFFST	G_GWD,2		;get device width 
                              C  	ROFFST	G_SCW,2		;set device column width 
                              C  	ROFFST	G_GCW,2		;get device column width 
-                             C  	ROFFST	G_BIN,2		;block input from file opened 
-				on this device 
-                             C  	ROFFST	G_BOT,2		;block output to file opened o
-				n this device 
+                             C  	ROFFST	G_BIN,2		;block input from file opened on this device 
+                             C  	ROFFST	G_BOT,2		;block output to file opened on this device 
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-11
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-10
 GIO86U - Device Independent I/O Constants and Macros        
 
                              C          PAGE 
                                  
                              C  	INCLUDE	MSDOSU.INC 
-                             C  ; [ This translation created 12-Jan-83 by Versi
-				on 4.3 ] 
+                             C  ; [ This translation created 12-Jan-83 by Version 4.3 ] 
                              C   
-                             C  	SUBTTL    MSDOSU - MS-DOS Constants and Data-S
-				tructure Definitions 
+                             C  	SUBTTL    MSDOSU - MS-DOS Constants and Data-Structure Definitions 
                              C   
                              C  COMMENT	* 
                              C   
@@ -600,101 +537,78 @@ GIO86U - Device Independent I/O Constants and Macros
  = 0027                      C  	C_RBR=39D		;Random Block Read 
  = 0029                      C  	C_PARS=41D		;Parse Filename 
                              C   
- = 000B                      C  	FNAML=11D		;number of bytes in Filename with e
-				xtension 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-12
-MSDOSU - MS-DOS Constants and Data-Structure Definitions    
-
+ = 000B                      C  	FNAML=11D		;number of bytes in Filename with extension 
  = 0080                      C  	DATPSC=128D		;bytes per sector 
  = 0026                      C  	FCBSIZ=38D		;File Control Block size 
                              C   
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-11
+MSDOSU - MS-DOS Constants and Data-Structure Definitions    
+
                              C  ;MS-DOS FILE-DATA-BLOCK Record Definition 
                              C  ; 
  = 0000                      C  	_OFFST=0		;initialize count 
-                             C  	ROFFST	F_NUL1,1	;not used by basic interpreter
-				 
+                             C  	ROFFST	F_NUL1,1	;not used by basic interpreter 
                              C  	ROFFST	F_NUM,1		;file number 0..255 
-                             C  	ROFFST	F_NUL2,2	;not used by basic interpreter
-				 
-                             C  	ROFFST	F_NEXT,2	;thread for linked list, [MEMS
-				IZ]=end 
+                             C  	ROFFST	F_NUL2,2	;not used by basic interpreter 
+                             C  	ROFFST	F_NEXT,2	;thread for linked list, [MEMSIZ]=end 
                              C  	ROFFST	F_MODE,1	;file mode: 
  = 0001                      C  	MD_SQI=1D		;sequential input 
  = 0002                      C  	MD_SQO=2D		;sequential output 
  = 0004                      C  	MD_RND=4D		;random 
  = 0008                      C  	MD_APP=8D		;append 
-                             C  	ROFFST	F_FCB,FCBSIZ	;File Control Block: used 
-				to communicate with OS 
-                             C  	ROFFST	F_CLOC,2	;for seq files: num sectors re
-				ad/written   (LOCOFS) 
+                             C  	ROFFST	F_FCB,FCBSIZ	;File Control Block: used to communicate with OS 
+                             C  	ROFFST	F_CLOC,2	;for seq files: num sectors read/written   (LOCOFS) 
                              C  				;for rnd files: last record number + 1 
-                             C  	ROFFST	F_ORCT,1	;"Original Byte Count"        
-				             (ORNOFS) 
+                             C  	ROFFST	F_ORCT,1	;"Original Byte Count"                     (ORNOFS) 
                              C  				;for seq input: #bytes in sector when read 
                              C  				;for seq output: #bytes in output sector 
                              C  				;for random files: bytes per sector 
-                             C  	ROFFST	F_BREM,1	;number of bytes till end-of-b
-				uffer        (NMLOFS) 
+                             C  	ROFFST	F_BREM,1	;number of bytes till end-of-buffer        (NMLOFS) 
                              C  	ROFFST	F_CODE,1	;file encoding: 
  = 0000                      C  	FC_ASC=0		;Ascii SAVE, Data files 
  = 0001                      C  	FC_BIN=1		;binary file (BSAVE, binary SAVE) 
-                             C  	ROFFST	F_BAKC,1	;holds next sequential input w
-				hen F.FLBS.FL.BKC is true 
-                             C  	ROFFST	F_NUL3,1	;not used by basic interpreter
-				 
-                             C  	ROFFST	F_DEV,1		;Device number                
-				             (FL.DSK) 
+                             C  	ROFFST	F_BAKC,1	;holds next sequential input when F.FLBS.FL.BKC is true 
+                             C  	ROFFST	F_NUL3,1	;not used by basic interpreter 
+                             C  	ROFFST	F_DEV,1		;Device number                             (FL.DSK) 
                              C  	ROFFST	F_WID,1		;File width 
-                             C  	ROFFST	F_NUL4,1	;not used by basic interpreter
-				 
+                             C  	ROFFST	F_NUL4,1	;not used by basic interpreter 
                              C  	ROFFST	F_FLGS,1	;flags 
- = 0080                      C  	FL_BKC=200O		;when true, F.BAKC contains next 
-				sequential input 
-                             C  	ROFFST	F_POS,1		;Current column position      
-				             (FL.OPS) 
-                             C  	ROFFST	FDBSIZ,0	;size of device independent pa
-				rt of FDB 
+ = 0080                      C  	FL_BKC=200O		;when true, F.BAKC contains next sequential input 
+                             C  	ROFFST	F_POS,1		;Current column position                   (FL.OPS) 
+                             C  	ROFFST	FDBSIZ,0	;size of device independent part of FDB 
                              C  				;device dependant FDB entries start here 
                              C   
-                             C  	ROFFST	DATOFS,DATPSC	;Operating System interfa
-				ce buffer 
-                             C  	ROFFST	FD_SIZ,2	;variable record length for ra
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-13
-MSDOSU - MS-DOS Constants and Data-Structure Definitions    
-
-				ndom files 
-                             C  	ROFFST	FD_PHY,2	;current physical record numbe
-				r 
-                             C  	ROFFST	FD_LOG,2	;current logical record number
-				 
+                             C  	ROFFST	DATOFS,DATPSC	;Operating System interface buffer 
+                             C  	ROFFST	FD_SIZ,2	;variable record length for random files 
+                             C  	ROFFST	FD_PHY,2	;current physical record number 
+                             C  	ROFFST	FD_LOG,2	;current logical record number 
                              C  	ROFFST	F_NUL5,1	;Future use 
-                             C  	ROFFST	FD_OPS,2	;current output position for s
-				equential I/O 
+                             C  	ROFFST	FD_OPS,2	;current output position for sequential I/O 
                              C  	ROFFST	FD_DAT,0	;field buffer of random file 
                              C   
                              C  ; OFFSETS INTO MSDOS FCB 
                              C  ; 
- = 0007                      C  	FCB_DV=F_FCB+0D		;DRIVE (0=default, 1=A:, 2=B:
-				, ...) 
+ = 0007                      C  	FCB_DV=F_FCB+0D		;DRIVE (0=default, 1=A:, 2=B:, ...) 
  = 0008                      C  	FCB_FN=F_FCB+1D		;FILE NAME 
  = 0010                      C  	FCB_FT=F_FCB+9D		;EXTENSION 
- = 0013                      C  	FCB_EX=F_FCB+12D	;FILE EXTENT (identifies bloc
-				k of 128 logical records) 
+ = 0013                      C  	FCB_EX=F_FCB+12D	;FILE EXTENT (identifies block of 128 logical records) 
  = 0015                      C  	FCB_RC=F_FCB+14D	;RECORD SIZE 
  = 0017                      C  	FCB_FS=F_FCB+16D	;FILE SIZE IN BYTES 
  = 001B                      C  	FCB_DT=F_FCB+20D	;Date of last write to file 
  = 001D                      C  	FCB_DT=F_FCB+22D	;Time of last write to file 
  = 0027                      C  	FCB_NR=F_FCB+32D	;NEXT RECORD NUMBER 
- = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Numbe
-				r 
-                             C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
+ = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Number 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-12
+MSDOSU - MS-DOS Constants and Data-Structure Definitions    
 
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-14
+                             C   
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-13
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
 
                              C          PAGE 
@@ -707,41 +621,31 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 	EXTRN	SUBFLG:WORD,TEMP:WORD 
  0000                           DSEG	ENDS 
                                  
-                                				; Code Segment ( terminated by END at botto
-				m of file ) 
+                                				; Code Segment ( terminated by END at bottom of file ) 
                                  
                                 	EXTRN	CHRGTR:NEAR,SYNCHR:NEAR,DCOMPR:NEAR 
                                 	EXTRN	GETYPR:NEAR 
-                                	EXTRN	SNERR:NEAR,GETSTK:NEAR,PTRGET:NEAR,CRDO:
-				NEAR 
+                                	EXTRN	SNERR:NEAR,GETSTK:NEAR,PTRGET:NEAR,CRDO:NEAR 
                                 	EXTRN	VMOVFM:NEAR 
                                 	EXTRN	FRQINT:NEAR 
                                  
                                 	SUBTTL  WHILE , WEND 
                                 	PUBLIC	WHILE,WEND 
-                                	EXTRN	ERROR:NEAR,FRMCHK:NEAR,$FOR:NEAR,$WHILE:
-				NEAR,WNDSCN:NEAR 
+                                	EXTRN	ERROR:NEAR,FRMCHK:NEAR,$FOR:NEAR,$WHILE:NEAR,WNDSCN:NEAR 
                                 	EXTRN	FRMEVL:NEAR 
                                 	EXTRN	NEWSTT:NEAR,FORSZC:NEAR,ERRWE:NEAR 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-                                	EXTRN	SAVSTK:WORD,NXTLIN:WORD,CURLIN:WORD,ENDF
-				OR:WORD 
+                                	EXTRN	SAVSTK:WORD,NXTLIN:WORD,CURLIN:WORD,ENDFOR:WORD 
  0000                           DSEG	ENDS 
                                 ; 
                                 ; THIS CODE HANDLES THE STATEMENTS WHILE/WEND 
-                                ; THE 8080 STACK IS USED TO PUT AN ENTRY ON FOR
-				 EACH ACTIVE WHILE 
-                                ; THE SAME WAY ACTIVE GOSUB AND FOR ENTRIES ARE
-				 MADE. 
+                                ; THE 8080 STACK IS USED TO PUT AN ENTRY ON FOR EACH ACTIVE WHILE 
+                                ; THE SAME WAY ACTIVE GOSUB AND FOR ENTRIES ARE MADE. 
                                 ; THE FORMAT IS AS FOLLOWS: 
-                                ;       $WHILE - THE TOKEN IDENTIFYING THE ENTR
-				Y (1 BYTE) 
-                                ;       A TEXT POINTER AT THE CHARACTER AFTER T
-				HE WEND OF THE WHILE BODY (2 BYTES) 
-                                ;       A TEXT POINTER AT THE CHARACTER AFTER T
-				HE WHILE OF THE WHILE BODY (2 BYTES) 
-                                ;       THE LINE NUMBER OF THE LINE THAT THE WH
-				ILE IS ON (2 BYTES) 
+                                ;       $WHILE - THE TOKEN IDENTIFYING THE ENTRY (1 BYTE) 
+                                ;       A TEXT POINTER AT THE CHARACTER AFTER THE WEND OF THE WHILE BODY (2 BYTES) 
+                                ;       A TEXT POINTER AT THE CHARACTER AFTER THE WHILE OF THE WHILE BODY (2 BYTES) 
+                                ;       THE LINE NUMBER OF THE LINE THAT THE WHILE IS ON (2 BYTES) 
                                 ; 
                                 ;       TOTAL   7 BYTES 
                                 ; 
@@ -751,31 +655,26 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 				;CAUSE AN ERRWH IF NO WEND TO MATCH 
  0007  E8 0000 E                	CALL	CHRGTR		;POINT AT CHARACTWER AFTER WEND 
  000A  87 DA                    	XCHG	BX,DX		;POSITION OF MATCHING WEND 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-15
-WHILE , WEND                                                
-
- 000C  E8 0075 R                	CALL	FNDWND		;SEE IF THERE IS A STACK ENTRY FO
-				R THIS WHILE 
+ 000C  E8 0075 R                	CALL	FNDWND		;SEE IF THERE IS A STACK ENTRY FOR THIS WHILE 
  000F  9F                       	LAHF 
- 0010  44                       	INC	SP		;GET RID OF THE NEWSTT ADDRESS ON THE 
-				STACK 
+ 0010  44                       	INC	SP		;GET RID OF THE NEWSTT ADDRESS ON THE STACK 
  0011  9E                       	SAHF 
  0012  9F                       	LAHF 
  0013  44                       	INC	SP 
  0014  9E                       	SAHF 
- 0015  75 08                    	JNZ	SHORT WNOTOL	;IF NO MATCH NO NEED TO TRUNC
-				ATE THE STACK 
- 0017  03 D9                    	ADD	BX,CX		;ELIMINATE EVERYTHING UP TO AND INC
-				LUDING 
+ 0015  75 08                    	JNZ	SHORT WNOTOL	;IF NO MATCH NO NEED TO TRUNCATE THE STACK 
+ 0017  03 D9                    	ADD	BX,CX		;ELIMINATE EVERYTHING UP TO AND INCLUDING 
                                 				;THE MATCHING WHILE ENTRY 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-14
+WHILE , WEND                                                
+
  0019  8B E3                    	MOV	SP,BX 
  001B  89 1E 0000 E             	MOV	SAVSTK,BX 
  001F  8B 1E 0000 E             WNOTOL:	MOV	BX,CURLIN	;MAKE THE STACK ENTRY 
  0023  53                       	PUSH	BX 
- 0024  8B 1E 0000 E             	MOV	BX,ENDFOR	;GET TEXT POINTER FOR WHILE BACK
-				 
+ 0024  8B 1E 0000 E             	MOV	BX,ENDFOR	;GET TEXT POINTER FOR WHILE BACK 
  0028  53                       	PUSH	BX 
  0029  52                       	PUSH	DX		;SAVE THE WEND TEXT POINTER 
  002A  EB 28                    	JMP	SHORT FNWEND	;FINISH USING WEND CODE 
@@ -783,13 +682,11 @@ WHILE , WEND
  002C  74 03                    WEND:	JZ	SHORT ??L000 
  002E  E9 0000 E                	JMP	SNERR		;STATEMENT HAS NO ARGUMENTS 
  0031                           ??L000: 
- 0031  87 DA                    	XCHG	BX,DX		;FIND MATCHING WHILE ENTRY ON STAC
-				K 
+ 0031  87 DA                    	XCHG	BX,DX		;FIND MATCHING WHILE ENTRY ON STACK 
  0033  E8 0075 R                	CALL	FNDWND 
  0036  75 68                    	JNZ	SHORT WEERR	;MUST MATCH OR ELSE ERROR 
  0038  8B E3                    	MOV	SP,BX		;TRUNCATE STACK AT MATCH POINT 
- 003A  89 1E 0000 E             	MOV	SAVSTK,BX	;[H,L] POINTING INTO STACK ENTRY
-				 
+ 003A  89 1E 0000 E             	MOV	SAVSTK,BX	;[H,L] POINTING INTO STACK ENTRY 
  003E  8B 16 0000 E             	MOV	DX,CURLIN	;REMEMBER WEND LINE # 
  0042  89 16 0000 E             	MOV	NXTLIN,DX	;IN NXTLIN 
  0046  43                       	INC	BX		;INDEX INTO STACK ENTRY TO GET VALUES 
@@ -798,10 +695,8 @@ WHILE , WEND
  004A  43                       	INC	BX 
  004B  43                       	INC	BX 
  004C  8B 1F                    	MOV	BX,[BX]		;[H,L]=LINE NUMBER OF WHILE 
- 004E  89 1E 0000 E             	MOV	CURLIN,BX	;IN CASE OF ERROR OR CONTINUATIO
-				N FIX CURLIN 
- 0052  87 DA                    	XCHG	BX,DX		;GET TEXT POINTER OF WHILE FORMULA
-				 INTO [H,L] 
+ 004E  89 1E 0000 E             	MOV	CURLIN,BX	;IN CASE OF ERROR OR CONTINUATION FIX CURLIN 
+ 0052  87 DA                    	XCHG	BX,DX		;GET TEXT POINTER OF WHILE FORMULA INTO [H,L] 
  0054  E8 0000 E                FNWEND:	CALL	FRMEVL		;EVALUATE FORMULA 
                                 	EXTRN	VSIGN:NEAR 
  0057  53                       	PUSH	BX		;SAVE TEXT POINTER 
@@ -810,48 +705,38 @@ WHILE , WEND
  005C  74 09                    	JZ	SHORT FLSWHL	;GO BACK AT WEND IF FALSE 
  005E  B9 0000 E                	MOV	CX,OFFSET $WHILE	;COMPLETE WHILE ENTRY 
  0061  8A E9                    	MOV	CH,CL		;NEED IT IN THE HIGH BYTE 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-16
-WHILE , WEND                                                
-
  0063  51                       	PUSH	CX 
  0064  E9 0000 E                	JMP	NEWSTT 
                                  
  0067  8B 1E 0000 E             FLSWHL:	MOV	BX,NXTLIN	;SETUP CURLIN FOR WEND 
  006B  89 1E 0000 E             	MOV	CURLIN,BX 
- 006F  5B                       	POP	BX		;TAKE OFF TEXT OF WEND AS NEW TEXT POI
-				NTER 
+ 006F  5B                       	POP	BX		;TAKE OFF TEXT OF WEND AS NEW TEXT POINTER 
  0070  59                       	POP	CX		;GET RID OF TEXT POINTER OF WHILE 
  0071  59                       	POP	CX		;TAKE OFF LINE NUMBER OF WHILE 
  0072  E9 0000 E                	JMP	NEWSTT 
                                 ; 
-                                ; THIS SUBROUTINE SEARCHES THE STACK FOR AN WHI
-				LE ENTRY 
-                                ; WHOSE WEND TEXT POINTER MATCHES [D,E]. IT RET
-				URNS WITH ZERO TRUE 
-                                ; IF A MATCH IS FOUND AND ZERO FALSE OTHERWISE.
-				 FOR ENTRIES 
+                                ; THIS SUBROUTINE SEARCHES THE STACK FOR AN WHILE ENTRY 
+                                ; WHOSE WEND TEXT POINTER MATCHES [D,E]. IT RETURNS WITH ZERO TRUE 
+                                ; IF A MATCH IS FOUND AND ZERO FALSE OTHERWISE. FOR ENTRIES 
                                 ; ARE SKIPPED OVER, BUT GOSUB ENTRIES ARE NOT. 
                                 ; 
  = 0007                         	WHLSIZ=7 
                                  
                                  
                                 ; 
-                                ; Note - 8086 versions force stack entries to b
-				e an even length 
-                                ; so stack accesses won't cross word boundaries
-				.  This is done 
-                                ; for speed.  To accomplish this, an extra byte
-				 is pushed on 
-                                ; top of the WHILE token.  This extra byte is N
-				OT reflected in 
-                                ; the value of WHLSIZ but is taken care of by t
-				he code. 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-15
+WHILE , WEND                                                
+
+                                ; Note - 8086 versions force stack entries to be an even length 
+                                ; so stack accesses won't cross word boundaries.  This is done 
+                                ; for speed.  To accomplish this, an extra byte is pushed on 
+                                ; top of the WHILE token.  This extra byte is NOT reflected in 
+                                ; the value of WHLSIZ but is taken care of by the code. 
                                 ; 
                                  
- 0075  BB 0004                  FNDWND:	MOV	BX,4		;SKIP OVER RETURN ADDRESS AND
-				 NEWSTT 
+ 0075  BB 0004                  FNDWND:	MOV	BX,4		;SKIP OVER RETURN ADDRESS AND NEWSTT 
  0078  03 DC                    	ADD	BX,SP 
  007A                           FNDWN2: 
  007A  43                       	INC	BX 
@@ -860,8 +745,7 @@ WHILE , WEND
  007E  B9 0000 E                	MOV	CX,OFFSET $FOR 
  0081  3A C1                    	CMP	AL,CL		;SEE IF ITS $FOR 
  0083  75 07                    	JNZ	SHORT FNDWN3 
- 0085  B9 FFFF E                	MOV	CX,OFFSET FORSZC-1	;Yes, so skip over it. 
-				 Note that 
+ 0085  B9 FFFF E                	MOV	CX,OFFSET FORSZC-1	;Yes, so skip over it.  Note that 
  0088  03 D9                    	ADD	BX,CX		;the pointer has already been 
  008A  EB EE                    	JMP	SHORT FNDWN2	;incremented once. 
                                  
@@ -869,14 +753,8 @@ WHILE , WEND
  008F  3A C1                    	CMP	AL,CL 
  0091  74 01                    	JZ	SHORT $+3 
  0093  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-17
-WHILE , WEND                                                
-
                                 	INS86	71,27		;CMP [BX],DX-SAME WEND? 
- 0096  B9 0006                  	MOV	CX,OFFSET WHLSIZ-1	;Note that the pointer 
-				has 
+ 0096  B9 0006                  	MOV	CX,OFFSET WHLSIZ-1	;Note that the pointer has 
                                 				;already been incremented once. 
  0099  75 01                    	JNZ	SHORT $+3 
  009B  C3                       	RET			;RETURN IF ENTRY MATCHES 
@@ -891,14 +769,12 @@ WHILE , WEND
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	TXTTAB:WORD,VALTYP:WORD 
  0000                           DSEG	ENDS 
-                                	EXTRN	$COMMON:NEAR,$MERGE:NEAR,FRMEVL:NEAR,OME
-				RR:NEAR,SCRTCH:NEAR 
+                                	EXTRN	$COMMON:NEAR,$MERGE:NEAR,FRMEVL:NEAR,OMERR:NEAR,SCRTCH:NEAR 
                                 	EXTRN	LINGET:NEAR 
                                 	EXTRN	$DELETE:NEAR 
                                 	PUBLIC	CHAIN,COMMON 
                                 	EXTRN	PTRGTN:NEAR,PTRGTR:NEAR 
-                                	EXTRN	MOVE1:NEAR,NEWSTT:NEAR,PTRGET:NEAR,STRCP
-				Y:NEAR 
+                                	EXTRN	MOVE1:NEAR,NEWSTT:NEAR,PTRGET:NEAR,STRCPY:NEAR 
                                 	EXTRN	GARBA2:NEAR 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	FRETOP:WORD 
@@ -907,67 +783,54 @@ WHILE , WEND
                                 ; 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	SAVFRE:WORD 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-16
+CHAIN                                                       
+
  0000                           DSEG	ENDS 
                                 	EXTRN	IADAHL:NEAR 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-                                	EXTRN	TEMP3:WORD,TEMP9:WORD,VARTAB:WORD,ARYTAB
-				:WORD,CHNFLG:WORD 
+                                	EXTRN	TEMP3:WORD,TEMP9:WORD,VARTAB:WORD,ARYTAB:WORD,CHNFLG:WORD 
                                 	EXTRN	STREND:WORD 
-                                	EXTRN	CURLIN:WORD,SAVSTK:WORD,ENDBUF:WORD,MRGF
-				LG:WORD,MDLFLG:WORD 
+                                	EXTRN	CURLIN:WORD,SAVSTK:WORD,ENDBUF:WORD,MRGFLG:WORD,MDLFLG:WORD 
                                 	EXTRN	CHNLIN:WORD,CMEPTR:WORD,CMSPTR:WORD 
  0000                           DSEG	ENDS 
                                 	EXTRN	BLTUC:NEAR,DATA:NEAR 
-                                	EXTRN	FNDLIN:NEAR,USERR:NEAR,ERSFIN:NEAR,FCERR
-				:NEAR,NOARYS:NEAR 
-                                	EXTRN	DEL:NEAR,LINKER:NEAR,SCNLIN:NEAR,FRQINT:
-				NEAR 
+                                	EXTRN	FNDLIN:NEAR,USERR:NEAR,ERSFIN:NEAR,FCERR:NEAR,NOARYS:NEAR 
+                                	EXTRN	DEL:NEAR,LINKER:NEAR,SCNLIN:NEAR,FRQINT:NEAR 
                                 ; This is the code for the CHAIN statement 
                                 ; The syntax is: 
-                                ; CHAIN [MERGE]<file name>[,[<line number>][,AL
-				L][,DELETE <range>]] 
+                                ; CHAIN [MERGE]<file name>[,[<line number>][,ALL][,DELETE <range>]] 
                                 ; The steps required to execute a CHAIN are: 
                                 ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-18
-CHAIN                                                       
-
                                 ; 1.) Scan arguments 
                                 ; 
-                                ; 2.) Scan program for all COMMON statements an
-				d 
+                                ; 2.) Scan program for all COMMON statements and 
                                 ;       mark specified variables. 
                                 ; 
-                                ; 3.) Squeeze unmarked entries from symbol tabl
-				e. 
+                                ; 3.) Squeeze unmarked entries from symbol table. 
                                 ; 
                                 ; 4.) Copy string literals to string space 
                                 ; 
-                                ; 5.) Move all simple variables and arrays into
-				 the 
+                                ; 5.) Move all simple variables and arrays into the 
                                 ;       bottom of string space. 
                                 ; 
                                 ; 6.) Load new program 
                                 ; 
-                                ; 7.) Move variables back down positioned after
-				 program. 
+                                ; 7.) Move variables back down positioned after program. 
                                 ; 
                                 ; 8.) Run program 
  00A6                           CHAIN: 
  00A6  32 C0                    	XOR	AL,AL		;Assume no MERGE 
  00A8  A2 0000 E                	MOV	BYTE PTR MRGFLG,AL 
- 00AB  A2 0000 E                	MOV	BYTE PTR MDLFLG,AL	;Also no MERGE w/ DELET
-				E option 
+ 00AB  A2 0000 E                	MOV	BYTE PTR MDLFLG,AL	;Also no MERGE w/ DELETE option 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-                                	EXTRN	OPTFLG:WORD,TOPTFG:WORD,OPTVAL:WORD,TOPT
-				VL:WORD 
+                                	EXTRN	OPTFLG:WORD,TOPTFG:WORD,OPTVAL:WORD,TOPTVL:WORD 
  0000                           DSEG	ENDS 
  00AE  A0 0000 E                	MOV	AL,BYTE PTR OPTFLG 
- 00B1  A2 0000 E                	MOV	BYTE PTR TOPTFG,AL	;SAVE OPTION BASE VALUE
-				 
- 00B4  A0 0000 E                	MOV	AL,BYTE PTR OPTVAL	;SAVE OPTION VALUE FOR 
-				ARRAY BASE 
+ 00B1  A2 0000 E                	MOV	BYTE PTR TOPTFG,AL	;SAVE OPTION BASE VALUE 
+ 00B4  A0 0000 E                	MOV	AL,BYTE PTR OPTVAL	;SAVE OPTION VALUE FOR ARRAY BASE 
  00B7  A2 0000 E                	MOV	BYTE PTR TOPTVL,AL 
  00BA  8A 07                    	MOV	AL,BYTE PTR [BX]	;Get current char 
  00BC  BA 0000 E                	MOV	DX,OFFSET $MERGE	;Is it MERGE? 
@@ -979,6 +842,11 @@ CHAIN
  00C8  E8 0000 E                	CALL	CHRGTR 
                                 	EXTRN	PRGFLI:NEAR 
  00CB  E8 0000 E                	CALL	PRGFLI		;Evaluate file name and OPEN it 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-17
+CHAIN                                                       
+
  00CE  53                       	PUSH	BX		;Save text pointer 
  00CF  BB 0000                  	MOV	BX,0		;Get zero 
  00D2  89 1E 0000 E             	MOV	CHNLIN,BX	;Assume no CHAIN line # 
@@ -987,16 +855,10 @@ CHAIN
  00D8  E8 0000 E                	CALL	CHRGTR		;Scan char 
  00DB  75 03                    	JNZ	SHORT ??L001 
  00DD  EB 76 90                 	JMP	NTCHAL		;No line number etc. 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-19
-CHAIN                                                       
-
  00E0                           ??L001: 
  00E0  E8 0000 E                	CALL	SYNCHR 
  00E3  2C                       	DB	OFFSET 54O	;Must be comma 
- 00E4  3C 2C                    	CMP	AL,LOW 54O	;Ommit line # (Use ALL for inst
-				ance) 
+ 00E4  3C 2C                    	CMP	AL,LOW 54O	;Ommit line # (Use ALL for instance) 
  00E6  74 12                    	JZ	SHORT NTLINF	;YES 
  00E8  E8 0000 E                	CALL	FRMEVL		;Evaluate line # formula 
  00EB  53                       	PUSH	BX		;Save text poiner 
@@ -1005,8 +867,7 @@ CHAIN
  00F3  5B                       	POP	BX		;Restore text poiner 
  00F4  4B                       	DEC	BX		;Rescan last char 
  00F5  E8 0000 E                	CALL	CHRGTR 
- 00F8  74 5B                    	JZ	SHORT NTCHAL	;No ALL i.e. preserve all vars
-				 across CHAIN 
+ 00F8  74 5B                    	JZ	SHORT NTCHAL	;No ALL i.e. preserve all vars across CHAIN 
  00FA  E8 0000 E                NTLINF:	CALL	SYNCHR 
  00FD  2C                       	DB	OFFSET 54O	;Should be comma here 
  00FE  BA 0000 E                	MOV	DX,OFFSET $DELETE	;Test for DELETE option 
@@ -1040,50 +901,40 @@ CHAIN
  0133  51                       	PUSH	CX		;Save pointer to start of 1st line 
  0134  8B D9                    	MOV	BX,CX		;Save pointer to start line 
  0136  89 1E 0000 E             	MOV	CMSPTR,BX 
- 013A  E8 0000 E                	CALL	FNDLIN		;Find the last line 
- 013D  73 0B                    	JAE	SHORT FCERRG	;Must have exact match on end
-				 of range 
- 013F  8A F7                    	MOV	DH,BH		;[D,E] =  pointer at the start of t
-				he line 
- 0141  8A D3                    	MOV	DL,BL		;beyond the last line in the range 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-20
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-18
 CHAIN                                                       
 
+ 013A  E8 0000 E                	CALL	FNDLIN		;Find the last line 
+ 013D  73 0B                    	JAE	SHORT FCERRG	;Must have exact match on end of range 
+ 013F  8A F7                    	MOV	DH,BH		;[D,E] =  pointer at the start of the line 
+ 0141  8A D3                    	MOV	DL,BL		;beyond the last line in the range 
  0143  89 1E 0000 E             	MOV	CMEPTR,BX	;Save pointer to end line 
  0147  5B                       	POP	BX		;Get back pointer to start of range 
- 0148  3B DA                    	CMP	BX,DX		;Make sure the start comes before t
-				he end 
+ 0148  3B DA                    	CMP	BX,DX		;Make sure the start comes before the end 
  014A  72 03                    FCERRG:	JNAE	SHORT ??L004 
  014C  E9 0000 E                	JMP	FCERR		;If not, "Illegal function call" 
  014F                           ??L004: 
- 014F  9D                       	POPF			;Flag that says whether to go to DNCMDA
-				 
+ 014F  9D                       	POPF			;Flag that says whether to go to DNCMDA 
  0150  74 03                    	JZ	SHORT ??L005 
  0152  E9 02EB R                	JMP	DNCMDA		;"ALL" option was present 
  0155                           ??L005: 
- 0155  8B 1E 0000 E             NTCHAL:	MOV	BX,CURLIN	;Save current line number
-				 on stack 
+ 0155  8B 1E 0000 E             NTCHAL:	MOV	BX,CURLIN	;Save current line number on stack 
  0159  53                       	PUSH	BX 
- 015A  8B 1E 0000 E             	MOV	BX,TXTTAB	;Start searching for COMMONs at 
-				program start 
+ 015A  8B 1E 0000 E             	MOV	BX,TXTTAB	;Start searching for COMMONs at program start 
  015E  4B                       	DEC	BX		;Compensate for next instr 
- 015F  43                       CLPSC1:	INC	BX		;Look at first char of next lin
-				e 
- 0160  8A 07                    CLPSCN:	MOV	AL,BYTE PTR [BX]	;Get char from pro
-				gram 
+ 015F  43                       CLPSC1:	INC	BX		;Look at first char of next line 
+ 0160  8A 07                    CLPSCN:	MOV	AL,BYTE PTR [BX]	;Get char from program 
  0162  43                       	INC	BX 
- 0163  0A 07                    	OR	AL,BYTE PTR [BX]	;Are we pointing to progra
-				m end? 
+ 0163  0A 07                    	OR	AL,BYTE PTR [BX]	;Are we pointing to program end? 
  0165  75 03                    	JNZ	SHORT ??L006 
  0167  E9 0250 R                	JMP	CLPFIN		;Yes 
  016A                           ??L006: 
  016A  43                       	INC	BX 
  016B  8B 17                    	MOV	DX,[BX]		;Get line # in [D,E] 
  016D  43                       	INC	BX 
- 016E  89 16 0000 E             	MOV	CURLIN,DX	;Save current line # in CURLIN f
-				or errors 
+ 016E  89 16 0000 E             	MOV	CURLIN,DX	;Save current line # in CURLIN for errors 
  0172  E8 0000 E                CSTSCN:	CALL	CHRGTR		;Get statment type 
  0175  0A C0                    AFTCOM:	OR	AL,AL 
  0177  74 E6                    	JZ	SHORT CLPSC1	;EOL Scan next one 
@@ -1093,31 +944,27 @@ CHAIN
  017F  75 0B                    	JNZ	SHORT NOCOMM	;not one 
  0181  43                       	INC	BX		;move ahead 
  0182  8A 07                    	MOV	AL,BYTE PTR [BX] 
- 0184  BA 0000 E                	MOV	DX,OFFSET $COMMON	;Test for COMMON, avoid 
-				byte externals 
+ 0184  BA 0000 E                	MOV	DX,OFFSET $COMMON	;Test for COMMON, avoid byte externals 
  0187  3A C2                    	CMP	AL,DL		;Is it a COMMON? 
  0189  74 0A                    	JZ	SHORT DOCOMM	;Yes, handle it 
  018B  4B                       	DEC	BX		;Back up the pointer. 
- 018C  E8 0000 E                NOCOMM:	CALL	CHRGTR		;Get first char of stateme
-				nt 
+ 018C  E8 0000 E                NOCOMM:	CALL	CHRGTR		;Get first char of statement 
  018F  E8 0000 E                	CALL	DATA		;Skip over statement 
  0192  4B                       	DEC	BX		;Back up to rescan terminator 
  0193  EB DD                    	JMP	SHORT CSTSCN	;Scan next one 
  0195  E8 0000 E                DOCOMM:	CALL	CHRGTR		;Get thing after COMMON 
  0198  74 DB                    	JZ	SHORT AFTCOM	;Get next thing 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-21
-CHAIN                                                       
-
  019A  53                       NXTCOM:	PUSH	BX		;Save text pointer 
  019B  B0 01                    	MOV	AL,LOW 1	;Call PTRGET to search for array 
  019D  A2 0000 E                	MOV	BYTE PTR SUBFLG,AL 
- 01A0  E8 0000 E                	CALL	PTRGTN		;This subroutine in F3 scans vari
-				ables 
+ 01A0  E8 0000 E                	CALL	PTRGTN		;This subroutine in F3 scans variables 
  01A3  74 64                    	JZ	SHORT FNDAAY	;Found array 
- 01A5  8A C5                    	MOV	AL,CH		;Try finding array with COMMON bit 
-				set 
+ 01A5  8A C5                    	MOV	AL,CH		;Try finding array with COMMON bit set 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-19
+CHAIN                                                       
+
  01A7  0C 80                    	OR	AL,LOW 128D 
  01A9  8A E8                    	MOV	CH,AL 
  01AB  32 C0                    	XOR	AL,AL		;Set zero CC 
@@ -1125,22 +972,17 @@ CHAIN
  01B0  B0 00                    	MOV	AL,LOW 0	;Clear SUBFLG in all cases 
  01B2  A2 0000 E                	MOV	BYTE PTR SUBFLG,AL 
  01B5  75 09                    	JNZ	SHORT NTFN2T	;Not found, try simple 
- 01B7  8A 07                    	MOV	AL,BYTE PTR [BX]	;Get terminator, should b
-				e "(" 
+ 01B7  8A 07                    	MOV	AL,BYTE PTR [BX]	;Get terminator, should be "(" 
  01B9  3C 28                    	CMP	AL,LOW "("	;Test 
  01BB  75 0B                    	JNZ	SHORT SCNSMP	;Must be simple then 
  01BD  9D                       	POPF			;Get rid of saved text pointer 
- 01BE  EB 69                    	JMP	SHORT COMADY	;Already was COMMON, ignore i
-				t 
+ 01BE  EB 69                    	JMP	SHORT COMADY	;Already was COMMON, ignore it 
  01C0  8A 07                    NTFN2T:	MOV	AL,BYTE PTR [BX]	;Get terminator 
  01C2  3C 28                    	CMP	AL,LOW "("	;Array specifier? 
  01C4  5A                       	POP	DX		;(DE:=saved text pointer.) 
- 01C5  74 55                    	JZ	SHORT SKPCOM	;Yes, undefined array - just s
-				kip it. 
- 01C7  52                       	PUSH	DX		;No, resave pointer to start of varia
-				ble 
- 01C8  5B                       SCNSMP:	POP	BX		;Rescan variable name for start
-				 
+ 01C5  74 55                    	JZ	SHORT SKPCOM	;Yes, undefined array - just skip it. 
+ 01C7  52                       	PUSH	DX		;No, resave pointer to start of variable 
+ 01C8  5B                       SCNSMP:	POP	BX		;Rescan variable name for start 
  01C9  E8 0000 E                	CALL	PTRGTN		;Evaluate as simple 
  01CC  0B D2                    	OR	DX,DX		;If var not found, [D,E]=0 
  01CE  75 1A                    	JNZ	SHORT COMFNS	;Found it 
@@ -1149,26 +991,18 @@ CHAIN
  01D4  8A E8                    	MOV	CH,AL 
  01D6  BA 01E6 R                	MOV	DX,OFFSET COMPT2	;push on return address 
  01D9  52                       	PUSH	DX 
- 01DA  BA 0000 E                	MOV	DX,OFFSET PTRGTR	;address to common return
-				 point 
+ 01DA  BA 0000 E                	MOV	DX,OFFSET PTRGTR	;address to common return point 
  01DD  52                       	PUSH	DX 
- 01DE  A0 0000 E                	MOV	AL,BYTE PTR VALTYP	;Must have VALTYP in [D
-				] 
+ 01DE  A0 0000 E                	MOV	AL,BYTE PTR VALTYP	;Must have VALTYP in [D] 
  01E1  8A F0                    	MOV	DH,AL 
  01E3  E9 0000 E                	JMP	NOARYS		;Search symbol table 
  01E6  0B D2                    COMPT2:	OR	DX,DX		;Found? 
- 01E8  74 32                    	JZ	SHORT SKPCOM	;No, just skip over this varia
-				ble. 
+ 01E8  74 32                    	JZ	SHORT SKPCOM	;No, just skip over this variable. 
  01EA  53                       COMFNS:	PUSH	BX		;Save text pointer 
  01EB  8A EE                    	MOV	CH,DH		;Get pointer to var in [B,C] 
  01ED  8A CA                    	MOV	CL,DL 
  01EF  BB 021B R                	MOV	BX,OFFSET BCKUCM	;Loop back here 
  01F2  53                       	PUSH	BX 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-22
-CHAIN                                                       
-
  01F3  49                       CBAKBL:	DEC	CX		;Point at first char of rest 
  01F4  8B F1                    LPBKNC:	MOV	SI,CX 
  01F6  8A 04                    	MOV	AL,[SI]		;Back up until plus byte 
@@ -1184,21 +1018,21 @@ CHAIN
  0205  8B F9                    	MOV	DI,CX 
  0207  AA                       	STOSB 
  0208  C3                       	RET			;done 
- 0209  A2 0000 E                FNDAAY:	MOV	BYTE PTR SUBFLG,AL	;Array found, cl
-				ear SUBFLG 
- 020C  8A 07                    	MOV	AL,BYTE PTR [BX]	;Make sure really array s
-				pec 
+ 0209  A2 0000 E                FNDAAY:	MOV	BYTE PTR SUBFLG,AL	;Array found, clear SUBFLG 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-20
+CHAIN                                                       
+
+ 020C  8A 07                    	MOV	AL,BYTE PTR [BX]	;Make sure really array spec 
  020E  3C 28                    	CMP	AL,LOW "("	;Really an array? 
  0210  75 B6                    	JNZ	SHORT SCNSMP	;No, scan as simp 
  0212  5E                       	POP	SI		;XTHL 
  0213  87 F3                    	XCHG	SI,BX 
- 0215  56                       	PUSH	SI		;Save text pointer, get rid of saved 
-				text pointer 
- 0216  49                       BAKCOM:	DEC	CX		;Point at last char of name ext
-				ension 
+ 0215  56                       	PUSH	SI		;Save text pointer, get rid of saved text pointer 
+ 0216  49                       BAKCOM:	DEC	CX		;Point at last char of name extension 
  0217  49                       	DEC	CX 
- 0218  E8 01F3 R                	CALL	CBAKBL		;Back up before variable and mark
-				 as COMMON 
+ 0218  E8 01F3 R                	CALL	CBAKBL		;Back up before variable and mark as COMMON 
  021B  5B                       BCKUCM:	POP	BX		;Restore text pointer 
  021C  4B                       SKPCOM:	DEC	BX		;Rescan terminator 
  021D  E8 0000 E                	CALL	CHRGTR 
@@ -1213,21 +1047,14 @@ CHAIN
  022F  74 0E                    	JZ	SHORT COMRPN	;Only right paren follows 
  0231  5B                       	POP	BX 
                                 	EXTRN	EVAL:NEAR 
- 0232  E8 0000 E                	CALL	EVAL		;Possible number of dimensions(comp
-				iler compatible) 
+ 0232  E8 0000 E                	CALL	EVAL		;Possible number of dimensions(compiler compatible) 
  0235  E8 0000 E                	CALL	GETYPR 
  0238  75 03                    	JNZ	SHORT ??L009 
- 023A  E9 0000 E                	JMP	FCERR		;Dimensions argument cannot be stri
-				ng 
+ 023A  E9 0000 E                	JMP	FCERR		;Dimensions argument cannot be string 
  023D                           ??L009: 
  023D  EB 01                    	JMP	SHORT COMRP1 
  023F  5A                       COMRPN:	POP	DX 
  0240  E8 0000 E                COMRP1:	CALL	SYNCHR 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-23
-CHAIN                                                       
-
  0243  29                       	DB	OFFSET ")"	;Right paren should follow 
  0244  75 03                    	JNZ	SHORT ??L010 
  0246  E9 0175 R                	JMP	AFTCOM		;End of COMMON 
@@ -1238,8 +1065,7 @@ CHAIN
                                 ; Step 3 - Squeeze.. 
  0250  5B                       CLPFIN:	POP	BX		;Restore previous CURLIN 
  0251  89 1E 0000 E             	MOV	CURLIN,BX 
- 0255  8B 16 0000 E             	MOV	DX,ARYTAB	;End of simple var squeeze to [D
-				,E] 
+ 0255  8B 16 0000 E             	MOV	DX,ARYTAB	;End of simple var squeeze to [D,E] 
  0259  8B 1E 0000 E             	MOV	BX,VARTAB	;Start of simps 
  025D  3B DA                    CLPSLP:	CMP	BX,DX		;Are we done? 
  025F  74 5B                    	JZ	SHORT DNCMDS	;Yes done, with simps 
@@ -1252,6 +1078,11 @@ CHAIN
  026A  9C                       	PUSHF			;Save indicator 
  026B  24 7F                    	AND	AL,LOW 177O	;Clear COMMON bit 
  026D  88 07                    	MOV	BYTE PTR [BX],AL	;Save back 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-21
+CHAIN                                                       
+
  026F  43                       	INC	BX 
  0270  E8 0000 E                	CALL	IADAHL		;Skip over rest of var name 
  0273  B5 00                    	MOV	CH,LOW 0	;Skip VALTYP bytes 
@@ -1261,20 +1092,16 @@ CHAIN
  0279  79 02                    	JNS	SHORT ??L011 
  027B  EB E0                    	JMP	CLPSLP 
  027D                           ??L011: 
- 027D  51                       	PUSH	CX		;This is where we will resume scannin
-				g vars later 
+ 027D  51                       	PUSH	CX		;This is where we will resume scanning vars later 
  027E  E8 0290 R                	CALL	VARDLS		;Delete variable 
- 0281  8B 1E 0000 E             	MOV	BX,ARYTAB	;Now correct ARYTAB by # of byte
-				s deleted 
- 0285  03 DA                    	ADD	BX,DX		;Add negative difference between ol
-				d and new 
+ 0281  8B 1E 0000 E             	MOV	BX,ARYTAB	;Now correct ARYTAB by # of bytes deleted 
+ 0285  03 DA                    	ADD	BX,DX		;Add negative difference between old and new 
  0287  89 1E 0000 E             	MOV	ARYTAB,BX	;Save new ARYTAB 
  028B  87 DA                    	XCHG	BX,DX		;To [D,E] 
  028D  5B                       	POP	BX		;Get current place back in [H,L] 
  028E  EB CD                    	JMP	SHORT CLPSLP 
  0290  87 DA                    VARDLS:	XCHG	BX,DX		;Point to where var ends 
- 0292  8B 1E 0000 E             VARDL1:	MOV	BX,STREND	;One beyond last byte to 
-				move 
+ 0292  8B 1E 0000 E             VARDL1:	MOV	BX,STREND	;One beyond last byte to move 
  0296  3B DA                    DLSVLP:	CMP	BX,DX		;Done? 
  0298  8B F2                    	MOV	SI,DX 
  029A  8A 04                    	MOV	AL,[SI]		;Grab byte 
@@ -1282,18 +1109,12 @@ CHAIN
  029E  AA                       	STOSB			;Move down 
  029F  9F                       	LAHF 
  02A0  42                       	INC	DX		;Increment pointers 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-24
-CHAIN                                                       
-
  02A1  9E                       	SAHF 
  02A2  9F                       	LAHF 
  02A3  41                       	INC	CX 
  02A4  9E                       	SAHF 
  02A5  75 EF                    	JNZ	SHORT DLSVLP 
- 02A7  8A C1                    	MOV	AL,CL		;Get difference between old and new
-				 
+ 02A7  8A C1                    	MOV	AL,CL		;Get difference between old and new 
  02A9  2A C3                    	SUB	AL,BL		;Into [D,E] ([D,E]=[B,C]-[H,L]) 
  02AB  8A D0                    	MOV	DL,AL 
  02AD  8A C5                    	MOV	AL,CH 
@@ -1316,9 +1137,13 @@ CHAIN
  02CC  24 7F                    	AND	AL,LOW 177O	;Clear COMMON bit 
  02CE  88 07                    	MOV	BYTE PTR [BX],AL	;Save back 
  02D0  43                       	INC	BX		;Point to length of array 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-22
+CHAIN                                                       
+
  02D1  E8 0000 E                	CALL	IADAHL		;Add length of var name 
- 02D4  8A 0F                    	MOV	CL,BYTE PTR [BX]	;Get length of array in [
-				B,C] 
+ 02D4  8A 0F                    	MOV	CL,BYTE PTR [BX]	;Get length of array in [B,C] 
  02D6  43                       	INC	BX 
  02D7  8A 2F                    	MOV	CH,BYTE PTR [BX] 
  02D9  43                       	INC	BX 
@@ -1330,32 +1155,21 @@ CHAIN
  02E2                           ??L012: 
  02E2  51                       	PUSH	CX		;Save so we can resume 
  02E3  E8 0290 R                	CALL	VARDLS		;Delete the array 
- 02E6  87 DA                    	XCHG	BX,DX		;Returns with STREND in HL, so put
-				 in DE 
+ 02E6  87 DA                    	XCHG	BX,DX		;Returns with STREND in HL, so put in DE 
  02E8  5B                       	POP	BX		;Get back pointer to the next array 
  02E9  EB D5                    	JMP	SHORT CLPAKP	;Check next array 
                                 ; Step 4 - Copy literals into string space 
-                                ; This code is very similar to the string garba
-				ge collect code 
-                                ; If BIGSTR is on, we also have to fix up the s
-				tring back pointers. 
+                                ; This code is very similar to the string garbage collect code 
+                                ; If BIGSTR is on, we also have to fix up the string back pointers. 
  02EB                           DNCMDA: 
  02EB  8B 1E 0000 E             	MOV	BX,VARTAB	;Look at simple strings 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-25
-CHAIN                                                       
-
  02EF  8B 16 0000 E             CSVAR:	MOV	DX,ARYTAB	;Limit of search to [D,E] 
  02F3  3B DA                    	CMP	BX,DX		;Done? 
  02F5  74 13                    	JZ	SHORT CAYVAR	;Yes 
- 02F7  E8 0440 R                	CALL	SKPNAM		;Skip name, returns Z if was a st
-				ring 
+ 02F7  E8 0440 R                	CALL	SKPNAM		;Skip name, returns Z if was a string 
  02FA  75 05                    	JNZ	SHORT CSKPVA	;Skip this var, not string 
- 02FC  E8 033E R                	CALL	CDVARS		;Copy this guy into string space 
-				if nesc 
- 02FF  32 C0                    	XOR	AL,AL		;CDVARS has already incremented [H,
-				L] 
+ 02FC  E8 033E R                	CALL	CDVARS		;Copy this guy into string space if nesc 
+ 02FF  32 C0                    	XOR	AL,AL		;CDVARS has already incremented [H,L] 
  0301                           CSKPVA: 
  0301  8A D0                    	MOV	DL,AL 
  0303  B6 00                    	MOV	DH,LOW 0	;Add length of VALTYP 
@@ -1382,6 +1196,11 @@ CHAIN
  032B  B5 00                    	MOV	CH,LOW 0	;Make double with high zero 
  032D  03 D9                    	ADD	BX,CX		;Go past DIMS 
  032F  03 D9                    	ADD	BX,CX 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-23
+CHAIN                                                       
+
  0331  43                       	INC	BX		;One more to account for # of DIMs 
  0332  8B 16 0000 E             CAYSTR:	MOV	DX,TEMP3	;Get end of array 
  0336  3B DA                    	CMP	BX,DX		;See if at end of array 
@@ -1389,8 +1208,7 @@ CHAIN
  033A  B9 0332 R                	MOV	CX,OFFSET CAYSTR	;Do next str in array 
  033D  51                       	PUSH	CX		;Save branch address on stack 
  033E                           CDVARS: 
- 033E  8A 07                    	MOV	AL,BYTE PTR [BX]	;Get length of array entr
-				y 
+ 033E  8A 07                    	MOV	AL,BYTE PTR [BX]	;Get length of array entry 
  0340  43                       	INC	BX		;Also pick up pointer into [D,E] 
  0341  8B 17                    	MOV	DX,[BX]		;Get data pointer 
  0343  43                       	INC	BX 
@@ -1399,13 +1217,7 @@ CHAIN
  0347  75 01                    	JNZ	SHORT $+3 
  0349  C3                       	RET			;Ignore null strings 
  034A  53                       	PUSH	BX		;Save where we are 
- 034B  8B 1E 0000 E             	MOV	BX,VARTAB	;Is string in program text or di
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-26
-CHAIN                                                       
-
-				sk buffers? 
+ 034B  8B 1E 0000 E             	MOV	BX,VARTAB	;Is string in program text or disk buffers? 
  034F  3B DA                    	CMP	BX,DX		;Compare 
  0351  5B                       	POP	BX		;Restore where we are 
  0352  73 01                    	JNB	SHORT $+3 
@@ -1422,8 +1234,7 @@ CHAIN
  0363  4B                       	DEC	BX 
  0364  53                       	PUSH	BX		;Save pointer to start 
  0365  E8 0000 E                	CALL	STRCPY		;Copy string into DSCTMP 
- 0368  5B                       	POP	BX		;Destination in [H,L], source in [D,E]
-				 
+ 0368  5B                       	POP	BX		;Destination in [H,L], source in [D,E] 
  0369  B5 03                    	MOV	CH,LOW 3	;# of bytes to move 
  036B  E8 0000 E                	CALL	MOVE1		;Move em 
  036E  5B                       	POP	BX		;Where we are 
@@ -1440,30 +1251,27 @@ CHAIN
  0387  8B 1E 0000 E             	MOV	BX,FRETOP	;Destination of high byte 
  038B  89 1E 0000 E             	MOV	SAVFRE,BX	;Save FRETOP to restore later 
  038F  E8 0000 E                	CALL	BLTUC		;Move stuff up 
- 0392  8B D9                    	MOV	BX,CX		;Now adjust top of memory below sav
-				ed vars 
+ 0392  8B D9                    	MOV	BX,CX		;Now adjust top of memory below saved vars 
  0394  4B                       	DEC	BX		;One lower to be sure 
- 0395  89 1E 0000 E             	MOV	FRETOP,BX	;Update FRETOP to reflect new va
-				lue 
+ 0395  89 1E 0000 E             	MOV	FRETOP,BX	;Update FRETOP to reflect new value 
  0399  A0 0000 E                	MOV	AL,BYTE PTR MDLFLG	;MERGE w/ DELETE? 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-24
+CHAIN                                                       
+
  039C  0A C0                    	OR	AL,AL		;Test 
  039E  74 18                    	JZ	SHORT NTMDLT	;No 
  03A0  8B 1E 0000 E             	MOV	BX,CMSPTR	;Start of lines to delete 
  03A4  8B CB                    	MOV	CX,BX		;Into [B,C] 
  03A6  8B 1E 0000 E             	MOV	BX,CMEPTR	;End of lines to delete 
  03AA  E8 0000 E                	CALL	DEL		;Delete the lines 
- 03AD  89 1E 0000 E             	MOV	ARYTAB,BX	;***also set up ARYTAB and STREN
-				D 
+ 03AD  89 1E 0000 E             	MOV	ARYTAB,BX	;***also set up ARYTAB and STREND 
  03B1  89 1E 0000 E             	MOV	STREND,BX	;in case we get error in CHAIN 
                                 				;because of file lookup and then have to 
                                 				;look at variables later (shouldnt be any) 
                                 				;***PGA 7/7/81 
  03B5  E8 0000 E                	CALL	LINKER		;Re-link lines just in case 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-27
-CHAIN                                                       
-
                                 ; Step 6 - load new program 
  03B8  B0 01                    NTMDLT:	MOV	AL,LOW 1	;Set CHAIN flag 
  03BA  A2 0000 E                	MOV	BYTE PTR CHNFLG,AL 
@@ -1478,8 +1286,7 @@ CHAIN
                                 	PUBLIC	CHNRET 
  03CA                           CHNRET: 
  03CA  A0 0000 E                	MOV	AL,BYTE PTR TOPTVL 
- 03CD  A2 0000 E                	MOV	BYTE PTR OPTVAL,AL	;RESTORE IOTION BASE VA
-				LUE 
+ 03CD  A2 0000 E                	MOV	BYTE PTR OPTVAL,AL	;RESTORE IOTION BASE VALUE 
  03D0  A0 0000 E                	MOV	AL,BYTE PTR TOPTFG 
  03D3  A2 0000 E                	MOV	BYTE PTR OPTFLG,AL	;LRESTORE OPTION FLG 
  03D6  32 C0                    	XOR	AL,AL		;Clear CHAIN, MERGE flags 
@@ -1488,8 +1295,7 @@ CHAIN
  03DE  8B 1E 0000 E             	MOV	BX,VARTAB	;Get current VARTAB 
  03E2  8B CB                    	MOV	CX,BX		;Into [B,C] 
  03E4  8B 1E 0000 E             	MOV	BX,TEMP9	;Get length of simps 
- 03E8  03 D9                    	ADD	BX,CX		;Add to present VARTAB to get new A
-				RYTAB 
+ 03E8  03 D9                    	ADD	BX,CX		;Add to present VARTAB to get new ARYTAB 
  03EA  89 1E 0000 E             	MOV	ARYTAB,BX 
  03EE  8B 1E 0000 E             	MOV	BX,FRETOP	;Where to start moving 
  03F2  43                       	INC	BX		;One higher 
@@ -1508,6 +1314,11 @@ CHAIN
  040A  41                       	INC	CX 
  040B  9E                       	SAHF 
  040C  75 EF                    	JNZ	SHORT MVBKVR 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-25
+CHAIN                                                       
+
  040E  49                       	DEC	CX		;Point to last var byte 
  040F  8B D9                    	MOV	BX,CX		;[H,L]=last var byte 
  0411  89 1E 0000 E             	MOV	STREND,BX	;This is new end 
@@ -1515,19 +1326,11 @@ CHAIN
                                 	EXTRN	NLONLY:WORD 
  0000                           DSEG	ENDS 
  0415  32 C0                    	XOR	AL,AL		; 
- 0417  A2 0000 E                	MOV	BYTE PTR NLONLY,AL	;allow all files to be 
-				closed 
+ 0417  A2 0000 E                	MOV	BYTE PTR NLONLY,AL	;allow all files to be closed 
                                 EXTRN	FINPRT:NEAR 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-28
-CHAIN                                                       
-
- 041A  E8 0000 E                	CALL	FINPRT		;close file zero and reset PTRFIL
-				 to 0 
+ 041A  E8 0000 E                	CALL	FINPRT		;close file zero and reset PTRFIL to 0 
  041D  32 C0                    	XOR	AL,AL 
- 041F  E8 0000 E                	CALL	RESTORE		;Make sure DATA is valid by doin
-				g RESTORE 
+ 041F  E8 0000 E                	CALL	RESTORE		;Make sure DATA is valid by doing RESTORE 
  0422  8B 16 0000 E             	MOV	DX,CHNLIN	;Get CHAIN line # in [D,E] 
  0426  8B 1E 0000 E             	MOV	BX,TXTTAB	;Get prog start in [H,L] 
  042A  4B                       	DEC	BX		;Point at zero before program 
@@ -1544,10 +1347,8 @@ CHAIN
  043B  8B D9                    	MOV	BX,CX		;Make text pointer for NEWSTT 
  043D  E9 0000 E                	JMP	NEWSTT		;Bye... 
                                 ; 
-                                ; Convenience routine to skip a variable's name
-				 pointed to by HL. 
-                                ; Returns VALTYP in A with the zero flag set if
-				 it is a string. 
+                                ; Convenience routine to skip a variable's name pointed to by HL. 
+                                ; Returns VALTYP in A with the zero flag set if it is a string. 
                                 ; 
                                 	PUBLIC	SKPNAM 
  0440                           SKPNAM: 
@@ -1567,21 +1368,20 @@ CHAIN
                                  
                                 	SUBTTL  WRITE 
                                 	EXTRN	FINPRT:NEAR 
-                                	EXTRN	FOUT:NEAR,STRLIT:NEAR,STRPRT:NEAR,OUTDO:
-				NEAR 
+                                	EXTRN	FOUT:NEAR,STRLIT:NEAR,STRPRT:NEAR,OUTDO:NEAR 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	FACLO:WORD 
  0000                           DSEG	ENDS 
                                 	PUBLIC	WRITE 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-26
+WRITE                                                       
+
  0450                           WRITE: 
                                 	EXTRN	FILGET:NEAR 
  0450  B1 02                    	MOV	CL,LOW OFFSET MD_SQO	;Setup output file 
  0452  E8 0000 E                	CALL	FILGET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-29
-WRITE                                                       
-
  0455  4B                       WRTCHR:	DEC	BX 
  0456  E8 0000 E                	CALL	CHRGTR		;Get another character 
  0459  74 54                    	JZ	SHORT WRTFIN	;Done with WRITE 
@@ -1604,8 +1404,7 @@ WRITE
  047D  4B                       	DEC	BX 
  047E  88 17                    	MOV	BYTE PTR [BX],DL 
  0480  4B                       	DEC	BX 
- 0481  FE 0F                    	DEC	BYTE PTR [BX]	;Adjust length of string (le
-				ngth.LT.255 so OK) 
+ 0481  FE 0F                    	DEC	BYTE PTR [BX]	;Adjust length of string (length.LT.255 so OK) 
  0483  E8 0000 E                WRTNEG:	CALL	STRPRT		;Print the number 
  0486  5B                       NXTWRV:	POP	BX		;Get back text pointer 
  0487  4B                       	DEC	BX		;Back up pointer 
@@ -1633,14 +1432,14 @@ WRITE
  0000                           DSEG	ENDS 
  04AF  53                       	PUSH	BX		;Save text pointer 
  04B0  8B 1E 0000 E             	MOV	BX,PTRFIL	;See if disk file 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
+FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-27
+WRITE                                                       
+
  04B4  8A C7                    	MOV	AL,BH 
  04B6  0A C3                    	OR	AL,BL 
  04B8  74 45                    	JZ	SHORT NTRNDW	;No 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
-FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-30
-WRITE                                                       
-
  04BA  53                       	PUSH	BX		;Save FDB pointer 
  04BB  B9 0034                  	MOV	CX,OFFSET F_DEV 
  04BE  03 D9                    	ADD	BX,CX		;HL points to Device Entry in FDB 
@@ -1648,13 +1447,11 @@ WRITE
  04C2  0A C0                    	OR	AL,AL		;if disk [A] will be 0..n 
  04C4  5B                       	POP	BX 
  04C5  79 03                    	JNS	SHORT ??L016 
- 04C7  EB 36 90                 	JMP	NTRNDW		;branch if special device ([A] is 
-				negative) 
+ 04C7  EB 36 90                 	JMP	NTRNDW		;branch if special device ([A] is negative) 
  04CA                           ??L016: 
  04CA  53                       	PUSH	BX 
  04CB  B9 0006                  	MOV	CX,OFFSET F_MODE 
- 04CE  03 D9                    	ADD	BX,CX		;HL points to File Mode Byte in FDB
-				 
+ 04CE  03 D9                    	ADD	BX,CX		;HL points to File Mode Byte in FDB 
  04D0  8A 07                    	MOV	AL,BYTE PTR [BX]	;[A]=file mode 
  04D2  5B                       	POP	BX		;Restore FDB pointer 
  04D3  3C 04                    	CMP	AL,LOW OFFSET MD_RND	;Random? 
@@ -1667,15 +1464,13 @@ WRITE
  04E2  1A C6                    	SBB	AL,DH 
  04E4  8A F8                    	MOV	BH,AL 
  = 0002                         	CRLFSQ=2		;Number of bytes in CR/LF sequence 
- 04E6  BA FFFE                  	MOV	DX,OFFSET 0-CRLFSQ	;Subtract bytes in <cr>
-				 
+ 04E6  BA FFFE                  	MOV	DX,OFFSET 0-CRLFSQ	;Subtract bytes in <cr> 
  04E9  9F                       	LAHF 
  04EA  03 DA                    	ADD	BX,DX 
  04EC  D1 DE                    	RCR	SI,1 
  04EE  9E                       	SAHF 
  04EF  D1 D6                    	RCL	SI,1 
- 04F1  73 0C                    	JAE	SHORT NTRNDW	;Not enough, give error event
-				ually 
+ 04F1  73 0C                    	JAE	SHORT NTRNDW	;Not enough, give error eventually 
  04F3  B0 20                    NXTWSP:	MOV	AL,LOW " "	;Put out spaces 
  04F5  E8 0000 E                	CALL	OUTDO		;Send space 
  04F8  4B                       	DEC	BX		;Count down 
@@ -1688,8 +1483,8 @@ WRITE
  0506                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-1
                                                              
 
@@ -1747,8 +1542,8 @@ BAKCOM . . . . . . . . . . . . .  	L NEAR	0216	CSEG
 BASDEB . . . . . . . . . . . . .  	Number	0000	
 BCKUCM . . . . . . . . . . . . .  	L NEAR	021B	CSEG
 BEEPSW . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-2
                                                              
 
@@ -1806,8 +1601,8 @@ CPMMDS . . . . . . . . . . . . .  	Number	0000
 CPMPER . . . . . . . . . . . . .  	Number	0000	
 CPMRSH . . . . . . . . . . . . .  	Number	0000	
 CPMSBC . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-3
                                                              
 
@@ -1865,8 +1660,8 @@ ERROR  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERRWE  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERSFIN . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ESCCTL . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-4
                                                              
 
@@ -1924,8 +1719,8 @@ F_CODE . . . . . . . . . . . . .  	Number	0031
 F_DEV  . . . . . . . . . . . . .  	Number	0034	
 F_FCB  . . . . . . . . . . . . .  	Number	0007	
 F_FLGS . . . . . . . . . . . . .  	Number	0037	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-5
                                                              
 
@@ -1983,8 +1778,8 @@ INSTSW . . . . . . . . . . . . .  	Number	0000
 INTEL  . . . . . . . . . . . . .  	Number	0000	
 INTFHW . . . . . . . . . . . . .  	Number	0000	
 INTFSW . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-6
                                                              
 
@@ -2042,8 +1837,8 @@ NCRELS . . . . . . . . . . . . .  	Number	0000
 NCRLPT . . . . . . . . . . . . .  	Number	0001	
 NECBAS . . . . . . . . . . . . .  	Number	0000	
 NEWSTT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-7
                                                              
 
@@ -2101,8 +1896,8 @@ PROFID . . . . . . . . . . . . .  	Number	00FE
 PTRFIL . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 PTRGET . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 PTRGTN . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-8
                                                              
 
@@ -2160,8 +1955,8 @@ TEMP . . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 TEMP3  . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 TEMP9  . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 TIMSHR . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-9
                                                              
 
@@ -2219,8 +2014,8 @@ $WHILE . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ??L007 . . . . . . . . . . . . .  	L NEAR	01FF	CSEG
 ??L008 . . . . . . . . . . . . .  	L NEAR	0225	CSEG
 ??L009 . . . . . . . . . . . . .  	L NEAR	023D	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:05
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+ 
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-10
                                                              
 
@@ -2234,11 +2029,11 @@ FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-10
 _OFFST . . . . . . . . . . . . .  	Number	00C2	
 
 
-   1345 Source  Lines
-   1441 Total   Lines
+   1346 Source  Lines
+   1442 Total   Lines
     478 Symbols
 
-  35348 Bytes symbol space free
+  35328 Bytes symbol space free
 
       0 Warning Errors
       0 Severe  Errors

@@ -1,5 +1,5 @@
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
 GWLIST Copied from BINTRP.MAC                               Page     1-1
                                                             
 
@@ -21,24 +21,21 @@ GWLIST Copied from BINTRP.MAC                               Page     1-1
                              C  ; [ This translation created 10-Feb-83 by Versi
 				on 4.3 ] 
                              C   
-                             C  	SUBTTL  Common file to produce 2-segment 8086 
-				GW-CPM BASIC 
+                             C  	PAGE	,132D 
+                             C  	SUBTTL  Common file to produce 2-segment 8086 GW-CPM BASIC 
                              C   
                              C  	.SALL 
                              C   
  000A                        C  	.RADIX	10 
  = 0000                      C  	OEMRAM=0D 
-                             C  ;Pascal program HFILE searches for the followin
-				g line - DO NOT MODIFY 
-                             C  ;** (VERSION SPECIFIC VALUES) *****************
-				******************************* 
+                             C  ;Pascal program HFILE searches for the following line - DO NOT MODIFY 
+                             C  ;** (VERSION SPECIFIC VALUES) ************************************************ 
  = 0019                      C  	NMLINE=25		;Max screen display text lines 
  = 0001                      C  	NBANKS=1		;Number of graphic planes 
  = 0000                      C  	PALSIZ=0		;Size of OEM color palette 
  = 0000                      C  	DBLCHR=0		;Editor support for KANJI chars 
  = 0000                      C  	KANABS=0		;Kana BASIC (Japanese JIS codes) 
- = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .
-				. 
+ = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .. 
  = 0000                      C  	JISKTN=0		;&K, &J constants (KANJI) 
  = 0001                      C  	SUPRSH=1		;1=super shift key feature 
  = 000A                      C  	NMKEYF=10		;number of function keys 
@@ -52,61 +49,48 @@ GWLIST Copied from BINTRP.MAC                               Page     1-1
  = 0002                      C  	NMCOMT=2		;number of COMmunications ports 
  = 0001                      C  	NMPENT=1		;number of light pens 
  = 0004                      C  	NMSTRT=4		;number of joysticks 
- = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR)
-				 
+ = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR) 
  = 0001                      C  	IBMLIK=1		;IBM compatibility package 
  = 0001                      C  	IBMTOK=1		;IBM token compatibility 
  = 0001                      C  	DYNCOM=1		;Dynamic communication buffers 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
+                             C  ;** (END OF VERSION SPECIFIC VALUES) ***************************************** 
+                             C  ;Pascal program HFILE searches for the previous line - DO NOT MODIFY 
+                             C  ; 
+ = 0015                      C  	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
 GWLIST Copied from BINTRP.MAC                               Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
-                             C  ;** (END OF VERSION SPECIFIC VALUES) **********
-				******************************* 
-                             C  ;Pascal program HFILE searches for the previous
-				 line - DO NOT MODIFY 
-                             C  ; 
- = 0015                      C  	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT 
  = 0001                      C  	GW=1			;GW BASIC 
- = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROU
-				T 
- = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY
-				) 
+ = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROUT 
+ = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY) 
                              C  				; Support is in BINTRP.MAC and GWSTS.MAC 
- = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed whe
-				n formatting 
+ = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
                              C  				;single precision numbers for output. 
                              C  				; 0 := 7 digits 
                              C  				; 1 := 6 digits 
  = 0000                      C  	CASSW=0			;CASSETTE SWITCH 
  = 0001                      C  	LABKEY=1		;^T (LABEL) key capability 
- = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics)
-				 
- = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stac
-				k) 
+ = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics) 
+ = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stack) 
  = 0001                      C  	GIO86=1			;BASIC-86 Generalized I/O 
  = 0001                      C  	SCRNIO=1		;Screen editor 
  = 0001                      C  	SCRN86=1		;8086 Screen editor 
  = 0001                      C  	I8086=1			;CROSS ASSEMBLING FOR 8086 
  = 0001                      C  	MULSEG=1		;MULTI-SEGMENT 8086 BASIC 
- = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SE
-				T 
+ = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SET 
  = 0001                      C  	TRUROM=1 
  = 0000                      C  	SBC86=0			;SBC 86/02 BOARD? 
  = 0001                      C  	SHORTJ=1		;USE INTRA-SEGMENT SHORT JUMPS 
                              C  				;IN 8086 CODE 
- = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDE
-				D ONLY) 
+ = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDED ONLY) 
  = 0000                      C  	SHTERR=0		;SHORT (2 CHAR) ERROR MESSAGES 
  = 0000                      C  	SHTINS=0		;INSTR IN NON-FAST LEN2 VERSIONS 
- = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2
-				 VERSIONS 
+ = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2 VERSIONS 
  = 0000                      C  	SHTCHN=0		;ALLOW CHAIN IN NON-5.0 
- = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK
-				 
- = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NO
-				N-FAST 
+ = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK 
+ = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NON-FAST 
  = 0000                      C  	SHTREN=0		;ALLOW RENUM IN NON-FST VERSIONS 
  = 0001                      C  	INKEYF=1		;ADDS INKEY$ FUNCTION 
  = 0000                      C  	NOIOS=0			;NO I/O STATMENTS (INP,OUT, WAIT) 
@@ -115,23 +99,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	NOCTLA=0		;NO CONTROL-A IN EXTENDED 
  = 0000                      C  	NORUBT=0		;NO RUBOUT 
  = 0000                      C  	NOROMP=0		;NO ROM PROGRAM FEATURE 
- = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-3
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
-				 
+ = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED 
  = 0000                      C  	NODOT=0			;NO DOT IN LEN2 
  = 0000                      C  	NOEDIT=0		;NO EDIT COMMAND 
- = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMIN
-				AL 
+ = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMINAL 
                              C  				;AND FILES 
- = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN C
-				RDO & OUTCH1 
+ = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN CRDO & OUTCH1 
  = 0000                      C  	NOVARP=0		;NO VARPTR FUNCTION 
- = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 F
-				EATURES 
+ = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 FEATURES 
  = 0001                      C  	FIVMEM=1 
  = 0001                      C  	ANSI=1 
  = 0001                      C  	FIVDSK=1		;5.0 NEW DSK CODE 
@@ -141,9 +116,13 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0001                      C  	BLODSW=1		;BLOAD, BSAVE COMMANDS 
  = 0001                      C  	MEMIMG=1		;MEMORY IMAGE FILES 
  = 0001                      C  	GENBIN=1 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-3
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C   
- = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON 
-				ERROR) 
+ = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON ERROR) 
  = 0000                      C  	COMMNT=0		;DONT WANT BIG COMMENT 
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
@@ -153,13 +132,10 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	RSHACK=0 
  = 0000                      C  	INTLEC=0 
  = 0002                      C  	LENGTH=2		;  1 MEANS 8K, 2 MEANS 12K 
- = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BAS
-				IC 
- = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATION
-				S 
+ = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BASIC 
+ = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATIONS 
                              C  				;TO MAKE ITSELF SMALLER & QUICKER 
- = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE
-				 (=1) 
+ = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE (=1) 
  = 0001                      C  	GENIO=1			;USE G/P ROUTINES 
  = 0001                      C  	CHSEAT=1		;CHSNS eats chars 
  = 0000                      C  	GENDSK=0		;USE G/P DSK CODE 
@@ -171,20 +147,13 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	SBC=0			;FOR INTEL SINGLE BOARD COMPUTER 
                              C  				;1=SBC 80/10, 2=SBC 80/20 
  = 0001                      C  	PURE=1			;ON FOR PURE CODE 
- = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RA
-				M 
+ = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RAM 
  = 0000                      C  	INTROM=0 
  = 0001                      C  	LPTSW=1 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-4
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
  = 0001                      C  	NCRLPT=1 
  = 0000                      C  	NCRCAS=0 
  = 0000                      C  	ISC=0			;FOR ISC VERSION 
- = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,C
-				ENT) 
+ = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,CENT) 
  = 0000                      C  	TSLPT=0 
                              C   
  = 0000                      C  	DOS=0			;ON TO GEN ROUTINES FOR DOS 
@@ -193,13 +162,10 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	TSDISK=0		;NO TIME-SHARING DISK FOR US 
  = 0000                      C  	SPCDSK=0		;MAY HAVE MM'S DISK CODE 
  = 0000                      C  	SPCNDS=0 
- = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIEND
-				S 
+ = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIENDS 
  = 0000                      C  	KEYSTA=0 
- = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISI
-				S II DOS 
- = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISI
-				S-II 
+ = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISIS II DOS 
+ = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISIS-II 
  = 0001                      C  	CPM=1			;FOR CPM compatible operating systems 
  = 0001                      C  	CPM2=1			;VERSION 2. CPM 
  = 0000                      C  	CPM86=0			;FOR CP/M-86 operating system 
@@ -207,13 +173,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMCON=0 
  = 0000                      C  	CPMSER=0		;CHECK CPM SERIAL #'S 
  = 0000                      C  	CPMADD=0		;FOR VERSION TO RUN ON ADDS CPM 
- = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 7
-				5 
+ = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 75 
                              C  				;CP/M 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-4
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	CPMRSH=0		;FOR RADIO SHACK CPM/M 
  = 0000                      C  	CPM110=0		;FOR CP/M @1100 HEX (INTERALIA) 
- = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4
-				100H 
+ = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4100H 
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
@@ -233,13 +202,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0002                      C  	LENGTH=2 
  = 0001                      C  	RSTLES=1 
  = 0001                      C  	FIVLPT=1 
- = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT V
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-5
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
-				ERSION 
+ = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT VERSION 
  = 0001                      C  	CONTRO=1		;ALLOW ^O 
  = 0001                      C  	LEN3=LEN2 OR CASSW 
                              C   
@@ -248,8 +211,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0001                      C  	STRING=1 
  = 0001                      C  	NCRLPT=1 
                              C   
-                             C  ; *** OEM Switches which need to be defaulted t
-				o 0 
+                             C  ; *** OEM Switches which need to be defaulted to 0 
                              C  ; 
  = 0000                      C  	CMPUTN=0 
  = 0000                      C  	DUPONT=0 
@@ -272,17 +234,19 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	ALTAIR=0 
  = 0000                      C  	DMC=0 
  = 0000                      C  	PANBAS=0 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-5
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	XTNSYS=0 
  = 0000                      C  	NECBAS=0 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Z80 related macros 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
                              C  				;8080'S AND ZILOG Z-80'S 
- = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INST
-				RUCTIONS 
+ = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INSTRUCTIONS 
  = 0000                      C  	Z80=0 
  = 0001                      C  	Z80=1 
                              C  LDIR	MACRO 
@@ -293,11 +257,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	DCXF	B 
                              C  	MOV	WORD PTR A,WORD PTR B 
                              C  	ORA	C 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-6
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  	JNZ	_-8D 
                              C  ENDM 
                              C  LDDR	MACRO 
@@ -314,11 +273,9 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	DCR	B 
                              C  	JNZ	DEST 
                              C  ENDM 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Define reset routines. 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  FSIGN	MACRO 
                              C  	CALL	SIGN 
                              C  ENDM 
@@ -336,6 +293,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  OUTCHR	MACRO 
                              C  	CALL	OUTDO 
                              C  ENDM 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-6
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  CHRGET	MACRO 
                              C  	CALL	CHRGTR 
                              C  ENDM 
@@ -352,11 +314,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ACRLF	MACRO 
                              C  	DB	13D 
                              C  	DB	10D 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-7
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  ENDM 
                              C  PUSHR	MACRO 
                              C  	PUSH	WORD PTR D 
@@ -379,15 +336,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDM 
                              C   
                              C   
- = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALL
-				Y CONTROL-O) 
- = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTAL
-				S 
+ = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALLY CONTROL-O) 
+ = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTALS 
                              C   
- = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARA
-				CTERS 
- = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SEC
-				TOR 
+ = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARACTERS 
+ = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SECTOR 
  = 0050                      C  	LINLN=80D		;TERMINAL LINE LENGTH 
  = 0084                      C  	LPTLEN=132D 
  = 00FF                      C  	BUFLEN=255		;LONG LINES 
@@ -399,6 +352,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0003                      C  	STRSIZ=3 
  = 0003                      C  	NUMTMP=3		;NUMBER OF STRING TEMPORARIES 
  = 000A                      C  	NUMTMP=10 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-7
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C   
  0008                        C  	.RADIX	8 
                              C  ; 
@@ -411,11 +369,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDM 
                              C   
                              C  INS86   MACRO   A,B,C,D 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-8
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C          DB      A&O 
                              C  IFNB    <B> 
                              C          DB      B&O 
@@ -453,9 +406,9 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-9
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
@@ -475,8 +428,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Reserve word table generating Macros 
                              C  ; 
                              C  un_def  MACRO   RESWRD 
-                             C          %OUT +++ Undefined reserved word - &RES
-				WRD 
+                             C          %OUT +++ Undefined reserved word - &RESWRD 
                              C  ENDM 
                              C   
                              C  T       MACRO   RESWRD 
@@ -512,12 +464,12 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C    IRPC  XX,<RESWRD> 
                              C     IF   $F 
                              C          $Q="&XX&" 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-10
+                             C          DB      "&XX&" 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-9
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
-                             C          DB      "&XX&" 
                              C     ENDIF 
                              C     IFE  $F-1 
                              C          .XLIST 
@@ -536,26 +488,19 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  DERMAK  MACRO   X 
                              C          PUBLIC  DER&X 
                              C  DER&X:  MOV     DL,OFFSET ERR&X 
-                             C          DB      271O                    ; LXI B
-				 over next error 
+                             C          DB      271O                    ; LXI B over next error 
                              C  ENDM 
                              C  ; 
-                             C  ; Dispatch table generating Macros.  We have to
-				 play games with the 
-                             C  ; external declarations as ASM86 won't allow so
-				mething to be declared 
-                             C  ; external during pass 2.  Instead we build a c
-				hain of dummy macros 
-                             C  ; that could generate the declaration for all p
-				otentially external 
+                             C  ; Dispatch table generating Macros.  We have to play games with the 
+                             C  ; external declarations as ASM86 won't allow something to be declared 
+                             C  ; external during pass 2.  Instead we build a chain of dummy macros 
+                             C  ; that could generate the declaration for all potentially external 
                              C  ; reserve word dispatch addresses. 
                              C  ; 
                              C   
                              C  ; 
-                             C  ; play games with a possible external.  Create 
-				a new 
-                             C  ; macro for the symbol and text, and string it 
-				together 
+                             C  ; play games with a possible external.  Create a new 
+                             C  ; macro for the symbol and text, and string it together 
                              C  ; with a central invoker 
                              C  ; 
                              C  ENDIF 
@@ -564,28 +509,26 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  endm 
                              C   
                              C  ; 
-                             C  ; add an external declaration to S with type NE
-				AR if it is not defined 
+                             C  ; add an external declaration to S with type NEAR if it is not defined 
                              C  ; 
                              C  add_ext macro   s 
                              C      IFNDEF   ?&s 
                              C          ?i = ?i + 1 
                              C          def_mac     ?z&%?i,?z&%(?i-1),s 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-11
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C      ENDIF 
                              C  endm 
                              C   
                              C  ; 
-                             C  ; define a macro called that possibly externals
-				 S:NEAR and then calls macro n 
+                             C  ; define a macro called that possibly externals S:NEAR and then calls macro n 
                              C  ; 
                              C  def_mac macro   m,n,s 
                              C  m   macro 
                              C      ifndef s 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-10
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C          extrn s:NEAR 
                              C      endif 
                              C      purge m 
@@ -624,9 +567,9 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          $&RESWRD=QQ 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-12
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-11
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C  PAGE 
@@ -645,19 +588,15 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                         	LABEL=PC8A 
  = 0000                         	HLPEDT=PC8A 
  = 0000                         	UCEMSG=NNECBS		;Upper case error messages. 
- = 0000                         	OLD86=MELCO AND CPM86	;For "old" 8086 error me
-				ssages (prior 
+ = 0000                         	OLD86=MELCO AND CPM86	;For "old" 8086 error messages (prior 
                                 				;to alignment for IBM compatibility). 
                                  
- = 0001                         	OLDBLD=ALPCPM OR ALPS OR OKI OR HAL OR PC8A OR
-				 BUBL OR GW OR TSHIBA 
+ = 0001                         	OLDBLD=ALPCPM OR ALPS OR OKI OR HAL OR PC8A OR BUBL OR GW OR TSHIBA 
                                  
                              C  	INCLUDE	GIO86U.INC 
-                             C  ; [ This translation created 12-Jan-83 by Versi
-				on 4.3 ] 
+                             C  ; [ This translation created 12-Jan-83 by Version 4.3 ] 
                              C   
-                             C  	SUBTTL GIO86U - Device Independent I/O Constan
-				ts and Macros 
+                             C  	SUBTTL GIO86U - Device Independent I/O Constants and Macros 
                              C   
                              C  COMMENT	* 
                              C   
@@ -665,8 +604,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COPYRIGHT (C) 1982 BY MICROSOFT 
                              C  --------- --- ---- -- --------- 
                              C   
-                             C          Programmer: Tom Corbett,  Microsoft Inc
-				. 
+                             C          Programmer: Tom Corbett,  Microsoft Inc. 
                              C   
                              C          * 
                              C   
@@ -683,19 +621,17 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0009                      C  	ASCTAB=9D		;Tab 
  = 000A                      C  	ASCLF=10D		;Line Feed 
  = 000D                      C  	ASCCR=13D		;Carriage Return 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-13
-GIO86U - Device Independent I/O Constants and Macros        
-
  = 0013                      C  	ASCCTS=19D		;CTL-S 
- = 001A                      C  	ASCCTZ=26D		;Control Z (End-of-file for some d
-				evices) 
+ = 001A                      C  	ASCCTZ=26D		;Control Z (End-of-file for some devices) 
  = 001B                      C  	ASCESC=27D		;Escape 
  = 0020                      C  	ASCSPC=32D		;Space 
                              C   
-                             C  ;Special File ID's (identified by 1st byte of f
-				ile) 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-12
+GIO86U - Device Independent I/O Constants and Macros        
+
+                             C  ;Special File ID's (identified by 1st byte of file) 
                              C  ; 
  = 00FF                      C  	BINFID=255D		;files created by SAVE "fn" 
  = 00FE                      C  	PROFID=254D		;files created by SAVE "fn",P 
@@ -704,44 +640,34 @@ GIO86U - Device Independent I/O Constants and Macros
                              C  ;Generalized I/O Function Codes: 
                              C  ; 
  = 0000                      C  	_OFFST=0		;initialize count 
-                             C  	ROFFST	G_EOF,2		;test EOF for file opened to t
-				his device 
+                             C  	ROFFST	G_EOF,2		;test EOF for file opened to this device 
                              C  	ROFFST	G_LOC,2		;LOC 
                              C  	ROFFST	G_LOF,2		;LOF 
-                             C  	ROFFST	G_CLS,2		;perform special CLOSE functio
-				ns for this device 
+                             C  	ROFFST	G_CLS,2		;perform special CLOSE functions for this device 
                              C  	ROFFST	G_SWD,2		;set device width 
-                             C  	ROFFST	G_RND,2		;GET/PUT random record from/to
-				 this device 
-                             C  	ROFFST	G_OPN,2		;perform special OPEN function
-				s for this device 
-                             C  	ROFFST	G_SIN,2		;input 1 byte from file opened
-				 on this device 
-                             C  	ROFFST	G_SOT,2		;output 1 byte to file opened 
-				on this device 
+                             C  	ROFFST	G_RND,2		;GET/PUT random record from/to this device 
+                             C  	ROFFST	G_OPN,2		;perform special OPEN functions for this device 
+                             C  	ROFFST	G_SIN,2		;input 1 byte from file opened on this device 
+                             C  	ROFFST	G_SOT,2		;output 1 byte to file opened on this device 
                              C  	ROFFST	G_GPS,2		;POS 
                              C  	ROFFST	G_GWD,2		;get device width 
                              C  	ROFFST	G_SCW,2		;set device column width 
                              C  	ROFFST	G_GCW,2		;get device column width 
-                             C  	ROFFST	G_BIN,2		;block input from file opened 
-				on this device 
-                             C  	ROFFST	G_BOT,2		;block output to file opened o
-				n this device 
+                             C  	ROFFST	G_BIN,2		;block input from file opened on this device 
+                             C  	ROFFST	G_BOT,2		;block output to file opened on this device 
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-14
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-13
 GIO86U - Device Independent I/O Constants and Macros        
 
                              C          PAGE 
                                  
                              C  	INCLUDE	MSDOSU.INC	;MSDOS constants 
-                             C  ; [ This translation created 12-Jan-83 by Versi
-				on 4.3 ] 
+                             C  ; [ This translation created 12-Jan-83 by Version 4.3 ] 
                              C   
-                             C  	SUBTTL    MSDOSU - MS-DOS Constants and Data-S
-				tructure Definitions 
+                             C  	SUBTTL    MSDOSU - MS-DOS Constants and Data-Structure Definitions 
                              C   
                              C  COMMENT	* 
                              C   
@@ -786,101 +712,78 @@ GIO86U - Device Independent I/O Constants and Macros
  = 0027                      C  	C_RBR=39D		;Random Block Read 
  = 0029                      C  	C_PARS=41D		;Parse Filename 
                              C   
- = 000B                      C  	FNAML=11D		;number of bytes in Filename with e
-				xtension 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-15
-MSDOSU - MS-DOS Constants and Data-Structure Definitions    
-
+ = 000B                      C  	FNAML=11D		;number of bytes in Filename with extension 
  = 0080                      C  	DATPSC=128D		;bytes per sector 
  = 0026                      C  	FCBSIZ=38D		;File Control Block size 
                              C   
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-14
+MSDOSU - MS-DOS Constants and Data-Structure Definitions    
+
                              C  ;MS-DOS FILE-DATA-BLOCK Record Definition 
                              C  ; 
  = 0000                      C  	_OFFST=0		;initialize count 
-                             C  	ROFFST	F_NUL1,1	;not used by basic interpreter
-				 
+                             C  	ROFFST	F_NUL1,1	;not used by basic interpreter 
                              C  	ROFFST	F_NUM,1		;file number 0..255 
-                             C  	ROFFST	F_NUL2,2	;not used by basic interpreter
-				 
-                             C  	ROFFST	F_NEXT,2	;thread for linked list, [MEMS
-				IZ]=end 
+                             C  	ROFFST	F_NUL2,2	;not used by basic interpreter 
+                             C  	ROFFST	F_NEXT,2	;thread for linked list, [MEMSIZ]=end 
                              C  	ROFFST	F_MODE,1	;file mode: 
  = 0001                      C  	MD_SQI=1D		;sequential input 
  = 0002                      C  	MD_SQO=2D		;sequential output 
  = 0004                      C  	MD_RND=4D		;random 
  = 0008                      C  	MD_APP=8D		;append 
-                             C  	ROFFST	F_FCB,FCBSIZ	;File Control Block: used 
-				to communicate with OS 
-                             C  	ROFFST	F_CLOC,2	;for seq files: num sectors re
-				ad/written   (LOCOFS) 
+                             C  	ROFFST	F_FCB,FCBSIZ	;File Control Block: used to communicate with OS 
+                             C  	ROFFST	F_CLOC,2	;for seq files: num sectors read/written   (LOCOFS) 
                              C  				;for rnd files: last record number + 1 
-                             C  	ROFFST	F_ORCT,1	;"Original Byte Count"        
-				             (ORNOFS) 
+                             C  	ROFFST	F_ORCT,1	;"Original Byte Count"                     (ORNOFS) 
                              C  				;for seq input: #bytes in sector when read 
                              C  				;for seq output: #bytes in output sector 
                              C  				;for random files: bytes per sector 
-                             C  	ROFFST	F_BREM,1	;number of bytes till end-of-b
-				uffer        (NMLOFS) 
+                             C  	ROFFST	F_BREM,1	;number of bytes till end-of-buffer        (NMLOFS) 
                              C  	ROFFST	F_CODE,1	;file encoding: 
  = 0000                      C  	FC_ASC=0		;Ascii SAVE, Data files 
  = 0001                      C  	FC_BIN=1		;binary file (BSAVE, binary SAVE) 
-                             C  	ROFFST	F_BAKC,1	;holds next sequential input w
-				hen F.FLBS.FL.BKC is true 
-                             C  	ROFFST	F_NUL3,1	;not used by basic interpreter
-				 
-                             C  	ROFFST	F_DEV,1		;Device number                
-				             (FL.DSK) 
+                             C  	ROFFST	F_BAKC,1	;holds next sequential input when F.FLBS.FL.BKC is true 
+                             C  	ROFFST	F_NUL3,1	;not used by basic interpreter 
+                             C  	ROFFST	F_DEV,1		;Device number                             (FL.DSK) 
                              C  	ROFFST	F_WID,1		;File width 
-                             C  	ROFFST	F_NUL4,1	;not used by basic interpreter
-				 
+                             C  	ROFFST	F_NUL4,1	;not used by basic interpreter 
                              C  	ROFFST	F_FLGS,1	;flags 
- = 0080                      C  	FL_BKC=200O		;when true, F.BAKC contains next 
-				sequential input 
-                             C  	ROFFST	F_POS,1		;Current column position      
-				             (FL.OPS) 
-                             C  	ROFFST	FDBSIZ,0	;size of device independent pa
-				rt of FDB 
+ = 0080                      C  	FL_BKC=200O		;when true, F.BAKC contains next sequential input 
+                             C  	ROFFST	F_POS,1		;Current column position                   (FL.OPS) 
+                             C  	ROFFST	FDBSIZ,0	;size of device independent part of FDB 
                              C  				;device dependant FDB entries start here 
                              C   
-                             C  	ROFFST	DATOFS,DATPSC	;Operating System interfa
-				ce buffer 
-                             C  	ROFFST	FD_SIZ,2	;variable record length for ra
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-16
-MSDOSU - MS-DOS Constants and Data-Structure Definitions    
-
-				ndom files 
-                             C  	ROFFST	FD_PHY,2	;current physical record numbe
-				r 
-                             C  	ROFFST	FD_LOG,2	;current logical record number
-				 
+                             C  	ROFFST	DATOFS,DATPSC	;Operating System interface buffer 
+                             C  	ROFFST	FD_SIZ,2	;variable record length for random files 
+                             C  	ROFFST	FD_PHY,2	;current physical record number 
+                             C  	ROFFST	FD_LOG,2	;current logical record number 
                              C  	ROFFST	F_NUL5,1	;Future use 
-                             C  	ROFFST	FD_OPS,2	;current output position for s
-				equential I/O 
+                             C  	ROFFST	FD_OPS,2	;current output position for sequential I/O 
                              C  	ROFFST	FD_DAT,0	;field buffer of random file 
                              C   
                              C  ; OFFSETS INTO MSDOS FCB 
                              C  ; 
- = 0007                      C  	FCB_DV=F_FCB+0D		;DRIVE (0=default, 1=A:, 2=B:
-				, ...) 
+ = 0007                      C  	FCB_DV=F_FCB+0D		;DRIVE (0=default, 1=A:, 2=B:, ...) 
  = 0008                      C  	FCB_FN=F_FCB+1D		;FILE NAME 
  = 0010                      C  	FCB_FT=F_FCB+9D		;EXTENSION 
- = 0013                      C  	FCB_EX=F_FCB+12D	;FILE EXTENT (identifies bloc
-				k of 128 logical records) 
+ = 0013                      C  	FCB_EX=F_FCB+12D	;FILE EXTENT (identifies block of 128 logical records) 
  = 0015                      C  	FCB_RC=F_FCB+14D	;RECORD SIZE 
  = 0017                      C  	FCB_FS=F_FCB+16D	;FILE SIZE IN BYTES 
  = 001B                      C  	FCB_DT=F_FCB+20D	;Date of last write to file 
  = 001D                      C  	FCB_DT=F_FCB+22D	;Time of last write to file 
  = 0027                      C  	FCB_NR=F_FCB+32D	;NEXT RECORD NUMBER 
- = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Numbe
-				r 
-                             C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
+ = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Number 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-15
+MSDOSU - MS-DOS Constants and Data-Structure Definitions    
 
-GWLIST Copied from BINTRP.MAC                               Page     1-17
+                             C   
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-16
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
 
                              C          PAGE 
@@ -905,24 +808,20 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  = 0002                         	BUFOFS=2		;MUST CRUNCH INTO ERALIER PLACE FOR 
                                 				; SINGLE QUOTE 
                                  
- = 013E                         	KBFLEN=BUFLEN+(BUFLEN/4)	;MAKE KRUNCH BUFFER S
-				OMEWHAT 
+ = 013E                         	KBFLEN=BUFLEN+(BUFLEN/4)	;MAKE KRUNCH BUFFER SOMEWHAT 
                                 				; LARGER THAN SOURCE BUFFER (BUF) 
                                  
                                  
                                  
                                  
                                 	EXTRN	NAME:NEAR 
-                                	EXTRN	INLIN:NEAR,CRDO:NEAR,CRDONZ:NEAR,STRCMP:
-				NEAR,PPSWRT:NEAR 
+                                	EXTRN	INLIN:NEAR,CRDO:NEAR,CRDONZ:NEAR,STRCMP:NEAR,PPSWRT:NEAR 
                                  
                                 	EXTRN	OUTDO:NEAR 
                                  
-                                	EXTRN	BLTU:NEAR,CLEARC:NEAR,GTMPRT:NEAR,ISLET:
-				NEAR,ISLET2:NEAR 
+                                	EXTRN	BLTU:NEAR,CLEARC:NEAR,GTMPRT:NEAR,ISLET:NEAR,ISLET2:NEAR 
                                 	EXTRN	PTRGET:NEAR 
-                                	EXTRN	QINLIN:NEAR,SCRTCH:NEAR,STKINI:NEAR,RUNC
-				:NEAR,RESFIN:NEAR 
+                                	EXTRN	QINLIN:NEAR,SCRTCH:NEAR,STKINI:NEAR,RUNC:NEAR,RESFIN:NEAR 
                                 	EXTRN	PTRGT2:NEAR,STPEND:NEAR 
                                  
                                 	EXTRN	SYNCHR:NEAR 
@@ -937,33 +836,27 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 	EXTRN	LRUN:NEAR 
                                  
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-18
+                                	EXTRN	INXHRT:NEAR 
+                                	EXTRN	ZERO:NEAR,MOVE:NEAR,FOUT:NEAR,FIN:NEAR,PUSHF:NEAR 
+                                	EXTRN	MOVFR:NEAR,MOVRF:NEAR,MOVRM:NEAR,INPRT:NEAR,LINPRT:NEAR 
+                                	EXTRN	MOVFM:NEAR,MOVMF:NEAR 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-17
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
 
-                                	EXTRN	INXHRT:NEAR 
-                                	EXTRN	ZERO:NEAR,MOVE:NEAR,FOUT:NEAR,FIN:NEAR,P
-				USHF:NEAR 
-                                	EXTRN	MOVFR:NEAR,MOVRF:NEAR,MOVRM:NEAR,INPRT:N
-				EAR,LINPRT:NEAR 
-                                	EXTRN	MOVFM:NEAR,MOVMF:NEAR 
                                 	EXTRN	INRART:NEAR,NEG:NEAR 
-                                	EXTRN	FREFAC:NEAR,FRETMS:NEAR,STRCPY:NEAR,GETS
-				TK:NEAR 
-                                	EXTRN	STRLIT:NEAR,STRLT2:NEAR,STRLT3:NEAR,STRL
-				TI:NEAR,STROUT:NEAR 
+                                	EXTRN	FREFAC:NEAR,FRETMS:NEAR,STRCPY:NEAR,GETSTK:NEAR 
+                                	EXTRN	STRLIT:NEAR,STRLT2:NEAR,STRLT3:NEAR,STRLTI:NEAR,STROUT:NEAR 
                                 	EXTRN	STRPRT:NEAR,STROUI:NEAR 
-                                	EXTRN	GETSPA:NEAR,PUTNEW:NEAR,STOP:NEAR,OMERR:
-				NEAR,REASON:NEAR 
+                                	EXTRN	GETSPA:NEAR,PUTNEW:NEAR,STOP:NEAR,OMERR:NEAR,REASON:NEAR 
                                  
                                  
                                 	EXTRN	INSTR:NEAR 
                                  
                                 	EXTRN	PRINUS:NEAR,PUTTMP:NEAR 
                                  
-                                	EXTRN	FOUTH:NEAR,FOUTO:NEAR,STRO$:NEAR,STRH$:N
-				EAR 
+                                	EXTRN	FOUTH:NEAR,FOUTO:NEAR,STRO$:NEAR,STRH$:NEAR 
                                  
                                  
                                 	EXTRN	STRNG$:NEAR 
@@ -981,144 +874,104 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                  
                                 	EXTRN	FINLPT:NEAR 
                                  
-                                	EXTRN	VMOVFA:NEAR,VMOVAF:NEAR,ISIGN:NEAR,VSIGN
-				:NEAR,VDFACS:NEAR 
-                                	EXTRN	VMOVMF:NEAR,VMOVFM:NEAR,FRCINT:NEAR,FRCD
-				BL:NEAR,FRCSNG:NEAR 
-                                	EXTRN	VNEG:NEAR,PUFOUT:NEAR,DCXBRT:NEAR,IADD:N
-				EAR 
+                                	EXTRN	VMOVFA:NEAR,VMOVAF:NEAR,ISIGN:NEAR,VSIGN:NEAR,VDFACS:NEAR 
+                                	EXTRN	VMOVMF:NEAR,VMOVFM:NEAR,FRCINT:NEAR,FRCDBL:NEAR,FRCSNG:NEAR 
+                                	EXTRN	VNEG:NEAR,PUFOUT:NEAR,DCXBRT:NEAR,IADD:NEAR 
                                 	EXTRN	FINDBL:NEAR 
-                                	EXTRN	VMOVE:NEAR,VALINT:NEAR,VALSNG:NEAR,FRCST
-				R:NEAR,CHKSTR:NEAR 
+                                	EXTRN	VMOVE:NEAR,VALINT:NEAR,VALSNG:NEAR,FRCSTR:NEAR,CHKSTR:NEAR 
                                 	EXTRN	MAKINT:NEAR 
                                 	EXTRN	MOVE1:NEAR 
                                  
                                 	EXTRN	SCNSEM:NEAR 
                                 	EXTRN	WHILE:NEAR,WEND:NEAR 
                                 	EXTRN	CALLS:NEAR 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-19
-MSDOSU - MS-DOS Constants and Data-Structure Definitions    
-
                                 	EXTRN	PROCHK:NEAR 
                                 	EXTRN	WRITE:NEAR 
-                                ;The following block of externals was added on 
-				Dec 19, 1982 when BINTRP was 
-                                ; Split up after the freeze of GW-BASIC Version
-				 1.0 
-                                ; This Split-up was not reflected in the PS1:<B
-				ASIC>BINTRP.MAC source. 
+                                ;The following block of externals was added on Dec 19, 1982 when BINTRP was 
+                                ; Split up after the freeze of GW-BASIC Version 1.0 
+                                ; This Split-up was not reflected in the PS1:<BASIC>BINTRP.MAC source. 
                                 ; See Tom Corbett if you have any questions. 
                                 ; 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-                                	EXTRN	MEMSIZ:WORD,FRETOP:WORD,VARTAB:WORD,STRE
-				ND:WORD,TXTTAB:WORD 
+                                	EXTRN	MEMSIZ:WORD,FRETOP:WORD,VARTAB:WORD,STREND:WORD,TXTTAB:WORD 
                                 	EXTRN	ARYTAB:WORD 
-                                	EXTRN	CURLIN:WORD,DOT:WORD,DATLIN:WORD,NLONLY:
-				WORD,ERRLIN:WORD 
+                                	EXTRN	CURLIN:WORD,DOT:WORD,DATLIN:WORD,NLONLY:WORD,ERRLIN:WORD 
                                 	EXTRN	ERRTXT:WORD 
                                 	EXTRN	MRGFLG:WORD,CHNFLG:WORD 
-                                	EXTRN	SAVSTK:WORD,SAVTXT:WORD,OLDLIN:WORD,NXTL
-				IN:WORD,OLDTXT:WORD 
+                                	EXTRN	SAVSTK:WORD,SAVTXT:WORD,OLDLIN:WORD,NXTLIN:WORD,OLDTXT:WORD 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-18
+MSDOSU - MS-DOS Constants and Data-Structure Definitions    
+
                                 	EXTRN	ONELIN:WORD,ONEFLG:WORD 
-                                	EXTRN	CNTOFL:WORD,TRCFLG:WORD,CONSAV:WORD,CONT
-				XT:WORD,CONTYP:WORD 
+                                	EXTRN	CNTOFL:WORD,TRCFLG:WORD,CONSAV:WORD,CONTXT:WORD,CONTYP:WORD 
                                 	EXTRN	NUMCON:WORD,CONLO:WORD 
                                 	EXTRN	AUTFLG:WORD,AUTLIN:WORD,AUTINC:WORD 
                                 	EXTRN	KBUF:WORD,BUFMIN:WORD,BUF:WORD 
-                                	EXTRN	PTRFIL:WORD,PTRFLG:WORD,DORES:WORD,VALTY
-				P:WORD,FACLO:WORD 
+                                	EXTRN	PTRFIL:WORD,PTRFLG:WORD,DORES:WORD,VALTYP:WORD,FACLO:WORD 
                                 	EXTRN	DFACLO:WORD,FAC:WORD 
-                                	EXTRN	TEMP:WORD,TEMP2:WORD,TEMP3:WORD,TEMPA:WO
-				RD 
+                                	EXTRN	TEMP:WORD,TEMP2:WORD,TEMP3:WORD,TEMPA:WORD 
                                 	EXTRN	DSCTMP:WORD,TEMPST:WORD 
                                 	EXTRN	OPRTYP:WORD 
-                                	EXTRN	SUBFLG:WORD,FVALSV:WORD,DEFTBL:WORD,FLGI
-				NP:WORD,FLGSCN:WORD 
+                                	EXTRN	SUBFLG:WORD,FVALSV:WORD,DEFTBL:WORD,FLGINP:WORD,FLGSCN:WORD 
                                 	EXTRN	OVCSTR:WORD,INPPAS:WORD 
-                                	EXTRN	USRTAB:WORD,DONUM:WORD,ENDPRG:WORD,ENDFO
-				R:WORD,DATPTR:WORD 
+                                	EXTRN	USRTAB:WORD,DONUM:WORD,ENDPRG:WORD,ENDFOR:WORD,DATPTR:WORD 
                                 	EXTRN	FLGOVC:WORD 
-                                	EXTRN	ERRFLG:WORD,SAVSEG:WORD,PRMLN2:WORD,PRMS
-				IZ:WORD,PARM2:WORD 
+                                	EXTRN	ERRFLG:WORD,SAVSEG:WORD,PRMLN2:WORD,PRMSIZ:WORD,PARM2:WORD 
                                 	EXTRN	PRMLEN:WORD,PRMSTK:WORD,PARM1:WORD 
-                                	EXTRN	FUNACT:WORD,NOFUNS:WORD,OPTVAL:WORD,OPTF
-				LG:WORD,RNDX:WORD 
+                                	EXTRN	FUNACT:WORD,NOFUNS:WORD,OPTVAL:WORD,OPTFLG:WORD,RNDX:WORD 
  0000                           DSEG	ENDS 
                                  
                                 	EXTRN	INEG2:NEAR,FADD:NEAR 
-                                	EXTRN	$OVMSG:NEAR,ERRTAB:NEAR,LSTERR:NEAR,DSKE
-				RR:NEAR,NONDSK:NEAR 
+                                	EXTRN	$OVMSG:NEAR,ERRTAB:NEAR,LSTERR:NEAR,DSKERR:NEAR,NONDSK:NEAR 
                                 	EXTRN	REDDY:NEAR 
-                                	EXTRN	ERRSN:NEAR,ERRDV0:NEAR,ERRRE:NEAR,ERROV:
-				NEAR,ERRMO:NEAR 
+                                	EXTRN	ERRSN:NEAR,ERRDV0:NEAR,ERRRE:NEAR,ERROV:NEAR,ERRMO:NEAR 
                                 	EXTRN	ERRTM:NEAR,ERRNF:NEAR 
-                                	EXTRN	ERRNR:NEAR,ERRLBO:NEAR,ERRDD:NEAR,ERRUF:
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-20
-MSDOSU - MS-DOS Constants and Data-Structure Definitions    
-
-				NEAR,ERRFC:NEAR 
-                                	EXTRN	ERRIFN:NEAR,ERRFNO:NEAR,ERRDNA:NEAR,ERRF
-				DR:NEAR,ERRRAD:NEAR 
+                                	EXTRN	ERRNR:NEAR,ERRLBO:NEAR,ERRDD:NEAR,ERRUF:NEAR,ERRFC:NEAR 
+                                	EXTRN	ERRIFN:NEAR,ERRFNO:NEAR,ERRDNA:NEAR,ERRFDR:NEAR,ERRRAD:NEAR 
                                 	EXTRN	ERRDFL:NEAR 
-                                	EXTRN	ERRIOE:NEAR,ERRBFM:NEAR,ERRFNF:NEAR,ERRB
-				FN:NEAR,ERRIER:NEAR 
+                                	EXTRN	ERRIOE:NEAR,ERRBFM:NEAR,ERRFNF:NEAR,ERRBFN:NEAR,ERRIER:NEAR 
                                 	EXTRN	ERRRPE:NEAR 
-                                	EXTRN	ERRFAO:NEAR,ERRNMF:NEAR,ERRWH:NEAR,ERRBR
-				N:NEAR,ERRFOV:NEAR 
+                                	EXTRN	ERRFAO:NEAR,ERRNMF:NEAR,ERRWH:NEAR,ERRBRN:NEAR,ERRFOV:NEAR 
                                 	EXTRN	ERRTMF:NEAR 
-                                	EXTRN	ERRFAE:NEAR,ERRUS:NEAR,ERRRG:NEAR,ERROD:
-				NEAR,ERRFN:NEAR 
+                                	EXTRN	ERRFAE:NEAR,ERRUS:NEAR,ERRRG:NEAR,ERROD:NEAR,ERRFN:NEAR 
                                 	EXTRN	ERRUE1:NEAR	;ERRUE+DSKERR-NONDSK 
                                 	EXTRN	DSKER1:NEAR	;DSKERR-NONDSK 
                                  
-                                ;The following externs are defined in GWMAIN.MA
-				C 
+                                ;The following externs are defined in GWMAIN.MAC 
                                 ; 
-                                	EXTRN	CHRGTR:NEAR,READY:NEAR,STPRDY:NEAR,ISFLI
-				O:NEAR,CONFC1:NEAR 
+                                	EXTRN	CHRGTR:NEAR,READY:NEAR,STPRDY:NEAR,ISFLIO:NEAR,CONFC1:NEAR 
                                 	EXTRN	DEPTR:NEAR 
-                                	EXTRN	FINI:NEAR,FCERR:NEAR,FNDLIN:NEAR,SCNLIN:
-				NEAR 
-                                	EXTRN	OCTCON:NEAR,HEXCON:NEAR,DBLCON:NEAR,DBLC
-				N1:NEAR 
+                                	EXTRN	FINI:NEAR,FCERR:NEAR,FNDLIN:NEAR,SCNLIN:NEAR 
+                                	EXTRN	OCTCON:NEAR,HEXCON:NEAR,DBLCON:NEAR,DBLCN1:NEAR 
                                  
-                                ;The following externs are defined in GWEVAL.MA
-				C 
+                                ;The following externs are defined in GWEVAL.MAC 
                                 ; 
-                                	EXTRN	MAKUPL:NEAR,MAKUPS:NEAR,GETYPR:NEAR,OCTC
-				NS:NEAR,DOCNVF:NEAR 
+                                	EXTRN	MAKUPL:NEAR,MAKUPS:NEAR,GETYPR:NEAR,OCTCNS:NEAR,DOCNVF:NEAR 
                                 	EXTRN	ISMID$:NEAR 
-                                	EXTRN	FRMEVL:NEAR,FRMCHK:NEAR,GETINT:NEAR,GETB
-				YT:NEAR,GETIN2:NEAR 
+                                	EXTRN	FRMEVL:NEAR,FRMCHK:NEAR,GETINT:NEAR,GETBYT:NEAR,GETIN2:NEAR 
                                 	EXTRN	SNGFLT:NEAR 
                                  
                                  
                                  
-                                	SUBTTL ROM VERSION INITALIZATION, AND CONSTANT
-				S 
+                                	SUBTTL ROM VERSION INITALIZATION, AND CONSTANTS 
                                  
                                  
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-19
+ROM VERSION INITALIZATION, AND CONSTANTS                    
+
                                  
                                 ; 
-                                ; The reserved word tables are in another modul
-				e.  Consequently 
-                                ; many things must be declared external.  All o
-				f these things 
-                                ; are in the code segement or are absolutes (li
-				ke tokens). 
+                                ; The reserved word tables are in another module.  Consequently 
+                                ; many things must be declared external.  All of these things 
+                                ; are in the code segement or are absolutes (like tokens). 
                                 ; I.e., they are not in the data segment. 
                                 ; 
                                  
                                 	EXTRN	ALPTAB:NEAR 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-21
-ROM VERSION INITALIZATION, AND CONSTANTS                    
-
                                 	EXTRN	EQULTK:NEAR 
                                 	EXTRN	STMDSP:NEAR 
                                 	EXTRN	GREATK:NEAR 
@@ -1129,21 +982,18 @@ ROM VERSION INITALIZATION, AND CONSTANTS
                                 	EXTRN	ONEFUN:NEAR 
                                 	EXTRN	POS:NEAR,PLUSTK:NEAR,PRINT:NEAR 
                                 	EXTRN	RESLST:NEAR 
-                                	EXTRN	SNGQTK:NEAR,SPCTAB:NEAR,SQRTK:NEAR,STEPT
-				K:NEAR 
+                                	EXTRN	SNGQTK:NEAR,SPCTAB:NEAR,SQRTK:NEAR,STEPTK:NEAR 
                                 	EXTRN	THENTK:NEAR 
                                 	EXTRN	USRTK:NEAR 
                                 	EXTRN	$DATA:NEAR,$DATCO:NEAR,$DELETE:NEAR 
-                                	EXTRN	$EDIT:NEAR,$ELSE:NEAR,$END:NEAR,$ERL:NEA
-				R,$ERROR:NEAR 
+                                	EXTRN	$EDIT:NEAR,$ELSE:NEAR,$END:NEAR,$ERL:NEAR,$ERROR:NEAR 
                                 	EXTRN	$FN:NEAR,$FOR:NEAR 
                                 	EXTRN	$GOSUB:NEAR,$GOTO:NEAR 
                                 	EXTRN	$IF:NEAR,$INKEY$:NEAR,$INPUT:NEAR 
                                 	EXTRN	$LIST:NEAR,$LLIST:NEAR 
                                 	EXTRN	$NEXT:NEAR 
                                 	EXTRN	$POINT:NEAR,$PRINT:NEAR 
-                                	EXTRN	$REM:NEAR,$REMCO:NEAR,$RENUM:NEAR,$RESTO
-				RE:NEAR,$RESUME:NEAR 
+                                	EXTRN	$REM:NEAR,$REMCO:NEAR,$RENUM:NEAR,$RESTORE:NEAR,$RESUME:NEAR 
                                 	EXTRN	$RETURN:NEAR,$RND:NEAR,$RUN:NEAR 
                                 	EXTRN	$SCREEN:NEAR,$STOP:NEAR,$STRING$:NEAR 
                                 	EXTRN	$THEN:NEAR,$TO:NEAR 
@@ -1167,27 +1017,25 @@ ROM VERSION INITALIZATION, AND CONSTANTS
  000D  51                       	PUSH	CX		;SAVE POINTER TO 1ST LINE 
  000E  E8 0000 E                	CALL	PROCHK		;DONT EVEN LIST LINE # 
  0011  8B 1E 0000 E             	MOV	BX,TEMP		;Get Text pointer 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-20
+EXTENDED LIST, DELETE, LLIST                                
+
  0015  4B                       	DEC	BX 
  0016  E8 0000 E                	CALL	CHRGTR 
  0019  74 0C                    	JZ	SHORT LIST4	;Brif LIST to CRT. 
  001B  E8 0000 E                	CALL	SYNCHR 
  001E  2C                       	DB	OFFSET 44D	; else must be ,"dev:" 
  001F  E8 0000 E                	CALL	NAMSCN		;Crack File spec. 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-22
-EXTENDED LIST, DELETE, LLIST                                
-
                                 	EXTRN	NAMSCN:NEAR,NULOPM:NEAR 
- 0022  B0 02                    	MOV	AL,LOW OFFSET MD_SQO	;OPEN FILE 0 FOR OUTP
-				UT 
+ 0022  B0 02                    	MOV	AL,LOW OFFSET MD_SQO	;OPEN FILE 0 FOR OUTPUT 
  0024  E8 0000 E                	CALL	NULOPM 
  0027  BB FFFF                  LIST4:	MOV	BX,65535	;DONT ALLOW ^C TO CHANGE 
  002A  89 1E 0000 E             	MOV	CURLIN,BX	;CONTINUE PARAMETERS 
  002E  5B                       	POP	BX		;GET POINTER TO LINE 
  002F  5A                       	POP	DX		;GET MAX LINE # OFF STACK 
- 0030  8A 0F                    	MOV	CL,BYTE PTR [BX]	;[B,C]=THE LINK POINTING 
-				TO THE NEXT LINE 
+ 0030  8A 0F                    	MOV	CL,BYTE PTR [BX]	;[B,C]=THE LINK POINTING TO THE NEXT LINE 
  0032  43                       	INC	BX 
  0033  8A 2F                    	MOV	CH,BYTE PTR [BX] 
  0035  43                       	INC	BX 
@@ -1221,22 +1069,20 @@ EXTENDED LIST, DELETE, LLIST
  005E  87 DA                    	XCHG	BX,DX		;GET LINE # IN [H,L] 
  0060  89 1E 0000 E             	MOV	DOT,BX		;SAVE FOR LATER EDIT OR LIST 
                                 				;AND WE WANT [H,L] ON THE STACK 
- 0064  E8 0000 E                	CALL	LINPRT		;PRINT AS INTEGER WITHOUT LEADING
-				 SPACE 
+ 0064  E8 0000 E                	CALL	LINPRT		;PRINT AS INTEGER WITHOUT LEADING SPACE 
  0067  5B                       	POP	BX 
  0068  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET BYTE FROM LINE 
  006A  3C 09                    	CMP	AL,LOW 9	;IS IT A TAB? 
  006C  74 05                    	JZ	SHORT NOSPAL	;THEN DONT PRINT SPACE 
  006E  B0 20                    	MOV	AL,LOW " " 
  0070  E8 0000 E                	CALL	OUTDO		;PRINT A SPACE AFTER THE LINE # 
- 0073  E8 00C5 R                NOSPAL:	CALL	BUFLIN		;UNPACK THE LINE INTO BUF 
- 0076  BB 0000 E                	MOV	BX,OFFSET BUF	;POINT AT THE START OF THE U
-				NPACKED CHARACTERS 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-23
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-21
 EXTENDED LIST, DELETE, LLIST                                
 
+ 0073  E8 00C5 R                NOSPAL:	CALL	BUFLIN		;UNPACK THE LINE INTO BUF 
+ 0076  BB 0000 E                	MOV	BX,OFFSET BUF	;POINT AT THE START OF THE UNPACKED CHARACTERS 
  0079  E8 0081 R                	CALL	LISPRT		;PRINT THE LINE 
  007C  E8 0000 E                	CALL	CRDO		;PRINT CRLF 
  007F  EB A6                    	JMP	SHORT LIST4	;GO BACK FOR NEXT LINE 
@@ -1246,8 +1092,7 @@ EXTENDED LIST, DELETE, LLIST
  0081  8A 07                    	MOV	AL,BYTE PTR [BX] 
  0083  3C 0A                    	CMP	AL,LOW 10D 
  0085  75 03                    	JNZ	SHORT ??L002 
- 0087  E8 009A R                	CALL	LISEOL		;erase to end-of-line after LF an
-				d 0 
+ 0087  E8 009A R                	CALL	LISEOL		;erase to end-of-line after LF and 0 
  008A                           ??L002: 
  008A  0A C0                    	OR	AL,AL 
  008C  75 03                    	JNZ	SHORT ??L003 
@@ -1260,8 +1105,7 @@ EXTENDED LIST, DELETE, LLIST
  0097  43                       	INC	BX		;INCR POINTER 
  0098  EB E7                    	JMP	SHORT LISPRT	;PRINT NEXT CHAR 
                                  
-                                ;Routine to output sequence to Clear to end of 
-				line if current device 
+                                ;Routine to output sequence to Clear to end of line if current device 
                                 ; is Standard Output (CRT) 
                                 ; Exit - All registers preserved. 
                                 ; 
@@ -1276,41 +1120,34 @@ EXTENDED LIST, DELETE, LLIST
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	F_EDIT:WORD 
  0000                           DSEG	ENDS 
- 00A8  A0 0000 E                	MOV	AL,BYTE PTR F_EDIT	;Save current edit mode
-				 
+ 00A8  A0 0000 E                	MOV	AL,BYTE PTR F_EDIT	;Save current edit mode 
  00AB  9F                       	LAHF			; PUSH PSW 
  00AC  86 C4                    	XCHG	AL,AH 
  00AE  50                       	PUSH	AX 
  00AF  86 C4                    	XCHG	AL,AH 
- 00B1  B0 05                    	MOV	AL,LOW 5	;05=erase to end-of-line for non-
-				IBMLIK 
- 00B3  A2 0000 E                	MOV	BYTE PTR F_EDIT,AL	;Enter edit mode(05 is 
-				control function) 
+ 00B1  B0 05                    	MOV	AL,LOW 5	;05=erase to end-of-line for non-IBMLIK 
+ 00B3  A2 0000 E                	MOV	BYTE PTR F_EDIT,AL	;Enter edit mode(05 is control function) 
  00B6  E8 0000 E                	CALL	OUTDO		;output 05 to current device 
  00B9  58                       	POP	AX		; POP PSW 
  00BA  86 C4                    	XCHG	AL,AH 
  00BC  9E                       	SAHF 
  00BD  A2 0000 E                	MOV	BYTE PTR F_EDIT,AL	;Restore edit mode 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-24
-EXTENDED LIST, DELETE, LLIST                                
-
  00C0  58                       LISELX:	POP	AX		; POP PSW 
  00C1  86 C4                    	XCHG	AL,AH 
  00C3  9E                       	SAHF 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-22
+EXTENDED LIST, DELETE, LLIST                                
+
  00C4  C3                       	RET 
                                  
                                 PUBLIC	BUFLIN 
- 00C5  B9 0000 E                BUFLIN:	MOV	CX,OFFSET BUF	;GET START OF TEXT BU
-				FFER 
- 00C8  B6 FF                    	MOV	DH,LOW OFFSET BUFLEN	;GET ITS LENGTH INTO 
-				[D] 
+ 00C5  B9 0000 E                BUFLIN:	MOV	CX,OFFSET BUF	;GET START OF TEXT BUFFER 
+ 00C8  B6 FF                    	MOV	DH,LOW OFFSET BUFLEN	;GET ITS LENGTH INTO [D] 
  00CA  32 C0                    	XOR	AL,AL		;SET MODE OF DECRUNCH 
- 00CC  A2 0000 E                	MOV	BYTE PTR DORES,AL	;BIT0 IS QUOTE BIT1 IS D
-				ATA BIT2 IS REM 
- 00CF  32 C0                    	XOR	AL,AL		;SET ON SPECIAL CHAR FOR SPACE INSE
-				RTION 
+ 00CC  A2 0000 E                	MOV	BYTE PTR DORES,AL	;BIT0 IS QUOTE BIT1 IS DATA BIT2 IS REM 
+ 00CF  32 C0                    	XOR	AL,AL		;SET ON SPECIAL CHAR FOR SPACE INSERTION 
  00D1  A2 0000 E                	MOV	BYTE PTR TEMPA,AL 
  00D4  E8 0000 E                	CALL	PROCHK		;ONLY PROCEED IF OK 
  00D7  EB 07                    	JMP	SHORT PLOOP2	;START HERE 
@@ -1328,33 +1165,24 @@ EXTENDED LIST, DELETE, LLIST
  00E6  AA                       	STOSB			;SAVE THIS CHAR 
  00E7  75 01                    	JNZ	SHORT $+3 
  00E9  C3                       	RET			;IF END OF SOURCE BUFFER, ALL DONE. 
- 00EA  3C 00 E                  	CMP	AL,LOW OFFSET OCTCON	;IS IT SMALLER THAN S
-				MALLEST EMBEDDED CONSTANT? 
+ 00EA  3C 00 E                  	CMP	AL,LOW OFFSET OCTCON	;IS IT SMALLER THAN SMALLEST EMBEDDED CONSTANT? 
  00EC  72 28                    	JB	SHORT NTEMBL	;YES, DONT TREAT AS ONE 
- 00EE  3C 00 E                  	CMP	AL,LOW OFFSET DBLCN1	;IS IT EMBEDED CONSTA
-				NT? 
+ 00EE  3C 00 E                  	CMP	AL,LOW OFFSET DBLCN1	;IS IT EMBEDED CONSTANT? 
  00F0  8A D0                    	MOV	DL,AL		;SAVE CHAR IN [E] 
  00F2  72 38                    	JB	SHORT PRTVAR	;PRINT LEADING SPACE IF NESC. 
  00F4  3C 22                    	CMP	AL,LOW 34D	;IS IT A QUOTATION 
  00F6  75 0A                    	JNZ	SHORT BFCHKC	;IF NOT CHECK FOR COLON 
- 00F8  A0 0000 E                	MOV	AL,BYTE PTR DORES	;COMPLEMENT THE QUOTE BI
-				T 
+ 00F8  A0 0000 E                	MOV	AL,BYTE PTR DORES	;COMPLEMENT THE QUOTE BIT 
  00FB  34 01                    	XOR	AL,LOW 1 
  00FD  A2 0000 E                	MOV	BYTE PTR DORES,AL 
  0100  B0 22                    	MOV	AL,LOW 34D	;RESTORE THE CHARACTER 
- 0102  3C 3A                    BFCHKC:	CMP	AL,LOW ":"	;IS IT A COLON ENDING DA
-				TA? 
+ 0102  3C 3A                    BFCHKC:	CMP	AL,LOW ":"	;IS IT A COLON ENDING DATA? 
  0104  75 10                    	JNZ	SHORT NTEMBL 
  0106  A0 0000 E                	MOV	AL,BYTE PTR DORES	;DON'T END IF IN QUOTE 
  0109  D0 D8                    	RCR	AL,1 
  010B  72 07                    	JB	SHORT QTCOLN 
  010D  D0 D0                    	RCL	AL,1 
  010F  24 FD                    	AND	AL,LOW 253D	;TURN OFF BIT1 (DATA BIT) 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-25
-EXTENDED LIST, DELETE, LLIST                                
-
  0111  A2 0000 E                	MOV	BYTE PTR DORES,AL 
  0114  B0 3A                    QTCOLN:	MOV	AL,LOW ":" 
  0116  0A C0                    NTEMBL:	OR	AL,AL		;SET CC'S 
@@ -1366,10 +1194,14 @@ EXTENDED LIST, DELETE, LLIST
  0121  74 09                    	JZ	SHORT PRTVAR 
  0123  E8 028B R                	CALL	TSTANM		;IS CHAR ALPHANUMERIC 
  0126  73 04                    	JAE	SHORT PRTVAR	;ALPHANUMERIC 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-23
+EXTENDED LIST, DELETE, LLIST                                
+
  0128  32 C0                    	XOR	AL,AL		;MAKE SPECIAL 
  012A  EB 18                    	JMP	SHORT PLOOPH 
- 012C  A0 0000 E                PRTVAR:	MOV	AL,BYTE PTR TEMPA	;WHAT DID WE DO L
-				AST? 
+ 012C  A0 0000 E                PRTVAR:	MOV	AL,BYTE PTR TEMPA	;WHAT DID WE DO LAST? 
  012F  0A C0                    	OR	AL,AL		;SET CONDITION CODES 
  0131  74 0F                    	JZ	SHORT PLOOPG	;SPECIAL, NEVER INSERT SPACE 
  0133  FE C0                    	INC	AL		;IN RESERVED WORD? 
@@ -1384,11 +1216,9 @@ EXTENDED LIST, DELETE, LLIST
  0142  B0 01                    PLOOPG:	MOV	AL,LOW 1	;STORE FLAG SAYING IN VAR 
  0144  A2 0000 E                PLOOPH:	MOV	BYTE PTR TEMPA,AL 
  0147  8A C2                    	MOV	AL,DL		;GET BACK CHAR WE HAD 
- 0149  3C 00 E                  	CMP	AL,LOW OFFSET OCTCON	;IS IT SMALLER THAN S
-				MALLEST EMBEDDED CONSTANT? 
+ 0149  3C 00 E                  	CMP	AL,LOW OFFSET OCTCON	;IS IT SMALLER THAN SMALLEST EMBEDDED CONSTANT? 
  014B  72 07                    	JB	SHORT PLOOPZ	;YES, DONT TREAT AS ONE 
- 014D  3C 00 E                  	CMP	AL,LOW OFFSET DBLCN1	;IS IT EMBEDED CONSTA
-				NT? 
+ 014D  3C 00 E                  	CMP	AL,LOW OFFSET DBLCN1	;IS IT EMBEDED CONSTANT? 
  014F  73 03                    	JAE	SHORT ??L006 
  0151  E9 029A R                	JMP	NUMLIN		;YES, UNPACK IT 
  0154                           ??L006: 
@@ -1396,25 +1226,17 @@ EXTENDED LIST, DELETE, LLIST
  0156  AA                       	STOSB			;MAKE SURE BYTE STORED AFTER SPACE 
  0157  EB 80                    	JMP	PLOOP		;STORE IN BUFFER 
  0159                           PLOOPR: 
- 0159  A0 0000 E                	MOV	AL,BYTE PTR DORES	;SEEWHAT OUR UNCRUNCH MO
-				DE IS 
+ 0159  A0 0000 E                	MOV	AL,BYTE PTR DORES	;SEEWHAT OUR UNCRUNCH MODE IS 
  015C  D0 D8                    	RCR	AL,1		;THE LSB IS THE QUOTE BIT 
  015E  72 4C                    	JB	SHORT GPLOOP 
  0160  D0 D8                    	RCR	AL,1		;GET THE REM BIT 
  0162  D0 D8                    	RCR	AL,1		;AND SEE IF SET 
  0164  73 5B                    	JAE	SHORT CHKDRS	;IF NOT JUST CHECK DATA BIT 
  0166  8A 07                    	MOV	AL,BYTE PTR [BX]	;MUST SEE IF ITS SNGQTK 
- 0168  3C 00 E                  	CMP	AL,LOW OFFSET SNGQTK	;AND PRECEDED BY ":RE
-				M" 
+ 0168  3C 00 E                  	CMP	AL,LOW OFFSET SNGQTK	;AND PRECEDED BY ":REM" 
  016A  53                       	PUSH	BX 
  016B  51                       	PUSH	CX		;SAVE BUFFER POINTER 
- 016C  BB 01A8 R                	MOV	BX,OFFSET NOSNGQ	;PLACE TO RETURN ON FAILU
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-26
-EXTENDED LIST, DELETE, LLIST                                
-
-				RE 
+ 016C  BB 01A8 R                	MOV	BX,OFFSET NOSNGQ	;PLACE TO RETURN ON FAILURE 
  016F  53                       	PUSH	BX 
  0170  74 01                    	JZ	SHORT $+3 
  0172  C3                       	RET 
@@ -1431,6 +1253,11 @@ EXTENDED LIST, DELETE, LLIST
  0184  74 01                    	JZ	SHORT $+3 
  0186  C3                       	RET 
  0187  49                       	DEC	CX 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-24
+EXTENDED LIST, DELETE, LLIST                                
+
  0188  8B F1                    	MOV	SI,CX 
  018A  8A 04                    	MOV	AL,[SI] 
  018C  3C 52                    	CMP	AL,LOW "R" 
@@ -1456,8 +1283,7 @@ EXTENDED LIST, DELETE, LLIST
  01AA  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET BACK THE CHARACTER 
  01AC  E9 00D9 R                GPLOOP:	JMP	PLOOP 
                                  
- 01AF  A0 0000 E                DATSET:	MOV	AL,BYTE PTR DORES	;BIT INDICATING I
-				NSIDE DATA 
+ 01AF  A0 0000 E                DATSET:	MOV	AL,BYTE PTR DORES	;BIT INDICATING INSIDE DATA 
  01B2  0C 02                    	OR	AL,LOW 2	;IS BIT1 
  01B4  A2 0000 E                SETDRS:	MOV	BYTE PTR DORES,AL 
  01B7  32 C0                    	XOR	AL,AL 
@@ -1468,11 +1294,6 @@ EXTENDED LIST, DELETE, LLIST
  01BF  EB F3                    	JMP	SHORT SETDRS 
                                  
  01C1  D0 D0                    CHKDRS:	RCL	AL,1		;GET DATA BIT INTO CARRY 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-27
-EXTENDED LIST, DELETE, LLIST                                
-
  01C3  72 E7                    	JB	SHORT GPLOOP 
  01C5  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET BACK THE CHARACTER 
  01C7  3C 00 E                  	CMP	AL,LOW OFFSET $DATA	;NEED TO SET A BIT 
@@ -1487,29 +1308,28 @@ EXTENDED LIST, DELETE, LLIST
                                  
  01D7  FE C0                    	INC	AL		;SET ZERO IF FN TOKEN 
  01D9  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET CHAR BACK 
- 01DB  75 05                    	JNZ	SHORT NTFNTK	;NOT FUNCTION JUST TREAT NORM
-				ALLY 
+ 01DB  75 05                    	JNZ	SHORT NTFNTK	;NOT FUNCTION JUST TREAT NORMALLY 
  01DD  43                       	INC	BX		;BUMP POINTER 
  01DE  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET CHAR 
  01E0  24 7F                    	AND	AL,LOW 177O	;TURN OFF HIGH BIT 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-25
+EXTENDED LIST, DELETE, LLIST                                
+
  01E2  43                       NTFNTK:	INC	BX		;ADVANCE TO POINT AFTER 
  01E3  3C 00 E                  NTQTTK:	CMP	AL,LOW OFFSET $ELSE	;ELSE? 
  01E5  75 03                    	JNZ	SHORT NOTELS 
  01E7  49                       	DEC	CX 
  01E8  FE C6                    	INC	DH 
  01EA                           NOTELS: 
- 01EA  3C 00 E                  	CMP	AL,LOW OFFSET $WHILE	;MIGHT HAVE AN EXTRA 
-				"+" IN WHILE FORMULA 
- 01EC  75 0A                    	JNZ	SHORT BFNTWH	;SO SKIP OVER IT IF ITS THERE
-				 
- 01EE  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET CHARACTER TO SEE IF 
-				ITS PLUSTK 
+ 01EA  3C 00 E                  	CMP	AL,LOW OFFSET $WHILE	;MIGHT HAVE AN EXTRA "+" IN WHILE FORMULA 
+ 01EC  75 0A                    	JNZ	SHORT BFNTWH	;SO SKIP OVER IT IF ITS THERE 
+ 01EE  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET CHARACTER TO SEE IF ITS PLUSTK 
  01F0  43                       	INC	BX		;ASSUME IS PLUSTK 
- 01F1  3C 00 E                  	CMP	AL,LOW OFFSET PLUSTK	;MIGHT NOT BE PLUS IF
-				 BINARY SAVED IN 
+ 01F1  3C 00 E                  	CMP	AL,LOW OFFSET PLUSTK	;MIGHT NOT BE PLUS IF BINARY SAVED IN 
  01F3  B0 00 E                  	MOV	AL,LOW OFFSET $WHILE	;RESTORE TOKEN VALUE 
- 01F5  74 01                    	JZ	SHORT BFNTWH	;VERSION OF BASIC BEFORE CRUNC
-				H CHANGED 
+ 01F5  74 01                    	JZ	SHORT BFNTWH	;VERSION OF BASIC BEFORE CRUNCH CHANGED 
  01F7  4B                       	DEC	BX		;MOVE POINTER BACK 
  01F8                           BFNTWH: 
                                  
@@ -1518,37 +1338,26 @@ EXTENDED LIST, DELETE, LLIST
  01FA  52                       	PUSH	DX		;SAVE CHAR COUNT. 
                                 	EXTRN	LISTX:NEAR 
  01FB  E8 0000 E                	CALL	LISTX		;Handle extended reserved words. 
- 01FE  BB FFFF E                	MOV	BX,OFFSET RESLST-1	;GET PTR TO START OF RE
-				SERVED WORD LIST 
+ 01FE  BB FFFF E                	MOV	BX,OFFSET RESLST-1	;GET PTR TO START OF RESERVED WORD LIST 
  0201  8A E8                    	MOV	CH,AL		;SAVE THIS CHAR IN [B] 
- 0203  B1 40                    	MOV	CL,LOW OFFSET "A"-1	;INIT LEADING CHAR VAL
-				UE 
+ 0203  B1 40                    	MOV	CL,LOW OFFSET "A"-1	;INIT LEADING CHAR VALUE 
  0205  FE C1                    RESSR3:	INC	CL		;BUMP LEADING CHAR VALUE. 
  0207  43                       RESSR1:	INC	BX		;BUMP POINTER INTO RESLST 
- 0208  8A F7                    RESSRC:	MOV	DH,BH		;SAVE PTR TO START OF THIS R
-				ESWRD 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-28
-EXTENDED LIST, DELETE, LLIST                                
-
+ 0208  8A F7                    RESSRC:	MOV	DH,BH		;SAVE PTR TO START OF THIS RESWRD 
  020A  8A D3                    	MOV	DL,BL 
  020C                           RESSR2: 
                                 	INS86	56		;FETCH FROM CODE SEGMENT 
  020D  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET CHAR FROM RESLST 
  020F  0A C0                    	OR	AL,AL		;SET CC'S 
- 0211  74 F2                    	JZ	SHORT RESSR3	;IF END OF THIS CHARS TABLE, G
-				O BACK & BUMP C 
+ 0211  74 F2                    	JZ	SHORT RESSR3	;IF END OF THIS CHARS TABLE, GO BACK & BUMP C 
  0213  9F                       	LAHF 
  0214  43                       	INC	BX		;BUMP SOURCE PTR 
  0215  9E                       	SAHF 
  0216  78 02                    	JS	SHORT ??L009 
- 0218  EB F2                    	JMP	RESSR2		;IF NOT END OF THIS RESWRD, THEN K
-				EEP LOOKING 
+ 0218  EB F2                    	JMP	RESSR2		;IF NOT END OF THIS RESWRD, THEN KEEP LOOKING 
  021A                           ??L009: 
                                 	INS86	56		;FETCH FROM CODE SEGMENT 
- 021B  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET PTR TO RESERVED WORD
-				 VALUE 
+ 021B  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET PTR TO RESERVED WORD VALUE 
  021D  3A C5                    	CMP	AL,CH		;SAME AS THE ONE WE SEARCH FOR? 
  021F  75 E6                    	JNZ	SHORT RESSR1	;NO, KEEP LOOKING. 
  0221  87 DA                    	XCHG	BX,DX		;SAVE FOUND PTR IN [H,L] 
@@ -1562,20 +1371,22 @@ EXTENDED LIST, DELETE, LLIST
  022D  8A D0                    	MOV	DL,AL		;SAVE LEADING CHAR 
  022F  75 0C                    	JNZ	SHORT NTFNEX	;NOT "FN" EXPANSION 
  0231  A0 0000 E                	MOV	AL,BYTE PTR TEMPA	;SET CC'S ON TEMPA 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-26
+EXTENDED LIST, DELETE, LLIST                                
+
  0234  0A C0                    	OR	AL,AL 
- 0236  B0 00                    	MOV	AL,LOW 0	;CLEAR RESWRD FLAG - MARK AS SPEC
-				IAL 
+ 0236  B0 00                    	MOV	AL,LOW 0	;CLEAR RESWRD FLAG - MARK AS SPECIAL 
  0238  A2 0000 E                	MOV	BYTE PTR TEMPA,AL	;SET FLAG 
  023B  EB 15                    	JMP	SHORT MORLNZ	;DO EXPANSION 
  023D                           NTFNEX: 
- 023D  3C 5B                    	CMP	AL,LOW OFFSET "Z"+1	;WAS IT A SPECIAL CHAR
-				? 
+ 023D  3C 5B                    	CMP	AL,LOW OFFSET "Z"+1	;WAS IT A SPECIAL CHAR? 
  023F  75 07                    	JNZ	SHORT NTSPCH	;NON-SPECIAL CHAR 
  0241  32 C0                    	XOR	AL,AL		;SET NON-SPECIAL 
  0243  A2 0000 E                	MOV	BYTE PTR TEMPA,AL 
  0246  EB 1D                    	JMP	SHORT MORPUR	;PRINT IT 
- 0248  A0 0000 E                NTSPCH:	MOV	AL,BYTE PTR TEMPA	;WHAT DID WE DO L
-				AST? 
+ 0248  A0 0000 E                NTSPCH:	MOV	AL,BYTE PTR TEMPA	;WHAT DID WE DO LAST? 
  024B  0A C0                    	OR	AL,AL		;SPECIAL? 
  024D  B0 FF                    	MOV	AL,LOW 255	;FLAG IN RESERVED WORD 
  024F  A2 0000 E                	MOV	BYTE PTR TEMPA,AL	;CLEAR FLAG 
@@ -1586,11 +1397,6 @@ EXTENDED LIST, DELETE, LLIST
  0259  41                       	INC	CX 
  025A  FE CE                    	DEC	DH		;ANY SPACE LEFT IN BUFFER 
  025C  75 03                    	JNZ	SHORT ??L010 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-29
-EXTENDED LIST, DELETE, LLIST                                
-
  025E  E9 0000 E                	JMP	PPSWRT		;NO, RETURN 
  0261                           ??L010: 
  0261  8A C2                    MORLN0:	MOV	AL,DL 
@@ -1600,8 +1406,7 @@ EXTENDED LIST, DELETE, LLIST
  0266  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET BYTE FROM RESWRD 
  0268  43                       	INC	BX		;BUMP POINTER 
  0269  8A D0                    MORLNP:	MOV	DL,AL		;SAVE CHAR 
- 026B  24 7F                    MORLN1:	AND	AL,LOW 177O	;AND OFF HIGH ORDER BIT
-				 FOR DISK & EDIT 
+ 026B  24 7F                    MORLN1:	AND	AL,LOW 177O	;AND OFF HIGH ORDER BIT FOR DISK & EDIT 
  026D  8B F9                    	MOV	DI,CX 
  026F  AA                       	STOSB			;STORE THIS CHAR 
  0270  41                       	INC	CX		;BUMP PTR 
@@ -1616,8 +1421,7 @@ EXTENDED LIST, DELETE, LLIST
  027E  3C A8                    	CMP	AL,LOW OFFSET "("+128	;SPC( OR TAB( ? 
  0280  75 05                    	JNZ	SHORT NTSPCT	;NO 
  0282  32 C0                    	XOR	AL,AL		;CLEAR FLAG 
- 0284  A2 0000 E                	MOV	BYTE PTR TEMPA,AL	;TO INSERT SPACE AFTERWA
-				RDS 
+ 0284  A2 0000 E                	MOV	BYTE PTR TEMPA,AL	;TO INSERT SPACE AFTERWARDS 
  0287                           NTSPCT: 
  0287  5B                       	POP	BX		;RESTORE SOURCE PTR. 
  0288  E9 00E0 R                	JMP	PLOOP2		;GET NEXT CHAR FROM LINE 
@@ -1626,30 +1430,28 @@ EXTENDED LIST, DELETE, LLIST
  028E  72 01                    	JNAE	SHORT $+3 
  0290  C3                       	RET			;YES 
  0291  3C 30                    	CMP	AL,LOW "0"	;DIGIT? 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-27
+EXTENDED LIST, DELETE, LLIST                                
+
  0293  73 01                    	JNB	SHORT $+3 
  0295  C3                       	RET			;TOO SMALL 
  0296  3C 3A                    	CMP	AL,LOW OFFSET "9"+1	;LAST DIGIT 
  0298  F5                       	CMC			;MAKE CARRY RIGHT 
  0299  C3                       	RET			;NO CARRY=DIGIT 
- 029A  4B                       NUMLIN:	DEC	BX		;MOVE POINTER BACK AS CHRGET IN
-				X'S 
+ 029A  4B                       NUMLIN:	DEC	BX		;MOVE POINTER BACK AS CHRGET INX'S 
  029B  E8 0000 E                	CALL	CHRGTR		;SCAN THE CONSTANT 
  029E  52                       	PUSH	DX		;SAVE CHAR COUNT 
  029F  51                       	PUSH	CX		;SAVE DEPOSIT PTR 
  02A0  50                       	PUSH	AX		;SAVE CONSTANT TYPE. 
  02A1  E8 0000 E                	CALL	CONFC1		;MOVE CONSTANT INTO FAC 
  02A4  58                       	POP	AX		;RESTORE CONSTANT TYPE 
- 02A5  B9 02BE R                	MOV	CX,OFFSET CONLIN	;PUT RETURN ADDR ON STACK
-				 
+ 02A5  B9 02BE R                	MOV	CX,OFFSET CONLIN	;PUT RETURN ADDR ON STACK 
  02A8  51                       	PUSH	CX		;SAVE IT 
  02A9  3C 00 E                  	CMP	AL,LOW OFFSET OCTCON	;OCTAL CONSTANT? 
  02AB  75 03                    	JNZ	SHORT ??L013 
  02AD  E9 0000 E                	JMP	FOUTO		;PRINT IT 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-30
-EXTENDED LIST, DELETE, LLIST                                
-
  02B0                           ??L013: 
  02B0  3C 00 E                  	CMP	AL,LOW OFFSET HEXCON	;HEX CONSTANT? 
  02B2  75 03                    	JNZ	SHORT ??L014 
@@ -1659,8 +1461,7 @@ EXTENDED LIST, DELETE, LLIST
  02BB  E9 0000 E                	JMP	FOUT		;PRINT REMAINING POSSIBILITIES. 
  02BE  59                       CONLIN:	POP	CX		;RESTORE DEPOSIT PTR. 
  02BF  5A                       	POP	DX		;RESTORE CHAR COUNT 
- 02C0  A0 0000 E                	MOV	AL,BYTE PTR CONSAV	;GET SAVED CONSTANT TOK
-				EN 
+ 02C0  A0 0000 E                	MOV	AL,BYTE PTR CONSAV	;GET SAVED CONSTANT TOKEN 
  02C3  B2 4F                    	MOV	DL,LOW "O"	;ASSUME OCTAL CONSTANT 
  02C5  3C 00 E                  	CMP	AL,LOW OFFSET OCTCON	;OCTAL CONSTANT? 
  02C7  74 06                    	JZ	SHORT SAVBAS	;YES, PRINT IT 
@@ -1683,13 +1484,16 @@ EXTENDED LIST, DELETE, LLIST
  02E2  75 01                    	JNZ	SHORT $+3 
  02E4  C3                       	RET			;END OF BUFFER, DONE 
  02E5                           NUMSLN: 
- 02E5  A0 0000 E                	MOV	AL,BYTE PTR CONTYP	;GET TYPE OF CONSTANT W
-				E ARE 
+ 02E5  A0 0000 E                	MOV	AL,BYTE PTR CONTYP	;GET TYPE OF CONSTANT WE ARE 
  02E8  3C 04                    	CMP	AL,LOW 4	;IS IT SINGLE OR DOUBLE PREC? 
- 02EA  B2 00                    	MOV	DL,LOW 0	;NO, NEVER PRINT TRAILING TYPE IN
-				DICATOR 
+ 02EA  B2 00                    	MOV	DL,LOW 0	;NO, NEVER PRINT TRAILING TYPE INDICATOR 
  02EC  72 06                    	JB	SHORT TYPSET 
  02EE  B2 21                    	MOV	DL,LOW "!"	;ASSUME SINGLE PREC. 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-28
+EXTENDED LIST, DELETE, LLIST                                
+
  02F0  74 02                    	JZ	SHORT TYPSET	;IS CONTYP=4, WAS SINGLE 
  02F2  B2 23                    	MOV	DL,LOW "#"	;DOUBLE PREC INDICATOR 
  02F4                           TYPSET: 
@@ -1698,26 +1502,18 @@ EXTENDED LIST, DELETE, LLIST
  02F8  75 03                    	JNZ	SHORT ??L015 
  02FA  E8 0000 E                	CALL	INXHRT		;GO BY IT 
  02FD                           ??L015: 
- 02FD  8A 07                    NUMSL2:	MOV	AL,BYTE PTR [BX]	;GET CHAR FROM NUM
-				BER BUFFER 
+ 02FD  8A 07                    NUMSL2:	MOV	AL,BYTE PTR [BX]	;GET CHAR FROM NUMBER BUFFER 
  02FF  43                       	INC	BX		;BUMP POINTER 
  0300  0A C0                    	OR	AL,AL		;SET CC'S 
  0302  74 2C                    	JZ	SHORT NUMDN	;IF ZERO, ALL DONE. 
  0304  8B F9                    	MOV	DI,CX 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-31
-EXTENDED LIST, DELETE, LLIST                                
-
  0306  AA                       	STOSB			;SAVE CHAR IN BUF. 
  0307  41                       	INC	CX		;BUMP PTR 
  0308  FE CE                    	DEC	DH		;SEE IF END OF BUFFER 
  030A  75 01                    	JNZ	SHORT $+3 
  030C  C3                       	RET			;IF END OF BUFFER, RETURN 
- 030D  A0 0000 E                	MOV	AL,BYTE PTR CONTYP	;GET TYPE OF CONSTANT T
-				O BE PRINTED 
- 0310  3C 04                    	CMP	AL,LOW 4	;TEST FOR SINGLE OR DOUBLE PRECIS
-				ION 
+ 030D  A0 0000 E                	MOV	AL,BYTE PTR CONTYP	;GET TYPE OF CONSTANT TO BE PRINTED 
+ 0310  3C 04                    	CMP	AL,LOW 4	;TEST FOR SINGLE OR DOUBLE PRECISION 
  0312  72 E9                    	JB	SHORT NUMSL2	;NO, WAS INTEGER 
  0314  9F                       	LAHF 
  0315  49                       	DEC	CX		;PICK UP SAVED CHAR 
@@ -1727,47 +1523,39 @@ EXTENDED LIST, DELETE, LLIST
  031B  9F                       	LAHF 
  031C  41                       	INC	CX		;RESTORE TO POINT WHERE IT SHOULD 
  031D  9E                       	SAHF 
- 031E  75 04                    	JNZ	SHORT DBLSCN	;IF DOUBLE, DONT TEST FOR EMB
-				EDED "." 
+ 031E  75 04                    	JNZ	SHORT DBLSCN	;IF DOUBLE, DONT TEST FOR EMBEDED "." 
  0320  3C 2E                    	CMP	AL,LOW "."	;TEST FOR FRACTION 
- 0322  74 08                    	JZ	SHORT ZERE	;IF SINGLE & EMBEDED ., THEN DON
-				T PRINT ! 
+ 0322  74 08                    	JZ	SHORT ZERE	;IF SINGLE & EMBEDED ., THEN DONT PRINT ! 
  0324  3C 44                    DBLSCN:	CMP	AL,LOW "D"	;DOUBLE PREC. EXPONENT? 
- 0326  74 04                    	JZ	SHORT ZERE	;YES, MARK NO VALUE TYPE INDICAT
-				OR NESC. 
+ 0326  74 04                    	JZ	SHORT ZERE	;YES, MARK NO VALUE TYPE INDICATOR NESC. 
  0328  3C 45                    	CMP	AL,LOW "E"	;SINGLE PREC. EXPONENT? 
  032A  75 D1                    	JNZ	SHORT NUMSL2	;NO, PROCEED 
- 032C  B2 00                    ZERE:	MOV	DL,LOW 0	;MARK NO PRINTING OF TYPE IN
-				DICATOR 
- 032E  EB CD                    	JMP	SHORT NUMSL2	;KEEP MOVING NUMBER CHARS INT
-				O BUF 
+ 032C  B2 00                    ZERE:	MOV	DL,LOW 0	;MARK NO PRINTING OF TYPE INDICATOR 
+ 032E  EB CD                    	JMP	SHORT NUMSL2	;KEEP MOVING NUMBER CHARS INTO BUF 
                                  
  0330                           NUMDN: 
- 0330  8A C2                    	MOV	AL,DL		;GET FLAG TO INDICATE WHETHER TO IN
-				SERT 
+ 0330  8A C2                    	MOV	AL,DL		;GET FLAG TO INDICATE WHETHER TO INSERT 
  0332  0A C0                    	OR	AL,AL		;A "D" AFTER DOUBLE PREC. # 
  0334  74 09                    	JZ	SHORT NOD	;NO, DONT INSERT IT 
  0336  8B F9                    	MOV	DI,CX 
  0338  AA                       	STOSB			;SAVE IN BUFFER 
  0339  41                       	INC	CX		;BUMP POINTER 
- 033A  FE CE                    	DEC	DH		;DECRMENT COUNT OF CHARS LEFT IN BUFFE
-				R 
+ 033A  FE CE                    	DEC	DH		;DECRMENT COUNT OF CHARS LEFT IN BUFFER 
  033C  75 01                    	JNZ	SHORT $+3 
  033E  C3                       	RET			;=0, MUST TRUNCATE LIST OF THIS LINE. 
  033F                           NOD: 
- 033F  8B 1E 0000 E             	MOV	BX,CONTXT	;GET BACK TEXT POINTER AFTER CON
-				STANT 
+ 033F  8B 1E 0000 E             	MOV	BX,CONTXT	;GET BACK TEXT POINTER AFTER CONSTANT 
  0343  E9 00E0 R                	JMP	PLOOP2		;GET NEXT CHAR 
                                  
                                  
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-29
+EXTENDED LIST, DELETE, LLIST                                
+
                                 ; 
                                 ; THE FOLLOWING CODE IS FOR THE DELETE RANGE 
                                 ; COMMAND. BEFORE THE LINES ARE DELETED, 'OK' 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-32
-EXTENDED LIST, DELETE, LLIST                                
-
                                 ; IS TYPED. 
                                 ; 
                                 PUBLIC	DELETE 
@@ -1781,18 +1569,15 @@ EXTENDED LIST, DELETE, LLIST
                                 				;FOR USE BY CHEAD AFTER FINI 
  0350  51                       	PUSH	CX		;SAVE POINTER TO START OF 1ST LINE 
  0351  E8 0000 E                	CALL	FNDLIN		;FIND THE LAST LINE 
- 0354  73 0B                    	JAE	SHORT FCERRG	;MUST HAVE A MATCH ON THE UPP
-				ER BOUND 
- 0356  8A F7                    	MOV	DH,BH		;[D,E]=POINTER AT THE START OF THE 
-				LINE 
+ 0354  73 0B                    	JAE	SHORT FCERRG	;MUST HAVE A MATCH ON THE UPPER BOUND 
+ 0356  8A F7                    	MOV	DH,BH		;[D,E]=POINTER AT THE START OF THE LINE 
  0358  8A D3                    	MOV	DL,BL		;BEYOND THE LAST LINE IN THE RANGE 
  035A  5E                       	POP	SI		;XTHL 
  035B  87 F3                    	XCHG	SI,BX 
  035D  56                       	PUSH	SI		;SAVE THE POINTER TO THE NEXT LINE 
  035E  53                       	PUSH	BX		;SAVE THE POINTER TO THE START OF 
                                 				;THE FIRST LINE IN THE RANGE 
- 035F  3B DA                    	CMP	BX,DX		;MAKE SURE THE START COMES BEFORE T
-				HE END 
+ 035F  3B DA                    	CMP	BX,DX		;MAKE SURE THE START COMES BEFORE THE END 
  0361  72 03                    FCERRG:	JNAE	SHORT ??L016 
  0363  E9 0000 E                	JMP	FCERR		;IF NOT, "ILLEGAL FUNCTION CALL" 
  0366                           ??L016: 
@@ -1812,8 +1597,7 @@ EXTENDED LIST, DELETE, LLIST
                                 ; [H,L]=START OF NEXT LINE 
                                 ; 
                                 PUBLIC	DEL 
- 037B  87 DA                    DEL:	XCHG	BX,DX		;[D,E] NOW HAVE THE POINTER TO
-				 THE LINE 
+ 037B  87 DA                    DEL:	XCHG	BX,DX		;[D,E] NOW HAVE THE POINTER TO THE LINE 
                                 				;BEYOND THIS ONE 
  037D  8B 1E 0000 E             	MOV	BX,VARTAB	;COMPACTIFYING TO VARTAB 
  0381  8B F2                    MLOOP:	MOV	SI,DX 
@@ -1822,24 +1606,23 @@ EXTENDED LIST, DELETE, LLIST
  0387  AA                       	STOSB			;SHOVING DOWN TO ELIMINATE A LINE 
  0388  41                       	INC	CX 
  0389  42                       	INC	DX 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-33
+ 038A  3B DA                    	CMP	BX,DX		;DONE COMPACTIFYING? 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-30
 EXTENDED LIST, DELETE, LLIST                                
 
- 038A  3B DA                    	CMP	BX,DX		;DONE COMPACTIFYING? 
  038C  75 F3                    	JNZ	SHORT MLOOP	;NO 
  038E  8B D9                    	MOV	BX,CX 
-                                ;Clear SCALARS and ARRAYS incase we are replaci
-				ng line which may force 
+                                ;Clear SCALARS and ARRAYS incase we are replacing line which may force 
                                 ; garbage collection in BLTU 
  0390  89 1E 0000 E             	MOV	VARTAB,BX 
  0394  89 1E 0000 E             	MOV	ARYTAB,BX 
  0398  89 1E 0000 E             	MOV	STREND,BX 
  039C  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
-GWLIST Copied from BINTRP.MAC                               Page     1-34
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
+GWLIST Copied from BINTRP.MAC                               Page     1-31
 EXTENDED LIST, DELETE, LLIST                                
 
                                 	PAGE 
@@ -1848,8 +1631,8 @@ EXTENDED LIST, DELETE, LLIST
  039D                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
 GWLIST Copied from BINTRP.MAC                               Symbols-1
                                                              
 
@@ -1907,8 +1690,8 @@ ALPTAB . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ALTAIR . . . . . . . . . . . . .  	Number	0000	
 ANSI . . . . . . . . . . . . . .  	Number	0001	
 ARYTAB . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
 GWLIST Copied from BINTRP.MAC                               Symbols-2
                                                              
 
@@ -1966,8 +1749,8 @@ CONTYP . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 CPM  . . . . . . . . . . . . . .  	Number	0001	
 CPM110 . . . . . . . . . . . . .  	Number	0000	
 CPM2 . . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
 GWLIST Copied from BINTRP.MAC                               Symbols-3
                                                              
 
@@ -2025,8 +1808,8 @@ DMC  . . . . . . . . . . . . . .  	Number	0000
 DOCNVF . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 DONUM  . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 DORES  . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
 GWLIST Copied from BINTRP.MAC                               Symbols-4
                                                              
 
@@ -2084,8 +1867,8 @@ ERRUE1 . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERRUF  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERRUS  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERRWH  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
 GWLIST Copied from BINTRP.MAC                               Symbols-5
                                                              
 
@@ -2143,8 +1926,8 @@ FOUTO  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FRCDBL . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FRCINT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FRCSNG . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
 GWLIST Copied from BINTRP.MAC                               Symbols-6
                                                              
 
@@ -2202,8 +1985,8 @@ G_EOF  . . . . . . . . . . . . .  	Number	0000
 G_GCW  . . . . . . . . . . . . .  	Number	0018	
 G_GPS  . . . . . . . . . . . . .  	Number	0012	
 G_GWD  . . . . . . . . . . . . .  	Number	0014	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
 GWLIST Copied from BINTRP.MAC                               Symbols-7
                                                              
 
@@ -2261,8 +2044,8 @@ JISKTN . . . . . . . . . . . . .  	Number	0000
 KANABS . . . . . . . . . . . . .  	Number	0000	
 KANJFN . . . . . . . . . . . . .  	Number	0000	
 KBFLEN . . . . . . . . . . . . .  	Number	013E	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
 GWLIST Copied from BINTRP.MAC                               Symbols-8
                                                              
 
@@ -2320,8 +2103,8 @@ MORLNP . . . . . . . . . . . . .  	L NEAR	0269	CSEG
 MORLNZ . . . . . . . . . . . . .  	L NEAR	0252	CSEG
 MORPUR . . . . . . . . . . . . .  	L NEAR	0265	CSEG
 MOSTEK . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
 GWLIST Copied from BINTRP.MAC                               Symbols-9
                                                              
 
@@ -2379,8 +2162,8 @@ NOSPAL . . . . . . . . . . . . .  	L NEAR	0073	CSEG
 NOTELS . . . . . . . . . . . . .  	L NEAR	01EA	CSEG
 NOTTK  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 NOUSR  . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
 GWLIST Copied from BINTRP.MAC                               Symbols-10
                                                              
 
@@ -2438,8 +2221,8 @@ PLOOP2 . . . . . . . . . . . . .  	L NEAR	00E0	CSEG	Global
 PLOOPG . . . . . . . . . . . . .  	L NEAR	0142	CSEG
 PLOOPH . . . . . . . . . . . . .  	L NEAR	0144	CSEG
 PLOOPR . . . . . . . . . . . . .  	L NEAR	0159	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
 GWLIST Copied from BINTRP.MAC                               Symbols-11
                                                              
 
@@ -2497,8 +2280,8 @@ SAVSTK . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 SAVTXT . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 SBC  . . . . . . . . . . . . . .  	Number	0000	
 SBC86  . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
 GWLIST Copied from BINTRP.MAC                               Symbols-12
                                                              
 
@@ -2556,8 +2339,8 @@ STROUT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 STRPRT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 STRSIZ . . . . . . . . . . . . .  	Number	0003	
 SUBFLG . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
 GWLIST Copied from BINTRP.MAC                               Symbols-13
                                                              
 
@@ -2615,8 +2398,8 @@ WRITE  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 XTNSYS . . . . . . . . . . . . .  	Number	0000	
 
 Z80  . . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
 GWLIST Copied from BINTRP.MAC                               Symbols-14
                                                              
 
@@ -2674,8 +2457,8 @@ $WHILE . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ??L008 . . . . . . . . . . . . .  	L NEAR	01D5	CSEG
 ??L009 . . . . . . . . . . . . .  	L NEAR	021A	CSEG
 ??L010 . . . . . . . . . . . . .  	L NEAR	0261	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:12:55
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+ 
 GWLIST Copied from BINTRP.MAC                               Symbols-15
                                                              
 
@@ -2689,11 +2472,11 @@ GWLIST Copied from BINTRP.MAC                               Symbols-15
 _OFFST . . . . . . . . . . . . .  	Number	00C2	
 
 
-   1514 Source  Lines
-   1637 Total   Lines
+   1515 Source  Lines
+   1638 Total   Lines
     748 Symbols
 
-  26290 Bytes symbol space free
+  26270 Bytes symbol space free
 
       0 Warning Errors
       0 Severe  Errors

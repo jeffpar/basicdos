@@ -1,5 +1,5 @@
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
 ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-1
                                                             
 
@@ -15,24 +15,21 @@ ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-1
                              C  ; [ This translation created 10-Feb-83 by Versi
 				on 4.3 ] 
                              C   
-                             C  	SUBTTL  Common file to produce 2-segment 8086 
-				GW-CPM BASIC 
+                             C  	PAGE	,132D 
+                             C  	SUBTTL  Common file to produce 2-segment 8086 GW-CPM BASIC 
                              C   
                              C  	.SALL 
                              C   
  000A                        C  	.RADIX	10 
  = 0000                      C  	OEMRAM=0D 
-                             C  ;Pascal program HFILE searches for the followin
-				g line - DO NOT MODIFY 
-                             C  ;** (VERSION SPECIFIC VALUES) *****************
-				******************************* 
+                             C  ;Pascal program HFILE searches for the following line - DO NOT MODIFY 
+                             C  ;** (VERSION SPECIFIC VALUES) ************************************************ 
  = 0019                      C  	NMLINE=25		;Max screen display text lines 
  = 0001                      C  	NBANKS=1		;Number of graphic planes 
  = 0000                      C  	PALSIZ=0		;Size of OEM color palette 
  = 0000                      C  	DBLCHR=0		;Editor support for KANJI chars 
  = 0000                      C  	KANABS=0		;Kana BASIC (Japanese JIS codes) 
- = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .
-				. 
+ = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .. 
  = 0000                      C  	JISKTN=0		;&K, &J constants (KANJI) 
  = 0001                      C  	SUPRSH=1		;1=super shift key feature 
  = 000A                      C  	NMKEYF=10		;number of function keys 
@@ -46,61 +43,48 @@ ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-1
  = 0002                      C  	NMCOMT=2		;number of COMmunications ports 
  = 0001                      C  	NMPENT=1		;number of light pens 
  = 0004                      C  	NMSTRT=4		;number of joysticks 
- = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR)
-				 
+ = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR) 
  = 0001                      C  	IBMLIK=1		;IBM compatibility package 
  = 0001                      C  	IBMTOK=1		;IBM token compatibility 
  = 0001                      C  	DYNCOM=1		;Dynamic communication buffers 
-                             C  ;** (END OF VERSION SPECIFIC VALUES) **********
-				******************************* 
-                             C  ;Pascal program HFILE searches for the previous
-				 line - DO NOT MODIFY 
+                             C  ;** (END OF VERSION SPECIFIC VALUES) ***************************************** 
+                             C  ;Pascal program HFILE searches for the previous line - DO NOT MODIFY 
                              C  ; 
  = 0015                      C  	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
+ = 0001                      C  	GW=1			;GW BASIC 
+ = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROUT 
+ = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY) 
+                             C  				; Support is in BINTRP.MAC and GWSTS.MAC 
+ = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
+                             C  				;single precision numbers for output. 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
 ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
- = 0001                      C  	GW=1			;GW BASIC 
- = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROU
-				T 
- = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY
-				) 
-                             C  				; Support is in BINTRP.MAC and GWSTS.MAC 
- = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed whe
-				n formatting 
-                             C  				;single precision numbers for output. 
                              C  				; 0 := 7 digits 
                              C  				; 1 := 6 digits 
  = 0000                      C  	CASSW=0			;CASSETTE SWITCH 
  = 0001                      C  	LABKEY=1		;^T (LABEL) key capability 
- = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics)
-				 
- = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stac
-				k) 
+ = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics) 
+ = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stack) 
  = 0001                      C  	GIO86=1			;BASIC-86 Generalized I/O 
  = 0001                      C  	SCRNIO=1		;Screen editor 
  = 0001                      C  	SCRN86=1		;8086 Screen editor 
  = 0001                      C  	I8086=1			;CROSS ASSEMBLING FOR 8086 
  = 0001                      C  	MULSEG=1		;MULTI-SEGMENT 8086 BASIC 
- = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SE
-				T 
+ = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SET 
  = 0001                      C  	TRUROM=1 
  = 0000                      C  	SBC86=0			;SBC 86/02 BOARD? 
  = 0001                      C  	SHORTJ=1		;USE INTRA-SEGMENT SHORT JUMPS 
                              C  				;IN 8086 CODE 
- = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDE
-				D ONLY) 
+ = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDED ONLY) 
  = 0000                      C  	SHTERR=0		;SHORT (2 CHAR) ERROR MESSAGES 
  = 0000                      C  	SHTINS=0		;INSTR IN NON-FAST LEN2 VERSIONS 
- = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2
-				 VERSIONS 
+ = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2 VERSIONS 
  = 0000                      C  	SHTCHN=0		;ALLOW CHAIN IN NON-5.0 
- = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK
-				 
- = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NO
-				N-FAST 
+ = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK 
+ = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NON-FAST 
  = 0000                      C  	SHTREN=0		;ALLOW RENUM IN NON-FST VERSIONS 
  = 0001                      C  	INKEYF=1		;ADDS INKEY$ FUNCTION 
  = 0000                      C  	NOIOS=0			;NO I/O STATMENTS (INP,OUT, WAIT) 
@@ -109,23 +93,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	NOCTLA=0		;NO CONTROL-A IN EXTENDED 
  = 0000                      C  	NORUBT=0		;NO RUBOUT 
  = 0000                      C  	NOROMP=0		;NO ROM PROGRAM FEATURE 
- = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED
-				 
+ = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED 
  = 0000                      C  	NODOT=0			;NO DOT IN LEN2 
  = 0000                      C  	NOEDIT=0		;NO EDIT COMMAND 
- = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMIN
-				AL 
+ = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMINAL 
                              C  				;AND FILES 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-3
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
- = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN C
-				RDO & OUTCH1 
+ = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN CRDO & OUTCH1 
  = 0000                      C  	NOVARP=0		;NO VARPTR FUNCTION 
- = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 F
-				EATURES 
+ = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 FEATURES 
  = 0001                      C  	FIVMEM=1 
  = 0001                      C  	ANSI=1 
  = 0001                      C  	FIVDSK=1		;5.0 NEW DSK CODE 
@@ -136,24 +111,25 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0001                      C  	MEMIMG=1		;MEMORY IMAGE FILES 
  = 0001                      C  	GENBIN=1 
                              C   
- = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON 
-				ERROR) 
+ = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON ERROR) 
  = 0000                      C  	COMMNT=0		;DONT WANT BIG COMMENT 
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-3
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	RMX=0			;INTEL RMX VERSION 
  = 0000                      C  	EDIT80=0		;FOR EDIT80 I/O ROUTINES 
  = 0000                      C  	RSHACK=0 
  = 0000                      C  	INTLEC=0 
  = 0002                      C  	LENGTH=2		;  1 MEANS 8K, 2 MEANS 12K 
- = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BAS
-				IC 
- = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATION
-				S 
+ = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BASIC 
+ = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATIONS 
                              C  				;TO MAKE ITSELF SMALLER & QUICKER 
- = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE
-				 (=1) 
+ = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE (=1) 
  = 0001                      C  	GENIO=1			;USE G/P ROUTINES 
  = 0001                      C  	CHSEAT=1		;CHSNS eats chars 
  = 0000                      C  	GENDSK=0		;USE G/P DSK CODE 
@@ -165,21 +141,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	SBC=0			;FOR INTEL SINGLE BOARD COMPUTER 
                              C  				;1=SBC 80/10, 2=SBC 80/20 
  = 0001                      C  	PURE=1			;ON FOR PURE CODE 
- = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RA
-				M 
+ = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RAM 
  = 0000                      C  	INTROM=0 
  = 0001                      C  	LPTSW=1 
  = 0001                      C  	NCRLPT=1 
  = 0000                      C  	NCRCAS=0 
  = 0000                      C  	ISC=0			;FOR ISC VERSION 
- = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,C
-				ENT) 
+ = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,CENT) 
  = 0000                      C  	TSLPT=0 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-4
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C   
  = 0000                      C  	DOS=0			;ON TO GEN ROUTINES FOR DOS 
  = 0001                      C  	DISK=1			;FILE I/O FEATURES 
@@ -187,13 +156,10 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	TSDISK=0		;NO TIME-SHARING DISK FOR US 
  = 0000                      C  	SPCDSK=0		;MAY HAVE MM'S DISK CODE 
  = 0000                      C  	SPCNDS=0 
- = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIEND
-				S 
+ = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIENDS 
  = 0000                      C  	KEYSTA=0 
- = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISI
-				S II DOS 
- = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISI
-				S-II 
+ = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISIS II DOS 
+ = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISIS-II 
  = 0001                      C  	CPM=1			;FOR CPM compatible operating systems 
  = 0001                      C  	CPM2=1			;VERSION 2. CPM 
  = 0000                      C  	CPM86=0			;FOR CP/M-86 operating system 
@@ -201,16 +167,19 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMCON=0 
  = 0000                      C  	CPMSER=0		;CHECK CPM SERIAL #'S 
  = 0000                      C  	CPMADD=0		;FOR VERSION TO RUN ON ADDS CPM 
- = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 7
-				5 
+ = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 75 
                              C  				;CP/M 
  = 0000                      C  	CPMRSH=0		;FOR RADIO SHACK CPM/M 
  = 0000                      C  	CPM110=0		;FOR CP/M @1100 HEX (INTERALIA) 
- = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4
-				100H 
+ = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4100H 
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-4
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	CPMCON=0 
  = 0000                      C  	Z80=0 
  = 0001                      C  	DISK=1 
@@ -227,23 +196,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0002                      C  	LENGTH=2 
  = 0001                      C  	RSTLES=1 
  = 0001                      C  	FIVLPT=1 
- = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT V
-				ERSION 
+ = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT VERSION 
  = 0001                      C  	CONTRO=1		;ALLOW ^O 
  = 0001                      C  	LEN3=LEN2 OR CASSW 
                              C   
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-5
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
  = 0001                      C  	STRING=1 
  = 0001                      C  	NCRLPT=1 
                              C   
-                             C  ; *** OEM Switches which need to be defaulted t
-				o 0 
+                             C  ; *** OEM Switches which need to be defaulted to 0 
                              C  ; 
  = 0000                      C  	CMPUTN=0 
  = 0000                      C  	DUPONT=0 
@@ -268,15 +230,17 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	PANBAS=0 
  = 0000                      C  	XTNSYS=0 
  = 0000                      C  	NECBAS=0 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Z80 related macros 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-5
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  				;8080'S AND ZILOG Z-80'S 
- = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INST
-				RUCTIONS 
+ = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INSTRUCTIONS 
  = 0000                      C  	Z80=0 
  = 0001                      C  	Z80=1 
                              C  LDIR	MACRO 
@@ -293,11 +257,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	MOV	WORD PTR A,WORD PTR M 
                              C  	STAX	D 
                              C  	DCXF	H 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-6
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  	DCXF	D 
                              C  	DCXF	B 
                              C  	MOV	WORD PTR A,WORD PTR B 
@@ -308,11 +267,9 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	DCR	B 
                              C  	JNZ	DEST 
                              C  ENDM 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Define reset routines. 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  FSIGN	MACRO 
                              C  	CALL	SIGN 
                              C  ENDM 
@@ -336,6 +293,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-6
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  GETYPE	MACRO 
                              C  	CALL	GETYPR 
                              C  ENDM 
@@ -352,11 +314,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	PUSH	WORD PTR B 
                              C  ENDM 
                              C  POPR	MACRO 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-7
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  	POP	WORD PTR B 
                              C  	POP	WORD PTR D 
                              C  ENDM 
@@ -373,15 +330,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDM 
                              C   
                              C   
- = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALL
-				Y CONTROL-O) 
- = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTAL
-				S 
+ = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALLY CONTROL-O) 
+ = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTALS 
                              C   
- = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARA
-				CTERS 
- = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SEC
-				TOR 
+ = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARACTERS 
+ = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SECTOR 
  = 0050                      C  	LINLN=80D		;TERMINAL LINE LENGTH 
  = 0084                      C  	LPTLEN=132D 
  = 00FF                      C  	BUFLEN=255		;LONG LINES 
@@ -399,6 +352,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-7
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  ACRLF   MACRO 
                              C          DB      13D 
                              C          DB      10D 
@@ -411,11 +369,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDIF 
                              C  IFNB    <D> 
                              C          DB      C&O 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-8
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C          DB      D&O 
                              C  ENDIF 
                              C  IFB     <D> 
@@ -447,17 +400,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-9
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
                                  
                                  
-                                	TITLE   ADVGRP - ADVANCED GENERALIZED GRAPHICS
-				 STUFF 
+                                	TITLE   ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF 
                                  
  000A                           	.RADIX	10 
                                  
@@ -490,49 +442,41 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                         LINEST=0 
  = 0000                         VIEW=0 
                                  
- = 0000                         	VIEW=MODEL3 OR PC8A OR TRSER2	; SWITCH FOR GRA
-				PHICS VIEW 
+ = 0000                         	VIEW=MODEL3 OR PC8A OR TRSER2	; SWITCH FOR GRAPHICS VIEW 
  = 0000                         	TILE=MODEL3 OR PC8A OR TRSER2 OR HALL4 
  = 0000                         	WINDOW=PC8A 
  = 0001                         	QUEUE=MODEL3 OR PC8A OR TRSER2 OR GW 
  = 0000                         	LINEST=MODEL3 OR PC8A OR TRSER2 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	ASSUME DS:DSEG 
-                                	EXTRN	QUELEN:WORD,PSNLEN:WORD,QUEINP:WORD,QUEO
-				UT:WORD 
+                                	EXTRN	QUELEN:WORD,PSNLEN:WORD,QUEINP:WORD,QUEOUT:WORD 
  0000                           DSEG	ENDS 
                                  
                                 ; MACHINE DEPENDENT GRAPHICS ROUTINES: 
                                  
                                 	EXTRN	SETATR:NEAR,SETC:NEAR 
-                                	EXTRN	MAPXYC:NEAR,SCALXY:NEAR,FETCHC:NEAR,STOR
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-10
+                                	EXTRN	MAPXYC:NEAR,SCALXY:NEAR,FETCHC:NEAR,STOREC:NEAR,UPC:NEAR 
+                                	EXTRN	DOWNC:NEAR,LEFTC:NEAR 
+                                	EXTRN	PGINIT:NEAR,PIXSIZ:NEAR,SCANL:NEAR,SCANR:NEAR,PNTINI:NEAR 
+                                	EXTRN	TUPC:NEAR 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-9
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
-				EC:NEAR,UPC:NEAR 
-                                	EXTRN	DOWNC:NEAR,LEFTC:NEAR 
-                                	EXTRN	PGINIT:NEAR,PIXSIZ:NEAR,SCANL:NEAR,SCANR
-				:NEAR,PNTINI:NEAR 
-                                	EXTRN	TUPC:NEAR 
-                                	EXTRN	TDOWNC:NEAR,NREAD:NEAR,NWRITE:NEAR,GTASP
-				C:NEAR 
+                                	EXTRN	TDOWNC:NEAR,NREAD:NEAR,NWRITE:NEAR,GTASPC:NEAR 
                                  
                                  
                                 ; STUFF IN GENGRP.MAC: 
                                  
-                                	EXTRN	DOGRPH:NEAR,ATRSCN:NEAR,SCAN1:NEAR,SCAND
-				:NEAR 
+                                	EXTRN	DOGRPH:NEAR,ATRSCN:NEAR,SCAN1:NEAR,SCAND:NEAR 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-                                	EXTRN	GRPACX:WORD,GRPACY:WORD,GXPOS:WORD,GYPOS
-				:WORD,ATRBYT:WORD 
+                                	EXTRN	GRPACX:WORD,GRPACY:WORD,GXPOS:WORD,GYPOS:WORD,ATRBYT:WORD 
  0000                           DSEG	ENDS 
                                  
                                 ; OTHER STUFF: 
                                  
-                                	EXTRN	CHRGTR:NEAR,GETBYT:NEAR,GETIN2:NEAR,GETY
-				PR:NEAR 
+                                	EXTRN	CHRGTR:NEAR,GETBYT:NEAR,GETIN2:NEAR,GETYPR:NEAR 
                                 	EXTRN	SYNCHR:NEAR 
                                 	EXTRN	UMULT:NEAR,MINUTK:NEAR,FDIV:NEAR 
                                 	EXTRN	FCERR:NEAR 
@@ -565,11 +509,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                 	INS86	367,332 
                                 ENDM 
                                 NEGHL	MACRO 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-11
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                                 	INS86	367,333 
                                 ENDM 
                                  
@@ -579,12 +518,15 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                 ; 
                                 ; SYNTAX: PAINT (X,Y), FILLC, BORDC]] 
                                 ; 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-10
+PAINT - Fill an area with color                             
+
                                 	PUBLIC	PAINT 
-                                	EXTRN	PNTINI:NEAR,SCANL:NEAR,SCANR:NEAR,TUPC:N
-				EAR,TDOWNC:NEAR 
+                                	EXTRN	PNTINI:NEAR,SCANL:NEAR,SCANR:NEAR,TUPC:NEAR,TDOWNC:NEAR 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-                                	EXTRN	PDIREC:WORD,CSAVEA:WORD,CSAVEM:WORD,MOVC
-				NT:WORD,SKPCNT:WORD 
+                                	EXTRN	PDIREC:WORD,CSAVEA:WORD,CSAVEM:WORD,MOVCNT:WORD,SKPCNT:WORD 
                                 	EXTRN	LFPROG:WORD,RTPROG:WORD 
  0000                           DSEG	ENDS 
                                  
@@ -594,10 +536,8 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  0006  51                       	PUSH	CX		;SAVE COORDS OF START 
  0007  52                       	PUSH	DX 
  0008  E8 0000 E                	CALL	ATRSCN		;SET FILL ATTRIBUTE AS CURRENT 
- 000B  A0 0000 E                	MOV	AL,BYTE PTR ATRBYT	;DEFAULT BORDER COLOR I
-				S SAME AS FILL 
- 000E  8A D0                    	MOV	DL,AL		;DEFAULT ATTRIBUTE TO [E] LIKE GETB
-				YT 
+ 000B  A0 0000 E                	MOV	AL,BYTE PTR ATRBYT	;DEFAULT BORDER COLOR IS SAME AS FILL 
+ 000E  8A D0                    	MOV	DL,AL		;DEFAULT ATTRIBUTE TO [E] LIKE GETBYT 
  0010  4B                       	DEC	BX 
  0011  E8 0000 E                	CALL	CHRGTR 
  0014  74 07                    	JZ	SHORT GOTBRD	;NOTHING THERE - USE DEFAULT 
@@ -605,8 +545,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  0019  2C                       	DB	OFFSET 44	;MAKE SURE OF COMMA 
  001A  E8 0000 E                	CALL	GETBYT		;GET BORDER COLOR ARGUMENT 
  001D  8A C2                    GOTBRD:	MOV	AL,DL		;BORDER ATTRIBUTE TO A 
- 001F  E8 0000 E                	CALL	PNTINI		;INIT PAINT STUFF & CHECK BORDER 
-				ATTRIB 
+ 001F  E8 0000 E                	CALL	PNTINI		;INIT PAINT STUFF & CHECK BORDER ATTRIB 
  0022  73 03                    	JAE	SHORT ??L000 
  0024  E9 0000 E                	JMP	FCERR 
  0027                           ??L000: 
@@ -617,19 +556,10 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  002A  E8 0815 R                	CALL	CHKRNG		;MAKE SURE POINT IS ON SCREEN 
  002D  E8 0000 E                	CALL	MAPXYC 
                                  
- 0030  BA 0001                  	MOV	DX,1		;ENTRY COUNT IS ONE (SKIP NO BORDER)
-				 
- 0033  E8 0120 R                	CALL	SCANR1		;SCAN RIGHT FROM INITIAL POSITION
-				 
- 0036  74 12                    	JZ	SHORT POPTRT	;STARTED ON BORDER - GET TXTPT
-				R & QUIT 
- 0038  53                       	PUSH	BX		;SAVE NO. OF POINTED PAINTED TO RIGHT
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-12
-PAINT - Fill an area with color                             
-
-				 
+ 0030  BA 0001                  	MOV	DX,1		;ENTRY COUNT IS ONE (SKIP NO BORDER) 
+ 0033  E8 0120 R                	CALL	SCANR1		;SCAN RIGHT FROM INITIAL POSITION 
+ 0036  74 12                    	JZ	SHORT POPTRT	;STARTED ON BORDER - GET TXTPTR & QUIT 
+ 0038  53                       	PUSH	BX		;SAVE NO. OF POINTED PAINTED TO RIGHT 
  0039  E8 0133 R                	CALL	SCANL1		;NOW SCAN LEFT FROM INITIAL POS. 
  003C  5A                       	POP	DX		;GET RIGHT SCAN COUNT. 
  003D  03 DA                    	ADD	BX,DX		;ADD TO LEFT SCAN COUNT 
@@ -647,47 +577,42 @@ PAINT - Fill an area with color
                                 ; MAIN PAINT LOOP 
                                 ; 
  004C                           PNTLOP: 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-11
+PAINT - Fill an area with color                             
+
  004C  E8 0000 E                	CALL	CKCNTC		;CHECK FOR CTRL-C ABORT 
  004F  E8 01E5 R                PNTLP1:	CALL	GETQ		;GET ONE ENTRY FROM QUEUE 
  0052  8A C1                    	MOV	AL,CL		;NOW GO SET UP CURRENT LOCATION 
  0054  E8 0000 E                	CALL	STOREC 
  0057  8A C5                    STPAIN:	MOV	AL,CH		;GET DIRECTION 
  0059  A2 0000 E                	MOV	BYTE PTR PDIREC,AL 
- 005C  02 C0                    	ADD	AL,AL		;SEE WHETHER TO GO UP, DOWN, OR QUI
-				T 
+ 005C  02 C0                    	ADD	AL,AL		;SEE WHETHER TO GO UP, DOWN, OR QUIT 
  005E  74 EA                    	JZ	SHORT POPTRT	;IF ZERO, ALL DONE. 
  0060  52                       	PUSH	DX		;SAVE SKPCNT IN CASE TUP&TDOWN DON'T 
  0061  73 05                    	JAE	SHORT PDOWN	;IF POSITIVE, GO DOWN FIRST 
  0063  E8 0000 E                	CALL	TUPC		;MOVE UP BEFORE SCANNING 
  0066  EB 03                    	JMP	SHORT PDOWN2 
                                  
- 0068  E8 0000 E                PDOWN:	CALL	TDOWNC		;SEE IF AT BOTTOM & MOVE DO
-				WN IF NOT 
+ 0068  E8 0000 E                PDOWN:	CALL	TDOWNC		;SEE IF AT BOTTOM & MOVE DOWN IF NOT 
  006B  5A                       PDOWN2:	POP	DX		;GET SKPCNT BACK 
  006C  72 E1                    	JB	SHORT PNTLP1	;OFF SCREEN - GET NEXT ENTRY 
- 006E                           PNTLP2:				;SCAN RIGHT & SKIP UP TO SKPCNT BORD
-				ER 
+ 006E                           PNTLP2:				;SCAN RIGHT & SKIP UP TO SKPCNT BORDER 
  006E  E8 0120 R                	CALL	SCANR1 
  0071  75 02                    	JNZ	SHORT ??L001 
- 0073  EB DA                    	JMP	PNTLP1		;IF NO POINTS PAINTED, GET NEXT EN
-				TRY 
+ 0073  EB DA                    	JMP	PNTLP1		;IF NO POINTS PAINTED, GET NEXT ENTRY 
  0075                           ??L001: 
  0075  E8 0133 R                	CALL	SCANL1		;NOW SCAN LEFT FROM START POINT 
  0078  8A D3                    	MOV	DL,BL		;[DE] = LEFT MOVCNT 
  007A  8A F7                    	MOV	DH,BH 
  007C  0A C0                    	OR	AL,AL		;SEE IF LINE WAS ALREADY PAINTED 
- 007E  74 21                    	JZ	SHORT PNTLP3	;IT WAS - DON'T MAKE OVERHANG 
-				ENTRY 
+ 007E  74 21                    	JZ	SHORT PNTLP3	;IT WAS - DON'T MAKE OVERHANG ENTRY 
  0080  4B                       	DEC	BX		;IF LMVCNT.GT.1, NEED TO MAKE ENTRY 
  0081  4B                       	DEC	BX		;IN OPPOSITE DIRECTION FOR OVERHANG. 
  0082  8A C7                    	MOV	AL,BH 
  0084  02 C0                    	ADD	AL,AL		;SEE IF [HL] WAS .GT. 1 
  0086  72 19                    	JB	SHORT PNTLP3 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-13
-PAINT - Fill an area with color                             
-
                                  
                                  
  0088  A0 0000 E                	MOV	AL,BYTE PTR PDIREC 
@@ -703,78 +628,64 @@ PAINT - Fill an area with color
  009B  9E                       	SAHF			;GET BACK DIRECTION AND INDEX 
  009C  8A E8                    	MOV	CH,AL 
  009E  E8 0199 R                	CALL	PUTQ 
- 00A1  8B 1E 0000 E             PNTLP3:	MOV	BX,MOVCNT	;GET COUNT PAINTED DURING
-				 RIGHT SCAN 
+ 00A1  8B 1E 0000 E             PNTLP3:	MOV	BX,MOVCNT	;GET COUNT PAINTED DURING RIGHT SCAN 
  00A5  03 DA                    	ADD	BX,DX		;ADD TO LEFT MOVCNT 
  00A7  87 DA                    	XCHG	BX,DX		;ENTRY COUNT TO [DE] 
  00A9  E8 0106 R                	CALL	ENTSLR		;GO MAKE ENTRY. 
                                  
- 00AC  8B 1E 0000 E             	MOV	BX,CSAVEA	;SET CURRENT LOCATION BACK TO EN
-				D 
+ 00AC  8B 1E 0000 E             	MOV	BX,CSAVEA	;SET CURRENT LOCATION BACK TO END 
  00B0  A0 0000 E                	MOV	AL,BYTE PTR CSAVEM	;OF RIGHT SCAN. 
  00B3  E8 0000 E                	CALL	STOREC 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-12
+PAINT - Fill an area with color                             
+
                                  
- 00B6  8B 1E 0000 E             PNTLP4:	MOV	BX,SKPCNT	;CALC SKPCNT - MOVCNT TO 
-				SEE IF 
+ 00B6  8B 1E 0000 E             PNTLP4:	MOV	BX,SKPCNT	;CALC SKPCNT - MOVCNT TO SEE IF 
  00BA  8B 16 0000 E             	MOV	DX,MOVCNT	;ANY MORE BORDER TO SKIP 
  00BE  2B DA                    	SUB	BX,DX 
  00C0  74 41                    	JZ	SHORT GOPLOP	;NO MORE - END OF THIS SCAN 
- 00C2  72 20                    	JB	SHORT PNTLP6	;RIGHT OVERHANG - SEE IF ENTRY
-				 NEEDED 
+ 00C2  72 20                    	JB	SHORT PNTLP6	;RIGHT OVERHANG - SEE IF ENTRY NEEDED 
                                  
  00C4  87 DA                    	XCHG	BX,DX		;SKIP COUNT TO [DE] FOR SCANR 
- 00C6  E8 0120 R                	CALL	SCANR1		;HERE IF NEED TO CONTINUE RIGHT S
-				CAN 
+ 00C6  E8 0120 R                	CALL	SCANR1		;HERE IF NEED TO CONTINUE RIGHT SCAN 
  00C9  74 38                    	JZ	SHORT GOPLOP	;NO MORE POINTS. 
  00CB  0A C0                    	OR	AL,AL		;SEE IF LINE ALREADY PAINTED 
  00CD  74 E7                    	JZ	SHORT PNTLP4	;YES, DON'T ENTER ANYTHING 
  00CF  87 DA                    	XCHG	BX,DX		;ENTRY COUNT TO [DE] 
- 00D1  8B 1E 0000 E             	MOV	BX,CSAVEA	;MAKE ENTRY AT LOCATION SAVED BY
-				 SCANR 
- 00D5  A0 0000 E                	MOV	AL,BYTE PTR CSAVEM	;SO WE CAN ENTER A POSI
-				TIVE SKPCNT 
+ 00D1  8B 1E 0000 E             	MOV	BX,CSAVEA	;MAKE ENTRY AT LOCATION SAVED BY SCANR 
+ 00D5  A0 0000 E                	MOV	AL,BYTE PTR CSAVEM	;SO WE CAN ENTER A POSITIVE SKPCNT 
  00D8  8A C8                    	MOV	CL,AL 
  00DA  A0 0000 E                	MOV	AL,BYTE PTR PDIREC 
  00DD  8A E8                    	MOV	CH,AL 
  00DF  E8 011D R                	CALL	ENTSTK		;MAKE ENTRY 
- 00E2  EB D2                    	JMP	SHORT PNTLP4	;CONTINUE UNTIL SKPCNT .LE. 0
-				 
+ 00E2  EB D2                    	JMP	SHORT PNTLP4	;CONTINUE UNTIL SKPCNT .LE. 0 
                                  
  00E4                           PNTLP6:	NEGHL			;MAKE NEW SKPCNT POSITIVE 
  00E6  4B                       	DEC	BX		;IF SKPCNT-MOVCNT .LT. -1 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-14
-PAINT - Fill an area with color                             
-
  00E7  4B                       	DEC	BX		;THEN RIGHT OVERHANG ENTRY IS NEEDED. 
  00E8  8A C7                    	MOV	AL,BH		;SEE IF POSITIVE. 
  00EA  02 C0                    	ADD	AL,AL 
- 00EC  72 15                    	JB	SHORT GOPLOP	;OVERHANG TOO SMALL FOR NEW EN
-				TRY 
+ 00EC  72 15                    	JB	SHORT GOPLOP	;OVERHANG TOO SMALL FOR NEW ENTRY 
                                  
                                  
- 00EE  43                       RTOVH0:	INC	BX		;NOW MOVE LEFT TO BEGINNING OF 
-				SCAN 
+ 00EE  43                       RTOVH0:	INC	BX		;NOW MOVE LEFT TO BEGINNING OF SCAN 
  00EF  53                       	PUSH	BX		;SO WE CAN ENTER A POSITIVE SKPCNT 
  00F0  87 DA                    	XCHG	BX,DX 
- 00F2  E8 0000 E                RTOVH1:	CALL	LEFTC		;START IS -(SKPCNT-MOVCNT)-
-				1 TO LEFT 
+ 00F2  E8 0000 E                RTOVH1:	CALL	LEFTC		;START IS -(SKPCNT-MOVCNT)-1 TO LEFT 
  00F5  4A                       	DEC	DX 
  00F6  0B D2                    	OR	DX,DX 
  00F8  75 F8                    	JNZ	SHORT RTOVH1 
                                  
- 00FA  5A                       RTOVH2:	POP	DX		;GET BACK ENTRY SKPCNT INTO [DE
-				] 
- 00FB  A0 0000 E                	MOV	AL,BYTE PTR PDIREC	;MAKE ENTRY IN OPPOSITE
-				 DIRECTION 
+ 00FA  5A                       RTOVH2:	POP	DX		;GET BACK ENTRY SKPCNT INTO [DE] 
+ 00FB  A0 0000 E                	MOV	AL,BYTE PTR PDIREC	;MAKE ENTRY IN OPPOSITE DIRECTION 
  00FE  F6 D0                    	NOT	AL 
  0100  E8 0116 R                	CALL	ENTST1		;MAKE ENTRY 
  0103  E9 004C R                GOPLOP:	JMP	PNTLOP		;GO PROCESS NEXT ENTRY 
                                  
  0106                           ENTSLR: 
- 0106  A0 0000 E                	MOV	AL,BYTE PTR LFPROG	;DON'T STACK IF SCANNED
-				 LINE 
+ 0106  A0 0000 E                	MOV	AL,BYTE PTR LFPROG	;DON'T STACK IF SCANNED LINE 
  0109  8A C8                    	MOV	CL,AL		;WAS ALREADY PAINTED 
  010B  A0 0000 E                	MOV	AL,BYTE PTR RTPROG 
  010E  0A C1                    	OR	AL,CL 
@@ -784,12 +695,16 @@ PAINT - Fill an area with color
  0113  A0 0000 E                ENTST0:	MOV	AL,BYTE PTR PDIREC 
  0116  8A E8                    ENTST1:	MOV	CH,AL		;DIRECTION IN [B] 
  0118  E8 0000 E                	CALL	FETCHC		;LOAD REGS WITH CURRENT "C" 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-13
+PAINT - Fill an area with color                             
+
  011B  8A C8                    	MOV	CL,AL		;BIT MASK IN [C] 
  011D                           ENTSTK: 
  011D  EB 7A 90                 ENTST9:	JMP	PUTQ 
                                  
- 0120  E8 0000 E                SCANR1:	CALL	SCANR		;PERFORM LOW LEVEL RIGHT SC
-				AN 
+ 0120  E8 0000 E                SCANR1:	CALL	SCANR		;PERFORM LOW LEVEL RIGHT SCAN 
  0123  89 16 0000 E             	MOV	SKPCNT,DX	;SAVE UPDATED SKPCNT 
  0127  89 1E 0000 E             	MOV	MOVCNT,BX	;SAVE MOVCNT 
  012B  0B DB                    	OR	BX,BX		;SET CC'S ON MOVCNT 
@@ -801,11 +716,6 @@ PAINT - Fill an area with color
  0136  53                       	PUSH	BX		;AND SWAP WITH CSV 
  0137  50                       	PUSH	AX 
  0138  8B 1E 0000 E             	MOV	BX,CSAVEA 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-15
-PAINT - Fill an area with color                             
-
  013C  A0 0000 E                	MOV	AL,BYTE PTR CSAVEM 
  013F  E8 0000 E                	CALL	STOREC		;REPOS AT BEGINNING OF SCAN 
  0142  58                       	POP	AX		;REGET PLACE WHERE RT SCN STOPPED 
@@ -814,8 +724,7 @@ PAINT - Fill an area with color
  0148  A2 0000 E                	MOV	BYTE PTR CSAVEM,AL 
  014B  E8 0000 E                	CALL	SCANL		;NOW DO LOW LEVEL LEFT SCAN 
  014E  8A C1                    	MOV	AL,CL		;GET ALREADY-PAINTED FLAG FROM [C] 
- 0150  A2 0000 E                	MOV	BYTE PTR LFPROG,AL	;WHETHER IT WAS ALREADY
-				 PAINTED 
+ 0150  A2 0000 E                	MOV	BYTE PTR LFPROG,AL	;WHETHER IT WAS ALREADY PAINTED 
  0153  C3                       	RET 
                                  
                                 ;ROUTINE FOR INITIALISING QUEUE PARAMS 
@@ -845,14 +754,18 @@ PAINT - Fill an area with color
  016F  5A                       INTQU2:	POP	DX		;GET BACK FREE START 
                                  
  0170  8B 1E 0000 E             	MOV	BX,FRETOP 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-14
+PAINT - Fill an area with color                             
+
                                  
  0174  2B DA                    	SUB	BX,DX 
  0176  BA 000C                  	MOV	DX,12D 
  0179  3B DA                    	CMP	BX,DX 
  017B  73 03                    	JAE	SHORT ??L003 
                                 EXTRN	OMERR:NEAR 
- 017D  E9 0000 E                	JMP	OMERR		;IF LESS THAN 12 BYTES GIVE MEMORY 
-				OVERFLOW 
+ 017D  E9 0000 E                	JMP	OMERR		;IF LESS THAN 12 BYTES GIVE MEMORY OVERFLOW 
  0180                           ??L003: 
  0180  89 1E 0000 E             	MOV	QUELEN,BX	;SET LENGTH OF QUEUE 
  0184  BB 0000                  	MOV	BX,0 
@@ -860,11 +773,6 @@ PAINT - Fill an area with color
  018B  8B 1E 0000 E             	MOV	BX,STREND	;HL=BEGINNING OF FREE SPACE 
  018F  89 1E 0000 E             	MOV	QUEINP,BX	; 
  0193  89 1E 0000 E             	MOV	QUEOUT,BX	;INIT QUEUE POINTERS 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-16
-PAINT - Fill an area with color                             
-
  0197  5B                       	POP	BX		;GET BACK CALLERS HL 
  0198  C3                       	RET 
  0199  52                       PUTQ:	PUSH	DX 
@@ -880,8 +788,7 @@ PAINT - Fill an area with color
  01AE  8B 16 0000 E             	MOV	DX,QUELEN	; 
  01B2  3B DA                    	CMP	BX,DX		; 
  01B4  72 03                    	JNAE	SHORT ??L004 
- 01B6  E9 0000 E                	JMP	OMERR		;IF THE PRESENT LENGTH IS EQUAL TO 
-				MAX OR GREATER THEN GIVE ERROR 
+ 01B6  E9 0000 E                	JMP	OMERR		;IF THE PRESENT LENGTH IS EQUAL TO MAX OR GREATER THEN GIVE ERROR 
  01B9                           ??L004: 
  01B9  8B 1E 0000 E             	MOV	BX,QUEINP 
  01BD  E8 0227 R                	CALL	WRAP		;CHECK FOR WRAP AROUND CASE 
@@ -906,6 +813,11 @@ PAINT - Fill an area with color
  01D6  88 17                    	MOV	BYTE PTR [BX],DL 
  01D8  9F                       	LAHF 
  01D9  43                       	INC	BX 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-15
+PAINT - Fill an area with color                             
+
  01DA  9E                       	SAHF 
  01DB  88 37                    	MOV	BYTE PTR [BX],DH 
  01DD  9F                       	LAHF 
@@ -919,11 +831,6 @@ PAINT - Fill an area with color
  01ED  B5 00                    	MOV	CH,LOW 0	;FOR NO ENTRIES SET B TO ZERO 
  01EF  75 01                    	JNZ	SHORT $+3 
  01F1  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-17
-PAINT - Fill an area with color                             
-
  01F2  BA 0006                  	MOV	DX,6		;DECREMENT QUEUE LENGTH BY 6 
  01F5  2B DA                    	SUB	BX,DX 
  01F7  89 1E 0000 E             	MOV	PSNLEN,BX 
@@ -965,6 +872,11 @@ PAINT - Fill an area with color
  0230  9E                       	SAHF 
  0231  D1 D6                    	RCL	SI,1 
  0233  8B 16 0000 E             	MOV	DX,FRETOP 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-16
+PAINT - Fill an area with color                             
+
  0237  3B DA                    	CMP	BX,DX		;ARE WE GOING OUT OF QUEUE END 
  0239  5B                       	POP	BX 
  023A  73 01                    	JNB	SHORT $+3 
@@ -976,80 +888,60 @@ PAINT - Fill an area with color
                                 ; 
                                 ;       CIRCLE - DRAW A CIRCLE 
                                 ; 
-                                ; SYNTAX: CIRCLE @(X,Y),RADIUS[,ATRB[,+/-STARTA
-				NG[,+/-ENDANG[,ASPECT]]]] 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-18
-CIRCLE - Draw a circle                                      
-
+                                ; SYNTAX: CIRCLE @(X,Y),RADIUS[,ATRB[,+/-STARTANG[,+/-ENDANG[,ASPECT]]]] 
                                 ; 
                                 	EXTRN	GTASPC:NEAR 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-                                	EXTRN	ASPECT:WORD,CSTCNT:WORD,CENCNT:WORD,CRCS
-				UM:WORD,CPLOTF:WORD 
+                                	EXTRN	ASPECT:WORD,CSTCNT:WORD,CENCNT:WORD,CRCSUM:WORD,CPLOTF:WORD 
                                 	EXTRN	CLINEF:WORD 
-                                	EXTRN	CNPNTS:WORD,CPCNT:WORD,CPCNT8:WORD,VALTY
-				P:WORD,CXOFF:WORD 
+                                	EXTRN	CNPNTS:WORD,CPCNT:WORD,CPCNT8:WORD,VALTYP:WORD,CXOFF:WORD 
                                 	EXTRN	CYOFF:WORD,CSCLXY:WORD 
  0000                           DSEG	ENDS 
                                  
                                 PUBLIC	CIRCLE 
- 0242  E8 0000 E                CIRCLE:	CALL	SCAN1		;GET (X,Y) OF CENTER INTO G
-				RPACX,Y 
+ 0242  E8 0000 E                CIRCLE:	CALL	SCAN1		;GET (X,Y) OF CENTER INTO GRPACX,Y 
  0245  E8 0000 E                	CALL	SYNCHR 
  0248  2C                       	DB	OFFSET 44	;EAT COMMA 
  0249  E8 0000 E                	CALL	GETIN2		;GET THE RADIUS 
  024C  53                       	PUSH	BX		;SAVE TXTPTR 
  024D  87 DA                    	XCHG	BX,DX 
- 024F  89 1E 0000 E             	MOV	GXPOS,BX	;SAVE HERE TILL START OF MAIN LOO
-				P 
+ 024F  89 1E 0000 E             	MOV	GXPOS,BX	;SAVE HERE TILL START OF MAIN LOOP 
  0253  E8 0000 E                	CALL	MKINTC		;PUT INTEGER INTO FAC 
                                 EXTRN	FRCSNG:NEAR 
  0256  E8 0000 E                	CALL	FRCSNG		;CONVERT TO SINGLE PRECISION 
-                                	MOVRI	200O,65O,4O,363O	;LOAD REGS WITH SQR(2)/
-				2 
+                                	MOVRI	200O,65O,4O,363O	;LOAD REGS WITH SQR(2)/2 
                                 EXTRN	FMULT:NEAR 
  025F  E8 0000 E                	CALL	FMULT		;DO FLOATING PT MULTIPLY 
                                 EXTRN	FRCINT:NEAR 
- 0262  E8 0000 E                	CALL	FRCINT		;CONVERT TO INTEGER & GET INTO [H
-				L] 
- 0265  89 1E 0000 E             	MOV	CNPNTS,BX	;CNPNTS=RADIUS*SQR(2)/2=# PTS TO
-				 PLOT 
- 0269  32 C0                    	XOR	AL,AL		;ZERO OUT CLINEF - NO LINES TO CENT
-				ER 
+ 0262  E8 0000 E                	CALL	FRCINT		;CONVERT TO INTEGER & GET INTO [HL] 
+ 0265  89 1E 0000 E             	MOV	CNPNTS,BX	;CNPNTS=RADIUS*SQR(2)/2=# PTS TO PLOT 
+ 0269  32 C0                    	XOR	AL,AL		;ZERO OUT CLINEF - NO LINES TO CENTER 
  026B  A2 0000 E                	MOV	BYTE PTR CLINEF,AL 
  026E  A2 0000 E                	MOV	BYTE PTR CSCLXY,AL	;INITIALLY SCALING Y 
  0271  5B                       	POP	BX		;REGET TXTPTR 
  0272  E8 0000 E                	CALL	ATRSCN		;SCAN POSSIBLE ATTRIBUTE 
- 0275  B1 01                    	MOV	CL,LOW 1	;SET LO BIT IN CLINEF FOR LINE TO
-				 CNTR 
+ 0275  B1 01                    	MOV	CL,LOW 1	;SET LO BIT IN CLINEF FOR LINE TO CNTR 
  0277  BA 0000                  	MOV	DX,0		;DEFAULT START COUNT = 0 
  027A  E8 0488 R                	CALL	CGTCNT 
  027D  52                       	PUSH	DX		;SAVE COUNT FOR LATER COMPARISON 
- 027E  B1 80                    	MOV	CL,LOW 128D	;SET HI BIT IN CLINEF FOR LINE
-				 TO CNTR 
- 0280  BA FFFF                  	MOV	DX,OFFSET 0-1	;DEFAULT END COUNT = INFINIT
-				Y 
+ 027E  B1 80                    	MOV	CL,LOW 128D	;SET HI BIT IN CLINEF FOR LINE TO CNTR 
+ 0280  BA FFFF                  	MOV	DX,OFFSET 0-1	;DEFAULT END COUNT = INFINITY 
  0283  E8 0488 R                	CALL	CGTCNT 
  0286  5E                       	POP	SI		;XTHL 
  0287  87 F3                    	XCHG	SI,BX 
- 0289  56                       	PUSH	SI		;GET START COUNT, PUSH TXTPTR TILL DO
-				NE 
+ 0289  56                       	PUSH	SI		;GET START COUNT, PUSH TXTPTR TILL DONE 
  028A  32 C0                    	XOR	AL,AL 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-19
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-17
 CIRCLE - Draw a circle                                      
 
  028C  87 DA                    	XCHG	BX,DX		;REVERSE REGS TO TEST FOR .LT. 
  028E  3B DA                    	CMP	BX,DX		;SEE IF END .GE. START 
  0290  B0 00                    	MOV	AL,LOW 0 
- 0292  73 16                    	JAE	SHORT CSTPLT	;YES, PLOT POINTS BETWEEN STR
-				T & END 
+ 0292  73 16                    	JAE	SHORT CSTPLT	;YES, PLOT POINTS BETWEEN STRT & END 
  0294  FE C8                    	DEC	AL		;PLOT POINTS ABOVE & BELOW 
- 0296  87 DA                    	XCHG	BX,DX		;SWAP START AND END SO START .LT. 
-				END 
+ 0296  87 DA                    	XCHG	BX,DX		;SWAP START AND END SO START .LT. END 
  0298  50                       	PUSH	AX		;Swap sense of center line flags 
  0299  A0 0000 E                	MOV	AL,BYTE PTR CLINEF 
  029C  8A C8                    	MOV	CL,AL 
@@ -1059,8 +951,7 @@ CIRCLE - Draw a circle
  02A4  D0 C8                    	ROR	AL,1 
  02A6  A2 0000 E                	MOV	BYTE PTR CLINEF,AL	;Store swapped flags 
  02A9  58                       	POP	AX 
- 02AA  A2 0000 E                CSTPLT:	MOV	BYTE PTR CPLOTF,AL	;SET UP PLOT POL
-				ARITY FLAG 
+ 02AA  A2 0000 E                CSTPLT:	MOV	BYTE PTR CPLOTF,AL	;SET UP PLOT POLARITY FLAG 
  02AD  89 16 0000 E             	MOV	CSTCNT,DX	;STORE START COUNT 
  02B1  89 1E 0000 E             	MOV	CENCNT,BX	;AND END COUNT 
  02B5  5B                       	POP	BX		;GET TXTPTR 
@@ -1068,17 +959,14 @@ CIRCLE - Draw a circle
  02B7  E8 0000 E                	CALL	CHRGTR 
  02BA  75 13                    	JNZ	SHORT CIRC1	;SOMETHING THERE 
  02BC  53                       	PUSH	BX		;SAVE TXTPTR 
- 02BD  E8 0000 E                	CALL	GTASPC		;GET DEFAULT ASPECT RATIO INTO [H
-				L] 
+ 02BD  E8 0000 E                	CALL	GTASPC		;GET DEFAULT ASPECT RATIO INTO [HL] 
  02C0  8A C7                    	MOV	AL,BH 
  02C2  0A C0                    	OR	AL,AL		;IS ASPECT RATIO GREATER THAN ONE? 
  02C4  74 2D                    	JZ	SHORT CIRC2	;BRIF GOOD ASPECT RATIO 
  02C6  B0 01                    	MOV	AL,LOW 1 
  02C8  A2 0000 E                	MOV	BYTE PTR CSCLXY,AL 
- 02CB  87 DA                    	XCHG	BX,DX		;ASPECT RATIO IS GREATER THAN ONE,
-				 USE INVERSE 
- 02CD  EB 24                    	JMP	SHORT CIRC2	;NOW GO CONVERT TO FRACTION OF
-				 256 
+ 02CB  87 DA                    	XCHG	BX,DX		;ASPECT RATIO IS GREATER THAN ONE, USE INVERSE 
+ 02CD  EB 24                    	JMP	SHORT CIRC2	;NOW GO CONVERT TO FRACTION OF 256 
                                  
  02CF  E8 0000 E                CIRC1:	CALL	SYNCHR 
  02D2  2C                       	DB	OFFSET 44	;EAT COMMA 
@@ -1096,28 +984,25 @@ CIRCLE - Draw a circle
                                 	EXTRN	FAC:WORD 
  0000                           DSEG	ENDS 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-20
-CIRCLE - Draw a circle                                      
-
- 02E7  BB 0000 E                CIRC11:	MOV	BX,OFFSET FAC	;BY MULTIPLYING BY 2^
-				8 (256) 
+ 02E7  BB 0000 E                CIRC11:	MOV	BX,OFFSET FAC	;BY MULTIPLYING BY 2^8 (256) 
  02EA  8A 07                    	MOV	AL,BYTE PTR [BX] 
  02EC  04 08                    	ADD	AL,LOW 8	;ADD 8 TO EXPONENT 
  02EE  88 07                    	MOV	BYTE PTR [BX],AL 
  02F0  E8 0000 E                	CALL	FRCINT		;MAKE IT AN INTEGER IN [HL] 
  02F3  89 1E 0000 E             CIRC2:	MOV	ASPECT,BX	;STORE ASPECT RATIO 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-18
+CIRCLE - Draw a circle                                      
+
                                 ; 
                                 ;       CIRCLE ALGORITHM 
                                 ; 
-                                ;       [HL]=X=RADIUS * 2 (ONE BIT FRACTION FOR
-				 ROUNDING) 
+                                ;       [HL]=X=RADIUS * 2 (ONE BIT FRACTION FOR ROUNDING) 
                                 ;       [DE]=Y=0 
                                 ;       SUM =0 
                                 ; LOOP: IF Y IS EVEN THEN 
-                                ;             REFLECT((X+1)/2,(Y+1)/2) (I.E., P
-				LOT POINTS) 
+                                ;             REFLECT((X+1)/2,(Y+1)/2) (I.E., PLOT POINTS) 
                                 ;             IF X.LT.Y THEN EXIT 
                                 ;       SUM=SUM+2*Y+1 
                                 ;       Y=Y+1 
@@ -1135,8 +1020,7 @@ CIRCLE - Draw a circle
  0304                           CIRCLP: 
  0304  8A C2                    	MOV	AL,DL		;TEST EVENNESS OF Y 
  0306  D0 D8                    	RCR	AL,1		;TO SEE IF WE NEED TO PLOT 
- 0308  72 16                    	JB	SHORT CRCLP2	;Y IS ODD - DON'T TEST OR PLOT
-				 
+ 0308  72 16                    	JB	SHORT CRCLP2	;Y IS ODD - DON'T TEST OR PLOT 
  030A  52                       	PUSH	DX		;SAVE Y AND X 
  030B  53                       	PUSH	BX 
  030C  43                       	INC	BX		;ACTUAL COORDS ARE (X+1)/2,(Y+1)/2 
@@ -1145,34 +1029,31 @@ CIRCLE - Draw a circle
                                 	HLFDE 
  0312  E8 0358 R                	CALL	CPLOT8 
  0315  5A                       	POP	DX		;RESTORE X AND Y 
- 0316  5B                       	POP	BX		;INTO [DE] AND [HL] (BACKWARDS FOR CMP
-				) 
+ 0316  5B                       	POP	BX		;INTO [DE] AND [HL] (BACKWARDS FOR CMP) 
  0317  3B DA                    	CMP	BX,DX		;QUIT IF Y .GE. X 
  0319  72 03                    	JNAE	SHORT ??L005 
  031B  E9 004A R                	JMP	POPTRT		;GO POP TXTPTR AND QUIT 
  031E                           ??L005: 
- 031E  87 DA                    	XCHG	BX,DX		;GET OFFSETS INTO PROPER REGISTERS
-				 
+ 031E  87 DA                    	XCHG	BX,DX		;GET OFFSETS INTO PROPER REGISTERS 
  0320  8B CB                    CRCLP2:	MOV	CX,BX		;[BC]=X 
  0322  8B 1E 0000 E             	MOV	BX,CRCSUM 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-21
-CIRCLE - Draw a circle                                      
-
  0326  43                       	INC	BX		;SUM = SUM+2*Y+1 
  0327  03 DA                    	ADD	BX,DX 
  0329  03 DA                    	ADD	BX,DX 
  032B  8A C7                    	MOV	AL,BH		;NOW CHECK SIGN OF RESULT 
  032D  02 C0                    	ADD	AL,AL 
- 032F  72 0E                    	JB	SHORT CNODEX	;DON'T ADJUST X IF WAS NEGATIV
-				E 
+ 032F  72 0E                    	JB	SHORT CNODEX	;DON'T ADJUST X IF WAS NEGATIVE 
  0331  52                       	PUSH	DX		;SAVE Y 
  0332  87 DA                    	XCHG	BX,DX		;[DE]=SUM 
  0334  8B D9                    	MOV	BX,CX		;[HL]=X 
  0336  03 DB                    	ADD	BX,BX		;[HL]=2*X-1 
  0338  4B                       	DEC	BX 
  0339  87 DA                    	XCHG	BX,DX		;PREPARE TO SUBTRACT 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-19
+CIRCLE - Draw a circle                                      
+
  033B  2B DA                    	SUB	BX,DX		;CALC SUM-2*X+1 
  033D  49                       	DEC	CX		;X=X-1 
  033E  5A                       	POP	DX		;GET Y BACK 
@@ -1184,8 +1065,7 @@ CIRCLE - Draw a circle
  0348  52                       CPLSCX:	PUSH	DX 
  0349  E8 0466 R                	CALL	SCALEY 
  034C  5B                       	POP	BX		;GET UNSCALED INTO [HL] 
- 034D  A0 0000 E                	MOV	AL,BYTE PTR CSCLXY	;SEE WHETHER ASPECT WAS
-				 .GT. 1 
+ 034D  A0 0000 E                	MOV	AL,BYTE PTR CSCLXY	;SEE WHETHER ASPECT WAS .GT. 1 
  0350  0A C0                    	OR	AL,AL 
  0352  75 01                    	JNZ	SHORT $+3 
  0354  C3                       	RET			;DON'T SWAP IF ZERO 
@@ -1193,11 +1073,9 @@ CIRCLE - Draw a circle
  0357  C3                       	RET 
                                 ; 
                                 ; REFLECT THE POINTS AROUND CENTER 
-                                ; [HL]=X OFFSET FROM CENTER, [DE]=Y OFFSET FROM
-				 CENTER 
+                                ; [HL]=X OFFSET FROM CENTER, [DE]=Y OFFSET FROM CENTER 
                                 ; 
- 0358  89 16 0000 E             CPLOT8:	MOV	CPCNT,DX	;POINT COUNT IS ALWAYS = Y
-				 
+ 0358  89 16 0000 E             CPLOT8:	MOV	CPCNT,DX	;POINT COUNT IS ALWAYS = Y 
  035C  53                       	PUSH	BX		;SAVE X 
  035D  BB 0000                  	MOV	BX,0		;START CPCNT8 OUT AT 0 
  0360  89 1E 0000 E             	MOV	CPCNT8,BX 
@@ -1211,14 +1089,8 @@ CIRCLE - Draw a circle
  0376  5A                       	POP	DX		;GET BACK INITIAL [DE] 
                                 	NEGDE			;START: [DE]=-Y,[HL]=X,CXOFF=Y,CY=X 
                                  
- 0379  E8 039E R                	CALL	CPLOT4		;PLOT +X,-SY -Y,-SX -X,+SY +Y,-SX
-				 
+ 0379  E8 039E R                	CALL	CPLOT4		;PLOT +X,-SY -Y,-SX -X,+SY +Y,-SX 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-22
-CIRCLE - Draw a circle                                      
-
  037C  53                       	PUSH	BX 
  037D  52                       	PUSH	DX 
  037E  8B 1E 0000 E             	MOV	BX,CNPNTS	;GET # PNTS PER OCTANT 
@@ -1226,8 +1098,7 @@ CIRCLE - Draw a circle
  0386  8B 16 0000 E             	MOV	DX,CPCNT	;GET POINT COUNT 
  038A  2B DA                    	SUB	BX,DX		;ODD OCTANTS ARE BACKWARDS SO 
  038C  89 1E 0000 E             	MOV	CPCNT,BX	;PNTCNT = PNTS/OCT - PNTCNT 
- 0390  8B 1E 0000 E             	MOV	BX,CXOFF	;NEED TO NEGATE CXOFF TO START OU
-				T RIGHT 
+ 0390  8B 1E 0000 E             	MOV	BX,CXOFF	;NEED TO NEGATE CXOFF TO START OUT RIGHT 
                                 	NEGHL 
  0396  89 1E 0000 E             	MOV	CXOFF,BX 
  039A  5A                       	POP	DX 
@@ -1237,14 +1108,18 @@ CIRCLE - Draw a circle
                                 				;(FALL THRU TO CPLOT4) 
  039E  B0 04                    CPLOT4:	MOV	AL,LOW 4	;LOOP FOUR TIMES 
                                  
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-20
+CIRCLE - Draw a circle                                      
+
  03A0  50                       CPLOT:	PUSH	AX		;SAVE LOOP COUNT 
  03A1  53                       	PUSH	BX		;SAVE BOTH X & Y OFFSETS 
  03A2  52                       	PUSH	DX 
  03A3  53                       	PUSH	BX		;SAVE TWICE 
  03A4  52                       	PUSH	DX 
  03A5  8B 16 0000 E             	MOV	DX,CPCNT8	;GET NP*OCTANT*8 
- 03A9  8B 1E 0000 E             	MOV	BX,CNPNTS	;ADD SQR(2)*RADIUS FOR NEXT OCTA
-				NT 
+ 03A9  8B 1E 0000 E             	MOV	BX,CNPNTS	;ADD SQR(2)*RADIUS FOR NEXT OCTANT 
  03AD  03 DB                    	ADD	BX,BX 
  03AF  03 DA                    	ADD	BX,DX 
  03B1  89 1E 0000 E             	MOV	CPCNT8,BX	;UPDATE FOR NEXT TIME 
@@ -1253,54 +1128,34 @@ CIRCLE - Draw a circle
  03BB  87 DA                    	XCHG	BX,DX		;SAVE THIS POINT'S COUNT IN [DE] 
  03BD  8B 1E 0000 E             	MOV	BX,CSTCNT	;GET START COUNT 
  03C1  3B DA                    	CMP	BX,DX 
- 03C3  74 1E                    	JZ	SHORT CLINSC	;SEE IF LINE TO CENTER REQUIRE
-				D 
- 03C5  73 0A                    	JAE	SHORT CNBTWN	;IF SC .GT. PC, THEN NOT BETW
-				EEN 
+ 03C3  74 1E                    	JZ	SHORT CLINSC	;SEE IF LINE TO CENTER REQUIRED 
+ 03C5  73 0A                    	JAE	SHORT CNBTWN	;IF SC .GT. PC, THEN NOT BETWEEN 
  03C7  8B 1E 0000 E             	MOV	BX,CENCNT	;GET END COUNT 
  03CB  3B DA                    	CMP	BX,DX 
- 03CD  74 0B                    	JZ	SHORT CLINEC	;GO SEE IF LINE FROM CENTER NE
-				EDED 
+ 03CD  74 0B                    	JZ	SHORT CLINEC	;GO SEE IF LINE FROM CENTER NEEDED 
  03CF  73 23                    	JAE	SHORT CBTWEN	;IF EC .GT. PC, THEN BETWEEN 
                                  
- 03D1  A0 0000 E                CNBTWN:	MOV	AL,BYTE PTR CPLOTF	;SEE WHETHER TO 
-				PLOT OR NOT 
+ 03D1  A0 0000 E                CNBTWN:	MOV	AL,BYTE PTR CPLOTF	;SEE WHETHER TO PLOT OR NOT 
  03D4  0A C0                    	OR	AL,AL		;IF NZ, PLOT POINTS NOT IN BETWEEN 
- 03D6  75 27                    	JNZ	SHORT CPLTIT	;NEED TO PLOT NOT-BETWEEN POI
-				NTS 
- 03D8  EB 21                    	JMP	SHORT GCPLFN	;DON'T PLOT - FIX UP STACK & 
-				RETURN 
+ 03D6  75 27                    	JNZ	SHORT CPLTIT	;NEED TO PLOT NOT-BETWEEN POINTS 
+ 03D8  EB 21                    	JMP	SHORT GCPLFN	;DON'T PLOT - FIX UP STACK & RETURN 
                                  
- 03DA  A0 0000 E                CLINEC:	MOV	AL,BYTE PTR CLINEF	;GET CENTER LINE
-				 FLAG BYTE 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-23
-CIRCLE - Draw a circle                                      
-
- 03DD  02 C0                    	ADD	AL,AL		;BIT 7=1 MEANS DRAW LINE FROM CENTE
-				R 
- 03DF  73 1E                    	JAE	SHORT CPLTIT	;NO LINE REQUIRED - JUST PLOT
-				 POINT 
+ 03DA  A0 0000 E                CLINEC:	MOV	AL,BYTE PTR CLINEF	;GET CENTER LINE FLAG BYTE 
+ 03DD  02 C0                    	ADD	AL,AL		;BIT 7=1 MEANS DRAW LINE FROM CENTER 
+ 03DF  73 1E                    	JAE	SHORT CPLTIT	;NO LINE REQUIRED - JUST PLOT POINT 
  03E1  EB 07                    	JMP	SHORT CLINE	;LINE REQUIRED. 
                                  
- 03E3  A0 0000 E                CLINSC:	MOV	AL,BYTE PTR CLINEF	;GET CENTER LINE
-				 FLAG BYTE 
- 03E6  D0 D8                    	RCR	AL,1		;BIT 0=1 MEANS LINE FROM CENTER NEED
-				ED. 
- 03E8  73 15                    	JAE	SHORT CPLTIT	;NO LINE REQUIRED - JUST PLOT
-				 POINT 
+ 03E3  A0 0000 E                CLINSC:	MOV	AL,BYTE PTR CLINEF	;GET CENTER LINE FLAG BYTE 
+ 03E6  D0 D8                    	RCR	AL,1		;BIT 0=1 MEANS LINE FROM CENTER NEEDED. 
+ 03E8  73 15                    	JAE	SHORT CPLTIT	;NO LINE REQUIRED - JUST PLOT POINT 
                                  
  03EA  5A                       CLINE:	POP	DX		;GET X & Y OFFSETS 
  03EB  5B                       	POP	BX 
- 03EC  E8 0453 R                	CALL	GTABSC		;GO CALC TRUE COORDINATE OF POINT
-				 
- 03EF  E8 0440 R                	CALL	CLINE2		;DRAW LINE FROM [BC],[DE] TO CENT
-				ER 
+ 03EC  E8 0453 R                	CALL	GTABSC		;GO CALC TRUE COORDINATE OF POINT 
+ 03EF  E8 0440 R                	CALL	CLINE2		;DRAW LINE FROM [BC],[DE] TO CENTER 
  03F2  EB 1B                    	JMP	SHORT CPLFIN 
                                  
- 03F4  A0 0000 E                CBTWEN:	MOV	AL,BYTE PTR CPLOTF	;SEE WHETHER PLO
-				TTING BETWEENS OR NOT 
+ 03F4  A0 0000 E                CBTWEN:	MOV	AL,BYTE PTR CPLOTF	;SEE WHETHER PLOTTING BETWEENS OR NOT 
  03F7  0A C0                    	OR	AL,AL 
  03F9  74 04                    	JZ	SHORT CPLTIT	;IF Z, THEN DOING BETWEENS 
  03FB  5A                       GCPLFN:	POP	DX		;CLEAN UP STACK 
@@ -1311,8 +1166,12 @@ CIRCLE - Draw a circle
  0400  5B                       	POP	BX 
  0401  E8 0453 R                	CALL	GTABSC		;CALC TRUE COORDINATE OF POINT 
  0404  E8 0000 E                	CALL	SCALXY		;SEE IF POINT OFF SCREEN 
- 0407  73 06                    	JAE	SHORT CPLFIN	;NC IF POINT OFF SCREEN - NO 
-				PLOT 
+ 0407  73 06                    	JAE	SHORT CPLFIN	;NC IF POINT OFF SCREEN - NO PLOT 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-21
+CIRCLE - Draw a circle                                      
+
  0409  E8 0000 E                	CALL	MAPXYC 
  040C  E8 0000 E                	CALL	SETC		;PLOT THE POINT 
                                  
@@ -1332,11 +1191,6 @@ CIRCLE - Draw a circle
  0424  89 1E 0000 E             	MOV	CXOFF,BX 
  0428  87 DA                    	XCHG	BX,DX 
  042A  5A                       	POP	DX 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-24
-CIRCLE - Draw a circle                                      
-
  042B  53                       	PUSH	BX 
  042C  8B 1E 0000 E             	MOV	BX,CYOFF	;SWAP [DE] AND CYOFF 
  0430  87 DA                    	XCHG	BX,DX		;NEGATE NEW [DE] 
@@ -1348,8 +1202,7 @@ CIRCLE - Draw a circle
  043C  9E                       	SAHF 
  043D  E9 03A0 R                	JMP	CPLOT		;PLOT NEXT POINT 
                                  
- 0440  8B 1E 0000 E             CLINE2:	MOV	BX,GRPACX	;DRAW LINE FROM [BC],[DE]
-				 
+ 0440  8B 1E 0000 E             CLINE2:	MOV	BX,GRPACX	;DRAW LINE FROM [BC],[DE] 
  0444  89 1E 0000 E             	MOV	GXPOS,BX	;TO GRPACX,Y 
  0448  8B 1E 0000 E             	MOV	BX,GRPACY 
  044C  89 1E 0000 E             	MOV	GYPOS,BX 
@@ -1368,13 +1221,16 @@ CIRCLE - Draw a circle
  0463  87 DA                    	XCHG	BX,DX		;[DE]=Y CENTER + [DE] 
  0465  C3                       	RET 
                                  
- 0466  8B 1E 0000 E             SCALEY:	MOV	BX,ASPECT	;SCALE [DE] BY ASPECT RAT
-				IO 
+ 0466  8B 1E 0000 E             SCALEY:	MOV	BX,ASPECT	;SCALE [DE] BY ASPECT RATIO 
                                  
  046A  8A C3                    SCALE:	MOV	AL,BL		;CHECK FOR *0 AND *1 CASES 
- 046C  0A C0                    SCALE2:	OR	AL,AL		;ENTRY TO DO [A]*[DE] ([A] NO
-				N-Z) 
+ 046C  0A C0                    SCALE2:	OR	AL,AL		;ENTRY TO DO [A]*[DE] ([A] NON-Z) 
  046E  75 08                    	JNZ	SHORT SCAL2	;NON-ZERO 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-22
+CIRCLE - Draw a circle                                      
+
  0470  0A C7                    	OR	AL,BH		;TEST HI BYTE 
  0472  74 01                    	JZ	SHORT $+3 
  0474  C3                       	RET			;IF NZ, THEN WAS *1 CASE 
@@ -1391,11 +1247,6 @@ CIRCLE - Draw a circle
                                 	INS86	376,306		;INCB DH 
  0485                           NOCARY:	INS86	212,324		;MOVB DL,AH 
  0487  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-25
-CIRCLE - Draw a circle                                      
-
                                 ; 
                                 ; PARSE THE BEGIN AND END ANGLES 
                                 ;  SETTING APPROPRIATE BITS IN CLINEF IF NEG. 
@@ -1415,11 +1266,9 @@ CIRCLE - Draw a circle
  049D  87 F3                    	XCHG	SI,BX 
  049F  56                       	PUSH	SI		;POP FLAG BYTE, PUSH TXTPTR 
  04A0  53                       	PUSH	BX		;RESAVE FLAG BYTE 
- 04A1  E8 0000 E                	CALL	FRCSNG		;MAKE IT A SINGLE PRECISION VALUE
-				 
+ 04A1  E8 0000 E                	CALL	FRCSNG		;MAKE IT A SINGLE PRECISION VALUE 
  04A4  59                       	POP	CX		;GET BACK FLAG BYTE 
- 04A5  BB 0000 E                	MOV	BX,OFFSET FAC	;NOW SEE WHETHER POSITIVE OR
-				 NOT 
+ 04A5  BB 0000 E                	MOV	BX,OFFSET FAC	;NOW SEE WHETHER POSITIVE OR NOT 
  04A8  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET EXPONENT BYTE 
  04AA  0A C0                    	OR	AL,AL 
  04AC  74 19                    	JZ	SHORT CGTC2 
@@ -1433,28 +1282,24 @@ CIRCLE - Draw a circle
  04BA                           ??L006: 
  04BA  24 7F                    	AND	AL,LOW 127D	;MAKE IT POSITIVE 
  04BC  88 07                    	MOV	BYTE PTR [BX],AL 
- 04BE  BB 0000 E                	MOV	BX,OFFSET CLINEF	;SET BIT IN [C] IN CLINEF
-				 
+ 04BE  BB 0000 E                	MOV	BX,OFFSET CLINEF	;SET BIT IN [C] IN CLINEF 
  04C1  8A 07                    	MOV	AL,BYTE PTR [BX] 
  04C3  0A C1                    	OR	AL,CL 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-23
+CIRCLE - Draw a circle                                      
+
  04C5  88 07                    	MOV	BYTE PTR [BX],AL 
- 04C7                           CGTC2:	MOVRI	176O,42O,371O,203O	;LOAD REGS WITH
-				 1/2*PI 
- 04CD  E8 0000 E                	CALL	FMULT		;MULTIPLY BY 1/(2*PI) TO GET FRACT
-				ION 
- 04D0  E8 04F7 R                	CALL	CMPONE		;SEE IF RESULT IS GREATER THAN ON
-				E 
+ 04C7                           CGTC2:	MOVRI	176O,42O,371O,203O	;LOAD REGS WITH 1/2*PI 
+ 04CD  E8 0000 E                	CALL	FMULT		;MULTIPLY BY 1/(2*PI) TO GET FRACTION 
+ 04D0  E8 04F7 R                	CALL	CMPONE		;SEE IF RESULT IS GREATER THAN ONE 
  04D3  75 03                    	JNZ	SHORT ??L007 
  04D5  E9 0000 E                	JMP	FCERR		;FC ERROR IF SO 
  04D8                           ??L007: 
                                 EXTRN	PUSHF:NEAR 
  04D8  E8 0000 E                	CALL	PUSHF		;SAVE FAC ON STAC 
  04DB  8B 1E 0000 E             	MOV	BX,CNPNTS	;GET NO. OF POINTS PER OCTANT 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-26
-CIRCLE - Draw a circle                                      
-
  04DF  03 DB                    	ADD	BX,BX		;TIMES 8 FOR TRUE CIRCUMFERENCE 
  04E1  03 DB                    	ADD	BX,BX 
  04E3  03 DB                    	ADD	BX,BX 
@@ -1467,20 +1312,17 @@ CIRCLE - Draw a circle
  04F4  87 DA                    	XCHG	BX,DX 
  04F6  C3                       	RET 
                                  
- 04F7                           CMPONE:	MOVRI	201O,0,0,0	;MAKE SURE FAC IS LESS
-				 THAN ONE 
+ 04F7                           CMPONE:	MOVRI	201O,0,0,0	;MAKE SURE FAC IS LESS THAN ONE 
                                 EXTRN	FCOMP:NEAR 
  04FD  E8 0000 E                	CALL	FCOMP 
  0500  FE C8                    	DEC	AL 
  0502  C3                       	RET 
                                  
-                                	SUBTTL GET and PUT - read and write graphics b
-				it array 
+                                	SUBTTL GET and PUT - read and write graphics bit array 
                                  
                                  
                                 ; 
-                                ;       GET & PUT - READ & WRITE GRAPHICS BIT A
-				RRAY 
+                                ;       GET & PUT - READ & WRITE GRAPHICS BIT ARRAY 
                                 ; 
                                 ; SYNTAX: 
                                 ;       GET @(X,Y),ARRAYVAR 
@@ -1488,10 +1330,8 @@ CIRCLE - Draw a circle
                                 ; 
                                 ;       FUNCTION = OR/AND/PRESET/PSET/XOR 
                                 ; 
-                                	EXTRN	PGINIT:NEAR,PIXSIZ:NEAR,NREAD:NEAR,NWRIT
-				E:NEAR,XDELT:NEAR 
-                                	EXTRN	$AND:NEAR,$OR:NEAR,$PRESET:NEAR,$PSET:NE
-				AR,$XOR:NEAR 
+                                	EXTRN	PGINIT:NEAR,PIXSIZ:NEAR,NREAD:NEAR,NWRITE:NEAR,XDELT:NEAR 
+                                	EXTRN	$AND:NEAR,$OR:NEAR,$PRESET:NEAR,$PSET:NEAR,$XOR:NEAR 
                                 	EXTRN	YDELT:NEAR,XCHGX:NEAR,XCHGY:NEAR 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	PUTFLG:WORD,MINDEL:WORD,MAXDEL:WORD 
@@ -1499,21 +1339,20 @@ CIRCLE - Draw a circle
                                  
                                  
                                 PUBLIC	GPUTG 
- 0503  A2 0000 E                GPUTG:	MOV	BYTE PTR PUTFLG,AL	;IFE PC8A&RSTLES-
-				1STORE WHETHER PUTTING OR NOT 
+ 0503  A2 0000 E                GPUTG:	MOV	BYTE PTR PUTFLG,AL	;IFE PC8A&RSTLES-1STORE WHETHER PUTTING OR NOT 
                                  
  0506  50                       	PUSH	AX		;SAVE THIS FLAG A SEC 
  0507  53                       	PUSH	BX		;Save text pointer 
  0508  E8 0000 E                	CALL	PIXSIZ		;Test for graphics mode 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-24
+GET and PUT - read and write graphics bit array             
+
  050B  0A C0                    	OR	AL,AL 
  050D  75 03                    	JNZ	SHORT ??L008 
  050F  E9 0000 E                	JMP	FCERR		;Not a graphics mode 
  0512                           ??L008: 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-27
-GET and PUT - read and write graphics bit array             
-
  0512  5B                       	POP	BX 
  0513  E8 0000 E                	CALL	SCAN1		;GET FIRST COORD 
  0516  E8 0815 R                	CALL	CHKRNG 
@@ -1564,15 +1403,15 @@ GET and PUT - read and write graphics bit array
                                 	HLFDE			;NOW CALC NO. OF BYTES PER SCAN LINE 
                                 	HLFDE 
                                 	HLFDE 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-25
+GET and PUT - read and write graphics bit array             
+
  0574  8B 1E 0000 E             	MOV	BX,MINDEL	;GET DELTA Y 
  0578  51                       	PUSH	CX		;SAVE DX*BITS/PIX 
  0579  8B CB                    	MOV	CX,BX		;INTO [BC] FOR UMULT 
  057B  E8 0000 E                	CALL	UMULT		;[DE]=DX*DY*BITS/PIX 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-28
-GET and PUT - read and write graphics bit array             
-
  057E  59                       	POP	CX		;GET BACK DX*BITS/PIX 
  057F  BB 0004                  	MOV	BX,4		;ADD 4 BYTES FOR DX,DY STORAGE 
  0582  03 DA                    	ADD	BX,DX		;[HL] HAS NO. OF BYTES TO BE USED 
@@ -1590,19 +1429,16 @@ GET and PUT - read and write graphics bit array
  0594  72 03                    	JNAE	SHORT ??L013 
  0596  E9 0000 E                	JMP	FCERR		;ARRAY START+LENGTH .GT. 64K 
  0599                           ??L013: 
- 0599  88 0F                    	MOV	BYTE PTR [BX],CL	;SAVE DX*BITS/PIX IN 1ST 
-				2 BYTES OF ARY 
+ 0599  88 0F                    	MOV	BYTE PTR [BX],CL	;SAVE DX*BITS/PIX IN 1ST 2 BYTES OF ARY 
  059B  43                       	INC	BX 
- 059C  88 2F                    	MOV	BYTE PTR [BX],CH	;PASS NO. OF BITS DESIRED
-				 IN [BC] 
+ 059C  88 2F                    	MOV	BYTE PTR [BX],CH	;PASS NO. OF BITS DESIRED IN [BC] 
  059E  43                       	INC	BX 
  059F  8B 16 0000 E             	MOV	DX,MINDEL	;GET LINE (Y) COUNT 
  05A3  89 17                    	MOV	[BX],DX 
  05A5  43                       	INC	BX 
  05A6  43                       	INC	BX		;SAVE DY IN 2ND 2 BYTES 
  05A7  0A C0                    	OR	AL,AL		;CLEAR CARRY FOR GET INIT. 
- 05A9  EB 77 90                 	JMP	GOPGIN		;GIVE LOW LEVEL ADDR OF ARRAY & GO
-				 
+ 05A9  EB 77 90                 	JMP	GOPGIN		;GIVE LOW LEVEL ADDR OF ARRAY & GO 
                                  
  05AC  53                       PUT1:	PUSH	BX		;SAVE TXTPTR 
  05AD  E8 0000 E                	CALL	MAPXYC		;MAP THE POINT 
@@ -1616,8 +1452,7 @@ GET and PUT - read and write graphics bit array
  05BD  E8 0000 E                	CALL	SYNCHR 
  05C0  2C                       	DB	OFFSET 44	;MUST BE A COMMA 
  05C1  87 DA                    	XCHG	BX,DX		;PUT TXTPTR IN [DE] 
- 05C3  BB 0674 R                	MOV	BX,OFFSET GFUNTB+4	;TABLE OF POSSIBLE OPTI
-				ONS 
+ 05C3  BB 0674 R                	MOV	BX,OFFSET GFUNTB+4	;TABLE OF POSSIBLE OPTIONS 
  05C6                           PFUNLP: 
                                 	INS86	56		;CS OVERRIDE 
  05C7  3A 07                    	CMP	AL,BYTE PTR [BX]	;IS THIS AN OPTION? 
@@ -1627,9 +1462,9 @@ GET and PUT - read and write graphics bit array
  05CE  75 F6                    	JNZ	SHORT PFUNLP 
  05D0  87 DA                    	XCHG	BX,DX		;GET TXTPTR BACK TO [HL] 
  05D2  5A                       	POP	DX		;CLEAN UP STACK 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-29
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-26
 GET and PUT - read and write graphics bit array             
 
  05D3  C3                       	RET			;LET NEWSTT GIVE SYNTAX ERROR 
@@ -1651,8 +1486,7 @@ GET and PUT - read and write graphics bit array
  05EA  E8 0000 E                	CALL	PIXSIZ		;GET BITS/PIXEL INTO [DE] 
  05ED  8A D0                    	MOV	DL,AL		;INTO [E] FOR COUNTING 
                                 IF	PWR2PX 
- 05EF  FE CA                    DIVBLP:	DEC	DL		;DIVIDE BY [E] (POWER-OF-2 CASE
-				) 
+ 05EF  FE CA                    DIVBLP:	DEC	DL		;DIVIDE BY [E] (POWER-OF-2 CASE) 
  05F1  75 03                    	JNZ	SHORT ??L014 
  05F3  EB 05 90                 	JMP	DIVBTX 
  05F6                           ??L014: 
@@ -1667,8 +1501,7 @@ GET and PUT - read and write graphics bit array
  0601  72 10                    	JB	SHORT PRNGER	;ERROR IF CARRY 
  0603  8B CB                    	MOV	CX,BX		;TO [BC] FOR SCALXY 
  0605  5B                       	POP	BX		;GET BACK ARRAY POINTER 
- 0606  8B 17                    	MOV	DX,[BX]		;[DE] = DELTA Y ([HL] POINTS TO D
-				ATA) 
+ 0606  8B 17                    	MOV	DX,[BX]		;[DE] = DELTA Y ([HL] POINTS TO DATA) 
  0608  43                       	INC	BX 
  0609  43                       	INC	BX 
  060A  52                       	PUSH	DX		;SAVE DELTA Y ON STACK 
@@ -1681,25 +1514,23 @@ GET and PUT - read and write graphics bit array
  0618                           ??L015: 
  0618  87 DA                    	XCHG	BX,DX		;[DE]=Y + DELTA Y 
  061A  5B                       	POP	BX		;GET BACK ARRAY POINTER 
- 061B  E8 0815 R                	CALL	CHKRNG		;MAKE SURE [BC],[HL] ARE ON THE S
-				CREEN 
+ 061B  E8 0815 R                	CALL	CHKRNG		;MAKE SURE [BC],[HL] ARE ON THE SCREEN 
  061E  5A                       	POP	DX		;POP DY 
  061F  59                       	POP	CX		;POP DX*BITS/PIX 
  0620  58                       	POP	AX		;GET BACK ACTION MODE 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-30
-GET and PUT - read and write graphics bit array             
-
  0621  F9                       	STC			;SET CARRY TO FLAG PUT INIT 
                                  
  0622  52                       GOPGIN:	PUSH	DX		;RESAVE DY 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-27
+GET and PUT - read and write graphics bit array             
+
  0623  E8 0000 E                	CALL	PGINIT		;[BC]=BIT COUNT,[HL]=ARRAY ADDR 
  0626  5A                       	POP	DX		;GET Y COUNT 
                                  
  0627  52                       PGLOOP:	PUSH	DX		;SAVE LINE COUNT 
- 0628  A0 0000 E                	MOV	AL,BYTE PTR PUTFLG	;SEE IF PUTTING OR GETT
-				ING 
+ 0628  A0 0000 E                	MOV	AL,BYTE PTR PUTFLG	;SEE IF PUTTING OR GETTING 
  062B  0A C0                    	OR	AL,AL 
  062D  75 05                    	JNZ	SHORT PGLOO2 
  062F  E8 0000 E                	CALL	NREAD 
@@ -1745,19 +1576,19 @@ GET and PUT - read and write graphics bit array
  066F  C3                       	RET 
                                  
  0670                           GFUNTB: 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-31
-GET and PUT - read and write graphics bit array             
-
  0670  00 E                     	DB	OFFSET $OR	;LIST OF VALID PUT OPTIONS 
  0671  00 E                     	DB	OFFSET $AND 
  0672  00 E                     	DB	OFFSET $PRESET 
  0673  00 E                     	DB	OFFSET $PSET 
- 0674  00 E                     	DB	OFFSET $XOR 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-28
+GET and PUT - read and write graphics bit array             
 
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-32
+ 0674  00 E                     	DB	OFFSET $XOR 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-29
 GET and PUT - read and write graphics bit array             
 
                                 	PAGE 
@@ -1765,8 +1596,7 @@ GET and PUT - read and write graphics bit array
                                 ; 
                                 ; GRAPHICS MACRO LANGUAGE SUPPORT 
                                 ; 
-                                	EXTRN	VALSCN:NEAR,DECFET:NEAR,MACLNG:NEAR,MCLX
-				EQ:NEAR,FETCHZ:NEAR 
+                                	EXTRN	VALSCN:NEAR,DECFET:NEAR,MACLNG:NEAR,MCLXEQ:NEAR,FETCHZ:NEAR 
                                 	EXTRN	NEGD:NEAR 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	DRWFLG:WORD,DRWSCL:WORD,DRWANG:WORD 
@@ -1785,8 +1615,7 @@ GET and PUT - read and write graphics bit array
  0689  E9 0000 E                	JMP	MACLNG		;GO DO IT. 
                                  
  068C  D5                       DRWTAB:	DB	"U"+128D	;UP 
-                                	ADR	DRUP		; ASM86 doesn't like DUP, 9-Jul-82/N
-				GT 
+                                	ADR	DRUP		; ASM86 doesn't like DUP, 9-Jul-82/NGT 
  068F  C4                       	DB	"D"+128D	;DOWN 
                                 	ADR	DRDOWN 
  0692  CC                       	DB	"L"+128D	;LEFT 
@@ -1814,13 +1643,13 @@ GET and PUT - read and write graphics bit array
  06B3  C3                       	DB	"C"+128D	;COLOR 
                                 	ADR	DCOLR 
  06B6  D3                       	DB	"S"+128D	;SCALE 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-33
-GRAPHICS MACRO LANGUAGE SUPPORT                             
-
                                 	ADR	DSCALE 
  06B9  00                       	DB	00		;END OF TABLE 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-30
+GRAPHICS MACRO LANGUAGE SUPPORT                             
+
                                  
  06BA                           DRUP:	NEGDE			;MOVE +0,-Y 
  06BC                           DRDOWN:				;MOVE +0,+Y 
@@ -1873,27 +1702,24 @@ GRAPHICS MACRO LANGUAGE SUPPORT
  070B  52                       	PUSH	DX		;SAVE Y OFFSET 
  070C  8B D1                    	MOV	DX,CX		;GET X INTO [DE] 
  070E  E8 07C9 R                	CALL	DSCLDE		;GO SCALE IT. 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-34
-GRAPHICS MACRO LANGUAGE SUPPORT                             
-
  0711  87 DA                    	XCHG	BX,DX		;GET ADJUSTED X INTO [HL] 
  0713  5A                       	POP	DX		;GET ADJUSTED Y INTO [DE] 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-31
+GRAPHICS MACRO LANGUAGE SUPPORT                             
+
  0714  32 C0                    	XOR	AL,AL 
  0716  A2 0000 E                	MOV	BYTE PTR CSCLXY,AL 
  0719  A0 0000 E                	MOV	AL,BYTE PTR DRWANG	;GET ANGLE BYTE 
  071C  D0 D8                    	RCR	AL,1		;LOW BIT TO CARRY 
- 071E  73 49                    	JAE	SHORT ANGEVN	;ANGLE IS EVEN - DON'T SWAP X
-				 AND Y 
+ 071E  73 49                    	JAE	SHORT ANGEVN	;ANGLE IS EVEN - DON'T SWAP X AND Y 
  0720  50                       	PUSH	AX		;SAVE THIS BYTE 
  0721  52                       	PUSH	DX		;SAVE DY 
  0722  53                       	PUSH	BX		;SAVE DX 
  0723  E8 0000 E                	CALL	GTASPC		;GO GET SCREEN ASPECT RATIO 
-                                ;NOTE: TOSHIBA GTASPC routine does this logic(i
-				.e. it sets CSCLXY if aspect 
-                                ;                   ratio is greater than one).
-				 
+                                ;NOTE: TOSHIBA GTASPC routine does this logic(i.e. it sets CSCLXY if aspect 
+                                ;                   ratio is greater than one). 
  0726  8A C7                    	MOV	AL,BH 
  0728  0A C0                    	OR	AL,AL		;IS ASPECT RATIO GREATER THAN ONE? 
  072A  74 07                    	JZ	SHORT ASPLS0	;BRIF GOOD ASPECT RATIO 
@@ -1901,13 +1727,11 @@ GRAPHICS MACRO LANGUAGE SUPPORT
  072E  A2 0000 E                	MOV	BYTE PTR CSCLXY,AL 
  0731  87 DA                    	XCHG	BX,DX 
  0733                           ASPLS0: 
- 0733  8A CB                    	MOV	CL,BL		;GET ASPECT RATIO INTO [C] FOR GOSC
-				AL 
+ 0733  8A CB                    	MOV	CL,BL		;GET ASPECT RATIO INTO [C] FOR GOSCAL 
  0735  5B                       	POP	BX		;GET BACK DX 
  0736  A0 0000 E                	MOV	AL,BYTE PTR CSCLXY 
  0739  0A C0                    	OR	AL,AL 
- 073B  74 04                    	JZ	SHORT ASPLS1	;branch if aspect ratio less 1
-				.0 
+ 073B  74 04                    	JZ	SHORT ASPLS1	;branch if aspect ratio less 1.0 
  073D  5E                       	POP	SI		;XTHL 
  073E  87 F3                    	XCHG	SI,BX 
  0740  56                       	PUSH	SI		;[HL]=DY, save DX 
@@ -1920,8 +1744,7 @@ GRAPHICS MACRO LANGUAGE SUPPORT
  0749  52                       	PUSH	DX		;SAVE SCALED DX 
  074A  87 DA                    	XCHG	BX,DX		;DY TO [DE] FOR GOSCAL 
  074C  BB 0000                  	MOV	BX,0 
- 074F  03 DA                    DMULP:	ADD	BX,DX		;MULTIPLY [DE] BY HI BYTE OF 
-				1/ASPECT 
+ 074F  03 DA                    DMULP:	ADD	BX,DX		;MULTIPLY [DE] BY HI BYTE OF 1/ASPECT 
  0751  FE CD                    	DEC	CH 
  0753  75 FA                    	JNZ	SHORT DMULP 
  0755  53                       	PUSH	BX		;SAVE PARTIAL RESULT 
@@ -1931,50 +1754,43 @@ GRAPHICS MACRO LANGUAGE SUPPORT
  075C  5A                       	POP	DX		;GET BACK SCALED Y 
  075D  A0 0000 E                	MOV	AL,BYTE PTR CSCLXY 
  0760  0A C0                    	OR	AL,AL 
- 0762  74 02                    	JZ	SHORT ASLSS1	;branch if aspect ratio less t
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-35
-GRAPHICS MACRO LANGUAGE SUPPORT                             
-
-				han 1 
+ 0762  74 02                    	JZ	SHORT ASLSS1	;branch if aspect ratio less than 1 
  0764  87 DA                    	XCHG	BX,DX 
  0766                           ASLSS1: 
                                 	NEGDE			;ALWAYS NEGATE NEW DY 
  0768  58                       	POP	AX		;GET BACK SHIFTED ANGLE 
  0769  D0 D8                    ANGEVN:	RCR	AL,1		;TEST SECOND BIT 
- 076B  73 04                    	JAE	SHORT ANGPOS	;DON'T NEGATE COORDS IF NOT S
-				ET 
+ 076B  73 04                    	JAE	SHORT ANGPOS	;DON'T NEGATE COORDS IF NOT SET 
                                 	NEGHL 
                                 	NEGDE			;NEGATE BOTH DELTAS 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-32
+GRAPHICS MACRO LANGUAGE SUPPORT                             
+
  0771  E8 0453 R                ANGPOS:	CALL	GTABSC		;GO CALC TRUE COORDINATES 
                                  
- 0774  A0 0000 E                DRWABS:	MOV	AL,BYTE PTR DRWFLG	;SEE WHETHER WE 
-				PLOT OR NOT 
+ 0774  A0 0000 E                DRWABS:	MOV	AL,BYTE PTR DRWFLG	;SEE WHETHER WE PLOT OR NOT 
  0777  02 C0                    	ADD	AL,AL		;CHECK HI BIT 
  0779  72 0C                    	JB	SHORT DSTPOS	;JUST SET POSITION. 
  077B  50                       	PUSH	AX		;SAVE THIS FLAG 
  077C  51                       	PUSH	CX		;SAVE X,Y COORDS 
- 077D  52                       	PUSH	DX		;BEFORE SCALE SO REFLECT DISTANCE OFF
-				 
+ 077D  52                       	PUSH	DX		;BEFORE SCALE SO REFLECT DISTANCE OFF 
  077E  E8 0000 E                	CALL	SCALXY		;SCALE IN CASE COORDS OFF SCREEN 
  0781  E8 0440 R                	CALL	CLINE2 
  0784  5A                       	POP	DX 
  0785  59                       	POP	CX		;GET THEM BACK 
  0786  58                       	POP	AX		;GET BACK FLAG 
- 0787  02 C0                    DSTPOS:	ADD	AL,AL		;SEE WHETHER TO STORE COORDS
-				 
+ 0787  02 C0                    DSTPOS:	ADD	AL,AL		;SEE WHETHER TO STORE COORDS 
  0789  72 0A                    	JB	SHORT DNSTOR	;DON'T UPDATE IF B6=1 
  078B  89 16 0000 E             	MOV	GRPACY,DX	;UPDATE GRAPHICS AC 
  078F  8B D9                    	MOV	BX,CX 
  0791  89 1E 0000 E             	MOV	GRPACX,BX 
- 0795  32 C0                    DNSTOR:	XOR	AL,AL		;CLEAR SPECIAL FUNCTION FLAG
-				S 
+ 0795  32 C0                    DNSTOR:	XOR	AL,AL		;CLEAR SPECIAL FUNCTION FLAGS 
  0797  A2 0000 E                	MOV	BYTE PTR DRWFLG,AL 
  079A  C3                       	RET 
                                  
- 079B  B0 40                    DNOMOV:	MOV	AL,LOW 64D	;SET BIT SIX IN FLAG BYT
-				E 
+ 079B  B0 40                    DNOMOV:	MOV	AL,LOW 64D	;SET BIT SIX IN FLAG BYTE 
  079D  EB 02                    	JMP	SHORT DSTFLG 
                                  
  079F  B0 80                    DNOPLT:	MOV	AL,LOW 128D	;SET BIT 7 
@@ -1991,11 +1807,6 @@ GRAPHICS MACRO LANGUAGE SUPPORT
  07B4  C3                       	RET 
                                  
  07B5                           NCFCER: 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-36
-GRAPHICS MACRO LANGUAGE SUPPORT                             
-
  07B5  72 03                    DSCALE:	JNAE	SHORT ??L019 
  07B7  E9 0000 E                	JMP	FCERR		;FC ERROR IF NO ARG 
  07BA                           ??L019: 
@@ -2008,10 +1819,14 @@ GRAPHICS MACRO LANGUAGE SUPPORT
  07C5  A2 0000 E                	MOV	BYTE PTR DRWSCL,AL	;STORE SCALE FACTOR 
  07C8  C3                       	RET 
                                  
- 07C9  A0 0000 E                DSCLDE:	MOV	AL,BYTE PTR DRWSCL	;GET SCALE FACTO
-				R 
+ 07C9  A0 0000 E                DSCLDE:	MOV	AL,BYTE PTR DRWSCL	;GET SCALE FACTOR 
  07CC  0A C0                    	OR	AL,AL		;ZERO MEANS NO SCALING 
  07CE  75 01                    	JNZ	SHORT $+3 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
+ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-33
+GRAPHICS MACRO LANGUAGE SUPPORT                             
+
  07D0  C3                       	RET 
  07D1  BB 0000                  	MOV	BX,0 
  07D4  03 DA                    DSCLP:	ADD	BX,DX		;ADD IN [DE] SCALE TIMES 
@@ -2028,8 +1843,7 @@ GRAPHICS MACRO LANGUAGE SUPPORT
  07E8  9D                       	POPF			;SEE IF WAS NEGATIVE 
  07E9  72 01                    	JNAE	SHORT $+3 
  07EB  C3                       	RET			;ALL DONE IF WAS POSITIVE 
- 07EC  8A C6                    	MOV	AL,DH		;OR IN HIGH 2 BITS TO MAKE NEGATIVE
-				 
+ 07EC  8A C6                    	MOV	AL,DH		;OR IN HIGH 2 BITS TO MAKE NEGATIVE 
  07EE  0C C0                    	OR	AL,LOW 192D 
  07F0  8A F0                    	MOV	DH,AL 
  07F2  42                       	INC	DX		;ADJUST SO TRUNCATING TO LOWER VALUE 
@@ -2050,11 +1864,6 @@ GRAPHICS MACRO LANGUAGE SUPPORT
  080C  73 03                    	JAE	SHORT ??L021 
  080E  E9 0000 E                	JMP	FCERR		;ERROR IF ILLEGAL ATTRIBUTE 
  0811                           ??L021: 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
-ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Page     1-37
-GRAPHICS MACRO LANGUAGE SUPPORT                             
-
  0811  A2 0000 E                	MOV	BYTE PTR ATRBYT,AL	;Save as default 
  0814  C3                       	RET 
                                  
@@ -2071,8 +1880,8 @@ GRAPHICS MACRO LANGUAGE SUPPORT
  0820                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
 ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Symbols-1
                                                              
 
@@ -2130,8 +1939,8 @@ ATRSCN . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 BASDEB . . . . . . . . . . . . .  	Number	0000	
 BEEPSW . . . . . . . . . . . . .  	Number	0001	
 BINCSW . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
 ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Symbols-2
                                                              
 
@@ -2189,8 +1998,8 @@ CPMMDS . . . . . . . . . . . . .  	Number	0000
 CPMPER . . . . . . . . . . . . .  	Number	0000	
 CPMRSH . . . . . . . . . . . . .  	Number	0000	
 CPMSBC . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
 ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Symbols-3
                                                              
 
@@ -2248,8 +2057,8 @@ DSCLDE . . . . . . . . . . . . .  	L NEAR	07C9	CSEG
 DSCLP  . . . . . . . . . . . . .  	L NEAR	07D4	CSEG
 DSCPOS . . . . . . . . . . . . .  	L NEAR	07E4	CSEG
 DSTFLG . . . . . . . . . . . . .  	L NEAR	07A1	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
 ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Symbols-4
                                                              
 
@@ -2307,8 +2116,8 @@ GRPACY . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 GTABSC . . . . . . . . . . . . .  	L NEAR	0453	CSEG
 GTARRY . . . . . . . . . . . . .  	L NEAR	0642	CSEG
 GTASPC . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
 ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Symbols-5
                                                              
 
@@ -2366,8 +2175,8 @@ LPT3 . . . . . . . . . . . . . .  	Number	0000
 LPTLEN . . . . . . . . . . . . .  	Number	0084	
 LPTSW  . . . . . . . . . . . . .  	Number	0001	
 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
 ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Symbols-6
                                                              
 
@@ -2425,8 +2234,8 @@ NOVARP . . . . . . . . . . . . .  	Number	0000
 NREAD  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 NUMLEV . . . . . . . . . . . . .  	Number	006E	
 NUMTMP . . . . . . . . . . . . .  	Number	000A	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
 ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Symbols-7
                                                              
 
@@ -2484,8 +2293,8 @@ RSHACK . . . . . . . . . . . . .  	Number	0000
 RSTLES . . . . . . . . . . . . .  	Number	0001	
 RTOVH0 . . . . . . . . . . . . .  	L NEAR	00EE	CSEG
 RTOVH1 . . . . . . . . . . . . .  	L NEAR	00F2	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
 ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Symbols-8
                                                              
 
@@ -2543,8 +2352,8 @@ TILE . . . . . . . . . . . . . .  	Number	0000
 TIMSHR . . . . . . . . . . . . .  	Number	0000	
 TRNCHR . . . . . . . . . . . . .  	Number	0000	
 TRSER2 . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
 ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Symbols-9
                                                              
 
@@ -2602,8 +2411,8 @@ $XOR . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ??L018 . . . . . . . . . . . . .  	L NEAR	06FF	CSEG
 ??L019 . . . . . . . . . . . . .  	L NEAR	07BA	CSEG
 ??L020 . . . . . . . . . . . . .  	L NEAR	07C3	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:21:28
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:30:06
+ 
 ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Symbols-10
                                                              
 
@@ -2611,11 +2420,11 @@ ADVGRP - ADVANCED GENERALIZED GRAPHICS STUFF                Symbols-10
 ??L022 . . . . . . . . . . . . .  	L NEAR	081E	CSEG
 
 
-   1717 Source  Lines
-   2257 Total   Lines
+   1718 Source  Lines
+   2258 Total   Lines
     471 Symbols
 
-  35210 Bytes symbol space free
+  35190 Bytes symbol space free
 
       0 Warning Errors
       0 Severe  Errors

@@ -1,5 +1,5 @@
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
 GWEVAL Copied from BINTRP.MAC                               Page     1-1
                                                             
 
@@ -21,24 +21,21 @@ GWEVAL Copied from BINTRP.MAC                               Page     1-1
                              C  ; [ This translation created 10-Feb-83 by Versi
 				on 4.3 ] 
                              C   
-                             C  	SUBTTL  Common file to produce 2-segment 8086 
-				GW-CPM BASIC 
+                             C  	PAGE	,132D 
+                             C  	SUBTTL  Common file to produce 2-segment 8086 GW-CPM BASIC 
                              C   
                              C  	.SALL 
                              C   
  000A                        C  	.RADIX	10 
  = 0000                      C  	OEMRAM=0D 
-                             C  ;Pascal program HFILE searches for the followin
-				g line - DO NOT MODIFY 
-                             C  ;** (VERSION SPECIFIC VALUES) *****************
-				******************************* 
+                             C  ;Pascal program HFILE searches for the following line - DO NOT MODIFY 
+                             C  ;** (VERSION SPECIFIC VALUES) ************************************************ 
  = 0019                      C  	NMLINE=25		;Max screen display text lines 
  = 0001                      C  	NBANKS=1		;Number of graphic planes 
  = 0000                      C  	PALSIZ=0		;Size of OEM color palette 
  = 0000                      C  	DBLCHR=0		;Editor support for KANJI chars 
  = 0000                      C  	KANABS=0		;Kana BASIC (Japanese JIS codes) 
- = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .
-				. 
+ = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .. 
  = 0000                      C  	JISKTN=0		;&K, &J constants (KANJI) 
  = 0001                      C  	SUPRSH=1		;1=super shift key feature 
  = 000A                      C  	NMKEYF=10		;number of function keys 
@@ -52,61 +49,48 @@ GWEVAL Copied from BINTRP.MAC                               Page     1-1
  = 0002                      C  	NMCOMT=2		;number of COMmunications ports 
  = 0001                      C  	NMPENT=1		;number of light pens 
  = 0004                      C  	NMSTRT=4		;number of joysticks 
- = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR)
-				 
+ = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR) 
  = 0001                      C  	IBMLIK=1		;IBM compatibility package 
  = 0001                      C  	IBMTOK=1		;IBM token compatibility 
  = 0001                      C  	DYNCOM=1		;Dynamic communication buffers 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
+                             C  ;** (END OF VERSION SPECIFIC VALUES) ***************************************** 
+                             C  ;Pascal program HFILE searches for the previous line - DO NOT MODIFY 
+                             C  ; 
+ = 0015                      C  	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
 GWEVAL Copied from BINTRP.MAC                               Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
-                             C  ;** (END OF VERSION SPECIFIC VALUES) **********
-				******************************* 
-                             C  ;Pascal program HFILE searches for the previous
-				 line - DO NOT MODIFY 
-                             C  ; 
- = 0015                      C  	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT 
  = 0001                      C  	GW=1			;GW BASIC 
- = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROU
-				T 
- = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY
-				) 
+ = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROUT 
+ = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY) 
                              C  				; Support is in BINTRP.MAC and GWSTS.MAC 
- = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed whe
-				n formatting 
+ = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
                              C  				;single precision numbers for output. 
                              C  				; 0 := 7 digits 
                              C  				; 1 := 6 digits 
  = 0000                      C  	CASSW=0			;CASSETTE SWITCH 
  = 0001                      C  	LABKEY=1		;^T (LABEL) key capability 
- = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics)
-				 
- = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stac
-				k) 
+ = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics) 
+ = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stack) 
  = 0001                      C  	GIO86=1			;BASIC-86 Generalized I/O 
  = 0001                      C  	SCRNIO=1		;Screen editor 
  = 0001                      C  	SCRN86=1		;8086 Screen editor 
  = 0001                      C  	I8086=1			;CROSS ASSEMBLING FOR 8086 
  = 0001                      C  	MULSEG=1		;MULTI-SEGMENT 8086 BASIC 
- = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SE
-				T 
+ = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SET 
  = 0001                      C  	TRUROM=1 
  = 0000                      C  	SBC86=0			;SBC 86/02 BOARD? 
  = 0001                      C  	SHORTJ=1		;USE INTRA-SEGMENT SHORT JUMPS 
                              C  				;IN 8086 CODE 
- = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDE
-				D ONLY) 
+ = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDED ONLY) 
  = 0000                      C  	SHTERR=0		;SHORT (2 CHAR) ERROR MESSAGES 
  = 0000                      C  	SHTINS=0		;INSTR IN NON-FAST LEN2 VERSIONS 
- = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2
-				 VERSIONS 
+ = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2 VERSIONS 
  = 0000                      C  	SHTCHN=0		;ALLOW CHAIN IN NON-5.0 
- = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK
-				 
- = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NO
-				N-FAST 
+ = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK 
+ = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NON-FAST 
  = 0000                      C  	SHTREN=0		;ALLOW RENUM IN NON-FST VERSIONS 
  = 0001                      C  	INKEYF=1		;ADDS INKEY$ FUNCTION 
  = 0000                      C  	NOIOS=0			;NO I/O STATMENTS (INP,OUT, WAIT) 
@@ -115,23 +99,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	NOCTLA=0		;NO CONTROL-A IN EXTENDED 
  = 0000                      C  	NORUBT=0		;NO RUBOUT 
  = 0000                      C  	NOROMP=0		;NO ROM PROGRAM FEATURE 
- = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-3
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
-				 
+ = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED 
  = 0000                      C  	NODOT=0			;NO DOT IN LEN2 
  = 0000                      C  	NOEDIT=0		;NO EDIT COMMAND 
- = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMIN
-				AL 
+ = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMINAL 
                              C  				;AND FILES 
- = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN C
-				RDO & OUTCH1 
+ = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN CRDO & OUTCH1 
  = 0000                      C  	NOVARP=0		;NO VARPTR FUNCTION 
- = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 F
-				EATURES 
+ = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 FEATURES 
  = 0001                      C  	FIVMEM=1 
  = 0001                      C  	ANSI=1 
  = 0001                      C  	FIVDSK=1		;5.0 NEW DSK CODE 
@@ -141,9 +116,13 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0001                      C  	BLODSW=1		;BLOAD, BSAVE COMMANDS 
  = 0001                      C  	MEMIMG=1		;MEMORY IMAGE FILES 
  = 0001                      C  	GENBIN=1 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-3
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C   
- = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON 
-				ERROR) 
+ = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON ERROR) 
  = 0000                      C  	COMMNT=0		;DONT WANT BIG COMMENT 
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
@@ -153,13 +132,10 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	RSHACK=0 
  = 0000                      C  	INTLEC=0 
  = 0002                      C  	LENGTH=2		;  1 MEANS 8K, 2 MEANS 12K 
- = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BAS
-				IC 
- = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATION
-				S 
+ = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BASIC 
+ = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATIONS 
                              C  				;TO MAKE ITSELF SMALLER & QUICKER 
- = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE
-				 (=1) 
+ = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE (=1) 
  = 0001                      C  	GENIO=1			;USE G/P ROUTINES 
  = 0001                      C  	CHSEAT=1		;CHSNS eats chars 
  = 0000                      C  	GENDSK=0		;USE G/P DSK CODE 
@@ -171,20 +147,13 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	SBC=0			;FOR INTEL SINGLE BOARD COMPUTER 
                              C  				;1=SBC 80/10, 2=SBC 80/20 
  = 0001                      C  	PURE=1			;ON FOR PURE CODE 
- = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RA
-				M 
+ = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RAM 
  = 0000                      C  	INTROM=0 
  = 0001                      C  	LPTSW=1 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-4
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
  = 0001                      C  	NCRLPT=1 
  = 0000                      C  	NCRCAS=0 
  = 0000                      C  	ISC=0			;FOR ISC VERSION 
- = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,C
-				ENT) 
+ = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,CENT) 
  = 0000                      C  	TSLPT=0 
                              C   
  = 0000                      C  	DOS=0			;ON TO GEN ROUTINES FOR DOS 
@@ -193,13 +162,10 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	TSDISK=0		;NO TIME-SHARING DISK FOR US 
  = 0000                      C  	SPCDSK=0		;MAY HAVE MM'S DISK CODE 
  = 0000                      C  	SPCNDS=0 
- = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIEND
-				S 
+ = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIENDS 
  = 0000                      C  	KEYSTA=0 
- = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISI
-				S II DOS 
- = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISI
-				S-II 
+ = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISIS II DOS 
+ = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISIS-II 
  = 0001                      C  	CPM=1			;FOR CPM compatible operating systems 
  = 0001                      C  	CPM2=1			;VERSION 2. CPM 
  = 0000                      C  	CPM86=0			;FOR CP/M-86 operating system 
@@ -207,13 +173,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMCON=0 
  = 0000                      C  	CPMSER=0		;CHECK CPM SERIAL #'S 
  = 0000                      C  	CPMADD=0		;FOR VERSION TO RUN ON ADDS CPM 
- = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 7
-				5 
+ = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 75 
                              C  				;CP/M 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-4
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	CPMRSH=0		;FOR RADIO SHACK CPM/M 
  = 0000                      C  	CPM110=0		;FOR CP/M @1100 HEX (INTERALIA) 
- = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4
-				100H 
+ = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4100H 
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
@@ -233,13 +202,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0002                      C  	LENGTH=2 
  = 0001                      C  	RSTLES=1 
  = 0001                      C  	FIVLPT=1 
- = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT V
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-5
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
-				ERSION 
+ = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT VERSION 
  = 0001                      C  	CONTRO=1		;ALLOW ^O 
  = 0001                      C  	LEN3=LEN2 OR CASSW 
                              C   
@@ -248,8 +211,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0001                      C  	STRING=1 
  = 0001                      C  	NCRLPT=1 
                              C   
-                             C  ; *** OEM Switches which need to be defaulted t
-				o 0 
+                             C  ; *** OEM Switches which need to be defaulted to 0 
                              C  ; 
  = 0000                      C  	CMPUTN=0 
  = 0000                      C  	DUPONT=0 
@@ -272,17 +234,19 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	ALTAIR=0 
  = 0000                      C  	DMC=0 
  = 0000                      C  	PANBAS=0 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-5
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	XTNSYS=0 
  = 0000                      C  	NECBAS=0 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Z80 related macros 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
                              C  				;8080'S AND ZILOG Z-80'S 
- = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INST
-				RUCTIONS 
+ = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INSTRUCTIONS 
  = 0000                      C  	Z80=0 
  = 0001                      C  	Z80=1 
                              C  LDIR	MACRO 
@@ -293,11 +257,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	DCXF	B 
                              C  	MOV	WORD PTR A,WORD PTR B 
                              C  	ORA	C 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-6
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  	JNZ	_-8D 
                              C  ENDM 
                              C  LDDR	MACRO 
@@ -314,11 +273,9 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	DCR	B 
                              C  	JNZ	DEST 
                              C  ENDM 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Define reset routines. 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  FSIGN	MACRO 
                              C  	CALL	SIGN 
                              C  ENDM 
@@ -336,6 +293,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  OUTCHR	MACRO 
                              C  	CALL	OUTDO 
                              C  ENDM 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-6
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  CHRGET	MACRO 
                              C  	CALL	CHRGTR 
                              C  ENDM 
@@ -352,11 +314,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ACRLF	MACRO 
                              C  	DB	13D 
                              C  	DB	10D 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-7
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  ENDM 
                              C  PUSHR	MACRO 
                              C  	PUSH	WORD PTR D 
@@ -379,15 +336,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDM 
                              C   
                              C   
- = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALL
-				Y CONTROL-O) 
- = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTAL
-				S 
+ = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALLY CONTROL-O) 
+ = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTALS 
                              C   
- = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARA
-				CTERS 
- = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SEC
-				TOR 
+ = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARACTERS 
+ = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SECTOR 
  = 0050                      C  	LINLN=80D		;TERMINAL LINE LENGTH 
  = 0084                      C  	LPTLEN=132D 
  = 00FF                      C  	BUFLEN=255		;LONG LINES 
@@ -399,6 +352,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0003                      C  	STRSIZ=3 
  = 0003                      C  	NUMTMP=3		;NUMBER OF STRING TEMPORARIES 
  = 000A                      C  	NUMTMP=10 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-7
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C   
  0008                        C  	.RADIX	8 
                              C  ; 
@@ -411,11 +369,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDM 
                              C   
                              C  INS86   MACRO   A,B,C,D 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-8
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C          DB      A&O 
                              C  IFNB    <B> 
                              C          DB      B&O 
@@ -453,9 +406,9 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-9
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
@@ -475,8 +428,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Reserve word table generating Macros 
                              C  ; 
                              C  un_def  MACRO   RESWRD 
-                             C          %OUT +++ Undefined reserved word - &RES
-				WRD 
+                             C          %OUT +++ Undefined reserved word - &RESWRD 
                              C  ENDM 
                              C   
                              C  T       MACRO   RESWRD 
@@ -512,12 +464,12 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C    IRPC  XX,<RESWRD> 
                              C     IF   $F 
                              C          $Q="&XX&" 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-10
+                             C          DB      "&XX&" 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-9
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
-                             C          DB      "&XX&" 
                              C     ENDIF 
                              C     IFE  $F-1 
                              C          .XLIST 
@@ -536,26 +488,19 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  DERMAK  MACRO   X 
                              C          PUBLIC  DER&X 
                              C  DER&X:  MOV     DL,OFFSET ERR&X 
-                             C          DB      271O                    ; LXI B
-				 over next error 
+                             C          DB      271O                    ; LXI B over next error 
                              C  ENDM 
                              C  ; 
-                             C  ; Dispatch table generating Macros.  We have to
-				 play games with the 
-                             C  ; external declarations as ASM86 won't allow so
-				mething to be declared 
-                             C  ; external during pass 2.  Instead we build a c
-				hain of dummy macros 
-                             C  ; that could generate the declaration for all p
-				otentially external 
+                             C  ; Dispatch table generating Macros.  We have to play games with the 
+                             C  ; external declarations as ASM86 won't allow something to be declared 
+                             C  ; external during pass 2.  Instead we build a chain of dummy macros 
+                             C  ; that could generate the declaration for all potentially external 
                              C  ; reserve word dispatch addresses. 
                              C  ; 
                              C   
                              C  ; 
-                             C  ; play games with a possible external.  Create 
-				a new 
-                             C  ; macro for the symbol and text, and string it 
-				together 
+                             C  ; play games with a possible external.  Create a new 
+                             C  ; macro for the symbol and text, and string it together 
                              C  ; with a central invoker 
                              C  ; 
                              C  ENDIF 
@@ -564,28 +509,26 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  endm 
                              C   
                              C  ; 
-                             C  ; add an external declaration to S with type NE
-				AR if it is not defined 
+                             C  ; add an external declaration to S with type NEAR if it is not defined 
                              C  ; 
                              C  add_ext macro   s 
                              C      IFNDEF   ?&s 
                              C          ?i = ?i + 1 
                              C          def_mac     ?z&%?i,?z&%(?i-1),s 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-11
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C      ENDIF 
                              C  endm 
                              C   
                              C  ; 
-                             C  ; define a macro called that possibly externals
-				 S:NEAR and then calls macro n 
+                             C  ; define a macro called that possibly externals S:NEAR and then calls macro n 
                              C  ; 
                              C  def_mac macro   m,n,s 
                              C  m   macro 
                              C      ifndef s 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-10
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C          extrn s:NEAR 
                              C      endif 
                              C      purge m 
@@ -624,9 +567,9 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          $&RESWRD=QQ 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-12
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-11
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C  PAGE 
@@ -645,19 +588,15 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                         	LABEL=PC8A 
  = 0000                         	HLPEDT=PC8A 
  = 0000                         	UCEMSG=NNECBS		;Upper case error messages. 
- = 0000                         	OLD86=MELCO AND CPM86	;For "old" 8086 error me
-				ssages (prior 
+ = 0000                         	OLD86=MELCO AND CPM86	;For "old" 8086 error messages (prior 
                                 				;to alignment for IBM compatibility). 
                                  
- = 0001                         	OLDBLD=ALPCPM OR ALPS OR OKI OR HAL OR PC8A OR
-				 BUBL OR GW OR TSHIBA 
+ = 0001                         	OLDBLD=ALPCPM OR ALPS OR OKI OR HAL OR PC8A OR BUBL OR GW OR TSHIBA 
                                  
                              C  	INCLUDE	GIO86U.INC 
-                             C  ; [ This translation created 12-Jan-83 by Versi
-				on 4.3 ] 
+                             C  ; [ This translation created 12-Jan-83 by Version 4.3 ] 
                              C   
-                             C  	SUBTTL GIO86U - Device Independent I/O Constan
-				ts and Macros 
+                             C  	SUBTTL GIO86U - Device Independent I/O Constants and Macros 
                              C   
                              C  COMMENT	* 
                              C   
@@ -665,8 +604,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COPYRIGHT (C) 1982 BY MICROSOFT 
                              C  --------- --- ---- -- --------- 
                              C   
-                             C          Programmer: Tom Corbett,  Microsoft Inc
-				. 
+                             C          Programmer: Tom Corbett,  Microsoft Inc. 
                              C   
                              C          * 
                              C   
@@ -683,19 +621,17 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0009                      C  	ASCTAB=9D		;Tab 
  = 000A                      C  	ASCLF=10D		;Line Feed 
  = 000D                      C  	ASCCR=13D		;Carriage Return 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-13
-GIO86U - Device Independent I/O Constants and Macros        
-
  = 0013                      C  	ASCCTS=19D		;CTL-S 
- = 001A                      C  	ASCCTZ=26D		;Control Z (End-of-file for some d
-				evices) 
+ = 001A                      C  	ASCCTZ=26D		;Control Z (End-of-file for some devices) 
  = 001B                      C  	ASCESC=27D		;Escape 
  = 0020                      C  	ASCSPC=32D		;Space 
                              C   
-                             C  ;Special File ID's (identified by 1st byte of f
-				ile) 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-12
+GIO86U - Device Independent I/O Constants and Macros        
+
+                             C  ;Special File ID's (identified by 1st byte of file) 
                              C  ; 
  = 00FF                      C  	BINFID=255D		;files created by SAVE "fn" 
  = 00FE                      C  	PROFID=254D		;files created by SAVE "fn",P 
@@ -704,44 +640,34 @@ GIO86U - Device Independent I/O Constants and Macros
                              C  ;Generalized I/O Function Codes: 
                              C  ; 
  = 0000                      C  	_OFFST=0		;initialize count 
-                             C  	ROFFST	G_EOF,2		;test EOF for file opened to t
-				his device 
+                             C  	ROFFST	G_EOF,2		;test EOF for file opened to this device 
                              C  	ROFFST	G_LOC,2		;LOC 
                              C  	ROFFST	G_LOF,2		;LOF 
-                             C  	ROFFST	G_CLS,2		;perform special CLOSE functio
-				ns for this device 
+                             C  	ROFFST	G_CLS,2		;perform special CLOSE functions for this device 
                              C  	ROFFST	G_SWD,2		;set device width 
-                             C  	ROFFST	G_RND,2		;GET/PUT random record from/to
-				 this device 
-                             C  	ROFFST	G_OPN,2		;perform special OPEN function
-				s for this device 
-                             C  	ROFFST	G_SIN,2		;input 1 byte from file opened
-				 on this device 
-                             C  	ROFFST	G_SOT,2		;output 1 byte to file opened 
-				on this device 
+                             C  	ROFFST	G_RND,2		;GET/PUT random record from/to this device 
+                             C  	ROFFST	G_OPN,2		;perform special OPEN functions for this device 
+                             C  	ROFFST	G_SIN,2		;input 1 byte from file opened on this device 
+                             C  	ROFFST	G_SOT,2		;output 1 byte to file opened on this device 
                              C  	ROFFST	G_GPS,2		;POS 
                              C  	ROFFST	G_GWD,2		;get device width 
                              C  	ROFFST	G_SCW,2		;set device column width 
                              C  	ROFFST	G_GCW,2		;get device column width 
-                             C  	ROFFST	G_BIN,2		;block input from file opened 
-				on this device 
-                             C  	ROFFST	G_BOT,2		;block output to file opened o
-				n this device 
+                             C  	ROFFST	G_BIN,2		;block input from file opened on this device 
+                             C  	ROFFST	G_BOT,2		;block output to file opened on this device 
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-14
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-13
 GIO86U - Device Independent I/O Constants and Macros        
 
                              C          PAGE 
                                  
                              C  	INCLUDE	MSDOSU.INC	;MSDOS constants 
-                             C  ; [ This translation created 12-Jan-83 by Versi
-				on 4.3 ] 
+                             C  ; [ This translation created 12-Jan-83 by Version 4.3 ] 
                              C   
-                             C  	SUBTTL    MSDOSU - MS-DOS Constants and Data-S
-				tructure Definitions 
+                             C  	SUBTTL    MSDOSU - MS-DOS Constants and Data-Structure Definitions 
                              C   
                              C  COMMENT	* 
                              C   
@@ -786,101 +712,78 @@ GIO86U - Device Independent I/O Constants and Macros
  = 0027                      C  	C_RBR=39D		;Random Block Read 
  = 0029                      C  	C_PARS=41D		;Parse Filename 
                              C   
- = 000B                      C  	FNAML=11D		;number of bytes in Filename with e
-				xtension 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-15
-MSDOSU - MS-DOS Constants and Data-Structure Definitions    
-
+ = 000B                      C  	FNAML=11D		;number of bytes in Filename with extension 
  = 0080                      C  	DATPSC=128D		;bytes per sector 
  = 0026                      C  	FCBSIZ=38D		;File Control Block size 
                              C   
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-14
+MSDOSU - MS-DOS Constants and Data-Structure Definitions    
+
                              C  ;MS-DOS FILE-DATA-BLOCK Record Definition 
                              C  ; 
  = 0000                      C  	_OFFST=0		;initialize count 
-                             C  	ROFFST	F_NUL1,1	;not used by basic interpreter
-				 
+                             C  	ROFFST	F_NUL1,1	;not used by basic interpreter 
                              C  	ROFFST	F_NUM,1		;file number 0..255 
-                             C  	ROFFST	F_NUL2,2	;not used by basic interpreter
-				 
-                             C  	ROFFST	F_NEXT,2	;thread for linked list, [MEMS
-				IZ]=end 
+                             C  	ROFFST	F_NUL2,2	;not used by basic interpreter 
+                             C  	ROFFST	F_NEXT,2	;thread for linked list, [MEMSIZ]=end 
                              C  	ROFFST	F_MODE,1	;file mode: 
  = 0001                      C  	MD_SQI=1D		;sequential input 
  = 0002                      C  	MD_SQO=2D		;sequential output 
  = 0004                      C  	MD_RND=4D		;random 
  = 0008                      C  	MD_APP=8D		;append 
-                             C  	ROFFST	F_FCB,FCBSIZ	;File Control Block: used 
-				to communicate with OS 
-                             C  	ROFFST	F_CLOC,2	;for seq files: num sectors re
-				ad/written   (LOCOFS) 
+                             C  	ROFFST	F_FCB,FCBSIZ	;File Control Block: used to communicate with OS 
+                             C  	ROFFST	F_CLOC,2	;for seq files: num sectors read/written   (LOCOFS) 
                              C  				;for rnd files: last record number + 1 
-                             C  	ROFFST	F_ORCT,1	;"Original Byte Count"        
-				             (ORNOFS) 
+                             C  	ROFFST	F_ORCT,1	;"Original Byte Count"                     (ORNOFS) 
                              C  				;for seq input: #bytes in sector when read 
                              C  				;for seq output: #bytes in output sector 
                              C  				;for random files: bytes per sector 
-                             C  	ROFFST	F_BREM,1	;number of bytes till end-of-b
-				uffer        (NMLOFS) 
+                             C  	ROFFST	F_BREM,1	;number of bytes till end-of-buffer        (NMLOFS) 
                              C  	ROFFST	F_CODE,1	;file encoding: 
  = 0000                      C  	FC_ASC=0		;Ascii SAVE, Data files 
  = 0001                      C  	FC_BIN=1		;binary file (BSAVE, binary SAVE) 
-                             C  	ROFFST	F_BAKC,1	;holds next sequential input w
-				hen F.FLBS.FL.BKC is true 
-                             C  	ROFFST	F_NUL3,1	;not used by basic interpreter
-				 
-                             C  	ROFFST	F_DEV,1		;Device number                
-				             (FL.DSK) 
+                             C  	ROFFST	F_BAKC,1	;holds next sequential input when F.FLBS.FL.BKC is true 
+                             C  	ROFFST	F_NUL3,1	;not used by basic interpreter 
+                             C  	ROFFST	F_DEV,1		;Device number                             (FL.DSK) 
                              C  	ROFFST	F_WID,1		;File width 
-                             C  	ROFFST	F_NUL4,1	;not used by basic interpreter
-				 
+                             C  	ROFFST	F_NUL4,1	;not used by basic interpreter 
                              C  	ROFFST	F_FLGS,1	;flags 
- = 0080                      C  	FL_BKC=200O		;when true, F.BAKC contains next 
-				sequential input 
-                             C  	ROFFST	F_POS,1		;Current column position      
-				             (FL.OPS) 
-                             C  	ROFFST	FDBSIZ,0	;size of device independent pa
-				rt of FDB 
+ = 0080                      C  	FL_BKC=200O		;when true, F.BAKC contains next sequential input 
+                             C  	ROFFST	F_POS,1		;Current column position                   (FL.OPS) 
+                             C  	ROFFST	FDBSIZ,0	;size of device independent part of FDB 
                              C  				;device dependant FDB entries start here 
                              C   
-                             C  	ROFFST	DATOFS,DATPSC	;Operating System interfa
-				ce buffer 
-                             C  	ROFFST	FD_SIZ,2	;variable record length for ra
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-16
-MSDOSU - MS-DOS Constants and Data-Structure Definitions    
-
-				ndom files 
-                             C  	ROFFST	FD_PHY,2	;current physical record numbe
-				r 
-                             C  	ROFFST	FD_LOG,2	;current logical record number
-				 
+                             C  	ROFFST	DATOFS,DATPSC	;Operating System interface buffer 
+                             C  	ROFFST	FD_SIZ,2	;variable record length for random files 
+                             C  	ROFFST	FD_PHY,2	;current physical record number 
+                             C  	ROFFST	FD_LOG,2	;current logical record number 
                              C  	ROFFST	F_NUL5,1	;Future use 
-                             C  	ROFFST	FD_OPS,2	;current output position for s
-				equential I/O 
+                             C  	ROFFST	FD_OPS,2	;current output position for sequential I/O 
                              C  	ROFFST	FD_DAT,0	;field buffer of random file 
                              C   
                              C  ; OFFSETS INTO MSDOS FCB 
                              C  ; 
- = 0007                      C  	FCB_DV=F_FCB+0D		;DRIVE (0=default, 1=A:, 2=B:
-				, ...) 
+ = 0007                      C  	FCB_DV=F_FCB+0D		;DRIVE (0=default, 1=A:, 2=B:, ...) 
  = 0008                      C  	FCB_FN=F_FCB+1D		;FILE NAME 
  = 0010                      C  	FCB_FT=F_FCB+9D		;EXTENSION 
- = 0013                      C  	FCB_EX=F_FCB+12D	;FILE EXTENT (identifies bloc
-				k of 128 logical records) 
+ = 0013                      C  	FCB_EX=F_FCB+12D	;FILE EXTENT (identifies block of 128 logical records) 
  = 0015                      C  	FCB_RC=F_FCB+14D	;RECORD SIZE 
  = 0017                      C  	FCB_FS=F_FCB+16D	;FILE SIZE IN BYTES 
  = 001B                      C  	FCB_DT=F_FCB+20D	;Date of last write to file 
  = 001D                      C  	FCB_DT=F_FCB+22D	;Time of last write to file 
  = 0027                      C  	FCB_NR=F_FCB+32D	;NEXT RECORD NUMBER 
- = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Numbe
-				r 
-                             C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
+ = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Number 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-15
+MSDOSU - MS-DOS Constants and Data-Structure Definitions    
 
-GWEVAL Copied from BINTRP.MAC                               Page     1-17
+                             C   
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-16
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
 
                              C          PAGE 
@@ -906,25 +809,21 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  = 0002                         	BUFOFS=2		;MUST CRUNCH INTO ERALIER PLACE FOR 
                                 				; SINGLE QUOTE 
                                  
- = 013E                         	KBFLEN=BUFLEN+(BUFLEN/4)	;MAKE KRUNCH BUFFER S
-				OMEWHAT 
+ = 013E                         	KBFLEN=BUFLEN+(BUFLEN/4)	;MAKE KRUNCH BUFFER SOMEWHAT 
                                 				; LARGER THAN SOURCE BUFFER (BUF) 
                                  
                                  
                                  
                                  
                                 	EXTRN	NAME:NEAR 
-                                	EXTRN	INLIN:NEAR,CRDO:NEAR,CRDONZ:NEAR,STRCMP:
-				NEAR,FININL:NEAR 
+                                	EXTRN	INLIN:NEAR,CRDO:NEAR,CRDONZ:NEAR,STRCMP:NEAR,FININL:NEAR 
                                 	EXTRN	PPSWRT:NEAR 
                                  
                                 	EXTRN	OUTDO:NEAR 
                                  
-                                	EXTRN	BLTU:NEAR,CLEARC:NEAR,GTMPRT:NEAR,ISLET:
-				NEAR,ISLET2:NEAR 
+                                	EXTRN	BLTU:NEAR,CLEARC:NEAR,GTMPRT:NEAR,ISLET:NEAR,ISLET2:NEAR 
                                 	EXTRN	PTRGET:NEAR 
-                                	EXTRN	QINLIN:NEAR,SCRTCH:NEAR,STKINI:NEAR,RUNC
-				:NEAR,RESFIN:NEAR 
+                                	EXTRN	QINLIN:NEAR,SCRTCH:NEAR,STKINI:NEAR,RUNC:NEAR,RESFIN:NEAR 
                                 	EXTRN	PTRGT2:NEAR,STPEND:NEAR,DIM:NEAR 
                                  
                                 	EXTRN	DCOMPR:NEAR,SYNCHR:NEAR 
@@ -937,36 +836,30 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                  
                                  
                                 	EXTRN	LRUN:NEAR 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-18
-MSDOSU - MS-DOS Constants and Data-Structure Definitions    
-
                                  
                                 	EXTRN	FILGET:NEAR 
                                  
                                  
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-17
+MSDOSU - MS-DOS Constants and Data-Structure Definitions    
+
                                 	EXTRN	INXHRT:NEAR 
-                                	EXTRN	SGN:NEAR,ABSFN:NEAR,SQR:NEAR,FDIV:NEAR,F
-				SUB:NEAR 
+                                	EXTRN	SGN:NEAR,ABSFN:NEAR,SQR:NEAR,FDIV:NEAR,FSUB:NEAR 
                                 	EXTRN	FMULT:NEAR,RND:NEAR	;MATHPK INTERNALS 
-                                	EXTRN	ZERO:NEAR,MOVE:NEAR,FOUT:NEAR,FIN:NEAR,F
-				COMP:NEAR 
+                                	EXTRN	ZERO:NEAR,MOVE:NEAR,FOUT:NEAR,FIN:NEAR,FCOMP:NEAR 
                                 	EXTRN	FADD:NEAR,PUSHF:NEAR,INT:NEAR 
-                                	EXTRN	MOVFR:NEAR,MOVRF:NEAR,MOVRM:NEAR,INPRT:N
-				EAR,LINPRT:NEAR 
+                                	EXTRN	MOVFR:NEAR,MOVRF:NEAR,MOVRM:NEAR,INPRT:NEAR,LINPRT:NEAR 
                                 	EXTRN	FDIVT:NEAR 
                                 	EXTRN	MOVFM:NEAR,MOVMF:NEAR,FADDS:NEAR 
                                 	EXTRN	INRART:NEAR,NEG:NEAR 
                                 	EXTRN	BSERR:NEAR 
-                                	EXTRN	CAT:NEAR,FREFAC:NEAR,FRESTR:NEAR,FRETMP:
-				NEAR,FRETMS:NEAR 
+                                	EXTRN	CAT:NEAR,FREFAC:NEAR,FRESTR:NEAR,FRETMP:NEAR,FRETMS:NEAR 
                                 	EXTRN	STRCPY:NEAR,GETSTK:NEAR 
-                                	EXTRN	STRLIT:NEAR,STRLT2:NEAR,STRLT3:NEAR,STRL
-				TI:NEAR,STROUT:NEAR 
+                                	EXTRN	STRLIT:NEAR,STRLT2:NEAR,STRLT3:NEAR,STRLTI:NEAR,STROUT:NEAR 
                                 	EXTRN	STRPRT:NEAR,STROUI:NEAR 
-                                	EXTRN	GETSPA:NEAR,PUTNEW:NEAR,STOP:NEAR,OMERR:
-				NEAR,REASON:NEAR 
+                                	EXTRN	GETSPA:NEAR,PUTNEW:NEAR,STOP:NEAR,OMERR:NEAR,REASON:NEAR 
                                  
                                 	EXTRN	GARBA2:NEAR	;We have our own G. C. 
                                  
@@ -975,8 +868,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                  
                                 	EXTRN	PRINUS:NEAR,PUTTMP:NEAR 
                                  
-                                	EXTRN	FOUTH:NEAR,FOUTO:NEAR,STRO$:NEAR,STRH$:N
-				EAR 
+                                	EXTRN	FOUTH:NEAR,FOUTO:NEAR,STRO$:NEAR,STRH$:NEAR 
                                  
                                  
                                 	EXTRN	STRNG$:NEAR 
@@ -994,117 +886,87 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                  
                                 	EXTRN	FINLPT:NEAR 
                                  
-                                	EXTRN	CONSIH:NEAR,VMOVFA:NEAR,VMOVAF:NEAR,ISIG
-				N:NEAR,CONIA:NEAR 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-19
-MSDOSU - MS-DOS Constants and Data-Structure Definitions    
-
+                                	EXTRN	CONSIH:NEAR,VMOVFA:NEAR,VMOVAF:NEAR,ISIGN:NEAR,CONIA:NEAR 
                                 	EXTRN	VSIGN:NEAR,VDFACS:NEAR 
-                                	EXTRN	VMOVMF:NEAR,VMOVFM:NEAR,FRCINT:NEAR,FRCS
-				NG:NEAR,FRCDBL:NEAR 
-                                	EXTRN	VNEG:NEAR,PUFOUT:NEAR,DCXBRT:NEAR,IADD:N
-				EAR 
-                                	EXTRN	ISUB:NEAR,IMULT:NEAR,ICOMP:NEAR,INEG:NEA
-				R,DADD:NEAR 
-                                	EXTRN	DSUB:NEAR,DMULT:NEAR,DDIV:NEAR,DCOMP:NEA
-				R,VINT:NEAR 
+                                	EXTRN	VMOVMF:NEAR,VMOVFM:NEAR,FRCINT:NEAR,FRCSNG:NEAR,FRCDBL:NEAR 
+                                	EXTRN	VNEG:NEAR,PUFOUT:NEAR,DCXBRT:NEAR,IADD:NEAR 
+                                	EXTRN	ISUB:NEAR,IMULT:NEAR,ICOMP:NEAR,INEG:NEAR,DADD:NEAR 
+                                	EXTRN	DSUB:NEAR,DMULT:NEAR,DDIV:NEAR,DCOMP:NEAR,VINT:NEAR 
                                 	EXTRN	FINDBL:NEAR,INEG2:NEAR 
                                 	EXTRN	IDIV:NEAR,IMOD:NEAR 
-                                	EXTRN	VMOVE:NEAR,VALINT:NEAR,VALSNG:NEAR,FRCST
-				R:NEAR,CHKSTR:NEAR 
+                                	EXTRN	VMOVE:NEAR,VALINT:NEAR,VALSNG:NEAR,FRCSTR:NEAR,CHKSTR:NEAR 
                                 	EXTRN	MAKINT:NEAR 
                                 	EXTRN	MOVE1:NEAR 
                                  
                                 	EXTRN	SCNSEM:NEAR 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-18
+MSDOSU - MS-DOS Constants and Data-Structure Definitions    
+
                                 	EXTRN	WHILE:NEAR,WEND:NEAR 
                                 	EXTRN	CALLS:NEAR 
                                 	EXTRN	PROCHK:NEAR 
-                                ;The following block of externals was added on 
-				Dec 19, 1982 when BINTRP was 
-                                ; Split up after the freeze of GW-BASIC Version
-				 1.0 
-                                ; This Split-up was not reflected in the PS1:<B
-				ASIC>BINTRP.MAC source. 
+                                ;The following block of externals was added on Dec 19, 1982 when BINTRP was 
+                                ; Split up after the freeze of GW-BASIC Version 1.0 
+                                ; This Split-up was not reflected in the PS1:<BASIC>BINTRP.MAC source. 
                                 ; See Tom Corbett if you have any questions. 
                                 ; 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-                                	EXTRN	MEMSIZ:WORD,FRETOP:WORD,VARTAB:WORD,STRE
-				ND:WORD,TXTTAB:WORD 
+                                	EXTRN	MEMSIZ:WORD,FRETOP:WORD,VARTAB:WORD,STREND:WORD,TXTTAB:WORD 
                                 	EXTRN	ARYTAB:WORD 
-                                	EXTRN	CURLIN:WORD,DOT:WORD,DATLIN:WORD,NLONLY:
-				WORD,ERRLIN:WORD 
+                                	EXTRN	CURLIN:WORD,DOT:WORD,DATLIN:WORD,NLONLY:WORD,ERRLIN:WORD 
                                 	EXTRN	ERRTXT:WORD 
                                 	EXTRN	MRGFLG:WORD,CHNFLG:WORD 
-                                	EXTRN	SAVSTK:WORD,SAVTXT:WORD,OLDLIN:WORD,NXTL
-				IN:WORD,OLDTXT:WORD 
+                                	EXTRN	SAVSTK:WORD,SAVTXT:WORD,OLDLIN:WORD,NXTLIN:WORD,OLDTXT:WORD 
                                 	EXTRN	ONELIN:WORD,ONEFLG:WORD 
-                                	EXTRN	CNTOFL:WORD,TRCFLG:WORD,CONSAV:WORD,CONT
-				XT:WORD,CONTYP:WORD 
+                                	EXTRN	CNTOFL:WORD,TRCFLG:WORD,CONSAV:WORD,CONTXT:WORD,CONTYP:WORD 
                                 	EXTRN	NUMCON:WORD,CONLO:WORD 
                                 	EXTRN	AUTFLG:WORD,AUTLIN:WORD,AUTINC:WORD 
                                 	EXTRN	KBUF:WORD,BUFMIN:WORD,BUF:WORD 
-                                	EXTRN	PTRFIL:WORD,PTRFLG:WORD,DORES:WORD,VALTY
-				P:WORD,FACLO:WORD 
+                                	EXTRN	PTRFIL:WORD,PTRFLG:WORD,DORES:WORD,VALTYP:WORD,FACLO:WORD 
                                 	EXTRN	DFACLO:WORD,FAC:WORD 
-                                	EXTRN	TEMP:WORD,TEMP2:WORD,TEMP3:WORD,TEMPA:WO
-				RD 
+                                	EXTRN	TEMP:WORD,TEMP2:WORD,TEMP3:WORD,TEMPA:WORD 
                                 	EXTRN	DSCTMP:WORD,TEMPST:WORD 
                                 	EXTRN	OPRTYP:WORD 
-                                	EXTRN	SUBFLG:WORD,FVALSV:WORD,DEFTBL:WORD,FLGI
-				NP:WORD,FLGSCN:WORD 
+                                	EXTRN	SUBFLG:WORD,FVALSV:WORD,DEFTBL:WORD,FLGINP:WORD,FLGSCN:WORD 
                                 	EXTRN	OVCSTR:WORD,INPPAS:WORD 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-20
-MSDOSU - MS-DOS Constants and Data-Structure Definitions    
-
-                                	EXTRN	USRTAB:WORD,DONUM:WORD,ENDPRG:WORD,ENDFO
-				R:WORD,DATPTR:WORD 
+                                	EXTRN	USRTAB:WORD,DONUM:WORD,ENDPRG:WORD,ENDFOR:WORD,DATPTR:WORD 
                                 	EXTRN	FLGOVC:WORD 
-                                	EXTRN	ERRFLG:WORD,SAVSEG:WORD,PRMLN2:WORD,PARM
-				2:WORD,PRMLEN:WORD 
+                                	EXTRN	ERRFLG:WORD,SAVSEG:WORD,PRMLN2:WORD,PARM2:WORD,PRMLEN:WORD 
                                 	EXTRN	PRMSTK:WORD,PARM1:WORD 
-                                	EXTRN	FUNACT:WORD,NOFUNS:WORD,OPTVAL:WORD,OPTF
-				LG:WORD,RNDX:WORD 
+                                	EXTRN	FUNACT:WORD,NOFUNS:WORD,OPTVAL:WORD,OPTFLG:WORD,RNDX:WORD 
  0000                           DSEG	ENDS 
                                  
-                                	EXTRN	OPTAB:NEAR,OPCNT:ABS,INTDSP:NEAR,SNGDSP:
-				NEAR,DBLDSP:NEAR 
+                                	EXTRN	OPTAB:NEAR,OPCNT:ABS,INTDSP:NEAR,SNGDSP:NEAR,DBLDSP:NEAR 
                                 	EXTRN	FRCTBL:NEAR,PRMSIZ:NEAR 
-                                	EXTRN	$OVMSG:NEAR,ERRTAB:NEAR,LSTERR:NEAR,DSKE
-				RR:NEAR,NONDSK:NEAR 
+                                	EXTRN	$OVMSG:NEAR,ERRTAB:NEAR,LSTERR:NEAR,DSKERR:NEAR,NONDSK:NEAR 
                                 	EXTRN	REDDY:NEAR 
-                                	EXTRN	ERRSN:NEAR,ERRDV0:NEAR,ERRRE:NEAR,ERROV:
-				NEAR,ERRMO:NEAR 
+                                	EXTRN	ERRSN:NEAR,ERRDV0:NEAR,ERRRE:NEAR,ERROV:NEAR,ERRMO:NEAR 
                                 	EXTRN	ERRTM:NEAR,ERRNF:NEAR 
-                                	EXTRN	ERRNR:NEAR,ERRLBO:NEAR,ERRDD:NEAR,ERRUF:
-				NEAR,ERRUE:NEAR 
+                                	EXTRN	ERRNR:NEAR,ERRLBO:NEAR,ERRDD:NEAR,ERRUF:NEAR,ERRUE:NEAR 
                                 	EXTRN	ERRFC:NEAR 
-                                	EXTRN	ERRIFN:NEAR,ERRFNO:NEAR,ERRDNA:NEAR,ERRF
-				DR:NEAR,ERRRAD:NEAR 
+                                	EXTRN	ERRIFN:NEAR,ERRFNO:NEAR,ERRDNA:NEAR,ERRFDR:NEAR,ERRRAD:NEAR 
                                 	EXTRN	ERRDFL:NEAR 
-                                	EXTRN	ERRIOE:NEAR,ERRBFM:NEAR,ERRFNF:NEAR,ERRB
-				FN:NEAR,ERRIER:NEAR 
+                                	EXTRN	ERRIOE:NEAR,ERRBFM:NEAR,ERRFNF:NEAR,ERRBFN:NEAR,ERRIER:NEAR 
                                 	EXTRN	ERRRPE:NEAR 
-                                	EXTRN	ERRFAO:NEAR,ERRNMF:NEAR,ERRWH:NEAR,ERRBR
-				N:NEAR,ERRFOV:NEAR 
+                                	EXTRN	ERRFAO:NEAR,ERRNMF:NEAR,ERRWH:NEAR,ERRBRN:NEAR,ERRFOV:NEAR 
                                 	EXTRN	ERRTMF:NEAR 
-                                	EXTRN	ERRFAE:NEAR,ERRUS:NEAR,ERRRG:NEAR,ERROD:
-				NEAR,ERRID:NEAR 
+                                	EXTRN	ERRFAE:NEAR,ERRUS:NEAR,ERRRG:NEAR,ERROD:NEAR,ERRID:NEAR 
                                 	EXTRN	ERRFN:NEAR 
                                 	EXTRN	ERRUE1:NEAR	;ERRUE+DSKERR-NONDSK 
                                 	EXTRN	DSKER1:NEAR	;DSKERR-NONDSK 
                                  
-                                ;The following externs are defined in GWMAIN.MA
-				C 
+                                ;The following externs are defined in GWMAIN.MAC 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-19
+MSDOSU - MS-DOS Constants and Data-Structure Definitions    
+
                                 ; 
-                                	EXTRN	TMERR:NEAR,SNERR:NEAR,CHRGTR:NEAR,MOERR:
-				NEAR,OVERR:NEAR 
+                                	EXTRN	TMERR:NEAR,SNERR:NEAR,CHRGTR:NEAR,MOERR:NEAR,OVERR:NEAR 
                                 	EXTRN	FCERR:NEAR,ERROR:NEAR 
-                                	EXTRN	CONFAC:NEAR,FRMQNT:NEAR,DATA:NEAR,LETCN4
-				:NEAR,$STPRN:NEAR 
+                                	EXTRN	CONFAC:NEAR,FRMQNT:NEAR,DATA:NEAR,LETCN4:NEAR,$STPRN:NEAR 
                                 	EXTRN	ONECON:NEAR,DBLCON:NEAR 
                                 	EXTRN	FRQINT:NEAR,LINGET:NEAR,UFERR:NEAR 
                                  
@@ -1112,17 +974,9 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                  
                                  
                                 ; 
-                                ; The reserved word tables are in another modul
-				e.  Consequently 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-21
-MSDOSU - MS-DOS Constants and Data-Structure Definitions    
-
-                                ; many things must be declared external.  All o
-				f these things 
-                                ; are in the code segement or are absolutes (li
-				ke tokens). 
+                                ; The reserved word tables are in another module.  Consequently 
+                                ; many things must be declared external.  All of these things 
+                                ; are in the code segement or are absolutes (like tokens). 
                                 ; I.e., they are not in the data segment. 
                                 ; 
                                  
@@ -1142,8 +996,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 	EXTRN	$SCREEN:NEAR,$STRING$:NEAR 
                                 	EXTRN	$VARPTR:NEAR 
                                 ; 
-                                ; Since the dispatch table is also no longer in
-				 BINTRP many 
+                                ; Since the dispatch table is also no longer in BINTRP many 
                                 ; addresses need to be declared internal. 
                                 ; 
                                 	PUBLIC	DEF 
@@ -1154,30 +1007,24 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                  
                                 ; 
                                 ; THE FORMULA EVALUATOR STARTS WITH 
-                                ; [H,L] POINTING TO THE FIRST CHARACTER OF THE 
-				FORMULA. 
+                                ; [H,L] POINTING TO THE FIRST CHARACTER OF THE FORMULA. 
                                 ; AT THE END [H,L] POINTS TO THE TERMINATOR. 
                                 ; THE RESULT IS LEFT IN THE FAC. 
-                                ; ON RETURN [A] DOES NOT REFLECT THE TERMINATIN
-				G CHARACTER 
+                                ; ON RETURN [A] DOES NOT REFLECT THE TERMINATING CHARACTER 
                                 ; 
-                                ; THE FORMULA EVALUATOR USES THE OPERATOR TABLE
-				 (OPTAB) 
-                                ; TO DETERMINE PRECEDENCE AND DISPATCH ADDRESSE
-				S FOR 
+                                ; THE FORMULA EVALUATOR USES THE OPERATOR TABLE (OPTAB) 
+                                ; TO DETERMINE PRECEDENCE AND DISPATCH ADDRESSES FOR 
                                 ; EACH OPERATOR. 
-                                ; A TEMPORARY RESULT ON THE STACK HAS THE FOLLO
-				WING FORMAT 
+                                ; A TEMPORARY RESULT ON THE STACK HAS THE FOLLOWING FORMAT 
                                 ; 
-                                ; THE ADDRESS OF 'RETAOP' -- THE PLACE TO RETUR
-				N ON COMPLETION 
-                                ; OF OPERATOR APPLICATION 
-                                ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-22
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-20
 FORMULA EVALUATION CODE                                     
 
+                                ; THE ADDRESS OF 'RETAOP' -- THE PLACE TO RETURN ON COMPLETION 
+                                ; OF OPERATOR APPLICATION 
+                                ; 
                                 ; THE FLOATING POINT TEMPORARY RESULT 
                                 ; 
                                 ; THE ADDRESS OF THE OPERATOR ROUNTINE 
@@ -1196,54 +1043,44 @@ FORMULA EVALUATION CODE
                                 PUBLIC	FRMEVL 
  000B  4B                       FRMEVL:	DEC	BX		;BACK UP CHARACTER POINTER 
                                 PUBLIC	FRMCHK 
- 000C  B6 00                    FRMCHK:	MOV	DH,LOW 0	;INITIAL DUMMY PRECEDENCE 
-				IS 0 
+ 000C  B6 00                    FRMCHK:	MOV	DH,LOW 0	;INITIAL DUMMY PRECEDENCE IS 0 
  000E  52                       LPOPER:	PUSH	DX		;SAVE PRECEDENCE 
- 000F  B1 01                    	MOV	CL,LOW 1	;EXTRA SPACE NEEDED FOR RETURN AD
-				DRESS 
- 0011  E8 0000 E                	CALL	GETSTK		;MAKE SURE THERE IS ROOM FOR RECU
-				RSIVE CALLS 
+ 000F  B1 01                    	MOV	CL,LOW 1	;EXTRA SPACE NEEDED FOR RETURN ADDRESS 
+ 0011  E8 0000 E                	CALL	GETSTK		;MAKE SURE THERE IS ROOM FOR RECURSIVE CALLS 
  0014  E8 01C7 R                	CALL	EVAL		;EVALUATE SOMETHING 
                                 				;RESET OVERFLOW PRINTING BACK TO NORMAL 
  0017  32 C0                    	XOR	AL,AL		;(SET TO 1 AT FUNDSP TO SUPPRESS 
- 0019  A2 0000 E                	MOV	BYTE PTR FLGOVC,AL	;MULTIPLE OVERFLOW MESS
-				AGES) 
+ 0019  A2 0000 E                	MOV	BYTE PTR FLGOVC,AL	;MULTIPLE OVERFLOW MESSAGES) 
                                 PUBLIC	TSTOP 
  001C  89 1E 0000 E             TSTOP:	MOV	TEMP2,BX	;SAVE TEXT POINTER 
  0020  8B 1E 0000 E             RETAOP:	MOV	BX,TEMP2	;RESTORE TEXT PTR 
  0024  59                       	POP	CX		;POP OFF THE PRECEDENCE OF OLDOP 
- 0025  8A 07                    NOTSTV:	MOV	AL,BYTE PTR [BX]	;GET NEXT CHARACTE
-				R 
+ 0025  8A 07                    NOTSTV:	MOV	AL,BYTE PTR [BX]	;GET NEXT CHARACTER 
  0027  89 1E 0000 E             	MOV	TEMP3,BX	;SAVE UPDATED CHARACTER POINTER 
  002B  3C 00 E                  	CMP	AL,LOW OFFSET GREATK	;IS IT AN OPERATOR? 
  002D  73 01                    	JNB	SHORT $+3 
- 002F  C3                       	RET			;NO, ALL DONE (THIS CAN RESULT IN OPERAT
-				OR 
+ 002F  C3                       	RET			;NO, ALL DONE (THIS CAN RESULT IN OPERATOR 
                                 				;APPLICATION OR ACTUAL RETURN) 
- 0030  3C 01 E                  	CMP	AL,LOW OFFSET LESSTK+1	;SOME KIND OF RELAT
-				IONAL? 
+ 0030  3C 01 E                  	CMP	AL,LOW OFFSET LESSTK+1	;SOME KIND OF RELATIONAL? 
  0032  72 73                    	JB	SHORT DORELS	;YES, DO IT 
- 0034  2C 00 E                  	SUB	AL,LOW OFFSET PLUSTK	;SUBTRACT OFFSET FOR 
-				FIRST ARITHMETIC 
+ 0034  2C 00 E                  	SUB	AL,LOW OFFSET PLUSTK	;SUBTRACT OFFSET FOR FIRST ARITHMETIC 
  0036  8A D0                    	MOV	DL,AL		;MUST MULTIPLY BY 3 SINCE 
                                 				;OPTAB ENTRIES ARE 3 LONG 
  0038  75 0C                    	JNZ	SHORT NTPLUS	;NOT ADDITION OP 
- 003A  A0 0000 E                	MOV	AL,BYTE PTR VALTYP	;SEE IF LEFT PART IS ST
-				RING 
+ 003A  A0 0000 E                	MOV	AL,BYTE PTR VALTYP	;SEE IF LEFT PART IS STRING 
  003D  3C 03                    	CMP	AL,LOW 3	;SEE IF ITS A STRING 
  003F  8A C2                    	MOV	AL,DL		;REFETCH OP-VALUE 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-23
-FORMULA EVALUATION CODE                                     
-
  0041  75 03                    	JNZ	SHORT ??L000 
  0043  E9 0000 E                	JMP	CAT		;MUST BE CAT 
  0046                           ??L000: 
  0046                           NTPLUS: 
- 0046  3C 00 E                  	CMP	AL,LOW OFFSET LSTOPK	;HIGHER THAN THE LAST
-				 OP? 
+ 0046  3C 00 E                  	CMP	AL,LOW OFFSET LSTOPK	;HIGHER THAN THE LAST OP? 
  0048  72 01                    	JNAE	SHORT $+3 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-21
+FORMULA EVALUATION CODE                                     
+
  004A  C3                       	RET			;YES, MUST BE TERMINATOR 
  004B  BB 0000 E                	MOV	BX,OFFSET OPTAB	;CREATE INDEX INTO OPTAB 
  004E  B6 00                    	MOV	DH,LOW 0	;MAKE HIGH BYTE OF OFFSET=0 
@@ -1258,80 +1095,59 @@ FORMULA EVALUATION CODE
                                 				;NEW OPERATOR 
                                  
  005C  51                       	PUSH	CX		;SAVE THE OLD PRECEDENCE 
- 005D  B9 0020 R                	MOV	CX,OFFSET RETAOP	;PUT ON THE ADDRESS OF TH
-				E 
- 0060  51                       	PUSH	CX		;PLACE TO RETURN TO AFTER OPERATOR AP
-				PLICATION 
- 0061  8A C6                    	MOV	AL,DH		;SEE IF THE OPERATOR IS EXPONENTIAT
-				ION 
+ 005D  B9 0020 R                	MOV	CX,OFFSET RETAOP	;PUT ON THE ADDRESS OF THE 
+ 0060  51                       	PUSH	CX		;PLACE TO RETURN TO AFTER OPERATOR APPLICATION 
+ 0061  8A C6                    	MOV	AL,DH		;SEE IF THE OPERATOR IS EXPONENTIATION 
  0063  3C 7F                    	CMP	AL,LOW 127	;WHICH HAS PRECEDENCE 127 
- 0065  74 62                    	JZ	SHORT EXPSTK	;IF SO, "FRCSNG" AND MAKE A SP
-				ECIAL STACK ENTRY 
- 0067  3C 51                    	CMP	AL,LOW 81	;SEE IF THE OPERATOR IS "AND" OR
-				 "OR" 
+ 0065  74 62                    	JZ	SHORT EXPSTK	;IF SO, "FRCSNG" AND MAKE A SPECIAL STACK ENTRY 
+ 0067  3C 51                    	CMP	AL,LOW 81	;SEE IF THE OPERATOR IS "AND" OR "OR" 
  0069  72 6B                    	JB	SHORT ANDORD	;AND IF SO "FRCINT" AND 
                                 				;MAKE A SPECIAL STACK ENTRY 
- 006B  24 FE                    	AND	AL,LOW 254	;MAKE 123 AND 122 BOTH MAP TO 1
-				22 
- 006D  3C 7A                    	CMP	AL,LOW 122	;MAKE A SPECIAL CHECK FOR "MOD"
-				 AND "IDIV" 
- 006F  74 65                    	JZ	SHORT ANDORD	;IF SO, COERCE ARGUMENTS TO IN
-				TEGER 
-                                ; THIS CODE PUSHES THE CURRENT VALUE IN THE FAC
-				 
-                                ; ONTO THE STACK, EXCEPT IN THE CASE OF STRINGS
-				 IN WHICH IT CALLS 
-                                ; TYPE MISMATCH ERROR. [D] AND [E] ARE PRESERVE
-				D. 
+ 006B  24 FE                    	AND	AL,LOW 254	;MAKE 123 AND 122 BOTH MAP TO 122 
+ 006D  3C 7A                    	CMP	AL,LOW 122	;MAKE A SPECIAL CHECK FOR "MOD" AND "IDIV" 
+ 006F  74 65                    	JZ	SHORT ANDORD	;IF SO, COERCE ARGUMENTS TO INTEGER 
+                                ; THIS CODE PUSHES THE CURRENT VALUE IN THE FAC 
+                                ; ONTO THE STACK, EXCEPT IN THE CASE OF STRINGS IN WHICH IT CALLS 
+                                ; TYPE MISMATCH ERROR. [D] AND [E] ARE PRESERVED. 
                                 ; 
  0071                           NUMREL: 
- 0071  A0 0000 E                	MOV	AL,BYTE PTR VALTYP	;FIND OUT WHAT TYPE OF 
-				VALUE WE ARE SAVING 
+ 0071  A0 0000 E                	MOV	AL,BYTE PTR VALTYP	;FIND OUT WHAT TYPE OF VALUE WE ARE SAVING 
  0074  2C 03                    	SUB	AL,LOW 3	;SETUP THE CONDITION CODES 
                                 				;SET ZERO FOR STRINGS 
  0076  75 03                    	JNZ	SHORT ??L001 
  0078  E9 0000 E                	JMP	TMERR 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-24
-FORMULA EVALUATION CODE                                     
-
  007B                           ??L001: 
                                 	INS86	377,66,FACLO	;PUSH FACLO 
  007F  79 03                    	JNS	SHORT ??L002 
- 0081  EB 12 90                 	JMP	VPUSHD		;ALL DONE IF THE DATA WAS AN INTEG
-				ER 
+ 0081  EB 12 90                 	JMP	VPUSHD		;ALL DONE IF THE DATA WAS AN INTEGER 
  0084                           ??L002: 
-                                	INS86	377,66,FACLO+2	;PUSH FAC-1,0 ON THE STAC
-				K 
+                                	INS86	377,66,FACLO+2	;PUSH FAC-1,0 ON THE STACK 
  0088  7A 03                    	JP	SHORT ??L003 
  008A  EB 09 90                 	JMP	VPUSHD		;ALL DONE IF WE HAD A SNG 
  008D                           ??L003: 
-                                	INS86	377,66,DFACLO	;PUSH ON LOW BYTES OF DP F
-				AC 
-                                	INS86	377,66,DFACLO+2	;PUSH ON NEXT TWO BYES O
-				F DP FAC 
+                                	INS86	377,66,DFACLO	;PUSH ON LOW BYTES OF DP FAC 
+                                	INS86	377,66,DFACLO+2	;PUSH ON NEXT TWO BYES OF DP FAC 
  0095                           VPUSHD: 
- 0095  04 03                    	ADD	AL,LOW 3	;FIX [A] TO BE THE VALTYP OF THE 
-				NUMBER 
+ 0095  04 03                    	ADD	AL,LOW 3	;FIX [A] TO BE THE VALTYP OF THE NUMBER 
                                 				;JUST PUSHED ON THE STACK 
  0097  8A CA                    	MOV	CL,DL		;[C]=OPERATOR NUMBER 
  0099  8A E8                    	MOV	CH,AL		;[B]=TYPE OF VALUE ON THE STACK 
  009B  51                       	PUSH	CX		;SAVE THESE THINGS FOR APPLOP 
- 009C  B9 0103 R                	MOV	CX,OFFSET APPLOP	;GENERAL OPERATOR APPLICA
-				TION 
+ 009C  B9 0103 R                	MOV	CX,OFFSET APPLOP	;GENERAL OPERATOR APPLICATION 
                                 				;ROUTINE -- DOES TYPE CONVERSIONS 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-22
+FORMULA EVALUATION CODE                                     
+
  009F  51                       FINTMP:	PUSH	CX		;SAVE PLACE TO GO 
  00A0  8B 1E 0000 E             	MOV	BX,TEMP3	;REGET THE TEXT POINTER 
  00A4  E9 000E R                	JMP	LPOPER 
  00A7  B6 00                    DORELS:	MOV	DH,LOW 0	;ASSUME NO RELATION OPS 
-                                				;ALSO SETUP THE HIGH ORDER OF THE INDEX INT
-				O OPTAB 
- 00A9  2C 00 E                  LOPREL:	SUB	AL,LOW OFFSET GREATK	;IS THIS ONE R
-				ELATION? 
+                                				;ALSO SETUP THE HIGH ORDER OF THE INDEX INTO OPTAB 
+ 00A9  2C 00 E                  LOPREL:	SUB	AL,LOW OFFSET GREATK	;IS THIS ONE RELATION? 
  00AB  72 34                    	JB	SHORT FINREL	;RELATIONS ALL THROUGH 
- 00AD  3C 00 E                  	CMP	AL,LOW OFFSET NMREL	;IS IT REALLY RELATION
-				AL? 
+ 00AD  3C 00 E                  	CMP	AL,LOW OFFSET NMREL	;IS IT REALLY RELATIONAL? 
  00AF  73 30                    	JAE	SHORT FINREL	;NO JUST BIG 
  00B1  3C 01                    	CMP	AL,LOW 1	;SET UP BITS BY MAPPING 
  00B3  D0 D0                    	RCL	AL,1		;0 TO 1 1 TO 2 AND 2 TO 4 
@@ -1345,32 +1161,20 @@ FORMULA EVALUATION CODE
  00C4  E8 0000 E                	CALL	CHRGTR		;GET THE NEXT CANDIDATE 
  00C7  EB E0                    	JMP	SHORT LOPREL 
                                 ; 
-                                ; FOR EXPONENTIATION WE WANT TO FORCE THE CURRE
-				NT VALUE IN THE FAC 
-                                ; TO BE SINGLE PRECISION. WHEN APPLICATION TIME
-				 COMES WE FORCE 
-                                ; THE RIGHT HAND OPERAND TO SINGLE PRECISION AS
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-25
-FORMULA EVALUATION CODE                                     
-
-				 WELL 
+                                ; FOR EXPONENTIATION WE WANT TO FORCE THE CURRENT VALUE IN THE FAC 
+                                ; TO BE SINGLE PRECISION. WHEN APPLICATION TIME COMES WE FORCE 
+                                ; THE RIGHT HAND OPERAND TO SINGLE PRECISION AS WELL 
                                 ; 
                                 	EXTRN	FPWRQ:NEAR 
  00C9  E8 0000 E                EXPSTK:	CALL	FRCSNG		;COERCE LEFT HAND OPERAND 
  00CC  E8 0000 E                	CALL	PUSHF		;PUT IT ON THE STACK 
- 00CF  B9 0000 E                	MOV	CX,OFFSET FPWRQ	;PLACE TO COERCE RIGHT HAN
-				D 
+ 00CF  B9 0000 E                	MOV	CX,OFFSET FPWRQ	;PLACE TO COERCE RIGHT HAND 
                                 				;OPERAND AND DO EXPONENTIATION 
  00D2  B6 7F                    	MOV	DH,LOW 127	;RESTORE THE PRECEDENCE 
- 00D4  EB C9                    	JMP	SHORT FINTMP	;FINISH ENTRY AND EVALUATE MO
-				RE FORMULA 
+ 00D4  EB C9                    	JMP	SHORT FINTMP	;FINISH ENTRY AND EVALUATE MORE FORMULA 
                                 ; 
-                                ; FOR "AND" AND "OR" AND "\" AND "MOD" WE WANT 
-				TO FORCE THE CURRENT VALUE 
-                                ; IN THE FAC TO BE AN INTEGER, AND AT APPLICATI
-				ON TIME FORCE THE RIGHT 
+                                ; FOR "AND" AND "OR" AND "\" AND "MOD" WE WANT TO FORCE THE CURRENT VALUE 
+                                ; IN THE FAC TO BE AN INTEGER, AND AT APPLICATION TIME FORCE THE RIGHT 
                                 ; HAND OPERAND TO BE AN INTEGER 
                                 ; 
  00D6  52                       ANDORD:	PUSH	DX		;SAVE THE PRECEDENCE 
@@ -1378,79 +1182,60 @@ FORMULA EVALUATION CODE
  00DA  5A                       	POP	DX		;[D]=PRECEDENCE 
  00DB  53                       	PUSH	BX		;PUSH THE LEFT HAND OPERAND 
  00DC  B9 0441 R                	MOV	CX,OFFSET DANDOR	;"AND" AND "OR" DOER 
- 00DF  EB BE                    	JMP	SHORT FINTMP	;PUSH ON THIS ADDRESS,PRECEDE
-				NCE 
+ 00DF  EB BE                    	JMP	SHORT FINTMP	;PUSH ON THIS ADDRESS,PRECEDENCE 
                                 				;AND CONTINUE EVALUATION 
                                 ; 
-                                ; HERE TO BUILD AN ENTRY FOR A RELATIONAL OPERA
-				TOR 
-                                ; STRINGS ARE TREATED SPECIALLY. NUMERIC COMPAR
-				ES ARE DIFFERENT 
-                                ; FROM MOST OPERATOR ENTRIES ONLY IN THE FACT T
-				HAT AT THE 
-                                ; BOTTOM INSTEAD OF HAVING RETAOP, DOCMP AND TH
-				E RELATIONAL 
-                                ; BITS ARE STORED. STRINGS HAVE STRCMP,THE POIN
-				TER AT THE STRING DESCRIPTOR, 
+                                ; HERE TO BUILD AN ENTRY FOR A RELATIONAL OPERATOR 
+                                ; STRINGS ARE TREATED SPECIALLY. NUMERIC COMPARES ARE DIFFERENT 
+                                ; FROM MOST OPERATOR ENTRIES ONLY IN THE FACT THAT AT THE 
+                                ; BOTTOM INSTEAD OF HAVING RETAOP, DOCMP AND THE RELATIONAL 
+                                ; BITS ARE STORED. STRINGS HAVE STRCMP,THE POINTER AT THE STRING DESCRIPTOR, 
                                 ; DOCMP AND THE RELATIONAL BITS. 
                                 ; 
  00E1  8A C5                    FINREL:	MOV	AL,CH		;[A]=OLD PRECEDENCE 
- 00E3  3C 64                    	CMP	AL,LOW 100	;RELATIONALS HAVE PRECEDENCE 10
-				0 
+ 00E3  3C 64                    	CMP	AL,LOW 100	;RELATIONALS HAVE PRECEDENCE 100 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-23
+FORMULA EVALUATION CODE                                     
+
  00E5  72 01                    	JNAE	SHORT $+3 
  00E7  C3                       	RET			;APPLY EARLIER OPERATOR IF IT HAS 
                                 				;HIGHER PRECEDENCE 
  00E8  51                       	PUSH	CX		;SAVE THE OLD PRECEDENCE 
  00E9  52                       	PUSH	DX		;SAVE [D]=RELATIONAL BITS 
- 00EA  BA 6400 E                	MOV	DX,OFFSET 256*100+OPCNT	;[D]=PRECEDENCE=10
-				0 
+ 00EA  BA 6400 E                	MOV	DX,OFFSET 256*100+OPCNT	;[D]=PRECEDENCE=100 
                                 				;[E]=DISPATCH OFFSET FOR 
                                 				;COMPARES IN APPLOP=4 
                                 				;IN CASE THIS IS A NUMERIC COMPARE 
- 00ED  BB 0413 R                	MOV	BX,OFFSET DOCMP	;ROUTINE TO TAKE COMPARE R
-				OUTINE RESULT 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-26
-FORMULA EVALUATION CODE                                     
-
+ 00ED  BB 0413 R                	MOV	BX,OFFSET DOCMP	;ROUTINE TO TAKE COMPARE ROUTINE RESULT 
                                 				;AND RELATIONAL BITS AND RETURN THE ANSWER 
  00F0  53                       	PUSH	BX		;DOES A JMP TO RETAOP WHEN DONE 
- 00F1  E8 0435 R                	CALL	GETYPR		;SEE IF WE HAVE A NUMERIC COMPARE
-				 
+ 00F1  E8 0435 R                	CALL	GETYPR		;SEE IF WE HAVE A NUMERIC COMPARE 
  00F4  74 03                    	JZ	SHORT ??L005 
  00F6  E9 0071 R                	JMP	NUMREL		;YES, BUILD AN APPLOP ENTRY 
  00F9                           ??L005: 
- 00F9  8B 1E 0000 E             	MOV	BX,FACLO	;GET THE POINTER AT THE STRING DE
-				SCRIPTOR 
+ 00F9  8B 1E 0000 E             	MOV	BX,FACLO	;GET THE POINTER AT THE STRING DESCRIPTOR 
  00FD  53                       	PUSH	BX		;SAVE IT FOR STRCMP 
  00FE  B9 0000 E                	MOV	CX,OFFSET STRCMP	;STRING COMPARE ROUTINE 
- 0101  EB 9C                    	JMP	SHORT FINTMP	;PUSH THE ADDRESS, REGET THE 
-				TEXT POINTER 
+ 0101  EB 9C                    	JMP	SHORT FINTMP	;PUSH THE ADDRESS, REGET THE TEXT POINTER 
                                 				;SAVE THE PRECEDENCE AND SCAN 
                                 				;MORE OF THE FORMULA 
                                 ; 
-                                ; APPLOP IS RETURNED TO WHEN IT IS TIME TO APPL
-				Y AN ARITHMETIC 
+                                ; APPLOP IS RETURNED TO WHEN IT IS TIME TO APPLY AN ARITHMETIC 
                                 ; OR NUMERIC COMPARISON OPERATION. 
-                                ; THE STACK HAS A DOUBLE BYTE ENTRY WITH THE OP
-				ERATOR 
-                                ; NUMBER AND THE VALTYP OF THE VALUE ON THE STA
-				CK. 
-                                ; APPLOP DECIDES WHAT VALUE LEVEL THE OPERATION
-				 
-                                ; WILL OCCUR AT, AND CONVERTS THE ARGUMENTS. AP
-				PLOP 
-                                ; USES DIFFERENT CALLING CONVENTIONS FOR EACH V
-				ALUE TYPE. 
+                                ; THE STACK HAS A DOUBLE BYTE ENTRY WITH THE OPERATOR 
+                                ; NUMBER AND THE VALTYP OF THE VALUE ON THE STACK. 
+                                ; APPLOP DECIDES WHAT VALUE LEVEL THE OPERATION 
+                                ; WILL OCCUR AT, AND CONVERTS THE ARGUMENTS. APPLOP 
+                                ; USES DIFFERENT CALLING CONVENTIONS FOR EACH VALUE TYPE. 
                                 ; INTEGERS: LEFT IN [D,E] RIGHT IN [H,L] 
                                 ; SINGLES:  LEFT IN [B,C,D,E] RIGHT IN THE FAC 
                                 ; DOUBLES:  LEFT IN FAC   RIGHT IN ARG 
                                 ; 
  0103  59                       APPLOP:	POP	CX		;[B]=STACK OPERAND VALUE TYPE 
                                 				;[C]=OPERATOR OFFSET 
- 0104  8A C1                    	MOV	AL,CL		;SAVE IN MEMORY SINCE THE STACK WIL
-				L BE BUSY 
+ 0104  8A C1                    	MOV	AL,CL		;SAVE IN MEMORY SINCE THE STACK WILL BE BUSY 
  0106  A2 0000 E                	MOV	BYTE PTR OPRTYP,AL	;A RAM LOCATION 
  0109  A0 0000 E                	MOV	AL,BYTE PTR VALTYP	;GET VALTYP OF FAC 
  010C  3A C5                    	CMP	AL,CH		;ARE VALTYPES THE SAME? 
@@ -1467,33 +1252,26 @@ FORMULA EVALUATION CODE
  0121  3C 08                    	CMP	AL,LOW 8	;PRECISION ENTRY ON THE STACK 
  0123  74 2E                    	JZ	SHORT STKDBL	;FORCE FAC TO DOUBLE 
  0125  8A C6                    	MOV	AL,DH		;GET VALTYPE OF FAC 
- 0127  3C 08                    	CMP	AL,LOW 8	;AND IF SO, CONVERT THE STACK OPE
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-27
+ 0127  3C 08                    	CMP	AL,LOW 8	;AND IF SO, CONVERT THE STACK OPERAND 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-24
 FORMULA EVALUATION CODE                                     
 
-				RAND 
  0129  74 57                    	JZ	SHORT FACDBL	;TO DOUBLE PRECISION 
  012B  8A C5                    	MOV	AL,CH		;SEE IF THE STACK ENTRY IS SINGLE 
  012D  3C 04                    	CMP	AL,LOW 4	;PRECISION AND IF SO, CONVERT 
  012F  74 66                    	JZ	SHORT STKSNG	;THE FAC TO SINGLE PRECISION 
- 0131  8A C6                    	MOV	AL,DH		;SEE IF THE FAC IS SINGLE PRECISION
-				 
- 0133  3C 03                    	CMP	AL,LOW 3	;AND IF SO CONVERT THE STACK TO S
-				INGLE 
+ 0131  8A C6                    	MOV	AL,DH		;SEE IF THE FAC IS SINGLE PRECISION 
+ 0133  3C 03                    	CMP	AL,LOW 3	;AND IF SO CONVERT THE STACK TO SINGLE 
  0135  75 03                    	JNZ	SHORT ??L007 
- 0137  E9 0000 E                	JMP	TMERR		;BLOW UP ON RIGHT HAND STRING OPERA
-				ND 
+ 0137  E9 0000 E                	JMP	TMERR		;BLOW UP ON RIGHT HAND STRING OPERAND 
  013A                           ??L007: 
  013A  73 65                    	JAE	SHORT FACSNG	;PRECISION 
-                                				;NOTE: THE STACK MUST BE INTEGER AT THIS PO
-				INT 
- 013C  BB 0000 E                INTDPC:	MOV	BX,OFFSET INTDSP	;INTEGER INTEGER C
-				ASE 
+                                				;NOTE: THE STACK MUST BE INTEGER AT THIS POINT 
+ 013C  BB 0000 E                INTDPC:	MOV	BX,OFFSET INTDSP	;INTEGER INTEGER CASE 
  013F  B5 00                    	MOV	CH,LOW 0	;SPECIAL DISPATCH FOR SPEED 
- 0141  03 D9                    	ADD	BX,CX		;[H,L] POINTS TO THE ADDRESS TO GO 
-				TO 
+ 0141  03 D9                    	ADD	BX,CX		;[H,L] POINTS TO THE ADDRESS TO GO TO 
  0143  03 D9                    	ADD	BX,CX 
                                 	INS86	56		;FETCH FROM CODE SEGMENT 
  0146  8A 0F                    	MOV	CL,BYTE PTR [BX]	;[B,C]=ROUTINE ADDRESS 
@@ -1506,32 +1284,21 @@ FORMULA EVALUATION CODE
  0152  C3                       	RET 
                                 ; 
                                 ; THE STACK OPERAND IS DOUBLE PRECISION, SO 
-                                ; THE FAC MUST BE FORCED TO DOUBLE PRECISION, M
-				OVED INTO ARG 
+                                ; THE FAC MUST BE FORCED TO DOUBLE PRECISION, MOVED INTO ARG 
                                 ; AND THE STACK VALUE POPED INTO THE FAC 
                                 ; 
- 0153  E8 0000 E                STKDBL:	CALL	FRCDBL		;MAKE THE FAC DOUBLE PRECI
-				SION 
+ 0153  E8 0000 E                STKDBL:	CALL	FRCDBL		;MAKE THE FAC DOUBLE PRECISION 
  0156  E8 0000 E                DBLDPC:	CALL	VMOVAF		;MOVE THE FAC INTO ARG 
- 0159  5B                       	POP	BX		;POP OFF THE STACK OPERAND INTO THE FA
-				C 
+ 0159  5B                       	POP	BX		;POP OFF THE STACK OPERAND INTO THE FAC 
  015A  89 1E 0002 E             	MOV	DFACLO+2,BX 
  015E  5B                       	POP	BX 
  015F  89 1E 0000 E             	MOV	DFACLO,BX	;STORE LOW BYTES AWAY 
  0163                           SNGDBL:	POPR			;POP OFF A FOUR BYTE VALUE 
  0165  E8 0000 E                	CALL	MOVFR		;INTO THE FAC 
- 0168  E8 0000 E                SETDBL:	CALL	FRCDBL		;MAKE SURE THE LEFT OPERAN
-				D IS 
+ 0168  E8 0000 E                SETDBL:	CALL	FRCDBL		;MAKE SURE THE LEFT OPERAND IS 
                                 				;DOUBLE PRECISION 
- 016B  BB 0000 E                	MOV	BX,OFFSET DBLDSP	;DISPATCH TO A DOUBLE PRE
-				CISION ROUTINE 
- 016E  A0 0000 E                DODSP:	MOV	AL,BYTE PTR OPRTYP	;RECALL WHICH OPE
-				RAND IT WAS 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-28
-FORMULA EVALUATION CODE                                     
-
+ 016B  BB 0000 E                	MOV	BX,OFFSET DBLDSP	;DISPATCH TO A DOUBLE PRECISION ROUTINE 
+ 016E  A0 0000 E                DODSP:	MOV	AL,BYTE PTR OPRTYP	;RECALL WHICH OPERAND IT WAS 
  0171  D0 C0                    	ROL	AL,1		;CREATE A DISPATCH OFFSET, SINCE 
                                 				;TABLE ADDRESSES ARE TWO BYTES 
  0173  02 C3                    	ADD	AL,BL		;ADD LOW BYTE OF ADDRESS 
@@ -1545,18 +1312,19 @@ FORMULA EVALUATION CODE
                                 				;TO RETAOP, EXCEPT FOR COMPARES WHICH 
                                 				;RETURN TO DOCMP 
                                 ; 
-                                ; THE FAC IS DOUBLE PRECISION AND THE STACK IS 
-				EITHER 
-                                ; INTEGER OR SINGLE PRECISION AND MUST BE CONVE
-				RTED 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-25
+FORMULA EVALUATION CODE                                     
+
+                                ; THE FAC IS DOUBLE PRECISION AND THE STACK IS EITHER 
+                                ; INTEGER OR SINGLE PRECISION AND MUST BE CONVERTED 
                                 ; 
- 0182  8A C5                    FACDBL:	MOV	AL,CH		;GET THE VALUE TYPE INTO [A]
-				 
+ 0182  8A C5                    FACDBL:	MOV	AL,CH		;GET THE VALUE TYPE INTO [A] 
  0184  50                       	PUSH	AX		;SAVE THE STACK VALUE TYPE 
  0185  E8 0000 E                	CALL	VMOVAF		;MOVE THE FAC INTO ARG 
  0188  58                       	POP	AX		;POP THE STACK VALUE TYPE INTO [A] 
- 0189  A2 0000 E                	MOV	BYTE PTR VALTYP,AL	;PUT IT IN VALTYP FOR T
-				HE FORCE 
+ 0189  A2 0000 E                	MOV	BYTE PTR VALTYP,AL	;PUT IT IN VALTYP FOR THE FORCE 
                                 				;ROUTINE 
  018C  3C 04                    	CMP	AL,LOW 4	;SEE IF ITS SINGLE, SO WE KNOW 
                                 				;HOW TO POP THE VALUE OFF 
@@ -1566,83 +1334,65 @@ FORMULA EVALUATION CODE
  0191  89 1E 0000 E             	MOV	FACLO,BX	;SAVE IT FOR CONVERSION 
  0195  EB D1                    	JMP	SHORT SETDBL	;SET IT UP 
                                 ; 
-                                ; THIS IS THE CASE WHERE THE STACK IS SINGLE PR
-				ECISION 
-                                ; AND THE FAC IS EITHER SINGLE PRECISION OR INT
-				EGER 
+                                ; THIS IS THE CASE WHERE THE STACK IS SINGLE PRECISION 
+                                ; AND THE FAC IS EITHER SINGLE PRECISION OR INTEGER 
                                 ; 
- 0197  E8 0000 E                STKSNG:	CALL	FRCSNG		;CONVERT THE FAC IF NECESS
-				ARY 
- 019A                           SNGDPC:	POPR			;PUT THE LEFT HAND OPERAND IN TH
-				E REGISTERS 
- 019C  BB 0000 E                SNGDO:	MOV	BX,OFFSET SNGDSP	;SETUP THE DISPATCH
-				 ADDRESS 
-                                				;FOR THE SINGLE PRECISION OPERATOR ROUTINES
-				 
+ 0197  E8 0000 E                STKSNG:	CALL	FRCSNG		;CONVERT THE FAC IF NECESSARY 
+ 019A                           SNGDPC:	POPR			;PUT THE LEFT HAND OPERAND IN THE REGISTERS 
+ 019C  BB 0000 E                SNGDO:	MOV	BX,OFFSET SNGDSP	;SETUP THE DISPATCH ADDRESS 
+                                				;FOR THE SINGLE PRECISION OPERATOR ROUTINES 
  019F  EB CD                    	JMP	SHORT DODSP	;DISPATCH 
                                 ; 
-                                ; THIS IS THE CASE WHERE THE FAC IS SINGLE PREC
-				ISION AND THE STACK 
+                                ; THIS IS THE CASE WHERE THE FAC IS SINGLE PRECISION AND THE STACK 
                                 ; IS AN INTEGER. 
                                 ; 
- 01A1  5B                       FACSNG:	POP	BX		;POP OFF THE INTEGER ON THE STA
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-29
-FORMULA EVALUATION CODE                                     
-
-				CK 
+ 01A1  5B                       FACSNG:	POP	BX		;POP OFF THE INTEGER ON THE STACK 
  01A2  E8 0000 E                	CALL	PUSHF		;SAVE THE FAC ON THE STACK 
- 01A5  E8 0000 E                	CALL	CONSIH		;CONVERT [H,L] TO A SINGLE PRECIS
-				ION 
+ 01A5  E8 0000 E                	CALL	CONSIH		;CONVERT [H,L] TO A SINGLE PRECISION 
                                 				;NUMBER IN THE FAC 
- 01A8  E8 0000 E                	CALL	MOVRF		;PUT THE LEFT HAND OPERAND IN THE 
-				REGISTERS 
+ 01A8  E8 0000 E                	CALL	MOVRF		;PUT THE LEFT HAND OPERAND IN THE REGISTERS 
  01AB  5B                       	POP	BX		;RESTORE THE FAC 
  01AC  89 1E FFFF E             	MOV	FAC-1,BX	;FROM THE STACK 
  01B0  5B                       	POP	BX 
  01B1  89 1E 0000 E             	MOV	FACLO,BX 
  01B5  EB E5                    	JMP	SHORT SNGDO	;PERFORM THE OPERATION 
                                 ; 
-                                ; HERE TO DO INTEGER DIVISION. SINCE WE WANT 1/
-				3 TO BE 
-                                ; .333333 AND NOT ZERO WE HAVE TO FORCE BOTH AR
-				GUMENTS 
-                                ; TO BE SINGLE-PRECISION FLOATING POINT NUMBERS
-				 
+                                ; HERE TO DO INTEGER DIVISION. SINCE WE WANT 1/3 TO BE 
+                                ; .333333 AND NOT ZERO WE HAVE TO FORCE BOTH ARGUMENTS 
+                                ; TO BE SINGLE-PRECISION FLOATING POINT NUMBERS 
                                 ; AND USE FDIV 
                                 ; 
                                 PUBLIC	INTDIV 
  01B7  53                       INTDIV:	PUSH	BX		;SAVE THE RIGHT HAND ARGUMENT 
  01B8  87 DA                    	XCHG	BX,DX		;[H,L]=LEFT HAND ARGUMENT 
- 01BA  E8 0000 E                	CALL	CONSIH		;CONVERT [H,L] TO A SINGLE-PRECIS
-				ION 
+ 01BA  E8 0000 E                	CALL	CONSIH		;CONVERT [H,L] TO A SINGLE-PRECISION 
                                 				;NUMBER IN THE FAC 
  01BD  5B                       	POP	BX		;GET BACK THE RIGHT HAND ARGUMENT 
- 01BE  E8 0000 E                	CALL	PUSHF		;PUSH THE CONVERTED LEFT HAND ARGU
-				MENT 
+ 01BE  E8 0000 E                	CALL	PUSHF		;PUSH THE CONVERTED LEFT HAND ARGUMENT 
                                 				;ONTO THE STACK 
- 01C1  E8 0000 E                	CALL	CONSIH		;CONVERT THE RIGHT HAND ARGUMENT 
-				TO A 
+ 01C1  E8 0000 E                	CALL	CONSIH		;CONVERT THE RIGHT HAND ARGUMENT TO A 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-26
+FORMULA EVALUATION CODE                                     
+
                                 				;SINGLE PRECISION NUMBER IN THE FAC 
  01C4  E9 0000 E                	JMP	FDIVT 
                                 				;REGISTERS THE LEFT HAND ARGUMENT 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-30
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-27
 FORMULA EVALUATION CODE                                     
 
                                 	PAGE 
                                  
-                                	SUBTTL EVAL - EVALUATE VARIABLE, CONSTANT, FUN
-				CTION CALL 
+                                	SUBTTL EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL 
                                 PUBLIC	EVAL 
  01C7                           EVAL: 
  01C7  E8 0000 E                	CALL	CHRGTR 
  01CA  75 03                    	JNZ	SHORT ??L008 
- 01CC  E9 0000 E                	JMP	MOERR		;TEST FOR MISSING OPERAND - IF NONE
-				 GIVE ERROR 
+ 01CC  E9 0000 E                	JMP	MOERR		;TEST FOR MISSING OPERAND - IF NONE GIVE ERROR 
  01CF                           ??L008: 
  01CF  73 03                    	JAE	SHORT ??L009 
  01D1  E9 0000 E                	JMP	FIN		;IF NUMERIC, INTERPRET CONSTANT 
@@ -1651,16 +1401,13 @@ FORMULA EVALUATION CODE
  01D7  72 03                    	JNAE	SHORT ??L010 
  01D9  E9 02BD R                	JMP	ISVAR		;AN ALPHABETIC CHARACTER MEANS YES 
  01DC                           ??L010: 
- 01DC  3C 01 E                  	CMP	AL,LOW OFFSET DBLCON+1	;IS IT AN EMBEDED C
-				ONSTANT 
+ 01DC  3C 01 E                  	CMP	AL,LOW OFFSET DBLCON+1	;IS IT AN EMBEDED CONSTANT 
  01DE  73 03                    	JAE	SHORT ??L011 
- 01E0  E9 0000 E                	JMP	CONFAC		;RESCAN THE TOKEN & RESTORE OLD TE
-				XT PTR 
+ 01E0  E9 0000 E                	JMP	CONFAC		;RESCAN THE TOKEN & RESTORE OLD TEXT PTR 
  01E3                           ??L011: 
                                 	EXTRN	EVALX:NEAR 
  01E3  E8 0000 E                	CALL	EVALX		;Handle extended functions. 
- 01E6  FE C0                    	INC	AL		;IS IT A FUNCTION CALL (PRECEDED BY 37
-				7) 
+ 01E6  FE C0                    	INC	AL		;IS IT A FUNCTION CALL (PRECEDED BY 377) 
  01E8  75 03                    	JNZ	SHORT ??L012 
  01EA  E9 0387 R                	JMP	ISFUN		;YES, DO IT 
  01ED                           ??L012: 
@@ -1673,25 +1420,17 @@ FORMULA EVALUATION CODE
  01FA                           ??L013: 
  01FA  3C 22                    	CMP	AL,LOW 34	;STRING CONSTANT? 
  01FC  75 03                    	JNZ	SHORT ??L014 
- 01FE  E9 0000 E                	JMP	STRLTI		;IF SO BUILD A DESCRIPTOR IN A TEM
-				PORARY 
+ 01FE  E9 0000 E                	JMP	STRLTI		;IF SO BUILD A DESCRIPTOR IN A TEMPORARY 
  0201                           ??L014: 
-                                				;DESCRIPTOR LOCATION AND PUT A POINTER TO T
-				HE 
+                                				;DESCRIPTOR LOCATION AND PUT A POINTER TO THE 
                                 				;DESCRIPTOR IN FACLO. 
- 0201  3C 00 E                  	CMP	AL,LOW OFFSET NOTTK	;CHECK FOR "NOT" OPERA
-				TOR 
+ 0201  3C 00 E                  	CMP	AL,LOW OFFSET NOTTK	;CHECK FOR "NOT" OPERATOR 
  0203  75 03                    	JNZ	SHORT ??L015 
  0205  E9 0423 R                	JMP	NOTER 
  0208                           ??L015: 
  0208  3C 26                    	CMP	AL,LOW "&"	;OCTAL CONSTANT? 
  020A  75 03                    	JNZ	SHORT ??L016 
  020C  E9 02E7 R                	JMP	OCTCNS 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-31
-EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
-
  020F                           ??L016: 
  020F  3C 00 E                  	CMP	AL,LOW OFFSET ERCTK 
  0211  75 0C                    	JNZ	SHORT NTERC	;NO, TRY OTHER POSSIBILITIES 
@@ -1700,10 +1439,14 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
  0219  53                       NTDERC:	PUSH	BX		;SAVE TEXT POINTER 
  021A  E8 0485 R                	CALL	SNGFLT		;RETURN THE VALUE 
  021D  5B                       	POP	BX		;RESTORE TEXT POINTER 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-28
+EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
+
  021E  C3                       	RET			;ALL DONE. 
                                  
- 021F  3C 00 E                  NTERC:	CMP	AL,LOW OFFSET ERLTK	;ERROR LINE NUMB
-				ER VARIABLE. 
+ 021F  3C 00 E                  NTERC:	CMP	AL,LOW OFFSET ERLTK	;ERROR LINE NUMBER VARIABLE. 
  0221  75 0D                    	JNZ	SHORT NTERL	;NO, TRY MORE THINGS. 
  0223  E8 0000 E                	CALL	CHRGTR		;GET FOLLOWING CHARACTER 
  0226  53                       	PUSH	BX		;SAVE TEXT POINTER 
@@ -1746,22 +1489,20 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
                                 				;TOO LAZY TO CHECK 
  0262  E8 0000 E                	CALL	MAKINT		;MAKE IT AN INT 
  0265  5B                       	POP	BX		;RESTORE TEXT POINTER 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-32
-EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
-
  0266  C3                       	RET 
  0267                           NTVARP: 
- 0267  3C 00 E                  	CMP	AL,LOW OFFSET USRTK	;USER ASSEMBLY LANGUAG
-				E ROUTINE?? 
+ 0267  3C 00 E                  	CMP	AL,LOW OFFSET USRTK	;USER ASSEMBLY LANGUAGE ROUTINE?? 
  0269  75 03                    	JNZ	SHORT ??L019 
  026B  E9 048E R                	JMP	USRFN		;GO HANDLE IT 
  026E                           ??L019: 
- 026E  3C 00 E                  	CMP	AL,LOW OFFSET INSRTK	;IS IT THE INSTR FUNC
-				TION?? 
+ 026E  3C 00 E                  	CMP	AL,LOW OFFSET INSRTK	;IS IT THE INSTR FUNCTION?? 
  0270  75 03                    	JNZ	SHORT ??L020 
  0272  E9 0000 E                	JMP	INSTR		;DISPATCH 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-29
+EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
+
  0275                           ??L020: 
  0275  3C 00 E                  	CMP	AL,LOW OFFSET $SCREEN 
  0277  75 03                    	JNZ	SHORT ??L021 
@@ -1787,29 +1528,20 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
  0293  75 03                    	JNZ	SHORT ??L025 
  0295  E9 0000 E                	JMP	FIXINP		;YES 
  0298                           ??L025: 
- 0298  3C 00 E                  	CMP	AL,LOW OFFSET CLINTK	;WANT TO KNOW CURRENT
-				 LINE ON SCREEN? 
+ 0298  3C 00 E                  	CMP	AL,LOW OFFSET CLINTK	;WANT TO KNOW CURRENT LINE ON SCREEN? 
  029A  75 03                    	JNZ	SHORT ??L026 
                                 EXTRN	GETLIN:NEAR 
  029C  E9 0000 E                	JMP	GETLIN		;YES 
  029F                           ??L026: 
- 029F  3C 00 E                  	CMP	AL,LOW OFFSET FNTK	;USER-DEFINED FUNCTION?
-				 
+ 029F  3C 00 E                  	CMP	AL,LOW OFFSET FNTK	;USER-DEFINED FUNCTION? 
  02A1  75 03                    	JNZ	SHORT ??L027 
  02A3  E9 0547 R                	JMP	FNDOER 
  02A6                           ??L027: 
                                 ; 
-                                ; ONLY POSSIBILITY LEFT IS A FORMULA IN PARENTH
-				ESES 
+                                ; ONLY POSSIBILITY LEFT IS A FORMULA IN PARENTHESES 
                                 ; 
                                 PUBLIC	PARCHK 
- 02A6  E8 0007 R                PARCHK:	CALL	FRMPRN		;RECURSIVELY EVALUATE THE 
-				FORMULA 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-33
-EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
-
+ 02A6  E8 0007 R                PARCHK:	CALL	FRMPRN		;RECURSIVELY EVALUATE THE FORMULA 
  02A9  E8 0000 E                	CALL	SYNCHR 
  02AC  29                       	DB	OFFSET ")" 
  02AD  C3                       	RET 
@@ -1825,17 +1557,20 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
  02BB  5B                       	POP	BX 
  02BC  C3                       	RET 
                                 PUBLIC	ISVAR 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-30
+EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
+
  02BD  E8 0000 E                ISVAR:	CALL	PTRGET		;GET A POINTER TO THE 
                                 				;VARIABLE IN [D,E] 
                                 PUBLIC	RETVAR 
  02C0  53                       RETVAR:	PUSH	BX		;SAVE THE TEXT POINTER 
- 02C1  87 DA                    	XCHG	BX,DX		;PUT THE POINTER TO THE VARIABLE V
-				ALUE 
+ 02C1  87 DA                    	XCHG	BX,DX		;PUT THE POINTER TO THE VARIABLE VALUE 
                                 				;INTO [H,L]. IN THE CASE OF A STRING 
                                 				;THIS IS A POINTER TO A DESCRIPTOR AND NOT 
                                 				;AN ACTUAL VALUE 
- 02C3  89 1E 0000 E             	MOV	FACLO,BX	;IN CASE IT'S STRING STORE THE PO
-				INTER 
+ 02C3  89 1E 0000 E             	MOV	FACLO,BX	;IN CASE IT'S STRING STORE THE POINTER 
                                 				;TO THE DESCRIPTOR IN FACLO. 
  02C7  E8 0435 R                	CALL	GETYPR		;FOR STRINGS WE JUST LEAVE 
  02CA  74 03                    	JZ	SHORT ??L028 
@@ -1845,11 +1580,9 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
  02CF  5B                       	POP	BX		;RESTORE THE TEXT POINTER 
  02D0  C3                       	RET 
                                 PUBLIC	MAKUPL 
- 02D1  8A 07                    MAKUPL:	MOV	AL,BYTE PTR [BX]	;GET CHAR FROM MEM
-				ORY 
+ 02D1  8A 07                    MAKUPL:	MOV	AL,BYTE PTR [BX]	;GET CHAR FROM MEMORY 
                                 PUBLIC	MAKUPS 
- 02D3  3C 61                    MAKUPS:	CMP	AL,LOW OFFSET "A"+40O	;IS IT LOWER 
-				CASE RANGE 
+ 02D3  3C 61                    MAKUPS:	CMP	AL,LOW OFFSET "A"+40O	;IS IT LOWER CASE RANGE 
  02D5  73 01                    	JNB	SHORT $+3 
  02D7  C3                       	RET			;LESS 
  02D8  3C 7B                    	CMP	AL,LOW OFFSET "Z"+41O	;GREATER 
@@ -1864,15 +1597,9 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
  02E4  E9 0000 E                	JMP	LINGET 
  02E7                           ??L029: 
                                 PUBLIC	$OHCNS 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-34
-EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
-
  02E7                           $OHCNS: 
                                 PUBLIC	OCTCNS 
- 02E7  BA 0000                  OCTCNS:	MOV	DX,0		;INITIALIZE TO ZERO AND IGNOR
-				E OVERFLOW 
+ 02E7  BA 0000                  OCTCNS:	MOV	DX,0		;INITIALIZE TO ZERO AND IGNORE OVERFLOW 
  02EA  E8 0000 E                	CALL	CHRGTR		;GET FIRST CHAR 
  02ED  E8 02D3 R                	CALL	MAKUPS		;MAKE UPPER IF NESC. 
  02F0  3C 4F                    	CMP	AL,LOW "O"	;OCTAL? 
@@ -1886,15 +1613,17 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
  0300  E8 0000 E                	CALL	ISLET2		;FETCH CHAR, SEE IF ALPHA 
  0303  87 DA                    	XCHG	BX,DX		;SAVE [H,L] 
  0305  73 0A                    	JAE	SHORT ALPTST	;YES, MAKE SURE LEGAL HEC 
- 0307  3C 3A                    	CMP	AL,LOW OFFSET "9"+1	;IS IT BIGGER THAN LAR
-				GEST DIGIT? 
+ 0307  3C 3A                    	CMP	AL,LOW OFFSET "9"+1	;IS IT BIGGER THAN LARGEST DIGIT? 
  0309  73 76                    	JAE	SHORT OCTFIN	;YES, BE FORGIVING & RETURN 
  030B  2C 30                    	SUB	AL,LOW "0"	;CONVERT DIGIT, MAKE BINARY 
- 030D  72 72                    	JB	SHORT OCTFIN	;BE FORGIVING IF NOT HEX DIGIT
-				 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-31
+EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
+
+ 030D  72 72                    	JB	SHORT OCTFIN	;BE FORGIVING IF NOT HEX DIGIT 
  030F  EB 06                    	JMP	SHORT NXTHEX	;ADD IN OFFSET 
- 0311  3C 47                    ALPTST:	CMP	AL,LOW OFFSET "F"+1	;IS IT LEGAL HE
-				X? 
+ 0311  3C 47                    ALPTST:	CMP	AL,LOW OFFSET "F"+1	;IS IT LEGAL HEX? 
  0313  73 6C                    	JAE	SHORT HEXFIN	;YES, TERMINATE 
  0315  2C 37                    	SUB	AL,LOW OFFSET "A"-10	;MAKE BINARY VALUE 
  0317  03 DB                    NXTHEX:	ADD	BX,BX		;SHIFT RIGHT FOUR BITS 
@@ -1905,15 +1634,12 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
  0321  8A D8                    	MOV	BL,AL		;SAVE BACK 
  0323  87 DA                    	XCHG	BX,DX		;GET TEXT POINTER BACK IN [H,L] 
  0325  FE CD                    	DEC	CH 
- 0327  75 D1                    	JNZ	SHORT LOPHEX	;KEEP EATING IF NOT TOO MANY 
-				DIGITS 
-                                ;IF NOT INPUT STATEMENT GOTO OVFLW ERROR FROM H
-				ERE, ELSE PASS BACK ERROR 
+ 0327  75 D1                    	JNZ	SHORT LOPHEX	;KEEP EATING IF NOT TOO MANY DIGITS 
+                                ;IF NOT INPUT STATEMENT GOTO OVFLW ERROR FROM HERE, ELSE PASS BACK ERROR 
  0329  A0 0000 E                CKOVER:	MOV	AL,BYTE PTR FLGSCN 
  032C  0A C0                    	OR	AL,AL 
  032E  75 03                    	JNZ	SHORT ??L030 
- 0330  E9 0000 E                	JMP	OVERR		;IF NOT INPUT STATEMENT, THIS IS ER
-				ROR 
+ 0330  E9 0000 E                	JMP	OVERR		;IF NOT INPUT STATEMENT, THIS IS ERROR 
  0333                           ??L030: 
  0333  53                       	PUSH	BX 
  0334  BB 0000 E                	MOV	BX,OFFSET $OVMSG 
@@ -1922,19 +1648,12 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
  033D  5B                       	POP	BX 
  033E  A0 0000 E                CONER2:	MOV	AL,BYTE PTR FLGOVC 
  0341  FE C0                    	INC	AL 
- 0343  A2 0000 E                	MOV	BYTE PTR FLGOVC,AL	;TELL INPUT CODE THAT E
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-35
-EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
-
-				RROR OCCURED 
+ 0343  A2 0000 E                	MOV	BYTE PTR FLGOVC,AL	;TELL INPUT CODE THAT ERROR OCCURED 
  0346  C3                       	RET 
  0347  A0 0000 E                CONERR:	MOV	AL,BYTE PTR FLGSCN 
  034A  0A C0                    	OR	AL,AL 
  034C  74 02                    	JZ	SHORT ??L031 
- 034E  EB EE                    	JMP	CONER2		;IF INPUT CODE ERROR, RETURN ERROR
-				 CODE 
+ 034E  EB EE                    	JMP	CONER2		;IF INPUT CODE ERROR, RETURN ERROR CODE 
  0350                           ??L031: 
  0350  E9 0000 E                	JMP	SNERR		;ELSE GOTO ERROR FROM HERE 
  0353  4B                       LOPOC2:	DEC	BX		;REGET LAST CHARACTER 
@@ -1945,8 +1664,7 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
  035D  72 02                    	JNAE	SHORT ??L032 
  035F  EB E6                    	JMP	CONERR		;NO, TOO BAD YOU WILL LOSE 
  0361                           ??L032: 
- 0361  B9 0329 R                	MOV	CX,OFFSET CKOVER	;WHERE TO GO ON OVERFLOW 
-				ERROR 
+ 0361  B9 0329 R                	MOV	CX,OFFSET CKOVER	;WHERE TO GO ON OVERFLOW ERROR 
  0364  51                       	PUSH	CX		;SAVE ADDR ON STACK 
  0365  03 DB                    	ADD	BX,BX		;MULTIPLY BY EIGHT 
  0367  73 01                    	JNB	SHORT $+3 
@@ -1957,6 +1675,11 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
  036F  03 DB                    	ADD	BX,BX 
  0371  73 01                    	JNB	SHORT $+3 
  0373  C3                       	RET			;OVERFLOW ERROR 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-32
+EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
+
  0374  59                       	POP	CX		;GET RID OF OVERR ADDR 
  0375  B5 00                    	MOV	CH,LOW 0	;SETUP TO ADD [B,C] 
  0377  2C 30                    	SUB	AL,LOW "0" 
@@ -1974,19 +1697,12 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
  0386  C3                       	RET 
  0387                           ISFUN: 
  0387  43                       	INC	BX		;BUMP SOURCE TEXT POINTER 
- 0388  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET THE ACTUAL TOKEN FOR
-				 FN 
+ 0388  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET THE ACTUAL TOKEN FOR FN 
  038A  2C 00 E                  	SUB	AL,LOW OFFSET ONEFUN	;MAKE INTO OFFSET 
                                 	EXTRN	RNDMON:NEAR 
                                 	EXTRN	$RNDFN:NEAR 
  038C  3C 00 E                  	CMP	AL,LOW OFFSET $RNDFN	;IS IT RND? 
- 038E  75 0E                    	JNZ	SHORT NTMRND	;IF NOT NO NEED TO CHECK MONA
-				DIC 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-36
-EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
-
+ 038E  75 0E                    	JNZ	SHORT NTMRND	;IF NOT NO NEED TO CHECK MONADIC 
  0390  53                       	PUSH	BX		;SAVE TEXT POINTER 
  0391  E8 0000 E                	CALL	CHRGTR		;SEE IF NEXT CHAR IS "(" 
  0394  3C 28                    	CMP	AL,LOW "(" 
@@ -2004,53 +1720,37 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
  03A8  8A C1                    	MOV	AL,CL		;LOOK AT FUNCTION # 
                                 	EXTRN	NUMGFN:NEAR 
  03AA  3C 00 E                  	CMP	AL,LOW OFFSET NUMGFN	;IS IT PAST LASNUM? 
- 03AC  73 22                    	JAE	SHORT OKNORM	;NO, MUST BE A NORMAL FUNCTIO
-				N 
+ 03AC  73 22                    	JAE	SHORT OKNORM	;NO, MUST BE A NORMAL FUNCTION 
                                 ; 
                                 ; MOST FUNCTIONS TAKE A SINGLE ARGUMENT. 
-                                ; THE RETURN ADDRESS OF THESE FUNCTIONS IS A SM
-				ALL ROUTINE 
-                                ; THAT CHECKS TO MAKE SURE VALTYP IS 0 (NUMERIC
-				) AND POPS OFF 
-                                ; THE TEXT POINTER. SO NORMAL FUNCTIONS THAT RE
-				TURN STRING RESULTS (I.E. CHR$) 
-                                ; MUST POP OFF THE RETURN ADDRESS OF LABBCK, AN
-				D POP OFF THE 
+                                ; THE RETURN ADDRESS OF THESE FUNCTIONS IS A SMALL ROUTINE 
+                                ; THAT CHECKS TO MAKE SURE VALTYP IS 0 (NUMERIC) AND POPS OFF 
+                                ; THE TEXT POINTER. SO NORMAL FUNCTIONS THAT RETURN STRING RESULTS (I.E. CHR$) 
+                                ; MUST POP OFF THE RETURN ADDRESS OF LABBCK, AND POP OFF THE 
                                 ; TEXT POINTER AND THEN RETURN TO FRMEVL. 
                                 ; 
-                                ; THE SO CALLED "FUNNY" FUNCTIONS CAN TAKE MORE
-				 THAN ONE ARGUMENT. 
-                                ; THE FIRST OF WHICH MUST BE STRING AND THE SEC
-				OND OF WHICH 
-                                ; MUST BE A NUMBER BETWEEN 0 AND 256. THE TEXT 
-				POINTER IS 
-                                ; PASSED TO THESE FUNCTIONS SO ADDITIONAL ARGUM
-				ENTS 
-                                ; CAN BE READ. THE TEXT POINTER IS PASSED IN [D
-				,E]. 
-                                ; THE CLOSE PARENTHESIS MUST BE CHECKED AND RET
-				URN IS DIRECTLY 
-                                ; TO FRMEVL WITH [H,L] SETUP AS THE TEXT POINTE
-				R POINTING BEYOND THE ")". 
-                                ; THE POINTER TO THE DESCRIPTOR OF THE STRING A
-				RGUMENT 
-                                ; IS STORED ON THE STACK UNDERNEATH THE VALUE O
-				F THE INTEGER 
-                                ; ARGUMENT (2 BYTES) 
-                                ; 
-                                ; FIRST ARGUMENT ALWAYS STRING -- SECOND INTEGE
-				R 
-                                ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-37
+                                ; THE SO CALLED "FUNNY" FUNCTIONS CAN TAKE MORE THAN ONE ARGUMENT. 
+                                ; THE FIRST OF WHICH MUST BE STRING AND THE SECOND OF WHICH 
+                                ; MUST BE A NUMBER BETWEEN 0 AND 256. THE TEXT POINTER IS 
+                                ; PASSED TO THESE FUNCTIONS SO ADDITIONAL ARGUMENTS 
+                                ; CAN BE READ. THE TEXT POINTER IS PASSED IN [D,E]. 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-33
 EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
 
+                                ; THE CLOSE PARENTHESIS MUST BE CHECKED AND RETURN IS DIRECTLY 
+                                ; TO FRMEVL WITH [H,L] SETUP AS THE TEXT POINTER POINTING BEYOND THE ")". 
+                                ; THE POINTER TO THE DESCRIPTOR OF THE STRING ARGUMENT 
+                                ; IS STORED ON THE STACK UNDERNEATH THE VALUE OF THE INTEGER 
+                                ; ARGUMENT (2 BYTES) 
+                                ; 
+                                ; FIRST ARGUMENT ALWAYS STRING -- SECOND INTEGER 
+                                ; 
  03AE  E8 0007 R                	CALL	FRMPRN		;EAT OPEN PAREN AND FIRST ARG 
  03B1  E8 0000 E                	CALL	SYNCHR 
  03B4  2C                       	DB	OFFSET 44	;TWO ARGS SO COMMA MUST DELIMIT 
- 03B5  E8 0000 E                	CALL	CHKSTR		;MAKE SURE THE FIRST ONE WAS STRI
-				NG 
+ 03B5  E8 0000 E                	CALL	CHKSTR		;MAKE SURE THE FIRST ONE WAS STRING 
  03B8  87 DA                    	XCHG	BX,DX		;[D,E]=TXTPTR 
  03BA  8B 1E 0000 E             	MOV	BX,FACLO	;GET PTR AT STRING DESCRIPTOR 
  03BE  5E                       	POP	SI		;XTHL 
@@ -2072,42 +1772,33 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
                                 				;AND MAKE SURE ITS FOLLOWED BY ")" 
  03D3  5E                       	POP	SI		;XTHL 
  03D4  87 F3                    	XCHG	SI,BX 
- 03D6  56                       	PUSH	SI		;[H,L]=FUNCTION # AND SAVE TEXT POINT
-				ER 
+ 03D6  56                       	PUSH	SI		;[H,L]=FUNCTION # AND SAVE TEXT POINTER 
                                 ; 
-                                ; CHECK IF SPECIAL COERCION MUST BE DONE FOR ON
-				E OF THE TRANSCENDENTAL 
-                                ; FUNCTIONS (RND, SQR, COS, SIN, TAN, ATN, LOG,
-				 AND EXP) 
-                                ; THESE FUNCTIONS DO NOT LOOK AT VALTYP, BUT RA
-				THER ASSUME THE 
-                                ; ARGUMENT PASSED IN THE FAC IS SINGLE PRECISIO
-				N, SO FRCSNG 
+                                ; CHECK IF SPECIAL COERCION MUST BE DONE FOR ONE OF THE TRANSCENDENTAL 
+                                ; FUNCTIONS (RND, SQR, COS, SIN, TAN, ATN, LOG, AND EXP) 
+                                ; THESE FUNCTIONS DO NOT LOOK AT VALTYP, BUT RATHER ASSUME THE 
+                                ; ARGUMENT PASSED IN THE FAC IS SINGLE PRECISION, SO FRCSNG 
                                 ; MUST BE CALLED BEFORE DISPATCHING TO THEM. 
                                 ; 
  03D7  8A C3                    	MOV	AL,BL		;[A]=FUNCTION NUMBER 
                                 	EXTRN	BOTCON:NEAR,TOPCON:NEAR 
- 03D9  3C 00 E                  	CMP	AL,LOW OFFSET BOTCON	;LESS THAN SQUARE ROO
-				T? 
+ 03D9  3C 00 E                  	CMP	AL,LOW OFFSET BOTCON	;LESS THAN SQUARE ROOT? 
  03DB  72 09                    	JB	SHORT NOTFRF	;DON'T FORCE THE ARGUMENT 
- 03DD  3C 00 E                  	CMP	AL,LOW OFFSET TOPCON	;BIGGER THAN ARC-TANG
-				ENT? 
+ 03DD  3C 00 E                  	CMP	AL,LOW OFFSET TOPCON	;BIGGER THAN ARC-TANGENT? 
  03DF  53                       	PUSH	BX		;SAVE THE FUNCTION NUMBER 
  03E0  73 03                    	JNB	SHORT ??L034 
- 03E2  E8 0000 E                	CALL	FRCSNG		;IF NOT, FORCE FAC TO SINGLE-PREC
-				ISION 
+ 03E2  E8 0000 E                	CALL	FRCSNG		;IF NOT, FORCE FAC TO SINGLE-PRECISION 
  03E5                           ??L034: 
  03E5  5B                       	POP	BX		;RESTORE THE FUNCTION NUMBER 
  03E6                           NOTFRF: 
  03E6  BA 02BB R                	MOV	DX,OFFSET LABBCK	;RETURN ADDRESS 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-38
+ 03E9  52                       	PUSH	DX		;MAKE THEM REALLY COME BACK 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-34
 EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
 
- 03E9  52                       	PUSH	DX		;MAKE THEM REALLY COME BACK 
- 03EA  B0 01                    	MOV	AL,LOW 1	;FUNCTION SHOULD ONLY PRINT OVERF
-				LOW ONCE 
+ 03EA  B0 01                    	MOV	AL,LOW 1	;FUNCTION SHOULD ONLY PRINT OVERFLOW ONCE 
  03EC  A2 0000 E                	MOV	BYTE PTR FLGOVC,AL 
  03EF                           FINGO: 
  03EF  B9 0000 E                	MOV	CX,OFFSET FUNDSP	;FUNCTION DISPATCH TABLE 
@@ -2115,10 +1806,8 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
                                  
                                 	INS86	56		;FETCH FROM CODE SEGMENT 
                                 	INS86	377,047		;JMPI   0(.BX) 
-                                ; THE FOLOWING ROUTINE IS CALLED FROM FIN IN F4
-				 
-                                ; TO SCAN LEADING SIGNS FOR NUMBERS. IT WAS MOV
-				ED 
+                                ; THE FOLOWING ROUTINE IS CALLED FROM FIN IN F4 
+                                ; TO SCAN LEADING SIGNS FOR NUMBERS. IT WAS MOVED 
                                 ; TO F3 TO ELIMINATE BYTE EXTERNALS 
                                 PUBLIC	MINPLS 
  03F7                           MINPLS: 
@@ -2140,15 +1829,14 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
  0410  4B                       	DEC	BX		;CHECK IF LAST CHARACTER WAS A DIGIT 
  0411  9E                       	SAHF 
  0412  C3                       	RET			;RETURN WITH NON-ZERO SET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-39
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-35
 EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
 
                                 	PAGE 
                                  
-                                	SUBTTL MORE FORMULA EVALUATION - LOGICAL, RELA
-				TIONAL OPS 
+                                	SUBTTL MORE FORMULA EVALUATION - LOGICAL, RELATIONAL OPS 
  0413  FE C0                    DOCMP:	INC	AL		;SETUP BITS 
  0415  12 C0                    	ADC	AL,AL		;4=LESS 2=EQUAL 1=GREATER 
  0417  59                       	POP	CX		;WHAT DID HE WANT? 
@@ -2156,12 +1844,9 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
  041A  04 FF                    	ADD	AL,LOW 255	;MAP 0 TO 0 
  041C  1A C0                    	SBB	AL,AL		;AND ALL OTHERS TO 377 
  041E  E8 0000 E                	CALL	CONIA		;CONVERT [A] TO AN INTEGER SIGNED 
- 0421  EB 0F                    	JMP	SHORT RETAPG	;RETURN FROM OPERATOR APPLICA
-				TION 
- 0423  B6 5A                    NOTER:	MOV	DH,LOW 90	;"NOT" HAS PRECEDENCE 90, 
-				SO 
- 0425  E8 000E R                	CALL	LPOPER		;FORMULA EVALUATION IS ENTERED WI
-				TH A DUMMY 
+ 0421  EB 0F                    	JMP	SHORT RETAPG	;RETURN FROM OPERATOR APPLICATION 
+ 0423  B6 5A                    NOTER:	MOV	DH,LOW 90	;"NOT" HAS PRECEDENCE 90, SO 
+ 0425  E8 000E R                	CALL	LPOPER		;FORMULA EVALUATION IS ENTERED WITH A DUMMY 
                                 				;ENTRY OF 90 ON THE STACK 
  0428  E8 0000 E                	CALL	FRCINT		;COERCE THE ARGUMENT TO INTEGER 
                                 	INS86	367,323		;NOT [H,L] 
@@ -2172,14 +1857,12 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
                                  
  0432  E9 0020 R                RETAPG:	JMP	RETAOP		;RETURN TO REFETCH IT 
                                 PUBLIC	GETYPR 
- 0435  A0 0000 E                GETYPR:	MOV	AL,BYTE PTR VALTYP	;REPLACEMENT FOR
-				 "GETYPE" RST 
+ 0435  A0 0000 E                GETYPR:	MOV	AL,BYTE PTR VALTYP	;REPLACEMENT FOR "GETYPE" RST 
  0438  3C 08                    	CMP	AL,LOW 8 
                                 ; 
                                 ; CONTINUATION OF GETYPE RST 
                                 ; 
- 043A  FE C8                    CGETYP:	DEC	AL		;SET THE OTHER CONDITION CODES 
-				CORRECTLY 
+ 043A  FE C8                    CGETYP:	DEC	AL		;SET THE OTHER CONDITION CODES CORRECTLY 
  043C  FE C8                    	DEC	AL		; WITHOUT AFFECTING CARRY 
  043E  FE C8                    	DEC	AL 
  0440  C3                       	RET 
@@ -2187,29 +1870,17 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
                                  
                                 ; 
                                 ; DANDOR APPLIES THE "AND" AND "OR" OPERATORS 
-                                ; AND SHOULD BE USED TO IMPLEMENT ALL LOGICAL O
-				PERATORS. 
-                                ; WHENEVER AN OPERATOR IS APPLIED, ITS PRECEDEN
-				CE IS IN [B]. 
-                                ; THIS FACT IS USED TO DISTINGUISH BETWEEN "AND
-				" AND "OR". 
-                                ; THE RIGHT HAND ARGUMENT IS COERCED TO INTEGER
-				, JUST AS 
-                                ; THE LEFT HAND ONE WAS WHEN IT WAS PUSHED ON T
-				HE STACK. 
+                                ; AND SHOULD BE USED TO IMPLEMENT ALL LOGICAL OPERATORS. 
+                                ; WHENEVER AN OPERATOR IS APPLIED, ITS PRECEDENCE IS IN [B]. 
+                                ; THIS FACT IS USED TO DISTINGUISH BETWEEN "AND" AND "OR". 
+                                ; THE RIGHT HAND ARGUMENT IS COERCED TO INTEGER, JUST AS 
+                                ; THE LEFT HAND ONE WAS WHEN IT WAS PUSHED ON THE STACK. 
                                 ; 
  0441                           DANDOR: 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-40
-MORE FORMULA EVALUATION - LOGICAL, RELATIONAL OPS           
-
  0441  8A C5                    	MOV	AL,CH		;GET THE PRECEDENCE 
  0443  50                       	PUSH	AX		;SAVE THE PRECEDENCE "OR"=70 
- 0444  E8 0000 E                	CALL	FRCINT		;COERCE RIGHT HAND ARGUMENT TO IN
-				TEGER 
- 0447  58                       	POP	AX		;GET BACK THE PRECEDENCE TO DISTINGUIS
-				H 
+ 0444  E8 0000 E                	CALL	FRCINT		;COERCE RIGHT HAND ARGUMENT TO INTEGER 
+ 0447  58                       	POP	AX		;GET BACK THE PRECEDENCE TO DISTINGUISH 
                                 				;"AND" AND "OR" 
  0448  5A                       	POP	DX		;POP OFF THE LEFT HAND ARGUMENT 
  0449  3C 7A                    	CMP	AL,LOW 122	;IS THE OPERATOR "MOD"? 
@@ -2217,11 +1888,15 @@ MORE FORMULA EVALUATION - LOGICAL, RELATIONAL OPS
  044D  E9 0000 E                	JMP	IMOD		;IF SO, USE MONTE'S SPECIAL ROUTINE 
  0450                           ??L035: 
  0450  3C 7B                    	CMP	AL,LOW 123	;IS THE OPERATOR "IDIV"? 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-36
+MORE FORMULA EVALUATION - LOGICAL, RELATIONAL OPS           
+
  0452  75 03                    	JNZ	SHORT ??L036 
  0454  E9 0000 E                	JMP	IDIV		;LET MONTE HANDLE IT 
  0457                           ??L036: 
- 0457  B9 0000 E                	MOV	CX,OFFSET MAKINT	;PLACE TO RETURN WHEN DON
-				E 
+ 0457  B9 0000 E                	MOV	CX,OFFSET MAKINT	;PLACE TO RETURN WHEN DONE 
  045A  51                       	PUSH	CX		;SAVE ON STACK 
  045B  3C 46                    	CMP	AL,LOW 70	;SET ZERO FOR "OR" 
  045D  75 03                    	JNZ	SHORT NOTOR 
@@ -2249,9 +1924,9 @@ MORE FORMULA EVALUATION - LOGICAL, RELATIONAL OPS
                                 	INS86	43,332		;AND BX,DX 
                                 	INS86	367,323		;NOT BX 
  047F  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-41
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-37
 MORE FORMULA EVALUATION - LOGICAL, RELATIONAL OPS           
 
                                 	PAGE 
@@ -2263,21 +1938,19 @@ MORE FORMULA EVALUATION - LOGICAL, RELATIONAL OPS
  0480  2B DA                    GIVDBL:	SUB	BX,DX		;[H,L]=[H,L]-[D,E] 
  0482  E9 0000 E                	JMP	INEG2		;FLOAT 2 BYTE UNSIGNED INT 
                                 PUBLIC	SNGFLT 
- 0485  8A D8                    SNGFLT:	MOV	BL,AL		;MAKE [A] AN UNSIGNED INTEGE
-				R 
+ 0485  8A D8                    SNGFLT:	MOV	BL,AL		;MAKE [A] AN UNSIGNED INTEGER 
  0487  32 C0                    	XOR	AL,AL 
                                 PUBLIC	GIVINT 
  0489  8A F8                    GIVINT:	MOV	BH,AL 
  048B  E9 0000 E                	JMP	MAKINT 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-42
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-38
 MORE FORMULA EVALUATION - LOGICAL, RELATIONAL OPS           
 
                                 	PAGE 
                                  
-                                	SUBTTL USER DEFINED (USR) ASSEMBLY LANGUAGE FU
-				NCTION CODE 
+                                	SUBTTL USER DEFINED (USR) ASSEMBLY LANGUAGE FUNCTION CODE 
                                  
  048E                           USRFN: 
                                 	EXTRN	PRODIR:NEAR 
@@ -2288,65 +1961,52 @@ MORE FORMULA EVALUATION - LOGICAL, RELATIONAL OPS
  0495  E8 02A6 R                	CALL	PARCHK		;EAT LEFT PAREN AND FORMULA 
  0498  5E                       	POP	SI		;XTHL 
  0499  87 F3                    	XCHG	SI,BX 
- 049B  56                       	PUSH	SI		;SAVE TEXT POINTER & GET INDEX INTO U
-				SRTAB 
+ 049B  56                       	PUSH	SI		;SAVE TEXT POINTER & GET INDEX INTO USRTAB 
  049C  8B 17                    	MOV	DX,[BX]		;GET DISPATCH ADDRESS 
                                 	INS86	203,372		;CMPI DX, 
  04A0  FF                       	DB	377O		; 0FFFFH 
  04A1  75 03                    	JNZ	SHORT ??L037 
- 04A3  E9 0000 E                	JMP	FCERR		;GIVE HIM AN ERROR IF HE CALLS A SU
-				BROUTINE 
+ 04A3  E9 0000 E                	JMP	FCERR		;GIVE HIM AN ERROR IF HE CALLS A SUBROUTINE 
  04A6                           ??L037: 
                                 				;AT FFFF, SINCE CANT INITIALIZE TABLE 
                                 				;TO "FCERR" SINCE IT MAY NOT EXIST IN 
                                 				;THE DESTINATION SEGMENT 
-                                	INS86	16		;PUSH CS - PUSH BASIC'S CODE SEGMENT
-				 
- 04A7  BB 0000 E                	MOV	BX,OFFSET POPHRT	;GET ADDRESS OF POP H RET
-				 
+                                	INS86	16		;PUSH CS - PUSH BASIC'S CODE SEGMENT 
+ 04A7  BB 0000 E                	MOV	BX,OFFSET POPHRT	;GET ADDRESS OF POP H RET 
  04AA  53                       	PUSH	BX		;PUSH IT ON 
-                                	INS86	377,66,SAVSEG	;PUSH ON SEGMENT ADDRESS O
-				F SUBROUTINE 
+                                	INS86	377,66,SAVSEG	;PUSH ON SEGMENT ADDRESS OF SUBROUTINE 
  04AF  52                       	PUSH	DX		;SAVE ADDRESS OF USR ROUTINE 
- 04B0  A0 0000 E                	MOV	AL,BYTE PTR VALTYP	;GET ARGUMENT TYPE IN [
-				A] 
+ 04B0  A0 0000 E                	MOV	AL,BYTE PTR VALTYP	;GET ARGUMENT TYPE IN [A] 
  04B3  50                       	PUSH	AX		;SAVE VALTYP 
  04B4  3C 03                    	CMP	AL,LOW 3	;STRING?? 
  04B6  75 03                    	JNZ	SHORT ??L038 
  04B8  E8 0000 E                	CALL	FREFAC		;FREE IT UP 
  04BB                           ??L038: 
  04BB  58                       	POP	AX		;GET BACK VALTYP 
- 04BC  87 DA                    	XCHG	BX,DX		;MOVE POSSIBLE DESC. POINTER TO [D
-				,E] 
+ 04BC  87 DA                    	XCHG	BX,DX		;MOVE POSSIBLE DESC. POINTER TO [D,E] 
  04BE  BB 0000 E                	MOV	BX,OFFSET FACLO	;POINTER TO FAC IN [H,L] 
                                 	INS86	313		;INTER SEGMENT RETURN 
  04C2  E8 0000 E                SCNUSR:	CALL	CHRGTR		;GET A CHAR 
  04C5  B9 0000                  	MOV	CX,0		;ASSUME USR0 
- 04C8  3C 0A E                  	CMP	AL,LOW OFFSET ONECON+10	;SINGLE BYTE INT E
-				XPECTED 
- 04CA  73 10                    	JAE	SHORT NOARGU	;NO, MUST BE DEFAULTING TO US
-				R0 
- 04CC  3C 00 E                  	CMP	AL,LOW OFFSET ONECON	;IS IT SMALLER THAN O
-				NECON 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-43
-USER DEFINED (USR) ASSEMBLY LANGUAGE FUNCTION CODE          
-
- 04CE  72 0C                    	JB	SHORT NOARGU	;YES, ASSUME TRYING TO DEFAULT
-				 TO USR0 
+ 04C8  3C 0A E                  	CMP	AL,LOW OFFSET ONECON+10	;SINGLE BYTE INT EXPECTED 
+ 04CA  73 10                    	JAE	SHORT NOARGU	;NO, MUST BE DEFAULTING TO USR0 
+ 04CC  3C 00 E                  	CMP	AL,LOW OFFSET ONECON	;IS IT SMALLER THAN ONECON 
+ 04CE  72 0C                    	JB	SHORT NOARGU	;YES, ASSUME TRYING TO DEFAULT TO USR0 
  04D0  E8 0000 E                USERCN:	CALL	CHRGTR		;SCAN PAST NEXT CHAR 
  04D3  A0 0000 E                	MOV	AL,BYTE PTR CONLO	;GET VALUE OF 1 BYTER 
  04D6  0A C0                    	OR	AL,AL		;MAKE SURE CARRY IS OFF 
  04D8  D0 D0                    	RCL	AL,1		;MULTIPLY BY 2 
  04DA  8A C8                    	MOV	CL,AL		;SAVE OFFSET IN [C] 
- 04DC  87 DA                    NOARGU:	XCHG	BX,DX		;SAVE TEXT POINTER IN [D,E]
-				 
+ 04DC  87 DA                    NOARGU:	XCHG	BX,DX		;SAVE TEXT POINTER IN [D,E] 
  04DE  BB 0000 E                	MOV	BX,OFFSET USRTAB	;GET START OF TABLE 
  04E1  03 D9                    	ADD	BX,CX		;ADD ON OFFSET 
- 04E3  87 DA                    	XCHG	BX,DX		;RESTORE TEXT POINTER, ADDRESS TO 
-				[D,E] 
+ 04E3  87 DA                    	XCHG	BX,DX		;RESTORE TEXT POINTER, ADDRESS TO [D,E] 
  04E5  C3                       	RET			;RETURN FROM SCAN ROUTINE 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-39
+USER DEFINED (USR) ASSEMBLY LANGUAGE FUNCTION CODE          
+
                                  
  04E6  E8 04C2 R                DEFUSR:	CALL	SCNUSR		;SCAN THE USR NAME 
  04E9  52                       	PUSH	DX		;SAVE POINTER TO USRTAB ENTRY 
@@ -2360,28 +2020,23 @@ USER DEFINED (USR) ASSEMBLY LANGUAGE FUNCTION CODE
  04F7  5B                       	POP	BX		;RESTORE TEXT POINTER 
  04F8  C3                       	RET			;RETURN TO NEWSTT 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-44
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-40
 USER DEFINED (USR) ASSEMBLY LANGUAGE FUNCTION CODE          
 
                                 	PAGE 
                                  
                                 	SUBTTL SIMPLE-USER-DEFINED-FUNCTION CODE 
                                 ; 
-                                ; IN THE 8K VERSION (SEE LATER COMMENT FOR EXTE
-				NDED) 
-                                ; NOTE ONLY SINGLE ARGUMENTS ARE ALLOWED TO FUN
-				CTIONS 
-                                ; AND FUNCTIONS MUST BE OF THE SINGLE LINE FORM
-				: 
+                                ; IN THE 8K VERSION (SEE LATER COMMENT FOR EXTENDED) 
+                                ; NOTE ONLY SINGLE ARGUMENTS ARE ALLOWED TO FUNCTIONS 
+                                ; AND FUNCTIONS MUST BE OF THE SINGLE LINE FORM: 
                                 ; DEF FNA(X)=X^2+X-2 
-                                ; NO STRINGS CAN BE INVOLVED WITH THESE FUNCTIO
-				NS 
+                                ; NO STRINGS CAN BE INVOLVED WITH THESE FUNCTIONS 
                                 ; 
                                 ; IDEA: CREATE A FUNNY SIMPLE VARIABLE ENTRY 
-                                ; WHOSE FIRST CHARACTER (SECOND WORD IN MEMORY)
-				 
+                                ; WHOSE FIRST CHARACTER (SECOND WORD IN MEMORY) 
                                 ; HAS THE 200 BIT SET. 
                                 ; THE VALUE WILL BE: 
                                 ; 
@@ -2392,8 +2047,7 @@ USER DEFINED (USR) ASSEMBLY LANGUAGE FUNCTION CODE
                                 ; 
                                  
  04F9                           DEF: 
- 04F9  3C 00 E                  	CMP	AL,LOW OFFSET USRTK	;DEFINING THE CALL ADD
-				RESS OF USR ROUTINE? 
+ 04F9  3C 00 E                  	CMP	AL,LOW OFFSET USRTK	;DEFINING THE CALL ADDRESS OF USR ROUTINE? 
  04FB  74 E9                    	JZ	SHORT DEFUSR	;YES, DO IT 
  04FD  3C 00 E                  	CMP	AL,LOW OFFSET FNTK	; "FN"? 
  04FF  74 1C                    	JZ	SHORT DEFNC3	;THEN GO DO FUNCTION NAME 
@@ -2404,40 +2058,32 @@ USER DEFINED (USR) ASSEMBLY LANGUAGE FUNCTION CODE
  0509  E8 0000 E                	CALL	SYNCHR 
  050C  47                       	DB	OFFSET "G" 
                                 	INS86	214,332		; MOV DX,DS 
- 050F  74 07                    	JZ	SHORT DEFNC2	;NO ASSIGNMENT, USE CURRENT [D
-				S]. 
+ 050F  74 07                    	JZ	SHORT DEFNC2	;NO ASSIGNMENT, USE CURRENT [DS]. 
  0511  E8 0000 E                	CALL	SYNCHR 
  0514  00 E                     	DB	OFFSET EQULTK	; ELSE MUST HAVE EQUAL SIGN 
  0515  E8 0000 E                	CALL	FRMQNT		;GET SEGMENT IN DX 
- 0518  89 16 0000 E             DEFNC2:	MOV	SAVSEG,DX	;STORE FOR PEEK/POKE/CALL
-				/BLOAD/BSAVE 
+ 0518  89 16 0000 E             DEFNC2:	MOV	SAVSEG,DX	;STORE FOR PEEK/POKE/CALL/BLOAD/BSAVE 
  051C  C3                       	RET			;RETURN TO NEWSTT 
  051D                           DEFNC3: 
- 051D  E8 0718 R                	CALL	GETFNM		;GET A POINTER TO THE FUNCTION NA
-				ME 
+ 051D  E8 0718 R                	CALL	GETFNM		;GET A POINTER TO THE FUNCTION NAME 
  0520  E8 0707 R                	CALL	ERRDIR		;DEF IS "ILLEGAL DIRECT" 
- 0523  87 DA                    	XCHG	BX,DX		;[D,E] = THE TEXT POINTER AFTER TH
-				E FUNCTION 
-                                				;NAME AND [H,L] = POINTER AT PLACE TO STORE
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-45
-SIMPLE-USER-DEFINED-FUNCTION CODE                           
-
-				 
+ 0523  87 DA                    	XCHG	BX,DX		;[D,E] = THE TEXT POINTER AFTER THE FUNCTION 
+                                				;NAME AND [H,L] = POINTER AT PLACE TO STORE 
                                 				;VALUE OF THE FUNCTION VARIABLE 
- 0525  89 17                    	MOV	[BX],DX		;SAVE THE TEXT POINTER AS THE VAL
-				UE 
- 0527  87 DA                    	XCHG	BX,DX		;RESTORE THE TEXT POINTER TO [H,L]
-				 
+ 0525  89 17                    	MOV	[BX],DX		;SAVE THE TEXT POINTER AS THE VALUE 
+ 0527  87 DA                    	XCHG	BX,DX		;RESTORE THE TEXT POINTER TO [H,L] 
  0529  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET NEXT CHAR 
  052B  3C 28                    	CMP	AL,LOW "("	;DOES THIS FUNCTION HAVE ARGS? 
  052D  74 03                    	JZ	SHORT ??L039 
  052F  E9 0000 E                	JMP	DATA		;NO 
  0532                           ??L039: 
  0532  E8 0000 E                	CALL	CHRGTR 
- 0535  E8 0000 E                SCNLIS:	CALL	PTRGET		;GET POINTER TO DUMMY VAR(
-				CREATE VAR) 
+ 0535  E8 0000 E                SCNLIS:	CALL	PTRGET		;GET POINTER TO DUMMY VAR(CREATE VAR) 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-41
+SIMPLE-USER-DEFINED-FUNCTION CODE                           
+
  0538  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET TERMINATOR 
  053A  3C 29                    	CMP	AL,LOW ")"	;END OF ARG LIST? 
  053C  75 03                    	JNZ	SHORT ??L040 
@@ -2448,10 +2094,8 @@ SIMPLE-USER-DEFINED-FUNCTION CODE
  0545  EB EE                    	JMP	SHORT SCNLIS 
                                  
  0547  E8 0718 R                FNDOER:	CALL	GETFNM		;GET A POINTER TO 
- 054A  A0 0000 E                	MOV	AL,BYTE PTR VALTYP	;FIND OUT WHAT KIND OF 
-				FUNCTION IT IS 
- 054D  0A C0                    	OR	AL,AL		;PUSH THIS [A] ON WITH A PSW WITH CA
-				RRY OFF 
+ 054A  A0 0000 E                	MOV	AL,BYTE PTR VALTYP	;FIND OUT WHAT KIND OF FUNCTION IT IS 
+ 054D  0A C0                    	OR	AL,AL		;PUSH THIS [A] ON WITH A PSW WITH CARRY OFF 
                                 				;SO THAT WHEN VALUES ARE BEING POPPED OFF 
                                 				;AND RESTORED TO PARAMETERS WE WILL KNOW 
                                 				;WHEN TO STOP 
@@ -2459,112 +2103,82 @@ SIMPLE-USER-DEFINED-FUNCTION CODE
                                 				;CARRY OFF 
  054F  50                       	PUSH	AX		;SAVE SO THAT THE FINAL RESULT WILL 
                                 				;BE COERCED TO THE FUNCTION TYPE 
- 0550  89 1E 0000 E             	MOV	TEMP2,BX	;SAVE THE TEXT POINTER THAT POINT
-				S PAST 
+ 0550  89 1E 0000 E             	MOV	TEMP2,BX	;SAVE THE TEXT POINTER THAT POINTS PAST 
                                 				;THE FUNCTION NAME IN THE CALL 
- 0554  87 DA                    	XCHG	BX,DX		;[H,L]=A POINTER TO THE VALUE OF F
-				UNCTION 
+ 0554  87 DA                    	XCHG	BX,DX		;[H,L]=A POINTER TO THE VALUE OF FUNCTION 
  0556  8B 1F                    	MOV	BX,[BX]		;[H,L]=VALUE OF THE FUNCTION 
                                 				;WHICH IS A TEXT POINTER AT THE FORMAL 
                                 				;PARAMETER LIST IN THE DEFINITION 
- 0558  0B DB                    	OR	BX,BX		;A ZERO TEXT POINTER MEANS THE FUNCT
-				ION 
+ 0558  0B DB                    	OR	BX,BX		;A ZERO TEXT POINTER MEANS THE FUNCTION 
                                 				;WAS NEVER DEFINED 
  055A  75 03                    	JNZ	SHORT ??L041 
- 055C  E9 0000 E                	JMP	UFERR		;IF SO, GIVEN AN "UNDEFINED FUNCTIO
-				N" ERROR 
+ 055C  E9 0000 E                	JMP	UFERR		;IF SO, GIVEN AN "UNDEFINED FUNCTION" ERROR 
  055F                           ??L041: 
- 055F  8A 07                    	MOV	AL,BYTE PTR [BX]	;SEE IF THERE ARE ANY PAR
-				AMETERS 
- 0561  3C 28                    	CMP	AL,LOW "("	;PARAMETER LIST STARTS WITH "("
-				" 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-46
-SIMPLE-USER-DEFINED-FUNCTION CODE                           
-
+ 055F  8A 07                    	MOV	AL,BYTE PTR [BX]	;SEE IF THERE ARE ANY PARAMETERS 
+ 0561  3C 28                    	CMP	AL,LOW "("	;PARAMETER LIST STARTS WITH "("" 
  0563  74 03                    	JZ	SHORT ??L042 
  0565  E9 0639 R                	JMP	FINVLS		;SKIP OVER PARAMETER SETUP 
  0568                           ??L042: 
  0568  E8 0000 E                	CALL	CHRGTR		;GO PAST THE "(" 
- 056B  89 1E 0000 E             	MOV	TEMP3,BX	;SAVE THE TEXT POINTER TO THE STA
-				RT OF THE 
+ 056B  89 1E 0000 E             	MOV	TEMP3,BX	;SAVE THE TEXT POINTER TO THE START OF THE 
  056F  87 DA                    	XCHG	BX,DX		;PARAMETER LIST. 
- 0571  8B 1E 0000 E             	MOV	BX,TEMP2	;NOW GET THE TEXT-POINTER FROM TH
-				E CALL 
+ 0571  8B 1E 0000 E             	MOV	BX,TEMP2	;NOW GET THE TEXT-POINTER FROM THE CALL 
                                 				;WHICH IS POINTING JUST PAST THE 
                                 				;FUNCTION NAME AT THE ARGUMENT LIST 
  0575  E8 0000 E                	CALL	SYNCHR 
- 0578  28                       	DB	OFFSET "("	;MAKE SURE THE ARGUMENT LIST IS 
-				THERE 
+ 0578  28                       	DB	OFFSET "("	;MAKE SURE THE ARGUMENT LIST IS THERE 
  0579  32 C0                    	XOR	AL,AL		;INDICATE END OF VALUES TO ASSIGN 
  057B  50                       	PUSH	AX 
  057C  53                       	PUSH	BX		;SAVE THE CALLERS TEXT POINTER 
- 057D  87 DA                    	XCHG	BX,DX		;GET THE POINTER TO THE BEGINNING 
-				OF THE 
+ 057D  87 DA                    	XCHG	BX,DX		;GET THE POINTER TO THE BEGINNING OF THE 
                                 				;PARAMETER LIST 
- 057F  B0 80                    ASGMOR:	MOV	AL,LOW 128	;OUTLAW ARRAYS WHEN SCAN
-				NING 
+ 057F  B0 80                    ASGMOR:	MOV	AL,LOW 128	;OUTLAW ARRAYS WHEN SCANNING 
  0581  A2 0000 E                	MOV	BYTE PTR SUBFLG,AL	;PARAMETERS 
  0584  E8 0000 E                	CALL	PTRGET		;READ A PARAMETER 
- 0587  87 DA                    	XCHG	BX,DX		;[D,E]=PARAMETER LIST TEXT,[H,L]=V
-				ARIABLE POINTER 
+ 0587  87 DA                    	XCHG	BX,DX		;[D,E]=PARAMETER LIST TEXT,[H,L]=VARIABLE POINTER 
  0589  5E                       	POP	SI		;XTHL 
  058A  87 F3                    	XCHG	SI,BX 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-42
+SIMPLE-USER-DEFINED-FUNCTION CODE                           
+
  058C  56                       	PUSH	SI		;SAVE THE VARIABLES POSITION AND 
                                 				;GET THE POINTER AT THE ARG LIST 
- 058D  A0 0000 E                	MOV	AL,BYTE PTR VALTYP	;AND ITS TYPE (FOR COER
-				CION) 
+ 058D  A0 0000 E                	MOV	AL,BYTE PTR VALTYP	;AND ITS TYPE (FOR COERCION) 
  0590  50                       	PUSH	AX 
- 0591  52                       	PUSH	DX		;SAVE THE TEXT POINTER INTO THE PARAM
-				ETER 
+ 0591  52                       	PUSH	DX		;SAVE THE TEXT POINTER INTO THE PARAMETER 
  0592  E8 000B R                	CALL	FRMEVL		;EVALUATE THE ARGUMENT 
  0595  89 1E 0000 E             	MOV	TEMP2,BX	;SAVE THE ARGUMENT LIST POINTER 
  0599  5B                       	POP	BX		;AND THE PARAMETER LIST POINTER 
  059A  89 1E 0000 E             	MOV	TEMP3,BX 
  059E  58                       	POP	AX		;GET THE VALUE TYPE 
  059F  E8 06E6 R                	CALL	DOCNVF		;COERCE THE ARGUMENT 
- 05A2  B1 04                    	MOV	CL,LOW 4	;MAKE SURE THERE IS ROOM FOR THE 
-				VALUE 
+ 05A2  B1 04                    	MOV	CL,LOW 4	;MAKE SURE THERE IS ROOM FOR THE VALUE 
  05A4  E8 0000 E                	CALL	GETSTK 
  05A7  BB FFF8                  	MOV	BX,OFFSET 0-8	;SAVE EIGHT PLACES 
  05AA  03 DC                    	ADD	BX,SP 
  05AC  8B E3                    	MOV	SP,BX 
- 05AE  E8 0000 E                	CALL	VMOVMF		;PUT VALUE INTO RESERVED PLACE IN
-				 STACK 
- 05B1  A0 0000 E                	MOV	AL,BYTE PTR VALTYP	;SAVE TYPE FOR ASSIGNME
-				NT 
+ 05AE  E8 0000 E                	CALL	VMOVMF		;PUT VALUE INTO RESERVED PLACE IN STACK 
+ 05B1  A0 0000 E                	MOV	AL,BYTE PTR VALTYP	;SAVE TYPE FOR ASSIGNMENT 
  05B4  50                       	PUSH	AX 
  05B5  8B 1E 0000 E             	MOV	BX,TEMP2	;REGET THE ARGUMENT LIST POINTER 
- 05B9  8A 07                    	MOV	AL,BYTE PTR [BX]	;SEE WHAT COMES AFTER THE
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-47
-SIMPLE-USER-DEFINED-FUNCTION CODE                           
-
-				 ARGUMENT FORMULA 
+ 05B9  8A 07                    	MOV	AL,BYTE PTR [BX]	;SEE WHAT COMES AFTER THE ARGUMENT FORMULA 
  05BB  3C 29                    	CMP	AL,LOW ")"	;IS THE ARGUMENT LIST ENDING? 
- 05BD  74 13                    	JZ	SHORT POPASG	;MAKE SURE THE ARGUMENT LIST A
-				LSO ENDED 
+ 05BD  74 13                    	JZ	SHORT POPASG	;MAKE SURE THE ARGUMENT LIST ALSO ENDED 
  05BF  E8 0000 E                	CALL	SYNCHR 
  05C2  2C                       	DB	OFFSET 54O	;SKIP OVER ARGUMENT COMMA 
  05C3  53                       	PUSH	BX		;SAVE THE ARGUMENT LIST TEXT POINTER 
- 05C4  8B 1E 0000 E             	MOV	BX,TEMP3	;GET THE TEXT POINTER INTO THE DE
-				FINTION'S 
+ 05C4  8B 1E 0000 E             	MOV	BX,TEMP3	;GET THE TEXT POINTER INTO THE DEFINTION'S 
                                 				;PARAMETER LIST 
  05C8  E8 0000 E                	CALL	SYNCHR 
- 05CB  2C                       	DB	OFFSET 54O	;SKIP OVER THE PARAMETER LIST CO
-				MMA 
- 05CC  EB B1                    	JMP	SHORT ASGMOR	;AND BIND THE REST OF THE PAR
-				AMETERS 
- 05CE  58                       POPAS2:	POP	AX		;IF ASSIGNMENT IS SUCESSFUL UPD
-				ATE PRMLN2 
- 05CF  A2 0000 E                	MOV	BYTE PTR PRMLN2,AL	;INDICATE NEW VARIABLE 
-				IS IN PLACE 
+ 05CB  2C                       	DB	OFFSET 54O	;SKIP OVER THE PARAMETER LIST COMMA 
+ 05CC  EB B1                    	JMP	SHORT ASGMOR	;AND BIND THE REST OF THE PARAMETERS 
+ 05CE  58                       POPAS2:	POP	AX		;IF ASSIGNMENT IS SUCESSFUL UPDATE PRMLN2 
+ 05CF  A2 0000 E                	MOV	BYTE PTR PRMLN2,AL	;INDICATE NEW VARIABLE IS IN PLACE 
  05D2  58                       POPASG:	POP	AX		;GET THE VALUE TYPE 
  05D3  0A C0                    	OR	AL,AL 
- 05D5  74 51                    	JZ	SHORT FINASG	;ZERO MEANS NO MORE LEFT TO PO
-				P AND ASSIGN 
+ 05D5  74 51                    	JZ	SHORT FINASG	;ZERO MEANS NO MORE LEFT TO POP AND ASSIGN 
  05D7  A2 0000 E                	MOV	BYTE PTR VALTYP,AL 
  05DA  BB 0000                  	MOV	BX,0		;POINT INTO STACK 
  05DD  03 DC                    	ADD	BX,SP		;TO GET SAVED VALUE 
@@ -2573,75 +2187,58 @@ SIMPLE-USER-DEFINED-FUNCTION CODE
  05E5  03 DC                    	ADD	BX,SP 
  05E7  8B E3                    	MOV	SP,BX 
  05E9  5A                       	POP	DX		;GET PLACE TO STORE TO 
- 05EA  B3 03                    	MOV	BL,LOW 3	;CALCULATE THE SIZE OF THE LOOKS 
-				(NAME) 
+ 05EA  B3 03                    	MOV	BL,LOW 3	;CALCULATE THE SIZE OF THE LOOKS (NAME) 
  05EC  FE C3                    LPSIZL:	INC	BL		;INCREMENT SIZE 
  05EE  4A                       	DEC	DX		;POINT AT PREVIOUS CHARACTER 
  05EF  8B F2                    	MOV	SI,DX 
- 05F1  8A 04                    	MOV	AL,[SI]		;SEE IF IT IS THE LENGTH OR ANOTH
-				ER CHARACTER 
+ 05F1  8A 04                    	MOV	AL,[SI]		;SEE IF IT IS THE LENGTH OR ANOTHER CHARACTER 
  05F3  0A C0                    	OR	AL,AL 
  05F5  79 02                    	JNS	SHORT ??L043 
- 05F7  EB F3                    	JMP	LPSIZL		;HIGH BIT INDICATES STILL PART OF 
-				NAME 
+ 05F7  EB F3                    	JMP	LPSIZL		;HIGH BIT INDICATES STILL PART OF NAME 
  05F9                           ??L043: 
  05F9  4A                       	DEC	DX		;BACK UP OVER LOOKS 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-43
+SIMPLE-USER-DEFINED-FUNCTION CODE                           
+
  05FA  4A                       	DEC	DX 
  05FB  4A                       	DEC	DX 
  05FC  A0 0000 E                	MOV	AL,BYTE PTR VALTYP	;GET SIZE OF VALUE 
  05FF  02 C3                    	ADD	AL,BL		;ADD ON SIZE OF NAME 
  0601  8A E8                    	MOV	CH,AL		;SAVE TOTAL LENGTH IN [B] 
- 0603  A0 0000 E                	MOV	AL,BYTE PTR PRMLN2	;GET CURRENT SIZE OF BL
-				OCK 
+ 0603  A0 0000 E                	MOV	AL,BYTE PTR PRMLN2	;GET CURRENT SIZE OF BLOCK 
  0606  8A C8                    	MOV	CL,AL		;SAVE IN [C] 
  0608  02 C5                    	ADD	AL,CH		;GET POTENTIAL NEW SIZE 
- 060A  3C 00 E                  	CMP	AL,LOW OFFSET PRMSIZ	;CAN'T EXCEED ALLOCAT
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-48
-SIMPLE-USER-DEFINED-FUNCTION CODE                           
-
-				ED STORAGE 
+ 060A  3C 00 E                  	CMP	AL,LOW OFFSET PRMSIZ	;CAN'T EXCEED ALLOCATED STORAGE 
  060C  72 03                    	JNAE	SHORT ??L044 
  060E  E9 0000 E                	JMP	FCERR 
  0611                           ??L044: 
  0611  50                       	PUSH	AX		;SAVE NEW SIZE 
  0612  8A C3                    	MOV	AL,BL		;[A]=SIZE OF NAME 
  0614  B5 00                    	MOV	CH,LOW 0	;[B,C]=SIZE OF PARM2 
- 0616  BB 0000 E                	MOV	BX,OFFSET PARM2	;BASE OF PLACE TO STORE IN
-				TO 
- 0619  03 D9                    	ADD	BX,CX		;[H,L]=PLACE TO START THE NEW VARIA
-				BLE 
+ 0616  BB 0000 E                	MOV	BX,OFFSET PARM2	;BASE OF PLACE TO STORE INTO 
+ 0619  03 D9                    	ADD	BX,CX		;[H,L]=PLACE TO START THE NEW VARIABLE 
  061B  8A C8                    	MOV	CL,AL		;[B,C]=LENGTH OF NAME OF VARIABLE 
  061D  E8 0700 R                	CALL	BCTRAN		;PUT IN THE NEW NAME 
- 0620  B9 05CE R                	MOV	CX,OFFSET POPAS2	;PLACE TO RETURN AFTER AS
-				SIGNMENT 
+ 0620  B9 05CE R                	MOV	CX,OFFSET POPAS2	;PLACE TO RETURN AFTER ASSIGNMENT 
  0623  51                       	PUSH	CX 
  0624  51                       	PUSH	CX		;SAVE EXTRA ENTRY ON STACK 
- 0625  E9 0000 E                	JMP	LETCN4		;PERFORM ASSIGNMENT ON [H,L] (EXTR
-				A POP D) 
- 0628  8B 1E 0000 E             FINASG:	MOV	BX,TEMP2	;GET ARGUMENT LIST POINTER
-				 
- 062C  E8 0000 E                	CALL	CHRGTR		;SKIP OVER THE CLOSING PARENTHESI
-				S 
+ 0625  E9 0000 E                	JMP	LETCN4		;PERFORM ASSIGNMENT ON [H,L] (EXTRA POP D) 
+ 0628  8B 1E 0000 E             FINASG:	MOV	BX,TEMP2	;GET ARGUMENT LIST POINTER 
+ 062C  E8 0000 E                	CALL	CHRGTR		;SKIP OVER THE CLOSING PARENTHESIS 
  062F  53                       	PUSH	BX		;SAVE THE ARGUMENT TEXT POINTER 
- 0630  8B 1E 0000 E             	MOV	BX,TEMP3	;GET THE PARAMETER LIST TEXT POIN
-				TER 
+ 0630  8B 1E 0000 E             	MOV	BX,TEMP3	;GET THE PARAMETER LIST TEXT POINTER 
  0634  E8 0000 E                	CALL	SYNCHR 
  0637  29                       	DB	OFFSET ")"	;MAKE SURE THE PARAMETER LIST 
                                 				;ENDED AT THE SAME TIME 
- 0638  B0                       	DB	260O	; SKIP	;SKIP THE NEXT BYTE WITH "MVI A
-				L," 
- 0639  52                       FINVLS:	PUSH	DX		;HERE WHEN THERE WERE NO ARGUM
-				ENTS 
+ 0638  B0                       	DB	260O	; SKIP	;SKIP THE NEXT BYTE WITH "MVI AL," 
+ 0639  52                       FINVLS:	PUSH	DX		;HERE WHEN THERE WERE NO ARGUMENTS 
                                 				;OR PARAMETERS 
                                 				;SAVE THE TEXT POINTER OF THE CALLER 
- 063A  89 1E 0000 E             	MOV	TEMP3,BX	;SAVE THE TEXT POINTER OF THE FUN
-				CTION 
- 063E  A0 0000 E                	MOV	AL,BYTE PTR PRMLEN	;PUSH PARM1 STUFF ONTO 
-				THE STACK 
- 0641  04 04                    	ADD	AL,LOW 4	;WITH PRMLEN AND PRMSTK (4 BYTES 
-				EXTRA) 
+ 063A  89 1E 0000 E             	MOV	TEMP3,BX	;SAVE THE TEXT POINTER OF THE FUNCTION 
+ 063E  A0 0000 E                	MOV	AL,BYTE PTR PRMLEN	;PUSH PARM1 STUFF ONTO THE STACK 
+ 0641  04 04                    	ADD	AL,LOW 4	;WITH PRMLEN AND PRMSTK (4 BYTES EXTRA) 
  0643  50                       	PUSH	AX		;SAVE THE NUMBER OF BYTES 
  0644  D0 C8                    	ROR	AL,1		;NUMBER OF TWO BYTE ENTRIES IN [A] 
  0646  8A C8                    	MOV	CL,AL 
@@ -2655,16 +2252,15 @@ SIMPLE-USER-DEFINED-FUNCTION CODE
  0656  03 DC                    	ADD	BX,SP 
  0658  8B E3                    	MOV	SP,BX		;SET UP NEW STACK 
  065A  53                       	PUSH	BX		;SAVE THE NEW VALUE FOR PRMSTK 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-49
-SIMPLE-USER-DEFINED-FUNCTION CODE                           
-
  065B  BA 0000 E                	MOV	DX,OFFSET PRMSTK	;FETCH DATA FROM HERE 
  065E  E8 0700 R                	CALL	BCTRAN 
  0661  5B                       	POP	BX 
- 0662  89 1E 0000 E             	MOV	PRMSTK,BX	;LINK PARAMETER BLOCK FOR GARBAG
-				E COLLECTION 
+ 0662  89 1E 0000 E             	MOV	PRMSTK,BX	;LINK PARAMETER BLOCK FOR GARBAGE COLLECTION 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-44
+SIMPLE-USER-DEFINED-FUNCTION CODE                           
+
  0666  8B 1E 0000 E             	MOV	BX,PRMLN2	;NOW PUT PARM2 INTO PARM1 
  066A  89 1E 0000 E             	MOV	PRMLEN,BX	;SET UP LENGTH 
  066E  8B CB                    	MOV	CX,BX		;[B,C]=TRANSFER COUNT 
@@ -2680,49 +2276,32 @@ SIMPLE-USER-DEFINED-FUNCTION CODE
  068A  8A C7                    	MOV	AL,BH 
  068C  0A C3                    	OR	AL,BL		;SET UP ACTIVE FLAG NON-ZERO 
  068E  A2 0000 E                	MOV	BYTE PTR NOFUNS,AL 
- 0691  8B 1E 0000 E             	MOV	BX,TEMP3	;GET BACK THE FUNCTION DEFINITION
-				 TEXT POINTER 
-                                ;       DCX     H               ;DETECT A MULTI
-				-LINE FUNCTION 
-                                ;       CHRGET                  ;IF THE DEFINIT
-				ION ENDS NOW 
-                                ;       JZ      MULFUN          ;IF ENDS, ITS A
-				 MULTI-LINE FUNCTION 
+ 0691  8B 1E 0000 E             	MOV	BX,TEMP3	;GET BACK THE FUNCTION DEFINITION TEXT POINTER 
+                                ;       DCX     H               ;DETECT A MULTI-LINE FUNCTION 
+                                ;       CHRGET                  ;IF THE DEFINITION ENDS NOW 
+                                ;       JZ      MULFUN          ;IF ENDS, ITS A MULTI-LINE FUNCTION 
                                 				;SKIP OVER THE "=" IN THE DEFINITION 
- 0695  E8 0000 R                	CALL	FRMEQL		;AND EVALUATE THE DEFINITION FORM
-				ULA 
+ 0695  E8 0000 R                	CALL	FRMEQL		;AND EVALUATE THE DEFINITION FORMULA 
                                 				;CAN HAVE RECURSION AT THIS POINT 
  0698  4B                       	DEC	BX 
- 0699  E8 0000 E                	CALL	CHRGTR		;SEE IF THE STATEMENT ENDED RIGHT
-				 
+ 0699  E8 0000 E                	CALL	CHRGTR		;SEE IF THE STATEMENT ENDED RIGHT 
  069C  74 03                    	JZ	SHORT ??L045 
  069E  E9 0000 E                	JMP	SNERR		;THIS IS A CHEAT, SINCE THE LINE 
  06A1                           ??L045: 
                                 				;NUMBER OF THE ERROR WILL BE THE CALLERS 
                                 				;LINE # INSTEAD OF THE DEFINITIONS LINE # 
  06A1  E8 0435 R                	CALL	GETYPR		;SEE IT THE RESULT IS A STRING 
- 06A4  75 11                    	JNZ	SHORT NOCPRS	;WHOSE DESCRIPTOR IS ABOUT TO
-				 BE WIPED OUT 
+ 06A4  75 11                    	JNZ	SHORT NOCPRS	;WHOSE DESCRIPTOR IS ABOUT TO BE WIPED OUT 
                                 				;BECAUSE IT IS SITTING IN PARM1 (THIS 
                                 				; HAPPENS IT THE FUNCTION IS A PROJECTION 
                                 				; FUNCTION ON A STRING ARGUMENT) 
- 06A6  BA 0000 E                	MOV	DX,OFFSET DSCTMP	;DSCTMP IS PAST ALL THE T
-				EMP AREA 
- 06A9  8B 1E 0000 E             	MOV	BX,FACLO	;GET THE ADDRESS OF THE DESCRIPTO
-				R 
+ 06A6  BA 0000 E                	MOV	DX,OFFSET DSCTMP	;DSCTMP IS PAST ALL THE TEMP AREA 
+ 06A9  8B 1E 0000 E             	MOV	BX,FACLO	;GET THE ADDRESS OF THE DESCRIPTOR 
  06AD  3B DA                    	CMP	BX,DX 
- 06AF  72 06                    	JB	SHORT NOCPRS	;RESULT IS A TEMP - NO COPY NE
-				SC 
+ 06AF  72 06                    	JB	SHORT NOCPRS	;RESULT IS A TEMP - NO COPY NESC 
  06B1  E8 0000 E                	CALL	STRCPY		;MAKE A COPY IN DSCTMP 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-50
-SIMPLE-USER-DEFINED-FUNCTION CODE                           
-
- 06B4  E8 0000 E                	CALL	PUTTMP		;PUT RESULT IN A TEMP AND MAKE FA
-				CLO POINT AT IT 
- 06B7  8B 1E 0000 E             NOCPRS:	MOV	BX,PRMSTK	;GET PLACE TO RESTORE PAR
-				M1 FROM STACK 
+ 06B4  E8 0000 E                	CALL	PUTTMP		;PUT RESULT IN A TEMP AND MAKE FACLO POINT AT IT 
+ 06B7  8B 1E 0000 E             NOCPRS:	MOV	BX,PRMSTK	;GET PLACE TO RESTORE PARM1 FROM STACK 
  06BB  8A F7                    	MOV	DH,BH 
  06BD  8A D3                    	MOV	DL,BL 
  06BF  43                       	INC	BX		;POINT AT LENGTH 
@@ -2736,6 +2315,11 @@ SIMPLE-USER-DEFINED-FUNCTION CODE
  06C9  41                       	INC	CX 
  06CA  BB 0000 E                	MOV	BX,OFFSET PRMSTK	;PLACE TO STORE INTO 
  06CD  E8 0700 R                	CALL	BCTRAN 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-45
+SIMPLE-USER-DEFINED-FUNCTION CODE                           
+
  06D0  87 DA                    	XCHG	BX,DX		;[D,E]=PLACE TO RESTORE STACK TO 
  06D2  8B E3                    	MOV	SP,BX 
  06D4  8B 1E 0000 E             	MOV	BX,FUNACT	;DECREASE ACTIVE FUNCTION COUNT 
@@ -2759,8 +2343,7 @@ SIMPLE-USER-DEFINED-FUNCTION CODE
  06F5  5B                       	POP	BX		;GET BACK THE TEXT POINTER 
  06F6  C3                       	RET 
                                 ; 
-                                ; BLOCK TRANSFER ROUTINE WITH SOURCE IN [D,E] D
-				ESTINATION IN [H,L] 
+                                ; BLOCK TRANSFER ROUTINE WITH SOURCE IN [D,E] DESTINATION IN [H,L] 
                                 ; AND COUNT IN [B,C]. TRANSFER IS FORWARD. 
                                 ; 
  06F7  8B F2                    BCTRAL:	MOV	SI,DX 
@@ -2773,14 +2356,8 @@ SIMPLE-USER-DEFINED-FUNCTION CODE
  0702  0A C1                    	OR	AL,CL 
  0704  75 F1                    	JNZ	SHORT BCTRAL 
  0706  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-51
-SIMPLE-USER-DEFINED-FUNCTION CODE                           
-
                                 ; 
-                                ; SUBROUTINE TO SEE IF WE ARE IN DIRECT MODE AN
-				D 
+                                ; SUBROUTINE TO SEE IF WE ARE IN DIRECT MODE AND 
                                 ; COMPLAIN IF SO 
                                 ; 
  0707  53                       ERRDIR:	PUSH	BX		;SAVE THEIR [H,L] 
@@ -2790,26 +2367,28 @@ SIMPLE-USER-DEFINED-FUNCTION CODE
  070F  5B                       	POP	BX 
  0710  74 01                    	JZ	SHORT $+3 
  0712  C3                       	RET			;RETURN IF NOT 
- 0713  B2 00 E                  	MOV	DL,LOW OFFSET ERRID	;"ILLEGAL DIRECT" ERRO
-				R 
+ 0713  B2 00 E                  	MOV	DL,LOW OFFSET ERRID	;"ILLEGAL DIRECT" ERROR 
  0715  E9 0000 E                	JMP	ERROR 
                                 ; 
                                 ; 
-                                ; SUBROUTINE TO GET A POINTER TO A FUNCTION NAM
-				E 
+                                ; SUBROUTINE TO GET A POINTER TO A FUNCTION NAME 
                                 ; 
  0718  E8 0000 E                GETFNM:	CALL	SYNCHR 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-46
+SIMPLE-USER-DEFINED-FUNCTION CODE                           
+
  071B  00 E                     	DB	OFFSET FNTK	;MUST START WITH "FN" 
  071C  B0 80                    	MOV	AL,LOW 128	;DONT ALLOW AN ARRAY 
- 071E  A2 0000 E                	MOV	BYTE PTR SUBFLG,AL	;DON'T RECOGNIZE THE "(
-				" AS 
+ 071E  A2 0000 E                	MOV	BYTE PTR SUBFLG,AL	;DON'T RECOGNIZE THE "(" AS 
                                 				;THE START OF AN ARRAY REFEREENCE 
  0721  0A 07                    	OR	AL,BYTE PTR [BX]	;PUT FUNCTION BIT ON 
  0723  8A C8                    	MOV	CL,AL		;GET FIRST CHARACTER INTO [C] 
  0725  E9 0000 E                	JMP	PTRGT2 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-52
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-47
 SIMPLE-USER-DEFINED-FUNCTION CODE                           
 
                                 	PAGE 
@@ -2831,9 +2410,9 @@ SIMPLE-USER-DEFINED-FUNCTION CODE
  073A                           ??L047: 
  073A  E9 0000 E                	JMP	SNERR 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-53
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-48
 STRING FUNCTIONS - LEFT HAND SIDE MID$                      
 
                                 	PAGE 
@@ -2842,41 +2421,30 @@ STRING FUNCTIONS - LEFT HAND SIDE MID$
                                 ; 
                                 ; THE FOLLOWING FUNCTIONS ALLOW THE 
                                 ; USER FULL ACCESS TO THE 8080/Z80  I/O PORTS 
-                                ; INP(CHANNEL#) RETURNS AN INTEGER WHICH IS THE
-				 STATUS 
-                                ; OF THE CHANNEL. OUT CHANNEL#,VALUE PUTS OUT T
-				HE INTEGER 
-                                ; VALUE ON CHANNEL #. IT IS A STATEMENT, NOT A 
-				FUNCTION. 
+                                ; INP(CHANNEL#) RETURNS AN INTEGER WHICH IS THE STATUS 
+                                ; OF THE CHANNEL. OUT CHANNEL#,VALUE PUTS OUT THE INTEGER 
+                                ; VALUE ON CHANNEL #. IT IS A STATEMENT, NOT A FUNCTION. 
                                 ; 
  073D                           FNINP: 
- 073D  E8 0000 E                	CALL	FRQINT		;MAKE ARGUMENT AN INTEGER CHANNEL
-				 NUMBER 
+ 073D  E8 0000 E                	CALL	FRQINT		;MAKE ARGUMENT AN INTEGER CHANNEL NUMBER 
  0740  87 DA                    	XCHG	BX,DX 
-                                	INS86	354		;READ BYTE INTO AL FROM DX=[D,E] FO
-				R 8086 
+                                	INS86	354		;READ BYTE INTO AL FROM DX=[D,E] FOR 8086 
  0743  E9 0485 R                	JMP	SNGFLT 
  0746                           SETIO: 
- 0746  E8 0000 E                	CALL	FRMQNT		;READ A 16-BIT PORT FOR Z80 AND 8
-				086 
+ 0746  E8 0000 E                	CALL	FRMQNT		;READ A 16-BIT PORT FOR Z80 AND 8086 
  0749  52                       	PUSH	DX		;SAVE FOR USE BY WAIT AND FNOUT 
  074A  E8 0000 E                	CALL	SYNCHR 
  074D  2C                       	DB	OFFSET 44D 
- 074E  E8 079B R                	CALL	GETBYT		;READ THE DATA BYTE TO [A] AND [E
-				] 
+ 074E  E8 079B R                	CALL	GETBYT		;READ THE DATA BYTE TO [A] AND [E] 
  0751  5A                       	POP	DX		;RETURN PORT IN [D,E]=DX FOR 8086 
  0752  C3                       	RET 
- 0753  E8 0746 R                FNOUT:	CALL	SETIO		;GET PORT IN [B,C] AND DATA 
-				IN [A] & [E] 
+ 0753  E8 0746 R                FNOUT:	CALL	SETIO		;GET PORT IN [B,C] AND DATA IN [A] & [E] 
                                 	INS86	356		;OUTPUT TO PORT DX=[D,E] FROM [A] 
  0757  C3                       	RET 
                                 ; 
-                                ; THE WAIT CHANNEL#,MASK,MASK2 WAITS UNTIL THE 
-				STATUS 
-                                ; RETURNED BY CHANNEL# IS NON ZERO WHEN XORED W
-				ITH MASK2 
-                                ; AND THEN ANDED WITH MASK. IF MASK2 IS NOT PRE
-				SENT IT IS ASSUMED 
+                                ; THE WAIT CHANNEL#,MASK,MASK2 WAITS UNTIL THE STATUS 
+                                ; RETURNED BY CHANNEL# IS NON ZERO WHEN XORED WITH MASK2 
+                                ; AND THEN ANDED WITH MASK. IF MASK2 IS NOT PRESENT IT IS ASSUMED 
                                 ; TO BE ZERO. 
                                 ; 
  0758  E8 0746 R                FNWAIT:	CALL	SETIO		;SET UP FOR WAIT 
@@ -2885,16 +2453,10 @@ STRING FUNCTIONS - LEFT HAND SIDE MID$
  075D  B2 00                    	MOV	DL,LOW 0	;DEFAULT MASK2 TO ZERO 
  075F  4B                       	DEC	BX 
  0760  E8 0000 E                	CALL	CHRGTR		;SEE IF THE STATEMENT ENDED 
- 0763  74 07                    	JZ	SHORT NOTTHR	;IF NO THIRD ARGUMENT SKIP THI
-				S 
+ 0763  74 07                    	JZ	SHORT NOTTHR	;IF NO THIRD ARGUMENT SKIP THIS 
  0765  E8 0000 E                	CALL	SYNCHR 
  0768  2C                       	DB	OFFSET 44	;MAKE SURE THERE IS A "," 
  0769  E8 079B R                	CALL	GETBYT 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-54
-INP, OUT, WAIT, CONSOLE, WIDTH                              
-
  076C  58                       NOTTHR:	POP	AX		;REGET THE "AND" MASK 
  076D  8A F0                    	MOV	DH,AL		;KEEP AND MASK IN [D] 
  076F  5E                       	POP	SI		;XTHL 
@@ -2907,9 +2469,13 @@ INP, OUT, WAIT, CONSOLE, WIDTH
                                 	INS86	354		;READ BYTE INTO [A] 
  0779  87 DA                    	XCHG	BX,DX 
  077B  32 C2                    	XOR	AL,DL		;XOR WITH MASK2 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-49
+INP, OUT, WAIT, CONSOLE, WIDTH                              
+
  077D  22 C6                    	AND	AL,DH		;AND WITH MASK 
- 077F  74 F2                    	JZ	SHORT LOPINP	;LOOP UNTIL RESULT IS NON-ZERO
-				 
+ 077F  74 F2                    	JZ	SHORT LOPINP	;LOOP UNTIL RESULT IS NON-ZERO 
                                 				;NOTE: THIS LOOP CANNOT BE CONTROL-C'ED 
  0781  5B                       LOPINX:	POP	BX		;Restore the Text pointer. 
  0782  C3                       	RET 
@@ -2921,12 +2487,10 @@ INP, OUT, WAIT, CONSOLE, WIDTH
  0789  E8 000B R                GETIN2:	CALL	FRMEVL		;EVALUATE A FORMULA 
                                 PUBLIC	INTFR2 
  078C  53                       INTFR2:	PUSH	BX		;SAVE THE TEXT POINTER 
- 078D  E8 0000 E                	CALL	FRCINT		;CONVERT THE FORMULA TO AN INTEGE
-				R IN [H,L] 
+ 078D  E8 0000 E                	CALL	FRCINT		;CONVERT THE FORMULA TO AN INTEGER IN [H,L] 
  0790  87 DA                    	XCHG	BX,DX		;PUT THE INTEGER INTO [D,E] 
  0792  5B                       	POP	BX		;RESTORE THE TEXT POINTER 
- 0793  8A C6                    	MOV	AL,DH		;SET THE CONDITION CODES ON THE HIG
-				H ORDER 
+ 0793  8A C6                    	MOV	AL,DH		;SET THE CONDITION CODES ON THE HIGH ORDER 
  0795  0A C0                    	OR	AL,AL 
  0797  C3                       	RET 
                                 PUBLIC	GTBYTC 
@@ -2934,8 +2498,7 @@ INP, OUT, WAIT, CONSOLE, WIDTH
                                 PUBLIC	GETBYT 
  079B  E8 000B R                GETBYT:	CALL	FRMEVL		;EVALUATE A FORMULA 
                                 PUBLIC	CONINT 
- 079E  E8 078C R                CONINT:	CALL	INTFR2		;CONVERT THE FAC TO AN INT
-				EGER IN [D,E] 
+ 079E  E8 078C R                CONINT:	CALL	INTFR2		;CONVERT THE FAC TO AN INTEGER IN [D,E] 
                                 				;AND SET THE CONDITION CODES BASED 
                                 				;ON THE HIGH ORDER 
  07A1  74 03                    	JZ	SHORT ??L048 
@@ -2948,9 +2511,9 @@ INP, OUT, WAIT, CONSOLE, WIDTH
  07AA  8A C2                    	MOV	AL,DL		;RETURN THE RESULT IN [A] AND [E] 
  07AC  C3                       	RET 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
-GWEVAL Copied from BINTRP.MAC                               Page     1-55
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
+GWEVAL Copied from BINTRP.MAC                               Page     1-50
 INP, OUT, WAIT, CONSOLE, WIDTH                              
 
                                 	PAGE 
@@ -2960,16 +2523,11 @@ INP, OUT, WAIT, CONSOLE, WIDTH
                                  
                                  
                                 ; 
-                                ; The reserve word tables have dispatch address
-				 the could be external. 
-                                ; ASM86 can only output external declarations d
-				uring pass 1, so we 
-                                ; have to construct a chain of possible externa
-				ls and check each one. 
-                                ; The following macro runs through the chain an
-				d declares any undefined 
-                                ; addresses as external :NEAR.  For more inform
-				ation, see the file 
+                                ; The reserve word tables have dispatch address the could be external. 
+                                ; ASM86 can only output external declarations during pass 1, so we 
+                                ; have to construct a chain of possible externals and check each one. 
+                                ; The following macro runs through the chain and declares any undefined 
+                                ; addresses as external :NEAR.  For more information, see the file 
                                 ; PS1:<BASIC.ASM86>BINTRP.H 
                                 ; 
                                 	DO_EXT 
@@ -2977,8 +2535,8 @@ INP, OUT, WAIT, CONSOLE, WIDTH
  07AD                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
 GWEVAL Copied from BINTRP.MAC                               Symbols-1
                                                              
 
@@ -3036,8 +2594,8 @@ ALPS . . . . . . . . . . . . . .  	Number	0000
 ALPTST . . . . . . . . . . . . .  	L NEAR	0311	CSEG
 ALTAIR . . . . . . . . . . . . .  	Number	0000	
 ANDORD . . . . . . . . . . . . .  	L NEAR	00D6	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
 GWEVAL Copied from BINTRP.MAC                               Symbols-2
                                                              
 
@@ -3095,8 +2653,8 @@ CNTOFL . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 COMMNT . . . . . . . . . . . . .  	Number	0000	
 CONER2 . . . . . . . . . . . . .  	L NEAR	033E	CSEG
 CONERR . . . . . . . . . . . . .  	L NEAR	0347	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
 GWEVAL Copied from BINTRP.MAC                               Symbols-3
                                                              
 
@@ -3154,8 +2712,8 @@ DATLIN . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 DATOFS . . . . . . . . . . . . .  	Number	0039	
 DATPSC . . . . . . . . . . . . .  	Number	0080	
 DATPTR . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
 GWEVAL Copied from BINTRP.MAC                               Symbols-4
                                                              
 
@@ -3213,8 +2771,8 @@ ERRDNA . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERRDV0 . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERRFAE . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERRFAO . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
 GWEVAL Copied from BINTRP.MAC                               Symbols-5
                                                              
 
@@ -3272,8 +2830,8 @@ FCB_DV . . . . . . . . . . . . .  	Number	0007
 FCB_EX . . . . . . . . . . . . .  	Number	0013	
 FCB_FN . . . . . . . . . . . . .  	Number	0008	
 FCB_FS . . . . . . . . . . . . .  	Number	0017	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
 GWEVAL Copied from BINTRP.MAC                               Symbols-6
                                                              
 
@@ -3331,8 +2889,8 @@ FOUTO  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FPWRQ  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FRCDBL . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FRCINT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
 GWEVAL Copied from BINTRP.MAC                               Symbols-7
                                                              
 
@@ -3390,8 +2948,8 @@ GETSPA . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 GETSTK . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 GETYPR . . . . . . . . . . . . .  	L NEAR	0435	CSEG	Global
 GIO86  . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
 GWEVAL Copied from BINTRP.MAC                               Symbols-8
                                                              
 
@@ -3449,8 +3007,8 @@ INPPAS . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 INPRT  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 INRART . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 INSRTK . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
 GWEVAL Copied from BINTRP.MAC                               Symbols-9
                                                              
 
@@ -3508,8 +3066,8 @@ LOPHEX . . . . . . . . . . . . .  	L NEAR	02FA	CSEG
 LOPINP . . . . . . . . . . . . .  	L NEAR	0773	CSEG
 LOPINX . . . . . . . . . . . . .  	L NEAR	0781	CSEG
 LOPOC2 . . . . . . . . . . . . .  	L NEAR	0353	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
 GWEVAL Copied from BINTRP.MAC                               Symbols-10
                                                              
 
@@ -3567,8 +3125,8 @@ NECBAS . . . . . . . . . . . . .  	Number	0000
 NECPPC . . . . . . . . . . . . .  	Number	0000	
 NEG  . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 NLONLY . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
 GWEVAL Copied from BINTRP.MAC                               Symbols-11
                                                              
 
@@ -3626,8 +3184,8 @@ NXTLIN . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 OCTCNS . . . . . . . . . . . . .  	L NEAR	02E7	CSEG	Global
 OCTFIN . . . . . . . . . . . . .  	L NEAR	0381	CSEG
 OEMRAM . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
 GWEVAL Copied from BINTRP.MAC                               Symbols-12
                                                              
 
@@ -3685,8 +3243,8 @@ PTRGET . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 PTRGT2 . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 PTRGTN . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 PUFOUT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
 GWEVAL Copied from BINTRP.MAC                               Symbols-13
                                                              
 
@@ -3744,8 +3302,8 @@ SHTREN . . . . . . . . . . . . .  	Number	0000
 SIGN . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 SIGNC  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 SIGNS  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
 GWEVAL Copied from BINTRP.MAC                               Symbols-14
                                                              
 
@@ -3803,8 +3361,8 @@ TRCFLG . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 TRNCHR . . . . . . . . . . . . .  	Number	0000	
 TRSER2 . . . . . . . . . . . . .  	Number	0000	
 TRSHHC . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
 GWEVAL Copied from BINTRP.MAC                               Symbols-15
                                                              
 
@@ -3862,8 +3420,8 @@ $POINT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 $RNDFN . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 $SCREEN  . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 $STPRN . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
 GWEVAL Copied from BINTRP.MAC                               Symbols-16
                                                              
 
@@ -3921,17 +3479,17 @@ $VARPTR  . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ?I . . . . . . . . . . . . . . .  	Number	0000	
 _OFFST . . . . . . . . . . . . .  	Number	00C2	
 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:11:26
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+ 
 GWEVAL Copied from BINTRP.MAC                               Symbols-17
                                                              
 
 
-   2322 Source  Lines
-   2763 Total   Lines
+   2323 Source  Lines
+   2764 Total   Lines
     847 Symbols
 
-  23276 Bytes symbol space free
+  23256 Bytes symbol space free
 
       0 Warning Errors
       0 Severe  Errors

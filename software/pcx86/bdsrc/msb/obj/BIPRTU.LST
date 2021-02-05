@@ -1,5 +1,5 @@
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
 BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-1
                                                             
 
@@ -15,24 +15,21 @@ BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-1
                              C  ; [ This translation created 10-Feb-83 by Versi
 				on 4.3 ] 
                              C   
-                             C  	SUBTTL  Common file to produce 2-segment 8086 
-				GW-CPM BASIC 
+                             C  	PAGE	,132D 
+                             C  	SUBTTL  Common file to produce 2-segment 8086 GW-CPM BASIC 
                              C   
                              C  	.SALL 
                              C   
  000A                        C  	.RADIX	10 
  = 0000                      C  	OEMRAM=0D 
-                             C  ;Pascal program HFILE searches for the followin
-				g line - DO NOT MODIFY 
-                             C  ;** (VERSION SPECIFIC VALUES) *****************
-				******************************* 
+                             C  ;Pascal program HFILE searches for the following line - DO NOT MODIFY 
+                             C  ;** (VERSION SPECIFIC VALUES) ************************************************ 
  = 0019                      C  	NMLINE=25		;Max screen display text lines 
  = 0001                      C  	NBANKS=1		;Number of graphic planes 
  = 0000                      C  	PALSIZ=0		;Size of OEM color palette 
  = 0000                      C  	DBLCHR=0		;Editor support for KANJI chars 
  = 0000                      C  	KANABS=0		;Kana BASIC (Japanese JIS codes) 
- = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .
-				. 
+ = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .. 
  = 0000                      C  	JISKTN=0		;&K, &J constants (KANJI) 
  = 0001                      C  	SUPRSH=1		;1=super shift key feature 
  = 000A                      C  	NMKEYF=10		;number of function keys 
@@ -46,61 +43,48 @@ BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-1
  = 0002                      C  	NMCOMT=2		;number of COMmunications ports 
  = 0001                      C  	NMPENT=1		;number of light pens 
  = 0004                      C  	NMSTRT=4		;number of joysticks 
- = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR)
-				 
+ = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR) 
  = 0001                      C  	IBMLIK=1		;IBM compatibility package 
  = 0001                      C  	IBMTOK=1		;IBM token compatibility 
  = 0001                      C  	DYNCOM=1		;Dynamic communication buffers 
-                             C  ;** (END OF VERSION SPECIFIC VALUES) **********
-				******************************* 
-                             C  ;Pascal program HFILE searches for the previous
-				 line - DO NOT MODIFY 
+                             C  ;** (END OF VERSION SPECIFIC VALUES) ***************************************** 
+                             C  ;Pascal program HFILE searches for the previous line - DO NOT MODIFY 
                              C  ; 
  = 0015                      C  	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
+ = 0001                      C  	GW=1			;GW BASIC 
+ = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROUT 
+ = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY) 
+                             C  				; Support is in BINTRP.MAC and GWSTS.MAC 
+ = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
+                             C  				;single precision numbers for output. 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
 BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
- = 0001                      C  	GW=1			;GW BASIC 
- = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROU
-				T 
- = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY
-				) 
-                             C  				; Support is in BINTRP.MAC and GWSTS.MAC 
- = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed whe
-				n formatting 
-                             C  				;single precision numbers for output. 
                              C  				; 0 := 7 digits 
                              C  				; 1 := 6 digits 
  = 0000                      C  	CASSW=0			;CASSETTE SWITCH 
  = 0001                      C  	LABKEY=1		;^T (LABEL) key capability 
- = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics)
-				 
- = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stac
-				k) 
+ = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics) 
+ = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stack) 
  = 0001                      C  	GIO86=1			;BASIC-86 Generalized I/O 
  = 0001                      C  	SCRNIO=1		;Screen editor 
  = 0001                      C  	SCRN86=1		;8086 Screen editor 
  = 0001                      C  	I8086=1			;CROSS ASSEMBLING FOR 8086 
  = 0001                      C  	MULSEG=1		;MULTI-SEGMENT 8086 BASIC 
- = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SE
-				T 
+ = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SET 
  = 0001                      C  	TRUROM=1 
  = 0000                      C  	SBC86=0			;SBC 86/02 BOARD? 
  = 0001                      C  	SHORTJ=1		;USE INTRA-SEGMENT SHORT JUMPS 
                              C  				;IN 8086 CODE 
- = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDE
-				D ONLY) 
+ = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDED ONLY) 
  = 0000                      C  	SHTERR=0		;SHORT (2 CHAR) ERROR MESSAGES 
  = 0000                      C  	SHTINS=0		;INSTR IN NON-FAST LEN2 VERSIONS 
- = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2
-				 VERSIONS 
+ = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2 VERSIONS 
  = 0000                      C  	SHTCHN=0		;ALLOW CHAIN IN NON-5.0 
- = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK
-				 
- = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NO
-				N-FAST 
+ = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK 
+ = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NON-FAST 
  = 0000                      C  	SHTREN=0		;ALLOW RENUM IN NON-FST VERSIONS 
  = 0001                      C  	INKEYF=1		;ADDS INKEY$ FUNCTION 
  = 0000                      C  	NOIOS=0			;NO I/O STATMENTS (INP,OUT, WAIT) 
@@ -109,23 +93,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	NOCTLA=0		;NO CONTROL-A IN EXTENDED 
  = 0000                      C  	NORUBT=0		;NO RUBOUT 
  = 0000                      C  	NOROMP=0		;NO ROM PROGRAM FEATURE 
- = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED
-				 
+ = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED 
  = 0000                      C  	NODOT=0			;NO DOT IN LEN2 
  = 0000                      C  	NOEDIT=0		;NO EDIT COMMAND 
- = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMIN
-				AL 
+ = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMINAL 
                              C  				;AND FILES 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
-BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-3
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
- = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN C
-				RDO & OUTCH1 
+ = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN CRDO & OUTCH1 
  = 0000                      C  	NOVARP=0		;NO VARPTR FUNCTION 
- = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 F
-				EATURES 
+ = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 FEATURES 
  = 0001                      C  	FIVMEM=1 
  = 0001                      C  	ANSI=1 
  = 0001                      C  	FIVDSK=1		;5.0 NEW DSK CODE 
@@ -136,24 +111,25 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0001                      C  	MEMIMG=1		;MEMORY IMAGE FILES 
  = 0001                      C  	GENBIN=1 
                              C   
- = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON 
-				ERROR) 
+ = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON ERROR) 
  = 0000                      C  	COMMNT=0		;DONT WANT BIG COMMENT 
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
+BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-3
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	RMX=0			;INTEL RMX VERSION 
  = 0000                      C  	EDIT80=0		;FOR EDIT80 I/O ROUTINES 
  = 0000                      C  	RSHACK=0 
  = 0000                      C  	INTLEC=0 
  = 0002                      C  	LENGTH=2		;  1 MEANS 8K, 2 MEANS 12K 
- = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BAS
-				IC 
- = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATION
-				S 
+ = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BASIC 
+ = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATIONS 
                              C  				;TO MAKE ITSELF SMALLER & QUICKER 
- = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE
-				 (=1) 
+ = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE (=1) 
  = 0001                      C  	GENIO=1			;USE G/P ROUTINES 
  = 0001                      C  	CHSEAT=1		;CHSNS eats chars 
  = 0000                      C  	GENDSK=0		;USE G/P DSK CODE 
@@ -165,21 +141,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	SBC=0			;FOR INTEL SINGLE BOARD COMPUTER 
                              C  				;1=SBC 80/10, 2=SBC 80/20 
  = 0001                      C  	PURE=1			;ON FOR PURE CODE 
- = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RA
-				M 
+ = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RAM 
  = 0000                      C  	INTROM=0 
  = 0001                      C  	LPTSW=1 
  = 0001                      C  	NCRLPT=1 
  = 0000                      C  	NCRCAS=0 
  = 0000                      C  	ISC=0			;FOR ISC VERSION 
- = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,C
-				ENT) 
+ = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,CENT) 
  = 0000                      C  	TSLPT=0 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
-BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-4
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C   
  = 0000                      C  	DOS=0			;ON TO GEN ROUTINES FOR DOS 
  = 0001                      C  	DISK=1			;FILE I/O FEATURES 
@@ -187,13 +156,10 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	TSDISK=0		;NO TIME-SHARING DISK FOR US 
  = 0000                      C  	SPCDSK=0		;MAY HAVE MM'S DISK CODE 
  = 0000                      C  	SPCNDS=0 
- = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIEND
-				S 
+ = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIENDS 
  = 0000                      C  	KEYSTA=0 
- = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISI
-				S II DOS 
- = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISI
-				S-II 
+ = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISIS II DOS 
+ = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISIS-II 
  = 0001                      C  	CPM=1			;FOR CPM compatible operating systems 
  = 0001                      C  	CPM2=1			;VERSION 2. CPM 
  = 0000                      C  	CPM86=0			;FOR CP/M-86 operating system 
@@ -201,16 +167,19 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMCON=0 
  = 0000                      C  	CPMSER=0		;CHECK CPM SERIAL #'S 
  = 0000                      C  	CPMADD=0		;FOR VERSION TO RUN ON ADDS CPM 
- = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 7
-				5 
+ = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 75 
                              C  				;CP/M 
  = 0000                      C  	CPMRSH=0		;FOR RADIO SHACK CPM/M 
  = 0000                      C  	CPM110=0		;FOR CP/M @1100 HEX (INTERALIA) 
- = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4
-				100H 
+ = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4100H 
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
+BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-4
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	CPMCON=0 
  = 0000                      C  	Z80=0 
  = 0001                      C  	DISK=1 
@@ -227,23 +196,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0002                      C  	LENGTH=2 
  = 0001                      C  	RSTLES=1 
  = 0001                      C  	FIVLPT=1 
- = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT V
-				ERSION 
+ = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT VERSION 
  = 0001                      C  	CONTRO=1		;ALLOW ^O 
  = 0001                      C  	LEN3=LEN2 OR CASSW 
                              C   
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
-BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-5
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
  = 0001                      C  	STRING=1 
  = 0001                      C  	NCRLPT=1 
                              C   
-                             C  ; *** OEM Switches which need to be defaulted t
-				o 0 
+                             C  ; *** OEM Switches which need to be defaulted to 0 
                              C  ; 
  = 0000                      C  	CMPUTN=0 
  = 0000                      C  	DUPONT=0 
@@ -268,15 +230,17 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	PANBAS=0 
  = 0000                      C  	XTNSYS=0 
  = 0000                      C  	NECBAS=0 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Z80 related macros 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
+BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-5
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  				;8080'S AND ZILOG Z-80'S 
- = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INST
-				RUCTIONS 
+ = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INSTRUCTIONS 
  = 0000                      C  	Z80=0 
  = 0001                      C  	Z80=1 
                              C  LDIR	MACRO 
@@ -293,11 +257,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	MOV	WORD PTR A,WORD PTR M 
                              C  	STAX	D 
                              C  	DCXF	H 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
-BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-6
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  	DCXF	D 
                              C  	DCXF	B 
                              C  	MOV	WORD PTR A,WORD PTR B 
@@ -308,11 +267,9 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	DCR	B 
                              C  	JNZ	DEST 
                              C  ENDM 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Define reset routines. 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  FSIGN	MACRO 
                              C  	CALL	SIGN 
                              C  ENDM 
@@ -336,6 +293,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
+BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-6
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  GETYPE	MACRO 
                              C  	CALL	GETYPR 
                              C  ENDM 
@@ -352,11 +314,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	PUSH	WORD PTR B 
                              C  ENDM 
                              C  POPR	MACRO 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
-BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-7
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  	POP	WORD PTR B 
                              C  	POP	WORD PTR D 
                              C  ENDM 
@@ -373,15 +330,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDM 
                              C   
                              C   
- = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALL
-				Y CONTROL-O) 
- = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTAL
-				S 
+ = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALLY CONTROL-O) 
+ = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTALS 
                              C   
- = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARA
-				CTERS 
- = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SEC
-				TOR 
+ = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARACTERS 
+ = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SECTOR 
  = 0050                      C  	LINLN=80D		;TERMINAL LINE LENGTH 
  = 0084                      C  	LPTLEN=132D 
  = 00FF                      C  	BUFLEN=255		;LONG LINES 
@@ -399,6 +352,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
+BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-7
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  ACRLF   MACRO 
                              C          DB      13D 
                              C          DB      10D 
@@ -411,11 +369,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDIF 
                              C  IFNB    <D> 
                              C          DB      C&O 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
-BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-8
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C          DB      D&O 
                              C  ENDIF 
                              C  IFB     <D> 
@@ -447,17 +400,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
-BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-9
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
+BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
                                  
                                  
-                                	TITLE   BIPRTU  BASIC Interpreter PRINT USING 
-				Driver/WHG 
+                                	TITLE   BIPRTU  BASIC Interpreter PRINT USING Driver/WHG 
                                  
  000A                           	.RADIX	10 
                                  
@@ -466,149 +418,113 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                  
                                 	SUBTTL  PRINT USING DRIVER 
                                 ; 
-                                ; COME HERE AFTER THE "USING" CLAUSE IN A PRINT
-				 STATEMENT 
-                                ; IS RECOGNIZED. THE IDEA IS TO SCAN THE USING 
-				STRING UNTIL 
-                                ; THE VALUE LIST IS EXHAUSTED, FINDING STRING A
-				ND NUMERIC 
+                                ; COME HERE AFTER THE "USING" CLAUSE IN A PRINT STATEMENT 
+                                ; IS RECOGNIZED. THE IDEA IS TO SCAN THE USING STRING UNTIL 
+                                ; THE VALUE LIST IS EXHAUSTED, FINDING STRING AND NUMERIC 
                                 ; FIELDS TO PRINT VALUES OUT OF THE LIST IN, 
-                                ; AND JUST OUTPUTING ANY CHARACTERS THAT AREN'T
-				 PART OF 
+                                ; AND JUST OUTPUTING ANY CHARACTERS THAT AREN'T PART OF 
                                 ; A PRINT FIELD. 
                                 ; 
- 0000                           DSEG	SEGMENT PUBLIC 'DATASG'		; Data segment ex
-				terns 
+ 0000                           DSEG	SEGMENT PUBLIC 'DATASG'		; Data segment externs 
                                 	ASSUME DS:DSEG 
                                 	EXTRN	FACLO:WORD 
                                  
                                 	EXTRN	USFLG:WORD 
  0000                           DSEG	ENDS 
                                  
-                                				; Code segment ( terminated by END at botto
-				m of file ) 
+                                				; Code segment ( terminated by END at bottom of file ) 
                                  
                                 	EXTRN	CHRGTR:NEAR,SYNCHR:NEAR 
-                                	EXTRN	CHKSTR:NEAR,CRDO:NEAR,FCERR:NEAR,FRETM2:
-				NEAR,FRMCHK:NEAR 
+                                	EXTRN	CHKSTR:NEAR,CRDO:NEAR,FCERR:NEAR,FRETM2:NEAR,FRMCHK:NEAR 
                                 	EXTRN	FRMEVL:NEAR 
-                                	EXTRN	OUTDO:NEAR,PUFOUT:NEAR,SNERR:NEAR,STROUT
-				:NEAR,STRPRT:NEAR 
+                                	EXTRN	OUTDO:NEAR,PUFOUT:NEAR,SNERR:NEAR,STROUT:NEAR,STRPRT:NEAR 
                                 	EXTRN	LEFTUS:NEAR 
                                 	PUBLIC	PRINUS 
  = 005C                         	CSTRNG=134O 
  = 0024                         	CURNCY=44O		;USE DOLLAR SIGN AS DEFAULT 
                                  
- 0000  E8 0000 E                PRINUS:	CALL	FRMCHK		;EVALUATE THE "USING" STRI
-				NG 
+ 0000  E8 0000 E                PRINUS:	CALL	FRMCHK		;EVALUATE THE "USING" STRING 
  0003  E8 0000 E                	CALL	CHKSTR		;MAKE SURE IT IS A STRING 
  0006  E8 0000 E                	CALL	SYNCHR 
- 0009  3B                       	DB	OFFSET 73O	;MUST BE DELIMITED BY A SEMI-COL
-				ON 
+ 0009  3B                       	DB	OFFSET 73O	;MUST BE DELIMITED BY A SEMI-COLON 
  000A  87 DA                    	XCHG	BX,DX		;[D,E]=TEXT POINTER 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
-BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-10
-PRINT USING DRIVER                                          
-
- 000C  8B 1E 0000 E             	MOV	BX,FACLO	;GET POINTER TO "USING" STRING DE
-				SCRIPTOR 
- 0010  EB 0A                    	JMP	SHORT INIUS	;DONT POP OFF OR LOOK AT USFLG
-				 
- 0012  A0 0000 E                REUSST:	MOV	AL,BYTE PTR USFLG	;DID WE PRINT OUT
-				 A VALUE LAST SCAN? 
+ 000C  8B 1E 0000 E             	MOV	BX,FACLO	;GET POINTER TO "USING" STRING DESCRIPTOR 
+ 0010  EB 0A                    	JMP	SHORT INIUS	;DONT POP OFF OR LOOK AT USFLG 
+ 0012  A0 0000 E                REUSST:	MOV	AL,BYTE PTR USFLG	;DID WE PRINT OUT A VALUE LAST SCAN? 
  0015  0A C0                    	OR	AL,AL		;SET CC'S 
  0017  74 13                    	JZ	SHORT FCERR3	;NO, GIVE ERROR 
- 0019  5A                       	POP	DX		;[D,E]=POINTER TO "USING" STRING DESCR
-				IPTOR 
+ 0019  5A                       	POP	DX		;[D,E]=POINTER TO "USING" STRING DESCRIPTOR 
  001A  87 DA                    	XCHG	BX,DX		;[D,E]=TEXT POINTER 
- 001C  53                       INIUS:	PUSH	BX		;SAVE THE POINTER TO "USING" ST
-				RING DESCRIPTOR 
+ 001C  53                       INIUS:	PUSH	BX		;SAVE THE POINTER TO "USING" STRING DESCRIPTOR 
  001D  32 C0                    	XOR	AL,AL		;INITIALLY INDICATE THERE ARE MORE 
                                 				;VALUES IN THE VALUE LIST 
- 001F  A2 0000 E                	MOV	BYTE PTR USFLG,AL	;RESET THE FLAG THAT SAY
-				S VALUES PRINTED 
+ 001F  A2 0000 E                	MOV	BYTE PTR USFLG,AL	;RESET THE FLAG THAT SAYS VALUES PRINTED 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
+BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-9
+PRINT USING DRIVER                                          
+
  0022  FE C0                    	INC	AL		;TURN THE ZERO FLAG OFF 
                                 				;TO INDICATE THE VALUE LIST HASN'T ENDED 
- 0024  9C                       	PUSHF			;SAVE FLAG INDICATING WHETHER THE VALU
-				E 
+ 0024  9C                       	PUSHF			;SAVE FLAG INDICATING WHETHER THE VALUE 
                                 				;LIST HAS ENDED 
- 0025  52                       	PUSH	DX		;SAVE THE TEXT POINTER INTO THE VALUE
-				 LIST 
- 0026  8A 2F                    	MOV	CH,BYTE PTR [BX]	;[B]=LENGTH OF THE "USING
-				" STRING 
+ 0025  52                       	PUSH	DX		;SAVE THE TEXT POINTER INTO THE VALUE LIST 
+ 0026  8A 2F                    	MOV	CH,BYTE PTR [BX]	;[B]=LENGTH OF THE "USING" STRING 
  0028  FE C5                    	INC	CH		;Is the using string null? 
  002A  FE CD                    	DEC	CH 
  002C  75 03                    FCERR3:	JNZ	SHORT ??L000 
  002E  E9 0000 E                	JMP	FCERR		;IF SO, "ILLEGAL FUNCTION CALL" 
  0031                           ??L000: 
- 0031  43                       	INC	BX		;[H,L]=POINTER AT THE "USING" STRING'S
-				 
+ 0031  43                       	INC	BX		;[H,L]=POINTER AT THE "USING" STRING'S 
  0032  8B 1F                    	MOV	BX,[BX]		;DATA 
  0034  EB 24                    	JMP	SHORT PRCCHR	;GO INTO THE LOOP TO SCAN 
                                 				;THE "USING" STRING 
                                 				;NECPPC does not have string formatter 
                                 				; because of ROM space 
- 0036  8A D5                    BGSTRF:	MOV	DL,CH		;SAVE THE "USING" STRING CHA
-				RACTER COUNT 
- 0038  53                       	PUSH	BX		;SAVE THE POINTER INTO THE "USING" ST
-				RING 
+ 0036  8A D5                    BGSTRF:	MOV	DL,CH		;SAVE THE "USING" STRING CHARACTER COUNT 
+ 0038  53                       	PUSH	BX		;SAVE THE POINTER INTO THE "USING" STRING 
  0039  B1 02                    	MOV	CL,LOW 2	;THE \\ STRING FIELD HAS 2 PLUS 
                                 				;NUMBER OF ENCLOSED SPACES WIDTH 
- 003B  8A 07                    LPSTRF:	MOV	AL,BYTE PTR [BX]	;GET THE NEXT CHAR
-				ACTER 
- 003D  43                       	INC	BX		;ADVANCE THE POINTER AT THE "USING" ST
-				RING 
+ 003B  8A 07                    LPSTRF:	MOV	AL,BYTE PTR [BX]	;GET THE NEXT CHARACTER 
+ 003D  43                       	INC	BX		;ADVANCE THE POINTER AT THE "USING" STRING 
                                 				;DATA 
- 003E  3C 5C                    	CMP	AL,LOW OFFSET CSTRNG	;THE FIELD TERMINATOR
-				? 
+ 003E  3C 5C                    	CMP	AL,LOW OFFSET CSTRNG	;THE FIELD TERMINATOR? 
  0040  75 03                    	JNZ	SHORT ??L001 
  0042  E9 01E5 R                	JMP	ISSTRF		;GO EVALUATE A STRING AND PRINT 
  0045                           ??L001: 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
-BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-11
-PRINT USING DRIVER                                          
-
  0045  3C 20                    	CMP	AL,LOW " "	;A FIELD EXTENDER? 
- 0047  75 06                    	JNZ	SHORT NOSTRF	;IF NOT, ITS NOT A STRING FIE
-				LD 
+ 0047  75 06                    	JNZ	SHORT NOSTRF	;IF NOT, ITS NOT A STRING FIELD 
  0049  FE C1                    	INC	CL		;INCREMENT THE FIELD WIDTH 
                                 				;SEE IF THERE ARE MORE CHARACTERS 
  004B  FE CD                    	DEC	CH 
- 004D  75 EC                    	JNZ	SHORT LPSTRF	;KEEP SCANNING FOR THE FIELD 
-				TERMINATOR 
+ 004D  75 EC                    	JNZ	SHORT LPSTRF	;KEEP SCANNING FOR THE FIELD TERMINATOR 
                                 ; 
-                                ; SINCE  STRING FIELD WASN'T FOUND, THE "USING"
-				 STRING 
-                                ; CHARACTER COUNT AND THE POINTER INTO IT'S DAT
-				A MUST 
+                                ; SINCE  STRING FIELD WASN'T FOUND, THE "USING" STRING 
+                                ; CHARACTER COUNT AND THE POINTER INTO IT'S DATA MUST 
                                 ; BE RESTORED AND THE "\" PRINTED 
                                 ; 
- 004F  5B                       NOSTRF:	POP	BX		;RESTORE THE POINTER INTO "USIN
-				G" STRING'S DATA 
- 0050  8A EA                    	MOV	CH,DL		;RESTORE THE "USING" STRING CHARACT
-				ER COUNT 
- 0052  B0 5C                    	MOV	AL,LOW OFFSET CSTRNG	;RESTORE THE CHARACTE
-				R 
+ 004F  5B                       NOSTRF:	POP	BX		;RESTORE THE POINTER INTO "USING" STRING'S DATA 
+ 0050  8A EA                    	MOV	CH,DL		;RESTORE THE "USING" STRING CHARACTER COUNT 
+ 0052  B0 5C                    	MOV	AL,LOW OFFSET CSTRNG	;RESTORE THE CHARACTER 
                                 ; 
-                                ; HERE TO PRINT THE CHARACTER IN [A] SINCE IT W
-				ASN'T PART OF ANY FIELD 
+                                ; HERE TO PRINT THE CHARACTER IN [A] SINCE IT WASN'T PART OF ANY FIELD 
                                 ; 
- 0054  E8 0230 R                NEWUCH:	CALL	PLSPRT		;IF A "+" CAME BEFORE THIS
-				 CHARACTER 
+ 0054  E8 0230 R                NEWUCH:	CALL	PLSPRT		;IF A "+" CAME BEFORE THIS CHARACTER 
                                 				;MAKE SURE IT GETS PRINTED 
  0057  E8 0000 E                	CALL	OUTDO		;PRINT THE CHARACTER THAT WASN'T 
                                 				;PART OF A FIELD 
                                  
                                  
                                  
- 005A  32 C0                    PRCCHR:	XOR	AL,AL		;SET [D,E]=0 SO IF WE DISPAT
-				CH 
+ 005A  32 C0                    PRCCHR:	XOR	AL,AL		;SET [D,E]=0 SO IF WE DISPATCH 
  005C  8A D0                    	MOV	DL,AL		;SOME FLAGS ARE ALREADY ZEROED 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
+BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-10
+PRINT USING DRIVER                                          
+
  005E  8A F0                    	MOV	DH,AL		;DON'T PRINT "+" TWICE 
- 0060  E8 0230 R                PLSFIN:	CALL	PLSPRT		;ALLOW FOR MULTIPLE PLUSES
-				 
+ 0060  E8 0230 R                PLSFIN:	CALL	PLSPRT		;ALLOW FOR MULTIPLE PLUSES 
                                 				;IN A ROW 
  0063  8A F0                    	MOV	DH,AL		;SET "+" FLAG 
  0065  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET A NEW CHARACTER 
@@ -617,52 +533,36 @@ PRINT USING DRIVER
  006A  75 03                    	JNZ	SHORT ??L002 
  006C  E9 01E1 R                	JMP	SMSTRF		;STRING FIELD 
  006F                           ??L002: 
- 006F  3C 23                    	CMP	AL,LOW "#"	;CHECK FOR THE START OF A NUMER
-				IC FIELD 
+ 006F  3C 23                    	CMP	AL,LOW "#"	;CHECK FOR THE START OF A NUMERIC FIELD 
  0071  74 52                    	JZ	SHORT NUMNUM	;GO SCAN IT 
- 0073  3C 26                    	CMP	AL,LOW "&"	;SEE IF ITS A VARIABLE LENGTH S
-				TRING FIELD 
+ 0073  3C 26                    	CMP	AL,LOW "&"	;SEE IF ITS A VARIABLE LENGTH STRING FIELD 
  0075  75 03                    	JNZ	SHORT ??L003 
  0077  E9 01DD R                	JMP	VARSTR		;GO PRINT ENTIRE STRING 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
-BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-12
-PRINT USING DRIVER                                          
-
  007A                           ??L003: 
  007A  FE CD                    	DEC	CH		;ALL THE OTHER POSSIBILITIES 
                                 				;REQUIRE AT LEAST 2 CHARACTERS 
  007C  75 03                    	JNZ	SHORT ??L004 
- 007E  E9 01B3 R                	JMP	REUSIN		;IF THE VALUE LIST IS NOT EXHAUSTE
-				D 
+ 007E  E9 01B3 R                	JMP	REUSIN		;IF THE VALUE LIST IS NOT EXHAUSTED 
  0081                           ??L004: 
                                 				;GO REUSE "USING" STRING 
  0081  3C 2B                    	CMP	AL,LOW "+"	;A LEADING "+" ? 
- 0083  B0 08                    	MOV	AL,LOW 8	;SETUP [D] WITH THE PLUS-FLAG ON 
-				IN 
+ 0083  B0 08                    	MOV	AL,LOW 8	;SETUP [D] WITH THE PLUS-FLAG ON IN 
  0085  74 D9                    	JZ	SHORT PLSFIN	;CASE A NUMERIC FIELD STARTS 
  0087  4B                       	DEC	BX		;POINTER HAS ALREADY BEEN INCREMENTED 
- 0088  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET BACK THE CURRENT CHA
-				RACTER 
+ 0088  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET BACK THE CURRENT CHARACTER 
  008A  43                       	INC	BX		;REINCREMENT THE POINTER 
- 008B  3C 2E                    	CMP	AL,LOW "."	;NUMERIC FIELD WITH TRAILING DI
-				GITS 
+ 008B  3C 2E                    	CMP	AL,LOW "."	;NUMERIC FIELD WITH TRAILING DIGITS 
  008D  74 55                    	JZ	SHORT DOTNUM	;IF SO GO SCAN WITH [E]= 
                                 				;NUMBER OF DIGITS BEFORE THE "."=0 
- 008F  3C 5F                    	CMP	AL,LOW "_"	;CHECK FOR LITERAL CHARACTER DE
-				CLARATION 
+ 008F  3C 5F                    	CMP	AL,LOW "_"	;CHECK FOR LITERAL CHARACTER DECLARATION 
  0091  75 03                    	JNZ	SHORT ??L005 
  0093  E9 01D0 R                	JMP	LITCHR 
  0096                           ??L005: 
- 0096  3C 5C                    	CMP	AL,LOW OFFSET CSTRNG	;CHECK FOR A BIG STRI
-				NG FIELD STARTER 
- 0098  74 9C                    	JZ	SHORT BGSTRF	;GO SEE IF IT REALLY IS A STRI
-				NG FIELD 
- 009A  3A 07                    	CMP	AL,BYTE PTR [BX]	;SEE IF THE NEXT CHARACTE
-				R MATCHES THE 
+ 0096  3C 5C                    	CMP	AL,LOW OFFSET CSTRNG	;CHECK FOR A BIG STRING FIELD STARTER 
+ 0098  74 9C                    	JZ	SHORT BGSTRF	;GO SEE IF IT REALLY IS A STRING FIELD 
+ 009A  3A 07                    	CMP	AL,BYTE PTR [BX]	;SEE IF THE NEXT CHARACTER MATCHES THE 
                                 				;CURRENT ONE 
- 009C  75 B6                    	JNZ	SHORT NEWUCH	;IF NOT, CAN'T HAVE $$ OR ** 
-				SO ALL THE 
+ 009C  75 B6                    	JNZ	SHORT NEWUCH	;IF NOT, CAN'T HAVE $$ OR ** SO ALL THE 
                                 				;POSSIBILITIES ARE EXHAUSTED 
  009E  3C 24                    	CMP	AL,LOW OFFSET CURNCY	;IS IT $$ ? 
  00A0  74 18                    	JZ	SHORT DOLRNM	;GO SET UP THE FLAG BIT 
@@ -675,66 +575,55 @@ PRINT USING DRIVER
  00A9  3C 02                    	CMP	AL,LOW 2	;ENOUGH FOR THE SPECIAL CASE OF 
  00AB  72 04                    	JB	SHORT NOTSPC	; **$ 
  00AD  8A 07                    	MOV	AL,BYTE PTR [BX] 
- 00AF  3C 24                    	CMP	AL,LOW OFFSET CURNCY	;IS THE NEXT CHARACTE
-				R $ ? 
+ 00AF  3C 24                    	CMP	AL,LOW OFFSET CURNCY	;IS THE NEXT CHARACTER $ ? 
  00B1  B0 20                    NOTSPC:	MOV	AL,LOW 32	;SET THE ASTERISK BIT 
- 00B3  75 0A                    	JNZ	SHORT SPCNUM	;IF IT NOT THE SPECIAL CASE, 
-				DON'T 
-                                				;SET THE DOLLAR SIGN FLAG 
- 00B5  FE CD                    	DEC	CH		;DECREMENT THE "USING" STRING CHARACTE
-				R COUNT 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
-BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-13
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
+BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-11
 PRINT USING DRIVER                                          
 
+ 00B3  75 0A                    	JNZ	SHORT SPCNUM	;IF IT NOT THE SPECIAL CASE, DON'T 
+                                				;SET THE DOLLAR SIGN FLAG 
+ 00B5  FE CD                    	DEC	CH		;DECREMENT THE "USING" STRING CHARACTER COUNT 
                                 				;TO TAKE THE $ INTO CONSIDERATION 
  00B7  FE C2                    	INC	DL		;INCREMENT THE FIELD WIDTH FOR THE 
                                 				;FLOATING DOLLAR SIGN 
  00B9  BE                       	DB	276O	; SKIP	;"CPI" OVER THE NEXT BYTE 
                                 				;MVI SI,  IN 8086 
  00BA  32 C0                    DOLRNM:	XOR	AL,AL		;CLEAR [A] 
- 00BC  04 10                    	ADD	AL,LOW 16	;SET BIT FOR FLOATING DOLLAR SIG
-				N FLAG 
+ 00BC  04 10                    	ADD	AL,LOW 16	;SET BIT FOR FLOATING DOLLAR SIGN FLAG 
  00BE  43                       	INC	BX		;POINT BEYOND THE SPECIAL CHARACTERS 
  00BF  FE C2                    SPCNUM:	INC	DL		;SINCE TWO CHARACTERS SPECIFY 
                                 				;THE FIELD SIZE, INITIALIZE [E]=1 
  00C1  02 C6                    	ADD	AL,DH		;PUT NEW FLAG BITS IN [A] 
  00C3  8A F0                    	MOV	DH,AL		;INTO [D]. THE PLUS FLAG MAY HAVE 
                                 				;ALREADY BEEN SET 
- 00C5  FE C2                    NUMNUM:	INC	DL		;INCREMENT THE NUMBER OF DIGITS
-				 BEFORE 
+ 00C5  FE C2                    NUMNUM:	INC	DL		;INCREMENT THE NUMBER OF DIGITS BEFORE 
                                 				;THE DECIMAL POINT 
  00C7  B1 00                    	MOV	CL,LOW 0	;SET THE NUMBER OF DIGITS AFTER 
                                 				;THE DECIMAL POINT = 0 
  00C9  FE CD                    	DEC	CH		;SEE IF THERE ARE MORE CHARACTERS 
- 00CB  74 65                    	JZ	SHORT ENDNUS	;IF NOT, WE ARE DONE SCANNING 
-				THIS 
+ 00CB  74 65                    	JZ	SHORT ENDNUS	;IF NOT, WE ARE DONE SCANNING THIS 
                                 				;NUMERIC FIELD 
  00CD  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET THE NEW CHARACTER 
- 00CF  43                       	INC	BX		;ADVANCE THE POINTER AT THE "USING" ST
-				RING DATA 
+ 00CF  43                       	INC	BX		;ADVANCE THE POINTER AT THE "USING" STRING DATA 
  00D0  3C 2E                    	CMP	AL,LOW "."	;DO WE HAVE TRAILING DIGITS? 
  00D2  74 1E                    	JZ	SHORT AFTDOT	;IF SO, USE SPECIAL SCAN LOOP 
  00D4  3C 23                    	CMP	AL,LOW "#"	;MORE LEADING DIGITS ? 
- 00D6  74 ED                    	JZ	SHORT NUMNUM	;INCREMENT THE COUNT AND KEEP 
-				SCANNING 
+ 00D6  74 ED                    	JZ	SHORT NUMNUM	;INCREMENT THE COUNT AND KEEP SCANNING 
  00D8  3C 2C                    	CMP	AL,LOW 54O	;DOES HE WANT A COMMA 
                                 				;EVERY THREE DIGITS? 
- 00DA  75 23                    	JNZ	SHORT FINNUM	;NO MORE LEADING DIGITS, CHEC
-				K FOR ^^^ 
+ 00DA  75 23                    	JNZ	SHORT FINNUM	;NO MORE LEADING DIGITS, CHECK FOR ^^^ 
  00DC  8A C6                    	MOV	AL,DH		;TURN ON THE COMMA BIT 
  00DE  0C 40                    	OR	AL,LOW 64 
  00E0  8A F0                    	MOV	DH,AL 
  00E2  EB E1                    	JMP	SHORT NUMNUM	;GO SCAN SOME MORE 
                                 ; 
-                                ; HERE WHEN A "." IS SEEN IN THE "USING" STRING
-				 
+                                ; HERE WHEN A "." IS SEEN IN THE "USING" STRING 
                                 ; IT STARTS A NUMERIC FIELD IF AND ONLY IF 
                                 ; IT IS FOLLOWED BY A "#" 
                                 ; 
- 00E4  8A 07                    DOTNUM:	MOV	AL,BYTE PTR [BX]	;GET THE CHARACTER
-				 THAT FOLLOWS 
+ 00E4  8A 07                    DOTNUM:	MOV	AL,BYTE PTR [BX]	;GET THE CHARACTER THAT FOLLOWS 
  00E6  3C 23                    	CMP	AL,LOW "#"	;IS THIS A NUMERIC FIELD? 
  00E8  B0 2E                    	MOV	AL,LOW "."	;IF NOT, GO BACK AND PRINT "." 
  00EA  74 03                    	JZ	SHORT ??L006 
@@ -742,130 +631,98 @@ PRINT USING DRIVER
  00EF                           ??L006: 
  00EF  B1 01                    	MOV	CL,LOW 1	;INITIALIZE THE NUMBER OF 
                                 				;DIGITS AFTER THE DECIMAL POINT 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
-BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-14
-PRINT USING DRIVER                                          
-
  00F1  43                       	INC	BX 
- 00F2  FE C1                    AFTDOT:	INC	CL		;INCREMENT THE NUMBER OF DIGITS
-				 
+ 00F2  FE C1                    AFTDOT:	INC	CL		;INCREMENT THE NUMBER OF DIGITS 
                                 				;AFTER THE DECIMAL POINT 
  00F4  FE CD                    	DEC	CH		;SEE IF THE "USING" STRING HAS MORE 
- 00F6  74 3A                    	JZ	SHORT ENDNUS	;CHARACTERS, AND IF NOT, STOP 
-				SCANNING 
+ 00F6  74 3A                    	JZ	SHORT ENDNUS	;CHARACTERS, AND IF NOT, STOP SCANNING 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
+BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-12
+PRINT USING DRIVER                                          
+
  00F8  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET THE NEXT CHARACTER 
  00FA  43                       	INC	BX 
- 00FB  3C 23                    	CMP	AL,LOW "#"	;MORE DIGITS AFTER THE DECIMAL 
-				POINT? 
- 00FD  74 F3                    	JZ	SHORT AFTDOT	;IF SO, INCREMENT THE COUNT AN
-				D KEEP 
+ 00FB  3C 23                    	CMP	AL,LOW "#"	;MORE DIGITS AFTER THE DECIMAL POINT? 
+ 00FD  74 F3                    	JZ	SHORT AFTDOT	;IF SO, INCREMENT THE COUNT AND KEEP 
                                 				;SCANNING 
                                 ; 
-                                ; CHECK FOR THE "^^^^" THAT INDICATES SCIENTIFI
-				C NOTATION 
+                                ; CHECK FOR THE "^^^^" THAT INDICATES SCIENTIFIC NOTATION 
                                 ; 
- 00FF  52                       FINNUM:	PUSH	DX		;SAVE [D]=FLAGS AND [E]=LEADIN
-				G DIGITS 
- 0100  BA 012F R                	MOV	DX,OFFSET NOTSCI	;PLACE TO GO IF ITS NOT S
-				CIENTIFIC 
+ 00FF  52                       FINNUM:	PUSH	DX		;SAVE [D]=FLAGS AND [E]=LEADING DIGITS 
+ 0100  BA 012F R                	MOV	DX,OFFSET NOTSCI	;PLACE TO GO IF ITS NOT SCIENTIFIC 
  0103  52                       	PUSH	DX		;NOTATION 
  0104  8A F7                    	MOV	DH,BH		;REMEMBER [H,L] IN CASE 
  0106  8A D3                    	MOV	DL,BL		;ITS NOT SCIENTIFIC NOTATION 
  0108  3C 5E                    	CMP	AL,LOW "^"	;IS THE FIRST CHARACTER "^" ? 
  010A  74 01                    	JZ	SHORT $+3 
  010C  C3                       	RET 
- 010D  3A 07                    	CMP	AL,BYTE PTR [BX]	;IS THE SECOND CHARACTER 
-				"^" ? 
+ 010D  3A 07                    	CMP	AL,BYTE PTR [BX]	;IS THE SECOND CHARACTER "^" ? 
  010F  74 01                    	JZ	SHORT $+3 
  0111  C3                       	RET 
  0112  43                       	INC	BX 
- 0113  3A 07                    	CMP	AL,BYTE PTR [BX]	;IS THE THIRD CHARACTER "
-				^" ? 
+ 0113  3A 07                    	CMP	AL,BYTE PTR [BX]	;IS THE THIRD CHARACTER "^" ? 
  0115  74 01                    	JZ	SHORT $+3 
  0117  C3                       	RET 
  0118  43                       	INC	BX 
- 0119  3A 07                    	CMP	AL,BYTE PTR [BX]	;IS THE FOURTH CHARACTER 
-				"^" ? 
+ 0119  3A 07                    	CMP	AL,BYTE PTR [BX]	;IS THE FOURTH CHARACTER "^" ? 
  011B  74 01                    	JZ	SHORT $+3 
  011D  C3                       	RET 
  011E  43                       	INC	BX 
- 011F  8A C5                    	MOV	AL,CH		;WERE THERE ENOUGH CHARACTERS FOR "
-				^^^^" 
+ 011F  8A C5                    	MOV	AL,CH		;WERE THERE ENOUGH CHARACTERS FOR "^^^^" 
  0121  2C 04                    	SUB	AL,LOW 4	;IT TAKES FOUR 
  0123  73 01                    	JNB	SHORT $+3 
  0125  C3                       	RET 
  0126  5A                       	POP	DX		;POP OFF THE NOTSCI RETURN ADDRESS 
- 0127  5A                       	POP	DX		;GET BACK [D]=FLAGS [E]=LEADING DIGITS
-				 
+ 0127  5A                       	POP	DX		;GET BACK [D]=FLAGS [E]=LEADING DIGITS 
  0128  8A E8                    	MOV	CH,AL		;MAKE [B]=NEW CHARACTER COUNT 
  012A  FE C6                    	INC	DH		;TURN ON THE SCIENTIFIC NOTATION FLAG 
  012C  43                       	INC	BX 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
-BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-15
-PRINT USING DRIVER                                          
-
  012D  EB 03                    	JMP	SHORT ENDNUS 
  012F  87 DA                    NOTSCI:	XCHG	BX,DX		;RESTORE THE OLD [H,L] 
- 0131  5A                       	POP	DX		;GET BACK [D]=FLAGS [E]=LEADING DIGITS
-				 
- 0132  8A C6                    ENDNUS:	MOV	AL,DH		;IF THE LEADING PLUS FLAG IS
-				 ON 
+ 0131  5A                       	POP	DX		;GET BACK [D]=FLAGS [E]=LEADING DIGITS 
+ 0132  8A C6                    ENDNUS:	MOV	AL,DH		;IF THE LEADING PLUS FLAG IS ON 
  0134  4B                       	DEC	BX 
- 0135  FE C2                    	INC	DL		;INCLUDE LEADING "+" IN NUMBER OF DIGI
-				TS 
+ 0135  FE C2                    	INC	DL		;INCLUDE LEADING "+" IN NUMBER OF DIGITS 
  0137  24 08                    	AND	AL,LOW 8	;DON'T CHECK FOR A TRAILING SIGN 
- 0139  75 1C                    	JNZ	SHORT ENDNUM	;ALL DONE WITH THE FIELD IF S
-				O 
+ 0139  75 1C                    	JNZ	SHORT ENDNUM	;ALL DONE WITH THE FIELD IF SO 
                                 				;IF THERE IS A LEADING PLUS 
- 013B  FE CA                    	DEC	DL		;NO LEADING PLUS SO DON'T INCREMENT TH
-				E 
+ 013B  FE CA                    	DEC	DL		;NO LEADING PLUS SO DON'T INCREMENT THE 
                                 				;NUMBER OF DIGITS BEFORE THE DECIMAL POINT 
  013D  8A C5                    	MOV	AL,CH 
  013F  0A C0                    	OR	AL,AL		;SEE IF THERE ARE MORE CHARACTERS 
  0141  74 14                    	JZ	SHORT ENDNUM	;IF NOT, STOP SCANNING 
- 0143  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET THE CURRENT CHARACTE
-				R 
+ 0143  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET THE CURRENT CHARACTER 
  0145  2C 2D                    	SUB	AL,LOW "-"	;TRAIL MINUS? 
  0147  74 06                    	JZ	SHORT SGNTRL	;SET THE TRAILING SIGN FLAG 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
+BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-13
+PRINT USING DRIVER                                          
+
  0149  3C FE                    	CMP	AL,LOW OFFSET "+"-"-"	;A TRAILING PLUS? 
- 014B  75 0A                    	JNZ	SHORT ENDNUM	;IF NOT, WE ARE DONE SCANNING
-				 
+ 014B  75 0A                    	JNZ	SHORT ENDNUM	;IF NOT, WE ARE DONE SCANNING 
  014D  B0 08                    	MOV	AL,LOW 8	;TURN ON THE POSITIVE="+" FLAG 
- 014F  04 04                    SGNTRL:	ADD	AL,LOW 4	;TURN ON THE TRAILING SIGN
-				 FLAG 
+ 014F  04 04                    SGNTRL:	ADD	AL,LOW 4	;TURN ON THE TRAILING SIGN FLAG 
  0151  02 C6                    	ADD	AL,DH		;INCLUDE WITH OLD FLAGS 
  0153  8A F0                    	MOV	DH,AL 
- 0155  FE CD                    	DEC	CH		;DECREMENT THE "USING" STRING CHARACTE
-				R 
+ 0155  FE CD                    	DEC	CH		;DECREMENT THE "USING" STRING CHARACTER 
                                 				;COUNT TO ACCOUNT FOR THE TRAILING SIGN 
  0157  5B                       ENDNUM:	POP	BX		;[H,L]=THE OLD TEXT POINTER 
  0158  9D                       	POPF			;POP OFF FLAG THAT SAYS WHETHER THERE 
                                 				;ARE MORE VALUES IN THE VALUE LIST 
- 0159  74 65                    	JZ	SHORT FLDFIN	;IF NOT, WE ARE DONE WITH THE 
-				"PRINT" 
- 015B  51                       	PUSH	CX		;SAVE [B]=# OF CHARACTERS REMAINING I
-				N 
+ 0159  74 65                    	JZ	SHORT FLDFIN	;IF NOT, WE ARE DONE WITH THE "PRINT" 
+ 015B  51                       	PUSH	CX		;SAVE [B]=# OF CHARACTERS REMAINING IN 
                                 				;"USING" STRING AND [C]=TRAILING DIGITS 
- 015C  52                       	PUSH	DX		;SAVE [D]=FLAGS AND [E]=LEADING DIGIT
-				S 
- 015D  E8 0000 E                	CALL	FRMEVL		;READ A VALUE FROM THE VALUE LIST
-				 
+ 015C  52                       	PUSH	DX		;SAVE [D]=FLAGS AND [E]=LEADING DIGITS 
+ 015D  E8 0000 E                	CALL	FRMEVL		;READ A VALUE FROM THE VALUE LIST 
  0160  5A                       	POP	DX		;[D]=FLAGS & [E]=# OF LEADING DIGITS 
- 0161  59                       	POP	CX		;[B]=# CHARACTER LEFT IN "USING" STRIN
-				G 
+ 0161  59                       	POP	CX		;[B]=# CHARACTER LEFT IN "USING" STRING 
                                 				;[C]=NUMBER OF TRAILING DIGITS 
  0162  51                       	PUSH	CX		;SAVE [B] FOR ENTERING SCAN AGAIN 
  0163  53                       	PUSH	BX		;SAVE THE TEXT POINTER 
  0164  8A EA                    	MOV	CH,DL		;[B]=# OF LEADING DIGITS 
- 0166  8A C5                    	MOV	AL,CH		;MAKE SURE THE TOTAL NUMBER OF DIGI
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
-BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-16
-PRINT USING DRIVER                                          
-
-				TS 
+ 0166  8A C5                    	MOV	AL,CH		;MAKE SURE THE TOTAL NUMBER OF DIGITS 
  0168  02 C1                    	ADD	AL,CL		;DOES NOT EXCEED TWENTY-FOUR 
  016A  3C 19                    	CMP	AL,LOW 25 
  016C  72 03                    	JNAE	SHORT ??L007 
@@ -883,8 +740,7 @@ PRINT USING DRIVER
  0181  74 11                    	JZ	SHORT CRDNUS	;IF IT WAS A END-OF-STATEMENT 
                                 				;FLAG THAT THE VALUE LIST ENDED 
                                 				;AND THAT  CRLF SHOULD BE PRINTED 
- 0183  A2 0000 E                	MOV	BYTE PTR USFLG,AL	;FLAG THAT VALUE HAS BEE
-				N PRINTED. 
+ 0183  A2 0000 E                	MOV	BYTE PTR USFLG,AL	;FLAG THAT VALUE HAS BEEN PRINTED. 
                                 				;DOESNT MATTER IF ZERO SET, [A] 
                                 				;MUST BE NON-ZERO OTHERWISE 
  0186  3C 3B                    	CMP	AL,LOW 73O	;A SEMI-COLON? 
@@ -894,55 +750,44 @@ PRINT USING DRIVER
  018E  E9 0000 E                	JMP	SNERR		;THE DELIMETER WAS ILLEGAL 
  0191                           ??L008: 
  0191  E8 0000 E                SEMUSN:	CALL	CHRGTR		;IS THERE ANOTHER VALUE? 
- 0194  59                       CRDNUS:	POP	CX		;[B]=CHARACTERS REMAINING IN "U
-				SING" STRING 
+ 0194  59                       CRDNUS:	POP	CX		;[B]=CHARACTERS REMAINING IN "USING" STRING 
  0195  87 DA                    	XCHG	BX,DX		;[D,E]=TEXT POINTER 
  0197  5B                       	POP	BX		;[H,L]=POINT AT THE "USING" STRING 
  0198  53                       	PUSH	BX		;DESCRIPTOR. RESAVE IT. 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
+BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-14
+PRINT USING DRIVER                                          
+
  0199  9C                       	PUSHF			;SAVE THE FLAG THAT INDICATES 
                                 				;WHETHER OR NOT THE VALUE LIST TERMINATED 
  019A  52                       	PUSH	DX		;SAVE THE TEXT POINTER 
                                 ; 
-                                ; SINCE FRMEVL MAY HAVE FORCED GARBAGE COLLECTI
-				ON 
-                                ; WE HAVE TO USE THE NUMBER OF CHARACTERS ALREA
-				DY SCANNED 
-                                ; AS AN OFFSET TO THE POINTER TO THE "USING" ST
-				RING'S DATA 
-                                ; TO GET A NEW POINTER TO THE REST OF THE CHARA
-				CTERS TO 
+                                ; SINCE FRMEVL MAY HAVE FORCED GARBAGE COLLECTION 
+                                ; WE HAVE TO USE THE NUMBER OF CHARACTERS ALREADY SCANNED 
+                                ; AS AN OFFSET TO THE POINTER TO THE "USING" STRING'S DATA 
+                                ; TO GET A NEW POINTER TO THE REST OF THE CHARACTERS TO 
                                 ; BE SCANNED 
                                 ; 
- 019B  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET THE "USING" STRING'S
-				 LENGTH 
+ 019B  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET THE "USING" STRING'S LENGTH 
  019D  2A C5                    	SUB	AL,CH		;SUBTRACT THE NUMBER OF CHARACTERS 
                                 				;ALREADY SCANNED 
  019F  43                       	INC	BX		;[H,L]=POINTER AT 
- 01A0  B6 00                    	MOV	DH,LOW 0	;SETUP [D,E] AS A DOUBLE BYTE OFF
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
-BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-17
-PRINT USING DRIVER                                          
-
-				SET 
+ 01A0  B6 00                    	MOV	DH,LOW 0	;SETUP [D,E] AS A DOUBLE BYTE OFFSET 
  01A2  8A D0                    	MOV	DL,AL 
- 01A4  8B 1F                    	MOV	BX,[BX]		;THE "USING" STRING'S STRING DATA
-				 
+ 01A4  8B 1F                    	MOV	BX,[BX]		;THE "USING" STRING'S STRING DATA 
  01A6  03 DA                    	ADD	BX,DX		;ADD ON THE OFFSET TO GET 
                                 				;THE NEW POINTER 
- 01A8  8A C5                    CHKUSI:	MOV	AL,CH		;[A]=THE NUMBER OF CHARACTER
-				S LEFT TO SCAN 
+ 01A8  8A C5                    CHKUSI:	MOV	AL,CH		;[A]=THE NUMBER OF CHARACTERS LEFT TO SCAN 
  01AA  0A C0                    	OR	AL,AL		;SEE IF THERE ARE ANY LEFT 
  01AC  74 03                    	JZ	SHORT ??L009 
  01AE  E9 005A R                	JMP	PRCCHR		;IF SO, KEEP SCANNING 
  01B1                           ??L009: 
- 01B1  EB 06                    	JMP	SHORT FINUSI	;SEE IF THERE ARE MORE VALUES
-				 
+ 01B1  EB 06                    	JMP	SHORT FINUSI	;SEE IF THERE ARE MORE VALUES 
  01B3  E8 0230 R                REUSIN:	CALL	PLSPRT		;PRINT A "+" IF NECESSARY 
  01B6  E8 0000 E                	CALL	OUTDO		;PRINT THE FINAL CHARACTER 
  01B9  5B                       FINUSI:	POP	BX		;POP OFF THE TEXT POINTER 
- 01BA  9D                       	POPF			;POP OFF THE INDICATOR OF WHETHER OR NO
-				T 
+ 01BA  9D                       	POPF			;POP OFF THE INDICATOR OF WHETHER OR NOT 
                                 				;THE VALUE LIST HAS ENDED 
  01BB  74 03                    	JZ	SHORT ??L010 
  01BD  E9 0012 R                	JMP	REUSST		;IF NOT, REUSE THE "USING" STRING 
@@ -962,55 +807,45 @@ PRINT USING DRIVER
                                 	EXTRN	FINPRT:NEAR 
  01CD  E9 0000 E                	JMP	FINPRT		;ZERO [PTRFIL] 
                                 ; 
-                                ; HERE TO HANDLE A LITERAL CHARACTER IN THE USI
-				NG STRING PRECEDED 
+                                ; HERE TO HANDLE A LITERAL CHARACTER IN THE USING STRING PRECEDED 
                                 ; BY "_" 
                                 ; 
- 01D0  E8 0230 R                LITCHR:	CALL	PLSPRT		;PRINT PREVIOUS "+" IF ANY
-				 
+ 01D0  E8 0230 R                LITCHR:	CALL	PLSPRT		;PRINT PREVIOUS "+" IF ANY 
  01D3  FE CD                    	DEC	CH		;DECREMENT COUNT FOR ACTUAL CHARACTER 
  01D5  8A 07                    	MOV	AL,BYTE PTR [BX]	;FETCH LITERAL CHARACTER 
- 01D7  43                       	INC	BX 
- 01D8  E8 0000 E                	CALL	OUTDO 
- 01DB  EB CB                    	JMP	SHORT CHKUSI	;GO SEE IF USING STRING ENDED
-				 
-                                 
-                                ; 
-                                ; HERE TO HANDLE VARIABLE LENGTH STRING FIELD S
-				PECIFIED WITH "&" 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
-BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-18
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
+BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-15
 PRINT USING DRIVER                                          
 
+ 01D7  43                       	INC	BX 
+ 01D8  E8 0000 E                	CALL	OUTDO 
+ 01DB  EB CB                    	JMP	SHORT CHKUSI	;GO SEE IF USING STRING ENDED 
+                                 
                                 ; 
- 01DD  B1 00                    VARSTR:	MOV	CL,LOW 0	;SET LENGTH TO 0 TO FLAG V
-				ARIABLE LENGTH 
+                                ; HERE TO HANDLE VARIABLE LENGTH STRING FIELD SPECIFIED WITH "&" 
+                                ; 
+ 01DD  B1 00                    VARSTR:	MOV	CL,LOW 0	;SET LENGTH TO 0 TO FLAG VARIABLE LENGTH 
  01DF  EB 05                    	JMP	SHORT ISSTR1 
                                 				;NECPPC does not have string formatter 
                                 				; because of ROM space 
                                 ; 
-                                ; HERE WHEN THE "!" INDICATING A SINGLE CHARACT
-				ER 
+                                ; HERE WHEN THE "!" INDICATING A SINGLE CHARACTER 
                                 ; STRING FIELD HAS BEEN SCANNED 
                                 ; 
  01E1  B1 01                    SMSTRF:	MOV	CL,LOW 1	;SET THE FIELD WIDTH TO 1 
  01E3  EB 01                    	JMP	SHORT ISSTR1 
- 01E5  58                       ISSTRF:	POP	AX		;GET RID OF THE [H,L] THAT WAS 
-				BEING 
+ 01E5  58                       ISSTRF:	POP	AX		;GET RID OF THE [H,L] THAT WAS BEING 
                                 				;SAVED IN CASE THIS WASN'T A STRING FIELD 
- 01E6  FE CD                    ISSTR1:	DEC	CH		;DECREMENT THE "USING" STRING C
-				HARACTER COUNT 
- 01E8  E8 0230 R                	CALL	PLSPRT		;PRINT A "+" IF ONE CAME BEFORE T
-				HE FIELD 
+ 01E6  FE CD                    ISSTR1:	DEC	CH		;DECREMENT THE "USING" STRING CHARACTER COUNT 
+ 01E8  E8 0230 R                	CALL	PLSPRT		;PRINT A "+" IF ONE CAME BEFORE THE FIELD 
  01EB  5B                       	POP	BX		;TAKE OFF THE TEXT POINTER 
  01EC  9D                       	POPF			;TAKE OF THE FLAG WHICH SAYS 
                                 				;WHETHER THERE ARE MORE VALUES IN THE 
                                 				;VALUE LIST 
  01ED  74 D1                    	JZ	SHORT FLDFIN	;IF THERE ARE NO MORE VALUES 
                                 				;THEN WE ARE DONE 
- 01EF  51                       	PUSH	CX		;SAVE [B]=NUMBER OF CHARACTERS YET TO
-				 
+ 01EF  51                       	PUSH	CX		;SAVE [B]=NUMBER OF CHARACTERS YET TO 
                                 				;BE SCANNED IN "USING" STRING 
  01F0  E8 0000 E                	CALL	FRMEVL		;READ A VALUE 
  01F3  E8 0000 E                	CALL	CHKSTR		;MAKE SURE ITS A STRING 
@@ -1021,8 +856,7 @@ PRINT USING DRIVER
  01FD  8A E9                    	MOV	CH,CL		;[B]=FIELD WIDTH 
  01FF  B1 00                    	MOV	CL,LOW 0	;SET UP FOR "LEFT$" 
  0201  8A C5                    	MOV	AL,CH		;GET FIELD WITH IN [A] 
- 0203  50                       	PUSH	AX		;SAVE THE FIELD WIDTH FOR SPACE PADDI
-				NG 
+ 0203  50                       	PUSH	AX		;SAVE THE FIELD WIDTH FOR SPACE PADDING 
  0204  8A C5                    	MOV	AL,CH		;SEE IF VARIABLE LENGTH FIELD 
  0206  0A C0                    	OR	AL,AL 
  0208  74 03                    	JZ	SHORT ??L012 
@@ -1031,49 +865,41 @@ PRINT USING DRIVER
  020D  E8 0000 E                	CALL	STRPRT		;PRINT THE STRING 
  0210  8B 1E 0000 E             	MOV	BX,FACLO	;SEE IF IT NEEDS TO BE PADDED 
  0214  58                       	POP	AX		;[A]=FIELD WIDTH 
- 0215  0A C0                    	OR	AL,AL		;IF FIELD LENGTH IS 0 MUST BE "&" SO
-				 
+ 0215  0A C0                    	OR	AL,AL		;IF FIELD LENGTH IS 0 MUST BE "&" SO 
  0217  75 03                    	JNZ	SHORT ??L013 
  0219  E9 017B R                	JMP	FNSTRF		;DONT PRINT ANY TRAILING SPACES 
  021C                           ??L013: 
- 021C  2A 07                    	SUB	AL,BYTE PTR [BX]	;[A]=AMOUNT OF PADDING NE
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
-BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-19
-PRINT USING DRIVER                                          
-
-				EDED 
+ 021C  2A 07                    	SUB	AL,BYTE PTR [BX]	;[A]=AMOUNT OF PADDING NEEDED 
  021E  8A E8                    	MOV	CH,AL 
  0220  B0 20                    	MOV	AL,LOW " "	;SETUP THE PRINT CHARACTER 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
+BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Page     1-16
+PRINT USING DRIVER                                          
+
  0222  FE C5                    	INC	CH		;DUMMY INCREMENT OF NUMBER OF SPACES 
  0224  FE CD                    UPRTSP:	DEC	CH		;SEE IF MORE SPACES 
  0226  75 03                    	JNZ	SHORT ??L014 
- 0228  E9 017B R                	JMP	FNSTRF		;NO, GO SEE IF THE VALUE LIST ENDE
-				D AND 
+ 0228  E9 017B R                	JMP	FNSTRF		;NO, GO SEE IF THE VALUE LIST ENDED AND 
  022B                           ??L014: 
                                 				;RESUME SCANNING 
  022B  E8 0000 E                	CALL	OUTDO		;PRINT A SPACE 
  022E  EB F4                    	JMP	SHORT UPRTSP	;AND LOOP PRINTING THEM 
                                 ; 
                                 ; WHEN A "+" IS DETECTED IN THE "USING" STRING 
-                                ; IF A NUMERIC FIELD FOLLOWS A BIT IN [D] SHOUL
-				D 
+                                ; IF A NUMERIC FIELD FOLLOWS A BIT IN [D] SHOULD 
                                 ; BE SET, OTHERWISE "+" SHOULD BE PRINTED. 
-                                ; SINCE DECIDING WHETHER A NUMERIC FIELD FOLLOW
-				S IS VERY 
+                                ; SINCE DECIDING WHETHER A NUMERIC FIELD FOLLOWS IS VERY 
                                 ; DIFFICULT, THE BIT IS ALWAYS SET IN [D]. 
-                                ; AT THE POINT IT IS DECIDED A CHARACTER IS NOT
-				 PART 
-                                ; OF A NUMERIC FIELD, THIS ROUTINE IS CALLED TO
-				 SEE 
+                                ; AT THE POINT IT IS DECIDED A CHARACTER IS NOT PART 
+                                ; OF A NUMERIC FIELD, THIS ROUTINE IS CALLED TO SEE 
                                 ; IF THE BIT IN [D] IS SET, WHICH MEANS 
                                 ; A PLUS PRECEDED THE CHARACTER AND SHOULD BE 
                                 ; PRINTED. 
                                 ; 
  0230  50                       PLSPRT:	PUSH	AX		;SAVE THE CURRENT CHARACTER 
  0231  8A C6                    	MOV	AL,DH		;CHECK THE PLUS BIT 
- 0233  0A C0                    	OR	AL,AL		;SINCE IT IS THE ONLY THING THAT COU
-				LD 
+ 0233  0A C0                    	OR	AL,AL		;SINCE IT IS THE ONLY THING THAT COULD 
                                 				;BE TURNED ON 
  0235  B0 2B                    	MOV	AL,LOW "+"	;SETUP TO PRINT THE PLUS 
  0237  74 03                    	JZ	SHORT ??L015 
@@ -1084,8 +910,8 @@ PRINT USING DRIVER
  023E                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
 BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Symbols-1
                                                              
 
@@ -1143,8 +969,8 @@ CHSEAT . . . . . . . . . . . . .  	Number	0001
 CLMWID . . . . . . . . . . . . .  	Number	000E	
 CMPUTN . . . . . . . . . . . . .  	Number	0000	
 COMMNT . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
 BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Symbols-2
                                                              
 
@@ -1202,8 +1028,8 @@ FIVEO  . . . . . . . . . . . . .  	Number	0001
 FIVLPT . . . . . . . . . . . . .  	Number	0001	
 FIVMEM . . . . . . . . . . . . .  	Number	0001	
 FKEYON . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
 BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Symbols-3
                                                              
 
@@ -1261,8 +1087,8 @@ LISTEN . . . . . . . . . . . . .  	Number	0001
 LITCHR . . . . . . . . . . . . .  	L NEAR	01D0	CSEG
 LNGVAR . . . . . . . . . . . . .  	Number	0001	
 LOKHED . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
 BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Symbols-4
                                                              
 
@@ -1320,8 +1146,8 @@ OEMRAM . . . . . . . . . . . . .  	Number	0000
 ONTEL  . . . . . . . . . . . . .  	Number	0000	
 OUTDO  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
 BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Symbols-5
                                                              
 
@@ -1379,8 +1205,8 @@ SYNCHR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 
 TEK  . . . . . . . . . . . . . .  	Number	0000	
 TIMSHR . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:18:43
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:27:26
+ 
 BIPRTU  BASIC Interpreter PRINT USING Driver/WHG            Symbols-6
                                                              
 
@@ -1420,11 +1246,11 @@ Z80MAC . . . . . . . . . . . . .  	Number	0001
 ??L015 . . . . . . . . . . . . .  	L NEAR	023C	CSEG
 
 
-    827 Source  Lines
-    828 Total   Lines
+    828 Source  Lines
+    829 Total   Lines
     289 Symbols
 
-  41356 Bytes symbol space free
+  41336 Bytes symbol space free
 
       0 Warning Errors
       0 Severe  Errors

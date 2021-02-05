@@ -1,5 +1,5 @@
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-1
                                                             
 
@@ -15,24 +15,21 @@ GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-1
                              C  ; [ This translation created 10-Feb-83 by Versi
 				on 4.3 ] 
                              C   
-                             C  	SUBTTL  Common file to produce 2-segment 8086 
-				GW-CPM BASIC 
+                             C  	PAGE	,132D 
+                             C  	SUBTTL  Common file to produce 2-segment 8086 GW-CPM BASIC 
                              C   
                              C  	.SALL 
                              C   
  000A                        C  	.RADIX	10 
  = 0000                      C  	OEMRAM=0D 
-                             C  ;Pascal program HFILE searches for the followin
-				g line - DO NOT MODIFY 
-                             C  ;** (VERSION SPECIFIC VALUES) *****************
-				******************************* 
+                             C  ;Pascal program HFILE searches for the following line - DO NOT MODIFY 
+                             C  ;** (VERSION SPECIFIC VALUES) ************************************************ 
  = 0019                      C  	NMLINE=25		;Max screen display text lines 
  = 0001                      C  	NBANKS=1		;Number of graphic planes 
  = 0000                      C  	PALSIZ=0		;Size of OEM color palette 
  = 0000                      C  	DBLCHR=0		;Editor support for KANJI chars 
  = 0000                      C  	KANABS=0		;Kana BASIC (Japanese JIS codes) 
- = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .
-				. 
+ = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .. 
  = 0000                      C  	JISKTN=0		;&K, &J constants (KANJI) 
  = 0001                      C  	SUPRSH=1		;1=super shift key feature 
  = 000A                      C  	NMKEYF=10		;number of function keys 
@@ -46,61 +43,48 @@ GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-1
  = 0002                      C  	NMCOMT=2		;number of COMmunications ports 
  = 0001                      C  	NMPENT=1		;number of light pens 
  = 0004                      C  	NMSTRT=4		;number of joysticks 
- = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR)
-				 
+ = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR) 
  = 0001                      C  	IBMLIK=1		;IBM compatibility package 
  = 0001                      C  	IBMTOK=1		;IBM token compatibility 
  = 0001                      C  	DYNCOM=1		;Dynamic communication buffers 
-                             C  ;** (END OF VERSION SPECIFIC VALUES) **********
-				******************************* 
-                             C  ;Pascal program HFILE searches for the previous
-				 line - DO NOT MODIFY 
+                             C  ;** (END OF VERSION SPECIFIC VALUES) ***************************************** 
+                             C  ;Pascal program HFILE searches for the previous line - DO NOT MODIFY 
                              C  ; 
  = 0015                      C  	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
+ = 0001                      C  	GW=1			;GW BASIC 
+ = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROUT 
+ = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY) 
+                             C  				; Support is in BINTRP.MAC and GWSTS.MAC 
+ = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
+                             C  				;single precision numbers for output. 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
- = 0001                      C  	GW=1			;GW BASIC 
- = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROU
-				T 
- = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY
-				) 
-                             C  				; Support is in BINTRP.MAC and GWSTS.MAC 
- = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed whe
-				n formatting 
-                             C  				;single precision numbers for output. 
                              C  				; 0 := 7 digits 
                              C  				; 1 := 6 digits 
  = 0000                      C  	CASSW=0			;CASSETTE SWITCH 
  = 0001                      C  	LABKEY=1		;^T (LABEL) key capability 
- = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics)
-				 
- = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stac
-				k) 
+ = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics) 
+ = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stack) 
  = 0001                      C  	GIO86=1			;BASIC-86 Generalized I/O 
  = 0001                      C  	SCRNIO=1		;Screen editor 
  = 0001                      C  	SCRN86=1		;8086 Screen editor 
  = 0001                      C  	I8086=1			;CROSS ASSEMBLING FOR 8086 
  = 0001                      C  	MULSEG=1		;MULTI-SEGMENT 8086 BASIC 
- = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SE
-				T 
+ = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SET 
  = 0001                      C  	TRUROM=1 
  = 0000                      C  	SBC86=0			;SBC 86/02 BOARD? 
  = 0001                      C  	SHORTJ=1		;USE INTRA-SEGMENT SHORT JUMPS 
                              C  				;IN 8086 CODE 
- = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDE
-				D ONLY) 
+ = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDED ONLY) 
  = 0000                      C  	SHTERR=0		;SHORT (2 CHAR) ERROR MESSAGES 
  = 0000                      C  	SHTINS=0		;INSTR IN NON-FAST LEN2 VERSIONS 
- = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2
-				 VERSIONS 
+ = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2 VERSIONS 
  = 0000                      C  	SHTCHN=0		;ALLOW CHAIN IN NON-5.0 
- = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK
-				 
- = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NO
-				N-FAST 
+ = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK 
+ = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NON-FAST 
  = 0000                      C  	SHTREN=0		;ALLOW RENUM IN NON-FST VERSIONS 
  = 0001                      C  	INKEYF=1		;ADDS INKEY$ FUNCTION 
  = 0000                      C  	NOIOS=0			;NO I/O STATMENTS (INP,OUT, WAIT) 
@@ -109,23 +93,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	NOCTLA=0		;NO CONTROL-A IN EXTENDED 
  = 0000                      C  	NORUBT=0		;NO RUBOUT 
  = 0000                      C  	NOROMP=0		;NO ROM PROGRAM FEATURE 
- = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED
-				 
+ = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED 
  = 0000                      C  	NODOT=0			;NO DOT IN LEN2 
  = 0000                      C  	NOEDIT=0		;NO EDIT COMMAND 
- = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMIN
-				AL 
+ = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMINAL 
                              C  				;AND FILES 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-3
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
- = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN C
-				RDO & OUTCH1 
+ = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN CRDO & OUTCH1 
  = 0000                      C  	NOVARP=0		;NO VARPTR FUNCTION 
- = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 F
-				EATURES 
+ = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 FEATURES 
  = 0001                      C  	FIVMEM=1 
  = 0001                      C  	ANSI=1 
  = 0001                      C  	FIVDSK=1		;5.0 NEW DSK CODE 
@@ -136,24 +111,25 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0001                      C  	MEMIMG=1		;MEMORY IMAGE FILES 
  = 0001                      C  	GENBIN=1 
                              C   
- = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON 
-				ERROR) 
+ = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON ERROR) 
  = 0000                      C  	COMMNT=0		;DONT WANT BIG COMMENT 
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
+GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-3
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	RMX=0			;INTEL RMX VERSION 
  = 0000                      C  	EDIT80=0		;FOR EDIT80 I/O ROUTINES 
  = 0000                      C  	RSHACK=0 
  = 0000                      C  	INTLEC=0 
  = 0002                      C  	LENGTH=2		;  1 MEANS 8K, 2 MEANS 12K 
- = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BAS
-				IC 
- = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATION
-				S 
+ = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BASIC 
+ = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATIONS 
                              C  				;TO MAKE ITSELF SMALLER & QUICKER 
- = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE
-				 (=1) 
+ = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE (=1) 
  = 0001                      C  	GENIO=1			;USE G/P ROUTINES 
  = 0001                      C  	CHSEAT=1		;CHSNS eats chars 
  = 0000                      C  	GENDSK=0		;USE G/P DSK CODE 
@@ -165,21 +141,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	SBC=0			;FOR INTEL SINGLE BOARD COMPUTER 
                              C  				;1=SBC 80/10, 2=SBC 80/20 
  = 0001                      C  	PURE=1			;ON FOR PURE CODE 
- = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RA
-				M 
+ = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RAM 
  = 0000                      C  	INTROM=0 
  = 0001                      C  	LPTSW=1 
  = 0001                      C  	NCRLPT=1 
  = 0000                      C  	NCRCAS=0 
  = 0000                      C  	ISC=0			;FOR ISC VERSION 
- = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,C
-				ENT) 
+ = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,CENT) 
  = 0000                      C  	TSLPT=0 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-4
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C   
  = 0000                      C  	DOS=0			;ON TO GEN ROUTINES FOR DOS 
  = 0001                      C  	DISK=1			;FILE I/O FEATURES 
@@ -187,13 +156,10 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	TSDISK=0		;NO TIME-SHARING DISK FOR US 
  = 0000                      C  	SPCDSK=0		;MAY HAVE MM'S DISK CODE 
  = 0000                      C  	SPCNDS=0 
- = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIEND
-				S 
+ = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIENDS 
  = 0000                      C  	KEYSTA=0 
- = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISI
-				S II DOS 
- = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISI
-				S-II 
+ = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISIS II DOS 
+ = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISIS-II 
  = 0001                      C  	CPM=1			;FOR CPM compatible operating systems 
  = 0001                      C  	CPM2=1			;VERSION 2. CPM 
  = 0000                      C  	CPM86=0			;FOR CP/M-86 operating system 
@@ -201,16 +167,19 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMCON=0 
  = 0000                      C  	CPMSER=0		;CHECK CPM SERIAL #'S 
  = 0000                      C  	CPMADD=0		;FOR VERSION TO RUN ON ADDS CPM 
- = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 7
-				5 
+ = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 75 
                              C  				;CP/M 
  = 0000                      C  	CPMRSH=0		;FOR RADIO SHACK CPM/M 
  = 0000                      C  	CPM110=0		;FOR CP/M @1100 HEX (INTERALIA) 
- = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4
-				100H 
+ = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4100H 
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
+GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-4
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	CPMCON=0 
  = 0000                      C  	Z80=0 
  = 0001                      C  	DISK=1 
@@ -227,23 +196,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0002                      C  	LENGTH=2 
  = 0001                      C  	RSTLES=1 
  = 0001                      C  	FIVLPT=1 
- = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT V
-				ERSION 
+ = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT VERSION 
  = 0001                      C  	CONTRO=1		;ALLOW ^O 
  = 0001                      C  	LEN3=LEN2 OR CASSW 
                              C   
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-5
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
  = 0001                      C  	STRING=1 
  = 0001                      C  	NCRLPT=1 
                              C   
-                             C  ; *** OEM Switches which need to be defaulted t
-				o 0 
+                             C  ; *** OEM Switches which need to be defaulted to 0 
                              C  ; 
  = 0000                      C  	CMPUTN=0 
  = 0000                      C  	DUPONT=0 
@@ -268,15 +230,17 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	PANBAS=0 
  = 0000                      C  	XTNSYS=0 
  = 0000                      C  	NECBAS=0 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Z80 related macros 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
+GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-5
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  				;8080'S AND ZILOG Z-80'S 
- = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INST
-				RUCTIONS 
+ = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INSTRUCTIONS 
  = 0000                      C  	Z80=0 
  = 0001                      C  	Z80=1 
                              C  LDIR	MACRO 
@@ -293,11 +257,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	MOV	WORD PTR A,WORD PTR M 
                              C  	STAX	D 
                              C  	DCXF	H 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-6
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  	DCXF	D 
                              C  	DCXF	B 
                              C  	MOV	WORD PTR A,WORD PTR B 
@@ -308,11 +267,9 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	DCR	B 
                              C  	JNZ	DEST 
                              C  ENDM 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Define reset routines. 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  FSIGN	MACRO 
                              C  	CALL	SIGN 
                              C  ENDM 
@@ -336,6 +293,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
+GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-6
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  GETYPE	MACRO 
                              C  	CALL	GETYPR 
                              C  ENDM 
@@ -352,11 +314,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	PUSH	WORD PTR B 
                              C  ENDM 
                              C  POPR	MACRO 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-7
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  	POP	WORD PTR B 
                              C  	POP	WORD PTR D 
                              C  ENDM 
@@ -373,15 +330,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDM 
                              C   
                              C   
- = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALL
-				Y CONTROL-O) 
- = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTAL
-				S 
+ = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALLY CONTROL-O) 
+ = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTALS 
                              C   
- = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARA
-				CTERS 
- = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SEC
-				TOR 
+ = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARACTERS 
+ = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SECTOR 
  = 0050                      C  	LINLN=80D		;TERMINAL LINE LENGTH 
  = 0084                      C  	LPTLEN=132D 
  = 00FF                      C  	BUFLEN=255		;LONG LINES 
@@ -399,6 +352,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
+GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-7
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  ACRLF   MACRO 
                              C          DB      13D 
                              C          DB      10D 
@@ -411,11 +369,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDIF 
                              C  IFNB    <D> 
                              C          DB      C&O 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-8
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C          DB      D&O 
                              C  ENDIF 
                              C  IFB     <D> 
@@ -447,9 +400,9 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-9
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
+GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
@@ -481,40 +434,23 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                  
                                 COMMENT	* 
                                  
-                                THESE ARE THE GENERAL GRAPHICS ROUTINES THAT AS
-				SUME THE "MACHINE 
-                                INDEPENDENT" GRAPHICS INTERFACE. THEY DEAL WITH
-				IN A  16-BIT 
-                                GRAPHICS COORDINATE SYSTEM FOR BOTH X AND Y. AT
-				TRIBUTES RANGE FROM 
+                                THESE ARE THE GENERAL GRAPHICS ROUTINES THAT ASSUME THE "MACHINE 
+                                INDEPENDENT" GRAPHICS INTERFACE. THEY DEAL WITHIN A  16-BIT 
+                                GRAPHICS COORDINATE SYSTEM FOR BOTH X AND Y. ATTRIBUTES RANGE FROM 
                                 0 TO 255. 
                                  
                                 * 
                                 ; 
-                                ; THESE ARE THE RAM LOCATIONS REQUIRED TO SUPPO
-				RT THIS PACKAGE 
-                                ; NOTE THAT ALL OF THESE ARE LOCAL TO THIS CODE
-				 EXCEPT 
-                                ; FORCLR AND BAKCLR WHICH NEED TO BE SET UP BY 
-				THE MACHINE DEPENDENT 
-                                ; CODE EITHER AS CONSTANTS OR THROUGH A COLOR T
-				YPE COMMAND 
-                                ; NOTE THAT MAXUPD AND MINUPD ARE 3 BYTE CELLS 
-				WITH A JMP IN THE 
-                                ; FIRST BYTE TO BE SET UP BY GRFINI OR INITIALI
-				ZED AT STARTUP 
+                                ; THESE ARE THE RAM LOCATIONS REQUIRED TO SUPPORT THIS PACKAGE 
+                                ; NOTE THAT ALL OF THESE ARE LOCAL TO THIS CODE EXCEPT 
+                                ; FORCLR AND BAKCLR WHICH NEED TO BE SET UP BY THE MACHINE DEPENDENT 
+                                ; CODE EITHER AS CONSTANTS OR THROUGH A COLOR TYPE COMMAND 
+                                ; NOTE THAT MAXUPD AND MINUPD ARE 3 BYTE CELLS WITH A JMP IN THE 
+                                ; FIRST BYTE TO BE SET UP BY GRFINI OR INITIALIZED AT STARTUP 
                                 ; 
-                                				;In GW versions, GETFBC is the OEM interfac
-				e 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-10
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
-                                	EXTRN	GETFBC:NEAR	;for FORCLR and BAKCLR (OEM 
-				vars) 
-                                	EXTRN	PIXSIZ:NEAR	;Get bits/pixel (0=no graphi
-				cs available) 
+                                				;In GW versions, GETFBC is the OEM interface 
+                                	EXTRN	GETFBC:NEAR	;for FORCLR and BAKCLR (OEM vars) 
+                                	EXTRN	PIXSIZ:NEAR	;Get bits/pixel (0=no graphics available) 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	ASSUME DS:DSEG 
                                 	EXTRN	GXPOS:WORD,GYPOS:WORD 
@@ -523,79 +459,67 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                 	EXTRN	GRPACX:WORD,GRPACY:WORD 
  0000                           DSEG	ENDS 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-                                	EXTRN	MAXDEL:WORD,MINDEL:WORD,MINUPD:WORD,MAXU
-				PD:WORD 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
+GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-9
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
+                                	EXTRN	MAXDEL:WORD,MINDEL:WORD,MINUPD:WORD,MAXUPD:WORD 
  0000                           DSEG	ENDS 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-                                	EXTRN	ATRBYT:WORD	;External form of the curren
-				t attribute 
+                                	EXTRN	ATRBYT:WORD	;External form of the current attribute 
  0000                           DSEG	ENDS 
                                 				; used by PAINT for default 
                                 ; 
-                                ; THESE ARE THE ROUTINES CALLED INSIDE THE BASI
-				C INTERPRETER 
+                                ; THESE ARE THE ROUTINES CALLED INSIDE THE BASIC INTERPRETER 
                                 ; AND THE SYNTAX TOKEN DEFINITIONS REFERENCED 
                                 ; 
-                                	EXTRN	GETIN2:NEAR,GETBYT:NEAR,CHRGTR:NEAR,$STE
-				P:NEAR,FCERR:NEAR 
+                                	EXTRN	GETIN2:NEAR,GETBYT:NEAR,CHRGTR:NEAR,$STEP:NEAR,FCERR:NEAR 
                                 	EXTRN	CHRGT2:NEAR 
                                 	EXTRN	MINUTK:NEAR 
                                 	EXTRN	SYNCHR:NEAR 
                                 ; 
-                                	PUBLIC	HLFDE,SCAND,ATRSCN,SCAN1,DOGRPH,XCHGX,X
-				CHGY,XDELT,YDELT 
-                                ; THESE ARE THE ENTRY POINTS INTO THE MACHINE D
-				EPENDENT GRAPHICS 
-                                ; ROUTINES. THEY FOLLOW STANDARD CONVENTIONS TO
-				 AVOID MODIFICATIONS 
-                                ; TO CODE IN THIS PACKAGE FOR SPECIFIC IMPLEMEN
-				TATIONS 
+                                	PUBLIC	HLFDE,SCAND,ATRSCN,SCAN1,DOGRPH,XCHGX,XCHGY,XDELT,YDELT 
+                                ; THESE ARE THE ENTRY POINTS INTO THE MACHINE DEPENDENT GRAPHICS 
+                                ; ROUTINES. THEY FOLLOW STANDARD CONVENTIONS TO AVOID MODIFICATIONS 
+                                ; TO CODE IN THIS PACKAGE FOR SPECIFIC IMPLEMENTATIONS 
                                 ; 
-                                	EXTRN	SCALXY:NEAR,MAPXYC:NEAR,UPC:NEAR,DOWNC:N
-				EAR,LEFTC:NEAR 
+                                	EXTRN	SCALXY:NEAR,MAPXYC:NEAR,UPC:NEAR,DOWNC:NEAR,LEFTC:NEAR 
                                 	EXTRN	RIGHTC:NEAR 
                                 	EXTRN	READC:NEAR,SETATR:NEAR,NSETCX:NEAR 
                                 	EXTRN	FETCHC:NEAR,STOREC:NEAR,SETC:NEAR 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-11
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
+GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-10
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                                 	PAGE 
                                 	SUBTTL  SCAN A COORDINATE - SCAN1 AND SCAND 
                                  
                                 ; 
-                                ; ALLOW A COORDINATE OF THE FORM (X,Y) OR STEP(
-				X,Y) 
+                                ; ALLOW A COORDINATE OF THE FORM (X,Y) OR STEP(X,Y) 
                                 ; THE LATTER IS RELATIVE TO THE GRAPHICS AC. 
-                                ; THE GRAPHICS AC IS UPDATED WITH THE NEW VALUE
-				 
+                                ; THE GRAPHICS AC IS UPDATED WITH THE NEW VALUE 
                                 ; RESULT IS RETURNED WITH [B,C]=X AND [D,E]=Y 
-                                ; CALL SCAN1 TO GET FIRST IN A SET OF TWO PAIRS
-				 SINCE IT ALLOWS 
-                                ; A NULL ARGUMENT TO IMPLY THE CURRENT AC VALUE
-				 AND 
+                                ; CALL SCAN1 TO GET FIRST IN A SET OF TWO PAIRS SINCE IT ALLOWS 
+                                ; A NULL ARGUMENT TO IMPLY THE CURRENT AC VALUE AND 
                                 ; IT WILL SKIP A "@" IF ONE IS PRESENT 
                                 ; 
- 0000  8A 07                    SCAN1:	MOV	AL,BYTE PTR [BX]	;GET THE CURRENT CH
-				ARACTER 
+ 0000  8A 07                    SCAN1:	MOV	AL,BYTE PTR [BX]	;GET THE CURRENT CHARACTER 
  0002  3C 40                    	CMP	AL,LOW "@"	;ALLOW MEANINGLESS "@" 
  0004  75 03                    	JNZ	SHORT ??L000 
  0006  E8 0000 E                	CALL	CHRGTR		;BY SKIPPING OVER IT 
  0009                           ??L000: 
- 0009  B9 0000                  	MOV	CX,0		;ASSUME NO COODINATES AT ALL (-SECON
-				D) 
+ 0009  B9 0000                  	MOV	CX,0		;ASSUME NO COODINATES AT ALL (-SECOND) 
  000C  8A F5                    	MOV	DH,CH 
  000E  8A D1                    	MOV	DL,CL 
- 0010  3C 00 E                  	CMP	AL,LOW OFFSET MINUTK	;SEE IF ITS SAME AS P
-				REVIOUS 
+ 0010  3C 00 E                  	CMP	AL,LOW OFFSET MINUTK	;SEE IF ITS SAME AS PREVIOUS 
  0012  74 1F                    	JZ	SHORT SCANN	;USE GRAPHICS ACCUMULATOR 
                                 ; 
                                 ; THE STANDARD ENTRY POINT 
                                 ; 
- 0014  8A 07                    SCAND:	MOV	AL,BYTE PTR [BX]	;GET THE CURRENT CH
-				ARACTER 
+ 0014  8A 07                    SCAND:	MOV	AL,BYTE PTR [BX]	;GET THE CURRENT CHARACTER 
  0016  3C 00 E                  	CMP	AL,LOW OFFSET $STEP	;IS IT RELATIVE? 
  0018  9C                       	PUSHF			;REMEMBER 
  0019  75 03                    	JNZ	SHORT ??L001 
@@ -614,27 +538,23 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  0032  9D                       	POPF			;RECALL IF RELATIVE OR NOT 
  0033  53                       SCANN:	PUSH	BX		;SAVE TEXT POINTER 
  0034  8B 1E 0000 E             	MOV	BX,GRPACX	;GET OLD POSITION 
- 0038  74 03                    	JZ	SHORT SCXREL	;IF ZERO,RELATIVE SO USE OLD B
-				ASE 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-12
-SCAN A COORDINATE - SCAN1 AND SCAND                         
-
- 003A  BB 0000                  	MOV	BX,0		;IN ABSOLUTE CASE, JUST Y USE ARGEUM
-				ENT 
+ 0038  74 03                    	JZ	SHORT SCXREL	;IF ZERO,RELATIVE SO USE OLD BASE 
+ 003A  BB 0000                  	MOV	BX,0		;IN ABSOLUTE CASE, JUST Y USE ARGEUMENT 
  003D  9F                       SCXREL:	LAHF 
  003E  03 D9                    	ADD	BX,CX		;ADD NEW VALUE 
  0040  D1 DE                    	RCR	SI,1 
  0042  9E                       	SAHF 
  0043  D1 D6                    	RCL	SI,1 
  0045  89 1E 0000 E             	MOV	GRPACX,BX	;UPDATE GRAPHICS ACCUMLATOR 
- 0049  89 1E 0000 E             	MOV	GXPOS,BX	;STORE SECOND COORDINTE FOR CALLE
-				R 
+ 0049  89 1E 0000 E             	MOV	GXPOS,BX	;STORE SECOND COORDINTE FOR CALLER 
  004D  8B CB                    	MOV	CX,BX		;RETURN X IN BC 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
+GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-11
+SCAN A COORDINATE - SCAN1 AND SCAND                         
+
  004F  8B 1E 0000 E             	MOV	BX,GRPACY	;GET OLDY POSITION 
- 0053  74 03                    	JZ	SHORT SCYREL	;IF ZERO, RELATIVE SO USE OLD 
-				BASE 
+ 0053  74 03                    	JZ	SHORT SCYREL	;IF ZERO, RELATIVE SO USE OLD BASE 
  0055  BB 0000                  	MOV	BX,0		;ABSOLUTE SO OFFSET BY 0 
  0058  03 DA                    SCYREL:	ADD	BX,DX 
  005A  89 1E 0000 E             	MOV	GRPACY,BX	;UPDATE Y PART OF ACCUMULATOR 
@@ -642,28 +562,23 @@ SCAN A COORDINATE - SCAN1 AND SCAND
  0062  87 DA                    	XCHG	BX,DX		;RETURN Y IN [D,E] 
  0064  5B                       	POP	BX		;GET BACK THE TEXT POINTER 
  0065  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-13
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
+GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-12
 SCAN A COORDINATE - SCAN1 AND SCAND                         
 
                                 	PAGE 
                                 	SUBTTL  PSET,PRESET,POINT 
                                 ; 
-                                ; THESE ARE THE STATEMENT AND FUNCTION ENTRY PO
-				INTS DEFINED BY THIS 
-                                ; PACKAGE. THE APPROPRIATE ENTRIES MUST BE SELE
-				CTED IN THE 
-                                ; RESERVED WORD TABLES TO GET BASIC TO DISPATCH
-				 TO THESE ROUTINES 
+                                ; THESE ARE THE STATEMENT AND FUNCTION ENTRY POINTS DEFINED BY THIS 
+                                ; PACKAGE. THE APPROPRIATE ENTRIES MUST BE SELECTED IN THE 
+                                ; RESERVED WORD TABLES TO GET BASIC TO DISPATCH TO THESE ROUTINES 
                                 ; 
                                 	PUBLIC	PSET,PRESET,POINT 
                                  
                                 ; 
-                                ; PSET (X,Y)[,ATTRIBUTE] DEFAULT ATTRIBUTE TO F
-				ORCLR 
-                                ; PRESET (X,Y)[,ATTRIBUTE] DEFAULT ATTIBUTE TO 
-				BAKCLR 
+                                ; PSET (X,Y)[,ATTRIBUTE] DEFAULT ATTRIBUTE TO FORCLR 
+                                ; PRESET (X,Y)[,ATTRIBUTE] DEFAULT ATTIBUTE TO BAKCLR 
                                 ; 
  0066  53                       PRESET:	PUSH	BX		;Push text pointer 
  0067  F9                       	STC			;Flag to get graphics colors 
@@ -688,25 +603,17 @@ SCAN A COORDINATE - SCAN1 AND SCAND
  008B  C3                       	RET 
                                  
                                 ; 
-                                ; POINT (X,Y) RETURNS THE ATTRIBUTE STORED AT T
-				HAT POINT 
+                                ; POINT (X,Y) RETURNS THE ATTRIBUTE STORED AT THAT POINT 
                                 ; IT RETURNS -1 IF THE POINT IS OUT OF BOUNDS 
                                 ; 
  008C                           POINT: 
  008C  E8 0000 E                	CALL	CHRGTR		;POINT IS RECOGNIZED IN EVAL 
                                 				;SO NEED TO SKIP ONE MORE CHAR 
  008F  53                       	PUSH	BX		;Save the text pointer. 
- 0090  E8 0000 E                	CALL	FETCHC		;Preserve the graphics cursor, GX
-				POS, 
+ 0090  E8 0000 E                	CALL	FETCHC		;Preserve the graphics cursor, GXPOS, 
  0093  5A                       	POP	DX		;and GYPOS across the POINT function 
  0094  53                       	PUSH	BX		;so cases like 
- 0095  50                       	PUSH	AX		;LINE (x1,y1)-(x2,y2),POINT(x3,y3) wi
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-14
-PSET,PRESET,POINT                                           
-
-				ll 
+ 0095  50                       	PUSH	AX		;LINE (x1,y1)-(x2,y2),POINT(x3,y3) will 
  0096  8B 1E 0000 E             	MOV	BX,GYPOS	;work correctly. 
  009A  53                       	PUSH	BX 
  009B  8B 1E 0000 E             	MOV	BX,GXPOS 
@@ -714,10 +621,14 @@ PSET,PRESET,POINT
  00A0  8B 1E 0000 E             	MOV	BX,GRPACY 
  00A4  53                       	PUSH	BX 
  00A5  8B 1E 0000 E             	MOV	BX,GRPACX 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
+GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-13
+PSET,PRESET,POINT                                           
+
  00A9  53                       	PUSH	BX 
  00AA  87 DA                    	XCHG	BX,DX		;Put the text pointer back in HL. 
- 00AC  E8 0014 R                	CALL	SCAND		;READ THE SPECIFICATION OF THE POI
-				NT 
+ 00AC  E8 0014 R                	CALL	SCAND		;READ THE SPECIFICATION OF THE POINT 
  00AF  53                       	PUSH	BX		;SAVE THE TEXT POINTER 
  00B0  E8 0000 E                	CALL	SCALXY		;SCALE THE POINT 
  00B3  BB FFFF                  	MOV	BX,OFFSET 0-1	;ASSUME ILLEGAL POINT 
@@ -733,8 +644,7 @@ PSET,PRESET,POINT
  00C7  89 1E 0000 E             	MOV	GRPACX,BX 
  00CB  5B                       	POP	BX 
  00CC  89 1E 0000 E             	MOV	GRPACY,BX 
- 00D0  5B                       	POP	BX		;Restore GXPOS, GYPOS, and the graphic
-				s 
+ 00D0  5B                       	POP	BX		;Restore GXPOS, GYPOS, and the graphics 
  00D1  89 1E 0000 E             	MOV	GXPOS,BX	;cursor. 
  00D5  5B                       	POP	BX 
  00D6  89 1E 0000 E             	MOV	GYPOS,BX 
@@ -742,17 +652,13 @@ PSET,PRESET,POINT
  00DB  5B                       	POP	BX 
  00DC  52                       	PUSH	DX 
  00DD  E8 0000 E                	CALL	STOREC 
- 00E0  5B                       	POP	BX		;Retrieve the text pointer and return.
-				 
+ 00E0  5B                       	POP	BX		;Retrieve the text pointer and return. 
  00E1  C3                       	RET 
                                 ; 
                                 ; ATTRIBUTE SCAN 
-                                ; LOOK AT THE CURRENT POSITION AND IF THERE IS 
-				AN ARGUMENT READ IT AS 
-                                ; THE 8-BIT ATTRIBUTE VALUE TO SEND TO SETATR. 
-				IF STATEMENT HAS ENDED 
-                                ; OR THERE IS A NULL ARGUMENT, SEND FORCLR  TO 
-				SETATR 
+                                ; LOOK AT THE CURRENT POSITION AND IF THERE IS AN ARGUMENT READ IT AS 
+                                ; THE 8-BIT ATTRIBUTE VALUE TO SEND TO SETATR. IF STATEMENT HAS ENDED 
+                                ; OR THERE IS A NULL ARGUMENT, SEND FORCLR  TO SETATR 
                                 ; 
  00E2  53                       ATRSCN:	PUSH	BX		;Save text pointer 
  00E3  F9                       	STC			;Flag to get graphics colors 
@@ -760,11 +666,6 @@ PSET,PRESET,POINT
  00E7  5B                       	POP	BX		;Retrieve text pointer 
  00E8  51                       ATRENT:	PUSH	CX		;SAVE THE CURRENT POINT 
  00E9  52                       	PUSH	DX 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-15
-PSET,PRESET,POINT                                           
-
  00EA  8A D0                    	MOV	DL,AL		;SAVE DEFAULT ATTRIBUTE IN [E] 
  00EC  4B                       	DEC	BX		;SEE IF STATEMENT ENDED 
  00ED  E8 0000 E                	CALL	CHRGTR 
@@ -772,24 +673,26 @@ PSET,PRESET,POINT
  00F2  E8 0000 E                	CALL	SYNCHR 
  00F5  2C                       	DB	OFFSET 44D	;INSIST ON COMMA 
  00F6  3C 2C                    	CMP	AL,LOW 44D	;ANOTHER COMMA FOLLOWS? 
- 00F8  74 03                    	JZ	SHORT ATRFIN	;IF SO, NULL ARGUMENT SO USE D
-				EFAULT 
+ 00F8  74 03                    	JZ	SHORT ATRFIN	;IF SO, NULL ARGUMENT SO USE DEFAULT 
  00FA  E8 0000 E                	CALL	GETBYT		;GET THE BYTE 
  00FD  8A C2                    ATRFIN:	MOV	AL,DL		;GET ATTRIBUTE INTO [A] 
  00FF  53                       	PUSH	BX		;SAVE THE TEXT POINTER 
  0100                           ATRFI2: 
  0100  50                       	PUSH	AX		;Save the attribute 
  0101  E8 0000 E                	CALL	PIXSIZ		;Test for graphics capability 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
+GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-14
+PSET,PRESET,POINT                                           
+
  0104  0A C0                    	OR	AL,AL 
  0106  75 03                    	JNZ	SHORT ??L002 
  0108  E9 0000 E                	JMP	FCERR		;Graphics not available 
  010B                           ??L002: 
  010B  58                       	POP	AX		;Restore the attributeA 
- 010C  E8 0000 E                	CALL	SETATR		;SET THE ATTRIBUTE AS THE CURRENT
-				 ONE 
+ 010C  E8 0000 E                	CALL	SETATR		;SET THE ATTRIBUTE AS THE CURRENT ONE 
  010F  73 03                    	JAE	SHORT ??L003 
- 0111  E9 0000 E                	JMP	FCERR		;ILLEGAL ATTRIBUTES GIVE FUNCTION C
-				ALL 
+ 0111  E9 0000 E                	JMP	FCERR		;ILLEGAL ATTRIBUTES GIVE FUNCTION CALL 
  0114                           ??L003: 
  0114  A2 0000 E                	MOV	BYTE PTR ATRBYT,AL	;Store legal atribute 
  0117  5B                       	POP	BX 
@@ -797,21 +700,18 @@ PSET,PRESET,POINT
  0119  59                       	POP	CX 
  011A  E9 0000 E                	JMP	CHRGT2 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-16
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
+GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-15
 PSET,PRESET,POINT                                           
 
                                 	PAGE 
                                 	SUBTTL  UTILITY ROUTINES FOR LINE CODE 
                                  
                                 ; 
-                                ; XDELT SETS [H,L]=ABS(GXPOS-[B,C]) AND SETS CA
-				RRY IF [B,C].GT.GXPOS 
-                                ; ALL REGISTERS EXCEPT [H,L] AND [A,PSW] ARE PR
-				ESERVED 
-                                ; NOTE: [H,L] WILL BE A DELTA BETWEEN GXPOS AND
-				 [B,C] - ADD 1 FOR AN X "COUNT" 
+                                ; XDELT SETS [H,L]=ABS(GXPOS-[B,C]) AND SETS CARRY IF [B,C].GT.GXPOS 
+                                ; ALL REGISTERS EXCEPT [H,L] AND [A,PSW] ARE PRESERVED 
+                                ; NOTE: [H,L] WILL BE A DELTA BETWEEN GXPOS AND [B,C] - ADD 1 FOR AN X "COUNT" 
                                 ; 
  011D  8B 1E 0000 E             XDELT:	MOV	BX,GXPOS	;GET ACCUMULATOR POSITION 
  0121  8A C3                    	MOV	AL,BL 
@@ -832,10 +732,8 @@ PSET,PRESET,POINT
  013C  F9                       	STC			;FLAG THAT NEGATE TOOK PLACE 
  013D  C3                       	RET 
                                 ; 
-                                ; YDELT SETS [H,L]=ABS(GYPOS-[D,E]) AND SETS CA
-				RRY IF [D,E].GT.GYPOS 
-                                ; ALL REGISTERS EXCEPT [H,L] AND [A,PSW] ARE PR
-				ESERVED 
+                                ; YDELT SETS [H,L]=ABS(GYPOS-[D,E]) AND SETS CARRY IF [D,E].GT.GYPOS 
+                                ; ALL REGISTERS EXCEPT [H,L] AND [A,PSW] ARE PRESERVED 
                                 ; 
  013E  8B 1E 0000 E             YDELT:	MOV	BX,GYPOS 
  0142  8A C3                    	MOV	AL,BL 
@@ -856,16 +754,16 @@ PSET,PRESET,POINT
  0155  87 DA                    	XCHG	BX,DX 
  0157  89 1E 0000 E             	MOV	GYPOS,BX 
  015B  5B                       	POP	BX 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-17
-UTILITY ROUTINES FOR LINE CODE                              
-
  015C  C3                       	RET 
  015D  E8 0150 R                XCHGAC:	CALL	XCHGY 
  0160  53                       XCHGX:	PUSH	BX 
  0161  51                       	PUSH	CX 
  0162  8B 1E 0000 E             	MOV	BX,GXPOS 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
+GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-16
+UTILITY ROUTINES FOR LINE CODE                              
+
  0166  5E                       	POP	SI		;XTHL 
  0167  87 F3                    	XCHG	SI,BX 
  0169  56                       	PUSH	SI 
@@ -873,9 +771,9 @@ UTILITY ROUTINES FOR LINE CODE
  016E  59                       	POP	CX 
  016F  5B                       	POP	BX 
  0170  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-18
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
+GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-17
 UTILITY ROUTINES FOR LINE CODE                              
 
                                 	PAGE 
@@ -883,12 +781,9 @@ UTILITY ROUTINES FOR LINE CODE
                                 ; 
                                 ; LINE [(X1,Y1)]-(X2,Y2) [,ATTRIBUTE[,B[F]]] 
                                 ; DRAW A LINE FROM (X1,Y1) TO (X2,Y2) EITHER 
-                                ; 1. STANDARD FORM -- JUST A LINE CONNECTING TH
-				E 2 POINTS 
-                                ; 2. ,B=BOXLINE -- RECTANGLE TREATING (X1,Y1) A
-				ND (X2,Y2) AS OPPOSITE CORNERS 
-                                ; 3. ,BF= BOXFILL --  FILLED RECTANGLE WITH (X1
-				,Y1) AND (X2,Y2) AS OPPOSITE CORNERS 
+                                ; 1. STANDARD FORM -- JUST A LINE CONNECTING THE 2 POINTS 
+                                ; 2. ,B=BOXLINE -- RECTANGLE TREATING (X1,Y1) AND (X2,Y2) AS OPPOSITE CORNERS 
+                                ; 3. ,BF= BOXFILL --  FILLED RECTANGLE WITH (X1,Y1) AND (X2,Y2) AS OPPOSITE CORNERS 
                                 ; 
                                 PUBLIC	GLINE 
  0171                           GLINE: 
@@ -896,14 +791,12 @@ UTILITY ROUTINES FOR LINE CODE
  0174  51                       	PUSH	CX		;SAVE THE POINT 
  0175  52                       	PUSH	DX 
  0176  E8 0000 E                	CALL	SYNCHR 
- 0179  00 E                     	DB	OFFSET MINUTK	;MAKE SURE ITS PROPERLY SEPER
-				ATED 
+ 0179  00 E                     	DB	OFFSET MINUTK	;MAKE SURE ITS PROPERLY SEPERATED 
  017A  E8 0014 R                	CALL	SCAND		;SCAN THE SECOND SET 
  017D  E8 00E2 R                	CALL	ATRSCN		;SCAN THE ATTRIBUTE 
  0180  5A                       	POP	DX		;GET BACK THE FIRST POINT 
  0181  59                       	POP	CX 
- 0182  74 53                    	JZ	SHORT DOLINE	;IF STATEMENT ENDED ITS A NORM
-				AL LINE 
+ 0182  74 53                    	JZ	SHORT DOLINE	;IF STATEMENT ENDED ITS A NORMAL LINE 
  0184  E8 0000 E                	CALL	SYNCHR 
  0187  2C                       	DB	OFFSET 44D	;OTHERWISE MUST HAVE A COMMA 
  0188  E8 0000 E                	CALL	SYNCHR 
@@ -932,16 +825,16 @@ UTILITY ROUTINES FOR LINE CODE
  01B3  E8 0000 E                	CALL	MAPXYC		;MAP INTO A "C" 
  01B6  5A                       	POP	DX		;GET WIDTH COUNT 
  01B7  59                       	POP	CX		;GET LINE COUNT 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-19
-LINE COMMAND                                                
-
  01B8  52                       BOXLOP:	PUSH	DX		;SAVE WIDTH 
  01B9  51                       	PUSH	CX		;SAVE NUMBER OF LINES 
  01BA  E8 0000 E                	CALL	FETCHC		;LOOK AT CURRENT C 
  01BD  50                       	PUSH	AX		;SAVE BIT MASK OF CURRENT "C" 
  01BE  53                       	PUSH	BX		;SAVE ADDRESS 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
+GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-18
+LINE COMMAND                                                
+
  01BF  87 DA                    	XCHG	BX,DX		;SET UP FOR NSETCX WITH COUNT 
  01C1  E8 0000 E                	CALL	NSETCX		;IN [H,L] OF POINTS TO SETC 
  01C4  5B                       	POP	BX		;GET BACK STARTING C 
@@ -960,8 +853,7 @@ LINE COMMAND
  01D8  52                       	PUSH	DX 
  01D9  53                       	PUSH	BX		;SAVE TEXT POINTER 
  01DA  E8 0222 R                	CALL	DOGRPH 
- 01DD  8B 1E 0000 E             	MOV	BX,GRPACX	;RESTORE ORIGINAL SECOND COORDIN
-				ATE 
+ 01DD  8B 1E 0000 E             	MOV	BX,GRPACX	;RESTORE ORIGINAL SECOND COORDINATE 
  01E1  89 1E 0000 E             	MOV	GXPOS,BX 
  01E5  8B 1E 0000 E             	MOV	BX,GRPACY	;FOR BOXLIN CODE 
  01E9  89 1E 0000 E             	MOV	GYPOS,BX 
@@ -991,25 +883,21 @@ LINE COMMAND
  021D  E8 01D7 R                	CALL	DOLINE 
  0220  5B                       	POP	BX		;RESTORE THE TEXT POINTER 
  0221  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-20
-LINE COMMAND                                                
-
                                 ; 
-                                ; DOGRPH DRAWS A LINE FROM ([B,C],[D,E]) TO (GX
-				POS,GYPOS) 
+                                ; DOGRPH DRAWS A LINE FROM ([B,C],[D,E]) TO (GXPOS,GYPOS) 
                                 ; 
  0222                           DOGRPH: 
- 0222  E8 0000 E                	CALL	SCALXY		;CHEATY SCALING - JUST TRUNCATE F
-				OR NOW 
+ 0222  E8 0000 E                	CALL	SCALXY		;CHEATY SCALING - JUST TRUNCATE FOR NOW 
  0225  E8 015D R                	CALL	XCHGAC 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
+GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-19
+LINE COMMAND                                                
+
  0228  E8 0000 E                	CALL	SCALXY 
- 022B  E8 013E R                DOGRP2:	CALL	YDELT		;GET COUNT DIFFERENCE IN [H
-				,L] 
+ 022B  E8 013E R                DOGRP2:	CALL	YDELT		;GET COUNT DIFFERENCE IN [H,L] 
  022E  73 03                    	JNB	SHORT ??L007 
- 0230  E8 015D R                	CALL	XCHGAC		;IF CURRENT Y IS SMALLER NO EXCHA
-				NGE 
+ 0230  E8 015D R                	CALL	XCHGAC		;IF CURRENT Y IS SMALLER NO EXCHANGE 
  0233                           ??L007: 
  0233  52                       	PUSH	DX		;SAVE Y1 COORDINATE 
  0234  53                       	PUSH	BX		;SAVE DELTA Y 
@@ -1020,8 +908,7 @@ LINE COMMAND
  023F  BB 0000 E                	MOV	BX,OFFSET LEFTC 
  0242  5E                       LINCN2:	POP	SI		;XTHL 
  0243  87 F3                    	XCHG	SI,BX 
- 0245  56                       	PUSH	SI		;PUT ROUTINE ADDRESS ON STACK AND GET
-				 DELTA Y 
+ 0245  56                       	PUSH	SI		;PUT ROUTINE ADDRESS ON STACK AND GET DELTA Y 
  0246  3B DA                    	CMP	BX,DX		;SEE WHICH DELTA IS BIGGER 
  0248  73 14                    	JAE	SHORT YDLTBG	;YDELTA IS BIGGER OR EQUAL 
                                  
@@ -1031,17 +918,14 @@ LINE COMMAND
  0253  BB 0000 E                	MOV	BX,OFFSET DOWNC	;ALWAYS INCREMENT Y 
  0256  89 1E 0001 E             	MOV	MINUPD+1,BX	;WHICH IS THE MINOR AXIS 
  025A  87 DA                    	XCHG	BX,DX		;[H,L]=DELTA X=MAJOR DELTA 
- 025C  EB 16                    	JMP	SHORT LINCN3	;MERGE WITH YDLTBG CASE AND D
-				O DRAW 
+ 025C  EB 16                    	JMP	SHORT LINCN3	;MERGE WITH YDLTBG CASE AND DO DRAW 
                                  
  025E  5E                       YDLTBG:	POP	SI		;XTHL 
  025F  87 F3                    	XCHG	SI,BX 
  0261  56                       	PUSH	SI		;ACTION ROUTINE FOR X INTO [H,L] 
                                 				;SAVE DELTA Y ON THE STACK 
- 0262  89 1E 0001 E             	MOV	MINUPD+1,BX	;SAVE ADDRESS OF MINOR AXIS UP
-				DATE 
- 0266  BB 0000 E                	MOV	BX,OFFSET DOWNC	;Y IS ALWAYS INCREMENT MOD
-				E 
+ 0262  89 1E 0001 E             	MOV	MINUPD+1,BX	;SAVE ADDRESS OF MINOR AXIS UPDATE 
+ 0266  BB 0000 E                	MOV	BX,OFFSET DOWNC	;Y IS ALWAYS INCREMENT MODE 
  0269  89 1E 0001 E             	MOV	MAXUPD+1,BX	;SAVE AS MAJOR AXIS UPDATE 
  026D  87 DA                    	XCHG	BX,DX		;[H,L]=DELTA X 
  026F  89 1E 0000 E             	MOV	MINDEL,BX	;SAVE MINOR DELTA 
@@ -1050,17 +934,10 @@ LINE COMMAND
  0274  5A                       LINCN3:	POP	DX		;GET BACK Y1 
                                  
                                 ; MAJOR AXIS IS ONE WITH THE LARGEST DELTA 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-21
-LINE COMMAND                                                
-
                                 ; MINOR IS THE OTHER 
                                 ; READY TO DRAW NOW 
-                                ; MINUPD+1=ADDRESS TO GO TO UPDATE MINOR AXIS C
-				OORDINATE 
-                                ; MAXUPD+1=ADDRESS TO GO TO UPDATE MAJOR AXIS C
-				OORDINATE 
+                                ; MINUPD+1=ADDRESS TO GO TO UPDATE MINOR AXIS COORDINATE 
+                                ; MAXUPD+1=ADDRESS TO GO TO UPDATE MAJOR AXIS COORDINATE 
                                 ; [H,L]=MAJOR AXIS DELTA=# OF POINTS-1 
                                 ; MINDEL=DELTA ON MINOR AXIS 
                                 ; 
@@ -1071,17 +948,19 @@ LINE COMMAND
                                 ; LINE LOOP (LINLP3): 
                                 ;       DRAW AT CURRENT POSITION 
                                 ;       UPDATE MAJOR AXIS 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
+GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-20
+LINE COMMAND                                                
+
                                 ;       SUM=SUM+MINOR DELTA 
-                                ;       IF SUM.GT.MAJOR DELTA THEN UPDATE MINOR
-				 AND SUM=SUM-MAJOR DELTA 
-                                ;       DECREMENT [B,C] AND TEST FOR 0 -- LOOP 
-				IF NOT 
+                                ;       IF SUM.GT.MAJOR DELTA THEN UPDATE MINOR AND SUM=SUM-MAJOR DELTA 
+                                ;       DECREMENT [B,C] AND TEST FOR 0 -- LOOP IF NOT 
                                 ; END LOOP 
                                  
  0275  53                       	PUSH	BX		;SAVE FOR SETTING UP COUNT 
  0276  89 1E 0000 E             	MOV	MAXDEL,BX	;SAVE MAJOR DELTA FOR SUMMING 
- 027A  E8 0000 E                	CALL	MAPXYC		;GET POSITION INTO BITMSK AND [H,
-				L] 
+ 027A  E8 0000 E                	CALL	MAPXYC		;GET POSITION INTO BITMSK AND [H,L] 
  027D  5A                       	POP	DX 
  027E  52                       	PUSH	DX		;START SUM AT MAXDEL/2 
  027F  E8 0287 R                	CALL	HLFDE 
@@ -1100,31 +979,28 @@ LINE COMMAND
  0293  8A D0                    	MOV	DL,AL 
  0295  C3                       	RET 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-22
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
+GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-21
 LINE COMMAND                                                
 
                                 	PAGE 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-23
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
+GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-22
 LINE COMMAND                                                
 
                                 	PAGE 
                                 	SUBTTL  Graphics Initialization 
                                  
-                                	PUBLIC	GRPINI,GRPRST	;Graphics Initialization 
-				routine 
+                                	PUBLIC	GRPINI,GRPRST	;Graphics Initialization routine 
                                  
-                                	EXTRN	GRPSIZ:NEAR	;Get screen pixel dimension 
-				routine (OEM) 
+                                	EXTRN	GRPSIZ:NEAR	;Get screen pixel dimension routine (OEM) 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	DRWSCL:WORD,DRWANG:WORD 
  0000                           DSEG	ENDS 
                                  
-                                ;GRPRST resets graphics.  It is called at CLEAR
-				C and during INIT 
+                                ;GRPRST resets graphics.  It is called at CLEARC and during INIT 
                                 ;Entry - none 
                                 ;Exit  - all registers preserved 
                                 ; 
@@ -1136,23 +1012,19 @@ LINE COMMAND
  029E  A2 0000 E                	MOV	BYTE PTR DRWANG,AL	;Draw angle init 
  02A1  E8 02AF R                	CALL	GRPINI		;Center the graphics cursor 
  02A4  F9                       	STC 
- 02A5  E8 0000 E                	CALL	GETFBC		;Get foreground/background colors
-				 
+ 02A5  E8 0000 E                	CALL	GETFBC		;Get foreground/background colors 
  02A8  E8 0000 E                	CALL	SETATR		;Set the default DRAW color 
  02AB  5B                       	POP	BX 
  02AC  59                       	POP	CX 
  02AD  58                       	POP	AX 
  02AE  C3                       	RET 
                                  
-                                ;GRPINI - center the graphics cursor.  This rou
-				tine has been documented to 
-                                ;OEMs for versions of GW BASIC which are transl
-				ated to ASM86. 
+                                ;GRPINI - center the graphics cursor.  This routine has been documented to 
+                                ;OEMs for versions of GW BASIC which are translated to ASM86. 
                                 ;Entry - none 
                                 ;Exit  - none 
                                 ; 
- 02AF  E8 0000 E                GRPINI:	CALL	GRPSIZ		;Get screen pixel dimensio
-				ns 
+ 02AF  E8 0000 E                GRPINI:	CALL	GRPSIZ		;Get screen pixel dimensions 
  02B2  51                       	PUSH	CX		;B,C has X dimension 
  02B3  5B                       	POP	BX		;Move X dimension to H 
  02B4  43                       	INC	BX		;Adjust for zero relative 
@@ -1165,16 +1037,11 @@ LINE COMMAND
  02C0  89 1E 0000 E             	MOV	GRPACY,BX	;Store as previous position 
  02C4  C3                       	RET 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
-GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-24
-Graphics Initialization                                     
-
  02C5                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Symbols-1
                                                              
 
@@ -1232,8 +1099,8 @@ BUFLEN . . . . . . . . . . . . .  	Number	00FF
 
 CASSW  . . . . . . . . . . . . .  	Number	0000	
 CHRGT2 . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Symbols-2
                                                              
 
@@ -1291,8 +1158,8 @@ FIVDSK . . . . . . . . . . . . .  	Number	0001
 FIVEO  . . . . . . . . . . . . .  	Number	0001	
 FIVLPT . . . . . . . . . . . . .  	Number	0001	
 FIVMEM . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Symbols-3
                                                              
 
@@ -1350,8 +1217,8 @@ KILLER . . . . . . . . . . . . .  	Number	0000
 LABKEY . . . . . . . . . . . . .  	Number	0001	
 LEFTC  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 LEN2 . . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Symbols-4
                                                              
 
@@ -1409,8 +1276,8 @@ NOEDIT . . . . . . . . . . . . .  	Number	0000
 NOIOS  . . . . . . . . . . . . .  	Number	0000	
 NONULL . . . . . . . . . . . . .  	Number	0000	
 NOPEKS . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Symbols-5
                                                              
 
@@ -1468,8 +1335,8 @@ SGSATS . . . . . . . . . . . . .  	Number	0000
 SHORTJ . . . . . . . . . . . . .  	Number	0001	
 SHTCHN . . . . . . . . . . . . .  	Number	0000	
 SHTERR . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Symbols-6
                                                              
 
@@ -1527,18 +1394,18 @@ $STEP  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ??L005 . . . . . . . . . . . . .  	L NEAR	01A7	CSEG
 ??L006 . . . . . . . . . . . . .  	L NEAR	01B1	CSEG
 ??L007 . . . . . . . . . . . . .  	L NEAR	0233	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:20:56
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+ 
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Symbols-7
                                                              
 
 
 
-    927 Source  Lines
-    954 Total   Lines
+    928 Source  Lines
+    955 Total   Lines
     307 Symbols
 
-  41356 Bytes symbol space free
+  41338 Bytes symbol space free
 
       0 Warning Errors
       0 Severe  Errors

@@ -1,5 +1,5 @@
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
 GWSTS - GW-BASIC Common Statement Support                   Page     1-1
                                                             
 
@@ -15,24 +15,21 @@ GWSTS - GW-BASIC Common Statement Support                   Page     1-1
                              C  ; [ This translation created 10-Feb-83 by Versi
 				on 4.3 ] 
                              C   
-                             C  	SUBTTL  Common file to produce 2-segment 8086 
-				GW-CPM BASIC 
+                             C  	PAGE	,132D 
+                             C  	SUBTTL  Common file to produce 2-segment 8086 GW-CPM BASIC 
                              C   
                              C  	.SALL 
                              C   
  000A                        C  	.RADIX	10 
  = 0000                      C  	OEMRAM=0D 
-                             C  ;Pascal program HFILE searches for the followin
-				g line - DO NOT MODIFY 
-                             C  ;** (VERSION SPECIFIC VALUES) *****************
-				******************************* 
+                             C  ;Pascal program HFILE searches for the following line - DO NOT MODIFY 
+                             C  ;** (VERSION SPECIFIC VALUES) ************************************************ 
  = 0019                      C  	NMLINE=25		;Max screen display text lines 
  = 0001                      C  	NBANKS=1		;Number of graphic planes 
  = 0000                      C  	PALSIZ=0		;Size of OEM color palette 
  = 0000                      C  	DBLCHR=0		;Editor support for KANJI chars 
  = 0000                      C  	KANABS=0		;Kana BASIC (Japanese JIS codes) 
- = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .
-				. 
+ = 0000                      C  	KANJFN=0		;KANJI String Functions KPOS, KLEN .. 
  = 0000                      C  	JISKTN=0		;&K, &J constants (KANJI) 
  = 0001                      C  	SUPRSH=1		;1=super shift key feature 
  = 000A                      C  	NMKEYF=10		;number of function keys 
@@ -46,61 +43,48 @@ GWSTS - GW-BASIC Common Statement Support                   Page     1-1
  = 0002                      C  	NMCOMT=2		;number of COMmunications ports 
  = 0001                      C  	NMPENT=1		;number of light pens 
  = 0004                      C  	NMSTRT=4		;number of joysticks 
- = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR)
-				 
+ = 0000                      C  	GWCASS=0		;Cassette switch (CSAVE,CLOAD,MOTOR) 
  = 0001                      C  	IBMLIK=1		;IBM compatibility package 
  = 0001                      C  	IBMTOK=1		;IBM token compatibility 
  = 0001                      C  	DYNCOM=1		;Dynamic communication buffers 
-                             C  ;** (END OF VERSION SPECIFIC VALUES) **********
-				******************************* 
-                             C  ;Pascal program HFILE searches for the previous
-				 line - DO NOT MODIFY 
+                             C  ;** (END OF VERSION SPECIFIC VALUES) ***************************************** 
+                             C  ;Pascal program HFILE searches for the previous line - DO NOT MODIFY 
                              C  ; 
  = 0015                      C  	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
+ = 0001                      C  	GW=1			;GW BASIC 
+ = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROUT 
+ = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY) 
+                             C  				; Support is in BINTRP.MAC and GWSTS.MAC 
+ = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
+                             C  				;single precision numbers for output. 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
 GWSTS - GW-BASIC Common Statement Support                   Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
- = 0001                      C  	GW=1			;GW BASIC 
- = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROU
-				T 
- = 0000                      C  	GWDBUG=0		;DEBUG statement (TEST VERSIONS ONLY
-				) 
-                             C  				; Support is in BINTRP.MAC and GWSTS.MAC 
- = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed whe
-				n formatting 
-                             C  				;single precision numbers for output. 
                              C  				; 0 := 7 digits 
                              C  				; 1 := 6 digits 
  = 0000                      C  	CASSW=0			;CASSETTE SWITCH 
  = 0001                      C  	LABKEY=1		;^T (LABEL) key capability 
- = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics)
-				 
- = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stac
-				k) 
+ = 0001                      C  	HGHBIT=1		;8-bit characters (ASCII & Graphics) 
+ = 0001                      C  	QUEUE=1			;Queued painting algorithm (vs. stack) 
  = 0001                      C  	GIO86=1			;BASIC-86 Generalized I/O 
  = 0001                      C  	SCRNIO=1		;Screen editor 
  = 0001                      C  	SCRN86=1		;8086 Screen editor 
  = 0001                      C  	I8086=1			;CROSS ASSEMBLING FOR 8086 
  = 0001                      C  	MULSEG=1		;MULTI-SEGMENT 8086 BASIC 
- = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SE
-				T 
+ = 0000                      C  	SMALL=0			;"SMALL" VERSION OF 8086 BASIC IF SET 
  = 0001                      C  	TRUROM=1 
  = 0000                      C  	SBC86=0			;SBC 86/02 BOARD? 
  = 0001                      C  	SHORTJ=1		;USE INTRA-SEGMENT SHORT JUMPS 
                              C  				;IN 8086 CODE 
- = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDE
-				D ONLY) 
+ = 0001                      C  	LNGVAR=1		;LONG VARIABLE NAME SUPPORT (EXTENDED ONLY) 
  = 0000                      C  	SHTERR=0		;SHORT (2 CHAR) ERROR MESSAGES 
  = 0000                      C  	SHTINS=0		;INSTR IN NON-FAST LEN2 VERSIONS 
- = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2
-				 VERSIONS 
+ = 0000                      C  	SHTLHM=0		;LEFT HAND SIDE MID IN NON FAST LEN2 VERSIONS 
  = 0000                      C  	SHTCHN=0		;ALLOW CHAIN IN NON-5.0 
- = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK
-				 
- = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NO
-				N-FAST 
+ = 0000                      C  	SHTPRO=0		;ALLOW PROTECTED FILES IN NON-FIVDSK 
+ = 0000                      C  	SHTLIN=0		;ALLOW LINE INPUT IN NON-EXTENDED NON-FAST 
  = 0000                      C  	SHTREN=0		;ALLOW RENUM IN NON-FST VERSIONS 
  = 0001                      C  	INKEYF=1		;ADDS INKEY$ FUNCTION 
  = 0000                      C  	NOIOS=0			;NO I/O STATMENTS (INP,OUT, WAIT) 
@@ -109,23 +93,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	NOCTLA=0		;NO CONTROL-A IN EXTENDED 
  = 0000                      C  	NORUBT=0		;NO RUBOUT 
  = 0000                      C  	NOROMP=0		;NO ROM PROGRAM FEATURE 
- = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED
-				 
+ = 0000                      C  	NOATDL=0		;NO AUTO DELETE IN NON-FAST EXTENDED 
  = 0000                      C  	NODOT=0			;NO DOT IN LEN2 
  = 0000                      C  	NOEDIT=0		;NO EDIT COMMAND 
- = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMIN
-				AL 
+ = 0000                      C  	CRONLY=0		;ONLY PUT OUT CR, NOT CRLF TO TERMINAL 
                              C  				;AND FILES 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-3
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
- = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN C
-				RDO & OUTCH1 
+ = 0000                      C  	NONULL=0		;NO NULL COMMAND, PUT OUT NULLS IN CRDO & OUTCH1 
  = 0000                      C  	NOVARP=0		;NO VARPTR FUNCTION 
- = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 F
-				EATURES 
+ = 0001                      C  	FIVEO=1			;GENERATE VERSION WITH RELEASE 5.0 FEATURES 
  = 0001                      C  	FIVMEM=1 
  = 0001                      C  	ANSI=1 
  = 0001                      C  	FIVDSK=1		;5.0 NEW DSK CODE 
@@ -136,24 +111,25 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0001                      C  	MEMIMG=1		;MEMORY IMAGE FILES 
  = 0001                      C  	GENBIN=1 
                              C   
- = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON 
-				ERROR) 
+ = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON ERROR) 
  = 0000                      C  	COMMNT=0		;DONT WANT BIG COMMENT 
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-3
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	RMX=0			;INTEL RMX VERSION 
  = 0000                      C  	EDIT80=0		;FOR EDIT80 I/O ROUTINES 
  = 0000                      C  	RSHACK=0 
  = 0000                      C  	INTLEC=0 
  = 0002                      C  	LENGTH=2		;  1 MEANS 8K, 2 MEANS 12K 
- = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BAS
-				IC 
- = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATION
-				S 
+ = 0000                      C  	BASDEB=0		;WHETHER DBG WILL BE LOADED WITH BASIC 
+ = 0001                      C  	RSTLES=1		;WHETHER BASIC WILL USE RST LOCATIONS 
                              C  				;TO MAKE ITSELF SMALLER & QUICKER 
- = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE
-				 (=1) 
+ = 0001                      C  	REALIO=1		;WHETHER SIMULATE (=0) OR ON MACHINE (=1) 
  = 0001                      C  	GENIO=1			;USE G/P ROUTINES 
  = 0001                      C  	CHSEAT=1		;CHSNS eats chars 
  = 0000                      C  	GENDSK=0		;USE G/P DSK CODE 
@@ -165,21 +141,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	SBC=0			;FOR INTEL SINGLE BOARD COMPUTER 
                              C  				;1=SBC 80/10, 2=SBC 80/20 
  = 0001                      C  	PURE=1			;ON FOR PURE CODE 
- = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RA
-				M 
+ = 0000                      C  	KILLER=0		;FOR ROM VERSION THAT WONT RUN IN RAM 
  = 0000                      C  	INTROM=0 
  = 0001                      C  	LPTSW=1 
  = 0001                      C  	NCRLPT=1 
  = 0000                      C  	NCRCAS=0 
  = 0000                      C  	ISC=0			;FOR ISC VERSION 
- = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,C
-				ENT) 
+ = 0000                      C  	LPT3=0			;THREE LPT DRIVER VERSION(QUME,OKIA,CENT) 
  = 0000                      C  	TSLPT=0 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-4
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C   
  = 0000                      C  	DOS=0			;ON TO GEN ROUTINES FOR DOS 
  = 0001                      C  	DISK=1			;FILE I/O FEATURES 
@@ -187,13 +156,10 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	TSDISK=0		;NO TIME-SHARING DISK FOR US 
  = 0000                      C  	SPCDSK=0		;MAY HAVE MM'S DISK CODE 
  = 0000                      C  	SPCNDS=0 
- = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIEND
-				S 
+ = 0001                      C  	FAST=1			;CONSTANT COMPRESSION, RENUM & FRIENDS 
  = 0000                      C  	KEYSTA=0 
- = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISI
-				S II DOS 
- = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISI
-				S-II 
+ = 0000                      C  	ISIS=0			;FOR VERSION TO RUN UNDER INTEL'S ISIS II DOS 
+ = 0000                      C  	MDSISS=0		;FOR MDS VERSION THAT RUNS UNDER ISIS-II 
  = 0001                      C  	CPM=1			;FOR CPM compatible operating systems 
  = 0001                      C  	CPM2=1			;VERSION 2. CPM 
  = 0000                      C  	CPM86=0			;FOR CP/M-86 operating system 
@@ -201,16 +167,19 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMCON=0 
  = 0000                      C  	CPMSER=0		;CHECK CPM SERIAL #'S 
  = 0000                      C  	CPMADD=0		;FOR VERSION TO RUN ON ADDS CPM 
- = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 7
-				5 
+ = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 75 
                              C  				;CP/M 
  = 0000                      C  	CPMRSH=0		;FOR RADIO SHACK CPM/M 
  = 0000                      C  	CPM110=0		;FOR CP/M @1100 HEX (INTERALIA) 
- = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4
-				100H 
+ = 0000                      C  	CPMSBC=0		;FOR VERSION TO RUN ON SBC CP/M AT 4100H 
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-4
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
  = 0000                      C  	CPMCON=0 
  = 0000                      C  	Z80=0 
  = 0001                      C  	DISK=1 
@@ -227,23 +196,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0002                      C  	LENGTH=2 
  = 0001                      C  	RSTLES=1 
  = 0001                      C  	FIVLPT=1 
- = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT V
-				ERSION 
+ = 0000                      C  	I8251=0			;THIS SWITCH IS USED FOR ROSEMOUNT VERSION 
  = 0001                      C  	CONTRO=1		;ALLOW ^O 
  = 0001                      C  	LEN3=LEN2 OR CASSW 
                              C   
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-5
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
  = 0001                      C  	STRING=1 
  = 0001                      C  	NCRLPT=1 
                              C   
-                             C  ; *** OEM Switches which need to be defaulted t
-				o 0 
+                             C  ; *** OEM Switches which need to be defaulted to 0 
                              C  ; 
  = 0000                      C  	CMPUTN=0 
  = 0000                      C  	DUPONT=0 
@@ -268,15 +230,17 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	PANBAS=0 
  = 0000                      C  	XTNSYS=0 
  = 0000                      C  	NECBAS=0 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Z80 related macros 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-5
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  				;8080'S AND ZILOG Z-80'S 
- = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INST
-				RUCTIONS 
+ = 0001                      C  	Z80MAC=1		;USE 8080 MACROS INSTEAD OF Z80 INSTRUCTIONS 
  = 0000                      C  	Z80=0 
  = 0001                      C  	Z80=1 
                              C  LDIR	MACRO 
@@ -293,11 +257,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	MOV	WORD PTR A,WORD PTR M 
                              C  	STAX	D 
                              C  	DCXF	H 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-6
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  	DCXF	D 
                              C  	DCXF	B 
                              C  	MOV	WORD PTR A,WORD PTR B 
@@ -308,11 +267,9 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	DCR	B 
                              C  	JNZ	DEST 
                              C  ENDM 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  ; Define reset routines. 
-                             C  ;**********************************************
-				********************* 
+                             C  ;******************************************************************* 
                              C  FSIGN	MACRO 
                              C  	CALL	SIGN 
                              C  ENDM 
@@ -336,6 +293,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-6
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  GETYPE	MACRO 
                              C  	CALL	GETYPR 
                              C  ENDM 
@@ -352,11 +314,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  	PUSH	WORD PTR B 
                              C  ENDM 
                              C  POPR	MACRO 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-7
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C  	POP	WORD PTR B 
                              C  	POP	WORD PTR D 
                              C  ENDM 
@@ -373,15 +330,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDM 
                              C   
                              C   
- = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALL
-				Y CONTROL-O) 
- = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTAL
-				S 
+ = 000F                      C  	CONTO=15		;CHARACTER TO SUPRESS OUTPUT (USUALLY CONTROL-O) 
+ = 0000                      C  	DBLTRN=0		;FOR DOUBLE PRECISION TRANSCENDENTALS 
                              C   
- = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARA
-				CTERS 
- = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SEC
-				TOR 
+ = 000E                      C  	CLMWID=14D		;MAKE COMMA COLUMNS FOURTEEN CHARACTERS 
+ = 0080                      C  	DATPSC=128D		;NUMBER OF DATA BYTES IN DISK SECTOR 
  = 0050                      C  	LINLN=80D		;TERMINAL LINE LENGTH 
  = 0084                      C  	LPTLEN=132D 
  = 00FF                      C  	BUFLEN=255		;LONG LINES 
@@ -399,6 +352,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-7
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                              C  ACRLF   MACRO 
                              C          DB      13D 
                              C          DB      10D 
@@ -411,11 +369,6 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDIF 
                              C  IFNB    <D> 
                              C          DB      C&O 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-8
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                              C          DB      D&O 
                              C  ENDIF 
                              C  IFB     <D> 
@@ -447,17 +400,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-9
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
                                  
                                  
-                                	TITLE   GWSTS - GW-BASIC Common Statement Supp
-				ort 
+                                	TITLE   GWSTS - GW-BASIC Common Statement Support 
                                  
                                 COMMENT	* 
                                  
@@ -469,17 +421,13 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                  
                                 ;General Feature Switches (Not OEM Switches) 
                                 ; 
- = 0000                         KANADT=0			;Japanese date format("[yy]yy/mm/dd"
-				) 
- = 0001                         STKEYF=1D			;Start number of string function ke
-				ys 
+ = 0000                         KANADT=0			;Japanese date format("[yy]yy/mm/dd") 
+ = 0001                         STKEYF=1D			;Start number of string function keys 
  = 0001                         IBMCSR=IBMLIK			;IBM comp. cursor interface 
- = 003C                         FKEYCR=74O			;CR character for F-KEY display li
-				ne 
+ = 003C                         FKEYCR=74O			;CR character for F-KEY display line 
  = 0000                         GWLEV2=0			;Version 2.0 of GW BASIC-86 
                                  
-                                ;OEM Switches (ONLY INCLUDE IF ABSOLUTELY NECES
-				SARY) 
+                                ;OEM Switches (ONLY INCLUDE IF ABSOLUTELY NECESSARY) 
                                 ; 
  = 0000                         MCI=0 
  = 0000                         TETRA=0 
@@ -488,32 +436,22 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                  
                                 ;Definition of scroll types 
                                 ; Choice of scroll type is by switch SCROLT. 
-                                ; Switches defined here are used to implement a
-				 specific SCROLT type. 
-                                ; If other scroll types are needed then additio
-				nal SCROLT types should be 
+                                ; Switches defined here are used to implement a specific SCROLT type. 
+                                ; If other scroll types are needed then additional SCROLT types should be 
                                 ;   defined here. 
  = 0001                         	INVLIN=SCROLT		;Invisible (function key) Line 
- = 0000                         	FKFSRL=(SCROLT-1) AND 1	;Clear fkeys/full scro
-				ll/rewrite fkeys 
+ = 0000                         	FKFSRL=(SCROLT-1) AND 1	;Clear fkeys/full scroll/rewrite fkeys 
                                  
                                 ;Local Switches 
                                 ; 
  = 0000                         	KEYFSW=0		;No KEY Function 
  = 0001                         	INTHND=SCP		;MSDOS Ctl-C interrupt handler 
- = FFFF                         	CLRFMT=(MELCO-1) AND (ZENITH-1)	;New COLOR par
-				ameter format 
+ = FFFF                         	CLRFMT=(MELCO-1) AND (ZENITH-1)	;New COLOR parameter format 
  = 001B                         	FKEYCR=27D		;IBM CR FKey display line graphic 
                                 	.SALL 
  000A                           	.RADIX	10 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-10
-Common file to produce 2-segment 8086 GW-CPM BASIC          
-
                                  
-                                	EXTRN	CHRGTR:NEAR,SYNCHR:NEAR,SNERR:NEAR,FCERR
-				:NEAR,GETBYT:NEAR 
+                                	EXTRN	CHRGTR:NEAR,SYNCHR:NEAR,SNERR:NEAR,FCERR:NEAR,GETBYT:NEAR 
                                 	EXTRN	USERR:NEAR 
                                  
                                  
@@ -521,6 +459,11 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                  
                                 DOSIO	MACRO	DFUN 
                                 	MOV	AH,LOW OFFSET DFUN 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-9
+Common file to produce 2-segment 8086 GW-CPM BASIC          
+
                                 	INT	33		;MS-DOS system call 
                                 ENDM 
  = 002A                         	GDAT=42D		;MS-DOS Get Date Function 
@@ -532,21 +475,19 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
             ??                  
                          ]      
                                 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-11
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-10
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                                 	PAGE 
                                 	SUBTTL CLS,LOCATE,WIDTH (of screen),LCOPY 
                                  
-                                	PUBLIC	CLS,LOCATE,GWWID,LCOPYS,COLOR,GETLIN,SC
-				RENF,SCREEN 
+                                	PUBLIC	CLS,LOCATE,GWWID,LCOPYS,COLOR,GETLIN,SCRENF,SCREEN 
                                  
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	ASSUME DS:DSEG 
-                                	EXTRN	LINCNT:WORD,LINLEN:WORD,CSRY:WORD,CSRX:W
-				ORD,BUF:WORD 
+                                	EXTRN	LINCNT:WORD,LINLEN:WORD,CSRY:WORD,CSRX:WORD,BUF:WORD 
  0000                           DSEG	ENDS 
                                  
                                 	EXTRN	GETFBC:NEAR 
@@ -561,18 +502,15 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0008                         	BKSPC=8D 
  = 000D                         	CR=13D 
  = 000A                         	LF=10D 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-12
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-11
 CLS,LOCATE,WIDTH (of screen),LCOPY                          
 
                                 	PAGE 
-                                ;CLS: CLear Screen issues an escape sequence to
-				 clear 
-                                ;     the CRT.  Sequences are ANSII standard wh
-				ereas the machine 
-                                ;     default is not.  CLS resets the graphics 
-				cursor position. 
+                                ;CLS: CLear Screen issues an escape sequence to clear 
+                                ;     the CRT.  Sequences are ANSII standard whereas the machine 
+                                ;     default is not.  CLS resets the graphics cursor position. 
                                 ;ENTRY - none 
                                 ;EXIT  - none 
                                 ;USES  - none 
@@ -589,15 +527,14 @@ CLS,LOCATE,WIDTH (of screen),LCOPY
  0200  E8 0000 E                	CALL	CLRSCN 
  0203  5B                       	POP	BX 
  0204  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-13
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-12
 CLS,LOCATE,WIDTH (of screen),LCOPY                          
 
                                 	PAGE 
                                 ;LOCATE: Parse the following syntax: 
-                                ;       LOCATE [Y] [, [X] [, [CURSOR] [, [START
-				] [, [STOP] ]]] 
+                                ;       LOCATE [Y] [, [X] [, [CURSOR] [, [START] [, [STOP] ]]] 
                                 ; 
                                 	EXTRN	SCNPOS:NEAR 
  0205  E8 03AE R                LOCATE:	CALL	SCNINT		;Get optional Y parameter 
@@ -606,21 +543,17 @@ CLS,LOCATE,WIDTH (of screen),LCOPY
  020D  8A D0                    YLCPRM:	MOV	DL,AL 
  020F  0A C0                    	OR	AL,AL		;Test for LOCATE 0 
  0211  74 62                    	JZ	GOFCER 
- 0213  2A 16 0000 E             	SUB	DL,BYTE PTR KEYSW	;Increment if PF-keys ar
-				e displayed 
- 0217  3A 16 0000 E             	CMP	DL,BYTE PTR LINCNT	;Check for parameter ra
-				nge 
+ 0213  2A 16 0000 E             	SUB	DL,BYTE PTR KEYSW	;Increment if PF-keys are displayed 
+ 0217  3A 16 0000 E             	CMP	DL,BYTE PTR LINCNT	;Check for parameter range 
  021B  77 58                    	JA	GOFCER 
  021D  50                       	PUSH	AX		;Save new Y location 
  021E  E8 03AE R                	CALL	SCNINT		;Get optional X parameter 
  0221  73 05                    	JNB	XLCPRM		;Parameter present 
  0223  E8 0000 E                	CALL	SCNPOS		;Get the current screen position 
- 0226  8A C6                    	MOV	AL,DH		;Default to current cursor position
-				 
+ 0226  8A C6                    	MOV	AL,DH		;Default to current cursor position 
  0228  8A D0                    XLCPRM:	MOV	DL,AL 
  022A  FE CA                    	DEC	DL		;Dissallow LOCATE ,0 
- 022C  3A 16 0000 E             	CMP	DL,BYTE PTR LINLEN	;Check for parameter ra
-				nge 
+ 022C  3A 16 0000 E             	CMP	DL,BYTE PTR LINLEN	;Check for parameter range 
  0230  73 43                    	JAE	GOFCER 
  0232  50                       	PUSH	AX		;Save new X 
  0233  E8 03AE R                	CALL	SCNINT		;Cursor on/off - 0=off else on 
@@ -628,14 +561,12 @@ CLS,LOCATE,WIDTH (of screen),LCOPY
  0236  B4 FF                    	MOV	AH,LOW 377O	;Ensure non-zero 
  0238  73 02                    	JNB	LOCPR1		;Parameter 1 found 
  023A  32 E4                    	XOR	AH,AH		;Flag as a default 
- 023C  50                       LOCPR1:	PUSH	AX		;Push first parameter and flag
-				 
+ 023C  50                       LOCPR1:	PUSH	AX		;Push first parameter and flag 
  023D  E8 03AE R                	CALL	SCNINT		;Get next parameter 
  0240  B4 FF                    	MOV	AH,LOW 377O	;Ensure non-zero flag 
  0242  73 02                    	JNB	LOCPR2		;Parameter 2 found 
  0244  32 E4                    	XOR	AH,AH		;Flag as a default 
- 0246  50                       LOCPR2:	PUSH	AX		;Push second parameter and fla
-				g 
+ 0246  50                       LOCPR2:	PUSH	AX		;Push second parameter and flag 
  0247  E8 03AE R                	CALL	SCNINT		;Get next parameter 
  024A  B4 FF                    	MOV	AH,LOW 377O	;Ensure non-zero flag 
  024C  73 02                    	JNB	LOCPR3		;Parameter 3 found 
@@ -647,13 +578,7 @@ CLS,LOCATE,WIDTH (of screen),LCOPY
  0257  5B                       	POP	BX 
  0258  58                       	POP	AX		;Recover three parameters 
  0259  52                       	PUSH	DX		;Save text pointer 
- 025A  E8 0000 E                	CALL	CSRATR		;Set Cursor Attribute (OEM routin
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-14
-CLS,LOCATE,WIDTH (of screen),LCOPY                          
-
-				e) 
+ 025A  E8 0000 E                	CALL	CSRATR		;Set Cursor Attribute (OEM routine) 
  025D  72 4F                    	JB	GFCERR		;Declare error from CSRATR 
  025F  5B                       	POP	BX		;Text pointer 
  0260  8B C3                    SETLOC:	MOV	AX,BX 
@@ -661,10 +586,14 @@ CLS,LOCATE,WIDTH (of screen),LCOPY
  0263  5B                       	POP	BX 
  0264  50                       	PUSH	AX 
  0265  8A F9                    	MOV	BH,CL 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-13
+CLS,LOCATE,WIDTH (of screen),LCOPY                          
+
                                 	EXTRN	SCNLOC:NEAR 
  0267  8B C3                    	MOV	AX,BX 
- 0269  E8 0000 E                	CALL	SCNLOC		;position cursor at line [AL], co
-				l [AH] 
+ 0269  E8 0000 E                	CALL	SCNLOC		;position cursor at line [AL], col [AH] 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	CSRTYP:WORD 
  0000                           DSEG	ENDS 
@@ -677,38 +606,33 @@ CLS,LOCATE,WIDTH (of screen),LCOPY
                                  
                                  
  0275  E9 0000 E                GOFCER:	JMP	FCERR 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-15
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-14
 CLS,LOCATE,WIDTH (of screen),LCOPY                          
 
                                 	PAGE 
                                 ;GWWID: Parsing for WIDTH [X] [, [Y]] 
-                                ;ENTRY - WIDTH LPRINT is not a possibility at t
-				his point. 
+                                ;ENTRY - WIDTH LPRINT is not a possibility at this point. 
                                 ;EXIT  - AL = X param 
                                 ;        BX = text pointer 
                                 ; 
  0278  E8 03AE R                GWWID:	CALL	SCNINT		;Get X dimension 
  027B  73 03                    	JNB	XPRAM		;X param found 
- 027D  A0 0000 E                	MOV	AL,BYTE PTR LINLEN	;Use current as default
-				 
+ 027D  A0 0000 E                	MOV	AL,BYTE PTR LINLEN	;Use current as default 
  0280  50                       XPRAM:	PUSH	AX		;Save for RET to WIDTH 
  0281  50                       	PUSH	AX		;Save for GWWID use 
  0282  E8 03AE R                	CALL	SCNINT		;Get Y dimension 
  0285  73 03                    	JNB	YPRAM		;Y param found 
- 0287  A0 0000 E                	MOV	AL,BYTE PTR LINCNT	;Use current as default
-				 
+ 0287  A0 0000 E                	MOV	AL,BYTE PTR LINCNT	;Use current as default 
  028A  50                       YPRAM:	PUSH	AX 
  028B  E8 03DD R                	CALL	EOSCHK		;Must be at end of statement 
  028E  58                       	POP	AX 
- 028F  3A 06 0000 E             	CMP	AL,BYTE PTR LINCNT	;Set CC's for Y dimensi
-				on change 
+ 028F  3A 06 0000 E             	CMP	AL,BYTE PTR LINCNT	;Set CC's for Y dimension change 
  0293  9F                       	LAHF 
  0294  8B C8                    	MOV	CX,AX 
  0296  58                       	POP	AX 
- 0297  3A 06 0000 E             	CMP	AL,BYTE PTR LINLEN	;Set CC's for X dimensi
-				on change 
+ 0297  3A 06 0000 E             	CMP	AL,BYTE PTR LINLEN	;Set CC's for X dimension change 
  029B  9F                       	LAHF 
  029C  22 E5                    	AND	AH,CH		;Set CC's for X OR Y change 
  029E  9E                       	SAHF 
@@ -726,9 +650,9 @@ CLS,LOCATE,WIDTH (of screen),LCOPY
                                  
  02AE  E9 0000 E                GFCERR:	JMP	FCERR 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-16
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-15
 CLS,LOCATE,WIDTH (of screen),LCOPY                          
 
                                 	PAGE 
@@ -738,46 +662,39 @@ CLS,LOCATE,WIDTH (of screen),LCOPY
  02B1  B2 00                    LCOPYS:	MOV	DL,LOW 0	;default parm is 0 
  02B3  74 03                    	JZ	NOPARM		;branch if end-of-statement 
  02B5  E8 0000 E                	CALL	GETBYT		;[DL]=parm 
- 02B8  E8 03DD R                NOPARM:	CALL	EOSCHK		;Check for unwanted parame
-				ters 
+ 02B8  E8 03DD R                NOPARM:	CALL	EOSCHK		;Check for unwanted parameters 
  02BB  53                       	PUSH	BX		;Save text pointer 
  02BC  E8 0000 E                	CALL	LCPY 
- 02BF  72 ED                    	JB	GFCERR		;Error detected in low level routin
-				e 
+ 02BF  72 ED                    	JB	GFCERR		;Error detected in low level routine 
  02C1  5B                       	POP	BX 
  02C2  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-17
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-16
 CLS,LOCATE,WIDTH (of screen),LCOPY                          
 
                                 	PAGE 
-                                	SUBTTL  COLOR,GETLIN,SCREEN (function and stat
-				ement) 
-                                ;COLOR: Set the foreground, background, and boa
-				rder attributes. 
+                                	SUBTTL  COLOR,GETLIN,SCREEN (function and statement) 
+                                ;COLOR: Set the foreground, background, and boarder attributes. 
                                 ;       SYNTAX - COLOR [FOR] [,BACK [,BOARD]] 
                                 ;       Where - FOR   = Foreground attribute 
                                 ;               BACK  = Background attribute 
                                 ;               BOARD = Boarder attribute 
                                 ; 
- 02C3  E8 0366 R                COLOR:	CALL	GTPRMS		;Get arbitrary number of in
-				t. parms. 
+ 02C3  E8 0366 R                COLOR:	CALL	GTPRMS		;Get arbitrary number of int. parms. 
  02C6  53                       COLOR1:	PUSH	BX		;Save text pointer 
  02C7  8B DF                    	MOV	BX,DI		;Get parameter buffer pointer 
  02C9  E8 0000 E                	CALL	SETCLR		;Check colors for validity 
- 02CC  72 E0                    	JB	GFCERR		;Error detected by low level routin
-				e 
+ 02CC  72 E0                    	JB	GFCERR		;Error detected by low level routine 
  02CE  5B                       	POP	BX 
  02CF  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-18
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-17
 COLOR,GETLIN,SCREEN (function and statement)                
 
                                 	PAGE 
-                                ;GETLIN: Obtain the current cursor line number.
-				 
+                                ;GETLIN: Obtain the current cursor line number. 
                                 ;EXIT - FAC = cursor line number 
                                 ;       BX preserved 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
@@ -792,38 +709,31 @@ COLOR,GETLIN,SCREEN (function and statement)
  02DC  E8 0000 E                	CALL	CHRGTR 
  02DF  C3                       	RET 
                                  
-                                ;GTLINE: Get the line number of the character p
-				osition to which the next 
+                                ;GTLINE: Get the line number of the character position to which the next 
                                 ;character would be written. 
                                 ;Entry - none 
                                 ;Exit  - [AL] = line number 
                                 ;Uses  - AH 
                                 ; 
- 02E0  A0 0000 E                GTLINE:	MOV	AL,BYTE PTR CSRY	;BX = cursor line 
-				number 
+ 02E0  A0 0000 E                GTLINE:	MOV	AL,BYTE PTR CSRY	;BX = cursor line number 
  02E3  8A 26 0000 E             	MOV	AH,BYTE PTR CSRX 
  02E7  3A 26 0000 E             	CMP	AH,BYTE PTR LINLEN 
- 02EB  76 0C                    	JBE	GETLN0		;BRIF will not wrap before next ch
-				ar is output 
- 02ED  8A 26 0000 E             	MOV	AH,BYTE PTR LINCNT	;AL=last valid line num
-				ber 
- 02F1  FE CC                    	DEC	AH		;Scroll always occurs on line [LINCNT]
-				-1 
+ 02EB  76 0C                    	JBE	GETLN0		;BRIF will not wrap before next char is output 
+ 02ED  8A 26 0000 E             	MOV	AH,BYTE PTR LINCNT	;AL=last valid line number 
+ 02F1  FE CC                    	DEC	AH		;Scroll always occurs on line [LINCNT]-1 
  02F3  3A C4                    	CMP	AL,AH 
  02F5  73 02                    	JAE	GETLN0		;BRIF wrap will cause scroll 
- 02F7  FE C0                    	INC	AL		;Else wrap will cause line number incr
-				ement 
+ 02F7  FE C0                    	INC	AL		;Else wrap will cause line number increment 
  02F9  C3                       GETLN0:	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-19
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-18
 COLOR,GETLIN,SCREEN (function and statement)                
 
                                 	PAGE 
                                 ;SCRENF: Obtain character from screen. 
  02FA                           SCRENF: 
- 02FA  E8 0000 E                	CALL	CHRGTR		;Eat the SCREEN token since SCREE
-				N is 
+ 02FA  E8 0000 E                	CALL	CHRGTR		;Eat the SCREEN token since SCREEN is 
                                 				;defined as a statement and the function 
                                 				;is dispatched to by EVAL. 
  02FD  E8 0000 E                	CALL	SYNCHR 
@@ -831,16 +741,14 @@ COLOR,GETLIN,SCREEN (function and statement)
  0301  E8 03AE R                	CALL	SCNINT		;Get Y parameter 
  0304  72 38                    	JB	FCERGO		;Parameter not present 
  0306  FE C8                    	DEC	AL 
- 0308  3A 06 0000 E             	CMP	AL,BYTE PTR LINCNT	;Check range [1,LINCNT]
-				 
+ 0308  3A 06 0000 E             	CMP	AL,BYTE PTR LINCNT	;Check range [1,LINCNT] 
  030C  73 30                    	JAE	FCERGO		;Out of range 
  030E  FE C0                    	INC	AL 
  0310  50                       	PUSH	AX		;Y param. 
  0311  E8 03AE R                	CALL	SCNINT		;Check for X param 
  0314  72 28                    	JB	FCERGO		;Error - no X param 
  0316  FE C8                    	DEC	AL 
- 0318  3A 06 0000 E             	CMP	AL,BYTE PTR LINLEN	;Check range [1,LINLEN]
-				 
+ 0318  3A 06 0000 E             	CMP	AL,BYTE PTR LINLEN	;Check range [1,LINLEN] 
  031C  73 20                    	JAE	FCERGO		;Out of range 
  031E  FE C0                    	INC	AL 
  0320  50                       	PUSH	AX		;X param. 
@@ -848,8 +756,7 @@ COLOR,GETLIN,SCREEN (function and statement)
  0324  74 1B                    	JE	SCRCHR		;End of params - go get char. 
  0326  E8 03AE R                	CALL	SCNINT 
  0329  72 13                    	JB	FCERGO		;Error - no CPAREN and no Z param. 
- 032B  80 FC 29                 	CMP	AH,LOW OFFSET CPAREN	;Must now have CPAREN
-				 
+ 032B  80 FC 29                 	CMP	AH,LOW OFFSET CPAREN	;Must now have CPAREN 
  032E  75 0E                    	JNE	FCERGO 
  0330  3C 00                    	CMP	AL,LOW 00O	;Is Z zero? 
  0332  74 0D                    	JE	SCRCHR		;Yes - go get screen character 
@@ -873,55 +780,43 @@ COLOR,GETLIN,SCREEN (function and statement)
  034A  E8 0000 E                	CALL	SCRINP		;[AX]=Read char at (DH,DL) 
  034D  8B D8                    	MOV	BX,AX		;return result in BX 
  034F  5A                       	POP	DX 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-20
-COLOR,GETLIN,SCREEN (function and statement)                
-
  0350  E8 0000 E                SCRENX:	CALL	MAKINT		;Set FAC 
  0353  5B                       	POP	BX		;Retrieve text pointer 
  0354  4B                       	DEC	BX 
  0355  E8 0000 E                	CALL	CHRGTR 
- 0358  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-19
+COLOR,GETLIN,SCREEN (function and statement)                
 
-GWSTS - GW-BASIC Common Statement Support                   Page     1-21
+ 0358  C3                       	RET 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-20
 COLOR,GETLIN,SCREEN (function and statement)                
 
                                 	PAGE 
-                                ;SCREEN: This statement has no standard syntax.
-				  It is handled 
-                                ;        by parsing single byte integers until 
-				end of statement. 
-                                ;        Parameters may be null (appearance of 
-				a comma before an 
+                                ;SCREEN: This statement has no standard syntax.  It is handled 
+                                ;        by parsing single byte integers until end of statement. 
+                                ;        Parameters may be null (appearance of a comma before an 
                                 ;        expression is encountered). 
-                                ;       SCRSTT (machine dependent) is called to
-				 process parameters 
-                                ;       which are in a list which is headed by 
-				a one word parameter 
-                                ;        count.  The remaining list entries are
-				 two bytes long. 
-                                ;        The first byte is 0 if the SCREEN para
-				meter was null. 
-                                ;        The second byte is the parameter value
-				 if it is nonnull 
-                                ;        or meaningless (if the parameter was n
-				ull). 
+                                ;       SCRSTT (machine dependent) is called to process parameters 
+                                ;       which are in a list which is headed by a one word parameter 
+                                ;        count.  The remaining list entries are two bytes long. 
+                                ;        The first byte is 0 if the SCREEN parameter was null. 
+                                ;        The second byte is the parameter value if it is nonnull 
+                                ;        or meaningless (if the parameter was null). 
                                  
- 0359  E8 0366 R                SCREEN:	CALL	GTPRMS		;Get single byte integer p
-				arms 
+ 0359  E8 0366 R                SCREEN:	CALL	GTPRMS		;Get single byte integer parms 
  035C  53                       	PUSH	BX 
  035D  8B DF                    	MOV	BX,DI 
  035F  E8 0000 E                	CALL	SCRSTT		;Process params 
- 0362  72 DA                    	JB	FCERGO		;Error detected in low level routin
-				e 
+ 0362  72 DA                    	JB	FCERGO		;Error detected in low level routine 
  0364  5B                       	POP	BX		;Restore text pointer 
  0365  C3                       	RET 
                                  
                                  
- 0366  BF 0000 E                GTPRMS:	MOV	DI,OFFSET BUF	;Parameters stored in
-				 BUF 
+ 0366  BF 0000 E                GTPRMS:	MOV	DI,OFFSET BUF	;Parameters stored in BUF 
  0369  33 C9                    	XOR	CX,CX		;Initialize parameter count 
  036B  47                       	INC	DI		;Reserve parameter count location 
  036C  41                       SCRLOP:	INC	CX		;Count the param 
@@ -941,50 +836,35 @@ COLOR,GETLIN,SCREEN (function and statement)
                                  
                                  
  0382  72 07                    STTEND:	JB	NOPRM 
- 0384  C6 05 FF                 	MOV	BYTE PTR 0[DI],LOW 255D	;Set param. exists
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-22
-COLOR,GETLIN,SCREEN (function and statement)                
-
-				 flag 
+ 0384  C6 05 FF                 	MOV	BYTE PTR 0[DI],LOW 255D	;Set param. exists flag 
  0387  88 45 01                 	MOV	BYTE PTR 1[DI],AL 
  038A  41                       	INC	CX 
  038B  49                       NOPRM:	DEC	CX 
  038C  BF 0000 E                	MOV	DI,OFFSET BUF	;Reset list index 
- 038F  88 0D                    	MOV	BYTE PTR 0[DI],CL	;Head list with param co
-				unt 
+ 038F  88 0D                    	MOV	BYTE PTR 0[DI],CL	;Head list with param count 
  0391  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-23
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-21
 COLOR,GETLIN,SCREEN (function and statement)                
 
                                 	PAGE 
-                                	SUBTTL  PUT & GET (Distinguish Disk from Graph
-				ics) 
+                                	SUBTTL  PUT & GET (Distinguish Disk from Graphics) 
                                  
                                 	PUBLIC	PUT,GET 
                                  
                                 	EXTRN	DPUTG:NEAR,GPUTG:NEAR 
                                  
-                                ;PUT: This code parses enough of the PUT/GET st
-				atement to 
-                                ;GET: distinguish between the graphics and disk
-				 versions of 
+                                ;PUT: This code parses enough of the PUT/GET statement to 
+                                ;GET: distinguish between the graphics and disk versions of 
                                 ;     these commands. 
-                                ;       The accepted technique is to search for
-				 a "(".  This 
-                                ;       does not always allow for file number e
-				xpressions which begin 
+                                ;       The accepted technique is to search for a "(".  This 
+                                ;       does not always allow for file number expressions which begin 
                                 ;       with  "(". 
-                                ;ENTRY: [BX] points to the character following 
-				the token. 
-                                ;EXIT  - Exit is made by jumping to the appropr
-				iate PUT/GET 
+                                ;ENTRY: [BX] points to the character following the token. 
+                                ;EXIT  - Exit is made by jumping to the appropriate PUT/GET 
                                 ;        code. 
-                                ;        [BX] - restored to entry value before 
-				call of PUT/GET code. 
+                                ;        [BX] - restored to entry value before call of PUT/GET code. 
                                  
  0392  B9 0001                  PUT:	MOV	CX,1		;Set PUT flag 
  0395  EB 03 90                 	JMP	PARSE 
@@ -1003,19 +883,17 @@ COLOR,GETLIN,SCREEN (function and statement)
  03AA  58                       	POP	AX		;Get PUT/GET flag 
  03AB  E9 0000 E                	JMP	DPUTG 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-24
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-22
 PUT & GET (Distinguish Disk from Graphics)                  
 
                                 	PAGE 
                                 	SUBTTL  Parsing Routines for GWSTS 
                                 	PUBLIC	SCNINT,EOSCHK 
                                  
-                                ;SCNINT: Test for an optional integer parameter
-				. 
-                                ;       If a comma or EOL is discovered assume 
-				parameter is missing. 
+                                ;SCNINT: Test for an optional integer parameter. 
+                                ;       If a comma or EOL is discovered assume parameter is missing. 
                                 ;       Otherwise evaluate the parameter. 
                                 ;EXIT - [AL] = parameter value 
                                 ;       C set - no parameter found 
@@ -1028,14 +906,12 @@ PUT & GET (Distinguish Disk from Graphics)
  03B6  74 1E                    	JZ	OMITD		;Comma found. Param null. 
  03B8  E8 0000 E                	CALL	GETBYT		;Evaluate parameter 
  03BB  50                       	PUSH	AX		;Save parameter 
- 03BC  4B                       	DEC	BX		;Prepare to test expression terminator
-				 
+ 03BC  4B                       	DEC	BX		;Prepare to test expression terminator 
  03BD  E8 0000 E                	CALL	CHRGTR 
  03C0  74 0D                    	JZ	TRMOK		;EOL caused termination - OK 
  03C2  3C 2C                    	CMP	AL,LOW OFFSET COMMA 
  03C4  74 08                    	JZ	TRMCOM		;Comma caused termination - OK 
- 03C6  3C 29                    	CMP	AL,LOW OFFSET CPAREN	;CPAREN caused termin
-				ation - OK 
+ 03C6  3C 29                    	CMP	AL,LOW OFFSET CPAREN	;CPAREN caused termination - OK 
  03C8  74 04                    	JZ	TRMCOM 
  03CA  58                       	POP	AX		;Retrieve param. 
  03CB  E9 0000 E                	JMP	FCERR		;All other terminators not OK 
@@ -1049,35 +925,31 @@ PUT & GET (Distinguish Disk from Graphics)
                                  
  03D6  43                       OMITD:	INC	BX 
  03D7  8A E0                    NOMORE:	MOV	AH,AL		;Save terminator 
- 03D9  B0 00                    	MOV	AL,LOW 0D	;Set param value to 0, save flag
-				s 
+ 03D9  B0 00                    	MOV	AL,LOW 0D	;Set param value to 0, save flags 
  03DB  F9                       	STC			;Flag param. not found 
  03DC  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-25
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-23
 Parsing Routines for GWSTS                                  
 
                                 	PAGE 
-                                ;EOSCHK: Detect garbage beyond end of statement
-				 
+                                ;EOSCHK: Detect garbage beyond end of statement 
                                 ;ENTRY - BX = text pointer 
-                                ;EXIT  - AL = 0 & all other registers preserved
-				 or 
+                                ;EXIT  - AL = 0 & all other registers preserved or 
                                 ;      - Exit on error through FCERR 
                                 ; 
  03DD                           EOSCHK: 
  03DD  4B                       	DEC	BX		;Back up text pointer 
  03DE                           EOSCH1: 
- 03DE  E8 0000 E                	CALL	CHRGTR		;Get next character (skipping bla
-				nks) 
+ 03DE  E8 0000 E                	CALL	CHRGTR		;Get next character (skipping blanks) 
  03E1  74 03                    	JZ	EOSCKX		;End of statement 
  03E3  E9 0000 E                	JMP	SNERR		;Not EOS - error 
  03E6  C3                       EOSCKX:	RET 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-26
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-24
 Parsing Routines for GWSTS                                  
 
                                 	PAGE 
@@ -1085,28 +957,24 @@ Parsing Routines for GWSTS
                                  
                                 	PUBLIC	LINLP3 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-                                	EXTRN	MINDEL:WORD,MAXDEL:WORD,MINUPD:WORD,MAXU
-				PD:WORD 
+                                	EXTRN	MINDEL:WORD,MAXDEL:WORD,MINUPD:WORD,MAXUPD:WORD 
  0000                           DSEG	ENDS 
                                 	EXTRN	SETC:NEAR 
                                  
                                 ;LINLP3: Inner loop of line code. 
                                  
  03E7  E8 0000 E                LINLP3:	CALL	SETC		;SET CURRENT POINT 
- 03EA  03 16 0000 E             	ADD	DX,WORD PTR MINDEL	;ADD SMALL DELTA TO SUM
-				 
+ 03EA  03 16 0000 E             	ADD	DX,WORD PTR MINDEL	;ADD SMALL DELTA TO SUM 
  03EE  3B 16 0000 E             	CMP	DX,WORD PTR MAXDEL	;TIME TO UPDATE MINOR? 
  03F2  72 08                    	JB	LINLOP		;NO, UPDATE MAJOR AND CONTINUE 
- 03F4  2B 16 0000 E             	SUB	DX,WORD PTR MAXDEL	;UPDATE SUM FOR NEXT PO
-				INT 
+ 03F4  2B 16 0000 E             	SUB	DX,WORD PTR MAXDEL	;UPDATE SUM FOR NEXT POINT 
  03F8  FF 16 0001 E             	CALL	 WORD PTR MINUPD+1	;ADVANCE MINOR AXIS 
- 03FC  FF 16 0001 E             LINLOP:	CALL	 WORD PTR MAXUPD+1	;UPDATE MAJOR A
-				XIS 
+ 03FC  FF 16 0001 E             LINLOP:	CALL	 WORD PTR MAXUPD+1	;UPDATE MAJOR AXIS 
  0400  E2 E5                    	LOOP	LINLP3		;CONTINUE UNTIL COUNT EXHAUSTED 
  0402  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-27
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-25
 Graphics Support Specific to the 8086                       
 
                                 	PAGE 
@@ -1124,8 +992,7 @@ Graphics Support Specific to the 8086
                                 ;  byte 0: type of x 
                                 ;  byte 1: low-adr of varptr(x) 
                                 ;  byte 2: high-adr of varptr(x) 
-                                ; Primary use is so BASCOM can handle DRAW "X"+
-				VARPTR$(A$) 
+                                ; Primary use is so BASCOM can handle DRAW "X"+VARPTR$(A$) 
                                 ; 
  0403                           VARPT2: 
  0403  E8 0000 E                	CALL	CHRGTR		;get byte after "$" 
@@ -1150,12 +1017,11 @@ Graphics Support Specific to the 8086
  0427  8F 07                    	POP	WORD PTR 0[BX]	;Store Type in Byte 1 
  0429  43                       	INC	BX 
  042A  8F 07                    	POP	WORD PTR 0[BX]	;Store addr in Bytes 2-3. 
- 042C  E9 0000 E                	JMP	PUTNEW		;Desc in FAC & ret. ([BX] on stack
-				). 
+ 042C  E9 0000 E                	JMP	PUTNEW		;Desc in FAC & ret. ([BX] on stack). 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-28
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-26
 VARPT2 - VARPTR$ Function                                   
 
                                 	PAGE 
@@ -1166,17 +1032,14 @@ VARPT2 - VARPTR$ Function
                                 ; 
                                 	PUBLIC	PLAYS 
                                 	EXTRN	DONOTE:NEAR 
-                                	EXTRN	MACLNG:NEAR,MCLXEQ:NEAR,FETCHR:NEAR,DECF
-				ET:NEAR,VALSC2:NEAR 
+                                	EXTRN	MACLNG:NEAR,MCLXEQ:NEAR,FETCHR:NEAR,DECFET:NEAR,VALSC2:NEAR 
                                 	EXTRN	FETCHZ:NEAR 
                                  
                                 ;Low-Level routine required: 
-                                ; DONOTE(AL: voice (0=forground, 1=back), CX:fr
-				equency, DX:duration (1=18.7ms)) 
+                                ; DONOTE(AL: voice (0=forground, 1=back), CX:frequency, DX:duration (1=18.7ms)) 
                                 ; queues note for execution, saves all regs. 
                                 ; 
- 042F  BA 0435 R                PLAYS:	MOV	DX,OFFSET PLYTAB	;POINT TO PLAY COMM
-				AND TABLE 
+ 042F  BA 0435 R                PLAYS:	MOV	DX,OFFSET PLYTAB	;POINT TO PLAY COMMAND TABLE 
  0432  E9 0000 E                	JMP	MACLNG 
                                  
  0435  41                       PLYTAB:	DB	"A"		;THE NOTES A-G 
@@ -1212,14 +1075,14 @@ VARPT2 - VARPTR$ Function
  045F  00                       	DB	00		;END OF TABLE 
                                  
                                 ; TABLE OF INDEXES INTO NOTTAB FOR EACH NOTE 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-29
-PLAY/SOUND statements                                       
-
                                 ; VALUE OF 255 MEANS NOTE NOT ALLOWED. 
                                  
  0460  12                       NOTXLT:	DB	OFFSET 9D*2	;A- (G#) 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-27
+PLAY/SOUND statements                                       
+
  0461  14                       	DB	OFFSET 10D*2	;A 
  0462  16                       	DB	OFFSET 11D*2	;A# 
  0463  18                       	DB	OFFSET 12D*2	;B 
@@ -1236,10 +1099,8 @@ PLAY/SOUND statements
  046E  12                       	DB	OFFSET 9D*2	;G# 
                                  
                                 ; TABLE OF NOTE FREQUENCIES 
-                                ; THESE ARE THE FREQUENCIES IN HERTZ OF THE TOP
-				 OCTAVE (6) 
-                                ; DIVIDED DOWN BY POWERS OF TWO TO GET ALL OTHE
-				R OCTAVES 
+                                ; THESE ARE THE FREQUENCIES IN HERTZ OF THE TOP OCTAVE (6) 
+                                ; DIVIDED DOWN BY POWERS OF TWO TO GET ALL OTHER OCTAVES 
                                 ; 
  046F  105A                     NOTTAB:	DW	4186D		;C 
  0471  1153                     	DW	4435D		;C# 
@@ -1271,16 +1132,16 @@ PLAY/SOUND statements
  04A1  73 36                    PPAUSE:	JNB	PLGOFC		;ERROR IF NO ARG 
  04A3  33 C9                    	XOR	CX,CX		;PASS FREQ OF 0 
  04A5  80 FA 41                 	CMP	DL,LOW 65D	;ALLOW ONLY 1-64 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-30
-PLAY/SOUND statements                                       
-
  04A8  73 2F                    	JNB	PLGOFC		;FC ERROR IF TOO BIG 
  04AA  0A D2                    	OR	DL,DL		;SEE IF ZERO 
  04AC  74 0E                    	JZ	PLYRET		;RETURN IF SO - NO PAUSE 
  04AE  E9 0544 R                	JMP	PPAUS2		;[DX]=PAUSE LENGTH 
                                  
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-28
+PLAY/SOUND statements                                       
+
  04B1  73 26                    POCTAV:	JNB	PLGOFC		;ERROR IF NO ARG 
  04B3  80 FA 07                 	CMP	DL,LOW 7	;ALLOW ONLY OCTAVES 0..6 
  04B6  73 21                    	JNB	PLGOFC		;FC ERROR IF TO BIG 
@@ -1320,32 +1181,27 @@ PLAY/SOUND statements
  04F7  FE C9                    PLYFLT:	DEC	CL		;DECREMENT TWICE TO FLAT IT 
  04F9  FE C9                    PLYNO2:	DEC	CL		;MAP BACK TO UNSHARPED 
  04FB  8A C1                    PLYSHP:	MOV	AL,CL		;INTO [AL] FOR XLAT 
- 04FD  BB 0460 R                	MOV	BX,OFFSET NOTXLT	;POINT TO TRANSLATE TABLE
-				 
+ 04FD  BB 0460 R                	MOV	BX,OFFSET NOTXLT	;POINT TO TRANSLATE TABLE 
  0500                           ?CSLAB:				; Code segment dummy label 
- 0500  2E: D7                   	XLAT	BYTE PTR ?CSLAB	;TRANSLATE INTO NOTE TABL
-				E INDEX 
+ 0500  2E: D7                   	XLAT	BYTE PTR ?CSLAB	;TRANSLATE INTO NOTE TABLE INDEX 
  0502  0A C0                    	OR	AL,AL		;SEE IF LEGAL NOTE 
  0504  78 D3                    	JS	PLGOFC		;NOTE'S OK IF NOT .GT. 127 
                                 ; 
                                 ; ENTER HERE WITH NOTE TO PLAY IN [AL] 
-                                ; NOTE 0 IS PAUSE, 2,4,6,8..10,12 ARE A-G AND F
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-31
-PLAY/SOUND statements                                       
-
-				RIENDS. 
+                                ; NOTE 0 IS PAUSE, 2,4,6,8..10,12 ARE A-G AND FRIENDS. 
                                 ; 
  0506                           PLYNO3: 
- 0506  8A 36 0000 E             	MOV	DH,BYTE PTR OCTAVE	;GET OCTAVE INTO [DH] F
-				OR LATER MATH 
+ 0506  8A 36 0000 E             	MOV	DH,BYTE PTR OCTAVE	;GET OCTAVE INTO [DH] FOR LATER MATH 
  050A                           PLYNU3: 
  050A  50                       	PUSH	AX		;Save Note 
  050B  52                       	PUSH	DX		;Save Octave 
  050C  A0 0000 E                	MOV	AL,BYTE PTR NOTELN 
- 050F  A2 0000 E                	MOV	BYTE PTR NOTE1L,AL	;One note duration = No
-				te length 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-29
+PLAY/SOUND statements                                       
+
+ 050F  A2 0000 E                	MOV	BYTE PTR NOTE1L,AL	;One note duration = Note length 
  0512  E8 0000 E                	CALL	FETCHR 
  0515  74 10                    	JZ	PLYNU4		;Brif end of string 
  0517  E8 0000 E                	CALL	VALSC2		;See if possible number 
@@ -1353,8 +1209,7 @@ PLAY/SOUND statements
  051D  73 BA                    	JNB	PLGOFC		; then error 
  051F  0A D2                    	OR	DL,DL		;Any Length? 
  0521  74 04                    	JZ	PLYNU4		;Brif not, just do note 
- 0523  88 16 0000 E             	MOV	BYTE PTR NOTE1L,DL	;Store duration for thi
-				s note 
+ 0523  88 16 0000 E             	MOV	BYTE PTR NOTE1L,DL	;Store duration for this note 
  0527                           PLYNU4: 
  0527  5A                       	POP	DX		;Get Octave 
  0528  58                       	POP	AX		;Restore Note 
@@ -1369,31 +1224,20 @@ PLAY/SOUND statements
  053B  83 D3 00                 	ADC	BX,0		;ADD IN CARRY TO ROUND UP 
  053E                           PLYNO4: 
  053E  8B CB                    	MOV	CX,BX		;FREQUENCY INTO [CX] FOR DONOTE 
- 0540  8A 16 0000 E             	MOV	DL,BYTE PTR NOTE1L	;Get this note's length
-				 
+ 0540  8A 16 0000 E             	MOV	DL,BYTE PTR NOTE1L	;Get this note's length 
  0544                           PPAUS2: 
- 0544  A0 0000 E                	MOV	AL,BYTE PTR BEATS	;GET BEATS PER UNIT TIME
-				 
+ 0544  A0 0000 E                	MOV	AL,BYTE PTR BEATS	;GET BEATS PER UNIT TIME 
  0547  F6 E2                    	MUL	DL		;CALC NOTE LENGTH * BEATS 
  0549  51                       	PUSH	CX		;SAVE [CX] WHILE WE DIVIDE 
- 054A  8B C8                    	MOV	CX,AX		;CALC TIME CONST/(BEATS * NOTE LENG
-				TH) 
- 054C  BA 0001                  	MOV	DX,1		;[DX:AX]=96000 (4*60*400.0) and will
-				 
- 054F  B8 7700                  	MOV	AX,73400O	; cause DONOTE [DX]=1 to play 2.
-				5 milliseconds 
- 0552  F7 F1                    	DIV	CX		; (in other words [DX]=400 will play 1
-				 second) 
+ 054A  8B C8                    	MOV	CX,AX		;CALC TIME CONST/(BEATS * NOTE LENGTH) 
+ 054C  BA 0001                  	MOV	DX,1		;[DX:AX]=96000 (4*60*400.0) and will 
+ 054F  B8 7700                  	MOV	AX,73400O	; cause DONOTE [DX]=1 to play 2.5 milliseconds 
+ 0552  F7 F1                    	DIV	CX		; (in other words [DX]=400 will play 1 second) 
  0554  59                       	POP	CX		;RESTORE FREQUENCY 
  0555  0B C0                    	OR	AX,AX		;IF DURATION IS ZERO, GET OUT. 
  0557  74 57                    	JZ	PLYNO8 
  0559  51                       	PUSH	CX		;Save Freq 
  055A                           PLYDOT: 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-32
-PLAY/SOUND statements                                       
-
  055A  50                       	PUSH	AX		;Save duration 
  055B  E8 0000 E                	CALL	FETCHR 
  055E  74 18                    	JZ	PLYDOX		;Brif EOS 
@@ -1411,6 +1255,11 @@ PLAY/SOUND statements
  0575  E8 0000 E                	CALL	DECFET		;Put char back 
  0578                           PLYDOX: 
  0578  58                       	POP	AX		;Duration 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-30
+PLAY/SOUND statements                                       
+
  0579  59                       	POP	CX		;Get freq 
  057A  0B C9                    	OR	CX,CX 
  057C  74 33                    	JZ	PLYNO9		;Brif Pause 
@@ -1418,8 +1267,7 @@ PLAY/SOUND statements
  0583  74 2C                    	JZ	PLYNO9		;Brif Legatto 
  0585  50                       	PUSH	AX		;Save Duration 
  0586  51                       	PUSH	CX		;Save Frequency 
- 0587  8A 0E 0000 E             	MOV	CL,BYTE PTR MSCALE	;Using scale for shift 
-				count 
+ 0587  8A 0E 0000 E             	MOV	CL,BYTE PTR MSCALE	;Using scale for shift count 
  058B  BB 0003                  	MOV	BX,3		;Stecatto multiplier 
  058E  80 F9 02                 	CMP	CL,LOW 2 
  0591  74 03                    	JZ	PLYNO6		;Brif Stecatto 
@@ -1442,24 +1290,17 @@ PLAY/SOUND statements
  05B0                           PLYNO8: 
  05B0  C3                       	RET			; else do nothing 
  05B1                           PLYNO9: 
- 05B1  8B D0                    	MOV	DX,AX		;DONOTE wants [CX]=freq, [DX]=durat
-				ion. 
+ 05B1  8B D0                    	MOV	DX,AX		;DONOTE wants [CX]=freq, [DX]=duration. 
  05B3  EB 6A                    	JMP	SHORT DOSND	;Play freq [CX] for time [DX] 
                                  
  05B5                           PLYMER: 
  05B5  E9 0000 E                	JMP	FCERR 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-33
-PLAY/SOUND statements                                       
-
                                  
                                 ; PLYMET -      Process Music Meta Commands. 
                                  
  05B8                           PLYMET: 
  05B8  E8 0000 E                	CALL	FETCHZ		;Get Meta action or error 
- 05BB  B1 01                    	MOV	CL,LOW 1	;Factor for Legatto (1/1): MSCALE
-				=1 
+ 05BB  B1 01                    	MOV	CL,LOW 1	;Factor for Legatto (1/1): MSCALE=1 
  05BD  3C 4C                    	CMP	AL,LOW "L" 
  05BF  74 1D                    	JZ	PLYDUR		;Brif Legatto (Full note) 
  05C1  FE C1                    	INC	CL		;Factor for Stecatto (3/4): MSCALE=2 
@@ -1473,27 +1314,27 @@ PLAY/SOUND statements
  05D1  74 06                    	JZ	PLYMOD		;Brif Foreground Music 
  05D3  FE C1                    	INC	CL		;MMODE=1 for Background 
  05D5  3C 42                    	CMP	AL,LOW "B" 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-31
+PLAY/SOUND statements                                       
+
  05D7  75 DC                    	JNZ	PLYMER		;Brif not Background Music 
  05D9                           PLYMOD: 
- 05D9  88 0E 0000 E             	MOV	BYTE PTR MMODE,CL	;Store Music Mode (0=FG,
-				 1=BG) 
+ 05D9  88 0E 0000 E             	MOV	BYTE PTR MMODE,CL	;Store Music Mode (0=FG, 1=BG) 
  05DD  C3                       	RET 
  05DE                           PLYDUR: 
- 05DE  88 0E 0000 E             	MOV	BYTE PTR MSCALE,CL	;Store Duration Scaling
-				 factor 
+ 05DE  88 0E 0000 E             	MOV	BYTE PTR MSCALE,CL	;Store Duration Scaling factor 
  05E2  C3                       	RET 
                                  
-                                ;SNDINI is called to set OCTAVE, BEATS, NOTELN,
-				 NOTE1L, MSCALE, and MMODE 
-                                ;to appropriate initial settings.  SNDINI is ca
-				lled at CLEARC and during 
+                                ;SNDINI is called to set OCTAVE, BEATS, NOTELN, NOTE1L, MSCALE, and MMODE 
+                                ;to appropriate initial settings.  SNDINI is called at CLEARC and during 
                                 ;initialization. 
                                 ;Entry - none 
                                 ;Exit  - all registers preserved 
                                 ; 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-                                	EXTRN	NOTELN:WORD,NOTE1L:WORD,BEATS:WORD,OCTAV
-				E:WORD,MSCALE:WORD 
+                                	EXTRN	NOTELN:WORD,NOTE1L:WORD,BEATS:WORD,OCTAVE:WORD,MSCALE:WORD 
                                 	EXTRN	MMODE:WORD 
  0000                           DSEG	ENDS 
                                 PUBLIC	SNDINI 
@@ -1506,15 +1347,8 @@ PLAY/SOUND statements
  0601  E8 0605 R                	CALL	SNDRST		;Turn off sound 
  0604  C3                       	RET 
                                  
-                                ;SNDRST is called to reset background music.  I
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-34
-PLAY/SOUND statements                                       
-
-				t is called during 
-                                ; initialization from INIT and during the proce
-				ssing of CTL-C 
+                                ;SNDRST is called to reset background music.  It is called during 
+                                ; initialization from INIT and during the processing of CTL-C 
                                 ; from POLKEY 
                                 ; Entry - none 
                                 ; Exit  - All registers preserved 
@@ -1526,8 +1360,7 @@ PLAY/SOUND statements
  0608  52                       	PUSH	DX 
  0609  9C                       	PUSHF 
  060A  B0 FF                    	MOV	AL,LOW 255D 
- 060C  E8 0000 E                	CALL	DONOTE		;Disable background music, init m
-				usic queue 
+ 060C  E8 0000 E                	CALL	DONOTE		;Disable background music, init music queue 
  060F  9D                       	POPF 
  0610  5A                       	POP	DX 
  0611  59                       	POP	CX 
@@ -1536,11 +1369,15 @@ PLAY/SOUND statements
  0614  C3                       	RET 
                                  
                                 	PUBLIC	BEEPS,BEEP,SOUNDS 
-                                	EXTRN	DONOTE:NEAR,FRQINT:NEAR,FRCSNG:NEAR,GETI
-				N2:NEAR 
+                                	EXTRN	DONOTE:NEAR,FRQINT:NEAR,FRCSNG:NEAR,GETIN2:NEAR 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	FAC:WORD 
  0000                           DSEG	ENDS 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-32
+PLAY/SOUND statements                                       
+
                                  
  0615                           BEEP: 
  0615  B9 0320                  BEEPS:	MOV	CX,800D		; 800 Hz 
@@ -1548,31 +1385,21 @@ PLAY/SOUND statements
  061B  32 C0                    	XOR	AL,AL		;[AL]=Music Mode (0=Forground) 
  061D  EB 03                    	JMP	SHORT JDNOTE 
                                  
- 061F  A0 0000 E                DOSND:	MOV	AL,BYTE PTR MMODE	;[AL]=Music Mode (
-				0=Forground, 1=background) 
+ 061F  A0 0000 E                DOSND:	MOV	AL,BYTE PTR MMODE	;[AL]=Music Mode (0=Forground, 1=background) 
  0622  E8 0000 E                JDNOTE:	CALL	DONOTE		;start new sound. 
  0625  73 03                    	JNB	DNOTOK		;No errors detected by DONOTE 
  0627  E9 0000 E                	JMP	FCERR		;Function call error detected 
  062A                           DNOTOK: 
- 062A  E9 0000 E                	JMP	POLKEY		;Allow CTL-C to interrupt and retu
-				rn 
+ 062A  E9 0000 E                	JMP	POLKEY		;Allow CTL-C to interrupt and return 
                                 ; SOUND  -      Make SOUNDs with the speaker. 
                                 ; 
                                 ;       Syntax: SOUND x,y 
                                 ; 
                                 ;       Where:  x is the Frequency in Hertz. 
-                                ;               y is the Duration in Clock tick
-				s. (currently 18.2/sec). 
+                                ;               y is the Duration in Clock ticks. (currently 18.2/sec). 
                                 ; 
-                                ;               Frequency must be at least 37 H
-				z. 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-35
-PLAY/SOUND statements                                       
-
-                                ;               If Duration is 0, then just tur
-				n off current sound... 
+                                ;               Frequency must be at least 37 Hz. 
+                                ;               If Duration is 0, then just turn off current sound... 
                                 ; 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	$FACLO:WORD,$FACM1:WORD 
@@ -1586,22 +1413,18 @@ PLAY/SOUND statements
  0636  E8 0000 E                	CALL	SYNCHR 
  0639  2C                       	DB	OFFSET "," 
  063A  E8 0000 E                	CALL	FRMEVL		;Get duration. 
- 063D  E8 03DD R                	CALL	EOSCHK		;Syntax Error if not end-of-state
-				ment 
+ 063D  E8 03DD R                	CALL	EOSCHK		;Syntax Error if not end-of-statement 
  0640  53                       	PUSH	BX		;Text pointer 
  0641  E8 0000 E                	CALL	FRCSNG		;Make Single Precision 
  0644  BB 0000 E                	MOV	BX,OFFSET FAC	;Point at Exponent 
- 0647  80 3F 00                 	CMP	BYTE PTR 0[BX],LOW 0	;Will turn sound off 
-				if 0. 
+ 0647  80 3F 00                 	CMP	BYTE PTR 0[BX],LOW 0	;Will turn sound off if 0. 
  064A  75 04                    	JNZ	SOUNL4		; Brif not, start new sound. 
  064C  5B                       	POP	BX		;Text pointer 
  064D  5A                       	POP	DX		;Frequency (not used) 
- 064E  EB B5                    	JMP	SHORT SNDRST	;Turn off sound, initialize t
-				he queue 
+ 064E  EB B5                    	JMP	SHORT SNDRST	;Turn off sound, initialize the queue 
                                  
  0650                           SOUNL4: 
- 0650  80 3F 91                 	CMP	BYTE PTR 0[BX],LOW 221O	;Duration .gt. 655
-				35? 
+ 0650  80 3F 91                 	CMP	BYTE PTR 0[BX],LOW 221O	;Duration .gt. 65535? 
  0653  73 30                    	JNB	SNDFCE		;Brif so, too big for *32 
  0655  53                       	PUSH	BX		;Save FAC address 
  0656  FF 36 0000 E             	PUSH	WORD PTR $FACM1	;Push FAC on the stack 
@@ -1609,6 +1432,11 @@ PLAY/SOUND statements
  065E  BB 0016                  	MOV	BX,22D		;Mult by ^D22 
  0661  E8 0000 E                	CALL	MAKINT 
  0664  E8 0000 E                	CALL	FRCSNG		;Get s.p. ^D22 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-33
+PLAY/SOUND statements                                       
+
  0667  5A                       	POP	DX		;Get low mantissa bits 
  0668  5B                       	POP	BX		;Exp sign and high mantissa bits 
  0669  E8 0000 E                	CALL	$FMULS		;MULTIPLY 
@@ -1625,24 +1453,18 @@ PLAY/SOUND statements
  0683  EB 9A                    	JMP	SHORT DOSND	;play the note 
  0685                           SNDFCE: 
  0685  E9 0000 E                	JMP	FCERR		; Complain 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-36
-PLAY/SOUND statements                                       
-
                                  
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-37
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-34
 PLAY/SOUND statements                                       
 
                                 	PAGE 
                                 	SUBTTL General Event Trapping Code 
                                  
                                 	PUBLIC	ONGOTP,SETGSB 
-                                	EXTRN	STPTRP:NEAR,ONTRP:NEAR,OFFTRP:NEAR,REQTR
-				P:NEAR,FRETRP:NEAR 
+                                	EXTRN	STPTRP:NEAR,ONTRP:NEAR,OFFTRP:NEAR,REQTRP:NEAR,FRETRP:NEAR 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	$ON:WORD,$OFF:WORD,$STOP:WORD 
  0000                           DSEG	ENDS 
@@ -1650,95 +1472,74 @@ PLAY/SOUND statements
                                 	EXTRN	TRPTBL:WORD 
  0000                           DSEG	ENDS 
                                  
-                                ;Event flags can have one or more of the follow
-				ing bits set: 
+                                ;Event flags can have one or more of the following bits set: 
                                 ; They are defined in BIMISC.MAC 
                                 ; 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	T_ON:WORD	;1 event trapping on 
  0000                           DSEG	ENDS 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-                                	EXTRN	T_STOP:WORD	;2 event trapping stopped (r
-				emembers but doesn't report) 
+                                	EXTRN	T_STOP:WORD	;2 event trapping stopped (remembers but doesn't report) 
  0000                           DSEG	ENDS 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-                                	EXTRN	T_REQ:WORD	;4 event trap requested (this
-				 event has happend) 
+                                	EXTRN	T_REQ:WORD	;4 event trap requested (this event has happend) 
  0000                           DSEG	ENDS 
                                  
-                                ;To support EVENT TRAPPING, The following switc
-				hes should be defined 
+                                ;To support EVENT TRAPPING, The following switches should be defined 
                                 ; in the machine dependant Switch File: 
                                 ; 
                                 ;       NMKEYT = number of soft keys 
-                                ;       NMCOMT = number of COMmunications ports
-				 
+                                ;       NMCOMT = number of COMmunications ports 
                                 ;       NMPENT = number of light pens (0 or 1) 
                                 ;       NMSTRT = number of joysticks 
                                 ;       NUMTRP = total of all of the above 
                                 ;       ONGOSB should be 1 
                                 ; 
                                  
-                                ;To support EVENT TRAPPING, The following varia
-				bles should be defined 
+                                ;To support EVENT TRAPPING, The following variables should be defined 
                                 ; in the machine dependant RAM module: 
                                 ; 
-                                ;       ONGSBF: BLOCK   1       ;some-event hap
-				pend flag (see NEWSTT) 
+                                ;       ONGSBF: BLOCK   1       ;some-event happend flag (see NEWSTT) 
                                 ;       TRPTBL: BLOCK   3*NUMTRP 
-                                ;                               ;event flags an
-				d GOSUB line ptrs 
+                                ;                               ;event flags and GOSUB line ptrs 
                                 ; 
                                  
  = 0000                         	PENOFF=0		;offset for PEN event id's 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-38
-General Event Trapping Code                                 
-
- = 0001                         	KEYOFF=PENOFF+NMPENT	;offset for KEY event id'
-				s 
- = 000F                         	COMOFF=KEYOFF+NMKEYT	;offset for COM event id'
-				s 
- = 0011                         	STROFF=COMOFF+NMCOMT	;offset for STRIG event i
-				d's 
+ = 0001                         	KEYOFF=PENOFF+NMPENT	;offset for KEY event id's 
+ = 000F                         	COMOFF=KEYOFF+NMKEYT	;offset for COM event id's 
+ = 0011                         	STROFF=COMOFF+NMCOMT	;offset for STRIG event id's 
                                  
                                 	PUBLIC	CHKINT 
                                 	EXTRN	POLKEY:NEAR,POLLEV:NEAR 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-                                	EXTRN	AUTFLG:WORD,SEMFLG:WORD,SAVTXT:WORD,SAVS
-				TK:WORD,CURLIN:WORD 
+                                	EXTRN	AUTFLG:WORD,SEMFLG:WORD,SAVTXT:WORD,SAVSTK:WORD,CURLIN:WORD 
  0000                           DSEG	ENDS 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-35
+General Event Trapping Code                                 
+
                                  
-                                ;CHKINT is called from BASIC's NEWSTT loop to s
-				ee if any trappable 
-                                ; condition has occured.  It traps active funct
-				ion keys, COM input, 
-                                ; light pen interrupts, joystick triggers, CTL-
-				C, CTL-S, and 
-                                ; it queues vanilla keys for CHSNS.  For effici
-				ency, it calls POLLEV 
-                                ; which looks at flag which gets set by BIOS wh
-				en some interrupt occurs. 
-                                ; This routine would not be necessary in a stan
-				d-alone environment since 
+                                ;CHKINT is called from BASIC's NEWSTT loop to see if any trappable 
+                                ; condition has occured.  It traps active function keys, COM input, 
+                                ; light pen interrupts, joystick triggers, CTL-C, CTL-S, and 
+                                ; it queues vanilla keys for CHSNS.  For efficiency, it calls POLLEV 
+                                ; which looks at flag which gets set by BIOS when some interrupt occurs. 
+                                ; This routine would not be necessary in a stand-alone environment since 
                                 ; BASIC would manage its own interrupts. 
                                 ; 
  0688                           CHKINT: 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	MSDCCF:WORD	;MSDOS Ctl-C flag 
  0000                           DSEG	ENDS 
- 0688  F6 06 0000 E FF          	TEST	BYTE PTR MSDCCF,LOW 255D	;Test for MSDOS-
-				received Ctl-C 
+ 0688  F6 06 0000 E FF          	TEST	BYTE PTR MSDCCF,LOW 255D	;Test for MSDOS-received Ctl-C 
  068D  75 05                    	JNZ	CHKIN1 
- 068F  E8 0000 E                	CALL	POLLEV		;Test for occurance of trapable e
-				vents 
+ 068F  E8 0000 E                	CALL	POLLEV		;Test for occurance of trapable events 
  0692  74 12                    	JZ	CHKINX		;Exit - no trapable event 
  0694  53                       CHKIN1:	PUSH	BX 
  0695  51                       	PUSH	CX 
  0696  52                       	PUSH	DX 
- 0697  E8 0000 E                	CALL	POLKEY		;trap Function keys, CTL-C, CTL-S
-				 
+ 0697  E8 0000 E                	CALL	POLKEY		;trap Function keys, CTL-C, CTL-S 
                                 	EXTRN	POLCOM:NEAR 
  069A  E8 0000 E                	CALL	POLCOM		;trap COM interrupts 
  069D                           NOACOM: 
@@ -1750,18 +1551,11 @@ General Event Trapping Code
  06A6  C3                       CHKINX:	RET 
                                  
                                 ;SEVSTT - Set Event Status 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-39
-General Event Trapping Code                                 
-
                                 ; Common code for parsing event-id ON/OFF/STOP 
-                                ; Entry - [CL]=number of legal events for devic
-				e 
+                                ; Entry - [CL]=number of legal events for device 
                                 ;         [CH]=event-id offset for device 
                                 ; 
- 06A7  51                       SEVSTT:	PUSH	CX		;save maximum and offset for c
-				lass 
+ 06A7  51                       SEVSTT:	PUSH	CX		;save maximum and offset for class 
  06A8  E8 0000 E                	CALL	SYNCHR 
  06AB  28                       	DB	OFFSET "(" 
  06AC  E8 0000 E                	CALL	GETBYT		;[AL]=class-relative event-id 
@@ -1774,12 +1568,16 @@ General Event Trapping Code
  06B8  5A                       	POP	DX		;restore $ON, $OFF, or $STOP 
  06B9  58                       	POP	AX		;[AL]=class-relative event-id 
  06BA  59                       	POP	CX		;restore maximum, offset for class 
- 06BB  80 FD 11                 	CMP	CH,LOW OFFSET STROFF	;Special check for ST
-				RIG(x) 
+ 06BB  80 FD 11                 	CMP	CH,LOW OFFSET STROFF	;Special check for STRIG(x) 
  06BE  75 04                    	JNZ	SEVST1		;Brif not 
  06C0  D0 C8                    	ROR	AL,1		;Divide by 2 so get 0,1,2 or 3 
  06C2  EB 06                    	JMP	SHORT SEVST2 
  06C4                           SEVST1: 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-36
+General Event Trapping Code                                 
+
  06C4  0A C0                    	OR	AL,AL 
  06C6  74 17                    	JZ	SEVALL		;branch if parm was 0 
  06C8  FE C8                    	DEC	AL		;make parm 0-relative 
@@ -1796,8 +1594,7 @@ General Event Trapping Code
                                 ; Entry - [DX]=adr of event flag 
                                 ;         [AL]=$ON, $OFF, or $STOP 
                                 ; 
- 06D5  E8 06F1 R                SET1EV:	CALL	EVSET		;set event flags to ON, OFF
-				, or STOP 
+ 06D5  E8 06F1 R                SET1EV:	CALL	EVSET		;set event flags to ON, OFF, or STOP 
  06D8  C3                       	RET 
                                  
  06D9  E9 0000 E                FCERR1:	JMP	FCERR 
@@ -1809,11 +1606,6 @@ General Event Trapping Code
                                 ;         [CL]=number of events in class 
                                 ; 
  06DF  52                       SEVALL:	PUSH	DX		;save $ON, $OFF, or $STOP 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-40
-General Event Trapping Code                                 
-
  06E0  8A C5                    	MOV	AL,CH		;[AL]=class offset 
  06E2  32 ED                    	XOR	CH,CH		;[CX]=number of entries in class 
  06E4  E8 0715 R                	CALL	EVADR		;[DX] points to 1st event flag 
@@ -1840,25 +1632,25 @@ General Event Trapping Code
  06FF  3C 00 E                  	CMP	AL,LOW OFFSET $STOP 
  0701  75 D9                    	JNZ	SNERR1 
                                  
- 0703  E8 0000 E                EVSTP:	CALL	STPTRP		;stop event pointed to by [
-				BX] 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-37
+General Event Trapping Code                                 
+
+ 0703  E8 0000 E                EVSTP:	CALL	STPTRP		;stop event pointed to by [BX] 
  0706  EB 08                    	JMP	SHORT EVONX 
- 0708  E8 0000 E                EVON:	CALL	ONTRP		;enable event pointed to by [
-				BX] 
+ 0708  E8 0000 E                EVON:	CALL	ONTRP		;enable event pointed to by [BX] 
  070B  EB 03                    	JMP	SHORT EVONX 
- 070D  E8 0000 E                EVOFF:	CALL	OFFTRP		;disable event pointed to b
-				y [BX] 
+ 070D  E8 0000 E                EVOFF:	CALL	OFFTRP		;disable event pointed to by [BX] 
  0710  58                       EVONX:	POP	AX		;restore all caller's registers 
  0711  5B                       	POP	BX 
  0712  59                       	POP	CX 
  0713  5A                       	POP	DX 
  0714  C3                       	RET 
                                  
-                                ;EVADR transforms event-id to event-flag-pointe
-				r. 
+                                ;EVADR transforms event-id to event-flag-pointer. 
                                 ; Entry - [AL] = event id 
-                                ; Exit  - [DX]=adr of event flag, [AX] is used,
-				 all other regs preserved 
+                                ; Exit  - [DX]=adr of event flag, [AX] is used, all other regs preserved 
                                 ; 
  0715  32 E4                    EVADR:	XOR	AH,AH		;[AX] = event id 
  0717  8B D0                    	MOV	DX,AX 
@@ -1868,23 +1660,14 @@ General Event Trapping Code
  0720  8B D0                    	MOV	DX,AX 
  0722  C3                       	RET 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-41
-General Event Trapping Code                                 
-
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-                                	EXTRN	$KEY2B:WORD,$PEN2B:WORD,$STR2B:WORD,$COM
-				2B:WORD 
+                                	EXTRN	$KEY2B:WORD,$PEN2B:WORD,$STR2B:WORD,$COM2B:WORD 
  0000                           DSEG	ENDS 
                                 	EXTRN	DERDNA:NEAR 
                                  
-                                ;ONGOTP routine is called from ON GOTO code wit
-				hin BINTRP 
-                                ;       Do syntax checks for event traps and re
-				turn. 
-                                ;       Carry set indicates it was not a trap g
-				osub definition. 
+                                ;ONGOTP routine is called from ON GOTO code within BINTRP 
+                                ;       Do syntax checks for event traps and return. 
+                                ;       Carry set indicates it was not a trap gosub definition. 
                                 ;       else carry is clear 
                                 ; 
                                 ; Syntax:       ON [Event] GOSUB line no. 
@@ -1892,14 +1675,11 @@ General Event Trapping Code
                                 ;       WHERE:  Event is one of following: 
                                 ;               COM(x) 
                                 ;               PEN 
-                                ;               STRIG(x) x = 0 for Trigger A, o
-				r 2 for Trigger B. 
+                                ;               STRIG(x) x = 0 for Trigger A, or 2 for Trigger B. 
                                 ;               KEY(x)   x = 1..NMKEYT-1 
                                 ; 
-                                ;       If one of the Event verbs does not foll
-				ow the ON 
-                                ;       keyword, then go back to Level 1 "ONGOT
-				O" to 
+                                ;       If one of the Event verbs does not follow the ON 
+                                ;       keyword, then go back to Level 1 "ONGOTO" to 
                                 ;       process ON ### GOSUB... or GOTO. 
                                 ; 
  0723  53                       ONGOTP:	PUSH	BX		;Text pointer in case not us. 
@@ -1911,6 +1691,11 @@ General Event Trapping Code
  072F  8A E5                    	MOV	AH,CH		;[AH] = 1st byte 
  0731                           NT2BTK: 
  0731  3D 0000 E                	CMP	AX,OFFSET $KEY2B 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-38
+General Event Trapping Code                                 
+
  0734  B9 010E                  	MOV	CX,OFFSET (400O*KEYOFF)+NMKEYT 
  0737  74 27                    	JZ	ONFUN		;Brif ON KEY... 
  0739  3D 0000 E                	CMP	AX,OFFSET $COM2B 
@@ -1927,23 +1712,16 @@ General Event Trapping Code
  0754  74 0A                    	JZ	ONFUN 
  0756  F9                       	STC			;set carry - indicates not event 
  0757  5B                       	POP	BX		;Restore Entry Text pointer 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-42
-General Event Trapping Code                                 
-
  0758  EB 22                    	JMP	SHORT ONGOTX 
                                  
  075A  E9 0000 E                FCERR2:	JMP	FCERR 
                                  
- 075D  E9 0000 E                JERDNA:	JMP	DERDNA		;Device unavailable error i
-				f PEN 
+ 075D  E9 0000 E                JERDNA:	JMP	DERDNA		;Device unavailable error if PEN 
                                  
  0760                           ONFUN: 
  0760  E8 077F R                	CALL	GETSUB		;Get Event no. in (x). 
  0763  FE C8                    	DEC	AL		;Want base 0. (If not STRIG(x)) 
- 0765  80 FD 11                 	CMP	CH,LOW OFFSET STROFF	;Special check for ST
-				RIG(x) 
+ 0765  80 FD 11                 	CMP	CH,LOW OFFSET STROFF	;Special check for STRIG(x) 
  0768  75 04                    	JNZ	ONFUN1		;Brif not 
  076A  FE C0                    	INC	AL		;Restore STRIG # 
  076C  D0 C8                    	ROR	AL,1		;Divide by 2 so get 0,1,2 or 3 
@@ -1953,12 +1731,10 @@ General Event Trapping Code
  0772  8A C8                    	MOV	CL,AL		;Save Event index in [CL] 
  0774                           ONSTM: 
  0774  02 E9                    	ADD	CH,CL		;[CH]=event-id 
- 0776  B1 01                    	MOV	CL,LOW 1	;[CL]=maximum number of line#'s i
-				n gosub 
+ 0776  B1 01                    	MOV	CL,LOW 1	;[CL]=maximum number of line#'s in gosub 
  0778  5A                       	POP	DX		;discard saved text pointer 
  0779  4B                       	DEC	BX		;backup for CHRGET 
- 077A  0A C0                    	OR	AL,AL		;clear carry - indicates it was even
-				t 
+ 077A  0A C0                    	OR	AL,AL		;clear carry - indicates it was event 
  077C  8A 07                    ONGOTX:	MOV	AL,BYTE PTR 0[BX]	;Restore Token 
  077E  C3                       	RET 
                                  
@@ -1974,10 +1750,14 @@ General Event Trapping Code
  0790  59                       	POP	CX 
  0791  C3                       	RET 
                                  
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-39
+General Event Trapping Code                                 
+
                                 ;Set gosub entry 
                                 ; Entry - [AL]=trap id, [DX]=line pointer 
-                                ; Exit  - [AX], [FLAGS] used, All other registe
-				rs preserved. 
+                                ; Exit  - [AX], [FLAGS] used, All other registers preserved. 
                                 ; 
  0792  56                       SETGSB:	PUSH	SI 
  0793  52                       	PUSH	DX		;save gosub line pointer 
@@ -1985,36 +1765,25 @@ General Event Trapping Code
  0797  8B F2                    	MOV	SI,DX		;[SI] points to event flags 
  0799  5A                       	POP	DX		;restore GOSUB line pointer 
  079A  46                       	INC	SI		;[SI] points to gosub line ptr entry 
- 079B  89 14                    	MOV	WORD PTR 0[SI],DX	;put trap adr in table f
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-43
-General Event Trapping Code                                 
-
-				or this entry 
+ 079B  89 14                    	MOV	WORD PTR 0[SI],DX	;put trap adr in table for this entry 
  079D  5E                       	POP	SI 
  079E  C3                       	RET 
                                  
-                                ;EVTRP is called to signal that an event has oc
-				cured. 
+                                ;EVTRP is called to signal that an event has occured. 
                                 ; Entry - [AL] = event id 
-                                ; Exit  - If NZ, the event is not being trapped
-				 (not ON) 
-                                ;         AX is used.  All other registers are 
-				preserved. 
+                                ; Exit  - If NZ, the event is not being trapped (not ON) 
+                                ;         AX is used.  All other registers are preserved. 
                                 ; 
  079F  52                       EVTRP:	PUSH	DX 
  07A0  51                       	PUSH	CX 
  07A1  53                       	PUSH	BX 
  07A2  8B 1E 0000 E             	MOV	BX,WORD PTR CURLIN 
  07A6  43                       	INC	BX 
- 07A7  74 10                    	JZ	NOT_ON		;branch if in direct mode (no event
-				 trapping) 
+ 07A7  74 10                    	JZ	NOT_ON		;branch if in direct mode (no event trapping) 
  07A9  E8 0715 R                	CALL	EVADR		;[DX] points to event flag 
  07AC  8B DA                    	MOV	BX,DX		;[BX] points to event flag 
  07AE  8A 07                    	MOV	AL,BYTE PTR 0[BX]	;[AL]=event flag 
- 07B0  24 00 E                  	AND	AL,LOW OFFSET T_ON	;NZ if trapping enabled
-				 for key 
+ 07B0  24 00 E                  	AND	AL,LOW OFFSET T_ON	;NZ if trapping enabled for key 
  07B2  74 05                    	JZ	NOT_ON		;branch if event is not on 
  07B4  9C                       	PUSHF 
  07B5  E8 0000 E                	CALL	REQTRP		;Trap enabled, Issue Request 
@@ -2026,8 +1795,7 @@ General Event Trapping Code
                                  
                                 ;EVCLR is called to reset an event 
                                 ; Entry - [AL] = event id 
-                                ; Exit  - Flags, AX are used.  All other regist
-				ers are preserved. 
+                                ; Exit  - Flags, AX are used.  All other registers are preserved. 
                                 ; 
  07BD  52                       EVCLR:	PUSH	DX 
  07BE  51                       	PUSH	CX 
@@ -2041,33 +1809,29 @@ General Event Trapping Code
                                 ; Entry - [AL] = 0-relative event index 
                                 ; Exit  - [BX] = -1 if event had occured 
                                 ;              =  0 if event had not occured 
-                                ;         bit T.REQ of TRPTBL+3*index is cleare
-				d 
-                                ; 
- 07CA                           TSTCEV: 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-44
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-40
 General Event Trapping Code                                 
 
+                                ;         bit T.REQ of TRPTBL+3*index is cleared 
+                                ; 
+ 07CA                           TSTCEV: 
  07CA  E8 0715 R                	CALL	EVADR		;[DX] [points to event flag 
  07CD  8B DA                    	MOV	BX,DX		;[BX] points to event flag 
- 07CF  8A 07                    	MOV	AL,BYTE PTR 0[BX]	;[AL] = current event st
-				ate 
+ 07CF  8A 07                    	MOV	AL,BYTE PTR 0[BX]	;[AL] = current event state 
  07D1  50                       	PUSH	AX 
- 07D2  E8 0000 E                	CALL	FRETRP		;Reset Trap Request (clear T.REQ)
-				 
+ 07D2  E8 0000 E                	CALL	FRETRP		;Reset Trap Request (clear T.REQ) 
  07D5  58                       	POP	AX 
  07D6  33 DB                    	XOR	BX,BX		;prepare to return negative result 
  07D8  24 00 E                  	AND	AL,LOW OFFSET T_REQ 
  07DA  74 01                    	JE	TSTEVX 
- 07DC  4B                       	DEC	BX		;[BX]=-1 (indicates event has occured)
-				 
+ 07DC  4B                       	DEC	BX		;[BX]=-1 (indicates event has occured) 
  07DD  C3                       TSTEVX:	RET 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-45
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-41
 General Event Trapping Code                                 
 
                                 	PAGE 
@@ -2081,23 +1845,20 @@ General Event Trapping Code
  07DE  B9 0F02                  COMS:	MOV	CX,OFFSET (400O*COMOFF)+NMCOMT 
  07E1  E9 06A7 R                	JMP	SEVSTT		;branch to common code 
                                  
-                                ;COMTRP is called by COM interrupt service rout
-				ine to signal trapping. 
+                                ;COMTRP is called by COM interrupt service routine to signal trapping. 
                                 ; Entry - [AL]=0-relative com channel id. 
-                                ; Exit  - NZ is true if key trapping is enabled
-				. 
+                                ; Exit  - NZ is true if key trapping is enabled. 
                                 ;         All other regs preserved. 
                                 ; 
  07E4  50                       COMTRP:	PUSH	AX 
  07E5  04 0F                    	ADD	AL,LOW OFFSET COMOFF	;[AL]=event id 
- 07E7  E8 079F R                	CALL	EVTRP		;Signal the occurance of a COM EVE
-				NT 
+ 07E7  E8 079F R                	CALL	EVTRP		;Signal the occurance of a COM EVENT 
  07EA  58                       	POP	AX 
  07EB  C3                       	RET 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-46
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-42
 COM Statement and Event Trapping                            
 
                                 	PAGE 
@@ -2122,19 +1883,15 @@ COM Statement and Event Trapping
                                  
                                  
                                  
-                                ;KEYTRP is called whenever CHGET receives a SOF
-				TKEY from the keyboard. 
+                                ;KEYTRP is called whenever CHGET receives a SOFTKEY from the keyboard. 
                                 ; Entry - [AL] = Soft key id (0..NMKEYT-1) 
-                                ; Exit  - If NZ, key was trapped and should not
-				 be expanded. 
+                                ; Exit  - If NZ, key was trapped and should not be expanded. 
                                 ;         Otherwise, CHGET should expand key. 
                                 ;         All other registers are preserved. 
                                 ; 
  07F2  50                       KEYTRP:	PUSH	AX 
- 07F3  04 01                    	ADD	AL,LOW OFFSET KEYOFF	;[AL] = 0-relative ev
-				ent id 
- 07F5  E8 079F R                	CALL	EVTRP		;Signal the occurance of a KEY EVE
-				NT 
+ 07F3  04 01                    	ADD	AL,LOW OFFSET KEYOFF	;[AL] = 0-relative event id 
+ 07F5  E8 079F R                	CALL	EVTRP		;Signal the occurance of a KEY EVENT 
  07F8  58                       	POP	AX 
  07F9  C3                       	RET 
                                  
@@ -2148,28 +1905,24 @@ COM Statement and Event Trapping
  07FE  3C 00 E                  	CMP	AL,LOW OFFSET $ON 
  0800  74 53                    	JZ	KEYON		;Brif Enable Soft Key Display Line. 
  0802  3C 00 E                  	CMP	AL,LOW OFFSET $OFF 
- 0804  74 54                    	JZ	KEYOF		;Brif Disable Soft Key Display line.
-				 
+ 0804  74 54                    	JZ	KEYOF		;Brif Disable Soft Key Display line. 
  0806  3C 00 E                  	CMP	AL,LOW OFFSET $LIST 
  0808  74 49                    	JZ	KEYLSI		;Brif LIST Soft Keys. 
  080A  E8 0000 E                	CALL	GETBYT		; else Key defn, get key number. 
  080D  0A C0                    	OR	AL,AL 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-47
+ 080F  74 3F                    	JZ	KEYFCE 
+ 0811  2C 01                    	SUB	AL,LOW OFFSET STKEYF	;Get zero relative key number 
+ 0813  3C 0A                    	CMP	AL,LOW OFFSET NMKEYF 
+ 0815  73 39                    	JNB	KEYFCE		;Must be STKEYF - NMKEYF+STKEYF, else error. 
+ 0817  BA 0010                  	MOV	DX,16D 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-43
 SOFT KEY Statement and Event Trapping                       
 
- 080F  74 3F                    	JZ	KEYFCE 
- 0811  2C 01                    	SUB	AL,LOW OFFSET STKEYF	;Get zero relative ke
-				y number 
- 0813  3C 0A                    	CMP	AL,LOW OFFSET NMKEYF 
- 0815  73 39                    	JNB	KEYFCE		;Must be STKEYF - NMKEYF+STKEYF, e
-				lse error. 
- 0817  BA 0010                  	MOV	DX,16D 
  081A  F6 E2                    	MUL	DL		; (16 * Key number). 
  081C  8B D0                    	MOV	DX,AX 
- 081E  81 C2 0000 E             	ADD	DX,OFFSET STRTAB	;Index into Soft Key tabl
-				e 
+ 081E  81 C2 0000 E             	ADD	DX,OFFSET STRTAB	;Index into Soft Key table 
  0822  52                       	PUSH	DX		;Save addr 
  0823  E8 0000 E                	CALL	SYNCHR 
  0826  2C                       	DB	OFFSET "," 
@@ -2190,13 +1943,10 @@ SOFT KEY Statement and Event Trapping
  083F  FC                       	CLD 
                                                      ;Move new softkey 
  0840  F3/ A4                    REP	MOVSB			;to Softkey table 
- 0842  88 2D                    	MOV	BYTE PTR 0[DI],CH	;Terminate entry with 0.
-				 
- 0844  A0 0000 E                	MOV	AL,BYTE PTR KEYSW	;Are the key definitions
-				 being 
+ 0842  88 2D                    	MOV	BYTE PTR 0[DI],CH	;Terminate entry with 0. 
+ 0844  A0 0000 E                	MOV	AL,BYTE PTR KEYSW	;Are the key definitions being 
  0847  0A C0                    	OR	AL,AL		;displayed? 
- 0849  74 03                    	JZ	NODSPK		;No, don't call DSPKEY since it wou
-				ld 
+ 0849  74 03                    	JZ	NODSPK		;No, don't call DSPKEY since it would 
                                 				;erase the bottom line of the screen. 
  084B  E8 08D2 R                	CALL	KEYDSP		;Yes, update the display. 
  084E  5B                       NODSPK:	POP	BX		;Text pntr 
@@ -2208,31 +1958,27 @@ SOFT KEY Statement and Event Trapping
  0855  E8 0865 R                KEYON:	CALL	SKEYON 
  0858  EB 07                    	JMP	SHORT KEYOXX	;non-zero = ON 
                                  
- 085A  B4 01                    KEYOF:	MOV	AH,LOW 1D	;Prepare to inc scroll lim
-				it 
+ 085A  B4 01                    KEYOF:	MOV	AH,LOW 1D	;Prepare to inc scroll limit 
  085C  B0 00                    	MOV	AL,LOW 0	;zero = OFF 
  085E  E8 0869 R                	CALL	KEYOX 
  0861  E8 0000 E                KEYOXX:	CALL	CHRGTR		;over ON/OFF token. 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-48
-SOFT KEY Statement and Event Trapping                       
-
  0864  C3                       	RET 
                                  
                                 PUBLIC	SKEYON 
- 0865  B4 FF                    SKEYON:	MOV	AH,LOW -1D	;Prepare to dec scroll l
-				imit 
+ 0865  B4 FF                    SKEYON:	MOV	AH,LOW -1D	;Prepare to dec scroll limit 
  0867  B0 FF                    	MOV	AL,LOW 377O 
  0869                           KEYOX:				;AH=scroll limit diff., AL=new KEYSW 
  0869  3A 06 0000 E             	CMP	AL,BYTE PTR KEYSW	;State change? 
  086D  A2 0000 E                	MOV	BYTE PTR KEYSW,AL 
  0870  74 0D                    	JZ	KEYXX		;Brif same, do nothing 
- 0872  80 3E 0000 E FF          	CMP	BYTE PTR KEYSW,LOW 255D	;Test if change to
-				 ON 
- 0877  75 03                    	JNZ	KEYOX1		;Change is to OFF - do not call FK
-				YADV 
+ 0872  80 3E 0000 E FF          	CMP	BYTE PTR KEYSW,LOW 255D	;Test if change to ON 
+ 0877  75 03                    	JNZ	KEYOX1		;Change is to OFF - do not call FKYADV 
  0879  E8 0000 E                	CALL	FKYADV 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-44
+SOFT KEY Statement and Event Trapping                       
+
  087C                           KEYOX1: 
  087C  E8 08D2 R                	CALL	KEYDSP		;On, Display on 25th line. 
  087F  C3                       KEYXX:	RET 
@@ -2241,8 +1987,7 @@ SOFT KEY Statement and Event Trapping
                                 ; 
  0880                           KEYLST: 
  0880  53                       	PUSH	BX 
- 0881  BE 0000 E                	MOV	SI,OFFSET STRTAB	;List 10 Special Function
-				 
+ 0881  BE 0000 E                	MOV	SI,OFFSET STRTAB	;List 10 Special Function 
  0884  B9 010A                  	MOV	CX,OFFSET NMKEYF+(STKEYF*400O) 
  0887                           KEYLS0: 
  0887  56                       	PUSH	SI 
@@ -2272,11 +2017,6 @@ SOFT KEY Statement and Event Trapping
  08B0  E8 0000 E                	CALL	OUTDO 
  08B3  59                       	POP	CX 
  08B4  5E                       	POP	SI 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-49
-SOFT KEY Statement and Event Trapping                       
-
  08B5  83 C6 10                 	ADD	SI,16D		;Next key address 
  08B8  FE C5                    	INC	CH		;Next key number 
  08BA  FE C9                    	DEC	CL 
@@ -2292,9 +2032,9 @@ SOFT KEY Statement and Event Trapping
  08C8  E8 0000 E                KEYLSQ:	CALL	OUTDO 
  08CB  5E                       	POP	SI 
  08CC  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-50
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-45
 SOFT KEY Statement and Event Trapping                       
 
                                 	PAGE 
@@ -2306,17 +2046,13 @@ SOFT KEY Statement and Event Trapping
                                 	EXTRN	FKCNUM:WORD 
  0000                           DSEG	ENDS 
                                  
-                                ;TKEYOF is called to turn function key display 
-				off 
+                                ;TKEYOF is called to turn function key display off 
                                 ; 
- 08CD  C6 06 0000 E 00          TKEYOF:	MOV	BYTE PTR KEYSW,LOW 0	;turn function
-				 key display switch off 
+ 08CD  C6 06 0000 E 00          TKEYOF:	MOV	BYTE PTR KEYSW,LOW 0	;turn function key display switch off 
                                  
-                                ; KEYDSP -      Display Softkeys on last line o
-				f Screen. 
+                                ; KEYDSP -      Display Softkeys on last line of Screen. 
                                  
- = 0001                         	REVNMS=1		;Key Numbers are normal video, conte
-				nts are rev-video 
+ = 0001                         	REVNMS=1		;Key Numbers are normal video, contents are rev-video 
  08D2  52                       KEYDSP:	PUSH	DX 
  08D3  B6 01                    	MOV	DH,LOW 1D	;Set for col = 1 
  08D5  8A 16 0000 E             	MOV	DL,BYTE PTR LINCNT	;Set for last line 
@@ -2330,12 +2066,10 @@ SOFT KEY Statement and Event Trapping
                                  
  08E5                           KEYDS0: 
                                 	EXTRN	SETCSR:NEAR 
- 08E5  C6 06 0000 E 00          	MOV	BYTE PTR CSRTYP,LOW 0D	;Set off mode curso
-				r 
+ 08E5  C6 06 0000 E 00          	MOV	BYTE PTR CSRTYP,LOW 0D	;Set off mode cursor 
  08EA  E8 0000 E                	CALL	SETCSR		;Turn the cursor off 
  08ED  53                       	PUSH	BX 
- 08EE  E8 095D R                KEYDS1:	CALL	GETFMT		;Get function key display 
-				format 
+ 08EE  E8 095D R                KEYDS1:	CALL	GETFMT		;Get function key display format 
  08F1  50                       KNXTST:	PUSH	AX		;Save Key disp no. 
  08F2  80 FC 30                 	CMP	AH,LOW "0"	;Single digit case? 
  08F5  74 07                    	JZ	SINDIG		;Print only one digit 
@@ -2344,18 +2078,11 @@ SOFT KEY Statement and Event Trapping
  08FC  86 E0                    	XCHG	AH,AL 
  08FE  E8 093D R                SINDIG:	CALL	KEYDCH		;Display last digit 
  0901  56                       	PUSH	SI 
- 0902  8A 0E 0000 E             	MOV	CL,BYTE PTR FKCNUM	;Count of chars per fun
-				. key (set by GETFMT 
- 0906  E8 09BB R                	CALL	XFGBG		;Swap Forground & background color
-				s 
+ 0902  8A 0E 0000 E             	MOV	CL,BYTE PTR FKCNUM	;Count of chars per fun. key (set by GETFMT 
+ 0906  E8 09BB R                	CALL	XFGBG		;Swap Forground & background colors 
  0909                           KNXTCH:				;Write the next key character 
  0909  51                       	PUSH	CX 
  090A  FC                       	CLD 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-51
-KEYON,  KEYOFF, and KEYDSP                                  
-
  090B  AC                       	LODSB 
  090C  0A C0                    	OR	AL,AL		;End of string? 
  090E  9C                       	PUSHF 
@@ -2364,6 +2091,11 @@ KEYON,  KEYOFF, and KEYDSP
  0912  32 C0                    	XOR	AL,AL		;else blank 
  0914                           KEYDS4: 
  0914  E8 093D R                	CALL	KEYDCH		;Display char, adv cursor 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-46
+KEYON,  KEYOFF, and KEYDSP                                  
+
  0917  5E                       	POP	SI 
  0918  9D                       	POPF 
  0919  75 01                    	JNZ	KEYDS5		;Brif not EOS 
@@ -2372,8 +2104,7 @@ KEYON,  KEYOFF, and KEYDSP
  091C  59                       	POP	CX 
  091D  FE C9                    	DEC	CL 
  091F  75 E8                    	JNZ	KNXTCH		;Loop for next character 
- 0921  E8 09BB R                	CALL	XFGBG		;Swap Forground & background color
-				s 
+ 0921  E8 09BB R                	CALL	XFGBG		;Swap Forground & background colors 
  0924  E8 093B R                	CALL	KEYDB		;Follow with blank 
  0927  5E                       	POP	SI 
  0928  58                       	POP	AX 
@@ -2382,13 +2113,11 @@ KEYON,  KEYOFF, and KEYDSP
  092E  75 C1                    	JNZ	KNXTST		;Loop for next key string 
  0930  5B                       KEYDSX:	POP	BX		;Retrieve cursor position 
  0931  5A                       	POP	DX 
- 0932  C6 06 0000 E 03          	MOV	BYTE PTR CSRTYP,LOW 3D	;Set user mode curs
-				or 
+ 0932  C6 06 0000 E 03          	MOV	BYTE PTR CSRTYP,LOW 3D	;Set user mode cursor 
  0937  E8 0000 E                	CALL	SETCSR		;Turn on cursor 
  093A  C3                       	RET 
                                  
- 093B  32 C0                    KEYDB:	XOR	AL,AL		;For Blank at end of Key fiel
-				d 
+ 093B  32 C0                    KEYDB:	XOR	AL,AL		;For Blank at end of Key field 
  093D                           KEYDCH: 
  093D  50                       	PUSH	AX 
  093E  53                       	PUSH	BX 
@@ -2397,8 +2126,7 @@ KEYON,  KEYOFF, and KEYDSP
  0943  B0 20                    	MOV	AL,LOW " "	;else write space 
  0945  3C 0D                    KEYDC1:	CMP	AL,LOW OFFSET CR	;CR? 
  0947  75 02                    	JNZ	KEYNCR		;Not CR. 
- 0949  B0 1B                    	MOV	AL,LOW OFFSET FKEYCR	;Subs Greater-Than-Si
-				gn 
+ 0949  B0 1B                    	MOV	AL,LOW OFFSET FKEYCR	;Subs Greater-Than-Sign 
  094B  3C 0A                    KEYNCR:	CMP	AL,LOW OFFSET LF	;Line feed? 
  094D  75 02                    	JNZ	KEYNLF		;Not line feed 
  094F  B0 3C                    	MOV	AL,LOW 74O	;Substitute Greater-Than-Sign 
@@ -2410,9 +2138,9 @@ KEYON,  KEYOFF, and KEYDSP
  095A  5B                       	POP	BX 
  095B  58                       	POP	AX		;Restore key number 
  095C  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-52
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-47
 KEYON,  KEYOFF, and KEYDSP                                  
 
                                 	PAGE 
@@ -2420,12 +2148,10 @@ KEYON,  KEYOFF, and KEYDSP
                                 ; 
  095D  53                       GETFMT:	PUSH	BX 
  095E  E8 0000 E                	CALL	FKYFMT		;OEM routine 
- 0961  8B 0F                    	MOV	CX,WORD PTR 0[BX]	;CH=key count, CL=Chrs/k
-				ey 
+ 0961  8B 0F                    	MOV	CX,WORD PTR 0[BX]	;CH=key count, CL=Chrs/key 
  0963  51                       	PUSH	CX 
  0964  88 0E 0000 E             	MOV	BYTE PTR FKCNUM,CL 
- 0968  BE 0000 E                	MOV	SI,OFFSET STRTAB	;SI=address of first fkey
-				 in table 
+ 0968  BE 0000 E                	MOV	SI,OFFSET STRTAB	;SI=address of first fkey in table 
  096B  8A 47 02                 	MOV	AL,BYTE PTR 2[BX] 
  096E  98                       	CBW 
  096F  50                       	PUSH	AX		;Save number of first function key 
@@ -2434,20 +2160,16 @@ KEYON,  KEYOFF, and KEYDSP
  0974  D3 E0                    	SHL	AX,CL		;AX = index of first display key 
  0976  03 F0                    	ADD	SI,AX 
  0978  58                       	POP	AX 
- 0979  E8 098B R                	CALL	INTOCH		;Get key number to character code
-				 
+ 0979  E8 098B R                	CALL	INTOCH		;Get key number to character code 
  097C  80 FC 30                 	CMP	AH,LOW "0" 
  097F  74 04                    	JZ	ONEDIG		;Only one digit 
- 0981  FE 0E 0000 E             	DEC	BYTE PTR FKCNUM	;Adjust function key forma
-				t for two digits 
+ 0981  FE 0E 0000 E             	DEC	BYTE PTR FKCNUM	;Adjust function key format for two digits 
  0985  E8 09A4 R                ONEDIG:	CALL	KADNRM		;Normalize key address 
  0988  59                       	POP	CX 
  0989  5B                       	POP	BX 
  098A  C3                       	RET 
-                                ;INTOCH: Translate integer AL to characters in 
-				AX. 
-                                ;        Integers must be in the range (100,0].
-				 
+                                ;INTOCH: Translate integer AL to characters in AX. 
+                                ;        Integers must be in the range (100,0]. 
                                 ;        Radix is 10. 
                                 ;USES -  none 
                                 ; 
@@ -2461,59 +2183,50 @@ KEYON,  KEYOFF, and KEYDSP
  0998  C3                       	RET 
                                 ;KEYADV - Advance to next key 
                                 ;Entry - AX = key number characters 
-                                ;        SI = index into STRTAB (key code table
-				) 
+                                ;        SI = index into STRTAB (key code table) 
                                 ; 
- 0999  83 C6 10                 KEYADV:	ADD	SI,16D		;Move to next key table ent
-				ry 
+ 0999  83 C6 10                 KEYADV:	ADD	SI,16D		;Move to next key table entry 
  099C  FE C0                    	INC	AL 
  099E  3C 39                    	CMP	AL,LOW "9" 
  09A0  7E 02                    	JLE	KADNRM 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-53
-KEYON,  KEYOFF, and KEYDSP                                  
-
  09A2  B0 30                    	MOV	AL,LOW "0" 
  09A4                           KADNRM: 
  09A4  81 FE 00A0 E             	CMP	SI,OFFSET STRTAB+NMKEYF*16D 
  09A8  72 10                    	JB	KADNMX 
- 09AA  BE 0000 E                	MOV	SI,OFFSET STRTAB	;Wrap around to the first
-				 function key 
+ 09AA  BE 0000 E                	MOV	SI,OFFSET STRTAB	;Wrap around to the first function key 
                                 				;Print function key 10 number as 0 
                                 				; except when it is the first key 
- 09AD  80 FC 31                 	CMP	AH,LOW "1"	;Only true if 1st function key 
-				is key 10 
- 09B0  75 08                    	JNZ	KADNMX		; all other wraps are for 1 digit 
-				only 
+ 09AD  80 FC 31                 	CMP	AH,LOW "1"	;Only true if 1st function key is key 10 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-48
+KEYON,  KEYOFF, and KEYDSP                                  
+
+ 09B0  75 08                    	JNZ	KADNMX		; all other wraps are for 1 digit only 
  09B2  B4 30                    	MOV	AH,LOW "0" 
  09B4  B0 31                    	MOV	AL,LOW "1" 
  09B6  FE 06 0000 E             	INC	BYTE PTR FKCNUM	;Re-adjust format 
  09BA  C3                       KADNMX:	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-54
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-49
 KEYON,  KEYOFF, and KEYDSP                                  
 
                                 	PAGE 
                                 	SUBTTL  Swap Forground & Background Colors 
                                  
-                                ;Swap Forground & Background Colors (Toggle Rev
-				erse Video Mode) 
+                                ;Swap Forground & Background Colors (Toggle Reverse Video Mode) 
                                 ; 
-                                	EXTRN	GETFBC:NEAR,SETFBC:NEAR	;Get and set for
-				ground/background attributes 
+                                	EXTRN	GETFBC:NEAR,SETFBC:NEAR	;Get and set forground/background attributes 
                                  
  09BB  F8                       XFGBG:	CLC			;Signal text attributes 
- 09BC  E8 0000 E                	CALL	GETFBC		;Get forground/background attribu
-				tes 
+ 09BC  E8 0000 E                	CALL	GETFBC		;Get forground/background attributes 
  09BF  93                       	XCHG	AX,BX 
- 09C0  E8 0000 E                	CALL	SETFBC		;Set forground/background attribu
-				tes 
+ 09C0  E8 0000 E                	CALL	SETFBC		;Set forground/background attributes 
  09C3  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-55
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-50
 Swap Forground & Background Colors                          
 
                                 	PAGE 
@@ -2522,25 +2235,20 @@ Swap Forground & Background Colors
                                 	PUBLIC	PENS,PENF 
                                 	EXTRN	MAKINT:NEAR 
                                  
-                                ; Dispatch PEN statement depending upon followi
-				ng clauses: 
+                                ; Dispatch PEN statement depending upon following clauses: 
                                 ; 
                                 ; PEN   ON      Enable  PEN Trapping. 
                                 ; PEN   OFF     Disable PEN Trapping. 
                                 ; PEN   STOP    Suspend PEN Trapping. 
                                 ; 
-                                ;               Attempts to read Light pen when
-				 off 
-                                ;               result in "Illegal Function Cal
-				l" Error. 
+                                ;               Attempts to read Light pen when off 
+                                ;               result in "Illegal Function Call" Error. 
                                 ; 
  09C4                           PENS: 
  09C4  74 1E                    	JZ	SNERR2		;Syntax error if end-of-statement 
  09C6  50                       	PUSH	AX		;save $ON/$OFF/$STOP 
- 09C7  E8 03DE R                	CALL	EOSCH1		;Syntax Error if not End-Of-State
-				ment 
- 09CA  BA 0000 E                	MOV	DX,OFFSET TRPTBL+(3*PENOFF)	;[DX]=adr of e
-				vent flag 
+ 09C7  E8 03DE R                	CALL	EOSCH1		;Syntax Error if not End-Of-Statement 
+ 09CA  BA 0000 E                	MOV	DX,OFFSET TRPTBL+(3*PENOFF)	;[DX]=adr of event flag 
  09CD  58                       	POP	AX		;[AL]=$ON, $OFF, or $STOP 
  09CE  3C 00 E                  	CMP	AL,LOW OFFSET $STOP 
  09D0  74 0F                    	JE	NTONOF		;branch if not ON/OFF 
@@ -2548,12 +2256,9 @@ Swap Forground & Background Colors
  09D3  2C 00 E                  	SUB	AL,LOW OFFSET $ON 
  09D5  74 02                    	JE	PENS1		;branch if "PEN ON" 
  09D7  B0 01                    	MOV	AL,LOW 1	;better be OFF 
- 09D9  2C 02                    PENS1:	SUB	AL,LOW 2	;Map (ON, OFF) to (254, 255
-				) 
- 09DB  53                       	PUSH	BX		;preserve text pointer (destroyed by 
-				RDPEN) 
- 09DC  E8 0000 E                	CALL	RDPEN		;enable/disable light pen interrup
-				ts 
+ 09D9  2C 02                    PENS1:	SUB	AL,LOW 2	;Map (ON, OFF) to (254, 255) 
+ 09DB  53                       	PUSH	BX		;preserve text pointer (destroyed by RDPEN) 
+ 09DC  E8 0000 E                	CALL	RDPEN		;enable/disable light pen interrupts 
  09DF  5B                       	POP	BX 
  09E0  58                       	POP	AX		;restore [AL] = $ON/$OFF 
  09E1                           NTONOF: 
@@ -2564,35 +2269,25 @@ Swap Forground & Background Colors
                                  
                                 ;PEN Function: 
                                 ; Syntax: x=PEN(n) 
-                                ;         n=0: Return -1 if pen was down since 
-				last poll, else 0. 
-                                ;         n=1: Return X Graphics Coordinate whe
-				re pen was last activated. 
-                                ;         n=2: Return Y Graphics Coordinate whe
-				re pen was last activated. 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-56
-PEN Statement and Event Trapping                            
-
-                                ;         n=3: Return -1 if pen is currently do
-				wn, 0 if currently up. 
-                                ;         n=4: Return last known valid X Graphi
-				cs Coordinate. 
-                                ;         n=5: Return last known valid Y Graphi
-				cs Coordinate. 
-                                ;         n=6: Return character row where pen w
-				as last activated. 
-                                ;         n=7: Return character column where pe
-				n was last activated. 
-                                ;         n=8: Return last known character row.
-				 
-                                ;         n=9: Return last known character colu
-				mn. 
+                                ;         n=0: Return -1 if pen was down since last poll, else 0. 
+                                ;         n=1: Return X Graphics Coordinate where pen was last activated. 
+                                ;         n=2: Return Y Graphics Coordinate where pen was last activated. 
+                                ;         n=3: Return -1 if pen is currently down, 0 if currently up. 
+                                ;         n=4: Return last known valid X Graphics Coordinate. 
+                                ;         n=5: Return last known valid Y Graphics Coordinate. 
+                                ;         n=6: Return character row where pen was last activated. 
+                                ;         n=7: Return character column where pen was last activated. 
+                                ;         n=8: Return last known character row. 
+                                ;         n=9: Return last known character column. 
                                 ; 
                                 	EXTRN	RDPEN:NEAR 
  09EA                           PENF: 
  09EA  E8 0A16 R                	CALL	ONESUB		;[AL] = pen function 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-51
+PEN Statement and Event Trapping                            
+
  09ED  53                       	PUSH	BX		;save text pointer 
  09EE  3C 0A                    	CMP	AL,LOW 10 
  09F0  72 02                    	JB	PENOK 
@@ -2601,41 +2296,26 @@ PEN Statement and Event Trapping
  09F4  0A C0                    	OR	AL,AL 
  09F6  75 07                    	JNE	NPEN0		;branch if not PEN(0) 
                                  
-                                ;Whenever a PEN interrupt occurs, it is detecte
-				d by POLPEN (called by CHKINT). 
-                                ; PEN(0) tells whether a PEN event has occured 
-				since the last PEN(0). 
-                                ; It determines this by testing-and-clearing th
-				e bit set by POLPEN. 
-                                ; NOTE: PEN(0) always returns false when event 
-				trapping has been enabled 
+                                ;Whenever a PEN interrupt occurs, it is detected by POLPEN (called by CHKINT). 
+                                ; PEN(0) tells whether a PEN event has occured since the last PEN(0). 
+                                ; It determines this by testing-and-clearing the bit set by POLPEN. 
+                                ; NOTE: PEN(0) always returns false when event trapping has been enabled 
                                 ;       (by PEN ON statement) 
                                 ; 
  09F8  B0 00                    	MOV	AL,LOW OFFSET PENOFF 
  09FA  E8 07CA R                	CALL	TSTCEV		;test and clear event [AL] 
- 09FD  EB 03                    	JMP	SHORT PENRET	;return -1 in BX if event has
-				 occured 
+ 09FD  EB 03                    	JMP	SHORT PENRET	;return -1 in BX if event has occured 
  09FF                           NPEN0: 
  09FF  E8 0000 E                	CALL	RDPEN 
- 0A02  E8 0000 E                PENRET:	CALL	MAKINT		;Return [BX] as signed int
-				eger 
+ 0A02  E8 0000 E                PENRET:	CALL	MAKINT		;Return [BX] as signed integer 
  0A05  5B                       	POP	BX		;restore text pointer 
  0A06  C3                       	RET 
                                  
-                                ;POLPEN is called by CHKINT at beginning of eve
-				ry BASIC statement (NEWSTT). 
-                                ; If a PEN interrupt has occured, it sets the a
-				ppropriate bit in TRPTBL 
-                                ; which will cause the BASIC program's pen serv
-				ice routine (ON PEN GOSUB) 
+                                ;POLPEN is called by CHKINT at beginning of every BASIC statement (NEWSTT). 
+                                ; If a PEN interrupt has occured, it sets the appropriate bit in TRPTBL 
+                                ; which will cause the BASIC program's pen service routine (ON PEN GOSUB) 
                                 ; to be invoked. 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-57
-PEN Statement and Event Trapping                            
-
-                                ; Exit - AX, BX, CX, DX can be used (restored b
-				y CHKINT). 
+                                ; Exit - AX, BX, CX, DX can be used (restored by CHKINT). 
                                 ;        All other registers are preserved. 
                                 ; 
  0A07                           POLPEN: 
@@ -2644,24 +2324,21 @@ PEN Statement and Event Trapping
  0A0C  0B DB                    	OR	BX,BX 
  0A0E  74 05                    	JE	NOPENI		;branch if no lightpen interrupt 
  0A10  B0 00                    	MOV	AL,LOW OFFSET PENOFF 
- 0A12  E8 079F R                	CALL	EVTRP		;Signal the occurance of a PEN EVE
-				NT 
+ 0A12  E8 079F R                	CALL	EVTRP		;Signal the occurance of a PEN EVENT 
  0A15  C3                       NOPENI:	RET 
                                 ;Parse "(n)" and return n in [AL] 
  0A16                           ONESUB: 
-                                ;In non-IBMTOK versions, EVAL doesn't parse the
-				 argument 
+                                ;In non-IBMTOK versions, EVAL doesn't parse the argument 
                                 	EXTRN	INTFR2:NEAR 
  0A16  52                       	PUSH	DX 
- 0A17  E8 0000 E                	CALL	INTFR2		;[DX] = function to be performed 
-				(argument) 
+ 0A17  E8 0000 E                	CALL	INTFR2		;[DX] = function to be performed (argument) 
  0A1A  75 2D                    	JNE	FCERRI		;branch if [DX] is not [0..255] 
  0A1C  8A C2                    	MOV	AL,DL		;return argument in [AL] 
  0A1E  5A                       	POP	DX		;restore caller's [DX] 
  0A1F  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-58
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-52
 PEN Statement and Event Trapping                            
 
                                 	PAGE 
@@ -2674,26 +2351,18 @@ PEN Statement and Event Trapping
                                 ; 
                                 ; Syntax: 
                                 ; 
-                                ;   In IBM BASIC, STRIG ON enables trigger trap
-				ping while STRIG OFF 
+                                ;   In IBM BASIC, STRIG ON enables trigger trapping while STRIG OFF 
                                 ;     disables trigger event trapping. 
-                                ;   It is parsed in GW-BASIC for syntax compati
-				bility only. 
+                                ;   It is parsed in GW-BASIC for syntax compatibility only. 
                                 ; 
-                                ;   STRIG(n)      ON      Enable  STRIG(n) Trap
-				ping. 
-                                ;   STRIG(n)      OFF     Disable STRIG(n) Trap
-				ping. 
-                                ;   STRIG(n)      STOP    Suspend STRIG(n) Trap
-				ping. 
+                                ;   STRIG(n)      ON      Enable  STRIG(n) Trapping. 
+                                ;   STRIG(n)      OFF     Disable STRIG(n) Trapping. 
+                                ;   STRIG(n)      STOP    Suspend STRIG(n) Trapping. 
                                 ; 
                                 ;       WHERE: 
-                                ;               (n) is Trigger 0 for joystick t
-				rigger #1, 
-                                ;                              2 for joystick t
-				rigger #2, 
-                                ;                              4 for joystick t
-				rigger #3, etc. 
+                                ;               (n) is Trigger 0 for joystick trigger #1, 
+                                ;                              2 for joystick trigger #2, 
+                                ;                              4 for joystick trigger #3, etc. 
                                 ; 
  0A20                           STRIGS: 
  0A20  3C 28                    	CMP	AL,LOW "(" 
@@ -2705,87 +2374,60 @@ PEN Statement and Event Trapping
  0A2C  74 07                    	JE	STROK 
  0A2E  3C 00 E                  	CMP	AL,LOW OFFSET $OFF 
  0A30  74 03                    	JE	STROK 
- 0A32  E9 0000 E                	JMP	SNERR		;SYNTAX ERROR if not $ON or $OFF or
-				 (n) 
- 0A35  E9 03DE R                STROK:	JMP	EOSCH1		;SYNTAX ERROR if not end-of-
-				statement 
+ 0A32  E9 0000 E                	JMP	SNERR		;SYNTAX ERROR if not $ON or $OFF or (n) 
+ 0A35  E9 03DE R                STROK:	JMP	EOSCH1		;SYNTAX ERROR if not end-of-statement 
                                  
                                 ;STRIG Function: 
                                 ; 
                                 ; Syntax: 
                                 ; 
                                 ;  x=STRIG(n) 
-                                ;    n=0: return -1 if button 1 was pressed sin
-				ce last STRIG(0), else 0. 
-                                ;    n=1: return -1 if button 1 is currently pr
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-59
-STRIG Statement and Event Trapping                          
-
-				essed, else 0. 
-                                ;    n=2: return -1 if button 2 was pressed sin
-				ce last STRIG(0), else 0. 
-                                ;    n=3: return -1 if button 2 is currently pr
-				essed, else 0. 
+                                ;    n=0: return -1 if button 1 was pressed since last STRIG(0), else 0. 
+                                ;    n=1: return -1 if button 1 is currently pressed, else 0. 
+                                ;    n=2: return -1 if button 2 was pressed since last STRIG(0), else 0. 
+                                ;    n=3: return -1 if button 2 is currently pressed, else 0. 
                                 ;         etc. 
                                 ; 
  0A38                           STRIGF: 
  0A38  E8 0A16 R                	CALL	ONESUB		;Parse "(n)", [AL] = n 
  0A3B  53                       	PUSH	BX		;save text pointer 
- 0A3C  8A E0                    	MOV	AH,AL		;Map AL to AH: (0,1,2,...) to (1,0,
-				1,...) 
+ 0A3C  8A E0                    	MOV	AH,AL		;Map AL to AH: (0,1,2,...) to (1,0,1,...) 
  0A3E  FE C4                    	INC	AH 
- 0A40  80 E4 01                 	AND	AH,LOW 1	;[AH] = 1 for latched, 0 for curr
-				ent 
- 0A43  D0 E8                    	SHR	AL,1		;[AL] = 0 relative joystick trigger 
-				id 
+ 0A40  80 E4 01                 	AND	AH,LOW 1	;[AH] = 1 for latched, 0 for current 
+ 0A43  D0 E8                    	SHR	AL,1		;[AL] = 0 relative joystick trigger id 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-53
+STRIG Statement and Event Trapping                          
+
  0A45  3C 04                    	CMP	AL,LOW OFFSET NMSTRT 
  0A47  72 03                    	JB	STRGOK 
- 0A49  E9 0000 E                FCERRI:	JMP	FCERR		;branch if illegal trigger i
-				d 
+ 0A49  E9 0000 E                FCERRI:	JMP	FCERR		;branch if illegal trigger id 
  0A4C                           STRGOK: 
  0A4C  0A E4                    	OR	AH,AH 
- 0A4E  74 15                    	JE	NSTR0		;brif current (not latched) was requ
-				ested 
+ 0A4E  74 15                    	JE	NSTR0		;brif current (not latched) was requested 
  0A50  50                       	PUSH	AX 
- 0A51  04 11                    	ADD	AL,LOW OFFSET STROFF	;see if STRIG(n) ON h
-				as been executed 
- 0A53  E8 0715 R                	CALL	EVADR		;if not, POLSTR will not call RDTR
-				IG for 
- 0A56  8B DA                    	MOV	BX,DX		; this trigger, so we must call it 
-				directly 
+ 0A51  04 11                    	ADD	AL,LOW OFFSET STROFF	;see if STRIG(n) ON has been executed 
+ 0A53  E8 0715 R                	CALL	EVADR		;if not, POLSTR will not call RDTRIG for 
+ 0A56  8B DA                    	MOV	BX,DX		; this trigger, so we must call it directly 
  0A58  F6 07 00 E               	TEST	BYTE PTR 0[BX],LOW OFFSET T_ON 
  0A5B  58                       	POP	AX 
  0A5C  74 07                    	JE	NSTR0		;branch if event is not enabled 
                                  
-                                ;Whenever a STRIG interrupt occurs, it is detec
-				ted by POLSTR (called by CHKINT). 
-                                ; STRIG(0) tells whether a STRIG event has occu
-				red since the last STRIG(0). 
-                                ; It determines this by testing-and-clearing th
-				e bit set by POLSTR. 
-                                ; NOTE: STRIG(0) always returns false when even
-				t trapping has been enabled 
+                                ;Whenever a STRIG interrupt occurs, it is detected by POLSTR (called by CHKINT). 
+                                ; STRIG(0) tells whether a STRIG event has occured since the last STRIG(0). 
+                                ; It determines this by testing-and-clearing the bit set by POLSTR. 
+                                ; NOTE: STRIG(0) always returns false when event trapping has been enabled 
                                 ;       (by STRIG(n) ON statement) 
                                 ; 
- 0A5E  04 11                    	ADD	AL,LOW OFFSET STROFF	;[AL]=0 relative even
-				t index 
+ 0A5E  04 11                    	ADD	AL,LOW OFFSET STROFF	;[AL]=0 relative event index 
  0A60  E8 07CA R                	CALL	TSTCEV		;test and clear event [AL] 
- 0A63  EB 08                    	JMP	SHORT STRRET	;return -1 in BX if event has
-				 occured 
- 0A65  E8 0000 E                NSTR0:	CALL	RDTRIG		;[AL] = 0/1 for not-pressed
-				/pressed 
+ 0A63  EB 08                    	JMP	SHORT STRRET	;return -1 in BX if event has occured 
+ 0A65  E8 0000 E                NSTR0:	CALL	RDTRIG		;[AL] = 0/1 for not-pressed/pressed 
  0A68  98                       	CBW			;[AX] = 0/1 for not-pressed/pressed 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-60
-STRIG Statement and Event Trapping                          
-
  0A69  F7 D8                    	NEG	AX		;[AX] = 0/-1 for not-pressed/pressed 
  0A6B  8B D8                    	MOV	BX,AX 
- 0A6D  E8 0000 E                STRRET:	CALL	MAKINT		;return [BX] as signed int
-				eger 
+ 0A6D  E8 0000 E                STRRET:	CALL	MAKINT		;return [BX] as signed integer 
  0A70  5B                       	POP	BX		;restore text pointer 
  0A71  C3                       	RET 
                                  
@@ -2794,14 +2436,10 @@ STRIG Statement and Event Trapping
                                 ; Syntax: 
                                 ; 
                                 ;  x=STICK(n) 
-                                ;    n=0:    return x coordinate for joystick 1
-				. 
-                                ;    n=1:    return y coordinate for joystick 1
-				. 
-                                ;    n=2:    return x coordinate for joystick 2
-				. 
-                                ;    n=3:    return y coordinate for joystick 2
-				. 
+                                ;    n=0:    return x coordinate for joystick 1. 
+                                ;    n=1:    return y coordinate for joystick 1. 
+                                ;    n=2:    return x coordinate for joystick 2. 
+                                ;    n=3:    return y coordinate for joystick 2. 
                                 ;            etc. 
                                 ; 
  0A72                           STICKF: 
@@ -2815,53 +2453,41 @@ STRIG Statement and Event Trapping
  0A81  5B                       	POP	BX		;restore text pointer 
  0A82  C3                       	RET 
                                  
-                                ;POLSTR is called by CHKINT at beginning of eve
-				ry BASIC statement (NEWSTT). 
-                                ; If a STRIG interrupt has occured, it sets the
-				 appropriate bit in TRPTBL 
-                                ; which will cause the BASIC program's pen serv
-				ice routine (ON STRIG(N) GOSUB) 
+                                ;POLSTR is called by CHKINT at beginning of every BASIC statement (NEWSTT). 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-54
+STRIG Statement and Event Trapping                          
+
+                                ; If a STRIG interrupt has occured, it sets the appropriate bit in TRPTBL 
+                                ; which will cause the BASIC program's pen service routine (ON STRIG(N) GOSUB) 
                                 ; to be invoked. 
-                                ; Exit - AX, BX, CX, DX can be used (restored b
-				y CHKINT). 
+                                ; Exit - AX, BX, CX, DX can be used (restored by CHKINT). 
                                 ;        All other registers are preserved. 
                                 ; 
  0A83                           POLSTR: 
- 0A83  33 C0                    	XOR	AX,AX		;[AL] = joystick trigger #0 (for RD
-				TRIG) 
+ 0A83  33 C0                    	XOR	AX,AX		;[AL] = joystick trigger #0 (for RDTRIG) 
  0A85  FE C4                    	INC	AH		;[AH] = latched (not current) flag 
  0A87                           STRILP: 
  0A87  50                       	PUSH	AX		;save current trigger id 
  0A88  04 11                    	ADD	AL,LOW OFFSET STROFF 
  0A8A  E8 0715 R                	CALL	EVADR		;[DX] points to event mask 
  0A8D  8B DA                    	MOV	BX,DX		;[BX] points to event mask 
- 0A8F  F6 07 00 E               	TEST	BYTE PTR 0[BX],LOW OFFSET T_ON	;see if ST
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-61
-STRIG Statement and Event Trapping                          
-
-				RIG(n) ON has been done 
+ 0A8F  F6 07 00 E               	TEST	BYTE PTR 0[BX],LOW OFFSET T_ON	;see if STRIG(n) ON has been done 
  0A92  58                       	POP	AX 
  0A93  50                       	PUSH	AX 
- 0A94  74 0E                    	JE	STRI1		;don't call RDTRIG if event not enab
-				led 
- 0A96  E8 0000 E                	CALL	RDTRIG		;[AL]=0/1 if trig is not-pressed/
-				pressed 
+ 0A94  74 0E                    	JE	STRI1		;don't call RDTRIG if event not enabled 
+ 0A96  E8 0000 E                	CALL	RDTRIG		;[AL]=0/1 if trig is not-pressed/pressed 
  0A99  0A C0                    	OR	AL,AL 
- 0A9B  74 07                    	JE	STRI1		;brif this trigger has not interrupt
-				ed 
+ 0A9B  74 07                    	JE	STRI1		;brif this trigger has not interrupted 
  0A9D  58                       	POP	AX		;restore [AL] = joystick trigger id 
  0A9E  50                       	PUSH	AX 
- 0A9F  04 11                    	ADD	AL,LOW OFFSET STROFF	;[AL] = global event 
-				id 
- 0AA1  E8 079F R                	CALL	EVTRP		;Signal the occurance of a TRIGGER
-				 EVENT 
+ 0A9F  04 11                    	ADD	AL,LOW OFFSET STROFF	;[AL] = global event id 
+ 0AA1  E8 079F R                	CALL	EVTRP		;Signal the occurance of a TRIGGER EVENT 
  0AA4  58                       STRI1:	POP	AX 
  0AA5  FE C0                    	INC	AL 
  0AA7  3C 04                    	CMP	AL,LOW OFFSET NMSTRT 
- 0AA9  72 DC                    	JB	STRILP		;brif there are more triggers to po
-				ll 
+ 0AA9  72 DC                    	JB	STRILP		;brif there are more triggers to poll 
  0AAB  C3                       	RET 
                                  
                                 	SUBTTL DATE - Get/Set Date. 
@@ -2871,14 +2497,12 @@ STRIG Statement and Event Trapping
                                 	EXTRN	DAYSPM:WORD 
  0000                           DSEG	ENDS 
                                  
-                                ;DATE$="[M]M/[D]D/[YY]YY" or "[M]M-[D]D-[YY]YY"
-				USA Date format 
+                                ;DATE$="[M]M/[D]D/[YY]YY" or "[M]M-[D]D-[YY]YY"USA Date format 
                                 ; 
  0AAC  E8 0B01 R                DATES:	CALL	PRSDAT		;CX=year, DH=month, DL=day 
  0AAF  E9 0B94 R                	JMP	SETDAT		;set system date 
                                  
-                                ;X$=DATE$ returns "YYYY-MM-DD" if KANABS&KANADT
-				 else "MM-DD-YYYY" 
+                                ;X$=DATE$ returns "YYYY-MM-DD" if KANABS&KANADT else "MM-DD-YYYY" 
                                 ; 
  0AB2                           DATEF: 
  0AB2  E8 0000 E                	CALL	CHRGTR		;skip DATE$ 
@@ -2889,17 +2513,17 @@ STRIG Statement and Event Trapping
  0ABC  E8 0B9F R                	CALL	GETDAT		;CX=year, DH=month, DL=day 
  0ABF  5B                       	POP	BX		;[BX]=adr of string 
  0AC0  81 E9 076C               	SUB	CX,1900D	;Reduce year by two digits 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-55
+DATE - Get/Set Date.                                        
+
  0AC4  80 F9 64                 	CMP	CL,LOW 100D	;See if in 20th century 
  0AC7  B5 13                    	MOV	CH,LOW 19D	;Setup 20th century in case 
  0AC9  72 05                    	JB	DATEF2		;Brif so. 
  0ACB  80 E9 64                 	SUB	CL,LOW 100D	;subtract into next century 
  0ACE  FE C5                    	INC	CH		;21st century 
  0AD0                           DATEF2: 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-62
-DATE - Get/Set Date.                                        
-
  0AD0  8A C6                    	MOV	AL,DH 
  0AD2  E8 0AF1 R                	CALL	PUTCHR		;Store ascii month 
  0AD5  B0 2D                    	MOV	AL,LOW "-" 
@@ -2912,8 +2536,7 @@ DATE - Get/Set Date.
  0AE6  E8 0AF1 R                	CALL	PUTCHR		;Store ascii century 
  0AE9  8A C1                    	MOV	AL,CL 
  0AEB  E8 0AF1 R                	CALL	PUTCHR		;Store ascii year. 
- 0AEE  E9 0000 E                	JMP	PUTNEW		;Put result and ret (Txt ptr on st
-				ack). 
+ 0AEE  E9 0000 E                	JMP	PUTNEW		;Put result and ret (Txt ptr on stack). 
                                  
  0AF1                           PUTCHR: 
  0AF1  D4 0A                    	AAM			;Convert to unpacked BCD 
@@ -2928,11 +2551,9 @@ DATE - Get/Set Date.
                                  
                                  
                                 ;PRSDAT parses a string containing 
-                                ;   "[YY]YY/MM/DD" if KANABS&KANADT else "MM/DD
-				/[YY]YY" 
+                                ;   "[YY]YY/MM/DD" if KANABS&KANADT else "MM/DD/[YY]YY" 
                                 ; Exit - CX=year, DH=month, DL=day, 
-                                ;         [BX]=new text pointer.  All other reg
-				s preserved. 
+                                ;         [BX]=new text pointer.  All other regs preserved. 
                                 ; 
  0B01                           PRSDAT: 
  0B01  E8 0000 E                	CALL	SYNCHR 
@@ -2940,12 +2561,10 @@ DATE - Get/Set Date.
  0B05  E8 0000 E                	CALL	FRMEVL 
  0B08  53                       	PUSH	BX		;Save Text pointer 
  0B09  E8 0000 E                	CALL	FRESTR 
- 0B0C  8A 0F                    	MOV	CL,BYTE PTR 0[BX]	;Save string len in [CL]
-				 
+ 0B0C  8A 0F                    	MOV	CL,BYTE PTR 0[BX]	;Save string len in [CL] 
  0B0E  80 F9 01                 	CMP	CL,LOW 1	;String must not be null 
  0B11  72 7E                    	JB	DATERR		;Brif null str 
- 0B13  8B 77 01                 	MOV	SI,WORD PTR 1[BX]	;[SI] has addr of string
-				. 
+ 0B13  8B 77 01                 	MOV	SI,WORD PTR 1[BX]	;[SI] has addr of string. 
  0B16  8A D9                    	MOV	BL,CL		;Working reg for string len. 
  0B18  E8 0B59 R                	CALL	GNUM8		;[AX]=month 
  0B1B  8A F0                    	MOV	DH,AL		;[DH] = month 
@@ -2953,12 +2572,12 @@ DATE - Get/Set Date.
  0B20  E8 0B59 R                	CALL	GNUM8		;[AL]=day of month 
  0B23  8A D0                    	MOV	DL,AL		;[DL] = day 
  0B25  E8 0B49 R                	CALL	DATSEP		;skip / or - 
- 0B28  E8 0B61 R                	CALL	GNUM16		;[AX]=year (16 BITS) 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-63
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-56
 DATE - Get/Set Date.                                        
 
+ 0B28  E8 0B61 R                	CALL	GNUM16		;[AX]=year (16 BITS) 
  0B2B  3D 07BA                  	CMP	AX,1978D 
  0B2E  73 10                    	JNB	DATE2		;branch if .GE. 1978 
  0B30  3D 0064                  	CMP	AX,100D 
@@ -2974,8 +2593,7 @@ DATE - Get/Set Date.
  0B47  5B                       	POP	BX		;Text pointer 
  0B48  C3                       	RET			;Exit. 
                                  
-                                ;DATSEP checks for a date separator (- or /) an
-				d returns if found. 
+                                ;DATSEP checks for a date separator (- or /) and returns if found. 
                                 ; 
  0B49                           DATSEP: 
  0B49  0A DB                    	OR	BL,BL 
@@ -3013,9 +2631,9 @@ DATE - Get/Set Date.
  0B83  72 F3                    	JB	RET2		;branch if illegal digit 
  0B85  80 F9 0A                 	CMP	CL,LOW 10D 
  0B88  F5                       	CMC 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-64
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-57
 DATE - Get/Set Date.                                        
 
  0B89  72 ED                    	JB	RET2		;branch if illegal digit 
@@ -3036,15 +2654,14 @@ DATE - Get/Set Date.
  0B9D  5B                       	POP	BX 
  0B9E  C3                       	RET 
                                  
-                                ;GETDAT returns with [CX]=year, DH=month, DL=da
-				y-of-month. 
+                                ;GETDAT returns with [CX]=year, DH=month, DL=day-of-month. 
                                 ; Exit - BX, AX are used. 
                                 ; 
  0B9F                           GETDAT:	DOSIO	GDAT		;Get Date from MS-DOS 
  0BA3  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-65
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-58
 DATE - Get/Set Date.                                        
 
                                 	PAGE 
@@ -3052,23 +2669,20 @@ DATE - Get/Set Date.
                                  
                                 	PUBLIC	TIMES,TIMEF 
                                 	EXTRN	STRINI:NEAR,PUTNEW:NEAR,FCERR:NEAR 
-                                	EXTRN	CHRGTR:NEAR,SYNCHR:NEAR,GETYPR:NEAR,FRME
-				VL:NEAR,FRESTR:NEAR 
+                                	EXTRN	CHRGTR:NEAR,SYNCHR:NEAR,GETYPR:NEAR,FRMEVL:NEAR,FRESTR:NEAR 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	DATIME:WORD,EQULTK:WORD 
  0000                           DSEG	ENDS 
                                  
                                 ; TIME$=[H]H[:[M]M[:[S]S[:[T]T]]] 
                                 ; 
- 0BA4  E8 0BD4 R                TIMES:	CALL	PRSTIM		;CH=hour, CL=min, DH=sec, D
-				L=.01sec 
+ 0BA4  E8 0BD4 R                TIMES:	CALL	PRSTIM		;CH=hour, CL=min, DH=sec, DL=.01sec 
  0BA7  E9 0C2E R                	JMP	SETTIM		;set system time 
                                  
                                 ;X$=TIME$ returns "HH:MM:SS" 
                                 ; 
  0BAA                           TIMEF: 
- 0BAA  E8 0000 E                	CALL	CHRGTR		;skip TIME$ (it was CPI'ed in FRM
-				EVL) 
+ 0BAA  E8 0000 E                	CALL	CHRGTR		;skip TIME$ (it was CPI'ed in FRMEVL) 
  0BAD  53                       	PUSH	BX		;Save Text pointer 
  0BAE  B0 08                    	MOV	AL,LOW 8D 
  0BB0  E8 0000 E                	CALL	STRINI		;Get space for 8 char string 
@@ -3085,37 +2699,30 @@ DATE - Get/Set Date.
  0BC9  E8 0AFD R                	CALL	PUTCH2 
  0BCC  8A C6                    	MOV	AL,DH 
  0BCE  E8 0AF1 R                	CALL	PUTCHR		;Store ascii seconds. 
- 0BD1  E9 0000 E                	JMP	PUTNEW		;Put result and ret (Txt ptr on st
-				ack). 
+ 0BD1  E9 0000 E                	JMP	PUTNEW		;Put result and ret (Txt ptr on stack). 
                                  
-                                	EXTRN	FMULT:NEAR,CONIA:NEAR,FRCSNG:NEAR,FADD:N
-				EAR,PUSHF:NEAR 
+                                	EXTRN	FMULT:NEAR,CONIA:NEAR,FRCSNG:NEAR,FADD:NEAR,PUSHF:NEAR 
                                  
                                  
-                                ;PRSTIM parses a string containing "HH[:MM[:SS[
-				.TT]]] 
-                                ; Exit - CH=hours, CL=minutes, DH=seconds, DL=.
-				01 secs, 
-                                ;         [BX]=new text pointer.  All other reg
-				s preserved. 
+                                ;PRSTIM parses a string containing "HH[:MM[:SS[.TT]]] 
+                                ; Exit - CH=hours, CL=minutes, DH=seconds, DL=.01 secs, 
+                                ;         [BX]=new text pointer.  All other regs preserved. 
                                 ; 
  0BD4                           PRSTIM: 
  0BD4  E8 0000 E                	CALL	SYNCHR 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-66
-TIME - Get/Set Time.                                        
-
  0BD7  00 E                     	DB	OFFSET EQULTK	;Must be TIME$ = string 
  0BD8  E8 0000 E                	CALL	FRMEVL 
  0BDB  53                       	PUSH	BX		;Save Text pointer 
  0BDC  E8 0000 E                	CALL	FRESTR 
- 0BDF  8A 0F                    	MOV	CL,BYTE PTR 0[BX]	;Save string len in [CL]
-				 
+ 0BDF  8A 0F                    	MOV	CL,BYTE PTR 0[BX]	;Save string len in [CL] 
  0BE1  80 F9 01                 	CMP	CL,LOW 1	;String must not be null 
  0BE4  72 45                    	JB	TIMERR		;Brif null str 
- 0BE6  8B 77 01                 	MOV	SI,WORD PTR 1[BX]	;[SI] has addr of string
-				. 
+ 0BE6  8B 77 01                 	MOV	SI,WORD PTR 1[BX]	;[SI] has addr of string. 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-59
+TIME - Get/Set Time.                                        
+
  0BE9  8A D9                    	MOV	BL,CL		;Working reg for string len. 
  0BEB  E8 0B59 R                	CALL	GNUM8		;[AX]=hours 
  0BEE  3C 18                    	CMP	AL,LOW 24D 
@@ -3160,22 +2767,21 @@ TIME - Get/Set Time.
                                 	DOSIO	STIM		;Give Time to MS-DOS. 
  0C33  0A C0                    	OR	AL,AL		;Date OK? 
  0C35  75 F4                    	JNZ	TIMERR		;Brif not. 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
-GWSTS - GW-BASIC Common Statement Support                   Page     1-67
-TIME - Get/Set Time.                                        
-
  0C37  5B                       	POP	BX 
  0C38  C3                       	RET 
                                  
  0C39                           GETTIM:	DOSIO	GTIM		;Get Time from MS-DOS 
  0C3D  C3                       	RET 
                                  
-                                	SUBTTL  Error Handlers for Features not suppor
-				ted in a version 
+                                	SUBTTL  Error Handlers for Features not supported in a version 
                                  
                                 	EXTRN	DERDNA:NEAR 
  0C3E  E9 0000 E                	JMP	DERDNA		;Device unavailable error 
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
+GWSTS - GW-BASIC Common Statement Support                   Page     1-60
+Error Handlers for Features not supported in a version      
+
                                  
                                 PUBLIC	PALETE 
  0C41                           PALETE: 
@@ -3216,8 +2822,8 @@ TIME - Get/Set Time.
  0C49                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
 GWSTS - GW-BASIC Common Statement Support                   Symbols-1
                                                              
 
@@ -3275,8 +2881,8 @@ BUFLEN . . . . . . . . . . . . .  	Number	00FF
 
 CASSW  . . . . . . . . . . . . .  	Number	0000	
 CHDIR  . . . . . . . . . . . . .  	L NEAR	0C44	CSEG	Global
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
 GWSTS - GW-BASIC Common Statement Support                   Symbols-2
                                                              
 
@@ -3334,8 +2940,8 @@ DATES  . . . . . . . . . . . . .  	L NEAR	0AAC	CSEG	Global
 DATIME . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 DATPSC . . . . . . . . . . . . .  	Number	0080	
 DATSEP . . . . . . . . . . . . .  	L NEAR	0B49	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
 GWSTS - GW-BASIC Common Statement Support                   Symbols-3
                                                              
 
@@ -3393,8 +2999,8 @@ FETCHR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FETCHZ . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FIVDSK . . . . . . . . . . . . .  	Number	0001	
 FIVEO  . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
 GWSTS - GW-BASIC Common Statement Support                   Symbols-4
                                                              
 
@@ -3452,8 +3058,8 @@ GWWIDX . . . . . . . . . . . . .  	L NEAR	02AC	CSEG
 HEATH  . . . . . . . . . . . . .  	Number	0000	
 HEXOCT . . . . . . . . . . . . .  	Number	0001	
 HGHBIT . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
 GWSTS - GW-BASIC Common Statement Support                   Symbols-5
                                                              
 
@@ -3511,8 +3117,8 @@ KEYLST . . . . . . . . . . . . .  	L NEAR	0880	CSEG
 KEYNCR . . . . . . . . . . . . .  	L NEAR	094B	CSEG
 KEYNLF . . . . . . . . . . . . .  	L NEAR	0951	CSEG
 KEYOF  . . . . . . . . . . . . .  	L NEAR	085A	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
 GWSTS - GW-BASIC Common Statement Support                   Symbols-6
                                                              
 
@@ -3570,8 +3176,8 @@ MINDEL . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 MINUPD . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 MKDIR  . . . . . . . . . . . . .  	L NEAR	0C44	CSEG	Global
 MMODE  . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
 GWSTS - GW-BASIC Common Statement Support                   Symbols-7
                                                              
 
@@ -3629,8 +3235,8 @@ NUMLEV . . . . . . . . . . . . .  	Number	006E
 NUMTMP . . . . . . . . . . . . .  	Number	000A	
 NUMTRP . . . . . . . . . . . . .  	Number	0015	
 
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
 GWSTS - GW-BASIC Common Statement Support                   Symbols-8
                                                              
 
@@ -3688,8 +3294,8 @@ PLYNUM . . . . . . . . . . . . .  	L NEAR	04BD	CSEG
 PLYRET . . . . . . . . . . . . .  	L NEAR	04BC	CSEG
 PLYSHP . . . . . . . . . . . . .  	L NEAR	04FB	CSEG
 PLYTAB . . . . . . . . . . . . .  	L NEAR	0435	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
 GWSTS - GW-BASIC Common Statement Support                   Symbols-9
                                                              
 
@@ -3747,8 +3353,8 @@ SCRLOP . . . . . . . . . . . . .  	L NEAR	036C	CSEG
 SCRN86 . . . . . . . . . . . . .  	Number	0001	
 SCRNIO . . . . . . . . . . . . .  	Number	0001	
 SCROLT . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
 GWSTS - GW-BASIC Common Statement Support                   Symbols-10
                                                              
 
@@ -3806,8 +3412,8 @@ STRIG1 . . . . . . . . . . . . .  	L NEAR	0A2A	CSEG
 STRIGF . . . . . . . . . . . . .  	L NEAR	0A38	CSEG	Global
 STRIGS . . . . . . . . . . . . .  	L NEAR	0A20	CSEG	Global
 STRILP . . . . . . . . . . . . .  	L NEAR	0A87	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
 GWSTS - GW-BASIC Common Statement Support                   Symbols-11
                                                              
 
@@ -3865,8 +3471,8 @@ XPRAM  . . . . . . . . . . . . .  	L NEAR	0280	CSEG
 XTNSYS . . . . . . . . . . . . .  	Number	0000	
 
 YLCPRM . . . . . . . . . . . . .  	L NEAR	020D	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 7/13/20 11:22:56
-
+Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+ 
 GWSTS - GW-BASIC Common Statement Support                   Symbols-12
                                                              
 
@@ -3890,11 +3496,11 @@ $STR2B . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 ?CSLAB . . . . . . . . . . . . .  	L NEAR	0500	CSEG
 
 
-   2704 Source  Lines
-   2713 Total   Lines
+   2705 Source  Lines
+   2714 Total   Lines
     595 Symbols
 
-  31206 Bytes symbol space free
+  31186 Bytes symbol space free
 
       0 Warning Errors
       0 Severe  Errors
