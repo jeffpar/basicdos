@@ -795,8 +795,12 @@ tc4:	cmp	al,'0'
 	jnz	tc4a
 	mov	ah,CLS_DEC		; must be decimal
 tc4a:	cmp	ah,CLS_OCT OR CLS_HEX
-	jne	tc6a			; exit
+	jne	tc4b
 	and	ah,CLS_OCT
+	jmp	short tc7a		; change previous class and exit
+tc4b:	cmp	ah,CLS_FLOAT OR CLS_SYM
+	jne	tc6a
+	mov	ah,CLS_FLOAT
 	jmp	short tc7a		; change previous class and exit
 ;
 ; Check for letters next.
@@ -822,7 +826,7 @@ tc5a:	cmp	al,'A'
 	jne	tc5c			; no
 tc5b:	test	ah,CLS_DEC		; preceded by some decimal value?
 	jz	tc5c			; no
-	mov	ah,CLS_FLOAT		; definitively float now
+	mov	ah,CLS_FLOAT OR CLS_SYM	; definitively float now
 	jmp	short tc7a		; change previous class and exit
 ;
 ; If we're on the heels of an ampersand, check for letters that determine
@@ -853,12 +857,24 @@ tc6a:	ret
 ; or continue CLS_VAR.
 ;
 tc7:	cmp	al,'.'
-	jne	tc8
+	jne	tc7c
 	test	ah,CLS_VAR
 	jnz	tc7b
 	mov	ah,CLS_FLOAT		; update current class
 tc7a:	mov	ch,ah			; change previous class, too
 tc7b:	ret
+;
+; Similarly, '+' and '-' can be embedded in the exponent of a float, but ONLY
+; if they immediately follow an exponent symbol ('E' or 'D').
+;
+tc7c:	cmp	al,'+'
+	je	tc7d
+	cmp	al,'-'
+	jne	tc8
+tc7d:	cmp	ah,CLS_FLOAT + CLS_SYM
+	jne	tc8
+	mov	ah,CLS_FLOAT
+	jmp	tc7a
 ;
 ; Ampersands are leading characters for hex and octal values.
 ;

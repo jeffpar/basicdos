@@ -693,6 +693,9 @@ ENDPROC	genEcho
 ; of the entire expression, and the open parentheses count (exprParens) must be
 ; zero.
 ;
+; Expression generation stops when we run out of tokens or detect consecutive
+; non-operator symbols.
+;
 ; Inputs:
 ;	DS:BX -> next TOKLET
 ;	ES:DI -> next unused location in code block
@@ -736,9 +739,11 @@ ge1:	mov	al,CLS_ANY		; CLS_NUM, CLS_SYM, CLS_VAR, CLS_STR
 ;
 ; Non-operator (non-symbol) cases: keywords, variables, strings, and numbers.
 ;
+	cmp	byte ptr [exprPrevOp],-1
+	je	ge1x
 	mov	byte ptr [exprPrevOp],-1; invalidate prevOp (intervening token)
 	cmp	ah,CLS_KEYWORD		; keyword? (30h)
-	je	ge2x			; keywords not allowed in expressions
+	je	ge1x			; keywords not allowed in expressions
 	cmp	ah,CLS_VAR		; variable with type? (10h)
 	ASSERT	NE			; (type should be fully qualified now)
 	ja	ge2			; yes
@@ -762,6 +767,10 @@ ge1a:	DBGBRK
 	call	genPushImmLong
 	jmp	ge1
 ge1b:	jmp	short ge4
+
+ge1x:	dec	[exprToks]		; rewind to unexpected symbol
+	sub	bx,size TOKLET
+	jmp	short ge2x
 ;
 ; Process CLS_VAR_*.  Instead of calling findVar, we now call addVar,
 ; because variables can be referenced before they're defined, so missing
@@ -903,10 +912,13 @@ ge8:	pop	cx
 	call	genOp
 	jmp	ge8
 ;
-; Verify there are no open parentheses, then pop the final type from typeStack.
+; Verify that a single type remains on typeStack, and no open parentheses.
 ;
-ge9:	add	[exprParens],-1		; if exprParens is NOT zero
-	jc	ge9a			; then adding -1 will force carry
+ge9:	cmp	[typeTop],1
+	stc
+	jne	ge9a
+	add	[exprParens],-1		; if exprParens is NOT zero
+	jc	ge9a			; then adding -1 will force carry set
 	call	popType			; DL = expression type
 ge9a:	mov	dh,[exprToks]		; DH = # tokens
 	pop	si
@@ -1462,12 +1474,23 @@ gp2:	jz	gp8
 	ASSERT	Z,<cmp dl,al>		; verify our assumption
 gp3:	GENPUSHB al
 	pop	ax
-	mov	ah,VAR_SEMI		; semi-colon (02h)
-	cmp	al,';'			; was the last symbol a semi-colon?
-	je	gp6			; yes
 	mov	ah,VAR_COMMA		; comma (03h)
-	cmp	al,','			; how about a comma?
-	jne	gp8			; no
+	cmp	al,','			; was the last symbol a comma?
+	je	gp6			; yes
+;
+; Semi-colon is the other valid separator, but we no longer explicitly
+; check for it, because historically PRINT presumes a semi-colon whenever
+; a pair of values are separated only by whitespace (eg, if A = 2 and B = 3,
+; "PRINT A B" behaves exactly like "PRINT A;B", displaying " 2  3").
+;
+; Unfortunately, in MSBASIC, that's only true for variables, not constants
+; (eg, "PRINT 2 3" will print the number "23").  This is a parsing difference
+; which we neither approve of nor emulate.
+;
+	mov	ah,VAR_SEMI		; presume semi-colon (02h) then
+	test	al,al
+	jz	gp8
+
 gp6:	GENPUSHB ah			; "MOV AL,[VAR_SEMI or VAR_COMMA]"
 	jmp	gp1			; continue processing arguments
 gp8:	GENCALL	printArgs		; all done
@@ -2173,7 +2196,7 @@ ENDPROC	getNextToken
 ;
 ; peekNextSymbol
 ;
-; Peek and return the next symbol, if any.  TODO: Remove if no callers.
+; Peek and return the next symbol, if any.
 ;
 ; Inputs and outputs are the same as getNextSymbol, but we also save the
 ; offset of the next TOKLET, in case the caller wants to consume the token.
