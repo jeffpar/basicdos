@@ -682,17 +682,20 @@ tf6a:	mov	al,ch			; AL = previous classification
 	lea	cx,[si-1]		; SI = end of token
 	sub	cx,dx			; CX = length of token
 
-	IFDEF	DEBUG
+	cmp	al,CLS_FLOAT OR CLS_SYM	; if an incomplete float is detected
+	jne	tf6b			; convert it to CLS_FLOAT
+	mov	al,CLS_FLOAT
+
+tf6b:	IFDEF	DEBUG
 	cmp	byte ptr [bp].TMP_AL,-1
-	jne	tf6b
+	jne	tf6c
 	push	ax
 	mov	ah,0
 	DPRINTF	't',<"token: '%.*ls' (%#04x)\r\n">,cx,dx,ds,ax
 	pop	ax
-tf6b:
-	ENDIF	; DEBUG
+tf6c:	ENDIF	; DEBUG
 ;
-; Update the TOKLET in the TOK_DATA at ES:DI, token index BX
+; Update the TOKLET in the TOK_DATA at ES:DI, token index BX.
 ;
 	push	bx
 	add	bx,bx
@@ -871,7 +874,7 @@ tc7c:	cmp	al,'+'
 	je	tc7d
 	cmp	al,'-'
 	jne	tc8
-tc7d:	cmp	ah,CLS_FLOAT + CLS_SYM
+tc7d:	cmp	ah,CLS_FLOAT OR CLS_SYM
 	jne	tc8
 	mov	ah,CLS_FLOAT
 	jmp	tc7a
