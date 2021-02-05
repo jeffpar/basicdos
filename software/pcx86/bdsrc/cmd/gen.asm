@@ -739,11 +739,11 @@ ge1:	mov	al,CLS_ANY		; CLS_NUM, CLS_SYM, CLS_VAR, CLS_STR
 ;
 ; Non-operator (non-symbol) cases: keywords, variables, strings, and numbers.
 ;
+	cmp	ah,CLS_KEYWORD		; keyword? (30h)
+	je	ge2x			; keywords not allowed in expressions
 	cmp	byte ptr [exprPrevOp],-1
 	je	ge1x
 	mov	byte ptr [exprPrevOp],-1; invalidate prevOp (intervening token)
-	cmp	ah,CLS_KEYWORD		; keyword? (30h)
-	je	ge1x			; keywords not allowed in expressions
 	cmp	ah,CLS_VAR		; variable with type? (10h)
 	ASSERT	NE			; (type should be fully qualified now)
 	ja	ge2			; yes
@@ -900,6 +900,7 @@ ge7:	cmp	al,'('
 ge7a:	ASSERT	Z,<cmp al,')'>
 	dec	[exprParens]
 	jge	ge5a
+	mov	[exprParens],0		; don't treat this as an error
 ge7b:	mov	ah,CLS_SYM
 ;
 ; We have reached the (presumed) end of the expression, so start popping
