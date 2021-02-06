@@ -66,6 +66,22 @@ TMP_DL		equ	TMP_DX.LOB
 TMP_DH		equ	TMP_DX.HIB
 
 ;
+; The "Floating Point Accumulator" (FAC)
+; See: https://github.com/microsoft/GW-BASIC/blob/master/GWDATA.ASM#L1463
+;
+FAC	struc
+	db	?		; [padding]
+	db	?		; [TEMPORARY LEAST SIGNIFICANT BYTE]
+	db	8 dup (?)	; EXTRA STORAGE FOR D.P. MULTIPLY
+$DFACL	db	4 dup (?)	; FOUR LOWEST ORDERS FOR DOUBLE PRECISION
+$FACLO	db	2 dup (?)	; [MIDDLE ORDER OF MANTISSA]
+$FACM1	db	?		; [HIGH ORDER OF MANTISSA]
+$FAC	db	?		; [EXPONENT]
+	db	?		; [TEMPORARY COMPLEMENT OF SIGN IN MSB]
+	db	?		; [padding]
+FAC	ends			; 14h bytes
+
+;
 ; Session Control Block (SCB)
 ;
 ; SIDEBAR: To minimize the amount of per-process information in the IVT,
@@ -105,8 +121,9 @@ SCB_CTRLP_ACT	db	?	; 2Ch: 1 if CTRLP active
 SCB_INDOS	db	?	; 2Dh: active DOS/DOSUTIL call count
 SCB_CURDRV	db	?	; 2Eh: current drive #
 SCB_SWITCHAR	db	?	; 2Fh: current switch char (eg, CHR_SLASH)
-SCB_FILENAME	db     12 dup(?); 30h: buffer for drive # and filename
-SCB		ends		; 3Ch bytes (1Eh words)
+SCB_FILENAME	db    12 dup (?); 30h: buffer for drive # and filename
+SCB_FAC      db size FAC dup (?); 3Ch: floating point accumulator
+SCB		ends		; 50h bytes (28h words)
 SIG_SCB		equ	'S'
 
 SCSTAT_INIT	equ	01h	; set if SCB initialized

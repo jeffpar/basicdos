@@ -10,6 +10,7 @@
 	include	macros.inc
 	include	devapi.inc
 	include	dosapi.inc
+	include	parser.inc
 
 DGROUP	group	CODE,DATA
 
