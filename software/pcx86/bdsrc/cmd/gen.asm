@@ -676,7 +676,7 @@ ENDPROC	genEcho
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genExpr
+; genExpression (aka genExpr)
 ;
 ; Generate code for an expression.
 ;
@@ -1016,10 +1016,12 @@ pt9:	pop	si
 
 	push	si
 	call	popType
+	jz	go3x			; exit if error
 	test	dh,1
 	mov	dh,dl			; DH = type of 2nd arg pushed
 	jnz	go1
 	call	popType			; DL = type of 1st arg pushed
+	jz	go3x			; exit if error
 
 go1:	cmp	dl,dh			; type mismatch?
 	jne	go3			; yes, handle below
@@ -1050,7 +1052,7 @@ go2x:	jmp	short go9
 go3:	cmp	dl,VAR_STR		; if the 1st arg...
 	je	go8x
 	cmp	dh,VAR_STR		; or the 2nd arg are strings
-	je	go8x			; then it's a guaranteed type mismatch
+go3x:	je	go8x			; then it's a guaranteed type mismatch
 ;
 ; A float and an int walk into a bar.  If the bar is "NOT" or above,
 ; the float must be demoted to int.  Otherwise, the int must be promoted.
