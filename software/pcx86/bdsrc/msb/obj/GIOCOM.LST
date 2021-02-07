@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-1
                                                             
@@ -57,7 +57,7 @@ GIOCOM - Communications Machine Independent Device Driver CoPage     1-1
                              C  				; Support is in BINTRP.MAC and GWSTS.MAC 
  = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
                              C  				;single precision numbers for output. 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -116,7 +116,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-3
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -175,7 +175,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-4
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -234,7 +234,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Z80 related macros 
                              C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-5
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -293,7 +293,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-6
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -352,7 +352,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-7
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -400,13 +400,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
+                             C  DBGBRK	MACRO 
+                             C  	DB	0CDh,06h,0CCh 
+                             C  	ENDM 
                                  
                                  
                                 	TITLE   GIOCOM - Communications Machine Independent Device Driver Code 
@@ -456,14 +459,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ;Special File ID's (identified by 1st byte of file) 
                              C  ; 
  = 00FF                      C  	BINFID=255D		;files created by SAVE "fn" 
- = 00FE                      C  	PROFID=254D		;files created by SAVE "fn",P 
- = 00FD                      C  	BSVFID=253D		;files created by BSAVE "fn" 
-                             C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-9
 GIO86U - Device Independent I/O Constants and Macros        
 
+ = 00FE                      C  	PROFID=254D		;files created by SAVE "fn",P 
+ = 00FD                      C  	BSVFID=253D		;files created by BSAVE "fn" 
+                             C   
                              C  ;Generalized I/O Function Codes: 
                              C  ; 
  = 0000                      C  	_OFFST=0		;initialize count 
@@ -484,7 +487,7 @@ GIO86U - Device Independent I/O Constants and Macros
                              C  	ROFFST	G_BOT,2		;block output to file opened on this device 
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-10
 GIO86U - Device Independent I/O Constants and Macros        
@@ -543,7 +546,7 @@ GIO86U - Device Independent I/O Constants and Macros
  = 0021                      C  	C_RNDR=33D		;Random read 
  = 0022                      C  	C_RNDW=34D		;Random write 
  = 0027                      C  	C_RBR=39D		;Random Block Read 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-11
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -602,7 +605,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  = 0008                      C  	FCB_FN=F_FCB+1D		;FILE NAME 
  = 0010                      C  	FCB_FT=F_FCB+9D		;EXTENSION 
  = 0013                      C  	FCB_EX=F_FCB+12D	;FILE EXTENT (identifies block of 128 logical records) 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-12
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -614,7 +617,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  = 0027                      C  	FCB_NR=F_FCB+32D	;NEXT RECORD NUMBER 
  = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Number 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-13
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -646,7 +649,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  0018  03CB R                   	DW	(COMGCW)	;get device comma Width 
  001A  0000 E                   	DW	(DEVBIN)	;block input from file opened on this device 
  001C  0000 E                   	DW	(DEVBOT)	;block output to file opened on this device 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-14
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -705,7 +708,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 ;COMINI - called during BASIC initialization 
                                 ; Entry - DI = -2*device id 
                                 ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-15
 Communications Generalized I/O Routines                     
@@ -764,7 +767,7 @@ Communications Generalized I/O Routines
                                 ;       On return: DX=bytes in queue 
                                 ;                  CX=free bytes in queue 
                                 ;                   Does error processing if gets error from COM channel 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-16
 Communications Generalized I/O Routines                     
@@ -801,7 +804,7 @@ Communications Generalized I/O Routines
  0088  00 E                     	DB	OFFSET ERRDTO	;device timeout 
  0089  00 E                     	DB	OFFSET ERRDTO	;device timeout 
  008A  00 E                     	DB	OFFSET ERRDTO	;device timeout 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-17
 Communications Generalized I/O Routines                     
@@ -860,7 +863,7 @@ Communications Generalized I/O Routines
                                 ; 
                                 ;              The LF parameter is intended for  those using 
                                 ;              communication files as a means of printing to 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-18
 COM OPEN                                                    
@@ -919,7 +922,7 @@ COM OPEN
  00C3  80 7D 03 05              	CMP	BYTE PTR _BYTSZ[DI],LOW 5 
  00C7  76 03                    	JBE	STPNDF		;brif 4 or 5 bits per byte (1.5 stop) 
  00C9  FE 45 05                 	INC	BYTE PTR _STOPB[DI]	;110 baud & 6,7,8 data bits=2 stop bits 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-19
 COM OPEN                                                    
@@ -978,7 +981,7 @@ COM OPEN
  0140  BE 0000 E                	MOV	SI,OFFSET FILOPT	;SI points to options string 
  0143  E8 026D R                	CALL	GETPR0		;Get 1st char in Filename 
  0146  74 D0                    	JZ	RET21		;Brif EOS 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-20
 COM OPEN                                                    
@@ -1037,7 +1040,7 @@ COM OPEN
  01AE  75 15                    	JNZ	LPARM		;branch if "2" 
  01B0  E8 0267 R                	CALL	GETPRM		;[AL]=EOS, "," or "." 
  01B3  74 72                    	JZ	RET24		;return if End-Of-String 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-21
 COM OPEN                                                    
@@ -1096,7 +1099,7 @@ COM OPEN
  0213  E8 0284 R                	CALL	VALGET		;[DX] = Timeout 
  0216  89 55 08                 	MOV	WORD PTR _CTSTO[DI],DX	;set CTS timeout 
  0219  80 4D 0C 20              	OR	BYTE PTR _CMFLG[DI],LOW OFFSET _CMCTS	;indicates CTS not defaulted 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-22
 COM OPEN                                                    
@@ -1155,7 +1158,7 @@ COM OPEN
  026D                           GETPR0: 
  026D  8A 04                    	MOV	AL,BYTE PTR 0[SI]	;Get next char 
  026F  3C 20                    	CMP	AL,LOW " " 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-23
 COM OPEN                                                    
@@ -1214,7 +1217,7 @@ COM OPEN
  02B2                           COMEOF: 
  02B2  80 7C 31 01              	CMP	BYTE PTR F_CODE[SI],LOW OFFSET FC_BIN 
  02B6  74 0B                    	JE	BINEOF		;Branch if not ASCII file mode 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-24
 COM OPEN                                                    
@@ -1273,7 +1276,7 @@ COM OPEN
                                 ;         This routine is called before BASIC releases the 
                                 ;         file-data-block associated with this file. 
                                 ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-25
 COM OPEN                                                    
@@ -1332,7 +1335,7 @@ COM OPEN
  0330  E8 03CC R                PUTRND:	CALL	GCMDCB		;DI points to COMx DCB 
  0333  8A 07                    PUTLOP:	MOV	AL,BYTE PTR 0[BX]	;[AL]=next byte from buffer 
  0335  E8 03B1 R                	CALL	CMROUT		;output to com port 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-26
 COM OPEN                                                    
@@ -1391,7 +1394,7 @@ COM OPEN
                                 ;         [AL] = byte to be output. 
                                 ; Exit  - SI, DI can be changed. 
                                 ;         All other registers preserved 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-27
 COM OPEN                                                    
@@ -1450,7 +1453,7 @@ COM OPEN
  03A7  74 07                    	JE	CMOUTX		;brif CR is not to be mapped to CR-LF 
  03A9  50                       	PUSH	AX 
  03AA  B0 0A                    	MOV	AL,LOW OFFSET ASCLF 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-28
 COM OPEN                                                    
@@ -1509,7 +1512,7 @@ COM OPEN
                                  
                                 ;GCMDCB - get pointer to COM Device Control Block 
                                 ; Entry - [DI] = -2*device id (2,4,..n) 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoPage     1-29
 COM OPEN                                                    
@@ -1539,7 +1542,7 @@ COM OPEN
  03E3                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoSymbols-1
                                                              
@@ -1553,6 +1556,7 @@ ADR  . . . . . . . . . . . . . .  	   1
 CALLOS . . . . . . . . . . . . .  	   4
 CHRGET . . . . . . . . . . . . .  	   1
 COMPAR . . . . . . . . . . . . .  	   2
+DBGBRK . . . . . . . . . . . . .  	   1
 DC . . . . . . . . . . . . . . .  	   6
 DJNZ . . . . . . . . . . . . . .  	   2
 FSIGN  . . . . . . . . . . . . .  	   1
@@ -1597,12 +1601,12 @@ BCHRSI . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 BEEPSW . . . . . . . . . . . . .  	Number	0001	
 BINCSW . . . . . . . . . . . . .  	Number	0000	
 BINEOF . . . . . . . . . . . . .  	L NEAR	02C3	CSEG
-BINFID . . . . . . . . . . . . .  	Number	00FF	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoSymbols-2
                                                              
 
+BINFID . . . . . . . . . . . . .  	Number	00FF	
 BLODSW . . . . . . . . . . . . .  	Number	0001	
 BSVFID . . . . . . . . . . . . .  	Number	00FD	
 BUFLEN . . . . . . . . . . . . .  	Number	00FF	
@@ -1656,12 +1660,12 @@ CONTRO . . . . . . . . . . . . .  	Number	0001
 CPM  . . . . . . . . . . . . . .  	Number	0001	
 CPM110 . . . . . . . . . . . . .  	Number	0000	
 CPM2 . . . . . . . . . . . . . .  	Number	0001	
-CPM86  . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoSymbols-3
                                                              
 
+CPM86  . . . . . . . . . . . . .  	Number	0000	
 CPMA75 . . . . . . . . . . . . .  	Number	0000	
 CPMADD . . . . . . . . . . . . .  	Number	0000	
 CPMCON . . . . . . . . . . . . .  	Number	0000	
@@ -1715,12 +1719,12 @@ EDIT80 . . . . . . . . . . . . .  	Number	0000
 ERFAO1 . . . . . . . . . . . . .  	L NEAR	0098	CSEG
 ERIFN1 . . . . . . . . . . . . .  	L NEAR	0119	CSEG
 ERIFN2 . . . . . . . . . . . . .  	L NEAR	017B	CSEG
-ERRCBO . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoSymbols-4
                                                              
 
+ERRCBO . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERRDIO . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERRDPE . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERRDTO . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
@@ -1774,12 +1778,12 @@ F_NUL5 . . . . . . . . . . . . .  	Number	00BF
 F_NUM  . . . . . . . . . . . . .  	Number	0001	
 F_ORCT . . . . . . . . . . . . .  	Number	002F	
 F_POS  . . . . . . . . . . . . .  	Number	0038	
-F_WID  . . . . . . . . . . . . .  	Number	0035	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoSymbols-5
                                                              
 
+F_WID  . . . . . . . . . . . . .  	Number	0035	
 
 GCMDCB . . . . . . . . . . . . .  	L NEAR	03CC	CSEG
 GCMUID . . . . . . . . . . . . .  	L NEAR	03DB	CSEG
@@ -1833,12 +1837,12 @@ INSTSW . . . . . . . . . . . . .  	Number	0000
 INTEL  . . . . . . . . . . . . .  	Number	0000	
 INTFHW . . . . . . . . . . . . .  	Number	0000	
 INTFSW . . . . . . . . . . . . .  	Number	0000	
-INTLEC . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoSymbols-6
                                                              
 
+INTLEC . . . . . . . . . . . . .  	Number	0000	
 INTROM . . . . . . . . . . . . .  	Number	0000	
 ISC  . . . . . . . . . . . . . .  	Number	0000	
 ISIS . . . . . . . . . . . . . .  	Number	0000	
@@ -1892,12 +1896,12 @@ NCRCAS . . . . . . . . . . . . .  	Number	0000
 NCRDEB . . . . . . . . . . . . .  	Number	0000	
 NCRELS . . . . . . . . . . . . .  	Number	0000	
 NCRLPT . . . . . . . . . . . . .  	Number	0001	
-NECBAS . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoSymbols-7
                                                              
 
+NECBAS . . . . . . . . . . . . .  	Number	0000	
 NMCOMT . . . . . . . . . . . . .  	Number	0002	
 NMKEYF . . . . . . . . . . . . .  	Number	000A	
 NMKEYT . . . . . . . . . . . . .  	Number	000E	
@@ -1951,12 +1955,12 @@ QUEUE  . . . . . . . . . . . . .  	Number	0001
 REALIO . . . . . . . . . . . . .  	Number	0001	
 RECCOM . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 RET11  . . . . . . . . . . . . .  	L NEAR	0384	CSEG
-RET12  . . . . . . . . . . . . .  	L NEAR	0312	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoSymbols-8
                                                              
 
+RET12  . . . . . . . . . . . . .  	L NEAR	0312	CSEG
 RET14  . . . . . . . . . . . . .  	L NEAR	006B	CSEG
 RET21  . . . . . . . . . . . . .  	L NEAR	0118	CSEG
 RET24  . . . . . . . . . . . . .  	L NEAR	0227	CSEG
@@ -2010,12 +2014,12 @@ UPDPOS . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 
 VALGET . . . . . . . . . . . . .  	L NEAR	0284	CSEG
 VALLOP . . . . . . . . . . . . .  	L NEAR	0289	CSEG
-VALXIT . . . . . . . . . . . . .  	L NEAR	02AF	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:37:25
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:42:40
  
 GIOCOM - Communications Machine Independent Device Driver CoSymbols-9
                                                              
 
+VALXIT . . . . . . . . . . . . .  	L NEAR	02AF	CSEG
 
 XTNSYS . . . . . . . . . . . . .  	Number	0000	
 
@@ -2046,9 +2050,9 @@ _RLSTO . . . . . . . . . . . . .  	Number	0006
 _STOPB . . . . . . . . . . . . .  	Number	0005	
 
 
-   1390 Source  Lines
-   1473 Total   Lines
-    444 Symbols
+   1393 Source  Lines
+   1476 Total   Lines
+    445 Symbols
 
   36194 Bytes symbol space free
 

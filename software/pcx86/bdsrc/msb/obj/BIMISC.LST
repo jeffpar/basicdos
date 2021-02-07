@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-1
                                                             
@@ -57,7 +57,7 @@ BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-1
                              C  				; Support is in BINTRP.MAC and GWSTS.MAC 
  = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
                              C  				;single precision numbers for output. 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -116,7 +116,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-3
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -175,7 +175,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-4
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -234,7 +234,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Z80 related macros 
                              C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-5
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -293,7 +293,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-6
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -352,7 +352,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-7
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -400,13 +400,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
+                             C  DBGBRK	MACRO 
+                             C  	DB	0CDh,06h,0CCh 
+                             C  	ENDM 
                                  
                                  
                                 	TITLE   BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etc. 
@@ -456,14 +459,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	DEFTBL:WORD 
  0000                           DSEG	ENDS 
- 0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-                                	EXTRN	OPTFLG:WORD,OPTVAL:WORD 
- 0000                           DSEG	ENDS 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-9
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
+ 0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
+                                	EXTRN	OPTFLG:WORD,OPTVAL:WORD 
+ 0000                           DSEG	ENDS 
                                 	PUBLIC	STOPRG 
                                 	PUBLIC	TON,TOFF 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
@@ -483,7 +486,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                  
                                 	EXTRN	LINKER:NEAR 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-10
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -542,7 +545,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                 				;STACK CONTEXT SURVIVES OTHER ERRORS 
  0022  8B 1E 0000 E             	MOV	BX,TOPMEM 
                                 				;ELIMINATE ALL STACK CONTEXT TO FREE 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-11
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -601,7 +604,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                 	EXTRN	AUTFLG:WORD 
  0000                           DSEG	ENDS 
  0061  A2 0000 E                	MOV	BYTE PTR AUTFLG,AL	;CLEAR AUTO MODE 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-12
 NODSKS, SCRATCH (NEW), RUNC, CLEARC, STKINI, QINLIN         
@@ -660,7 +663,7 @@ NODSKS, SCRATCH (NEW), RUNC, CLEARC, STKINI, QINLIN
  00AB  32 C0                    	XOR	AL,AL 
  00AD  A2 0000 E                	MOV	BYTE PTR ONEFLG,AL	;RESET ON ERROR FLAG FOR RUNS 
  00B0  8A D8                    	MOV	BL,AL		;RESET ERROR LINE NUMBER 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-13
 NODSKS, SCRATCH (NEW), RUNC, CLEARC, STKINI, QINLIN         
@@ -719,7 +722,7 @@ NODSKS, SCRATCH (NEW), RUNC, CLEARC, STKINI, QINLIN
  0103  BB 0000 E                	MOV	BX,OFFSET TEMPST 
  0106  89 1E 0000 E             	MOV	TEMPPT,BX	;INITIALIZE STRING TEMPORARIES 
                                 	EXTRN	CLROVC:NEAR 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-14
 NODSKS, SCRATCH (NEW), RUNC, CLEARC, STKINI, QINLIN         
@@ -778,7 +781,7 @@ NODSKS, SCRATCH (NEW), RUNC, CLEARC, STKINI, QINLIN
                                 PUBLIC	T_REQ 
  = 0004                         	T_REQ=4			;Trap request 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-15
 TRAP ROUTINES - ON, OFF, STOP, INIT, REQUEST, FREE, RESET   
@@ -837,7 +840,7 @@ TRAP ROUTINES - ON, OFF, STOP, INIT, REQUEST, FREE, RESET
  018B  FB                       	STI 
  018C  C3                       	RET 
                                 ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-16
 TRAP ROUTINES - ON, OFF, STOP, INIT, REQUEST, FREE, RESET   
@@ -896,7 +899,7 @@ TRAP ROUTINES - ON, OFF, STOP, INIT, REQUEST, FREE, RESET
  01C8                           INITRP: 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	TRPTBL:WORD 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-17
 TRAP ROUTINES - ON, OFF, STOP, INIT, REQUEST, FREE, RESET   
@@ -955,7 +958,7 @@ TRAP ROUTINES - ON, OFF, STOP, INIT, REQUEST, FREE, RESET
                                 ; 
  020F                           GOTRP2: 
  020F  51                       	PUSH	CX		;SAVE STATE IN CASE ADDR IS ZERO 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-18
 TRAP ROUTINES - ON, OFF, STOP, INIT, REQUEST, FREE, RESET   
@@ -1014,7 +1017,7 @@ TRAP ROUTINES - ON, OFF, STOP, INIT, REQUEST, FREE, RESET
  025D  87 DA                    	XCHG	BX,DX		;GET THE TEXT POINTER BACK 
  025F  C3                       	RET 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-19
 RESTORE, STOP, END                                          
@@ -1073,7 +1076,7 @@ RESTORE, STOP, END
                                 ;PAGE 
                                  
                                 	SUBTTL CTRLPT, DDT, CONT, NULL, TRON, TROFF 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-20
 CTRLPT, DDT, CONT, NULL, TRON, TROFF                        
@@ -1132,7 +1135,7 @@ CTRLPT, DDT, CONT, NULL, TRON, TROFF
                                 	SUBTTL SWAP, ERASE 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	SWPTMP:WORD 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-21
 SWAP, ERASE                                                 
@@ -1191,7 +1194,7 @@ SWAP, ERASE
                                 	PUBLIC	ERASE 
  034D                           ERASE: 
  034D  B0 01                    	MOV	AL,LOW 1 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-22
 SWAP, ERASE                                                 
@@ -1249,7 +1252,7 @@ SWAP, ERASE
  039F  9E                       	SAHF 
  03A0  5B                       	POP	BX		;GET THE TEXT POINTER 
  03A1  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-23
 SWAP, ERASE                                                 
@@ -1308,7 +1311,7 @@ SWAP, ERASE
  03DF  E8 0444 R                	CALL	GETMPM		;GET MEMORY SIZE PARAMETER 
  03E2  53                       	PUSH	BX		;save text pointer 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-24
 CLEAR                                                       
@@ -1367,7 +1370,7 @@ CLEAR
                                  
  0444  E8 0000 E                GETMPM:	CALL	FRMQNT		;EVALUATE FORMULA 
  0447  0B D2                    	OR	DX,DX		;Memory size =0? 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-25
 CLEAR                                                       
@@ -1389,7 +1392,7 @@ CLEAR
                                 	INS86	53,26,STKLOW	;SUB DX,STKLOW 
  045A  EB AC                    	JMP	SHORT CLEART 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-26
 CLEAR                                                       
@@ -1405,7 +1408,7 @@ CLEAR
                                 ;PAGE 
                                  
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcPage     1-27
 CLEAR                                                       
@@ -1440,7 +1443,7 @@ CLEAR
  046C                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcSymbols-1
                                                              
@@ -1454,6 +1457,7 @@ ADR  . . . . . . . . . . . . . .  	   1
 CALLOS . . . . . . . . . . . . .  	   1
 CHRGET . . . . . . . . . . . . .  	   1
 COMPAR . . . . . . . . . . . . .  	   2
+DBGBRK . . . . . . . . . . . . .  	   1
 DC . . . . . . . . . . . . . . .  	   6
 DJNZ . . . . . . . . . . . . . .  	   2
 FSIGN  . . . . . . . . . . . . .  	   1
@@ -1498,12 +1502,12 @@ BUFLEN . . . . . . . . . . . . .  	Number	00FF
 CAN8 . . . . . . . . . . . . . .  	Number	0000	
 CASDON . . . . . . . . . . . . .  	L NEAR	039C	CSEG
 CASSW  . . . . . . . . . . . . .  	Number	0000	
-CDFSTK . . . . . . . . . . . . .  	L NEAR	0452	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcSymbols-2
                                                              
 
+CDFSTK . . . . . . . . . . . . .  	L NEAR	0452	CSEG
 CHNFLG . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 CHRCON . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 CHRGTR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
@@ -1557,12 +1561,12 @@ DIRIS  . . . . . . . . . . . . .  	L NEAR	029F	CSEG
 DISK . . . . . . . . . . . . . .  	Number	0001	
 DMC  . . . . . . . . . . . . . .  	Number	0000	
 DOS  . . . . . . . . . . . . . .  	Number	0000	
-DRVPOS . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcSymbols-3
                                                              
 
+DRVPOS . . . . . . . . . . . . .  	Number	0000	
 DUPONT . . . . . . . . . . . . .  	Number	0000	
 DYNCOM . . . . . . . . . . . . .  	Number	0001	
 
@@ -1616,12 +1620,12 @@ GETMPM . . . . . . . . . . . . .  	L NEAR	0444	CSEG
 GETSTK . . . . . . . . . . . . .  	L NEAR	0000	CSEG	Global
 GETYPR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 GFCERR . . . . . . . . . . . . .  	L NEAR	034A	CSEG
-GIO86  . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcSymbols-4
                                                              
 
+GIO86  . . . . . . . . . . . . .  	Number	0001	
 GODFRE . . . . . . . . . . . . .  	L NEAR	00CF	CSEG
 GOMERR . . . . . . . . . . . . .  	L NEAR	044F	CSEG
 GOSUB2 . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
@@ -1675,12 +1679,12 @@ KILLER . . . . . . . . . . . . .  	Number	0000
 
 LABEL  . . . . . . . . . . . . .  	Number	0000	
 LABKEY . . . . . . . . . . . . .  	Number	0001	
-LEN2 . . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcSymbols-5
                                                              
 
+LEN2 . . . . . . . . . . . . . .  	Number	0001	
 LEN3 . . . . . . . . . . . . . .  	Number	0001	
 LENGTH . . . . . . . . . . . . .  	Number	0002	
 LEVDTB . . . . . . . . . . . . .  	L NEAR	00A2	CSEG
@@ -1734,12 +1738,12 @@ NMPENT . . . . . . . . . . . . .  	Number	0001
 NMSTRT . . . . . . . . . . . . .  	Number	0004	
 NNECBS . . . . . . . . . . . . .  	Number	0000	
 NOATDL . . . . . . . . . . . . .  	Number	0000	
-NOCTLA . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcSymbols-6
                                                              
 
+NOCTLA . . . . . . . . . . . . .  	Number	0000	
 NODOT  . . . . . . . . . . . . .  	Number	0000	
 NODSKS . . . . . . . . . . . . .  	L NEAR	0052	CSEG	Global
 NOEDIT . . . . . . . . . . . . .  	Number	0000	
@@ -1793,12 +1797,12 @@ PTRFLG . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 PTRGET . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 PURE . . . . . . . . . . . . . .  	Number	0001	
 
-QUEUE  . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcSymbols-7
                                                              
 
+QUEUE  . . . . . . . . . . . . .  	Number	0001	
 
 REALIO . . . . . . . . . . . . .  	Number	0001	
 REASON . . . . . . . . . . . . .  	L NEAR	0032	CSEG	Global
@@ -1852,12 +1856,12 @@ STPEND . . . . . . . . . . . . .  	L NEAR	0282	CSEG	Global
 STPRDY . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 STPTRP . . . . . . . . . . . . .  	L NEAR	0169	CSEG	Global
 STREND . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
-STRING . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcSymbols-8
                                                              
 
+STRING . . . . . . . . . . . . .  	Number	0001	
 STRSIZ . . . . . . . . . . . . .  	Number	0003	
 SUBDE  . . . . . . . . . . . . .  	L NEAR	045C	CSEG	Global
 SUBFLG . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
@@ -1911,19 +1915,19 @@ Z80MAC . . . . . . . . . . . . .  	Number	0001
 ??L004 . . . . . . . . . . . . .  	L NEAR	02E1	CSEG
 ??L005 . . . . . . . . . . . . .  	L NEAR	0328	CSEG
 ??L006 . . . . . . . . . . . . .  	L NEAR	036D	CSEG
-??L007 . . . . . . . . . . . . .  	L NEAR	03EE	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:25:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:30:24
  
 BIMISC  BASIC Interpreter miscellaneous routines/WHG/PGA etcSymbols-9
                                                              
 
+??L007 . . . . . . . . . . . . .  	L NEAR	03EE	CSEG
 ??L008 . . . . . . . . . . . . .  	L NEAR	0408	CSEG
 ??L009 . . . . . . . . . . . . .  	L NEAR	044E	CSEG
 
 
-   1303 Source  Lines
-   1473 Total   Lines
-    419 Symbols
+   1306 Source  Lines
+   1476 Total   Lines
+    420 Symbols
 
   37294 Bytes symbol space free
 

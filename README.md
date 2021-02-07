@@ -7,7 +7,7 @@ permalink: /
 ## PC DOS Reimagined
 
 Read the [Blog](blog/), then check out the [Preview](preview/), which
-highlights a few of our original [Demos](demos/).
+highlights a few of the original [Demos](demos/).
 
 [![BASIC-DOS 1.00](assets/images/BASIC-DOS-Cover.gif)](preview/)
 

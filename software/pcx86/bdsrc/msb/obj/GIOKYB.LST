@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-1
                                                             
@@ -57,7 +57,7 @@ GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-1
                              C  				; Support is in BINTRP.MAC and GWSTS.MAC 
  = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
                              C  				;single precision numbers for output. 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -116,7 +116,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-3
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -175,7 +175,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-4
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -234,7 +234,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Z80 related macros 
                              C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-5
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -293,7 +293,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-6
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -352,7 +352,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-7
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -400,13 +400,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
+                             C  DBGBRK	MACRO 
+                             C  	DB	0CDh,06h,0CCh 
+                             C  	ENDM 
                                  
                                  
                                 	TITLE   GIOKYB - Machine Independent Keyboard Device Driver Code 
@@ -456,14 +459,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 00FF                      C  	BINFID=255D		;files created by SAVE "fn" 
  = 00FE                      C  	PROFID=254D		;files created by SAVE "fn",P 
  = 00FD                      C  	BSVFID=253D		;files created by BSAVE "fn" 
-                             C   
-                             C  ;Generalized I/O Function Codes: 
-                             C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-9
 GIO86U - Device Independent I/O Constants and Macros        
 
+                             C   
+                             C  ;Generalized I/O Function Codes: 
+                             C  ; 
  = 0000                      C  	_OFFST=0		;initialize count 
                              C  	ROFFST	G_EOF,2		;test EOF for file opened to this device 
                              C  	ROFFST	G_LOC,2		;LOC 
@@ -482,7 +485,7 @@ GIO86U - Device Independent I/O Constants and Macros
                              C  	ROFFST	G_BOT,2		;block output to file opened on this device 
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-10
 GIO86U - Device Independent I/O Constants and Macros        
@@ -541,7 +544,7 @@ GIO86U - Device Independent I/O Constants and Macros
  = 000E                      C  	C_SDRV=14D		;SET CURRENTLY SELECTED DRIVE 
  = 000F                      C  	C_OPEN=15D 
  = 0010                      C  	C_CLOS=16D 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-11
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -600,7 +603,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                              C  	ROFFST	FD_SIZ,2	;variable record length for random files 
                              C  	ROFFST	FD_PHY,2	;current physical record number 
                              C  	ROFFST	FD_LOG,2	;current logical record number 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-12
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -622,7 +625,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  = 0027                      C  	FCB_NR=F_FCB+32D	;NEXT RECORD NUMBER 
  = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Number 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-13
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -681,7 +684,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  0018  0000 E                   	DW	(SCNGCW)	;get device comma Width 
  001A  0000 E                   	DW	(DEVBIN)	;block input from file opened on this device 
  001C  0000 E                   	DW	(DEVBOT)	;block output to file opened on this device 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-14
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -728,7 +731,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 ; 
  003D  E8 001E R                KYBCLR:	CALL	KYBINI		;Initialize the keyboard buffer 
  0040  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-15
 Keyboard Primitive I/O Routines                             
@@ -787,7 +790,7 @@ Keyboard Primitive I/O Routines
                                 ;KYBOPN - perform any device dependent open functions. 
                                 ; Entry - [AL]=  device id 
                                 ;                0 if default device, 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-16
 Keyboard Primitive I/O Routines                             
@@ -846,7 +849,7 @@ Keyboard Primitive I/O Routines
  0090  E8 03C0 R                	CALL	STCTYP		;Set new cursor type to user mode (PSW.C set) 
  0093  E8 00E8 R                	CALL	KEYSIN		;Read a key from the OS (could be a null fkey) 
  0096  E8 0000 E                	CALL	INFMAP		;OEM fixed length input map routine 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-17
 Keyboard Primitive I/O Routines                             
@@ -905,7 +908,7 @@ Keyboard Primitive I/O Routines
  00E6  9D                       NOTNFK:	POPF 
  00E7  C3                       	RET 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-18
 Keyboard Primitive I/O Routines                             
@@ -930,7 +933,7 @@ Keyboard Primitive I/O Routines
  0104  58                       	POP	AX 
  0105  9D                       	POPF 
  0106  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-19
 Keyboard Primitive I/O Routines                             
@@ -989,7 +992,7 @@ Keyboard Primitive I/O Routines
  0123  75 E8                    	JNZ	GETKLP		;Trap set - get next key 
  0125                           NTCTLFN: 
  0125  80 FC 80                 	CMP	AH,LOW 128D 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-20
 Keyboard Interrupt/Trap Checking in an Operating System Envi
@@ -1048,7 +1051,7 @@ Keyboard Interrupt/Trap Checking in an Operating System Envi
  018C  E8 01E3 R                QUEKEY:	CALL	PKQUE		;queue key [AL] for CHSNS 
  018F  E9 010D R                	JMP	GETKLP		;get next key 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-21
 Keyboard Interrupt/Trap Checking in an Operating System Envi
@@ -1080,7 +1083,7 @@ Keyboard Interrupt/Trap Checking in an Operating System Envi
  01AD  E8 0000 E                	CALL	KEYTRP		;Trap key if event is ON 
  01B0  58                       NTRAP:	POP	AX		;Restore key code 
  01B1  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-22
 Keyboard Interrupt/Trap Checking in an Operating System Envi
@@ -1100,7 +1103,7 @@ Keyboard Interrupt/Trap Checking in an Operating System Envi
  01B7  5D                       	POP	BP 
  01B8  5E                       	POP	SI 
  01B9  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-23
 CHKKYB - OEM Version of POLKEY                              
@@ -1147,7 +1150,7 @@ CHKKYB - OEM Version of POLKEY
  01F0  1C 0C                    	DB	28D,OFFSET NMKEYF+2	;ON KEY (Cursor Right) 
  01F2  1F 0D                    	DB	31D,OFFSET NMKEYF+3	;ON KEY (Cursor Down) 
  01F4  00                       	DB	0		;end-of-table 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-24
 CNTCCN, PKQUE, TRPKTB                                       
@@ -1206,7 +1209,7 @@ CNTCCN, PKQUE, TRPKTB
  0238  75 0C                    	JNZ	CHSNG2		;Not a three byte sequence 
  023A  50                       	PUSH	AX		;Save first byte 
  023B  E8 0258 R                	CALL	CONIN		;Get second byte 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-25
 Machine independent Keyboard input routines CHSNS, INKEY$   
@@ -1265,7 +1268,7 @@ Machine independent Keyboard input routines CHSNS, INKEY$
  0279  B3 10                    	MOV	BL,LOW 16D	;else, tell CHSNS to expand soft-key 
  027B  F6 E3                    	MUL	BL		;[AX]=16 * function-key id 
  027D  05 0000 E                	ADD	AX,OFFSET STRTAB	;Get soft-key address 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-26
 Machine independent Keyboard input routines CHSNS, INKEY$   
@@ -1324,7 +1327,7 @@ Machine independent Keyboard input routines CHSNS, INKEY$
  02C5  2E: F6 07 FF             	TEST	BYTE PTR CS:0[BX],LOW 377O 
  02C9  79 F9                    	JNS	SUPKY2		;BRIF not at the end of this reserved word 
  02CB  43                       	INC	BX		;Skip end of string 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-27
 Machine independent Keyboard input routines CHSNS, INKEY$   
@@ -1383,7 +1386,7 @@ Machine independent Keyboard input routines CHSNS, INKEY$
  0309  2E                       	DB	2EH		; Code segment override 
  030A  8A 07                    NOTSUP:	MOV	AL,BYTE PTR 0[BX]	;Get next character 
  030C  32 E4                    	XOR	AH,AH		;Clear high byte 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-28
 Machine independent Keyboard input routines CHSNS, INKEY$   
@@ -1442,7 +1445,7 @@ Machine independent Keyboard input routines CHSNS, INKEY$
                                 ;Exit  - PSW.Z set indicates that the keyboard buffer is empty. 
                                 ;        all registers preserved 
                                 ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-29
 Machine independent Keyboard input routines CHSNS, INKEY$   
@@ -1476,7 +1479,7 @@ Machine independent Keyboard input routines CHSNS, INKEY$
  0382                           FKYSNW: 
  0382  F9                       	STC 
  0383  C3                       FKYSNX:	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-30
 Machine independent Keyboard input routines CHSNS, INKEY$   
@@ -1523,7 +1526,7 @@ Machine independent Keyboard input routines CHSNS, INKEY$
  03B9  C6 06 0000 E 03          	MOV	BYTE PTR VALTYP,LOW 3 
  03BE  5B                       	POP	BX		;restore text pointer 
  03BF  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Page     1-31
 Machine independent Keyboard input routines CHSNS, INKEY$   
@@ -1575,7 +1578,7 @@ Machine independent Keyboard input routines CHSNS, INKEY$
  03E7                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Symbols-1
                                                              
@@ -1589,6 +1592,7 @@ ADR  . . . . . . . . . . . . . .  	   1
 CALLOS . . . . . . . . . . . . .  	   4
 CHRGET . . . . . . . . . . . . .  	   1
 COMPAR . . . . . . . . . . . . .  	   2
+DBGBRK . . . . . . . . . . . . .  	   1
 DC . . . . . . . . . . . . . . .  	   6
 DJNZ . . . . . . . . . . . . . .  	   2
 FSIGN  . . . . . . . . . . . . .  	   1
@@ -1633,12 +1637,12 @@ AUTFLG . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 
 BASDEB . . . . . . . . . . . . .  	Number	0000	
 BCHRSI . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-BEEPSW . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Symbols-2
                                                              
 
+BEEPSW . . . . . . . . . . . . .  	Number	0001	
 BINCSW . . . . . . . . . . . . .  	Number	0000	
 BINFID . . . . . . . . . . . . .  	Number	00FF	
 BLODSW . . . . . . . . . . . . .  	Number	0001	
@@ -1692,12 +1696,12 @@ CPMSER . . . . . . . . . . . . .  	Number	0000
 CRONLY . . . . . . . . . . . . .  	Number	0000	
 CSRDSP . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 CSRFLG . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
-CSROK  . . . . . . . . . . . . .  	L NEAR	03E5	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Symbols-3
                                                              
 
+CSROK  . . . . . . . . . . . . .  	L NEAR	03E5	CSEG
 CSRSET . . . . . . . . . . . . .  	L NEAR	03D0	CSEG
 CSRTYP . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 CTLBRK . . . . . . . . . . . . .  	Number	FF03	
@@ -1751,12 +1755,12 @@ EXIDY  . . . . . . . . . . . . .  	Number	0000
 
 FACLO  . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 FAST . . . . . . . . . . . . . .  	Number	0001	
-FCBSIZ . . . . . . . . . . . . .  	Number	0026	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Symbols-4
                                                              
 
+FCBSIZ . . . . . . . . . . . . .  	Number	0026	
 FCB_DT . . . . . . . . . . . . .  	Number	001D	
 FCB_DV . . . . . . . . . . . . .  	Number	0007	
 FCB_EX . . . . . . . . . . . . .  	Number	0013	
@@ -1810,12 +1814,12 @@ F_WID  . . . . . . . . . . . . .  	Number	0035
 GENBIN . . . . . . . . . . . . .  	Number	0001	
 GENDSK . . . . . . . . . . . . .  	Number	0000	
 GENIO  . . . . . . . . . . . . .  	Number	0001	
-GESBC  . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Symbols-5
                                                              
 
+GESBC  . . . . . . . . . . . . .  	Number	0000	
 GETFKX . . . . . . . . . . . . .  	L NEAR	02F9	CSEG
 GETFKY . . . . . . . . . . . . .  	L NEAR	02EC	CSEG
 GETKLP . . . . . . . . . . . . .  	L NEAR	010D	CSEG
@@ -1869,12 +1873,12 @@ INTEL  . . . . . . . . . . . . .  	Number	0000
 INTFHW . . . . . . . . . . . . .  	Number	0000	
 INTFSW . . . . . . . . . . . . .  	Number	0000	
 INTHND . . . . . . . . . . . . .  	Number	0001	
-INTLEC . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Symbols-6
                                                              
 
+INTLEC . . . . . . . . . . . . .  	Number	0000	
 INTROM . . . . . . . . . . . . .  	Number	0000	
 ISC  . . . . . . . . . . . . . .  	Number	0000	
 ISIS . . . . . . . . . . . . . .  	Number	0000	
@@ -1928,11 +1932,11 @@ LONGI  . . . . . . . . . . . . .  	Number	0000
 LPT3 . . . . . . . . . . . . . .  	Number	0000	
 LPTLEN . . . . . . . . . . . . .  	Number	0084	
 LPTSW  . . . . . . . . . . . . .  	Number	0001	
-
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Symbols-7
                                                              
+
 
 MAKINT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 MAPSUP . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
@@ -1987,12 +1991,12 @@ NOVARP . . . . . . . . . . . . .  	Number	0000
 NTCTLFN  . . . . . . . . . . . .  	L NEAR	0125	CSEG
 NTFKY1 . . . . . . . . . . . . .  	L NEAR	028A	CSEG
 NTFKY9 . . . . . . . . . . . . .  	L NEAR	0296	CSEG
-NTFKYX . . . . . . . . . . . . .  	L NEAR	0297	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Symbols-8
                                                              
 
+NTFKYX . . . . . . . . . . . . .  	L NEAR	0297	CSEG
 NTRAP  . . . . . . . . . . . . .  	L NEAR	01B0	CSEG
 NULRT  . . . . . . . . . . . . .  	L NEAR	03B2	CSEG
 NUMLEV . . . . . . . . . . . . .  	Number	006E	
@@ -2046,12 +2050,12 @@ SCNSWD . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 SCP  . . . . . . . . . . . . . .  	Number	0001	
 SCRN86 . . . . . . . . . . . . .  	Number	0001	
 SCRNIO . . . . . . . . . . . . .  	Number	0001	
-SCROLT . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Symbols-9
                                                              
 
+SCROLT . . . . . . . . . . . . .  	Number	0001	
 SEMFLG . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 SETCSR . . . . . . . . . . . . .  	L NEAR	03D5	CSEG	Global
 SETSTR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
@@ -2105,21 +2109,21 @@ XTNSYS . . . . . . . . . . . . .  	Number	0000
 YKYEOF . . . . . . . . . . . . .  	L NEAR	0050	CSEG
 
 Z80  . . . . . . . . . . . . . .  	Number	0001	
-Z80MAC . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:35:33
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:40:42
  
 GIOKYB - Machine Independent Keyboard Device Driver Code    Symbols-10
                                                              
 
+Z80MAC . . . . . . . . . . . . .  	Number	0001	
 
 $FN  . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 $USR . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 _OFFST . . . . . . . . . . . . .  	Number	00C2	
 
 
-   1416 Source  Lines
-   1499 Total   Lines
-    475 Symbols
+   1419 Source  Lines
+   1502 Total   Lines
+    476 Symbols
 
   35190 Bytes symbol space free
 

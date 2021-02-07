@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-1
                                                             
@@ -57,7 +57,7 @@ FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-1
                              C  				; Support is in BINTRP.MAC and GWSTS.MAC 
  = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
                              C  				;single precision numbers for output. 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -116,7 +116,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-3
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -175,7 +175,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-4
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -234,7 +234,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Z80 related macros 
                              C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-5
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -293,7 +293,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-6
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -352,7 +352,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-7
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -400,13 +400,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
+                             C  DBGBRK	MACRO 
+                             C  	DB	0CDh,06h,0CCh 
+                             C  	ENDM 
                                  
                                  
                                 	TITLE FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. Allen 
@@ -456,14 +459,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 00FF                      C  	BINFID=255D		;files created by SAVE "fn" 
  = 00FE                      C  	PROFID=254D		;files created by SAVE "fn",P 
  = 00FD                      C  	BSVFID=253D		;files created by BSAVE "fn" 
-                             C   
-                             C  ;Generalized I/O Function Codes: 
-                             C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-9
 GIO86U - Device Independent I/O Constants and Macros        
 
+                             C   
+                             C  ;Generalized I/O Function Codes: 
+                             C  ; 
  = 0000                      C  	_OFFST=0		;initialize count 
                              C  	ROFFST	G_EOF,2		;test EOF for file opened to this device 
                              C  	ROFFST	G_LOC,2		;LOC 
@@ -482,7 +485,7 @@ GIO86U - Device Independent I/O Constants and Macros
                              C  	ROFFST	G_BOT,2		;block output to file opened on this device 
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-10
 GIO86U - Device Independent I/O Constants and Macros        
@@ -541,7 +544,7 @@ GIO86U - Device Independent I/O Constants and Macros
  = 0080                      C  	DATPSC=128D		;bytes per sector 
  = 0026                      C  	FCBSIZ=38D		;File Control Block size 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-11
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -600,13 +603,13 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  = 001D                      C  	FCB_DT=F_FCB+22D	;Time of last write to file 
  = 0027                      C  	FCB_NR=F_FCB+32D	;NEXT RECORD NUMBER 
  = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Number 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-12
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-13
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -665,7 +668,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  0015  75 08                    	JNZ	SHORT WNOTOL	;IF NO MATCH NO NEED TO TRUNCATE THE STACK 
  0017  03 D9                    	ADD	BX,CX		;ELIMINATE EVERYTHING UP TO AND INCLUDING 
                                 				;THE MATCHING WHILE ENTRY 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-14
 WHILE , WEND                                                
@@ -724,7 +727,7 @@ WHILE , WEND
                                  
                                  
                                 ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-15
 WHILE , WEND                                                
@@ -783,7 +786,7 @@ WHILE , WEND
                                 ; 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	SAVFRE:WORD 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-16
 CHAIN                                                       
@@ -842,7 +845,7 @@ CHAIN
  00C8  E8 0000 E                	CALL	CHRGTR 
                                 	EXTRN	PRGFLI:NEAR 
  00CB  E8 0000 E                	CALL	PRGFLI		;Evaluate file name and OPEN it 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-17
 CHAIN                                                       
@@ -901,7 +904,7 @@ CHAIN
  0133  51                       	PUSH	CX		;Save pointer to start of 1st line 
  0134  8B D9                    	MOV	BX,CX		;Save pointer to start line 
  0136  89 1E 0000 E             	MOV	CMSPTR,BX 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-18
 CHAIN                                                       
@@ -960,7 +963,7 @@ CHAIN
  01A0  E8 0000 E                	CALL	PTRGTN		;This subroutine in F3 scans variables 
  01A3  74 64                    	JZ	SHORT FNDAAY	;Found array 
  01A5  8A C5                    	MOV	AL,CH		;Try finding array with COMMON bit set 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-19
 CHAIN                                                       
@@ -1019,7 +1022,7 @@ CHAIN
  0207  AA                       	STOSB 
  0208  C3                       	RET			;done 
  0209  A2 0000 E                FNDAAY:	MOV	BYTE PTR SUBFLG,AL	;Array found, clear SUBFLG 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-20
 CHAIN                                                       
@@ -1078,7 +1081,7 @@ CHAIN
  026A  9C                       	PUSHF			;Save indicator 
  026B  24 7F                    	AND	AL,LOW 177O	;Clear COMMON bit 
  026D  88 07                    	MOV	BYTE PTR [BX],AL	;Save back 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-21
 CHAIN                                                       
@@ -1137,7 +1140,7 @@ CHAIN
  02CC  24 7F                    	AND	AL,LOW 177O	;Clear COMMON bit 
  02CE  88 07                    	MOV	BYTE PTR [BX],AL	;Save back 
  02D0  43                       	INC	BX		;Point to length of array 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-22
 CHAIN                                                       
@@ -1196,7 +1199,7 @@ CHAIN
  032B  B5 00                    	MOV	CH,LOW 0	;Make double with high zero 
  032D  03 D9                    	ADD	BX,CX		;Go past DIMS 
  032F  03 D9                    	ADD	BX,CX 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-23
 CHAIN                                                       
@@ -1255,7 +1258,7 @@ CHAIN
  0394  4B                       	DEC	BX		;One lower to be sure 
  0395  89 1E 0000 E             	MOV	FRETOP,BX	;Update FRETOP to reflect new value 
  0399  A0 0000 E                	MOV	AL,BYTE PTR MDLFLG	;MERGE w/ DELETE? 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-24
 CHAIN                                                       
@@ -1314,7 +1317,7 @@ CHAIN
  040A  41                       	INC	CX 
  040B  9E                       	SAHF 
  040C  75 EF                    	JNZ	SHORT MVBKVR 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-25
 CHAIN                                                       
@@ -1373,7 +1376,7 @@ CHAIN
                                 	EXTRN	FACLO:WORD 
  0000                           DSEG	ENDS 
                                 	PUBLIC	WRITE 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-26
 WRITE                                                       
@@ -1432,7 +1435,7 @@ WRITE
  0000                           DSEG	ENDS 
  04AF  53                       	PUSH	BX		;Save text pointer 
  04B0  8B 1E 0000 E             	MOV	BX,PTRFIL	;See if disk file 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenPage     1-27
 WRITE                                                       
@@ -1483,7 +1486,7 @@ WRITE
  0506                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-1
                                                              
@@ -1497,6 +1500,7 @@ ADR  . . . . . . . . . . . . . .  	   1
 CALLOS . . . . . . . . . . . . .  	   4
 CHRGET . . . . . . . . . . . . .  	   1
 COMPAR . . . . . . . . . . . . .  	   2
+DBGBRK . . . . . . . . . . . . .  	   1
 DC . . . . . . . . . . . . . . .  	   6
 DJNZ . . . . . . . . . . . . . .  	   2
 FSIGN  . . . . . . . . . . . . .  	   1
@@ -1541,12 +1545,12 @@ ASCTAB . . . . . . . . . . . . .  	Number	0009
 BAKCOM . . . . . . . . . . . . .  	L NEAR	0216	CSEG
 BASDEB . . . . . . . . . . . . .  	Number	0000	
 BCKUCM . . . . . . . . . . . . .  	L NEAR	021B	CSEG
-BEEPSW . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-2
                                                              
 
+BEEPSW . . . . . . . . . . . . .  	Number	0001	
 BINCSW . . . . . . . . . . . . .  	Number	0000	
 BINFID . . . . . . . . . . . . .  	Number	00FF	
 BLODSW . . . . . . . . . . . . .  	Number	0001	
@@ -1600,12 +1604,12 @@ CPMLIF . . . . . . . . . . . . .  	Number	0000
 CPMMDS . . . . . . . . . . . . .  	Number	0000	
 CPMPER . . . . . . . . . . . . .  	Number	0000	
 CPMRSH . . . . . . . . . . . . .  	Number	0000	
-CPMSBC . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-3
                                                              
 
+CPMSBC . . . . . . . . . . . . .  	Number	0000	
 CPMSER . . . . . . . . . . . . .  	Number	0000	
 CRDO . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 CRLFSQ . . . . . . . . . . . . .  	Number	0002	
@@ -1659,12 +1663,12 @@ ENDFOR . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 ERROR  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERRWE  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERSFIN . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-ESCCTL . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-4
                                                              
 
+ESCCTL . . . . . . . . . . . . .  	Number	0000	
 EVAL . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 EXIDY  . . . . . . . . . . . . .  	Number	0000	
 
@@ -1718,12 +1722,12 @@ F_CLOC . . . . . . . . . . . . .  	Number	002D
 F_CODE . . . . . . . . . . . . .  	Number	0031	
 F_DEV  . . . . . . . . . . . . .  	Number	0034	
 F_FCB  . . . . . . . . . . . . .  	Number	0007	
-F_FLGS . . . . . . . . . . . . .  	Number	0037	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-5
                                                              
 
+F_FLGS . . . . . . . . . . . . .  	Number	0037	
 F_MODE . . . . . . . . . . . . .  	Number	0006	
 F_NEXT . . . . . . . . . . . . .  	Number	0004	
 F_NUL1 . . . . . . . . . . . . .  	Number	0000	
@@ -1777,12 +1781,12 @@ INLADD . . . . . . . . . . . . .  	Number	0000
 INSTSW . . . . . . . . . . . . .  	Number	0000	
 INTEL  . . . . . . . . . . . . .  	Number	0000	
 INTFHW . . . . . . . . . . . . .  	Number	0000	
-INTFSW . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-6
                                                              
 
+INTFSW . . . . . . . . . . . . .  	Number	0000	
 INTLEC . . . . . . . . . . . . .  	Number	0000	
 INTROM . . . . . . . . . . . . .  	Number	0000	
 ISC  . . . . . . . . . . . . . .  	Number	0000	
@@ -1836,12 +1840,12 @@ NCRDEB . . . . . . . . . . . . .  	Number	0000
 NCRELS . . . . . . . . . . . . .  	Number	0000	
 NCRLPT . . . . . . . . . . . . .  	Number	0001	
 NECBAS . . . . . . . . . . . . .  	Number	0000	
-NEWSTT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-7
                                                              
 
+NEWSTT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 NLONLY . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 NMCOMT . . . . . . . . . . . . .  	Number	0002	
 NMKEYF . . . . . . . . . . . . .  	Number	000A	
@@ -1895,12 +1899,12 @@ PRGFLI . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 PROFID . . . . . . . . . . . . .  	Number	00FE	
 PTRFIL . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 PTRGET . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-PTRGTN . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-8
                                                              
 
+PTRGTN . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 PTRGTR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 PURE . . . . . . . . . . . . . .  	Number	0001	
 
@@ -1954,12 +1958,12 @@ TEK  . . . . . . . . . . . . . .  	Number	0000
 TEMP . . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 TEMP3  . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 TEMP9  . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
-TIMSHR . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-9
                                                              
 
+TIMSHR . . . . . . . . . . . . .  	Number	0000	
 TOPTFG . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 TOPTVL . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 TRNCHR . . . . . . . . . . . . .  	Number	0000	
@@ -2013,12 +2017,12 @@ $WHILE . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ??L006 . . . . . . . . . . . . .  	L NEAR	016A	CSEG
 ??L007 . . . . . . . . . . . . .  	L NEAR	01FF	CSEG
 ??L008 . . . . . . . . . . . . .  	L NEAR	0225	CSEG
-??L009 . . . . . . . . . . . . .  	L NEAR	023D	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:28:45
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:33:54
  
 FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-10
                                                              
 
+??L009 . . . . . . . . . . . . .  	L NEAR	023D	CSEG
 ??L010 . . . . . . . . . . . . .  	L NEAR	0249	CSEG
 ??L011 . . . . . . . . . . . . .  	L NEAR	027D	CSEG
 ??L012 . . . . . . . . . . . . .  	L NEAR	02E2	CSEG
@@ -2029,11 +2033,11 @@ FIVEO 5.0 Features -WHILE/WEND, CALL, CHAIN, WRITE /P. AllenSymbols-10
 _OFFST . . . . . . . . . . . . .  	Number	00C2	
 
 
-   1346 Source  Lines
-   1442 Total   Lines
-    478 Symbols
+   1349 Source  Lines
+   1445 Total   Lines
+    479 Symbols
 
-  35328 Bytes symbol space free
+  35330 Bytes symbol space free
 
       0 Warning Errors
       0 Severe  Errors

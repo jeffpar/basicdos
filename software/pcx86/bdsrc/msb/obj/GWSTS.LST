@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-1
                                                             
@@ -57,7 +57,7 @@ GWSTS - GW-BASIC Common Statement Support                   Page     1-1
                              C  				; Support is in BINTRP.MAC and GWSTS.MAC 
  = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
                              C  				;single precision numbers for output. 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -116,7 +116,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-3
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -175,7 +175,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-4
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -234,7 +234,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Z80 related macros 
                              C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-5
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -293,7 +293,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-6
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -352,7 +352,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-7
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -400,13 +400,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
+                             C  DBGBRK	MACRO 
+                             C  	DB	0CDh,06h,0CCh 
+                             C  	ENDM 
                                  
                                  
                                 	TITLE   GWSTS - GW-BASIC Common Statement Support 
@@ -456,14 +459,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                  
                                  
                                 ENDIF 
-                                 
-                                DOSIO	MACRO	DFUN 
-                                	MOV	AH,LOW OFFSET DFUN 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-9
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
+                                 
+                                DOSIO	MACRO	DFUN 
+                                	MOV	AH,LOW OFFSET DFUN 
                                 	INT	33		;MS-DOS system call 
                                 ENDM 
  = 002A                         	GDAT=42D		;MS-DOS Get Date Function 
@@ -475,7 +478,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
             ??                  
                          ]      
                                 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-10
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -502,7 +505,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0008                         	BKSPC=8D 
  = 000D                         	CR=13D 
  = 000A                         	LF=10D 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-11
 CLS,LOCATE,WIDTH (of screen),LCOPY                          
@@ -527,7 +530,7 @@ CLS,LOCATE,WIDTH (of screen),LCOPY
  0200  E8 0000 E                	CALL	CLRSCN 
  0203  5B                       	POP	BX 
  0204  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-12
 CLS,LOCATE,WIDTH (of screen),LCOPY                          
@@ -586,7 +589,7 @@ CLS,LOCATE,WIDTH (of screen),LCOPY
  0263  5B                       	POP	BX 
  0264  50                       	PUSH	AX 
  0265  8A F9                    	MOV	BH,CL 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-13
 CLS,LOCATE,WIDTH (of screen),LCOPY                          
@@ -606,7 +609,7 @@ CLS,LOCATE,WIDTH (of screen),LCOPY
                                  
                                  
  0275  E9 0000 E                GOFCER:	JMP	FCERR 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-14
 CLS,LOCATE,WIDTH (of screen),LCOPY                          
@@ -650,7 +653,7 @@ CLS,LOCATE,WIDTH (of screen),LCOPY
                                  
  02AE  E9 0000 E                GFCERR:	JMP	FCERR 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-15
 CLS,LOCATE,WIDTH (of screen),LCOPY                          
@@ -668,7 +671,7 @@ CLS,LOCATE,WIDTH (of screen),LCOPY
  02BF  72 ED                    	JB	GFCERR		;Error detected in low level routine 
  02C1  5B                       	POP	BX 
  02C2  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-16
 CLS,LOCATE,WIDTH (of screen),LCOPY                          
@@ -688,7 +691,7 @@ CLS,LOCATE,WIDTH (of screen),LCOPY
  02CC  72 E0                    	JB	GFCERR		;Error detected by low level routine 
  02CE  5B                       	POP	BX 
  02CF  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-17
 COLOR,GETLIN,SCREEN (function and statement)                
@@ -725,7 +728,7 @@ COLOR,GETLIN,SCREEN (function and statement)
  02F5  73 02                    	JAE	GETLN0		;BRIF wrap will cause scroll 
  02F7  FE C0                    	INC	AL		;Else wrap will cause line number increment 
  02F9  C3                       GETLN0:	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-18
 COLOR,GETLIN,SCREEN (function and statement)                
@@ -784,13 +787,13 @@ COLOR,GETLIN,SCREEN (function and statement)
  0353  5B                       	POP	BX		;Retrieve text pointer 
  0354  4B                       	DEC	BX 
  0355  E8 0000 E                	CALL	CHRGTR 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-19
 COLOR,GETLIN,SCREEN (function and statement)                
 
  0358  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-20
 COLOR,GETLIN,SCREEN (function and statement)                
@@ -843,7 +846,7 @@ COLOR,GETLIN,SCREEN (function and statement)
  038C  BF 0000 E                	MOV	DI,OFFSET BUF	;Reset list index 
  038F  88 0D                    	MOV	BYTE PTR 0[DI],CL	;Head list with param count 
  0391  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-21
 COLOR,GETLIN,SCREEN (function and statement)                
@@ -883,7 +886,7 @@ COLOR,GETLIN,SCREEN (function and statement)
  03AA  58                       	POP	AX		;Get PUT/GET flag 
  03AB  E9 0000 E                	JMP	DPUTG 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-22
 PUT & GET (Distinguish Disk from Graphics)                  
@@ -928,7 +931,7 @@ PUT & GET (Distinguish Disk from Graphics)
  03D9  B0 00                    	MOV	AL,LOW 0D	;Set param value to 0, save flags 
  03DB  F9                       	STC			;Flag param. not found 
  03DC  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-23
 Parsing Routines for GWSTS                                  
@@ -947,7 +950,7 @@ Parsing Routines for GWSTS
  03E3  E9 0000 E                	JMP	SNERR		;Not EOS - error 
  03E6  C3                       EOSCKX:	RET 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-24
 Parsing Routines for GWSTS                                  
@@ -972,7 +975,7 @@ Parsing Routines for GWSTS
  03FC  FF 16 0001 E             LINLOP:	CALL	 WORD PTR MAXUPD+1	;UPDATE MAJOR AXIS 
  0400  E2 E5                    	LOOP	LINLP3		;CONTINUE UNTIL COUNT EXHAUSTED 
  0402  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-25
 Graphics Support Specific to the 8086                       
@@ -1019,7 +1022,7 @@ Graphics Support Specific to the 8086
  042A  8F 07                    	POP	WORD PTR 0[BX]	;Store addr in Bytes 2-3. 
  042C  E9 0000 E                	JMP	PUTNEW		;Desc in FAC & ret. ([BX] on stack). 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-26
 VARPT2 - VARPTR$ Function                                   
@@ -1078,7 +1081,7 @@ VARPT2 - VARPTR$ Function
                                 ; VALUE OF 255 MEANS NOTE NOT ALLOWED. 
                                  
  0460  12                       NOTXLT:	DB	OFFSET 9D*2	;A- (G#) 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-27
 PLAY/SOUND statements                                       
@@ -1137,7 +1140,7 @@ PLAY/SOUND statements
  04AC  74 0E                    	JZ	PLYRET		;RETURN IF SO - NO PAUSE 
  04AE  E9 0544 R                	JMP	PPAUS2		;[DX]=PAUSE LENGTH 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-28
 PLAY/SOUND statements                                       
@@ -1196,7 +1199,7 @@ PLAY/SOUND statements
  050A  50                       	PUSH	AX		;Save Note 
  050B  52                       	PUSH	DX		;Save Octave 
  050C  A0 0000 E                	MOV	AL,BYTE PTR NOTELN 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-29
 PLAY/SOUND statements                                       
@@ -1255,7 +1258,7 @@ PLAY/SOUND statements
  0575  E8 0000 E                	CALL	DECFET		;Put char back 
  0578                           PLYDOX: 
  0578  58                       	POP	AX		;Duration 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-30
 PLAY/SOUND statements                                       
@@ -1314,7 +1317,7 @@ PLAY/SOUND statements
  05D1  74 06                    	JZ	PLYMOD		;Brif Foreground Music 
  05D3  FE C1                    	INC	CL		;MMODE=1 for Background 
  05D5  3C 42                    	CMP	AL,LOW "B" 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-31
 PLAY/SOUND statements                                       
@@ -1373,7 +1376,7 @@ PLAY/SOUND statements
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	FAC:WORD 
  0000                           DSEG	ENDS 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-32
 PLAY/SOUND statements                                       
@@ -1432,7 +1435,7 @@ PLAY/SOUND statements
  065E  BB 0016                  	MOV	BX,22D		;Mult by ^D22 
  0661  E8 0000 E                	CALL	MAKINT 
  0664  E8 0000 E                	CALL	FRCSNG		;Get s.p. ^D22 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-33
 PLAY/SOUND statements                                       
@@ -1455,7 +1458,7 @@ PLAY/SOUND statements
  0685  E9 0000 E                	JMP	FCERR		; Complain 
                                  
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-34
 PLAY/SOUND statements                                       
@@ -1514,7 +1517,7 @@ PLAY/SOUND statements
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	AUTFLG:WORD,SEMFLG:WORD,SAVTXT:WORD,SAVSTK:WORD,CURLIN:WORD 
  0000                           DSEG	ENDS 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-35
 General Event Trapping Code                                 
@@ -1573,7 +1576,7 @@ General Event Trapping Code
  06C0  D0 C8                    	ROR	AL,1		;Divide by 2 so get 0,1,2 or 3 
  06C2  EB 06                    	JMP	SHORT SEVST2 
  06C4                           SEVST1: 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-36
 General Event Trapping Code                                 
@@ -1632,7 +1635,7 @@ General Event Trapping Code
  06FF  3C 00 E                  	CMP	AL,LOW OFFSET $STOP 
  0701  75 D9                    	JNZ	SNERR1 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-37
 General Event Trapping Code                                 
@@ -1691,7 +1694,7 @@ General Event Trapping Code
  072F  8A E5                    	MOV	AH,CH		;[AH] = 1st byte 
  0731                           NT2BTK: 
  0731  3D 0000 E                	CMP	AX,OFFSET $KEY2B 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-38
 General Event Trapping Code                                 
@@ -1750,7 +1753,7 @@ General Event Trapping Code
  0790  59                       	POP	CX 
  0791  C3                       	RET 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-39
 General Event Trapping Code                                 
@@ -1809,7 +1812,7 @@ General Event Trapping Code
                                 ; Entry - [AL] = 0-relative event index 
                                 ; Exit  - [BX] = -1 if event had occured 
                                 ;              =  0 if event had not occured 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-40
 General Event Trapping Code                                 
@@ -1829,7 +1832,7 @@ General Event Trapping Code
  07DC  4B                       	DEC	BX		;[BX]=-1 (indicates event has occured) 
  07DD  C3                       TSTEVX:	RET 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-41
 General Event Trapping Code                                 
@@ -1856,7 +1859,7 @@ General Event Trapping Code
  07EA  58                       	POP	AX 
  07EB  C3                       	RET 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-42
 COM Statement and Event Trapping                            
@@ -1915,7 +1918,7 @@ COM Statement and Event Trapping
  0813  3C 0A                    	CMP	AL,LOW OFFSET NMKEYF 
  0815  73 39                    	JNB	KEYFCE		;Must be STKEYF - NMKEYF+STKEYF, else error. 
  0817  BA 0010                  	MOV	DX,16D 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-43
 SOFT KEY Statement and Event Trapping                       
@@ -1974,7 +1977,7 @@ SOFT KEY Statement and Event Trapping
  0872  80 3E 0000 E FF          	CMP	BYTE PTR KEYSW,LOW 255D	;Test if change to ON 
  0877  75 03                    	JNZ	KEYOX1		;Change is to OFF - do not call FKYADV 
  0879  E8 0000 E                	CALL	FKYADV 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-44
 SOFT KEY Statement and Event Trapping                       
@@ -2032,7 +2035,7 @@ SOFT KEY Statement and Event Trapping
  08C8  E8 0000 E                KEYLSQ:	CALL	OUTDO 
  08CB  5E                       	POP	SI 
  08CC  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-45
 SOFT KEY Statement and Event Trapping                       
@@ -2091,7 +2094,7 @@ SOFT KEY Statement and Event Trapping
  0912  32 C0                    	XOR	AL,AL		;else blank 
  0914                           KEYDS4: 
  0914  E8 093D R                	CALL	KEYDCH		;Display char, adv cursor 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-46
 KEYON,  KEYOFF, and KEYDSP                                  
@@ -2138,7 +2141,7 @@ KEYON,  KEYOFF, and KEYDSP
  095A  5B                       	POP	BX 
  095B  58                       	POP	AX		;Restore key number 
  095C  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-47
 KEYON,  KEYOFF, and KEYDSP                                  
@@ -2197,7 +2200,7 @@ KEYON,  KEYOFF, and KEYDSP
                                 				;Print function key 10 number as 0 
                                 				; except when it is the first key 
  09AD  80 FC 31                 	CMP	AH,LOW "1"	;Only true if 1st function key is key 10 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-48
 KEYON,  KEYOFF, and KEYDSP                                  
@@ -2207,7 +2210,7 @@ KEYON,  KEYOFF, and KEYDSP
  09B4  B0 31                    	MOV	AL,LOW "1" 
  09B6  FE 06 0000 E             	INC	BYTE PTR FKCNUM	;Re-adjust format 
  09BA  C3                       KADNMX:	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-49
 KEYON,  KEYOFF, and KEYDSP                                  
@@ -2224,7 +2227,7 @@ KEYON,  KEYOFF, and KEYDSP
  09BF  93                       	XCHG	AX,BX 
  09C0  E8 0000 E                	CALL	SETFBC		;Set forground/background attributes 
  09C3  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-50
 Swap Forground & Background Colors                          
@@ -2283,7 +2286,7 @@ Swap Forground & Background Colors
                                 	EXTRN	RDPEN:NEAR 
  09EA                           PENF: 
  09EA  E8 0A16 R                	CALL	ONESUB		;[AL] = pen function 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-51
 PEN Statement and Event Trapping                            
@@ -2336,7 +2339,7 @@ PEN Statement and Event Trapping
  0A1C  8A C2                    	MOV	AL,DL		;return argument in [AL] 
  0A1E  5A                       	POP	DX		;restore caller's [DX] 
  0A1F  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-52
 PEN Statement and Event Trapping                            
@@ -2395,7 +2398,7 @@ PEN Statement and Event Trapping
  0A3E  FE C4                    	INC	AH 
  0A40  80 E4 01                 	AND	AH,LOW 1	;[AH] = 1 for latched, 0 for current 
  0A43  D0 E8                    	SHR	AL,1		;[AL] = 0 relative joystick trigger id 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-53
 STRIG Statement and Event Trapping                          
@@ -2454,7 +2457,7 @@ STRIG Statement and Event Trapping
  0A82  C3                       	RET 
                                  
                                 ;POLSTR is called by CHKINT at beginning of every BASIC statement (NEWSTT). 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-54
 STRIG Statement and Event Trapping                          
@@ -2513,7 +2516,7 @@ STRIG Statement and Event Trapping
  0ABC  E8 0B9F R                	CALL	GETDAT		;CX=year, DH=month, DL=day 
  0ABF  5B                       	POP	BX		;[BX]=adr of string 
  0AC0  81 E9 076C               	SUB	CX,1900D	;Reduce year by two digits 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-55
 DATE - Get/Set Date.                                        
@@ -2572,7 +2575,7 @@ DATE - Get/Set Date.
  0B20  E8 0B59 R                	CALL	GNUM8		;[AL]=day of month 
  0B23  8A D0                    	MOV	DL,AL		;[DL] = day 
  0B25  E8 0B49 R                	CALL	DATSEP		;skip / or - 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-56
 DATE - Get/Set Date.                                        
@@ -2631,7 +2634,7 @@ DATE - Get/Set Date.
  0B83  72 F3                    	JB	RET2		;branch if illegal digit 
  0B85  80 F9 0A                 	CMP	CL,LOW 10D 
  0B88  F5                       	CMC 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-57
 DATE - Get/Set Date.                                        
@@ -2659,7 +2662,7 @@ DATE - Get/Set Date.
                                 ; 
  0B9F                           GETDAT:	DOSIO	GDAT		;Get Date from MS-DOS 
  0BA3  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-58
 DATE - Get/Set Date.                                        
@@ -2718,7 +2721,7 @@ DATE - Get/Set Date.
  0BE1  80 F9 01                 	CMP	CL,LOW 1	;String must not be null 
  0BE4  72 45                    	JB	TIMERR		;Brif null str 
  0BE6  8B 77 01                 	MOV	SI,WORD PTR 1[BX]	;[SI] has addr of string. 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-59
 TIME - Get/Set Time.                                        
@@ -2777,7 +2780,7 @@ TIME - Get/Set Time.
                                  
                                 	EXTRN	DERDNA:NEAR 
  0C3E  E9 0000 E                	JMP	DERDNA		;Device unavailable error 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Page     1-60
 Error Handlers for Features not supported in a version      
@@ -2822,7 +2825,7 @@ Error Handlers for Features not supported in a version
  0C49                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Symbols-1
                                                              
@@ -2836,6 +2839,7 @@ ADR  . . . . . . . . . . . . . .  	   1
 CALLOS . . . . . . . . . . . . .  	   1
 CHRGET . . . . . . . . . . . . .  	   1
 COMPAR . . . . . . . . . . . . .  	   2
+DBGBRK . . . . . . . . . . . . .  	   1
 DC . . . . . . . . . . . . . . .  	   6
 DJNZ . . . . . . . . . . . . . .  	   2
 DOSIO  . . . . . . . . . . . . .  	   2
@@ -2880,12 +2884,12 @@ BUF  . . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 BUFLEN . . . . . . . . . . . . .  	Number	00FF	
 
 CASSW  . . . . . . . . . . . . .  	Number	0000	
-CHDIR  . . . . . . . . . . . . .  	L NEAR	0C44	CSEG	Global
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Symbols-2
                                                              
 
+CHDIR  . . . . . . . . . . . . .  	L NEAR	0C44	CSEG	Global
 CHKIN1 . . . . . . . . . . . . .  	L NEAR	0694	CSEG
 CHKINT . . . . . . . . . . . . .  	L NEAR	0688	CSEG	Global
 CHKINX . . . . . . . . . . . . .  	L NEAR	06A6	CSEG
@@ -2939,12 +2943,12 @@ DATERR . . . . . . . . . . . . .  	L NEAR	0B91	CSEG
 DATES  . . . . . . . . . . . . .  	L NEAR	0AAC	CSEG	Global
 DATIME . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 DATPSC . . . . . . . . . . . . .  	Number	0080	
-DATSEP . . . . . . . . . . . . .  	L NEAR	0B49	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Symbols-3
                                                              
 
+DATSEP . . . . . . . . . . . . .  	L NEAR	0B49	CSEG
 DAYSPM . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 DBLCHR . . . . . . . . . . . . .  	Number	0000	
 DBLTRN . . . . . . . . . . . . .  	Number	0000	
@@ -2998,12 +3002,12 @@ FCERRI . . . . . . . . . . . . .  	L NEAR	0A49	CSEG
 FETCHR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FETCHZ . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FIVDSK . . . . . . . . . . . . .  	Number	0001	
-FIVEO  . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Symbols-4
                                                              
 
+FIVEO  . . . . . . . . . . . . .  	Number	0001	
 FIVLPT . . . . . . . . . . . . .  	Number	0001	
 FIVMEM . . . . . . . . . . . . .  	Number	0001	
 FKCNUM . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
@@ -3057,12 +3061,12 @@ GWWIDX . . . . . . . . . . . . .  	L NEAR	02AC	CSEG
 
 HEATH  . . . . . . . . . . . . .  	Number	0000	
 HEXOCT . . . . . . . . . . . . .  	Number	0001	
-HGHBIT . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Symbols-5
                                                              
 
+HGHBIT . . . . . . . . . . . . .  	Number	0001	
 
 I8086  . . . . . . . . . . . . .  	Number	0001	
 I8251  . . . . . . . . . . . . .  	Number	0000	
@@ -3116,12 +3120,12 @@ KEYLSQ . . . . . . . . . . . . .  	L NEAR	08C8	CSEG
 KEYLST . . . . . . . . . . . . .  	L NEAR	0880	CSEG
 KEYNCR . . . . . . . . . . . . .  	L NEAR	094B	CSEG
 KEYNLF . . . . . . . . . . . . .  	L NEAR	0951	CSEG
-KEYOF  . . . . . . . . . . . . .  	L NEAR	085A	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Symbols-6
                                                              
 
+KEYOF  . . . . . . . . . . . . .  	L NEAR	085A	CSEG
 KEYOFF . . . . . . . . . . . . .  	Number	0001	
 KEYON  . . . . . . . . . . . . .  	L NEAR	0855	CSEG
 KEYOX  . . . . . . . . . . . . .  	L NEAR	0869	CSEG
@@ -3175,12 +3179,12 @@ MEMIMG . . . . . . . . . . . . .  	Number	0001
 MINDEL . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 MINUPD . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 MKDIR  . . . . . . . . . . . . .  	L NEAR	0C44	CSEG	Global
-MMODE  . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Symbols-7
                                                              
 
+MMODE  . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 MOSTEK . . . . . . . . . . . . .  	Number	0000	
 MSCALE . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 MSDCCF . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
@@ -3234,11 +3238,11 @@ NTONPN . . . . . . . . . . . . .  	L NEAR	074E	CSEG
 NUMLEV . . . . . . . . . . . . .  	Number	006E	
 NUMTMP . . . . . . . . . . . . .  	Number	000A	
 NUMTRP . . . . . . . . . . . . .  	Number	0015	
-
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Symbols-8
                                                              
+
 
 OCTAVE . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 OEMRAM . . . . . . . . . . . . .  	Number	0000	
@@ -3293,12 +3297,12 @@ PLYNU4 . . . . . . . . . . . . .  	L NEAR	0527	CSEG
 PLYNUM . . . . . . . . . . . . .  	L NEAR	04BD	CSEG
 PLYRET . . . . . . . . . . . . .  	L NEAR	04BC	CSEG
 PLYSHP . . . . . . . . . . . . .  	L NEAR	04FB	CSEG
-PLYTAB . . . . . . . . . . . . .  	L NEAR	0435	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Symbols-9
                                                              
 
+PLYTAB . . . . . . . . . . . . .  	L NEAR	0435	CSEG
 PMAP . . . . . . . . . . . . . .  	L NEAR	0C44	CSEG	Global
 POCTAV . . . . . . . . . . . . .  	L NEAR	04B1	CSEG
 POLCOM . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
@@ -3352,12 +3356,12 @@ SCRINP . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 SCRLOP . . . . . . . . . . . . .  	L NEAR	036C	CSEG
 SCRN86 . . . . . . . . . . . . .  	Number	0001	
 SCRNIO . . . . . . . . . . . . .  	Number	0001	
-SCROLT . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Symbols-10
                                                              
 
+SCROLT . . . . . . . . . . . . .  	Number	0001	
 SCROUT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 SCRSTT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 SDAT . . . . . . . . . . . . . .  	Number	002B	
@@ -3411,12 +3415,12 @@ STRI1  . . . . . . . . . . . . .  	L NEAR	0AA4	CSEG
 STRIG1 . . . . . . . . . . . . .  	L NEAR	0A2A	CSEG
 STRIGF . . . . . . . . . . . . .  	L NEAR	0A38	CSEG	Global
 STRIGS . . . . . . . . . . . . .  	L NEAR	0A20	CSEG	Global
-STRILP . . . . . . . . . . . . .  	L NEAR	0A87	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Symbols-11
                                                              
 
+STRILP . . . . . . . . . . . . .  	L NEAR	0A87	CSEG
 STRING . . . . . . . . . . . . .  	Number	0001	
 STRINI . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 STROFF . . . . . . . . . . . . .  	Number	0011	
@@ -3470,12 +3474,12 @@ XLCPRM . . . . . . . . . . . . .  	L NEAR	0228	CSEG
 XPRAM  . . . . . . . . . . . . .  	L NEAR	0280	CSEG
 XTNSYS . . . . . . . . . . . . .  	Number	0000	
 
-YLCPRM . . . . . . . . . . . . .  	L NEAR	020D	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:32
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:42
  
 GWSTS - GW-BASIC Common Statement Support                   Symbols-12
                                                              
 
+YLCPRM . . . . . . . . . . . . .  	L NEAR	020D	CSEG
 YPRAM  . . . . . . . . . . . . .  	L NEAR	028A	CSEG
 
 Z80  . . . . . . . . . . . . . .  	Number	0001	
@@ -3496,11 +3500,11 @@ $STR2B . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 ?CSLAB . . . . . . . . . . . . .  	L NEAR	0500	CSEG
 
 
-   2705 Source  Lines
-   2714 Total   Lines
-    595 Symbols
+   2708 Source  Lines
+   2717 Total   Lines
+    596 Symbols
 
-  31186 Bytes symbol space free
+  31184 Bytes symbol space free
 
       0 Warning Errors
       0 Severe  Errors

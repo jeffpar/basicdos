@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:09
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:18
  
 MACLNG - MACRO LANGUAGE DRIVER                              Page     1-1
                                                             
@@ -57,7 +57,7 @@ MACLNG - MACRO LANGUAGE DRIVER                              Page     1-1
                              C  				; Support is in BINTRP.MAC and GWSTS.MAC 
  = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
                              C  				;single precision numbers for output. 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:09
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:18
  
 MACLNG - MACRO LANGUAGE DRIVER                              Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -116,7 +116,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:09
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:18
  
 MACLNG - MACRO LANGUAGE DRIVER                              Page     1-3
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -175,7 +175,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:09
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:18
  
 MACLNG - MACRO LANGUAGE DRIVER                              Page     1-4
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -234,7 +234,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Z80 related macros 
                              C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:09
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:18
  
 MACLNG - MACRO LANGUAGE DRIVER                              Page     1-5
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -293,7 +293,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:09
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:18
  
 MACLNG - MACRO LANGUAGE DRIVER                              Page     1-6
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -352,7 +352,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:09
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:18
  
 MACLNG - MACRO LANGUAGE DRIVER                              Page     1-7
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -400,13 +400,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:09
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:18
  
 MACLNG - MACRO LANGUAGE DRIVER                              Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
+                             C  DBGBRK	MACRO 
+                             C  	DB	0CDh,06h,0CCh 
+                             C  	ENDM 
                                  
                                  
                                 	TITLE   MACLNG - MACRO LANGUAGE DRIVER 
@@ -456,14 +459,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  0028  0B DB                    	OR	BX,BX		;SEE IF LAST ENTRY 
  002A  75 03                    	JNZ	SHORT ??L000 
  002C  E9 00B5 R                	JMP	POPTRT 
- 002F                           ??L000:				;ALL FINISHED IF ZERO 
- 002F  89 1E 0000 E             	MOV	MCLPTR,BX	;SET UP POINTER 
-                                 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:09
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:18
  
 MACLNG - MACRO LANGUAGE DRIVER                              Page     1-9
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
+ 002F                           ??L000:				;ALL FINISHED IF ZERO 
+ 002F  89 1E 0000 E             	MOV	MCLPTR,BX	;SET UP POINTER 
+                                 
  0033  E8 0094 R                MCLSCN:	CALL	FETCHR		;GET A CHAR FROM STRING 
  0036  74 EB                    	JZ	SHORT MCLOOP	;END OF STRING - SEE IF MORE ON STK 
  0038  02 C0                    	ADD	AL,AL		;PUT CHAR * 2 INTO [C] 
@@ -515,14 +518,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  0088  43                       MNOARG:	INC	BX		;POINT TO DISPATCH ADDR 
                                 	INS86	56		;CS OVERRIDE 
  008A  8B 1F                    	MOV	BX,[BX]		;GET ADDRESS INTO HL 
- 008C  FF E3                    	JMP	BX		;DISPATCH 
-                                 
- 008E  E8 0094 R                FETCHZ:	CALL	FETCHR		;GET A CHAR FROM STRING 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:09
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:18
  
 MACLNG - MACRO LANGUAGE DRIVER                              Page     1-10
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
+ 008C  FF E3                    	JMP	BX		;DISPATCH 
+                                 
+ 008E  E8 0094 R                FETCHZ:	CALL	FETCHR		;GET A CHAR FROM STRING 
  0091  74 B2                    	JZ	SHORT GOFCER	;GIVE ERROR IF END OF LINE 
  0093  C3                       	RET 
                                  
@@ -574,14 +577,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  00E9  75 01                    	JNZ	SHORT $+3 
  00EB  C3                       	RET			;YES, JUST RETURN 
  00EC  3C 3A                    	CMP	AL,LOW OFFSET "9"+1	;NOW SEE IF ITS A DIGIT 
- 00EE  73 C7                    	JAE	SHORT DECFET	;IF NOT, BACK UP AND RETURN 
- 00F0  3C 30                    	CMP	AL,LOW "0" 
- 00F2  72 C3                    	JB	SHORT DECFET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:09
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:18
  
 MACLNG - MACRO LANGUAGE DRIVER                              Page     1-11
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
+ 00EE  73 C7                    	JAE	SHORT DECFET	;IF NOT, BACK UP AND RETURN 
+ 00F0  3C 30                    	CMP	AL,LOW "0" 
+ 00F2  72 C3                    	JB	SHORT DECFET 
  00F4  BB 0000                  	MOV	BX,0		;[HL] is accumulator 
  00F7  B5 0A                    	MOV	CH,LOW 10D	;[HL]=[DE]*10 
  00F9  03 DA                    NUML01:	ADD	BX,DX 
@@ -633,14 +636,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                  
  0148  8B FA                    SCNVLP:	MOV	DI,DX 
  014A  AA                       	STOSB			;STORE CHAR IN BUF 
- 014B  42                       	INC	DX 
- 014C  3C 3B                    	CMP	AL,LOW 73O	;A SEMICOLON? 
- 014E  74 0A                    	JZ	SHORT SCNV2	;YES - END OF VARIABLE NAME 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:09
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:18
  
 MACLNG - MACRO LANGUAGE DRIVER                              Page     1-12
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
+ 014B  42                       	INC	DX 
+ 014C  3C 3B                    	CMP	AL,LOW 73O	;A SEMICOLON? 
+ 014E  74 0A                    	JZ	SHORT SCNV2	;YES - END OF VARIABLE NAME 
  0150  E8 008E R                	CALL	FETCHZ		;GET NEXT CHAR 
  0153  FE CD                    	DEC	CH 
  0155  75 F1                    	JNZ	SHORT SCNVLP 
@@ -679,7 +682,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  0189                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:09
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:18
  
 MACLNG - MACRO LANGUAGE DRIVER                              Symbols-1
                                                              
@@ -693,6 +696,7 @@ ADR  . . . . . . . . . . . . . .  	   1
 CALLOS . . . . . . . . . . . . .  	   1
 CHRGET . . . . . . . . . . . . .  	   1
 COMPAR . . . . . . . . . . . . .  	   2
+DBGBRK . . . . . . . . . . . . .  	   1
 DC . . . . . . . . . . . . . . .  	   6
 DJNZ . . . . . . . . . . . . . .  	   2
 FSIGN  . . . . . . . . . . . . .  	   1
@@ -737,12 +741,12 @@ CMPUTN . . . . . . . . . . . . .  	Number	0000
 COMMNT . . . . . . . . . . . . .  	Number	0000	
 CONSSW . . . . . . . . . . . . .  	Number	0001	
 CONTO  . . . . . . . . . . . . .  	Number	000F	
-CONTRO . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:09
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:18
  
 MACLNG - MACRO LANGUAGE DRIVER                              Symbols-2
                                                              
 
+CONTRO . . . . . . . . . . . . .  	Number	0001	
 CPM  . . . . . . . . . . . . . .  	Number	0001	
 CPM110 . . . . . . . . . . . . .  	Number	0000	
 CPM2 . . . . . . . . . . . . . .  	Number	0001	
@@ -796,12 +800,12 @@ GETBCD . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 GETSTK . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 GIO86  . . . . . . . . . . . . .  	Number	0001	
 GOFCER . . . . . . . . . . . . .  	L NEAR	0045	CSEG
-GW . . . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:09
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:18
  
 MACLNG - MACRO LANGUAGE DRIVER                              Symbols-3
                                                              
 
+GW . . . . . . . . . . . . . . .  	Number	0001	
 GWCASS . . . . . . . . . . . . .  	Number	0000	
 GWDBUG . . . . . . . . . . . . .  	Number	0000	
 
@@ -855,12 +859,12 @@ MCLOOP . . . . . . . . . . . . .  	L NEAR	0023	CSEG
 MCLPTR . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 MCLSCN . . . . . . . . . . . . .  	L NEAR	0033	CSEG
 MCLTAB . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
-MCLXEQ . . . . . . . . . . . . .  	L NEAR	0167	CSEG	Global
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:09
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:18
  
 MACLNG - MACRO LANGUAGE DRIVER                              Symbols-4
                                                              
 
+MCLXEQ . . . . . . . . . . . . .  	L NEAR	0167	CSEG	Global
 MDS  . . . . . . . . . . . . . .  	Number	0000	
 MDSISS . . . . . . . . . . . . .  	Number	0000	
 MEMIMG . . . . . . . . . . . . .  	Number	0001	
@@ -914,11 +918,11 @@ PCS  . . . . . . . . . . . . . .  	Number	0000
 PLAYSW . . . . . . . . . . . . .  	Number	0001	
 POPTRT . . . . . . . . . . . . .  	L NEAR	00B5	CSEG
 PURE . . . . . . . . . . . . . .  	Number	0001	
-
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:09
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:18
  
 MACLNG - MACRO LANGUAGE DRIVER                              Symbols-5
                                                              
+
 
 QUEUE  . . . . . . . . . . . . .  	Number	0001	
 
@@ -973,12 +977,12 @@ VALSCN . . . . . . . . . . . . .  	L NEAR	00C8	CSEG	Global
 VALTYP . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 VARGET . . . . . . . . . . . . .  	L NEAR	015E	CSEG	Global
 VSNAR0 . . . . . . . . . . . . .  	L NEAR	0084	CSEG
-VSNARG . . . . . . . . . . . . .  	L NEAR	0081	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:31:09
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:36:18
  
 MACLNG - MACRO LANGUAGE DRIVER                              Symbols-6
                                                              
 
+VSNARG . . . . . . . . . . . . .  	L NEAR	0081	CSEG
 
 XTNSYS . . . . . . . . . . . . .  	Number	0000	
 
@@ -992,9 +996,9 @@ Z80MAC . . . . . . . . . . . . .  	Number	0001
 ??L004 . . . . . . . . . . . . .  	L NEAR	00D2	CSEG
 
 
-    617 Source  Lines
-    670 Total   Lines
-    267 Symbols
+    620 Source  Lines
+    673 Total   Lines
+    268 Symbols
 
   42336 Bytes symbol space free
 

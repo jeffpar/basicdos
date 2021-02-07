@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-1
                                                             
@@ -57,7 +57,7 @@ IBMRES - IBM compatible reserved words / MLC                Page     1-1
  = 0015                      C  	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT 
  = 0001                      C  	GW=1			;GW BASIC 
  = 0000                      C  	ESCCTL=0		;Escape Sequence processing in SCROUT 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -116,7 +116,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0001                      C  	GENBIN=1 
                              C   
  = 0000                      C  	TRUANS=0		;TRUE ANSI VERSION (STATIC SCAN, ON ERROR) 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-3
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -175,7 +175,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  				;CP/M 
  = 0000                      C  	CPMRSH=0		;FOR RADIO SHACK CPM/M 
  = 0000                      C  	CPM110=0		;FOR CP/M @1100 HEX (INTERALIA) 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-4
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -234,7 +234,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	PANBAS=0 
  = 0000                      C  	XTNSYS=0 
  = 0000                      C  	NECBAS=0 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-5
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -293,7 +293,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ENDM 
                              C  CHRGET	MACRO 
                              C  	CALL	CHRGTR 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-6
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -352,7 +352,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 000A                      C  	NUMTMP=10 
                              C   
  0008                        C  	.RADIX	8 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-7
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -404,13 +404,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
+                             C  DBGBRK	MACRO 
+                             C  	DB	0CDh,06h,0CCh 
+                             C  	ENDM 
                              C   
                              C   
                              C  ; 
@@ -460,14 +463,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          .XLIST 
                              C     ENDIF 
                              C          $F=$F+1 
-                             C    ENDM 
-                             C          .LIST 
-                             C          ORG     $-1 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-9
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
+                             C    ENDM 
+                             C          .LIST 
+                             C          ORG     $-1 
                              C          DB      $Q+128D 
                              C          DB      $&RESWRD-128D 
                              C   ELSE 
@@ -492,7 +495,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          $&RESWRD=QQ 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-10
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -551,7 +554,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  0000                           STMDSP:				;MARKS START OF STATEMENT LIST 
  = 0080                         	QQ=128 
                                 	R2	END,ENDST 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-11
 Equates and External Declarations                           
@@ -610,7 +613,7 @@ Equates and External Declarations
                                 	R2	DUMMY,SNERR	;padding 
                                 	R2	DUMMY,SNERR	;padding 
                                 	R	WRITE 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-12
 Equates and External Declarations                           
@@ -669,7 +672,7 @@ Equates and External Declarations
                                 PUBLIC	SPCTK 
  = 00D2                         	SPCTK=QQ 
                                 	T	NOT 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-13
 Equates and External Declarations                           
@@ -728,7 +731,7 @@ Equates and External Declarations
                                 PUBLIC	DIVTK 
  = 00EC                         	DIVTK=QQ 
                                 	T	DUMMY 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-14
 Equates and External Declarations                           
@@ -787,7 +790,7 @@ Equates and External Declarations
                                 	R	PEEK 
                                 	R	SPACE$ 
                                 	R2	OCT$,STRO$ 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-15
 Equates and External Declarations                           
@@ -846,7 +849,7 @@ Equates and External Declarations
  0110  0345 R                   	DW	OFFSET ZTAB 
                                  
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-16
 Equates and External Declarations                           
@@ -905,7 +908,7 @@ Equates and External Declarations
  01B4                           FTAB: 
                                 	Q	FOR 
                                 	Q	FN 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-17
 Equates and External Declarations                           
@@ -964,7 +967,7 @@ Equates and External Declarations
                                 	Q	NEXT 
                                 	Q	NEW 
                                 	Q	NOT 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-18
 Equates and External Declarations                           
@@ -1023,7 +1026,7 @@ Equates and External Declarations
                                 	QF	STICK 
                                 	QF	STRIG 
  02FD  00                       	DB	0 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-19
 Equates and External Declarations                           
@@ -1082,7 +1085,7 @@ Equates and External Declarations
  0355  E6                       	DB	OFFSET GREATK 
  0356  BD                       	DB	"="+128D 
  0357  E7                       	DB	OFFSET EQULTK 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-20
 Equates and External Declarations                           
@@ -1135,7 +1138,7 @@ Equates and External Declarations
                                 ;************************************************************************* 
                                  
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-21
 Extended reserved words                                     
@@ -1156,7 +1159,7 @@ Extended reserved words
                                 	R2	KPOS,KPOSFN 
                                 	R2	KLEN,KLENFN 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-22
 Extended reserved words                                     
@@ -1191,7 +1194,7 @@ Extended reserved words
                                 	ADR	YTABX 
                                 	ADR	ZTABX 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-23
 Extended reserved words                                     
@@ -1250,7 +1253,7 @@ Extended reserved words
  044C  00                       	DB	0 
  044D                           OTABX: 
  044D  00                       	DB	0 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-24
 Extended reserved words                                     
@@ -1309,7 +1312,7 @@ Extended reserved words
  047F  BB 03B1 R                	MOV	BX,OFFSET ALPTAX	;GET POINTER TO ALPHA DISPATCH TABLE 
  0482  2C 41                    	SUB	AL,LOW "A"	;SUBTRACT ALPHA OFFSET 
  0484  02 C0                    	ADD	AL,AL		;MULTIPLY BY TWO 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-25
 CRUNCH code to handle extended reserved words               
@@ -1368,7 +1371,7 @@ CRUNCH code to handle extended reserved words
                                 	INS86	213,362,56,254	;FETCH FROM CODE SEGMENT 
  04E4  42                       	INC	DX		;BUMP RESLST POINTER 
  04E5  0A C0                    	OR	AL,AL		;SET CC'S 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-26
 CRUNCH code to handle extended reserved words               
@@ -1427,7 +1430,7 @@ CRUNCH code to handle extended reserved words
                                 ; CODE BELOW NOT NEEDED SINCE NO SPECIAL REVERVED WORDS IN HOOK TABLE 
                                 ; 
                                 ;       CPI     "Z"+1           ;WAS IT A SPECIAL CHAR? 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-27
 LIST code for extended reserved words                       
@@ -1486,7 +1489,7 @@ LIST code for extended reserved words
  0573  8A 07                    	MOV	AL,BYTE PTR [BX] 
  0575  3C A0                    	CMP	AL,LOW OFFSET $PEN	; PEN as stmt? 
  0577  75 03                    	JNZ	SHORT ??L009 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-28
 Extended Statement Dispatching                              
@@ -1545,7 +1548,7 @@ Extended Statement Dispatching
  05C6  59                       TIMEV:	POP	CX		;Get rid of the hook return address. 
  05C7  E9 0000 E                	JMP	TIMEF		;Do TIME$ function. 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Page     1-29
 EVAL code for extended functions                            
@@ -1576,7 +1579,7 @@ EVAL code for extended functions
  05F2                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Symbols-1
                                                              
@@ -1590,6 +1593,7 @@ ADR  . . . . . . . . . . . . . .  	   1
 CALLOS . . . . . . . . . . . . .  	   1
 CHRGET . . . . . . . . . . . . .  	   1
 COMPAR . . . . . . . . . . . . .  	   2
+DBGBRK . . . . . . . . . . . . .  	   1
 DC . . . . . . . . . . . . . . .  	   6
 DJNZ . . . . . . . . . . . . . .  	   2
 FSIGN  . . . . . . . . . . . . .  	   1
@@ -1634,12 +1638,12 @@ ATN  . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ATNTK  . . . . . . . . . . . . .  	Number	008E		Global
 AUTO . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 
-BASDEB . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Symbols-2
                                                              
 
+BASDEB . . . . . . . . . . . . .  	Number	0000	
 BEEPS  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 BEEPSW . . . . . . . . . . . . .  	Number	0001	
 BINCSW . . . . . . . . . . . . .  	Number	0000	
@@ -1693,12 +1697,12 @@ CPMSER . . . . . . . . . . . . .  	Number	0000
 CRONLY . . . . . . . . . . . . .  	Number	0000	
 CRUNCX . . . . . . . . . . . . .  	L NEAR	0479	CSEG	Global
 CTAB . . . . . . . . . . . . . .  	L NEAR	0132	CSEG
-CTABX  . . . . . . . . . . . . .  	L NEAR	03E7	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Symbols-3
                                                              
 
+CTABX  . . . . . . . . . . . . .  	L NEAR	03E7	CSEG
 CVD  . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 CVI  . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 CVS  . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
@@ -1752,12 +1756,12 @@ EXP  . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 EXPTK  . . . . . . . . . . . . .  	Number	00ED		Global
 
 FAST . . . . . . . . . . . . . .  	Number	0001	
-FIELD  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Symbols-4
                                                              
 
+FIELD  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FILES  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FIVDSK . . . . . . . . . . . . .  	Number	0001	
 FIVEO  . . . . . . . . . . . . .  	Number	0001	
@@ -1811,12 +1815,12 @@ IBMTOK . . . . . . . . . . . . .  	Number	0001
 IDIVTK . . . . . . . . . . . . .  	Number	00F4		Global
 IFS  . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 INKEYF . . . . . . . . . . . . .  	Number	0001	
-INLADD . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Symbols-5
                                                              
 
+INLADD . . . . . . . . . . . . .  	Number	0000	
 INPUT  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 INSRTK . . . . . . . . . . . . .  	Number	00D8		Global
 INSTSW . . . . . . . . . . . . .  	Number	0000	
@@ -1870,12 +1874,12 @@ LNGVAR . . . . . . . . . . . . .  	Number	0001
 LOAD . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 LOC  . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 LOCATE . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-LOF  . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Symbols-6
                                                              
 
+LOF  . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 LOG  . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 LOKHED . . . . . . . . . . . . .  	Number	0000	
 LONGI  . . . . . . . . . . . . .  	Number	0000	
@@ -1929,12 +1933,12 @@ NCRLPT . . . . . . . . . . . . .  	Number	0001
 NECBAS . . . . . . . . . . . . .  	Number	0000	
 NEWFUN . . . . . . . . . . . . .  	L NEAR	04EF	CSEG
 NEWSTX . . . . . . . . . . . . .  	L NEAR	0569	CSEG	Global
-NEXT . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Symbols-7
                                                              
 
+NEXT . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 NMCOMT . . . . . . . . . . . . .  	Number	0002	
 NMKEYF . . . . . . . . . . . . .  	Number	000A	
 NMKEYT . . . . . . . . . . . . .  	Number	000E	
@@ -1988,12 +1992,12 @@ PENV . . . . . . . . . . . . . .  	L NEAR	0588	CSEG
 PLAYS  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 PLAYSW . . . . . . . . . . . . .  	Number	0001	
 PLOOP2 . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-PLUSTK . . . . . . . . . . . . .  	Number	00E9		Global
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Symbols-8
                                                              
 
+PLUSTK . . . . . . . . . . . . .  	Number	00E9		Global
 PMAP . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 POKE . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 POS  . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
@@ -2047,12 +2051,12 @@ SCREEN . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 SCRN86 . . . . . . . . . . . . .  	Number	0001	
 SCRNIO . . . . . . . . . . . . .  	Number	0001	
 SCROLT . . . . . . . . . . . . .  	Number	0001	
-SGN  . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Symbols-9
                                                              
 
+SGN  . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 SGSATS . . . . . . . . . . . . .  	Number	0000	
 SHELL  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 SHORTJ . . . . . . . . . . . . .  	Number	0001	
@@ -2106,12 +2110,12 @@ TIMEF  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 TIMER  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 TIMES  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 TIMEV  . . . . . . . . . . . . .  	L NEAR	05C6	CSEG
-TIMSHR . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Symbols-10
                                                              
 
+TIMSHR . . . . . . . . . . . . .  	Number	0000	
 TOFF . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 TON  . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 TOPCON . . . . . . . . . . . . .  	Number	001B		Global
@@ -2165,12 +2169,12 @@ $AUTO  . . . . . . . . . . . . .  	Number	00AA		Global
 $BEEP  . . . . . . . . . . . . .  	Number	00C5		Global
 $BLOAD . . . . . . . . . . . . .  	Number	00C3		Global
 $BSAVE . . . . . . . . . . . . .  	Number	00C2		Global
-$CALL  . . . . . . . . . . . . .  	Number	00B3		Global
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Symbols-11
                                                              
 
+$CALL  . . . . . . . . . . . . .  	Number	00B3		Global
 $CALLS . . . . . . . . . . . . .  	Number	00A1		Global
 $CDBL  . . . . . . . . . . . . .  	Number	009E		Global
 $CDBLF . . . . . . . . . . . . .  	Number	001D		Global
@@ -2224,12 +2228,12 @@ $FIELD . . . . . . . . . . . . .  	Number	0082		Global
 $FILES . . . . . . . . . . . . .  	Number	0081		Global
 $FIX . . . . . . . . . . . . . .  	Number	009F		Global
 $FN  . . . . . . . . . . . . . .  	Number	00D1		Global
-$FOR . . . . . . . . . . . . . .  	Number	0082		Global
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Symbols-12
                                                              
 
+$FOR . . . . . . . . . . . . . .  	Number	0082		Global
 $FRE . . . . . . . . . . . . . .  	Number	008F		Global
 $GET . . . . . . . . . . . . . .  	Number	0089		Global
 $GOSUB . . . . . . . . . . . . .  	Number	008D		Global
@@ -2283,12 +2287,12 @@ $ON  . . . . . . . . . . . . . .  	Number	0095		Global
 $OPEN  . . . . . . . . . . . . .  	Number	00BA		Global
 $OPTION  . . . . . . . . . . . .  	Number	00B8		Global
 $OR  . . . . . . . . . . . . . .  	Number	00EF		Global
-$OUT . . . . . . . . . . . . . .  	Number	009C		Global
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Symbols-13
                                                              
 
+$OUT . . . . . . . . . . . . . .  	Number	009C		Global
 $PAINT . . . . . . . . . . . . .  	Number	008F		Global
 $PALETTE . . . . . . . . . . . .  	Number	009F		Global
 $PEEK  . . . . . . . . . . . . .  	Number	0097		Global
@@ -2342,12 +2346,12 @@ $TAN . . . . . . . . . . . . . .  	Number	008D		Global
 $THEN  . . . . . . . . . . . . .  	Number	00CD		Global
 $TIME$ . . . . . . . . . . . . .  	Number	008E		Global
 $TIMER . . . . . . . . . . . . .  	Number	0094		Global
-$TO  . . . . . . . . . . . . . .  	Number	00CC		Global
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:22:42
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:27:51
  
 IBMRES - IBM compatible reserved words / MLC                Symbols-14
                                                              
 
+$TO  . . . . . . . . . . . . . .  	Number	00CC		Global
 $TROFF . . . . . . . . . . . . .  	Number	00A3		Global
 $TRON  . . . . . . . . . . . . .  	Number	00A2		Global
 $USING . . . . . . . . . . . . .  	Number	00D7		Global
@@ -2375,11 +2379,11 @@ $XOR . . . . . . . . . . . . . .  	Number	00F0		Global
 ??L010 . . . . . . . . . . . . .  	L NEAR	0583	CSEG
 
 
-   1427 Source  Lines
-  10656 Total   Lines
-    710 Symbols
+   1430 Source  Lines
+  10659 Total   Lines
+    711 Symbols
 
-  27256 Bytes symbol space free
+  27254 Bytes symbol space free
 
       0 Warning Errors
       0 Severe  Errors

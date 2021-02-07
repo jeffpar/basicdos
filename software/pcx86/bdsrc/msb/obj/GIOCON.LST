@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Page     1-1
                                                             
@@ -57,7 +57,7 @@ GIOCON - Machine Independent CONS: Device Support           Page     1-1
                              C  				; Support is in BINTRP.MAC and GWSTS.MAC 
  = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
                              C  				;single precision numbers for output. 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -116,7 +116,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Page     1-3
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -175,7 +175,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Page     1-4
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -234,7 +234,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Z80 related macros 
                              C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Page     1-5
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -293,7 +293,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Page     1-6
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -352,7 +352,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Page     1-7
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -400,13 +400,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
+                             C  DBGBRK	MACRO 
+                             C  	DB	0CDh,06h,0CCh 
+                             C  	ENDM 
                                  
                                  
                                 	TITLE   GIOCON - Machine Independent CONS: Device Support 
@@ -456,14 +459,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 00FF                      C  	BINFID=255D		;files created by SAVE "fn" 
  = 00FE                      C  	PROFID=254D		;files created by SAVE "fn",P 
  = 00FD                      C  	BSVFID=253D		;files created by BSAVE "fn" 
-                             C   
-                             C  ;Generalized I/O Function Codes: 
-                             C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Page     1-9
 GIO86U - Device Independent I/O Constants and Macros        
 
+                             C   
+                             C  ;Generalized I/O Function Codes: 
+                             C  ; 
  = 0000                      C  	_OFFST=0		;initialize count 
                              C  	ROFFST	G_EOF,2		;test EOF for file opened to this device 
                              C  	ROFFST	G_LOC,2		;LOC 
@@ -482,7 +485,7 @@ GIO86U - Device Independent I/O Constants and Macros
                              C  	ROFFST	G_BOT,2		;block output to file opened on this device 
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Page     1-10
 GIO86U - Device Independent I/O Constants and Macros        
@@ -541,7 +544,7 @@ GIO86U - Device Independent I/O Constants and Macros
  = 0021                      C  	C_RNDR=33D		;Random read 
  = 0022                      C  	C_RNDW=34D		;Random write 
  = 0027                      C  	C_RBR=39D		;Random Block Read 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Page     1-11
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -600,7 +603,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  = 0008                      C  	FCB_FN=F_FCB+1D		;FILE NAME 
  = 0010                      C  	FCB_FT=F_FCB+9D		;EXTENSION 
  = 0013                      C  	FCB_EX=F_FCB+12D	;FILE EXTENT (identifies block of 128 logical records) 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Page     1-12
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -612,7 +615,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  = 0027                      C  	FCB_NR=F_FCB+32D	;NEXT RECORD NUMBER 
  = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Number 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Page     1-13
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -627,7 +630,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 	EXTRN	DERBFM:NEAR,PDCBAX:NEAR 
                                 	EXTRN	DEVBOT:NEAR,DEVBIN:NEAR 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Page     1-14
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -686,7 +689,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                  
                                 ;CONGPS - return current file position. 
                                 ; Entry - SI points to File-Data-Block. 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Page     1-15
 CONS (Raw-CRT output Dispatch Table and Routines)           
@@ -723,7 +726,7 @@ CONS (Raw-CRT output Dispatch Table and Routines)
  003D                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Symbols-1
                                                              
@@ -737,6 +740,7 @@ ADR  . . . . . . . . . . . . . .  	   1
 CALLOS . . . . . . . . . . . . .  	   4
 CHRGET . . . . . . . . . . . . .  	   1
 COMPAR . . . . . . . . . . . . .  	   2
+DBGBRK . . . . . . . . . . . . .  	   1
 DC . . . . . . . . . . . . . . .  	   6
 DJNZ . . . . . . . . . . . . . .  	   2
 FSIGN  . . . . . . . . . . . . .  	   1
@@ -781,12 +785,12 @@ BINCSW . . . . . . . . . . . . .  	Number	0000
 BINFID . . . . . . . . . . . . .  	Number	00FF	
 BLODSW . . . . . . . . . . . . .  	Number	0001	
 BSVFID . . . . . . . . . . . . .  	Number	00FD	
-BUFLEN . . . . . . . . . . . . .  	Number	00FF	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Symbols-2
                                                              
 
+BUFLEN . . . . . . . . . . . . .  	Number	00FF	
 
 CASSW  . . . . . . . . . . . . .  	Number	0000	
 CHSEAT . . . . . . . . . . . . .  	Number	0001	
@@ -840,12 +844,12 @@ DBLCHR . . . . . . . . . . . . .  	Number	0000
 DBLTRN . . . . . . . . . . . . .  	Number	0000	
 DEBUG  . . . . . . . . . . . . .  	Text  		
 DERBFM . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-DEVBIN . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Symbols-3
                                                              
 
+DEVBIN . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 DEVBOT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 DISK . . . . . . . . . . . . . .  	Number	0001	
 DMC  . . . . . . . . . . . . . .  	Number	0000	
@@ -899,12 +903,12 @@ F_NUL3 . . . . . . . . . . . . .  	Number	0033
 F_NUL4 . . . . . . . . . . . . .  	Number	0036	
 F_NUL5 . . . . . . . . . . . . .  	Number	00BF	
 F_NUM  . . . . . . . . . . . . .  	Number	0001	
-F_ORCT . . . . . . . . . . . . .  	Number	002F	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Symbols-4
                                                              
 
+F_ORCT . . . . . . . . . . . . .  	Number	002F	
 F_POS  . . . . . . . . . . . . .  	Number	0038	
 F_WID  . . . . . . . . . . . . .  	Number	0035	
 
@@ -958,11 +962,11 @@ KANABS . . . . . . . . . . . . .  	Number	0000
 KANJFN . . . . . . . . . . . . .  	Number	0000	
 KEYSTA . . . . . . . . . . . . .  	Number	0000	
 KILLER . . . . . . . . . . . . .  	Number	0000	
-
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Symbols-5
                                                              
+
 
 LABKEY . . . . . . . . . . . . .  	Number	0001	
 LEN2 . . . . . . . . . . . . . .  	Number	0001	
@@ -1017,12 +1021,12 @@ NOUSR  . . . . . . . . . . . . .  	Number	0000
 NOVARP . . . . . . . . . . . . .  	Number	0000	
 NUMLEV . . . . . . . . . . . . .  	Number	006E	
 NUMTMP . . . . . . . . . . . . .  	Number	000A	
-NUMTRP . . . . . . . . . . . . .  	Number	0015	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Symbols-6
                                                              
 
+NUMTRP . . . . . . . . . . . . .  	Number	0015	
 
 OEMRAM . . . . . . . . . . . . .  	Number	0000	
 ONTEL  . . . . . . . . . . . . .  	Number	0000	
@@ -1076,11 +1080,11 @@ TSDISK . . . . . . . . . . . . .  	Number	0000
 TSLPT  . . . . . . . . . . . . .  	Number	0000	
 
 XTNSYS . . . . . . . . . . . . .  	Number	0000	
-
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:14
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:29
  
 GIOCON - Machine Independent CONS: Device Support           Symbols-7
                                                              
+
 
 Z80  . . . . . . . . . . . . . .  	Number	0001	
 Z80MAC . . . . . . . . . . . . .  	Number	0001	
@@ -1089,9 +1093,9 @@ _OFFST . . . . . . . . . . . . .  	Number	00C2
 _RET . . . . . . . . . . . . . .  	L NEAR	0028	CSEG	Global
 
 
-    644 Source  Lines
-    731 Total   Lines
-    315 Symbols
+    647 Source  Lines
+    734 Total   Lines
+    316 Symbols
 
   40398 Bytes symbol space free
 

@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-1
                                                             
@@ -57,7 +57,7 @@ GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-1
                              C  				; Support is in BINTRP.MAC and GWSTS.MAC 
  = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
                              C  				;single precision numbers for output. 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -116,7 +116,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-3
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -175,7 +175,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-4
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -234,7 +234,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Z80 related macros 
                              C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-5
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -293,7 +293,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-6
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -352,7 +352,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-7
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -400,13 +400,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
+                             C  DBGBRK	MACRO 
+                             C  	DB	0CDh,06h,0CCh 
+                             C  	ENDM 
                                  
                                  
                                 	TITLE   GIO86   - BASIC-86 Interpreter Device Independent I/O Module 
@@ -456,14 +459,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ;Special File ID's (identified by 1st byte of file) 
                              C  ; 
  = 00FF                      C  	BINFID=255D		;files created by SAVE "fn" 
- = 00FE                      C  	PROFID=254D		;files created by SAVE "fn",P 
- = 00FD                      C  	BSVFID=253D		;files created by BSAVE "fn" 
-                             C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-9
 GIO86U - Device Independent I/O Constants and Macros        
 
+ = 00FE                      C  	PROFID=254D		;files created by SAVE "fn",P 
+ = 00FD                      C  	BSVFID=253D		;files created by BSAVE "fn" 
+                             C   
                              C  ;Generalized I/O Function Codes: 
                              C  ; 
  = 0000                      C  	_OFFST=0		;initialize count 
@@ -484,7 +487,7 @@ GIO86U - Device Independent I/O Constants and Macros
                              C  	ROFFST	G_BOT,2		;block output to file opened on this device 
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-10
 GIO86U - Device Independent I/O Constants and Macros        
@@ -543,7 +546,7 @@ GIO86U - Device Independent I/O Constants and Macros
  = 0021                      C  	C_RNDR=33D		;Random read 
  = 0022                      C  	C_RNDW=34D		;Random write 
  = 0027                      C  	C_RBR=39D		;Random Block Read 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-11
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -602,7 +605,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  = 0008                      C  	FCB_FN=F_FCB+1D		;FILE NAME 
  = 0010                      C  	FCB_FT=F_FCB+9D		;EXTENSION 
  = 0013                      C  	FCB_EX=F_FCB+12D	;FILE EXTENT (identifies block of 128 logical records) 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-12
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -614,7 +617,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  = 0027                      C  	FCB_NR=F_FCB+32D	;NEXT RECORD NUMBER 
  = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Number 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-13
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -673,7 +676,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  001E  74 12                    	JZ	HAVMOD		;[D] has correct mode 
  0020  B6 01                    	MOV	DH,LOW OFFSET MD_SQI	;assume sequential 
  0022  3C 49                    	CMP	AL,LOW "I"	;is it? 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-14
 OPEN statement                                              
@@ -732,7 +735,7 @@ OPEN statement
  0089  55                       	DB	OFFSET "U" 
  008A  E8 0000 E                	CALL	SYNCHR 
  008D  54                       	DB	OFFSET "T" 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-15
 OPEN statement                                              
@@ -791,7 +794,7 @@ OPEN statement
  00E4  74 16                    	JZ	FCERR1		;0 is illegal value 
  00E6  C3                       PRLENX:	RET 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-16
 OPEN statement                                              
@@ -850,7 +853,7 @@ OPEN statement
  012B  75 07                    	JNZ	NOTLPR		;branch if not WIDTH LPRINT 
  012D  E8 0000 E                	CALL	CHRGTR		;skip LPRINT 
  0130  B0 00 E                  	MOV	AL,LOW OFFSET $_LPT1 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-17
 CLOSE, WIDTH Statements                                     
@@ -909,7 +912,7 @@ CLOSE, WIDTH Statements
                                  
                                 	SUBTTL BSAVE, BLOAD Statements 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-18
 BSAVE, BLOAD Statements                                     
@@ -968,7 +971,7 @@ BSAVE, BLOAD Statements
  01DB  E8 0890 R                	CALL	SCDBIN		;set file code to binary 
  01DE  E8 04E5 R                	CALL	INCHR		;[A]=1st byte from file 
  01E1  3C FD                    	CMP	AL,LOW OFFSET BSVFID	;make sure this was created by BSAVE 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-19
 BSAVE, BLOAD Statements                                     
@@ -1027,7 +1030,7 @@ BSAVE, BLOAD Statements
  0233  2C                       	DB	OFFSET "," 
  0234  E8 0432 R                	CALL	ADRGET		;[DX]=number of bytes for bsave (0..65535) 
  0237  87 DA                    	XCHG	BX,DX 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-20
 BSAVE, BLOAD Statements                                     
@@ -1086,7 +1089,7 @@ BSAVE, BLOAD Statements
  0289  E9 030F R                TABERJ:	JMP	TABER 
  028C  5A                       PRTS:	POP	DX		;get rid of old text pointer 
  028D  E8 0000 E                	CALL	FRMEVL		;evaluate the formula 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-21
 LPRINT, PRINT Statements                                    
@@ -1145,7 +1148,7 @@ LPRINT, PRINT Statements
  02E6  3A C5                    	CMP	AL,CH		;check for overlap 
  02E8  72 03                    LINCHK:	JB	LINCH2		;branch if still on current line 
  02EA  E8 0581 R                	CALL	CRDO		;else output CR 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-22
 LPRINT, PRINT Statements                                    
@@ -1204,7 +1207,7 @@ LPRINT, PRINT Statements
  0342  E8 0637 R                	CALL	PTRGPS		;[AL]=file position 
  0345  F6 D8                    DOSIZT:	NEG	AL		;print [E]-[A] spaces 
  0347  FE C8                    	DEC	AL 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-23
 LPRINT, PRINT Statements                                    
@@ -1263,7 +1266,7 @@ LPRINT, PRINT Statements
                                 ; LOF(n) Function 
                                 ; Entry - [FAC] = file number 
                                 ; Exit  - [FAC] = length of file in bytes 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-24
 EOF, LOC, LOF  Functions                                    
@@ -1322,7 +1325,7 @@ EOF, LOC, LOF  Functions
                                  
                                 ;PRFNUM - Parse required file number "#n" 
                                 ; Entry - [BX] = text pointer 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-25
 Misc. Parsing Routines                                      
@@ -1381,7 +1384,7 @@ Misc. Parsing Routines
  0408  E8 03CA R                FILSCN:	CALL	POFNUM		;[AL]=file number 
                                  
  040B  8A D0                    FILIDX:	MOV	DL,AL		;return file number in [DL] 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-26
 Misc. Parsing Routines                                      
@@ -1440,7 +1443,7 @@ Misc. Parsing Routines
                                 ; Entry - [BX]=text pointer, pointing at filename 
                                 ;         [DH]=file mode 
                                 ; Exit  - [PTRFIL] points to files FDB (directing all future I/O to file) 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-27
 Major I/O Routines                                          
@@ -1499,7 +1502,7 @@ Major I/O Routines
  0475  52                       	PUSH	DX 
  0476  56                       	PUSH	SI 
  0477  57                       	PUSH	DI 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-28
 Major I/O Routines                                          
@@ -1558,7 +1561,7 @@ Major I/O Routines
  04CA  74 18                    	JZ	RET22		;branch if file already closed 
  04CC  53                       	PUSH	BX 
  04CD  51                       	PUSH	CX 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-29
 Major I/O Routines                                          
@@ -1617,7 +1620,7 @@ Major I/O Routines
  0515  59                       	POP	CX 
  0516  5B                       	POP	BX 
  0517  A0 0000 E                	MOV	AL,BYTE PTR RUNFLG	;run it or not? 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-30
 Major I/O Routines                                          
@@ -1676,7 +1679,7 @@ Major I/O Routines
  055B  C6 44 2F 00              INCEOF:	MOV	BYTE PTR F_ORCT[SI],LOW 0	;indicates EOF on future calls 
  055F  C6 44 30 00              	MOV	BYTE PTR F_BREM[SI],LOW 0 
  0563  F9                       	STC			;tells caller EOF reached 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-31
 Major I/O Routines                                          
@@ -1735,7 +1738,7 @@ Major I/O Routines
  0599  E8 058E R                	CALL	OUTDO		;output low-byte first 
  059C  86 E0                    	XCHG	AH,AL 
  059E  E8 058E R                	CALL	OUTDO		;then output high-byte 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-32
 Major I/O Routines                                          
@@ -1794,7 +1797,7 @@ Major I/O Routines
  05DE  8C DA                    	MOV	DX,DS		;Get Segment for SAVE 
  05E0  E8 060D R                	CALL	OUTBLK		;Write the block 
  05E3  E9 0000 E                BINSVX:	JMP	PRGFIN		;REGET TEXT POINTER AND CLOSE FILE 0 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-33
 Major I/O Routines                                          
@@ -1853,7 +1856,7 @@ Major I/O Routines
                                 ; Entry - [BX] = Start adr 
                                 ;         [CX] = number of bytes to write 
                                 ;         [DX] = segment adr 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-34
 Major I/O Routines                                          
@@ -1912,7 +1915,7 @@ Major I/O Routines
  0640  C3                       	RET 
                                  
                                 ;PTRWDC - get line width and last comma column for file PTRFIL 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-35
 Major I/O Routines                                          
@@ -1971,7 +1974,7 @@ Major I/O Routines
                                 ;EXPTAB is called by Device Driver Output routines to Expand Tabs to Spaces 
                                 ; Entry - [AL]=char to be output 
                                 ;         [DH]=current column position 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-36
 General routines useful to low-level device drivers         
@@ -2030,7 +2033,7 @@ General routines useful to low-level device drivers
  06AF  B6 00                    ZERPOS:	MOV	DH,LOW 0	;reset to left margin 
  06B1  C3                       	RET 
  06B2  3C 08                    NOTCR:	CMP	AL,LOW OFFSET ASCBS 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-37
 General routines useful to low-level device drivers         
@@ -2089,7 +2092,7 @@ General routines useful to low-level device drivers
  06E2  E8 06E7 R                	CALL	SIDSP 
  06E5  5E                       	POP	SI 
  06E6  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-38
 File Dispatch Routines                                      
@@ -2148,7 +2151,7 @@ File Dispatch Routines
  072A  86 E0                    	XCHG	AH,AL 
  072C  98                       	CBW			;[AX]=function code 
  072D  03 F8                    	ADD	DI,AX		;Add function code offset to dispatch 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-39
 File Dispatch Routines                                      
@@ -2207,7 +2210,7 @@ File Dispatch Routines
                                 ;         DX is used. 
                                 ;         All other registers preserved 
                                 ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-40
 NAMSCN, PARDEV - Device/Filename scanning routines          
@@ -2266,7 +2269,7 @@ NAMSCN, PARDEV - Device/Filename scanning routines
  07A5  74 0B                    	JE	FILLNM 
  07A7  FC                       	CLD			;set Post-Increment mode 
  07A8  AA                       	STOSB			;Store character 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-41
 NAMSCN, PARDEV - Device/Filename scanning routines          
@@ -2325,7 +2328,7 @@ NAMSCN, PARDEV - Device/Filename scanning routines
  07E2  8B CA                    NODVNM:	MOV	CX,DX		;No device name - restore everything 
  07E4  5E                       	POP	SI 
  07E5  5F                       	POP	DI 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-42
 NAMSCN, PARDEV - Device/Filename scanning routines          
@@ -2384,7 +2387,7 @@ NAMSCN, PARDEV - Device/Filename scanning routines
                                  
  0834                           DSKNAM: 
  0834  FC                       	CLD			;set Post-Increment mode 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-43
 NAMSCN, PARDEV - Device/Filename scanning routines          
@@ -2443,7 +2446,7 @@ NAMSCN, PARDEV - Device/Filename scanning routines
  087B  C6 44 2F 01              	MOV	BYTE PTR F_ORCT[SI],LOW 1	;indicates not at EOF 
  087F  5F                       	POP	DI 
  0880  59                       	POP	CX 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-44
 File Data Block Management Routines                         
@@ -2502,7 +2505,7 @@ File Data Block Management Routines
                                 ;FALLOC(nbytes) {allocate file-data-block and link into chain} 
                                 ; Entry - CX=size of FDB 
                                 ; Exit  - SI points to new FDB (which is already linked into FDB chain) 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-45
 File Data Block Management Routines                         
@@ -2561,7 +2564,7 @@ File Data Block Management Routines
                                 ; Entry - SI points to FDB to be freed 
                                 ; Exit  - SI, DI Used 
                                 ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-46
 File Data Block Management Routines                         
@@ -2620,7 +2623,7 @@ File Data Block Management Routines
  091B  4E                       	DEC	SI		;SI points to top of block to be moved 
  091C  8B FE                    	MOV	DI,SI		;DI points to top of block to be moved 
  091E  8B D0                    	MOV	DX,AX		;DX=byte-count adjustment for block move 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-47
 File Data Block Management Routines                         
@@ -2679,7 +2682,7 @@ File Data Block Management Routines
  096E  B4 00                    	MOV	AH,LOW 0	;Make double with high zero 
  0970  03 D8                    	ADD	BX,AX		;Go past DIMS 
  0972  03 D8                    	ADD	BX,AX 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-48
 File Data Block Management Routines                         
@@ -2738,7 +2741,7 @@ File Data Block Management Routines
                                  
                                 ;These routines are all called with SI pointing to an 8-byte queue descriptor 
                                 ; which is organized (invisibly to the caller) as follows: 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-49
 General Queue support routines                              
@@ -2797,7 +2800,7 @@ General Queue support routines
                                  
  09EF  43                       BUMPQP:	INC	BX 
  09F0  3B 5C 06                 	CMP	BX,WORD PTR Q_END[SI] 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-50
 General Queue support routines                              
@@ -2856,7 +2859,7 @@ General Queue support routines
  0A43  5F                       	POP	DI 
  0A44  5B                       	POP	BX 
  0A45  4F                       	DEC	DI 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-51
 I/O Initialization Called by INIT                           
@@ -2915,7 +2918,7 @@ I/O Initialization Called by INIT
  0A75  8A 16 0000 E             	MOV	DL,BYTE PTR CSRY 
  0A79  8A 36 0000 E             	MOV	DH,BYTE PTR CSRX	;DX=current posn 
  0A7D  C6 06 0000 E 03          	MOV	BYTE PTR CSRTYP,LOW 3D	;Set to user cursor 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-52
 I/O Initialization Called by INIT                           
@@ -2934,7 +2937,7 @@ I/O Initialization Called by INIT
  0AA0  75 03                    	JNZ	RET45		;don't clear PTRFIL if loading program 
  0AA2  A3 0000 E                	MOV	WORD PTR PTRFIL,AX	;future I/O will use Keyboard/CRT 
  0AA5  C3                       RET45:	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-53
 I/O Initialization Called by INIT                           
@@ -2993,7 +2996,7 @@ I/O Initialization Called by INIT
  0AD2  BB 0000 E                	MOV	BX,OFFSET CTLCAD	;Get save location 
  0AD5  E8 0B02 R                	CALL	SAVVEC 
  0AD8  0E                       	PUSH	CS 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-54
 MSDOS   Abort/Initialization/Termination Processing         
@@ -3052,7 +3055,7 @@ MSDOS   Abort/Initialization/Termination Processing
  0B22  06                       XCESDS:	PUSH	ES 
  0B23  1E                       	PUSH	DS 
  0B24  07                       	POP	ES 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModulePage     1-55
 MSDOS   Abort/Initialization/Termination Processing         
@@ -3081,7 +3084,7 @@ MSDOS   Abort/Initialization/Termination Processing
  0B3A                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModuleSymbols-1
                                                              
@@ -3095,6 +3098,7 @@ ADR  . . . . . . . . . . . . . .  	   1
 CALLOS . . . . . . . . . . . . .  	   4
 CHRGET . . . . . . . . . . . . .  	   1
 COMPAR . . . . . . . . . . . . .  	   2
+DBGBRK . . . . . . . . . . . . .  	   1
 DC . . . . . . . . . . . . . . .  	   6
 DJNZ . . . . . . . . . . . . . .  	   2
 DOSIO  . . . . . . . . . . . . .  	   2
@@ -3139,12 +3143,12 @@ ASCTAB . . . . . . . . . . . . .  	Number	0009
 ASPA2  . . . . . . . . . . . . .  	L NEAR	035A	CSEG
 ASPAC  . . . . . . . . . . . . .  	L NEAR	035C	CSEG
 
-BADFDB . . . . . . . . . . . . .  	L NEAR	0908	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModuleSymbols-2
                                                              
 
+BADFDB . . . . . . . . . . . . .  	L NEAR	0908	CSEG
 BAKCHR . . . . . . . . . . . . .  	L NEAR	05B2	CSEG	Global
 BASDEB . . . . . . . . . . . . .  	Number	0000	
 BCHRSI . . . . . . . . . . . . .  	L NEAR	05BC	CSEG	Global
@@ -3198,12 +3202,12 @@ CONTRO . . . . . . . . . . . . .  	Number	0001
 CPM  . . . . . . . . . . . . . .  	Number	0001	
 CPM110 . . . . . . . . . . . . .  	Number	0000	
 CPM2 . . . . . . . . . . . . . .  	Number	0001	
-CPM86  . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModuleSymbols-3
                                                              
 
+CPM86  . . . . . . . . . . . . .  	Number	0000	
 CPMA75 . . . . . . . . . . . . .  	Number	0000	
 CPMADD . . . . . . . . . . . . .  	Number	0000	
 CPMCON . . . . . . . . . . . . .  	Number	0000	
@@ -3257,12 +3261,12 @@ DERFAO . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 DERFDR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 DERFNO . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 DERIFN . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-DERRPE . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModuleSymbols-4
                                                              
 
+DERRPE . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 DEVBIN . . . . . . . . . . . . .  	L NEAR	05E6	CSEG	Global
 DEVBOT . . . . . . . . . . . . .  	L NEAR	05FB	CSEG	Global
 DEVINI . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
@@ -3316,12 +3320,12 @@ ERIFN1 . . . . . . . . . . . . .  	L NEAR	07A0	CSEG
 ERIFN2 . . . . . . . . . . . . .  	L NEAR	0831	CSEG
 ERRDME . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERRDNR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-ERRDWP . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModuleSymbols-5
                                                              
 
+ERRDWP . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERROM  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERROR  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ESCCTL . . . . . . . . . . . . .  	Number	0000	
@@ -3375,12 +3379,12 @@ FILINP . . . . . . . . . . . . .  	L NEAR	03E2	CSEG	Global
 FILLNM . . . . . . . . . . . . .  	L NEAR	07B2	CSEG
 FILMOD . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 FILNM  . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
-FILNM0 . . . . . . . . . . . . .  	L NEAR	07B5	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModuleSymbols-6
                                                              
 
+FILNM0 . . . . . . . . . . . . .  	L NEAR	07B5	CSEG
 FILOPT . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 FILOU3 . . . . . . . . . . . . .  	L NEAR	058E	CSEG	Global
 FILSCN . . . . . . . . . . . . .  	L NEAR	0408	CSEG	Global
@@ -3434,12 +3438,12 @@ GENBIN . . . . . . . . . . . . .  	Number	0001
 GENDSK . . . . . . . . . . . . .  	Number	0000	
 GENFUN . . . . . . . . . . . . .  	L NEAR	038E	CSEG
 GENIO  . . . . . . . . . . . . .  	Number	0001	
-GESBC  . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModuleSymbols-7
                                                              
 
+GESBC  . . . . . . . . . . . . .  	Number	0000	
 GETBKC . . . . . . . . . . . . .  	L NEAR	0565	CSEG
 GETBYT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 GETNZB . . . . . . . . . . . . .  	L NEAR	03D3	CSEG
@@ -3493,12 +3497,12 @@ IBMTOK . . . . . . . . . . . . .  	Number	0001
 IMOD . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 INCEOF . . . . . . . . . . . . .  	L NEAR	055B	CSEG
 INCHR  . . . . . . . . . . . . .  	L NEAR	04E5	CSEG	Global
-INCHRE . . . . . . . . . . . . .  	L NEAR	0534	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModuleSymbols-8
                                                              
 
+INCHRE . . . . . . . . . . . . .  	L NEAR	0534	CSEG
 INCHRI . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 INCHRX . . . . . . . . . . . . .  	L NEAR	0532	CSEG
 INCHSI . . . . . . . . . . . . .  	L NEAR	0538	CSEG	Global
@@ -3552,12 +3556,12 @@ LOKHED . . . . . . . . . . . . .  	Number	0000
 LONGI  . . . . . . . . . . . . .  	Number	0000	
 LPDSP  . . . . . . . . . . . . .  	L NEAR	06FE	CSEG
 LPRINT . . . . . . . . . . . . .  	L NEAR	0256	CSEG	Global
-LPT3 . . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModuleSymbols-9
                                                              
 
+LPT3 . . . . . . . . . . . . . .  	Number	0000	
 LPTLEN . . . . . . . . . . . . .  	Number	0084	
 LPTSW  . . . . . . . . . . . . .  	Number	0001	
 
@@ -3611,12 +3615,12 @@ NOATDL . . . . . . . . . . . . .  	Number	0000
 NOCR . . . . . . . . . . . . . .  	L NEAR	06A2	CSEG
 NOCTLA . . . . . . . . . . . . .  	Number	0000	
 NODOT  . . . . . . . . . . . . .  	Number	0000	
-NODVNM . . . . . . . . . . . . .  	L NEAR	07E2	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModuleSymbols-10
                                                              
 
+NODVNM . . . . . . . . . . . . .  	L NEAR	07E2	CSEG
 NOEDIT . . . . . . . . . . . . .  	Number	0000	
 NOIOS  . . . . . . . . . . . . .  	Number	0000	
 NOLBS  . . . . . . . . . . . . .  	L NEAR	010E	CSEG
@@ -3670,12 +3674,12 @@ PLAYSW . . . . . . . . . . . . .  	Number	0001
 PNRLEN . . . . . . . . . . . . .  	L NEAR	00CC	CSEG
 POFNUM . . . . . . . . . . . . .  	L NEAR	03CA	CSEG
 PORLEN . . . . . . . . . . . . .  	L NEAR	00C1	CSEG
-PQFULL . . . . . . . . . . . . .  	L NEAR	09DC	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModuleSymbols-11
                                                              
 
+PQFULL . . . . . . . . . . . . .  	L NEAR	09DC	CSEG
 PRFNUM . . . . . . . . . . . . .  	L NEAR	03CF	CSEG
 PRGFIL . . . . . . . . . . . . .  	L NEAR	043F	CSEG	Global
 PRGFIN . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
@@ -3729,12 +3733,12 @@ SAVLEN . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 SAVSEG . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 SAVVEC . . . . . . . . . . . . .  	L NEAR	0B02	CSEG	Global
 SBC  . . . . . . . . . . . . . .  	Number	0000	
-SBC86  . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModuleSymbols-12
                                                              
 
+SBC86  . . . . . . . . . . . . .  	Number	0000	
 SCAN1  . . . . . . . . . . . . .  	L NEAR	078F	CSEG
 SCCPTR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 SCDASC . . . . . . . . . . . . .  	L NEAR	0885	CSEG	Global
@@ -3788,12 +3792,12 @@ TABER  . . . . . . . . . . . . .  	L NEAR	030F	CSEG
 TABERJ . . . . . . . . . . . . .  	L NEAR	0289	CSEG
 TABTK  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 TBLDSP . . . . . . . . . . . . .  	L NEAR	0719	CSEG
-TBNONG . . . . . . . . . . . . .  	L NEAR	0321	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:32:55
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:38:05
  
 GIO86   - BASIC-86 Interpreter Device Independent I/O ModuleSymbols-13
                                                              
 
+TBNONG . . . . . . . . . . . . .  	L NEAR	0321	CSEG
 TEK  . . . . . . . . . . . . . .  	Number	0000	
 TEMP . . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 TIMSHR . . . . . . . . . . . . .  	Number	0000	
@@ -3841,11 +3845,11 @@ $_NDEV . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 _OFFST . . . . . . . . . . . . .  	Number	00C2	
 
 
-   2802 Source  Lines
-   2887 Total   Lines
-    677 Symbols
+   2805 Source  Lines
+   2890 Total   Lines
+    678 Symbols
 
-  28120 Bytes symbol space free
+  28122 Bytes symbol space free
 
       0 Warning Errors
       0 Severe  Errors

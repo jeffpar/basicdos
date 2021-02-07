@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-1
                                                             
@@ -57,7 +57,7 @@ GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-1
                              C  				; Support is in BINTRP.MAC and GWSTS.MAC 
  = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
                              C  				;single precision numbers for output. 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -116,7 +116,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-3
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -175,7 +175,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-4
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -234,7 +234,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Z80 related macros 
                              C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-5
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -293,7 +293,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-6
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -352,7 +352,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-7
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -400,13 +400,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
+                             C  DBGBRK	MACRO 
+                             C  	DB	0CDh,06h,0CCh 
+                             C  	ENDM 
                                  
                                  
                                 	TITLE   GENGRP  GENERALIZED GRAPHICS    /WHG 
@@ -456,14 +459,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                 	EXTRN	GXPOS:WORD,GYPOS:WORD 
  0000                           DSEG	ENDS 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-                                	EXTRN	GRPACX:WORD,GRPACY:WORD 
- 0000                           DSEG	ENDS 
- 0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-9
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
+                                	EXTRN	GRPACX:WORD,GRPACY:WORD 
+ 0000                           DSEG	ENDS 
+ 0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
                                 	EXTRN	MAXDEL:WORD,MINDEL:WORD,MINUPD:WORD,MAXUPD:WORD 
  0000                           DSEG	ENDS 
  0000                           DSEG	SEGMENT PUBLIC 'DATASG' 
@@ -489,7 +492,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                 	EXTRN	READC:NEAR,SETATR:NEAR,NSETCX:NEAR 
                                 	EXTRN	FETCHC:NEAR,STOREC:NEAR,SETC:NEAR 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-10
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -548,7 +551,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  0045  89 1E 0000 E             	MOV	GRPACX,BX	;UPDATE GRAPHICS ACCUMLATOR 
  0049  89 1E 0000 E             	MOV	GXPOS,BX	;STORE SECOND COORDINTE FOR CALLER 
  004D  8B CB                    	MOV	CX,BX		;RETURN X IN BC 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-11
 SCAN A COORDINATE - SCAN1 AND SCAND                         
@@ -562,7 +565,7 @@ SCAN A COORDINATE - SCAN1 AND SCAND
  0062  87 DA                    	XCHG	BX,DX		;RETURN Y IN [D,E] 
  0064  5B                       	POP	BX		;GET BACK THE TEXT POINTER 
  0065  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-12
 SCAN A COORDINATE - SCAN1 AND SCAND                         
@@ -621,7 +624,7 @@ SCAN A COORDINATE - SCAN1 AND SCAND
  00A0  8B 1E 0000 E             	MOV	BX,GRPACY 
  00A4  53                       	PUSH	BX 
  00A5  8B 1E 0000 E             	MOV	BX,GRPACX 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-13
 PSET,PRESET,POINT                                           
@@ -680,7 +683,7 @@ PSET,PRESET,POINT
  0100                           ATRFI2: 
  0100  50                       	PUSH	AX		;Save the attribute 
  0101  E8 0000 E                	CALL	PIXSIZ		;Test for graphics capability 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-14
 PSET,PRESET,POINT                                           
@@ -700,7 +703,7 @@ PSET,PRESET,POINT
  0119  59                       	POP	CX 
  011A  E9 0000 E                	JMP	CHRGT2 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-15
 PSET,PRESET,POINT                                           
@@ -759,7 +762,7 @@ PSET,PRESET,POINT
  0160  53                       XCHGX:	PUSH	BX 
  0161  51                       	PUSH	CX 
  0162  8B 1E 0000 E             	MOV	BX,GXPOS 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-16
 UTILITY ROUTINES FOR LINE CODE                              
@@ -771,7 +774,7 @@ UTILITY ROUTINES FOR LINE CODE
  016E  59                       	POP	CX 
  016F  5B                       	POP	BX 
  0170  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-17
 UTILITY ROUTINES FOR LINE CODE                              
@@ -830,7 +833,7 @@ UTILITY ROUTINES FOR LINE CODE
  01BA  E8 0000 E                	CALL	FETCHC		;LOOK AT CURRENT C 
  01BD  50                       	PUSH	AX		;SAVE BIT MASK OF CURRENT "C" 
  01BE  53                       	PUSH	BX		;SAVE ADDRESS 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-18
 LINE COMMAND                                                
@@ -889,7 +892,7 @@ LINE COMMAND
  0222                           DOGRPH: 
  0222  E8 0000 E                	CALL	SCALXY		;CHEATY SCALING - JUST TRUNCATE FOR NOW 
  0225  E8 015D R                	CALL	XCHGAC 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-19
 LINE COMMAND                                                
@@ -948,7 +951,7 @@ LINE COMMAND
                                 ; LINE LOOP (LINLP3): 
                                 ;       DRAW AT CURRENT POSITION 
                                 ;       UPDATE MAJOR AXIS 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-20
 LINE COMMAND                                                
@@ -979,13 +982,13 @@ LINE COMMAND
  0293  8A D0                    	MOV	DL,AL 
  0295  C3                       	RET 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-21
 LINE COMMAND                                                
 
                                 	PAGE 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Page     1-22
 LINE COMMAND                                                
@@ -1040,7 +1043,7 @@ LINE COMMAND
  02C5                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Symbols-1
                                                              
@@ -1054,6 +1057,7 @@ ADR  . . . . . . . . . . . . . .  	   1
 CALLOS . . . . . . . . . . . . .  	   1
 CHRGET . . . . . . . . . . . . .  	   1
 COMPAR . . . . . . . . . . . . .  	   2
+DBGBRK . . . . . . . . . . . . .  	   1
 DC . . . . . . . . . . . . . . .  	   6
 DJNZ . . . . . . . . . . . . . .  	   2
 FSIGN  . . . . . . . . . . . . .  	   1
@@ -1098,12 +1102,12 @@ BOXLOP . . . . . . . . . . . . .  	L NEAR	01B8	CSEG
 BUFLEN . . . . . . . . . . . . .  	Number	00FF	
 
 CASSW  . . . . . . . . . . . . .  	Number	0000	
-CHRGT2 . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Symbols-2
                                                              
 
+CHRGT2 . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 CHRGTR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 CHSEAT . . . . . . . . . . . . .  	Number	0001	
 CLIPPL . . . . . . . . . . . . .  	Number	0000	
@@ -1157,12 +1161,12 @@ FETCHC . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FIVDSK . . . . . . . . . . . . .  	Number	0001	
 FIVEO  . . . . . . . . . . . . .  	Number	0001	
 FIVLPT . . . . . . . . . . . . .  	Number	0001	
-FIVMEM . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Symbols-3
                                                              
 
+FIVMEM . . . . . . . . . . . . .  	Number	0001	
 FKEYON . . . . . . . . . . . . .  	Number	0001	
 
 GENBIN . . . . . . . . . . . . .  	Number	0001	
@@ -1216,12 +1220,12 @@ KILLER . . . . . . . . . . . . .  	Number	0000
 
 LABKEY . . . . . . . . . . . . .  	Number	0001	
 LEFTC  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-LEN2 . . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Symbols-4
                                                              
 
+LEN2 . . . . . . . . . . . . . .  	Number	0001	
 LEN3 . . . . . . . . . . . . . .  	Number	0001	
 LENGTH . . . . . . . . . . . . .  	Number	0002	
 LINCN2 . . . . . . . . . . . . .  	L NEAR	0242	CSEG
@@ -1275,12 +1279,12 @@ NODOT  . . . . . . . . . . . . .  	Number	0000
 NOEDIT . . . . . . . . . . . . .  	Number	0000	
 NOIOS  . . . . . . . . . . . . .  	Number	0000	
 NONULL . . . . . . . . . . . . .  	Number	0000	
-NOPEKS . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Symbols-5
                                                              
 
+NOPEKS . . . . . . . . . . . . .  	Number	0000	
 NOROMP . . . . . . . . . . . . .  	Number	0000	
 NORUBT . . . . . . . . . . . . .  	Number	0000	
 NOUSR  . . . . . . . . . . . . .  	Number	0000	
@@ -1334,12 +1338,12 @@ SETC . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 SGSATS . . . . . . . . . . . . .  	Number	0000	
 SHORTJ . . . . . . . . . . . . .  	Number	0001	
 SHTCHN . . . . . . . . . . . . .  	Number	0000	
-SHTERR . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Symbols-6
                                                              
 
+SHTERR . . . . . . . . . . . . .  	Number	0000	
 SHTINS . . . . . . . . . . . . .  	Number	0000	
 SHTLHM . . . . . . . . . . . . .  	Number	0000	
 SHTLIN . . . . . . . . . . . . .  	Number	0000	
@@ -1393,19 +1397,19 @@ $STEP  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ??L004 . . . . . . . . . . . . .  	L NEAR	0191	CSEG
 ??L005 . . . . . . . . . . . . .  	L NEAR	01A7	CSEG
 ??L006 . . . . . . . . . . . . .  	L NEAR	01B1	CSEG
-??L007 . . . . . . . . . . . . .  	L NEAR	0233	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:29:35
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:34:44
  
 GENGRP  GENERALIZED GRAPHICS    /WHG                        Symbols-7
                                                              
 
+??L007 . . . . . . . . . . . . .  	L NEAR	0233	CSEG
 
 
-    928 Source  Lines
-    955 Total   Lines
-    307 Symbols
+    931 Source  Lines
+    958 Total   Lines
+    308 Symbols
 
-  41338 Bytes symbol space free
+  40334 Bytes symbol space free
 
       0 Warning Errors
       0 Severe  Errors

@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-1
                                                             
@@ -57,7 +57,7 @@ GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-1
                              C  				; Support is in BINTRP.MAC and GWSTS.MAC 
  = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
                              C  				;single precision numbers for output. 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -116,7 +116,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-3
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -175,7 +175,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-4
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -234,7 +234,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Z80 related macros 
                              C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-5
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -293,7 +293,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-6
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -352,7 +352,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-7
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -400,13 +400,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
+                             C  DBGBRK	MACRO 
+                             C  	DB	0CDh,06h,0CCh 
+                             C  	ENDM 
                                  
                                  
                                 	TITLE   GIOTBL - Device Name Table, Dispatch Table Address Tables 
@@ -456,14 +459,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; 
  = 00FF                      C  	BINFID=255D		;files created by SAVE "fn" 
  = 00FE                      C  	PROFID=254D		;files created by SAVE "fn",P 
- = 00FD                      C  	BSVFID=253D		;files created by BSAVE "fn" 
-                             C   
-                             C  ;Generalized I/O Function Codes: 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-9
 GIO86U - Device Independent I/O Constants and Macros        
 
+ = 00FD                      C  	BSVFID=253D		;files created by BSAVE "fn" 
+                             C   
+                             C  ;Generalized I/O Function Codes: 
                              C  ; 
  = 0000                      C  	_OFFST=0		;initialize count 
                              C  	ROFFST	G_EOF,2		;test EOF for file opened to this device 
@@ -483,7 +486,7 @@ GIO86U - Device Independent I/O Constants and Macros
                              C  	ROFFST	G_BOT,2		;block output to file opened on this device 
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-10
 GIO86U - Device Independent I/O Constants and Macros        
@@ -542,7 +545,7 @@ GIO86U - Device Independent I/O Constants and Macros
                              C   
  = 000B                      C  	FNAML=11D		;number of bytes in Filename with extension 
  = 0080                      C  	DATPSC=128D		;bytes per sector 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-11
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -601,7 +604,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  = 0017                      C  	FCB_FS=F_FCB+16D	;FILE SIZE IN BYTES 
  = 001B                      C  	FCB_DT=F_FCB+20D	;Date of last write to file 
  = 001D                      C  	FCB_DT=F_FCB+22D	;Time of last write to file 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-12
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -609,7 +612,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  = 0027                      C  	FCB_NR=F_FCB+32D	;NEXT RECORD NUMBER 
  = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Number 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-13
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -633,7 +636,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 	EXTRN	LPTDSP:NEAR,LPTINI:NEAR,LPTTRM:NEAR 
                                 	EXTRN	COMDSP:NEAR,COMINI:NEAR,COMTRM:NEAR 
                                 	EXTRN	CONDSP:NEAR,_RET:NEAR 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-14
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -692,7 +695,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  0028  00                       	DB	0		;0 ends table 
                                  
  = 0008                         	$_NDEV=377O-NUM		;number of non-disk Devices 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Page     1-15
 Device name table                                           
@@ -726,7 +729,7 @@ Device name table
  005B                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Symbols-1
                                                              
@@ -740,6 +743,7 @@ ADR  . . . . . . . . . . . . . .  	   1
 CALLOS . . . . . . . . . . . . .  	   4
 CHRGET . . . . . . . . . . . . .  	   1
 COMPAR . . . . . . . . . . . . .  	   2
+DBGBRK . . . . . . . . . . . . .  	   1
 DC . . . . . . . . . . . . . . .  	   6
 DEV  . . . . . . . . . . . . . .  	   1
 DJNZ . . . . . . . . . . . . . .  	   2
@@ -784,12 +788,12 @@ ASCTAB . . . . . . . . . . . . .  	Number	0009
 BASDEB . . . . . . . . . . . . .  	Number	0000	
 BEEPSW . . . . . . . . . . . . .  	Number	0001	
 BINCSW . . . . . . . . . . . . .  	Number	0000	
-BINFID . . . . . . . . . . . . .  	Number	00FF	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Symbols-2
                                                              
 
+BINFID . . . . . . . . . . . . .  	Number	00FF	
 BLODSW . . . . . . . . . . . . .  	Number	0001	
 BSVFID . . . . . . . . . . . . .  	Number	00FD	
 BUFLEN . . . . . . . . . . . . .  	Number	00FF	
@@ -843,12 +847,12 @@ DATPSC . . . . . . . . . . . . .  	Number	0080
 DBLCHR . . . . . . . . . . . . .  	Number	0000	
 DBLTRN . . . . . . . . . . . . .  	Number	0000	
 DEBUG  . . . . . . . . . . . . .  	Text  		
-DISK . . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Symbols-3
                                                              
 
+DISK . . . . . . . . . . . . . .  	Number	0001	
 DMC  . . . . . . . . . . . . . .  	Number	0000	
 DOS  . . . . . . . . . . . . . .  	Number	0000	
 DRVPOS . . . . . . . . . . . . .  	Number	0000	
@@ -902,12 +906,12 @@ F_NUL4 . . . . . . . . . . . . .  	Number	0036
 F_NUL5 . . . . . . . . . . . . .  	Number	00BF	
 F_NUM  . . . . . . . . . . . . .  	Number	0001	
 F_ORCT . . . . . . . . . . . . .  	Number	002F	
-F_POS  . . . . . . . . . . . . .  	Number	0038	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Symbols-4
                                                              
 
+F_POS  . . . . . . . . . . . . .  	Number	0038	
 F_WID  . . . . . . . . . . . . .  	Number	0035	
 
 GENBIN . . . . . . . . . . . . .  	Number	0001	
@@ -961,12 +965,12 @@ KEYSTA . . . . . . . . . . . . .  	Number	0000
 KILLER . . . . . . . . . . . . .  	Number	0000	
 KYBDSP . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 KYBINI . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-KYBTRM . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Symbols-5
                                                              
 
+KYBTRM . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 
 LABKEY . . . . . . . . . . . . .  	Number	0001	
 LEN2 . . . . . . . . . . . . . .  	Number	0001	
@@ -1020,12 +1024,12 @@ NODOT  . . . . . . . . . . . . .  	Number	0000
 NOEDIT . . . . . . . . . . . . .  	Number	0000	
 NOIOS  . . . . . . . . . . . . .  	Number	0000	
 NONULL . . . . . . . . . . . . .  	Number	0000	
-NOPEKS . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Symbols-6
                                                              
 
+NOPEKS . . . . . . . . . . . . .  	Number	0000	
 NOROMP . . . . . . . . . . . . .  	Number	0000	
 NORUBT . . . . . . . . . . . . .  	Number	0000	
 NOUSR  . . . . . . . . . . . . .  	Number	0000	
@@ -1079,12 +1083,12 @@ STRSIZ . . . . . . . . . . . . .  	Number	0003
 SUPRSH . . . . . . . . . . . . .  	Number	0001	
 SWAPSW . . . . . . . . . . . . .  	Number	0001	
 
-TEK  . . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:38:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:43:53
  
 GIOTBL - Device Name Table, Dispatch Table Address Tables   Symbols-7
                                                              
 
+TEK  . . . . . . . . . . . . . .  	Number	0000	
 TIMSHR . . . . . . . . . . . . .  	Number	0000	
 TRNCHR . . . . . . . . . . . . .  	Number	0000	
 TRSER2 . . . . . . . . . . . . .  	Number	0000	
@@ -1115,9 +1119,9 @@ _OFFST . . . . . . . . . . . . .  	Number	00C2
 _RET . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 
 
-    649 Source  Lines
-    928 Total   Lines
-    338 Symbols
+    652 Source  Lines
+    931 Total   Lines
+    339 Symbols
 
   40396 Bytes symbol space free
 

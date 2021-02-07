@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-1
                                                             
@@ -57,7 +57,7 @@ BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-1
                              C  				; Support is in BINTRP.MAC and GWSTS.MAC 
  = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
                              C  				;single precision numbers for output. 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -116,7 +116,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-3
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -175,7 +175,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-4
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -234,7 +234,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Z80 related macros 
                              C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-5
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -293,7 +293,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-6
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -352,7 +352,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-7
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -400,13 +400,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
+                             C  DBGBRK	MACRO 
+                             C  	DB	0CDh,06h,0CCh 
+                             C  	ENDM 
                                  
                                  
                                 	TITLE   BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA 
@@ -445,7 +448,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                                 	PUBLIC	NOTFDD,NOTFNS 
                                  
                                 	PUBLIC	PTRGET,BSERR,PTRGT2,DIM,NOARYS 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-9
 DIMENSION & VARIABLE SEARCHING - PTRGET                     
@@ -504,7 +507,7 @@ DIMENSION & VARIABLE SEARCHING - PTRGET
  0030  74 0D                    	JZ	SHORT ISSEC	;"." IS VALID VAR CHAR 
  0032  3C 3A                    	CMP	AL,LOW OFFSET "9"+1	;TOO BIG FOR NUMERIC? 
  0034  73 04                    	JAE	SHORT PTRGT3	;YES 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-10
 DIMENSION & VARIABLE SEARCHING - PTRGET                     
@@ -563,7 +566,7 @@ DIMENSION & VARIABLE SEARCHING - PTRGET
  0093  75 01                    	JNZ	SHORT $+3 
  0095  C3                       	RET			;WHEN WE MATCH, SETUP VALTYP 
  0096  58                       	POP	AX		;POP OFF NON-USED HAVTYP ADDRESS 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-11
 DIMENSION & VARIABLE SEARCHING - PTRGET                     
@@ -622,7 +625,7 @@ DIMENSION & VARIABLE SEARCHING - PTRGET
  0106  8B 1E 0000 E             	MOV	BX,VARTAB	;SET UP STARTING POINT 
  010A  E9 0000 E                	JMP	LOPFND 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-12
 DIMENSION & VARIABLE SEARCHING - PTRGET                     
@@ -681,7 +684,7 @@ DIMENSION & VARIABLE SEARCHING - PTRGET
  0151  03 D9                    	ADD	BX,CX		;ADD ON THE AMOUNT OF SPACE 
                                 				;EXTRA NOW BEING USED 
  0153  59                       	POP	CX		;POP OFF HIGH ADDRESS TO MOVE 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-13
 DIMENSION & VARIABLE SEARCHING - PTRGET                     
@@ -731,7 +734,7 @@ DIMENSION & VARIABLE SEARCHING - PTRGET
  018B  C3                       	RET			;RETURN FROM EVAL 
                                  
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-14
 DIMENSION & VARIABLE SEARCHING - PTRGET                     
@@ -790,7 +793,7 @@ DIMENSION & VARIABLE SEARCHING - PTRGET
  01CB  58                       	POP	AX		;COUNT TELLING HOW MUCH TO RESTORE 
  01CC  89 1E 0000 E             	MOV	NAMTMP,BX	;SAVE THE TEXT POINTER 
  01D0  5B                       	POP	BX		;THE PLACE TO RESTORE TO 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-15
 MULTIPLE DIMENSION CODE                                     
@@ -849,7 +852,7 @@ MULTIPLE DIMENSION CODE
  0225  89 1E 0000 E             SUBSOK:	MOV	TEMP2,BX	;SAVE THE TEXT POINTER 
  0229  5B                       	POP	BX		;[H,L]= VALTYP & DIMFLG 
  022A  89 1E 0000 E             	MOV	DIMFLG,BX	;SAVE VALTYP AND DIMFLG 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-16
 MULTIPLE DIMENSION CODE                                     
@@ -908,7 +911,7 @@ MULTIPLE DIMENSION CODE
                                  
  025D  BA 0000 E                BSERR:	MOV	DX,OFFSET ERRBS	;"SUBSCRIPT OUT OF RANGE" 
  0260  E9 0000 E                	JMP	ERROR 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-17
 MULTIPLE DIMENSION CODE                                     
@@ -967,7 +970,7 @@ MULTIPLE DIMENSION CODE
  028D  A0 0000 E                	MOV	AL,BYTE PTR DIMFLG	;CALLED BY DIMENSION? 
  0290  D0 D0                    	RCL	AL,1		;SET CARRY IF SO 
  0292  8A C1                    	MOV	AL,CL		;[A]=NUMBER OF DIMENSIONS 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-18
 MULTIPLE DIMENSION CODE                                     
@@ -1026,7 +1029,7 @@ MULTIPLE DIMENSION CODE
  02E7  03 D9                    	ADD	BX,CX		;ADD ON THE SIZE 
                                 				;TO GET THE TOTAL NUMBER OF BYTES USED 
  02E9  87 DA                    	XCHG	BX,DX		;[D,E]=TOTAL SIZE 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-19
 MULTIPLE DIMENSION CODE                                     
@@ -1085,7 +1088,7 @@ MULTIPLE DIMENSION CODE
  0321  2C 04                    	SUB	AL,LOW 4	;FOR INTEGERS AND STRINGS 
                                 				;NO MORE MULTIPLYING BY TWO 
  0323  72 08                    	JB	SHORT SMLVAL 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-20
 MULTIPLE DIMENSION CODE                                     
@@ -1144,7 +1147,7 @@ MULTIPLE DIMENSION CODE
  0366  88 07                    	MOV	BYTE PTR [BX],AL	;DO THE STORE 
  0368  FE CD                    	DEC	CH		;AND REPEAT [B] TIMES 
  036A  75 F4                    	JNZ	SHORT SLPLNG	;FOR THE COUNT AND DATA 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-21
 MULTIPLE DIMENSION CODE                                     
@@ -1155,7 +1158,7 @@ MULTIPLE DIMENSION CODE
  036F  59                       	POP	CX 
  0370  C3                       	RET 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Page     1-22
 MULTIPLE DIMENSION CODE                                     
@@ -1164,7 +1167,7 @@ MULTIPLE DIMENSION CODE
  0371                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Symbols-1
                                                              
@@ -1178,6 +1181,7 @@ ADR  . . . . . . . . . . . . . .  	   1
 CALLOS . . . . . . . . . . . . .  	   1
 CHRGET . . . . . . . . . . . . .  	   1
 COMPAR . . . . . . . . . . . . .  	   2
+DBGBRK . . . . . . . . . . . . .  	   1
 DC . . . . . . . . . . . . . . .  	   6
 DJNZ . . . . . . . . . . . . . .  	   2
 FSIGN  . . . . . . . . . . . . .  	   1
@@ -1222,12 +1226,12 @@ BUFLEN . . . . . . . . . . . . .  	Number	00FF
 CASSW  . . . . . . . . . . . . .  	Number	0000	
 CHRGTR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 CHSEAT . . . . . . . . . . . . .  	Number	0001	
-CLMWID . . . . . . . . . . . . .  	Number	000E	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Symbols-2
                                                              
 
+CLMWID . . . . . . . . . . . . .  	Number	000E	
 CMPUTN . . . . . . . . . . . . .  	Number	0000	
 COMMNT . . . . . . . . . . . . .  	Number	0000	
 CONSSW . . . . . . . . . . . . .  	Number	0001	
@@ -1281,12 +1285,12 @@ FACLO  . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 FAST . . . . . . . . . . . . . .  	Number	0001	
 FCERR  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FINNOW . . . . . . . . . . . . .  	L NEAR	033B	CSEG
-FINZER . . . . . . . . . . . . .  	L NEAR	017B	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Symbols-3
                                                              
 
+FINZER . . . . . . . . . . . . .  	L NEAR	017B	CSEG
 FIVDSK . . . . . . . . . . . . .  	Number	0001	
 FIVEO  . . . . . . . . . . . . .  	Number	0001	
 FIVLPT . . . . . . . . . . . . .  	Number	0001	
@@ -1340,12 +1344,12 @@ KANJFN . . . . . . . . . . . . .  	Number	0000
 KEYSTA . . . . . . . . . . . . .  	Number	0000	
 KILLER . . . . . . . . . . . . .  	Number	0000	
 
-LABKEY . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Symbols-4
                                                              
 
+LABKEY . . . . . . . . . . . . .  	Number	0001	
 LEN2 . . . . . . . . . . . . . .  	Number	0001	
 LEN3 . . . . . . . . . . . . . .  	Number	0001	
 LENGTH . . . . . . . . . . . . .  	Number	0002	
@@ -1399,12 +1403,12 @@ NODOT  . . . . . . . . . . . . .  	Number	0000
 NOEDIT . . . . . . . . . . . . .  	Number	0000	
 NOFUNS . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 NOIOS  . . . . . . . . . . . . .  	Number	0000	
-NONULL . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Symbols-5
                                                              
 
+NONULL . . . . . . . . . . . . .  	Number	0000	
 NOPEKS . . . . . . . . . . . . .  	Number	0000	
 NOROMP . . . . . . . . . . . . .  	Number	0000	
 NORUBT . . . . . . . . . . . . .  	Number	0000	
@@ -1458,12 +1462,12 @@ RSTLES . . . . . . . . . . . . .  	Number	0001
 
 SARYFL . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 SBC  . . . . . . . . . . . . . .  	Number	0000	
-SBC86  . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Symbols-6
                                                              
 
+SBC86  . . . . . . . . . . . . .  	Number	0000	
 SCP  . . . . . . . . . . . . . .  	Number	0001	
 SCRN86 . . . . . . . . . . . . .  	Number	0001	
 SCRNIO . . . . . . . . . . . . .  	Number	0001	
@@ -1517,12 +1521,12 @@ VARTAB . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 VMORC1 . . . . . . . . . . . . .  	L NEAR	005A	CSEG
 VMORCH . . . . . . . . . . . . .  	L NEAR	0047	CSEG
 
-XTNSYS . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:26:50
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:31:59
  
 BIPTRG  BASIC Interpreter pointer get routines/WHG/PGA      Symbols-7
                                                              
 
+XTNSYS . . . . . . . . . . . . .  	Number	0000	
 
 Z80  . . . . . . . . . . . . . .  	Number	0001	
 Z80MAC . . . . . . . . . . . . .  	Number	0001	
@@ -1548,9 +1552,9 @@ $DZERO . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ??L015 . . . . . . . . . . . . .  	L NEAR	0334	CSEG
 
 
-   1052 Source  Lines
-   1053 Total   Lines
-    332 Symbols
+   1055 Source  Lines
+   1056 Total   Lines
+    333 Symbols
 
   40334 Bytes symbol space free
 

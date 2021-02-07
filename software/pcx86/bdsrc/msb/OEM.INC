@@ -357,3 +357,6 @@ ENDM
 ;
         PAGE
 
+DBGBRK	MACRO
+	DB	0CDh,06h,0CCh
+	ENDM

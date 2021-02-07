@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-1
                                                             
@@ -57,7 +57,7 @@ GWLIST Copied from BINTRP.MAC                               Page     1-1
                              C  ;Pascal program HFILE searches for the previous line - DO NOT MODIFY 
                              C  ; 
  = 0015                      C  	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -116,7 +116,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0001                      C  	BLODSW=1		;BLOAD, BSAVE COMMANDS 
  = 0001                      C  	MEMIMG=1		;MEMORY IMAGE FILES 
  = 0001                      C  	GENBIN=1 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-3
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -175,7 +175,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMADD=0		;FOR VERSION TO RUN ON ADDS CPM 
  = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 75 
                              C  				;CP/M 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-4
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -234,7 +234,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	ALTAIR=0 
  = 0000                      C  	DMC=0 
  = 0000                      C  	PANBAS=0 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-5
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -293,7 +293,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  OUTCHR	MACRO 
                              C  	CALL	OUTDO 
                              C  ENDM 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-6
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -352,7 +352,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0003                      C  	STRSIZ=3 
  = 0003                      C  	NUMTMP=3		;NUMBER OF STRING TEMPORARIES 
  = 000A                      C  	NUMTMP=10 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-7
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -406,13 +406,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
+                             C  DBGBRK	MACRO 
+                             C  	DB	0CDh,06h,0CCh 
+                             C  	ENDM 
                              C   
                              C   
                              C  MOVRI   MACRO   B,C,D,E 
@@ -462,14 +465,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C   IFDEF  $&RESWRD 
                              C          $F=0 
                              C    IRPC  XX,<RESWRD> 
-                             C     IF   $F 
-                             C          $Q="&XX&" 
-                             C          DB      "&XX&" 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-9
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
+                             C     IF   $F 
+                             C          $Q="&XX&" 
+                             C          DB      "&XX&" 
                              C     ENDIF 
                              C     IFE  $F-1 
                              C          .XLIST 
@@ -521,14 +524,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; 
                              C  ; define a macro called that possibly externals S:NEAR and then calls macro n 
                              C  ; 
-                             C  def_mac macro   m,n,s 
-                             C  m   macro 
-                             C      ifndef s 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-10
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
+                             C  def_mac macro   m,n,s 
+                             C  m   macro 
+                             C      ifndef s 
                              C          extrn s:NEAR 
                              C      endif 
                              C      purge m 
@@ -567,7 +570,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          $&RESWRD=QQ 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-11
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -626,7 +629,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 001B                      C  	ASCESC=27D		;Escape 
  = 0020                      C  	ASCSPC=32D		;Space 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-12
 GIO86U - Device Independent I/O Constants and Macros        
@@ -657,7 +660,7 @@ GIO86U - Device Independent I/O Constants and Macros
                              C  	ROFFST	G_BOT,2		;block output to file opened on this device 
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-13
 GIO86U - Device Independent I/O Constants and Macros        
@@ -716,7 +719,7 @@ GIO86U - Device Independent I/O Constants and Macros
  = 0080                      C  	DATPSC=128D		;bytes per sector 
  = 0026                      C  	FCBSIZ=38D		;File Control Block size 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-14
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -775,13 +778,13 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  = 001D                      C  	FCB_DT=F_FCB+22D	;Time of last write to file 
  = 0027                      C  	FCB_NR=F_FCB+32D	;NEXT RECORD NUMBER 
  = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Number 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-15
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-16
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -840,7 +843,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 	EXTRN	ZERO:NEAR,MOVE:NEAR,FOUT:NEAR,FIN:NEAR,PUSHF:NEAR 
                                 	EXTRN	MOVFR:NEAR,MOVRF:NEAR,MOVRM:NEAR,INPRT:NEAR,LINPRT:NEAR 
                                 	EXTRN	MOVFM:NEAR,MOVMF:NEAR 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-17
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -899,7 +902,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 	EXTRN	ERRTXT:WORD 
                                 	EXTRN	MRGFLG:WORD,CHNFLG:WORD 
                                 	EXTRN	SAVSTK:WORD,SAVTXT:WORD,OLDLIN:WORD,NXTLIN:WORD,OLDTXT:WORD 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-18
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -958,7 +961,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 	SUBTTL ROM VERSION INITALIZATION, AND CONSTANTS 
                                  
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-19
 ROM VERSION INITALIZATION, AND CONSTANTS                    
@@ -1017,7 +1020,7 @@ ROM VERSION INITALIZATION, AND CONSTANTS
  000D  51                       	PUSH	CX		;SAVE POINTER TO 1ST LINE 
  000E  E8 0000 E                	CALL	PROCHK		;DONT EVEN LIST LINE # 
  0011  8B 1E 0000 E             	MOV	BX,TEMP		;Get Text pointer 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-20
 EXTENDED LIST, DELETE, LLIST                                
@@ -1076,7 +1079,7 @@ EXTENDED LIST, DELETE, LLIST
  006C  74 05                    	JZ	SHORT NOSPAL	;THEN DONT PRINT SPACE 
  006E  B0 20                    	MOV	AL,LOW " " 
  0070  E8 0000 E                	CALL	OUTDO		;PRINT A SPACE AFTER THE LINE # 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-21
 EXTENDED LIST, DELETE, LLIST                                
@@ -1135,7 +1138,7 @@ EXTENDED LIST, DELETE, LLIST
  00C0  58                       LISELX:	POP	AX		; POP PSW 
  00C1  86 C4                    	XCHG	AL,AH 
  00C3  9E                       	SAHF 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-22
 EXTENDED LIST, DELETE, LLIST                                
@@ -1194,7 +1197,7 @@ EXTENDED LIST, DELETE, LLIST
  0121  74 09                    	JZ	SHORT PRTVAR 
  0123  E8 028B R                	CALL	TSTANM		;IS CHAR ALPHANUMERIC 
  0126  73 04                    	JAE	SHORT PRTVAR	;ALPHANUMERIC 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-23
 EXTENDED LIST, DELETE, LLIST                                
@@ -1253,7 +1256,7 @@ EXTENDED LIST, DELETE, LLIST
  0184  74 01                    	JZ	SHORT $+3 
  0186  C3                       	RET 
  0187  49                       	DEC	CX 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-24
 EXTENDED LIST, DELETE, LLIST                                
@@ -1312,7 +1315,7 @@ EXTENDED LIST, DELETE, LLIST
  01DD  43                       	INC	BX		;BUMP POINTER 
  01DE  8A 07                    	MOV	AL,BYTE PTR [BX]	;GET CHAR 
  01E0  24 7F                    	AND	AL,LOW 177O	;TURN OFF HIGH BIT 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-25
 EXTENDED LIST, DELETE, LLIST                                
@@ -1371,7 +1374,7 @@ EXTENDED LIST, DELETE, LLIST
  022D  8A D0                    	MOV	DL,AL		;SAVE LEADING CHAR 
  022F  75 0C                    	JNZ	SHORT NTFNEX	;NOT "FN" EXPANSION 
  0231  A0 0000 E                	MOV	AL,BYTE PTR TEMPA	;SET CC'S ON TEMPA 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-26
 EXTENDED LIST, DELETE, LLIST                                
@@ -1430,7 +1433,7 @@ EXTENDED LIST, DELETE, LLIST
  028E  72 01                    	JNAE	SHORT $+3 
  0290  C3                       	RET			;YES 
  0291  3C 30                    	CMP	AL,LOW "0"	;DIGIT? 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-27
 EXTENDED LIST, DELETE, LLIST                                
@@ -1489,7 +1492,7 @@ EXTENDED LIST, DELETE, LLIST
  02EA  B2 00                    	MOV	DL,LOW 0	;NO, NEVER PRINT TRAILING TYPE INDICATOR 
  02EC  72 06                    	JB	SHORT TYPSET 
  02EE  B2 21                    	MOV	DL,LOW "!"	;ASSUME SINGLE PREC. 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-28
 EXTENDED LIST, DELETE, LLIST                                
@@ -1548,7 +1551,7 @@ EXTENDED LIST, DELETE, LLIST
  0343  E9 00E0 R                	JMP	PLOOP2		;GET NEXT CHAR 
                                  
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-29
 EXTENDED LIST, DELETE, LLIST                                
@@ -1607,7 +1610,7 @@ EXTENDED LIST, DELETE, LLIST
  0388  41                       	INC	CX 
  0389  42                       	INC	DX 
  038A  3B DA                    	CMP	BX,DX		;DONE COMPACTIFYING? 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-30
 EXTENDED LIST, DELETE, LLIST                                
@@ -1620,7 +1623,7 @@ EXTENDED LIST, DELETE, LLIST
  0394  89 1E 0000 E             	MOV	ARYTAB,BX 
  0398  89 1E 0000 E             	MOV	STREND,BX 
  039C  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Page     1-31
 EXTENDED LIST, DELETE, LLIST                                
@@ -1631,7 +1634,7 @@ EXTENDED LIST, DELETE, LLIST
  039D                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Symbols-1
                                                              
@@ -1647,6 +1650,7 @@ ADR  . . . . . . . . . . . . . .  	   1
 CALLOS . . . . . . . . . . . . .  	   4
 CHRGET . . . . . . . . . . . . .  	   1
 COMPAR . . . . . . . . . . . . .  	   2
+DBGBRK . . . . . . . . . . . . .  	   1
 DC . . . . . . . . . . . . . . .  	   6
 DEF_MAC  . . . . . . . . . . . .  	   9
 DERMAK . . . . . . . . . . . . .  	   3
@@ -1689,12 +1693,12 @@ ALPS . . . . . . . . . . . . . .  	Number	0000
 ALPTAB . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ALTAIR . . . . . . . . . . . . .  	Number	0000	
 ANSI . . . . . . . . . . . . . .  	Number	0001	
-ARYTAB . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Symbols-2
                                                              
 
+ARYTAB . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 ASCBS  . . . . . . . . . . . . .  	Number	0008	
 ASCCR  . . . . . . . . . . . . .  	Number	000D	
 ASCCTC . . . . . . . . . . . . .  	Number	0003	
@@ -1748,12 +1752,12 @@ CONTXT . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 CONTYP . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 CPM  . . . . . . . . . . . . . .  	Number	0001	
 CPM110 . . . . . . . . . . . . .  	Number	0000	
-CPM2 . . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Symbols-3
                                                              
 
+CPM2 . . . . . . . . . . . . . .  	Number	0001	
 CPM86  . . . . . . . . . . . . .  	Number	0000	
 CPMA75 . . . . . . . . . . . . .  	Number	0000	
 CPMADD . . . . . . . . . . . . .  	Number	0000	
@@ -1807,12 +1811,12 @@ DISK . . . . . . . . . . . . . .  	Number	0001
 DMC  . . . . . . . . . . . . . .  	Number	0000	
 DOCNVF . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 DONUM  . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
-DORES  . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Symbols-4
                                                              
 
+DORES  . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 DOS  . . . . . . . . . . . . . .  	Number	0000	
 DOT  . . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 DRVPOS . . . . . . . . . . . . .  	Number	0000	
@@ -1866,12 +1870,12 @@ ERRTXT . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 ERRUE1 . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERRUF  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERRUS  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-ERRWH  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Symbols-5
                                                              
 
+ERRWH  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ESCCTL . . . . . . . . . . . . .  	Number	0000	
 EUROPE . . . . . . . . . . . . .  	Number	0000	
 EXIDY  . . . . . . . . . . . . .  	Number	0000	
@@ -1925,12 +1929,12 @@ FOUTH  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FOUTO  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FRCDBL . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FRCINT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-FRCSNG . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Symbols-6
                                                              
 
+FRCSNG . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FRCSTR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FREFAC . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FRETMS . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
@@ -1984,12 +1988,12 @@ G_CLS  . . . . . . . . . . . . .  	Number	0006
 G_EOF  . . . . . . . . . . . . .  	Number	0000	
 G_GCW  . . . . . . . . . . . . .  	Number	0018	
 G_GPS  . . . . . . . . . . . . .  	Number	0012	
-G_GWD  . . . . . . . . . . . . .  	Number	0014	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Symbols-7
                                                              
 
+G_GWD  . . . . . . . . . . . . .  	Number	0014	
 G_LOC  . . . . . . . . . . . . .  	Number	0002	
 G_LOF  . . . . . . . . . . . . .  	Number	0004	
 G_OPN  . . . . . . . . . . . . .  	Number	000C	
@@ -2043,12 +2047,12 @@ JISKTN . . . . . . . . . . . . .  	Number	0000
 
 KANABS . . . . . . . . . . . . .  	Number	0000	
 KANJFN . . . . . . . . . . . . .  	Number	0000	
-KBFLEN . . . . . . . . . . . . .  	Number	013E	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Symbols-8
                                                              
 
+KBFLEN . . . . . . . . . . . . .  	Number	013E	
 KBUF . . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 KEYSTA . . . . . . . . . . . . .  	Number	0000	
 KILLER . . . . . . . . . . . . .  	Number	0000	
@@ -2102,12 +2106,12 @@ MORLN1 . . . . . . . . . . . . .  	L NEAR	026B	CSEG
 MORLNP . . . . . . . . . . . . .  	L NEAR	0269	CSEG
 MORLNZ . . . . . . . . . . . . .  	L NEAR	0252	CSEG
 MORPUR . . . . . . . . . . . . .  	L NEAR	0265	CSEG
-MOSTEK . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Symbols-9
                                                              
 
+MOSTEK . . . . . . . . . . . . .  	Number	0000	
 MOVE . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 MOVE1  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 MOVFM  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
@@ -2161,12 +2165,12 @@ NOSNGQ . . . . . . . . . . . . .  	L NEAR	01A8	CSEG
 NOSPAL . . . . . . . . . . . . .  	L NEAR	0073	CSEG
 NOTELS . . . . . . . . . . . . .  	L NEAR	01EA	CSEG
 NOTTK  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-NOUSR  . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Symbols-10
                                                              
 
+NOUSR  . . . . . . . . . . . . .  	Number	0000	
 NOVARP . . . . . . . . . . . . .  	Number	0000	
 NTEMBL . . . . . . . . . . . . .  	L NEAR	0116	CSEG
 NTFNEX . . . . . . . . . . . . .  	L NEAR	023D	CSEG
@@ -2220,12 +2224,12 @@ PLOOP  . . . . . . . . . . . . .  	L NEAR	00D9	CSEG
 PLOOP2 . . . . . . . . . . . . .  	L NEAR	00E0	CSEG	Global
 PLOOPG . . . . . . . . . . . . .  	L NEAR	0142	CSEG
 PLOOPH . . . . . . . . . . . . .  	L NEAR	0144	CSEG
-PLOOPR . . . . . . . . . . . . .  	L NEAR	0159	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Symbols-11
                                                              
 
+PLOOPR . . . . . . . . . . . . .  	L NEAR	0159	CSEG
 PLOOPZ . . . . . . . . . . . . .  	L NEAR	0154	CSEG
 PLUSTK . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 POLKEY . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
@@ -2279,12 +2283,12 @@ SAVSEG . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 SAVSTK . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 SAVTXT . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 SBC  . . . . . . . . . . . . . .  	Number	0000	
-SBC86  . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Symbols-12
                                                              
 
+SBC86  . . . . . . . . . . . . .  	Number	0000	
 SCNLIN . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 SCNSEM . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 SCP  . . . . . . . . . . . . . .  	Number	0001	
@@ -2338,12 +2342,12 @@ STROUI . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 STROUT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 STRPRT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 STRSIZ . . . . . . . . . . . . .  	Number	0003	
-SUBFLG . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Symbols-13
                                                              
 
+SUBFLG . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 SUPRSH . . . . . . . . . . . . .  	Number	0001	
 SWAPSW . . . . . . . . . . . . .  	Number	0001	
 SYNCHR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
@@ -2397,12 +2401,12 @@ WRITE  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 
 XTNSYS . . . . . . . . . . . . .  	Number	0000	
 
-Z80  . . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Symbols-14
                                                              
 
+Z80  . . . . . . . . . . . . . .  	Number	0001	
 Z80MAC . . . . . . . . . . . . .  	Number	0001	
 ZENITH . . . . . . . . . . . . .  	Number	0000	
 ZERE . . . . . . . . . . . . . .  	L NEAR	032C	CSEG
@@ -2456,12 +2460,12 @@ $WHILE . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ??L007 . . . . . . . . . . . . .  	L NEAR	01CE	CSEG
 ??L008 . . . . . . . . . . . . .  	L NEAR	01D5	CSEG
 ??L009 . . . . . . . . . . . . .  	L NEAR	021A	CSEG
-??L010 . . . . . . . . . . . . .  	L NEAR	0261	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:21:43
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:26:52
  
 GWLIST Copied from BINTRP.MAC                               Symbols-15
                                                              
 
+??L010 . . . . . . . . . . . . .  	L NEAR	0261	CSEG
 ??L011 . . . . . . . . . . . . .  	L NEAR	0278	CSEG
 ??L012 . . . . . . . . . . . . .  	L NEAR	027E	CSEG
 ??L013 . . . . . . . . . . . . .  	L NEAR	02B0	CSEG
@@ -2472,9 +2476,9 @@ GWLIST Copied from BINTRP.MAC                               Symbols-15
 _OFFST . . . . . . . . . . . . .  	Number	00C2	
 
 
-   1515 Source  Lines
-   1638 Total   Lines
-    748 Symbols
+   1518 Source  Lines
+   1641 Total   Lines
+    749 Symbols
 
   26270 Bytes symbol space free
 

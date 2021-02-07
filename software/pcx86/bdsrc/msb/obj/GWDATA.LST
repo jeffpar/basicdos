@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-1
                                                             
@@ -57,7 +57,7 @@ GWDATA copied from BINTRP.MAC                               Page     1-1
                              C  ;Pascal program HFILE searches for the previous line - DO NOT MODIFY 
                              C  ; 
  = 0015                      C  	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -116,7 +116,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0001                      C  	BLODSW=1		;BLOAD, BSAVE COMMANDS 
  = 0001                      C  	MEMIMG=1		;MEMORY IMAGE FILES 
  = 0001                      C  	GENBIN=1 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-3
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -175,7 +175,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMADD=0		;FOR VERSION TO RUN ON ADDS CPM 
  = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 75 
                              C  				;CP/M 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-4
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -234,7 +234,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	ALTAIR=0 
  = 0000                      C  	DMC=0 
  = 0000                      C  	PANBAS=0 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-5
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -293,7 +293,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  OUTCHR	MACRO 
                              C  	CALL	OUTDO 
                              C  ENDM 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-6
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -352,7 +352,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0003                      C  	STRSIZ=3 
  = 0003                      C  	NUMTMP=3		;NUMBER OF STRING TEMPORARIES 
  = 000A                      C  	NUMTMP=10 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-7
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -399,20 +399,23 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C   
                              C  DC      MACRO   ARG 
                              C          IRPC    ZZ,<ARG> 
-                             C              IFDIF       <ZZ>,<">
+                             C              IFDIF       <ZZ>,<"> 
                              C                  DB      "&ZZ&" 
                              C                  _A="&ZZ&" 
                              C              ENDIF 
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
+                             C  DBGBRK	MACRO 
+                             C  	DB	0CDh,06h,0CCh 
+                             C  	ENDM 
                              C   
                              C   
                              C  MOVRI   MACRO   B,C,D,E 
@@ -462,14 +465,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C   IFDEF  $&RESWRD 
                              C          $F=0 
                              C    IRPC  XX,<RESWRD> 
-                             C     IF   $F 
-                             C          $Q="&XX&" 
-                             C          DB      "&XX&" 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-9
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
+                             C     IF   $F 
+                             C          $Q="&XX&" 
+                             C          DB      "&XX&" 
                              C     ENDIF 
                              C     IFE  $F-1 
                              C          .XLIST 
@@ -521,14 +524,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; 
                              C  ; define a macro called that possibly externals S:NEAR and then calls macro n 
                              C  ; 
-                             C  def_mac macro   m,n,s 
-                             C  m   macro 
-                             C      ifndef s 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-10
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
+                             C  def_mac macro   m,n,s 
+                             C  m   macro 
+                             C      ifndef s 
                              C          extrn s:NEAR 
                              C      endif 
                              C      purge m 
@@ -567,7 +570,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          $&RESWRD=QQ 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-11
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -626,7 +629,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 001B                      C  	ASCESC=27D		;Escape 
  = 0020                      C  	ASCSPC=32D		;Space 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-12
 GIO86U - Device Independent I/O Constants and Macros        
@@ -657,7 +660,7 @@ GIO86U - Device Independent I/O Constants and Macros
                              C  	ROFFST	G_BOT,2		;block output to file opened on this device 
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-13
 GIO86U - Device Independent I/O Constants and Macros        
@@ -716,7 +719,7 @@ GIO86U - Device Independent I/O Constants and Macros
  = 0080                      C  	DATPSC=128D		;bytes per sector 
  = 0026                      C  	FCBSIZ=38D		;File Control Block size 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-14
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -775,13 +778,13 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  = 001D                      C  	FCB_DT=F_FCB+22D	;Time of last write to file 
  = 0027                      C  	FCB_NR=F_FCB+32D	;NEXT RECORD NUMBER 
  = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Number 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-15
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-16
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -840,7 +843,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 	EXTRN	MOVFM:NEAR,MOVMF:NEAR,FADDS:NEAR 
                                 	EXTRN	INRART:NEAR,NEG:NEAR 
                                 	EXTRN	BSERR:NEAR 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-17
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -899,7 +902,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 	EXTRN	WRITE:NEAR 
                                 	EXTRN	CHAIN:NEAR,COMMON:NEAR 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-18
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -958,7 +961,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                  
                                 	EXTRN	ALPTAB:NEAR,ATNTK:NEAR 
                                 	EXTRN	CLINTK:NEAR 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-19
 ROM VERSION INITALIZATION, AND CONSTANTS                    
@@ -1017,7 +1020,7 @@ ROM VERSION INITALIZATION, AND CONSTANTS
  010B  32                       	DB	50		;PRECEDENCE OF "EQV" 
  010C  28                       	DB	40		;PRECEDENCE OF "IMP" 
  010D  7A                       	DB	122		;PRECEDENCE OF "MOD" 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-20
 ROM VERSION INITALIZATION, AND CONSTANTS                    
@@ -1064,7 +1067,7 @@ ROM VERSION INITALIZATION, AND CONSTANTS
                                 	ADR	INTDIV 
                                 	ADR	ICOMP 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-21
 ROM VERSION INITALIZATION, AND CONSTANTS                    
@@ -1123,7 +1126,7 @@ ROM VERSION INITALIZATION, AND CONSTANTS
                                 PUBLIC	ERROM 
  = 0007                         	ERROM=QQ 
                                 	DCE	"UL" 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-22
 ERROR MESSAGE TABLE                                         
@@ -1182,7 +1185,7 @@ ERROR MESSAGE TABLE
                                 	DCE	"RW" 
                                 	DCL	"RESUME without error" 
                                 PUBLIC	ERRRE 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-23
 ERROR MESSAGE TABLE                                         
@@ -1241,7 +1244,7 @@ ERROR MESSAGE TABLE
                                  
                                 	DCE	"FO" 
                                 	DCL	"FIELD overflow" 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-24
 ERROR MESSAGE TABLE                                         
@@ -1300,7 +1303,7 @@ ERROR MESSAGE TABLE
                                 	DCE	"EF" 
                                 	DCL	"Input past end" 
                                 PUBLIC	ERRRPE 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-25
 ERROR MESSAGE TABLE                                         
@@ -1353,7 +1356,7 @@ ERROR MESSAGE TABLE
                                  
                                 PUBLIC	LSTERR 
  = 004B                         	LSTERR=QQ+1		;LAST ERROR USED FOR RANGE CHECKS IN LEN2 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-26
 ERROR MESSAGE TABLE                                         
@@ -1412,7 +1415,7 @@ ERROR MESSAGE TABLE
  0008                           	.RADIX	8 
                                  
  04AD  00                       	DB	0 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-27
 CONSTANTS FOR ROM BASIC I/O, RNDX, FDIV, USRGO              
@@ -1450,7 +1453,7 @@ CONSTANTS FOR ROM BASIC I/O, RNDX, FDIV, USRGO
                                 ; ENDPRG: 
  04BF  3A                       	DB	":" 
  04C0  00 00 00 00              	DB	0,0,0,0		;FAKE END OF PROGRAM FOR RESUME NEXT 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-28
 CONSTANTS FOR ROM BASIC I/O, RNDX, FDIV, USRGO              
@@ -1509,7 +1512,7 @@ CONSTANTS FOR ROM BASIC I/O, RNDX, FDIV, USRGO
  04E6  00                       	DB	0		;WHETHER OUTPUT GOES TO LPT 
  = 0070                         	LNCMPS=(((LPTLEN/CLMWID)-1)*CLMWID)	;LAST COMMA FIELD POSIT 
                                 PUBLIC	NLPPOS 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-29
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -1568,7 +1571,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
  0502  00                       	DB	0		;Type of next cursor 
                                 PUBLIC	CSRFLG 
                                 ; CSRFLG: 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-30
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -1627,7 +1630,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
  0105  0001[                    	DB	1 DUP (?) 
             ??                  
                          ]      
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-31
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -1686,7 +1689,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
                          ]      
                                 
  0111  0001[                    	DB	1 DUP (?)	;BETWEEN 0 AND 1 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-32
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -1716,7 +1719,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
             ??                  
                          ]      
                                 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-33
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -1775,7 +1778,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
                                 
                                 				; SO EDIT CAN BE CALLED ON "SN" ERR. 
                                 PUBLIC	LPTLST 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-34
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -1834,7 +1837,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
  014E  0001[                    	DB	1 DUP (?)	;RUBOUT SWITCH =1 INSIDE 
             ??                  
                          ]      
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-35
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -1893,7 +1896,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
                                 
                                 ; 
                                 ;Generalized I/O initialized data definitions 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-36
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -1952,7 +1955,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
                                 PUBLIC	FILNM 
  = 01C6                         	FILNM=FILNAM+1 
                                 PUBLIC	FILEXT 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-37
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -2011,7 +2014,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
  0177  0004[                    	DB	4 DUP(?)	;Exit jump vector.  Set to DS:0 at INIT. 
             ??                  
                          ]      
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-38
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -2070,7 +2073,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
  01E7                           CPMREA	LABEL WORD 
  01E7  0001[                    	DB	1 DUP(?)	;CP/M Read Call 
             ??                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-39
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -2129,7 +2132,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
  042D                           DIMFLG	LABEL WORD 
  042D  0001[                    	DB	1 DUP(?)	;IN GETTING A POINTER TO A VARIABLE 
             ??                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-40
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -2188,7 +2191,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
                                 
                                 				;AFTER CHRGET HAS BEEN CALLED 
                                 PUBLIC	CONTYP 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-41
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -2247,7 +2250,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
                                 PUBLIC	FRETOP 
  0464                           FRETOP	LABEL WORD 
  0464  0002[                    	DB	2 DUP(?)	;TOP OF STRING FREE SPACE 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-42
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -2306,7 +2309,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
                                 				;CALL86 SO UNDEFINED SCALERS WON'T 
                                 				;BE PERMITED AFTER ARRAY REFERENCES 
                                 				;IN CALL PARAMETER LIST. 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-43
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -2365,7 +2368,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
                                 
                                 				;FOR "RESUME" STATEMENT 
                                 PUBLIC	SAVSTK 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-44
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -2424,7 +2427,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
  0488  0002[                    	DB	2 DUP(?)	;FORMULA EVALUATOR TEMP 
             ??                  
                          ]      
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-45
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -2483,7 +2486,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
             ??                  
                          ]      
                                 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-46
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -2542,7 +2545,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
             ??                  
                          ]      
                                 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-47
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -2601,7 +2604,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
                          ]      
                                 
                                 				;SINCE ANSI SAYS START AND END ARE EVALUATED 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-48
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -2660,7 +2663,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
  059B  0001[                    	DB	1 DUP(?)	;NON-ZERO IF CHAIN W/ MERGE IN PROGRESS 
             ??                  
                          ]      
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-49
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -2719,7 +2722,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
                                 PUBLIC	EXPAF 
  05AD                           EXPAF	LABEL WORD 
  05AD  0001[                    	DB	1 DUP(?)	;Exponent adjustment factor 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-50
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -2778,7 +2781,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
  05C7  0002[                    	DB	2 DUP(?) 
             ??                  
                          ]      
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-51
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -2837,7 +2840,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
                                 
                                 PUBLIC	$FACLO 
  05E9                           $FACLO	LABEL WORD 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-52
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -2896,7 +2899,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
  05F2                           ARGLO	LABEL WORD 
  05F2  0007[                    	DB	7 DUP(?)	;[LOCATION OF SECOND ARGUMENT FOR DOUBLE 
             ??                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-53
 LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT          
@@ -2955,7 +2958,7 @@ LOW SEGMENT -- RAM-- IE THIS STUFF IS NOT CONSTANT
  051A  00                       	DB	0 
                                  
                                 PUBLIC	BRKTXT 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Page     1-54
 TEXT CONSTANTS FOR PRINT OUT                                
@@ -2977,7 +2980,7 @@ TEXT CONSTANTS FOR PRINT OUT
  0521                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Symbols-1
                                                              
@@ -2994,6 +2997,7 @@ ADRP . . . . . . . . . . . . . .  	   0
 CALLOS . . . . . . . . . . . . .  	   4
 CHRGET . . . . . . . . . . . . .  	   1
 COMPAR . . . . . . . . . . . . .  	   2
+DBGBRK . . . . . . . . . . . . .  	   1
 DC . . . . . . . . . . . . . . .  	   6
 DCE  . . . . . . . . . . . . . .  	   0
 DCL  . . . . . . . . . . . . . .  	   3
@@ -3029,7 +3033,7 @@ Segments and Groups:
 
 CSEG . . . . . . . . . . . . . .  	0521	PARA	PUBLIC	'CODESG'
 DSEG . . . . . . . . . . . . . .  	0625	PARA	PUBLIC	'DATASG'
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Symbols-2
                                                              
@@ -3088,7 +3092,7 @@ CAT  . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 CHAIN  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 CHKSTR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 CHNFLG . . . . . . . . . . . . .  	L WORD 	05A1	DSEG	Global
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Symbols-3
                                                              
@@ -3147,7 +3151,7 @@ CRDO . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 CRDONZ . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 CRONLY . . . . . . . . . . . . .  	Number	0000	
 CSRFLG . . . . . . . . . . . . .  	L WORD 	015B	DSEG	Global
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Symbols-4
                                                              
@@ -3206,7 +3210,7 @@ DMULT  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 DONUM  . . . . . . . . . . . . .  	L WORD 	0430	DSEG	Global
 DORES  . . . . . . . . . . . . .  	L WORD 	042F	DSEG	Global
 DOS  . . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Symbols-5
                                                              
@@ -3265,7 +3269,7 @@ ERRIFN . . . . . . . . . . . . .  	Number	0040		Global
 ERRIOE . . . . . . . . . . . . .  	Number	0039		Global
 ERRLBO . . . . . . . . . . . . .  	Number	0017		Global
 ERRLIN . . . . . . . . . . . . .  	L WORD 	047D	DSEG	Global
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Symbols-6
                                                              
@@ -3324,7 +3328,7 @@ FC_ASC . . . . . . . . . . . . .  	Number	0000
 FC_BIN . . . . . . . . . . . . .  	Number	0001	
 FDBSIZ . . . . . . . . . . . . .  	Number	0039	
 FDIV . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Symbols-7
                                                              
@@ -3383,7 +3387,7 @@ FRETMS . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FRETOP . . . . . . . . . . . . .  	L WORD 	0464	DSEG	Global
 FSUB . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FUNACT . . . . . . . . . . . . .  	L WORD 	0586	DSEG	Global
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Symbols-8
                                                              
@@ -3442,7 +3446,7 @@ G_SOT  . . . . . . . . . . . . .  	Number	0010
 G_SWD  . . . . . . . . . . . . .  	Number	0008	
 
 HAL  . . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Symbols-9
                                                              
@@ -3501,7 +3505,7 @@ KANABS . . . . . . . . . . . . .  	Number	0000
 KANJFN . . . . . . . . . . . . .  	Number	0000	
 KBFLEN . . . . . . . . . . . . .  	Number	013E	
 KBUF . . . . . . . . . . . . . .  	L WORD 	01EA	DSEG	Global
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Symbols-10
                                                              
@@ -3560,7 +3564,7 @@ MOVE1  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 MOVFM  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 MOVFR  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 MOVMF  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Symbols-11
                                                              
@@ -3619,7 +3623,7 @@ NOVARP . . . . . . . . . . . . .  	Number	0000
 NULCNT . . . . . . . . . . . . .  	L WORD 	0130	DSEG	Global
 NUMCMD . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 NUMCON . . . . . . . . . . . . .  	L WORD 	0109	DSEG	Global
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Symbols-12
                                                              
@@ -3678,7 +3682,7 @@ PRMPRV . . . . . . . . . . . . .  	L WORD 	0518	DSEG	Global
 PRMSIZ . . . . . . . . . . . . .  	Number	0064		Global
 PRMSTK . . . . . . . . . . . . .  	L WORD 	04B0	DSEG	Global
 PROCHK . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Symbols-13
                                                              
@@ -3737,7 +3741,7 @@ SCRNIO . . . . . . . . . . . . .  	Number	0001
 SCROLT . . . . . . . . . . . . .  	Number	0001	
 SCRTCH . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 SGN  . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Symbols-14
                                                              
@@ -3796,7 +3800,7 @@ SUPRSH . . . . . . . . . . . . .  	Number	0001
 SWAPSW . . . . . . . . . . . . .  	Number	0001	
 SWPTMP . . . . . . . . . . . . .  	L WORD 	05A4	DSEG	Global
 SYNCHR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Symbols-15
                                                              
@@ -3855,7 +3859,7 @@ VMOVMF . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 VNEG . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 VSIGN  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Symbols-16
                                                              
@@ -3914,7 +3918,7 @@ $RESTORE . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 $RESUME  . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 $RETURN  . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 $RND . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:13:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:18:30
  
 GWDATA copied from BINTRP.MAC                               Symbols-17
                                                              
@@ -3946,11 +3950,11 @@ _OFFST . . . . . . . . . . . . .  	Number	00C2
 __RET  . . . . . . . . . . . . .  	Number	0000	
 
 
-   2242 Source  Lines
-   6727 Total   Lines
-    867 Symbols
+   2245 Source  Lines
+   6730 Total   Lines
+    868 Symbols
 
-  10426 Bytes symbol space free
+   9418 Bytes symbol space free
 
       0 Warning Errors
       0 Severe  Errors

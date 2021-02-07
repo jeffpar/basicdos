@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-1
                                                             
@@ -57,7 +57,7 @@ GWEVAL Copied from BINTRP.MAC                               Page     1-1
                              C  ;Pascal program HFILE searches for the previous line - DO NOT MODIFY 
                              C  ; 
  = 0015                      C  	NUMTRP=NMKEYT+NMCOMT+NMPENT+NMSTRT 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -116,7 +116,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0001                      C  	BLODSW=1		;BLOAD, BSAVE COMMANDS 
  = 0001                      C  	MEMIMG=1		;MEMORY IMAGE FILES 
  = 0001                      C  	GENBIN=1 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-3
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -175,7 +175,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMADD=0		;FOR VERSION TO RUN ON ADDS CPM 
  = 0000                      C  	CPMA75=0		;FOR VERSION TO RUN ON ADDS SYSTEM 75 
                              C  				;CP/M 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-4
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -234,7 +234,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	ALTAIR=0 
  = 0000                      C  	DMC=0 
  = 0000                      C  	PANBAS=0 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-5
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -293,7 +293,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  OUTCHR	MACRO 
                              C  	CALL	OUTDO 
                              C  ENDM 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-6
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -352,7 +352,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0003                      C  	STRSIZ=3 
  = 0003                      C  	NUMTMP=3		;NUMBER OF STRING TEMPORARIES 
  = 000A                      C  	NUMTMP=10 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-7
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -406,13 +406,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
+                             C  DBGBRK	MACRO 
+                             C  	DB	0CDh,06h,0CCh 
+                             C  	ENDM 
                              C   
                              C   
                              C  MOVRI   MACRO   B,C,D,E 
@@ -462,14 +465,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C   IFDEF  $&RESWRD 
                              C          $F=0 
                              C    IRPC  XX,<RESWRD> 
-                             C     IF   $F 
-                             C          $Q="&XX&" 
-                             C          DB      "&XX&" 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-9
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
+                             C     IF   $F 
+                             C          $Q="&XX&" 
+                             C          DB      "&XX&" 
                              C     ENDIF 
                              C     IFE  $F-1 
                              C          .XLIST 
@@ -521,14 +524,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; 
                              C  ; define a macro called that possibly externals S:NEAR and then calls macro n 
                              C  ; 
-                             C  def_mac macro   m,n,s 
-                             C  m   macro 
-                             C      ifndef s 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-10
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
+                             C  def_mac macro   m,n,s 
+                             C  m   macro 
+                             C      ifndef s 
                              C          extrn s:NEAR 
                              C      endif 
                              C      purge m 
@@ -567,7 +570,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          $&RESWRD=QQ 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-11
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -626,7 +629,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 001B                      C  	ASCESC=27D		;Escape 
  = 0020                      C  	ASCSPC=32D		;Space 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-12
 GIO86U - Device Independent I/O Constants and Macros        
@@ -657,7 +660,7 @@ GIO86U - Device Independent I/O Constants and Macros
                              C  	ROFFST	G_BOT,2		;block output to file opened on this device 
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-13
 GIO86U - Device Independent I/O Constants and Macros        
@@ -716,7 +719,7 @@ GIO86U - Device Independent I/O Constants and Macros
  = 0080                      C  	DATPSC=128D		;bytes per sector 
  = 0026                      C  	FCBSIZ=38D		;File Control Block size 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-14
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -775,13 +778,13 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  = 001D                      C  	FCB_DT=F_FCB+22D	;Time of last write to file 
  = 0027                      C  	FCB_NR=F_FCB+32D	;NEXT RECORD NUMBER 
  = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Number 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-15
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-16
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -840,7 +843,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 	EXTRN	FILGET:NEAR 
                                  
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-17
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -899,7 +902,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 	EXTRN	MOVE1:NEAR 
                                  
                                 	EXTRN	SCNSEM:NEAR 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-18
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -958,7 +961,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 	EXTRN	DSKER1:NEAR	;DSKERR-NONDSK 
                                  
                                 ;The following externs are defined in GWMAIN.MAC 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-19
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -1017,7 +1020,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 ; EACH OPERATOR. 
                                 ; A TEMPORARY RESULT ON THE STACK HAS THE FOLLOWING FORMAT 
                                 ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-20
 FORMULA EVALUATION CODE                                     
@@ -1076,7 +1079,7 @@ FORMULA EVALUATION CODE
  0046                           NTPLUS: 
  0046  3C 00 E                  	CMP	AL,LOW OFFSET LSTOPK	;HIGHER THAN THE LAST OP? 
  0048  72 01                    	JNAE	SHORT $+3 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-21
 FORMULA EVALUATION CODE                                     
@@ -1135,7 +1138,7 @@ FORMULA EVALUATION CODE
  009B  51                       	PUSH	CX		;SAVE THESE THINGS FOR APPLOP 
  009C  B9 0103 R                	MOV	CX,OFFSET APPLOP	;GENERAL OPERATOR APPLICATION 
                                 				;ROUTINE -- DOES TYPE CONVERSIONS 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-22
 FORMULA EVALUATION CODE                                     
@@ -1194,7 +1197,7 @@ FORMULA EVALUATION CODE
                                 ; 
  00E1  8A C5                    FINREL:	MOV	AL,CH		;[A]=OLD PRECEDENCE 
  00E3  3C 64                    	CMP	AL,LOW 100	;RELATIONALS HAVE PRECEDENCE 100 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-23
 FORMULA EVALUATION CODE                                     
@@ -1253,7 +1256,7 @@ FORMULA EVALUATION CODE
  0123  74 2E                    	JZ	SHORT STKDBL	;FORCE FAC TO DOUBLE 
  0125  8A C6                    	MOV	AL,DH		;GET VALTYPE OF FAC 
  0127  3C 08                    	CMP	AL,LOW 8	;AND IF SO, CONVERT THE STACK OPERAND 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-24
 FORMULA EVALUATION CODE                                     
@@ -1312,7 +1315,7 @@ FORMULA EVALUATION CODE
                                 				;TO RETAOP, EXCEPT FOR COMPARES WHICH 
                                 				;RETURN TO DOCMP 
                                 ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-25
 FORMULA EVALUATION CODE                                     
@@ -1371,7 +1374,7 @@ FORMULA EVALUATION CODE
  01BE  E8 0000 E                	CALL	PUSHF		;PUSH THE CONVERTED LEFT HAND ARGUMENT 
                                 				;ONTO THE STACK 
  01C1  E8 0000 E                	CALL	CONSIH		;CONVERT THE RIGHT HAND ARGUMENT TO A 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-26
 FORMULA EVALUATION CODE                                     
@@ -1380,7 +1383,7 @@ FORMULA EVALUATION CODE
  01C4  E9 0000 E                	JMP	FDIVT 
                                 				;REGISTERS THE LEFT HAND ARGUMENT 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-27
 FORMULA EVALUATION CODE                                     
@@ -1439,7 +1442,7 @@ FORMULA EVALUATION CODE
  0219  53                       NTDERC:	PUSH	BX		;SAVE TEXT POINTER 
  021A  E8 0485 R                	CALL	SNGFLT		;RETURN THE VALUE 
  021D  5B                       	POP	BX		;RESTORE TEXT POINTER 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-28
 EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
@@ -1498,7 +1501,7 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
  026E  3C 00 E                  	CMP	AL,LOW OFFSET INSRTK	;IS IT THE INSTR FUNCTION?? 
  0270  75 03                    	JNZ	SHORT ??L020 
  0272  E9 0000 E                	JMP	INSTR		;DISPATCH 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-29
 EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
@@ -1557,7 +1560,7 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
  02BB  5B                       	POP	BX 
  02BC  C3                       	RET 
                                 PUBLIC	ISVAR 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-30
 EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
@@ -1616,7 +1619,7 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
  0307  3C 3A                    	CMP	AL,LOW OFFSET "9"+1	;IS IT BIGGER THAN LARGEST DIGIT? 
  0309  73 76                    	JAE	SHORT OCTFIN	;YES, BE FORGIVING & RETURN 
  030B  2C 30                    	SUB	AL,LOW "0"	;CONVERT DIGIT, MAKE BINARY 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-31
 EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
@@ -1675,7 +1678,7 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
  036F  03 DB                    	ADD	BX,BX 
  0371  73 01                    	JNB	SHORT $+3 
  0373  C3                       	RET			;OVERFLOW ERROR 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-32
 EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
@@ -1734,7 +1737,7 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
                                 ; MUST BE A NUMBER BETWEEN 0 AND 256. THE TEXT POINTER IS 
                                 ; PASSED TO THESE FUNCTIONS SO ADDITIONAL ARGUMENTS 
                                 ; CAN BE READ. THE TEXT POINTER IS PASSED IN [D,E]. 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-33
 EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
@@ -1793,7 +1796,7 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
  03E6                           NOTFRF: 
  03E6  BA 02BB R                	MOV	DX,OFFSET LABBCK	;RETURN ADDRESS 
  03E9  52                       	PUSH	DX		;MAKE THEM REALLY COME BACK 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-34
 EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
@@ -1829,7 +1832,7 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
  0410  4B                       	DEC	BX		;CHECK IF LAST CHARACTER WAS A DIGIT 
  0411  9E                       	SAHF 
  0412  C3                       	RET			;RETURN WITH NON-ZERO SET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-35
 EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL           
@@ -1888,7 +1891,7 @@ EVAL - EVALUATE VARIABLE, CONSTANT, FUNCTION CALL
  044D  E9 0000 E                	JMP	IMOD		;IF SO, USE MONTE'S SPECIAL ROUTINE 
  0450                           ??L035: 
  0450  3C 7B                    	CMP	AL,LOW 123	;IS THE OPERATOR "IDIV"? 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-36
 MORE FORMULA EVALUATION - LOGICAL, RELATIONAL OPS           
@@ -1924,7 +1927,7 @@ MORE FORMULA EVALUATION - LOGICAL, RELATIONAL OPS
                                 	INS86	43,332		;AND BX,DX 
                                 	INS86	367,323		;NOT BX 
  047F  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-37
 MORE FORMULA EVALUATION - LOGICAL, RELATIONAL OPS           
@@ -1943,7 +1946,7 @@ MORE FORMULA EVALUATION - LOGICAL, RELATIONAL OPS
                                 PUBLIC	GIVINT 
  0489  8A F8                    GIVINT:	MOV	BH,AL 
  048B  E9 0000 E                	JMP	MAKINT 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-38
 MORE FORMULA EVALUATION - LOGICAL, RELATIONAL OPS           
@@ -2002,7 +2005,7 @@ MORE FORMULA EVALUATION - LOGICAL, RELATIONAL OPS
  04E1  03 D9                    	ADD	BX,CX		;ADD ON OFFSET 
  04E3  87 DA                    	XCHG	BX,DX		;RESTORE TEXT POINTER, ADDRESS TO [D,E] 
  04E5  C3                       	RET			;RETURN FROM SCAN ROUTINE 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-39
 USER DEFINED (USR) ASSEMBLY LANGUAGE FUNCTION CODE          
@@ -2020,7 +2023,7 @@ USER DEFINED (USR) ASSEMBLY LANGUAGE FUNCTION CODE
  04F7  5B                       	POP	BX		;RESTORE TEXT POINTER 
  04F8  C3                       	RET			;RETURN TO NEWSTT 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-40
 USER DEFINED (USR) ASSEMBLY LANGUAGE FUNCTION CODE          
@@ -2079,7 +2082,7 @@ USER DEFINED (USR) ASSEMBLY LANGUAGE FUNCTION CODE
  0532                           ??L039: 
  0532  E8 0000 E                	CALL	CHRGTR 
  0535  E8 0000 E                SCNLIS:	CALL	PTRGET		;GET POINTER TO DUMMY VAR(CREATE VAR) 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-41
 SIMPLE-USER-DEFINED-FUNCTION CODE                           
@@ -2138,7 +2141,7 @@ SIMPLE-USER-DEFINED-FUNCTION CODE
  0587  87 DA                    	XCHG	BX,DX		;[D,E]=PARAMETER LIST TEXT,[H,L]=VARIABLE POINTER 
  0589  5E                       	POP	SI		;XTHL 
  058A  87 F3                    	XCHG	SI,BX 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-42
 SIMPLE-USER-DEFINED-FUNCTION CODE                           
@@ -2197,7 +2200,7 @@ SIMPLE-USER-DEFINED-FUNCTION CODE
  05F7  EB F3                    	JMP	LPSIZL		;HIGH BIT INDICATES STILL PART OF NAME 
  05F9                           ??L043: 
  05F9  4A                       	DEC	DX		;BACK UP OVER LOOKS 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-43
 SIMPLE-USER-DEFINED-FUNCTION CODE                           
@@ -2256,7 +2259,7 @@ SIMPLE-USER-DEFINED-FUNCTION CODE
  065E  E8 0700 R                	CALL	BCTRAN 
  0661  5B                       	POP	BX 
  0662  89 1E 0000 E             	MOV	PRMSTK,BX	;LINK PARAMETER BLOCK FOR GARBAGE COLLECTION 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-44
 SIMPLE-USER-DEFINED-FUNCTION CODE                           
@@ -2315,7 +2318,7 @@ SIMPLE-USER-DEFINED-FUNCTION CODE
  06C9  41                       	INC	CX 
  06CA  BB 0000 E                	MOV	BX,OFFSET PRMSTK	;PLACE TO STORE INTO 
  06CD  E8 0700 R                	CALL	BCTRAN 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-45
 SIMPLE-USER-DEFINED-FUNCTION CODE                           
@@ -2374,7 +2377,7 @@ SIMPLE-USER-DEFINED-FUNCTION CODE
                                 ; SUBROUTINE TO GET A POINTER TO A FUNCTION NAME 
                                 ; 
  0718  E8 0000 E                GETFNM:	CALL	SYNCHR 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-46
 SIMPLE-USER-DEFINED-FUNCTION CODE                           
@@ -2386,7 +2389,7 @@ SIMPLE-USER-DEFINED-FUNCTION CODE
  0721  0A 07                    	OR	AL,BYTE PTR [BX]	;PUT FUNCTION BIT ON 
  0723  8A C8                    	MOV	CL,AL		;GET FIRST CHARACTER INTO [C] 
  0725  E9 0000 E                	JMP	PTRGT2 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-47
 SIMPLE-USER-DEFINED-FUNCTION CODE                           
@@ -2410,7 +2413,7 @@ SIMPLE-USER-DEFINED-FUNCTION CODE
  073A                           ??L047: 
  073A  E9 0000 E                	JMP	SNERR 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-48
 STRING FUNCTIONS - LEFT HAND SIDE MID$                      
@@ -2469,7 +2472,7 @@ STRING FUNCTIONS - LEFT HAND SIDE MID$
                                 	INS86	354		;READ BYTE INTO [A] 
  0779  87 DA                    	XCHG	BX,DX 
  077B  32 C2                    	XOR	AL,DL		;XOR WITH MASK2 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-49
 INP, OUT, WAIT, CONSOLE, WIDTH                              
@@ -2511,7 +2514,7 @@ INP, OUT, WAIT, CONSOLE, WIDTH
  07AA  8A C2                    	MOV	AL,DL		;RETURN THE RESULT IN [A] AND [E] 
  07AC  C3                       	RET 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Page     1-50
 INP, OUT, WAIT, CONSOLE, WIDTH                              
@@ -2535,7 +2538,7 @@ INP, OUT, WAIT, CONSOLE, WIDTH
  07AD                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Symbols-1
                                                              
@@ -2551,6 +2554,7 @@ ADR  . . . . . . . . . . . . . .  	   1
 CALLOS . . . . . . . . . . . . .  	   4
 CHRGET . . . . . . . . . . . . .  	   1
 COMPAR . . . . . . . . . . . . .  	   2
+DBGBRK . . . . . . . . . . . . .  	   1
 DC . . . . . . . . . . . . . . .  	   6
 DEF_MAC  . . . . . . . . . . . .  	   9
 DERMAK . . . . . . . . . . . . .  	   3
@@ -2593,12 +2597,12 @@ ALPCPM . . . . . . . . . . . . .  	Number	0000
 ALPS . . . . . . . . . . . . . .  	Number	0000	
 ALPTST . . . . . . . . . . . . .  	L NEAR	0311	CSEG
 ALTAIR . . . . . . . . . . . . .  	Number	0000	
-ANDORD . . . . . . . . . . . . .  	L NEAR	00D6	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Symbols-2
                                                              
 
+ANDORD . . . . . . . . . . . . .  	L NEAR	00D6	CSEG
 ANSI . . . . . . . . . . . . . .  	Number	0001	
 APPLOP . . . . . . . . . . . . .  	L NEAR	0103	CSEG
 ARYTAB . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
@@ -2652,12 +2656,12 @@ CNSGET . . . . . . . . . . . . .  	L NEAR	02E0	CSEG	Global
 CNTOFL . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 COMMNT . . . . . . . . . . . . .  	Number	0000	
 CONER2 . . . . . . . . . . . . .  	L NEAR	033E	CSEG
-CONERR . . . . . . . . . . . . .  	L NEAR	0347	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Symbols-3
                                                              
 
+CONERR . . . . . . . . . . . . .  	L NEAR	0347	CSEG
 CONFAC . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 CONIA  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 CONINT . . . . . . . . . . . . .  	L NEAR	079E	CSEG	Global
@@ -2711,12 +2715,12 @@ DATA . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 DATLIN . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 DATOFS . . . . . . . . . . . . .  	Number	0039	
 DATPSC . . . . . . . . . . . . .  	Number	0080	
-DATPTR . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Symbols-4
                                                              
 
+DATPTR . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 DBLCHR . . . . . . . . . . . . .  	Number	0000	
 DBLCON . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 DBLDPC . . . . . . . . . . . . .  	L NEAR	0156	CSEG
@@ -2770,12 +2774,12 @@ ERRDIR . . . . . . . . . . . . .  	L NEAR	0707	CSEG
 ERRDNA . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERRDV0 . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERRFAE . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-ERRFAO . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Symbols-5
                                                              
 
+ERRFAO . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERRFC  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERRFDR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ERRFLG . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
@@ -2829,12 +2833,12 @@ FCB_DT . . . . . . . . . . . . .  	Number	001D
 FCB_DV . . . . . . . . . . . . .  	Number	0007	
 FCB_EX . . . . . . . . . . . . .  	Number	0013	
 FCB_FN . . . . . . . . . . . . .  	Number	0008	
-FCB_FS . . . . . . . . . . . . .  	Number	0017	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Symbols-6
                                                              
 
+FCB_FS . . . . . . . . . . . . .  	Number	0017	
 FCB_FT . . . . . . . . . . . . .  	Number	0010	
 FCB_NR . . . . . . . . . . . . .  	Number	0027	
 FCB_RC . . . . . . . . . . . . .  	Number	0015	
@@ -2888,12 +2892,12 @@ FOUTH  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FOUTO  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FPWRQ  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FRCDBL . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-FRCINT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Symbols-7
                                                              
 
+FRCINT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FRCSNG . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FRCSTR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 FRCTBL . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
@@ -2947,12 +2951,12 @@ GETPTR . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 GETSPA . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 GETSTK . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 GETYPR . . . . . . . . . . . . .  	L NEAR	0435	CSEG	Global
-GIO86  . . . . . . . . . . . . .  	Number	0001	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Symbols-8
                                                              
 
+GIO86  . . . . . . . . . . . . .  	Number	0001	
 GIVDBL . . . . . . . . . . . . .  	L NEAR	0480	CSEG	Global
 GIVINT . . . . . . . . . . . . .  	L NEAR	0489	CSEG	Global
 GREATK . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
@@ -3006,12 +3010,12 @@ INLIN  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 INPPAS . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 INPRT  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 INRART . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-INSRTK . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Symbols-9
                                                              
 
+INSRTK . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 INSTR  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 INSTSW . . . . . . . . . . . . .  	Number	0000	
 INT  . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
@@ -3065,12 +3069,12 @@ LONGI  . . . . . . . . . . . . .  	Number	0000
 LOPHEX . . . . . . . . . . . . .  	L NEAR	02FA	CSEG
 LOPINP . . . . . . . . . . . . .  	L NEAR	0773	CSEG
 LOPINX . . . . . . . . . . . . .  	L NEAR	0781	CSEG
-LOPOC2 . . . . . . . . . . . . .  	L NEAR	0353	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Symbols-10
                                                              
 
+LOPOC2 . . . . . . . . . . . . .  	L NEAR	0353	CSEG
 LOPOCT . . . . . . . . . . . . .  	L NEAR	0354	CSEG
 LOPREL . . . . . . . . . . . . .  	L NEAR	00A9	CSEG
 LPOPER . . . . . . . . . . . . .  	L NEAR	000E	CSEG
@@ -3124,12 +3128,12 @@ NCRLPT . . . . . . . . . . . . .  	Number	0001
 NECBAS . . . . . . . . . . . . .  	Number	0000	
 NECPPC . . . . . . . . . . . . .  	Number	0000	
 NEG  . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-NLONLY . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Symbols-11
                                                              
 
+NLONLY . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 NMCOMT . . . . . . . . . . . . .  	Number	0002	
 NMKEYF . . . . . . . . . . . . .  	Number	000A	
 NMKEYT . . . . . . . . . . . . .  	Number	000E	
@@ -3183,12 +3187,12 @@ NXTLIN . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 
 OCTCNS . . . . . . . . . . . . .  	L NEAR	02E7	CSEG	Global
 OCTFIN . . . . . . . . . . . . .  	L NEAR	0381	CSEG
-OEMRAM . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Symbols-12
                                                              
 
+OEMRAM . . . . . . . . . . . . .  	Number	0000	
 OKI  . . . . . . . . . . . . . .  	Number	0000	
 OKNORM . . . . . . . . . . . . .  	L NEAR	03D0	CSEG
 OLD86  . . . . . . . . . . . . .  	Number	0000	
@@ -3242,12 +3246,12 @@ PTRFLG . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 PTRGET . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 PTRGT2 . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 PTRGTN . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-PUFOUT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Symbols-13
                                                              
 
+PUFOUT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 PURE . . . . . . . . . . . . . .  	Number	0001	
 PUSHF  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 PUTNEW . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
@@ -3301,12 +3305,12 @@ SHTPRO . . . . . . . . . . . . .  	Number	0000
 SHTREN . . . . . . . . . . . . .  	Number	0000	
 SIGN . . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 SIGNC  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-SIGNS  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Symbols-14
                                                              
 
+SIGNS  . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 SIRIUS . . . . . . . . . . . . .  	Number	0000	
 SIXDIG . . . . . . . . . . . . .  	Number	0000	
 SMALL  . . . . . . . . . . . . .  	Number	0000	
@@ -3360,12 +3364,12 @@ TOPCON . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 TRCFLG . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 TRNCHR . . . . . . . . . . . . .  	Number	0000	
 TRSER2 . . . . . . . . . . . . .  	Number	0000	
-TRSHHC . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Symbols-15
                                                              
 
+TRSHHC . . . . . . . . . . . . .  	Number	0000	
 TRUANS . . . . . . . . . . . . .  	Number	0000	
 TRUROM . . . . . . . . . . . . .  	Number	0001	
 TSDISK . . . . . . . . . . . . .  	Number	0000	
@@ -3419,12 +3423,12 @@ $OVMSG . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 $POINT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 $RNDFN . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 $SCREEN  . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-$STPRN . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Symbols-16
                                                              
 
+$STPRN . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 $STRING$ . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 $VARPTR  . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ??L000 . . . . . . . . . . . . .  	L NEAR	0046	CSEG
@@ -3478,16 +3482,16 @@ $VARPTR  . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 ??L048 . . . . . . . . . . . . .  	L NEAR	07A6	CSEG
 ?I . . . . . . . . . . . . . . .  	Number	0000	
 _OFFST . . . . . . . . . . . . .  	Number	00C2	
-
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:20:17
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:25:25
  
 GWEVAL Copied from BINTRP.MAC                               Symbols-17
                                                              
 
 
-   2323 Source  Lines
-   2764 Total   Lines
-    847 Symbols
+
+   2326 Source  Lines
+   2767 Total   Lines
+    848 Symbols
 
   23256 Bytes symbol space free
 

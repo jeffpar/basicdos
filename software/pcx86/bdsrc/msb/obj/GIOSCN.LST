@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Page     1-1
                                                             
@@ -57,7 +57,7 @@ GIOSCN - Screen Machine Independent Device Driver Code      Page     1-1
                              C  				; Support is in BINTRP.MAC and GWSTS.MAC 
  = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
                              C  				;single precision numbers for output. 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Page     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -116,7 +116,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Page     1-3
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -175,7 +175,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Page     1-4
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -234,7 +234,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Z80 related macros 
                              C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Page     1-5
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -293,7 +293,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Page     1-6
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -352,7 +352,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Page     1-7
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -400,13 +400,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Page     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
+                             C  DBGBRK	MACRO 
+                             C  	DB	0CDh,06h,0CCh 
+                             C  	ENDM 
                                  
                                  
                                 	TITLE   GIOSCN - Screen Machine Independent Device Driver Code 
@@ -456,14 +459,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 00FF                      C  	BINFID=255D		;files created by SAVE "fn" 
  = 00FE                      C  	PROFID=254D		;files created by SAVE "fn",P 
  = 00FD                      C  	BSVFID=253D		;files created by BSAVE "fn" 
-                             C   
-                             C  ;Generalized I/O Function Codes: 
-                             C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Page     1-9
 GIO86U - Device Independent I/O Constants and Macros        
 
+                             C   
+                             C  ;Generalized I/O Function Codes: 
+                             C  ; 
  = 0000                      C  	_OFFST=0		;initialize count 
                              C  	ROFFST	G_EOF,2		;test EOF for file opened to this device 
                              C  	ROFFST	G_LOC,2		;LOC 
@@ -482,7 +485,7 @@ GIO86U - Device Independent I/O Constants and Macros
                              C  	ROFFST	G_BOT,2		;block output to file opened on this device 
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Page     1-10
 GIO86U - Device Independent I/O Constants and Macros        
@@ -541,7 +544,7 @@ GIO86U - Device Independent I/O Constants and Macros
  = 0011                      C  	C_SEAR=17D		;SEARCH FOR FILE 
  = 0013                      C  	C_DELE=19D 
  = 0014                      C  	C_READ=20D 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Page     1-11
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -600,7 +603,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                              C  	ROFFST	F_NUL5,1	;Future use 
                              C  	ROFFST	FD_OPS,2	;current output position for sequential I/O 
                              C  	ROFFST	FD_DAT,0	;field buffer of random file 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Page     1-12
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -619,7 +622,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  = 0027                      C  	FCB_NR=F_FCB+32D	;NEXT RECORD NUMBER 
  = 0028                      C  	FCB_RN=F_FCB+33D	;CP/M 2.x Random Record Number 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Page     1-13
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -654,7 +657,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
  001A  0000 E                   	DW	(DEVBIN)	;block input from file opened on this device 
  001C  0000 E                   	DW	(DEVBOT)	;block output to file opened on this device 
                                 	PUBLIC	SCNSWD,SCNSOT,SCNGPS,SCNGWD,SCNSCW,SCNGCW 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Page     1-14
 MSDOSU - MS-DOS Constants and Data-Structure Definitions    
@@ -713,7 +716,7 @@ MSDOSU - MS-DOS Constants and Data-Structure Definitions
                                 ;SCNOPN - perform any device dependent open functions. 
                                 ; Entry - [AL]=  device id 
                                 ;                0 if default device, 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Page     1-15
 CRT Primitive I/O Routines                                  
@@ -772,7 +775,7 @@ CRT Primitive I/O Routines
                                 ; 
  0065                           SCNSOT: 
                                 	EXTRN	SCNOUT:NEAR 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Page     1-16
 CRT Primitive I/O Routines                                  
@@ -831,7 +834,7 @@ CRT Primitive I/O Routines
  0095  A2 0000 E                	MOV	BYTE PTR LSTCHR,AL	;save this char for comparison with next 
  0098  75 04                    	JNE	NTCRLF		;branch if not LF after CR 
  009A  3C 0A                    	CMP	AL,LOW OFFSET ASCLF 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Page     1-17
 CRT Primitive I/O Routines                                  
@@ -890,7 +893,7 @@ CRT Primitive I/O Routines
  0000                           DSEG	ENDS 
  00E8  A0 0000 E                POS:	MOV	AL,BYTE PTR CSRX	;[AL]=current 1 relative position 
  00EB  3A 06 0000 E             	CMP	AL,BYTE PTR LINLEN 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Page     1-18
 CRT Primitive I/O Routines                                  
@@ -946,7 +949,7 @@ CRT Primitive I/O Routines
  0117                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Symbols-1
                                                              
@@ -960,6 +963,7 @@ ADR  . . . . . . . . . . . . . .  	   1
 CALLOS . . . . . . . . . . . . .  	   4
 CHRGET . . . . . . . . . . . . .  	   1
 COMPAR . . . . . . . . . . . . .  	   2
+DBGBRK . . . . . . . . . . . . .  	   1
 DC . . . . . . . . . . . . . . .  	   6
 DJNZ . . . . . . . . . . . . . .  	   2
 FSIGN  . . . . . . . . . . . . .  	   1
@@ -1004,12 +1008,12 @@ BEEPSW . . . . . . . . . . . . .  	Number	0001
 BINCSW . . . . . . . . . . . . .  	Number	0000	
 BINFID . . . . . . . . . . . . .  	Number	00FF	
 BLODSW . . . . . . . . . . . . .  	Number	0001	
-BSVFID . . . . . . . . . . . . .  	Number	00FD	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Symbols-2
                                                              
 
+BSVFID . . . . . . . . . . . . .  	Number	00FD	
 BUFLEN . . . . . . . . . . . . .  	Number	00FF	
 
 CALTTY . . . . . . . . . . . . .  	L NEAR	0053	CSEG	Global
@@ -1063,12 +1067,12 @@ DERBFM . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 DEVBIN . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 DEVBOT . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
 DISK . . . . . . . . . . . . . .  	Number	0001	
-DMC  . . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Symbols-3
                                                              
 
+DMC  . . . . . . . . . . . . . .  	Number	0000	
 DOS  . . . . . . . . . . . . . .  	Number	0000	
 DRVPOS . . . . . . . . . . . . .  	Number	0000	
 DUPONT . . . . . . . . . . . . .  	Number	0000	
@@ -1122,12 +1126,12 @@ F_NUL4 . . . . . . . . . . . . .  	Number	0036
 F_NUL5 . . . . . . . . . . . . .  	Number	00BF	
 F_NUM  . . . . . . . . . . . . .  	Number	0001	
 F_ORCT . . . . . . . . . . . . .  	Number	002F	
-F_POS  . . . . . . . . . . . . .  	Number	0038	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Symbols-4
                                                              
 
+F_POS  . . . . . . . . . . . . .  	Number	0038	
 F_WID  . . . . . . . . . . . . .  	Number	0035	
 
 GENBIN . . . . . . . . . . . . .  	Number	0001	
@@ -1181,12 +1185,12 @@ JISKTN . . . . . . . . . . . . .  	Number	0000
 KANABS . . . . . . . . . . . . .  	Number	0000	
 KANJFN . . . . . . . . . . . . .  	Number	0000	
 KEYSTA . . . . . . . . . . . . .  	Number	0000	
-KILLER . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Symbols-5
                                                              
 
+KILLER . . . . . . . . . . . . .  	Number	0000	
 
 LABKEY . . . . . . . . . . . . .  	Number	0001	
 LEN2 . . . . . . . . . . . . . .  	Number	0001	
@@ -1240,12 +1244,12 @@ NONULL . . . . . . . . . . . . .  	Number	0000
 NOPEKS . . . . . . . . . . . . .  	Number	0000	
 NOROMP . . . . . . . . . . . . .  	Number	0000	
 NORUBT . . . . . . . . . . . . .  	Number	0000	
-NOUSR  . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Symbols-6
                                                              
 
+NOUSR  . . . . . . . . . . . . .  	Number	0000	
 NOVARP . . . . . . . . . . . . .  	Number	0000	
 NTCRLF . . . . . . . . . . . . .  	L NEAR	009E	CSEG
 NUMLEV . . . . . . . . . . . . .  	Number	006E	
@@ -1299,12 +1303,12 @@ SCNSO3 . . . . . . . . . . . . .  	L NEAR	008A	CSEG
 SCNSO4 . . . . . . . . . . . . .  	L NEAR	00C0	CSEG
 SCNSO7 . . . . . . . . . . . . .  	L NEAR	00D0	CSEG
 SCNSO8 . . . . . . . . . . . . .  	L NEAR	00D1	CSEG
-SCNSOT . . . . . . . . . . . . .  	L NEAR	0065	CSEG	Global
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:36:22
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:41:32
  
 GIOSCN - Screen Machine Independent Device Driver Code      Symbols-7
                                                              
 
+SCNSOT . . . . . . . . . . . . .  	L NEAR	0065	CSEG	Global
 SCNSOX . . . . . . . . . . . . .  	L NEAR	008D	CSEG
 SCNSWD . . . . . . . . . . . . .  	L NEAR	002D	CSEG	Global
 SCNTRM . . . . . . . . . . . . .  	L NEAR	0025	CSEG	Global
@@ -1355,9 +1359,9 @@ $CATTY . . . . . . . . . . . . .  	L NEAR	0053	CSEG	Global
 _OFFST . . . . . . . . . . . . .  	Number	00C2	
 
 
-    852 Source  Lines
-    935 Total   Lines
-    358 Symbols
+    855 Source  Lines
+    938 Total   Lines
+    359 Symbols
 
   39266 Bytes symbol space free
 

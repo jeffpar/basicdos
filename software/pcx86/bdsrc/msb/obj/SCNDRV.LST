@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-1
                                                             
@@ -57,7 +57,7 @@ SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-1
                              C  				; Support is in BINTRP.MAC and GWSTS.MAC 
  = 0000                      C  	SIXDIG=0		;# of digits of accuracy assumed when formatting 
                              C  				;single precision numbers for output. 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-2
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -116,7 +116,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	INTEL=0			;INTEL PROPRIETARY 
  = 0000                      C  	INTFSW=0		;INTEL FLOATING POINT 
  = 0000                      C  	INTFHW=0 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-3
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -175,7 +175,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
  = 0000                      C  	CPMPER=0		;FOR PERTEC VERSION OF CPM 
  = 0000                      C  	CPMLIF=0		;LIFEBOAT CP/M AT 4200H 
  = 0000                      C  	CPMMDS=0		;MOHAWK DATA SYSTEMS CP/M 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-4
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -234,7 +234,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Z80 related macros 
                              C  ;******************************************************************* 
  = 0001                      C  	Z80=1			;FOR VERSION THAT RUNS ON BOTH 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-5
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -293,7 +293,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  COMPAR	MACRO 
                              C  	CALL	DCOMPR 
                              C  ENDM 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-6
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -352,7 +352,7 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ; Useful macros 
                              C  ; 
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-7
 Common file to produce 2-segment 8086 GW-CPM BASIC          
@@ -400,13 +400,16 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C          ENDM 
                              C  ENDM 
                              C  ; 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-8
 Common file to produce 2-segment 8086 GW-CPM BASIC          
 
                              C          PAGE 
                              C   
+                             C  DBGBRK	MACRO 
+                             C  	DB	0CDh,06h,0CCh 
+                             C  	ENDM 
                                  
                                  
                                 	TITLE   SCNDRV  This is the OS independent Screen Driver for GW BASIC 
@@ -456,14 +459,14 @@ Common file to produce 2-segment 8086 GW-CPM BASIC
                              C  ;Special File ID's (identified by 1st byte of file) 
                              C  ; 
  = 00FF                      C  	BINFID=255D		;files created by SAVE "fn" 
- = 00FE                      C  	PROFID=254D		;files created by SAVE "fn",P 
- = 00FD                      C  	BSVFID=253D		;files created by BSAVE "fn" 
-                             C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-9
 GIO86U - Device Independent I/O Constants and Macros        
 
+ = 00FE                      C  	PROFID=254D		;files created by SAVE "fn",P 
+ = 00FD                      C  	BSVFID=253D		;files created by BSAVE "fn" 
+                             C   
                              C  ;Generalized I/O Function Codes: 
                              C  ; 
  = 0000                      C  	_OFFST=0		;initialize count 
@@ -484,7 +487,7 @@ GIO86U - Device Independent I/O Constants and Macros
                              C  	ROFFST	G_BOT,2		;block output to file opened on this device 
                              C   
                              C   
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-10
 GIO86U - Device Independent I/O Constants and Macros        
@@ -543,7 +546,7 @@ GIO86U - Device Independent I/O Constants and Macros
                                  
                                 	PUBLIC	SCNPOS		; Return current cursor location 
                                 				;on exit:   DL=cursor line, DH=cursor column 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-11
 DATA DEFINITIONS - Internal routines(with usage description)
@@ -602,7 +605,7 @@ DATA DEFINITIONS - Internal routines(with usage description)
                                 	EXTRN	KEYSW:WORD	; ^O377=Function Keys displayed on bottom line 
                                  
                                 ;THE FOLLOWING DATA IS ACCESSED BY SCNDRV BUT SET ELSEWHERE 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-12
 DATA DEFINITIONS - External routines and data               
@@ -661,7 +664,7 @@ DATA DEFINITIONS - External routines and data
                                  
                                 ;SUBROUTINE SCNIPL():           ; Initialize 
                                 ;** 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-13
 SCNIPL, SCNSWI AND SCNWDO   The parameter setting routines  
@@ -720,7 +723,7 @@ SCNIPL, SCNSWI AND SCNWDO   The parameter setting routines
  003A  A2 0000 E                	MOV	BYTE PTR CSRY,AL 
  003D  C3                       	RET 
                                 ;** END SUBROUTINE SCNLOC 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-14
 CURSOR READ/WRITE                                           
@@ -779,7 +782,7 @@ CURSOR READ/WRITE
  0081  74 05                    	JZ	SCNRTX		; BRIF EOL terminator(CF=1) 
  0083  3C 0A                    	CMP	AL,LOW OFFSET TRMLNF	; CF=0, set ZF if linefeed terminated 
  0085  73 01                    	JNB	SCNRTX		; BRIF carry not set 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-15
 TERMINATOR TABLE READ/WRITE/INITIALIZE                      
@@ -838,7 +841,7 @@ TERMINATOR TABLE READ/WRITE/INITIALIZE
  00C3  E8 0000 E                	CALL	SCROUT		; Send char in AX to BIOS at DX posn 
  00C6  C6 06 0000 E FF          	MOV	BYTE PTR F_CRET,LOW 377O	; Clear last char was Carriage return flag 
  00CB  5B                       SCNOTX:	POP	BX 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-16
 CHARACTER OUTPUT                                            
@@ -897,7 +900,7 @@ CHARACTER OUTPUT
                                 ;** AT THIS POINT AH=POSN(WHERE GOING TO), DX=CURRENT POSN, 
                                 ;** AL=LENGTH OF CHARACTER, CX=CURRENT TERMINATORS 
  00FC  9C                       	PUSHF 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-17
 LINE WRAP LOGIC - Character wrap                            
@@ -956,7 +959,7 @@ LINE WRAP LOGIC - Character wrap
  015D  C6 06 0000 E 00          	MOV	BYTE PTR LSTCOL,LOW 0	; Force update of LSTCOL at CHWRPZ 
  0162  FE C2                    CHWRN0:	INC	DL		; Next line 
  0164  E8 0069 R                	CALL	SCNRDT		; Set up for write at new line 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-18
 LINE WRAP LOGIC - Character wrap                            
@@ -1015,7 +1018,7 @@ LINE WRAP LOGIC - Character wrap
  01C5  75 0A                    	JNZ	CHWNTL		; BRIF not on last logical line 
  01C7  3A 26 0000 E             	CMP	AH,BYTE PTR LSTCOL 
  01CB  72 04                    	JB	CHWNTL		; BRIF not new last position 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-19
 LINE WRAP LOGIC - Character wrap                            
@@ -1074,7 +1077,7 @@ LINE WRAP LOGIC - Character wrap
  0232  FE C2                    MKRMN4:	INC	DL 
  0234  EB E9                    	JMP	SHORT MKRMN0 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-20
 LINE WRAP LOGIC - Open next line for wrap                   
@@ -1133,7 +1136,7 @@ LINE WRAP LOGIC - Open next line for wrap
                                 ;Scroll up from DL to bottom 
  0290  51                       SCRLU0:	PUSH	CX 
  0291  8A 0E 0000 E             	MOV	CL,BYTE PTR WDOBOT 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-21
 SCROLL ROUTINES - Scroll up and down                        
@@ -1192,7 +1195,7 @@ SCROLL ROUTINES - Scroll up and down
  02EA  38 24                    	CMP	BYTE PTR 0[SI],AH 
  02EC  76 02                    	JNA	CSRYOK		; BRIF CSRY didn't increment beyond bottom 
  02EE  88 24                    TCSRY1:	MOV	BYTE PTR 0[SI],AH	; Bring it back to within scroll window 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-22
 SCROLL ROUTINES - Scroll up and down                        
@@ -1251,7 +1254,7 @@ SCROLL ROUTINES - Scroll up and down
  0348  5B                       	POP	BX 
  0349  58                       	POP	AX 
  034A  C3                       	RET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-23
 SCROLL ROUTINES - Scroll up and down                        
@@ -1310,7 +1313,7 @@ SCROLL ROUTINES - Scroll up and down
  03A0  C6 87 FFFE E 00          	MOV	BYTE PTR LINTTB-2[BX],LOW 0	; Terminate end line of scroll 
  03A5  C6 87 FFFF E 7F          	MOV	BYTE PTR LINTTB-1[BX],LOW OFFSET TRMEOL 
  03AA  8A 16 0000 E             	MOV	DL,BYTE PTR WDOBOT 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-24
 SCROLL ROUTINES - Support routines: scroll terminator table,
@@ -1369,7 +1372,7 @@ SCROLL ROUTINES - Support routines: scroll terminator table,
  03EC  C6 06 0000 E FF          	MOV	BYTE PTR KEYSW,LOW 255D	;Turn on key display flag 
  03F1  E8 0000 E                LABDSP:	CALL	KEYDSP		;Display function keys 
  03F4  5F                       	POP	DI 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-25
 LABEL Key Processing                                        
@@ -1428,7 +1431,7 @@ LABEL Key Processing
  0449  77 F2                    	JA	SCNMKL		; BRIF more chars to check 
  044B  0B E4                    	OR	SP,SP 
  044D                           SCNML3: 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-26
 Miscellaneous editor interface routines                     
@@ -1487,7 +1490,7 @@ Miscellaneous editor interface routines
                                 ;** *** START_COLUMN=LEFT_MARGIN 
  0496  8A 36 0000 E             	MOV	DH,BYTE PTR WDOLFT	; Assume start at left margin 
  049A  75 0A                    	JNZ	SCRD02		; BRIF statement input 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-27
 Read logical line                                           
@@ -1546,7 +1549,7 @@ Read logical line
  04F3  E8 0D2A R                	CALL	CSRADV 
  04F6  72 03                    	JB	SCRDXZ		; If end of window, all done 
  04F8  EB AC                    	JMP	SHORT SCRD02	; Pass next character 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-28
 Read logical line                                           
@@ -1605,7 +1608,7 @@ Read logical line
                                 ;**                                     if CF=1 then AX is undefined 
  0542                           CTLDSP: 
  0542  E8 004F R                	CALL	SCNPOS		; DH=column, DL=row 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-29
 CONTROL CHARACTER ROUTINES                                  
@@ -1664,7 +1667,7 @@ CONTROL CHARACTER ROUTINES
  05A4  B8 05B0 R                	MOV	AX,OFFSET CTLDPX 
  05A7  50                       	PUSH	AX		; Put return on stack 
  05A8  2E: 8B 87 0500 R         	MOV	AX,WORD PTR FUNTAB[BX] 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-30
 CONTROL CHARACTER ROUTINES                                  
@@ -1723,7 +1726,7 @@ CONTROL CHARACTER ROUTINES
  05E4  0E                       	PUSH	CS		; Scan in code segment 
  05E5  07                       	POP	ES 
  05E6  FC                       	CLD			; Scan forward 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-31
 CONTROL CHARACTER ROUTINES                                  
@@ -1782,7 +1785,7 @@ CONTROL CHARACTER ROUTINES
  0615  88 36 0000 E             	MOV	BYTE PTR LSTCOL,DH 
  0619  3A 36 0000 E             UPDPS2:	CMP	DH,BYTE PTR LSTCOL 
  061D  76 04                    	JBE	UPDPS3		; BRIF not new last posn 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-32
 CONTROL CHARACTER ROUTINES - Cursor movement by character, l
@@ -1841,7 +1844,7 @@ CONTROL CHARACTER ROUTINES - Cursor movement by character, l
  0682  75 F3                    	JNZ	LTABL 
  0684  FE C6                    	INC	DH 
  0686  EB 0C                    	JMP	SHORT LTABX	; BRIF reached good posn 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-33
 CONTROL CHARACTER ROUTINES - Cursor movement by character, l
@@ -1900,7 +1903,7 @@ CONTROL CHARACTER ROUTINES - Cursor movement by character, l
  06EC  F9                       	STC 
  06ED  C3                       	RET 
  06EE  C6 06 0000 E FF          FWDWD4:	MOV	BYTE PTR LSTLIN,LOW 377O	; Ignore LSTPOS from here on 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-34
 CONTROL CHARACTER ROUTINES - Cursor movement by word        
@@ -1959,7 +1962,7 @@ CONTROL CHARACTER ROUTINES - Cursor movement by word
                                  
                                 ;Home the cursor 
  0752  8A 16 0000 E             WHOME:	MOV	DL,BYTE PTR WDOTOP 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-35
 CONTROL CHARACTER ROUTINES - Screen home, truncate and clear
@@ -2018,7 +2021,7 @@ CONTROL CHARACTER ROUTINES - Screen home, truncate and clear
  07A3  77 13                    	JA	LCLER5		; BRIF beyond end of physical(just exit) 
  07A5  9D                       	POPF 
  07A6  73 05                    	JNB	LCLER1		; BRIF clear line by scroll 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-36
 CONTROL CHARACTER ROUTINES - Line truncate and delete       
@@ -2077,7 +2080,7 @@ CONTROL CHARACTER ROUTINES - Line truncate and delete
  07FE  8B 0E 0000 E             WDELT7:	MOV	CX,WORD PTR LSTLIN	; **Use LSTPOS as end of delete 
  0802  FE C5                    	INC	CH		; **INC because delete is up to char before this posn 
  0804                           WDELT8:				; ** 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-37
 CONTROL CHARACTER ROUTINES - Character and word delete      
@@ -2136,7 +2139,7 @@ CONTROL CHARACTER ROUTINES - Character and word delete
  0860  C3                       	RET 
  0861                           CDELT1: 
                                  
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-38
 CONTROL CHARACTER ROUTINES - Character and word delete      
@@ -2195,7 +2198,7 @@ CONTROL CHARACTER ROUTINES - Character and word delete
  08B9  E8 09AF R                	CALL	CDELPH		; Delete chars to end of line or LSTPOS 
  08BC  9D                       	POPF			; ** 
  08BD  5F                       	POP	DI		; ** 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-39
 CONTROL CHARACTER ROUTINES - Character and word delete      
@@ -2254,7 +2257,7 @@ CONTROL CHARACTER ROUTINES - Character and word delete
  0915  8A 26 0000 E             	MOV	AH,BYTE PTR LINLEN	; ** 
  0919  EB D7                    	JMP	SHORT CDUWXI	; **If no characters to unwrap, just exit 
  091B  FE C5                    CDUWP0:	INC	CH 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-40
 CONTROL CHARACTER ROUTINES - Character and word delete      
@@ -2313,7 +2316,7 @@ CONTROL CHARACTER ROUTINES - Character and word delete
                                 	POP     AX 
                                 % 
  0971                           CDUWP3: 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-41
 CONTROL CHARACTER ROUTINES - Character and word delete      
@@ -2372,7 +2375,7 @@ CONTROL CHARACTER ROUTINES - Character and word delete
                                 ;                                   (DH,DL)=posn 
                                 ; 
  09AF                           CDELPH:				;PUSH    SI 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-42
 CONTROL CHARACTER ROUTINES - Character and word delete      
@@ -2431,7 +2434,7 @@ CONTROL CHARACTER ROUTINES - Character and word delete
  0A0F  72 0F                    	JB	CDELP7		; BRIF delete up to terminator 
                                 ;Delete included LSTPOS, subtract total deleted from LSTCOL 
  0A11  5A                       	POP	DX 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-43
 CONTROL CHARACTER ROUTINES - Character and word delete      
@@ -2490,7 +2493,7 @@ CONTROL CHARACTER ROUTINES - Character and word delete
  0A6E  FE C2                    	INC	DL 
  0A70  EB F7                    	JMP	SHORT LAPPN0	; See if next line is last line in logical 
  0A72  8A F4                    LAPPN1:	MOV	DH,AH		; Set current posn to EOL 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-44
 CONTROL CHARACTER ROUTINES - Line append, carriage return an
@@ -2549,7 +2552,7 @@ CONTROL CHARACTER ROUTINES - Line append, carriage return an
  0AD4  E8 03BE R                	CALL	PLINIT		; Terminate line at current posn 
  0AD7  3A 16 0000 E             	CMP	DL,BYTE PTR WDOBOT 
  0ADB  75 55                    	JNZ	LFED43		; Change terminator to LF and goto next line 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-45
 CONTROL CHARACTER ROUTINES - Line append, carriage return an
@@ -2608,7 +2611,7 @@ CONTROL CHARACTER ROUTINES - Line append, carriage return an
  0B52  72 10                    	JB	LFEEDX		; No room 
  0B54  E8 0D65 R                LFED95:	CALL	CSRDWN		; Move to next line 
  0B57  8A 36 0000 E             	MOV	DH,BYTE PTR WDOLFT 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-46
 CONTROL CHARACTER ROUTINES - Line append, carriage return an
@@ -2667,7 +2670,7 @@ CONTROL CHARACTER ROUTINES - Line append, carriage return an
  0B9F  75 1E                    	JNZ	MKRMC4		; BRIF was WRAP or NULL_WRAP term'd 
                                 ;Linefeed, make room for linefeed on next line 
  0BA1  50                       	PUSH	AX 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-47
 CONTROL CHARACTER ROUTINES - Insert and MKRMCH              
@@ -2726,7 +2729,7 @@ CONTROL CHARACTER ROUTINES - Insert and MKRMCH
  0C02  EB 88                    	JMP	SHORT MKRMC0	; Wrap new overflow 
                                  
                                 ;Wrap a linefeed to next line 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-48
 CONTROL CHARACTER ROUTINES - Insert and MKRMCH              
@@ -2785,7 +2788,7 @@ CONTROL CHARACTER ROUTINES - Insert and MKRMCH
  0C58  AB                       	STOSW			; Save overflow char 
  0C59  FE CD                    	DEC	CH 
  0C5B  74 08                    	JZ	MVCH20		; All done with overflow save 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-49
 CONTROL CHARACTER ROUTINES - Insert and MKRMCH              
@@ -2844,7 +2847,7 @@ CONTROL CHARACTER ROUTINES - Insert and MKRMCH
  0CB8  3A E7                    MVCH26:	CMP	AH,BH 
  0CBA  77 05                    	JA	MVCH27		; Terminator beyond scroll end 
  0CBC  8A E7                    	MOV	AH,BH 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-50
 CONTROL CHARACTER ROUTINES - Insert and MKRMCH              
@@ -2903,7 +2906,7 @@ CONTROL CHARACTER ROUTINES - Insert and MKRMCH
                                 IFN     DBLCHR,< 
                                 	JNB     MVCH82          ; BRIF not reading second of double byte char 
                                 	INCB    DH              ; Restore DH(SCRINP decremented it) 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-51
 CONTROL CHARACTER ROUTINES - Insert and MKRMCH              
@@ -2962,7 +2965,7 @@ CONTROL CHARACTER ROUTINES - Insert and MKRMCH
                                 ;SUBROUTINE SCNRTL              ; Read logical terminator for physical line 
                                 ;**                     On entry:   DL=line number 
                                 ;**                     On exit:    AX=terminators 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-52
 CONTROL CHARACTER ROUTINES - Insert and MKRMCH              
@@ -3021,7 +3024,7 @@ CONTROL CHARACTER ROUTINES - Insert and MKRMCH
  0D56  72 E5                    	JB	CSRRET		; BRIF outside of window 
  0D58  3A 16 0000 E             	CMP	DL,BYTE PTR WDOTOP 
  0D5C  72 DF                    	JB	CSRRET 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-53
 CURSOR MOVEMENT within window                               
@@ -3080,7 +3083,7 @@ CURSOR MOVEMENT within window
                                 ;                   on entry:   DH=current column, DL=current line 
                                 ;                   on exit:    If CF clear, DH=new column, DL=new line 
                                 ;                                   Else DH=EOL column, DL=EOL line 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-54
 CURSOR MOVEMENT within logical line                         
@@ -3139,7 +3142,7 @@ CURSOR MOVEMENT within logical line
  0E01  3C 3A                    	CMP	AL,LOW 72O 
  0E03  72 13                    	JB	ANYES		; BRIF is numeric 
  0E05  3C 41                    	CMP	AL,LOW 101O 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASIPage     1-55
 MISCELLANEOUS ROUTINES                                      
@@ -3161,7 +3164,7 @@ MISCELLANEOUS ROUTINES
  0E1B                           CSEG	ENDS 
                                 	END 
 
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASISymbols-1
                                                              
@@ -3175,6 +3178,7 @@ ADR  . . . . . . . . . . . . . .  	   1
 CALLOS . . . . . . . . . . . . .  	   1
 CHRGET . . . . . . . . . . . . .  	   1
 COMPAR . . . . . . . . . . . . .  	   2
+DBGBRK . . . . . . . . . . . . .  	   1
 DC . . . . . . . . . . . . . . .  	   6
 DJNZ . . . . . . . . . . . . . .  	   2
 FSIGN  . . . . . . . . . . . . .  	   1
@@ -3219,12 +3223,12 @@ ASCSPC . . . . . . . . . . . . .  	Number	0020
 ASCTAB . . . . . . . . . . . . .  	Number	0009	
 
 BAKSP1 . . . . . . . . . . . . .  	L NEAR	0856	CSEG
-BAKSPC . . . . . . . . . . . . .  	L NEAR	0842	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASISymbols-2
                                                              
 
+BAKSPC . . . . . . . . . . . . .  	L NEAR	0842	CSEG
 BASDEB . . . . . . . . . . . . .  	Number	0000	
 BCKWD2 . . . . . . . . . . . . .  	L NEAR	070B	CSEG
 BCKWD4 . . . . . . . . . . . . .  	L NEAR	0710	CSEG
@@ -3278,12 +3282,12 @@ CDLWP2 . . . . . . . . . . . . .  	L NEAR	089D	CSEG
 CDUNWP . . . . . . . . . . . . .  	L NEAR	08F7	CSEG
 CDUWP0 . . . . . . . . . . . . .  	L NEAR	091B	CSEG
 CDUWP1 . . . . . . . . . . . . .  	L NEAR	092E	CSEG
-CDUWP3 . . . . . . . . . . . . .  	L NEAR	0971	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASISymbols-3
                                                              
 
+CDUWP3 . . . . . . . . . . . . .  	L NEAR	0971	CSEG
 CDUWP4 . . . . . . . . . . . . .  	L NEAR	0971	CSEG
 CDUWP5 . . . . . . . . . . . . .  	L NEAR	097F	CSEG
 CDUWP6 . . . . . . . . . . . . .  	L NEAR	0993	CSEG
@@ -3337,12 +3341,12 @@ CHWRP1 . . . . . . . . . . . . .  	L NEAR	0144	CSEG
 CHWRP3 . . . . . . . . . . . . .  	L NEAR	01A4	CSEG
 CHWRP9 . . . . . . . . . . . . .  	L NEAR	01BD	CSEG
 CHWRPX . . . . . . . . . . . . .  	L NEAR	0187	CSEG
-CHWRPZ . . . . . . . . . . . . .  	L NEAR	01AD	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASISymbols-4
                                                              
 
+CHWRPZ . . . . . . . . . . . . .  	L NEAR	01AD	CSEG
 CHWRWP . . . . . . . . . . . . .  	L NEAR	0149	CSEG
 CLMWID . . . . . . . . . . . . .  	Number	000E	
 CLREOL . . . . . . . . . . . . .  	L NEAR	0000	CSEG	External
@@ -3396,12 +3400,12 @@ CTLPRT . . . . . . . . . . . . .  	L NEAR	056D	CSEG
 DATPSC . . . . . . . . . . . . .  	Number	0080	
 DBLCHR . . . . . . . . . . . . .  	Number	0000	
 DBLTRN . . . . . . . . . . . . .  	Number	0000	
-DEBUG  . . . . . . . . . . . . .  	Text  		
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASISymbols-5
                                                              
 
+DEBUG  . . . . . . . . . . . . .  	Text  		
 DISK . . . . . . . . . . . . . .  	Number	0001	
 DMC  . . . . . . . . . . . . . .  	Number	0000	
 DOESC  . . . . . . . . . . . . .  	L NEAR	05C0	CSEG
@@ -3455,12 +3459,12 @@ GWCASS . . . . . . . . . . . . .  	Number	0000
 GWDBUG . . . . . . . . . . . . .  	Number	0000	
 G_BIN  . . . . . . . . . . . . .  	Number	001A	
 G_BOT  . . . . . . . . . . . . .  	Number	001C	
-G_CLS  . . . . . . . . . . . . .  	Number	0006	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASISymbols-6
                                                              
 
+G_CLS  . . . . . . . . . . . . .  	Number	0006	
 G_EOF  . . . . . . . . . . . . .  	Number	0000	
 G_GCW  . . . . . . . . . . . . .  	Number	0018	
 G_GPS  . . . . . . . . . . . . .  	Number	0012	
@@ -3514,12 +3518,12 @@ LABOFF . . . . . . . . . . . . .  	L NEAR	03FB	CSEG
 LAPPN0 . . . . . . . . . . . . .  	L NEAR	0A69	CSEG
 LAPPN1 . . . . . . . . . . . . .  	L NEAR	0A72	CSEG
 LAPPN2 . . . . . . . . . . . . .  	L NEAR	0A7D	CSEG
-LAPPND . . . . . . . . . . . . .  	L NEAR	0A69	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASISymbols-7
                                                              
 
+LAPPND . . . . . . . . . . . . .  	L NEAR	0A69	CSEG
 LCARET . . . . . . . . . . . . .  	L NEAR	0A80	CSEG
 LCLEAR . . . . . . . . . . . . .  	L NEAR	0798	CSEG
 LCLER0 . . . . . . . . . . . . .  	L NEAR	079F	CSEG
@@ -3573,12 +3577,12 @@ LNGVAR . . . . . . . . . . . . .  	Number	0001
 LOKHED . . . . . . . . . . . . .  	Number	0000	
 LONGI  . . . . . . . . . . . . .  	Number	0000	
 LPT3 . . . . . . . . . . . . . .  	Number	0000	
-LPTLEN . . . . . . . . . . . . .  	Number	0084	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASISymbols-8
                                                              
 
+LPTLEN . . . . . . . . . . . . .  	Number	0084	
 LPTSW  . . . . . . . . . . . . .  	Number	0001	
 LSTART . . . . . . . . . . . . .  	L NEAR	0DD3	CSEG
 LSTCOL . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
@@ -3632,12 +3636,12 @@ MULSEG . . . . . . . . . . . . .  	Number	0001
 MVC30I . . . . . . . . . . . . .  	L NEAR	0C17	CSEG
 MVCH00 . . . . . . . . . . . . .  	L NEAR	0C2A	CSEG
 MVCH03 . . . . . . . . . . . . .  	L NEAR	0C3D	CSEG
-MVCH10 . . . . . . . . . . . . .  	L NEAR	0C4B	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASISymbols-9
                                                              
 
+MVCH10 . . . . . . . . . . . . .  	L NEAR	0C4B	CSEG
 MVCH14 . . . . . . . . . . . . .  	L NEAR	0C57	CSEG
 MVCH20 . . . . . . . . . . . . .  	L NEAR	0C65	CSEG
 MVCH21 . . . . . . . . . . . . .  	L NEAR	0C85	CSEG
@@ -3691,11 +3695,11 @@ NUMTRP . . . . . . . . . . . . .  	Number	0015
 
 OEMRAM . . . . . . . . . . . . .  	Number	0000	
 ONTEL  . . . . . . . . . . . . .  	Number	0000	
-
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASISymbols-10
                                                              
+
 
 PALSIZ . . . . . . . . . . . . .  	Number	0000	
 PANBAS . . . . . . . . . . . . .  	Number	0000	
@@ -3750,12 +3754,12 @@ SCRD01 . . . . . . . . . . . . .  	L NEAR	0494	CSEG
 SCRD02 . . . . . . . . . . . . .  	L NEAR	04A6	CSEG
 SCRD03 . . . . . . . . . . . . .  	L NEAR	04B8	CSEG
 SCRD04 . . . . . . . . . . . . .  	L NEAR	04C9	CSEG
-SCRD06 . . . . . . . . . . . . .  	L NEAR	04D3	CSEG
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASISymbols-11
                                                              
 
+SCRD06 . . . . . . . . . . . . .  	L NEAR	04D3	CSEG
 SCRD07 . . . . . . . . . . . . .  	L NEAR	04E0	CSEG
 SCRD08 . . . . . . . . . . . . .  	L NEAR	04E4	CSEG
 SCRD09 . . . . . . . . . . . . .  	L NEAR	04F2	CSEG
@@ -3809,12 +3813,12 @@ SWAPSW . . . . . . . . . . . . .  	Number	0001
 TCSRY1 . . . . . . . . . . . . .  	L NEAR	02EE	CSEG
 TEK  . . . . . . . . . . . . . .  	Number	0000	
 TERMSW . . . . . . . . . . . . .  	Number	0000	
-TIMSHR . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASISymbols-12
                                                              
 
+TIMSHR . . . . . . . . . . . . .  	Number	0000	
 TRMCUR . . . . . . . . . . . . .  	V WORD 	0000	DSEG	External
 TRMEOL . . . . . . . . . . . . .  	Number	007F		Global
 TRMLNF . . . . . . . . . . . . .  	Number	000A		Global
@@ -3868,12 +3872,12 @@ WERASX . . . . . . . . . . . . .  	L NEAR	0770	CSEG
 WHOME  . . . . . . . . . . . . .  	L NEAR	0752	CSEG
 WRAPLF . . . . . . . . . . . . .  	L NEAR	0201	CSEG
 
-XTNSYS . . . . . . . . . . . . .  	Number	0000	
-Microsoft (R) Macro Assembler  Version 4.00                 2/5/21 09:39:38
+Microsoft (R) Macro Assembler  Version 4.00                 2/7/21 10:44:53
  
 SCNDRV  This is the OS independent Screen Driver for GW BASISymbols-13
                                                              
 
+XTNSYS . . . . . . . . . . . . .  	Number	0000	
 
 Z80  . . . . . . . . . . . . . .  	Number	0001	
 Z80MAC . . . . . . . . . . . . .  	Number	0001	
@@ -3881,9 +3885,9 @@ Z80MAC . . . . . . . . . . . . .  	Number	0001
 _OFFST . . . . . . . . . . . . .  	Number	001E	
 
 
-   2883 Source  Lines
-   2915 Total   Lines
-    638 Symbols
+   2886 Source  Lines
+   2918 Total   Lines
+    639 Symbols
 
   29246 Bytes symbol space free
 
