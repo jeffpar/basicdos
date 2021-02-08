@@ -758,6 +758,7 @@
     "interruptable",
     "intp",
     "iret",
+    "itof",
     "jcxz",
     "jeffpar",
     "jemoji",

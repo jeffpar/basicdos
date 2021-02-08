@@ -17,7 +17,7 @@
 DOS	segment word public 'CODE'
 
 	EXTNEAR	<sfb_from_sfh,sfb_write>
-	EXTNEAR	<itoa,sprintf,write_string>
+	EXTNEAR	<atoi,atoi_len,atoi_base,itoa,sprintf,write_string>
 
 	EXTBYTE	<sfh_debug,key_boot>
 	EXTWORD	<scb_active>
@@ -349,122 +349,8 @@ ENDPROC	utl_itoa
 ;	AX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	utl_atoi16,DOS
-	mov	cx,-1			; no specific length
-	DEFLBL	utl_atoi,near
-	mov	bl,[bp].REG_BL		; BL = base (eg, 10)
-	DEFLBL	utl_atoi_base,near
 	sti
-	mov	bh,0
-	mov	[bp].TMP_BX,bx		; TMP_BX equals 16-bit base
-	mov	[bp].TMP_AL,bh		; TMP_AL is sign (0 for +, -1 for -)
-	mov	ds,[bp].REG_DS
-	mov	es,[bp].REG_ES
-	ASSUME	DS:NOTHING, ES:NOTHING
-	and	[bp].REG_FL,NOT FL_CARRY
-
-	mov	ah,-1			; cleared when digit found
-	sub	bx,bx			; DX:BX = value
-	sub	dx,dx			; (will be returned in DX:AX)
-
-ai0:	jcxz	ai6
-	lodsb				; skip any leading whitespace
-	dec	cx
-	cmp	al,CHR_SPACE
-	je	ai0
-	cmp	al,CHR_TAB
-	je	ai0
-
-	cmp	al,'-'			; minus sign?
-	jne	ai1			; no
-	cmp	byte ptr [bp].TMP_AL,0	; already negated?
-	jl	ai6			; yes, not good
-	dec	byte ptr [bp].TMP_AL	; make a note to negate later
-	jmp	short ai4
-
-ai1:	cmp	al,'a'			; remap lower-case
-	jb	ai2			; to upper-case
-	sub	al,20h
-ai2:	cmp	al,'A'			; remap hex digits
-	jb	ai3			; to characters above '9'
-	cmp	al,'F'
-	ja	ai6			; never a valid digit
-	sub	al,'A'-'0'-10
-ai3:	cmp	al,'0'			; convert ASCII digit to value
-	jb	ai6
-	sub	al,'0'
-	cmp	al,[bp].TMP_BL		; outside the requested base?
-	jae	ai6			; yes
-	cbw				; clear AH (digit found)
-;
-; Multiply DX:BX by the base in TMP_BX before adding the digit value in AX.
-;
-	push	ax
-	xchg	ax,bx
-	mov	[bp].TMP_DX,dx
-	mul	word ptr [bp].TMP_BX	; DX:AX = orig BX * BASE
-	xchg	bx,ax			; DX:BX
-	xchg	[bp].TMP_DX,dx
-	xchg	ax,dx
-	mul	word ptr [bp].TMP_BX	; DX:AX = orig DX * BASE
-	add	ax,[bp].TMP_DX
-	adc	dx,0			; DX:AX:BX = new result
-	xchg	dx,ax			; AX:DX:BX = new result
-	test	ax,ax
-	jz	ai3a
-	int	04h			; signal overflow
-ai3a:	pop	ax			; DX:BX = DX:BX * TMP_BX
-
-	add	bx,ax			; add the digit value in AX now
-	adc	dx,0
-	jno	ai4
-;
-; This COULD be an overflow situation UNLESS DX:BX is now 80000000h AND
-; the result is going to be negated.  Unfortunately, any negation may happen
-; later, so it's insufficient to test the sign in TMP_AL; we'll just have to
-; allow it.
-;
-	test	bx,bx
-	jz	ai4
-	int	04h			; signal overflow
-
-ai4:	jcxz	ai6
-	lodsb				; fetch the next character
-	dec	cx
-	jmp	ai1			; and continue the evaluation
-
-ai6:	cmp	byte ptr [bp].TMP_AL,0
-	jge	ai6a
-	neg	dx
-	neg	bx
-	sbb	dx,0
-	into				; signal overflow if set
-
-ai6a:	cmp	di,-1			; validation data provided?
-	jg	ai6c			; yes
-	je	ai6b			; -1 for 16-bit result only
-	mov	[bp].REG_DX,dx		; -2 for 32-bit result (update REG_DX)
-ai6b:	dec	si			; rewind SI to first non-digit
-	add	ah,1			; (carry clear if one or more digits)
-	jmp	short ai9
-
-ai6c:	test	ah,ah			; any digits?
-	jz	ai6d			; yes
-	mov	bx,es:[di]		; no, get the default value
-	stc
-	jmp	short ai8
-ai6d:	cmp	bx,es:[di+2]		; too small?
-	jae	ai7			; no
-	mov	bx,es:[di+2]		; yes (carry set)
-	jmp	short ai8
-ai7:	cmp	es:[di+4],bx		; too large?
-	jae	ai8			; no
-	mov	bx,es:[di+4]		; yes (carry set)
-ai8:	lea	di,[di+6]		; advance DI in case there are more
-	mov	[bp].REG_DI,di		; update REG_DI
-
-ai9:	mov	[bp].REG_AX,bx		; update REG_AX
-	mov	[bp].REG_SI,si		; update caller's SI, too
-	ret
+	jmp	atoi
 ENDPROC utl_atoi16
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -487,8 +373,9 @@ ENDPROC utl_atoi16
 ;	AX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	utl_atoi32,DOS
+	sti
 	mov	di,-2			; no validation, 32-bit result
-	jmp	utl_atoi
+	jmp	atoi_len
 ENDPROC utl_atoi32
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -502,56 +389,12 @@ ENDPROC utl_atoi32
 ; can be used for other purposes).
 ;
 DEFPROC	utl_atoi32d,DOS
+	sti
 	mov	bl,10			; always base 10
 	mov	cx,-1			; no specific length
 	mov	di,-2			; no validation
-	jmp	utl_atoi_base		; utl_atoi returns a 32-bit value
+	jmp	atoi_base		; atoi returns a 32-bit value
 ENDPROC utl_atoi32d
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; div_32_16
-;
-; Divide DX:AX by CX, returning quotient in DX:AX and remainder in BX.
-;
-; Modifies:
-;	AX, BX, DX
-;
-DEFPROC	div_32_16
-	mov	bx,ax			; save low dividend in BX
-	mov	ax,dx			; divide high dividend
-	sub	dx,dx			; DX:AX = new dividend
-	div	cx			; AX = high quotient
-	xchg	ax,bx			; move to BX, restore low dividend
-	div	cx			; AX = low quotient
-	xchg	dx,bx			; DX:AX = new quotient, BX = remainder
-	ret
-ENDPROC	div_32_16
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; mul_32_16
-;
-; Multiply DX:AX by CX, returning result in DX:AX.
-;
-; Modifies:
-;	AX, DX
-;
-DEFPROC	mul_32_16
-	push	bx
-	mov	bx,dx
-	mul	cx			; DX:AX = orig AX * CX
-	push	ax			;
-	xchg	ax,bx			; AX = orig DX
-	mov	bx,dx			; BX:[SP] = orig AX * CX
-	mul	cx			; DX:AX = orig DX * CX
-	add	ax,bx
-	adc	dx,0
-	xchg	dx,ax
-	pop	ax			; DX:AX = new result
-	pop	bx
-	ret
-ENDPROC	mul_32_16
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
