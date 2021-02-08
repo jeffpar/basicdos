@@ -69,17 +69,28 @@ TMP_DH		equ	TMP_DX.HIB
 ; The "Floating Point Accumulator" (FAC)
 ; See: https://github.com/microsoft/GW-BASIC/blob/master/GWDATA.ASM#L1463
 ;
+; In addition to the FAC (where $FAC is the offset of the exponent and $DFACL
+; is the offset of the mantissa), $DFACL must be preceded by another 9 bytes
+; of "EXTRA STORAGE FOR D.P. MULTIPLY" and "TEMPORARY LEAST SIGNIFICANT BYTE".
+;
+; Storage is also required for a second value named ARG (where $ARG is the
+; offset of the exponent and $ARGLO is the offset of the mantissa), and an
+; intermediate value named $DBUFF.  However, we have omitted ARG from this
+; structure on the assumption that it will be provided as an API input.
+;
+; $FACLO and $FACM1 were also defined as intermediate portions of the FAC,
+; but they were presumably used by single-precision code only (not used here).
+;
 FAC	struc
-	db	?		; [padding]
+$DBUFF	db	8 dup (?)	; DOUBLE PRECISION BUFFER
+	db	?		; padding
 	db	?		; [TEMPORARY LEAST SIGNIFICANT BYTE]
 	db	8 dup (?)	; EXTRA STORAGE FOR D.P. MULTIPLY
-$DFACL	db	4 dup (?)	; FOUR LOWEST ORDERS FOR DOUBLE PRECISION
-$FACLO	db	2 dup (?)	; [MIDDLE ORDER OF MANTISSA]
-$FACM1	db	?		; [HIGH ORDER OF MANTISSA]
+$DFACL	db	7 dup (?)	; DOUBLE PRECISION MANTISSA
 $FAC	db	?		; [EXPONENT]
 	db	?		; [TEMPORARY COMPLEMENT OF SIGN IN MSB]
-	db	?		; [padding]
-FAC	ends			; 14h bytes
+	db	?		; padding
+FAC	ends			; 1Ch bytes
 
 ;
 ; Session Control Block (SCB)
@@ -123,7 +134,7 @@ SCB_CURDRV	db	?	; 2Eh: current drive #
 SCB_SWITCHAR	db	?	; 2Fh: current switch char (eg, CHR_SLASH)
 SCB_FILENAME	db    12 dup (?); 30h: buffer for drive # and filename
 SCB_FAC      db size FAC dup (?); 3Ch: floating point accumulator
-SCB		ends		; 50h bytes (28h words)
+SCB		ends		; 58h bytes (2Ch words)
 SIG_SCB		equ	'S'
 
 SCSTAT_INIT	equ	01h	; set if SCB initialized

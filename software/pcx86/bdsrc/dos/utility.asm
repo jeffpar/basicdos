@@ -557,7 +557,11 @@ ENDPROC	mul_32_16
 ;
 ; utl_atof64 (AH = 0Ch)
 ;
-; Returns:
+; Inputs:
+;	REG_DS:REG_SI -> string
+;	REG_ES:REG_DI -> FAC with result
+;
+; Outputs:
 ;
 ; Modifies:
 ;
@@ -567,27 +571,34 @@ ENDPROC utl_atof64
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_f64i32 (AH = 0Eh)
+; utl_i32f64 (AH = 0Dh)
 ;
-; Returns:
+; Inputs:
+;	REG_DX:REG_SI = 32-bit value
+;	REG_ES:REG_DI -> FAC with result
 ;
-; Modifies:
-;
-DEFPROC	utl_f64i32,DOS
-	ret
-ENDPROC utl_f64i32
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_i32f64 (AH = 10h)
-;
-; Returns:
+; Outputs:
 ;
 ; Modifies:
 ;
 DEFPROC	utl_i32f64,DOS
 	ret
 ENDPROC utl_i32f64
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_opf64 (AH = 0Eh)
+;
+; Inputs:
+;	REG_AL = operation (see OPF64_*)
+;
+; Outputs:
+;
+; Modifies:
+;
+DEFPROC	utl_opf64,DOS
+	ret
+ENDPROC utl_opf64
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

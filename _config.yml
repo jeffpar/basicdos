@@ -16,7 +16,6 @@ github:
   repository_url: https://github.com/jeffpar/basicdos
 
 exclude:
-  - archive
   - CNAME
   - Gemfile
   - Gemfile.lock
@@ -26,3 +25,4 @@ exclude:
   - /software/pcx86/bdsrc
   - /.history
   - /node_modules
+  - "**/archive"

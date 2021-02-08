@@ -112,12 +112,9 @@ DOS_UTL_ITOA	equ	07h	; convert number (DX:SI) to string (ES:DI)
 DOS_UTL_ATOI16	equ	08h	; convert string (DS:SI) to 16-bit int (AX)
 DOS_UTL_ATOI32	equ	09h	; convert string (DS:SI) to 32-bit int (DX:AX)
 DOS_UTL_ATOI32D	equ	0Ah	; convert decimal string to 32-bit int (DX:AX)
-DOS_UTL_ATOF32	equ	0Bh	; reserved
 DOS_UTL_ATOF64	equ	0Ch	; convert string (DS:SI) to 64-bit float
-DOS_UTL_F32I32	equ	0Dh	; reserved
-DOS_UTL_F64I32	equ	0Eh	; convert 64-bit float to 32-bit int
-DOS_UTL_I32F32	equ	0Fh	; reserved
-DOS_UTL_I32F64	equ	10h	; convert 32-bit int to 64-bit float
+DOS_UTL_I32F64	equ	0Dh	; convert 32-bit int (DX:SI) to 64-bit float
+DOS_UTL_OPF64	equ	0Eh	; operate on 64-bit float
 DOS_UTL_TOKEN1	equ	11h	; tokenize string (DS:SI) using generic syntax
 DOS_UTL_TOKEN2	equ	12h	; tokenize string (DS:SI) using BASIC syntax
 DOS_UTL_TOKID	equ	13h	; convert string (DS:SI) into token ID (AX)
