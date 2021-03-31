@@ -5,35 +5,40 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "type": "chrome",
+      "type": "edge",
+      "port": 9222,
       "request": "launch",
       "name": "BASIC-DOS",
       "url": "http://localhost:4040/demos/",
       "webRoot": "${workspaceFolder}"
     },
     {
-      "type": "chrome",
+      "type": "edge",
+      "port": 9222,
       "request": "launch",
       "name": "BASIC-DOS with Dual Monitors",
       "url": "http://localhost:4040/demos/dual/",
       "webRoot": "${workspaceFolder}"
     },
     {
-      "type": "chrome",
+      "type": "edge",
+      "port": 9222,
       "request": "launch",
       "name": "BASIC-DOS with Dual Monitors and Sessions",
       "url": "http://localhost:4040/demos/dual/multi/",
       "webRoot": "${workspaceFolder}"
     },
     {
-      "type": "chrome",
+      "type": "edge",
+      "port": 9222,
       "request": "launch",
       "name": "BASIC-DOS Build Machine",
       "url": "http://localhost:4040/build/",
       "webRoot": "${workspaceFolder}"
     },
     {
-      "type": "chrome",
+      "type": "edge",
+      "port": 9222,
       "request": "launch",
       "name": "BASIC-DOS Build Machine with Dual Monitors",
       "url": "http://localhost:4040/build/dual/",
