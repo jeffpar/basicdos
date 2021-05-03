@@ -61,7 +61,7 @@ m0:	mov	bx,ds:[PSP_HEAP]
 ; theirs.  Until that happens, BASIC-DOS is just an "Integer BASIC", and when
 ; that changes, MSLIB will be defined.
 ;
-	IFDEF	MSLIB
+	IF	MSLIB
 	PRINTF	<"BASIC floating-point functions",13,10,"Copyright (c) Microsoft Corporation",13,10,13,10>
 	ENDIF
 ;

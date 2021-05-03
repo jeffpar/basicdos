@@ -12,7 +12,7 @@
 ; If MSLIB is true, it means we use Microsoft's MBF (Microsoft Binary Format)
 ; floating-point code.
 ;
-MSLIB	equ	1
+MSLIB	equ	0
 
 REG16	struc
 LOB	db	?

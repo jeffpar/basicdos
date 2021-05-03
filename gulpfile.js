@@ -33,7 +33,19 @@ let demoFiles = [
     "./software/pcx86/bdsrc/msb/obj/*.EXE"
 ];
 
+let minFiles = [
+    "./software/pcx86/bdsrc/dev/obj/IBMBIO.COM",
+    "./software/pcx86/bdsrc/dos/obj/IBMDOS.COM",
+    "./software/pcx86/bdsrc/cmd/obj/COMMAND.COM",
+    "./software/pcx86/bdsrc/cmd/HELP.TXT",
+    "./software/pcx86/bdsrc/msb/obj/*.EXE"
+];
+
 let disks = {
+    "BASIC-DOS": [
+        "./demos/s80/CONFIG.SYS",
+        "./demos/s80/AUTOEXEC.BAT"
+    ].concat(minFiles),
     "BASIC-DOS1": [
         "./demos/s80/CONFIG.SYS",
         "./demos/d40/AUTOEXEC.BAT"
