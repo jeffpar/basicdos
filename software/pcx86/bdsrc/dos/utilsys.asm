@@ -1,5 +1,5 @@
 ;
-; BASIC-DOS Utility Services
+; BASIC-DOS More Utility Services
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
 ; @copyright (c) 2020-2021 Jeff Parsons

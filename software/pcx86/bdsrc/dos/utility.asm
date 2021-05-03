@@ -17,7 +17,8 @@
 DOS	segment word public 'CODE'
 
 	EXTNEAR	<sfb_from_sfh,sfb_write>
-	EXTNEAR	<atoi,atoi_len,atoi_base,itoa,sprintf,write_string>
+	EXTNEAR	<atoi,atoi_len,atoi_base,atof64>
+	EXTNEAR	<itoa,sprintf,write_string>
 
 	EXTBYTE	<sfh_debug,key_boot>
 	EXTWORD	<scb_active>
@@ -402,14 +403,15 @@ ENDPROC utl_atoi32d
 ;
 ; Inputs:
 ;	REG_DS:REG_SI -> string
-;	REG_ES:REG_DI -> FAC with result
 ;
 ; Outputs:
+;	REG_ES:REG_DI -> result (in FAC)
 ;
 ; Modifies:
 ;
 DEFPROC	utl_atof64,DOS
-	ret
+	sti
+	jmp	atof64
 ENDPROC utl_atof64
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -418,9 +420,9 @@ ENDPROC utl_atof64
 ;
 ; Inputs:
 ;	REG_DX:REG_SI = 32-bit value
-;	REG_ES:REG_DI -> FAC with result
 ;
 ; Outputs:
+;	REG_ES:REG_DI -> result (in FAC)
 ;
 ; Modifies:
 ;
