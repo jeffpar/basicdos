@@ -95,7 +95,7 @@ SEGINI		endp
 ; ---------------------------------------------------------------------------
 OEMHED		db 0Dh,0Ah
 		db 'Microsoft BASIC',0Dh,0Ah
-		db 'OEM.ASM by OS/2 Museum, July 2020',0Dh,0Ah
+;		db 'OEM.ASM by OS/2 Museum, July 2020',0Dh,0Ah
 		db 'https://github.com/microsoft/GW-BASIC'
                 db 0
 
