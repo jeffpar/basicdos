@@ -41,11 +41,26 @@ let minFiles = [
     "./software/pcx86/bdsrc/msb/obj/*.EXE"
 ];
 
+let basFiles = [
+    "./software/pcx86/MS-DOS/v1.25/bin/ART.BAS",
+    "./software/pcx86/MS-DOS/v1.25/bin/BALL.BAS",
+    "./software/pcx86/MS-DOS/v1.25/bin/CALENDAR.BAS",
+    "./software/pcx86/MS-DOS/v1.25/bin/CIRCLE.BAS",
+    "./software/pcx86/MS-DOS/v1.25/bin/COLORBAR.BAS",
+    "./software/pcx86/MS-DOS/v1.25/bin/COMM.BAS",
+    "./software/pcx86/MS-DOS/v1.25/bin/DONKEY.BAS",
+    "./software/pcx86/MS-DOS/v1.25/bin/MORTGAGE.BAS",
+    "./software/pcx86/MS-DOS/v1.25/bin/MUSIC.BAS",
+    "./software/pcx86/MS-DOS/v1.25/bin/PIECHART.BAS",
+    "./software/pcx86/MS-DOS/v1.25/bin/SAMPLES.BAS",
+    "./software/pcx86/MS-DOS/v1.25/bin/SPACE.BAS"
+];
+
 let disks = {
     "BASIC-DOS": [
         "./demos/s80/CONFIG.SYS",
         "./demos/s80/AUTOEXEC.BAT"
-    ].concat(minFiles),
+    ].concat(minFiles).concat(basFiles),
     "BASIC-DOS1": [
         "./demos/s80/CONFIG.SYS",
         "./demos/d40/AUTOEXEC.BAT"
