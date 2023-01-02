@@ -6,6 +6,8 @@
       "comments": false,
       "strings": false
   },
+  "editor.insertSpaces": false,
+  "editor.tabSize": 8,
   "editor.wordWrap": "off",
   "workbench.colorTheme": "Atom One Dark",
   "workbench.colorCustomizations": {
@@ -25,7 +27,7 @@
     "files.insertFinalNewline": true,
     "files.trimFinalNewlines": true
   },
-  "[json]": {
+  "[json][jsonc]": {
     "editor.insertSpaces": true,
     "editor.tabSize": 2,
     "files.trimTrailingWhitespace": true,
