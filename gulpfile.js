@@ -165,7 +165,7 @@ for (let diskName in disks) {
             diskFiles += " --boot ./software/pcx86/bdsrc/boot/obj/BOOT.COM";
         }
     }
-    let cmd = "node \"${PCJS}/tools/modules/diskimage.js\" " + diskFiles + " --output " + diskImage + archiveImage + " --target=" + kbTarget + " --overwrite";
+    let cmd = "node \"${PCJS}/tools/diskimage/diskimage.js\" " + diskFiles + " --output " + diskImage + archiveImage + " --target=" + kbTarget + " --overwrite";
     cmd = cmd.replace(/\$\{([^}]+)\}/g, (_,n) => process.env[n]);
     gulp.task(buildTask, run(cmd));
     let watchTask = "WATCH-" + diskName;

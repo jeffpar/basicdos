@@ -77,13 +77,13 @@ the BASIC-DOS source disk image whenever a BASIC-DOS source file has been change
 locally (eg, by the VS Code editor).
 
 Note that this task also requires the PCjs
-[DiskImage](https://github.com/jeffpar/pcjs/tree/master/tools#pcjs-diskimage-utility)
+[DiskImage](https://github.com/jeffpar/pcjs/tree/master/tools/diskimage)
 utility, so you should clone the [PCjs](https://github.com/jeffpar/pcjs)
 repository, run the usual `npm install`, and then set the environment variable
 `PCJS` to the fully-qualified name of the directory containing the clone.  Then
 verify that `diskimage` works; eg:
 
-    node $PCJS/tools/modules/diskimage.js
+    node $PCJS/tools/diskimage/diskimage.js
 
     DiskImage v2.04
     Copyright © 2012-2020 Jeff Parsons <Jeff@pcjs.org>
@@ -102,7 +102,7 @@ browser you *really* want to download and keep `BDSRC.img`, and then use the
 PCjs `diskimage` utility to extract files from the virtual hard disk;
 eg:
 
-    node $PCJS/tools/modules/diskimage.js BDSRC.img --extract --overwrite
+    node $PCJS/tools/diskimage/diskimage.js BDSRC.img --extract --overwrite
     cp -pR BDSRC/* $BASICDOS/software/pcx86/bdsrc/
 
 Be very careful when using commands like those shown above.  It's easy to lose
