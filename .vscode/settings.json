@@ -44,7 +44,6 @@
   "[masm]": {
     "editor.insertSpaces": false,
     "editor.tabSize": 8,
-    "files.eol": "\r\n",
     "files.trimTrailingWhitespace": true,
     "files.insertFinalNewline": true,
     "files.trimFinalNewlines": true
@@ -52,28 +51,24 @@
   "[vb]": {
     "editor.insertSpaces": false,
     "editor.tabSize": 8,
-    "files.eol": "\r\n",
     "files.insertFinalNewline": true,
     "files.trimFinalNewlines": true
   },
   "[bat]": {
     "editor.insertSpaces": false,
     "editor.tabSize": 8,
-    "files.eol": "\r\n",
     "files.insertFinalNewline": true,
     "files.trimFinalNewlines": true
   },
   "[makefile]": {
     "editor.insertSpaces": false,
-    "editor.tabSize": 8,
-    "files.eol": "\r\n"
+    "editor.tabSize": 8
   },
   "[plaintext]": {
     "editor.insertSpaces": false,
-    "editor.tabSize": 8,
-    "files.eol": "\r\n"
+    "editor.tabSize": 8
   },
-  "editor.smoothScrolling": true,
+  "editor.smoothScrolling": false,
   "cSpell.words": [
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
     "ABORT'ed",
