@@ -102,7 +102,7 @@ browser you *really* want to download and keep `BDSRC.img`, and then use the
 PCjs `diskimage` utility to extract files from the virtual hard disk;
 eg:
 
-    node $PCJS/tools/diskimage/diskimage.js BDSRC.img --extract --overwrite
+    node $PCJS/tools/diskimage/diskimage.js BDSRC.img --extract --normalize --overwrite
     cp -pR BDSRC/* $BASICDOS/software/pcx86/bdsrc/
 
 Be very careful when using commands like those shown above.  It's easy to lose
