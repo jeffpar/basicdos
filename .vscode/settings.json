@@ -252,6 +252,7 @@
     "ddcom",
     "ddcon",
     "DDERR",
+    "ddfdc",
     "ddin",
     "DDINT",
     "ddlpt",
@@ -931,7 +932,7 @@
     "XMTFULL",
     "XTBIOS",
     "zeitwerk"
-],
+  ],
   "cSpell.enabledLanguageIds": [
     "asciidoc",
     "c",
