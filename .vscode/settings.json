@@ -353,6 +353,7 @@
     "emsg",
     "emwrite",
     "endcapture",
+    "endcomment",
     "endm",
     "endp",
     "endproc",
