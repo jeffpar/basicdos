@@ -20,20 +20,28 @@ on [GitHub](https://github.com/jeffpar) released under the terms of an
 {% comment %}
 
 The new build process requires the [PCjs](https://github.com/jeffpar/pcjs)
-repository along with the BASIC-DOS repository.  It's recommended that you set
-environment variables for both repositories and then update your PATH to include
-the directories for both `diskimage.js` and `pc.js`; eg:
+repository, along with the `v2` branch of the BASIC-DOS repository.
+
+    git clone https://github.com/jeffpar/pcjs
+    git clone https://github.com/jeffpar/basicdos
+    cd basicdos
+    git checkout v2
+
+It's recommended that you also set environment variables to the locations of
+the repositories and then update your PATH to include the PCjs directories for
+the `diskimage.js` and `pc.js` utilities:
 
     $ export PCJS="$HOME/pcjs"
     $ export BASICDOS="$HOME/basicdos"
     $ export PATH="$PATH:$PCJS/tools/diskimage:$PCJS/tools/pc"
 
-Then run this command to get a `tools` disk image:
+Then use `diskimage.js` to get a `tools` disk image from pcjs.org:
 
-    $ diskimage.js https://harddisks.pcjs.org/pcx86/10mb/MSDOS330-C400.json $PCJS/tools/pc/disks/tools.json
+    $ cd $PCJS/tools/pc
+    $ diskimage.js https://harddisks.pcjs.org/pcx86/10mb/MSDOS330-C400.json disks/tools.json
 
-Now you're ready to build BASIC-DOS, using `pc.js` to load the `tools` disk image as
-drive C and the BASIC-DOS source code as drive D:
+Now you're ready to build BASIC-DOS, using `pc.js` to load the `tools` disk
+image as drive C and the BASIC-DOS source code as drive D:
 
     $ pc.js --disk tools.json $BASICDOS/software/pcx86/src -n
     [Press CTRL-D to enter command mode]
@@ -73,5 +81,20 @@ drive C and the BASIC-DOS source code as drive D:
     Copyright (C) Microsoft Corp 1984, 1985, 1986.  All rights reserved.
     
     ...
+
+    D:>quit
+
+Assuming the `mk` command was successful, you should now have everything you
+need to boot and run BASIC-DOS.
+
+The command below will build a 360K boot floppy (the largest floppy supported
+by an IBM PC XT Model 5160) with the BASIC-DOS boot sector and system files.
+The directory `disks/empty` can be replaced with a folder containing any other
+files you want included on the floppy.
+
+    $ pc.js ibm5160 --floppy --system=bd:2.00A disks/empty 
+    [Press CTRL-D to enter command mode]
+    BASIC-DOS 2.00
+    Press a key to start...
 
 {% endcomment %}
