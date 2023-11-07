@@ -1,0 +1,118 @@
+CLS
+Clears the session using the background color and moves the cursor to the top left corner.
+
+COLOR *foreground*[,*background*[,*border*]]
+Sets the foreground (0-15), background (0-15), and border (0-255) colors of the session.
+For blinking colors, use 8-15 for *background* and 128-255 for *border*.
+
+COPY *input* *output*
+Copies the contents of the input file or device to the output file or device.
+
+DATE [*date*] [/P]
+Sets the system date (or prompts for a date if /P) and then displays the date.
+The date must be entered as M-D-Y or M/D/Y, where M is 1-12, D is 1-31, and Y is 0-99 or 1980-2099.
+If D or Y are omitted, current values are assumed.
+
+DEF *function*(*parms*)[=expression]
+Defines a function expression or function block.  Function expressions must fit on a single line and can be defined at any time.
+Function blocks may contain multiple lines and must end with a RETURN command.  The function name does not need to begin with FN.
+
+DEFDBL [*letter(s)*]
+Defines the first letter(s) of variables that will default to double-precision floating-point values (not supported yet).
+
+DEFINT [*letter(s)*]
+Defines the first letter(s) of variables that will default to integer values.
+
+DEFSNG [*letter(s)*]
+Defines the first letter(s) of variables that will default to single-precision floating-point values (not supported yet).
+
+DEFSTR [*letter(s)*]
+Defines the first letter(s) of variables that will default to string values.  Unless DEFSTR is used, all string variables must be defined using the $ suffix.
+
+DIR [*filespec*] [/P]
+Displays a directory listing of all files matching the given *filespec* (or all files if none is specified).
+
+ECHO [ON|OFF]
+Controls the echo of lines in a BAT file.
+
+ERRORLEVEL
+Constant equal to the return code from the last program executed.
+
+EXIT
+Exits the interpreter if there is a previously loaded copy.
+
+GOTO *label*
+Transfers program control to the line with the specified label number.
+
+HELP [*command*]
+Displays help for the specified *command*.
+
+IF *expression* THEN *command*
+Evaluates the *expression*, and if it is TRUE (non-zero), then the *command* is executed.
+
+KEYS
+CTRL-E  Up         CTRL-X  Down\
+CTRL-S  Left       CTRL-D  Right\
+CTRL-W  Home       CTRL-R  End\
+CTRL-A  Left Word  CTRL-F  Right Word\
+CTRL-G  Del Char\
+CTRL-K  Erase to End\
+CTRL-V  Toggle Insert\
+CTRL-C  Abort\
+DELETE  Del Left Char\
+ESCAPE  Erase Line
+CTRL-ALT-DEL is reserved for terminating programs. Use RESTART to restart the system.
+
+LET *variable*=*expression*
+Assigns the value of the *expression* to the *variable*.  Values cannot be assigned to predefined variables.
+
+LIST
+Lists all lines of the currently loaded BAS or BAT program.
+
+LOAD *file*
+Loads the specified BAS or BAT file.
+
+MAXINT
+Constant equal to the largest positive integer.
+
+MEM
+Displays used and available memory.
+In DEBUG builds, /D displays memory blocks, /F displays open files, and /S displays active sessions.
+
+NEW
+Erases the loaded program, functions, and variables.
+
+PRINT
+Prints a comma or semi-colon separated series of values.
+
+REM
+Used for program remarks.  The rest of the line is not executed.
+
+RESTART
+Restarts the system.
+
+RETURN [*expression*]
+Ends a function block and returns the specified *expression*.
+
+RND%(N)
+Generates a random integer between 0 and MAXINT, inclusive.
+
+RUN
+Runs the currently loaded BAS or BAT file.
+Program files can also be run without the RUN command.
+If no file extension is specified, files with COM, EXE, BAT, and BAS extensions are checked, in that order.
+
+TIME [*time*] [/D] [/P]
+Sets the system time (or prompts for a time if /P) and then displays the time. /D displays elapsed time.
+The time must be entered as H:M:S.D, where where H is 0-23, M is 0-59, S is 0-59, and D is 0-99.
+If M, S, or D are omitted, zeros are assumed.
+
+TYPE *file*
+Displays the contents of the specified file.
+
+VER
+Displays the BASIC-DOS version number and revision.
+
+Unsupported Commands
+Floating-point support is not available yet, so the DEFDBL and DEFSNG commands have no effect.
+Read-write file system support is not available yet, so the COPY, DEL, EDIT, REN, and SAVE commands cannot modify files.

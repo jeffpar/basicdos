@@ -28,7 +28,7 @@ Probably the most important features are:
 Floating-point opens another can of worms, which is why I've already decided to
 port most of that support from [Microsoft BASIC](https://github.com/microsoft/GW-BASIC),
 and why there's already a complete (built and working) copy of
-[GW-BASIC sources](https://github.com/jeffpar/basicdos/tree/master/software/pcx86/bdsrc/msb)
+[GW-BASIC sources](https://github.com/jeffpar/basicdos/tree/master/software/pcx86/src/msb)
 checked into the project.
 
 To further reduce the scope of the work, I've decided to support only

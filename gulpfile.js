@@ -15,30 +15,30 @@ let run = require("gulp-run-command").default;
 
 let files = {
     "HELP": [
-        "./software/pcx86/bdsrc/cmd/HELP.TXT",
-        "./software/pcx86/bdsrc/cmd/txt.inc"
+        "./software/pcx86/src/bd/cmd/HELP.TXT",
+        "./software/pcx86/src/bd/cmd/txt.inc"
     ]
 };
 
 let demoFiles = [
-    "./software/pcx86/bdsrc/dev/obj/IBMBIO.COM",
-    "./software/pcx86/bdsrc/dos/obj/IBMDOS.COM",
-    "./software/pcx86/bdsrc/cmd/obj/COMMAND.COM",
-    "./software/pcx86/bdsrc/cmd/HELP.TXT",
-    "./software/pcx86/bdsrc/test/PRIMES.BA*",
-    "./software/pcx86/bdsrc/test/obj/*.EXE",
-    "./software/pcx86/bdsrc/test/obj/*.COM",
-    "./software/pcx86/bdsrc/test/BD*.BAT",
-    "./software/pcx86/bdsrc/test/bin/*.EXE",
-    "./software/pcx86/bdsrc/msb/obj/*.EXE"
+    "./software/pcx86/src/bd/dev/obj/IBMBIO.COM",
+    "./software/pcx86/src/bd/dos/obj/IBMDOS.COM",
+    "./software/pcx86/src/bd/cmd/obj/COMMAND.COM",
+    "./software/pcx86/src/bd/cmd/HELP.TXT",
+    "./software/pcx86/src/test/PRIMES.BA*",
+    "./software/pcx86/src/test/obj/*.EXE",
+    "./software/pcx86/src/test/obj/*.COM",
+    "./software/pcx86/src/test/BD*.BAT",
+    "./software/pcx86/src/test/bin/*.EXE",
+    "./software/pcx86/src/msb/obj/*.EXE"
 ];
 
 let minFiles = [
-    "./software/pcx86/bdsrc/dev/obj/IBMBIO.COM",
-    "./software/pcx86/bdsrc/dos/obj/IBMDOS.COM",
-    "./software/pcx86/bdsrc/cmd/obj/COMMAND.COM",
-    "./software/pcx86/bdsrc/cmd/HELP.TXT",
-    "./software/pcx86/bdsrc/msb/obj/*.EXE"
+    "./software/pcx86/src/bd/dev/obj/IBMBIO.COM",
+    "./software/pcx86/src/bd/dos/obj/IBMDOS.COM",
+    "./software/pcx86/src/bd/cmd/obj/COMMAND.COM",
+    "./software/pcx86/src/bd/cmd/HELP.TXT",
+    "./software/pcx86/src/msb/obj/*.EXE"
 ];
 
 let basFiles = [
@@ -82,42 +82,42 @@ let disks = {
         "./demos/d40/AUTOEXEC.BAT",
     ].concat(demoFiles),
     "BDS-BOOT": [
-        "./software/pcx86/bdsrc/boot/*.asm",
-        "./software/pcx86/bdsrc/inc/*.inc",
-        "./software/pcx86/bdsrc/boot/makefile",
-        "./software/pcx86/bdsrc/boot/mk.bat"
+        "./software/pcx86/src/bd/boot/*.asm",
+        "./software/pcx86/src/bd/inc/*.inc",
+        "./software/pcx86/src/bd/boot/makefile",
+        "./software/pcx86/src/bd/boot/mk.bat"
     ],
     "BDS-DEV": [
-        "./software/pcx86/bdsrc/dev/*.asm",
-        "./software/pcx86/bdsrc/inc/*.inc",
-        "./software/pcx86/bdsrc/dev/makefile",
-        "./software/pcx86/bdsrc/dev/mk.bat"
+        "./software/pcx86/src/bd/dev/*.asm",
+        "./software/pcx86/src/bd/inc/*.inc",
+        "./software/pcx86/src/bd/dev/makefile",
+        "./software/pcx86/src/bd/dev/mk.bat"
     ],
     "BDS-DOS": [
-        "./software/pcx86/bdsrc/dos/*.asm",
-        "./software/pcx86/bdsrc/dos/*.lrf",
-        "./software/pcx86/bdsrc/inc/*.inc",
-        "./software/pcx86/bdsrc/dos/makefile",
-        "./software/pcx86/bdsrc/dos/mk.bat"
+        "./software/pcx86/src/bd/dos/*.asm",
+        "./software/pcx86/src/bd/dos/*.lrf",
+        "./software/pcx86/src/bd/inc/*.inc",
+        "./software/pcx86/src/bd/dos/makefile",
+        "./software/pcx86/src/bd/dos/mk.bat"
     ],
     "BDS-CMD": [
-        "./software/pcx86/bdsrc/cmd/*.inc",
-        "./software/pcx86/bdsrc/cmd/*.asm",
-        "./software/pcx86/bdsrc/cmd/*.lrf",
-        "./software/pcx86/bdsrc/inc/*.inc",
-        "./software/pcx86/bdsrc/cmd/makefile",
-        "./software/pcx86/bdsrc/cmd/mk.bat"
+        "./software/pcx86/src/bd/cmd/*.inc",
+        "./software/pcx86/src/bd/cmd/*.asm",
+        "./software/pcx86/src/bd/cmd/*.lrf",
+        "./software/pcx86/src/bd/inc/*.inc",
+        "./software/pcx86/src/bd/cmd/makefile",
+        "./software/pcx86/src/bd/cmd/mk.bat"
     ],
     "BDS-TEST": [
-        "./software/pcx86/bdsrc/test/*.asm",
-        "./software/pcx86/bdsrc/test/*.BAS",
-        "./software/pcx86/bdsrc/test/*.BAT",
-        "./software/pcx86/bdsrc/inc/*.inc",
-        "./software/pcx86/bdsrc/test/makefile",
-        "./software/pcx86/bdsrc/test/mk.bat"
+        "./software/pcx86/src/test/*.asm",
+        "./software/pcx86/src/test/*.BAS",
+        "./software/pcx86/src/test/*.BAT",
+        "./software/pcx86/src/bd/inc/*.inc",
+        "./software/pcx86/src/test/makefile",
+        "./software/pcx86/src/test/mk.bat"
     ],
     "BDSRC": [
-        "./software/pcx86/bdsrc/**"
+        "./software/pcx86/src/**"
     ],
     "PCDOS200-C400": "./software/pcx86/disks/PCDOS200-C400.json"
 };
@@ -162,7 +162,7 @@ for (let diskName in disks) {
         if (diskName.startsWith("BDS-")) {
             kbTarget = 360;
         } else {
-            diskFiles += " --boot ./software/pcx86/bdsrc/boot/obj/BOOT.COM";
+            diskFiles += " --boot ./software/pcx86/src/bd/boot/obj/BOOT.COM";
         }
     }
     let cmd = "node \"${PCJS}/tools/diskimage/diskimage.js\" " + diskFiles + " --output " + diskImage + archiveImage + " --target=" + kbTarget + " --overwrite";

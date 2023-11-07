@@ -22,7 +22,7 @@ exclude:
   - gulpfile.js
   - package.json
   - package-lock.json
-  - /software/pcx86/bdsrc
+  - /software/pcx86/src
   - /.history
   - /node_modules
   - "**/archive"

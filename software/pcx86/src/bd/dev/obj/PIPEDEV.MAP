@@ -1,0 +1,46 @@
+
+
+Warning: no stack segment
+
+ Start  Stop   Length Name                   Class
+ 00000H 001DAH 001DBH CODE                   CODE
+ 001E0H 001EFH 00010H DATA                   DATA
+
+ Origin   Group
+ 0000:0   DEV
+
+  Address         Publics by Name
+
+ 0000:0012       CMDTBL
+ 0000:000F  Abs  CMDTBL_SIZE
+ 0000:00D5       DDPIPE_CLOSE
+ 0000:01CD       DDPIPE_INIT
+ 0000:00E8       DDPIPE_NONE
+ 0000:00A5       DDPIPE_OPEN
+ 0000:004B       DDPIPE_READ
+ 0000:0030       DDPIPE_REQ
+ 0000:0070       DDPIPE_WRITE
+ 0000:01C9       ENDWAIT_DATA
+ 0000:0000       PIPE
+ 0000:00F0       PULL_DATA
+ 0000:0159       PUSH_DATA
+ 0000:01C0       WAIT_CALL
+ 0000:01BE       WAIT_DATA
+
+  Address         Publics by Value
+
+ 0000:0000       PIPE
+ 0000:000F  Abs  CMDTBL_SIZE
+ 0000:0012       CMDTBL
+ 0000:0030       DDPIPE_REQ
+ 0000:004B       DDPIPE_READ
+ 0000:0070       DDPIPE_WRITE
+ 0000:00A5       DDPIPE_OPEN
+ 0000:00D5       DDPIPE_CLOSE
+ 0000:00E8       DDPIPE_NONE
+ 0000:00F0       PULL_DATA
+ 0000:0159       PUSH_DATA
+ 0000:01BE       WAIT_DATA
+ 0000:01C0       WAIT_CALL
+ 0000:01C9       ENDWAIT_DATA
+ 0000:01CD       DDPIPE_INIT

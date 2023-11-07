@@ -1,0 +1,16 @@
+
+
+Warning: no stack segment
+
+ Start  Stop   Length Name                   Class
+ 00000H 000E5H 000E6H DEV                    CODE
+
+  Address         Publics by Name
+
+ 0000:0004       DEVINIT
+ 0000:0000       EOD
+
+  Address         Publics by Value
+
+ 0000:0000       EOD
+ 0000:0004       DEVINIT
