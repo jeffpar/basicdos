@@ -92,7 +92,7 @@ by an IBM PC XT Model 5160) with the BASIC-DOS boot sector and system files.
 The directory `disks/empty` can be replaced with a folder containing any other
 files you want included on the floppy.
 
-    $ pc.js ibm5160 --floppy --system=bd:2.00A disks/empty 
+    $ pc.js ibm5160 --floppy --system=bd:2A disks/empty 
     [Press CTRL-D to enter command mode]
     BASIC-DOS 2.00
     Press a key to start...

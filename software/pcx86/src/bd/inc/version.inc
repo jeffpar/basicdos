@@ -8,9 +8,9 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 
-VERSION_MAJOR	equ	0
-VERSION_MINOR	equ	30
-VERSION_REV	equ	0	; 0 for no rev, 1 for rev A, 2 for rev B, etc.
+VERSION_MAJOR	equ	2
+VERSION_MINOR	equ	0
+VERSION_REV	equ	1	; 0 for no rev, 1 for rev A, 2 for rev B, etc.
 
 VERSION_STR	macro
 		db	'0' + VERSION_MAJOR

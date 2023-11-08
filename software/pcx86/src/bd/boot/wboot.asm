@@ -16,48 +16,55 @@ CODE    SEGMENT
 
 	org	100h
 ;
-; Writes BOOT.COM (or other file specified on the command-line) to the boot
-; sector of the diskette in drive A.  Any portion that exceeds the 512-byte
-; maximum will be written to a second file (eg, BOOT2.COM) for inclusion in the
-; first boot file.
+; Removes leading zeroes from BOOT1.COM (or other file specified on the
+; command-line) and then writes the next 512 bytes to the boot sector of the
+; diskette in drive A (unless /N is specified).  Remaining bytes are written
+; to a second file (eg, BOOT2.COM or other specified file) for prepending to
+; the first system file.
 ;
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 DEFPROC	main
-	mov	dx,offset fname
-	mov	bp,offset fname2
+	sub	ax,ax			; AH = 0 (unless switch)
+	sub	bx,bx			; BX = 0 (unless /N seen)
+	mov	dx,offset fname1	; DX -> default first filename
+	mov	bp,offset fname2	; BP -> default second filename
+	mov	si,80h			; SI -> command-line
 
-	mov	si,80h			; check the command-line
-	lodsb
-	test	al,al
-	jz	open			; open the default filename
-m1:	lodsb
-	cmp	al,CHR_SPACE
+	lodsb				; AL = line length
+	test	al,al			; zero?
+	jz	open			; yes, we're done
+m1:	lodsb				; skip leading space(s)
+m1a:	cmp	al,CHR_SPACE
 	je	m1
 	cmp	al,CHR_RETURN
 	je	open
+	test	ah,ah			; switch character seen?
+	jz	m2			; no
+	and	ax,not 0FF20h		; clear AH and lower-case bit
+	cmp	al,'N'			; is switch character 'N'?
+	jne	m1			; no (ignore)
+	inc	bx			; set BL to 1 to indicate /N
+	jmp	m1
+m2:	cmp	al,'/'			; switch character?
+	jne	m3			; no
+	inc	ah			; yes, flag it
+	jmp	m1
+
+m3:	cmp	dx,100h			; has DX already been changed?
+	jb	m4			; yes
 	lea	dx,[si-1]		; DS:DX -> first filename
-m2:	lodsb
-	cmp	al,CHR_SPACE
-	je	m3
-	cmp	al,CHR_RETURN
-	je	m3
-	jmp	m2
-m3:	mov	byte ptr [si-1],0	; null-terminate the first filename
-	cmp	al,CHR_SPACE
-	jne	open
-m4:	lodsb
-	cmp	al,CHR_SPACE
-	je	m4
-	cmp	al,CHR_RETURN
-	je	open
+	jmp	m5			; continue reading command-line
+m4:	cmp	bp,100h			; has BP already been changed?
+	jb	m5			; yes
 	lea	bp,[si-1]		; DS:BP -> second filename
-m5:	lodsb
+
+m5:	lodsb				; skip non-whitespace
 	cmp	al,CHR_SPACE
 	je	m6
 	cmp	al,CHR_RETURN
 	jne	m5
-m6:	mov	byte ptr [si-1],0	; null-terminate the second filename
-	jmp	short open
+m6:	mov	byte ptr [si-1],0	; null-terminate command-line parameter
+	jmp	m1a			; re-examine the whitespace
 
 eopen:	mov	dx,offset emopen
 	jmp	emsg
@@ -68,7 +75,8 @@ ewrite:	mov	dx,offset emwrite
 echeck:	mov	dx,offset emcheck
 	jmp	emsg
 
-open:	mov	ax,DOS_HDL_OPENRW	; AH = 3Dh (OPEN FILE), AL = R/W
+open:	mov	[skipdsk],bl		; set skipdsk to 1 if /N
+	mov	ax,DOS_HDL_OPENRW	; AH = 3Dh (OPEN FILE), AL = R/W
 	int	21h
 	jc	eopen
 	xchg	bx,ax			; BX = file handle
@@ -100,15 +108,18 @@ eread2:	jc	eread
 	jb	echeck			; no
 	cmp	[di+510],0AA55h		; correct signature?
 	jne	echeck			; no
-	push	bx
 	mov	ax,0301h		; AH = 03h (WRITE SECTORS), AL = 1
+	cmp	[skipdsk],al		; skip boot disk update?
+	je	next			; yes
+	push	bx
 	mov	bx,dx			; ES:BX -> buffer
 	mov	cx,0001h		; CH = CYL 0, CL = SEC 1
 	sub	dx,dx			; DH = HEAD 0, DL = DRIVE 0
-	int	13h
+	int	13h			; write to diskette boot sector
 	pop	bx
 	jc	ewrite
-	cmp	word ptr [di+512],-1	; anything past the signature?
+	mov	[message],offset updated
+next:	cmp	word ptr [di+512],-1	; anything past the signature?
 	je	done			; no, assume we're done
 ;
 ; Read the 2nd half of the boot code into buffer + 512
@@ -138,8 +149,8 @@ eread2:	jc	eread
 	jb	trunc			; yes
 echk2:	jmp	echeck			; no
 ;
-; Before we close the original file (BOOT.COM), let's write the 1st half of
-; the boot sector back to it, and then truncate it at 512 bytes.
+; Before we close the original file (eg, BOOT1.COM), let's write the 1st half
+; of the boot sector back to it, and then truncate it at 512 bytes.
 ;
 trunc:	push	ax			; save # bytes to write
 	mov	ax,DOS_HDL_SEEKBEG	; AH = 42h (SEEK), AL = 0 (FROM START)
@@ -155,6 +166,7 @@ trunc:	push	ax			; save # bytes to write
 	int	21h
 	mov	ah,DOS_HDL_CLOSE	; AH = 3Eh (CLOSE FILE)
 	int	21h
+	mov	[message],offset resized
 	jmp	short create
 
 ecreat:	mov	dx,offset emcreat
@@ -176,7 +188,7 @@ create:	mov	ah,DOS_HDL_CREATE
 	int	21h
 
 done:	mov	al,0			; exit with zero return code
-	mov	dx,offset success
+	mov	dx,[message]
 
 msg:	push	ax
 	mov	ah,DOS_TTY_PRINT
@@ -186,14 +198,24 @@ exit:	mov	ah,DOS_PSP_RETURN	; return to caller with exit code in AL
 	int	21h
 ENDPROC	main
 
-fname	db	"BOOT.COM",0
+fname1	db	"BOOT1.COM",0
 fname2	db	"BOOT2.COM",0
-emopen	db	"Unable to open BOOT.COM",13,10,'$'
-emread	db	"Unable to read BOOT.COM",13,10,'$'
-emcheck	db	"BOOT.COM check failure",13,10,'$'
-emwrite	db	"Unable to write BOOT.COM to boot sector",13,10,'$'
-emcreat	db	"Unable to create BOOT2.COM",13,10,'$'
-success	db	"Boot sector on drive A: updated",13,10,'$'
+
+emopen	db	"Unable to open boot file",13,10,'$'
+emread	db	"Unable to read boot file",13,10,'$'
+emcheck	db	"Boot sector check failure",13,10,'$'
+emwrite	db	"Unable to write to boot sector",13,10,'$'
+emcreat	db	"Unable to create second boot file",13,10,'$'
+
+updated	db	"Boot sector on drive A: updated",13,10,'$'
+resized	db	"Boot sector updated",13,10,'$'
+nothing	db	"Boot sector unchanged",13,10,'$'
+
+skipdsk	db	0			; non-zero to skip boot disk update
+
+	even
+message	dw	offset nothing
+
 buffer	label	byte
 
 CODE	ENDS
