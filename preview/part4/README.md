@@ -5,13 +5,13 @@ permalink: /preview/part4/
 machines:
   - id: ibm5150-2
     type: pcx86
-    config: /configs/pcx86/machine/ibm-5150-cga-64kb.json
+    config: /machines/pcx86/ibm/ibm-5150-cga-64kb.json
     sizeRAM: 128
     autoMount:
       A: "BASIC-DOS2"
   - id: ibm5150-3
     type: pcx86
-    config: /configs/pcx86/machine/ibm-5150-cga-64kb.json
+    config: /machines/pcx86/ibm/ibm-5150-cga-64kb.json
     sizeRAM: 128
     autoMount:
       A: "BASIC-DOS3"

@@ -1,5 +1,5 @@
 {
-  "name": "IBM PC, 256Kb RAM, Dual Floppy Drives, CGA, Debugger",
+  "name": "IBM PC, 256Kb RAM, Dual Floppy Drives, MDA and CGA, Debugger",
   "defaults": {
     "ram": "256K",
     "fpu": "None",
@@ -9,8 +9,9 @@
   },
   "machine": {
     "type": "pcx86",
+    "class": "dual",
     "name": "PCx86",
-    "version": "2.06",
+    "version": "2.22",
     "factory": "embedPCx86",
     "script": "/machines/pcx86/releases/2.06/pcx86.js"
   },
@@ -29,29 +30,32 @@
       "addr": "0xf6000",
       "size": "0x08000",
       "alias": null,
-      "file": "/machines/pcx86/roms/BASIC100.json"
+      "file": "/machines/pcx86/roms/BASIC100.json5"
     },
     {
       "id": "romBIOS",
       "class": "rom",
       "addr": "0xfe000",
       "size": "0x02000",
-      "file": "/machines/pcx86/roms/PCBIOS-REV1.json"
+      "file": "/machines/pcx86/roms/PCBIOS-REV1.json5"
     },
     {
-      "id": "videoCGA",
+      "id": "videoMDA",
       "class": "video",
-      "title": "Color Display",
-      "screenWidth": 1280,
-      "screenHeight": 800,
+      "title": "Monochrome Display",
+      "model": "mda",
+      "screenWidth": 1440,
+      "screenHeight": 900,
       "screenColor": "black",
       "charCols": 80,
       "charRows": 25,
-      "fontROM": "/machines/pcx86/roms/IBM-CGA.json",
-      "flicker": 0,
+      "fontROM": "/machines/pcx86/roms/IBM-MDA.json5",
       "overlay": true,
-      "autoLock": true,
-      "touchScreen": "mouse",
+      "style": {
+        "float": "left",
+        "width": "49%",
+        "clear": "none"
+      },
       "controls": [
         {
           "type": "group",
@@ -70,8 +74,44 @@
         }
       ]
     },
-    "/configs/pcx86/machine/fdc.json",
-    "/configs/pcx86/machine/ram-5150.json",
+    {
+      "id": "videoCGA",
+      "class": "video",
+      "title": "Color Display",
+      "model": "cga",
+      "screenWidth": 1280,
+      "screenHeight": 800,
+      "screenColor": "black",
+      "charCols": 80,
+      "charRows": 25,
+      "fontROM": "/machines/pcx86/roms/IBM-CGA.json5",
+      "flicker": 0,
+      "overlay": true,
+      "style": {
+        "float": "right",
+        "width": "49%",
+        "clear": "none"
+      },
+      "controls": [
+        {
+          "type": "group",
+          "style": {
+            "float": "right"
+          }
+        },
+        {
+          "id": "fullScreen",
+          "type": "button",
+          "label": "Full Screen",
+          "style": {
+            "padding-left": "8px",
+            "line-height": "1em"
+          }
+        }
+      ]
+    },
+    "/machines/pcx86/ibm/fdc.json",
+    "/machines/pcx86/ibm/ram-5150.json",
     {
       "id": "cpu8088",
       "class": "cpu",
@@ -88,7 +128,7 @@
         }
       ]
     },
-    "/configs/pcx86/machine/keys.json",
+    "/machines/pcx86/ibm/keys.json",
     {
       "id": "panel",
       "class": "panel",
@@ -264,9 +304,9 @@
       "class": "chipset",
       "model": 5150,
       "scaleTimers": false,
-      "sw1": "01001001",
+      "sw1": "01000001",
       "sw2": "10011000",
-      "@note": "The above switch settings indicate '256K, No FPU, Color Monitor, 2 Floppy Drives'; see 'swdesc' below.",
+      "@note": "The above switch settings indicate '256K, No FPU, Monochrome Monitor, 2 Floppy Drives'; see 'swdesc' below.",
       "sound": true,
       "floppies": "",
       "monitor": "",
@@ -314,7 +354,7 @@
               "id": "sw1-5",
               "title": "Monitor Type",
               "label": "5",
-              "value": 1
+              "value": 0
             },
             {
               "id": "sw1-6",
@@ -399,7 +439,7 @@
         {
           "id": "swdesc",
           "type": "description",
-          "label": "64K, No FPU, Color Monitor, 2 Floppy Drives",
+          "label": "64K, No FPU, Monochrome Monitor, 2 Floppy Drives",
           "style": {
             "position": "relative",
             "left": "0px",

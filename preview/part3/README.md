@@ -5,7 +5,7 @@ permalink: /preview/part3/
 machines:
   - id: ibm5150
     type: pcx86
-    config: /configs/pcx86/machine/ibm-5150-cga-64kb.json
+    config: /machines/pcx86/ibm/ibm-5150-cga-64kb.json
     sizeRAM: 128
     autoType: LOAD BD1.BAT\rLIST\rRUN\r
 ---

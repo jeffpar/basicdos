@@ -12,7 +12,7 @@
     "type": "pcx86",
     "class": "dual",
     "name": "PCx86",
-    "version": "2.06",
+    "version": "2.22",
     "factory": "embedPCx86",
     "script": "/machines/pcx86/releases/2.06/pcx86.js"
   },
@@ -31,14 +31,14 @@
       "addr": "0xf6000",
       "size": "0x08000",
       "alias": null,
-      "file": "/machines/pcx86/roms/BASIC110.json"
+      "file": "/machines/pcx86/roms/BASIC110.json5"
     },
     {
       "id": "romBIOS",
       "class": "rom",
       "addr": "0xfe000",
       "size": "0x02000",
-      "file": "/machines/pcx86/roms/XTBIOS-REV1.json"
+      "file": "/machines/pcx86/roms/XTBIOS-REV1.json5"
     },
     {
       "id": "romHDC",
@@ -46,7 +46,7 @@
       "addr": "0xc8000",
       "size": "0x02000",
       "alias": null,
-      "file": "/machines/pcx86/roms/IBM-XEBEC-1982.json"
+      "file": "/machines/pcx86/roms/IBM-XEBEC-1982.json5"
     },
     {
       "id": "videoMDA",
@@ -58,7 +58,7 @@
       "screenColor": "black",
       "charCols": 80,
       "charRows": 25,
-      "fontROM": "/machines/pcx86/roms/IBM-MDA.json",
+      "fontROM": "/machines/pcx86/roms/IBM-MDA.json5",
       "overlay": true,
       "style": {
         "float": "left",
@@ -93,7 +93,7 @@
       "screenColor": "black",
       "charCols": 80,
       "charRows": 25,
-      "fontROM": "/machines/pcx86/roms/IBM-CGA.json",
+      "fontROM": "/machines/pcx86/roms/IBM-CGA.json5",
       "flicker": 0,
       "overlay": true,
       "style": {
@@ -119,7 +119,7 @@
         }
       ]
     },
-    "/configs/pcx86/machine/fdc.json",
+    "/machines/pcx86/ibm/fdc.json",
     {
       "id": "hdcXT",
       "class": "hdc",
@@ -155,7 +155,7 @@
         }
       ]
     },
-    "/configs/pcx86/machine/ram-5160.json",
+    "/machines/pcx86/ibm/ram-5160.json",
     {
       "id": "cpu8088",
       "class": "cpu",
@@ -172,7 +172,7 @@
         }
       ]
     },
-    "/configs/pcx86/machine/keys.json",
+    "/machines/pcx86/ibm/keys.json",
     {
       "id": "panel",
       "class": "panel",

@@ -1,17 +1,17 @@
 {
-  "name": "IBM PC, 256Kb RAM, Dual Floppy Drives, MDA and CGA, Debugger",
+  "name": "IBM PC XT, 512Kb RAM, 10Mb Hard Disk, CGA, Debugger",
   "defaults": {
-    "ram": "256K",
+    "ram": "512K",
     "fpu": "None",
     "fdc": "2 diskette drives",
     "parallel": "LPT1",
-    "serial": "COM1"
+    "serial": "COM1,COM2",
+    "mouse": "COM2"
   },
   "machine": {
     "type": "pcx86",
-    "class": "dual",
     "name": "PCx86",
-    "version": "2.06",
+    "version": "2.22",
     "factory": "embedPCx86",
     "script": "/machines/pcx86/releases/2.06/pcx86.js"
   },
@@ -30,68 +30,37 @@
       "addr": "0xf6000",
       "size": "0x08000",
       "alias": null,
-      "file": "/machines/pcx86/roms/BASIC100.json"
+      "file": "/machines/pcx86/roms/BASIC110.json5"
     },
     {
       "id": "romBIOS",
       "class": "rom",
       "addr": "0xfe000",
       "size": "0x02000",
-      "file": "/machines/pcx86/roms/PCBIOS-REV1.json"
+      "file": "/machines/pcx86/roms/XTBIOS-REV1.json5"
     },
     {
-      "id": "videoMDA",
-      "class": "video",
-      "title": "Monochrome Display",
-      "model": "mda",
-      "screenWidth": 1440,
-      "screenHeight": 900,
-      "screenColor": "black",
-      "charCols": 80,
-      "charRows": 25,
-      "fontROM": "/machines/pcx86/roms/IBM-MDA.json",
-      "overlay": true,
-      "style": {
-        "float": "left",
-        "width": "49%",
-        "clear": "none"
-      },
-      "controls": [
-        {
-          "type": "group",
-          "style": {
-            "float": "right"
-          }
-        },
-        {
-          "id": "fullScreen",
-          "type": "button",
-          "label": "Full Screen",
-          "style": {
-            "padding-left": "8px",
-            "line-height": "1em"
-          }
-        }
-      ]
+      "id": "romHDC",
+      "class": "rom",
+      "addr": "0xc8000",
+      "size": "0x02000",
+      "alias": null,
+      "file": "/machines/pcx86/roms/IBM-XEBEC-1982.json5"
     },
     {
       "id": "videoCGA",
       "class": "video",
       "title": "Color Display",
-      "model": "cga",
       "screenWidth": 1280,
       "screenHeight": 800,
       "screenColor": "black",
       "charCols": 80,
       "charRows": 25,
-      "fontROM": "/machines/pcx86/roms/IBM-CGA.json",
+      "fontROM": "/machines/pcx86/roms/IBM-CGA.json5",
       "flicker": 0,
       "overlay": true,
-      "style": {
-        "float": "right",
-        "width": "49%",
-        "clear": "none"
-      },
+      "autoLock": true,
+      "touchScreen": "mouse",
       "controls": [
         {
           "type": "group",
@@ -110,13 +79,48 @@
         }
       ]
     },
-    "/configs/pcx86/machine/fdc.json",
-    "/configs/pcx86/machine/ram-5150.json",
+    "/machines/pcx86/ibm/fdc.json",
+    {
+      "id": "hdcXT",
+      "class": "hdc",
+      "type": "XT",
+      "drives": [
+        {
+          "name": "10Mb Hard Disk",
+          "type": 3,
+          "path":"/software/pcx86/disks/PCDOS200-C400.json"
+        },
+        {
+          "name": "10Mb Hard Disk",
+          "type": 3,
+          "path":"/software/pcx86/disks/BDSRC.json"
+        }
+      ],
+      "controls": [
+        {
+          "type": "group",
+          "style": {
+            "padding-bottom": "8px"
+          }
+        },
+        {
+          "id": "saveHD0",
+          "type": "button",
+          "label": "Save HD0"
+        },
+        {
+          "id": "saveHD1",
+          "type": "button",
+          "label": "Save HD1"
+        }
+      ]
+    },
+    "/machines/pcx86/ibm/ram-5160.json",
     {
       "id": "cpu8088",
       "class": "cpu",
       "model": 8088,
-      "autoStart": true,
+      "multiplier": 16,
       "controls": [
         {
           "id": "reset",
@@ -128,7 +132,7 @@
         }
       ]
     },
-    "/configs/pcx86/machine/keys.json",
+    "/machines/pcx86/ibm/keys.json",
     {
       "id": "panel",
       "class": "panel",
@@ -302,11 +306,10 @@
     {
       "id": "chipset",
       "class": "chipset",
-      "model": 5150,
+      "model": 5160,
       "scaleTimers": false,
-      "sw1": "01000001",
-      "sw2": "10011000",
-      "@note": "The above switch settings indicate '256K, No FPU, Monochrome Monitor, 2 Floppy Drives'; see 'swdesc' below.",
+      "sw1": "01001001",
+      "@note": "The above switch settings indicate '256K, No FPU, Color Monitor, 2 Floppy Drives'; see 'swdesc' below.",
       "sound": true,
       "floppies": "",
       "monitor": "",
@@ -340,13 +343,13 @@
             },
             {
               "id": "sw1-3",
-              "title": "Base Memory (16K Increments)",
+              "title": "Base Memory (64K Increments)",
               "label": "3",
               "value": 0
             },
             {
               "id": "sw1-4",
-              "title": "Base Memory (16K Increments)",
+              "title": "Base Memory (64K Increments)",
               "label": "4",
               "value": 0
             },
@@ -354,7 +357,7 @@
               "id": "sw1-5",
               "title": "Monitor Type",
               "label": "5",
-              "value": 0
+              "value": 1
             },
             {
               "id": "sw1-6",
@@ -377,69 +380,9 @@
           ]
         },
         {
-          "id": "sw2",
-          "type": "switches",
-          "title": "SW2",
-          "style": {
-            "position": "relative",
-            "left": "0px",
-            "clear": "both"
-          },
-          "switches": [
-            {
-              "id": "sw2-1",
-              "title": "Expansion Memory (32K Increments)",
-              "label": "1",
-              "value": 1
-            },
-            {
-              "id": "sw2-2",
-              "title": "Expansion Memory (32K Increments)",
-              "label": "2",
-              "value": 1
-            },
-            {
-              "id": "sw2-3",
-              "title": "Expansion Memory (32K Increments)",
-              "label": "3",
-              "value": 1
-            },
-            {
-              "id": "sw2-4",
-              "title": "Expansion Memory (32K Increments)",
-              "label": "4",
-              "value": 1
-            },
-            {
-              "id": "sw2-5",
-              "title": "Expansion Memory (32K Increments)",
-              "label": "5",
-              "value": 1
-            },
-            {
-              "id": "sw2-6",
-              "title": "Reserved",
-              "label": "6",
-              "value": 0
-            },
-            {
-              "id": "sw2-7",
-              "title": "Reserved",
-              "label": "7",
-              "value": 0
-            },
-            {
-              "id": "sw2-8",
-              "title": "Reserved",
-              "label": "8",
-              "value": 0
-            }
-          ]
-        },
-        {
           "id": "swdesc",
           "type": "description",
-          "label": "64K, No FPU, Monochrome Monitor, 2 Floppy Drives",
+          "label": "256K, No FPU, Color Monitor, 2 Floppy Drives",
           "style": {
             "position": "relative",
             "left": "0px",
@@ -459,6 +402,16 @@
       "class": "serial",
       "adapter": 1,
       "binding": "print"
+    },
+    {
+      "id": "com2",
+      "class": "serial",
+      "adapter": 2
+    },
+    {
+      "id": "mouse",
+      "class": "mouse",
+      "serial": "com2"
     }
   ]
 }

@@ -550,17 +550,8 @@ ENDPROC	ddcom_none
 DEFPROC	ddcom_int,far
 	call	far ptr DDINT_ENTER
 	push	ax
-	jcxz	ddi0			; no context
-	jnc	ddi1			; carry clear if DOS ready
-;
-; Unlike the CONSOLE and CLOCK$ drivers' hardware interrupt handlers,
-; which simply piggy-back on existing BIOS hardware interrupt handlers,
-; we're on our own here.  So we must make sure our handler always EOIs
-; the interrupt, even if the system isn't ready to process interrupts yet.
-;
-ddi0:	mov	al,20h			; EOI the interrupt to ensure
-	out	20h,al			; we don't block other interrupts
-	jmp	ddi10
+	jcxz	ddi2			; no context
+;	jc	ddi2			; carry set if DOS not ready
 
 ddi1:	push	bx
 	push	dx
@@ -575,15 +566,24 @@ ddi1:	push	bx
 ;
 	call	read_iir
 	cmp	al,IIR_INT_RBR		; data received?
-	jne	ddi1a			; no
+	jne	ddi3			; no
 	call	push_input
-	jmp	short ddi1b
+	jmp	short ddi4
+;
+; Unlike the CONSOLE and CLOCK$ drivers' hardware interrupt handlers,
+; which simply piggy-back on existing BIOS hardware interrupt handlers,
+; we're on our own here.  So we must make sure our handler always EOIs
+; the interrupt, even if the system isn't ready to process interrupts yet.
+;
+ddi2:	mov	al,20h			; EOI the interrupt to ensure
+	out	20h,al			; we don't block other interrupts
+	jmp	short ddi10
 
-ddi1a:	cmp	al,IIR_INT_THR		; transmitter ready?
-	jne	ddi1b			; no
+ddi3:	cmp	al,IIR_INT_THR		; transmitter ready?
+	jne	ddi4			; no
 	call	pull_output
 
-ddi1b:	mov	al,20h			; EOI the interrupt now
+ddi4:	mov	al,20h			; EOI the interrupt now
 	out	20h,al
 
 	mov	cx,cs
@@ -591,28 +591,28 @@ ddi1b:	mov	al,20h			; EOI the interrupt now
 	mov	bx,offset wait_ptr	; CX:BX -> ptr
 	les	di,es:[bx]		; ES:DI -> packet, if any
 
-ddi2:	cmp	di,-1			; end of chain?
+ddi5:	cmp	di,-1			; end of chain?
 	je	ddi9			; yes
 
 	ASSERT	STRUCT,es:[di],DDP
 
 	cmp	es:[di].DDP_CMD,DDC_READ; READ packet?
-	je	ddi3			; yes, look for buffered data
+	je	ddi6			; yes, look for buffered data
 ;
 ; For WRITE packets (which we'll assume this is for now), we need to end the
 ; wait if the context is no longer busy.
 ;
 	ASSERT	STRUCT,ds:[0],CT
 	test	ds:[CT_STATUS],CTSTAT_XMTFULL
-	jz	ddi4			; transmitter buffer is no longer full
-	jmp	short ddi6		; still full, check next packet
+	jz	ddi7			; transmitter buffer is no longer full
+	jmp	short ddi8		; still full, check next packet
 
-ddi3:	call	pull_input		; pull more input data
-	jc	ddi6			; not enough data, check next packet
+ddi6:	call	pull_input		; pull more input data
+	jc	ddi8			; not enough data, check next packet
 ;
 ; Notify DOS that this packet is done waiting.
 ;
-ddi4:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
+ddi7:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	DOSUTIL	ENDWAIT
 	ASSERT	NC
@@ -637,11 +637,11 @@ ddi4:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	stc				; set carry to indicate yield
 	jmp	short ddi9
 
-ddi6:	lea	bx,[di].DDP_PTR		; update prev addr ptr in CX:BX
+ddi8:	lea	bx,[di].DDP_PTR		; update prev addr ptr in CX:BX
 	mov	cx,es
 
 	les	di,es:[di].DDP_PTR
-	jmp	ddi2
+	jmp	ddi5
 
 ddi9:	pop	es
 	pop	ds

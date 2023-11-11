@@ -3,7 +3,7 @@ domain: basicdos.com
 description: A PCjs Retro-Programming Project
 author: Jeff Parsons
 twitter_id: jeffpar
-data_dir: configs
+data_dir: machines
 left_brace: "{"
 right_brace: "}"
 encoding: UTF-8

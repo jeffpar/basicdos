@@ -897,7 +897,7 @@ SHELL_FILE	db	"COMMAND.COM",0	; default SHELL file
 SYS_MSG		db	"BASIC-DOS "
 		VERSION_STR
 		db	" for the IBM PC",13,10
-		db	"Copyright (c) PCJS.ORG 1981-2021",13,10,13,10,'$'
+		db	"Copyright (c) PCJS.ORG 1981-2023",13,10,13,10,'$'
 
 SYSERR		db	"System initialization error$"
 CONERR		db	"More CONSOLES than SESSIONS$"

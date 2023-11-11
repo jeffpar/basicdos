@@ -5,7 +5,7 @@ permalink: /build/dual/
 machines:
   - id: ibm5160
     type: pcx86
-    config: /configs/pcx86/machine/ibm-5160-dual-512kb-debugger.json
+    config: /machines/pcx86/ibm/ibm-5160-dual-512kb-debugger.json
     autoType: $date\r$time\r\D:\rMK\r
     autoStart: true
     autoMount:

@@ -28,11 +28,12 @@ DEFPROC	main
 	mov	bx,STDOUT
 	int	21h
 	jnc	m0			; carry clear if BASIC-DOS
-	mov	dx,offset WRONG_OS
-	mov	ah,DOS_TTY_PRINT	; use DOS_TTY_PRINT instead of PRINTF
-	int	21h			; since PC DOS wouldn't understand that
-	ret
-	DEFSTR	WRONG_OS,<"BASIC-DOS required",13,10,'$'>
+
+;	mov	dx,offset WRONG_OS
+;	mov	ah,DOS_TTY_PRINT	; use DOS_TTY_PRINT instead of PRINTF
+;	int	21h			; since PC DOS wouldn't understand that
+;	ret
+;	DEFSTR	WRONG_OS,<"BASIC-DOS required",13,10,'$'>
 
 m0:	mov	bx,ds:[PSP_HEAP]
 	DBGINIT	STRUCT,[bx],CMD
