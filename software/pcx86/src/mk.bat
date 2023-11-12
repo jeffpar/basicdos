@@ -1,5 +1,5 @@
 ECHO OFF
-CD BD\BOOT
+CD OS\BOOT
 REM Use MK FINAL to create a non-debug release
 IF "%1"=="" MK DEBUG ALL
 IF "%1"=="debug" MK DEBUG ALL
