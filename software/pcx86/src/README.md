@@ -23,12 +23,12 @@ The [CMD](cmd/) directory contains the code for the BASIC-DOS Interpreter
 
 The [DEV](dev/) directory contains all the BASIC-DOS device drivers.
 The drivers are built as a separate .COM files, which are then concatenated
-into a single file (`IBMBIO.COM`), along with a binary "header" that contains
+into a single file (`BASDEV.COM`), along with a binary "header" that contains
 all the boot code that didn't fit in the boot sector (`BOOT2.COM`), and a
 binary "footer" (`DEVINIT.COM`) responsible for initializing each of the
 drivers and removing any unnecessary drivers from memory.
 
-The [DOS](dos/) directory contains the BASIC-DOS "kernel" (`IBMDOS.COM`).
+The [DOS](dos/) directory contains the BASIC-DOS "kernel" (`BASDOS.COM`).
 
 The [INC](inc/) directory contains all the BASIC-DOS include files:
 
@@ -85,4 +85,3 @@ By default, the binaries contain *DEBUG* code (eg, assertions and debugging
 aids).  To build non-debug binaries, type **MK FINAL**, or **MKCLEAN FINAL**
 if switching between *DEBUG* and *FINAL* binaries.  The **MKCLEAN.BAT** batch
 file simply deletes all the binaries before running **MK.BAT**.
-

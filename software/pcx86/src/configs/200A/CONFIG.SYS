@@ -1,0 +1,5 @@
+REM Demonstration of a single-session configuration
+SKIP=CON
+SESSIONS=3
+CONSOLE=COM1:9600,N,8,1
+SHELL=COMMAND.COM AUTOEXEC.BAT

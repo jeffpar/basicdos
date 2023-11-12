@@ -41,7 +41,7 @@
     "files.insertFinalNewline": true,
     "files.trimFinalNewlines": true
   },
-  "[masm]": {
+  "[masm][inc]": {
     "editor.insertSpaces": false,
     "editor.tabSize": 8,
     "files.trimTrailingWhitespace": true,
@@ -111,6 +111,8 @@
     "BADMCB",
     "BADREQ",
     "BADSESSION",
+    "BASDEV",
+    "BASDOS",
     "BASICA",
     "BASICDOS",
     "bdman",
@@ -969,5 +971,12 @@
     "typescriptreact",
     "yaml",
     "yml"
-  ]
+  ],
+  "files.exclude": {
+    "_site/": true,
+    ".history": true,
+    ".sass-cache": true,
+    "CNAME": true,
+    "out/": true
+  }
 }

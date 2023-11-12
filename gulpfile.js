@@ -15,16 +15,16 @@ let run = require("gulp-run-command").default;
 
 let files = {
     "HELP": [
-        "./software/pcx86/src/bd/cmd/HELP.TXT",
-        "./software/pcx86/src/bd/cmd/txt.inc"
+        "./software/pcx86/src/os/cmd/HELP.TXT",
+        "./software/pcx86/src/os/cmd/txt.inc"
     ]
 };
 
 let demoFiles = [
-    "./software/pcx86/src/bd/dev/obj/IBMBIO.COM",
-    "./software/pcx86/src/bd/dos/obj/IBMDOS.COM",
-    "./software/pcx86/src/bd/cmd/obj/COMMAND.COM",
-    "./software/pcx86/src/bd/cmd/HELP.TXT",
+    "./software/pcx86/src/os/dev/obj/IBMBIO.COM",
+    "./software/pcx86/src/os/dos/obj/IBMDOS.COM",
+    "./software/pcx86/src/os/cmd/obj/COMMAND.COM",
+    "./software/pcx86/src/os/cmd/HELP.TXT",
     "./software/pcx86/src/test/PRIMES.BA*",
     "./software/pcx86/src/test/obj/*.EXE",
     "./software/pcx86/src/test/obj/*.COM",
@@ -34,10 +34,10 @@ let demoFiles = [
 ];
 
 let minFiles = [
-    "./software/pcx86/src/bd/dev/obj/IBMBIO.COM",
-    "./software/pcx86/src/bd/dos/obj/IBMDOS.COM",
-    "./software/pcx86/src/bd/cmd/obj/COMMAND.COM",
-    "./software/pcx86/src/bd/cmd/HELP.TXT",
+    "./software/pcx86/src/os/dev/obj/IBMBIO.COM",
+    "./software/pcx86/src/os/dos/obj/IBMDOS.COM",
+    "./software/pcx86/src/os/cmd/obj/COMMAND.COM",
+    "./software/pcx86/src/os/cmd/HELP.TXT",
     "./software/pcx86/src/msb/obj/*.EXE"
 ];
 
@@ -82,37 +82,37 @@ let disks = {
         "./demos/d40/AUTOEXEC.BAT",
     ].concat(demoFiles),
     "BDS-BOOT": [
-        "./software/pcx86/src/bd/boot/*.asm",
-        "./software/pcx86/src/bd/inc/*.inc",
-        "./software/pcx86/src/bd/boot/makefile",
-        "./software/pcx86/src/bd/boot/mk.bat"
+        "./software/pcx86/src/os/boot/*.asm",
+        "./software/pcx86/src/os/inc/*.inc",
+        "./software/pcx86/src/os/boot/makefile",
+        "./software/pcx86/src/os/boot/mk.bat"
     ],
     "BDS-DEV": [
-        "./software/pcx86/src/bd/dev/*.asm",
-        "./software/pcx86/src/bd/inc/*.inc",
-        "./software/pcx86/src/bd/dev/makefile",
-        "./software/pcx86/src/bd/dev/mk.bat"
+        "./software/pcx86/src/os/dev/*.asm",
+        "./software/pcx86/src/os/inc/*.inc",
+        "./software/pcx86/src/os/dev/makefile",
+        "./software/pcx86/src/os/dev/mk.bat"
     ],
     "BDS-DOS": [
-        "./software/pcx86/src/bd/dos/*.asm",
-        "./software/pcx86/src/bd/dos/*.lrf",
-        "./software/pcx86/src/bd/inc/*.inc",
-        "./software/pcx86/src/bd/dos/makefile",
-        "./software/pcx86/src/bd/dos/mk.bat"
+        "./software/pcx86/src/os/dos/*.asm",
+        "./software/pcx86/src/os/dos/*.lrf",
+        "./software/pcx86/src/os/inc/*.inc",
+        "./software/pcx86/src/os/dos/makefile",
+        "./software/pcx86/src/os/dos/mk.bat"
     ],
     "BDS-CMD": [
-        "./software/pcx86/src/bd/cmd/*.inc",
-        "./software/pcx86/src/bd/cmd/*.asm",
-        "./software/pcx86/src/bd/cmd/*.lrf",
-        "./software/pcx86/src/bd/inc/*.inc",
-        "./software/pcx86/src/bd/cmd/makefile",
-        "./software/pcx86/src/bd/cmd/mk.bat"
+        "./software/pcx86/src/os/cmd/*.inc",
+        "./software/pcx86/src/os/cmd/*.asm",
+        "./software/pcx86/src/os/cmd/*.lrf",
+        "./software/pcx86/src/os/inc/*.inc",
+        "./software/pcx86/src/os/cmd/makefile",
+        "./software/pcx86/src/os/cmd/mk.bat"
     ],
     "BDS-TEST": [
         "./software/pcx86/src/test/*.asm",
         "./software/pcx86/src/test/*.BAS",
         "./software/pcx86/src/test/*.BAT",
-        "./software/pcx86/src/bd/inc/*.inc",
+        "./software/pcx86/src/os/inc/*.inc",
         "./software/pcx86/src/test/makefile",
         "./software/pcx86/src/test/mk.bat"
     ],
@@ -162,7 +162,7 @@ for (let diskName in disks) {
         if (diskName.startsWith("BDS-")) {
             kbTarget = 360;
         } else {
-            diskFiles += " --boot ./software/pcx86/src/bd/boot/obj/BOOT.COM";
+            diskFiles += " --boot ./software/pcx86/src/os/boot/obj/BOOT.COM";
         }
     }
     let cmd = "node \"${PCJS}/tools/diskimage/diskimage.js\" " + diskFiles + " --output " + diskImage + archiveImage + " --target=" + kbTarget + " --overwrite";
