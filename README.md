@@ -47,8 +47,8 @@ image as drive C and the BASIC-DOS source code as drive D:
     [Press CTRL-D to enter command mode]
     C:\>dir
 
-    Volume in drive C is PCJS       
-    Directory of  C:\
+     Volume in drive C is PCJS       
+     Directory of  C:\
 
     COMMAND  COM    25308   2-02-88  12:00a
     AUTOEXEC BAT      185   9-28-23   2:39p
@@ -64,17 +64,17 @@ image as drive C and the BASIC-DOS source code as drive D:
 
     D:\>dir
 
-    Volume in drive D is SRC        
-    Directory of  D:\
-
-    README   MD      3637  12-21-20   2:00p
-    BD           <DIR>     11-07-23  10:09a
-    CONF         <DIR>     11-07-23  10:09a
-    MK       BAT      260  11-07-23   9:26a
-    MKCLEAN  BAT      299  11-07-23   9:27a
-    MSB          <DIR>     11-07-23  10:09a
-    TEST         <DIR>     11-07-23  10:09a
-            7 File(s)    835584 bytes free
+     Volume in drive D is SRC        
+     Directory of  D:\
+    
+    README   MD      3635  11-12-23   1:40p
+    CONFIGS      <DIR>     11-12-23   2:29p
+    MK       BAT      260  11-12-23   2:16p
+    MKCLEAN  BAT      299  11-12-23   2:16p
+    MSB          <DIR>     11-12-23   2:15p
+    OS           <DIR>     11-07-23  10:09a
+    TEST         <DIR>     11-12-23   2:23p
+            7 File(s)    729088 bytes free
 
     D:\>mk
     Microsoft (R) Program Maintenance Utility  Version 4.02
@@ -87,11 +87,12 @@ image as drive C and the BASIC-DOS source code as drive D:
 Assuming the `mk` command was successful, you should now have everything you
 need to boot and run BASIC-DOS.
 
-The command below will build a 360K boot floppy (the largest floppy supported
-by an IBM PC XT Model 5160) with the BASIC-DOS boot sector and system files.
-The directory `disks/empty` can be replaced with a folder containing any other
-files you want included on the floppy.
+The `pc.js` command below will build a 360K boot floppy (the largest floppy
+supported by an IBM PC XT Model 5160) with the BASIC-DOS boot sector and system
+files. The directory `disks/empty` can be replaced with a folder containing any
+other files you want included on the floppy.
 
+    $ cd $PCJS/tools/pc
     $ pc.js ibm5160 --floppy --system=bd:2A disks/empty 
     [Press CTRL-D to enter command mode]
     BASIC-DOS 2.00
