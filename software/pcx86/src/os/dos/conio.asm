@@ -1184,12 +1184,12 @@ DEFPROC	write_string,DOS
 	call	sfb_get			; BX -> SFB
 	pop	ds
 	ASSUME	DS:NOTHING
-	jc	ws6
+	jc	ws6			; no valid SFB
 	mov	al,IO_COOKED
 	call	sfb_write
 	jmp	short ws7
-ws6:	lodsb				; no valid SFB
-	int	INT_FASTCON		; so we fallback to INT 29h
+ws6:	lodsb
+	int	INT_FASTCON		; fallback to INT 29h
 	loop	ws6
 ws7:	pop	es
 	pop	di
@@ -1198,7 +1198,7 @@ ws7:	pop	es
 	pop	cx
 	pop	bx
 ws8:	clc
-ws9:	ret
+	ret
 ENDPROC	write_string
 
 DOS	ends

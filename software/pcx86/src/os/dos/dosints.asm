@@ -445,7 +445,7 @@ ENDPROC	dos_call5
 DEFPROC	dos_util,DOSFAR
 	cld
 	add	ah,80h
-	jmp	near ptr dos_func + 1	; avoid the same entry point as INT 21h
+	jmp	near ptr dos_func + 1	; avoid same entry point as INT 21h
 ENDPROC	dos_util
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -165,13 +165,13 @@ ENDPROC	utl_strupr
 ; A CDECL-style calling convention is assumed, where all parameters EXCEPT
 ; for the format string are pushed from right to left, so that the first
 ; (left-most) parameter is the last one pushed.  The format string is stored
-; in the CODE segment following the INT 21h, which we automatically skip, and
+; in the CODE segment following the INT XX, which we automatically skip, and
 ; the next instruction should be an "ADD SP,N*2", assuming N word parameters.
 ;
 ; Use the PRINTF macro to simplify calls to this function.
 ;
 ; Inputs:
-;	format string follows the INT 21h
+;	format string follows the INT XX
 ;	all other parameters must be pushed onto the stack, right to left
 ;
 ; Outputs:
@@ -224,12 +224,12 @@ ENDPROC	utl_printf
 ; to a "debug" device defined by a DEBUG= line in CONFIG.SYS.  However, this
 ; code is always left in place, in case we end up with a mix of DEBUG and
 ; FINAL binaries.  Without this function, those calls would crash, due to
-; how the format strings are stored after the INT 21h.
+; how the format strings are stored after the INT XX.
 ;
 ; Use the DPRINTF macro to simplify calls to this function.
 ;
 ; Inputs:
-;	option code (following INT 21h)
+;	option code (following INT XX)
 ;	format string (following the option code)
 ;	all other parameters must be pushed onto the stack, right to left
 ;

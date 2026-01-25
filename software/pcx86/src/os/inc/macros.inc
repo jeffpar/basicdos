@@ -61,17 +61,27 @@ DEFDATA	macro	name,size,type,values,repeat
 	IFDIF	<type>,<byte>
 	even
 	ENDIF
-	public	name
-	IFB	<values>
-name	size	0
-	ELSE
-	 IFB	<repeat>
-name	label	type
-	IRP	value,<values>
+	IFB	<name>
+	 IRP	value,<values>
+	  IFDEF value
 	size	value
-	ENDM
+	  ELSE
+	size	0
+	  ENDIF
+	 ENDM
+	ELSE
+	public	name
+	 IFB	<values>
+name	size	0
 	 ELSE
+	  IFB	<repeat>
+name	label	type
+	   IRP	value,<values>
+	size	value
+	   ENDM
+	  ELSE
 name	size	repeat dup (values)
+	  ENDIF
 	 ENDIF
 	ENDIF
 	endm
