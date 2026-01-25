@@ -111,7 +111,7 @@ passed		db		"passed",13,10,'$'
 progress	db		".$"
 alloctest	db		"memory test$"
 
-execfile	db		"tests.com",0
+execfile	db		"dostests.com",0
 execparms	EPB		<0,PSP_CMDTAIL,PSP_FCB1,PSP_FCB2>
 ;
 ; COMHEAP 0 means we don't need a heap, but BASIC-DOS will still allocate a

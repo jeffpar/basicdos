@@ -25,11 +25,11 @@ let demoFiles = [
     "./software/pcx86/src/os/dos/obj/IBMDOS.COM",
     "./software/pcx86/src/os/cmd/obj/COMMAND.COM",
     "./software/pcx86/src/os/cmd/HELP.TXT",
-    "./software/pcx86/src/test/PRIMES.BA*",
-    "./software/pcx86/src/test/obj/*.EXE",
-    "./software/pcx86/src/test/obj/*.COM",
-    "./software/pcx86/src/test/BD*.BAT",
-    "./software/pcx86/src/test/bin/*.EXE",
+    "./software/pcx86/src/tests/PRIMES.BA*",
+    "./software/pcx86/src/tests/obj/*.EXE",
+    "./software/pcx86/src/tests/obj/*.COM",
+    "./software/pcx86/src/tests/BD*.BAT",
+    "./software/pcx86/src/tests/bin/*.EXE",
     "./software/pcx86/src/msb/obj/*.EXE"
 ];
 
@@ -109,12 +109,12 @@ let disks = {
         "./software/pcx86/src/os/cmd/mk.bat"
     ],
     "BDS-TEST": [
-        "./software/pcx86/src/test/*.asm",
-        "./software/pcx86/src/test/*.BAS",
-        "./software/pcx86/src/test/*.BAT",
+        "./software/pcx86/src/tests/*.asm",
+        "./software/pcx86/src/tests/*.BAS",
+        "./software/pcx86/src/tests/*.BAT",
         "./software/pcx86/src/os/inc/*.inc",
-        "./software/pcx86/src/test/makefile",
-        "./software/pcx86/src/test/mk.bat"
+        "./software/pcx86/src/tests/makefile",
+        "./software/pcx86/src/tests/mk.bat"
     ],
     "BDSRC": [
         "./software/pcx86/src/**"

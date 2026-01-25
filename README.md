@@ -89,13 +89,12 @@ need to boot and run BASIC-DOS.
 
 The `pc.js` command below will build a 360K boot floppy (the largest floppy
 supported by an IBM PC XT Model 5160) with the BASIC-DOS boot sector and system
-files. The directory `disks/empty` can be replaced with a folder containing any
-other files you want included on the floppy.
+files. If you have a folder containing additional files that you want included
+on the floppy, specify it in place of the empty folder `disks/empty`.
 
-    $ cd $PCJS/tools/pc
     $ pc.js ibm5160 --floppy --system=bd:2A disks/empty 
     [Press CTRL-D to enter command mode]
-    BASIC-DOS 2.00
+    BASIC-DOS 2.00A
     Press a key to start...
 
 {% endcomment %}

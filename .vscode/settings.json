@@ -9,7 +9,7 @@
   "editor.insertSpaces": false,
   "editor.tabSize": 8,
   "editor.wordWrap": "off",
-  "workbench.colorTheme": "Atom One Dark",
+  "workbench.colorTheme": "Tokyo City Darker",
   "workbench.colorCustomizations": {
     "[Atom One Dark]": {
       "debugToolBar.background": "#21252B"
@@ -325,6 +325,7 @@
     "DOSNET",
     "DOSRES",
     "DOSTERM",
+    "dostests",
     "DOSTSR",
     "dosutil",
     "DOSVARS",

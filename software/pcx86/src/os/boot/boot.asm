@@ -374,9 +374,9 @@ ENDPROC	find_dirent
 ; we wait indefinitely for a key, and if the key is ESC, then we return 0,
 ; indicating that our boot code should be bypassed.
 ;
-; There are two main advantages to NOT using TWAIT: 1) faster-than-normal
+; There are two main advantages to NOT using TWAIT: (1) faster-than-normal
 ; PCJS machines generate ticks faster as well, so that the IBM ROM POST tests
-; won't fail, which means the delay may be too short; and 2) it makes the boot
+; won't fail, which means the delay may be too short; and (2) it makes the boot
 ; code smaller.
 ;
 ; Inputs:
@@ -451,16 +451,16 @@ errmsg2		db	"System file(s) missing, halted",0
 ;
 ; Part 2 of the boot process:
 ;
-;    1) Copy critical data from PART1 to PART2, before FAT reads (if any)
+;   (1) Copy critical data from PART1 to PART2, before FAT reads (if any)
 ;	overwrite it.
 ;
-;    2) Load the rest of DEV_FILE; the file need not be first, nor
+;   (2) Load the rest of DEV_FILE; the file need not be first, nor
 ;	contiguous, since we read the FAT to process the cluster chain;
 ;	the downside is that any FAT sectors read will overwrite the first
 ;	half of the boot code, so any code/data that must be copied between
 ;	the halves should be copied above (see step 1).
 ;
-;    3) Locate DEV_FILE's "init" code, which resides just beyond all the
+;   (3) Locate DEV_FILE's "init" code, which resides just beyond all the
 ;	device drivers, and call it.  It must return the next available
 ;	load address.
 ;
@@ -520,7 +520,7 @@ ENDPROC	part2
 ;
 ; Part 3 of the boot process:
 ;
-;    1) When DEV_FILE returns, load DOS_FILE at the next load address,
+;   (1) When DEV_FILE returns, load DOS_FILE at the next load address,
 ;	and then jump to it.  At that point, we never return to this code.
 ;
 DEFPROC	part3,far

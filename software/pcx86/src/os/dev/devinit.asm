@@ -45,7 +45,7 @@ DEFPROC	devinit,far
 ; crash (the original IBM PC did NOT initialize all the low interrupt vectors),
 ; so install a temporary INT_UD handler; sysinit will initialize it properly.
 ;
-	DBGBRK
+;	DBGBRK
 	IFDEF	DEBUG
 	mov	word ptr [IVT+INT_UD*4].OFF,offset devinit - 2
 	mov	word ptr [IVT+INT_UD*4].SEG,cs
