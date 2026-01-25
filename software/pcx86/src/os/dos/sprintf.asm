@@ -298,10 +298,13 @@ pfp7:	cmp	al,'u'			; %u unsigned value?
 	je	pfp5a			; yes, unsigned values are the default
 	IFDEF DEBUG
 	cmp	al,'x'			; %x hex value?
-	jne	pfp8
+	jne	pfp7a
 	mov	cl,16			; use base 16 instead
 	jmp	pfp5a			; hex values are always unsigned
 	ENDIF
+pfp7a:	cmp	al,'f'			; %f floating-point value?
+	jne	pfp8
+	jmp	pff			; yes, jump to floating-point handler
 pfp8:	cmp	al,'.'			; precision indicator?
 	jne	pfp9
 	or	ch,PF_PRECIS		; yes
@@ -520,6 +523,187 @@ pfd6:	pop	cx
 	mov	cx,[bp].SPF_WIDTH	; CX = length (0 if unspecified)
 	call	itoa
 	add	di,ax			; adjust DI by number of digits
+	pop	bx
+	jmp	pf1
+;
+; Process %f formatter (IEEE-754 floating-point).
+;
+; The 8-byte IEEE-754 value is on the stack in this order (pushed right-to-left):
+;   [BP+SI+6] = bits 63-48 (sign + exponent high)
+;   [BP+SI+4] = bits 47-32 (exponent low + mantissa high)
+;   [BP+SI+2] = bits 31-16 (mantissa mid)
+;   [BP+SI+0] = bits 15-0  (mantissa low)
+;
+pff:	push	bx
+	push	ds
+
+	; Load the IEEE-754 double from stack
+	mov	ax,[bp+si]		; AX = bits 15-0
+	mov	dx,[bp+si+2]		; DX = bits 31-16
+	push	ax			; save mantissa low
+	push	dx			; save mantissa mid
+	mov	ax,[bp+si+4]		; AX = bits 47-32
+	mov	dx,[bp+si+6]		; DX = bits 63-48
+	add	si,8			; consume all 8 bytes from stack
+
+	; Extract sign bit (bit 63)
+	push	dx			; save for later
+	test	dx,8000h		; test sign bit
+	mov	al,'-'
+	jnz	pff1			; negative, use '-'
+	mov	al,' '			; positive, use space
+pff1:	push	ax			; save sign character
+
+	; Extract exponent (bits 62-52)
+	pop	ax			; AX = bits 63-48
+	push	ax			; save again
+	shl	ax,1			; shift out sign bit
+	mov	cl,4
+	shr	ax,cl			; AX = exponent (11 bits)
+	push	ax			; save exponent
+
+	; Check for special cases
+	cmp	ax,07FFh		; exponent all 1s?
+	je	pff_special		; yes, NaN or Inf
+	test	ax,ax			; exponent all 0s?
+	jz	pff_zero		; yes, zero or denormal (treat as zero)
+
+	; Extract mantissa (bits 51-0)
+	; mantissa is 1.fraction for normal numbers
+	pop	ax			; exponent
+	sub	ax,1023			; unbias exponent (actual = exp - 1023)
+	push	ax			; save unbiased exponent
+
+	; For simplicity, handle small range: -10 <= exponent <= 10
+	; This covers roughly 0.001 to 2000.0
+	cmp	ax,-10
+	jl	pff_zero		; too small, treat as 0
+	cmp	ax,10
+	jg	pff_special		; too large, show as overflow
+
+	; Build mantissa with implied 1 bit
+	pop	ax			; unbiased exponent
+	pop	dx			; bits 63-48
+	pop	cx			; bits 47-32 (mantissa high part)
+	push	dx			; save bits 63-48 again
+
+	; Extract 52-bit mantissa and add implicit 1
+	and	dx,000Fh		; DX = top 4 bits of mantissa
+	or	dx,0010h		; add implicit 1 bit (bit 52)
+
+	; Now we have: DX:CX = top 20 bits of mantissa (with implicit 1)
+	; For simplicity, we'll work with this precision
+
+	; Determine integer and fractional parts based on exponent
+	; If exp >= 0: shift mantissa left to get integer
+	; If exp < 0: mantissa becomes fractional part
+
+	test	ax,ax			; check exponent sign
+	js	pff_frac		; negative, mainly fractional
+
+	; Positive exponent: compute integer part
+	; Shift DX:CX left by exponent amount (limited to 16 bits)
+	cmp	ax,16
+	jg	pff_special		; too large for our simple approach
+
+	push	ax			; save exp
+	mov	bx,cx			; save CX
+	mov	cx,ax			; CX = shift count
+	jcxz	pff2			; no shift needed
+pff1a:	shl	bx,1
+	rcl	dx,1
+	loop	pff1a
+pff2:	pop	ax			; restore exp
+
+	; DX now holds integer part (approximately)
+	; For simplicity, we'll print just the integer with .0
+	pop	cx			; bits 63-48 (for sign)
+	pop	bx			; mantissa mid (discard)
+	pop	bx			; mantissa low (discard)
+	pop	cx			; sign character
+
+	; Print sign if negative
+	test	ch,80h			; was original sign negative?
+	jz	pff2a
+	mov	al,cl			; output sign
+	stosb
+
+pff2a:	; Print integer part using itoa
+	mov	ax,dx			; value to print
+	sub	dx,dx
+	mov	bx,000Ah			; BH=flags (unsigned), BL=base 10
+	mov	cx,[bp].SPF_WIDTH
+	call	itoa
+	add	di,ax
+
+	; Add decimal point and one zero
+	mov	al,'.'
+	stosb
+	mov	al,'0'
+	stosb
+
+	pop	ds
+	pop	bx
+	jmp	pf1
+
+; Handle special cases (NaN, Inf, overflow)
+pff_special:
+	pop	ax			; exponent
+	pop	dx			; bits 63-48
+	pop	cx			; bits 47-32
+	pop	bx			; mantissa mid
+	pop	bx			; mantissa low
+	pop	cx			; sign character
+
+	; Print "#" to indicate special value
+	mov	al,'#'
+	stosb
+	mov	al,'#'
+	stosb
+	mov	al,'#'
+	stosb
+
+	pop	ds
+	pop	bx
+	jmp	pf1
+
+; Handle fractional case (exponent < 0)
+pff_frac:
+	; For negative exponent, print 0.something
+	pop	cx			; bits 63-48 (for sign)
+	pop	bx			; mantissa mid (discard)
+	pop	bx			; mantissa low (discard)
+	pop	cx			; sign character
+
+	; Print "0.0" for simplicity
+	mov	al,'0'
+	stosb
+	mov	al,'.'
+	stosb
+	mov	al,'0'
+	stosb
+
+	pop	ds
+	pop	bx
+	jmp	pf1
+
+; Handle zero/denormal
+pff_zero:
+	pop	ax			; exponent
+	pop	dx			; bits 63-48
+	pop	cx			; bits 47-32
+	pop	bx			; mantissa mid
+	pop	bx			; mantissa low
+	pop	cx			; sign character
+
+	mov	al,'0'
+	stosb
+	mov	al,'.'
+	stosb
+	mov	al,'0'
+	stosb
+
+	pop	ds
 	pop	bx
 	jmp	pf1
 ;
