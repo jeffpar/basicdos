@@ -554,19 +554,19 @@ D2:
 ; first, then the high word, so that the high word is pushed first.  Similarly,
 ; when passing 32-bit ("far") pointers, pass the offset first, then segment.
 ;
-CCALL	macro	func,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
+CCALL	macro	func,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15
 	argc = 0
-	IRP	arg,<a12,a11,a10,a9,a8,a7,a6,a5,a4,a3,a2,a1>
-	IFNB	<arg>
+	IRP	arg,<a15,a14,a13,a12,a11,a10,a9,a8,a7,a6,a5,a4,a3,a2,a1>
+	 IFNB <arg>
 	argc = argc + 1
 	push	arg
-	ENDIF
+	 ENDIF
 	ENDM
 	DOSUTIL	func
-	IFNB	<format>
+	IFNB <format>
 	db	format,0
 	ENDIF
-	IF	argc NE 0
+	IF argc NE 0
 	add	sp,argc * 2
 	ENDIF
 	endm

@@ -16,14 +16,12 @@ DOS	segment word public 'CODE'
 
         ASSUME  CS:DOS, DS:DOS, ES:DOS, SS:DOS
 
-	org	100h
-
 DEFPROC	main
 ;
 ; Ready for string testing...
 ;
-	DBGBRK
 	PRINTF	<"hello world!",13,10>
+	PRINTF	<"CR is %d, LF is 0x%x",13,10>,CR,LF
 ;
 ; In BASIC-DOS, we could also use INT 20h here, but PC DOS requires that CS
 ; contain the PSP being terminated when calling INT 20h (BASIC-DOS does not).
@@ -32,6 +30,9 @@ DEFPROC	main
 	int	21h
 	ret			; a return is not necessary, but just in case
 ENDPROC	main
+
+CR	dw	13
+LF	dw	10
 
 ;
 ; COMHEAP 0 means we don't need a heap, but BASIC-DOS will still allocate a

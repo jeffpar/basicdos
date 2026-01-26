@@ -20,20 +20,19 @@ DOS	segment word public 'CODE'
 
         ASSUME  CS:DOS, DS:DOS, ES:DOS, SS:DOS
 
+	org	100h
+
 DEFPROC	bd_init
 ;
 ; The following REALLOC is not necessary in BASIC-DOS, because it detects
 ; our COMHEAP signature and resizes us automatically, but if we want to run
 ; with the same footprint in PC DOS, then we must still resize ourselves.
 ;
-	DBGBRK
 	mov	bx,offset HEAP + MINHEAP
 	and	bl,0F0h
 	or	bl,0Eh		; BX adjusted to top word of top paragraph
-	mov	word ptr [bx],0	; store a zero there so we can simply return
-	sub	bx,2
-	mov	[bx],ax		; store the return address at new stack address
 	mov	sp,bx		; lower the stack
+	mov	word ptr [bx],0	; store a zero there so we can simply return
 	mov	cl,4
 	add	bx,15
 	shr	bx,cl
@@ -42,7 +41,7 @@ DEFPROC	bd_init
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSUTIL
 	mov	dx,offset bd_util
 	int	21h
-	ret
+	jmp	main
 ENDPROC	bd_init
 
 DEFPROC	bd_util
@@ -78,15 +77,15 @@ DEFPROC	bd_func
 	cmp	ah,80h			; utility function?
 	jb	dc1			; no
 	sub	ah,80h
-	cmp	ah,UTILTBL_SIZE		; utility function within range?
+	cmp	ah,UTILTBL_SIZE AND 255	; utility function within range?
 	jae	dc4			; no
 	mov	bl,ah
-	add	bl,FUNCTBL_SIZE		; the utility function table
+	add	bl,FUNCTBL_SIZE AND 255	; the utility function table
 	jmp	short dc2		; follows the DOS function table
 
 dc1:	sti
 	and	[bp].REG_FL,NOT FL_CARRY
-	cmp	ah,FUNCTBL_SIZE
+	cmp	ah,FUNCTBL_SIZE AND 255
 	cmc
 	jb	dc3
 	mov	bl,ah
