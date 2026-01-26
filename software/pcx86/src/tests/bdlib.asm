@@ -15,12 +15,19 @@
 
 DOS	segment word public 'CODE'
 
-	EXTNEAR	<sprintf>
+	EXTWORD	<HEAP>
+	EXTNEAR	<main,sprintf>
 
         ASSUME  CS:DOS, DS:DOS, ES:DOS, SS:DOS
 
 DEFPROC	bd_init
-	pop	ax		; save the return address
+;
+; The following REALLOC is not necessary in BASIC-DOS, because it detects
+; our COMHEAP signature and resizes us automatically, but if we want to run
+; with the same footprint in PC DOS, then we must still resize ourselves.
+;
+	DBGBRK
+	mov	bx,offset HEAP + MINHEAP
 	and	bl,0F0h
 	or	bl,0Eh		; BX adjusted to top word of top paragraph
 	mov	word ptr [bx],0	; store a zero there so we can simply return
@@ -415,4 +422,4 @@ ENDPROC	utl_printf
 
 DOS	ends
 
-	end
+	end	bd_init

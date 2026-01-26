@@ -20,13 +20,6 @@ DOS	segment word public 'CODE'
 
 DEFPROC	main
 ;
-; The following REALLOC is not necessary in BASIC-DOS, because it detects
-; our COMHEAP signature and resizes us automatically, but if we want to run
-; with the same footprint in PC DOS, then we must still resize ourselves.
-;
-	mov	bx,offset HEAP + MINHEAP
-	call	bd_init
-;
 ; Ready for string testing...
 ;
 	DBGBRK
@@ -48,4 +41,4 @@ ENDPROC	main
 
 DOS	ends
 
-	end	main
+	end
