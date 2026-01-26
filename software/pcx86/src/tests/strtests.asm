@@ -18,10 +18,11 @@ DOS	segment word public 'CODE'
 
 DEFPROC	main
 ;
-; Ready for string testing...
+; Start with some simple printf tests
 ;
 	PRINTF	<"hello world!",13,10>
 	PRINTF	<"CR is %d, LF is 0x%x",13,10>,CR,LF
+	PRINTF	<"PI is %f",13,10>,PI.W1,PI.W2,PI.W3,PI.W4
 ;
 ; In BASIC-DOS, we could also use INT 20h here, but PC DOS requires that CS
 ; contain the PSP being terminated when calling INT 20h (BASIC-DOS does not).
@@ -33,6 +34,7 @@ ENDPROC	main
 
 CR	dw	13
 LF	dw	10
+PI	dq	3.1415
 
 ;
 ; COMHEAP 0 means we don't need a heap, but BASIC-DOS will still allocate a

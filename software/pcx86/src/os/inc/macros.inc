@@ -24,6 +24,13 @@ LOW	dw	?
 HIW	dw	?
 REG32	ends
 
+REG64	struc
+W1	dw	?
+W2	dw	?
+W3	dw	?
+W4	dw	?
+REG64	ends
+
 FARPTR	struc
 OFF	dw	?
 SEG	dw	?
@@ -547,12 +554,14 @@ D2:
 ; CCALL simulates a C-style (aka CDECL) calling convention, with the macro
 ; pushing the parameters right-to-left and cleaning up the stack afterward.
 ;
-; One downside to this convention is that it can't be used with functions that
-; return information in flags, like CF or ZF, due to the "add sp" instruction.
+; One downside to this convention is that it can't be used with functions
+; returning values in flags, like CF or ZF, due to the "add sp" instruction.
 ;
-; NOTE: When passing 32-bit ("long") values to these macros, pass the low word
-; first, then the high word, so that the high word is pushed first.  Similarly,
-; when passing 32-bit ("far") pointers, pass the offset first, then segment.
+; NOTE: When passing 32-bit "long" values to CCALL, list the low word
+; (LOW) first, then the high word (HIW), so the high word is pushed first;
+; similarly, when passing 32-bit "far" pointers, list the offset (OFF)
+; first and then the segment (SEG).  Finally, when passing 64-bit "quad"
+; values, list the words from lowest to highest (W1, W2, W3, and W4).
 ;
 CCALL	macro	func,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15
 	argc = 0
