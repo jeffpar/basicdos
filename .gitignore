@@ -7,4 +7,5 @@ Gemfile.lock
 package-lock.json
 /_site
 /node_modules
+bin/
 obj/

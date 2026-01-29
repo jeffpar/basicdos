@@ -1,1 +1,1 @@
-\tests\bin\symdeb.exe \tests\obj\strtests.sym \tests\obj\strtests.com
+\tests\misc\symdeb.exe \tests\obj\printf.sym \tests\bin\printf.com

@@ -30,7 +30,7 @@ DOS	segment word public 'CODE'
 ;	ES:DI -> buffer
 ;
 ; Outputs:
-;	AL = # of digits written to buffer
+;	AL = # of digits written to buffer; DI advanced accordingly
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, ES
@@ -39,7 +39,6 @@ DEFPROC	itoa,DOS
 	push	bp
 	push	si
 	push	di
-
 	sub	si,si
 	test	bh,PF_SIGN		; treat value as signed?
 	jz	ia1			; no
@@ -126,17 +125,15 @@ ia8:	pop	ax			; pop a digit
 ia9:	stosb				; store the digit
 	dec	bp
 	jnz	ia8
-
 	mov	cx,dx			; perform post-padding, if any
 	mov	al,' '
 	rep	stosb
-
 	add	sp,4			; discard requested length and flags
 	pop	ax
+	sub	ax,di			; AX = negative buffer delta
+	neg	ax			; make it positive
 	pop	si
 	pop	bp
-	sub	di,ax			; current - original address
-	xchg	ax,di			; DI restored, AX is the digit count
 	ret
 ENDPROC itoa
 
@@ -451,7 +448,7 @@ pda9:	mov	[bp+si],ax		; update the shifted/masked parameter
 ; In order to support partial bit values, we'd like to use precision to mod
 ; the value as follows: for %x, mod with (1 << (SPF_PRECIS << 2)), and
 ; for %d, mod with (10 ^ SPF_PRECIS).  For now, this is only supported for %x.
-
+;
 ; TODO: Add precision support for %d and %u.
 ;
 ; TODO: Any specified width is a minimum, not a maximum, and if the value
@@ -521,17 +518,27 @@ pfd6:	pop	cx
 	mov	bx,cx			; set flags (BH) and base (BL)
 	mov	cx,[bp].SPF_WIDTH	; CX = length (0 if unspecified)
 	call	itoa
-	add	di,ax			; adjust DI by number of digits
 	pop	bx
 	jmp	pf1
 ;
-; Process %f formatter (IEEE-754 floating-point).
+; Process %f formatter (assumes a 64-bit IEEE-754 floating-point value)
 ;
-; The 8-byte IEEE-754 value is on the stack in this order (pushed right-to-left):
-;   [BP+SI+6] = bits 63-48 (sign + exponent high)
-;   [BP+SI+4] = bits 47-32 (exponent low + mantissa high)
-;   [BP+SI+2] = bits 31-16 (mantissa mid)
-;   [BP+SI+0] = bits 15-0  (mantissa low)
+;   [BP+SI+6] = bits 63-48 (1 sign bit + 11 exponent bits + 4 fraction bits)
+;   [BP+SI+4] = bits 47-32 (next 16 fraction bits)
+;   [BP+SI+2] = bits 31-16 (next 16 fraction bits)
+;   [BP+SI+0] = bits 15-0  (last 16 fraction bits)
+;
+; The exponent is biased by 1023, and the fraction bits are preceded by an
+; implicit leading 1 bit for normal numbers (exponent not all 0s or 1s).
+;
+; If the biased exponent is all 1s (0x7FF), the value is either Infinity
+; (if the fraction is all 0s) or NaN (if the fraction is non-zero), and if
+; biased exponent is all 0s, the value is either zero (if fraction is all 0s)
+; or a subnormal ("denormal") number (if fraction is non-zero), in which
+; the implicit leading digit is 0 instead of 1.
+;
+; We'll avoid scientific notation if the unbiased exponent is in the range
+; if -24 to +24, which covers roughly 1.0E-7 to 1.0E+7.
 ;
 pff:	DBGBRK
 	push	bx
@@ -646,7 +653,6 @@ pff2a:	mov	ax,dx			; value to print
 	mov	bx,000Ah		; BH=flags (unsigned), BL=base 10
 	mov	cx,[bp].SPF_WIDTH
 	call	itoa
-	add	di,ax
 ;
 ; Add decimal point and one zero
 ;
