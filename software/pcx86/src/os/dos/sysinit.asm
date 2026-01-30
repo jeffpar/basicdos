@@ -230,7 +230,9 @@ si5a:	mov	dx,size SCB
 	cwd				; DL = SFH_NONE, DH = SFH_NONE
 	mov	bx,[scb_table].OFF
 	mov	[scb_active],bx		; make the first SCB active
-si5b:	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHIN>
+
+si5b	label	near
+	ASSERT	<SCB_NUM + 1>,EQ,<SCB_SFHIN>
 	mov	word ptr [bx].SCB_NUM,ax
 	mov	word ptr [bx].SCB_SFHOUT,dx
 	mov	word ptr [bx].SCB_SFHAUX,dx

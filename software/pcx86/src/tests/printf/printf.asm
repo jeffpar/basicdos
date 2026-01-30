@@ -12,7 +12,8 @@
 
 DOS	segment word public 'CODE'
 
-	EXTNEAR	<bd_init>
+	EXTWORD <cr,lf>
+	EXTQUAD <pi,one>
 
         ASSUME  CS:DOS, DS:DOS, ES:DOS, SS:DOS
 
@@ -22,21 +23,19 @@ DEFPROC	main
 ;
 	PRINTF	<"hello world!",13,10>
 	PRINTF	<"CR is %d, LF is 0x%x",13,10>,CR,LF
-	PRINTF	<"PI is %f",13,10>,ONE.W1,ONE.W2,ONE.W3,ONE.W4
-;
-; In BASIC-DOS, we could also use INT 20h here, but PC DOS requires that CS
-; contain the PSP being terminated when calling INT 20h (BASIC-DOS does not).
-;
-	mov	ax,DOS_PSP_RETURN SHL 8
-	int	21h
-	ret			; a return is not necessary, but just in case
-ENDPROC	main
+;	PRINTF	<"ONE is %lf, PI is %lf",13,10>,ONE,PI
 
-	public	CR,LF,PI,ONE
-CR	dw	13
-LF	dw	10
-PI	dq	3.14159
-ONE	dq	1.0
+	PRINTF	<"Powers of two...",13,10>
+	mov	cx,1
+	sub	dx,dx
+m1:	PRINTF	<"%lu",13,10>,cx,dx
+	shl	cx,1
+	rcl	dx,1
+	mov	ax,cx
+	or	ax,dx
+	jnz	m1
+	ret
+ENDPROC	main
 
 ;
 ; COMHEAP 0 means we don't need a heap, but BASIC-DOS will still allocate a

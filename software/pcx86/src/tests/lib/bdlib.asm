@@ -38,18 +38,45 @@ DEFPROC	bd_init
 	shr	bx,cl
 	mov	ah,DOS_MEM_REALLOC
 	int	21h
+	mov	ah,DOS_MSC_GETVER
+	int	21h
+	mov	[bd_rev],bl	; save BASIC-DOS revision (should be non-zero)
+	test	bl,bl
+	jnz	bd1
+	mov	ax,(DOS_MSC_GETVEC SHL 8) + INT_DOSUTIL
+	int	21h
+	mov	[bd_vec].low,bx
+	mov	[bd_vec].hiw,es
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSUTIL
 	mov	dx,offset bd_util
 	int	21h
-	jmp	main
+bd1:	call	main
+	cmp	[bd_rev].HIW,0
+	je	bd9
+	lds	dx,[bd_vec]
+	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSUTIL
+	int	21h
+;
+; In BASIC-DOS, we could also use INT 20h here, but PC DOS requires that CS
+; contain the PSP being terminated when calling INT 20h (BASIC-DOS does not).
+;
+bd9:	mov	ax,DOS_PSP_RETURN SHL 8
+	int	21h
+	ret			; a return is not necessary, but just in case
 ENDPROC	bd_init
 
 DEFPROC	bd_util
-	cld
-	add	ah,80h
-	jmp	near ptr bd_func + 1	; avoid same entry point as bd_func
+	cmp	ah,DOS_UTL_PRINTF
+	je	bd_func
+	jmp	dword ptr cs:[bd_vec]
 ENDPROC	bd_util
 
+DEFBYTE bd_rev,0		; BASIC-DOS revision (should be non-zero)
+DEFLONG bd_vec,0		; original DOSUTIL vector
+
+;
+; Begin excerpt from OS/DOS/DOSINTS.ASM
+;
 DEFPROC	bd_func
 	cld				; we assume CLD everywhere
 	sub	sp,size WS_TEMP
@@ -63,46 +90,13 @@ DEFPROC	bd_func
 	push	di
 	push	bp
 	mov	bp,sp
-;
-; While we assign DS and ES to the DOS segment on DOS function entry, we
-; do NOT assume they will still be set that way when the FUNCTBL call returns.
-;
+
 	mov	bx,cs
 	mov	ds,bx
 	mov	es,bx
-;
-; Utility functions don't automatically re-enable interrupts, clear carry,
-; or check for CTRLC, since some of them are called from interrupt handlers.
-;
-	cmp	ah,80h			; utility function?
-	jb	dc1			; no
-	sub	ah,80h
-	cmp	ah,UTILTBL_SIZE AND 255	; utility function within range?
-	jae	dc4			; no
-	mov	bl,ah
-	add	bl,FUNCTBL_SIZE AND 255	; the utility function table
-	jmp	short dc2		; follows the DOS function table
+	call	utl_printf
 
-dc1:	sti
-	and	[bp].REG_FL,NOT FL_CARRY
-	cmp	ah,FUNCTBL_SIZE AND 255
-	cmc
-	jb	dc3
-	mov	bl,ah
-dc2:	mov	bh,0			; BX = function #
-	add	bx,bx			; convert function # to word offset
-;
-; For convenience, general-purpose registers AX, CX, DX, SI, DI, and SS
-; contain their original values.
-;
-	call	FUNCTBL[bx]
-;
-; We'd just as soon IRET to the caller (which also restores their D flag),
-; so we now update FL_CARRY on the stack (which we already cleared on entry).
-;
-dc3:	adc	[bp].REG_FL,0
-
-dc4:	pop	bp
+	pop	bp
 	pop	di
 	pop	es
 	pop	si
@@ -140,7 +134,9 @@ DEFPROC	write_string
 	push	di
 	push	es
 ws6:	lodsb
-	int	INT_FASTCON		; fallback to INT 29h
+	mov	ah,0Eh
+	mov	bh,0
+	int	10h
 	loop	ws6
 	pop	es
 	pop	di
@@ -379,45 +375,6 @@ ENDPROC	utl_printf
 	DEFBYTE	SAT,<"Saturday",0>
 	DEFWORD	DAYS,<SUN,MON,TUE,WED,THU,FRI,SAT>
 	DEFBYTE	MONTH_DAYS,<31,28,31,30,31,30,31,31,30,31,30,31>
-
-	DEFLBL	FUNCTBL,word
-	DEFWORD ,<psp_term,    tty_echo,    tty_write,   aux_read>	;00-03
-	DEFWORD	,<aux_write,   prn_write,   tty_io,      tty_in>	;04-07
-	DEFWORD	,<tty_read,    tty_print,   tty_input,   tty_status>	;08-0B
-	DEFWORD	,<tty_flush,   dsk_flush,   dsk_setdrv,  fcb_open>	;0C-0F
-	DEFWORD	,<fcb_close,   func_none,   func_none,   func_none>	;10-13
-	DEFWORD	,<fcb_sread,   func_none,   func_none,   func_none>	;14-17
-	DEFWORD	,<func_none,   dsk_getdrv,  dsk_setdta,  func_none>	;18-1B
-	DEFWORD	,<func_none,   func_none,   func_none,   func_none>	;1C-1F
-	DEFWORD	,<func_none,   fcb_rread,   func_none,   func_none>	;20-23
-	DEFWORD	,<fcb_setrel,  msc_setvec,  psp_copy,    fcb_rbread>	;24-27
-	DEFWORD	,<func_none,   fcb_parse,   msc_getdate, msc_setdate>	;28-2B
-	DEFWORD	,<msc_gettime, msc_settime, func_none,   dsk_getdta>	;2C-2F
-	DEFWORD	,<msc_getver,  func_none,   func_none,   msc_setctrlc>	;30-33
-	DEFWORD	,<func_none,   msc_getvec,  dsk_getinfo, msc_getswc>	;34-37
-	DEFWORD	,<func_none,   func_none,   func_none,   func_none>	;38-3B
-	DEFWORD	,<func_none,   hdl_open,    hdl_close,   hdl_read>	;3C-3F
-	DEFWORD	,<hdl_write,   func_none,   hdl_seek,    func_none>	;40-43
-	DEFWORD	,<hdl_ioctl,   func_none,   func_none,   func_none>	;44-47
-	DEFWORD	,<mem_alloc,   mem_free,    mem_realloc, psp_exec>	;48-4B
-	DEFWORD	,<psp_return,  psp_retcode, dsk_ffirst,  dsk_fnext>	;4C-4F
-	DEFWORD	,<psp_set,     psp_get,     msc_getvars, func_none>	;50-53
-	DEFWORD	,<func_none,   psp_create>				;54-55
-	DEFABS	FUNCTBL_SIZE,<($ - FUNCTBL) SHR 1>
-
-	DEFLBL	UTILTBL,word
-	DEFWORD	,<utl_strlen,  utl_strstr,  func_none,   utl_strupr>	;00-03
-	DEFWORD	,<utl_printf,  utl_dprintf, utl_sprintf, utl_itoa>	;04-07
-	DEFWORD	,<utl_atoi16,  utl_atoi32,  utl_atoi32d, func_none>	;08-0B
-	DEFWORD	,<utl_atof64,  utl_i32f64,  utl_opf64,   func_none>	;0C-0F
-	DEFWORD	,<func_none,   utl_tokify,  utl_tokify,  utl_tokid>	;10-13
-	DEFWORD	,<utl_parsesw, utl_getdev,  utl_getcsn,  func_none>	;14-17
-	DEFWORD	,<utl_load,    utl_start,   utl_stop,    utl_end>	;18-1B
-	DEFWORD	,<utl_waitend, utl_yield,   utl_sleep,   utl_wait>	;1C-1F
-	DEFWORD	,<utl_endwait, utl_hotkey,  utl_lock,    utl_unlock>	;20-23
-	DEFWORD	,<utl_strlen,  utl_qrymem,  utl_term,    utl_getdate>	;24-27
-	DEFWORD	,<utl_gettime, utl_incdate, utl_editln,  utl_restart>	;28-2B
-	DEFABS	UTILTBL_SIZE,<($ - UTILTBL) SHR 1>
 
 DOS	ends
 

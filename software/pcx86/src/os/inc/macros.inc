@@ -138,6 +138,10 @@ EXTLONG	macro	names
 	EXTERNS	<names>,dword
 	endm
 
+EXTQUAD	macro	names
+	EXTERNS	<names>,qword
+	endm
+
 EXTLEN	macro	name
 	extrn	name&_LEN:abs
 	endm
@@ -261,7 +265,7 @@ ARGVAR	macro	name,type,len
 	 ENDIF
 	ENDIF
 	_ARGBYTES = _ARGBYTES + _ARGLEN
-	DEFARG	name,type,%(_ARGBYTES)
+	DEFARG	name,type,%_ARGBYTES
 	endm
 
 ;
@@ -299,7 +303,7 @@ LOCVAR	macro	name,type,len
 	  ENDIF
 	 ENDIF
 	ENDIF
-	DEFVAR	name,type,%(_LOCBYTES)
+	DEFVAR	name,type,%_LOCBYTES
 	endm
 
 DEFVAR	macro	name,type,offset
@@ -568,7 +572,19 @@ CCALL	macro	func,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15
 	IRP	arg,<a15,a14,a13,a12,a11,a10,a9,a8,a7,a6,a5,a4,a3,a2,a1>
 	 IFNB <arg>
 	argc = argc + 1
+	  IF TYPE arg EQ 8
+	push	arg.W4
+	push	arg.W3
+	push	arg.W2
+	push	arg.W1
+	  ELSE
+	   IF TYPE arg EQ 4
+	push	arg.HIW
+	push	arg.LOW
+	   ELSE
 	push	arg
+	   ENDIF
+	  ENDIF
 	 ENDIF
 	ENDM
 	DOSUTIL	func
