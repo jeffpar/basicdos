@@ -21,46 +21,31 @@ let files = {
 };
 
 let demoFiles = [
-    "./software/pcx86/src/os/dev/obj/IBMBIO.COM",
-    "./software/pcx86/src/os/dos/obj/IBMDOS.COM",
+    "./software/pcx86/src/os/dev/obj/BASDEV.COM",
+    "./software/pcx86/src/os/dos/obj/BASDOS.COM",
     "./software/pcx86/src/os/cmd/obj/COMMAND.COM",
     "./software/pcx86/src/os/cmd/HELP.TXT",
-    "./software/pcx86/src/tests/PRIMES.BA*",
-    "./software/pcx86/src/tests/obj/*.EXE",
-    "./software/pcx86/src/tests/obj/*.COM",
-    "./software/pcx86/src/tests/BD*.BAT",
+    "./software/pcx86/src/tests/primes/PRIMES.BA*",
     "./software/pcx86/src/tests/bin/*.EXE",
+    "./software/pcx86/src/tests/bin/*.COM",
+    "./software/pcx86/src/tests/misc/BD*.BAT",
+    "./software/pcx86/src/tests/misc/*.EXE",
     "./software/pcx86/src/msb/obj/*.EXE"
 ];
 
 let minFiles = [
-    "./software/pcx86/src/os/dev/obj/IBMBIO.COM",
-    "./software/pcx86/src/os/dos/obj/IBMDOS.COM",
+    "./software/pcx86/src/os/dev/obj/BASDEV.COM",
+    "./software/pcx86/src/os/dos/obj/BASDOS.COM",
     "./software/pcx86/src/os/cmd/obj/COMMAND.COM",
     "./software/pcx86/src/os/cmd/HELP.TXT",
     "./software/pcx86/src/msb/obj/*.EXE"
-];
-
-let basFiles = [
-    "./software/pcx86/MS-DOS/v1.25/bin/ART.BAS",
-    "./software/pcx86/MS-DOS/v1.25/bin/BALL.BAS",
-    "./software/pcx86/MS-DOS/v1.25/bin/CALENDAR.BAS",
-    "./software/pcx86/MS-DOS/v1.25/bin/CIRCLE.BAS",
-    "./software/pcx86/MS-DOS/v1.25/bin/COLORBAR.BAS",
-    "./software/pcx86/MS-DOS/v1.25/bin/COMM.BAS",
-    "./software/pcx86/MS-DOS/v1.25/bin/DONKEY.BAS",
-    "./software/pcx86/MS-DOS/v1.25/bin/MORTGAGE.BAS",
-    "./software/pcx86/MS-DOS/v1.25/bin/MUSIC.BAS",
-    "./software/pcx86/MS-DOS/v1.25/bin/PIECHART.BAS",
-    "./software/pcx86/MS-DOS/v1.25/bin/SAMPLES.BAS",
-    "./software/pcx86/MS-DOS/v1.25/bin/SPACE.BAS"
 ];
 
 let disks = {
     "BASIC-DOS": [
         "./demos/s80/CONFIG.SYS",
         "./demos/s80/AUTOEXEC.BAT"
-    ].concat(minFiles).concat(basFiles),
+    ].concat(minFiles),
     "BASIC-DOS1": [
         "./demos/s80/CONFIG.SYS",
         "./demos/d40/AUTOEXEC.BAT"
@@ -109,9 +94,10 @@ let disks = {
         "./software/pcx86/src/os/cmd/mk.bat"
     ],
     "BDS-TEST": [
-        "./software/pcx86/src/tests/*.asm",
-        "./software/pcx86/src/tests/*.BAS",
-        "./software/pcx86/src/tests/*.BAT",
+        "./software/pcx86/src/tests/lib/*",
+        "./software/pcx86/src/tests/misc/*",
+        "./software/pcx86/src/tests/primes/*",
+        "./software/pcx86/src/tests/printf/*",
         "./software/pcx86/src/os/inc/*.inc",
         "./software/pcx86/src/tests/makefile",
         "./software/pcx86/src/tests/mk.bat"
@@ -162,7 +148,7 @@ for (let diskName in disks) {
         if (diskName.startsWith("BDS-")) {
             kbTarget = 360;
         } else {
-            diskFiles += " --boot ./software/pcx86/src/os/boot/obj/BOOT.COM";
+            diskFiles += " --boot ./software/pcx86/src/os/boot/obj/BOOT1.COM";
         }
     }
     let cmd = "node \"${PCJS}/tools/diskimage/diskimage.js\" " + diskFiles + " --output " + diskImage + archiveImage + " --target=" + kbTarget + " --overwrite";

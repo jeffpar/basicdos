@@ -30,6 +30,7 @@
         "clear": false
       },
       "runOptions": {
+        "runOn": "folderOpen"
       }
     }
   ]

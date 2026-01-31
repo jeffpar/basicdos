@@ -12,8 +12,10 @@
 
 DOS	segment word public 'CODE'
 
-	EXTWORD <cr,lf>
-	EXTQUAD <pi,one>
+	DEFWORD	CR,13
+	DEFWORD	LF,10
+	DEFQUAD	PI,3.14159
+	DEFQUAD	ONE,1.0
 
         ASSUME  CS:DOS, DS:DOS, ES:DOS, SS:DOS
 

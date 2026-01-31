@@ -105,6 +105,10 @@ DEFLONG macro	name,values,repeat
 	DEFDATA name,dd,dword,<values>,repeat
 	endm
 
+DEFQUAD macro	name,values,repeat
+	DEFDATA name,dq,qword,<values>,repeat
+	endm
+
 DEFSTR	macro	name,value
 	public	name
 	public	name&_LEN
