@@ -144,7 +144,7 @@ for (let diskName in disks) {
             dirPrev = dirNext;
         }
         diskFiles = "--files " + diskFiles;
-        archiveImage = " --output " + diskImage.replace(diskName, "archive/" + diskName).replace(".json",".img") + " --writable";
+        archiveImage = " --normalize --output " + diskImage.replace(diskName, "archive/" + diskName).replace(".json",".img") + " --writable";
         if (diskName.startsWith("BDS-")) {
             kbTarget = 360;
         } else {
