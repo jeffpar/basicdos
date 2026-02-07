@@ -1,7 +1,7 @@
 {
   "name": "basicdos",
-  "version": "1.0.0",
-  "description": "--- layout: default heading: Welcome to BASIC-DOS permalink: / ---",
+  "version": "2.0.0",
+  "description": "BASIC-DOS: PC DOS Reimagined",
   "main": "gulpfile.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

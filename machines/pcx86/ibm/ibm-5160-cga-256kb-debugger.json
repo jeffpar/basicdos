@@ -11,9 +11,8 @@
   "machine": {
     "type": "pcx86",
     "name": "PCx86",
-    "version": "2.22",
-    "factory": "embedPCx86",
-    "script": "/machines/pcx86/releases/2.06/pcx86.js"
+    "version": "2.24",
+    "factory": "embedPCx86"
   },
   "components": [
     {

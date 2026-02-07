@@ -2,7 +2,7 @@
 ; BASIC-DOS Library Functions (for testing outside of BASIC-DOS)
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
-; @copyright (c) 2020-2021 Jeff Parsons
+; @copyright (c) 2020-2026 Jeff Parsons
 ; @license MIT <https://basicdos.com/LICENSE.txt>
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
