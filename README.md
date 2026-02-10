@@ -37,64 +37,30 @@ the `diskimage.js` and `pc.js` utilities:
     $ export BASICDOS="$HOME/basicdos"
     $ export PATH="$PATH:$PCJS/tools/diskimage:$PCJS/tools/pc"
 
-Then use `diskimage.js` to get a `tools` disk image from pcjs.org:
+Now you're ready to build BASIC-DOS, using `pc.js` to load a `tools` disk
+image as drive C and the BASIC-DOS source code as drive D, using the `mk.sh`
+script:
 
-    $ cd $PCJS/tools/pc
-    $ diskimage.js https://harddisks.pcjs.org/pcx86/10mb/MSDOS330-C400.json disks/tools.json
-
-Now you're ready to build BASIC-DOS, using `pc.js` to load the `tools` disk
-image as drive C and the BASIC-DOS source code as drive D:
-
-    $ pc.js --disk tools.json $BASICDOS/software/pcx86/src -n
+    $ mk.sh
     [Press CTRL-D to enter command mode]
-    C:\>dir
 
-     Volume in drive C is PCJS       
-     Directory of  C:\
-
-    COMMAND  COM    25308   2-02-88  12:00a
-    AUTOEXEC BAT      185   9-28-23   2:39p
-    CONFIG   SYS       22   1-01-80  12:03a
-    DOS          <DIR>      9-05-23  11:37a
-    MBR          <DIR>      9-27-23   6:24a
-    PUZZLED      <DIR>      9-05-23  11:37a
-    TMP          <DIR>      1-01-80  12:13a
-    TOOLS        <DIR>      9-05-23  11:37a
-            8 File(s)   5726208 bytes free
-
-    C:\>d:
-
-    D:\>dir
-
-     Volume in drive D is SRC        
-     Directory of  D:\
-    
-    README   MD      3635  11-12-23   1:40p
-    CONFIGS      <DIR>     11-12-23   2:29p
-    MK       BAT      260  11-12-23   2:16p
-    MKCLEAN  BAT      299  11-12-23   2:16p
-    MSB          <DIR>     11-12-23   2:15p
-    OS           <DIR>     11-07-23  10:09a
-    TEST         <DIR>     11-12-23   2:23p
-            7 File(s)    729088 bytes free
-
-    D:\>mk
+    C>ECHO OFF
     Microsoft (R) Program Maintenance Utility  Version 4.02
     Copyright (C) Microsoft Corp 1984, 1985, 1986.  All rights reserved.
     
     ...
 
-    D:>quit
+    D:\>quit
 
-Assuming the `mk` command was successful, you should now have everything you
+Assuming the `mk` script was successful, you should now have everything you
 need to boot and run BASIC-DOS.
 
-The `pc.js` command below will build a 360K boot floppy (the largest floppy
-supported by an IBM PC XT Model 5160) with the BASIC-DOS boot sector and system
-files. If you have a folder containing additional files that you want included
-on the floppy, specify it in place of the empty folder `disks/empty`.
+The `boot.sh` script runs `pc.js` again, this time building a 360K boot floppy
+(the largest floppy supported by an IBM PC XT Model 5160) with BASIC-DOS boot
+sector and system files. If you have a folder with different files you want to
+include on the floppy, specify it in place of the `200A` folder:
 
-    $ pc.js ibm5160 --floppy --system=bd:2A disks/empty 
+    $ pc.js ibm5160 software/pcx86/src/configs/200A --system=bd --version=2.00A --floppy --serial
     [Press CTRL-D to enter command mode]
     BASIC-DOS 2.00A
     Press a key to start...
