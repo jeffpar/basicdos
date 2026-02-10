@@ -542,19 +542,39 @@ PRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 ; (and to ensure they are generated only in DEBUG builds).
 ;
 DPRINTF	macro	letter,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
-	LOCAL	D1,D2
+	local	d1,d2
 	IFDEF DEBUG
 	pushf			;; CCALL may alter flags
 	push	ax		;; DOS_UTL_DPRINTF alters AX
 	CCALL	DOS_UTL_DPRINTF,<letter,format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	test	al,al		;; if DOS_UTL_DPRINTF returns non-zero in AL
 	pop	ax		;; jump to the DBGBRK
-	jnz	D1
+	jnz	d1
 	popf
-	jmp	short D2
-D1:	popf
+	jmp	short d2
+d1:	popf
 	DBGBRK
-D2:
+d2:
+	ENDIF
+	endm
+
+;
+; Pushes the given argument onto the stack, using the given size in words;
+; default is 1.
+;
+PUSHARG	macro	a,w
+	IF w EQ 4
+	push	a.W4
+	push	a.W3
+	push	a.W2
+	push	a.W1
+	ELSE
+	 IF w EQ 2
+	push	a.HIW
+	push	a.LOW
+	 ELSE
+	push	a
+	 ENDIF
 	ENDIF
 	endm
 
@@ -565,28 +585,30 @@ D2:
 ; One downside to this convention is that it can't be used with functions
 ; returning values in flags, like CF or ZF, due to the "add sp" instruction.
 ;
-; NOTE: When passing 32-bit "long" values to CCALL, list the low word
-; (LOW) first, then the high word (HIW), so the high word is pushed first;
-; similarly, when passing 32-bit "far" pointers, list the offset (OFF)
-; first and then the segment (SEG).  Finally, when passing 64-bit "quad"
-; values, list the words from lowest to highest (W1, W2, W3, and W4).
+; NOTE: When passing a 32-bit "long" value or "far" pointer to CCALL, follow
+; it with the dummy parameter ":4", and when passing a 64-bit "quad" value,
+; follow it with the dummy parameter ":2".  This tells CCALL how many pushes
+; the argument requires; the default is 1.  I originally tried to have PUSHARG
+; determine the argument size itself, using MASM 4.0 operators like "TYPE",
+; but it was unreliable (perhaps even, dare I say, buggy).
+;
+; You can pass individual words of a 32-bit or 64-bit value separately, but
+; be sure to list the lowest word first, so that it gets pushed last.
 ;
 CCALL	macro	func,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15
 	argc = 0
+	argw = 1
 	IRP	arg,<a15,a14,a13,a12,a11,a10,a9,a8,a7,a6,a5,a4,a3,a2,a1>
 	 IFNB <arg>
-	argc = argc + 1
-	  IF TYPE arg EQ 8
-	push	arg.W4
-	push	arg.W3
-	push	arg.W2
-	push	arg.W1
+	  IFIDN <arg>,<:2>
+	argw = 2
 	  ELSE
-	   IF TYPE arg EQ 4
-	push	arg.HIW
-	push	arg.LOW
+	   IFIDN <arg>,<:4>
+	argw = 4
 	   ELSE
-	push	arg
+	PUSHARG	arg,argw
+	argc = argc + argw
+	argw = 1
 	   ENDIF
 	  ENDIF
 	 ENDIF

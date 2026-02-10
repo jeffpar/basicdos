@@ -185,7 +185,7 @@ mem22:	mov	ax,word ptr es:[di].SCB_STATUS
 	mov	cl,ah
 	push	ds
 	lds	si,es:[di].SCB_STACK
-	PRINTF	"%2d %02bx %04x %04x %08lx %08lx\r\n",cx,ax,es:[di].SCB_PSP,es:[di].SCB_CONTEXT,es:[di].SCB_WAITID.LOW,es:[di].SCB_WAITID.HIW,si,ds
+	PRINTF	"%2d %02bx %04x %04x %08lx %08lx\r\n",cx,ax,es:[di].SCB_PSP,es:[di].SCB_CONTEXT,es:[di].SCB_WAITID,:2,si,ds
 	pop	ds
 	call	countLine
 mem23:	add	di,size SCB

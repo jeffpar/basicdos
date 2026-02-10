@@ -552,7 +552,7 @@ DEFPROC	read_fcb
 	mov	si,[scb_active]
 	les	dx,[si].SCB_DTA		; ES:DX -> DTA
 
-	DPRINTF	'f',<"read_fcb: requesting %#x bytes from %#lx into %04x:%04x\r\n">,cx,[bx].SFB_CURPOS.LOW,[bx].SFB_CURPOS.HIW,es,dx
+	DPRINTF	'f',<"read_fcb: requesting %#x bytes from %#lx into %04x:%04x\r\n">,cx,[bx].SFB_CURPOS,:2,es,dx
 
 	push	cx
 	push	dx

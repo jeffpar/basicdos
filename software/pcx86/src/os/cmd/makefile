@@ -10,7 +10,7 @@
 ASM=MASM
 LINK=LINK
 EXE2BIN=EXE2BIN
-AFLAGS=/R /D$(REL) /I. /I..\INC
+AFLAGS=/MX /R /D$(REL) /I. /I..\INC
 
 #
 # Inference rules in the DOS MAKE utility apparently work only if the files

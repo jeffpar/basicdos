@@ -25,7 +25,7 @@ DEFPROC	main
 ;
 	PRINTF	<"hello world!",13,10>
 	PRINTF	<"CR is %d, LF is 0x%x",13,10>,CR,LF
-;	PRINTF	<"ONE is %lf, PI is %lf",13,10>,ONE,PI
+;	PRINTF	<"ONE is %lf, PI is %lf",13,10>,ONE,:4,PI,:4
 
 	PRINTF	<"Powers of two...",13,10>
 	mov	cx,1
