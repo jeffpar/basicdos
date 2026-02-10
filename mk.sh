@@ -6,9 +6,7 @@
 #
 # NOTE: While early BASIC-DOS builds were performed in a browser using a PCjs
 # PC XT with PC DOS 2.00, our command-line build environment uses PC.js with a
-# COMPAQ DeskPro 386 configuration running MS-DOS 3.30, in part because that
-# machine has a real-time clock that MS-DOS 3.30 knows how to use.
+# COMPAQ DeskPro 386 configuration running MS-DOS 3.20, in part because that
+# machine has a real-time clock that MS-DOS 3.20 knows how to use.
 #
-# pc.js --disk=software/pcx86/disks/PCDOS200-C400.json --dir=software/pcx86/src --normalize
-#
-pc.js --disk=https://harddisks.pcjs.org/pcx86/10mb/MSDOS330-C400.json --dir=software/pcx86/src --normalize
+pc.js --disk=software/pcx86/disks/MSDOS320-C400.json --dir=software/pcx86/src --normalize
