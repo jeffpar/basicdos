@@ -5,7 +5,7 @@
 /**
  * @define {string}
  */
-const APPVERSION = "2.24";              // this @define is overridden with the version in machines.json
+const APPVERSION = "2.25";              // this @define is overridden with the version in machines.json
 
 /**
  * COMPILED is false by default; overridden with true in the Closure Compiler release.
@@ -85719,9 +85719,14 @@ function embedMachine(sAppName, sAppClass, idMachine, sXMLFile, sXSLFile, sParms
                         }
                     }
                     else if (document.implementation && document.implementation.createDocument) {
-                        let xsltProcessor = new XSLTProcessor();
-                        xsltProcessor['importStylesheet'](xsl);
-                        let eFragment = xsltProcessor['transformToFragment'](xml, document);
+                        let eFragment, message;
+                        try {
+                            let xsltProcessor = new XSLTProcessor();
+                            xsltProcessor['importStylesheet'](xsl);
+                            eFragment = xsltProcessor['transformToFragment'](xml, document);
+                        } catch(err) {
+                            message = err.message;
+                        }
                         if (eFragment) {
                             /*
                              * This fails in Microsoft Edge...
@@ -85782,7 +85787,7 @@ function embedMachine(sAppName, sAppClass, idMachine, sXMLFile, sXSLFile, sParms
                                 displayError(sURL, "invalid machine element: " + idMachine);
                             }
                         } else {
-                            displayError(sURL, "transformToFragment failed");
+                            displayError(sURL, "this browser has removed XSLT support (" + message + ")");
                         }
                     } else {
                         /*

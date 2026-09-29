@@ -10,7 +10,7 @@
   "machine": {
     "type": "pcx86",
     "name": "PCx86",
-    "version": "2.24",
+    "version": "2.25",
     "factory": "embedPCx86"
   },
   "components": [

@@ -1,0 +1,140 @@
+{
+  "defaults": {
+    "type": "pcx86",                    // alternatives: "pdp11"
+    "sys": "msdos",                     // alternatives: "pcdos", "compaq" (see "systems" below)
+    "ver": "3.30",                      // alternatives: (see "versions" below)
+    "mbr": "pcjs.mbr",                  // alternatives: "DOS.mbr"
+    "target": "10M",                    // alternatives: "160K", "320K", "180K", "360K", "1200K", "1440K", "20M", "30M", etc.
+    "maxfiles": 0,                      // 0 for default: target disk size (in Kb) divided by 5 (eg, 10240Kb / 5 or 2048 files)
+    "label": ".",                       // alternatives: "default"
+    "dir": ".",
+    "machine": "compaq386.json",
+    "state": "state386.json",
+    "diskette": "diskette.json",        // default name of local diskette image corresponding to 'diskette' option, if any
+    "disk": "pcjs.json",                // default name of local built (floppy or hard) disk image corresponding to local 'dir'
+    "messages": "",                     // a list of debugger message categories to enable when --halt is used (eg, "int,hdc")
+    "normalize": false,                 // true converts LF to CR/LF and translates/removes non-CP437 characters from text files
+    "config": [                         // if set (and no CONFIG.SYS already exists), then one will be created with these lines
+      "FILES=20",
+      "BUFFERS=20"
+    ],
+    "autoexec": [                       // if set, these lines will be appended to AUTOEXEC.BAT
+    ]
+  },
+  "apps": {
+    "cp": {},                           // create CP.COM
+    "ls": {},                           // create LS.COM
+    "vi": {},                           // create VI.COM
+    // ".edit": {                       // create EDIT.COM that launches "vi" instead
+    //   "exec": "vi $*"
+    // }
+  },
+  "systems": {
+    "custom": {
+      "vendor": "microsoft",
+      "product": "ms-dos",
+      "versions": {
+        "4.00": {
+          "dir": "src",
+          "boot": "BOOT/MSBOOT.BIN",
+          "files": [
+            "BIOS/IO.SYS",
+            "DOS/MSDOS.SYS",
+            "CMD/COMMAND/COMMAND.COM"
+          ]
+        }
+      }
+    },
+    "bd": {
+      "vendor": "pcjs.org",
+      "product": "basic-dos",           // see https://github.com/jeffpar/basicdos
+      "versions": {
+        "2.00A": {                      // BASIC-DOS 2.00 requires the "v2" branch (until it's merged into "master")
+          "dir": "%basicdos/software/pcx86/src",
+          "boot": "os/boot/OBJ/BOOT.COM",
+          "boot1Offset": 0x550,         // offset of ORG'ed boot code in BOOT.COM (alternatively, use BOOT1.COM)
+          "boot2Offset": 0,             // use 0x760 if BASDEV.COM does NOT already contain boot code from BOOT2.COM
+          "files": [
+            "configs/200A/CONFIG.SYS",  // NOTE: this CONFIG.SYS redirects all BASIC-DOS I/O to COM1
+            "os/dev/OBJ/BASDEV.COM",
+            "os/dos/OBJ/BASDOS.COM",
+            "os/cmd/OBJ/COMMAND.COM"
+          ],
+          "target": "BD200A"
+        }
+      }
+    },
+    "compaq": {
+      "vendor": "compaq",
+      "product": "compaq-dos",
+      "versions": {                     // early versions of COMPAQ DOS used unusual system file names
+        "1.10": {
+          "disk": "COMPAQ-DOS110B",
+          "files": ["IOSYS.COM", "MSDOS.COM", "COMMAND.COM"]
+        },
+        "1.11": {
+          "disk": "COMPAQ-DOS111",
+          "files": ["IOSYS.COM", "MSDOS.COM", "COMMAND.COM"]
+        },
+        "1.12": {
+          "disk": "COMPAQ-DOS112",
+          "files": ["IOSYS.COM", "MSDOS.COM", "COMMAND.COM"]
+        },
+        "2.11": "COMPAQ-DOS211",
+        "2.12": "COMPAQ-DOS212",
+        "3.00": "COMPAQ-DOS300-DISK1",
+        "3.10": "COMPAQ-DOS310-19850930-DISK1",
+        "3.10B": "COMPAQ-DOS310-PERSONAL",
+        "3.10C": "COMPAQ-DOS310-19860327-DISK1",
+        "3.10D": "COMPAQ-DOS310-19861031-DISK1",
+        "3.20": "COMPAQ-DOS320-REVA-DISK1",
+        "3.20A": "COMPAQ-DOS320-REVA-DISK1",
+        "3.31": "COMPAQ-DOS331-REVD-360K-DISK1",
+        "3.31D": "COMPAQ-DOS331-REVD-360K-DISK1",
+        "3.31G": "COMPAQ-DOS331-REVG-720K-DISK1",
+        "4.01": "COMPAQ-DOS401-REVD-360K-DISK1",
+        "4.01D": "COMPAQ-DOS401-REVD-360K-DISK1",
+        "5.00": "COMPAQ-DOS500-REVA-DISK1",
+        "5.00A": "COMPAQ-DOS500-REVA-DISK1"
+      },
+      "files": ["IBMBIO.COM", "IBMDOS.COM", "COMMAND.COM"]
+    },
+    "msdos": {
+      "vendor": "microsoft",
+      "versions": {
+        "3.20": "MSDOS320-DISK1",
+        "3.21": "MSDOS321-DISK1",
+        "3.30": "MSDOS330-DISK1",
+        "3.31": "MSDOS331-1440K",
+        "4.00": "MSDOS400-DISK1",
+        "4.01": "MSDOS401-360K-DISK1",
+        "5.00": "MSDOS500-360K-DISK1",
+        "6.00": "MSDOS600-1200K-DISK1",
+        "6.20": "MSDOS620-1200K-DISK1",
+        "6.22": "MSDOS622-1200K-DISK1"
+      },
+      "files": ["IO.SYS", "MSDOS.SYS", "COMMAND.COM"]
+    },
+    "pcdos": {
+      "vendor": "ibm",
+      "versions": {
+        "1.00": "PCDOS100",
+        "1.10": "PCDOS110",
+        "2.00": "PCDOS200-DISK1",
+        "2.10": "PCDOS210-DISK1",
+        "3.00": "PCDOS300-DISK1",
+        "3.10": "PCDOS310-DISK1",
+        "3.20": "PCDOS320-DISK1",
+        "3.30": "PCDOS330-DISK1",
+        "4.00": "PCDOS400-DISK1",
+        "4.01": "PCDOS401-DISK1",
+        "5.00": "PCDOS500-720K-DISK1",
+        "5.02": "PCDOS502-DISK1",
+        "6.10": "PCDOS610-1440K-DISK1",
+        "6.30": "PCDOS630-1440K-DISK1",
+        "7.00": "PCDOS700-DISK1"
+      },
+      "files": ["IBMBIO.COM", "IBMDOS.COM", "COMMAND.COM"]
+    }
+  }
+}

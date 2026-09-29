@@ -12,7 +12,7 @@
     "type": "pcx86",
     "class": "dual",
     "name": "PCx86",
-    "version": "2.24",
+    "version": "2.25",
     "factory": "embedPCx86"
   },
   "components": [

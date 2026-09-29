@@ -7,11 +7,28 @@
  * This file is part of PCjs, a computer emulation software project at <https://www.pcjs.org>.
  */
 
-let fs = require("fs");
-let path = require("path");
-let gulp = require("gulp");
-var glob = require("glob");
-let run = require("gulp-run-command").default;
+import fs from "fs";
+import path from "path";
+import gulp from "gulp";
+import { globSync } from "glob";
+import { spawn } from "child_process";
+
+/**
+ * run(cmd)
+ *
+ * Returns a gulp task function that runs the given shell command, with output sent to the console.
+ *
+ * @param {string} cmd
+ * @returns {function(function(Error=))}
+ */
+function run(cmd)
+{
+    return function(done) {
+        spawn(cmd, { shell: true, stdio: "inherit" }).on("close", (code) => {
+            done(code? new Error("command failed with exit code " + code + ": " + cmd) : undefined);
+        });
+    };
+}
 
 let files = {
     "HELP": [
@@ -129,7 +146,7 @@ for (let diskName in disks) {
         for (let i = 0; i < disks[diskName].length; i++) {
             let fileNext = disks[diskName][i];
             if (fileNext.indexOf('*') >= 0) {
-                let filesNext = glob.sync(fileNext);
+                let filesNext = globSync(fileNext).sort();  // newer versions of glob no longer sort
                 if (filesNext.length) {
                     disks[diskName].push(...filesNext);
                     continue;
