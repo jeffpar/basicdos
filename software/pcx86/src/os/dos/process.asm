@@ -21,6 +21,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<mcb_getsize,mcb_free_all>
 	EXTNEAR	<dos_check,dos_leave,dos_leave2,dos_ctrlc,dos_error>
 	EXTNEAR	<mcb_setname,scb_getnum,scb_release,scb_close,scb_yield>
+	EXTNEAR	<msc_sigctrlc>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -55,7 +56,15 @@ DEFPROC	psp_term,DOS
 ; terminate the session's lone remaining program.
 ;
 	cmp	[bx].SCB_ENVSEG,-1	; should we allow the session to close?
-	je	pt7			; no (sysinit started it)
+	jne	pt1			; yes
+;
+; Since we can't terminate the program, an ABORT (CTRL-ALT-DEL) must be
+; converted into a CTRLC signal instead; otherwise, it would be ignored.
+;
+	cmp	ah,EXTYPE_ABORT		; ABORT request?
+	jne	pt7			; no
+	sti
+	jmp	msc_sigctrlc		; signal CTRLC (does not return)
 ;
 ; Close process file handles.
 ;

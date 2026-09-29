@@ -379,6 +379,7 @@ DEFPROC	scb_waitend,DOS
 ;
 	mov	di,bx
 	mov	dx,ds
+	mov	al,1			; allow CTRLC to interrupt the wait
 	jmp	scb_wait
 ENDPROC	scb_waitend
 
@@ -491,9 +492,10 @@ ENDPROC	scb_switch
 ;
 ; Inputs:
 ;	DX:DI == wait ID
+;	AL = 1 if the wait can be interrupted by CTRLC, 0 if not
 ;
 ; Outputs:
-;	None
+;	Carry set if the wait failed (eg, ABORT or CTRLC pending)
 ;
 DEFPROC	scb_wait,DOS
 	cli
@@ -502,7 +504,13 @@ DEFPROC	scb_wait,DOS
 	ASSERT	Z,<cmp [bx].SCB_WAITID.SEG,0>
 	test	[bx].SCB_STATUS,SCSTAT_ABORT
 	jnz	sw8			; fail the wait if ABORT is set
-	mov	[bx].SCB_WAITID.OFF,di
+	and	[bx].SCB_STATUS,NOT SCSTAT_IWAIT
+	test	al,al			; interruptible wait?
+	jz	swt1			; no
+	cmp	[bx].SCB_CTRLC_ACT,0	; yes, so fail the wait
+	jne	sw8			; if CTRLC is already pending
+	or	[bx].SCB_STATUS,SCSTAT_IWAIT
+swt1:	mov	[bx].SCB_WAITID.OFF,di
 	mov	[bx].SCB_WAITID.SEG,dx
 	sti
 	sub	ax,ax

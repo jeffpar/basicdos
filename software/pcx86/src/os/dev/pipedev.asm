@@ -104,7 +104,9 @@ DEFPROC	ddpipe_write
 	jcxz	ddw8
 
 	call	push_data
-	jmp	short ddw9
+	jnc	ddw9
+	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_WRFAULT
+	ret
 
 ddw8:	or	ds:[CT_STATUS],CTSTAT_TRUNC
 
@@ -231,8 +233,16 @@ pl0:	mov	bx,ds:[CT_HEAD]
 	ASSERT	Z,<test ds:[CT_STATUS],CTSTAT_EWAIT OR CTSTAT_FWAIT>
 	or	ds:[CT_STATUS],CTSTAT_EWAIT
 	call	wait_data
-	ASSERT	Z,<test ds:[CT_STATUS],CTSTAT_EWAIT>
-	jmp	pl0
+;
+; If the WAIT was ABORT'ed (eg, CTRL-ALT-DEL), the writer never cleared our
+; wait flag, so we clear it ourselves; and if the WAIT failed, bail.
+;
+	pushf
+	and	ds:[CT_STATUS],NOT CTSTAT_EWAIT
+	popf
+	jnc	pl0
+	sti
+	ret
 
 pl1:	mov	al,ds:[CT_DATA][bx]	; AL = data byte
 	inc	bx
@@ -291,8 +301,16 @@ ps1:	cmp	dx,ds:[CT_HEAD]
 	ASSERT	Z,<test ds:[CT_STATUS],CTSTAT_EWAIT OR CTSTAT_FWAIT>
 	or	ds:[CT_STATUS],CTSTAT_FWAIT
 	call	wait_data
-	ASSERT	Z,<test ds:[CT_STATUS],CTSTAT_FWAIT>
-	jmp	ps0
+;
+; If the WAIT was ABORT'ed (eg, CTRL-ALT-DEL), the reader never cleared our
+; wait flag, so we clear it ourselves; and if the WAIT failed, bail.
+;
+	pushf
+	and	ds:[CT_STATUS],NOT CTSTAT_FWAIT
+	popf
+	jnc	ps0
+	sti
+	ret
 ps2:	mov	ds:[CT_TAIL],dx
 	push	ds
 	push	bx
@@ -313,6 +331,7 @@ ps2:	mov	ds:[CT_TAIL],dx
 ps3:	sti
 	dec	es:[di].DDPRW_LENGTH	; have we satisfied the request yet?
 	jnz	push_data		; no
+	clc
 	ret
 ENDPROC	push_data
 
@@ -324,13 +343,13 @@ ENDPROC	push_data
 ;	DS = device context
 ;
 ; Outputs:
-;	None
+;	Carry set if the wait failed (eg, ABORT or CTRLC)
 ;
 ; Modifies:
 ;	AX, DX
 ;
 DEFPROC	wait_data
-	mov	ah,DOS_UTL_WAIT
+	mov	ax,(DOS_UTL_WAIT SHL 8) OR 1	; AL = 1 (CTRLC can interrupt)
 	DEFLBL	wait_call,near
 	push	di
 	mov	dx,ds

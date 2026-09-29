@@ -689,6 +689,7 @@ DEFPROC	add_packet
 ;
 	push	dx
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
+	mov	al,0			; AL = 0 (not interruptible)
 	DOSUTIL	WAIT
 	pop	dx
 	sti

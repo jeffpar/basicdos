@@ -128,7 +128,7 @@ DOS_UTL_END	equ	1Bh	; end session (CL)
 DOS_UTL_WAITEND	equ	1Ch	; wait for session to end (CL)
 DOS_UTL_YIELD	equ	1Dh	; yield
 DOS_UTL_SLEEP	equ	1Eh	; sleep (DX) milliseconds
-DOS_UTL_WAIT	equ	1Fh	; wait on ID (DX:DI) until end wait
+DOS_UTL_WAIT	equ	1Fh	; wait on ID (DX:DI) until end wait (AL=1 if CTRLC can interrupt)
 DOS_UTL_ENDWAIT	equ	20h	; end wait on ID (DX:DI)
 DOS_UTL_HOTKEY	equ	21h	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
 DOS_UTL_LOCK	equ	22h	; lock current session

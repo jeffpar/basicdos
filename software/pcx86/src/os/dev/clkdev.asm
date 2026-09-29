@@ -119,7 +119,10 @@ DEFPROC	ddclk_ctlin
 ; should contain a standard CX:DX tick count) has been decremented to zero.
 ;
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
+	push	ax
+	mov	al,0			; AL = 0 (not interruptible)
 	DOSUTIL	WAIT
+	pop	ax
 	jmp	dci8
 
 dci2:	cmp	al,IOCTL_SETDATE

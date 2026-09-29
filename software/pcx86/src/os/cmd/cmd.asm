@@ -175,7 +175,17 @@ ENDPROC	cleanUp
 DEFPROC	ctrlc,FAR
 	call	cleanUp
 	lea	sp,[bx].STACK + size STACK
-	call	freeAllCode
+;
+; If a pipeline was running (eg, "DIR | CASE"), wait for its session to end
+; (it will have received the same CTRLC), so that it can't write anything
+; more to the console after we've displayed a new prompt.
+;
+	mov	cl,SCB_NONE
+	xchg	cl,[bx].SCB_NEXT
+	cmp	cl,SCB_NONE
+	je	ctc1
+	DOSUTIL	WAITEND
+ctc1:	call	freeAllCode
 	jmp	m1
 ENDPROC	ctrlc
 

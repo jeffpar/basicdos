@@ -113,6 +113,7 @@ SCSTAT_INIT	equ	01h	; set if SCB initialized
 SCSTAT_LOAD	equ	02h	; set if session has loaded a program
 SCSTAT_START	equ	04h	; set if session program can be started
 SCSTAT_ABORT	equ	08h	; set if session abort (CTRL-ALT-DEL) signalled
+SCSTAT_IWAIT	equ	10h	; set if session's wait is interruptible (by CTRLC)
 
 LOCK_SCB macro
 	inc	[scb_locked]

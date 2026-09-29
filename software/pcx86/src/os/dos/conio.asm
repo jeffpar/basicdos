@@ -1169,6 +1169,30 @@ ENDPROC	write_char
 ;
 DEFPROC	write_string,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	bx
+	mov	bx,STDOUT
+	call	write_handle
+	pop	bx
+	ret
+ENDPROC	write_string
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; write_handle
+;
+; Inputs:
+;	BX = handle (PFH)
+;	CX = length
+;	DS:SI -> string
+;
+; Outputs:
+;	Carry clear if successful, set otherwise
+;
+; Modifies:
+;	AX
+;
+DEFPROC	write_handle,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	jcxz	ws8
 	push	bx
 	push	cx
@@ -1180,7 +1204,6 @@ DEFPROC	write_string,DOS
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
-	mov	bx,STDOUT
 	call	sfb_get			; BX -> SFB
 	pop	ds
 	ASSUME	DS:NOTHING
@@ -1199,7 +1222,7 @@ ws7:	pop	es
 	pop	bx
 ws8:	clc
 	ret
-ENDPROC	write_string
+ENDPROC	write_handle
 
 DOS	ends
 

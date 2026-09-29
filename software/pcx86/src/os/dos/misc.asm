@@ -16,7 +16,8 @@
 
 DOS	segment word public 'CODE'
 
-	EXTNEAR	<dos_check,dos_restart,dev_request,tty_read,write_string>
+	EXTNEAR	<dos_check,dos_restart,dev_request,tty_read,write_handle>
+	EXTNEAR	<sfb_get>
 	EXTSTR	<STR_CTRLC>
 
 	EXTWORD	<mcb_head>
@@ -341,6 +342,23 @@ DEFPROC	msc_sigctrlc,DOSFAR
 	ASSERT	STRUCT,[bx],SCB
 	cmp	[bx].SCB_CTRLC_ACT,0
 	je	msg1
+;
+; Remove the CTRLC from the input buffer, but only if STDIN is the console;
+; if STDIN is redirected (eg, the second command in "DIR | CASE"), reading it
+; would consume redirected data instead, and leave CTRLC in the input buffer.
+; In that case, it's up to a session whose STDIN is the console to remove it.
+;
+	push	bx
+	mov	bx,STDIN
+	call	sfb_get			; BX -> SFB
+	jc	msg0a
+	les	di,[bx].SFB_DEVICE
+	test	es:[di].DDH_ATTR,DDATTR_STDIN
+	stc
+	jz	msg0a
+	clc
+msg0a:	pop	bx
+	jc	msg0
 	call	tty_read		; remove CTRLC from the input buffer
 msg0:	mov	[bx].SCB_CTRLC_ACT,0
 ;
@@ -353,9 +371,14 @@ msg1:	IF REG_CHECK
 	ASSERT	Z,<cmp word ptr [bp-2],offset dos_check>
 	ENDIF
 
+;
+; Echo CTRLC to STDERR rather than STDOUT, since STDOUT may be redirected
+; (eg, to a pipe that's full, in which case the write would never complete).
+;
 	mov	cx,STR_CTRLC_LEN
 	mov	si,offset STR_CTRLC
-	call	write_string
+	mov	bx,STDERR
+	call	write_handle
 ;
 ; Use the REG_WS workspace on the stack to create two "call frames",
 ; allowing us to RETF to the CTRLC handler, and allowing the CTRLC handler

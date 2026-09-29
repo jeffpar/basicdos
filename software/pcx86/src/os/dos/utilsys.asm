@@ -216,9 +216,10 @@ ENDPROC	utl_sleep
 ;
 ; Inputs:
 ;	REG_DX:REG_DI == wait ID
+;	REG_AL = 1 if the wait can be interrupted by CTRLC, 0 if not
 ;
 ; Outputs:
-;	Carry clear UNLESS the wait has been ABORT'ed
+;	Carry clear UNLESS the wait has been ABORT'ed (or interrupted)
 ;
 DEFPROC	utl_wait,DOS
 	and	[bp].REG_FL,NOT FL_CARRY
@@ -277,11 +278,23 @@ hk1:	test	[bx].SCB_STATUS,SCSTAT_START
 hk2:	cmp	al,CHR_CTRLC
 	jne	hk3
 	or	[bx].SCB_CTRLC_ACT,1
+;
+; If the session is in an interruptible wait (eg, on a pipe), end the wait,
+; so that the session can notice the CTRLC; scb_wait will fail any attempt
+; to resume an interruptible wait until the CTRLC has been processed.
+;
+	cli
+	test	[bx].SCB_STATUS,SCSTAT_IWAIT
+	jz	hk2a
+	and	[bx].SCB_STATUS,NOT SCSTAT_IWAIT
+	mov	[bx].SCB_WAITID.OFF,0
+	mov	[bx].SCB_WAITID.SEG,0
+hk2a:	sti
 hk3:	cmp	al,CHR_CTRLP
 	jne	hk4
 	xor	[bx].SCB_CTRLP_ACT,1
 hk4:	cmp	al,CHR_CTRLD
-	jne	hk9
+	jne	hk8
 	call	scb_abort
 hk8:	add	bx,size SCB		; advance to the next SCB
 	cmp	bx,[scb_table].SEG
