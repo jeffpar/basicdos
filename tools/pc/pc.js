@@ -1950,6 +1950,8 @@ export default class PC extends PCJSLib {
          * if it doesn't exist, but in that case, we also mark it HIDDEN, since it's a file we created, not
          * the user.  Ensuring that "C:\" is in the PATH ensures that the user can invoke "quit" to run
          * our hidden QUIT.COM program in the root of the drive, regardless of the current directory.
+         *
+         * The exception is BASIC-DOS ("bd"), which doesn't currently support the PATH command.
          */
         let attr = DiskInfo.ATTR.ARCHIVE;
         text = await diskLib.readFileAsync(node.path.join(sDir, "AUTOEXEC.BAT"), "utf8", true);
@@ -1961,14 +1963,16 @@ export default class PC extends PCJSLib {
             text = verDOSMajor < 2? "" : (verDOS >= 3.30? '@' : '') + "ECHO OFF\n";
             attr |= attrHidden;
         }
-        let matchPath = text.match(/^PATH\s*(.*)$/im);
-        if (matchPath) {
-            let matchPathRoot = matchPath[1].match(new RegExp("(^|;|" + bootLetter + ":|)\\\\(;|$)", "i"));
-            if (!matchPathRoot) {
-                text = text.replace(/^PATH\s*(.*)$/im, "PATH " + bootLetter + ":\\;$1");
+        if (this.systemType != "bd") {
+            let matchPath = text.match(/^PATH\s*(.*)$/im);
+            if (matchPath) {
+                let matchPathRoot = matchPath[1].match(new RegExp("(^|;|" + bootLetter + ":|)\\\\(;|$)", "i"));
+                if (!matchPathRoot) {
+                    text = text.replace(/^PATH\s*(.*)$/im, "PATH " + bootLetter + ":\\;$1");
+                }
+            } else if (verDOSMajor >= 2) {
+                text += "PATH " + bootLetter + ":\\\n";
             }
-        } else if (verDOSMajor >= 2) {
-            text += "PATH " + bootLetter + ":\\\n";
         }
 
         if (sCommand) {
