@@ -52,6 +52,7 @@ export default class PC extends PCJSLib {
     bootSector = "";
     bootSelect = "";
     serial = false;             // true if --serial specified
+    speed = 0;                  // CPU speed multiplier from --speed (0 to use the machine's own setting)
     useSerial = false;
     normalize = false;          // true if --normalize specified
     test = false;               // true if --test specified
@@ -1010,8 +1011,8 @@ export default class PC extends PCJSLib {
     receiveSerial(b)
     {
         let s;
-        if (b == 0x07 || b == 0x08 || b == 0x09 || b == StrLib.ASCII.CR || b == StrLib.ASCII.LF) {
-            s = String.fromCharCode(b);             // pass BEL, BS, TAB, CR, and LF through to the terminal
+        if (b == 0x07 || b == 0x08 || b == 0x09 || b == StrLib.ASCII.CR || b == StrLib.ASCII.LF || b == 0x1b) {
+            s = String.fromCharCode(b);             // pass BEL, BS, TAB, CR, LF, and ESC (for ANSI sequences) through
         } else if (b < 0x20) {
             s = '^' + String.fromCharCode(b + 0x40);    // display other control characters the way CON does (eg, "^C")
         } else {
@@ -1378,8 +1379,34 @@ export default class PC extends PCJSLib {
                 }
             }
 
+            if (pc.speed && config['cpu']) {
+                config['cpu']['multiplier'] = pc.speed;
+            }
+
             if (sFile.endsWith(pc.savedMachine) && config['computer'] && pc.savedState) {
-                config['computer']['state'] = node.path.join(pcjsDir, pc.savedState);
+                let statePath = node.path.join(pcjsDir, pc.savedState);
+                config['computer']['state'] = statePath;
+                /**
+                 * The CPU restores its speed multiplier from the saved state (the 3rd value in group 3 of
+                 * its state), overriding the machine's configured multiplier, so if --speed was specified,
+                 * we update the multiplier in a copy of the state, which the machine will then load instead
+                 * of the state file (see WebLib.getResource()).
+                 */
+                if (pc.speed) {
+                    let state = JSON.parse(diskLib.readFileSync(statePath, "utf8", true) || "{}");
+                    for (let id in state) {
+                        if (id.endsWith(".cpu") && Array.isArray(state[id]['3'])) {
+                            state[id]['3'][2] = pc.speed;
+                            /**
+                             * Computer.getMachineParm() also uses the 'resources' object (for machines with
+                             * bundled resources), and it requires a 'parms' resource, so we provide an empty one.
+                             */
+                            if (typeof global['resources'] != 'object') global['resources'] = {'parms': "{}"};
+                            global['resources'][statePath] = JSON.stringify(state);
+                            break;
+                        }
+                    }
+                }
             }
 
             let args = JSON.stringify(config);
@@ -2409,6 +2436,12 @@ export default class PC extends PCJSLib {
                         let newAttr = +newItem.attr || 0;
                         let oldDate = device.parseDate(oldItem.date, true);
                         let newDate = device.parseDate(newItem.date, true);
+                        /**
+                         * The machine's clock runs fast when the CPU speed multiplier is > 1 (eg, --speed=4),
+                         * so don't let files from the machine appear newer than they are (otherwise, a source file
+                         * edited shortly after a build could appear older than the build's output files).
+                         */
+                        if (newDate.getTime() > Date.now()) newDate = new Date();
 
                         if (oldAttr & DiskInfo.ATTR.SUBDIR) {
                             curMappings[oldItem.path] = oldItem.origin;
@@ -3381,6 +3414,7 @@ export default class PC extends PCJSLib {
 
         this.kbTarget = diskLib.getTargetValue(PC.removeArg(argv, 'target', defaults['target'])) || this.kbTarget;
         this.maxFiles = +PC.removeArg(argv, 'maxfiles', defaults['maxfiles'] || Math.trunc(this.kbTarget / 5));
+        this.speed = +PC.removeArg(argv, 'speed', defaults['speed'] || this.speed) || 0;
 
         if ([160, 180, 320, 360, 720, 1200, 1440, 2880].indexOf(this.kbTarget) >= 0) {
             this.floppy = true;
@@ -3877,6 +3911,7 @@ export default class PC extends PCJSLib {
                 "--boot=[drive]":           "\tselect boot drive (A, C, or none)",
                 "--commands[=...]":         "execute commands, separated by semicolons",
                 "--select=[machine]":       "select machine configuration file",
+                "--speed=[multiplier]":     "set CPU speed multiplier (eg, 4 for 4x)",
             };
             let optionsDisk = {
                 "--dir=[directory]":        "use drive directory (default is " + this.localDir + ")",

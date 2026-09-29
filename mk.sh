@@ -9,4 +9,4 @@
 # COMPAQ DeskPro 386 configuration running MS-DOS 3.20, in part because that
 # machine has a real-time clock that MS-DOS 3.20 knows how to use.
 #
-tools/pc/pc.js --disk=software/pcx86/disks/MSDOS320-C400.json --dir=software/pcx86/src --normalize
+tools/pc/pc.js --disk=software/pcx86/disks/MSDOS320-C400.json --dir=software/pcx86/src --normalize --speed=4

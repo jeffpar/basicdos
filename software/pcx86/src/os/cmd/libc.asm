@@ -356,8 +356,9 @@ DEFPROC	setColor,FAR
 	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETCOLOR
 	mov	bx,STDOUT
 	int	21h			; DX = current colors
-	ASSERT	NC			; (assuming success)
-	pop	si
+	jnc	sc0
+	mov	dx,0707h		; use defaults if unsupported
+sc0:	pop	si
 	pop	di			; DI:SI = return address
 	pop	cx			; CX = # args
 sc1:	cmp	cl,4

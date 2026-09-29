@@ -35,6 +35,8 @@ DEFPROC	main
 ;	ret
 ;	DEFSTR	WRONG_OS,<"BASIC-DOS required",13,10,'$'>
 
+	mov	dx,(25 SHL 8) OR 80	; STDOUT doesn't support GETDIM; use 80x25
+
 m0:	mov	bx,ds:[PSP_HEAP]
 	DBGINIT	STRUCT,[bx],CMD
 	mov	word ptr [bx].CON_COLS,dx

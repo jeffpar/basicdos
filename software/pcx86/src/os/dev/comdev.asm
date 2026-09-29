@@ -34,7 +34,7 @@ COM1	DDH	<COM1_LEN,,DDATTR_OPEN+DDATTR_CHAR,COM1_INIT,ddcom_int1,20202020314D4F4
 	DEFPTR	wait_ptr,-1	; chain of waiting packets
 
 	DEFLBL	CMDTBL,word
-	dw	ddcom_none,   ddcom_none,   ddcom_none,   ddcom_none	; 0-3
+	dw	ddcom_none,   ddcom_none,   ddcom_none,   ddcom_ioctl	; 0-3
 	dw	ddcom_read,   ddcom_none,   ddcom_none,   ddcom_none	; 4-7
 	dw	ddcom_write,  ddcom_none,   ddcom_none,   ddcom_none	; 8-11
 	dw	ddcom_none,   ddcom_open,   ddcom_close			; 12-14
@@ -42,6 +42,31 @@ COM1	DDH	<COM1_LEN,,DDATTR_OPEN+DDATTR_CHAR,COM1_INIT,ddcom_int1,20202020314D4F4
 
 	DEFLBL	COM_PARMS,word
 	dw	9600,110,19200, 8,7,8, 1,1,2, 128,0,4096
+
+;
+; Terminal types (aka "personalities"), which may be specified after the
+; stop bits (eg, "COM1:9600,N,8,1,GENERIC"); the default is ANSI.  The order
+; of TERM_NAMES must match the TERM_* values.
+;
+TERM_ANSI	equ	0	; supports ANSI (VT100) cursor and erase sequences
+TERM_GENERIC	equ	1	; supports only CR, LF, BACKSPACE, and TAB
+
+	DEFLBL	TERM_NAMES,byte
+	db	"ANSI",0,"GENERIC",0,0
+
+	DEFLBL	ANSI_RIGHT,byte
+	db	CHR_ESCAPE,"[C",0	; cursor forward
+	DEFLBL	ANSI_CLEAR,byte
+	db	CHR_ESCAPE,"[2J",CHR_ESCAPE,"[H",0
+	DEFLBL	GENERIC_CLEAR,byte
+	db	CHR_RETURN,CHR_LINEFEED,0
+	DEFLBL	ANSI_RESET,byte
+	db	CHR_ESCAPE,"[0",0	; start of "select graphic rendition"
+	DEFLBL	ANSI_COLORS,byte	; PC color # to ANSI color #
+	db	0,4,2,6,1,5,3,7		; (ie, swap the red and blue bits)
+
+TERM_COLS	equ	80	; assumed terminal dimensions (for IOCTL_GETDIM)
+TERM_ROWS	equ	24
 
 RINGBUF		struc
 BUFOFF		dw	?	; 00h: offset within context of buffer
@@ -53,6 +78,8 @@ RINGBUF		ends
 ;
 ; A serial context contains two ring buffers (CT_INPUT and CT_OUTPUT).
 ;
+LINE_MAX	equ	128	; maximum columns saved in CT_LINE
+
 CONTEXT		struc
 CT_CARD		dw	?	; 00h: RS232 "card" number (ie, BIOS index)
 CT_PORT		dw	?	; 02h: base port address
@@ -63,8 +90,14 @@ CT_PARITY	db	?	; 08h
 CT_REFS		db	?	; 09h
 CT_STATUS	db	?	; 0Ah: context status bits (CTSTAT_*)
 CT_SIG		db	?	; 0Bh
-CT_INPUT	db	size RINGBUF dup (?)	; 0Ch
-CT_OUTPUT	db	size RINGBUF dup (?)	; 14h
+CT_COL		db	?	; 0Ch: current output column (see update_col)
+CT_TERM		db	?	; 0Dh: terminal type (TERM_*)
+CT_LLEN		db	?	; 0Eh: # of columns in CT_LINE
+CT_RSVD		db	?	; 0Fh
+CT_COLOR	dw	?	; 10h: fill (LO) and border (HI) attributes
+CT_LINE		db	LINE_MAX dup (?); 12h: copy of the current output line
+CT_INPUT	db	size RINGBUF dup (?)
+CT_OUTPUT	db	size RINGBUF dup (?)
 CONTEXT		ends
 SIG_CT		equ	'O'
 
@@ -295,6 +328,7 @@ dcw8:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_WRFAULT
 dcw4:	mov	al,[si]
 	call	write_context
 	jc	dcw3a
+	call	update_col		; update CT_COL for the char in AL
 	inc	si
 	loop	dcw4
 	pop	es
@@ -303,6 +337,509 @@ dcw9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	pop	cx
 	ret
 ENDPROC	ddcom_write
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcom_ioctl
+;
+; When a serial context is serving as a console (eg, "CONSOLE=COM1:9600,N,8,1"
+; in CONFIG.SYS), the DOS line editor (see read_line in conio.asm) relies on
+; the same IOCTLs that the CON driver provides, in order to redisplay and
+; reposition the cursor as characters are inserted, deleted, etc.  We support
+; them by tracking the terminal's current column (CT_COL) as data is written,
+; so that the editor sees consistent cursor positions and display lengths.
+;
+; We have no knowledge of the terminal's width, so line wrapping is ignored.
+;
+; Inputs:
+;	CX = context, if any
+;	ES:DI -> DDPRW
+;
+; Outputs:
+;	DDPRW packet updated (with any result in DDP_CONTEXT)
+;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcom_ioctl
+	jcxz	dio8			; no context
+	push	cx
+	mov	ds,cx
+	ASSUME	DS:NOTHING
+	ASSERT	STRUCT,ds:[0],CT
+	mov	al,es:[di].DDP_CODE	; AL = IOCTL code
+	mov	cx,es:[di].DDPRW_LENGTH	; CX = IOCTL input value
+	mov	dx,es:[di].DDPRW_LBA	; DX = IOCTL input value
+	cmp	al,IOCTL_GETDIM
+	je	dio0
+	cmp	al,IOCTL_GETPOS
+	je	dio1
+	cmp	al,IOCTL_GETLEN
+	je	dio2
+	cmp	al,IOCTL_MOVCUR
+	je	dio3
+	cmp	al,IOCTL_SETINS
+	je	dio4
+	cmp	al,IOCTL_SCROLL
+	je	dio5
+	cmp	al,IOCTL_GETCOLOR
+	je	dio0a
+	cmp	al,IOCTL_SETCOLOR
+	je	dio0b
+	pop	cx
+dio8:	jmp	ddcom_none		; unsupported IOCTL
+;
+; IOCTL_GETDIM: return the (assumed) terminal dimensions.
+;
+dio0:	mov	dx,(TERM_ROWS SHL 8) OR TERM_COLS
+	jmp	short dio7
+;
+; IOCTL_GETCOLOR: return the fill (DL) and border (DH) attributes.
+;
+dio0a:	mov	dx,ds:[CT_COLOR]
+	jmp	short dio7
+;
+; IOCTL_SETCOLOR: set the fill (CL) and border (CH) attributes.
+;
+dio0b:	call	set_color
+	jc	dio9			; wait interrupted (DDP_STATUS set)
+	jmp	short dio4
+;
+; IOCTL_GETPOS: return the current column in DL (row in DH is always zero).
+;
+dio1:	mov	dl,ds:[CT_COL]
+	mov	dh,0
+	jmp	short dio7
+;
+; IOCTL_GETLEN: return the display length of CL bytes at DDPRW_ADDR, starting
+; at column DL, using the same display rules as the CON driver (and update_col).
+;
+dio2:	call	get_len
+	jmp	short dio7
+;
+; IOCTL_MOVCUR: move the cursor by CX columns (negative for left).
+;
+dio3:	call	move_cur
+	jc	dio9			; wait interrupted (DDP_STATUS set)
+	jmp	short dio7
+;
+; IOCTL_SETINS: there's no cursor shape to change, so just report that
+; insert mode was previously off.
+;
+dio4:	sub	dx,dx
+	jmp	short dio7
+;
+; IOCTL_SCROLL: CX = 0 clears the screen (eg, for CLS); scrolling by a number
+; of lines is not supported, so it's ignored.
+;
+dio5:	jcxz	dio6
+	jmp	short dio4
+dio6:	call	clear_screen
+	jc	dio9			; wait interrupted (DDP_STATUS set)
+	jmp	short dio4
+
+dio7:	mov	es:[di].DDP_CONTEXT,dx	; return result in packet context
+	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+dio9:	pop	cx			; CX = context
+	ret
+ENDPROC	ddcom_ioctl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_len
+;
+; Inputs:
+;	CL = number of bytes
+;	DL = starting column
+;	ES:DI -> DDPRW (DDPRW_ADDR -> bytes)
+;
+; Outputs:
+;	DH = total display length, DL = length delta (of the final character)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	get_len
+	mov	bl,dl			; BL = current column
+	sub	dx,dx			; DL = current len, DH = previous len
+	mov	ch,0
+	jcxz	gl9
+	push	ds
+	lds	si,es:[di].DDPRW_ADDR
+gl1:	lodsb
+	mov	dh,dl			; current len -> previous len
+	mov	ah,1			; AH = # display columns
+	cmp	al,CHR_TAB
+	jne	gl2
+	mov	ah,bl			; TAB advances to the next multiple of 8
+	and	ah,07h
+	neg	ah
+	add	ah,8
+	jmp	short gl3
+gl2:	cmp	al,CHR_SPACE		; CONTROL character?
+	jae	gl3			; no
+	inc	ah			; yes, add 1 for the presumed "^"
+gl3:	add	bl,ah			; advance the column
+	add	dl,ah			; advance the length
+	loop	gl1
+	pop	ds
+	sub	dl,dh			; DL = length delta for final character
+	add	dh,dl			; DH = total length
+gl9:	ret
+ENDPROC	get_len
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; move_cur
+;
+; Moving left is done with BACKSPACEs.  There's no ASCII equivalent for moving
+; right, so ANSI terminals get the "cursor forward" sequence, and GENERIC
+; terminals get the characters from CT_LINE (ie, what should already be there).
+;
+; Inputs:
+;	CX = +/- columns to move
+;	DS = context
+;	ES:DI -> DDPRW
+;
+; Outputs:
+;	Carry clear if successful, set if interrupted (DDP_STATUS updated)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	move_cur
+	test	cx,cx
+	jz	mc9
+	jg	mc3
+	neg	cx			; CX = # columns to move left
+mc1:	cmp	ds:[CT_COL],0		; already at the left edge?
+	je	mc9			; yes
+	mov	al,CHR_BACKSPACE
+	call	ioctl_out
+	jc	mc8
+	dec	ds:[CT_COL]
+	loop	mc1
+	jmp	short mc9
+
+mc3:	cmp	ds:[CT_TERM],TERM_GENERIC
+	je	mc5
+	mov	si,offset ANSI_RIGHT
+	call	ioctl_str
+	jc	mc8
+	jmp	short mc7
+
+mc5:	mov	bl,ds:[CT_COL]
+	mov	bh,0
+	mov	al,CHR_SPACE		; beyond the end of the line, use SPACE
+	cmp	bl,ds:[CT_LLEN]
+	jae	mc6
+	mov	al,ds:[CT_LINE][bx]
+mc6:	call	ioctl_out
+	jc	mc8
+mc7:	inc	ds:[CT_COL]
+	loop	mc3
+
+mc9:	clc
+	ret
+mc8:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_WRFAULT
+	ret
+ENDPROC	move_cur
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; clear_screen
+;
+; Inputs:
+;	DS = context
+;	ES:DI -> DDPRW
+;
+; Outputs:
+;	Carry clear if successful, set if interrupted (DDP_STATUS updated)
+;
+; Modifies:
+;	AX, BX, DX, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	clear_screen
+	mov	si,offset ANSI_CLEAR
+	cmp	ds:[CT_TERM],TERM_GENERIC
+	jne	clr1
+	mov	si,offset GENERIC_CLEAR
+clr1:	call	ioctl_str
+	jc	clr8
+	mov	ds:[CT_COL],0
+	mov	ds:[CT_LLEN],0
+	ret
+clr8:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_WRFAULT
+	ret
+ENDPROC	clear_screen
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; set_color
+;
+; Records the new attributes, and for ANSI terminals, sends the corresponding
+; "select graphic rendition" sequence for the fill attributes (ie, foreground
+; color in bits 0-2, intensity in bit 3, and background color in bits 4-6).
+; The default attributes (07h) simply reset the terminal to its own defaults.
+; Blinking (bit 7) and the border attributes are ignored.
+;
+; Inputs:
+;	CL = fill attributes
+;	CH = border attributes
+;	DS = context
+;	ES:DI -> DDPRW
+;
+; Outputs:
+;	Carry clear if successful, set if interrupted (DDP_STATUS updated)
+;
+; Modifies:
+;	AX, BX, DX, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	set_color
+	mov	ds:[CT_COLOR],cx
+	cmp	ds:[CT_TERM],TERM_ANSI
+	jne	stc9			; nothing to send (carry clear)
+	mov	si,offset ANSI_RESET
+	call	ioctl_str		; ESC [ 0
+	jc	stc8
+	cmp	cl,07h			; default attributes?
+	je	stc7			; yes, so the reset is all we need
+	mov	ah,'3'			; foreground color
+	mov	al,cl
+	call	ansi_color
+	jc	stc8
+	mov	ah,'4'			; background color
+	mov	al,cl
+	shr	al,1
+	shr	al,1
+	shr	al,1
+	shr	al,1
+	call	ansi_color
+	jc	stc8
+	test	cl,08h			; intensity bit set?
+	jz	stc7			; no
+	mov	al,';'
+	call	ioctl_out
+	jc	stc8
+	mov	al,'1'			; bold (aka bright)
+	call	ioctl_out
+	jc	stc8
+stc7:	mov	al,'m'
+	call	ioctl_out
+	jc	stc8
+stc9:	clc
+	ret
+stc8:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_WRFAULT
+	ret
+ENDPROC	set_color
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ansi_color
+;
+; Sends ";" followed by the prefix and the ANSI color # for a PC color #.
+;
+; Inputs:
+;	AH = prefix ('3' for foreground, '4' for background)
+;	AL = PC color # (in bits 0-2)
+;	DS = context
+;	ES:DI -> DDPRW
+;
+; Outputs:
+;	Carry clear if successful, set if the wait was interrupted
+;
+; Modifies:
+;	AX, BX, DX, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ansi_color
+	and	al,07h
+	mov	bl,al
+	mov	bh,0
+	mov	bl,cs:ANSI_COLORS[bx]	; BL = ANSI color #
+	push	bx
+	push	ax
+	mov	al,';'
+	call	ioctl_out
+	pop	ax
+	jc	ac8
+	mov	al,ah
+	call	ioctl_out		; prefix
+ac8:	pop	bx
+	jc	ac9
+	mov	al,bl
+	add	al,'0'
+	call	ioctl_out		; color #
+ac9:	ret
+ENDPROC	ansi_color
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ioctl_str
+;
+; Outputs a null-terminated string on behalf of an IOCTL request.  The string
+; contents are not reflected in CT_COL or CT_LINE (the caller must do that).
+;
+; Inputs:
+;	CS:SI -> null-terminated string
+;	DS = context
+;	ES:DI -> DDPRW
+;
+; Outputs:
+;	Carry clear if successful, set if the wait was interrupted
+;
+; Modifies:
+;	AX, BX, DX, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ioctl_str
+ios1:	mov	al,cs:[si]
+	test	al,al			; end of string?
+	jz	ios9			; yes (carry clear)
+	push	si
+	call	ioctl_out
+	pop	si
+	jc	ios9
+	inc	si
+	jmp	ios1
+ios9:	ret
+ENDPROC	ioctl_str
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ioctl_out
+;
+; Outputs a byte on behalf of an IOCTL request, waiting for room in the
+; output buffer if necessary.
+;
+; Inputs:
+;	AL = byte
+;	DS = context
+;	ES:DI -> DDPRW
+;
+; Outputs:
+;	Carry clear if successful, set if the wait was interrupted
+;
+; Modifies:
+;	BX, DX, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ioctl_out
+iot1:	call	push_output
+	jnc	iot9
+	push	ax
+	call	add_packet		; wait for the output buffer to drain
+	pop	ax
+	jnc	iot1
+iot9:	ret
+ENDPROC	ioctl_out
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; update_col
+;
+; Updates the context's current column (CT_COL) and copy of the current line
+; (CT_LINE) for a byte just written, using the same display rules as get_len
+; (and the CON driver).  CR resets the column, BACKSPACE (which is destructive;
+; see write_context) erases the previous column, LINEFEED starts a new (empty)
+; line without changing the column, and BELL changes nothing.
+;
+; Inputs:
+;	AL = byte
+;	ES = context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AH
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	update_col
+	push	bx
+	mov	bl,es:[CT_COL]
+	mov	bh,0			; BX = current column
+	cmp	al,CHR_RETURN
+	jne	uc1
+	mov	bl,0
+	jmp	short uc8
+uc1:	cmp	al,CHR_LINEFEED
+	jne	uc2
+	mov	es:[CT_LLEN],0		; the new line is empty
+	jmp	short uc9
+uc2:	cmp	al,CHR_BACKSPACE
+	jne	uc3
+	sub	bl,1
+	adc	bl,0			; don't go below zero
+	mov	ah,CHR_SPACE
+	call	put_line		; the previous column is now blank
+	jmp	short uc8
+uc3:	cmp	al,CHR_CTRLG		; BELL?
+	je	uc9
+	cmp	al,CHR_TAB
+	jne	uc4
+	or	bl,07h			; advance to the next multiple of 8
+	inc	bl
+	jmp	short uc8
+uc4:	mov	ah,al
+	cmp	al,CHR_SPACE		; CONTROL character?
+	jae	uc5			; no
+	mov	ah,'^'			; yes, presumably displayed as "^" + char
+	call	put_line
+	inc	bl
+	mov	ah,al
+	add	ah,'@'
+uc5:	call	put_line
+	inc	bl
+uc8:	mov	es:[CT_COL],bl
+uc9:	pop	bx
+	ret
+ENDPROC	update_col
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; put_line
+;
+; Stores a character in CT_LINE at the specified column (if it's within
+; LINE_MAX), filling any gap beyond the current line length with spaces.
+;
+; Inputs:
+;	AH = character
+;	BX = column
+;	ES = context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	put_line
+	cmp	bx,LINE_MAX
+	jae	pt9
+	push	cx
+	push	si
+	mov	cl,es:[CT_LLEN]
+	mov	ch,0			; CX = current line length
+pt1:	cmp	cx,bx			; is there a gap before the column?
+	jae	pt2			; no
+	mov	si,cx
+	mov	es:[CT_LINE][si],CHR_SPACE
+	inc	cx
+	jmp	pt1
+pt2:	mov	es:[CT_LINE][bx],ah
+	cmp	cx,bx			; did the line get longer?
+	ja	pt3			; no
+	mov	cx,bx
+	inc	cx
+	mov	es:[CT_LLEN],cl
+pt3:	pop	si
+	pop	cx
+pt9:	ret
+ENDPROC	put_line
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -349,8 +886,10 @@ dco1:	lds	si,es:[di].DDP_PTR
 	push	es
 	mov	di,dx			; DI = card #
 	call	get_parms
-	push	ax			; save output buffer length
-	push	bx			; save parity
+	jnc	dco1b
+	jmp	dco7			; invalid parameter (eg, terminal type)
+dco1b:	push	ax			; save output buffer length
+	push	bx			; save parity and terminal type
 	push	cx			; save baud rate
 	add	ax,si			; AX = output + input buffer lengths
 	add	ax,size CONTEXT + 15
@@ -379,7 +918,8 @@ dco1a:	mov	es,ax
 	stosw				; set CT_BAUD
 	xchg	ax,dx
 	stosw				; set CT_DATABITS and CT_STOPBITS
-	pop	ax			; restore parity (originally in BH)
+	pop	ax			; restore parity (BH) and terminal (BL)
+	mov	dl,al			; DL = terminal type
 	mov	al,1
 	xchg	al,ah
 	stosw				; set CT_PARITY and CT_REFS
@@ -388,6 +928,14 @@ dco1a:	mov	es,ax
 	mov	ah,SIG_CT
 	ENDIF
 	stosw				; set CT_STATUS and CT_SIG
+	mov	al,0
+	mov	ah,dl
+	stosw				; set CT_COL and CT_TERM
+	sub	ax,ax
+	stosw				; set CT_LLEN and CT_RSVD
+	mov	ax,0707h
+	stosw				; set CT_COLOR (same default as CON)
+	add	di,LINE_MAX		; skip CT_LINE
 
 	mov	ax,size CONTEXT
 	stosw				; set CT_INPUT.BUFOFF
@@ -769,15 +1317,21 @@ ENDPROC	remove_packet
 ;
 ; Inputs:
 ;	DS:SI -> parameter string:
-;	[device]:[baud],[parity],[databits],[stopbits],[inbuflen],[outbuflen]
+;	[baud],[parity],[databits],[stopbits],[terminal],[inbuflen],[outbuflen]
+;
+; where [terminal] is optional and must be a name from TERM_NAMES.  Parsing
+; stops at the end of the string, and any missing values use their defaults.
 ;
 ; Outputs:
+;	If carry clear:
 ;	CX = baud rate
 ;	BH = parity indicator (unvalidated; should be one of 'N', 'O', or 'E')
+;	BL = terminal type (TERM_*)
 ;	DL = data bits
 ;	DH = stop bits
 ;	SI = input buffer length
 ;	AX = output buffer length
+;	If carry set, the terminal type was not recognized
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI
@@ -798,15 +1352,108 @@ DEFPROC	get_parms
 	mov	dl,al			; DL = data bits
 	DOSUTIL	ATOI16
 	mov	dh,al			; DH = stop bits
-	DOSUTIL	ATOI16
-	push	ax			; AX = input buffer length
+;
+; ATOI16 advances SI past the delimiter following a number, so whenever that
+; delimiter wasn't a comma, we've reached the end of the parameters.
+;
+	mov	ax,TERM_ANSI		; AX = default terminal type
+	cmp	byte ptr [si-1],','	; any more parameters?
+	jne	gp1			; no
+	call	get_term		; AX = terminal type, if any
+	jc	gp9			; unrecognized terminal type
+gp1:	push	ax			; save terminal type
+	mov	ax,es:[di]		; AX = default input buffer length
+	cmp	byte ptr [si-1],','	; any more parameters?
+	jne	gp2			; no
+	DOSUTIL	ATOI16			; AX = input buffer length
 	sub	di,6			; use the input limits for output, too
+gp2:	push	ax			; save input buffer length
+	mov	ax,es:[di]		; AX = default output buffer length
+	cmp	byte ptr [si-1],','	; any more parameters?
+	jne	gp3			; no
 	DOSUTIL	ATOI16			; AX = output buffer length
-	pop	si			; SI = input buffer length
-	pop	es
+gp3:	pop	si			; SI = input buffer length
+	pop	di			; DI = terminal type
+	xchg	ax,di			; AL = terminal type, DI = output length
+	mov	bl,al			; BL = terminal type
+	xchg	ax,di			; AX = output buffer length
+	clc
+gp9:	pop	es
 	pop	di
 	ret
 ENDPROC	get_parms
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_term
+;
+; If the next parameter begins with a letter, it must be one of the terminal
+; type names in TERM_NAMES (in upper or lower case).
+;
+; Inputs:
+;	DS:SI -> next parameter
+;
+; Outputs:
+;	If carry clear, AX = terminal type (default if no name), and if there
+;	was a name, SI is advanced past it and its delimiter (like ATOI16);
+;	carry set if the name was not recognized
+;
+; Modifies:
+;	AX, SI
+;
+DEFPROC	get_term
+	mov	ax,TERM_ANSI
+	mov	ah,[si]
+	and	ah,0DFh			; convert to upper-case
+	cmp	ah,'A'			; does parameter begin with a letter?
+	jb	gt8			; no
+	cmp	ah,'Z'
+	ja	gt8			; no
+	push	bx
+	push	di
+	mov	di,offset TERM_NAMES	; CS:DI -> terminal names
+	sub	bx,bx			; BX = terminal type
+gt1:	push	si
+gt2:	mov	al,[si]
+	cmp	al,'a'
+	jb	gt3
+	cmp	al,'z'
+	ja	gt3
+	sub	al,20h			; convert to upper-case
+gt3:	mov	ah,cs:[di]
+	inc	di
+	test	ah,ah			; end of name?
+	jz	gt4			; yes
+	cmp	al,ah
+	jne	gt5			; mismatch
+	inc	si
+	jmp	gt2
+gt4:	cmp	al,','			; name must be followed by a comma
+	je	gt6
+	cmp	al,CHR_SPACE		; or the end of the string (NUL, or any
+	jae	gt5			; other CONTROL char, eg, CR or LF)
+gt6:	pop	ax			; discard saved SI
+	inc	si			; advance SI past the delimiter
+	xchg	ax,bx			; AX = terminal type
+	pop	di
+	pop	bx
+gt8:	clc
+	ret
+
+gt5:	pop	si			; restore SI
+gt5a:	test	ah,ah			; skip remainder of the name
+	jz	gt5b
+	mov	ah,cs:[di]
+	inc	di
+	jmp	gt5a
+gt5b:	inc	bx			; advance terminal type
+	cmp	byte ptr cs:[di],0	; end of TERM_NAMES?
+	jne	gt1			; no
+	pop	di
+	pop	bx
+	stc
+	ret
+ENDPROC	get_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1313,13 +1960,61 @@ DEFPROC	write_context
 	push	ds
 	push	es
 	pop	ds			; DS is now the context
+	cmp	al,CHR_BACKSPACE	; BACKSPACE?
+	je	wct2			; yes
 	call	push_output
-	pop	ds
+wct1:	pop	ds
 	pop	si
 	pop	dx
 	pop	bx
 	ret
+;
+; Like the CON driver, we treat a BACKSPACE written as data as "destructive"
+; (the DOS line editor relies on that to erase characters; see con_erase), so
+; it's sent as BACKSPACE, SPACE, BACKSPACE.  To avoid sending a partial sequence
+; (which would be repeated when the write is retried), we don't start unless
+; there's room for all of it.  Note that IOCTL_MOVCUR sends BACKSPACEs directly
+; (see move_cur), since those are only supposed to move the cursor.
+;
+wct2:	push	ax
+	call	output_room		; AX = free bytes in output buffer
+	cmp	ax,3
+	pop	ax
+	jae	wct3
+	or	ds:[CT_STATUS],CTSTAT_XMTFULL
+	stc
+	jmp	wct1
+wct3:	call	push_output		; BACKSPACE
+	mov	al,CHR_SPACE
+	call	push_output		; SPACE
+	mov	al,CHR_BACKSPACE
+	call	push_output		; BACKSPACE
+	jmp	wct1
 ENDPROC	write_context
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; output_room
+;
+; Inputs:
+;	DS = context
+;
+; Outputs:
+;	AX = number of free bytes in CT_OUTPUT
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	output_room
+	mov	ax,ds:[CT_OUTPUT].BUFHEAD
+	sub	ax,ds:[CT_OUTPUT].BUFTAIL
+	dec	ax			; AX = HEAD - TAIL - 1
+	jge	or9			; no wrap
+	add	ax,ds:[CT_OUTPUT].BUFEND
+	sub	ax,ds:[CT_OUTPUT].BUFOFF
+or9:	ret
+ENDPROC	output_room
 
 	DEFLBL	COM1_END
 
