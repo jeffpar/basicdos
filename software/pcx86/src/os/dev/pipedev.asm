@@ -349,7 +349,7 @@ ENDPROC	push_data
 ;	AX, DX
 ;
 DEFPROC	wait_data
-	mov	ax,(DOS_UTL_WAIT SHL 8) OR 1	; AL = 1 (CTRLC can interrupt)
+	mov	ah,DOS_UTL_WAIT
 	DEFLBL	wait_call,near
 	push	di
 	mov	dx,ds

@@ -119,11 +119,20 @@ DEFPROC	ddclk_ctlin
 ; should contain a standard CX:DX tick count) has been decremented to zero.
 ;
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	push	ax
-	mov	al,0			; AL = 0 (not interruptible)
 	DOSUTIL	WAIT
+	jnc	dci1x
+;
+; The wait was interrupted (eg, by ABORT or CTRLC), so the packet must be
+; removed from the chain; if it's no longer there, then the wait ended
+; normally after all, so treat that as success.
+;
+	push	ax
+	call	remove_packet		; carry clear if packet removed
 	pop	ax
-	jmp	dci8
+	jc	dci1x
+	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_GENFAIL
+	ret
+dci1x:	jmp	dci8
 
 dci2:	cmp	al,IOCTL_SETDATE
 	jne	dci3
@@ -381,6 +390,57 @@ ENDPROC	ddclk_ctlin
 DEFPROC	ddclk_ctlout
 	ret
 ENDPROC	ddclk_ctlout
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; remove_packet
+;
+; Removes a packet from the chain of waiting packets, if it's still there.
+;
+; Inputs:
+;	ES:DI -> DDP
+;
+; Outputs:
+;	Carry clear if the packet was removed, set if it wasn't found
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	remove_packet
+	push	bx
+	push	cx
+	push	ds
+	push	cs
+	pop	ds
+	mov	bx,offset wait_ptr	; DS:BX -> first link
+	mov	cx,es			; CX:DI -> packet to remove
+	pushf
+	cli
+rp1:	mov	ax,[bx].OFF
+	cmp	ax,-1			; end of chain?
+	je	rp8			; yes, packet not found
+	cmp	ax,di
+	jne	rp2
+	cmp	[bx].SEG,cx
+	je	rp3
+rp2:	lds	bx,dword ptr [bx]	; DS:BX -> next packet
+	lea	bx,[bx].DDP_PTR		; DS:BX -> its link
+	jmp	rp1
+rp3:	mov	ax,es:[di].DDP_PTR.OFF	; unlink the packet
+	mov	[bx].OFF,ax
+	mov	ax,es:[di].DDP_PTR.SEG
+	mov	[bx].SEG,ax
+	popf
+	clc
+	jmp	short rp9
+rp8:	popf
+	stc
+rp9:	pop	ds
+	pop	cx
+	pop	bx
+	ret
+ENDPROC	remove_packet
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

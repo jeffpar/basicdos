@@ -131,7 +131,7 @@ for (let diskName in disks) {
     let diskImage = "./software/pcx86/disks/" + diskName + ".json";
     let archiveImage = "";
     let diskFiles = "";
-    let kbTarget = 160;
+    let kbTarget = 180;
     if (typeof disks[diskName] == "string") {
         kbTarget = 10000;
         diskFiles = "--disk " + disks[diskName];

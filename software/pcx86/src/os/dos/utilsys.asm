@@ -17,7 +17,7 @@ DOS	segment word public 'CODE'
 
 	EXTNEAR	<chk_devname,dev_request>
 	EXTNEAR	<scb_load,scb_start,scb_stop,scb_end,scb_waitend,scb_abort>
-	EXTNEAR	<scb_yield,scb_release,scb_wait,scb_endwait>
+	EXTNEAR	<scb_yield,scb_release,scb_wait,scb_endwait,scb_intwait>
 	EXTNEAR	<mem_query,msc_getdate,msc_gettime,psp_termcode>
 	EXTNEAR	<add_date,read_line>
 
@@ -216,10 +216,10 @@ ENDPROC	utl_sleep
 ;
 ; Inputs:
 ;	REG_DX:REG_DI == wait ID
-;	REG_AL = 1 if the wait can be interrupted by CTRLC, 0 if not
 ;
 ; Outputs:
-;	Carry clear UNLESS the wait has been ABORT'ed (or interrupted)
+;	Carry clear UNLESS the wait was interrupted (eg, by ABORT or CTRLC);
+;	if interrupted, the caller must clean up whatever it was waiting on
 ;
 DEFPROC	utl_wait,DOS
 	and	[bp].REG_FL,NOT FL_CARRY
@@ -279,17 +279,11 @@ hk2:	cmp	al,CHR_CTRLC
 	jne	hk3
 	or	[bx].SCB_CTRLC_ACT,1
 ;
-; If the session is in an interruptible wait (eg, on a pipe), end the wait,
-; so that the session can notice the CTRLC; scb_wait will fail any attempt
-; to resume an interruptible wait until the CTRLC has been processed.
+; If the session is waiting (eg, on a pipe), interrupt the wait, so that the
+; session can notice the CTRLC; scb_wait will also fail any new waits until
+; the CTRLC has been processed.
 ;
-	cli
-	test	[bx].SCB_STATUS,SCSTAT_IWAIT
-	jz	hk2a
-	and	[bx].SCB_STATUS,NOT SCSTAT_IWAIT
-	mov	[bx].SCB_WAITID.OFF,0
-	mov	[bx].SCB_WAITID.SEG,0
-hk2a:	sti
+	call	scb_intwait
 hk3:	cmp	al,CHR_CTRLP
 	jne	hk4
 	xor	[bx].SCB_CTRLP_ACT,1

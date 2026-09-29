@@ -227,9 +227,13 @@ dcr1a:	mov	ds,ax
 	or	ds:[CT_STATUS],CTSTAT_INPUT
 
 	call	add_packet
-dcr9:	sti
+	jnc	dcr9
+	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
+	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_RDFAULT
+	jmp	short dcr9a
 
-	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+dcr9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+dcr9a:	sti
 	pop	cx
 	ret
 ENDPROC	ddcom_read
@@ -280,7 +284,12 @@ dcw3a:	pop	es			; ES:DI -> packet again
 	mov	es:[di].DDPRW_LENGTH,cx
 	mov	es:[di].DDPRW_ADDR.OFF,si
 	call	add_packet
-	jmp	dcw2			; when this returns, try writing again
+	jc	dcw8			; the wait was interrupted
+	jmp	dcw2			; otherwise, try writing again
+
+dcw8:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_WRFAULT
+	pop	cx
+	ret
 
 dcw4:	mov	al,[si]
 	call	write_context
@@ -615,17 +624,16 @@ ddi6:	call	pull_input		; pull more input data
 ddi7:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
 	DOSUTIL	ENDWAIT
-	ASSERT	NC
 ;
-; If ENDWAIT returns an error, that could be a problem.  In the past, it
-; was because we got ahead of the WAIT call.  One thought was to make the
-; driver's WAIT code more resilient, and double-check that the request had
-; really been satisfied, but I eventually resolved the race by making the
-; pull_input/add_packet/wait path atomic (ie, no interrupts).
+; If ENDWAIT returns an error, it's because the wait was interrupted (eg, by
+; ABORT or CTRLC) before we could end it; add_packet will see that the packet
+; has been removed and treat the request as satisfied.  In the past, it could
+; also mean that we got ahead of the WAIT call, but that race was resolved by
+; making the pull_input/add_packet/wait path atomic (ie, no interrupts).
 ;
 ; TODO: Consider lighter-weight solutions to this race condition.
 ;
-; Anyway, assuming no race conditions, proceed with the packet removal now.
+; In any case, proceed with the packet removal now.
 ;
 	cli
 	mov	ax,es:[di].DDP_PTR.OFF
@@ -669,7 +677,7 @@ ENDPROC	ddcom_int1
 ;	ES:DI -> DDP
 ;
 ; Outputs:
-;	None
+;	Carry clear if the packet was satisfied, set if the wait was interrupted
 ;
 ; Modifies:
 ;	AX
@@ -689,12 +697,70 @@ DEFPROC	add_packet
 ;
 	push	dx
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	mov	al,0			; AL = 0 (not interruptible)
 	DOSUTIL	WAIT
-	pop	dx
+	jnc	ap9
+;
+; The wait was interrupted (eg, by ABORT or CTRLC), so the packet must be
+; removed from the chain.  However, if it's no longer on the chain, then our
+; interrupt handler satisfied it after all, so treat that as success.
+;
+	call	remove_packet		; carry clear if packet removed
+	cmc				; carry set if packet removed
+ap9:	pop	dx
 	sti
 	ret
 ENDPROC	add_packet
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; remove_packet
+;
+; Removes a packet from the chain of waiting packets, if it's still there.
+;
+; Inputs:
+;	ES:DI -> DDP
+;
+; Outputs:
+;	Carry clear if the packet was removed, set if it wasn't found
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	remove_packet
+	push	bx
+	push	cx
+	push	ds
+	push	cs
+	pop	ds
+	mov	bx,offset wait_ptr	; DS:BX -> first link
+	mov	cx,es			; CX:DI -> packet to remove
+	pushf
+	cli
+rp1:	mov	ax,[bx].OFF
+	cmp	ax,-1			; end of chain?
+	je	rp8			; yes, packet not found
+	cmp	ax,di
+	jne	rp2
+	cmp	[bx].SEG,cx
+	je	rp3
+rp2:	lds	bx,dword ptr [bx]	; DS:BX -> next packet
+	lea	bx,[bx].DDP_PTR		; DS:BX -> its link
+	jmp	rp1
+rp3:	mov	ax,es:[di].DDP_PTR.OFF	; unlink the packet
+	mov	[bx].OFF,ax
+	mov	ax,es:[di].DDP_PTR.SEG
+	mov	[bx].SEG,ax
+	popf
+	clc
+	jmp	short rp9
+rp8:	popf
+	stc
+rp9:	pop	ds
+	pop	cx
+	pop	bx
+	ret
+ENDPROC	remove_packet
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

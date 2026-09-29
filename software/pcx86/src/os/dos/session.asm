@@ -379,7 +379,6 @@ DEFPROC	scb_waitend,DOS
 ;
 	mov	di,bx
 	mov	dx,ds
-	mov	al,1			; allow CTRLC to interrupt the wait
 	jmp	scb_wait
 ENDPROC	scb_waitend
 
@@ -392,7 +391,7 @@ ENDPROC	scb_waitend
 ; There are currently two conditions to consider:
 ;
 ;	1) A DOSUTIL YIELD request
-;	2) A DOSUTIL WAIT request
+;	2) The active session can't continue (eg, psp_term closed it)
 ;
 ; In the first case, we want to return if no other SCB is ready; this is
 ; important when we're called from an interrupt handler.
@@ -400,8 +399,11 @@ ENDPROC	scb_waitend
 ; In the second case, we never return; we will simply switch to the first
 ; SCB we find whose wait condition is satisfied.
 ;
+; NOTE: DOSUTIL WAIT requests used to be the second case, but scb_wait now
+; loops on DOSUTIL YIELD instead, so that it can return the wait's outcome.
+;
 ; Inputs:
-;	AX = active SCB when called from DOSUTIL YIELD, zero if DOSUTIL WAIT
+;	AX = active SCB when called from DOSUTIL YIELD, zero otherwise
 ;
 ; Modifies:
 ;	BX, DX
@@ -490,12 +492,32 @@ ENDPROC	scb_switch
 ;
 ; Synchronous interface to mark current SCB as waiting for the specified ID.
 ;
+; All waits are interruptible: an ABORT (CTRL-ALT-DEL) or CTRLC signal ends
+; the wait early (see scb_intwait), in which case we return carry set, and the
+; caller (typically a driver) must clean up whatever it was waiting on (eg,
+; remove its request packet from any list that its interrupt handler uses).
+;
+; Rather than switching directly to another session (which would resume this
+; session with the stack frame of whatever call switched it out, which isn't
+; necessarily this one), we loop on DOSUTIL YIELD until the wait ID has been
+; cleared, and then check whether an ABORT or CTRLC signal is pending.
+;
+; Since neither signal can be cleared while we're waiting (ABORT is processed
+; only when SCB_INDOS returns to zero, and CTRLC only when this session calls
+; msc_sigctrlc), a pending signal means the wait was either interrupted or will
+; be shortly; in the latter case, the wait may also have ended normally, so a
+; caller that waits on a request packet must treat a packet that's no longer
+; waiting as satisfied (see remove_packet in the drivers).
+;
 ; Inputs:
 ;	DX:DI == wait ID
-;	AL = 1 if the wait can be interrupted by CTRLC, 0 if not
 ;
 ; Outputs:
-;	Carry set if the wait failed (eg, ABORT or CTRLC pending)
+;	Carry clear if the wait ended normally (ie, via scb_endwait);
+;	carry set if the wait failed or was interrupted (eg, ABORT or CTRLC)
+;
+; Modifies:
+;	AX, BX
 ;
 DEFPROC	scb_wait,DOS
 	cli
@@ -503,18 +525,24 @@ DEFPROC	scb_wait,DOS
 	ASSERT	STRUCT,[bx],SCB
 	ASSERT	Z,<cmp [bx].SCB_WAITID.SEG,0>
 	test	[bx].SCB_STATUS,SCSTAT_ABORT
-	jnz	sw8			; fail the wait if ABORT is set
-	and	[bx].SCB_STATUS,NOT SCSTAT_IWAIT
-	test	al,al			; interruptible wait?
-	jz	swt1			; no
-	cmp	[bx].SCB_CTRLC_ACT,0	; yes, so fail the wait
-	jne	sw8			; if CTRLC is already pending
-	or	[bx].SCB_STATUS,SCSTAT_IWAIT
-swt1:	mov	[bx].SCB_WAITID.OFF,di
+	jnz	swt8			; fail the wait if ABORT is set
+	cmp	[bx].SCB_CTRLC_ACT,0	; or if CTRLC is pending
+	jne	swt8
+	mov	[bx].SCB_WAITID.OFF,di
 	mov	[bx].SCB_WAITID.SEG,dx
-	sti
-	sub	ax,ax
-	jmp	scb_yield
+swt1:	sti
+	DOSUTIL	YIELD			; let other sessions run
+	cli
+	mov	ax,[bx].SCB_WAITID.OFF
+	or	ax,[bx].SCB_WAITID.SEG	; has the wait ended yet?
+	jnz	swt1			; no
+	test	[bx].SCB_STATUS,SCSTAT_ABORT
+	jnz	swt8			; the wait was interrupted by ABORT
+	cmp	[bx].SCB_CTRLC_ACT,0	; or by CTRLC?
+	je	swt9			; no (carry clear)
+swt8:	stc
+swt9:	sti
+	ret
 ENDPROC	scb_wait
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -552,7 +580,7 @@ ENDPROC	scb_endwait
 ;
 ; scb_abort
 ;
-; Sets the SCB's ABORT bit and clears any WAIT condition.  Called on ABORT
+; Sets the SCB's ABORT bit and interrupts any WAIT condition.  Called on ABORT
 ; "hot key" notifications.
 ;
 ; Inputs:
@@ -565,35 +593,44 @@ ENDPROC	scb_endwait
 ;	None
 ;
 DEFPROC	scb_abort,DOS
-	push	ax
-	push	dx
-	sub	ax,ax
-	cwd				; DX:AX = zero
+	pushf
 	cli
 	or	[bx].SCB_STATUS,SCSTAT_ABORT
-	xchg	ax,[bx].SCB_WAITID.OFF
-	xchg	dx,[bx].SCB_WAITID.SEG	; zero WAITID
-
-;	or	ax,dx			; was it already zero?
-;	jz	sa9			; yes
-;	push	ds
-;	push	si
-;	lds	si,[bx].SCB_STACK	; DS:SI -> SCB's stack
-;	ASSUME	DS:NOTHING
-;	IF REG_CHECK			; in DEBUG builds, skip the "marker"
-;	ASSERT	Z,<cmp word ptr [si],offset dos_check>
-;	add	si,2			; DS:SI -> REG_FRAME
-;	ENDIF
-;	or	[si].REG_FL,FL_CARRY	; force carry set on return from WAIT
-;	pop	si
-;	pop	ds
-;	ASSUME	DS:DOS
-
-sa9:	sti
-	pop	dx
-	pop	ax
+	call	scb_intwait
+	popf
 	ret
 ENDPROC	scb_abort
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; scb_intwait
+;
+; Interrupts the SCB's WAIT condition, if any, by clearing its wait ID.  Called
+; on ABORT and CTRLC "hot key" notifications, after the SCB has been marked with
+; the pending signal, which is how scb_wait knows to return carry set.
+;
+; Inputs:
+;	BX -> SCB
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None
+;
+DEFPROC	scb_intwait,DOS
+;
+; We may be called with interrupts enabled (eg, from utl_hotkey), so an
+; interrupt could arrive between the two stores below.  We zero the SEG word
+; first because no valid wait ID has a zero segment (and a zero SEG is how
+; scb_wait determines that a session isn't waiting), so the intermediate ID
+; (0:OFF) can never match an ENDWAIT for this or any other session's wait.
+; Zeroing OFF first would leave SEG:0, which is the form of a pipe's wait ID.
+;
+	mov	[bx].SCB_WAITID.SEG,0
+	mov	[bx].SCB_WAITID.OFF,0
+	ret
+ENDPROC	scb_intwait
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

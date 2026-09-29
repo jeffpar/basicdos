@@ -1,4 +1,5 @@
 {
+  "asm-code-lens.enableCodeLenses": false,
   "editor.rulers": [79],
   "editor.acceptSuggestionOnCommitCharacter": false,
   "editor.quickSuggestions": {
@@ -546,9 +547,11 @@
     "Installable",
     "INSTATUS",
     "interruptable",
+    "interruptible",
     "intp",
     "INTS",
     "INTTERM",
+    "intwait",
     "INVDSKCHG",
     "IOCTBL",
     "IOCTLIN",
