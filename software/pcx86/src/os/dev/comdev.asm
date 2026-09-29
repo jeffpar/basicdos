@@ -71,6 +71,7 @@ SIG_CT		equ	'O'
 CTSTAT_XMTFULL	equ	01h	; transmitter buffer full
 CTSTAT_RCVOVFL	equ	02h	; receiver buffer overflow
 CTSTAT_INPUT	equ	40h	; context is waiting for input
+CTSTAT_PAUSED	equ	80h	; context is paused (triggered by CTRLS hotkey)
 
 DEF_INLEN	equ	128
 DEF_OUTLEN	equ	128
@@ -272,7 +273,7 @@ dcw1a:	xchg	dx,ax
 
 dcw2:	push	es
 	mov	es,dx
-dcw3:	test	es:[CT_STATUS],CTSTAT_XMTFULL
+dcw3:	test	es:[CT_STATUS],CTSTAT_XMTFULL OR CTSTAT_PAUSED
 	jz	dcw4
 ;
 ; For WRITE requests that cannot be satisfied, we add this packet to an
@@ -609,12 +610,12 @@ ddi5:	cmp	di,-1			; end of chain?
 	je	ddi6			; yes, look for buffered data
 ;
 ; For WRITE packets (which we'll assume this is for now), we need to end the
-; wait if the context is no longer busy.
+; wait if the context is no longer busy (ie, neither full nor paused).
 ;
 	ASSERT	STRUCT,ds:[0],CT
-	test	ds:[CT_STATUS],CTSTAT_XMTFULL
-	jz	ddi7			; transmitter buffer is no longer full
-	jmp	short ddi8		; still full, check next packet
+	test	ds:[CT_STATUS],CTSTAT_XMTFULL OR CTSTAT_PAUSED
+	jz	ddi7			; transmitter is no longer busy
+	jmp	short ddi8		; still busy, check next packet
 
 ddi6:	call	pull_input		; pull more input data
 	jc	ddi8			; not enough data, check next packet
@@ -942,6 +943,20 @@ ENDPROC	pull_input
 ; Add a byte from the receiver to CT_INPUT.  If there's no more room,
 ; then set CTSTAT_RCVOVFL.
 ;
+; This is also where we check for hotkeys, similar to check_hotkey in the
+; CON driver, since a serial context may be serving as a console (eg, when
+; CONFIG.SYS contains "CONSOLE=COM1:9600,N,8,1").
+;
+; CTRLS toggles the context's PAUSED state (unless the context is waiting for
+; input, in which case CTRLS is passed through, because the CONIO buffered
+; input code uses it for input control), and while paused, any other byte
+; (eg, CTRLQ) ends the pause and is consumed.
+;
+; CTRLC also ends any pause, discards any buffered input (as does the CON
+; driver), and is then delivered to DOS as a HOTKEY notification rather than
+; as data, since the DOS CTRLC processing only removes CTRLC from the input
+; stream of DDATTR_STDIN devices.
+;
 ; Inputs:
 ;	DS = context
 ;
@@ -949,16 +964,57 @@ ENDPROC	pull_input
 ;	None
 ;
 ; Modifies:
-;	AX, BX, SI
+;	AX, BX, DX, SI
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	push_input
-	mov	si,offset CT_INPUT
+	call	read_rbr		; AL = received byte
+	ASSERT	STRUCT,ds:[0],CT
+	cmp	al,CHR_CTRLC		; CTRLC?
+	je	psi6			; yes
+	test	ds:[CT_STATUS],CTSTAT_INPUT
+	jnz	psi3			; waiting for input, so no PAUSE checks
+	cmp	al,CHR_CTRLS		; CTRLS?
+	jne	psi2			; no (anything else unpauses)
+	xor	ds:[CT_STATUS],CTSTAT_PAUSED
+	jmp	short psi5
+psi2:	test	ds:[CT_STATUS],CTSTAT_PAUSED
+	jz	psi3
+	and	ds:[CT_STATUS],NOT CTSTAT_PAUSED
+	jmp	short psi5
+
+psi3:	mov	si,offset CT_INPUT
 	call	push_buffer
 	jc	psi8
-	call	read_rbr
 	mov	[bx],al
 	jmp	short psi9
+;
+; CTRLC detected: discard buffered input, end any pause, and notify DOS.
+;
+psi6:	mov	si,offset CT_INPUT
+	cli
+	mov	bx,[si].BUFTAIL
+	mov	[si].BUFHEAD,bx
+	and	ds:[CT_STATUS],NOT CTSTAT_RCVOVFL
+	sti
+	test	ds:[CT_STATUS],CTSTAT_PAUSED
+	jz	psi7
+	and	ds:[CT_STATUS],NOT CTSTAT_PAUSED
+	call	resume_output
+psi7:	push	cx
+	mov	cx,ds			; CX = context
+	mov	dx,CHR_CTRLC		; DL = char code, DH = scan code (none)
+	DOSUTIL	HOTKEY			; notify DOS
+	pop	cx
+	jmp	short psi9
+;
+; PAUSE state changed; if we're no longer paused, resume output.
+;
+psi5:	test	ds:[CT_STATUS],CTSTAT_PAUSED
+	jnz	psi9
+	call	resume_output
+	jmp	short psi9
+
 psi8:	or	ds:[CT_STATUS],CTSTAT_RCVOVFL
 psi9:	ret
 ENDPROC	push_input
@@ -969,6 +1025,9 @@ ENDPROC	push_input
 ;
 ; Remove a byte from CT_OUTPUT and transmit it.  If there are no more bytes,
 ; then clear CTSTAT_XMTFULL.
+;
+; If the context is paused, nothing is transmitted; resume_output restarts
+; transmission when the pause ends.
 ;
 ; Inputs:
 ;	DS = context
@@ -982,6 +1041,9 @@ ENDPROC	push_input
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	pull_output
+	test	ds:[CT_STATUS],CTSTAT_PAUSED
+	stc
+	jnz	plo9			; paused, so transmit nothing
 	mov	si,offset CT_OUTPUT
 	call	pull_buffer
 	jc	plo8
@@ -1035,6 +1097,34 @@ pso8:	or	ds:[CT_STATUS],CTSTAT_XMTFULL
 pso9:	sti
 	ret
 ENDPROC	push_output
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; resume_output
+;
+; Called when a pause ends.  Since pull_output transmits nothing while paused,
+; any THR interrupt that occurred during the pause was lost, so if the
+; transmitter is available, we must "prime the pump" again.
+;
+; Inputs:
+;	DS = context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, DX, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	resume_output
+	cli
+	call	read_lsr
+	test	al,LSR_THRE		; is the transmitter available?
+	jz	rso9			; no, so a THR interrupt is still due
+	call	pull_output
+rso9:	sti
+	ret
+ENDPROC	resume_output
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

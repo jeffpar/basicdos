@@ -488,12 +488,26 @@ sr8:	push	ds
 	ASSUME	DS:NOTHING		; DS:SI -> data buffer (from ES:DX)
 	mov	bl,al			; BL = I/O mode
 	call	dev_request		; issue the DDC_READ request
-	jc	sr8a
+	jnc	sr8b
+;
+; If the read failed because its wait was interrupted by a CTRLC (eg, from a
+; COM driver serving as the console, which delivers CTRLC as a HOTKEY rather
+; than as data), then signal it now.  We use msc_sigctrlc rather than
+; msc_readctrlc, because the latter may try to read CTRLC from STDIN, and if
+; that read also failed, we would end up back here.
+;
+	test	bl,bl			; IO_RAW (or IO_DIRECT) request?
+	jle	sr8c			; yes
+	mov	bx,cs:[scb_active]
+	cmp	cs:[bx].SCB_CTRLC_ACT,0
+	jne	sr7			; signal CTRLC (does not return)
+sr8c:	stc				; otherwise, return the read error
+	jmp	short sr8a
 ;
 ; If the driver is a STDIN device, and the I/O request was not "raw", then
 ; we need to check the returned data for CTRLC and signal it appropriately.
 ;
-	test	ax,ax			; any bytes returned?
+sr8b:	test	ax,ax			; any bytes returned?
 	jz	sr8a			; no
 	test	es:[di].DDH_ATTR,DDATTR_STDIN
 	jz	sr8a

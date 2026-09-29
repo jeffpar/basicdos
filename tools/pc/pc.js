@@ -126,6 +126,29 @@ export default class PC extends PCJSLib {
         "\u001b[24~":   "$f12"
     };
 
+    /**
+     * When console I/O is routed through the machine's serial port (--serial), there's no keyboard to
+     * generate scan codes, so we translate function keys to the control characters that BASIC-DOS treats
+     * as aliases (see the scan code table in condev.asm).  Keys are either names from functionKeys or raw
+     * escape sequences for keys that functionKeys doesn't handle.
+     */
+    static serialKeys = {
+        "$up":          "\x05",         // CTRLE
+        "$down":        "\x18",         // CTRLX
+        "$right":       "\x04",         // CTRLD
+        "$left":        "\x13",         // CTRLS
+        "$f1":          "\x04",         // CTRLD
+        "$f3":          "\x0c",         // CTRLL
+        "\u001b[H":     "\x17",         // HOME -> CTRLW
+        "\u001bOH":     "\x17",
+        "\u001b[1~":    "\x17",
+        "\u001b[F":     "\x12",         // END -> CTRLR
+        "\u001bOF":     "\x12",
+        "\u001b[4~":    "\x12",
+        "\u001b[2~":    "\x16",         // INS -> CTRLV
+        "\u001b[3~":    "\x7f"          // DEL -> DEL
+    };
+
     static optionMap = {
         '?': "help",
         'b': "bare",
@@ -987,13 +1010,13 @@ export default class PC extends PCJSLib {
     receiveSerial(b)
     {
         let s;
-        if (b != StrLib.ASCII.CR && b != StrLib.ASCII.LF) {
-            s = StrLib.ASCIICodeMap[b];
-        }
-        if (s) {
-            s = '<' + s + '>';
+        if (b == 0x07 || b == 0x08 || b == 0x09 || b == StrLib.ASCII.CR || b == StrLib.ASCII.LF) {
+            s = String.fromCharCode(b);             // pass BEL, BS, TAB, CR, and LF through to the terminal
+        } else if (b < 0x20) {
+            s = '^' + String.fromCharCode(b + 0x40);    // display other control characters the way CON does (eg, "^C")
         } else {
-            s = String.fromCharCode(b);
+            s = StrLib.ASCIICodeMap[b];
+            s = s? '<' + s + '>' : String.fromCharCode(b);
         }
         printf(s);
         this.useSerial = true;
@@ -3746,19 +3769,28 @@ export default class PC extends PCJSLib {
                 pc.exit(3);
                 return;
             }
-            data = PC.functionKeys[data] || data;
+            let key = PC.functionKeys[data];
             if (!pc.debugMode) {
-                data = data.replace(/\x7f/g, "\b");         // convert DEL to BS
                 if (machine.kbd && !pc.useSerial) {
+                    data = (key || data).replace(/\x7f/g, "\b");    // convert DEL to BS
                     if (MAXDEBUG) {
                         printf("injecting key(s): %s\n", data);
                     }
                     machine.kbd.injectKeys.call(machine.kbd, data, 0);
                 } else {
-                    pc.sendSerial(code);
+                    /**
+                     * Send ALL the data (not just the first byte, since data may be pasted text), after
+                     * translating function keys and converting DEL to BS; any function key without a
+                     * translation is dropped, because sending its ESC would erase the current input line.
+                     */
+                    data = PC.serialKeys[key || data] || (key? "" : data.replace(/\x7f/g, "\b"));
+                    for (let i = 0; i < data.length; i++) {
+                        pc.sendSerial(data.charCodeAt(i));
+                    }
                 }
                 return;
             }
+            data = key || data;
             if (code == 0x08 || code == 0x7f) {             // implement BS/DEL ourselves (since we're in "raw" mode)
                 if (pc.command.length) {                    // (Windows generates BS, macOS generates DEL)
                     pc.command = pc.command.slice(0, -1);

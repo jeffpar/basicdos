@@ -1490,11 +1490,13 @@ DEFPROC	cmdLoad
 	LOCVAR	lineOffset,word		; current line offset
 	LOCVAR	pTextLimit,word		; current text block limit
 	LOCVAR	pLineBuf,word
+	LOCVAR	lineTerm,byte		; previous line terminator
 	LOCVAR	pFileExt,word
 
 	ENTER
 	ASSUME	DS:DATA
 	mov	[pFileExt],dx
+	mov	[lineTerm],0
 	cmp	dx,offset cmdLoad	; called with an ambiguous name?
 	jne	lf1a			; no
 	mov	dx,offset PERIOD	; yes, so check it
@@ -1530,15 +1532,31 @@ lf2a:	xchg	cx,ax			; CX = size of initial text block
 ; then add the label # (2 bytes), line length (1 byte), and line contents
 ; (not including any leading space or terminating CR/LF) to the text block.
 ;
+; Lines may be terminated by either CR/LF or LF alone.  Either CR or LF ends
+; a line, and whenever a line ends with CR, a LINEFEED immediately following
+; it is skipped; lineTerm remembers the terminator, in case the LINEFEED isn't
+; read until the next readInput.
+;
 	lea	ax,[bx].LINEBUF
 	mov	[pLineBuf],ax
 	sub	cx,cx			; DS:SI contains zero bytes now
 
 lf3:	jcxz	lf4
-	push	cx
+	cmp	[lineTerm],CHR_RETURN	; did the previous line end with CR?
+	jne	lf3c			; no
+	mov	[lineTerm],0
+	cmp	byte ptr [si],CHR_LINEFEED
+	jne	lf3c
+	inc	si			; skip LINEFEED from the previous line
+	dec	cx
+	jmp	lf3
+
+lf3c:	push	cx
 	mov	dx,si			; save SI
 lf3a:	lodsb
 	cmp	al,CHR_RETURN
+	je	lf3b
+	cmp	al,CHR_LINEFEED
 	je	lf3b
 	loop	lf3a
 lf3b:	xchg	si,dx			; restore SI; DX is how far we got
@@ -1584,12 +1602,7 @@ lf4y:	jmp	lf12
 ; We found the end of another line starting at DS:SI and ending at DX.
 ;
 lf5:	mov	[lineOffset],si
-	lodsb
-	cmp	al,CHR_LINEFEED		; skip LINEFEED from the previous line
-	je	lf6
-	dec	si
-
-lf6:	push	dx
+	push	dx
 	DOSUTIL	ATOI32D			; DS:SI -> decimal string
 	ASSERT	Z,<test dx,dx>		; DX:AX is the result but keep only AX
 	mov	[lineLabel],ax
@@ -1602,7 +1615,7 @@ lf6:	push	dx
 	je	lf7
 	dec	si
 
-lf7:	dec	dx			; back up to CHR_RETURN
+lf7:	dec	dx			; back up to the line terminator
 	sub	dx,si			; DX = # of chars on line (may be zero)
 ;
 ; Is there room for DX more bytes at ES:DI?
@@ -1641,6 +1654,7 @@ lf8:	mov	ax,[lineLabel]
 ;
 	lodsb
 	dec	cx
+	mov	[lineTerm],al		; remember terminator (CR or LF)
 	jmp	lf3
 
 lf10:	PRINTF	<"Invalid file format",13,10,13,10>
