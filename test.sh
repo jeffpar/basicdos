@@ -9,8 +9,8 @@
 # command into a path (eg, "\DOSTESTS.COM"), which BASIC-DOS doesn't understand.
 #
 log=$(mktemp)
-tools/pc/pc.js ibm5160-test software/pcx86/src/configs/200B "VER,DOSTESTS,QUIT" --system=bd --version=2.00B --floppy --serial --normalize | tee "$log"
-rm -f software/pcx86/src/configs/200B/HELLO.TXT
+tools/pc/pc.js ibm5160-test software/pcx86/src/configs/v2 "VER,DOSTESTS,QUIT" --system=bd --version=2 --floppy --serial --normalize | tee "$log"
+rm -f software/pcx86/src/configs/v2/HELLO.TXT
 if grep -q "failed" "$log" || ! grep -q "Return code 0" "$log"; then
     echo "TESTS FAILED"; rm -f "$log"; exit 1
 fi

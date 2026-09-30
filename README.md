@@ -196,9 +196,9 @@ need to boot and run BASIC-DOS.
 The `boot.sh` script runs `pc.js` again, this time building a 360K boot floppy
 (the largest floppy supported by an IBM PC XT Model 5160) with BASIC-DOS boot
 sector and system files. If you have a folder with different files you want to
-include on the floppy, specify it in place of the `200B` folder:
+include on the floppy, specify it in place of the `v2` folder:
 
-    $ pc.js ibm5160 software/pcx86/src/configs/200B --system=bd --version=2.00B --floppy --serial
+    $ pc.js ibm5160 software/pcx86/src/configs/v2 --system=bd --version=2 --floppy --serial
     [Press CTRL-D to enter command mode]
     BASIC-DOS 2.00B
     Press a key to start...

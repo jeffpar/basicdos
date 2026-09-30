@@ -1662,6 +1662,11 @@ export default class PC extends PCJSLib {
             version = verNumber;
             if (match) version += match[1].toUpperCase();
             versionInfo = system.versions[version] || system.versions[verNumber];
+            /**
+             * As a last resort, try "v" plus the major version (eg, "2.00B" => "v2"), so that a system can
+             * define one entry for all its versions with the same major version number.
+             */
+            if (!versionInfo) versionInfo = system.versions['v' + verNumber.split('.')[0]];
         }
         if (versionInfo) {
             if (key == "disk") {
