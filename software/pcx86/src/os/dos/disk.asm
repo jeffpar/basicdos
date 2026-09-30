@@ -35,11 +35,18 @@ DOS	segment word public 'CODE'
 ;	Flush all buffers containing data for the specified drive
 ;
 ; Modifies:
-;	None (carry clear)
+;	AX (carry clear)
+;
+; Notes:
+;	dsk_flush writes any modified buffers before invalidating them,
+;	whereas drv_flush (used when the media has changed) simply discards
+;	them.
 ;
 DEFPROC	dsk_flush,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	mov	al,-1			; by default, flush all drives
+	call	flush_buffers		; write any modified buffers first
+	mov	al,-1
 	DEFLBL	drv_flush,near		; otherwise, flush only drive # in AL
 	push	dx
 	push	ds
@@ -54,6 +61,7 @@ df1:	test	al,al
 ; the disk driver will read LBA 0, but only when it needs to rebuild the BPB.
 ;
 df2:	mov	ds:[BUF_LBA],0		; use 0 to invalidate the LBA
+	mov	ds:[BUF_DIRTY],0	; and discard any unwritten data
 df3:	cmp	ds:[BUF_NEXT],dx	; looped back around?
 	je	df9			; yes
 	mov	ds,ds:[BUF_NEXT]
@@ -345,7 +353,7 @@ ENDPROC	dsk_fnext
 ;		DS:SI -> DIRENT
 ;		ES:DI -> driver header (DDH)
 ;		DX = context (1st cluster)
-;	On failure, carry set
+;	On failure, carry set, AX = error code
 ;
 ; Modifies:
 ;	AX, CX, DX, SI, DI, DS, ES
@@ -376,7 +384,9 @@ cf1:	stosb				; store drive # in the FILENAME buffer
 	jmp	short cf4
 
 cf3:	call	parse_name		; DS:SI -> filename or filespec
-	jc	cf9			; bail on error
+	jnc	cf4
+	mov	ax,ERR_BADDRIVE		; parse_name fails only if drive invalid
+	jmp	short cf9
 ;
 ; FILENAME has been successfully filled in, so we're ready to search
 ; directory sectors for a matching name.  This requires getting a fresh
@@ -495,7 +505,15 @@ DEFPROC	get_bpb,DOS
 	jc	gb8
 	test	dx,dx			; media unchanged?
 	jg	gb8			; yes
+	jl	gb7			; no, the media definitely changed
+;
+; The driver doesn't know if the media changed, but if we have any unwritten
+; buffers for the drive, then (like PC DOS) we assume it hasn't.
+;
 	mov	al,cl			; AL = drive #
+	call	chk_buffers		; any modified buffers for the drive?
+	jnz	gb8			; yes (and carry is clear)
+gb7:	mov	al,cl			; AL = drive #
 	mov	ah,DDC_BUILDBPB		; ask the driver to rebuild our BPB
 	call	dev_request
 	jc	gb8
@@ -571,7 +589,10 @@ DEFPROC	get_cln,DOS
 	shr	bx,1			; BX -> byte, carry set if odd nibble
 	mov	dl,[si+bx]
 	inc	bx
-	cmp	bp,03FFh		; at the sector boundary?
+;
+; An entry that begins at nibble 3FEh or 3FFh continues in the next sector.
+;
+	cmp	bp,03FEh		; at the sector boundary?
 	jb	gc2			; no
 	inc	dx			; DX = next FAT LBA
 	mov	al,cs:[di].BPB_DRIVE
@@ -739,6 +760,10 @@ ENDPROC	get_dirent
 ; Modifies:
 ;	AX, SI
 ;
+; Notes:
+;	If the buffer currently contains modified data for another LBA,
+;	that data is written (see write_buffer) before the buffer is reused.
+;
 DEFPROC	read_buffer,DOS
 	ASSUMES	<DS,BIOS>,<ES,NOTHING>
 	cmp	[si].BUF_DRIVE,al
@@ -747,7 +772,9 @@ DEFPROC	read_buffer,DOS
 	jne	rb1
 	add	si,size BUFHDR
 	jmp	short rb9
-rb1:	push	bx
+rb1:	call	write_buffer		; write the buffer first if it's dirty
+	jc	rb9
+	push	bx
 	push	cx
 	push	dx
 	mov	[si].BUF_DRIVE,al	; AL = unit #
@@ -762,13 +789,176 @@ rb1:	push	bx
 	ASSERT	Z,<cmp al,cs:[di].BPB_DRIVE>
 	les	di,cs:[di].BPB_DEVICE
 	call	dev_request
-	pop	es
+	jnc	rb8
+	sub	si,size BUFHDR
+	mov	[si].BUF_LBA,0		; invalidate the buffer on error
+	stc
+rb8:	pop	es
 	pop	di
 	pop	dx
 	pop	cx
 	pop	bx
 rb9:	ret
 ENDPROC	read_buffer
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; write_buffer
+;
+; Writes the buffer's data to disk if the buffer is dirty (ie, BUF_DIRTY is
+; set).  If the buffer contains a sector from the first FAT, then the data is
+; also written to the corresponding sector of every other FAT.
+;
+; Inputs:
+;	DS:SI -> BUFHDR
+;
+; Outputs:
+;	On success, carry clear (AX preserved)
+;	On failure, carry set, AX = device error code (and buffer invalidated)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	write_buffer,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	cmp	[si].BUF_DIRTY,0	; any modified data?
+	je	wb9a			; no (and carry is clear)
+	push	ax
+	push	bx
+	push	cx
+	push	dx
+	push	di
+	push	bp
+	push	es
+	mov	al,[si].BUF_DRIVE
+	mov	ah,size BPBEX
+	mul	ah			; AX = BPB offset
+	mov	di,cs:[bpb_table].OFF
+	add	di,ax			; DI -> BPB
+	ASSERT	STRUCT,cs:[di],BPB
+	mov	bx,[si].BUF_LBA		; BX = LBA
+	mov	bp,1			; BP = # copies to write (default is 1)
+	mov	ax,bx
+	sub	ax,cs:[di].BPB_RESSECS
+	cmp	ax,cs:[di].BPB_FATSECS	; is the LBA within the first FAT?
+	jae	wb1			; no
+	mov	al,cs:[di].BPB_FATS	; yes, so write every copy of the FAT
+	cbw
+	xchg	bp,ax
+
+wb1:	mov	[si].BUF_DIRTY,0
+wb2:	mov	al,[si].BUF_DRIVE
+	mov	ah,DDC_WRITE
+	mov	cx,[si].BUF_SIZE	; CX = byte count
+	sub	dx,dx			; DX = offset (0)
+	push	si
+	push	di
+	add	si,size BUFHDR		; DS:SI -> data buffer
+	les	di,cs:[di].BPB_DEVICE
+	call	dev_request
+	pop	di
+	pop	si
+	jc	wb8
+	add	bx,cs:[di].BPB_FATSECS	; advance LBA to the next FAT copy
+	dec	bp			; any more copies?
+	jnz	wb2			; yes
+	jmp	short wb9		; no (and carry is clear)
+
+wb8:	mov	[si].BUF_LBA,0		; invalidate the buffer on error
+	stc
+
+wb9:	pop	es
+	pop	bp
+	pop	di
+	pop	dx
+	pop	cx
+	pop	bx
+	jc	wb9b
+	pop	ax			; restore AX on success
+wb9a:	ret
+wb9b:	inc	sp			; discard AX without affecting carry
+	inc	sp
+	ret
+ENDPROC	write_buffer
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; flush_buffers
+;
+; Writes all dirty buffers containing data for the specified drive.
+;
+; Inputs:
+;	AL = drive # (-1 for all drives)
+;
+; Outputs:
+;	On success, carry clear
+;	On failure, carry set, AX = device error code
+;
+; Modifies:
+;	AX
+;
+DEFPROC	flush_buffers,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	cx
+	push	dx
+	push	si
+	push	ds
+	mov	cl,al			; CL = drive #
+	mov	dx,cs:[buf_head]
+	mov	ds,dx			; DX = head
+	sub	si,si			; DS:SI -> BUFHDR
+fb1:	test	cl,cl
+	jl	fb2
+	cmp	[si].BUF_DRIVE,cl
+	jne	fb3
+fb2:	call	write_buffer
+	jc	fb9
+fb3:	cmp	[si].BUF_NEXT,dx	; looped back around?
+	je	fb9			; yes (and carry is clear)
+	mov	ds,[si].BUF_NEXT
+	jmp	fb1
+fb9:	pop	ds
+	pop	si
+	pop	dx
+	pop	cx
+	ret
+ENDPROC	flush_buffers
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chk_buffers
+;
+; Checks for any dirty buffers containing data for the specified drive.
+;
+; Inputs:
+;	AL = drive #
+;
+; Outputs:
+;	ZF clear if there are dirty buffers for the drive, set if not
+;	(carry is always clear)
+;
+; Modifies:
+;	None
+;
+DEFPROC	chk_buffers,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	dx
+	push	ds
+	mov	dx,cs:[buf_head]
+	mov	ds,dx			; DX = head
+cb1:	cmp	ds:[BUF_DRIVE],al
+	jne	cb2
+	test	ds:[BUF_DIRTY],0FFh	; is this buffer dirty?
+	jnz	cb9			; yes (ZF clear, carry clear)
+cb2:	cmp	ds:[BUF_NEXT],dx	; looped back around?
+	je	cb8			; yes
+	mov	ds,ds:[BUF_NEXT]
+	jmp	cb1
+cb8:	test	al,0			; set ZF and clear carry
+cb9:	pop	ds
+	pop	dx
+	ret
+ENDPROC	chk_buffers
 
 DOS	ends
 

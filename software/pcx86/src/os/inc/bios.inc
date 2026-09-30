@@ -141,7 +141,8 @@ BUF_NEXT	dw	?	; 02h: next buffer header paragraph
 BUF_SIZE	dw	?	; 04h: size of buffer (in bytes)
 BUF_DRIVE	db	?	; 06h: drive number of buffer data
 BUF_SIG		db	?	; 07h: (holds SIG_BUF in DEBUG builds)
-		dw	?	; 08h: padding
+BUF_DIRTY	db	?	; 08h: non-zero if buffer data must be written
+		db	?	; 09h: padding
 BUF_LBA		dw	?	; 0Ah: LBA of buffer data
 BUF_TIMESTAMP	dd	?	; 0Ch: timestamp of buffer data
 BUFHDR		ends
@@ -299,7 +300,8 @@ BOOT_KEY	dw	?		; 52Dh: set by boot sector
 		db	1 dup (?)	; 52Fh: paragraph padding
 DDINT_ENTER	db	5 dup (?)	; 530h: room for a 5-byte far jump
 DDINT_LEAVE	db	5 dup (?)	; 535h: room for a 5-byte far jump
-		db	6 dup (?)	; 53Ah: paragraph padding
+DDINT_UTIL	db	5 dup (?)	; 53Ah: room for a 5-byte far jump
+		db	1 dup (?)	; 53Fh: paragraph padding
 ;
 ; We move the boot sector from BOOT_SECTOR to FAT_SECTOR.
 ;

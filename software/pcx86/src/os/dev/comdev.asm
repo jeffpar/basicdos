@@ -1172,7 +1172,8 @@ ddi6:	call	pull_input		; pull more input data
 ;
 ddi7:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	DOSUTIL	ENDWAIT
+	mov	ah,DOS_UTL_ENDWAIT
+	call	far ptr DDINT_UTIL	; end the wait on DX:DI (see int_util)
 ;
 ; If ENDWAIT returns an error, it's because the wait was interrupted (eg, by
 ; ABORT or CTRLC) before we could end it; add_packet will see that the packet
@@ -1246,7 +1247,8 @@ DEFPROC	add_packet
 ;
 	push	dx
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	DOSUTIL	WAIT
+	mov	ah,DOS_UTL_WAIT
+	call	far ptr DDINT_UTIL	; wait on DX:DI (see int_util)
 	jnc	ap9
 ;
 ; The wait was interrupted (eg, by ABORT or CTRLC), so the packet must be
@@ -1651,7 +1653,8 @@ psi6:	mov	si,offset CT_INPUT
 psi7:	push	cx
 	mov	cx,ds			; CX = context
 	mov	dx,CHR_CTRLC		; DL = char code, DH = scan code (none)
-	DOSUTIL	HOTKEY			; notify DOS
+	mov	ah,DOS_UTL_HOTKEY
+	call	far ptr DDINT_UTIL	; notify DOS
 	pop	cx
 	jmp	short psi9
 ;

@@ -19,7 +19,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<scb_load,scb_start,scb_stop,scb_end,scb_waitend,scb_abort>
 	EXTNEAR	<scb_yield,scb_release,scb_wait,scb_endwait,scb_intwait>
 	EXTNEAR	<mem_query,msc_getdate,msc_gettime,psp_termcode>
-	EXTNEAR	<add_date,read_line>
+	EXTNEAR	<add_date,read_line,flush_buffers>
 
 	EXTBYTE	<scb_locked>
 	EXTWORD	<scb_active>
@@ -257,10 +257,15 @@ ENDPROC	utl_endwait
 ; Modifies:
 ;	AX, BX, CX, DX
 ;
+; Notes:
+;	scb_hotkey is a REG_FRAME-free entry point (see int_util), which
+;	takes its inputs in CX and DX instead of REG_CX and REG_DX.
+;
 DEFPROC	utl_hotkey,DOS
+	and	[bp].REG_FL,NOT FL_CARRY
+	DEFLBL	scb_hotkey,near
 	sti
 	xchg	ax,dx			; AL = char, AH = scan code
-	and	[bp].REG_FL,NOT FL_CARRY
 ;
 ; Find all SCBs with a matching context; all matching SCBs are presumed
 ; running inside the console that currently has focus.
@@ -491,8 +496,7 @@ ENDPROC	utl_editln
 ;
 ; utl_restart (AH = 2Bh)
 ;
-; TODO: Ensure any disk modifications (once we support disk modifications)
-; have been written.
+; Any modified disk buffers are written before restarting.
 ;
 ; Inputs:
 ;	None
@@ -504,6 +508,8 @@ ENDPROC	utl_editln
 ;	AX
 ;
 DEFPROC	utl_restart,DOS
+	mov	al,-1
+	call	flush_buffers		; write all modified buffers
 	cli
 	db	OP_JMPF
 	dw	00000h,0FFFFh

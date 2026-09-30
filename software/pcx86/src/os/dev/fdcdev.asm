@@ -371,11 +371,155 @@ ENDPROC	ddfdc_read
 ;	DDPRW updated appropriately
 ;
 ; Modifies:
-;	AX, BX, CX, DX, SI, DS
+;	AX, BX, CX, DX, BP, SI, DS
+;
+; Notes:
+;	This is essentially the inverse of ddfdc_read: a partial first
+;	sector and/or a partial last sector are read into ddbuf, merged with
+;	the caller's data, and then written back, while all whole sectors are
+;	written directly from the caller's buffer.
 ;
 	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	ddfdc_write
-	ret
+	push	es
+	mov	cx,es:[di].DDPRW_LENGTH
+	test	cx,cx		; is length zero (ie, nothing to do)?
+	jnz	dcw1		; no
+	jmp	dcw8		; yes, all done
+;
+; If the offset is zero, then there's no need to write a partial first sector.
+;
+dcw1:	lds	si,es:[di].DDPRW_BPB
+	ASSUME	DS:NOTHING	; DS:SI -> BPB
+	mov	ax,es:[di].DDPRW_OFFSET
+	test	ax,ax
+	jz	dcw4
+;
+; As in ddfdc_read, reduce offset and advance LBA until offset is within
+; the first sector to write; if this reduces offset to zero, then once again,
+; there's no need for a partial first sector write.
+;
+dcw1a:	cmp	ax,[si].BPB_SECBYTES
+	jb	dcw1b
+	inc	es:[di].DDPRW_LBA
+	sub	ax,[si].BPB_SECBYTES
+	jz	dcw4
+	jmp	dcw1a
+dcw1b:	mov	es:[di].DDPRW_OFFSET,ax
+
+	mov	dx,es:[di].DDPRW_LBA
+	call	read_buffer	; read LBA (DX) into ddbuf
+	jc	dcw4a
+;
+; Reload the offset: copy bytes from the source address to ddbuf+offset.
+;
+dcw2:	mov	ax,es:[di].DDPRW_OFFSET
+	mov	cx,[si].BPB_SECBYTES
+	sub	cx,ax
+	mov	dx,es:[di].DDPRW_LENGTH
+	cmp	cx,dx		; partial write smaller than requested?
+	jb	dcw2a		; yes
+	mov	cx,dx		; no, limit it to the requested length
+dcw2a:	push	si
+	push	di
+	push	ds
+	push	es
+	mov	bx,ax		; BX = offset
+	mov	ax,cx		; save byte transfer count in AX
+	lds	si,es:[di].DDPRW_ADDR
+	les	di,[ddbuf_ptr]	; ES:DI -> our own buffer
+	add	di,bx		; add offset
+	shr	cx,1
+	rep	movsw		; transfer CX words to our own buffer
+	jnc	dcw2b
+	movsb
+dcw2b:	pop	es
+	pop	ds
+	pop	di
+	pop	si
+	push	ax		; save byte transfer count
+	mov	dx,es:[di].DDPRW_LBA
+	call	write_buffer	; write ddbuf to LBA (DX)
+	pop	cx		; CX = byte transfer count
+	jc	dcw4a
+	mov	es:[di].DDPRW_OFFSET,0
+	inc	es:[di].DDPRW_LBA
+	add	es:[di].DDPRW_ADDR.OFF,cx
+	sub	es:[di].DDPRW_LENGTH,cx
+	ASSERT	NC
+	mov	cx,es:[di].DDPRW_LENGTH
+;
+; At this point, we know that the transfer offset is now zero, so we're free to
+; transfer as many whole sectors as remain in the request.
+;
+dcw4:	xchg	ax,cx		; convert length in AX to # sectors
+	cwd
+	div	[si].BPB_SECBYTES
+	mov	cx,dx		; CX = final partial sector bytes, if any
+	test	al,al		; any whole sectors?
+	jz	dcw5		; no
+	push	es
+	mov	ah,FDC_WRITE
+	xchg	bx,ax		; BH = FDC cmd, BL = # sectors
+	mov	dx,es:[di].DDPRW_LBA
+	les	bp,es:[di].DDPRW_ADDR
+	call	readwrite_sectors
+	pop	es
+;
+; Since ddbuf may contain a copy of one of the sectors we just wrote,
+; invalidate it.
+;
+	mov	[ddbuf_lba],-1
+dcw4a:	jc	dcw8
+	mov	al,bl
+	cbw
+	add	es:[di].DDPRW_LBA,ax
+	mul	[si].BPB_SECBYTES
+	add	es:[di].DDPRW_ADDR.OFF,ax
+	sub	es:[di].DDPRW_LENGTH,ax
+;
+; And finally, the tail end of the request, if there are CX bytes remaining;
+; like the partial first sector, the rest of the sector must be read first.
+;
+dcw5:	test	cx,cx		; anything remaining?
+	jz	dcw8		; no
+
+	mov	dx,es:[di].DDPRW_LBA
+	call	read_buffer	; read LBA (DX) into ddbuf
+	jc	dcw8
+
+	push	si
+	push	di
+	push	ds
+	push	es
+	lds	si,es:[di].DDPRW_ADDR
+	les	di,[ddbuf_ptr]	; ES:DI -> our own buffer
+	mov	ax,cx
+	shr	cx,1
+	rep	movsw		; transfer words to our own buffer
+	jnc	dcw7a
+	movsb
+dcw7a:	pop	es
+	pop	ds
+	pop	di
+	pop	si
+	push	ax		; save byte transfer count
+	mov	dx,es:[di].DDPRW_LBA
+	call	write_buffer	; write ddbuf to LBA (DX)
+	pop	cx		; CX = byte transfer count
+	jc	dcw8
+	add	es:[di].DDPRW_ADDR.OFF,cx
+	sub	es:[di].DDPRW_LENGTH,cx
+	ASSERT	Z
+
+dcw8:	pop	es
+	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+	jnc	dcw9
+
+	mov	es:[di].DDPRW_LENGTH,0
+	mov	ah,DDSTAT_ERROR SHR 8
+	mov	es:[di].DDP_STATUS,ax
+dcw9:	ret
 ENDPROC	ddfdc_write
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -461,6 +605,36 @@ rb1:	push	es
 	mov	[ddbuf_lba],dx
 rb9:	ret
 ENDPROC	read_buffer
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Write 1 sector from our internal buffer
+;
+; Inputs:
+;	DX = LBA
+;	DS:SI -> BPB (drive to write is BPB_DRIVE)
+;
+; Outputs:
+;	Carry clear if successful (and ddbuf is now a valid copy of the LBA)
+;	Carry set if error (and ddbuf is invalidated), AX = driver error code
+;
+; Modifies:
+;	AX, BX, BP
+;
+DEFPROC	write_buffer
+	push	es
+	mov	bx,(FDC_WRITE SHL 8) OR 1
+	les	bp,[ddbuf_ptr]	; ES:BP -> our own buffer
+	call	readwrite_sectors
+	pop	es
+	jc	wb8
+	mov	al,[si].BPB_DRIVE
+	mov	[ddbuf_drv],al
+	mov	[ddbuf_lba],dx
+	ret
+wb8:	mov	[ddbuf_lba],-1	; ddbuf no longer matches the disk
+	ret
+ENDPROC	write_buffer
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -563,6 +737,7 @@ rw1b:	mov	al,ah
 
 rw2:	push	es
 	push	bx
+	push	cx		; save CHS (in CX) from get_chs
 	push	si
 	push	di
 	push	ds
@@ -576,6 +751,7 @@ rw2:	push	es
 	pop	ds
 	pop	di
 	pop	si
+	pop	cx		; restore CHS
 	mov	ah,bh		; AH = FDC cmd
 	mov	al,1		; AL = 1 sector
 	mov	bx,[ddbuf_ptr].OFF

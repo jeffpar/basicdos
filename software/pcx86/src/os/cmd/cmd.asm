@@ -56,17 +56,10 @@ m0:	mov	bx,ds:[PSP_HEAP]
 
 	PRINTF	<"BASIC-DOS Interpreter",13,10,13,10>
 ;
-; The plan is to use Microsoft's MBF (Microsoft Binary Format) floating-point
-; code, because who really wants to write a "new" floating-point emulation
-; library from scratch these days?  I went down that path back in the 1980s,
-; probably during my "Mandelbrot phase", but I can't find the code I wrote,
-; and now that Microsoft has open-sourced GW-BASIC, it makes more sense to use
-; theirs.  Until that happens, BASIC-DOS is just an "Integer BASIC", and when
-; that changes, MSLIB will be defined.
-;
-	IF	MSLIB
-	PRINTF	<"BASIC floating-point functions",13,10,"Copyright (c) Microsoft Corporation",13,10,13,10>
-	ENDIF
+; NOTE: The original plan was to use Microsoft's MBF (Microsoft Binary Format)
+; floating-point code from GW-BASIC, but BASIC-DOS will instead implement its
+; own IEEE 754 64-bit floating-point support, so no MBF-related code (or MSLIB
+; option) is used.  Until then, BASIC-DOS is just an "Integer BASIC".
 ;
 ; Check the PSP_CMDTAIL for a startup command.  Startup commands must be
 ; explicitly provided; there is no support for a global AUTOEXEC.BAT, since
@@ -806,6 +799,107 @@ ENDPROC	getFileName
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; getOutput
+;
+; Get the output filename for COPY, and verify that it doesn't refer to the
+; same file as the input filename, since openOutput would truncate the file
+; before it could be copied.
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	DS:SI -> input filename
+;	DI -> TOKENBUF
+;
+; Outputs:
+;	If carry clear, DS:SI -> output filename
+;	If carry set, an error message was printed
+;
+; Modifies:
+;	AX, CX, DX, SI, DS
+;
+DEFPROC	getOutput
+	sub	sp,(size FCB) * 2	; make room for two parsed filenames
+	mov	dx,sp
+	add	dx,size FCB		; SS:DX -> buffer for input filename
+	call	parseName
+	mov	dl,[bx].CMD_ARG
+	inc	dx			; DL = DL + 1
+	sub	cx,cx			; no default filespec in this case
+	call	getFileName		; DS:SI -> output filename
+	jnc	go1
+	PRINTF	<"Missing output file",13,10>
+	jmp	short go8
+
+go1:	mov	dx,sp			; SS:DX -> buffer for output filename
+	call	parseName
+	push	si
+	push	di
+	push	ds
+	push	es
+	push	ss
+	pop	ds
+	push	ss
+	pop	es
+	mov	si,dx			; DS:SI -> parsed output filename
+	mov	di,si
+	add	di,size FCB		; ES:DI -> parsed input filename
+	mov	cx,FCB_CURBLK		; CX = size of drive # and filename
+	repe	cmpsb			; do the parsed filenames match?
+	pop	es
+	pop	ds
+	pop	di
+	pop	si
+	clc
+	jne	go9			; no
+	PRINTF	<"File cannot be copied onto itself",13,10>
+go8:	stc
+go9:	lahf				; release the buffers without
+	add	sp,(size FCB) * 2	; affecting carry
+	sahf
+	ret
+ENDPROC	getOutput
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; parseName
+;
+; Parse a filename into a drive # and 11-character name, using DOS_FCB_PARSE;
+; if no drive is specified, the current drive # is filled in, so that the
+; results for any two filenames can be compared.
+;
+; Inputs:
+;	DS:SI -> filename
+;	SS:DX -> buffer (size FCB)
+;
+; Outputs:
+;	Buffer filled in (FCB_DRIVE is 1-based)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	parseName
+	push	si
+	push	di
+	push	es
+	push	ss
+	pop	es
+	mov	di,dx			; ES:DI -> buffer
+	mov	ax,DOS_FCB_PARSE SHL 8	; AL = parse flags (none)
+	int	21h
+	cmp	es:[di].FCB_DRIVE,0	; was a drive specified?
+	jne	pn9			; yes
+	mov	ah,DOS_DSK_GETDRV
+	int	21h			; AL = current drive #
+	inc	ax
+	mov	es:[di].FCB_DRIVE,al	; store 1-based drive #
+pn9:	pop	es
+	pop	di
+	pop	si
+	ret
+ENDPROC	parseName
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; getToken
 ;
 ; Inputs:
@@ -843,7 +937,8 @@ ENDPROC	getToken
 ;
 ; cmdCopy
 ;
-; Copy the specified input file to the specified output file.
+; Copy the specified input file to the specified output file, creating the
+; output file if it doesn't exist (or truncating it if it does).
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -861,14 +956,9 @@ DEFPROC	cmdCopy
 	jc	openError		; report error (AX) opening file (SI)
 	cmp	[bx].HDL_OUTPUT,0	; do we already have an output file?
 	jge	cc1			; yes
-	mov	dl,[bx].CMD_ARG
-	inc	dx			; DL = DL + 1
-	sub	cx,cx			; no default filespec in this case
-	call	getFileName
-	jnc	cc0
-	PRINTF	<"Missing output file",13,10>
-	jmp	short cc9
-cc0:	call	openOutput
+	call	getOutput		; SI -> output filename
+	jc	cc9
+	call	openOutput
 	jc	openError
 cc1:	mov	si,PSP_DTA		; SI -> DTA (used as a read buffer)
 cc2:	mov	cx,size PSP_DTA		; CX = number of bytes to read
@@ -1937,7 +2027,7 @@ ENDPROC	openInput
 ;
 ; openOutput
 ;
-; Open the specified output file; used by "COPY", "SAVE", etc.
+; Create (or truncate) the specified output file; used by "COPY", "SAVE", etc.
 ;
 ; Inputs:
 ;	SS:BX -> CMDHEAP
@@ -1950,9 +2040,12 @@ ENDPROC	openInput
 ;	AX, DX
 ;
 DEFPROC	openOutput
+	push	cx
 	mov	dx,si			; DX -> filename
-	mov	ax,DOS_HDL_OPENRW
+	sub	cx,cx			; CX = attributes (none)
+	mov	ah,DOS_HDL_CREATE
 	int	21h
+	pop	cx
 	jc	oo9
 	ASSERT	STRUCT,ss:[bx],CMD
 	mov	ss:[bx].HDL_OUTPUT,ax	; save file handle

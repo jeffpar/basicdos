@@ -52,10 +52,12 @@ DEFPROC	devinit,far
 	ENDIF	; DEBUG
 ;
 ; Perform some preliminary BIOS data initialization; in particular,
-; DDINT_ENTER and DDINT_LEAVE entry points for hardware interrupt handlers.
+; DDINT_ENTER and DDINT_LEAVE entry points for hardware interrupt handlers,
+; and the DDINT_UTIL entry point for driver WAIT and ENDWAIT requests.
 ;
 	mov	word ptr [DDINT_ENTER],(OP_RETF SHL 8) OR OP_STC
 	mov	[DDINT_LEAVE],OP_IRET
+	mov	word ptr [DDINT_UTIL],(OP_RETF SHL 8) OR OP_STC
 ;
 ; Initialize each device driver.
 ;

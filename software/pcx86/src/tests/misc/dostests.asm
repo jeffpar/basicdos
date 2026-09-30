@@ -10,6 +10,9 @@
 	include	macros.inc
 	include	dosapi.inc
 
+MEMSTEP	equ	67		; memory test increment, in paragraphs (a prime number,
+			; so that allocation sizes vary more than powers of two)
+
 CODE    SEGMENT
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
@@ -48,7 +51,9 @@ DEFPROC	main
 	mov	dx,offset call5test
 	call	print
 ;
-; Make a series of increasingly large memory allocations.
+; Make a series of increasingly large memory allocations (in MEMSTEP
+; increments), until an allocation fails; then verify that an allocation of
+; the maximum size reported by the failure succeeds.
 ;
 	mov	dx,offset alloctest
 	call	print
@@ -62,17 +67,38 @@ m2:	mov	ax,DOS_MEM_ALLOC SHL 8
 	mov	ah,DOS_MEM_FREE
 	int	21h
 	ASSERT	NC
-	inc	bx		; ask for more one paragraph
-	jmp	m2
-m3:	mov	dx,offset progress
+	add	bx,MEMSTEP	; ask for MEMSTEP more paragraphs
+	jnc	m2
+	jmp	short m4	; we should never get this far
+m3:	mov	ax,DOS_MEM_ALLOC SHL 8
+	int	21h		; BX = max paragraphs available
+	jc	m4		; so this allocation should succeed
+	mov	es,ax		; ES = new segment
+	mov	ah,DOS_MEM_FREE
+	int	21h
+	jc	m4
+	mov	dx,offset progress
 	call	print
 	loop	m1
-
-	mov	dx,offset passed
-	call	print
-
+	clc
+m4:	call	result
+;
+; Create a new file, write a string to it, close it, and then verify it.
+;
 	push	ds
 	pop	es
+	mov	dx,offset filetest
+	call	print
+	call	test_file
+	call	result
+;
+; Create another file, rename it, and then delete it.
+;
+	mov	dx,offset renametest
+	call	print
+	call	test_rename
+	call	result
+
 	mov	dx,offset execfile
 	mov	ax,DOS_HDL_OPENRO
 	int	21h		; open file (and neglect to close it)
@@ -98,6 +124,128 @@ m3:	mov	dx,offset progress
 	ret			; a return is not necessary, but just in case
 ENDPROC	main
 
+;
+; test_file
+;
+; Creates testfile, writes teststr to it, and closes it; then reopens the
+; file, reads it, and verifies that it contains exactly teststr.
+;
+; Returns carry clear if successful, carry set if not.
+;
+DEFPROC	test_file
+	mov	dx,offset testfile
+	sub	cx,cx		; CX = attributes (none)
+	mov	ah,DOS_HDL_CREATE
+	int	21h		; create the file
+	jc	tf9
+	xchg	bx,ax		; BX = handle
+	mov	dx,offset teststr
+	mov	cx,offset teststr_end - offset teststr
+	mov	ah,DOS_HDL_WRITE
+	int	21h		; write the string
+	jc	tf8
+	cmp	ax,cx		; were all the bytes written?
+	jne	tf7		; no
+	mov	ah,DOS_HDL_CLOSE
+	int	21h		; close the file
+	jc	tf9
+
+	mov	dx,offset testfile
+	mov	ax,DOS_HDL_OPENRO
+	int	21h		; reopen the file
+	jc	tf9
+	xchg	bx,ax		; BX = handle
+	mov	dx,offset readbuf
+	mov	cx,offset readbuf_end - offset readbuf
+	mov	ah,DOS_HDL_READ
+	int	21h		; read the file
+	jc	tf8
+	mov	cx,offset teststr_end - offset teststr
+	cmp	ax,cx		; did we read exactly what we wrote?
+	jne	tf7		; no
+	mov	si,offset teststr
+	mov	di,offset readbuf
+	repe	cmpsb		; do the contents match?
+	jne	tf7		; no
+	mov	ah,DOS_HDL_CLOSE
+	int	21h		; close the file
+	ret
+tf7:	stc
+tf8:	pushf
+	mov	ah,DOS_HDL_CLOSE
+	int	21h		; close the file (preserving the failure)
+	popf
+tf9:	ret
+ENDPROC	test_file
+
+;
+; test_rename
+;
+; Creates tempfile1, renames it to tempfile2, and then deletes tempfile2,
+; verifying along the way that the old names can no longer be opened.
+;
+; Returns carry clear if successful, carry set if not.
+;
+DEFPROC	test_rename
+	mov	dx,offset tempfile1
+	sub	cx,cx		; CX = attributes (none)
+	mov	ah,DOS_HDL_CREATE
+	int	21h		; create the file
+	jc	tr9
+	xchg	bx,ax		; BX = handle
+	mov	ah,DOS_HDL_CLOSE
+	int	21h		; close the (empty) file
+	jc	tr9
+
+	mov	dx,offset tempfile1
+	mov	di,offset tempfile2
+	mov	ah,DOS_DSK_RENAME
+	int	21h		; rename the file
+	jc	tr9
+	mov	dx,offset tempfile1
+	call	chk_nofile	; make sure the old name is gone
+	jc	tr9
+
+	mov	dx,offset tempfile2
+	mov	ah,DOS_DSK_DELETE
+	int	21h		; delete the file
+	jc	tr9
+	mov	dx,offset tempfile2
+	call	chk_nofile	; make sure the new name is gone, too
+tr9:	ret
+ENDPROC	test_rename
+
+;
+; chk_nofile
+;
+; Returns carry clear if the file at DS:DX can NOT be opened, carry set if
+; it can (in which case, it's closed again).
+;
+DEFPROC	chk_nofile
+	mov	ax,DOS_HDL_OPENRO
+	int	21h
+	cmc			; carry is now clear if the open failed
+	jnc	cn9
+	xchg	bx,ax
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	stc
+cn9:	ret
+ENDPROC	chk_nofile
+
+;
+; result
+;
+; Prints "passed" if carry is clear, "failed" if carry is set.
+;
+DEFPROC	result
+	mov	dx,offset passed
+	jnc	rs9
+	mov	dx,offset failed
+rs9:	call	print
+	ret
+ENDPROC	result
+
 DEFPROC	print
 	push	cx
 	mov	cl,DOS_TTY_PRINT
@@ -108,8 +256,19 @@ ENDPROC	print
 
 call5test	db		"CALL 5 test "
 passed		db		"passed",13,10,'$'
+failed		db		"failed",13,10,'$'
 progress	db		".$"
 alloctest	db		"memory test$"
+filetest	db		"file test $"
+renametest	db		"rename/delete test $"
+
+testfile	db		"HELLO.TXT",0
+tempfile1	db		"TEMP1.TXT",0
+tempfile2	db		"TEMP2.TXT",0
+teststr		db		"hello world",13,10
+teststr_end	label	byte
+readbuf		db		32 dup (?)	; big enough to detect any extra bytes
+readbuf_end	label	byte
 
 execfile	db		"dostests.com",0
 execparms	EPB		<0,PSP_CMDTAIL,PSP_FCB1,PSP_FCB2>

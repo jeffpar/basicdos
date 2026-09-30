@@ -4,12 +4,150 @@ heading: Welcome to BASIC-DOS
 permalink: /
 ---
 
-## PC DOS Reimagined
+# PC DOS Reimagined
 
 Read the [Blog](blog/), then check out the [Preview](preview/), which
 highlights a few of the original [Demos](demos/).
 
 [![BASIC-DOS 1.00](assets/images/BASIC-DOS-Cover.gif)](preview/)
+
+## Project Status
+
+BASIC-DOS began as a technology demo: a reimagining of what the first IBM PC
+operating system *could* have been, with a unified DOS and BASIC command
+interpreter, preemptive multitasking sessions, and other features that PC DOS
+wouldn't offer for years (if ever).  The goal now is to turn it into a usable
+product.
+
+This section tracks what's been completed (**[x]**) and what remains
+(**[ ]**).  Items marked *partial* work, but with known gaps.
+
+### Boot and System Configuration
+
+- [x] Boot sector that loads the BASIC-DOS drivers, kernel, and interpreter
+- [x] Boot prompt when a hard disk is detected (press **Esc** to boot from it)
+- [x] CONFIG.SYS support for BOOTKEY, CONSOLE, DEBUG, FILES, MEMSIZE,
+      SESSIONS, SHELL, and SWITCHAR
+- [ ] Installable device drivers (DEVICE=)
+- [ ] Critical ("hard") error handling (eg, "Abort, Retry, Ignore")
+
+### Device Drivers
+
+- [x] CON, with multiple console contexts (one per session)
+- [x] COM, AUX, LPT, PRN, NUL, CLOCK$, and PIPE$ devices
+- [x] Interrupt-driven, asynchronous I/O for CON and COM
+- [x] Floppy disk reads, including multi-track requests and requests
+      that cross 64K boundaries
+- [x] Floppy disk writes
+- [x] Media check and BPB rebuilds (reads PC DOS 1.x and 2.x diskettes)
+- [ ] Write-with-verify (DDC_WRITEV), formatting, and hard disk support
+- [ ] "Popup" and background console contexts
+
+### Kernel: Processes, Memory, and Sessions
+
+- [x] COM and EXE program loading, PSPs, EXEC, and exit codes
+- [x] Memory allocation (MCBs), including per-program heap requests
+- [x] Preemptive multitasking of multiple sessions
+- [x] CTRL-C/CTRL-Break handling, and CTRL-ALT-DEL session aborts
+- [ ] Session STOP/END operations (currently TODOs)
+- [ ] TSR support (INT 27h and INT 21h function 31h)
+- [ ] Environment segments for EXEC (EPB_ENVSEG)
+
+### Kernel: File System
+
+- [x] FAT12 file reading
+- [x] Handle-based open, read, seek, IOCTL, and close
+- [x] Find first/next, disk info (free space), and current drive/DTA
+- [x] Handle-based file creation (function 3Ch) and writing (function 40h)
+- [x] File deletion (function 41h) and renaming (function 56h)
+- [x] FAT cluster allocation and freeing
+- [x] Write-back of modified FAT and directory buffers (every FAT copy is
+      updated), including when the buffer is reused, on file close, disk
+      reset, and restart
+- [ ] *partial*: FCB support (open, close, and reads only; no create,
+      write, delete, or rename)
+- [ ] Truncating/extending a file with a zero-length write
+- [ ] Enforcing the read-only attribute on open, and getting/setting file
+      attributes (function 43h) and date/time (function 57h)
+- [ ] Subdirectories (MKDIR, RMDIR, CHDIR, and paths)
+- [ ] Absolute disk reads and writes (INT 25h and INT 26h)
+- [ ] FAT16, hard disks, and a larger buffer cache (there are currently
+      only two sector buffers: one for FAT sectors and one for directory
+      sectors)
+
+### Command Interpreter: DOS Commands
+
+- [x] COPY, DATE, DIR, EXIT, HELP, KEYS, MEM, RESTART, TIME, TYPE, and VER
+- [x] Running COM, EXE, BAT, and BAS files, and loading programs into
+      other sessions
+- [x] Pipes (`|`) and redirection (`>`)
+- [x] COPY creates (or truncates) the output file, and refuses to copy a
+      file onto itself
+- [ ] *partial*: Output redirection works only with existing files (it
+      should use DOS_HDL_CREATE, like COPY)
+- [ ] DEL/ERASE, REN/RENAME, and SAVE (for BASIC programs)
+- [ ] Disk utilities (eg, FORMAT, CHKDSK, SYS)
+
+### Command Interpreter: BASIC Language
+
+- [x] 32-bit integer variables, constants, and expressions (including
+      AND, OR, XOR, EQV, IMP, NOT, MOD, and shifts)
+- [x] String variables, concatenation, and comparisons
+- [x] CLS, COLOR, DEF FN, DEFINT, DEFSTR, ECHO, GOTO, IF/THEN/ELSE, LET,
+      PRINT, REM, and RETURN
+- [x] LOAD, LIST, NEW, and RUN
+- [x] Functions: ERRORLEVEL, MAXINT, and RND%
+- [ ] Control flow: GOSUB, FOR/NEXT, WHILE/WEND, and ON ... GOTO/GOSUB
+- [ ] INPUT, READ, DATA, and RESTORE
+- [ ] Arrays (DIM)
+- [ ] String functions (eg, LEFT$, MID$, RIGHT$, LEN, CHR$, ASC, STR$, VAL)
+- [ ] File I/O statements (eg, OPEN, CLOSE, PRINT #, INPUT #)
+- [ ] Error handling (eg, ON ERROR, ERR, ERL)
+
+### Floating-Point
+
+BASIC-DOS will support only one floating-point type: IEEE 754 64-bit
+(double-precision) values.  It won't use any MBF (Microsoft Binary Format)
+code.
+
+- [x] Parser support for floating-point constants (CLS_FLOAT tokens)
+- [x] DEFDBL and DEFSNG are accepted (currently no effect)
+- [x] MBF-based MSLIB option removed
+- [ ] Utility functions DOS_UTL_ATOF64, DOS_UTL_I32F64, and DOS_UTL_OPF64
+      (currently stubs)
+- [ ] Arithmetic and comparison operations
+- [ ] Conversions between integers and floating-point values
+- [ ] Floating-point input (parsing) and output (PRINT formatting)
+- [ ] Expression generator support for mixed integer/floating-point
+      operations (promotion and demotion rules)
+- [ ] Math functions (eg, SQR, SIN, COS, ATN, LOG, EXP)
+- [ ] Optional 8087 coprocessor support
+
+### Build, Tests, and Documentation
+
+- [x] Builds with MASM 4.0 using `mk.sh` (PC.js) or the in-browser
+      [Build Machine](build/)
+- [x] DOSTESTS: CALL 5, memory allocation, file create/write/read-back,
+      and file rename/delete tests
+- [x] Unattended test runs using `test.sh` (boots BASIC-DOS, runs DOSTESTS,
+      and reports whether the tests passed)
+- [ ] More tests (eg, BASIC language and CMD command tests)
+- [ ] Complete the [BASIC-DOS manual](docs/pcx86/bdman/)
+
+## Roadmap
+
+These are the next steps, roughly in priority order:
+
+1. Use DOS_HDL_CREATE for output redirection, and add the DEL and REN
+   commands
+2. Handle zero-length writes (truncation), the read-only attribute, and
+   file attribute/date/time functions
+3. FCB create, write, delete, and rename functions
+4. Essential BASIC statements: GOSUB, FOR/NEXT, INPUT, READ/DATA, and DIM
+5. BASIC string functions and file I/O statements
+6. IEEE 754 floating-point support, starting with conversions and I/O
+7. Critical error handling
+8. Subdirectory support
 
 ## License
 
@@ -58,11 +196,11 @@ need to boot and run BASIC-DOS.
 The `boot.sh` script runs `pc.js` again, this time building a 360K boot floppy
 (the largest floppy supported by an IBM PC XT Model 5160) with BASIC-DOS boot
 sector and system files. If you have a folder with different files you want to
-include on the floppy, specify it in place of the `200A` folder:
+include on the floppy, specify it in place of the `200B` folder:
 
-    $ pc.js ibm5160 software/pcx86/src/configs/200A --system=bd --version=2.00A --floppy --serial
+    $ pc.js ibm5160 software/pcx86/src/configs/200B --system=bd --version=2.00B --floppy --serial
     [Press CTRL-D to enter command mode]
-    BASIC-DOS 2.00A
+    BASIC-DOS 2.00B
     Press a key to start...
 
 ## Tool Trivia

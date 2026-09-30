@@ -25,7 +25,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr,dos_opchk>
 	EXTNEAR	<dos_term,dos_func,dos_exit,dos_ctrlc,dos_error,dos_default>
 	EXTNEAR	<disk_read,disk_write,dos_tsr,dos_call5,dos_util,dos_leave>
-	EXTNEAR	<int_enter,int_leave>
+	EXTNEAR	<int_enter,int_leave,int_util>
 
 	DEFLBL	sysinit_start
 
@@ -146,6 +146,20 @@ si2b:	mov	al,0EAh			; DI -> INT_DOSCALL5 * 4
 	stosw
 	mov	ax,ds
 	stosw
+;
+; "Revector" DDINT_UTIL to int_util as soon as INT_DOSUTIL is available,
+; since drivers use it in place of some DOSUTIL functions (eg, LOCK, which
+; CON's INT 10h handler uses).
+;
+	cli
+	mov	di,offset DDINT_UTIL
+	mov	al,OP_JMPF
+	stosb
+	mov	ax,offset int_util
+	stosw
+	mov	ax,ds
+	stosw
+	sti
 ;
 ; The current SP is sysinit_start, and relative to SS, that's safe place
 ; for our stack, whereas relative to DS, it's the start of DOS table space,

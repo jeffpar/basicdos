@@ -119,7 +119,8 @@ DEFPROC	ddclk_ctlin
 ; should contain a standard CX:DX tick count) has been decremented to zero.
 ;
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	DOSUTIL	WAIT
+	mov	ah,DOS_UTL_WAIT
+	call	far ptr DDINT_UTIL	; wait on DX:DI (see int_util)
 	jnc	dci1x
 ;
 ; The wait was interrupted (eg, by ABORT or CTRLC), so the packet must be
@@ -561,7 +562,8 @@ ddi1:	cmp	di,-1			; end of chain?
 ; Notify DOS that the SCB associated with this packet is done waiting.
 ;
 ddi2:	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	DOSUTIL	ENDWAIT
+	mov	ah,DOS_UTL_ENDWAIT
+	call	far ptr DDINT_UTIL	; end the wait on DX:DI (see int_util)
 	jnc	ddi3
 ;
 ; If ENDWAIT returns an error, we presume that we simply got ahead of the

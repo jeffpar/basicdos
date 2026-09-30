@@ -174,10 +174,12 @@ SFB_FLAGS	db	?	; 26h: see SFBF_* (initially zero)
 		db	?	; 27h: padding
 SFB_OWNER	dw	?	; 28h: PSP of owner (used if SFBF_FCB set)
 SFB_FCB		dd	?	; 2Ah: FCB address, if SFBF_FCB set
+SFB_DIRNUM	dw	?	; 2Eh: DIRENT # (files only)
 SFB		ends
 SIG_SFB		equ	'F'
 
 SFBF_FCB	equ	01h	; SFB opened for FCB (see fcb_open)
+SFBF_DIRTY	equ	02h	; SFB modified (DIRENT must be updated on close)
 
 SFH_NONE	equ	0FFh	; if this SFH is in a PFT entry, it's unused
 

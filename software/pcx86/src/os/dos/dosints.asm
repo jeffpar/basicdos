@@ -19,7 +19,8 @@ DOS	segment word public 'CODE'
 	EXTABS	<FUNCTBL_SIZE,UTILTBL_SIZE>
 	EXTWORD	<scb_active>
 	EXTBYTE	<scb_locked,int_level>
-	EXTNEAR	<msc_readctrlc,msc_sigerr>
+	EXTNEAR	<msc_readctrlc,msc_sigerr,scb_wait,scb_endwait>
+	EXTNEAR	<scb_hotkey,scb_release>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -507,6 +508,104 @@ DEFPROC	int_leave,DOSFAR
 ddl8:	jmp	dos_enter
 ddl9:	iret
 ENDPROC	int_leave
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; int_util
+;
+; DDINT_UTIL is "revectored" here by sysinit.
+;
+; This gives drivers a far-call alternative to a few DOSUTIL functions (WAIT,
+; ENDWAIT, HOTKEY, LOCK, and UNLOCK), which avoids the overhead (and stack
+; usage) of a complete REG_FRAME; those calls are typically made from within
+; other DOS calls (eg, a READ request), from hardware interrupt handlers, or
+; from BIOS hooks (eg, CON's INT 10h handler), when the caller's stack may not
+; have much to spare.
+;
+; Only these functions are supported, because they take their inputs in
+; registers and return only carry (or, for LOCK, AX); most other utility
+; functions rely on the REG_FRAME that INT 32h creates (eg, to return values
+; in REG_AX or to access arguments on the caller's stack), and int_util
+; deliberately creates none.  Drivers may still use INT 32h (ie, DOSUTIL) for
+; any utility function, including these.
+;
+; Inputs:
+;	AH = DOS_UTL_WAIT, DOS_UTL_ENDWAIT, DOS_UTL_HOTKEY, DOS_UTL_LOCK,
+;	     or DOS_UTL_UNLOCK
+;	Other inputs are the same as the corresponding DOSUTIL function
+;	(eg, DX:DI == wait ID for WAIT and ENDWAIT)
+;
+; Outputs:
+;	AX = CONSOLE context for the active SCB (LOCK only)
+;	Carry clear if successful, set if not (or if AH is not one of the
+;	supported functions); all other flags (eg, the interrupt flag) are
+;	preserved, as with INT 32h
+;
+; Modifies:
+;	AX (LOCK only)
+;
+DEFPROC	int_util,DOSFAR
+	pushf
+	push	ax
+	push	bx
+	push	cx
+	push	dx
+	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
+	cld
+	cmp	ah,DOS_UTL_WAIT
+	je	iu1
+	cmp	ah,DOS_UTL_ENDWAIT
+	je	iu2
+	cmp	ah,DOS_UTL_HOTKEY
+	je	iu3
+	cmp	ah,DOS_UTL_LOCK
+	je	iu5
+	cmp	ah,DOS_UTL_UNLOCK
+	stc
+	jne	iu8			; unsupported function
+	call	scb_release		; unlock the current session
+	clc
+	jmp	short iu8
+iu1:	call	scb_wait
+	jmp	short iu8
+iu2:	call	scb_endwait
+	jmp	short iu8
+iu3:	call	scb_hotkey
+	jmp	short iu8
+;
+; LOCK is the only function that returns a value (in AX), so it has its own
+; exit path, which discards the caller's AX instead of restoring it.
+;
+iu5:	LOCK_SCB			; lock the current session
+	mov	bx,[scb_active]
+	mov	ax,[bx].SCB_CONTEXT	; AX = CONSOLE context
+	pop	ds
+	ASSUME	DS:NOTHING
+	pop	dx
+	pop	cx
+	pop	bx
+	inc	sp			; discard the caller's AX
+	inc	sp
+	popf				; restore the caller's flags
+	clc				; and return carry clear
+	ret
+
+iu8:	pop	ds
+	pop	dx
+	pop	cx
+	pop	bx
+	pop	ax
+	jc	iu9
+	popf				; restore the caller's flags
+	clc				; and return carry clear
+	ret
+iu9:	popf				; restore the caller's flags
+	stc				; and return carry set
+	ret
+ENDPROC	int_util
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

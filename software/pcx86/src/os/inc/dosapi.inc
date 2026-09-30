@@ -79,6 +79,7 @@ DOS_HDL_OPENRW	equ   3D02h	; return handle with R/W access
 DOS_HDL_CLOSE	equ	3Eh	; close handle (BX)
 DOS_HDL_READ	equ	3Fh	; read (CX) bytes at (DS:DX) with handle (BX)
 DOS_HDL_WRITE	equ	40h	; write (CX) bytes at (DS:DX) with handle (BX)
+DOS_DSK_DELETE	equ	41h	; delete file (DS:DX)
 DOS_HDL_SEEK	equ	42h	; seek to (CX:DX) w/method (AL) and handle (BX)
 DOS_HDL_SEEKBEG	equ   4200h	; seek from beginning
 DOS_HDL_SEEKCUR	equ   4201h	; seek from current position
@@ -98,6 +99,7 @@ DOS_PSP_SET	equ	50h	; set current PSP (BX) (undocumented)
 DOS_PSP_GET	equ	51h	; get current PSP (BX) (undocumented)
 DOS_MSC_GETVARS	equ	52h	; get variables pointer (ES:BX) (undocumented)
 DOS_PSP_CREATE	equ	55h	; create PSP in segment (DX) (undocumented)
+DOS_DSK_RENAME	equ	56h	; rename file (DS:DX) to (ES:DI)
 
 ;
 ; INT_DOSUTIL functions
@@ -351,6 +353,9 @@ ERR_BADHANDLE	equ	6	; invalid handle
 ERR_BADMCB	equ	7	; invalid MCB
 ERR_NOMEMORY	equ	8	; out of memory
 ERR_BADADDR	equ	9	; invalid memory segment
+ERR_BADDRIVE	equ	15	; invalid drive
+ERR_NOTSAME	equ	17	; not same device
+ERR_DISKFULL	equ	39	; disk full
 
 ERR_BADSESSION	equ	100	; invalid session
 ERR_NOSESSION	equ	101	; out of sessions

@@ -17,13 +17,43 @@
 DOS	segment word public 'CODE'
 
 	EXTNEAR	<dev_request,scb_release>
-	EXTNEAR	<chk_devname,chk_filename>
+	EXTNEAR	<chk_devname,chk_console,chk_filename>
 	EXTNEAR	<get_bpb,get_psp,find_cln,get_cln>
+	EXTNEAR	<sfb_create,sfb_commit,write_file>
 	EXTNEAR	<msc_sigctrlc,msc_readctrlc>
 
 	EXTBYTE	<scb_locked>
 	EXTWORD	<scb_active>
 	EXTLONG	<sfb_table>
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; hdl_create (REG_AH = 3Ch)
+;
+; Inputs:
+;	REG_CX = attributes (see DIRATTR_*)
+;	REG_DS:REG_DX -> name of device/file
+;
+; Outputs:
+;	On success, carry clear, REG_AX = PFH (or SFH if no active PSP)
+;	On failure, carry set, REG_AX = error code
+;
+DEFPROC	hdl_create,DOS
+	call	pfh_alloc		; ES:DI = free handle entry
+	ASSUME	ES:NOTHING
+	jc	hcr9
+	push	di			; save free handle entry
+	mov	cl,[bp].REG_CL		; CL = attributes
+	mov	si,[bp].REG_DX
+	mov	ds,[bp].REG_DS		; DS:SI = name of device/file
+	ASSUME	DS:NOTHING
+	call	sfb_create
+	pop	di			; restore handle entry
+	jc	hcr9
+	call	pfh_set			; update handle entry
+hcr9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
+	ret
+ENDPROC	hdl_create
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -122,9 +152,8 @@ DEFPROC	hdl_write,DOS
 	ASSUME	DS:NOTHING
 	mov	al,IO_COOKED
 	call	sfb_write
-	jnc	hw9
 hw8:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
-hw9:	ret
+	ret
 ENDPROC	hdl_write
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -218,11 +247,21 @@ DEFPROC	sfb_open,DOS
 	push	ds
 	push	es
 	call	chk_devname		; is it a device name?
-	jnc	so1			; yes
+	jnc	so0			; yes
 	call	chk_filename		; is it a disk filename?
 	jnc	so1a			; yes
 so9a:	mov	ax,ERR_NOFILE
 	jmp	so9			; no
+;
+; If the device is the session's console (ie, "CON" without a context
+; descriptor), then share the session's console SFB, which may be for another
+; device (eg, COM1).
+;
+so0:	call	chk_console		; BX -> session's console SFB?
+	jc	so1			; no
+	inc	cs:[bx].SFB_REFS	; yes, add a reference
+	mov	dx,cs:[bx].SFB_CONTEXT	; DX = context (and carry is clear)
+	jmp	so9
 
 so1:	mov	ax,DDC_OPEN SHL 8	; ES:DI -> driver
 	sub	dx,dx			; no initial context
@@ -230,7 +269,8 @@ so1:	mov	ax,DDC_OPEN SHL 8	; ES:DI -> driver
 	jc	so9a			; failed (TODO: map device error?)
 	mov	al,-1			; no drive # for devices
 
-so1a:	push	ds			;
+so1a:	push	cx			; save DIRENT # (if any)
+	push	ds			;
 	push	si			; save DIRENT at DS:SI (if any)
 ;
 ; Although the primary goal here is to find a free SFB, a matching SFB
@@ -243,7 +283,9 @@ so2:	push	cs
 	mov	cx,es			; CX:DI is driver, DX is context
 	mov	si,[sfb_table].OFF
 	sub	bx,bx			; use BX to remember a free SFB
-so3:	test	dx,dx			; any context?
+so3:	test	al,al			; is this a file (ie, a drive #)?
+	jge	so4			; yes, files never share SFBs
+	test	dx,dx			; any context?
 	jnz	so4			; yes, check next SFB
 	cmp	[si].SFB_DEVICE.SEG,cx
 	jne	so4			; check next SFB
@@ -262,8 +304,10 @@ so5:	add	si,size SFB
 
 	pop	si
 	pop	ds
+	pop	cx			; CX = DIRENT # (if any)
 	test	bx,bx			; was there a free SFB?
 	jz	so8			; no, tell the driver sorry
+	mov	cs:[bx].SFB_DIRNUM,cx
 
 	push	di
 	push	es
@@ -315,6 +359,7 @@ so6:	push	cs
 
 so7:	pop	ax			; throw away any DIRENT on the stack
 	pop	ax
+	pop	ax			; and any DIRENT #
 	mov	bx,si			; return matching SFB
 	inc	[bx].SFB_REFS
 	jmp	short so9
@@ -582,7 +627,7 @@ ENDPROC	sfb_seek
 ;	DS:SI -> data buffer
 ;
 ; Outputs:
-;	On success, carry clear
+;	On success, carry clear, AX = bytes written
 ;	On failure, AX = error code, carry set
 ;
 ; Modifies:
@@ -592,8 +637,7 @@ DEFPROC	sfb_write,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	cmp	cs:[bx].SFB_DRIVE,0
 	jl	sw7
-	stc				; no writes to block devices (yet)
-	jmp	short sw9
+	jmp	write_file		; block devices (ie, files) are handled here
 
 sw7:	mov	ah,DDC_WRITE
 	les	di,cs:[bx].SFB_DEVICE
@@ -633,22 +677,32 @@ ENDPROC	sfb_write
 ;	SI = PFH, -1 if none
 ;
 ; Outputs:
-;	Carry clear if success
+;	On success, carry clear
+;	On failure, carry set, AX = error code (eg, if a modified file's
+;	DIRENT could not be updated; the SFB is closed regardless)
 ;
 ; Modifies:
 ;	AX, DX, DI, ES
 ;
 DEFPROC	sfb_close,DOS
 	LOCK_SCB
+	sub	dx,dx			; DX = error code (zero if none)
 	dec	[bx].SFB_REFS
 	jnz	sc8
 	mov	al,[bx].SFB_DRIVE	; did we issue a DDC_OPEN?
 	test	al,al			; for this SFB?
-	jge	sc7			; no
+	jge	sc6			; no
 	les	di,[bx].SFB_DEVICE	; ES:DI -> driver
 	mov	dx,[bx].SFB_CONTEXT	; DX = context
 	mov	ax,DDC_CLOSE SHL 8	;
 	call	dev_request		; issue the DDC_CLOSE request
+	sub	dx,dx
+	jmp	short sc7
+sc6:	test	[bx].SFB_FLAGS,SFBF_DIRTY
+	jz	sc7			; file was not modified
+	call	sfb_commit		; update the file's DIRENT
+	jnc	sc7
+	xchg	dx,ax			; DX = error code
 sc7:	sub	ax,ax
 	mov	[bx].SFB_DEVICE.OFF,ax
 	mov	[bx].SFB_DEVICE.SEG,ax	; mark SFB as unused
@@ -662,7 +716,11 @@ sc8:	test	si,si			; valid PFH?
 	mov	ds:[PSP_PFT][si],SFH_NONE
 	pop	ds
 	ASSUME	DS:DOS
-sc9:	UNLOCK_SCB
+sc9:	xchg	ax,dx			; AX = error code (zero if none)
+	test	ax,ax			; any error?
+	jz	sc9a			; no (and carry is clear)
+	stc
+sc9a:	UNLOCK_SCB
 	ret
 ENDPROC	sfb_close
 

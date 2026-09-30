@@ -632,12 +632,18 @@ DEFPROC	ddcon_open
 	cmp	byte ptr [si],0		; anything after the colon?
 	jne	dco1			; yes
 dco0:	pop	ds
-	DOSUTIL	LOCK			; get the current context in AX
+	mov	ah,DOS_UTL_LOCK
+	call	far ptr DDINT_UTIL	; get the current context in AX
+	call	chk_context		; is it one of ours?
+	jz	dco0a			; no (eg, the session console is COM1)
 	mov	ds,ax
 	ASSERT	STRUCT,ds:[0],CT
 	inc	ds:[CT_REFS]
-	DOSUTIL	UNLOCK
-	clc
+dco0a:	push	ax
+	mov	ah,DOS_UTL_UNLOCK
+	call	far ptr DDINT_UTIL	; unlock the current session
+	pop	ax
+	cmp	ax,1			; set carry if no context (AX is zero)
 	jmp	dco7
 ;
 ; The device name consists of "CON:...."  We're not sure what "...." is yet,
@@ -946,7 +952,8 @@ DEFPROC	ddcon_int09,far
 	jcxz	i09
 	push	dx
 	mov	dx,CHR_CTRLD		; DL = char code, DH = scan code
-	DOSUTIL	HOTKEY			; notify DOS
+	mov	ah,DOS_UTL_HOTKEY
+	call	far ptr DDINT_UTIL	; notify DOS
 	and	ds:[KB_FLAG],NOT CTL_SHIFT
 	mov	ds,cx
 	ASSERT	STRUCT,ds:[0],CT
@@ -975,7 +982,8 @@ i09d:	push	ax
 	call	check_hotkey
 	jc	i09e
 	xchg	dx,ax			; DL = char code, DH = scan code
-	DOSUTIL	HOTKEY			; notify DOS
+	mov	ah,DOS_UTL_HOTKEY
+	call	far ptr DDINT_UTIL	; notify DOS
 
 i09e:	mov	ds,cx			; DS = context
 	mov	cx,cs
@@ -1013,7 +1021,8 @@ i09g:	call	pull_kbd		; pull keyboard data
 ;
 i09h:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	DOSUTIL	ENDWAIT
+	mov	ah,DOS_UTL_ENDWAIT
+	call	far ptr DDINT_UTIL	; end the wait on DX:DI (see int_util)
 ;
 ; If carry is set, ENDWAIT failed.  There are two cases: 1) the WAIT request
 ; hasn't been set yet (eg, a race condition), and 2) the WAIT request was
@@ -1103,9 +1112,12 @@ DEFPROC	ddcon_int10,far
 ;
 ; DOSUTIL LOCK has been updated to return the active session's CONSOLE
 ; context in AX.  However, during system initialization, that context may
-; not exist yet.
+; not exist yet, and if the session's CONSOLE is another device (eg, COM1),
+; then the context isn't ours either.
 ;
-	DOSUTIL	LOCK			; ensure EQUIP_FLAG remains stable
+	mov	ah,DOS_UTL_LOCK
+	call	far ptr DDINT_UTIL	; ensure EQUIP_FLAG remains stable
+	call	chk_context		; zero AX if the context isn't ours
 	push	ax			; save the context segment
 	test	ax,ax			; is it valid?
 	jz	i10a			; no
@@ -1135,7 +1147,8 @@ i10a:	push	ax			; save EQUIP_FLAG
 
 i10x:	pop	ax			; clean up the stack
 	pop	ax			; (eg, ADD SP,4)
-	DOSUTIL	UNLOCK
+	mov	ah,DOS_UTL_UNLOCK
+	call	far ptr DDINT_UTIL	; unlock the current session
 	call	unlock_bios
 
 	pop	ax
@@ -1200,7 +1213,8 @@ DEFPROC	add_packet
 ;
 	push	dx
 	mov	dx,es			; DX:DI -> packet (aka "wait ID")
-	DOSUTIL	WAIT
+	mov	ah,DOS_UTL_WAIT
+	call	far ptr DDINT_UTIL	; wait on DX:DI (see int_util)
 	jnc	ap9
 ;
 ; The wait was interrupted (eg, by ABORT or CTRLC), so the packet must be
@@ -1885,7 +1899,8 @@ DEFPROC	switch_focus
 	push	si
 	push	di
 	push	ds
-	DOSUTIL	LOCK			; lock the current session
+	mov	ah,DOS_UTL_LOCK
+	call	far ptr DDINT_UTIL	; lock the current session
 	push	es
 	jcxz	sf8			; nothing to do
 	mov	ds,cx
@@ -1904,7 +1919,8 @@ sf2:	xchg	cx,[ct_focus]
 	call	draw_border		; redraw the border and show
 	call	show_cursor		; the cursor of the incoming context
 sf8:	pop	es
-	DOSUTIL	UNLOCK
+	mov	ah,DOS_UTL_UNLOCK
+	call	far ptr DDINT_UTIL	; unlock the current session
 	pop	ds
 	pop	di
 	pop	si
@@ -1947,6 +1963,43 @@ DEFPROC	unlock_bios
 	pop	bx
 ub9:	ret
 ENDPROC	unlock_bios
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chk_context
+;
+; Verify that a context (eg, the active session's context returned by
+; DOSUTIL LOCK) is one of our contexts, since a session's CONSOLE may be
+; another device (eg, CONSOLE=COM1 in CONFIG.SYS).
+;
+; Inputs:
+;	AX = context segment (zero if none)
+;
+; Outputs:
+;	If the context is ours, AX is unchanged and ZF is clear;
+;	otherwise, AX is zero and ZF is set
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	chk_context
+	push	cx
+	push	ds
+	mov	cx,[ct_head]		; CX = 1st context
+cx1:	jcxz	cx8			; no more contexts
+	cmp	ax,cx			; is this the context?
+	je	cx9			; yes (and ZF is set, so clear it below)
+	mov	ds,cx
+	mov	cx,ds:[CT_NEXT]		; CX = next context
+	jmp	cx1
+cx8:	sub	ax,ax			; not ours, so zero AX (and set ZF)
+	jmp	short cx9a
+cx9:	test	ax,ax			; clear ZF (AX can't be zero here)
+cx9a:	pop	ds
+	pop	cx
+	ret
+ENDPROC	chk_context
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

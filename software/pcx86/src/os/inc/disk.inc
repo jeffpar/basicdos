@@ -95,8 +95,10 @@ SIG_BPB		equ	'B'
 ; Ted Mirecki).
 ;
 
+CLN_FREE	equ	0000h		; FAT entry for an available cluster
 CLN_BAD		equ	0FF7h
-CLN_END		equ	0FF8h
+CLN_END		equ	0FF8h		; FAT entries >= CLN_END indicate end of chain
+CLN_LAST	equ	0FFFh		; FAT entry we use to mark the end of a chain
 
 DIRENT		struc
 DIR_NAME	db	11 dup (?)	; 00h: filename (E5=free, 00=end)

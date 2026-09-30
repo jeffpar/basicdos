@@ -16,7 +16,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTNEAR	<copy_name>
+	EXTNEAR	<copy_name,sfb_from_sfh>
 	EXTWORD	<scb_active>
 	EXTLONG	<bpb_table>
 
@@ -86,6 +86,52 @@ cd9:	pop	ds
 	pop	ax
 	ret
 ENDPROC	chk_devname
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chk_console
+;
+; Checks for a request to open the CON device without a context descriptor
+; (ie, "CON" or "CON:", as opposed to "CON:80,25"), which refers to the active
+; session's console.  Since a session's console may be another device (eg,
+; CONSOLE=COM1 in CONFIG.SYS), we return the session's console SFB, so that
+; all operations on "CON" use the session's console device.
+;
+; Inputs:
+;	DS:SI -> name
+;	ES:DI -> device driver header (DDH) (from chk_devname)
+;
+; Outputs:
+;	If carry clear, BX -> SFB of the active session's console
+;	If carry set, this is not a request for the session's console
+;
+; Modifies:
+;	AX, BX
+;
+DEFPROC	chk_console,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	cmp	word ptr es:[di].DDH_NAME,4F43h	; "CO"?
+	jne	cc8
+	cmp	word ptr es:[di].DDH_NAME+2,204Eh	; "N "?
+	jne	cc8
+	mov	al,[si+3]		; AL = character following "CON"
+	test	al,al			; end of name?
+	jz	cc1			; yes
+	cmp	al,':'			; colon?
+	jne	cc8			; no
+	cmp	byte ptr [si+4],0	; anything after the colon?
+	jne	cc8			; yes, so it's a context descriptor
+cc1:	mov	bx,[scb_active]
+	test	bx,bx			; is there an active session?
+	jz	cc8			; no
+	ASSERT	STRUCT,cs:[bx],SCB
+	mov	bl,cs:[bx].SCB_SFHOUT	; BL = session console SFH
+	cmp	bl,SFH_NONE		; has the console been opened yet?
+	je	cc8			; no
+	jmp	sfb_from_sfh		; BX -> SFB (carry set if invalid)
+cc8:	stc
+	ret
+ENDPROC	chk_console
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
