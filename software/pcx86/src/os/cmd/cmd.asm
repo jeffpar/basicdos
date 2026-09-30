@@ -2212,10 +2212,12 @@ ENDPROC	writeOutput
 ;
 ; openHandle
 ;
-; Open a handle for redirection.
+; Open a handle for redirection.  An input handle requires an existing file
+; (or device), whereas an output handle creates the file if it doesn't exist
+; (or truncates it if it does).
 ;
 ; Inputs:
-;	AL = 0 for read-only, 1 for write-only
+;	AL = 0 for input (read-only), 1 for output (create/truncate)
 ;	DI -> TOKENBUF
 ;	BX = token offset
 ;
@@ -2237,9 +2239,17 @@ DEFPROC	openHandle
 	mov	dx,si
 	add	si,cx
 	xchg	[si],ch			; null-terminate the token
-	mov	ah,DOS_HDL_OPEN
+	test	al,al			; output handle?
+	mov	ah,DOS_HDL_OPEN		; (AL = 0 for read-only access)
+	jz	oh0			; no
+	push	cx
+	sub	cx,cx			; CX = attributes (none)
+	mov	ah,DOS_HDL_CREATE
 	int	21h
-	jnc	oh1
+	pop	cx
+	jmp	short oh0a
+oh0:	int	21h
+oh0a:	jnc	oh1
 	xchg	si,dx
 	call	openError		; report error (AX) opening file (SI)
 	mov	si,dx
