@@ -14,8 +14,8 @@
     },
     {
       "type": "gulp",
-      "label": "gulp watch",
-      "task": "watch",
+      "label": "gulp build",
+      "task": "build",
       "problemMatcher": [],
       "group": {
         "kind": "build",
@@ -28,9 +28,6 @@
         "panel": "shared",
         "showReuseMessage": true,
         "clear": false
-      },
-      "runOptions": {
-        "runOn": "folderOpen"
       }
     }
   ]

@@ -83,49 +83,10 @@ let disks = {
         "./demos/dual/multi/CONFIG.SYS",
         "./demos/d40/AUTOEXEC.BAT",
     ].concat(demoFiles),
-    "BDS-BOOT": [
-        "./software/pcx86/src/os/boot/*.asm",
-        "./software/pcx86/src/os/inc/*.inc",
-        "./software/pcx86/src/os/boot/makefile",
-        "./software/pcx86/src/os/boot/mk.bat"
-    ],
-    "BDS-DEV": [
-        "./software/pcx86/src/os/dev/*.asm",
-        "./software/pcx86/src/os/inc/*.inc",
-        "./software/pcx86/src/os/dev/makefile",
-        "./software/pcx86/src/os/dev/mk.bat"
-    ],
-    "BDS-DOS": [
-        "./software/pcx86/src/os/dos/*.asm",
-        "./software/pcx86/src/os/dos/*.lrf",
-        "./software/pcx86/src/os/inc/*.inc",
-        "./software/pcx86/src/os/dos/makefile",
-        "./software/pcx86/src/os/dos/mk.bat"
-    ],
-    "BDS-CMD": [
-        "./software/pcx86/src/os/cmd/*.inc",
-        "./software/pcx86/src/os/cmd/*.asm",
-        "./software/pcx86/src/os/cmd/*.lrf",
-        "./software/pcx86/src/os/inc/*.inc",
-        "./software/pcx86/src/os/cmd/makefile",
-        "./software/pcx86/src/os/cmd/mk.bat"
-    ],
-    "BDS-TEST": [
-        "./software/pcx86/src/tests/lib/*",
-        "./software/pcx86/src/tests/misc/*",
-        "./software/pcx86/src/tests/primes/*",
-        "./software/pcx86/src/tests/printf/*",
-        "./software/pcx86/src/os/inc/*.inc",
-        "./software/pcx86/src/tests/makefile",
-        "./software/pcx86/src/tests/mk.bat"
-    ],
-    "BDSRC": [
-        "./software/pcx86/src/**"
-    ],
     "PCDOS200-C400": "./software/pcx86/disks/PCDOS200-C400.json"
 };
 
-let watchTasks = [];
+let buildTasks = [], demoTasks = [];
 for (let diskName in disks) {
     let buildTask = "BUILD-" + diskName;
     let diskImage = "./software/pcx86/disks/" + diskName + ".json";
@@ -137,11 +98,7 @@ for (let diskName in disks) {
         diskFiles = "--disk " + disks[diskName];
         diskImage = diskImage.replace(diskName, "archive/" + diskName).replace(".json",".hdd");
     }
-    else if (disks[diskName].length == 1) {
-        kbTarget = 10000;
-        diskFiles = "--dir " + path.dirname(disks[diskName][0]);
-        archiveImage = " --normalize --output " + diskImage.replace(diskName, "archive/" + diskName).replace(".json",".hdd");
-    } else {
+    else {
         let dirPrev = "";
         for (let i = 0; i < disks[diskName].length; i++) {
             let fileNext = disks[diskName][i];
@@ -162,20 +119,13 @@ for (let diskName in disks) {
         }
         diskFiles = "--files " + diskFiles;
         archiveImage = " --normalize --output " + diskImage.replace(diskName, "archive/" + diskName).replace(".json",".img") + " --writable";
-        if (diskName.startsWith("BDS-")) {
-            kbTarget = 360;
-        } else {
-            diskFiles += " --boot ./software/pcx86/src/os/boot/obj/BOOT1.COM";
-        }
+        diskFiles += " --boot ./software/pcx86/src/os/boot/obj/BOOT1.COM";
     }
     let cmd = "node \"${PCJS}/tools/diskimage/diskimage.js\" " + diskFiles + " --output " + diskImage + archiveImage + " --target=" + kbTarget + " --overwrite";
     cmd = cmd.replace(/\$\{([^}]+)\}/g, (_,n) => process.env[n]);
     gulp.task(buildTask, run(cmd));
-    let watchTask = "WATCH-" + diskName;
-    watchTasks.push(watchTask);
-    gulp.task(watchTask, function() {
-        return gulp.watch(disks[diskName], gulp.series(buildTask));
-    });
+    buildTasks.push(buildTask);
+    if (diskName.startsWith("BASIC-DOS")) demoTasks.push(buildTask);
 }
 
 for (let fileGroup in files) {
@@ -197,17 +147,20 @@ for (let fileGroup in files) {
              *      TXT_GOTO_OFF    equ     0       ; offset of help for GOTO
              *      TXT_GOTO_LEN    equ     0       ; length of help for GOTO
              */
-            sINC += "TXT_" + match[1] + "_OFF\tequ\t" + match.index + "\r\n";
-            sINC += "TXT_" + match[1] + "_LEN\tequ\t" + match[0].length + "\r\n";
+            sINC += "TXT_" + match[1] + "_OFF\tequ\t" + match.index + "\n";
+            sINC += "TXT_" + match[1] + "_LEN\tequ\t" + match[0].length + "\n";
         }
         fs.writeFileSync(outputFile, sINC);
         done();
     });
-    let watchTask = "WATCH-" + fileGroup;
-    watchTasks.push(watchTask);
-    gulp.task(watchTask, function() {
-        return gulp.watch(inputFile, gulp.series(buildTask));
-    });
+    buildTasks.unshift(buildTask);
 }
 
-gulp.task("watch", gulp.parallel(watchTasks));
+/*
+ * There's no longer a "watch" task: mk.sh runs BUILD-HELP before every build (since txt.inc must be current
+ * before COMMAND.COM is assembled), and "demos" after every build (to update the BASIC-DOS demo diskettes with
+ * the new binaries), while "gulp build" (or simply "gulp") regenerates everything on demand.
+ */
+gulp.task("demos", gulp.series(demoTasks));
+gulp.task("build", gulp.series(buildTasks));
+gulp.task("default", gulp.series("build"));

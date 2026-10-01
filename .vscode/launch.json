@@ -26,25 +26,11 @@
       "webRoot": "${workspaceFolder}"
     },
     {
-      "type": "chrome",
-      "request": "launch",
-      "name": "BASIC-DOS Build Machine",
-      "url": "http://localhost:4040/build/",
-      "webRoot": "${workspaceFolder}"
-    },
-    {
-      "type": "chrome",
-      "request": "launch",
-      "name": "BASIC-DOS Build Machine with Dual Monitors",
-      "url": "http://localhost:4040/build/dual/",
-      "webRoot": "${workspaceFolder}"
-    },
-    {
-      "name": "gulp watch",
+      "name": "gulp build",
       "type": "node",
       "request": "launch",
       "program": "${workspaceFolder}/node_modules/gulp/bin/gulp.js",
-      "args": ["watch"],
+      "args": ["build"],
       "cwd": "${workspaceFolder}",
       "stopOnEntry": false,
       "console": "internalConsole"

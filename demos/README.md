@@ -22,9 +22,6 @@ There are currently five BASIC-DOS demo configurations:
 The 40 and 80-column demos are configured with borders.  A double-wide border
 indicates which session has keyboard focus.  Use **SHIFT-TAB** to toggle focus.
 
-BASIC-DOS development was performed on this PC XT [Build Machine](../build/).
-It's also available with [Dual Monitors](../build/dual/).
-
 ### **CONFIG.SYS** from the BASIC-DOS1 Diskette
 
 ```
