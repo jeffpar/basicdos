@@ -49132,7 +49132,7 @@ class Keyboardx86 extends Component {
         CTRL_ALT_SUB:     Keys.KEYCODE.NUM_SUB     + Keys.KEYCODE.FAKE,
         CTRL_ALT_ENTER:   Keys.KEYCODE.NUM_CR      + Keys.KEYCODE.FAKE,
         CTRL_ALT_SYS_REQ: Keys.KEYCODE.PRTSC       + Keys.KEYCODE.FAKE,
-        SHIFT_TAB:        Keys.KEYCODE.TAB         + Keys.KEYCODE.FAKE
+        SHIFT_TAB:        Keys.KEYCODE.TAB         + Keys.KEYCODE.ONDOWN + Keys.KEYCODE.FAKE    // ONDOWN avoids colliding with CTRL_I
     };
 
     /**
