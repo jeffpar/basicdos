@@ -139,6 +139,7 @@
     "BLKDEF",
     "BLKDEV",
     "BLKHDR",
+    "bootfpu",
     "BOOTKEY",
     "BPB's",
     "BPBEX",

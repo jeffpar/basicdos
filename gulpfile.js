@@ -150,7 +150,12 @@ for (let fileGroup in files) {
             sINC += "TXT_" + match[1] + "_OFF\tequ\t" + match.index + "\n";
             sINC += "TXT_" + match[1] + "_LEN\tequ\t" + match[0].length + "\n";
         }
-        fs.writeFileSync(outputFile, sINC);
+        /*
+         * Write the output file only if its contents changed, so that its timestamp doesn't trigger needless
+         * rebuilds of anything that depends on it (eg, COMMAND.COM).
+         */
+        let sOld = fs.existsSync(outputFile)? fs.readFileSync(outputFile, "utf8") : null;
+        if (sINC != sOld) fs.writeFileSync(outputFile, sINC);
         done();
     });
     buildTasks.unshift(buildTask);
