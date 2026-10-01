@@ -1844,6 +1844,11 @@ export default class PC extends PCJSLib {
         let count = 0;
         let aSystemFiles = this.getSystemValue("files");
         let attrHidden = verDOSMajor > 2? DiskInfo.ATTR.HIDDEN : 0;
+        /**
+         * BASIC-DOS can run hidden and system files (it locates programs by opening them), so its "helper binaries"
+         * are marked HIDDEN + SYSTEM, which keeps them out of DIR listings.
+         */
+        let attrHelper = this.systemType == "bd"? DiskInfo.ATTR.HIDDEN | DiskInfo.ATTR.SYSTEM : attrHidden;
         for (let name of aSystemFiles) {
             let desc, attr;
             if (!diSystem) {
@@ -1858,7 +1863,11 @@ export default class PC extends PCJSLib {
                         dbFile = dbCombined;
                         dbBoot2 = null;
                     }
-                    attr = this.systemType == "custom"? 0 : DiskInfo.ATTR.HIDDEN | DiskInfo.ATTR.SYSTEM | DiskInfo.ATTR.READONLY;
+                    /*
+                     * BASIC-DOS ("bd") locates its system files by name, not attributes, so we leave them
+                     * visible to DIR (which, like DOS, now skips hidden and system files).
+                     */
+                    attr = this.systemType == "custom" || this.systemType == "bd"? 0 : DiskInfo.ATTR.HIDDEN | DiskInfo.ATTR.SYSTEM | DiskInfo.ATTR.READONLY;
                     date = node.fs.statSync(name).mtime;
                     desc = diskLib.makeFileDesc(node.path.dirname(name), node.path.basename(name), dbFile, attr, date);
                     driveInfo.files.push(desc);
@@ -1888,7 +1897,7 @@ export default class PC extends PCJSLib {
          * determine if the interrupt came from LOAD.COM, and if so, process it as an internal "load [drive]" command.
          */
         if (!this.bare) {
-            driveInfo.files.push(diskLib.makeFileDesc(sDir, "LOAD.COM", [0xCD, 0x20, 0xC3, 0x90, 0x50, 0x43, 0x4A, 0x53, 0x00], attrHidden));
+            driveInfo.files.push(diskLib.makeFileDesc(sDir, "LOAD.COM", [0xCD, 0x20, 0xC3, 0x90, 0x50, 0x43, 0x4A, 0x53, 0x00], attrHelper));
         }
 
         /**
@@ -1897,7 +1906,7 @@ export default class PC extends PCJSLib {
          * to look for any changes and then terminate the machine.
          */
         if (!this.bare) {
-            driveInfo.files.push(diskLib.makeFileDesc(sDir, "QUIT.COM", [0xCD, 0x19, 0xC3, 0x90, 0x50, 0x43, 0x4A, 0x53, 0x00], attrHidden));
+            driveInfo.files.push(diskLib.makeFileDesc(sDir, "QUIT.COM", [0xCD, 0x19, 0xC3, 0x90, 0x50, 0x43, 0x4A, 0x53, 0x00], attrHelper));
         }
 
         /**
@@ -1906,7 +1915,7 @@ export default class PC extends PCJSLib {
          * collection of objects, where the keys are the app names and object properties like 'exec' tell us
          * what local program to execute.
          *
-         * NOTE: When I say these binaries will be hidden, well, that depends on the attrHidden setting (see above).
+         * NOTE: When I say these binaries will be hidden, well, that depends on the attrHelper setting (see above).
          */
         if (!this.bare) {
             let apps = configJSON['apps'] || {};
@@ -1959,7 +1968,7 @@ export default class PC extends PCJSLib {
                 for (let j = 0; j < len; j++) {
                     appContents.push(appName.charCodeAt(j));
                 }
-                driveInfo.files.push(diskLib.makeFileDesc(sDir, appFile, appContents, attrHidden));
+                driveInfo.files.push(diskLib.makeFileDesc(sDir, appFile, appContents, attrHelper));
             }
         }
 

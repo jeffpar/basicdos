@@ -124,3 +124,4 @@ DIRATTR_SYSTEM	equ	00000100b	; system file attribute
 DIRATTR_VOLUME	equ	00001000b	; volume name attribute
 DIRATTR_SUBDIR	equ	00010000b	; directory attribute
 DIRATTR_ARCHIVE	equ	00100000b	; backup attribute
+DIRATTR_SEARCH	equ	10000000b	; (internal) DOS search rules (see get_dirent)

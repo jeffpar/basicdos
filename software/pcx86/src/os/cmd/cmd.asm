@@ -279,11 +279,59 @@ DEFPROC	parseDOS
 	mov	[bp].CMD_DEFER[0],bx	; no deferred command (yet)
 	mov	[bp].HDL_INPIPE,bx	; no input pipe (yet)
 	mov	[bp].HDL_OUTPIPE,bx	; and no output pipe (yet)
+	mov	[bp].HDL_OUTFILE,bx	; or output file
 	dec	bx			; BX = -1
 	mov	[bp].HDL_INPUT,bx
 	mov	[bp].HDL_OUTPUT,bx
 	mov	[bp].SCB_NEXT,bl
 	inc	bx			; BX = 0 again (offset of 1st TOKLET)
+;
+; Before running anything, verify that every symbol is valid ("|", ">", or
+; ">>"), follows a command, and precedes another token; otherwise, it's a
+; syntax error.  Since
+; a redirection filename also ends a command, this rejects a pipe following
+; redirected output (eg, "DIR > TEST | CASE"), where nothing would ever write
+; to the pipe, leaving CASE waiting forever.
+;
+	sub	cx,cx			; CX = 0 (no command yet)
+pd0:	cmp	bx,ax			; reached end of TOKLETs?
+	jae	pd0c			; yes
+	cmp	[di].TOK_DATA[bx].TOKLET_CLS,CLS_SYM
+	je	pd0a
+	inc	cx			; command (or argument) exists
+	jmp	short pd0b
+pd0a:	jcxz	pd0x			; no command before the symbol
+	cmp	[di].TOK_DATA[bx].TOKLET_LEN,1
+	jne	pd0x			; not a single-character symbol
+	lea	dx,[bx + size TOKLET]
+	cmp	dx,ax			; is there at least one more token?
+	jae	pd0x			; no
+	mov	si,[di].TOK_DATA[bx].TOKLET_OFF
+	sub	cx,cx			; the next symbol requires a new command
+	cmp	byte ptr [si],'|'	; pipe symbol?
+	je	pd0b			; yes
+	cmp	byte ptr [si],'>'	; output redirection symbol?
+	jne	pd0x			; no
+	mov	bx,dx			; BX -> redirection filename
+;
+; The tokenizer returns every symbol character as a separate token, so ">>"
+; is a '>' token immediately followed by another '>' token.
+;
+	inc	si			; SI -> next character
+	cmp	[di].TOK_DATA[bx].TOKLET_OFF,si
+	jne	pd0d			; next token isn't adjacent
+	cmp	byte ptr [si],'>'	; is it another '>' (ie, ">>")?
+	jne	pd0d			; no
+	add	bx,size TOKLET		; yes, BX -> redirection filename
+	cmp	bx,ax			; is there a filename?
+	jae	pd0x			; no
+pd0d:	cmp	[di].TOK_DATA[bx].TOKLET_CLS,CLS_SYM
+	je	pd0x			; filename can't be a symbol
+pd0b:	add	bx,size TOKLET
+	jmp	pd0
+pd0x:	push	ax			; (pd9x expects end of TOKLETs on stack)
+	jmp	pd9x
+pd0c:	sub	bx,bx			; BX = 0 again
 
 pd1:	push	ax			; save end of TOKLETs
 	sub	cx,cx
@@ -302,23 +350,14 @@ pd3:	add	bx,size TOKLET
 	jmp	pd2
 pd3a:	jmp	pd9
 ;
-; There must be more tokens after the symbol; otherwise, it's a syntax error.
+; Symbols have already been validated (see pd0), so we can process it now.
 ;
-pd4:	sub	ax,size TOKLET		; reduce the limit
-	cmp	bx,ax			; is there at least one more token?
-	jb	pd4a			; yes
-	stc
-	jmp	pd9c			; bail on error
-
-pd4a:	push	bx
+pd4:	push	bx
 	mov	al,0
 	mov	bx,[di].TOK_DATA[bx].TOKLET_OFF
 	xchg	[bx],al			; null-terminated (AL = symbol)
 	mov	dx,bx			; DX is offset of symbol
 	pop	bx
-;
-; Similarly, the symbol must be valid; otherwise, it's a syntax error.
-;
 	push	ax
 	cmp	al,'|'			; pipe symbol?
 	jne	pd4b			; no
@@ -327,17 +366,36 @@ pd4a:	push	bx
 	mov	[bp].HDL_OUTPIPE,ax
 	jmp	short pd4c
 
-pd4b:	cmp	al,'>'			; output redirection symbol?
-	stc
-	jne	pd4d			; no
-	mov	al,1			; AL = 1 (request write-only handle)
+pd4b:	ASSERT	Z,<cmp al,CHR_GT>	; must be output redirection
+	mov	al,1			; AL = 1 (create/truncate) for ">"
+	push	si
+	mov	si,dx
+	inc	si			; SI -> character after the symbol
+	cmp	[di].TOK_DATA[bx + size TOKLET].TOKLET_OFF,si
+	jne	pd4f			; next token isn't adjacent
+	cmp	byte ptr [si],'>'	; is it another '>' (ie, ">>")?
+	jne	pd4f			; no
+	inc	ax			; AL = 2 (append) for ">>"
+	add	bx,size TOKLET		; and skip the 2nd '>'
+pd4f:	pop	si
 	call	openHandle		; open handle
 	jc	pd4d			; bail on error
+;
+; Output redirection applies to any command on the line, but if this isn't the
+; first command (eg, "DIR | CASE > TEST"), then it's either an external program
+; that cmdFile must load with this handle as its STDOUT, or an internal command
+; that we must run with this handle as our STDOUT (a deferred command will have
+; its own STDOUT, so replacing ours now is harmless).
+;
+	cmp	[bp].CMD_ARG,0		; first command on line?
+	je	pd4e			; yes
+	mov	[bp].HDL_OUTFILE,ax	; no, save handle for cmdFile
+	jmp	short pd4e
 
 pd4c:	cmp	[bp].CMD_ARG,0		; first command on line?
 	jne	pd4d			; no
-	push	bx
-	xchg	bx,ax			; yes, put pipe handle in BX
+pd4e:	push	bx
+	xchg	bx,ax			; yes, put pipe/file handle in BX
 	mov	al,ds:[PSP_PFT][bx]	; get its SFH
 	mov	ds:[PSP_PFT][STDOUT],al	; and then replace the STDOUT SFH
 	pop	bx
@@ -392,6 +450,7 @@ pd8:	add	bx,size TOKLET
 	shr	ax,1
 	mov	[bp].CMD_ARG,al
 	sub	ax,ax
+	mov	[bp].HDL_OUTFILE,ax
 	xchg	[bp].HDL_OUTPIPE,ax
 	mov	[bp].HDL_INPIPE,ax
 	pop	ax			; restore end of TOKLETs
@@ -417,8 +476,12 @@ pd9:	jc	pd9c
 
 pd9a:	call	cmdExec			; invoke deferred external command
 
+;
+; Use the deferred command's pipe handle, not HDL_INPIPE, which will have been
+; zeroed if another symbol followed the last command (eg, "DIR | CASE > TEST").
+;
 pd9b:	sub	cx,cx			; CX = 0 for "truncating" write
-	mov	bx,[bp].HDL_INPIPE
+	mov	bx,[bp].CMD_DEFER[8]	; BX = deferred command's pipe handle
 	mov	ah,DOS_HDL_WRITE
 	int	21h			; issue final write
 	mov	ah,DOS_HDL_CLOSE
@@ -433,6 +496,10 @@ pd9c:	call	cleanUp
 	pop	ax			; discard end of TOKLETs
 	pop	bp
 	ret
+
+pd9x:	PRINTF	<"Syntax error",13,10,13,10>
+	stc
+	jmp	pd9c			; bail on error
 ENDPROC	parseDOS
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -523,6 +590,8 @@ DEFPROC	cmdExec
 	int	21h
 	ASSERT	STRUCT,[bp],CMD
 	mov	word ptr [bp].EXIT_CODE,ax
+	mov	dx,word ptr [bp].SFH_STDIN
+	mov	word ptr ds:[PSP_PFT][STDIN],dx	; report to the original STDOUT
 	mov	dl,ah			; AL = exit code, DL = exit type
 	PRINTF	<"Return code %bd (%bd)",13,10,13,10>,ax,dx
 ce9:	ret
@@ -689,6 +758,8 @@ cf5b:	mov	al,CHR_RETURN		; regardless how the command line ends,
 	cmp	[bp].HDL_OUTPIPE,0
 	je	cf5c
 	mov	[bp].CMD_DEFER[0],-1	; set deferred EXEC code (-1)
+	mov	ax,[bp].HDL_OUTPIPE
+	mov	[bp].CMD_DEFER[8],ax	; save pipe handle for parseDOS
 	mov	ah,DOS_PSP_GET
 	int	21h
 	mov	[bp].CMD_PROCESS,bx	; save new PSP for the deferred EXEC
@@ -733,9 +804,11 @@ cf7:	stosb				; SPB_SFHIN
 	mov	al,[bp].SFH_STDOUT
 	mov	bx,[bp].HDL_OUTPIPE
 	test	bx,bx
-	jz	cf7a
-	mov	al,ds:[PSP_PFT][bx]
-cf7a:	stosb				; SPB_SFHOUT
+	jnz	cf7a
+	or	bx,[bp].HDL_OUTFILE	; output redirected to a file instead?
+	jz	cf7b			; no
+cf7a:	mov	al,ds:[PSP_PFT][bx]
+cf7b:	stosb				; SPB_SFHOUT
 	mov	al,ds:[PSP_PFT][STDERR]
 	stosb				; SPB_SFHERR
 	mov	al,ds:[PSP_PFT][STDAUX]
@@ -2214,10 +2287,12 @@ ENDPROC	writeOutput
 ;
 ; Open a handle for redirection.  An input handle requires an existing file
 ; (or device), whereas an output handle creates the file if it doesn't exist
-; (or truncates it if it does).
+; (or truncates it if it does).  An append handle opens an existing file and
+; seeks to the end, or creates the file if it can't be opened.
 ;
 ; Inputs:
-;	AL = 0 for input (read-only), 1 for output (create/truncate)
+;	AL = 0 for input (read-only), 1 for output (create/truncate),
+;	or 2 for append
 ;	DI -> TOKENBUF
 ;	BX = token offset
 ;
@@ -2239,17 +2314,31 @@ DEFPROC	openHandle
 	mov	dx,si
 	add	si,cx
 	xchg	[si],ch			; null-terminate the token
-	test	al,al			; output handle?
-	mov	ah,DOS_HDL_OPEN		; (AL = 0 for read-only access)
-	jz	oh0			; no
+	push	bx
 	push	cx
-	sub	cx,cx			; CX = attributes (none)
+	mov	ah,DOS_HDL_OPEN
+	cmp	al,1			; input handle?
+	jb	oh0b			; yes (AL = 0 for read-only access)
+	je	oh0a			; no, output handle
+	mov	al,MODE_ACC_WO		; append handle
+	int	21h			; so try opening an existing file
+	jc	oh0a			; and if that fails, create it
+	xchg	bx,ax			; BX = handle
+	push	dx
+	sub	cx,cx
+	sub	dx,dx
+	mov	ax,DOS_HDL_SEEKEND
+	int	21h			; seek to the end of the file
+	pop	dx
+	xchg	ax,bx			; AX = handle
+	clc
+	jmp	short oh0c
+oh0a:	sub	cx,cx			; CX = attributes (none)
 	mov	ah,DOS_HDL_CREATE
-	int	21h
-	pop	cx
-	jmp	short oh0a
-oh0:	int	21h
-oh0a:	jnc	oh1
+oh0b:	int	21h
+oh0c:	pop	cx
+	pop	bx
+	jnc	oh1
 	xchg	si,dx
 	call	openError		; report error (AX) opening file (SI)
 	mov	si,dx

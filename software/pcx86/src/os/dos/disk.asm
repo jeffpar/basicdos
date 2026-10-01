@@ -233,6 +233,7 @@ ENDPROC	dsk_getinfo
 DEFPROC	dsk_ffirst,DOS
 	LOCK_SCB
 	mov	al,[bp].REG_CL
+	or	al,DIRATTR_SEARCH	; AL = search attributes
 	mov	ah,80h			; AH = 80h (filespec)
 	mov	si,dx
 	mov	ds,[bp].REG_DS		; DS:SI -> filespec
@@ -324,6 +325,7 @@ DEFPROC	dsk_fnext,DOS
 	jc	fn8
 	mov	bl,[si].FFB_SATTR	; BL = search attributes
 	mov	dh,bl
+	or	bl,DIRATTR_SEARCH
 	mov	ax,[si].FFB_DIRNUM	; AX = prev DIRENT #
 	inc	ax			; AX = next DIRENT #
 	call	get_dirent
@@ -624,6 +626,12 @@ ENDPROC	get_cln
 ; Inputs:
 ;	AX = next DIRENT #, -1 if don't care
 ;	BL = file attributes, 0 if don't care
+;
+;	If BL includes DIRATTR_SEARCH, then the DOS rules for "find first" and
+;	"find next" apply: an entry matches only if all its HIDDEN, SYSTEM,
+;	VOLUME, and SUBDIR attributes are included in BL, so BL = DIRATTR_SEARCH
+;	alone matches only normal files (eg, not volume labels).  Otherwise,
+;	an entry matches if it has any of the attributes in BL.
 ;	DI -> BPB
 ;	SCB_FILENAME contains the filename
 ;
@@ -686,8 +694,16 @@ gd5:	cmp	byte ptr [si],DIRENT_END
 	test	bl,bl			; any attributes specified?
 	jz	gd5a			; no
 	mov	cl,[si].DIR_ATTR	; CL = attributes
+	test	bl,DIRATTR_SEARCH	; DOS search rules?
+	jnz	gd5f			; yes
 	test	cl,bl			; any of the attributes we care about?
 	jz	gd5e			; no
+	jmp	short gd5a
+gd5f:	and	cl,DIRATTR_HIDDEN OR DIRATTR_SYSTEM OR DIRATTR_VOLUME OR DIRATTR_SUBDIR
+	mov	ch,bl
+	not	ch
+	test	cl,ch			; any attributes that weren't requested?
+	jnz	gd5e			; yes
 
 gd5a:	push	di
 	mov	cx,size FCB_NAME
@@ -720,9 +736,10 @@ gd6:	mov	dx,es:[di].BPB_LBAROOT
 gd7:	sub	cx,cx			; start at offset zero of next sector
 	mov	si,offset DIR_BUFHDR
 	cmp	dx,bp			; back to the 1st LBA again?
-	jne	gd3			; not yet
+	je	gd7b			; yes
+	jmp	gd3			; not yet
 
-	mov	ax,ERR_NOFILE		; out of sectors, so no match
+gd7b:	mov	ax,ERR_NOFILE		; out of sectors, so no match
 	stc
 gd7a:	jmp	short gd9
 
