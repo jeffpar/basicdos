@@ -197,9 +197,11 @@ CODE	ENDS
 	DEFTOK	DEFINT, 44, genDefInt
 	DEFTOK	DEFSNG, 45, genDefDbl
 	DEFTOK	DEFSTR, 46, genDefStr
+	DEFTOK	DEL,    24, cmdDel
 	DEFTOK	DIR,    21, cmdDir
 	DEFTOK	ECHO,   47, genEcho
 	DEFTOK	ELSE,  201
+	DEFTOK	ERASE,  24, cmdDel
 	DEFTOK	EXIT,    1, cmdExit
 	DEFTOK	GOTO,   48, genGoto
 	DEFTOK	HELP,    2, cmdHelp

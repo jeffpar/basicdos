@@ -184,7 +184,11 @@ for (let fileGroup in files) {
     let outputFile = files[fileGroup][1];
     gulp.task(buildTask, function(done) {
         let sINC = "";
-        let sTXT = fs.readFileSync(inputFile, "utf8");
+        /*
+         * The offsets must match HELP.TXT as it exists on a BASIC-DOS disk, where text files have CR/LF line
+         * endings, so convert any LF-only line endings first (otherwise, nothing below will match).
+         */
+        let sTXT = fs.readFileSync(inputFile, "utf8").replace(/\r?\n/g, "\r\n");
         let match, reCmds = new RegExp("([A-Z]+)[\\S\\s]*?\r\n(\r\n|$)", "g");
         while ((match = reCmds.exec(sTXT))) {
             /*

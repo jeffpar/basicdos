@@ -58,7 +58,8 @@
             "configs/v2/CONFIG.SYS",    // NOTE: this CONFIG.SYS redirects all BASIC-DOS I/O to COM1
             "os/dev/OBJ/BASDEV.COM",
             "os/dos/OBJ/BASDOS.COM",
-            "os/cmd/OBJ/COMMAND.COM"
+            "os/cmd/OBJ/COMMAND.COM",
+            "os/cmd/HELP.TXT"
           ],
           "target": "BDV2"
         }

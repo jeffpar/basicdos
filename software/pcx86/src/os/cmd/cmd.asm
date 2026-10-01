@@ -1138,6 +1138,54 @@ ENDPROC	cmdDate
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; cmdDel
+;
+; Delete the specified file (also used by ERASE).  Wildcards aren't supported
+; yet, so we reject them rather than risk deleting the wrong file (eg, the
+; DOS parser would treat "BD*.BAT" as "BD").
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	DI -> TOKENBUF
+;	DS:SI -> filespec (with length CX)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cmdDel
+	push	si
+	push	cx
+	mov	dl,[bx].CMD_ARG
+	call	getToken		; was a filename specified?
+	pop	cx
+	pop	si
+	jc	de7			; no
+	push	si
+de1:	lodsb
+	cmp	al,'*'
+	je	de6
+	cmp	al,'?'
+	je	de6
+	loop	de1
+	pop	si
+	mov	dx,si			; DS:DX -> filename
+	mov	ah,DOS_DSK_DELETE
+	int	21h
+	jnc	de9
+	PRINTF	<"Unable to delete %s (%d)",13,10,13,10>,si,ax
+	ret
+de6:	pop	si
+	PRINTF	<"Wildcards not supported",13,10,13,10>
+	ret
+de7:	PRINTF	<"Missing filename",13,10,13,10>
+de9:	ret
+ENDPROC	cmdDel
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; cmdDir
 ;
 ; Print a directory listing for the specified filespec.

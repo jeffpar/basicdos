@@ -1855,6 +1855,14 @@ export default class PC extends PCJSLib {
             if (!diSystem) {
                 name = node.path.join(sSystemDisk, name);
                 let dbFile = await diskLib.readFileAsync(name, null, true);
+                if (dbFile && this.normalize && diskLib.isTextFile(name)) {
+                    /**
+                     * As readDirFiles() does for --normalize, convert the line endings of text files (eg, HELP.TXT,
+                     * whose offsets in BASIC-DOS's COMMAND.COM assume CR/LF line endings).
+                     */
+                    let text = await diskLib.readFileAsync(name, "utf8", true);
+                    dbFile = new DataBuffer(text.replace(/\r?\n/g, "\r\n"));
+                }
                 if (dbFile) {
                     let date;
                     if (dbBoot2 && dbBoot2.length) {
