@@ -77,15 +77,18 @@ This section tracks what's been completed (**[x]**) and what remains
 
 ### Command Interpreter: DOS Commands
 
-- [x] COPY, DATE, DIR, EXIT, HELP, KEYS, MEM, RESTART, TIME, TYPE, and VER
+- [x] COPY, DATE, DEL, DIR, EXIT, HELP, KEYS, MEM, RESTART, TIME, TYPE,
+      and VER
 - [x] Running COM, EXE, BAT, and BAS files, and loading programs into
       other sessions
-- [x] Pipes (`|`) and redirection (`>`)
+- [x] Pipes (`|`) and output redirection (`>` creates or truncates the
+      output file, `>>` appends to it), including redirection at the end
+      of a pipeline (eg, `DIR | CASE > TEST`)
 - [x] COPY creates (or truncates) the output file, and refuses to copy a
       file onto itself
-- [ ] *partial*: Output redirection works only with existing files (it
-      should use DOS_HDL_CREATE, like COPY)
-- [ ] DEL/ERASE, REN/RENAME, and SAVE (for BASIC programs)
+- [x] DEL/ERASE
+- [ ] Input redirection (`<`)
+- [ ] REN/RENAME, and SAVE (for BASIC programs)
 - [ ] Disk utilities (eg, FORMAT, CHKDSK, SYS)
 
 ### Command Interpreter: BASIC Language
@@ -111,26 +114,36 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit
 code.
 
 - [x] Parser support for floating-point constants (CLS_FLOAT tokens)
-- [x] DEFDBL and DEFSNG are accepted (currently no effect)
+- [x] DEFDBL and DEFSNG are accepted (DEFSNG is treated as DEFDBL)
 - [x] MBF-based MSLIB option removed
+- [x] FPU$ device driver, which detects an 8087 at boot and provides a
+      table of floating-point functions (IOCTL_GETFPU)
+- [x] 8087 functions: arithmetic (including `^`), comparisons, conversions
+      between longs and doubles, ABS, INT, FIX, and SQR
+- [x] String-to-double (FPU_ATOD) and double-to-string (FPU_DTOA)
+      conversions, and `%f` support in sprintf
+- [x] Expression generator support for mixed integer/floating-point
+      operations (promotion and demotion rules), using FPU$ calls
+- [x] FPUTESTS, run with and without an 8087 by `tools/tests/quick.sh`
+- [ ] *partial*: Software emulation for systems without an 8087 (only
+      negation and ABS work; everything else is a stub)
+- [ ] Floating-point constants and PRINT output in BASIC programs
+- [ ] BASIC math functions (eg, ABS, INT, FIX, SQR, SIN, COS, ATN, LOG, EXP)
+- [ ] Saving and restoring 8087 state on session switches (FPU$ functions
+      currently disable interrupts instead), and better error reporting for
+      FPU exceptions
 - [ ] Utility functions DOS_UTL_ATOF64, DOS_UTL_I32F64, and DOS_UTL_OPF64
-      (currently stubs)
-- [ ] Arithmetic and comparison operations
-- [ ] Conversions between integers and floating-point values
-- [ ] Floating-point input (parsing) and output (PRINT formatting)
-- [ ] Expression generator support for mixed integer/floating-point
-      operations (promotion and demotion rules)
-- [ ] Math functions (eg, SQR, SIN, COS, ATN, LOG, EXP)
-- [ ] Optional 8087 coprocessor support
+      (still stubs; possibly superseded by FPU$)
 
 ### Build, Tests, and Documentation
 
-- [x] Builds with MASM 4.0 using `mk.sh` (PC.js) or the in-browser
-      [Build Machine](build/)
+- [x] Builds with MASM 4.0 using `mk.sh` (PC.js), which also updates
+      the BASIC-DOS demo disks after a successful build
 - [x] DOSTESTS: CALL 5, memory allocation, file create/write/read-back,
       and file rename/delete tests
-- [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS, runs DOSTESTS,
-      and reports whether the tests passed)
+- [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS
+      with and without an 8087, runs FPUTESTS and DOSTESTS, and reports
+      whether the tests passed)
 - [ ] More tests (eg, BASIC language and CMD command tests)
 - [ ] Complete the [BASIC-DOS manual](docs/pcx86/bdman/)
 
@@ -138,14 +151,14 @@ code.
 
 These are the next steps, roughly in priority order:
 
-1. Use DOS_HDL_CREATE for output redirection, and add the DEL and REN
-   commands
+1. Add the REN command and input redirection
 2. Handle zero-length writes (truncation), the read-only attribute, and
    file attribute/date/time functions
 3. FCB create, write, delete, and rename functions
 4. Essential BASIC statements: GOSUB, FOR/NEXT, INPUT, READ/DATA, and DIM
 5. BASIC string functions and file I/O statements
-6. IEEE 754 floating-point support, starting with conversions and I/O
+6. Finish IEEE 754 floating-point support: software emulation, and
+   floating-point constants, PRINT, and math functions in BASIC
 7. Critical error handling
 8. Subdirectory support
 
@@ -159,54 +172,62 @@ on [GitHub](https://github.com/jeffpar) released under the terms of an
 
 ## Building BASIC-DOS
 
-The updated build process requires the [PCjs](https://github.com/jeffpar/pcjs)
-repository, along with the `v2` branch of the BASIC-DOS repository.
+Everything needed to build BASIC-DOS is in this repository, including the
+`pc.js` utility (in `tools/pc`) and the MS-DOS 3.20 disk image with MASM 4.0
+and associated tools that the build runs on.  Just clone the repository and
+install its Node.js dependencies:
 
-    git clone https://github.com/jeffpar/pcjs
     git clone https://github.com/jeffpar/basicdos
     cd basicdos
-    git checkout v2
+    npm install
 
-It's recommended that you also set environment variables to the locations of
-the repositories and then update your PATH to include the PCjs directories for
-the `diskimage.js` and `pc.js` utilities:
+If you also want successful builds to update the BASIC-DOS demo disks, you'll
+need the [PCjs](https://github.com/jeffpar/pcjs) repository (for its
+`diskimage.js` utility), with the `PCJS` environment variable set to its
+location:
 
-    $ export PCJS="$HOME/pcjs"
-    $ export BASICDOS="$HOME/basicdos"
-    $ export PATH="$PATH:$PCJS/tools/diskimage:$PCJS/tools/pc"
+    git clone https://github.com/jeffpar/pcjs
+    export PCJS="$HOME/pcjs"
 
-Now you're ready to build BASIC-DOS, using `pc.js` to load a `tools` disk
-image as drive C and the BASIC-DOS source code as drive D, using the `mk.sh`
-script:
+Now you're ready to build BASIC-DOS, using the `mk.sh` script, which runs
+`pc.js` with MS-DOS 3.20 as drive C and the BASIC-DOS source code as drive D:
 
-    $ mk.sh
+    $ ./mk.sh
     [Press CTRL-D to enter command mode]
 
-    C>ECHO OFF
+    C:\>D:
+
+    D:\>MK
     Microsoft (R) Program Maintenance Utility  Version 4.02
     Copyright (C) Microsoft Corp 1984, 1985, 1986.  All rights reserved.
-    
+
     ...
 
-    D:\>quit
+    D:\>QUIT
 
-Assuming the `mk` script was successful, you should now have everything you
-need to boot and run BASIC-DOS.
+Any files that the build modifies are written back to the `software/pcx86/src`
+directory.  A successful build runs QUIT automatically, after which `mk.sh`
+updates the demo disks (if `PCJS` is set); if a build fails and you don't want
+the demo disks updated, use `pc.js`'s "abort" command instead.
 
-The `boot.sh` script runs `pc.js` again, this time building a 360K boot floppy
-(the largest floppy supported by an IBM PC XT Model 5160) with BASIC-DOS boot
-sector and system files. If you have a folder with different files you want to
-include on the floppy, specify it in place of the `v2` folder:
+The `boot.sh` script then builds and boots a 360K floppy (the largest floppy
+supported by an IBM PC XT Model 5160) containing the BASIC-DOS boot sector and
+system files, along with the files in the `configs/console/serial/fpe` folder
+(including CONFIG.SYS and AUTOEXEC.BAT) and the test binaries that
+`tools/tests/prep.sh` copies there:
 
-    $ pc.js ibm5160 software/pcx86/src/configs/console/serial/fpe --system=bd --version=2 --floppy --serial
+    $ ./boot.sh
     [Press CTRL-D to enter command mode]
     BASIC-DOS 2.00B
     Press a key to start...
 
 The `bootfpu.sh` script does the same thing, but on an `ibm5160-fpu` machine
 (which has an 8087 coprocessor), using the `configs/console/serial/fpu` folder;
-`boot.sh` uses the `configs/console/serial/fpe` folder, where BASIC-DOS must
-emulate floating-point operations.
+`boot.sh` uses a machine without an 8087, where BASIC-DOS must emulate
+floating-point operations.
+
+Finally, `tools/tests/quick.sh` boots both configurations unattended, runs
+the FPUTESTS and DOSTESTS programs, and reports whether the tests passed.
 
 ## Tool Trivia
 
