@@ -48,6 +48,7 @@ export default class PC extends PCJSLib {
     bare = false;               // true if --bare specified
     debug = false;              // true if --debug specified
     halt = false;               // true if --halt specified
+    noSync = false;             // true if --nosync specified
     floppy = false;             // true if --floppy specified
     bootSector = "";
     bootSelect = "";
@@ -2427,7 +2428,10 @@ export default class PC extends PCJSLib {
         if (imageData) {
             let diskInfo = new DiskInfo(device, "PCJS");
             if (diskInfo.buildDiskFromJSON(imageData, true)) {
-                if (this.drives[this.driveBuild].driveManifest && sDir == this.localDir) {
+                /**
+                 * With --nosync, any changes to the disk (new, modified, or deleted files) are not saved to the directory.
+                 */
+                if (this.drives[this.driveBuild].driveManifest && sDir == this.localDir && !this.noSync) {
                     let oldManifest = this.drives[this.driveBuild].driveManifest;
                     let newManifest = diskInfo.getFileManifest(null, true);
                     /**
@@ -2490,7 +2494,7 @@ export default class PC extends PCJSLib {
                                 if (!compareContents(oldItem, newItem)) {
                                     let db = newItem.contents;
                                     if (this.debug) printf("updating: %s\n", newItemPath);
-                                    if (this.normalize && diskLib.isTextFile(newItemPath)) {
+                                    if (db && this.normalize && diskLib.isTextFile(newItemPath)) {
                                         db = diskLib.normalizeTextFile(new DataBuffer(db));
                                     }
                                     success = diskLib.writeFileSync(newItemPath, db, false, true);
@@ -2553,7 +2557,7 @@ export default class PC extends PCJSLib {
                                     node.fs.mkdirSync(newItemPath);
                                 } else {
                                     let db = newItem.contents;
-                                    if (this.normalize && diskLib.isTextFile(newItemPath)) {
+                                    if (db && this.normalize && diskLib.isTextFile(newItemPath)) {
                                         db = diskLib.normalizeTextFile(new DataBuffer(db));
                                     }
                                     success = diskLib.writeFileSync(newItemPath, db, true, false);
@@ -3409,6 +3413,7 @@ export default class PC extends PCJSLib {
 
         let driveInfo = this.newDrive();
         this.bare = PC.removeFlag(argv, 'bare', this.bare);
+        this.noSync = PC.removeFlag(argv, 'nosync', this.noSync);
         this.floppy = PC.removeFlag(argv, 'floppy', this.floppy);
         this.diskLabel = PC.removeArg(argv, 'label', defaults['label'] || this.diskLabel);
         this.normalize = PC.removeFlag(argv, 'normalize', defaults['normalize'] || this.normalize);
@@ -3950,6 +3955,7 @@ export default class PC extends PCJSLib {
                 "--help (-?)":              "\tdisplay command-line usage",
                 "--local (-l)":             "\tuse local diskette images",
                 "--messages (-m)":          "\tenable debugger messages",
+                "--nosync":                 "\tdon't save any disk changes to directory",
                 "--normalize (-n)":         "normalize characters in text files",
                 "--test (-t)":              "\tenable test mode (non-interactive)",
                 "--serial (s)":             "\tuse serial port instead of keyboard",

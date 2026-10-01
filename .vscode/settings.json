@@ -660,6 +660,7 @@
     "NORMD",
     "NOSECTOR",
     "NOSESSION",
+    "nosync",
     "NOTREADY",
     "NRELOCS",
     "nreserved",

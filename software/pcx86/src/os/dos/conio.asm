@@ -974,6 +974,60 @@ ENDPROC	read_char
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; con_read
+;
+; Read a line from the console for a handle read (see hdl_read).  As with
+; tty_input, characters are echoed and can be edited until ENTER is pressed,
+; and then the line is returned with CR/LF.  CTRLZ is not special here (it's
+; displayed as "^Z" and returned like any other character); it's up to the
+; caller (eg, COPY) to treat it as end-of-file.
+;
+; Inputs:
+;	CX = byte count (must be at least 4)
+;	REG_DS:DX -> data buffer
+;
+; Outputs:
+;	Carry clear, AX = bytes read
+;
+; Modifies:
+;	Any
+;
+DEFPROC	con_read,DOS
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
+	mov	es,[bp].REG_DS
+	mov	di,dx			; ES:DI -> data buffer
+	sub	cx,2			; leave room for INP_MAX and INP_CNT
+	cmp	cx,255			; since read_line expects an INPBUF
+	jbe	crd1
+	mov	cx,255
+crd1:	mov	es:[di].INP_MAX,cl
+	push	dx
+	mov	byte ptr [bp].TMP_AH,0	; TMP_AH = 0 for normal input
+	call	read_line
+	pop	dx
+	mov	es,[bp].REG_DS
+	mov	di,dx			; ES:DI -> data buffer again
+	mov	cl,es:[di].INP_CNT
+	mov	ch,0
+	inc	cx			; CX = # chars, including CR
+	lea	si,[di].INP_DATA
+	push	ds
+	push	es
+	pop	ds
+	ASSUME	DS:NOTHING
+	rep	movsb			; slide the line (and CR) down 2 bytes
+	pop	ds
+	ASSUME	DS:DOS
+	mov	al,CHR_LINEFEED
+	stosb				; append LF
+	call	write_char		; and display it, too
+	xchg	ax,di
+	sub	ax,dx			; AX = bytes read (and carry is clear)
+	ret
+ENDPROC	con_read
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; read_line
 ;
 ; Internal function for console input (tty_input, REG_AH = 0Ah)

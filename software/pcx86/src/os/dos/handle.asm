@@ -20,7 +20,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<chk_devname,chk_console,chk_filename>
 	EXTNEAR	<get_bpb,get_psp,find_cln,get_cln>
 	EXTNEAR	<sfb_create,sfb_commit,write_file>
-	EXTNEAR	<msc_sigctrlc,msc_readctrlc>
+	EXTNEAR	<msc_sigctrlc,msc_readctrlc,con_read>
 
 	EXTBYTE	<scb_locked>
 	EXTWORD	<scb_active>
@@ -123,7 +123,28 @@ DEFPROC	hdl_read,DOS
 	mov	cx,[bp].REG_CX		; CX = byte count
 	mov	es,[bp].REG_DS
 	mov	dx,[bp].REG_DX		; ES:DX -> data buffer
-	mov	al,IO_COOKED
+;
+; Like DOS, a read from the session's console (eg, "COPY CON TEST.TXT") is a
+; line read: characters are echoed and can be edited until ENTER is pressed,
+; and then the line is returned with CR/LF (see con_read).  Since we don't
+; buffer partial lines, reads of fewer than 4 bytes go to the device as-is.
+;
+	cmp	cx,4			; room for a line?
+	jb	hr1			; no
+	mov	si,[scb_active]
+	test	si,si			; is there an active session?
+	jz	hr1			; no
+	push	bx
+	mov	bl,[si].SCB_SFHOUT	; BL = session console SFH
+	call	sfb_from_sfh		; BX -> session console SFB
+	mov	ax,bx
+	pop	bx
+	jc	hr1
+	cmp	ax,bx			; reading from the session console?
+	jne	hr1			; no
+	call	con_read
+	jmp	short hr8
+hr1:	mov	al,IO_COOKED
 	call	sfb_read
 hr8:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
 hr9:	ret
@@ -206,7 +227,21 @@ DEFPROC	hdl_ioctl,DOS
 	call	sfb_get
 	pop	ax
 	jc	hs8			; return error in REG_AX
-	les	di,[bx].SFB_DEVICE	; ES:DI -> driver
+;
+; Like DOS, we handle IOCTL_GETDATA ourselves: REG_DX bit 7 is set for a
+; device; otherwise, bits 0-5 contain the file's (0-based) drive #.
+;
+	cmp	al,IOCTL_GETDATA	; get device data?
+	jne	hi1			; no
+	mov	al,[bx].SFB_DRIVE	; AL = drive # (-1 if device)
+	cbw
+	test	ax,ax			; device?
+	jge	hi0			; no (and carry is clear)
+	mov	ax,80h			; yes
+hi0:	mov	[bp].REG_DX,ax
+	ret
+
+hi1:	les	di,[bx].SFB_DEVICE	; ES:DI -> driver
 	mov	bx,[bx].SFB_CONTEXT	; BX = context
 	xchg	bx,dx			; DX = context, BX = REG_DX
 	mov	ah,DDC_IOCTLIN

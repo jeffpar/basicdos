@@ -1011,7 +1011,8 @@ ENDPROC	getToken
 ; cmdCopy
 ;
 ; Copy the specified input file to the specified output file, creating the
-; output file if it doesn't exist (or truncating it if it does).
+; output file if it doesn't exist (or truncating it if it does).  Like DOS,
+; if the input is a device (eg, "COPY CON TEST.TXT"), CTRLZ ends the copy.
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -1033,14 +1034,38 @@ DEFPROC	cmdCopy
 	jc	cc9
 	call	openOutput
 	jc	openError
-cc1:	mov	si,PSP_DTA		; SI -> DTA (used as a read buffer)
+cc1:	push	bx
+	mov	bx,[bx].HDL_INPUT
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETDATA
+	int	21h			; DX bit 7 set if input is a device
+	pop	bx
+	jnc	cc1a
+	sub	dx,dx
+cc1a:	and	dx,80h
+	mov	di,dx			; DI is non-zero if input is a device
+	mov	si,PSP_DTA		; SI -> DTA (used as a read buffer)
 cc2:	mov	cx,size PSP_DTA		; CX = number of bytes to read
 	call	readInput
 	jc	cc8
 	test	ax,ax			; anything read?
 	jz	cc8			; no
 	xchg	cx,ax			; CX = number of bytes to write
+	test	di,di			; is input a device?
+	jz	cc3			; no
+	push	di
+	mov	di,si
+	mov	dx,cx			; DX = number of bytes read
+	mov	al,CHR_CTRLZ
+	repne	scasb			; any CTRLZ?
+	pop	di
+	jne	cc2b			; no
+	sub	dx,cx			; yes, so write only the bytes before it
+	dec	dx
+	mov	cx,dx
 	call	writeOutput
+	jmp	short cc8
+cc2b:	mov	cx,dx			; CX = number of bytes to write
+cc3:	call	writeOutput
 	jnc	cc2
 ;
 ; NOTE: We no longer explicitly close the input and output files, either on
