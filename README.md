@@ -129,7 +129,7 @@ code.
       [Build Machine](build/)
 - [x] DOSTESTS: CALL 5, memory allocation, file create/write/read-back,
       and file rename/delete tests
-- [x] Unattended test runs using `test.sh` (boots BASIC-DOS, runs DOSTESTS,
+- [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS, runs DOSTESTS,
       and reports whether the tests passed)
 - [ ] More tests (eg, BASIC language and CMD command tests)
 - [ ] Complete the [BASIC-DOS manual](docs/pcx86/bdman/)
@@ -198,7 +198,7 @@ The `boot.sh` script runs `pc.js` again, this time building a 360K boot floppy
 sector and system files. If you have a folder with different files you want to
 include on the floppy, specify it in place of the `v2` folder:
 
-    $ pc.js ibm5160 software/pcx86/src/configs/v2 --system=bd --version=2 --floppy --serial
+    $ pc.js ibm5160 software/pcx86/src/configs/console/serial --system=bd --version=2 --floppy --serial
     [Press CTRL-D to enter command mode]
     BASIC-DOS 2.00B
     Press a key to start...

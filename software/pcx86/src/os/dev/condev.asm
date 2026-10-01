@@ -119,6 +119,7 @@ CTSTAT_BORDER	equ	01h	; context has border
 CTSTAT_ADAPTER	equ	02h	; context is using alternate adapter
 CTSTAT_SKIPMODE	equ	04h	; set to skip the mode set for the adapter
 CTSTAT_ABORT	equ	08h	; ABORT condition detected
+CTSTAT_INT10	equ	10h	; context writes characters using INT 10h
 CTSTAT_INPUT	equ	40h	; context is waiting for input
 CTSTAT_PAUSED	equ	80h	; context is paused (triggered by CTRLS hotkey)
 
@@ -598,6 +599,10 @@ ENDPROC	ddcon_write
 ; none, and [adapter] is the adapter #, in case there is more than one video
 ; adapter (adapter 0 is the default).
 ;
+; Alternatively, BIOS (or just B) can follow [rows] (eg, "CON:80,25,BIOS"),
+; in which case the remaining values are defaulted, and characters are written
+; using INT 10h instead of directly to the screen (see write_curpos).
+;
 ; Obviously future hardware (imagine an ENHANCED Graphics Adapter, for example)
 ; will be able to support more rows and other features, but we're designing
 ; exclusively for the MDA and CGA for now.
@@ -657,6 +662,10 @@ dco1:	push	cs
 	mov	cl,al			; CL = cols
 	DOSUTIL	ATOI16
 	mov	ch,al			; CH = rows
+	mov	al,[si]
+	or	al,20h			; fold to lower case
+	cmp	al,'b'			; BIOS option (eg, "CON:80,25,BIOS")?
+	pushf				; save the result (ZF) for later
 	DOSUTIL	ATOI16
 	mov	dl,al			; DL = starting col
 	DOSUTIL	ATOI16
@@ -668,7 +677,10 @@ dco1:	push	cs
 	shl	al,1
 	or	bh,al			; BH includes adapter bit, too
 	ASSERT	CTSTAT_ADAPTER,EQ,02h
-	pop	ds
+	popf				; was the BIOS option specified?
+	jne	dco1z			; no
+	or	bh,CTSTAT_INT10		; yes
+dco1z:	pop	ds
 	ASSUME	DS:CODE
 
 	push	bx
@@ -2264,6 +2276,8 @@ ENDPROC	write_context
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	write_curpos
+	test	ds:[CT_STATUS],CTSTAT_INT10
+	jnz	wcp8
 	push	bx
 	push	dx
 	les	di,ds:[CT_SCREEN]	; ES:DI -> screen location
@@ -2285,6 +2299,30 @@ wcp3:	mov	al,cl
 	sti
 	pop	dx
 	pop	bx
+	ret
+;
+; The context is using INT 10h passthrough (eg, "CON:80,25,BIOS"), so
+; position the BIOS cursor and write the character and attributes using INT 10h
+; instead of writing to the screen directly, allowing an emulator like pc.js to
+; capture all console output by monitoring INT 10h.
+;
+wcp8:	push	ax
+	push	bx
+	push	cx
+	push	dx
+	add	dx,ds:[CT_CONPOS]	; DL = screen col, DH = screen row
+	mov	bl,ah			; BL = attributes
+	mov	bh,0			; BH = display page
+	mov	ah,VIDEO_SETCPOS
+	int	INT_VIDEO
+	mov	al,cl			; AL = character
+	mov	cx,1			; CX = count
+	mov	ah,VIDEO_WRITECA
+	int	INT_VIDEO
+	pop	dx
+	pop	cx
+	pop	bx
+	pop	ax
 	ret
 ENDPROC	write_curpos
 

@@ -580,7 +580,10 @@ export default class PC extends PCJSLib {
             if (DL >= maxCols || DH >= maxRows) {
                 break;                      // ignore "off-screen" positions
             }
-            if (DH > machine.rowCursor || DH < machine.rowCursor && DL < machine.colCursor) {
+            if (DH > machine.rowCursor) {
+                printf('\n'.repeat(DH - machine.rowCursor));   // one newline per row (eg, to preserve blank lines)
+            }
+            else if (DH < machine.rowCursor && DL < machine.colCursor) {
                 printf('\n');
             }
             else if (DH == machine.rowCursor) {
@@ -1853,6 +1856,14 @@ export default class PC extends PCJSLib {
         for (let name of aSystemFiles) {
             let desc, attr;
             if (!diSystem) {
+                /**
+                 * If CONFIG.SYS or a text file (eg, HELP.TXT) from the system's list also exists in the directory we're
+                 * building, the directory's copy wins, so that a directory (eg, configs/console/bios) can provide its own CONFIG.SYS.
+                 */
+                let baseName = node.path.basename(name);
+                if ((baseName.toUpperCase() == "CONFIG.SYS" || diskLib.isTextFile(name)) && diskLib.existsFile(node.path.join(sDir, baseName))) {
+                    continue;
+                }
                 name = node.path.join(sSystemDisk, name);
                 let dbFile = await diskLib.readFileAsync(name, null, true);
                 if (dbFile && this.normalize && diskLib.isTextFile(name)) {

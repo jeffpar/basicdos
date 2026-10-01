@@ -1,3 +1,0 @@
-@ECHO OFF
-DATE
-TIME
