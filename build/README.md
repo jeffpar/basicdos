@@ -5,7 +5,7 @@ permalink: /build/
 machines:
   - id: ibm5160
     type: pcx86
-    config: /configs/pcx86/machine/ibm-5160-cga-512kb-debugger.json
+    config: /machines/pcx86/ibm/ibm-5160-cga-512kb-debugger.json
     autoType: $date\r$time\r\D:\rMK\r
     autoStart: true
     messages: int
@@ -64,7 +64,8 @@ but it can start a web server running your own copy of the BASIC-DOS Build
 Machine.  The BASIC-DOS [repository](https://github.com/jeffpar/basicdos)
 includes a `.vscode` folder with a [tasks.json](https://github.com/jeffpar/basicdos/blob/master/.vscode/tasks.json)
 that defines several tasks that should be configured to start when VS Code loads
-the BASIC-DOS project.
+the BASIC-DOS project (use the `Manage Automatic Tasks in Folder` command in
+VSCode's Command Palette to `Allow Automatic Tasks in Folder`).
 
 The first task (`bundle serve`) starts up the Jekyll web server.  Make sure
 you've successfully run both `npm install` and `bundle install` in your local
@@ -76,13 +77,13 @@ the BASIC-DOS source disk image whenever a BASIC-DOS source file has been change
 locally (eg, by the VS Code editor).
 
 Note that this task also requires the PCjs
-[DiskImage](https://github.com/jeffpar/pcjs/tree/master/tools#pcjs-diskimage-utility)
+[DiskImage](https://github.com/jeffpar/pcjs/tree/master/tools/diskimage)
 utility, so you should clone the [PCjs](https://github.com/jeffpar/pcjs)
 repository, run the usual `npm install`, and then set the environment variable
 `PCJS` to the fully-qualified name of the directory containing the clone.  Then
 verify that `diskimage` works; eg:
 
-    node $PCJS/tools/modules/diskimage.js
+    node $PCJS/tools/diskimage/diskimage.js
 
     DiskImage v2.04
     Copyright © 2012-2020 Jeff Parsons <Jeff@pcjs.org>
@@ -101,8 +102,8 @@ browser you *really* want to download and keep `BDSRC.img`, and then use the
 PCjs `diskimage` utility to extract files from the virtual hard disk;
 eg:
 
-    node $PCJS/tools/modules/diskimage.js BDSRC.img --extract --overwrite
-    cp -pR BDSRC/* $BASICDOS/software/pcx86/bdsrc/
+    node $PCJS/tools/diskimage/diskimage.js BDSRC.img --extract --normalize --overwrite
+    cp -pR BDSRC/* $BASICDOS/software/pcx86/src/
 
 Be very careful when using commands like those shown above.  It's easy to lose
 your work if it turns out the Build Machine's disk image was stale (eg, the

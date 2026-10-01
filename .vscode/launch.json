@@ -8,7 +8,7 @@
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS",
-      "url": "http://localhost:4040/demos/",
+      "url": "http://localhost:4040/demos/debugger/",
       "webRoot": "${workspaceFolder}"
     },
     {

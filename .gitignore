@@ -4,5 +4,9 @@
 .sass-cache
 archive
 Gemfile.lock
+package-lock.json
 /_site
 /node_modules
+bin/
+obj/
+/tools/pc/disks/

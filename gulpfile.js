@@ -1,39 +1,68 @@
 /**
  * @fileoverview Gulp file for basicdos.com
  * @author Jeff Parsons <Jeff@pcjs.org>
- * @copyright © 2020-2021 Jeff Parsons
+ * @copyright © 2020-2026 Jeff Parsons
  * @license MIT <https://basicdos.com/LICENSE.txt>
  *
  * This file is part of PCjs, a computer emulation software project at <https://www.pcjs.org>.
  */
 
-let fs = require("fs");
-let path = require("path");
-let gulp = require("gulp");
-var glob = require("glob");
-let run = require("gulp-run-command").default;
+import fs from "fs";
+import path from "path";
+import gulp from "gulp";
+import { globSync } from "glob";
+import { spawn } from "child_process";
+
+/**
+ * run(cmd)
+ *
+ * Returns a gulp task function that runs the given shell command, with output sent to the console.
+ *
+ * @param {string} cmd
+ * @returns {function(function(Error=))}
+ */
+function run(cmd)
+{
+    return function(done) {
+        spawn(cmd, { shell: true, stdio: "inherit" }).on("close", (code) => {
+            done(code? new Error("command failed with exit code " + code + ": " + cmd) : undefined);
+        });
+    };
+}
 
 let files = {
     "HELP": [
-        "./software/pcx86/bdsrc/cmd/HELP.TXT",
-        "./software/pcx86/bdsrc/cmd/txt.inc"
+        "./software/pcx86/src/os/cmd/HELP.TXT",
+        "./software/pcx86/src/os/cmd/txt.inc"
     ]
 };
 
 let demoFiles = [
-    "./software/pcx86/bdsrc/dev/obj/IBMBIO.COM",
-    "./software/pcx86/bdsrc/dos/obj/IBMDOS.COM",
-    "./software/pcx86/bdsrc/cmd/obj/COMMAND.COM",
-    "./software/pcx86/bdsrc/cmd/HELP.TXT",
-    "./software/pcx86/bdsrc/test/PRIMES.BA*",
-    "./software/pcx86/bdsrc/test/obj/*.EXE",
-    "./software/pcx86/bdsrc/test/obj/*.COM",
-    "./software/pcx86/bdsrc/test/BD*.BAT",
-    "./software/pcx86/bdsrc/test/bin/*.EXE",
-    "./software/pcx86/bdsrc/msb/obj/*.EXE"
+    "./software/pcx86/src/os/dev/obj/BASDEV.COM",
+    "./software/pcx86/src/os/dos/obj/BASDOS.COM",
+    "./software/pcx86/src/os/cmd/obj/COMMAND.COM",
+    "./software/pcx86/src/os/cmd/HELP.TXT",
+    "./software/pcx86/src/tests/primes/PRIMES.BA*",
+    "./software/pcx86/src/tests/bin/*.EXE",
+    "./software/pcx86/src/tests/bin/*.COM",
+    "./software/pcx86/src/tests/misc/BD*.BAT",
+    "./software/pcx86/src/tests/misc/*.EXE",
+    "./software/pcx86/src/msb/obj/*.EXE"
+];
+
+let minFiles = [
+    "./software/pcx86/src/os/dev/obj/BASDEV.COM",
+    "./software/pcx86/src/os/dos/obj/BASDOS.COM",
+    "./software/pcx86/src/os/cmd/obj/COMMAND.COM",
+    "./software/pcx86/src/os/cmd/HELP.TXT",
+    "./software/pcx86/src/msb/obj/*.EXE"
 ];
 
 let disks = {
+    "BASIC-DOS": [
+        "./demos/s80/CONFIG.SYS",
+        "./demos/s80/AUTOEXEC.BAT"
+    ].concat(minFiles),
     "BASIC-DOS1": [
         "./demos/s80/CONFIG.SYS",
         "./demos/d40/AUTOEXEC.BAT"
@@ -55,42 +84,43 @@ let disks = {
         "./demos/d40/AUTOEXEC.BAT",
     ].concat(demoFiles),
     "BDS-BOOT": [
-        "./software/pcx86/bdsrc/boot/*.asm",
-        "./software/pcx86/bdsrc/inc/*.inc",
-        "./software/pcx86/bdsrc/boot/makefile",
-        "./software/pcx86/bdsrc/boot/mk.bat"
+        "./software/pcx86/src/os/boot/*.asm",
+        "./software/pcx86/src/os/inc/*.inc",
+        "./software/pcx86/src/os/boot/makefile",
+        "./software/pcx86/src/os/boot/mk.bat"
     ],
     "BDS-DEV": [
-        "./software/pcx86/bdsrc/dev/*.asm",
-        "./software/pcx86/bdsrc/inc/*.inc",
-        "./software/pcx86/bdsrc/dev/makefile",
-        "./software/pcx86/bdsrc/dev/mk.bat"
+        "./software/pcx86/src/os/dev/*.asm",
+        "./software/pcx86/src/os/inc/*.inc",
+        "./software/pcx86/src/os/dev/makefile",
+        "./software/pcx86/src/os/dev/mk.bat"
     ],
     "BDS-DOS": [
-        "./software/pcx86/bdsrc/dos/*.asm",
-        "./software/pcx86/bdsrc/dos/*.lrf",
-        "./software/pcx86/bdsrc/inc/*.inc",
-        "./software/pcx86/bdsrc/dos/makefile",
-        "./software/pcx86/bdsrc/dos/mk.bat"
+        "./software/pcx86/src/os/dos/*.asm",
+        "./software/pcx86/src/os/dos/*.lrf",
+        "./software/pcx86/src/os/inc/*.inc",
+        "./software/pcx86/src/os/dos/makefile",
+        "./software/pcx86/src/os/dos/mk.bat"
     ],
     "BDS-CMD": [
-        "./software/pcx86/bdsrc/cmd/*.inc",
-        "./software/pcx86/bdsrc/cmd/*.asm",
-        "./software/pcx86/bdsrc/cmd/*.lrf",
-        "./software/pcx86/bdsrc/inc/*.inc",
-        "./software/pcx86/bdsrc/cmd/makefile",
-        "./software/pcx86/bdsrc/cmd/mk.bat"
+        "./software/pcx86/src/os/cmd/*.inc",
+        "./software/pcx86/src/os/cmd/*.asm",
+        "./software/pcx86/src/os/cmd/*.lrf",
+        "./software/pcx86/src/os/inc/*.inc",
+        "./software/pcx86/src/os/cmd/makefile",
+        "./software/pcx86/src/os/cmd/mk.bat"
     ],
     "BDS-TEST": [
-        "./software/pcx86/bdsrc/test/*.asm",
-        "./software/pcx86/bdsrc/test/*.BAS",
-        "./software/pcx86/bdsrc/test/*.BAT",
-        "./software/pcx86/bdsrc/inc/*.inc",
-        "./software/pcx86/bdsrc/test/makefile",
-        "./software/pcx86/bdsrc/test/mk.bat"
+        "./software/pcx86/src/tests/lib/*",
+        "./software/pcx86/src/tests/misc/*",
+        "./software/pcx86/src/tests/primes/*",
+        "./software/pcx86/src/tests/printf/*",
+        "./software/pcx86/src/os/inc/*.inc",
+        "./software/pcx86/src/tests/makefile",
+        "./software/pcx86/src/tests/mk.bat"
     ],
     "BDSRC": [
-        "./software/pcx86/bdsrc/**"
+        "./software/pcx86/src/**"
     ],
     "PCDOS200-C400": "./software/pcx86/disks/PCDOS200-C400.json"
 };
@@ -101,7 +131,7 @@ for (let diskName in disks) {
     let diskImage = "./software/pcx86/disks/" + diskName + ".json";
     let archiveImage = "";
     let diskFiles = "";
-    let kbTarget = 160;
+    let kbTarget = 180;
     if (typeof disks[diskName] == "string") {
         kbTarget = 10000;
         diskFiles = "--disk " + disks[diskName];
@@ -116,7 +146,7 @@ for (let diskName in disks) {
         for (let i = 0; i < disks[diskName].length; i++) {
             let fileNext = disks[diskName][i];
             if (fileNext.indexOf('*') >= 0) {
-                let filesNext = glob.sync(fileNext);
+                let filesNext = globSync(fileNext).sort();  // newer versions of glob no longer sort
                 if (filesNext.length) {
                     disks[diskName].push(...filesNext);
                     continue;
@@ -131,14 +161,14 @@ for (let diskName in disks) {
             dirPrev = dirNext;
         }
         diskFiles = "--files " + diskFiles;
-        archiveImage = " --output " + diskImage.replace(diskName, "archive/" + diskName).replace(".json",".img") + " --writable";
+        archiveImage = " --normalize --output " + diskImage.replace(diskName, "archive/" + diskName).replace(".json",".img") + " --writable";
         if (diskName.startsWith("BDS-")) {
             kbTarget = 360;
         } else {
-            diskFiles += " --boot ./software/pcx86/bdsrc/boot/obj/BOOT.COM";
+            diskFiles += " --boot ./software/pcx86/src/os/boot/obj/BOOT1.COM";
         }
     }
-    let cmd = "node \"${PCJS}/tools/modules/diskimage.js\" " + diskFiles + " --output " + diskImage + archiveImage + " --target=" + kbTarget + " --overwrite";
+    let cmd = "node \"${PCJS}/tools/diskimage/diskimage.js\" " + diskFiles + " --output " + diskImage + archiveImage + " --target=" + kbTarget + " --overwrite";
     cmd = cmd.replace(/\$\{([^}]+)\}/g, (_,n) => process.env[n]);
     gulp.task(buildTask, run(cmd));
     let watchTask = "WATCH-" + diskName;
@@ -154,7 +184,11 @@ for (let fileGroup in files) {
     let outputFile = files[fileGroup][1];
     gulp.task(buildTask, function(done) {
         let sINC = "";
-        let sTXT = fs.readFileSync(inputFile, "utf8");
+        /*
+         * The offsets must match HELP.TXT as it exists on a BASIC-DOS disk, where text files have CR/LF line
+         * endings, so convert any LF-only line endings first (otherwise, nothing below will match).
+         */
+        let sTXT = fs.readFileSync(inputFile, "utf8").replace(/\r?\n/g, "\r\n");
         let match, reCmds = new RegExp("([A-Z]+)[\\S\\s]*?\r\n(\r\n|$)", "g");
         while ((match = reCmds.exec(sTXT))) {
             /*

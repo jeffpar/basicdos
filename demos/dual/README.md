@@ -5,7 +5,7 @@ permalink: /demos/dual/
 machines:
   - id: ibm5150
     type: pcx86
-    config: /configs/pcx86/machine/ibm-5150-dual-256kb.json
+    config: /machines/pcx86/ibm/ibm-5150-dual-256kb.json
     debugger: available
     autoMount:
       A: "BASIC-DOS4"

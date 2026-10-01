@@ -1,0 +1,86 @@
+#
+# BASIC-DOS Makefile
+#
+# @author Jeff Parsons <Jeff@pcjs.org>
+# @copyright (c) 2020-2026 Jeff Parsons
+# @license MIT <https://basicdos.com/LICENSE.txt>
+#
+# This file is part of PCjs, a computer emulation software project at pcjs.org
+#
+ASM=MASM
+LINK=LINK
+EXE2BIN=EXE2BIN
+AFLAGS=/MX /R /D$(REL) /I..\INC
+
+#
+# Inference rules in the DOS MAKE utility apparently work only if the files
+# are in the same folder.  So for now, each dependency must copy these rules.
+#
+.ASM.OBJ:
+	$(ASM) $(AFLAGS) $*.ASM,$@;
+
+.ASM.LST:
+	$(ASM) $(AFLAGS) $*.ASM,$@,$*.LST;
+
+OBJ\DOSDATA.OBJ: DOSDATA.ASM ..\INC\DOS.INC
+	$(ASM) $(AFLAGS) $*.ASM,$@;
+
+OBJ\DOSINTS.OBJ: DOSINTS.ASM ..\INC\DOS.INC
+	$(ASM) $(AFLAGS) $*.ASM,$@;
+
+OBJ\CONIO.OBJ: CONIO.ASM ..\INC\DOS.INC
+	$(ASM) $(AFLAGS) $*.ASM,$@;
+
+OBJ\DEVICE.OBJ: DEVICE.ASM ..\INC\DOS.INC
+	$(ASM) $(AFLAGS) $*.ASM,$@;
+
+OBJ\DISK.OBJ: DISK.ASM ..\INC\DOS.INC
+	$(ASM) $(AFLAGS) $*.ASM,$@;
+
+OBJ\FAT.OBJ: FAT.ASM ..\INC\DOS.INC
+	$(ASM) $(AFLAGS) $*.ASM,$@;
+
+OBJ\FCBIO.OBJ: FCBIO.ASM ..\INC\DOS.INC
+	$(ASM) $(AFLAGS) $*.ASM,$@;
+
+OBJ\FILE.OBJ: FILE.ASM ..\INC\DOS.INC
+	$(ASM) $(AFLAGS) $*.ASM,$@;
+
+OBJ\HANDLE.OBJ: HANDLE.ASM ..\INC\DOS.INC
+	$(ASM) $(AFLAGS) $*.ASM,$@;
+
+OBJ\MEMORY.OBJ: MEMORY.ASM ..\INC\DOS.INC
+	$(ASM) $(AFLAGS) $*.ASM,$@;
+
+OBJ\MATH.OBJ: MATH.ASM ..\INC\DOS.INC
+	$(ASM) $(AFLAGS) $*.ASM,$@;
+
+OBJ\MISC.OBJ: MISC.ASM ..\INC\DOS.INC ..\INC\VERSION.INC
+	$(ASM) $(AFLAGS) $*.ASM,$@;
+
+OBJ\PROCESS.OBJ: PROCESS.ASM ..\INC\DOS.INC
+	$(ASM) $(AFLAGS) $*.ASM,$@;
+
+OBJ\SESSION.OBJ: SESSION.ASM ..\INC\DOS.INC
+	$(ASM) $(AFLAGS) $*.ASM,$@;
+
+OBJ\SPRINTF.OBJ: SPRINTF.ASM ..\INC\DOS.INC
+	$(ASM) $(AFLAGS) $*.ASM,$@;
+
+OBJ\UTILITY.OBJ: UTILITY.ASM ..\INC\DOS.INC
+	$(ASM) $(AFLAGS) $*.ASM,$@;
+
+OBJ\UTILSYS.OBJ: UTILSYS.ASM ..\INC\DOS.INC
+	$(ASM) $(AFLAGS) $*.ASM,$@;
+
+OBJ\SYSINIT.OBJ: SYSINIT.ASM ..\INC\DOS.INC ..\INC\VERSION.INC
+	$(ASM) $(AFLAGS) $*.ASM,$@;
+
+OBJ\BASDOS.COM: OBJ\DOSDATA.OBJ OBJ\DOSINTS.OBJ OBJ\CONIO.OBJ OBJ\DEVICE.OBJ \
+	OBJ\DISK.OBJ OBJ\FAT.OBJ OBJ\FCBIO.OBJ OBJ\FILE.OBJ OBJ\HANDLE.OBJ \
+	OBJ\MATH.OBJ OBJ\MEMORY.OBJ \
+	OBJ\MISC.OBJ OBJ\PROCESS.OBJ OBJ\SESSION.OBJ OBJ\SPRINTF.OBJ \
+	OBJ\UTILITY.OBJ OBJ\UTILSYS.OBJ OBJ\SYSINIT.OBJ BASDOS.LRF
+	$(LINK) @$*.LRF
+	$(EXE2BIN) OBJ\$*.EXE $@
+	DEL OBJ\$*.EXE

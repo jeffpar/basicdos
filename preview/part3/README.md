@@ -5,7 +5,7 @@ permalink: /preview/part3/
 machines:
   - id: ibm5150
     type: pcx86
-    config: /configs/pcx86/machine/ibm-5150-cga-64kb.json
+    config: /machines/pcx86/ibm/ibm-5150-cga-64kb.json
     sizeRAM: 128
     autoType: LOAD BD1.BAT\rLIST\rRUN\r
 ---
@@ -16,7 +16,7 @@ There are three versions of the **PRIMES** program on the `BASIC-DOS1` diskette:
 the **BAS** file previously demonstrated, a **BAT** version that uses line numbers
 only as needed (as labels), and an **EXE** version that was written in assembly
 language.  The source code for the assembly language version can be found in both
-the BASIC-DOS [Repository]({{ site.github.repository_url }}/blob/master/software/pcx86/bdsrc/test/primes.asm)
+the BASIC-DOS [Repository]({{ site.github.repository_url }}/blob/master/software/pcx86/src/tests/primes.asm)
 and [Build Machine](/build/), along with the rest of the BASIC-DOS source code.
 
 When processing an external filename, BASIC-DOS searches for extensions in the
