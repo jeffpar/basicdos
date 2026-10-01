@@ -9,4 +9,11 @@
 # COMPAQ DeskPro 386 configuration running MS-DOS 3.20, in part because that
 # machine has a real-time clock that MS-DOS 3.20 knows how to use.
 #
-tools/pc/pc.js --disk=software/pcx86/disks/MSDOS320-C400.json --dir=software/pcx86/src --normalize --speed=4
+# Drive D: is 20Mb (--target=20M), since the source directory (including the
+# test binaries that tools/tests/prep.sh copies into the configs folders) has
+# outgrown 10Mb.  The --fat option (16-bit FAT, 2K clusters, 512 root entries)
+# is also required, because by default, pc.js gives a 20Mb volume 1024 root
+# entries, which MS-DOS 3.20 apparently doesn't honor (it reads the volume as
+# if the root directory had 512 entries, so all files appear to be corrupted).
+#
+tools/pc/pc.js --disk=software/pcx86/disks/MSDOS320-C400.json --dir=software/pcx86/src --normalize --speed=4 --target=20M --fat=16:2048:512

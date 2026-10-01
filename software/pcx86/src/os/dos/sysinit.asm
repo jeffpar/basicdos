@@ -21,7 +21,7 @@ DOS	segment word public 'CODE'
 
 	EXTBYTE	<bpb_total,sfh_debug,def_switchar>
 	EXTWORD	<mcb_head,mcb_limit,buf_head,key_boot,scb_active>
-	EXTLONG	<bpb_table,scb_table,sfb_table,clk_ptr>
+	EXTLONG	<bpb_table,scb_table,sfb_table,clk_ptr,fpu_table>
 	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr,dos_opchk>
 	EXTNEAR	<dos_term,dos_func,dos_exit,dos_ctrlc,dos_error,dos_default>
 	EXTNEAR	<disk_read,disk_write,dos_tsr,dos_call5,dos_util,dos_leave>
@@ -481,7 +481,26 @@ si11:	mov	es:[scb_active],bx	; make the next SCB active
 	PRINTF	<"Error opening %s: %d">,dx,ax
 	jmp	fatal_error
 
-si12:	mov	si,offset CFG_DEBUG
+;
+; Get the address of the FPU$ driver's function table (FPUTBL), if any, for
+; sprintf's %f formatter.
+;
+si12:	mov	dx,offset FPU_DEVICE
+	mov	ax,DOS_HDL_OPENRO
+	int	21h
+	jc	si12a
+	xchg	bx,ax			; BX = SFH
+	push	ds
+	push	es
+	pop	ds
+	mov	si,offset fpu_table	; DS:SI -> fpu_table
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETFPU
+	int	21h
+	pop	ds
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+
+si12a:	mov	si,offset CFG_DEBUG
 	call	find_cfg		; look for "DEBUG="
 	jc	si13			; not found
 	mov	dx,di
@@ -908,6 +927,7 @@ CFG_SWITCHAR	db	9,"SWITCHAR="
 AUX_DEVICE	db	"AUX",0
 PRN_DEVICE	db	"PRN",0
 CLK_DEVICE	db	"CLOCK$",0
+FPU_DEVICE	db	"FPU$",0
 SHELL_FILE	db	"COMMAND.COM",0	; default SHELL file
 
 SYS_MSG		db	"BASIC-DOS "

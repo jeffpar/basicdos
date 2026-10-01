@@ -76,6 +76,9 @@ IOCTL_SCROLL	equ	0D6h	; CON: scroll (or clear) interior of context
 IOCTL_GETCOLOR	equ	0D7h	; CON: get fill (DL) and border (DH) colors
 IOCTL_SETCOLOR	equ	0D8h	; CON: set fill (CL) and border (CH) colors
 
+IOCTL_FPU	equ	0E0h
+IOCTL_GETFPU	equ	0E1h	; FPU$: store FPUTBL far ptr at DS:SI (see fpu.inc)
+
 ;
 ; Character codes that we care about.
 ;

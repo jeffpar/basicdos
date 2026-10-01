@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Copies the BASIC-DOS test binaries and batch files into the specified configuration folder
-# (eg, software/pcx86/src/configs/console/serial) before boot.sh or another script in tools/tests boots it.
+# (eg, software/pcx86/src/configs/console/serial/fpe) before boot.sh or another script in tools/tests boots it.
 #
 # Only CONFIG.SYS and AUTOEXEC.BAT are tracked in those folders (see software/pcx86/src/configs/.gitignore);
 # everything else is copied here, so build the sources first (see mk.sh) to make sure the copies are current.

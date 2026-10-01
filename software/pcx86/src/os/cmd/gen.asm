@@ -9,6 +9,7 @@
 ;
 	include	cmd.inc
 	include	8086.inc
+	include	fpu.inc
 
 CODE    SEGMENT
 
@@ -19,13 +20,11 @@ CODE    SEGMENT
 	EXTNEAR	<memError>
 	EXTNEAR	<clearScreen,callDOS,printArgs,printEcho,printLine>
 	EXTNEAR	<setColor,setFlags>
-	EXTNEAR	<convLong1ToDouble,convLong2ToDouble>
-	EXTNEAR	<convDouble1ToLong,convDouble2ToLong>
-	EXTNEAR	<conv1DoubleToLong,conv2DoubleToLong>
 
 	EXTWORD	<KEYWORD_TOKENS,KEYOP_TOKENS>
 	EXTBYTE	<OPDEFS,RELOPS>
-	EXTWORD	<EVAL_LONG,EVAL_DOUBLE,EVAL_STR>
+	EXTWORD	<EVAL_LONG,EVAL_STR>
+	EXTLONG	<FPU_TABLE>
 	EXTABS	<TOK_ELSE,TOK_OFF,TOK_ON,TOK_THEN>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -1038,13 +1037,11 @@ go2:	cmp	dh,VAR_LONG
 	je	go8a
 	cmp	cl,OPEVAL_NOT
 	jb	go8a
-	mov	cx,offset conv1DoubleToLong
-	je	go2a
-	mov	cx,offset conv2DoubleToLong
-go2a:	push	dx
-	GENCALL	cx
-	pop	dx
-	jmp	short go8
+	push	cx
+	mov	cx,FPU_CVT1DL
+	je	go3c
+	mov	cx,FPU_CVT2DL
+	jmp	short go3c
 go2x:	jmp	short go9
 ;
 ; Deal with type mismatches here.
@@ -1057,21 +1054,26 @@ go3x:	je	go8x			; then it's a guaranteed type mismatch
 ; A float and an int walk into a bar.  If the bar is "NOT" or above,
 ; the float must be demoted to int.  Otherwise, the int must be promoted.
 ;
+	push	cx
 	cmp	cl,OPEVAL_NOT
 	jae	go3b
 	cmp	dl,VAR_LONG
-	mov	cx,offset convLong1ToDouble
+	mov	cx,FPU_CVTL1D
 	jne	go3a
-	mov	cx,offset convLong2ToDouble
-go3a:	GENCALL	cx
+	mov	cx,FPU_CVTL2D
+go3a:	call	genCallFPU
+	pop	cx
+	jc	go8x
 	mov	dx,VAR_DOUBLE OR (VAR_DOUBLE SHL 8)
 	jmp	short go8a
 
 go3b:	cmp	dl,VAR_DOUBLE
-	mov	cx,offset convDouble1ToLong
+	mov	cx,FPU_CVTD1L
 	jne	go3c
-	mov	cx,offset convDouble2ToLong
-go3c:	GENCALL	cx
+	mov	cx,FPU_CVTD2L
+go3c:	call	genCallFPU
+	pop	cx
+	jc	go8x
 	mov	dx,VAR_LONG OR (VAR_LONG SHL 8)
 	jmp	short go8a
 
@@ -1082,19 +1084,25 @@ go8:	mov	dl,VAR_LONG
 ;
 go8a:	call	pushType		; DL = type to push
 	jcxz	go8x			; no evaluator implies an error
+	dec	cx
+	add	cx,cx			; CX = evaluator table offset
 	mov	si,offset EVAL_LONG
 	cmp	dh,VAR_LONG
 	je	go8b
-	mov	si,offset EVAL_DOUBLE
 	cmp	dh,VAR_DOUBLE
-	je	go8b
+	je	go8d
 	mov	si,offset EVAL_STR
-go8b:	dec	cx
-	add	si,cx
-	add	si,cx
+go8b:	add	si,cx
 	mov	cx,cs:[si]
 	GENCALL	cx			; generate call to operator evaluator
 	jmp	short go8c		; (GENCALL also clears carry)
+;
+; Since FPUTBL begins with entries for OPEVAL_NEG through OPEVAL_GE, CX is
+; also the FPUTBL offset of the evaluator.  And since operators above
+; OPEVAL_GE always demote doubles to longs, CX will never be any larger.
+;
+go8d:	call	genCallFPU
+	jmp	short go8c
 go8x:	stc
 go8c:	pop	si
 go9:	ret
@@ -1635,6 +1643,39 @@ fl8:	pop	di
 fl9:	pop	di
 	ret
 ENDPROC	findLabel
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genCallFPU
+;
+; Generates a far call to the FPU$ driver's function at the specified
+; FPUTBL offset.
+;
+; Inputs:
+;	CX = FPUTBL offset (eg, FPU_ADD)
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if there's no FPUTBL
+;
+; Modifies:
+;	CX, DX, DI
+;
+DEFPROC	genCallFPU
+	push	si
+	push	ds
+	lds	si,cs:[FPU_TABLE]
+	mov	dx,ds			; DX = FPUTBL segment
+	test	dx,dx			; is there an FPUTBL?
+	stc
+	jz	gcf9			; no
+	add	si,cx
+	mov	cx,[si]			; DX:CX -> FPUTBL function
+	call	genCallFar
+gcf9:	pop	ds
+	pop	si
+	ret
+ENDPROC	genCallFPU
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

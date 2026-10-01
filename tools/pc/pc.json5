@@ -55,7 +55,7 @@
           "boot1Offset": 0x550,         // offset of ORG'ed boot code in BOOT.COM (alternatively, use BOOT1.COM)
           "boot2Offset": 0,             // use 0x760 if BASDEV.COM does NOT already contain boot code from BOOT2.COM
           "files": [
-            "configs/console/serial/CONFIG.SYS",    // NOTE: this CONFIG.SYS redirects all BASIC-DOS I/O to COM1
+            "configs/console/serial/fpe/CONFIG.SYS",    // NOTE: this CONFIG.SYS redirects all BASIC-DOS I/O to COM1
             "os/dev/OBJ/BASDEV.COM",
             "os/dos/OBJ/BASDOS.COM",
             "os/cmd/OBJ/COMMAND.COM",

@@ -103,6 +103,7 @@
     "ARGVAR",
     "ARGVARs",
     "ASCIIZ",
+    "ASSERTMSG",
     "ATOF",
     "ATOI",
     "autoexec",
