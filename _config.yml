@@ -24,6 +24,7 @@ exclude:
   - package-lock.json
   - /software/pcx86/src
   - /tools
+  - "*.sh"
   - /.history
   - /node_modules
   - "**/archive"
