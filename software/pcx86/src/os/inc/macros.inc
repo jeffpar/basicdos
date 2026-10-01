@@ -404,7 +404,19 @@ DBGINIT	macro	type,ptr,str
 ; Run-time assertions are present only in DEBUG builds, and any optional
 ; instruction is wrapped with PUSHF/POPF.
 ;
-ASSERT	macro	cond,op,value
+; A run-time assertion may also include a message ("msg"), which the INT_UD
+; handler displays when the assertion fails.
+;
+; NEVER and FALSE are conditions that always fail; use NEVER for code that
+; should never be reached, and FALSE for code that isn't finished yet; eg:
+;
+;	ASSERT	FALSE,,,<"FPE EXP not implemented">
+;
+; NOTE: Messages require the INT_UD handler that BASIC-DOS system init
+; installs, so don't use them in driver init code (see OP_ASSERTMSG).
+;
+ASSERT	macro	cond,op,value,msg
+	local	a1
 	IFNB	<value>
 	 IFIDN	<cond>,<STRUCT>	;; must use "STRUCT" instead of "STRUC" here
 	ASSERT	Z,<cmp op&.&value&_SIG,SIG_&value>
@@ -420,9 +432,21 @@ ASSERT	macro	cond,op,value
 	op
 	  ENDIF
 	  IFDIF	<cond>,<NEVER>
+	   IFDIF <cond>,<FALSE>
+	    IFB	<msg>
 	J&cond	$+5
+	    ELSE
+	J&cond	a1
+	    ENDIF
+	   ENDIF
 	  ENDIF
+	  IFB	<msg>
 	OPCHECK	OP_ASSERT	;; use INT 06h to signal an assertion failure
+	  ELSE
+	OPCHECK	OP_ASSERTMSG	;; use INT 06h to signal an assertion failure
+	db	msg,0		;; followed by a null-terminated message
+a1:
+	  ENDIF
 	  IFNB	<op>
 	popf
 	  ENDIF
@@ -625,6 +649,10 @@ CCALL	macro	func,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15
 ; purpose on 8086/8088 processors (every opcode did something).  The concept
 ; of invalid opcodes came later, with the introduction of the 80186.
 ;
+; OP_ASSERTMSG is followed by a null-terminated message, which only the
+; BASIC-DOS INT_UD handler knows how to skip; the temporary handler installed
+; during driver init (and the IRET in non-DEBUG systems) will not.
+;
 ; With the exception of OP_ASSERT, these operations should have no effect
 ; in a non-PCjs environment (or on a real machine), since BASIC-DOS system
 ; initialization installs an INT_UD handler to deal with them.  And if you
@@ -634,6 +662,7 @@ CCALL	macro	func,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15
 ;
 OP_DBGBRK	equ	0CCh		; signal an internal breakpoint
 OP_ASSERT	equ	0F9h		; signal an assertion failure
+OP_ASSERTMSG	equ	0FAh		; signal an assertion failure (with message)
 OP_MUL32	equ	0FBh		; verify 32-bit multiplication result
 OP_DIV32	equ	0FCh		; verify 32-bit division result
 

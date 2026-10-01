@@ -35,6 +35,14 @@ CODE    SEGMENT
 	DEFSTR	VER_FINAL,<0,0>
 	DEFSTR	HELP_FILE,<"HELP.TXT",0>
 	DEFSTR	PIPE_NAME,<"PIPE$",0>
+	DEFSTR	FPU_NAME,<"FPU$",0>
+;
+; FPU_TABLE is a far pointer to the FPU$ driver's FPUTBL, which every
+; instance of the interpreter obtains at startup (see main); it's the same for
+; every instance, so it's fine to keep it in our shared code segment.  It
+; remains zero if the FPU$ driver isn't available.
+;
+	DEFPTR	FPU_TABLE
 	DEFSTR	STR_ON,<"ON",0>
 	DEFSTR	STR_OFF,<"OFF",0>
 
@@ -134,30 +142,10 @@ CODE    SEGMENT
 	dw	evalEqvLong
 	dw	evalImpLong
 
-	DEFLBL	EVAL_DOUBLE,word
-	dw	0 ; evalNegDouble
-	dw	0 ; evalExpDouble
-	dw	0 ; evalMulDouble
-	dw	0 ; evalDivDouble
-	dw	0 ; evalAddDouble
-	dw	0 ; evalSubDouble
-	dw	0 ; evalEQDouble
-	dw	0 ; evalNEDouble
-	dw	0 ; evalLTDouble
-	dw	0 ; evalGTDouble
-	dw	0 ; evalLEDouble
-	dw	0 ; evalGEDouble
-	dw	0
-	dw	0
-	dw	0
-	dw	0
-	dw	0
-	dw	0
-	dw	0
-	dw	0
-	dw	0
-	dw	0
-
+;
+; There's no EVAL_DOUBLE table; the evaluators for doubles come from the
+; FPU$ driver's FPUTBL (see FPU_TABLE and genCallFPU).
+;
 	DEFLBL	EVAL_STR,word
 	dw	0,0,0,0,evalAddStr,0
 	dw	evalEQStr

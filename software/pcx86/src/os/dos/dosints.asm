@@ -138,11 +138,19 @@ DEFPROC	dos_opchk,DOSFAR
 	cld
 	lodsb
 	mov	[bp+2],si		; update CS:IP to skip OPCHECK byte
+	cmp	al,OP_ASSERTMSG		; OP_ASSERTMSG?
+	je	oc1			; yes
 	cmp	al,OP_ASSERT		; OP_ASSERT?
 	jnz	oc9			; no
 	sub	si,3			; display the address of the INT 06h
 	; PRINTF	<"Assertion failure @%08lx",13,10>,si,ds
-	DBGBRK
+	jmp	short oc8
+oc1:	PRINTF	<"Assertion failure: %ls",13,10>,si,ds
+oc2:	lodsb				; skip the message
+	test	al,al
+	jnz	oc2
+	mov	[bp+2],si		; and update CS:IP again
+oc8:	DBGBRK
 oc9:	pop	ds
 	pop	si
 	pop	ax

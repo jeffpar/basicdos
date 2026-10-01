@@ -12,11 +12,18 @@
 	include	dos.inc
 	include	dosapi.inc
 	include	parser.inc
+	include	fpu.inc
 
 DOS	segment word public 'CODE'
 
 	EXTWORD	<MONTHS,DAYS>
 	EXTNEAR	<strlen,day_of_week,div_32_16>
+
+;
+; fpu_table is a far pointer to the FPU$ driver's FPUTBL, which sysinit
+; obtains with IOCTL_GETFPU; it remains zero if there's no FPU$ driver.
+;
+	DEFPTR	fpu_table
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -173,12 +180,21 @@ ENDPROC itoa
 ;	%d:	signed 16-bit decimal integer (%bd for 8-bit, %ld for 32-bit)
 ;	%u:	unsigned 16-bit decimal integer (%bu for 8-bit, %lu for 32-bit)
 ;	%s:	string (near DS-relative pointer); use %ls for far pointer
+;	%f:	64-bit double, formatted by the FPU$ driver (see FPU_DTOA);
+;		BASIC-style unless a precision is given, and nothing is output
+;		if the FPU$ driver isn't loaded
+;
+; NOTE: Although both 32-bit floats and 64-bit doubles are legitimate FPU
+; data types, and "%f" and "%lf" format specifiers have traditionally been
+; used for each type, BASIC-DOS supports only 64-bit doubles, so we decided
+; to eliminate the "l" format prefix.  It also avoids the confusion of "l"
+; implying 32-bit values for some data types and 64-bit values for others.
 ;
 ; Formatters also support flags '#' and '-' as well as width and precision
 ; (eg, "-10.4s" prints 10 characters, left-justified, with max of 4 characters
 ; from the given string).
 ;
-; Standard formatters in DEBUG-only builds (to save space):
+; Standard formatters (in DEBUG-only builds, to save space):
 ;	%x:	unsigned 16-bit hex integer (%bx for 8-bit, %lx for 32-bit);
 ;		use precision of ".n" to display n digits
 ;
@@ -556,66 +572,39 @@ pfd6:	pop	cx
 	clc
 pfd9:	ret
 ;
-; Process %f formatter (assumes a 64-bit IEEE-754 floating-point value)
+; Process %f formatter, by passing the 64-bit double, along with the width,
+; precision, flags, and remaining buffer length, to the FPU$ driver's FPU_DTOA
+; function (see fpu_table).
 ;
-;   [BP+SI+6] = bits 63-48 (1 sign bit + 11 exponent bits + 4 fraction bits)
-;   [BP+SI+4] = bits 47-32 (next 16 fraction bits)
-;   [BP+SI+2] = bits 31-16 (next 16 fraction bits)
-;   [BP+SI+0] = bits 15-0  (last 16 fraction bits)
-;
-; The exponent is biased by 1023 (0x3FF), and the fraction bits are preceded
-; by an implicit leading 1 bit for normal numbers (exponent not all 0s or 1s).
-;
-; If the biased exponent is all 1s (0x7FF), the value is either infinity
-; (if the fraction is all 0s) or NaN (if the fraction is non-zero), and if
-; biased exponent is all 0s, the value is either zero (if fraction is all 0s)
-; or a subnormal ("denormal") number (if fraction is non-zero), in which
-; case the implicit leading digit is 0 instead of 1.
-;
-; We'll avoid scientific notation if the unbiased exponent is in the range
-; if -24 to +24, which covers roughly 1.0E-7 to 1.0E+7.
-;
-pff:	DBGBRK
-;
-; Load the top word of the IEEE-754 double, to get sign and exponent.
-; Initially, we will focus just on the whole number portion of the double,
-; and leverage the existing %d code as much as possible.
-;
-	push	cx
-	mov	ax,[bp+si+6]		; AX = bits 63-48
-	mov	dx,ax
-	and	dx,0004h		; DX = top 4 fraction bits
-	or	dx,0010h		; set implicit leading 1 bit
-	mov	cl,4
-	shr	ax,cl			; AX = exponent (biased)
-	and	ax,07FFh		; AX = exponent (biased)
-	sub	ax,1023			; AX = exponent (unbiased)
-	jb	pff1			; exponent < 0
-	cmp	ax,32
-	jae	pff2			; exponent >= 32
-;
-; OK, the whole number portion fits in 32 bits.  Let's build it.
-;
-; For exponents 0 to 4, we must shift the fraction right 4 to 0 bits, and for
-; exponents 5 to 31, we must shift the fraction left 1 to 27 bits, shifting in
-; bits from the lower fraction word at [bp+si+4] as needed.
-;
-	mov	cl,4
-	sub	cl,al			; CX = 4 - exponent
-	jb	pff1
-	shr	dx,cl			; shift right fraction
-	jmp	short pff2
-pff1:	neg	cx			; CX is now 1 to 27
-	shl	dx,cl			; shift left fraction
-	mov	ax,[bp+si+4]		; shift AX right 32-CX bits
-	neg	cl
-	add	cl,32
-	shr	ax,cl
-	or	dx,ax			; combine into DX
-pff2:	xchg	ax,dx
-	sub	dx,dx
-	pop	cx
-	jmp	pf36
+pff:	push	bx
+	push	si
+	push	ds
+	lds	bx,cs:[fpu_table]	; DS:BX -> FPUTBL
+	mov	ax,ds
+	test	ax,ax			; is there an FPU$ driver?
+	jz	pff9			; no
+	push	ax
+	push	[bx].FPU_DTOA		; push far pointer to FPU_DTOA
+	mov	ah,ch			; AH = flags
+	mov	al,0FFh			; AL = no precision
+	mov	dx,[bp].SPF_PRECIS
+	test	dx,dx			; was a precision specified?
+	js	pff1			; no
+	mov	al,dl			; AL = precision
+pff1:	mov	dx,[bp].SPF_WIDTH	; DX = width
+	mov	cx,[bp].SPF_LIMIT
+	sub	cx,di			; CX = remaining buffer length
+	push	ss
+	pop	ds
+	lea	si,[bp+si]		; DS:SI -> double
+	mov	bx,sp
+	call	dword ptr ss:[bx]
+	add	sp,4
+pff9:	pop	ds
+	pop	si
+	pop	bx
+	add	si,8			; skip the double
+	jmp	pf1
 ;
 ; Process %F formatter, which we convert to a "fake" string parameter.
 ;

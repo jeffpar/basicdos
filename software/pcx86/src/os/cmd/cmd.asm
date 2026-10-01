@@ -16,7 +16,8 @@ CODE    SEGMENT
 	EXTNEAR	<writeStrCRLF>
 	EXTWORD	<KEYWORD_TOKENS>
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF,PERIOD>
-	EXTSTR	<VER_FINAL,VER_DEBUG,HELP_FILE,PIPE_NAME>
+	EXTSTR	<VER_FINAL,VER_DEBUG,HELP_FILE,PIPE_NAME,FPU_NAME>
+	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -52,6 +53,22 @@ m0:	mov	bx,ds:[PSP_HEAP]
 	mov	dx,offset ctrlc		; DS:DX -> CTRLC handler
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	int	21h
+;
+; Get the address of the FPU$ driver's function table (FPUTBL), which the
+; code generator uses for all floating-point operations.
+;
+	push	bx
+	mov	dx,offset FPU_NAME	; DS:DX -> FPU_NAME
+	mov	ax,DOS_HDL_OPENRO
+	int	21h
+	jc	m0a
+	xchg	bx,ax			; BX = handle
+	mov	si,offset FPU_TABLE	; DS:SI -> FPU_TABLE
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETFPU
+	int	21h
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+m0a:	pop	bx
 	pop	ds
 
 	PRINTF	<"BASIC-DOS Interpreter",13,10,13,10>
