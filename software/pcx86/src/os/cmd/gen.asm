@@ -7,6 +7,26 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+; This is the core of the code generator: genCode generates (and runs) the
+; code for a line or program, genCommands dispatches each command to its
+; generator, and genExpr generates expressions (including operators and type
+; conversions).  It also contains the token, label, and code-emitting helpers
+; that all the gen*.asm files share (eg, getNextToken, findLabel, GENCALL's
+; genCallCS, and GENPUSH's genPushImm).
+;
+; Generates code for these commands:
+;
+;	DEF				(genDefFn: user-defined functions)
+;	DEFDBL/DEFINT/DEFSNG/DEFSTR	(genDefDbl, genDefInt, genDefStr)
+;	LET				(genLet)
+;	All DOS commands		(genDOS, generates call to callDOS)
+;
+; The other gen*.asm files include:
+;
+;	gencon.asm			console I/O (CLS, COLOR, ECHO, PRINT)
+;	genflow.asm			control (GOTO, IF/THEN/ELSE, RETURN)
+;	genfpu.asm			floating-point support
+;
 	include	cmd.inc
 	include	8086.inc
 	include	fpu.inc
@@ -18,14 +38,14 @@ CODE    SEGMENT
 	EXTNEAR	<allocTempVars,updateTempVars,freeTempVars>
 	EXTNEAR	<addVar,getVar,removeVar,setVar,setVarLong,setVarDouble>
 	EXTNEAR	<memError>
-	EXTNEAR	<clearScreen,callDOS,printArgs,printEcho,printLine>
-	EXTNEAR	<setColor,setFlags>
+	EXTNEAR	<callDOS,printLine>
 
 	EXTWORD	<KEYWORD_TOKENS,KEYOP_TOKENS>
 	EXTBYTE	<OPDEFS,RELOPS>
 	EXTWORD	<EVAL_LONG,EVAL_STR>
-	EXTLONG	<FPU_TABLE>
-	EXTABS	<TOK_ELSE,TOK_OFF,TOK_ON,TOK_THEN>
+	EXTNEAR	<genCallFPU,genCallFPUDst,genCallFPUDst2>
+	EXTNEAR	<genConstDouble,genFnCall>
+	EXTABS	<TOK_ABS,TOK_TAN>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -188,27 +208,6 @@ ENDPROC	genCommands
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genCLS
-;
-; Generate code for "CLS"
-;
-; Inputs:
-;	DS:BX -> TOKLETs
-;	ES:DI -> code block
-;
-; Outputs:
-;	Carry clear if successful, set if error
-;
-; Modifies:
-;	Any
-;
-DEFPROC	genCLS
-	GENCALL	clearScreen
-	ret
-ENDPROC	genCLS
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; genDOS
 ;
 ; Generate code for DOS commands.
@@ -247,35 +246,6 @@ DEFPROC	genDOS
 	mov	[si].TOKLET_END,bx	; mark the tokens fully processed
 	ret
 ENDPROC	genDOS
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genColor
-;
-; Generate code for "COLOR fgnd[,[bgnd[,[border]]"
-;
-; Inputs:
-;	DS:BX -> TOKLETs
-;	ES:DI -> code block
-;
-; Outputs:
-;	Carry clear if successful, set if error
-;
-; Modifies:
-;	Any
-;
-DEFPROC	genColor
-	sub	cx,cx
-gco1:	call	genExpr
-	jb	gco9
-	je	gco8
-	inc	cx
-	cmp	al,','			; was the last symbol a comma?
-	je	gco1			; yes, go back for more
-gco8:	GENPUSH	cx
-	GENCALL	setColor
-gco9:	ret
-ENDPROC	genColor
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -654,43 +624,6 @@ ENDPROC	genDefStr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genEcho
-;
-; Process "ECHO".  If "ECHO ON" or "ECHO OFF", generate call to setFlags.
-;
-; Inputs:
-;	DS:BX -> TOKLETs
-;	ES:DI -> code block
-;
-; Outputs:
-;	Carry clear if successful, set if error
-;
-; Modifies:
-;	Any
-;
-DEFPROC	genEcho
-	mov	al,CLS_KEYWORD
-	call	getNextToken
-	jb	gec9
-	jnz	gec1
-	GENCALL	printEcho
-	ret
-gec1:	cmp	al,TOK_ON
-	jne	gec2
-	mov	ah,NOT CMD_NOECHO
-	jmp	short gec8
-gec2:	cmp	al,TOK_OFF
-	stc
-	jne	gec9
-	mov	ah,CMD_NOECHO
-gec8:	mov	al,OP_MOV_AL
-	stosw				; "MOV AL,xx" where XX is value in AH
-	GENCALL	setFlags
-gec9:	ret
-ENDPROC	genEcho
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; genExpression (aka genExpr)
 ;
 ; Generate code for an expression.
@@ -756,7 +689,9 @@ ge1:	mov	al,CLS_ANY		; CLS_NUM, CLS_SYM, CLS_VAR, CLS_STR
 ; Non-operator (non-symbol) cases: keywords, variables, strings, and numbers.
 ;
 	cmp	ah,CLS_KEYWORD		; keyword? (30h)
-	je	ge1x			; keywords end the expression (eg, THEN)
+	jne	ge1c			; no
+	jmp	ge1k			; yes (see if it's a function)
+ge1c:
 	cmp	byte ptr [exprPrevOp],-1
 	je	ge1x
 	mov	byte ptr [exprPrevOp],-1; invalidate prevOp (intervening token)
@@ -855,26 +790,32 @@ ge3a:	DOSUTIL	ATOI32			; DS:SI -> numeric string (length CX)
 	jmp	ge1			; go count another queued value
 ge3x:	jmp	ge8
 ;
-; Process CLS_FLOAT.  We convert the constant to a double now, storing it in
-; a slot in the code block, and since doubles are always passed by reference,
-; we generate code to push a pointer to the slot.
+; Process CLS_FLOAT (see genConstDouble).
 ;
-ge3f:	call	genSlot			; DX = offset of slot
-	push	bx
-	push	di
-	mov	di,dx			; ES:DI -> slot
-	mov	cx,FPU_ATOD
-	call	callFPU			; DS:SI -> numeric string
-	mov	dx,di			; DX = offset of slot again
-	pop	di
-	pop	bx
+ge3f:	call	genConstDouble		; DS:SI -> numeric string
 	jc	ge3x			; conversion error
-	mov	al,OP_PUSH_CS
-	stosb
-	call	genPushImm		; push offset of slot
 	mov	dl,VAR_DOUBLE
 	call	pushType		; update expression type
 	jmp	ge1
+;
+; Process numeric function keywords (TOK_ABS through TOK_TAN), which take
+; one parenthesized argument and call the corresponding FPU$ function, so the
+; argument is converted to a double if necessary, and so is the result.  Any
+; other keyword ends the expression (eg, THEN).
+;
+ge1k:	cmp	al,TOK_ABS
+	jb	ge1kx
+	cmp	al,TOK_TAN
+	ja	ge1kx
+	cmp	byte ptr [exprPrevOp],-1; preceded by an operand?
+	je	ge1kx			; yes, so the expression is over
+	mov	byte ptr [exprPrevOp],-1
+	call	genFnCall		; generate the function call
+	jc	ge3x
+	mov	dl,VAR_DOUBLE
+	call	pushType		; update expression type
+	jmp	ge1
+ge1kx:	jmp	ge1x
 ;
 ; Process CLS_SYM.  Before we try to validate the operator, we need to remap
 ; binary minus to unary minus.  So, if we have a minus, and the previous token
@@ -1346,203 +1287,6 @@ ENDPROC	genFuncParm
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genGoto
-;
-; Generate code for "GOTO [line]"
-;
-; Inputs:
-;	DS:BX -> TOKLETs
-;	ES:DI -> code block
-;
-; Outputs:
-;	Carry clear if successful, set if error
-;
-; Modifies:
-;	Any
-;
-DEFPROC	genGoto
-	mov	al,CLS_DEC
-	call	getNextToken
-	jbe	gg9
-	DOSUTIL	ATOI32D			; DS:SI -> decimal string
-	call	findLabel
-;
-; If carry is clear, then we found the specified label # (ie, it must have
-; been a backward reference), so we can generate the correct code immediately;
-; AX contains the LBL_IP to use.
-;
-; If carry is set, then the label # must be a forward reference.  findLabel
-; automatically calls addLabel with LBL_RESOLVE set, so when the definition is
-; finally found, this (and any other LBL_RESOLVE references) can be resolved.
-;
-; In the interim, we generate a 3-byte program termination sequence (reset
-; the stack pointer and return); once the label definition is encountered, that
-; 3-byte sequence will be overwritten with a 3-byte JMP (see addLabel).
-;
-	jc	gg7
-	xchg	dx,ax
-	sub	dx,di
-	sub	dx,3			; DX = 16-bit displacement
-	mov	al,OP_JMP
-	stosb
-	xchg	ax,dx
-	stosw
-	jmp	short gg8
-gg7:	mov	ax,OP_MOV_SP_BP		; placeholder for endProgram
-	stosw
-	mov	al,OP_RETF
-	stosb
-gg8:	clc
-gg9:	ret
-ENDPROC	genGoto
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genIf
-;
-; Generate code for "IF [expr] THEN [commands] ELSE [commands]"
-;
-; "IF" is like a unary operator: generate code for the expression, pop the
-; result, and jump to the "THEN" command block if non-zero or the "ELSE"
-; command block if zero.
-;
-; Each block of commands must go back through genCommands, which is simple
-; enough, unless there is another "IF" in the block, because any subsequent
-; "ELSE" belongs to the second "IF", not the first.
-;
-; The general structure of the generated code will look like:
-;
-;	call	evalEQLong (assuming an expression with '=')
-;	pop	ax
-;	pop	dx
-;	or	ax,dx
-;	jnz	thenBlock
-;	jmp	elseBlock
-;    thenBlock:
-;	; Generate code for "THEN" block
-;	; ...
-;	jmp	nextBlock (only needed if there's an "ELSE" block)
-;    elseBlock:
-;	; Generate code for "ELSE" block
-;	; ...
-;    nextBlock:
-;
-; We use near jumps, so there's no limit on the size of the blocks, and each
-; jump is patched once the block it skips has been generated.
-;
-; A block that begins with a line number is an implied GOTO (eg, "THEN 10"
-; instead of "THEN GOTO 10").
-;
-; Inputs:
-;	DS:BX -> TOKLETs
-;	ES:DI -> code block
-;
-; Outputs:
-;	Carry clear if successful, set if error
-;
-; Modifies:
-;	Any
-;
-DEFPROC	genIf
-	call	genExpr
-	jbe	gif9
-	cmp	ah,CLS_KEYWORD
-	jne	gif9
-	cmp	al,TOK_THEN
-	jne	gif9
-	add	bx,size TOKLET		; consume THEN
-	mov	ax,OP_POP_DX_AX
-	stosw
-	mov	ax,OP_OR_AX_DX
-	stosw
-	mov	ax,OP_JNZ_3
-	stosw
-	call	genJmp			; DX -> JMP offset (to the ELSE block)
-	push	dx
-	call	genBlock		; generate the THEN block
-	pop	si
-	jc	gif9
-	cmp	ah,CLS_KEYWORD
-	jne	gif8
-	cmp	al,TOK_ELSE
-	jne	gif8			; no ELSE block
-	add	bx,size TOKLET		; consume ELSE
-	call	genJmp			; DX -> JMP offset (to the next block)
-	call	genPatch		; ELSE block starts here
-	push	dx
-	call	genBlock		; generate the ELSE block
-	pop	si
-	jc	gif9
-gif8:	jmp	genPatch		; next block starts here
-gif9:	stc
-	ret
-ENDPROC	genIf
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genBlock
-;
-; Generates a block of commands for genIf; a block that begins with a line
-; number is an implied GOTO.
-;
-; Inputs:
-;	DS:BX -> TOKLETs
-;	ES:DI -> code block
-;
-; Outputs:
-;	Carry clear if successful, set if error
-;	AX = CLS_KEYWORD and keyword ID, if a keyword (eg, ELSE) ended the block
-;
-; Modifies:
-;	Any
-;
-DEFPROC	genBlock
-	mov	al,CLS_DEC
-	call	getNextToken
-	jbe	gb1			; no line number
-	sub	bx,size TOKLET		; let genGoto consume the line number
-	call	genGoto
-	jc	gb9
-gb1:	jmp	genCommands
-gb9:	ret
-ENDPROC	genBlock
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genJmp, genPatch
-;
-; genJmp generates a near JMP whose target will be patched later, and genPatch
-; patches a JMP to jump to the next unused location in the code block.
-;
-; Inputs:
-;	ES:DI -> code block
-;	SI = offset returned by genJmp (for genPatch)
-;
-; Outputs:
-;	DX = offset of the byte following the JMP (from genJmp)
-;	Carry clear (from genPatch)
-;
-; Modifies:
-;	AX, DX (genJmp), or AX (genPatch)
-;
-DEFPROC	genJmp
-	mov	al,OP_JMP
-	stosb
-	stosw				; (offset to be patched)
-	mov	dx,di
-	ret
-ENDPROC	genJmp
-
-DEFPROC	genPatch
-	mov	ax,di
-	sub	ax,si			; AX = distance from JMP to here
-	mov	es:[si-2],ax
-	clc
-	ret
-ENDPROC	genPatch
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; genLet
 ;
 ; Generate code to "LET" a variable equal some expression.  We'll start with
@@ -1616,87 +1360,6 @@ gl8x:	pop	cx			; TODO: generate "type mismatch" error
 gl9:	stc
 	ret
 ENDPROC	genLet
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genPrint
-;
-; Generate code to "PRINT" a series of values.
-;
-; Inputs:
-;	BX = offset of next TOKLET
-;	ES:DI -> next unused location in code block
-;
-; Outputs:
-;	Carry clear if successful, set if error
-;
-; Modifies:
-;	Any
-;
-DEFPROC	genPrint
-	GENPUSHB VAR_NONE		; push end-of-args marker
-gp1:	call	genExpr
-	jnc	gp2
-	test	dh,dh			; if there were no tokens
-	stc				; then ignore the error
-	jnz	gp9			; (PRINT without args is allowed)
-gp2:	jz	gp8
-	push	ax
-	mov	al,dl			; AL = VAR_LONG, VAR_STR, or VAR_DOUBLE
-	GENPUSHB al
-	pop	ax
-	cmp	ah,CLS_KEYWORD		; did a keyword (eg, ELSE) end the
-	je	gp8			; expression?
-	cmp	ax,(CLS_SYM SHL 8) OR ':'; or a colon?
-	je	gp8			; yes, so we're done
-	mov	ah,VAR_COMMA		; comma (03h)
-	cmp	al,','			; was the last symbol a comma?
-	je	gp6			; yes
-;
-; Semi-colon is the other valid separator, but we no longer explicitly
-; check for it, because historically PRINT presumes a semi-colon whenever
-; a pair of values are separated only by whitespace (eg, if A = 2 and B = 3,
-; "PRINT A B" behaves exactly like "PRINT A;B", displaying " 2  3").
-;
-; Unfortunately, in MSBASIC, that's only true for variables, not constants
-; (eg, "PRINT 2 3" will print the number "23").  This is a parsing difference
-; which we neither approve of nor emulate.
-;
-	mov	ah,VAR_SEMI		; presume semi-colon (02h) then
-	test	al,al
-	jz	gp8
-
-gp6:	GENPUSHB ah			; "MOV AL,[VAR_SEMI or VAR_COMMA]"
-	jmp	gp1			; continue processing arguments
-gp8:	GENCALL	printArgs		; all done
-gp9:	ret
-ENDPROC	genPrint
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genReturn
-;
-; Generate code to "RETURN [optional value]".
-;
-; Inputs:
-;	BX = offset of next TOKLET
-;	ES:DI -> next unused location in code block
-;
-; Outputs:
-;	Carry clear if successful, set if error
-;
-; Modifies:
-;	Any
-;
-DEFPROC	genReturn
-	mov	si,ds:[PSP_HEAP]
-	test	[si].GEN_FLAGS,GEN_DEF
-	jz	gr9
-	call	genExpr
-	jc	gr9
-	and	[si].GEN_FLAGS,NOT GEN_DEF
-gr9:	ret
-ENDPROC	genReturn
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1807,135 +1470,6 @@ fl8:	pop	di
 fl9:	pop	di
 	ret
 ENDPROC	findLabel
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genCallFPUDst, genCallFPU
-;
-; Generates a far call to the FPU$ driver's function at the specified
-; FPUTBL offset.
-;
-; Doubles are always passed by reference, so any FPU function that produces
-; a double stores it at ES:DI and returns a pointer to it.  Use genCallFPUDst
-; for those functions; it first reserves an 8-byte result slot in the code
-; block and generates code that points ES:DI at it:
-;
-;	JMP	SHORT $+10
-;	DQ	?		; result slot
-;	PUSH	CS
-;	POP	ES
-;	MOV	DI,offset slot
-;
-; Every call gets its own slot, so a result remains valid until the same code
-; runs again.  This means that any double result that must outlive the code
-; that produced it (eg, a function's return value) must be copied.
-;
-; Inputs:
-;	CX = FPUTBL offset (eg, FPU_ADD)
-;	ES:DI -> code block
-;
-; Outputs:
-;	Carry clear if successful, set if there's no FPUTBL
-;
-; Modifies:
-;	CX, DX, DI
-;
-DEFPROC	genCallFPUDst2
-	push	ax
-	mov	al,16			; FPU_CVT2LD requires 2 slots
-	jmp	short gcd1
-	DEFLBL	genCallFPUDst,near
-	push	ax
-	mov	al,8
-gcd1:	call	genSlotAL		; DX = offset of result slot
-	mov	ax,OP_PUSH_CS OR (OP_POP_ES SHL 8)
-	stosw
-	mov	al,OP_MOV_DI
-	stosb
-	xchg	ax,dx
-	stosw
-	pop	ax
-	DEFLBL	genCallFPU,near
-	push	si
-	push	ds
-	lds	si,cs:[FPU_TABLE]
-	mov	dx,ds			; DX = FPUTBL segment
-	test	dx,dx			; is there an FPUTBL?
-	stc
-	jz	gcf9			; no
-	add	si,cx
-	mov	cx,[si]			; DX:CX -> FPUTBL function
-	call	genCallFar
-gcf9:	pop	ds
-	pop	si
-	ret
-ENDPROC	genCallFPUDst2
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genSlot
-;
-; Reserves an 8-byte slot (or AL bytes, if using genSlotAL) in the code block,
-; preceded by a short jump around it.
-;
-; Inputs:
-;	ES:DI -> code block
-;
-; Outputs:
-;	DX = offset of slot
-;	ES:DI -> code block (after the slot)
-;
-; Modifies:
-;	AX, DX, DI
-;
-DEFPROC	genSlot
-	mov	al,8
-	DEFLBL	genSlotAL,near
-	mov	ah,al
-	mov	al,OP_JMPS
-	stosw
-	mov	dx,di			; DX = offset of slot
-	mov	al,ah
-	mov	ah,0
-	add	di,ax
-	ret
-ENDPROC	genSlot
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; callFPU
-;
-; Calls the FPU$ driver's function at the specified FPUTBL offset now (eg,
-; FPU_ATOD to convert a constant while generating code).
-;
-; Inputs:
-;	CX = FPUTBL offset (eg, FPU_ATOD)
-;	Other registers as required by the function
-;
-; Outputs:
-;	As returned by the function, or carry set if there's no FPUTBL
-;
-; Modifies:
-;	AX, BX, plus whatever the function modifies
-;
-DEFPROC	callFPU
-	push	ds
-	lds	bx,cs:[FPU_TABLE]	; DS:BX -> FPUTBL
-	mov	ax,ds
-	add	bx,cx
-	mov	bx,[bx]			; AX:BX -> FPUTBL function
-	pop	ds
-	test	ax,ax			; is there an FPUTBL?
-	stc
-	jz	cfp9			; no
-	push	ax
-	push	bx
-	mov	bx,sp
-	call	dword ptr ss:[bx]
-	pop	bx			; (POPs don't modify flags)
-	pop	bx
-cfp9:	ret
-ENDPROC	callFPU
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

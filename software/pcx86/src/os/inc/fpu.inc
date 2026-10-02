@@ -33,8 +33,8 @@
 ; Any function that produces a double stores it at ES:DI (which the caller
 ; must supply), and the result on the stack is a far pointer to ES:DI.  Only
 ; FPU_CVT2LD produces two doubles: the first (A) at ES:DI and the second (B)
-; at ES:DI+8.  ES:DI may also be the address of any operand.  Operands are never
-; modified (unless ES:DI points to one).
+; at ES:DI+8.  ES:DI may also be the address of any operand.  Operands are
+; never modified (unless ES:DI points to one).
 ;
 ; The conversion functions are named after the corresponding conversions in
 ; BASIC-DOS's code generator (gen.asm), where the "1" or "2" indicates whether
@@ -47,38 +47,45 @@
 ; through OPEVAL_GE operator indexes in cmd.inc, so that the code generator
 ; can use (OPEVAL - 1) * 2 as the offset of the corresponding FPUTBL entry.
 ;
-; In the comments below, "double" on the stack means a pointer to a double,
-; and a "+" indicates a function that requires ES:DI.
+; In the comments below, D is a double (ie, a pointer to one, on the stack),
+; L is a long, and "+" marks a function that requires ES:DI.  Conversions to
+; longs are rounded (with ties rounded away from zero, like MSBASIC).
 ;
 FPUTBL		struc
-FPU_NEG		dw	?	; 00h: +-A (1 double -> 1 double)
-FPU_EXP		dw	?	; 02h: +A^B (2 doubles -> 1 double)
-FPU_MUL		dw	?	; 04h: +A*B (2 doubles -> 1 double)
-FPU_DIV		dw	?	; 06h: +A/B (2 doubles -> 1 double)
-FPU_ADD		dw	?	; 08h: +A+B (2 doubles -> 1 double)
-FPU_SUB		dw	?	; 0Ah: +A-B (2 doubles -> 1 double)
-FPU_EQ		dw	?	; 0Ch: A=B (2 doubles -> 1 long, -1 if true, 0 if not)
-FPU_NE		dw	?	; 0Eh: A<>B (2 doubles -> 1 long)
-FPU_LT		dw	?	; 10h: A<B (2 doubles -> 1 long)
-FPU_GT		dw	?	; 12h: A>B (2 doubles -> 1 long)
-FPU_LE		dw	?	; 14h: A<=B (2 doubles -> 1 long)
-FPU_GE		dw	?	; 16h: A>=B (2 doubles -> 1 long)
-FPU_CVT1DL	dw	?	; 18h: conv1DoubleToLong (double -> long, rounded, ties away from 0)
-FPU_CVT2DL	dw	?	; 1Ah: conv2DoubleToLong (2 doubles -> 2 longs)
-FPU_CVTL1D	dw	?	; 1Ch: +convLong1ToDouble (double, long -> 2 doubles)
-FPU_CVTL2D	dw	?	; 1Eh: +convLong2ToDouble (long, double -> 2 doubles)
-FPU_CVTD1L	dw	?	; 20h: convDouble1ToLong (long, double -> 2 longs)
-FPU_CVTD2L	dw	?	; 22h: convDouble2ToLong (double, long -> 2 longs)
-FPU_CVT1LD	dw	?	; 24h: +conv1LongToDouble (long -> double)
-FPU_CVT2LD	dw	?	; 26h: +conv2LongToDouble (2 longs -> 2 doubles)
-FPU_ABS		dw	?	; 28h: +ABS(A) (1 double -> 1 double)
-FPU_INT		dw	?	; 2Ah: +INT(A), largest integer <= A (1 double -> 1 double)
-FPU_FIX		dw	?	; 2Ch: +FIX(A), A truncated (1 double -> 1 double)
-FPU_SQR		dw	?	; 2Eh: +SQR(A), square root (1 double -> 1 double)
-FPU_ATOD	dw	?	; 30h: DS:SI -> chars, ES:DI -> double (see below)
-FPU_DTOA	dw	?	; 32h: DS:SI -> double, ES:DI -> chars (see below)
-FPU_TODEC	dw	?	; 34h: DS:SI -> double, ES:DI -> digits (see below)
-FPU_FROMDEC	dw	?	; 36h: DS:SI -> digits, ES:DI -> double (see below)
+FPU_NEG		dw	?	; 00h: +-A (D -> D)
+FPU_EXP		dw	?	; 02h: +A^B (D,D -> D)
+FPU_MUL		dw	?	; 04h: +A*B (D,D -> D)
+FPU_DIV		dw	?	; 06h: +A/B (D,D -> D)
+FPU_ADD		dw	?	; 08h: +A+B (D,D -> D)
+FPU_SUB		dw	?	; 0Ah: +A-B (D,D -> D)
+FPU_EQ		dw	?	; 0Ch: A=B (D,D -> L: -1 if true, 0 if not)
+FPU_NE		dw	?	; 0Eh: A<>B (D,D -> L)
+FPU_LT		dw	?	; 10h: A<B (D,D -> L)
+FPU_GT		dw	?	; 12h: A>B (D,D -> L)
+FPU_LE		dw	?	; 14h: A<=B (D,D -> L)
+FPU_GE		dw	?	; 16h: A>=B (D,D -> L)
+FPU_CVT1DL	dw	?	; 18h: conv1DoubleToLong (D -> L)
+FPU_CVT2DL	dw	?	; 1Ah: conv2DoubleToLong (D,D -> L,L)
+FPU_CVTL1D	dw	?	; 1Ch: +convLong1ToDouble (D,L -> D,D)
+FPU_CVTL2D	dw	?	; 1Eh: +convLong2ToDouble (L,D -> D,D)
+FPU_CVTD1L	dw	?	; 20h: convDouble1ToLong (L,D -> L,L)
+FPU_CVTD2L	dw	?	; 22h: convDouble2ToLong (D,L -> L,L)
+FPU_CVT1LD	dw	?	; 24h: +conv1LongToDouble (L -> D)
+FPU_CVT2LD	dw	?	; 26h: +conv2LongToDouble (L,L -> D,D)
+FPU_ABS		dw	?	; 28h: +ABS(A) (D -> D)
+FPU_INT		dw	?	; 2Ah: +INT(A), largest integer <= A (D -> D)
+FPU_FIX		dw	?	; 2Ch: +FIX(A), A truncated (D -> D)
+FPU_SQR		dw	?	; 2Eh: +SQR(A), square root (D -> D)
+FPU_ATOD	dw	?	; 30h: chars at DS:SI -> double at ES:DI
+FPU_DTOA	dw	?	; 32h: double at DS:SI -> chars at ES:DI
+FPU_TODEC	dw	?	; 34h: double at DS:SI -> digits at ES:DI
+FPU_FROMDEC	dw	?	; 36h: digits at DS:SI -> double at ES:DI
+FPU_SIN		dw	?	; 38h: +SIN(A), A in radians (D -> D)
+FPU_COS		dw	?	; 3Ah: +COS(A), A in radians (D -> D)
+FPU_TAN		dw	?	; 3Ch: +TAN(A), A in radians (D -> D)
+FPU_ATN		dw	?	; 3Eh: +ATN(A), arctangent in radians (D -> D)
+FPU_LOG		dw	?	; 40h: +LOG(A), natural logarithm (D -> D)
+FPU_ETOX	dw	?	; 42h: +EXP(A), e raised to A (D -> D)
 FPUTBL		ends
 
 ;
@@ -110,8 +117,8 @@ FPUTBL		ends
 ; Modifies AX, BX, CX, DX.
 ;
 ; FPU_FROMDEC converts CX digits at DS:SI (up to 19), multiplied by 10 raised
-; to the power in AX, to a double at ES:DI, negated if bit 7 of BL is set.  Carry is set
-; if the value is out of range.  Modifies AX, CX, DX, SI.
+; to the power in AX, to a double at ES:DI, negated if bit 7 of BL is set.
+; Carry is set if the value is out of range.  Modifies AX, CX, DX, SI.
 ;
 FPU_DIGITS	equ	15
 FPU_MAXCHARS	equ	24

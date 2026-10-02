@@ -175,10 +175,18 @@ CODE    SEGMENT
 
 CODE	ENDS
 
+;
+; Keywords with IDs from 101 (TOK_ABS) to 110 (TOK_TAN) are numeric functions
+; that genExpr handles (by calling the corresponding FPU$ functions), so their
+; IDs must remain consecutive and in the same order as genExpr's FN_FPUTBL.
+;
 	DEFTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
+	DEFTOK	ABS,   101
+	DEFTOK	ATN,   102
 	DEFTOK	CLS,    40, genCLS
 	DEFTOK	COLOR,  41, genColor
 	DEFTOK	COPY,   20, cmdCopy
+	DEFTOK	COS,   103
 	DEFTOK	DATE,   10, cmdDate
 	DEFTOK	DEF,    42, genDefFn
 	DEFTOK	DEFDBL, 43, genDefDbl
@@ -191,13 +199,17 @@ CODE	ENDS
 	DEFTOK	ELSE,  201
 	DEFTOK	ERASE,  24, cmdDel
 	DEFTOK	EXIT,    1, cmdExit
+	DEFTOK	EXP,   104
+	DEFTOK	FIX,   105
 	DEFTOK	GOTO,   48, genGoto
 	DEFTOK	HELP,    2, cmdHelp
 	DEFTOK	IF,     49  genIf
+	DEFTOK	INT,   106
 	DEFTOK	KEYS,    3, cmdKeys
 	DEFTOK	LET,    50, genLet
 	DEFTOK	LIST,    4, cmdList
 	DEFTOK	LOAD,   22, cmdLoad
+	DEFTOK	LOG,   107
 	DEFTOK	MEM,     5, cmdMem
 	DEFTOK	NEW,     6, cmdNew
 	DEFTOK	OFF,   202
@@ -207,6 +219,9 @@ CODE	ENDS
 	DEFTOK	RESTART, 7, cmdRestart
 	DEFTOK	RETURN, 53, genReturn
 	DEFTOK	RUN,     8, cmdRun
+	DEFTOK	SIN,   108
+	DEFTOK	SQR,   109
+	DEFTOK	TAN,   110
 	DEFTOK	THEN,  204
 	DEFTOK	TIME,   11, cmdTime
 	DEFTOK	TYPE,   23, cmdType

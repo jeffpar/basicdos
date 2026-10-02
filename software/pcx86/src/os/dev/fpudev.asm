@@ -588,6 +588,7 @@ HWCODE	segment para public 'CODE'
 	dw	hwCvtLD, hwCvt2LD
 	dw	hwAbs, hwInt, hwFix, hwSqr, hwAtoD, hwDtoA
 	dw	hwToDec, hwFromDec
+	dw	hwSin, hwCos, hwTan, hwAtn, hwLog, hwEtoX
 	IF	($ - hwTable) NE size FPUTBL
 	ERROR	<hwTable does not match FPUTBL>
 	ENDIF
@@ -599,9 +600,11 @@ HWCODE	segment para public 'CODE'
 	DEFWORD	hwCWNear,CW_NEAR
 	DEFWORD	hwCWDown,CW_DOWN
 	DEFWORD	hwCWChop,CW_CHOP
+	DEFQUAD	hwQuarter,3FD0000000000000h; 0.25
 	DEFQUAD	hwHalf,3FE0000000000000h; 0.5
 	DEFQUAD	hwOne,3FF0000000000000h	; 1.0
 	DEFQUAD	hwTen,4024000000000000h	; 10.0
+	DEFQUAD	hwBig,43F0000000000000h	; 2^64
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -990,6 +993,214 @@ hwRnd:	call	hwLoadT			; ST(0) = top double
 	mov	ss:[bx+6],es
 	ret
 ENDPROC	hwInt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; hwSin, hwCos, hwTan
+;
+; The argument is reduced modulo pi/4 with FPREM, which also provides the
+; octant (q, the low 3 bits of the quotient), and since the 8087's FPTAN
+; requires an argument from 0 to pi/4 (exclusive), the reduced argument r is
+; replaced with pi/4 - r in odd octants.  FPTAN produces y and x such that
+; tan(r) = y/x, so sin(r) = y/h and cos(r) = x/h, where h = sqrt(x^2 + y^2).
+;
+; The sine uses cos(r) in octants 1, 2, 5, and 6, and is negative in octants
+; 4 through 7; the cosine uses sin(r) in octants 1, 2, 5, and 6, and is
+; negative in octants 2 through 5.  The tangent is the ratio of the two.
+;
+; Inputs:
+;	1 double on stack
+;	ES:DI -> result
+;
+; Outputs:
+;	1 double on stack (SIN, COS, or TAN of the input)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
+DEFPROC	hwSin,FAR
+	mov	cl,0
+	jmp	short hwTrig
+	DEFLBL	hwCos,near
+	mov	cl,1
+	jmp	short hwTrig
+	DEFLBL	hwTan,near
+	mov	cl,2
+hwTrig:	call	hwLoadT			; ST(0) = x
+	sub	ch,ch			; CH = 1 to negate the result
+	ftst
+	call	hwStat
+	jae	htg1
+	fchs				; ST(0) = abs(x)
+	cmp	cl,1
+	je	htg1			; the cosine is an even function
+	inc	ch			; but the sine and tangent are odd
+htg1:	fldpi
+	fmul	cs:[hwQuarter]		; ST(0) = pi/4, ST(1) = abs(x)
+	fxch
+htg2:	fprem				; ST(0) = r (abs(x) modulo pi/4)
+	call	hwStat
+	test	ah,04h			; C2 set if reduction is incomplete
+	jnz	htg2
+	sub	dl,dl			; DL = q (C0 = Q2, C3 = Q1, C1 = Q0)
+	test	ah,01h
+	jz	htg3
+	or	dl,4
+htg3:	test	ah,40h
+	jz	htg4
+	or	dl,2
+htg4:	test	ah,02h
+	jz	htg5
+	or	dl,1
+htg5:	test	dl,1			; odd octant?
+	jz	htg7			; no
+	ftst
+	call	hwStat
+	jne	htg6
+	fstp	st(0)			; r is zero, so pi/4 - r is pi/4,
+	fstp	st(0)			; whose tangent is 1/1
+	fld1
+	fld1
+	jmp	short htg8
+htg6:	fsubp	st(1),st		; ST(0) = pi/4 - r
+	jmp	short htg7a
+htg7:	fstp	st(1)			; ST(0) = r
+htg7a:	fptan				; ST(0) = x, ST(1) = y
+htg8:	mov	al,dl
+	inc	al
+	and	al,2			; AL = 2 if sin and cos are swapped
+	mov	ah,dl
+	add	ah,2
+	xor	ah,dl
+	and	ah,4			; AH = 4 if sin and cos signs differ
+	test	dl,4
+	jz	htg9
+	xor	ah,4			; AH = 4 if cos is negative
+	xor	ch,1			; (and sin is negative)
+htg9:	cmp	cl,1
+	jb	htg11			; sine
+	je	htg10			; cosine
+	test	ah,4			; tangent: negate if the signs differ
+	jz	htg9a
+	xor	ch,1
+htg9a:	test	al,al			; swapped?
+	jz	ht9b			; no
+	fdiv	st,st(1)		; ST(0) = x/y
+	jmp	short htg13
+ht9b:	fdivr	st,st(1)		; ST(0) = y/x
+	jmp	short htg13
+htg10:	xor	al,2			; the cosine wants x unless swapped
+	test	dl,4
+	jz	htg10a
+	xor	ch,1			; (undo the sine's sign)
+htg10a:	test	ah,4
+	jz	htg11
+	xor	ch,1
+htg11:	fld	st(0)
+	fmul	st,st(0)		; ST(0) = x^2, ST(1) = x, ST(2) = y
+	fld	st(2)
+	fmul	st,st(0)		; ST(0) = y^2
+	faddp	st(1),st
+	fsqrt				; ST(0) = h, ST(1) = x, ST(2) = y
+	test	al,al			; does this function want x?
+	jnz	htg12			; yes
+	fdivr	st,st(2)		; ST(0) = y/h
+	jmp	short htg12a
+htg12:	fdivr	st,st(1)		; ST(0) = x/h
+htg12a:	fstp	st(1)
+htg13:	fstp	st(1)			; ST(0) = result
+	test	ch,1
+	jz	htg14
+	fchs
+htg14:	jmp	hwStoreT
+ENDPROC	hwSin
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; hwAtn
+;
+; The 8087's FPATAN calculates atan(y/x) only when 0 < y < x, so for abs(x)
+; < 1, we calculate atan(abs(x)/1), and for abs(x) > 1, pi/2 - atan(1/abs(x));
+; abs(x) = 1 is simply pi/4, and anything 2^64 or larger is simply pi/2.
+;
+; Inputs:
+;	1 double on stack
+;	ES:DI -> result
+;
+; Outputs:
+;	1 double on stack (ATN of the input)
+;
+; Modifies:
+;	AX, BX, CH, SI
+;
+DEFPROC	hwAtn,FAR
+	call	hwLoadT			; ST(0) = x
+	sub	ch,ch
+	ftst
+	call	hwStat
+	je	ha9			; atan(0) is 0
+	jae	ha1
+	fchs				; ST(0) = abs(x)
+	inc	ch
+ha1:	fcom	cs:[hwBig]
+	call	hwStat
+	jb	ha2
+	fstp	st(0)			; abs(x) >= 2^64
+	fldpi
+	fmul	cs:[hwHalf]		; so the result is pi/2
+	jmp	short ha8
+ha2:	fld1				; ST(0) = 1, ST(1) = abs(x)
+	fcom	st(1)
+	call	hwStat
+	jb	ha4			; abs(x) > 1
+	jne	ha3			; abs(x) < 1
+	fstp	st(0)			; abs(x) = 1
+	fstp	st(0)
+	fldpi
+	fmul	cs:[hwQuarter]		; so the result is pi/4
+	jmp	short ha8
+ha3:	fpatan				; ST(0) = atan(abs(x)/1)
+	jmp	short ha8
+ha4:	fxch				; ST(0) = abs(x), ST(1) = 1
+	fpatan				; ST(0) = atan(1/abs(x))
+	fldpi
+	fmul	cs:[hwHalf]
+	fsubrp	st(1),st		; ST(0) = pi/2 - atan(1/abs(x))
+ha8:	test	ch,ch
+	jz	ha9
+	fchs
+ha9:	jmp	hwStoreT
+ENDPROC	hwAtn
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; hwLog, hwEtoX
+;
+; LOG(x) is ln(2) * log2(x), and EXP(x) is 2^(x * log2(e)).
+;
+; Inputs:
+;	1 double on stack
+;	ES:DI -> result
+;
+; Outputs:
+;	1 double on stack (LOG or EXP of the input)
+;
+; Modifies:
+;	AX, BX, SI
+;
+DEFPROC	hwLog,FAR
+	call	hwLoadT			; ST(0) = x
+	fldln2
+	fxch
+	fyl2x				; ST(0) = ln(2) * log2(x)
+	jmp	hwStoreT
+	DEFLBL	hwEtoX,near
+	call	hwLoadT
+	fldl2e
+	fmul				; ST(0) = x * log2(e)
+	call	hwPow2
+	jmp	hwStoreT
+ENDPROC	hwLog
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1395,8 +1606,8 @@ HWCODE	ends
 ; sessions at once.  The internal functions (xLoad, xAdd, etc) take the
 ; frame offsets of their UX operands in SI and DI.
 ;
-; TODO: FPU_EXP supports only integer exponents (from -32768 to 32767); any
-; other exponent signals an invalid operation (unless the base is zero).
+; FPU_EXP uses repeated multiplication for integer exponents (from -32768 to
+; 32767), so that results like 2^10 are exact, and e^(B*ln(A)) otherwise.
 ;
 UX	struc
 UX_M0	dw	?		; mantissa (UX_M3 bit 15 is set if non-zero)
@@ -1427,15 +1638,56 @@ SX_FL	equ	-82		; XF_* flags (and relation mask in high byte)
 SX_N	equ	-84		; misc word (eg, # digits or operation)
 SX_E	equ	-86		; misc word (eg, decimal exponent)
 SX_DST	equ	-90		; caller's ES:DI
-SX_SIZE	equ	90
+SX_SIZE	equ	90		; frame size for most functions
+SX_F	equ	-102		; UX F (temp for transcendental functions)
+SX_G	equ	-114		; UX G (temp for transcendental functions)
+SX_H	equ	-126		; UX H (temp for transcendental functions)
+SX_XSIZE equ	126		; frame size for transcendental functions
 
-SWENTER	macro
+SWENTER	macro	size
 	push	bp
 	mov	bp,sp
+	IFB	<size>
 	sub	sp,SX_SIZE
+	ELSE
+	sub	sp,size
+	ENDIF
 	mov	[bp+SX_DST].OFF,di
 	mov	[bp+SX_DST].SEG,es
 	mov	word ptr [bp+SX_FL],0
+	endm
+
+;
+; Script definitions for xScript (see below)
+;
+XI_A	equ	0
+XI_B	equ	1
+XI_C	equ	2
+XI_D	equ	3
+XI_F	equ	4
+XI_G	equ	5
+XI_H	equ	6
+
+XO_COPY	equ	1		; SI = DI
+XO_MUL	equ	2		; SI = SI * DI
+XO_DIV	equ	3		; SI = SI / DI
+XO_ADD	equ	4		; SI = SI + DI (DI may be modified)
+XO_SUB	equ	5		; SI = SI - DI (DI may be modified)
+XO_NEG	equ	6		; SI = -SI
+XO_INT	equ	7		; SI = small integer
+XO_K	equ	8		; SI = constant (eg, KI_PIBY2)
+XO_SQRT	equ	9		; A = sqrt(A)
+
+XRUN	macro
+	call	xScript
+	endm
+
+XS	macro	op,a,b
+	db	op,((a) SHL 4) OR (b)
+	endm
+
+XEND	macro
+	db	0,0
 	endm
 
 SWCODE	segment para public 'CODE'
@@ -1449,6 +1701,7 @@ SWCODE	segment para public 'CODE'
 	dw	swCvt1LD, swCvt2LD
 	dw	swAbs, swInt, swFix, swSqr, swAtoD, swDtoA
 	dw	swToDec, swFromDec
+	dw	swSin, swCos, swTan, swAtn, swLog, swEtoX
 	IF	($ - swTable) NE size FPUTBL
 	ERROR	<swTable does not match FPUTBL>
 	ENDIF
@@ -1560,7 +1813,7 @@ swStoreA4:
 ; swExp (2 doubles -> 1 double at ES:DI)
 ;
 	DEFLBL	swExp,near
-	SWENTER
+	SWENTER	SX_XSIZE
 	call	swLoad2
 	mov	al,[bp+SX_A].UX_CLS
 	or	al,[bp+SX_B].UX_CLS
@@ -1570,9 +1823,9 @@ swStoreA4:
 	jmp	swStoreA4
 sxp1:	cmp	[bp+SX_B].UX_CLS,UXC_FIN
 	jne	sxp7			; B is infinite
-	mov	si,SX_C
-	mov	di,SX_B
-	call	xCopy
+	XRUN
+	XS	XO_COPY,XI_C,XI_B	; (and SI -> C, DI -> B)
+	XEND
 	mov	al,3
 	call	xRndInt			; C = B truncated
 	call	xCmpMag
@@ -1584,33 +1837,44 @@ sxp1:	cmp	[bp+SX_B].UX_CLS,UXC_FIN
 	jg	sxp7			; B is too large
 sxp2:	call	xToLong			; AX = n
 	push	ax
-	mov	bx,ax
+	XRUN
+	XS	XO_COPY,XI_D,XI_A	; D = A
+	XEND
+	pop	bx
+	push	bx
 	test	bx,bx
 	jns	sxp3
 	neg	bx			; BX = abs(n)
-sxp3:	mov	si,SX_D
-	mov	di,SX_A
-	call	xCopy			; D = A
-	mov	si,SX_C
+sxp3:	mov	si,SX_C
 	mov	di,SX_D
 	call	xPowInt			; C = A^abs(n)
 	pop	ax
-	mov	si,SX_A
-	mov	di,SX_C
 	test	ax,ax
 	js	sxp4
-	call	xCopy			; A = A^n
+	XRUN
+	XS	XO_COPY,XI_A,XI_C	; A = A^n
+	XEND
 	jmp	swStoreA4
-sxp4:	mov	ax,1
-	cwd
-	call	xFromLong
-	call	xDiv			; A = 1 / A^abs(n)
+sxp4:	XRUN
+	XS	XO_INT,XI_A,1
+	XS	XO_DIV,XI_A,XI_C	; A = 1 / A^abs(n)
+	XEND
 	jmp	swStoreA4
 sxp7:	mov	si,SX_A
 	call	xIsZero			; zero raised to any power is zero
 	jz	sxp9
-	ASSERT	FALSE,,,<"FPE EXP of non-integer not implemented">
+	test	[bp+si].UX_SGN,80h	; a negative base requires an integer
+	jz	sxp8			; exponent
 	call	xInvalid
+	jmp	short sxp9
+sxp8:	XRUN
+	XS	XO_COPY,XI_G,XI_B	; G = B
+	XEND
+	call	xLn			; A = ln(A)
+	XRUN
+	XS	XO_MUL,XI_A,XI_G	; A = B*ln(A)
+	XEND
+	call	xExp			; A = e^(B*ln(A))
 sxp9:	jmp	swStoreA4
 ;
 ; swEQ, swNE, swLT, swGT, swLE, swGE (2 doubles -> 1 long)
@@ -1654,7 +1918,7 @@ scp1:	call	xIsZero
 scp2:	mov	al,[bp+SX_A].UX_SGN
 	cmp	al,[bp+SX_B].UX_SGN
 	je	scp3
-	mov	al,4			; signs differ, so A < B if A is negative
+	mov	al,4			; signs differ, so A < B if A < 0
 	test	byte ptr [bp+SX_A].UX_SGN,80h
 	jnz	scp8
 	mov	al,1
@@ -1737,9 +2001,39 @@ swRnd:
 	call	swLoadT
 	mov	al,byte ptr [bp+SX_N]
 	call	xRndInt
+	jmp	swStoreT
+	DEFLBL	swSin,near
+	mov	al,0
+	jmp	short swTrg
+	DEFLBL	swCos,near
+	mov	al,1
+	jmp	short swTrg
+	DEFLBL	swTan,near
+	mov	al,2
+swTrg:
+	SWENTER	SX_XSIZE
+	mov	byte ptr [bp+SX_FL+1],al
+	call	swLoadT
+	mov	al,byte ptr [bp+SX_FL+1]
+	call	xTrig
+	jmp	swStoreT
+	DEFLBL	swAtn,near
+	SWENTER	SX_XSIZE
+	call	swLoadT
+	call	xAtn
+	jmp	short swStoreT
+	DEFLBL	swLog,near
+	SWENTER	SX_XSIZE
+	call	swLoadT
+	call	xLn
+	jmp	short swStoreT
+	DEFLBL	swEtoX,near
+	SWENTER	SX_XSIZE
+	call	swLoadT
+	call	xExp
 	jmp	short swStoreT
 	DEFLBL	swSqr,near
-	SWENTER
+	SWENTER	SX_XSIZE
 	call	swLoadT
 	call	xSqrt
 swStoreT:
@@ -1907,9 +2201,9 @@ std1:	mov	ax,[bp+SX_D].UX_EXP
 ; Scale A = x * 10^(M-1-e), where M = max(N,1), and make sure that A is from
 ; 10^(M-1) to 10^M (exclusive), adjusting e if not.
 ;
-std2:	mov	si,SX_A
-	mov	di,SX_D
-	call	xCopy			; A = x
+std2:	XRUN
+	XS	XO_COPY,XI_A,XI_D	; A = x (and SI -> A)
+	XEND
 	mov	ax,[bp+SX_N]
 	test	ax,ax
 	jnz	std3
@@ -1918,11 +2212,10 @@ std3:	dec	ax			; AX = M-1
 	push	ax
 	sub	ax,[bp+SX_E]
 	call	xScale10		; A = x * 10^(M-1-e)
+	XRUN
+	XS	XO_INT,XI_B,10
+	XEND
 	pop	bx
-	mov	si,SX_B
-	mov	ax,10
-	cwd
-	call	xFromLong
 	mov	si,SX_C
 	mov	di,SX_B
 	call	xPowInt			; C = 10^(M-1)
@@ -1933,12 +2226,10 @@ std3:	dec	ax			; AX = M-1
 	jge	std4
 	dec	word ptr [bp+SX_E]	; A is too small
 	jmp	std2
-std4:	mov	si,SX_B
-	mov	ax,10
-	cwd
-	call	xFromLong
-	mov	di,SX_C
-	call	xMul			; B = 10^M
+std4:	XRUN
+	XS	XO_INT,XI_B,10
+	XS	XO_MUL,XI_B,XI_C	; B = 10^M
+	XEND
 	mov	si,SX_A
 	mov	di,SX_B
 	call	xCmpMag
@@ -1952,11 +2243,11 @@ std5:	cmp	word ptr [bp+SX_N],0
 ; When N is zero, A is from 1 to 10, so the result is 1 if A > 5 (ties are
 ; rounded to even, so 5 rounds to 0), and nothing otherwise.
 ;
-	mov	si,SX_B
-	mov	ax,5
-	cwd
-	call	xFromLong
+	XRUN
+	XS	XO_INT,XI_B,5
+	XEND
 	mov	si,SX_A
+	mov	di,SX_B
 	call	xCmpMag
 	mov	bl,al
 	sub	cx,cx
@@ -2262,24 +2553,81 @@ ENDPROC	xShl1
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; xMantPut, xMantGet
+;
+; xMantPut copies the mantissa of the UX at SI to the 8 bytes at SS:BX, and
+; xMantGet copies the 8 bytes at SS:BX to the mantissa of the UX at SI.
+;
+; Modifies:
+;	AX, BX, CX
+;
+DEFPROC	xMantPut
+	push	si
+	mov	cx,4
+xmp1:	mov	ax,[bp+si]
+	mov	ss:[bx],ax
+	inc	si
+	inc	si
+	inc	bx
+	inc	bx
+	loop	xmp1
+	pop	si
+	ret
+ENDPROC	xMantPut
+
+DEFPROC	xMantGet
+	push	si
+	mov	cx,4
+xmg1:	mov	ax,ss:[bx]
+	mov	[bp+si],ax
+	inc	si
+	inc	si
+	inc	bx
+	inc	bx
+	loop	xmg1
+	pop	si
+	ret
+ENDPROC	xMantGet
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; xShrN
 ;
 ; Shifts the mantissa of the UX at SI right CX bits (any count over 66 is
-; treated as 66, which has the same effect).
+; treated as 66, which has the same effect), 16 bits at a time when possible.
 ;
 ; Outputs:
 ;	DL = last bit shifted out ("half"), DH = 1 if any other bits shifted
 ;	out were set ("rest")
 ;
 ; Modifies:
-;	CX, DX
+;	AX, CX, DX
 ;
 DEFPROC	xShrN
 	sub	dx,dx
-	jcxz	xsr9
 	cmp	cx,66
-	jbe	xsr1
+	jbe	xsr0
 	mov	cx,66
+xsr0:	cmp	cx,16
+	jb	xsr1a
+	or	dh,dl			; the previous "half" is part of "rest"
+	mov	ax,[bp+si].UX_M0
+	shl	ax,1			; CF = the last bit shifted out
+	mov	dl,0
+	adc	dl,0			; DL = "half"
+	test	ax,ax
+	jz	xsr0a
+	or	dh,1			; any other bits are part of "rest"
+xsr0a:	mov	ax,[bp+si].UX_M1
+	mov	[bp+si].UX_M0,ax
+	mov	ax,[bp+si].UX_M2
+	mov	[bp+si].UX_M1,ax
+	mov	ax,[bp+si].UX_M3
+	mov	[bp+si].UX_M2,ax
+	mov	[bp+si].UX_M3,0
+	sub	cx,16
+	jmp	xsr0
+xsr1a:	jcxz	xsr9
 xsr1:	or	dh,dl
 	shr	[bp+si].UX_M3,1
 	rcr	[bp+si].UX_M2,1
@@ -2290,6 +2638,60 @@ xsr1:	or	dh,dl
 	loop	xsr1
 xsr9:	ret
 ENDPROC	xShrN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xDivSmall
+;
+; Divides the UX at SI by the unsigned 16-bit integer in BX (which must not be
+; zero), which is much faster than xDiv: the mantissa, plus 16 more zero bits,
+; is divided one word at a time (into SX_P), and the 80-bit quotient is then
+; normalized, keeping any other bits (including the remainder) as "sticky".
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	xDivSmall
+	cmp	[bp+si].UX_M3,0
+	je	xds9			; zero (or not finite)
+	sub	dx,dx
+	mov	ax,[bp+si].UX_M3
+	div	bx
+	mov	[bp+SX_P+8],ax
+	mov	ax,[bp+si].UX_M2
+	div	bx
+	mov	[bp+SX_P+6],ax
+	mov	ax,[bp+si].UX_M1
+	div	bx
+	mov	[bp+SX_P+4],ax
+	mov	ax,[bp+si].UX_M0
+	div	bx
+	mov	[bp+SX_P+2],ax
+	sub	ax,ax
+	div	bx
+	or	ax,dx			; AX = sticky bits (non-zero if any)
+	xchg	cx,ax
+xds1:	test	byte ptr [bp+SX_P+9],80h
+	jnz	xds2
+	shl	cx,1			; normalize the quotient
+	rcl	word ptr [bp+SX_P+2],1
+	rcl	word ptr [bp+SX_P+4],1
+	rcl	word ptr [bp+SX_P+6],1
+	rcl	word ptr [bp+SX_P+8],1
+	dec	[bp+si].UX_EXP
+	jmp	xds1
+xds2:	mov	ax,[bp+SX_P+2]
+	mov	[bp+si].UX_M0,ax
+	mov	ax,[bp+SX_P+4]
+	mov	[bp+si].UX_M1,ax
+	mov	ax,[bp+SX_P+6]
+	mov	[bp+si].UX_M2,ax
+	mov	ax,[bp+SX_P+8]
+	mov	[bp+si].UX_M3,ax
+	jcxz	xds9
+	or	byte ptr [bp+si].UX_M0,1
+xds9:	ret
+ENDPROC	xDivSmall
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2547,22 +2949,11 @@ xmu3:	mov	ax,[bp+di].UX_EXP
 	add	[bp+si].UX_EXP,ax
 	push	si
 	push	di
-	mov	ax,[bp+si].UX_M0	; copy the mantissas to SX_MA and SX_MB
-	mov	[bp+SX_MA],ax
-	mov	ax,[bp+si].UX_M1
-	mov	[bp+SX_MA+2],ax
-	mov	ax,[bp+si].UX_M2
-	mov	[bp+SX_MA+4],ax
-	mov	ax,[bp+si].UX_M3
-	mov	[bp+SX_MA+6],ax
-	mov	ax,[bp+di].UX_M0
-	mov	[bp+SX_MB],ax
-	mov	ax,[bp+di].UX_M1
-	mov	[bp+SX_MB+2],ax
-	mov	ax,[bp+di].UX_M2
-	mov	[bp+SX_MB+4],ax
-	mov	ax,[bp+di].UX_M3
-	mov	[bp+SX_MB+6],ax
+	lea	bx,[bp+SX_MA]
+	call	xMantPut		; copy the mantissas to SX_MA and
+	mov	si,di
+	lea	bx,[bp+SX_MB]
+	call	xMantPut		; SX_MB, and zero SX_P
 	lea	bx,[bp+SX_P]
 	mov	cx,8
 	sub	ax,ax
@@ -2606,14 +2997,8 @@ xmu7a:	rcl	word ptr ss:[bx],1	; product is from 2^126 to 2^127,
 	loop	xmu7a
 	dec	[bp+si].UX_EXP
 xmu8:	inc	[bp+si].UX_EXP
-	mov	ax,[bp+SX_P+8]		; the mantissa is the upper 64 bits
-	mov	[bp+si].UX_M0,ax
-	mov	ax,[bp+SX_P+10]
-	mov	[bp+si].UX_M1,ax
-	mov	ax,[bp+SX_P+12]
-	mov	[bp+si].UX_M2,ax
-	mov	ax,[bp+SX_P+14]
-	mov	[bp+si].UX_M3,ax
+	lea	bx,[bp+SX_P+8]
+	call	xMantGet		; the mantissa is the upper 64 bits
 	mov	ax,[bp+SX_P]		; and the lower 64 bits are "sticky"
 	or	ax,[bp+SX_P+2]
 	or	ax,[bp+SX_P+4]
@@ -2628,8 +3013,8 @@ ENDPROC	xMul
 ; xDiv
 ;
 ; Divides the UX at SI by the UX at DI, using restoring division to produce
-; a 64-bit quotient (in SX_MA), with the remainder in SX_P (plus an extra top
-; bit in BL) and the divisor in SX_MB.
+; a 64-bit quotient (in SX_MA), with the remainder in DI:DX:BX:AX (plus an
+; extra top bit in CH) and the divisor in SX_MB.
 ;
 ; Modifies:
 ;	AX, BX, CX, DX
@@ -2646,7 +3031,7 @@ DEFPROC	xDiv
 	cmp	al,UXC_INF
 	jne	xdv1
 	cmp	ah,UXC_INF
-	jne	xdv9			; infinity divided by finite is infinity
+	jne	xdv9			; infinity / finite = infinity
 xdv0a:	jmp	xInvalid
 xdv0:	mov	[bp+si].UX_CLS,ah
 xdv9:	ret
@@ -2664,87 +3049,70 @@ xdv3:	cmp	[bp+si].UX_M3,0		; is A zero?
 	je	xdv9			; yes
 	mov	ax,[bp+di].UX_EXP
 	sub	[bp+si].UX_EXP,ax
-	mov	ax,[bp+si].UX_M0	; copy A's mantissa to SX_P
-	mov	[bp+SX_P],ax
-	mov	ax,[bp+si].UX_M1
-	mov	[bp+SX_P+2],ax
-	mov	ax,[bp+si].UX_M2
-	mov	[bp+SX_P+4],ax
-	mov	ax,[bp+si].UX_M3
-	mov	[bp+SX_P+6],ax
-	mov	ax,[bp+di].UX_M0	; and B's mantissa to SX_MB
-	mov	[bp+SX_MB],ax
-	mov	ax,[bp+di].UX_M1
-	mov	[bp+SX_MB+2],ax
-	mov	ax,[bp+di].UX_M2
-	mov	[bp+SX_MB+4],ax
-	mov	ax,[bp+di].UX_M3
-	mov	[bp+SX_MB+6],ax
-	sub	bl,bl			; BL = extra top bit of remainder
-	call	xdvCmp
-	jnc	xdv4
-	dec	[bp+si].UX_EXP		; A's mantissa < B's mantissa
-	call	xdvShl
-xdv4:	mov	cx,64
-xdv5:	test	bl,bl
-	jnz	xdv6
-	call	xdvCmp
-	jc	xdv7			; remainder < divisor
-xdv6:	mov	ax,[bp+SX_MB]		; subtract the divisor
-	sub	[bp+SX_P],ax
-	mov	ax,[bp+SX_MB+2]
-	sbb	[bp+SX_P+2],ax
-	mov	ax,[bp+SX_MB+4]
-	sbb	[bp+SX_P+4],ax
-	mov	ax,[bp+SX_MB+6]
-	sbb	[bp+SX_P+6],ax
-	sub	bl,bl
-	stc				; and shift a 1 into the quotient
-	jmp	short xdv8
-xdv7:	clc				; otherwise, shift a 0
-xdv8:	rcl	word ptr [bp+SX_MA],1
+	push	di
+	push	si
+	mov	si,di
+	lea	bx,[bp+SX_MB]
+	call	xMantPut		; SX_MB = B's mantissa (the divisor)
+	pop	si
+	mov	ax,[bp+si].UX_M0	; DI:DX:BX:AX = A's mantissa (the
+	mov	bx,[bp+si].UX_M1	; remainder)
+	mov	dx,[bp+si].UX_M2
+	mov	di,[bp+si].UX_M3
+	mov	cx,64			; CL = # quotient bits, CH = extra top
+	cmp	di,[bp+SX_MB+6]		; bit of remainder
+	jne	xdv3a
+	cmp	dx,[bp+SX_MB+4]
+	jne	xdv3a
+	cmp	bx,[bp+SX_MB+2]
+	jne	xdv3a
+	cmp	ax,[bp+SX_MB]
+xdv3a:	jae	xdv4
+	dec	[bp+si].UX_EXP		; A's mantissa < B's mantissa, so
+	shl	ax,1			; shift it left 1 bit
+	rcl	bx,1
+	rcl	dx,1
+	rcl	di,1
+	adc	ch,0
+xdv4:	sub	ax,[bp+SX_MB]		; subtract the divisor
+	sbb	bx,[bp+SX_MB+2]
+	sbb	dx,[bp+SX_MB+4]
+	sbb	di,[bp+SX_MB+6]
+	jnc	xdv6			; no borrow, so it's valid
+	test	ch,ch			; does the extra top bit absorb it?
+	jnz	xdv6			; yes
+	add	ax,[bp+SX_MB]		; no, so restore the remainder
+	adc	bx,[bp+SX_MB+2]
+	adc	dx,[bp+SX_MB+4]
+	adc	di,[bp+SX_MB+6]
+	clc				; and shift a 0 into the quotient
+	jmp	short xdv7
+xdv6:	stc				; shift a 1 into the quotient
+xdv7:	rcl	word ptr [bp+SX_MA],1
 	rcl	word ptr [bp+SX_MA+2],1
 	rcl	word ptr [bp+SX_MA+4],1
 	rcl	word ptr [bp+SX_MA+6],1
-	call	xdvShl
-	loop	xdv5
-	mov	ax,[bp+SX_MA]
-	mov	[bp+si].UX_M0,ax
-	mov	ax,[bp+SX_MA+2]
-	mov	[bp+si].UX_M1,ax
-	mov	ax,[bp+SX_MA+4]
-	mov	[bp+si].UX_M2,ax
-	mov	ax,[bp+SX_MA+6]
-	mov	[bp+si].UX_M3,ax
-	mov	ax,[bp+SX_P]		; any remainder is "sticky"
-	or	ax,[bp+SX_P+2]
-	or	ax,[bp+SX_P+4]
-	or	ax,[bp+SX_P+6]
-	or	al,bl
+	shl	ax,1			; shift the remainder left 1 bit
+	rcl	bx,1
+	rcl	dx,1
+	rcl	di,1
+	mov	ch,0
+	adc	ch,0
+	dec	cl
+	jnz	xdv4
+	or	ax,bx			; any remainder is "sticky"
+	or	ax,dx
+	or	ax,di
+	or	al,ch
+	push	ax
+	lea	bx,[bp+SX_MA]
+	call	xMantGet		; A's mantissa = the quotient
+	pop	ax
+	pop	di
+	test	ax,ax
 	jz	xdv10
 	or	byte ptr [bp+si].UX_M0,1
 xdv10:	ret
-
-xdvCmp:	mov	ax,[bp+SX_P+6]		; carry set if remainder < divisor
-	cmp	ax,[bp+SX_MB+6]
-	jne	xdc9
-	mov	ax,[bp+SX_P+4]
-	cmp	ax,[bp+SX_MB+4]
-	jne	xdc9
-	mov	ax,[bp+SX_P+2]
-	cmp	ax,[bp+SX_MB+2]
-	jne	xdc9
-	mov	ax,[bp+SX_P]
-	cmp	ax,[bp+SX_MB]
-xdc9:	ret
-
-xdvShl:	shl	word ptr [bp+SX_P],1	; shift remainder left 1 bit
-	rcl	word ptr [bp+SX_P+2],1
-	rcl	word ptr [bp+SX_P+4],1
-	rcl	word ptr [bp+SX_P+6],1
-	mov	bl,0
-	adc	bl,0
-	ret
 ENDPROC	xDiv
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2999,7 +3367,7 @@ ENDPROC	xScale10
 ; until it's as precise as 64 bits allow (6 iterations).
 ;
 ; Modifies:
-;	AX, BX, CX, DX, SI, DI, SX_C, SX_D
+;	AX, BX, CX, DX, SI, DI, SX_G, SX_H
 ;
 DEFPROC	xSqrt
 	mov	si,SX_A
@@ -3012,25 +3380,527 @@ DEFPROC	xSqrt
 	jmp	xInvalid		; negative values are invalid
 xsq1:	cmp	[bp+si].UX_CLS,UXC_INF
 	je	xsq9
-	mov	si,SX_D
-	mov	di,SX_A
-	call	xCopy			; D = x
+	XRUN
+	XS	XO_COPY,XI_G,XI_A	; G = x
+	XEND
 	sar	[bp+SX_A].UX_EXP,1	; A = y
 	mov	cx,6
 xsq2:	push	cx
-	mov	si,SX_C
-	mov	di,SX_D
-	call	xCopy
-	mov	di,SX_A
-	call	xDiv			; C = x / y
-	mov	si,SX_A
-	mov	di,SX_C
-	call	xAdd			; A = y + x/y
+	XRUN
+	XS	XO_COPY,XI_H,XI_G
+	XS	XO_DIV,XI_H,XI_A	; H = x / y
+	XS	XO_ADD,XI_A,XI_H	; A = y + x/y
+	XEND
 	dec	[bp+SX_A].UX_EXP	; A = (y + x/y) / 2
 	pop	cx
 	loop	xsq2
 xsq9:	ret
 ENDPROC	xSqrt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xScript (see XRUN)
+;
+; Runs the "script" that follows the call, which is a series of 2-byte steps
+; (see XS), ending with XEND.  Each step consists of an operation (XO_*) and
+; a byte containing two UX indexes (XI_*): the high nibble selects the UX for
+; SI and the low nibble selects the UX for DI.  For XO_INT and XO_K, the low
+; nibble is a small integer (0-15) or a constant index (KI_*) instead (so DI is
+; meaningless after those steps).
+;
+; This saves a lot of space, since each step would otherwise require 9 bytes
+; of "MOV SI,offset; MOV DI,offset; CALL function".
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI (and anything the operations modify)
+;
+
+DEFPROC	xScript
+	pop	bx			; BX -> script
+xrn1:	mov	dx,cs:[bx]		; DL = operation, DH = UX indexes
+	inc	bx
+	inc	bx
+	test	dl,dl
+	jz	xrn9
+	push	bx
+	mov	bl,dh
+	and	bx,0Fh
+	mov	al,cs:[xUXOff+bx]
+	cbw
+	xchg	di,ax			; DI = UX selected by the low nibble
+	mov	bl,dh
+	mov	cl,4
+	shr	bl,cl
+	mov	al,cs:[xUXOff+bx]
+	cbw
+	xchg	si,ax			; SI = UX selected by the high nibble
+	mov	bl,dl
+	add	bx,bx
+	call	cs:[xOpTbl-2+bx]
+	pop	bx
+	jmp	xrn1
+xrn9:	jmp	bx
+
+xNeg:	xor	[bp+si].UX_SGN,80h
+	ret
+xSub:	xor	[bp+di].UX_SGN,80h
+	jmp	xAdd
+xIntK:	mov	al,dh
+	and	ax,0Fh
+	cwd
+	jmp	xFromLong
+xConstK:mov	al,dh
+	and	ax,0Fh
+	mov	cl,size UX
+	mul	cl
+	add	ax,offset kConsts
+	xchg	bx,ax
+	jmp	xLoadK
+ENDPROC	xScript
+
+xUXOff	db	SX_A,SX_B,SX_C,SX_D,SX_F,SX_G,SX_H
+	even
+xOpTbl	dw	xCopy,xMul,xDiv,xAdd,xSub,xNeg,xIntK,xConstK,xSqrt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xLoadK
+;
+; Loads the UX at SI with the UX constant at CS:BX (eg, kPiBy2).
+;
+; Modifies:
+;	AX, BX, CX
+;
+DEFPROC	xLoadK
+	push	si
+	mov	cx,(size UX) SHR 1
+xlk1:	mov	ax,cs:[bx]
+	mov	[bp+si],ax
+	inc	bx
+	inc	bx
+	inc	si
+	inc	si
+	loop	xlk1
+	pop	si
+	ret
+ENDPROC	xLoadK
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xSeries
+;
+; Sums a power series in SX_A: the first term is SX_C, and each subsequent
+; term is formed by multiplying a running product (SX_C) by SX_D and dividing
+; by n, or by n*(n+1) if SER_PAIR is set, where n starts at AX and increases
+; by DH after each term.  If SER_CUM is set, the divisions accumulate in the
+; running product (as they must for factorials); otherwise, each term is the
+; running product divided by n.  The summation ends when a term no longer
+; affects the 64-bit sum.
+;
+; Inputs:
+;	SX_C = first term, SX_D = multiplier
+;	AX = first n, DL = SER_* flags, DH = increment for n
+;
+; Outputs:
+;	SX_A = sum
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, SX_B, SX_C
+;
+SER_PAIR	equ	01h
+SER_CUM		equ	02h
+
+DEFPROC	xSeries
+	mov	[bp+SX_N],ax
+	mov	[bp+SX_E],dx
+	XRUN
+	XS	XO_COPY,XI_A,XI_C	; sum = first term
+	XEND
+	mov	cx,40			; (a limit, just in case)
+xse1:	push	cx
+	XRUN
+	XS	XO_MUL,XI_C,XI_D	; product = product * multiplier
+	XS	XO_COPY,XI_B,XI_C	; B = product
+	XEND
+	mov	ax,[bp+SX_N]
+	test	byte ptr [bp+SX_E],SER_PAIR
+	jz	xse2
+	mov	bx,ax
+	inc	bx
+	mul	bx			; AX = n*(n+1)
+xse2:	xchg	bx,ax			; BX = divisor
+	test	byte ptr [bp+SX_E],SER_CUM
+	jz	xse3
+	mov	si,SX_C
+	call	xDivSmall		; product = product / divisor
+	XRUN
+	XS	XO_COPY,XI_B,XI_C	; B = term (the product)
+	XEND
+	jmp	short xse4
+xse3:	mov	si,SX_B
+	call	xDivSmall		; B = term (product / divisor)
+xse4:	pop	cx
+	mov	si,SX_B
+	call	xIsZero
+	jz	xse9			; the term is zero
+	mov	ax,[bp+SX_A].UX_EXP
+	sub	ax,[bp+SX_B].UX_EXP
+	cmp	ax,66
+	jg	xse9			; the term is too small to matter
+	push	cx
+	XRUN
+	XS	XO_ADD,XI_A,XI_B	; sum = sum + term
+	XEND
+	pop	cx
+	mov	al,byte ptr [bp+SX_E+1]
+	cbw
+	add	[bp+SX_N],ax		; advance n
+	loop	xse1
+xse9:	ret
+ENDPROC	xSeries
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xTrig
+;
+; Sets the UX at SX_A to its sine (AL = 0), cosine (AL = 1), or tangent
+; (AL = 2).  The argument x is reduced to r = x - k*pi/2 (see below for
+; how we keep this precise), where k is x/(pi/2)
+; rounded to the nearest integer, so that abs(r) <= pi/4, and the quadrant
+; q = k mod 4 determines whether sin(r) or cos(r) is used, and the sign:
+; sin(x) is sin(r), cos(r), -sin(r), or -cos(r) for quadrants 0 through 3,
+; and cos(x) is the same as sin(x) one quadrant later.  The tangent is
+; sin(r)/cos(r) in even quadrants and -cos(r)/sin(r) in odd quadrants.
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, SX_B, SX_C, SX_D, SX_F, SX_G, SX_H
+;
+DEFPROC	xTrig
+	push	ax			; save the function (AL)
+	mov	si,SX_A
+	cmp	[bp+si].UX_CLS,UXC_NAN
+	je	xtr0
+	cmp	[bp+si].UX_CLS,UXC_INF
+	jne	xtr1
+	call	xInvalid		; infinity has no sine or cosine
+xtr0:	pop	ax
+	ret
+xtr1:	XRUN
+	XS	XO_COPY,XI_F,XI_A	; F = x
+	XS	XO_K,XI_B,KI_PIBY2	; B = pi/2
+	XS	XO_DIV,XI_A,XI_B	; A = x / (pi/2)
+	XEND
+	mov	si,SX_A
+	sub	al,al
+	call	xRndInt			; A = k
+	sub	dl,dl			; DL = q (k mod 4)
+	call	xIsZero
+	jz	xtr2
+	XRUN
+	XS	XO_COPY,XI_H,XI_A	; H = k (and SI -> H)
+	XEND
+	mov	dl,0			; (XRUN modified DL)
+	mov	cx,63
+	sub	cx,[bp+SX_A].UX_EXP
+	jl	xtr2			; k is huge (and a multiple of 4)
+	call	xShrN			; H's mantissa = abs(k)
+	mov	dl,byte ptr [bp+SX_H].UX_M0
+	and	dl,3
+	test	[bp+SX_A].UX_SGN,80h
+	jz	xtr2
+	neg	dl			; k is negative
+	and	dl,3
+xtr2:	push	dx
+;
+; Since pi/2 is only accurate to 64 bits, we calculate r = x - k*pi/2 as
+; (x - k*P1) - k*P2, where P1 is pi/2 truncated to 32 bits (so k*P1 is exact)
+; and P2 is the next 64 bits of pi/2.
+;
+	XRUN
+	XS	XO_COPY,XI_G,XI_A	; G = k
+	XS	XO_K,XI_B,KI_PIBY2A	; B = P1
+	XS	XO_MUL,XI_A,XI_B	; A = k*P1
+	XS	XO_SUB,XI_F,XI_A	; F = x - k*P1
+	XS	XO_K,XI_B,KI_PIBY2B	; B = P2
+	XS	XO_MUL,XI_G,XI_B	; G = k*P2
+	XS	XO_SUB,XI_F,XI_G	; F = r = (x - k*P1) - k*P2
+	XS	XO_COPY,XI_D,XI_F
+	XS	XO_MUL,XI_D,XI_D	; D = r^2
+	XEND
+	mov	[bp+SX_D].UX_SGN,80h	; D = -r^2
+	pop	dx
+	pop	ax
+	cmp	al,1
+	jb	xtr4			; sine
+	je	xtr3			; cosine
+	push	dx			; tangent
+	call	xSinSer
+	XRUN
+	XS	XO_COPY,XI_G,XI_A	; G = sin(r)
+	XEND
+	call	xCosSer			; A = cos(r)
+	pop	dx
+	test	dl,1
+	jnz	xtr2a
+	XRUN
+	XS	XO_COPY,XI_B,XI_A	; B = cos(r)
+	XS	XO_COPY,XI_A,XI_G	; A = sin(r)
+	XS	XO_DIV,XI_A,XI_B	; A = sin(r)/cos(r)
+	XEND
+	ret
+xtr2a:	XRUN
+	XS	XO_DIV,XI_A,XI_G	; A = cos(r)/sin(r)
+	XEND
+	jmp	short xtr6
+xtr3:	inc	dl			; cos(x) = sin(x) one quadrant later
+xtr4:	push	dx
+	test	dl,1
+	jz	xtr5
+	call	xCosSer
+	jmp	short xtr5a
+xtr5:	call	xSinSer
+xtr5a:	pop	dx
+	test	dl,2
+	jz	xtr9
+xtr6:	xor	[bp+SX_A].UX_SGN,80h
+xtr9:	ret
+;
+; xSinSer and xCosSer sum the sine and cosine series for r (in SX_F),
+; using -r^2 (in SX_D) as the multiplier.
+;
+xSinSer:XRUN
+	XS	XO_COPY,XI_C,XI_F	; first term is r
+	XEND
+	mov	ax,2
+	jmp	short xcs1
+xCosSer:XRUN
+	XS	XO_INT,XI_C,1		; first term is 1
+	XEND
+	mov	ax,1
+xcs1:	mov	dx,(2 SHL 8) OR SER_PAIR OR SER_CUM
+	jmp	xSeries
+ENDPROC	xTrig
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xAtn
+;
+; Sets the UX at SX_A to its arctangent.  For abs(x) > 1, we use
+; atan(x) = pi/2 - atan(1/x); then x is reduced twice with
+; atan(x) = 2*atan(x/(1 + sqrt(1 + x^2))), so that abs(x) < 0.2, and the
+; series x - x^3/3 + x^5/5 - ... converges quickly.
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, SX_B, SX_C, SX_D, SX_F, SX_G, SX_H
+;
+DEFPROC	xAtn
+	mov	si,SX_A
+	cmp	[bp+si].UX_CLS,UXC_NAN
+	jne	xat0
+	ret
+xat0:	mov	al,0
+	xchg	al,[bp+si].UX_SGN
+	push	ax			; save the sign (and use abs(x))
+	call	xIsZero
+	jz	xat0a			; atan(0) is 0
+	cmp	[bp+si].UX_CLS,UXC_INF
+	jne	xat1
+	mov	bx,offset kPiBy2
+	call	xLoadK			; atan(infinity) is pi/2
+xat0a:	jmp	xat8
+xat1:	XRUN
+	XS	XO_INT,XI_B,1
+	XEND
+	mov	si,SX_A
+	mov	di,SX_B
+	call	xCmpMag
+	push	ax			; AL > 0 if abs(x) > 1
+	test	al,al
+	jle	xat2
+	XRUN
+	XS	XO_DIV,XI_B,XI_A
+	XS	XO_COPY,XI_A,XI_B	; A = 1/x
+	XEND
+xat2:	mov	cx,2
+xat3:	push	cx
+	XRUN
+	XS	XO_COPY,XI_F,XI_A	; F = x
+	XS	XO_MUL,XI_A,XI_A	; A = x^2
+	XS	XO_INT,XI_B,1
+	XS	XO_ADD,XI_A,XI_B	; A = 1 + x^2
+	XS	XO_SQRT,XI_A,XI_A	; A = sqrt(1 + x^2)
+	XS	XO_INT,XI_B,1
+	XS	XO_ADD,XI_A,XI_B	; A = 1 + sqrt(1 + x^2)
+	XS	XO_DIV,XI_F,XI_A	; F = x / (1 + sqrt(1 + x^2))
+	XS	XO_COPY,XI_A,XI_F	; A = x (reduced)
+	XEND
+	pop	cx
+	loop	xat3
+	XRUN
+	XS	XO_COPY,XI_C,XI_A	; first term is x
+	XS	XO_COPY,XI_D,XI_A
+	XS	XO_MUL,XI_D,XI_D
+	XEND
+	mov	[bp+SX_D].UX_SGN,80h	; multiplier is -x^2
+	mov	ax,3
+	mov	dx,2 SHL 8
+	call	xSeries
+	add	[bp+SX_A].UX_EXP,2	; undo the two reductions
+	pop	ax
+	test	al,al
+	jle	xat8
+	XRUN
+	XS	XO_K,XI_B,KI_PIBY2
+	XS	XO_SUB,XI_B,XI_A
+	XS	XO_COPY,XI_A,XI_B	; A = pi/2 - atan(1/x)
+	XEND
+xat8:	pop	ax
+	xor	[bp+SX_A].UX_SGN,al	; restore the sign
+	ret
+ENDPROC	xAtn
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xLn
+;
+; Sets the UX at SX_A to its natural logarithm.  With x = m * 2^e, where m is
+; from sqrt(2)/2 to sqrt(2), ln(x) = e*ln(2) + 2*(s + s^3/3 + s^5/5 + ...),
+; where s = (m - 1)/(m + 1).  Zero produces -infinity (and a divide error,
+; like the 8087), and negative values are invalid.
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, SX_B, SX_C, SX_D, SX_F, SX_H
+;
+DEFPROC	xLn
+	mov	si,SX_A
+	cmp	[bp+si].UX_CLS,UXC_NAN
+	jne	xln0
+	ret
+xln0:	call	xIsZero
+	jnz	xln1
+	or	byte ptr [bp+SX_FL],XF_ZE
+	mov	[bp+si].UX_CLS,UXC_INF
+	mov	[bp+si].UX_SGN,80h
+	ret
+xln1:	test	[bp+si].UX_SGN,80h
+	jz	xln2
+	jmp	xInvalid
+xln2:	cmp	[bp+si].UX_CLS,UXC_INF
+	je	xln9
+	sub	ax,ax
+	xchg	ax,[bp+si].UX_EXP	; AX = e, and A = m (from 1 to 2)
+	cmp	[bp+si].UX_M3,0B505h	; m > sqrt(2)?
+	jb	xln3			; no
+	dec	[bp+si].UX_EXP		; yes, so use m/2
+	inc	ax			; and e+1
+xln3:	push	ax
+	XRUN
+	XS	XO_COPY,XI_F,XI_A	; F = m
+	XS	XO_INT,XI_B,1
+	XS	XO_ADD,XI_A,XI_B	; A = m + 1
+	XS	XO_INT,XI_B,1
+	XS	XO_SUB,XI_F,XI_B	; F = m - 1
+	XS	XO_DIV,XI_F,XI_A	; F = s
+	XS	XO_COPY,XI_C,XI_F	; first term is s
+	XS	XO_COPY,XI_D,XI_F
+	XS	XO_MUL,XI_D,XI_D	; multiplier is s^2
+	XEND
+	mov	ax,3
+	mov	dx,2 SHL 8
+	call	xSeries
+	inc	[bp+SX_A].UX_EXP	; A = 2*(s + s^3/3 + ...)
+	pop	ax
+	cwd
+	mov	si,SX_B
+	call	xFromLong		; B = e
+	XRUN
+	XS	XO_K,XI_C,KI_LN2
+	XS	XO_MUL,XI_B,XI_C	; B = e*ln(2)
+	XS	XO_ADD,XI_A,XI_B
+	XEND
+	ret
+xln9:	ret
+ENDPROC	xLn
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xExp
+;
+; Sets the UX at SX_A to e raised to its value.  With k = x/ln(2) rounded to
+; the nearest integer, and r = x - k*ln(2) (so that abs(r) <= ln(2)/2), e^x is
+; e^r * 2^k, where e^r = 1 + r + r^2/2! + r^3/3! + ...
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, SX_B, SX_C, SX_D, SX_F
+;
+DEFPROC	xExp
+	mov	si,SX_A
+	cmp	[bp+si].UX_CLS,UXC_NAN
+	je	xex9
+	cmp	[bp+si].UX_CLS,UXC_INF
+	je	xex1
+	call	xIsZero
+	jnz	xex2
+	mov	ax,1			; e^0 is 1
+	cwd
+	jmp	xFromLong
+xex1:	test	[bp+si].UX_SGN,80h	; e^infinity is infinity
+	jz	xex9
+xex1a:	mov	[bp+si].UX_SGN,0	; and e^-infinity is zero
+	jmp	xSetZero
+xex2:	cmp	[bp+si].UX_EXP,11	; abs(x) >= 2048?
+	jl	xex3			; no
+	test	[bp+si].UX_SGN,80h
+	jnz	xex1a			; very negative values underflow
+	mov	[bp+si].UX_CLS,UXC_INF	; and very positive values overflow
+	or	byte ptr [bp+SX_FL],XF_OE
+xex9:	ret
+xex3:	XRUN
+	XS	XO_COPY,XI_F,XI_A	; F = x
+	XS	XO_K,XI_C,KI_LN2	; C = ln(2)
+	XS	XO_DIV,XI_F,XI_C	; F = x/ln(2)
+	XEND
+	mov	si,SX_F
+	sub	al,al
+	call	xRndInt			; F = k
+	call	xToLong			; AX = k
+	push	ax
+	XRUN
+	XS	XO_MUL,XI_F,XI_C	; F = k*ln(2)
+	XS	XO_SUB,XI_A,XI_F	; A = r = x - k*ln(2)
+	XS	XO_COPY,XI_D,XI_A	; multiplier is r
+	XS	XO_INT,XI_C,1		; first term is 1
+	XEND
+	mov	ax,1
+	mov	dx,(1 SHL 8) OR SER_CUM
+	call	xSeries			; A = e^r
+	pop	ax
+	add	[bp+SX_A].UX_EXP,ax	; A = e^r * 2^k
+	ret
+ENDPROC	xExp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; UX constants (rounded to 64-bit mantissas)
+;
+KI_PIBY2	equ	0
+KI_PIBY2A	equ	1
+KI_PIBY2B	equ	2
+KI_LN2		equ	3
+
+	DEFLBL	kConsts,word
+kPiBy2	dw	0C235h,02168h,0DAA2h,0C90Fh	; pi/2
+	dw	0
+	db	0,UXC_FIN
+kPiBy2a	dw	00000h,00000h,0DAA2h,0C90Fh	; pi/2 (P1, the first 32 bits)
+	dw	0
+	db	0,UXC_FIN
+kPiBy2b	dw	08A2Eh,01319h,008D3h,085A3h	; pi/2 - P1 (P2)
+	dw	-34
+	db	0,UXC_FIN
+kLn2	dw	079ACh,0D1CFh,017F7h,0B172h	; ln(2)
+	dw	-1
+	db	0,UXC_FIN
 
 	DEFLBL	swEnd
 

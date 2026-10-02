@@ -9,10 +9,13 @@
 ;
 ; Every FPUTBL function is tested, using FPU_ATOD to create the inputs and
 ; FPU_DTOA to check the outputs, along with the kernel's %f formatter (which
-; also relies on FPU_DTOA), whether the FPU$ driver detected an 8087 or is using
-; its software (emulation) functions; the only exceptions are non-integer
-; exponents, which the emulation functions don't support yet.  The return code
-; is the number of failures.
+; also relies on FPU_DTOA), whether the FPU$ driver detected an 8087 or is
+; using its software (emulation) functions.  The return code is the number of
+; failures.
+;
+; NOTE: The expected results of transcendental functions were chosen so that
+; they don't depend on the last bit of precision, since PCjs's 8087 emulation
+; uses 64-bit doubles internally (instead of 80-bit extended precision).
 ;
 	include	macros.inc
 	include	dosapi.inc
@@ -61,23 +64,18 @@ PUSHL	macro	hi,lo
 	endm
 
 ;
+; To conserve MASM symbol space, these macros don't define any labels; their
+; strings follow the call to the corresponding "Inline" function instead.
+;
 ; NUMS converts as many as two strings to doubles (numA and numB).
 ;
 NUMS	macro	a,b
-	LOCAL	s1,s2,t
-	jmp	short t
-s1	db	a,0
+	call	numsInline
+	db	a,0
 	IFNB	<b>
-s2	db	b,0
+	db	b,0
 	ENDIF
-t:	mov	si,offset s1
-	mov	di,offset numA
-	call	atod
-	IFNB	<b>
-	mov	si,offset s2
-	mov	di,offset numB
-	call	atod
-	ENDIF
+	db	0
 	endm
 
 ;
@@ -86,11 +84,8 @@ t:	mov	si,offset s1
 ; converting it to a double).
 ;
 CHKD	macro	expect
-	LOCAL	s,t
-	jmp	short t
-s	db	expect,0
-t:	mov	dx,offset s
-	call	checkD
+	call	checkDInline
+	db	expect,0
 	add	sp,4
 	endm
 
@@ -100,11 +95,8 @@ CHKL	macro	expect
 	endm
 
 BEGIN	macro	desc
-	LOCAL	s,t
-	jmp	short t
-s	db	desc,": ",0
-t:	mov	dx,offset s
-	call	testBegin
+	call	beginInline
+	db	desc,": ",0
 	endm
 
 ;
@@ -150,7 +142,7 @@ TESTA	macro	str,expect
 ; follow the INT, just like PRINTF).
 ;
 TESTF	macro	fmt,val,expect
-	LOCAL	f,s,t
+	LOCAL	f
 	BEGIN	<fmt>
 	NUMS	<val>
 	PUSHD	numA
@@ -163,10 +155,8 @@ f	db	fmt,0
 	add	sp,4
 	xchg	bx,ax
 	mov	outBuf[bx],0
-	jmp	short t
-s	db	expect,0
-t:	mov	dx,offset s
-	call	checkOut
+	call	checkOutInline
+	db	expect,0
 	call	checkSP
 	endm
 
@@ -253,18 +243,27 @@ DEFPROC	fpuTests
 	TESTD	"2^10",FPU_EXP,"1024","2","10"
 	TESTD	"2^-2",FPU_EXP,".25","2","-2"
 	TESTD	"-3^3",FPU_EXP,"-27","-3","3"
-	cmp	byte ptr [fpuInfo+1],FPUTYPE_8087
-	je	ft0
-	jmp	ft1			; (emulation requires integer exponents)
-ft0:
 	TESTD	"2^.5",FPU_EXP,"1.4142135623731","2",".5"
 	TESTD	"10^2.5",FPU_EXP,"316.227766016838","10","2.5"
-ft1:
 	TESTD	"0^.5",FPU_EXP,"0","0",".5"
 	TESTD	"SQR(2)",FPU_SQR,"1.4142135623731","2"
 	TESTD	"INT(-2.5)",FPU_INT,"-3","-2.5"
 	TESTD	"INT(2.7)",FPU_INT,"2","2.7"
 	TESTD	"FIX(-2.5)",FPU_FIX,"-2","-2.5"
+	TESTD	"SIN(0)",FPU_SIN,"0","0"
+	TESTD	"COS(0)",FPU_COS,"1","0"
+	TESTD	"COS(1)",FPU_COS,".54030230586814","1"
+	TESTD	"TAN(1)",FPU_TAN,"1.5574077246549","1"
+	TESTD	"SIN(-2)",FPU_SIN,"-.909297426825682","-2"
+	TESTD	"COS(-2)",FPU_COS,"-.416146836547142","-2"
+	TESTD	"TAN(-2)",FPU_TAN,"2.18503986326152","-2"
+	TESTD	"ATN(1)",FPU_ATN,".785398163397448","1"
+	TESTD	"ATN(-.5)",FPU_ATN,"-.463647609000806","-.5"
+	TESTD	"ATN(1E10)",FPU_ATN,"1.5707963266949","1E10"
+	TESTD	"LOG(10)",FPU_LOG,"2.30258509299405","10"
+	TESTD	"LOG(1E-10)",FPU_LOG,"-23.0258509299405","1E-10"
+	TESTD	"EXP(-1)",FPU_ETOX,".367879441171442","-1"
+	TESTD	"EXP(10)",FPU_ETOX,"22026.4657948067","10"
 
 	TESTL	"1.5<2.25",FPU_LT,"-1","1.5","2.25"
 	TESTL	"1.5>2.25",FPU_GT,"0","1.5","2.25"
@@ -279,10 +278,15 @@ ft1:
 	TESTL	"CVT1DL(-.5)",FPU_CVT1DL,"-1","-.5"
 	TESTL	"CVT1DL(-1E9-.5)",FPU_CVT1DL,"-1000000001","-1000000000.5"
 
-	BEGIN	"CVT1DL(.5-2^-54)"	; the largest double < .5 must round to 0
-	PUSHD	nearHalf		; (we don't use ATOD to create it, since
-	FCALL	FPU_CVT1DL		; ".49999999999999994" requires all 64 bits
-	CHKL	"0"			; of 8087 precision to convert correctly)
+;
+; The largest double < .5 must round to 0 (we don't use ATOD to create it,
+; since ".49999999999999994" requires all 64 bits of 8087 precision to convert
+; correctly).
+;
+	BEGIN	"CVT1DL(.5-2^-54)"
+	PUSHD	nearHalf
+	FCALL	FPU_CVT1DL
+	CHKL	"0"
 	call	checkSP
 
 	BEGIN	"CVT2DL(1.6,-2.6)"
@@ -408,24 +412,78 @@ sw2:	call	result
 ENDPROC	swTests
 
 ;
-; testBegin
+; beginInline
 ;
-; Prints the description at DX and records SP (adjusted for our return
-; address) for checkSP.
+; Prints the description that follows the call, and records SP (adjusted for
+; our return address) for checkSP.
 ;
-DEFPROC	testBegin
+DEFPROC	beginInline
+	pop	dx			; DX -> description
+	call	skipInline
 	call	print0
 	mov	ax,sp
 	inc	ax
 	inc	ax
 	mov	[spBegin],ax
 	ret
-ENDPROC	testBegin
+ENDPROC	beginInline
+
+;
+; numsInline
+;
+; Converts the strings that follow the call (up to an empty string) to
+; doubles in numA and numB.
+;
+DEFPROC	numsInline
+	pop	si			; SI -> strings
+	mov	di,offset numA
+ni1:	cmp	byte ptr [si],0
+	je	ni9
+	call	atod			; (which advances SI past the number)
+ni2:	lodsb
+	test	al,al
+	jnz	ni2
+	mov	di,offset numB
+	jmp	ni1
+ni9:	inc	si			; skip the empty string
+	jmp	si
+ENDPROC	numsInline
+
+;
+; checkDInline, checkOutInline
+;
+; Same as checkD and checkOut, but with the expected string following the call.
+;
+DEFPROC	checkDInline
+	pop	dx			; DX -> expected string
+	call	skipInline
+	jmp	checkD
+	DEFLBL	checkOutInline,near
+	pop	dx
+	call	skipInline
+	jmp	checkOut
+ENDPROC	checkDInline
+
+;
+; skipInline
+;
+; Pushes the address that follows the string at DX as the caller's caller's
+; return address (and preserves DX); modifies AL, CX, and SI.
+;
+DEFPROC	skipInline
+	pop	cx			; CX = our return address
+	mov	si,dx
+si1:	lodsb
+	test	al,al
+	jnz	si1
+	push	si			; caller's new return address
+	jmp	cx
+ENDPROC	skipInline
 
 ;
 ; checkSP
 ;
-; Verifies that SP matches the value recorded by testBegin, and then reports.
+; Verifies that SP matches the value recorded by beginInline, and then reports.
 ;
 DEFPROC	checkSP
 	mov	ax,sp
