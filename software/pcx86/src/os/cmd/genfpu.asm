@@ -12,6 +12,11 @@
 ;	Numeric functions		(genFnCall: ABS, ATN, COS, EXP, FIX,
 ;					INT, LOG, SIN, SQR, TAN; see FN_FPUTBL)
 ;	Double constants		(genConstDouble, eg, "3.14" or "1E-5")
+;	Type conversions		(genCvtType: between longs and doubles,
+;					as LET, DEF, function parameters, and
+;					COLOR require)
+;	Double conditions		(genTestDouble: eg, "IF A THEN" when A
+;					is a double, which is true if A <> 0)
 ;	Calls to FPU$ functions		(genCallFPUDst2, genCallFPUDst, and
 ;					genCallFPU, which genExpr uses for
 ;					operators and type conversions)
@@ -71,6 +76,100 @@ DEFPROC	genConstDouble
 	jmp	genPushImm		; push offset of slot (carry clear)
 gcc9:	ret
 ENDPROC	genConstDouble
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genCvtType
+;
+; Generate code to convert the value on the stack from one type to another
+; (like MSBASIC, converting a long to a double or a double to a long, with
+; rounding); any other mismatch is an error.
+;
+; Inputs:
+;	DL = type of the value (VAR_*)
+;	AL = type required (VAR_*)
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if the types are incompatible
+;
+; Modifies:
+;	CX, DX, DI
+;
+DEFPROC	genCvtType
+	cmp	dl,al			; do the types already match?
+	je	gct8			; yes
+	mov	cx,FPU_CVT1LD
+	cmp	al,VAR_DOUBLE		; double required?
+	jne	gct1			; no
+	cmp	dl,VAR_LONG		; long value?
+	jne	gct9			; no
+	jmp	genCallFPUDst
+gct1:	mov	cx,FPU_CVT1DL
+	cmp	al,VAR_LONG		; long required?
+	jne	gct9			; no
+	cmp	dl,VAR_DOUBLE		; double value?
+	jne	gct9			; no
+	jmp	genCallFPU
+gct8:	clc
+	ret
+gct9:	stc
+	ret
+ENDPROC	genCvtType
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genTestDouble
+;
+; If the value on the stack is a double, generate code to replace it with a
+; long that's -1 if the double is non-zero and 0 if not (eg, for IF).
+;
+; Inputs:
+;	DL = type of the value (VAR_*)
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	AX, CX, DX, DI
+;
+DEFPROC	genTestDouble
+	cmp	dl,VAR_DOUBLE
+	clc
+	jne	gtd9
+	call	genPushSlot		; push a pointer to a zero
+	mov	cx,FPU_NE
+	jmp	genCallFPU		; and compare the double to it
+gtd9:	ret
+ENDPROC	genTestDouble
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genPushSlot
+;
+; Reserve an 8-byte slot (initialized to zero) in the code block, and generate
+; code to push a pointer to it (eg, for the return value of a VAR_DOUBLE
+; function).
+;
+; Inputs:
+;	ES:DI -> code block
+;
+; Modifies:
+;	AX, CX, DX, DI
+;
+DEFPROC	genPushSlot
+	call	genSlot			; DX = offset of slot
+	push	di
+	mov	di,dx
+	sub	ax,ax
+	mov	cx,4
+	rep	stosw			; zero the slot
+	pop	di
+	mov	al,OP_PUSH_CS
+	stosb
+	jmp	genPushImm		; push offset of slot
+ENDPROC	genPushSlot
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

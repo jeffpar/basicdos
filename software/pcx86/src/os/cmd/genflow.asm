@@ -24,6 +24,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<genExpr,genCommands,getNextToken,findLabel>
+	EXTNEAR	<genCvtType,genTestDouble>
 	EXTABS	<TOK_ELSE,TOK_THEN>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -134,6 +135,8 @@ DEFPROC	genIf
 	jne	gif9
 	cmp	al,TOK_THEN
 	jne	gif9
+	call	genTestDouble		; (a double is true if it's non-zero)
+	jc	gif9
 	add	bx,size TOKLET		; consume THEN
 	mov	ax,OP_POP_DX_AX
 	stosw
@@ -247,6 +250,9 @@ DEFPROC	genReturn
 	test	[si].GEN_FLAGS,GEN_DEF
 	jz	gr9
 	call	genExpr
+	jc	gr9
+	mov	al,[si].DEF_TYPE
+	call	genCvtType		; convert to the function's type
 	jc	gr9
 	and	[si].GEN_FLAGS,NOT GEN_DEF
 gr9:	ret

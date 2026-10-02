@@ -44,7 +44,7 @@ CODE    SEGMENT
 	EXTBYTE	<OPDEFS,RELOPS>
 	EXTWORD	<EVAL_LONG,EVAL_STR>
 	EXTNEAR	<genCallFPU,genCallFPUDst,genCallFPUDst2>
-	EXTNEAR	<genConstDouble,genFnCall>
+	EXTNEAR	<genConstDouble,genCvtType,genFnCall,genPushSlot>
 	EXTABS	<TOK_ABS,TOK_TAN>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -412,12 +412,17 @@ gd3:	call	allocFunc
 	mov	si,ds:[PSP_HEAP]
 	mov	al,[fnParms]		; set DEF_PARMS in case
 	mov	[si].DEF_PARMS,al	; genExpr encounters any VAR_PARMs
+	mov	al,[fnType]		; and DEF_TYPE for genReturn
+	mov	[si].DEF_TYPE,al
 
 	cmp	[fnBlock],0		; function expression?
 	jne	gd3a			; no
 	call	genExpr			; yes
+	jc	gd3x
+	mov	al,[fnType]
+	call	genCvtType		; convert to the function's type
 	jnc	gd3c
-gd3x:	jmp	short gd8
+gd3x:	jmp	gd8
 
 gd3a:	push	si
 	call	getNextLine		; function block
@@ -432,16 +437,38 @@ gd3b:	pop	si
 ; this function call, we must generate code that pops that result into the
 ; return variable on the stack (which genFuncExpr allocated prior to the call).
 ;
+; Since doubles are always passed by reference, the return variable of a
+; VAR_DOUBLE function is a pointer to a slot in the caller's code block, so
+; we generate code that copies the result to the slot (with setVarDouble).
+;
 gd3c:	mov	cl,[fnParms]
 	mov	ch,0
 	add	cx,cx
 	add	cx,cx
-	add	cx,6
-	call	genPopBPOffset
+	add	cx,6			; CX = offset of the return variable
+	cmp	[fnType],VAR_DOUBLE
+	jne	gd3e
+	mov	ax,OP_POP_DX_AX		; DX:AX -> result
+	stosw
+	inc	cx
+	inc	cx
+	call	genPushBPOffset		; push the return variable (a pointer
+	dec	cx			; to the caller's slot)
+	dec	cx
+	call	genPushBPOffset
+	mov	ax,OP_PUSH_DX OR (OP_PUSH_AX SHL 8)
+	stosw				; push the pointer to the result
+	push	cx
+	GENCALL	setVarDouble
+	pop	cx
+	inc	cx
+	inc	cx
+	jmp	short gd3f
+gd3e:	call	genPopBPOffset
 	inc	cx
 	inc	cx
 	call	genPopBPOffset
-	mov	ax,OP_POP_BP OR (OP_RETF_N SHL 8)
+gd3f:	mov	ax,OP_POP_BP OR (OP_RETF_N SHL 8)
 	stosw
 	sub	cx,8
 	xchg	ax,cx
@@ -492,7 +519,11 @@ gd7:	call	freeFunc		; on error, free the code block in ES
 ; stack, the LEAVE macro automatically cleans up the stack.
 ;
 gd8:	stc
-gd9:	LEAVE	CLEANUP
+gd9:	pushf
+	mov	si,ds:[PSP_HEAP]	; the DEF is no longer in progress
+	and	[si].GEN_FLAGS,NOT GEN_DEF
+	popf
+	LEAVE	CLEANUP
 	pop	di
 	pop	es
 	RETURN
@@ -1170,9 +1201,16 @@ DEFPROC	genFuncExpr
 ; For VAR_LONG functions, the generated stack frame needs to begin with room
 ; for a VAR_LONG return value; we use genPushLong instead of genPushZeroLong
 ; because it generates less code AND it doesn't matter what value gets pushed.
+; For VAR_DOUBLE functions, the return value is a pointer to a slot in our
+; code block, where the function will store its result.
 ;
-gfe0:	ASSERT	Z,<cmp [nFuncType],VAR_LONG>
-	call	genPushLong
+gfe0:	cmp	[nFuncType],VAR_DOUBLE
+	jne	gfe0a
+	push	cx
+	call	genPushSlot
+	pop	cx
+	jmp	short gfe1
+gfe0a:	call	genPushLong
 
 gfe1:	dec	[nFuncParms]		; more parameters?
 	jl	gfe6			; no
@@ -1183,9 +1221,11 @@ gfe1:	dec	[nFuncParms]		; more parameters?
 
 	push	ax			; save last symbol from genExpr
 	call	loadFuncData		; AL = parameter type
-	cmp	al,dl			; does it match expression type?
+	push	cx
+	call	genCvtType		; convert to the parameter type
+	pop	cx
 	pop	ax			; restore last symbol
-	jne	gfe9			; no, error
+	jc	gfe9			; error
 
 	cmp	ah,CLS_SYM		; was last token a symbol?
 	jne	gfe9			; no, error
@@ -1327,36 +1367,22 @@ DEFPROC	genLet
 
 	call	genExpr
 	jc	gl9
-	cmp	dl,ch			; does genExpr type match var type?
-	je	gl7			; yes
 ;
 ; Like MSBASIC, assigning a long to a double variable (or vice versa) converts
 ; the value to the variable's type; all other mismatches are errors.
 ;
 	push	cx
-	cmp	ch,VAR_DOUBLE		; double variable?
-	jne	gl6			; no
-	cmp	dl,VAR_LONG		; long value?
-	jne	gl8x			; no
-	mov	cx,FPU_CVT1LD
-	call	genCallFPUDst
-	jmp	short gl6a
-gl6:	cmp	ch,VAR_LONG		; long variable?
-	jne	gl8x			; no
-	cmp	dl,VAR_DOUBLE		; double value?
-	jne	gl8x			; no
-	mov	cx,FPU_CVT1DL
-	call	genCallFPU
-gl6a:	pop	cx
+	mov	al,ch
+	call	genCvtType		; TODO: generate "type mismatch" error
+	pop	cx
 	jc	gl9
-gl7:	cmp	ch,VAR_DOUBLE		; doubles are copied by reference
+	cmp	ch,VAR_DOUBLE		; doubles are copied by reference
 	mov	cx,offset setVarLong
 	jne	gl8
 	mov	cx,offset setVarDouble
 gl8:	GENCALL	cx
 	ret
 
-gl8x:	pop	cx			; TODO: generate "type mismatch" error
 gl9:	stc
 	ret
 ENDPROC	genLet
@@ -2007,7 +2033,7 @@ gnt2c:	pop	dx			; neither KEYOP nor KEYWORD
 	xlat				; look up the default VAR type
 	test	al,al			; has a default been set?
 	jnz	gnt4			; yes
-	mov	al,VAR_LONG		; no, default to VAR_LONG
+	mov	al,VAR_DOUBLE		; no, default to VAR_DOUBLE
 gnt4:	mov	ah,al
 	or	ah,CLS_VAR
 	pop	bx			; we're really popping AX

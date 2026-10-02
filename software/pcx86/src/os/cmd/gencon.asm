@@ -24,7 +24,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<genExpr,getNextToken,genCallCS,genPushImm,genPushImmByte>
-	EXTNEAR	<genPushImmByteAL,genPushImmByteAH>
+	EXTNEAR	<genPushImmByteAL,genPushImmByteAH,genCvtType>
 	EXTNEAR	<clearScreen,printArgs,printEcho,setColor,setFlags>
 	EXTABS	<TOK_OFF,TOK_ON>
 
@@ -72,6 +72,13 @@ DEFPROC	genColor
 gco1:	call	genExpr
 	jb	gco9
 	je	gco8
+	push	ax
+	push	cx
+	mov	al,VAR_LONG
+	call	genCvtType		; COLOR values must be longs
+	pop	cx
+	pop	ax
+	jc	gco9
 	inc	cx
 	cmp	al,','			; was the last symbol a comma?
 	je	gco1			; yes, go back for more
