@@ -26,6 +26,6 @@ npx gulp BUILD-HELP --silent || exit 1
 tools/pc/pc.js --disk=software/pcx86/disks/MSDOS320-C400.json --dir=software/pcx86/src --normalize --speed=4 --target=20M --fat=16:2048:512
 code=$?
 if [ $code -eq 0 ] && [ -n "$PCJS" ]; then
-    npx gulp demos --silent || exit 1
+    npx gulp demos --silent > /dev/null || exit 1
 fi
 exit $code
