@@ -49,7 +49,7 @@
       "vendor": "pcjs.org",
       "product": "basic-dos",           // see https://github.com/jeffpar/basicdos
       "versions": {
-        "v2": {                         // BASIC-DOS 2.x (any 2.* version, eg, --version=2); requires the "v2" branch
+        "v2": {                         // BASIC-DOS 2.x (any 2.* version, eg, --version=2)
           "dir": "%basicdos/software/pcx86/src",
           "boot": "os/boot/OBJ/BOOT.COM",
           "boot1Offset": 0x550,         // offset of ORG'ed boot code in BOOT.COM (alternatively, use BOOT1.COM)
