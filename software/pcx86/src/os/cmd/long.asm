@@ -974,10 +974,45 @@ DEFPROC	setVarLong,FAR
 	stosw
 	xchg	ax,bx
 	stosw
+	DEFLBL	setVarRet,near
 	push	dx			; ie, "JMP DX:CX"
 	push	cx
 	ret
 ENDPROC	setVarLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; setVarDouble
+;
+; Doubles are always passed by reference, so the value is a pointer to the
+; double, which we copy to the var data.
+;
+; Input stack:
+;	pointer to var data
+;	pointer to double
+;
+; Output stack:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	setVarDouble,FAR
+	pop	cx
+	pop	dx			; DX:CX = return address
+	pop	si
+	pop	ax			; AX:SI -> double
+	pop	di
+	pop	es			; ES:DI -> var data
+	push	ds
+	mov	ds,ax
+	movsw
+	movsw
+	movsw
+	movsw
+	pop	ds
+	jmp	setVarRet
+ENDPROC	setVarDouble
 
 CODE	ENDS
 

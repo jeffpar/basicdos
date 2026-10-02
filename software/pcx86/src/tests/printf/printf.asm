@@ -25,7 +25,9 @@ DEFPROC	main
 ;
 	PRINTF	<"hello world!",13,10>
 	PRINTF	<"CR is %d, LF is 0x%x",13,10>,CR,LF
-;	PRINTF	<"ONE is %lf, PI is %lf",13,10>,ONE,:4,PI,:4
+;	mov	ax,offset ONE		; (doubles are passed by reference)
+;	mov	bx,offset PI
+;	PRINTF	<"ONE is %f, PI is %f",13,10>,ax,cs,bx,cs
 
 	PRINTF	<"Powers of two...",13,10>
 	mov	cx,1

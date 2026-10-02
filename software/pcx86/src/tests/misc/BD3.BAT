@@ -1,4 +1,5 @@
 REM BASIC-DOS Test #3
 REM Pipe test loop
+DEFINT A-Z
 10 DIR | CASE
 GOTO 10

@@ -605,74 +605,95 @@ HWCODE	segment para public 'CODE'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; hwNeg
+; hwNeg, hwAbs
+;
+; No FPU is required to flip or clear the sign bit, so we simply copy the
+; double to ES:DI and modify the copy.
 ;
 ; Inputs:
-;	1 64-bit double on stack
+;	1 double on stack
+;	ES:DI -> result
 ;
 ; Outputs:
-;	1 64-bit double on stack (negated)
+;	1 double on stack (negated, or absolute value)
 ;
 ; Modifies:
-;	BX
+;	BX, CX, SI
 ;
 DEFPROC	hwNeg,FAR
-	mov	bx,sp
-	xor	byte ptr ss:[bx+11],80h	; no FPU required to flip the sign bit
+	call	hwCopyT
+	xor	byte ptr es:[di+7],80h
+	ret
+	DEFLBL	hwAbs,near
+	call	hwCopyT
+	and	byte ptr es:[di+7],7Fh
 	ret
 ENDPROC	hwNeg
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; hwAbs
+; hwCopyT
+;
+; Copies the top double on the stack to ES:DI, and replaces it with ES:DI.
 ;
 ; Inputs:
-;	1 64-bit double on stack
+;	1 double on stack, followed by FAR and NEAR return addresses
+;	ES:DI -> result
 ;
 ; Outputs:
-;	1 64-bit double on stack (absolute value)
+;	ES:DI -> result
 ;
 ; Modifies:
-;	BX
+;	BX, CX, SI
 ;
-DEFPROC	hwAbs,FAR
+DEFPROC	hwCopyT
 	mov	bx,sp
-	and	byte ptr ss:[bx+11],7Fh	; no FPU required to clear the sign bit
+	push	ds
+	lds	si,ss:[bx+6]		; DS:SI -> double
+	mov	ss:[bx+6],di		; and replace it with ES:DI
+	mov	ss:[bx+8],es
+	mov	cx,4
+	rep	movsw
+	sub	di,8
+	pop	ds
 	ret
-ENDPROC	hwAbs
+ENDPROC	hwCopyT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; hwMul, hwDiv, hwAdd, hwSub
 ;
 ; Inputs:
-;	2 64-bit doubles on stack (A, then B on top)
+;	2 doubles on stack (A, then B on top)
+;	ES:DI -> result
 ;
 ; Outputs:
-;	1 64-bit double on stack (A*B, A/B, A+B, or A-B)
+;	1 double on stack (A*B, A/B, A+B, or A-B)
 ;
 ; Modifies:
-;	AX, BX
+;	AX, BX, SI
 ;
 DEFPROC	hwMul,FAR
-	call	hwLoadA			; ST(0) = A
-	fmul	qword ptr ss:[bx+4]	; ST(0) = A * B
-	jmp	short hwStoreA
+	call	hwLoad2			; ST(0) = A, ST(1) = B
+	fmulp	st(1),st		; ST(0) = A * B
+	jmp	short hwStore2
 	DEFLBL	hwDiv,near
-	call	hwLoadA
-	fdiv	qword ptr ss:[bx+4]	; ST(0) = A / B
-	jmp	short hwStoreA
+	call	hwLoad2
+	fdivrp	st(1),st		; ST(0) = A / B
+	jmp	short hwStore2
 	DEFLBL	hwAdd,near
-	call	hwLoadA
-	fadd	qword ptr ss:[bx+4]	; ST(0) = A + B
-	jmp	short hwStoreA
+	call	hwLoad2
+	faddp	st(1),st		; ST(0) = A + B
+	jmp	short hwStore2
 	DEFLBL	hwSub,near
-	call	hwLoadA
-	fsub	qword ptr ss:[bx+4]	; ST(0) = A - B
-	DEFLBL	hwStoreA,near
-	fstp	qword ptr ss:[bx+12]	; replace A with ST(0)
+	call	hwLoad2
+	fsubrp	st(1),st		; ST(0) = A - B
+	DEFLBL	hwStore2,near
+	fstp	qword ptr es:[di]	; store ST(0) at ES:DI
 	call	hwDone
-	ret	8			; and pop B
+	mov	ss:[bx+8],di		; replace A with ES:DI
+	mov	ss:[bx+10],es
+	ret	4			; and pop B
 ENDPROC	hwMul
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -684,17 +705,18 @@ ENDPROC	hwMul
 ; exponents are calculated as 2^(B * log2(A)), so negative bases are invalid.
 ;
 ; Inputs:
-;	2 64-bit doubles on stack (A, then B on top)
+;	2 doubles on stack (A, then B on top)
+;	ES:DI -> result
 ;
 ; Outputs:
-;	1 64-bit double on stack (A^B)
+;	1 double on stack (A^B)
 ;
 ; Modifies:
-;	AX, BX, CX
+;	AX, BX, CX, SI
 ;
 DEFPROC	hwExp,FAR
-	call	hwLoadA			; ST(0) = A
-	fld	qword ptr ss:[bx+4]	; ST(0) = B, ST(1) = A
+	call	hwLoad2			; ST(0) = A, ST(1) = B
+	fxch				; ST(0) = B, ST(1) = A
 	fist	cs:[hwTemp]		; store B as a 16-bit integer
 	ficom	cs:[hwTemp]		; and compare it to B
 	call	hwStat
@@ -718,7 +740,7 @@ he5:	fclex				; clear any exception from FIST
 	jmp	short he9
 he6:	fyl2x				; ST(0) = B * log2(A)
 	call	hwPow2			; ST(0) = 2^(B * log2(A))
-he9:	jmp	hwStoreA
+he9:	jmp	hwStore2
 ENDPROC	hwExp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -729,13 +751,13 @@ ENDPROC	hwExp
 ; the relation true: 4 (A < B), 2 (A = B), and 1 (A > B).
 ;
 ; Inputs:
-;	2 64-bit doubles on stack (A, then B on top)
+;	2 doubles on stack (A, then B on top)
 ;
 ; Outputs:
 ;	1 32-bit long on stack (-1 if true, 0 if false)
 ;
 ; Modifies:
-;	AX, BX, CX
+;	AX, BX, CX, SI
 ;
 DEFPROC	hwEQ,FAR
 	mov	cl,2
@@ -754,8 +776,8 @@ DEFPROC	hwEQ,FAR
 	jmp	short hwCmp
 	DEFLBL	hwGE,near
 	mov	cl,2+1
-hwCmp:	call	hwLoadA			; ST(0) = A
-	fcomp	qword ptr ss:[bx+4]	; compare A to B and pop
+hwCmp:	call	hwLoad2			; ST(0) = A, ST(1) = B
+	fcompp				; compare A to B and pop both
 	call	hwDone			; AH = high byte of status
 	sahf				; CF = C0 and ZF = C3
 	mov	al,1
@@ -766,139 +788,142 @@ hwCmp:	call	hwLoadA			; ST(0) = A
 hc1:	and	al,cl			; is the relation true?
 	neg	al			; carry set if so
 	sbb	ax,ax			; AX = -1 if true, 0 if false
-	mov	ss:[bx+16],ax		; the result replaces the top half of A
-	mov	ss:[bx+18],ax
-	ret	12			; and the rest of A and B are popped
+	mov	ss:[bx+8],ax		; the result replaces A
+	mov	ss:[bx+10],ax
+	ret	4			; and B is popped
 ENDPROC	hwEQ
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; hwCvtDL (FPU_CVT1DL and FPU_CVTD1L)
+; hwCvtDL (FPU_CVT1DL and FPU_CVTD1L), hwCvtD2L (FPU_CVTD2L)
 ;
-; Converts the double on top of the stack to a long, rounding to the nearest
-; integer (with ties rounded to even).
+; Converts the top double (or for FPU_CVTD2L, the double underneath the long
+; on top) to a long, rounding to the nearest integer (with ties rounded away
+; from zero, like MSBASIC; see hwRound).
 ;
 ; Inputs:
-;	1 64-bit double on stack
+;	1 double on stack (or 1 double and 1 long, with the long on top)
 ;
 ; Outputs:
-;	1 32-bit long on stack
+;	1 32-bit long on stack (or 2 longs)
 ;
 ; Modifies:
-;	AX, BX
+;	AX, BX, SI
 ;
 DEFPROC	hwCvtDL,FAR
 	call	hwLoadT			; ST(0) = top double
-	fistp	dword ptr ss:[bx+8]	; replace top half of double with long
+	call	hwRound
+	fistp	dword ptr ss:[bx+4]	; replace the top double with a long
+	jmp	short hwCvtDone
+	DEFLBL	hwCvtD2L,near
+	call	hwLoadA			; ST(0) = double under the long
+	call	hwRound
+	fistp	dword ptr ss:[bx+8]	; replace that double with a long
+	DEFLBL	hwCvtDone,near
 	call	hwDone
-	ret	4
+	ret
 ENDPROC	hwCvtDL
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; hwCvt2DL (FPU_CVT2DL)
 ;
+; Same as hwCvtDL, but for both doubles.
+;
 ; Inputs:
-;	2 64-bit doubles on stack (A, then B on top)
+;	2 doubles on stack (A, then B on top)
 ;
 ; Outputs:
 ;	2 32-bit longs on stack (A, then B on top)
 ;
 ; Modifies:
-;	AX, BX
+;	AX, BX, SI
 ;
 DEFPROC	hwCvt2DL,FAR
-	call	hwLoadA			; ST(0) = A
-	fld	qword ptr ss:[bx+4]	; ST(0) = B, ST(1) = A
-	fistp	dword ptr ss:[bx+12]
-	fistp	dword ptr ss:[bx+16]
-	call	hwDone
-	ret	8
+	call	hwLoad2			; ST(0) = A, ST(1) = B
+	call	hwRound
+	fistp	dword ptr ss:[bx+8]
+	call	hwRound			; ST(0) = B
+	fistp	dword ptr ss:[bx+4]
+	jmp	hwCvtDone
 ENDPROC	hwCvt2DL
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; hwCvtD2L (FPU_CVTD2L)
+; hwRound
+;
+; Rounds ST(0) to the nearest integer, with ties rounded away from zero (eg,
+; 2.5 becomes 3 and -2.5 becomes -3), which is what MSBASIC does when it
+; converts a floating-point value to an integer.
+;
+; Simply adding 0.5 and truncating isn't exact (eg, 0.49999999999999994 + 0.5
+; rounds to 1), so we truncate x to t, and since x - t is always exact, we can
+; check whether |x - t| >= 0.5, in which case t is moved one away from zero.
 ;
 ; Inputs:
-;	1 64-bit double and 1 32-bit long on stack (long on top)
+;	ST(0) = x
 ;
 ; Outputs:
-;	2 32-bit longs on stack
+;	ST(0) = x rounded
 ;
 ; Modifies:
-;	AX, BX, DX
+;	AX
 ;
-DEFPROC	hwCvtD2L,FAR
-	mov	bx,sp
-	cli
-	fld	qword ptr ss:[bx+8]	; ST(0) = double
-	fwait				; make sure the 8087 is done reading it
-	mov	ax,ss:[bx+4]
-	mov	dx,ss:[bx+6]
-	mov	ss:[bx+8],ax		; move the long up 4 bytes
-	mov	ss:[bx+10],dx
-	fistp	dword ptr ss:[bx+12]	; and store the converted double above it
-	call	hwDone
-	ret	4
-ENDPROC	hwCvtD2L
+DEFPROC	hwRound
+	fld	st(0)			; ST(0) = x, ST(1) = x
+	fldcw	cs:[hwCWChop]
+	frndint				; ST(0) = t (x truncated)
+	fldcw	cs:[hwCWNear]
+	fsub	st(1),st		; ST(0) = t, ST(1) = f (x - t)
+	fld	st(1)
+	fabs				; ST(0) = |f|, ST(1) = t, ST(2) = f
+	fcomp	cs:[hwHalf]		; compare |f| to 0.5 and pop
+	call	hwStat
+	jb	hr8			; |f| < 0.5, so t is the answer
+	fxch				; ST(0) = f, ST(1) = t
+	ftst
+	call	hwStat			; carry set if f < 0
+	fstp	st(0)			; ST(0) = t
+	fld1
+	jae	hr1
+	fchs				; ST(0) = -1
+hr1:	faddp	st(1),st		; ST(0) = t + 1 (or t - 1)
+	ret
+hr8:	fstp	st(1)			; ST(0) = t
+	ret
+ENDPROC	hwRound
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; hwCvtLD (FPU_CVTL1D and FPU_CVT1LD)
+; hwCvtLD (FPU_CVTL1D and FPU_CVT1LD), hwCvtL2D (FPU_CVTL2D)
 ;
-; Converts the long on top of the stack to a double, so the stack grows by
-; 4 bytes, which means we must pop the return address and push it back.
+; Converts the long on top of the stack (or for FPU_CVTL2D, the long underneath
+; the double on top) to a double at ES:DI, and replaces the long with ES:DI.
 ;
 ; Inputs:
-;	1 32-bit long on stack
+;	1 32-bit long on stack (or 1 long and 1 double, with the double on top)
+;	ES:DI -> result
 ;
 ; Outputs:
-;	1 64-bit double on stack
+;	1 double on stack (or 2 doubles)
 ;
 ; Modifies:
-;	AX, BX, CX, DX
+;	AX, BX
 ;
 DEFPROC	hwCvtLD,FAR
-	pop	cx
-	pop	dx			; DX:CX = return address
-	mov	bx,sp
+	mov	bx,4
+	jmp	short hwCvtL
+	DEFLBL	hwCvtL2D,near
+	mov	bx,8
+hwCvtL:	add	bx,sp			; SS:BX -> long
 	cli
 	fild	dword ptr ss:[bx]
-	fstp	qword ptr ss:[bx-4]
-	sub	sp,4
-	DEFLBL	hwCvtRet,near
-	push	dx
-	push	cx
+	fstp	qword ptr es:[di]
 	call	hwDone
+	mov	ss:[bx],di		; replace the long with ES:DI
+	mov	ss:[bx+2],es
 	ret
 ENDPROC	hwCvtLD
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; hwCvtL2D (FPU_CVTL2D)
-;
-; Inputs:
-;	1 32-bit long and 1 64-bit double on stack (double on top)
-;
-; Outputs:
-;	2 64-bit doubles on stack
-;
-; Modifies:
-;	AX, BX, CX, DX
-;
-DEFPROC	hwCvtL2D,FAR
-	pop	cx
-	pop	dx			; DX:CX = return address
-	mov	bx,sp
-	cli
-	fild	dword ptr ss:[bx+8]	; ST(0) = long
-	fld	qword ptr ss:[bx]	; ST(0) = double, ST(1) = long
-	fstp	qword ptr ss:[bx-4]	; move the double down 4 bytes
-	fstp	qword ptr ss:[bx+4]	; and store the converted long above it
-	sub	sp,4
-	jmp	hwCvtRet
-ENDPROC	hwCvtL2D
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -906,24 +931,28 @@ ENDPROC	hwCvtL2D
 ;
 ; Inputs:
 ;	2 32-bit longs on stack (A, then B on top)
+;	ES:DI -> results (A at ES:DI and B at ES:DI+8)
 ;
 ; Outputs:
-;	2 64-bit doubles on stack (A, then B on top)
+;	2 doubles on stack (A, then B on top)
 ;
 ; Modifies:
-;	AX, BX, CX, DX
+;	AX, BX
 ;
 DEFPROC	hwCvt2LD,FAR
-	pop	cx
-	pop	dx			; DX:CX = return address
 	mov	bx,sp
 	cli
-	fild	dword ptr ss:[bx+4]	; ST(0) = A
-	fild	dword ptr ss:[bx]	; ST(0) = B, ST(1) = A
-	fstp	qword ptr ss:[bx-8]
-	fstp	qword ptr ss:[bx]
-	sub	sp,8
-	jmp	hwCvtRet
+	fild	dword ptr ss:[bx+8]	; ST(0) = A
+	fstp	qword ptr es:[di]
+	fild	dword ptr ss:[bx+4]	; ST(0) = B
+	fstp	qword ptr es:[di+8]
+	call	hwDone
+	mov	ss:[bx+8],di		; replace A with ES:DI
+	mov	ss:[bx+10],es
+	lea	ax,[di+8]
+	mov	ss:[bx+4],ax		; and B with ES:DI+8
+	mov	ss:[bx+6],es
+	ret
 ENDPROC	hwCvt2LD
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -931,20 +960,22 @@ ENDPROC	hwCvt2LD
 ; hwInt, hwFix, hwSqr
 ;
 ; Inputs:
-;	1 64-bit double on stack
+;	1 double on stack
+;	ES:DI -> result
 ;
 ; Outputs:
-;	1 64-bit double on stack (INT, FIX, or SQR of the input)
+;	1 double on stack (INT, FIX, or SQR of the input)
 ;
 ; Modifies:
 ;	AX, BX, SI
 ;
 DEFPROC	hwInt,FAR
-	mov	si,offset hwCWDown	; INT rounds down
+	mov	ax,offset hwCWDown	; INT rounds down
 	jmp	short hwRnd
 	DEFLBL	hwFix,near
-	mov	si,offset hwCWChop	; FIX rounds toward zero
+	mov	ax,offset hwCWChop	; FIX rounds toward zero
 hwRnd:	call	hwLoadT			; ST(0) = top double
+	xchg	si,ax
 	fldcw	word ptr cs:[si]
 	frndint
 	fldcw	cs:[hwCWNear]
@@ -953,8 +984,10 @@ hwRnd:	call	hwLoadT			; ST(0) = top double
 	call	hwLoadT
 	fsqrt
 	DEFLBL	hwStoreT,near
-	fstp	qword ptr ss:[bx+4]	; replace top double with ST(0)
+	fstp	qword ptr es:[di]	; store ST(0) at ES:DI
 	call	hwDone
+	mov	ss:[bx+4],di		; and replace the top double with ES:DI
+	mov	ss:[bx+6],es
 	ret
 ENDPROC	hwInt
 
@@ -1132,53 +1165,47 @@ ENDPROC	hwFromDec
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; hwLoadA
+; hwLoad2, hwLoadA, hwLoadT
 ;
-; Disables interrupts and loads the 2nd (deeper) of two doubles on the stack.
-;
-; Inputs:
-;	2 64-bit doubles on stack, followed by FAR and NEAR return addresses
-;
-; Outputs:
-;	ST(0) = 2nd double (A)
-;	BX -> FAR return address (so A is at SS:[BX+12] and B at SS:[BX+4])
-;
-; Modifies:
-;	BX
-;
-DEFPROC	hwLoadA
-	mov	bx,sp
-	inc	bx
-	inc	bx
-	cli
-	fld	qword ptr ss:[bx+12]
-	ret
-ENDPROC	hwLoadA
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; hwLoadT
-;
-; Disables interrupts and loads the top double on the stack.
+; Disables interrupts and loads doubles (by way of the far pointers on the
+; stack): hwLoad2 loads both doubles (B, and then A), hwLoadA loads only the
+; 2nd (deeper) entry (A), and hwLoadT loads only the top entry.
 ;
 ; Inputs:
-;	1 64-bit double on stack, followed by FAR and NEAR return addresses
+;	2 stack entries (or 1 for hwLoadT), followed by FAR and NEAR return
+;	addresses
 ;
 ; Outputs:
-;	ST(0) = top double
-;	BX -> FAR return address (so the double is at SS:[BX+4])
+;	ST(0) = A (or the top double), ST(1) = B (for hwLoad2)
+;	BX -> FAR return address (so A is at SS:[BX+8] and B at SS:[BX+4])
 ;
 ; Modifies:
-;	BX
+;	BX, SI
 ;
-DEFPROC	hwLoadT
+DEFPROC	hwLoad2
 	mov	bx,sp
-	inc	bx
-	inc	bx
+	push	ds
 	cli
-	fld	qword ptr ss:[bx+4]
+	lds	si,ss:[bx+6]		; DS:SI -> B
+	fld	qword ptr [si]
+	jmp	short hwLdA
+	DEFLBL	hwLoadA,near
+	mov	bx,sp
+	push	ds
+	cli
+hwLdA:	lds	si,ss:[bx+10]		; DS:SI -> A
+	jmp	short hwLd
+	DEFLBL	hwLoadT,near
+	mov	bx,sp
+	push	ds
+	cli
+	lds	si,ss:[bx+6]		; DS:SI -> top double
+hwLd:	fld	qword ptr [si]
+	pop	ds
+	inc	bx
+	inc	bx
 	ret
-ENDPROC	hwLoadT
+ENDPROC	hwLoad2
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1355,9 +1382,62 @@ HWCODE	ends
 ;
 ; Software (FPU emulation) functions
 ;
-; TODO: Other than swNeg and swAbs, these are all stubs that simply adjust
-; the stack and return zeros (or, in the case of swAtoD, an error).
+; These implement the same functions (and conventions) as the HWCODE functions,
+; using an internal "unpacked extended" (UX) format with a 64-bit mantissa, the
+; same precision that the 8087 uses internally.  Results are rounded to the
+; nearest double (ties to even) when they're stored, and exceptions (divide by
+; zero, overflow, and invalid operations) are signaled the same way hwDone
+; signals them.
 ;
+; Each function allocates a frame (see SX_SIZE) containing several UX values
+; and work buffers, all addressed relative to BP (and therefore SS), so the
+; functions don't rely on any static data and can safely be used by multiple
+; sessions at once.  The internal functions (xLoad, xAdd, etc) take the
+; frame offsets of their UX operands in SI and DI.
+;
+; TODO: FPU_EXP supports only integer exponents (from -32768 to 32767); any
+; other exponent signals an invalid operation (unless the base is zero).
+;
+UX	struc
+UX_M0	dw	?		; mantissa (UX_M3 bit 15 is set if non-zero)
+UX_M1	dw	?
+UX_M2	dw	?
+UX_M3	dw	?
+UX_EXP	dw	?		; exponent (value is 1.xxx * 2^UX_EXP)
+UX_SGN	db	?		; 80h if negative
+UX_CLS	db	?		; class (UXC_*)
+UX	ends
+
+UXC_FIN	equ	0		; finite (zero if UX_M3 is zero)
+UXC_INF	equ	1		; infinity
+UXC_NAN	equ	2		; NaN
+
+XF_ZE	equ	01h		; divide by zero
+XF_OE	equ	02h		; overflow
+XF_IE	equ	04h		; invalid operation
+
+SX_A	equ	-12		; UX A (1st operand and result)
+SX_B	equ	-24		; UX B (2nd operand, or temp)
+SX_C	equ	-36		; UX C (temp)
+SX_D	equ	-48		; UX D (temp)
+SX_P	equ	-64		; 16-byte product/remainder buffer
+SX_MA	equ	-72		; 8-byte mantissa (or quotient) buffer
+SX_MB	equ	-80		; 8-byte mantissa (or divisor) buffer
+SX_FL	equ	-82		; XF_* flags (and relation mask in high byte)
+SX_N	equ	-84		; misc word (eg, # digits or operation)
+SX_E	equ	-86		; misc word (eg, decimal exponent)
+SX_DST	equ	-90		; caller's ES:DI
+SX_SIZE	equ	90
+
+SWENTER	macro
+	push	bp
+	mov	bp,sp
+	sub	sp,SX_SIZE
+	mov	[bp+SX_DST].OFF,di
+	mov	[bp+SX_DST].SEG,es
+	mov	word ptr [bp+SX_FL],0
+	endm
+
 SWCODE	segment para public 'CODE'
 
         ASSUME	CS:SWCODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
@@ -1380,112 +1460,641 @@ SWCODE	segment para public 'CODE'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; swNeg
+; swNeg, swAbs
+;
+; Same as hwNeg and hwAbs (which are inaccessible after ddfpu_init moves
+; SWCODE on top of HWCODE).
 ;
 ; Inputs:
-;	1 64-bit double on stack
+;	1 double on stack
+;	ES:DI -> result
 ;
 ; Outputs:
-;	1 64-bit double on stack (negated)
+;	1 double on stack (negated, or absolute value)
 ;
 ; Modifies:
-;	BX
+;	BX, CX, SI
 ;
 DEFPROC	swNeg,FAR
-	mov	bx,sp
-	xor	byte ptr ss:[bx+11],80h
+	call	swCopyT
+	xor	byte ptr es:[di+7],80h
+	ret
+	DEFLBL	swAbs,near
+	call	swCopyT
+	and	byte ptr es:[di+7],7Fh
 	ret
 ENDPROC	swNeg
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; swAbs
+; swCopyT
 ;
-; Inputs:
-;	1 64-bit double on stack
+; Same as hwCopyT.
 ;
-; Outputs:
-;	1 64-bit double on stack (absolute value)
-;
-; Modifies:
-;	BX
-;
-DEFPROC	swAbs,FAR
+DEFPROC	swCopyT
 	mov	bx,sp
-	and	byte ptr ss:[bx+11],7Fh
+	push	ds
+	lds	si,ss:[bx+6]		; DS:SI -> double
+	mov	ss:[bx+6],di		; and replace it with ES:DI
+	mov	ss:[bx+8],es
+	mov	cx,4
+	rep	movsw
+	sub	di,8
+	pop	ds
 	ret
-ENDPROC	swAbs
+ENDPROC	swCopyT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; Stack function stubs
+; Stack functions
 ;
-; Each stub loads BL with the (signed) number of bytes to pop and BH with
-; the number of result bytes to zero, signals an assertion failure (in DEBUG
-; builds), and then jumps to swStub.
+; See the corresponding HWCODE functions for inputs and outputs.  All of them
+; may modify AX, BX, CX, DX, SI, DI, and ES.
 ;
-; Inputs:
-;	Varies
+DEFPROC	swFuncs,FAR
+;
+; swMul, swDiv, swAdd, swSub (2 doubles -> 1 double at ES:DI)
+;
+	DEFLBL	swMul,near
+	mov	al,0
+	jmp	short swArith
+	DEFLBL	swDiv,near
+	mov	al,1
+	jmp	short swArith
+	DEFLBL	swAdd,near
+	mov	al,2
+	jmp	short swArith
+	DEFLBL	swSub,near
+	mov	al,3
+swArith:
+	SWENTER
+	mov	byte ptr [bp+SX_N],al
+	call	swLoad2
+	mov	al,byte ptr [bp+SX_N]
+	cmp	al,1
+	jb	sar1
+	je	sar2
+	cmp	al,3
+	jne	sar3
+	xor	[bp+SX_B].UX_SGN,80h	; A-B is A+(-B)
+sar3:	call	xAdd
+	jmp	short swStoreA4
+sar1:	call	xMul
+	jmp	short swStoreA4
+sar2:	call	xDiv
+;
+; Store A (the result) at ES:DI, replace A with ES:DI, and pop B.
+;
+swStoreA4:
+	les	di,[bp+SX_DST]
+	mov	si,SX_A
+	call	xStore
+	mov	[bp+10],di
+	mov	[bp+12],es
+	DEFLBL	swExit4,near
+	call	swRaise
+	mov	sp,bp
+	pop	bp
+	ret	4
+;
+; swExp (2 doubles -> 1 double at ES:DI)
+;
+	DEFLBL	swExp,near
+	SWENTER
+	call	swLoad2
+	mov	al,[bp+SX_A].UX_CLS
+	or	al,[bp+SX_B].UX_CLS
+	test	al,UXC_NAN		; either operand NaN?
+	jz	sxp1			; no
+	mov	[bp+SX_A].UX_CLS,UXC_NAN
+	jmp	swStoreA4
+sxp1:	cmp	[bp+SX_B].UX_CLS,UXC_FIN
+	jne	sxp7			; B is infinite
+	mov	si,SX_C
+	mov	di,SX_B
+	call	xCopy
+	mov	al,3
+	call	xRndInt			; C = B truncated
+	call	xCmpMag
+	test	al,al			; is B an integer?
+	jnz	sxp7			; no
+	cmp	[bp+SX_C].UX_M3,0
+	je	sxp2			; B is zero
+	cmp	[bp+SX_C].UX_EXP,14
+	jg	sxp7			; B is too large
+sxp2:	call	xToLong			; AX = n
+	push	ax
+	mov	bx,ax
+	test	bx,bx
+	jns	sxp3
+	neg	bx			; BX = abs(n)
+sxp3:	mov	si,SX_D
+	mov	di,SX_A
+	call	xCopy			; D = A
+	mov	si,SX_C
+	mov	di,SX_D
+	call	xPowInt			; C = A^abs(n)
+	pop	ax
+	mov	si,SX_A
+	mov	di,SX_C
+	test	ax,ax
+	js	sxp4
+	call	xCopy			; A = A^n
+	jmp	swStoreA4
+sxp4:	mov	ax,1
+	cwd
+	call	xFromLong
+	call	xDiv			; A = 1 / A^abs(n)
+	jmp	swStoreA4
+sxp7:	mov	si,SX_A
+	call	xIsZero			; zero raised to any power is zero
+	jz	sxp9
+	ASSERT	FALSE,,,<"FPE EXP of non-integer not implemented">
+	call	xInvalid
+sxp9:	jmp	swStoreA4
+;
+; swEQ, swNE, swLT, swGT, swLE, swGE (2 doubles -> 1 long)
+;
+; As with hwCmp, CL is a mask of the outcomes that make the relation true:
+; 4 (A < B), 2 (A = B), and 1 (A > B).
+;
+	DEFLBL	swEQ,near
+	mov	cl,2
+	jmp	short swCmp
+	DEFLBL	swNE,near
+	mov	cl,4+1
+	jmp	short swCmp
+	DEFLBL	swLT,near
+	mov	cl,4
+	jmp	short swCmp
+	DEFLBL	swGT,near
+	mov	cl,1
+	jmp	short swCmp
+	DEFLBL	swLE,near
+	mov	cl,4+2
+	jmp	short swCmp
+	DEFLBL	swGE,near
+	mov	cl,2+1
+swCmp:
+	SWENTER
+	mov	byte ptr [bp+SX_FL+1],cl
+	call	swLoad2
+	mov	al,[bp+SX_A].UX_CLS
+	or	al,[bp+SX_B].UX_CLS
+	test	al,UXC_NAN		; either operand NaN?
+	jz	scp1			; no
+	or	byte ptr [bp+SX_FL],XF_IE
+	jmp	short scp4		; treat as equal (like the 8087)
+scp1:	call	xIsZero
+	jnz	scp2
+	xchg	si,di
+	call	xIsZero
+	jz	scp4			; both zero, so they're equal
+	xchg	si,di
+scp2:	mov	al,[bp+SX_A].UX_SGN
+	cmp	al,[bp+SX_B].UX_SGN
+	je	scp3
+	mov	al,4			; signs differ, so A < B if A is negative
+	test	byte ptr [bp+SX_A].UX_SGN,80h
+	jnz	scp8
+	mov	al,1
+	jmp	short scp8
+scp3:	call	xCmpMag			; AL = -1, 0, or 1 (|A| vs |B|)
+	test	byte ptr [bp+SX_A].UX_SGN,80h
+	jz	scp3a
+	neg	al
+scp3a:	test	al,al
+	jz	scp4
+	mov	al,1
+	jg	scp8
+	mov	al,4
+	jmp	short scp8
+scp4:	mov	al,2
+scp8:	and	al,byte ptr [bp+SX_FL+1]; is the relation true?
+	neg	al			; carry set if so
+	sbb	ax,ax			; AX = -1 if true, 0 if false
+	mov	[bp+10],ax		; the result replaces A
+	mov	[bp+12],ax
+	jmp	swExit4			; and B is popped
+;
+; swCvt1DL and swCvtD1L (top double -> long), swCvtD2L (next double -> long),
+; and swCvt2DL (both doubles -> longs)
+;
+	DEFLBL	swCvt1DL,near
+	DEFLBL	swCvtD1L,near
+	mov	ax,6
+	jmp	short swCvtDL
+	DEFLBL	swCvtD2L,near
+	mov	ax,10
+swCvtDL:
+	SWENTER
+	mov	[bp+SX_N],ax
+	call	swDL
+	jmp	swExit0
+	DEFLBL	swCvt2DL,near
+	SWENTER
+	mov	word ptr [bp+SX_N],10
+	call	swDL
+	mov	word ptr [bp+SX_N],6
+	call	swDL
+	jmp	swExit0
+;
+; swCvtL1D and swCvt1LD (top long -> double), swCvtL2D (next long -> double),
+; and swCvt2LD (both longs -> doubles at ES:DI and ES:DI+8)
+;
+	DEFLBL	swCvtL1D,near
+	DEFLBL	swCvt1LD,near
+	mov	ax,6
+	jmp	short swCvtLD
+	DEFLBL	swCvtL2D,near
+	mov	ax,10
+swCvtLD:
+	SWENTER
+	mov	[bp+SX_N],ax
+	mov	word ptr [bp+SX_E],0
+	call	swLD
+	jmp	swExit0
+	DEFLBL	swCvt2LD,near
+	SWENTER
+	mov	word ptr [bp+SX_N],10
+	mov	word ptr [bp+SX_E],0
+	call	swLD
+	mov	word ptr [bp+SX_N],6
+	mov	word ptr [bp+SX_E],8
+	call	swLD
+	jmp	swExit0
+;
+; swInt, swFix, swSqr (1 double -> 1 double at ES:DI)
+;
+	DEFLBL	swInt,near
+	mov	al,2			; INT rounds down
+	jmp	short swRnd
+	DEFLBL	swFix,near
+	mov	al,3			; FIX rounds toward zero
+swRnd:
+	SWENTER
+	mov	byte ptr [bp+SX_N],al
+	call	swLoadT
+	mov	al,byte ptr [bp+SX_N]
+	call	xRndInt
+	jmp	short swStoreT
+	DEFLBL	swSqr,near
+	SWENTER
+	call	swLoadT
+	call	xSqrt
+swStoreT:
+	les	di,[bp+SX_DST]
+	mov	si,SX_A
+	call	xStore
+	mov	[bp+6],di		; replace the top double with ES:DI
+	mov	[bp+8],es
+	DEFLBL	swExit0,near
+	call	swRaise
+	mov	sp,bp
+	pop	bp
+	ret
+ENDPROC	swFuncs
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; swLoad2, swLoadT
+;
+; swLoad2 loads both doubles on the stack (A into SX_A and B into SX_B), and
+; swLoadT loads the top double into SX_A.
 ;
 ; Outputs:
-;	Varies
+;	SI = SX_A, DI = SX_B
 ;
 ; Modifies:
-;	AX, BX, CX, DX, DI, ES
+;	AX, BX, CX, DX, SI, DI, ES
 ;
-DEFSTUB	macro	name,npop,nzero,fn
-	DEFLBL	name,near
-	mov	bx,(nzero SHL 8) OR (npop AND 0FFh)
-	IFDEF	DEBUG
-	ASSERT	FALSE,,,<"FPE &fn not implemented">
-	jmp	swStub
-	ELSE
-	jmp	short swStub
-	ENDIF
-	endm
-
-DEFPROC	swStubs,FAR
-	DEFSTUB	swExp,8,8,EXP
-	DEFSTUB	swMul,8,8,MUL
-	DEFSTUB	swDiv,8,8,DIV
-	DEFSTUB	swAdd,8,8,ADD
-	DEFSTUB	swSub,8,8,SUB
-	DEFSTUB	swEQ,12,4,EQ
-	DEFSTUB	swNE,12,4,NE
-	DEFSTUB	swLT,12,4,LT
-	DEFSTUB	swGT,12,4,GT
-	DEFSTUB	swLE,12,4,LE
-	DEFSTUB	swGE,12,4,GE
-	DEFSTUB	swCvt1DL,4,4,CVT1DL
-	DEFSTUB	swCvt2DL,8,8,CVT2DL
-	DEFSTUB	swCvtL1D,-4,8,CVTL1D
-	DEFSTUB	swCvtL2D,-4,16,CVTL2D
-	DEFSTUB	swCvtD1L,4,4,CVTD1L
-	DEFSTUB	swCvtD2L,4,8,CVTD2L
-	DEFSTUB	swCvt1LD,-4,8,CVT1LD
-	DEFSTUB	swCvt2LD,-8,16,CVT2LD
-	DEFSTUB	swInt,0,0,INT
-	DEFSTUB	swFix,0,0,FIX
-	DEFLBL	swSqr,near
-	sub	bx,bx
-	ASSERT	FALSE,,,<"FPE SQR not implemented">
-swStub:	pop	cx
-	pop	dx			; DX:CX = return address
-	mov	al,bl
-	cbw
-	add	sp,ax			; pop (or push) the specified # bytes
-	push	dx
-	push	cx
-	mov	di,sp
-	add	di,4
-	push	ss
-	pop	es			; ES:DI -> result
-	mov	cl,bh
-	mov	ch,0
-	mov	al,0
-	rep	stosb			; zero the specified # bytes
+DEFPROC	swLoad2
+	les	bx,[bp+6]
+	mov	si,SX_B
+	call	xLoad
+	les	bx,[bp+10]
+	jmp	short swLdA
+	DEFLBL	swLoadT,near
+	les	bx,[bp+6]
+swLdA:	mov	si,SX_A
+	call	xLoad
+	mov	di,SX_B
 	ret
-ENDPROC	swStubs
+ENDPROC	swLoad2
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; swDL
+;
+; Converts the double at [BP+SX_N] (on the stack) to a long, rounding to the
+; nearest integer (with ties rounded away from zero, like hwRound).
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, ES
+;
+DEFPROC	swDL
+	mov	si,[bp+SX_N]
+	les	bx,[bp+si]
+	mov	si,SX_A
+	call	xLoad
+	mov	al,1
+	call	xToLong
+	mov	si,[bp+SX_N]
+	mov	[bp+si],ax
+	mov	[bp+si+2],dx
+	ret
+ENDPROC	swDL
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; swLD
+;
+; Converts the long at [BP+SX_N] (on the stack) to a double at ES:DI+SX_E,
+; and replaces the long with that address.
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	swLD
+	mov	si,[bp+SX_N]
+	mov	ax,[bp+si]
+	mov	dx,[bp+si+2]
+	mov	si,SX_A
+	call	xFromLong
+	les	di,[bp+SX_DST]
+	add	di,[bp+SX_E]
+	call	xStore
+	mov	si,[bp+SX_N]
+	mov	[bp+si],di
+	mov	[bp+si+2],es
+	ret
+ENDPROC	swLD
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; swRaise
+;
+; Signals any exceptions recorded in the frame's flags, the same way hwDone
+; does: a divide error for XF_ZE, and an overflow error for XF_OE or XF_IE.
+;
+; Modifies:
+;	AX
+;
+DEFPROC	swRaise
+	mov	al,[bp+SX_FL]
+	test	al,XF_ZE
+	jz	srs1
+	int	INT_DV
+	ret
+srs1:	test	al,XF_OE OR XF_IE
+	jz	srs9
+	int	INT_OF
+srs9:	ret
+ENDPROC	swRaise
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; swToDec (FPU_TODEC)
+;
+; Same as hwToDec: we determine the decimal exponent (e) of the absolute value
+; (x), scale x by 10^(N-1-e) so that it's an integer from 10^(N-1) to 10^N - 1,
+; and convert that to N digits.  When N is zero, the value is rounded to either
+; 0 or 1 (in which case, we return 1 digit for e+1).
+;
+; We estimate e from the binary exponent (as floor(exp * log10(2)), where
+; 19728/65536 approximates log10(2)), and then adjust it until the scaled value
+; is in range.
+;
+; Inputs:
+;	DS:SI -> double (which must be finite)
+;	CL = N (# of significant digits, from 0 to FPU_DIGITS)
+;	ES:DI -> buffer (for N digits)
+;
+; Outputs:
+;	CX = # of digits stored (normally N; zero if the value is zero)
+;	AX = decimal exponent of the first digit
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+DEFPROC	swToDec,FAR
+	push	bp
+	mov	bp,sp
+	sub	sp,SX_SIZE
+	push	si
+	push	di
+	push	es
+	mov	[bp+SX_DST].OFF,di
+	mov	[bp+SX_DST].SEG,es
+	mov	ch,0
+	mov	[bp+SX_N],cx
+	push	ds
+	pop	es
+	mov	bx,si			; ES:BX -> double
+	mov	si,SX_D
+	call	xLoad			; D = x
+	mov	[bp+SX_D].UX_SGN,0
+	sub	ax,ax
+	sub	cx,cx
+	cmp	[bp+SX_D].UX_M3,ax
+	jne	std1
+	jmp	std9			; x is zero
+std1:	mov	ax,[bp+SX_D].UX_EXP
+	mov	dx,19728
+	imul	dx
+	mov	[bp+SX_E],dx		; e = floor(exp * log10(2))
+;
+; Scale A = x * 10^(M-1-e), where M = max(N,1), and make sure that A is from
+; 10^(M-1) to 10^M (exclusive), adjusting e if not.
+;
+std2:	mov	si,SX_A
+	mov	di,SX_D
+	call	xCopy			; A = x
+	mov	ax,[bp+SX_N]
+	test	ax,ax
+	jnz	std3
+	inc	ax
+std3:	dec	ax			; AX = M-1
+	push	ax
+	sub	ax,[bp+SX_E]
+	call	xScale10		; A = x * 10^(M-1-e)
+	pop	bx
+	mov	si,SX_B
+	mov	ax,10
+	cwd
+	call	xFromLong
+	mov	si,SX_C
+	mov	di,SX_B
+	call	xPowInt			; C = 10^(M-1)
+	mov	si,SX_A
+	mov	di,SX_C
+	call	xCmpMag
+	test	al,al
+	jge	std4
+	dec	word ptr [bp+SX_E]	; A is too small
+	jmp	std2
+std4:	mov	si,SX_B
+	mov	ax,10
+	cwd
+	call	xFromLong
+	mov	di,SX_C
+	call	xMul			; B = 10^M
+	mov	si,SX_A
+	mov	di,SX_B
+	call	xCmpMag
+	test	al,al
+	jl	std5
+	inc	word ptr [bp+SX_E]	; A is too large
+	jmp	std2
+std5:	cmp	word ptr [bp+SX_N],0
+	jne	std6
+;
+; When N is zero, A is from 1 to 10, so the result is 1 if A > 5 (ties are
+; rounded to even, so 5 rounds to 0), and nothing otherwise.
+;
+	mov	si,SX_B
+	mov	ax,5
+	cwd
+	call	xFromLong
+	mov	si,SX_A
+	call	xCmpMag
+	mov	bl,al
+	sub	cx,cx
+	mov	ax,[bp+SX_E]
+	test	bl,bl
+	jle	std9
+	inc	ax
+	inc	cx
+	les	di,[bp+SX_DST]
+	mov	byte ptr es:[di],'1'
+	jmp	short std9
+;
+; Round A to an integer (ties to even) and convert it to N digits.
+;
+std6:	sub	al,al
+	call	xRndInt
+	mov	cx,63
+	sub	cx,[bp+SX_A].UX_EXP
+	call	xShrN			; A's mantissa = the integer
+	les	di,[bp+SX_DST]
+	mov	cx,[bp+SX_N]
+	add	di,cx
+	mov	bx,10
+std7:	dec	di
+	sub	dx,dx
+	mov	ax,[bp+SX_A].UX_M3
+	div	bx
+	mov	[bp+SX_A].UX_M3,ax
+	mov	ax,[bp+SX_A].UX_M2
+	div	bx
+	mov	[bp+SX_A].UX_M2,ax
+	mov	ax,[bp+SX_A].UX_M1
+	div	bx
+	mov	[bp+SX_A].UX_M1,ax
+	mov	ax,[bp+SX_A].UX_M0
+	div	bx
+	mov	[bp+SX_A].UX_M0,ax
+	add	dl,'0'
+	mov	es:[di],dl
+	loop	std7
+;
+; If anything remains, then A was rounded up to 10^N, so the digits must be
+; "1" followed by zeros, at the next higher decimal exponent.
+;
+	or	ax,[bp+SX_A].UX_M1
+	or	ax,[bp+SX_A].UX_M2
+	or	ax,[bp+SX_A].UX_M3
+	jz	std8
+	inc	word ptr [bp+SX_E]
+	mov	cx,[bp+SX_N]
+	mov	al,'0'
+	push	di
+	rep	stosb
+	pop	di
+	mov	byte ptr es:[di],'1'
+std8:	mov	cx,[bp+SX_N]
+	mov	ax,[bp+SX_E]
+std9:	pop	es
+	pop	di
+	pop	si
+	mov	sp,bp
+	pop	bp
+	ret
+ENDPROC	swToDec
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; swFromDec (FPU_FROMDEC)
+;
+; The digits (up to 19) are accumulated as a 64-bit integer, which is exact,
+; and then scaled by the specified power of ten.
+;
+; Inputs:
+;	DS:SI -> digits (up to 19)
+;	CX = # of digits
+;	AX = decimal exponent (the value is digits * 10^AX)
+;	BL = 80h if negative (only bit 7 is significant)
+;	ES:DI -> double
+;
+; Outputs:
+;	Carry set if out of range
+;
+; Modifies:
+;	AX, CX, DX, SI
+;
+DEFPROC	swFromDec,FAR
+	push	bp
+	mov	bp,sp
+	sub	sp,SX_SIZE
+	push	bx
+	push	di
+	mov	word ptr [bp+SX_FL],0
+	mov	[bp+SX_E],ax
+	mov	[bp+SX_N],cx
+	and	bl,80h			; (other bits of BL may be set)
+	mov	[bp+SX_A].UX_SGN,bl
+	mov	[bp+SX_A].UX_CLS,UXC_FIN
+	sub	ax,ax
+	mov	[bp+SX_A].UX_M0,ax
+	mov	[bp+SX_A].UX_M1,ax
+	mov	[bp+SX_A].UX_M2,ax
+	mov	[bp+SX_A].UX_M3,ax
+	mov	cx,10
+sfd1:	dec	word ptr [bp+SX_N]
+	js	sfd3
+	lodsb
+	sub	al,'0'
+	cbw
+	xchg	bx,ax			; BX = digit (the initial carry)
+	sub	di,di
+sfd2:	mov	ax,[bp+SX_A+di]
+	mul	cx
+	add	ax,bx
+	adc	dx,0
+	mov	[bp+SX_A+di],ax		; mantissa = mantissa * 10 + digit
+	mov	bx,dx
+	inc	di
+	inc	di
+	cmp	di,8
+	jb	sfd2
+	jmp	sfd1
+sfd3:	mov	[bp+SX_A].UX_EXP,63
+	mov	si,SX_A
+	call	xNorm
+	mov	ax,[bp+SX_E]
+	call	xScale10
+	pop	di
+	push	di
+	call	xStore
+	test	byte ptr [bp+SX_FL],XF_ZE OR XF_OE OR XF_IE
+	pop	di
+	pop	bx
+	mov	sp,bp
+	pop	bp
+	jz	sfd9			; carry clear
+	stc
+sfd9:	ret
+ENDPROC	swFromDec
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1501,21 +2110,927 @@ ENDPROC	swAtoD
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; swToDec (stub), swFromDec (stub)
+; xLoad
 ;
-; swToDec returns no digits (as if the value is zero), and swFromDec returns
-; carry set (as if the value is out of range).
+; Inputs:
+;	ES:BX -> double
+;	SI = UX
 ;
-DEFPROC	swToDec,FAR
-	ASSERT	FALSE,,,<"FPE TODEC not implemented">
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	xLoad
+	mov	ax,es:[bx]
+	mov	[bp+si].UX_M0,ax
+	mov	ax,es:[bx+2]
+	mov	[bp+si].UX_M1,ax
+	mov	ax,es:[bx+4]
+	mov	[bp+si].UX_M2,ax
+	mov	ax,es:[bx+6]
+	mov	dl,ah
+	and	dl,80h
+	mov	[bp+si].UX_SGN,dl
+	mov	[bp+si].UX_CLS,UXC_FIN
+	mov	dx,ax
+	and	ax,000Fh
+	mov	[bp+si].UX_M3,ax
+	mov	cl,4
+	shr	dx,cl
+	and	dx,07FFh		; DX = biased exponent
+	cmp	dx,07FFh
+	je	xld7			; infinity or NaN
+	test	dx,dx
+	jz	xld2			; zero or denormal
+	or	byte ptr [bp+si].UX_M3,10h; set the implicit bit
+	jmp	short xld3
+xld2:	inc	dx			; denormals have the same scale as 1
+xld3:	sub	dx,1023
+	mov	[bp+si].UX_EXP,dx
+	mov	cx,11
+xld4:	call	xShl1			; move the implicit bit to bit 63
+	loop	xld4
+	jmp	xNorm
+xld7:	mov	al,UXC_INF
+	mov	dx,[bp+si].UX_M3
+	or	dx,[bp+si].UX_M2
+	or	dx,[bp+si].UX_M1
+	or	dx,[bp+si].UX_M0
+	jz	xld8
+	mov	al,UXC_NAN
+xld8:	mov	[bp+si].UX_CLS,al
+	ret
+ENDPROC	xLoad
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xStore
+;
+; Rounds the UX to the nearest double (ties to even), recording XF_OE if it
+; overflows; underflows produce denormals (or zero).  NaNs are stored as the
+; 8087's "indefinite" value.
+;
+; Inputs:
+;	SI = UX (which is modified)
+;	ES:DI -> double
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+DEFPROC	xStore
+	mov	al,[bp+si].UX_CLS
+	cmp	al,UXC_NAN
+	je	xst7
+	cmp	al,UXC_INF
+	je	xst6
 	sub	ax,ax
-	sub	cx,cx
+	cmp	[bp+si].UX_M3,ax
+	je	xst6a			; zero
+	mov	bx,[bp+si].UX_EXP
+	add	bx,1023			; BX = biased exponent
+	jg	xst2
+	mov	cx,1
+	sub	cx,bx			; CX = # bits to denormalize
+	call	xShrN
+	or	dl,dh
+	jz	xst1
+	or	byte ptr [bp+si].UX_M0,1
+xst1:	sub	bx,bx
+xst2:	mov	ax,[bp+si].UX_M0	; round at bit 11
+	test	ax,0400h
+	jz	xst3
+	test	ax,0BFFh
+	jz	xst3
+	add	[bp+si].UX_M0,0800h
+	adc	[bp+si].UX_M1,0
+	adc	[bp+si].UX_M2,0
+	adc	[bp+si].UX_M3,0
+	jnc	xst3
+	mov	[bp+si].UX_M3,8000h	; rounding carried out of bit 63
+	inc	bx
+xst3:	test	bx,bx
+	jnz	xst4
+	test	byte ptr [bp+si].UX_M3+1,80h
+	jz	xst4
+	inc	bx			; denormal rounded up to a normal
+xst4:	cmp	bx,07FFh
+	jge	xst5
+	mov	cx,11
+	call	xShrN
+	mov	ax,[bp+si].UX_M3
+	and	ax,000Fh
+	mov	cl,4
+	shl	bx,cl
+	or	ax,bx
+	jmp	short xst8
+xst5:	or	byte ptr [bp+SX_FL],XF_OE
+xst6:	mov	ax,7FF0h		; infinity
+xst6a:	or	ah,[bp+si].UX_SGN
+	jmp	short xst7a
+xst7:	mov	ax,0FFF8h		; indefinite
+xst7a:	sub	cx,cx
+	mov	[bp+si].UX_M0,cx
+	mov	[bp+si].UX_M1,cx
+	mov	[bp+si].UX_M2,cx
+	jmp	short xst9
+xst8:	or	ah,[bp+si].UX_SGN
+xst9:	mov	es:[di+6],ax
+	mov	ax,[bp+si].UX_M0
+	mov	es:[di],ax
+	mov	ax,[bp+si].UX_M1
+	mov	es:[di+2],ax
+	mov	ax,[bp+si].UX_M2
+	mov	es:[di+4],ax
 	ret
-	DEFLBL	swFromDec,near
-	ASSERT	FALSE,,,<"FPE FROMDEC not implemented">
-	stc
+ENDPROC	xStore
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xShl1
+;
+; Shifts the mantissa of the UX at SI left 1 bit.
+;
+; Outputs:
+;	Carry = bit shifted out
+;
+DEFPROC	xShl1
+	shl	[bp+si].UX_M0,1
+	rcl	[bp+si].UX_M1,1
+	rcl	[bp+si].UX_M2,1
+	rcl	[bp+si].UX_M3,1
 	ret
-ENDPROC	swToDec
+ENDPROC	xShl1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xShrN
+;
+; Shifts the mantissa of the UX at SI right CX bits (any count over 66 is
+; treated as 66, which has the same effect).
+;
+; Outputs:
+;	DL = last bit shifted out ("half"), DH = 1 if any other bits shifted
+;	out were set ("rest")
+;
+; Modifies:
+;	CX, DX
+;
+DEFPROC	xShrN
+	sub	dx,dx
+	jcxz	xsr9
+	cmp	cx,66
+	jbe	xsr1
+	mov	cx,66
+xsr1:	or	dh,dl
+	shr	[bp+si].UX_M3,1
+	rcr	[bp+si].UX_M2,1
+	rcr	[bp+si].UX_M1,1
+	rcr	[bp+si].UX_M0,1
+	mov	dl,0
+	adc	dl,0
+	loop	xsr1
+xsr9:	ret
+ENDPROC	xShrN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xNorm
+;
+; Normalizes the UX at SI (so that bit 63 of the mantissa is set), or sets
+; its exponent to zero if the mantissa is zero.
+;
+; Modifies:
+;	AX
+;
+DEFPROC	xNorm
+	mov	ax,[bp+si].UX_M3
+	or	ax,[bp+si].UX_M2
+	or	ax,[bp+si].UX_M1
+	or	ax,[bp+si].UX_M0
+	jnz	xn1
+	mov	[bp+si].UX_EXP,ax
+	ret
+xn1:	cmp	[bp+si].UX_M3,0
+	jne	xn2
+	mov	ax,[bp+si].UX_M2	; shift left 16 bits at a time
+	mov	[bp+si].UX_M3,ax
+	mov	ax,[bp+si].UX_M1
+	mov	[bp+si].UX_M2,ax
+	mov	ax,[bp+si].UX_M0
+	mov	[bp+si].UX_M1,ax
+	mov	[bp+si].UX_M0,0
+	sub	[bp+si].UX_EXP,16
+	jmp	xn1
+xn2:	test	byte ptr [bp+si].UX_M3+1,80h
+	jnz	xn9
+	call	xShl1
+	dec	[bp+si].UX_EXP
+	jmp	xn2
+xn9:	ret
+ENDPROC	xNorm
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xCopy, xSwap
+;
+; xCopy copies the UX at DI to the UX at SI, and xSwap swaps them.
+;
+; Modifies:
+;	AX, CX
+;
+DEFPROC	xCopy
+	push	si
+	push	di
+	mov	cx,(size UX) SHR 1
+xcp1:	mov	ax,[bp+di]
+	mov	[bp+si],ax
+	inc	si
+	inc	si
+	inc	di
+	inc	di
+	loop	xcp1
+	pop	di
+	pop	si
+	ret
+ENDPROC	xCopy
+
+DEFPROC	xSwap
+	push	si
+	push	di
+	mov	cx,(size UX) SHR 1
+xsw1:	mov	ax,[bp+di]
+	xchg	ax,[bp+si]
+	mov	[bp+di],ax
+	inc	si
+	inc	si
+	inc	di
+	inc	di
+	loop	xsw1
+	pop	di
+	pop	si
+	ret
+ENDPROC	xSwap
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xIsZero
+;
+; Outputs:
+;	ZF set if the UX at SI is zero
+;
+DEFPROC	xIsZero
+	cmp	[bp+si].UX_CLS,UXC_FIN
+	jne	xiz9
+	cmp	[bp+si].UX_M3,0
+xiz9:	ret
+ENDPROC	xIsZero
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xInvalid, xSetZero
+;
+; xInvalid sets the UX at SI to NaN and records XF_IE, and xSetZero sets it
+; to zero (preserving its sign).
+;
+; Modifies:
+;	AX
+;
+DEFPROC	xInvalid
+	mov	[bp+si].UX_CLS,UXC_NAN
+	or	byte ptr [bp+SX_FL],XF_IE
+	ret
+ENDPROC	xInvalid
+
+DEFPROC	xSetZero
+	sub	ax,ax
+	mov	[bp+si].UX_CLS,al
+	mov	[bp+si].UX_M0,ax
+	mov	[bp+si].UX_M1,ax
+	mov	[bp+si].UX_M2,ax
+	mov	[bp+si].UX_M3,ax
+	mov	[bp+si].UX_EXP,ax
+	ret
+ENDPROC	xSetZero
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xAdd
+;
+; Adds the UX at DI (which may be modified) to the UX at SI.
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	xAdd
+	mov	al,[bp+si].UX_CLS
+	mov	ah,[bp+di].UX_CLS
+	cmp	al,UXC_NAN
+	je	xad9
+	cmp	ah,UXC_NAN
+	je	xad2
+	cmp	al,UXC_INF
+	jne	xad1
+	cmp	ah,UXC_INF
+	jne	xad9
+	mov	al,[bp+si].UX_SGN
+	cmp	al,[bp+di].UX_SGN
+	je	xad9
+	jmp	xInvalid		; infinities with opposite signs
+xad1:	cmp	ah,UXC_INF
+	je	xad2
+	cmp	[bp+di].UX_M3,0		; is B zero?
+	jne	xad1a			; no
+	cmp	[bp+si].UX_M3,0		; is A zero, too?
+	jne	xad9			; no
+	mov	al,[bp+di].UX_SGN
+	and	[bp+si].UX_SGN,al	; -0 + -0 is -0, otherwise +0
+xad9:	ret
+xad1a:	cmp	[bp+si].UX_M3,0		; is A zero?
+	jne	xad3			; no
+xad2:	jmp	xCopy			; A = B
+xad3:	mov	cx,[bp+si].UX_EXP
+	sub	cx,[bp+di].UX_EXP
+	jge	xad4
+	call	xSwap			; make A the larger exponent
+	mov	cx,[bp+si].UX_EXP
+	sub	cx,[bp+di].UX_EXP
+xad4:	push	si
+	mov	si,di
+	call	xShrN			; align B with A
+	or	dl,dh
+	jz	xad4a
+	or	byte ptr [bp+si].UX_M0,1
+xad4a:	pop	si
+	mov	al,[bp+si].UX_SGN
+	cmp	al,[bp+di].UX_SGN
+	jne	xad6
+	mov	ax,[bp+di].UX_M0
+	add	[bp+si].UX_M0,ax
+	mov	ax,[bp+di].UX_M1
+	adc	[bp+si].UX_M1,ax
+	mov	ax,[bp+di].UX_M2
+	adc	[bp+si].UX_M2,ax
+	mov	ax,[bp+di].UX_M3
+	adc	[bp+si].UX_M3,ax
+	jnc	xad5
+	rcr	[bp+si].UX_M3,1		; shift the carry back in
+	rcr	[bp+si].UX_M2,1
+	rcr	[bp+si].UX_M1,1
+	rcr	[bp+si].UX_M0,1
+	jnc	xad4b
+	or	byte ptr [bp+si].UX_M0,1
+xad4b:	inc	[bp+si].UX_EXP
+xad5:	ret
+xad6:	mov	ax,[bp+di].UX_M0
+	sub	[bp+si].UX_M0,ax
+	mov	ax,[bp+di].UX_M1
+	sbb	[bp+si].UX_M1,ax
+	mov	ax,[bp+di].UX_M2
+	sbb	[bp+si].UX_M2,ax
+	mov	ax,[bp+di].UX_M3
+	sbb	[bp+si].UX_M3,ax
+	jnc	xad7
+	not	[bp+si].UX_M0		; B was larger, so negate the result
+	not	[bp+si].UX_M1
+	not	[bp+si].UX_M2
+	not	[bp+si].UX_M3
+	add	[bp+si].UX_M0,1
+	adc	[bp+si].UX_M1,0
+	adc	[bp+si].UX_M2,0
+	adc	[bp+si].UX_M3,0
+	xor	[bp+si].UX_SGN,80h
+xad7:	call	xNorm
+	cmp	[bp+si].UX_M3,0
+	jne	xad5
+	mov	[bp+si].UX_SGN,0	; x - x is +0
+	ret
+ENDPROC	xAdd
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xMul
+;
+; Multiplies the UX at SI by the UX at DI (which may be the same UX); the
+; 128-bit product of the mantissas is formed in the SX_P buffer.
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+DEFPROC	xMul
+	mov	al,[bp+di].UX_SGN
+	xor	[bp+si].UX_SGN,al
+	mov	al,[bp+si].UX_CLS
+	mov	ah,[bp+di].UX_CLS
+	cmp	al,UXC_NAN
+	je	xmu0a
+	mov	al,UXC_NAN
+	cmp	ah,al
+	je	xmu0
+	mov	al,[bp+si].UX_CLS
+	or	al,ah			; either operand infinite?
+	jz	xmu2			; no
+	call	xIsZero
+	jz	xmu1			; infinity times zero is invalid
+	xchg	si,di
+	call	xIsZero
+	xchg	si,di
+	jz	xmu1
+	mov	al,UXC_INF
+xmu0:	mov	[bp+si].UX_CLS,al
+xmu0a:	ret
+xmu1:	jmp	xInvalid
+xmu2:	cmp	[bp+si].UX_M3,0		; is A zero?
+	je	xmu0a			; yes
+	cmp	[bp+di].UX_M3,0		; is B zero?
+	jne	xmu3			; no
+	jmp	xSetZero
+xmu3:	mov	ax,[bp+di].UX_EXP
+	add	[bp+si].UX_EXP,ax
+	push	si
+	push	di
+	mov	ax,[bp+si].UX_M0	; copy the mantissas to SX_MA and SX_MB
+	mov	[bp+SX_MA],ax
+	mov	ax,[bp+si].UX_M1
+	mov	[bp+SX_MA+2],ax
+	mov	ax,[bp+si].UX_M2
+	mov	[bp+SX_MA+4],ax
+	mov	ax,[bp+si].UX_M3
+	mov	[bp+SX_MA+6],ax
+	mov	ax,[bp+di].UX_M0
+	mov	[bp+SX_MB],ax
+	mov	ax,[bp+di].UX_M1
+	mov	[bp+SX_MB+2],ax
+	mov	ax,[bp+di].UX_M2
+	mov	[bp+SX_MB+4],ax
+	mov	ax,[bp+di].UX_M3
+	mov	[bp+SX_MB+6],ax
+	lea	bx,[bp+SX_P]
+	mov	cx,8
+	sub	ax,ax
+xmu3a:	mov	ss:[bx],ax		; and zero SX_P
+	inc	bx
+	inc	bx
+	loop	xmu3a
+	sub	di,di			; DI = index of B word
+xmu4:	mov	cx,[bp+SX_MB+di]
+	sub	si,si			; SI = index of A word
+xmu5:	mov	ax,[bp+SX_MA+si]
+	mul	cx
+	lea	bx,[bp+SX_P]
+	add	bx,si
+	add	bx,di			; SS:BX -> product word
+	add	ss:[bx],ax
+	adc	ss:[bx+2],dx
+	jnc	xmu7
+xmu6:	inc	bx
+	inc	bx
+	add	word ptr ss:[bx+2],1	; propagate the carry
+	jc	xmu6
+xmu7:	inc	si
+	inc	si
+	cmp	si,8
+	jb	xmu5
+	inc	di
+	inc	di
+	cmp	di,8
+	jb	xmu4
+	pop	di
+	pop	si
+	test	byte ptr [bp+SX_P+15],80h
+	jnz	xmu8			; product is from 2^127 to 2^128
+	lea	bx,[bp+SX_P]
+	mov	cx,8
+	clc
+xmu7a:	rcl	word ptr ss:[bx],1	; product is from 2^126 to 2^127,
+	inc	bx			; so shift it left 1 bit
+	inc	bx
+	loop	xmu7a
+	dec	[bp+si].UX_EXP
+xmu8:	inc	[bp+si].UX_EXP
+	mov	ax,[bp+SX_P+8]		; the mantissa is the upper 64 bits
+	mov	[bp+si].UX_M0,ax
+	mov	ax,[bp+SX_P+10]
+	mov	[bp+si].UX_M1,ax
+	mov	ax,[bp+SX_P+12]
+	mov	[bp+si].UX_M2,ax
+	mov	ax,[bp+SX_P+14]
+	mov	[bp+si].UX_M3,ax
+	mov	ax,[bp+SX_P]		; and the lower 64 bits are "sticky"
+	or	ax,[bp+SX_P+2]
+	or	ax,[bp+SX_P+4]
+	or	ax,[bp+SX_P+6]
+	jz	xmu9
+	or	byte ptr [bp+si].UX_M0,1
+xmu9:	ret
+ENDPROC	xMul
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xDiv
+;
+; Divides the UX at SI by the UX at DI, using restoring division to produce
+; a 64-bit quotient (in SX_MA), with the remainder in SX_P (plus an extra top
+; bit in BL) and the divisor in SX_MB.
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+DEFPROC	xDiv
+	mov	al,[bp+di].UX_SGN
+	xor	[bp+si].UX_SGN,al
+	mov	al,[bp+si].UX_CLS
+	mov	ah,[bp+di].UX_CLS
+	cmp	al,UXC_NAN
+	je	xdv9
+	cmp	ah,UXC_NAN
+	je	xdv0
+	cmp	al,UXC_INF
+	jne	xdv1
+	cmp	ah,UXC_INF
+	jne	xdv9			; infinity divided by finite is infinity
+xdv0a:	jmp	xInvalid
+xdv0:	mov	[bp+si].UX_CLS,ah
+xdv9:	ret
+xdv1:	cmp	ah,UXC_INF
+	jne	xdv2
+	jmp	xSetZero		; finite divided by infinity is zero
+xdv2:	cmp	[bp+di].UX_M3,0		; is B zero?
+	jne	xdv3			; no
+	cmp	[bp+si].UX_M3,0		; is A zero, too?
+	je	xdv0a			; yes, which is invalid
+	or	byte ptr [bp+SX_FL],XF_ZE
+	mov	[bp+si].UX_CLS,UXC_INF
+	ret
+xdv3:	cmp	[bp+si].UX_M3,0		; is A zero?
+	je	xdv9			; yes
+	mov	ax,[bp+di].UX_EXP
+	sub	[bp+si].UX_EXP,ax
+	mov	ax,[bp+si].UX_M0	; copy A's mantissa to SX_P
+	mov	[bp+SX_P],ax
+	mov	ax,[bp+si].UX_M1
+	mov	[bp+SX_P+2],ax
+	mov	ax,[bp+si].UX_M2
+	mov	[bp+SX_P+4],ax
+	mov	ax,[bp+si].UX_M3
+	mov	[bp+SX_P+6],ax
+	mov	ax,[bp+di].UX_M0	; and B's mantissa to SX_MB
+	mov	[bp+SX_MB],ax
+	mov	ax,[bp+di].UX_M1
+	mov	[bp+SX_MB+2],ax
+	mov	ax,[bp+di].UX_M2
+	mov	[bp+SX_MB+4],ax
+	mov	ax,[bp+di].UX_M3
+	mov	[bp+SX_MB+6],ax
+	sub	bl,bl			; BL = extra top bit of remainder
+	call	xdvCmp
+	jnc	xdv4
+	dec	[bp+si].UX_EXP		; A's mantissa < B's mantissa
+	call	xdvShl
+xdv4:	mov	cx,64
+xdv5:	test	bl,bl
+	jnz	xdv6
+	call	xdvCmp
+	jc	xdv7			; remainder < divisor
+xdv6:	mov	ax,[bp+SX_MB]		; subtract the divisor
+	sub	[bp+SX_P],ax
+	mov	ax,[bp+SX_MB+2]
+	sbb	[bp+SX_P+2],ax
+	mov	ax,[bp+SX_MB+4]
+	sbb	[bp+SX_P+4],ax
+	mov	ax,[bp+SX_MB+6]
+	sbb	[bp+SX_P+6],ax
+	sub	bl,bl
+	stc				; and shift a 1 into the quotient
+	jmp	short xdv8
+xdv7:	clc				; otherwise, shift a 0
+xdv8:	rcl	word ptr [bp+SX_MA],1
+	rcl	word ptr [bp+SX_MA+2],1
+	rcl	word ptr [bp+SX_MA+4],1
+	rcl	word ptr [bp+SX_MA+6],1
+	call	xdvShl
+	loop	xdv5
+	mov	ax,[bp+SX_MA]
+	mov	[bp+si].UX_M0,ax
+	mov	ax,[bp+SX_MA+2]
+	mov	[bp+si].UX_M1,ax
+	mov	ax,[bp+SX_MA+4]
+	mov	[bp+si].UX_M2,ax
+	mov	ax,[bp+SX_MA+6]
+	mov	[bp+si].UX_M3,ax
+	mov	ax,[bp+SX_P]		; any remainder is "sticky"
+	or	ax,[bp+SX_P+2]
+	or	ax,[bp+SX_P+4]
+	or	ax,[bp+SX_P+6]
+	or	al,bl
+	jz	xdv10
+	or	byte ptr [bp+si].UX_M0,1
+xdv10:	ret
+
+xdvCmp:	mov	ax,[bp+SX_P+6]		; carry set if remainder < divisor
+	cmp	ax,[bp+SX_MB+6]
+	jne	xdc9
+	mov	ax,[bp+SX_P+4]
+	cmp	ax,[bp+SX_MB+4]
+	jne	xdc9
+	mov	ax,[bp+SX_P+2]
+	cmp	ax,[bp+SX_MB+2]
+	jne	xdc9
+	mov	ax,[bp+SX_P]
+	cmp	ax,[bp+SX_MB]
+xdc9:	ret
+
+xdvShl:	shl	word ptr [bp+SX_P],1	; shift remainder left 1 bit
+	rcl	word ptr [bp+SX_P+2],1
+	rcl	word ptr [bp+SX_P+4],1
+	rcl	word ptr [bp+SX_P+6],1
+	mov	bl,0
+	adc	bl,0
+	ret
+ENDPROC	xDiv
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xCmpMag
+;
+; Compares the magnitudes of the UX values at SI and DI (neither can be NaN).
+;
+; Outputs:
+;	AL = 1 if |SI| > |DI|, 0 if equal, -1 if less
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	xCmpMag
+	mov	al,[bp+si].UX_CLS
+	mov	ah,[bp+di].UX_CLS
+	cmp	al,ah
+	jne	xcm8			; infinity is larger than finite
+	test	al,al
+	jnz	xcm6			; both infinite
+	mov	ax,[bp+si].UX_M3
+	mov	dx,[bp+di].UX_M3
+	test	ax,ax
+	jnz	xcm1
+	test	dx,dx
+	jz	xcm6			; both zero
+	jmp	short xcm7		; only A is zero
+xcm1:	test	dx,dx
+	jz	xcm5			; only B is zero
+	mov	ax,[bp+si].UX_EXP
+	cmp	ax,[bp+di].UX_EXP
+	jne	xcm4
+	mov	ax,[bp+si].UX_M3
+	cmp	ax,[bp+di].UX_M3
+	jne	xcm8
+	mov	ax,[bp+si].UX_M2
+	cmp	ax,[bp+di].UX_M2
+	jne	xcm8
+	mov	ax,[bp+si].UX_M1
+	cmp	ax,[bp+di].UX_M1
+	jne	xcm8
+	mov	ax,[bp+si].UX_M0
+	cmp	ax,[bp+di].UX_M0
+	jne	xcm8
+xcm6:	mov	al,0
+	ret
+xcm4:	jg	xcm5			; signed exponent comparison
+xcm7:	mov	al,-1
+	ret
+xcm8:	jb	xcm7			; unsigned comparison
+xcm5:	mov	al,1
+	ret
+ENDPROC	xCmpMag
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xRndInt
+;
+; Rounds the UX at SI to an integer, according to the mode in AL: 0 for
+; nearest (ties to even), 1 for nearest (ties away from zero), 2 for down
+; (toward -infinity), or 3 for toward zero.
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	xRndInt
+	call	xIsZero
+	jz	xri9			; zero (or not finite)
+	cmp	[bp+si].UX_CLS,UXC_FIN
+	jne	xri9
+	mov	cx,63
+	sub	cx,[bp+si].UX_EXP
+	jle	xri9			; it's already an integer
+	push	ax
+	call	xShrN			; DL = half, DH = rest
+	pop	ax
+	cmp	al,1
+	jb	xri2
+	je	xri4
+	cmp	al,3
+	je	xri6
+	test	byte ptr [bp+si].UX_SGN,80h
+	jz	xri6			; rounding down a positive value
+	or	dl,dh			; rounding down a negative value
+	jmp	short xri4
+xri2:	test	dl,dl
+	jz	xri6
+	mov	al,byte ptr [bp+si].UX_M0
+	and	al,1			; a tie is rounded up only if the
+	or	dh,al			; integer is odd
+	mov	dl,dh
+xri4:	test	dl,dl
+	jz	xri6
+	add	[bp+si].UX_M0,1
+	adc	[bp+si].UX_M1,0
+	adc	[bp+si].UX_M2,0
+	adc	[bp+si].UX_M3,0
+xri6:	mov	[bp+si].UX_EXP,63
+	jmp	xNorm
+xri9:	ret
+ENDPROC	xRndInt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xToLong
+;
+; Rounds the UX at SI (see xRndInt for the modes in AL) and converts it to a
+; long, recording XF_IE (and returning 80000000h) if it doesn't fit.
+;
+; Outputs:
+;	DX:AX = long
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	xToLong
+	call	xRndInt
+	cmp	[bp+si].UX_CLS,UXC_FIN
+	jne	xtl8
+	sub	ax,ax
+	cwd
+	cmp	[bp+si].UX_M3,ax
+	je	xtl9			; zero
+	mov	cx,31
+	sub	cx,[bp+si].UX_EXP
+	jl	xtl8			; too large
+	mov	dx,[bp+si].UX_M3
+	mov	ax,[bp+si].UX_M2
+	jcxz	xtl3
+xtl1:	shr	dx,1
+	rcr	ax,1
+	loop	xtl1
+	test	byte ptr [bp+si].UX_SGN,80h
+	jz	xtl9
+	neg	dx
+	neg	ax
+	sbb	dx,0
+	ret
+xtl3:	test	byte ptr [bp+si].UX_SGN,80h
+	jz	xtl8			; only -2^31 has an exponent of 31
+	test	ax,ax
+	jnz	xtl8
+	cmp	dx,8000h
+	je	xtl9
+xtl8:	or	byte ptr [bp+SX_FL],XF_IE
+	mov	dx,8000h
+	sub	ax,ax
+xtl9:	ret
+ENDPROC	xToLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xFromLong
+;
+; Sets the UX at SI to the long in DX:AX.
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	xFromLong
+	mov	[bp+si].UX_CLS,UXC_FIN
+	mov	[bp+si].UX_SGN,0
+	test	dx,dx
+	jns	xfl1
+	mov	[bp+si].UX_SGN,80h
+	neg	dx
+	neg	ax
+	sbb	dx,0
+xfl1:	mov	[bp+si].UX_M3,dx
+	mov	[bp+si].UX_M2,ax
+	sub	ax,ax
+	mov	[bp+si].UX_M1,ax
+	mov	[bp+si].UX_M0,ax
+	mov	[bp+si].UX_EXP,31
+	jmp	xNorm
+ENDPROC	xFromLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xPowInt
+;
+; Sets the UX at SI to the UX at DI (which is modified) raised to the BX power
+; (unsigned), by repeated squaring.
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+DEFPROC	xPowInt
+	mov	ax,1
+	cwd
+	call	xFromLong
+xpi1:	shr	bx,1
+	jnc	xpi2
+	push	bx
+	call	xMul			; multiply result by current power
+	pop	bx
+xpi2:	test	bx,bx
+	jz	xpi9
+	push	bx
+	push	si
+	mov	si,di
+	call	xMul			; square the current power
+	pop	si
+	pop	bx
+	jmp	xpi1
+xpi9:	ret
+ENDPROC	xPowInt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xScale10
+;
+; Multiplies (or for negative exponents, divides) the UX at SI (which must
+; not be SX_B or SX_C) by 10^AX.
+;
+; Modifies:
+;	AX, BX, CX, DX, DI, SX_B, SX_C
+;
+DEFPROC	xScale10
+	test	ax,ax
+	jz	xsc9
+	push	si
+	push	ax
+	mov	bx,ax
+	test	bx,bx
+	jns	xsc1
+	neg	bx			; BX = abs(n)
+xsc1:	mov	si,SX_B
+	mov	ax,10
+	cwd
+	call	xFromLong
+	mov	si,SX_C
+	mov	di,SX_B
+	call	xPowInt			; C = 10^abs(n)
+	pop	ax
+	pop	si
+	mov	di,SX_C
+	test	ax,ax
+	js	xsc2
+	jmp	xMul
+xsc2:	jmp	xDiv
+xsc9:	ret
+ENDPROC	xScale10
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; xSqrt
+;
+; Sets the UX at SX_A to its square root, using Newton's method: starting with
+; an estimate y (x with its exponent halved), y = (y + x/y) / 2 is repeated
+; until it's as precise as 64 bits allow (6 iterations).
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, SX_C, SX_D
+;
+DEFPROC	xSqrt
+	mov	si,SX_A
+	cmp	[bp+si].UX_CLS,UXC_NAN
+	je	xsq9
+	call	xIsZero
+	jz	xsq9			; the square root of +/-0 is +/-0
+	test	[bp+si].UX_SGN,80h
+	jz	xsq1
+	jmp	xInvalid		; negative values are invalid
+xsq1:	cmp	[bp+si].UX_CLS,UXC_INF
+	je	xsq9
+	mov	si,SX_D
+	mov	di,SX_A
+	call	xCopy			; D = x
+	sar	[bp+SX_A].UX_EXP,1	; A = y
+	mov	cx,6
+xsq2:	push	cx
+	mov	si,SX_C
+	mov	di,SX_D
+	call	xCopy
+	mov	di,SX_A
+	call	xDiv			; C = x / y
+	mov	si,SX_A
+	mov	di,SX_C
+	call	xAdd			; A = y + x/y
+	dec	[bp+SX_A].UX_EXP	; A = (y + x/y) / 2
+	pop	cx
+	loop	xsq2
+xsq9:	ret
+ENDPROC	xSqrt
 
 	DEFLBL	swEnd
 

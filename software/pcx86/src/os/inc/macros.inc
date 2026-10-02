@@ -581,19 +581,15 @@ d2:
 ; Pushes the given argument onto the stack, using the given size in words;
 ; default is 1.
 ;
+; NOTE: There is deliberately no 4-word (64-bit) option: doubles must always
+; be passed by reference (ie, as far pointers), never by value.
+;
 PUSHARG	macro	a,w
-	IF w EQ 4
-	push	a.W4
-	push	a.W3
-	push	a.W2
-	push	a.W1
-	ELSE
-	 IF w EQ 2
+	IF w EQ 2
 	push	a.HIW
 	push	a.LOW
-	 ELSE
+	ELSE
 	push	a
-	 ENDIF
 	ENDIF
 	endm
 
@@ -604,15 +600,15 @@ PUSHARG	macro	a,w
 ; One downside to this convention is that it can't be used with functions
 ; returning values in flags, like CF or ZF, due to the "add sp" instruction.
 ;
-; NOTE: When passing a 32-bit "long" value or "far" pointer to CCALL, follow
-; it with the dummy parameter ":4", and when passing a 64-bit "quad" value,
-; follow it with the dummy parameter ":2".  This tells CCALL how many pushes
-; the argument requires; the default is 1.  I originally tried to have PUSHARG
-; determine the argument size itself, using MASM 4.0 operators like "TYPE",
-; but it was unreliable (perhaps even, dare I say, buggy).
+; NOTE: When passing a 32-bit "long" value or "far" pointer stored in memory to
+; CCALL, follow it with the dummy parameter ":2".  This tells CCALL that the
+; argument requires 2 pushes; the default is 1.  I originally tried to have
+; PUSHARG determine the argument size itself, using MASM 4.0 operators like
+; "TYPE", but it was unreliable (perhaps even, dare I say, buggy).
 ;
-; You can pass individual words of a 32-bit or 64-bit value separately, but
-; be sure to list the lowest word first, so that it gets pushed last.
+; You can pass individual words of a 32-bit value separately, but be sure to
+; list the lowest word first, so that it gets pushed last.  64-bit doubles are
+; never passed by value; pass a far pointer instead (eg, offset and segment).
 ;
 CCALL	macro	func,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15
 	argc = 0
@@ -622,13 +618,9 @@ CCALL	macro	func,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15
 	  IFIDN <arg>,<:2>
 	argw = 2
 	  ELSE
-	   IFIDN <arg>,<:4>
-	argw = 4
-	   ELSE
 	PUSHARG	arg,argw
 	argc = argc + argw
 	argw = 1
-	   ENDIF
 	  ENDIF
 	 ENDIF
 	ENDM

@@ -35,6 +35,7 @@ FL_DEFAULT	equ    0F202h
 ; Processor opcode definitions
 ;
 OP_PUSH_ES	equ	006h
+OP_POP_ES	equ	007h
 OP_PUSH_CS	equ	00Eh
 OP_PUSH_SS	equ	016h
 OP_PUSH_DS	equ	01Eh
@@ -66,6 +67,7 @@ OP_IRET		equ	0CFh
 OP_CALL		equ	0E8h		; 16-bit displacement
 OP_JMP		equ	0E9h		; 16-bit displacement
 OP_JMPF		equ	0EAh		; 32-bit absolute address
+OP_JMPS		equ	0EBh		; 8-bit displacement
 OP_CLC		equ	0F8h
 OP_STC		equ	0F9h
 OP_CLI		equ	0FAh
@@ -85,6 +87,7 @@ OP_MOV_AX_SP	equ	089E0h		; MOV AX,SP
 OP_POP_DX_AX	equ	05A58h		; POP AX, POP DX
 OP_OR_AX_DX	equ	0D009h		; OR  AX,DX
 OP_JZ_SELF	equ	0FE74h		; JZ  $
+OP_JNZ_3	equ	00375h		; JNZ $+5 (eg, around a near JMP)
 OP_MOV_BP_SP	equ	0E589h		; MOV BP,SP
 OP_MOV_SP_BP	equ	0EC89h		; MOV SP,BP
 OP_PUSH_BP8	equ	076FFh		; PUSH [BP+nn]

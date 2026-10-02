@@ -141,17 +141,24 @@ pa2:	push	bp
 	lea	bp,[bp+2]
 	cmp	al,VAR_LONG		; if AL < VAR_LONG that's trouble
 	jb	pa1
+;
+; Every value is 4 bytes: a VAR_LONG, or a far pointer to a VAR_STR or
+; VAR_DOUBLE (since doubles, like strings, are always passed by reference).
+; If AL > VAR_DOUBLE that's trouble, because we don't know how to print
+; VAR_FUNC or VAR_ARRAY variables.
+;
+	ASSERT	BE,<cmp al,VAR_DOUBLE>
 	lea	bp,[bp+4]
-	cmp	al,VAR_DOUBLE
-	jb	pa1
-	ASSERT	Z			; if AL > VAR_DOUBLE that's trouble
-	lea	bp,[bp+4]		; because we don't know how to print
-	jmp	pa1			; VAR_FUNC or VAR_ARRAY variables
+	jmp	pa1
 
-pa3:	mov	al,VAR_NEWLINE
-	lea	bp,[bp+2]
+pa3:	lea	bp,[bp+2]
 	sub	bp,bx
 	mov	bx,bp			; BX = # bytes to clean off stack
+;
+; After printing any value, AL must be non-zero, so that we end on a new line
+; (unless a separator follows the value).
+;
+pa4v:	mov	al,VAR_NEWLINE
 
 pa4:	pop	bp
 	test	bp,bp			; end-of-args marker?
@@ -166,7 +173,8 @@ pa4:	pop	bp
 pa4a:	mov	al,VAR_NONE		; if we end on this, there's no NEWLINE
 	jmp	pa4
 ;
-; Check for numeric types first.  VAR_LONG is it for now.
+; Check for numeric types first: VAR_LONG, and then VAR_DOUBLE (whose far
+; pointer we simply pass along to the %f formatter).
 ;
 pa5:	cmp	al,VAR_LONG
 	jne	pa6
@@ -177,14 +185,21 @@ pa5:	cmp	al,VAR_LONG
 ; decimal output to signify that a space should precede positive values.
 ;
 	PRINTF	<"%#ld ">,ax,dx		; DX:AX = 32-bit value
-	jmp	pa4
+	jmp	pa4v
 ;
 ; Check for string types next.  VAR_STR is a normal string reference (eg,
 ; a string constant in a code block, or a string variable in a string block),
 ; whereas VAR_TSTR is a temporary string (eg, the result of some string
 ; operation) which we must free after printing.
 ;
-pa6:	cmp	al,VAR_TSTR
+pa6:	cmp	al,VAR_DOUBLE
+	jne	pa6a
+	mov	ax,[bp+2]
+	mov	dx,[bp+4]
+	PRINTF	<"%#f ">,ax,dx		; DX:AX -> double
+	jmp	pa4v
+
+pa6a:	cmp	al,VAR_TSTR
 	ja	pa4			; not a string type
 
 pa7:	push	ds			; save DS
@@ -205,7 +220,7 @@ pa7:	push	ds			; save DS
 	call	freeStr			; ES:DI -> string data to free
 
 pa7a:	pop	ds			; restore DS
-	jmp	pa4
+	jmp	pa4v
 ;
 ; We've reached the end of arguments, wrap it up.
 ;

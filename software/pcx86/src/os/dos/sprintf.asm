@@ -182,7 +182,8 @@ ENDPROC itoa
 ;	%s:	string (near DS-relative pointer); use %ls for far pointer
 ;	%f:	64-bit double, formatted by the FPU$ driver (see FPU_DTOA);
 ;		BASIC-style unless a precision is given, and nothing is output
-;		if the FPU$ driver isn't loaded
+;		if the FPU$ driver isn't loaded; the parameter is a FAR POINTER
+;		to the double, since doubles are always passed by reference
 ;
 ; NOTE: Although both 32-bit floats and 64-bit doubles are legitimate FPU
 ; data types, and "%f" and "%lf" format specifiers have traditionally been
@@ -572,9 +573,10 @@ pfd6:	pop	cx
 	clc
 pfd9:	ret
 ;
-; Process %f formatter, by passing the 64-bit double, along with the width,
-; precision, flags, and remaining buffer length, to the FPU$ driver's FPU_DTOA
-; function (see fpu_table).
+; Process %f formatter, by passing the 64-bit double (whose far pointer is the
+; parameter, since doubles are always passed by reference), along with the
+; width, precision, flags, and remaining buffer length, to the FPU$ driver's
+; FPU_DTOA function (see fpu_table).
 ;
 pff:	push	bx
 	push	si
@@ -594,16 +596,14 @@ pff:	push	bx
 pff1:	mov	dx,[bp].SPF_WIDTH	; DX = width
 	mov	cx,[bp].SPF_LIMIT
 	sub	cx,di			; CX = remaining buffer length
-	push	ss
-	pop	ds
-	lea	si,[bp+si]		; DS:SI -> double
+	lds	si,[bp+si]		; DS:SI -> double
 	mov	bx,sp
 	call	dword ptr ss:[bx]
 	add	sp,4
 pff9:	pop	ds
 	pop	si
 	pop	bx
-	add	si,8			; skip the double
+	add	si,4			; skip the pointer to the double
 	jmp	pf1
 ;
 ; Process %F formatter, which we convert to a "fake" string parameter.

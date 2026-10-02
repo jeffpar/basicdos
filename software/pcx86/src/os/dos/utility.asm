@@ -718,7 +718,9 @@ tc7:	cmp	al,'.'
 	jne	tc7c
 	test	ah,CLS_VAR
 	jnz	tc7b
+	test	ah,CLS_DEC		; continuing a decimal number?
 	mov	ah,CLS_FLOAT		; update current class
+	jz	tc7b			; no (eg, ".5" starts a new number)
 tc7a:	mov	ch,ah			; change previous class, too
 tc7b:	ret
 ;

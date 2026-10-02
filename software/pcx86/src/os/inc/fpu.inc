@@ -17,47 +17,64 @@
 ; IOCTL_GETFPU also returns DL = # of FPUTBL entries and DH = FPU type
 ; (FPUTYPE_*), so that callers can tell when newer functions are available.
 ;
+; DOUBLES ARE ALWAYS PASSED BY REFERENCE, NEVER BY VALUE.  Like strings, a
+; double is passed as a far pointer to its 8 bytes, which is cheaper than four
+; 16-bit pushes.  This applies to every interface in BASIC-DOS (eg, these FPU
+; functions, sprintf's %f, and the code that the code generator produces), so
+; there are no 64-bit pushes anywhere; please keep it that way.
+;
 ; Functions that operate on the stack use the same conventions as the
 ; evaluators in long.asm: the first operand is pushed first, so the second
-; operand is on top, and doubles and longs are stored in memory order (ie,
-; the low word is on top).  Results replace operands, and any operand bytes
-; not needed for the result are popped.  The conversion functions are named
-; after the corresponding conversions in BASIC-DOS's code generator (gen.asm),
-; where the "1" or "2" indicates whether the top operand (1) or the operand
-; underneath it (2) is converted, while the other operand (if any) is left
-; as-is; a "1" or "2" BEFORE the type indicates that 1 or 2 operands of that
-; type are converted.  Also, like long.asm, stack functions may modify AX, BX,
-; CX, DX, SI, DI, and ES.
+; operand is on top.  Every stack operand is 4 bytes: a long (stored in memory
+; order, so the low word is on top) or a far pointer to a double (offset on
+; top).  Results replace operands, and any operands not needed for the result
+; are popped.
+;
+; Any function that produces a double stores it at ES:DI (which the caller
+; must supply), and the result on the stack is a far pointer to ES:DI.  Only
+; FPU_CVT2LD produces two doubles: the first (A) at ES:DI and the second (B)
+; at ES:DI+8.  ES:DI may also be the address of any operand.  Operands are never
+; modified (unless ES:DI points to one).
+;
+; The conversion functions are named after the corresponding conversions in
+; BASIC-DOS's code generator (gen.asm), where the "1" or "2" indicates whether
+; the top operand (1) or the operand underneath it (2) is converted, while the
+; other operand (if any) is left as-is; a "1" or "2" BEFORE the type indicates
+; that 1 or 2 operands of that type are converted.  Also, like long.asm, stack
+; functions may modify AX, BX, CX, DX, SI, DI, and ES.
 ;
 ; The first 12 FPUTBL entries must remain in the same order as the OPEVAL_NEG
 ; through OPEVAL_GE operator indexes in cmd.inc, so that the code generator
 ; can use (OPEVAL - 1) * 2 as the offset of the corresponding FPUTBL entry.
 ;
+; In the comments below, "double" on the stack means a pointer to a double,
+; and a "+" indicates a function that requires ES:DI.
+;
 FPUTBL		struc
-FPU_NEG		dw	?	; 00h: -A (1 double -> 1 double)
-FPU_EXP		dw	?	; 02h: A^B (2 doubles -> 1 double)
-FPU_MUL		dw	?	; 04h: A*B (2 doubles -> 1 double)
-FPU_DIV		dw	?	; 06h: A/B (2 doubles -> 1 double)
-FPU_ADD		dw	?	; 08h: A+B (2 doubles -> 1 double)
-FPU_SUB		dw	?	; 0Ah: A-B (2 doubles -> 1 double)
+FPU_NEG		dw	?	; 00h: +-A (1 double -> 1 double)
+FPU_EXP		dw	?	; 02h: +A^B (2 doubles -> 1 double)
+FPU_MUL		dw	?	; 04h: +A*B (2 doubles -> 1 double)
+FPU_DIV		dw	?	; 06h: +A/B (2 doubles -> 1 double)
+FPU_ADD		dw	?	; 08h: +A+B (2 doubles -> 1 double)
+FPU_SUB		dw	?	; 0Ah: +A-B (2 doubles -> 1 double)
 FPU_EQ		dw	?	; 0Ch: A=B (2 doubles -> 1 long, -1 if true, 0 if not)
 FPU_NE		dw	?	; 0Eh: A<>B (2 doubles -> 1 long)
 FPU_LT		dw	?	; 10h: A<B (2 doubles -> 1 long)
 FPU_GT		dw	?	; 12h: A>B (2 doubles -> 1 long)
 FPU_LE		dw	?	; 14h: A<=B (2 doubles -> 1 long)
 FPU_GE		dw	?	; 16h: A>=B (2 doubles -> 1 long)
-FPU_CVT1DL	dw	?	; 18h: conv1DoubleToLong (double -> long, rounded)
+FPU_CVT1DL	dw	?	; 18h: conv1DoubleToLong (double -> long, rounded, ties away from 0)
 FPU_CVT2DL	dw	?	; 1Ah: conv2DoubleToLong (2 doubles -> 2 longs)
-FPU_CVTL1D	dw	?	; 1Ch: convLong1ToDouble (double, long -> 2 doubles)
-FPU_CVTL2D	dw	?	; 1Eh: convLong2ToDouble (long, double -> 2 doubles)
+FPU_CVTL1D	dw	?	; 1Ch: +convLong1ToDouble (double, long -> 2 doubles)
+FPU_CVTL2D	dw	?	; 1Eh: +convLong2ToDouble (long, double -> 2 doubles)
 FPU_CVTD1L	dw	?	; 20h: convDouble1ToLong (long, double -> 2 longs)
 FPU_CVTD2L	dw	?	; 22h: convDouble2ToLong (double, long -> 2 longs)
-FPU_CVT1LD	dw	?	; 24h: conv1LongToDouble (long -> double)
-FPU_CVT2LD	dw	?	; 26h: conv2LongToDouble (2 longs -> 2 doubles)
-FPU_ABS		dw	?	; 28h: ABS(A) (1 double -> 1 double)
-FPU_INT		dw	?	; 2Ah: INT(A), largest integer <= A (1 double -> 1 double)
-FPU_FIX		dw	?	; 2Ch: FIX(A), A truncated (1 double -> 1 double)
-FPU_SQR		dw	?	; 2Eh: SQR(A), square root (1 double -> 1 double)
+FPU_CVT1LD	dw	?	; 24h: +conv1LongToDouble (long -> double)
+FPU_CVT2LD	dw	?	; 26h: +conv2LongToDouble (2 longs -> 2 doubles)
+FPU_ABS		dw	?	; 28h: +ABS(A) (1 double -> 1 double)
+FPU_INT		dw	?	; 2Ah: +INT(A), largest integer <= A (1 double -> 1 double)
+FPU_FIX		dw	?	; 2Ch: +FIX(A), A truncated (1 double -> 1 double)
+FPU_SQR		dw	?	; 2Eh: +SQR(A), square root (1 double -> 1 double)
 FPU_ATOD	dw	?	; 30h: DS:SI -> chars, ES:DI -> double (see below)
 FPU_DTOA	dw	?	; 32h: DS:SI -> double, ES:DI -> chars (see below)
 FPU_TODEC	dw	?	; 34h: DS:SI -> double, ES:DI -> digits (see below)
@@ -93,7 +110,7 @@ FPUTBL		ends
 ; Modifies AX, BX, CX, DX.
 ;
 ; FPU_FROMDEC converts CX digits at DS:SI (up to 19), multiplied by 10 raised
-; to the power in AX, to a double at ES:DI, negated if BL is 80h.  Carry is set
+; to the power in AX, to a double at ES:DI, negated if bit 7 of BL is set.  Carry is set
 ; if the value is out of range.  Modifies AX, CX, DX, SI.
 ;
 FPU_DIGITS	equ	15
