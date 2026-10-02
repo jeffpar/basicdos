@@ -783,6 +783,17 @@ export default class PC extends PCJSLib {
                     this.exit(0);
                     return false;
                 }
+                /**
+                 * "QUIT /S [d:] file" saves the built drive (or drive d:) as a disk image before quitting.
+                 */
+                let match = args.match(/^\/s\s+(?:([a-d]):\s+)?(\S+)$/i);
+                if (match) {
+                    if (!this.saveDisk(match[2], match[1] && match[1].toUpperCase())) {
+                        printf("unable to save drive\n");
+                    }
+                    this.exit(0);
+                    return false;
+                }
                 if (args.toLowerCase() != "/r") {
                     printf("unrecognized option: %s\n", args);
                     return false;           // for any unrecognized option, returning false will skip the INT 19h
