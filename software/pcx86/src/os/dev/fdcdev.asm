@@ -660,18 +660,20 @@ ENDPROC	write_buffer
 ;
 ; Outputs:
 ;	If carry clear, success (AX is whatever the BIOS returned)
-;	If carry set, AX is a driver error code (based on the BIOS error code)
+;	If carry set, AX is a driver error code (ie, the BIOS error code)
 ;
 ; Modifies:
 ;	AX
 ;
-; Limitations:
-;	The entire transfer must occur within ES:BP to ES:FFFFh.
+; NOTE: We advance the transfer address by adding to ES rather than BP, so
+; that a large transfer can extend beyond ES:FFFFh (eg, when loading a large
+; program into a buffer that doesn't begin at offset zero).
 ;
 DEFPROC	readwrite_sectors
 	ASSUME	DS:NOTHING
 	push	bx
 	push	cx
+	push	es
 
 rw0:	push	dx		; save LBA
 	call	get_chs		; convert LBA in DX to CHS in CX,DX
@@ -778,35 +780,21 @@ rw3a:	pop	bx		; BL = total # sectors
 	jbe	rw9		; no
 	add	dx,cx		; advance LBA in DX
 	xchg	ax,cx
-	mov	cl,9		; TODO: Should we add BPB_SECLOG2 to the BPB?
-	shl	ax,cl		; AX = # bytes in request
-	add	bp,ax		; advance transfer address in BP
-	jc	rw8e		; BP should never overflow, but just in case...
+	mov	cl,5		; TODO: Should we add BPB_SECLOG2 to the BPB?
+	shl	ax,cl		; AX = # paragraphs in request
+	mov	cx,es
+	add	cx,ax
+	mov	es,cx		; advance transfer address in ES
 	jmp	rw0
 ;
-; Map BIOS error code (in AH) to driver error code (in AX)
+; BIOS error codes (in AH) are also driver error codes (see DDERR in dev.inc).
 ;
-rw8:	cmp	ah,FDCERR_WP
-	jne	rw8a
-	mov	al,DDERR_WP
-rw8a:	cmp	ah,FDCERR_NOSECTOR
-	jne	rw8b
-	mov	al,DDERR_NOSECTOR
-rw8b:	cmp	ah,FDCERR_CRC
-	jne	rw8c
-	mov	al,DDERR_CRC
-rw8c:	cmp	ah,FDCERR_SEEK
-	jne	rw8d
-	mov	al,DDERR_SEEK
-rw8d:	cmp	ah,FDCERR_NOTREADY
-	jne	rw8e
-	mov	al,DDERR_NOTREADY
-	jmp	short rw8f
-rw8e:	mov	al,DDERR_GENFAIL
-rw8f:	cbw
+rw8:	mov	al,ah
+	mov	ah,0		; AX = driver error code
 	stc
 
-rw9:	pop	cx
+rw9:	pop	es
+	pop	cx
 	pop	bx
 	ret
 ENDPROC	readwrite_sectors

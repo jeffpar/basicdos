@@ -678,7 +678,7 @@ rf1:	mov	bp,bx		; save nibble offset in BP
 	shr	bx,1		; BX -> byte, carry set if odd nibble
 	mov	dl,[di+bx]
 	inc	bx
-	cmp	bp,03FFh	; at the sector boundary?
+	cmp	bp,03FEh	; at the sector boundary?
 	jb	rf2		; no
 	inc	[FAT_BUFHDR].BUF_LBA
 	mov	ax,[FAT_BUFHDR].BUF_LBA

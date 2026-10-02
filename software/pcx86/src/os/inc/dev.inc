@@ -57,20 +57,30 @@ DDSTAT_DONE	equ	0100h
 DDSTAT_BUSY	equ	0200h
 DDSTAT_ERRCODE	equ	00FFh
 
-DDERR_WP	equ	0	; Write protect violation
-DDERR_UNKUNIT	equ	1	; Unknown unit
-DDERR_NOTREADY	equ	2	; Drive not ready
-DDERR_UNKCMD	equ	3	; Unknown command
-DDERR_CRC	equ	4	; CRC error
-DDERR_BADREQ	equ	5	; Bad drive request structure length
-DDERR_SEEK	equ	6	; Seek error
-DDERR_UNKMEDIA	equ	7	; Unknown media
-DDERR_NOSECTOR	equ	8	; Sector not found
-DDERR_NOPAPER	equ	9	; Printer out of paper
-DDERR_WRFAULT	equ	10	; Write fault
-DDERR_RDFAULT	equ	11	; Read fault
-DDERR_GENFAIL	equ	12	; General failure
-DDERR_INVDSKCHG	equ	15	; Invalid disk change
+;
+; Disk error codes are the BIOS (INT 13h) error codes, so that disk drivers
+; can pass them through as-is; the remaining codes use values that the BIOS
+; does not.
+;
+DDERR_BADCMD	equ	01h	; Bad (BIOS) command
+DDERR_BADMARK	equ	02h	; Bad address mark
+DDERR_WP	equ	03h	; Write protect violation
+DDERR_NOSECTOR	equ	04h	; Sector not found
+DDERR_UNKUNIT	equ	05h	; Unknown unit
+DDERR_UNKCMD	equ	06h	; Unknown command
+DDERR_BADREQ	equ	07h	; Bad drive request structure length
+DDERR_DMAOVR	equ	08h	; DMA overrun
+DDERR_DMA64K	equ	09h	; DMA (64K) boundary error
+DDERR_UNKMEDIA	equ	0Ah	; Unknown media
+DDERR_NOPAPER	equ	0Bh	; Printer out of paper
+DDERR_GENFAIL	equ	0Ch	; General failure
+DDERR_WRFAULT	equ	0Dh	; Write fault
+DDERR_RDFAULT	equ	0Eh	; Read fault
+DDERR_INVDSKCHG	equ	0Fh	; Invalid disk change
+DDERR_CRC	equ	10h	; CRC error
+DDERR_CTRL	equ	20h	; Controller failure
+DDERR_SEEK	equ	40h	; Seek error
+DDERR_NOTREADY	equ	80h	; Drive not ready (aka timeout)
 
 ;
 ; Device driver packet for the INIT command

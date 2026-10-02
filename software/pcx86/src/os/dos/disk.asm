@@ -589,20 +589,25 @@ DEFPROC	get_cln,DOS
 
 	mov	bp,bx			; save nibble offset in BP
 	shr	bx,1			; BX -> byte, carry set if odd nibble
-	mov	dl,[si+bx]
+	mov	cl,[si+bx]		; CL = 1st byte of the entry
 	inc	bx
 ;
 ; An entry that begins at nibble 3FEh or 3FFh continues in the next sector.
+; Note that DX must still contain the FAT LBA here, which is why the 1st byte
+; of the entry is in CL.
 ;
 	cmp	bp,03FEh		; at the sector boundary?
 	jb	gc2			; no
 	inc	dx			; DX = next FAT LBA
 	mov	al,cs:[di].BPB_DRIVE
 	mov	si,offset FAT_BUFHDR
+	push	cx
 	call	read_buffer
+	pop	cx
 	jc	gc4
 	sub	bx,bx
-gc2:	mov	dh,[si+bx]
+gc2:	mov	dl,cl
+	mov	dh,[si+bx]
 	shr	bp,1			; was that an odd nibble again?
 	jc	gc3			; yes
 	and	dx,0FFFh		; no, so make sure top 4 bits clear
