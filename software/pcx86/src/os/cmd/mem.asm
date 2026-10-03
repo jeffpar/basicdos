@@ -8,8 +8,7 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	include	cmd.inc
-	include	bios.inc
-	include	dos.inc
+	include	dos.inc		; (bios.inc omitted to save symbol space)
 
 CODE    SEGMENT
 
@@ -47,9 +46,7 @@ DEFPROC	cmdMem
 ;
 mem0:	sub	di,di
 	mov	es,di
-	ASSUME	ES:BIOS
-	les	di,[DD_LIST]
-	ASSUME	ES:NOTHING
+	les	di,es:[50Ah]		; ES:DI = DD_LIST (see bios.inc)
 
 	IFDEF	DEBUG
 	TESTSW	<'D'>

@@ -115,7 +115,8 @@ CBLK		struc
 CBLK_HDR	db size	BLKHDR dup (?)	; 00h
 CBLK_REFS	dw	?		; 08h: bottom of LBLREF stack, if any
 CBLK		ends
-CBLKLEN		equ	4096		; default code block size
+CBLKLEN		equ	4096		; preferred code block size
+CODE_ROOM	equ	160		; room required at "safe points"
 CBLK_SIG	equ	BLK_SIG
 SIG_CBLK	equ	'C'		; must match MCBTYPE_CBLK
 
@@ -126,7 +127,7 @@ FBLK		struc
 FBLK_HDR	db size	BLKHDR dup (?)	; 00h
 FBLK_REFS	dw	?		; 08h: bottom of LBLREF stack, if any
 FBLK		ends
-FBLKLEN		equ	1024		; default code block size
+FBLKLEN		equ	4096		; preferred function block size
 FBLK_SIG	equ	BLK_SIG
 SIG_FBLK	equ	'F'		; must match MCBTYPE_FBLK
 
@@ -166,7 +167,7 @@ VAR_LSKIP	equ	VAR_LONG OR 02h
 VBLK		struc
 VBLK_HDR	db size	BLKHDR dup (?)	; 00h
 VBLK		ends
-VBLKLEN		equ	1024		; default var block size
+VBLKLEN		equ	4096		; preferred var block size
 VBLK_SIG	equ	BLK_SIG
 SIG_VBLK	equ	'V'		; must match MCBTYPE_VBLK
 
@@ -176,19 +177,17 @@ SIG_VBLK	equ	'V'		; must match MCBTYPE_VBLK
 SBLK		struc
 SBLK_HDR	db size	BLKHDR dup (?)	; 00h
 SBLK		ends
-SBLKLEN		equ	2048		; default string block size
+SBLKLEN		equ	4096		; preferred string block size
 SBLK_SIG	equ	BLK_SIG
 SIG_SBLK	equ	'S'		; must match MCBTYPE_SBLK
 
 ;
 ; Text Block (TBLK) definitions
 ;
-; TODO: Increase default TBLKLEN after we've finished testing the small size.
-;
 TBLK		struc
 TBLK_HDR	db size	BLKHDR dup (?)	; 00h
 TBLK		ends
-TBLKLEN		equ	1024		; default text block size
+TBLKLEN		equ	4096		; preferred text block size
 TBLK_SIG	equ	BLK_SIG
 SIG_TBLK	equ	'T'		; must match MCBTYPE_TBLK
 
@@ -236,13 +235,22 @@ OPEVAL_IMP	equ	22
 ; Similarly, a LBLREF is pushed whenever a label reference (eg, GOTO line)
 ; is encountered.  If the label reference cannot be resolved immediately,
 ; then LBL_IP is the current IP + LBL_RESOLVE, indicating that the IP is for
-; a JMP waiting to be resolved.
+; a JMP waiting to be resolved.  Since LBL_RESOLVE is the high bit of the IP,
+; code blocks must be smaller than 32K (they're normally CBLKLEN bytes; see
+; ensureRoom).
+;
+; LBL_NUM values of CTL_FOR and CTL_WHILE (which are not valid line numbers)
+; mark open FOR and WHILE statements (see genFor and genWhile), and CTL_DONE
+; marks closed ones.
 ;
 LBLREF		struc
 LBL_NUM		dw	?		; label number
 LBL_IP		dw	?		; instruction pointer for label
 LBLREF		ends
-LBL_RESOLVE	equ	CBLKLEN
+LBL_RESOLVE	equ	8000h
+CTL_FOR		equ	0FFFFh
+CTL_WHILE	equ	0FFFEh
+CTL_DONE	equ	0FFFDh
 
 ;
 ; Code generation flags
@@ -328,45 +336,46 @@ FBLKDEF		db size BLKDEF dup (?)	; 006h: function block chain
 VBLKDEF		db size BLKDEF dup (?)	; 00Ch: variable block chain
 SBLKDEF		db size BLKDEF dup (?)	; 012h: string block chain
 TBLKDEF		db size BLKDEF dup (?)	; 018h: text block chain
-INPUTBUF	db size INPBUF dup (?)	; 01Eh
-TOKENBUF	db size TOKBUF dup (?)	; 120h
-HDL_INPUT	dw	?		; 322h: 0 if unused
-HDL_OUTPUT	dw	?		; 324h: 0 if unused
-HDL_INPIPE	dw	?		; 326h: 0 if unused
-HDL_OUTPIPE	dw	?		; 328h: 0 if unused
-SCB_NEXT	db	?		; 32Ah: SCB_NONE (-1) if unused
-SFH_STDIN	db	?		; 32Bh: original STDIN
-SFH_STDOUT	db	?		; 32Ch: original STDOUT
-CMD_SIG		db	?		; 32Dh: SIG_CMD
-CMD_ARG		db	?		; 32Eh: index of 1st arg
-ERR_CODE	db	?		; 32Fh
-CON_COLS	db	?		; 330h: # cols in console
-CON_ROWS	db	?		; 331h: # rows in console
-CMD_ROWS	db	?		; 332h: # lines printed for cmd
-CMD_FLAGS	db	?		; 333h: see CMD_* flags
-GEN_FLAGS	db	?		; 334h: see GEN_* flags
-DEF_PARMS	db	?		; 335h
-CMD_ARGPTR	dw	?		; 336h: offset of current arg
-CMD_ARGLEN	dw	?		; 338h: length of current arg
-CMD_DEFER	dw    5 dup (?)		; 33Ah: regs for deferred command
-EXIT_CODE	db	?		; 344h: exit code from last EXEC
-EXIT_TYPE	db	?		; 345h: exit type from last EXEC
-LINE_NUM	dw	?		; 346h
-LINE_LEN	dw	?		; 348h
-LINE_PTR	dd	?		; 34Ah
-PREV_TIME	dd	?		; 34Eh: last time displayed by cmdTime
-RND_SEED	dd	?		; 352h: pseudo-random number seed
-INPUT_BUF	dw	?		; 356h: input offset (default INPUTBUF)
-TOKLET_NEXT	dw	?		; 358h
-TOKLET_END	dw	?		; 35Ah
-LINEBUF		db  256 dup (?)		; 35Ch
-DEFVARS		db   26 dup (?)		; 45Ch: default types for 26 letters
-EXECDATA	db size EPB dup (?)	; 476h: Exec Parameter Block
-CMD_PROCESS	dw	?		; 48Ch: PSP of loaded process, if any
-HDL_OUTFILE	dw	?		; 48Eh: 0 if unused (see parseDOS)
-DEF_TYPE	db	?		; 490h: return type of DEF in progress
-		db	?		; 491h: (unused)
-CMD_CHAINS	dw	?		; 492h: CHAINS frame (see saveChains)
+ABLKDEF		db size BLKDEF dup (?)	; 01Eh: array block chain
+INPUTBUF	db size INPBUF dup (?)	; 024h
+TOKENBUF	db size TOKBUF dup (?)	; 126h
+HDL_INPUT	dw	?		; 328h: 0 if unused
+HDL_OUTPUT	dw	?		; 32Ah: 0 if unused
+HDL_INPIPE	dw	?		; 32Ch: 0 if unused
+HDL_OUTPIPE	dw	?		; 32Eh: 0 if unused
+SCB_NEXT	db	?		; 330h: SCB_NONE (-1) if unused
+SFH_STDIN	db	?		; 331h: original STDIN
+SFH_STDOUT	db	?		; 332h: original STDOUT
+CMD_SIG		db	?		; 333h: SIG_CMD
+CMD_ARG		db	?		; 334h: index of 1st arg
+ERR_CODE	db	?		; 335h
+CON_COLS	db	?		; 336h: # cols in console
+CON_ROWS	db	?		; 337h: # rows in console
+CMD_ROWS	db	?		; 338h: # lines printed for cmd
+CMD_FLAGS	db	?		; 339h: see CMD_* flags
+GEN_FLAGS	db	?		; 33Ah: see GEN_* flags
+DEF_PARMS	db	?		; 33Bh
+CMD_ARGPTR	dw	?		; 33Ch: offset of current arg
+CMD_ARGLEN	dw	?		; 33Eh: length of current arg
+CMD_DEFER	dw    5 dup (?)		; 340h: regs for deferred command
+EXIT_CODE	db	?		; 34Ah: exit code from last EXEC
+EXIT_TYPE	db	?		; 34Bh: exit type from last EXEC
+LINE_NUM	dw	?		; 34Ch
+LINE_LEN	dw	?		; 34Eh
+LINE_PTR	dd	?		; 350h
+PREV_TIME	dd	?		; 354h: last time displayed by cmdTime
+RND_SEED	dd	?		; 358h: pseudo-random number seed
+INPUT_BUF	dw	?		; 35Ch: input offset (default INPUTBUF)
+TOKLET_NEXT	dw	?		; 35Eh
+TOKLET_END	dw	?		; 360h
+LINEBUF		db  256 dup (?)		; 362h
+DEFVARS		db   26 dup (?)		; 462h: default types for 26 letters
+EXECDATA	db size EPB dup (?)	; 47Ch: Exec Parameter Block
+CMD_PROCESS	dw	?		; 492h: PSP of loaded process, if any
+HDL_OUTFILE	dw	?		; 494h: 0 if unused (see parseDOS)
+DEF_TYPE	db	?		; 496h: return type of DEF in progress
+OPT_BASE	db	?		; 497h: OPTION BASE (0 or 1)
+CMD_CHAINS	dw	?		; 498h: CHAINS frame (see saveChains)
 ;
 ; The BASIC-DOS loader always set the stack pointer for a COM file to the top
 ; of the segment, which means we must declare our stack at the end of CMDHEAP.
@@ -377,7 +386,7 @@ CMD_CHAINS	dw	?		; 492h: CHAINS frame (see saveChains)
 ; COM file can request the stack be located elsewhere, since there's no way for
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
-STACK		dw  510 dup (?)		; 494h
+STACK		dw  507 dup (?)		; 49Ah
 CMDHEAP		ends			; 890h
 SIG_CMD		equ	'H'
 

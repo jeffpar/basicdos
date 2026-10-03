@@ -8,6 +8,7 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	include	cmd.inc
+	include	8086.inc
 
 CODE    SEGMENT
 
@@ -27,9 +28,21 @@ CODE    SEGMENT
 ;	BLK_SIZE (size of block, in bytes)
 ;	BLK_FREE (offset of next free byte in block)
 ;
+; To be as forgiving as possible when memory is low or fragmented, chains
+; consist of modest blocks that are allocated as needed (rather than large
+; blocks that must grow).  We never take more than a quarter of the largest
+; free memory block, so that one type of block doesn't starve the others, and
+; if a block of the preferred size (BDEF_SIZE) isn't available, we keep halving
+; the size (down to MIN_BLKSIZE) and trying again.  Callers that care about the
+; size should check BLK_SIZE.
+;
+; allocBlockMin allows the caller to specify the preferred and minimum sizes,
+; and allocBlockSize requires a specific size (eg, for an array).
+;
 ; Inputs:
 ;	SI = offset of block chain head
-;	CX = size of block, in bytes (if calling allocBlockSize)
+;	CX = preferred size of block, in bytes (allocBlockMin, allocBlockSize)
+;	DX = minimum size of block, in bytes (allocBlockMin)
 ;
 ; Outputs:
 ;	If successful, carry clear, ES:DI -> first available byte in new block
@@ -37,23 +50,61 @@ CODE    SEGMENT
 ; Modifies:
 ;	AX, DI, ES
 ;
+MIN_BLKSIZE	equ	512
+
 DEFPROC	allocBlock
+	push	cx
+	push	dx
 	mov	cx,[si].BDEF_SIZE
-	DEFLBL	allocBlockSize,near
+	mov	dx,MIN_BLKSIZE
+	call	allocBlockMin
+	pop	dx
+	pop	cx
+	ret
+ENDPROC	allocBlock
+
+DEFPROC	allocBlockSize
+	push	dx
+	mov	dx,cx
+	call	allocBlockMin
+	pop	dx
+	ret
+ENDPROC	allocBlockSize
+
+DEFPROC	allocBlockMin
 	push	bx
 	push	cx
-	mov	bx,cx
+	mov	bx,0FFFFh
+	mov	ah,DOS_MEM_ALLOC
+	int	21h			; BX = largest free block (in paras)
+	mov	ax,0FFFFh
+	cmp	bx,4000h
+	jae	ab0
+	mov	ax,bx
+	add	ax,ax
+	add	ax,ax			; AX = 1/4 of largest block (bytes)
+ab0:	cmp	cx,ax			; is the preferred size larger?
+	jbe	ab1			; no
+	mov	cx,ax			; yes, so use a quarter instead
+	cmp	cx,dx			; but no less than the minimum
+	jae	ab1
+	mov	cx,dx
+ab1:	mov	bx,cx
 	add	bx,15
 	xchg	cx,ax
 	mov	cl,4
-	shr	bx,cl
+	shr	bx,cl			; BX = # paragraphs
 	xchg	cx,ax
 	mov	ah,DOS_MEM_ALLOC
 	mov	al,[si].BDEF_SIG
 	int	21h
-	jc	ab8
+	jnc	ab2
+	shr	cx,1			; try half the size
+	cmp	cx,dx			; unless that's less than the minimum
+	jae	ab1
+	jmp	short ab8
 
-	mov	es,ax
+ab2:	mov	es,ax
 	sub	di,di
 	sub	ax,ax
 	stosw				; set BLK_NEXT
@@ -68,19 +119,19 @@ DEFPROC	allocBlock
 	sub	cx,di
 	shr	cx,1
 	rep	stosw			; zero out the rest of the block
-	jnc	ab2
+	jnc	ab3
 	stosb
 ;
 ; Block is initialized, append to the header chain now.
 ;
-ab2:	push	ds
+ab3:	push	ds
 	lea	di,[si].BDEF_NEXT	; DS:DI -> first segment in chain
-ab3:	mov	cx,[di]			; at the end yet?
-	jcxz	ab4			; yes
+ab4:	mov	cx,[di]			; at the end yet?
+	jcxz	ab5			; yes
 	mov	ds,cx
 	sub	di,di
-	jmp	ab3
-ab4:	mov	[di],es			; chain updated
+	jmp	ab4
+ab5:	mov	[di],es			; chain updated
 	mov	di,es:[BLK_FREE]	; ES:DI -> first available byte
 	pop	ds
 	clc
@@ -91,7 +142,7 @@ ab8:	call	memError
 ab9:	pop	cx
 	pop	bx
 	ret
-ENDPROC	allocBlock
+ENDPROC	allocBlockMin
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -167,7 +218,7 @@ ENDPROC	freeAllBlocks
 ; must remove the frame with restoreChains.
 ;
 ; Bit n of the mask is set to save the nth BLKDEF in CMDHEAP (eg, 11h for
-; CBLKDEF and TBLKDEF).
+; CBLKDEF and TBLKDEF, or 3Fh for all six).
 ;
 ; Inputs:
 ;	AL = mask of chains to save
@@ -181,7 +232,7 @@ ENDPROC	freeAllBlocks
 CHAINS		struc
 CH_MASK		dw	?		; bit n set if head n was saved
 CH_PREV		dw	?		; previous CHAINS frame, if any
-CH_HEADS	dw	5 dup (?)	; saved CBLKDEF through TBLKDEF heads
+CH_HEADS	dw	6 dup (?)	; saved CBLKDEF through ABLKDEF heads
 CHAINS		ends
 
 DEFPROC	saveChains
@@ -238,7 +289,7 @@ DEFPROC	restoreChains
 	mov	[si].CMD_CHAINS,cx
 	mov	ah,byte ptr [di].CH_MASK
 	add	di,CH_HEADS
-	mov	cx,5
+	mov	cx,6
 rc1:	shr	ah,1
 	jnc	rc3
 	push	cx
@@ -270,10 +321,10 @@ ENDPROC	restoreChains
 ;	BX -> CMDHEAP
 ;
 ; Outputs:
-;	If successful, carry clear, ES:DI -> first available byte, CX = length
+;	If successful, carry clear, ES:DI -> first available byte
 ;
 ; Modifies:
-;	AX, CX, SI, DI, ES
+;	AX, SI, DI, ES
 ;
 DEFPROC	allocCode
 	lea	si,[bx].CBLKDEF
@@ -287,134 +338,90 @@ DEFPROC	allocCode
 ;
 ; Initialize the block's LBLREF table; it's empty when CBLK_REFS = BLK_SIZE.
 ;
-	mov	es:[CBLK_REFS],cx
+	mov	ax,es:[BLK_SIZE]
+	mov	es:[CBLK_REFS],ax
 ac9:	ret
 ENDPROC	allocCode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; growCode
+; ensureRoom
 ;
-; Makes sure there are at least CODE_SLACK bytes between the end of the code
-; and the LBLREF table in a code (or function) block, by doubling the size of
-; the block if necessary (up to 64K).  We first try to grow the block in place,
-; and if that fails, we allocate a new block, copy the code to it (generated
-; code uses only offsets within its block, so it can be copied to any segment),
-; move the LBLREF table to the top of the block, replace the old block in its
-; chain, and free the old block.
+; Makes sure there's room in the code (or function) block for at least the
+; specified number of bytes (plus a JMPF), before the LBLREF table.  The code
+; generator calls this at "safe points" (eg, before every command, expression
+; token, and operator; see CODE_ROOM), where no code that has already been
+; generated depends on the code that follows being in the same block.
 ;
-; Since the block may move, this must be called only when ES is the only
-; reference to the block's segment (eg, before generating code for each line),
-; and the caller must update any copy of ES afterward.
+; If there isn't enough room in a code block, we allocate another code block
+; (preferably CBLKLEN bytes, but we'll settle for less), and end the current
+; block with a JMPF to the new block (whereas a function block can't be
+; extended, so that's an error).  Code blocks never move, since generated code
+; may contain the addresses of other code blocks (eg, in JMPFs and FORSLOTs).
 ;
 ; Inputs:
+;	AX = # of bytes required
 ;	ES:DI -> next unused byte in code (or function) block
 ;
 ; Outputs:
-;	Carry clear if successful (ES may be different), set if out of memory
+;	Carry clear if successful (ES:DI may be a new code block), set if not
 ;
 ; Modifies:
-;	AX, CX
+;	AX
 ;
-CODE_SLACK	equ	2048
-
-DEFPROC	growCode
-	mov	ax,es:[CBLK_REFS]	; (FBLK_REFS is the same)
-	sub	ax,di
-	cmp	ax,CODE_SLACK		; enough room?
-	jb	gr0			; no
-	ret				; yes (carry clear)
-gr0:	push	bx
+DEFPROC	ensureRoom
+	push	cx
+	mov	cx,es:[CBLK_REFS]	; (FBLK_REFS is the same)
+	sub	cx,di			; CX = bytes available
+	sub	cx,5			; minus a JMPF
+	jb	er1			; not even that much room
+	cmp	cx,ax			; enough?
+	jae	er9			; yes (carry clear)
+er1:	cmp	es:[BLK_SIG],SIG_CBLK	; code block?
+	stc
+	jne	er9			; no
 	push	dx
 	push	si
 	push	ds
-	mov	ax,es:[BLK_SIZE]
-	mov	dx,0FFF0h		; DX = max block size
-	cmp	ax,8000h
-	jae	gr1
-	add	ax,ax
-	xchg	dx,ax			; DX = new block size (twice the size)
-gr1:	cmp	dx,es:[BLK_SIZE]	; can the block grow at all?
-	jbe	gr7			; no
-	mov	bx,dx
-	add	bx,15
-	mov	cl,4
-	shr	bx,cl			; BX = # paragraphs
-	mov	ah,DOS_MEM_REALLOC
-	int	21h			; grow block ES in place
-	jc	gr2			; unable
 	push	es
-	pop	ds			; DS = ES = block
-	call	moveRefs
-	jmp	short gr8
-
-gr2:	mov	al,es:[BLK_SIG]		; AL = block type
-	mov	ah,DOS_MEM_ALLOC
-	int	21h			; AX = new block
-	jc	gr7
-	push	es
-	pop	ds			; DS = old block
-	mov	es,ax			; ES = new block
 	push	di
-	mov	cx,di
-	sub	si,si
-	sub	di,di
-	rep	movsb			; copy the header and all the code
-	pop	di
-	call	moveRefs		; move the LBLREF table
-	mov	ax,ds			; AX = old block
-	push	ss
-	pop	ds			; DS = heap
+	add	ax,size CBLK + 5
+	xchg	dx,ax			; DX = minimum size of new block
+	mov	cx,CBLKLEN		; CX = preferred size
+	cmp	cx,dx
+	jae	er2
+	mov	cx,dx
+er2:	push	ss
+	pop	ds
 	mov	si,ds:[PSP_HEAP]
-	lea	cx,[si].FBLKDEF
 	lea	si,[si].CBLKDEF
-	cmp	es:[BLK_SIG],SIG_CBLK	; which chain is the block in?
-	je	gr3
-	mov	si,cx			; DS:SI -> chain head
-gr3:	cmp	[si],ax			; is this the link to the old block?
-	je	gr4			; yes
-	mov	ds,[si]
-	sub	si,si			; DS:SI -> next link
-	jmp	gr3
-gr4:	mov	[si],es			; link to the new block instead
-	push	es
+	call	allocBlockMin		; ES:DI -> new code block
+	jc	er8
+	mov	ax,es:[BLK_SIZE]
+	mov	es:[CBLK_REFS],ax
+	mov	cx,es			; CX:DX -> new code block
+	mov	dx,di
+	pop	di
+	pop	es			; ES:DI -> current code block
+	mov	al,OP_JMPF
+	stosb
+	xchg	ax,dx
+	stosw
+	xchg	ax,cx
+	stosw				; JMPF to the new code block
+	mov	es:[BLK_FREE],di
 	mov	es,ax
-	mov	ah,DOS_MEM_FREE
-	int	21h			; free the old block
+	mov	di,cx			; ES:DI -> new code block
+	clc
+	jmp	short er8a
+er8:	pop	di
 	pop	es
-	jmp	short gr8
-
-gr7:	stc
-	jmp	short gr8a
-gr8:	clc
-gr8a:	pop	ds
+er8a:	pop	ds
 	pop	si
 	pop	dx
-	pop	bx
+er9:	pop	cx
 	ret
-;
-; moveRefs moves the LBLREF table from the top of block DS to the top (DX) of
-; block ES, and updates CBLK_REFS and BLK_SIZE.  The table may overlap itself
-; (if DS is ES), so we copy it backward.
-;
-moveRefs:
-	push	di
-	mov	si,ds:[BLK_SIZE]
-	mov	cx,si
-	sub	cx,ds:[CBLK_REFS]	; CX = size of the LBLREF table
-	mov	di,dx
-	sub	di,cx
-	mov	es:[CBLK_REFS],di
-	mov	es:[BLK_SIZE],dx
-	mov	di,dx
-	dec	si
-	dec	di
-	std
-	rep	movsb
-	cld
-	pop	di
-	ret
-ENDPROC	growCode
+ENDPROC	ensureRoom
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -529,18 +536,19 @@ ENDPROC	freeFunc
 ; allocText
 ;
 ; Inputs:
-;	CX = text block size (in bytes)
+;	None
 ;
 ; Outputs:
-;	If successful, carry clear, ES:DI -> first available byte, CX = length
+;	If successful, carry clear, ES:DI -> first available byte (check
+;	BLK_SIZE for the size of the block, which may be less than TBLKLEN)
 ;
 ; Modifies:
-;	AX, CX, SI, DI, ES
+;	AX, SI, DI, ES
 ;
 DEFPROC	allocText
 	mov	si,ds:[PSP_HEAP]
 	lea	si,[si].TBLKDEF
-	jmp	allocBlockSize
+	jmp	allocBlock
 ENDPROC	allocText
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -668,7 +676,7 @@ ENDPROC	freeTempVars
 ;
 ; freeAllVars
 ;
-; Free all FBLKs and VBLKs.
+; Free all SBLKs, FBLKs, VBLKs, and ABLKs, and reset OPTION BASE.
 ;
 ; Inputs:
 ;	None
@@ -687,7 +695,10 @@ DEFPROC	freeAllVars
 	mov	si,ds:[PSP_HEAP]
 	lea	si,[si].VBLKDEF
 	call	freeAllBlocks
-	ret
+	mov	si,ds:[PSP_HEAP]
+	mov	[si].OPT_BASE,0
+	lea	si,[si].ABLKDEF
+	jmp	freeAllBlocks
 ENDPROC	freeAllVars
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -768,14 +779,25 @@ DEFPROC	addVar
 
 	mov	al,bh			; AL = var type
 	mov	si,di			; restore var name to SI
+;
+; New vars are added to the last var block (which is NOT the first block
+; while a DEF with parameters is being generated, since the first block is
+; then a temp block for the parameters), and if there's no room, another
+; var block is added to the chain.
+;
 	mov	di,ds:[PSP_HEAP]
 	mov	es,[di].VBLKDEF.BDEF_NEXT
-	ASSERT	STRUCT,es:[0],VBLK
-	mov	di,es:[BLK_FREE]
+av0:	ASSERT	STRUCT,es:[0],VBLK
+	mov	di,es:[BLK_NEXT]
+	test	di,di			; is this the last block?
+	jz	av0a			; yes
+	mov	es,di
+	jmp	av0
+av0a:	mov	di,es:[BLK_FREE]
 
 	DPRINTF	'b',<"adding variable %.*ls\r\n">,cx,si,ds
 
-	sub	dx,dx
+av0b:	sub	dx,dx
 	cmp	cx,VAR_NAMELEN
 	jbe	av1
 	mov	cx,VAR_NAMELEN
@@ -794,15 +816,30 @@ av1:	push	di
 	jmp	short av3
 av1x:	jmp	short av9
 
-av2:	ASSERT	Z,<cmp al,VAR_FUNC>
+av2:	cmp	al,VAR_ARRAY		; arrays are a 4-byte pointer
+	je	av3
+	ASSERT	Z,<cmp al,VAR_FUNC>
 	mov	dl,bl			; DX = parm count
 	add	dx,dx			; DX = DX * 2
 	add	dx,6			; DX += return type + code ptr
 av3:	add	di,dx
 	inc	di			; one for the length byte
-	cmp	es:[BLK_SIZE],di	; enough room?
+	cmp	es:[BLK_SIZE],di	; room for the var and a terminator?
 	pop	di
-	jb	av9			; no (carry set)
+	ja	av3a			; yes
+	cmp	di,size VBLK		; no, but is this block empty?
+	stc
+	je	av9			; yes, so the var is too large
+	push	ax
+	push	si
+	mov	si,ds:[PSP_HEAP]
+	lea	si,[si].VBLKDEF
+	call	allocBlock		; ES:DI -> new var block
+	pop	si
+	pop	ax
+	jc	av9
+	jmp	av0b
+av3a:
 ;
 ; Build the new variable at ES:DI, with combined length and type in the
 ; first byte, the variable name in the following bytes, and zero-initialized
@@ -883,8 +920,13 @@ fv1:	mov	al,es:[di]
 	mov	dx,es			; and the rest of the var blocks better
 	cmp	ax,dx
 	je	fv0
-	stc				; TODO: if AX (CS) always less than
-	jmp	short fv9		; DX (ES), carry will already be set
+	mov	ax,es:[BLK_NEXT]	; is there another var block?
+	test	ax,ax
+	stc
+	jz	fv9			; no
+	mov	es,ax
+	mov	di,size VBLK		; ES:DI -> first var in next block
+	jmp	fv1
 
 fv2:	mov	ah,al
 	and	ah,VAR_TYPE
@@ -983,14 +1025,14 @@ DEFPROC	getVarLen
 	mov	cx,2
 	je	gvl9			; VAR_PARM is always 2 bytes
 	cmp	ah,VAR_FUNC
-	jae	gvl1
-	add	cx,2			; other values are at least 4 bytes
-	cmp	ah,VAR_DOUBLE
-	jb	gvl9
+	je	gvl1
+	add	cx,2			; other values are 4 bytes
+	cmp	ah,VAR_DOUBLE		; (including VAR_ARRAY)
+	jne	gvl9
 	add	cx,4			; VAR_DOUBLE is 8 bytes
 	jmp	short gvl9
 gvl1:	add	cx,4			; VAR_FUNC also has 4-byte addr
-	mov	al,es:[di+1]		; AL = VAR_FUNC or VAR_ARRAY length
+	mov	al,es:[di+1]		; AL = VAR_FUNC parm count
 	cbw
 	add	ax,ax
 	add	cx,ax

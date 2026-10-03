@@ -116,10 +116,24 @@ This section tracks what's been completed (**[x]**) and what remains
       on the command line)
 - [x] LOAD, LIST, NEW, and RUN
 - [x] Functions: ERRORLEVEL, MAXINT, and RND%
-- [x] Code blocks grow as needed (up to 64K) for large programs
-- [ ] Control flow: GOSUB, FOR/NEXT, WHILE/WEND, and ON ... GOTO/GOSUB
+- [x] Arrays of integers, doubles, and strings, with up to 255 dimensions:
+      DIM, ERASE, OPTION BASE, automatic dimensioning (with a largest
+      subscript of 10) of arrays used without DIM, and "Subscript out of
+      range" and "Duplicate definition" errors
+- [x] Control flow: END, FOR/NEXT (with STEP, and integer or double loop
+      variables), GOSUB/RETURN, ON ... GOTO/GOSUB, STOP, and WHILE/WEND
+- [x] Memory management that's forgiving of low or fragmented memory:
+      code, text, variable, and string blocks are modest (4K) blocks that are
+      chained together as needed (generated code continues in another code
+      block via a far JMP), no block type takes more than a quarter of the
+      largest free block, and smaller blocks (down to 512 bytes) are used
+      when necessary
+- [ ] Limitations: a DEF function's code must fit in a single block, and
+      each array requires a single block (64K max)
+- [ ] Specific error messages for compile-time errors (eg, "NEXT without
+      FOR" and "WHILE without WEND" are currently reported as syntax errors)
+- [ ] STOP's "Break" message (STOP is currently the same as END)
 - [ ] INPUT, LINE INPUT, READ, DATA, and RESTORE
-- [ ] Arrays (DIM)
 - [ ] The MID$ statement (ie, `MID$(A$,N[,M]) = B$`)
 - [ ] `&H` and `&O` prefixes in VAL
 - [ ] Comma print zones in PRINT (commas currently print a tab)
@@ -164,9 +178,11 @@ code.
       and file rename/delete tests
 - [x] STRFUNCS and STRPOOL: BASIC string function tests, and string pool
       stress and leak tests
+- [x] ARRAYS: BASIC array tests (including leak tests)
+- [x] FLOW: BASIC control flow tests
 - [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS
-      with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUNCS, and
-      STRPOOL, and reports whether the tests passed)
+      with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUNCS,
+      STRPOOL, ARRAYS, and FLOW, and reports whether the tests passed)
 - [x] `tools/tests/chkdsk.sh` runs MS-DOS 3.20 CHKDSK on a diskette image
       saved by a test session (see `QUIT /S` in `pc.js`)
 - [ ] More tests (eg, BASIC language and CMD command tests)
@@ -182,7 +198,7 @@ These are the next steps, roughly in priority order:
 2. Handle zero-length writes (truncation), the read-only attribute, and
    file attribute/date/time functions
 3. FCB create, write, delete, and rename functions
-4. Essential BASIC statements: GOSUB, FOR/NEXT, INPUT, READ/DATA, and DIM
+4. Essential BASIC statements: INPUT and READ/DATA
 5. BASIC file I/O statements, and the remaining string features (the MID$
    statement, LINE INPUT, and comma print zones)
 6. Runtime error handling (ON ERROR, ERR, ERL)

@@ -1,6 +1,7 @@
 #!/bin/bash
-# echo This command boots a BASIC-DOS test floppy (see conserial.sh), runs FPUTESTS, DOSTESTS, STRFUNCS, and STRPOOL,
-# and then quits; it then boots a test floppy on a machine with an 8087 (see bootfpu.sh), and runs FPUTESTS and STRFUNCS.
+# echo This command boots a BASIC-DOS test floppy (see conserial.sh), runs FPUTESTS, DOSTESTS, STRFUNCS, STRPOOL,
+# ARRAYS, and FLOW, and then quits; it then boots a test floppy on a machine with an 8087 (see bootfpu.sh), and runs
+# FPUTESTS and STRFUNCS.
 # It's a very quick (and dirty) set of confidence tests.
 # The exit code is non-zero if any test failed.
 #
@@ -15,10 +16,11 @@ cd "$(dirname "$0")/../.." || exit 1
 tools/tests/prep.sh software/pcx86/src/configs/console/serial/fpe || exit 1
 tools/tests/prep.sh software/pcx86/src/configs/console/serial/fpu || exit 1
 log=$(mktemp)
-tools/pc/pc.js ibm5160-test software/pcx86/src/configs/console/serial/fpe "VER,FPUTESTS,DOSTESTS,STRFUNCS,STRPOOL,SLEEP 1,QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync | tee "$log"
+tools/pc/pc.js ibm5160-test software/pcx86/src/configs/console/serial/fpe "VER,FPUTESTS,DOSTESTS,STRFUNCS,STRPOOL,ARRAYS,FLOW,SLEEP 1,QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync | tee "$log"
 tools/pc/pc.js ibm5160-test-fpu software/pcx86/src/configs/console/serial/fpu "VER,FPUTESTS,STRFUNCS,SLEEP 1,QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync | tee -a "$log"
 if grep -q "failed" "$log" || grep -q "Return code [1-9]" "$log" || [ "$(grep -c "Return code 0" "$log")" -lt 3 ] ||
-   [ "$(grep -c "STRFUNCS done" "$log")" -lt 2 ] || ! grep -q "STRPOOL done" "$log"; then
+   [ "$(grep -c "STRFUNCS done" "$log")" -lt 2 ] || ! grep -q "STRPOOL done" "$log" ||
+   ! grep -q "ARRAYS done" "$log" || ! grep -q "FLOW done" "$log"; then
     echo "TESTS FAILED"; rm -f "$log"; exit 1
 fi
 echo "TESTS PASSED"; rm -f "$log"

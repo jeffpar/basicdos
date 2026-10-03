@@ -30,7 +30,11 @@ DEFSTR [*letter(s)*]
 Defines the first letter(s) of variables that will default to string values.  Unless DEFSTR is used, all string variables must be defined using the $ suffix.
 
 DEL *file*
-Deletes the specified file (wildcards are not supported yet).  ERASE is the same as DEL.
+Deletes the specified file (wildcards are not supported yet).  ERASE is the same as DEL, unless it's erasing arrays.
+
+DIM *array*(*bounds*)[,*array*(*bounds*)]...
+Dimensions one or more arrays, with up to 255 dimensions each (eg, DIM A(10), B$(5,5)).  Each bound is the largest subscript for that dimension.
+Arrays that are used without DIM have a largest subscript of 10.
 
 DIR [*filespec*] [/P]
 Displays a directory listing of all files matching the given *filespec* (or all files if none is specified).
@@ -38,14 +42,24 @@ Displays a directory listing of all files matching the given *filespec* (or all 
 ECHO [ON|OFF]
 Controls the echo of lines in a BAT file.
 
-ERASE *file*
-Same as DEL.
+END
+Ends the program.
+
+ERASE *array*[,*array*]...
+Erases the specified arrays, so that they can be dimensioned again.  If the first name is not an array, ERASE is the same as DEL.
 
 ERRORLEVEL
 Constant equal to the return code from the last program executed.
 
 EXIT
 Exits the interpreter if there is a previously loaded copy.
+
+FOR *variable*=*start* TO *limit* [STEP *step*]
+Executes the lines up to the matching NEXT repeatedly, adding *step* (default 1) to the *variable* each time, until it passes the *limit*.
+If the *start* is already past the *limit*, the lines are skipped.
+
+GOSUB *label*
+Calls the subroutine at the line with the specified label number; the subroutine ends with RETURN.
 
 GOTO *label*
 Transfers program control to the line with the specified label number.
@@ -88,6 +102,16 @@ In DEBUG builds, /D displays memory blocks, /F displays open files, and /S displ
 NEW
 Erases the loaded program, functions, and variables.
 
+NEXT [*variable*[,*variable*]...]
+Ends the innermost FOR loop (or, for each *variable*, the FOR loop with that *variable*).
+
+ON *expression* GOTO|GOSUB *label*[,*label*]...
+Transfers program control to (or calls) the Nth label, where N is the value of the *expression*.
+If N is zero or greater than the number of labels, the program continues with the next command.
+
+OPTION BASE 0|1
+Sets the smallest subscript (0 or 1) of arrays dimensioned afterward.  The default is 0.
+
 PRINT
 Prints a comma or semi-colon separated series of values.
 
@@ -98,7 +122,7 @@ RESTART
 Restarts the system.
 
 RETURN [*expression*]
-Ends a function block and returns the specified *expression*.
+Returns from a GOSUB subroutine, or ends a function block and returns the specified *expression*.
 
 RND%(N)
 Generates a random integer between 0 and MAXINT, inclusive.
@@ -107,6 +131,9 @@ RUN
 Runs the currently loaded BAS or BAT file.
 Program files can also be run without the RUN command.
 If no file extension is specified, files with COM, EXE, BAT, and BAS extensions are checked, in that order.
+
+STOP
+Same as END.
 
 TIME [*time*] [/D] [/P]
 Sets the system time (or prompts for a time if /P) and then displays the time. /D displays elapsed time.
@@ -118,6 +145,12 @@ Displays the contents of the specified file.
 
 VER
 Displays the BASIC-DOS version number and revision.
+
+WEND
+Ends a WHILE loop.
+
+WHILE *expression*
+Executes the lines up to the matching WEND repeatedly, as long as the *expression* is TRUE (non-zero).
 
 Unsupported Commands
 Floating-point support is not available yet, so the DEFDBL and DEFSNG commands have no effect.

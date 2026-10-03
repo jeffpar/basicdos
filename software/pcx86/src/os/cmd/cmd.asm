@@ -14,6 +14,7 @@ CODE    SEGMENT
 
 	EXTNEAR	<allocText,freeAllText,genCode,freeAllCode,freeAllVars>
 	EXTNEAR	<writeStrCRLF,saveChains,restoreChains,compactStrs>
+	EXTABS	<TOK_ERASE,TOK_DEL>
 	EXTWORD	<KEYWORD_TOKENS>
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF,PERIOD>
 	EXTSTR	<VER_FINAL,VER_DEBUG,HELP_FILE,PIPE_NAME,FPU_NAME>
@@ -430,7 +431,8 @@ pd4e:	push	bx
 	pop	bx
 
 pd4d:	pop	ax
-	jc	pd9			; bail on error
+	jnc	pd5
+	jmp	pd9			; bail on error
 
 pd5:	jcxz	pd8			; no valid initial token
 	push	ax
@@ -441,6 +443,11 @@ pd5:	jcxz	pd8			; no valid initial token
 	DOSUTIL	TOKID			; CS:DX -> TOKTBL; identify token
 	jc	pd5a
 	mov	dx,cs:[si].CTD_FUNC
+	cmp	ax,TOK_ERASE		; ERASE (which genErase handles if
+	clc				; it's erasing arrays) is otherwise DEL
+	jne	pd5a
+	mov	ax,TOK_DEL
+	mov	dx,offset cmdDel
 pd5a:	pop	si
 	jc	pd6
 	cmp	[bp].HDL_OUTPIPE,0
@@ -742,8 +749,8 @@ cf4a:	jmp	cf8
 ; This means a BAT file can run another BAT file and continue afterward, and
 ; any program that was LOAD'ed before a BAT file was run remains loaded.  If a
 ; program is running a BAS file, which always starts with a fresh set of
-; variables, then the caller's function, var, and string chains are saved and
-; restored as well.
+; variables, then the caller's function, var, string, and array chains are
+; saved and restored as well.
 ;
 ; Note that if the execution is aborted (eg, critical error, CTRLC signal),
 ; the program remains loaded, available for LIST'ing, RUN'ing, etc, and the
@@ -754,7 +761,7 @@ cf4b:	mov	al,11h			; save the code and text chains
 	jne	cf4c
 	cmp	[bp].CBLKDEF.BDEF_NEXT,0; is a program running?
 	je	cf4c			; no
-	mov	al,1Fh			; yes, so save its var chains, too
+	mov	al,3Fh			; yes, so save its var chains, too
 cf4c:	call	saveChains		; SP -> CHAINS frame
 	call	cmdLoad			; DS:SI -> filespec (with length CX)
 	jc	cf4e			; don't RUN if LOAD error
@@ -1803,17 +1810,11 @@ lf1a:	sub	di,di			; zap DI so that we don't try again
 lf1b:	call	openError		; report error (AX) opening file (SI)
 	jmp	lf13
 
-lf1c:	call	sizeInput		; set DX:AX to size of input file
-	call	freeAllText		; free any pre-existing blocks
-	test	dx,dx
-	jnz	lf2
-	add	ax,TBLKLEN
-	jnc	lf2a
-lf2:	mov	ax,0FFFFh
-lf2a:	xchg	cx,ax			; CX = size of initial text block
-	mov	[pTextLimit],cx
-	call	allocText
+lf1c:	call	freeAllText		; free any pre-existing blocks
+	call	allocText		; ES:DI -> new text block
 	jc	lf4y
+	mov	ax,es:[BLK_SIZE]
+	mov	[pTextLimit],ax
 ;
 ; For every complete line at DS:SI, determine the line label (if any), and
 ; then add the label # (2 bytes), line length (1 byte), and line contents
@@ -1916,13 +1917,13 @@ lf7:	dec	dx			; back up to the line terminator
 ; No, there's not enough room, so allocate another text block.
 ;
 	push	cx
-	mov	cx,TBLKLEN
-	mov	[pTextLimit],cx
 	push	si
-	call	allocText
+	call	allocText		; ES:DI -> new text block
 	pop	si
 	pop	cx
 	jc	lf11			; unable to allocate enough memory
+	mov	ax,es:[BLK_SIZE]
+	mov	[pTextLimit],ax
 
 lf8:	mov	ax,[lineLabel]
 	stosw
@@ -2333,43 +2334,6 @@ DEFPROC	seekInput
 	pop	bx
 	ret
 ENDPROC	seekInput
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; sizeInput
-;
-; Return the size of the input file.
-;
-; Inputs:
-;	BX -> CMDHEAP
-;
-; Outputs:
-;	If carry clear, DX:AX is the file size
-;
-; Modifies:
-;	AX, DX
-;
-DEFPROC	sizeInput
-	push	bx
-	push	cx
-	ASSERT	STRUCT,ss:[bx],CMD
-	mov	bx,ss:[bx].HDL_INPUT	; BX = handle
-	sub	cx,cx
-	sub	dx,dx
-	mov	ax,DOS_HDL_SEEKEND
-	int	21h
-	jc	si9
-	push	ax
-	push	dx
-	sub	cx,cx
-	mov	ax,DOS_HDL_SEEKBEG
-	int	21h
-	pop	dx
-	pop	ax
-si9:	pop	cx
-	pop	bx
-	ret
-ENDPROC	sizeInput
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

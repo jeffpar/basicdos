@@ -145,6 +145,7 @@ MCBTYPE_FBLK	equ	'F'	; function block
 MCBTYPE_VBLK	equ	'V'	; variable block
 MCBTYPE_SBLK	equ	'S'	; string block
 MCBTYPE_TBLK	equ	'T'	; text block
+;	(and 'A' for array blocks, which aren't defined here, to save space)
 
 ;
 ; System File Block (SFB)

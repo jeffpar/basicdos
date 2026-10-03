@@ -128,8 +128,9 @@ ENDPROC	clearScreen
 ;	AX, BX, CX, DX, DI, ES
 ;
 DEFPROC	printArgs,FAR
+	push	bp			; preserve BP (see genEnd)
 	mov	bp,sp
-	add	bp,4
+	add	bp,6
 	sub	bx,bx
 	push	bx			; push end-of-args marker
 	mov	bx,bp
@@ -219,7 +220,8 @@ pa8:	test	al,al			; unless AL is zero
 	jz	pa9			; we want to end on a new line
 	PRINTF	<13,10>
 
-pa9:	pop	dx			; remove return address
+pa9:	pop	bp			; restore BP
+	pop	dx			; remove return address
 	pop	cx
 	add	sp,bx			; clean the stack
 	push	cx			; restore the return address

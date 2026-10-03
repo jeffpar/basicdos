@@ -10,9 +10,10 @@
 ; This is the core of the code generator: genCode generates (and runs) the
 ; code for a line or program, genCommands dispatches each command to its
 ; generator, and genExpr generates expressions (including operators and type
-; conversions).  It also contains the token, label, and code-emitting helpers
-; that all the gen*.asm files share (eg, getNextToken, findLabel, GENCALL's
-; genCallCS, and GENPUSH's genPushImm).
+; conversions).  It also contains the token and code-emitting helpers that
+; all the gen*.asm files share (eg, getNextToken, GENCALL's genCallCS, and
+; GENPUSH's genPushImm); the label helpers (addLabel, findLabel) are in
+; genflow.asm.
 ;
 ; Generates code for these commands:
 ;
@@ -24,7 +25,10 @@
 ; The other gen*.asm files include:
 ;
 ;	gencon.asm			console I/O (CLS, COLOR, ECHO, PRINT)
-;	genflow.asm			control (GOTO, IF/THEN/ELSE, RETURN)
+;	gendef.asm			definitions (DIM, ERASE, OPTION BASE)
+;					and array element references
+;	genflow.asm			control (END, FOR/NEXT, GOSUB, GOTO,
+;					IF/THEN/ELSE, ON, RETURN, WHILE/WEND)
 ;	genfpu.asm			floating-point support
 ;
 	include	cmd.inc
@@ -33,11 +37,12 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<allocCode,growCode,shrinkCode,freeCode,freeAllCode>
+	EXTNEAR	<allocCode,ensureRoom,shrinkCode,freeCode,freeAllCode>
+	EXTNEAR	<addLabel>
 	EXTNEAR	<allocVars,allocFunc,freeFunc>
 	EXTNEAR	<allocTempVars,updateTempVars,freeTempVars>
 	EXTNEAR	<addVar,getVar,removeVar,setVar,setVarLong,setVarDouble>
-	EXTNEAR	<setStr,holdStr,swapArgs,compactStrs>
+	EXTNEAR	<setStr,holdStr,swapArgs,compactStrs,genArrayRef,checkCtl>
 	EXTNEAR	<memError>
 	EXTNEAR	<callDOS,printLine>
 
@@ -106,9 +111,9 @@ gc2:	mov	[bx].LINE_PTR.OFF,si
 	mov	ax,OP_MOV_BP_SP		; make it easy for endProgram
 	stosw				; to reset the stack and return
 
-gc4:	call	growCode		; make sure there's room for a line
+gc4:	mov	ax,CODE_ROOM
+	call	ensureRoom		; make sure there's room for a line
 	jc	gc4x
-	mov	[pCode].SEG,es		; (since the code block may have moved)
 	call	getNextLine
 	cmc
 	jnc	gc6
@@ -119,6 +124,8 @@ gc6:	push	ss
 	pop	ds
 	ASSUME	DS:DATA
 	jc	gc7
+	call	checkCtl		; any FOR without NEXT (etc)?
+	jc	gc7			; yes
 	mov	al,OP_RETF		; terminate the code in the buffer
 	stosb
 ;
@@ -162,10 +169,11 @@ ENDPROC	genCode
 ;
 ; Generate code for one or more commands.
 ;
-; As in MSBASIC, a command that begins with a variable followed by '=' is an
-; implicit LET.  This applies only to commands processed here (eg, in BAS/BAT
-; files, after THEN or ELSE, or after a colon); a command line must still use
-; LET, because parseCmd sends any non-keyword command to parseDOS.
+; As in MSBASIC, a command that begins with a variable (or array element)
+; followed by '=' is an implicit LET.  This applies only to commands processed
+; here (eg, in BAS/BAT files, after THEN or ELSE, or after a colon); a command
+; line must still use LET, because parseCmd sends any non-keyword command to
+; parseDOS.
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs
@@ -178,6 +186,9 @@ ENDPROC	genCode
 ;	Any
 ;
 DEFPROC	genCommands
+	mov	ax,CODE_ROOM
+	call	ensureRoom		; make sure there's room for a command
+	jc	gcs9
 	mov	dx,bx			; DX -> TOKLETs (for implicit LET)
 	mov	al,CLS_KEYWORD
 	call	getNextToken
@@ -209,9 +220,11 @@ gcs1:	test	ah,CLS_VAR		; variable (ie, implicit LET)?
 	jbe	gcs1a
 	call	getNextSymbol
 	jbe	gcs1a
-	cmp	al,'='
-	jne	gcs1a
-	pop	ax			; discard saved BX
+	cmp	al,'='			; assignment?
+	je	gcs1L			; yes
+	cmp	al,'('			; array element assignment?
+	jne	gcs1a			; no
+gcs1L:	pop	ax			; discard saved BX
 	mov	bx,dx			; rewind to the variable
 	mov	cx,offset genLet
 	jmp	short gcs3
@@ -423,7 +436,8 @@ gd2a:	mov	dx,[segVars]
 ;
 gd3:	call	allocFunc
 	jc	gd3x
-	call	growCode		; make sure there's room for a line
+	mov	ax,CODE_ROOM
+	call	ensureRoom		; make sure there's room for a line
 	jc	gd3x
 
 	push	di
@@ -459,7 +473,8 @@ gd3:	call	allocFunc
 gd3x:	jmp	gd8
 
 gd3a:	push	si
-	call	growCode		; make sure there's room for a line
+	mov	ax,CODE_ROOM
+	call	ensureRoom		; make sure there's room for a line
 	jc	gd3b
 	call	getNextLine		; function block
 	jc	gd3b			; ran out of lines before RETURN
@@ -746,10 +761,17 @@ DEFPROC	genExpr
 	mov	[exprPrevOp],dx		; zero previous operator (none)
 	mov	[typeTop],dx		; type stack initially empty
 	push	dx			; push end-of-operators marker (zero)
+	jmp	short ge1
+ge0x:	jmp	ge8
+ge0y:	stc				; out of room (see ensureRoom)
+	jmp	ge9a
 
-ge1:	mov	al,CLS_ANY		; CLS_NUM, CLS_SYM, CLS_VAR, CLS_STR
+ge1:	mov	ax,CODE_ROOM
+	call	ensureRoom		; make sure there's room for a token
+	jc	ge0y
+	mov	al,CLS_ANY		; CLS_NUM, CLS_SYM, CLS_VAR, CLS_STR
 	call	getNextToken
-	jbe	ge2x
+	jbe	ge0x
 	inc	[exprToks]
 	cmp	ah,CLS_SYM		; symbol? (20h)
 	je	ge1b			; process CLS_SYM below
@@ -776,6 +798,10 @@ ge1c:
 	sub	cx,2			; CX = string length
 	ASSERT	NC
 	jcxz	ge1a			; empty string
+	mov	ax,cx
+	add	ax,CODE_ROOM
+	call	ensureRoom		; make sure there's room for the string
+	jc	ge0y
 	inc	si			; DS:SI -> string contents
 	call	genPushStr
 	jmp	ge1
@@ -798,6 +824,10 @@ ge1x:	dec	[exprToks]		; rewind to unexpected symbol
 ; Note that var type (AH) must also be consistent with expression type.
 ;
 ge2:	and	ah,NOT CLS_VAR		; convert AH from CLS_VAR_* to VAR_*
+	mov	al,0			; ARRAY_VAL
+	call	genArrayRef		; array element?
+	jc	ge2x			; error
+	jnz	ge2d			; yes (AH = element type)
 	call	addVar
 	cmp	ah,VAR_PARM		; parameter? (20h)
 	jne	ge2a			; no
@@ -1072,7 +1102,13 @@ pt9:	pop	si
 	jcxz	go2x			; jump if no operator index
 
 	push	si
-	call	popType
+	push	ax
+	mov	ax,CODE_ROOM
+	call	ensureRoom		; make sure there's room for an op
+	pop	ax
+	jnc	go0
+	jmp	go8x
+go0:	call	popType
 	jz	go3x			; exit if error
 	test	dh,1
 	mov	dh,dl			; DH = type of 2nd arg pushed
@@ -1420,15 +1456,22 @@ DEFPROC	genLet
 	jbe	gl9
 
 	and	ah,VAR_TYPE		; convert CLS_VAR_* to VAR_*
+	mov	al,1			; ARRAY_PTR
+	call	genArrayRef		; array element?
+	jc	gl9			; error
+	jnz	gl1			; yes (AH = element type)
 	call	addVar			; DX:SI -> var data
 	jc	gl9
 
-	cmp	dx,[codeSeg]		; constants cannot be "let"
+	mov	cx,cs
+	cmp	dx,cx			; constants (in CS) cannot be "let"
 	je	gl9			; TODO: Generate a better error message
 	push	ax			; AH is still var type (from addVar)
 	call	genPushVarPtr
+	pop	ax
+gl1:	push	ax
 	call	getNextSymbol
-	pop	cx			; CH is now the var type (from addVar)
+	pop	cx			; CH is now the var type
 	jbe	gl9
 
 	cmp	al,'='
@@ -1459,116 +1502,6 @@ gl8:	mov	cx,dx
 gl9:	stc
 	ret
 ENDPROC	genLet
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; addLabel
-;
-; Inputs:
-;	AX = label #
-;	ES -> current code block
-;
-; Outputs:
-;	Carry clear if successful, set if error (eg, duplicate label)
-;
-; Modifies:
-;	CX, DX
-;
-DEFPROC	addLabel
-	mov	dx,di			; DX = current code gen offset
-	mov	di,ss:[PSP_HEAP]
-	DPRINTF	'l',<"%#010P: line %d: adding label %d...\r\n">,ss:[di].LINE_NUM,ax
-	test	dx,LBL_RESOLVE		; is this a label reference?
-	jnz	al8			; yes, just add it
-;
-; For label definitions, we scan the LBLREF table to ensure this
-; definition is unique.  We must also scan the table for any unresolved
-; references and fix them up.
-;
-	mov	cx,es:[BLK_SIZE]
-	mov	di,es:[CBLK_REFS]
-	sub	cx,di
-	shr	cx,1			; CX = # of words on LBLREF table
-al0:	jcxz	al8			; table is empty
-al1:	repne	scasw			; scan all words for label #
-	jne	al8			; nothing found
-	test	di,(size LBLREF)-1	; did we match the first LBLREF word?
-	jz	al0			; no (must have match LBL_IP instead)
-	test	word ptr es:[di],LBL_RESOLVE
-	stc
-	jz	al9			; duplicate definition
-;
-; Generate code in the same fashion as genGoto, except that here, we're
-; replacing a previously unresolved GOTO with a forward JMP (ie, positive
-; displacement) to the location at DX.
-;
-	push	ax
-	push	dx
-	push	di
-	mov	di,es:[di]
-	and	di,NOT LBL_RESOLVE
-	sub	dx,di
-	sub	dx,3			; DX = 16-bit displacement
-	mov	al,OP_JMP
-	stosb
-	xchg	ax,dx
-	stosw
-	pop	di
-	pop	dx
-	pop	ax
-	jmp	al1			; keep looking for LBL_RESOLVE matches
-
-al8:	mov	di,es:[CBLK_REFS]
-	sub	di,size LBLREF
-	mov	es:[CBLK_REFS],di
-	stosw				; LBL_NUM <- AX
-	xchg	ax,dx
-	stosw				; LBL_IP <- DX
-	xchg	ax,dx			; restore AX
-	mov	di,dx			; restore DI
-	clc
-al9:	ret
-ENDPROC	addLabel
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; findLabel
-;
-; Inputs:
-;	AX = label #
-;	ES -> current code block
-;
-; Outputs:
-;	Carry clear if found, AX = code gen offset for label
-;
-; Modifies:
-;	AX, CX, DX
-;
-DEFPROC	findLabel
-	push	di
-	mov	di,ss:[PSP_HEAP]
-	DPRINTF	'l',<"%#010P: line %d: finding label %d...\r\n">,ss:[di].LINE_NUM,ax
-	mov	cx,es:[BLK_SIZE]
-	mov	di,es:[CBLK_REFS]
-	sub	cx,di
-	jcxz	fl8			; table is empty
-	shr	cx,1			; CX = # of words on LBLREF table
-fl1:	repne	scasw			; scan all words for label #
-	jne	fl8			; nothing found
-	test	di,(size LBLREF)-1	; did we match the first LBLREF word?
-	jz	fl1			; no (must have match LBL_IP instead)
-	test	word ptr es:[di],LBL_RESOLVE
-	jnz	fl1			; this is a ref, not a definition
-	mov	ax,es:[di]		; AX = LBL_IP for label
-	jmp	short fl9
-fl8:	pop	di
-	push	di
-	add	di,LBL_RESOLVE
-	call	addLabel
-	stc
-fl9:	pop	di
-	ret
-ENDPROC	findLabel
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -355,8 +355,10 @@ DEFPROC mcb_realloc,DOS
 	ASSUME	DS:NOTHING
 	mov	al,ds:[MCB_SIG]
 	cmp	ds:[MCB_OWNER],0	; is the next MCB free?
-	jne	r2			; no
-	add	cx,ds:[MCB_PARAS]	; yes, include it
+	je	r1			; yes
+	mov	al,MCBSIG_NEXT		; no, so a free remainder must be NEXT
+	jmp	short r2
+r1:	add	cx,ds:[MCB_PARAS]	; yes, include it
 	inc	cx			; CX = maximum # of paras
 
 r2:	cmp	bx,cx			; is requested <= avail?
