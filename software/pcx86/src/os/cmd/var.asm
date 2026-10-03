@@ -293,6 +293,131 @@ ENDPROC	allocCode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; growCode
+;
+; Makes sure there are at least CODE_SLACK bytes between the end of the code
+; and the LBLREF table in a code (or function) block, by doubling the size of
+; the block if necessary (up to 64K).  We first try to grow the block in place,
+; and if that fails, we allocate a new block, copy the code to it (generated
+; code uses only offsets within its block, so it can be copied to any segment),
+; move the LBLREF table to the top of the block, replace the old block in its
+; chain, and free the old block.
+;
+; Since the block may move, this must be called only when ES is the only
+; reference to the block's segment (eg, before generating code for each line),
+; and the caller must update any copy of ES afterward.
+;
+; Inputs:
+;	ES:DI -> next unused byte in code (or function) block
+;
+; Outputs:
+;	Carry clear if successful (ES may be different), set if out of memory
+;
+; Modifies:
+;	AX, CX
+;
+CODE_SLACK	equ	2048
+
+DEFPROC	growCode
+	mov	ax,es:[CBLK_REFS]	; (FBLK_REFS is the same)
+	sub	ax,di
+	cmp	ax,CODE_SLACK		; enough room?
+	jb	gr0			; no
+	ret				; yes (carry clear)
+gr0:	push	bx
+	push	dx
+	push	si
+	push	ds
+	mov	ax,es:[BLK_SIZE]
+	mov	dx,0FFF0h		; DX = max block size
+	cmp	ax,8000h
+	jae	gr1
+	add	ax,ax
+	xchg	dx,ax			; DX = new block size (twice the size)
+gr1:	cmp	dx,es:[BLK_SIZE]	; can the block grow at all?
+	jbe	gr7			; no
+	mov	bx,dx
+	add	bx,15
+	mov	cl,4
+	shr	bx,cl			; BX = # paragraphs
+	mov	ah,DOS_MEM_REALLOC
+	int	21h			; grow block ES in place
+	jc	gr2			; unable
+	push	es
+	pop	ds			; DS = ES = block
+	call	moveRefs
+	jmp	short gr8
+
+gr2:	mov	al,es:[BLK_SIG]		; AL = block type
+	mov	ah,DOS_MEM_ALLOC
+	int	21h			; AX = new block
+	jc	gr7
+	push	es
+	pop	ds			; DS = old block
+	mov	es,ax			; ES = new block
+	push	di
+	mov	cx,di
+	sub	si,si
+	sub	di,di
+	rep	movsb			; copy the header and all the code
+	pop	di
+	call	moveRefs		; move the LBLREF table
+	mov	ax,ds			; AX = old block
+	push	ss
+	pop	ds			; DS = heap
+	mov	si,ds:[PSP_HEAP]
+	lea	cx,[si].FBLKDEF
+	lea	si,[si].CBLKDEF
+	cmp	es:[BLK_SIG],SIG_CBLK	; which chain is the block in?
+	je	gr3
+	mov	si,cx			; DS:SI -> chain head
+gr3:	cmp	[si],ax			; is this the link to the old block?
+	je	gr4			; yes
+	mov	ds,[si]
+	sub	si,si			; DS:SI -> next link
+	jmp	gr3
+gr4:	mov	[si],es			; link to the new block instead
+	push	es
+	mov	es,ax
+	mov	ah,DOS_MEM_FREE
+	int	21h			; free the old block
+	pop	es
+	jmp	short gr8
+
+gr7:	stc
+	jmp	short gr8a
+gr8:	clc
+gr8a:	pop	ds
+	pop	si
+	pop	dx
+	pop	bx
+	ret
+;
+; moveRefs moves the LBLREF table from the top of block DS to the top (DX) of
+; block ES, and updates CBLK_REFS and BLK_SIZE.  The table may overlap itself
+; (if DS is ES), so we copy it backward.
+;
+moveRefs:
+	push	di
+	mov	si,ds:[BLK_SIZE]
+	mov	cx,si
+	sub	cx,ds:[CBLK_REFS]	; CX = size of the LBLREF table
+	mov	di,dx
+	sub	di,cx
+	mov	es:[CBLK_REFS],di
+	mov	es:[BLK_SIZE],dx
+	mov	di,dx
+	dec	si
+	dec	di
+	std
+	rep	movsb
+	cld
+	pop	di
+	ret
+ENDPROC	growCode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; shrinkCode
 ;
 ; Inputs:

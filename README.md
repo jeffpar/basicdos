@@ -81,6 +81,8 @@ This section tracks what's been completed (**[x]**) and what remains
       and VER
 - [x] Running COM, EXE, BAT, and BAS files, and loading programs into
       other sessions
+- [x] BAT and BAS files can run other BAT and BAS files and then continue
+      (no CALL command required); a nested BAS file gets its own variables
 - [x] Pipes (`|`) and output redirection (`>` creates or truncates the
       output file, `>>` appends to it), including redirection at the end
       of a pipeline (eg, `DIR | CASE > TEST`)
@@ -95,17 +97,35 @@ This section tracks what's been completed (**[x]**) and what remains
 
 - [x] 32-bit integer variables, constants, and expressions (including
       AND, OR, XOR, EQV, IMP, NOT, MOD, and shifts)
+- [x] Type suffixes (`%` for integers, `#` or `!` for doubles, and `$` for
+      strings), where the type is part of a variable's identity (eg, after
+      DEFINT A-Z and then DEFDBL A-Z, `A` is a new variable, separate from
+      `A%`)
 - [x] String variables, concatenation, and comparisons
-- [x] CLS, COLOR, DEF FN, DEFINT, DEFSTR, ECHO, GOTO, IF/THEN/ELSE, LET,
-      PRINT, REM, and RETURN
+- [x] String functions: ASC, CHR$, DATE$, FRE, HEX$, INKEY$, INSTR, LCASE$,
+      LEFT$, LEN, MID$, OCT$, RIGHT$, SPACE$, STR$, STRING$, TIME$, UCASE$,
+      and VAL
+- [x] String pool management: temporary strings are released as soon as
+      they're consumed, strings are compacted (and empty string blocks
+      freed) when space runs out, and runtime string errors (eg, "String
+      too long") abort the program cleanly
+- [x] CLS, COLOR, DEF FN (including string functions and parameters),
+      DEFDBL, DEFINT, DEFSNG, DEFSTR, ECHO, GOTO, IF/THEN/ELSE, LET, PRINT,
+      REM, and RETURN
+- [x] Assignments without LET in BAS and BAT files (LET is still required
+      on the command line)
 - [x] LOAD, LIST, NEW, and RUN
 - [x] Functions: ERRORLEVEL, MAXINT, and RND%
+- [x] Code blocks grow as needed (up to 64K) for large programs
 - [ ] Control flow: GOSUB, FOR/NEXT, WHILE/WEND, and ON ... GOTO/GOSUB
-- [ ] INPUT, READ, DATA, and RESTORE
+- [ ] INPUT, LINE INPUT, READ, DATA, and RESTORE
 - [ ] Arrays (DIM)
-- [ ] String functions (eg, LEFT$, MID$, RIGHT$, LEN, CHR$, ASC, STR$, VAL)
+- [ ] The MID$ statement (ie, `MID$(A$,N[,M]) = B$`)
+- [ ] `&H` and `&O` prefixes in VAL
+- [ ] Comma print zones in PRINT (commas currently print a tab)
 - [ ] File I/O statements (eg, OPEN, CLOSE, PRINT #, INPUT #)
-- [ ] Error handling (eg, ON ERROR, ERR, ERL)
+- [ ] Error handling (eg, ON ERROR, ERR, ERL), and runtime error messages
+      for numeric errors
 
 ### Floating-Point
 
@@ -114,21 +134,22 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit
 code.
 
 - [x] Parser support for floating-point constants (CLS_FLOAT tokens)
-- [x] DEFDBL and DEFSNG are accepted (DEFSNG is treated as DEFDBL)
+- [x] Numeric variables default to doubles (unless DEFINT is used), and
+      DEFSNG is treated as DEFDBL
 - [x] MBF-based MSLIB option removed
 - [x] FPU$ device driver, which detects an 8087 at boot and provides a
       table of floating-point functions (IOCTL_GETFPU)
 - [x] 8087 functions: arithmetic (including `^`), comparisons, conversions
       between longs and doubles, ABS, INT, FIX, and SQR
+- [x] Software emulation of all FPU$ functions for systems without an 8087
 - [x] String-to-double (FPU_ATOD) and double-to-string (FPU_DTOA)
       conversions, and `%f` support in sprintf
 - [x] Expression generator support for mixed integer/floating-point
       operations (promotion and demotion rules), using FPU$ calls
+- [x] Floating-point constants and PRINT output in BASIC programs
+- [x] BASIC math functions: ABS, ATN, COS, EXP, FIX, INT, LOG, SIN, SQR,
+      and TAN
 - [x] FPUTESTS, run with and without an 8087 by `tools/tests/quick.sh`
-- [ ] *partial*: Software emulation for systems without an 8087 (only
-      negation and ABS work; everything else is a stub)
-- [ ] Floating-point constants and PRINT output in BASIC programs
-- [ ] BASIC math functions (eg, ABS, INT, FIX, SQR, SIN, COS, ATN, LOG, EXP)
 - [ ] Saving and restoring 8087 state on session switches (FPU$ functions
       currently disable interrupts instead), and better error reporting for
       FPU exceptions
@@ -141,10 +162,16 @@ code.
       the BASIC-DOS demo disks after a successful build
 - [x] DOSTESTS: CALL 5, memory allocation, file create/write/read-back,
       and file rename/delete tests
+- [x] STRFUNCS and STRPOOL: BASIC string function tests, and string pool
+      stress and leak tests
 - [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS
-      with and without an 8087, runs FPUTESTS and DOSTESTS, and reports
-      whether the tests passed)
+      with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUNCS, and
+      STRPOOL, and reports whether the tests passed)
+- [x] `tools/tests/chkdsk.sh` runs MS-DOS 3.20 CHKDSK on a diskette image
+      saved by a test session (see `QUIT /S` in `pc.js`)
 - [ ] More tests (eg, BASIC language and CMD command tests)
+- [ ] HELP for functions (HELP currently covers only keywords), and an
+      update of HELP.TXT (eg, it still says floating-point isn't supported)
 - [ ] Complete the [BASIC-DOS manual](docs/pcx86/bdman/)
 
 ## Roadmap
@@ -156,9 +183,9 @@ These are the next steps, roughly in priority order:
    file attribute/date/time functions
 3. FCB create, write, delete, and rename functions
 4. Essential BASIC statements: GOSUB, FOR/NEXT, INPUT, READ/DATA, and DIM
-5. BASIC string functions and file I/O statements
-6. Finish IEEE 754 floating-point support: software emulation, and
-   floating-point constants, PRINT, and math functions in BASIC
+5. BASIC file I/O statements, and the remaining string features (the MID$
+   statement, LINE INPUT, and comma print zones)
+6. Runtime error handling (ON ERROR, ERR, ERL)
 7. Critical error handling
 8. Subdirectory support
 

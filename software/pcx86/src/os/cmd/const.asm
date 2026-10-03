@@ -23,6 +23,9 @@ CODE    SEGMENT
 	EXTNEAR	<evalEQStr,evalNEStr,evalLTStr,evalGTStr,evalLEStr,evalGEStr>
 
 	EXTNEAR	<getErrorLevel,getRndLong>
+	EXTNEAR	<strAsc,strChr,strDate,strFre,strHex,strInkey,strInstr>
+	EXTNEAR	<strLCase,strLeft,strLen,strMid,strOct,strRight,strSpace>
+	EXTNEAR	<strStr,strString,strTime,strUCase,strVal>
 
 	DEFSTR	COM_EXT,<".COM",0>	; these 4 file extensions must be
 	DEFSTR	EXE_EXT,<".EXE",0>	; listed in the desired search order
@@ -162,15 +165,102 @@ CODE    SEGMENT
 	db	0			; terminator
 
 	DEFLBL	PREDEF_VARS,byte
+;
+; Each predefined function is a VAR_FUNC with its return type, the number of
+; parameters, the type and flags (or default value) of each parameter, and the
+; address of the function (a segment of 0 implies our own CODE segment).  Like
+; all predefined vars, they match any type, so (for example) "LEFT$" and "LEFT"
+; are the same.  A default of 0FEh (-2) for MID$ means "the rest".
+;
+	db	VAR_FUNC + 3,"ASC"
+	db	VAR_LONG,1
+	db	VAR_STR,PARM_REQUIRED
+	dw	offset strAsc,0
+	db	VAR_FUNC + 3,"CHR"
+	db	VAR_STR,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset strChr,0
+	db	VAR_FUNC + 4,"DATE"
+	db	VAR_STR,0
+	dw	offset strDate,0
 	db	VAR_FUNC + 10,"ERRORLEVEL"
 	db	VAR_LONG,0		; returns VAR_LONG with 0 parameters
 	dw	offset getErrorLevel,0	; 0 implies our own CODE segment
-	db	VAR_LONG + 6,"MAXINT"	; (predefined vars match any type)
+	db	VAR_FUNC + 3,"FRE"
+	db	VAR_LONG,1
+	db	VAR_CHAR,PARM_OPT_ZERO
+	dw	offset strFre,0
+	db	VAR_FUNC + 3,"HEX"
+	db	VAR_STR,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset strHex,0
+	db	VAR_FUNC + 5,"INKEY"
+	db	VAR_STR,0
+	dw	offset strInkey,0
+	db	VAR_FUNC + 5,"INSTR"
+	db	VAR_LONG,3
+	db	VAR_LSKIP,PARM_OPT_ONE
+	db	VAR_STR,PARM_REQUIRED
+	db	VAR_STR,PARM_REQUIRED
+	dw	offset strInstr,0
+	db	VAR_FUNC + 5,"LCASE"
+	db	VAR_STR,1
+	db	VAR_STR,PARM_REQUIRED
+	dw	offset strLCase,0
+	db	VAR_FUNC + 4,"LEFT"
+	db	VAR_STR,2
+	db	VAR_STR,PARM_REQUIRED
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset strLeft,0
+	db	VAR_FUNC + 3,"LEN"
+	db	VAR_LONG,1
+	db	VAR_STR,PARM_REQUIRED
+	dw	offset strLen,0
+	db	VAR_LONG + 6,"MAXINT"
 	dd	7FFFFFFFh		; largest positive value
+	db	VAR_FUNC + 3,"MID"
+	db	VAR_STR,3
+	db	VAR_STR,PARM_REQUIRED
+	db	VAR_LONG,PARM_REQUIRED
+	db	VAR_LONG,0FEh
+	dw	offset strMid,0
+	db	VAR_FUNC + 3,"OCT"
+	db	VAR_STR,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset strOct,0
+	db	VAR_FUNC + 5,"RIGHT"
+	db	VAR_STR,2
+	db	VAR_STR,PARM_REQUIRED
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset strRight,0
 	db	VAR_FUNC + 3,"RND"
 	db	VAR_LONG,1		; returns VAR_LONG with 1 parameter
 	db	VAR_LONG,PARM_OPT_ONE	; 1st parameter: VAR_LONG, optional
-	dw	offset getRndLong,0	; 0 implies our own CODE segment
+	dw	offset getRndLong,0
+	db	VAR_FUNC + 5,"SPACE"
+	db	VAR_STR,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset strSpace,0
+	db	VAR_FUNC + 3,"STR"
+	db	VAR_STR,1
+	db	VAR_DOUBLE,PARM_REQUIRED
+	dw	offset strStr,0
+	db	VAR_FUNC + 6,"STRING"
+	db	VAR_STR,2
+	db	VAR_LONG,PARM_REQUIRED
+	db	VAR_CHAR,PARM_REQUIRED
+	dw	offset strString,0
+	db	VAR_FUNC + 4,"TIME"
+	db	VAR_STR,0
+	dw	offset strTime,0
+	db	VAR_FUNC + 5,"UCASE"
+	db	VAR_STR,1
+	db	VAR_STR,PARM_REQUIRED
+	dw	offset strUCase,0
+	db	VAR_FUNC + 3,"VAL"
+	db	VAR_DOUBLE,1
+	db	VAR_STR,PARM_REQUIRED
+	dw	offset strVal,0
 	db	0			; terminator
 
 CODE	ENDS

@@ -154,7 +154,14 @@ VAR_SEMI	equ	VAR_NONE OR 02h
 VAR_COMMA	equ	VAR_NONE OR 03h
 VAR_NEWLINE	equ	VAR_NONE OR 04h
 
-VAR_TSTR	equ	VAR_STR  OR 01h	; 4 bytes of ptr data (temp string ptr)
+;
+; Additional parameter types for predefined functions: VAR_CHAR accepts either
+; a character code or a string (whose first character code is used), and
+; VAR_LSKIP is an optional VAR_LONG that's skipped if a string is supplied
+; instead (eg, the starting position in INSTR([n,]a$,b$)).
+;
+VAR_CHAR	equ	VAR_LONG OR 01h
+VAR_LSKIP	equ	VAR_LONG OR 02h
 
 VBLK		struc
 VBLK_HDR	db size	BLKHDR dup (?)	; 00h

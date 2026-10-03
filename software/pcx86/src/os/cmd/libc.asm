@@ -11,7 +11,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<parseDOS,freeStr>
+	EXTNEAR	<parseDOS,releaseStr>
 	EXTSTR	<STR_ON,STR_OFF>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -187,10 +187,7 @@ pa5:	cmp	al,VAR_LONG
 	PRINTF	<"%#ld ">,ax,dx		; DX:AX = 32-bit value
 	jmp	pa4v
 ;
-; Check for string types next.  VAR_STR is a normal string reference (eg,
-; a string constant in a code block, or a string variable in a string block),
-; whereas VAR_TSTR is a temporary string (eg, the result of some string
-; operation) which we must free after printing.
+; VAR_DOUBLE is next, whose far pointer we simply pass to the %f formatter.
 ;
 pa6:	cmp	al,VAR_DOUBLE
 	jne	pa6a
@@ -198,26 +195,20 @@ pa6:	cmp	al,VAR_DOUBLE
 	mov	dx,[bp+4]
 	PRINTF	<"%#f ">,ax,dx		; DX:AX -> double
 	jmp	pa4v
+;
+; Last but not least, VAR_STR, which we must release after printing, since
+; it may be a temporary string (eg, the result of a string operation).
+;
+pa6a:	cmp	al,VAR_STR
+	jne	pa4			; not a string type
 
-pa6a:	cmp	al,VAR_TSTR
-	ja	pa4			; not a string type
-
-pa7:	push	ds			; save DS
+	push	ds			; save DS
 	lds	si,[bp+2]		; DS:SI = string pointer
 	mov	cx,ds
 	jcxz	pa7a			; nothing to do for null pointer
-;
-; Write N bytes from DS:SI to STDOUT (where N is a byte length at [SI]).
-;
-	lea	di,[si-1]		; preload DI for possible freeStr
-	pushf
-	call	writeStr
-	popf
-	jne	pa7a			; if AL was not VAR_TSTR, we're done
-
-	push	ds
-	pop	es
-	call	freeStr			; ES:DI -> string data to free
+	call	writeStr		; write the string at DS:SI to STDOUT
+	les	di,[bp+2]
+	call	releaseStr
 
 pa7a:	pop	ds			; restore DS
 	jmp	pa4v

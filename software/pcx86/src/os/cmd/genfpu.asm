@@ -37,6 +37,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<genExpr,getNextSymbol,genCallFar,genPushImm>
+	EXTNEAR	<genCallCS,strToChar>
 	EXTLONG	<FPU_TABLE>
 	EXTABS	<TOK_ABS>
 
@@ -85,6 +86,9 @@ ENDPROC	genConstDouble
 ; (like MSBASIC, converting a long to a double or a double to a long, with
 ; rounding); any other mismatch is an error.
 ;
+; VAR_CHAR (used only for parameters) requires a VAR_LONG, but it also
+; accepts a VAR_STR, which is converted to the code of its first character.
+;
 ; Inputs:
 ;	DL = type of the value (VAR_*)
 ;	AL = type required (VAR_*)
@@ -97,7 +101,14 @@ ENDPROC	genConstDouble
 ;	CX, DX, DI
 ;
 DEFPROC	genCvtType
-	cmp	dl,al			; do the types already match?
+	cmp	al,VAR_CHAR		; character code required?
+	jne	gct0			; no
+	mov	al,VAR_LONG
+	cmp	dl,VAR_STR		; string value?
+	jne	gct0			; no
+	GENCALL	strToChar		; yes, convert it to a character code
+	ret
+gct0:	cmp	dl,al			; do the types already match?
 	je	gct8			; yes
 	mov	cx,FPU_CVT1LD
 	cmp	al,VAR_DOUBLE		; double required?

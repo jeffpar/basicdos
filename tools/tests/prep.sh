@@ -17,6 +17,7 @@ files=(
     "$src"/tests/bin/*.COM
     "$src"/tests/bin/*.EXE
     "$src"/tests/misc/BD*.BAT
+    "$src"/tests/misc/*.BAS
     "$src"/tests/misc/SYMDEB.EXE
     "$src"/tests/primes/PRIMES.BAS
     "$src"/tests/primes/PRIMES.BAT

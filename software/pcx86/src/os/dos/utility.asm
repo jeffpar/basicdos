@@ -319,6 +319,7 @@ ENDPROC	utl_sprintf
 DEFPROC	utl_itoa,DOS
 	sti
 	xchg	ax,si			; DX:AX is now the value
+	mov	bx,[bp].REG_BX		; BL = base, BH = flags
 	mov	es,[bp].REG_ES		; ES:DI -> buffer
 	ASSUME	ES:NOTHING
 	call	itoa

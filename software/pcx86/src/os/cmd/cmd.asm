@@ -13,7 +13,7 @@ CODE    SEGMENT
 	org	100h
 
 	EXTNEAR	<allocText,freeAllText,genCode,freeAllCode,freeAllVars>
-	EXTNEAR	<writeStrCRLF,saveChains,restoreChains>
+	EXTNEAR	<writeStrCRLF,saveChains,restoreChains,compactStrs>
 	EXTWORD	<KEYWORD_TOKENS>
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF,PERIOD>
 	EXTSTR	<VER_FINAL,VER_DEBUG,HELP_FILE,PIPE_NAME,FPU_NAME>
@@ -198,6 +198,7 @@ ctc0:	mov	di,[bx].CMD_CHAINS
 	call	restoreChains
 	jmp	ctc0
 ctc0a:	lea	sp,[bx].STACK + size STACK
+	call	compactStrs		; free any leftover temp strings
 ;
 ; If a pipeline was running (eg, "DIR | CASE"), wait for its session to end
 ; (it will have received the same CTRLC), so that it can't write anything

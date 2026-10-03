@@ -33,10 +33,11 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<allocCode,shrinkCode,freeCode,freeAllCode>
+	EXTNEAR	<allocCode,growCode,shrinkCode,freeCode,freeAllCode>
 	EXTNEAR	<allocVars,allocFunc,freeFunc>
 	EXTNEAR	<allocTempVars,updateTempVars,freeTempVars>
 	EXTNEAR	<addVar,getVar,removeVar,setVar,setVarLong,setVarDouble>
+	EXTNEAR	<setStr,holdStr,swapArgs,compactStrs>
 	EXTNEAR	<memError>
 	EXTNEAR	<callDOS,printLine>
 
@@ -85,8 +86,9 @@ gc1:	mov	[bx].GEN_FLAGS,al
 	jnz	gc2
 	mov	dx,[bx].TBLKDEF.BLK_NEXT
 	test	dx,dx			; anything to run?
-	jz	gc9			; no (TODO: display a message?)
-	mov	si,size TBLK
+	jnz	gc1a			; yes
+	jmp	gc9			; no (TODO: display a message?)
+gc1a:	mov	si,size TBLK
 gc2:	mov	[bx].LINE_PTR.OFF,si
 	mov	[bx].LINE_PTR.SEG,dx
 	mov	[bx].LINE_LEN,cx	; CX = previous length (0)
@@ -104,7 +106,10 @@ gc2:	mov	[bx].LINE_PTR.OFF,si
 	mov	ax,OP_MOV_BP_SP		; make it easy for endProgram
 	stosw				; to reset the stack and return
 
-gc4:	call	getNextLine
+gc4:	call	growCode		; make sure there's room for a line
+	jc	gc4x
+	mov	[pCode].SEG,es		; (since the code block may have moved)
+	call	getNextLine
 	cmc
 	jnc	gc6
 	call	genCommands		; generate code
@@ -132,6 +137,7 @@ gc6:	push	ss
 
 gc7:	pushf
 	call	freeAllCode
+	call	compactStrs		; free any leftover temp strings
 	popf
 gc8:	jnc	gc9
 
@@ -144,6 +150,10 @@ gce:	call	memError
 
 gc9:	LEAVE
 	ret
+
+gc4x:	call	memError		; no room for code, so skip execution
+	clc
+	jmp	gc7
 ENDPROC	genCode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -413,6 +423,8 @@ gd2a:	mov	dx,[segVars]
 ;
 gd3:	call	allocFunc
 	jc	gd3x
+	call	growCode		; make sure there's room for a line
+	jc	gd3x
 
 	push	di
 	IFDEF	MAXDEBUG
@@ -447,6 +459,8 @@ gd3:	call	allocFunc
 gd3x:	jmp	gd8
 
 gd3a:	push	si
+	call	growCode		; make sure there's room for a line
+	jc	gd3b
 	call	getNextLine		; function block
 	jc	gd3b			; ran out of lines before RETURN
 	call	genCommands		; generate some code
@@ -766,8 +780,7 @@ ge1c:
 	call	genPushStr
 	jmp	ge1
 
-ge1a:	DBGBRK
-	sub	cx,cx			; for empty strings, push null ptr
+ge1a:	sub	cx,cx			; for empty strings, push null ptr
 	sub	dx,dx
 	call	genPushImmLong
 	jmp	ge1
@@ -1244,7 +1257,38 @@ gfe1:	dec	[nFuncParms]		; more parameters?
 
 	push	ax			; save last symbol from genExpr
 	call	loadFuncData		; AL = parameter type
+	cmp	al,VAR_LSKIP		; optional VAR_LONG we can skip?
+	jne	gfe1b			; no
+	mov	al,VAR_LONG
+	cmp	dl,VAR_STR		; was a string supplied instead?
+	jne	gfe1b			; no
 	push	cx
+	push	dx
+	mov	al,ah
+	cbw
+	cwd
+	xchg	cx,ax			; DX:CX = default value
+	call	genPushImmLong		; push the default value
+	GENCALL	swapArgs		; and move it below the string
+	pop	dx
+	pop	cx
+	dec	[nFuncParms]		; the string is the next parameter
+	call	loadFuncData		; AL = its type
+;
+; A string passed to a user-defined function must be held (see holdStr),
+; since the function may use its parameter more than once.
+;
+gfe1b:	cmp	al,VAR_STR		; string parameter?
+	jne	gfe1c			; no
+	mov	si,cs
+	cmp	[pFuncData].SEG,si	; for a user-defined function?
+	je	gfe1c			; no
+	push	cx
+	push	dx
+	GENCALL	holdStr
+	pop	dx
+	pop	cx
+gfe1c:	push	cx
 	call	genCvtType		; convert to the parameter type
 	pop	cx
 	pop	ax			; restore last symbol
@@ -1267,12 +1311,14 @@ gfe2:	cmp	al,','			; comma?
 ; that's an error.
 ;
 gfe3:	call	loadFuncData
+	and	al,0FCh			; VAR_CHAR, VAR_LSKIP -> VAR_LONG
 	cmp	al,VAR_LONG		; TODO: currently supports default
 	stc				; parameter values for VAR_LONG only
 	jne	gfe9
 	mov	al,ah			; AL = default value
-	test	al,al			; negative? (eg, PARM_REQUIRED)
-	jl	gfe9			; yes, parameter is NOT optional
+	cmp	al,PARM_REQUIRED	; is the parameter optional?
+	stc
+	je	gfe9			; no
 	cbw
 	cwd				; DX:AX = default value
 	xchg	cx,ax			; DX:CX
@@ -1399,11 +1445,15 @@ DEFPROC	genLet
 	call	genCvtType		; TODO: generate "type mismatch" error
 	pop	cx
 	jc	gl9
+	mov	dx,offset setVarDouble
 	cmp	ch,VAR_DOUBLE		; doubles are copied by reference
-	mov	cx,offset setVarLong
-	jne	gl8
-	mov	cx,offset setVarDouble
-gl8:	GENCALL	cx
+	je	gl8
+	mov	dx,offset setStr
+	cmp	ch,VAR_STR		; strings are adopted or copied
+	je	gl8
+	mov	dx,offset setVarLong
+gl8:	mov	cx,dx
+	GENCALL	cx
 	ret
 
 gl9:	stc
