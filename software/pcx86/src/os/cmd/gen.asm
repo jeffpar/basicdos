@@ -152,6 +152,11 @@ ENDPROC	genCode
 ;
 ; Generate code for one or more commands.
 ;
+; As in MSBASIC, a command that begins with a variable followed by '=' is an
+; implicit LET.  This applies only to commands processed here (eg, in BAS/BAT
+; files, after THEN or ELSE, or after a colon); a command line must still use
+; LET, because parseCmd sends any non-keyword command to parseDOS.
+;
 ; Inputs:
 ;	DS:BX -> TOKLETs
 ;	ES:DI -> code block
@@ -163,6 +168,7 @@ ENDPROC	genCode
 ;	Any
 ;
 DEFPROC	genCommands
+	mov	dx,bx			; DX -> TOKLETs (for implicit LET)
 	mov	al,CLS_KEYWORD
 	call	getNextToken
 	jb	gcs0
@@ -184,7 +190,23 @@ gcs0:	cmp	ah,CLS_SYM
 	add	bx,size TOKLET
 	jmp	genCommands
 
-gcs1:	sub	ax,ax			; call genDOS w/o an ID
+gcs1:	test	ah,CLS_VAR		; variable (ie, implicit LET)?
+	jz	gcs1b			; no
+	push	bx
+	mov	bx,dx
+	mov	al,CLS_VAR
+	call	getNextToken
+	jbe	gcs1a
+	call	getNextSymbol
+	jbe	gcs1a
+	cmp	al,'='
+	jne	gcs1a
+	pop	ax			; discard saved BX
+	mov	bx,dx			; rewind to the variable
+	mov	cx,offset genLet
+	jmp	short gcs3
+gcs1a:	pop	bx
+gcs1b:	sub	ax,ax			; call genDOS w/o an ID
 ;
 ; For non-BASIC keywords, generate callDOS code with a pointer to the
 ; full command-line and the keyword handler.  callDOS will then perform
@@ -484,6 +506,7 @@ gd3f:	mov	ax,OP_POP_BP OR (OP_RETF_N SHL 8)
 	call	freeTempVars
 gd3d:	mov	cx,[fnNameLen]
 	mov	si,[fnNameOff]		; DS:SI -> function name on stack
+	mov	ah,VAR_FUNC
 	call	removeVar		; remove any existing function var
 	jc	gd7			; error (predefined)
 	mov	ah,VAR_FUNC
@@ -1998,13 +2021,20 @@ gnt1a:	mov	si,[bx].TOKLET_OFF
 	sub	al,20h
 ;
 ; Any CLS_VAR with additional bits specifying the variable type (eg,
-; CLS_VAR_LONG, CLS_VAR_STR) is done.  Any vanilla CLS_VAR, however, must
-; be further identified.  We now check for keyword operators (like NOT) and
-; all other keywords.  Failing that, we assume it's a variable, so we look
-; up the variable's implicit type and update the CLS bits accordingly.
+; CLS_VAR_LONG, CLS_VAR_STR) is done, once we remove the type suffix from
+; its length (the type is part of a variable's identity, not its name).
+; Any vanilla CLS_VAR, however, must be further identified.  We now check for
+; keyword operators (like NOT) and all other keywords.  Failing that, we
+; assume it's a variable, so we look up the variable's implicit type and
+; update the CLS bits accordingly.
 ;
 gnt2:	cmp	ah,CLS_VAR
-	jne	gnt7
+	je	gnt2v
+	test	ah,CLS_VAR		; decorated CLS_VAR (eg, CLS_VAR_LONG)?
+	jz	gnt7			; no
+	dec	cx			; yes, so drop the type suffix
+	jmp	short gnt8
+gnt2v:
 
 	push	ax
 	push	dx

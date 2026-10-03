@@ -13,7 +13,7 @@ CODE    SEGMENT
 	org	100h
 
 	EXTNEAR	<allocText,freeAllText,genCode,freeAllCode,freeAllVars>
-	EXTNEAR	<writeStrCRLF>
+	EXTNEAR	<writeStrCRLF,saveChains,restoreChains>
 	EXTWORD	<KEYWORD_TOKENS>
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF,PERIOD>
 	EXTSTR	<VER_FINAL,VER_DEBUG,HELP_FILE,PIPE_NAME,FPU_NAME>
@@ -186,7 +186,18 @@ ENDPROC	cleanUp
 ;
 DEFPROC	ctrlc,FAR
 	call	cleanUp
-	lea	sp,[bx].STACK + size STACK
+;
+; If any BAT or BAS files were running other BAT or BAS files, free all the
+; chains they saved (ie, the callers' blocks), since the callers are aborted
+; too.  We must do this before resetting the stack, which contains the frames.
+;
+ctc0:	mov	di,[bx].CMD_CHAINS
+	test	di,di
+	jz	ctc0a
+	mov	al,1
+	call	restoreChains
+	jmp	ctc0
+ctc0a:	lea	sp,[bx].STACK + size STACK
 ;
 ; If a pipeline was running (eg, "DIR | CASE"), wait for its session to end
 ; (it will have received the same CTRLC), so that it can't write anything
@@ -724,18 +735,38 @@ cf4a:	jmp	cf8
 ; loaded program (ie, all text blocks) when it finishes running.  Any variables
 ; set (ie, all var blocks) are allowed to remain in memory.
 ;
-; Note that if the execution is aborted (eg, critical error, CTRLC signal),
-; the program remains loaded, available for LIST'ing, RUN'ing, etc.
+; Since a BAT or BAS file may be run by another BAT or BAS file, we save (and
+; empty) the code and text chains first, so that the new file can't free the
+; caller's code or text, and then we restore them when the new file finishes.
+; This means a BAT file can run another BAT file and continue afterward, and
+; any program that was LOAD'ed before a BAT file was run remains loaded.  If a
+; program is running a BAS file, which always starts with a fresh set of
+; variables, then the caller's function, var, and string chains are saved and
+; restored as well.
 ;
-cf4b:	call	cmdLoad
-	jc	cf4d			; don't RUN if LOAD error
+; Note that if the execution is aborted (eg, critical error, CTRLC signal),
+; the program remains loaded, available for LIST'ing, RUN'ing, etc, and the
+; ctrlc handler frees the blocks of any callers (see restoreChains).
+;
+cf4b:	mov	al,11h			; save the code and text chains
+	cmp	dx,offset BAS_EXT
+	jne	cf4c
+	cmp	[bp].CBLKDEF.BDEF_NEXT,0; is a program running?
+	je	cf4c			; no
+	mov	al,1Fh			; yes, so save its var chains, too
+cf4c:	call	saveChains		; SP -> CHAINS frame
+	call	cmdLoad			; DS:SI -> filespec (with length CX)
+	jc	cf4e			; don't RUN if LOAD error
 	mov	al,GEN_BASIC
 	cmp	dx,offset BAS_EXT
-	je	cf4c
+	je	cf4d
 	mov	al,GEN_BATCH
-cf4c:	call	cmdRunFlags		; if cmdRun returns normally
-	call	freeAllText		; automatically free all text blocks
-cf4d:	jmp	cf9
+cf4d:	call	cmdRunFlags		; if cmdRun returns normally
+cf4e:	mov	di,sp			; free the file's blocks
+	mov	al,0			; (eg, all text blocks) and
+	call	restoreChains		; restore the caller's chains
+	mov	sp,di			; and remove the CHAINS frame
+	jmp	cf9
 ;
 ; COM and EXE files must be loaded via either DOS_PSP_EXEC or DOS_UTL_LOAD.
 ;

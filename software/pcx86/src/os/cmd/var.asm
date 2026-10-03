@@ -159,6 +159,111 @@ ENDPROC	freeAllBlocks
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; saveChains
+;
+; Saves (and empties) the selected block chains in a CHAINS frame on the
+; stack, and makes it the current frame (CMD_CHAINS), so that a BAT or BAS
+; file run by another can't free any of its caller's blocks.  The caller
+; must remove the frame with restoreChains.
+;
+; Bit n of the mask is set to save the nth BLKDEF in CMDHEAP (eg, 11h for
+; CBLKDEF and TBLKDEF).
+;
+; Inputs:
+;	AL = mask of chains to save
+;
+; Outputs:
+;	SP -> CHAINS frame (on return)
+;
+; Modifies:
+;	AX, DI
+;
+CHAINS		struc
+CH_MASK		dw	?		; bit n set if head n was saved
+CH_PREV		dw	?		; previous CHAINS frame, if any
+CH_HEADS	dw	5 dup (?)	; saved CBLKDEF through TBLKDEF heads
+CHAINS		ends
+
+DEFPROC	saveChains
+	pop	di			; DI = return address
+	sub	sp,size CHAINS
+	push	di
+	push	cx
+	push	si
+	mov	di,sp
+	add	di,6			; DI -> CHAINS frame
+	mov	si,ds:[PSP_HEAP]
+	mov	[di].CH_MASK,ax
+	mov	cx,di
+	xchg	cx,[si].CMD_CHAINS
+	mov	[di].CH_PREV,cx
+	add	di,CH_HEADS
+sc1:	shr	al,1
+	jnc	sc2
+	sub	cx,cx
+	xchg	cx,[si].BDEF_NEXT
+	mov	[di],cx
+sc2:	inc	di
+	inc	di
+	add	si,size BLKDEF
+	test	al,al
+	jnz	sc1
+	pop	si
+	pop	cx
+	ret
+ENDPROC	saveChains
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; restoreChains
+;
+; Removes a CHAINS frame (see saveChains) from the list of frames.  Normally,
+; we free the blocks of every chain that was saved and then restore the saved
+; chain; but if the program was aborted, we free the saved blocks instead, so
+; that the program that was running remains loaded.
+;
+; Inputs:
+;	AL = 0 to restore the saved chains, non-zero to free them
+;	DI -> CHAINS frame
+;
+; Outputs:
+;	DI -> end of CHAINS frame
+;
+; Modifies:
+;	AH, CX, SI, DI
+;
+DEFPROC	restoreChains
+	mov	si,ds:[PSP_HEAP]
+	mov	cx,[di].CH_PREV
+	mov	[si].CMD_CHAINS,cx
+	mov	ah,byte ptr [di].CH_MASK
+	add	di,CH_HEADS
+	mov	cx,5
+rc1:	shr	ah,1
+	jnc	rc3
+	push	cx
+	push	si
+	test	al,al
+	jz	rc2
+	mov	si,di			; free the saved chain instead
+rc2:	call	freeAllBlocks
+	pop	si
+	pop	cx
+	test	al,al
+	jnz	rc3
+	push	ax
+	mov	ax,[di]
+	mov	[si].BDEF_NEXT,ax	; restore the saved chain
+	pop	ax
+rc3:	inc	di
+	inc	di
+	add	si,size BLKDEF
+	loop	rc1
+	ret
+ENDPROC	restoreChains
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; allocCode
 ;
 ; Inputs:
@@ -610,7 +715,13 @@ ENDPROC	addVar
 ;
 ; findVar
 ;
+; As in MSBASIC, a variable's type is part of its identity, so "A" (eg,
+; VAR_DOUBLE after DEFDBL) and "A%" (VAR_LONG) are different variables.
+; However, a VAR_FUNC or predefined var matches any type, and a VAR_PARM
+; matches if its parameter type matches.
+;
 ; Inputs:
+;	AH = var type (VAR_*)
 ;	CX = length of name
 ;	DS:SI -> variable name
 ;
@@ -623,13 +734,17 @@ ENDPROC	addVar
 DEFPROC	findVar
 	push	es
 	push	di
+	push	bx
+	mov	bl,ah			; BL = requested var type
+	mov	bh,0			; BH = 0 while checking PREDEF_VARS
 
 	push	cs
 	pop	es
 	mov	di,offset PREDEF_VARS
 	jmp	short fv1
 
-fv0:	mov	di,ds:[PSP_HEAP]
+fv0:	inc	bh
+	mov	di,ds:[PSP_HEAP]
 	mov	es,[di].VBLKDEF.BDEF_NEXT
 	ASSERT	STRUCT,es:[0],VBLK
 	mov	di,size VBLK		; ES:DI -> first var in block
@@ -668,7 +783,19 @@ fv5:	pop	di
 	pop	si
 	pop	cx
 	pop	ax
-	je	fv8			; match!
+	jne	fv6			; no match
+	cmp	ah,bl			; do the types match?
+	je	fv8			; yes
+	test	bh,bh			; predefined var?
+	jz	fv8			; yes
+	cmp	ah,VAR_FUNC		; function?
+	je	fv8			; yes
+	cmp	ah,VAR_PARM		; parameter?
+	jne	fv6			; no
+	xchg	dx,si
+	cmp	es:[si],bl		; does the parameter type match?
+	xchg	dx,si
+	je	fv8			; yes
 
 fv6:	mov	dl,al
 	mov	dh,0
@@ -680,7 +807,8 @@ fv6:	mov	dl,al
 fv8:	mov	si,dx
 	mov	dx,es			; DX:SI -> var data
 
-fv9:	pop	di
+fv9:	pop	bx
+	pop	di
 	pop	es
 	ret
 ENDPROC	findVar
@@ -751,6 +879,7 @@ ENDPROC	getVarLen
 ; removeVar
 ;
 ; Inputs:
+;	AH = var type (VAR_*)
 ;	CX = length of name
 ;	DS:SI -> variable name
 ;

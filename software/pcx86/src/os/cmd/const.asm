@@ -165,9 +165,9 @@ CODE    SEGMENT
 	db	VAR_FUNC + 10,"ERRORLEVEL"
 	db	VAR_LONG,0		; returns VAR_LONG with 0 parameters
 	dw	offset getErrorLevel,0	; 0 implies our own CODE segment
-	db	VAR_LONG + 6,"MAXINT"	; TODO: Should this be "MAXINT%"?
+	db	VAR_LONG + 6,"MAXINT"	; (predefined vars match any type)
 	dd	7FFFFFFFh		; largest positive value
-	db	VAR_FUNC + 4,"RND%"
+	db	VAR_FUNC + 3,"RND"
 	db	VAR_LONG,1		; returns VAR_LONG with 1 parameter
 	db	VAR_LONG,PARM_OPT_ONE	; 1st parameter: VAR_LONG, optional
 	dw	offset getRndLong,0	; 0 implies our own CODE segment

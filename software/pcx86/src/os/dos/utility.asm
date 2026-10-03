@@ -520,7 +520,7 @@ tf3b:	cmp	al,'$'
 	jmp	short tf3e
 tf3c:	cmp	al,'!'
 	jne	tf3d
-	mov	ah,CLS_VAR_SINGLE
+	mov	ah,CLS_VAR_DOUBLE	; BASIC-DOS has only one float type
 	jmp	short tf3e
 tf3d:	cmp	al,'#'
 	jne	tf6a
