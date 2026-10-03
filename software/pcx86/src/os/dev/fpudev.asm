@@ -3991,29 +3991,8 @@ ddi9:	mov	es:[bx].DDPI_END.OFF,ax
 	mov	cs:[fpuToDec].OFF,ax
 	mov	ax,word ptr cs:[hwTable+FPU_FROMDEC]
 	mov	cs:[fpuFromDec].OFF,ax
-;
-; For now, we also display whether or not an 8087 was detected.
-;
-	push	bx
-	push	cs
-	pop	ds
-	ASSUME	DS:DEV
-	mov	si,offset DEV:msgNoFPU
-	cmp	byte ptr [fpuInfo+1],FPUTYPE_NONE
-	je	ddi10
-	add	si,3			; skip "No " for the 8087 message
-ddi10:	lodsb
-	test	al,al
-	jz	ddi19
-	mov	ah,VIDEO_TTYOUT
-	mov	bh,0
-	int	INT_VIDEO
-	jmp	ddi10
-ddi19:	pop	bx
 	ret
 ENDPROC	ddfpu_init
-
-msgNoFPU	db	"No 8087 detected",13,10,0
 
 INIT	ends
 

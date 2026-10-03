@@ -1,5 +1,5 @@
 ;
-; BASIC-DOS Command Interpreter
+; BASIC-DOS Command Processor
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
 ; @copyright (c) 2020-2026 Jeff Parsons
@@ -46,7 +46,7 @@ m0:	mov	bx,ds:[PSP_HEAP]
 	mov	word ptr [bx].SFH_STDIN,ax
 ;
 ; Install CTRLC handler.  DS = CS only for the first instance; additional
-; instances of the interpreter will have their own DS but share a common CS.
+; instances of this processor will have their own DS but share a common CS.
 ;
 	push	ds
 	push	cs
@@ -56,9 +56,16 @@ m0:	mov	bx,ds:[PSP_HEAP]
 	int	21h
 ;
 ; Get the address of the FPU$ driver's function table (FPUTBL), which the
-; code generator uses for all floating-point operations.
+; code generator uses for all floating-point operations, along with the FPU
+; type, so we can report how floating-point operations will be performed.
+; If there's no FPU$ driver, FPU_TABLE remains zero, which also disables
+; doubles (see getNextToken and genExpr).
 ;
+FPU_HW	equ	offset FPU_NAME + 5	; see const.asm
+FPU_SW	equ	FPU_HW + 22
+FPU_OFF	equ	FPU_SW + 43
 	push	bx
+	mov	si,FPU_OFF		; SI -> "disabled"
 	mov	dx,offset FPU_NAME	; DS:DX -> FPU_NAME
 	mov	ax,DOS_HDL_OPENRO
 	int	21h
@@ -66,13 +73,17 @@ m0:	mov	bx,ds:[PSP_HEAP]
 	xchg	bx,ax			; BX = handle
 	mov	si,offset FPU_TABLE	; DS:SI -> FPU_TABLE
 	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETFPU
-	int	21h
+	int	21h			; DH = FPU type
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
+	mov	si,FPU_SW		; SI -> "emulation enabled"
+	test	dh,dh			; FPUTYPE_NONE?
+	jz	m0a			; yes
+	mov	si,FPU_HW		; SI -> "coprocessor available"
 m0a:	pop	bx
 	pop	ds
 
-	PRINTF	<"BASIC-DOS Interpreter",13,10,13,10>
+	PRINTF	<"BASIC-DOS Command Processor",13,10,"Floating-point %ls",13,10,13,10>,si,cs
 ;
 ; NOTE: The original plan was to use Microsoft's MBF (Microsoft Binary Format)
 ; floating-point code from GW-BASIC, but BASIC-DOS will instead implement its

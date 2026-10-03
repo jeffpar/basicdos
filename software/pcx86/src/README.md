@@ -18,8 +18,8 @@ The [BOOT](os/boot/) directory contains the code for the BASIC-DOS boot sector
 (`BOOT.COM`) along with a small PC DOS (*not* BASIC-DOS) utility (`WBOOT.COM`)
 to write the BASIC-DOS boot sector to the diskette currently in drive A:.
 
-The [CMD](os/cmd/) directory contains the code for the BASIC-DOS Interpreter
-(`COMMAND.COM`) and help text (`HELP.TXT`).
+The [CMD](os/cmd/) directory contains the code for the BASIC-DOS Command
+Processor (`COMMAND.COM`) and help text (`HELP.TXT`).
 
 The [DEV](os/dev/) directory contains all the BASIC-DOS device drivers.
 The drivers are built as a separate .COM files, which are then concatenated

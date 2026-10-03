@@ -19,7 +19,7 @@
 BOOT	segment word public 'CODE'
 
 ;
-; We "ORG" at BOOT_SECTOR_LO rather than BOOT_SECTOR, because after part1
+; We "ORG" at BOOT_SECTOR_LO rather than BOOT_SECTOR, because after Part 1
 ; finishes, we're running at BOOT_SECTOR_LO.
 ;
 	org	BOOT_SECTOR_LO
@@ -178,7 +178,7 @@ ENDPROC	printp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; part1
+; Part 1 of the boot process:
 ;
 ; Move the DPT from ROM to RAM so we can tweak a few values, and then move
 ; ourselves to low memory where we'll be out of the way, should we ever need
@@ -439,6 +439,7 @@ errmsg2		db	"System file(s) missing, halted",0
 	DEFLBL	PART1_END
 
 	ASSERT 	<offset PART1_END - offset start>,LE,510
+	ASSERT	<offset CFG_FILE - offset PART1_COPY>,EQ,BOOT_CFGFILE
 
 	org 	BOOT_SECTOR_LO + 510
 	dw	0AA55h
@@ -523,6 +524,11 @@ ENDPROC	part2
 ;   (1) When DEV_FILE returns, load DOS_FILE at the next load address,
 ;	and then jump to it.  At that point, we never return to this code.
 ;
+;   (2) DEV_FILE's init code loads CFG_FILE (using read_file), so that it
+;	can process "SKIP=", and before returning, it moves CFG_FILE above
+;	where DOS_FILE will be loaded, and replaces the CLN and size in
+;	CFG_FILE's DIR info with its offset (relative to DOS_FILE) and size.
+;
 DEFPROC	part3,far
 	mov	si,offset PART2_COPY
 ;
@@ -536,15 +542,9 @@ DEFPROC	part3,far
 	sub	di,di		; ES:DI now converted
 	mov	bx,offset DOS_FILE2
 	call	read_file	; load DOS_FILE
-	push	di
 	mov	bx,offset CFG_FILE2
-	sub	dx,dx		; default CFG_FILE size is zero
-	cmp	[bx],dl		; did we find CFG_FILE?
-	jne	i9		; no
-	push	[bx+4]		; push CFG_FILE size (assume < 64K)
-	call	read_file	; load CFG_FILE above DOS_FILE
-	pop	dx		; DX = CFG_FILE size
-i9:	pop	bx		; BX = CFG_FILE data address
+	mov	dx,[bx+4]	; DX = CFG_FILE size
+	mov	bx,[bx+2]	; BX = CFG_FILE offset
 	push	es
 	mov	ax,2		; skip the fake INT 20h in DOS_FILE
 	push	ax		; far "jmp" address -> CS:0002h
@@ -787,6 +787,7 @@ print2		label	near
 	DEFLBL	PART2_END
 
 	ASSERT 	<offset PART2_END - offset part2>,LE,512
+	ASSERT	<offset read_file - offset part3>,EQ,BOOT_RDFILE
 
 BOOT	ends
 

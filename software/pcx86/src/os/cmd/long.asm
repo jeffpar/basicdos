@@ -867,7 +867,7 @@ ENDPROC	evalShrLong
 ;
 ; While we would prefer to define ERRORLEVEL as a LONG, predefined variables
 ; exist in our shared code segment, which works well for constants but not for
-; values that are unique to each instance of the interpreter.
+; values that are unique to each instance of the command processor.
 ;
 ; Also, despite our nod to PC DOS 2.00 by using the same lengthy name, we will
 ; not be adopting the same unusual syntax.  In PC DOS, "ERRORLEVEL n" is a

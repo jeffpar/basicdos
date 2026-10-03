@@ -318,7 +318,7 @@ GENPUSHB macro	val
 	ENDIF
 	endm
 ;
-; Global interpreter flags.  We rely on the entire heap being zeroed
+; Global command flags.  We rely on the entire heap being zeroed
 ; on startup, so all defaults should be zero.  So, for example, since
 ; ECHO is ON by default, a "NOECHO" bit must be set to turn it OFF.
 ;

@@ -291,7 +291,9 @@ EGA_MISC_INFO2	db	?	; 488h: EGA DIP switches and feature bits
 ; Parameters Table (DPT) at 522h.  Updating the DPT as early as possible with
 ; faster values is useful, so we do the same.
 ;
-		db	4 dup (?)	; 500h: reserved
+		db	1 dup (?)	; 500h: reserved (STATUS_BYTE)
+HDC_UNITS	db	?		; 501h: # hard disk volumes
+HDC_SEG		dw	?		; 502h: HDC driver header segment
 LOGICAL_DRIVE	db	?		; 504h: (00h for A: or 01h for B:)
 FDC_UNITS	db	?		; 505h: # floppy drives
 FDC_DEVICE	dd	?		; 506h: FDC driver header

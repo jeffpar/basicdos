@@ -49,6 +49,7 @@ CODE    SEGMENT
 	EXTWORD	<KEYWORD_TOKENS,KEYOP_TOKENS>
 	EXTBYTE	<OPDEFS,RELOPS>
 	EXTWORD	<EVAL_LONG,EVAL_STR>
+	EXTLONG	<FPU_TABLE>
 	EXTNEAR	<genCallFPU,genCallFPUDst,genCallFPUDst2>
 	EXTNEAR	<genConstDouble,genCvtType,genFnCall,genPushSlot>
 	EXTABS	<TOK_ABS,TOK_TAN>
@@ -1131,8 +1132,11 @@ go2:	cmp	dh,VAR_LONG
 	jne	go2a
 ;
 ; Like MSBASIC, "/" and "^" always produce floating-point results, so both
-; integers must be promoted ("\" is integer division).
+; integers must be promoted ("\" is integer division), unless there's no FPU$
+; driver, in which case they're integer operations.
 ;
+	cmp	word ptr cs:[FPU_TABLE].SEG,0
+	je	go8a
 	cmp	cl,OPEVAL_DIV
 	je	go2b
 	cmp	cl,OPEVAL_EXP
@@ -1984,9 +1988,10 @@ gnt0a:	mov	ah,[bx].TOKLET_CLS
 	jnz	gnt1
 	cmp	ah,CLS_WHITE		; whitespace token?
 gnt0b:	stc
-	jne	gnt9			; no (CF set)
+	jne	gnt0c			; no (CF set)
 	add	bx,size TOKLET		; yes, so ignore it
 	jmp	gnt0
+gnt0c:	jmp	gnt9
 
 gnt1:	cmp	al,CLS_KEYWORD		; looking for keyword?
 	jne	gnt1a			; no
@@ -2046,7 +2051,10 @@ gnt2c:	pop	dx			; neither KEYOP nor KEYWORD
 	xlat				; look up the default VAR type
 	test	al,al			; has a default been set?
 	jnz	gnt4			; yes
-	mov	al,VAR_DOUBLE		; no, default to VAR_DOUBLE
+	mov	al,VAR_LONG		; no, default to VAR_LONG
+	cmp	word ptr cs:[FPU_TABLE].SEG,0
+	je	gnt4			; if there's no FPU$ driver
+	mov	al,VAR_DOUBLE		; otherwise, VAR_DOUBLE
 gnt4:	mov	ah,al
 	or	ah,CLS_VAR
 	pop	bx			; we're really popping AX

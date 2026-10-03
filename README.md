@@ -27,7 +27,10 @@ This section tracks what's been completed (**[x]**) and what remains
 - [x] Boot sector that loads the BASIC-DOS drivers, kernel, and interpreter
 - [x] Boot prompt when a hard disk is detected (press **Esc** to boot from it)
 - [x] CONFIG.SYS support for BOOTKEY, CONSOLE, DEBUG, FILES, MEMSIZE,
-      SESSIONS, SHELL, and SWITCHAR
+      SESSIONS, SHELL, SKIP, and SWITCHAR
+- [x] SKIP= lists built-in drivers (by their exact device names, separated
+      by commas) that should not be loaded (eg, `SKIP=CON,FPU$`); a skipped
+      driver is never initialized, and its memory is reclaimed
 - [ ] Installable device drivers (DEVICE=)
 - [ ] Critical ("hard") error handling (eg, "Abort, Retry, Ignore")
 
@@ -40,7 +43,10 @@ This section tracks what's been completed (**[x]**) and what remains
       that cross 64K boundaries
 - [x] Floppy disk writes
 - [x] Media check and BPB rebuilds (reads PC DOS 1.x and 2.x diskettes)
-- [ ] Write-with-verify (DDC_WRITEV), formatting, and hard disk support
+- [x] *partial*: Hard disk reads and writes (HDC$), for the FAT12 primary
+      partitions of up to two PC XT hard disks, which become drives C:, D:,
+      etc. (drives A: and B: are always reserved for diskettes)
+- [ ] Write-with-verify (DDC_WRITEV), formatting, and FAT16 hard disks
 - [ ] "Popup" and background console contexts
 
 ### Kernel: Processes, Memory, and Sessions
@@ -69,11 +75,13 @@ This section tracks what's been completed (**[x]**) and what remains
 - [ ] Truncating/extending a file with a zero-length write
 - [ ] Enforcing the read-only attribute on open, and getting/setting file
       attributes (function 43h) and date/time (function 57h)
-- [ ] Subdirectories (MKDIR, RMDIR, CHDIR, and paths)
+- [ ] Subdirectories (MKDIR, RMDIR, CHDIR, and paths); for now,
+      subdirectory entries are ignored (they can't be opened, deleted, or
+      overwritten)
 - [ ] Absolute disk reads and writes (INT 25h and INT 26h)
-- [ ] FAT16, hard disks, and a larger buffer cache (there are currently
-      only two sector buffers: one for FAT sectors and one for directory
-      sectors)
+- [ ] FAT16, extended partitions, and a larger buffer cache (there are
+      currently only two sector buffers: one for FAT sectors and one for
+      directory sectors)
 
 ### Command Interpreter: DOS Commands
 
@@ -156,6 +164,9 @@ code.
 - [x] 8087 functions: arithmetic (including `^`), comparisons, conversions
       between longs and doubles, ABS, INT, FIX, and SQR
 - [x] Software emulation of all FPU$ functions for systems without an 8087
+- [x] The interpreter reports at startup whether floating-point uses an
+      8087, emulation, or is disabled (no FPU$ driver); when disabled,
+      variables default to integers and "/" and "^" are integer operations
 - [x] String-to-double (FPU_ATOD) and double-to-string (FPU_DTOA)
       conversions, and `%f` support in sprintf
 - [x] Expression generator support for mixed integer/floating-point
@@ -268,6 +279,18 @@ The `bootfpu.sh` script does the same thing, but on an `ibm5160-fpu` machine
 (which has an 8087 coprocessor), using the `configs/console/serial/fpu` folder;
 `boot.sh` uses a machine without an 8087, where BASIC-DOS must emulate
 floating-point operations.
+
+The `boothd.sh` script builds a BASIC-DOS boot diskette (from the
+`configs/console/bios` folder, so it uses the keyboard and screen) and boots
+it on an `ibm5160` machine whose 10Mb hard disk is built from a directory
+(`tools/pc/disks/hdsrc` by default, which is created with a few sample files
+if it doesn't exist), so that BASIC-DOS can be tested with drive C:.  Press a
+key (other than **Esc**) at the boot prompt to start BASIC-DOS:
+
+    $ ./boothd.sh [hard disk directory] [config folder]
+
+The hard disk is formatted by MS-DOS 3.20 (so it also contains hidden MS-DOS
+system files), and any changes to it are not saved back to the directory.
 
 Finally, `tools/tests/quick.sh` boots both configurations unattended, runs
 the FPUTESTS and DOSTESTS programs, and reports whether the tests passed.

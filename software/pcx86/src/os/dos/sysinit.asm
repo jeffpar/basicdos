@@ -258,10 +258,22 @@ si5b	label	near
 ;
 ; The next resident table (bpb_table) contains all the system BPBs.
 ;
+; Diskette drives come first, followed by any hard disk volumes (in which
+; case, like PC DOS, drives A: and B: are always reserved for diskettes).
+;
 	sub	ax,ax
 	mov	ds,ax
 	ASSUME	DS:BIOS
-	mov	al,[FDC_UNITS]		; AX = # drives
+	mov	al,[FDC_UNITS]		; AL = # diskette drives
+	mov	ah,[HDC_UNITS]		; AH = # hard disk volumes
+	test	ah,ah
+	jz	si5c
+	cmp	al,2
+	jae	si5c
+	mov	al,2
+si5c:	mov	[FDC_UNITS],al		; (updated to include reserved drives)
+	add	al,ah
+	mov	ah,0			; AX = # drives
 	mov	dx,size BPBEX
 	mov	bx,offset bpb_table
 	call	init_table		; initialize table, update ES
@@ -275,6 +287,7 @@ si5b	label	near
 	mov	es,[dos_seg]
 	ASSUME	ES:DOS
 	mov	es:[bpb_total],al	; record # BPBs
+	mov	ah,[FDC_UNITS]		; AH = # diskette drives
 	push	ax			; save # BPBs on stack
 ;
 ; Initialize the buffer chain while DS still points to the BIOS segment.
@@ -296,6 +309,7 @@ si5b	label	near
 	mov	[DIR_BUFHDR].BUF_NEXT,ax
 	mov	[DIR_BUFHDR].BUF_SIZE,512
 
+	mov	bp,[HDC_SEG]		; BP = HDC driver segment
 	push	[FDC_DEVICE].SEG	; save FDC pointer on stack
 	push	[FDC_DEVICE].OFF
 	mov	al,[si].BPB_DRIVE	; use the BPB's own BPB_DRIVE #
@@ -355,10 +369,16 @@ si6a:	jnz	sie0			; hmm, CLUSSECS wasn't a power-of-two
 si6b:	pop	ax			; restore FDC pointer in DX:AX
 	pop	dx
 	pop	cx			; restore # BPBs in CL
+	mov	bl,ch			; BL = # diskette drives
+	mov	ch,0			; CH = drive #
 
 	mov	di,[bpb_table].OFF	; DI -> first BPB
 si6c:	DBGINIT	STRUCT,[di],BPB
-	mov	[di].BPB_DEVICE.OFF,ax
+	cmp	ch,bl			; diskette drive?
+	jb	si6e			; yes
+	sub	ax,ax			; no, so the device is the HDC driver
+	mov	dx,bp			; DX:AX -> HDC driver
+si6e:	mov	[di].BPB_DEVICE.OFF,ax
 	mov	[di].BPB_DEVICE.SEG,dx
 	cmp	[di].BPB_SECBYTES,0	; is this BPB initialized?
 	jne	si6d			; yes

@@ -30,6 +30,29 @@ function run(cmd)
     };
 }
 
+/**
+ * checkOutput(task, outputFile)
+ *
+ * Returns a gulp task function that runs the given task and then fails if the output file wasn't updated,
+ * since diskimage.js reports some errors (eg, "file(s) too large") without returning a non-zero exit code.
+ *
+ * @param {function(function(Error=))} task
+ * @param {string} outputFile
+ * @returns {function(function(Error=))}
+ */
+function checkOutput(task, outputFile)
+{
+    return function(done) {
+        let msStart = Date.now() - 1000;
+        task(function(err) {
+            if (!err && !(fs.existsSync(outputFile) && fs.statSync(outputFile).mtimeMs >= msStart)) {
+                err = new Error("unable to update " + outputFile);
+            }
+            done(err);
+        });
+    };
+}
+
 let files = {
     "HELP": [
         "./software/pcx86/src/os/cmd/HELP.TXT",
@@ -43,7 +66,7 @@ let demoFiles = [
     "./software/pcx86/src/os/cmd/obj/COMMAND.COM",
     "./software/pcx86/src/os/cmd/HELP.TXT",
     "./software/pcx86/src/tests/primes/PRIMES.BA*",
-    "./software/pcx86/src/tests/bin/*.EXE",
+    "./software/pcx86/src/tests/bin/PRIMES.EXE",       // (CPRINTF.EXE no longer fits)
     "./software/pcx86/src/tests/bin/*.COM",
     "./software/pcx86/src/tests/misc/BD*.BAT",
     "./software/pcx86/src/tests/misc/*.EXE",
@@ -123,7 +146,7 @@ for (let diskName in disks) {
     }
     let cmd = "node \"${PCJS}/tools/diskimage/diskimage.js\" " + diskFiles + " --output " + diskImage + archiveImage + " --target=" + kbTarget + " --overwrite";
     cmd = cmd.replace(/\$\{([^}]+)\}/g, (_,n) => process.env[n]);
-    gulp.task(buildTask, run(cmd));
+    gulp.task(buildTask, checkOutput(run(cmd), diskImage));
     buildTasks.push(buildTask);
     if (diskName.startsWith("BASIC-DOS")) demoTasks.push(buildTask);
 }

@@ -52,7 +52,7 @@ ERRORLEVEL
 Constant equal to the return code from the last program executed.
 
 EXIT
-Exits the interpreter if there is a previously loaded copy.
+Exits the command processor if there is a previously loaded copy.
 
 FOR *variable*=*start* TO *limit* [STEP *step*]
 Executes the lines up to the matching NEXT repeatedly, adding *step* (default 1) to the *variable* each time, until it passes the *limit*.

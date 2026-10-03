@@ -89,7 +89,7 @@ DDPI		struc
 DDPI_HDR	db	size DDP dup(?)
 DDPI_UNITS	db	?	; 0Dh: # of units (ie, drives)
 DDPI_END	dd	?	; 0Eh: end of driver
-DDPI_BPBPTR	dd	?	; 12h: not used
+DDPI_BUFPTR	dd	?	; 12h: 512-byte scratch buffer (from devinit)
 DDPI_BLKDEV	db	?	; 16h: not used
 DDPI		ends
 

@@ -54,7 +54,7 @@ TOKTYPE_GENERIC	equ	1	; generic whitespace-separated parsing
 ;
 ; TOKTYPE_BASIC parsing includes some knowledge of BASIC variable types
 ; (eg, CLS_VAR_LONG), which is why these variable types are defined here
-; rather than in the interpreter.
+; rather than in the command processor.
 ;
 VAR_NONE	equ	000h
 VAR_PARM	equ	020h	; 2 bytes of var data (var type, parm offset)

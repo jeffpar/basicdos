@@ -284,9 +284,13 @@ DEFPROC	sfb_open,DOS
 	call	chk_devname		; is it a device name?
 	jnc	so0			; yes
 	call	chk_filename		; is it a disk filename?
-	jnc	so1a			; yes
+	jc	so9b			; no (AX = error code)
+	ASSUME	DS:NOTHING		; DS:SI -> DIRENT
+	test	[si].DIR_ATTR,DIRATTR_SUBDIR OR DIRATTR_VOLUME
+	jz	so1a			; it's a file (subdirectories aren't)
 so9a:	mov	ax,ERR_NOFILE
-	jmp	so9			; no
+so9b:	stc
+	jmp	so9
 ;
 ; If the device is the session's console (ie, "CON" without a context
 ; descriptor), then share the session's console SFB, which may be for another

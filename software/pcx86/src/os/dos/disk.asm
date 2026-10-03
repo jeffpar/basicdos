@@ -385,7 +385,10 @@ cf1:	stosb				; store drive # in the FILENAME buffer
 	call	copy_name
 	jmp	short cf4
 
-cf3:	call	parse_name		; DS:SI -> filename or filespec
+cf3:	push	di
+	call	parse_name		; DS:SI -> filename or filespec
+	pop	di			; like the FCB case, store a 0-based
+	mov	es:[di],dl		; drive # (parse_name stores 1-based)
 	jnc	cf4
 	mov	ax,ERR_BADDRIVE		; parse_name fails only if drive invalid
 	jmp	short cf9
@@ -479,7 +482,7 @@ ENDPROC	find_cln
 ;
 ; Outputs:
 ;	On success, DI -> BPB, carry clear
-;	On failure, AX = device error code, carry set
+;	On failure, AX = error code (device or ERR_BADDRIVE), carry set
 ;
 ; Modifies:
 ;	AX, DI
@@ -494,6 +497,7 @@ DEFPROC	get_bpb,DOS
 	mul	ah			; AX = BPB offset
 	mov	di,[bpb_table].OFF
 	add	di,ax
+	mov	ax,ERR_BADDRIVE
 	cmp	di,[bpb_table].SEG
 	cmc
 	jc	gb9			; we don't have a BPB for the drive
