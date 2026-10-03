@@ -182,9 +182,16 @@ ENDPROC	utl_strupr
 ;
 ; See sprintf.asm for more information on the format string.
 ;
+; utl_hprintf (AH = 02h) is the same, but it prints to the SFH in REG_BL
+; (eg, sysinit uses it to print to a specific session's console before any
+; PSP exists, when STDOUT is always SFH 1).
+;
 DEFPROC	utl_printf,DOS
 	ASSUME	DS:NOTHING,ES:NOTHING
 	mov	bl,0
+	jmp	short hprintf
+	DEFLBL	utl_hprintf,near
+	mov	bl,[bp].REG_BL
 	DEFLBL	hprintf,near		; BL = SFH (or 0 for STDOUT)
 	sti
 	push	ss

@@ -62,16 +62,21 @@ DEFPROC	sysinit,far
 	mov	[cfg_data],bx		; offset of CFG data
 	mov	[cfg_size],dx		; size of CFG data
 ;
-; To simplify use of the CFG data, replace CRs with nulls (leave
-; the LFs alone, because find_cfg uses those to find the next line).
+; To simplify use of the CFG data, replace CRs and LFs with nulls (so that
+; every value is null-terminated, even if lines end with only LFs); find_cfg
+; uses the nulls to find the next line.  We use "$" jumps here to save symbols.
 ;
 	mov	di,bx
 	mov	cx,dx
-	mov	al,0Dh
-si0:	repne	scasb
 	jcxz	si1
-	mov	byte ptr es:[di-1],0
-	jmp	si0
+si0:	mov	al,es:[di]
+	cmp	al,0Dh
+	je	$+6			; replace CR
+	cmp	al,0Ah
+	jne	$+6			; leave everything else (except LF)
+	mov	byte ptr es:[di],0
+	inc	di
+	loop	si0
 ;
 ; Move all the init code/data out of the way, to top of available memory.
 ;
@@ -570,7 +575,8 @@ si15:	mov	si,offset CFG_SHELL
 	jc	si16			; not found
 	mov	bx,di
 si16:	test	bx,bx			; do we still have a default?
-	jz	si20			; no, done loading
+	jnz	$+5			; yes
+	jmp	si20			; no, done loading
 ;
 ; Note that during the LOAD process, the SCB is locked and active, so that
 ; the program file can be opened and read using the SCB's PSP.  It's unlocked
@@ -592,6 +598,7 @@ si16:	test	bx,bx			; do we still have a default?
 	stosb				; SPB_SFHAUX <- SFH_NONE
 	stosb				; SPB_SFHPRN <- SFH_NONE
 	mov	bx,sp			; ES:BX -> SPB on stack
+	mov	cl,-1			; CL = invalid SCB # (in case of error)
 	DOSUTIL	LOAD			; load specified SHELL into an SCB
 	jc	si18
 	test	ax,ax
@@ -605,7 +612,30 @@ si16a:	DOSUTIL	START			; CL = SCB # (from the LOAD call)
 si17:	sub	bx,bx			; no default shell now
 	jmp	si15
 
-si18:	PRINTF	<"Error loading %s: %d",13,10>,dx,ax
+si18:	mov	si,sp			; SS:SI -> SPB
+	mov	si,ss:[si].SPB_CMDLINE.OFF
+;
+; Print the error on the console of the session we tried to load (CL), if
+; any; since there's no PSP yet, PRINTF would always use SFH 1 (ie, the first
+; session's console), so we use HPRINTF with that session's SFHOUT instead.
+;
+	push	ax			; save error code
+	mov	al,size SCB
+	mul	cl
+	push	es
+	mov	es,[dos_seg]
+	ASSUME	ES:DOS
+	add	ax,es:[scb_table].OFF
+	xchg	bx,ax			; BX -> SCB
+	mov	al,1			; default to SFH 1
+	cmp	bx,es:[scb_table].SEG	; valid SCB?
+	jae	$+6			; no
+	mov	al,es:[bx].SCB_SFHOUT	; (4 bytes)
+	pop	es
+	ASSUME	ES:NOTHING
+	xchg	bx,ax			; BL = SFH
+	pop	ax			; AX = error code
+	CCALL	DOS_UTL_HPRINTF,<"Error loading %s: %d",13,10>,si,ax
 	jmp	si17
 ;
 ; Although it may appear every SCB was started immediately after loading,
@@ -716,13 +746,17 @@ fc1:	lods	byte ptr cs:[si]	; 1st byte at CS:SI is length
 	mov	es:[di-1],cl		; zap the CFG match to prevent reuse
 	jmp	short fc9		; found it!
 fc2:	add	si,cx			; move SI forward to the minimum value
-	mov	al,0Ah			; LINEFEED
+	mov	al,0			; (CR and LF are now nulls)
 	mov	cx,dx
 	sub	cx,di			; CX = bytes left to search
 	jb	fc8			; ran out
 	repne	scasb
 	stc
-	jne	fc8			; couldn't find another LINEFEED
+	jne	fc8			; couldn't find another line
+	repe	scasb			; skip any more nulls (eg, CR+LF)
+	stc
+	je	fc8			; ran out
+	dec	di			; DI -> 1st character of next line
 	mov	si,bx
 	jmp	fc1
 fc8:	mov	ax,cs:[si]		; return the minimum value at SI
@@ -830,7 +864,33 @@ ci1:	mov	[pCacheFile].OFF,dx	; in any case, remember this filename
 	pop	ax
 	jmp	short ci9
 
-ci2:	cmp	ah,DOS_HDL_READ
+ci2:	cmp	ah,DOS_HDL_SEEK
+	jne	ci4
+	cmp	[pCacheActive].OFF,0	; is the cached file open?
+	je	ci9			; no
+;
+; Only SEEK_BEG and SEEK_END are supported (with offsets in DX), since those
+; are the only methods load_program uses.
+;
+	push	bx
+	mov	bx,dx			; BX = offset
+	sub	al,SEEK_END
+	cmp	al,1			; carry set if SEEK_END
+	sbb	ax,ax
+	and	ax,[cbCacheData]
+	add	bx,ax			; BX = new position
+	mov	ax,[pCacheData].OFF
+	add	ax,bx
+	mov	[pCacheActive].OFF,ax
+	mov	ax,[cbCacheData]
+	sub	ax,bx
+	mov	[cbCacheActive],ax
+	xchg	ax,bx			; DX:AX = new position
+	sub	dx,dx
+	pop	bx
+	jmp	short ci10		; (carry is clear)
+
+ci4:	cmp	ah,DOS_HDL_READ
 	jne	ci9
 
 	push	cx

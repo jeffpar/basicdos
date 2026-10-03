@@ -647,11 +647,11 @@ ss7:	add	dx,ax
 	mov	[bx].SFB_CURPOS.LOW,dx
 	mov	[bx].SFB_CURPOS.HIW,cx
 ;
-; TODO: Technically, we'll return an error of sorts if the addition resulted
-; in an overflow (ie, carry set).  However, no error code has been assigned to
-; that condition, and I'm not sure PC DOS considered that an error.
+; Carry from the addition is NOT an error, since negative offsets (eg, -1:-6
+; for 6 bytes before the end) always produce one, so make sure it's clear.
 ;
 	pop	si
+	clc
 	ret
 ENDPROC	sfb_seek
 

@@ -18,6 +18,7 @@ CODE    SEGMENT
 	EXTWORD	<KEYWORD_TOKENS>
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF,PERIOD>
 	EXTSTR	<VER_FINAL,VER_DEBUG,HELP_FILE,PIPE_NAME,FPU_NAME>
+	EXTSTR	<FPU_HW,FPU_SW,FPU_OFF>
 	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -61,11 +62,8 @@ m0:	mov	bx,ds:[PSP_HEAP]
 ; If there's no FPU$ driver, FPU_TABLE remains zero, which also disables
 ; doubles (see getNextToken and genExpr).
 ;
-FPU_HW	equ	offset FPU_NAME + 5	; see const.asm
-FPU_SW	equ	FPU_HW + 22
-FPU_OFF	equ	FPU_SW + 43
 	push	bx
-	mov	si,FPU_OFF		; SI -> "disabled"
+	mov	si,offset FPU_OFF	; SI -> "support disabled"
 	mov	dx,offset FPU_NAME	; DS:DX -> FPU_NAME
 	mov	ax,DOS_HDL_OPENRO
 	int	21h
@@ -76,10 +74,10 @@ FPU_OFF	equ	FPU_SW + 43
 	int	21h			; DH = FPU type
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
-	mov	si,FPU_SW		; SI -> "emulation enabled"
+	mov	si,offset FPU_SW	; SI -> "software installed"
 	test	dh,dh			; FPUTYPE_NONE?
 	jz	m0a			; yes
-	mov	si,FPU_HW		; SI -> "coprocessor available"
+	mov	si,offset FPU_HW	; SI -> "hardware installed"
 m0a:	pop	bx
 	pop	ds
 

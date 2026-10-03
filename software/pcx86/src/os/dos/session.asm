@@ -71,7 +71,8 @@ ENDPROC	scb_getnum
 ;		REG_CL = session (SCB) #
 ;		REG_AX = program size (if SPB_ENVSEG is -1)
 ;		REG_ES:REG_BX -> program data (if SPB_ENVSEG is -1)
-;	Carry set if error, AX = error code (eg, no SCB, no program, etc)
+;	Carry set if error, AX = error code (eg, no SCB, no program, etc),
+;		and REG_CL = session (SCB) # if an SCB was available
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, DS, ES
@@ -81,6 +82,8 @@ DEFPROC	scb_load,DOS
 	call	scb_lock		; lock a free SCB
 	jc	sl8
 	push	ax			; save previous SCB
+	mov	al,[bx].SCB_NUM
+	mov	[bp].REG_CL,al		; REG_CL = session (SCB) #
 	mov	di,[bp].REG_BX
 	mov	es,[bp].REG_ES		; ES:DI -> SPB
 	ASSUME	ES:NOTHING
@@ -107,8 +110,6 @@ DEFPROC	scb_load,DOS
 	mov	[bx].SCB_STACK.OFF,ax	; DX:AX == initial stack
 	mov	[bx].SCB_STACK.SEG,dx
 	or	[bx].SCB_STATUS,SCSTAT_LOAD
-	mov	al,[bx].SCB_NUM
-	mov	[bp].REG_CL,al		; REG_CL = session (SCB) #
 	mov	[bx].SCB_ENVSEG,cx
 ;
 ; Since we start the SCB's first program by going through dos_leave, we need

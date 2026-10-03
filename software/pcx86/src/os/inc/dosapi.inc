@@ -106,6 +106,7 @@ DOS_DSK_RENAME	equ	56h	; rename file (DS:DX) to (ES:DI)
 ;
 DOS_UTL_STRLEN	equ	00h	; return string (DS:SI) length (AX)
 DOS_UTL_STRSTR	equ	01h	; find string (DS:SI) in string (ES:DI)
+DOS_UTL_HPRINTF	equ	02h	; printf to SFH (BL), like DOS_UTL_PRINTF
 DOS_UTL_STRUPR	equ	03h	; upper-case string (DS:SI)
 DOS_UTL_PRINTF	equ	04h	; printf to console
 DOS_UTL_DPRINTF	equ	05h	; printf to DEBUG context, if any

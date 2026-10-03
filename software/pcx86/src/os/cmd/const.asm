@@ -38,13 +38,9 @@ CODE    SEGMENT
 	DEFSTR	HELP_FILE,<"HELP.TXT",0>
 	DEFSTR	PIPE_NAME,<"PIPE$",0>
 	DEFSTR	FPU_NAME,<"FPU$",0>
-;
-; The floating-point status messages follow FPU_NAME (see FPU_HW, FPU_SW,
-; and FPU_OFF in cmd.asm), to avoid using more symbols.
-;
-	db	"coprocessor available",0
-	db	"coprocessor unavailable",0
-	db	"disabled",0
+	DEFSTR	FPU_HW,<"hardware installed",0>
+	DEFSTR	FPU_SW,<"software installed",0>
+	DEFSTR	FPU_OFF,<"support disabled",0>
 ;
 ; FPU_TABLE is a far pointer to the FPU$ driver's FPUTBL, which every
 ; instance of this process obtains at startup (see main); it's the same for

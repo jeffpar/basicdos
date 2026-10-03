@@ -702,8 +702,9 @@ lp3:	add	ax,15
 	mov	si,ax			; SI = # paras in file
 	add	ax,50h			; AX = min paras (10h for PSP + 40h)
 	cmp	ax,[bp].TMP_DX		; can the segment accommodate that?
-	ja	lpc2			; no
-
+	jbe	lp3a			; yes
+	jmp	lpm			; no, but the code may be shared
+lp3a:
 	sub	cx,cx
 	sub	dx,dx
 	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_BEG
@@ -1104,6 +1105,107 @@ lpf:	push	ax
 
 lp9:	UNLOCK_SCB
 	ret
+
+lpm6:	mov	ax,ERR_NOMEMORY
+lpm7:	pop	si
+lpm8:	jmp	lpc
+lpm9:	jmp	lpc2
+;
+; There's not enough memory to read the entire file, but if it's a COM file
+; whose shared code (see COMHEAP) is already in memory, we only need memory for
+; the rest of the file.  So we read its COMDATA, checksum its code in 512-byte
+; chunks, and if a matching copy exists, read the rest of the file at 100h (the
+; same result as lp7d, which moves the rest of the file down after the fact).
+;
+lpm:	push	ds
+	pop	es			; DS = ES = PSP segment
+	cmp	word ptr [bp].TMP_DX,30h; room for PSP + 512-byte buffer?
+	jb	lpm9			; no
+	mov	cx,-1
+	mov	dx,-(size COMDATA)	; CX:DX = -(size COMDATA)
+	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_END
+	int	21h
+	jc	lpm8
+	mov	dx,100h			; DS:DX -> buffer
+	mov	cx,size COMDATA
+	mov	ah,DOS_HDL_READ
+	int	21h
+	jc	lpm8
+	mov	si,dx
+	cmp	[si].CD_SIG,SIG_BASICDOS
+	jne	lpm9
+	mov	si,[si].CD_CODESIZE
+	sub	si,100h			; SI = # bytes of shared code
+	jbe	lpm9			; none
+	push	si
+	sub	cx,cx
+	sub	dx,dx
+	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_BEG
+	int	21h
+	jc	lpm7
+	sub	di,di			; DI = checksum
+lpm1:	mov	cx,200h
+	cmp	cx,si
+	jbe	lpm2
+	mov	cx,si			; CX = # bytes to read
+lpm2:	jcxz	lpm4
+	mov	dx,100h
+	mov	ah,DOS_HDL_READ
+	int	21h
+	jc	lpm7
+	cmp	ax,cx
+	jne	lpm6			; file is too short
+	sub	si,cx
+	push	si
+	mov	si,dx
+	shr	cx,1			; CX = # words (as in psp_calcsum)
+	jcxz	lpm3a
+lpm3:	lodsw
+	add	di,ax
+	loop	lpm3
+lpm3a:	pop	si
+	jmp	lpm1
+lpm4:	pop	ax
+	add	ax,100h			; AX = end of code
+	mov	dx,di			; DX = checksum
+	push	ax
+	push	dx
+	call	psp_findsum		; CX = matching segment, if any
+	pop	dx
+	pop	ax
+	jcxz	lpm9			; no match
+	mov	ds:[PSP_START].OFF,100h
+	mov	ds:[PSP_START].SEG,cx
+	mov	ds:[PSP_CODESIZE],ax
+	mov	ds:[PSP_CHECKSUM],dx
+	mov	ds:[PSP_HEAP],100h
+	mov	word ptr [bp].TMP_CX,0	; this image can't be cached
+	mov	ax,[bp].TMP_DX
+	sub	ax,10h			; AX = paras available after PSP
+	cmp	ax,0FF0h
+	jb	lpm5
+	mov	ax,0FF0h
+lpm5:	mov	cl,4
+	shl	ax,cl
+	xchg	cx,ax			; CX = max bytes to read
+	mov	dx,100h
+	mov	ah,DOS_HDL_READ
+	int	21h			; read the rest of the file at 100h
+	jnc	lpm5b
+	jmp	lpc
+lpm5b:	add	ax,dx
+	xchg	di,ax			; DI -> end of program image
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	jnc	lpm5c
+	jmp	lpf
+lpm5c:	mov	dx,MINHEAP SHR 4	; DX = additional space (1Kb in paras)
+	mov	ax,[di - size COMDATA].CD_HEAPSIZE
+	cmp	ax,dx			; larger than our minimum?
+	jbe	lpm5a			; no
+	xchg	dx,ax			; yes, set DX to the larger value
+lpm5a:	mov	ds:[PSP_HEAPSIZE],dx
+	jmp	lp7e
 ENDPROC	load_program
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1138,7 +1240,7 @@ crc1:	lodsw
 ;
 ; Scan the arena for a PSP block with matching PSP_CODESIZE and PSP_CHECKSUM.
 ;
-	push	es
+crc1a:	push	es
 	mov	si,[mcb_head]
 crc2:	mov	es,si
 	ASSUME	ES:NOTHING
@@ -1164,6 +1266,13 @@ crc7:	pop	es
 crc8:	xchg	ax,dx			; AX = checksum
 	pop	dx
 	ret
+;
+; psp_findsum is the same as psp_calcsum, but with the checksum (DX) of the
+; code (ending at AX) already calculated.
+;
+	DEFLBL	psp_findsum,near
+	push	dx
+	jmp	crc1a
 ENDPROC	psp_calcsum
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

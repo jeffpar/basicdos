@@ -89,7 +89,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<utl_strlen,utl_strstr,utl_strupr>
 	EXTNEAR	<utl_atoi16,utl_atoi32,utl_atoi32d>
 	EXTNEAR	<utl_atof64,utl_i32f64,utl_opf64>
-	EXTNEAR	<utl_itoa,utl_printf,utl_dprintf,utl_sprintf>
+	EXTNEAR	<utl_itoa,utl_printf,utl_dprintf,utl_sprintf,utl_hprintf>
 	EXTNEAR	<utl_tokify,utl_tokid,utl_parsesw>
 	EXTNEAR	<utl_getdev,utl_getcsn,utl_load,utl_start,utl_stop,utl_end>
 	EXTNEAR	<utl_waitend,utl_yield,utl_sleep,utl_wait,utl_endwait>
@@ -123,7 +123,7 @@ DOS	segment word public 'CODE'
 	DEFABS	FUNCTBL_SIZE,<($ - FUNCTBL) SHR 1>
 
 	DEFLBL	UTILTBL,word
-	dw	utl_strlen,  utl_strstr,  func_none,   utl_strupr	;00-03
+	dw	utl_strlen,  utl_strstr,  utl_hprintf, utl_strupr	;00-03
 	dw	utl_printf,  utl_dprintf, utl_sprintf, utl_itoa		;04-07
 	dw	utl_atoi16,  utl_atoi32,  utl_atoi32d, func_none	;08-0B
 	dw	utl_atof64,  utl_i32f64,  utl_opf64,   func_none	;0C-0F
