@@ -197,8 +197,8 @@ code.
 - [x] `tools/tests/chkdsk.sh` runs MS-DOS 3.20 CHKDSK on a diskette image
       saved by a test session (see `QUIT /S` in `pc.js`)
 - [ ] More tests (eg, BASIC language and CMD command tests)
-- [ ] HELP for functions (HELP currently covers only keywords), and an
-      update of HELP.TXT (eg, it still says floating-point isn't supported)
+- [x] HELP for commands, functions, and constants (eg, `HELP MID$`), found
+      by searching HELP.TXT, so new entries need no other changes
 - [ ] Complete the [BASIC-DOS manual](docs/pcx86/bdman/)
 
 ## Roadmap

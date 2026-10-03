@@ -1430,30 +1430,33 @@ DEFPROC	cmdHelp
 	mov	dl,[bx].CMD_ARG		; is there a non-switch argument?
 	call	getToken
 	jnc	doHelp
-	jmp	h5			; no
+	sub	cx,cx			; no, so list all HELP entries
 ;
-; Identify the second token (DS:SI) with length CX.
+; Look up the second token (DS:SI) with length CX in the HELP file.
 ;
 	DEFLBL	doHelp,near
-	lea	dx,[KEYWORD_TOKENS]
-	DOSUTIL	TOKID			; CS:DX -> TOKTBL
-	jc	h4			; unknown
-;
-; CS:SI -> CTOKDEF.  Load CTD_TXT_OFF into DX and CTD_TXT_LEN into CX.
-;
-	mov	dx,cs:[si].CTD_TXT_OFF
-	mov	cx,cs:[si].CTD_TXT_LEN
-	jcxz	h3			; no help indicated
+	push	si
+	push	cx
 	push	ds
 	push	cs
 	pop	ds
 	mov	si,offset HELP_FILE	; DS:SI -> filename
-	push	dx
 	call	openInput
-	pop	dx
 	pop	ds
+	pop	cx
+	pop	si
 	jc	h3
 	push	cx
+	call	findHelp		; DX = offset, CX = length
+	pop	ax
+	jnc	h1
+	push	ax
+	call	closeInput
+	pop	ax
+	test	ax,ax			; were we just listing entries?
+	jz	h9			; yes
+	jmp	short h3
+h1:	push	cx
 	sub	cx,cx
 	call	seekInput		; seek to 0:DX
 	pop	cx
@@ -1491,39 +1494,179 @@ h2c:	add	sp,cx			; deallocate the stack space
 
 h3:	PRINTF	<"No help available",13,10>
 	ret
-
-h4:	PRINTF	<"Unknown command: %.*s",13,10>,cx,si
-	ret
-;
-; Print all keywords with ID < KEYWORD_CLAUSE (200).
-;
-h5:	mov	si,offset KEYWORD_TOKENS
-	lods	word ptr cs:[si]	; AL = # tokens, AH = size CTOKDEF
-	mov	cl,al
-	mov	ch,0			; CX = # tokens
-	mov	al,ah
-	cbw
-	xchg	di,ax			; DI = size CTOKDEF
-	mov	dl,8			; DL = # chars to be printed so far
-h6:	cmp	cs:[si].CTD_ID,KEYWORD_CLAUSE
-	jae	h8			; ignore token IDs >= 200
-	push	dx
-	mov	dl,cs:[si].CTD_LEN
-	mov	dh,0
-	PRINTF	<"%-8.*ls">,dx,cs:[si].CTD_OFF,cs
-	pop	dx
-	add	dl,al
-	cmp	cl,1
-	je	h7
-	ASSERT	STRUCT,[bx],CMD
-	cmp	dl,[bx].CON_COLS
-	jb	h8
-h7:	call	printCRLF
-	mov	dl,8
-h8:	add	si,di			; SI -> next CTOKDEF
-	loop	h6
 h9:	ret
 ENDPROC	cmdHelp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; findHelp
+;
+; Searches the (open) HELP file for the entry whose first word matches the
+; specified name (in any case).  Entries are separated by blank lines, and
+; the matching word must be followed by a character other than a letter or
+; digit, so "MID" and "MID$" both match "MID$(...)", while "DEF" doesn't
+; match "DEFINT".
+;
+; If the name is empty, the first word of every entry is listed instead (only
+; letters, digits, '$', and '%' are printed, so an entry that begins with any
+; other character, like '*', is omitted).
+;
+; Inputs:
+;	DS:SI -> name
+;	CX = length of name (zero to list all entries)
+;
+; Outputs:
+;	If carry clear, DX = offset of entry, CX = length of entry
+;
+; Modifies:
+;	AX, CX, DX, SI, DI
+;
+HELP_BUFLEN	equ	128
+
+DEFPROC	findHelp
+	push	bp
+	mov	bp,sp
+	push	si			; [bp-2] -> name
+	push	cx			; [bp-4] = length of name
+	mov	ax,2
+	push	ax			; [bp-6] = # consecutive LINEFEEDs
+	push	ax			; [bp-8] = offset of current entry
+	sub	ax,ax
+	push	ax			; [bp-10] = column (if listing)
+	sub	sp,HELP_BUFLEN
+	sub	di,di			; DI = offset of next character
+	mov	dx,-1			; DX = offset of matching entry (none)
+	mov	al,dl			; AL = # name chars matched (-1 if none)
+fh1:	push	ax
+	push	dx
+	mov	si,sp
+	add	si,4			; DS:SI -> buffer
+	mov	cx,HELP_BUFLEN
+	call	readInput		; AX = # bytes read
+	xchg	cx,ax			; CX = # bytes read
+	pop	dx
+	pop	ax
+	jc	fh1a
+	jcxz	fh1a			; end of file
+	jmp	short fh2
+fh1a:	jmp	fh8
+fh2:	mov	ah,[si]			; AH = next character
+	inc	si
+	cmp	ah,CHR_RETURN
+	je	fh2a
+	cmp	ah,CHR_LINEFEED
+	jne	fh3
+	inc	word ptr [bp-6]
+fh2a:	cmp	byte ptr [bp-4],0	; listing entries?
+	je	fh4			; yes
+	cmp	al,[bp-4]		; does the line end a matching name?
+	mov	al,-1
+	je	fh4a			; yes
+	jmp	short fh7
+fh3:	cmp	word ptr [bp-6],2	; does an entry start here?
+	mov	word ptr [bp-6],0
+	jb	fh4			; no
+	cmp	dx,-1			; did we already find a match?
+	jne	fh9			; yes, so this is the end of it
+	mov	[bp-8],di
+	mov	al,0			; start matching
+fh4:	cmp	al,-1			; still matching (or listing)?
+	je	fh7			; no
+	cmp	byte ptr [bp-4],0	; listing entries?
+	je	fh11			; yes
+	cmp	al,[bp-4]		; entire name matched?
+	jb	fh5			; not yet
+	mov	al,-1
+	cmp	ah,'0'			; next character must not be
+	jb	fh4a			; a digit or letter
+	cmp	ah,'9'
+	jbe	fh7
+	cmp	ah,'A'
+	jb	fh4a
+	cmp	ah,'Z'
+	jbe	fh7
+fh4a:	mov	dx,[bp-8]		; DX = offset of matching entry
+	jmp	short fh7
+fh5:	push	bx
+	mov	bl,al
+	mov	bh,0
+	add	bx,[bp-2]
+	mov	bl,[bx]			; BL = next character of name
+	cmp	bl,'a'
+	jb	fh5a
+	cmp	bl,'z'
+	ja	fh5a
+	sub	bl,20h			; convert lower-case to upper-case
+fh5a:	cmp	bl,ah
+	pop	bx
+	je	fh6
+	mov	al,-1			; mismatch
+	jmp	short fh7
+fh6:	inc	ax
+fh7:	inc	di
+	loop	fh7a
+	jmp	fh1
+fh7a:	jmp	fh2
+fh8:	cmp	byte ptr [bp-10],0	; end of file; is a listing line open?
+	je	fh8a			; no
+	push	dx
+	call	printCRLF
+	pop	dx
+fh8a:	cmp	dx,-1			; was there a match?
+	stc
+	je	fh10			; no
+fh9:	mov	cx,di
+	sub	cx,dx			; CX = length of entry (carry clear)
+fh10:	mov	sp,bp
+	pop	bp
+	ret
+;
+; Listing: print AH if it's part of the entry's first word (AL = # chars
+; printed so far); otherwise, end the word by padding it to the next column.
+;
+fh11:	cmp	ah,'$'
+	je	fh12
+	cmp	ah,'%'
+	je	fh12
+	cmp	ah,'0'
+	jb	fh13
+	cmp	ah,'9'
+	jbe	fh12
+	cmp	ah,'A'
+	jb	fh13
+	cmp	ah,'Z'
+	ja	fh13
+fh12:	push	ax
+	mov	al,ah
+	call	printChar
+	pop	ax
+	inc	ax
+	inc	byte ptr [bp-10]
+	jmp	fh7
+fh13:	cmp	al,0			; anything printed?
+	mov	al,-1
+	je	fh15			; no
+fh14:	push	ax
+	mov	al,' '
+	call	printChar
+	pop	ax
+	inc	byte ptr [bp-10]
+	test	byte ptr [bp-10],7	; at the next column yet?
+	jnz	fh14			; no
+	mov	ah,[bp-10]
+	add	ah,16
+	cmp	ah,[bx].CON_COLS	; is there room for another name?
+	jb	fh15			; yes
+	push	ax
+	push	cx
+	push	dx
+	call	printCRLF
+	pop	dx
+	pop	cx
+	pop	ax
+	mov	byte ptr [bp-10],0
+fh15:	jmp	fh7
+ENDPROC	findHelp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

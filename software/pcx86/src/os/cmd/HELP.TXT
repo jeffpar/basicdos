@@ -1,3 +1,15 @@
+ABS(*x*)
+Returns the absolute value of *x*.
+
+ASC(*string*)
+Returns the character code (0-255) of the first character of *string* (or 0 if *string* is empty).
+
+ATN(*x*)
+Returns the arctangent of *x*, in radians.
+
+CHR$(*code*)
+Returns a one-character string containing the character with the specified *code* (0-255).
+
 CLS
 Clears the session using the background color and moves the cursor to the top left corner.
 
@@ -8,23 +20,29 @@ For blinking colors, use 8-15 for *background* and 128-255 for *border*.
 COPY *input* *output*
 Copies the contents of the input file or device to the output file or device.
 
+COS(*x*)
+Returns the cosine of *x*, where *x* is in radians.
+
 DATE [*date*] [/P]
 Sets the system date (or prompts for a date if /P) and then displays the date.
 The date must be entered as M-D-Y or M/D/Y, where M is 1-12, D is 1-31, and Y is 0-99 or 1980-2099.
 If D or Y are omitted, current values are assumed.
+
+DATE$
+Returns the current date as a string in the form MM-DD-YYYY.
 
 DEF *function*(*parms*)[=expression]
 Defines a function expression or function block.  Function expressions must fit on a single line and can be defined at any time.
 Function blocks may contain multiple lines and must end with a RETURN command.  The function name does not need to begin with FN.
 
 DEFDBL [*letter(s)*]
-Defines the first letter(s) of variables that will default to double-precision floating-point values (not supported yet).
+Defines the first letter(s) of variables that will default to double-precision (64-bit) floating-point values.  Variables default to double-precision unless DEFINT or DEFSTR is used (or floating-point is disabled).
 
 DEFINT [*letter(s)*]
 Defines the first letter(s) of variables that will default to integer values.
 
 DEFSNG [*letter(s)*]
-Defines the first letter(s) of variables that will default to single-precision floating-point values (not supported yet).
+Same as DEFDBL, since all floating-point values are double-precision.
 
 DEFSTR [*letter(s)*]
 Defines the first letter(s) of variables that will default to string values.  Unless DEFSTR is used, all string variables must be defined using the $ suffix.
@@ -54,9 +72,18 @@ Constant equal to the return code from the last program executed.
 EXIT
 Exits the command processor if there is a previously loaded copy.
 
+EXP(*x*)
+Returns e (2.71828...) raised to the power of *x*.
+
+FIX(*x*)
+Returns *x* truncated to an integer (eg, FIX(-2.5) is -2).  See also INT.
+
 FOR *variable*=*start* TO *limit* [STEP *step*]
 Executes the lines up to the matching NEXT repeatedly, adding *step* (default 1) to the *variable* each time, until it passes the *limit*.
 If the *start* is already past the *limit*, the lines are skipped.
+
+FRE(*x*)
+Compacts string memory and returns the number of bytes available.  The argument is ignored.
 
 GOSUB *label*
 Calls the subroutine at the line with the specified label number; the subroutine ends with RETURN.
@@ -64,11 +91,23 @@ Calls the subroutine at the line with the specified label number; the subroutine
 GOTO *label*
 Transfers program control to the line with the specified label number.
 
-HELP [*command*]
-Displays help for the specified *command*.
+HELP [*command*|*function*]
+Displays help for the specified *command* or *function* (eg, HELP MID$), or lists all commands if none is specified.
+
+HEX$(*n*)
+Returns the hexadecimal representation of the integer *n*.  Negative values are treated as unsigned 32-bit values (eg, HEX$(-1) is FFFFFFFF).
 
 IF *expression* THEN *command*
 Evaluates the *expression*, and if it is TRUE (non-zero), then the *command* is executed.
+
+INKEY$
+Returns the next key pressed, without waiting (an empty string if no key was pressed).  Extended keys (eg, cursor keys) return two characters: a null and the key's scan code.
+
+INSTR([*start*,]*string1*,*string2*)
+Returns the position of *string2* within *string1*, searching from position *start* (default 1), or 0 if not found.
+
+INT(*x*)
+Returns the largest integer less than or equal to *x* (eg, INT(-2.5) is -3).  See also FIX.
 
 KEYS
 CTRL-E  Up         CTRL-X  Down\
@@ -83,6 +122,15 @@ DELETE  Del Left Char\
 ESCAPE  Erase Line
 CTRL-ALT-DEL is reserved for terminating programs. Use RESTART to restart the system.
 
+LCASE$(*string*)
+Returns *string* with all upper-case letters converted to lower-case.
+
+LEFT$(*string*,*n*)
+Returns the leftmost *n* characters of *string*.
+
+LEN(*string*)
+Returns the number of characters in *string* (0-255).
+
 LET *variable*=*expression*
 Assigns the value of the *expression* to the *variable*.  Values cannot be assigned to predefined variables.
 
@@ -92,6 +140,9 @@ Lists all lines of the currently loaded BAS or BAT program.
 LOAD *file*
 Loads the specified BAS or BAT file.
 
+LOG(*x*)
+Returns the natural logarithm of *x*, which must be greater than zero.
+
 MAXINT
 Constant equal to the largest positive integer.
 
@@ -99,11 +150,17 @@ MEM
 Displays used and available memory.
 In DEBUG builds, /D displays memory blocks, /F displays open files, and /S displays active sessions.
 
+MID$(*string*,*start*[,*n*])
+Returns *n* characters of *string*, beginning at position *start* (or the rest of *string* if *n* is omitted).
+
 NEW
 Erases the loaded program, functions, and variables.
 
 NEXT [*variable*[,*variable*]...]
 Ends the innermost FOR loop (or, for each *variable*, the FOR loop with that *variable*).
+
+OCT$(*n*)
+Returns the octal representation of the integer *n*.
 
 ON *expression* GOTO|GOSUB *label*[,*label*]...
 Transfers program control to (or calls) the Nth label, where N is the value of the *expression*.
@@ -124,24 +181,54 @@ Restarts the system.
 RETURN [*expression*]
 Returns from a GOSUB subroutine, or ends a function block and returns the specified *expression*.
 
-RND%(N)
-Generates a random integer between 0 and MAXINT, inclusive.
+RIGHT$(*string*,*n*)
+Returns the rightmost *n* characters of *string*.
+
+RND%[(*n*)]
+Returns a random integer between 0 and MAXINT, inclusive.  If *n* is negative, it reseeds the generator first, and if *n* is zero, the previous random integer is returned.
 
 RUN
 Runs the currently loaded BAS or BAT file.
 Program files can also be run without the RUN command.
 If no file extension is specified, files with COM, EXE, BAT, and BAS extensions are checked, in that order.
 
+SIN(*x*)
+Returns the sine of *x*, where *x* is in radians.
+
+SPACE$(*n*)
+Returns a string of *n* spaces.
+
+SQR(*x*)
+Returns the square root of *x*, which must not be negative.
+
 STOP
 Same as END.
+
+STR$(*x*)
+Returns *x* as a string, with a leading space if *x* is not negative.
+
+STRING$(*n*,*char*)
+Returns a string of *n* copies of *char*, which can be either a character code or a string (whose first character is used).
+
+TAN(*x*)
+Returns the tangent of *x*, where *x* is in radians.
 
 TIME [*time*] [/D] [/P]
 Sets the system time (or prompts for a time if /P) and then displays the time. /D displays elapsed time.
 The time must be entered as H:M:S.D, where where H is 0-23, M is 0-59, S is 0-59, and D is 0-99.
 If M, S, or D are omitted, zeros are assumed.
 
+TIME$
+Returns the current time as a string in the form HH:MM:SS.
+
 TYPE *file*
 Displays the contents of the specified file.
+
+UCASE$(*string*)
+Returns *string* with all lower-case letters converted to upper-case.
+
+VAL(*string*)
+Returns the numeric value of *string*, ignoring any blanks.  If *string* does not begin with a number, the result is 0.
 
 VER
 Displays the BASIC-DOS version number and revision.
@@ -152,6 +239,5 @@ Ends a WHILE loop.
 WHILE *expression*
 Executes the lines up to the matching WEND repeatedly, as long as the *expression* is TRUE (non-zero).
 
-Unsupported Commands
-Floating-point support is not available yet, so the DEFDBL and DEFSNG commands have no effect.
+*Unsupported Commands*
 Read-write file system support is incomplete, so the EDIT, REN, and SAVE commands cannot modify files yet.

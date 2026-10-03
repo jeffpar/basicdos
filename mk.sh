@@ -16,13 +16,11 @@
 # entries, which MS-DOS 3.20 apparently doesn't honor (it reads the volume as
 # if the root directory had 512 entries, so all files appear to be corrupted).
 #
-# Before building, regenerate os/cmd/txt.inc from HELP.TXT, since COMMAND.COM
-# depends on it.  And after building, if pc.js exits normally (ie, via QUIT,
-# which a successful build runs automatically), update the BASIC-DOS demo disks
-# with the new binaries (which requires PCJS; see gulpfile.js).  If a build
-# fails and you don't want the demo disks updated, use pc.js's "abort" command.
+# After building, if pc.js exits normally (ie, via QUIT, which a successful
+# build runs automatically), update the BASIC-DOS demo disks with the new
+# binaries (which requires PCJS; see gulpfile.js).  If a build fails and you
+# don't want the demo disks updated, use pc.js's "abort" command.
 #
-npx gulp BUILD-HELP --silent || exit 1
 tools/pc/pc.js --disk=software/pcx86/disks/MSDOS320-C400.json --dir=software/pcx86/src --normalize --speed=4 --target=20M --fat=16:2048:512
 code=$?
 if [ $code -eq 0 ] && [ -n "$PCJS" ]; then

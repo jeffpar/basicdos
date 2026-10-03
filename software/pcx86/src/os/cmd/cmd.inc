@@ -21,16 +21,13 @@ DATA    SEGMENT word public 'CODE'
 DATA	ENDS
 
 ;
-; CTOKDEF is an extended version of TOKDEF containing function pointers,
-; as well as TXT file offsets and lengths.
+; CTOKDEF is an extended version of TOKDEF containing function pointers.
 ;
 CTOKDEF		struc
 CTD_ID		db	?	; ID of token
 CTD_LEN		db	?	; length of token string
 CTD_OFF		dw	?	; offset of token string
 CTD_FUNC	dw	?	; extended token data: function
-CTD_TXT_OFF	dw	?	; extended token data: TXT offset
-CTD_TXT_LEN	dw	?	; extended token data: TXT length
 CTOKDEF		ends
 
 DEFTOK	macro	sym,val,func
@@ -48,22 +45,11 @@ CODE	ENDS
 DATA	SEGMENT
 	faddr = 0
 	IFB <func>
-	CDEFTOK	val,%(len),<offset DGROUP:N1>,0,<TXT_&sym&_OFF>,<TXT_&sym&_LEN>
+	CTOKDEF	<val,len,offset DGROUP:N1,0>
 	ELSE
-	CDEFTOK	val,%(len),<offset DGROUP:N1>,<offset func>,<TXT_&sym&_OFF>,<TXT_&sym&_LEN>
+	CTOKDEF	<val,len,offset DGROUP:N1,offset func>
 	ENDIF
 DATA	ENDS
-	endm
-
-CDEFTOK	macro	val,len,off,func,txt_off,txt_len
-	IFNDEF txt_off
-	;;  IF1
-	;; %OUT No definition for txt_off
-	;;  ENDIF
-	CTOKDEF	<val,len,off,func,0,0>
-	ELSE
-	CTOKDEF	<val,len,off,func,txt_off,txt_len>
-	ENDIF
 	endm
 
 DEFTOKENS macro tbl,val
