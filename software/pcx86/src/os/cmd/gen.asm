@@ -181,6 +181,9 @@ gc7:	pushf
 gc8:	jnc	gc9
 
 	mov	bx,ds:[PSP_HEAP]
+	cmp	[bx].ERR_CODE,0		; was an error already reported?
+	stc
+	jne	gc9			; yes (see memError)
 	mov	ax,[bx].LINE_LBL	; report the line's label #, if any
 	test	ax,ax
 	jnz	gc8a
@@ -188,7 +191,9 @@ gc8:	jnc	gc9
 gc8a:	PRINTF	<"Syntax error in line %d",13,10>,ax
 	stc
 
-gc9:	LEAVE
+gc9:	mov	bx,ss:[PSP_HEAP]
+	mov	ss:[bx].ERR_CODE,0	; (preserves carry)
+	LEAVE
 	ret
 ENDPROC	genCode
 
@@ -521,7 +526,8 @@ DEFPROC	genExpr
 	push	dx			; push end-of-operators marker (zero)
 	jmp	short ge1
 ge0x:	jmp	ge8
-ge0y:	stc				; out of room (see ensureRoom)
+ge0y:	lea	sp,[bp-_LOCBYTES-4]	; out of room (see ensureRoom), so
+	stc				; discard the operator stack
 	jmp	ge9a
 
 ge1:	mov	ax,CODE_ROOM

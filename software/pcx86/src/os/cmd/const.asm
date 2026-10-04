@@ -41,13 +41,6 @@ CODE    SEGMENT
 	DEFSTR	FPU_HW,<"hardware installed",0>
 	DEFSTR	FPU_SW,<"software installed",0>
 	DEFSTR	FPU_OFF,<"support disabled",0>
-;
-; FPU_TABLE is a far pointer to the FPU$ driver's FPUTBL, which every
-; instance of this process obtains at startup (see main); it's the same for
-; every instance, so it's fine to keep it in our shared code segment.  It
-; remains zero if the FPU$ driver isn't available.
-;
-	DEFPTR	FPU_TABLE
 	DEFSTR	STR_ON,<"ON",0>
 	DEFSTR	STR_OFF,<"OFF",0>
 

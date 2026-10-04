@@ -12,7 +12,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<countLine,printCRLF>
+	EXTNEAR	<countLine,printCRLF,transParas>
 	IFDEF	DEBUG
 	EXTSTR	<SYS_MEM,DOS_MEM,FREE_MEM,BLK_NAMES>
 	EXTABS	<BLK_WORDS>
@@ -194,7 +194,8 @@ mem23:	add	di,size SCB
 ; Last but not least, dump the amount of free memory (ie, the sum of all the
 ; free blocks that we did NOT display above).
 ;
-mem30:	mov	ax,[memFree]	; AX = free memory (paras)
+mem30:	call	transParas	; AX = paras of COMMAND's transient
+	add	ax,[memFree]	; AX = free memory (paras)
 	mov	cx,16
 	mul	cx		; DX:AX = free memory (in bytes)
 	xchg	si,ax
@@ -295,8 +296,11 @@ ENDPROC	printKB
 ;
 ; memError
 ;
+; Reports a memory error, unless genCode has already reported one (ERR_CODE),
+; since a program that runs out of memory will usually do so repeatedly.
+;
 ; Inputs:
-;	AX = error #
+;	None
 ;
 ; Outputs:
 ;	Carry set
@@ -305,7 +309,14 @@ ENDPROC	printKB
 ;	AX
 ;
 DEFPROC	memError
-	PRINTF	<"Not enough memory (%#06x)",13,10>,ax
+	push	bx
+	mov	bx,ss:[PSP_HEAP]
+	mov	al,ERR_NOMEMORY
+	xchg	ss:[bx].ERR_CODE,al
+	test	al,al			; already reported?
+	jnz	me9			; yes
+	PRINTF	<"Not enough memory",13,10>
+me9:	pop	bx
 	stc
 	ret
 ENDPROC	memError

@@ -703,6 +703,43 @@ ENDPROC	freeAllVars
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; freeIdleVars
+;
+; Frees all var blocks (and string space) if there are no variables, user
+; functions, or arrays, so that the memory is available to external programs
+; (see cmdFile); the blocks are allocated again when they're needed.
+;
+; Inputs:
+;	DS = heap segment
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, CX, SI
+;
+DEFPROC	freeIdleVars
+	mov	si,ds:[PSP_HEAP]
+	mov	ax,[si].FBLKDEF.BDEF_NEXT
+	or	ax,[si].ABLKDEF.BDEF_NEXT
+	jnz	fiv9			; there are functions or arrays
+	mov	cx,[si].VBLKDEF.BDEF_NEXT
+	jcxz	fiv8			; there are no var blocks
+	push	es
+	mov	es,cx
+	mov	cx,es:[BLK_NEXT]	; more than one var block?
+	jcxz	fiv1			; no
+	pop	es
+	ret
+fiv1:	cmp	byte ptr es:[size VBLK],VAR_NONE
+	pop	es
+	jne	fiv9			; there are variables
+fiv8:	jmp	freeAllVars
+fiv9:	ret
+ENDPROC	freeIdleVars
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; allocStrSpace
 ;
 ; Allocates an SBLK and adds it to the SBLK chain.

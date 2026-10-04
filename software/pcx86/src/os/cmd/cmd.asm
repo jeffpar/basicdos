@@ -10,11 +10,13 @@
 	include	cmd.inc
 
 CODE    SEGMENT
-	org	100h
 
 	EXTNEAR	<allocText,freeAllText,genCode,freeAllCode,freeAllVars>
+	EXTNEAR	<freeIdleVars>
 	EXTNEAR	<writeStrCRLF,saveChains,restoreChains,compactStrs>
-	EXTNEAR	<saveMode,restoreMode>
+	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resParas,resSum>
+	EXTBYTE	<RES_HEAP,CMD_PATH,MSG_DRIVE>
+	EXTWORD	<CMD_REFS,TRANS_SUM>
 	EXTABS	<TOK_ERASE,TOK_DEL>
 	EXTWORD	<KEYWORD_TOKENS>
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF,PERIOD>
@@ -25,6 +27,37 @@ CODE    SEGMENT
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
 DEFPROC	main
+;
+; If we're the copy that owns the shared code (ie, CS = DS), move our heap
+; and stack to RES_HEAP, free the original heap, and record what we need to
+; reload the transient portion later (see runTransient in res.asm).
+;
+	mov	ax,cs
+	mov	dx,ds
+	cmp	ax,dx			; do we own the shared code?
+	jne	m0z			; no
+	mov	si,ds:[PSP_HEAP]
+	mov	di,offset RES_HEAP
+	mov	cx,size CMDHEAP - size STACK
+	cld
+	rep	movsb			; copy everything but the stack
+	mov	ds:[PSP_HEAP],offset RES_HEAP
+	cli
+	mov	sp,offset RES_HEAP + size CMDHEAP
+	sti
+	sub	ax,ax
+	push	ax			; (like the loader, push a zero)
+	call	resParas
+	mov	ah,DOS_MEM_REALLOC
+	int	21h			; free the original heap
+	call	resSum
+	mov	[TRANS_SUM],ax		; record the checksum of the transient
+	mov	ah,DOS_DSK_GETDRV
+	int	21h
+	add	al,'A'			; and the drive it was loaded from
+	mov	[CMD_PATH],al
+	mov	[MSG_DRIVE],al
+m0z:	inc	cs:[CMD_REFS]
 ;
 ; Get the current session's screen dimensions (AL=cols, AH=rows).
 ;
@@ -641,6 +674,7 @@ DEFPROC	cmdExec
 	DEFLBL	cmdStart,near
 	mov	ax,DOS_PSP_EXEC2
 	int	21h			; start program specified by ES:BX
+	DEFLBL	cmdDone,near
 	mov	ah,DOS_PSP_RETCODE
 	int	21h
 	ASSERT	STRUCT,[bp],CMD
@@ -796,8 +830,17 @@ cf4e:	mov	di,sp			; free the file's blocks
 	jmp	cf9
 ;
 ; COM and EXE files must be loaded via either DOS_PSP_EXEC or DOS_UTL_LOAD.
+; If no BAT or BAS file is running, we first free the var blocks (if they're
+; not being used), so that more (and less fragmented) memory is available.
 ;
-cf5:	DOSUTIL	STRLEN			; AX = length of filename in LINEBUF
+cf5:	cmp	[bp].CBLKDEF.BDEF_NEXT,0; is a program running?
+	jne	cf5x			; yes
+	push	cx
+	push	si
+	call	freeIdleVars
+	pop	si
+	pop	cx
+cf5x:	DOSUTIL	STRLEN			; AX = length of filename in LINEBUF
 	mov	dx,si			; DS:DX -> filename
 	mov	si,[bp].CMD_ARGPTR	; recover original filename
 	add	si,cx			; DS:SI -> tail after original filename
@@ -824,7 +867,21 @@ cf5b:	mov	al,CHR_RETURN		; regardless how the command line ends,
 	pop	di
 	mov	[di],cl			; set the cmd tail length
 	mov	[bx].EPB_FCB1.OFF,-1	; let the EXEC function build the FCBs
-	mov	ax,DOS_PSP_EXEC1
+;
+; If there are no pipes, and the transient portion can be discarded, let
+; runTransient load and run the program (see res.asm).
+;
+	mov	ax,[bp].HDL_INPIPE
+	or	ax,[bp].HDL_OUTPIPE
+	jnz	cf5f
+	call	transParas
+	test	ax,ax
+	jz	cf5f
+	call	runTransient
+	jc	cf5e
+	call	cmdDone
+	jmp	short cf5d
+cf5f:	mov	ax,DOS_PSP_EXEC1
 	int	21h			; load program at DS:DX
 	jc	cf5e
 ;
@@ -1413,7 +1470,9 @@ ENDPROC	cmdDir
 ;	Any
 ;
 DEFPROC	cmdExit
+	dec	cs:[CMD_REFS]
 	int	20h			; terminates the current process
+	inc	cs:[CMD_REFS]
 	ret				; unless it can't (ie, no parent)
 ENDPROC	cmdExit
 
@@ -2902,4 +2961,4 @@ ENDPROC	getValue
 
 CODE	ENDS
 
-	end	main
+	end

@@ -97,6 +97,10 @@ This section tracks what's been completed (**[x]**) and what remains
 - [x] COPY creates (or truncates) the output file, and refuses to copy a
       file onto itself
 - [x] DEL/ERASE
+- [x] Resident and transient portions: before running a COM or EXE file,
+      COMMAND.COM frees idle variable blocks and discards its transient
+      portion (about 23K), reloading it from COMMAND.COM when the program
+      ends; MEM includes the transient portion in its free memory total
 - [ ] Input redirection (`<`)
 - [ ] REN/RENAME, and SAVE (for BASIC programs)
 - [ ] Disk utilities (eg, FORMAT, CHKDSK, SYS)
