@@ -823,6 +823,7 @@
     "SEPS",
     "setclr",
     "SETCOLOR",
+    "SETCPOS",
     "SETCTRLC",
     "SETCTYPE",
     "SETCUR",

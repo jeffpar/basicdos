@@ -1532,6 +1532,8 @@ ENDPROC	draw_char
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	draw_cursor
 	mov	dx,ds:[CT_CURPOS]
+	test	ds:[CT_STATUS],CTSTAT_INT10
+	jnz	dcs8
 	call	get_curpos		; BX = screen offset for CURPOS
 	add	bx,ds:[CT_SCREEN].OFF	; add the context's buffer offset
 
@@ -1539,6 +1541,16 @@ DEFPROC	draw_cursor
 	shr	bx,1			; screen offset to cell offset
 	mov	ah,CRTC_CURHI		; AH = 6845 CURSOR ADDR (HI) register
 	call	write_crtc16		; update cursor position using BX
+	ret
+;
+; The context is using INT 10h passthrough, so position the cursor using
+; INT 10h as well; otherwise, an emulator like pc.js wouldn't see the cursor
+; move back after a destructive backspace (see draw_char).
+;
+dcs8:	add	dx,ds:[CT_CONPOS]	; DL = screen col, DH = screen row
+	mov	bh,0			; BH = display page
+	mov	ah,VIDEO_SETCPOS
+	int	INT_VIDEO
 	ret
 ENDPROC	draw_cursor
 
