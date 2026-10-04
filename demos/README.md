@@ -11,17 +11,16 @@ machines:
 
 {% include machine.html id="ibm5150" %}
 
-There are currently five BASIC-DOS demo configurations:
+There are currently six BASIC-DOS demo configurations:
 
  1. [Single 25x80 session](?autoStart=true)
  2. [Two 40-column sessions](?autoMount={A:{name:"BASIC-DOS2"}})
  3. [Two 80-column sessions](?autoMount={A:{name:"BASIC-DOS3"}})
  4. [Dual monitors with single sessions](dual/)
  5. [Dual monitors with multiple sessions](dual/multi/)
- 6. [DONKEY.BAS (work in progress)](donkey/)
+ 6. [DONKEY.BAS and other PC DOS 1.00 BASIC samples](donkey/)
 
-The 40 and 80-column demos are configured with borders.  A double-wide border
-indicates which session has keyboard focus.  Use **SHIFT-TAB** to toggle focus.
+The 40 and 80-column demos are configured with borders.  A double-wide border indicates which session has keyboard focus.  Use **SHIFT-TAB** to toggle focus.
 
 ### **CONFIG.SYS** from the BASIC-DOS1 Diskette
 

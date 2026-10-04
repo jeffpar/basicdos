@@ -7,7 +7,6 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-	BIOSEQU equ 1
 	include	macros.inc
 	include	8086.inc
 	include	bios.inc
@@ -16,6 +15,13 @@
 	include	dos.inc
 	include	dosapi.inc
 	include	version.inc
+
+;
+; We don't define BIOSEQU (to save symbol space), so define the few BIOS
+; equates we need here.
+;
+INT_TIME	equ	1Ah
+TIME_GETTICKS	equ	00h
 
 DOS	segment word public 'CODE'
 

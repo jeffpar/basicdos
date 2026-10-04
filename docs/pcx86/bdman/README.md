@@ -11,7 +11,6 @@ permalink: /docs/pcx86/bdman/
 3. [BASIC-DOS Programming](lang/)
 4. [Configuring BASIC-DOS](cfg/)
 
-**WARNING**: Like BASIC-DOS itself, this documentation is a work-in-progress
-and is missing entire sections.  Set your expectations accordingly.
+**WARNING**: Like BASIC-DOS itself, this documentation is a work-in-progress and is missing entire sections.  Set your expectations accordingly.
 
 {% include footer.html prev="Cover:/docs/" next="Using BASIC-DOS:intro/" %}

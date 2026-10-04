@@ -20,7 +20,6 @@ BASIC-DOS system commands include:
 
 Usage: HELP *command*
 
-Displays a brief summary of the specified *command*, including any special
-command-line options.
+Displays a brief summary of the specified *command*, including any special command-line options.
 
 {% include footer.html prev="BASIC-DOS Commands:../" next="BASIC-DOS Programming:../../lang/" %}

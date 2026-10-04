@@ -63,7 +63,7 @@ MSG_NOMEM	db	13,10,"Can't reload COMMAND, press any key",13,10,'$'
 ;	Carry clear if the program ran, set if it couldn't be loaded (AX)
 ;
 ; Modifies:
-;	AX, BX, CX, DX, SI, DI
+;	AX, BX, CX, SI, DI
 ;
 DEFPROC	runTransient
 	push	dx
@@ -85,6 +85,7 @@ DEFPROC	runTransient
 	clc
 rt1:	pushf
 	push	ax
+	push	dx			; preserve DX for the caller's error path
 	mov	dx,offset rcIgnore	; CTRLC must not terminate us, either,
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	int	21h			; until the transient portion is back
@@ -125,6 +126,7 @@ rt4:	mov	dx,offset MSG_RELOAD	; no, so ask for the right disk
 rt5:	mov	dx,offset ctrlc
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	int	21h			; restore our CTRLC handler
+	pop	dx
 	pop	ax
 	popf
 	ret

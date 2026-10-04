@@ -6,8 +6,7 @@ permalink: /docs/pcx86/bdman/cmd/basic/return/
 
 {% include header.html topic="RETURN" %}
 
-The **RETURN** statement returns the value of *expression* within a
-multi-line function:
+The **RETURN** statement returns the value of *expression* within a multi-line function:
 
 > RETURN [*expression*]
 

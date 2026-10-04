@@ -24,11 +24,9 @@ From PC DOS 2.00:
 
 ### SYMDEB.EXE
 
-Needs a machine with at least 64K of RAM.  Allocating only the minimum
-of 11h paragraphs causes problems.
+Needs a machine with at least 64K of RAM.  Allocating only the minimum of 11h paragraphs causes problems.
 
-Here's log of running "SYMDEB E.COM" on PC DOS 2.00 (with an 11-byte E.COM)
-with only 96Fh paragraphs available.  The system crashed.
+Here's log of running "SYMDEB E.COM" on PC DOS 2.00 (with an 11-byte E.COM) with only 96Fh paragraphs available.  The system crashed.
 
     bp &0000:0000 set
     instruction history buffer allocated

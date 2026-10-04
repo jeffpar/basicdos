@@ -59,7 +59,7 @@ let demoFiles = [
     "./software/pcx86/src/os/cmd/obj/COMMAND.COM",
     "./software/pcx86/src/os/cmd/HELP.TXT",
     "./software/pcx86/src/tests/primes/PRIMES.BA*",
-    "./software/pcx86/src/tests/bin/PRIMES.EXE",       // (CPRINTF.EXE no longer fits)
+    "./software/pcx86/src/tests/bin/*.EXE",
     "./software/pcx86/src/tests/bin/*.COM",
     "./software/pcx86/src/tests/misc/BD*.BAT",
     "./software/pcx86/src/tests/misc/*.EXE",
@@ -71,6 +71,7 @@ let minFiles = [
     "./software/pcx86/src/os/dos/obj/BASDOS.COM",
     "./software/pcx86/src/os/cmd/obj/COMMAND.COM",
     "./software/pcx86/src/os/cmd/HELP.TXT",
+    "./software/pcx86/src/tests/misc/SYMDEB.EXE",
     "./software/pcx86/src/msb/obj/*.EXE"
 ];
 
@@ -102,7 +103,8 @@ let disks = {
     "BASIC-DOS6": [
         "./demos/s80/CONFIG.SYS",
         "./demos/d40/AUTOEXEC.BAT",
-        "./demos/donkey/*.BAS"          // DONKEY.BAS and the other PC DOS 1.00 BASIC samples
+        "./demos/donkey/*.BAS",         // DONKEY.BAS and the other PC DOS 1.00 BASIC samples
+        "./software/pcx86/src/tests/misc/BENCH.BAS"
     ].concat(minFiles),
     "PCDOS200-C400": "./software/pcx86/disks/PCDOS200-C400.json"
 };

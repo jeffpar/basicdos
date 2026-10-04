@@ -11,18 +11,13 @@ machines:
       B: "PC DOS 1.00"
 ---
 
-The machine below boots the BASIC-DOS6 diskette, which contains text copies
-of DONKEY.BAS and the other BASIC samples from the IBM PC DOS 1.00 diskette
-(whose copies, in drive B:, are in the tokenized format that only IBM BASIC
-can load).  To try it, type:
+The machine below boots the BASIC-DOS6 diskette, which contains text copies of DONKEY.BAS and the other BASIC samples from the IBM PC DOS 1.00 diskette (whose copies, in drive B:, are in the tokenized format that only IBM BASIC can load).  To try it, type:
 
     DONKEY
 
 or CIRCLE, or the name of any other sample.  Not all of them run yet.
 
-Press the space bar to switch lanes, and ESC to exit.  See the DONKEY.BAS
-checklist in the [Project Status](/#donkeybas) for what was needed to run it,
-and what remains (eg, performance).
+Press the space bar to switch lanes, and ESC to exit.  See the DONKEY.BAS checklist in the [Project Status](/#donkeybas) for what was needed to run it, and what remains (eg, performance).
 
 {% include machine.html id="ibm5150" %}
 

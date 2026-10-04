@@ -146,6 +146,7 @@ MCBTYPE_VBLK	equ	'V'	; variable block
 MCBTYPE_SBLK	equ	'S'	; string block
 MCBTYPE_TBLK	equ	'T'	; text block
 ;	(and 'A' for array blocks, which aren't defined here, to save space)
+;	(and 80h, MCBTYPE_HIGH in memory.asm, to allocate from the top)
 
 ;
 ; System File Block (SFB)

@@ -1319,18 +1319,75 @@ DEFPROC	strStr,FAR
 	LOCVAR	strBuf,byte,32
 	ENTER
 	push	ds
-	lds	si,[pStrNum]		; DS:SI -> double
 	push	ss
 	pop	es
+;
+; If the double is an integer that fits in 32 bits (eg, STR$(I)), we format
+; it with ITOA, which is much faster than FPU_DTOA.  Such a double is zero or
+; has an exponent from 0 to 30, and no fraction bits are shifted out when its
+; mantissa is shifted right by 52-exponent.
+;
+	lds	si,[pStrNum]		; DS:SI -> double
+	mov	dx,[si+6]
+	mov	ax,dx
+	add	ax,ax			; AX = double without its sign
+	or	ax,[si+4]
+	or	ax,[si+2]
+	or	ax,[si]
+	mov	bx,ax			; BX:AX = zero if the double is zero
+	jz	sst4
+	mov	ax,dx
+	and	ax,7FF0h
+	mov	cl,4
+	shr	ax,cl			; AX = biased exponent
+	neg	ax
+	add	ax,1075			; AX = # bits to shift (52-exponent)
+	cmp	ax,22
+	jb	sst8			; too large
+	cmp	ax,52
+	ja	sst8			; too small
+	xchg	di,ax
+	mov	ax,[si]
+	mov	bx,[si+2]
+	mov	cx,[si+4]
+	and	dx,000Fh
+	or	dl,10h			; DX:CX:BX:AX = mantissa
+	sub	si,si			; SI = fraction bits
+sst2:	shr	dx,1
+	rcr	cx,1
+	rcr	bx,1
+	rcr	ax,1
+	adc	si,0
+	dec	di
+	jnz	sst2
+	test	si,si			; any fraction bits?
+	jnz	sst8			; yes
+	lds	si,[pStrNum]
+	test	byte ptr [si+7],80h
+	jz	sst4
+	neg	bx
+	neg	ax
+	sbb	bx,0			; BX:AX = negative value
+sst4:	xchg	si,ax
+	mov	dx,bx			; DX:SI = value
+	lea	di,[strBuf]		; ES:DI -> buffer
+	mov	bx,((PF_LONG OR PF_SIGN OR PF_HASH) SHL 8) OR 10
+	sub	cx,cx
+	DOSUTIL	ITOA			; AX = # of characters
+	xchg	cx,ax
+	jmp	short sst9
+
+sst8:	lds	si,[pStrNum]		; DS:SI -> double
 	lea	di,[strBuf]		; ES:DI -> buffer
 	mov	cx,32			; CX = size of buffer
 	sub	dx,dx			; DX = width (none)
 	mov	ax,(PF_HASH SHL 8) OR 0FFh
 	mov	bx,FPU_DTOA		; AL = precision (none)
 	call	callFPUFunc		; AH = flags (PF_HASH)
-	lea	si,[strBuf]
-	mov	cx,di
-	sub	cx,si			; CX = # chars
+	lea	cx,[strBuf]
+	sub	di,cx			; DI = # chars
+	xchg	cx,di
+sst9:	lea	si,[strBuf]
 	call	newStr
 	mov	[retStr].OFF,ax
 	mov	[retStr].SEG,dx

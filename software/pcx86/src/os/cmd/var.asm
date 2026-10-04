@@ -51,6 +51,7 @@ CODE    SEGMENT
 ;	AX, DI, ES
 ;
 MIN_BLKSIZE	equ	512
+MEM_HIGH	equ	80h		; MCBTYPE_HIGH (see memory.asm)
 
 DEFPROC	allocBlock
 	push	cx
@@ -97,7 +98,8 @@ ab1:	mov	bx,cx
 	xchg	cx,ax
 	mov	ah,DOS_MEM_ALLOC
 	mov	al,[si].BDEF_SIG
-	int	21h
+	or	al,MEM_HIGH		; allocate from the top of memory, so
+	int	21h			; that freed memory below stays contiguous
 	jnc	ab2
 	shr	cx,1			; try half the size
 	cmp	cx,dx			; unless that's less than the minimum

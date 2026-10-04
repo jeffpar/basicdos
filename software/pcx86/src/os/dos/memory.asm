@@ -18,6 +18,8 @@ DOS	segment word public 'CODE'
 	EXTBYTE	<scb_locked>
 	EXTWORD	<mcb_head,scb_active>
 
+MCBTYPE_HIGH	equ	80h		; DOS_MEM_ALLOC flag (see mcb_alloc)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; mem_alloc (REG_AH = 48h)
@@ -252,8 +254,13 @@ ENDPROC	mcb_split
 ;
 ; mcb_alloc
 ;
+; If MCBTYPE_HIGH is set in AL, the block is allocated from the top of the
+; last free block that's big enough, instead of the bottom of the first, so
+; that long-lived blocks don't fragment the memory below them (eg, the memory
+; that COMMAND.COM frees when it discards its transient portion).
+;
 ; Inputs:
-;	AL = MCBTYPE
+;	AL = MCBTYPE (optionally with MCBTYPE_HIGH)
 ;	BX = paragraphs requested (from REG_BX if via INT 21h)
 ;
 ; Outputs:
@@ -261,12 +268,14 @@ ENDPROC	mcb_split
 ;	On failure, carry set, BX = max paras available
 ;
 ; Modifies:
-;	AX, BX, CX, DX, DI, ES
+;	AX, BX, CX, DX, SI, DI, ES
 ;
 DEFPROC mcb_alloc,DOS
 	ASSUME	ES:NOTHING
 	LOCK_SCB
 	push	ax			; save AX
+	mov	ah,al			; AH = MCBTYPE (and MCBTYPE_HIGH)
+	sub	di,di			; DI = last free block that fits
 	mov	es,[mcb_head]
 	sub	dx,dx			; DX = largest free block so far
 a1:	mov	al,es:[MCB_SIG]
@@ -278,12 +287,16 @@ a2:	mov	cx,es:[MCB_PARAS]	; CX = # paras this block
 	cmp	es:[MCB_OWNER],0	; free block?
 	jne	a6			; no
 	cmp	cx,bx			; big enough?
-	je	a4			; just big enough, use as-is
-	ja	a3			; yes
+	jae	a2a			; yes
 	cmp	dx,cx			; is this largest free block so far?
 	jae	a6			; no
 	mov	dx,cx			; yes
 	jmp	short a6
+a2a:	mov	di,es			; remember the block that fits
+	test	ah,MCBTYPE_HIGH		; and unless allocating high, use it
+	jnz	a6
+	cmp	cx,bx
+	je	a4			; just big enough, use as-is
 ;
 ; Split the current block; the new MCB at the split point will
 ; be marked free, and it will have the same MCB_SIG as the found block.
@@ -296,6 +309,7 @@ a4:	call	get_psp
 	mov	ax,MCBOWNER_SYSTEM	; no active PSP yet, so use this
 a5:	mov	es:[MCB_OWNER],ax
 	pop	ax			; AL = MCBTYPE again
+	and	al,NOT MCBTYPE_HIGH
 	mov	es:[MCB_TYPE],al
 	mov	ax,es
 	inc	ax			; return ES+1 in AX, with CARRY clear
@@ -303,17 +317,36 @@ a5:	mov	es:[MCB_OWNER],ax
 	jmp	short a9
 
 a6:	cmp	es:[MCB_SIG],MCBSIG_LAST; last block?
-	je	a8			; yes, return error
-	mov	ax,es			; advance to the next block
-	add	ax,cx
-	inc	ax
-	mov	es,ax
+	je	a8			; yes
+	mov	si,es			; advance to the next block
+	add	si,cx			; (without modifying AH)
+	inc	si
+	mov	es,si
 	jmp	a1
 
 a7:	mov	ax,ERR_BADMCB
 	jmp	short a8a
+;
+; If allocating high, split the last block that fits, so that the free
+; remainder (BX) is at the bottom, and use the new block at the top.
+;
+a8:	test	di,di			; did a block fit?
+	jz	a8b			; no, return error
+	mov	es,di
+	mov	cx,es:[MCB_PARAS]	; CX = # paras in that block
+	cmp	cx,bx
+	je	a4			; just big enough, use as-is
+	not	bx
+	add	bx,cx			; BX = CX - BX - 1 (remainder)
+	mov	al,es:[MCB_SIG]		; AL = signature for new block
+	call	mcb_split
+	mov	ax,es
+	add	ax,bx
+	inc	ax
+	mov	es,ax			; ES:0 -> new block
+	jmp	a4
 
-a8:	mov	ax,ERR_NOMEMORY
+a8b:	mov	ax,ERR_NOMEMORY
 	mov	bx,dx			; BX = max # paras available
 a8a:	pop	dx			; throw away AX
 	stc

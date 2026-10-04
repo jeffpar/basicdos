@@ -28,8 +28,6 @@ Example:
 
 ### Differences from Microsoft BASIC
 
-BASIC-DOS does *not* require all lines within a program to begin with a line
-number.  Only those lines that are the target of a GOTO statement must be
-numbered.
+BASIC-DOS does *not* require all lines within a program to begin with a line number.  Only those lines that are the target of a GOTO statement must be numbered.
 
 {% include footer.html prev="BASIC Commands:../"  next="IF:../if/" %}

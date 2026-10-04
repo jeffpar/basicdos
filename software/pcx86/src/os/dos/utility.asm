@@ -760,9 +760,28 @@ tc8:	cmp	al,'&'			; leading char for hex or octal?
 	mov	ah,CLS_OCT OR CLS_HEX
 	ret
 ;
+; A type suffix on a numeric constant ('#' or '!' for floating-point, '%'
+; for integer) ends the constant and is otherwise ignored (like whitespace).
+;
+tc9:	cmp	ah,CLS_DEC		; on the heels of a decimal or float?
+	jb	tc9c			; no
+	cmp	ah,CLS_FLOAT
+	ja	tc9c			; no
+	cmp	al,'%'
+	jne	tc9a
+	cmp	ah,CLS_DEC		; integer suffix on an integer?
+	je	tc9b			; yes
+tc9a:	cmp	al,'#'
+	je	tc9a1
+	cmp	al,'!'
+	jne	tc9c
+tc9a1:	mov	ch,CLS_FLOAT		; the constant is floating-point
+tc9b:	mov	ah,CLS_WHITE
+	ret
+;
 ; Everything else is just a symbol at this point.
 ;
-tc9:	mov	ah,CLS_SYM
+tc9c:	mov	ah,CLS_SYM
 	ret
 ENDPROC	tok_classify
 

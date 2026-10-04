@@ -8,8 +8,7 @@ permalink: /docs/pcx86/bdman/intro/
 
 ### Starting BASIC-DOS
 
-Insert a BASIC-DOS diskette in drive A: of an IBM PC and turn the machine on.
-The following messages should appear on your screen:
+Insert a BASIC-DOS diskette in drive A: of an IBM PC and turn the machine on. The following messages should appear on your screen:
 
 	BASIC-DOS 1.00 for the IBM PC
 	Copyright (c) PCJS.ORG 1981-2021
@@ -18,15 +17,11 @@ The following messages should appear on your screen:
 
 	A>
 
-The `A>` is the BASIC-DOS prompt.  The prompt displays which
-diskette drive is the default and indicates that BASIC-DOS is ready to accept
-[commands](../cmd/) from the keyboard.
+The `A>` is the BASIC-DOS prompt.  The prompt displays which diskette drive is the default and indicates that BASIC-DOS is ready to accept [commands](../cmd/) from the keyboard.
 
 ### Typing Commands
 
-The BASIC-DOS prompt accepts commands up to 254 characters long.  Any characters
-typed beyond that limit are ignored.  Press the **Enter** key to submit all
-characters currently displayed as the next command.
+The BASIC-DOS prompt accepts commands up to 254 characters long.  Any characters typed beyond that limit are ignored.  Press the **Enter** key to submit all characters currently displayed as the next command.
 
 Other special keys include:
 
@@ -49,7 +44,6 @@ Other special key sequences that can be typed at any time include:
 - **Ctrl-Break** aborts the current operation (also: **Ctrl-C**)
 - **Ctrl-Alt-Del** terminates the current program
 
-You can also use the [HELP KEYS](../cmd/system/#help) command to display a brief
-summary of special keys.
+You can also use the [HELP KEYS](../cmd/system/#help) command to display a brief summary of special keys.
 
 {% include footer.html prev="Contents:../" next="BASIC-DOS Commands:../cmd/" %}

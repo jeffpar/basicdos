@@ -6,31 +6,22 @@ permalink: /
 
 # PC DOS Reimagined
 
-Read the [Blog](blog/), then check out the [Preview](preview/), which
-highlights a few of the original [Demos](demos/).
+Read the [Blog](blog/), then check out the [Preview](preview/), which highlights a few of the original [Demos](demos/).
 
 [![BASIC-DOS 1.00](assets/images/BASIC-DOS-Cover.gif)](preview/)
 
 ## Project Status
 
-BASIC-DOS began as a technology demo: a reimagining of what the first IBM PC
-operating system *could* have been, with a unified DOS and BASIC command
-interpreter, preemptive multitasking sessions, and other features that PC DOS
-wouldn't offer for years (if ever).  The goal now is to turn it into a usable
-product.
+BASIC-DOS began as a technology demo: a reimagining of what the first IBM PC operating system *could* have been, with a unified DOS and BASIC command interpreter, preemptive multitasking sessions, and other features that PC DOS wouldn't offer for years (if ever).  The goal now is to turn it into a usable product.
 
-This section tracks what's been completed (**[x]**) and what remains
-(**[ ]**).  Items marked *partial* work, but with known gaps.
+This section tracks what's been completed (**[x]**) and what remains (**[ ]**).  Items marked *partial* work, but with known gaps.
 
 ### Boot and System Configuration
 
 - [x] Boot sector that loads the BASIC-DOS drivers, kernel, and interpreter
 - [x] Boot prompt when a hard disk is detected (press **Esc** to boot from it)
-- [x] CONFIG.SYS support for BOOTKEY, CONSOLE, DEBUG, FILES, MEMSIZE,
-      SESSIONS, SHELL, SKIP, and SWITCHAR
-- [x] SKIP= lists built-in drivers (by their exact device names, separated
-      by commas) that should not be loaded (eg, `SKIP=CON,FPU$`); a skipped
-      driver is never initialized, and its memory is reclaimed
+- [x] CONFIG.SYS support for BOOTKEY, CONSOLE, DEBUG, FILES, MEMSIZE, SESSIONS, SHELL, SKIP, and SWITCHAR
+- [x] SKIP= lists built-in drivers (by their exact device names, separated by commas) that should not be loaded (eg, `SKIP=CON,FPU$`); a skipped driver is never initialized, and its memory is reclaimed
 - [ ] Installable device drivers (DEVICE=)
 - [ ] Critical ("hard") error handling (eg, "Abort, Retry, Ignore")
 
@@ -39,13 +30,10 @@ This section tracks what's been completed (**[x]**) and what remains
 - [x] CON, with multiple console contexts (one per session)
 - [x] COM, AUX, LPT, PRN, NUL, CLOCK$, and PIPE$ devices
 - [x] Interrupt-driven, asynchronous I/O for CON and COM
-- [x] Floppy disk reads, including multi-track requests and requests
-      that cross 64K boundaries
+- [x] Floppy disk reads, including multi-track requests and requests that cross 64K boundaries
 - [x] Floppy disk writes
 - [x] Media check and BPB rebuilds (reads PC DOS 1.x and 2.x diskettes)
-- [x] *partial*: Hard disk reads and writes (HDC$), for the FAT12 primary
-      partitions of up to two PC XT hard disks, which become drives C:, D:,
-      etc. (drives A: and B: are always reserved for diskettes)
+- [x] *partial*: Hard disk reads and writes (HDC$), for the FAT12 primary partitions of up to two PC XT hard disks, which become drives C:, D:, etc. (drives A: and B: are always reserved for diskettes)
 - [ ] Write-with-verify (DDC_WRITEV), formatting, and FAT16 hard disks
 - [ ] "Popup" and background console contexts
 
@@ -67,215 +55,112 @@ This section tracks what's been completed (**[x]**) and what remains
 - [x] Handle-based file creation (function 3Ch) and writing (function 40h)
 - [x] File deletion (function 41h) and renaming (function 56h)
 - [x] FAT cluster allocation and freeing
-- [x] Write-back of modified FAT and directory buffers (every FAT copy is
-      updated), including when the buffer is reused, on file close, disk
-      reset, and restart
-- [ ] *partial*: FCB support (open, close, and reads only; no create,
-      write, delete, or rename)
+- [x] Write-back of modified FAT and directory buffers (every FAT copy is updated), including when the buffer is reused, on file close, disk reset, and restart
+- [ ] *partial*: FCB support (open, close, and reads only; no create, write, delete, or rename)
 - [ ] Truncating/extending a file with a zero-length write
-- [ ] Enforcing the read-only attribute on open, and getting/setting file
-      attributes (function 43h) and date/time (function 57h)
-- [ ] Subdirectories (MKDIR, RMDIR, CHDIR, and paths); for now,
-      subdirectory entries are ignored (they can't be opened, deleted, or
-      overwritten)
+- [ ] Enforcing the read-only attribute on open, and getting/setting file attributes (function 43h) and date/time (function 57h)
+- [ ] Subdirectories (MKDIR, RMDIR, CHDIR, and paths); for now, subdirectory entries are ignored (they can't be opened, deleted, or overwritten)
 - [ ] Absolute disk reads and writes (INT 25h and INT 26h)
-- [ ] FAT16, extended partitions, and a larger buffer cache (there are
-      currently only two sector buffers: one for FAT sectors and one for
-      directory sectors)
+- [ ] FAT16, extended partitions, and a larger buffer cache (there are currently only two sector buffers: one for FAT sectors and one for directory sectors)
 
 ### Command Interpreter: DOS Commands
 
-- [x] COPY, DATE, DEL, DIR, EXIT, HELP, KEYS, MEM, RESTART, TIME, TYPE,
-      and VER
-- [x] Running COM, EXE, BAT, and BAS files, and loading programs into
-      other sessions
-- [x] BAT and BAS files can run other BAT and BAS files and then continue
-      (no CALL command required); a nested BAS file gets its own variables
-- [x] Pipes (`|`) and output redirection (`>` creates or truncates the
-      output file, `>>` appends to it), including redirection at the end
-      of a pipeline (eg, `DIR | CASE > TEST`)
-- [x] COPY creates (or truncates) the output file, and refuses to copy a
-      file onto itself
+- [x] COPY, DATE, DEL, DIR, EXIT, HELP, KEYS, MEM, RESTART, TIME, TYPE, and VER
+- [x] Running COM, EXE, BAT, and BAS files, and loading programs into other sessions
+- [x] BAT and BAS files can run other BAT and BAS files and then continue (no CALL command required); a nested BAS file gets its own variables
+- [x] Pipes (`|`) and output redirection (`>` creates or truncates the output file, `>>` appends to it), including redirection at the end of a pipeline (eg, `DIR | CASE > TEST`)
+- [x] COPY creates (or truncates) the output file, and refuses to copy a file onto itself
 - [x] DEL/ERASE
-- [x] Resident and transient portions: before running a COM or EXE file,
-      COMMAND.COM frees idle variable blocks and discards its transient
-      portion (about 23K), reloading it from COMMAND.COM when the program
-      ends; MEM includes the transient portion in its free memory total
+- [x] Resident and transient portions: before running a COM or EXE file, COMMAND.COM frees idle variable blocks and discards its transient portion (about 23K), reloading it from COMMAND.COM when the program ends; MEM includes the transient portion in its free memory total
 - [ ] Input redirection (`<`)
 - [ ] REN/RENAME, and SAVE (for BASIC programs)
 - [ ] Disk utilities (eg, FORMAT, CHKDSK, SYS)
 
 ### Command Interpreter: BASIC Language
 
-- [x] 32-bit integer variables, constants, and expressions (including
-      AND, OR, XOR, EQV, IMP, NOT, MOD, and shifts)
-- [x] Type suffixes (`%` for integers, `#` or `!` for doubles, and `$` for
-      strings), where the type is part of a variable's identity (eg, after
-      DEFINT A-Z and then DEFDBL A-Z, `A` is a new variable, separate from
-      `A%`)
+- [x] 32-bit integer variables, constants, and expressions (including AND, OR, XOR, EQV, IMP, NOT, MOD, and shifts)
+- [x] Type suffixes (`%` for integers, `#` or `!` for doubles, and `$` for strings), where the type is part of a variable's identity (eg, after DEFINT A-Z and then DEFDBL A-Z, `A` is a new variable, separate from `A%`)
 - [x] String variables, concatenation, and comparisons
-- [x] String functions: ASC, CHR$, DATE$, FRE, HEX$, INKEY$, INSTR, LCASE$,
-      LEFT$, LEN, MID$, OCT$, RIGHT$, SPACE$, STR$, STRING$, TIME$, UCASE$,
-      and VAL
-- [x] String pool management: temporary strings are released as soon as
-      they're consumed, strings are compacted (and empty string blocks
-      freed) when space runs out, and runtime string errors (eg, "String
-      too long") abort the program cleanly
-- [x] CLS, COLOR, DEF FN (including string functions and parameters),
-      DEFDBL, DEFINT, DEFSNG, DEFSTR, ECHO, GOTO, IF/THEN/ELSE, LET, PRINT,
-      REM, and RETURN
-- [x] Assignments without LET in BAS and BAT files (LET is still required
-      on the command line)
+- [x] String functions: ASC, CHR$, DATE$, FRE, HEX$, INKEY$, INSTR, LCASE$, LEFT$, LEN, MID$, OCT$, RIGHT$, SPACE$, STR$, STRING$, TIME$, UCASE$, and VAL
+- [x] String pool management: temporary strings are released as soon as they're consumed, strings are compacted (and empty string blocks freed) when space runs out, and runtime string errors (eg, "String too long") abort the program cleanly
+- [x] CLS, COLOR, DEF FN (including string functions and parameters), DEFDBL, DEFINT, DEFSNG, DEFSTR, ECHO, GOTO, IF/THEN/ELSE, LET, PRINT, REM, and RETURN
+- [x] Assignments without LET in BAS and BAT files (LET is still required on the command line)
 - [x] LOAD, LIST, NEW, and RUN
 - [x] Functions: ERR, ERRORLEVEL, MAXINT, PEEK, RND, and RND%
-- [x] Arrays of integers, doubles, and strings, with up to 255 dimensions:
-      DIM, ERASE, OPTION BASE, automatic dimensioning (with a largest
-      subscript of 10) of arrays used without DIM, and "Subscript out of
-      range" and "Duplicate definition" errors
-- [x] Control flow: END, FOR/NEXT (with STEP, and integer or double loop
-      variables), GOSUB/RETURN, ON ... GOTO/GOSUB, STOP, and WHILE/WEND
-- [x] Memory management that's forgiving of low or fragmented memory:
-      code, text, variable, and string blocks are modest (4K) blocks that are
-      chained together as needed (generated code continues in another code
-      block via a far JMP), no block type takes more than a quarter of the
-      largest free block, and smaller blocks (down to 512 bytes) are used
-      when necessary
-- [ ] Limitations: a DEF function's code must fit in a single block, and
-      each array requires a single block (64K max)
-- [ ] Specific error messages for compile-time errors (eg, "NEXT without
-      FOR" and "WHILE without WEND" are currently reported as syntax errors)
+- [x] Arrays of integers, doubles, and strings, with up to 255 dimensions: DIM, ERASE, OPTION BASE, automatic dimensioning (with a largest subscript of 10) of arrays used without DIM, and "Subscript out of range" and "Duplicate definition" errors
+- [x] Control flow: END, FOR/NEXT (with STEP, and integer or double loop variables), GOSUB/RETURN, ON ... GOTO/GOSUB, STOP, and WHILE/WEND
+- [x] Memory management that's forgiving of low or fragmented memory: code, text, variable, and string blocks are modest (4K) blocks that are chained together as needed (generated code continues in another code block via a far JMP), no block type takes more than a quarter of the largest free block, and smaller blocks (down to 512 bytes) are used when necessary
+- [ ] Limitations: a DEF function's code must fit in a single block, and each array requires a single block (64K max)
+- [ ] Specific error messages for compile-time errors (eg, "NEXT without FOR" and "WHILE without WEND" are currently reported as syntax errors)
 - [ ] STOP's "Break" message (STOP is currently the same as END)
 - [ ] INPUT, LINE INPUT, READ, DATA, and RESTORE
 - [ ] The MID$ statement (ie, `MID$(A$,N[,M]) = B$`)
 - [ ] `&H` and `&O` prefixes in VAL
 - [ ] Comma print zones in PRINT (commas currently print a tab)
 - [ ] File I/O statements (eg, OPEN, CLOSE, PRINT #, INPUT #)
-- [x] *partial*: Error handling (ON ERROR GOTO, RESUME *line*, ERROR, and
-      ERR; see the DONKEY.BAS checklist)
+- [x] *partial*: Error handling (ON ERROR GOTO, RESUME *line*, ERROR, and ERR; see the DONKEY.BAS checklist)
 - [ ] Runtime error messages for numeric errors
 
 ### Floating-Point
 
-BASIC-DOS will support only one floating-point type: IEEE 754 64-bit
-(double-precision) values.  It won't use any MBF (Microsoft Binary Format)
-code.
+BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-precision) values.  It won't use any MBF (Microsoft Binary Format) code.
 
 - [x] Parser support for floating-point constants (CLS_FLOAT tokens)
-- [x] Numeric variables default to doubles (unless DEFINT is used), and
-      DEFSNG is treated as DEFDBL
+- [x] Numeric variables default to doubles (unless DEFINT is used), and DEFSNG is treated as DEFDBL
 - [x] MBF-based MSLIB option removed
-- [x] FPU$ device driver, which detects an 8087 at boot and provides a
-      table of floating-point functions (IOCTL_GETFPU)
-- [x] 8087 functions: arithmetic (including `^`), comparisons, conversions
-      between longs and doubles, ABS, INT, FIX, and SQR
+- [x] FPU$ device driver, which detects an 8087 at boot and provides a table of floating-point functions (IOCTL_GETFPU)
+- [x] 8087 functions: arithmetic (including `^`), comparisons, conversions between longs and doubles, ABS, INT, FIX, and SQR
 - [x] Software emulation of all FPU$ functions for systems without an 8087
-- [x] The interpreter reports at startup whether floating-point uses an
-      8087, emulation, or is disabled (no FPU$ driver); when disabled,
-      variables default to integers and "/" and "^" are integer operations
-- [x] String-to-double (FPU_ATOD) and double-to-string (FPU_DTOA)
-      conversions, and `%f` support in sprintf
-- [x] Expression generator support for mixed integer/floating-point
-      operations (promotion and demotion rules), using FPU$ calls
+- [x] The interpreter reports at startup whether floating-point uses an 8087, emulation, or is disabled (no FPU$ driver); when disabled, variables default to integers and "/" and "^" are integer operations
+- [x] String-to-double (FPU_ATOD) and double-to-string (FPU_DTOA) conversions, and `%f` support in sprintf
+- [x] Expression generator support for mixed integer/floating-point operations (promotion and demotion rules), using FPU$ calls
 - [x] Floating-point constants and PRINT output in BASIC programs
-- [x] BASIC math functions: ABS, ATN, COS, EXP, FIX, INT, LOG, SIN, SQR,
-      and TAN
+- [x] BASIC math functions: ABS, ATN, COS, EXP, FIX, INT, LOG, SIN, SQR, and TAN
 - [x] FPUTESTS, run with and without an 8087 by `tools/tests/quick.sh`
-- [ ] Saving and restoring 8087 state on session switches (FPU$ functions
-      currently disable interrupts instead), and better error reporting for
-      FPU exceptions
-- [ ] Utility functions DOS_UTL_ATOF64, DOS_UTL_I32F64, and DOS_UTL_OPF64
-      (still stubs; possibly superseded by FPU$)
+- [ ] Saving and restoring 8087 state on session switches (FPU$ functions currently disable interrupts instead), and better error reporting for FPU exceptions
+- [ ] Utility functions DOS_UTL_ATOF64, DOS_UTL_I32F64, and DOS_UTL_OPF64 (still stubs; possibly superseded by FPU$)
 
 ### DONKEY.BAS
 
-[DONKEY.BAS](https://www.pcjs.org/software/pcx86/app/ibm/basic/1.00/donkey/),
-from the original IBM PC DOS 1.00 diskette, is a good test of BASIC-DOS's
-compatibility with IBM PC BASIC programs.  These are the items it needed,
-followed by related work that remains.  Since BASIC-DOS compiles an entire
-program before running it, every statement must at least be recognized, even
-ones that DONKEY.BAS rarely or never runs (eg, PLAY and CHAIN).
+[DONKEY.BAS](https://www.pcjs.org/software/pcx86/app/ibm/basic/1.00/donkey/), from the original IBM PC DOS 1.00 diskette, is a good test of BASIC-DOS's compatibility with IBM PC BASIC programs.  These are the items it needed, followed by related work that remains.  Since BASIC-DOS compiles an entire program before running it, every statement must at least be recognized, even ones that DONKEY.BAS rarely or never runs (eg, PLAY and CHAIN).
 
-- [x] SCREEN 0, 1, and 2 (text, 320x200, and 640x200 modes), WIDTH 40 and
-      80, and LOCATE (row, column, and cursor visibility)
-- [x] CON driver IOCTLs to get and set the video mode and cursor position;
-      a mode change (whether by IOCTL or by INT 10h directly) turns the
-      console into a full-screen, borderless context that uses INT 10h
-      passthrough, so text output and CLS work in graphics modes
-- [x] COLOR with blinking foregrounds (16-31), omitted arguments (eg,
-      `COLOR ,1`), and SCREEN 1's background and palette
-- [x] KEY ON and KEY OFF (accepted, but no-ops, since BASIC-DOS doesn't
-      display function keys)
-- [x] DEF SEG, PEEK, and POKE (`DEF SEG` alone selects BASIC-DOS's own data
-      segment, so DONKEY.BAS's `POKE 106,0` is harmless)
-- [x] RND as a floating-point function (0 <= RND < 1); RND% still returns
-      an integer
+- [x] SCREEN 0, 1, and 2 (text, 320x200, and 640x200 modes), WIDTH 40 and 80, and LOCATE (row, column, and cursor visibility)
+- [x] CON driver IOCTLs to get and set the video mode and cursor position; a mode change (whether by IOCTL or by INT 10h directly) turns the console into a full-screen, borderless context that uses INT 10h passthrough, so text output and CLS work in graphics modes
+- [x] COLOR with blinking foregrounds (16-31), omitted arguments (eg, `COLOR ,1`), and SCREEN 1's background and palette
+- [x] KEY ON and KEY OFF (accepted, but no-ops, since BASIC-DOS doesn't display function keys)
+- [x] DEF SEG, PEEK, and POKE (`DEF SEG` alone selects BASIC-DOS's own data segment, so DONKEY.BAS's `POKE 106,0` is harmless)
+- [x] RND as a floating-point function (0 <= RND < 1); RND% still returns an integer
 - [x] String constants with no closing quote at the end of a line
-- [x] ON ERROR GOTO (and GOTO 0), RESUME *line*, ERROR, and ERR, with
-      MSBASIC's error numbers for runtime errors
-- [x] PLAY (notes, N, O, <, >, L, P, T, MN/ML/MS, and dots; MF/MB are
-      ignored, since music always plays in the foreground)
+- [x] ON ERROR GOTO (and GOTO 0), RESUME *line*, ERROR, and ERR, with MSBASIC's error numbers for runtime errors
+- [x] PLAY (notes, N, O, <, >, L, P, T, MN/ML/MS, and dots; MF/MB are ignored, since music always plays in the foreground)
 - [x] SOUND *frequency*,*duration*
-- [x] CHAIN *file* (runs the BAS file, then ends the program; the line
-      number is ignored)
-- [x] PSET, PRESET, LINE (including `LINE -(x,y)`, B, BF, and an omitted
-      color), PAINT, and DRAW (U, D, L, R, E, F, G, H, M, B, N, C, and S),
-      drawing directly into CGA memory in modes 4-6
-- [x] GET and PUT (PSET, PRESET, XOR, OR, and AND), using integer arrays
-      (passed by name) in BASICA's image format, with one 16-bit word per
-      element, so programs that build images by hand (like DONKEY.BAS's
-      `B%`) work
-- [x] Syntax errors report the program's line number (eg, "Syntax error in
-      line 1160") instead of the line's position in the file
+- [x] CHAIN *file* (runs the BAS file, then ends the program; the line number is ignored)
+- [x] PSET, PRESET, LINE (including `LINE -(x,y)`, B, BF, and an omitted color), PAINT, and DRAW (U, D, L, R, E, F, G, H, M, B, N, C, and S), drawing directly into CGA memory in modes 4-6
+- [x] GET and PUT (PSET, PRESET, XOR, OR, and AND), using integer arrays (passed by name) in BASICA's image format, with one 16-bit word per element, so programs that build images by hand (like DONKEY.BAS's `B%`) work
+- [x] Syntax errors report the program's line number (eg, "Syntax error in line 1160") instead of the line's position in the file
 - [x] DONKEY.BAS runs (see the [DONKEY.BAS demo](demos/donkey/))
-- [x] Performance: PUT and GET copy whole bytes (shifting and masking
-      each row in registers), horizontal lines, BF, and PAINT fill whole
-      bytes, and the video mode is cached, so graphics statements make no
-      driver or BIOS calls; SOUND returns immediately (as in MSBASIC, the
-      next SOUND waits for it to finish, and the CLOCK$ driver turns it
-      off), so DONKEY.BAS is paced at one loop per tick, like MSBASIC
-- [x] CIRCLE (for CIRCLE.BAS, one of the other PC DOS 1.00 samples on the
-      demo disk), using MSBASIC's algorithm and integer math (angles and
-      aspects are converted from doubles without FPU$), so it draws the
-      same pixels as MSBASIC, about twice as fast
+- [x] Performance: PUT and GET copy whole bytes (shifting and masking each row in registers), horizontal lines, BF, and PAINT fill whole bytes, and the video mode is cached, so graphics statements make no driver or BIOS calls; SOUND returns immediately (as in MSBASIC, the next SOUND waits for it to finish, and the CLOCK$ driver turns it off), so DONKEY.BAS is paced at one loop per tick, like MSBASIC
+- [x] CIRCLE (for CIRCLE.BAS, one of the other PC DOS 1.00 samples on the demo disk), using MSBASIC's algorithm and integer math (angles and aspects are converted from doubles without FPU$), so it draws the same pixels as MSBASIC, about twice as fast
 - [x] CLEAR (resets variables and erases arrays; its sizes are ignored)
-- [x] PAINT scans rows a byte at a time (using a table of each byte's
-      boundary pixels), so it's faster than MSBASIC's
-- [x] A BASIC keyword typed alone that isn't a valid statement (eg, CIRCLE)
-      runs the program with that name (eg, CIRCLE.BAS)
-- [ ] More performance: diagonal lines (and DRAW) still work a pixel at a
-      time, and text output in graphics modes goes through the CON driver
-      and the BIOS
-- [ ] Graphics features that the samples don't use: STEP coordinates,
-      POINT, DRAW's A, TA, X, and "=variable" commands, and GET/PUT with
-      floating-point arrays
-- [ ] RESUME and RESUME NEXT (which need the location of the error), and
-      ERL
-- [x] When a BAS program ends (or is aborted), its video mode is restored
-      (undoing any SCREEN or WIDTH), and when a console returns to its
-      original mode, its original geometry (eg, its border) is restored, too
-- [ ] Keeping other sessions on the same adapter from writing to the screen
-      while it's in another mode; also, the CON driver restores the BIOS's
-      video data after every INT 10h call, so programs that read the BIOS's
-      video mode (0:449h) may see a stale value
+- [x] PAINT scans rows a byte at a time (using a table of each byte's boundary pixels), so it's faster than MSBASIC's
+- [x] A BASIC keyword typed alone that isn't a valid statement (eg, CIRCLE) runs the program with that name (eg, CIRCLE.BAS)
+- [ ] More performance: diagonal lines (and DRAW) still work a pixel at a time, and text output in graphics modes goes through the CON driver and the BIOS
+- [ ] Graphics features that the samples don't use: STEP coordinates, POINT, DRAW's A, TA, X, and "=variable" commands, and GET/PUT with floating-point arrays
+- [ ] RESUME and RESUME NEXT (which need the location of the error), and ERL
+- [x] When a BAS program ends (or is aborted), its video mode is restored (undoing any SCREEN or WIDTH), and when a console returns to its original mode, its original geometry (eg, its border) is restored, too
+- [ ] Keeping other sessions on the same adapter from writing to the screen while it's in another mode; also, the CON driver restores the BIOS's video data after every INT 10h call, so programs that read the BIOS's video mode (0:449h) may see a stale value
 
 ### Build, Tests, and Documentation
 
-- [x] Builds with MASM 4.0 using `mk.sh` (PC.js), which also updates
-      the BASIC-DOS demo disks after a successful build
-- [x] DOSTESTS: CALL 5, memory allocation, file create/write/read-back,
-      and file rename/delete tests
-- [x] STRFUNCS and STRPOOL: BASIC string function tests, and string pool
-      stress and leak tests
+- [x] Builds with MASM 4.0 using `mk.sh` (PC.js), which also updates the BASIC-DOS demo disks after a successful build
+- [x] DOSTESTS: CALL 5, memory allocation, file create/write/read-back, and file rename/delete tests
+- [x] STRFUNCS and STRPOOL: BASIC string function tests, and string pool stress and leak tests
 - [x] ARRAYS: BASIC array tests (including leak tests)
 - [x] FLOW: BASIC control flow tests
-- [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS
-      with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUNCS,
-      STRPOOL, ARRAYS, and FLOW, and reports whether the tests passed)
-- [x] `tools/tests/chkdsk.sh` runs MS-DOS 3.20 CHKDSK on a diskette image
-      saved by a test session (see `QUIT /S` in `pc.js`)
+- [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUNCS, STRPOOL, ARRAYS, and FLOW, and reports whether the tests passed)
+- [x] `tools/tests/chkdsk.sh` runs MS-DOS 3.20 CHKDSK on a diskette image saved by a test session (see `QUIT /S` in `pc.js`)
 - [ ] More tests (eg, BASIC language and CMD command tests)
-- [x] HELP for commands, functions, and constants (eg, `HELP MID$`), found
-      by searching HELP.TXT, so new entries need no other changes
+- [x] HELP for commands, functions, and constants (eg, `HELP MID$`), found by searching HELP.TXT, so new entries need no other changes
 - [ ] Complete the [BASIC-DOS manual](docs/pcx86/bdman/)
 
 ## Roadmap
@@ -283,45 +168,34 @@ ones that DONKEY.BAS rarely or never runs (eg, PLAY and CHAIN).
 These are the next steps, roughly in priority order:
 
 1. Add the REN command and input redirection
-2. Handle zero-length writes (truncation), the read-only attribute, and
-   file attribute/date/time functions
+2. Handle zero-length writes (truncation), the read-only attribute, and file attribute/date/time functions
 3. FCB create, write, delete, and rename functions
 4. Essential BASIC statements: INPUT and READ/DATA
-5. BASIC file I/O statements, and the remaining string features (the MID$
-   statement, LINE INPUT, and comma print zones)
+5. BASIC file I/O statements, and the remaining string features (the MID$ statement, LINE INPUT, and comma print zones)
 6. The rest of runtime error handling (RESUME, RESUME NEXT, and ERL)
 7. Critical error handling
 8. Subdirectory support
 
 ## License
 
-[BASIC-DOS](https://github.com/jeffpar/basicdos) is an open-source project
-on [GitHub](https://github.com/jeffpar) released under the terms of an
-[MIT License](/LICENSE.txt).
+[BASIC-DOS](https://github.com/jeffpar/basicdos) is an open-source project on [GitHub](https://github.com/jeffpar) released under the terms of an [MIT License](/LICENSE.txt).
 
 {% comment %}
 
 ## Building BASIC-DOS
 
-Everything needed to build BASIC-DOS is in this repository, including the
-`pc.js` utility (in `tools/pc`) and the MS-DOS 3.20 disk image with MASM 4.0
-and associated tools that the build runs on.  Just clone the repository and
-install its Node.js dependencies:
+Everything needed to build BASIC-DOS is in this repository, including the `pc.js` utility (in `tools/pc`) and the MS-DOS 3.20 disk image with MASM 4.0 and associated tools that the build runs on.  Just clone the repository and install its Node.js dependencies:
 
     git clone https://github.com/jeffpar/basicdos
     cd basicdos
     npm install
 
-If you also want successful builds to update the BASIC-DOS demo disks, you'll
-need the [PCjs](https://github.com/jeffpar/pcjs) repository (for its
-`diskimage.js` utility), with the `PCJS` environment variable set to its
-location:
+If you also want successful builds to update the BASIC-DOS demo disks, you'll need the [PCjs](https://github.com/jeffpar/pcjs) repository (for its `diskimage.js` utility), with the `PCJS` environment variable set to its location:
 
     git clone https://github.com/jeffpar/pcjs
     export PCJS="$HOME/pcjs"
 
-Now you're ready to build BASIC-DOS, using the `mk.sh` script, which runs
-`pc.js` with MS-DOS 3.20 as drive C and the BASIC-DOS source code as drive D:
+Now you're ready to build BASIC-DOS, using the `mk.sh` script, which runs `pc.js` with MS-DOS 3.20 as drive C and the BASIC-DOS source code as drive D:
 
     $ ./mk.sh
     [Press CTRL-D to enter command mode]
@@ -336,58 +210,32 @@ Now you're ready to build BASIC-DOS, using the `mk.sh` script, which runs
 
     D:\>QUIT
 
-Any files that the build modifies are written back to the `software/pcx86/src`
-directory.  A successful build runs QUIT automatically, after which `mk.sh`
-updates the demo disks (if `PCJS` is set); if a build fails and you don't want
-the demo disks updated, use `pc.js`'s "abort" command instead.
+Any files that the build modifies are written back to the `software/pcx86/src` directory.  A successful build runs QUIT automatically, after which `mk.sh` updates the demo disks (if `PCJS` is set); if a build fails and you don't want the demo disks updated, use `pc.js`'s "abort" command instead.
 
-The `boot.sh` script then builds and boots a 360K floppy (the largest floppy
-supported by an IBM PC XT Model 5160) containing the BASIC-DOS boot sector and
-system files, along with the files in the `configs/console/serial/fpe` folder
-(including CONFIG.SYS and AUTOEXEC.BAT) and the test binaries that
-`tools/tests/prep.sh` copies there:
+The `boot.sh` script then builds and boots a 360K floppy (the largest floppy supported by an IBM PC XT Model 5160) containing the BASIC-DOS boot sector and system files, along with the files in the `configs/console/serial/fpe` folder (including CONFIG.SYS and AUTOEXEC.BAT) and the test binaries that `tools/tests/prep.sh` copies there:
 
     $ ./boot.sh
     [Press CTRL-D to enter command mode]
     BASIC-DOS 2.00B
     Press a key to start...
 
-The `bootfpu.sh` script does the same thing, but on an `ibm5160-fpu` machine
-(which has an 8087 coprocessor), using the `configs/console/serial/fpu` folder;
-`boot.sh` uses a machine without an 8087, where BASIC-DOS must emulate
-floating-point operations.
+The `bootfpu.sh` script does the same thing, but on an `ibm5160-fpu` machine (which has an 8087 coprocessor), using the `configs/console/serial/fpu` folder; `boot.sh` uses a machine without an 8087, where BASIC-DOS must emulate floating-point operations.
 
-The `boothd.sh` script builds a BASIC-DOS boot diskette (from the
-`configs/console/bios` folder, so it uses the keyboard and screen) and boots
-it on an `ibm5160` machine whose 10Mb hard disk is built from a directory
-(`tools/pc/disks/hdsrc` by default, which is created with a few sample files
-if it doesn't exist), so that BASIC-DOS can be tested with drive C:.  Press a
-key (other than **Esc**) at the boot prompt to start BASIC-DOS:
+The `boothd.sh` script builds a BASIC-DOS boot diskette (from the `configs/console/bios` folder, so it uses the keyboard and screen) and boots it on an `ibm5160` machine whose 10Mb hard disk is built from a directory (`tools/pc/disks/hdsrc` by default, which is created with a few sample files if it doesn't exist), so that BASIC-DOS can be tested with drive C:.  Press a key (other than **Esc**) at the boot prompt to start BASIC-DOS:
 
     $ ./boothd.sh [hard disk directory] [config folder]
 
-The hard disk is formatted by MS-DOS 3.20 (so it also contains hidden MS-DOS
-system files), and any changes to it are not saved back to the directory.
+The hard disk is formatted by MS-DOS 3.20 (so it also contains hidden MS-DOS system files), and any changes to it are not saved back to the directory.
 
-Finally, `tools/tests/quick.sh` boots both configurations unattended, runs
-the FPUTESTS and DOSTESTS programs, and reports whether the tests passed.
+Finally, `tools/tests/quick.sh` boots both configurations unattended, runs the FPUTESTS and DOSTESTS programs, and reports whether the tests passed.
 
 ## Tool Trivia
 
-In keeping with the era for which BASIC-DOS is designed, it's built with
-Microsoft Assembler (MASM) 4.0 and associated tools, circa 1985.  While we
-could have opted for even older tools, the MASM 4.0 release strikes a nice
-balance between vintage operation and modern tooling.
+In keeping with the era for which BASIC-DOS is designed, it's built with Microsoft Assembler (MASM) 4.0 and associated tools, circa 1985.  While we could have opted for even older tools, the MASM 4.0 release strikes a nice balance between vintage operation and modern tooling.
 
-However, as with any old tools, there are idiosyncrasies that can catch you
-by surprise.
+However, as with any old tools, there are idiosyncrasies that can catch you by surprise.
 
-One is how MASM encodes 32-bit and 64-bit floating-point numbers: by default,
-it uses the Microsoft Binary Format (MBF) instead of the IEEE 754 format used
-by 80x87 Intel coprocessors.  This is probably because Microsoft's original
-floating-point emulation libraries were written using MBF and they didn't want
-to spend time and resources creating new emulation libraries that supported
-the newer IEEE 754 format.
+One is how MASM encodes 32-bit and 64-bit floating-point numbers: by default, it uses the Microsoft Binary Format (MBF) instead of the IEEE 754 format used by 80x87 Intel coprocessors.  This is probably because Microsoft's original floating-point emulation libraries were written using MBF and they didn't want to spend time and resources creating new emulation libraries that supported the newer IEEE 754 format.
 
 So, by default, an assembly language data directive such as:
 
@@ -401,26 +249,15 @@ instead of:
 
     00 00 00 00 00 00 F0 3F
 
-And while neither the MASM 4.0 User Guide or Reference Manual discuss this,
-it turns out that if you pass /R on the MASM command-line, MASM will use
-the IEEE 754 format instead.  The stated purpose of /R is to generate 80x87
-opcodes instead of emulation calls whenever using coprocessor instructions,
-but another important consideration is encoding all floating-point number in
-a compatible format (ie, IEEE 754 for coprocessors or MBF for the Microsoft
-emulation library) -- which /R happens to do as well.
+And while neither the MASM 4.0 User Guide or Reference Manual discuss this, it turns out that if you pass /R on the MASM command-line, MASM will use the IEEE 754 format instead.  The stated purpose of /R is to generate 80x87 opcodes instead of emulation calls whenever using coprocessor instructions, but another important consideration is encoding all floating-point number in a compatible format (ie, IEEE 754 for coprocessors or MBF for the Microsoft emulation library) -- which /R happens to do as well.
 
-Other idiosyncrasies include some minor code generation quirks.  For example,
-an instruction like:
+Other idiosyncrasies include some minor code generation quirks.  For example, an instruction like:
 
     cmp	ah,UTILTBL_SIZE
 
-should always generate 3 bytes (2 bytes for the opcode and 1 byte for the
-immediate operand), but if a constant like UTILTBL_SIZE is calculated using
-16-bit values, even if the result is 8 bits, MASM 4.0 will reserve 16 bits
-and then replace the upper 8 bits with a NOP (0x90).
+should always generate 3 bytes (2 bytes for the opcode and 1 byte for the immediate operand), but if a constant like UTILTBL_SIZE is calculated using 16-bit values, even if the result is 8 bits, MASM 4.0 will reserve 16 bits and then replace the upper 8 bits with a NOP (0x90).
 
-To eliminate the NOP, one work-around is to explicitly truncate the operand
-with an 8-bit mask, as in:
+To eliminate the NOP, one work-around is to explicitly truncate the operand with an 8-bit mask, as in:
 
     cmp	ah,UTILTBL_SIZE AND 255
 

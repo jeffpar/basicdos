@@ -6,11 +6,9 @@ permalink: /docs/pcx86/bdman/cmd/basic/
 
 {% include header.html %}
 
-BASIC-DOS supports a subset of the BASIC programming language, enabling
-the creation of simple BASIC programs.
+BASIC-DOS supports a subset of the BASIC programming language, enabling the creation of simple BASIC programs.
 
-BASIC programs can use any BASIC-DOS [Commands](../) in combination with any
-of the following BASIC language elements:
+BASIC programs can use any BASIC-DOS [Commands](../) in combination with any of the following BASIC language elements:
 
 - [Statements](#statements)
 - [Functions](#functions)
