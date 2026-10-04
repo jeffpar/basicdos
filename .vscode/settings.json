@@ -72,6 +72,8 @@
   "editor.smoothScrolling": false,
   "cSpell.words": [
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    "ABLK",
+    "ABLKDEF",
     "ABORT'ed",
     "ACCDENIED",
     "activesupport",
@@ -934,6 +936,7 @@
     "UARTs",
     "unbias",
     "uncompiled",
+    "undimensioned",
     "UNKCMD",
     "UNKMEDIA",
     "UNKUNIT",

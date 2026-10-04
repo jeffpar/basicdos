@@ -8,8 +8,9 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 ; Generates code for these graphics statements, whose runtime functions are
-; in gfx.asm:
+; in gfx.asm (and gfxcirc.asm, for CIRCLE):
 ;
+;	CIRCLE				(genCircle)
 ;	DRAW				(genDraw)
 ;	GET				(genGet)
 ;	LINE				(genLine)
@@ -28,11 +29,53 @@
 CODE    SEGMENT
 
 	EXTNEAR	<genLong,genStr,genArrayVar,getNextToken,getNextSymbol>
-	EXTNEAR	<peekNextSymbol,genCallCS,genPushImmLong>
+	EXTNEAR	<peekNextSymbol,genCallCS,genPushImmLong,genExpr,genCvtType>
 	EXTNEAR	<gfxDraw,gfxGet,gfxLastPt,gfxLine,gfxPaint,gfxPset,gfxPut>
+	EXTNEAR	<gfxCircle>
 	EXTABS	<TOK_PSET,TOK_PRESET>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genCircle
+;
+; Generate code for "CIRCLE (x,y),r[,[color][,[start][,[end][,aspect]]]]",
+; where the angles (in radians) and aspect are doubles (see gfxCircle).
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genCircle
+	call	genPoint
+	jc	gci9
+	mov	ah,','
+	call	genSymbol
+	jc	gci9
+	call	genLong			; radius
+	jc	gci9
+	mov	cx,-1
+	mov	dl,VAR_LONG
+	call	genOptArg		; color
+	jc	gci9
+	mov	cx,3
+gci1:	push	cx
+	sub	cx,cx
+	mov	dl,VAR_DOUBLE
+	call	genOptArg		; start, end, and aspect
+	pop	cx
+	jc	gci9
+	loop	gci1
+	GENCALL	gfxCircle
+gci9:	ret
+ENDPROC	genCircle
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -304,10 +347,8 @@ ENDPROC	genPut
 ;
 ; genOptLong
 ;
-; Generate code for an optional expression that follows a comma: if the next
-; symbol is a comma, we consume it, and unless another comma (or nothing)
-; follows, we generate the expression (as a long); otherwise, we generate the
-; default value.
+; Generate code for an optional long expression that follows a comma (see
+; genOptArg).
 ;
 ; Inputs:
 ;	CX = default value (-1 or 0)
@@ -322,28 +363,70 @@ ENDPROC	genPut
 ;	Any
 ;
 DEFPROC	genOptLong
+	mov	al,0
+	mov	dl,VAR_LONG		; fall into genOptArg
+ENDPROC	genOptLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genOptArg
+;
+; Generate code for an optional expression that follows a comma: if the next
+; symbol is a comma (or AL says that it was already consumed), and unless
+; another comma (or nothing) follows it, we generate the expression;
+; otherwise, we generate the default value (for a double, the default must be
+; 0, which is a null pointer).
+;
+; Inputs:
+;	AL = ',' if the preceding comma was already consumed, otherwise 0
+;	CX = default value (-1 or 0)
+;	DL = type of the expression (VAR_LONG or VAR_DOUBLE)
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;	AL = ',' if the expression consumed a comma that followed it
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genOptArg
+	push	dx
 	push	cx
+	cmp	al,','			; already consumed a comma?
+	je	goa2			; yes
 	call	peekNextSymbol
-	jbe	gol8			; no comma
+	jbe	goa8			; no comma
 	cmp	al,','
-	jne	gol8			; no comma
+	jne	goa8			; no comma
 	call	skipToken		; consume the comma
-	call	peekNextSymbol
-	jz	gol8			; nothing follows
-	jc	gol5			; not a symbol, so it's an expression
+goa2:	call	peekNextSymbol
+	jz	goa8			; nothing follows
+	jc	goa5			; not a symbol, so it's an expression
 	cmp	al,','
-	je	gol8			; another comma
+	je	goa8			; another comma
 	cmp	al,':'
-	je	gol8			; end of the statement
-gol5:	pop	cx
-	jmp	genLong
-gol8:	pop	cx
+	je	goa8			; end of the statement
+goa5:	pop	cx
+	call	genExpr
+	pop	cx			; CL = type
+	jbe	goa9
+	push	ax
+	mov	al,cl
+	call	genCvtType
+	pop	ax
+	ret
+goa8:	pop	cx
+	pop	dx
 	mov	dx,cx
 	GENPUSH	dx,cx
 	mov	al,0
 	clc
 	ret
-ENDPROC	genOptLong
+goa9:	stc
+	ret
+ENDPROC	genOptArg
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

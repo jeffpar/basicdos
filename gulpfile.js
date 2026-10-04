@@ -102,7 +102,7 @@ let disks = {
     "BASIC-DOS6": [
         "./demos/s80/CONFIG.SYS",
         "./demos/d40/AUTOEXEC.BAT",
-        "./demos/donkey/DONKEY.BAS"
+        "./demos/donkey/*.BAS"          // DONKEY.BAS and the other PC DOS 1.00 BASIC samples
     ].concat(minFiles),
     "PCDOS200-C400": "./software/pcx86/disks/PCDOS200-C400.json"
 };
@@ -113,7 +113,7 @@ for (let diskName in disks) {
     let diskImage = "./software/pcx86/disks/" + diskName + ".json";
     let archiveImage = "";
     let diskFiles = "";
-    let kbTarget = 180;
+    let kbTarget = 360;                 // all diskettes are 360K (180K is too small now)
     if (typeof disks[diskName] == "string") {
         kbTarget = 10000;
         diskFiles = "--disk " + disks[diskName];

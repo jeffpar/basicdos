@@ -206,6 +206,90 @@ ENDPROC	getMode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; saveMode
+;
+; Called before a BAS program runs, to save the video mode, so that it can be
+; restored when the program ends (see restoreMode).  Only the outermost BAS
+; program saves the mode (a BAS program run by another BAS program does not).
+;
+; The mode is saved in GFX_DATA+7 (as mode + 1, or 0 if none is saved).
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	AX = 1 if the mode was saved, 0 if not
+;
+; Modifies:
+;	AX
+;
+DEFPROC	saveMode
+	push	bx
+	push	dx
+	mov	bx,ss:[PSP_HEAP]
+	sub	ax,ax
+	cmp	byte ptr ss:[bx].GFX_DATA+7,al	; already saved?
+	jne	svm9				; yes
+	mov	al,IOCTL_GETMODE
+	call	ioctlCon		; DL = video mode
+	mov	ax,0
+	jc	svm9			; STDOUT doesn't support video modes
+	inc	dx
+	mov	bx,ss:[PSP_HEAP]
+	mov	byte ptr ss:[bx].GFX_DATA+7,dl
+	inc	ax
+svm9:	pop	dx
+	pop	bx
+	ret
+ENDPROC	saveMode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; restoreMode
+;
+; Called when a BAS program ends (normally, or when it's aborted; see ctrlc),
+; to restore the video mode saved by saveMode, if the program changed it
+; (eg, with SCREEN or WIDTH).
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None
+;
+DEFPROC	restoreMode
+	push	ax
+	push	bx
+	push	cx
+	push	dx
+	mov	bx,ss:[PSP_HEAP]
+	mov	cl,0
+	xchg	cl,byte ptr ss:[bx].GFX_DATA+7
+	dec	cl			; CL = saved mode
+	js	rsm9			; there isn't one
+	push	cx
+	mov	al,IOCTL_GETMODE
+	call	ioctlCon		; DL = video mode
+	pop	cx
+	jc	rsm9
+	cmp	dl,cl			; did the mode change?
+	je	rsm9			; no
+	mov	al,IOCTL_SETMODE
+	call	ioctlCon		; yes, so restore it
+	mov	bx,ss:[PSP_HEAP]
+	mov	byte ptr ss:[bx].GFX_DATA+6,0	; (see gfxInit)
+rsm9:	pop	dx
+	pop	cx
+	pop	bx
+	pop	ax
+	ret
+ENDPROC	restoreMode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; ioctlCon
 ;
 ; Inputs:

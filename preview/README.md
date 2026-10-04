@@ -7,7 +7,6 @@ machines:
   - id: ibm5150
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-cga-64kb.json
-    sizeRAM: 128
     autoType: DATE\rTIME\rDIR\r
 ---
 
@@ -22,9 +21,8 @@ have been created for the IBM PC, with the benefit of more time and
 [incredible foresight](/blog/).
 
 The machine shown below is an IBM PC (Model 5150) with two floppy
-disk drives and a Color Graphics Adapter (CGA) connected to a Color Monitor.
-The machine was originally configured with 64K of RAM, but it has been
-upgraded to 128K for this preview.
+disk drives and a Color Graphics Adapter (CGA) connected to a Color Monitor,
+with 64K of RAM.
 
 A BASIC-DOS boot diskette (`BASIC-DOS1`) has been loaded into drive A:.  The
 boot sector loads **IBMBIO.COM** into memory, which in turn loads **CONFIG.SYS**

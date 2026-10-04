@@ -9,6 +9,7 @@
 ;
 ; Generates code for these commands:
 ;
+;	CLEAR				(genClear: reset variables)
 ;	DEF				(genDefFn: user-defined functions,
 ;					via genDef in gensys.asm)
 ;	DIM				(genDim: dimension arrays)
@@ -19,7 +20,8 @@
 ;					subsequently dimensioned arrays)
 ;
 ; and for array element references (genArrayRef), which genExpr and genLet
-; use, and entire integer arrays (genArrayVar), which GET and PUT use.  See arr.asm for the array functions that the generated code calls.
+; use, and entire integer arrays (genArrayVar), which GET and PUT use.  See
+; arr.asm for the array functions that the generated code calls.
 ;
 ; See gen.asm for an overview of all the gen*.asm files.  Like gen.asm, these
 ; functions are called while generating code, with DS:BX -> TOKLETs and ES:DI
@@ -39,6 +41,7 @@ CODE    SEGMENT
 	EXTNEAR	<setVar,removeVar,allocTempVars,updateTempVars,freeTempVars>
 	EXTNEAR	<allocFunc,freeFunc,ensureRoom,shrinkCode,getNextLine>
 	EXTNEAR	<genCommands,genPushBPOffset,genPopBPOffset,setVarDouble>
+	EXTNEAR	<genLong,clearVars>
 	EXTNEAR	<dimArray,getElemPtr,getElemVal,eraseArray,setOptBase>
 	EXTABS	<TOK_BASE,TOK_DEL>
 
@@ -535,6 +538,45 @@ fa8:	add	sp,32
 	stc
 	ret
 ENDPROC	findArray
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genClear
+;
+; Generate code for "CLEAR [[n][,[m][,k]]]" (see clearVars in arr.asm); the
+; values (eg, MSBASIC's memory and stack sizes) are evaluated but ignored.
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genClear
+gcl1:	call	peekNextSymbol
+	jz	gcl8			; no more tokens
+	jc	gcl2			; not a symbol, so it's an expression
+	cmp	al,','
+	jne	gcl8			; (eg, a colon)
+	mov	si,ds:[PSP_HEAP]
+	mov	bx,[si].TOKLET_NEXT	; consume the comma
+	jmp	gcl1
+gcl2:	call	genLong
+	jc	gcl9
+	push	ax
+	mov	ax,OP_POP_DX_AX
+	stosw				; discard the value
+	pop	ax
+	cmp	al,','			; did a comma follow the expression?
+	je	gcl1			; yes
+gcl8:	GENCALL	clearVars
+	clc
+gcl9:	ret
+ENDPROC	genClear
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

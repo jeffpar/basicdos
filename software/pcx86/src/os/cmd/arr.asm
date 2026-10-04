@@ -11,7 +11,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<allocBlockSize,freeBlock,freeStr,rtError>
+	EXTNEAR	<allocBlockSize,freeBlock,freeStr,rtError,getVarLen>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
@@ -193,6 +193,31 @@ DEFPROC	eraseArray,FAR
 	ENTER
 	push	ds
 	lds	si,[pArrayVar]
+	call	freeArray
+	pop	ds
+	LEAVE
+	RETURN
+ENDPROC	eraseArray
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; freeArray
+;
+; Frees an array's block (and the strings of a string array), and zeroes the
+; array variable, so that the array can be dimensioned again.
+;
+; Inputs:
+;	DS:SI -> array variable
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, DI, ES
+;
+DEFPROC	freeArray
+	push	si
+	push	ds
 	sub	ax,ax
 	mov	[si].OFF,ax
 	xchg	ax,[si].SEG		; AX = array block (and zero it)
@@ -205,12 +230,8 @@ DEFPROC	eraseArray,FAR
 ea1:	cmp	si,ds:[BLK_FREE]	; end of the elements?
 	jae	ea8			; yes
 	les	di,[si]			; ES:DI = element
-	test	di,di
-	jz	ea2
-	cmp	es:[BLK_SIG],SIG_SBLK
-	jne	ea2
-	call	freeStr			; free the element's string
-ea2:	add	si,4
+	call	freeVarStr		; free the element's string
+	add	si,4
 	jmp	ea1
 ea8:	push	ds
 	pop	es			; ES = array block
@@ -220,9 +241,107 @@ ea8:	push	ds
 	lea	si,[si].ABLKDEF
 	call	freeBlock
 ea9:	pop	ds
-	LEAVE
-	RETURN
-ENDPROC	eraseArray
+	pop	si
+	ret
+ENDPROC	freeArray
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; freeVarStr
+;
+; Frees a string (if any) that a string variable or element points to; a
+; string that isn't in a string block (eg, a constant in a code block) is
+; left alone.
+;
+; Inputs:
+;	ES:DI -> string (or null)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None
+;
+DEFPROC	freeVarStr
+	test	di,di
+	jz	fvs9
+	cmp	es:[BLK_SIG],SIG_SBLK
+	jne	fvs9
+	call	freeStr
+fvs9:	ret
+ENDPROC	freeVarStr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; clearVars
+;
+; Used by "CLEAR", which resets every numeric variable to zero and every
+; string variable to the empty string, and erases every array.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	clearVars,FAR
+	push	ds
+	cld
+	mov	si,ss:[PSP_HEAP]
+	mov	ax,ss:[si].VBLKDEF.BLK_NEXT
+cv1:	test	ax,ax			; any more var blocks?
+	jz	cv9			; no
+	mov	ds,ax
+	mov	si,size VBLK		; DS:SI -> first var in the block
+cv2:	lodsb
+	cmp	al,VAR_DEAD		; dead byte?
+	je	cv2			; yes
+	jb	cv8			; no, end of the block
+	mov	ah,al
+	and	ah,VAR_TYPE		; AH = var type
+	and	al,VAR_NAMELEN
+	mov	cl,al
+	mov	ch,0
+	add	si,cx			; DS:SI -> var data
+	push	ds
+	pop	es
+	mov	di,si
+	push	ax
+	call	getVarLen		; AX = length of var data
+	xchg	cx,ax			; CX = length
+	pop	ax			; AH = var type
+	cmp	ah,VAR_STR
+	jne	cv3
+	les	di,[si]
+	call	freeVarStr		; free the string (if any)
+	jmp	short cv5		; and then zero the var
+cv3:	cmp	ah,VAR_ARRAY
+	jne	cv4
+	push	cx
+	call	freeArray		; erase the array (and zero the var)
+	pop	cx
+	jmp	short cv6
+cv4:	cmp	ah,VAR_LONG
+	je	cv5
+	cmp	ah,VAR_DOUBLE		; anything else (eg, a function)
+	jne	cv6			; is left alone
+cv5:	push	ds
+	pop	es
+	mov	di,si
+	push	cx
+	mov	al,0
+	rep	stosb			; zero the var
+	pop	cx
+cv6:	add	si,cx
+	jmp	cv2
+cv8:	mov	ax,ds:[BLK_NEXT]
+	jmp	cv1
+cv9:	pop	ds
+	ret
+ENDPROC	clearVars
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

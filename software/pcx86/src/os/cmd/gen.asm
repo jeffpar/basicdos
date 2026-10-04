@@ -227,7 +227,25 @@ DEFPROC	genCommands
 	cmp	al,KEYWORD_BASIC	; BASIC keyword?
 	jb	gcs2			; no
 	jcxz	gcs8			; no command address
-	jmp	short gcs3		; call generator function
+;
+; If the keyword is alone (eg, "CIRCLE") and its generator fails, then it's
+; presumably the name of a program to run (eg, CIRCLE.BAS), so we discard any
+; code the generator produced and treat it as a DOS command instead.
+;
+	push	cx
+	mov	al,CLS_ANY
+	call	peekNextToken		; any tokens after the keyword?
+	pop	cx
+	jnz	gcs3			; yes
+	push	bx
+	push	di
+	call	cx			; call the generator function
+	pop	si
+	pop	dx
+	jnc	gcs4
+	mov	di,si			; it failed, so discard its code
+	mov	bx,dx
+	jmp	short gcs1b		; and treat the keyword as a command
 ;
 ; If the next token is a colon that a previous command didn't consume (eg,
 ; "CLS:PRINT"), skip it; otherwise, it must be a DOS command.
@@ -269,7 +287,7 @@ gcs2:	cbw				; AX = keyword ID
 	mov	cx,offset genDOS
 
 gcs3:	call	cx			; call dedicated generator function
-	mov	es:[BLK_FREE],di
+gcs4:	mov	es:[BLK_FREE],di
 	jnc	genCommands
 	ret
 ;

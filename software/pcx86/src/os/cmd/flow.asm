@@ -12,7 +12,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<ctrlc>
+	EXTNEAR	<ctrlc,restoreMode>
 	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -334,7 +334,8 @@ DEFPROC	rtError
 	mov	ds,ss:[bx].VBLKDEF.BLK_NEXT
 	jmp	dword ptr ss:[bx].ERR_ADDR
 
-re1:	mov	si,offset ERR_MSGS
+re1:	call	restoreMode		; (so that the message is visible)
+	mov	si,offset ERR_MSGS
 re2:	lods	byte ptr cs:[si]
 	test	al,al			; end of the table?
 	jz	re4			; yes

@@ -13,6 +13,13 @@ Runs the specified BAS file and then ends the program.  The *line* is currently 
 CHR$(*code*)
 Returns a one-character string containing the character with the specified *code* (0-255).
 
+CIRCLE (*x*,*y*),*r*[,[*color*][,[*start*][,[*end*][,*aspect*]]]]
+Draws a circle (or ellipse) with radius *r* in a graphics mode, or an arc from the *start* to the *end* angle (in radians), with lines to the center for negative angles.
+If *aspect* (the ratio of the y radius to the x radius) is omitted, the circle looks round on a standard display.
+
+CLEAR [[*n*][,[*m*][,*k*]]]
+Resets all numeric variables to zero and all string variables to empty strings, and erases all arrays.  The values are ignored.
+
 CLS
 Clears the session using the background color and moves the cursor to the top left corner.
 

@@ -14,6 +14,7 @@ CODE    SEGMENT
 
 	EXTNEAR	<allocText,freeAllText,genCode,freeAllCode,freeAllVars>
 	EXTNEAR	<writeStrCRLF,saveChains,restoreChains,compactStrs>
+	EXTNEAR	<saveMode,restoreMode>
 	EXTABS	<TOK_ERASE,TOK_DEL>
 	EXTWORD	<KEYWORD_TOKENS>
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF,PERIOD>
@@ -196,6 +197,7 @@ ENDPROC	cleanUp
 ;
 DEFPROC	ctrlc,FAR
 	call	cleanUp
+	call	restoreMode		; restore the video mode, if necessary
 ;
 ; If any BAT or BAS files were running other BAT or BAS files, free all the
 ; chains they saved (ie, the callers' blocks), since the callers are aborted
@@ -453,10 +455,18 @@ pd5:	jcxz	pd8			; no valid initial token
 	jc	pd5a
 	mov	dx,cs:[si].CTD_FUNC
 	cmp	ax,TOK_ERASE		; ERASE (which genErase handles if
-	clc				; it's erasing arrays) is otherwise DEL
-	jne	pd5a
+	jne	pd5b			; it's erasing arrays) is otherwise DEL
 	mov	ax,TOK_DEL
 	mov	dx,offset cmdDel
+	jmp	short pd5a		; (carry is clear)
+;
+; Any other BASIC keyword here (eg, CIRCLE, when its generator found no
+; arguments; see genCommands) must be the name of a file to run instead.
+;
+pd5b:	cmp	ax,KEYWORD_BASIC	; BASIC keyword?
+	jb	pd5a			; no (and carry is clear)
+	sub	ax,ax			; yes, so treat it like a file
+	stc
 pd5a:	pop	si
 	jc	pd6
 	cmp	[bp].HDL_OUTPIPE,0
@@ -2189,13 +2199,30 @@ ENDPROC	cmdRestart
 DEFPROC	cmdRun
 	mov	al,GEN_BASIC		; RUN implies GEN_BASIC behavior
 	DEFLBL	cmdRunFlags,near
-	cmp	al,GEN_BASIC
-	jne	ru1			; BASIC programs
-	call	freeAllVars		; always gets a fresh set of variables
-ru1:	sub	si,si
+	sub	si,si
 	ASSERT	STRUCT,[bx],CMD
+	cmp	al,GEN_BASIC
+	jne	ru9			; BASIC programs
+	call	freeAllVars		; always gets a fresh set of variables
+;
+; BASIC programs also get their video mode restored when they end (see
+; saveMode); if they're aborted instead, ctrlc takes care of it.
+;
+	push	ax
+	call	saveMode		; AX = 1 if the mode was saved
+	xchg	dx,ax
+	pop	ax
+	push	dx
+	sub	si,si
 	call	genCode
+	pop	dx
+	pushf
+	test	dx,dx			; did we save the mode?
+	jz	ru8			; no
+	call	restoreMode		; yes, so restore it
+ru8:	popf
 	ret
+ru9:	jmp	genCode
 ENDPROC	cmdRun
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

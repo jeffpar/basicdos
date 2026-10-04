@@ -31,6 +31,7 @@ GFX_LPY		equ	GFX_DATA+2	; last point referenced (Y)
 GFX_SCALE	equ	GFX_DATA+4	; DRAW scale XOR 4 (byte)
 GFX_COLOR	equ	GFX_DATA+5	; DRAW color + 1, or 0 for default
 GFX_MODE	equ	GFX_DATA+6	; video mode + 1, or 0 if unknown
+;			GFX_DATA+7	; saved video mode + 1 (see saveMode)
 ;
 ; These must match the ABLK structure in arr.asm.
 ;
@@ -510,9 +511,16 @@ ENDPROC	gfxLine
 ; that's bounded by the border color (which defaults to the paint color).
 ; Pixels that already have the paint color are treated as borders, too.
 ;
-; We use a "span fill": each seed fills a horizontal span of pixels and then
-; adds seeds for the spans above and below it.  Seeds are kept in a temporary
-; block of memory, and if it overflows, some areas may be left unfilled.
+; We use a "span fill": each seed (initially, x,y) fills the horizontal span
+; of fillable pixels around it, and then adds seeds for the fillable spans in
+; the rows above and below it, until no seeds remain.  The seeds are kept in
+; a temporary block of memory (up to PT_SEEDS of them), and if it overflows,
+; some areas may be left unfilled.
+;
+; To scan rows quickly, the block also contains a 256-byte table that maps
+; every possible screen byte to a mask of its boundary pixels (with bits from
+; ptFirst down to 1, for the pixels from left to right), so that we can test
+; a pixel with XLAT, and skip entire bytes that are fillable (or not).
 ;
 ; Inputs:
 ;	Coordinates, paint color, and border color (the colors are -1 for
@@ -524,18 +532,28 @@ ENDPROC	gfxLine
 ; Modifies:
 ;	Any
 ;
-PT_SEEDS	equ	1024		; maximum # of seeds
+PT_SEEDS	equ	4000		; preferred maximum # of seeds
+PT_TABLE	equ	256		; size of the table (seeds follow it)
 
 DEFPROC	gfxPaint,FAR
 	ARGVAR	ptX,dword
 	ARGVAR	ptY,dword
 	ARGVAR	ptPaint,dword
 	ARGVAR	ptBorder,dword
-	LOCVAR	ptBdr,byte
-	LOCVAR	ptTop,word
-	LOCVAR	ptXL,word
-	LOCVAR	ptXR,word
-	LOCVAR	ptRow,word
+	LOCVAR	ptBdr,byte		; border color
+	LOCVAR	ptColor,byte		; paint color
+	LOCVAR	ptMode,byte		; BH from gfxInit
+	LOCVAR	ptBpp,byte		; bits per pixel (2 or 1)
+	LOCVAR	ptMask,byte		; pixel mask (3 or 1)
+	LOCVAR	ptFirst,byte		; mask bit of a byte's leftmost pixel
+	LOCVAR	ptFull,byte		; mask of all of a byte's pixels
+	LOCVAR	ptPPB,word		; pixels per byte (4 or 8)
+	LOCVAR	ptMaxX,word		; rightmost x (319 or 639)
+	LOCVAR	ptTop,word		; offset of the next seed
+	LOCVAR	ptMax,word		; offset of the last possible seed
+	LOCVAR	ptXL,word		; left end of the current span
+	LOCVAR	ptXR,word		; right end of the current span
+	LOCVAR	ptRow,word		; row of the current span
 	ENTER
 	call	gfxInit
 	mov	ax,[ptPaint].LOW
@@ -547,52 +565,95 @@ DEFPROC	gfxPaint,FAR
 	call	getColor		; BL = border color (default is paint)
 	mov	[ptBdr],bl
 	pop	bx
+	mov	[ptColor],bl
+	mov	[ptMode],bh
+	mov	ax,0302h		; 2 bits per pixel: AL = bpp, AH = mask
+	mov	cx,0F08h		; CL = 1st bit, CH = full mask
+	mov	dx,319
+	mov	si,4
+	test	bh,bh
+	jz	pt0
+	mov	ax,0101h		; 1 bit per pixel
+	mov	cx,0FF80h
+	mov	dx,639
+	mov	si,8
+pt0:	mov	[ptBpp],al
+	mov	[ptMask],ah
+	mov	[ptFirst],cl
+	mov	[ptFull],ch
+	mov	[ptMaxX],dx
+	mov	[ptPPB],si
 	lea	si,[ptX]
 	call	getPoint		; DX:CX = seed
 	call	setLastPt
 	push	ds
-	push	bx
-	mov	bx,(PT_SEEDS * 4) SHR 4
+	push	cx
+	mov	bx,(PT_TABLE + PT_SEEDS * 4) SHR 4
 	mov	ah,DOS_MEM_ALLOC
-	int	21h			; AX = segment of seeds
-	pop	bx
-	jc	pt8
+	int	21h			; AX = segment of table and seeds
+	jnc	pt1
+	cmp	bx,(PT_TABLE + 64) SHR 4
+	jb	ptE			; if there's not enough memory, try
+	mov	ah,DOS_MEM_ALLOC	; the largest block available
+	int	21h
+	jnc	pt1
+ptE:	jmp	ptErr
+pt1:	mov	cl,4
+	shl	bx,cl
+	sub	bx,4
+	mov	[ptMax],bx		; ptMax = offset of the last seed
+	pop	cx
 	mov	ds,ax
-	mov	[ptTop],0
+	call	ptTable			; build the table
+	mov	[ptTop],PT_TABLE
+	mov	[ptRow],dx
 	call	ptPush			; push the first seed
+	cmp	dx,200			; is it on the screen?
+	jae	pt9			; no
+	cmp	cx,[ptMaxX]
+	ja	pt9
 
-pt1:	mov	si,[ptTop]
-	sub	si,4			; any seeds left?
-	jb	pt7			; no
+pt2:	mov	si,[ptTop]
+	cmp	si,PT_TABLE		; any seeds left?
+	jbe	pt9			; no
+	sub	si,4
 	mov	[ptTop],si
 	mov	cx,[si]
-	mov	dx,[si+2]
-	call	ptBound			; is the seed still fillable?
-	jc	pt1			; no
-pt2:	dec	cx			; find the left end of the span
-	call	ptBound
-	jnc	pt2
-	inc	cx
+	mov	dx,[si+2]		; DX:CX = next seed
+	mov	[ptRow],dx
+	sub	bx,bx			; BX = 0 (for XLAT)
+	call	pixRef			; ES:DI, AH -> pixel
+	mov	al,es:[di]
+	xlat
+	test	al,ah			; is the seed still fillable?
+	jnz	pt2			; no
+	push	cx
+	push	di
+	push	ax
+	call	scanLeft		; CX = left end of the span
 	mov	[ptXL],cx
-pt3:	inc	cx			; find the right end of the span
-	call	ptBound
-	jnc	pt3
+	pop	ax
+	pop	di
+	pop	cx
+	mov	si,[ptMaxX]
+	mov	dl,0			; DL = 0 (scan fillable pixels)
+	call	scanRight		; CX = right end of the span + 1
 	dec	cx
 	mov	[ptXR],cx
-	push	si
 	mov	si,cx
 	mov	cx,[ptXL]
-	call	hline			; and fill it
-	pop	si
-	mov	[ptRow],dx
+	mov	dx,[ptRow]
+	mov	bl,[ptColor]
+	mov	bh,[ptMode]
+	call	hline			; fill the span
 	dec	dx
 	call	ptSeeds			; add seeds for the row above
 	mov	dx,[ptRow]
 	inc	dx
-	call	ptSeeds			; add seeds for the row below
-	jmp	pt1
+	call	ptSeeds			; and the row below
+	jmp	pt2
 
-pt7:	push	es
+pt9:	push	es
 	mov	ax,ds
 	mov	es,ax
 	mov	ah,DOS_MEM_FREE
@@ -601,41 +662,93 @@ pt7:	push	es
 	pop	ds
 	LEAVE
 	RETURN
-pt8:	mov	al,7			; "Out of memory"
+ptErr:	mov	al,7			; "Out of memory"
 	jmp	rtError
 ENDPROC	gfxPaint
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ptSeeds, ptPush, and ptBound (gfxPaint internal functions, using its frame)
+; ptTable (gfxPaint internal function, using its frame)
 ;
-; ptSeeds adds a seed for every fillable span of row DX from ptXL to ptXR;
-; ptPush adds a seed for DX:CX, if there's room; and ptBound returns carry
-; set if pixel DX:CX is a boundary (ie, off the screen, or the border or
-; paint color).
+; Builds the table at DS:0 that maps every screen byte to a mask of its
+; boundary pixels (see gfxPaint).
+;
+; Modifies:
+;	AX, BX
+;
+DEFPROC	ptTable
+	push	cx
+	push	dx
+	sub	bx,bx			; BX = byte value (and table offset)
+ptt1:	mov	ah,0			; AH = boundary mask
+	mov	dh,[ptFirst]		; DH = mask bit of the leftmost pixel
+	mov	cl,8
+	sub	cl,[ptBpp]		; CL = shift of the leftmost pixel
+ptt2:	mov	al,bl
+	shr	al,cl
+	and	al,[ptMask]		; AL = pixel
+	cmp	al,[ptBdr]
+	je	ptt3
+	cmp	al,[ptColor]
+	jne	ptt4
+ptt3:	or	ah,dh			; the pixel is a boundary
+ptt4:	shr	dh,1
+	sub	cl,[ptBpp]
+	jns	ptt2
+	mov	[bx],ah
+	inc	bl
+	jnz	ptt1
+	pop	dx
+	pop	cx
+	ret
+ENDPROC	ptTable
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ptSeeds (gfxPaint internal function, using its frame)
+;
+; Adds a seed for every fillable span of row DX from ptXL to ptXR.
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	ptSeeds
+	cmp	dx,200			; is the row on the screen?
+	jae	ps9			; no
+	push	dx
 	mov	cx,[ptXL]
-	sub	di,di			; DI = 1 while in a fillable span
-ps1:	cmp	cx,[ptXR]
-	jg	ps9
-	call	ptBound
-	jc	ps2
-	test	di,di
-	jnz	ps3
-	call	ptPush
-	inc	di
-	jmp	short ps3
-ps2:	sub	di,di
-ps3:	inc	cx
+	sub	bx,bx			; BX = 0 (for XLAT)
+	call	pixRef			; ES:DI, AH -> pixel
+	pop	dx
+ps1:	mov	si,[ptXR]
+	push	dx
+	mov	dl,[ptFull]		; DL = non-zero (scan boundary pixels)
+	call	scanRight		; CX = next fillable pixel
+	pop	dx
+	cmp	cx,si			; past the end?
+	jg	ps9			; yes
+	call	ptPush			; add a seed for the span
+	push	dx
+	mov	dl,0			; DL = 0 (scan fillable pixels)
+	call	scanRight		; CX = next boundary pixel
+	pop	dx
 	jmp	ps1
 ps9:	ret
 ENDPROC	ptSeeds
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ptPush (gfxPaint internal function, using its frame)
+;
+; Adds a seed for DX:CX, if there's room.
+;
+; Modifies:
+;	SI
+;
 DEFPROC	ptPush
 	mov	si,[ptTop]
-	cmp	si,(PT_SEEDS - 1) * 4
-	ja	pp9
+	cmp	si,[ptMax]		; any room for another seed?
+	ja	pp9			; no
 	mov	[si],cx
 	mov	[si+2],dx
 	add	si,4
@@ -643,18 +756,140 @@ DEFPROC	ptPush
 pp9:	ret
 ENDPROC	ptPush
 
-DEFPROC	ptBound
-	call	getPixel
-	jc	pb9
-	cmp	al,[ptBdr]
-	je	pb8
-	cmp	al,bl
-	je	pb8
-	clc
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; pixRef (gfxPaint internal function, using its frame)
+;
+; Inputs:
+;	CX = x, DX = y (both on the screen)
+;
+; Outputs:
+;	ES:DI -> pixel's byte
+;	AH = pixel's mask bit (see gfxPaint)
+;
+; Modifies:
+;	AX, DI
+;
+DEFPROC	pixRef
+	call	rowAddr
+	mov	di,ax
+	mov	ax,cx
+	push	cx
+	mov	cl,[ptBpp]
+	dec	cl
+	mov	ch,7
+	shr	ch,cl			; CH = 7 or 3 (pixels per byte - 1)
+	and	ch,al
+	shr	ax,1
+	shr	ax,1
+	cmp	cl,0			; 1 bit per pixel?
+	jne	pr1			; no
+	shr	ax,1
+pr1:	add	di,ax			; DI = offset of the pixel's byte
+	mov	cl,ch
+	mov	ah,[ptFirst]
+	shr	ah,cl			; AH = pixel's mask bit
+	pop	cx
 	ret
-pb8:	stc
-pb9:	ret
-ENDPROC	ptBound
+ENDPROC	pixRef
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; scanLeft (gfxPaint internal function, using its frame)
+;
+; Moves left from a fillable pixel, as long as the pixels are fillable.
+;
+; Inputs:
+;	CX = x (fillable), with ES:DI and AH from pixRef
+;	BX = 0, DS:0 -> table
+;
+; Outputs:
+;	CX = x of the leftmost fillable pixel
+;
+; Modifies:
+;	AX, CX, DI
+;
+DEFPROC	scanLeft
+sl1:	jcxz	sl9			; at the left edge
+	cmp	ah,[ptFirst]		; leftmost pixel of the byte?
+	jne	sl3			; no
+	cmp	cx,[ptPPB]		; yes; is there a whole byte to skip?
+	jb	sl2			; no
+	mov	al,es:[di-1]
+	xlat
+	test	al,al			; is the previous byte all fillable?
+	jnz	sl2			; no
+	sub	cx,[ptPPB]		; yes, skip it
+	dec	di
+	jmp	sl1
+sl2:	mov	ah,1			; the previous pixel is the rightmost
+	dec	di			; pixel of the previous byte
+	jmp	short sl4
+sl3:	shl	ah,1
+sl4:	mov	al,es:[di]
+	xlat
+	test	al,ah			; is the previous pixel fillable?
+	jnz	sl9			; no
+	dec	cx			; yes
+	jmp	sl1
+sl9:	ret
+ENDPROC	scanLeft
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; scanRight (gfxPaint internal function, using its frame)
+;
+; Moves right from a pixel, as long as the pixels are fillable (if DL is 0) or
+; boundaries (if DL is non-zero), stopping after SI.
+;
+; Inputs:
+;	CX = x, with ES:DI and AH from pixRef
+;	SI = rightmost x to scan
+;	DL = 0 or ptFull
+;	BX = 0, DS:0 -> table
+;
+; Outputs:
+;	CX = x of the first pixel that doesn't match (or SI + 1),
+;	with ES:DI and AH updated to match
+;
+; Modifies:
+;	AX, CX, DI
+;
+DEFPROC	scanRight
+sr1:	cmp	cx,si			; past the end?
+	jg	sr9			; yes
+	cmp	ah,[ptFirst]		; leftmost pixel of the byte?
+	jne	sr2			; no
+	mov	al,es:[di]
+	xlat
+	cmp	al,dl			; does the entire byte match?
+	jne	sr2			; no
+	mov	ax,cx
+	add	ax,[ptPPB]
+	dec	ax
+	cmp	ax,si			; and is it all before the end?
+	mov	ah,[ptFirst]
+	jg	sr2			; no
+	add	cx,[ptPPB]		; yes, skip it
+	inc	di
+	jmp	sr1
+sr2:	mov	al,es:[di]
+	xlat
+	and	al,ah			; AL = non-zero if a boundary
+	jz	sr3
+	test	dl,dl			; boundary; are we scanning those?
+	jz	sr9			; no
+	jmp	short sr4
+sr3:	test	dl,dl			; fillable; are we scanning those?
+	jnz	sr9			; no
+sr4:	inc	cx
+	shr	ah,1			; move to the next pixel
+	jnz	sr1
+	mov	ah,[ptFirst]
+	inc	di
+	jmp	sr1
+sr9:	ret
+ENDPROC	scanRight
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

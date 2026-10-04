@@ -112,6 +112,14 @@ CTS_LEN		dw	?	; 2Eh: saves CRT_LEN before writing TBD
 CTS_START	dw	?	; 30h: saves CRT_START before writing TBD
 CTS_CURTYPE	dw	?	; 32h: saves CURSOR_MODE before writing CT_CURTYPE
 CTS_PORT	dw	?	; 34h: saves ADDR_6845 before writing CT_PORT
+;
+; The context's original mode and geometry, so that they can be restored when
+; the mode is set back to the original mode (see update_mode).
+;
+CTO_MODE	db	?	; 36h: original video mode
+CTO_STATUS	db	?	; 37h: original CTSTAT_BORDER and CTSTAT_INT10
+CTO_DIM		dw	?	; 38h: original columns (LO) and rows (HI)
+CTO_POS		dw	?	; 3Ah: original position (X,Y) of top left
 CONTEXT		ends
 SIG_CT		equ	'C'
 
@@ -886,31 +894,15 @@ dco2a:	mov	ax,es:[di]		; ES:DI -> next context segment
 	jmp	dco2a
 dco2b:	mov	es:[di],ds
 ;
-; Set context dimensions (CL,CH) and position (DL,DH), and then determine
-; cursor minimums and maximums from the context size.
+; Set the context's dimensions (CL,CH) and position (DL,DH), saving them so
+; that they can be restored later (see update_mode).
 ;
-	mov	ax,0101h
-	push	cx
-	sub	cx,ax
-	mov	ds:[CT_CONDIM],cx	; set CT_CONDIM (CL,CH)
-	mov	ds:[CT_CONPOS],dx	; set CT_CONPOS (DL,DH)
+	mov	ds:[CTO_DIM],cx
+	mov	ds:[CTO_POS],dx
 	mov	al,bh
-	and	al,CTSTAT_BORDER
-	mov	ah,al			; AX = 0101h for border, 0000h for none
-	mov	ds:[CT_CURMIN],ax	; set CT_CURMIN (AL,AH)
-	sub	cx,ax
-	mov	ds:[CT_CURMAX],cx	; set CT_CURMAX (CL,CH)
-	pop	cx
-	sub	cx,ax
-	sub	cx,ax
-	mov	ds:[CT_CURDIM],cx	; set CT_CURDIM (width and height)
-	mov	al,dh
-	mul	[max_cols]
-	add	ax,ax
-	mov	dh,0
-	add	dx,dx
-	add	ax,dx
-	mov	ds:[CT_SCREEN].OFF,ax
+	and	al,CTSTAT_BORDER OR CTSTAT_INT10
+	mov	ds:[CTO_STATUS],al
+	call	set_geometry
 	mov	ds:[CT_SCROFF],4000	; TODO: fix this hard-coded offset
 	mov	ds:[CT_COLOR],0707h	; default fill and border attributes
 ;
@@ -965,6 +957,7 @@ dco4:	pop	ds:[CT_COLS]
 	mov	ds:[CT_PORT],dx
 	mov	ds:[CT_EQUIP],cx
 	mov	ds:[CT_MODE],bl
+	mov	ds:[CTO_MODE],bl
 	mov	ds:[CT_SCREEN].SEG,ax
 	xchg	ax,si
 	test	ax,ax
@@ -2273,9 +2266,11 @@ ENDPROC	update_biosdata
 ;
 ; The CON driver writes directly to the screen only in the text mode that a
 ; context was created in, and a mode change affects the entire screen anyway,
-; so the context becomes a full-screen context with no border that uses INT
-; 10h passthrough (CTSTAT_INT10) from now on.  This also allows text output
-; (and CLS) to work in graphics modes, where text is always drawn in color 3.
+; so in any other mode, the context becomes a full-screen context with no
+; border that uses INT 10h passthrough (CTSTAT_INT10).  This also allows text
+; output (and CLS) to work in graphics modes, where text is always drawn in
+; color 3.  When the mode is set back to the original mode, the context's
+; original geometry (including any border) is restored.
 ;
 ; Inputs:
 ;	DS = CONSOLE context
@@ -2290,23 +2285,30 @@ ENDPROC	update_biosdata
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	update_mode
 	push	bx
+	push	cx
+	push	dx
+	push	si
+	push	di
+	push	es
 	mov	bl,ds:[CT_MODE]		; BL = previous mode
 	call	update_context		; update CT_MODE, CT_COLS, etc
-	mov	al,ds:[CT_STATUS]
-	and	al,NOT CTSTAT_BORDER
-	or	al,CTSTAT_INT10
+	mov	cl,ds:[CT_COLS].LOB
+	mov	ch,25			; CX = full screen
+	sub	dx,dx			; DX = top left
+	mov	bh,CTSTAT_INT10		; BH = no border, INT 10h passthrough
+	mov	al,ds:[CT_MODE]
+	cmp	al,ds:[CTO_MODE]	; back to the original mode?
+	jne	um1			; no
+	mov	cx,ds:[CTO_DIM]		; yes, so restore the original geometry
+	mov	dx,ds:[CTO_POS]
+	mov	bh,ds:[CTO_STATUS]
+um1:	mov	al,ds:[CT_STATUS]
+	and	al,NOT (CTSTAT_BORDER OR CTSTAT_INT10)
+	or	al,bh
 	mov	ds:[CT_STATUS],al
-	sub	ax,ax
-	mov	ds:[CT_CONPOS],ax
-	mov	ds:[CT_CURMIN],ax
+	call	set_geometry
+	mov	ax,ds:[CT_CURMIN]
 	mov	ds:[CT_CURPOS],ax	; (the BIOS homes the cursor, too)
-	mov	ds:[CT_SCREEN].OFF,ax
-	mov	al,ds:[CT_COLS].LOB
-	mov	ah,25
-	mov	ds:[CT_CURDIM],ax	; set CT_CURDIM (width and height)
-	sub	ax,0101h
-	mov	ds:[CT_CONDIM],ax	; set CT_CONDIM (CL,CH)
-	mov	ds:[CT_CURMAX],ax	; set CT_CURMAX (CL,CH)
 ;
 ; Graphics modes start with text color 3, background 0, and palette 1 (the
 ; BIOS default).  Text modes keep the current colors, unless we're leaving a
@@ -2320,9 +2322,62 @@ DEFPROC	update_mode
 	jae	um9			; no
 	mov	ax,0707h
 um8:	mov	ds:[CT_COLOR],ax
-um9:	pop	bx
+um9:	call	draw_border		; redraw the border, if any
+	pop	es
+	pop	di
+	pop	si
+	pop	dx
+	pop	cx
+	pop	bx
 	ret
 ENDPROC	update_mode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; set_geometry
+;
+; Sets the context's dimensions and position, and then determines the cursor
+; minimums and maximums from the context size, and the offset of the context
+; on the screen.
+;
+; Inputs:
+;	CL = columns, CH = rows
+;	DL = x, DH = y (of the top left)
+;	BH = CTSTAT_BORDER bit (set if the context has a border)
+;	DS = CONSOLE context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, CX, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	set_geometry
+	mov	ax,0101h
+	push	cx
+	sub	cx,ax
+	mov	ds:[CT_CONDIM],cx	; set CT_CONDIM (CL,CH)
+	mov	ds:[CT_CONPOS],dx	; set CT_CONPOS (DL,DH)
+	mov	al,bh
+	and	al,CTSTAT_BORDER
+	mov	ah,al			; AX = 0101h for border, 0000h for none
+	mov	ds:[CT_CURMIN],ax	; set CT_CURMIN (AL,AH)
+	sub	cx,ax
+	mov	ds:[CT_CURMAX],cx	; set CT_CURMAX (CL,CH)
+	pop	cx
+	sub	cx,ax
+	sub	cx,ax
+	mov	ds:[CT_CURDIM],cx	; set CT_CURDIM (width and height)
+	mov	al,dh
+	mul	[max_cols]
+	add	ax,ax
+	mov	dh,0
+	add	dx,dx
+	add	ax,dx
+	mov	ds:[CT_SCREEN].OFF,ax
+	ret
+ENDPROC	set_geometry
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -229,20 +229,30 @@ ones that DONKEY.BAS rarely or never runs (eg, PLAY and CHAIN).
       driver or BIOS calls; SOUND returns immediately (as in MSBASIC, the
       next SOUND waits for it to finish, and the CLOCK$ driver turns it
       off), so DONKEY.BAS is paced at one loop per tick, like MSBASIC
-- [ ] More performance: diagonal lines (and DRAW) and PAINT's boundary
-      scans still work a pixel at a time, and text output in graphics modes
-      goes through the CON driver and the BIOS
-- [ ] Graphics features that DONKEY.BAS doesn't use: STEP coordinates,
-      CIRCLE, POINT, DRAW's A, TA, X, and "=variable" commands, and GET/PUT
-      with floating-point arrays
+- [x] CIRCLE (for CIRCLE.BAS, one of the other PC DOS 1.00 samples on the
+      demo disk), using MSBASIC's algorithm and integer math (angles and
+      aspects are converted from doubles without FPU$), so it draws the
+      same pixels as MSBASIC, about twice as fast
+- [x] CLEAR (resets variables and erases arrays; its sizes are ignored)
+- [x] PAINT scans rows a byte at a time (using a table of each byte's
+      boundary pixels), so it's faster than MSBASIC's
+- [x] A BASIC keyword typed alone that isn't a valid statement (eg, CIRCLE)
+      runs the program with that name (eg, CIRCLE.BAS)
+- [ ] More performance: diagonal lines (and DRAW) still work a pixel at a
+      time, and text output in graphics modes goes through the CON driver
+      and the BIOS
+- [ ] Graphics features that the samples don't use: STEP coordinates,
+      POINT, DRAW's A, TA, X, and "=variable" commands, and GET/PUT with
+      floating-point arrays
 - [ ] RESUME and RESUME NEXT (which need the location of the error), and
       ERL
-- [ ] Restoring a context's original mode and geometry (eg, its border)
-      when returning to its text mode, and keeping other sessions on the
-      same adapter from writing to the screen while it's in graphics mode;
-      also, the CON driver restores the BIOS's video data after every INT
-      10h call, so programs that read the BIOS's video mode (0:449h) may see
-      a stale value
+- [x] When a BAS program ends (or is aborted), its video mode is restored
+      (undoing any SCREEN or WIDTH), and when a console returns to its
+      original mode, its original geometry (eg, its border) is restored, too
+- [ ] Keeping other sessions on the same adapter from writing to the screen
+      while it's in another mode; also, the CON driver restores the BIOS's
+      video data after every INT 10h call, so programs that read the BIOS's
+      video mode (0:449h) may see a stale value
 
 ### Build, Tests, and Documentation
 
