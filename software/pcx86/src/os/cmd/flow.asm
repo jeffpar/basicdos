@@ -269,8 +269,8 @@ DEFPROC	doGosub,FAR
 	push	dx
 	push	cx
 	ret
-dg9:	PRINTF	<"Out of memory",13,10>
-	jmp	ctrlc
+dg9:	mov	al,7			; "Out of memory"
+	jmp	short rtError
 ENDPROC	doGosub
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -300,9 +300,185 @@ DEFPROC	doReturn,FAR
 	push	dx
 	push	ax
 	ret
-dr9:	PRINTF	<"RETURN without GOSUB",13,10>
-	jmp	ctrlc
+dr9:	mov	al,3			; "RETURN without GOSUB"
+	jmp	short rtError
 ENDPROC	doReturn
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; rtError
+;
+; Reports a runtime error, using MSBASIC's error numbers.  If an ON ERROR
+; handler is set (and we're not already in it), we reset the stack and DS to
+; their state at the start of the program (see genCode) and jump to the
+; handler; otherwise, we display the error message and abort the program, by
+; way of our CTRLC handler (which also frees any blocks saved by callers; see
+; restoreChains).
+;
+; Inputs:
+;	AL = error number (eg, 5 for "Illegal function call")
+;
+; Outputs:
+;	None (does not return)
+;
+DEFPROC	rtError
+	mov	bx,ss:[PSP_HEAP]
+	mov	ah,1
+	xchg	ss:[bx].ERR_NUM,ax	; set the error # and active flag
+	test	ah,ah			; were we already handling an error?
+	jnz	re1			; yes
+	cmp	ss:[bx].ERR_ADDR.SEG,0	; is there a handler?
+	je	re1			; no
+	mov	sp,ss:[bx].ERR_SP
+	mov	bp,sp
+	mov	ds,ss:[bx].VBLKDEF.BLK_NEXT
+	jmp	dword ptr ss:[bx].ERR_ADDR
+
+re1:	mov	si,offset ERR_MSGS
+re2:	lods	byte ptr cs:[si]
+	test	al,al			; end of the table?
+	jz	re4			; yes
+	cmp	al,byte ptr ss:[bx].ERR_NUM
+	je	re4
+re3:	lods	byte ptr cs:[si]
+	test	al,al
+	jnz	re3
+	jmp	re2
+re4:	PRINTF	<"%ls",13,10>,si,cs
+	jmp	ctrlc
+ENDPROC	rtError
+
+ERR_MSGS	db	3,"RETURN without GOSUB",0
+		db	5,"Illegal function call",0
+		db	7,"Out of memory",0
+		db	9,"Subscript out of range",0
+		db	10,"Duplicate definition",0
+		db	14,"Out of string space",0
+		db	15,"String too long",0
+		db	0,"Unprintable error",0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; onError
+;
+; Used by "ON ERROR GOTO line", whose code is a call to onError followed by
+; a 5-byte JMP to the line (see genOnError); we record the address of the JMP
+; as the ON ERROR handler, and then return past it.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, DX
+;
+DEFPROC	onError,FAR
+	pop	ax
+	pop	dx			; DX:AX -> JMP
+	mov	bx,ss:[PSP_HEAP]
+	mov	ss:[bx].ERR_ADDR.OFF,ax
+	mov	ss:[bx].ERR_ADDR.SEG,dx
+	add	ax,5
+	push	dx
+	push	ax
+	ret
+ENDPROC	onError
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; offError
+;
+; Used by "ON ERROR GOTO 0", which removes the ON ERROR handler.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	BX
+;
+DEFPROC	offError,FAR
+	mov	bx,ss:[PSP_HEAP]
+	mov	ss:[bx].ERR_ADDR.SEG,0
+	ret
+ENDPROC	offError
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; resumeErr
+;
+; Used by "RESUME line" (before the JMP to the line), to end error handling.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	BX
+;
+DEFPROC	resumeErr,FAR
+	mov	bx,ss:[PSP_HEAP]
+	mov	byte ptr ss:[bx].ERR_NUM.HIB,0
+	ret
+ENDPROC	resumeErr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; raiseError
+;
+; Used by "ERROR n", which simulates error n (1-255).
+;
+; Inputs:
+;	1 32-bit arg on stack
+;
+; Outputs:
+;	None (does not return)
+;
+DEFPROC	raiseError,FAR
+	pop	cx
+	pop	cx			; discard our return address
+	pop	ax
+	pop	dx			; DX:AX = error #
+	test	dx,dx
+	jnz	rse9
+	dec	ax
+	cmp	ax,255
+	inc	ax
+	jb	rse8
+rse9:	mov	al,5			; "Illegal function call"
+rse8:	jmp	rtError
+ENDPROC	raiseError
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getErr (ERR)
+;
+; Inputs:
+;	32-bit return value
+;
+; Outputs:
+;	32-bit return value updated with the last error #
+;
+; Modifies:
+;	AX, BX
+;
+DEFPROC	getErr,FAR
+	RETVAR	retErr,dword
+	ENTER
+	mov	bx,ss:[PSP_HEAP]
+	mov	al,byte ptr ss:[bx].ERR_NUM
+	mov	ah,0
+	mov	[retErr].LOW,ax
+	mov	[retErr].HIW,0
+	LEAVE
+	RETURN
+ENDPROC	getErr
 
 CODE	ENDS
 

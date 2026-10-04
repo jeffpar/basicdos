@@ -18,6 +18,7 @@ There are currently five BASIC-DOS demo configurations:
  3. [Two 80-column sessions](?autoMount={A:{name:"BASIC-DOS3"}})
  4. [Dual monitors with single sessions](dual/)
  5. [Dual monitors with multiple sessions](dual/multi/)
+ 6. [DONKEY.BAS (work in progress)](donkey/)
 
 The 40 and 80-column demos are configured with borders.  A double-wide border
 indicates which session has keyboard focus.  Use **SHIFT-TAB** to toggle focus.

@@ -7,15 +7,19 @@ Returns the character code (0-255) of the first character of *string* (or 0 if *
 ATN(*x*)
 Returns the arctangent of *x*, in radians.
 
+CHAIN *file*[,*line*]
+Runs the specified BAS file and then ends the program.  The *line* is currently ignored, and other CHAIN options are not supported.
+
 CHR$(*code*)
 Returns a one-character string containing the character with the specified *code* (0-255).
 
 CLS
 Clears the session using the background color and moves the cursor to the top left corner.
 
-COLOR *foreground*[,*background*[,*border*]]
+COLOR [*foreground*][,[*background*][,*border*]]
 Sets the foreground (0-15), background (0-15), and border (0-255) colors of the session.
-For blinking colors, use 8-15 for *background* and 128-255 for *border*.
+For blinking colors, use 16-31 for *foreground*, 8-15 for *background*, and 128-255 for *border*.
+In SCREEN 1, the values are the background color (0-15) and palette (0 or 1) instead.
 
 COPY *input* *output*
 Copies the contents of the input file or device to the output file or device.
@@ -34,6 +38,7 @@ Returns the current date as a string in the form MM-DD-YYYY.
 DEF *function*(*parms*)[=expression]
 Defines a function expression or function block.  Function expressions must fit on a single line and can be defined at any time.
 Function blocks may contain multiple lines and must end with a RETURN command.  The function name does not need to begin with FN.
+DEF SEG[=*segment*] sets the segment that PEEK and POKE use; without a *segment*, BASIC-DOS's own data segment is used.
 
 DEFDBL [*letter(s)*]
 Defines the first letter(s) of variables that will default to double-precision (64-bit) floating-point values.  Variables default to double-precision unless DEFINT or DEFSTR is used (or floating-point is disabled).
@@ -57,6 +62,9 @@ Arrays that are used without DIM have a largest subscript of 10.
 DIR [*filespec*] [/P]
 Displays a directory listing of all files matching the given *filespec* (or all files if none is specified).
 
+DRAW *string*
+Draws lines from the last point, using these commands: U, D, L, R, E, F, G, and H [*n*] (move up, down, left, right, or diagonally), M *x*,*y* (move to *x*,*y*, or relative to the last point if *x* begins with + or -), B (prefix: move without drawing), N (prefix: draw without moving), C *n* (color), and S *n* (scale, in quarters).
+
 ECHO [ON|OFF]
 Controls the echo of lines in a BAT file.
 
@@ -65,6 +73,12 @@ Ends the program.
 
 ERASE *array*[,*array*]...
 Erases the specified arrays, so that they can be dimensioned again.  If the first name is not an array, ERASE is the same as DEL.
+
+ERR
+Returns the number of the last error (see ON ERROR).
+
+ERROR *n*
+Simulates error *n* (1-255).
 
 ERRORLEVEL
 Constant equal to the return code from the last program executed.
@@ -84,6 +98,9 @@ If the *start* is already past the *limit*, the lines are skipped.
 
 FRE(*x*)
 Compacts string memory and returns the number of bytes available.  The argument is ignored.
+
+GET (*x1*,*y1*)-(*x2*,*y2*),*array*
+Stores the pixels of the specified rectangle in an integer *array*, in the same format as MSBASIC (see PUT).
 
 GOSUB *label*
 Calls the subroutine at the line with the specified label number; the subroutine ends with RETURN.
@@ -108,6 +125,9 @@ Returns the position of *string2* within *string1*, searching from position *sta
 
 INT(*x*)
 Returns the largest integer less than or equal to *x* (eg, INT(-2.5) is -3).  See also FIX.
+
+KEY ON|OFF
+Accepted for compatibility with MSBASIC, but does nothing, since BASIC-DOS doesn't display function keys.
 
 KEYS
 CTRL-E  Up         CTRL-X  Down\
@@ -134,11 +154,18 @@ Returns the number of characters in *string* (0-255).
 LET *variable*=*expression*
 Assigns the value of the *expression* to the *variable*.  Values cannot be assigned to predefined variables.
 
+LINE [(*x1*,*y1*)]-(*x2*,*y2*)[,[*color*][,B|BF]]
+Draws a line (or with B, a box; or with BF, a filled box) in a graphics mode.  If the first point is omitted, the last point is used.
+
 LIST
 Lists all lines of the currently loaded BAS or BAT program.
 
 LOAD *file*
 Loads the specified BAS or BAT file.
+
+LOCATE [*row*][,[*col*][,*cursor*]]
+Moves the cursor to the specified *row* and *col* (starting at 1,1), and hides (0) or shows (1) the cursor.
+The cursor remains hidden until the next input.  Omitted values are unchanged.
 
 LOG(*x*)
 Returns the natural logarithm of *x*, which must be greater than zero.
@@ -165,12 +192,34 @@ Returns the octal representation of the integer *n*.
 ON *expression* GOTO|GOSUB *label*[,*label*]...
 Transfers program control to (or calls) the Nth label, where N is the value of the *expression*.
 If N is zero or greater than the number of labels, the program continues with the next command.
+ON ERROR GOTO *label* transfers program control to the label when a runtime error occurs (see ERR and RESUME), and ON ERROR GOTO 0 disables it.
 
 OPTION BASE 0|1
 Sets the smallest subscript (0 or 1) of arrays dimensioned afterward.  The default is 0.
 
+PAINT (*x*,*y*)[,[*paint*][,*border*]]
+Fills the area around *x*,*y* with the *paint* color, up to the *border* color (which defaults to the *paint* color).
+
+PEEK(*offset*)
+Returns the byte at *offset* in the segment set by DEF SEG.
+
+PLAY *string*
+Plays music, using these commands: A-G[#|+|-][*n*][.] (notes), N *n* (note 0-84), O *n* (octave 0-6), < and >, L *n* (length), P *n* (pause), T *n* (tempo), and MN, ML, MS (normal, legato, or staccato).
+
+POKE *offset*,*value*
+Stores *value* (0-255) at *offset* in the segment set by DEF SEG.
+
+PRESET (*x*,*y*)[,*color*]
+Same as PSET, except that the default color is the background color.
+
 PRINT
 Prints a comma or semi-colon separated series of values.
+
+PSET (*x*,*y*)[,*color*]
+Draws a point in a graphics mode, using the foreground color if no *color* is specified.
+
+PUT (*x*,*y*),*array*[,PSET|PRESET|XOR|OR|AND]
+Draws an image stored by GET, combining it with the screen using XOR, unless another action is specified.
 
 REM
 Used for program remarks.  The rest of the line is not executed.
@@ -178,11 +227,17 @@ Used for program remarks.  The rest of the line is not executed.
 RESTART
 Restarts the system.
 
+RESUME *label*
+Ends the handling of a runtime error (see ON ERROR) and continues at the specified label.
+
 RETURN [*expression*]
 Returns from a GOSUB subroutine, or ends a function block and returns the specified *expression*.
 
 RIGHT$(*string*,*n*)
 Returns the rightmost *n* characters of *string*.
+
+RND[(*n*)]
+Returns a random number from 0 up to (but not including) 1.  *n* has the same effect as with RND%.
 
 RND%[(*n*)]
 Returns a random integer between 0 and MAXINT, inclusive.  If *n* is negative, it reseeds the generator first, and if *n* is zero, the previous random integer is returned.
@@ -192,8 +247,17 @@ Runs the currently loaded BAS or BAT file.
 Program files can also be run without the RUN command.
 If no file extension is specified, files with COM, EXE, BAT, and BAS extensions are checked, in that order.
 
+SCREEN [*mode*][,*burst*]
+Sets the screen mode: 0 (text), 1 (320x200 graphics), or 2 (640x200 graphics).
+A *burst* of 0 disables color in mode 0, and a *burst* of 1 disables color in mode 1.
+Changing the mode clears the screen and removes the session's border, if any.
+
 SIN(*x*)
 Returns the sine of *x*, where *x* is in radians.
+
+SOUND *frequency*,*duration*
+Plays a tone of the specified *frequency* (37-32767 Hz) for *duration* clock ticks (18.2 per second).
+The program continues while the tone plays, but the next SOUND waits for it to finish, unless its *duration* is 0, which stops the tone.
 
 SPACE$(*n*)
 Returns a string of *n* spaces.
@@ -238,6 +302,10 @@ Ends a WHILE loop.
 
 WHILE *expression*
 Executes the lines up to the matching WEND repeatedly, as long as the *expression* is TRUE (non-zero).
+
+WIDTH 40|80
+Sets the number of columns in text mode (which clears the screen).
+In SCREEN 1, WIDTH 80 selects SCREEN 2, and in SCREEN 2, WIDTH 40 selects SCREEN 1.
 
 *Unsupported Commands*
 Read-write file system support is incomplete, so the EDIT, REN, and SAVE commands cannot modify files yet.

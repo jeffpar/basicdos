@@ -93,6 +93,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<utl_tokify,utl_tokid,utl_parsesw>
 	EXTNEAR	<utl_getdev,utl_getcsn,utl_load,utl_start,utl_stop,utl_end>
 	EXTNEAR	<utl_waitend,utl_yield,utl_sleep,utl_wait,utl_endwait>
+	EXTNEAR	<utl_sound>
 	EXTNEAR	<utl_hotkey,utl_lock,utl_unlock,utl_qrymem,utl_term>
 	EXTNEAR	<utl_getdate,utl_gettime,utl_incdate,utl_editln,utl_restart>
 	EXTNEAR	<func_none>
@@ -134,6 +135,7 @@ DOS	segment word public 'CODE'
 	dw	utl_endwait, utl_hotkey,  utl_lock,    utl_unlock	;20-23
 	dw	utl_strlen,  utl_qrymem,  utl_term,    utl_getdate	;24-27
 	dw	utl_gettime, utl_incdate, utl_editln,  utl_restart	;28-2B
+	dw	utl_sound						;2C
 	DEFABS	UTILTBL_SIZE,<($ - UTILTBL) SHR 1>
 
 DOS	ends

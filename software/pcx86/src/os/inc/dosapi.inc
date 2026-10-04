@@ -144,6 +144,7 @@ DOS_UTL_GETTIME	equ	28h	; get time (AX) in "packed" format
 DOS_UTL_INCDATE	equ	29h	; increment date (CX=year, DH=month, DL=day)
 DOS_UTL_EDITLN	equ	2Ah	; edit line (DS:DX)
 DOS_UTL_RESTART	equ	2Bh	; restart ("reboot") the system
+DOS_UTL_SOUND	equ	2Ch	; sound (DX = PIT divisor) for CX ticks
 DOS_UTL_HDLCTL	equ	(DOS_HDL_IOCTL + 80h)
 
 ;

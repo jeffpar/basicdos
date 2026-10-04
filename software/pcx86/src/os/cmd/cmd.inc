@@ -30,10 +30,12 @@ CTD_OFF		dw	?	; offset of token string
 CTD_FUNC	dw	?	; extended token data: function
 CTOKDEF		ends
 
-DEFTOK	macro	sym,val,func
+DEFTOK	macro	sym,val,func,pub
 	LOCAL	N1
-	public	TOK_&sym
+	IFNB	<pub>			;; define TOK_sym only if requested
+	public	TOK_&sym		;; (to conserve symbol space)
 TOK_&sym equ val
+	ENDIF
 	IFNB <func>
 	EXTNEAR	<func>
 	ENDIF
@@ -362,6 +364,13 @@ HDL_OUTFILE	dw	?		; 494h: 0 if unused (see parseDOS)
 DEF_TYPE	db	?		; 496h: return type of DEF in progress
 OPT_BASE	db	?		; 497h: OPTION BASE (0 or 1)
 CMD_CHAINS	dw	?		; 498h: CHAINS frame (see saveChains)
+LINE_LBL	dw	?		; 49Ah: line # of LINE_NUM (0 if none)
+PEEK_SEG	dw	?		; 49Ch: DEF SEG segment XOR SS
+ERR_SP		dw	?		; 49Eh: program SP for ON ERROR
+ERR_NUM		dw	?		; 4A0h: last error # (HI set if active)
+ERR_ADDR	dd	?		; 4A2h: ON ERROR handler (0 if none)
+PLAY_STATE	dw    4 dup (?)		; 4A6h: PLAY/SOUND state (see doPlay)
+GFX_DATA	dw    4 dup (?)		; 4AEh: graphics state (see gfx.asm)
 ;
 ; The BASIC-DOS loader always set the stack pointer for a COM file to the top
 ; of the segment, which means we must declare our stack at the end of CMDHEAP.
@@ -372,7 +381,7 @@ CMD_CHAINS	dw	?		; 498h: CHAINS frame (see saveChains)
 ; COM file can request the stack be located elsewhere, since there's no way for
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
-STACK		dw  507 dup (?)		; 49Ah
+STACK		dw  493 dup (?)		; 4B6h
 CMDHEAP		ends			; 890h
 SIG_CMD		equ	'H'
 

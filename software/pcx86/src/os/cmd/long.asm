@@ -899,7 +899,71 @@ ENDPROC	getErrorLevel
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; getRndLong
+; getRnd (RND)
+;
+; Returns a pseudo-random double from 0 up to (but not including) 1; the
+; arg is processed like getRndLong's.  The double is the next 31-bit value
+; from nextRnd divided by 2^31, which we build directly (no FPU$ required).
+;
+; Inputs:
+;	pointer to double result (in a slot)
+;	1 32-bit arg on stack (popped)
+;
+; Outputs:
+;	double result updated
+;
+; Modifies:
+;	AX, BX, CX, DX, DI, ES
+;
+DEFPROC	getRnd,FAR
+	RETVAR	pRnd,dword
+	ARGVAR	seedRnd,dword
+	ENTER
+	mov	dx,[seedRnd].HIW
+	mov	ax,[seedRnd].LOW
+	call	nextRnd			; CX:BX = 0 to MAXINT
+	sub	dx,dx			; DX = high word of the double
+	mov	ax,cx
+	or	ax,bx			; zero?
+	jz	gr9			; yes, so the double is zero, too
+	mov	dx,3FEh			; exponent for values from .5 to 1
+gr1:	test	ch,40h			; is bit 30 set yet?
+	jnz	gr2			; yes
+	shl	bx,1
+	rcl	cx,1
+	dec	dx			; no, so shift and adjust the exponent
+	jmp	gr1
+;
+; Drop bits 31 and 30 (the latter is implied by the exponent), and then
+; shift the remaining 30 bits, along with the exponent in DX, by 4 more bits,
+; so that the top 20 bits are in the low bits of DX and all of CX.
+;
+gr2:	shl	bx,1
+	rcl	cx,1
+	shl	bx,1
+	rcl	cx,1
+	mov	ax,4
+gr3:	shl	bx,1
+	rcl	cx,1
+	rcl	dx,1
+	dec	ax
+	jnz	gr3
+gr9:	les	di,[pRnd]
+	sub	ax,ax
+	stosw
+	xchg	ax,bx
+	stosw
+	xchg	ax,cx
+	stosw
+	xchg	ax,dx
+	stosw
+	LEAVE
+	RETURN
+ENDPROC	getRnd
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getRndLong (RND%)
 ;
 ; If the arg is negative, it's used to re-seed the generator; if it's zero,
 ; we return the last pseudo-random number; any other value (ie, 1 to MAXINT)
@@ -921,6 +985,27 @@ DEFPROC	getRndLong,FAR
 	ENTER
 	mov	dx,[seed].HIW
 	mov	ax,[seed].LOW
+	call	nextRnd
+	mov	[retRndLong].HIW,cx
+	mov	[retRndLong].LOW,bx
+	LEAVE
+	RETURN
+ENDPROC	getRndLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; nextRnd
+;
+; Inputs:
+;	DX:AX = arg (see getRndLong)
+;
+; Outputs:
+;	CX:BX = pseudo-random number (0 to MAXINT)
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+DEFPROC	nextRnd
 	mov	cx,ax
 	or	cx,dx
 	mov	bx,ss:[PSP_HEAP]
@@ -944,11 +1029,8 @@ rnd1:	mov	ax,25173
 	mov	ss:[bx].RND_SEED.LOW,ax
 	xchg	bx,ax
 rnd9:	and	cx,7FFFh		; never return a negative result
-	mov	[retRndLong].HIW,cx
-	mov	[retRndLong].LOW,bx
-	LEAVE
-	RETURN
-ENDPROC	getRndLong
+	ret
+ENDPROC	nextRnd
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

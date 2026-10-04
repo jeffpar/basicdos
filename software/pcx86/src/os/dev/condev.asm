@@ -31,9 +31,9 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFLBL	IOCTBL,word
 	dw	ddcon_getdd,  ddcon_none,   ddcon_none,   ddcon_none	; 00-03
 	dw	ddcon_none,   ddcon_none,   ddcon_none,   ddcon_none	; 04-07
-	dw	ddcon_none,   ddcon_getdim, ddcon_getpos, ddcon_getlen	; C0-C3
-	dw	ddcon_movcur, ddcon_setins, ddcon_scroll, ddcon_getclr	; C4-C7
-	dw	ddcon_setclr						; C8
+	dw	ddcon_none,   ddcon_getdim, ddcon_getpos, ddcon_getlen	; D0-D3
+	dw	ddcon_movcur, ddcon_setins, ddcon_scroll, ddcon_getclr	; D4-D7
+	dw	ddcon_setclr, ddcon_setpos, ddcon_getmode,ddcon_setmode	; D8-DB
 	DEFABS	IOCTBL_SIZE,<($ - IOCTBL) SHR 1>
 
 	DEFLBL	CON_PARMS,word
@@ -396,11 +396,14 @@ dsi1:	xchg	ds:[CT_CURTYPE],ax	; AX = previous CT_CURTYPE
 	test	ah,1Fh			; were bits 0-4 clear?
 	jnz	dsi2			; no, DX = 0
 	inc	dx			; yes, DX = 1
+
+	DEFLBL	focus_curtype,near
 dsi2:	mov	ax,ds
 	cmp	ax,[ct_focus]		; does this context have focus?
 	jne	dsi9			; no, leave cursor alone
 	call	set_curtype		; update CT_CURTYPE
-dsi9:	ret
+dsi9:	clc				; (ddcon_ioctl requires carry clear)
+	ret
 ENDPROC	ddcon_setins
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -444,13 +447,19 @@ ENDPROC	ddcon_scroll
 ;	DL = fill attributes
 ;	DH = border attributes
 ;
+; In graphics modes, DL contains the background color (low nibble) and
+; palette (high nibble) instead; see ddcon_setclr.
+;
 ; Modifies:
-;	DX
+;	AH, DX
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_getclr
 	mov	dx,ds:[CT_COLOR]
-	ret
+	call	chk_graphics		; graphics mode?
+	jnc	dgc9			; no
+	mov	dl,dh			; yes, return background and palette
+dgc9:	ret
 ENDPROC	ddcon_getclr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -463,6 +472,11 @@ ENDPROC	ddcon_getclr
 ;	CH = border attributes
 ;	DS = CONSOLE context
 ;
+; In graphics modes, the low nibble of CL is the background color and the
+; high nibble is the palette (only bit 0 matters), and CH is ignored; text
+; is always drawn in color 3, so we save these values in CT_COLOR.HIB, which
+; is otherwise unused, since graphics mode contexts have no border.
+;
 ; Outputs:
 ;	None
 ;
@@ -471,13 +485,155 @@ ENDPROC	ddcon_getclr
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddcon_setclr
+	call	chk_graphics		; graphics mode?
+	jc	sc5			; yes
 	mov	ax,cx
 	xchg	ds:[CT_COLOR],ax
 	cmp	ah,ch			; border color changed?
 	je	sc9			; no
 	call	draw_border
 sc9:	ret
+
+sc5:	mov	ds:[CT_COLOR].HIB,cl
+	mov	bl,cl
+	and	bl,0Fh			; BL = background color
+	mov	bh,0			; BH = 0 (set background)
+	call	set_palette
+	mov	bx,0100h		; BH = 1 (set palette), BL = 0
+	test	cl,10h			; palette 1?
+	jz	set_palette		; no
+	inc	bx			; yes
+	DEFLBL	set_palette,near
+	mov	ah,VIDEO_SETPAL
+	pushf
+	call	[video_int]		; bypass ddcon_int10 (see set_curtype)
+	ret
 ENDPROC	ddcon_setclr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_setpos
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;	CL = col, CH = row (zero-based, like IOCTL_GETPOS)
+;	DL = 0 to hide the cursor, 1 to show it, or any other value to
+;	leave it alone
+;	DS = CONSOLE context
+;
+; Outputs:
+;	Carry set if the position is outside the context
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_setpos
+	cmp	cl,ds:[CT_CURDIM].LOB
+	jae	dsp8
+	cmp	ch,ds:[CT_CURDIM].HIB
+	jae	dsp8
+	push	dx
+	mov	dx,cx
+	add	dx,ds:[CT_CURMIN]	; DX = new cursor position
+	call	update_cursor		; (which also clears carry)
+	pop	dx
+	cmp	dl,1			; change the cursor's visibility?
+	ja	dsp9			; no
+;
+; Like ddcon_setins, we start with the default cursor type; to hide the
+; cursor, we set bit 5 of the top scan line (the 6845's "no cursor" mode).
+; As a result, the next IOCTL_SETINS (eg, from the DOS line editor) makes
+; the cursor visible again, which is how BASIC's LOCATE ,,0 behaves, too.
+;
+	mov	ax,ds:[CT_DEFTYPE]
+	test	dl,dl			; hide the cursor?
+	jnz	dsp1			; no
+	or	ah,20h			; yes
+dsp1:	mov	ds:[CT_CURTYPE],ax
+	jmp	focus_curtype		; update the cursor if we have focus
+dsp8:	jmp	ddcon_none
+dsp9:	ret
+ENDPROC	ddcon_setpos
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_getmode
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;	DS = CONSOLE context
+;
+; Outputs:
+;	DL = video mode
+;
+; Modifies:
+;	DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_getmode
+	mov	dl,ds:[CT_MODE]
+	ret
+ENDPROC	ddcon_getmode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_setmode
+;
+; Sets a new video mode (0-6 on a CGA, or 7 on an MDA, where modes 2 and 3
+; are treated as 7 as well) for the context's adapter.  The new mode affects
+; the entire screen, so the context becomes a full-screen context that uses
+; INT 10h passthrough (see update_mode).
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;	CL = video mode
+;	DS = CONSOLE context
+;
+; Outputs:
+;	Carry set if the mode isn't supported by the adapter
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_setmode
+	cmp	ds:[CT_PORT].LOB,0B4h	; monochrome adapter?
+	jne	dsm1			; no
+	cmp	cl,MODE_MONO
+	je	dsm2
+	sub	cl,2
+	cmp	cl,1			; mode 2 or 3?
+	ja	dsm8			; no
+	mov	cl,MODE_MONO
+	jmp	short dsm2
+dsm1:	cmp	cl,6			; CGA modes 0-6 only
+	ja	dsm8
+;
+; Like ddcon_int10, we lock the BIOS and the session around the mode change,
+; but since this context may not be the session's context, we update the
+; BIOS data ourselves and bypass ddcon_int10 (see set_curtype).
+;
+dsm2:	inc	[bios_lock]
+	mov	ah,DOS_UTL_LOCK
+	call	far ptr DDINT_UTIL	; ensure EQUIP_FLAG remains stable
+	call	update_biosdata		; AX = previous EQUIP_FLAG
+	push	ax
+	push	bp			; some BIOS functions trash BP
+	mov	al,cl
+	mov	ah,VIDEO_SETMODE
+	pushf
+	call	[video_int]
+	pop	bp
+	pop	ax
+	call	update_mode
+	mov	ah,DOS_UTL_UNLOCK
+	call	far ptr DDINT_UTIL	; unlock the current session
+	call	unlock_bios
+	clc
+	ret
+dsm8:	jmp	ddcon_none
+ENDPROC	ddcon_setmode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -795,8 +951,13 @@ dco3:	mov	bl,al			; BL = new video mode
 	test	bh,CTSTAT_SKIPMODE	; do we really need to set the mode?
 	jnz	dco3a			; no
 	xchg	[EQUIP_FLAG],cx
+;
+; We bypass ddcon_int10 here, because it would treat this mode change as a
+; change to the session's context (see update_mode), which isn't this one.
+;
 	mov	ah,VIDEO_SETMODE
-	int	INT_VIDEO
+	pushf
+	call	[video_int]
 	xchg	[EQUIP_FLAG],cx
 dco3a:	pop	ax
 
@@ -1147,15 +1308,18 @@ i10a:	push	ax			; save EQUIP_FLAG
 	call	[video_int]		; issue the original INT 10h
 
 	mov	bp,sp
-	mov	[bp+4],ax		; update AX return value on stack
-	mov	ax,[bp+2]		; get the context segment
-	test	ax,ax			; is it valid?
-	jz	i10x			; no
+	xchg	[bp+4],ax		; update AX return value on stack
+	cmp	word ptr [bp+2],0	; is the context segment valid?
+	je	i10x			; no
 	push	ds			; yes
-	mov	ds,ax			; load it
+	mov	ds,[bp+2]		; load it
+	cmp	ah,VIDEO_SETMODE	; did the caller set a video mode?
 	mov	ax,[bp]			; AX = EQUIP_FLAG from update_biosdata
-	call	update_context
-	pop	ds
+	jne	i10b			; no
+	call	update_mode		; yes (see update_mode)
+	jmp	short i10c
+i10b:	call	update_context
+i10c:	pop	ds
 
 i10x:	pop	ax			; clean up the stack
 	pop	ax			; (eg, ADD SP,4)
@@ -1820,7 +1984,10 @@ scr0:	cmp	al,ds:[CT_CONDIM].HIB
 scr1:	add	cx,ds:[CT_CURMIN]	; CH = row, CL = col of upper left
 	add	dx,ds:[CT_CURMAX]	; DH = row, DL = col of lower right
 scr2:	mov	bh,ds:[CT_COLOR].LOB	; BH = fill attributes
-	mov	ah,VIDEO_SCROLL		; scroll up # lines in AL
+	call	chk_graphics		; graphics mode?
+	jnc	scr3			; no
+	mov	bh,0			; yes, BH = fill pixels (background)
+scr3:	mov	ah,VIDEO_SCROLL		; scroll up # lines in AL
 	int	INT_VIDEO
 	pop	dx
 	pop	cx
@@ -1990,6 +2157,27 @@ ENDPROC	unlock_bios
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; chk_graphics
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Outputs:
+;	Carry set if the context's video mode is a (CGA) graphics mode (4-6)
+;
+; Modifies:
+;	AH
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	chk_graphics
+	mov	ah,ds:[CT_MODE]
+	sub	ah,4
+	cmp	ah,3
+	ret
+ENDPROC	chk_graphics
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; chk_context
 ;
 ; Verify that a context (eg, the active session's context returned by
@@ -2075,6 +2263,66 @@ DEFPROC	update_biosdata
 	pop	es
 	ret
 ENDPROC	update_biosdata
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; update_mode
+;
+; This is update_context for video mode changes, whether they come from
+; IOCTL_SETMODE or from anyone else calling INT 10h directly.
+;
+; The CON driver writes directly to the screen only in the text mode that a
+; context was created in, and a mode change affects the entire screen anyway,
+; so the context becomes a full-screen context with no border that uses INT
+; 10h passthrough (CTSTAT_INT10) from now on.  This also allows text output
+; (and CLS) to work in graphics modes, where text is always drawn in color 3.
+;
+; Inputs:
+;	DS = CONSOLE context
+;	AX = previous EQUIP_FLAG
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	update_mode
+	push	bx
+	mov	bl,ds:[CT_MODE]		; BL = previous mode
+	call	update_context		; update CT_MODE, CT_COLS, etc
+	mov	al,ds:[CT_STATUS]
+	and	al,NOT CTSTAT_BORDER
+	or	al,CTSTAT_INT10
+	mov	ds:[CT_STATUS],al
+	sub	ax,ax
+	mov	ds:[CT_CONPOS],ax
+	mov	ds:[CT_CURMIN],ax
+	mov	ds:[CT_CURPOS],ax	; (the BIOS homes the cursor, too)
+	mov	ds:[CT_SCREEN].OFF,ax
+	mov	al,ds:[CT_COLS].LOB
+	mov	ah,25
+	mov	ds:[CT_CURDIM],ax	; set CT_CURDIM (width and height)
+	sub	ax,0101h
+	mov	ds:[CT_CONDIM],ax	; set CT_CONDIM (CL,CH)
+	mov	ds:[CT_CURMAX],ax	; set CT_CURMAX (CL,CH)
+;
+; Graphics modes start with text color 3, background 0, and palette 1 (the
+; BIOS default).  Text modes keep the current colors, unless we're leaving a
+; graphics mode, in which case the default colors are restored.
+;
+	mov	ax,1003h
+	call	chk_graphics		; new mode graphics?
+	jc	um8			; yes
+	sub	bl,4
+	cmp	bl,3			; old mode graphics?
+	jae	um9			; no
+	mov	ax,0707h
+um8:	mov	ds:[CT_COLOR],ax
+um9:	pop	bx
+	ret
+ENDPROC	update_mode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

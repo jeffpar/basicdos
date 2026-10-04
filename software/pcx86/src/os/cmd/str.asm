@@ -12,7 +12,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<allocStrSpace,freeBlock,ctrlc>
+	EXTNEAR	<allocStrSpace,freeBlock,rtError>
 	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -782,18 +782,18 @@ ENDPROC	evalGEStr
 ;
 ; Runtime errors
 ;
-; These report the error and then abort the program, by way of our CTRLC
-; handler (which also frees any blocks saved by callers; see restoreChains).
+; These report the error (see rtError), using MSBASIC's error numbers.
 ;
 strNoSpace:
-	PRINTF	<"Out of string space",13,10>
-	jmp	ctrlc
+	mov	al,14			; "Out of string space"
+	jmp	short strError
 strTooLong:
-	PRINTF	<"String too long",13,10>
-	jmp	ctrlc
-strIllegal:
-	PRINTF	<"Illegal function call",13,10>
-	jmp	ctrlc
+	mov	al,15			; "String too long"
+	jmp	short strError
+	DEFLBL	strIllegal,near
+	mov	al,5			; "Illegal function call"
+strError:
+	jmp	rtError
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

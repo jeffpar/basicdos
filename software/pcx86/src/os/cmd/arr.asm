@@ -11,7 +11,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<allocBlockSize,freeBlock,freeStr,ctrlc>
+	EXTNEAR	<allocBlockSize,freeBlock,freeStr,rtError>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
@@ -436,21 +436,21 @@ ENDPROC	getArrayVar
 ;
 ; Runtime errors
 ;
-; These report the error and then abort the program, by way of our CTRLC
-; handler (which also frees any blocks saved by callers; see restoreChains).
+; These report the error (see rtError), using MSBASIC's error numbers.
 ;
 arrRange:
-	PRINTF	<"Subscript out of range",13,10>
-	jmp	ctrlc
+	mov	al,9			; "Subscript out of range"
+	jmp	short arrError
 arrDup:
-	PRINTF	<"Duplicate definition",13,10>
-	jmp	ctrlc
+	mov	al,10			; "Duplicate definition"
+	jmp	short arrError
 arrIllegal:
-	PRINTF	<"Illegal function call",13,10>
-	jmp	ctrlc
+	mov	al,5			; "Illegal function call"
+	jmp	short arrError
 arrMemory:
-	PRINTF	<"Out of memory",13,10>
-	jmp	ctrlc
+	mov	al,7			; "Out of memory"
+arrError:
+	jmp	rtError
 
 CODE	ENDS
 

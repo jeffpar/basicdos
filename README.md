@@ -123,7 +123,7 @@ This section tracks what's been completed (**[x]**) and what remains
 - [x] Assignments without LET in BAS and BAT files (LET is still required
       on the command line)
 - [x] LOAD, LIST, NEW, and RUN
-- [x] Functions: ERRORLEVEL, MAXINT, and RND%
+- [x] Functions: ERR, ERRORLEVEL, MAXINT, PEEK, RND, and RND%
 - [x] Arrays of integers, doubles, and strings, with up to 255 dimensions:
       DIM, ERASE, OPTION BASE, automatic dimensioning (with a largest
       subscript of 10) of arrays used without DIM, and "Subscript out of
@@ -146,8 +146,9 @@ This section tracks what's been completed (**[x]**) and what remains
 - [ ] `&H` and `&O` prefixes in VAL
 - [ ] Comma print zones in PRINT (commas currently print a tab)
 - [ ] File I/O statements (eg, OPEN, CLOSE, PRINT #, INPUT #)
-- [ ] Error handling (eg, ON ERROR, ERR, ERL), and runtime error messages
-      for numeric errors
+- [x] *partial*: Error handling (ON ERROR GOTO, RESUME *line*, ERROR, and
+      ERR; see the DONKEY.BAS checklist)
+- [ ] Runtime error messages for numeric errors
 
 ### Floating-Point
 
@@ -181,6 +182,68 @@ code.
 - [ ] Utility functions DOS_UTL_ATOF64, DOS_UTL_I32F64, and DOS_UTL_OPF64
       (still stubs; possibly superseded by FPU$)
 
+### DONKEY.BAS
+
+[DONKEY.BAS](https://www.pcjs.org/software/pcx86/app/ibm/basic/1.00/donkey/),
+from the original IBM PC DOS 1.00 diskette, is a good test of BASIC-DOS's
+compatibility with IBM PC BASIC programs.  These are the items it needed,
+followed by related work that remains.  Since BASIC-DOS compiles an entire
+program before running it, every statement must at least be recognized, even
+ones that DONKEY.BAS rarely or never runs (eg, PLAY and CHAIN).
+
+- [x] SCREEN 0, 1, and 2 (text, 320x200, and 640x200 modes), WIDTH 40 and
+      80, and LOCATE (row, column, and cursor visibility)
+- [x] CON driver IOCTLs to get and set the video mode and cursor position;
+      a mode change (whether by IOCTL or by INT 10h directly) turns the
+      console into a full-screen, borderless context that uses INT 10h
+      passthrough, so text output and CLS work in graphics modes
+- [x] COLOR with blinking foregrounds (16-31), omitted arguments (eg,
+      `COLOR ,1`), and SCREEN 1's background and palette
+- [x] KEY ON and KEY OFF (accepted, but no-ops, since BASIC-DOS doesn't
+      display function keys)
+- [x] DEF SEG, PEEK, and POKE (`DEF SEG` alone selects BASIC-DOS's own data
+      segment, so DONKEY.BAS's `POKE 106,0` is harmless)
+- [x] RND as a floating-point function (0 <= RND < 1); RND% still returns
+      an integer
+- [x] String constants with no closing quote at the end of a line
+- [x] ON ERROR GOTO (and GOTO 0), RESUME *line*, ERROR, and ERR, with
+      MSBASIC's error numbers for runtime errors
+- [x] PLAY (notes, N, O, <, >, L, P, T, MN/ML/MS, and dots; MF/MB are
+      ignored, since music always plays in the foreground)
+- [x] SOUND *frequency*,*duration*
+- [x] CHAIN *file* (runs the BAS file, then ends the program; the line
+      number is ignored)
+- [x] PSET, PRESET, LINE (including `LINE -(x,y)`, B, BF, and an omitted
+      color), PAINT, and DRAW (U, D, L, R, E, F, G, H, M, B, N, C, and S),
+      drawing directly into CGA memory in modes 4-6
+- [x] GET and PUT (PSET, PRESET, XOR, OR, and AND), using integer arrays
+      (passed by name) in BASICA's image format, with one 16-bit word per
+      element, so programs that build images by hand (like DONKEY.BAS's
+      `B%`) work
+- [x] Syntax errors report the program's line number (eg, "Syntax error in
+      line 1160") instead of the line's position in the file
+- [x] DONKEY.BAS runs (see the [DONKEY.BAS demo](demos/donkey/))
+- [x] Performance: PUT and GET copy whole bytes (shifting and masking
+      each row in registers), horizontal lines, BF, and PAINT fill whole
+      bytes, and the video mode is cached, so graphics statements make no
+      driver or BIOS calls; SOUND returns immediately (as in MSBASIC, the
+      next SOUND waits for it to finish, and the CLOCK$ driver turns it
+      off), so DONKEY.BAS is paced at one loop per tick, like MSBASIC
+- [ ] More performance: diagonal lines (and DRAW) and PAINT's boundary
+      scans still work a pixel at a time, and text output in graphics modes
+      goes through the CON driver and the BIOS
+- [ ] Graphics features that DONKEY.BAS doesn't use: STEP coordinates,
+      CIRCLE, POINT, DRAW's A, TA, X, and "=variable" commands, and GET/PUT
+      with floating-point arrays
+- [ ] RESUME and RESUME NEXT (which need the location of the error), and
+      ERL
+- [ ] Restoring a context's original mode and geometry (eg, its border)
+      when returning to its text mode, and keeping other sessions on the
+      same adapter from writing to the screen while it's in graphics mode;
+      also, the CON driver restores the BIOS's video data after every INT
+      10h call, so programs that read the BIOS's video mode (0:449h) may see
+      a stale value
+
 ### Build, Tests, and Documentation
 
 - [x] Builds with MASM 4.0 using `mk.sh` (PC.js), which also updates
@@ -212,7 +275,7 @@ These are the next steps, roughly in priority order:
 4. Essential BASIC statements: INPUT and READ/DATA
 5. BASIC file I/O statements, and the remaining string features (the MID$
    statement, LINE INPUT, and comma print zones)
-6. Runtime error handling (ON ERROR, ERR, ERL)
+6. The rest of runtime error handling (RESUME, RESUME NEXT, and ERL)
 7. Critical error handling
 8. Subdirectory support
 

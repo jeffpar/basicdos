@@ -11,7 +11,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<parseDOS,releaseStr>
+	EXTNEAR	<parseDOS,releaseStr,strIllegal>
 	EXTSTR	<STR_ON,STR_OFF>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -100,12 +100,130 @@ ENDPROC	callDOS
 ;	AX, BX, CX, DX
 ;
 DEFPROC	clearScreen,FAR
-	mov	bx,STDOUT
 	sub	cx,cx
-	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_SCROLL
-	int	21h
+	mov	al,IOCTL_SCROLL
+	call	ioctlCon
 	ret
 ENDPROC	clearScreen
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getArgs
+;
+; Removes the numeric arguments that genArgs pushed for a runtime function
+; (ie, N arguments followed by N), and returns the first three in registers.
+; Every argument must be 0-255, or -1 if it was omitted (which is also the
+; value of any argument beyond N); otherwise, an "Illegal function call"
+; error occurs.
+;
+; Call this first thing in the runtime function, so that the stack contains
+; only our return address, the function's (far) return address, and the
+; arguments.
+;
+; Inputs:
+;	N arguments and N pushed on stack (see genArgs)
+;
+; Outputs:
+;	AX = 1st argument, DX = 2nd argument, CX = 3rd argument
+;	Stack cleaned (only the function's return address remains)
+;
+; Modifies:
+;	AX, CX, DX, SI, DI
+;
+DEFPROC	getArgs
+	push	bp
+	mov	bp,sp
+	mov	si,[bp+8]		; SI = N
+	mov	ax,-1
+	cwd
+	mov	cx,ax
+;
+; Arguments are on the stack in reverse order, so as we load each one, we
+; shift the previous ones down, ending with the 1st argument in AX.
+;
+ga1:	dec	si
+	jl	ga8
+	mov	cx,dx
+	mov	dx,ax
+	add	bp,4
+	mov	ax,[bp+6]
+	mov	di,[bp+8]		; DI:AX = next argument
+	add	ax,1
+	adc	di,0			; DI:AX = argument + 1
+	jnz	ga9			; argument must be -1 to 255
+	cmp	ax,256
+	ja	ga9
+	dec	ax
+	jmp	ga1
+;
+; Move both return addresses above the arguments (whose last word is now at
+; BP+8), restore BP, and point SP at the return addresses.  Every move is to
+; a higher address, so no source is overwritten before it's read, and SP is
+; updated last, since anything below SP can be overwritten by interrupts.
+;
+ga8:	mov	si,sp			; SS:SI -> saved BP
+	mov	di,ss:[si+6]
+	mov	[bp+8],di
+	mov	di,ss:[si+4]
+	mov	[bp+6],di		; the function's return address
+	mov	di,ss:[si+2]
+	mov	[bp+4],di		; our return address
+	mov	si,ss:[si]
+	lea	sp,[bp+4]
+	mov	bp,si			; restore BP
+	ret
+ga9:	jmp	strIllegal
+ENDPROC	getArgs
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getMode
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	If carry clear (ie, STDOUT supports video modes):
+;	BH = current video mode (or 3 if it's 7, the MDA's 80-column mode)
+;	BL = index of BH in MODE_TBL (see setScreen)
+;
+; Modifies:
+;	AX, BX, DX
+;
+DEFPROC	getMode
+	mov	al,IOCTL_GETMODE
+	call	ioctlCon		; DL = video mode
+	jc	gm9
+	cmp	dl,7			; MDA mode?
+	jne	gm1			; no
+	mov	dl,3			; yes, treat it like mode 3
+gm1:	mov	bl,dl
+	and	bx,7
+	mov	bl,cs:MODE_INFO[bx]
+	mov	bh,dl
+gm9:	ret
+ENDPROC	getMode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ioctlCon
+;
+; Inputs:
+;	AL = IOCTL code (eg, IOCTL_GETPOS)
+;	CX, DX = IOCTL inputs, if any
+;
+; Outputs:
+;	Same as DOS_HDL_IOCTL (eg, DX = result) for STDOUT
+;
+; Modifies:
+;	AX, BX, DX
+;
+DEFPROC	ioctlCon
+	mov	ah,DOS_HDL_IOCTL
+	mov	bx,STDOUT
+	int	21h
+	ret
+ENDPROC	ioctlCon
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -349,7 +467,11 @@ ENDPROC	writeStrCRLF
 ;
 ; setColor
 ;
-; Used by "COLOR fgnd[,bgnd[,border]]"
+; Used by "COLOR [fgnd][,[bgnd][,border]]"
+;
+; As in MSBASIC, a foreground of 16-31 is a blinking foreground of 0-15.
+; In graphics modes, the CON driver treats fgnd as the background color and
+; bgnd as the palette.
 ;
 ; Inputs:
 ;	N numeric expressions pushed on stack (only 1st 3 are processed)
@@ -361,51 +483,198 @@ ENDPROC	writeStrCRLF
 ;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	setColor,FAR
-	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETCOLOR
-	mov	bx,STDOUT
-	int	21h			; DX = current colors
-	jnc	sc0
+	call	getArgs			; AX = fgnd, DX = bgnd, CX = border
+	push	ax
+	push	dx
+	push	cx
+	mov	al,IOCTL_GETCOLOR
+	call	ioctlCon		; DX = current colors
+	jnc	sc1
 	mov	dx,0707h		; use defaults if unsupported
-sc0:	pop	si
-	pop	di			; DI:SI = return address
-	pop	cx			; CX = # args
-sc1:	cmp	cl,4
-	jb	sc2
-	pop	ax
-	pop	bx
-	dec	cx
-	jmp	sc1
-sc2:	cmp	cl,3
-	jne	sc3
-	pop	ax
-	pop	bx
+sc1:	pop	ax			; AX = border
+	test	ax,ax			; omitted?
+	js	sc2			; yes
 	mov	dh,al
-	dec	cx
-sc3:	cmp	cl,2
-	jne	sc4
-	pop	ax
-	pop	bx
-	and	al,0Fh
+sc2:	pop	ax			; AX = bgnd
+	test	ax,ax
+	js	sc3
+	mov	cl,4
+	shl	al,cl
 	and	dl,0Fh
-	shl	al,cl
-	shl	al,cl
 	or	dl,al
-	dec	cx
-sc4:	cmp	cl,1
-	jne	sc5
-	pop	ax
-	pop	bx
-	and	al,0Fh
+sc3:	pop	ax			; AX = fgnd
+	test	ax,ax
+	js	sc5
 	and	dl,0F0h
+	test	al,10h			; blinking foreground?
+	jz	sc4			; no
+	or	dl,80h			; yes
+sc4:	and	al,0Fh
 	or	dl,al
-sc5:	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_SETCOLOR
-	mov	bx,STDOUT
-	mov	cx,dx			; CX = new colors
-	int	21h
-	push	di			; push return address back on stack
-	push	si
+sc5:	mov	cx,dx			; CX = new colors
+	mov	al,IOCTL_SETCOLOR
+	call	ioctlCon
 	ret
 ENDPROC	setColor
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; setPos
+;
+; Used by "LOCATE [row][,[col][,cursor]]" (as with COLOR, any additional
+; arguments, such as the cursor's scan lines, are ignored).  Row and col are
+; 1-based, and cursor is 0 to hide the cursor (until the next input) or 1 to
+; show it.  Nothing happens if STDOUT doesn't support cursor positioning.
+;
+; Inputs:
+;	N numeric expressions pushed on stack (only 1st 3 are processed)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+DEFPROC	setPos,FAR
+	call	getArgs			; AX = row, DX = col, CX = cursor
+	push	cx
+	push	ax
+	push	dx
+	mov	al,IOCTL_GETPOS
+	call	ioctlCon		; DL = col, DH = row (zero-based)
+	pop	ax			; AX = col
+	pop	cx			; CX = row
+	pop	bx			; BX = cursor
+	jc	sp9			; not supported
+	test	ax,ax			; col omitted?
+	js	sp1			; yes
+	dec	ax			; make it zero-based
+	js	sp8			; col 0 is illegal
+	mov	dl,al
+sp1:	xchg	ax,cx			; AX = row
+	test	ax,ax
+	js	sp2
+	dec	ax
+	js	sp8
+	mov	dh,al
+sp2:	mov	cx,dx			; CX = new position
+	mov	dx,bx			; DL = cursor
+	mov	al,IOCTL_SETPOS
+	call	ioctlCon
+	jc	sp8			; position is outside the console
+sp9:	ret
+sp8:	jmp	strIllegal
+ENDPROC	setPos
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; setScreen
+;
+; Used by "SCREEN [mode][,burst]" (any additional arguments are ignored).
+;
+; Mode is 0 for text, 1 for 320x200 graphics, or 2 for 640x200 graphics, and
+; burst enables color in mode 0 if it's non-zero, and disables it in mode 1.
+; SCREEN 0 keeps the current width (40 columns after SCREEN 1, 80 after
+; SCREEN 2), and omitted values keep their current settings.  Nothing happens
+; if STDOUT doesn't support video modes, or if the video mode is unchanged.
+;
+; Every combination of these settings is an index into MODE_TBL:
+;
+;	index = mode * 4 + 2 (if color is disabled) + 1 (if 80 columns)
+;
+; and MODE_INFO maps video modes 0-7 back to their indexes.
+;
+; Inputs:
+;	N numeric expressions pushed on stack (only 1st 2 are processed)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+DEFPROC	setScreen,FAR
+	call	getArgs			; AX = mode, DX = burst
+	push	dx
+	push	ax
+	call	getMode			; BL = index, BH = video mode
+	pop	ax
+	pop	dx
+	jc	ss9			; not supported
+	test	ax,ax			; mode omitted?
+	js	ss2			; yes
+	cmp	al,2
+	ja	ss8
+	and	bl,3			; keep the color and width bits
+	shl	al,1
+	shl	al,1
+	or	bl,al
+	cmp	al,4			; SCREEN 1?
+	jne	ss2			; no
+	and	bl,NOT 1		; yes, so it's 40 columns
+ss2:	test	dx,dx			; burst omitted?
+	js	ss4			; yes
+	cmp	dx,1			; carry set if burst is zero
+	sbb	al,al			; AL = -1 if burst is zero
+	test	bl,0Ch			; graphics mode?
+	jz	ss3			; no
+	not	al			; yes, so burst has the opposite effect
+ss3:	and	al,2			; AL = 2 if color is disabled
+	and	bl,NOT 2
+	or	bl,al
+
+ss4:	mov	cl,bh			; CL = current video mode
+	mov	bh,0
+	mov	al,cs:MODE_TBL[bx]	; AL = new video mode
+	cmp	al,cl			; any change?
+	je	ss9			; no
+	xchg	cx,ax			; CL = new video mode
+	mov	al,IOCTL_SETMODE
+	call	ioctlCon
+	jc	ss8			; the adapter doesn't support the mode
+	mov	bx,ss:[PSP_HEAP]
+	mov	byte ptr ss:[bx].GFX_DATA+6,0	; see gfxInit
+ss9:	ret
+ss8:	jmp	strIllegal
+ENDPROC	setScreen
+
+MODE_TBL	db	1,3,0,2,4,6,5,6,6,6,6,6
+MODE_INFO	db	2,0,3,1,4,6,9,1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; setWidth
+;
+; Used by "WIDTH 40" and "WIDTH 80".  Like MSBASIC, WIDTH in a graphics mode
+; selects SCREEN 1 (40) or SCREEN 2 (80); see setScreen for details.
+;
+; Inputs:
+;	N numeric expressions pushed on stack (only the 1st is processed)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+DEFPROC	setWidth,FAR
+	call	getArgs			; AX = width
+	push	ax
+	call	getMode			; BL = index, BH = video mode
+	pop	ax
+	jc	ss9			; not supported
+	and	bl,NOT 1		; presume 40 columns
+	cmp	ax,40
+	je	sw1
+	cmp	ax,80
+	jne	ss8
+	inc	bx			; 80 columns
+sw1:	test	bl,0Ch			; graphics mode?
+	jz	ss4			; no
+	and	bl,3			; yes, keep the color and width bits
+	or	bl,4			; for SCREEN 1 (MODE_TBL maps 80 to 2)
+	jmp	ss4
+ENDPROC	setWidth
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

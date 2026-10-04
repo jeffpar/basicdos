@@ -210,6 +210,28 @@ ENDPROC	utl_sleep
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; utl_sound (AH = 2Ch)
+;
+; Starts a sound that the CLOCK$ driver turns off after the specified number
+; of ticks (see IOCTL_SOUND); unlike utl_sleep, this returns immediately.
+;
+; Inputs:
+;	REG_CX = # of ticks
+;	REG_DX = PIT divisor for the frequency (0 to turn the sound off)
+;
+; Modifies:
+;	AX, BX, CX, DX, DI, ES
+;
+DEFPROC	utl_sound,DOS
+	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_SOUND
+	les	di,[clk_ptr]
+	mov	bx,dx			; BX = REG_DX, CX = REG_CX
+	call	dev_request		; call the driver
+	ret
+ENDPROC	utl_sound
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; utl_wait (AH = 1Fh)
 ;
 ; Synchronous interface to mark current SCB as waiting for the specified ID.

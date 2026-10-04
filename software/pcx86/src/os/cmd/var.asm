@@ -951,10 +951,26 @@ fv5:	pop	di
 	pop	cx
 	pop	ax
 	jne	fv6			; no match
-	cmp	ah,bl			; do the types match?
-	je	fv8			; yes
 	test	bh,bh			; predefined var?
-	jz	fv8			; yes
+	jnz	fv7			; no
+;
+; Predefined vars match any type, except that a predefined function that
+; returns a double (eg, RND) doesn't match a name with an explicit '%' suffix,
+; so that a following function with the same name (eg, RND%) can match it.
+;
+	push	bx
+	mov	bx,dx
+	cmp	byte ptr es:[bx],VAR_DOUBLE
+	jne	fv5a
+	mov	bl,cl
+	mov	bh,0
+	cmp	byte ptr [si+bx],'%'
+fv5a:	pop	bx
+	jne	fv8
+	jmp	short fv6
+
+fv7:	cmp	ah,bl			; do the types match?
+	je	fv8			; yes
 	cmp	ah,VAR_FUNC		; function?
 	je	fv8			; yes
 	cmp	ah,VAR_PARM		; parameter?
@@ -973,6 +989,7 @@ fv6:	mov	dl,al
 
 fv8:	mov	si,dx
 	mov	dx,es			; DX:SI -> var data
+	clc
 
 fv9:	pop	bx
 	pop	di

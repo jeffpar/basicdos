@@ -34,6 +34,7 @@ CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CLOCK+DDATTR_CHAR+DDATTR_IOCTL,offset
 	DEFBYTE	dateMonth,12		; 1-12
 	DEFWORD	dateYear,2020		; 1980-
 	DEFLONG	ticksToday,786520	; ticks since midnight (noon default)
+	DEFWORD	sndTicks,0		; ticks until the speaker is turned off
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -80,7 +81,35 @@ DEFPROC	ddclk_ctlin
 	mov	dx,es:[di].DDPRW_LBA	; DX = IOCTL input value
 	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_UNKCMD
 
-	cmp	al,IOCTL_WAIT
+	cmp	al,IOCTL_SOUND
+	jne	dci1
+;
+; For SOUND requests, DX = PIT divisor and CX = # ticks; we turn off any
+; current sound and then, if DX and CX are non-zero, start the new sound and
+; let ddclk_interrupt turn it off after CX ticks.
+;
+	cli
+	mov	[sndTicks],0
+	in	al,61h
+	and	al,0FCh
+	out	61h,al			; turn the speaker off
+	test	dx,dx
+	jz	dci0
+	jcxz	dci0
+	mov	al,0B6h			; PIT channel 2, mode 3, LSB then MSB
+	out	43h,al
+	mov	al,dl
+	out	42h,al
+	mov	al,dh
+	out	42h,al
+	in	al,61h
+	or	al,03h
+	out	61h,al			; turn the speaker on
+	mov	[sndTicks],cx
+dci0:	sti
+	jmp	dci8
+
+dci1:	cmp	al,IOCTL_WAIT
 	jne	dci2
 ;
 ; For WAIT requests, convert # ms in CX:DX (1000/second to # ticks (18.2/sec).
@@ -539,7 +568,14 @@ ddi0:	mov	[ticksToday].LOW,0
 	mov	[dateYear],cx
 	mov	word ptr [dateDay],dx
 
-ddi0a:	mov	bx,offset wait_ptr	; DS:BX -> ptr
+ddi0a:	cmp	[sndTicks],0		; is a sound playing?
+	je	ddi0b			; no
+	dec	[sndTicks]		; yes, has it ended?
+	jnz	ddi0b			; no
+	in	al,61h
+	and	al,0FCh
+	out	61h,al			; yes, turn the speaker off
+ddi0b:	mov	bx,offset wait_ptr	; DS:BX -> ptr
 	les	di,[bx]			; ES:DI -> packet, if any
 	ASSUME	ES:NOTHING
 	sti

@@ -21,7 +21,7 @@ CODE    SEGMENT
 	EXTNEAR	<evalAddStr>
 	EXTNEAR	<evalEQStr,evalNEStr,evalLTStr,evalGTStr,evalLEStr,evalGEStr>
 
-	EXTNEAR	<getErrorLevel,getRndLong>
+	EXTNEAR	<getErrorLevel,getRnd,getRndLong,getErr,peekByte>
 	EXTNEAR	<strAsc,strChr,strDate,strFre,strHex,strInkey,strInstr>
 	EXTNEAR	<strLCase,strLeft,strLen,strMid,strOct,strRight,strSpace>
 	EXTNEAR	<strStr,strString,strTime,strUCase,strVal>
@@ -186,6 +186,9 @@ CODE    SEGMENT
 	db	VAR_FUNC + 4,"DATE"
 	db	VAR_STR,0
 	dw	offset strDate,0
+	db	VAR_FUNC + 3,"ERR"
+	db	VAR_LONG,0
+	dw	offset getErr,0
 	db	VAR_FUNC + 10,"ERRORLEVEL"
 	db	VAR_LONG,0		; returns VAR_LONG with 0 parameters
 	dw	offset getErrorLevel,0	; 0 implies our own CODE segment
@@ -227,6 +230,10 @@ CODE    SEGMENT
 	db	VAR_LONG,PARM_REQUIRED
 	db	VAR_LONG,0FEh
 	dw	offset strMid,0
+	db	VAR_FUNC + 4,"PEEK"
+	db	VAR_LONG,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset peekByte,0
 	db	VAR_FUNC + 3,"OCT"
 	db	VAR_STR,1
 	db	VAR_LONG,PARM_REQUIRED
@@ -237,7 +244,11 @@ CODE    SEGMENT
 	db	VAR_LONG,PARM_REQUIRED
 	dw	offset strRight,0
 	db	VAR_FUNC + 3,"RND"
-	db	VAR_LONG,1		; returns VAR_LONG with 1 parameter
+	db	VAR_DOUBLE,1		; RND returns VAR_DOUBLE (see findVar)
+	db	VAR_LONG,PARM_OPT_ONE
+	dw	offset getRnd,0
+	db	VAR_FUNC + 3,"RND"
+	db	VAR_LONG,1		; RND% returns VAR_LONG with 1 parameter
 	db	VAR_LONG,PARM_OPT_ONE	; 1st parameter: VAR_LONG, optional
 	dw	offset getRndLong,0
 	db	VAR_FUNC + 5,"SPACE"
@@ -274,63 +285,81 @@ CODE	ENDS
 ; IDs must remain consecutive and in the same order as genExpr's FN_FPUTBL.
 ;
 	DEFTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
-	DEFTOK	ABS,   101
+	DEFTOK	ABS,   101,,PUB
 	DEFTOK	ATN,   102
-	DEFTOK	BASE,  205
+	DEFTOK	BASE,  205,,PUB
+	DEFTOK	CHAIN,  71, genChain
 	DEFTOK	CLS,    40, genCLS
 	DEFTOK	COLOR,  41, genColor
 	DEFTOK	COPY,   20, cmdCopy
 	DEFTOK	COS,   103
 	DEFTOK	DATE,   10, cmdDate
-	DEFTOK	DEF,    42, genDefFn
+	DEFTOK	DEF,    42, genDef
 	DEFTOK	DEFDBL, 43, genDefDbl
 	DEFTOK	DEFINT, 44, genDefInt
 	DEFTOK	DEFSNG, 45, genDefDbl
 	DEFTOK	DEFSTR, 46, genDefStr
-	DEFTOK	DEL,    24, cmdDel
+	DEFTOK	DEL,    24, cmdDel,PUB
 	DEFTOK	DIM,    54, genDim
 	DEFTOK	DIR,    21, cmdDir
+	DEFTOK	DRAW,   74, genDraw
 	DEFTOK	ECHO,   47, genEcho
-	DEFTOK	ELSE,  201
+	DEFTOK	ELSE,  201,,PUB
 	DEFTOK	END,    57, genEnd
-	DEFTOK	ERASE,  55, genErase
+	DEFTOK	ERASE,  55, genErase,PUB
+	DEFTOK	ERROR,  72, genError,PUB
 	DEFTOK	EXIT,    1, cmdExit
 	DEFTOK	EXP,   104
 	DEFTOK	FIX,   105
 	DEFTOK	FOR,    58, genFor
-	DEFTOK	GOSUB,  59, genGosub
-	DEFTOK	GOTO,   48, genGoto
+	DEFTOK	GET,    75, genGet
+	DEFTOK	GOSUB,  59, genGosub,PUB
+	DEFTOK	GOTO,   48, genGoto,PUB
 	DEFTOK	HELP,    2, cmdHelp
 	DEFTOK	IF,     49  genIf
 	DEFTOK	INT,   106
+	DEFTOK	KEY,    67, genKey
 	DEFTOK	KEYS,    3, cmdKeys
 	DEFTOK	LET,    50, genLet
+	DEFTOK	LINE,   76, genLine
 	DEFTOK	LIST,    4, cmdList
 	DEFTOK	LOAD,   22, cmdLoad
+	DEFTOK	LOCATE, 64, genLocate
 	DEFTOK	LOG,   107
 	DEFTOK	MEM,     5, cmdMem
 	DEFTOK	NEW,     6, cmdNew
 	DEFTOK	NEXT,   60, genNext
-	DEFTOK	OFF,   202
-	DEFTOK	ON,    203, genOn
+	DEFTOK	OFF,   202,,PUB
+	DEFTOK	ON,    203, genOn,PUB
 	DEFTOK	OPTION, 56, genOption
+	DEFTOK	PAINT,  77, genPaint
+	DEFTOK	PLAY,   70, genPlay
+	DEFTOK	POKE,   68, genPoke
+	DEFTOK	PRESET, 78, genPreset,PUB
 	DEFTOK	PRINT,  51, genPrint
+	DEFTOK	PSET,   79, genPset,PUB
+	DEFTOK	PUT,    80, genPut
 	DEFTOK	REM,    52
 	DEFTOK	RESTART, 7, cmdRestart
+	DEFTOK	RESUME, 73, genResume
 	DEFTOK	RETURN, 53, genReturn
 	DEFTOK	RUN,     8, cmdRun
+	DEFTOK	SCREEN, 65, genScreen
+	DEFTOK	SEG,   208,,PUB
 	DEFTOK	SIN,   108
+	DEFTOK	SOUND,  69, genSound
 	DEFTOK	SQR,   109
-	DEFTOK	STEP,  206
+	DEFTOK	STEP,  206,,PUB
 	DEFTOK	STOP,   61, genEnd
-	DEFTOK	TAN,   110
-	DEFTOK	THEN,  204
+	DEFTOK	TAN,   110,,PUB
+	DEFTOK	THEN,  204,,PUB
 	DEFTOK	TIME,   11, cmdTime
-	DEFTOK	TO,    207
+	DEFTOK	TO,    207,,PUB
 	DEFTOK	TYPE,   23, cmdType
 	DEFTOK	VER,     9, cmdVer
 	DEFTOK	WEND,   62, genWend
 	DEFTOK	WHILE,  63, genWhile
+	DEFTOK	WIDTH,  66, genWidth
 	NUMTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
 
 	DEFTOKENS KEYOP_TOKENS,KEYOP_TOTAL

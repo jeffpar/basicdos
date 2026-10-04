@@ -12,7 +12,10 @@
 ;	CLS				(genCLS)
 ;	COLOR				(genColor)
 ;	ECHO				(genEcho)
+;	LOCATE				(genLocate)
 ;	PRINT				(genPrint)
+;	SCREEN				(genScreen)
+;	WIDTH				(genWidth)
 ;
 ; See gen.asm for an overview of all the gen*.asm files.  Like gen.asm, these
 ; functions are called while generating code, with DS:BX -> TOKLETs and ES:DI
@@ -24,8 +27,10 @@
 CODE    SEGMENT
 
 	EXTNEAR	<genExpr,getNextToken,genCallCS,genPushImm,genPushImmByte>
-	EXTNEAR	<genPushImmByteAL,genPushImmByteAH,genCvtType>
+	EXTNEAR	<genPushImmByteAL,genPushImmByteAH,genPushImmLong,genCvtType>
+	EXTNEAR	<peekNextSymbol>
 	EXTNEAR	<clearScreen,printArgs,printEcho,setColor,setFlags>
+	EXTNEAR	<setPos,setScreen,setWidth>
 	EXTABS	<TOK_OFF,TOK_ON>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -55,7 +60,7 @@ ENDPROC	genCLS
 ;
 ; genColor
 ;
-; Generate code for "COLOR fgnd[,[bgnd[,[border]]"
+; Generate code for "COLOR [fgnd][,[bgnd][,border]]"
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs
@@ -68,24 +73,126 @@ ENDPROC	genCLS
 ;	Any
 ;
 DEFPROC	genColor
-	sub	cx,cx
-gco1:	call	genExpr
-	jb	gco9
-	je	gco8
+	mov	si,offset setColor
+	jmp	short genArgs
+ENDPROC	genColor
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genLocate
+;
+; Generate code for "LOCATE [row][,[col][,cursor]]"
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genLocate
+	mov	si,offset setPos
+	jmp	short genArgs
+ENDPROC	genLocate
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genScreen
+;
+; Generate code for "SCREEN [mode][,burst]"
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genScreen
+	mov	si,offset setScreen
+	jmp	short genArgs
+ENDPROC	genScreen
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genWidth
+;
+; Generate code for "WIDTH columns"
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genWidth
+	mov	si,offset setWidth	; fall into genArgs
+ENDPROC	genWidth
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genArgs
+;
+; Generate code to push a series of numeric arguments (as longs), followed by
+; the number of arguments, and then a call to the function in SI, which must
+; begin by calling getArgs.  An omitted argument (eg, the 1st argument in
+; "LOCATE ,5") is pushed as -1.
+;
+; Inputs:
+;	SI = offset of function (in our CODE segment)
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genArgs
+	push	si			; save the function
+	sub	cx,cx			; CX = # args
+ga1:	call	peekNextSymbol
+	jbe	ga2			; not a symbol
+	cmp	al,','			; omitted argument?
+	jne	ga2			; no
+	mov	si,ds:[PSP_HEAP]
+	mov	bx,[si].TOKLET_NEXT	; consume the comma
+	push	cx
+	GENPUSH	-1,-1
+	pop	cx
+	inc	cx
+	jmp	ga1
+ga2:	call	genExpr
+	jb	ga9
+	je	ga8
 	push	ax
 	push	cx
 	mov	al,VAR_LONG
-	call	genCvtType		; COLOR values must be longs
+	call	genCvtType		; arguments must be longs
 	pop	cx
 	pop	ax
-	jc	gco9
+	jc	ga9
 	inc	cx
 	cmp	al,','			; was the last symbol a comma?
-	je	gco1			; yes, go back for more
-gco8:	GENPUSH	cx
-	GENCALL	setColor
-gco9:	ret
-ENDPROC	genColor
+	je	ga1			; yes, go back for more
+ga8:	GENPUSH	cx
+	pop	cx
+	GENCALL	cx
+	ret
+ga9:	pop	si			; discard the function
+	ret
+ENDPROC	genArgs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

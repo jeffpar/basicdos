@@ -546,8 +546,17 @@ tf6a:	mov	al,ch			; AL = previous classification
 	sub	cx,dx			; CX = length of token
 
 	cmp	al,CLS_FLOAT OR CLS_SYM	; if an incomplete float is detected
-	jne	tf6b			; convert it to CLS_FLOAT
+	jne	tf6a1			; convert it to CLS_FLOAT
 	mov	al,CLS_FLOAT
+;
+; Like MSBASIC, a string with no closing quote (which can only happen at the
+; end of the input) is a string constant, so we add an implied closing quote
+; to its length; code that uses its contents ignores that last character.
+;
+tf6a1:	cmp	al,CLS_DQUOTE		; unterminated string?
+	jne	tf6b			; no
+	mov	al,CLS_STR		; yes
+	inc	cx
 
 tf6b:	IFDEF	DEBUG
 	cmp	byte ptr [bp].TMP_AL,-1

@@ -44,6 +44,7 @@ VIDEO_SETCTYPE	equ	01h	; CH=cursor top, CL=cursor bottom
 VIDEO_SETCPOS	equ	02h	; DH=row, DL=col, BH=display page
 VIDEO_SCROLL	equ	06h	; AL=# lines, BH=fill attribute, CX/DX=coords
 VIDEO_WRITECA	equ	09h	; AL=char, BL=attribute, BH=display page, CX=count
+VIDEO_SETPAL	equ	0Bh	; BH=0: BL=background, BH=1: BL=palette
 VIDEO_TTYOUT	equ	0Eh	; AL=char, BH=display page
 
 MODE_CO80	equ	03h

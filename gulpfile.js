@@ -99,6 +99,11 @@ let disks = {
         "./demos/dual/multi/CONFIG.SYS",
         "./demos/d40/AUTOEXEC.BAT",
     ].concat(demoFiles),
+    "BASIC-DOS6": [
+        "./demos/s80/CONFIG.SYS",
+        "./demos/d40/AUTOEXEC.BAT",
+        "./demos/donkey/DONKEY.BAS"
+    ].concat(minFiles),
     "PCDOS200-C400": "./software/pcx86/disks/PCDOS200-C400.json"
 };
 

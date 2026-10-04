@@ -142,6 +142,7 @@
     "BLKHDR",
     "bootfpu",
     "BOOTKEY",
+    "borderless",
     "BPB's",
     "BPBEX",
     "BPBPTR",

@@ -18,6 +18,8 @@
 ;	IF ... THEN ... [ELSE ...]	(genIf, including implied GOTOs; see
 ;					also: genBlock, genJmp, and genPatch)
 ;	ON ... GOTO/GOSUB ...		(genOn)
+;	ON ERROR GOTO ...		(genOn; see onError in flow.asm)
+;	RESUME line			(genResume)
 ;	RETURN				(genReturn, which ends a DEF block,
 ;					or returns from a GOSUB)
 ;	WHILE ... WEND			(genWhile and genWend)
@@ -48,8 +50,9 @@ CODE    SEGMENT
 	EXTNEAR	<genCvtType,genTestDouble,genCallCS,genPushVarPtr>
 	EXTNEAR	<genPushImm,genPushImmLong,addVar,getNextSymbol>
 	EXTNEAR	<setVarLong,setVarDouble,forInit,forNext,doGosub,doReturn>
-	EXTNEAR	<ensureRoom>
+	EXTNEAR	<ensureRoom,peekNextToken,onError,offError,resumeErr>
 	EXTABS	<TOK_ELSE,TOK_THEN,TOK_TO,TOK_STEP,TOK_GOTO,TOK_GOSUB>
+	EXTABS	<TOK_ERROR>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -308,6 +311,34 @@ gr1:	call	genExpr
 	and	[si].GEN_FLAGS,NOT GEN_DEF
 gr9:	ret
 ENDPROC	genReturn
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genResume
+;
+; Generate code for "RESUME line", which ends error handling (see resumeErr)
+; and jumps to the line.  RESUME and RESUME NEXT, which resume at (or after)
+; the statement with the error, aren't supported yet.
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genResume
+	mov	al,CLS_DEC
+	call	peekNextToken
+	jbe	grs9
+	GENCALL	resumeErr
+	jmp	genGoto
+grs9:	stc
+	ret
+ENDPROC	genResume
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1103,7 +1134,37 @@ ENDPROC	genGosub
 ;	Any
 ;
 DEFPROC	genOn
-	call	genExpr
+	mov	al,CLS_KEYWORD
+	call	peekNextToken
+	jbe	gonE
+	cmp	al,TOK_ERROR		; ON ERROR?
+	jne	gonE			; no
+	mov	si,ds:[PSP_HEAP]
+	mov	bx,[si].TOKLET_NEXT	; consume ERROR
+	mov	al,CLS_KEYWORD
+	call	getNextToken
+	jbe	gonX
+	cmp	al,TOK_GOTO
+	jne	gonX
+;
+; "ON ERROR GOTO 0" removes the handler; otherwise, generate a call to
+; onError, followed by the JMP to the handler (which onError skips over).
+;
+	mov	al,CLS_DEC
+	call	peekNextToken
+	jbe	gonX
+	DOSUTIL	ATOI32D			; DX:AX = line #
+	or	ax,dx
+	jnz	gonE1
+	mov	si,ds:[PSP_HEAP]
+	mov	bx,[si].TOKLET_NEXT	; consume the zero
+	GENCALL	offError
+	clc
+	ret
+gonE1:	GENCALL	onError
+	jmp	genGoto			; JMP line (always 5 bytes)
+
+gonE:	call	genExpr
 	ja	gon0
 gonX:	stc
 	ret

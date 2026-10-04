@@ -65,6 +65,7 @@ IOCTL_SETDATE	equ	0C2h	; CLOCK$: set yr,mon,day from CL,DH,DL
 IOCTL_SETTIME	equ	0C3h	; CLOCK$: set hr,min,sec,1/100 from CH,CL,DH,DL
 IOCTL_GETDATE	equ	0C4h	; CLOCK$: get formatted date
 IOCTL_GETTIME	equ	0C5h	; CLOCK$: get formatted time
+IOCTL_SOUND	equ	0C6h	; CLOCK$: sound (DX = PIT divisor) for CX ticks
 
 IOCTL_CON	equ	0D0h
 IOCTL_GETDIM	equ	0D1h	; CON: get context dimensions
@@ -75,6 +76,9 @@ IOCTL_SETINS	equ	0D5h	; CON: set INSERT mode ON (CL=1) or OFF (CL=0)
 IOCTL_SCROLL	equ	0D6h	; CON: scroll (or clear) interior of context
 IOCTL_GETCOLOR	equ	0D7h	; CON: get fill (DL) and border (DH) colors
 IOCTL_SETCOLOR	equ	0D8h	; CON: set fill (CL) and border (CH) colors
+IOCTL_SETPOS	equ	0D9h	; CON: set cursor pos (CL,CH), visibility (DL)
+IOCTL_GETMODE	equ	0DAh	; CON: get video mode (DL)
+IOCTL_SETMODE	equ	0DBh	; CON: set video mode (CL)
 
 IOCTL_FPU	equ	0E0h
 IOCTL_GETFPU	equ	0E1h	; FPU$: store FPUTBL far ptr at DS:SI (see fpu.inc)

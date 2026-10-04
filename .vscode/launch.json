@@ -26,6 +26,13 @@
       "webRoot": "${workspaceFolder}"
     },
     {
+      "type": "chrome",
+      "request": "launch",
+      "name": "BASIC-DOS with DONKEY.BAS",
+      "url": "http://localhost:4040/demos/donkey/",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
       "name": "gulp build",
       "type": "node",
       "request": "launch",
