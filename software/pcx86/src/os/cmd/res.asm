@@ -13,11 +13,13 @@
 ; COMMAND.COM that owns the shared code (see COMHEAP and main).
 ;
 ; Everything after RES_END is the "transient" portion, which runTransient
-; discards before loading an external program (by shrinking our memory block)
-; and then reloads from COMMAND.COM after the program ends, so that programs
-; can use that memory, too.  Since the transient portion is reloaded from the
-; file, it must not contain any data that changes; FPU_TABLE, for example, is
-; kept here instead.
+; discards before loading an external program (by shrinking our memory block),
+; so that programs can use that memory, too.  It first copies the transient
+; portion to the top of free memory (see resSave), and when the program ends,
+; if that copy is still intact, it's copied back down; otherwise, the
+; transient portion is reloaded from COMMAND.COM.  Since it may be reloaded
+; from the file, it must not contain any data that changes; FPU_TABLE, for
+; example, is kept here instead.
 ;
 	include	cmd.inc
 
@@ -40,6 +42,7 @@ CODE    SEGMENT
 	DEFPTR	FPU_TABLE
 	DEFWORD	CMD_REFS,0		; # of copies using the shared code
 	DEFWORD	TRANS_SUM,0		; checksum of the transient portion
+	DEFWORD	TRANS_HI,0		; segment of its copy (see resSave)
 	DEFLBL	CMD_PATH,byte		; (main updates the drive letters)
 	db	"A:COMMAND.COM",0
 MSG_RELOAD	db	13,10,"Insert disk with COMMAND.COM in drive "
@@ -71,6 +74,9 @@ DEFPROC	runTransient
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	int	21h			; not use the transient ctrlc handler
 	push	bx
+	call	resSave			; save a copy of the transient portion
+	push	cs
+	pop	es			; (ES = our PSP again)
 	mov	bx,offset DGROUP:RES_END
 	call	toParas
 	mov	ah,DOS_MEM_REALLOC
@@ -85,7 +91,7 @@ DEFPROC	runTransient
 	clc
 rt1:	pushf
 	push	ax
-	push	dx			; preserve DX for the caller's error path
+	push	dx			; preserve DX for caller's error path
 	mov	dx,offset rcIgnore	; CTRLC must not terminate us, either,
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSCTRLC
 	int	21h			; until the transient portion is back
@@ -94,10 +100,46 @@ rt1:	pushf
 rt2:	call	resParas		; BX = paras for the transient, too
 	mov	ah,DOS_MEM_REALLOC
 	int	21h			; restore our memory block
-	jnc	rt3
+	jnc	rt2a
 	mov	dx,offset MSG_NOMEM	; that should only fail if something
 	call	resPrompt		; (eg, a TSR) is still using the memory
 	jmp	rt2
+;
+; If the copy of the transient portion that resSave made at the top of free
+; memory is still intact (ie, its checksum matches), copy it back down;
+; otherwise, reload it from COMMAND.COM.
+;
+; The copy is in free memory, so we lock the session (ie, disable session
+; switches) from the checksum through the copy, to keep another session from
+; allocating and modifying the copy in between.  We must unlock before any
+; disk reload, since disk I/O (and resPrompt) can wait.
+;
+rt2a:	DOSUTIL	LOCK
+	sub	ax,ax
+	xchg	ax,[TRANS_HI]
+	test	ax,ax			; was a copy made?
+	jz	rt2b			; no
+	mov	es,ax
+	call	resSumHi		; AX = checksum of the copy
+	cmp	ax,[TRANS_SUM]		; does it match?
+	jne	rt2b			; no
+	push	ds
+	mov	ax,es
+	mov	ds,ax
+	sub	si,si			; DS:SI -> copy
+	push	cs
+	pop	es
+	mov	di,offset DGROUP:RES_END; ES:DI -> transient portion
+	mov	cx,offset DGROUP:BEG_HEAP
+	sub	cx,di
+	inc	cx
+	shr	cx,1			; CX = # words
+	cld
+	rep	movsw
+	pop	ds
+	DOSUTIL	UNLOCK
+	jmp	short rt5
+rt2b:	DOSUTIL	UNLOCK
 rt3:	mov	dx,offset CMD_PATH
 	mov	ax,DOS_HDL_OPENRO
 	int	21h			; open COMMAND.COM
@@ -215,10 +257,10 @@ ENDPROC	resParas
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; resSum
+; resSum, resSumHi
 ;
 ; Inputs:
-;	None
+;	None for resSum; ES:0 -> copy of the transient portion for resSumHi
 ;
 ; Outputs:
 ;	AX = checksum of the transient portion (the sum of its words)
@@ -227,17 +269,71 @@ ENDPROC	resParas
 ;	AX, CX, SI
 ;
 DEFPROC	resSum
+	push	es
+	push	cs
+	pop	es
 	mov	si,offset DGROUP:RES_END
-	mov	cx,offset DGROUP:BEG_HEAP
-	sub	cx,si
+	call	rsSum
+	pop	es
+	ret
+	DEFLBL	resSumHi,near		; ES:0 -> a copy (see resSave)
+	sub	si,si
+rsSum:	mov	cx,offset DGROUP:BEG_HEAP
+	sub	cx,offset DGROUP:RES_END
 	shr	cx,1			; CX = # words in the transient portion
 	sub	ax,ax
-rs1:	add	ax,cs:[si]
+rs1:	add	ax,es:[si]
 	inc	si
 	inc	si
 	loop	rs1
 	ret
 ENDPROC	resSum
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; resSave
+;
+; Before the transient portion is discarded, we copy it to the top of the
+; highest free memory block, WITHOUT allocating that memory, so the program
+; is free to use it; but since most programs don't use all available memory,
+; the copy is likely to be intact when the program ends, saving us from
+; reloading it from COMMAND.COM (see runTransient).
+;
+; Outputs:
+;	TRANS_HI = segment of the copy (or zero if there wasn't room)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	resSave
+	mov	[TRANS_HI],0
+	DOSUTIL	LOCK			; keep other sessions from allocating
+	mov	dl,3			; the block until the copy is done
+
+	DOSUTIL	QRYMEM			; BX = segment, DX = size (paras)
+	jc	rsv9			; no free memory
+	push	bx
+	mov	bx,offset DGROUP:BEG_HEAP
+	sub	bx,offset DGROUP:RES_END
+	call	toParas			; BX = paras in the transient portion
+	pop	ax
+	cmp	dx,bx			; is there room?
+	jb	rsv9			; no
+	add	ax,dx
+	sub	ax,bx			; AX = segment of the copy
+	mov	[TRANS_HI],ax
+	mov	es,ax
+	sub	di,di			; ES:DI -> copy
+	mov	si,offset DGROUP:RES_END; DS:SI -> transient portion
+	mov	cx,offset DGROUP:BEG_HEAP
+	sub	cx,si
+	inc	cx
+	shr	cx,1			; CX = # words
+	cld
+	rep	movsw
+rsv9:	DOSUTIL	UNLOCK
+	ret
+ENDPROC	resSave
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

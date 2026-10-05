@@ -359,7 +359,7 @@ ENDPROC	utl_itoa
 DEFPROC	utl_atoi16,DOS
 	sti
 	jmp	atoi
-ENDPROC utl_atoi16
+ENDPROC	utl_atoi16
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -384,7 +384,7 @@ DEFPROC	utl_atoi32,DOS
 	sti
 	mov	di,-2			; no validation, 32-bit result
 	jmp	atoi_len
-ENDPROC utl_atoi32
+ENDPROC	utl_atoi32
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -402,7 +402,7 @@ DEFPROC	utl_atoi32d,DOS
 	mov	cx,-1			; no specific length
 	mov	di,-2			; no validation
 	jmp	atoi_base		; atoi returns a 32-bit value
-ENDPROC utl_atoi32d
+ENDPROC	utl_atoi32d
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -418,7 +418,7 @@ ENDPROC utl_atoi32d
 ;
 DEFPROC	utl_atof64,DOS
 	ret
-ENDPROC utl_atof64
+ENDPROC	utl_atof64
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -434,7 +434,7 @@ ENDPROC utl_atof64
 ;
 DEFPROC	utl_i32f64,DOS
 	ret
-ENDPROC utl_i32f64
+ENDPROC	utl_i32f64
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -449,7 +449,7 @@ ENDPROC utl_i32f64
 ;
 DEFPROC	utl_opf64,DOS
 	ret
-ENDPROC utl_opf64
+ENDPROC	utl_opf64
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -505,8 +505,18 @@ tf1:	lea	dx,[si-1]		; DX = start of token
 tf2:	lodsb
 	mov	ch,ah
 	dec	word ptr [bp].TMP_CX
-	jge	tf3
-	sub	ah,ah			; AH = 0 means we're done
+	jl	tf2a			; end of input
+;
+; In BASIC, an apostrophe outside of quotes starts a remark (like REM),
+; so the rest of the input is ignored.
+;
+	cmp	al,CHR_SQUOTE		; apostrophe?
+	jne	tf3			; no
+	cmp	ah,CLS_DQUOTE		; inside quotes?
+	je	tf3			; yes
+	test	byte ptr [bp].TMP_BH,TOKTYPE_GENERIC
+	jnz	tf3			; generic parsing allows apostrophes
+tf2a:	sub	ah,ah			; AH = 0 means we're done
 	jmp	short tf6
 tf3:	call	tok_classify		; AH = next classification
 	test	ch,ch			; still priming the pump?

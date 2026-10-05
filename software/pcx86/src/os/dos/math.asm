@@ -72,8 +72,10 @@ ai0:	jcxz	ai6
 ai1:	cmp	al,'a'			; remap lower-case
 	jb	ai2			; to upper-case
 	sub	al,20h
-ai2:	cmp	al,'A'			; remap hex digits
-	jb	ai3			; to characters above '9'
+ai2:	cmp	al,'9'			; decimal digit?
+	jbe	ai3			; possibly
+	cmp	al,'A'			; remap hex digits
+	jb	ai6			; to characters above '9'
 	cmp	al,'F'
 	ja	ai6			; never a valid digit
 	sub	al,'A'-'0'-10
@@ -153,7 +155,7 @@ ai8:	lea	di,[di+6]		; advance DI in case there are more
 ai9:	mov	[bp].REG_AX,bx		; update REG_AX
 	mov	[bp].REG_SI,si		; update caller's SI, too
 	ret
-ENDPROC atoi
+ENDPROC	atoi
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -169,7 +171,7 @@ ENDPROC atoi
 ;
 DEFPROC	atof64,DOS
 	ret
-ENDPROC atof64
+ENDPROC	atof64
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -185,7 +187,7 @@ ENDPROC atof64
 ;
 DEFPROC	itof64,DOS
 	ret
-ENDPROC itof64
+ENDPROC	itof64
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

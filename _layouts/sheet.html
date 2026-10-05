@@ -2,7 +2,7 @@
 layout: default
 ---
 
-<h2>BASIC-DOS Manual</h2>
+<h2>{{ page.manual | default: "BASIC-DOS Manual" }}</h2>
 
 <div class="sheet">
 <h2>{{ page.heading | default: page.title | default: site.title }}</h2>

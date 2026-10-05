@@ -143,7 +143,7 @@ ia9:	stosb				; store the digit
 	pop	si
 	pop	bp
 	ret
-ENDPROC itoa
+ENDPROC	itoa
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -201,7 +201,7 @@ DEFPROC	dos_restart,DOSFAR
 	xchg	dx,ax			; DL = exit code, DH = exit type
 	DOSUTIL	TERM
 	ASSERT	NEVER			; assert that we never get here
-ENDPROC dos_restart
+ENDPROC	dos_restart
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

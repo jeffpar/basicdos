@@ -40,7 +40,8 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 ### Kernel: Processes, Memory, and Sessions
 
 - [x] COM and EXE program loading, PSPs, EXEC, and exit codes
-- [x] Memory allocation (MCBs), including per-program heap requests
+- [x] Memory allocation (MCBs), including per-program heap requests, and allocation from the top of memory (MCBTYPE_HIGH), which the interpreter uses for its own blocks so that the memory below them stays contiguous
+- [x] DOS_UTL_QRYMEM queries any memory block, or the highest free block (which COMMAND.COM uses to keep a copy of its transient portion while a program runs)
 - [x] Preemptive multitasking of multiple sessions
 - [x] CTRL-C/CTRL-Break handling, and CTRL-ALT-DEL session aborts
 - [ ] Session STOP/END operations (currently TODOs)
@@ -71,7 +72,8 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] Pipes (`|`) and output redirection (`>` creates or truncates the output file, `>>` appends to it), including redirection at the end of a pipeline (eg, `DIR | CASE > TEST`)
 - [x] COPY creates (or truncates) the output file, and refuses to copy a file onto itself
 - [x] DEL/ERASE
-- [x] Resident and transient portions: before running a COM or EXE file, COMMAND.COM frees idle variable blocks and discards its transient portion (about 23K), reloading it from COMMAND.COM when the program ends; MEM includes the transient portion in its free memory total
+- [x] A BAS file run from the command prompt remains loaded when it ends, along with its variables (like MSBASIC), so it can be LIST'ed or RUN again; RUN reuses the program's compiled code (unless the program or its variables have changed since), so it starts immediately
+- [x] Resident and transient portions: before running a COM or EXE file, COMMAND.COM frees idle variable blocks and discards its transient portion (about 23K), restoring it when the program ends (from a copy at the top of free memory, if the program didn't overwrite it, or else from COMMAND.COM); MEM includes the transient portion in its free memory total
 - [ ] Input redirection (`<`)
 - [ ] REN/RENAME, and SAVE (for BASIC programs)
 - [ ] Disk utilities (eg, FORMAT, CHKDSK, SYS)
@@ -79,18 +81,18 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 ### Command Interpreter: BASIC Language
 
 - [x] 32-bit integer variables, constants, and expressions (including AND, OR, XOR, EQV, IMP, NOT, MOD, and shifts)
-- [x] Type suffixes (`%` for integers, `#` or `!` for doubles, and `$` for strings), where the type is part of a variable's identity (eg, after DEFINT A-Z and then DEFDBL A-Z, `A` is a new variable, separate from `A%`)
+- [x] Type suffixes (`%` for integers, `#` or `!` for doubles, and `$` for strings), where the type is part of a variable's identity (eg, after DEFINT A-Z and then DEFDBL A-Z, `A` is a new variable, separate from `A%`), and on numeric constants (eg, `1.5#`, `2!`, and `7%`)
 - [x] String variables, concatenation, and comparisons
 - [x] String functions: ASC, CHR$, DATE$, FRE, HEX$, INKEY$, INSTR, LCASE$, LEFT$, LEN, MID$, OCT$, RIGHT$, SPACE$, STR$, STRING$, TIME$, UCASE$, and VAL
 - [x] String pool management: temporary strings are released as soon as they're consumed, strings are compacted (and empty string blocks freed) when space runs out, and runtime string errors (eg, "String too long") abort the program cleanly
-- [x] CLS, COLOR, DEF FN (including string functions and parameters), DEFDBL, DEFINT, DEFSNG, DEFSTR, ECHO, GOTO, IF/THEN/ELSE, LET, PRINT, REM, and RETURN
+- [x] CLS, COLOR, DEF FN (including string functions and parameters), DEFDBL, DEFINT, DEFSNG, DEFSTR, ECHO, GOTO, IF/THEN/ELSE, LET, PRINT, REM (and `'` remarks), and RETURN
 - [x] Assignments without LET in BAS and BAT files (LET is still required on the command line)
 - [x] LOAD, LIST, NEW, and RUN
 - [x] Functions: ERR, ERRORLEVEL, MAXINT, PEEK, RND, and RND%
 - [x] Arrays of integers, doubles, and strings, with up to 255 dimensions: DIM, ERASE, OPTION BASE, automatic dimensioning (with a largest subscript of 10) of arrays used without DIM, and "Subscript out of range" and "Duplicate definition" errors
 - [x] Control flow: END, FOR/NEXT (with STEP, and integer or double loop variables), GOSUB/RETURN, ON ... GOTO/GOSUB, STOP, and WHILE/WEND
 - [x] Memory management that's forgiving of low or fragmented memory: code, text, variable, and string blocks are modest (4K) blocks that are chained together as needed (generated code continues in another code block via a far JMP), no block type takes more than a quarter of the largest free block, and smaller blocks (down to 512 bytes) are used when necessary
-- [ ] Limitations: a DEF function's code must fit in a single block, and each array requires a single block (64K max)
+- [ ] Limitations: a DEF function's code must fit in a single block, a function block ends at its first RETURN (so RETURN can't be conditional), and each array requires a single block (64K max)
 - [ ] Specific error messages for compile-time errors (eg, "NEXT without FOR" and "WHILE without WEND" are currently reported as syntax errors)
 - [ ] STOP's "Break" message (STOP is currently the same as END)
 - [ ] INPUT, LINE INPUT, READ, DATA, and RESTORE
@@ -117,6 +119,8 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] Floating-point constants and PRINT output in BASIC programs
 - [x] BASIC math functions: ABS, ATN, COS, EXP, FIX, INT, LOG, SIN, SQR, and TAN
 - [x] FPUTESTS, run with and without an 8087 by `tools/tests/quick.sh`
+- [x] Fast software emulation: doubles are unpacked and packed in registers, division uses the 8086's DIV (16 bits at a time), multiplication sums its partial products a column at a time, and SIN, COS, TAN, ATN, LOG, and EXP use fdlibm's minimax polynomials; arithmetic results match the 8087 bit for bit, and math functions are within 1 ulp (see the [benchmarks](preview/part7/))
+- [x] STR$ formats integer values directly, without floating-point conversions
 - [ ] Saving and restoring 8087 state on session switches (FPU$ functions currently disable interrupts instead), and better error reporting for FPU exceptions
 - [ ] Utility functions DOS_UTL_ATOF64, DOS_UTL_I32F64, and DOS_UTL_OPF64 (still stubs; possibly superseded by FPU$)
 
@@ -142,7 +146,7 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] Performance: PUT and GET copy whole bytes (shifting and masking each row in registers), horizontal lines, BF, and PAINT fill whole bytes, and the video mode is cached, so graphics statements make no driver or BIOS calls; SOUND returns immediately (as in MSBASIC, the next SOUND waits for it to finish, and the CLOCK$ driver turns it off), so DONKEY.BAS is paced at one loop per tick, like MSBASIC
 - [x] CIRCLE (for CIRCLE.BAS, one of the other PC DOS 1.00 samples on the demo disk), using MSBASIC's algorithm and integer math (angles and aspects are converted from doubles without FPU$), so it draws the same pixels as MSBASIC, about twice as fast
 - [x] CLEAR (resets variables and erases arrays; its sizes are ignored)
-- [x] PAINT scans rows a byte at a time (using a table of each byte's boundary pixels), so it's faster than MSBASIC's
+- [x] PAINT fills through pixels that already have the paint color (like MSBASIC), so it draws the same pixels as MSBASIC; it scans rows a byte at a time (using tables of each byte's boundary and paint-colored pixels), and its seeds remember their direction and parent span, so it never rescans the row it came from, making it faster than MSBASIC's
 - [x] A BASIC keyword typed alone that isn't a valid statement (eg, CIRCLE) runs the program with that name (eg, CIRCLE.BAS)
 - [ ] More performance: diagonal lines (and DRAW) still work a pixel at a time, and text output in graphics modes goes through the CON driver and the BIOS
 - [ ] Graphics features that the samples don't use: STEP coordinates, POINT, DRAW's A, TA, X, and "=variable" commands, and GET/PUT with floating-point arrays
@@ -152,7 +156,7 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 
 ### Build, Tests, and Documentation
 
-- [x] Builds with MASM 4.0 using `mk.sh` (PC.js), which also updates the BASIC-DOS demo disks after a successful build
+- [x] Builds with MASM 4.0 using `mk.sh` (PC.js), which builds release binaries by default (`mk.sh debug` builds DEBUG binaries, with run-time assertions) and also updates the BASIC-DOS demo disks after a successful build
 - [x] DOSTESTS: CALL 5, memory allocation, file create/write/read-back, and file rename/delete tests
 - [x] STRFUNCS and STRPOOL: BASIC string function tests, and string pool stress and leak tests
 - [x] ARRAYS: BASIC array tests (including leak tests)
@@ -160,8 +164,10 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUNCS, STRPOOL, ARRAYS, and FLOW, and reports whether the tests passed)
 - [x] `tools/tests/chkdsk.sh` runs MS-DOS 3.20 CHKDSK on a diskette image saved by a test session (see `QUIT /S` in `pc.js`)
 - [ ] More tests (eg, BASIC language and CMD command tests)
+- [x] BENCH.BAS and MICRO.BAS benchmarks, which run unchanged in BASIC-DOS, BASICA, and GW-BASIC (see the [results](preview/part7/))
 - [x] HELP for commands, functions, and constants (eg, `HELP MID$`), found by searching HELP.TXT, so new entries need no other changes
-- [ ] Complete the [BASIC-DOS manual](docs/pcx86/bdman/)
+- [x] [BASIC-DOS Manual](docs/bdman/): using BASIC-DOS, all commands and functions, programming, and configuration
+- [x] [BASIC-DOS Technical Reference](docs/bdtech/): architecture, DOS functions, utility functions, device drivers, the FPU$ interface, and internal structures
 
 ## Roadmap
 
@@ -195,7 +201,7 @@ If you also want successful builds to update the BASIC-DOS demo disks, you'll ne
     git clone https://github.com/jeffpar/pcjs
     export PCJS="$HOME/pcjs"
 
-Now you're ready to build BASIC-DOS, using the `mk.sh` script, which runs `pc.js` with MS-DOS 3.20 as drive C and the BASIC-DOS source code as drive D:
+Now you're ready to build BASIC-DOS, using the `mk.sh` script, which runs `pc.js` with MS-DOS 3.20 as drive C and the BASIC-DOS source code as drive D, and builds release binaries (use `mk.sh debug` to build DEBUG binaries instead):
 
     $ ./mk.sh
     [Press CTRL-D to enter command mode]

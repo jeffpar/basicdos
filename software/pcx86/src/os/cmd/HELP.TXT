@@ -229,7 +229,7 @@ PUT (*x*,*y*),*array*[,PSET|PRESET|XOR|OR|AND]
 Draws an image stored by GET, combining it with the screen using XOR, unless another action is specified.
 
 REM
-Used for program remarks.  The rest of the line is not executed.
+Used for program remarks.  The rest of the line is not executed.  An apostrophe (') outside of quotes is the same as REM.
 
 RESTART
 Restarts the system.

@@ -98,7 +98,11 @@ ENDPROC	mem_realloc
 ;
 ; Inputs:
 ;	CX = memory block # (0-based)
-;	DL = memory block type (0 for any, 1 for free, 2 for used)
+;	DL = memory block type (0 for any, 1 for free, 2 for used), or 3
+;	for the highest free block (CX is ignored), which is useful for
+;	storing data that can be recreated if it's overwritten (eg, see
+;	runTransient in COMMAND.COM); REG_BX + REG_DX is then the highest
+;	free paragraph + 1
 ;
 ; Outputs:
 ;	On success, carry clear:
@@ -116,6 +120,24 @@ DEFPROC	mem_query,DOS
 	mov	bx,[mcb_head]		; BX tracks ES
 	mov	es,bx
 	ASSUME	ES:NOTHING
+	cmp	dl,3			; highest free block?
+	jne	q1			; no
+	sub	di,di			; DI = last free block (none yet)
+q0:	cmp	es:[MCB_OWNER],0	; free block?
+	jne	q0a			; no
+	mov	di,bx			; yes, so record it
+q0a:	cmp	es:[MCB_SIG],MCBSIG_LAST
+	je	q0b
+	add	bx,es:[MCB_PARAS]
+	inc	bx
+	mov	es,bx
+	jmp	q0
+q0b:	mov	bx,di
+	mov	es,di
+	cmp	di,1			; any free block?
+	jb	q9			; no (carry set)
+	sub	ax,ax			; AX = owner (none)
+	jmp	short q7
 q1:	mov	ax,es:[MCB_OWNER]
 	test	dl,dl			; report any block?
 	jz	q3			; yes
@@ -270,7 +292,7 @@ ENDPROC	mcb_split
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, ES
 ;
-DEFPROC mcb_alloc,DOS
+DEFPROC	mcb_alloc,DOS
 	ASSUME	ES:NOTHING
 	LOCK_SCB
 	push	ax			; save AX
@@ -370,7 +392,7 @@ ENDPROC	mcb_alloc
 ; Modifies:
 ;	AX, BX, CX, DX, DI, ES
 ;
-DEFPROC mcb_realloc,DOS
+DEFPROC	mcb_realloc,DOS
 	ASSUME	ES:NOTHING
 	LOCK_SCB
 	dec	dx

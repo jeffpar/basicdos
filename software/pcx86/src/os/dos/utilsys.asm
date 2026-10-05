@@ -372,7 +372,8 @@ ENDPROC	utl_unlock
 ;
 ; Inputs:
 ;	REG_CX = memory block # (0-based)
-;	REG_DL = memory block type (0 for any, 1 for free, 2 for used)
+;	REG_DL = memory block type (0 for any, 1 for free, 2 for used), or
+;	3 for the highest free block (REG_CX is ignored; see mem_query)
 ;
 ; Outputs:
 ;	On success, carry clear:
