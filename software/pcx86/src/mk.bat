@@ -3,6 +3,7 @@ REM Use MK FINAL to create a non-debug release
 IF "%1"=="quit" QUIT
 IF "%1"=="QUIT" QUIT
 CD OS\BOOT
+IF "%1"=="" IF EXIST ..\..\MKFINAL MK FINAL ALL
 IF "%1"=="" MK DEBUG ALL
 IF "%1"=="debug" MK DEBUG ALL
 IF "%1"=="DEBUG" MK DEBUG ALL

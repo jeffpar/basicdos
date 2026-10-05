@@ -416,7 +416,6 @@ DBGINIT	macro	type,ptr,str
 ; installs, so don't use them in driver init code (see OP_ASSERTMSG).
 ;
 ASSERT	macro	cond,op,value,msg
-	local	a1
 	IFNB	<value>
 	 IFIDN	<cond>,<STRUCT>	;; must use "STRUCT" instead of "STRUC" here
 	ASSERT	Z,<cmp op&.&value&_SIG,SIG_&value>
@@ -426,34 +425,38 @@ ASSERT	macro	cond,op,value,msg
 	  ENDIF
 	 ENDIF
 	ELSE
-	 IFDEF DEBUG
-	  IFNB	<op>
-	pushf
-	op
-	  ENDIF
-	  IFDIF	<cond>,<NEVER>
-	   IFDIF <cond>,<FALSE>
-	    IFB	<msg>
-	J&cond	$+5
-	    ELSE
-	J&cond	a1
-	    ENDIF
-	   ENDIF
-	  ENDIF
-	  IFB	<msg>
-	OPCHECK	OP_ASSERT	;; use INT 06h to signal an assertion failure
-	  ELSE
-	OPCHECK	OP_ASSERTMSG	;; use INT 06h to signal an assertion failure
-	db	msg,0		;; followed by a null-terminated message
-a1:
-	  ENDIF
-	  IFNB	<op>
-	popf
-	  ENDIF
+	 IFDEF DEBUG		;; (ASSERTD is expanded only in DEBUG builds, so
+	ASSERTD	cond,<op>,<msg>	;; that non-DEBUG builds don't need its LOCAL)
 	 ENDIF
 	ENDIF
 	endm
 
+ASSERTD	macro	cond,op,msg
+	local	a1
+	IFNB	<op>
+	pushf
+	op
+	ENDIF
+	IFDIF	<cond>,<NEVER>
+	 IFDIF <cond>,<FALSE>
+	  IFB	<msg>
+	J&cond	$+5
+	  ELSE
+	J&cond	a1
+	  ENDIF
+	 ENDIF
+	ENDIF
+	IFB	<msg>
+	OPCHECK	OP_ASSERT	;; use INT 06h to signal an assertion failure
+	ELSE
+	OPCHECK	OP_ASSERTMSG	;; use INT 06h to signal an assertion failure
+	db	msg,0		;; followed by a null-terminated message
+a1:
+	ENDIF
+	IFNB	<op>
+	popf
+	ENDIF
+	endm
 ;
 ; DBGBRK generates an INT3 (OP_INT03) that's preceded by INT 06h, so if the
 ; PCjs debugger isn't present, the built-in INT 06h handler will skip over it.
@@ -561,8 +564,13 @@ PRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 ; (and to ensure they are generated only in DEBUG builds).
 ;
 DPRINTF	macro	letter,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
+	IFDEF DEBUG		;; (see ASSERT)
+	DPRINTFD letter,<format>,<a1>,<a2>,<a3>,<a4>,<a5>,<a6>,<a7>,<a8>,<a9>,<a10>,<a11>,<a12>
+	ENDIF
+	endm
+
+DPRINTFD macro	letter,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	local	d1,d2
-	IFDEF DEBUG
 	pushf			;; CCALL may alter flags
 	push	ax		;; DOS_UTL_DPRINTF alters AX
 	CCALL	DOS_UTL_DPRINTF,<letter,format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
@@ -574,7 +582,6 @@ DPRINTF	macro	letter,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 d1:	popf
 	DBGBRK
 d2:
-	ENDIF
 	endm
 
 ;

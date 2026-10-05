@@ -562,10 +562,17 @@ tf6b:	IFDEF	DEBUG
 	cmp	byte ptr [bp].TMP_AL,-1
 	jne	tf6c
 	push	ax
+	mov	al,byte ptr cs:[key_boot]
+	or	al,20h			; (DPRINTF accepts either case)
+	cmp	al,'t'			; is token tracing enabled?
+	pop	ax			; (skipping the DPRINTF call if not,
+	jne	tf6c			; since it's called for every token)
+	push	ax
 	mov	ah,0
 	DPRINTF	't',<"token: '%.*ls' (%#04x)\r\n">,cx,dx,ds,ax
 	pop	ax
-tf6c:	ENDIF	; DEBUG
+tf6c:
+	ENDIF	; DEBUG
 ;
 ; Update the TOKLET in the TOK_DATA at ES:DI, token index BX.
 ;

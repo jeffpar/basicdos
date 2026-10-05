@@ -1,7 +1,7 @@
 ---
 layout: page
 title: BASIC-DOS with DONKEY.BAS
-permalink: /demos/donkey/
+permalink: /demos/basic/
 machines:
   - id: ibm5150
     type: pcx86

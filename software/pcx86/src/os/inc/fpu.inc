@@ -37,11 +37,12 @@
 ; never modified (unless ES:DI points to one).
 ;
 ; The conversion functions are named after the corresponding conversions in
-; BASIC-DOS's code generator (gen.asm), where the "1" or "2" indicates whether
-; the top operand (1) or the operand underneath it (2) is converted, while the
-; other operand (if any) is left as-is; a "1" or "2" BEFORE the type indicates
-; that 1 or 2 operands of that type are converted.  Also, like long.asm, stack
-; functions may modify AX, BX, CX, DX, SI, DI, and ES.
+; BASIC-DOS's code generator (see genCvtType in genfpu.asm), where the "1" or
+; "2" indicates whether the top operand (1) or the operand underneath it (2)
+; is converted, while the other operand (if any) is left as-is; a "1" or "2"
+; BEFORE the type indicates that 1 or 2 operands of that type are converted.
+; Also, like long.asm, stack functions may modify AX, BX, CX, DX, SI, DI, and
+; ES.
 ;
 ; The first 12 FPUTBL entries must remain in the same order as the OPEVAL_NEG
 ; through OPEVAL_GE operator indexes in cmd.inc, so that the code generator

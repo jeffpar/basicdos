@@ -23,9 +23,9 @@
 ; use, and entire integer arrays (genArrayVar), which GET and PUT use.  See
 ; arr.asm for the array functions that the generated code calls.
 ;
-; See gen.asm for an overview of all the gen*.asm files.  Like gen.asm, these
-; functions are called while generating code, with DS:BX -> TOKLETs and ES:DI
-; -> code block.
+; See gencmd.asm for an overview of all the gen*.asm files.  Like gencmd.asm,
+; these functions are called while generating code, with DS:BX -> TOKLETs and
+; ES:DI -> code block.
 ;
 ; NOTE: Unlike genExpr, these functions must NOT use ENTER, because they
 ; call functions (eg, genPushVarPtr) that access genCode's local variables.

@@ -138,7 +138,7 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] PSET, PRESET, LINE (including `LINE -(x,y)`, B, BF, and an omitted color), PAINT, and DRAW (U, D, L, R, E, F, G, H, M, B, N, C, and S), drawing directly into CGA memory in modes 4-6
 - [x] GET and PUT (PSET, PRESET, XOR, OR, and AND), using integer arrays (passed by name) in BASICA's image format, with one 16-bit word per element, so programs that build images by hand (like DONKEY.BAS's `B%`) work
 - [x] Syntax errors report the program's line number (eg, "Syntax error in line 1160") instead of the line's position in the file
-- [x] DONKEY.BAS runs (see the [DONKEY.BAS demo](demos/donkey/))
+- [x] DONKEY.BAS runs (see the [DONKEY.BAS demo](demos/basic/))
 - [x] Performance: PUT and GET copy whole bytes (shifting and masking each row in registers), horizontal lines, BF, and PAINT fill whole bytes, and the video mode is cached, so graphics statements make no driver or BIOS calls; SOUND returns immediately (as in MSBASIC, the next SOUND waits for it to finish, and the CLOCK$ driver turns it off), so DONKEY.BAS is paced at one loop per tick, like MSBASIC
 - [x] CIRCLE (for CIRCLE.BAS, one of the other PC DOS 1.00 samples on the demo disk), using MSBASIC's algorithm and integer math (angles and aspects are converted from doubles without FPU$), so it draws the same pixels as MSBASIC, about twice as fast
 - [x] CLEAR (resets variables and erases arrays; its sizes are ignored)

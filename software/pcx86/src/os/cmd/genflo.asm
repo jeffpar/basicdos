@@ -37,9 +37,9 @@
 ; is either a near JMP (if the target is in the same block) or a far JMP, and
 ; any JMP that's patched later occupies 5 bytes.
 ;
-; See gen.asm for an overview of all the gen*.asm files.  Like gen.asm, these
-; functions are called while generating code, with DS:BX -> TOKLETs and ES:DI
-; -> code block.
+; See gencmd.asm for an overview of all the gen*.asm files.  Like gencmd.asm,
+; these functions are called while generating code, with DS:BX -> TOKLETs and
+; ES:DI -> code block.
 ;
 	include	cmd.inc
 	include	8086.inc

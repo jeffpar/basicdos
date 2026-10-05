@@ -12,7 +12,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<memError>
+	EXTNEAR	<memError,genCode,clearVars,compactStrs>
 	EXTBYTE	<PREDEF_VARS>
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
@@ -224,6 +224,7 @@ ENDPROC	freeAllBlocks
 ;
 ; Inputs:
 ;	AL = mask of chains to save
+;	AH = non-zero to keep the new chains (see restoreChains)
 ;
 ; Outputs:
 ;	SP -> CHAINS frame (on return)
@@ -238,6 +239,11 @@ CH_HEADS	dw	6 dup (?)	; saved CBLKDEF through ABLKDEF heads
 CHAINS		ends
 
 DEFPROC	saveChains
+	push	cx
+	push	si
+	call	freeCache		; any loaded program must recompile
+	pop	si
+	pop	cx
 	pop	di			; DI = return address
 	sub	sp,size CHAINS
 	push	di
@@ -275,18 +281,29 @@ ENDPROC	saveChains
 ; chain; but if the program was aborted, we free the saved blocks instead, so
 ; that the program that was running remains loaded.
 ;
+; If AL is 2, the CHAINS frame decides: the high byte of CH_MASK is non-zero
+; if saveChains was asked to keep the new chains (eg, for a BAS file run from
+; the command prompt, which remains loaded, like MSBASIC).
+;
 ; Inputs:
-;	AL = 0 to restore the saved chains, non-zero to free them
+;	AL = 0 to restore the saved chains, 1 to free them, 2 to let CH_MASK
+;	decide
 ;	DI -> CHAINS frame
 ;
 ; Outputs:
 ;	DI -> end of CHAINS frame
 ;
 ; Modifies:
-;	AH, CX, SI, DI
+;	AX, CX, SI, DI
 ;
 DEFPROC	restoreChains
-	mov	si,ds:[PSP_HEAP]
+	cmp	al,2
+	jne	rc0
+	mov	al,byte ptr [di].CH_MASK+1
+rc0:	test	al,al			; restoring the saved chains?
+	jnz	rc0a			; no
+	call	freeCache		; yes, so free the file's code, too
+rc0a:	mov	si,ds:[PSP_HEAP]
 	mov	cx,[di].CH_PREV
 	mov	[si].CMD_CHAINS,cx
 	mov	ah,byte ptr [di].CH_MASK
@@ -569,10 +586,152 @@ ENDPROC	allocText
 ;	CX, SI
 ;
 DEFPROC	freeAllText
+	call	freeCache		; the program's code goes with its text
 	mov	si,ds:[PSP_HEAP]
 	lea	si,[si].TBLKDEF
 	jmp	freeAllBlocks
 ENDPROC	freeAllText
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; freeCache
+;
+; Frees the code (if any) that genCode cached for the loaded program, which
+; must be done whenever the program's text or variables are freed, since the
+; code depends on both.
+;
+; Modifies:
+;	CX, SI
+;
+DEFPROC	freeCache
+	mov	si,ds:[PSP_HEAP]
+	lea	si,[si].CODE_CACHE
+	jmp	freeAllBlocks
+ENDPROC	freeCache
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; keepCode
+;
+; Called by genCode when the generated code has finished running: if the code
+; was generated for the loaded program (as opposed to a command line) and it
+; ran without error, we keep it (in CODE_CACHE) so that RUN can simply run it
+; again (see runCache); otherwise, it's freed.
+;
+; Inputs:
+;	Carry set if the code failed (eg, a syntax error)
+;
+; Modifies:
+;	AX, CX, SI
+;
+DEFPROC	keepCode
+	jc	kc8
+	mov	si,ds:[PSP_HEAP]
+	mov	ax,ss
+	cmp	[si].LINE_PTR.SEG,ax	; did we run the loaded program?
+	je	kc8			; no
+	call	freeCache		; yes, so keep its code
+	mov	si,ds:[PSP_HEAP]
+	sub	ax,ax
+	xchg	ax,[si].CBLKDEF.BDEF_NEXT
+	mov	[si].CODE_CACHE,ax
+	ret
+kc8:	jmp	freeAllCode
+ENDPROC	keepCode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; resetVars
+;
+; Used by RUN to give a program a fresh set of variables: normally, we free
+; them all, but if the program's code was kept (see keepCode), its variables
+; must remain where they are, so we just clear them instead (like CLEAR).
+;
+; Inputs:
+;	BX -> CMDHEAP
+;
+; Modifies:
+;	Any but AX and BX
+;
+DEFPROC	resetVars
+	cmp	[bx].CODE_CACHE,0
+	jne	rsv1
+	jmp	freeAllVars
+rsv1:	push	ax
+	push	bx
+	mov	[bx].OPT_BASE,0
+	push	cs
+	call	clearVars		; (a FAR function)
+	pop	bx
+	pop	ax
+	ret
+ENDPROC	resetVars
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; runCode
+;
+; Used by RUN: if the loaded program's code was kept (see keepCode), we run it
+; again, the same way genCode runs it (see the ON ERROR setup there);
+; otherwise, genCode generates (and runs) it.
+;
+; Inputs:
+;	AL = GEN flags
+;	BX -> CMDHEAP
+;	SI = 0
+;
+; Outputs:
+;	Carry clear if successful
+;
+; Modifies:
+;	Any
+;
+DEFPROC	runCode
+	cmp	[bx].CODE_CACHE,0	; is the program's code still around?
+	jne	rcd1			; yes
+	jmp	genCode
+rcd1:	mov	[bx].GEN_FLAGS,al
+	mov	byte ptr [bx].GFX_DATA+6,0	; see gfxInit
+	mov	ax,[bx].TBLKDEF.BLK_NEXT
+	mov	[bx].LINE_PTR.SEG,ax	; (see keepCode)
+	sub	ax,ax
+	xchg	ax,[bx].CODE_CACHE
+	mov	[bx].CBLKDEF.BDEF_NEXT,ax; the code is running again
+	push	ax
+	mov	ax,size CBLK
+	push	ax
+	mov	di,sp			; SS:DI -> the code
+	push	[bx].ERR_SP
+	push	[bx].ERR_NUM
+	push	[bx].ERR_ADDR.OFF
+	push	[bx].ERR_ADDR.SEG
+	sub	ax,ax
+	mov	[bx].ERR_NUM,ax
+	mov	[bx].ERR_ADDR.SEG,ax
+	mov	cx,[bx].VBLKDEF.BDEF_NEXT
+	push	bp
+	push	ds
+	mov	ax,sp
+	sub	ax,4			; (the CALL below pushes 4 bytes)
+	mov	[bx].ERR_SP,ax
+	mov	ds,cx
+	ASSUME	DS:NOTHING
+	call	dword ptr ss:[di]	; execute the code
+	pop	ds
+	ASSUME	DS:DATA
+	pop	bp
+	mov	si,ds:[PSP_HEAP]
+	pop	[si].ERR_ADDR.SEG
+	pop	[si].ERR_ADDR.OFF
+	pop	[si].ERR_NUM
+	pop	[si].ERR_SP
+	add	sp,4
+	clc
+	call	keepCode		; keep the code again
+	call	compactStrs		; free any leftover temp strings
+	clc
+	ret
+ENDPROC	runCode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -690,6 +849,7 @@ ENDPROC	freeTempVars
 ;	CX, SI
 ;
 DEFPROC	freeAllVars
+	call	freeCache		; (the code depends on the vars)
 	call	freeStrSpace
 	mov	si,ds:[PSP_HEAP]
 	lea	si,[si].FBLKDEF
@@ -721,6 +881,7 @@ ENDPROC	freeAllVars
 ;	AX, CX, SI
 ;
 DEFPROC	freeIdleVars
+	call	freeCache		; free any cached code, too
 	mov	si,ds:[PSP_HEAP]
 	mov	ax,[si].FBLKDEF.BDEF_NEXT
 	or	ax,[si].ABLKDEF.BDEF_NEXT

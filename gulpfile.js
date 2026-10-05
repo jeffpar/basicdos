@@ -103,7 +103,7 @@ let disks = {
     "BASIC-DOS6": [
         "./demos/s80/CONFIG.SYS",
         "./demos/d40/AUTOEXEC.BAT",
-        "./demos/donkey/*.BAS",         // DONKEY.BAS and the other PC DOS 1.00 BASIC samples
+        "./demos/basic/*.BAS",          // DONKEY.BAS and the other PC DOS 1.00 BASIC samples
         "./software/pcx86/src/tests/misc/BENCH.BAS"
     ].concat(minFiles),
     "PCDOS200-C400": "./software/pcx86/disks/PCDOS200-C400.json"

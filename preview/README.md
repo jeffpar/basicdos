@@ -30,7 +30,7 @@ A BASIC-DOS boot diskette (`BASIC-DOS1`) has been loaded into drive A:.  The boo
 
 All files are original BASIC-DOS production and test files, with the exception of **SYMDEB** (Microsoft's Symbolic Debug Utility v4.00) and **MSBASIC.EXE**, which was built from Microsoft's [GW-BASIC](https://github.com/microsoft/GW-BASIC) open-source files, with a little help from [OS/2 Museum](http://www.os2museum.com/wp/well-hello/). These two files are used for early testing and debugging only, and they will not be distributed with the finished BASIC-DOS product.
 
-NOTE: All preview binaries shown here are *DEBUG* versions, which means that all run-time assertions are enabled, so file sizes and memory usage are larger than normal, and overall performance is slightly lower.  Even so, BASIC-DOS outperforms PC DOS in several respects.  More on that later.
+NOTE: All preview binaries shown here are release (non-DEBUG) versions.  DEBUG versions, which enable all run-time assertions, are also available by building BASIC-DOS with "mk.sh debug"; their file sizes and memory usage are larger, and their overall performance is slightly lower.  Either way, BASIC-DOS outperforms PC DOS in several respects.  More on that later.
 
 ### PC DOS Compatibility
 

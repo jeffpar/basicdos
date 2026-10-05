@@ -21,7 +21,34 @@
 # binaries (which requires PCJS; see gulpfile.js).  If a build fails and you
 # don't want the demo disks updated, use pc.js's "abort" command.
 #
-tools/pc/pc.js --disk=software/pcx86/disks/MSDOS320-C400.json --dir=software/pcx86/src --normalize --speed=4 --target=20M --fat=16:2048:512
+# By default, we build non-debug ("FINAL") binaries; use "mk.sh debug" to build
+# the traditional DEBUG binaries.  The C: AUTOEXEC.BAT always runs MK without
+# arguments, so for a FINAL build, we create an MKFINAL file in the source
+# directory (D:\), which tells MK.BAT to build FINAL binaries instead, and we
+# remove it when pc.js exits.  And since MAKE can't tell that the mode has
+# changed, we touch all the assembly sources whenever it does, so that every
+# binary is rebuilt in the new mode (the last mode is recorded in
+# tools/pc/disks/mkmode, which git ignores).
+#
+mode=FINAL
+case "$1" in
+    "") ;;
+    debug|DEBUG) mode=DEBUG ;;
+    *) echo "usage: $0 [debug]" >&2; exit 1 ;;
+esac
+src=software/pcx86/src
+last=$(cat tools/pc/disks/mkmode 2>/dev/null)
+if [ "$last" != "$mode" ]; then
+    find $src/os $src/tests -iname "*.asm" -exec touch {} +
+    mkdir -p tools/pc/disks
+    echo $mode > tools/pc/disks/mkmode
+fi
+rm -f $src/MKFINAL
+if [ $mode = FINAL ]; then
+    touch $src/MKFINAL
+    trap 'rm -f '$src'/MKFINAL' EXIT
+fi
+tools/pc/pc.js --disk=software/pcx86/disks/MSDOS320-C400.json --dir=$src --normalize --speed=4 --target=20M --fat=16:2048:512
 code=$?
 if [ $code -eq 0 ] && [ -n "$PCJS" ]; then
     if ! npx gulp demos --silent > /dev/null; then

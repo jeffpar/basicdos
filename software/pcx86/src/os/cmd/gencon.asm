@@ -17,9 +17,9 @@
 ;	SCREEN				(genScreen)
 ;	WIDTH				(genWidth)
 ;
-; See gen.asm for an overview of all the gen*.asm files.  Like gen.asm, these
-; functions are called while generating code, with DS:BX -> TOKLETs and ES:DI
-; -> code block.
+; See gencmd.asm for an overview of all the gen*.asm files.  Like gencmd.asm,
+; these functions are called while generating code, with DS:BX -> TOKLETs and
+; ES:DI -> code block.
 ;
 	include	cmd.inc
 	include	8086.inc

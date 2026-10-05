@@ -12,7 +12,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<allocText,freeAllText,genCode,freeAllCode,freeAllVars>
-	EXTNEAR	<freeIdleVars>
+	EXTNEAR	<freeIdleVars,resetVars,runCode>
 	EXTNEAR	<writeStrCRLF,saveChains,restoreChains,compactStrs>
 	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resParas,resSum>
 	EXTBYTE	<RES_HEAP,CMD_PATH,MSG_DRIVE>
@@ -792,9 +792,13 @@ cf4a:	jmp	cf8
 ; has turned echo off.  These differences are why we must call cmdRunFlags with
 ; GEN_BASIC or GEN_BATCH as appropriate.
 ;
-; Another side-effect of an implied LOAD+RUN operation is that we free the
-; loaded program (ie, all text blocks) when it finishes running.  Any variables
-; set (ie, all var blocks) are allowed to remain in memory.
+; When a BAS file is run from the command prompt, it remains loaded after it
+; finishes running (replacing any program that was previously loaded), and
+; so do its variables, just like MSBASIC, so that it can be LIST'ed, RUN again,
+; etc.  Otherwise (eg, a BAT file, or a BAS file run by another BAT or BAS
+; file), we free the file's blocks (eg, all text blocks) when it finishes
+; running, but any variables set (ie, all var blocks) are allowed to remain in
+; memory.
 ;
 ; Since a BAT or BAS file may be run by another BAT or BAS file, we save (and
 ; empty) the code and text chains first, so that the new file can't free the
@@ -809,12 +813,14 @@ cf4a:	jmp	cf8
 ; the program remains loaded, available for LIST'ing, RUN'ing, etc, and the
 ; ctrlc handler frees the blocks of any callers (see restoreChains).
 ;
-cf4b:	mov	al,11h			; save the code and text chains
+cf4b:	mov	ax,11h			; save the code and text chains
 	cmp	dx,offset BAS_EXT
 	jne	cf4c
+	mov	ah,1			; AH = 1 to keep a BAS file loaded
+					; (see restoreChains)
 	cmp	[bp].CBLKDEF.BDEF_NEXT,0; is a program running?
 	je	cf4c			; no
-	mov	al,3Fh			; yes, so save its var chains, too
+	mov	ax,3Fh			; yes, so save its var chains, too
 cf4c:	call	saveChains		; SP -> CHAINS frame
 	call	cmdLoad			; DS:SI -> filespec (with length CX)
 	jc	cf4e			; don't RUN if LOAD error
@@ -823,9 +829,12 @@ cf4c:	call	saveChains		; SP -> CHAINS frame
 	je	cf4d
 	mov	al,GEN_BATCH
 cf4d:	call	cmdRunFlags		; if cmdRun returns normally
+	mov	di,sp
+	mov	al,2			; AL = 2 to keep a BAS file loaded
+	jmp	short cf4f
 cf4e:	mov	di,sp			; free the file's blocks
 	mov	al,0			; (eg, all text blocks) and
-	call	restoreChains		; restore the caller's chains
+cf4f:	call	restoreChains		; restore the caller's chains
 	mov	sp,di			; and remove the CHAINS frame
 	jmp	cf9
 ;
@@ -1333,13 +1342,11 @@ ENDPROC	cmdDel
 ;	Any
 ;
 DEFPROC	cmdDir
-	mov	[bx].CMD_ARGPTR,si
-	mov	[bx].CMD_ARGLEN,cx
 ;
 ; If filespec begins with ":", extract drive letter, and if it ends
 ; with ":" as well, append DIR_DEF ("*.*").
 ;
-di1:	push	bp
+	push	bp
 	mov	dl,0			; DL = default drive #
 	mov	di,cx			; DI = length of filespec
 	cmp	cx,2
@@ -1435,25 +1442,12 @@ di7:	xchg	ax,dx			; AX = total # of clusters used
 	xchg	ax,bp			; AX = total # of clusters free
 	mul	bx			; DX:AX = total # bytes free
 	PRINTF	<"%25ld bytes free",13,10>,ax,dx
-;
-; For testing purposes: if /L is specified, display the directory in a "loop".
-;
 	pop	bp
-
-	IFDEF	DEBUG
-	TESTSW	<'L'>
-	jz	di9
-	call	countLine
-	mov	bx,ds:[PSP_HEAP]
-	mov	si,[bx].CMD_ARGPTR
-	mov	cx,[bx].CMD_ARGLEN
-	jmp	di1
-	ENDIF	; DEBUG
+	ret
 
 di8:	PRINTF	<"Unable to find %s (%d)",13,10,13,10>,si,ax
 	pop	bp
-
-di9:	ret
+	ret
 ENDPROC	cmdDir
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2262,7 +2256,7 @@ DEFPROC	cmdRun
 	ASSERT	STRUCT,[bx],CMD
 	cmp	al,GEN_BASIC
 	jne	ru9			; BASIC programs
-	call	freeAllVars		; always gets a fresh set of variables
+	call	resetVars		; always gets a fresh set of variables
 ;
 ; BASIC programs also get their video mode restored when they end (see
 ; saveMode); if they're aborted instead, ctrlc takes care of it.
@@ -2273,7 +2267,7 @@ DEFPROC	cmdRun
 	pop	ax
 	push	dx
 	sub	si,si
-	call	genCode
+	call	runCode			; (see runCache)
 	pop	dx
 	pushf
 	test	dx,dx			; did we save the mode?

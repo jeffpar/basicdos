@@ -509,18 +509,23 @@ ENDPROC	gfxLine
 ;
 ; Used by "PAINT (x,y)[,[paint][,border]]", which fills the area around x,y
 ; that's bounded by the border color (which defaults to the paint color).
-; Pixels that already have the paint color are treated as borders, too.
+; Like MSBASIC, pixels that already have the paint color are fillable (so the
+; fill passes through them), but a span that has nothing left to paint is
+; skipped (which is what ensures that the fill ends).
 ;
 ; We use a "span fill": each seed (initially, x,y) fills the horizontal span
 ; of fillable pixels around it, and then adds seeds for the fillable spans in
-; the rows above and below it, until no seeds remain.  The seeds are kept in
+; the next row (in the seed's direction), and in the row it came from, but
+; only where the span extends beyond its parent span (which was already
+; filled), until no seeds remain.  The seeds are kept in
 ; a temporary block of memory (up to PT_SEEDS of them), and if it overflows,
 ; some areas may be left unfilled.
 ;
-; To scan rows quickly, the block also contains a 256-byte table that maps
-; every possible screen byte to a mask of its boundary pixels (with bits from
-; ptFirst down to 1, for the pixels from left to right), so that we can test
-; a pixel with XLAT, and skip entire bytes that are fillable (or not).
+; To scan rows quickly, the block also contains two 256-byte tables that map
+; every possible screen byte to a mask of its boundary pixels and a mask of
+; its pixels that don't have the paint color (with bits from ptFirst down to
+; 1, for the pixels from left to right), so that we can test a pixel with
+; XLAT, and skip entire bytes that are fillable (or not).
 ;
 ; Inputs:
 ;	Coordinates, paint color, and border color (the colors are -1 for
@@ -532,8 +537,8 @@ ENDPROC	gfxLine
 ; Modifies:
 ;	Any
 ;
-PT_SEEDS	equ	4000		; preferred maximum # of seeds
-PT_TABLE	equ	256		; size of the table (seeds follow it)
+PT_SEEDS	equ	2000		; preferred maximum # of seeds
+PT_TABLE	equ	512		; size of the tables (seeds follow them)
 
 DEFPROC	gfxPaint,FAR
 	ARGVAR	ptX,dword
@@ -547,6 +552,7 @@ DEFPROC	gfxPaint,FAR
 	LOCVAR	ptMask,byte		; pixel mask (3 or 1)
 	LOCVAR	ptFirst,byte		; mask bit of a byte's leftmost pixel
 	LOCVAR	ptFull,byte		; mask of all of a byte's pixels
+	LOCVAR	ptDir,byte		; direction of the seeds (1 or -1)
 	LOCVAR	ptPPB,word		; pixels per byte (4 or 8)
 	LOCVAR	ptMaxX,word		; rightmost x (319 or 639)
 	LOCVAR	ptTop,word		; offset of the next seed
@@ -554,6 +560,9 @@ DEFPROC	gfxPaint,FAR
 	LOCVAR	ptXL,word		; left end of the current span
 	LOCVAR	ptXR,word		; right end of the current span
 	LOCVAR	ptRow,word		; row of the current span
+	LOCVAR	ptPL,word		; left end of the parent span
+	LOCVAR	ptPR,word		; right end of the parent span
+	LOCVAR	ptSR,word		; right end of the range to seed
 	ENTER
 	call	gfxInit
 	mov	ax,[ptPaint].LOW
@@ -588,7 +597,7 @@ pt0:	mov	[ptBpp],al
 	call	setLastPt
 	push	ds
 	push	cx
-	mov	bx,(PT_TABLE + PT_SEEDS * 4) SHR 4
+	mov	bx,(PT_TABLE + PT_SEEDS * 8) SHR 4
 	mov	ah,DOS_MEM_ALLOC
 	int	21h			; AX = segment of table and seeds
 	jnc	pt1
@@ -600,26 +609,37 @@ pt0:	mov	[ptBpp],al
 ptE:	jmp	ptErr
 pt1:	mov	cl,4
 	shl	bx,cl
-	sub	bx,4
+	sub	bx,8
 	mov	[ptMax],bx		; ptMax = offset of the last seed
 	pop	cx
 	mov	ds,ax
 	call	ptTable			; build the table
 	mov	[ptTop],PT_TABLE
 	mov	[ptRow],dx
+	mov	[ptDir],1
+	mov	[ptXL],7FFFh		; the first seed has no parent span
+	mov	[ptXR],7FFEh
 	call	ptPush			; push the first seed
 	cmp	dx,200			; is it on the screen?
-	jae	pt9			; no
+	jae	ptE9			; no
 	cmp	cx,[ptMaxX]
-	ja	pt9
+	ja	ptE9
 
 pt2:	mov	si,[ptTop]
 	cmp	si,PT_TABLE		; any seeds left?
-	jbe	pt9			; no
-	sub	si,4
+	ja	pt2a			; yes
+ptE9:	jmp	pt9
+pt2a:	sub	si,8
 	mov	[ptTop],si
 	mov	cx,[si]
-	mov	dx,[si+2]		; DX:CX = next seed
+	mov	dl,[si+2]
+	mov	dh,0			; DX:CX = next seed
+	mov	al,[si+3]
+	mov	[ptDir],al
+	mov	ax,[si+4]
+	mov	[ptPL],ax
+	mov	ax,[si+6]
+	mov	[ptPR],ax
 	mov	[ptRow],dx
 	sub	bx,bx			; BX = 0 (for XLAT)
 	call	pixRef			; ES:DI, AH -> pixel
@@ -640,17 +660,48 @@ pt2:	mov	si,[ptTop]
 	call	scanRight		; CX = right end of the span + 1
 	dec	cx
 	mov	[ptXR],cx
-	mov	si,cx
 	mov	cx,[ptXL]
+	mov	dx,[ptRow]
+	call	pixRef
+	mov	si,[ptXR]
+	mov	dl,0
+	mov	bx,256			; BX = 256 (the paint color table)
+	call	scanRight		; CX = first pixel that needs paint
+	cmp	cx,si			; is there one?
+	jbe	pt3			; yes
+	jmp	pt2			; no, so skip the span
+pt3:	mov	cx,[ptXL]
 	mov	dx,[ptRow]
 	mov	bl,[ptColor]
 	mov	bh,[ptMode]
 	call	hline			; fill the span
-	dec	dx
-	call	ptSeeds			; add seeds for the row above
+	mov	al,[ptDir]
+	cbw
+	add	dx,ax			; DX = the next row in this direction
+	mov	cx,[ptXL]
+	mov	si,[ptXR]
+	call	ptSeeds			; seed all of it
+	neg	[ptDir]
+	mov	al,[ptDir]
+	cbw
 	mov	dx,[ptRow]
-	inc	dx
-	call	ptSeeds			; and the row below
+	add	dx,ax			; DX = the row we came from
+	mov	cx,[ptXL]
+	mov	si,[ptPL]
+	dec	si
+	cmp	si,[ptXR]
+	jle	pt4
+	mov	si,[ptXR]		; SI = min(ptXR, ptPL-1)
+pt4:	push	dx
+	call	ptSeeds			; seed where we overhang on the left
+	pop	dx
+	mov	cx,[ptPR]
+	inc	cx
+	cmp	cx,[ptXL]
+	jge	pt5
+	mov	cx,[ptXL]		; CX = max(ptXL, ptPR+1)
+pt5:	mov	si,[ptXR]
+	call	ptSeeds			; and where we overhang on the right
 	jmp	pt2
 
 pt9:	push	es
@@ -670,8 +721,8 @@ ENDPROC	gfxPaint
 ;
 ; ptTable (gfxPaint internal function, using its frame)
 ;
-; Builds the table at DS:0 that maps every screen byte to a mask of its
-; boundary pixels (see gfxPaint).
+; Builds the tables at DS:0 and DS:256 that map every screen byte to a mask of
+; its boundary pixels and a mask of its pixels that need paint (see gfxPaint).
 ;
 ; Modifies:
 ;	AX, BX
@@ -681,6 +732,7 @@ DEFPROC	ptTable
 	push	dx
 	sub	bx,bx			; BX = byte value (and table offset)
 ptt1:	mov	ah,0			; AH = boundary mask
+	mov	ch,0			; CH = mask of pixels needing paint
 	mov	dh,[ptFirst]		; DH = mask bit of the leftmost pixel
 	mov	cl,8
 	sub	cl,[ptBpp]		; CL = shift of the leftmost pixel
@@ -688,14 +740,16 @@ ptt2:	mov	al,bl
 	shr	al,cl
 	and	al,[ptMask]		; AL = pixel
 	cmp	al,[ptBdr]
-	je	ptt3
-	cmp	al,[ptColor]
-	jne	ptt4
-ptt3:	or	ah,dh			; the pixel is a boundary
+	jne	ptt3
+	or	ah,dh			; the pixel is a boundary
+ptt3:	cmp	al,[ptColor]
+	je	ptt4
+	or	ch,dh			; the pixel needs paint
 ptt4:	shr	dh,1
 	sub	cl,[ptBpp]
 	jns	ptt2
 	mov	[bx],ah
+	mov	[bx+256],ch
 	inc	bl
 	jnz	ptt1
 	pop	dx
@@ -707,20 +761,23 @@ ENDPROC	ptTable
 ;
 ; ptSeeds (gfxPaint internal function, using its frame)
 ;
-; Adds a seed for every fillable span of row DX from ptXL to ptXR.
+; Adds a seed (in direction ptDir, with ptXL and ptXR as its parent span) for
+; every fillable span of row DX from CX to SI.
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI
 ;
 DEFPROC	ptSeeds
+	cmp	cx,si			; is the range empty?
+	jg	ps9			; yes
 	cmp	dx,200			; is the row on the screen?
 	jae	ps9			; no
+	mov	[ptSR],si
 	push	dx
-	mov	cx,[ptXL]
 	sub	bx,bx			; BX = 0 (for XLAT)
 	call	pixRef			; ES:DI, AH -> pixel
 	pop	dx
-ps1:	mov	si,[ptXR]
+ps1:	mov	si,[ptSR]
 	push	dx
 	mov	dl,[ptFull]		; DL = non-zero (scan boundary pixels)
 	call	scanRight		; CX = next fillable pixel
@@ -740,7 +797,8 @@ ENDPROC	ptSeeds
 ;
 ; ptPush (gfxPaint internal function, using its frame)
 ;
-; Adds a seed for DX:CX, if there's room.
+; Adds a seed for DX:CX (with direction ptDir and parent span ptXL to ptXR),
+; if there's room.
 ;
 ; Modifies:
 ;	SI
@@ -749,9 +807,18 @@ DEFPROC	ptPush
 	mov	si,[ptTop]
 	cmp	si,[ptMax]		; any room for another seed?
 	ja	pp9			; no
-	mov	[si],cx
-	mov	[si+2],dx
-	add	si,4
+	push	ax
+	mov	[si],cx			; x
+	mov	al,[ptDir]
+	mov	ah,al
+	mov	al,dl
+	mov	[si+2],ax		; y and direction
+	mov	ax,[ptXL]
+	mov	[si+4],ax		; and the parent span
+	mov	ax,[ptXR]
+	mov	[si+6],ax
+	pop	ax
+	add	si,8
 	mov	[ptTop],si
 pp9:	ret
 ENDPROC	ptPush

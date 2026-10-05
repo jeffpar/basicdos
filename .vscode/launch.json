@@ -29,7 +29,7 @@
       "type": "chrome",
       "request": "launch",
       "name": "BASIC-DOS with DONKEY.BAS",
-      "url": "http://localhost:4040/demos/donkey/",
+      "url": "http://localhost:4040/demos/basic/",
       "webRoot": "${workspaceFolder}"
     },
     {
