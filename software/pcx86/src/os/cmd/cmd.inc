@@ -11,6 +11,11 @@
 	include	devapi.inc
 	include	dosapi.inc
 	include	parser.inc
+;
+; Build options: set DETOK to 0 to remove support for loading tokenized BAS
+; files (see detok.asm); they will then be reported as invalid files again.
+;
+DETOK	equ	1
 
 DGROUP	group	CODE,DATA
 

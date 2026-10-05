@@ -168,7 +168,7 @@ LIST
 Lists all lines of the currently loaded BAS or BAT program.
 
 LOAD *file*
-Loads the specified BAS or BAT file.
+Loads the specified BAS or BAT file, which can be a text file or a tokenized BAS file saved by BASICA or GW-BASIC.  LOAD can't be used inside a BAS or BAT file (yet).
 
 LOCATE [*row*][,[*col*][,*cursor*]]
 Moves the cursor to the specified *row* and *col* (starting at 1,1), and hides (0) or shows (1) the cursor.

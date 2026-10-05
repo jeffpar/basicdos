@@ -249,7 +249,7 @@ ENDPROC	comAtoD
 ;	ES:DI -> buffer
 ;	CX = buffer length
 ;	DX = width (minimum # of chars)
-;	AL = precision (0FFh if none)
+;	AL = precision (0FFh if none, or 80h+n for n significant digits)
 ;	AH = flags (PF_LEFT, PF_ZERO, PF_HASH)
 ;
 ; Outputs:
@@ -324,7 +324,13 @@ cd3:	push	ss
 	pop	es
 	lea	di,[fmtDigits]		; ES:DI -> digits
 	mov	cl,FPU_DIGITS
-	call	cs:[fpuToDec]		; CX = # digits, AX = exponent
+	mov	al,[fmtPrecis]
+	sub	al,80h			; precision 80h+n (n <= FPU_DIGITS)?
+	cmp	al,cl
+	ja	cd3a			; no
+	mov	cl,al			; yes, use n significant digits
+	mov	[fmtPrecis],0FFh	; in the BASIC-style format
+cd3a:	call	cs:[fpuToDec]		; CX = # digits, AX = exponent
 	mov	[fmtExp],ax
 	mov	[fmtNum],cx
 	mov	al,[fmtPrecis]

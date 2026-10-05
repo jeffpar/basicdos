@@ -99,7 +99,8 @@ FPUTBL		ends
 ;
 ; FPU_DTOA converts the double at DS:SI to chars at ES:DI, where CX is the
 ; buffer length, DX is the width (minimum # of chars), AL is the precision
-; (0FFh if none), and AH contains sprintf-style flags (PF_LEFT, PF_ZERO, and
+; (0FFh if none, or 80h+n for BASIC-style with n significant digits, where
+; n <= FPU_DIGITS), and AH contains sprintf-style flags (PF_LEFT, PF_ZERO, and
 ; PF_HASH, which displays a space in lieu of a minus sign, as BASIC's PRINT
 ; does).  Without a precision, the format is BASIC-style, with as many as
 ; FPU_DIGITS significant digits (eg, "-.25", "1E+20"), which requires no more

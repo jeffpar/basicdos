@@ -79,6 +79,8 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [ ] Input redirection (`<`)
 - [ ] Batch file features: replaceable parameters (`%1`-`%9`), environment variables (SET), `ECHO message`, IF EXIST, FOR ... IN ... DO, SHIFT, and PAUSE (see [Batch Files](docs/bdman/lang/#batch-files) for the BASIC-DOS equivalents)
 - [ ] REN/RENAME, and SAVE (for BASIC programs)
+- [x] Loading tokenized (binary) BAS files saved by BASICA or GW-BASIC (eg, the samples on the PC DOS diskettes): they're converted back to text as they're loaded (as LIST would display them), including MBF floating-point constants (converted to IEEE doubles and formatted by FPU$); protected BAS files are still rejected with "Invalid file format"
+- [ ] LOAD inside a running BAS or BAT file (for now, it's an error, "LOAD not allowed in a program", because it would replace the running file's own text)
 - [ ] Disk utilities (eg, FORMAT, CHKDSK, SYS)
 
 ### Command Interpreter: BASIC Language

@@ -12,6 +12,9 @@
 CODE    SEGMENT
 
 	EXTNEAR	<allocText,freeAllText,genCode,freeAllCode,freeAllVars>
+	IF DETOK
+	EXTNEAR	<loadTokens>
+	ENDIF
 	EXTNEAR	<freeIdleVars,resetVars,runCode>
 	EXTNEAR	<writeStrCRLF,saveChains,restoreChains,compactStrs>
 	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resParas,resSum>
@@ -1974,8 +1977,10 @@ li2:	mov	cx,[si].BLK_NEXT
 	ASSUME	DS:NOTHING
 	mov	si,size TBLK
 li3:	cmp	si,ds:[BLK_FREE]
-	jae	li2			; advance to next block in chain
-	lodsw
+	jb	li3a
+	sub	si,si			; DS:SI -> block header
+	jmp	li2			; advance to next block in chain
+li3a:	lodsw
 	test	ax,ax			; is there a label #?
 	jz	li4			; no
 	PRINTF	<"%5d">,ax
@@ -2018,7 +2023,16 @@ DEFPROC	cmdLoad
 	mov	[lineTerm],0
 	cmp	dx,offset cmdLoad	; called with an ambiguous name?
 	jne	lf1a			; no
-	mov	dx,offset PERIOD	; yes, so check it
+;
+; TODO: LOAD inside a running BAS or BAT file would replace the running file's
+; own text (and code), so for now, it's an error.
+;
+	cmp	[bx].CBLKDEF.BDEF_NEXT,0; is a program running?
+	je	lf0			; no
+	PRINTF	<"LOAD not allowed in a program",13,10,13,10>
+	stc
+	jmp	lf13
+lf0:	mov	dx,offset PERIOD	; check the filename
 	call	chkString
 	jnc	lf1			; period exists, use filename as-is
 	mov	dx,offset BAS_EXT
@@ -2114,7 +2128,17 @@ lf4y:	jmp	lf12
 ;
 ; We found the end of another line starting at DS:SI and ending at DX.
 ;
-lf5:	mov	[lineOffset],si
+lf5:	cmp	byte ptr [si],0FEh	; MSBASIC protected (FEh) files aren't
+	IF DETOK			; supported, but tokenized (FFh) files
+	jb	lf5a			; are (see loadTokens)
+	je	lf10
+	call	loadTokens
+	jc	lf10
+	jmp	lf12
+	ELSE
+	jae	lf10			; (unless DETOK is zero)
+	ENDIF
+lf5a:	mov	[lineOffset],si
 	push	dx
 	DOSUTIL	ATOI32D			; DS:SI -> decimal string
 	ASSERT	Z,<test dx,dx>		; DX:AX is the result but keep only AX

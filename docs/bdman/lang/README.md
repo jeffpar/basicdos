@@ -22,7 +22,7 @@ The BASIC-DOS programming language is based on the BASIC language of the IBM PC 
 
 ### Programs
 
-A BASIC program is a text file with a BAS or BAT extension, which you can create with any text editor.  Each line contains one or more commands, separated by colons, and any line may begin with a *line number*, which serves as a label for [GOTO](../cmd/basic/goto/), [GOSUB](../cmd/basic/#gosub), and other statements that transfer control.  Lines that aren't the target of a transfer don't need line numbers, and line numbers don't need to be in order.
+A BASIC program is a text file with a BAS or BAT extension, which you can create with any text editor.  BASIC-DOS can also load BAS files saved by IBM PC BASIC (BASICA) or GW-BASIC, which are usually *tokenized* (a binary format); they're converted back to text as they're loaded, so LIST displays them as BASICA would.  Protected BAS files (saved with the P option) can't be loaded.  Each line contains one or more commands, separated by colons, and any line may begin with a *line number*, which serves as a label for [GOTO](../cmd/basic/goto/), [GOSUB](../cmd/basic/#gosub), and other statements that transfer control.  Lines that aren't the target of a transfer don't need line numbers, and line numbers don't need to be in order.
 
 	REM Print the powers of 2 below 1000
 	DEFINT A-Z
@@ -168,7 +168,7 @@ When a BAS program ends, BASIC-DOS restores the video mode it started with.
 
 BASIC-DOS runs many IBM PC BASIC programs unchanged (eg, DONKEY.BAS, from the original PC DOS 1.00 diskette), but there are differences:
 
-- Programs are text files, edited with a text editor, rather than typed and saved from within BASIC; there are no AUTO, EDIT, RENUM, or SAVE commands
+- Programs are text files, edited with a text editor, rather than typed and saved from within BASIC; there are no AUTO, EDIT, RENUM, or SAVE commands, although tokenized BAS files saved by BASICA and GW-BASIC can be loaded
 - Line numbers are optional, and only needed on lines that are targets of GOTO, GOSUB, etc
 - LET is required for assignments typed at the prompt (but not in programs)
 - Single-precision values are double-precision (DEFSNG is the same as DEFDBL), and integers are 32-bit, not 16-bit

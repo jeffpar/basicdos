@@ -120,7 +120,9 @@ gc2:	mov	[bx].LINE_PTR.OFF,si
 	stosw				; to reset the stack and return
 	jmp	short gc4
 
-gc4x:	call	memError		; no room for code, so skip execution
+gc4x:	mov	al,0
+	call	genSpin			; erase the spinner
+	call	memError		; no room for code, so skip execution
 	jmp	gc7
 
 gce:	call	memError
@@ -132,12 +134,23 @@ gc4:	mov	ax,CODE_ROOM
 	call	getNextLine
 	cmc
 	jnc	gc6
+	mov	ax,ss:[PSP_HEAP]
+	xchg	ax,bx
+	mov	bx,ss:[bx].LINE_NUM
+	and	bx,3
+	mov	bl,cs:SPIN_CHARS[bx]	; BL = next spinner char
+	xchg	ax,bx
+	call	genSpin			; display the spinner
 	call	genCommands		; generate code
 	jnc	gc4
 
 gc6:	push	ss
 	pop	ds
 	ASSUME	DS:DATA
+	pushf
+	mov	al,0
+	call	genSpin			; erase the spinner
+	popf
 	jc	gc7
 	call	checkCtl		; any FOR without NEXT (etc)?
 	jc	gc7			; yes
@@ -198,6 +211,59 @@ gc9:	mov	bx,ss:[PSP_HEAP]
 	LEAVE
 	ret
 ENDPROC	genCode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genSpin
+;
+; Displays the progress "spinner" char in AL on STDERR while a BAS or BAT file
+; is being compiled.  BASIC-DOS backspaces are destructive, so after the first
+; line, each char is preceded by a backspace (to erase the previous char), and
+; when AL is zero, only a backspace is displayed (to erase the spinner).
+;
+; Inputs:
+;	AL = char (or zero to erase)
+;
+; Outputs:
+;	None (all registers preserved, but not flags)
+;
+DEFPROC	genSpin
+	push	ax
+	push	bx
+	push	cx
+	push	dx
+	push	ds
+	mov	bx,ss
+	mov	ds,bx
+	mov	bx,ds:[PSP_HEAP]
+	test	[bx].GEN_FLAGS,GEN_BASIC OR GEN_BATCH
+	jz	gs9			; not compiling a file
+	mov	cx,[bx].LINE_NUM
+	jcxz	gs9			; nothing displayed yet
+	mov	ah,al
+	mov	al,CHR_BACKSPACE
+	push	ax
+	mov	dx,sp			; DS:DX -> backspace and char
+	test	ah,ah			; erasing?
+	jz	gs1			; yes, so display only the backspace
+	dec	cx			; first line?
+	mov	cx,2
+	jnz	gs2			; no
+	inc	dx			; yes, so display only the char
+gs1:	mov	cx,1
+gs2:	mov	bx,STDERR
+	mov	ah,DOS_HDL_WRITE
+	int	21h
+	pop	ax
+gs9:	pop	ds
+	pop	dx
+	pop	cx
+	pop	bx
+	pop	ax
+	ret
+ENDPROC	genSpin
+
+SPIN_CHARS	db	"-\|/"			; (the first line uses '\')
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -410,9 +476,12 @@ gdi3a:	mov	[bx],al
 	pop	bx
 
 	call	getNextSymbol		; check for comma
-	jbe	gdi9
+	jbe	gdi7			; no more tokens (or a ':' or keyword)
 	cmp	al,','
 	je	genDefVar
+	sub	bx,size TOKLET		; leave any other symbol for the caller
+gdi7:	clc
+	ret
 
 gdi8:	stc
 gdi9:	ret
