@@ -82,8 +82,8 @@ DEFPROC	scb_load,DOS
 	call	scb_lock		; lock a free SCB
 	jc	sl8
 	push	ax			; save previous SCB
-	mov	al,[bx].SCB_NUM
-	mov	[bp].REG_CL,al		; REG_CL = session (SCB) #
+	mov	dl,[bx].SCB_NUM		; (init_scb needs AX intact)
+	mov	[bp].REG_CL,dl		; REG_CL = session (SCB) #
 	mov	di,[bp].REG_BX
 	mov	es,[bp].REG_ES		; ES:DI -> SPB
 	ASSUME	ES:NOTHING

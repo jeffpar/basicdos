@@ -295,7 +295,7 @@ ENDPROC	strlen
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_printf (AH = 04h)
+; utl_printf (AH = 03h)
 ;
 ; A CDECL-style calling convention is assumed, where all parameters EXCEPT
 ; for the format string are pushed from right to left, so that the first

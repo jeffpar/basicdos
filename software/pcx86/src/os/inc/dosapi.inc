@@ -105,46 +105,42 @@ DOS_DSK_RENAME	equ	56h	; rename file (DS:DX) to (ES:DI)
 ; INT_DOSUTIL functions
 ;
 DOS_UTL_STRLEN	equ	00h	; return string (DS:SI) length (AX)
-DOS_UTL_STRSTR	equ	01h	; find string (DS:SI) in string (ES:DI)
-DOS_UTL_HPRINTF	equ	02h	; printf to SFH (BL), like DOS_UTL_PRINTF
-DOS_UTL_STRUPR	equ	03h	; upper-case string (DS:SI)
-DOS_UTL_PRINTF	equ	04h	; printf to console
+DOS_UTL_STRSTR	equ	01h	; find string (CS:SI) in string (ES:DI)
+DOS_UTL_STRUPR	equ	02h	; upper-case string (DS:SI)
+DOS_UTL_PRINTF	equ	03h	; printf to console
+DOS_UTL_HPRINTF	equ	04h	; printf to SFH (BL), like DOS_UTL_PRINTF
 DOS_UTL_DPRINTF	equ	05h	; printf to DEBUG context, if any
 DOS_UTL_SPRINTF	equ	06h	; sprintf to buffer (ES:DI)
 DOS_UTL_ITOA	equ	07h	; convert number (DX:SI) to string (ES:DI)
 DOS_UTL_ATOI16	equ	08h	; convert string (DS:SI) to 16-bit int (AX)
 DOS_UTL_ATOI32	equ	09h	; convert string (DS:SI) to 32-bit int (DX:AX)
 DOS_UTL_ATOI32D	equ	0Ah	; convert decimal string to 32-bit int (DX:AX)
-DOS_UTL_ATOF64	equ	0Ch	; convert string (DS:SI) to 64-bit float
-DOS_UTL_I32F64	equ	0Dh	; convert 32-bit int (DX:SI) to 64-bit float
-DOS_UTL_OPF64	equ	0Eh	; operate on 64-bit float
-DOS_UTL_TOKEN1	equ	11h	; tokenize string (DS:SI) using generic syntax
-DOS_UTL_TOKEN2	equ	12h	; tokenize string (DS:SI) using BASIC syntax
-DOS_UTL_TOKID	equ	13h	; convert string (DS:SI) into token ID (AX)
-DOS_UTL_PARSESW	equ	14h	; parse TOKBUF (ES:DI) for switches
-DOS_UTL_GETDEV	equ	15h	; get DDH (ES:DI) for device (DS:SI)
-DOS_UTL_GETCSN	equ	16h	; get current session number (CL)
-DOS_UTL_LOAD	equ	18h	; load program (DS:DX) into session (CL)
-DOS_UTL_START	equ	19h	; start session (CL)
-DOS_UTL_STOP	equ	1Ah	; stop session (CL)
-DOS_UTL_END	equ	1Bh	; end session (CL)
-DOS_UTL_WAITEND	equ	1Ch	; wait for session to end (CL)
-DOS_UTL_YIELD	equ	1Dh	; yield
-DOS_UTL_SLEEP	equ	1Eh	; sleep (DX) milliseconds
-DOS_UTL_WAIT	equ	1Fh	; wait on ID (DX:DI) until end wait (carry set if interrupted)
-DOS_UTL_ENDWAIT	equ	20h	; end wait on ID (DX:DI)
-DOS_UTL_HOTKEY	equ	21h	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
-DOS_UTL_LOCK	equ	22h	; lock current session
-DOS_UTL_UNLOCK	equ	23h	; unlock current session
-DOS_UTL_STDLEN	equ	24h	; like STRLEN but w/24h ('$') as terminator
-DOS_UTL_QRYMEM	equ	25h	; query memory block N (CL)
-DOS_UTL_TERM	equ	26h	; terminate with exit code (DL) and type (DH)
-DOS_UTL_GETDATE	equ	27h	; get date (AX) in "packed" format
-DOS_UTL_GETTIME	equ	28h	; get time (AX) in "packed" format
-DOS_UTL_INCDATE	equ	29h	; increment date (CX=year, DH=month, DL=day)
-DOS_UTL_EDITLN	equ	2Ah	; edit line (DS:DX)
-DOS_UTL_RESTART	equ	2Bh	; restart ("reboot") the system
-DOS_UTL_SOUND	equ	2Ch	; sound (DX = PIT divisor) for CX ticks
+DOS_UTL_TOKEN1	equ	0Bh	; tokenize string (DS:SI) using generic syntax
+DOS_UTL_TOKEN2	equ	0Ch	; tokenize string (DS:SI) using BASIC syntax
+DOS_UTL_TOKID	equ	0Dh	; convert string (DS:SI) into token ID (AX)
+DOS_UTL_PARSESW	equ	0Eh	; parse TOKBUF (ES:DI) for switches
+DOS_UTL_GETDEV	equ	0Fh	; get DDH (ES:DI) for device (DS:DX)
+DOS_UTL_GETCSN	equ	10h	; get current session number (CL)
+DOS_UTL_LOAD	equ	11h	; load program (SPB at ES:BX) into a session
+DOS_UTL_START	equ	12h	; start session (CL)
+DOS_UTL_STOP	equ	13h	; stop session (CL)
+DOS_UTL_END	equ	14h	; end session (CL)
+DOS_UTL_WAITEND	equ	15h	; wait for session to end (CL)
+DOS_UTL_YIELD	equ	16h	; yield
+DOS_UTL_SLEEP	equ	17h	; sleep (CX:DX) milliseconds
+DOS_UTL_SOUND	equ	18h	; sound (DX = PIT divisor) for CX ticks
+DOS_UTL_WAIT	equ	19h	; wait on ID (DX:DI) until end wait
+DOS_UTL_ENDWAIT	equ	1Ah	; end wait on ID (DX:DI)
+DOS_UTL_HOTKEY	equ	1Bh	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
+DOS_UTL_LOCK	equ	1Ch	; lock current session
+DOS_UTL_UNLOCK	equ	1Dh	; unlock current session
+DOS_UTL_QRYMEM	equ	1Eh	; query memory block N (CX) of type (DL)
+DOS_UTL_TERM	equ	1Fh	; terminate with exit code (DL) and type (DH)
+DOS_UTL_RESTART	equ	20h	; restart ("reboot") the system
+DOS_UTL_GETDATE	equ	21h	; get date (AX) in "packed" format
+DOS_UTL_GETTIME	equ	22h	; get time (AX) in "packed" format
+DOS_UTL_INCDATE	equ	23h	; increment date (CX=year, DH=month, DL=day)
+DOS_UTL_EDITLN	equ	24h	; edit line (DS:DX)
 DOS_UTL_HDLCTL	equ	(DOS_HDL_IOCTL + 80h)
 
 ;

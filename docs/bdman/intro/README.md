@@ -10,12 +10,12 @@ permalink: /docs/bdman/intro/
 
 Insert a BASIC-DOS diskette in drive A: of an IBM PC and turn the machine on.  If the machine has a hard disk, BASIC-DOS first displays:
 
-	BASIC-DOS 2.00B
+	BASIC-DOS 2.00
 	Press a key to start...
 
 Press any key to start BASIC-DOS, or press **Esc** to boot from the hard disk instead.  The following messages should then appear on your screen:
 
-	BASIC-DOS 2.00B for the IBM PC
+	BASIC-DOS 2.00 for the IBM PC
 	Copyright (c) PCJS.ORG 1981-2026
 
 	BASIC-DOS Command Processor

@@ -137,7 +137,12 @@ m0a:	pop	bx
 	cmp	ds:[PSP_CMDTAIL],0
 	jne	m2			; use INPUT_BUF -> PSP_CMDTAIL
 
-m1:	mov	ah,DOS_DSK_GETDRV
+;
+; Like PC DOS, every BAT file run from the prompt starts with ECHO ON, so an
+; ECHO OFF in one BAT file (eg, a startup file) doesn't silence the next one.
+;
+m1:	and	[bx].CMD_FLAGS,NOT CMD_NOECHO
+	mov	ah,DOS_DSK_GETDRV
 	int	21h
 	add	al,'A'			; AL = current drive letter
 	PRINTF	<"%c",CHR_GT>,ax	; print drive letter and '>' symbol
@@ -152,7 +157,11 @@ m1:	mov	ah,DOS_DSK_GETDRV
 m2:	mov	si,[bx].INPUT_BUF
 	mov	cl,[si].INP_CNT
 	lea	si,[si].INP_DATA
-	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
+	cmp	byte ptr [si],'@'	; skip any leading '@' (which
+	jne	m3			; getNextLine also skips in BAT
+	inc	si			; files and BASIC commands)
+	dec	cx
+m3:	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
 	mov	[di].TOK_MAX,(size TOK_DATA) / (size TOKLET)
 	DOSUTIL	TOKEN1
 	jc	m1			; jump if no tokens
@@ -497,7 +506,8 @@ pd5:	jcxz	pd8			; no valid initial token
 ; arguments; see genCommands) must be the name of a file to run instead.
 ;
 pd5b:	cmp	ax,KEYWORD_BASIC	; BASIC keyword?
-	jb	pd5a			; no (and carry is clear)
+	cmc				; (carry set if so)
+	jnc	pd5a			; no (and carry is clear)
 	sub	ax,ax			; yes, so treat it like a file
 	stc
 pd5a:	pop	si

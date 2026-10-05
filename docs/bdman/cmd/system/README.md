@@ -75,6 +75,6 @@ Runs the currently loaded BAS or BAT program.  If the program and its variables 
 Displays the BASIC-DOS version number and revision.
 
 	VER
-	BASIC-DOS Version 2.00B
+	BASIC-DOS Version 2.00
 
 {% include footer.html prev="COMMAND.COM:../external/command/" next="BASIC-DOS Programming:../../lang/" %}

@@ -88,7 +88,6 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<mem_alloc,mem_free,mem_realloc>
 	EXTNEAR	<utl_strlen,utl_strstr,utl_strupr>
 	EXTNEAR	<utl_atoi16,utl_atoi32,utl_atoi32d>
-	EXTNEAR	<utl_atof64,utl_i32f64,utl_opf64>
 	EXTNEAR	<utl_itoa,utl_printf,utl_dprintf,utl_sprintf,utl_hprintf>
 	EXTNEAR	<utl_tokify,utl_tokid,utl_parsesw>
 	EXTNEAR	<utl_getdev,utl_getcsn,utl_load,utl_start,utl_stop,utl_end>
@@ -124,18 +123,16 @@ DOS	segment word public 'CODE'
 	DEFABS	FUNCTBL_SIZE,<($ - FUNCTBL) SHR 1>
 
 	DEFLBL	UTILTBL,word
-	dw	utl_strlen,  utl_strstr,  utl_hprintf, utl_strupr	;00-03
-	dw	utl_printf,  utl_dprintf, utl_sprintf, utl_itoa		;04-07
-	dw	utl_atoi16,  utl_atoi32,  utl_atoi32d, func_none	;08-0B
-	dw	utl_atof64,  utl_i32f64,  utl_opf64,   func_none	;0C-0F
-	dw	func_none,   utl_tokify,  utl_tokify,  utl_tokid	;10-13
-	dw	utl_parsesw, utl_getdev,  utl_getcsn,  func_none	;14-17
-	dw	utl_load,    utl_start,   utl_stop,    utl_end		;18-1B
-	dw	utl_waitend, utl_yield,   utl_sleep,   utl_wait		;1C-1F
-	dw	utl_endwait, utl_hotkey,  utl_lock,    utl_unlock	;20-23
-	dw	utl_strlen,  utl_qrymem,  utl_term,    utl_getdate	;24-27
-	dw	utl_gettime, utl_incdate, utl_editln,  utl_restart	;28-2B
-	dw	utl_sound						;2C
+	dw	utl_strlen,  utl_strstr,  utl_strupr,  utl_printf	;00-03
+	dw	utl_hprintf, utl_dprintf, utl_sprintf, utl_itoa		;04-07
+	dw	utl_atoi16,  utl_atoi32,  utl_atoi32d, utl_tokify	;08-0B
+	dw	utl_tokify,  utl_tokid,   utl_parsesw, utl_getdev	;0C-0F
+	dw	utl_getcsn,  utl_load,    utl_start,   utl_stop		;10-13
+	dw	utl_end,     utl_waitend, utl_yield,   utl_sleep	;14-17
+	dw	utl_sound,   utl_wait,    utl_endwait, utl_hotkey	;18-1B
+	dw	utl_lock,    utl_unlock,  utl_qrymem,  utl_term		;1C-1F
+	dw	utl_restart, utl_getdate, utl_gettime, utl_incdate	;20-23
+	dw	utl_editln						;24
 	DEFABS	UTILTBL_SIZE,<($ - UTILTBL) SHR 1>
 
 DOS	ends

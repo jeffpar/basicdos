@@ -42,6 +42,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] COM and EXE program loading, PSPs, EXEC, and exit codes
 - [x] Memory allocation (MCBs), including per-program heap requests, and allocation from the top of memory (MCBTYPE_HIGH), which the interpreter uses for its own blocks so that the memory below them stays contiguous
 - [x] DOS_UTL_QRYMEM queries any memory block, or the highest free block (which COMMAND.COM uses to keep a copy of its transient portion while a program runs)
+- [x] INT 32h utility functions numbered contiguously (00h-24h) and grouped by purpose (see the [Technical Reference](docs/bdtech/util/))
 - [x] Preemptive multitasking of multiple sessions
 - [x] CTRL-C/CTRL-Break handling, and CTRL-ALT-DEL session aborts
 - [ ] Session STOP/END operations (currently TODOs)
@@ -72,9 +73,11 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] Pipes (`|`) and output redirection (`>` creates or truncates the output file, `>>` appends to it), including redirection at the end of a pipeline (eg, `DIR | CASE > TEST`)
 - [x] COPY creates (or truncates) the output file, and refuses to copy a file onto itself
 - [x] DEL/ERASE
+- [x] ECHO ON/OFF and the `@` prefix in BAT files: every BAT file run from the prompt starts with ECHO ON (like PC DOS), echoed lines are displayed with a `@` in front, and a leading `@` is ignored at the prompt, too
 - [x] A BAS file run from the command prompt remains loaded when it ends, along with its variables (like MSBASIC), so it can be LIST'ed or RUN again; RUN reuses the program's compiled code (unless the program or its variables have changed since), so it starts immediately
 - [x] Resident and transient portions: before running a COM or EXE file, COMMAND.COM frees idle variable blocks and discards its transient portion (about 23K), restoring it when the program ends (from a copy at the top of free memory, if the program didn't overwrite it, or else from COMMAND.COM); MEM includes the transient portion in its free memory total
 - [ ] Input redirection (`<`)
+- [ ] Batch file features: replaceable parameters (`%1`-`%9`), environment variables (SET), `ECHO message`, IF EXIST, FOR ... IN ... DO, SHIFT, and PAUSE (see [Batch Files](docs/bdman/lang/#batch-files) for the BASIC-DOS equivalents)
 - [ ] REN/RENAME, and SAVE (for BASIC programs)
 - [ ] Disk utilities (eg, FORMAT, CHKDSK, SYS)
 
@@ -122,7 +125,7 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] Fast software emulation: doubles are unpacked and packed in registers, division uses the 8086's DIV (16 bits at a time), multiplication sums its partial products a column at a time, and SIN, COS, TAN, ATN, LOG, and EXP use fdlibm's minimax polynomials; arithmetic results match the 8087 bit for bit, and math functions are within 1 ulp (see the [benchmarks](preview/part7/))
 - [x] STR$ formats integer values directly, without floating-point conversions
 - [ ] Saving and restoring 8087 state on session switches (FPU$ functions currently disable interrupts instead), and better error reporting for FPU exceptions
-- [ ] Utility functions DOS_UTL_ATOF64, DOS_UTL_I32F64, and DOS_UTL_OPF64 (still stubs; possibly superseded by FPU$)
+- [x] Unused floating-point utility function stubs (DOS_UTL_ATOF64, DOS_UTL_I32F64, and DOS_UTL_OPF64) removed, since FPU$ supersedes them
 
 ### DONKEY.BAS
 
@@ -161,7 +164,8 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] STRFUNCS and STRPOOL: BASIC string function tests, and string pool stress and leak tests
 - [x] ARRAYS: BASIC array tests (including leak tests)
 - [x] FLOW: BASIC control flow tests
-- [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUNCS, STRPOOL, ARRAYS, and FLOW, and reports whether the tests passed)
+- [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUNCS, STRPOOL, ARRAYS, FLOW, CMDS, and PRINTF, and reports whether the tests passed)
+- [x] CMDS: command tests (pipes, redirection, TYPE, DEL, TIME /D, HELP, SOUND, remarks, and hex constants)
 - [x] `tools/tests/chkdsk.sh` runs MS-DOS 3.20 CHKDSK on a diskette image saved by a test session (see `QUIT /S` in `pc.js`)
 - [ ] More tests (eg, BASIC language and CMD command tests)
 - [x] BENCH.BAS and MICRO.BAS benchmarks, which run unchanged in BASIC-DOS, BASICA, and GW-BASIC (see the [results](preview/part7/))
@@ -222,7 +226,7 @@ The `boot.sh` script then builds and boots a 360K floppy (the largest floppy sup
 
     $ ./boot.sh
     [Press CTRL-D to enter command mode]
-    BASIC-DOS 2.00B
+    BASIC-DOS 2.00
     Press a key to start...
 
 The `bootfpu.sh` script does the same thing, but on an `ibm5160-fpu` machine (which has an 8087 coprocessor), using the `configs/console/serial/fpu` folder; `boot.sh` uses a machine without an 8087, where BASIC-DOS must emulate floating-point operations.
@@ -233,7 +237,7 @@ The `boothd.sh` script builds a BASIC-DOS boot diskette (from the `configs/conso
 
 The hard disk is formatted by MS-DOS 3.20 (so it also contains hidden MS-DOS system files), and any changes to it are not saved back to the directory.
 
-Finally, `tools/tests/quick.sh` boots both configurations unattended, runs the FPUTESTS and DOSTESTS programs, and reports whether the tests passed.
+Finally, `tools/tests/quick.sh` boots both configurations unattended, runs the test programs (FPUTESTS, DOSTESTS, and the BASIC tests, including CMDS.BAT, which tests pipes and redirection), and reports whether the tests passed.
 
 ## Tool Trivia
 

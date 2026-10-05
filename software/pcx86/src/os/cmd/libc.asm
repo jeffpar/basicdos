@@ -472,7 +472,7 @@ DEFPROC	printLine,FAR
 	test	ss:[bx].CMD_FLAGS,CMD_NOECHO
 	jz	pl1
 	ret	4
-pl1:	PRINTF	<13,10>			; fall into printStr
+pl1:	PRINTF	<13,10,"@">		; fall into printStr
 ENDPROC	printLine
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

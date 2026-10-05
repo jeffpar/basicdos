@@ -9,12 +9,14 @@
 # COMPAQ DeskPro 386 configuration running MS-DOS 3.20, in part because that
 # machine has a real-time clock that MS-DOS 3.20 knows how to use.
 #
-# Drive D: is 20Mb (--target=20M), since the source directory (including the
+# Drive D: is 30Mb (--target=30M), since the source directory (including the
 # test binaries that tools/tests/prep.sh copies into the configs folders) has
-# outgrown 10Mb.  The --fat option (16-bit FAT, 2K clusters, 512 root entries)
-# is also required, because by default, pc.js gives a 20Mb volume 1024 root
-# entries, which MS-DOS 3.20 apparently doesn't honor (it reads the volume as
-# if the root directory had 512 entries, so all files appear to be corrupted).
+# outgrown 10Mb, and MASM's listing (.LST) files need room, too (a 20Mb drive
+# ran out of space; MS-DOS 3.20 volumes can't exceed 32Mb).  The --fat option
+# (16-bit FAT, 2K clusters, 512 root entries) is also required, because by
+# default, pc.js gives a large volume 1024 root entries, which MS-DOS 3.20
+# apparently doesn't honor (it reads the volume as if the root directory had
+# 512 entries, so all files appear to be corrupted).
 #
 # After building, if pc.js exits normally (ie, via QUIT, which a successful
 # build runs automatically), update the BASIC-DOS demo disks with the new
@@ -48,7 +50,7 @@ if [ $mode = FINAL ]; then
     touch $src/MKFINAL
     trap 'rm -f '$src'/MKFINAL' EXIT
 fi
-tools/pc/pc.js --disk=software/pcx86/disks/MSDOS320-C400.json --dir=$src --normalize --speed=4 --target=20M --fat=16:2048:512
+tools/pc/pc.js --disk=software/pcx86/disks/MSDOS320-C400.json --dir=$src --normalize --speed=4 --target=30M --fat=16:2048:512
 code=$?
 if [ $code -eq 0 ] && [ -n "$PCJS" ]; then
     if ! npx gulp demos --silent > /dev/null; then

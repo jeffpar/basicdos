@@ -26,7 +26,7 @@ BAT and BAS files are text files containing BASIC-DOS commands and BASIC stateme
 - BAT files echo each line as it runs (unless [ECHO OFF](../device/screen/#echo) is used); BAS files do not
 - BAS files run from the prompt remain loaded when they end, along with their variables, so they can be LIST'ed or RUN again
 
-A BAT or BAS file can run other BAT or BAS files (no CALL command is required) and then continue; each nested BAS file gets its own variables.
+A BAT or BAS file can run other BAT or BAS files (no CALL command is required) and then continue; each nested BAS file gets its own variables.  See [Batch Files](../../lang/#batch-files) for how BASIC-DOS batch files differ from PC DOS batch files.
 
 ### Files Provided with BASIC-DOS
 

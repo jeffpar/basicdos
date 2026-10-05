@@ -73,7 +73,7 @@ DRAW *string*
 Draws lines from the last point, using these commands: U, D, L, R, E, F, G, and H [*n*] (move up, down, left, right, or diagonally), M *x*,*y* (move to *x*,*y*, or relative to the last point if *x* begins with + or -), B (prefix: move without drawing), N (prefix: draw without moving), C *n* (color), and S *n* (scale, in quarters).
 
 ECHO [ON|OFF]
-Controls the echo of lines in a BAT file.
+Controls the echo of lines in a BAT file.  Every BAT file run from the prompt starts with ECHO ON, echoed lines are displayed with a @ in front, and lines that begin with @ are not echoed.
 
 END
 Ends the program.

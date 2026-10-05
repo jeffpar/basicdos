@@ -9,6 +9,7 @@ permalink: /docs/bdman/lang/
 The BASIC-DOS programming language is based on the BASIC language of the IBM PC (Microsoft BASIC), and can be used to build BASIC programs directly from the BASIC-DOS command prompt.  Topics include:
 
 - [Programs](#programs)
+- [Batch Files](#batch-files)
 - [Variables and Types](#variables-and-types)
 - [Constants](#constants)
 - [Arrays](#arrays)
@@ -36,7 +37,37 @@ To run a program, type its name (see [Running Programs](../intro/#running-progra
 
 When a BAS program that you ran from the prompt ends, it remains loaded, along with its functions and variables, so you can [LIST](../cmd/system/#list) it, examine its variables at the prompt (eg, `PRINT N`), or [RUN](../cmd/system/#run) it again.  [NEW](../cmd/system/#new) erases the program and its variables.
 
-BAT files differ from BAS files in two ways: BAT files [ECHO](../cmd/device/screen/#echo) their lines as they run (unless ECHO OFF is used), and BAT files don't remain loaded after they end.
+BAT files differ from BAS files in two ways: BAT files [ECHO](../cmd/device/screen/#echo) their lines as they run (unless ECHO OFF is used), and BAT files don't remain loaded after they end.  See [Batch Files](#batch-files) for how BASIC-DOS batch files differ from PC DOS batch files.
+
+### Batch Files
+
+A BAT file is a BASIC-DOS program too, so it can contain any BASIC-DOS command or BASIC statement, and it's compiled before it runs (so a syntax error anywhere in the file is reported before any of it runs).  This makes BASIC-DOS batch files more powerful than PC DOS batch files, but some PC DOS batch file features work differently:
+
+| PC DOS | BASIC-DOS |
+|--------|-----------|
+| `:LOOP` labels, and `GOTO LOOP` | Line numbers (eg, `10 DIR`), and `GOTO 10` |
+| `ECHO message` | `PRINT "message"` (ECHO only accepts ON or OFF) |
+| `IF ERRORLEVEL 1 GOTO FAIL` (true if ERRORLEVEL is 1 or more) | `IF ERRORLEVEL >= 1 THEN GOTO 100` |
+| `SET N=5` and `%N%` (environment variables) | BASIC variables (eg, `N = 5` and `PRINT N`) |
+| `%1` through `%9` (replaceable parameters) | Not supported yet |
+| `IF EXIST file`, `IF "%1"=="x"` | Not supported yet (but any BASIC expression can be used, eg, `IF A$ = "X" THEN ...`) |
+| `CALL OTHER` (to run another batch file and then continue) | `OTHER` (a batch file always continues after running another one) |
+| `FOR %%F IN (*.TXT) DO ...`, `SHIFT`, and `PAUSE` | Not supported yet (FOR ... NEXT loops can be used for counting) |
+
+ECHO OFF and the `@` prefix work as they do in PC DOS, and every BAT file run from the prompt starts with ECHO ON; however, echoed lines are displayed with a `@` in front instead of a prompt (see [ECHO](../cmd/device/screen/#echo)).  REM (or an apostrophe) starts a remark.
+
+For example, this batch file runs a program up to three times, stopping if the program reports an error:
+
+	@ECHO OFF
+	REM Run SLEEP three times, stopping if it fails
+	N = 1
+	10 SLEEP 1
+	IF ERRORLEVEL <> 0 THEN PRINT "SLEEP failed" : END
+	N = N + 1
+	IF N <= 3 THEN GOTO 10
+	PRINT "SLEEP ran"; N - 1; "times"
+
+Unlike a BAS file, a BAT file doesn't remain loaded when it ends.
 
 ### Variables and Types
 

@@ -17,91 +17,91 @@ AFLAGS=/MX /R /D$(REL) /I..\INC
 # are in the same folder.  So for now, each dependency must copy these rules.
 #
 .ASM.COM:
-	$(ASM) $(AFLAGS) $**,$*.OBJ;
+	$(ASM) $(AFLAGS) $**,$*.OBJ,OBJ\$*.LST;
 	$(LINK) $*.OBJ,$*.EXE,$*.MAP/MAP;
 	$(EXE2BIN) $*.EXE $@
 	DEL $*.OBJ
 	DEL $*.EXE
 
 OBJ\NULDEV.COM: NULDEV.ASM
-	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ;
+	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ,OBJ\$*.LST;
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE,OBJ\$*.MAP/MAP;
 	$(EXE2BIN) OBJ\$*.EXE $@
 	DEL OBJ\$*.OBJ
 	DEL OBJ\$*.EXE
 
 OBJ\CONDEV.COM: CONDEV.ASM
-	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ;
+	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ,OBJ\$*.LST;
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE,OBJ\$*.MAP/MAP;
 	$(EXE2BIN) OBJ\$*.EXE $@
 	DEL OBJ\$*.OBJ
 	DEL OBJ\$*.EXE
 
 OBJ\AUXDEV.COM: AUXDEV.ASM
-	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ;
+	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ,OBJ\$*.LST;
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE,OBJ\$*.MAP/MAP;
 	$(EXE2BIN) OBJ\$*.EXE $@
 	DEL OBJ\$*.OBJ
 	DEL OBJ\$*.EXE
 
 OBJ\COMDEV.COM: COMDEV.ASM
-	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ;
+	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ,OBJ\$*.LST;
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE,OBJ\$*.MAP/MAP;
 	$(EXE2BIN) OBJ\$*.EXE $@
 	DEL OBJ\$*.OBJ
 	DEL OBJ\$*.EXE
 
 OBJ\PRNDEV.COM: PRNDEV.ASM
-	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ;
+	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ,OBJ\$*.LST;
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE,OBJ\$*.MAP/MAP;
 	$(EXE2BIN) OBJ\$*.EXE $@
 	DEL OBJ\$*.OBJ
 	DEL OBJ\$*.EXE
 
 OBJ\LPTDEV.COM: LPTDEV.ASM
-	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ;
+	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ,OBJ\$*.LST;
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE,OBJ\$*.MAP/MAP;
 	$(EXE2BIN) OBJ\$*.EXE $@
 	DEL OBJ\$*.OBJ
 	DEL OBJ\$*.EXE
 
 OBJ\CLKDEV.COM: CLKDEV.ASM
-	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ;
+	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ,OBJ\$*.LST;
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE,OBJ\$*.MAP/MAP;
 	$(EXE2BIN) OBJ\$*.EXE $@
 	DEL OBJ\$*.OBJ
 	DEL OBJ\$*.EXE
 
 OBJ\FDCDEV.COM: FDCDEV.ASM
-	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ;
+	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ,OBJ\$*.LST;
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE,OBJ\$*.MAP/MAP;
 	$(EXE2BIN) OBJ\$*.EXE $@
 	DEL OBJ\$*.OBJ
 	DEL OBJ\$*.EXE
 
 OBJ\HDCDEV.COM: HDCDEV.ASM
-	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ;
+	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ,OBJ\$*.LST;
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE,OBJ\$*.MAP/MAP;
 	$(EXE2BIN) OBJ\$*.EXE $@
 	DEL OBJ\$*.OBJ
 	DEL OBJ\$*.EXE
 
 OBJ\PIPEDEV.COM: PIPEDEV.ASM
-	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ;
+	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ,OBJ\$*.LST;
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE,OBJ\$*.MAP/MAP;
 	$(EXE2BIN) OBJ\$*.EXE $@
 	DEL OBJ\$*.OBJ
 	DEL OBJ\$*.EXE
 
 OBJ\FPUDEV.COM: FPUDEV.ASM
-	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ;
+	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ,OBJ\$*.LST;
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE,OBJ\$*.MAP/MAP;
 	$(EXE2BIN) OBJ\$*.EXE $@
 	DEL OBJ\$*.OBJ
 	DEL OBJ\$*.EXE
 
 OBJ\DEVINIT.COM: DEVINIT.ASM
-	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ;
+	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ,OBJ\$*.LST;
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE,OBJ\$*.MAP/MAP;
 	$(EXE2BIN) OBJ\$*.EXE $@
 	DEL OBJ\$*.OBJ

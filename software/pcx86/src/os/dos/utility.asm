@@ -24,16 +24,16 @@ DOS	segment word public 'CODE'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_strlen (AH = 00h or 24h)
+; utl_strlen (AH = 00h)
 ;
-; Return the length of the REG_DS:REG_SI string in AX, using terminator AH.
+; Return the length of the null-terminated REG_DS:REG_SI string in AX.
 ;
 ; Modifies:
 ;	AX
 ;
 DEFPROC	utl_strlen,DOS
 	sti
-	mov	al,ah			; AL = terminator
+	mov	al,0			; AL = terminator
 	mov	ds,[bp].REG_DS
 	ASSUME	DS:NOTHING
 	call	strlen
@@ -126,7 +126,7 @@ ENDPROC	utl_strstr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_strupr (AH = 03h)
+; utl_strupr (AH = 02h)
 ;
 ; Make the string at REG_DS:SI with length CX upper-case; use length 0
 ; if null-terminated.
@@ -160,7 +160,7 @@ ENDPROC	utl_strupr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_printf (AH = 04h)
+; utl_printf (AH = 03h)
 ;
 ; A CDECL-style calling convention is assumed, where all parameters EXCEPT
 ; for the format string are pushed from right to left, so that the first
@@ -182,7 +182,7 @@ ENDPROC	utl_strupr
 ;
 ; See sprintf.asm for more information on the format string.
 ;
-; utl_hprintf (AH = 02h) is the same, but it prints to the SFH in REG_BL
+; utl_hprintf (AH = 04h) is the same, but it prints to the SFH in REG_BL
 ; (eg, sysinit uses it to print to a specific session's console before any
 ; PSP exists, when STDOUT is always SFH 1).
 ;
@@ -406,64 +406,18 @@ ENDPROC	utl_atoi32d
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_atof64 (AH = 0Ch)
+; utl_tokify (AH = 0Bh or 0Ch)
 ;
-; Inputs:
-;	REG_DS:REG_SI -> string
-;	REG_ES:REG_DI -> FAC with result
-;
-; Outputs:
-;
-; Modifies:
-;
-DEFPROC	utl_atof64,DOS
-	ret
-ENDPROC	utl_atof64
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_i32f64 (AH = 0Dh)
-;
-; Inputs:
-;	REG_DX:REG_SI = 32-bit value
-;	REG_ES:REG_DI -> FAC with result
-;
-; Outputs:
-;
-; Modifies:
-;
-DEFPROC	utl_i32f64,DOS
-	ret
-ENDPROC	utl_i32f64
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_opf64 (AH = 0Eh)
-;
-; Inputs:
-;	REG_AL = operation (see OPF64_*)
-;
-; Outputs:
-;
-; Modifies:
-;
-DEFPROC	utl_opf64,DOS
-	ret
-ENDPROC	utl_opf64
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_tokify (AH = 11h or 12h)
-;
-; DOS_UTL_TOKEN1 (11h) performs generic parsing, which means that only
+; DOS_UTL_TOKEN1 (0Bh) performs generic parsing, which means that only
 ; tokens separated by whitespace (or SWITCHAR) will be returned, and they
 ; will all be identified "generically" as CLS_STR.
 ;
-; DOS_UTL_TOKEN2 (12h) performs BASIC parsing, which returns all tokens,
+; DOS_UTL_TOKEN2 (0Ch) performs BASIC parsing, which returns all tokens,
 ; even whitespace sequences (CLS_WHITE).
 ;
 ; Inputs:
-;	AH = 11h (TOKTYPE_GENERIC) or 12h (TOKTYPE_BASIC)
+;	AH = 0Bh (DOS_UTL_TOKEN1) or 0Ch (DOS_UTL_TOKEN2); bit 0 of AH
+;	is TOKTYPE_GENERIC, so DOS_UTL_TOKEN1 must be odd and TOKEN2 even
 ;	REG_CL = length of string
 ;	REG_DS:REG_SI -> string to "tokify"
 ;	REG_ES:REG_DI -> TOKBUF (to be filled with token info)
@@ -475,6 +429,8 @@ ENDPROC	utl_opf64
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, TMP_AX, TMP_CX
 ;
+	ASSERT	<(DOS_UTL_TOKEN1 AND 1)>,EQ,TOKTYPE_GENERIC
+	ASSERT	<(DOS_UTL_TOKEN2 AND 1)>,EQ,TOKTYPE_BASIC
 DEFPROC	utl_tokify,DOS
 	sti
 	and	[bp].REG_FL,NOT FL_CARRY
@@ -804,7 +760,7 @@ ENDPROC	tok_classify
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_tokid (AH = 13h)
+; utl_tokid (AH = 0Dh)
 ;
 ; The main advantage of this function is that, by requiring the TOKTBL
 ; to be sorted, it can use a binary search to find the token faster.  For
@@ -903,7 +859,7 @@ ENDPROC	utl_tokid
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_parsesw (AH = 14h)
+; utl_parsesw (AH = 0Eh)
 ;
 ; Switch tokens start with the system's SWITCHAR and may contain 1 or more
 ; alphanumeric characters, each of which is converted to a bit in either

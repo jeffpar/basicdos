@@ -159,38 +159,6 @@ ENDPROC	atoi
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; atof64
-;
-; Inputs:
-;	DS:SI -> string
-;
-; Outputs:
-;	ES:DI -> FAC with result
-;
-; Modifies:
-;
-DEFPROC	atof64,DOS
-	ret
-ENDPROC	atof64
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; itof64
-;
-; Inputs:
-;	DX:AX = 32-bit value
-;
-; Outputs:
-;	ES:DI -> FAC with result
-;
-; Modifies:
-;
-DEFPROC	itof64,DOS
-	ret
-ENDPROC	itof64
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; div_32_16
 ;
 ; Divide DX:AX by CX, returning quotient in DX:AX and remainder in BX.

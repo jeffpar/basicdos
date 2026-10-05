@@ -17,14 +17,14 @@ AFLAGS=/MX /R /D$(REL) /I..\INC
 # are in the same folder.  So for now, each dependency must copy these rules.
 #
 .ASM.COM:
-	$(ASM) $(AFLAGS) $*.ASM,$*.OBJ;
+	$(ASM) $(AFLAGS) $*.ASM,$*.OBJ,OBJ\$*.LST;
 	$(LINK) $*.OBJ,$*.EXE,$*.MAP/MAP;
 	$(EXE2BIN) $*.EXE $@
 	DEL $*.OBJ
 	DEL $*.EXE
 
 OBJ\BOOT.COM: BOOT.ASM ..\INC\VERSION.INC
-	$(ASM) $(AFLAGS) $*.ASM,OBJ\$*.OBJ;
+	$(ASM) $(AFLAGS) $*.ASM,OBJ\$*.OBJ,OBJ\$*.LST;
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE,OBJ\$*.MAP/MAP;
 	$(EXE2BIN) OBJ\$*.EXE $@
 	DEL OBJ\$*.OBJ
@@ -34,7 +34,7 @@ OBJ\BOOT1.COM: OBJ\BOOT.COM
 	COPY OBJ\BOOT.COM $@
 
 OBJ\WBOOT.COM: WBOOT.ASM
-	$(ASM) $(AFLAGS) $*.ASM,OBJ\$*.OBJ;
+	$(ASM) $(AFLAGS) $*.ASM,OBJ\$*.OBJ,OBJ\$*.LST;
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE,OBJ\$*.MAP/MAP;
 	$(EXE2BIN) OBJ\$*.EXE $@
 	DEL OBJ\$*.OBJ

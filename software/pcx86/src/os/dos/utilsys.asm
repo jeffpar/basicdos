@@ -27,7 +27,7 @@ DOS	segment word public 'CODE'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_getdev (AH = 15h)
+; utl_getdev (AH = 0Fh)
 ;
 ; Returns the DDH (Device Driver Header) in ES:DI for device name at DS:DX.
 ;
@@ -55,7 +55,7 @@ ENDPROC	utl_getdev
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_getcsn (AH = 16h)
+; utl_getcsn (AH = 10h)
 ;
 ; Inputs:
 ;	None
@@ -77,7 +77,7 @@ ENDPROC	utl_getcsn
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_load (AH = 18h)
+; utl_load (AH = 11h)
 ;
 ; Inputs:
 ;	REG_ES:REG_BX -> SPB (Session Parameter Block)
@@ -97,7 +97,7 @@ ENDPROC	utl_load
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_start (AH = 19h)
+; utl_start (AH = 12h)
 ;
 ; "Start" the specified session.  Currently, all this does is mark the session
 ; startable; actual starting will handled by scb_switch.
@@ -117,7 +117,7 @@ ENDPROC	utl_start
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_stop (AH = 1Ah)
+; utl_stop (AH = 13h)
 ;
 ; "Stop" the specified session.
 ;
@@ -136,7 +136,7 @@ ENDPROC	utl_stop
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_end (AH = 1Bh)
+; utl_end (AH = 14h)
 ;
 ; End the current program in the specified session.
 ;
@@ -155,7 +155,7 @@ ENDPROC	utl_end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_waitend (AH = 1Ch)
+; utl_waitend (AH = 15h)
 ;
 ; Wait for all programs in the specified session to end.
 ;
@@ -173,7 +173,7 @@ ENDPROC	utl_waitend
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_yield (AH = 1Dh)
+; utl_yield (AH = 16h)
 ;
 ; Asynchronous interface to decide which SCB should run next.
 ;
@@ -191,7 +191,7 @@ ENDPROC	utl_yield
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_sleep (AH = 1Eh)
+; utl_sleep (AH = 17h)
 ;
 ; Inputs:
 ;	REG_CX:REG_DX = # of milliseconds to sleep
@@ -210,7 +210,7 @@ ENDPROC	utl_sleep
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_sound (AH = 2Ch)
+; utl_sound (AH = 18h)
 ;
 ; Starts a sound that the CLOCK$ driver turns off after the specified number
 ; of ticks (see IOCTL_SOUND); unlike utl_sleep, this returns immediately.
@@ -232,7 +232,7 @@ ENDPROC	utl_sound
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_wait (AH = 1Fh)
+; utl_wait (AH = 19h)
 ;
 ; Synchronous interface to mark current SCB as waiting for the specified ID.
 ;
@@ -250,7 +250,7 @@ ENDPROC	utl_wait
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_endwait (AH = 20h)
+; utl_endwait (AH = 1Ah)
 ;
 ; Asynchronous interface to examine all SCBs for the specified ID and clear it.
 ;
@@ -267,7 +267,7 @@ ENDPROC	utl_endwait
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_hotkey (AH = 21h)
+; utl_hotkey (AH = 1Bh)
 ;
 ; Inputs:
 ;	REG_CX = CONSOLE context
@@ -326,7 +326,7 @@ ENDPROC	utl_hotkey
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_lock (AH = 22h)
+; utl_lock (AH = 1Ch)
 ;
 ; Asynchronous interface to lock the current SCB
 ;
@@ -349,7 +349,7 @@ ENDPROC	utl_lock
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_unlock (AH = 23h)
+; utl_unlock (AH = 1Dh)
 ;
 ; Asynchronous interface to unlock the current SCB
 ;
@@ -366,7 +366,7 @@ ENDPROC	utl_unlock
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_qrymem (AH = 25h)
+; utl_qrymem (AH = 1Eh)
 ;
 ; Query info about memory blocks.
 ;
@@ -394,7 +394,7 @@ ENDPROC	utl_qrymem
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_term (AH = 26h)
+; utl_term (AH = 1Fh)
 ;
 ; Inputs:
 ;	REG_DL = exit code
@@ -410,7 +410,30 @@ ENDPROC	utl_term
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_getdate (AH = 27h)
+; utl_restart (AH = 20h)
+;
+; Any modified disk buffers are written before restarting.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX
+;
+DEFPROC	utl_restart,DOS
+	mov	al,-1
+	call	flush_buffers		; write all modified buffers
+	cli
+	db	OP_JMPF
+	dw	00000h,0FFFFh
+ENDPROC	utl_restart
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_getdate (AH = 21h)
 ;
 ; Identical to msc_getdate, but also returns the "packed" date in AX
 ; and does not modify carry.
@@ -441,7 +464,7 @@ ENDPROC	utl_getdate
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_gettime (AH = 28h)
+; utl_gettime (AH = 22h)
 ;
 ; Identical to msc_gettime, but also returns the "packed" date in AX
 ; and does not modify carry.
@@ -472,7 +495,7 @@ ENDPROC	utl_gettime
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_incdate (AH = 29h)
+; utl_incdate (AH = 23h)
 ;
 ; Inputs:
 ;	REG_CX = year (1980-2099)
@@ -494,7 +517,7 @@ ENDPROC	utl_incdate
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_editln (AH = 2Ah)
+; utl_editln (AH = 24h)
 ;
 ; Similar to DOS function tty_input (REG_AH = 0Ah) but returns editing
 ; notifications for selected keys (eg, UP and DOWN keys).
@@ -514,29 +537,6 @@ DEFPROC	utl_editln,DOS
 	call	read_line
 	ret
 ENDPROC	utl_editln
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; utl_restart (AH = 2Bh)
-;
-; Any modified disk buffers are written before restarting.
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	AX
-;
-DEFPROC	utl_restart,DOS
-	mov	al,-1
-	call	flush_buffers		; write all modified buffers
-	cli
-	db	OP_JMPF
-	dw	00000h,0FFFFh
-ENDPROC	utl_restart
 
 DOS	ends
 
