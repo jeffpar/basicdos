@@ -28,9 +28,9 @@ Each test was run on a 4.77Mhz IBM PC XT with a Color Graphics Adapter, both wit
 | String functions | 7.4 | 7.4 | 6.5 | 6.5 | 2.9 | **2.7** |
 | Arrays and subroutines | 3.5 | 3.5 | 3.1 | 3.1 | 1.2 | **0.7** |
 | Primes | 78.9 | 78.9 | 73.6 | 73.6 | **6.9** | **6.9** |
-| Screen output | 7.6 | 7.6 | 8.6 | 8.6 | **3.6** | **3.6** |
+| Screen output | 7.6 | 7.6 | 8.5 | 8.5 | **3.6** | **3.6** |
 | Graphics: PSET | 19.9 | 19.9 | 17.5 | 17.5 | **3.7** | **3.7** |
-| Graphics: LINE | **4.2** | **4.2** | 5.7 | 5.7 | 4.7 | 4.7 |
+| Graphics: LINE | 4.2 | 4.2 | 5.7 | 5.7 | **1.1** | **1.1** |
 | CIRCLE.BAS | 9.1 | 9.1 | 8.4 | 8.4 | 5.6 | **5.3** |
 
 ### The Tests
@@ -48,11 +48,9 @@ Each test was run on a 4.77Mhz IBM PC XT with a Color Graphics Adapter, both wit
 
 ### The Results
 
-For programs that do most of their work with integers, which includes most games, utilities, and of course PRIMES, BASIC-DOS is typically 5 to 11 times faster than BASICA and GW-BASIC.  Graphics and screen output are significantly faster too, because BASIC-DOS draws directly to video memory.
+For programs that do most of their work with integers, which includes most games, utilities, and of course PRIMES, BASIC-DOS is typically 5 to 11 times faster than BASICA and GW-BASIC.
 
-BASICA and GW-BASIC never use an 8087 (which is why their 8087 columns are identical), whereas BASIC-DOS does all its floating-point math in IEEE 64-bit precision, using the 8087 when one is installed and software emulation otherwise.  With an 8087, BASIC-DOS is 8 to 20 times faster than GW-BASIC at floating-point math and math functions, and even without one, its 64-bit floating-point math is faster than both BASICA and GW-BASIC.  The one exception is math functions without an 8087, where BASIC-DOS is about 1.6 times slower than GW-BASIC overall (its SIN is on par and its COS is faster, but its SQR, ATN, LOG, and EXP are slower).  But that's not an apples-to-apples comparison: the BASICA and GW-BASIC math functions are (by default) computed in single precision, even when given double-precision values, while BASIC-DOS computes them in full double precision, using the same minimax polynomials as Sun's widely used fdlibm math library.
-
-Other than math functions without an 8087, the only remaining weak spot is LINE, which is drawing a bit slower than BASICA.
+BASICA and GW-BASIC are also unable to use an 8087, because internally, they use a floating-point format known as MBF (Microsoft Binary Format).  BASIC-DOS performs all floating-point operations using IEEE 64-bit precision, automatically using an 8087 when one is installed and software emulation otherwise.
 
 ### Try It Yourself
 

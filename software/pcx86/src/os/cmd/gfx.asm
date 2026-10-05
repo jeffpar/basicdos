@@ -1206,8 +1206,13 @@ ENDPROC	opAnd
 ;
 ; drawLine
 ;
-; Draws a line (using Bresenham's algorithm) from DX:CX to DI:SI; horizontal
-; lines (eg, the rows of a filled box) are drawn by hline instead.
+; Draws a line from DX:CX to DI:SI; horizontal lines (eg, the rows of a filled
+; box) are drawn by hline instead.
+;
+; If both points are on the screen, we use the same algorithm as MSBASIC (see
+; DOGRPH in msb/GENGRP.ASM), so that the same pixels are drawn, but we update
+; the video address and pixel mask as we go (see dlFast); otherwise, we use
+; Bresenham's algorithm with setPixel, which clips each pixel to the screen.
 ;
 ; Inputs:
 ;	CX = x1, DX = y1, SI = x2, DI = y2
@@ -1224,7 +1229,20 @@ DEFPROC	drawLine
 	cmp	dx,di			; horizontal?
 	jne	dl0			; no
 	jmp	hline			; yes
-dl0:	push	cx
+dl0:	mov	ax,320			; AX = screen width
+	test	bh,bh
+	jz	dl0a
+	shl	ax,1
+dl0a:	cmp	cx,ax			; are both points on the screen?
+	jae	dl0b			; no
+	cmp	si,ax
+	jae	dl0b
+	cmp	dx,200
+	jae	dl0b
+	cmp	di,200
+	jae	dl0b
+	jmp	dlFast			; yes
+dl0b:	push	cx
 	push	dx
 	push	bp
 	sub	sp,10
@@ -1270,6 +1288,112 @@ dl9:	add	sp,10
 	pop	bp
 	pop	dx
 	pop	cx
+	ret
+;
+; Like MSBASIC, we draw from the point with the smaller y, along the major
+; axis (the axis with the larger delta, or y if they're equal), adding the
+; minor delta to a sum (which starts at half the major delta) at every point,
+; and advancing along the minor axis whenever the sum reaches the major delta.
+; We keep the sum biased by -major in BX, so that only its sign is checked.
+;
+; AH is the inverted mask of the current pixel and AL is the color bits at that
+; position, so drawing a pixel is just an AND and an OR.  Moving in x rotates
+; both by the # of bits per pixel (CL), and the carry from rotating AH updates
+; DI when we move to another byte.  Moving down in y toggles between the even
+; and odd row banks, and advances DI to the next row of the even bank.
+;
+dlFast:	push	bx
+	push	cx
+	push	dx
+	push	si
+	push	di
+	push	bp
+	cmp	di,dx			; is y2 < y1?
+	jae	df1			; no
+	xchg	cx,si			; yes, so swap the points
+	xchg	dx,di
+df1:	sub	di,dx
+	sub	si,cx
+	push	di			; push dy
+	push	si			; push x2 - x1
+	call	pixAddr			; DI -> byte, CL = shift, CH = mask
+	mov	al,bl
+	and	al,ch
+	shl	al,cl			; AL = color bits
+	mov	ah,ch
+	shl	ah,cl
+	not	ah			; AH = inverted mask
+	mov	cl,2
+	sub	cl,bh			; CL = bits per pixel
+	pop	si			; SI = x2 - x1
+	pop	bp			; BP = dy
+	mov	ch,0			; CH = 0 if x increases
+	test	si,si
+	jns	df2
+	neg	si			; SI = dx
+	dec	ch			; CH = -1 if x decreases
+df2:	cmp	bp,si			; is dy >= dx?
+	jae	df5			; yes, so y is the major axis
+	xchg	si,bp			; no, so x is: BP = dx, SI = dy
+	mov	dx,bp
+	mov	bx,bp
+	shr	bx,1
+	sub	bx,bp			; BX = sum - major
+	inc	dx			; DX = # of points
+df3:	and	es:[di],ah		; draw the pixel
+	or	es:[di],al
+	add	bx,si			; time to move in y?
+	jl	df4			; no
+	sub	bx,bp
+	xor	di,2000h		; move down a row
+	test	di,2000h
+	jnz	df4
+	add	di,80
+df4:	test	ch,ch			; move in x
+	jnz	df4b
+	ror	al,cl			; to the right
+	ror	ah,cl
+	sbb	di,-1
+df4a:	dec	dx
+	jnz	df3
+	jmp	short df9
+df4b:	rol	al,cl			; to the left
+	rol	ah,cl
+	adc	di,-1
+	jmp	df4a
+
+df5:	mov	dx,bp			; BP = dy, SI = dx
+	mov	bx,bp
+	shr	bx,1
+	sub	bx,bp			; BX = sum - major
+	inc	dx			; DX = # of points
+df6:	and	es:[di],ah		; draw the pixel
+	or	es:[di],al
+	add	bx,si			; time to move in x?
+	jl	df7			; no
+	sub	bx,bp
+	test	ch,ch
+	jnz	df6a
+	ror	al,cl			; to the right
+	ror	ah,cl
+	sbb	di,-1
+	jmp	short df7
+df6a:	rol	al,cl			; to the left
+	rol	ah,cl
+	adc	di,-1
+df7:	xor	di,2000h		; move down a row
+	test	di,2000h
+	jnz	df8
+	add	di,80
+df8:	dec	dx
+	jnz	df6
+
+df9:	pop	bp
+	pop	di
+	pop	si
+	pop	dx
+	pop	cx
+	pop	bx
 	ret
 ENDPROC	drawLine
 
