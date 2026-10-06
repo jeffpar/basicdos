@@ -12,6 +12,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<evalNegLong,evalNotLong>
+	EXTBYTE	<RES_HEAP>
 	EXTNEAR	<evalAddLong,evalSubLong,evalMulLong,evalDivLong>
 	EXTNEAR	<evalModLong,evalExpLong,evalImpLong>
 	EXTNEAR	<evalEqvLong,evalXorLong,evalOrLong,evalAndLong>
@@ -44,7 +45,6 @@ CODE    SEGMENT
 	DEFSTR	STR_ON,<"ON",0>
 	DEFSTR	STR_OFF,<"OFF",0>
 
-	IFDEF	DEBUG
 	DEFSTR	SYS_MEM,<"<SYS>",0>
 	DEFSTR	DOS_MEM,<"<DOS>",0>
 	DEFSTR	BLK_NAMES,<"<CODE>",0,0,"<FUNC>",0,0,"<VAR>",0,"<STR>",0>
@@ -52,7 +52,6 @@ CODE    SEGMENT
 	DEFABS	BLK_WORDS,<(($ - BLK_NAMES) SHR 1)>
 	DEFSTR	BLK_UNKNOWN,<"<UNK>",0>
 	DEFSTR	FREE_MEM,<"<FREE>",0>
-	ENDIF	; DEBUG
 ;
 ; Table of BASIC-DOS expression operators
 ;
@@ -385,7 +384,7 @@ DATA	SEGMENT
 	BLKDEF	<0,SBLKLEN,size SBLK,SIG_SBLK>
 	BLKDEF	<0,TBLKLEN,size TBLK,SIG_TBLK>
 	BLKDEF	<0,0,size BLKHDR,'A'>	; array blocks (sized by DIM)
-	COMHEAP	<size CMDHEAP>,BEG_HEAP		; this must be the last item...
+	COMHEAP	<size CMDHEAP>,BEG_HEAP,RES_HEAP ; this must be the last item
 
 DATA	ENDS
 

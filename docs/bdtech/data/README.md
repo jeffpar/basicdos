@@ -68,13 +68,16 @@ Unlike PC DOS, BASIC-DOS doesn't give a COM program all available memory; it get
 
 | Offset | Field | Description |
 |--------|-------|-------------|
-| 00h | CD_CODESIZE | Size of the shared code, in bytes |
-| 02h | CD_HEAPSIZE | Additional heap space, in paragraphs |
-| 04h | CD_SIG | Signature (SIG_BASICDOS, "BD") |
+| 00h | CD_HEAPOFF | Offset of a heap inside the image (0 if none) |
+| 02h | CD_CODESIZE | Size of the shared code, in bytes |
+| 04h | CD_HEAPSIZE | Additional heap space, in paragraphs (or the size of the heap inside the image) |
+| 06h | CD_SIG | Signature (SIG_BASICDOS, "BD") |
 
 Dynamically allocated heap space is zero-initialized, and the program's initial stack is at the top of the heap (or the top of its first 64K, whichever is lower).  PSP_HEAP contains the offset of the heap.
 
 CD_CODESIZE allows a COM program to share its code (starting at offset 100h) among all running copies: each copy has its own segment for DS, ES, and SS, but only the first copy contains the shared code, and the other copies contain only the code and data that follow it, plus their heaps.  COMMAND.COM uses this, so each additional session costs only its data and heap.
+
+CD_HEAPOFF allows a COM program to keep its heap (and stack) inside its image, at the given offset, with CD_HEAPSIZE paragraphs; the program then gets no memory beyond its image, and its initial stack is at the top of that heap.  For a program with shared code, only the first copy uses the heap inside the image (the other copies get heaps after their data, as usual), and the checksum that identifies the shared code skips the heap, since its contents change.  COMMAND.COM's first copy uses this for its resident heap (RES_HEAP), which must remain when the transient portion is set aside.
 
 ### SPB
 

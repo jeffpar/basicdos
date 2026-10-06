@@ -88,7 +88,7 @@ Supported format specifiers include:
 | `%c` | 8-bit character |
 | `%d`, `%bd`, `%ld` | Signed 16-bit, 8-bit, or 32-bit decimal integer |
 | `%u`, `%bu`, `%lu` | Unsigned 16-bit, 8-bit, or 32-bit decimal integer |
-| `%x`, `%bx`, `%lx` | Unsigned 16-bit, 8-bit, or 32-bit hexadecimal integer (DEBUG builds only) |
+| `%x`, `%bx`, `%lx` | Unsigned 16-bit, 8-bit, or 32-bit hexadecimal integer |
 | `%s`, `%ls` | String (near DS-relative pointer, or far pointer) |
 | `%f` | Double, formatted by the FPU$ driver; the parameter is a far pointer to the double |
 | `%W`, `%F`, `%M`, `%D`, `%X`, `%Y` | Day of week, month name, month, day, 2-digit year, and 4-digit year of a packed date |

@@ -18,8 +18,8 @@ CODE    SEGMENT
 	EXTNEAR	<freeIdleVars,resetVars,runCode>
 	EXTNEAR	<enterLine,editPrompt,chkProgram>
 	EXTNEAR	<writeStrCRLF,saveChains,restoreChains,compactStrs>
-	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resParas,resSum>
-	EXTBYTE	<RES_HEAP,CMD_PATH,MSG_DRIVE>
+	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resSum>
+	EXTBYTE	<CMD_PATH,MSG_DRIVE>
 	EXTWORD	<CMD_REFS,TRANS_SUM>
 	EXTABS	<TOK_ERASE,TOK_DEL>
 	EXTWORD	<KEYWORD_TOKENS>
@@ -32,28 +32,15 @@ CODE    SEGMENT
 
 DEFPROC	main
 ;
-; If we're the copy that owns the shared code (ie, CS = DS), move our heap
-; and stack to RES_HEAP, free the original heap, and record what we need to
-; reload the transient portion later (see runTransient in res.asm).
+; If we're the copy that owns the shared code (ie, CS = DS), the loader has
+; already put our heap and stack in RES_HEAP (see COMHEAP), so we just record
+; what we need to reload the transient portion later (see runTransient in
+; res.asm).
 ;
 	mov	ax,cs
 	mov	dx,ds
 	cmp	ax,dx			; do we own the shared code?
 	jne	m0z			; no
-	mov	si,ds:[PSP_HEAP]
-	mov	di,offset RES_HEAP
-	mov	cx,size CMDHEAP - size STACK
-	cld
-	rep	movsb			; copy everything but the stack
-	mov	ds:[PSP_HEAP],offset RES_HEAP
-	cli
-	mov	sp,offset RES_HEAP + size CMDHEAP
-	sti
-	sub	ax,ax
-	push	ax			; (like the loader, push a zero)
-	call	resParas
-	mov	ah,DOS_MEM_REALLOC
-	int	21h			; free the original heap
 	call	resSum
 	mov	[TRANS_SUM],ax		; record the checksum of the transient
 	mov	ah,DOS_DSK_GETDRV

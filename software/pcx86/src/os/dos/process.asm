@@ -932,19 +932,23 @@ lp7a:	mov	ah,DOS_HDL_CLOSE
 	xchg	dx,ax			; yes, set DX to the larger value
 ;
 ; Since there's a COMDATA structure, fill in the relevant PSP fields.
-; In addition, if a code size is specified, checksum the code, and then
-; see if there's another block with the same code.
+; In addition, if a code size is specified, checksum the code (skipping any
+; heap inside the image), and then see if there's another block with the same
+; code.
 ;
-lp7c:	mov	cx,[di - size COMDATA].CD_CODESIZE
+lp7c:	lea	si,[di - size COMDATA]
+	call	psp_heaprange		; (for psp_calcsum)
+	mov	cx,[si].CD_CODESIZE
 	mov	ds:[PSP_CODESIZE],cx	; record end of code
-	mov	ds:[PSP_HEAPSIZE],dx	; record heap size
-	mov	ds:[PSP_HEAP],di	; by default, heap starts after COMDATA
-	jcxz	lp7d			; but if a code size was specified
-	mov	ds:[PSP_HEAP],cx	; heap starts at the end of the code
-
-lp7d:	call	psp_calcsum		; calc checksum for code
+	call	psp_calcsum		; calc checksum for code
 	mov	ds:[PSP_CHECKSUM],ax	; record checksum (zero if unspecified)
-	jcxz	lp7e
+	mov	ds:[PSP_HEAPSIZE],dx	; record heap size
+	mov	ax,ds:[PSP_CODESIZE]	; heap starts at the end of the code
+	test	ax,ax			; if a code size was specified
+	jnz	lp7d
+	mov	ax,di			; and otherwise after COMDATA
+lp7d:	mov	ds:[PSP_HEAP],ax
+	jcxz	lp7g			; no other copy of the code
 ;
 ; We found another copy of the code segment (CX), so we can move everything
 ; from PSP_CODESIZE to DI down to 100h, and then set DI to the new program end.
@@ -961,6 +965,32 @@ lp7d:	call	psp_calcsum		; calc checksum for code
 	mov	ds:[PSP_HEAP],di	; record the new heap offset
 	rep	movsb			; DI -> uninitialized heap space
 	mov	[bp].TMP_CX,cx		; this program image can't be cached
+	jmp	short lp7e
+;
+; If the program has a heap inside its image (and this isn't a copy of
+; another program's code), it needs no memory beyond its image, and its stack
+; starts at the top of that heap.
+;
+lp7g:	mov	ax,[di - size COMDATA].CD_HEAPOFF
+	test	ax,ax			; heap inside the image?
+	jz	lp7e			; no
+	mov	ds:[PSP_HEAP],ax
+	mov	cx,[di - size COMDATA].CD_HEAPSIZE
+	mov	ds:[PSP_HEAPSIZE],cx
+	push	ax
+	xchg	ax,cx
+	mov	cl,4
+	shl	ax,cl
+	pop	cx
+	add	ax,cx			; DS:AX -> top of the heap
+	mov	ds:[PSP_STACK].OFF,ax
+	mov	ds:[PSP_STACK].SEG,ds
+	mov	bx,di
+	add	bx,15
+	mov	cl,4
+	shr	bx,cl			; BX = size of program (in paras)
+	sub	dx,dx			; DX = additional space (none)
+	jmp	short lp8
 
 lp7e:	mov	bx,di			; BX = size of program image
 	add	bx,15
@@ -1136,6 +1166,7 @@ lpm:	push	ds
 	mov	si,dx
 	cmp	[si].CD_SIG,SIG_BASICDOS
 	jne	lpm9
+	call	psp_heaprange		; (for psp_addsum)
 	mov	si,[si].CD_CODESIZE
 	sub	si,100h			; SI = # bytes of shared code
 	jbe	lpm9			; none
@@ -1157,15 +1188,17 @@ lpm2:	jcxz	lpm4
 	jc	lpm7
 	cmp	ax,cx
 	jne	lpm6			; file is too short
+	pop	ax
+	push	ax			; AX = # bytes of shared code
+	sub	ax,si
+	add	ax,dx			; AX = image offset of these bytes
 	sub	si,cx
 	push	si
-	mov	si,dx
-	shr	cx,1			; CX = # words (as in psp_calcsum)
-	jcxz	lpm3a
-lpm3:	lodsw
-	add	di,ax
-	loop	lpm3
-lpm3a:	pop	si
+	mov	si,dx			; DS:SI -> bytes (CX)
+	xchg	dx,di			; DX = checksum so far
+	call	psp_addsum		; (as in psp_calcsum)
+	xchg	dx,di			; DI = checksum, DX = 100h
+	pop	si
 	jmp	lpm1
 lpm4:	pop	ax
 	add	ax,100h			; AX = end of code
@@ -1175,7 +1208,9 @@ lpm4:	pop	ax
 	call	psp_findsum		; CX = matching segment, if any
 	pop	dx
 	pop	ax
-	jcxz	lpm9			; no match
+	test	cx,cx			; any match?
+	jnz	$+5			; yes
+	jmp	lpm9			; no
 	mov	ds:[PSP_START].OFF,100h
 	mov	ds:[PSP_START].SEG,cx
 	mov	ds:[PSP_CODESIZE],ax
@@ -1212,11 +1247,91 @@ ENDPROC	load_program
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; psp_heaprange
+;
+; Records the range of the heap inside the image, if any (see COMHEAP), in
+; the new PSP's PSP_HEAP and PSP_HEAPSIZE fields, for psp_addsum (which skips
+; that range); the caller sets their final values afterward.
+;
+; Inputs:
+;	DS:SI -> COMDATA
+;
+; Outputs:
+;	PSP_HEAP = start of heap, PSP_HEAPSIZE = end of heap (zero if none)
+;
+; Modifies:
+;	None
+;
+DEFPROC	psp_heaprange
+	ASSUME	DS:NOTHING, ES:NOTHING
+	push	ax
+	push	cx
+	mov	ax,[si].CD_HEAPOFF
+	mov	ds:[PSP_HEAP],ax
+	test	ax,ax			; heap inside the image?
+	jz	phr9			; no
+	mov	ax,[si].CD_HEAPSIZE
+	mov	cl,4
+	shl	ax,cl
+	add	ax,[si].CD_HEAPOFF	; AX = end of heap
+phr9:	mov	ds:[PSP_HEAPSIZE],ax
+	pop	cx
+	pop	ax
+	ret
+ENDPROC	psp_heaprange
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; psp_addsum
+;
+; Adds the words of a portion of a program image to a checksum, skipping any
+; that are inside the image's heap (see psp_heaprange), since the heap's
+; contents change (and a copy of the image may be read from memory).
+;
+; Inputs:
+;	DS:SI -> bytes (CX = # bytes, which must be even)
+;	AX = offset of those bytes in the image
+;	DX = checksum
+;	PSP_HEAP and PSP_HEAPSIZE set by psp_heaprange
+;
+; Outputs:
+;	DX = updated checksum
+;
+; Modifies:
+;	DX
+;
+DEFPROC	psp_addsum
+	ASSUME	DS:NOTHING, ES:NOTHING
+	push	bx
+	push	cx
+	push	si
+	mov	bx,ax			; BX = offset of next word in the image
+	shr	cx,1			; CX = # words
+	jcxz	pas9
+pas1:	cmp	bx,ds:[PSP_HEAP]	; inside the heap?
+	jb	pas2			; no
+	cmp	bx,ds:[PSP_HEAPSIZE]
+	jb	pas3			; yes, so skip it
+pas2:	add	dx,[si]
+pas3:	inc	si
+	inc	si
+	inc	bx
+	inc	bx
+	loop	pas1
+pas9:	pop	si
+	pop	cx
+	pop	bx
+	ret
+ENDPROC	psp_addsum
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; psp_calcsum
 ;
 ; Inputs:
 ;	DS:100h -> bytes to checksum
 ;	CX = end of region to checksum
+;	PSP_HEAP and PSP_HEAPSIZE set by psp_heaprange
 ;
 ; Outputs:
 ;	AX = 16-bit checksum
@@ -1234,10 +1349,8 @@ DEFPROC	psp_calcsum
 	push	cx
 	mov	si,100h			; SI -> 1st byte to sum
 	sub	cx,si			; CX = # bytes to checksum
-	shr	cx,1			; CX = # words
-crc1:	lodsw
-	add	dx,ax
-	loop	crc1
+	mov	ax,si			; AX = offset of 1st byte in the image
+	call	psp_addsum		; DX = checksum
 	pop	ax
 ;
 ; Scan the arena for a PSP block with matching PSP_CODESIZE and PSP_CHECKSUM.

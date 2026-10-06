@@ -351,12 +351,20 @@ rcIgnore:
 	ret
 ENDPROC	resCtrlC
 ;
-; The heap (and stack) of the copy that owns the shared code; main moves the
-; heap here, so that it remains while the transient portion is discarded.
+; The heap (and stack) of the copy that owns the shared code, which the loader
+; uses because COMHEAP specifies it (see BEG_HEAP), so that it remains while
+; the transient portion is discarded.  Like the heap at BEG_HEAP (used by other
+; copies), it begins with initialized BLKDEFs; the rest is zero.
 ;
 	even
 	DEFLBL	RES_HEAP,byte
-	db	size CMDHEAP dup (0)
+	BLKDEF	<0,CBLKLEN,size CBLK,SIG_CBLK>
+	BLKDEF	<0,FBLKLEN,size FBLK,SIG_FBLK>
+	BLKDEF	<0,VBLKLEN,size VBLK,SIG_VBLK>
+	BLKDEF	<0,SBLKLEN,size SBLK,SIG_SBLK>
+	BLKDEF	<0,TBLKLEN,size TBLK,SIG_TBLK>
+	BLKDEF	<0,0,size BLKHDR,'A'>	; array blocks (sized by DIM)
+	db	size CMDHEAP - (offset $ - offset RES_HEAP) dup (0)
 	even
 	DEFLBL	RES_END,byte
 

@@ -13,10 +13,8 @@
 CODE    SEGMENT
 
 	EXTNEAR	<countLine,printCRLF,transParas>
-	IFDEF	DEBUG
 	EXTSTR	<SYS_MEM,DOS_MEM,FREE_MEM,BLK_NAMES>
 	EXTABS	<BLK_WORDS>
-	ENDIF	; DEBUG
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 
@@ -24,8 +22,11 @@ CODE    SEGMENT
 ;
 ; cmdMem
 ;
-; Prints memory usage.  Use /D to display memory blocks, /F to display open
-; files, and /S to display active sessions.
+; Prints memory usage: the total memory, the free memory available for an
+; EXEC (which includes COMMAND's transient portion, if it can be discarded;
+; see transParas), and the free memory available for BASIC programs.  Use /D
+; to display memory blocks; in DEBUG builds, /F also displays open files, /S
+; active sessions, and /L repeats the display.
 ;
 ; Inputs:
 ;	BX -> CMDHEAP (not used)
@@ -48,10 +49,9 @@ mem0:	sub	di,di
 	mov	es,di
 	les	di,es:[50Ah]		; ES:DI = DD_LIST (see bios.inc)
 
-	IFDEF	DEBUG
 	TESTSW	<'D'>
 	jz	mem1
-	PRINTF	"Seg   Owner Paras    KB  Desc\r\n"
+	PRINTF	<"Seg   Owner Paras    KB  Desc",13,10>
 	call	countLine
 mem1:	sub	bx,bx
 	mov	ax,es
@@ -64,14 +64,12 @@ mem1:	sub	bx,bx
 	call	printKB		; BX = seg, AX = # paras, ES:DI -> name
 	pop	es
 	pop	di
-	ENDIF	; DEBUG
 ;
 ; Next, dump the list of resident built-in device drivers.
 ;
 mem2:	cmp	di,-1
 	je	mem3
 
-	IFDEF	DEBUG
 	mov	bx,es
 	mov	ax,es:[di].DDH_NEXT_SEG
 	sub	ax,bx		; AX = # paras
@@ -79,7 +77,6 @@ mem2:	cmp	di,-1
 	lea	di,[di].DDH_NAME
 	call	printKB		; BX = seg, AX = # paras, ES:DI -> name
 	pop	di
-	ENDIF	; DEBUG
 
 	les	di,es:[di]
 	jmp	mem2
@@ -96,7 +93,6 @@ mem3:	mov	ah,DOS_MSC_GETVARS
 	push	bx
 	push	es
 
-	IFDEF	DEBUG
 	mov	ax,es:[bx].DV_MCB_HEAD
 	mov	bx,es		; BX = DOS data segment
 	sub	ax,bx
@@ -104,7 +100,6 @@ mem3:	mov	ah,DOS_MSC_GETVARS
 	pop	es
 	mov	di,offset DOS_MEM
 	call	printKB		; BX = seg, AX = # paras, ES:DI -> name
-	ENDIF	; DEBUG
 ;
 ; Next, examine all the memory blocks and display those that are used.
 ;
@@ -112,12 +107,9 @@ mem3:	mov	ah,DOS_MSC_GETVARS
 	mov	[memFree],cx
 
 mem4:	mov	dl,0		; DL = 0 (query all memory blocks)
-
-	IFDEF	DEBUG
 	push	cs
 	pop	es		; ES:DI -> default owner name
 	mov	di,offset SYS_MEM
-	ENDIF	; DEBUG
 
 	DOSUTIL	QRYMEM
 	jc	mem9		; all done
@@ -127,15 +119,10 @@ mem4:	mov	dl,0		; DL = 0 (query all memory blocks)
 ;
 ; Let's include free blocks in the report now, too.
 ;
-	IFDEF	DEBUG
 	mov	di,offset FREE_MEM
-	; jmp	short mem8
-	ENDIF	; DEBUG
 
-mem5:	IFDEF	DEBUG
-	xchg	ax,dx		; AX = # paras, DX = owner
+mem5:	xchg	ax,dx		; AX = # paras, DX = owner
 	call	printKB		; BX = seg, AX = # paras, ES:DI -> name
-	ENDIF	; DEBUG
 
 mem8:	inc	cx
 	jmp	mem4
@@ -143,11 +130,9 @@ mem8:	inc	cx
 mem9:	pop	es
 	pop	bx
 
-	IFDEF	DEBUG
 	TESTSW	<'D'>
 	jz	mem10
 	call	printCRLF
-	ENDIF
 ;
 ; ES:BX should point to DOSVARS once again.  We'll start by dumping open SFBs.
 ;
@@ -194,18 +179,25 @@ mem23:	add	di,size SCB
 ; Last but not least, dump the amount of free memory (ie, the sum of all the
 ; free blocks that we did NOT display above).
 ;
-mem30:	call	transParas	; AX = paras of COMMAND's transient
-	add	ax,[memFree]	; AX = free memory (paras)
-	mov	cx,16
-	mul	cx		; DX:AX = free memory (in bytes)
-	xchg	si,ax
-	mov	di,dx		; DI:SI = free memory
-	mov	ax,[memLimit]
-	mul	cx		; DX:AX = total memory (in bytes)
+mem30:	mov	ax,[memLimit]
+	call	toBytes		; DX:AX = total memory (in bytes)
 	PRINTF	<"%8ld bytes",13,10>,ax,dx
 	call	countLine
-	PRINTF	<"%8ld bytes free",13,10>,si,di
+	call	transParas	; AX = paras of COMMAND's transient
+	test	ax,ax		; can it be discarded?
+	jz	mem31		; no, so EXEC and BASIC have the same amount
+	add	ax,[memFree]	; AX = free memory for EXEC (paras)
+	call	toBytes
+	PRINTF	<"%8ld bytes free for EXEC",13,10>,ax,dx
 	call	countLine
+	mov	ax,[memFree]	; AX = free memory for BASIC (paras)
+	call	toBytes
+	PRINTF	<"%8ld bytes free for BASIC",13,10>,ax,dx
+	jmp	short mem32
+mem31:	mov	ax,[memFree]
+	call	toBytes
+	PRINTF	<"%8ld bytes free",13,10>,ax,dx
+mem32:	call	countLine
 
 	IFDEF	DEBUG
 	TESTSW	<'L'>
@@ -215,6 +207,10 @@ mem30:	call	transParas	; AX = paras of COMMAND's transient
 	ENDIF	; DEBUG
 
 mem99:	LEAVE
+	ret
+	DEFLBL	toBytes,near	; converts paras in AX to bytes in DX:AX
+	mov	cx,16
+	mul	cx
 	ret
 ENDPROC	cmdMem
 
@@ -240,7 +236,6 @@ ENDPROC	cmdMem
 ; Modifies:
 ;	AX, DI, ES
 ;
-	IFDEF	DEBUG
 DEFPROC	printKB
 	TESTSW	<'D'>		; detail requested (/D)?
 	jz	pkb9		; no
@@ -290,7 +285,6 @@ pkb8:	PRINTF	<"%04x  %04x  %04x %3d.%1dK  %.8ls",13,10>,bx,dx,ax,cx,bp,di,es
 	pop	bp
 pkb9:	ret
 ENDPROC	printKB
-	ENDIF	; DEBUG
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

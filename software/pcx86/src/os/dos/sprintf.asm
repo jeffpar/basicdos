@@ -322,12 +322,10 @@ pf12:	cmp	al,'s'			; %s string value?
 pf13:	cmp	al,'u'			; %u unsigned value?
 	je	pf10			; yes, unsigned values are the default
 
-	IFDEF DEBUG
 	cmp	al,'x'			; %x hex value?
 	jne	pf14
 	mov	cl,16			; use base 16 instead
 	jmp	pf10			; hex values are always unsigned
-	ENDIF
 
 pf14:	cmp	al,'f'			; %f floating-point value?
 	jne	pf15
@@ -540,7 +538,6 @@ pfd4:	push	bx
 ; masking of hex values; eg, %0.2x will display only 2 hex digits (8 bits),
 ; %0.3x will display only 3 hex digits (12 bits), etc.
 ;
-	IFDEF DEBUG
 	cmp	cl,16			; base 16?
 	jne	pfd6+1			; no, precision not supported
 	push	cx
@@ -564,7 +561,6 @@ pfd5:	sub	cl,16			; more than 32 bits?
 	dec	bx			; BX = 16-bit mask
 	and	dx,bx			; mask DX
 pfd6:	pop	cx
-	ENDIF
 
 	mov	bx,cx			; set flags (BH) and base (BL)
 	mov	cx,[bp].SPF_WIDTH	; CX = length (0 if unspecified)

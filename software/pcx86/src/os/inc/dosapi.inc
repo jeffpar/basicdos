@@ -378,6 +378,13 @@ ERR_NOSESSION	equ	101	; out of sessions
 ; CS.  Successive copies will contain only the code+data that follows the end
 ; of the shared code, plus any requested heap space.
 ;
+; Finally, the COMHEAP macro allows a COM file to specify a heap inside its
+; image (eg, a zero-initialized area of heap_size bytes); the program then
+; gets no memory beyond its image, and its initial stack is at the top of that
+; heap.  For a program with shared code, only the first copy uses the heap
+; inside the image (successive copies get heap space after their data, as
+; usual), and checksums of the shared code skip that heap, since it changes.
+;
 ; BASIC-DOS COM programs can also obtain the offset of their heap via the
 ; PSP_HEAP field in the program's PSP.
 ;
@@ -386,12 +393,13 @@ SIG_BASICDOS	equ	'DB'	; BASIC-DOS signature word ("BD")
 MINHEAP		equ	1024
 
 COMDATA	struc
+CD_HEAPOFF	dw	?	; offset of heap inside image (0 if none)
 CD_CODESIZE	dw	?	; shared code size, in bytes
 CD_HEAPSIZE	dw	?	; additional heap space, in paras
 CD_SIG		dw	SIG_BASICDOS
 COMDATA	ends
 
-COMHEAP	macro	heap_size,code_limit
+COMHEAP	macro	heap_size,code_limit,heap_off
 	IFB	<code_limit>
 	DEFLBL	HEAP,word
 code_size equ 0
@@ -400,6 +408,11 @@ data_size equ 0
 code_size equ offset DGROUP:code_limit
 data_size equ $ - code_limit
 	ENDIF
+	IFB	<heap_off>
 heap_paras equ (heap_size - data_size + 15) SHR 4
-	COMDATA <code_size,heap_paras,SIG_BASICDOS>
+	COMDATA <0,code_size,heap_paras,SIG_BASICDOS>
+	ELSE
+heap_paras equ (heap_size + 15) SHR 4
+	COMDATA <offset DGROUP:heap_off,code_size,heap_paras,SIG_BASICDOS>
+	ENDIF
 	endm

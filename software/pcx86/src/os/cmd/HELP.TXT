@@ -193,9 +193,9 @@ Returns the natural logarithm of *x*, which must be greater than zero.
 MAXINT
 Constant equal to the largest positive integer.
 
-MEM
-Displays used and available memory.
-In DEBUG builds, /D displays memory blocks, /F displays open files, and /S displays active sessions.
+MEM [/D]
+Displays the total memory, the memory free for running programs (EXEC), and the memory free for BASIC programs, which excludes the part of the command processor that's set aside while running a program (when it can't be set aside, as when more than one session is running, a single "bytes free" value is displayed).
+/D also displays every memory block.  In DEBUG builds, /F displays open files, and /S displays active sessions.
 
 MID$(*string*,*start*[,*n*])
 Returns *n* characters of *string*, beginning at position *start* (or the rest of *string* if *n* is omitted).
