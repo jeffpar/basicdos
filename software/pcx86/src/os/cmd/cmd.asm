@@ -2610,7 +2610,8 @@ ENDPROC	seekInput
 ;	If carry set, an error message was printed
 ;
 ; Like PC DOS, BASIC-DOS doesn't treat running out of disk space as an error;
-; it simply writes fewer bytes than requested, so we must check for that, too.
+; it simply writes fewer bytes than requested, so we must check for that, too
+; (but only for files, since it doesn't mean anything for devices).
 ;
 ; Modifies:
 ;	AX, DX
@@ -2622,17 +2623,25 @@ DEFPROC	writeOutput
 	mov	bx,ss:[bx].HDL_OUTPUT
 	mov	ah,DOS_HDL_WRITE
 	int	21h
-	pop	bx
-	jc	writeError
+	jc	wo8
 	cmp	ax,cx			; were all the bytes written?
-	jae	wo9			; yes (carry clear)
+	jae	wo8			; yes (carry clear)
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETDATA
+	int	21h			; DX bit 7 set if output is a device
+	jc	wo7
+	test	dl,80h			; device?
+	jnz	wo8			; yes (carry clear)
+wo7:	pop	bx
 	PRINTF	<"Insufficient disk space",13,10,13,10>
 	stc
 	ret
 	DEFLBL	writeError,near
 	PRINTF	<"Unable to write file",13,10,13,10>
 	stc
-wo9:	ret
+	ret
+wo8:	pop	bx
+	jc	writeError
+	ret
 ENDPROC	writeOutput
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

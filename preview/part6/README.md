@@ -5,7 +5,7 @@ permalink: /preview/part6/
 machines:
   - id: ibm5150
     type: pcx86
-    config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
+    config: /machines/pcx86/ibm/ibm-5150-cga-256kb.json
     autoMount:
       A: "BASIC-DOS6"
 ---

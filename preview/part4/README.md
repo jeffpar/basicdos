@@ -5,12 +5,12 @@ permalink: /preview/part4/
 machines:
   - id: ibm5150-2
     type: pcx86
-    config: /machines/pcx86/ibm/ibm-5150-cga-64kb.json
+    config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
     autoMount:
       A: "BASIC-DOS2"
   - id: ibm5150-3
     type: pcx86
-    config: /machines/pcx86/ibm/ibm-5150-cga-64kb.json
+    config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
     autoMount:
       A: "BASIC-DOS3"
     autoType: MEM /S\r
