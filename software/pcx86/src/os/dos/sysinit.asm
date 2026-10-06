@@ -421,6 +421,11 @@ si7a:	mov	dx,size SFB
 ;
 ; After all the resident tables have been created, initialize the MCB chain.
 ;
+; The chain must end below our own code and stack (allowing 512 bytes for the
+; stack, which peaks at 256-384 bytes, in a BIOS diskette interrupt), since
+; loading a SHELL can use all available memory (eg, on a 64K machine); we add
+; that memory to the chain after the last SHELL has been loaded.
+;
 	push	cs
 	pop	ds
 	ASSUME	DS:DOS
@@ -430,8 +435,12 @@ si7a:	mov	dx,size SFB
 	stosb				; mov es:[MCB_SIG],MCBSIG_LAST
 	sub	ax,ax
 	stosw				; mov es:[MCB_OWNER],0
-	mov	ax,[top_seg]
-	sub	ax,bx			; AX = top segment - ES
+	mov	ax,offset sysinit_start - 200h
+	mov	cl,4
+	shr	ax,cl
+	mov	dx,cs
+	add	ax,dx			; AX = 1st para of our code and stack
+	sub	ax,bx			; AX = that para - ES
 	dec	ax			; AX reduced by 1 para (for MCB)
 	stosw
 	mov	cl,size MCB_RESERVED + size MCB_NAME
@@ -650,14 +659,16 @@ si18:	mov	si,sp			; SS:SI -> SPB
 ;
 si20:	add	sp,size SPB		; free SPB on the stack
 					; (somewhat moot, but let's stay tidy)
+	mov	cx,dx			; CX = SCB load count
 	lds	dx,[pCacheInt21]	; restore INT 21h vector
 	mov	ax,(DOS_MSC_SETVEC SHL 8) OR 21h
 	int	21h
 	push	cs
 	pop	ds
 
-	test	dx,dx
-	jz	sie2			; if no SCBs loaded, that's not good
+	test	cx,cx			; if no SCBs loaded, that's not good
+	jnz	$+5
+	jmp	sie2
 ;
 ; Utility functions like SLEEP need access to the clock device, so we save
 ; its address in clk_ptr.  While we could open the device normally and obtain
@@ -666,7 +677,8 @@ si20:	add	sp,size SPB		; free SPB on the stack
 ;
 	mov	dx,offset CLK_DEVICE
 	DOSUTIL	GETDEV
-	jc	sie1
+	jnc	$+5
+	jmp	open_error
 	mov	ds,[dos_seg]
 	mov	[clk_ptr].OFF,di
 	mov	[clk_ptr].SEG,es
@@ -691,6 +703,43 @@ si20:	add	sp,size SPB		; free SPB on the stack
 	mov	ax,ds
 	stosw
 ;
+; Now that every SHELL has been loaded, add the memory containing our code and
+; stack to the MCB chain, by appending it as a new block and then freeing it,
+; so that it's merged with the preceding block if that block is free.  We must
+; use DOS_MEM_FREE, since our relocated code can't call DOS functions directly.
+; Interrupts are off, and nothing will allocate memory until we're gone.
+;
+	mov	ax,offset sysinit_start - 200h
+	mov	cl,4
+	shr	ax,cl
+	mov	dx,cs
+	add	dx,ax			; DX = new MCB
+	mov	ax,[mcb_head]
+si21:	mov	es,ax			; find the last MCB
+	add	ax,es:[MCB_PARAS]
+	inc	ax
+	cmp	es:[MCB_SIG],MCBSIG_LAST
+	jne	si21
+	ASSERT	Z,<cmp ax,dx>		; it must end where the new MCB begins
+	mov	es:[MCB_SIG],MCBSIG_NEXT
+	mov	es,dx
+	sub	di,di
+	mov	al,MCBSIG_LAST
+	stosb				; mov es:[MCB_SIG],MCBSIG_LAST
+	mov	ax,MCBOWNER_SYSTEM
+	stosw				; mov es:[MCB_OWNER],MCBOWNER_SYSTEM
+	mov	ax,cs:[top_seg]
+	sub	ax,dx
+	dec	ax
+	stosw				; mov es:[MCB_PARAS],AX
+	mov	cx,size MCB - MCB_TYPE
+	mov	al,0
+	rep	stosb
+	inc	dx
+	mov	es,dx			; ES = new block
+	mov	ah,DOS_MEM_FREE
+	int	21h
+;
 ; Activate and start running the first session.  We must mimic scb_switch
 ; rather than calling it, because we're not switching SCBs (sysinit is not
 ; a session).
@@ -708,8 +757,6 @@ si20:	add	sp,size SPB		; free SPB on the stack
 	mov	ax,offset dos_leave
 	push	ax
 	ret				; we let dos_leave turn interrupts on
-
-sie1:	jmp	open_error
 
 sie2:	jmp	sysinit_error
 

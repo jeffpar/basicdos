@@ -8,6 +8,9 @@ permalink: /docs/bdman/cmd/system/
 
 BASIC-DOS system commands include:
 
+- [AUTO](#auto)
+- [DELETE](#delete)
+- [EDIT](#edit)
 - [EXIT](#exit)
 - [HELP](#help)
 - [KEYS](#keys)
@@ -18,7 +21,30 @@ BASIC-DOS system commands include:
 - [RUN](#run)
 - [VER](#ver)
 
-The EDIT command isn't supported yet.
+AUTO, DELETE, EDIT, LIST, and NEW work with the loaded program, which can also be changed by typing lines with line numbers at the prompt (see [Entering Programs](../../intro/#entering-programs)).  AUTO, DELETE, and EDIT can't be used inside a BAS or BAT file (they report "Not allowed in a program").
+
+### AUTO
+
+> AUTO [*line*][,*increment*]
+
+Prompts for program lines, starting with *line* (default 10) and adding *increment* (default 10) after each line is entered.  Each prompt is the next line number, which you can change; if a line with that number already exists, it's displayed for editing, and pressing **Enter** keeps it.  To stop, press **Enter** on a line with nothing after its number (the line isn't deleted), or press **Ctrl-C**.  Typing anything other than a numbered line also stops AUTO, and the input is processed as a command.
+
+	AUTO 100,5
+	100 PRINT "HELLO"
+	105
+
+### DELETE
+
+> DELETE *line*[-[*line*]]  
+> DELETE -*line*
+
+Deletes the specified range of program lines (eg, `DELETE 10-50` deletes lines 10 through 50, and `DELETE 100-` deletes line 100 and everything after it).  Lines without line numbers are deleted along with the numbered line that precedes them.  To delete a single line, you can also type its line number by itself.
+
+### EDIT
+
+> EDIT *line*
+
+Displays the specified program line (with its line number) for editing, using the same keys as the prompt (see [Typing Commands](../../intro/#typing-commands)).  Press **Enter** to store the edited line, or **Esc** and **Enter** to leave it unchanged.  If you change the line number, the edited line is stored as a new line, and the original line remains.  If you delete everything after the line number, the line is deleted.
 
 ### EXIT
 
@@ -40,9 +66,9 @@ Displays a summary of the special keys that can be used when typing commands (se
 
 ### LIST
 
-> LIST
+> LIST [*line*][-[*line*]]
 
-Lists all lines of the currently loaded BAS or BAT program.
+Lists all lines of the currently loaded BAS or BAT program, or the specified range of lines (eg, `LIST 100`, `LIST 100-200`, `LIST 100-`, or `LIST -200`).  Lines without line numbers are listed with the numbered line that precedes them.
 
 ### MEM
 

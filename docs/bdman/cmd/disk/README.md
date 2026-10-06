@@ -12,19 +12,20 @@ BASIC-DOS disk commands include:
 - [DEL](#del) (or ERASE)
 - [DIR](#dir)
 - [LOAD](#load)
+- [SAVE](#save)
 - [TYPE](#type)
 
 File names follow PC DOS conventions: an optional drive letter and colon (eg, `B:`), a name of up to 8 characters, and an optional period followed by an extension of up to 3 characters (eg, `B:PRIMES.BAS`).  Drives A: and B: are diskette drives, and drives C: and D: are the first FAT12 partitions of up to two hard disks.  Subdirectories aren't supported yet.
 
 Device names (eg, CON, PRN, AUX, COM1, LPT1, and NUL) can be used in place of file names (eg, `COPY TEST.TXT NUL` or `DIR > NUL`).
 
-The REN (RENAME) and SAVE commands aren't supported yet.
+The REN (RENAME) command isn't supported yet.
 
 ### COPY
 
 > COPY *input* *output*
 
-Copies the contents of the input file or device to the output file or device.  The output file is created, or truncated if it already exists.  A file cannot be copied onto itself.
+Copies the contents of the input file or device to the output file or device.  The output file is created, or truncated if it already exists.  A file cannot be copied onto itself.  If the disk fills up, COPY reports "Insufficient disk space".
 
 	COPY PRIMES.BAS B:
 
@@ -47,7 +48,15 @@ Displays a directory listing of all files matching the given *filespec* (or all 
 
 > LOAD *file*
 
-Loads the specified BAS or BAT file without running it, so that it can be [LIST](../system/#list)ed or [RUN](../system/#run).  If no extension is specified, BAS is tried first, and then BAT.  The file can be a text file or a tokenized BAS file saved by BASICA or GW-BASIC (but not a protected one).  LOAD can't be used inside a BAS or BAT file yet (it reports "LOAD not allowed in a program"); to run another program from a BAS or BAT file, just use its name.
+Loads the specified BAS or BAT file without running it, so that it can be [LIST](../system/#list)ed or [RUN](../system/#run).  If no extension is specified, BAS is tried first, and then BAT.  The file can be a text file or a tokenized BAS file saved by BASICA or GW-BASIC (but not a protected one).  LOAD can't be used inside a BAS or BAT file yet (it reports "Not allowed in a program"); to run another program from a BAS or BAT file, just use its name.
+
+### SAVE
+
+> SAVE *file*
+
+Saves the currently loaded program as a text file, which LOAD can load again.  If no extension is specified, BAS is used.  An existing file with the same name is replaced.  If the program can't be saved completely, SAVE reports "Insufficient disk space" (or "Unable to write file"); the program remains loaded, so you can free some space or save it to another disk.
+
+	SAVE B:HELLO
 
 ### TYPE
 

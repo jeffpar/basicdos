@@ -16,6 +16,7 @@ CODE    SEGMENT
 	EXTNEAR	<loadTokens>
 	ENDIF
 	EXTNEAR	<freeIdleVars,resetVars,runCode>
+	EXTNEAR	<enterLine,editPrompt,chkProgram>
 	EXTNEAR	<writeStrCRLF,saveChains,restoreChains,compactStrs>
 	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resParas,resSum>
 	EXTBYTE	<RES_HEAP,CMD_PATH,MSG_DRIVE>
@@ -145,12 +146,23 @@ m0a:	pop	bx
 ; ECHO OFF in one BAT file (eg, a startup file) doesn't silence the next one.
 ;
 m1:	and	[bx].CMD_FLAGS,NOT CMD_NOECHO
-	mov	ah,DOS_DSK_GETDRV
+	mov	[bx].CMD_ROWS,0
+;
+; If there's a program line to edit (see cmdAuto and cmdEdit), editPrompt
+; displays it for editing instead of prompting for a command.
+;
+	mov	ax,[bx].EDIT_STATE	; AX = line # to edit, if any
+	test	ax,ax
+	jz	m1a
+	call	editPrompt
+	jc	m1			; input was processed
+	jmp	short m2
+
+m1a:	mov	ah,DOS_DSK_GETDRV
 	int	21h
 	add	al,'A'			; AL = current drive letter
 	PRINTF	<"%c",CHR_GT>,ax	; print drive letter and '>' symbol
 
-	mov	[bx].CMD_ROWS,0
 	lea	dx,[bx].INPUTBUF
 	mov	[bx].INPUT_BUF,dx
 	mov	ah,DOS_TTY_INPUT
@@ -164,7 +176,9 @@ m2:	mov	si,[bx].INPUT_BUF
 	jne	m3			; getNextLine also skips in BAT
 	inc	si			; files and BASIC commands)
 	dec	cx
-m3:	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
+m3:	call	enterLine		; is it a numbered program line?
+	jnc	m1			; yes, and it's been processed
+	lea	di,[bx].TOKENBUF	; ES:DI -> TOKENBUF
 	mov	[di].TOK_MAX,(size TOK_DATA) / (size TOKLET)
 	DOSUTIL	TOKEN1
 	jc	m1			; jump if no tokens
@@ -1334,6 +1348,7 @@ de1:	lodsb
 de6:	pop	si
 	PRINTF	<"Wildcards not supported",13,10,13,10>
 	ret
+	DEFLBL	noFile,near
 de7:	PRINTF	<"Missing filename",13,10,13,10>
 de9:	ret
 ENDPROC	cmdDel
@@ -1957,41 +1972,6 @@ ENDPROC	cmdKeys
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; cmdList
-;
-; Inputs:
-;	BX -> CMDHEAP
-;	DI -> TOKENBUF
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	Any
-;
-DEFPROC	cmdList
-	lea	si,[bx].TBLKDEF
-li2:	mov	cx,[si].BLK_NEXT
-	jcxz	li9			; nothing left to parse
-	mov	ds,cx
-	ASSUME	DS:NOTHING
-	mov	si,size TBLK
-li3:	cmp	si,ds:[BLK_FREE]
-	jb	li3a
-	sub	si,si			; DS:SI -> block header
-	jmp	li2			; advance to next block in chain
-li3a:	lodsw
-	test	ax,ax			; is there a label #?
-	jz	li4			; no
-	PRINTF	<"%5d">,ax
-li4:	PRINTF	<CHR_TAB>
-	call	writeStrCRLF
-	jmp	li3
-li9:	ret
-ENDPROC	cmdList
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; cmdLoad
 ;
 ; Opens the specified file and loads it into one or more text blocks.
@@ -2027,10 +2007,8 @@ DEFPROC	cmdLoad
 ; TODO: LOAD inside a running BAS or BAT file would replace the running file's
 ; own text (and code), so for now, it's an error.
 ;
-	cmp	[bx].CBLKDEF.BDEF_NEXT,0; is a program running?
-	je	lf0			; no
-	PRINTF	<"LOAD not allowed in a program",13,10,13,10>
-	stc
+	call	chkProgram		; is a program running?
+	jnc	lf0			; no
 	jmp	lf13
 lf0:	mov	dx,offset PERIOD	; check the filename
 	call	chkString
@@ -2605,10 +2583,10 @@ ENDPROC	seekInput
 ;
 ; writeOutput
 ;
-; Write CX bytes to the default file frm the buffer at DS:SI.
+; Write CX bytes to the default file from the buffer at DS:SI.
 ;
 ; Inputs:
-;	BX -> CMDHEAP
+;	SS:BX -> CMDHEAP
 ;	CX = number of bytes
 ;	DS:SI -> buffer
 ;
@@ -2616,21 +2594,30 @@ ENDPROC	seekInput
 ;	If carry clear, AX = number of bytes written
 ;	If carry set, an error message was printed
 ;
+; Like PC DOS, BASIC-DOS doesn't treat running out of disk space as an error;
+; it simply writes fewer bytes than requested, so we must check for that, too.
+;
 ; Modifies:
 ;	AX, DX
 ;
 DEFPROC	writeOutput
 	push	bx
 	mov	dx,si
-	ASSERT	STRUCT,[bx],CMD
-	mov	bx,[bx].HDL_OUTPUT
+	ASSERT	STRUCT,ss:[bx],CMD
+	mov	bx,ss:[bx].HDL_OUTPUT
 	mov	ah,DOS_HDL_WRITE
 	int	21h
-	jnc	wo9
+	pop	bx
+	jc	writeError
+	cmp	ax,cx			; were all the bytes written?
+	jae	wo9			; yes (carry clear)
+	PRINTF	<"Insufficient disk space",13,10,13,10>
+	stc
+	ret
+	DEFLBL	writeError,near
 	PRINTF	<"Unable to write file",13,10,13,10>
 	stc
-wo9:	pop	bx
-	ret
+wo9:	ret
 ENDPROC	writeOutput
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

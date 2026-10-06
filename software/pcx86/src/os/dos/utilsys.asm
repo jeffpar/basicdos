@@ -519,10 +519,13 @@ ENDPROC	utl_incdate
 ;
 ; utl_editln (AH = 24h)
 ;
-; Similar to DOS function tty_input (REG_AH = 0Ah) but returns editing
-; notifications for selected keys (eg, UP and DOWN keys).
+; Similar to DOS function tty_input (REG_AH = 0Ah), with options to return
+; editing notifications for selected keys (eg, UP and DOWN keys), and to
+; display the buffer's existing characters for editing.
 ;
 ; Inputs:
+;	REG_AL = 1 for editing notifications, 2 to display the existing
+;	characters (INP_CNT), or 3 for both
 ;	REG_DS:REG_DX -> INPBUF with INP_MAX preset to max chars
 ;
 ; Outputs:
@@ -533,7 +536,8 @@ ENDPROC	utl_incdate
 DEFPROC	utl_editln,DOS
 	sti
 	and	[bp].REG_FL,NOT FL_CARRY
-	mov	byte ptr [bp].TMP_AH,1	; TMP_AH = 1 for editing notifications
+	mov	al,[bp].REG_AL
+	mov	[bp].TMP_AH,al		; TMP_AH = editing options
 	call	read_line
 	ret
 ENDPROC	utl_editln

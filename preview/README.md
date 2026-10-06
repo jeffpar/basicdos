@@ -18,6 +18,15 @@ Fast forward a few years, and the introduction of AI agents like Claude Code has
 
 This means that many of the limitations discussed in these preview pages have now been removed, but more remain. And there will always be more, because is any project ever truly finished?
 
+### Contents
+
+ 1. [Introducing BASIC-DOS for the IBM PC](#introducing-basic-dos-for-the-ibm-pc)
+ 2. [BASIC Operations](part2/)
+ 3. [BASIC Files vs. Batch Files](part3/)
+ 4. [Pipes and Sessions](part4/)
+ 5. [Were Dual Monitors Ever This Cool?](part5/)
+ 6. [Performance](part6/)
+
 ### Introducing BASIC-DOS for the IBM PC
 
 This is a "sneak peek" at BASIC-DOS, the first version of DOS that *could* have been created for the IBM PC, with the benefit of more time and [incredible foresight](/blog/).

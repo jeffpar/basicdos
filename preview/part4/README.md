@@ -6,13 +6,11 @@ machines:
   - id: ibm5150-2
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-cga-64kb.json
-    sizeRAM: 128
     autoMount:
       A: "BASIC-DOS2"
   - id: ibm5150-3
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-cga-64kb.json
-    sizeRAM: 128
     autoMount:
       A: "BASIC-DOS3"
     autoType: MEM /S\r

@@ -1031,10 +1031,12 @@ ENDPROC	con_read
 ; read_line
 ;
 ; Internal function for console input (tty_input, REG_AH = 0Ah)
-; and line editing (utl_editln, REG_AH = 23h).
+; and line editing (utl_editln, REG_AH = 24h).
 ;
 ; Inputs:
-;	TMP_AH = 0 for normal input, 1 for editing notifications
+;	TMP_AH = 0 for normal input; otherwise, bit 0 is set for editing
+;	notifications, and bit 1 is set to display the buffer's existing
+;	characters (INP_CNT) first, as if they had been recalled
 ;
 ; Outputs:
 ;	None
@@ -1061,6 +1063,9 @@ DEFPROC	read_line,DOS
 	call	con_ioctl		; AL = starting column
 	xchg	dx,ax			; DL = starting column
 	mov	dh,0			; DH = # display characters
+	test	byte ptr [bp].TMP_AH,2	; display existing characters?
+	jz	rl1			; no
+	call	con_recall		; yes
 
 rl1:	call	tty_read
 	jnc	rl2
@@ -1087,8 +1092,8 @@ rl4a:	call	con_end
 
 rl5:	cmp	al,CHR_CTRLX		; alias for DOWN
 	jne	rl5a
-	cmp	byte ptr [bp].TMP_AH,0	; editing mode?
-	je	rl4a			; no
+	test	byte ptr [bp].TMP_AH,1	; editing notifications?
+	jz	rl4a			; no
 	jmp	rl10			; yes, return key in AX
 
 rl5a:	cmp	al,CHR_CTRLS
@@ -1120,8 +1125,8 @@ rl6d:	cmp	al,CHR_CTRLL		; alias for F3
 	je	rl6e
 	cmp	al,CHR_CTRLE		; alias for UP
 	jne	rl6f
-	cmp	byte ptr [bp].TMP_AH,0	; editing mode?
-	je	rl6e			; no
+	test	byte ptr [bp].TMP_AH,1	; editing notifications?
+	jz	rl6e			; no
 	jmp	short rl10		; yes, return key in AX
 
 rl6e:	call	con_recall

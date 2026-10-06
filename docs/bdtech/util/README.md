@@ -184,7 +184,7 @@ The MEM /D command (in DEBUG builds) uses this function to list memory blocks.
 
 ### Console
 
-**DOS_UTL_EDITLN (24h)**: DS:DX -> input buffer, as for DOS_TTY_INPUT.  Same as DOS_TTY_INPUT, but returns AX = the last editing action, so that the caller can respond to keys like **Up** and **Down** (eg, for command history).
+**DOS_UTL_EDITLN (24h)**: DS:DX -> input buffer, as for DOS_TTY_INPUT, and AL = options: bit 0 returns AX = the last editing action, so that the caller can respond to keys like **Up** and **Down** (eg, for command history), and bit 1 displays the buffer's existing characters (INP_CNT) first, as if they had been recalled, so that they can be edited (COMMAND.COM uses this for AUTO and EDIT).  Otherwise, it's the same as DOS_TTY_INPUT.
 
 ### Sound
 

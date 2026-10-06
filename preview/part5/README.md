@@ -5,7 +5,7 @@ permalink: /preview/part5/
 machines:
   - id: ibm5150-4
     type: pcx86
-    config: /machines/pcx86/ibm/ibm-5150-dual-256kb.json
+    config: /machines/pcx86/ibm/ibm-5150-dual-128kb.json
     debugger: /demos/dual/debugger
     autoMount:
       A: "BASIC-DOS4"
@@ -32,4 +32,4 @@ The "stack" issue is another major difference between BASIC-DOS and PC DOS. BASI
 
 Let's just say that BASIC-DOS will never support a `STACKS` keyword in CONFIG.SYS.
 
-### Next: [Part 6: Running DONKEY.BAS](../part6/)
+### Next: [Part 6: Performance](../part6/)

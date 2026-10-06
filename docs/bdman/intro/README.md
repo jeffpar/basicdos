@@ -68,6 +68,23 @@ A command line can contain more than one command, separated by colons (eg, `CLS:
 
 Note that assignments typed at the prompt must begin with [LET](../cmd/basic/let/) (eg, `LET A = 1`), since BASIC-DOS would otherwise look for a program named `A`.
 
+### Entering Programs
+
+A line typed at the prompt that begins with a line number (followed by a space, or nothing at all) isn't a command; it's a line of BASIC that's added to the loaded program, replacing any line with the same number.  Lines are kept in line number order, so they can be typed in any order:
+
+	20 PRINT "WORLD"
+	10 PRINT "HELLO"
+	LIST
+	   10	PRINT "HELLO"
+	   20	PRINT "WORLD"
+	RUN
+	HELLO
+	WORLD
+
+Typing a line number by itself deletes that line.  Line numbers range from 1 to 65529.  Since a line number must be followed by a space, programs whose names begin with digits (eg, `4DOS`) can still be run by name.
+
+The [AUTO](../cmd/system/#auto), [DELETE](../cmd/system/#delete), [EDIT](../cmd/system/#edit), and [LIST](../cmd/system/#list) commands also work with program lines, [NEW](../cmd/system/#new) erases the program, and [SAVE](../cmd/disk/#save) saves it to a file.
+
 ### Running Programs
 
 To run a program, type its name, optionally followed by any arguments the program accepts.  If you don't specify an extension, BASIC-DOS looks for a file with the extension COM, EXE, BAT, or BAS, in that order.

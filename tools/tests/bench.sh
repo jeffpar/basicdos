@@ -2,7 +2,7 @@
 #
 # Runs BENCH.BAS (software/pcx86/src/tests/misc) with BASIC-DOS, BASICA, and GW-BASIC (MSBASIC.EXE), each on
 # an IBM PC XT with a CGA (ibm5160-cga), both without and with an 8087 (ibm5160-cga-fpu), all six at once, and
-# then prints each test's time in seconds (BIOS ticks / 18.2), as shown on the preview/part7 page.
+# then prints each test's time in seconds (BIOS ticks / 18.2), as shown on the preview/part6 page.
 #
 # Build first (see mk.sh), so that COMMAND.COM and MSBASIC.EXE are current.  The BASICA runs use BASICA.COM from
 # the PC DOS 2.00 diskette (extracted with diskimage.js from the PCJS repository, which defaults to ../pcjs) and

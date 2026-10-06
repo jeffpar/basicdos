@@ -9,8 +9,6 @@ machines:
     debugger: available
 ---
 
-{% include machine.html id="ibm5150" %}
-
 There are currently six BASIC-DOS demo configurations:
 
  1. [Single 25x80 session](?autoStart=true)
@@ -21,6 +19,8 @@ There are currently six BASIC-DOS demo configurations:
  6. [DONKEY.BAS and other PC DOS 1.00 BASIC samples](basic/)
 
 The 40 and 80-column demos are configured with borders.  A double-wide border indicates which session has keyboard focus.  Use **SHIFT-TAB** to toggle focus.
+
+{% include machine.html id="ibm5150" %}
 
 ### **CONFIG.SYS** from the BASIC-DOS1 Diskette
 

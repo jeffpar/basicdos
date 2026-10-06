@@ -7,6 +7,9 @@ Returns the character code (0-255) of the first character of *string* (or 0 if *
 ATN(*x*)
 Returns the arctangent of *x*, in radians.
 
+AUTO [*line*][,*increment*]
+Prompts for program lines, starting with *line* (default 10) and adding *increment* (default 10) after each one.  If a line already exists, it's displayed for editing.  To stop, press ENTER on a line with nothing after its number, or press CTRL-C.
+
 CHAIN *file*[,*line*]
 Runs the specified BAS file and then ends the program.  The *line* is currently ignored, and other CHAIN options are not supported.
 
@@ -62,6 +65,9 @@ Defines the first letter(s) of variables that will default to string values.  Un
 DEL *file*
 Deletes the specified file (wildcards are not supported yet).  ERASE is the same as DEL, unless it's erasing arrays.
 
+DELETE *line*[-[*line*]] | -*line*
+Deletes the specified range of program lines.  Typing a line number by itself deletes just that line.
+
 DIM *array*(*bounds*)[,*array*(*bounds*)]...
 Dimensions one or more arrays, with up to 255 dimensions each (eg, DIM A(10), B$(5,5)).  Each bound is the largest subscript for that dimension.
 Arrays that are used without DIM have a largest subscript of 10.
@@ -74,6 +80,9 @@ Draws lines from the last point, using these commands: U, D, L, R, E, F, G, and 
 
 ECHO [ON|OFF]
 Controls the echo of lines in a BAT file.  Every BAT file run from the prompt starts with ECHO ON, echoed lines are displayed with a @ in front, and lines that begin with @ are not echoed.
+
+EDIT *line*
+Displays the specified program line for editing.  Press ENTER to store the edited line.
 
 END
 Ends the program.
@@ -164,8 +173,9 @@ Assigns the value of the *expression* to the *variable*.  Values cannot be assig
 LINE [(*x1*,*y1*)]-(*x2*,*y2*)[,[*color*][,B|BF]]
 Draws a line (or with B, a box; or with BF, a filled box) in a graphics mode.  If the first point is omitted, the last point is used.
 
-LIST
-Lists all lines of the currently loaded BAS or BAT program.
+LIST [*line*][-[*line*]]
+Lists all lines (or the specified range of lines) of the currently loaded BAS or BAT program.
+To add a line to the program (or replace the line with the same number), type the line with its line number at the prompt.
 
 LOAD *file*
 Loads the specified BAS or BAT file, which can be a text file or a tokenized BAS file saved by BASICA or GW-BASIC.  LOAD can't be used inside a BAS or BAT file (yet).
@@ -253,6 +263,9 @@ RUN
 Runs the currently loaded BAS or BAT file.
 Program files can also be run without the RUN command.
 If no file extension is specified, files with COM, EXE, BAT, and BAS extensions are checked, in that order.
+
+SAVE *file*
+Saves the currently loaded program as a text file (if no file extension is specified, BAS is used).
 
 SCREEN [*mode*][,*burst*]
 Sets the screen mode: 0 (text), 1 (320x200 graphics), or 2 (640x200 graphics).
