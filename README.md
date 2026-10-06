@@ -44,7 +44,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] DOS_UTL_QRYMEM queries any memory block, or the highest free block (which COMMAND.COM uses to keep a copy of its transient portion while a program runs)
 - [x] INT 32h utility functions numbered contiguously (00h-24h) and grouped by purpose (see the [Technical Reference](docs/bdtech/util/))
 - [x] Preemptive multitasking of multiple sessions
-- [x] CTRL-C/CTRL-Break handling, and CTRL-ALT-DEL session aborts
+- [x] CTRL-C/CTRL-Break handling, and CTRL-ALT-DEL session aborts (vectors 08h, 09h, 1Bh, and 1Ch that a terminated program left hooked, like MSBASIC's, are restored)
 - [ ] Session STOP/END operations (currently TODOs)
 - [ ] TSR support (INT 27h and INT 21h function 31h)
 - [ ] Environment segments for EXEC (EPB_ENVSEG)
@@ -101,7 +101,8 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [ ] Limitations: a DEF function's code must fit in a single block, a function block ends at its first RETURN (so RETURN can't be conditional), and each array requires a single block (64K max)
 - [ ] Specific error messages for compile-time errors (eg, "NEXT without FOR" and "WHILE without WEND" are currently reported as syntax errors)
 - [ ] STOP's "Break" message (STOP is currently the same as END)
-- [ ] INPUT, LINE INPUT, READ, DATA, and RESTORE
+- [x] DATA, READ, and RESTORE (DATA items are found in the program's text as READ needs them)
+- [ ] INPUT and LINE INPUT
 - [ ] The MID$ statement (ie, `MID$(A$,N[,M]) = B$`)
 - [ ] `&H` and `&O` prefixes in VAL
 - [ ] Comma print zones in PRINT (commas currently print a tab)
@@ -184,7 +185,7 @@ These are the next steps, roughly in priority order:
 1. Add the REN command and input redirection
 2. Handle zero-length writes (truncation), the read-only attribute, and file attribute/date/time functions
 3. FCB create, write, delete, and rename functions
-4. Essential BASIC statements: INPUT and READ/DATA
+4. Essential BASIC statements: INPUT
 5. BASIC file I/O statements, and the remaining string features (the MID$ statement, LINE INPUT, and comma print zones)
 6. The rest of runtime error handling (RESUME, RESUME NEXT, and ERL)
 7. Critical error handling

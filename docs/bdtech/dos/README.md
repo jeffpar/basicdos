@@ -165,6 +165,8 @@ DOS_PSP_RETCODE returns one of these exit types in AH:
 | 5 | EXTYPE_OVERR | Terminated by an overflow error (BASIC-DOS only) |
 | 6 | EXTYPE_ABORT | Session aborted with CTRL-ALT-DEL (BASIC-DOS only) |
 
+However a program terminates, any of vectors 08h, 09h, 1Bh, and 1Ch that still points into its memory is restored to the value it had when BASIC-DOS started, since some programs (eg, MSBASIC) hook those vectors directly and restore them only when they exit normally.
+
 ### Error Codes
 
 | Value | Name | Meaning |

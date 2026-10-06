@@ -604,8 +604,9 @@ pd9b:	sub	cx,cx			; CX = 0 for "truncating" write
 	mov	cl,SCB_NONE
 	xchg	cl,[bp].SCB_NEXT
 	cmp	cl,SCB_NONE
-	je	pd9c
+	je	pd9c			; (carry is clear)
 	DOSUTIL	WAITEND
+	clc
 
 pd9c:	call	cleanUp
 	pop	ax			; discard end of TOKLETs
@@ -840,7 +841,11 @@ cf4a:	jmp	cf8
 ; the program remains loaded, available for LIST'ing, RUN'ing, etc, and the
 ; ctrlc handler frees the blocks of any callers (see restoreChains).
 ;
-cf4b:	mov	ax,11h			; save the code and text chains
+cf4b:	push	[bp].DATA_STATE[6]	; save the caller's READ position
+	push	[bp].DATA_STATE[4]	; (see readData), which saveChains
+	push	[bp].DATA_STATE[2]	; resets (see freeCache)
+	push	[bp].DATA_STATE[0]
+	mov	ax,11h			; save the code and text chains
 	cmp	dx,offset BAS_EXT
 	jne	cf4c
 	mov	ah,1			; AH = 1 to keep a BAS file loaded
@@ -858,12 +863,20 @@ cf4c:	call	saveChains		; SP -> CHAINS frame
 cf4d:	call	cmdRunFlags		; if cmdRun returns normally
 	mov	di,sp
 	mov	al,2			; AL = 2 to keep a BAS file loaded
+	clc
 	jmp	short cf4f
 cf4e:	mov	di,sp			; free the file's blocks
 	mov	al,0			; (eg, all text blocks) and
-cf4f:	call	restoreChains		; restore the caller's chains
+	stc				; report the LOAD error
+cf4f:	pushf
+	call	restoreChains		; restore the caller's chains
+	popf
 	mov	sp,di			; and remove the CHAINS frame
-	jmp	cf9
+	pop	[bp].DATA_STATE[0]	; restore the caller's READ position
+	pop	[bp].DATA_STATE[2]
+	pop	[bp].DATA_STATE[4]
+	pop	[bp].DATA_STATE[6]
+	jmp	cf9a
 ;
 ; COM and EXE files must be loaded via either DOS_PSP_EXEC or DOS_UTL_LOAD.
 ; If no BAT or BAS file is running, we first free the var blocks (if they're
@@ -991,7 +1004,9 @@ cf7b:	stosb				; SPB_SFHOUT
 	DOSUTIL	START			; start the SCB # specified in CL
 	jmp	short cf9
 cf8:	call	openError		; report error (AX) opening file (SI)
-cf9:	pop	bp
+	jmp	short cf9a		; (carry is set)
+cf9:	clc
+cf9a:	pop	bp
 	ret
 ENDPROC	cmdFile
 

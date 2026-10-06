@@ -26,6 +26,8 @@ Plays music, using these commands:
 - T *n*: sets the tempo, in quarter notes per minute (32-255); the default is 120
 - MN, ML, MS: plays notes normally, legato (full length), or staccato (three-quarter length)
 
+Any number can also be given as =*variable*; to use the value of a numeric variable (eg, `PLAY "O=J;C"`), and a variable that hasn't been assigned has a value of zero.
+
 The octave, length, tempo, and mode persist from one PLAY to the next.  MF and MB are ignored, since music always plays in the foreground (PLAY returns when the music ends).
 
 	PLAY "T160 O3 L8 C D E F G4 G4 A A A A G2"

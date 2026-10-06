@@ -158,6 +158,8 @@ Press **Ctrl-C** to stop a running program.
 
 When a runtime error occurs (eg, "Illegal function call" or "Subscript out of range"), the program ends with an error message, unless an [ON ERROR GOTO](../cmd/basic/#on-error) handler is active.  The handler can use [ERR](../cmd/basic/func/#err) to get the error number, and [RESUME](../cmd/basic/#resume) *label* to continue the program.  Error numbers are the same as Microsoft BASIC's, and [ERROR](../cmd/basic/#error) *n* simulates an error.
 
+A program (including a BAT file) also ends if it runs another program that can't be found or opened, right after the "Unable to open" message, rather than continuing with its next command.
+
 ### Graphics and Sound
 
 On a color adapter, [SCREEN](../cmd/device/screen/#screen) 1 or 2 selects a graphics mode, where the [graphics commands](../cmd/device/graphics/) (CIRCLE, DRAW, GET, LINE, PAINT, PRESET, PSET, and PUT) can be used.  [PLAY](../cmd/device/sound/#play) plays music, and [SOUND](../cmd/device/sound/#sound) plays tones.
@@ -168,13 +170,13 @@ When a BAS program ends, BASIC-DOS restores the video mode it started with.
 
 BASIC-DOS runs many IBM PC BASIC programs unchanged (eg, DONKEY.BAS, from the original PC DOS 1.00 diskette), but there are differences:
 
-- Programs are text files, edited with a text editor, rather than typed and saved from within BASIC; there are no AUTO, EDIT, RENUM, or SAVE commands, although tokenized BAS files saved by BASICA and GW-BASIC can be loaded
+- Programs are text files, which can be edited with a text editor, or typed at the prompt with line numbers (see [Entering Programs](../intro/#entering-programs)) and saved with [SAVE](../cmd/disk/#save); there's no RENUM command, and tokenized BAS files saved by BASICA and GW-BASIC can be loaded, but not saved
 - Line numbers are optional, and only needed on lines that are targets of GOTO, GOSUB, etc
 - LET is required for assignments typed at the prompt (but not in programs)
 - Single-precision values are double-precision (DEFSNG is the same as DEFDBL), and integers are 32-bit, not 16-bit
 - Function names don't need to begin with FN, and functions can have multiple lines
 - Since programs are compiled first, unsupported statements are reported before the program runs
 - PRINT commas print a tab instead of advancing to the next print zone
-- Not supported yet: INPUT, LINE INPUT, READ, DATA, RESTORE, file I/O statements (eg, OPEN and PRINT #), the MID$ statement, PRINT USING, RESUME without a label, RESUME NEXT, ERL, POINT, and STEP coordinates
+- Not supported yet: INPUT, LINE INPUT, file I/O statements (eg, OPEN and PRINT #), the MID$ statement, PRINT USING, RESUME without a label, RESUME NEXT, ERL, POINT, and STEP coordinates
 
 {% include footer.html prev="System Commands:../cmd/system/" next="Configuring BASIC-DOS:../cfg/" %}

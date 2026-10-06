@@ -598,13 +598,15 @@ ENDPROC	freeAllText
 ;
 ; Frees the code (if any) that genCode cached for the loaded program, which
 ; must be done whenever the program's text or variables are freed, since the
-; code depends on both.
+; code depends on both.  The next READ position (see readData) also depends
+; on the text, so it's reset, too.
 ;
 ; Modifies:
 ;	CX, SI
 ;
 DEFPROC	freeCache
 	mov	si,ds:[PSP_HEAP]
+	mov	word ptr [si].DATA_STATE[2],0
 	lea	si,[si].CODE_CACHE
 	jmp	freeAllBlocks
 ENDPROC	freeCache
@@ -695,6 +697,7 @@ rcd1:	mov	[bx].GEN_FLAGS,al
 	mov	ax,[bx].TBLKDEF.BLK_NEXT
 	mov	[bx].LINE_PTR.SEG,ax	; (see keepCode)
 	sub	ax,ax
+	mov	[bx].DATA_STATE[2],ax	; start READ at the first DATA item
 	xchg	ax,[bx].CODE_CACHE
 	mov	[bx].CBLKDEF.BDEF_NEXT,ax; the code is running again
 	push	ax

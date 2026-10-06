@@ -37,6 +37,9 @@ Copies the contents of the input file or device to the output file or device.
 COS(*x*)
 Returns the cosine of *x*, where *x* is in radians.
 
+DATA *item*[,*item*]...
+Defines items for READ to assign to variables, in the order they appear in the program.  An item can be a number or a string; quoted strings can contain commas and colons.
+
 DATE [*date*] [/P]
 Sets the system date (or prompts for a date if /P) and then displays the date.
 The date must be entered as M-D-Y or M/D/Y, where M is 1-12, D is 1-31, and Y is 0-99 or 1980-2099.
@@ -76,7 +79,7 @@ DIR [*filespec*] [/P]
 Displays a directory listing of all files matching the given *filespec* (or all files if none is specified).
 
 DRAW *string*
-Draws lines from the last point, using these commands: U, D, L, R, E, F, G, and H [*n*] (move up, down, left, right, or diagonally), M *x*,*y* (move to *x*,*y*, or relative to the last point if *x* begins with + or -), B (prefix: move without drawing), N (prefix: draw without moving), C *n* (color), and S *n* (scale, in quarters).
+Draws lines from the last point, using these commands: U, D, L, R, E, F, G, and H [*n*] (move up, down, left, right, or diagonally), M *x*,*y* (move to *x*,*y*, or relative to the last point if *x* begins with + or -), B (prefix: move without drawing), N (prefix: draw without moving), C *n* (color), and S *n* (scale, in quarters).  Any number can be given as =*variable*; (eg, "M=X;,=Y;").
 
 ECHO [ON|OFF]
 Controls the echo of lines in a BAT file.  Every BAT file run from the prompt starts with ECHO ON, echoed lines are displayed with a @ in front, and lines that begin with @ are not echoed.
@@ -221,7 +224,7 @@ PEEK(*offset*)
 Returns the byte at *offset* in the segment set by DEF SEG.
 
 PLAY *string*
-Plays music, using these commands: A-G[#|+|-][*n*][.] (notes), N *n* (note 0-84), O *n* (octave 0-6), < and >, L *n* (length), P *n* (pause), T *n* (tempo), and MN, ML, MS (normal, legato, or staccato).
+Plays music, using these commands: A-G[#|+|-][*n*][.] (notes), N *n* (note 0-84), O *n* (octave 0-6), < and >, L *n* (length), P *n* (pause), T *n* (tempo), and MN, ML, MS (normal, legato, or staccato).  Any number can be given as =*variable*; (eg, "O=J;").
 
 POKE *offset*,*value*
 Stores *value* (0-255) at *offset* in the segment set by DEF SEG.
@@ -238,11 +241,17 @@ Draws a point in a graphics mode, using the foreground color if no *color* is sp
 PUT (*x*,*y*),*array*[,PSET|PRESET|XOR|OR|AND]
 Draws an image stored by GET, combining it with the screen using XOR, unless another action is specified.
 
+READ *variable*[,*variable*]...
+Assigns the next DATA item to each variable.  Reading past the last item is an "Out of DATA" error.
+
 REM
 Used for program remarks.  The rest of the line is not executed.  An apostrophe (') outside of quotes is the same as REM.
 
 RESTART
 Restarts the system.
+
+RESTORE [*line*]
+Makes the first DATA item (or the first DATA item at or after *line*) the next item for READ.
 
 RESUME *label*
 Ends the handling of a runtime error (see ON ERROR) and continues at the specified label.

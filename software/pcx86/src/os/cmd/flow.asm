@@ -350,8 +350,10 @@ re4:	PRINTF	<"%ls",13,10>,si,cs
 ENDPROC	rtError
 
 ERR_MSGS	db	3,"RETURN without GOSUB",0
+		db	4,"Out of DATA",0
 		db	5,"Illegal function call",0
 		db	7,"Out of memory",0
+		db	8,"Undefined line number",0
 		db	9,"Subscript out of range",0
 		db	10,"Duplicate definition",0
 		db	14,"Out of string space",0

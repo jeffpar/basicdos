@@ -22,6 +22,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<dos_check,dos_leave,dos_leave2,dos_ctrlc,dos_error>
 	EXTNEAR	<mcb_setname,scb_getnum,scb_release,scb_close,scb_yield>
 	EXTNEAR	<msc_sigctrlc>
+	EXTWORD	<ivt_save>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -70,6 +71,7 @@ DEFPROC	psp_term,DOS
 ;
 pt1:	push	ax			; save exit code/type on stack
 	call	psp_close		; close all the process file handles
+	call	psp_restvec		; restore any vectors left hooked
 ;
 ; Restore the SCB's CTRLC and ERROR handlers from the values in the PSP.
 ;
@@ -1335,6 +1337,69 @@ DEFPROC	psp_init,DOS
 	call	get_psp			; AX = active PSP
 	ret
 ENDPROC	psp_init
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; psp_restvec
+;
+; Some programs hook vectors 08h, 09h, 1Bh, or 1Ch directly (eg, MSBASIC
+; hooks 1Bh and 1Ch), and restore them only when they exit normally; if one is
+; terminated some other way (eg, CTRL-ALT-DEL), any vector it left pointing
+; into its memory is restored to the value that sysinit saved in ivt_save.
+;
+; Inputs:
+;	ES = PSP of the terminating program
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None
+;
+DEFPROC	psp_restvec,DOS
+	ASSUME	ES:NOTHING
+	push	ax
+	push	cx
+	push	dx
+	push	si
+	push	di
+	push	es
+	mov	dx,es			; DX = start of the program's memory
+	call	mcb_getsize		; AX = size, in paragraphs
+	jc	prv9
+	add	ax,dx
+	xchg	cx,ax			; CX = end of the program's memory
+	sub	ax,ax
+	mov	es,ax			; ES:0 -> IVT
+	mov	si,offset ivt_save
+	mov	di,08h*4
+	call	prv1			; check vectors 08h and 09h
+	mov	di,1Bh*4
+	call	prv1			; check vectors 1Bh and 1Ch
+prv9:	pop	es
+	pop	di
+	pop	si
+	pop	dx
+	pop	cx
+	pop	ax
+	ret
+prv1:	call	prv2			; check two consecutive vectors
+prv2:	mov	ax,es:[di+2]		; AX = vector's segment
+	cmp	ax,dx			; does it point into the program?
+	jb	prv3			; no
+	cmp	ax,cx
+	jae	prv3			; no
+	pushf
+	cli
+	mov	ax,[si]
+	mov	es:[di],ax		; yes, so restore the saved vector
+	mov	ax,[si+2]
+	mov	es:[di+2],ax
+	popf
+prv3:	add	si,4
+	add	di,4
+	ret
+ENDPROC	psp_restvec
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

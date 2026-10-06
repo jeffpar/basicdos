@@ -1048,13 +1048,15 @@ ENDPROC	findCtl
 ; checkCtl
 ;
 ; Called by genCode when it's done generating code, to make sure that every
-; FOR and WHILE has a matching NEXT or WEND.
+; FOR and WHILE has a matching NEXT or WEND, and that every label reference
+; (eg, GOTO 100) was resolved; an unresolved reference is still a placeholder
+; that ends the program (see genGoto), so we report it instead of running.
 ;
 ; Inputs:
 ;	ES -> code block
 ;
 ; Outputs:
-;	Carry set if there's an open FOR or WHILE
+;	Carry set if there's an open FOR or WHILE, or an undefined label
 ;
 ; Modifies:
 ;	AX, CX, DX, SI
@@ -1062,8 +1064,55 @@ ENDPROC	findCtl
 DEFPROC	checkCtl
 	call	findCtl
 	cmc
-	ret
+	jc	cct9
+	push	es
+	mov	si,ss:[PSP_HEAP]
+	mov	ax,ss:[si].CBLKDEF.BDEF_NEXT
+	call	checkRefs		; check the code blocks
+	jc	cct8
+	mov	si,ss:[PSP_HEAP]
+	mov	ax,ss:[si].FBLKDEF.BDEF_NEXT
+	call	checkRefs		; and the function blocks
+cct8:	pop	es
+cct9:	ret
 ENDPROC	checkCtl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; checkRefs
+;
+; Inputs:
+;	AX = first block of a chain of code (or function) blocks
+;
+; Outputs:
+;	Carry set if there's an unresolved label reference (and a message
+;	was printed)
+;
+; Modifies:
+;	AX, SI, ES
+;
+DEFPROC	checkRefs
+crf1:	test	ax,ax			; any more blocks?
+	jz	crf9			; no (carry clear)
+	mov	es,ax
+	mov	si,es:[CBLK_REFS]	; (FBLK_REFS is the same)
+crf2:	cmp	si,es:[BLK_SIZE]	; end of this LBLREF table?
+	jae	crf4			; yes
+	mov	ax,es:[si].LBL_NUM
+	cmp	ax,CTL_DONE		; a resolved reference, FOR, or WHILE?
+	jae	crf3			; yes
+	test	es:[si].LBL_IP,LBL_RESOLVE
+	jnz	crf8			; an unresolved reference
+crf3:	add	si,size LBLREF
+	jmp	crf2
+crf4:	mov	ax,es:[BLK_NEXT]
+	jmp	crf1
+crf8:	PRINTF	<"Undefined line number %u",13,10>,ax
+	mov	si,ss:[PSP_HEAP]
+	mov	ss:[si].ERR_CODE,8	; (so genCode reports nothing more)
+	stc
+crf9:	ret
+ENDPROC	checkRefs
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

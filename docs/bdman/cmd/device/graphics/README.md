@@ -21,7 +21,7 @@ Graphics commands require a color adapter in a graphics mode (see [SCREEN](../sc
 
 Colors are 0-3 in SCREEN 1 (0 is the background color, and 1-3 come from the current palette; see [COLOR](../screen/#color)), and 0-1 in SCREEN 2.  When a color is omitted, the foreground color (3 in SCREEN 1, 1 in SCREEN 2) is used.
 
-BASIC-DOS draws the same pixels as Microsoft BASIC.  These features aren't supported yet: STEP (relative) coordinates, the POINT function, DRAW's A, TA, X, and "=variable" commands, and GET/PUT with floating-point arrays.
+BASIC-DOS draws the same pixels as Microsoft BASIC.  These features aren't supported yet: STEP (relative) coordinates, the POINT function, DRAW's A, TA, and X commands, and GET/PUT with floating-point arrays.
 
 	SCREEN 1
 	LINE (0,0)-(319,199),3,B
@@ -47,6 +47,8 @@ Draws lines from the last point, using these commands:
 - N: prefix; draw without moving
 - C *n*: set the color
 - S *n*: set the scale, in quarters (eg, S8 doubles all distances); the default is 4
+
+Any number can also be given as =*variable*; to use the value of a numeric variable (eg, `DRAW "M=X;,=Y;"`).
 
 Example:
 

@@ -10,6 +10,7 @@
 ; Generates code for these commands:
 ;
 ;	CLEAR				(genClear: reset variables)
+;	DATA				(genData: data for READ)
 ;	DEF				(genDefFn: user-defined functions,
 ;					via genDef in gensys.asm)
 ;	DIM				(genDim: dimension arrays)
@@ -18,10 +19,13 @@
 ;					not an array)
 ;	OPTION BASE			(genOption: set the lower bound of
 ;					subsequently dimensioned arrays)
+;	READ				(genRead: read DATA into variables)
+;	RESTORE				(genRestore: reset the next DATA item)
 ;
 ; and for array element references (genArrayRef), which genExpr and genLet
 ; use, and entire integer arrays (genArrayVar), which GET and PUT use.  See
-; arr.asm for the array functions that the generated code calls.
+; arr.asm for the array functions that the generated code calls, and sys.asm
+; for the DATA functions.
 ;
 ; See gencmd.asm for an overview of all the gen*.asm files.  Like gencmd.asm,
 ; these functions are called while generating code, with DS:BX -> TOKLETs and
@@ -43,7 +47,10 @@ CODE    SEGMENT
 	EXTNEAR	<genCommands,genPushBPOffset,genPopBPOffset,setVarDouble>
 	EXTNEAR	<genLong,clearVars>
 	EXTNEAR	<dimArray,getElemPtr,getElemVal,eraseArray,setOptBase>
+	EXTNEAR	<genPushSlot,genPushLong,genPushImmLong,peekNextToken>
+	EXTNEAR	<readData,restoreData,strToLong,strVal,setStr,setVarLong>
 	EXTABS	<TOK_BASE,TOK_DEL>
+	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -702,6 +709,159 @@ DEFPROC	genOption
 gop8:	stc
 	ret
 ENDPROC	genOption
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genData
+;
+; Process "DATA [item][,item]...", which generates no code, since readData
+; finds DATA items in the program's text at runtime; we just skip the rest of
+; the statement (ie, up to a colon, which genCommands consumes).
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;
+; Outputs:
+;	Carry clear
+;
+; Modifies:
+;	BX, SI
+;
+DEFPROC	genData
+	mov	si,ds:[PSP_HEAP]
+gdt1:	cmp	bx,[si].TOKLET_END	; any tokens left?
+	jae	gdt9			; no
+	cmp	[bx].TOKLET_CLS,CLS_SYM
+	jne	gdt2
+	push	si
+	mov	si,[bx].TOKLET_OFF
+	cmp	byte ptr [si],':'	; end of the statement?
+	pop	si
+	je	gdt9			; yes
+gdt2:	add	bx,size TOKLET
+	jmp	gdt1
+gdt9:	clc
+	ret
+ENDPROC	genData
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genRead
+;
+; Process "READ var[,var]...", which assigns the next DATA item to each
+; variable (or array element), much like LET: readData pushes the item as a
+; string, and for a numeric variable, we convert it with strVal (VAL), or with
+; strToLong if there's no FPU$ driver (and therefore no doubles).
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genRead
+	jmp	short grd1
+grd8:	pop	ax
+grd9:	stc
+	ret
+grd1:	mov	al,CLS_VAR
+	call	getNextToken
+	jbe	grd9
+	and	ah,VAR_TYPE		; convert CLS_VAR_* to VAR_*
+	mov	al,ARRAY_PTR
+	call	genArrayRef		; array element?
+	jc	grd9			; error
+	jnz	grd2			; yes (AH = element type)
+	call	addVar			; DX:SI -> var data
+	jc	grd9
+	mov	cx,cs
+	cmp	dx,cx			; constants (in CS) cannot be read
+	je	grd9
+	push	ax
+	call	genPushVarPtr
+	pop	ax
+grd2:	push	ax			; save the var type (AH)
+	cmp	ah,VAR_STR		; string variable?
+	jne	grd3			; no
+	call	genPushLong		; (room for the item)
+	GENCALL	readData		; push the next DATA item
+	mov	cx,offset setStr
+	jmp	short grd6
+
+grd3:	cmp	word ptr cs:[FPU_TABLE].SEG,0
+	je	grd4			; no FPU$ driver
+	call	genPushSlot		; (room for the value)
+	call	genPushLong		; (room for the item)
+	GENCALL	readData
+	GENCALL	strVal			; convert the item to a double
+	mov	dl,VAR_DOUBLE
+	jmp	short grd5
+grd4:	call	genPushLong		; (room for the value)
+	call	genPushLong		; (room for the item)
+	GENCALL	readData
+	GENCALL	strToLong		; convert the item to a long
+	mov	dl,VAR_LONG
+
+grd5:	pop	ax
+	push	ax
+	mov	al,ah			; AL = var type
+	call	genCvtType		; convert the value to the var type
+	jc	grd8
+	pop	ax
+	push	ax
+	mov	cx,offset setVarDouble
+	cmp	ah,VAR_DOUBLE
+	je	grd6
+	mov	cx,offset setVarLong
+grd6:	GENCALL	cx			; set the var
+	pop	ax
+	call	peekNextSymbol		; another var?
+	jbe	grd7			; no
+	cmp	al,','
+	jne	grd7
+	mov	si,ds:[PSP_HEAP]
+	mov	bx,[si].TOKLET_NEXT	; consume the comma
+	jmp	grd1
+grd7:	clc
+	ret
+ENDPROC	genRead
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genRestore
+;
+; Process "RESTORE [line]", which makes the first DATA item (or the first
+; DATA item at or after the specified line) the next item that READ reads.
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genRestore
+	mov	al,CLS_DEC
+	call	peekNextToken		; is there a line #?
+	jbe	grs1			; no
+	DOSUTIL	ATOI32D			; DX:AX = line #
+	mov	si,ds:[PSP_HEAP]
+	mov	bx,[si].TOKLET_NEXT	; consume it
+	jmp	short grs2
+grs1:	sub	ax,ax
+	cwd				; DX:AX = 0 (no line #)
+grs2:	xchg	cx,ax			; DX:CX = line #
+	call	genPushImmLong
+	GENCALL	restoreData
+	ret
+ENDPROC	genRestore
 
 CODE	ENDS
 

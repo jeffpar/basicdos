@@ -11,7 +11,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<parseDOS,releaseStr,strIllegal>
+	EXTNEAR	<parseDOS,releaseStr,strIllegal,ctrlc>
 	EXTSTR	<STR_ON,STR_OFF>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -79,7 +79,9 @@ cd1:	push	cx
 	pop	ax			; AX = keyword ID, if any
 	mov	cl,[di].TOK_DATA[0].TOKLET_LEN
 	call	parseDOS		; CX = length of first token only
-	pop	ds
+	jnc	cd2
+	jmp	ctrlc			; an error (eg, no such program) ends
+cd2:	pop	ds			; the program, like a CTRLC
 	LEAVE
 	RETURN
 ENDPROC	callDOS

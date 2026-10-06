@@ -282,7 +282,7 @@ DEFPROC	listLine
 	mov	ax,es:[di]
 	test	ax,ax			; does the line have a label #?
 	jz	li1			; no
-	PRINTF	<"%5d">,ax
+	PRINTF	<"%5u">,ax
 li1:	PRINTF	<CHR_TAB>
 	push	ds
 	push	es

@@ -26,7 +26,7 @@ TIME_GETTICKS	equ	00h
 DOS	segment word public 'CODE'
 
 	EXTBYTE	<bpb_total,sfh_debug,def_switchar>
-	EXTWORD	<mcb_head,mcb_limit,buf_head,key_boot,scb_active>
+	EXTWORD	<mcb_head,mcb_limit,buf_head,key_boot,scb_active,ivt_save>
 	EXTLONG	<bpb_table,scb_table,sfb_table,clk_ptr,fpu_table>
 	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr,dos_opchk>
 	EXTNEAR	<dos_term,dos_func,dos_exit,dos_ctrlc,dos_error,dos_default>
@@ -739,6 +739,23 @@ si21:	mov	es,ax			; find the last MCB
 	mov	es,dx			; ES = new block
 	mov	ah,DOS_MEM_FREE
 	int	21h
+;
+; Save the vectors that programs commonly hook directly (08h, 09h, 1Bh, and
+; 1Ch), now that the drivers have hooked theirs (see psp_restvec).
+;
+	push	ds
+	pop	es
+	mov	di,offset ivt_save	; ES:DI -> ivt_save
+	sub	ax,ax
+	mov	ds,ax
+	mov	si,08h*4		; DS:SI -> vectors 08h and 09h
+	mov	cx,4
+	rep	movsw
+	mov	si,1Bh*4		; DS:SI -> vectors 1Bh and 1Ch
+	mov	cl,4
+	rep	movsw
+	push	es
+	pop	ds
 ;
 ; Activate and start running the first session.  We must mimic scb_switch
 ; rather than calling it, because we're not switching SCBs (sysinit is not

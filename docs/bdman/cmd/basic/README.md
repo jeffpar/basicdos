@@ -11,6 +11,7 @@ BASIC programs can use any BASIC-DOS [command](../) in combination with the BASI
 - Variables and types: [CLEAR](#clear), [DEF](def/), [DEFDBL](#defdbl), [DEFINT](#defint), [DEFSNG](#defsng), [DEFSTR](#defstr), [DIM](#dim), [ERASE](#erase), [LET](let/), [OPTION BASE](#option-base)
 - Control flow: [CHAIN](#chain), [END](#end), [FOR](#for)/[NEXT](#for), [GOSUB](#gosub), [GOTO](goto/), [IF](if/), [ON](#on), [RETURN](return/), [STOP](#end), [WHILE](#while)/[WEND](#while)
 - Error handling: [ERROR](#error), [ON ERROR](#on-error), [RESUME](#resume)
+- Data: [DATA](#data), [READ](#read), [RESTORE](#restore)
 - Memory: [DEF SEG](#def-seg), [POKE](#poke)
 - Remarks: [REM](#rem)
 
@@ -25,6 +26,16 @@ Runs the specified BAS file and then ends the program.  The *line* is currently 
 > CLEAR [[*n*][,[*m*][,*k*]]]
 
 Resets all numeric variables to zero and all string variables to empty strings, and erases all arrays.  The values are accepted for compatibility with Microsoft BASIC, but are ignored.
+
+### DATA
+
+> DATA *item*[,*item*]...
+
+Defines items for [READ](#read) to assign to variables.  DATA statements aren't executed (but a DATA statement can be followed by other statements on the same line, after a colon), and READ uses their items in the order they appear in the program.  An item can be a number or a string; a string can be in quotes (and can then contain commas and colons), and an unquoted string has any leading and trailing spaces removed.
+
+	READ NAME$, AGE
+	PRINT NAME$; " is"; AGE
+	DATA "SMITH, JOHN", 42
 
 ### DEF
 
@@ -167,12 +178,24 @@ Sets the smallest subscript (0 or 1) of arrays dimensioned afterward.  The defau
 
 Stores *value* (0-255) at *offset* in the segment set by [DEF SEG](#def-seg).
 
+### READ
+
+> READ *variable*[,*variable*]...
+
+Assigns the next [DATA](#data) item to each variable (or array element).  A numeric variable gets the item's numeric value (like [VAL](func/#val)), rounded if the variable is an integer.  Reading past the last item causes an "Out of DATA" error (error 4).
+
 ### REM
 
 > REM *remark*  
 > ' *remark*
 
 Used for program remarks.  The rest of the line is not executed.  An apostrophe outside of quotes is the same as REM, and can follow other statements on the same line (eg, `POKE 106,0 'CLEAR KEYBOARD BUFFER`).
+
+### RESTORE
+
+> RESTORE [*line*]
+
+Makes the first [DATA](#data) item the next item that [READ](#read) assigns, or with a *line* number, the first DATA item at or after that line (which must exist, or an "Undefined line number" error occurs).  Every program starts with RESTORE in effect.
 
 ### RESUME
 

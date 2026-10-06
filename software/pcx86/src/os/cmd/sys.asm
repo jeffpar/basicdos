@@ -8,19 +8,26 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 ; Runtime functions for CHAIN, DEF SEG, PEEK, PLAY, POKE, and SOUND (see
-; gensys.asm).
+; gensys.asm), and for READ and RESTORE (see gendef.asm).
 ;
 	include	cmd.inc
+	include	fpu.inc
 
 CODE    SEGMENT
 
-	EXTNEAR	<callDOS,releaseStr,strIllegal>
+	EXTNEAR	<callDOS,releaseStr,strIllegal,allocStr,rtError,findVar>
+	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
 SND_END		equ	PLAY_STATE+4	; BIOS tick count when the SOUND ends
 SND_BUSY	equ	PLAY_STATE+6	; non-zero if SND_END is valid (byte)
 BIOS_TICKS	equ	46Ch		; BIOS tick count (in segment 0)
+
+DATA_OFF	equ	DATA_STATE+0	; offset of the next character to scan
+DATA_SEG	equ	DATA_STATE+2	; its text block (0 to start over)
+DATA_END	equ	DATA_STATE+4	; end of its line (0 if at a line)
+DATA_ITEM	equ	DATA_STATE+6	; non-zero if in a DATA statement
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -473,7 +480,13 @@ ENDPROC	playChar
 ;	AX, CX, DX, SI, DI
 ;
 DEFPROC	playNum
-	push	bx
+	jcxz	pn0
+	cmp	byte ptr [si],'='	; variable (eg, "O=J;")?
+	jne	pn0			; no
+	inc	si
+	dec	cx
+	jmp	getStrVar		; yes (and it clears carry)
+pn0:	push	bx
 	sub	bx,bx			; BX = value
 	sub	di,di			; DI = # digits
 pn1:	jcxz	pn8
@@ -765,6 +778,430 @@ DEFPROC	sleepMs
 sm9:	ret
 ENDPROC	sleepMs
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; readData
+;
+; Used by "READ var[,var]...", which calls us for each var, to get the next
+; DATA item as a string.  Rather than collecting DATA items when the program
+; is generated, we scan the program's text for them as needed, keeping track
+; of where we are in DATA_STATE (see genCode, runCode, and freeCache, which
+; reset it).  A quoted item may contain commas and colons (but not quotes),
+; and an unquoted item ends at a comma, colon, or the end of the line, with
+; leading and trailing whitespace removed.
+;
+; Inputs:
+;	32-bit return value
+;
+; Outputs:
+;	32-bit return value updated (the item's string value)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	readData,FAR
+	RETVAR	retItem,dword
+	ENTER
+	push	ds
+	mov	di,ss:[PSP_HEAP]
+	mov	si,ss:[di].DATA_OFF
+	mov	dx,ss:[di].DATA_END
+	mov	cx,ss:[di].DATA_SEG
+	jcxz	rdt0			; start at the first line
+	mov	ds,cx
+	test	dx,dx			; at the start of a line?
+	jz	rdt1			; yes
+	cmp	byte ptr ss:[di].DATA_ITEM,0
+	je	rdt3			; look for another DATA statement
+	jmp	rdt6			; get the next DATA item
+
+rdtX:	mov	al,4			; "Out of DATA"
+	jmp	rtError
+
+rdt0:	mov	cx,ss:[di].TBLKDEF.BLK_NEXT
+	jcxz	rdtX			; there's no program text
+	mov	ds,cx
+	mov	si,size TBLK
+rdt1:	cmp	si,ds:[BLK_FREE]	; any more lines in this block?
+	jb	rdt2			; yes
+	mov	cx,ds:[BLK_NEXT]	; no, so go to the next block
+	jcxz	rdtX			; there are no more
+	mov	ds,cx
+	mov	si,size TBLK
+	jmp	rdt1
+rdt2:	lodsw				; skip the line's label #
+	lodsb
+	mov	ah,0
+	mov	dx,si
+	add	dx,ax			; DX = end of the line
+;
+; Check the statement at DS:SI for DATA (or REM, which ends the line).
+;
+rdt3:	call	dataSkip		; skip whitespace
+	mov	cx,dx
+	sub	cx,si			; CX = # chars left on the line
+	jbe	rdtN			; none
+	cmp	byte ptr [si],"'"	; remark?
+	je	rdtN			; yes
+	mov	ax,[si]
+	and	ax,0DFDFh		; (upper-case letters)
+	cmp	cx,3
+	jb	rdt4
+	cmp	ax,'ER'			; "RE"?
+	jne	rdt3a
+	mov	al,[si+2]
+	and	al,0DFh
+	cmp	al,'M'			; "REM"?
+	je	rdtN			; yes, so skip the line
+rdt3a:	cmp	cx,4
+	jb	rdt4
+	cmp	ax,'AD'			; "DA"?
+	jne	rdt4
+	mov	ax,[si+2]
+	and	ax,0DFDFh
+	cmp	ax,'AT'			; "DATA"?
+	jne	rdt4
+	cmp	cx,4			; anything after it?
+	je	rdt3b			; no
+	mov	al,[si+4]
+	and	al,0DFh
+	sub	al,'A'
+	cmp	al,26			; another letter (eg, "DATAX")?
+	jb	rdt4			; yes
+rdt3b:	add	si,4			; DS:SI -> 1st DATA item
+	jmp	short rdt6
+;
+; Skip the statement (ie, up to a colon outside of quotes, or a remark).
+;
+rdt4:	cmp	si,dx
+	jae	rdtN
+	lodsb
+	cmp	al,'"'
+	je	rdt5
+	cmp	al,"'"
+	je	rdtN
+	cmp	al,':'
+	je	rdt3
+	jmp	rdt4
+rdt5:	cmp	si,dx
+	jae	rdtN
+	lodsb
+	cmp	al,'"'
+	jne	rdt5
+	jmp	rdt4
+rdtN:	mov	si,dx			; go to the next line
+	jmp	rdt1
+;
+; Get the DATA item at DS:SI (from CX to BX).
+;
+rdt6:	call	dataSkip		; skip whitespace
+	mov	cx,si			; CX -> start of item
+	mov	bx,si			; BX -> end of item
+	cmp	si,dx
+	jae	rdt9			; the item is empty
+	cmp	byte ptr [si],'"'	; quoted item?
+	jne	rdt7			; no
+	inc	si
+	mov	cx,si
+rdt6a:	cmp	si,dx
+	jae	rdt6b
+	lodsb
+	cmp	al,'"'
+	jne	rdt6a
+	dec	si			; SI -> closing quote
+rdt6b:	mov	bx,si
+	jmp	short rdt9
+
+rdt7:	cmp	si,dx
+	jae	rdt8
+	mov	al,[si]
+	cmp	al,','
+	je	rdt8
+	cmp	al,':'
+	je	rdt8
+	inc	si
+	jmp	rdt7
+rdt8:	mov	bx,si			; remove trailing whitespace
+rdt8a:	cmp	bx,cx
+	jbe	rdt9
+	mov	al,[bx-1]
+	cmp	al,' '
+	je	rdt8b
+	cmp	al,CHR_TAB
+	jne	rdt9
+rdt8b:	dec	bx
+	jmp	rdt8a
+;
+; Find the delimiter that follows the item: a comma means there are more
+; items, whereas a colon (or the end of the line) ends the DATA statement.
+;
+rdt9:	mov	ah,1			; AH = 1 (more items)
+rdt9a:	cmp	si,dx
+	jae	rdt9b
+	lodsb
+	cmp	al,','
+	je	rdt9c
+	cmp	al,':'
+	jne	rdt9a
+rdt9b:	mov	ah,0			; AH = 0 (no more items)
+rdt9c:	mov	di,ss:[PSP_HEAP]
+	mov	ss:[di].DATA_OFF,si
+	mov	ss:[di].DATA_SEG,ds
+	mov	ss:[di].DATA_END,dx
+	mov	byte ptr ss:[di].DATA_ITEM,ah
+	mov	si,cx
+	mov	cx,bx
+	sub	cx,si			; CX = length of item
+	sub	ax,ax
+	cwd				; DX:AX = empty string
+	jcxz	rdt10
+	call	allocStr		; ES:DI -> new string
+	mov	ax,di
+	mov	dx,es			; DX:AX = string value
+	inc	di
+	rep	movsb			; copy the item to it
+rdt10:	mov	[retItem].OFF,ax
+	mov	[retItem].SEG,dx
+	pop	ds
+	LEAVE
+	RETURN
+ENDPROC	readData
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dataSkip
+;
+; Inputs:
+;	DS:SI -> text
+;	DX = end of text
+;
+; Outputs:
+;	DS:SI -> first character that isn't a space or tab (or DX)
+;
+; Modifies:
+;	AL, SI
+;
+DEFPROC	dataSkip
+dsk1:	cmp	si,dx
+	jae	dsk9
+	mov	al,[si]
+	cmp	al,' '
+	je	dsk2
+	cmp	al,CHR_TAB
+	jne	dsk9
+dsk2:	inc	si
+	jmp	dsk1
+dsk9:	ret
+ENDPROC	dataSkip
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; restoreData
+;
+; Used by "RESTORE [line]": with no line # (zero), the next READ starts over
+; with the first DATA item; otherwise, it starts with the first DATA item at
+; or after the specified line (which must exist).
+;
+; Inputs:
+;	32-bit line # (popped)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, CX, DX, SI, DI
+;
+DEFPROC	restoreData,FAR
+	ARGVAR	dataLine,dword
+	ENTER
+	push	ds
+	mov	di,ss:[PSP_HEAP]
+	sub	ax,ax
+	mov	ss:[di].DATA_SEG,ax	; start over
+	mov	dx,[dataLine].LOW
+	test	dx,dx			; line # specified?
+	jz	rst9			; no
+	mov	cx,ss:[di].TBLKDEF.BLK_NEXT
+rst1:	jcxz	rst8			; no more blocks
+	mov	ds,cx
+	mov	si,size TBLK
+rst2:	cmp	si,ds:[BLK_FREE]	; any more lines in this block?
+	jae	rst3			; no
+	cmp	[si],dx			; is this the line?
+	je	rst4			; yes
+	mov	al,[si+2]
+	mov	ah,0
+	add	si,ax
+	add	si,3			; skip the label #, length, and text
+	jmp	rst2
+rst3:	mov	cx,ds:[BLK_NEXT]
+	jmp	rst1
+rst4:	mov	ss:[di].DATA_OFF,si
+	mov	ss:[di].DATA_SEG,ds
+	mov	word ptr ss:[di].DATA_END,0
+rst9:	pop	ds
+	LEAVE
+	RETURN
+rst8:	mov	al,8			; "Undefined line number"
+	jmp	rtError
+ENDPROC	restoreData
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; strToLong
+;
+; Converts a string value to a long, for READ when there's no FPU$ driver
+; (and therefore no doubles, which VAL requires).
+;
+; Inputs:
+;	32-bit return value
+;	string value (popped)
+;
+; Outputs:
+;	32-bit return value updated
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	strToLong,FAR
+	RETVAR	retLong,dword
+	ARGVAR	pLongStr,dword
+	ENTER
+	push	ds
+	sub	ax,ax
+	cwd				; DX:AX = 0
+	lds	si,[pLongStr]
+	test	si,si			; empty string?
+	jz	stl9			; yes
+	lodsb
+	mov	cl,al
+	mov	ch,0			; DS:SI -> string, CX = length
+	mov	bl,10
+	DOSUTIL	ATOI32			; DX:AX = value
+	les	di,[pLongStr]
+	call	releaseStr
+stl9:	mov	[retLong].LOW,ax
+	mov	[retLong].HIW,dx
+	pop	ds
+	LEAVE
+	RETURN
+ENDPROC	strToLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getStrVar
+;
+; Used for "=variable;" in PLAY and DRAW strings (eg, PLAY "O=J;"), which
+; uses the value of the named numeric variable.  The name ends at a semicolon
+; (or the end of the string), and the variable's type comes from its suffix,
+; if any (eg, "J%"), or else from the default type of its first letter (eg,
+; DEFINT I-N).  A double is rounded to a long, and as in MSBASIC, a variable
+; that doesn't exist yet has a value of zero.
+;
+; Inputs:
+;	DS:SI -> name (CX = # characters left in the string)
+;
+; Outputs:
+;	AX = value (carry clear), DS:SI and CX advanced past the name and ';'
+;	(an "Illegal function call" error occurs if the name is invalid)
+;
+; Modifies:
+;	AX, CX, DX, SI, DI
+;
+DEFPROC	getStrVar
+	push	bx
+	push	es
+	push	bp
+	mov	bp,sp
+	sub	sp,VAR_NAMELEN+1	; (room for the name)
+	mov	di,sp
+	push	ss
+	pop	es			; ES:DI -> name buffer
+	sub	bx,bx			; BX = length of name
+gsv1:	jcxz	gsv2
+	lodsb
+	dec	cx
+	cmp	al,';'			; end of name?
+	je	gsv2			; yes
+	cmp	al,'a'
+	jb	gsv1a
+	cmp	al,'z'
+	ja	gsv1a
+	sub	al,20h			; (upper-case it)
+gsv1a:	cmp	bl,VAR_NAMELEN		; room for another character?
+	jae	gsvX			; no
+	stosb
+	inc	bx
+	jmp	gsv1
+gsv2:	test	bx,bx			; any name?
+	jz	gsvX			; no
+	mov	ah,VAR_LONG
+	mov	al,es:[di-1]		; AL = last character of name
+	cmp	al,'%'
+	je	gsv3
+	mov	ah,VAR_DOUBLE
+	cmp	al,'!'
+	je	gsv3
+	cmp	al,'#'
+	je	gsv3
+	mov	al,es:[bp-(VAR_NAMELEN+1)]
+	sub	al,'A'			; AL = index of 1st letter
+	cmp	al,26
+	jae	gsvX
+	cbw
+	mov	di,ss:[PSP_HEAP]
+	add	di,ax
+	mov	ah,ss:[di].DEFVARS	; AH = default type for that letter
+	test	ah,ah			; set?
+	jnz	gsv4			; yes
+	mov	ah,VAR_LONG		; no, so it's VAR_LONG without an FPU$
+	cmp	word ptr cs:[FPU_TABLE].SEG,0
+	je	gsv4			; driver, and VAR_DOUBLE otherwise
+	mov	ah,VAR_DOUBLE
+	jmp	short gsv4
+gsvX:	jmp	strIllegal
+gsv3:	dec	bx			; (the suffix isn't part of the name)
+gsv4:	push	cx
+	push	si
+	push	ds
+	push	ss
+	pop	ds			; (findVar requires DS = heap)
+	lea	si,[bp-(VAR_NAMELEN+1)]
+	mov	cx,bx			; DS:SI -> name, CX = length
+	call	findVar			; DX:SI -> var data
+	jnc	gsv4a
+	sub	ax,ax			; no such var, so its value is zero
+	jmp	short gsv8
+gsv4a:	mov	es,dx
+	cmp	ah,VAR_LONG
+	jne	gsv5
+	mov	ax,es:[si]		; AX = value
+	jmp	short gsv8
+gsv5:	cmp	ah,VAR_DOUBLE
+	jne	gsvX
+	lds	di,cs:[FPU_TABLE]	; DS:DI -> FPUTBL
+	mov	ax,ds
+	test	ax,ax
+	jz	gsvX
+	push	ax
+	push	[di].FPU_CVT1DL		; push the conversion function address
+	mov	di,sp
+	push	es
+	push	si			; push a pointer to the double
+	call	dword ptr ss:[di]	; and replace it with a long
+	pop	ax			; AX = value
+	add	sp,6			; (discard the high word, address)
+gsv8:	pop	ds
+	pop	si
+	pop	cx
+	mov	sp,bp
+	pop	bp
+	pop	es
+	pop	bx
+	clc
+	ret
+ENDPROC	getStrVar
 
 CODE	ENDS
 

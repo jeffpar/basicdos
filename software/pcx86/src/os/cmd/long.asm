@@ -996,6 +996,12 @@ ENDPROC	getRndLong
 ;
 ; nextRnd
 ;
+; Uses Marsaglia's 32-bit "xorshift" generator (x ^= x << 13; x ^= x >> 17;
+; x ^= x << 5), whose bits are all equally random, and which needs no MULs.
+; The state can't be zero, so a zero state (eg, initially) is replaced with
+; a fixed seed; every program gets the same sequence of numbers (as in
+; MSBASIC) unless it re-seeds the generator with a negative arg.
+;
 ; Inputs:
 ;	DX:AX = arg (see getRndLong)
 ;
@@ -1011,19 +1017,37 @@ DEFPROC	nextRnd
 	mov	bx,ss:[PSP_HEAP]
 	mov	cx,ss:[bx].RND_SEED.HIW
 	mov	bx,ss:[bx].RND_SEED.LOW
-	jz	rnd9
+	jz	rnd9			; zero arg: return the last number
 	jge	rnd1
-	mov	bx,ax			; set CX:BX to new seed (from DX:AX)
+	mov	bx,ax			; negative arg: use it as the seed
 	mov	cx,dx
-rnd1:	mov	ax,25173
-	mul	cx
-	add	ax,13849
-	xchg	cx,ax			; CX = new high word
-	mov	ax,25173
-	mul	bx
-	add	ax,13849		; AX = new low word
-	and	cx,dx			; turn off some high bits
-	xor	ax,dx			; and toggle some low bits
+rnd1:	mov	ax,cx
+	or	ax,bx			; is the state zero?
+	jnz	rnd2			; no
+	mov	cx,9268h		; yes, so use a fixed seed
+	mov	bx,0E8A2h
+rnd2:	mov	dx,bx
+	sub	ax,ax			; DX:AX = state << 16
+	shr	dx,1
+	rcr	ax,1
+	shr	dx,1
+	rcr	ax,1
+	shr	dx,1
+	rcr	ax,1			; DX:AX = state << 13
+	xor	cx,dx
+	xor	bx,ax
+	mov	ax,cx
+	shr	ax,1			; AX = state >> 17
+	xor	bx,ax
+	mov	dx,cx
+	mov	ax,bx
+	REPT	5
+	shl	ax,1
+	rcl	dx,1
+	ENDM				; DX:AX = state << 5
+	xor	cx,dx
+	xor	bx,ax
+	mov	ax,bx
 	mov	bx,ss:[PSP_HEAP]
 	mov	ss:[bx].RND_SEED.HIW,cx
 	mov	ss:[bx].RND_SEED.LOW,ax

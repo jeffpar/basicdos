@@ -43,6 +43,12 @@ DOS	segment word public 'CODE'
 	DEFBYTE	sfh_debug,-1		; system file handle for DEBUG device
 	DEFBYTE	def_switchar,'/'
 ;
+; Vectors 08h, 09h, 1Bh, and 1Ch as they were at the end of sysinit, so that
+; psp_restvec can restore any that a terminated program left hooked.
+;
+	DEFWORD	ivt_save,0
+	dw	7 dup (0)
+;
 ; Constants
 ;
 	DEFSTR	FILENAME_CHARS,"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%&'()-@^_`{}~"

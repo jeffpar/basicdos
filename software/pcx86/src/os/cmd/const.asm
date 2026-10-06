@@ -289,6 +289,7 @@ CODE	ENDS
 	DEFTOK	COLOR,  41, genColor
 	DEFTOK	COPY,   20, cmdCopy
 	DEFTOK	COS,   103
+	DEFTOK	DATA,   83, genData
 	DEFTOK	DATE,   10, cmdDate
 	DEFTOK	DEF,    42, genDef
 	DEFTOK	DEFDBL, 43, genDefDbl
@@ -337,8 +338,10 @@ CODE	ENDS
 	DEFTOK	PRINT,  51, genPrint
 	DEFTOK	PSET,   79, genPset,PUB
 	DEFTOK	PUT,    80, genPut
+	DEFTOK	READ,   84, genRead
 	DEFTOK	REM,    52
 	DEFTOK	RESTART, 7, cmdRestart
+	DEFTOK	RESTORE,85, genRestore
 	DEFTOK	RESUME, 73, genResume
 	DEFTOK	RETURN, 53, genReturn
 	DEFTOK	RUN,     8, cmdRun

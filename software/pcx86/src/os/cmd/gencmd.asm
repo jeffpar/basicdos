@@ -23,8 +23,9 @@
 ; The other gen*.asm files include:
 ;
 ;	gencon.asm			console I/O (CLS, COLOR, ECHO, PRINT)
-;	gendef.asm			definitions (DEF, DIM, ERASE, OPTION
-;					BASE) and array element references
+;	gendef.asm			definitions (DATA, DEF, DIM, ERASE,
+;					OPTION BASE, READ, RESTORE) and array
+;					element references
 ;	genflo.asm			control (END, FOR/NEXT, GOSUB, GOTO,
 ;					IF/THEN/ELSE, ON, RETURN, WHILE/WEND)
 ;	genfpu.asm			floating-point support
@@ -102,6 +103,7 @@ gc1:	mov	[bx].GEN_FLAGS,al
 	jnz	gc1a			; yes
 	jmp	gc9			; no (TODO: display a message?)
 gc1a:	mov	si,size TBLK
+	mov	[bx].DATA_STATE[2],cx	; start READ at the first DATA item
 gc2:	mov	[bx].LINE_PTR.OFF,si
 	mov	[bx].LINE_PTR.SEG,dx
 	mov	[bx].LINE_LEN,cx	; CX = previous length (0)
@@ -120,8 +122,11 @@ gc2:	mov	[bx].LINE_PTR.OFF,si
 	stosw				; to reset the stack and return
 	jmp	short gc4
 
-gc4x:	mov	al,0
+gc4x:
+	IFDEF	DEBUG
+	mov	al,0
 	call	genSpin			; erase the spinner
+	ENDIF
 	call	memError		; no room for code, so skip execution
 	jmp	gc7
 
@@ -134,6 +139,7 @@ gc4:	mov	ax,CODE_ROOM
 	call	getNextLine
 	cmc
 	jnc	gc6
+	IFDEF	DEBUG
 	mov	ax,ss:[PSP_HEAP]
 	xchg	ax,bx
 	mov	bx,ss:[bx].LINE_NUM
@@ -141,16 +147,19 @@ gc4:	mov	ax,CODE_ROOM
 	mov	bl,cs:SPIN_CHARS[bx]	; BL = next spinner char
 	xchg	ax,bx
 	call	genSpin			; display the spinner
+	ENDIF
 	call	genCommands		; generate code
 	jnc	gc4
 
 gc6:	push	ss
 	pop	ds
 	ASSUME	DS:DATA
+	IFDEF	DEBUG
 	pushf
 	mov	al,0
 	call	genSpin			; erase the spinner
 	popf
+	ENDIF
 	jc	gc7
 	call	checkCtl		; any FOR without NEXT (etc)?
 	jc	gc7			; yes
@@ -212,12 +221,13 @@ gc9:	mov	bx,ss:[PSP_HEAP]
 	ret
 ENDPROC	genCode
 
+	IFDEF	DEBUG
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; genSpin
 ;
 ; Displays the progress "spinner" char in AL on STDERR while a BAS or BAT file
-; is being compiled.  BASIC-DOS backspaces are destructive, so after the first
+; is being compiled (in DEBUG builds only).  BASIC-DOS backspaces are destructive, so after the first
 ; line, each char is preceded by a backspace (to erase the previous char), and
 ; when AL is zero, only a backspace is displayed (to erase the spinner).
 ;
@@ -264,6 +274,7 @@ gs9:	pop	ds
 ENDPROC	genSpin
 
 SPIN_CHARS	db	"-\|/"			; (the first line uses '\')
+	ENDIF	; DEBUG
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

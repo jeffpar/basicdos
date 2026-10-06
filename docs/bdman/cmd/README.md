@@ -28,32 +28,33 @@ In the descriptions that follow, *italics* indicate values that you supply, brac
 | [CLS](device/screen/#cls) | Screen | [LOCATE](device/screen/#locate) | Screen |
 | [COLOR](device/screen/#color) | Screen | [MEM](system/#mem) | System |
 | [COPY](disk/#copy) | Disk | [NEW](system/#new) | System |
-| [DATE](device/clock/#date) | Clock | [NEXT](basic/#for) | BASIC |
-| [DEF](basic/def/) | BASIC | [ON](basic/#on) | BASIC |
-| [DEF SEG](basic/#def-seg) | BASIC | [OPTION BASE](basic/#option-base) | BASIC |
-| [DEFDBL](basic/#defdbl) | BASIC | [PAINT](device/graphics/#paint) | Graphics |
-| [DEFINT](basic/#defint) | BASIC | [PLAY](device/sound/#play) | Sound |
-| [DEFSNG](basic/#defsng) | BASIC | [POKE](basic/#poke) | BASIC |
-| [DEFSTR](basic/#defstr) | BASIC | [PRESET](device/graphics/#preset) | Graphics |
-| [DEL](disk/#del) | Disk | [PRINT](device/screen/#print) | Screen |
-| [DELETE](system/#delete) | System | [PSET](device/graphics/#pset) | Graphics |
-| [DIM](basic/#dim) | BASIC | [PUT](device/graphics/#put) | Graphics |
+| [DATA](basic/#data) | BASIC | [NEXT](basic/#for) | BASIC |
+| [DATE](device/clock/#date) | Clock | [ON](basic/#on) | BASIC |
+| [DEF](basic/def/) | BASIC | [OPTION BASE](basic/#option-base) | BASIC |
+| [DEF SEG](basic/#def-seg) | BASIC | [PAINT](device/graphics/#paint) | Graphics |
+| [DEFDBL](basic/#defdbl) | BASIC | [PLAY](device/sound/#play) | Sound |
+| [DEFINT](basic/#defint) | BASIC | [POKE](basic/#poke) | BASIC |
+| [DEFSNG](basic/#defsng) | BASIC | [PRESET](device/graphics/#preset) | Graphics |
+| [DEFSTR](basic/#defstr) | BASIC | [PRINT](device/screen/#print) | Screen |
+| [DEL](disk/#del) | Disk | [PSET](device/graphics/#pset) | Graphics |
+| [DELETE](system/#delete) | System | [PUT](device/graphics/#put) | Graphics |
+| [DIM](basic/#dim) | BASIC | [READ](basic/#read) | BASIC |
 | [DIR](disk/#dir) | Disk | [REM](basic/#rem) | BASIC |
 | [DRAW](device/graphics/#draw) | Graphics | [RESTART](system/#restart) | System |
-| [ECHO](device/screen/#echo) | Screen | [RESUME](basic/#resume) | BASIC |
-| [EDIT](system/#edit) | System | [RETURN](basic/return/) | BASIC |
-| [END](basic/#end) | BASIC | [RUN](system/#run) | System |
-| [ERASE](basic/#erase) | BASIC | [SAVE](disk/#save) | Disk |
-| [ERROR](basic/#error) | BASIC | [SCREEN](device/screen/#screen) | Screen |
-| [EXIT](system/#exit) | System | [SOUND](device/sound/#sound) | Sound |
-| [FOR](basic/#for) | BASIC | [STOP](basic/#end) | BASIC |
-| [GET](device/graphics/#get) | Graphics | [TIME](device/clock/#time) | Clock |
-| [GOSUB](basic/#gosub) | BASIC | [TYPE](disk/#type) | Disk |
-| [GOTO](basic/goto/) | BASIC | [VER](system/#ver) | System |
-| [HELP](system/#help) | System | [WEND](basic/#while) | BASIC |
-| [IF](basic/if/) | BASIC | [WHILE](basic/#while) | BASIC |
-| [KEY](device/keyboard/#key) | Keyboard | [WIDTH](device/screen/#width) | Screen |
-| [KEYS](system/#keys) | System |  |  |
+| [ECHO](device/screen/#echo) | Screen | [RESTORE](basic/#restore) | BASIC |
+| [EDIT](system/#edit) | System | [RESUME](basic/#resume) | BASIC |
+| [END](basic/#end) | BASIC | [RETURN](basic/return/) | BASIC |
+| [ERASE](basic/#erase) | BASIC | [RUN](system/#run) | System |
+| [ERROR](basic/#error) | BASIC | [SAVE](disk/#save) | Disk |
+| [EXIT](system/#exit) | System | [SCREEN](device/screen/#screen) | Screen |
+| [FOR](basic/#for) | BASIC | [SOUND](device/sound/#sound) | Sound |
+| [GET](device/graphics/#get) | Graphics | [STOP](basic/#end) | BASIC |
+| [GOSUB](basic/#gosub) | BASIC | [TIME](device/clock/#time) | Clock |
+| [GOTO](basic/goto/) | BASIC | [TYPE](disk/#type) | Disk |
+| [HELP](system/#help) | System | [VER](system/#ver) | System |
+| [IF](basic/if/) | BASIC | [WEND](basic/#while) | BASIC |
+| [KEY](device/keyboard/#key) | Keyboard | [WHILE](basic/#while) | BASIC |
+| [KEYS](system/#keys) | System | [WIDTH](device/screen/#width) | Screen |
 
 See [BASIC Functions](basic/func/) for the list of functions and predefined constants.
 
@@ -62,6 +63,6 @@ See [BASIC Functions](basic/func/) for the list of functions and predefined cons
 The following commands and statements from PC DOS and IBM PC BASIC aren't supported yet:
 
 - PC DOS commands: CHKDSK, DISKCOPY, FORMAT, PAUSE, REN, SYS, and directory commands (CHDIR, MKDIR, RMDIR)
-- BASIC statements: DATA, INPUT, LINE INPUT, READ, RESTORE, the MID$ statement, and file I/O statements (eg, OPEN, CLOSE, PRINT #, and INPUT #)
+- BASIC statements: INPUT, LINE INPUT, the MID$ statement, and file I/O statements (eg, OPEN, CLOSE, PRINT #, and INPUT #)
 
 {% include footer.html prev="Contents:../" next="BASIC Commands:basic/" %}
