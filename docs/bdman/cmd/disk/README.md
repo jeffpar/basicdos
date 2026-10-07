@@ -8,18 +8,39 @@ permalink: /docs/bdman/cmd/disk/
 
 BASIC-DOS disk commands include:
 
+- [CD](#cd) (or CHDIR)
 - [COPY](#copy)
 - [DEL](#del) (or ERASE)
 - [DIR](#dir)
 - [LOAD](#load)
+- [MD](#md) (or MKDIR)
+- [RD](#rd) (or RMDIR)
 - [SAVE](#save)
 - [TYPE](#type)
 
-File names follow PC DOS conventions: an optional drive letter and colon (eg, `B:`), a name of up to 8 characters, and an optional period followed by an extension of up to 3 characters (eg, `B:PRIMES.BAS`).  Drives A: and B: are diskette drives, and drives C: and D: are the first FAT12 partitions of up to two hard disks.  Subdirectories aren't supported yet.
+File names follow PC DOS conventions: an optional drive letter and colon (eg, `B:`), a name of up to 8 characters, and an optional period followed by an extension of up to 3 characters (eg, `B:PRIMES.BAS`).  Drives A: and B: are diskette drives, and drives C: and D: are the first FAT12 partitions of up to two hard disks.
+
+A file name can also be preceded by a path of directory names, each followed by the path character (`/` by default; see [PATHCHAR](../../cfg/#pathchar)).  A path that begins with the path character starts at the root directory (eg, `TYPE /SUBDIR/INSIDE.TXT`); otherwise, it starts at the drive's current directory (see [CD](#cd)), which the prompt displays (eg, `C:/SUBDIR>`).  A directory name of `.` refers to the same directory, and `..` refers to the parent directory (eg, `TYPE ../HELLO.TXT`).  Each session has its own current directory for every drive.
+
+Paths can be used at the prompt, but not yet in BAT or BAS files, where the path character is read as a BASIC operator (eg, `/` is division).
 
 Device names (eg, CON, PRN, AUX, COM1, LPT1, and NUL) can be used in place of file names (eg, `COPY TEST.TXT NUL` or `DIR > NUL`).
 
 The REN (RENAME) command isn't supported yet.
+
+### CD
+
+> CD [*drive*:][*path*]  
+> CHDIR [*drive*:][*path*]
+
+Changes the current directory of *drive* (or the current drive) to *path*.  If no *path* is specified, the drive's current directory is displayed.
+
+	C:/>CD SUBDIR
+	C:/SUBDIR>CD
+	C:/SUBDIR
+
+	C:/SUBDIR>CD ..
+	C:/>
 
 ### COPY
 
@@ -38,9 +59,9 @@ Deletes the specified file.  Wildcards aren't supported yet.  ERASE is the same 
 
 ### DIR
 
-> DIR [*filespec*] [/P]
+> DIR [*filespec*] [-P]
 
-Displays a directory listing of all files matching the given *filespec* (or all files if none is specified).  The *filespec* can contain the wildcards `?` (any character) and `*` (any characters to the end of the name or extension).  /P pauses after each screenful of output.
+Displays a directory listing of all files matching the given *filespec* (or all files if none is specified).  The *filespec* can contain the wildcards `?` (any character) and `*` (any characters to the end of the name or extension).  Subdirectories are listed with `<DIR>` in place of a size, and if *filespec* is a directory (eg, `DIR SUBDIR` or `DIR /`), the files in that directory are listed.  -P pauses after each screenful of output.
 
 	DIR *.BAS
 
@@ -49,6 +70,24 @@ Displays a directory listing of all files matching the given *filespec* (or all 
 > LOAD *file*
 
 Loads the specified BAS or BAT file without running it, so that it can be [LIST](../system/#list)ed or [RUN](../system/#run).  If no extension is specified, BAS is tried first, and then BAT.  The file can be a text file or a tokenized BAS file saved by BASICA or GW-BASIC (but not a protected one).  LOAD can't be used inside a BAS or BAT file yet (it reports "Not allowed in a program"); to run another program from a BAS or BAT file, just use its name.
+
+### MD
+
+> MD [*drive*:]*path*  
+> MKDIR [*drive*:]*path*
+
+Creates a new directory, which initially contains only the `.` and `..` entries.  A directory grows as needed when files are added to it (unlike the root directory, which has a fixed size).
+
+	MD GAMES
+
+### RD
+
+> RD [*drive*:]*path*  
+> RMDIR [*drive*:]*path*
+
+Removes a directory, which must be empty (except for its `.` and `..` entries) and can't be the current directory of any session.
+
+	RD GAMES
 
 ### SAVE
 

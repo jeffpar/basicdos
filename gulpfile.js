@@ -76,38 +76,88 @@ let minFiles = [
 ];
 
 let disks = {
-    "BASIC-DOS": [
+    "BASICDOS": [
         "./demos/s80/CONFIG.SYS",
         "./demos/s80/AUTOEXEC.BAT"
     ].concat(minFiles),
-    "BASIC-DOS1": [
+    "BASICDOS-DISK1": [
         "./demos/s80/CONFIG.SYS",
         "./demos/d40/AUTOEXEC.BAT"
     ].concat(demoFiles),
-    "BASIC-DOS2": [
+    "BASICDOS-DISK2": [
         "./demos/d40/CONFIG.SYS",
         "./demos/d40/AUTOEXEC.BAT"
     ].concat(demoFiles),
-    "BASIC-DOS3": [
+    "BASICDOS-DISK3": [
         "./demos/d80/CONFIG.SYS",
         "./demos/d40/AUTOEXEC.BAT",
     ].concat(demoFiles),
-    "BASIC-DOS4": [
+    "BASICDOS-DISK4": [
         "./demos/dual/CONFIG.SYS",
         "./demos/d40/AUTOEXEC.BAT",
     ].concat(demoFiles),
-    "BASIC-DOS5": [
+    "BASICDOS-DISK5": [
         "./demos/dual/multi/CONFIG.SYS",
         "./demos/d40/AUTOEXEC.BAT",
     ].concat(demoFiles),
-    "BASIC-DOS6": [
+    "BASICDOS-DISK6": [
         "./demos/s80/CONFIG.SYS",
         "./demos/d40/AUTOEXEC.BAT",
         "./demos/basic/*.BAS",          // DONKEY.BAS and the other PC DOS 1.00 BASIC samples
         "./software/pcx86/src/tests/misc/BENCH.BAS"
     ].concat(minFiles),
+    /*
+     * A hard disk image (a demo with no diskettes) is described by an object instead: "root" lists the
+     * files for the root directory, and every other property lists the files for a subdirectory.  pc.js
+     * builds it (with --sys=bd:2, so it's bootable, and the BASIC-DOS system files are added to the root).
+     */
+    "BASICDOS-HD": {
+        "root": [
+            "./demos/hd/CONFIG.SYS",
+            "./demos/d40/AUTOEXEC.BAT",
+            "./software/pcx86/src/tests/misc/SYMDEB.EXE",
+            "./software/pcx86/src/msb/obj/*.EXE"
+        ],
+        "BASIC": [
+            "./demos/basic/*.BAS",
+            "./software/pcx86/src/tests/misc/BENCH.BAS",
+            "./software/pcx86/src/tests/primes/PRIMES.BAS"
+        ]
+    },
     "PCDOS200-C400": "./software/pcx86/disks/PCDOS200-C400.json"
 };
+
+/**
+ * buildHD(diskName, diskImage)
+ *
+ * Returns a gulp task function that copies the files for a hard disk image (see "BASICDOS-HD" above) to a
+ * staging directory (tools/pc/disks/diskName) and then uses pc.js to build a bootable BASIC-DOS hard disk
+ * image from that directory.
+ *
+ * @param {string} diskName
+ * @param {string} diskImage
+ * @returns {function(function(Error=))}
+ */
+function buildHD(diskName, diskImage)
+{
+    return function(done) {
+        let dirStage = "./tools/pc/disks/" + diskName;
+        fs.rmSync(dirStage, { recursive: true, force: true });
+        let dirs = disks[diskName];
+        for (let dirName in dirs) {
+            let dirTarget = dirName == "root"? dirStage : path.join(dirStage, dirName);
+            fs.mkdirSync(dirTarget, { recursive: true });
+            for (let fileSpec of dirs[dirName]) {
+                let files = fileSpec.indexOf('*') >= 0? globSync(fileSpec) : [fileSpec];
+                for (let file of files) {
+                    fs.copyFileSync(file, path.join(dirTarget, path.basename(file)));
+                }
+            }
+        }
+        let cmd = "node ./tools/pc/pc.js ibm5160 " + dirStage + " --sys=bd:2 --target=10M --normalize --bare --label=BASICDOS --save=" + diskImage;
+        run(cmd)(done);
+    };
+}
 
 let buildTasks = [], demoTasks = [];
 for (let diskName in disks) {
@@ -116,6 +166,12 @@ for (let diskName in disks) {
     let archiveImage = "";
     let diskFiles = "";
     let kbTarget = 360;                 // all diskettes are 360K (180K is too small now)
+    if (!Array.isArray(disks[diskName]) && typeof disks[diskName] == "object") {
+        gulp.task(buildTask, checkOutput(buildHD(diskName, diskImage), diskImage));
+        buildTasks.push(buildTask);
+        demoTasks.push(buildTask);
+        continue;
+    }
     if (typeof disks[diskName] == "string") {
         kbTarget = 10000;
         diskFiles = "--disk " + disks[diskName];
@@ -148,7 +204,7 @@ for (let diskName in disks) {
     cmd = cmd.replace(/\$\{([^}]+)\}/g, (_,n) => process.env[n]);
     gulp.task(buildTask, checkOutput(run(cmd), diskImage));
     buildTasks.push(buildTask);
-    if (diskName.startsWith("BASIC-DOS")) demoTasks.push(buildTask);
+    if (diskName.startsWith("BASICDOS")) demoTasks.push(buildTask);
 }
 
 /*

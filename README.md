@@ -20,7 +20,8 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 
 - [x] Boot sector that loads the BASIC-DOS drivers, kernel, and interpreter
 - [x] Boot prompt when a hard disk is detected (press **Esc** to boot from it)
-- [x] CONFIG.SYS support for BOOTKEY, CONSOLE, DEBUG, FILES, MEMSIZE, SESSIONS, SHELL, SKIP, and SWITCHAR
+- [x] Booting BASIC-DOS from a hard disk partition (eg, a disk built with `pc.js --sys=bd:2`), which becomes the default drive
+- [x] CONFIG.SYS support for BOOTKEY, CONSOLE, DEBUG, FILES, MEMSIZE, PATHCHAR, SESSIONS, SHELL, SKIP, and SWITCHAR
 - [x] SKIP= lists built-in drivers (by their exact device names, separated by commas) that should not be loaded (eg, `SKIP=CON,FPU$`); a skipped driver is never initialized, and its memory is reclaimed
 - [ ] Installable device drivers (DEVICE=)
 - [ ] Critical ("hard") error handling (eg, "Abort, Retry, Ignore")
@@ -61,13 +62,15 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [ ] *partial*: FCB support (open, close, and reads only; no create, write, delete, or rename)
 - [ ] Truncating/extending a file with a zero-length write
 - [ ] Enforcing the read-only attribute on open, and getting/setting file attributes (function 43h) and date/time (function 57h)
-- [ ] Subdirectories (MKDIR, RMDIR, CHDIR, and paths); for now, subdirectory entries are ignored (they can't be opened, deleted, or overwritten)
+- [x] Subdirectories: paths (separated by PATHCHAR, which is `/` by default) in all file functions, MKDIR and RMDIR (functions 39h and 3Ah), subdirectories that grow as needed, and per-session current directories for every drive (CHDIR and GETCWD, functions 3Bh and 47h)
+- [ ] Renaming a file into a different directory
 - [ ] Absolute disk reads and writes (INT 25h and INT 26h)
 - [ ] FAT16, extended partitions, and a larger buffer cache (there are currently only two sector buffers: one for FAT sectors and one for directory sectors)
 
 ### Command Interpreter: DOS Commands
 
-- [x] COPY, DATE, DEL, DIR, EXIT, HELP, KEYS, MEM, RESTART, TIME, TYPE, and VER
+- [x] CD (CHDIR), COPY, DATE, DEL, DIR, EXIT, HELP, KEYS, MD (MKDIR), MEM, RD (RMDIR), RESTART, TIME, TYPE, and VER
+- [x] The prompt displays the current drive and directory (eg, `C:/SUBDIR>`), and switches use `-` by default (eg, `DIR -P`), since `/` is the default path character
 - [x] Running COM, EXE, BAT, and BAS files, and loading programs into other sessions
 - [x] BAT and BAS files can run other BAT and BAS files and then continue (no CALL command required); a nested BAS file gets its own variables
 - [x] Pipes (`|`) and output redirection (`>` creates or truncates the output file, `>>` appends to it), including redirection at the end of a pipeline (eg, `DIR | CASE > TEST`)
@@ -170,7 +173,7 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] ARRAYS: BASIC array tests (including leak tests)
 - [x] FLOW: BASIC control flow tests
 - [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUNCS, STRPOOL, ARRAYS, FLOW, CMDS, and PRINTF, and reports whether the tests passed)
-- [x] CMDS: command tests (pipes, redirection, TYPE, DEL, TIME /D, HELP, SOUND, remarks, and hex constants)
+- [x] CMDS: command tests (pipes, redirection, TYPE, DEL, TIME -D, HELP, SOUND, remarks, and hex constants)
 - [x] `tools/tests/chkdsk.sh` runs MS-DOS 3.20 CHKDSK on a diskette image saved by a test session (see `QUIT /S` in `pc.js`)
 - [ ] More tests (eg, BASIC language and CMD command tests)
 - [x] BENCH.BAS and MICRO.BAS benchmarks, which run unchanged in BASIC-DOS, BASICA, and GW-BASIC (see the [results](preview/part6/)); `tools/tests/bench.sh` runs BENCH.BAS in all six configurations (each with and without an 8087) and prints the results in seconds
@@ -236,11 +239,15 @@ The `boot.sh` script then builds and boots a 360K floppy (the largest floppy sup
 
 The `bootfpu.sh` script does the same thing, but on an `ibm5160-fpu` machine (which has an 8087 coprocessor), using the `configs/console/serial/fpu` folder; `boot.sh` uses a machine without an 8087, where BASIC-DOS must emulate floating-point operations.
 
-The `boothd.sh` script builds a BASIC-DOS boot diskette (from the `configs/console/bios` folder, so it uses the keyboard and screen) and boots it on an `ibm5160` machine whose 10Mb hard disk is built from a directory (`tools/pc/disks/hdsrc` by default, which is created with a few sample files if it doesn't exist), so that BASIC-DOS can be tested with drive C:.  Press a key (other than **Esc**) at the boot prompt to start BASIC-DOS:
+The `boothd.sh` script boots BASIC-DOS from a 10Mb hard disk that `pc.js` builds from the `tools/pc/disks/hdsrc` directory (with `--sys=bd:2`, so the BASIC-DOS system files are copied to the disk), on an `ibm5160` machine.  Its CONFIG.SYS (from `configs/console/serial/fpe`) uses a serial console, so BASIC-DOS's input and output go through the terminal:
 
-    $ ./boothd.sh [hard disk directory] [config folder]
+    $ ./boothd.sh
 
-The hard disk is formatted by MS-DOS 3.20 (so it also contains hidden MS-DOS system files), and any changes to it are not saved back to the directory.
+The `tools/tests/testhd.sh` script instead builds a BASIC-DOS boot diskette (from the `configs/console/bios` folder, so it uses the keyboard and screen) and boots it on an `ibm5160` machine whose 10Mb hard disk is built from a directory (`tools/pc/disks/hdsrc` by default, which is created with a few sample files if it doesn't exist), so that BASIC-DOS can be tested with an MS-DOS-formatted drive C:.  Press a key (other than **Esc**) at the boot prompt to start BASIC-DOS:
+
+    $ tools/tests/testhd.sh [hard disk directory] [config folder]
+
+That hard disk is formatted by MS-DOS 3.20 (so it also contains hidden MS-DOS system files).  With either script, changes to the hard disk are not saved back to the directory.
 
 Finally, `tools/tests/quick.sh` boots both configurations unattended, runs the test programs (FPUTESTS, DOSTESTS, and the BASIC tests, including CMDS.BAT, which tests pipes and redirection), and reports whether the tests passed.
 

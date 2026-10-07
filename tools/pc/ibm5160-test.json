@@ -89,5 +89,10 @@
     "id": "com1",
     "adapter": 1
   },
+  "debugger": {
+    "id": "debugger",
+    "name": "",
+    "messages": ""
+  },
   "xml": "/machines/pcx86/ibm/5160/mda/256kb/machine.xml"
 }

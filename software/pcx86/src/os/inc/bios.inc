@@ -147,7 +147,8 @@ BUF_SIG		db	?	; 07h: (holds SIG_BUF in DEBUG builds)
 BUF_DIRTY	db	?	; 08h: non-zero if buffer data must be written
 		db	?	; 09h: padding
 BUF_LBA		dw	?	; 0Ah: LBA of buffer data
-BUF_TIMESTAMP	dd	?	; 0Ch: timestamp of buffer data
+BUF_DIRCLN	dw	?	; 0Ch: directory of data (DIR_BUF only)
+BUF_DIRREL	dw	?	; 0Eh: relative sector # (DIR_BUF only)
 BUFHDR		ends
 SIG_BUF		equ	'B'
 

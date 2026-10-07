@@ -21,7 +21,7 @@ DOS	segment word public 'CODE'
 
 	EXTBYTE	<scb_locked>
 	EXTWORD	<buf_head,scb_active>
-	EXTLONG	<bpb_table>
+	EXTLONG	<bpb_table,cdir_table>
 	EXTBYTE	<bpb_total>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -253,6 +253,8 @@ DEFPROC	dsk_ffirst,DOS
 	mov	cx,size FCB_NAME
 	lea	si,[bx].SCB_FILENAME + 1; FFB_FILESPEC
 	REPS	MOVS,ES,CS,BYTE
+	mov	ax,cs:[bx].SCB_DIRCLN
+	stosw				; FFB_DIRCLN
 	pop	si
 	pop	cx
 	add	di,size FFB_RESERVED
@@ -270,24 +272,8 @@ DEFPROC	dsk_ffirst,DOS
 	stosw				; FFB_SIZE
 	mov	ax,[si].DIR_SIZE.SEG
 	stosw
-	mov	cx,8
-ff3:	lodsb
-	cmp	al,' '
-	je	ff4
-	stosb				; FFB_NAME
-ff4:	loop	ff3
-	mov	al,[si]
-	cmp	al,' '
-	je	ff7
-	mov	al,'.'
-	stosb
-	mov	cx,3
-ff5:	lodsb
-	cmp	al,' '
-	je	ff6
-	stosb
-ff6:	loop	ff5
-ff7:	sub	ax,ax
+	call	fmt_name		; FFB_NAME
+	sub	ax,ax
 	stosb
 	jnc	ff9
 ff8:	mov	[bp].REG_AX,ax
@@ -320,6 +306,9 @@ DEFPROC	dsk_fnext,DOS
 	lea	di,[bx].SCB_FILENAME + 1
 	mov	cx,size FFB_FILESPEC
 	rep	movsb
+	ASSERT	<FFB_FILESPEC + size FFB_FILESPEC>,EQ,<FFB_DIRCLN>
+	lodsw				; AX = FFB_DIRCLN
+	mov	es:[bx].SCB_DIRCLN,ax
 	pop	si
 	call	get_bpb			; DL = drive #
 	jc	fn8
@@ -372,7 +361,8 @@ DEFPROC	chk_filename,DOS
 	lea	di,[bx].SCB_FILENAME	; ES:DI -> filename buffer
 ;
 ; If AH = 10h, then we've already got a "parsed name", so instead
-; of calling parse_name, just copy the name to the FILENAME buffer.
+; of calling get_path, just copy the name to the FILENAME buffer; FCBs
+; always refer to the drive's current directory.
 ;
 	cmp	ah,10h
 	jne	cf3
@@ -383,25 +373,20 @@ DEFPROC	chk_filename,DOS
 cf1:	stosb				; store drive # in the FILENAME buffer
 	xchg	dx,ax			; DL = drive #
 	call	copy_name
+	mov	al,dl
+	call	get_cdir		; BX -> drive's current directory
+	mov	ax,es:[bx]
+	mov	bx,[scb_active]
+	mov	es:[bx].SCB_DIRCLN,ax
+	call	get_bpb			; DL = drive #
 	jmp	short cf4
 
-cf3:	push	di
-	call	parse_name		; DS:SI -> filename or filespec
-	pop	di			; like the FCB case, store a 0-based
-	mov	es:[di],dl		; drive # (parse_name stores 1-based)
-	jnc	cf4
-	mov	ax,ERR_BADDRIVE		; parse_name fails only if drive invalid
-	jmp	short cf9
+cf3:	call	get_path		; DS:SI -> filename or filespec
 ;
-; FILENAME has been successfully filled in, so we're ready to search
-; directory sectors for a matching name.  This requires getting a fresh
-; BPB for the drive.
+; FILENAME and DIRCLN have been successfully filled in, and DI -> BPB, so
+; we're ready to search the directory's sectors for a matching name.
 ;
-cf4:	call	get_bpb			; DL = drive # (from above)
-	jc	cf9
-;
-; DI -> BPB.  Start a directory search for FILENAME.
-;
+cf4:	jc	cf9
 	pop	ax
 	push	ax
 	mov	bl,al			; BL = search attributes
@@ -642,11 +627,12 @@ ENDPROC	get_cln
 ;	alone matches only normal files (eg, not volume labels).  Otherwise,
 ;	an entry matches if it has any of the attributes in BL.
 ;	DI -> BPB
+;	SCB_DIRCLN contains the directory (1st cluster, or 0 for the root)
 ;	SCB_FILENAME contains the filename
 ;
 ; Outputs:
 ;	On success, DS:SI -> DIRENT, AX = DIRENT #, carry clear
-;	On failure, AX = device error code, carry set
+;	On failure, AX = error code, carry set
 ;
 ; Modifies:
 ;	AX, BX, CX, SI, DS
@@ -659,7 +645,7 @@ DEFPROC	get_dirent,DOS
 	mov	ds,dx
 	ASSUME	DS:BIOS
 	mov	si,offset DIR_BUFHDR
-	mov	bp,es:[di].BPB_LBAROOT
+	sub	bp,bp			; BP = 1st relative sector to search
 	sub	cx,cx
 	test	ax,ax
 	jl	gd1
@@ -667,30 +653,40 @@ DEFPROC	get_dirent,DOS
 	mul	dx			; DX:AX = DIRENT offset
 	div	es:[di].BPB_SECBYTES	; AX = relative sector #
 	mov	cx,dx			; CX = offset within sector
-	mov	dx,bp
-	add	dx,ax			; DX = LBA of directory sector
+	xchg	dx,ax			; DX = relative sector #
 	jmp	short gd3
 ;
 ; If one of the sectors from the directory we're interested in is already
 ; in DIR_BUF, and we're not continuing from a specific DIRENT, then a nice
-; optimization is to start with the current sector.  We simply loop around
-; to the top of the directory and stop when we reach this same sector again.
+; optimization is to start with that sector.  We simply loop around to the
+; top of the directory and stop when we reach this same sector again.
 ;
 gd1:	mov	al,es:[di].BPB_DRIVE	; AL = drive #
 	cmp	[si].BUF_DRIVE,al
 	jne	gd2
-	mov	dx,[si].BUF_LBA
-	test	dx,dx
-	jz	gd2
-	mov	bp,dx
+	cmp	[si].BUF_LBA,dx		; is the buffer valid (DX is zero)?
+	je	gd2			; no
+	call	get_dircln		; AX = directory
+	cmp	[si].BUF_DIRCLN,ax	; is the buffer from this directory?
+	jne	gd2			; no
+	mov	bp,[si].BUF_DIRREL	; yes, so start with its sector
 gd2:	mov	dx,bp
 ;
 ; End of initialization code, beginning of main loop.
 ;
-gd3:	mov	al,es:[di].BPB_DRIVE
+gd3:	call	dir_lba			; AX = LBA of relative sector DX
+	jc	gd6a
+	push	dx
+	xchg	dx,ax			; DX = LBA
+	mov	al,es:[di].BPB_DRIVE
 	ASSERT	STRUCT,[si],BUF
 	call	read_buffer		; AL = drive #, DX = LBA
-	jc	gd7a
+	pop	dx
+	jnc	gd4
+	jmp	gd9
+gd4:	call	get_dircln		; record the buffer's directory
+	mov	[DIR_BUFHDR].BUF_DIRCLN,ax
+	mov	[DIR_BUFHDR].BUF_DIRREL,dx
 
 	mov	ax,es:[di].BPB_SECBYTES
 	add	ax,si			; AX -> end of sector data
@@ -738,13 +734,27 @@ gd5e:	add	si,size DIRENT
 	jb	gd5
 
 	inc	dx			; advance to the next directory sector
-	cmp	dx,es:[di].BPB_LBADATA
-	jb	gd7
-gd6:	mov	dx,es:[di].BPB_LBAROOT
+	jmp	short gd7
+;
+; If the directory has no sector DX, but that's where we started (which can
+; happen only if the DIR_BUF hint was stale), then search from the first
+; sector instead (unless that's where we started).
+;
+gd6a:	cmp	ax,ERR_NOFILE		; beyond the end of the directory?
+	stc
+	jne	gd7a			; no, return the error
+	cmp	dx,bp			; was this the first sector searched?
+	jne	gd6			; no
+	test	bp,bp			; was it sector 0?
+	jz	gd7b			; yes, so the directory is empty
+	sub	bp,bp
+	jmp	gd2
+
+gd6:	sub	dx,dx			; start over at the first sector
 
 gd7:	sub	cx,cx			; start at offset zero of next sector
 	mov	si,offset DIR_BUFHDR
-	cmp	dx,bp			; back to the 1st LBA again?
+	cmp	dx,bp			; back to the 1st sector again?
 	je	gd7b			; yes
 	jmp	gd3			; not yet
 
@@ -756,7 +766,6 @@ gd8:	lea	si,[si-11]		; rewind SI to matching DIRENT
 	mov	cx,si
 	sub	ax,es:[di].BPB_SECBYTES
 	sub	cx,ax			; CX = DIRENT offset
-	sub	dx,es:[di].BPB_LBAROOT
 	xchg	ax,dx			; AX = relative sector #
 	mul	es:[di].BPB_SECBYTES
 	add	ax,cx
@@ -768,6 +777,561 @@ gd9:	pop	bp
 	pop	dx
 	ret
 ENDPROC	get_dirent
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_dircln
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	AX = SCB_DIRCLN of the active SCB
+;
+; Modifies:
+;	AX
+;
+DEFPROC	get_dircln,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	bx
+	mov	bx,cs:[scb_active]
+	mov	ax,cs:[bx].SCB_DIRCLN
+	pop	bx
+	ret
+ENDPROC	get_dircln
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dir_lba
+;
+; Get the LBA of a sector of the directory in SCB_DIRCLN.  The root directory
+; occupies a fixed range of sectors, whereas a subdirectory is a cluster chain.
+;
+; Inputs:
+;	DX = relative sector # within the directory
+;	DI -> BPB
+;
+; Outputs:
+;	On success, carry clear, AX = LBA
+;	On failure, carry set, AX = error code (ERR_NOFILE if the directory
+;	has no such sector)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	dir_lba,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	bx
+	push	cx
+	push	dx
+	call	get_dircln		; AX = directory
+	test	ax,ax			; root directory?
+	jnz	dl2			; no
+	xchg	ax,dx			; AX = relative sector #
+	add	ax,cs:[di].BPB_LBAROOT
+	cmp	ax,cs:[di].BPB_LBADATA	; still within the root?
+	jb	dl8			; yes
+	jmp	short dl7
+
+dl2:	mov	bx,dx			; BX = relative sector #
+	mov	cl,cs:[di].BPB_CLUSLOG2
+	shr	dx,cl
+	xchg	cx,dx			; CX = cluster index
+	xchg	dx,ax			; DX = 1st cluster
+dl3:	mov	ax,dx
+	sub	ax,2
+	cmp	ax,cs:[di].BPB_CLUSTERS	; valid cluster?
+	jae	dl7			; no, so we've reached the end
+	jcxz	dl4
+	call	get_cln			; DX = next cluster
+	jc	dl9
+	dec	cx
+	jmp	dl3
+dl4:	mov	cl,cs:[di].BPB_CLUSLOG2
+	shl	ax,cl
+	add	ax,cs:[di].BPB_LBADATA	; AX = cluster's 1st LBA
+	mov	dl,cs:[di].BPB_CLUSSECS
+	dec	dl			; DL = mask for sector within cluster
+	and	bl,dl
+	mov	bh,0
+	add	ax,bx			; AX = LBA
+	jmp	short dl8
+
+dl7:	mov	ax,ERR_NOFILE
+	stc
+	jmp	short dl9
+dl8:	clc
+dl9:	pop	dx
+	pop	cx
+	pop	bx
+	ret
+ENDPROC	dir_lba
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_cdir
+;
+; Get the address of a session's current directory (1st cluster, or 0 for
+; the root) for a drive.  cdir_table contains bpb_total words for each SCB.
+;
+; Inputs:
+;	AL = drive #
+;	BX -> SCB
+;
+; Outputs:
+;	BX -> current directory word (in the DOS segment)
+;
+; Modifies:
+;	AX, BX
+;
+DEFPROC	get_cdir,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	dx
+	xchg	dx,ax			; DL = drive #
+	mov	al,cs:[bpb_total]
+	mul	cs:[bx].SCB_NUM		; AX = SCB's 1st entry #
+	add	al,dl
+	adc	ah,0			; AX = drive's entry #
+	add	ax,ax
+	add	ax,cs:[cdir_table].OFF
+	xchg	bx,ax
+	pop	dx
+	ret
+ENDPROC	get_cdir
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_path
+;
+; Parse the drive, directory names (separated by SCB_PATHCHAR), and filename
+; at DS:SI, walking the directories as we go.  A path that begins with
+; SCB_PATHCHAR starts at the root directory; otherwise, it starts at the
+; drive's current directory.
+;
+; Inputs:
+;	AH = parse flags (00h for a filename, 80h for a filespec w/wildcards)
+;	BX -> active SCB
+;	DS:SI -> path
+;	ES:DI -> SCB_FILENAME
+;
+; Outputs:
+;	On success, carry clear:
+;		DL = drive #
+;		DI -> BPB
+;		SCB_DIRCLN = directory containing the filename
+;		SCB_FILENAME = drive # and filename (which may be blank)
+;	On failure, carry set, AX = error code
+;
+; Modifies:
+;	AX, CX, DX, SI, DI
+;
+DEFPROC	get_path,DOS
+	ASSUMES	<DS,NOTHING>,<ES,DOS>
+	push	ax			; save parse flags
+	push	bx
+	call	parse_comp		; parse the drive and 1st name
+	pop	bx
+	mov	es:[di],dl		; store a 0-based drive # (parse_name
+	mov	ax,ERR_BADDRIVE		; stores 1-based), unless it's invalid
+	jc	gp9
+	call	get_bpb			; DI -> BPB
+	jc	gp9
+	push	bx
+	mov	al,dl
+	call	get_cdir		; BX -> drive's current directory
+	mov	ax,es:[bx]
+	pop	bx
+	mov	cl,es:[bx].SCB_PATHCHAR
+	cmp	[si],cl			; is there a directory to walk?
+	jne	gp7			; no
+	cmp	es:[bx].SCB_FILENAME+1,' '
+	jne	gp2			; the path doesn't start at the root
+	sub	ax,ax
+gp2:	mov	es:[bx].SCB_DIRCLN,ax
+	inc	si			; skip SCB_PATHCHAR
+	mov	ax,ERR_NOPATH
+	test	dh,dh			; any wildcards in the directory name?
+	stc
+	jnz	gp9			; yes
+	call	get_dir			; AX = directory
+	jc	gp9
+	mov	es:[bx].SCB_DIRCLN,ax
+	pop	ax			; restore parse flags (AH)
+	push	ax
+	or	ah,02h			; leave the drive # unchanged
+	push	dx
+	push	di
+	lea	di,[bx].SCB_FILENAME
+	push	bx
+	call	parse_comp		; parse the next name
+	pop	bx
+	pop	di
+	mov	al,dh			; AL = wildcards flag
+	pop	dx			; DL = drive # again
+	mov	dh,al			; DH = wildcards flag
+	mov	ax,es:[bx].SCB_DIRCLN
+	mov	cl,es:[bx].SCB_PATHCHAR
+	cmp	[si],cl			; another directory?
+	je	gp2			; yes
+	jmp	short gp8
+gp7:	mov	es:[bx].SCB_DIRCLN,ax
+gp8:	clc
+gp9:	inc	sp			; discard parse flags
+	inc	sp			; without affecting carry
+	ret
+ENDPROC	get_path
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; parse_comp
+;
+; Use parse_name to parse one component of a path, and then fix up any "."
+; or ".." component, which parse_name would otherwise leave blank.
+;
+; Inputs:
+;	AH = parse flags (see parse_name)
+;	DS:SI -> component (optionally preceded by a drive)
+;	ES:DI -> filename buffer
+;
+; Outputs:
+;	Same as parse_name
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
+DEFPROC	parse_comp,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	si
+	call	parse_name
+	pop	bx			; BX -> start of component
+	pushf
+	cmp	byte ptr [bx+1],':'	; does it start with a drive?
+	jne	pc1			; no
+	inc	bx
+	inc	bx
+pc1:	mov	al,'.'
+	cmp	[bx],al			; does the component start with a dot?
+	jne	pc9			; no
+	cmp	byte ptr es:[di+9],' '	; and have no extension?
+	jne	pc9			; no
+	lea	si,[bx+1]		; it's "." (or "..")
+	mov	es:[di+1],al
+	cmp	[si],al
+	jne	pc9
+	inc	si
+	mov	es:[di+2],al
+pc9:	popf
+	ret
+ENDPROC	parse_comp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_dir
+;
+; Get the directory for the name in SCB_FILENAME, which must be either a
+; subdirectory of SCB_DIRCLN, or blank or "." (ie, SCB_DIRCLN itself).
+;
+; Inputs:
+;	DI -> BPB
+;	SCB_DIRCLN and SCB_FILENAME
+;
+; Outputs:
+;	On success, carry clear, AX = directory (1st cluster, or 0 for root)
+;	On failure, carry set, AX = error code (ERR_NOPATH if not found)
+;
+; Modifies:
+;	AX, CX
+;
+DEFPROC	get_dir,DOS
+	ASSUMES	<DS,NOTHING>,<ES,DOS>
+	push	bx
+	push	si
+	push	ds
+	mov	bx,[scb_active]
+	mov	ax,es:[bx].SCB_DIRCLN
+	mov	cx,word ptr es:[bx].SCB_FILENAME+1
+	cmp	cl,' '			; blank?
+	je	gr9			; yes (and carry is clear)
+	cmp	cx,' .'			; "."?
+	je	gr9			; yes (and carry is clear)
+	mov	ax,-1
+	mov	bl,DIRATTR_SUBDIR
+	call	get_dirent		; DS:SI -> DIRENT
+	jc	gr8
+	mov	ax,[si].DIR_CLN
+	jmp	short gr9
+gr8:	cmp	ax,ERR_NOFILE
+	stc
+	jne	gr9
+	mov	ax,ERR_NOPATH
+gr9:	pop	ds
+	pop	si
+	pop	bx
+	ret
+ENDPROC	get_dir
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_parent
+;
+; Get the parent of a subdirectory, along with the subdirectory's name, by
+; reading its ".." entry and then finding its entry in the parent.
+;
+; Inputs:
+;	DX = subdirectory (1st cluster)
+;	DI -> BPB
+;
+; Outputs:
+;	On success, carry clear:
+;		AX = parent directory (1st cluster, or 0 for the root)
+;		SCB_FILENAME = subdirectory name (eg, "NAME.EXT")
+;		CX = length of name
+;	On failure, carry set, AX = error code
+;
+; Modifies:
+;	AX, CX, SCB_DIRCLN
+;
+DEFPROC	get_parent,DOS
+	ASSUMES	<DS,NOTHING>,<ES,DOS>
+	push	bx
+	push	si
+	push	ds
+	push	di
+	mov	bx,[scb_active]
+	mov	es:[bx].SCB_DIRCLN,dx
+	lea	di,[bx].SCB_FILENAME+1
+	mov	ax,'..'
+	stosw
+	mov	al,' '
+	mov	cx,size FCB_NAME - 2
+	rep	stosb
+	pop	di
+	sub	ax,ax			; start with DIRENT # 0
+	mov	bl,DIRATTR_SUBDIR
+	call	get_dirent		; DS:SI -> ".." DIRENT
+	jc	gt8
+	mov	ax,[si].DIR_CLN		; AX = parent
+	mov	bx,[scb_active]
+	mov	es:[bx].SCB_DIRCLN,ax
+	push	di
+	lea	di,[bx].SCB_FILENAME+1
+	mov	al,'?'
+	mov	cx,size FCB_NAME
+	rep	stosb
+	pop	di
+	sub	ax,ax
+gt2:	mov	bl,DIRATTR_SUBDIR
+	call	get_dirent		; AX = DIRENT #, DS:SI -> DIRENT
+	jc	gt8
+	inc	ax			; AX = next DIRENT # (if no match)
+	cmp	[si].DIR_CLN,dx		; is this the subdirectory?
+	jne	gt2			; no
+	cmp	[si].DIR_NAME,'.'	; ("." and ".." don't count)
+	je	gt2
+	mov	bx,[scb_active]
+	push	di
+	lea	di,[bx].SCB_FILENAME
+	call	fmt_name		; copy the name to SCB_FILENAME
+	xchg	cx,di
+	pop	di
+	lea	ax,[bx].SCB_FILENAME
+	sub	cx,ax			; CX = length of name
+	mov	ax,es:[bx].SCB_DIRCLN	; AX = parent (and carry is clear)
+	jmp	short gt9
+gt8:	cmp	ax,ERR_NOFILE
+	stc
+	jne	gt9
+	mov	ax,ERR_NOPATH
+gt9:	pop	ds
+	pop	si
+	pop	bx
+	ret
+ENDPROC	get_parent
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fmt_name
+;
+; Format the name of a DIRENT as "NAME.EXT" (no null terminator).
+;
+; Inputs:
+;	DS:SI -> DIRENT
+;	ES:DI -> buffer
+;
+; Outputs:
+;	ES:DI -> end of name in buffer
+;
+; Modifies:
+;	AX, CX, SI, DI
+;
+DEFPROC	fmt_name,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	mov	cx,8
+fn1:	lodsb
+	cmp	al,' '
+	je	fn2
+	stosb
+fn2:	loop	fn1
+	mov	al,[si]
+	cmp	al,' '
+	je	fn9
+	mov	al,'.'
+	stosb
+	mov	cl,3
+fn3:	lodsb
+	cmp	al,' '
+	je	fn4
+	stosb
+fn4:	loop	fn3
+fn9:	ret
+ENDPROC	fmt_name
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dsk_chdir (REG_AH = 3Bh)
+;
+; Inputs:
+;	REG_DS:REG_DX -> path of new current directory
+;
+; Outputs:
+;	On success, carry clear
+;	On failure, carry set, REG_AX = error code (eg, ERR_NOPATH)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, DS, ES
+;
+DEFPROC	dsk_chdir,DOS
+	LOCK_SCB
+	call	get_dirpath		; DL = drive #, DI -> BPB
+	jc	cd8
+	call	get_dir			; AX = directory
+	jc	cd8
+	xchg	cx,ax			; CX = directory
+	mov	al,dl
+	call	get_cdir		; BX -> drive's current directory
+	mov	es:[bx],cx
+	jmp	short cd9
+cd8:	mov	[bp].REG_AX,ax
+cd9:	UNLOCK_SCB
+	ret
+ENDPROC	dsk_chdir
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_dirpath
+;
+; Use get_path to parse the path at REG_DS:REG_DX (eg, for dsk_chdir).
+;
+; Inputs:
+;	REG_DS:REG_DX -> path
+;
+; Outputs:
+;	Same as get_path (and BX -> active SCB, ES = DOS)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, DS, ES
+;
+DEFPROC	get_dirpath,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	cs
+	pop	es
+	ASSUME	ES:DOS
+	mov	si,[bp].REG_DX
+	mov	ds,[bp].REG_DS		; DS:SI -> path
+	mov	bx,[scb_active]
+	lea	di,[bx].SCB_FILENAME
+	mov	ah,0			; AH = 0 (no wildcards)
+	jmp	get_path		; DL = drive #, DI -> BPB
+ENDPROC	get_dirpath
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dsk_getcwd (REG_AH = 47h)
+;
+; Inputs:
+;	REG_DL = drive # (0 for default, 1 for A:, and so on)
+;	REG_DS:REG_SI -> 64-byte buffer
+;
+; Outputs:
+;	On success, carry clear, and the buffer contains the path of the
+;	current directory, without a drive or leading SCB_PATHCHAR (so the
+;	root directory is an empty string)
+;	On failure, carry set, REG_AX = error code
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, DS, ES
+;
+; Notes:
+;	We don't store paths, just the 1st cluster of each current directory,
+;	so we rebuild the path (from the end of the buffer back) by walking
+;	".." entries up to the root, finding each subdirectory's name in its
+;	parent along the way.
+;
+DEFPROC	dsk_getcwd,DOS
+	LOCK_SCB
+	mov	bx,[scb_active]
+	dec	dl			; drive # specified?
+	jge	cw1			; yes
+	mov	dl,cs:[bx].SCB_CURDRV
+cw1:	mov	ax,ERR_BADDRIVE
+	cmp	dl,[bpb_total]		; valid drive #?
+	cmc
+	jc	cw8			; no
+	mov	al,dl
+	call	get_cdir		; BX -> drive's current directory
+	mov	cx,cs:[bx]		; CX = current directory
+	jcxz	cw1a			; the root doesn't require a fresh BPB
+	call	get_bpb			; DI -> BPB
+	jc	cw8
+cw1a:	mov	dx,cx			; DX = current directory
+	mov	bx,[bp].REG_SI
+	add	bx,63			; BX -> last byte of buffer
+	mov	es,[bp].REG_DS
+	ASSUME	ES:NOTHING
+	mov	byte ptr es:[bx],0
+cw2:	push	cs
+	pop	es
+	ASSUME	ES:DOS
+	test	dx,dx			; at the root yet?
+	jz	cw6			; yes
+	call	get_parent		; AX = parent, CX = length of name
+	jc	cw8
+	sub	bx,cx
+	dec	bx			; BX -> room for SCB_PATHCHAR and name
+	cmp	bx,[bp].REG_SI		; is there enough room?
+	jb	cw7			; no
+	xchg	dx,ax			; DX = parent
+	push	di
+	mov	di,bx
+	mov	es,[bp].REG_DS
+	ASSUME	ES:NOTHING
+	mov	si,[scb_active]
+	mov	al,cs:[si].SCB_PATHCHAR
+	stosb
+	lea	si,[si].SCB_FILENAME
+	REPS	MOVS,ES,CS,BYTE
+	pop	di
+	jmp	cw2
+
+cw6:	mov	es,[bp].REG_DS		; ES:BX -> path
+	cmp	byte ptr es:[bx],0	; empty?
+	je	cw6a			; yes
+	inc	bx			; skip the leading SCB_PATHCHAR
+cw6a:	mov	di,[bp].REG_SI		; ES:DI -> start of buffer
+	lea	cx,[di+64]
+	sub	cx,bx			; CX = length of path (incl. null)
+	mov	si,bx
+	push	es
+	pop	ds			; DS:SI -> path
+	rep	movsb			; (carry is clear)
+	jmp	short cw9
+
+cw7:	mov	ax,ERR_NOPATH
+	stc
+cw8:	mov	[bp].REG_AX,ax
+cw9:	UNLOCK_SCB
+	ret
+ENDPROC	dsk_getcwd
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

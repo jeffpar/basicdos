@@ -44,7 +44,11 @@ The line editing keys that 0Ah supports are described in [Typing Commands](../..
 | 1Ah | DOS_DSK_SETDTA | DS:DX -> DTA | |
 | 2Fh | DOS_DSK_GETDTA | | ES:BX -> DTA |
 | 36h | DOS_DSK_GETINFO | DL = drive # (0 = default, 1 = A:) | AX = sectors per cluster (FFFFh if invalid), BX = available clusters, CX = bytes per sector, DX = clusters per disk |
+| 39h | DOS_DSK_MKDIR | DS:DX -> path | Creates the directory |
+| 3Ah | DOS_DSK_RMDIR | DS:DX -> path | Removes the directory (which must be empty, and not any session's current directory) |
+| 3Bh | DOS_DSK_CHDIR | DS:DX -> path | Changes the current directory of the path's drive |
 | 41h | DOS_DSK_DELETE | DS:DX -> filename | |
+| 47h | DOS_DSK_GETCWD | DL = drive # (0 = default, 1 = A:), DS:SI -> 64-byte buffer | Buffer contains the current directory's path, without a drive or leading path character (an empty string for the root) |
 | 4Eh | DOS_DSK_FFIRST | CX = attributes, DS:DX -> filespec | DTA filled in (see [FFB](../data/#ffb)) |
 | 4Fh | DOS_DSK_FNEXT | DTA from the previous 4Eh or 4Fh | DTA filled in |
 | 56h | DOS_DSK_RENAME | DS:DX -> existing filename, ES:DI -> new filename | |
@@ -116,6 +120,8 @@ FCB support is read-only: FCB create, write, delete, and rename functions aren't
 | 35h | DOS_MSC_GETVEC | AL = vector # | ES:BX = address |
 | 3700h | DOS_MSC_GETSWC | | DL = switch character |
 | 3701h | DOS_MSC_SETSWC | DL = switch character | |
+| 3704h | DOS_MSC_GETPCH | | DL = path character (BASIC-DOS only) |
+| 3705h | DOS_MSC_SETPCH | DL = path character (BASIC-DOS only) | |
 | 52h | DOS_MSC_GETVARS | | ES:BX -> [DOSVARS](../data/#dosvars) |
 
 ### Differences from PC DOS
@@ -145,11 +151,13 @@ Environment segments (EPB_ENVSEG) aren't supported yet, so the field is ignored.
 
 #### Files
 
-Subdirectories, the read-only attribute, getting and setting file attributes (43h) and file dates and times (57h), and absolute disk reads and writes (INT 25h and INT 26h) aren't supported yet.  Critical errors (INT 24h) aren't reported to programs yet.
+Any filename passed to a handle function (or to FFIRST, DELETE, RENAME, MKDIR, RMDIR, CHDIR, or EXEC) may include a path, whose directory names are separated by the session's path character (DOS_MSC_GETPCH), not by both `\` and `/` as in PC DOS.  FCB functions always use the drive's current directory.  A subdirectory grows by a cluster whenever a new entry doesn't fit.  Renaming a file into a different directory, the read-only attribute, getting and setting file attributes (43h) and file dates and times (57h), and absolute disk reads and writes (INT 25h and INT 26h) aren't supported yet.  Critical errors (INT 24h) aren't reported to programs yet.
+
+BASIC-DOS doesn't store the path of each current directory, only the directory's first cluster (in a table with one entry per drive for each session), so DOS_DSK_GETCWD rebuilds the path by following ".." entries up to the root.
 
 #### Sessions
 
-Each session has its own current drive, DTA, switch character, CTRL-C state, and exit, CTRL-C, and critical error handlers, all of which are stored in its [SCB](../data/#scb).  For example, DOS_MSC_SETVEC with vector 23h changes only the current session's CTRL-C handler.
+Each session has its own current drive, current directory for every drive, DTA, switch and path characters, CTRL-C state, and exit, CTRL-C, and critical error handlers, all of which are stored in its [SCB](../data/#scb).  For example, DOS_MSC_SETVEC with vector 23h changes only the current session's CTRL-C handler.
 
 ### Exit Types
 
@@ -181,6 +189,7 @@ However a program terminates, any of vectors 08h, 09h, 1Bh, and 1Ch that still p
 | 8 | ERR_NOMEMORY | Out of memory |
 | 9 | ERR_BADADDR | Invalid memory segment |
 | 15 | ERR_BADDRIVE | Invalid drive |
+| 16 | ERR_CURDIR | Attempt to remove a current directory |
 | 17 | ERR_NOTSAME | Not the same device |
 | 39 | ERR_DISKFULL | Disk full |
 | 100 | ERR_BADSESSION | Invalid session (BASIC-DOS only) |

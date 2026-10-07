@@ -389,8 +389,8 @@ ENDPROC	syntaxError
 ;
 DEFPROC	getRange
 	push	ax
-	mov	dl,[bx].CMD_ARG
-	call	getToken		; DS:SI -> token, CX = length
+	mov	dl,1			; DL = 1st arg (not CMD_ARG, since a
+	call	getToken		; range like "-20" looks like a switch)
 	pop	dx			; DL = separator
 	jnc	gr1
 	sub	ax,ax			; no token, so the range is everything

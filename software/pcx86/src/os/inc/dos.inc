@@ -105,8 +105,11 @@ SCB_CTRLP_ACT	db	?	; 2Ch: 1 if CTRLP active
 SCB_INDOS	db	?	; 2Dh: active DOS/DOSUTIL call count
 SCB_CURDRV	db	?	; 2Eh: current drive #
 SCB_SWITCHAR	db	?	; 2Fh: current switch char (eg, CHR_SLASH)
-SCB_FILENAME	db    12 dup (?); 30h: buffer for drive # and filename
-SCB		ends		; 3Ch bytes
+SCB_PATHCHAR	db	?	; 30h: current path char (eg, '\')
+		db	?	; 31h: padding
+SCB_DIRCLN	dw	?	; 32h: directory (1st cluster) for FILENAME
+SCB_FILENAME	db    12 dup (?); 34h: buffer for drive # and filename
+SCB		ends		; 40h bytes
 SIG_SCB		equ	'S'
 
 SCSTAT_INIT	equ	01h	; set if SCB initialized
@@ -177,6 +180,7 @@ SFB_FLAGS	db	?	; 26h: see SFBF_* (initially zero)
 SFB_OWNER	dw	?	; 28h: PSP of owner (used if SFBF_FCB set)
 SFB_FCB		dd	?	; 2Ah: FCB address, if SFBF_FCB set
 SFB_DIRNUM	dw	?	; 2Eh: DIRENT # (files only)
+SFB_DIRCLN	dw	?	; 30h: directory (1st cluster) of DIRENT
 SFB		ends
 SIG_SFB		equ	'F'
 

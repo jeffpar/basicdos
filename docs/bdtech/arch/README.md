@@ -51,7 +51,7 @@ Successive loads of the same program (eg, COMMAND.COM in several sessions) are s
 | 0540h | FAT sector buffer (header and 512-byte sector) |
 | 0750h | Directory sector buffer (header and 512-byte sector) |
 | 0960h | BIOS_END: device drivers (BASDEV.COM), followed by the DOS kernel (BASDOS.COM) |
-| | Resident tables: SCBs, SFBs, BPBs |
+| | Resident tables: SCBs, BPBs, current directories, SFBs |
 | | Memory arena: MCB chain (programs, COMMAND.COM blocks, and free memory) |
 
 The memory arena is a chain of Memory Control Blocks (see [MCB](../data/#mcb)), as in PC DOS.  [DOS_MEM_ALLOC](../dos/#memory) normally allocates from the bottom of the first free block that's big enough, but with MCBTYPE_HIGH (80h) set in AL, it allocates from the top of the last one.  COMMAND.COM allocates its code, text, variable, and string blocks from the top, so that the memory it frees before running a program stays contiguous.

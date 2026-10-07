@@ -28,7 +28,7 @@ DOS	segment word public 'CODE'
 ;
 	DEFWORD	mcb_head,0		; 06h: 1st memory paragraph
 	DEFWORD	mcb_limit,0		; 08h: 1st unavailable paragraph
-	DEFTBL	<bpb_table,sfb_table,scb_table>
+	DEFTBL	<bpb_table,sfb_table,scb_table,cdir_table>
 	DEFWORD	scb_active,0		; offset of active SCB (zero if none)
 	DEFWORD	key_boot,0		; records key pressed at boot, if any
 	EXTNEAR	scb_return
@@ -41,7 +41,13 @@ DOS	segment word public 'CODE'
 
 	DEFBYTE	bpb_total,0		; total number of BPBs
 	DEFBYTE	sfh_debug,-1		; system file handle for DEBUG device
-	DEFBYTE	def_switchar,'/'
+;
+; def_drive, def_switchar, and def_pathchar must match the order of
+; SCB_CURDRV, SCB_SWITCHAR, and SCB_PATHCHAR (see init_scb).
+;
+	DEFBYTE	def_drive,0
+	DEFBYTE	def_switchar,'-'
+	DEFBYTE	def_pathchar,'/'
 ;
 ; Vectors 08h, 09h, 1Bh, and 1Ch as they were at the end of sysinit, so that
 ; psp_restvec can restore any that a terminated program left hooked.
@@ -83,6 +89,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>
 	EXTNEAR	<dsk_flush,dsk_getdrv,dsk_setdrv,dsk_setdta,dsk_getdta>
 	EXTNEAR	<dsk_getinfo,dsk_ffirst,dsk_fnext,dsk_delete,dsk_rename>
+	EXTNEAR	<dsk_chdir,dsk_getcwd,dsk_mkdir,dsk_rmdir>
 	EXTNEAR	<fcb_open,fcb_close,fcb_sread,fcb_rread,fcb_setrel>
 	EXTNEAR	<fcb_rbread,fcb_parse>
 	EXTNEAR	<msc_getdate,msc_setdate,msc_gettime,msc_settime>
@@ -118,10 +125,10 @@ DOS	segment word public 'CODE'
 	dw	msc_gettime, msc_settime, func_none,   dsk_getdta	;2C-2F
 	dw	msc_getver,  func_none,   func_none,   msc_setctrlc	;30-33
 	dw	func_none,   msc_getvec,  dsk_getinfo, msc_getswc	;34-37
-	dw	func_none,   func_none,   func_none,   func_none	;38-3B
+	dw	func_none,   dsk_mkdir,   dsk_rmdir,   dsk_chdir	;38-3B
 	dw	hdl_create,  hdl_open,    hdl_close,   hdl_read		;3C-3F
 	dw	hdl_write,   dsk_delete,  hdl_seek,    func_none	;40-43
-	dw	hdl_ioctl,   func_none,   func_none,   func_none	;44-47
+	dw	hdl_ioctl,   func_none,   func_none,   dsk_getcwd	;44-47
 	dw	mem_alloc,   mem_free,    mem_realloc, psp_exec		;48-4B
 	dw	psp_return,  psp_retcode, dsk_ffirst,  dsk_fnext	;4C-4F
 	dw	psp_set,     psp_get,     msc_getvars, func_none	;50-53

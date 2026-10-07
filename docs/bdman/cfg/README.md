@@ -31,6 +31,7 @@ The recognized keywords are:
 - [DEBUG](#debug)
 - [FILES](#files)
 - [MEMSIZE](#memsize)
+- [PATHCHAR](#pathchar)
 - [SESSIONS](#sessions)
 - [SHELL](#shell)
 - [SKIP](#skip)
@@ -89,6 +90,12 @@ Sets the maximum number of files (and devices) that can be open at once, across 
 
 Limits the memory that BASIC-DOS uses to *n* kilobytes (16-640), assuming the machine has at least that much memory.  This is mainly used for testing BASIC-DOS with different amounts of memory; it doesn't reserve memory for individual sessions, since all sessions share the same memory.
 
+### PATHCHAR
+
+> PATHCHAR=*char*
+
+Changes the character that separates directory names in a path (eg, `CD /SUBDIR`).  The default is `/`, unless [SWITCHAR](#switchar) changes the switch character to `/`, in which case the default is `\` (as in PC DOS, where paths look like `CD \SUBDIR`).  Only the path character is recognized; BASIC-DOS doesn't also accept the other one.
+
 ### SESSIONS
 
 > SESSIONS=*n*
@@ -119,7 +126,9 @@ For example, a configuration that uses a serial console doesn't need the CON dri
 
 > SWITCHAR=*char*
 
-Changes the character that introduces command options (switches) from `/` (the default) to *char* (eg, `SWITCHAR=-`, so that `DIR -P` is used instead of `DIR /P`).
+Changes the character that introduces command options (switches) from `-` (the default) to *char* (eg, `SWITCHAR=/`, so that `DIR /P` is used instead of `DIR -P`, as in PC DOS).  Changing it to `/` also changes the default [PATHCHAR](#pathchar) to `\`.
+
+A switch character other than `/` begins a switch only at the start of an argument, so that it can also appear inside arguments (eg, `TYPE MY-FILE.TXT`).
 
 ### Sample Configuration
 

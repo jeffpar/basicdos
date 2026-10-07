@@ -121,7 +121,9 @@ The Session Control Block is internal to DOS; there's one for each session (see 
 | 2Dh | SCB_INDOS | Active DOS and utility call count |
 | 2Eh | SCB_CURDRV | Current drive # |
 | 2Fh | SCB_SWITCHAR | Current switch character |
-| 30h | SCB_FILENAME | Filename buffer |
+| 30h | SCB_PATHCHAR | Current path character |
+| 32h | SCB_DIRCLN | Directory (first cluster, or 0 for the root) of the filename buffer |
+| 34h | SCB_FILENAME | Filename buffer (drive # and 11-character name) |
 
 ### FFB
 
@@ -132,7 +134,8 @@ The Find File Block is stored in the DTA by DOS_DSK_FFIRST and DOS_DSK_FNEXT.
 | 00h | FFB_DRIVE | Drive # |
 | 01h | FFB_SATTR | Search attributes |
 | 02h | FFB_FILESPEC | Filespec (11 characters) |
-| 0Dh | FFB_RESERVED | Reserved |
+| 0Dh | FFB_DIRCLN | Directory (first cluster, or 0 for the root) being searched |
+| 0Fh | FFB_RESERVED | Reserved |
 | 13h | FFB_DIRNUM | Directory entry # |
 | 15h | FFB_ATTR | File attributes |
 | 16h | FFB_TIME | File time |
@@ -163,6 +166,7 @@ The System File Block is internal to DOS; there's one for each open file or devi
 | 28h | SFB_OWNER | Owning PSP (FCBs only) |
 | 2Ah | SFB_FCB | FCB address (FCBs only) |
 | 2Eh | SFB_DIRNUM | Directory entry # (files only) |
+| 30h | SFB_DIRCLN | Directory (first cluster, or 0 for the root) of the directory entry (files only) |
 
 ### FCB
 
@@ -192,5 +196,6 @@ DOS_MSC_GETVARS returns ES:BX -> DOSVARS.  As in PC DOS, the word before it cont
 | 02h | DV_BPB_TABLE | Offset and limit of the BPB table |
 | 06h | DV_SFB_TABLE | Offset and limit of the SFB table |
 | 0Ah | DV_SCB_TABLE | Offset and limit of the SCB table |
+| 0Eh | (none) | Offset and limit of the current directory table (one word per drive for each session) |
 
 {% include footer.html prev="Floating-Point Interface:../fpu/" next="" %}

@@ -19,11 +19,12 @@ DOS	segment word public 'CODE'
 
 	EXTNEAR	<dev_request,chk_devname,chk_filename,scb_release>
 	EXTNEAR	<get_bpb,get_cln,get_dirent,read_buffer,flush_buffers>
-	EXTNEAR	<alloc_cln,free_clns,sfb_open>
+	EXTNEAR	<alloc_cln,free_clns,sfb_open,dir_lba,get_dircln>
+	EXTNEAR	<write_buffer,get_cdir,get_dirpath>
 
 	EXTBYTE	<scb_locked>
 	EXTWORD	<scb_active>
-	EXTLONG	<clk_ptr>
+	EXTLONG	<clk_ptr,scb_table>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -96,20 +97,31 @@ DEFPROC	dsk_rename,DOS
 	ASSUME	DS:NOTHING
 	sub	ax,ax			; AH = 0 (filename), AL = 0 (attributes)
 	call	chk_filename		; does the new filename already exist?
-	jnc	dr6			; yes
-	cmp	ax,ERR_NOFILE		; no, but was the new filename valid?
+	jc	dr0			; no
+dr6:	mov	ax,ERR_ACCDENIED
+dr7:	stc
+dr8:	mov	[bp].REG_AX,ax
+dr9:	UNLOCK_SCB
+	ret
+
+dr0:	cmp	ax,ERR_NOFILE		; but was the new filename valid?
 	jne	dr7			; no
 	mov	bx,[scb_active]
-	lea	si,[bx].SCB_FILENAME	; CS:SI -> new drive # and filename
+	lea	si,[bx].SCB_DIRCLN	; CS:SI -> new directory and filename
 	mov	ax,ERR_NOPATH
-	cmp	byte ptr cs:[si+1],' '	; is the new filename blank?
+	cmp	byte ptr cs:[si+3],' '	; is the new filename blank?
+	je	dr7			; yes
+	mov	al,ERR_ACCDENIED
+	cmp	byte ptr cs:[si+3],'.'	; is it "." or ".."?
 	je	dr7			; yes
 ;
-; Save the new drive # and filename (from SCB_FILENAME) on the stack, since
-; the next chk_filename call will overwrite it.
+; Save the new directory, drive #, and filename (from SCB_DIRCLN and
+; SCB_FILENAME) on the stack, since the next chk_filename call will
+; overwrite them.
 ;
-	add	si,size SCB_FILENAME
-	mov	cx,size SCB_FILENAME SHR 1
+	ASSERT	<SCB_DIRCLN + 2>,EQ,<SCB_FILENAME>
+	add	si,size SCB_FILENAME + 2
+	mov	cx,(size SCB_FILENAME + 2) SHR 1
 dr1:	dec	si
 	dec	si
 	push	word ptr cs:[si]
@@ -121,35 +133,36 @@ dr1:	dec	si
 	call	chk_filename		; DS:SI -> DIRENT, AL = drive #
 	jc	dr5
 	ASSUME	DS:BIOS
-	mov	di,sp			; SS:DI -> new drive # and filename
-	cmp	al,ss:[di]		; same drive?
+	mov	di,sp			; SS:DI -> new directory, drive #, etc
+	cmp	al,ss:[di+2]		; same drive?
 	mov	ax,ERR_NOTSAME
 	jne	dr4			; no
+	mov	cx,cs:[bx].SCB_DIRCLN
+	cmp	cx,ss:[di]		; same directory?
+	jne	dr4			; no (TODO: support moving files)
 	mov	ax,ERR_ACCDENIED
 	test	[si].DIR_ATTR,DIRATTR_VOLUME
 	jnz	dr4
+	cmp	[si].DIR_NAME,'.'	; is it "." or ".."?
+	je	dr4			; yes
 	push	ds
 	pop	es
 	ASSUME	ES:BIOS
-	xchg	di,si			; ES:DI -> DIRENT, SS:SI -> drive #
-	mov	al,ss:[si]		; AL = drive #
-	inc	si			; SS:SI -> new filename
+	xchg	di,si			; ES:DI -> DIRENT, SS:SI -> directory
+	mov	al,ss:[si+2]		; AL = drive #
+	add	si,3			; SS:SI -> new filename
 	mov	cx,size FCB_NAME
 	REPS	MOVS,ES,SS,BYTE		; copy the new filename into the DIRENT
 	mov	[DIR_BUFHDR].BUF_DIRTY,1
 	call	flush_buffers		; write the modified DIRENT
 	jmp	short dr5
 dr4:	stc
-dr5:	mov	cx,size SCB_FILENAME SHR 1
+dr5:	mov	cx,(size SCB_FILENAME + 2) SHR 1
 dr5a:	pop	dx			; discard the saved filename
 	loop	dr5a			; (without affecting carry)
-	jnc	dr9
-	jmp	short dr8
-dr6:	mov	ax,ERR_ACCDENIED
-dr7:	stc
-dr8:	mov	[bp].REG_AX,ax
-dr9:	UNLOCK_SCB
-	ret
+	jnc	dr5b
+	mov	[bp].REG_AX,ax
+dr5b:	UNLOCK_SCB
 ENDPROC	dsk_rename
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -196,6 +209,9 @@ sc1:	sub	ax,ax			; AH = 0 (filename), AL = 0 (attributes)
 	mov	ax,ERR_NOPATH
 	cmp	byte ptr cs:[di].SCB_FILENAME+1,' '
 	je	sc7			; the filename is blank
+	mov	al,ERR_ACCDENIED
+	cmp	byte ptr cs:[di].SCB_FILENAME+1,'.'
+	je	sc7			; the filename is "." or ".."
 	call	get_bpb			; DI -> BPB
 	jc	sc8
 	call	add_dirent		; DS:SI -> new DIRENT
@@ -276,10 +292,12 @@ DEFPROC	sfb_commit,DOS
 	pop	es
 	ASSUME	ES:DOS
 ;
-; Copy the SFB's drive # and filename to SCB_FILENAME, so that get_dirent
-; can verify the DIRENT at SFB_DIRNUM.
+; Copy the SFB's directory, drive #, and filename to SCB_DIRCLN and
+; SCB_FILENAME, so that get_dirent can verify the DIRENT at SFB_DIRNUM.
 ;
 	mov	di,[scb_active]
+	mov	ax,[bx].SFB_DIRCLN
+	mov	[di].SCB_DIRCLN,ax
 	lea	di,[di].SCB_FILENAME	; ES:DI -> SCB_FILENAME
 	mov	al,[bx].SFB_DRIVE
 	stosb
@@ -535,7 +553,7 @@ ENDPROC	get_wcln
 ;
 ; add_dirent
 ;
-; Find a free (ie, unused or deleted) DIRENT in the root directory, and
+; Find a free (ie, unused or deleted) DIRENT in the SCB_DIRCLN directory, and
 ; initialize it with the name in SCB_FILENAME, the specified attributes, the
 ; current time and date, and zero for both the first cluster and file size.
 ;
@@ -556,13 +574,19 @@ DEFPROC	add_dirent,DOS
 	sub	ax,ax
 	mov	ds,ax
 	ASSUME	DS:BIOS
-	mov	dx,cs:[di].BPB_LBAROOT	; DX = LBA of 1st directory sector
+	sub	dx,dx			; DX = relative directory sector #
 	sub	cx,cx			; CX = DIRENT #
-ad1:	mov	al,cs:[di].BPB_DRIVE
+ad1:	call	dir_lba			; AX = LBA
+	jc	ad7
+	push	dx
+	xchg	dx,ax			; DX = LBA
+	mov	al,cs:[di].BPB_DRIVE
 	mov	si,offset DIR_BUFHDR
 	call	read_buffer		; DS:SI -> directory sector
-	jc	ad9
-	mov	ax,cs:[di].BPB_SECBYTES
+	pop	dx
+	jnc	ad1a
+	ret
+ad1a:	mov	ax,cs:[di].BPB_SECBYTES
 	add	ax,si			; AX -> end of sector data
 ad2:	cmp	byte ptr [si],DIRENT_END
 	je	ad8
@@ -573,9 +597,34 @@ ad2:	cmp	byte ptr [si],DIRENT_END
 	cmp	si,ax
 	jb	ad2
 	inc	dx			; advance to the next directory sector
-	cmp	dx,cs:[di].BPB_LBADATA
-	jb	ad1
-	mov	ax,ERR_ACCDENIED	; the directory is full
+	jmp	ad1
+;
+; The directory is full, so if it's a subdirectory, extend it with another
+; cluster (DX is already the relative sector # of the new cluster).
+;
+ad7:	cmp	ax,ERR_NOFILE		; is the directory full?
+	stc
+	jne	ad9			; no, it's some other error
+	call	get_dircln
+	test	ax,ax			; is it the root directory?
+	jz	ad7c			; yes, so it can't grow
+	push	dx
+	xchg	dx,ax			; DX = 1st cluster
+ad7a:	mov	si,dx			; SI = current cluster
+	call	get_cln			; DX = next cluster
+	jc	ad7b
+	mov	ax,dx
+	sub	ax,2
+	cmp	ax,cs:[di].BPB_CLUSTERS	; is the next cluster valid?
+	jb	ad7a			; yes
+	mov	dx,si			; DX = last cluster
+	call	alloc_cln		; DX = new cluster (linked to the last)
+	jc	ad7b
+	call	init_cln		; zero the new cluster
+ad7b:	pop	dx
+	jnc	ad1			; search the new cluster
+	ret
+ad7c:	mov	ax,ERR_ACCDENIED
 	stc
 	ret
 
@@ -612,6 +661,310 @@ ad8:	push	cx			; save DIRENT #
 	pop	ax			; AX = DIRENT # (and carry is clear)
 ad9:	ret
 ENDPROC	add_dirent
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; init_cln
+;
+; Zero every sector of a new directory cluster, using DIR_BUF.  The sectors
+; are zeroed from last to first, so that DIR_BUF ends up containing the
+; cluster's first sector (marked dirty).
+;
+; Inputs:
+;	DX = CLN
+;	DI -> BPB
+;
+; Outputs:
+;	On success, carry clear, DS:SI -> DIR_SECTOR (the 1st sector's data)
+;	On failure, carry set, AX = error code
+;
+; Modifies:
+;	AX, SI, DS
+;
+DEFPROC	init_cln,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	cx
+	push	dx
+	push	di
+	push	es
+	sub	ax,ax
+	mov	ds,ax
+	mov	es,ax
+	ASSUME	DS:BIOS, ES:BIOS
+	mov	si,offset DIR_BUFHDR
+	xchg	ax,dx
+	sub	ax,2
+	mov	cl,cs:[di].BPB_CLUSLOG2
+	shl	ax,cl
+	add	ax,cs:[di].BPB_LBADATA	; AX = cluster's 1st LBA
+	mov	cl,cs:[di].BPB_CLUSSECS
+	mov	ch,0
+	add	ax,cx			; AX = cluster's last LBA + 1
+	mov	dl,cs:[di].BPB_DRIVE
+ic1:	dec	ax
+	call	write_buffer		; write DIR_BUF first if it's dirty
+	jc	ic9
+	mov	[si].BUF_DRIVE,dl
+	mov	[si].BUF_LBA,ax
+	mov	[si].BUF_DIRTY,1
+	push	ax
+	push	cx
+	mov	di,offset DIR_SECTOR
+	mov	cx,size DIR_SECTOR SHR 1
+	sub	ax,ax			; (and carry is clear)
+	rep	stosw
+	pop	cx
+	pop	ax
+	loop	ic1
+	mov	si,offset DIR_SECTOR
+ic9:	pop	es
+	pop	di
+	pop	dx
+	pop	cx
+	ret
+ENDPROC	init_cln
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dsk_mkdir (REG_AH = 39h)
+;
+; Inputs:
+;	REG_DS:REG_DX -> path of new directory
+;
+; Outputs:
+;	On success, carry clear
+;	On failure, carry set, REG_AX = error code
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, DS, ES
+;
+DEFPROC	dsk_mkdir,DOS
+	LOCK_SCB
+	call	chk_dirname		; DL = drive #, DI -> BPB
+	jc	md8
+	push	bx
+	mov	ax,-1
+	mov	bl,0			; BL = 0 (any attributes)
+	call	get_dirent		; does the name already exist?
+	pop	bx
+	jnc	md6			; yes
+	cmp	ax,ERR_NOFILE
+	stc
+	jne	md8
+;
+; Allocate a cluster for the new directory, and then add its DIRENT to
+; the parent directory (releasing the cluster if that fails).
+;
+	sub	dx,dx
+	call	alloc_cln		; DX = new CLN
+	jc	md8
+	push	dx
+	mov	bl,DIRATTR_SUBDIR
+	call	add_dirent		; DS:SI -> new DIRENT
+	pop	dx
+	jnc	md2
+	push	ax
+	call	free_clns		; release the new cluster
+	pop	ax
+	stc
+	jmp	short md8
+md2:	ASSUME	DS:BIOS
+	mov	[si].DIR_CLN,dx
+	mov	bx,dx			; BX = new CLN
+	call	get_dircln
+	xchg	cx,ax			; CX = parent CLN
+	call	init_cln		; DS:SI -> new directory's 1st sector
+	jc	md8
+;
+; Fill in the "." entry (with the new CLN) and ".." entry (with the
+; parent CLN).
+;
+	push	di
+	push	es
+	push	ds
+	pop	es
+	ASSUME	ES:BIOS
+	mov	di,si			; ES:DI -> 1st DIRENT
+	call	get_dtime		; AX = time, DX = date
+	mov	si,1			; SI = # dots in the name
+md3:	push	ax
+	push	cx
+	mov	cx,si
+	mov	al,'.'
+	rep	stosb
+	mov	cx,size FCB_NAME
+	sub	cx,si
+	mov	al,' '
+	rep	stosb			; DIR_NAME
+	mov	al,DIRATTR_SUBDIR
+	stosb				; DIR_ATTR
+	add	di,size DIR_PAD
+	pop	cx
+	pop	ax
+	stosw				; DIR_TIME
+	xchg	ax,dx
+	stosw				; DIR_DATE
+	xchg	ax,dx
+	xchg	ax,bx
+	stosw				; DIR_CLN
+	xchg	ax,bx
+	add	di,size DIR_SIZE
+	mov	bx,cx			; BX = parent CLN (for "..")
+	inc	si
+	cmp	si,2
+	jbe	md3
+	pop	es
+	ASSUME	ES:NOTHING
+	pop	di
+	mov	al,[DIR_BUFHDR].BUF_DRIVE
+	call	flush_buffers		; write the new directory, etc
+	jnc	md9
+	jmp	short md8
+md6:	mov	ax,ERR_ACCDENIED
+	stc
+md8:	mov	[bp].REG_AX,ax
+md9:	UNLOCK_SCB
+	ret
+ENDPROC	dsk_mkdir
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dsk_rmdir (REG_AH = 3Ah)
+;
+; Inputs:
+;	REG_DS:REG_DX -> path of directory to remove
+;
+; Outputs:
+;	On success, carry clear
+;	On failure, carry set, REG_AX = error code
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, DS, ES
+;
+; Notes:
+;	The directory must be empty, and it can't be the current directory
+;	of any session.
+;
+DEFPROC	dsk_rmdir,DOS
+	LOCK_SCB
+	call	chk_dirname		; DL = drive #, DI -> BPB
+	jc	rd0
+	push	bx
+	mov	ax,-1
+	mov	bl,DIRATTR_SUBDIR
+	call	get_dirent		; DS:SI -> DIRENT, AX = DIRENT #
+	pop	bx
+	jnc	rd1
+	cmp	ax,ERR_NOFILE
+	stc
+	jne	rd0
+	mov	ax,ERR_NOPATH
+rd0:	jmp	rd8
+	ASSUME	DS:BIOS
+rd1:	push	[si].DIR_CLN		; save the directory
+	push	ax			; save its DIRENT #
+	call	get_dircln
+	push	ax			; save its parent
+	mov	si,sp
+	mov	cx,ss:[si+4]		; CX = directory
+;
+; Make sure the directory isn't the current directory of any session.
+;
+	mov	bx,[scb_table].OFF
+rd2:	push	bx
+	mov	al,dl			; AL = drive #
+	call	get_cdir		; BX -> session's current directory
+	cmp	cs:[bx],cx
+	pop	bx
+	mov	ax,ERR_CURDIR
+	stc
+	je	rd7
+	add	bx,size SCB
+	cmp	bx,[scb_table].SEG
+	jb	rd2
+;
+; Make sure the directory is empty (except for "." and "..").
+;
+	mov	bx,[scb_active]
+	mov	es:[bx].SCB_DIRCLN,cx
+	push	di
+	lea	di,[bx].SCB_FILENAME+1
+	mov	al,'?'
+	mov	cx,size FCB_NAME
+	rep	stosb
+	pop	di
+	sub	ax,ax			; start with DIRENT # 0
+rd3:	mov	bl,0			; BL = 0 (any attributes)
+	call	get_dirent		; DS:SI -> DIRENT, AX = DIRENT #
+	jc	rd4
+	inc	ax			; AX = next DIRENT #
+	cmp	[si].DIR_NAME,'.'	; "." or ".."?
+	je	rd3			; yes
+	mov	ax,ERR_ACCDENIED	; no, so the directory isn't empty
+	stc
+	jmp	short rd7
+rd4:	cmp	ax,ERR_NOFILE		; did we run out of entries?
+	stc
+	jne	rd7			; no, some other error
+;
+; Find its DIRENT in the parent again (using the "?" name and its DIRENT #),
+; delete it, and then free the directory's clusters.
+;
+	pop	ax			; AX = parent
+	mov	bx,[scb_active]
+	mov	es:[bx].SCB_DIRCLN,ax
+	pop	ax			; AX = DIRENT #
+	mov	bl,DIRATTR_SUBDIR
+	call	get_dirent		; DS:SI -> DIRENT
+	pop	dx			; DX = directory
+	jc	rd8
+	mov	[si].DIR_NAME,DIRENT_DELETED
+	mov	[DIR_BUFHDR].BUF_DIRTY,1
+	call	free_clns		; free the directory's clusters
+	jc	rd8
+	mov	al,[DIR_BUFHDR].BUF_DRIVE
+	call	flush_buffers		; write the modified DIRENT and FAT
+	jnc	rd9
+	jmp	short rd8
+rd7:	pop	cx			; discard the saved values
+	pop	cx			; (without affecting carry)
+	pop	cx
+rd8:	mov	[bp].REG_AX,ax
+rd9:	UNLOCK_SCB
+	ret
+ENDPROC	dsk_rmdir
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chk_dirname
+;
+; Parse the path at REG_DS:REG_DX for dsk_mkdir or dsk_rmdir, whose final
+; name can't be blank, ".", or "..".
+;
+; Inputs:
+;	REG_DS:REG_DX -> path
+;
+; Outputs:
+;	Same as get_path (and BX -> active SCB, ES = DOS)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, DS, ES
+;
+DEFPROC	chk_dirname,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	call	get_dirpath		; DL = drive #, DI -> BPB
+	jc	cn9
+	ASSUME	ES:DOS
+	mov	al,es:[bx].SCB_FILENAME+1
+	cmp	al,' '			; blank?
+	je	cn8			; yes
+	cmp	al,'.'			; "." or ".."?
+	clc
+	jne	cn9			; no
+cn8:	mov	ax,ERR_ACCDENIED
+	stc
+cn9:	ret
+ENDPROC	chk_dirname
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

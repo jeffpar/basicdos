@@ -7,7 +7,7 @@ machines:
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-dual-256kb-debugger.json
     autoMount:
-      A: "BASIC-DOS4"
+      A: "BASICDOS-DISK4"
       B: "PC DOS 2.00 (Disk 2)"
 ---
 

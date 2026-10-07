@@ -10,8 +10,14 @@ Returns the arctangent of *x*, in radians.
 AUTO [*line*][,*increment*]
 Prompts for program lines, starting with *line* (default 10) and adding *increment* (default 10) after each one.  If a line already exists, it's displayed for editing.  To stop, press ENTER on a line with nothing after its number, or press CTRL-C.
 
+CD [*drive*:][*path*]
+Changes the current directory of *drive* (or the current drive) to *path*, where directory names are separated by the path character (/ by default, or \ if SWITCHAR is /).  A *path* that begins with the path character starts at the root directory, and .. refers to the parent directory.  If no *path* is specified, the current directory is displayed.  CHDIR is the same as CD.
+
 CHAIN *file*[,*line*]
 Runs the specified BAS file and then ends the program.  The *line* is currently ignored, and other CHAIN options are not supported.
+
+CHDIR [*drive*:][*path*]
+Same as CD.
 
 CHR$(*code*)
 Returns a one-character string containing the character with the specified *code* (0-255).
@@ -40,8 +46,8 @@ Returns the cosine of *x*, where *x* is in radians.
 DATA *item*[,*item*]...
 Defines items for READ to assign to variables, in the order they appear in the program.  An item can be a number or a string; quoted strings can contain commas and colons.
 
-DATE [*date*] [/P]
-Sets the system date (or prompts for a date if /P) and then displays the date.
+DATE [*date*] [-P]
+Sets the system date (or prompts for a date if -P) and then displays the date.
 The date must be entered as M-D-Y or M/D/Y, where M is 1-12, D is 1-31, and Y is 0-99 or 1980-2099.
 If D or Y are omitted, current values are assumed.
 
@@ -75,8 +81,8 @@ DIM *array*(*bounds*)[,*array*(*bounds*)]...
 Dimensions one or more arrays, with up to 255 dimensions each (eg, DIM A(10), B$(5,5)).  Each bound is the largest subscript for that dimension.
 Arrays that are used without DIM have a largest subscript of 10.
 
-DIR [*filespec*] [/P]
-Displays a directory listing of all files matching the given *filespec* (or all files if none is specified).
+DIR [*filespec*] [-P]
+Displays a directory listing of all files matching the given *filespec* (or all files if none is specified).  Subdirectories are listed as <DIR>, and if *filespec* is a directory, its files are listed.
 
 DRAW *string*
 Draws lines from the last point, using these commands: U, D, L, R, E, F, G, and H [*n*] (move up, down, left, right, or diagonally), M *x*,*y* (move to *x*,*y*, or relative to the last point if *x* begins with + or -), B (prefix: move without drawing), N (prefix: draw without moving), C *n* (color), and S *n* (scale, in quarters).  Any number can be given as =*variable*; (eg, "M=X;,=Y;").
@@ -193,12 +199,18 @@ Returns the natural logarithm of *x*, which must be greater than zero.
 MAXINT
 Constant equal to the largest positive integer.
 
-MEM [/D]
+MD [*drive*:]*path*
+Creates a new directory.  MKDIR is the same as MD.
+
+MEM [-D]
 Displays the total memory, the memory free for running programs (EXEC), and the memory free for BASIC programs, which excludes the part of the command processor that's set aside while running a program (when it can't be set aside, as when more than one session is running, a single "bytes free" value is displayed).
-/D also displays every memory block.  In DEBUG builds, /F displays open files, and /S displays active sessions.
+-D also displays every memory block.  In DEBUG builds, -F displays open files, and -S displays active sessions.
 
 MID$(*string*,*start*[,*n*])
 Returns *n* characters of *string*, beginning at position *start* (or the rest of *string* if *n* is omitted).
+
+MKDIR [*drive*:]*path*
+Same as MD.
 
 NEW
 Erases the loaded program, functions, and variables.
@@ -241,6 +253,9 @@ Draws a point in a graphics mode, using the foreground color if no *color* is sp
 PUT (*x*,*y*),*array*[,PSET|PRESET|XOR|OR|AND]
 Draws an image stored by GET, combining it with the screen using XOR, unless another action is specified.
 
+RD [*drive*:]*path*
+Removes an empty directory, unless it's the current directory of any session.  RMDIR is the same as RD.
+
 READ *variable*[,*variable*]...
 Assigns the next DATA item to each variable.  Reading past the last item is an "Out of DATA" error.
 
@@ -261,6 +276,9 @@ Returns from a GOSUB subroutine, or ends a function block and returns the specif
 
 RIGHT$(*string*,*n*)
 Returns the rightmost *n* characters of *string*.
+
+RMDIR [*drive*:]*path*
+Same as RD.
 
 RND[(*n*)]
 Returns a random number from 0 up to (but not including) 1.  *n* has the same effect as with RND%.
@@ -306,8 +324,8 @@ Returns a string of *n* copies of *char*, which can be either a character code o
 TAN(*x*)
 Returns the tangent of *x*, where *x* is in radians.
 
-TIME [*time*] [/D] [/P]
-Sets the system time (or prompts for a time if /P) and then displays the time. /D displays elapsed time.
+TIME [*time*] [-D] [-P]
+Sets the system time (or prompts for a time if -P) and then displays the time. -D displays elapsed time.
 The time must be entered as H:M:S.D, where where H is 0-23, M is 0-59, S is 0-59, and D is 0-99.
 If M, S, or D are omitted, zeros are assumed.
 

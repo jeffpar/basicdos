@@ -71,6 +71,11 @@ DOS_MSC_GETVEC	equ	35h	; get vector (AL) addr (ES:BX)
 DOS_DSK_GETINFO	equ	36h	; get disk info; eg, available clusters (BX)
 DOS_MSC_GETSWC	equ   3700h	; get switch char (DL) (undocumented)
 DOS_MSC_SETSWC	equ   3701h	; set switch char (DL) (undocumented)
+DOS_MSC_GETPCH	equ   3704h	; get path char (DL) (BASIC-DOS only)
+DOS_MSC_SETPCH	equ   3705h	; set path char (DL) (BASIC-DOS only)
+DOS_DSK_MKDIR	equ	39h	; create directory (DS:DX)
+DOS_DSK_RMDIR	equ	3Ah	; remove directory (DS:DX)
+DOS_DSK_CHDIR	equ	3Bh	; change current directory (DS:DX)
 DOS_HDL_CREATE	equ	3Ch	; return handle for new file (DS:DX)
 DOS_HDL_OPEN	equ	3Dh	; return handle for device/file (DS:DX)
 DOS_HDL_OPENRO	equ   3D00h	; return handle with R/O access
@@ -85,6 +90,7 @@ DOS_HDL_SEEKBEG	equ   4200h	; seek from beginning
 DOS_HDL_SEEKCUR	equ   4201h	; seek from current position
 DOS_HDL_SEEKEND	equ   4202h	; seek from end
 DOS_HDL_IOCTL	equ   	44h	; send device request (AL) for handle (BX)
+DOS_DSK_GETCWD	equ	47h	; get current dir of drive (DL) at (DS:SI)
 DOS_MEM_ALLOC	equ	48h	; allocate (BX) paras (returns segment AX)
 DOS_MEM_FREE	equ	49h	; free segment (ES)
 DOS_MEM_REALLOC	equ	4Ah	; reallocate size of segment (ES) to paras (BX)
@@ -317,7 +323,8 @@ FFB		struc
 FFB_DRIVE	db	?	; 00h: drive #
 FFB_SATTR	db	?	; 01h: search attributes
 FFB_FILESPEC	db    11 dup (?); 02h: filespec
-FFB_RESERVED	db     6 dup (?); 0Dh: reserved
+FFB_DIRCLN	dw	?	; 0Dh: directory (1st cluster) to search
+FFB_RESERVED	db     4 dup (?); 0Fh: reserved
 FFB_DIRNUM	dw	?	; 13h: DIRENT #
 FFB_ATTR	db	?	; 15h: file attr
 FFB_TIME	dw	?	; 16h: file time
@@ -335,6 +342,7 @@ DV_MCB_LIMIT	dw	?	;  00h: first unavailable segment
 DV_BPB_TABLE	dd	?	;  02h: offset, limit of BPBs
 DV_SFB_TABLE	dd	?	;  06h: offset, limit of SFBs
 DV_SCB_TABLE	dd	?	;  0Ah: offset, limit of SCBs
+		dd	?	;  0Eh: offset, limit of current dirs
 DOSVARS		ends
 
 ;
@@ -344,7 +352,7 @@ DOSVARS		ends
 ;
 ERR_INVALID	equ	1	; invalid function
 ERR_NOFILE	equ	2	; file not found
-ERR_NOPATH	equ	3	; path not found (no paths in BASIC-DOS, yet)
+ERR_NOPATH	equ	3	; path not found
 ERR_NOHANDLE	equ	4	; out of handles
 ERR_ACCDENIED	equ	5	; access denied
 ERR_BADHANDLE	equ	6	; invalid handle
@@ -352,6 +360,7 @@ ERR_BADMCB	equ	7	; invalid MCB
 ERR_NOMEMORY	equ	8	; out of memory
 ERR_BADADDR	equ	9	; invalid memory segment
 ERR_BADDRIVE	equ	15	; invalid drive
+ERR_CURDIR	equ	16	; attempt to remove current directory
 ERR_NOTSAME	equ	17	; not same device
 ERR_DISKFULL	equ	39	; disk full
 

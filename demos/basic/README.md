@@ -1,13 +1,13 @@
 ---
 layout: page
-title: BASIC-DOS with DONKEY.BAS
+title: BASIC-DOS running DONKEY.BAS
 permalink: /demos/basic/
 machines:
   - id: ibm5150
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-cga-256kb.json
     autoMount:
-      A: "BASIC-DOS6"
+      A: "BASICDOS-DISK6"
       B: "PC DOS 1.00"
 ---
 
@@ -17,7 +17,7 @@ And it runs them with better overall performance than BASICA, GW-BASIC, and othe
 
 It also offers better DOS integration.  There's no separate BASIC environment to load: BASIC programs are just another kind of command, run directly from the DOS prompt, alongside COM, EXE, and BAT files, and a BASIC program can run other BASIC programs and batch files, too.
 
-The machine below boots the BASIC-DOS6 diskette, which contains text copies of DONKEY.BAS and the other BASIC samples from the IBM PC DOS 1.00 diskette (whose copies, in drive B:, are in the tokenized format that only IBM BASIC can load).  To try it, type:
+The machine below boots the BASICDOS-DISK6 diskette, which contains text copies of DONKEY.BAS and the other BASIC samples from the IBM PC DOS 1.00 diskette (whose copies, in drive B:, are in the tokenized format that only IBM BASIC can load).  To try it, type:
 
     DONKEY
 
@@ -29,7 +29,7 @@ For comparison, **MSBASIC** (built from Microsoft's GW-BASIC sources) is also on
 
 {% include machine.html id="ibm5150" %}
 
-### **DONKEY.BAS** from the BASIC-DOS6 Diskette
+### **DONKEY.BAS** from the BASICDOS-DISK6 Diskette
 
 ```
 {% include_relative DONKEY.BAS %}

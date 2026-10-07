@@ -166,7 +166,7 @@ Outputs (carry clear if a block was found; carry set if there are no more blocks
 
 With DL = 3, BX + DX is the highest free paragraph + 1, which is useful for storing data that can be recreated if it's overwritten.  For example, COMMAND.COM keeps a copy of its transient portion there while a program runs.  Since the block remains free, another session can allocate it at any time, so a caller should use DOS_UTL_LOCK and DOS_UTL_UNLOCK around any code that writes to the block or relies on its contents (eg, from the query through the copy, and from verifying the copy's checksum through copying it back).
 
-The MEM /D command (in DEBUG builds) uses this function to list memory blocks.
+The MEM -D command (in DEBUG builds) uses this function to list memory blocks.
 
 ### Programs
 

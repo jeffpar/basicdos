@@ -7,7 +7,7 @@ machines:
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-dual-256kb-debugger.json
     autoMount:
-      A: "BASIC-DOS5"
+      A: "BASICDOS-DISK5"
 ---
 
 {% include machine.html id="ibm5150" %}

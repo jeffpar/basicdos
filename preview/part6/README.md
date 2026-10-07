@@ -7,7 +7,7 @@ machines:
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-cga-256kb.json
     autoMount:
-      A: "BASIC-DOS6"
+      A: "BASICDOS-DISK6"
 ---
 
 ### Part 6: Performance
@@ -54,7 +54,7 @@ BASICA and GW-BASIC are also unable to use an 8087, because internally, they use
 
 ### Try It Yourself
 
-The machine below boots the `BASIC-DOS6` diskette, which includes BENCH.BAS. Type `BENCH` to run the benchmarks with BASIC-DOS, or `MSBASIC BENCH` to run them with GW-BASIC (type `SYSTEM` to return to BASIC-DOS afterward).  The full set of tests takes a few minutes, and each result is displayed as it completes.
+The machine below boots the `BASICDOS-DISK6` diskette, which includes BENCH.BAS. Type `BENCH` to run the benchmarks with BASIC-DOS, or `MSBASIC BENCH` to run them with GW-BASIC (type `SYSTEM` to return to BASIC-DOS afterward).  The full set of tests takes a few minutes, and each result is displayed as it completes.
 
 {% include machine.html id="ibm5150" %}
 

@@ -8,12 +8,12 @@ machines:
     config: /machines/pcx86/ibm/ibm-5150-dual-256kb.json
     debugger: available
     autoMount:
-      A: "BASIC-DOS5"
+      A: "BASICDOS-DISK5"
 ---
 
 {% include machine.html id="ibm5150" %}
 
-### **CONFIG.SYS** from the BASIC-DOS5 Diskette
+### **CONFIG.SYS** from the BASICDOS-DISK5 Diskette
 
 ```
 {% include_relative CONFIG.SYS %}

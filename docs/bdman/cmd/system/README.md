@@ -72,11 +72,11 @@ Lists all lines of the currently loaded BAS or BAT program, or the specified ran
 
 ### MEM
 
-> MEM [/D]
+> MEM [-D]
 
 Displays the total memory, followed by the memory free for running external programs (EXEC) and the memory free for BASIC programs.  The difference between the two is the transient portion of COMMAND.COM, which is set aside while an external program runs, but which BASIC programs need (it compiles and runs them).  When more than one session is running, every session shares the same COMMAND.COM code, so the transient portion can't be set aside, and MEM displays a single "bytes free" value instead.
 
-/D also displays every memory block, with its segment, owner, size, and description (eg, a device driver, COMMAND, or one of COMMAND's VAR, STR, TEXT, or CODE blocks).  In DEBUG builds of BASIC-DOS, /F also displays open files, and /S displays active sessions.
+-D also displays every memory block, with its segment, owner, size, and description (eg, a device driver, COMMAND, or one of COMMAND's VAR, STR, TEXT, or CODE blocks).  In DEBUG builds of BASIC-DOS, -F also displays open files, and -S displays active sessions.
 
 	MEM
 	  131072 bytes

@@ -21,7 +21,7 @@ Press any key to start BASIC-DOS, or press **Esc** to boot from the hard disk in
 	BASIC-DOS Command Processor
 	Floating-point software installed
 
-	A>
+	A:/>
 
 The "Floating-point" line tells you how BASIC-DOS will perform floating-point calculations:
 
@@ -29,7 +29,7 @@ The "Floating-point" line tells you how BASIC-DOS will perform floating-point ca
 - **software installed**: there's no 8087, so BASIC-DOS emulates one
 - **support disabled**: the FPU$ driver wasn't loaded (see [SKIP=](../cfg/#skip)), so numeric variables default to integers
 
-The `A>` is the BASIC-DOS prompt.  The prompt displays which diskette drive is the default and indicates that BASIC-DOS is ready to accept [commands](../cmd/) from the keyboard.
+The `A:/>` is the BASIC-DOS prompt.  The prompt displays the default drive and its current directory (`/` is the root directory; see [CD](../cmd/disk/#cd)), and indicates that BASIC-DOS is ready to accept [commands](../cmd/) from the keyboard.
 
 Unlike PC DOS, BASIC-DOS doesn't automatically run an AUTOEXEC.BAT file.  Instead, each session's startup command (if any) is specified on a [SHELL=](../cfg/#shell) line in CONFIG.SYS.
 

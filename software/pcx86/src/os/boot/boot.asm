@@ -61,7 +61,10 @@ start1:	jmp	short part1		; can't quite make it in one jump
 ;
 ; get_chs
 ;
-; Get CHS from LBA in AX, using BPB at DS:SI.
+; Get CHS from LBA in AX, using BPB at DS:SI.  The LBA is relative to the
+; volume, so we add the BPB's hidden sectors (non-zero only for hard disk
+; partitions).  Like DOS 2.x, we use only the low word of BPB_HIDDENSECS,
+; since DOS 2.x stored other data (eg, the boot drive) in the high word.
 ;
 ; Inputs:
 ;	AX = LBA
@@ -75,7 +78,9 @@ start1:	jmp	short part1		; can't quite make it in one jump
 ;	AX, CX, DX
 ;
 DEFPROC	get_chs
-	sub	dx,dx		; DX:AX is LBA
+	sub	dx,dx
+	add	ax,[si].BPB_HIDDENSECS.LOW
+	adc	dx,dx		; DX:AX is LBA
 	div	[si].BPB_CYLSECS; AX = cylinder, DX = remaining sectors
 	xchg	al,ah		; AH = cylinder, AL = cylinder bits 8-9
 	ror	al,1		; future-proofing: saving cylinder bits 8-9
@@ -467,6 +472,16 @@ errmsg2		db	"System file(s) missing, halted",0
 ;
 DEFPROC	part2,far
 	int	20h		; fake DOS terminate call
+;
+; When booting from a hard disk, the MBR's stack (eg, 0:7C00h) may be where
+; the rest of our files will be loaded, so use the same stack that the BIOS
+; uses to boot from a diskette (30h:100h).
+;
+	cli
+	mov	cx,30h
+	mov	ss,cx
+	mov	sp,100h
+	sti
 
 	push	di		; copy PART1 data to PART2
 	mov	si,offset PART1_COPY

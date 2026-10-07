@@ -28,11 +28,11 @@ DOS	segment word public 'CODE'
 ;
 ; That is, thus far, the extent of our extremely simple scheduler.
 ;
-	EXTBYTE	<scb_locked,def_switchar>
+	EXTBYTE	<scb_locked,def_drive,bpb_total>
 	EXTWORD	<scb_active,scb_stoked>
 	EXTLONG	<scb_table>
 	EXTNEAR	<dos_check,dos_leave,load_command,psp_termcode>
-	EXTNEAR	<sfh_add_ref,sfh_context,sfh_close>
+	EXTNEAR	<sfh_add_ref,sfh_context,sfh_close,get_cdir>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -721,12 +721,49 @@ DEFPROC	init_scb,DOS
 ;
 	mov	[bx].SCB_PARENT,ax	; TODO: What shall we do with this?
 	xchg	si,ax			; DS:SI -> previous SCB
-	mov	cl,0			; CL = CURDRV
-	mov	ch,[def_switchar]	; CH = SWITCHAR
-	mov	dx,es:[di].SPB_ENVSEG	; is SPB_ENVSEG -1?
-	inc	dx
-	jz	si0			; yes, don't copy handles
-	mov	cx,word ptr [si].SCB_CURDRV
+	mov	dx,es:[di].SPB_ENVSEG	; DX = SPB_ENVSEG (-1 if from sysinit)
+	push	es
+	push	di
+	push	ds
+	pop	es
+	ASSUME	ES:DOS
+;
+; Copy the current drive, switch char, and path char, along with the current
+; directory of every drive, from the previous SCB, unless SPB_ENVSEG is -1
+; (ie, from sysinit), in which case we use the defaults (and every root).
+;
+	push	bx
+	mov	al,0
+	call	get_cdir
+	mov	di,bx			; ES:DI -> new SCB's directories
+	mov	bx,si
+	mov	al,0
+	call	get_cdir		; BX -> previous SCB's directories
+	mov	cl,[bpb_total]
+	mov	ch,0
+	push	si
+	lea	ax,[si].SCB_CURDRV	; AX -> previous SCB's settings
+	mov	si,bx
+	cmp	dx,-1			; from sysinit?
+	jne	si0			; no
+	sub	ax,ax
+	rep	stosw			; every directory is the root
+	mov	ax,offset def_drive	; AX -> default settings
+si0:	rep	movsw			; (CX is zero if we just zeroed them)
+	pop	si
+	pop	bx
+	xchg	si,ax
+	lea	di,[bx].SCB_CURDRV
+	ASSERT	<SCB_CURDRV+1>,EQ,<SCB_SWITCHAR>
+	ASSERT	<SCB_CURDRV+2>,EQ,<SCB_PATHCHAR>
+	movsw
+	movsb
+	xchg	si,ax			; DS:SI -> previous SCB again
+	pop	di
+	pop	es
+	ASSUME	ES:NOTHING
+	inc	dx			; is SPB_ENVSEG -1?
+	jz	si0a			; yes, don't copy handles
 	ASSERT	<SCB_SFHIN>,EQ,2
 	lodsw				; use LODSW as a quick SI += 2
 	lodsw				; load SFHIN, SFHOUT
@@ -735,9 +772,7 @@ DEFPROC	init_scb,DOS
 	mov	word ptr [bx].SCB_SFHERR,ax
 	lodsb				; load SFHPRN
 	mov	[bx].SCB_SFHPRN,al
-	ASSERT	<SCB_CURDRV+1>,EQ,<SCB_SWITCHAR>
-si0:	mov	word ptr [bx].SCB_CURDRV,cx
-	dec	dx
+si0a:	dec	dx
 ;
 ; Now copy any valid SFHs from the SPB into the SCB.
 ;

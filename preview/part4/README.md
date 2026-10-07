@@ -7,12 +7,12 @@ machines:
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
     autoMount:
-      A: "BASIC-DOS2"
+      A: "BASICDOS-DISK2"
   - id: ibm5150-3
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
     autoMount:
-      A: "BASIC-DOS3"
+      A: "BASICDOS-DISK3"
     autoType: MEM /S\r
 ---
 

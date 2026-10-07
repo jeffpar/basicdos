@@ -13,7 +13,7 @@ CODE    SEGMENT
 
 	EXTNEAR	<allocText,freeAllText,genCode,freeAllCode,freeAllVars>
 	IF DETOK
-	EXTNEAR	<loadTokens>
+	EXTNEAR	<loadTokens,chkExt,getCwd>
 	ENDIF
 	EXTNEAR	<freeIdleVars,resetVars,runCode>
 	EXTNEAR	<enterLine,editPrompt,chkProgram>
@@ -23,7 +23,7 @@ CODE    SEGMENT
 	EXTWORD	<CMD_REFS,TRANS_SUM>
 	EXTABS	<TOK_ERASE,TOK_DEL>
 	EXTWORD	<KEYWORD_TOKENS>
-	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF,PERIOD>
+	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF>
 	EXTSTR	<VER_FINAL,VER_DEBUG,HELP_FILE,PIPE_NAME,FPU_NAME>
 	EXTSTR	<FPU_HW,FPU_SW,FPU_OFF>
 	EXTLONG	<FPU_TABLE>
@@ -148,7 +148,12 @@ m1:	and	[bx].CMD_FLAGS,NOT CMD_NOECHO
 m1a:	mov	ah,DOS_DSK_GETDRV
 	int	21h
 	add	al,'A'			; AL = current drive letter
-	PRINTF	<"%c",CHR_GT>,ax	; print drive letter and '>' symbol
+	push	ds
+	call	getCwd			; DS:SI -> current directory path
+	jnc	m1b
+	mov	byte ptr [si],0		; (no path if it's unavailable)
+m1b:	PRINTF	<"%c:%c%s",CHR_GT>,cx,dx,si
+	pop	ds
 
 	lea	dx,[bx].INPUTBUF
 	mov	[bx].INPUT_BUF,dx
@@ -725,7 +730,7 @@ DEFPROC	cmdFile
 	mov	[bp].CMD_ARGPTR,si	; save original filename ptr
 	mov	[bp].CMD_ARGLEN,cx
 	lea	di,[bp].LINEBUF
-	mov	ax,15
+	mov	ax,64
 	cmp	cx,ax
 	jb	cf1
 	xchg	cx,ax
@@ -757,8 +762,7 @@ cf2x:	jmp	cf9
 ;
 ; Not a drive letter, so presumably DS:SI contains a program name.
 ;
-cf3:	mov	dx,offset PERIOD
-	call	chkString		; any periods in string at DS:SI?
+cf3:	call	chkExt			; any extension in string at DS:SI?
 	jnc	cf4			; yes
 ;
 ; There's no period, so append extensions in a well-defined order (ie, .COM,
@@ -1020,7 +1024,7 @@ DEFPROC	getFileName
 	push	cs			; assumes default is in CS segment
 	pop	ds
 	jmp	short gf2
-gf1:	mov	ax,15			; DS:SI -> token, CX = length
+gf1:	mov	ax,64			; DS:SI -> token, CX = length
 	cmp	cx,ax
 	jbe	gf2
 	xchg	cx,ax
@@ -1061,85 +1065,87 @@ ENDPROC	getFileName
 ;	AX, CX, DX, SI, DS
 ;
 DEFPROC	getOutput
-	sub	sp,(size FCB) * 2	; make room for two parsed filenames
-	mov	dx,sp
-	add	dx,size FCB		; SS:DX -> buffer for input filename
-	call	parseName
+	call	getFileID		; CL:DX:AX identifies the input file
+	jnc	go1
+	mov	cl,-1			; (input isn't a file, so no match)
+go1:	push	cx
+	push	dx
+	push	ax
 	mov	dl,[bx].CMD_ARG
 	inc	dx			; DL = DL + 1
 	sub	cx,cx			; no default filespec in this case
 	call	getFileName		; DS:SI -> output filename
-	jnc	go1
+	jnc	go2
 	PRINTF	<"Missing output file",13,10>
 	jmp	short go8
 
-go1:	mov	dx,sp			; SS:DX -> buffer for output filename
-	call	parseName
-	push	si
-	push	di
-	push	ds
-	push	es
-	push	ss
-	pop	ds
-	push	ss
-	pop	es
-	mov	si,dx			; DS:SI -> parsed output filename
-	mov	di,si
-	add	di,size FCB		; ES:DI -> parsed input filename
-	mov	cx,FCB_CURBLK		; CX = size of drive # and filename
-	repe	cmpsb			; do the parsed filenames match?
-	pop	es
-	pop	ds
-	pop	di
-	pop	si
+go2:	call	getFileID		; CL:DX:AX identifies the output file
+	cmc
+	jnc	go9			; the output file doesn't exist
+	push	bp
+	mov	bp,sp
+	cmp	ax,[bp+2]
+	jne	go3
+	cmp	dx,[bp+4]
+	jne	go3
+	cmp	cl,[bp+6]
+go3:	pop	bp
 	clc
-	jne	go9			; no
+	jne	go9			; the files don't match
 	PRINTF	<"File cannot be copied onto itself",13,10>
 go8:	stc
-go9:	lahf				; release the buffers without
-	add	sp,(size FCB) * 2	; affecting carry
+go9:	lahf				; discard the input file info
+	add	sp,6			; without affecting carry
 	sahf
 	ret
 ENDPROC	getOutput
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; parseName
+; getFileID
 ;
-; Parse a filename into a drive # and 11-character name, using DOS_FCB_PARSE;
-; if no drive is specified, the current drive # is filled in, so that the
-; results for any two filenames can be compared.
+; Find the specified file and return its drive #, directory, and DIRENT #,
+; so that the results for any two filenames can be compared.  Like findFile,
+; we can't use the DTA (it may contain the command line), so we temporarily
+; use a DTA on the stack.
 ;
 ; Inputs:
-;	DS:SI -> filename
-;	SS:DX -> buffer (size FCB)
+;	SS:SI -> filename
 ;
 ; Outputs:
-;	Buffer filled in (FCB_DRIVE is 1-based)
+;	If carry clear, CL = drive #, DX = directory, AX = DIRENT #
+;	If carry set, the file was not found
 ;
 ; Modifies:
-;	AX
+;	AX, CX, DX
 ;
-DEFPROC	parseName
-	push	si
-	push	di
-	push	es
+DEFPROC	getFileID
+	push	bp
+	push	ds
 	push	ss
-	pop	es
-	mov	di,dx			; ES:DI -> buffer
-	mov	ax,DOS_FCB_PARSE SHL 8	; AL = parse flags (none)
+	pop	ds
+	sub	sp,(size FFB + 1) AND 0FFFEh
+	mov	bp,sp
+	mov	dx,bp			; DS:DX -> temporary DTA
+	mov	ah,DOS_DSK_SETDTA
 	int	21h
-	cmp	es:[di].FCB_DRIVE,0	; was a drive specified?
-	jne	pn9			; yes
-	mov	ah,DOS_DSK_GETDRV
-	int	21h			; AL = current drive #
-	inc	ax
-	mov	es:[di].FCB_DRIVE,al	; store 1-based drive #
-pn9:	pop	es
-	pop	di
-	pop	si
+	mov	cx,06h			; CX = attributes (HIDDEN and SYSTEM)
+	mov	dx,si			; DS:DX -> filename
+	mov	ah,DOS_DSK_FFIRST
+	int	21h
+	pushf
+	mov	dx,PSP_DTA
+	mov	ah,DOS_DSK_SETDTA
+	int	21h			; restore the DTA
+	popf
+	mov	ax,[bp].FFB_DIRNUM
+	mov	dx,[bp].FFB_DIRCLN
+	mov	cl,[bp].FFB_DRIVE
+	lea	sp,[bp+((size FFB + 1) AND 0FFFEh)]
+	pop	ds
+	pop	bp
 	ret
-ENDPROC	parseName
+ENDPROC	getFileID
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1354,131 +1360,6 @@ de6:	pop	si
 de7:	PRINTF	<"Missing filename",13,10,13,10>
 de9:	ret
 ENDPROC	cmdDel
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; cmdDir
-;
-; Print a directory listing for the specified filespec.
-;
-; Inputs:
-;	BX -> CMDHEAP
-;	DS:SI -> filespec (with length CX)
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	Any
-;
-DEFPROC	cmdDir
-;
-; If filespec begins with ":", extract drive letter, and if it ends
-; with ":" as well, append DIR_DEF ("*.*").
-;
-	push	bp
-	mov	dl,0			; DL = default drive #
-	mov	di,cx			; DI = length of filespec
-	cmp	cx,2
-	jb	di2
-	cmp	byte ptr [si+1],':'
-	jne	di2
-	mov	al,[si]
-	sub	al,'A'-1
-	jb	dix
-	mov	dl,al			; DL = specific drive # (1-based)
-di2:	mov	ah,DOS_DSK_GETINFO
-	int	21h			; get disk info for drive
-	jnc	di3
-dix:	jmp	di8
-;
-; We primarily want the cluster size, in bytes, which this call doesn't
-; provide directly; we must multiply bytes per sector (CX) by sectors per
-; cluster (AX).
-;
-di3:	mov	bp,bx			; BP = available clusters
-	mul	cx			; DX:AX = bytes per cluster
-	xchg	bx,ax			; BX = bytes per cluster
-
-	add	di,si			; DI -> end of filespec
-	cmp	byte ptr [di-1],':'
-	jne	di3a
-	push	si
-	mov	cx,DIR_DEF_LEN
-	mov	si,offset DIR_DEF
-	REPS	MOVS,ES,CS,BYTE
-	pop	si
-
-di3a:	sub	cx,cx			; CX = attributes
-	mov	dx,si			; DX -> filespec
-	mov	ah,DOS_DSK_FFIRST
-	int	21h
-	jc	dix
-;
-; Use DX to maintain the total number of clusters, and CX to maintain
-; the total number of files.
-;
-	sub	dx,dx
-	sub	cx,cx
-di4:	lea	si,ds:[PSP_DTA].FFB_NAME
-;
-; Beginning of "stupid" code to separate filename into name and extension.
-;
-	push	cx
-	push	dx
-	DOSUTIL	STRLEN
-	xchg	cx,ax			; CX = total length
-	mov	dx,offset PERIOD
-	call	chkString		; does the filename contain a period?
-	jc	di5			; no
-	mov	ax,di
-	sub	ax,si			; AX = partial filename length
-	inc	di			; DI -> character after period
-	jmp	short di6
-di5:	mov	ax,cx			; AX = complete filename length
-	mov	di,si
-	add	di,ax
-;
-; End of "stupid" code (which I'm tempted to eliminate, but since it's done...)
-;
-di6:	mov	dx,ds:[PSP_DTA].FFB_DATE
-	mov	cx,ds:[PSP_DTA].FFB_TIME
-	ASSERT	Z,<cmp ds:[PSP_DTA].FFB_SIZE.HIW,0>
-	PRINTF	<"%-8.*s %-3s %7ld %2M-%02D-%02X %2G:%02N%A",13,10>,ax,si,di,ds:[PSP_DTA].FFB_SIZE,:2,dx,dx,dx,cx,cx,cx
-	call	countLine
-;
-; Update our totals
-;
-	mov	ax,ds:[PSP_DTA].FFB_SIZE.LOW
-	mov	dx,ds:[PSP_DTA].FFB_SIZE.HIW
-	lea	cx,[bx-1]
-	add	ax,cx			; add cluster size - 1 to file size
-	adc	dx,0
-	div	bx			; # clusters = file size/cluster size
-	pop	dx
-	pop	cx
-	add	dx,ax			; update our cluster total
-	inc	cx			; and increment our file total
-
-	mov	ah,DOS_DSK_FNEXT
-	int	21h
-	jc	di7
-	jmp	di4
-
-di7:	xchg	ax,dx			; AX = total # of clusters used
-	mul	bx			; DX:AX = total # bytes
-	PRINTF	<"%8d file(s) %8ld bytes",13,10>,cx,ax,dx
-	call	countLine
-	xchg	ax,bp			; AX = total # of clusters free
-	mul	bx			; DX:AX = total # bytes free
-	PRINTF	<"%25ld bytes free",13,10>,ax,dx
-	pop	bp
-	ret
-
-di8:	PRINTF	<"Unable to find %s (%d)",13,10,13,10>,si,ax
-	pop	bp
-	ret
-ENDPROC	cmdDir
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2012,8 +1893,7 @@ DEFPROC	cmdLoad
 	call	chkProgram		; is a program running?
 	jnc	lf0			; no
 	jmp	lf13
-lf0:	mov	dx,offset PERIOD	; check the filename
-	call	chkString
+lf0:	call	chkExt			; check the filename
 	jnc	lf1			; period exists, use filename as-is
 	mov	dx,offset BAS_EXT
 	call	addString

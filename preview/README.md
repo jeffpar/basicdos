@@ -33,7 +33,7 @@ This is a "sneak peek" at BASIC-DOS, the first version of DOS that *could* have 
 
 The machine shown below is an IBM PC (Model 5150) with two floppy disk drives and a Color Graphics Adapter (CGA) connected to a Color Monitor, with 64K of RAM.
 
-A BASIC-DOS boot diskette (`BASIC-DOS1`) has been loaded into drive A:.  The boot sector loads **IBMBIO.COM** into memory, which in turn loads **CONFIG.SYS** and **IBMDOS.COM**.  Like PC DOS, IBMBIO contains all the BASIC-DOS device drivers and IBMDOS contains all the Disk Operating System services. Finally, IBMDOS loads **COMMAND.COM** into memory, which provides the initial **A&gt;** command prompt.
+A BASIC-DOS boot diskette (`BASICDOS-DISK1`) has been loaded into drive A:.  The boot sector loads **IBMBIO.COM** into memory, which in turn loads **CONFIG.SYS** and **IBMDOS.COM**.  Like PC DOS, IBMBIO contains all the BASIC-DOS device drivers and IBMDOS contains all the Disk Operating System services. Finally, IBMDOS loads **COMMAND.COM** into memory, which provides the initial **A&gt;** command prompt.
 
 {% include machine.html id="ibm5150" %}
 

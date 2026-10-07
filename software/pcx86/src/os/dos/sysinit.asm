@@ -25,9 +25,9 @@ TIME_GETTICKS	equ	00h
 
 DOS	segment word public 'CODE'
 
-	EXTBYTE	<bpb_total,sfh_debug,def_switchar>
+	EXTBYTE	<bpb_total,sfh_debug,def_drive,def_switchar,def_pathchar>
 	EXTWORD	<mcb_head,mcb_limit,buf_head,key_boot,scb_active,ivt_save>
-	EXTLONG	<bpb_table,scb_table,sfb_table,clk_ptr,fpu_table>
+	EXTLONG	<bpb_table,scb_table,sfb_table,cdir_table,clk_ptr,fpu_table>
 	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr,dos_opchk>
 	EXTNEAR	<dos_term,dos_func,dos_exit,dos_ctrlc,dos_error,dos_default>
 	EXTNEAR	<disk_read,disk_write,dos_tsr,dos_call5,dos_util,dos_leave>
@@ -182,13 +182,23 @@ si2b:	mov	al,0EAh			; DI -> INT_DOSCALL5 * 4
 	DBGINIT	STRUCT,[bx],SCB
 	mov	[scb_active],bx		; set temporary SCB
 ;
-; Let users override the default switch character '/' (eg, "SWITCHAR=-").
+; Let users override the default switch character '-' (eg, "SWITCHAR=/").
+; The default path character is '\' when SWITCHAR is '/', and '/' otherwise,
+; unless it's also overridden (eg, "PATHCHAR=:").
 ;
 	mov	si,offset CFG_SWITCHAR
 	call	find_cfg		; look for "SWITCHAR="
-	jc	si3
+	jc	si2c
 	mov	al,[di]			; grab the character
 	mov	[def_switchar],al	; and update the default for all SCBs
+	cmp	al,'/'
+	jne	si2c
+	mov	[def_pathchar],'\'
+si2c:	mov	si,offset CFG_PATHCHAR
+	call	find_cfg		; look for "PATHCHAR="
+	jc	si3
+	mov	al,[di]
+	mov	[def_pathchar],al
 ;
 ; Copy BOOT_KEY from the BIOS segment to key_boot in the DOS segment.
 ;
@@ -324,7 +334,20 @@ si5c:	mov	[FDC_UNITS],al		; (updated to include reserved drives)
 	push	[FDC_DEVICE].SEG	; save FDC pointer on stack
 	push	[FDC_DEVICE].OFF
 	mov	al,[si].BPB_DRIVE	; use the BPB's own BPB_DRIVE #
-	mov	ah,size BPBEX		; to determine the system BPB to update
+	test	al,al			; to determine the system BPB to update
+	jns	si5d
+;
+; We booted from a hard disk (eg, 80h), whose first volume follows the
+; diskette drives; the HDC driver will build its BPB, so we don't copy the
+; boot BPB, but FAT_BUF's data (from the boot code) is for that volume.
+;
+	mov	al,[FDC_UNITS]		; AL = drive # of 1st hard disk volume
+	mov	es:[def_drive],al
+	mov	[FAT_BUFHDR].BUF_DRIVE,al
+	mov	bx,es:[scb_active]
+	mov	es:[bx].SCB_CURDRV,al
+	jmp	short si6b
+si5d:	mov	ah,size BPBEX
 	mul	ah
 	mov	di,es:[bpb_table].OFF
 	add	di,ax
@@ -377,7 +400,10 @@ si6a:	jnz	sie0			; hmm, CLUSSECS wasn't a power-of-two
 	shr	ax,cl			; AX = data clusters
 	mov	[di].BPB_CLUSTERS,ax
 
-si6b:	pop	ax			; restore FDC pointer in DX:AX
+si6b:	push	es
+	pop	ds
+	ASSUME	DS:DOS
+	pop	ax			; restore FDC pointer in DX:AX
 	pop	dx
 	pop	cx			; restore # BPBs in CL
 	mov	bl,ch			; BL = # diskette drives
@@ -401,6 +427,18 @@ si6d:	add	di,size BPBEX
 
 	pop	es
 	ASSUME	ES:NOTHING
+;
+; The next resident table (cdir_table) contains every session's current
+; directory (1st cluster, or 0 for the root) for every drive.
+;
+	mov	ax,[scb_table].SEG
+	sub	ax,[scb_table].OFF
+	mov	dl,size SCB
+	div	dl			; AL = # SCBs
+	mul	[bpb_total]		; AX = # SCBs * # drives
+	mov	dx,2
+	mov	bx,offset cdir_table
+	call	init_table		; initialize table, update ES
 ;
 ; The next resident table (sfb_table) contains our System File Blocks.
 ; Look for a "FILES=" line in CFG_FILE.
@@ -1072,6 +1110,7 @@ CFG_MEMSIZE	db	8,"MEMSIZE="
 CFG_SESSIONS	db	9,"SESSIONS="
 		dw	4,1,32		; TODO: Decide if 32 session limit OK
 CFG_SHELL	db	6,"SHELL="
+CFG_PATHCHAR	db	9,"PATHCHAR="
 CFG_SWITCHAR	db	9,"SWITCHAR="
 
 AUX_DEVICE	db	"AUX",0

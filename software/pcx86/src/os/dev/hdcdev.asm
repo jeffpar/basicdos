@@ -14,8 +14,9 @@
 ; drives C:, D:, etc (see sysinit).
 ;
 ; Compared to the FDC driver, this driver is simpler in some respects (eg, no
-; media changes, and no 64K DMA boundary issues), and more complicated in
-; others (eg, every LBA is relative to the start of its volume).
+; media changes), and more complicated in others (eg, every LBA is relative
+; to the start of its volume).  Like the FDC, the XT hard disk controller uses
+; DMA, so transfers must not cross 64K boundaries (see readwrite_sectors).
 ;
 	BIOSEQU equ 1
 	include	macros.inc
@@ -679,8 +680,10 @@ ENDPROC	write_buffer
 ;
 ; Call BIOS to read/write sectors
 ;
-; We break every request into one or more single-track requests; unlike the
-; FDC, we don't have to worry about requests that cross 64K boundaries.
+; We break every request into one or more single-track requests, and like the
+; FDC, we limit each request to the sectors that precede the next 64K boundary;
+; a sector that would cross a 64K boundary is transferred through our own
+; buffer instead (otherwise, the BIOS reports DDERR_DMA64K).
 ;
 ; Inputs:
 ;	BH = BIOS cmd (FDC_READ or FDC_WRITE)
@@ -712,7 +715,8 @@ DEFPROC	readwrite_sectors
 	mov	di,bx			; CS:DI -> VOL
 	pop	bx
 	mov	ax,DDERR_UNKUNIT
-	jc	rw8a
+	jnc	rw1
+	jmp	rw8a
 
 rw1:	push	dx			; save LBA
 	push	bx			; save BIOS cmd and # sectors
@@ -737,10 +741,28 @@ rw2:	inc	ah			; AH = sector ID
 	or	cl,ah			; CL bits 0-5 = sector ID
 	mov	dl,cs:[di].VOL_DRIVE	; DL = BIOS drive #
 	mov	ah,bh			; AH = BIOS cmd, AL = # sectors
+;
+; Reduce AL to the # sectors that precede the next 64K boundary.
+;
+	push	cx
+	mov	bx,es
+	mov	cl,4
+	shl	bx,cl
+	add	bx,bp			; BX = low 16 bits of physical address
+	mov	cl,al			; CL = # sectors
+	mov	al,0			; AL = # sectors before the boundary
+rw2a:	add	bx,512
+	jc	rw2b
+	inc	ax
+	cmp	al,cl
+	jb	rw2a
+rw2b:	pop	cx
+	test	al,al			; any sectors before the boundary?
+	jz	rw4			; no
 	push	ax
 	mov	bx,bp			; ES:BX -> buffer
 	int	INT_FDC			; AX and carry are from the ROM
-	pop	cx
+rw3:	pop	cx
 	mov	ch,0			; CX = # sectors this iteration
 	pop	bx			; BL = total # sectors
 	pop	dx			; DX = LBA again
@@ -755,6 +777,51 @@ rw2:	inc	ah			; AH = sector ID
 	add	cx,ax
 	mov	es,cx			; advance transfer address in ES
 	jmp	rw1
+;
+; The next sector crosses a 64K boundary, so transfer it through our own
+; buffer (which no longer matches ddbuf_lba afterward).
+;
+rw4:	mov	al,1			; AL = 1 sector
+	push	ax			; save BIOS cmd and # sectors
+	push	si
+	push	di
+	push	ds
+	push	es
+	push	cx
+	mov	cx,256			; CX = # words in a sector
+	push	es
+	pop	ds
+	mov	si,bp			; DS:SI -> caller's buffer
+	les	di,cs:[ddbuf_ptr]	; ES:DI -> our own buffer
+	cmp	ah,FDC_READ		; reading?
+	je	rw4a			; yes
+	rep	movsw			; no, so copy the sector to our buffer
+rw4a:	pop	cx			; CX = cylinder and sector ID again
+	mov	bx,cs:[ddbuf_ptr].OFF	; ES:BX -> our own buffer
+	int	INT_FDC			; AX and carry are from the ROM
+	pop	es
+	pop	ds
+	pop	di
+	pop	si
+	pop	bx			; BH = BIOS cmd, BL = 1
+	jc	rw4c
+	mov	cs:[ddbuf_lba],-1	; invalidate our buffer's LBA
+	cmp	bh,FDC_READ		; reading?
+	jne	rw4c			; no (and carry is clear)
+	push	si
+	push	di
+	push	ds
+	push	cx
+	lds	si,cs:[ddbuf_ptr]	; DS:SI -> our own buffer
+	mov	di,bp			; ES:DI -> caller's buffer
+	mov	cx,256
+	rep	movsw			; copy the sector to the caller
+	pop	cx
+	pop	ds
+	pop	di
+	pop	si			; (carry is still clear)
+rw4c:	push	bx
+	jmp	rw3
 ;
 ; BIOS error codes (in AH) are also driver error codes (see DDERR in dev.inc).
 ;

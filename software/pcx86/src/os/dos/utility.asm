@@ -618,7 +618,14 @@ tc3:	test	byte ptr [bp].TMP_BH,TOKTYPE_GENERIC
 	jne	tc3c			; no
 	cmp	ah,CLS_WHITE		; any intervening whitespace?
 	je	tc3c			; yes
-	mov	ah,CLS_VAR		; no, force a transition
+;
+; A SWITCHAR that follows other characters (eg, "DIR/P") starts a new token
+; only if it's '/', since other SWITCHARs (eg, '-') may appear in arguments
+; (eg, "MY-FILE.TXT" or "DATE 10-07-26").
+;
+	cmp	al,'/'
+	jne	tc3c
+	mov	ah,CLS_VAR		; force a transition
 	ret
 tc3b:	mov	ah,CLS_SYM
 	ret

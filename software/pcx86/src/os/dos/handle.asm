@@ -347,6 +347,11 @@ so5:	add	si,size SFB
 	test	bx,bx			; was there a free SFB?
 	jz	so8			; no, tell the driver sorry
 	mov	cs:[bx].SFB_DIRNUM,cx
+	push	si
+	mov	si,cs:[scb_active]
+	mov	cx,cs:[si].SCB_DIRCLN
+	mov	cs:[bx].SFB_DIRCLN,cx
+	pop	si
 
 	push	di
 	push	es

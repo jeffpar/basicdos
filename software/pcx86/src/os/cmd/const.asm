@@ -281,7 +281,9 @@ CODE	ENDS
 	DEFTOK	ATN,   102
 	DEFTOK	AUTO,   12, cmdAuto
 	DEFTOK	BASE,  205,,PUB
+	DEFTOK	CD,     16, cmdChdir
 	DEFTOK	CHAIN,  71, genChain
+	DEFTOK	CHDIR,  16, cmdChdir
 	DEFTOK	CIRCLE, 82, genCircle
 	DEFTOK	CLEAR,  81, genClear
 	DEFTOK	CLS,    40, genCLS
@@ -324,7 +326,9 @@ CODE	ENDS
 	DEFTOK	LOAD,   22, cmdLoad
 	DEFTOK	LOCATE, 64, genLocate
 	DEFTOK	LOG,   107
+	DEFTOK	MD,     17, cmdMkdir
 	DEFTOK	MEM,     5, cmdMem
+	DEFTOK	MKDIR,  17, cmdMkdir
 	DEFTOK	NEW,     6, cmdNew
 	DEFTOK	NEXT,   60, genNext
 	DEFTOK	OFF,   202,,PUB
@@ -337,12 +341,14 @@ CODE	ENDS
 	DEFTOK	PRINT,  51, genPrint
 	DEFTOK	PSET,   79, genPset,PUB
 	DEFTOK	PUT,    80, genPut
+	DEFTOK	RD,     18, cmdRmdir
 	DEFTOK	READ,   84, genRead
 	DEFTOK	REM,    52
 	DEFTOK	RESTART, 7, cmdRestart
 	DEFTOK	RESTORE,85, genRestore
 	DEFTOK	RESUME, 73, genResume
 	DEFTOK	RETURN, 53, genReturn
+	DEFTOK	RMDIR,  18, cmdRmdir
 	DEFTOK	RUN,     8, cmdRun
 	DEFTOK	SAVE,   15, cmdSave
 	DEFTOK	SCREEN, 65, genScreen

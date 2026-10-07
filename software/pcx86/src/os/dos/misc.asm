@@ -498,12 +498,15 @@ ENDPROC	msc_getvec
 ;
 ; msc_getswc (REG_AH = 37h)
 ;
-; Get/set the current switch character ("switchar").
+; Get/set the current switch character ("switchar") or path character.
 ;
 ; Inputs:
 ;	If REG_AL = 0, returns current switch character in REG_DL
 ;	If REG_AL = 1, set the current switch character from REG_DL
+;	If REG_AL = 4, returns current path character in REG_DL
+;	If REG_AL = 5, set the current path character from REG_DL
 ;	Otherwise, set REG_AL to 0FFh to indicate unsupported subfunction
+;	(PC DOS uses 2 and 3 for the obsolete "AVAILDEV" setting)
 ;
 ; Outputs:
 ;	See above
@@ -514,7 +517,12 @@ ENDPROC	msc_getvec
 DEFPROC	msc_getswc,DOS
 	mov	bx,[scb_active]
 	ASSERT	STRUCT,[bx],SCB
-	test	al,al
+	cmp	al,4			; path char subfunction?
+	jb	gsw0			; no
+	sub	al,4			; yes, so treat it like a switch char
+	ASSERT	<SCB_SWITCHAR + 1>,EQ,<SCB_PATHCHAR>
+	inc	bx			; subfunction for SCB_PATHCHAR
+gsw0:	test	al,al
 	jnz	gsw1
 	mov	al,[bx].SCB_SWITCHAR
 	mov	[bp].REG_DL,al		; DL = "switchar"
