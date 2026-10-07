@@ -614,7 +614,18 @@ tc3:	test	byte ptr [bp].TMP_BH,TOKTYPE_GENERIC
 	je	tc3b			; yes
 	cmp	al,'>'			; output redirection char?
 	je	tc3b			; yes
-	cmp	al,[bp].TMP_BL		; SWITCHAR?
+;
+; A ':' that begins a token and precedes a '>' (eg, "DIR :> FILE") is just
+; an alternative form of '>' (see genRedir), so treat it as whitespace.
+;
+	cmp	al,':'
+	jne	tc3f
+	cmp	ah,CLS_WHITE		; does it begin a token?
+	jne	tc3f			; no (eg, "DIR A:>FILE")
+	cmp	byte ptr [si],'>'	; does '>' follow?
+	jne	tc3f			; no
+	ret				; yes (AH = CLS_WHITE)
+tc3f:	cmp	al,[bp].TMP_BL		; SWITCHAR?
 	jne	tc3c			; no
 	cmp	ah,CLS_WHITE		; any intervening whitespace?
 	je	tc3c			; yes

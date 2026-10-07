@@ -11,7 +11,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<parseDOS,releaseStr,strIllegal,ctrlc>
+	EXTNEAR	<parseDOS,releaseStr,strIllegal,ctrlc,openName>
 	EXTSTR	<STR_ON,STR_OFF>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -85,6 +85,98 @@ cd2:	pop	ds			; the program, like a CTRLC
 	LEAVE
 	RETURN
 ENDPROC	callDOS
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; redirOut
+;
+; Redirect STDOUT to a file for the rest of a line (see genRedir).
+;
+; Inputs:
+;	[pRedir] -> redirection word (in the code block)
+;	[idMode] = 1 to create (or truncate) the file, or 2 to append to it
+;	[cbName] = length of filename
+;	[pName] -> filename
+;
+; Outputs:
+;	The redirection word records the previous STDOUT SFH (low byte) and
+;	the file's handle (high byte); if the file can't be opened, the error
+;	is reported and the program ends (as in callDOS)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	redirOut,FAR
+	ARGVAR	pRedir,dword
+	ARGVAR	idMode,word
+	ARGVAR	cbName,word
+	ARGVAR	pName,dword
+	ENTER
+	push	ds
+	push	ss
+	pop	es
+	mov	bx,es:[PSP_HEAP]
+	lea	di,[bx].LINEBUF		; ES:DI -> LINEBUF
+	mov	dx,di
+	mov	cx,[cbName]
+	lds	si,[pName]		; DS:SI -> filename
+	rep	movsb
+	xchg	ax,cx
+	stosb				; null-terminate the filename
+	push	ss
+	pop	ds			; DS:DX -> filename
+	mov	ax,[idMode]
+	call	openName		; AX = handle
+	jnc	ro1
+	jmp	ctrlc			; an error ends the program
+ro1:	xchg	bx,ax			; BX = handle
+	mov	al,ds:[PSP_PFT][bx]	; AL = SFH of the file
+	xchg	al,ds:[PSP_PFT][STDOUT]	; AL = previous STDOUT SFH
+	mov	ah,bl			; AH = handle
+	les	di,[pRedir]
+	stosw				; record the redirection
+	pop	ds
+	LEAVE
+	RETURN
+ENDPROC	redirOut
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; redirEnd
+;
+; End a redirection started by redirOut (at the end of the line), restoring
+; STDOUT and closing the file.  If control left the line some other way (eg,
+; GOTO), cleanUp eventually restores STDOUT and closes the file instead.
+;
+; Inputs:
+;	[pRedirW] -> redirection word (in the code block)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, SI
+;
+DEFPROC	redirEnd,FAR
+	ARGVAR	pRedirW,dword
+	ENTER
+	push	ds
+	lds	si,[pRedirW]
+	sub	ax,ax
+	xchg	ax,[si]			; AX = redirection word (and zero it)
+	test	ax,ax			; is the redirection active?
+	jz	re9			; no
+	push	ss
+	pop	ds
+	mov	ds:[PSP_PFT][STDOUT],al	; restore STDOUT
+	mov	bl,ah
+	mov	bh,0			; BX = handle
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+re9:	pop	ds
+	LEAVE
+	RETURN
+ENDPROC	redirEnd
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

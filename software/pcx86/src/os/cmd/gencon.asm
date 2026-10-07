@@ -30,7 +30,7 @@ CODE    SEGMENT
 	EXTNEAR	<genPushImmByteAL,genPushImmByteAH,genPushImmLong,genCvtType>
 	EXTNEAR	<peekNextSymbol>
 	EXTNEAR	<clearScreen,printArgs,printEcho,setColor,setFlags>
-	EXTNEAR	<setPos,setScreen,setWidth>
+	EXTNEAR	<setPos,setScreen,setWidth,redirOut,redirEnd,ensureRoom>
 	EXTABS	<TOK_OFF,TOK_ON>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -285,6 +285,133 @@ gp6:	GENPUSHB ah			; "MOV AL,[VAR_SEMI or VAR_COMMA]"
 gp8:	GENCALL	printArgs		; all done
 gp9:	ret
 ENDPROC	genPrint
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genRedir
+;
+; Check a line for ":>" (or ":>>"), which redirects the output of the entire
+; line to a file (eg, PRINT "hello" :> TEST).  If found, the line's commands
+; end before the ":>" (we trim both TOKLET_END and LINE_LEN, the latter for
+; genDOS), and we generate a call to redirOut, along with a word in the code
+; for redirOut to record the redirection; genRedirEnd ends it.
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	If carry set, error (eg, no filename)
+;	Otherwise, AX = 0 if no redirection; otherwise, AX = original LINE_LEN
+;	(which the caller must restore), and DX:CX -> redirection word
+;
+; Modifies:
+;	AX, CX, DX, SI, DI
+;
+DEFPROC	genRedir
+	push	bx
+	mov	si,ds:[PSP_HEAP]
+	sub	bx,size TOKLET
+	jmp	short gr1
+gr0:	pop	bx			; no redirection (AX = 0, carry clear)
+	ret
+gr1:	add	bx,size TOKLET
+	sub	ax,ax
+	cmp	bx,[si].TOKLET_END	; any tokens left?
+	jae	gr0			; no (and carry is clear)
+	cmp	[bx].TOKLET_CLS,CLS_SYM
+	jne	gr1
+	mov	cx,[bx].TOKLET_OFF	; CX -> symbol in LINEBUF
+	xchg	bx,cx
+	cmp	word ptr [bx],'>:'	; ":>"?
+	xchg	bx,cx
+	jne	gr1
+;
+; The line's commands end at the ":>" (at CX).
+;
+	mov	[si].TOKLET_END,bx
+	lea	bx,[si].LINEBUF		; BX -> LINEBUF
+	sub	cx,bx			; CX = length of line before ":>"
+	xchg	cx,[si].LINE_LEN	; CX = original length
+	push	cx			; save it for the caller
+	add	cx,bx			; CX -> end of line
+	add	bx,[si].LINE_LEN	; BX -> ":>"
+	lea	si,[bx+2]		; SI -> after ":>"
+	mov	ax,1			; AX = 1 (create)
+	cmp	byte ptr [si],'>'	; ":>>"?
+	jne	gr2			; no
+	inc	ax			; AX = 2 (append)
+	inc	si
+gr2:	cmp	si,cx			; skip leading whitespace
+	jae	gr3
+	cmp	byte ptr [si],' '
+	ja	gr3
+	inc	si
+	jmp	gr2
+gr3:	mov	bx,cx			; BX -> end of line
+gr4:	cmp	bx,si			; trim trailing whitespace
+	jbe	gr5
+	cmp	byte ptr [bx-1],' '
+	ja	gr5
+	dec	bx
+	jmp	gr4
+gr5:	sub	bx,si			; BX = length of filename
+	jz	gr8			; there's no filename
+	push	ax			; save mode
+	mov	ax,(2 SHL 8) OR OP_JMPS	; JMP over the redirection word
+	stosw
+	mov	cx,di			; CX = offset of redirection word
+	sub	ax,ax
+	stosw
+	push	cx
+	GENPUSH	es,cx			; push pointer to redirection word
+	pop	cx
+	pop	dx			; DX = mode
+	push	cx
+	GENPUSH	dx			; push mode
+	GENPUSH	bx			; push length of filename
+	mov	bx,ds:[PSP_HEAP]
+	lea	cx,[bx].LINEBUF
+	sub	si,cx			; SI = offset of filename in the line
+	mov	cx,[bx].LINE_PTR.OFF
+	add	cx,si
+	mov	dx,[bx].LINE_PTR.SEG
+	GENPUSH	dx,cx			; push pointer to filename
+	GENCALL	redirOut
+	pop	cx
+	mov	dx,es			; DX:CX -> redirection word
+	pop	ax			; AX = original length (carry clear)
+	jmp	short gr9
+gr8:	pop	ax			; discard original length
+	stc
+gr9:	pop	bx
+	ret
+ENDPROC	genRedir
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genRedirEnd
+;
+; Generate a call to redirEnd at the end of a line redirected by genRedir.
+;
+; Inputs:
+;	DX:CX -> redirection word
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	AX, CX, DX, DI
+;
+DEFPROC	genRedirEnd
+	mov	ax,16
+	call	ensureRoom
+	jc	gre9
+	GENPUSH	dx,cx			; push pointer to redirection word
+	GENCALL	redirEnd
+gre9:	ret
+ENDPROC	genRedirEnd
 
 CODE	ENDS
 

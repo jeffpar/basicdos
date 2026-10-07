@@ -23,7 +23,7 @@ When a binary program runs, COMMAND.COM temporarily releases most of its own mem
 
 BAT and BAS files are text files containing BASIC-DOS commands and BASIC statements (see [BASIC-DOS Programming](../../lang/)).  The differences between them are:
 
-- BAT files echo each line as it runs (unless [ECHO OFF](../device/screen/#echo) is used); BAS files do not
+- BAT files can echo each line as it runs (after [ECHO ON](../device/screen/#echo)); BAS files can't
 - BAS files run from the prompt remain loaded when they end, along with their variables, so they can be LIST'ed or RUN again
 
 A BAT or BAS file can run other BAT or BAS files (no CALL command is required) and then continue; each nested BAS file gets its own variables.  See [Batch Files](../../lang/#batch-files) for how BASIC-DOS batch files differ from PC DOS batch files.

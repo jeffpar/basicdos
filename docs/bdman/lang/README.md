@@ -37,7 +37,7 @@ To run a program, type its name (see [Running Programs](../intro/#running-progra
 
 When a BAS program that you ran from the prompt ends, it remains loaded, along with its functions and variables, so you can [LIST](../cmd/system/#list) it, examine its variables at the prompt (eg, `PRINT N`), or [RUN](../cmd/system/#run) it again.  [NEW](../cmd/system/#new) erases the program and its variables.
 
-BAT files differ from BAS files in two ways: BAT files [ECHO](../cmd/device/screen/#echo) their lines as they run (unless ECHO OFF is used), and BAT files don't remain loaded after they end.  See [Batch Files](#batch-files) for how BASIC-DOS batch files differ from PC DOS batch files.
+BAT files differ from BAS files in two ways: BAT files can [ECHO](../cmd/device/screen/#echo) their lines as they run (after ECHO ON), and BAT files don't remain loaded after they end.  See [Batch Files](#batch-files) for how BASIC-DOS batch files differ from PC DOS batch files.
 
 ### Batch Files
 
@@ -54,7 +54,7 @@ A BAT file is a BASIC-DOS program too, so it can contain any BASIC-DOS command o
 | `CALL OTHER` (to run another batch file and then continue) | `OTHER` (a batch file always continues after running another one) |
 | `FOR %%F IN (*.TXT) DO ...`, `SHIFT`, and `PAUSE` | Not supported yet (FOR ... NEXT loops can be used for counting) |
 
-ECHO OFF and the `@` prefix work as they do in PC DOS, and every BAT file run from the prompt starts with ECHO ON; however, echoed lines are displayed with a `@` in front instead of a prompt (see [ECHO](../cmd/device/screen/#echo)).  REM (or an apostrophe) starts a remark.
+ECHO and the `@` prefix work as they do in PC DOS, except that every BAT file starts with ECHO OFF, and echoed lines are displayed with a `@` in front instead of a prompt (see [ECHO](../cmd/device/screen/#echo)).  Output redirection works for BASIC statements, too, using `:>` (or `:>>`) at the end of a line (eg, `PRINT "done" :>> LOG.TXT`); see [Pipes and Redirection](../intro/#pipes-and-redirection).  REM (or an apostrophe) starts a remark.
 
 For example, this batch file runs a program up to three times, stopping if the program reports an error:
 

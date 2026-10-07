@@ -45,9 +45,9 @@ The colors are:
 
 > ECHO [ON|OFF]
 
-Controls the echo of lines in a BAT file.  BAT files echo each line before running it, unless ECHO OFF is used; a line beginning with `@` is never echoed (eg, `@ECHO OFF`).  Echoed lines are displayed with a `@` in front (eg, `@REM Starting`), where PC DOS would display a prompt.  ECHO without ON or OFF displays the current setting.
+Controls the echo of lines in a BAT file.  After ECHO ON, a BAT file echoes each line before running it, until ECHO OFF is used; a line beginning with `@` is never echoed (eg, `@ECHO ON`).  Echoed lines are displayed with a `@` in front (eg, `@REM Starting`), where PC DOS would display a prompt.  ECHO without ON or OFF displays the current setting.
 
-Every BAT file run from the prompt starts with ECHO ON, and the setting remains in effect when one BAT file runs another.  BAS files never echo their lines.  A `@` at the start of a command typed at the prompt is ignored, as in later versions of PC DOS.
+Every BAT file run from the prompt (or by a startup command) starts with ECHO OFF, unlike PC DOS, so BAT files behave like BAS files unless ECHO ON is used; the setting remains in effect when one BAT file runs another.  BAS files never echo their lines.  A `@` at the start of a command typed at the prompt is ignored, as in later versions of PC DOS.
 
 ### LOCATE
 

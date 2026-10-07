@@ -107,6 +107,8 @@ The output of a command can be sent to a file instead of the screen:
 - `DIR > FILES.TXT` creates (or truncates) FILES.TXT and writes the output to it
 - `DIR >> FILES.TXT` appends the output to FILES.TXT
 
+Since `>` is also BASIC's "greater than" operator, BASIC statements use `:>` (or `:>>`) at the end of a line instead, which redirects the output of every statement on the line (eg, `PRINT "hello world" :> TEST` or `FOR I=1 TO 3:PRINT I:NEXT :>> TEST`).  `:>` works with any command, at the prompt and in BAT and BAS files, but it must come last on the line; for DOS commands, put a space before it (eg, `DIR :> FILES.TXT`), since `A:>FILE` still means drive A:.
+
 The output of one command can also be sent to the input of another command, using a pipe (`|`):
 
 	DIR | CASE

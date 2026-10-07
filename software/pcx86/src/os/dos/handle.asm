@@ -476,7 +476,9 @@ sr0b:	test	dx,dx			; lots of data ahead?
 ; if there's a valid CURCLN (which must be in sync with CURPOS if present);
 ; otherwise, we'll have to walk the cluster chain to find the correct cluster #.
 ;
-sr1:	mov	dx,[bx].SFB_CURCLN
+sr1:	clc
+	jcxz	sr5			; nothing to read (eg, an empty file)
+	mov	dx,[bx].SFB_CURCLN
 	test	dx,dx
 	jnz	sr1a
 	call	find_cln		; find cluster # for CURPOS

@@ -125,14 +125,16 @@ m0a:	pop	bx
 ;
 	mov	[bx].INPUT_BUF,PSP_CMDTAIL - 1
 	mov	word ptr [bx].INPUTBUF.INP_MAX,size INP_DATA - 1
+	or	[bx].CMD_FLAGS,CMD_NOECHO
 	cmp	ds:[PSP_CMDTAIL],0
 	jne	m2			; use INPUT_BUF -> PSP_CMDTAIL
 
 ;
-; Like PC DOS, every BAT file run from the prompt starts with ECHO ON, so an
-; ECHO OFF in one BAT file (eg, a startup file) doesn't silence the next one.
+; Unlike PC DOS, every BAT file (like every BAS file) starts with ECHO OFF,
+; including one run by a startup command, so an ECHO ON in one BAT file
+; doesn't affect the next one.
 ;
-m1:	and	[bx].CMD_FLAGS,NOT CMD_NOECHO
+m1:	or	[bx].CMD_FLAGS,CMD_NOECHO
 	mov	[bx].CMD_ROWS,0
 ;
 ; If there's a program line to edit (see cmdAuto and cmdEdit), editPrompt
@@ -2544,6 +2546,32 @@ DEFPROC	openHandle
 	mov	dx,si
 	add	si,cx
 	xchg	[si],ch			; null-terminate the token
+	call	openName		; AX = handle (or error)
+	mov	[si],ch			; restore the token separator
+	pop	si
+	pop	dx
+	pop	cx
+	ret
+ENDPROC	openHandle
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; openName
+;
+; Open a file (or device) for redirection, as described for openHandle;
+; redirOut uses this, too.
+;
+; Inputs:
+;	AL = 0 for input, 1 for output, or 2 for append (see openHandle)
+;	DS:DX -> null-terminated name
+;
+; Outputs:
+;	If carry clear, AX is new handle; otherwise, AX is error (reported)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	openName
 	push	bx
 	push	cx
 	mov	ah,DOS_HDL_OPEN
@@ -2569,15 +2597,12 @@ oh0b:	int	21h
 oh0c:	pop	cx
 	pop	bx
 	jnc	oh1
-	xchg	si,dx
-	call	openError		; report error (AX) opening file (SI)
+	push	si
 	mov	si,dx
-oh1:	mov	[si],ch			; restore the token separator
+	call	openError		; report error (AX) opening file (SI)
 	pop	si
-	pop	dx
-	pop	cx
-	ret
-ENDPROC	openHandle
+oh1:	ret
+ENDPROC	openName
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

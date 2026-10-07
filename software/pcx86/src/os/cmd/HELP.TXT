@@ -88,7 +88,7 @@ DRAW *string*
 Draws lines from the last point, using these commands: U, D, L, R, E, F, G, and H [*n*] (move up, down, left, right, or diagonally), M *x*,*y* (move to *x*,*y*, or relative to the last point if *x* begins with + or -), B (prefix: move without drawing), N (prefix: draw without moving), C *n* (color), and S *n* (scale, in quarters).  Any number can be given as =*variable*; (eg, "M=X;,=Y;").
 
 ECHO [ON|OFF]
-Controls the echo of lines in a BAT file.  Every BAT file run from the prompt starts with ECHO ON, echoed lines are displayed with a @ in front, and lines that begin with @ are not echoed.
+Controls the echo of lines in a BAT file.  Every BAT file starts with ECHO OFF; after ECHO ON, echoed lines are displayed with a @ in front, and lines that begin with @ are not echoed.
 
 EDIT *line*
 Displays the specified program line for editing.  Press ENTER to store the edited line.
@@ -245,7 +245,7 @@ PRESET (*x*,*y*)[,*color*]
 Same as PSET, except that the default color is the background color.
 
 PRINT
-Prints a comma or semi-colon separated series of values.
+Prints a comma or semi-colon separated series of values.  To send the output to a file instead, end the line with :> *file* (or :>> *file* to append).
 
 PSET (*x*,*y*)[,*color*]
 Draws a point in a graphics mode, using the foreground color if no *color* is specified.

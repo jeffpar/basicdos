@@ -42,7 +42,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<allocCode,ensureRoom,keepCode>
+	EXTNEAR	<allocCode,ensureRoom,keepCode,genRedir,genRedirEnd>
 	EXTNEAR	<addLabel>
 	EXTNEAR	<allocVars>
 	EXTNEAR	<addVar,getVar,setVarLong,setVarDouble>
@@ -148,7 +148,21 @@ gc4:	mov	ax,CODE_ROOM
 	xchg	ax,bx
 	call	genSpin			; display the spinner
 	ENDIF
+	call	genRedir		; any ":>" redirection?
+	jc	gc6			; yes, but it's invalid
+	push	ax
+	push	dx
+	push	cx
 	call	genCommands		; generate code
+	pop	cx
+	pop	dx
+	pop	ax
+	jc	gc6
+	test	ax,ax			; was the line redirected?
+	jz	gc4			; no
+	mov	si,ds:[PSP_HEAP]
+	mov	[si].LINE_LEN,ax	; restore the line's length
+	call	genRedirEnd		; and end the redirection
 	jnc	gc4
 
 gc6:	push	ss
