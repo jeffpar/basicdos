@@ -6,7 +6,7 @@ preview: /assets/images/maplebar.jpg
 machines:
   - id: ibm5150
     type: pcx86
-    config: /machines/pcx86/ibm/ibm-5150-cga-64kb.json
+    config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
     autoType: DATE\rTIME\rDIR\r
 ---
 
@@ -31,7 +31,7 @@ This means that many of the limitations discussed in these preview pages have no
 
 This is a "sneak peek" at BASIC-DOS, the first version of DOS that *could* have been created for the IBM PC, with the benefit of more time and [incredible foresight](/blog/).
 
-The machine shown below is an IBM PC (Model 5150) with two floppy disk drives and a Color Graphics Adapter (CGA) connected to a Color Monitor, with 64K of RAM.
+The machine shown below is an IBM PC (Model 5150) with two floppy disk drives and a Color Graphics Adapter (CGA) connected to a Color Monitor, with 128K of RAM.
 
 A BASIC-DOS boot diskette (`BASICDOS-DISK1`) has been loaded into drive A:.  The boot sector loads **IBMBIO.COM** into memory, which in turn loads **CONFIG.SYS** and **IBMDOS.COM**.  Like PC DOS, IBMBIO contains all the BASIC-DOS device drivers and IBMDOS contains all the Disk Operating System services. Finally, IBMDOS loads **COMMAND.COM** into memory, which provides the initial **A&gt;** command prompt.
 

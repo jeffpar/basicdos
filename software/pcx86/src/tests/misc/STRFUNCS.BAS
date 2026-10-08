@@ -13,6 +13,7 @@
 130 IF STR$(123) <> " 123" OR STR$(-5) <> "-5" OR STR$(1.5) <> " 1.5" THEN PRINT "STR$ failed"
 140 IF VAL("123") <> 123 OR VAL(" -1 2.5") <> -12.5 OR VAL("1E3") <> 1000 THEN PRINT "VAL failed"
 150 IF VAL("") <> 0 OR VAL("ABC") <> 0 OR VAL("12ABC") <> 12 THEN PRINT "VAL edge failed"
+155 IF VAL("&HFF") <> 255 OR VAL(" &h 1f") <> 31 OR VAL("&O17") <> 15 OR VAL("&17") <> 15 OR VAL("&HFFFFFFFF") <> -1 OR VAL("&H") <> 0 THEN PRINT "VAL &H/&O failed"
 160 IF INSTR(B$,"WORLD") <> 7 OR INSTR(B$,"X") <> 0 OR INSTR(8,B$,"O") <> 8 THEN PRINT "INSTR failed"
 170 IF INSTR(B$,"") <> 1 OR INSTR(3,B$,"") <> 3 OR INSTR(E$,"A") <> 0 THEN PRINT "INSTR edge failed"
 180 IF INSTR(B$,"HELLO WORLD!") <> 0 OR INSTR(12,B$,"") <> 0 THEN PRINT "INSTR bound failed"

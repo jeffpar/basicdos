@@ -1027,6 +1027,111 @@ ENDPROC	strLen
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; strArg (ARG$)
+;
+; Returns an argument from the command line that ran the current BAS or BAT
+; file: ARG$(0) is the file's name (as typed), ARG$(1) is the first argument,
+; and so on, and ARG$ without a number returns all the arguments.  Arguments
+; are separated by whitespace, and a quoted argument (whose quotes are
+; removed) can contain whitespace.  The result is empty if there's no such
+; argument (or no BAS or BAT file is running).
+;
+; Inputs:
+;	32-bit return value
+;	32-bit argument # (popped; negative for all the arguments)
+;
+; Outputs:
+;	32-bit return value updated
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	strArg,FAR
+	RETVAR	retArg,dword
+	ARGVAR	argNum,dword
+	ENTER
+	sub	cx,cx			; CX = length of result (none yet)
+	mov	bx,ss:[PSP_HEAP]
+	mov	si,ss:[bx].CMD_CHAINS	; SS:SI -> CHAINS frame, if any
+	test	si,si			; is a BAS or BAT file running?
+	jz	ag9			; no
+	mov	si,ss:[si]		; SS:SI -> command line (CH_ARGS)
+	lods	byte ptr ss:[si]
+	cbw
+	mov	di,si
+	add	di,ax			; DI -> end of command line
+	mov	dx,[argNum].LOW		; DX = argument #
+	test	byte ptr [argNum].HIW.HIB,80h
+	jz	ag1			; not negative
+	mov	dx,1			; negative, so find the 1st argument
+ag1:	sub	cx,cx
+	cmp	si,di			; skip whitespace
+	jae	ag9			; no (more) arguments
+	cmp	byte ptr ss:[si],' '
+	ja	ag2
+	inc	si
+	jmp	ag1
+ag2:	push	si
+	call	argToken		; SS:SI -> token, CX = length
+	pop	ax			; AX -> start of token
+	test	dx,dx			; is this the argument we want?
+	jz	ag3			; yes
+	mov	si,bx			; no, so skip it
+	dec	dx
+	jmp	ag1
+ag3:	test	byte ptr [argNum].HIW.HIB,80h
+	jz	ag9			; return just this argument
+	xchg	si,ax			; return all the arguments
+	mov	cx,di
+	sub	cx,si
+ag4:	mov	bx,si			; (without trailing whitespace)
+	add	bx,cx
+	cmp	byte ptr ss:[bx-1],' '
+	ja	ag9
+	loop	ag4
+ag9:	call	newStr
+	mov	[retArg].OFF,ax
+	mov	[retArg].SEG,dx
+	LEAVE
+	RETURN
+ENDPROC	strArg
+
+;
+; argToken returns the token at SS:SI (up to DI) for strArg: if the token is
+; quoted, SI is advanced past the opening quote, and the length in CX stops
+; before the closing quote; BX -> character after the token.
+;
+DEFPROC	argToken
+	mov	al,' '			; AL = terminator (whitespace)
+	cmp	byte ptr ss:[si],'"'	; quoted?
+	jne	at1			; no
+	mov	al,'"'			; yes, so the terminator is a quote
+	inc	si
+at1:	mov	bx,si
+at2:	cmp	bx,di			; end of command line?
+	jae	at4			; yes
+	mov	ah,ss:[bx]
+	cmp	al,'"'
+	je	at3
+	cmp	ah,al			; whitespace?
+	jbe	at4			; yes
+	jmp	short at3a
+at3:	cmp	ah,al			; closing quote?
+	je	at4			; yes
+at3a:	inc	bx
+	jmp	at2
+at4:	mov	cx,bx
+	sub	cx,si			; CX = length of token
+	cmp	al,'"'			; quoted?
+	jne	at9			; no
+	cmp	bx,di			; did we stop at a closing quote?
+	jae	at9			; no
+	inc	bx			; yes, so skip it
+at9:	ret
+ENDPROC	argToken
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; strAsc (ASC)
 ;
 ; Inputs:
@@ -1401,7 +1506,9 @@ ENDPROC	strStr
 ; strVal (VAL)
 ;
 ; Like MSBASIC, blanks (spaces, tabs, and linefeeds) are ignored, and if the
-; string doesn't begin with a number, the result is zero.
+; string doesn't begin with a number, the result is zero.  The &H (hex) and
+; &O (octal) prefixes are supported too (as is & alone, for octal); such a
+; value is converted to decimal digits for FPU_ATOD.
 ;
 ; Inputs:
 ;	pointer to double result (in a slot)
@@ -1444,7 +1551,32 @@ sv3:	mov	al,0
 	push	ss
 	pop	ds
 	lea	si,[valBuf]		; DS:SI -> buffer
-	les	di,[pValNum]		; ES:DI -> result
+	cmp	byte ptr [si],'&'	; hex or octal prefix?
+	jne	sv5			; no
+	inc	si
+	lodsb
+	and	al,NOT 20h		; upper-case the prefix letter
+	mov	bl,16
+	cmp	al,'H'
+	je	sv4
+	mov	bl,8
+	cmp	al,'O'
+	je	sv4
+	dec	si			; no letter, so it's octal
+sv4:	mov	cx,-1			; CX = length (buffer is null-terminated)
+	DOSUTIL	ATOI32			; DX:AX = value
+	xchg	si,ax			; DX:SI = value
+	push	ss
+	pop	es
+	lea	di,[valBuf]		; ES:DI -> buffer
+	mov	bx,((PF_LONG OR PF_SIGN) SHL 8) OR 10
+	sub	cx,cx
+	DOSUTIL	ITOA			; AL = # of characters
+	mov	ah,0
+	add	di,ax
+	mov	byte ptr es:[di],0	; null-terminate the decimal digits
+	lea	si,[valBuf]		; DS:SI -> buffer
+sv5:	les	di,[pValNum]		; ES:DI -> result
 	mov	bx,FPU_ATOD
 	call	callFPUFunc
 	jnc	sv9

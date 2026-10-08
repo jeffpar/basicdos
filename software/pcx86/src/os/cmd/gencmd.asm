@@ -423,8 +423,34 @@ DEFPROC	genDOS
 	mov	ax,[bx - size TOKLET].TOKLET_OFF
 	lea	cx,[si].LINEBUF
 	sub	ax,cx			; AX = # bytes preceding command
-	mov	cx,[si].LINE_LEN
-	sub	cx,ax
+;
+; A colon that begins a word ends the command (eg, "TYPE X : PRINT 1"), so
+; that other commands can follow it, whereas any other colon is part of the
+; command (eg, "DIR A:").
+;
+	mov	cx,[si].LINE_LEN	; CX = end of command (end of line)
+	mov	dx,bx			; DX -> next TOKLET
+gd1:	cmp	dx,[si].TOKLET_END	; any tokens left?
+	jae	gd2			; no
+	push	bx
+	mov	bx,dx
+	add	dx,size TOKLET
+	mov	bx,[bx].TOKLET_OFF	; BX -> token
+	cmp	byte ptr [bx],':'	; does it begin with a colon
+	jne	gd1a
+	cmp	byte ptr [bx-1],' '	; that follows whitespace?
+	ja	gd1a			; no
+	lea	cx,[si].LINEBUF
+	sub	bx,cx
+	mov	cx,bx			; CX = end of command (the colon)
+	pop	bx
+	mov	bx,dx
+	sub	bx,size TOKLET		; BX -> colon (for genCommands)
+	jmp	short gd3
+gd1a:	pop	bx
+	jmp	gd1
+gd2:	mov	[si].TOKLET_END,bx	; mark the tokens fully processed
+gd3:	sub	cx,ax			; CX = length of command
 	push	ax
 	GENPUSH	cx			; push length of command line
 	mov	cx,[si].LINE_PTR.OFF
@@ -433,7 +459,6 @@ DEFPROC	genDOS
 	mov	dx,[si].LINE_PTR.SEG	; DX:CX -> command line
 	GENPUSH	dx,cx			; push pointer to command line
 	GENCALL	callDOS
-	mov	[si].TOKLET_END,bx	; mark the tokens fully processed
 	ret
 ENDPROC	genDOS
 

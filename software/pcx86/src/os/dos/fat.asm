@@ -24,7 +24,7 @@ DOS	segment word public 'CODE'
 ; For the CLN in DX, set its FAT entry to the value in AX, using the BPB at DI.
 ;
 ; The FAT sector (or sectors, if the entry straddles a sector boundary) is
-; modified in FAT_BUF and marked dirty; it will be written to every FAT copy
+; modified in a FAT buffer and marked dirty; it will be written to every FAT copy
 ; when the buffer is reused or flushed (see write_buffer).
 ;
 ; Inputs:
@@ -83,7 +83,7 @@ DEFPROC	set_cln,DOS
 	mov	cx,000Fh		; CX = mask for an odd nibble offset
 sc1:	and	[si+bx],cl
 	or	[si+bx],al
-	mov	[FAT_BUFHDR].BUF_DIRTY,1
+	mov	ds:[BUF_DIRTY],1
 	inc	bx
 	cmp	bx,512			; at the sector boundary?
 	jb	sc2			; no
@@ -98,7 +98,7 @@ sc1:	and	[si+bx],cl
 	sub	bx,bx
 sc2:	and	[si+bx],ch
 	or	[si+bx],ah
-	mov	[FAT_BUFHDR].BUF_DIRTY,1
+	mov	ds:[BUF_DIRTY],1
 	clc
 
 sc9:	pop	ds

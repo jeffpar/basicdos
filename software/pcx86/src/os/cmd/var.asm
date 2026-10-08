@@ -225,6 +225,7 @@ ENDPROC	freeAllBlocks
 ; Inputs:
 ;	AL = mask of chains to save
 ;	AH = non-zero to keep the new chains (see restoreChains)
+;	BX -> command line (a string on the stack; see cmdFile and strArg)
 ;
 ; Outputs:
 ;	SP -> CHAINS frame (on return)
@@ -233,6 +234,7 @@ ENDPROC	freeAllBlocks
 ;	AX, DI
 ;
 CHAINS		struc
+CH_ARGS		dw	?		; command line (strArg assumes offset 0)
 CH_MASK		dw	?		; bit n set if head n was saved
 CH_PREV		dw	?		; previous CHAINS frame, if any
 CH_HEADS	dw	6 dup (?)	; saved CBLKDEF through ABLKDEF heads
@@ -252,6 +254,7 @@ DEFPROC	saveChains
 	mov	di,sp
 	add	di,6			; DI -> CHAINS frame
 	mov	si,ds:[PSP_HEAP]
+	mov	[di].CH_ARGS,bx
 	mov	[di].CH_MASK,ax
 	mov	cx,di
 	xchg	cx,[si].CMD_CHAINS

@@ -1,5 +1,6 @@
 REM Demonstration of dual monitors with full-screen sessions
 FILES=20
+BUFFERS=4
 SESSIONS=4
 CONSOLE=CON:80,25,0,0,0
 SHELL=COMMAND.COM PRIMES.BAT

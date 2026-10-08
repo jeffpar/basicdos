@@ -10,7 +10,7 @@ Functions can be used in any expression, in BASIC programs or at the prompt (eg,
 
 - Numeric functions: [ABS](#abs), [ATN](#atn), [COS](#cos), [EXP](#exp), [FIX](#fix), [INT](#int), [LOG](#log), [RND](#rnd), [RND%](#rnd-int), [SIN](#sin), [SQR](#sqr), [TAN](#tan)
 - String functions: [ASC](#asc), [CHR$](#chr), [HEX$](#hex), [INSTR](#instr), [LCASE$](#lcase), [LEFT$](#left), [LEN](#len), [MID$](#mid), [OCT$](#oct), [RIGHT$](#right), [SPACE$](#space), [STR$](#str), [STRING$](#string), [UCASE$](#ucase), [VAL](#val)
-- System functions: [DATE$](#date), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [PEEK](#peek), [TIME$](#time)
+- System functions: [ARG$](#arg), [DATE$](#date), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [PEEK](#peek), [TIME$](#time)
 - Predefined constants: [ERRORLEVEL](#errorlevel), [MAXINT](#maxint)
 
 You can also define your own functions with [DEF](../def/).
@@ -183,9 +183,19 @@ Returns *string* with all lower-case letters converted to upper-case.
 
 > VAL(*string*)
 
-Returns the numeric value of *string*, ignoring any blanks.  If *string* does not begin with a number, the result is 0.  The `&H` and `&O` prefixes aren't supported yet.
+Returns the numeric value of *string*, ignoring any blanks.  If *string* does not begin with a number, the result is 0.  Like numeric constants, *string* can use the `&H` (hexadecimal) and `&O` (octal) prefixes; `&` alone also means octal (eg, `VAL("&HFF")` is 255, and `VAL("&17")` is 15).
 
 ### System Functions
+
+#### ARG$ {#arg}
+
+> ARG$[(*n*)]
+
+Returns an argument from the command line that ran the current BAS or BAT file: `ARG$(0)` is the file's name (as typed), `ARG$(1)` is the first argument, and so on, and `ARG$` alone returns all the arguments.  Arguments are separated by spaces, and a quoted argument (eg, `"two words"`) can contain spaces; the quotes aren't included.  The result is an empty string if there's no such argument, or if no BAS or BAT file is running (eg, at the prompt).  A BAS or BAT file run by another one has its own arguments.  For example, if SHOW.BAS contains:
+
+	PRINT ARG$(0); " has "; ARG$(1); " and "; ARG$(2)
+
+then typing `SHOW one "two three"` displays `SHOW has one and two three`.
 
 #### DATE$ {#date}
 

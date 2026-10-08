@@ -136,7 +136,9 @@ DP_MOTORON	db	?	; 04h: MOTOR-ON START TIME (1/8 SECS)
 DPT		ends
 
 ;
-; This internal BUFHDR structure precedes each allocated disk buffer.
+; This internal BUFHDR structure precedes each allocated disk buffer.  All the
+; buffers (FAT_BUFHDR and DIR_BUFHDR below, plus any extra BUFFERS) form a
+; circular chain, from most recently used (buf_head) to least recently used.
 ;
 BUFHDR		struc		; 16-byte buffer header
 BUF_PREV	dw	?	; 00h: prev buffer header paragraph
@@ -145,7 +147,7 @@ BUF_SIZE	dw	?	; 04h: size of buffer (in bytes)
 BUF_DRIVE	db	?	; 06h: drive number of buffer data
 BUF_SIG		db	?	; 07h: (holds SIG_BUF in DEBUG builds)
 BUF_DIRTY	db	?	; 08h: non-zero if buffer data must be written
-		db	?	; 09h: padding
+BUF_TYPE	db	?	; 09h: 0 for FAT data, 10h for DIR data
 BUF_LBA		dw	?	; 0Ah: LBA of buffer data
 BUF_DIRCLN	dw	?	; 0Ch: directory of data (DIR_BUF only)
 BUF_DIRREL	dw	?	; 0Eh: relative sector # (DIR_BUF only)

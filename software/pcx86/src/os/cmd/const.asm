@@ -23,7 +23,7 @@ CODE    SEGMENT
 	EXTNEAR	<evalEQStr,evalNEStr,evalLTStr,evalGTStr,evalLEStr,evalGEStr>
 
 	EXTNEAR	<getErrorLevel,getRnd,getRndLong,getErr,peekByte>
-	EXTNEAR	<strAsc,strChr,strDate,strFre,strHex,strInkey,strInstr>
+	EXTNEAR	<strArg,strAsc,strChr,strDate,strFre,strHex,strInkey,strInstr>
 	EXTNEAR	<strLCase,strLeft,strLen,strMid,strOct,strRight,strSpace>
 	EXTNEAR	<strStr,strString,strTime,strUCase,strVal>
 
@@ -167,6 +167,10 @@ CODE    SEGMENT
 ; all predefined vars, they match any type, so (for example) "LEFT$" and "LEFT"
 ; are the same.  A default of 0FEh (-2) for MID$ means "the rest".
 ;
+	db	VAR_FUNC + 3,"ARG"
+	db	VAR_STR,1
+	db	VAR_LONG,0FEh		; (a negative default means all args)
+	dw	offset strArg,0
 	db	VAR_FUNC + 3,"ASC"
 	db	VAR_LONG,1
 	db	VAR_STR,PARM_REQUIRED

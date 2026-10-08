@@ -457,6 +457,56 @@ si7a:	mov	dx,size SFB
 	mov	bx,offset sfb_table
 	call	init_table		; initialize table, update ES
 ;
+; Any disk buffers beyond the two in low memory (see "BUFFERS=") come next,
+; each a BUFHDR followed by a 512-byte sector, added to the end of the chain.
+;
+	mov	si,offset CFG_BUFFERS
+	call	find_cfg		; look for "BUFFERS="
+	jc	sb1			; if not found, AX will be min value
+	xchg	si,di
+	push	es
+	push	cs
+	pop	es
+	mov	bl,10			; BL = base 10
+	DOSUTIL	ATOI16			; DS:SI -> string, ES:DI -> validation
+	pop	es			; AX = new value
+sb1:	sub	ax,2
+	jbe	sb3
+	push	ax			; save # extra buffers
+	mov	cl,4
+	mov	ax,offset DIR_BUFHDR
+	shr	ax,cl
+	xchg	dx,ax			; DX = last buffer in the chain
+	mov	ax,offset FAT_BUFHDR
+	shr	ax,cl
+	xchg	bx,ax			; BX = head
+	pop	cx			; CX = # extra buffers
+sb2:	push	cx
+	sub	di,di
+	mov	ax,dx
+	stosw				; BUF_PREV = last buffer
+	mov	ax,bx
+	stosw				; BUF_NEXT = head
+	mov	ax,512
+	stosw				; BUF_SIZE
+	sub	ax,ax
+	mov	cx,(size BUFHDR - 6) SHR 1
+	rep	stosw			; zero the rest of the BUFHDR
+	mov	ax,es
+	push	ds
+	mov	ds,dx
+	mov	ds:[BUF_NEXT],ax	; link the last buffer to this one
+	mov	ds,bx
+	mov	ds:[BUF_PREV],ax	; and the head back to this one
+	pop	ds
+	xchg	dx,ax			; DX = new last buffer
+	mov	ax,dx
+	add	ax,(size BUFHDR + 512) SHR 4
+	mov	es,ax			; ES = next available paragraph
+	pop	cx
+	loop	sb2
+sb3:
+;
 ; After all the resident tables have been created, initialize the MCB chain.
 ;
 ; The chain must end below our own code and stack (allowing 512 bytes for the
@@ -1103,6 +1153,8 @@ CFG_BOOTKEY	db	8,"BOOTKEY="
 CFG_CONSOLE	db	8,"CONSOLE="
 CON_DEVICE	db	"CON:80,25",0	; default CONSOLE configuration
 CFG_DEBUG	db	6,"DEBUG="	; used to specify DEBUG device
+CFG_BUFFERS	db	8,"BUFFERS="
+		dw	2,2,32
 CFG_FILES	db	6,"FILES="
 		dw	20,8,255
 CFG_MEMSIZE	db	8,"MEMSIZE="

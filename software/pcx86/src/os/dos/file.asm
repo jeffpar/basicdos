@@ -20,7 +20,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<dev_request,chk_devname,chk_filename,scb_release>
 	EXTNEAR	<get_bpb,get_cln,get_dirent,read_buffer,flush_buffers>
 	EXTNEAR	<alloc_cln,free_clns,sfb_open,dir_lba,get_dircln>
-	EXTNEAR	<write_buffer,get_cdir,get_dirpath>
+	EXTNEAR	<get_cdir,get_dirpath,new_buffer>
 
 	EXTBYTE	<scb_locked>
 	EXTWORD	<scb_active>
@@ -57,7 +57,7 @@ DEFPROC	dsk_delete,DOS
 	test	[si].DIR_ATTR,DIRATTR_RDONLY OR DIRATTR_SUBDIR OR DIRATTR_VOLUME
 	jnz	dd7
 	mov	byte ptr [si].DIR_NAME,DIRENT_DELETED
-	mov	[DIR_BUFHDR].BUF_DIRTY,1
+	mov	ds:[BUF_DIRTY],1
 	mov	bx,[si].DIR_CLN		; BX = first CLN
 	mov	dl,cl			; DL = drive #
 	call	get_bpb			; DI -> BPB
@@ -153,7 +153,7 @@ dr1:	dec	si
 	add	si,3			; SS:SI -> new filename
 	mov	cx,size FCB_NAME
 	REPS	MOVS,ES,SS,BYTE		; copy the new filename into the DIRENT
-	mov	[DIR_BUFHDR].BUF_DIRTY,1
+	mov	ds:[BUF_DIRTY],1
 	call	flush_buffers		; write the modified DIRENT
 	jmp	short dr5
 dr4:	stc
@@ -234,7 +234,7 @@ sc3:	mov	cl,al			; CL = drive #
 	mov	[si].DIR_SIZE.LOW,bx
 	mov	[si].DIR_SIZE.HIW,bx
 	xchg	bx,[si].DIR_CLN		; BX = first CLN (and zero DIR_CLN)
-	mov	[DIR_BUFHDR].BUF_DIRTY,1
+	mov	ds:[BUF_DIRTY],1
 	mov	dl,cl			; DL = drive #
 	call	get_bpb			; DI -> BPB
 	jc	sc8
@@ -244,7 +244,7 @@ sc3:	mov	cl,al			; CL = drive #
 ;
 ; Write the new (or updated) DIRENT (and FAT, if modified), and then open it.
 ;
-sc5:	mov	al,[DIR_BUFHDR].BUF_DRIVE
+sc5:	mov	al,ds:[BUF_DRIVE]
 	call	flush_buffers
 	jc	sc8
 sc6:	pop	es
@@ -326,7 +326,7 @@ DEFPROC	sfb_commit,DOS
 	mov	ax,cs:[bx].SFB_SIZE.HIW
 	mov	[si].DIR_SIZE.HIW,ax
 	or	[si].DIR_ATTR,DIRATTR_ARCHIVE
-	mov	[DIR_BUFHDR].BUF_DIRTY,1
+	mov	ds:[BUF_DIRTY],1
 	and	cs:[bx].SFB_FLAGS,NOT SFBF_DIRTY
 	mov	al,cs:[bx].SFB_DRIVE
 	call	flush_buffers		; write the DIRENT (and FAT)
@@ -653,7 +653,7 @@ ad8:	push	cx			; save DIRENT #
 	stosw				; DIR_CLN
 	stosw				; DIR_SIZE.LOW
 	stosw				; DIR_SIZE.HIW
-	mov	[DIR_BUFHDR].BUF_DIRTY,1
+	mov	ds:[BUF_DIRTY],1
 	pop	es
 	ASSUME	ES:NOTHING
 	pop	di
@@ -666,16 +666,16 @@ ENDPROC	add_dirent
 ;
 ; init_cln
 ;
-; Zero every sector of a new directory cluster, using DIR_BUF.  The sectors
-; are zeroed from last to first, so that DIR_BUF ends up containing the
-; cluster's first sector (marked dirty).
+; Zero every sector of a new directory cluster, using DIR buffers (see
+; new_buffer).  The sectors are zeroed from last to first, so that the most
+; recently used buffer contains the cluster's first sector (marked dirty).
 ;
 ; Inputs:
 ;	DX = CLN
 ;	DI -> BPB
 ;
 ; Outputs:
-;	On success, carry clear, DS:SI -> DIR_SECTOR (the 1st sector's data)
+;	On success, carry clear, DS:SI -> the 1st sector's data
 ;	On failure, carry set, AX = error code
 ;
 ; Modifies:
@@ -687,11 +687,6 @@ DEFPROC	init_cln,DOS
 	push	dx
 	push	di
 	push	es
-	sub	ax,ax
-	mov	ds,ax
-	mov	es,ax
-	ASSUME	DS:BIOS, ES:BIOS
-	mov	si,offset DIR_BUFHDR
 	xchg	ax,dx
 	sub	ax,2
 	mov	cl,cs:[di].BPB_CLUSLOG2
@@ -700,23 +695,27 @@ DEFPROC	init_cln,DOS
 	mov	cl,cs:[di].BPB_CLUSSECS
 	mov	ch,0
 	add	ax,cx			; AX = cluster's last LBA + 1
-	mov	dl,cs:[di].BPB_DRIVE
-ic1:	dec	ax
-	call	write_buffer		; write DIR_BUF first if it's dirty
+	xchg	dx,ax			; DX = LBA
+ic1:	dec	dx
+	mov	al,cs:[di].BPB_DRIVE
+	mov	si,offset DIR_BUFHDR
+	mov	ah,0
+	call	new_buffer		; DS:SI -> buffer for LBA
 	jc	ic9
-	mov	[si].BUF_DRIVE,dl
-	mov	[si].BUF_LBA,ax
-	mov	[si].BUF_DIRTY,1
-	push	ax
+	ASSUME	DS:NOTHING
+	mov	ds:[BUF_DIRTY],1
 	push	cx
-	mov	di,offset DIR_SECTOR
-	mov	cx,size DIR_SECTOR SHR 1
+	push	di
+	push	ds
+	pop	es
+	mov	di,si
+	mov	cx,ds:[BUF_SIZE]
+	shr	cx,1
 	sub	ax,ax			; (and carry is clear)
 	rep	stosw
+	pop	di
 	pop	cx
-	pop	ax
 	loop	ic1
-	mov	si,offset DIR_SECTOR
 ic9:	pop	es
 	pop	di
 	pop	dx
@@ -816,7 +815,7 @@ md3:	push	ax
 	pop	es
 	ASSUME	ES:NOTHING
 	pop	di
-	mov	al,[DIR_BUFHDR].BUF_DRIVE
+	mov	al,ds:[BUF_DRIVE]
 	call	flush_buffers		; write the new directory, etc
 	jnc	md9
 	jmp	short md8
@@ -919,10 +918,10 @@ rd4:	cmp	ax,ERR_NOFILE		; did we run out of entries?
 	pop	dx			; DX = directory
 	jc	rd8
 	mov	[si].DIR_NAME,DIRENT_DELETED
-	mov	[DIR_BUFHDR].BUF_DIRTY,1
+	mov	ds:[BUF_DIRTY],1
 	call	free_clns		; free the directory's clusters
 	jc	rd8
-	mov	al,[DIR_BUFHDR].BUF_DRIVE
+	mov	al,ds:[BUF_DRIVE]
 	call	flush_buffers		; write the modified DIRENT and FAT
 	jnc	rd9
 	jmp	short rd8

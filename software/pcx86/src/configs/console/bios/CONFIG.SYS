@@ -1,4 +1,5 @@
 REM Demonstration of a single-session configuration using the CON driver
+BUFFERS=4
 SESSIONS=1
 CONSOLE=CON:80,25,BIOS
 SHELL=COMMAND.COM AUTOEXEC.BAT

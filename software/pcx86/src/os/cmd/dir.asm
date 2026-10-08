@@ -11,7 +11,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<countLine,chkString,getFileName,noFile>
+	EXTNEAR	<countLine,chkString,getFileName,getToken>
 	EXTSTR	<DIR_DEF,PERIOD>
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
@@ -48,6 +48,7 @@ ch1:	mov	dx,si
 	jc	ch1a
 	ret
 ch1a:	PRINTF	<"Unable to change to %s (%d)",13,10,13,10>,si,ax
+	stc
 	ret
 
 ch2:	mov	ah,DOS_DSK_GETDRV
@@ -60,8 +61,136 @@ ch4:	call	getCwd			; DS:SI -> path
 	PRINTF	<"%c:%c%s",13,10,13,10>,cx,dx,si
 	ret
 ch8:	PRINTF	<"Unable to find %c: (%d)",13,10,13,10>,cx,ax
+	stc
 	ret
 ENDPROC	cmdChdir
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmdDel
+;
+; Delete the specified file (also used by ERASE).  A filespec with wildcards
+; deletes every matching file (see delWild).
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	DI -> TOKENBUF
+;	DS:SI -> filespec (with length CX)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cmdDel
+	push	si
+	push	cx
+	mov	dl,[bx].CMD_ARG
+	call	getToken		; was a filename specified?
+	pop	cx
+	pop	si
+	jc	de7			; no
+	push	cx
+	mov	ax,DOS_MSC_GETPCH
+	int	21h			; DL = path char
+	pop	cx
+	push	si
+	mov	di,si			; DI -> filename portion of filespec
+	mov	dh,0			; DH = non-zero if wildcards
+de1:	lodsb
+	cmp	al,'*'
+	je	de2
+	cmp	al,'?'
+	jne	de3
+de2:	inc	dh
+de3:	cmp	al,':'
+	je	de4
+	cmp	al,dl
+	jne	de5
+de4:	mov	di,si
+de5:	loop	de1
+	pop	si
+	test	dh,dh			; any wildcards?
+	jz	de6			; no
+	call	delWild			; yes, delete all matching files
+	jmp	short de6a
+de6:	mov	dx,si			; DS:DX -> filename
+	mov	ah,DOS_DSK_DELETE
+	int	21h
+de6a:	jnc	de9
+	PRINTF	<"Unable to delete %s (%d)",13,10,13,10>,si,ax
+	jmp	short de8
+	DEFLBL	noFile,near
+de7:	PRINTF	<"Missing filename",13,10,13,10>
+de8:	stc
+de9:	ret
+ENDPROC	cmdDel
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; delWild
+;
+; Delete every file matching a filespec with wildcards (for DEL).  Like
+; getFileID, we use a DTA on the stack, along with a buffer for the name of
+; each match (the filespec's drive and path, if any, followed by the name).
+; Only normal files match (not hidden, system, or directory entries).
+;
+; Inputs:
+;	SS:SI -> filespec (null-terminated)
+;	SS:DI -> filename portion of filespec
+;
+; Outputs:
+;	Carry clear if successful, set if error (AX = error #)
+;
+; Modifies:
+;	AX, BX, CX, DX, DI, ES
+;
+DEFPROC	delWild
+	push	bp
+	push	si
+	sub	sp,((size FFB + 1) AND 0FFFEh) + 80
+	mov	bp,sp
+	push	ss
+	pop	es
+	mov	cx,di
+	sub	cx,si			; CX = length of drive and path
+	lea	di,[bp+((size FFB + 1) AND 0FFFEh)]
+	rep	movsb			; copy them to the name buffer
+	mov	bx,di			; BX -> end of drive and path
+	mov	dx,bp			; DS:DX -> temporary DTA
+	mov	ah,DOS_DSK_SETDTA
+	int	21h
+	mov	dx,[bp+((size FFB + 1) AND 0FFFEh) + 80]
+	mov	ah,DOS_DSK_FFIRST	; DS:DX -> filespec (CX is zero)
+	int	21h
+	jc	dw8
+dw1:	lea	si,[bp].FFB_NAME
+	mov	di,bx
+dw2:	lodsb				; append the matching name
+	stosb
+	test	al,al
+	jnz	dw2
+	lea	dx,[bp+((size FFB + 1) AND 0FFFEh)]
+	mov	ah,DOS_DSK_DELETE	; DS:DX -> name to delete
+	int	21h
+	jc	dw8
+	mov	ah,DOS_DSK_FNEXT
+	int	21h
+	jnc	dw1
+	clc				; no more matches
+dw8:	pushf
+	push	ax
+	mov	dx,PSP_DTA
+	mov	ah,DOS_DSK_SETDTA
+	int	21h			; restore the DTA
+	pop	ax
+	popf
+	lea	sp,[bp+((size FFB + 1) AND 0FFFEh) + 80]
+	pop	si
+	pop	bp
+	ret
+ENDPROC	delWild
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -218,6 +347,7 @@ di7:	xchg	ax,dx			; AX = total # of clusters used
 
 di8:	PRINTF	<"Unable to find %s (%d)",13,10,13,10>,si,ax
 	pop	bp
+	stc
 	ret
 ENDPROC	cmdDir
 
@@ -293,8 +423,9 @@ md1:	push	ax
 	cmp	dh,DOS_DSK_MKDIR
 	jne	md2
 	PRINTF	<"Unable to create %s (%d)",13,10,13,10>,si,ax
-	ret
+	jmp	short md7
 md2:	PRINTF	<"Unable to remove %s (%d)",13,10,13,10>,si,ax
+md7:	stc
 	ret
 md8:	jmp	noFile			; report a missing name
 md9:	ret

@@ -206,7 +206,8 @@ mem32:	call	countLine
 	jmp	mem0
 	ENDIF	; DEBUG
 
-mem99:	LEAVE
+mem99:	clc
+	LEAVE
 	ret
 	DEFLBL	toBytes,near	; converts paras in AX to bytes in DX:AX
 	mov	cx,16

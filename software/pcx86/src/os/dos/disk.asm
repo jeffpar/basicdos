@@ -644,7 +644,6 @@ DEFPROC	get_dirent,DOS
 	sub	dx,dx
 	mov	ds,dx
 	ASSUME	DS:BIOS
-	mov	si,offset DIR_BUFHDR
 	sub	bp,bp			; BP = 1st relative sector to search
 	sub	cx,cx
 	test	ax,ax
@@ -657,19 +656,31 @@ DEFPROC	get_dirent,DOS
 	jmp	short gd3
 ;
 ; If one of the sectors from the directory we're interested in is already
-; in DIR_BUF, and we're not continuing from a specific DIRENT, then a nice
-; optimization is to start with that sector.  We simply loop around to the
-; top of the directory and stop when we reach this same sector again.
+; in a buffer, and we're not continuing from a specific DIRENT, then a nice
+; optimization is to start with that sector (the most recently used one).
+; We simply loop around to the top of the directory and stop when we reach
+; this same sector again.
 ;
-gd1:	mov	al,es:[di].BPB_DRIVE	; AL = drive #
-	cmp	[si].BUF_DRIVE,al
-	jne	gd2
-	cmp	[si].BUF_LBA,dx		; is the buffer valid (DX is zero)?
-	je	gd2			; no
-	call	get_dircln		; AX = directory
-	cmp	[si].BUF_DIRCLN,ax	; is the buffer from this directory?
-	jne	gd2			; no
-	mov	bp,[si].BUF_DIRREL	; yes, so start with its sector
+gd1:	call	get_dircln
+	xchg	si,ax			; SI = directory
+	mov	al,es:[di].BPB_DRIVE	; AL = drive #
+	mov	dx,es:[buf_head]
+	mov	ds,dx			; DX = head
+	ASSUME	DS:NOTHING
+gd1a:	cmp	ds:[BUF_TYPE],(offset DIR_BUFHDR - offset FAT_BUFHDR) AND 0FFh
+	jne	gd1b			; not a DIR buffer
+	cmp	ds:[BUF_DRIVE],al
+	jne	gd1b
+	cmp	ds:[BUF_LBA],0		; is the buffer valid?
+	je	gd1b			; no
+	cmp	ds:[BUF_DIRCLN],si	; is the buffer from this directory?
+	jne	gd1b			; no
+	mov	bp,ds:[BUF_DIRREL]	; yes, so start with its sector
+	jmp	short gd2
+gd1b:	cmp	ds:[BUF_NEXT],dx	; looped back around?
+	je	gd2			; yes
+	mov	ds,ds:[BUF_NEXT]
+	jmp	gd1a
 gd2:	mov	dx,bp
 ;
 ; End of initialization code, beginning of main loop.
@@ -679,14 +690,15 @@ gd3:	call	dir_lba			; AX = LBA of relative sector DX
 	push	dx
 	xchg	dx,ax			; DX = LBA
 	mov	al,es:[di].BPB_DRIVE
-	ASSERT	STRUCT,[si],BUF
+	mov	si,offset DIR_BUFHDR
 	call	read_buffer		; AL = drive #, DX = LBA
 	pop	dx
 	jnc	gd4
 	jmp	gd9
+	ASSUME	DS:BIOS
 gd4:	call	get_dircln		; record the buffer's directory
-	mov	[DIR_BUFHDR].BUF_DIRCLN,ax
-	mov	[DIR_BUFHDR].BUF_DIRREL,dx
+	mov	ds:[BUF_DIRCLN],ax
+	mov	ds:[BUF_DIRREL],dx
 
 	mov	ax,es:[di].BPB_SECBYTES
 	add	ax,si			; AX -> end of sector data
@@ -753,7 +765,6 @@ gd6a:	cmp	ax,ERR_NOFILE		; beyond the end of the directory?
 gd6:	sub	dx,dx			; start over at the first sector
 
 gd7:	sub	cx,cx			; start at offset zero of next sector
-	mov	si,offset DIR_BUFHDR
 	cmp	dx,bp			; back to the 1st sector again?
 	je	gd7b			; yes
 	jmp	gd3			; not yet
@@ -1337,58 +1348,123 @@ ENDPROC	dsk_getcwd
 ;
 ; read_buffer
 ;
+; Finds the buffer containing the requested sector (reading the sector into
+; the least recently used buffer if necessary), and makes it the most recently
+; used buffer.  SI says what kind of data the sector contains (FAT or DIR),
+; and to ensure that a caller can keep using the most recent sector of one
+; kind while reading sectors of the other kind (eg, keeping a DIRENT while
+; reading the FAT), the most recently used buffer of the other kind is never
+; reused (so there must be at least two buffers).
+;
+; new_buffer is the same, except that the sector is not read (the caller is
+; going to fill the buffer and mark it dirty).
+;
 ; Inputs:
 ;	AL = drive #
 ;	DX = LBA
-;	DS:SI -> BUFHDR
+;	SI = offset FAT_BUFHDR or offset DIR_BUFHDR
 ;	DI -> BPB
 ;
 ; Outputs:
 ;	On success, DS:SI -> buffer with requested data, carry clear
+;	(the buffer's BUFHDR is at DS:0)
 ;	On failure, AX = device error code, carry set
 ;
 ; Modifies:
-;	AX, SI
+;	AX, SI, DS
 ;
 ; Notes:
-;	If the buffer currently contains modified data for another LBA,
+;	If the buffer being reused contains modified data for another LBA,
 ;	that data is written (see write_buffer) before the buffer is reused.
 ;
 DEFPROC	read_buffer,DOS
-	ASSUMES	<DS,BIOS>,<ES,NOTHING>
-	cmp	[si].BUF_DRIVE,al
-	jne	rb1
-	cmp	[si].BUF_LBA,dx
-	jne	rb1
-	add	si,size BUFHDR
-	jmp	short rb9
-rb1:	call	write_buffer		; write the buffer first if it's dirty
-	jc	rb9
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	mov	ah,DDC_READ
+	DEFLBL	new_buffer,near		; (AH = 0 to skip the read)
 	push	bx
 	push	cx
+	push	bp
+	xchg	cx,si
+	sub	cx,offset FAT_BUFHDR
+	mov	ch,0			; CL = type, CH = # of other type seen
+	mov	bp,cs:[buf_head]	; BP = head (most recently used)
+	mov	si,bp
+rb1:	mov	ds,si
+	cmp	ds:[BUF_DRIVE],al
+	jne	rb2
+	cmp	ds:[BUF_LBA],dx
+	je	rb6			; we found the sector
+rb2:	cmp	ds:[BUF_LBA],0		; an invalid buffer
+	je	rb3			; can always be reused
+	cmp	ds:[BUF_TYPE],cl	; and so can a buffer of the same type
+	je	rb3
+	inc	ch			; but the first buffer of the other
+	cmp	ch,1			; type can't be
+	je	rb4
+rb3:	mov	bx,si			; BX = least recent reusable buffer
+rb4:	mov	si,ds:[BUF_NEXT]
+	cmp	si,bp			; looped back around?
+	jne	rb1			; no
+	mov	ds,bx
+	sub	si,si			; DS:SI -> BUFHDR to reuse
+	call	write_buffer		; write the buffer first if it's dirty
+	jc	rb9
+	mov	ds:[BUF_DRIVE],al
+	mov	ds:[BUF_LBA],dx
+	mov	ch,-1			; CH = -1 (read the sector)
+	jmp	short rb7
+rb6:	mov	bx,si			; BX = buffer with the sector
+	mov	ch,0			; CH = 0 (no read required)
+;
+; Make the buffer in BX the most recently used buffer (ie, the head).
+;
+rb7:	mov	ds,bx
+	mov	ds:[BUF_TYPE],cl
+	cmp	bx,bp			; already the head?
+	je	rb8			; yes
+	push	ax
 	push	dx
-	mov	[si].BUF_DRIVE,al	; AL = unit #
-	mov	[si].BUF_LBA,dx
-	mov	cx,[si].BUF_SIZE	; CX = byte count
-	mov	bx,dx			; BX = LBA
-	sub	dx,dx			; DX = offset (0)
-	add	si,size BUFHDR		; DS:SI -> data buffer
-	mov	ah,DDC_READ
+	mov	ax,ds:[BUF_PREV]	; unlink the buffer
+	mov	dx,ds:[BUF_NEXT]
+	mov	ds,ax
+	mov	ds:[BUF_NEXT],dx
+	mov	ds,dx
+	mov	ds:[BUF_PREV],ax
+	mov	ds,bp			; and insert it before the head
+	mov	ax,ds:[BUF_PREV]
+	mov	ds:[BUF_PREV],bx
+	mov	ds,ax
+	mov	ds:[BUF_NEXT],bx
+	mov	ds,bx
+	mov	ds:[BUF_PREV],ax
+	mov	ds:[BUF_NEXT],bp
+	mov	cs:[buf_head],bx	; the buffer is now the head
+	pop	dx
+	pop	ax
+rb8:	mov	si,size BUFHDR		; DS:SI -> data buffer
+	and	ch,ah			; read the sector?
+	jz	rb9			; no (and carry is clear)
+	push	cx
+	push	dx
 	push	di
 	push	es
 	ASSERT	Z,<cmp al,cs:[di].BPB_DRIVE>
+	mov	cx,ds:[BUF_SIZE]	; CX = byte count
+	mov	bx,dx			; BX = LBA
+	sub	dx,dx			; DX = offset (0)
 	les	di,cs:[di].BPB_DEVICE
-	call	dev_request
-	jnc	rb8
-	sub	si,size BUFHDR
-	mov	[si].BUF_LBA,0		; invalidate the buffer on error
-	stc
-rb8:	pop	es
+	call	dev_request		; AH = DDC_READ, AL = drive #
+	pop	es
 	pop	di
 	pop	dx
 	pop	cx
+	jnc	rb9
+	mov	ds:[BUF_LBA],0		; invalidate the buffer on error
+	stc
+rb9:	pop	bp
+	pop	cx
 	pop	bx
-rb9:	ret
+	ret
 ENDPROC	read_buffer
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

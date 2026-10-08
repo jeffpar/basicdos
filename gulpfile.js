@@ -124,6 +124,13 @@ let disks = {
             "./software/pcx86/src/tests/primes/PRIMES.BAS"
         ]
     },
+    "BASICDOS-STRESS": {
+        "root": [
+            "./demos/stress/CONFIG.SYS",
+            "./demos/stress/STRESS.BAT",
+            "./software/pcx86/src/tests/primes/PRIMES.BAS"
+        ]
+    },
     "PCDOS200-C400": "./software/pcx86/disks/PCDOS200-C400.json"
 };
 

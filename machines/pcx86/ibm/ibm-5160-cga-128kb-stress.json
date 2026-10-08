@@ -1,0 +1,205 @@
+{
+  "name": "IBM PC XT, 128Kb RAM, 10Mb Hard Disk, CGA",
+  "defaults": {
+    "ram": "128K",
+    "fpu": "None",
+    "fdc": "2 diskette drives",
+    "parallel": "LPT1",
+    "serial": "COM1",
+    "hdc": "10Mb hard disk"
+  },
+  "machine": {
+    "type": "pcx86",
+    "name": "PCx86",
+    "version": "2.25",
+    "factory": "embedPCx86"
+  },
+  "components": [
+    {
+      "id": "pcCGA",
+      "class": "computer"
+    },
+    {
+      "id": "romBASIC",
+      "class": "rom",
+      "addr": "0xf6000",
+      "size": "0x08000",
+      "alias": null,
+      "file": "/machines/pcx86/roms/BASIC110.json5"
+    },
+    {
+      "id": "romBIOS",
+      "class": "rom",
+      "addr": "0xfe000",
+      "size": "0x02000",
+      "file": "/machines/pcx86/roms/XTBIOS-REV1.json5"
+    },
+    {
+      "id": "romHDC",
+      "class": "rom",
+      "addr": "0xc8000",
+      "size": "0x02000",
+      "file": "/machines/pcx86/roms/IBM-XEBEC-1982.json5"
+    },
+    {
+      "id": "videoCGA",
+      "class": "video",
+      "title": "Color Display",
+      "screenWidth": 1280,
+      "screenHeight": 800,
+      "screenColor": "black",
+      "charCols": 80,
+      "charRows": 25,
+      "fontROM": "/machines/pcx86/roms/IBM-CGA.json5",
+      "flicker": 0,
+      "overlay": true,
+      "autoLock": true,
+      "touchScreen": "mouse",
+      "controls": [
+        {
+          "type": "group",
+          "style": {
+            "float": "right"
+          }
+        },
+        {
+          "id": "fullScreen",
+          "type": "button",
+          "label": "Full Screen",
+          "style": {
+            "padding-left": "8px",
+            "line-height": "1em"
+          }
+        }
+      ]
+    },
+    {
+      "id": "fdcNEC",
+      "class": "fdc",
+      "diskettes": "",
+      "server": "",
+      "style": {
+        "float": "left",
+        "padding-right": "8px",
+        "padding-bottom": "8px"
+      },
+      "controls": [
+        {
+          "type": "group"
+        },
+        {
+          "id": "listDrives",
+          "type": "list"
+        },
+        {
+          "id": "listDisks",
+          "type": "list",
+          "options": {
+            "": "None",
+            "/software/pcx86/disks/BASICDOS-DISK1.json": "BASICDOS-DISK1",
+            "/software/pcx86/disks/BASICDOS-DISK2.json": "BASICDOS-DISK2",
+            "/software/pcx86/disks/BASICDOS-DISK3.json": "BASICDOS-DISK3",
+            "/software/pcx86/disks/BASICDOS-DISK4.json": "BASICDOS-DISK4",
+            "/software/pcx86/disks/BASICDOS-DISK5.json": "BASICDOS-DISK5",
+            "/software/pcx86/disks/BASICDOS-DISK6.json": "BASICDOS-DISK6",
+            "/software/pcx86/disks/PCDOS100.json": "PC DOS 1.00",
+            "/software/pcx86/disks/PCDOS110.json": "PC DOS 1.10",
+            "/software/pcx86/disks/PCDOS200-DISK1.json": "PC DOS 2.00 (Disk 1)",
+            "/software/pcx86/disks/PCDOS200-DISK2.json": "PC DOS 2.00 (Disk 2)"
+          }
+        },
+        {
+          "id": "loadDisk",
+          "type": "button",
+          "label": "Load"
+        },
+        {
+          "id": "saveDisk",
+          "type": "button",
+          "label": "Save",
+          "style": {
+            "padding-right": "8px"
+          }
+        },
+        {
+          "id": "descDisk",
+          "type": "description",
+          "style": {
+            "padding-right": "8px"
+          }
+        },
+        {
+          "id": "mountDisk",
+          "type": "file",
+          "label": "Mount"
+        }
+      ]
+    },
+    {
+      "id": "hdcXT",
+      "class": "hdc",
+      "type": "XT",
+      "drives": [
+        {
+          "name": "BASICDOS-STRESS",
+          "type": 3,
+          "path": "/software/pcx86/disks/BASICDOS-STRESS.json"
+        }
+      ],
+      "style": {
+        "float": "left",
+        "padding-right": "8px",
+        "padding-bottom": "8px"
+      },
+      "controls": [
+        {
+          "id": "saveHD0",
+          "type": "button",
+          "label": "Save HD"
+        }
+      ]
+    },
+    "/machines/pcx86/ibm/ram-5150.json",
+    {
+      "id": "cpu8088",
+      "class": "cpu",
+      "model": 8088,
+      "autoStart": true,
+      "controls": [
+        {
+          "id": "reset",
+          "type": "button",
+          "label": "Reset",
+          "style": {
+            "padding-right": "8px"
+          }
+        }
+      ]
+    },
+    "/machines/pcx86/ibm/keys.json",
+    {
+      "id": "chipset",
+      "class": "chipset",
+      "model": 5160,
+      "scaleTimers": false,
+      "sw1": "01011001",
+      "@note": "The above switch settings indicate '128K, No FPU, Color Monitor, 2 Floppy Drives'.",
+      "sound": true,
+      "floppies": "",
+      "monitor": "",
+      "dateRTC": ""
+    },
+    {
+      "id": "lpt1",
+      "class": "parallel",
+      "adapter": 2,
+      "binding": "print"
+    },
+    {
+      "id": "com1",
+      "class": "serial",
+      "adapter": 1,
+      "binding": "print"
+    }
+  ]
+}

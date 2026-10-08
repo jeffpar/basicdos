@@ -12,6 +12,7 @@ When BASIC-DOS starts, it automatically allocates enough memory for:
 
 - Up to 20 open files at a time
 - Up to 4 active sessions at a time
+- 2 disk buffers (one for FAT sectors and one for directory sectors)
 
 and it creates a single 80-column, 25-row console, running COMMAND.COM.
 
@@ -27,6 +28,7 @@ then memory will be set aside for up to 30 simultaneous open files and up to 8 s
 The recognized keywords are:
 
 - [BOOTKEY](#bootkey)
+- [BUFFERS](#buffers)
 - [CONSOLE](#console)
 - [DEBUG](#debug)
 - [FILES](#files)
@@ -44,6 +46,12 @@ Installable device drivers (DEVICE=) aren't supported yet.
 > BOOTKEY=*key*
 
 Acts as if *key* had been pressed at the BASIC-DOS boot prompt.  This is a debugging aid: DEBUG builds of BASIC-DOS use the boot key to enable additional diagnostic messages.  It has no effect if a key other than **Enter** was actually pressed.
+
+### BUFFERS
+
+> BUFFERS=*n*
+
+Sets the number of disk buffers, each of which holds one 512-byte sector of a FAT or a directory, so that recently used sectors don't have to be read again.  The default is 2 (the minimum), and *n* can range from 2 to 32.  Each additional buffer uses 528 bytes of memory, so more buffers mainly help systems with multiple sessions (eg, sessions working in different directories) and memory to spare.  File data isn't buffered; it's transferred directly by the disk drivers.
 
 ### CONSOLE
 

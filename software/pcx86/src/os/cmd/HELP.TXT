@@ -1,6 +1,9 @@
 ABS(*x*)
 Returns the absolute value of *x*.
 
+ARG$[(*n*)]
+Returns argument *n* from the command line that ran the current BAS or BAT file (0 is the file's name), or all the arguments if *n* is omitted.  Quoted arguments can contain spaces.
+
 ASC(*string*)
 Returns the character code (0-255) of the first character of *string* (or 0 if *string* is empty).
 
@@ -72,7 +75,7 @@ DEFSTR [*letter(s)*]
 Defines the first letter(s) of variables that will default to string values.  Unless DEFSTR is used, all string variables must be defined using the $ suffix.
 
 DEL *file*
-Deletes the specified file (wildcards are not supported yet).  ERASE is the same as DEL, unless it's erasing arrays.
+Deletes the specified file, or with wildcards (? and *), every matching file (eg, DEL *.TMP).  ERASE is the same as DEL, unless it's erasing arrays.
 
 DELETE *line*[-[*line*]] | -*line*
 Deletes the specified range of program lines.  Typing a line number by itself deletes just that line.
@@ -339,7 +342,7 @@ UCASE$(*string*)
 Returns *string* with all lower-case letters converted to upper-case.
 
 VAL(*string*)
-Returns the numeric value of *string*, ignoring any blanks.  If *string* does not begin with a number, the result is 0.
+Returns the numeric value of *string*, ignoring any blanks.  If *string* does not begin with a number, the result is 0.  The &H (hex) and &O (octal) prefixes are allowed (eg, VAL("&HFF") is 255).
 
 VER
 Displays the BASIC-DOS version number and revision.

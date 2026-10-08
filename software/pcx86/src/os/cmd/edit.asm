@@ -24,9 +24,9 @@
 CODE    SEGMENT
 
 	EXTNEAR	<allocText,freeCache,memError,writeStrCRLF,printCRLF>
-	EXTNEAR	<getToken,getFileName,chkString,addString,openOutput>
+	EXTNEAR	<getToken,getFileName,chkExt,addString,openOutput>
 	EXTNEAR	<writeOutput,writeError,openError,noFile>
-	EXTSTR	<BAS_EXT,PERIOD>
+	EXTSTR	<BAS_EXT>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -136,6 +136,7 @@ DEFPROC	cmdEdit
 	mov	word ptr [bx].EDIT_INC,0
 	ret
 ed8:	PRINTF	<"Undefined line number",13,10,13,10>
+	stc
 ed9:	ret
 ENDPROC	cmdEdit
 
@@ -190,8 +191,7 @@ DEFPROC	cmdSave
 	call	getFileName		; DS:SI -> filename, CX = length
 	jnc	sv1
 	jmp	noFile
-sv1:	mov	dx,offset PERIOD	; does the filename have an extension?
-	call	chkString
+sv1:	call	chkExt			; does the filename have an extension?
 	jnc	sv2			; yes
 	mov	dx,offset BAS_EXT	; no, so add one
 	call	addString

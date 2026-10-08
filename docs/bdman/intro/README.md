@@ -66,6 +66,8 @@ A command line can contain more than one command, separated by colons (eg, `CLS:
 
 	FOR I = 1 TO 3:PRINT I;:NEXT
 
+A DOS command (eg, DIR, TYPE, or the name of a program) ends at a colon that begins a word, so put a space before the colon if another command follows it (eg, `DIR *.BAS : PRINT "done"`).  Any other colon is part of the command, as in a drive letter (eg, `DIR A:`).
+
 Note that assignments typed at the prompt must begin with [LET](../cmd/basic/let/) (eg, `LET A = 1`), since BASIC-DOS would otherwise look for a program named `A`.
 
 ### Entering Programs
@@ -107,7 +109,7 @@ The output of a command can be sent to a file instead of the screen:
 - `DIR > FILES.TXT` creates (or truncates) FILES.TXT and writes the output to it
 - `DIR >> FILES.TXT` appends the output to FILES.TXT
 
-Since `>` is also BASIC's "greater than" operator, BASIC statements use `:>` (or `:>>`) at the end of a line instead, which redirects the output of every statement on the line (eg, `PRINT "hello world" :> TEST` or `FOR I=1 TO 3:PRINT I:NEXT :>> TEST`).  `:>` works with any command, at the prompt and in BAT and BAS files, but it must come last on the line; for DOS commands, put a space before it (eg, `DIR :> FILES.TXT`), since `A:>FILE` still means drive A:.
+Since `>` is also BASIC's "greater than" operator, BASIC statements use `:>` (or `:>>`) at the end of a line instead, which redirects the output of every statement on the line (eg, `PRINT "hello world" :> TEST` or `FOR I=1 TO 3:PRINT I:NEXT :>> TEST`).  `:>` works with any command, at the prompt and in BAT and BAS files, and its file name can be a string variable (eg, `PRINT X :> F$`), but it must come last on the line; for DOS commands, put a space before it (eg, `DIR :> FILES.TXT`), since `A:>FILE` still means drive A:.
 
 The output of one command can also be sent to the input of another command, using a pipe (`|`):
 

@@ -26,6 +26,8 @@ Paths can be used at the prompt, but not yet in BAT or BAS files, where the path
 
 Device names (eg, CON, PRN, AUX, COM1, LPT1, and NUL) can be used in place of file names (eg, `COPY TEST.TXT NUL` or `DIR > NUL`).
 
+A string variable can also be used in place of any file name (or path, or filespec), in which case its value is used (eg, `F$ = "PRIMES.BAS"` and then `TYPE F$`, or `COPY CON NAME$`).  This works in BAS and BAT files, and at the prompt, where variables set with LET remain until the next program runs.  Any name that looks like a string variable (a letter, followed by letters or digits, ending with `$`) is a variable; one that doesn't exist is empty, as in BASIC, and an empty string variable is the same as no file name (eg, `DIR E$` lists all files when `E$` is empty).  To use a file name that looks like a string variable, put it in quotes (eg, `TYPE "TEST$"`); any quoted file name works the same as an unquoted one.
+
 The REN (RENAME) command isn't supported yet.
 
 ### CD
@@ -55,7 +57,7 @@ Copies the contents of the input file or device to the output file or device.  T
 > DEL *file*  
 > ERASE *file*
 
-Deletes the specified file.  Wildcards aren't supported yet.  ERASE is the same as DEL, unless it's erasing arrays (see [ERASE](../basic/#erase)).
+Deletes the specified file.  With the wildcards `?` and `*` (as in [DIR](#dir)), every matching file is deleted (eg, `DEL *.TMP` or `DEL SUBDIR/T?.TXT`); hidden and system files and directories never match.  It's an error if no file matches.  ERASE is the same as DEL, unless it's erasing arrays (see [ERASE](../basic/#erase)).
 
 ### DIR
 

@@ -13,9 +13,9 @@ CODE    SEGMENT
 
 	EXTNEAR	<allocText,freeAllText,genCode,freeAllCode,freeAllVars>
 	IF DETOK
-	EXTNEAR	<loadTokens,chkExt,getCwd>
+	EXTNEAR	<loadTokens,chkExt,getCwd,cmdDel>
 	ENDIF
-	EXTNEAR	<freeIdleVars,resetVars,runCode>
+	EXTNEAR	<freeIdleVars,resetVars,runCode,findVar>
 	EXTNEAR	<enterLine,editPrompt,chkProgram>
 	EXTNEAR	<writeStrCRLF,saveChains,restoreChains,compactStrs>
 	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resSum>
@@ -196,20 +196,37 @@ ENDPROC	main
 ;	Any
 ;
 DEFPROC	cleanUp
+	mov	bx,ss:[PSP_HEAP]	; restore the original STD handles
+	mov	ax,word ptr ss:[bx].SFH_STDIN
+	mov	dx,0			; and close all non-STD handles
+;
+; parseDOS uses cleanUpTo instead, with the STD handles and open handles that
+; existed before the command, so that a command run by a program doesn't undo
+; the program's own redirection (eg, "PROG > FILE", where PROG runs another
+; command).
+;
+; Inputs (for cleanUpTo):
+;	AX = STDIN and STDOUT SFHs to restore (see getHandles)
+;	DX = mask of non-STD handles to leave open (bit 0 for handle 5)
+;
+	DEFLBL	cleanUpTo,near
 	pushf
 	push	ss
 	pop	ds
 	push	ss
 	pop	es
-	mov	bx,5			; close all non-STD handles
-cu1:	mov	ah,DOS_HDL_CLOSE
+	push	ax
+	mov	bx,5
+cu1:	shr	dx,1			; leave this handle open?
+	jc	cu2			; yes
+	mov	ah,DOS_HDL_CLOSE
 	int	21h
-	inc	bx
+cu2:	inc	bx
 	cmp	bx,size PSP_PFT
 	jb	cu1
-	mov	bx,ds:[PSP_HEAP]	; and then restore the STD ones
-	mov	ax,word ptr [bx].SFH_STDIN
+	pop	ax
 	mov	word ptr ds:[PSP_PFT][STDIN],ax
+	mov	bx,ds:[PSP_HEAP]
 ;
 ; If we successfully loaded another program but then ran into some error
 ; before we could start the program, we MUST clean it up, and the best way
@@ -312,9 +329,10 @@ pc1:	mov	dx,cs:[si].CTD_FUNC
 	cmp	ax,KEYWORD_BASIC	; token ID < KEYWORD_BASIC? (40)
 	jb	pc2			; yes, no code generation required
 ;
-; The token is for a BASIC keyword, so code generation is required.
+; The token is for a BASIC keyword (or the line contains another command; see
+; pc2), so code generation is required.
 ;
-	mov	al,GEN_IMM
+pc1a:	mov	al,GEN_IMM
 	mov	si,[bx].INPUT_BUF
 	call	genCode
 	call	cleanUp
@@ -325,7 +343,26 @@ pc1:	mov	dx,cs:[si].CTD_FUNC
 ; any that we find prior to the first non-switch argument, and then invoke the
 ; command handler.
 ;
-pc2:	call	parseDOS		; DS:SI -> 1st token, CX = length
+;
+; However, if a word begins with a colon (eg, "DIR : PRINT 1"), then the line
+; contains more than one command, so we let genCode run them (see genDOS).
+;
+pc2:	push	cx
+	mov	cl,[di].TOK_CNT
+	mov	ch,0
+	push	bx
+	lea	bx,[di].TOK_DATA
+pc3:	push	bx
+	mov	bx,[bx].TOKLET_OFF
+	cmp	byte ptr [bx],':'	; does this word begin with a colon?
+	pop	bx
+	je	pc4			; yes
+	add	bx,size TOKLET
+	loop	pc3
+pc4:	pop	bx
+	pop	cx
+	je	pc1a			; generate code for the line
+	call	parseDOS		; DS:SI -> 1st token, CX = length
 
 pc9:	ret
 ENDPROC	parseCmd
@@ -360,7 +397,16 @@ DEFPROC	parseDOS
 ; process it, replace it with a null, call cmdDOS, and then restore it and
 ; continue scanning TOKENBUF.
 ;
+; We start by saving the STD handles and open handles (on the stack, below
+; BP), so that when we're done, cleanUpTo can restore them.
+;
 	push	bp
+	push	ax
+	push	dx
+	call	getHandles		; AX = STD handles, DX = open handles
+	mov	bp,sp
+	xchg	dx,[bp]			; restore DX
+	xchg	ax,[bp+2]		; restore AX
 	mov	bp,bx			; use BP to access CMDHEAP instead
 	ASSERT	STRUCT,[bp],CMD
 	mov	al,[di].TOK_CNT
@@ -602,8 +648,10 @@ pd9b:	sub	cx,cx			; CX = 0 for "truncating" write
 	DOSUTIL	WAITEND
 	clc
 
-pd9c:	call	cleanUp
-	pop	ax			; discard end of TOKLETs
+pd9c:	pop	cx			; discard end of TOKLETs
+	pop	dx			; DX = handles to leave open
+	pop	ax			; AX = STD handles to restore
+	call	cleanUpTo
 	pop	bp
 	ret
 
@@ -611,6 +659,36 @@ pd9x:	PRINTF	<"Syntax error",13,10,13,10>
 	stc
 	jmp	pd9c			; bail on error
 ENDPROC	parseDOS
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getHandles
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	AX = STDIN and STDOUT SFHs (from the PSP's PFT)
+;	DX = mask of open non-STD handles (bit 0 for handle 5, and so on)
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	getHandles
+	push	bx
+	mov	bx,size PSP_PFT - 1
+	sub	dx,dx
+gh1:	shl	dx,1
+	cmp	byte ptr ss:[PSP_PFT][bx],SFH_NONE
+	je	gh2			; handle isn't open
+	inc	dx			; handle is open
+gh2:	dec	bx
+	cmp	bx,5
+	jae	gh1
+	mov	ax,word ptr ss:[PSP_PFT][STDIN]
+	pop	bx
+	ret
+ENDPROC	getHandles
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -666,8 +744,7 @@ cd8:	pop	dx			; DX = handler again
 	test	dx,dx
 	jz	cd9
 	call	dx			; call the token handler
-	clc				; TODO: make handlers set/clear carry
-cd9:	ret
+cd9:	ret				; (carry set if the command failed)
 ENDPROC	cmdDOS
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -789,10 +866,10 @@ cf3a:	call	addString
 ;
 cf4:	mov	dx,offset COM_EXT
 	call	chkString
-	jnc	cf5
+	jnc	cf4x
 	mov	dx,offset EXE_EXT
 	call	chkString
-	jnc	cf5
+	jnc	cf4x
 	mov	dx,offset BAT_EXT
 	call	chkString
 	jnc	cf4b
@@ -802,6 +879,7 @@ cf4:	mov	dx,offset COM_EXT
 	mov	si,di			; filename was none of the above
 	mov	ax,ERR_INVALID		; so report an error
 cf4a:	jmp	cf8
+cf4x:	jmp	cf5
 ;
 ; BAT files are LOAD'ed and then immediately RUN.  We may as well do the same
 ; for BAS files; you can always use the LOAD command to load without running.
@@ -838,6 +916,41 @@ cf4b:	push	[bp].DATA_STATE[6]	; save the caller's READ position
 	push	[bp].DATA_STATE[4]	; (see readData), which saveChains
 	push	[bp].DATA_STATE[2]	; resets (see freeCache)
 	push	[bp].DATA_STATE[0]
+;
+; Copy the command line (from the filename up to the end, which is a CR or a
+; null, such as a redirection symbol that parseDOS replaced) to the stack as
+; a string, followed by the # of words it occupies, for ARG$ (see strArg),
+; which finds it via the CHAINS frame that saveChains creates.
+;
+	mov	bx,[bp].CMD_ARGPTR	; BX -> command line
+	push	cx
+	sub	cx,cx			; CX = length of command line
+cf4t:	cmp	cl,127			; (limited to a PSP command tail)
+	jae	cf4u
+	mov	di,bx
+	add	di,cx
+	cmp	byte ptr [di],CHR_RETURN; end of command line?
+	jbe	cf4u			; yes
+	inc	cx
+	jmp	cf4t
+cf4u:	mov	ax,cx
+	add	ax,2
+	and	al,0FEh			; AX = # bytes in string (rounded up)
+	pop	di			; DI = filespec length (from CX)
+	sub	sp,ax			; allocate the string
+	shr	ax,1
+	push	ax			; save # words in the string
+	push	si
+	push	di
+	mov	si,bx			; SI -> command line
+	mov	di,sp
+	add	di,6			; ES:DI -> string space
+	mov	bx,di			; BX -> string (for saveChains)
+	mov	al,cl
+	stosb
+	rep	movsb
+	pop	cx			; CX = filespec length
+	pop	si			; SI -> filespec
 	mov	ax,11h			; save the code and text chains
 	cmp	dx,offset BAS_EXT
 	jne	cf4c
@@ -847,6 +960,7 @@ cf4b:	push	[bp].DATA_STATE[6]	; save the caller's READ position
 	je	cf4c			; no
 	mov	ax,3Fh			; yes, so save its var chains, too
 cf4c:	call	saveChains		; SP -> CHAINS frame
+	mov	bx,bp			; BX -> CMDHEAP again
 	call	cmdLoad			; DS:SI -> filespec (with length CX)
 	jc	cf4e			; don't RUN if LOAD error
 	mov	al,GEN_BASIC
@@ -865,6 +979,9 @@ cf4f:	pushf
 	call	restoreChains		; restore the caller's chains
 	popf
 	mov	sp,di			; and remove the CHAINS frame
+	pop	cx			; CX = # words in the command line
+cf4g:	pop	ax			; remove the command line
+	loop	cf4g			; (without affecting carry)
 	pop	[bp].DATA_STATE[0]	; restore the caller's READ position
 	pop	[bp].DATA_STATE[2]
 	pop	[bp].DATA_STATE[4]
@@ -1017,16 +1134,29 @@ ENDPROC	cmdFile
 ;	If carry clear, DS:SI -> filespec, CX = length
 ;
 ; Modifies:
-;	CX, SI
+;	AX, CX, SI
+;
+; Notes:
+;	If the token is the name of a string variable (eg, "DIR D$"), the
+;	variable's value is used instead, and quotes are removed from a
+;	quoted token (eg, "TEST$"); see chkStrVar.
 ;
 DEFPROC	getFileName
+	push	cx
+	push	si			; save the default filespec
 	call	getToken		; DL = 1st non-switch argument
-	jnc	gf1
+	jc	gf0
+	call	chkStrVar		; is the token a string variable?
+	jnc	gf1			; no, or it has a value
+gf0:	pop	si			; use the default filespec
+	pop	cx
 	jcxz	gf9			; bail if no default was provided
 	push	cs			; assumes default is in CS segment
 	pop	ds
 	jmp	short gf2
-gf1:	mov	ax,64			; DS:SI -> token, CX = length
+gf1:	pop	ax			; discard the default filespec
+	pop	ax
+	mov	ax,64			; DS:SI -> token, CX = length
 	cmp	cx,ax
 	jbe	gf2
 	xchg	cx,ax
@@ -1045,6 +1175,92 @@ gf2:	push	di
 	clc
 gf9:	ret
 ENDPROC	getFileName
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chkStrVar
+;
+; If a token is quoted (eg, "TEST$"), remove the quotes; otherwise, if it's a
+; string variable name (a letter, followed by letters or digits, ending with
+; '$'), replace it with the variable's value (a variable that doesn't exist
+; is empty, as in BASIC).  Any other token is left alone.
+;
+; Inputs:
+;	SS:SI -> token, CX = length
+;
+; Outputs:
+;	DS:SI -> filename, CX = length, carry clear; or carry set (and DS = SS)
+;	if the filename is empty (eg, "" or an empty string variable)
+;
+; Modifies:
+;	AX, CX, SI, DS
+;
+DEFPROC	chkStrVar
+	cmp	byte ptr [si],'"'	; quoted?
+	jne	csv1			; no
+	inc	si			; yes, so remove the quotes
+	dec	cx
+	jcxz	csv6			; it's empty
+	push	si
+	add	si,cx
+	cmp	byte ptr [si-1],'"'	; closing quote?
+	pop	si
+	jne	csv0			; no
+	dec	cx
+	jcxz	csv6			; it's empty
+csv0:	clc
+	ret
+
+csv1:	push	si
+	push	cx
+	cmp	cx,2			; long enough for a string variable?
+	jb	csv7			; no
+	lodsb
+	and	al,0DFh
+	sub	al,'A'
+	cmp	al,26			; does it start with a letter?
+	jae	csv7			; no
+	sub	cx,2			; CX = # of remaining name characters
+	jcxz	csv3
+csv2:	lodsb
+	cmp	al,'0'
+	jb	csv7
+	cmp	al,'9'			; digit?
+	jbe	csv2a			; yes
+	and	al,0DFh
+	sub	al,'A'
+	cmp	al,26			; letter?
+	jae	csv7			; no
+csv2a:	loop	csv2
+csv3:	cmp	byte ptr [si],'$'	; does it end with '$'?
+	jne	csv7			; no
+	pop	cx
+	pop	si
+	push	dx
+	dec	cx			; CX = length of name (without '$')
+	mov	ah,VAR_STR
+	call	findVar			; DX:SI -> variable data
+	jc	csv5			; no such variable, so it's empty
+	mov	ds,dx
+	lds	si,[si]			; DS:SI -> value (or null)
+	mov	cx,ds
+	jcxz	csv5			; the value is empty
+	lodsb
+	mov	ah,0
+	xchg	cx,ax			; CX = length
+	pop	dx
+	clc
+	ret
+csv5:	pop	dx
+csv6:	push	ss
+	pop	ds
+	stc
+	ret
+csv7:	pop	cx			; not a variable, so leave it alone
+	pop	si
+	clc
+	ret
+ENDPROC	chkStrVar
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1281,7 +1497,7 @@ ENDPROC	cmdCopy
 DEFPROC	cmdDate
 	mov	ax,offset promptDate
 	call	getInput		; DS:SI -> string
-	jc	cc9			; do nothing on empty string
+	jc	dt8			; do nothing on empty string
 	mov	ah,'-'
 	call	getValues
 	xchg	dx,cx			; DH = month, DL = day, CX = year
@@ -1294,12 +1510,17 @@ DEFPROC	cmdDate
 dt1:	mov	ah,DOS_MSC_SETDATE
 	int	21h			; set the date
 	test	al,al			; success?
-	stc
-	jz	promptDate		; yes, display new date and return
-	PRINTF	<"Invalid date",13,10>
+	jnz	dt2			; no
+	stc				; (and ZF is set)
+	call	promptDate		; display the new date
+	jmp	short dt8
+dt2:	PRINTF	<"Invalid date",13,10>
 	cmp	[di].TOK_CNT,0		; did we process a command-line token?
-	je	dt9			; yes
+	stc
+	je	dt9			; yes (so report an error)
 	jmp	cmdDate
+dt8:	clc
+	ret
 
 	DEFLBL	promptDate,near
 	DOSUTIL	GETDATE			; GETDATE returns packed date
@@ -1313,55 +1534,6 @@ dt1:	mov	ah,DOS_MSC_SETDATE
 	test	ax,ax			; clear CF and ZF
 dt9:	ret
 ENDPROC	cmdDate
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; cmdDel
-;
-; Delete the specified file (also used by ERASE).  Wildcards aren't supported
-; yet, so we reject them rather than risk deleting the wrong file (eg, the
-; DOS parser would treat "BD*.BAT" as "BD").
-;
-; Inputs:
-;	BX -> CMDHEAP
-;	DI -> TOKENBUF
-;	DS:SI -> filespec (with length CX)
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	Any
-;
-DEFPROC	cmdDel
-	push	si
-	push	cx
-	mov	dl,[bx].CMD_ARG
-	call	getToken		; was a filename specified?
-	pop	cx
-	pop	si
-	jc	de7			; no
-	push	si
-de1:	lodsb
-	cmp	al,'*'
-	je	de6
-	cmp	al,'?'
-	je	de6
-	loop	de1
-	pop	si
-	mov	dx,si			; DS:DX -> filename
-	mov	ah,DOS_DSK_DELETE
-	int	21h
-	jnc	de9
-	PRINTF	<"Unable to delete %s (%d)",13,10,13,10>,si,ax
-	ret
-de6:	pop	si
-	PRINTF	<"Wildcards not supported",13,10,13,10>
-	ret
-	DEFLBL	noFile,near
-de7:	PRINTF	<"Missing filename",13,10,13,10>
-de9:	ret
-ENDPROC	cmdDel
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1467,6 +1639,7 @@ h2c:	add	sp,cx			; deallocate the stack space
 	ret
 
 h3:	PRINTF	<"No help available",13,10>
+	stc
 	ret
 h9:	ret
 ENDPROC	cmdHelp
@@ -2086,6 +2259,7 @@ ENDPROC	cmdLoad
 DEFPROC	cmdNew
 	call	freeAllText
 	call	freeAllVars
+	clc
 	ret
 ENDPROC	cmdNew
 
@@ -2229,22 +2403,27 @@ tm1d:	mov	al,ch			; AL = hours
 	pop	bx
 	pop	[bx].PREV_TIME.LOW
 	pop	[bx].PREV_TIME.HIW
-tm2:	ret
+	jmp	short tm7
 
 tm3:	mov	ax,offset promptTime
 	call	getInput		; DS:SI -> string
-	jc	tm2			; do nothing on empty string
+	jc	tm7			; do nothing on empty string
 	mov	ah,':'
 	call	getValues
 	mov	ah,DOS_MSC_SETTIME
 	int	21h			; set the time
 	test	al,al			; success?
-	stc
-	jz	promptTime		; yes, display new time and return
-	PRINTF	<"Invalid time",13,10>
+	jnz	tm4			; no
+	stc				; (and ZF is set)
+	call	promptTime		; display the new time
+	jmp	short tm7
+tm4:	PRINTF	<"Invalid time",13,10>
 	cmp	[di].TOK_CNT,0		; did we process a command-line token?
-	je	tm9			; yes
+	stc
+	je	tm9			; yes (so report an error)
 	jmp	cmdTime
+tm7:	clc
+	ret
 
 	DEFLBL	promptTime,near
 	jnc	tm8
