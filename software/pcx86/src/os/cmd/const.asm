@@ -22,7 +22,7 @@ CODE    SEGMENT
 	EXTNEAR	<evalAddStr>
 	EXTNEAR	<evalEQStr,evalNEStr,evalLTStr,evalGTStr,evalLEStr,evalGEStr>
 
-	EXTNEAR	<getErrorLevel,getRnd,getRndLong,getErr,peekByte>
+	EXTNEAR	<getErrorLevel,getRnd,getRndLong,getErr,peekByte,getMouse>
 	EXTNEAR	<strArg,strAsc,strChr,strDate,strFre,strHex,strInkey,strInstr>
 	EXTNEAR	<strLCase,strLeft,strLen,strMid,strOct,strRight,strSpace>
 	EXTNEAR	<strStr,strString,strTime,strUCase,strVal>
@@ -226,6 +226,10 @@ CODE    SEGMENT
 	db	VAR_LONG,PARM_REQUIRED
 	db	VAR_LONG,0FEh
 	dw	offset strMid,0
+	db	VAR_FUNC + 5,"MOUSE"	; (see genExpr's TOK_MOUSE check)
+	db	VAR_LONG,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset getMouse,0
 	db	VAR_FUNC + 4,"PEEK"
 	db	VAR_LONG,1
 	db	VAR_LONG,PARM_REQUIRED
@@ -333,6 +337,7 @@ CODE	ENDS
 	DEFTOK	MD,     17, cmdMkdir
 	DEFTOK	MEM,     5, cmdMem
 	DEFTOK	MKDIR,  17, cmdMkdir
+	DEFTOK	MOUSE,  86, genMouse,PUB
 	DEFTOK	NEW,     6, cmdNew
 	DEFTOK	NEXT,   60, genNext
 	DEFTOK	OFF,   202,,PUB

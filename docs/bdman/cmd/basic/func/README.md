@@ -10,7 +10,7 @@ Functions can be used in any expression, in BASIC programs or at the prompt (eg,
 
 - Numeric functions: [ABS](#abs), [ATN](#atn), [COS](#cos), [EXP](#exp), [FIX](#fix), [INT](#int), [LOG](#log), [RND](#rnd), [RND%](#rnd-int), [SIN](#sin), [SQR](#sqr), [TAN](#tan)
 - String functions: [ASC](#asc), [CHR$](#chr), [HEX$](#hex), [INSTR](#instr), [LCASE$](#lcase), [LEFT$](#left), [LEN](#len), [MID$](#mid), [OCT$](#oct), [RIGHT$](#right), [SPACE$](#space), [STR$](#str), [STRING$](#string), [UCASE$](#ucase), [VAL](#val)
-- System functions: [ARG$](#arg), [DATE$](#date), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [PEEK](#peek), [TIME$](#time)
+- System functions: [ARG$](#arg), [DATE$](#date), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [MOUSE](#mouse), [PEEK](#peek), [TIME$](#time)
 - Predefined constants: [ERRORLEVEL](#errorlevel), [MAXINT](#maxint)
 
 You can also define your own functions with [DEF](../def/).
@@ -223,6 +223,12 @@ Returns the next key pressed, without waiting (an empty string if no key was pre
 
 	10 LET K$ = INKEY$:IF K$ = "" THEN GOTO 10
 	PRINT "You pressed "; K$
+
+#### MOUSE {#mouse}
+
+> MOUSE(*n*)
+
+Returns the next mouse button event (*n* = 0), the position of that event (1 and 2), or the current position (3 and 4) or buttons (5).  See [MOUSE](../../device/mouse/#mouse-function) for details.
 
 #### PEEK {#peek}
 

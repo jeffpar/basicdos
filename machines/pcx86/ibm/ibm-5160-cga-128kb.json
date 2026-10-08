@@ -194,6 +194,17 @@
       "class": "serial",
       "adapter": 1,
       "binding": "print"
+    },
+    {
+      "id": "com2",
+      "class": "serial",
+      "adapter": 2
+    },
+    {
+      "id": "mouse",
+      "class": "mouse",
+      "serial": "com2",
+      "scaleMouse": 0.5
     }
   ]
 }

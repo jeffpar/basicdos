@@ -375,10 +375,10 @@ ERR_SP		dw	?		; 49Eh: program SP for ON ERROR
 ERR_NUM		dw	?		; 4A0h: last error # (HI set if active)
 ERR_ADDR	dd	?		; 4A2h: ON ERROR handler (0 if none)
 PLAY_STATE	dw    4 dup (?)		; 4A6h: PLAY/SOUND state (see doPlay)
-GFX_DATA	dw    4 dup (?)		; 4AEh: graphics state (see gfx.asm)
-CODE_CACHE	dw	?		; 4B6h: cached code (see keepCode)
-EDIT_STATE	dw    2 dup (?)		; 4B8h: line to edit (see edit.asm)
-DATA_STATE	dw    4 dup (?)		; 4BCh: next DATA item (see sys.asm)
+GFX_DATA	dw    7 dup (?)		; 4AEh: graphics and mouse state
+CODE_CACHE	dw	?		; 4BCh: cached code (see keepCode)
+EDIT_STATE	dw    2 dup (?)		; 4BEh: line to edit (see edit.asm)
+DATA_STATE	dw    4 dup (?)		; 4C2h: next DATA item (see sys.asm)
 ;
 ; The BASIC-DOS loader always set the stack pointer for a COM file to the top
 ; of the segment, which means we must declare our stack at the end of CMDHEAP.
@@ -389,7 +389,7 @@ DATA_STATE	dw    4 dup (?)		; 4BCh: next DATA item (see sys.asm)
 ; COM file can request the stack be located elsewhere, since there's no way for
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
-STACK		dw  486 dup (?)		; 4C4h
+STACK		dw  483 dup (?)		; 4CAh
 CMDHEAP		ends			; 890h
 SIG_CMD		equ	'H'
 

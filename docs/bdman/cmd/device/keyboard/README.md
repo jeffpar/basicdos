@@ -20,4 +20,4 @@ The INPUT and LINE INPUT statements aren't supported yet.
 
 Accepted for compatibility with Microsoft BASIC, but does nothing, since BASIC-DOS doesn't display function keys.
 
-{% include footer.html prev="Clock Commands:../clock/" next="Screen Commands:../screen/" %}
+{% include footer.html prev="Clock Commands:../clock/" next="Mouse Commands:../mouse/" %}

@@ -35,7 +35,7 @@ CODE    SEGMENT
 	EXTLONG	<FPU_TABLE>
 	EXTNEAR	<genCallFPU,genCallFPUDst,genCallFPUDst2>
 	EXTNEAR	<genConstDouble,genCvtType,genFnCall,genPushSlot>
-	EXTABS	<TOK_ABS,TOK_TAN>
+	EXTABS	<TOK_ABS,TOK_TAN,TOK_MOUSE>
 	EXTNEAR	<genPushVarLong,genPushVarPtr,getNextSymbol,getNextToken>
 	EXTNEAR	<peekNextSymbol,validateOp>
 
@@ -235,9 +235,15 @@ ge3f:	call	genConstDouble		; DS:SI -> numeric string
 ; Process numeric function keywords (TOK_ABS through TOK_TAN), which take
 ; one parenthesized argument and call the corresponding FPU$ function, so the
 ; argument is converted to a double if necessary, and so is the result.  Any
-; other keyword ends the expression (eg, THEN).
+; other keyword ends the expression (eg, THEN), except MOUSE, which is also a
+; predefined function (eg, MOUSE(0)), so it's processed like a variable.
 ;
-ge1k:	cmp	al,TOK_ABS
+ge1k:	cmp	al,TOK_MOUSE
+	jne	ge1l
+	mov	si,[si].CTD_OFF		; DS:SI -> "MOUSE"
+	mov	ah,CLS_VAR_LONG
+	jmp	ge1c
+ge1l:	cmp	al,TOK_ABS
 	jb	ge1kx
 	cmp	al,TOK_TAN
 	ja	ge1kx

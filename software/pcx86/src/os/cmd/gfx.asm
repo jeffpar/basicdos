@@ -23,6 +23,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<ioctlCon,strIllegal,rtError,playChar,playNum,releaseStr>
+	EXTNEAR	<mouseGfx>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
@@ -32,6 +33,7 @@ GFX_SCALE	equ	GFX_DATA+4	; DRAW scale XOR 4 (byte)
 GFX_COLOR	equ	GFX_DATA+5	; DRAW color + 1, or 0 for default
 GFX_MODE	equ	GFX_DATA+6	; video mode + 1, or 0 if unknown
 ;			GFX_DATA+7	; saved video mode + 1 (see saveMode)
+;			GFX_DATA+8	; mouse state (see MOUSE_* in sys.asm)
 ;
 ; These must match the ABLK structure in arr.asm.
 ;
@@ -1633,6 +1635,7 @@ ENDPROC	clampCoord
 ;
 DEFPROC	gfxInit
 	mov	bx,ss:[PSP_HEAP]
+	call	mouseGfx		; hide the mouse pointer, if necessary
 	mov	dl,byte ptr ss:[bx].GFX_MODE
 	dec	dl			; is the mode cached?
 	jns	gi0			; yes

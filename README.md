@@ -30,6 +30,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 
 - [x] CON, with multiple console contexts (one per session)
 - [x] COM, AUX, LPT, PRN, NUL, CLOCK$, and PIPE$ devices
+- [x] MOUSE$, a serial mouse driver (loaded only if a Microsoft-compatible mouse responds on a COM port at boot), with a minimal INT 33h interface (functions 00h-04h, 07h, 08h, and a BASIC-DOS function that returns queued button events), and a pointer drawn in MDA and CGA modes that preserves anything drawn over it
 - [x] Interrupt-driven, asynchronous I/O for CON and COM
 - [x] Floppy disk reads, including multi-track requests and requests that cross 64K boundaries
 - [x] Floppy disk writes
@@ -109,6 +110,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [ ] Specific error messages for compile-time errors (eg, "NEXT without FOR" and "WHILE without WEND" are currently reported as syntax errors)
 - [ ] STOP's "Break" message (STOP is currently the same as END)
 - [x] DATA, READ, and RESTORE (DATA items are found in the program's text as READ needs them)
+- [x] MOUSE ON/OFF and the MOUSE(*n*) function (modeled on MSBASIC's PEN), which returns button events, their positions, and the current position and buttons, in pixels (graphics modes) or columns and rows (text modes); the pointer is hidden while graphics statements run (until the next MOUSE function), and the mouse is turned off when a BAS program ends
 - [ ] INPUT and LINE INPUT
 - [ ] The MID$ statement (ie, `MID$(A$,N[,M]) = B$`)
 - [ ] `&H` and `&O` prefixes in VAL

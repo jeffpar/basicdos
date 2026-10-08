@@ -128,7 +128,7 @@ BASIC-DOS doesn't automatically run an AUTOEXEC.BAT file, so a session's startup
 
 Lists built-in device drivers that should not be loaded, using their exact device names (eg, `SKIP=CON,FPU$`).  A skipped driver is never initialized, and its memory is reclaimed.
 
-For example, a configuration that uses a serial console doesn't need the CON driver, and skipping the FPU$ driver disables floating-point support (so variables default to integers, and `/` and `^` become integer operations).
+For example, a configuration that uses a serial console doesn't need the CON driver, and skipping the FPU$ driver disables floating-point support (so variables default to integers, and `/` and `^` become integer operations).  Skipping the MOUSE$ driver avoids the time it takes to look for a serial mouse at boot.
 
 ### SWITCHAR
 

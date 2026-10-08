@@ -14,6 +14,7 @@
 ;	DEF SEG				(genDef and genDefSeg)
 ;	ERROR				(genError)
 ;	KEY				(genKey)
+;	MOUSE				(genMouse)
 ;	PLAY				(genPlay)
 ;	POKE				(genPoke)
 ;	SOUND				(genSound)
@@ -29,8 +30,8 @@ CODE    SEGMENT
 
 	EXTNEAR	<genExpr,getNextToken,peekNextSymbol,genCallCS,genCvtType>
 	EXTNEAR	<defSeg,defSegBasic,pokeByte,doSound,doPlay,doChain>
-	EXTNEAR	<raiseError,genEnd,genDefFn,peekNextToken>
-	EXTABS	<TOK_ON,TOK_SEG>
+	EXTNEAR	<raiseError,genEnd,genDefFn,peekNextToken,mouseOn,mouseOff>
+	EXTABS	<TOK_ON,TOK_OFF,TOK_SEG>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -174,6 +175,39 @@ DEFPROC	genKey
 gk9:	stc
 gk8:	ret
 ENDPROC	genKey
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genMouse
+;
+; Generate code for "MOUSE ON" and "MOUSE OFF" (see the MOUSE function, too).
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genMouse
+	mov	al,CLS_KEYWORD
+	call	getNextToken
+	jbe	gmo9
+	cmp	al,TOK_ON
+	mov	cx,offset mouseOn
+	je	gmo8
+	cmp	al,TOK_OFF
+	mov	cx,offset mouseOff
+	jne	gmo9
+gmo8:	GENCALL	cx
+	clc
+	ret
+gmo9:	stc
+	ret
+ENDPROC	genMouse
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

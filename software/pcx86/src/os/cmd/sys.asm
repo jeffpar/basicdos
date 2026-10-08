@@ -7,8 +7,8 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Runtime functions for CHAIN, DEF SEG, PEEK, PLAY, POKE, and SOUND (see
-; gensys.asm), and for READ and RESTORE (see gendef.asm).
+; Runtime functions for CHAIN, DEF SEG, MOUSE, PEEK, PLAY, POKE, and SOUND
+; (see gensys.asm), and for READ and RESTORE (see gendef.asm).
 ;
 	include	cmd.inc
 	include	fpu.inc
@@ -28,6 +28,15 @@ DATA_OFF	equ	DATA_STATE+0	; offset of the next character to scan
 DATA_SEG	equ	DATA_STATE+2	; its text block (0 to start over)
 DATA_END	equ	DATA_STATE+4	; end of its line (0 if at a line)
 DATA_ITEM	equ	DATA_STATE+6	; non-zero if in a DATA statement
+
+MOUSE_X		equ	GFX_DATA+8	; position of the last MOUSE(0) event
+MOUSE_Y		equ	GFX_DATA+10
+MOUSE_STATE	equ	GFX_DATA+12	; MS_* bits (byte)
+MS_ON		equ	01h		; set by MOUSE ON
+MS_GFX		equ	02h		; pointer hidden (see mouseGfx)
+
+INT_MOUSE	equ	33h		; MOUSE$ services (see moudev.asm)
+MOUSE_EVENT	equ	0BDh		; get the next button event
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1202,6 +1211,212 @@ gsv8:	pop	ds
 	clc
 	ret
 ENDPROC	getStrVar
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; mouseOn
+;
+; Used by "MOUSE ON", which resets the mouse (emptying its event queue) and
+; shows the pointer.  Like MSBASIC's PEN ON, nothing happens if there's no
+; mouse (and the MOUSE function then returns only zeros).
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+DEFPROC	mouseOn,FAR
+	call	mouseReset		; AX = -1 if there's a mouse
+	inc	ax
+	jnz	mn9
+	inc	ax			; AX = 1 (show the pointer)
+	call	mouseCall
+	or	byte ptr ss:[bx].MOUSE_STATE,MS_ON
+mn9:	ret
+ENDPROC	mouseOn
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; mouseOff
+;
+; Used by "MOUSE OFF", which resets the mouse (hiding the pointer and emptying
+; its event queue).  Nothing happens if there's no mouse.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+DEFPROC	mouseOff,FAR
+	call	mouseReset
+	ret
+ENDPROC	mouseOff
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; mouseReset
+;
+; Resets the mouse, if any (which hides the pointer), and clears MOUSE_STATE.
+; restoreMode also calls this when a BAS program ends.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	AX = -1 if there's a mouse
+;	BX -> CMDHEAP
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+DEFPROC	mouseReset
+	sub	ax,ax
+	call	mouseCall
+	mov	bx,ss:[PSP_HEAP]
+	mov	byte ptr ss:[bx].MOUSE_STATE,0
+	ret
+ENDPROC	mouseReset
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getMouse (MOUSE)
+;
+; Like MSBASIC's PEN function, MOUSE(n) returns:
+;
+;	0: the next button event (0 if none, 1 = left button pressed,
+;	   2 = left released, 3 = right pressed, 4 = right released)
+;	1: x of the event last returned by MOUSE(0)
+;	2: y of the event last returned by MOUSE(0)
+;	3: current x
+;	4: current y
+;	5: current buttons (1 = left, 2 = right, 3 = both)
+;
+; where positions are pixels in graphics modes, or a column and row (starting
+; at 1) in text modes.  Every value is zero if there's no mouse.  If gfxInit
+; hid the pointer, it's shown again.
+;
+; Inputs:
+;	32-bit return value
+;	32-bit n (popped)
+;
+; Outputs:
+;	32-bit return value updated
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+DEFPROC	getMouse,FAR
+	RETVAR	retMouse,dword
+	ARGVAR	mouseNum,dword
+	ENTER
+	mov	si,ss:[PSP_HEAP]
+	test	byte ptr ss:[si].MOUSE_STATE,MS_GFX
+	jz	gm1
+	and	byte ptr ss:[si].MOUSE_STATE,NOT MS_GFX
+	mov	ax,1			; show the pointer again
+	call	mouseCall
+gm1:	mov	di,[mouseNum].LOW
+	cmp	[mouseNum].HIW,0
+	jne	gmX
+	cmp	di,5
+	ja	gmX
+	mov	ax,ss:[si].MOUSE_X
+	cmp	di,1
+	je	gm8
+	mov	ax,ss:[si].MOUSE_Y
+	cmp	di,2
+	je	gm8
+	mov	bx,di			; BX = 0 for an event, else the state
+	mov	ax,MOUSE_EVENT
+	call	mouseCall		; AX = event, BX = buttons, CX,DX = pos
+	test	di,di
+	jnz	gm3
+	mov	ss:[si].MOUSE_X,cx
+	mov	ss:[si].MOUSE_Y,dx
+	jmp	short gm8
+gm3:	xchg	ax,cx			; AX = x
+	cmp	di,3
+	je	gm8
+	xchg	ax,dx			; AX = y
+	cmp	di,4
+	je	gm8
+	xchg	ax,bx			; AX = buttons
+gm8:	mov	[retMouse].LOW,ax
+	mov	[retMouse].HIW,0
+	LEAVE
+	RETURN
+gmX:	jmp	strIllegal
+ENDPROC	getMouse
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; mouseGfx
+;
+; Called by gfxInit, so that if MOUSE ON is in effect, graphics statements
+; (eg, GET and PAINT) never see the pointer; the pointer stays hidden until
+; the next MOUSE function (see getMouse).
+;
+; Inputs:
+;	BX -> CMDHEAP
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX
+;
+DEFPROC	mouseGfx
+	mov	al,byte ptr ss:[bx].MOUSE_STATE
+	and	al,MS_ON OR MS_GFX
+	cmp	al,MS_ON		; MOUSE ON, and not hidden yet?
+	jne	mg9			; no
+	or	byte ptr ss:[bx].MOUSE_STATE,MS_GFX
+	mov	ax,2			; hide the pointer
+	call	mouseCall
+mg9:	ret
+ENDPROC	mouseGfx
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; mouseCall
+;
+; Issues an INT 33h function, if the MOUSE$ driver (or any other mouse
+; driver) is installed.
+;
+; Inputs:
+;	AX = function (and BX, CX, DX as required)
+;
+; Outputs:
+;	Same as the function; if there's no mouse, carry is set and AX, BX,
+;	CX, and DX are zero
+;
+DEFPROC	mouseCall
+	push	ds
+	push	bx
+	sub	bx,bx
+	mov	ds,bx
+	cmp	ds:[INT_MOUSE * 4].SEG,bx
+	pop	bx
+	pop	ds
+	je	mc8
+	int	INT_MOUSE
+	clc
+	ret
+mc8:	sub	ax,ax
+	cwd
+	mov	bx,ax
+	mov	cx,ax
+	stc
+	ret
+ENDPROC	mouseCall
 
 CODE	ENDS
 

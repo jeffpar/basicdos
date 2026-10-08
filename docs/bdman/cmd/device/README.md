@@ -13,6 +13,8 @@ BASIC-DOS device commands include:
   - [TIME](clock/#time)
 - [Keyboard commands](keyboard/)
   - [KEY](keyboard/#key)
+- [Mouse commands](mouse/)
+  - [MOUSE](mouse/#mouse)
 - [Screen commands](screen/)
   - [CLS](screen/#cls)
   - [COLOR](screen/#color)
@@ -34,6 +36,6 @@ BASIC-DOS device commands include:
   - [PLAY](sound/#play)
   - [SOUND](sound/#sound)
 
-Related functions include [DATE$](../basic/func/#date), [TIME$](../basic/func/#time), and [INKEY$](../basic/func/#inkey).
+Related functions include [DATE$](../basic/func/#date), [TIME$](../basic/func/#time), [INKEY$](../basic/func/#inkey), and [MOUSE](mouse/#mouse-function).
 
 {% include footer.html prev="BASIC Functions:../basic/func/" next="Clock Commands:clock/" %}

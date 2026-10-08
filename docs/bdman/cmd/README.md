@@ -21,12 +21,12 @@ In the descriptions that follow, *italics* indicate values that you supply, brac
 
 | Command | Category | Command | Category |
 |---------|----------|---------|----------|
-| [AUTO](system/#auto) | System | [LET](basic/let/) | BASIC |
-| [CHAIN](basic/#chain) | BASIC | [LINE](device/graphics/#line) | Graphics |
-| [CIRCLE](device/graphics/#circle) | Graphics | [LIST](system/#list) | System |
-| [CLEAR](basic/#clear) | BASIC | [LOAD](disk/#load) | Disk |
-| [CLS](device/screen/#cls) | Screen | [LOCATE](device/screen/#locate) | Screen |
-| [COLOR](device/screen/#color) | Screen | [MEM](system/#mem) | System |
+| [AUTO](system/#auto) | System | [LINE](device/graphics/#line) | Graphics |
+| [CHAIN](basic/#chain) | BASIC | [LIST](system/#list) | System |
+| [CIRCLE](device/graphics/#circle) | Graphics | [LOAD](disk/#load) | Disk |
+| [CLEAR](basic/#clear) | BASIC | [LOCATE](device/screen/#locate) | Screen |
+| [CLS](device/screen/#cls) | Screen | [MEM](system/#mem) | System |
+| [COLOR](device/screen/#color) | Screen | [MOUSE](device/mouse/#mouse) | Mouse |
 | [COPY](disk/#copy) | Disk | [NEW](system/#new) | System |
 | [DATA](basic/#data) | BASIC | [NEXT](basic/#for) | BASIC |
 | [DATE](device/clock/#date) | Clock | [ON](basic/#on) | BASIC |
@@ -55,6 +55,7 @@ In the descriptions that follow, *italics* indicate values that you supply, brac
 | [IF](basic/if/) | BASIC | [WEND](basic/#while) | BASIC |
 | [KEY](device/keyboard/#key) | Keyboard | [WHILE](basic/#while) | BASIC |
 | [KEYS](system/#keys) | System | [WIDTH](device/screen/#width) | Screen |
+| [LET](basic/let/) | BASIC |  |  |
 
 See [BASIC Functions](basic/func/) for the list of functions and predefined constants.
 

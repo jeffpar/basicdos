@@ -12,7 +12,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<parseDOS,releaseStr,strIllegal,ctrlc,openName>
-	EXTNEAR	<chkStrVar,noFile>
+	EXTNEAR	<chkStrVar,noFile,mouseCall,mouseReset>
 	EXTSTR	<STR_ON,STR_OFF>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -358,7 +358,8 @@ ENDPROC	saveMode
 ;
 ; Called when a BAS program ends (normally, or when it's aborted; see ctrlc),
 ; to restore the video mode saved by saveMode, if the program changed it
-; (eg, with SCREEN or WIDTH).
+; (eg, with SCREEN or WIDTH).  If the mouse was turned on (see mouseOn), it's
+; turned off first.
 ;
 ; Inputs:
 ;	None
@@ -375,7 +376,10 @@ DEFPROC	restoreMode
 	push	cx
 	push	dx
 	mov	bx,ss:[PSP_HEAP]
-	mov	cl,0
+	cmp	byte ptr ss:[bx].GFX_DATA+12,0	; MOUSE_STATE (see sys.asm)
+	je	rsm1
+	call	mouseReset
+rsm1:	mov	cl,0
 	xchg	cl,byte ptr ss:[bx].GFX_DATA+7
 	dec	cl			; CL = saved mode
 	js	rsm9			; there isn't one
@@ -822,8 +826,16 @@ ss4:	mov	cl,bh			; CL = current video mode
 	cmp	al,cl			; any change?
 	je	ss9			; no
 	xchg	cx,ax			; CL = new video mode
+	push	cx
+	mov	ax,2
+	call	mouseCall		; hide the mouse pointer, if any
+	pop	cx
 	mov	al,IOCTL_SETMODE
 	call	ioctlCon
+	pushf
+	mov	ax,1
+	call	mouseCall		; and show it again (in the new mode)
+	popf
 	jc	ss8			; the adapter doesn't support the mode
 	mov	bx,ss:[PSP_HEAP]
 	mov	byte ptr ss:[bx].GFX_DATA+6,0	; see gfxInit

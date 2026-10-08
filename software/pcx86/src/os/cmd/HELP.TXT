@@ -215,6 +215,13 @@ Returns *n* characters of *string*, beginning at position *start* (or the rest o
 MKDIR [*drive*:]*path*
 Same as MD.
 
+MOUSE ON|OFF
+Resets the mouse and shows (ON) or hides (OFF) the mouse pointer.  If there's no mouse, nothing happens.  The pointer is hidden while graphics statements run, until the next MOUSE function.
+
+MOUSE(*n*)
+Returns the next button event (*n* = 0: 0 if none, 1 = left pressed, 2 = left released, 3 = right pressed, 4 = right released), the x (1) or y (2) of that event, or the current x (3), y (4), or buttons (5: 1 = left, 2 = right).
+Positions are pixels in graphics modes, or a column and row (starting at 1) in text modes.
+
 NEW
 Erases the loaded program, functions, and variables.
 

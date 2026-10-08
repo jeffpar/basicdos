@@ -2,8 +2,9 @@
 20 REM Uses 32-bit integers as fixed-point numbers with 12 fraction bits
 30 REM (4096 = 1.0), and draws each row and its mirror image at once
 40 REM Optional argument: block size (1 = full detail, 2 = default, 4 = fast)
+45 REM If there's a mouse, clicking a button prints the pointer's X,Y
 50 DEFINT A-Z:S=VAL(ARG$(1)):IF S<1 THEN S=2
-60 SCREEN 2:MX=32
+60 SCREEN 2:MOUSE ON:MX=32
 70 FOR R=0 TO 99 STEP S:CY=(R*2+S-200)*27:YY=CY*CY>>12
 80 FOR C=0 TO 639 STEP S:CX=(C*2+S-1)*11-10240:X=0:Y=0:X2=0:Y2=0:N=0
 90 REM Skip points inside the main cardioid and the period-2 bulb
@@ -14,8 +15,11 @@
 140 WEND
 150 IF N=MX OR (N>6 AND (N AND 1)) THEN GOSUB 200
 160 NEXT
-170 IF INKEY$=CHR$(27) THEN END
+170 GOSUB 300:IF INKEY$=CHR$(27) THEN END
 180 NEXT
-190 WHILE INKEY$<>CHR$(27):WEND:END
+190 WHILE INKEY$<>CHR$(27):GOSUB 300:WEND:END
 200 LINE (C,R)-(C+S-1,R+S-1),,BF
-210 LINE (C,199-R)-(C+S-1,200-R-S),,BF:RETURN
+210 LINE (C,199-R)-(C+S-1,200-R-S),,BF:GOSUB 300:RETURN
+300 E=MOUSE(0):IF E=0 THEN RETURN
+310 IF E=1 OR E=3 THEN LOCATE 25,1:PRINT MID$(STR$(MOUSE(1)),2);",";MID$(STR$(MOUSE(2)),2);"   ";
+320 GOTO 300

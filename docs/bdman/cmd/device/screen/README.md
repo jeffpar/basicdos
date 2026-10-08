@@ -84,4 +84,4 @@ A *burst* of 0 disables color in mode 0, and a *burst* of 1 disables color in mo
 
 Sets the number of columns in text mode (which clears the screen).  In SCREEN 1, WIDTH 80 selects SCREEN 2, and in SCREEN 2, WIDTH 40 selects SCREEN 1.
 
-{% include footer.html prev="Keyboard Commands:../keyboard/" next="Graphics Commands:../graphics/" %}
+{% include footer.html prev="Mouse Commands:../mouse/" next="Graphics Commands:../graphics/" %}
