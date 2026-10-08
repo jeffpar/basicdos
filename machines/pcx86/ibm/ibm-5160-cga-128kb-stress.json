@@ -20,6 +20,11 @@
       "class": "computer"
     },
     {
+      "id": "debugger",
+      "class": "debugger",
+      "debug": true
+    },
+    {
       "id": "romBASIC",
       "class": "rom",
       "addr": "0xf6000",
@@ -135,6 +140,23 @@
         }
       ]
     },
+    "/machines/pcx86/ibm/ram-5150.json",
+    {
+      "id": "cpu8088",
+      "class": "cpu",
+      "model": 8088,
+      "autoStart": true,
+      "controls": [
+        {
+          "id": "reset",
+          "type": "button",
+          "label": "Reset",
+          "style": {
+            "padding-right": "8px"
+          }
+        }
+      ]
+    },
     {
       "id": "hdcXT",
       "class": "hdc",
@@ -159,24 +181,8 @@
         }
       ]
     },
-    "/machines/pcx86/ibm/ram-5150.json",
-    {
-      "id": "cpu8088",
-      "class": "cpu",
-      "model": 8088,
-      "autoStart": true,
-      "controls": [
-        {
-          "id": "reset",
-          "type": "button",
-          "label": "Reset",
-          "style": {
-            "padding-right": "8px"
-          }
-        }
-      ]
-    },
     "/machines/pcx86/ibm/keys.json",
+    "/machines/pcx86/ibm/panel.json",
     {
       "id": "chipset",
       "class": "chipset",

@@ -5,7 +5,8 @@ permalink: /demos/dual/multi/debugger/
 machines:
   - id: ibm5150
     type: pcx86
-    config: /machines/pcx86/ibm/ibm-5150-dual-256kb-debugger.json
+    config: /machines/pcx86/ibm/ibm-5150-dual-256kb.json
+    debugger: true
     autoMount:
       A: "BASICDOS-DISK5"
 ---

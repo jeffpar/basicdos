@@ -9,7 +9,7 @@ machines:
     debugger: available
 ---
 
-There are currently eight BASIC-DOS demo configurations:
+There are currently nine BASIC-DOS demo configurations:
 
  1. [Single 25x80 session](s80/)
  2. [Two 40-column sessions](d40/)
@@ -19,6 +19,7 @@ There are currently eight BASIC-DOS demo configurations:
  6. [BASIC-DOS running DONKEY.BAS](basic/)
  7. [BASIC-DOS on a Hard Disk](hd/)
  8. [BASIC-DOS Multitasking Stress Tests](stress/)
+ 9. [BASIC-DOS drawing the Mandelbrot set](mbrot/)
 
 The machine below is the single-session demo.  In the demos with multiple sessions, use **SHIFT-TAB** to toggle keyboard focus between sessions.
 

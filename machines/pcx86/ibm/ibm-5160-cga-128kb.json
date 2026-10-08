@@ -20,6 +20,11 @@
       "class": "computer"
     },
     {
+      "id": "debugger",
+      "class": "debugger",
+      "debug": true
+    },
+    {
       "id": "romBASIC",
       "class": "rom",
       "addr": "0xf6000",
@@ -135,18 +140,6 @@
         }
       ]
     },
-    {
-      "id": "hdcXT",
-      "class": "hdc",
-      "type": "XT",
-      "drives": [
-        {
-          "name": "BASICDOS-HD",
-          "type": 3,
-          "path": "/software/pcx86/disks/BASICDOS-HD.json"
-        }
-      ]
-    },
     "/machines/pcx86/ibm/ram-5150.json",
     {
       "id": "cpu8088",
@@ -164,7 +157,20 @@
         }
       ]
     },
+    {
+      "id": "hdcXT",
+      "class": "hdc",
+      "type": "XT",
+      "drives": [
+        {
+          "name": "BASICDOS-HD",
+          "type": 3,
+          "path": "/software/pcx86/disks/BASICDOS-HD.json"
+        }
+      ]
+    },
     "/machines/pcx86/ibm/keys.json",
+    "/machines/pcx86/ibm/panel.json",
     {
       "id": "chipset",
       "class": "chipset",

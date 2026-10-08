@@ -104,6 +104,7 @@ let disks = {
         "./demos/s80/CONFIG.SYS",
         "./demos/d40/AUTOEXEC.BAT",
         "./demos/basic/*.BAS",          // DONKEY.BAS and the other PC DOS 1.00 BASIC samples
+        "./demos/mbrot/MBROT.BAS",
         "./software/pcx86/src/tests/misc/BENCH.BAS"
     ].concat(minFiles),
     /*
@@ -120,6 +121,7 @@ let disks = {
         ],
         "BASIC": [
             "./demos/basic/*.BAS",
+            "./demos/mbrot/MBROT.BAS",
             "./software/pcx86/src/tests/misc/BENCH.BAS",
             "./software/pcx86/src/tests/primes/PRIMES.BAS"
         ]

@@ -33,6 +33,7 @@
       },
       "style": {
         "clear": "both",
+        "padding-right": "8px",
         "padding-bottom": "8px"
       }
     }

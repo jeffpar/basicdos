@@ -666,25 +666,28 @@ evalNE:	jne	evalT
 	cmp	cx,dx
 	jne	evalT
 	jmp	short evalF
+;
+; When the high words are equal, the low words must be compared as unsigned.
+;
 evalLT:	jl	evalT
 	jg	evalF
 	cmp	cx,dx
-	jl	evalT
+	jb	evalT
 	jmp	short evalF
 evalGT:	jg	evalT
 	jl	evalF
 	cmp	cx,dx
-	jg	evalT
+	ja	evalT
 	jmp	short evalF
 evalLE:	jl	evalT
 	jg	evalF
 	cmp	cx,dx
-	jle	evalT
+	jbe	evalT
 	jmp	short evalF
 evalGE:	jg	evalT
 	jl	evalF
 	cmp	cx,dx
-	jl	evalF
+	jb	evalF
 
 evalT:	mov	ax,-1
 	jmp	short evalX

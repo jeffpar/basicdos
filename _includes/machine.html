@@ -4,6 +4,7 @@
 {%- assign machine_layout = include.layout -%}
 {%- capture machine_name -%}{{ include.name | default: "PCjs Machine" }}{%- endcapture -%}
 {%- assign machine_errors = "" -%}
+{%- assign machine_debugger = nil -%}
 {%- assign machine_does_not_exist = true -%}
 {%- for candidate in page.machines -%}
   {%- if candidate.id == machine_id -%}
@@ -16,6 +17,12 @@
     {%- break -%}
   {%- endif -%}
 {%- endfor -%}
+{%- comment -%}
+A page that sets "debugger: true" for a machine gets all the components and controls marked "debug" (eg, the
+Debugger and its Panel); any other "debugger" value (eg, "available") is a link to a separate debugger page.
+{%- endcomment -%}
+{%- assign machine_debugging = false -%}
+{%- if machine_debugger == true -%}{%- assign machine_debugging = true -%}{%- endif -%}
 {%- if machine_config -%}
   {%- if machine_config contains ".xml" %}
 <div id="{{ machine_id }}" class="machine-placeholder">
@@ -63,6 +70,7 @@
   {%- if machine_name == "PCjs Machine" -%}
     {%- if machine.name -%}
       {%- assign machine_name = machine.name -%}
+      {%- if machine_debugging -%}{%- capture machine_name -%}{{ machine_name }}, Debugger{%- endcapture -%}{%- endif -%}
     {%- elsif machine_type -%}
       {%- capture machine_name -%}{{ machine_type | upcase | replace:"X86","x86" }} Machine{%- endcapture -%}
     {%- endif -%}
@@ -101,6 +109,7 @@
     {%- else -%}
       {%- assign component = machine_component -%}
     {%- endif -%}
+    {%- if component.debug and machine_debugging == false -%}{%- continue -%}{%- endif -%}
     {%- assign component_id = machine_component.id | default: component.id %}
     {%- assign component_config = "" %}
     {%- assign component_title = "" %}
@@ -171,6 +180,7 @@
         {%- capture component_controls -%}
           {%- assign control_group = "" -%}
           {%- for control in machine_controls -%}
+            {%- if control.debug and machine_debugging == false -%}{%- continue -%}{%- endif -%}
             {%- assign control_class = "" -%}
             {%- assign control_style = "" -%}
             {%- if control.class -%}
@@ -268,7 +278,7 @@
       </div>
   {%- endfor -%}
     </div>
-  {%- if machine_debugger %}
+  {%- if machine_debugger and machine_debugging == false %}
     <div class="pcjs-reference" style="padding-left:8px">[<a href="{% if machine_debugger == "available" %}debugger{% else %}{{ machine_debugger }}{% endif %}/">Debugger</a>]</div>
   {%- endif %}
     <div class="pcjs-copyright">

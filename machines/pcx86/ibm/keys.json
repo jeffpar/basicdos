@@ -12,9 +12,12 @@
     {
       "id": "ctrl-alt-del",
       "type": "button",
-      "label": "Ctrl-Alt-Del",
+      "label": "Ctrl-Alt-Del"
+    },
+    {
+      "type": "group",
       "style": {
-        "padding-right": "8px"
+        "float": "left"
       }
     },
     {
