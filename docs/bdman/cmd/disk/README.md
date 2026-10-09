@@ -58,13 +58,13 @@ Copies the contents of the input file or device to the output file or device.  T
 > DEL *file*  
 > ERASE *file*
 
-Deletes the specified file.  With the wildcards `?` and `*` (as in [DIR](#dir)), every matching file is deleted (eg, `DEL *.TMP` or `DEL SUBDIR/T?.TXT`); hidden and system files and directories never match.  It's an error if no file matches.  ERASE is the same as DEL, unless it's erasing arrays (see [ERASE](../basic/#erase)).
+Deletes the specified file.  With the wildcards `?` and `*` (as in [DIR](#dir)), every matching file is deleted (eg, `DEL *.TMP` or `DEL SUBDIR/T?.TXT`); hidden and system files and directories never match.  It's an error if no file matches.  ERASE is the same as DEL, unless it's erasing arrays (see [ERASE](../basic/#erase)), and KILL is the same as DEL.
 
 ### DIR
 
 > DIR [*filespec*] [-P]
 
-Displays a directory listing of all files matching the given *filespec* (or all files if none is specified).  The *filespec* can contain the wildcards `?` (any character) and `*` (any characters to the end of the name or extension).  Subdirectories are listed with `<DIR>` in place of a size, and if *filespec* is a directory (eg, `DIR SUBDIR` or `DIR /`), the files in that directory are listed.  -P pauses after each screenful of output.
+Displays a directory listing of all files matching the given *filespec* (or all files if none is specified).  The *filespec* can contain the wildcards `?` (any character) and `*` (any characters to the end of the name or extension).  Subdirectories are listed with `<DIR>` in place of a size, and if *filespec* is a directory (eg, `DIR SUBDIR` or `DIR /`), the files in that directory are listed.  -P pauses after each screenful of output.  FILES is the same as DIR.
 
 	DIR *.BAS
 

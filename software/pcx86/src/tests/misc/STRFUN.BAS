@@ -1,4 +1,4 @@
-10 REM STRFUNCS.BAS: BASIC-DOS string function tests (prints "failed" on error)
+10 REM STRFUN.BAS: BASIC-DOS string function tests (prints "failed" on error)
 20 DEFINT A-Z
 30 A$ = "HELLO" : B$ = A$ + " WORLD" : E$ = ""
 40 IF B$ <> "HELLO WORLD" THEN PRINT "concatenation failed"
@@ -43,4 +43,8 @@
 420 IF G$ <> "LLOHELLO" OR H$ <> G$ THEN PRINT "MID$ assignment failed"
 430 A! = 1.5 : A$ = "X" + STR$(A!)
 440 IF A$ <> "X 1.5" THEN PRINT "suffix failed"
-450 PRINT "STRFUNCS done"
+441 S1$ = "ONE" + "" : S2$ = "TWO" + "" : SWAP S1$, S2$
+442 IF S1$ <> "TWO" OR S2$ <> "ONE" THEN PRINT "SWAP strings failed"
+443 X = FRE(0) : IF S1$ <> "TWO" OR S2$ <> "ONE" THEN PRINT "SWAP owners failed"
+444 IF SPC(3) <> "   " OR LEN(SPC(0)) <> 0 THEN PRINT "SPC failed"
+450 PRINT "STRFUN done"

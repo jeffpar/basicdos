@@ -8,10 +8,10 @@ permalink: /docs/bdman/cmd/basic/func/
 
 Functions can be used in any expression, in BASIC programs or at the prompt (eg, `PRINT SQR(2)`).  Functions whose names end with `$` return strings; all others return numbers.
 
-- Numeric functions: [ABS](#abs), [ATN](#atn), [COS](#cos), [EXP](#exp), [FIX](#fix), [INT](#int), [LOG](#log), [RND](#rnd), [RND%](#rnd-int), [SIN](#sin), [SQR](#sqr), [TAN](#tan)
-- String functions: [ASC](#asc), [CHR$](#chr), [HEX$](#hex), [INSTR](#instr), [LCASE$](#lcase), [LEFT$](#left), [LEN](#len), [MID$](#mid), [OCT$](#oct), [RIGHT$](#right), [SPACE$](#space), [STR$](#str), [STRING$](#string), [UCASE$](#ucase), [VAL](#val)
+- Numeric functions: [ABS](#abs), [ATN](#atn), [CDBL](#cdbl), [CINT](#cint), [COS](#cos), [CSNG](#cdbl), [EXP](#exp), [FIX](#fix), [INT](#int), [LOG](#log), [RND](#rnd), [RND%](#rnd-int), [SGN](#sgn), [SIN](#sin), [SQR](#sqr), [TAN](#tan)
+- String functions: [ASC](#asc), [CHR$](#chr), [HEX$](#hex), [INSTR](#instr), [LCASE$](#lcase), [LEFT$](#left), [LEN](#len), [MID$](#mid), [OCT$](#oct), [RIGHT$](#right), [SPACE$](#space), [SPC](#space), [STR$](#str), [STRING$](#string), [TAB](#tab), [UCASE$](#ucase), [VAL](#val)
 - File functions: [CVD](#cvi), [CVI](#cvi), [CVL](#cvi), [EOF](#eof), [LOC](#loc), [LOF](#lof), [MKD$](#mki), [MKI$](#mki), [MKL$](#mki)
-- System functions: [ARG$](#arg), [DATE$](#date), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [MOUSE](#mouse), [PEEK](#peek), [TIME$](#time)
+- System functions: [ARG$](#arg), [CSRLIN](#csrlin), [DATE$](#date), [ERL](#erl), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [MOUSE](#mouse), [PEEK](#peek), [POS](#pos), [TIME$](#time)
 - Predefined constants: [ERRORLEVEL](#errorlevel), [MAXINT](#maxint)
 
 You can also define your own functions with [DEF](../def/).
@@ -31,6 +31,19 @@ Returns the absolute value of *x*.
 > ATN(*x*)
 
 Returns the arctangent of *x*, in radians (eg, `4*ATN(1)` is pi).
+
+#### CDBL, CSNG {#cdbl}
+
+> CDBL(*x*)  
+> CSNG(*x*)
+
+Returns *x* as a double (since all floating-point values are double-precision, CSNG is the same as CDBL).
+
+#### CINT {#cint}
+
+> CINT(*x*)
+
+Returns *x* rounded to an integer, the same way that assigning *x* to an integer variable rounds it (eg, `CINT(2.6)` is 3).  Unlike Microsoft BASIC, the result is a 32-bit integer.
 
 #### COS {#cos}
 
@@ -73,6 +86,12 @@ Returns a random number from 0 up to (but not including) 1.  *n* has the same ef
 > RND%[(*n*)]
 
 Returns a random integer between 0 and [MAXINT](#maxint), inclusive.  If *n* is negative, the generator is reseeded first, and if *n* is zero, the previous random integer is returned.
+
+#### SGN {#sgn}
+
+> SGN(*x*)
+
+Returns -1 if *x* is negative, 0 if *x* is zero, or 1 if *x* is positive.
 
 #### SIN {#sin}
 
@@ -156,11 +175,12 @@ Returns the octal representation of the integer *n*.
 
 Returns the rightmost *n* characters of *string*.
 
-#### SPACE$ {#space}
+#### SPACE$, SPC {#space}
 
-> SPACE$(*n*)
+> SPACE$(*n*)  
+> SPC(*n*)
 
-Returns a string of *n* spaces.
+Returns a string of *n* spaces.  SPC is the same (eg, `PRINT "A"; SPC(5); "B"`).
 
 #### STR$ {#str}
 
@@ -173,6 +193,12 @@ Returns *x* as a string, with a leading space if *x* is not negative.
 > STRING$(*n*,*char*)
 
 Returns a string of *n* copies of *char*, which can be either a character code or a string (whose first character is used).
+
+#### TAB {#tab}
+
+> TAB(*n*)
+
+Returns enough spaces to move the cursor to column *n* (1-254), for PRINT (eg, `PRINT "A"; TAB(10); "B"`); if the cursor is already past column *n*, the spaces start on the next line.
 
 #### UCASE$ {#ucase}
 
@@ -234,11 +260,23 @@ Returns an argument from the command line that ran the current BAS or BAT file: 
 
 then typing `SHOW one "two three"` displays `SHOW has one and two three`.
 
+#### CSRLIN {#csrlin}
+
+> CSRLIN
+
+Returns the cursor's row, starting at 1 (see [POS](#pos) and [LOCATE](../../device/screen/#locate)).
+
 #### DATE$ {#date}
 
 > DATE$
 
 Returns the current date as a string in the form MM-DD-YYYY.
+
+#### ERL {#erl}
+
+> ERL
+
+Returns the line number of the last error (see [ON ERROR](../#on-error)), or 0 if it occurred in a program without line numbers.
 
 #### ERR {#err}
 
@@ -274,6 +312,12 @@ Returns the next mouse button event (*n* = 0), the position of that event (1 and
 Returns the byte at *offset* in the segment set by [DEF SEG](../#def-seg).  For example, this returns the low byte of the BIOS timer tick count:
 
 	DEF SEG=0:PRINT PEEK(&H46C)
+
+#### POS {#pos}
+
+> POS(*n*)
+
+Returns the cursor's column, starting at 1 (*n* is ignored).
 
 #### TIME$ {#time}
 

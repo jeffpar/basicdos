@@ -1959,6 +1959,74 @@ fr8:	xchg	ax,si
 	RETURN
 ENDPROC	strFre
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; swapVars
+;
+; Used by "SWAP var1,var2", which exchanges the values of two variables (or
+; array elements) of the same type.  A string in the pool records its owner,
+; so after swapping strings, we update their owners.
+;
+; Inputs:
+;	far pointer to 1st variable (popped)
+;	far pointer to 2nd variable (popped)
+;	16-bit type (popped)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, CX, SI, DI, ES
+;
+DEFPROC	swapVars,FAR
+	ARGVAR	pSwapA,dword
+	ARGVAR	pSwapB,dword
+	ARGVAR	wSwapType,word
+	ENTER
+	push	ds
+	lds	si,[pSwapA]
+	les	di,[pSwapB]
+	mov	ax,[wSwapType]
+	mov	cx,2			; CX = # words for a long or string
+	cmp	al,VAR_DOUBLE
+	jne	sw1
+	add	cx,cx			; or 4 for a double
+sw1:	mov	ax,[si]
+	xchg	ax,es:[di]
+	mov	[si],ax
+	inc	si
+	inc	si
+	inc	di
+	inc	di
+	loop	sw1
+	mov	ax,[wSwapType]
+	cmp	al,VAR_STR		; strings?
+	jne	sw9			; no
+	lds	si,[pSwapA]
+	call	swapOwner
+	lds	si,[pSwapB]
+	call	swapOwner
+sw9:	pop	ds
+	LEAVE
+	RETURN
+ENDPROC	swapVars
+
+;
+; swapOwner: makes the variable at DS:SI the owner of its pool string, if any.
+;
+DEFPROC	swapOwner
+	les	di,[si]			; ES:DI = string value
+	test	di,di			; empty?
+	jz	so9			; yes
+	cmp	es:[BLK_SIG],SIG_SBLK	; in the pool?
+	jne	so9			; no
+	cmp	byte ptr es:[di-STR_HDR],STR_OWNED
+	jne	so9
+	mov	es:[di-STR_HDR+1],si
+	mov	es:[di-STR_HDR+3],ds
+so9:	ret
+ENDPROC	swapOwner
+
 CODE	ENDS
 
 	end

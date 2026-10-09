@@ -49,7 +49,7 @@ CODE    SEGMENT
 	EXTNEAR	<dimArray,getElemPtr,getElemVal,eraseArray,setOptBase>
 	EXTNEAR	<genPushSlot,genPushLong,genPushImmLong,peekNextToken>
 	EXTNEAR	<readData,restoreData,strToLong,strVal,setStr,setVarLong>
-	EXTNEAR	<genPushImmByteAH>
+	EXTNEAR	<genPushImmByteAH,swapVars>
 	EXTABS	<TOK_BASE,TOK_DEL>
 	EXTLONG	<FPU_TABLE>
 
@@ -888,6 +888,85 @@ grs2:	xchg	cx,ax			; DX:CX = line #
 	GENCALL	restoreData
 	ret
 ENDPROC	genRestore
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genSwap
+;
+; Generate code for "SWAP var1,var2", which exchanges the values of two
+; variables (or array elements) of the same type (see swapVars).
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genSwap
+	call	genVarRef		; push pointer to the 1st variable
+	jc	gsw9
+	push	ax			; AH = its type
+	call	getNextSymbol
+	jbe	gsw8
+	cmp	al,','
+	jne	gsw8
+	call	genVarRef		; push pointer to the 2nd variable
+	pop	dx			; DH = type of the 1st
+	jc	gsw9
+	cmp	ah,dh			; are the types the same?
+	jne	gsw7			; no
+	GENPUSHB ah			; push the type
+	GENCALL	swapVars
+	clc
+	ret
+gsw8:	pop	ax
+gsw7:	stc
+gsw9:	ret
+ENDPROC	genSwap
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genVarRef
+;
+; Generate code to push a pointer to a variable (or array element), for
+; FIELD, LSET, RSET, and SWAP.
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	If carry clear, AH = type of the variable (VAR_LONG, VAR_STR, etc)
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genVarRef
+	mov	al,CLS_VAR
+	call	getNextToken
+	jbe	gvr8
+	and	ah,VAR_TYPE		; convert CLS_VAR_* to VAR_*
+	mov	al,ARRAY_PTR
+	call	genArrayRef		; array element?
+	jc	gvr9			; error
+	jnz	gvr7			; yes (AH = element type)
+	call	addVar			; DX:SI -> var data
+	jc	gvr9
+	mov	cx,cs
+	cmp	dx,cx			; constants (in CS) can't be set
+	je	gvr8
+	push	ax
+	call	genPushVarPtr
+	pop	ax
+gvr7:	clc
+	ret
+gvr8:	stc
+gvr9:	ret
+ENDPROC	genVarRef
 
 CODE	ENDS
 

@@ -174,11 +174,12 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 ### Build, Tests, and Documentation
 
 - [x] Builds with MASM 4.0 using `mk.sh` (PC.js), which builds release binaries by default (`mk.sh debug` builds DEBUG binaries, with run-time assertions) and also updates the BASIC-DOS demo disks after a successful build
-- [x] DOSTESTS: CALL 5, memory allocation, file create/write/read-back, and file rename/delete tests
-- [x] STRFUNCS and STRPOOL: BASIC string function tests, and string pool stress and leak tests
+- [x] DOSTESTS: CALL 5, memory allocation, file create/write/read-back, file sharing, path character, and file rename/delete tests
+- [x] STRFUN and STRPOOL: BASIC string function tests, and string pool stress and leak tests
 - [x] ARRAYS: BASIC array tests (including leak tests)
 - [x] FLOW: BASIC control flow tests
-- [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUNCS, STRPOOL, ARRAYS, FLOW, CMDS, and PRINTF, and reports whether the tests passed)
+- [x] FILEIO: BASIC sequential and random access file tests
+- [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUN, STRPOOL, ARRAYS, FLOW, CMDS, FILEIO, and PRINTF, and reports whether the tests passed)
 - [x] CMDS: command tests (pipes, redirection, TYPE, DEL, TIME -D, HELP, SOUND, remarks, and hex constants)
 - [x] `tools/tests/chkdsk.sh` runs MS-DOS 3.20 CHKDSK on a diskette image saved by a test session (see `QUIT /S` in `pc.js`)
 - [ ] More tests (eg, BASIC language and CMD command tests)

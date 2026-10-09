@@ -1,4 +1,4 @@
-10 REM FILETEST.BAS: BASIC-DOS file I/O tests (prints "failed" on error)
+10 REM FILEIO.BAS: BASIC-DOS file I/O tests (prints "failed" on error)
 20 REM Sequential files: PRINT #, WRITE #, INPUT #, LINE INPUT #, EOF, APPEND
 30 OPEN "FT1.DAT" FOR OUTPUT AS #1
 40 PRINT #1, "Hello"; 42
@@ -83,7 +83,7 @@
 930 IF A$ <> "  z" THEN PRINT "RSET failed"
 940 DEL FT1.DAT
 950 DEL FT2.DAT
-960 PRINT "FILETEST done"
+960 PRINT "FILEIO done"
 970 END
 1000 E = ERR : RESUME 430
 1010 E = ERR : RESUME 460

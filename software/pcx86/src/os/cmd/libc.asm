@@ -12,7 +12,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<parseDOS,releaseStr,strIllegal,ctrlc,openName>
-	EXTNEAR	<chkStrVar,noFile,mouseCall,mouseReset>
+	EXTNEAR	<chkStrVar,noFile,mouseCall,mouseReset,allocStr>
 	EXTSTR	<STR_ON,STR_OFF>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -910,6 +910,132 @@ DEFPROC	setFlags,FAR
 sf1:	or	ss:[bx].CMD_FLAGS,al
 	ret
 ENDPROC	setFlags
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getCsrlin (CSRLIN) and getPos (POS)
+;
+; Return the cursor's row (CSRLIN) or column (POS), starting at 1 (or 1 if
+; STDOUT isn't a console).  The parameter of POS is ignored.
+;
+; Inputs:
+;	32-bit return value
+;	32-bit value (POS only; popped)
+;
+; Outputs:
+;	32-bit return value updated
+;
+; Modifies:
+;	AX, BX, DX
+;
+DEFPROC	getPos,FAR
+	RETVAR	retPos,dword
+	ARGVAR	lPos,dword
+	ENTER
+	call	getCol			; AX = column
+	mov	[retPos].LOW,ax
+	mov	[retPos].HIW,0
+	LEAVE
+	RETURN
+ENDPROC	getPos
+
+DEFPROC	getCsrlin,FAR
+	RETVAR	retCsrlin,dword
+	ENTER
+	call	getCol
+	mov	al,dh			; AL = row (zero-based)
+	inc	ax
+	mov	[retCsrlin].LOW,ax
+	mov	[retCsrlin].HIW,0
+	LEAVE
+	RETURN
+ENDPROC	getCsrlin
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getCol
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	AX = column (starting at 1), DH = row (zero-based)
+;
+; Modifies:
+;	AX, BX, DX
+;
+DEFPROC	getCol
+	mov	al,IOCTL_GETPOS
+	call	ioctlCon		; DL = col, DH = row (zero-based)
+	jnc	gcl1
+	sub	dx,dx			; (not supported)
+gcl1:	mov	al,dl
+	mov	ah,0
+	inc	ax
+	ret
+ENDPROC	getCol
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; strTab (TAB)
+;
+; Used by "PRINT TAB(n)" to move the cursor to column n, by returning enough
+; spaces to get there; if the cursor is already past column n, the string
+; begins with CRLF, so the spaces start on the next line (as in MSBASIC).
+;
+; Inputs:
+;	32-bit return value
+;	32-bit column (popped)
+;
+; Outputs:
+;	32-bit return value updated (string value)
+;
+; Modifies:
+;	AX, BX, CX, DX, DI, ES
+;
+DEFPROC	strTab,FAR
+	RETVAR	retTab,dword
+	ARGVAR	lTab,dword
+	ENTER
+	call	getCol			; AX = current column
+	mov	cx,[lTab].LOW
+	cmp	[lTab].HIW,0
+	jne	st8
+	cmp	cx,254			; (room for CRLF and 253 spaces)
+	ja	st8
+	sub	bx,bx			; BX = 0 (no CRLF)
+	jcxz	st1
+	dec	cx			; CX = # spaces to column n
+st1:	inc	cx
+	sub	cx,ax			; CX = # spaces from current column
+	jae	st2			; we're not past column n
+	add	cx,ax			; we are, so start a new line
+	dec	cx			; CX = # spaces from column 1
+	mov	bx,CHR_RETURN OR (CHR_LINEFEED SHL 8)
+	inc	cx
+	inc	cx			; (and room for CRLF)
+st2:	sub	ax,ax
+	cwd				; DX:AX = empty string
+	jcxz	st9
+	call	allocStr		; ES:DI -> new string
+	push	di
+	inc	di
+	test	bx,bx			; CRLF first?
+	jz	st3			; no
+	xchg	ax,bx
+	stosw
+	dec	cx
+	dec	cx
+st3:	mov	al,' '
+	rep	stosb
+	pop	ax
+	mov	dx,es			; DX:AX = string value
+st9:	mov	[retTab].OFF,ax
+	mov	[retTab].SEG,dx
+	LEAVE
+	RETURN
+st8:	jmp	strIllegal
+ENDPROC	strTab
 
 CODE	ENDS
 

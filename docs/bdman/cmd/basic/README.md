@@ -8,12 +8,12 @@ permalink: /docs/bdman/cmd/basic/
 
 BASIC programs can use any BASIC-DOS [command](../) in combination with the BASIC statements described below, along with any of the [BASIC Functions](func/).  See [BASIC-DOS Programming](../../lang/) for an overview of programs, variables, and expressions.
 
-- Variables and types: [CLEAR](#clear), [DEF](def/), [DEFDBL](#defdbl), [DEFINT](#defint), [DEFSNG](#defsng), [DEFSTR](#defstr), [DIM](#dim), [ERASE](#erase), [LET](let/), [OPTION BASE](#option-base)
-- Control flow: [CHAIN](#chain), [END](#end), [FOR](#for)/[NEXT](#for), [GOSUB](#gosub), [GOTO](goto/), [IF](if/), [ON](#on), [RETURN](return/), [STOP](#end), [WHILE](#while)/[WEND](#while)
+- Variables and types: [CLEAR](#clear), [DEF](def/), [DEFDBL](#defdbl), [DEFINT](#defint), [DEFSNG](#defsng), [DEFSTR](#defstr), [DIM](#dim), [ERASE](#erase), [LET](let/), [OPTION BASE](#option-base), [RANDOMIZE](#randomize), [SWAP](#swap)
+- Control flow: [CHAIN](#chain), [END](#end), [FOR](#for)/[NEXT](#for), [GOSUB](#gosub), [GOTO](goto/), [IF](if/), [ON](#on), [RETURN](return/), [STOP](#end), [SYSTEM](#end), [WHILE](#while)/[WEND](#while)
 - Error handling: [ERROR](#error), [ON ERROR](#on-error), [RESUME](#resume)
 - Data: [DATA](#data), [READ](#read), [RESTORE](#restore)
 - Input: [INPUT](#input), [LINE INPUT](#line-input)
-- Files: [OPEN](#open), [CLOSE](#close), [INPUT #](#input), [LINE INPUT #](#line-input), [PRINT #](#print), [WRITE](#write), and the [file functions](func/#file-functions)
+- Files: [OPEN](#open), [CLOSE](#close) (or RESET), [INPUT #](#input), [LINE INPUT #](#line-input), [PRINT #](#print), [WRITE](#write), and the [file functions](func/#file-functions)
 - Random access files: [FIELD](#field), [GET #](#get), [PUT #](#put), [LSET](#lset), [RSET](#lset)
 - Memory: [DEF SEG](#def-seg), [POKE](#poke)
 - Remarks: [REM](#rem)
@@ -34,7 +34,7 @@ Resets all numeric variables to zero and all string variables to empty strings, 
 
 > CLOSE [[#]*n*[,[#]*n*]...]
 
-Closes the specified files, or all files if none are specified (see [OPEN](#open)).  Closing a file that isn't open does nothing.
+Closes the specified files, or all files if none are specified (see [OPEN](#open)).  Closing a file that isn't open does nothing.  RESET is the same as CLOSE without file numbers.
 
 ### DATA
 
@@ -93,9 +93,10 @@ Using a subscript outside an array's bounds causes a "Subscript out of range" er
 ### END
 
 > END  
-> STOP
+> STOP  
+> SYSTEM
 
-Ends the program.  STOP is currently the same as END.
+Ends the program.  STOP and SYSTEM are currently the same as END.
 
 ### ERASE
 
@@ -262,6 +263,12 @@ Writes each [FIELD](#field) variable to its part of the specified record of rand
 	PRINT N$; P$
 	CLOSE
 
+### RANDOMIZE
+
+> RANDOMIZE [*seed*]
+
+Reseeds the random number generator (see [RND](func/#rnd)), so that the same *seed* always produces the same sequence of numbers.  Without a *seed*, the BIOS tick count is used (Microsoft BASIC would prompt for one instead).
+
 ### READ
 
 > READ *variable*[,*variable*]...
@@ -285,13 +292,19 @@ Makes the first [DATA](#data) item the next item that [READ](#read) assigns, or 
 
 > RESUME *label*
 
-Ends the handling of a runtime error (see [ON ERROR](#on-error)) and continues at the specified label.  RESUME without a label and RESUME NEXT aren't supported yet.
+Ends the handling of a runtime error (see [ON ERROR](#on-error)) and continues at the specified label.  RESUME without a label and RESUME NEXT aren't supported yet.  The handler can use [ERR](func/#err) and [ERL](func/#erl) to find out which error occurred, and where.
 
 ### RETURN
 
 > RETURN [*expression*]
 
 Returns from a GOSUB subroutine, or ends a function block and returns the specified *expression*.  See [RETURN](return/).
+
+### SWAP
+
+> SWAP *variable1*,*variable2*
+
+Exchanges the values of two variables (or array elements) of the same type.
 
 ### WHILE
 

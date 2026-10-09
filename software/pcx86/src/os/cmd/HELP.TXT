@@ -16,6 +16,9 @@ Prompts for program lines, starting with *line* (default 10) and adding *increme
 CD [*drive*:][*path*]
 Changes the current directory of *drive* (or the current drive) to *path*, where directory names are separated by the path character (/ by default, or \ if SWITCHAR is /).  A *path* that begins with the path character starts at the root directory, and .. refers to the parent directory.  If no *path* is specified, the current directory is displayed.  CHDIR is the same as CD.
 
+CDBL(*x*)
+Returns *x* as a double.  CSNG is the same, since all floating-point values are double-precision.
+
 CHAIN *file*[,*line*]
 Runs the specified BAS file and then ends the program.  The *line* is currently ignored, and other CHAIN options are not supported.
 
@@ -24,6 +27,9 @@ Same as CD.
 
 CHR$(*code*)
 Returns a one-character string containing the character with the specified *code* (0-255).
+
+CINT(*x*)
+Returns *x* rounded to an integer (eg, CINT(2.6) is 3), as assigning it to an integer variable would.
 
 CIRCLE (*x*,*y*),*r*[,[*color*][,[*start*][,[*end*][,*aspect*]]]]
 Draws a circle (or ellipse) with radius *r* in a graphics mode, or an arc from the *start* to the *end* angle (in radians), with lines to the center for negative angles.
@@ -48,6 +54,12 @@ Copies the contents of the input file or device to the output file or device, or
 
 COS(*x*)
 Returns the cosine of *x*, where *x* is in radians.
+
+CSNG(*x*)
+Same as CDBL.
+
+CSRLIN
+Returns the cursor's row, starting at 1.  See also POS.
 
 CVD(*string*)
 Returns the double stored in the first 8 bytes of *string* by MKD$.
@@ -109,13 +121,16 @@ EDIT *line*
 Displays the specified program line for editing.  Press ENTER to store the edited line.
 
 END
-Ends the program.
+Ends the program.  STOP and SYSTEM are the same.
+
+EOF(*n*)
+Returns -1 (true) if file *n*, which must be open for INPUT, is at its end, or 0 (false) if not (eg, WHILE NOT EOF(1)).
 
 ERASE *array*[,*array*]...
 Erases the specified arrays, so that they can be dimensioned again.  If the first name is not an array, ERASE is the same as DEL.
 
-EOF(*n*)
-Returns -1 (true) if file *n*, which must be open for INPUT, is at its end, or 0 (false) if not (eg, WHILE NOT EOF(1)).
+ERL
+Returns the line number of the last error (see ON ERROR), or 0 if the program has no line numbers.
 
 ERR
 Returns the number of the last error (see ON ERROR).
@@ -134,6 +149,9 @@ Returns e (2.71828...) raised to the power of *x*.
 
 FIELD [#]*n*,*width* AS *variable$*[,*width* AS *variable$*]...
 Divides each record of random access file *n* into fields (up to 16): GET # sets each variable to its field, and PUT # writes each variable to its field (see LSET and RSET).
+
+FILES [*filespec*]
+Same as DIR.
 
 FIX(*x*)
 Returns *x* truncated to an integer (eg, FIX(-2.5) is -2).  See also INT.
@@ -191,6 +209,9 @@ CTRL-C  Abort\
 DELETE  Del Left Char\
 ESCAPE  Erase Line
 CTRL-ALT-DEL is reserved for terminating programs. Use RESTART to restart the system.
+
+KILL *file*
+Same as DEL.
 
 LCASE$(*string*)
 Returns *string* with all upper-case letters converted to lower-case.
@@ -295,6 +316,9 @@ Plays music, using these commands: A-G[#|+|-][*n*][.] (notes), N *n* (note 0-84)
 POKE *offset*,*value*
 Stores *value* (0-255) at *offset* in the segment set by DEF SEG.
 
+POS(*n*)
+Returns the cursor's column, starting at 1 (*n* is ignored).  See also CSRLIN.
+
 PRESET (*x*,*y*)[,*color*]
 Same as PSET, except that the default color is the background color.
 
@@ -308,6 +332,9 @@ PUT (*x*,*y*),*array*[,PSET|PRESET|XOR|OR|AND] or PUT [#]*n*[,*record*]
 Draws an image stored by GET, combining it with the screen using XOR, unless another action is specified.
 With a file number, writes the FIELD variables of random access file *n* to the specified record (or the next one).
 
+RANDOMIZE [*seed*]
+Reseeds the random number generator, so that the same *seed* always produces the same sequence (without a *seed*, the BIOS tick count is used).
+
 RD [*drive*:]*path*
 Removes an empty directory, unless it's the current directory of any session.  RMDIR is the same as RD.
 
@@ -316,6 +343,9 @@ Assigns the next DATA item to each variable.  Reading past the last item is an "
 
 REM
 Used for program remarks.  The rest of the line is not executed.  An apostrophe (') outside of quotes is the same as REM.
+
+RESET
+Same as CLOSE without file numbers (ie, closes all files).
 
 RESTART
 Restarts the system.
@@ -357,6 +387,9 @@ Sets the screen mode: 0 (text), 1 (320x200 graphics), or 2 (640x200 graphics).
 A *burst* of 0 disables color in mode 0, and a *burst* of 1 disables color in mode 1.
 Changing the mode clears the screen and removes the session's border, if any.
 
+SGN(*x*)
+Returns -1 if *x* is negative, 0 if *x* is zero, or 1 if *x* is positive.
+
 SIN(*x*)
 Returns the sine of *x*, where *x* is in radians.
 
@@ -366,6 +399,9 @@ The program continues while the tone plays, but the next SOUND waits for it to f
 
 SPACE$(*n*)
 Returns a string of *n* spaces.
+
+SPC(*n*)
+Same as SPACE$ (eg, PRINT "A"; SPC(5); "B").
 
 SQR(*x*)
 Returns the square root of *x*, which must not be negative.
@@ -378,6 +414,15 @@ Returns *x* as a string, with a leading space if *x* is not negative.
 
 STRING$(*n*,*char*)
 Returns a string of *n* copies of *char*, which can be either a character code or a string (whose first character is used).
+
+SWAP *variable1*,*variable2*
+Exchanges the values of two variables (or array elements) of the same type.
+
+SYSTEM
+Same as END.
+
+TAB(*n*)
+Returns enough spaces to move the cursor to column *n* (1-254), for PRINT; if the cursor is already past column *n*, the spaces start on the next line.
 
 TAN(*x*)
 Returns the tangent of *x*, where *x* is in radians.

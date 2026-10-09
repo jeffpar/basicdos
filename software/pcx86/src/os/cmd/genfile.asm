@@ -35,7 +35,7 @@ CODE    SEGMENT
 	EXTNEAR	<skipToken,genReadVars,genPrintArgs,genRedirEnd>
 	EXTNEAR	<openFile,closeFile,fileOut,selectInput,fileItem>
 	EXTNEAR	<writeValue,printArgs,inputLine,fieldVar,setField>
-	EXTNEAR	<fileRecord,lsetStr,genArrayRef,addVar,genPushVarPtr>
+	EXTNEAR	<fileRecord,lsetStr,genVarRef>
 
 TOK_FOR		equ	58		; keyword IDs (see KEYWORD_TOKENS)
 TOK_INPUT	equ	89
@@ -101,16 +101,18 @@ go2:	GENPUSH	dx			; push the mode
 	mov	al,CLS_VAR
 	call	peekNextToken		; LEN?
 	jbe	go4			; no
+	cmp	ah,CLS_KEYWORD		; (eg, the next statement)
+	je	go4			; no
 	cmp	cx,3
-	jne	go8
+	jne	go4
 	mov	ax,[si]
 	and	ax,0DFDFh
 	cmp	ax,'EL'
-	jne	go8
+	jne	go4
 	mov	al,[si+2]
 	and	al,0DFh
 	cmp	al,'N'
-	jne	go8
+	jne	go4
 	call	skipToken		; consume LEN
 	mov	al,CLS_SYM
 	call	getNextToken
@@ -568,25 +570,11 @@ ENDPROC	genGetFile
 ;	Any
 ;
 DEFPROC	genStrVar
-	mov	al,CLS_VAR
-	call	getNextToken
-	jbe	gsv8
-	and	ah,VAR_TYPE		; convert CLS_VAR_* to VAR_*
-	cmp	ah,VAR_STR		; string variable?
-	jne	gsv8			; no
-	mov	al,1			; ARRAY_PTR
-	call	genArrayRef		; array element?
-	jc	gsv9			; error
-	jnz	gsv9			; yes (and carry is clear)
-	call	addVar			; DX:SI -> var data
+	call	genVarRef		; AH = variable type
 	jc	gsv9
-	mov	cx,cs
-	cmp	dx,cx			; constants (in CS) can't be set
-	je	gsv8
-	call	genPushVarPtr
-	clc
-	ret
-gsv8:	stc
+	cmp	ah,VAR_STR		; string variable?
+	je	gsv9			; yes (and carry is clear)
+	stc
 gsv9:	ret
 ENDPROC	genStrVar
 

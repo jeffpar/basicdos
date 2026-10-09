@@ -12,7 +12,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<ctrlc,restoreMode>
+	EXTNEAR	<ctrlc,restoreMode,firstBlock,nextBlock>
 	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -322,7 +322,11 @@ ENDPROC	doReturn
 ;	None (does not return)
 ;
 DEFPROC	rtError
+	push	ax
+	call	findErl			; AX = line # of the error (for ERL)
 	mov	bx,ss:[PSP_HEAP]
+	mov	ss:[bx].ERR_LINE,ax
+	pop	ax
 	mov	ah,1
 	xchg	ss:[bx].ERR_NUM,ax	; set the error # and active flag
 	test	ah,ah			; were we already handling an error?
@@ -452,10 +456,9 @@ ENDPROC	resumeErr
 ;	None (does not return)
 ;
 DEFPROC	raiseError,FAR
-	pop	cx
-	pop	cx			; discard our return address
-	pop	ax
-	pop	dx			; DX:AX = error #
+	mov	bx,sp			; (our return address stays on the
+	mov	ax,ss:[bx+4]		; stack for findErl)
+	mov	dx,ss:[bx+6]		; DX:AX = error #
 	test	dx,dx
 	jnz	rse9
 	dec	ax
@@ -490,6 +493,110 @@ DEFPROC	getErr,FAR
 	LEAVE
 	RETURN
 ENDPROC	getErr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; findErl
+;
+; Finds the line # of a runtime error (for ERL): we look for the far return
+; address of the call from the generated code to the runtime function that
+; failed, by scanning the stack for a pointer into a code (or function) block
+; that follows a far CALL, and then find the last line label in the code
+; before that address (or if there isn't one in that block, the last line
+; label in the preceding block, since a line can span blocks).  A program
+; without line numbers has no line labels, so ERL is zero.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	AX = line # (zero if unknown)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, BP, ES
+;
+DEFPROC	findErl
+	mov	si,sp
+	mov	bp,ss:[PSP_HEAP]
+	lea	bp,[bp].STACK + size STACK
+fe1:	cmp	si,bp			; reached the top of the stack?
+	jae	fe8			; yes
+	les	di,ss:[si]		; ES:DI = possible return address
+	mov	al,es:[BLK_SIG]
+	cmp	al,SIG_CBLK
+	je	fe2
+	cmp	al,SIG_FBLK
+	jne	fe3
+fe2:	cmp	di,es:[BLK_FREE]
+	ja	fe3
+	cmp	di,size CBLK + 5
+	jb	fe3
+	cmp	byte ptr es:[di-5],9Ah	; (OP_CALLF)
+	je	fe4
+fe3:	inc	si
+	inc	si
+	jmp	fe1
+fe8:	sub	ax,ax
+	ret
+fe4:	mov	dx,es			; DX:DI -> error
+	call	firstBlock		; AX = first block
+	sub	cx,cx			; CX = line # (none yet)
+fe5:	mov	es,ax
+	sub	bp,bp			; BP = offset of best label in block
+	mov	si,es:[CBLK_REFS]
+fe6:	cmp	si,es:[BLK_SIZE]	; end of this LBLREF table?
+	jae	fe7			; yes
+	mov	ax,es:[si].LBL_IP
+	test	ax,LBL_RESOLVE		; reference?
+	jnz	fe6a			; yes
+	cmp	es:[si].LBL_NUM,CTL_DONE; FOR, WHILE, or resolved?
+	jae	fe6a			; yes
+	mov	bx,es
+	cmp	bx,dx			; the block with the error?
+	jne	fe6b			; no
+	cmp	ax,di			; label at or after the return address?
+	jae	fe6a			; yes
+fe6b:	cmp	ax,bp			; the best label so far?
+	jb	fe6a			; no
+	mov	bp,ax
+	mov	cx,es:[si].LBL_NUM
+fe6a:	add	si,size LBLREF
+	jmp	fe6
+fe7:	mov	ax,es
+	cmp	ax,dx			; was that the block with the error?
+	je	fe9			; yes
+	call	nextBlock
+	test	ax,ax
+	jnz	fe5
+fe9:	xchg	ax,cx			; AX = line #
+	ret
+ENDPROC	findErl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getErl (ERL)
+;
+; Returns the line # of the last runtime error (see findErl).
+;
+; Inputs:
+;	32-bit return value
+;
+; Outputs:
+;	32-bit return value updated
+;
+; Modifies:
+;	AX, BX
+;
+DEFPROC	getErl,FAR
+	RETVAR	retErl,dword
+	ENTER
+	mov	bx,ss:[PSP_HEAP]
+	mov	ax,ss:[bx].ERR_LINE
+	mov	[retErl].LOW,ax
+	mov	[retErl].HIW,0
+	LEAVE
+	RETURN
+ENDPROC	getErl
 
 CODE	ENDS
 

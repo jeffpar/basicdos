@@ -1123,6 +1123,148 @@ DEFPROC	setVarDouble,FAR
 	jmp	setVarRet
 ENDPROC	setVarDouble
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cvtLong (CINT)
+;
+; Returns its parameter, which genExpr has already converted to a long (by
+; rounding, if it was a double), so CINT(x) is the same as assigning x to an
+; integer variable.  Unlike MSBASIC, the result is 32-bit, not 16-bit.
+;
+; Inputs:
+;	32-bit return value
+;	32-bit value (popped)
+;
+; Outputs:
+;	32-bit return value updated
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	cvtLong,FAR
+	RETVAR	retCvtL,dword
+	ARGVAR	lCvtL,dword
+	ENTER
+	mov	ax,[lCvtL].LOW
+	mov	dx,[lCvtL].HIW
+	mov	[retCvtL].LOW,ax
+	mov	[retCvtL].HIW,dx
+	LEAVE
+	RETURN
+ENDPROC	cvtLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cvtDbl (CDBL and CSNG)
+;
+; Returns its parameter, which genExpr has already converted to a double
+; (since all floating-point values are double-precision, CSNG is the same).
+;
+; Inputs:
+;	far pointer to double result
+;	far pointer to double (popped)
+;
+; Outputs:
+;	double result updated
+;
+; Modifies:
+;	CX, SI, DI, ES
+;
+DEFPROC	cvtDbl,FAR
+	RETVAR	pCvtDRet,dword
+	ARGVAR	pCvtD,dword
+	ENTER
+	push	ds
+	lds	si,[pCvtD]
+	les	di,[pCvtDRet]
+	mov	cx,4
+	rep	movsw
+	pop	ds
+	LEAVE
+	RETURN
+ENDPROC	cvtDbl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getSgn (SGN)
+;
+; Returns -1 if x is negative, 0 if x is zero, or 1 if x is positive.
+;
+; Inputs:
+;	32-bit return value
+;	far pointer to double (popped)
+;
+; Outputs:
+;	32-bit return value updated
+;
+; Modifies:
+;	AX, DX, SI, ES
+;
+DEFPROC	getSgn,FAR
+	RETVAR	retSgn,dword
+	ARGVAR	pSgn,dword
+	ENTER
+	les	si,[pSgn]
+	mov	dx,es:[si+6]
+	mov	ax,dx
+	and	ax,7FFFh		; AX = double without its sign
+	or	ax,es:[si+4]
+	or	ax,es:[si+2]
+	or	ax,es:[si]		; zero?
+	jz	sg9			; yes (DX:AX = 0)
+	mov	ax,1
+	cwd				; DX:AX = 1
+	test	es:[si+6],8000h		; negative?
+	jz	sg9			; no
+	neg	ax
+	cwd				; DX:AX = -1
+sg9:	mov	[retSgn].LOW,ax
+	mov	[retSgn].HIW,dx
+	LEAVE
+	RETURN
+ENDPROC	getSgn
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; randomize
+;
+; Used by "RANDOMIZE [seed]" to re-seed the random number generator (see
+; nextRnd), so that the same seed always produces the same sequence.  Unlike
+; MSBASIC, which prompts for a seed if there isn't one, we use the BIOS tick
+; count (much like "RANDOMIZE TIMER").
+;
+; Inputs:
+;	32-bit seed (popped)
+;	16-bit flag (popped): non-zero to use the BIOS tick count instead
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, DX
+;
+DEFPROC	randomize,FAR
+	ARGVAR	lSeed,dword
+	ARGVAR	wSeedTicks,word
+	ENTER
+	mov	ax,[lSeed].LOW
+	mov	dx,[lSeed].HIW
+	mov	bx,[wSeedTicks]
+	test	bl,bl			; use the BIOS tick count?
+	jz	rz1			; no
+	push	ds
+	sub	ax,ax
+	mov	ds,ax
+	mov	ax,ds:[46Ch]
+	mov	dx,ds:[46Eh]		; DX:AX = BIOS tick count
+	pop	ds
+rz1:	mov	bx,ss:[PSP_HEAP]
+	mov	ss:[bx].RND_SEED.LOW,ax
+	mov	ss:[bx].RND_SEED.HIW,dx
+	LEAVE
+	RETURN
+ENDPROC	randomize
+
 CODE	ENDS
 
 	end

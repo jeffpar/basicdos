@@ -179,6 +179,7 @@ BASIC-DOS runs many IBM PC BASIC programs unchanged (eg, DONKEY.BAS, from the or
 - PRINT commas print a tab instead of advancing to the next print zone
 - Up to 4 files can be open at once, random access records are limited to 255 bytes, MKD$ and CVD use IEEE doubles (not MBF), MKS$, CVS, and the OPEN "mode",#n,file form aren't supported, and file statements need a space before the # (eg, PRINT #1, not PRINT#1)
 - INPUT doesn't display "Redo from start"; missing items are empty (or zero), and extra items are ignored
-- Not supported yet: the MID$ statement, PRINT USING, RESUME without a label, RESUME NEXT, ERL, POINT, and STEP coordinates
+- RANDOMIZE without a seed uses the BIOS tick count instead of prompting for a seed
+- Not supported yet: the MID$ statement, PRINT USING, RESUME without a label, RESUME NEXT, POINT, and STEP coordinates
 
 {% include footer.html prev="System Commands:../cmd/system/" next="Configuring BASIC-DOS:../cfg/" %}

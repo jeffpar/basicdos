@@ -377,6 +377,7 @@ PEEK_SEG	dw	?		; 49Ch: DEF SEG segment XOR SS
 ERR_SP		dw	?		; 49Eh: program SP for ON ERROR
 ERR_NUM		dw	?		; 4A0h: last error # (HI set if active)
 ERR_ADDR	dd	?		; 4A2h: ON ERROR handler (0 if none)
+ERR_LINE	dw	?		; line # of the last error (see ERL)
 PLAY_STATE	dw    4 dup (?)		; 4A6h: PLAY/SOUND state (see doPlay)
 GFX_DATA	dw    7 dup (?)		; 4AEh: graphics and mouse state
 CODE_CACHE	dw	?		; 4BCh: cached code (see keepCode)
@@ -395,7 +396,7 @@ FILE_DATA	db   44 dup (?)		; 4CCh: OPEN files (see fileio.asm)
 ; COM file can request the stack be located elsewhere, since there's no way for
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
-STACK		dw  460 dup (?)		; 4F8h
+STACK		dw  459 dup (?)		; 4FAh
 CMDHEAP		ends			; 890h
 SIG_CMD		equ	'H'
 

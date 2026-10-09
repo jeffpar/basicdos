@@ -24,7 +24,8 @@ CODE    SEGMENT
 
 	EXTNEAR	<getErrorLevel,getRnd,getRndLong,getErr,peekByte,getMouse>
 	EXTNEAR	<fileEof,fileLoc,fileLof,fileMki,fileMkl,fileMkd>
-	EXTNEAR	<fileCvi,fileCvl,fileCvd>
+	EXTNEAR	<fileCvi,fileCvl,fileCvd,cvtDbl,cvtLong,getCsrlin,getErl>
+	EXTNEAR	<getPos,getSgn,strTab>
 	EXTNEAR	<strArg,strAsc,strChr,strDate,strFre,strHex,strInkey,strInstr>
 	EXTNEAR	<strLCase,strLeft,strLen,strMid,strOct,strRight,strSpace>
 	EXTNEAR	<strStr,strString,strTime,strUCase,strVal>
@@ -181,6 +182,21 @@ CODE    SEGMENT
 	db	VAR_STR,1
 	db	VAR_LONG,PARM_REQUIRED
 	dw	offset strChr,0
+	db	VAR_FUNC + 4,"CDBL"
+	db	VAR_DOUBLE,1
+	db	VAR_DOUBLE,PARM_REQUIRED
+	dw	offset cvtDbl,0
+	db	VAR_FUNC + 4,"CINT"
+	db	VAR_LONG,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset cvtLong,0
+	db	VAR_FUNC + 4,"CSNG"
+	db	VAR_DOUBLE,1
+	db	VAR_DOUBLE,PARM_REQUIRED
+	dw	offset cvtDbl,0
+	db	VAR_FUNC + 6,"CSRLIN"
+	db	VAR_LONG,0
+	dw	offset getCsrlin,0
 	db	VAR_FUNC + 3,"CVD"
 	db	VAR_DOUBLE,1
 	db	VAR_STR,PARM_REQUIRED
@@ -200,6 +216,9 @@ CODE    SEGMENT
 	db	VAR_LONG,1
 	db	VAR_LONG,PARM_REQUIRED
 	dw	offset fileEof,0
+	db	VAR_FUNC + 3,"ERL"
+	db	VAR_LONG,0
+	dw	offset getErl,0
 	db	VAR_FUNC + 3,"ERR"
 	db	VAR_LONG,0
 	dw	offset getErr,0
@@ -276,6 +295,10 @@ CODE    SEGMENT
 	db	VAR_STR,1
 	db	VAR_LONG,PARM_REQUIRED
 	dw	offset strOct,0
+	db	VAR_FUNC + 3,"POS"
+	db	VAR_LONG,1
+	db	VAR_LONG,PARM_OPT_ZERO
+	dw	offset getPos,0
 	db	VAR_FUNC + 5,"RIGHT"
 	db	VAR_STR,2
 	db	VAR_STR,PARM_REQUIRED
@@ -289,6 +312,10 @@ CODE    SEGMENT
 	db	VAR_LONG,1		; RND% returns VAR_LONG with 1 parameter
 	db	VAR_LONG,PARM_OPT_ONE	; 1st parameter: VAR_LONG, optional
 	dw	offset getRndLong,0
+	db	VAR_FUNC + 3,"SGN"
+	db	VAR_LONG,1
+	db	VAR_DOUBLE,PARM_REQUIRED
+	dw	offset getSgn,0
 	db	VAR_FUNC + 5,"SPACE"
 	db	VAR_STR,1
 	db	VAR_LONG,PARM_REQUIRED
@@ -297,11 +324,19 @@ CODE    SEGMENT
 	db	VAR_STR,1
 	db	VAR_DOUBLE,PARM_REQUIRED
 	dw	offset strStr,0
+	db	VAR_FUNC + 3,"SPC"
+	db	VAR_STR,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset strSpace,0
 	db	VAR_FUNC + 6,"STRING"
 	db	VAR_STR,2
 	db	VAR_LONG,PARM_REQUIRED
 	db	VAR_CHAR,PARM_REQUIRED
 	dw	offset strString,0
+	db	VAR_FUNC + 3,"TAB"
+	db	VAR_STR,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset strTab,0
 	db	VAR_FUNC + 4,"TIME"
 	db	VAR_STR,0
 	dw	offset strTime,0
@@ -368,6 +403,7 @@ CODE	ENDS
 	DEFTOK	EXIT,    1, cmdExit
 	DEFTOK	EXP,   104
 	DEFTOK	FIELD,  91, genField
+	DEFTOK	FILES,  26, cmdDir
 	DEFTOK	FIX,   105
 	DEFTOK	FOR,    58, genFor
 	DEFTOK	GET,    75, genGet
@@ -379,6 +415,7 @@ CODE	ENDS
 	DEFTOK	INT,   106
 	DEFTOK	KEY,    67, genKey
 	DEFTOK	KEYS,    3, cmdKeys
+	DEFTOK	KILL,   25, cmdDel
 	DEFTOK	LET,    50, genLet
 	DEFTOK	LINE,   76, genLine
 	DEFTOK	LIST,    4, cmdList
@@ -405,9 +442,11 @@ CODE	ENDS
 	DEFTOK	PSET,   79, genPset,PUB
 	DEFTOK	PUT,    80, genPut
 	DEFTOK	RANDOM,212
+	DEFTOK	RANDOMIZE,96,genRandomize
 	DEFTOK	RD,     18, cmdRmdir
 	DEFTOK	READ,   84, genRead
 	DEFTOK	REM,    52
+	DEFTOK	RESET,  94, genClose
 	DEFTOK	RESTART, 7, cmdRestart
 	DEFTOK	RESTORE,85, genRestore
 	DEFTOK	RESUME, 73, genResume
@@ -423,6 +462,8 @@ CODE	ENDS
 	DEFTOK	SQR,   109
 	DEFTOK	STEP,  206,,PUB
 	DEFTOK	STOP,   61, genEnd
+	DEFTOK	SWAP,   97, genSwap
+	DEFTOK	SYSTEM, 95, genEnd
 	DEFTOK	TAN,   110,,PUB
 	DEFTOK	THEN,  204,,PUB
 	DEFTOK	TIME,   11, cmdTime
