@@ -162,6 +162,8 @@ ENDPROC	redirOut
 ; End a redirection started by redirOut (at the end of the line), restoring
 ; STDOUT and closing the file.  If control left the line some other way (eg,
 ; GOTO), cleanUp eventually restores STDOUT and closes the file instead.
+; PRINT # and WRITE # use this, too (see fileOut), but their handle is 0FFh,
+; so the close fails harmlessly and the file stays open.
 ;
 ; Inputs:
 ;	[pRedirW] -> redirection word (in the code block)

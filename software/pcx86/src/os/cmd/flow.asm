@@ -358,6 +358,14 @@ ERR_MSGS	db	3,"RETURN without GOSUB",0
 		db	10,"Duplicate definition",0
 		db	14,"Out of string space",0
 		db	15,"String too long",0
+		db	50,"FIELD overflow",0
+		db	52,"Bad file number",0
+		db	53,"File not found",0
+		db	54,"Bad file mode",0
+		db	55,"File already open",0
+		db	62,"Input past end",0
+		db	63,"Bad record number",0
+		db	75,"Path/File access error",0
 		db	0,"Unprintable error",0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

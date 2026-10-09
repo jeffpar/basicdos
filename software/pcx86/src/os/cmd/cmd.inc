@@ -35,8 +35,12 @@ CTD_OFF		dw	?	; offset of token string
 CTD_FUNC	dw	?	; extended token data: function
 CTOKDEF		ends
 
+;
+; DEFTOK stores each token's string in CODE, where all the strings follow
+; TOK_STRS (see const.asm), so that a string's offset is TOK_STRS + tokPos,
+; rather than a label of its own (to conserve symbol space).
+;
 DEFTOK	macro	sym,val,func,pub
-	LOCAL	N1
 	IFNB	<pub>			;; define TOK_sym only if requested
 	public	TOK_&sym		;; (to conserve symbol space)
 TOK_&sym equ val
@@ -45,18 +49,17 @@ TOK_&sym equ val
 	EXTNEAR	<func>
 	ENDIF
 CODE	SEGMENT
-N1	label	byte
 	db	"&sym&"
-	len = offset $ - offset N1
+	len = (offset $ - offset TOK_STRS) - tokPos
 CODE	ENDS
 DATA	SEGMENT
-	faddr = 0
 	IFB <func>
-	CTOKDEF	<val,len,offset DGROUP:N1,0>
+	CTOKDEF	<val,len,offset DGROUP:TOK_STRS+tokPos,0>
 	ELSE
-	CTOKDEF	<val,len,offset DGROUP:N1,offset func>
+	CTOKDEF	<val,len,offset DGROUP:TOK_STRS+tokPos,offset func>
 	ENDIF
 DATA	ENDS
+	tokPos = tokPos + len
 	endm
 
 DEFTOKENS macro tbl,val
@@ -381,6 +384,7 @@ EDIT_STATE	dw    2 dup (?)		; 4BEh: line to edit (see edit.asm)
 DATA_STATE	dw    4 dup (?)		; 4C2h: next DATA item (see sys.asm)
 PATH_CHAR	db	?		; 4CAh: path char (fixed at boot)
 		db	?		; 4CBh: (unused)
+FILE_DATA	db   44 dup (?)		; 4CCh: OPEN files (see fileio.asm)
 ;
 ; The BASIC-DOS loader always set the stack pointer for a COM file to the top
 ; of the segment, which means we must declare our stack at the end of CMDHEAP.
@@ -391,7 +395,7 @@ PATH_CHAR	db	?		; 4CAh: path char (fixed at boot)
 ; COM file can request the stack be located elsewhere, since there's no way for
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
-STACK		dw  482 dup (?)		; 4CCh
+STACK		dw  460 dup (?)		; 4F8h
 CMDHEAP		ends			; 890h
 SIG_CMD		equ	'H'
 

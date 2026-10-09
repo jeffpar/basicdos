@@ -12,8 +12,6 @@
 CODE    SEGMENT
 
 	EXTNEAR	<countLine,chkString,getFileName,getToken>
-	EXTNEAR	<openInput,openOutput,openError,readInput,writeOutput>
-	EXTNEAR	<writeError,closeInput,closeOutput,fileError>
 	EXTSTR	<DIR_DEF,PERIOD>
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
@@ -711,6 +709,344 @@ ce3:	test	al,al
 	pop	ax
 	ret
 ENDPROC	chkExt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; openInput
+;
+; Open the specified input file; used by "COPY", "LOAD", etc.
+;
+; Inputs:
+;	SS:BX -> CMDHEAP
+;	DS:SI -> filename
+;
+; Outputs:
+;	If carry clear, HDL_INPUT is updated
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	openInput
+	mov	dx,si			; DX -> filename
+	mov	ax,DOS_HDL_OPENRO
+	int	21h
+	jc	oi9
+	ASSERT	STRUCT,ss:[bx],CMD
+	mov	ss:[bx].HDL_INPUT,ax	; save file handle
+oi9:	ret
+ENDPROC	openInput
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; openOutput
+;
+; Create (or truncate) the specified output file; used by "COPY", "SAVE", etc.
+;
+; Inputs:
+;	SS:BX -> CMDHEAP
+;	DS:SI -> filename
+;
+; Outputs:
+;	If carry clear, HDL_OUTPUT is updated
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	openOutput
+	push	cx
+	mov	dx,si			; DX -> filename
+	sub	cx,cx			; CX = attributes (none)
+	mov	ah,DOS_HDL_CREATE
+	int	21h
+	pop	cx
+	jc	oo9
+	ASSERT	STRUCT,ss:[bx],CMD
+	mov	ss:[bx].HDL_OUTPUT,ax	; save file handle
+oo9:	ret
+ENDPROC	openOutput
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; openError
+;
+; Report an error opening a file, or with fileError, any other file or
+; directory operation (eg, "Unable to delete X.TXT (2)").
+;
+; Inputs:
+;	AX = error #
+;	DS:SI -> filename
+;	CS:DX -> verb (fileError only; eg, "delete")
+;
+; Outputs:
+;	Carry set
+;
+; Modifies:
+;	None
+;
+DEFPROC	openError
+	push	dx
+	mov	dx,offset VERB_OPEN
+	call	fileError
+	pop	dx
+	ret
+	DEFLBL	fileError,near
+	push	ax
+	PRINTF	<"Unable to %ls %s (%d)",13,10,13,10>,dx,cs,si,ax
+	pop	ax
+	stc
+	ret
+ENDPROC	openError
+
+VERB_OPEN	db	"open",0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; closeInput
+;
+; Close the input file handle (HDL_INPUT), or with closeOutput, the output
+; file handle (HDL_OUTPUT), and mark it unused (-1).  A handle that we didn't
+; open (eg, STDOUT for TYPE) is left alone.
+;
+; Inputs:
+;	BX -> CMDHEAP
+;
+; Outputs:
+;	If carry set, the file couldn't be closed (AX = error #)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	closeInput
+	mov	ax,HDL_INPUT
+	jmp	short ci1
+	DEFLBL	closeOutput,near
+	mov	ax,HDL_OUTPUT
+ci1:	push	bx
+	ASSERT	STRUCT,[bx],CMD
+	add	bx,ax			; BX -> handle
+	mov	ax,-1
+	xchg	ax,[bx]			; AX = handle
+	cmp	ax,STDPRN		; did we open it?
+	jle	ci8			; no
+	xchg	bx,ax
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	jmp	short ci9
+ci8:	mov	[bx],ax			; restore the handle
+	clc
+ci9:	pop	bx
+	ret
+ENDPROC	closeInput
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; readInput
+;
+; Read CX bytes from the default file into the buffer at DS:SI.
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	CX = number of bytes
+;	DS:SI -> buffer
+;
+; Outputs:
+;	If carry clear, AX = number of bytes read
+;	If carry set, an error message was printed
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	readInput
+	push	bx
+	mov	dx,si
+	ASSERT	STRUCT,[bx],CMD
+	mov	bx,[bx].HDL_INPUT
+	mov	ah,DOS_HDL_READ
+	int	21h
+	jnc	ri9
+	PRINTF	<"Unable to read file",13,10,13,10>
+	stc
+ri9:	pop	bx
+	ret
+ENDPROC	readInput
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; seekInput
+;
+; Seek to the specified position of the input file.
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	CX:DX = absolute position
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX
+;
+DEFPROC	seekInput
+	push	bx
+	ASSERT	STRUCT,[bx],CMD
+	mov	bx,[bx].HDL_INPUT
+	mov	ax,DOS_HDL_SEEKBEG
+	int	21h
+	pop	bx
+	ret
+ENDPROC	seekInput
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; writeOutput
+;
+; Write CX bytes to the default file from the buffer at DS:SI.
+;
+; Inputs:
+;	SS:BX -> CMDHEAP
+;	CX = number of bytes
+;	DS:SI -> buffer
+;
+; Outputs:
+;	If carry clear, AX = number of bytes written
+;	If carry set, an error message was printed
+;
+; Like PC DOS, BASIC-DOS doesn't treat running out of disk space as an error;
+; it simply writes fewer bytes than requested, so we must check for that, too
+; (but only for files, since it doesn't mean anything for devices).
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	writeOutput
+	push	bx
+	mov	dx,si
+	ASSERT	STRUCT,ss:[bx],CMD
+	mov	bx,ss:[bx].HDL_OUTPUT
+	mov	ah,DOS_HDL_WRITE
+	int	21h
+	jc	wo8
+	cmp	ax,cx			; were all the bytes written?
+	jae	wo8			; yes (carry clear)
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETDATA
+	int	21h			; DX bit 7 set if output is a device
+	jc	wo7
+	test	dl,80h			; device?
+	jnz	wo8			; yes (carry clear)
+wo7:	pop	bx
+	PRINTF	<"Insufficient disk space",13,10,13,10>
+	stc
+	ret
+	DEFLBL	writeError,near
+	PRINTF	<"Unable to write file",13,10,13,10>
+	stc
+	ret
+wo8:	pop	bx
+	jc	writeError
+	ret
+ENDPROC	writeOutput
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; openHandle
+;
+; Open a handle for redirection.  An input handle requires an existing file
+; (or device), whereas an output handle creates the file if it doesn't exist
+; (or truncates it if it does).  An append handle opens an existing file and
+; seeks to the end, or creates the file if it can't be opened.
+;
+; Inputs:
+;	AL = 0 for input (read-only), 1 for output (create/truncate),
+;	or 2 for append
+;	DI -> TOKENBUF
+;	BX = token offset
+;
+; Outputs:
+;	BX = next token offset
+;	If carry clear, AX is new handle; otherwise, AX is error
+;
+; Modifies:
+;	AX, BX
+;
+DEFPROC	openHandle
+	push	cx
+	push	dx
+	push	si
+	sub	cx,cx
+	add	bx,size TOKLET
+	mov	si,[di].TOK_DATA[bx].TOKLET_OFF
+	mov	cl,[di].TOK_DATA[bx].TOKLET_LEN
+	mov	dx,si
+	add	si,cx
+	xchg	[si],ch			; null-terminate the token
+	call	openName		; AX = handle (or error)
+	mov	[si],ch			; restore the token separator
+	pop	si
+	pop	dx
+	pop	cx
+	ret
+ENDPROC	openHandle
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; openName
+;
+; Open a file (or device) for redirection, as described for openHandle;
+; redirOut uses this, too.  openMode (for OPEN; see openFile) does the same,
+; without reporting an error.
+;
+; Inputs:
+;	AL = 0 for input, 1 for output, or 2 for append (see openHandle),
+;	or 3 for random access (openMode only; like append, without the seek)
+;	DS:DX -> null-terminated name
+;
+; Outputs:
+;	If carry clear, AX is new handle; otherwise, AX is error (reported
+;	by openName only)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	openName
+	call	openMode
+	jnc	on9
+	push	si
+	mov	si,dx
+	call	openError		; report error (AX) opening file (SI)
+	pop	si
+on9:	ret
+ENDPROC	openName
+
+DEFPROC	openMode
+	push	bx
+	push	cx
+	mov	ah,DOS_HDL_OPEN
+	cmp	al,1			; input handle?
+	jb	oh0b			; yes (AL = 0 for read-only access)
+	je	oh0a			; no, output handle
+	mov	cl,al			; CL = 2 (append) or 3 (random)
+	mov	al,MODE_ACC_RW
+	int	21h			; so try opening an existing file
+	jc	oh0a			; and if that fails, create it
+	cmp	cl,3			; random access?
+	je	oh0c			; yes (carry is clear)
+	xchg	bx,ax			; BX = handle
+	push	dx
+	sub	cx,cx
+	sub	dx,dx
+	mov	ax,DOS_HDL_SEEKEND
+	int	21h			; seek to the end of the file
+	pop	dx
+	xchg	ax,bx			; AX = handle
+	clc
+	jmp	short oh0c
+oh0a:	sub	cx,cx			; CX = attributes (none)
+	mov	ah,DOS_HDL_CREATE
+oh0b:	int	21h
+oh0c:	pop	cx
+	pop	bx
+	ret
+ENDPROC	openMode
 
 VERB_CD		db	"change to",0
 VERB_DEL	db	"delete",0

@@ -102,7 +102,17 @@ gc1:	mov	[bx].GEN_FLAGS,al
 	test	dx,dx			; anything to run?
 	jnz	gc1a			; yes
 	jmp	gc9			; no (TODO: display a message?)
-gc1a:	mov	si,size TBLK
+;
+; Like MSBASIC (see CLEARC), a program starts with the default types for all
+; variables (ie, any DEFINT, DEFDBL, or DEFSTR from before is forgotten).
+;
+gc1a:	push	ds
+	pop	es
+	lea	di,[bx].DEFVARS
+	mov	cl,26
+	mov	al,ch
+	rep	stosb			; (and CX is zero again)
+	mov	si,size TBLK
 	mov	[bx].DATA_STATE[2],cx	; start READ at the first DATA item
 gc2:	mov	[bx].LINE_PTR.OFF,si
 	mov	[bx].LINE_PTR.SEG,dx

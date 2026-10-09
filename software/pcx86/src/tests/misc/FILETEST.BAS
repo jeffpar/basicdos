@@ -1,0 +1,91 @@
+10 REM FILETEST.BAS: BASIC-DOS file I/O tests (prints "failed" on error)
+20 REM Sequential files: PRINT #, WRITE #, INPUT #, LINE INPUT #, EOF, APPEND
+30 OPEN "FT1.DAT" FOR OUTPUT AS #1
+40 PRINT #1, "Hello"; 42
+50 PRINT #1, 1; -2; 3.5
+60 WRITE #1, "a,b", 1.5, -7, ""
+70 PRINT #1, "last line"
+80 CLOSE #1
+90 OPEN "FT1.DAT" FOR INPUT AS #1
+100 LINE INPUT #1, L$
+110 IF L$ <> "Hello 42 " THEN PRINT "LINE INPUT # failed"
+120 INPUT #1, A, B, C
+130 IF A <> 1 OR B <> -2 OR C <> 3.5 THEN PRINT "INPUT # numbers failed"
+140 INPUT #1, S$, X, Y, E$
+150 IF S$ <> "a,b" OR X <> 1.5 OR Y <> -7 OR E$ <> "" THEN PRINT "INPUT # WRITE items failed"
+160 IF EOF(1) THEN PRINT "EOF early failed"
+170 LINE INPUT #1, L$
+180 IF L$ <> "last line" THEN PRINT "LINE INPUT # last failed"
+190 IF NOT EOF(1) THEN PRINT "EOF failed"
+200 CLOSE
+210 OPEN "FT1.DAT" FOR APPEND AS 2
+220 PRINT #2, "more"
+230 CLOSE 2
+240 N = 0 : S = 0
+250 OPEN "FT1.DAT" FOR INPUT AS 1
+260 WHILE NOT EOF(1)
+270 LINE INPUT #1, L$
+280 N = N + 1 : S = S + LEN(L$) + 2
+290 WEND
+300 IF N <> 5 OR L$ <> "more" THEN PRINT "APPEND failed"
+310 IF LOF(1) <> S THEN PRINT "LOF failed"
+320 CLOSE 1
+400 REM Errors
+410 ON ERROR GOTO 1000
+420 OPEN "NOPE.DAT" FOR INPUT AS 1
+430 IF E <> 53 THEN PRINT "File not found failed"
+440 ON ERROR GOTO 1010
+450 PRINT #3, "x"
+460 IF E <> 52 THEN PRINT "Bad file number failed"
+470 OPEN "FT1.DAT" FOR INPUT AS 1
+480 ON ERROR GOTO 1020
+490 PRINT #1, "x"
+500 IF E <> 54 THEN PRINT "Bad file mode failed"
+510 ON ERROR GOTO 1030
+520 LINE INPUT #1, L$
+530 GOTO 520
+540 IF E <> 62 THEN PRINT "Input past end failed"
+550 ON ERROR GOTO 0
+560 CLOSE
+600 REM Random access files: FIELD, LSET, RSET, PUT #, GET #, LOC, LOF
+610 OPEN "FT2.DAT" FOR RANDOM AS #1 LEN = 20
+620 FIELD #1, 10 AS N$, 4 AS I$, 2 AS J$, 4 AS K$
+630 FOR R = 1 TO 3
+640 LSET N$ = "Name" + STR$(R)
+650 LSET I$ = MKL$(R * 1000)
+660 LSET J$ = MKI$(-R)
+670 RSET K$ = "x"
+680 PUT #1, R
+690 NEXT R
+700 IF LOF(1) <> 60 THEN PRINT "PUT # failed"
+710 GET #1, 2
+720 IF N$ <> "Name 2    " OR CVL(I$) <> 2000 OR CVI(J$) <> -2 OR K$ <> "   x" THEN PRINT "GET # failed"
+730 IF LOC(1) <> 2 THEN PRINT "LOC failed"
+740 GET #1
+750 IF CVL(I$) <> 3000 OR LOC(1) <> 3 THEN PRINT "GET # next failed"
+760 LSET N$ = "Changed" : REM (I$ is still from record 3)
+770 PUT #1, 1
+780 GET #1, 1
+790 IF N$ <> "Changed   " OR CVL(I$) <> 3000 THEN PRINT "PUT # update failed"
+800 CLOSE #1
+810 OPEN "FT2.DAT" AS #2 LEN = 20
+820 FIELD #2, 20 AS R$
+830 GET #2, 3
+840 IF LEN(R$) <> 20 OR LEFT$(R$, 6) <> "Name 3" THEN PRINT "OPEN AS failed"
+850 CLOSE
+860 D$ = MKD$(1.5)
+870 IF LEN(D$) <> 8 OR CVD(D$) <> 1.5 THEN PRINT "MKD$/CVD failed"
+880 IF CVI(MKI$(32767)) <> 32767 OR CVL(MKL$(-123456)) <> -123456 THEN PRINT "MKI$/MKL$ failed"
+890 A$ = "abc"
+900 LSET A$ = "xy"
+910 IF A$ <> "xy " THEN PRINT "LSET failed"
+920 RSET A$ = "z"
+930 IF A$ <> "  z" THEN PRINT "RSET failed"
+940 DEL FT1.DAT
+950 DEL FT2.DAT
+960 PRINT "FILETEST done"
+970 END
+1000 E = ERR : RESUME 430
+1010 E = ERR : RESUME 460
+1020 E = ERR : RESUME 500
+1030 E = ERR : RESUME 540

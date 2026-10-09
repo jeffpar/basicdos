@@ -10,6 +10,7 @@ Functions can be used in any expression, in BASIC programs or at the prompt (eg,
 
 - Numeric functions: [ABS](#abs), [ATN](#atn), [COS](#cos), [EXP](#exp), [FIX](#fix), [INT](#int), [LOG](#log), [RND](#rnd), [RND%](#rnd-int), [SIN](#sin), [SQR](#sqr), [TAN](#tan)
 - String functions: [ASC](#asc), [CHR$](#chr), [HEX$](#hex), [INSTR](#instr), [LCASE$](#lcase), [LEFT$](#left), [LEN](#len), [MID$](#mid), [OCT$](#oct), [RIGHT$](#right), [SPACE$](#space), [STR$](#str), [STRING$](#string), [UCASE$](#ucase), [VAL](#val)
+- File functions: [CVD](#cvi), [CVI](#cvi), [CVL](#cvi), [EOF](#eof), [LOC](#loc), [LOF](#lof), [MKD$](#mki), [MKI$](#mki), [MKL$](#mki)
 - System functions: [ARG$](#arg), [DATE$](#date), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [MOUSE](#mouse), [PEEK](#peek), [TIME$](#time)
 - Predefined constants: [ERRORLEVEL](#errorlevel), [MAXINT](#maxint)
 
@@ -184,6 +185,42 @@ Returns *string* with all lower-case letters converted to upper-case.
 > VAL(*string*)
 
 Returns the numeric value of *string*, ignoring any blanks.  If *string* does not begin with a number, the result is 0.  Like numeric constants, *string* can use the `&H` (hexadecimal) and `&O` (octal) prefixes; `&` alone also means octal (eg, `VAL("&HFF")` is 255, and `VAL("&17")` is 15).
+
+### File Functions {#file-functions}
+
+#### CVI, CVL, CVD {#cvi}
+
+> CVI(*string*)  
+> CVL(*string*)  
+> CVD(*string*)
+
+Return the integer stored in the first 2 bytes of *string* by MKI$ (-32768 to 32767), the integer stored in the first 4 bytes by MKL$, or the double stored in the first 8 bytes by MKD$; a shorter string is an "Illegal function call" error.  Use them to read numbers from random access files (see [FIELD](../#field)).
+
+#### EOF {#eof}
+
+> EOF(*n*)
+
+Returns -1 (true) if file *n*, which must be open for INPUT or RANDOM (see [OPEN](../#open)), is at its end (or at a CTRL-Z), or 0 (false) if not (eg, `WHILE NOT EOF(1)`).
+
+#### LOC {#loc}
+
+> LOC(*n*)
+
+Returns the last record number used by [GET #](../#get) or [PUT #](../#put) for file *n*, or for a sequential file, its position divided by 128.
+
+#### LOF {#lof}
+
+> LOF(*n*)
+
+Returns the size of file *n*, in bytes.
+
+#### MKI$, MKL$, MKD$ {#mki}
+
+> MKI$(*n*)  
+> MKL$(*n*)  
+> MKD$(*x*)
+
+Return a 2-byte string containing the integer *n* (its low 16 bits), a 4-byte string containing *n*, or an 8-byte string containing the double *x*, for storing numbers in random access files (see [LSET](../#lset)).  Doubles are stored in IEEE format, not the MBF format used by Microsoft BASIC, so Microsoft BASIC files that contain MKS$ or MKD$ values can't be read with CVD (and MKS$ and CVS aren't supported).
 
 ### System Functions
 

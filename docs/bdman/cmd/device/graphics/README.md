@@ -58,7 +58,7 @@ Example:
 
 > GET (*x1*,*y1*)-(*x2*,*y2*),*array*
 
-Stores the pixels of the specified rectangle in an integer *array* (eg, `DIM A%(100)`), so that they can be drawn later with [PUT](#put).  The image format is the same as Microsoft BASIC's: two 16-bit words containing the width (in bits) and height, followed by the pixel rows, packed into bytes, with each row starting on a byte boundary.  Each array element holds one 16-bit word.
+Stores the pixels of the specified rectangle in an integer *array* (eg, `DIM A%(100)`), so that they can be drawn later with [PUT](#put).  (`GET #n` reads a record of a random access file; see [GET #](../../basic/#get).)  The image format is the same as Microsoft BASIC's: two 16-bit words containing the width (in bits) and height, followed by the pixel rows, packed into bytes, with each row starting on a byte boundary.  Each array element holds one 16-bit word.
 
 ### LINE
 
@@ -88,7 +88,7 @@ Draws a point, using the foreground color if no *color* is specified.
 
 > PUT (*x*,*y*),*array*[,PSET|PRESET|XOR|OR|AND]
 
-Draws an image stored by [GET](#get) with its top left corner at (*x*,*y*), combining it with the screen using XOR, unless another action is specified:
+Draws an image stored by [GET](#get) (`PUT #n` writes a record of a random access file; see [PUT #](../../basic/#put)) with its top left corner at (*x*,*y*), combining it with the screen using XOR, unless another action is specified:
 
 - PSET: draws the image as-is
 - PRESET: draws the inverse of the image

@@ -13,7 +13,7 @@
 ;	COLOR				(genColor)
 ;	ECHO				(genEcho)
 ;	LOCATE				(genLocate)
-;	PRINT				(genPrint)
+;	PRINT				(genPrint; see genfile.asm for PRINT #)
 ;	SCREEN				(genScreen)
 ;	WIDTH				(genWidth)
 ;
@@ -28,7 +28,7 @@ CODE    SEGMENT
 
 	EXTNEAR	<genExpr,getNextToken,genCallCS,genPushImm,genPushImmByte>
 	EXTNEAR	<genPushImmByteAL,genPushImmByteAH,genPushImmLong,genCvtType>
-	EXTNEAR	<peekNextSymbol>
+	EXTNEAR	<peekNextSymbol,genPrintFile>
 	EXTNEAR	<clearScreen,printArgs,printEcho,setColor,setFlags>
 	EXTNEAR	<setPos,setScreen,setWidth,redirOut,redirEnd,ensureRoom>
 	EXTABS	<TOK_OFF,TOK_ON>
@@ -248,6 +248,12 @@ ENDPROC	genEcho
 ;	Any
 ;
 DEFPROC	genPrint
+	call	peekNextSymbol
+	jbe	genPrintArgs
+	cmp	al,'#'			; PRINT #?
+	jne	genPrintArgs		; no
+	jmp	genPrintFile		; yes (see genfile.asm)
+	DEFLBL	genPrintArgs,near
 	GENPUSHB VAR_NONE		; push end-of-args marker
 gp1:	call	genExpr
 	jnc	gp2

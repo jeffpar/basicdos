@@ -31,8 +31,10 @@ CODE    SEGMENT
 	EXTNEAR	<genLong,genStr,genArrayVar,getNextToken,getNextSymbol>
 	EXTNEAR	<peekNextSymbol,genCallCS,genPushImmLong,genExpr,genCvtType>
 	EXTNEAR	<gfxDraw,gfxGet,gfxLastPt,gfxLine,gfxPaint,gfxPset,gfxPut>
-	EXTNEAR	<gfxCircle>
+	EXTNEAR	<gfxCircle,peekNextToken,genLineInput,genGetFile,genPutFile>
 	EXTABS	<TOK_PSET,TOK_PRESET>
+
+TOK_INPUT	equ	89		; keyword ID (see KEYWORD_TOKENS)
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -117,7 +119,12 @@ ENDPROC	genDraw
 ;	Any
 ;
 DEFPROC	genGet
-	call	genPoint
+	call	peekNextSymbol
+	jbe	gg0f			; not a symbol, so not graphics
+	cmp	al,'('			; graphics GET?
+	je	gg0			; yes
+gg0f:	jmp	genGetFile		; no, GET # (see genfile.asm)
+gg0:	call	genPoint
 	jc	gg9
 	mov	ah,'-'
 	call	genSymbol
@@ -150,7 +157,13 @@ ENDPROC	genGet
 ;	Any
 ;
 DEFPROC	genLine
-	call	peekNextSymbol
+	mov	al,CLS_KEYWORD
+	call	peekNextToken		; LINE INPUT?
+	jbe	gln0			; no
+	cmp	al,TOK_INPUT
+	jne	gln0
+	jmp	genLineInput		; yes (see genfile.asm)
+gln0:	call	peekNextSymbol
 	jbe	gln1
 	cmp	al,'-'			; is the first point omitted?
 	jne	gln1			; no
@@ -301,7 +314,12 @@ ENDPROC	genPset
 ;	Any
 ;
 DEFPROC	genPut
-	call	genPoint
+	call	peekNextSymbol
+	jbe	gpu0f			; not a symbol, so not graphics
+	cmp	al,'('			; graphics PUT?
+	je	gpu0			; yes
+gpu0f:	jmp	genPutFile		; no, PUT # (see genfile.asm)
+gpu0:	call	genPoint
 	jc	gpu9
 	mov	ah,','
 	call	genSymbol

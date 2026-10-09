@@ -49,6 +49,7 @@ CODE    SEGMENT
 	EXTNEAR	<dimArray,getElemPtr,getElemVal,eraseArray,setOptBase>
 	EXTNEAR	<genPushSlot,genPushLong,genPushImmLong,peekNextToken>
 	EXTNEAR	<readData,restoreData,strToLong,strVal,setStr,setVarLong>
+	EXTNEAR	<genPushImmByteAH>
 	EXTABS	<TOK_BASE,TOK_DEL>
 	EXTLONG	<FPU_TABLE>
 
@@ -753,9 +754,14 @@ ENDPROC	genData
 ; string, and for a numeric variable, we convert it with strVal (VAL), or with
 ; strToLong if there's no FPU$ driver (and therefore no doubles).
 ;
+; genReadVars does the same for "INPUT #" and "LINE INPUT #" (see genfile.asm),
+; whose item function (fileItem) also takes the variable's type, since numeric
+; items end at a space, but string items don't.
+;
 ; Inputs:
 ;	DS:BX -> TOKLETs
 ;	ES:DI -> code block
+;	CX = item function (genReadVars only)
 ;
 ; Outputs:
 ;	Carry clear if successful, set if error
@@ -764,9 +770,13 @@ ENDPROC	genData
 ;	Any
 ;
 DEFPROC	genRead
+	mov	cx,offset readData
+	DEFLBL	genReadVars,near
+	push	cx			; save the item function
 	jmp	short grd1
 grd8:	pop	ax
-grd9:	stc
+grd9:	pop	cx
+	stc
 	ret
 grd1:	mov	al,CLS_VAR
 	call	getNextToken
@@ -788,7 +798,7 @@ grd2:	push	ax			; save the var type (AH)
 	cmp	ah,VAR_STR		; string variable?
 	jne	grd3			; no
 	call	genPushLong		; (room for the item)
-	GENCALL	readData		; push the next DATA item
+	call	grdItem			; push the next item
 	mov	cx,offset setStr
 	jmp	short grd6
 
@@ -796,13 +806,13 @@ grd3:	cmp	word ptr cs:[FPU_TABLE].SEG,0
 	je	grd4			; no FPU$ driver
 	call	genPushSlot		; (room for the value)
 	call	genPushLong		; (room for the item)
-	GENCALL	readData
+	call	grdItem
 	GENCALL	strVal			; convert the item to a double
 	mov	dl,VAR_DOUBLE
 	jmp	short grd5
 grd4:	call	genPushLong		; (room for the value)
 	call	genPushLong		; (room for the item)
-	GENCALL	readData
+	call	grdItem
 	GENCALL	strToLong		; convert the item to a long
 	mov	dl,VAR_LONG
 
@@ -826,7 +836,23 @@ grd6:	GENCALL	cx			; set the var
 	mov	si,ds:[PSP_HEAP]
 	mov	bx,[si].TOKLET_NEXT	; consume the comma
 	jmp	grd1
-grd7:	clc
+grd7:	pop	cx
+	clc
+	ret
+;
+; Generate a call to the item function (on the stack, below the var type),
+; pushing the var type first for any function but readData.
+;
+grdItem:
+	mov	si,sp
+	mov	cx,[si+4]		; CX = item function
+	cmp	cx,offset readData
+	je	gri1
+	mov	ah,[si+3]		; AH = var type
+	GENPUSHB ah
+	mov	si,sp
+	mov	cx,[si+4]
+gri1:	GENCALL	cx
 	ret
 ENDPROC	genRead
 

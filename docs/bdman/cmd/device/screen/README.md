@@ -59,7 +59,7 @@ Moves the cursor to the specified *row* and *col* (starting at 1,1), and hides (
 
 > PRINT [*expression*][;|,][*expression*]...
 
-Prints a series of values, separated by semicolons or commas.  A semicolon prints the next value immediately after the previous one, and a comma prints a tab.  Numbers are printed with a leading space (or minus sign) and a trailing space.  If the list ends with a semicolon or comma, the cursor remains on the same line; otherwise, PRINT moves to the next line.
+Prints a series of values, separated by semicolons or commas.  A semicolon prints the next value immediately after the previous one, and a comma prints a tab.  Numbers are printed with a leading space (or minus sign) and a trailing space.  If the list ends with a semicolon or comma, the cursor remains on the same line; otherwise, PRINT moves to the next line.  [PRINT #](../../basic/#print) writes the same output to a file.
 
 	PRINT "A"; 1; "B", 2
 	A 1 B	 2

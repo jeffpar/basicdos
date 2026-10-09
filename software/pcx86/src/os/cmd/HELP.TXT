@@ -32,6 +32,9 @@ If *aspect* (the ratio of the y radius to the x radius) is omitted, the circle l
 CLEAR [[*n*][,[*m*][,*k*]]]
 Resets all numeric variables to zero and all string variables to empty strings, and erases all arrays.  The values are ignored.
 
+CLOSE [[#]*n*[,[#]*n*]...]
+Closes the specified files (or all files if none are specified).  Files that a program leaves open are closed when it ends.
+
 CLS
 Clears the session using the background color and moves the cursor to the top left corner.
 
@@ -45,6 +48,15 @@ Copies the contents of the input file or device to the output file or device, or
 
 COS(*x*)
 Returns the cosine of *x*, where *x* is in radians.
+
+CVD(*string*)
+Returns the double stored in the first 8 bytes of *string* by MKD$.
+
+CVI(*string*)
+Returns the integer stored in the first 2 bytes of *string* by MKI$ (-32768 to 32767).
+
+CVL(*string*)
+Returns the integer stored in the first 4 bytes of *string* by MKL$.
 
 DATA *item*[,*item*]...
 Defines items for READ to assign to variables, in the order they appear in the program.  An item can be a number or a string; quoted strings can contain commas and colons.
@@ -102,6 +114,9 @@ Ends the program.
 ERASE *array*[,*array*]...
 Erases the specified arrays, so that they can be dimensioned again.  If the first name is not an array, ERASE is the same as DEL.
 
+EOF(*n*)
+Returns -1 (true) if file *n*, which must be open for INPUT, is at its end, or 0 (false) if not (eg, WHILE NOT EOF(1)).
+
 ERR
 Returns the number of the last error (see ON ERROR).
 
@@ -117,6 +132,9 @@ Exits the command processor if there is a previously loaded copy.
 EXP(*x*)
 Returns e (2.71828...) raised to the power of *x*.
 
+FIELD [#]*n*,*width* AS *variable$*[,*width* AS *variable$*]...
+Divides each record of random access file *n* into fields (up to 16): GET # sets each variable to its field, and PUT # writes each variable to its field (see LSET and RSET).
+
 FIX(*x*)
 Returns *x* truncated to an integer (eg, FIX(-2.5) is -2).  See also INT.
 
@@ -127,8 +145,9 @@ If the *start* is already past the *limit*, the lines are skipped.
 FRE(*x*)
 Compacts string memory and returns the number of bytes available.  The argument is ignored.
 
-GET (*x1*,*y1*)-(*x2*,*y2*),*array*
+GET (*x1*,*y1*)-(*x2*,*y2*),*array* or GET [#]*n*[,*record*]
 Stores the pixels of the specified rectangle in an integer *array*, in the same format as MSBASIC (see PUT).
+With a file number, reads the specified record (or the next one) of random access file *n* into its FIELD variables.
 
 GOSUB *label*
 Calls the subroutine at the line with the specified label number; the subroutine ends with RETURN.
@@ -147,6 +166,9 @@ Evaluates the *expression*, and if it is TRUE (non-zero), then the *command* is 
 
 INKEY$
 Returns the next key pressed, without waiting (an empty string if no key was pressed).  Extended keys (eg, cursor keys) return two characters: a null and the key's scan code.
+
+INPUT [*prompt*;|,]*variable*[,*variable*]... or INPUT #*n*,*variable*[,*variable*]...
+Reads a line from the keyboard (after displaying the prompt, followed by "? " unless a comma follows the prompt), or with #*n*, from file *n*, and assigns the next item to each variable.  Leading spaces and line breaks are skipped, and an item ends at a comma or line break (or for a number, a space).  A quoted item can contain commas.  Missing keyboard items are empty (or zero).
 
 INSTR([*start*,]*string1*,*string2*)
 Returns the position of *string2* within *string1*, searching from position *start* (default 1), or 0 if not found.
@@ -184,6 +206,7 @@ Assigns the value of the *expression* to the *variable*.  Values cannot be assig
 
 LINE [(*x1*,*y1*)]-(*x2*,*y2*)[,[*color*][,B|BF]]
 Draws a line (or with B, a box; or with BF, a filled box) in a graphics mode.  If the first point is omitted, the last point is used.
+LINE INPUT [*prompt*;]*variable$* (or LINE INPUT #*n*,*variable$*) reads a whole line from the keyboard (or file *n*) into the string variable.
 
 LIST [*line*][-[*line*]]
 Lists all lines (or the specified range of lines) of the currently loaded BAS or BAT program.
@@ -192,12 +215,21 @@ To add a line to the program (or replace the line with the same number), type th
 LOAD *file*
 Loads the specified BAS or BAT file, which can be a text file or a tokenized BAS file saved by BASICA or GW-BASIC.  LOAD can't be used inside a BAS or BAT file (yet).
 
+LOC(*n*)
+Returns the last record number used by GET # or PUT # for file *n* (or for a sequential file, its position divided by 128).
+
 LOCATE [*row*][,[*col*][,*cursor*]]
 Moves the cursor to the specified *row* and *col* (starting at 1,1), and hides (0) or shows (1) the cursor.
 The cursor remains hidden until the next input.  Omitted values are unchanged.
 
+LOF(*n*)
+Returns the size of file *n*, in bytes.
+
 LOG(*x*)
 Returns the natural logarithm of *x*, which must be greater than zero.
+
+LSET *variable$*=*string*
+Sets the variable to *string*, left-justified and padded with spaces (or truncated) to the variable's FIELD width (or if it isn't a FIELD variable, its current length).  RSET is the same, but right-justified.
 
 MAXINT
 Constant equal to the largest positive integer.
@@ -212,8 +244,17 @@ Displays the total memory, the memory free for running programs (EXEC), and the 
 MID$(*string*,*start*[,*n*])
 Returns *n* characters of *string*, beginning at position *start* (or the rest of *string* if *n* is omitted).
 
+MKD$(*x*)
+Returns an 8-byte string containing the double *x* (see CVD), for a random access file.
+
 MKDIR [*drive*:]*path*
 Same as MD.
+
+MKI$(*n*)
+Returns a 2-byte string containing the integer *n* (see CVI), for a random access file.
+
+MKL$(*n*)
+Returns a 4-byte string containing the integer *n* (see CVL), for a random access file.
 
 MOUSE ON|OFF
 Resets the mouse and shows (ON) or hides (OFF) the mouse pointer.  If there's no mouse, nothing happens.  The pointer is hidden while graphics statements run, until the next MOUSE function.
@@ -236,6 +277,9 @@ Transfers program control to (or calls) the Nth label, where N is the value of t
 If N is zero or greater than the number of labels, the program continues with the next command.
 ON ERROR GOTO *label* transfers program control to the label when a runtime error occurs (see ERR and RESUME), and ON ERROR GOTO 0 disables it.
 
+OPEN *file* [FOR INPUT|OUTPUT|APPEND|RANDOM] AS [#]*n* [LEN=*reclen*]
+Opens *file* as file number *n* (1-4) for reading (INPUT), for writing (OUTPUT, which creates or truncates the file), for adding to the end (APPEND), or without FOR, for random access to records of *reclen* (1-255, default 128) bytes.  See also CLOSE, EOF, INPUT #, LINE INPUT #, PRINT #, and WRITE, and for random access, FIELD, GET #, PUT #, LSET, and RSET.
+
 OPTION BASE 0|1
 Sets the smallest subscript (0 or 1) of arrays dimensioned afterward.  The default is 0.
 
@@ -254,14 +298,15 @@ Stores *value* (0-255) at *offset* in the segment set by DEF SEG.
 PRESET (*x*,*y*)[,*color*]
 Same as PSET, except that the default color is the background color.
 
-PRINT
-Prints a comma or semi-colon separated series of values.  To send the output to a file instead, end the line with :> *file* (or :>> *file* to append).
+PRINT [#*n*,]
+Prints a comma or semi-colon separated series of values (or with #*n*, writes them to file *n*).  To send the output of a line to a file instead, end the line with :> *file* (or :>> *file* to append).
 
 PSET (*x*,*y*)[,*color*]
 Draws a point in a graphics mode, using the foreground color if no *color* is specified.
 
-PUT (*x*,*y*),*array*[,PSET|PRESET|XOR|OR|AND]
+PUT (*x*,*y*),*array*[,PSET|PRESET|XOR|OR|AND] or PUT [#]*n*[,*record*]
 Draws an image stored by GET, combining it with the screen using XOR, unless another action is specified.
+With a file number, writes the FIELD variables of random access file *n* to the specified record (or the next one).
 
 RD [*drive*:]*path*
 Removes an empty directory, unless it's the current directory of any session.  RMDIR is the same as RD.
@@ -295,6 +340,9 @@ Returns a random number from 0 up to (but not including) 1.  *n* has the same ef
 
 RND%[(*n*)]
 Returns a random integer between 0 and MAXINT, inclusive.  If *n* is negative, it reseeds the generator first, and if *n* is zero, the previous random integer is returned.
+
+RSET *variable$*=*string*
+Same as LSET, but right-justified.
 
 RUN
 Runs the currently loaded BAS or BAT file.
@@ -364,5 +412,8 @@ WIDTH 40|80
 Sets the number of columns in text mode (which clears the screen).
 In SCREEN 1, WIDTH 80 selects SCREEN 2, and in SCREEN 2, WIDTH 40 selects SCREEN 1.
 
+WRITE [#*n*,][*expression*[,*expression*]...]
+Prints the values (or with #*n*, writes them to file *n*) separated by commas, with strings in quotes, so that INPUT # can read them back.
+
 *Unsupported Commands*
-Read-write file system support is incomplete, so the EDIT, REN, and SAVE commands cannot modify files yet.
+REN (rename) isn't supported yet.  Files can be created, written, copied, and deleted (eg, with COPY, DEL, and SAVE, or OPEN in a BAS program).

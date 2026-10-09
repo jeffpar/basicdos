@@ -23,6 +23,8 @@ CODE    SEGMENT
 	EXTNEAR	<evalEQStr,evalNEStr,evalLTStr,evalGTStr,evalLEStr,evalGEStr>
 
 	EXTNEAR	<getErrorLevel,getRnd,getRndLong,getErr,peekByte,getMouse>
+	EXTNEAR	<fileEof,fileLoc,fileLof,fileMki,fileMkl,fileMkd>
+	EXTNEAR	<fileCvi,fileCvl,fileCvd>
 	EXTNEAR	<strArg,strAsc,strChr,strDate,strFre,strHex,strInkey,strInstr>
 	EXTNEAR	<strLCase,strLeft,strLen,strMid,strOct,strRight,strSpace>
 	EXTNEAR	<strStr,strString,strTime,strUCase,strVal>
@@ -179,9 +181,25 @@ CODE    SEGMENT
 	db	VAR_STR,1
 	db	VAR_LONG,PARM_REQUIRED
 	dw	offset strChr,0
+	db	VAR_FUNC + 3,"CVD"
+	db	VAR_DOUBLE,1
+	db	VAR_STR,PARM_REQUIRED
+	dw	offset fileCvd,0
+	db	VAR_FUNC + 3,"CVI"
+	db	VAR_LONG,1
+	db	VAR_STR,PARM_REQUIRED
+	dw	offset fileCvi,0
+	db	VAR_FUNC + 3,"CVL"
+	db	VAR_LONG,1
+	db	VAR_STR,PARM_REQUIRED
+	dw	offset fileCvl,0
 	db	VAR_FUNC + 4,"DATE"
 	db	VAR_STR,0
 	dw	offset strDate,0
+	db	VAR_FUNC + 3,"EOF"
+	db	VAR_LONG,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset fileEof,0
 	db	VAR_FUNC + 3,"ERR"
 	db	VAR_LONG,0
 	dw	offset getErr,0
@@ -220,12 +238,32 @@ CODE    SEGMENT
 	dw	offset strLen,0
 	db	VAR_LONG + 6,"MAXINT"
 	dd	7FFFFFFFh		; largest positive value
+	db	VAR_FUNC + 3,"LOC"
+	db	VAR_LONG,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset fileLoc,0
+	db	VAR_FUNC + 3,"LOF"
+	db	VAR_LONG,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset fileLof,0
 	db	VAR_FUNC + 3,"MID"
 	db	VAR_STR,3
 	db	VAR_STR,PARM_REQUIRED
 	db	VAR_LONG,PARM_REQUIRED
 	db	VAR_LONG,0FEh
 	dw	offset strMid,0
+	db	VAR_FUNC + 3,"MKD"
+	db	VAR_STR,1
+	db	VAR_DOUBLE,PARM_REQUIRED
+	dw	offset fileMkd,0
+	db	VAR_FUNC + 3,"MKI"
+	db	VAR_STR,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset fileMki,0
+	db	VAR_FUNC + 3,"MKL"
+	db	VAR_STR,1
+	db	VAR_LONG,PARM_REQUIRED
+	dw	offset fileMkl,0
 	db	VAR_FUNC + 5,"MOUSE"	; (see genExpr's TOK_MOUSE check)
 	db	VAR_LONG,1
 	db	VAR_LONG,PARM_REQUIRED
@@ -284,8 +322,18 @@ CODE	ENDS
 ; that genExpr handles (by calling the corresponding FPU$ functions), so their
 ; IDs must remain consecutive and in the same order as genExpr's FN_FPUTBL.
 ;
+; To conserve symbol space, genfile.asm (and gengfx.asm, for INPUT) use their
+; own equates for the IDs of APPEND, AS, FOR, INPUT, OUTPUT, and RANDOM.
+;
+CODE	SEGMENT
+TOK_STRS label	byte			; the token strings (see DEFTOK)
+CODE	ENDS
+	tokPos = 0
+
 	DEFTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
 	DEFTOK	ABS,   101,,PUB
+	DEFTOK	APPEND,211
+	DEFTOK	AS,    209
 	DEFTOK	ATN,   102
 	DEFTOK	AUTO,   12, cmdAuto
 	DEFTOK	BASE,  205,,PUB
@@ -294,6 +342,7 @@ CODE	ENDS
 	DEFTOK	CHDIR,  16, cmdChdir
 	DEFTOK	CIRCLE, 82, genCircle
 	DEFTOK	CLEAR,  81, genClear
+	DEFTOK	CLOSE,  88, genClose
 	DEFTOK	CLS,    40, genCLS
 	DEFTOK	COLOR,  41, genColor
 	DEFTOK	COPY,   20, cmdCopy
@@ -318,6 +367,7 @@ CODE	ENDS
 	DEFTOK	ERROR,  72, genError,PUB
 	DEFTOK	EXIT,    1, cmdExit
 	DEFTOK	EXP,   104
+	DEFTOK	FIELD,  91, genField
 	DEFTOK	FIX,   105
 	DEFTOK	FOR,    58, genFor
 	DEFTOK	GET,    75, genGet
@@ -325,6 +375,7 @@ CODE	ENDS
 	DEFTOK	GOTO,   48, genGoto,PUB
 	DEFTOK	HELP,    2, cmdHelp
 	DEFTOK	IF,     49  genIf
+	DEFTOK	INPUT,  89, genInput
 	DEFTOK	INT,   106
 	DEFTOK	KEY,    67, genKey
 	DEFTOK	KEYS,    3, cmdKeys
@@ -334,6 +385,7 @@ CODE	ENDS
 	DEFTOK	LOAD,   22, cmdLoad
 	DEFTOK	LOCATE, 64, genLocate
 	DEFTOK	LOG,   107
+	DEFTOK	LSET,   92, genLset
 	DEFTOK	MD,     17, cmdMkdir
 	DEFTOK	MEM,     5, cmdMem
 	DEFTOK	MKDIR,  17, cmdMkdir
@@ -342,7 +394,9 @@ CODE	ENDS
 	DEFTOK	NEXT,   60, genNext
 	DEFTOK	OFF,   202,,PUB
 	DEFTOK	ON,    203, genOn,PUB
+	DEFTOK	OPEN,   87, genOpen
 	DEFTOK	OPTION, 56, genOption
+	DEFTOK	OUTPUT,210
 	DEFTOK	PAINT,  77, genPaint
 	DEFTOK	PLAY,   70, genPlay
 	DEFTOK	POKE,   68, genPoke
@@ -350,6 +404,7 @@ CODE	ENDS
 	DEFTOK	PRINT,  51, genPrint
 	DEFTOK	PSET,   79, genPset,PUB
 	DEFTOK	PUT,    80, genPut
+	DEFTOK	RANDOM,212
 	DEFTOK	RD,     18, cmdRmdir
 	DEFTOK	READ,   84, genRead
 	DEFTOK	REM,    52
@@ -358,6 +413,7 @@ CODE	ENDS
 	DEFTOK	RESUME, 73, genResume
 	DEFTOK	RETURN, 53, genReturn
 	DEFTOK	RMDIR,  18, cmdRmdir
+	DEFTOK	RSET,   93, genRset
 	DEFTOK	RUN,     8, cmdRun
 	DEFTOK	SAVE,   15, cmdSave
 	DEFTOK	SCREEN, 65, genScreen
@@ -376,6 +432,7 @@ CODE	ENDS
 	DEFTOK	WEND,   62, genWend
 	DEFTOK	WHILE,  63, genWhile
 	DEFTOK	WIDTH,  66, genWidth
+	DEFTOK	WRITE,  90, genWrite
 	NUMTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
 
 	DEFTOKENS KEYOP_TOKENS,KEYOP_TOTAL
