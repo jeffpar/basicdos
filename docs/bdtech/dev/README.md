@@ -168,9 +168,11 @@ Changing the video mode (with IOCTL_SETMODE, or with INT 10h directly) turns the
 | FPU$ | Character | Floating-point functions, using an 8087 if present, or software emulation otherwise |
 | MOUSE$ | Character | Serial mouse, with an INT 33h interface (see [MOUSE$](#mouse)); loaded only if a mouse responds on a COM port |
 | FDC$ | Block | Diskette drives (A: and B:) |
-| HDC$ | Block | Hard disks: the FAT12 primary partitions of up to two PC XT hard disks (C: and D:) |
+| HDC$ | Block | Hard disks: the FAT12 primary partitions of up to two PC XT hard disks (C: and D:); reads and writes are done by FDC$, so FDC$ must also be loaded |
 
 Drivers that aren't needed (eg, CON in a configuration that uses only serial consoles) can be omitted with [SKIP=](../../bdman/cfg/#skip).
+
+FDC$ and HDC$ share one copy of the INT 13h read and write code (including the handling of multi-track transfers and of transfers that would cross a 64K DMA boundary) and one sector buffer, all in FDC$.  FDC$ exports two far entry points immediately after its device header (FDCX in devapi.inc): FDCX_RW performs a DDC_READ or DDC_WRITE request for the BIOS drive number in AL, and FDCX_RDBUF reads a sector into the shared buffer (eg, a volume's boot sector, when HDC$ builds its BPB).  HDC$ finds FDC$ through FDC_DEVICE (which DEVINIT records before initializing HDC$), and if FDC$ isn't loaded (eg, `SKIP=FDC$`), HDC$ doesn't load either.  The shared code takes the volume's geometry from its BPB, and for hard disks, adds BPB_HIDDENSECS (the volume's first sector) to every sector number.
 
 ### MOUSE$ {#mouse}
 

@@ -7,6 +7,15 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+; This driver supports diskette drives, by way of the ROM BIOS (INT 13h).  Its
+; read and write code (and its sector buffer) are shared with the HDC driver,
+; which calls fdc_rw and fdc_rdbuf (see FDCX in devapi.inc), since INT 13h
+; works the same way for both: the code uses the geometry in the BPB, along
+; with BPB_HIDDENSECS as a hard disk volume's first sector (diskettes have
+; no hidden sectors), and the caller provides the BIOS drive # (rw_drive).
+; Requests are never concurrent (the kernel locks the session while it uses
+; a driver), so one buffer suffices.
+;
 	BIOSEQU equ 1
 	include	macros.inc
 	include	bios.inc
@@ -20,6 +29,7 @@ CODE	segment para public 'CODE'
 
 	public	FDC
 FDC 	DDH	<offset DEV:ddfdc_end+16,,DDATTR_BLOCK,offset ddfdc_init,-1,2020202024434446h>
+	dw	offset DEV:fdc_rw, offset DEV:fdc_rdbuf	; FDCX (see devapi.inc)
 
 	DEFLBL	CMDTBL,word
 	dw	ddfdc_none,  ddfdc_mediachk, ddfdc_buildbpb, ddfdc_none	; 0-3
@@ -29,6 +39,7 @@ FDC 	DDH	<offset DEV:ddfdc_end+16,,DDATTR_BLOCK,offset ddfdc_init,-1,20202020244
 	dw	ddfdc_none,  ddfdc_none,     ddfdc_none,     ddfdc_none	; 16-19
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
+	DEFBYTE	rw_drive,0		; BIOS drive # for readwrite_sectors
 	DEFBYTE	ddbuf_drv,-1
 	DEFWORD	ddbuf_lba,-1
 	DEFPTR	ddbuf_ptr,<offset ddfdc_init>
@@ -47,6 +58,8 @@ FDC 	DDH	<offset DEV:ddfdc_end+16,,DDATTR_BLOCK,offset ddfdc_init,-1,20202020244
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddfdc_req,far
 	mov	di,bx		; ES:DI -> DDP
+	mov	al,es:[di].DDP_UNIT
+	mov	cs:[rw_drive],al; (diskette units are BIOS drive #s)
 	mov	bl,es:[di].DDP_CMD
 	cmp	bl,CMDTBL_SIZE
 	jb	ddq1
@@ -121,10 +134,10 @@ DEFPROC	ddfdc_buildbpb
 	lds	si,es:[di].DDPRW_BPB
 	ASSUME	DS:NOTHING	; DS:SI -> BPB
 ;
-; If this is an uninitialized BPB, then it won't have the necessary
-; geometry info that get_chs requires; that's what happens when we use
-; a single parameter block to describe everything from volume geometry
-; to media geometry to drive geometry.  Oh well.
+; If this is an uninitialized BPB, then it won't have the geometry that
+; readwrite_sectors requires; that's what happens when we use a single
+; parameter block to describe everything from volume geometry to media
+; geometry to drive geometry.  Oh well.
 ;
 ; For now, we resolve this by providing some hard-coded drive geometry,
 ; which should be good enough for reading the first sector.
@@ -539,43 +552,6 @@ ENDPROC	ddfdc_none
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; Get CHS from LBA in AX, using BPB at SI
-;
-; Inputs:
-;	DX = LBA
-;	DS:SI -> BPB
-;
-; Outputs:
-;	CH = cylinder #
-;	CL = sector ID
-;	DH = head #
-;	DL = drive #
-;
-; Modifies:
-;	AX, CX, DX
-;
-; TODO: Keep this in sync with BOOT.ASM (better yet, factor it out somewhere)
-;
-DEFPROC	get_chs
-	ASSUME	DS:NOTHING
-	xchg	ax,dx
-	sub	dx,dx		; DX:AX is LBA
-	div	[si].BPB_CYLSECS; AX = cylinder, DX = remaining sectors
-	xchg	al,ah		; AH = cylinder, AL = cylinder bits 8-9
-	ror	al,1		; future-proofing: saving cylinder bits 8-9
-	ror	al,1
-	xchg	cx,ax		; CH = cylinder #
-	xchg	ax,dx		; AX = remaining sectors from last divide
-	div	byte ptr [si].BPB_TRACKSECS
-	mov	dh,al		; DH = head # (quotient of last divide)
-	or	cl,ah		; CL = sector # (remainder of last divide)
-	inc	cx		; LBA are zero-based, sector IDs are 1-based
-	mov	dl,[si].BPB_DRIVE
-	ret
-ENDPROC	get_chs
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; Read 1 sector into our internal buffer
 ;
 ; Inputs:
@@ -589,6 +565,7 @@ ENDPROC	get_chs
 ;	AX, BX, DX, BP
 ;
 DEFPROC	read_buffer
+	ASSUME	DS:NOTHING
 	mov	al,[si].BPB_DRIVE
 	cmp	al,[ddbuf_drv]
 	jne	rb1
@@ -640,23 +617,24 @@ ENDPROC	write_buffer
 ;
 ; Call BIOS to read/write sectors
 ;
-; There are several annoying problems that the IBM PC diskette system suffers
+; There are several annoying problems that the IBM PC disk system suffers
 ; from, which you'll be happy to know this function (finally) addresses:
 ;
 ;    1)	Multi-sector requests that cross track boundaries
-;    2)	Requests that cross 64K memory boundaries
+;    2)	Requests that cross 64K memory boundaries (since disks use DMA)
 ;
 ; We break every request into one or more single-track requests, and within
-; each single-track request, we read all sectors that precede a 64K boundary,
-; then we read the next sector, if any, into an internal buffer, and then we
-; finish reading any remaining sectors on the track.
+; each single-track request, we transfer all sectors that precede a 64K
+; boundary, then the next sector, if any, by way of our own buffer, and then
+; any remaining sectors on the track.
 ;
 ; Inputs:
-;	BH = FDC cmd
+;	BH = BIOS cmd (FDC_READ or FDC_WRITE)
 ;	BL = # sectors
-;	DX = LBA
+;	DX = LBA (relative to the volume; see BPB_HIDDENSECS)
 ;	DS:SI -> BPB
 ;	ES:BP -> buffer
+;	CS:[rw_drive] = BIOS drive #
 ;
 ; Outputs:
 ;	If carry clear, success (AX is whatever the BIOS returned)
@@ -673,131 +651,185 @@ DEFPROC	readwrite_sectors
 	ASSUME	DS:NOTHING
 	push	bx
 	push	cx
-	push	es
-
-rw0:	push	dx		; save LBA
-	call	get_chs		; convert LBA in DX to CHS in CX,DX
-	push	bx
-	mov	al,byte ptr [si].BPB_TRACKSECS
-	sub	al,cl
-	inc	ax		; AL = max # sectors available this track
-	cmp	al,bl		; AL < BL?
-	jb	rw1		; yes, so use AL as # sectors
-	mov	al,bl
-;
-; Calculate how many sectors are safe from crossing a 64K boundary.
-;
-rw1:	cbw			; AH = new (safe for 64K) sector count
-	push	cx
 	push	dx
-	mov	dx,es
+	push	es
+
+rw1:	push	dx			; save LBA
+	push	bx			; save BIOS cmd and # sectors
+	mov	ax,dx
+	sub	dx,dx
+	test	cs:[rw_drive],80h	; hard disk?
+	jz	rw1a			; no (diskettes have no hidden sectors)
+	add	ax,[si].BPB_HIDDENSECS.LOW
+	adc	dx,[si].BPB_HIDDENSECS.HIW; DX:AX = absolute LBA
+rw1a:	div	[si].BPB_CYLSECS	; AX = cylinder, DX = cylinder sector
+	mov	cx,ax			; CX = cylinder
+	xchg	ax,dx
+	div	byte ptr [si].BPB_TRACKSECS
+	mov	dh,al			; DH = head, AH = sector in track
+	mov	al,byte ptr [si].BPB_TRACKSECS
+	sub	al,ah			; AL = # sectors left on the track
+	cmp	al,bl			; more than requested?
+	jbe	rw2			; no
+	mov	al,bl			; yes, so use the # requested
+rw2:	inc	ah			; AH = sector ID
+	xchg	ch,cl			; CH = cylinder bits 0-7
+	ror	cl,1
+	ror	cl,1			; CL bits 6-7 = cylinder bits 8-9
+	or	cl,ah			; CL bits 0-5 = sector ID
+	mov	dl,cs:[rw_drive]	; DL = BIOS drive #
+	mov	ah,bh			; AH = BIOS cmd, AL = # sectors
+;
+; Reduce AL to the # sectors that precede the next 64K boundary.
+;
+	push	cx
+	mov	bx,es
 	mov	cl,4
-	shl	dx,cl
-	add	dx,bp
-rw1a:	add	dx,[si].BPB_SECBYTES
-	jc	rw1b
-	inc	ah
-	dec	al
-	jnz	rw1a
-rw1b:	mov	al,ah
-	test	al,al		; are any safe?
-	pop	dx
-	pop	cx
-	jnz	rw3		; yes
-;
-; No, so check the command.  For reads, read the next sector into our
-; internal buffer, copy it out, and proceed with the next sector(s).  For
-; writes, the process is obviously reversed.
-;
-	cmp	bh,FDC_READ
-	jne	rw2
-	push	es
-	push	bx
-	mov	ah,bh		; AH = FDC cmd
-	mov	al,1		; AL = 1 sector
-	les	bx,[ddbuf_ptr]	; ES:BX -> our own buffer
-	int	INT_FDC		; AX and carry are whatever the ROM returns
-	pop	bx
-	pop	es
-	jc	rw3a
-	push	si
-	push	di
-	push	ds
-	mov	cx,[si].BPB_SECBYTES
-	lds	si,[ddbuf_ptr]	; DS:SI -> our own buffer
-	mov	di,bp		; ES:DI -> caller's buffer
-	shr	cx,1
-	rep	movsw
-	pop	ds
-	pop	di
-	pop	si
-	dec	cx
-	mov	[ddbuf_lba],cx	; store -1 in ddbuf_lba to invalidate it
-	inc	cx
-	inc	cx		; CX = 1 sector read
-	jmp	short rw3a
-
-rw2:	push	es
-	push	bx
-	push	cx		; save CHS (in CX) from get_chs
-	push	si
-	push	di
-	push	ds
-	mov	cx,[si].BPB_SECBYTES
-	push	es
-	pop	ds
-	mov	si,bp		; DS:SI -> caller's buffer
-	les	di,[ddbuf_ptr]	; ES:DI -> our own buffer
-	shr	cx,1
-	rep	movsw
-	pop	ds
-	pop	di
-	pop	si
-	pop	cx		; restore CHS
-	mov	ah,bh		; AH = FDC cmd
-	mov	al,1		; AL = 1 sector
-	mov	bx,[ddbuf_ptr].OFF
-	int	INT_FDC		; AX and carry are whatever the ROM returns
-	pop	bx
-	pop	es
-	jc	rw3a
-	mov	cx,-1
-	mov	[ddbuf_lba],cx	; store -1 in ddbuf_lba to invalidate it
-	neg	cx		; CX = 1 sector written
-	jmp	short rw3a
-
-rw3:	cbw
-	push	ax		; AX = # sectors this iteration
-	mov	ah,bh		; AH = FDC cmd
-	mov	bx,bp		; ES:BX -> buffer
-	int	INT_FDC		; AX and carry are whatever the ROM returns
-	pop	cx		; CX = # sectors this iteration
-rw3a:	pop	bx		; BL = total # sectors
-	pop	dx		; DX = LBA again
+	shl	bx,cl
+	add	bx,bp			; BX = low 16 bits of physical address
+	mov	cl,al			; CL = # sectors
+	mov	al,0			; AL = # sectors before the boundary
+rw2a:	add	bx,512
+	jc	rw2b
+	inc	ax
+	cmp	al,cl
+	jb	rw2a
+rw2b:	pop	cx
+	test	al,al			; any sectors before the boundary?
+	jz	rw4			; no
+	push	ax
+	mov	bx,bp			; ES:BX -> buffer
+	int	INT_FDC			; AX and carry are from the ROM
+rw3:	pop	cx
+	mov	ch,0			; CX = # sectors this iteration
+	pop	bx			; BL = total # sectors
+	pop	dx			; DX = LBA again
 	jc	rw8
-	sub	bl,cl		; any sectors remaining?
-	ASSERT	NC
-	jbe	rw9		; no
-	add	dx,cx		; advance LBA in DX
+	sub	bl,cl			; any sectors remaining?
+	jbe	rw9			; no
+	add	dx,cx			; advance LBA in DX
 	xchg	ax,cx
-	mov	cl,5		; TODO: Should we add BPB_SECLOG2 to the BPB?
-	shl	ax,cl		; AX = # paragraphs in request
+	mov	cl,5			; (512-byte sectors are 32 paragraphs)
+	shl	ax,cl			; AX = # paragraphs in request
 	mov	cx,es
 	add	cx,ax
-	mov	es,cx		; advance transfer address in ES
-	jmp	rw0
+	mov	es,cx			; advance transfer address in ES
+	jmp	rw1
+;
+; The next sector crosses a 64K boundary, so transfer it through our own
+; buffer (which no longer matches ddbuf_lba afterward).
+;
+rw4:	mov	al,1			; AL = 1 sector
+	push	ax			; save BIOS cmd and # sectors
+	push	si
+	push	di
+	push	ds
+	push	es
+	push	cx
+	mov	cx,256			; CX = # words in a sector
+	push	es
+	pop	ds
+	mov	si,bp			; DS:SI -> caller's buffer
+	les	di,cs:[ddbuf_ptr]	; ES:DI -> our own buffer
+	cmp	ah,FDC_READ		; reading?
+	je	rw4a			; yes
+	rep	movsw			; no, so copy the sector to our buffer
+rw4a:	pop	cx			; CX = cylinder and sector ID again
+	mov	bx,cs:[ddbuf_ptr].OFF	; ES:BX -> our own buffer
+	int	INT_FDC			; AX and carry are from the ROM
+	pop	es
+	pop	ds
+	pop	di
+	pop	si
+	pop	bx			; BH = BIOS cmd, BL = 1
+	jc	rw4c
+	mov	cs:[ddbuf_lba],-1	; invalidate our buffer's LBA
+	cmp	bh,FDC_READ		; reading?
+	jne	rw4c			; no (and carry is clear)
+	push	si
+	push	di
+	push	ds
+	push	cx
+	lds	si,cs:[ddbuf_ptr]	; DS:SI -> our own buffer
+	mov	di,bp			; ES:DI -> caller's buffer
+	mov	cx,256
+	rep	movsw			; copy the sector to the caller
+	pop	cx
+	pop	ds
+	pop	di
+	pop	si			; (carry is still clear)
+rw4c:	push	bx
+	jmp	rw3
 ;
 ; BIOS error codes (in AH) are also driver error codes (see DDERR in dev.inc).
 ;
 rw8:	mov	al,ah
-	mov	ah,0		; AX = driver error code
+	mov	ah,0			; AX = driver error code
 	stc
 
 rw9:	pop	es
+	pop	dx
 	pop	cx
 	pop	bx
 	ret
 ENDPROC	readwrite_sectors
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fdc_rw (far entry for the HDC driver)
+;
+; Performs a read or write request for another block driver (ie, the HDC),
+; whose BPB describes the volume's geometry.
+;
+; Inputs:
+;	AL = BIOS drive #
+;	ES:DI -> DDPRW (DDC_READ or DDC_WRITE)
+;
+; Outputs:
+;	DDPRW updated appropriately
+;
+; Modifies:
+;	AX, BX, CX, DX, BP, SI, DS
+;
+DEFPROC	fdc_rw,far
+	mov	cs:[rw_drive],al
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
+	cmp	es:[di].DDP_CMD,DDC_READ
+	jne	fw1
+	call	ddfdc_read
+	ret
+fw1:	call	ddfdc_write
+	ret
+ENDPROC	fdc_rw
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fdc_rdbuf (far entry for the HDC driver)
+;
+; Reads a sector into our buffer for another block driver (eg, to read the
+; boot sector of a volume while building its BPB).
+;
+; Inputs:
+;	AL = BIOS drive #
+;	DX = LBA
+;	DS:SI -> BPB
+;
+; Outputs:
+;	Carry clear if successful (AX = driver error code otherwise)
+;	ES:BP -> our buffer
+;
+; Modifies:
+;	AX, BX, BP, ES
+;
+DEFPROC	fdc_rdbuf,far
+	ASSUME	DS:NOTHING
+	mov	cs:[rw_drive],al
+	call	read_buffer
+	les	bp,cs:[ddbuf_ptr]
+	ret
+ENDPROC	fdc_rdbuf
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
