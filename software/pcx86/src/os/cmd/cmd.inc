@@ -379,6 +379,8 @@ GFX_DATA	dw    7 dup (?)		; 4AEh: graphics and mouse state
 CODE_CACHE	dw	?		; 4BCh: cached code (see keepCode)
 EDIT_STATE	dw    2 dup (?)		; 4BEh: line to edit (see edit.asm)
 DATA_STATE	dw    4 dup (?)		; 4C2h: next DATA item (see sys.asm)
+PATH_CHAR	db	?		; 4CAh: path char (fixed at boot)
+		db	?		; 4CBh: (unused)
 ;
 ; The BASIC-DOS loader always set the stack pointer for a COM file to the top
 ; of the segment, which means we must declare our stack at the end of CMDHEAP.
@@ -389,7 +391,7 @@ DATA_STATE	dw    4 dup (?)		; 4C2h: next DATA item (see sys.asm)
 ; COM file can request the stack be located elsewhere, since there's no way for
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
-STACK		dw  483 dup (?)		; 4CAh
+STACK		dw  482 dup (?)		; 4CCh
 CMDHEAP		ends			; 890h
 SIG_CMD		equ	'H'
 

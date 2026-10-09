@@ -12,6 +12,8 @@
 CODE    SEGMENT
 
 	EXTNEAR	<countLine,chkString,getFileName,getToken>
+	EXTNEAR	<openInput,openOutput,openError,readInput,writeOutput>
+	EXTNEAR	<writeError,closeInput,closeOutput,fileError>
 	EXTSTR	<DIR_DEF,PERIOD>
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
@@ -47,9 +49,8 @@ ch1:	mov	dx,si
 	int	21h
 	jc	ch1a
 	ret
-ch1a:	PRINTF	<"Unable to change to %s (%d)",13,10,13,10>,si,ax
-	stc
-	ret
+ch1a:	mov	dx,offset VERB_CD
+	jmp	fileError
 
 ch2:	mov	ah,DOS_DSK_GETDRV
 	int	21h			; AL = current drive #
@@ -67,10 +68,178 @@ ENDPROC	cmdChdir
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; cmdCopy
+;
+; Copy the specified input file to the specified output file, creating the
+; output file if it doesn't exist (or truncating it if it does).  Like DOS,
+; if the input is a device (eg, "COPY CON TEST.TXT"), CTRLZ ends the copy.
+;
+; If the output is omitted, it's the input filename (without any drive or
+; path) in the current directory; if it's a drive or directory, the input
+; filename is copied there.  An input filespec with wildcards copies every
+; matching file (see walkFiles), and then the output must be a drive or
+; directory (or omitted).  DOS keeps a file from being copied onto itself,
+; since it can't be opened for writing while it's open for reading.
+;
+; cmdType uses cmdCopy with STDOUT as the output (so wildcards work, too).
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	DI -> TOKENBUF
+;	DS:SI -> filespec (with length CX)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cmdType
+	ASSERT	STRUCT,[bx],CMD
+	mov	[bx].HDL_OUTPUT,STDOUT
+	DEFLBL	cmdCopy,near
+	push	di
+	lea	di,[bx].LINEBUF + 128
+	inc	cx
+	rep	movsb			; move input filespec out of the way
+	pop	di
+	mov	dl,[bx].CMD_ARG
+	call	getToken		; was an input filespec specified?
+	jc	cp7			; no
+	lea	si,[bx].LINEBUF + 128	; DS:SI -> input filespec
+	mov	cx,si			; CX = non-zero (for TYPE)
+	cmp	[bx].HDL_OUTPUT,0	; do we already have an output (TYPE)?
+	jge	cp3			; yes
+	push	si
+	inc	dx			; DL = index of output filespec
+	sub	cx,cx			; (no default)
+	call	getFileName		; DS:SI -> output filespec in LINEBUF
+	lea	di,[bx].LINEBUF		; DI -> output filename buffer
+	jc	cp2			; no output, so use input filename
+	call	scanSpec		; any wildcards in the output?
+	test	ah,ah
+	jnz	cp5			; yes
+	lea	di,[bx].LINEBUF
+	add	di,cx			; DI -> end of output filespec
+	call	chkDir			; is the output a directory?
+	jnc	cp2			; yes (DI -> where to append input)
+	sub	di,di			; no, so the output is a file
+cp2:	mov	cx,di			; CX = output data for copyFile
+	pop	si
+cp3:	call	scanSpec		; any wildcards in the input?
+	test	ah,ah
+	jz	copyFile		; no
+	jcxz	cp6			; yes, but the output is a single file
+	mov	dx,offset copyWild
+	call	walkFiles		; copy all the matching files
+	jnc	cp9
+	test	ax,ax			; was the error already reported?
+	jz	cp8			; yes
+	jmp	openError		; no, so report it now
+cp5:	pop	si
+cp6:	PRINTF	<"Invalid output",13,10,13,10>
+	jmp	short cp8
+cp7:	jmp	noFile
+cp8:	stc
+cp9:	ret
+ENDPROC	cmdType
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; copyFile
+;
+; Copy one input file (or device) to an output file (or device): open the
+; input, open the output, copy the data, and then close them both.  If the
+; output is already open (eg, STDOUT for TYPE), it's used and left open.
+; copyWild (for walkFiles) prints the input filename first.
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	SS:SI -> input filename
+;	CX = 0 if LINEBUF contains the output filename; otherwise, CX -> where
+;	to append the input filename (without any drive or path) in LINEBUF
+;
+; Outputs:
+;	Carry clear if successful; otherwise, carry set and AX = 0 (the error
+;	was reported)
+;
+; Modifies:
+;	AX, CX, DX, SI, DI
+;
+DEFPROC	copyWild
+	PRINTF	<"%s",13,10>,si
+	DEFLBL	copyFile,near
+	call	openInput		; open the input file
+	jc	cf8
+	cmp	[bx].HDL_OUTPUT,0	; do we already have an output?
+	jge	cf3			; yes
+	jcxz	cf2			; LINEBUF contains the output filename
+	call	scanSpec		; DI -> input name (sans drive/path)
+	xchg	si,di
+	mov	di,cx
+cf1:	lodsb				; append it to the output
+	stosb
+	test	al,al
+	jnz	cf1
+cf2:	lea	si,[bx].LINEBUF		; SI -> output filename
+	call	openOutput		; open the output file
+	jnc	cf3
+	cmp	ax,ERR_SHARE		; is the output the input file?
+	jne	cf8			; no
+	PRINTF	<"File cannot be copied onto itself",13,10,13,10>
+	jmp	short cf9
+cf7a:	call	writeError		; report a failure to update the file
+	jmp	short cf9
+cf8:	call	openError		; report error (AX) opening file (SI)
+cf9:	sub	ax,ax			; AX = 0 (the error was reported)
+	stc
+	ret
+
+cf3:	push	bx
+	mov	bx,[bx].HDL_INPUT
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETDATA
+	int	21h			; DX bit 7 set if input is a device
+	pop	bx
+	jnc	cf3a
+	sub	dx,dx
+cf3a:	and	dx,80h
+	mov	di,dx			; DI is non-zero if input is a device
+	mov	si,PSP_DTA		; SI -> DTA (used as a read buffer)
+cf4:	mov	cx,size PSP_DTA		; CX = number of bytes to read
+	call	readInput
+	jc	cf9
+	test	ax,ax			; anything read?
+	jz	cf7			; no
+	xchg	cx,ax			; CX = number of bytes to write
+	test	di,di			; is input a device?
+	jz	cf6			; no
+	push	di
+	mov	di,si
+	mov	dx,cx			; DX = number of bytes read
+	mov	al,CHR_CTRLZ
+	repne	scasb			; any CTRLZ?
+	pop	di
+	xchg	cx,dx			; CX = number of bytes read
+	jne	cf6			; no
+	sub	cx,dx			; yes, so write only bytes before it
+	dec	cx
+	mov	di,-1			; and then stop
+cf6:	call	writeOutput
+	jc	cf9
+	test	di,di			; did input end with CTRLZ?
+	jns	cf4			; no
+cf7:	call	closeInput		; close the input
+	call	closeOutput		; and the output (if we opened it)
+	jc	cf7a
+	ret
+ENDPROC	copyWild
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; cmdDel
 ;
 ; Delete the specified file (also used by ERASE).  A filespec with wildcards
-; deletes every matching file (see delWild).
+; deletes every matching file (see walkFiles).
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -85,42 +254,20 @@ ENDPROC	cmdChdir
 ;
 DEFPROC	cmdDel
 	push	si
-	push	cx
 	mov	dl,[bx].CMD_ARG
 	call	getToken		; was a filename specified?
-	pop	cx
 	pop	si
 	jc	de7			; no
-	push	cx
-	mov	ax,DOS_MSC_GETPCH
-	int	21h			; DL = path char
-	pop	cx
-	push	si
-	mov	di,si			; DI -> filename portion of filespec
-	mov	dh,0			; DH = non-zero if wildcards
-de1:	lodsb
-	cmp	al,'*'
-	je	de2
-	cmp	al,'?'
-	jne	de3
-de2:	inc	dh
-de3:	cmp	al,':'
-	je	de4
-	cmp	al,dl
-	jne	de5
-de4:	mov	di,si
-de5:	loop	de1
-	pop	si
-	test	dh,dh			; any wildcards?
+	call	scanSpec		; any wildcards?
+	mov	dx,offset delFile
+	test	ah,ah
 	jz	de6			; no
-	call	delWild			; yes, delete all matching files
+	call	walkFiles		; yes, delete all matching files
 	jmp	short de6a
-de6:	mov	dx,si			; DS:DX -> filename
-	mov	ah,DOS_DSK_DELETE
-	int	21h
+de6:	call	dx
 de6a:	jnc	de9
-	PRINTF	<"Unable to delete %s (%d)",13,10,13,10>,si,ax
-	jmp	short de8
+	mov	dx,offset VERB_DEL
+	jmp	fileError
 	DEFLBL	noFile,near
 de7:	PRINTF	<"Missing filename",13,10,13,10>
 de8:	stc
@@ -129,68 +276,195 @@ ENDPROC	cmdDel
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; delWild
+; delFile
 ;
-; Delete every file matching a filespec with wildcards (for DEL).  Like
-; getFileID, we use a DTA on the stack, along with a buffer for the name of
-; each match (the filespec's drive and path, if any, followed by the name).
-; Only normal files match (not hidden, system, or directory entries).
+; Delete one file (for cmdDel and walkFiles).
 ;
 ; Inputs:
-;	SS:SI -> filespec (null-terminated)
-;	SS:DI -> filename portion of filespec
+;	DS:SI -> filename
 ;
 ; Outputs:
 ;	Carry clear if successful, set if error (AX = error #)
 ;
 ; Modifies:
-;	AX, BX, CX, DX, DI, ES
+;	AX, DX
 ;
-DEFPROC	delWild
+DEFPROC	delFile
+	mov	dx,si			; DS:DX -> filename
+	mov	ah,DOS_DSK_DELETE
+	int	21h
+	ret
+ENDPROC	delFile
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; walkFiles
+;
+; Call a function for every file matching a filespec with wildcards (for
+; COPY, DEL, and TYPE).  Since the DTA may contain the command line (or file
+; data, for COPY), we use a DTA on the stack, along with a buffer for the name
+; of each match (the filespec's drive and path, if any, followed by the name).
+; Only normal files match (not hidden, system, or directory entries).
+;
+; Inputs:
+;	SS:BX -> CMDHEAP
+;	SS:SI -> filespec (null-terminated)
+;	SS:DI -> filename portion of filespec
+;	CX = data for the function
+;	DX = function (called with SS:SI -> name of match, CX = data, and
+;	BX -> CMDHEAP; it must preserve BX and BP, and return carry set to
+;	stop, with AX = error #)
+;
+; Outputs:
+;	Carry clear if successful, set if error (AX = error #)
+;
+; Modifies:
+;	AX, CX, DX, DI, ES (and whatever the function modifies)
+;
+WF_NAME	equ	(size FFB + 1) AND 0FFFEh
+WF_END	equ	WF_NAME + 80		; end of the drive and path in WF_NAME
+WF_DATA	equ	WF_END + 2		; data for the function
+WF_FUNC	equ	WF_DATA + 2		; function
+WF_SIZE	equ	WF_FUNC + 2
+
+DEFPROC	walkFiles
 	push	bp
 	push	si
-	sub	sp,((size FFB + 1) AND 0FFFEh) + 80
+	sub	sp,WF_SIZE
 	mov	bp,sp
+	mov	[bp+WF_DATA],cx
+	mov	[bp+WF_FUNC],dx
 	push	ss
 	pop	es
 	mov	cx,di
 	sub	cx,si			; CX = length of drive and path
-	lea	di,[bp+((size FFB + 1) AND 0FFFEh)]
+	lea	di,[bp+WF_NAME]
 	rep	movsb			; copy them to the name buffer
-	mov	bx,di			; BX -> end of drive and path
+	mov	[bp+WF_END],di
 	mov	dx,bp			; DS:DX -> temporary DTA
 	mov	ah,DOS_DSK_SETDTA
 	int	21h
-	mov	dx,[bp+((size FFB + 1) AND 0FFFEh) + 80]
+	mov	dx,[bp+WF_SIZE]
 	mov	ah,DOS_DSK_FFIRST	; DS:DX -> filespec (CX is zero)
 	int	21h
-	jc	dw8
-dw1:	lea	si,[bp].FFB_NAME
-	mov	di,bx
-dw2:	lodsb				; append the matching name
+	jc	wf8
+wf1:	lea	si,[bp].FFB_NAME
+	mov	di,[bp+WF_END]
+wf2:	lodsb				; append the matching name
 	stosb
 	test	al,al
-	jnz	dw2
-	lea	dx,[bp+((size FFB + 1) AND 0FFFEh)]
-	mov	ah,DOS_DSK_DELETE	; DS:DX -> name to delete
-	int	21h
-	jc	dw8
+	jnz	wf2
+	lea	si,[bp+WF_NAME]		; SS:SI -> name of match
+	mov	cx,[bp+WF_DATA]
+	call	word ptr [bp+WF_FUNC]
+	jc	wf8
 	mov	ah,DOS_DSK_FNEXT
 	int	21h
-	jnc	dw1
+	jnc	wf1
 	clc				; no more matches
-dw8:	pushf
+wf8:	pushf
 	push	ax
 	mov	dx,PSP_DTA
 	mov	ah,DOS_DSK_SETDTA
 	int	21h			; restore the DTA
 	pop	ax
 	popf
-	lea	sp,[bp+((size FFB + 1) AND 0FFFEh) + 80]
+	lea	sp,[bp+WF_SIZE]
 	pop	si
 	pop	bp
 	ret
-ENDPROC	delWild
+ENDPROC	walkFiles
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; scanSpec
+;
+; Find the filename portion of a filespec (ie, after any drive or path), and
+; check the filespec for wildcards.
+;
+; Inputs:
+;	SS:BX -> CMDHEAP
+;	DS:SI -> filespec (null-terminated)
+;
+; Outputs:
+;	DI -> filename portion of filespec
+;	AH = non-zero if the filespec contains wildcards
+;
+; Modifies:
+;	AX, DI
+;
+DEFPROC	scanSpec
+	push	si
+	mov	di,si
+	mov	ah,0
+ss1:	lodsb
+	cmp	al,'*'
+	je	ss2
+	cmp	al,'?'
+	jne	ss3
+ss2:	mov	ah,al
+ss3:	cmp	al,':'
+	je	ss4
+	cmp	al,ss:[bx].PATH_CHAR
+	jne	ss5
+ss4:	mov	di,si
+ss5:	test	al,al
+	jnz	ss1
+	pop	si
+	ret
+ENDPROC	scanSpec
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chkDir
+;
+; Determine whether a filespec refers to a directory: it either ends with ":"
+; or the path char, or "filespec/*.*" doesn't fail with ERR_NOPATH (it either
+; succeeds or fails with ERR_NOFILE).  For DIR and COPY.
+;
+; Inputs:
+;	SS:BX -> CMDHEAP
+;	SS:SI -> filespec
+;	SS:DI -> end of filespec (its null terminator)
+;
+; Outputs:
+;	If carry clear, the filespec is a directory, it now ends with ":" or
+;	the path char, and DI -> its (new) null terminator; otherwise, carry is
+;	set and the filespec is unchanged
+;
+; Modifies:
+;	AX, CX, DX, DI
+;
+DEFPROC	chkDir
+	mov	al,[di-1]
+	cmp	al,':'			; does filespec end with ":"
+	je	cd9			; or the path char?
+	mov	ah,ss:[bx].PATH_CHAR
+	cmp	al,ah
+	je	cd9			; yes (and carry is clear)
+	push	di
+	mov	al,ah
+	stosb				; append the path char
+	push	si
+	mov	cx,DIR_DEF_LEN
+	mov	si,offset DIR_DEF
+	REPS	MOVS,ES,CS,BYTE		; and DIR_DEF
+	pop	si
+	mov	dx,si			; DS:DX -> filespec (CX is zero)
+	mov	ah,DOS_DSK_FFIRST
+	int	21h
+	pop	di
+	jnc	cd8			; it's a directory
+	cmp	ax,ERR_NOPATH		; is it a directory?
+	jne	cd8			; yes
+	mov	byte ptr [di],0		; no, so remove the path char, etc
+	stc
+	ret
+cd8:	inc	di			; keep the path char
+	mov	byte ptr [di],0
+	clc
+cd9:	ret
+ENDPROC	chkDir
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -209,15 +483,20 @@ ENDPROC	delWild
 ;	Any
 ;
 DEFPROC	cmdDir
-;
-; If filespec begins with ":", extract drive letter, and if it ends
-; with ":" as well, append DIR_DEF ("*.*").
-;
 	push	bp
-	mov	dl,0			; DL = default drive #
-	mov	di,cx			; DI = length of filespec
-	cmp	cx,2
-	jb	di2
+	mov	di,si
+	add	di,cx			; DI -> end of filespec
+	call	chkDir			; is the filespec a directory?
+	jc	di1			; no
+	push	si
+	mov	cx,DIR_DEF_LEN
+	mov	si,offset DIR_DEF
+	REPS	MOVS,ES,CS,BYTE		; yes, so append DIR_DEF
+	pop	si
+;
+; If filespec begins with a drive letter, get that drive's info.
+;
+di1:	mov	dl,0			; DL = default drive #
 	cmp	byte ptr [si+1],':'
 	jne	di2
 	mov	al,[si]
@@ -236,46 +515,11 @@ dix:	jmp	di8
 di3:	mov	bp,bx			; BP = available clusters
 	mul	cx			; DX:AX = bytes per cluster
 	xchg	bx,ax			; BX = bytes per cluster
-
-	add	di,si			; DI -> end of filespec
-	mov	ax,DOS_MSC_GETPCH
-	int	21h			; DL = path char
-	mov	dh,0			; DH = 0 (not a trial)
-	mov	al,[di-1]
-	cmp	al,':'			; does filespec end with ":"
-	je	di3c			; or the path char?
-	cmp	al,dl
-	je	di3c			; yes, so just append DIR_DEF
-;
-; Otherwise, if filespec is a directory, then "filespec\*.*" will either
-; succeed or fail with ERR_NOFILE; if it fails with ERR_NOPATH, then remove
-; the path char and DIR_DEF, and try filespec on its own.
-;
-	mov	[di],dl			; append the path char
-	inc	di
-	inc	dh			; DH = 1 (trial)
-di3c:	push	si
-	push	di
-	mov	cx,DIR_DEF_LEN
-	mov	si,offset DIR_DEF
-	REPS	MOVS,ES,CS,BYTE		; append DIR_DEF
-	pop	di
-	pop	si
-
-di3a:	mov	cx,10h			; CX = attributes (DIRATTR_SUBDIR)
-	push	dx
+	mov	cx,10h			; CX = attributes (DIRATTR_SUBDIR)
 	mov	dx,si			; DX -> filespec
 	mov	ah,DOS_DSK_FFIRST
 	int	21h
-	pop	dx
-	jnc	di3b
-	dec	dh			; was this a trial?
-	jnz	dix			; no
-	cmp	ax,ERR_NOPATH		; was filespec a directory?
-	jne	dix			; yes
-	mov	byte ptr [di-1],0	; no, so remove the path char, etc
-	jmp	di3a
-di3b:
+	jc	dix
 ;
 ; Use DX to maintain the total number of clusters, and CX to maintain
 ; the total number of files.
@@ -345,9 +589,9 @@ di7:	xchg	ax,dx			; AX = total # of clusters used
 	pop	bp
 	ret
 
-di8:	PRINTF	<"Unable to find %s (%d)",13,10,13,10>,si,ax
+di8:	mov	dx,offset VERB_FIND
+	call	fileError
 	pop	bp
-	stc
 	ret
 ENDPROC	cmdDir
 
@@ -370,11 +614,7 @@ ENDPROC	cmdDir
 ;	AX, CX, DX, SI, DS
 ;
 DEFPROC	getCwd
-	push	ax
-	mov	ax,DOS_MSC_GETPCH
-	int	21h			; DL = path char
-	pop	cx			; CL = drive letter
-	push	dx
+	xchg	cx,ax			; CL = drive letter
 	mov	dl,cl
 	sub	dl,'A'-1		; DL = 1-based drive #
 	lea	si,[bx].LINEBUF
@@ -382,7 +622,7 @@ DEFPROC	getCwd
 	pop	ds			; DS:SI -> buffer
 	mov	ah,DOS_DSK_GETCWD
 	int	21h
-	pop	dx			; DL = path char
+	mov	dl,[bx].PATH_CHAR	; DL = path char
 	ret
 ENDPROC	getCwd
 
@@ -421,12 +661,10 @@ md1:	push	ax
 	pop	dx			; DH = function
 	jnc	md9
 	cmp	dh,DOS_DSK_MKDIR
-	jne	md2
-	PRINTF	<"Unable to create %s (%d)",13,10,13,10>,si,ax
-	jmp	short md7
-md2:	PRINTF	<"Unable to remove %s (%d)",13,10,13,10>,si,ax
-md7:	stc
-	ret
+	mov	dx,offset VERB_MD
+	je	md7
+	mov	dx,offset VERB_RD
+md7:	jmp	fileError
 md8:	jmp	noFile			; report a missing name
 md9:	ret
 ENDPROC	cmdMkdir
@@ -439,6 +677,7 @@ ENDPROC	cmdMkdir
 ; in directory names (eg, "..") aren't mistaken for an extension.
 ;
 ; Inputs:
+;	SS:BX -> CMDHEAP
 ;	DS:SI -> null-terminated path
 ;
 ; Outputs:
@@ -452,8 +691,7 @@ DEFPROC	chkExt
 	push	bx
 	push	dx
 	push	si
-	mov	ax,DOS_MSC_GETPCH
-	int	21h			; DL = path char
+	mov	dl,ss:[bx].PATH_CHAR	; DL = path char
 	mov	bx,si			; BX = DI if there's no period
 	mov	di,bx
 ce1:	lodsb
@@ -473,6 +711,12 @@ ce3:	test	al,al
 	pop	ax
 	ret
 ENDPROC	chkExt
+
+VERB_CD		db	"change to",0
+VERB_DEL	db	"delete",0
+VERB_FIND	db	"find",0
+VERB_MD		db	"create",0
+VERB_RD		db	"remove",0
 
 CODE	ENDS
 

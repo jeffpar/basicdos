@@ -72,7 +72,6 @@ DOS_DSK_GETINFO	equ	36h	; get disk info; eg, available clusters (BX)
 DOS_MSC_GETSWC	equ   3700h	; get switch char (DL) (undocumented)
 DOS_MSC_SETSWC	equ   3701h	; set switch char (DL) (undocumented)
 DOS_MSC_GETPCH	equ   3704h	; get path char (DL) (BASIC-DOS only)
-DOS_MSC_SETPCH	equ   3705h	; set path char (DL) (BASIC-DOS only)
 DOS_DSK_MKDIR	equ	39h	; create directory (DS:DX)
 DOS_DSK_RMDIR	equ	3Ah	; remove directory (DS:DX)
 DOS_DSK_CHDIR	equ	3Bh	; change current directory (DS:DX)
@@ -362,6 +361,7 @@ ERR_BADADDR	equ	9	; invalid memory segment
 ERR_BADDRIVE	equ	15	; invalid drive
 ERR_CURDIR	equ	16	; attempt to remove current directory
 ERR_NOTSAME	equ	17	; not same device
+ERR_SHARE	equ	32	; sharing violation
 ERR_DISKFULL	equ	39	; disk full
 
 ERR_BADSESSION	equ	100	; invalid session

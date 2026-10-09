@@ -46,11 +46,12 @@ Changes the current directory of *drive* (or the current drive) to *path*.  If n
 
 ### COPY
 
-> COPY *input* *output*
+> COPY *input* [*output*]
 
-Copies the contents of the input file or device to the output file or device.  The output file is created, or truncated if it already exists.  A file cannot be copied onto itself.  If the disk fills up, COPY reports "Insufficient disk space".
+Copies the contents of the input file or device to the output file or device.  The output file is created, or truncated if it already exists.  If the output is a drive or directory (or is omitted, which means the current directory), the input's filename (without any drive or path) is used.  With wildcards (? and *), every matching file is copied, and its name is displayed; the output must then be a drive or directory (or omitted).  A file cannot be copied onto itself, or onto a file that another session has open.  If the disk fills up, COPY reports "Insufficient disk space".  COPY stops at the first file it can't copy.
 
 	COPY PRIMES.BAS B:
+	COPY B:/*.BAS
 
 ### DEL
 
@@ -103,6 +104,6 @@ Saves the currently loaded program as a text file, which LOAD can load again.  I
 
 > TYPE *file*
 
-Displays the contents of the specified file.
+Displays the contents of the specified file, or with wildcards (? and *), the name and contents of every matching file.
 
 {% include footer.html prev="Sound Commands:../device/sound/" next="External Commands:../external/" %}

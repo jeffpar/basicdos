@@ -16,6 +16,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<callDOS,releaseStr,strIllegal,allocStr,rtError,findVar>
+	EXTNEAR	<ctrlc>
 	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
@@ -72,9 +73,11 @@ DEFPROC	doChain,FAR
 	call	releaseStr		; (callDOS copies it before using it)
 	push	cs
 	call	callDOS
+	jc	dcY			; CHAIN failed, so end the program
 	LEAVE
 	RETURN
 dcX:	jmp	strIllegal
+dcY:	jmp	ctrlc
 ENDPROC	doChain
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

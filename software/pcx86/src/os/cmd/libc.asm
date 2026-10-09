@@ -30,7 +30,9 @@ CODE    SEGMENT
 ;	[pCmdLine] -> seg:off of command line
 ;
 ; Outputs:
-;	None
+;	Carry set if the command failed; like PC DOS, the program continues
+;	either way (after any error is reported), but ERRORLEVEL is set to 1
+;	if the command failed, or 0 if it succeeded (see parseDOS)
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, ES
@@ -80,9 +82,7 @@ cd1:	push	cx
 	pop	ax			; AX = keyword ID, if any
 	mov	cl,[di].TOK_DATA[0].TOKLET_LEN
 	call	parseDOS		; CX = length of first token only
-	jnc	cd2
-	jmp	ctrlc			; an error (eg, no such program) ends
-cd2:	pop	ds			; the program, like a CTRLC
+	pop	ds
 	LEAVE
 	RETURN
 ENDPROC	callDOS
@@ -102,7 +102,7 @@ ENDPROC	callDOS
 ; Outputs:
 ;	The redirection word records the previous STDOUT SFH (low byte) and
 ;	the file's handle (high byte); if the file can't be opened, the error
-;	is reported and the program ends (as in callDOS)
+;	is reported and the program ends
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, ES

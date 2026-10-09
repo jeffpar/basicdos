@@ -40,8 +40,8 @@ Sets the foreground (0-15), background (0-15), and border (0-255) colors of the 
 For blinking colors, use 16-31 for *foreground*, 8-15 for *background*, and 128-255 for *border*.
 In SCREEN 1, the values are the background color (0-15) and palette (0 or 1) instead.
 
-COPY *input* *output*
-Copies the contents of the input file or device to the output file or device.
+COPY *input* [*output*]
+Copies the contents of the input file or device to the output file or device, or with wildcards (? and *), every matching file to the output drive or directory (eg, COPY B:/*.BAS).  If *output* is omitted, the current directory is used.
 
 COS(*x*)
 Returns the cosine of *x*, where *x* is in radians.
@@ -109,7 +109,7 @@ ERROR *n*
 Simulates error *n* (1-255).
 
 ERRORLEVEL
-Constant equal to the return code from the last program executed.
+Constant equal to the return code from the last program executed, or for an internal command, 0 if it succeeded or 1 if it failed.
 
 EXIT
 Exits the command processor if there is a previously loaded copy.
@@ -343,7 +343,7 @@ TIME$
 Returns the current time as a string in the form HH:MM:SS.
 
 TYPE *file*
-Displays the contents of the specified file.
+Displays the contents of the specified file, or with wildcards (? and *), the name and contents of every matching file.
 
 UCASE$(*string*)
 Returns *string* with all lower-case letters converted to upper-case.

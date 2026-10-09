@@ -105,7 +105,7 @@ SCB_CTRLP_ACT	db	?	; 2Ch: 1 if CTRLP active
 SCB_INDOS	db	?	; 2Dh: active DOS/DOSUTIL call count
 SCB_CURDRV	db	?	; 2Eh: current drive #
 SCB_SWITCHAR	db	?	; 2Fh: current switch char (eg, CHR_SLASH)
-SCB_PATHCHAR	db	?	; 30h: current path char (eg, '\')
+SCB_PATHCHAR	db	?	; 30h: path char (fixed at boot)
 		db	?	; 31h: padding
 SCB_DIRCLN	dw	?	; 32h: directory (1st cluster) for FILENAME
 SCB_FILENAME	db    12 dup (?); 34h: buffer for drive # and filename

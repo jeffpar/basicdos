@@ -121,7 +121,7 @@ The Session Control Block is internal to DOS; there's one for each session (see 
 | 2Dh | SCB_INDOS | Active DOS and utility call count |
 | 2Eh | SCB_CURDRV | Current drive # |
 | 2Fh | SCB_SWITCHAR | Current switch character |
-| 30h | SCB_PATHCHAR | Current path character |
+| 30h | SCB_PATHCHAR | Path character (fixed at boot) |
 | 32h | SCB_DIRCLN | Directory (first cluster, or 0 for the root) of the filename buffer |
 | 34h | SCB_FILENAME | Filename buffer (drive # and 11-character name) |
 

@@ -19,7 +19,8 @@ DOS	segment word public 'CODE'
 
 	EXTNEAR	<dev_request,chk_devname,chk_filename,scb_release>
 	EXTNEAR	<get_bpb,get_cln,get_dirent,read_buffer,flush_buffers>
-	EXTNEAR	<alloc_cln,free_clns,sfb_open,dir_lba,get_dircln>
+	EXTNEAR	<alloc_cln,free_clns,sfb_open,sfb_chkopen>
+	EXTNEAR	<dir_lba,get_dircln>
 	EXTNEAR	<get_cdir,get_dirpath,new_buffer>
 
 	EXTBYTE	<scb_locked>
@@ -41,7 +42,8 @@ DOS	segment word public 'CODE'
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
 ; Notes:
-;	Like PC DOS, we make no attempt to detect whether the file is open.
+;	Unlike PC DOS, we refuse to delete a file that is open (ERR_SHARE),
+;	since freeing its clusters would corrupt any SFB using them.
 ;
 DEFPROC	dsk_delete,DOS
 	LOCK_SCB
@@ -52,6 +54,9 @@ DEFPROC	dsk_delete,DOS
 	call	chk_filename		; DS:SI -> DIRENT, AL = drive #
 	jc	dd8
 	ASSUME	DS:BIOS
+	mov	bl,MODE_ACC_RW		; BL = mode (ie, exclusive access)
+	call	sfb_chkopen		; is the file open?
+	jc	dd8			; yes (AX = error code)
 	mov	cl,al			; CL = drive #
 	mov	ax,ERR_ACCDENIED
 	test	[si].DIR_ATTR,DIRATTR_RDONLY OR DIRATTR_SUBDIR OR DIRATTR_VOLUME
@@ -222,7 +227,12 @@ sc1:	sub	ax,ax			; AH = 0 (filename), AL = 0 (attributes)
 ; The file already exists (DS:SI -> DIRENT, AL = drive #), so truncate it,
 ; unless it's read-only (or not a file at all).
 ;
-sc3:	mov	cl,al			; CL = drive #
+sc3:	push	bx
+	mov	bl,MODE_ACC_RW		; BL = mode
+	call	sfb_chkopen		; is the file already open?
+	pop	bx
+	jc	sc7			; yes (AX = error code)
+	mov	cl,al			; CL = drive #
 	mov	ax,ERR_ACCDENIED
 	test	[si].DIR_ATTR,DIRATTR_RDONLY OR DIRATTR_SUBDIR OR DIRATTR_VOLUME
 	jnz	sc7

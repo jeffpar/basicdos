@@ -102,7 +102,7 @@ Limits the memory that BASIC-DOS uses to *n* kilobytes (16-640), assuming the ma
 
 > PATHCHAR=*char*
 
-Changes the character that separates directory names in a path (eg, `CD /SUBDIR`).  The default is `/`, unless [SWITCHAR](#switchar) changes the switch character to `/`, in which case the default is `\` (as in PC DOS, where paths look like `CD \SUBDIR`).  Only the path character is recognized; BASIC-DOS doesn't also accept the other one.
+Changes the character that separates directory names in a path (eg, `CD /SUBDIR`).  The default is `/`, unless [SWITCHAR](#switchar) changes the switch character to `/`, in which case the default is `\` (as in PC DOS, where paths look like `CD \SUBDIR`).  Only the path character is recognized; BASIC-DOS doesn't also accept the other one.  The path character can't be changed after BASIC-DOS starts.
 
 ### SESSIONS
 

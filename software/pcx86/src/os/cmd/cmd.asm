@@ -70,6 +70,9 @@ m0:	mov	bx,ds:[PSP_HEAP]
 	mov	word ptr [bx].CON_COLS,dx
 	mov	ax,word ptr ds:[PSP_PFT][STDIN]
 	mov	word ptr [bx].SFH_STDIN,ax
+	mov	ax,DOS_MSC_GETPCH
+	int	21h			; DL = path char (fixed at boot)
+	mov	[bx].PATH_CHAR,dl
 ;
 ; Install CTRLC handler.  DS = CS only for the first instance; additional
 ; instances of this processor will have their own DS but share a common CS.
@@ -386,7 +389,9 @@ ENDPROC	parseCmd
 ;	CS:DX -> offset of handler, if any
 ;
 ; Outputs:
-;	None
+;	Carry set if a command failed (after reporting the error); EXIT_CODE
+;	(ie, ERRORLEVEL) is 1 if so, the program's return code if an external
+;	program ran, and 0 otherwise
 ;
 ; Modifies:
 ;	Any
@@ -416,6 +421,7 @@ DEFPROC	parseDOS
 	ASSERT	<size TOKLET>,EQ,4	; AX = end of TOKLETs
 	sub	bx,bx			; BX = 0
 	mov	[bp].CMD_ARG,bl		; initialize CMD_ARG
+	mov	[bp].EXIT_CODE,bl	; and ERRORLEVEL (until a failure)
 	mov	[bp].CMD_DEFER[0],bx	; no deferred command (yet)
 	mov	[bp].HDL_INPIPE,bx	; no input pipe (yet)
 	mov	[bp].HDL_OUTPIPE,bx	; and no output pipe (yet)
@@ -651,8 +657,10 @@ pd9b:	sub	cx,cx			; CX = 0 for "truncating" write
 pd9c:	pop	cx			; discard end of TOKLETs
 	pop	dx			; DX = handles to leave open
 	pop	ax			; AX = STD handles to restore
-	call	cleanUpTo
-	pop	bp
+	call	cleanUpTo		; BX -> CMDHEAP (carry preserved)
+	jnc	pd9d
+	mov	[bx].EXIT_CODE,1	; a failure sets ERRORLEVEL to 1
+pd9d:	pop	bp
 	ret
 
 pd9x:	PRINTF	<"Syntax error",13,10,13,10>
@@ -1264,109 +1272,6 @@ ENDPROC	chkStrVar
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; getOutput
-;
-; Get the output filename for COPY, and verify that it doesn't refer to the
-; same file as the input filename, since openOutput would truncate the file
-; before it could be copied.
-;
-; Inputs:
-;	BX -> CMDHEAP
-;	DS:SI -> input filename
-;	DI -> TOKENBUF
-;
-; Outputs:
-;	If carry clear, DS:SI -> output filename
-;	If carry set, an error message was printed
-;
-; Modifies:
-;	AX, CX, DX, SI, DS
-;
-DEFPROC	getOutput
-	call	getFileID		; CL:DX:AX identifies the input file
-	jnc	go1
-	mov	cl,-1			; (input isn't a file, so no match)
-go1:	push	cx
-	push	dx
-	push	ax
-	mov	dl,[bx].CMD_ARG
-	inc	dx			; DL = DL + 1
-	sub	cx,cx			; no default filespec in this case
-	call	getFileName		; DS:SI -> output filename
-	jnc	go2
-	PRINTF	<"Missing output file",13,10>
-	jmp	short go8
-
-go2:	call	getFileID		; CL:DX:AX identifies the output file
-	cmc
-	jnc	go9			; the output file doesn't exist
-	push	bp
-	mov	bp,sp
-	cmp	ax,[bp+2]
-	jne	go3
-	cmp	dx,[bp+4]
-	jne	go3
-	cmp	cl,[bp+6]
-go3:	pop	bp
-	clc
-	jne	go9			; the files don't match
-	PRINTF	<"File cannot be copied onto itself",13,10>
-go8:	stc
-go9:	lahf				; discard the input file info
-	add	sp,6			; without affecting carry
-	sahf
-	ret
-ENDPROC	getOutput
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; getFileID
-;
-; Find the specified file and return its drive #, directory, and DIRENT #,
-; so that the results for any two filenames can be compared.  Like findFile,
-; we can't use the DTA (it may contain the command line), so we temporarily
-; use a DTA on the stack.
-;
-; Inputs:
-;	SS:SI -> filename
-;
-; Outputs:
-;	If carry clear, CL = drive #, DX = directory, AX = DIRENT #
-;	If carry set, the file was not found
-;
-; Modifies:
-;	AX, CX, DX
-;
-DEFPROC	getFileID
-	push	bp
-	push	ds
-	push	ss
-	pop	ds
-	sub	sp,(size FFB + 1) AND 0FFFEh
-	mov	bp,sp
-	mov	dx,bp			; DS:DX -> temporary DTA
-	mov	ah,DOS_DSK_SETDTA
-	int	21h
-	mov	cx,06h			; CX = attributes (HIDDEN and SYSTEM)
-	mov	dx,si			; DS:DX -> filename
-	mov	ah,DOS_DSK_FFIRST
-	int	21h
-	pushf
-	mov	dx,PSP_DTA
-	mov	ah,DOS_DSK_SETDTA
-	int	21h			; restore the DTA
-	popf
-	mov	ax,[bp].FFB_DIRNUM
-	mov	dx,[bp].FFB_DIRCLN
-	mov	cl,[bp].FFB_DRIVE
-	lea	sp,[bp+((size FFB + 1) AND 0FFFEh)]
-	pop	ds
-	pop	bp
-	ret
-ENDPROC	getFileID
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; getToken
 ;
 ; Inputs:
@@ -1399,82 +1304,6 @@ DEFPROC	getToken
 gt8:	pop	bx
 gt9:	ret
 ENDPROC	getToken
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; cmdCopy
-;
-; Copy the specified input file to the specified output file, creating the
-; output file if it doesn't exist (or truncating it if it does).  Like DOS,
-; if the input is a device (eg, "COPY CON TEST.TXT"), CTRLZ ends the copy.
-;
-; Inputs:
-;	BX -> CMDHEAP
-;	DS:SI -> filespec (with length CX)
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	Any
-;
-DEFPROC	cmdCopy
-	ASSERT	STRUCT,[bx],CMD
-	call	openInput		; SI -> filename
-	jc	openError		; report error (AX) opening file (SI)
-	cmp	[bx].HDL_OUTPUT,0	; do we already have an output file?
-	jge	cc1			; yes
-	call	getOutput		; SI -> output filename
-	jc	cc9
-	call	openOutput
-	jc	openError
-cc1:	push	bx
-	mov	bx,[bx].HDL_INPUT
-	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETDATA
-	int	21h			; DX bit 7 set if input is a device
-	pop	bx
-	jnc	cc1a
-	sub	dx,dx
-cc1a:	and	dx,80h
-	mov	di,dx			; DI is non-zero if input is a device
-	mov	si,PSP_DTA		; SI -> DTA (used as a read buffer)
-cc2:	mov	cx,size PSP_DTA		; CX = number of bytes to read
-	call	readInput
-	jc	cc8
-	test	ax,ax			; anything read?
-	jz	cc8			; no
-	xchg	cx,ax			; CX = number of bytes to write
-	test	di,di			; is input a device?
-	jz	cc3			; no
-	push	di
-	mov	di,si
-	mov	dx,cx			; DX = number of bytes read
-	mov	al,CHR_CTRLZ
-	repne	scasb			; any CTRLZ?
-	pop	di
-	jne	cc2b			; no
-	sub	dx,cx			; yes, so write only the bytes before it
-	dec	dx
-	mov	cx,dx
-	call	writeOutput
-	jmp	short cc8
-cc2b:	mov	cx,dx			; CX = number of bytes to write
-cc3:	call	writeOutput
-	jnc	cc2
-;
-; NOTE: We no longer explicitly close the input and output files, either on
-; success or failure, simply because we now rely on the cleanUp function to be
-; invoked at the end of every command -- which, among other things, closes all
-; non-STD file handles that are still open.
-;
-cc8:	ret
-	DEFLBL	openError,near		; report error (AX) opening file (SI)
-	push	ax
-	PRINTF	<"Unable to open %s (%d)",13,10,13,10>,si,ax
-	pop	ax
-cc9:	stc
-	ret
-ENDPROC	cmdCopy
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2446,28 +2275,6 @@ ENDPROC	cmdTime
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; cmdType
-;
-; Read the specified file and write the contents to STDOUT.
-;
-; Inputs:
-;	BX -> CMDHEAP
-;	DS:SI -> filespec (with length CX)
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	Any
-;
-DEFPROC	cmdType
-	ASSERT	STRUCT,[bx],CMD
-	mov	[bx].HDL_OUTPUT,STDOUT
-	jmp	cmdCopy
-ENDPROC	cmdType
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; cmdVer
 ;
 ; Prints the BASIC-DOS version.
@@ -2557,29 +2364,73 @@ ENDPROC	openOutput
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; openError
+;
+; Report an error opening a file, or with fileError, any other file or
+; directory operation (eg, "Unable to delete X.TXT (2)").
+;
+; Inputs:
+;	AX = error #
+;	DS:SI -> filename
+;	CS:DX -> verb (fileError only; eg, "delete")
+;
+; Outputs:
+;	Carry set
+;
+; Modifies:
+;	None
+;
+DEFPROC	openError
+	push	dx
+	mov	dx,offset VERB_OPEN
+	call	fileError
+	pop	dx
+	ret
+	DEFLBL	fileError,near
+	push	ax
+	PRINTF	<"Unable to %ls %s (%d)",13,10,13,10>,dx,cs,si,ax
+	pop	ax
+	stc
+	ret
+ENDPROC	openError
+
+VERB_OPEN	db	"open",0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; closeInput
 ;
-; Close the default file handle.
+; Close the input file handle (HDL_INPUT), or with closeOutput, the output
+; file handle (HDL_OUTPUT), and mark it unused (-1).  A handle that we didn't
+; open (eg, STDOUT for TYPE) is left alone.
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
 ;
 ; Outputs:
-;	None
+;	If carry set, the file couldn't be closed (AX = error #)
 ;
 ; Modifies:
 ;	AX
 ;
 DEFPROC	closeInput
-	push	bx
-	sub	ax,ax
+	mov	ax,HDL_INPUT
+	jmp	short ci1
+	DEFLBL	closeOutput,near
+	mov	ax,HDL_OUTPUT
+ci1:	push	bx
 	ASSERT	STRUCT,[bx],CMD
-	xchg	ax,[bx].HDL_INPUT
-	test	ax,ax
-	jz	ci9
+	add	bx,ax			; BX -> handle
+	mov	ax,-1
+	xchg	ax,[bx]			; AX = handle
+	cmp	ax,STDPRN		; did we open it?
+	jle	ci8			; no
 	xchg	bx,ax
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
+	jmp	short ci9
+ci8:	mov	[bx],ax			; restore the handle
+	clc
 ci9:	pop	bx
 	ret
 ENDPROC	closeInput

@@ -287,7 +287,10 @@ DEFPROC	sfb_open,DOS
 	jc	so9b			; no (AX = error code)
 	ASSUME	DS:NOTHING		; DS:SI -> DIRENT
 	test	[si].DIR_ATTR,DIRATTR_SUBDIR OR DIRATTR_VOLUME
-	jz	so1a			; it's a file (subdirectories aren't)
+	jnz	so9a			; it's not a file (eg, a subdirectory)
+	call	sfb_chkopen		; can the file be opened in this mode?
+	jnc	so1a			; yes
+	jmp	short so9b		; no (AX = error code)
 so9a:	mov	ax,ERR_NOFILE
 so9b:	stc
 	jmp	so9
@@ -422,6 +425,58 @@ so9:	pop	es
 	UNLOCK_SCB
 	ret
 ENDPROC	sfb_open
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; sfb_chkopen
+;
+; Check whether a file is already open, and if so, whether it can be opened
+; again with the specified mode.  Any number of SFBs may have a file open for
+; reading, but an SFB with write access must be the only SFB for that file.
+;
+; Inputs:
+;	AL = drive #
+;	BL = mode (see MODE_*)
+;	CX = DIRENT #
+;	SCB_DIRCLN = directory (1st cluster) of DIRENT
+;
+; Outputs:
+;	On success, carry clear
+;	On failure, AX = ERR_SHARE, carry set
+;
+; Modifies:
+;	AX
+;
+DEFPROC	sfb_chkopen,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	dx
+	push	si
+	mov	si,cs:[scb_active]
+	mov	dx,cs:[si].SCB_DIRCLN	; DX = directory of DIRENT
+	mov	si,cs:[sfb_table].OFF
+sco1:	cmp	cs:[si].SFB_REFS,0	; is this SFB open?
+	je	sco2			; no
+	cmp	cs:[si].SFB_DRIVE,al	; (devices never match, since -1)
+	jne	sco2
+	cmp	cs:[si].SFB_DIRNUM,cx
+	jne	sco2
+	cmp	cs:[si].SFB_DIRCLN,dx
+	jne	sco2			; not the same file
+	test	bl,MODE_ACC_WO OR MODE_ACC_RW
+	jnz	sco8			; we want write access, so deny it
+	test	cs:[si].SFB_MODE,MODE_ACC_WO OR MODE_ACC_RW
+	jnz	sco8			; the file is open for writing
+sco2:	add	si,size SFB
+	cmp	si,cs:[sfb_table].SEG
+	jb	sco1			; keep checking (carry clear when done)
+	jmp	short sco9
+sco8:	mov	ax,ERR_SHARE
+	stc
+sco9:	pop	si
+	pop	dx
+	ret
+ENDPROC	sfb_chkopen
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

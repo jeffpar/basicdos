@@ -92,6 +92,33 @@ m4:	call	result
 	call	test_file
 	call	result
 ;
+; Verify that an open file can be opened again for reading, but not created
+; (truncated) or deleted.
+;
+	mov	dx,offset sharetest
+	call	print
+	call	test_share
+	call	result
+;
+; Verify that the path char can't be changed (3705h is no longer supported).
+;
+	mov	dx,offset pchtest
+	call	print
+	mov	ax,DOS_MSC_GETPCH
+	int	21h		; DL = path char
+	mov	dh,dl		; DH = path char
+	mov	dl,':'
+	mov	ax,DOS_MSC_GETPCH + 1
+	int	21h		; attempt to set the path char
+	cmp	al,0FFh		; unsupported?
+	jne	m5		; no
+	mov	ax,DOS_MSC_GETPCH
+	int	21h
+	cmp	dl,dh		; is the path char unchanged?
+	je	m6		; yes (and carry is clear)
+m5:	stc
+m6:	call	result
+;
 ; Create another file, rename it, and then delete it.
 ;
 	mov	dx,offset renametest
@@ -179,6 +206,58 @@ tf9:	ret
 ENDPROC	test_file
 
 ;
+; test_share
+;
+; Opens testfile for reading twice (which must succeed), and then attempts to
+; create and delete it while it's still open (which must fail with ERR_SHARE).
+;
+; Returns carry clear if successful, carry set if not.
+;
+DEFPROC	test_share
+	mov	dx,offset testfile
+	mov	ax,DOS_HDL_OPENRO
+	int	21h		; open the file for reading
+	jc	ts9
+	xchg	bx,ax		; BX = handle
+	mov	ax,DOS_HDL_OPENRO
+	int	21h		; a second reader is allowed
+	jc	ts8
+	push	bx
+	xchg	bx,ax
+	mov	ah,DOS_HDL_CLOSE
+	int	21h		; close the second handle
+	pop	bx
+	sub	cx,cx		; CX = attributes (none)
+	mov	ah,DOS_HDL_CREATE
+	int	21h		; but a writer is not
+	call	chk_share
+	jc	ts8
+	mov	ah,DOS_DSK_DELETE
+	int	21h		; and neither is a delete
+	call	chk_share
+ts8:	pushf
+	mov	ah,DOS_HDL_CLOSE
+	int	21h		; close the file (preserving any failure)
+	popf
+ts9:	ret
+ENDPROC	test_share
+
+;
+; chk_share
+;
+; Returns carry clear if the previous call failed with ERR_SHARE, carry set
+; if it succeeded or failed with any other error.
+;
+DEFPROC	chk_share
+	cmc
+	jc	cs9		; the call succeeded, which is a failure
+	cmp	ax,ERR_SHARE
+	je	cs9		; (carry is clear)
+	stc
+cs9:	ret
+ENDPROC	chk_share
+
+;
 ; test_rename
 ;
 ; Creates tempfile1, renames it to tempfile2, and then deletes tempfile2,
@@ -261,6 +340,8 @@ progress	db		".$"
 alloctest	db		"memory test$"
 filetest	db		"file test $"
 renametest	db		"rename/delete test $"
+sharetest	db		"sharing test $"
+pchtest		db		"path char test $"
 
 testfile	db		"HELLO.TXT",0
 tempfile1	db		"TEMP1.TXT",0

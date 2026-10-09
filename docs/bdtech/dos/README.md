@@ -67,6 +67,8 @@ The line editing keys that 0Ah supports are described in [Typing Commands](../..
 
 Handles 0-4 are the predefined handles STDIN, STDOUT, STDERR, STDAUX, and STDPRN.  Filenames can also be device names (eg, `CON`, `NUL`, or `COM1`), optionally followed by a colon and device-specific parameters (eg, `CON:40,25`).
 
+A file can be open more than once for reading, but a file opened for writing (MODE_ACC_WO or MODE_ACC_RW, which includes every file opened with 3Ch) can't be open anywhere else.  Opening a file in a way that would violate that rule fails with ERR_SHARE, as does deleting (41h) a file that's open.  Unlike PC DOS 3.x, BASIC-DOS doesn't need SHARE for this, and it ignores the MODE_DENY_* bits.  Devices are exempt, so `CON` can be open for both reading and writing.
+
 For IOCTL code 00h (IOCTL_GETDATA), DOS returns DX = 80h for a device, or the file's drive # (0-based) for a file.  All other IOCTL codes are passed to the device driver as a DDC_IOCTLIN request; see [IOCTL Functions](../dev/#ioctl-functions) for the BASIC-DOS-specific codes.
 
 #### File Control Blocks {#fcbs}
@@ -120,8 +122,7 @@ FCB support is read-only: FCB create, write, delete, and rename functions aren't
 | 35h | DOS_MSC_GETVEC | AL = vector # | ES:BX = address |
 | 3700h | DOS_MSC_GETSWC | | DL = switch character |
 | 3701h | DOS_MSC_SETSWC | DL = switch character | |
-| 3704h | DOS_MSC_GETPCH | | DL = path character (BASIC-DOS only) |
-| 3705h | DOS_MSC_SETPCH | DL = path character (BASIC-DOS only) | |
+| 3704h | DOS_MSC_GETPCH | | DL = path character (BASIC-DOS only; fixed at boot, so programs need to get it only once) |
 | 52h | DOS_MSC_GETVARS | | ES:BX -> [DOSVARS](../data/#dosvars) |
 
 ### Differences from PC DOS
@@ -191,6 +192,7 @@ However a program terminates, any of vectors 08h, 09h, 1Bh, and 1Ch that still p
 | 15 | ERR_BADDRIVE | Invalid drive |
 | 16 | ERR_CURDIR | Attempt to remove a current directory |
 | 17 | ERR_NOTSAME | Not the same device |
+| 32 | ERR_SHARE | Sharing violation (the file is already open) |
 | 39 | ERR_DISKFULL | Disk full |
 | 100 | ERR_BADSESSION | Invalid session (BASIC-DOS only) |
 | 101 | ERR_NOSESSION | Out of sessions (BASIC-DOS only) |

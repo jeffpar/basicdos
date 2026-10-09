@@ -44,6 +44,7 @@ DEFPROC	fcb_open,DOS
 	mov	ax,0FFFh		; AX = 0FFFh
 	mov	[bp].REG_AL,al		; assume failure
 	inc	ax			; AX = 1000h (AH = 10h, AL = 0)
+	mov	bl,MODE_ACC_RO		; BL = mode (FCBs are read-only)
 	call	sfb_open_fcb
 	jc	fo9
 	mov	di,si
