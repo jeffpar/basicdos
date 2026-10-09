@@ -242,16 +242,40 @@ dr5:	push	es			; create far pointer to DDH_REQUEST
 	mov	dx,[bp].DDP_CONTEXT
 	add	sp,DDP_MAXSIZE
 	test	ax,DDSTAT_ERROR
-	stc
-	jnz	dr9
+	jnz	dr8
 	mov	ax,cx			; AX = # bytes originally requested
 	sub	ax,bx			; AX = # bytes returned (if read/write)
 	clc
+	jmp	short dr9
+;
+; Convert the driver's error code (DDERR_*) to a DOS error code: like DOS 3.x,
+; we use the critical error codes (19-31), so that "drive not ready" (21) is
+; distinguishable from (for example) "file not found".  Any error that isn't
+; in the table is a general failure (31).
+;
+dr8:	push	si
+	mov	si,offset dev_errs
+dr8a:	cmp	cs:[si],al		; does the driver error match?
+	je	dr8b			; yes
+	cmp	byte ptr cs:[si],0	; end of table?
+	je	dr8b			; yes
+	inc	si
+	inc	si
+	jmp	dr8a
+dr8b:	mov	al,cs:[si+1]
+	cbw				; AX = DOS error code
+	pop	si
+	stc
 
 dr9:	pop	bp
 	pop	bx
 	ret
 ENDPROC	dev_request
+
+dev_errs	db	DDERR_WP,19, DDERR_UNKUNIT,20, DDERR_NOTREADY,21
+		db	DDERR_UNKCMD,22, DDERR_CRC,23, DDERR_SEEK,25
+		db	DDERR_UNKMEDIA,26, DDERR_NOSECTOR,27, DDERR_WRFAULT,29
+		db	DDERR_RDFAULT,30, 0,31
 
 DOS	ends
 

@@ -192,6 +192,7 @@ However a program terminates, any of vectors 08h, 09h, 1Bh, and 1Ch that still p
 | 15 | ERR_BADDRIVE | Invalid drive |
 | 16 | ERR_CURDIR | Attempt to remove a current directory |
 | 17 | ERR_NOTSAME | Not the same device |
+| 19-31 | | Device errors, as in DOS 3.x: 19 (write-protected), 20 (unknown unit), 21 (ERR_NOTREADY: drive not ready, eg, no diskette), 22 (unknown command), 23 (CRC error), 25 (seek error), 26 (unknown media), 27 (sector not found), 29 (write fault), 30 (read fault), or 31 (general failure, for any other device error) |
 | 32 | ERR_SHARE | Sharing violation (the file is already open) |
 | 39 | ERR_DISKFULL | Disk full |
 | 100 | ERR_BADSESSION | Invalid session (BASIC-DOS only) |

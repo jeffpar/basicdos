@@ -417,8 +417,9 @@ ENDPROC	scanSpec
 ; chkDir
 ;
 ; Determine whether a filespec refers to a directory: it either ends with ":"
-; or the path char, or "filespec/*.*" doesn't fail with ERR_NOPATH (it either
-; succeeds or fails with ERR_NOFILE).  For DIR and COPY.
+; or the path char, or "filespec/*.*" either succeeds or fails with ERR_NOFILE
+; (any other error, like ERR_NOPATH or a drive that isn't ready, means it's not
+; a directory).  For DIR and COPY.
 ;
 ; Inputs:
 ;	SS:BX -> CMDHEAP
@@ -453,8 +454,8 @@ DEFPROC	chkDir
 	int	21h
 	pop	di
 	jnc	cd8			; it's a directory
-	cmp	ax,ERR_NOPATH		; is it a directory?
-	jne	cd8			; yes
+	cmp	ax,ERR_NOFILE		; is it an empty directory?
+	je	cd8			; yes
 	mov	byte ptr [di],0		; no, so remove the path char, etc
 	stc
 	ret
@@ -492,9 +493,18 @@ DEFPROC	cmdDir
 	REPS	MOVS,ES,CS,BYTE		; yes, so append DIR_DEF
 	pop	si
 ;
+; Find the first match before getting the drive's info, so that an error
+; (eg, drive not ready) is reported as such.
+;
+di1:	mov	cx,10h			; CX = attributes (DIRATTR_SUBDIR)
+	mov	dx,si			; DX -> filespec
+	mov	ah,DOS_DSK_FFIRST
+	int	21h
+	jc	dix
+;
 ; If filespec begins with a drive letter, get that drive's info.
 ;
-di1:	mov	dl,0			; DL = default drive #
+	mov	dl,0			; DL = default drive #
 	cmp	byte ptr [si+1],':'
 	jne	di2
 	mov	al,[si]
@@ -513,11 +523,6 @@ dix:	jmp	di8
 di3:	mov	bp,bx			; BP = available clusters
 	mul	cx			; DX:AX = bytes per cluster
 	xchg	bx,ax			; BX = bytes per cluster
-	mov	cx,10h			; CX = attributes (DIRATTR_SUBDIR)
-	mov	dx,si			; DX -> filespec
-	mov	ah,DOS_DSK_FFIRST
-	int	21h
-	jc	dix
 ;
 ; Use DX to maintain the total number of clusters, and CX to maintain
 ; the total number of files.
@@ -773,7 +778,7 @@ ENDPROC	openOutput
 ; directory operation (eg, "Unable to delete X.TXT (2)").
 ;
 ; Inputs:
-;	AX = error #
+;	AX = error # (ERR_NOTREADY is reported as "Drive not ready")
 ;	DS:SI -> filename
 ;	CS:DX -> verb (fileError only; eg, "delete")
 ;
@@ -791,8 +796,12 @@ DEFPROC	openError
 	ret
 	DEFLBL	fileError,near
 	push	ax
-	PRINTF	<"Unable to %ls %s (%d)",13,10,13,10>,dx,cs,si,ax
-	pop	ax
+	cmp	ax,ERR_NOTREADY		; drive not ready?
+	jne	fer1			; no
+	PRINTF	<"Drive not ready",13,10,13,10>
+	jmp	short fer2
+fer1:	PRINTF	<"Unable to %ls %s (%d)",13,10,13,10>,dx,cs,si,ax
+fer2:	pop	ax
 	stc
 	ret
 ENDPROC	openError

@@ -361,6 +361,7 @@ ERR_BADADDR	equ	9	; invalid memory segment
 ERR_BADDRIVE	equ	15	; invalid drive
 ERR_CURDIR	equ	16	; attempt to remove current directory
 ERR_NOTSAME	equ	17	; not same device
+ERR_NOTREADY	equ	21	; drive not ready (see dev_request for 19-31)
 ERR_SHARE	equ	32	; sharing violation
 ERR_DISKFULL	equ	39	; disk full
 

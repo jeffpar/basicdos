@@ -107,7 +107,10 @@ DEFPROC	ddfdc_mediachk
 	cmp	dx,38		; more than 2 seconds of ticks?
 	jae	mc1		; yes, use default
 	inc	ax		; change from UNKNOWN to UNCHANGED
-mc1:	pop	[si].BPB_TIMESTAMP.OFF
+mc1:	cmp	[si].BPB_SECBYTES,0	; has the BPB been built?
+	jne	mc2			; yes
+	mov	ax,MC_CHANGED		; no, so it must be (re)built
+mc2:	pop	[si].BPB_TIMESTAMP.OFF
 	pop	[si].BPB_TIMESTAMP.SEG
 	mov	es:[di].DDP_CONTEXT,ax
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
@@ -133,6 +136,7 @@ DEFPROC	ddfdc_buildbpb
 	push	es
 	lds	si,es:[di].DDPRW_BPB
 	ASSUME	DS:NOTHING	; DS:SI -> BPB
+	mov	[si].BPB_SECBYTES,0	; the BPB isn't valid (yet)
 ;
 ; If this is an uninitialized BPB, then it won't have the geometry that
 ; readwrite_sectors requires; that's what happens when we use a single
@@ -181,6 +185,29 @@ bb1:	push	ds
 ; Initialize the rest of the BPB extension data now
 ;
 	mov	es:[di].BPB_DRIVE,bl
+;
+; Make sure the BPB is usable (512-byte sectors, a power-of-two number of
+; sectors per cluster, and sensible geometry); otherwise (eg, a diskette
+; whose boot sector has no BPB, like PC DOS 1.0), the media is unknown.
+;
+	cmp	es:[di].BPB_SECBYTES,512
+	je	bb4a
+bb4:	jmp	bb5
+bb4a:	mov	al,es:[di].BPB_CLUSSECS
+	mov	ah,al
+	dec	ah
+	test	al,ah			; zero or a power-of-two?
+	jnz	bb4			; no
+	test	al,al			; zero?
+	jz	bb4			; yes
+	mov	ax,es:[di].BPB_TRACKSECS
+	dec	ax
+	cmp	ax,63			; 1-63 sectors per track?
+	jae	bb4			; no
+	mov	ax,es:[di].BPB_DRIVEHEADS
+	dec	ax
+	cmp	ax,255			; 1-255 heads?
+	jae	bb4			; no
 	mov	ax,es:[di].BPB_TRACKSECS
 	mul	es:[di].BPB_DRIVEHEADS
 	mov	es:[di].BPB_CYLSECS,ax
@@ -223,6 +250,11 @@ bb7:	ASSERT	Z		; assert CLUSSECS was a power-of-two
 	shr	ax,cl		; AX = data clusters
 	mov	es:[di].BPB_CLUSTERS,ax
 	clc
+	jmp	short bb8
+
+bb5:	mov	es:[di].BPB_SECBYTES,0	; the BPB isn't valid
+	mov	ax,DDERR_UNKMEDIA
+	stc
 
 bb8:	pop	es
 	pop	di
