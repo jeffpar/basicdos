@@ -14,6 +14,8 @@ Read the [Blog](blog/), then check out the [Preview](preview/), which highlights
 
 BASIC-DOS began as a technology demo: a reimagining of what the first IBM PC operating system *could* have been, with a unified DOS and BASIC command interpreter, preemptive multitasking sessions, and other features that PC DOS wouldn't offer for years (if ever).  The goal now is to turn it into a usable product.
 
+It is not a goal to provide every PC DOS function, or to be 100% compatible with PC DOS.  BASIC-DOS implements what its own commands and BASIC programs need, plus enough of the PC DOS API to run typical DOS programs, so unchecked items below are possibilities, not commitments.
+
 This section tracks what's been completed (**[x]**) and what remains (**[ ]**).  Items marked *partial* work, but with known gaps.
 
 ### Boot and System Configuration
@@ -21,7 +23,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] Boot sector that loads the BASIC-DOS drivers, kernel, and interpreter
 - [x] Boot prompt when a hard disk is detected (press **Esc** to boot from it)
 - [x] Booting BASIC-DOS from a hard disk partition (eg, a disk built with `pc.js --sys=bd:2`), which becomes the default drive
-- [x] CONFIG.SYS support for BOOTKEY, CONSOLE, DEBUG, FILES, MEMSIZE, PATHCHAR, SESSIONS, SHELL, SKIP, and SWITCHAR
+- [x] CONFIG.SYS support for BOOTKEY, BUFFERS, CONSOLE, DEBUG, FILES, MEMSIZE, SESSIONS, SHELL, SKIP, and SWITCHAR
 - [x] SKIP= lists built-in drivers (by their exact device names, separated by commas) that should not be loaded (eg, `SKIP=CON,FPU$`); a skipped driver is never initialized, and its memory is reclaimed
 - [ ] Installable device drivers (DEVICE=)
 - [ ] Critical ("hard") error handling (eg, "Abort, Retry, Ignore")
@@ -60,13 +62,14 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] File deletion (function 41h) and renaming (function 56h)
 - [x] FAT cluster allocation and freeing
 - [x] Write-back of modified FAT and directory buffers (every FAT copy is updated), including when the buffer is reused, on file close, disk reset, and restart
-- [ ] *partial*: FCB support (open, close, and reads only; no create, write, delete, or rename)
-- [ ] Truncating/extending a file with a zero-length write
+- [x] FCB support: open, create, close, sequential, random, and random block reads and writes, find first/next, delete and rename (with wildcards), file size, set relative record, and filename parsing (functions 0Fh-17h, 21h-24h, and 27h-29h), including extended FCBs and device names
+- [x] Truncating/extending a file with a zero-length write (function 40h, and FCB function 28h)
 - [ ] Enforcing the read-only attribute on open, and getting/setting file attributes (function 43h) and date/time (function 57h)
-- [x] Subdirectories: paths (separated by PATHCHAR, which is `/` by default) in all file functions, MKDIR and RMDIR (functions 39h and 3Ah), subdirectories that grow as needed, and per-session current directories for every drive (CHDIR and GETCWD, functions 3Bh and 47h)
+- [x] Subdirectories: paths (separated by `/`, or `\` when SWITCHAR is `/`) in all file functions, MKDIR and RMDIR (functions 39h and 3Ah), subdirectories that grow as needed, and per-session current directories for every drive (CHDIR and GETCWD, functions 3Bh and 47h)
 - [ ] Renaming a file into a different directory
-- [ ] Absolute disk reads and writes (INT 25h and INT 26h)
-- [ ] FAT16, extended partitions, and a larger buffer cache (there are currently only two sector buffers: one for FAT sectors and one for directory sectors)
+- [x] Absolute disk reads and writes: opening a volume (eg, `C:`) as a file gives read/write access to its sectors, in place of INT 25h and INT 26h
+- [x] Configurable disk buffer cache (BUFFERS=2-32, default 2), with least-recently-used replacement for FAT and directory sectors; file data is transferred directly by the disk drivers
+- [ ] FAT16 and extended partitions
 
 ### Command Interpreter: DOS Commands
 
@@ -111,11 +114,12 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [ ] STOP's "Break" message (STOP is currently the same as END)
 - [x] DATA, READ, and RESTORE (DATA items are found in the program's text as READ needs them)
 - [x] MOUSE ON/OFF and the MOUSE(*n*) function (modeled on MSBASIC's PEN), which returns button events, their positions, and the current position and buttons, in pixels (graphics modes) or columns and rows (text modes); the pointer is hidden while graphics statements run (until the next MOUSE function), and the mouse is turned off when a BAS program ends
-- [ ] INPUT and LINE INPUT
+- [x] INPUT and LINE INPUT, from the keyboard or an open file
 - [ ] The MID$ statement (ie, `MID$(A$,N[,M]) = B$`)
 - [ ] `&H` and `&O` prefixes in VAL
 - [ ] Comma print zones in PRINT (commas currently print a tab)
-- [ ] File I/O statements (eg, OPEN, CLOSE, PRINT #, INPUT #)
+- [x] Sequential file I/O: OPEN FOR INPUT, OUTPUT, and APPEND, CLOSE (and RESET), PRINT #, WRITE #, INPUT #, LINE INPUT #, EOF, LOC, and LOF
+- [x] Random access file I/O: OPEN FOR RANDOM with LEN, FIELD, LSET, RSET, GET #, PUT #, and binary conversion functions (CVI, CVL, CVD, MKI$, MKL$, and MKD$)
 - [x] *partial*: Error handling (ON ERROR GOTO, RESUME *line*, ERROR, and ERR; see the DONKEY.BAS checklist)
 - [ ] Runtime error messages for numeric errors
 
@@ -193,13 +197,10 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 These are the next steps, roughly in priority order:
 
 1. Add the REN command and input redirection
-2. Handle zero-length writes (truncation), the read-only attribute, and file attribute/date/time functions
-3. FCB create, write, delete, and rename functions
-4. Essential BASIC statements: INPUT
-5. BASIC file I/O statements, and the remaining string features (the MID$ statement, LINE INPUT, and comma print zones)
-6. The rest of runtime error handling (RESUME, RESUME NEXT, and ERL)
-7. Critical error handling
-8. Subdirectory support
+2. The read-only attribute, and file attribute/date/time functions
+3. Remaining string and input/output features (the MID$ statement, `&H` and `&O` prefixes in VAL, and comma print zones)
+4. The rest of runtime error handling (RESUME, RESUME NEXT, and ERL)
+5. Critical error handling
 
 ## License
 
@@ -220,7 +221,7 @@ If you also want successful builds to update the BASIC-DOS demo disks, you'll ne
     git clone https://github.com/jeffpar/pcjs
     export PCJS="$HOME/pcjs"
 
-Now you're ready to build BASIC-DOS, using the `mk.sh` script, which runs `pc.js` with MS-DOS 3.20 as drive C and the BASIC-DOS source code as drive D, and builds release binaries (use `mk.sh debug` to build DEBUG binaries instead):
+Now you're ready to build BASIC-DOS, using the `mk.sh` script, which runs `pc.js` with MS-DOS 3.20 and the build tools on drive C and a 30Mb disk containing the BASIC-DOS source code on drive D, and builds release binaries (use `mk.sh debug` to build DEBUG binaries instead).  The script forces a rebuild when switching between release and DEBUG modes:
 
     $ ./mk.sh
     [Press CTRL-D to enter command mode]

@@ -20,7 +20,7 @@ BASIC-DOS disk commands include:
 
 File names follow PC DOS conventions: an optional drive letter and colon (eg, `B:`), a name of up to 8 characters, and an optional period followed by an extension of up to 3 characters (eg, `B:PRIMES.BAS`).  Drives A: and B: are diskette drives, and drives C: and D: are the first FAT12 partitions of up to two hard disks.
 
-A file name can also be preceded by a path of directory names, each followed by the path character (`/` by default; see [PATHCHAR](../../cfg/#pathchar)).  A path that begins with the path character starts at the root directory (eg, `TYPE /SUBDIR/INSIDE.TXT`); otherwise, it starts at the drive's current directory (see [CD](#cd)), which the prompt displays (eg, `C:/SUBDIR>`).  A directory name of `.` refers to the same directory, and `..` refers to the parent directory (eg, `TYPE ../HELLO.TXT`).  Each session has its own current directory for every drive.
+A file name can also be preceded by a path of directory names, each followed by the path character (`/` by default, or `\` when [SWITCHAR](../../cfg/#switchar) is `/`).  A path that begins with the path character starts at the root directory (eg, `TYPE /SUBDIR/INSIDE.TXT`); otherwise, it starts at the drive's current directory (see [CD](#cd)), which the prompt displays (eg, `C:/SUBDIR>`).  A directory name of `.` refers to the same directory, and `..` refers to the parent directory (eg, `TYPE ../HELLO.TXT`).  Each session has its own current directory for every drive.
 
 Paths can be used at the prompt, but not yet in BAT or BAS files, where the path character is read as a BASIC operator (eg, `/` is division).
 

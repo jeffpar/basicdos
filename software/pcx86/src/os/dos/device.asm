@@ -24,7 +24,12 @@ DOS	segment word public 'CODE'
 ;
 ; chk_devname
 ;
+; The name is copied to SCB_FILENAME + 1, and the copy ends at its first
+; space (if any), so that a padded FCB name (eg, "CON        ") becomes an
+; ASCIIZ name that can also be passed to the device's driver (see sfb_open).
+;
 ; Inputs:
+;	AH = 10h if DS:SI -> FCB (whose name follows its drive byte)
 ;	DS:SI -> name
 ;
 ; Outputs:
@@ -39,8 +44,11 @@ DEFPROC	chk_devname,DOS
 	push	ax
 	push	si
 	push	ds
+	cmp	ah,10h			; FCB?
+	jne	cd0a			; no
+	inc	si			; yes, so skip FCB_DRIVE
 
-	mov	di,[scb_active]
+cd0a:	mov	di,[scb_active]
 	push	cs
 	pop	es
 	ASSUME	ES:DOS
@@ -51,6 +59,12 @@ DEFPROC	chk_devname,DOS
 	pop	si
 	push	es
 	pop	ds			; DS:SI -> SCB_FILENAME + 1
+	mov	di,si
+	mov	al,' '
+	mov	cx,size SCB_FILENAME - 1
+	repne	scasb			; does the copy contain a space?
+	jne	cd0			; no
+	mov	byte ptr [di-1],0	; yes, so end the copy there
 
 cd0:	sub	di,di
 	mov	es,di

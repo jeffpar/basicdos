@@ -563,31 +563,25 @@ DEFPROC	int_util,DOSFAR
 	pop	ds
 	ASSUME	DS:DOS
 	cld
-	cmp	ah,DOS_UTL_WAIT
-	je	iu1
-	cmp	ah,DOS_UTL_ENDWAIT
-	je	iu2
-	cmp	ah,DOS_UTL_HOTKEY
-	je	iu3
-	cmp	ah,DOS_UTL_LOCK
-	je	iu5
-	cmp	ah,DOS_UTL_UNLOCK
-	stc
-	jne	iu8			; unsupported function
-	call	scb_release		; unlock the current session
-	clc
+	cmp	ah,DOS_UTL_WAIT		; function 19h?
+	jne	iu1			; no
+	call	scb_wait
 	jmp	short iu8
-iu1:	call	scb_wait
+iu1:	cmp	ah,DOS_UTL_ENDWAIT	; function 1Ah?
+	jne	iu2			; no
+	call	scb_endwait
 	jmp	short iu8
-iu2:	call	scb_endwait
+iu2:	cmp	ah,DOS_UTL_HOTKEY	; function 1Bh?
+	jne	iu3			; no
+	call	scb_hotkey
 	jmp	short iu8
-iu3:	call	scb_hotkey
-	jmp	short iu8
+iu3:	cmp	ah,DOS_UTL_LOCK		; function 1Ch?
+	jne	iu4			; no
 ;
 ; LOCK is the only function that returns a value (in AX), so it has its own
 ; exit path, which discards the caller's AX instead of restoring it.
 ;
-iu5:	LOCK_SCB			; lock the current session
+	LOCK_SCB			; lock the current session
 	mov	bx,[scb_active]
 	mov	ax,[bx].SCB_CONTEXT	; AX = CONSOLE context
 	pop	ds
@@ -597,20 +591,21 @@ iu5:	LOCK_SCB			; lock the current session
 	pop	bx
 	inc	sp			; discard the caller's AX
 	inc	sp
-	popf				; restore the caller's flags
+iuc:	popf				; restore the caller's flags
 	clc				; and return carry clear
 	ret
-
+iu4:	cmp	ah,DOS_UTL_UNLOCK	; function 1Dh?
+	stc
+	jne	iu8			; no, unsupported function
+	call	scb_release		; unlock the current session
+	clc
 iu8:	pop	ds
 	pop	dx
 	pop	cx
 	pop	bx
 	pop	ax
-	jc	iu9
+	jnc	iuc
 	popf				; restore the caller's flags
-	clc				; and return carry clear
-	ret
-iu9:	popf				; restore the caller's flags
 	stc				; and return carry set
 	ret
 ENDPROC	int_util

@@ -31,6 +31,7 @@ The [INC](os/inc/) directory contains all the BASIC-DOS include files:
     disk.inc
     dos.inc
     dosapi.inc
+    fpu.inc
     macros.inc
     parser.inc
     version.inc
@@ -51,8 +52,12 @@ The Microsoft BASIC files are included for reference and testing purposes only a
 
 ## The BASIC-DOS Build Process
 
-The [BASIC-DOS Build Machine](https://basicdos.com/build/) contains two 10Mb hard disks: drive C: contains all the tools used to build BASIC-DOS, and drive D: contains all the source code.
+The command-line build uses the repository's `tools/pc/pc.js` utility to run MASM 4.0 and its associated tools under MS-DOS 3.20 on an emulated COMPAQ DeskPro 386.  Drive C: contains MS-DOS and the build tools; drive D: is a 30Mb disk built from `software/pcx86/src`, with room for the source code, binaries, and assembly listings.
 
-To build BASIC-DOS, switch to drive D: and type **MK**. The **MK.BAT** batch files use the Microsoft **MAKE** utility to do most of the work, but the batch files are also responsible for copying the resulting binaries to whatever diskette is currently in drive A:.
+From the repository root, run `./mk.sh` to build release (**FINAL**) binaries, or `./mk.sh debug` to build **DEBUG** binaries with assertions and debugging aids.  The script forces a rebuild when the mode changes.  The guest startup runs **MK** automatically; the **MK.BAT** batch files use the Microsoft **MAKE** utility to assemble and link the components.  A successful build runs **QUIT**, writing modified files back to `software/pcx86/src`.
 
-By default, the binaries contain *DEBUG* code (eg, assertions and debugging aids).  To build non-debug binaries, type **MK FINAL**, or **MKCLEAN FINAL** if switching between *DEBUG* and *FINAL* binaries.  The **MKCLEAN.BAT** batch file simply deletes all the binaries before running **MK.BAT**.
+If `PCJS` points to a checkout of the PCjs repository, `mk.sh` also runs the Gulp demo tasks after a successful build to update the BASIC-DOS demo disk images.  See the root [README](../../../README.md) for setup details.  If a build fails, use PC.js's **abort** command to exit without updating the demo disks.
+
+When invoking the guest batch files directly, **MK DEBUG** and **MK FINAL** select the build mode; **MK** defaults to DEBUG unless the `MKFINAL` marker created by `mk.sh` is present.  Use **MKCLEAN DEBUG** or **MKCLEAN FINAL** when switching modes manually, since MAKE doesn't detect mode changes.  **MKCLEAN.BAT** deletes the build outputs before running **MK.BAT**.
+
+After building, run `tools/tests/quick.sh` from the repository root for unattended confidence tests on machines with and without an 8087.  The `boot.sh`, `bootfpu.sh`, and `boothd.sh` scripts provide interactive BASIC-DOS sessions with software floating-point, an 8087, and a bootable hard disk, respectively.

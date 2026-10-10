@@ -26,10 +26,15 @@ NUL	DDH	<offset DEV:ddnul_end+16,,DDATTR_CHAR,offset ddnul_init,-1,20202020204C5
 ;	ES:BX -> DDP
 ;
 ; Outputs:
+;	For DDC_WRITE, DDPRW_LENGTH = 0 (every byte "written")
+;	For all other requests (including reads), nothing changes
 ;
         ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddnul_req,far
-	ret
+	cmp	es:[bx].DDP_CMD,DDC_WRITE
+	jne	dnr9
+	mov	es:[bx].DDPRW_LENGTH,0	; no bytes remain to be written
+dnr9:	ret
 ENDPROC	ddnul_req
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

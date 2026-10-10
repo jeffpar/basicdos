@@ -61,7 +61,7 @@ The line editing keys that 0Ah supports are described in [Typing Commands](../..
 | 3Dh | DOS_HDL_OPEN | AL = mode (see MODE_*), DS:DX -> filename | AX = handle |
 | 3Eh | DOS_HDL_CLOSE | BX = handle | |
 | 3Fh | DOS_HDL_READ | BX = handle, CX = byte count, DS:DX -> buffer | AX = bytes read |
-| 40h | DOS_HDL_WRITE | BX = handle, CX = byte count, DS:DX -> buffer | AX = bytes written |
+| 40h | DOS_HDL_WRITE | BX = handle, CX = byte count, DS:DX -> buffer | AX = bytes written; CX = 0 sets the file size to the current position |
 | 42h | DOS_HDL_SEEK | AL = method (0 = beginning, 1 = current, 2 = end), BX = handle, CX:DX = distance | DX:AX = new position |
 | 44h | DOS_HDL_IOCTL | AL = IOCTL code, BX = handle, CX and DX = IOCTL data, DS:SI -> optional IOCTL data | DX = result |
 
@@ -79,13 +79,24 @@ For IOCTL code 00h (IOCTL_GETDATA), DOS returns DX = 80h for a device, or the fi
 |----|------|--------|---------|
 | 0Fh | DOS_FCB_OPEN | DS:DX -> unopened FCB | AL = 0 if found (FCB filled in), FFh if not |
 | 10h | DOS_FCB_CLOSE | DS:DX -> FCB | AL = 0 if found, FFh if not |
+| 11h | DOS_FCB_FFIRST | DS:DX -> unopened FCB (wildcards allowed) | AL = 0 if found (drive # and DIRENT in the DTA), FFh if not |
+| 12h | DOS_FCB_FNEXT | DS:DX -> FCB used with 11h | AL = 0 if found (drive # and DIRENT in the DTA), FFh if not |
+| 13h | DOS_FCB_DELETE | DS:DX -> unopened FCB (wildcards allowed) | AL = 0 if any files deleted, FFh if not |
 | 14h | DOS_FCB_SREAD | DS:DX -> FCB | AL = FCBERR_* result; record read into the DTA |
+| 15h | DOS_FCB_SWRITE | DS:DX -> FCB | AL = FCBERR_* result (1 if the disk is full); record written from the DTA |
+| 16h | DOS_FCB_CREATE | DS:DX -> unopened FCB | AL = 0 if created (FCB filled in), FFh if not |
+| 17h | DOS_FCB_RENAME | DS:DX -> unopened FCB (wildcards allowed), new name at offset 11h | AL = 0 if any files renamed, FFh if not |
 | 21h | DOS_FCB_RREAD | DS:DX -> FCB | AL = FCBERR_* result; record FCBF_RELREC read into the DTA |
+| 22h | DOS_FCB_RWRITE | DS:DX -> FCB | AL = FCBERR_* result; record FCBF_RELREC written from the DTA |
+| 23h | DOS_FCB_SIZE | DS:DX -> unopened FCB, FCB_RECSIZE = record size | AL = 0 if found (FCBF_RELREC = # records), FFh if not |
 | 24h | DOS_FCB_SETREL | DS:DX -> FCB | Sets FCBF_RELREC from FCB_CURBLK and FCBF_CURREC |
 | 27h | DOS_FCB_RBREAD | CX = # records, DS:DX -> FCB | AL = FCBERR_* result, CX = # records read |
+| 28h | DOS_FCB_RBWRITE | CX = # records, DS:DX -> FCB | AL = FCBERR_* result, CX = # records written; CX = 0 sets the file size to FCBF_RELREC records |
 | 29h | DOS_FCB_PARSE | AL = parse flags, DS:SI -> filespec, ES:DI -> FCB buffer | AL = 0 (no wildcards), 1 (wildcards), or FFh (invalid drive); DS:SI -> next character |
 
-FCB support is read-only: FCB create, write, delete, and rename functions aren't implemented yet.
+Any FCB function can be passed an extended FCB (an FCB preceded by 7 bytes, the first of which is FFh and the last of which contains search attributes, or the attributes of a file being created).  FCB functions always use the drive's current directory, and FCB names that are device names (eg, `NUL` or `CON`) open the device.
+
+An FCB opens a file read-only, so any number of FCBs (and handles opened for reading) can open the same file; the FCB's first write (or truncation) upgrades it to read-write, which fails (AL = 1) if the file is read-only or already open for writing elsewhere.  Deleting or renaming with wildcards skips files that are read-only, directories, volume labels, or open.  Searches (11h and 12h) keep their position in the FCB's FCB_CURBLK field, so the same FCB must be used to continue a search.
 
 #### Memory {#memory}
 
@@ -125,6 +136,8 @@ FCB support is read-only: FCB create, write, delete, and rename functions aren't
 | 3700h | DOS_MSC_GETSWC | | DL = switch character |
 | 3701h | DOS_MSC_SETSWC | DL = switch character | |
 | 3704h | DOS_MSC_GETPCH | | DL = path character (BASIC-DOS only; fixed at boot, so programs need to get it only once) |
+
+The path character is derived at boot from CONFIG.SYS's SWITCHAR setting: `\` if the switch character is `/`, and `/` otherwise.  The default switch character is `-`.  DOS_MSC_SETSWC changes only the current session's switch character; it doesn't change the path character.
 | 52h | DOS_MSC_GETVARS | | ES:BX -> [DOSVARS](../data/#dosvars) |
 
 ### Differences from PC DOS
@@ -154,7 +167,7 @@ Environment segments (EPB_ENVSEG) aren't supported yet, so the field is ignored.
 
 #### Files
 
-Any filename passed to a handle function (or to FFIRST, DELETE, RENAME, MKDIR, RMDIR, CHDIR, or EXEC) may include a path, whose directory names are separated by the session's path character (DOS_MSC_GETPCH), not by both `\` and `/` as in PC DOS.  FCB functions always use the drive's current directory.  A subdirectory grows by a cluster whenever a new entry doesn't fit.  Renaming a file into a different directory, the read-only attribute, getting and setting file attributes (43h) and file dates and times (57h), and absolute disk reads and writes (INT 25h and INT 26h) aren't supported yet.  Critical errors (INT 24h) aren't reported to programs yet.
+Any filename passed to a handle function (or to FFIRST, DELETE, RENAME, MKDIR, RMDIR, CHDIR, or EXEC) may include a path, whose directory names are separated by the session's path character (DOS_MSC_GETPCH), not by both `\` and `/` as in PC DOS.  FCB functions always use the drive's current directory.  A subdirectory grows by a cluster whenever a new entry doesn't fit.  Renaming a file into a different directory, enforcing the read-only attribute when a handle opens a file, getting and setting file attributes (43h) and file dates and times (57h), and INT 25h and INT 26h (use a volume handle for absolute disk reads and writes instead) aren't supported.  Critical errors (INT 24h) aren't reported to programs yet.
 
 BASIC-DOS doesn't store the path of each current directory, only the directory's first cluster (in a table with one entry per drive for each session), so DOS_DSK_GETCWD rebuilds the path by following ".." entries up to the root.
 

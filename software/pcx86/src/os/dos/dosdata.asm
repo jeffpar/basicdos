@@ -91,7 +91,9 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<dsk_getinfo,dsk_ffirst,dsk_fnext,dsk_delete,dsk_rename>
 	EXTNEAR	<dsk_chdir,dsk_getcwd,dsk_mkdir,dsk_rmdir>
 	EXTNEAR	<fcb_open,fcb_close,fcb_sread,fcb_rread,fcb_setrel>
-	EXTNEAR	<fcb_rbread,fcb_parse>
+	EXTNEAR	<fcb_rbread,fcb_parse,fcb_create,fcb_swrite,fcb_rwrite>
+	EXTNEAR	<fcb_rbwrite,fcb_size,fcb_ffirst,fcb_fnext>
+	EXTNEAR	<fcb_delete,fcb_rename>
 	EXTNEAR	<msc_getdate,msc_setdate,msc_gettime,msc_settime>
 	EXTNEAR	<msc_setvec,msc_getver,msc_setctrlc,msc_getvec,msc_getswc>
 	EXTNEAR	<msc_getvars,psp_exec,psp_return,psp_retcode>
@@ -115,13 +117,13 @@ DOS	segment word public 'CODE'
 	dw	aux_write,   prn_write,   tty_io,      tty_in		;04-07
 	dw	tty_read,    tty_print,   tty_input,   tty_status	;08-0B
 	dw	tty_flush,   dsk_flush,   dsk_setdrv,  fcb_open		;0C-0F
-	dw	fcb_close,   func_none,   func_none,   func_none	;10-13
-	dw	fcb_sread,   func_none,   func_none,   func_none	;14-17
+	dw	fcb_close,   fcb_ffirst,  fcb_fnext,   fcb_delete	;10-13
+	dw	fcb_sread,   fcb_swrite,  fcb_create,  fcb_rename	;14-17
 	dw	func_none,   dsk_getdrv,  dsk_setdta,  func_none	;18-1B
 	dw	func_none,   func_none,   func_none,   func_none	;1C-1F
-	dw	func_none,   fcb_rread,   func_none,   func_none	;20-23
+	dw	func_none,   fcb_rread,   fcb_rwrite,  fcb_size	;20-23
 	dw	fcb_setrel,  msc_setvec,  psp_copy,    fcb_rbread	;24-27
-	dw	func_none,   fcb_parse,   msc_getdate, msc_setdate	;28-2B
+	dw	fcb_rbwrite, fcb_parse,   msc_getdate, msc_setdate	;28-2B
 	dw	msc_gettime, msc_settime, func_none,   dsk_getdta	;2C-2F
 	dw	msc_getver,  func_none,   func_none,   msc_setctrlc	;30-33
 	dw	func_none,   msc_getvec,  dsk_getinfo, msc_getswc	;34-37

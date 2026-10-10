@@ -17,9 +17,9 @@
 
 DOS	segment word public 'CODE'
 
-	EXTNEAR	<dev_request,chk_devname,chk_filename,scb_release>
+	EXTNEAR	<dev_request,scb_release,resize_file>
 	EXTNEAR	<get_bpb,get_cln,get_dirent,read_buffer,flush_buffers>
-	EXTNEAR	<alloc_cln,free_clns,sfb_open,sfb_chkopen,chk_volopen>
+	EXTNEAR	<alloc_cln,free_clns,chk_volopen>
 	EXTNEAR	<vol_io,drv_flush>
 	EXTNEAR	<dir_lba,get_dircln>
 	EXTNEAR	<get_cdir,get_dirpath,new_buffer,write_buffer,zap_buffers>
@@ -27,256 +27,6 @@ DOS	segment word public 'CODE'
 	EXTBYTE	<scb_locked>
 	EXTWORD	<scb_active>
 	EXTLONG	<clk_ptr,scb_table>
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; dsk_delete (REG_AH = 41h)
-;
-; Inputs:
-;	REG_DS:REG_DX -> name of file
-;
-; Outputs:
-;	On success, carry clear
-;	On failure, carry set, REG_AX = error code
-;
-; Modifies:
-;	AX, BX, CX, DX, SI, DI, DS, ES
-;
-; Notes:
-;	Unlike PC DOS, we refuse to delete a file that is open (ERR_SHARE),
-;	since freeing its clusters would corrupt any SFB using them.
-;
-DEFPROC	dsk_delete,DOS
-	LOCK_SCB
-	mov	si,dx
-	mov	ds,[bp].REG_DS		; DS:SI -> filename
-	ASSUME	DS:NOTHING
-	sub	ax,ax			; AH = 0 (filename), AL = 0 (attributes)
-	call	chk_filename		; DS:SI -> DIRENT, AL = drive #
-	jc	dd8
-	ASSUME	DS:BIOS
-	mov	bl,MODE_ACC_RW		; BL = mode (ie, exclusive access)
-	call	sfb_chkopen		; is the file open?
-	jc	dd8			; yes (AX = error code)
-	mov	cl,al			; CL = drive #
-	mov	ax,ERR_ACCDENIED
-	test	[si].DIR_ATTR,DIRATTR_RDONLY OR DIRATTR_SUBDIR OR DIRATTR_VOLUME
-	jnz	dd7
-	mov	byte ptr [si].DIR_NAME,DIRENT_DELETED
-	mov	ds:[BUF_DIRTY],1
-	mov	bx,[si].DIR_CLN		; BX = first CLN
-	mov	dl,cl			; DL = drive #
-	call	get_bpb			; DI -> BPB
-	jc	dd8
-	mov	dx,bx			; DX = first CLN
-	call	free_clns		; free the file's clusters
-	jc	dd8
-	mov	al,cl			; AL = drive #
-	call	flush_buffers		; write the modified DIRENT and FAT
-	jnc	dd9
-	jmp	short dd8
-dd7:	stc
-dd8:	mov	[bp].REG_AX,ax
-dd9:	UNLOCK_SCB
-	ret
-ENDPROC	dsk_delete
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; dsk_rename (REG_AH = 56h)
-;
-; Inputs:
-;	REG_DS:REG_DX -> name of existing file
-;	REG_ES:REG_DI -> new name for file
-;
-; Outputs:
-;	On success, carry clear
-;	On failure, carry set, REG_AX = error code
-;
-; Modifies:
-;	AX, BX, CX, DX, SI, DI, DS, ES
-;
-DEFPROC	dsk_rename,DOS
-	LOCK_SCB
-	mov	si,di
-	mov	ds,[bp].REG_ES		; DS:SI -> new filename
-	ASSUME	DS:NOTHING
-	sub	ax,ax			; AH = 0 (filename), AL = 0 (attributes)
-	call	chk_filename		; does the new filename already exist?
-	jc	dr0			; no
-dr6:	mov	ax,ERR_ACCDENIED
-dr7:	stc
-dr8:	mov	[bp].REG_AX,ax
-dr9:	UNLOCK_SCB
-	ret
-
-dr0:	cmp	ax,ERR_NOFILE		; but was the new filename valid?
-	jne	dr7			; no
-	mov	bx,[scb_active]
-	lea	si,[bx].SCB_DIRCLN	; CS:SI -> new directory and filename
-	mov	ax,ERR_NOPATH
-	cmp	byte ptr cs:[si+3],' '	; is the new filename blank?
-	je	dr7			; yes
-	mov	al,ERR_ACCDENIED
-	cmp	byte ptr cs:[si+3],'.'	; is it "." or ".."?
-	je	dr7			; yes
-;
-; Save the new directory, drive #, and filename (from SCB_DIRCLN and
-; SCB_FILENAME) on the stack, since the next chk_filename call will
-; overwrite them.
-;
-	ASSERT	<SCB_DIRCLN + 2>,EQ,<SCB_FILENAME>
-	add	si,size SCB_FILENAME + 2
-	mov	cx,(size SCB_FILENAME + 2) SHR 1
-dr1:	dec	si
-	dec	si
-	push	word ptr cs:[si]
-	loop	dr1
-
-	mov	si,[bp].REG_DX
-	mov	ds,[bp].REG_DS		; DS:SI -> existing filename
-	sub	ax,ax			; AH = 0 (filename), AL = 0 (attributes)
-	call	chk_filename		; DS:SI -> DIRENT, AL = drive #
-	jc	dr5
-	ASSUME	DS:BIOS
-	call	chk_volopen		; is the volume open?
-	jc	dr5			; yes
-	mov	di,sp			; SS:DI -> new directory, drive #, etc
-	cmp	al,ss:[di+2]		; same drive?
-	mov	ax,ERR_NOTSAME
-	jne	dr4			; no
-	mov	cx,cs:[bx].SCB_DIRCLN
-	cmp	cx,ss:[di]		; same directory?
-	jne	dr4			; no (TODO: support moving files)
-	mov	ax,ERR_ACCDENIED
-	test	[si].DIR_ATTR,DIRATTR_VOLUME
-	jnz	dr4
-	cmp	[si].DIR_NAME,'.'	; is it "." or ".."?
-	je	dr4			; yes
-	push	ds
-	pop	es
-	ASSUME	ES:BIOS
-	xchg	di,si			; ES:DI -> DIRENT, SS:SI -> directory
-	mov	al,ss:[si+2]		; AL = drive #
-	add	si,3			; SS:SI -> new filename
-	mov	cx,size FCB_NAME
-	REPS	MOVS,ES,SS,BYTE		; copy the new filename into the DIRENT
-	mov	ds:[BUF_DIRTY],1
-	call	flush_buffers		; write the modified DIRENT
-	jmp	short dr5
-dr4:	stc
-dr5:	mov	cx,(size SCB_FILENAME + 2) SHR 1
-dr5a:	pop	dx			; discard the saved filename
-	loop	dr5a			; (without affecting carry)
-	jnc	dr5b
-	mov	[bp].REG_AX,ax
-dr5b:	UNLOCK_SCB
-ENDPROC	dsk_rename
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; sfb_create
-;
-; Creates a new file, or truncates an existing file, and then opens it for
-; reading and writing.  If the name is a device name, the device is simply
-; opened.
-;
-; Inputs:
-;	CL = attributes (see DIRATTR_*)
-;	DS:SI -> name of device/file
-;
-; Outputs:
-;	On success, BX -> SFB, DX = context (if any), carry clear
-;	On failure, AX = error code, carry set
-;
-; Modifies:
-;	AX, BX, CX, DX, DI
-;
-DEFPROC	sfb_create,DOS
-	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
-	LOCK_SCB
-	push	si
-	push	ds
-	push	es
-	and	cl,DIRATTR_RDONLY OR DIRATTR_HIDDEN OR DIRATTR_SYSTEM OR DIRATTR_ARCHIVE
-	mov	bl,cl			; BL = attributes
-	call	chk_devname		; is it a device name?
-	jc	sc1			; no
-	jmp	sc6			; yes, so just open the device
-sc1:	sub	ax,ax			; AH = 0 (filename), AL = 0 (attributes)
-	call	chk_filename		; does the file already exist?
-	jnc	sc3			; yes
-	cmp	ax,ERR_NOFILE		; no, but was the filename valid?
-	jne	sc7			; no
-;
-; The file doesn't exist, and SCB_FILENAME contains the drive # and name of
-; the new file, so add a DIRENT for it.
-;
-	mov	di,[scb_active]
-	mov	dl,cs:[di].SCB_FILENAME	; DL = drive #
-	mov	ax,ERR_NOPATH
-	cmp	byte ptr cs:[di].SCB_FILENAME+1,' '
-	je	sc7			; the filename is blank
-	mov	al,ERR_ACCDENIED
-	cmp	byte ptr cs:[di].SCB_FILENAME+1,'.'
-	je	sc7			; the filename is "." or ".."
-	call	get_bpb			; DI -> BPB
-	jc	sc8
-	xchg	ax,dx			; AL = drive #
-	call	chk_volopen		; is the volume open?
-	jc	sc8			; yes
-	call	add_dirent		; DS:SI -> new DIRENT
-	jc	sc8
-	ASSUME	DS:BIOS
-	jmp	short sc5
-;
-; The file already exists (DS:SI -> DIRENT, AL = drive #), so truncate it,
-; unless it's read-only (or not a file at all).
-;
-sc3:	push	bx
-	mov	bl,MODE_ACC_RW		; BL = mode
-	call	sfb_chkopen		; is the file already open?
-	pop	bx
-	jc	sc7			; yes (AX = error code)
-	mov	cl,al			; CL = drive #
-	mov	ax,ERR_ACCDENIED
-	test	[si].DIR_ATTR,DIRATTR_RDONLY OR DIRATTR_SUBDIR OR DIRATTR_VOLUME
-	jnz	sc7
-	mov	[si].DIR_ATTR,bl
-	call	get_dtime		; AX = time, DX = date
-	mov	[si].DIR_TIME,ax
-	mov	[si].DIR_DATE,dx
-	sub	bx,bx
-	mov	[si].DIR_SIZE.LOW,bx
-	mov	[si].DIR_SIZE.HIW,bx
-	xchg	bx,[si].DIR_CLN		; BX = first CLN (and zero DIR_CLN)
-	mov	ds:[BUF_DIRTY],1
-	mov	dl,cl			; DL = drive #
-	call	get_bpb			; DI -> BPB
-	jc	sc8
-	mov	dx,bx			; DX = first CLN
-	call	free_clns		; free the file's clusters
-	jc	sc8
-;
-; Write the new (or updated) DIRENT (and FAT, if modified), and then open it.
-;
-sc5:	mov	al,ds:[BUF_DRIVE]
-	call	flush_buffers
-	jc	sc8
-sc6:	pop	es
-	pop	ds
-	pop	si
-	ASSUME	DS:NOTHING, ES:NOTHING
-	mov	bl,MODE_ACC_RW		; BL = mode
-	call	sfb_open
-	jmp	short sc9
-sc7:	stc
-sc8:	pop	es
-	pop	ds
-	pop	si
-sc9:	UNLOCK_SCB
-	ret
-ENDPROC	sfb_create
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -403,7 +153,7 @@ DEFPROC	write_file,DOS
 ; the SFB is marked dirty, so that the BPB is rebuilt on close.
 ;
 wf0:	test	[bx].SFB_ATTR,DIRATTR_VOLUME
-	jz	wf1			; not a volume
+	jz	wf0a			; not a volume
 	mov	ah,DDC_WRITE
 	call	vol_io
 	jc	wf9
@@ -426,6 +176,15 @@ wf9:	pop	ds
 	ret
 
 	ASSUME	DS:DOS
+;
+; As in PC DOS, a zero-length write truncates (or extends) the file to CURPOS.
+;
+wf0a:	test	cx,cx			; zero-length write?
+	jnz	wf1			; no
+	call	resize_file		; yes, so set the file's size to CURPOS
+	jnc	wf8			; (with 0 bytes written)
+	jmp	wf9
+
 wf1:	jcxz	wf8			; nothing (more) to write
 	call	get_wcln		; DX = CLN for CURPOS
 	jnc	wf2
@@ -519,7 +278,7 @@ ENDPROC	write_file
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; get_wcln (see also: find_cln in disk.asm)
+; get_wcln (see also: find_cln in fat.asm)
 ;
 ; Find the CLN corresponding to CURPOS for writing, which means allocating
 ; the file's first cluster and/or extending its cluster chain as needed.

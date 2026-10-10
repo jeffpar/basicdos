@@ -261,11 +261,12 @@ ENDPROC	hdl_ioctl
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; sfb_open
+; sfb_open, sfb_open_fcb
 ;
 ; Inputs:
 ;	BL = mode (see MODE_*)
-;	DS:SI -> name of device/file
+;	DS:SI -> name of device/file (sfb_open)
+;	DS:SI -> FCB (sfb_open_fcb with AH = 10h, AL = search attributes)
 ;
 ; Outputs:
 ;	On success, BX -> SFB, DX = context (if any), carry clear
@@ -303,7 +304,13 @@ so9b:	stc
 ; descriptor), then share the session's console SFB, which may be for another
 ; device (eg, COM1).
 ;
-so0:	call	chk_console		; BX -> session's console SFB?
+so0:	cmp	ah,10h			; FCB?
+	jne	so0a			; no
+	mov	si,cs:[scb_active]
+	lea	si,[si].SCB_FILENAME + 1
+	push	cs
+	pop	ds			; DS:SI -> ASCIIZ name (see chk_devname)
+so0a:	call	chk_console		; BX -> session's console SFB?
 	jc	so1			; no
 	inc	cs:[bx].SFB_REFS	; yes, add a reference
 	mov	dx,cs:[bx].SFB_CONTEXT	; DX = context (and carry is clear)
@@ -1045,7 +1052,9 @@ ENDPROC	sfb_get
 DEFPROC	sfb_find_fcb,DOS
 	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	mov	bx,[sfb_table].OFF
-sff1:	test	[bx].SFB_FLAGS,SFBF_FCB
+sff1:	cmp	[bx].SFB_REFS,0
+	je	sff8
+	test	[bx].SFB_FLAGS,SFBF_FCB
 	jz	sff8
 	cmp	[bx].SFB_FCB.OFF,dx
 	jne	sff8
