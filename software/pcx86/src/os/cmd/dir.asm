@@ -11,7 +11,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<countLine,chkString,getFileName,getToken,newStr>
+	EXTNEAR	<chkString,getFileName,getToken,newStr>
 	EXTNEAR	<printEOL,printCRLF,findFile,addString,releaseStr>
 	EXTBYTE	<CMD_PATH>
 	EXTSTR	<DIR_DEF,PERIOD,PIPE_NAME,HELP_FILE,COM_EXT,BAS_EXT>
@@ -566,7 +566,6 @@ di6:	mov	dx,ds:[PSP_DTA].FFB_DATE
 	jmp	short di6b
 di6a:	PRINTF	<"  ",3Ch,"DIR",3Eh>
 di6b:	PRINTF	<" %2M-%02D-%02X %2G:%02N%A",13,10>,dx,dx,dx,cx,cx,cx
-	call	countLine
 ;
 ; Update our totals
 ;
@@ -589,7 +588,6 @@ di6b:	PRINTF	<" %2M-%02D-%02X %2G:%02N%A",13,10>,dx,dx,dx,cx,cx,cx
 di7:	xchg	ax,dx			; AX = total # of clusters used
 	mul	bx			; DX:AX = total # bytes
 	PRINTF	<"%8d file(s) %8ld bytes",13,10>,cx,ax,dx
-	call	countLine
 	xchg	ax,bp			; AX = total # of clusters free
 	mul	bx			; DX:AX = total # bytes free
 	PRINTF	<"%25ld bytes free",13,10>,ax,dx

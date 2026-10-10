@@ -74,7 +74,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 ### Command Interpreter: DOS Commands
 
 - [x] CD (CHDIR), COPY, DATE, DEL, DIR, EXIT, HELP, KEYS, MD (MKDIR), MEM, RD (RMDIR), RESTART, TIME, TYPE, and VER
-- [x] The prompt displays the current drive and directory (eg, `C:/SUBDIR>`), and switches use `-` by default (eg, `DIR -P`), since `/` is the default path character
+- [x] The prompt displays the current drive and directory (eg, `C:/SUBDIR>`), and switches use `-` by default (eg, `MEM -D`), since `/` is the default path character
 - [x] Running COM, EXE, BAT, and BAS files, and loading programs into other sessions
 - [x] BAT and BAS files can run other BAT and BAS files and then continue (no CALL command required); a nested BAS file gets its own variables
 - [x] Pipes (`|`) and output redirection (`>` creates or truncates the output file, `>>` appends to it), including redirection at the end of a pipeline (eg, `DIR | CASE > TEST`)
@@ -90,7 +90,8 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] Filters: CASE, FIND (-C, -I, -N, -V), MORE, and SORT (-R, -+n); FIND, MORE, and SORT also accept file names, and every filter treats CTRL-Z as the end of input
 - [x] Pipelines with more than one filter (eg, `TYPE FILE | SORT | MORE`): when a session ends, its output pipe receives end-of-input
 - [x] When any command of a pipeline fails (eg, a program that can't be found, or no session available for it), the error is reported, the commands already running in other sessions are ended (DOS_UTL_END), and the first command never runs; and when a command stops reading a pipe early, the command writing to it gets a write error instead of waiting forever
-- [x] PATH$: the directories searched for programs (eg, `LET PATH$="A:/;A:/BASIC;A:/TOOLS"` on a SHELL line in CONFIG.SYS); unlike other variables, it survives NEW and CLEAR
+- [x] LIST VARS: list preserved strings (including PATH$), scalar values, and array dimensions in the current session
+- [x] PATH$: the directories searched for programs (eg, `LET PATH$="A:/;A:/BASIC;A:/TOOLS;A:/TESTS"` on a SHELL line in CONFIG.SYS); unlike other variables, it survives NEW and CLEAR
 - [x] Every BASIC-DOS disk has the same layout: BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, AUTOEXEC.BAT (if any), and HELP.TXT in the root, BASIC samples in BASIC, utilities in TOOLS, and test and demo programs in TESTS; HELP finds HELP.TXT in the root of the boot drive from any directory
 - [ ] Input redirection (`<`)
 - [ ] Batch file features: replaceable parameters (`%1`-`%9`), environment variables (SET), `ECHO message`, IF EXIST, FOR ... IN ... DO, SHIFT, and PAUSE (see [Batch Files](docs/bdman/lang/#batch-files) for the BASIC-DOS equivalents)
@@ -188,7 +189,7 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] ARRAYS: BASIC array tests (including leak tests)
 - [x] FLOW: BASIC control flow tests
 - [x] FILEIO: BASIC sequential and random access file tests
-- [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUN, STRPOOL, ARRAYS, FLOW, CMDS, FILEIO, and PRINTF, and reports whether the tests passed)
+- [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUN, STRPOOL, ARRAYS, FLOW, CMDS, VARS, FILEIO, and PRINTF, and reports whether the tests passed)
 - [x] CMDS: command tests (pipes, redirection, TYPE, DEL, TIME -D, HELP, SOUND, remarks, and hex constants)
 - [x] `tools/tests/chkdsk.sh` runs MS-DOS 3.20 CHKDSK on a diskette image saved by a test session (see `QUIT /S` in `pc.js`)
 - [ ] More tests (eg, BASIC language and CMD command tests)

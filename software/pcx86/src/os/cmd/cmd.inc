@@ -346,8 +346,7 @@ CMD_SIG		db	?		; 333h: SIG_CMD
 CMD_ARG		db	?		; 334h: index of 1st arg
 ERR_CODE	db	?		; 335h
 CON_COLS	db	?		; 336h: # cols in console
-CON_ROWS	db	?		; 337h: # rows in console
-CMD_ROWS	db	?		; 338h: # lines printed for cmd
+		db  2 dup (?)		; 337h: (unused)
 CMD_FLAGS	db	?		; 339h: see CMD_* flags
 GEN_FLAGS	db	?		; 33Ah: see GEN_* flags
 DEF_PARMS	db	?		; 33Bh

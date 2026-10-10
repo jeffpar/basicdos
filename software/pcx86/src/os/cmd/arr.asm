@@ -39,6 +39,45 @@ ABLK_SIZE	dw	?		; 0Ch: element size
 ABLK_DATA	dw	?		; 0Eh: offset of first element
 ABLK		ends
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; listDims
+;
+; Display array bounds without expanding or changing its elements.
+;
+; Inputs:
+;	ES:DI -> array variable's far pointer
+;
+; Outputs:
+;	Parenthesized lower and upper bounds written to STDOUT
+;
+; Modifies:
+;	AX, CX, DX, DI, ES
+;
+DEFPROC	listDims
+	mov	ax,es:[di].SEG
+	test	ax,ax
+	jnz	ld0
+	PRINTF	<"() = undimensioned",13,10>
+	ret
+ld0:	les	di,es:[di]
+	mov	cl,es:[ABLK_DIMS]
+	mov	ch,0
+	mov	dx,es:[ABLK_BASE]
+	mov	di,size ABLK
+	PRINTF	<"(">
+ld1:	mov	ax,es:[di]
+	add	ax,dx
+	dec	ax			; upper bound = base + count - 1
+	PRINTF	<"%u TO %u">,dx,ax
+	add	di,2
+	loop	ld2
+	PRINTF	<")",13,10>
+	ret
+ld2:	PRINTF	<", ">
+	jmp	ld1
+ENDPROC	listDims
+
 AUTO_BOUND	equ	10		; upper bound of undimensioned arrays
 
 ;

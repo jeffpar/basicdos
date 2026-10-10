@@ -114,8 +114,8 @@ DIM *array*(*bounds*)[,*array*(*bounds*)]...
 Dimensions one or more arrays, with up to 255 dimensions each (eg, DIM A(10), B$(5,5)).  Each bound is the largest subscript for that dimension.
 Arrays that are used without DIM have a largest subscript of 10.
 
-DIR [*filespec*] [-P]
-Displays a directory listing of all files matching the given *filespec* (or all files if none is specified).  Subdirectories are listed as <DIR>, and if *filespec* is a directory, its files are listed.
+DIR [*filespec*]
+Displays a directory listing of all files matching the given *filespec* (or all files if none is specified).  Subdirectories are listed as <DIR>, and if *filespec* is a directory, its files are listed.  Use DIR | MORE to page the listing.
 
 DRAW *string*
 Draws lines from the last point, using these commands: U, D, L, R, E, F, G, and H [*n*] (move up, down, left, right, or diagonally), M *x*,*y* (move to *x*,*y*, or relative to the last point if *x* begins with + or -), B (prefix: move without drawing), N (prefix: draw without moving), C *n* (color), and S *n* (scale, in quarters).  Any number can be given as =*variable*; (eg, "M=X;,=Y;").
@@ -155,9 +155,6 @@ Returns e (2.71828...) raised to the power of *x*.
 
 FIELD [#]*n*,*width* AS *variable$*[,*width* AS *variable$*]...
 Divides each record of random access file *n* into fields (up to 16): GET # sets each variable to its field, and PUT # writes each variable to its field (see LSET and RSET).
-
-FILES [*filespec*]
-Same as DIR.
 
 FIND [-C] [-I] [-N] [-V] "*string*" [*file*...]
 Displays the lines of input (or of each *file*) that contain *string* (eg, DIR | FIND "BAS").  -C displays only the number of lines, -I ignores case, -N adds line numbers, and -V displays the lines that do NOT contain *string*.
@@ -239,8 +236,9 @@ LINE [(*x1*,*y1*)]-(*x2*,*y2*)[,[*color*][,B|BF]]
 Draws a line (or with B, a box; or with BF, a filled box) in a graphics mode.  If the first point is omitted, the last point is used.
 LINE INPUT [*prompt*;]*variable$* (or LINE INPUT #*n*,*variable$*) reads a whole line from the keyboard (or file *n*) into the string variable.
 
-LIST [*line*][-[*line*]]
+LIST [*line*][-[*line*]] | VARS
 Lists all lines (or the specified range of lines) of the currently loaded BAS or BAT program.
+LIST VARS lists preserved strings (including PATH$), then ordinary variable values with type suffixes and quoted strings, and array bounds without their elements.  Function definitions are omitted.  Use LIST VARS | MORE to page the listing.
 To add a line to the program (or replace the line with the same number), type the line with its line number at the prompt.
 
 LOAD *file*
@@ -270,7 +268,8 @@ Creates a new directory.  MKDIR is the same as MD.
 
 MEM [-D]
 Displays the total memory, the memory free for running programs (EXEC), and the memory free for BASIC programs, which excludes the part of the command processor that's set aside while running a program (when it can't be set aside, as when more than one session is running, a single "bytes free" value is displayed).
--D also displays every memory block.  In DEBUG builds, -F displays open files, and -S displays active sessions.
+After total memory, MEM displays the FPU$ driver size as bytes FPU emulation or bytes FPU library; the line is omitted if no driver was loaded.
+-D also displays every memory block.  In DEBUG builds, -F displays open files, and -S displays active sessions.  Use MEM -D | MORE to page the listing.
 
 MID$(*string*,*start*[,*n*])
 Returns *n* characters of *string*, beginning at position *start* (or the rest of *string* if *n* is omitted).

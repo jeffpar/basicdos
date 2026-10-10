@@ -111,9 +111,9 @@ Sessions are used not only by consoles, but also by [pipes](../intro/#pipes-and-
 
 Specifies the program to run in the next session, along with any startup commands.  Each SHELL line starts a session, using the consoles defined by CONSOLE lines in order.  If there are no SHELL lines, COMMAND.COM is run in the first session.
 
-BASIC-DOS doesn't automatically run an AUTOEXEC.BAT file, so a session's startup commands must be specified on its SHELL line, separated by colons.  Every BASIC-DOS disk's CONFIG.SYS also sets [PATH$](../cmd/basic/func/#path) on each SHELL line, so that every session can find the programs in the BASIC and TOOLS directories:
+BASIC-DOS doesn't automatically run an AUTOEXEC.BAT file, so a session's startup commands must be specified on its SHELL line, separated by colons.  Every BASIC-DOS disk's CONFIG.SYS also sets [PATH$](../cmd/basic/func/#path) on each SHELL line, so that every session can find the programs in the BASIC, TOOLS, and TESTS directories:
 
-	SHELL=COMMAND.COM LET PATH$="A:/;A:/BASIC;A:/TOOLS":COLOR 7,1:AUTOEXEC.BAT
+	SHELL=COMMAND.COM LET PATH$="A:/;A:/BASIC;A:/TOOLS;A:/TESTS":COLOR 7,1:AUTOEXEC.BAT
 
 Use LET when setting PATH$ on a SHELL line (or at the prompt), since without it, `PATH$="..."` (with no spaces) is taken as the name of a program to run.
 
@@ -129,7 +129,7 @@ For example, a configuration that uses a serial console doesn't need the CON dri
 
 > SWITCHAR=*char*
 
-Changes the character that introduces command options (switches) from `-` (the default) to *char* (eg, `SWITCHAR=/`, so that `DIR /P` is used instead of `DIR -P`, as in PC DOS).  At boot, the system derives the path character from this setting: `\` when SWITCHAR is `/`, and `/` otherwise.  Only that path character is recognized, and it remains fixed after boot; there is no separate path character configuration option.
+Changes the character that introduces command options (switches) from `-` (the default) to *char* (eg, `SWITCHAR=/`, so that `MEM /D` is used instead of `MEM -D`, as in PC DOS).  At boot, the system derives the path character from this setting: `\` when SWITCHAR is `/`, and `/` otherwise.  Only that path character is recognized, and it remains fixed after boot; there is no separate path character configuration option.
 
 A switch character other than `/` begins a switch only at the start of an argument, so that it can also appear inside arguments (eg, `TYPE MY-FILE.TXT`).
 

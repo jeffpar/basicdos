@@ -12,8 +12,9 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<countLine,printCRLF,transParas>
-	EXTSTR	<SYS_MEM,DOS_MEM,FREE_MEM,BLK_NAMES>
+	EXTNEAR	<printCRLF,transParas>
+	EXTSTR	<SYS_MEM,DOS_MEM,FREE_MEM,BLK_NAMES,FPU_EMU,FPU_LIB>
+	EXTBYTE	<FPU_TYPE>
 	EXTABS	<BLK_WORDS>
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
@@ -25,7 +26,9 @@ CODE    SEGMENT
 ; Prints memory usage: the total memory, the free memory available for an
 ; EXEC (which includes COMMAND's transient portion, if it can be discarded;
 ; see transParas), and the free memory available for BASIC programs.  Use /D
-; to display memory blocks; in DEBUG builds, /F also displays open files, /S
+; to display memory blocks.  The summary also shows FPU$ driver memory
+; and whether it provides emulation or a hardware library.  In DEBUG builds,
+; /F also displays open files, /S
 ; active sessions, and /L repeats the display.
 ;
 ; Inputs:
@@ -40,19 +43,20 @@ CODE    SEGMENT
 DEFPROC	cmdMem
 	LOCVAR	memFree,word	; free paras
 	LOCVAR	memLimit,word	; max available paras
+	LOCVAR	fpuSize,word	; resident FPU$ driver paras
 	ENTER
 ;
 ; Before we get into memory blocks, show the amount of memory reserved
 ; for the BIOS and disk buffers.
 ;
-mem0:	sub	di,di
+mem0:	mov	[fpuSize],0
+	sub	di,di
 	mov	es,di
 	les	di,es:[50Ah]		; ES:DI = DD_LIST (see bios.inc)
 
 	TESTSW	<'D'>
 	jz	mem1
 	PRINTF	<"Seg   Owner Paras    KB  Desc",13,10>
-	call	countLine
 mem1:	sub	bx,bx
 	mov	ax,es
 	push	di
@@ -73,7 +77,12 @@ mem2:	cmp	di,-1
 	mov	bx,es
 	mov	ax,es:[di].DDH_NEXT_SEG
 	sub	ax,bx		; AX = # paras
-	push	di
+	cmp	word ptr es:[di].DDH_NAME,'PF'
+	jne	mem2a
+	cmp	word ptr es:[di].DDH_NAME+2,'$U'
+	jne	mem2a
+	mov	[fpuSize],ax
+mem2a:	push	di
 	lea	di,[di].DDH_NAME
 	call	printKB		; BX = seg, AX = # paras, ES:DI -> name
 	pop	di
@@ -142,13 +151,11 @@ mem10:	IFDEF	DEBUG
 	sub	cx,cx
 	mov	di,es:[bx].DV_SFB_TABLE.OFF
 	PRINTF	"Address SFH Name       Refs\r\n"
-	call	countLine
 mem11:	mov	al,es:[di].SFB_REFS
 	test	al,al
 	jz	mem12
 	lea	si,[di].SFB_NAME
 	PRINTF	"%08lx %2bd %-11.11ls  %2bd\r\n",di,es,cx,si,es,ax
-	call	countLine
 mem12:	inc	cx
 	add	di,size SFB
 	cmp	di,es:[bx].DV_SFB_TABLE.SEG
@@ -160,7 +167,6 @@ mem20:	TESTSW	<'S'>		; sessions requested (/S)?
 	jmp	mem30
 mem21:	mov	di,es:[bx].DV_SCB_TABLE.OFF
 	PRINTF	"No Fl PSP  Ctx  WaitID   Stack\r\n"
-	call	countLine
 mem22:	mov	ax,word ptr es:[di].SCB_STATUS
 	test	al,SCSTAT_LOAD
 	jz	mem23
@@ -169,7 +175,6 @@ mem22:	mov	ax,word ptr es:[di].SCB_STATUS
 	lds	si,es:[di].SCB_STACK
 	PRINTF	"%2d %02bx %04x %04x %08lx %08lx\r\n",cx,ax,es:[di].SCB_PSP,es:[di].SCB_CONTEXT,es:[di].SCB_WAITID,:2,si,ds
 	pop	ds
-	call	countLine
 mem23:	add	di,size SCB
 	cmp	di,es:[bx].DV_SCB_TABLE.SEG
 	jb	mem22
@@ -182,14 +187,21 @@ mem23:	add	di,size SCB
 mem30:	mov	ax,[memLimit]
 	call	toBytes		; DX:AX = total memory (in bytes)
 	PRINTF	<"%8ld bytes",13,10>,ax,dx
-	call	countLine
-	call	transParas	; AX = paras of COMMAND's transient
+	mov	ax,[fpuSize]
+	test	ax,ax
+	jz	mem30b		; no FPU$ driver loaded
+	call	toBytes
+	mov	si,offset FPU_EMU
+	cmp	cs:[FPU_TYPE],0	; FPUTYPE_NONE means emulation
+	je	mem30a
+	mov	si,offset FPU_LIB
+mem30a:	PRINTF	<"%8ld bytes FPU %ls",13,10>,ax,dx,si,cs
+mem30b:	call	transParas	; AX = paras of COMMAND's transient
 	test	ax,ax		; can it be discarded?
 	jz	mem31		; no, so EXEC and BASIC have the same amount
 	add	ax,[memFree]	; AX = free memory for EXEC (paras)
 	call	toBytes
 	PRINTF	<"%8ld bytes free for EXEC",13,10>,ax,dx
-	call	countLine
 	mov	ax,[memFree]	; AX = free memory for BASIC (paras)
 	call	toBytes
 	PRINTF	<"%8ld bytes free for BASIC",13,10>,ax,dx
@@ -197,7 +209,7 @@ mem30:	mov	ax,[memLimit]
 mem31:	mov	ax,[memFree]
 	call	toBytes
 	PRINTF	<"%8ld bytes free",13,10>,ax,dx
-mem32:	call	countLine
+mem32:
 
 	IFDEF	DEBUG
 	TESTSW	<'L'>
@@ -280,7 +292,6 @@ pkb7:	pop	cx
 	pop	ax
 
 pkb8:	PRINTF	<"%04x  %04x  %04x %3d.%1dK  %.8ls",13,10>,bx,dx,ax,cx,bp,di,es
-	call	countLine
 
 	pop	cx
 	pop	bp

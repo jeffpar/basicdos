@@ -25,7 +25,7 @@ CODE    SEGMENT
 
 	EXTNEAR	<allocText,freeCache,memError,writeStrCRLF,printCRLF>
 	EXTNEAR	<getToken,getFileName,chkExt,addString,openOutput>
-	EXTNEAR	<writeOutput,writeError,openError,noFile>
+	EXTNEAR	<writeOutput,writeError,openError,noFile,listVars>
 	EXTSTR	<BAS_EXT>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -145,7 +145,7 @@ ENDPROC	cmdEdit
 ; cmdList
 ;
 ; Process "LIST [line][-[line]]", which lists the specified range of lines
-; (or all lines).
+; (or all lines).  LIST VARS lists variable values and array dimensions.
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -158,10 +158,29 @@ ENDPROC	cmdEdit
 ;	Any
 ;
 DEFPROC	cmdList
-	mov	al,'-'
+	mov	dl,1
+	call	getToken		; option or line range?
+	jc	ls1			; no argument
+	cmp	cx,4
+	jne	ls1
+	mov	ax,[si]
+	or	ax,2020h		; compare without case
+	cmp	ax,'av'
+	jne	ls1
+	mov	ax,[si+2]
+	or	ax,2020h
+	cmp	ax,'sr'
+	jne	ls1
+	mov	dl,2
+	call	getToken		; VARS must be the last argument
+	jc	ls0
+	jmp	syntaxError
+ls0:	jmp	listVars
+ls1:	mov	al,'-'
 	call	getRange		; AX = 1st line #, DX = last line #
-	jc	de9
-	mov	si,offset listLine
+	jnc	ls2
+	ret
+ls2:	mov	si,offset listLine
 	jmp	short walkLines
 ENDPROC	cmdList
 

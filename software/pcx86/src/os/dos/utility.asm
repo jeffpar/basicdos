@@ -630,7 +630,7 @@ tc3f:	cmp	al,[bp].TMP_BL		; SWITCHAR?
 	cmp	ah,CLS_WHITE		; any intervening whitespace?
 	je	tc3c			; yes
 ;
-; A SWITCHAR that follows other characters (eg, "DIR/P") starts a new token
+; A SWITCHAR that follows other characters (eg, "MEM/D") starts a new token
 ; only if it's '/', since other SWITCHARs (eg, '-') may appear in arguments
 ; (eg, "MY-FILE.TXT" or "DATE 10-07-26").
 ;

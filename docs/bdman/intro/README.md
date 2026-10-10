@@ -19,15 +19,10 @@ Press any key to start BASIC-DOS, or press **Esc** to boot from the hard disk in
 	Copyright (c) PCJS.ORG 1981-2026
 
 	BASIC-DOS Command Processor
-	Floating-point software installed
 
 	A:/>
 
-The "Floating-point" line tells you how BASIC-DOS will perform floating-point calculations:
-
-- **hardware installed**: an 8087 coprocessor was found
-- **software installed**: there's no 8087, so BASIC-DOS emulates one
-- **support disabled**: the FPU$ driver wasn't loaded (see [SKIP=](../cfg/#skip)), so numeric variables default to integers
+Use `MEM` to see memory usage and floating-point support.  If the FPU$ driver is loaded, a line after total memory shows its size in bytes and either **FPU emulation** (software) or **FPU library** (8087 hardware support).  If no driver is loaded, that line is omitted and numeric variables default to integers (see [SKIP=](../cfg/#skip)).
 
 The `A:/>` is the BASIC-DOS prompt.  The prompt displays the default drive and its current directory (`/` is the root directory; see [CD](../cmd/disk/#cd)), and indicates that BASIC-DOS is ready to accept [commands](../cmd/) from the keyboard.
 
@@ -103,7 +98,9 @@ If the program isn't in the current directory, and its name doesn't include a dr
 - **TOOLS** contains the BASIC-DOS utilities (eg, [FIND, MORE, and SORT](../cmd/external/#filters))
 - **TESTS** contains test programs and other programs for demonstration purposes (eg, MSBASIC.EXE and SYMDEB.EXE)
 
-and its CONFIG.SYS sets PATH$ to the root, BASIC, and TOOLS (eg, `A:/;A:/BASIC;A:/TOOLS`), so you can type `PRIMES` or `DIR | SORT` from any directory.  Programs in TESTS can be run with a path (eg, `/TESTS/MSBASIC`).
+and its CONFIG.SYS sets PATH$ to the root, BASIC, TOOLS, and TESTS (eg, `A:/;A:/BASIC;A:/TOOLS;A:/TESTS`), so you can type `PRIMES` or `DIR | SORT` from any directory.  Programs in TESTS can also be run by name (eg, `MSBASIC`).
+
+Use `LIST VARS` to inspect the current session's variable values and array dimensions; see [LIST](../cmd/system/#list).
 
 When a BAS program that you ran from the prompt ends, it remains loaded, along with its variables, so you can [LIST](../cmd/system/#list) it, examine its variables (eg, `PRINT A`), or [RUN](../cmd/system/#run) it again.  RUN reuses the program's compiled code, so the program starts immediately, unless the program or its variables have changed since it was compiled.
 

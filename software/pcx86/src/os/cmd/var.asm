@@ -15,6 +15,8 @@ CODE    SEGMENT
 	EXTNEAR	<memError,genCode,clearVars,compactStrs>
 	EXTBYTE	<PREDEF_VARS>
 
+	EXTNEAR	<listDims,writeStr,printCRLF>
+
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1202,6 +1204,145 @@ fv9:	pop	bx
 	pop	es
 	ret
 ENDPROC	findVar
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; listVars
+;
+; List preserved strings, then live scalar variables and array dimensions
+; in allocation order.
+; Dead bytes, function definitions, and temporary parameters are skipped.
+; Type suffixes distinguish variables with the same name but different types.
+;
+; Inputs:
+;	DS:BX -> CMDHEAP
+;
+; Outputs:
+;	Variable names and values written to STDOUT
+;
+; Modifies:
+;	AX, CX, DX, SI, DI, ES
+;
+DEFPROC	listVars
+	push	bx
+	call	lstKeep
+	mov	ax,[bx].VBLKDEF.BDEF_NEXT
+lv0:	test	ax,ax
+	jnz	lv0a
+	pop	bx
+	clc
+	ret
+lv0a:	mov	es,ax
+	mov	di,size VBLK
+lv1:	cmp	di,es:[BLK_FREE]	; end of used space?
+	jb	lv1a
+	jmp	lv8
+lv1a:	mov	al,es:[di]
+	inc	di
+	cmp	al,VAR_DEAD
+	je	lv1			; deleted variable byte
+	ja	lv1b			; live variable
+	jmp	lv8
+lv1b:	mov	ah,al
+	and	ah,VAR_TYPE
+	and	al,VAR_NAMELEN
+	mov	cl,al
+	mov	ch,0
+	mov	si,di			; ES:SI -> name
+	add	di,cx			; ES:DI -> value
+	mov	bl,ah
+	call	getVarLen
+	add	ax,di			; AX -> next variable
+	push	ax
+	cmp	bl,VAR_PARM
+	je	lv1c
+	cmp	bl,VAR_FUNC
+	jne	lv1d
+lv1c:	jmp	lv7
+lv1d:	PRINTF	<"%.*ls">,cx,si,es
+	cmp	bl,VAR_ARRAY
+	jne	lv2
+	push	es
+	call	listDims
+	pop	es
+	jmp	short lv7
+lv2:	mov	al,'%'
+	cmp	bl,VAR_LONG
+	je	lv3
+	mov	al,'$'
+	cmp	bl,VAR_STR
+	je	lv3
+	mov	al,'#'
+lv3:	PRINTF	<"%c = ">,ax
+	cmp	bl,VAR_LONG
+	jne	lv4
+	mov	ax,es:[di].LOW
+	mov	dx,es:[di].HIW
+	PRINTF	<"%ld">,ax,dx
+	jmp	short lv6
+lv4:	cmp	bl,VAR_DOUBLE
+	jne	lv5
+	PRINTF	<"%f">,di,es
+	jmp	short lv6
+lv5:	PRINTF	<34>
+	push	ds
+	lds	si,es:[di]
+	mov	ax,ds
+	test	ax,ax
+	jz	lv5a			; empty string has a null pointer
+	call	writeStr		; do not release the owned string
+lv5a:	pop	ds
+	PRINTF	<34>
+lv6:	call	printCRLF
+lv7:	pop	di			; next variable
+	jmp	lv1
+lv8:	mov	ax,es:[BLK_NEXT]
+	jmp	lv0
+ENDPROC	listVars
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; lstKeep
+;
+; List strings stored in CMDHEAP that survive loads and variable resets.
+; Each keepStr entry contains a buffer offset and a null-terminated name;
+; a zero offset ends the table.  Add future preserved strings here.
+;
+; Inputs:
+;	DS:BX -> CMDHEAP
+;
+; Outputs:
+;	Preserved string names and quoted values written to STDOUT
+;
+; Modifies:
+;	AX, CX, DX, SI, DI
+;
+DEFPROC	lstKeep
+	mov	si,offset keepStr
+lk0:	mov	di,cs:[si]
+	test	di,di
+	jz	lk9
+	add	di,bx			; DS:DI -> length-prefixed value
+	add	si,2			; CS:SI -> variable name
+	PRINTF	<"%ls = ",34>,si,cs
+	push	si
+	mov	si,di
+	call	writeStr
+	pop	si
+	PRINTF	<34,13,10>
+lk1:	cmp	byte ptr cs:[si],0
+	lea	si,[si+1]		; advance without changing flags
+	jne	lk1
+	jmp	lk0
+lk9:	ret
+ENDPROC	lstKeep
+
+keepStr	label	word
+	dw	PATH_BUF
+	db	'PATH$',0
+	dw	0
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -40,6 +40,7 @@ CODE    SEGMENT
 ; remains zero if the FPU$ driver isn't available.
 ;
 	DEFPTR	FPU_TABLE
+	DEFBYTE	FPU_TYPE,0		; FPUTYPE_* returned at startup
 	DEFWORD	CMD_REFS,0		; # of copies using the shared code
 	DEFWORD	TRANS_SUM,0		; checksum of the transient portion
 	DEFWORD	TRANS_HI,0		; segment of its copy (see resSave)

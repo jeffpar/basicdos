@@ -316,7 +316,7 @@ Returns the next mouse button event (*n* = 0), the position of that event (1 and
 > PATH$
 > PATH$ = *string*
 
-Returns (or sets) the directories, separated by semicolons, that are searched for a program that isn't in the current directory (eg, `PATH$ = "A:/;A:/BASIC;A:/TOOLS"`); see [Running Programs](../../../intro/#running-programs).  Unlike other variables, PATH$ keeps its value when variables are cleared (eg, by [NEW](../../system/#new) or [CLEAR](../#clear)), and each session has its own.  It's usually set on a [SHELL](../../../cfg/#shell) line in CONFIG.SYS, and it's limited to 120 characters.
+Returns (or sets) the directories, separated by semicolons, that are searched for a program that isn't in the current directory (eg, `PATH$ = "A:/;A:/BASIC;A:/TOOLS;A:/TESTS"`); see [Running Programs](../../../intro/#running-programs).  Unlike other variables, PATH$ keeps its value when variables are cleared (eg, by [NEW](../../system/#new) or [CLEAR](../#clear)), and each session has its own.  It's usually set on a [SHELL](../../../cfg/#shell) line in CONFIG.SYS, and it's limited to 120 characters.
 
 #### PEEK {#peek}
 

@@ -62,9 +62,9 @@ Deletes the specified file.  With the wildcards `?` and `*` (as in [DIR](#dir)),
 
 ### DIR
 
-> DIR [*filespec*] [-P]
+> DIR [*filespec*]
 
-Displays a directory listing of all files matching the given *filespec* (or all files if none is specified).  The *filespec* can contain the wildcards `?` (any character) and `*` (any characters to the end of the name or extension).  Subdirectories are listed with `<DIR>` in place of a size, and if *filespec* is a directory (eg, `DIR SUBDIR` or `DIR /`), the files in that directory are listed.  -P pauses after each screenful of output.  FILES is the same as DIR.
+Displays a directory listing of all files matching the given *filespec* (or all files if none is specified).  The *filespec* can contain the wildcards `?` (any character) and `*` (any characters to the end of the name or extension).  Subdirectories are listed with `<DIR>` in place of a size, and if *filespec* is a directory (eg, `DIR SUBDIR` or `DIR /`), the files in that directory are listed.  Use `DIR | MORE` to pause after each screenful of output.
 
 	DIR *.BAS
 

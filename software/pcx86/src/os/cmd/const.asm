@@ -42,9 +42,8 @@ CODE    SEGMENT
 	DEFSTR	HELP_FILE,<"HELP.TXT",0>
 	DEFSTR	PIPE_NAME,<"PIPE$",0>
 	DEFSTR	FPU_NAME,<"FPU$",0>
-	DEFSTR	FPU_HW,<"hardware installed",0>
-	DEFSTR	FPU_SW,<"software installed",0>
-	DEFSTR	FPU_OFF,<"support disabled",0>
+	DEFSTR	FPU_LIB,<"library",0>
+	DEFSTR	FPU_EMU,<"emulation",0>
 	DEFSTR	STR_ON,<"ON",0>
 	DEFSTR	STR_OFF,<"OFF",0>
 
@@ -409,7 +408,6 @@ CODE	ENDS
 	DEFTOK	EXIT,    1, cmdExit
 	DEFTOK	EXP,   104
 	DEFTOK	FIELD,  91, genField
-	DEFTOK	FILES,  26, cmdDir
 	DEFTOK	FIX,   105
 	DEFTOK	FOR,    58, genFor
 	DEFTOK	GET,    75, genGet

@@ -66,17 +66,21 @@ Displays a summary of the special keys that can be used when typing commands (se
 
 ### LIST
 
-> LIST [*line*][-[*line*]]
+> LIST [*line*][-[*line*]] | VARS
 
 Lists all lines of the currently loaded BAS or BAT program, or the specified range of lines (eg, `LIST 100`, `LIST 100-200`, `LIST 100-`, or `LIST -200`).  Lines without line numbers are listed with the numbered line that precedes them.
+
+`LIST VARS` lists preserved string variables such as `PATH$` first, followed by the current session's ordinary variables and their values in allocation order.  Names include `%`, `#`, or `$` to identify their types, and string values are quoted.  Arrays show each dimension's lower and upper bounds (eg, `A%(0 TO 2, 0 TO 3)`), without listing their elements.  Function definitions are omitted.  The listing can be redirected (eg, `LIST VARS > VARS.TXT` at the prompt) or paged with `LIST VARS | MORE`.
 
 ### MEM
 
 > MEM [-D]
 
-Displays the total memory, followed by the memory free for running external programs (EXEC) and the memory free for BASIC programs.  The difference between the two is the transient portion of COMMAND.COM, which is set aside while an external program runs, but which BASIC programs need (it compiles and runs them).  When more than one session is running, every session shares the same COMMAND.COM code, so the transient portion can't be set aside, and MEM displays a single "bytes free" value instead.
+Displays the total memory, then the FPU$ driver size (if loaded), followed by the memory free for running external programs (EXEC) and the memory free for BASIC programs.  The difference between the two is the transient portion of COMMAND.COM, which is set aside while an external program runs, but which BASIC programs need (it compiles and runs them).  When more than one session is running, every session shares the same COMMAND.COM code, so the transient portion can't be set aside, and MEM displays a single "bytes free" value instead.
 
--D also displays every memory block, with its segment, owner, size, and description (eg, a device driver, COMMAND, or one of COMMAND's VAR, STR, TEXT, or CODE blocks).  In DEBUG builds of BASIC-DOS, -F also displays open files, and -S displays active sessions.
+The FPU$ line ends with `bytes FPU emulation` for software emulation or `bytes FPU library` for hardware support.  No FPU$ line is displayed when the driver is skipped.
+
+-D also displays every memory block, with its segment, owner, size, and description (eg, a device driver, COMMAND, or one of COMMAND's VAR, STR, TEXT, or CODE blocks).  In DEBUG builds of BASIC-DOS, -F also displays open files, and -S displays active sessions.  Use `MEM -D | MORE` to page the memory block listing.
 
 	MEM
 	  131072 bytes

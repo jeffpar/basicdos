@@ -55,9 +55,10 @@ function checkOutput(task, outputFile)
 
 /*
  * Every BASIC-DOS disk has the same layout: the system files (BASDEV.COM, BASDOS.COM, and COMMAND.COM), CONFIG.SYS,
- * AUTOEXEC.BAT (if any), and HELP.TXT in the root, followed by a BASIC folder (BASIC samples), a TOOLS folder (the
- * utilities in os/util), and a TESTS folder (anything else, for demo and testing purposes, eg, MSBASIC and SYMDEB).
- * CONFIG.SYS sets PATH$ on each SHELL line (eg, SHELL=COMMAND.COM LET PATH$="A:/;A:/BASIC;A:/TOOLS").
+ * AUTOEXEC.BAT (when launched by a SHELL line), and HELP.TXT in the root, followed by a BASIC folder (BASIC
+ * samples), a TOOLS folder (utilities in os/util), and a TESTS folder (other demo and test programs, eg, MSBASIC
+ * and SYMDEB).
+ * CONFIG.SYS sets PATH$ on each SHELL line (eg, SHELL=COMMAND.COM LET PATH$="A:/;A:/BASIC;A:/TOOLS;A:/TESTS").
  *
  * Each disk below lists its CONFIG.SYS, its AUTOEXEC.BAT (if any), and the files for its BASIC and TESTS folders;
  * every disk gets the same root files and TOOLS folder.  A hard disk image (a demo with no diskettes) is marked "hd",
@@ -87,19 +88,16 @@ let disks = {
     },
     "BASICDOS-DISK2": {
         config: "./demos/d40/CONFIG.SYS",
-        autoexec: "./demos/d40/AUTOEXEC.BAT",
         BASIC: primesFiles,
         TESTS: testFiles
     },
     "BASICDOS-DISK3": {
         config: "./demos/d80/CONFIG.SYS",
-        autoexec: "./demos/d40/AUTOEXEC.BAT",
         BASIC: primesFiles,
         TESTS: testFiles
     },
     "BASICDOS-DISK4": {
         config: "./demos/dual/CONFIG.SYS",
-        autoexec: "./demos/d40/AUTOEXEC.BAT",
         BASIC: primesFiles,
         TESTS: testFiles
     },
@@ -159,7 +157,9 @@ function stageDisk(diskName)
     };
     if (!disk.hd) copyFiles(sysFiles, dirStage);
     copyFiles([disk.config], dirStage, "CONFIG.SYS");
-    if (disk.autoexec) copyFiles([disk.autoexec], dirStage, "AUTOEXEC.BAT");
+    let launchesAutoexec = fs.readFileSync(disk.config, "utf8").split(/\r?\n/).some(line =>
+        /^SHELL=/i.test(line) && /\bAUTOEXEC(?:\.BAT)?\b/i.test(line));
+    if (disk.autoexec && launchesAutoexec) copyFiles([disk.autoexec], dirStage, "AUTOEXEC.BAT");
     if (!disk.hd) copyFiles([helpFile], dirStage);
     let folders = { BASIC: disk.BASIC || [], TOOLS: toolFiles, TESTS: disk.TESTS || [] };
     for (let folder in folders) {
