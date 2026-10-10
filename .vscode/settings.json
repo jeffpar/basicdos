@@ -889,6 +889,7 @@
     "stosb",
     "stosw",
     "STRLEN",
+    "Strs",
     "STRSTR",
     "STRTESTS",
     "struc",

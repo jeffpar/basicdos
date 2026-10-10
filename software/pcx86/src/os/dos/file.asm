@@ -19,7 +19,8 @@ DOS	segment word public 'CODE'
 
 	EXTNEAR	<dev_request,chk_devname,chk_filename,scb_release>
 	EXTNEAR	<get_bpb,get_cln,get_dirent,read_buffer,flush_buffers>
-	EXTNEAR	<alloc_cln,free_clns,sfb_open,sfb_chkopen>
+	EXTNEAR	<alloc_cln,free_clns,sfb_open,sfb_chkopen,chk_volopen>
+	EXTNEAR	<vol_io,drv_flush>
 	EXTNEAR	<dir_lba,get_dircln>
 	EXTNEAR	<get_cdir,get_dirpath,new_buffer,write_buffer,zap_buffers>
 
@@ -138,6 +139,8 @@ dr1:	dec	si
 	call	chk_filename		; DS:SI -> DIRENT, AL = drive #
 	jc	dr5
 	ASSUME	DS:BIOS
+	call	chk_volopen		; is the volume open?
+	jc	dr5			; yes
 	mov	di,sp			; SS:DI -> new directory, drive #, etc
 	cmp	al,ss:[di+2]		; same drive?
 	mov	ax,ERR_NOTSAME
@@ -219,6 +222,9 @@ sc1:	sub	ax,ax			; AH = 0 (filename), AL = 0 (attributes)
 	je	sc7			; the filename is "." or ".."
 	call	get_bpb			; DI -> BPB
 	jc	sc8
+	xchg	ax,dx			; AL = drive #
+	call	chk_volopen		; is the volume open?
+	jc	sc8			; yes
 	call	add_dirent		; DS:SI -> new DIRENT
 	jc	sc8
 	ASSUME	DS:BIOS
@@ -389,7 +395,23 @@ DEFPROC	write_file,DOS
 	jz	wf7			; file was not opened for writing
 	mov	dl,[bx].SFB_DRIVE
 	call	get_bpb			; DI -> BPB if no error
-	jnc	wf1
+	jnc	wf0
+	jmp	short wf9
+;
+; Writes to a volume (see chk_volume) go straight to its sectors, and then
+; any buffers for the drive are discarded (since they may now be stale), and
+; the SFB is marked dirty, so that the BPB is rebuilt on close.
+;
+wf0:	test	[bx].SFB_ATTR,DIRATTR_VOLUME
+	jz	wf1			; not a volume
+	mov	ah,DDC_WRITE
+	call	vol_io
+	jc	wf9
+	push	ax
+	mov	al,[bx].SFB_DRIVE
+	call	drv_flush
+	pop	ax
+	or	[bx].SFB_FLAGS,SFBF_DIRTY ; (and carry is clear)
 	jmp	short wf9
 
 wf7:	stc
@@ -987,6 +1009,9 @@ DEFPROC	chk_dirname,DOS
 	call	get_dirpath		; DL = drive #, DI -> BPB
 	jc	cn9
 	ASSUME	ES:DOS
+	mov	al,dl
+	call	chk_volopen		; is the volume open?
+	jc	cn9			; yes
 	mov	al,es:[bx].SCB_FILENAME+1
 	cmp	al,' '			; blank?
 	je	cn8			; yes

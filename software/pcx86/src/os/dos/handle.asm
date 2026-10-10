@@ -18,7 +18,8 @@ DOS	segment word public 'CODE'
 
 	EXTNEAR	<dev_request,scb_release>
 	EXTNEAR	<chk_devname,chk_console,chk_filename>
-	EXTNEAR	<get_bpb,get_psp,find_cln,get_cln>
+	EXTNEAR	<get_bpb,get_psp,find_cln,get_cln,new_bpb>
+	EXTNEAR	<flush_buffers>
 	EXTNEAR	<sfb_create,sfb_commit,write_file>
 	EXTNEAR	<msc_sigctrlc,msc_readctrlc,con_read>
 
@@ -283,6 +284,9 @@ DEFPROC	sfb_open,DOS
 	push	es
 	call	chk_devname		; is it a device name?
 	jnc	so0			; yes
+	call	chk_volume		; is it a volume name (eg, "C:")?
+	jc	so9b			; yes, but it can't be opened
+	jz	so1a			; yes
 	call	chk_filename		; is it a disk filename?
 	jc	so9b			; no (AX = error code)
 	ASSUME	DS:NOTHING		; DS:SI -> DIRENT
@@ -334,7 +338,8 @@ so3:	test	al,al			; is this a file (ie, a drive #)?
 	cmp	[si].SFB_DEVICE.OFF,di
 	jne	so4			; check next SFB
 	cmp	[si].SFB_CONTEXT,dx	; context-less device?
-	je	so7			; yes, this SFB will suffice
+	jne	so4			; no
+	jmp	so7			; yes, this SFB will suffice
 so4:	test	bx,bx			; are we still looking for a free SFB?
 	jnz	so5			; no
 	cmp	[si].SFB_REFS,bl	; is this one free?
@@ -402,7 +407,12 @@ so6:	push	cs
 	mov	[bx].SFB_CURPOS.HIW,ax
 	mov	[bx].SFB_CURCLN,dx	; initial position cluster
 	mov	[bx].SFB_FLAGS,al	; zero flags
-	jmp	short so9		; return new SFB
+	cmp	[bx].SFB_DRIVE,al	; is it a device?
+	jl	so9			; yes, return new SFB (carry clear)
+	mov	ax,[bx].SFB_DIRNUM
+	inc	ax			; is it a volume (see chk_volume)?
+	jz	so8b			; yes
+	jmp	short so9		; no, return new SFB (carry clear)
 
 so7:	pop	ax			; throw away any DIRENT on the stack
 	pop	ax
@@ -417,6 +427,20 @@ so8:	test	al,al			; did we issue DDC_OPEN?
 	call	dev_request		; issue the DDC_CLOSE request
 so8a:	mov	ax,ERR_NOHANDLE
 	stc				; return no SFB (and BX is zero)
+	jmp	short so9
+;
+; A volume's SFB is marked with DIRATTR_VOLUME, and its size is the size of
+; the entire volume.
+;
+so8b:	mov	[bx].SFB_ATTR,DIRATTR_VOLUME
+	mov	dl,[bx].SFB_DRIVE
+	call	get_bpb			; DI -> BPB
+	jc	so9
+	mov	ax,[di].BPB_DISKSECS
+	mul	[di].BPB_SECBYTES
+	mov	[bx].SFB_SIZE.LOW,ax
+	mov	[bx].SFB_SIZE.HIW,dx
+	clc				; return new SFB
 
 so9:	pop	es
 	pop	ds
@@ -428,16 +452,72 @@ ENDPROC	sfb_open
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; chk_volume
+;
+; Check for a volume name (ie, a drive letter and colon only, eg, "C:"),
+; which opens the entire volume, so that its sectors can be read (or written)
+; at offsets of LBA * BPB_SECBYTES.  Like any file, a volume can be opened by
+; any number of readers (if no one has any file on the volume open for
+; writing), or by a single writer (if no one has any file on it open at all).
+;
+; Inputs:
+;	BL = mode (see MODE_*)
+;	DS:SI -> name
+;
+; Outputs:
+;	If not a volume name, carry clear, ZF clear (inputs preserved)
+;	If a volume name that can be opened, carry clear, ZF set, and:
+;		AL = drive #
+;		CX = -1 (in lieu of a DIRENT #)
+;		DS:SI -> BPB (in lieu of a DIRENT)
+;		ES:DI -> driver header (DDH)
+;		DX = context (zero)
+;	Otherwise, carry set, AX = error code
+;
+; Modifies:
+;	AX, CX, DX, SI, DI, DS, ES (only if a volume name)
+;
+DEFPROC	chk_volume,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	cmp	word ptr [si+1],':'	; ':' followed by a null?
+	je	cv1			; yes
+	or	sp,sp			; no (carry clear, ZF clear)
+	ret
+cv1:	mov	dl,[si]
+	and	dl,NOT 20h		; DL = upper-case drive letter
+	sub	dl,'A'			; DL = drive #
+	call	get_bpb			; DI -> BPB
+	jc	cv9
+	mov	al,dl			; AL = drive #
+	mov	cx,-1
+	call	sfb_chkopen		; can the volume be opened in this mode?
+	jc	cv9			; no
+	call	flush_buffers		; write any modified buffers first
+	jc	cv9
+	mov	si,di
+	push	cs
+	pop	ds			; DS:SI -> BPB
+	les	di,cs:[di].BPB_DEVICE	; ES:DI -> driver
+	sub	dx,dx			; DX = 0 (carry clear, ZF set)
+cv9:	ret
+ENDPROC	chk_volume
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; sfb_chkopen
 ;
 ; Check whether a file is already open, and if so, whether it can be opened
 ; again with the specified mode.  Any number of SFBs may have a file open for
 ; reading, but an SFB with write access must be the only SFB for that file.
+; A volume (see chk_volume) counts as every file on the volume.
+;
+; chk_volopen is the same, except that it checks only whether the volume is
+; open (eg, before a directory is modified).
 ;
 ; Inputs:
 ;	AL = drive #
 ;	BL = mode (see MODE_*)
-;	CX = DIRENT #
+;	CX = DIRENT # (-1 for the volume itself)
 ;	SCB_DIRCLN = directory (1st cluster) of DIRENT
 ;
 ; Outputs:
@@ -447,6 +527,18 @@ ENDPROC	sfb_open
 ; Modifies:
 ;	AX
 ;
+DEFPROC	chk_volopen,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	bx
+	push	cx
+	mov	bl,MODE_ACC_RW
+	mov	cx,-2			; (matches only a volume SFB)
+	call	sfb_chkopen
+	pop	cx
+	pop	bx
+	ret
+ENDPROC	chk_volopen
+
 DEFPROC	sfb_chkopen,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	push	dx
@@ -458,11 +550,15 @@ sco1:	cmp	cs:[si].SFB_REFS,0	; is this SFB open?
 	je	sco2			; no
 	cmp	cs:[si].SFB_DRIVE,al	; (devices never match, since -1)
 	jne	sco2
+	cmp	cx,-1			; are we opening the volume?
+	je	sco1a			; yes, so every file matches
+	test	cs:[si].SFB_ATTR,DIRATTR_VOLUME
+	jnz	sco1a			; the volume is open, so we match
 	cmp	cs:[si].SFB_DIRNUM,cx
 	jne	sco2
 	cmp	cs:[si].SFB_DIRCLN,dx
 	jne	sco2			; not the same file
-	test	bl,MODE_ACC_WO OR MODE_ACC_RW
+sco1a:	test	bl,MODE_ACC_WO OR MODE_ACC_RW
 	jnz	sco8			; we want write access, so deny it
 	test	cs:[si].SFB_MODE,MODE_ACC_WO OR MODE_ACC_RW
 	jnz	sco8			; the file is open for writing
@@ -510,22 +606,13 @@ sr0:	LOCK_SCB
 	call	get_bpb			; DI -> BPB if no error
 	jnc	sr0a
 	jmp	sr6
-;
-; As a preliminary matter, make sure the requested number of bytes doesn't
-; exceed the current file size; if it does, reduce it.
-;
-sr0a:	mov	ax,[bx].SFB_SIZE.LOW
-	mov	dx,[bx].SFB_SIZE.HIW
-	sub	ax,[bx].SFB_CURPOS.LOW
-	sbb	dx,[bx].SFB_CURPOS.HIW
-	jnb	sr0b
-	sub	ax,ax			; no data available
-	cwd
-sr0b:	test	dx,dx			; lots of data ahead?
-	jnz	sr1			; yes
-	cmp	cx,ax
-	jbe	sr1
-	mov	cx,ax			; CX reduced
+
+sr0a:	test	[bx].SFB_ATTR,DIRATTR_VOLUME
+	jz	sr0b			; not a volume
+	mov	ah,DDC_READ
+	call	vol_io
+	jmp	sr6
+sr0b:	call	lim_count		; limit CX to the current file size
 ;
 ; Next, convert CURPOS into cluster # and cluster offset.  That's simplified
 ; if there's a valid CURCLN (which must be in sync with CURPOS if present);
@@ -673,6 +760,76 @@ ENDPROC	sfb_read
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; vol_io
+;
+; Read or write the sectors of a volume (see chk_volume) at CURPOS.
+;
+; Inputs:
+;	AH = DDC_READ or DDC_WRITE
+;	BX -> SFB
+;	CX = byte count
+;	DI -> BPB
+;	TMP_ES:TMP_DX -> data buffer
+;
+; Outputs:
+;	On success, carry clear, AX = bytes transferred
+;	On failure, carry set, AX = error code
+;
+; Modifies:
+;	AX, CX, DX, SI, DI, ES
+;
+DEFPROC	vol_io,DOS
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
+	push	ax
+	call	lim_count		; limit CX to the volume size
+	pop	si			; SI = request (in high byte)
+	sub	ax,ax			; AX = 0 (and carry clear)
+	jcxz	vi9			; nothing to transfer
+	mov	ax,[bx].SFB_CURPOS.LOW
+	mov	dx,[bx].SFB_CURPOS.HIW
+	div	[di].BPB_SECBYTES	; AX = LBA, DX = offset
+	push	bx
+	xchg	bx,ax			; BX = LBA
+	xchg	ax,si			; AH = request
+	mov	al,[di].BPB_DRIVE
+	les	di,[di].BPB_DEVICE
+	push	ds
+	mov	si,[bp].TMP_DX
+	mov	ds,[bp].TMP_ES		; DS:SI -> data buffer
+	ASSUME	DS:NOTHING
+	call	dev_request
+	pop	ds
+	ASSUME	DS:DOS
+	pop	bx
+	jc	vi9
+	add	[bx].SFB_CURPOS.LOW,cx
+	adc	[bx].SFB_CURPOS.HIW,0
+	xchg	ax,cx			; AX = bytes transferred
+vi9:	ret
+ENDPROC	vol_io
+
+;
+; lim_count limits the byte count in CX to the bytes between CURPOS and SIZE.
+;
+DEFPROC	lim_count,DOS
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
+	mov	ax,[bx].SFB_SIZE.LOW
+	mov	dx,[bx].SFB_SIZE.HIW
+	sub	ax,[bx].SFB_CURPOS.LOW
+	sbb	dx,[bx].SFB_CURPOS.HIW
+	jnb	lc1
+	sub	ax,ax			; no data available
+	cwd
+lc1:	test	dx,dx			; lots of data ahead?
+	jnz	lc9			; yes
+	cmp	cx,ax
+	jbe	lc9
+	mov	cx,ax			; CX reduced
+lc9:	ret
+ENDPROC	lim_count
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; sfb_seek
 ;
 ; Inputs:
@@ -801,8 +958,14 @@ DEFPROC	sfb_close,DOS
 	jmp	short sc7
 sc6:	test	[bx].SFB_FLAGS,SFBF_DIRTY
 	jz	sc7			; file was not modified
-	call	sfb_commit		; update the file's DIRENT
-	jnc	sc7
+	test	[bx].SFB_ATTR,DIRATTR_VOLUME
+	jz	sc6a			; not a volume
+	xchg	dx,ax			; DL = drive #
+	call	new_bpb			; rebuild the volume's BPB
+	mov	dx,0			; (without affecting carry)
+	jmp	short sc6b
+sc6a:	call	sfb_commit		; update the file's DIRENT
+sc6b:	jnc	sc7
 	xchg	dx,ax			; DX = error code
 sc7:	sub	ax,ax
 	mov	[bx].SFB_DEVICE.OFF,ax

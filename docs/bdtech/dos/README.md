@@ -69,6 +69,8 @@ Handles 0-4 are the predefined handles STDIN, STDOUT, STDERR, STDAUX, and STDPRN
 
 A file can be open more than once for reading, but a file opened for writing (MODE_ACC_WO or MODE_ACC_RW, which includes every file opened with 3Ch) can't be open anywhere else.  Opening a file in a way that would violate that rule fails with ERR_SHARE, as does deleting (41h) a file that's open.  Unlike PC DOS 3.x, BASIC-DOS doesn't need SHARE for this, and it ignores the MODE_DENY_* bits.  Devices are exempt, so `CON` can be open for both reading and writing.
 
+A filename that is only a drive letter and colon (eg, `C:`) opens the entire volume, whose sectors can then be read (or written) at file offsets of LBA * bytes per sector; the size of the file is the size of the volume.  For sharing purposes, a volume counts as every file on it: it can be opened for reading only if no file on it is open for writing, and for writing only if no file on it is open at all, and while the volume is open, no file on it can be opened in a way that conflicts with that.  Creating, deleting, or renaming a file, and creating or removing a directory, also fail with ERR_SHARE while the volume is open.  Opening a volume writes any modified buffers for the drive, writing to it discards the drive's buffers, and closing a volume that was written rebuilds its BPB (eg, after it's been reformatted).
+
 For IOCTL code 00h (IOCTL_GETDATA), DOS returns DX = 80h for a device, or the file's drive # (0-based) for a file.  All other IOCTL codes are passed to the device driver as a DDC_IOCTLIN request; see [IOCTL Functions](../dev/#ioctl-functions) for the BASIC-DOS-specific codes.
 
 #### File Control Blocks {#fcbs}

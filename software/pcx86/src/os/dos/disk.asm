@@ -490,6 +490,21 @@ ENDPROC	find_cln
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; new_bpb
+;
+; Same as get_bpb, except that the BPB is always rebuilt (eg, after a volume
+; has been written by a program that may have reformatted it).
+;
+DEFPROC	new_bpb,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	cx
+	push	dx
+	mov	ch,DDC_BUILDBPB		; CH = request
+	jmp	short gb0
+ENDPROC	new_bpb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; get_bpb
 ;
 ; As part of getting the BPB for the specified drive, this function presumes
@@ -510,7 +525,8 @@ DEFPROC	get_bpb,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	push	cx
 	push	dx
-	mov	al,dl			; AL = drive #
+	mov	ch,DDC_MEDIACHK		; CH = request
+gb0:	mov	al,dl			; AL = drive #
 	mov	cl,al			; save it in CL
 	mov	ah,size BPBEX
 	mul	ah			; AX = BPB offset
@@ -525,7 +541,9 @@ DEFPROC	get_bpb,DOS
 	ASSERT	STRUCT,cs:[di],BPB
 	les	di,cs:[di].BPB_DEVICE
 	mov	al,cl			; AL = drive #
-	mov	ah,DDC_MEDIACHK		; perform a MEDIACHK request
+	mov	ah,ch			; perform a MEDIACHK request
+	cmp	ah,DDC_BUILDBPB		; unless new_bpb wants a new BPB
+	je	gb7
 	call	dev_request
 	jc	gb8
 	test	dx,dx			; media unchanged?

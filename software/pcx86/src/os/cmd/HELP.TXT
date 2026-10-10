@@ -182,8 +182,8 @@ Displays help for the specified *command* or *function* (eg, HELP MID$), or list
 HEX$(*n*)
 Returns the hexadecimal representation of the integer *n*.  Negative values are treated as unsigned 32-bit values (eg, HEX$(-1) is FFFFFFFF).
 
-IF *expression* THEN *command*
-Evaluates the *expression*, and if it is TRUE (non-zero), then the *command* is executed.
+IF *expression* THEN *command(s)* [ELSE *command(s)*]
+Evaluates the *expression*, and if it is TRUE (non-zero), executes the commands after THEN; otherwise, executes the commands after ELSE, if any.  Multiple commands are separated by colons, and a line number by itself (eg, THEN 100) is the same as GOTO 100.
 
 INKEY$
 Returns the next key pressed, without waiting (an empty string if no key was pressed).  Extended keys (eg, cursor keys) return two characters: a null and the key's scan code.

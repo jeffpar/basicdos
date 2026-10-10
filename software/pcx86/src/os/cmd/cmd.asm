@@ -850,9 +850,13 @@ cf2:	cmp	cl,2			; two characters only?
 cf2a:	PRINTF	<"Drive %c: invalid",13,10,13,10>,cx
 cf2x:	jmp	cf9
 ;
-; Not a drive letter, so presumably DS:SI contains a program name.
+; Not a drive letter, so presumably DS:SI contains a program name.  If a
+; program is running it, compact its string pool first, since the pool is
+; compacted only when it runs out of room, so it may be holding blocks full
+; of garbage that the new program could use.
 ;
-cf3:	call	chkExt			; any extension in string at DS:SI?
+cf3:	call	compactStrs
+	call	chkExt			; any extension in string at DS:SI?
 	jnc	cf4			; yes
 ;
 ; There's no period, so append extensions in a well-defined order (ie, .COM,
