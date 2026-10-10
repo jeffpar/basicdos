@@ -6,6 +6,7 @@ machines:
   - id: ibm5160
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5160-cga-128kb.json
+    debugger: available
 ---
 
 The machine below is an IBM PC XT with no diskettes loaded; instead, it boots BASIC-DOS from its 10Mb hard disk (drive C:), which contains the BASIC-DOS system files in the root directory, and DONKEY.BAS and the other BASIC samples (along with BENCH.BAS and PRIMES.BAS) in a **BASIC** subdirectory.

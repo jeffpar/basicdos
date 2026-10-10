@@ -48,28 +48,62 @@ DEFPROC	dsk_flush,DOS
 	call	flush_buffers		; write any modified buffers first
 	mov	al,-1
 	DEFLBL	drv_flush,near		; otherwise, flush only drive # in AL
+	push	cx
 	push	dx
+	sub	dx,dx			; DX = 1st LBA
+	mov	cx,-1			; CX = # LBAs (all)
+	call	zap_buffers
+	pop	dx
+	pop	cx
+	ret
+ENDPROC	dsk_flush
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; zap_buffers
+;
+; Discard any buffers containing data for the specified drive and range of
+; LBAs, without writing them (eg, when the media has changed, or when the
+; sectors are about to be overwritten; see init_cln).
+;
+; Inputs:
+;	AL = drive # (-1 for all drives)
+;	DX = 1st LBA
+;	CX = # of LBAs
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None
+;
+DEFPROC	zap_buffers,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	si
 	push	ds
-	mov	ds,[buf_head]
-	mov	dx,ds			; DX = head
-df1:	test	al,al
-	jl	df2
+	mov	si,[buf_head]
+zb1:	mov	ds,si
+	test	al,al
+	jl	zb2
 	cmp	ds:[BUF_DRIVE],al
-	jne	df3
+	jne	zb3
+zb2:	mov	si,ds:[BUF_LBA]
+	sub	si,dx
+	cmp	si,cx			; is the LBA within the range?
+	jae	zb3			; no
 ;
 ; We use zero to zap BUF_LBA because we never read LBA 0 into our buffers;
 ; the disk driver will read LBA 0, but only when it needs to rebuild the BPB.
 ;
-df2:	mov	ds:[BUF_LBA],0		; use 0 to invalidate the LBA
+	mov	ds:[BUF_LBA],0		; use 0 to invalidate the LBA
 	mov	ds:[BUF_DIRTY],0	; and discard any unwritten data
-df3:	cmp	ds:[BUF_NEXT],dx	; looped back around?
-	je	df9			; yes
-	mov	ds,ds:[BUF_NEXT]
-	jmp	df1
-df9:	pop	ds
-	pop	dx
+zb3:	mov	si,ds:[BUF_NEXT]
+	cmp	si,[buf_head]		; looped back around?
+	jne	zb1			; no
+	pop	ds
+	pop	si
 	ret
-ENDPROC	dsk_flush
+ENDPROC	zap_buffers
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -762,7 +796,9 @@ gd6a:	cmp	ax,ERR_NOFILE		; beyond the end of the directory?
 	sub	bp,bp
 	jmp	gd2
 
-gd6:	sub	dx,dx			; start over at the first sector
+gd6:	cmp	dx,bp			; did we already start over?
+	jb	gd7b			; yes, so no match
+	sub	dx,dx			; start over at the first sector
 
 gd7:	sub	cx,cx			; start at offset zero of next sector
 	cmp	dx,bp			; back to the 1st sector again?

@@ -33,15 +33,6 @@ DDH_INTERRUPT	dw	?	; 08h: unused ("interrupt") entry offset
 DDH_NAME	dq	?	; 0Ah: device name (8 characters)
 DDH		ends
 
-;
-; The FDC driver's exports, which immediately follow its DDH, so that the HDC
-; driver (which finds the FDC driver with FDC_DEVICE) can share its INT 13h
-; code and sector buffer (see fdcdev.asm).  Each is the offset of a far entry.
-;
-FDCX		struc
-FDCX_RW		dw	?	; read/write request at ES:DI (AL = BIOS drive)
-FDCX_RDBUF	dw	?	; read LBA DX into FDC buffer (see fdc_rdbuf)
-FDCX		ends
 
 DDATTR_STDIN	equ	0001h
 DDATTR_STDOUT	equ	0002h

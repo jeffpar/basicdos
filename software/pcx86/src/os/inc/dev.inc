@@ -129,3 +129,12 @@ symbol 	=	symbol + (((var&&_end - &&var) + 15) AND 0FFF0h)
 symbol	=	symbol + add
 	ENDIF
 	endm
+;
+; The FDC driver's exports, which immediately follow its DDH, so that the HDC
+; driver (which finds the FDC driver with FDC_DEVICE) can share its INT 13h
+; code and sector buffer (see fdcdev.asm).  Each is the offset of a far entry.
+;
+FDCX		struc
+FDCX_RW		dw	?	; read/write request at ES:DI (AL = BIOS drive)
+FDCX_RDBUF	dw	?	; read LBA DX into FDC buffer (see fdc_rdbuf)
+FDCX		ends

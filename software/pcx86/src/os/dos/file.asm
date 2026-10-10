@@ -21,7 +21,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<get_bpb,get_cln,get_dirent,read_buffer,flush_buffers>
 	EXTNEAR	<alloc_cln,free_clns,sfb_open,sfb_chkopen>
 	EXTNEAR	<dir_lba,get_dircln>
-	EXTNEAR	<get_cdir,get_dirpath,new_buffer>
+	EXTNEAR	<get_cdir,get_dirpath,new_buffer,write_buffer,zap_buffers>
 
 	EXTBYTE	<scb_locked>
 	EXTWORD	<scb_active>
@@ -676,9 +676,11 @@ ENDPROC	add_dirent
 ;
 ; init_cln
 ;
-; Zero every sector of a new directory cluster, using DIR buffers (see
-; new_buffer).  The sectors are zeroed from last to first, so that the most
-; recently used buffer contains the cluster's first sector (marked dirty).
+; Zero every sector of a new directory cluster, using a single DIR buffer (see
+; new_buffer): the buffer is zeroed once and then written to each sector after
+; the first by changing only its LBA, so that no other buffers are evicted
+; (any old copies of the sectors are discarded first; see zap_buffers).
+; The buffer is left holding the cluster's first sector (marked dirty).
 ;
 ; Inputs:
 ;	DX = CLN
@@ -702,19 +704,16 @@ DEFPROC	init_cln,DOS
 	mov	cl,cs:[di].BPB_CLUSLOG2
 	shl	ax,cl
 	add	ax,cs:[di].BPB_LBADATA	; AX = cluster's 1st LBA
-	mov	cl,cs:[di].BPB_CLUSSECS
-	mov	ch,0
-	add	ax,cx			; AX = cluster's last LBA + 1
 	xchg	dx,ax			; DX = LBA
-ic1:	dec	dx
 	mov	al,cs:[di].BPB_DRIVE
+	mov	cl,cs:[di].BPB_CLUSSECS
+	mov	ch,0			; CX = # sectors
+	call	zap_buffers		; discard any old copies of the sectors
 	mov	si,offset DIR_BUFHDR
 	mov	ah,0
 	call	new_buffer		; DS:SI -> buffer for LBA
 	jc	ic9
 	ASSUME	DS:NOTHING
-	mov	ds:[BUF_DIRTY],1
-	push	cx
 	push	di
 	push	ds
 	pop	es
@@ -724,8 +723,20 @@ ic1:	dec	dx
 	sub	ax,ax			; (and carry is clear)
 	rep	stosw
 	pop	di
-	pop	cx
+	mov	cl,cs:[di].BPB_CLUSSECS	; CX = # sectors
+	sub	si,si			; DS:SI -> BUFHDR
+	push	dx			; save 1st LBA
+	jmp	short ic2
+ic1:	inc	dx
+	mov	ds:[BUF_LBA],dx
+	call	write_buffer		; write the zeroed sector
+	jc	ic8
+ic2:	mov	ds:[BUF_DIRTY],1
 	loop	ic1
+ic8:	pop	dx
+	jc	ic9
+	mov	ds:[BUF_LBA],dx		; buffer is the 1st sector again
+	mov	si,size BUFHDR		; DS:SI -> data
 ic9:	pop	es
 	pop	di
 	pop	dx
@@ -750,40 +761,34 @@ ENDPROC	init_cln
 DEFPROC	dsk_mkdir,DOS
 	LOCK_SCB
 	call	chk_dirname		; DL = drive #, DI -> BPB
-	jc	md8
+	jc	md0
 	push	bx
 	mov	ax,-1
 	mov	bl,0			; BL = 0 (any attributes)
 	call	get_dirent		; does the name already exist?
 	pop	bx
-	jnc	md6			; yes
+	jnc	md0a			; yes
 	cmp	ax,ERR_NOFILE
+	je	md1
 	stc
-	jne	md8
+md0:	jmp	md8
+md0a:	jmp	md6
 ;
-; Allocate a cluster for the new directory, and then add its DIRENT to
-; the parent directory (releasing the cluster if that fails).
+; Allocate a cluster for the new directory, initialize it (with "." and ".."
+; entries), and write it and the FAT, before adding the new directory's DIRENT
+; to the parent directory, so that a crash can't leave a DIRENT that refers to
+; a free (or uninitialized) cluster; at worst, the cluster will be lost.  If we
+; can't add the DIRENT, the cluster is released.
 ;
-	sub	dx,dx
+md1:	sub	dx,dx
 	call	alloc_cln		; DX = new CLN
 	jc	md8
-	push	dx
-	mov	bl,DIRATTR_SUBDIR
-	call	add_dirent		; DS:SI -> new DIRENT
-	pop	dx
-	jnc	md2
-	push	ax
-	call	free_clns		; release the new cluster
-	pop	ax
-	stc
-	jmp	short md8
-md2:	ASSUME	DS:BIOS
-	mov	[si].DIR_CLN,dx
+	push	dx			; save the new CLN
 	mov	bx,dx			; BX = new CLN
 	call	get_dircln
 	xchg	cx,ax			; CX = parent CLN
 	call	init_cln		; DS:SI -> new directory's 1st sector
-	jc	md8
+	jc	md7
 ;
 ; Fill in the "." entry (with the new CLN) and ".." entry (with the
 ; parent CLN).
@@ -825,9 +830,27 @@ md3:	push	ax
 	pop	es
 	ASSUME	ES:NOTHING
 	pop	di
+	mov	al,cs:[di].BPB_DRIVE
+	call	flush_buffers		; write the new directory and the FAT
+	jc	md7
+;
+; Now add the new directory's DIRENT to the parent directory.
+;
+	mov	bl,DIRATTR_SUBDIR
+	call	add_dirent		; DS:SI -> new DIRENT
+	jc	md7
+	ASSUME	DS:BIOS
+	pop	dx			; DX = new CLN
+	mov	[si].DIR_CLN,dx
 	mov	al,ds:[BUF_DRIVE]
-	call	flush_buffers		; write the new directory, etc
+	call	flush_buffers		; write the parent directory
 	jnc	md9
+	jmp	short md8
+md7:	pop	dx			; DX = new CLN
+	push	ax
+	call	free_clns		; release the new cluster
+	pop	ax
+	stc
 	jmp	short md8
 md6:	mov	ax,ERR_ACCDENIED
 	stc

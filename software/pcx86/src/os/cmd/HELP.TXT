@@ -61,6 +61,9 @@ Same as CDBL.
 CSRLIN
 Returns the cursor's row, starting at 1.  See also POS.
 
+CURDIR$
+Returns the current drive and directory (eg, C:/BASIC), as CD displays them.
+
 CVD(*string*)
 Returns the double stored in the first 8 bytes of *string* by MKD$.
 

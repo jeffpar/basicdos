@@ -9,7 +9,7 @@
 ;
 ; This driver supports diskette drives, by way of the ROM BIOS (INT 13h).  Its
 ; read and write code (and its sector buffer) are shared with the HDC driver,
-; which calls fdc_rw and fdc_rdbuf (see FDCX in devapi.inc), since INT 13h
+; which calls fdc_rw and fdc_rdbuf (see FDCX in dev.inc), since INT 13h
 ; works the same way for both: the code uses the geometry in the BPB, along
 ; with BPB_HIDDENSECS as a hard disk volume's first sector (diskettes have
 ; no hidden sectors), and the caller provides the BIOS drive # (rw_drive).
@@ -29,7 +29,7 @@ CODE	segment para public 'CODE'
 
 	public	FDC
 FDC 	DDH	<offset DEV:ddfdc_end+16,,DDATTR_BLOCK,offset ddfdc_init,-1,2020202024434446h>
-	dw	offset DEV:fdc_rw, offset DEV:fdc_rdbuf	; FDCX (see devapi.inc)
+	dw	offset DEV:fdc_rw, offset DEV:fdc_rdbuf	; FDCX (see dev.inc)
 
 	DEFLBL	CMDTBL,word
 	dw	ddfdc_none,  ddfdc_mediachk, ddfdc_buildbpb, ddfdc_none	; 0-3

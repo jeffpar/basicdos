@@ -33,6 +33,34 @@
       "webRoot": "${workspaceFolder}"
     },
     {
+      "type": "chrome",
+      "request": "launch",
+      "name": "BASIC-DOS on a Hard Disk",
+      "url": "http://localhost:4040/demos/hd/",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "BASIC-DOS on a Hard Disk with Debugger",
+      "url": "http://localhost:4040/demos/hd/debugger/",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "BASIC-DOS Multitasking Stress Tests",
+      "url": "http://localhost:4040/demos/stress/",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "BASIC-DOS Multitasking Stress Tests with Debugger",
+      "url": "http://localhost:4040/demos/stress/debugger/",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
       "name": "gulp build",
       "type": "node",
       "request": "launch",

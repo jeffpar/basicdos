@@ -47,4 +47,5 @@
 442 IF S1$ <> "TWO" OR S2$ <> "ONE" THEN PRINT "SWAP strings failed"
 443 X = FRE(0) : IF S1$ <> "TWO" OR S2$ <> "ONE" THEN PRINT "SWAP owners failed"
 444 IF SPC(3) <> "   " OR LEN(SPC(0)) <> 0 THEN PRINT "SPC failed"
+445 IF MID$(CURDIR$,2,1) <> ":" OR LEN(CURDIR$) < 3 THEN PRINT "CURDIR$ failed"
 450 PRINT "STRFUN done"

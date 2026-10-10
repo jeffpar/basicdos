@@ -18,7 +18,7 @@
 ; to the start of its volume).  Since INT 13h works the same way for hard
 ; disks as it does for diskettes (including DMA transfers that can't cross 64K
 ; boundaries), all our reads and writes are done by the FDC driver (see FDCX
-; in devapi.inc), using the geometry and volume start in our BPBs, so the FDC
+; in dev.inc), using the geometry and volume start in our BPBs, so the FDC
 ; driver must be loaded too.
 ;
 	BIOSEQU equ 1

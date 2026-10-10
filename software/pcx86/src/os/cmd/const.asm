@@ -28,7 +28,7 @@ CODE    SEGMENT
 	EXTNEAR	<getPos,getSgn,strTab>
 	EXTNEAR	<strArg,strAsc,strChr,strDate,strFre,strHex,strInkey,strInstr>
 	EXTNEAR	<strLCase,strLeft,strLen,strMid,strOct,strRight,strSpace>
-	EXTNEAR	<strStr,strString,strTime,strUCase,strVal>
+	EXTNEAR	<strStr,strString,strTime,strUCase,strVal,strCurDir>
 
 	DEFSTR	COM_EXT,<".COM",0>	; these 4 file extensions must be
 	DEFSTR	EXE_EXT,<".EXE",0>	; listed in the desired search order
@@ -197,6 +197,9 @@ CODE    SEGMENT
 	db	VAR_FUNC + 6,"CSRLIN"
 	db	VAR_LONG,0
 	dw	offset getCsrlin,0
+	db	VAR_FUNC + 6,"CURDIR"
+	db	VAR_STR,0
+	dw	offset strCurDir,0
 	db	VAR_FUNC + 3,"CVD"
 	db	VAR_DOUBLE,1
 	db	VAR_STR,PARM_REQUIRED

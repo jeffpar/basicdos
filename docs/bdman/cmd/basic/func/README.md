@@ -11,7 +11,7 @@ Functions can be used in any expression, in BASIC programs or at the prompt (eg,
 - Numeric functions: [ABS](#abs), [ATN](#atn), [CDBL](#cdbl), [CINT](#cint), [COS](#cos), [CSNG](#cdbl), [EXP](#exp), [FIX](#fix), [INT](#int), [LOG](#log), [RND](#rnd), [RND%](#rnd-int), [SGN](#sgn), [SIN](#sin), [SQR](#sqr), [TAN](#tan)
 - String functions: [ASC](#asc), [CHR$](#chr), [HEX$](#hex), [INSTR](#instr), [LCASE$](#lcase), [LEFT$](#left), [LEN](#len), [MID$](#mid), [OCT$](#oct), [RIGHT$](#right), [SPACE$](#space), [SPC](#space), [STR$](#str), [STRING$](#string), [TAB](#tab), [UCASE$](#ucase), [VAL](#val)
 - File functions: [CVD](#cvi), [CVI](#cvi), [CVL](#cvi), [EOF](#eof), [LOC](#loc), [LOF](#lof), [MKD$](#mki), [MKI$](#mki), [MKL$](#mki)
-- System functions: [ARG$](#arg), [CSRLIN](#csrlin), [DATE$](#date), [ERL](#erl), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [MOUSE](#mouse), [PEEK](#peek), [POS](#pos), [TIME$](#time)
+- System functions: [ARG$](#arg), [CSRLIN](#csrlin), [CURDIR$](#curdir), [DATE$](#date), [ERL](#erl), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [MOUSE](#mouse), [PEEK](#peek), [POS](#pos), [TIME$](#time)
 - Predefined constants: [ERRORLEVEL](#errorlevel), [MAXINT](#maxint)
 
 You can also define your own functions with [DEF](../def/).
@@ -265,6 +265,12 @@ then typing `SHOW one "two three"` displays `SHOW has one and two three`.
 > CSRLIN
 
 Returns the cursor's row, starting at 1 (see [POS](#pos) and [LOCATE](../../device/screen/#locate)).
+
+#### CURDIR$ {#curdir}
+
+> CURDIR$
+
+Returns the current drive and directory as a string, in the same form that [CD](../../disk/#cd) displays (eg, `C:/BASIC`, or `C:/` in the root directory).  `LEFT$(CURDIR$,1)` is the current drive letter.
 
 #### DATE$ {#date}
 

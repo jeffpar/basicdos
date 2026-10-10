@@ -1,3 +1,4 @@
 REM Demonstration of a single-session hard disk configuration
+BUFFERS=8
 SESSIONS=3
 SHELL=COMMAND.COM AUTOEXEC.BAT

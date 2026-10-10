@@ -11,10 +11,12 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<countLine,chkString,getFileName,getToken>
+	EXTNEAR	<countLine,chkString,getFileName,getToken,newStr>
 	EXTSTR	<DIR_DEF,PERIOD>
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
+
+ERR_NOTREADY	equ	21		; drive not ready (see dev_request)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -628,6 +630,57 @@ DEFPROC	getCwd
 	mov	dl,[bx].PATH_CHAR	; DL = path char
 	ret
 ENDPROC	getCwd
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; strCurDir (CURDIR$)
+;
+; Returns the current drive and directory (eg, "C:/BASIC"), as CD displays.
+;
+; Inputs:
+;	32-bit return value
+;
+; Outputs:
+;	32-bit return value updated
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	strCurDir,FAR
+	RETVAR	retDir,dword
+	LOCVAR	dirBuf,byte,68
+	ENTER
+	push	ds
+	push	ss
+	pop	ds
+	push	ss
+	pop	es
+	mov	ah,DOS_DSK_GETDRV
+	int	21h			; AL = current drive #
+	add	al,'A'
+	mov	ah,':'
+	lea	di,[dirBuf]
+	stosw				; "d:"
+	mov	bx,ds:[PSP_HEAP]
+	mov	al,[bx].PATH_CHAR
+	stosb				; path char
+	mov	si,di			; DS:SI -> rest of buffer
+	mov	dl,0			; DL = 0 (current drive)
+	mov	ah,DOS_DSK_GETCWD
+	int	21h
+	mov	cx,64
+	mov	al,0
+	repne	scasb			; find the null
+	pop	ds
+	lea	si,[dirBuf]
+	lea	cx,[di-1]
+	sub	cx,si			; CX = length
+	call	newStr
+	mov	[retDir].OFF,ax
+	mov	[retDir].SEG,dx
+	LEAVE
+	RETURN
+ENDPROC	strCurDir
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
