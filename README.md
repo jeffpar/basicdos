@@ -49,7 +49,8 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] INT 32h utility functions numbered contiguously (00h-24h) and grouped by purpose (see the [Technical Reference](docs/bdtech/util/))
 - [x] Preemptive multitasking of multiple sessions
 - [x] CTRL-C/CTRL-Break handling, and CTRL-ALT-DEL session aborts (vectors 08h, 09h, 1Bh, and 1Ch that a terminated program left hooked, like MSBASIC's, are restored)
-- [ ] Session STOP/END operations (currently TODOs)
+- [x] Session END: abort the current program in a specified session, interrupting any pending wait; WAITEND waits for the session to close
+- [ ] Session STOP (suspend a specified session; currently a TODO)
 - [ ] TSR support (INT 27h and INT 21h function 31h)
 - [ ] Environment segments for EXEC (EPB_ENVSEG)
 
@@ -66,7 +67,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] Truncating/extending a file with a zero-length write (function 40h, and FCB function 28h)
 - [ ] Enforcing the read-only attribute on open, and getting/setting file attributes (function 43h) and date/time (function 57h)
 - [x] Subdirectories: paths (separated by `/`, or `\` when SWITCHAR is `/`) in all file functions, MKDIR and RMDIR (functions 39h and 3Ah), subdirectories that grow as needed, and per-session current directories for every drive (CHDIR and GETCWD, functions 3Bh and 47h)
-- [ ] Renaming a file into a different directory
+- [x] Same-drive file and directory moves (function 56h): preserve contents and metadata, update a moved directory's `..` entry, retain active current directories, and reject moves into itself or a descendant
 - [x] Absolute disk reads and writes: opening a volume (eg, `C:`) as a file gives read/write access to its sectors, in place of INT 25h and INT 26h
 - [x] Configurable disk buffer cache (BUFFERS=2-32, default 2), with least-recently-used replacement for FAT and directory sectors; file data is transferred directly by the disk drivers
 - [ ] FAT16 and extended partitions
@@ -94,7 +95,6 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] PATH$: the directories searched for programs (eg, `LET PATH$="A:/;A:/BASIC;A:/TOOLS;A:/TESTS"` on a SHELL line in CONFIG.SYS); unlike other variables, it survives NEW and CLEAR
 - [x] Every BASIC-DOS disk has the same layout: BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, AUTOEXEC.BAT (if any), and HELP.TXT in the root, BASIC samples in BASIC, utilities in TOOLS, and test and demo programs in TESTS; HELP finds HELP.TXT in the root of the boot drive from any directory
 - [ ] Input redirection (`<`)
-- [ ] Batch file features: replaceable parameters (`%1`-`%9`), environment variables (SET), `ECHO message`, IF EXIST, FOR ... IN ... DO, SHIFT, and PAUSE (see [Batch Files](docs/bdman/lang/#batch-files) for the BASIC-DOS equivalents)
 - [x] REN/RENAME/MV: rename files and directories and move them between directories on the same drive
 - [x] Loading tokenized (binary) BAS files saved by BASICA or GW-BASIC (eg, the samples on the PC DOS diskettes): they're converted back to text as they're loaded (as LIST would display them), including MBF floating-point constants (converted to IEEE doubles and formatted by FPU$); protected BAS files are still rejected with "Invalid file format"
 - [ ] LOAD inside a running BAS or BAT file (for now, it's an error, "Not allowed in a program", because it would replace the running file's own text)
@@ -122,7 +122,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] MOUSE ON/OFF and the MOUSE(*n*) function (modeled on MSBASIC's PEN), which returns button events, their positions, and the current position and buttons, in pixels (graphics modes) or columns and rows (text modes); the pointer is hidden while graphics statements run (until the next MOUSE function), and the mouse is turned off when a BAS program ends
 - [x] INPUT and LINE INPUT, from the keyboard or an open file
 - [ ] The MID$ statement (ie, `MID$(A$,N[,M]) = B$`)
-- [ ] `&H` and `&O` prefixes in VAL
+- [x] `&H` and `&O` prefixes in VAL (`&` alone also means octal)
 - [ ] Comma print zones in PRINT (commas currently print a tab)
 - [x] Sequential file I/O: OPEN FOR INPUT, OUTPUT, and APPEND, CLOSE (and RESET), PRINT #, WRITE #, INPUT #, LINE INPUT #, EOF, LOC, and LOF
 - [x] Random access file I/O: OPEN FOR RANDOM with LEN, FIELD, LSET, RSET, GET #, PUT #, and binary conversion functions (CVI, CVL, CVD, MKI$, MKL$, and MKD$)
@@ -199,13 +199,19 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] [BASIC-DOS Manual](docs/bdman/): using BASIC-DOS, all commands and functions, programming, and configuration
 - [x] [BASIC-DOS Technical Reference](docs/bdtech/): architecture, DOS functions, utility functions, device drivers, the FPU$ interface, and internal structures
 
+## Non-features
+
+BASIC-DOS uses BASIC for batch files, so reproducing PC DOS batch syntax is not a project goal.
+
+- PC DOS batch features: replaceable parameters (`%1`-`%9`), environment variables (SET), `ECHO message`, IF EXIST, FOR ... IN ... DO, SHIFT, and PAUSE.  BASIC-DOS provides command-line arguments through [ARG$](docs/bdman/cmd/basic/func/#arg), BASIC variables, PRINT, expressions, and control flow instead.  See [Batch Files](docs/bdman/lang/#batch-files) for the differences and equivalents; this does not imply that every PC DOS batch operation already has a direct equivalent.
+
 ## Roadmap
 
 These are the next steps, roughly in priority order:
 
 1. Add input redirection
 2. The read-only attribute, and file attribute/date/time functions
-3. Remaining string and input/output features (the MID$ statement, `&H` and `&O` prefixes in VAL, and comma print zones)
+3. Remaining string and input/output features (the MID$ statement and comma print zones)
 4. The rest of runtime error handling (RESUME, RESUME NEXT, and ERL)
 5. Critical error handling
 
