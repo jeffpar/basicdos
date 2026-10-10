@@ -12,15 +12,20 @@
 #
 # The first command must be an internal command (eg, VER), because pc.js converts only the first
 # command into a path (eg, "\DOSTESTS.COM"), which BASIC-DOS doesn't understand.  Also, since output
-# at the end of a session may be truncated by QUIT, the last test is followed by SLEEP 1 (SLEEP.COM from tests/bin).
+# at the end of a session may be truncated by QUIT, the last test is followed by SLEEP 1 (SLEEP.COM from os/util).
 #
 cd "$(dirname "$0")/../.." || exit 1
 tools/tests/prep.sh software/pcx86/src/configs/console/serial/fpe || exit 1
 tools/tests/prep.sh software/pcx86/src/configs/console/serial/fpu || exit 1
 log=$(mktemp)
-tools/pc/pc.js ibm5160-test software/pcx86/src/configs/console/serial/fpe "VER,FPUTESTS,DOSTESTS,STRFUN,STRPOOL,ARRAYS,FLOW,CMDS,FILEIO,FCBTESTS,PRINTF,SLEEP 1,QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync | tee "$log"
-tools/pc/pc.js ibm5160-test-fpu software/pcx86/src/configs/console/serial/fpu "VER,FPUTESTS,STRFUN,SLEEP 1,QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync | tee -a "$log"
-if grep -q "failed" "$log" || grep -q "Return code [1-9]" "$log" || [ "$(grep -c "Return code 0" "$log")" -lt 3 ] ||
+#
+# Since only DEBUG builds of COMMAND.COM display "Return code" after a program ends, we check
+# ERRORLEVEL after each test program instead.
+#
+ok='IF ERRORLEVEL = 0 THEN PRINT "EXITOK" ELSE PRINT "EXITBAD"'
+tools/pc/pc.js ibm5160-test software/pcx86/src/configs/console/serial/fpe "VER,FPUTESTS,$ok,DOSTESTS,$ok,STRFUN,STRPOOL,ARRAYS,FLOW,CMDS,FILEIO,FCBTESTS,$ok,PRINTF,$ok,SLEEP 1,QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync | tee "$log"
+tools/pc/pc.js ibm5160-test-fpu software/pcx86/src/configs/console/serial/fpu "VER,FPUTESTS,$ok,STRFUN,SLEEP 1,QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync | tee -a "$log"
+if grep -q "failed" "$log" || grep -q "EXITBAD" "$log" || [ "$(grep -c "EXITOK" "$log")" -lt 5 ] ||
    [ "$(grep -c "STRFUN done" "$log")" -lt 2 ] || ! grep -q "STRPOOL done" "$log" ||
    ! grep -q "ARRAYS done" "$log" || ! grep -q "FLOW done" "$log" || ! grep -q "CMDS done" "$log" ||
    ! grep -q "FILEIO done" "$log" || ! grep -q "FCBTESTS passed" "$log" ||

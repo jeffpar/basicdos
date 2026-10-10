@@ -53,117 +53,148 @@ function checkOutput(task, outputFile)
     };
 }
 
-let demoFiles = [
-    "./software/pcx86/src/os/dev/obj/BASDEV.COM",
-    "./software/pcx86/src/os/dos/obj/BASDOS.COM",
-    "./software/pcx86/src/os/cmd/obj/COMMAND.COM",
-    "./software/pcx86/src/os/cmd/HELP.TXT",
-    "./software/pcx86/src/tests/primes/PRIMES.BA*",
-    "./software/pcx86/src/tests/bin/*.EXE",
-    "./software/pcx86/src/tests/bin/*.COM",
-    "./software/pcx86/src/tests/misc/BD*.BAT",
-    "./software/pcx86/src/tests/misc/*.EXE",
-    "./software/pcx86/src/msb/obj/*.EXE"
-];
-
-let minFiles = [
-    "./software/pcx86/src/os/dev/obj/BASDEV.COM",
-    "./software/pcx86/src/os/dos/obj/BASDOS.COM",
-    "./software/pcx86/src/os/cmd/obj/COMMAND.COM",
-    "./software/pcx86/src/os/cmd/HELP.TXT",
-    "./software/pcx86/src/tests/misc/SYMDEB.EXE",
-    "./software/pcx86/src/msb/obj/*.EXE"
-];
+/*
+ * Every BASIC-DOS disk has the same layout: the system files (BASDEV.COM, BASDOS.COM, and COMMAND.COM), CONFIG.SYS,
+ * AUTOEXEC.BAT (if any), and HELP.TXT in the root, followed by a BASIC folder (BASIC samples), a TOOLS folder (the
+ * utilities in os/util), and a TESTS folder (anything else, for demo and testing purposes, eg, MSBASIC and SYMDEB).
+ * CONFIG.SYS sets PATH$ on each SHELL line (eg, SHELL=COMMAND.COM LET PATH$="A:/;A:/BASIC;A:/TOOLS").
+ *
+ * Each disk below lists its CONFIG.SYS, its AUTOEXEC.BAT (if any), and the files for its BASIC and TESTS folders;
+ * every disk gets the same root files and TOOLS folder.  A hard disk image (a demo with no diskettes) is marked "hd",
+ * and pc.js builds it (with --sys=bd:2, so it's bootable, and pc.js adds the system files and HELP.TXT itself).
+ */
+const SRC = "./software/pcx86/src";
+const sysFiles = [ SRC + "/os/dev/obj/BASDEV.COM", SRC + "/os/dos/obj/BASDOS.COM", SRC + "/os/cmd/obj/COMMAND.COM" ];
+const helpFile = SRC + "/os/cmd/HELP.TXT";
+const toolFiles = [ SRC + "/os/util/obj/*.COM" ];
+const primesFiles = [ SRC + "/tests/primes/PRIMES.BAS", SRC + "/tests/primes/PRIMES.BAT" ];
+const sampleFiles = [ "./demos/basic/*.BAS", "./demos/mbrot/MBROT.BAS" ].concat(primesFiles);
+const extraFiles = [ SRC + "/tests/misc/SYMDEB.EXE", SRC + "/msb/obj/*.EXE" ];
+const testFiles = [ SRC + "/tests/bin/*.EXE", SRC + "/tests/bin/*.COM", SRC + "/tests/misc/BD*.BAT" ].concat(extraFiles);
 
 let disks = {
-    "BASICDOS": [
-        "./demos/s80/CONFIG.SYS",
-        "./demos/s80/AUTOEXEC.BAT"
-    ].concat(minFiles),
-    "BASICDOS-DISK1": [
-        "./demos/s80/CONFIG.SYS",
-        "./demos/d40/AUTOEXEC.BAT"
-    ].concat(demoFiles),
-    "BASICDOS-DISK2": [
-        "./demos/d40/CONFIG.SYS",
-        "./demos/d40/AUTOEXEC.BAT"
-    ].concat(demoFiles),
-    "BASICDOS-DISK3": [
-        "./demos/d80/CONFIG.SYS",
-        "./demos/d40/AUTOEXEC.BAT",
-    ].concat(demoFiles),
-    "BASICDOS-DISK4": [
-        "./demos/dual/CONFIG.SYS",
-        "./demos/d40/AUTOEXEC.BAT",
-    ].concat(demoFiles),
-    "BASICDOS-DISK5": [
-        "./demos/dual/multi/CONFIG.SYS",
-        "./demos/d40/AUTOEXEC.BAT",
-    ].concat(demoFiles),
-    "BASICDOS-DISK6": [
-        "./demos/s80/CONFIG.SYS",
-        "./demos/d40/AUTOEXEC.BAT",
-        "./demos/basic/*.BAS",          // DONKEY.BAS and the other PC DOS 1.00 BASIC samples
-        "./demos/mbrot/MBROT.BAS",
-        "./software/pcx86/src/tests/misc/BENCH.BAS"
-    ].concat(minFiles),
-    /*
-     * A hard disk image (a demo with no diskettes) is described by an object instead: "root" lists the
-     * files for the root directory, and every other property lists the files for a subdirectory.  pc.js
-     * builds it (with --sys=bd:2, so it's bootable, and the BASIC-DOS system files are added to the root).
-     */
+    "BASICDOS": {
+        config: "./demos/s80/CONFIG.SYS",
+        autoexec: "./demos/s80/AUTOEXEC.BAT",
+        BASIC: primesFiles,
+        TESTS: extraFiles
+    },
+    "BASICDOS-DISK1": {
+        config: "./demos/s80/CONFIG.SYS",
+        autoexec: "./demos/d40/AUTOEXEC.BAT",
+        BASIC: primesFiles,
+        TESTS: testFiles
+    },
+    "BASICDOS-DISK2": {
+        config: "./demos/d40/CONFIG.SYS",
+        autoexec: "./demos/d40/AUTOEXEC.BAT",
+        BASIC: primesFiles,
+        TESTS: testFiles
+    },
+    "BASICDOS-DISK3": {
+        config: "./demos/d80/CONFIG.SYS",
+        autoexec: "./demos/d40/AUTOEXEC.BAT",
+        BASIC: primesFiles,
+        TESTS: testFiles
+    },
+    "BASICDOS-DISK4": {
+        config: "./demos/dual/CONFIG.SYS",
+        autoexec: "./demos/d40/AUTOEXEC.BAT",
+        BASIC: primesFiles,
+        TESTS: testFiles
+    },
+    "BASICDOS-DISK5": {
+        config: "./demos/dual/multi/CONFIG.SYS",
+        autoexec: "./demos/d40/AUTOEXEC.BAT",
+        BASIC: primesFiles,
+        TESTS: testFiles
+    },
+    "BASICDOS-DISK6": {
+        config: "./demos/s80/CONFIG.SYS",
+        autoexec: "./demos/d40/AUTOEXEC.BAT",
+        BASIC: sampleFiles,             // DONKEY.BAS and the other PC DOS 1.00 BASIC samples
+        TESTS: [ SRC + "/tests/misc/BENCH.BAS" ].concat(extraFiles)
+    },
     "BASICDOS-HD": {
-        "root": [
-            "./demos/hd/CONFIG.SYS",
-            "./demos/d40/AUTOEXEC.BAT",
-            "./software/pcx86/src/tests/misc/SYMDEB.EXE",
-            "./software/pcx86/src/msb/obj/*.EXE"
-        ],
-        "BASIC": [
-            "./demos/basic/*.BAS",
-            "./demos/mbrot/MBROT.BAS",
-            "./software/pcx86/src/tests/misc/BENCH.BAS",
-            "./software/pcx86/src/tests/primes/PRIMES.BAS"
-        ]
+        hd: true,
+        config: "./demos/hd/CONFIG.SYS",
+        autoexec: "./demos/d40/AUTOEXEC.BAT",
+        BASIC: sampleFiles,
+        TESTS: [ SRC + "/tests/misc/BENCH.BAS" ].concat(extraFiles)
     },
     "BASICDOS-STRESS": {
-        "root": [
-            "./demos/stress/CONFIG.SYS",
-            "./demos/stress/STRESS.BAT",
-            "./software/pcx86/src/tests/primes/PRIMES.BAS"
-        ]
+        hd: true,
+        config: "./demos/stress/CONFIG.SYS",
+        BASIC: [ SRC + "/tests/primes/PRIMES.BAS" ],
+        TESTS: [ "./demos/stress/STRESS.BAT" ]
     },
     "PCDOS200-C400": "./software/pcx86/disks/PCDOS200-C400.json"
 };
 
 /**
- * buildHD(diskName, diskImage)
+ * stageDisk(diskName)
  *
- * Returns a gulp task function that copies the files for a hard disk image (see "BASICDOS-HD" above) to a
- * staging directory (tools/pc/disks/diskName) and then uses pc.js to build a bootable BASIC-DOS hard disk
- * image from that directory.
+ * Copies the files for a BASIC-DOS disk (see "disks" above) to a staging directory (tools/pc/disks/diskName),
+ * and returns the root entries in the order they should appear on the disk.
+ *
+ * @param {string} diskName
+ * @returns {Array.<string>}
+ */
+function stageDisk(diskName)
+{
+    let disk = disks[diskName];
+    let dirStage = "./tools/pc/disks/" + diskName;
+    fs.rmSync(dirStage, { recursive: true, force: true });
+    fs.mkdirSync(dirStage, { recursive: true });
+    let entries = [];
+    let copyFiles = function(fileSpecs, dirTarget, name) {
+        for (let fileSpec of fileSpecs) {
+            let files = fileSpec.indexOf('*') >= 0? globSync(fileSpec).sort() : [fileSpec];
+            for (let file of files) {
+                let target = path.join(dirTarget, name || path.basename(file));
+                fs.copyFileSync(file, target);
+                if (dirTarget == dirStage) entries.push(target);
+            }
+        }
+    };
+    if (!disk.hd) copyFiles(sysFiles, dirStage);
+    copyFiles([disk.config], dirStage, "CONFIG.SYS");
+    if (disk.autoexec) copyFiles([disk.autoexec], dirStage, "AUTOEXEC.BAT");
+    if (!disk.hd) copyFiles([helpFile], dirStage);
+    let folders = { BASIC: disk.BASIC || [], TOOLS: toolFiles, TESTS: disk.TESTS || [] };
+    for (let folder in folders) {
+        if (!folders[folder].length) continue;
+        let dirTarget = path.join(dirStage, folder);
+        fs.mkdirSync(dirTarget);
+        copyFiles(folders[folder], dirTarget);
+        entries.push(dirTarget);
+    }
+    return entries;
+}
+
+/**
+ * buildDisk(diskName, diskImage)
+ *
+ * Returns a gulp task function that stages the files for a BASIC-DOS disk and then builds the disk image:
+ * a hard disk with pc.js, or a 360K diskette with diskimage.js (which requires PCJS).
  *
  * @param {string} diskName
  * @param {string} diskImage
  * @returns {function(function(Error=))}
  */
-function buildHD(diskName, diskImage)
+function buildDisk(diskName, diskImage)
 {
     return function(done) {
-        let dirStage = "./tools/pc/disks/" + diskName;
-        fs.rmSync(dirStage, { recursive: true, force: true });
-        let dirs = disks[diskName];
-        for (let dirName in dirs) {
-            let dirTarget = dirName == "root"? dirStage : path.join(dirStage, dirName);
-            fs.mkdirSync(dirTarget, { recursive: true });
-            for (let fileSpec of dirs[dirName]) {
-                let files = fileSpec.indexOf('*') >= 0? globSync(fileSpec) : [fileSpec];
-                for (let file of files) {
-                    fs.copyFileSync(file, path.join(dirTarget, path.basename(file)));
-                }
-            }
+        let entries = stageDisk(diskName);
+        let cmd;
+        if (disks[diskName].hd) {
+            cmd = "node ./tools/pc/pc.js ibm5160 ./tools/pc/disks/" + diskName + " --sys=bd:2 --target=10M --normalize --bare --label=BASICDOS --save=" + diskImage;
+        } else {
+            let archiveImage = diskImage.replace(diskName, "archive/" + diskName).replace(".json",".img");
+            cmd = "node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" --files " + entries.join(",") +
+                  " --boot " + SRC + "/os/boot/obj/BOOT1.COM --output " + diskImage + " --normalize --output " + archiveImage +
+                  " --writable --target=360 --overwrite";
         }
-        let cmd = "node ./tools/pc/pc.js ibm5160 " + dirStage + " --sys=bd:2 --target=10M --normalize --bare --label=BASICDOS --save=" + diskImage;
         run(cmd)(done);
     };
 }
@@ -172,48 +203,17 @@ let buildTasks = [], demoTasks = [];
 for (let diskName in disks) {
     let buildTask = "BUILD-" + diskName;
     let diskImage = "./software/pcx86/disks/" + diskName + ".json";
-    let archiveImage = "";
-    let diskFiles = "";
-    let kbTarget = 360;                 // all diskettes are 360K (180K is too small now)
-    if (!Array.isArray(disks[diskName]) && typeof disks[diskName] == "object") {
-        gulp.task(buildTask, checkOutput(buildHD(diskName, diskImage), diskImage));
+    if (typeof disks[diskName] == "string") {
+        let archiveImage = diskImage.replace(diskName, "archive/" + diskName).replace(".json",".hdd");
+        let cmd = "node \"${PCJS}/tools/diskimage/diskimage.js\" --disk " + disks[diskName] + " --output " + archiveImage + " --target=10000 --overwrite";
+        cmd = cmd.replace(/\$\{([^}]+)\}/g, (_,n) => process.env[n]);
+        gulp.task(buildTask, checkOutput(run(cmd), archiveImage));
         buildTasks.push(buildTask);
-        demoTasks.push(buildTask);
         continue;
     }
-    if (typeof disks[diskName] == "string") {
-        kbTarget = 10000;
-        diskFiles = "--disk " + disks[diskName];
-        diskImage = diskImage.replace(diskName, "archive/" + diskName).replace(".json",".hdd");
-    }
-    else {
-        let dirPrev = "";
-        for (let i = 0; i < disks[diskName].length; i++) {
-            let fileNext = disks[diskName][i];
-            if (fileNext.indexOf('*') >= 0) {
-                let filesNext = globSync(fileNext).sort();  // newer versions of glob no longer sort
-                if (filesNext.length) {
-                    disks[diskName].push(...filesNext);
-                    continue;
-                }
-            }
-            let dirNext = path.dirname(fileNext);
-            if (dirNext == dirPrev) {
-                fileNext = path.basename(fileNext);
-            }
-            if (diskFiles) diskFiles += ",";
-            diskFiles += fileNext;
-            dirPrev = dirNext;
-        }
-        diskFiles = "--files " + diskFiles;
-        archiveImage = " --normalize --output " + diskImage.replace(diskName, "archive/" + diskName).replace(".json",".img") + " --writable";
-        diskFiles += " --boot ./software/pcx86/src/os/boot/obj/BOOT1.COM";
-    }
-    let cmd = "node \"${PCJS}/tools/diskimage/diskimage.js\" " + diskFiles + " --output " + diskImage + archiveImage + " --target=" + kbTarget + " --overwrite";
-    cmd = cmd.replace(/\$\{([^}]+)\}/g, (_,n) => process.env[n]);
-    gulp.task(buildTask, checkOutput(run(cmd), diskImage));
+    gulp.task(buildTask, checkOutput(buildDisk(diskName, diskImage), diskImage));
     buildTasks.push(buildTask);
-    if (diskName.startsWith("BASICDOS")) demoTasks.push(buildTask);
+    demoTasks.push(buildTask);
 }
 
 /*

@@ -6,7 +6,17 @@
     {
       "type": "group",
       "style": {
-        "float": "right"
+        "float": "right",
+        "padding-bottom": "8px",
+        "height": "22px"
+      }
+    },
+    {
+      "id": "shift-tab",
+      "type": "button",
+      "label": "Shift-Tab",
+      "style": {
+        "padding-right": "8px"
       }
     },
     {
@@ -18,14 +28,6 @@
       "type": "group",
       "style": {
         "float": "left"
-      }
-    },
-    {
-      "id": "shift-tab",
-      "type": "button",
-      "label": "Shift-Tab",
-      "style": {
-        "padding-right": "8px"
       }
     },
     {

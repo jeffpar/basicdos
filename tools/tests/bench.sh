@@ -22,8 +22,10 @@ out=tools/pc/disks/bench
 for f in $src/tests/misc/BENCH.BAS $src/msb/OBJ/MSBASIC.EXE; do
     if [ ! -f "$f" ]; then echo "error: $f not found (has it been built?)" >&2; exit 1; fi
 done
-mkdir -p "$out/bd" "$out/pc"
-cp demos/s80/CONFIG.SYS $src/tests/misc/BENCH.BAS "$out/bd/"
+rm -rf "$out/bd"
+mkdir -p "$out/bd/TESTS" "$out/pc"
+cp demos/s80/CONFIG.SYS "$out/bd/"
+cp $src/tests/misc/BENCH.BAS "$out/bd/TESTS/"
 cp $src/tests/misc/BENCH.BAS $src/msb/OBJ/MSBASIC.EXE "$out/pc/"
 if [ ! -f "$out/pc/BASICA.COM" ]; then
     root=$(pwd)
@@ -48,8 +50,8 @@ run() {
     sleep 15
 }
 echo "running 6 configurations (about $((secs / 60 + 3)) minutes)..."
-run bd 1 ibm5160-cga "$out/bd" "VER,BENCH" --system=bd --version=2
-run bdf 1 ibm5160-cga-fpu "$out/bd" "VER,BENCH" --system=bd --version=2
+run bd 1 ibm5160-cga "$out/bd" "VER,TESTS/BENCH" --system=bd --version=2
+run bdf 1 ibm5160-cga-fpu "$out/bd" "VER,TESTS/BENCH" --system=bd --version=2
 run ba 0 ibm5160-cga "$out/pc" "VER,BASICA BENCH" --system=pcdos --version=2.00
 run baf 0 ibm5160-cga-fpu "$out/pc" "VER,BASICA BENCH" --system=pcdos --version=2.00
 run gw 0 ibm5160-cga "$out/pc" "VER,MSBASIC BENCH" --system=pcdos --version=2.00

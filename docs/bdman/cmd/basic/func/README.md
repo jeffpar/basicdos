@@ -11,7 +11,7 @@ Functions can be used in any expression, in BASIC programs or at the prompt (eg,
 - Numeric functions: [ABS](#abs), [ATN](#atn), [CDBL](#cdbl), [CINT](#cint), [COS](#cos), [CSNG](#cdbl), [EXP](#exp), [FIX](#fix), [INT](#int), [LOG](#log), [RND](#rnd), [RND%](#rnd-int), [SGN](#sgn), [SIN](#sin), [SQR](#sqr), [TAN](#tan)
 - String functions: [ASC](#asc), [CHR$](#chr), [HEX$](#hex), [INSTR](#instr), [LCASE$](#lcase), [LEFT$](#left), [LEN](#len), [MID$](#mid), [OCT$](#oct), [RIGHT$](#right), [SPACE$](#space), [SPC](#space), [STR$](#str), [STRING$](#string), [TAB](#tab), [UCASE$](#ucase), [VAL](#val)
 - File functions: [CVD](#cvi), [CVI](#cvi), [CVL](#cvi), [EOF](#eof), [LOC](#loc), [LOF](#lof), [MKD$](#mki), [MKI$](#mki), [MKL$](#mki)
-- System functions: [ARG$](#arg), [CSRLIN](#csrlin), [CURDIR$](#curdir), [DATE$](#date), [ERL](#erl), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [MOUSE](#mouse), [PEEK](#peek), [POS](#pos), [TIME$](#time)
+- System functions: [ARG$](#arg), [CSRLIN](#csrlin), [CURDIR$](#curdir), [DATE$](#date), [ERL](#erl), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [MOUSE](#mouse), [PATH$](#path), [PEEK](#peek), [POS](#pos), [TIME$](#time)
 - Predefined constants: [ERRORLEVEL](#errorlevel), [MAXINT](#maxint)
 
 You can also define your own functions with [DEF](../def/).
@@ -310,6 +310,13 @@ Returns the next key pressed, without waiting (an empty string if no key was pre
 > MOUSE(*n*)
 
 Returns the next mouse button event (*n* = 0), the position of that event (1 and 2), or the current position (3 and 4) or buttons (5).  See [MOUSE](../../device/mouse/#mouse-function) for details.
+
+#### PATH$ {#path}
+
+> PATH$
+> PATH$ = *string*
+
+Returns (or sets) the directories, separated by semicolons, that are searched for a program that isn't in the current directory (eg, `PATH$ = "A:/;A:/BASIC;A:/TOOLS"`); see [Running Programs](../../../intro/#running-programs).  Unlike other variables, PATH$ keeps its value when variables are cleared (eg, by [NEW](../../system/#new) or [CLEAR](../#clear)), and each session has its own.  It's usually set on a [SHELL](../../../cfg/#shell) line in CONFIG.SYS, and it's limited to 120 characters.
 
 #### PEEK {#peek}
 

@@ -28,7 +28,7 @@ CODE    SEGMENT
 	EXTNEAR	<getPos,getSgn,strTab>
 	EXTNEAR	<strArg,strAsc,strChr,strDate,strFre,strHex,strInkey,strInstr>
 	EXTNEAR	<strLCase,strLeft,strLen,strMid,strOct,strRight,strSpace>
-	EXTNEAR	<strStr,strString,strTime,strUCase,strVal,strCurDir>
+	EXTNEAR	<strStr,strString,strTime,strUCase,strVal,strCurDir,strPath>
 
 	DEFSTR	COM_EXT,<".COM",0>	; these 4 file extensions must be
 	DEFSTR	EXE_EXT,<".EXE",0>	; listed in the desired search order
@@ -298,6 +298,9 @@ CODE    SEGMENT
 	db	VAR_STR,1
 	db	VAR_LONG,PARM_REQUIRED
 	dw	offset strOct,0
+	db	VAR_FUNC + 4,"PATH"
+	db	VAR_STR,0
+	dw	offset strPath,0
 	db	VAR_FUNC + 3,"POS"
 	db	VAR_LONG,1
 	db	VAR_LONG,PARM_OPT_ZERO

@@ -1872,18 +1872,27 @@ export default class PC extends PCJSLib {
          * are marked HIDDEN + SYSTEM, which keeps them out of DIR listings.
          */
         let attrHelper = this.systemType == "bd"? DiskInfo.ATTR.HIDDEN | DiskInfo.ATTR.SYSTEM : attrHidden;
+        /**
+         * Text files from the system's list other than CONFIG.SYS (eg, BASIC-DOS's HELP.TXT) are added to the root
+         * after AUTOEXEC.BAT, so that the root begins with the system files, CONFIG.SYS, and AUTOEXEC.BAT, in that order.
+         */
+        let aDeferred = [];
         for (let name of aSystemFiles) {
             let desc, attr;
             if (!diSystem) {
                 /**
                  * If CONFIG.SYS or a text file (eg, HELP.TXT) from the system's list also exists in the directory we're
-                 * building, the directory's copy wins, so that a directory (eg, configs/console/bios) can provide its own CONFIG.SYS.
+                 * building, the directory's copy wins (taking the system file's place in the root), so that a directory
+                 * (eg, configs/console/bios) can provide its own CONFIG.SYS.
                  */
                 let baseName = node.path.basename(name);
-                if ((baseName.toUpperCase() == "CONFIG.SYS" || diskLib.isTextFile(name)) && diskLib.existsFile(node.path.join(sDir, baseName))) {
-                    continue;
+                let fConfig = baseName.toUpperCase() == "CONFIG.SYS";
+                let fText = fConfig || diskLib.isTextFile(name);
+                if (fText && diskLib.existsFile(node.path.join(sDir, baseName))) {
+                    name = node.path.join(sDir, baseName);
+                } else {
+                    name = node.path.join(sSystemDisk, name);
                 }
-                name = node.path.join(sSystemDisk, name);
                 let dbFile = await diskLib.readFileAsync(name, null, true);
                 if (dbFile && this.normalize && diskLib.isTextFile(name)) {
                     /**
@@ -1909,7 +1918,11 @@ export default class PC extends PCJSLib {
                     attr = this.systemType == "custom" || this.systemType == "bd"? 0 : DiskInfo.ATTR.HIDDEN | DiskInfo.ATTR.SYSTEM | DiskInfo.ATTR.READONLY;
                     date = node.fs.statSync(name).mtime;
                     desc = diskLib.makeFileDesc(node.path.dirname(name), node.path.basename(name), dbFile, attr, date);
-                    driveInfo.files.push(desc);
+                    if (fText && !fConfig) {
+                        aDeferred.push(desc);
+                    } else {
+                        driveInfo.files.push(desc);
+                    }
                     count++;
                     continue;
                 }
@@ -2084,6 +2097,7 @@ export default class PC extends PCJSLib {
             text = CharSet.toCP437(text).replace(/\n/g, "\r\n").replace(/\r+/g, "\r");
             driveInfo.files.push(diskLib.makeFileDesc(sDir, "AUTOEXEC.BAT", text, attr));
         }
+        driveInfo.files.push(...aDeferred);
 
         if (verDOS < 2.0) {
             /**

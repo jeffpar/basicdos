@@ -5,7 +5,7 @@ permalink: /demos/hd/debugger/
 machines:
   - id: ibm5160
     type: pcx86
-    config: /machines/pcx86/ibm/ibm-5160-cga-128kb.json
+    config: /machines/pcx86/ibm/ibm-5160-cga-256kb.json
     debugger: true
 ---
 

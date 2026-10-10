@@ -13,6 +13,9 @@ Returns the arctangent of *x*, in radians.
 AUTO [*line*][,*increment*]
 Prompts for program lines, starting with *line* (default 10) and adding *increment* (default 10) after each one.  If a line already exists, it's displayed for editing.  To stop, press ENTER on a line with nothing after its number, or press CTRL-C.
 
+CASE
+Copies input to output, converting lower-case letters to upper-case (eg, DIR | CASE), until the input ends or a CTRL-Z is read.
+
 CD [*drive*:][*path*]
 Changes the current directory of *drive* (or the current drive) to *path*, where directory names are separated by the path character (/ by default, or \ if SWITCHAR is /).  A *path* that begins with the path character starts at the root directory, and .. refers to the parent directory.  If no *path* is specified, the current directory is displayed.  CHDIR is the same as CD.
 
@@ -156,6 +159,10 @@ Divides each record of random access file *n* into fields (up to 16): GET # sets
 FILES [*filespec*]
 Same as DIR.
 
+FIND [-C] [-I] [-N] [-V] "*string*" [*file*...]
+Displays the lines of input (or of each *file*) that contain *string* (eg, DIR | FIND "BAS").  -C displays only the number of lines, -I ignores case, -N adds line numbers, and -V displays the lines that do NOT contain *string*.
+ERRORLEVEL is set to 0 if any lines were displayed (or counted), 1 if none, and 2 if a *file* couldn't be opened.
+
 FIX(*x*)
 Returns *x* truncated to an integer (eg, FIX(-2.5) is -2).  See also INT.
 
@@ -280,6 +287,9 @@ Returns a 2-byte string containing the integer *n* (see CVI), for a random acces
 MKL$(*n*)
 Returns a 4-byte string containing the integer *n* (see CVL), for a random access file.
 
+MORE [*file*]
+Displays input (or *file*) one screen at a time (eg, TYPE README.TXT | MORE), displaying "-- More --" and waiting for a key after each screen.  Press CTRL-C to stop.
+
 MOUSE ON|OFF
 Resets the mouse and shows (ON) or hides (OFF) the mouse pointer.  If there's no mouse, nothing happens.  The pointer is hidden while graphics statements run, until the next MOUSE function.
 
@@ -309,6 +319,9 @@ Sets the smallest subscript (0 or 1) of arrays dimensioned afterward.  The defau
 
 PAINT (*x*,*y*)[,[*paint*][,*border*]]
 Fills the area around *x*,*y* with the *paint* color, up to the *border* color (which defaults to the *paint* color).
+
+PATH$ [= *string*]
+Returns (or sets) the directories, separated by semicolons, that are searched for a program that isn't in the current directory (eg, PATH$ = "A:/;A:/BASIC;A:/TOOLS").  A program name that includes a drive or directory isn't searched for.  PATH$ keeps its value when variables are cleared (eg, by NEW or CLEAR); CONFIG.SYS usually sets it on the SHELL line.
 
 PEEK(*offset*)
 Returns the byte at *offset* in the segment set by DEF SEG.
@@ -395,6 +408,12 @@ Returns -1 if *x* is negative, 0 if *x* is zero, or 1 if *x* is positive.
 
 SIN(*x*)
 Returns the sine of *x*, where *x* is in radians.
+
+SLEEP *seconds*
+Waits the specified number of *seconds*.  Press CTRL-C to stop waiting.
+
+SORT [-R] [-+*n*] [*file*]
+Displays the lines of input (or *file*) in sorted order, ignoring case (eg, DIR | SORT).  -R sorts in reverse order, and -+*n* sorts on the characters starting at column *n*.  Up to 64K of text can be sorted.
 
 SOUND *frequency*,*duration*
 Plays a tone of the specified *frequency* (37-32767 Hz) for *duration* clock ticks (18.2 per second).

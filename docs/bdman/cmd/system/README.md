@@ -56,7 +56,7 @@ Exits the command processor if there is a previously loaded copy (see [COMMAND.C
 
 > HELP [*command*|*function*]
 
-Displays help for the specified *command* or *function* (eg, `HELP MID$`), or lists all commands if none is specified.  The help text comes from the file HELP.TXT.
+Displays help for the specified *command* or *function* (eg, `HELP MID$`), or lists all commands if none is specified.  The help text comes from HELP.TXT, in the root directory of the drive that COMMAND.COM was loaded from (so HELP works from any directory).
 
 ### KEYS
 

@@ -33,6 +33,7 @@ DOS	segment word public 'CODE'
 	EXTLONG	<scb_table>
 	EXTNEAR	<dos_check,dos_leave,load_command,psp_termcode>
 	EXTNEAR	<sfh_add_ref,sfh_context,sfh_close,get_cdir>
+	EXTNEAR	<sfb_from_sfh,sfb_read,sfb_write>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -307,12 +308,32 @@ ENDPROC	scb_stop
 ;	Carry set on error (eg, invalid SCB #), AX = error code
 ;
 ; Modifies:
-;	AX, BX, CX, DX, SI
+;	AX, BX, CX, DX, SI, DI, ES
 ;
 DEFPROC	scb_close,DOS
 	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	call	get_scb
  	jc	sud9
+;
+; If the session's input is a character device, read zero bytes from it,
+; which tells a pipe that its reader is done, so that the command writing to
+; it fails instead of waiting forever for room (eg, in "TYPE FILE | FIND"
+; when FIND can't open its file).  And if the session's output is a character
+; device, write zero bytes to it, which tells a pipe that its input has ended,
+; just as COMMAND does after the first command of a pipeline (otherwise, in
+; "TYPE FILE | SORT | MORE", MORE would wait forever).  Other character
+; devices ignore both.
+;
+	push	bx
+	mov	dx,offset sfb_read
+	mov	bl,[bx].SCB_SFHIN
+	call	end_io
+	pop	bx
+	push	bx
+	mov	dx,offset sfb_write
+	mov	bl,[bx].SCB_SFHOUT
+	call	end_io
+	pop	bx
 	mov	cx,5			; close this session's system handles
 	push	bx
 	lea	si,[bx].SCB_SFHIN
@@ -336,21 +357,54 @@ ENDPROC	scb_close
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; end_io
+;
+; Issue a zero-length read or write to a character device (see scb_close).
+;
+; Inputs:
+;	BL = SFH
+;	DX -> sfb_read or sfb_write
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	end_io,DOS
+	call	sfb_from_sfh		; BX -> SFB
+	jc	ei9
+	cmp	[bx].SFB_DRIVE,0	; character device?
+	jge	ei9			; no
+	sub	cx,cx
+	mov	al,IO_RAW
+	jmp	dx
+ei9:	ret
+ENDPROC	end_io
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; scb_end
 ;
-; TODO: End the current program in the specified session.
+; End the current program in the specified session, by aborting it (see
+; scb_abort); the abort takes effect the next time the session leaves DOS,
+; so use scb_waitend to wait for it.
 ;
 ; Inputs:
 ;	CL = SCB #
 ;
 ; Outputs:
-;	Carry clear on success (AX = 0)
+;	Carry clear on success
 ;	Carry set on error (eg, invalid SCB #)
 ;
 ; Modifies:
+;	AX, BX
 ;
 DEFPROC	scb_end,DOS
 	ASSUMES	<DS,DOS>,<ES,DOS>
+	call	get_scb
+	jc	sc9
+	test	[bx].SCB_STATUS,SCSTAT_LOAD
+	jz	sc9			; no program loaded (carry clear)
+	call	scb_abort
+	clc
 sc9:	ret
 ENDPROC	scb_end
 

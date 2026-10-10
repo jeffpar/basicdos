@@ -38,6 +38,7 @@ SIG_CT		equ	'P'
 CTSTAT_EWAIT	equ	01h	; set on empty-wait condition
 CTSTAT_FWAIT	equ	02h	; set on full-wait condition
 CTSTAT_TRUNC	equ	04h	; set when pipe is being "truncated"
+CTSTAT_DONE	equ	08h	; set when the reader is done (see ddpipe_read)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -66,6 +67,10 @@ ENDPROC	ddpipe_req
 ;
 ; ddpipe_read
 ;
+; A zero-length read means that the reader is done (eg, the session reading
+; the pipe has ended), so from then on, writes fail instead of waiting for
+; room that will never be made (see push_data).
+;
 ; Inputs:
 ;	ES:DI -> DDPRW
 ;	DS = device context
@@ -76,12 +81,18 @@ ENDPROC	ddpipe_req
 DEFPROC	ddpipe_read
 	ASSERT	STRUCT,ds:[0],CT
 	mov	cx,es:[di].DDPRW_LENGTH
-	jcxz	ddr9
+	jcxz	ddr8
 
 	call	pull_data
 	jnc	ddr9
 	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_RDFAULT
 	ret
+
+ddr8:	or	ds:[CT_STATUS],CTSTAT_DONE
+	test	ds:[CT_STATUS],CTSTAT_FWAIT
+	jz	ddr9			; no writer is waiting for room
+	and	ds:[CT_STATUS],NOT CTSTAT_FWAIT
+	call	endwait_data
 
 ddr9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	ret
@@ -279,7 +290,7 @@ ENDPROC	pull_data
 ;	DS = device context
 ;
 ; Outputs:
-;	Carry clear if request satisfied, set if not
+;	Carry clear if request satisfied, set if not (eg, the reader is done)
 ;
 ; Modifies:
 ;	AX, BX, DX
@@ -287,7 +298,10 @@ ENDPROC	pull_data
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	push_data
 	cli
-ps0:	mov	bx,ds:[CT_TAIL]
+ps0:	test	ds:[CT_STATUS],CTSTAT_DONE
+	stc
+	jnz	ps9			; the reader is done
+	mov	bx,ds:[CT_TAIL]
 	mov	dx,bx
 	inc	dx
 	cmp	dx,size CT_DATA
@@ -309,7 +323,7 @@ ps1:	cmp	dx,ds:[CT_HEAD]
 	and	ds:[CT_STATUS],NOT CTSTAT_FWAIT
 	popf
 	jnc	ps0
-	sti
+ps9:	sti
 	ret
 ps2:	mov	ds:[CT_TAIL],dx
 	push	ds

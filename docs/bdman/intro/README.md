@@ -96,6 +96,15 @@ To run a program, type its name, optionally followed by any arguments the progra
 
 For example, if a disk contains both DONKEY.COM and DONKEY.BAS, typing `DONKEY` runs DONKEY.COM, and typing `DONKEY.BAS` runs DONKEY.BAS.
 
+If the program isn't in the current directory, and its name doesn't include a drive or directory, BASIC-DOS searches the directories listed in [PATH$](../cmd/basic/func/#path), in order.  Every BASIC-DOS disk has the same layout:
+
+- The root directory contains BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, AUTOEXEC.BAT (if any), and HELP.TXT
+- **BASIC** contains BASIC samples (eg, PRIMES.BAS)
+- **TOOLS** contains the BASIC-DOS utilities (eg, [FIND, MORE, and SORT](../cmd/external/#filters))
+- **TESTS** contains test programs and other programs for demonstration purposes (eg, MSBASIC.EXE and SYMDEB.EXE)
+
+and its CONFIG.SYS sets PATH$ to the root, BASIC, and TOOLS (eg, `A:/;A:/BASIC;A:/TOOLS`), so you can type `PRIMES` or `DIR | SORT` from any directory.  Programs in TESTS can be run with a path (eg, `/TESTS/MSBASIC`).
+
 When a BAS program that you ran from the prompt ends, it remains loaded, along with its variables, so you can [LIST](../cmd/system/#list) it, examine its variables (eg, `PRINT A`), or [RUN](../cmd/system/#run) it again.  RUN reuses the program's compiled code, so the program starts immediately, unless the program or its variables have changed since it was compiled.
 
 If a name matches a BASIC keyword that can't be used by itself (eg, `CIRCLE`), BASIC-DOS runs the program with that name instead (eg, CIRCLE.BAS).
@@ -115,7 +124,7 @@ The output of one command can also be sent to the input of another command, usin
 
 	DIR | CASE
 
-Each command after the first runs in its own background session, so all commands in a pipeline run at the same time.  The output of a pipeline can also be redirected (eg, `DIR | CASE > TEST`).
+Each command after the first runs in its own background session, so all commands in a pipeline run at the same time.  The output of a pipeline can also be redirected (eg, `DIR | CASE > TEST`).  BASIC-DOS includes several filters for use with pipes: CASE, FIND, MORE, and SORT (see [Filters](../cmd/external/#filters)).
 
 Input redirection (`<`) isn't supported yet.
 

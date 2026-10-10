@@ -5,9 +5,9 @@ IF X <> 1 THEN PRINT "remark failed"
 IF &H1F<>31 THEN PRINT "hex constant failed"
 A$ = "it's" : IF LEN(A$) <> 4 THEN PRINT "quote failed"
 SOUND 440,1
-DIR CASE.COM > T.TMP
+DIR /TOOLS/CASE.COM > T.TMP
 TYPE T.TMP | CASE
-DIR CASE.COM | CASE
+DIR /TOOLS/CASE.COM | CASE
 DEL T.TMP
 PRINT 1 :> T1.TMP
 PRINT 2 :> T2.TMP

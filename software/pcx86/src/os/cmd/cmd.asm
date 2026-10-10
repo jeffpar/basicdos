@@ -15,7 +15,8 @@ CODE    SEGMENT
 	IF DETOK
 	EXTNEAR	<loadTokens,chkExt,getCwd,cmdDel>
 	EXTNEAR	<openInput,openError,closeInput,readInput,seekInput>
-	EXTNEAR	<openHandle,syncFiles>
+	EXTNEAR	<openHandle,syncFiles,openPipe,addPipe,endPipes,doHelp>
+	EXTNEAR	<findProgram>
 	ENDIF
 	EXTNEAR	<freeIdleVars,resetVars,runCode,findVar>
 	EXTNEAR	<enterLine,editPrompt,chkProgram>
@@ -26,7 +27,7 @@ CODE    SEGMENT
 	EXTABS	<TOK_ERASE,TOK_DEL>
 	EXTWORD	<KEYWORD_TOKENS>
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF>
-	EXTSTR	<VER_FINAL,VER_DEBUG,HELP_FILE,PIPE_NAME,FPU_NAME>
+	EXTSTR	<VER_FINAL,VER_DEBUG,FPU_NAME>
 	EXTSTR	<FPU_HW,FPU_SW,FPU_OFF>
 	EXTLONG	<FPU_TABLE>
 
@@ -50,6 +51,9 @@ DEFPROC	main
 	add	al,'A'			; and the drive it was loaded from
 	mov	[CMD_PATH],al
 	mov	[MSG_DRIVE],al
+	mov	ax,DOS_MSC_GETPCH
+	int	21h			; DL = path char (fixed at boot)
+	mov	[CMD_PATH+2],dl		; COMMAND.COM is in the root
 m0z:	inc	cs:[CMD_REFS]
 ;
 ; Get the current session's screen dimensions (AL=cols, AH=rows).
@@ -288,16 +292,13 @@ ctc0:	mov	di,[bx].CMD_CHAINS
 ctc0a:	lea	sp,[bx].STACK + size STACK
 	call	compactStrs		; free any leftover temp strings
 ;
-; If a pipeline was running (eg, "DIR | CASE"), wait for its session to end
-; (it will have received the same CTRLC), so that it can't write anything
+; If a pipeline was running (eg, "DIR | CASE"), wait for its sessions to end
+; (they will have received the same CTRLC), so that they can't write anything
 ; more to the console after we've displayed a new prompt.
 ;
-	mov	cl,SCB_NONE
-	xchg	cl,[bx].SCB_NEXT
-	cmp	cl,SCB_NONE
-	je	ctc1
-	DOSUTIL	WAITEND
-ctc1:	call	freeAllCode
+	mov	al,0
+	call	endPipes
+	call	freeAllCode
 	jmp	m1
 ENDPROC	ctrlc
 
@@ -429,10 +430,11 @@ DEFPROC	parseDOS
 	mov	[bp].HDL_INPIPE,bx	; no input pipe (yet)
 	mov	[bp].HDL_OUTPIPE,bx	; and no output pipe (yet)
 	mov	[bp].HDL_OUTFILE,bx	; or output file
+	mov	[bp].PIPE_SCB.LOW,bx	; and no pipeline sessions (yet)
+	mov	[bp].PIPE_SCB.HIW,bx
 	dec	bx			; BX = -1
 	mov	[bp].HDL_INPUT,bx
 	mov	[bp].HDL_OUTPUT,bx
-	mov	[bp].SCB_NEXT,bl
 	inc	bx			; BX = 0 again (offset of 1st TOKLET)
 ;
 ; Before running anything, verify that every symbol is valid ("|", ">", or
@@ -620,8 +622,19 @@ pd8:	add	bx,size TOKLET
 	pop	ax			; restore end of TOKLETs
 	jmp	pd1			; loop back for more commands, if any
 
-pd9:	jc	pd9c
-	mov	ax,[bp].CMD_DEFER[0]
+pd9:	jnc	pd9e
+;
+; A command failed, so end any commands of the pipeline already running in
+; other sessions (eg, CASE in "DIR | CASE | NOFILE"); the deferred command,
+; if any, never runs.
+;
+	mov	al,1
+	mov	bx,bp
+	call	endPipes
+	stc
+	jmp	short pd9c
+
+pd9e:	mov	ax,[bp].CMD_DEFER[0]
 	test	ax,ax			; is there a deferred command?
 	jz	pd9c			; no
 	js	pd9a			; yes, but it's external (-1)
@@ -650,12 +663,9 @@ pd9b:	sub	cx,cx			; CX = 0 for "truncating" write
 	int	21h			; issue final write
 	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the pipe
-	mov	cl,SCB_NONE
-	xchg	cl,[bp].SCB_NEXT
-	cmp	cl,SCB_NONE
-	je	pd9c			; (carry is clear)
-	DOSUTIL	WAITEND
-	clc
+	mov	al,0
+	mov	bx,bp
+	call	endPipes		; (carry is clear)
 
 pd9c:	pop	cx			; discard end of TOKLETs
 	pop	dx			; DX = handles to leave open
@@ -791,8 +801,10 @@ DEFPROC	cmdExec
 	mov	word ptr [bp].EXIT_CODE,ax
 	mov	dx,word ptr [bp].SFH_STDIN
 	mov	word ptr ds:[PSP_PFT][STDIN],dx	; report to the original STDOUT
+	IFDEF	DEBUG
 	mov	dl,ah			; AL = exit code, DL = exit type
 	PRINTF	<"Return code %bd (%bd)",13,10,13,10>,ax,dx
+	ENDIF
 ce9:	ret
 ENDPROC	cmdExec
 
@@ -856,24 +868,8 @@ cf2x:	jmp	cf9
 ; of garbage that the new program could use.
 ;
 cf3:	call	compactStrs
-	call	chkExt			; any extension in string at DS:SI?
-	jnc	cf4			; yes
-;
-; There's no period, so append extensions in a well-defined order (ie, .COM,
-; .EXE, .BAT, and finally .BAS).
-;
-	mov	dx,offset COM_EXT
-cf3a:	call	addString
-	call	findFile
-	jnc	cf4
-	add	dx,COM_EXT_LEN
-	cmp	dx,offset BAS_EXT
-	jbe	cf3a
-	mov	dx,di			; DX -> LINEBUF
-	add	di,cx			; every extension failed
-	mov	byte ptr [di],0		; so clear the last one we tried
-	mov	ax,ERR_NOFILE		; and report an error
-	jmp	short cf4a
+	call	findProgram		; find the program (see PATH$)
+	jc	cf4a
 ;
 ; The filename contains a period, so let's verify the extension and the
 ; action; for example, only .COM or .EXE files should be EXEC'ed (it would
@@ -1017,7 +1013,7 @@ cf5:	cmp	[bp].CBLKDEF.BDEF_NEXT,0; is a program running?
 cf5x:	DOSUTIL	STRLEN			; AX = length of filename in LINEBUF
 	mov	dx,si			; DS:DX -> filename
 	mov	si,[bp].CMD_ARGPTR	; recover original filename
-	add	si,cx			; DS:SI -> tail after original filename
+	add	si,[bp].CMD_ARGLEN	; DS:SI -> tail after original filename
 	sub	cx,cx
 	cmp	[bp].CMD_ARG,cl		; is this the first command?
 	jne	cf6			; no, use DOS_UTL_LOAD instead
@@ -1125,10 +1121,16 @@ cf7b:	stosb				; SPB_SFHOUT
 	DOSUTIL	LOAD			; load CMDLINE into an SCB
 	lea	sp,[bx + size SPB]	; clean up the stack
 	jc	cf8
-	mov	[bp].SCB_NEXT,cl
+	call	addPipe			; record the session
 	DOSUTIL	START			; start the SCB # specified in CL
 	jmp	short cf9
-cf8:	call	openError		; report error (AX) opening file (SI)
+;
+; In a pipeline, our STDOUT may be a pipe by now, so make sure the error is
+; reported to the original STDOUT.
+;
+cf8:	mov	dx,word ptr [bp].SFH_STDIN
+	mov	word ptr ds:[PSP_PFT][STDIN],dx
+	call	openError		; report error (AX) opening file (SI)
 	jmp	short cf9a		; (carry is set)
 cf9:	clc
 cf9a:	pop	bp
@@ -1390,396 +1392,6 @@ DEFPROC	cmdExit
 	inc	cs:[CMD_REFS]
 	ret				; unless it can't (ie, no parent)
 ENDPROC	cmdExit
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; cmdHelp
-;
-; If a keyword is specified, display help for that keyword; otherwise,
-; display a list of all keywords.
-;
-; Inputs:
-;	BX -> CMDHEAP
-;	DI -> TOKENBUF
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	Any
-;
-DEFPROC	cmdHelp
-	mov	dl,[bx].CMD_ARG		; is there a non-switch argument?
-	call	getToken
-	jnc	doHelp
-	sub	cx,cx			; no, so list all HELP entries
-;
-; Look up the second token (DS:SI) with length CX in the HELP file.
-;
-	DEFLBL	doHelp,near
-	push	si
-	push	cx
-	push	ds
-	push	cs
-	pop	ds
-	mov	si,offset HELP_FILE	; DS:SI -> filename
-	call	openInput
-	pop	ds
-	pop	cx
-	pop	si
-	jc	h3
-	push	cx
-	call	findHelp		; DX = offset, CX = length
-	pop	ax
-	jnc	h1
-	push	ax
-	call	closeInput
-	pop	ax
-	test	ax,ax			; were we just listing entries?
-	jz	h9			; yes
-	jmp	short h3
-h1:	push	cx
-	sub	cx,cx
-	call	seekInput		; seek to 0:DX
-	pop	cx
-	mov	al,CHR_CTRLZ
-	push	ax
-	sub	sp,cx			; allocate CX bytes from the stack
-	mov	si,sp
-	call	readInput		; read CX bytes into DS:SI
-	jc	h2c
-;
-; Keep track of the current line's available characters (DL) and maximum
-; characters (DH), and print only whole words that will fit.
-;
-	mov	dl,[bx].CON_COLS	; DL = # available chars
-	dec	dx			; DL = # available chars - 1
-	mov	dh,dl
-h2:	call	getWord			; AX = next word length
-	test	al,al			; any more words?
-	jz	h2c			; no
-	cmp	al,dl			; will it fit on the line?
-	jbe	h2a			; yes
-	cmp	al,dh			; is it too large regardless?
-	jbe	h2b			; no
-h2a:	call	printChars		; print # chars in AL
-	call	printSpace		; print whitespace that follows
-	jz	h2c			; if ZF set, must have hit CHR_CTRLZ
-	jmp	h2
-h2b:	call	printEOL
-	jmp	h2
-
-h2c:	add	sp,cx			; deallocate the stack space
-	pop	ax
-	call	closeInput
-	ret
-
-h3:	PRINTF	<"No help available",13,10>
-	stc
-	ret
-h9:	ret
-ENDPROC	cmdHelp
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; findHelp
-;
-; Searches the (open) HELP file for the entry whose first word matches the
-; specified name (in any case).  Entries are separated by blank lines, and
-; the matching word must be followed by a character other than a letter or
-; digit, so "MID" and "MID$" both match "MID$(...)", while "DEF" doesn't
-; match "DEFINT".
-;
-; If the name is empty, the first word of every entry is listed instead (only
-; letters, digits, '$', and '%' are printed, so an entry that begins with any
-; other character, like '*', is omitted).
-;
-; Inputs:
-;	DS:SI -> name
-;	CX = length of name (zero to list all entries)
-;
-; Outputs:
-;	If carry clear, DX = offset of entry, CX = length of entry
-;
-; Modifies:
-;	AX, CX, DX, SI, DI
-;
-HELP_BUFLEN	equ	128
-
-DEFPROC	findHelp
-	push	bp
-	mov	bp,sp
-	push	si			; [bp-2] -> name
-	push	cx			; [bp-4] = length of name
-	mov	ax,2
-	push	ax			; [bp-6] = # consecutive LINEFEEDs
-	push	ax			; [bp-8] = offset of current entry
-	sub	ax,ax
-	push	ax			; [bp-10] = column (if listing)
-	sub	sp,HELP_BUFLEN
-	sub	di,di			; DI = offset of next character
-	mov	dx,-1			; DX = offset of matching entry (none)
-	mov	al,dl			; AL = # name chars matched (-1 if none)
-fh1:	push	ax
-	push	dx
-	mov	si,sp
-	add	si,4			; DS:SI -> buffer
-	mov	cx,HELP_BUFLEN
-	call	readInput		; AX = # bytes read
-	xchg	cx,ax			; CX = # bytes read
-	pop	dx
-	pop	ax
-	jc	fh1a
-	jcxz	fh1a			; end of file
-	jmp	short fh2
-fh1a:	jmp	fh8
-fh2:	mov	ah,[si]			; AH = next character
-	inc	si
-	cmp	ah,CHR_RETURN
-	je	fh2a
-	cmp	ah,CHR_LINEFEED
-	jne	fh3
-	inc	word ptr [bp-6]
-fh2a:	cmp	byte ptr [bp-4],0	; listing entries?
-	je	fh4			; yes
-	cmp	al,[bp-4]		; does the line end a matching name?
-	mov	al,-1
-	je	fh4a			; yes
-	jmp	short fh7
-fh3:	cmp	word ptr [bp-6],2	; does an entry start here?
-	mov	word ptr [bp-6],0
-	jb	fh4			; no
-	cmp	dx,-1			; did we already find a match?
-	jne	fh9			; yes, so this is the end of it
-	mov	[bp-8],di
-	mov	al,0			; start matching
-fh4:	cmp	al,-1			; still matching (or listing)?
-	je	fh7			; no
-	cmp	byte ptr [bp-4],0	; listing entries?
-	je	fh11			; yes
-	cmp	al,[bp-4]		; entire name matched?
-	jb	fh5			; not yet
-	mov	al,-1
-	cmp	ah,'0'			; next character must not be
-	jb	fh4a			; a digit or letter
-	cmp	ah,'9'
-	jbe	fh7
-	cmp	ah,'A'
-	jb	fh4a
-	cmp	ah,'Z'
-	jbe	fh7
-fh4a:	mov	dx,[bp-8]		; DX = offset of matching entry
-	jmp	short fh7
-fh5:	push	bx
-	mov	bl,al
-	mov	bh,0
-	add	bx,[bp-2]
-	mov	bl,[bx]			; BL = next character of name
-	cmp	bl,'a'
-	jb	fh5a
-	cmp	bl,'z'
-	ja	fh5a
-	sub	bl,20h			; convert lower-case to upper-case
-fh5a:	cmp	bl,ah
-	pop	bx
-	je	fh6
-	mov	al,-1			; mismatch
-	jmp	short fh7
-fh6:	inc	ax
-fh7:	inc	di
-	loop	fh7a
-	jmp	fh1
-fh7a:	jmp	fh2
-fh8:	cmp	byte ptr [bp-10],0	; end of file; is a listing line open?
-	je	fh8a			; no
-	push	dx
-	call	printCRLF
-	pop	dx
-fh8a:	cmp	dx,-1			; was there a match?
-	stc
-	je	fh10			; no
-fh9:	mov	cx,di
-	sub	cx,dx			; CX = length of entry (carry clear)
-fh10:	mov	sp,bp
-	pop	bp
-	ret
-;
-; Listing: print AH if it's part of the entry's first word (AL = # chars
-; printed so far); otherwise, end the word by padding it to the next column.
-;
-fh11:	cmp	ah,'$'
-	je	fh12
-	cmp	ah,'%'
-	je	fh12
-	cmp	ah,'0'
-	jb	fh13
-	cmp	ah,'9'
-	jbe	fh12
-	cmp	ah,'A'
-	jb	fh13
-	cmp	ah,'Z'
-	ja	fh13
-fh12:	push	ax
-	mov	al,ah
-	call	printChar
-	pop	ax
-	inc	ax
-	inc	byte ptr [bp-10]
-	jmp	fh7
-fh13:	cmp	al,0			; anything printed?
-	mov	al,-1
-	je	fh15			; no
-fh14:	push	ax
-	mov	al,' '
-	call	printChar
-	pop	ax
-	inc	byte ptr [bp-10]
-	test	byte ptr [bp-10],7	; at the next column yet?
-	jnz	fh14			; no
-	mov	ah,[bp-10]
-	add	ah,16
-	cmp	ah,[bx].CON_COLS	; is there room for another name?
-	jb	fh15			; yes
-	push	ax
-	push	cx
-	push	dx
-	call	printCRLF
-	pop	dx
-	pop	cx
-	pop	ax
-	mov	byte ptr [bp-10],0
-fh15:	jmp	fh7
-ENDPROC	findHelp
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; getWord
-;
-; Inputs:
-;	DS:SI -> characters to print
-;
-; Outputs:
-;	AX = # of characters in next non-whitespace sequence (ie, "word")
-;
-; Modifies:
-;	AX
-;
-DEFPROC	getWord
-	push	si
-gw1:	lodsb
-	cmp	al,'\'			; we need to include any backslash
-	jne	gw2			; in the word length, but we're not
-	inc	dx			; printing it, so increase line length
-	jmp	short gw3
-gw2:	cmp	al,' '
-	ja	gw1
-	dec	si
-gw3:	pop	ax
-	sub	si,ax
-	xchg	si,ax
-	ret
-ENDPROC	getWord
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; printChar
-;
-; Inputs:
-;	AL = character
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	AX
-;
-DEFPROC	printChar
-	push	dx
-	xchg	dx,ax
-	mov	ah,DOS_TTY_WRITE
-	int	21h
-	pop	dx
-	ret
-ENDPROC	printChar
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; printChars
-;
-; Inputs:
-;	CX = character count
-;	DS:SI -> characters to print
-;	DL = avail characters on line
-;	DH = maximum characters on line
-;
-; Outputs:
-;	SI, DL updated as appropriate
-;
-; Modifies:
-;	AX, DX, SI
-;
-DEFPROC	printChars
-	push	ax
-	push	cx
-	cbw
-	xchg	cx,ax			; CX = count
-pr1:	lodsb
-	cmp	al,'*'			; just skip asterisks for now
-	je	pr8
-	cmp	al,'\'			; lines ending with backslash
-	jne	pr2			; trigger a single newline and
-	call	skipSpace		; skip remaining whitespace
-	pop	cx
-	pop	ax
-	ret
-pr2:	call	printChar
-pr8:	loop	pr1
-pr9:	pop	cx
-	pop	ax
-	sub	dl,al			; reduce available chars on line
-	ret
-ENDPROC	printChars
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; printSpace
-;
-; Inputs:
-;	DS:SI -> characters to print
-;	DL = avail characters on line
-;	DH = maximum characters on line
-;
-; Outputs:
-;	SI, DL updated as appropriate
-;
-; Modifies:
-;	AX, DX, SI
-;
-DEFPROC	printSpace
-ps1:	cmp	dl,1			; if current line is almost full
-	jle	skipSpace		; print CRLF and then skip all space
-	lodsb
-	cmp	al,CHR_TAB
-	je	ps2
-	cmp	al,CHR_SPACE
-	ja	ps8
-	jb	ps5
-ps2:	call	printChar
-	dec	dx
-	jmp	ps1
-ps5:	dec	si
-	call	printEOL
-	DEFLBL	skipSpace,near
-	call	printEOL
-ps7:	lodsb
-	cmp	al,CHR_CTRLZ		; end of text?
-	je	ps8			; yes
-	cmp	al,CHR_SPACE		; non-whitespace?
-	ja	ps8			; yes
-	jmp	ps7			; keep looping
-ps8:	dec	si
-ps9:	ret
-ENDPROC	printSpace
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2313,41 +1925,6 @@ ver1:	cmp	bl,'@'			; is revision a letter?
 ver2:	PRINTF	<13,10,"BASIC-DOS Version %bd.%02bd%c%ls",13,10,13,10>,ax,dx,bx,cx,cs
 	ret
 ENDPROC	cmdVer
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; openPipe
-;
-; Open a pipe.  If successful, the caller will use the handle (AX)
-; to extract the corresponding SFH from PSP_PFT and store it in both the
-; current session's PSP_PFT STDOUT slot and the next session's SPB_SFHIN.
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	If carry clear, AX is new pipe handle; otherwise, AX is error
-;
-; Modifies:
-;	AX
-;
-DEFPROC	openPipe
-	push	dx
-	push	ds
-	push	cs
-	pop	ds
-	mov	dx,offset PIPE_NAME	; DS:DX -> PIPE_NAME
-	mov	ax,DOS_HDL_OPENRW
-	int	21h
-	jnc	op1
-	push	si
-	mov	si,dx
-	call	openError		; report error (AX) opening file (SI)
-	pop	si
-op1:	pop	ds
-	pop	dx
-	ret
-ENDPROC	openPipe
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

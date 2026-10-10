@@ -339,7 +339,7 @@ HDL_INPUT	dw	?		; 328h: 0 if unused
 HDL_OUTPUT	dw	?		; 32Ah: 0 if unused
 HDL_INPIPE	dw	?		; 32Ch: 0 if unused
 HDL_OUTPIPE	dw	?		; 32Eh: 0 if unused
-SCB_NEXT	db	?		; 330h: SCB_NONE (-1) if unused
+		db	?		; 330h: (unused)
 SFH_STDIN	db	?		; 331h: original STDIN
 SFH_STDOUT	db	?		; 332h: original STDOUT
 CMD_SIG		db	?		; 333h: SIG_CMD
@@ -383,9 +383,11 @@ GFX_DATA	dw    7 dup (?)		; 4AEh: graphics and mouse state
 CODE_CACHE	dw	?		; 4BCh: cached code (see keepCode)
 EDIT_STATE	dw    2 dup (?)		; 4BEh: line to edit (see edit.asm)
 DATA_STATE	dw    4 dup (?)		; 4C2h: next DATA item (see sys.asm)
-PATH_CHAR	db	?		; 4CAh: path char (fixed at boot)
-		db	?		; 4CBh: (unused)
-FILE_DATA	db   44 dup (?)		; 4CCh: OPEN files (see fileio.asm)
+PATH_CHAR	db	?		; 4CCh: path char (fixed at boot)
+		db	?		; 4CDh: (unused)
+FILE_DATA	db   44 dup (?)		; 4CEh: OPEN files (see fileio.asm)
+PIPE_SCB	dd	?		; 4FAh: pipeline sessions (see endPipes)
+PATH_BUF	db  128 dup (?)		; 4FEh: PATH$ (length, 0-120 chars, null)
 ;
 ; The BASIC-DOS loader always set the stack pointer for a COM file to the top
 ; of the segment, which means we must declare our stack at the end of CMDHEAP.
@@ -396,11 +398,16 @@ FILE_DATA	db   44 dup (?)		; 4CCh: OPEN files (see fileio.asm)
 ; COM file can request the stack be located elsewhere, since there's no way for
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
-STACK		dw  459 dup (?)		; 4FAh
-CMDHEAP		ends			; 890h
+STACK		dw  457 dup (?)		; 57Eh
+CMDHEAP		ends			; 910h
 SIG_CMD		equ	'H'
 
-	ASSERT	<SIZE CMDHEAP>,EQ,890h
+;
+; CMDHEAP must be a multiple of 16 bytes, because the loader puts the initial
+; stack pointer at the end of the heap (a whole number of paragraphs), and the
+; [heap] equate below assumes that's the end of STACK.
+;
+	ASSERT	<SIZE CMDHEAP>,EQ,910h
 
 ;
 ; The initial stack frame created by the main function can also be used to

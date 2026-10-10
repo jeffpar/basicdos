@@ -24,7 +24,7 @@ if [ ! -d "$hdir" ]; then
     mkdir -p "$hdir/SUBDIR" || exit 1
     printf 'Hello from the hard disk\r\n' > "$hdir/HELLO.TXT"
     printf 'This file is in a subdirectory\r\n' > "$hdir/SUBDIR/INSIDE.TXT"
-    cp software/pcx86/src/configs/console/serial/fpe/PRIMES.BAS "$hdir/"
+    cp software/pcx86/src/tests/primes/PRIMES.BAS "$hdir/"
 fi
 tools/tests/prep.sh "$cfg" || exit 1
 #
@@ -32,9 +32,9 @@ tools/tests/prep.sh "$cfg" || exit 1
 # commands to AUTOEXEC.BAT, they first restore the original AUTOEXEC.BAT (from AUTOEXEC.HD).
 #
 fdir=tools/pc/disks/bdhd
+rm -rf $fdir tools/pc/disks/BDHD.IMG
 mkdir -p $fdir || exit 1
-rm -f $fdir/* tools/pc/disks/BDHD.IMG
-cp "$cfg"/* $fdir/ || exit 1
+cp -R "$cfg"/. $fdir/ || exit 1
 cp $fdir/AUTOEXEC.BAT $fdir/AUTOEXEC.HD || exit 1
 echo "Building BASIC-DOS diskette..."
 tools/pc/pc.js ibm5160-test $fdir "VER;COPY AUTOEXEC.HD AUTOEXEC.BAT;DEL AUTOEXEC.HD;QUIT /S BDHD.IMG" \

@@ -12,7 +12,7 @@
 ; generator.  It also contains the token helpers that all the gen*.asm files
 ; share (eg, getNextToken); expressions (genExpr) and the code-emitting
 ; helpers (eg, GENCALL's genCallCS and GENPUSH's genPushImm) are in
-; genexp.asm, and the label helpers (addLabel, findLabel) are in genflo.asm.
+; genexp.asm, and the label helpers (addLabel, findLabel) are in genflow.asm.
 ;
 ; Generates code for these commands:
 ;
@@ -26,7 +26,7 @@
 ;	gendef.asm			definitions (DATA, DEF, DIM, ERASE,
 ;					OPTION BASE, READ, RESTORE) and array
 ;					element references
-;	genflo.asm			control (END, FOR/NEXT, GOSUB, GOTO,
+;	genflow.asm			control (END, FOR/NEXT, GOSUB, GOTO,
 ;					IF/THEN/ELSE, ON, RETURN, WHILE/WEND)
 ;	genfpu.asm			floating-point support
 ;	gengfx.asm			graphics (DRAW, GET, LINE, PAINT,
@@ -47,7 +47,7 @@ CODE    SEGMENT
 	EXTNEAR	<allocVars>
 	EXTNEAR	<addVar,getVar,setVarLong,setVarDouble>
 	EXTNEAR	<setStr,holdStr,swapArgs,compactStrs,genArrayRef,checkCtl>
-	EXTNEAR	<memError>
+	EXTNEAR	<memError,strPath,setPath>
 	EXTNEAR	<callDOS,printLine>
 	EXTNEAR	<genCallFar,genPushImmByte,genPushImmByteAH,genPushImmByteAL>
 	EXTNEAR	<genPushImmLong,genExpr,genCallCS>
@@ -634,7 +634,7 @@ DEFPROC	genLet
 
 	mov	cx,cs
 	cmp	dx,cx			; constants (in CS) cannot be "let"
-	je	gl9			; TODO: Generate a better error message
+	je	gl2			; except for PATH$
 	push	ax			; AH is still var type (from addVar)
 	call	genPushVarPtr
 	pop	ax
@@ -669,6 +669,22 @@ gl8:	mov	cx,dx
 	ret
 
 gl9:	stc
+	ret
+;
+; PATH$ is a function, but it can also be assigned (see setPath).
+;
+gl2:	cmp	word ptr cs:[si+2],offset strPath
+	jne	gl9			; TODO: Generate a better error message
+	call	getNextSymbol
+	jbe	gl9
+	cmp	al,'='
+	jne	gl9
+	call	genExpr
+	jc	gl9
+	mov	al,VAR_STR
+	call	genCvtType
+	jc	gl9
+	GENCALL	setPath
 	ret
 ENDPROC	genLet
 

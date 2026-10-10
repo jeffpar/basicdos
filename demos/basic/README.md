@@ -23,9 +23,9 @@ The machine below boots the BASICDOS-DISK6 diskette, which contains text copies 
 
 Press the space bar to switch lanes, and ESC to exit.  When the program ends, BASIC-DOS restores the original display mode.
 
-Then try CIRCLE, or the name of any other sample (type `DIR` to list them).  Not all of them run yet, but the list is growing.  See the DONKEY.BAS checklist in the [Project Status](/#donkeybas) for what was needed to run it.
+Then try CIRCLE, or the name of any other sample (type `DIR BASIC` to list them; CONFIG.SYS sets PATH$ so that they can be run from any directory).  Not all of them run yet, but the list is growing.  See the DONKEY.BAS checklist in the [Project Status](/#donkeybas) for what was needed to run it.
 
-For comparison, **MSBASIC** (built from Microsoft's GW-BASIC sources) is also on the diskette, so you can type `MSBASIC CIRCLE`, for example, to run the same program the conventional way, and then type `SYSTEM` to return to BASIC-DOS.
+For comparison, **MSBASIC** (built from Microsoft's GW-BASIC sources) is also on the diskette, in its **TESTS** directory, so you can type `CD BASIC` and then `/TESTS/MSBASIC CIRCLE`, for example, to run the same program the conventional way, and then type `SYSTEM` to return to BASIC-DOS.
 
 {% include machine.html id="ibm5150" %}
 

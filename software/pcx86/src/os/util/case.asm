@@ -27,6 +27,8 @@ DEFPROC	main
 	jc	m9		; read failed
 	cmp	ax,cx		; any data returned?
 	jb	m9		; no
+	cmp	dl,1Ah		; CTRL-Z (EOF)?
+	je	m9		; yes
 ;
 ; Change the case of the data
 ;

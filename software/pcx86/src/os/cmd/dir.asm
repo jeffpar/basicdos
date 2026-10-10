@@ -12,7 +12,9 @@
 CODE    SEGMENT
 
 	EXTNEAR	<countLine,chkString,getFileName,getToken,newStr>
-	EXTSTR	<DIR_DEF,PERIOD>
+	EXTNEAR	<printEOL,printCRLF,findFile,addString,releaseStr>
+	EXTBYTE	<CMD_PATH>
+	EXTSTR	<DIR_DEF,PERIOD,PIPE_NAME,HELP_FILE,COM_EXT,BAS_EXT>
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 
@@ -684,6 +686,217 @@ ENDPROC	strCurDir
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; strPath (PATH$)
+;
+; Returns the directories that COMMAND searches for programs (see setPath
+; and findProgram).  PATH$ is kept in CMDHEAP (PATH_BUF), so unlike other
+; variables, it survives NEW, CLEAR, RUN, etc.
+;
+; Inputs:
+;	32-bit return value
+;
+; Outputs:
+;	32-bit return value updated
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	strPath,FAR
+	RETVAR	retPath,dword
+	ENTER
+	mov	si,ss:[PSP_HEAP]
+	lea	si,[si].PATH_BUF
+	mov	cl,ss:[si]
+	mov	ch,0
+	inc	si			; SS:SI -> characters, CX = length
+	call	newStr
+	mov	[retPath].OFF,ax
+	mov	[retPath].SEG,dx
+	LEAVE
+	RETURN
+ENDPROC	strPath
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; setPath (PATH$ = string)
+;
+; Copies up to 120 characters of the string to PATH_BUF (as a length byte,
+; the characters, and a null).
+;
+; Input stack:
+;	string value
+;
+; Output stack:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	setPath,FAR
+	ARGVAR	pPath,dword
+	ENTER
+	push	ds
+	push	ss
+	pop	es
+	mov	di,es:[PSP_HEAP]
+	lea	di,[di].PATH_BUF	; ES:DI -> PATH_BUF
+	lds	si,[pPath]
+	sub	cx,cx
+	test	si,si			; empty string?
+	jz	sp1			; yes
+	lodsb
+	mov	cl,al			; CX = length
+	cmp	cl,120
+	jbe	sp1
+	mov	cl,120
+sp1:	mov	al,cl
+	stosb
+	rep	movsb
+	mov	al,0
+	stosb
+	pop	ds
+	les	di,[pPath]
+	call	releaseStr
+	LEAVE
+	RETURN
+ENDPROC	setPath
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; findProgram
+;
+; Find the program named at DS:SI, first as specified, and then (if the name
+; contains no drive or path) in each directory listed in PATH$, separated by
+; semicolons (eg, "A:/;A:/BASIC;A:/TOOLS").  If the name has no extension,
+; .COM, .EXE, .BAT, and .BAS are tried, in that order.
+;
+; Inputs:
+;	SS:BX -> CMDHEAP
+;	DS:SI -> null-terminated name in LINEBUF (at most 64 characters)
+;	CX = length of name
+;
+; Outputs:
+;	If carry clear, LINEBUF contains the name of the program found (with
+;	any directory from PATH$ in front), and CX = its length (not including
+;	any extension that was added)
+;	If carry set, AX = error #, and LINEBUF contains the original name
+;
+; Modifies:
+;	AX, CX, DX, DI
+;
+DEFPROC	findProgram
+	call	tryProgram		; try the name as specified
+	jnc	fp9
+	push	ax			; save the error
+	mov	dl,[bx].PATH_CHAR
+	mov	di,si
+fp1:	mov	al,[di]
+	inc	di
+	cmp	al,':'			; drive specified?
+	je	fp8			; yes, so don't search
+	cmp	al,dl			; path specified?
+	je	fp8			; yes, so don't search
+	test	al,al
+	jnz	fp1
+	push	cx			; save the original length
+	inc	cx
+	lea	di,[si+190]
+	push	si
+	rep	movsb			; and the name, at the end of LINEBUF
+	pop	si
+	lea	dx,[bx].PATH_BUF+1	; DX -> PATH$ characters
+fp2:	mov	di,si			; DI -> LINEBUF
+	xchg	dx,si
+fp3:	lodsb				; copy the next directory
+	cmp	al,';'
+	je	fp4
+	stosb
+	test	al,al
+	jnz	fp3
+	dec	di			; (the null isn't part of it)
+fp4:	xchg	dx,si			; DX -> following directory, if any
+	push	ax			; AL = 0 if there isn't one
+	mov	cx,di
+	sub	cx,si			; CX = length of directory
+	jcxz	fp7			; skip an empty directory
+	cmp	cx,63
+	ja	fp7			; and one that's too long
+	mov	al,[bx].PATH_CHAR
+	cmp	[di-1],al		; does it end with the path char?
+	je	fp5			; yes
+	stosb				; no, so add one
+fp5:	push	si
+	add	si,190
+fp5a:	lodsb				; append the name
+	stosb
+	test	al,al
+	jnz	fp5a
+	pop	si
+	lea	cx,[di-1]
+	sub	cx,si			; CX = length of the new name
+	DOSUTIL	STRUPR
+	push	dx
+	call	tryProgram
+	pop	dx
+	jnc	fp10			; found it
+fp7:	pop	ax
+	test	al,al			; was that the last directory?
+	jnz	fp2			; no
+	pop	cx			; restore the original length
+	push	cx
+	inc	cx
+	mov	di,si
+	push	si
+	add	si,190
+	rep	movsb			; and the original name
+	pop	si
+	pop	cx
+fp8:	pop	ax			; restore the original error
+	stc
+fp9:	ret
+fp10:	add	sp,6			; discard AL, length, and error
+	ret				; (carry is clear)
+ENDPROC	findProgram
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; tryProgram
+;
+; Inputs:
+;	SS:BX -> CMDHEAP
+;	DS:SI -> null-terminated name
+;	CX = length of name
+;
+; Outputs:
+;	If carry clear, the program exists (and any extension that was needed
+;	has been appended to the name); otherwise, AX = error # and the name is
+;	unchanged
+;
+; Modifies:
+;	AX, DX, DI
+;
+DEFPROC	tryProgram
+	call	chkExt			; any extension?
+	jnc	tp8			; yes
+	mov	dx,offset COM_EXT
+tp1:	mov	di,si
+	call	addString		; append the next extension
+	call	findFile
+	jnc	tp9
+	add	dx,COM_EXT_LEN
+	cmp	dx,offset BAS_EXT
+	jbe	tp1
+	mov	di,si
+	add	di,cx
+	mov	byte ptr [di],0		; every extension failed, so remove it
+	mov	ax,ERR_NOFILE
+	stc
+tp9:	ret
+tp8:	jmp	findFile
+ENDPROC	tryProgram
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; cmdMkdir
 ;
 ; Create a directory (MD or MKDIR), or with cmdRmdir, remove a directory
@@ -831,7 +1044,8 @@ ENDPROC	openOutput
 ; directory operation (eg, "Unable to delete X.TXT (2)").
 ;
 ; Inputs:
-;	AX = error # (ERR_NOTREADY is reported as "Drive not ready")
+;	AX = error # (ERR_NOTREADY is reported as "Drive not ready", and
+;	ERR_NOSESSION as "No sessions available to run X")
 ;	DS:SI -> filename
 ;	CS:DX -> verb (fileError only; eg, "delete")
 ;
@@ -853,13 +1067,538 @@ DEFPROC	openError
 	jne	fer1			; no
 	PRINTF	<"Drive not ready",13,10,13,10>
 	jmp	short fer2
-fer1:	PRINTF	<"Unable to %ls %s (%d)",13,10,13,10>,dx,cs,si,ax
+fer1:	cmp	ax,ERR_NOSESSION	; no session for a pipeline command?
+	jne	fer3			; no
+	push	bx
+	push	di
+	mov	bx,si
+	sub	di,di			; DI -> last period (none yet)
+fer1a:	mov	al,[bx]
+	inc	bx
+	cmp	al,'.'
+	jne	fer1b
+	lea	di,[bx-1]
+fer1b:	test	al,al
+	jnz	fer1a
+	test	di,di			; any period?
+	jnz	fer1c			; yes
+	lea	di,[bx-1]		; no, so use the whole name
+fer1c:	sub	di,si			; DI = length of name without extension
+	PRINTF	<"No sessions available to run %.*s",13,10,13,10>,di,si
+	pop	di
+	pop	bx
+	jmp	short fer2
+fer3:	PRINTF	<"Unable to %ls %s (%d)",13,10,13,10>,dx,cs,si,ax
 fer2:	pop	ax
 	stc
 	ret
 ENDPROC	openError
 
 VERB_OPEN	db	"open",0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; openPipe
+;
+; Open a pipe.  If successful, the caller will use the handle (AX)
+; to extract the corresponding SFH from PSP_PFT and store it in both the
+; current session's PSP_PFT STDOUT slot and the next session's SPB_SFHIN.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	If carry clear, AX is new pipe handle; otherwise, AX is error
+;
+; Modifies:
+;	AX
+;
+DEFPROC	openPipe
+	push	dx
+	push	ds
+	push	cs
+	pop	ds
+	mov	dx,offset PIPE_NAME	; DS:DX -> PIPE_NAME
+	mov	ax,DOS_HDL_OPENRW
+	int	21h
+	jnc	op1
+	push	si
+	mov	si,dx
+	call	openError		; report error (AX) opening file (SI)
+	pop	si
+op1:	pop	ds
+	pop	dx
+	ret
+ENDPROC	openPipe
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; endPipes
+;
+; Wait for every session running a command of the current pipeline (see
+; PIPE_SCB) to end, after ending them if AL is non-zero (eg, when another
+; command of the pipeline failed).
+;
+; Inputs:
+;	AL = non-zero to end the sessions first
+;	BX -> CMDHEAP
+;
+; Outputs:
+;	PIPE_SCB is zero, carry clear
+;
+; Modifies:
+;	CX
+;
+DEFPROC	endPipes
+	mov	cx,32			; CL = SCB # (counting down from 32)
+ep1:	dec	cx
+	shl	[bx].PIPE_SCB.LOW,1
+	rcl	[bx].PIPE_SCB.HIW,1
+	jnc	ep3
+	push	ax
+	test	al,al
+	jz	ep2
+	DOSUTIL	END			; end the program in session CL
+ep2:	DOSUTIL	WAITEND			; and wait for the session to end
+	pop	ax
+ep3:	jcxz	ep9
+	jmp	ep1
+ep9:	clc
+	ret
+ENDPROC	endPipes
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; addPipe
+;
+; Record a session running a command of the current pipeline (see endPipes).
+;
+; Inputs:
+;	BP -> CMDHEAP
+;	CL = SCB #
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	addPipe
+	push	cx
+	mov	ch,0
+	mov	ax,1
+	cwd				; DX:AX = 1
+	jcxz	ap2
+ap1:	shl	ax,1
+	rcl	dx,1
+	loop	ap1
+ap2:	or	[bp].PIPE_SCB.LOW,ax
+	or	[bp].PIPE_SCB.HIW,dx
+	pop	cx
+	ret
+ENDPROC	addPipe
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; cmdHelp
+;
+; If a keyword is specified, display help for that keyword; otherwise,
+; display a list of all keywords.
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	DI -> TOKENBUF
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cmdHelp
+	mov	dl,[bx].CMD_ARG		; is there a non-switch argument?
+	call	getToken
+	jnc	doHelp
+	sub	cx,cx			; no, so list all HELP entries
+;
+; Look up the second token (DS:SI) with length CX in the HELP file.
+;
+	DEFLBL	doHelp,near
+	push	si
+	push	cx
+;
+; HELP.TXT is in the root of the drive that COMMAND.COM was loaded from (see
+; CMD_PATH), so build that filename (eg, "A:/HELP.TXT") on the stack.
+;
+	sub	sp,14
+	mov	di,sp
+	mov	al,cs:[CMD_PATH]
+	mov	ah,':'
+	stosw
+	mov	al,[bx].PATH_CHAR
+	stosb
+	mov	si,offset HELP_FILE
+hp1:	lods	byte ptr cs:[si]
+	stosb
+	test	al,al
+	jnz	hp1
+	mov	si,sp			; DS:SI -> filename
+	call	openInput
+	lahf
+	add	sp,14
+	sahf
+	pop	cx
+	pop	si
+	jc	h3
+	push	cx
+	call	findHelp		; DX = offset, CX = length
+	pop	ax
+	jnc	h1
+	push	ax
+	call	closeInput
+	pop	ax
+	test	ax,ax			; were we just listing entries?
+	jz	h9			; yes
+	jmp	short h3
+h1:	push	cx
+	sub	cx,cx
+	call	seekInput		; seek to 0:DX
+	pop	cx
+	mov	al,CHR_CTRLZ
+	push	ax
+	sub	sp,cx			; allocate CX bytes from the stack
+	mov	si,sp
+	call	readInput		; read CX bytes into DS:SI
+	jc	h2c
+;
+; Keep track of the current line's available characters (DL) and maximum
+; characters (DH), and print only whole words that will fit.
+;
+	mov	dl,[bx].CON_COLS	; DL = # available chars
+	dec	dx			; DL = # available chars - 1
+	mov	dh,dl
+h2:	call	getWord			; AX = next word length
+	test	al,al			; any more words?
+	jz	h2c			; no
+	cmp	al,dl			; will it fit on the line?
+	jbe	h2a			; yes
+	cmp	al,dh			; is it too large regardless?
+	jbe	h2b			; no
+h2a:	call	printChars		; print # chars in AL
+	call	printSpace		; print whitespace that follows
+	jz	h2c			; if ZF set, must have hit CHR_CTRLZ
+	jmp	h2
+h2b:	call	printEOL
+	jmp	h2
+
+h2c:	add	sp,cx			; deallocate the stack space
+	pop	ax
+	call	closeInput
+	ret
+
+h3:	PRINTF	<"No help available",13,10>
+	stc
+	ret
+h9:	ret
+ENDPROC	cmdHelp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; findHelp
+;
+; Searches the (open) HELP file for the entry whose first word matches the
+; specified name (in any case).  Entries are separated by blank lines, and
+; the matching word must be followed by a character other than a letter or
+; digit, so "MID" and "MID$" both match "MID$(...)", while "DEF" doesn't
+; match "DEFINT".
+;
+; If the name is empty, the first word of every entry is listed instead (only
+; letters, digits, '$', and '%' are printed, so an entry that begins with any
+; other character, like '*', is omitted).
+;
+; Inputs:
+;	DS:SI -> name
+;	CX = length of name (zero to list all entries)
+;
+; Outputs:
+;	If carry clear, DX = offset of entry, CX = length of entry
+;
+; Modifies:
+;	AX, CX, DX, SI, DI
+;
+HELP_BUFLEN	equ	128
+
+DEFPROC	findHelp
+	push	bp
+	mov	bp,sp
+	push	si			; [bp-2] -> name
+	push	cx			; [bp-4] = length of name
+	mov	ax,2
+	push	ax			; [bp-6] = # consecutive LINEFEEDs
+	push	ax			; [bp-8] = offset of current entry
+	sub	ax,ax
+	push	ax			; [bp-10] = column (if listing)
+	sub	sp,HELP_BUFLEN
+	sub	di,di			; DI = offset of next character
+	mov	dx,-1			; DX = offset of matching entry (none)
+	mov	al,dl			; AL = # name chars matched (-1 if none)
+fh1:	push	ax
+	push	dx
+	mov	si,sp
+	add	si,4			; DS:SI -> buffer
+	mov	cx,HELP_BUFLEN
+	call	readInput		; AX = # bytes read
+	xchg	cx,ax			; CX = # bytes read
+	pop	dx
+	pop	ax
+	jc	fh1a
+	jcxz	fh1a			; end of file
+	jmp	short fh2
+fh1a:	jmp	fh8
+fh2:	mov	ah,[si]			; AH = next character
+	inc	si
+	cmp	ah,CHR_RETURN
+	je	fh2a
+	cmp	ah,CHR_LINEFEED
+	jne	fh3
+	inc	word ptr [bp-6]
+fh2a:	cmp	byte ptr [bp-4],0	; listing entries?
+	je	fh4			; yes
+	cmp	al,[bp-4]		; does the line end a matching name?
+	mov	al,-1
+	je	fh4a			; yes
+	jmp	short fh7
+fh3:	cmp	word ptr [bp-6],2	; does an entry start here?
+	mov	word ptr [bp-6],0
+	jb	fh4			; no
+	cmp	dx,-1			; did we already find a match?
+	jne	fh9			; yes, so this is the end of it
+	mov	[bp-8],di
+	mov	al,0			; start matching
+fh4:	cmp	al,-1			; still matching (or listing)?
+	je	fh7			; no
+	cmp	byte ptr [bp-4],0	; listing entries?
+	je	fh11			; yes
+	cmp	al,[bp-4]		; entire name matched?
+	jb	fh5			; not yet
+	mov	al,-1
+	cmp	ah,'0'			; next character must not be
+	jb	fh4a			; a digit or letter
+	cmp	ah,'9'
+	jbe	fh7
+	cmp	ah,'A'
+	jb	fh4a
+	cmp	ah,'Z'
+	jbe	fh7
+fh4a:	mov	dx,[bp-8]		; DX = offset of matching entry
+	jmp	short fh7
+fh5:	push	bx
+	mov	bl,al
+	mov	bh,0
+	add	bx,[bp-2]
+	mov	bl,[bx]			; BL = next character of name
+	cmp	bl,'a'
+	jb	fh5a
+	cmp	bl,'z'
+	ja	fh5a
+	sub	bl,20h			; convert lower-case to upper-case
+fh5a:	cmp	bl,ah
+	pop	bx
+	je	fh6
+	mov	al,-1			; mismatch
+	jmp	short fh7
+fh6:	inc	ax
+fh7:	inc	di
+	loop	fh7a
+	jmp	fh1
+fh7a:	jmp	fh2
+fh8:	cmp	byte ptr [bp-10],0	; end of file; is a listing line open?
+	je	fh8a			; no
+	push	dx
+	call	printCRLF
+	pop	dx
+fh8a:	cmp	dx,-1			; was there a match?
+	stc
+	je	fh10			; no
+fh9:	mov	cx,di
+	sub	cx,dx			; CX = length of entry (carry clear)
+fh10:	mov	sp,bp
+	pop	bp
+	ret
+;
+; Listing: print AH if it's part of the entry's first word (AL = # chars
+; printed so far); otherwise, end the word by padding it to the next column.
+;
+fh11:	cmp	ah,'$'
+	je	fh12
+	cmp	ah,'%'
+	je	fh12
+	cmp	ah,'0'
+	jb	fh13
+	cmp	ah,'9'
+	jbe	fh12
+	cmp	ah,'A'
+	jb	fh13
+	cmp	ah,'Z'
+	ja	fh13
+fh12:	push	ax
+	mov	al,ah
+	call	printChar
+	pop	ax
+	inc	ax
+	inc	byte ptr [bp-10]
+	jmp	fh7
+fh13:	cmp	al,0			; anything printed?
+	mov	al,-1
+	je	fh15			; no
+fh14:	push	ax
+	mov	al,' '
+	call	printChar
+	pop	ax
+	inc	byte ptr [bp-10]
+	test	byte ptr [bp-10],7	; at the next column yet?
+	jnz	fh14			; no
+	mov	ah,[bp-10]
+	add	ah,16
+	cmp	ah,[bx].CON_COLS	; is there room for another name?
+	jb	fh15			; yes
+	push	ax
+	push	cx
+	push	dx
+	call	printCRLF
+	pop	dx
+	pop	cx
+	pop	ax
+	mov	byte ptr [bp-10],0
+fh15:	jmp	fh7
+ENDPROC	findHelp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getWord
+;
+; Inputs:
+;	DS:SI -> characters to print
+;
+; Outputs:
+;	AX = # of characters in next non-whitespace sequence (ie, "word")
+;
+; Modifies:
+;	AX
+;
+DEFPROC	getWord
+	push	si
+gw1:	lodsb
+	cmp	al,'\'			; we need to include any backslash
+	jne	gw2			; in the word length, but we're not
+	inc	dx			; printing it, so increase line length
+	jmp	short gw3
+gw2:	cmp	al,' '
+	ja	gw1
+	dec	si
+gw3:	pop	ax
+	sub	si,ax
+	xchg	si,ax
+	ret
+ENDPROC	getWord
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; printChar
+;
+; Inputs:
+;	AL = character
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX
+;
+DEFPROC	printChar
+	push	dx
+	xchg	dx,ax
+	mov	ah,DOS_TTY_WRITE
+	int	21h
+	pop	dx
+	ret
+ENDPROC	printChar
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; printChars
+;
+; Inputs:
+;	CX = character count
+;	DS:SI -> characters to print
+;	DL = avail characters on line
+;	DH = maximum characters on line
+;
+; Outputs:
+;	SI, DL updated as appropriate
+;
+; Modifies:
+;	AX, DX, SI
+;
+DEFPROC	printChars
+	push	ax
+	push	cx
+	cbw
+	xchg	cx,ax			; CX = count
+pr1:	lodsb
+	cmp	al,'*'			; just skip asterisks for now
+	je	pr8
+	cmp	al,'\'			; lines ending with backslash
+	jne	pr2			; trigger a single newline and
+	call	skipSpace		; skip remaining whitespace
+	pop	cx
+	pop	ax
+	ret
+pr2:	call	printChar
+pr8:	loop	pr1
+pr9:	pop	cx
+	pop	ax
+	sub	dl,al			; reduce available chars on line
+	ret
+ENDPROC	printChars
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; printSpace
+;
+; Inputs:
+;	DS:SI -> characters to print
+;	DL = avail characters on line
+;	DH = maximum characters on line
+;
+; Outputs:
+;	SI, DL updated as appropriate
+;
+; Modifies:
+;	AX, DX, SI
+;
+DEFPROC	printSpace
+ps1:	cmp	dl,1			; if current line is almost full
+	jle	skipSpace		; print CRLF and then skip all space
+	lodsb
+	cmp	al,CHR_TAB
+	je	ps2
+	cmp	al,CHR_SPACE
+	ja	ps8
+	jb	ps5
+ps2:	call	printChar
+	dec	dx
+	jmp	ps1
+ps5:	dec	si
+	call	printEOL
+	DEFLBL	skipSpace,near
+	call	printEOL
+ps7:	lodsb
+	cmp	al,CHR_CTRLZ		; end of text?
+	je	ps8			; yes
+	cmp	al,CHR_SPACE		; non-whitespace?
+	ja	ps8			; yes
+	jmp	ps7			; keep looping
+ps8:	dec	si
+ps9:	ret
+ENDPROC	printSpace
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
