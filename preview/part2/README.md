@@ -6,7 +6,7 @@ machines:
   - id: ibm5150
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
-    autoType: MSBASIC PRIMES\r
+    autoType: CD BASIC\rDIR\rMSBASIC PRIMES\r
 ---
 
 ### Part 2: BASIC Operations

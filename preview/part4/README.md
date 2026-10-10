@@ -39,7 +39,7 @@ BASIC-DOS maintains session state using internal structures called Session Contr
 
 Sessions can run entirely in the *background*, or they can be assigned to specific regions of the screen.  The next two machines illustrate how this works, using two side-by-side *foreground* sessions.
 
-The CONFIG.SYS of the first machine has defined two 40-column foreground sessions.  Use SHIFT-TAB to toggle keyboard focus between them.  Notice how the border changes to indicate which session has focus.  Feel free to type CTRL-C to kill the looping DIR command in the first session.
+The CONFIG.SYS of the first machine has defined two 40-column foreground sessions.  Use SHIFT-TAB to toggle keyboard focus between them.  Notice how the border changes to indicate which session has focus.  Feel free to type CTRL-C to kill the looping DIR command in the second session.
 
 {% include machine.html id="ibm5150-2" %}
 

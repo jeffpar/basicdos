@@ -12,7 +12,7 @@ machines:
       B: "PC DOS 2.00 (Disk 1)"
 ---
 
-The machine below boots the BASICDOS-DISK1 diskette, whose **CONFIG.SYS** doesn't define any consoles, so BASIC-DOS creates a single 80-column, 25-row session, running COMMAND.COM, which runs **AUTOEXEC.BAT** to display the BASIC-DOS version and a colorful greeting.  Type **HELP** for a list of commands, **DIR** to list the files on the diskette, and **PRIMES** to run PRIMES.BAS.
+The machine below boots the BASICDOS-DISK1 diskette, whose **CONFIG.SYS** doesn't define any consoles, so BASIC-DOS creates a single 80-column, 25-row session, running COMMAND.COM, which runs **BD4.BAT** to display the BASIC-DOS version and a colorful greeting.  Type **HELP** for a list of commands, **DIR** to list the files on the diskette, and **PRIMES** to run PRIMES.BAS.
 
 The machine is configured with 128K, and you can use the **MEM** command to display current memory usage (or **MEM -D** for details).  See the other [BASIC-DOS Demos](../) for configurations with multiple sessions.
 

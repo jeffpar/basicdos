@@ -325,8 +325,9 @@ SPIN_CHARS	db	"-\|/"			; (the first line uses '\')
 DEFPROC	genCommands
 	mov	ax,CODE_ROOM
 	call	ensureRoom		; make sure there's room for a command
-	jc	gcs9
-	mov	dx,bx			; DX -> TOKLETs (for implicit LET)
+	jnc	gcInit
+	ret
+gcInit:	mov	dx,bx			; DX -> TOKLETs (for implicit LET)
 	mov	al,CLS_KEYWORD
 	call	getNextToken
 	jb	gcs0
@@ -353,7 +354,7 @@ DEFPROC	genCommands
 	jnc	gcs4
 	mov	di,si			; it failed, so discard its code
 	mov	bx,dx
-	jmp	short gcs1b		; and treat the keyword as a command
+	jmp	short gcs1d		; and treat the keyword as a command
 ;
 ; If the next token is a colon that a previous command didn't consume (eg,
 ; "CLS:PRINT"), skip it; otherwise, it must be a DOS command.
@@ -384,7 +385,15 @@ gcs1L:	pop	ax			; discard saved BX
 	mov	cx,offset genLet
 	jmp	short gcs3
 gcs1a:	pop	bx
-gcs1b:	sub	ax,ax			; call genDOS w/o an ID
+;
+; A failed keyword lookup may leave BX on the first token (eg, a leading
+; path character or a quote).  genDOS expects BX past that token, so rewind
+; and consume it explicitly, skipping any leading whitespace as usual.
+;
+gcs1b:	mov	bx,dx
+	mov	al,CLS_ANY
+	call	getNextToken
+gcs1d:	sub	ax,ax			; call genDOS w/o an ID
 ;
 ; For non-BASIC keywords, generate callDOS code with a pointer to the
 ; full command-line and the keyword handler.  callDOS will then perform
@@ -396,8 +405,8 @@ gcs2:	cbw				; AX = keyword ID
 
 gcs3:	call	cx			; call dedicated generator function
 gcs4:	mov	es:[BLK_FREE],di
-	jnc	genCommands
-	ret
+	jc	gcs9
+	jmp	genCommands
 ;
 ; A keyword with no generator (eg, ELSE) ends the commands, and we leave it
 ; for the caller (eg, genIf), returning AX = CLS_KEYWORD and the keyword ID.

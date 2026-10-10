@@ -70,19 +70,18 @@ const helpFile = SRC + "/os/cmd/HELP.TXT";
 const toolFiles = [ SRC + "/os/util/obj/*.COM" ];
 const primesFiles = [ SRC + "/tests/primes/PRIMES.BAS", SRC + "/tests/primes/PRIMES.BAT" ];
 const sampleFiles = [ "./demos/basic/*.BAS", "./demos/mbrot/MBROT.BAS" ].concat(primesFiles);
+const bd4File = SRC + "/tests/misc/BD4.BAT";
 const extraFiles = [ SRC + "/tests/misc/SYMDEB.EXE", SRC + "/msb/obj/*.EXE" ];
 const testFiles = [ SRC + "/tests/bin/*.EXE", SRC + "/tests/bin/*.COM", SRC + "/tests/misc/BD*.BAT" ].concat(extraFiles);
 
 let disks = {
     "BASICDOS": {
         config: "./demos/s80/CONFIG.SYS",
-        autoexec: "./demos/s80/AUTOEXEC.BAT",
         BASIC: primesFiles,
-        TESTS: extraFiles
+        TESTS: [ bd4File ].concat(extraFiles)
     },
     "BASICDOS-DISK1": {
         config: "./demos/s80/CONFIG.SYS",
-        autoexec: "./demos/d40/AUTOEXEC.BAT",
         BASIC: primesFiles,
         TESTS: testFiles
     },
@@ -103,22 +102,19 @@ let disks = {
     },
     "BASICDOS-DISK5": {
         config: "./demos/dual/multi/CONFIG.SYS",
-        autoexec: "./demos/d40/AUTOEXEC.BAT",
         BASIC: primesFiles,
         TESTS: testFiles
     },
     "BASICDOS-DISK6": {
         config: "./demos/s80/CONFIG.SYS",
-        autoexec: "./demos/d40/AUTOEXEC.BAT",
         BASIC: sampleFiles,             // DONKEY.BAS and the other PC DOS 1.00 BASIC samples
-        TESTS: [ SRC + "/tests/misc/BENCH.BAS" ].concat(extraFiles)
+        TESTS: [ SRC + "/tests/misc/BENCH.BAS", bd4File ].concat(extraFiles)
     },
     "BASICDOS-HD": {
         hd: true,
         config: "./demos/hd/CONFIG.SYS",
-        autoexec: "./demos/d40/AUTOEXEC.BAT",
         BASIC: sampleFiles,
-        TESTS: [ SRC + "/tests/misc/BENCH.BAS" ].concat(extraFiles)
+        TESTS: [ SRC + "/tests/misc/BENCH.BAS", bd4File ].concat(extraFiles)
     },
     "BASICDOS-STRESS": {
         hd: true,

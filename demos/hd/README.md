@@ -9,7 +9,7 @@ machines:
     debugger: available
 ---
 
-The machine below is an IBM PC XT with no diskettes loaded; instead, it boots BASIC-DOS from its 10Mb hard disk (drive C:), which has the same layout as every BASIC-DOS disk: the system files, CONFIG.SYS, AUTOEXEC.BAT, and HELP.TXT in the root directory, DONKEY.BAS and the other BASIC samples (along with MBROT.BAS and PRIMES.BAS) in a **BASIC** subdirectory, the BASIC-DOS utilities (eg, FIND, MORE, and SORT) in **TOOLS**, and other programs (eg, BENCH.BAS and MSBASIC.EXE) in **TESTS**.  CONFIG.SYS sets PATH$ to `C:/;C:/BASIC;C:/TOOLS;C:/TESTS`, so programs in those directories can be run from anywhere.
+The machine below is an IBM PC XT with no diskettes loaded; instead, it boots BASIC-DOS from its 10Mb hard disk (drive C:), which has the same layout as every BASIC-DOS disk: the system files, CONFIG.SYS and HELP.TXT in the root directory, DONKEY.BAS and the other BASIC samples (along with MBROT.BAS and PRIMES.BAS) in a **BASIC** subdirectory, the BASIC-DOS utilities (eg, FIND, MORE, and SORT) in **TOOLS**, and other programs (eg, BD4.BAT, BENCH.BAS, and MSBASIC.EXE) in **TESTS**.  CONFIG.SYS sets PATH$ to `C:/;C:/BASIC;C:/TOOLS;C:/TESTS`, so programs in those directories can be run from anywhere.  Its SHELL line runs `BD4.BAT` to display the BASIC-DOS version and a colorful greeting.
 
 The prompt displays the current directory, so it starts as `C:/>`.  To go into the **BASIC** directory, list its files, and run a program, type:
 

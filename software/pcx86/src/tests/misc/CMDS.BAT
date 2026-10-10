@@ -13,6 +13,16 @@ DEL T.TMP
 PRINT 1 :> T1.TMP
 PRINT 2 :> T2.TMP
 DEL T?.TMP
+P$ = "paths":/TOOLS/SLEEP.COM 0
+IF ERRORLEVEL <> 0 THEN PRINT "absolute command failed"
+/TOOLS/SLEEP.COM 0
+IF ERRORLEVEL <> 0 THEN PRINT "leading path command failed"
+TOOLS/SLEEP.COM 0
+IF ERRORLEVEL <> 0 THEN PRINT "relative command failed"
+A:/TOOLS/SLEEP.COM 0
+IF ERRORLEVEL <> 0 THEN PRINT "drive path command failed"
+SLEEP 0
+IF ERRORLEVEL <> 0 THEN PRINT "bare command failed"
 TIME -D
 HELP SQR
 PRINT "CMDS done"
