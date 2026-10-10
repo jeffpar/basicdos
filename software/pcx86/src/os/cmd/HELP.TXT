@@ -296,6 +296,9 @@ MOUSE(*n*)
 Returns the next button event (*n* = 0: 0 if none, 1 = left pressed, 2 = left released, 3 = right pressed, 4 = right released), the x (1) or y (2) of that event, or the current x (3), y (4), or buttons (5: 1 = left, 2 = right).
 Positions are pixels in graphics modes, or a column and row (starting at 1) in text modes.
 
+MV *source* *destination*
+Same as REN.
+
 NEW
 Erases the loaded program, functions, and variables.
 
@@ -358,6 +361,12 @@ Assigns the next DATA item to each variable.  Reading past the last item is an "
 
 REM
 Used for program remarks.  The rest of the line is not executed.  An apostrophe (') outside of quotes is the same as REM.
+
+REN *source* *destination*
+Renames or moves one file or directory on the same drive.  The destination can be a new filename or an existing directory (which keeps the source filename).  Existing destination files are not overwritten; open files, cross-drive moves, and wildcards are rejected.  Directory moves update ".." and preserve active current directories; moving into itself or a descendant is rejected.  RENAME and MV are the same as REN.
+
+RENAME *source* *destination*
+Same as REN.
 
 RESET
 Same as CLOSE without file numbers (ie, closes all files).
@@ -482,4 +491,4 @@ WRITE [#*n*,][*expression*[,*expression*]...]
 Prints the values (or with #*n*, writes them to file *n*) separated by commas, with strings in quotes, so that INPUT # can read them back.
 
 *Unsupported Commands*
-REN (rename) isn't supported yet.  Files can be created, written, copied, and deleted (eg, with COPY, DEL, and SAVE, or OPEN in a BAS program).
+Files can be created, written, copied, renamed, moved, and deleted (eg, with COPY, REN, MV, DEL, and SAVE, or OPEN in a BAS program).

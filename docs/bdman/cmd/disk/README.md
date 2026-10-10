@@ -15,6 +15,7 @@ BASIC-DOS disk commands include:
 - [LOAD](#load)
 - [MD](#md) (or MKDIR)
 - [RD](#rd) (or RMDIR)
+- [REN](#ren) (or RENAME or MV)
 - [SAVE](#save)
 - [TYPE](#type)
 
@@ -28,7 +29,7 @@ Device names (eg, CON, PRN, AUX, COM1, LPT1, and NUL) can be used in place of fi
 
 A string variable can also be used in place of any file name (or path, or filespec), in which case its value is used (eg, `F$ = "PRIMES.BAS"` and then `TYPE F$`, or `COPY CON NAME$`).  This works in BAS and BAT files, and at the prompt, where variables set with LET remain until the next program runs.  Any name that looks like a string variable (a letter, followed by letters or digits, ending with `$`) is a variable; one that doesn't exist is empty, as in BASIC, and an empty string variable is the same as no file name (eg, `DIR E$` lists all files when `E$` is empty).  To use a file name that looks like a string variable, put it in quotes (eg, `TYPE "TEST$"`); any quoted file name works the same as an unquoted one.
 
-The REN (RENAME) command isn't supported yet.
+REN (or RENAME or MV) renames or moves a file or directory on the same drive.
 
 ### CD
 
@@ -91,6 +92,14 @@ Creates a new directory, which initially contains only the `.` and `..` entries.
 Removes a directory, which must be empty (except for its `.` and `..` entries) and can't be the current directory of any session.
 
 	RD GAMES
+
+### REN
+
+> REN *source* *destination*
+
+Renames or moves one file or directory on the same drive.  RENAME and MV are aliases.  Both paths are relative to the current directory unless qualified.  The destination can be a new filename (eg, `REN OLD.TXT NEW.TXT` or `MV IN/OLD.TXT OUT/NEW.TXT`) or an existing directory (eg, `MV IN/OLD.TXT OUT`), which retains the original filename.
+
+An existing destination is never overwritten.  File contents, size, attributes, and timestamps are preserved.  Directories, including their contents, can also be moved; their parent (`..`) is updated, and active current directories remain valid.  A directory cannot be moved into itself or a descendant.  Open source files and files on an open volume cannot be moved, but files within a moved directory can remain open.  Cross-drive moves and wildcard names are not supported.
 
 ### SAVE
 

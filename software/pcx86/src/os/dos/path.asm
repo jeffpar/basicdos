@@ -17,6 +17,7 @@ DOS	segment word public 'CODE'
 
 	EXTNEAR	<get_bpb,get_cdir,get_dirent,parse_name,scb_release>
 	EXTNEAR	<chk_filename,chk_volopen,sfb_chkopen,flush_buffers,free_clns>
+	EXTNEAR	<add_dirent,read_buffer>
 	EXTBYTE	<bpb_total,scb_locked>
 	EXTWORD	<scb_active>
 
@@ -131,6 +132,10 @@ ENDPROC	del_dirent
 ;
 ; dsk_rename (REG_AH = 56h)
 ;
+; Rename a file or directory, including moves on the same drive.
+; Existing destinations and open files are rejected.  A directory cannot
+; be moved into itself or a descendant; its parent entry is updated.
+;
 ; Inputs:
 ;	REG_DS:REG_DX -> name of existing file
 ;	REG_ES:REG_DI -> new name for file
@@ -191,14 +196,26 @@ dr1:	dec	si
 	cmp	al,ss:[di+2]		; same drive?
 	mov	ax,ERR_NOTSAME
 	jne	dr4			; no
-	mov	cx,cs:[bx].SCB_DIRCLN
-	cmp	cx,ss:[di]		; same directory?
-	jne	dr4			; no (TODO: support moving files)
 	mov	ax,ERR_ACCDENIED
 	test	[si].DIR_ATTR,DIRATTR_VOLUME
 	jnz	dr4
 	cmp	[si].DIR_NAME,'.'	; is it "." or ".."?
 	je	dr4			; yes
+	test	[si].DIR_ATTR,DIRATTR_SUBDIR
+	jnz	dr2			; directories have no open file SFB
+	push	bx
+	mov	bl,MODE_ACC_RW
+	mov	al,ss:[di+2]
+	call	sfb_chkopen		; do not invalidate an open SFB
+	pop	bx
+	jc	dr4
+dr2:	mov	dx,cs:[bx].SCB_DIRCLN
+	cmp	dx,ss:[di]		; same parent directory?
+	je	dr3
+	mov	al,ss:[di+2]
+	call	mv_file
+	jmp	short dr5
+dr3:
 	push	ds
 	pop	es
 	ASSUME	ES:BIOS
@@ -218,6 +235,196 @@ dr5a:	pop	dx			; discard the saved filename
 	mov	[bp].REG_AX,ax
 dr5b:	UNLOCK_SCB
 ENDPROC	dsk_rename
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; mv_file
+;
+; Move a file or directory entry without copying or freeing its data.
+; Check directory ancestry before allocation, and update its ".." entry.
+; Current directories and open child files retain their cluster identities.
+; Save the complete source entry because directory lookups may reuse buffers.
+; Write the destination before deleting the source, preserving file contents
+; if allocation or writing the destination fails.
+;
+; Inputs:
+;	AL = drive #, CX = source DIRENT #
+;	DS:SI -> source DIRENT
+;	SS:DI -> destination SCB_DIRCLN and SCB_FILENAME (14 bytes)
+;	SCB_DIRCLN = source directory
+;
+; Outputs:
+;	Carry clear on success; otherwise AX = error code, carry set
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, DS, ES
+;
+MV_DIR	equ	size DIRENT
+MV_NUM	equ	MV_DIR+2
+MV_DRV	equ	MV_NUM+2
+MV_DST	equ	MV_DRV+2
+MV_WORK	equ	MV_DST+2
+
+DEFPROC	mv_file,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	sub	sp,MV_WORK
+	mov	bx,sp
+	mov	ss:[bx+MV_DST],di
+	mov	ss:[bx+MV_NUM],cx
+	mov	ah,0
+	mov	ss:[bx+MV_DRV],ax
+	mov	di,cs:[scb_active]
+	mov	ax,cs:[di].SCB_DIRCLN
+	mov	ss:[bx+MV_DIR],ax
+	push	ss
+	pop	es
+	mov	di,bx
+	mov	cx,size DIRENT
+	rep	movsb			; snapshot source metadata and name
+	test	ss:[bx].DIR_ATTR,DIRATTR_SUBDIR
+	jz	mva
+	mov	dl,ss:[bx+MV_DRV]
+	call	get_bpb
+	jnc	mvb
+	jmp	mv9
+mvb:	mov	si,ss:[bx+MV_DST]
+	mov	ax,ss:[si]		; start at the destination parent
+	mov	cx,cs:[di].BPB_CLUSTERS
+mvc:	mov	bx,sp
+	cmp	ax,ss:[bx].DIR_CLN	; would this create a directory cycle?
+	je	mve
+	test	ax,ax			; reached the root?
+	jz	mva
+	push	cx
+	call	mv_par			; DS:SI -> destination ancestor's ".."
+	pop	cx
+	jnc	mvd
+	jmp	mv9
+mvd:	mov	ax,[si].DIR_CLN
+	loop	mvc			; bound traversal of a damaged tree
+mve:	mov	ax,ERR_ACCDENIED
+	stc
+	jmp	mv9
+mva:	mov	bx,sp
+	mov	si,ss:[bx+MV_DST]
+	mov	di,cs:[scb_active]
+	lea	di,[di].SCB_DIRCLN
+	push	cs
+	pop	es
+	mov	cx,size SCB_FILENAME+2
+	REPS	MOVS,ES,SS,BYTE		; select the destination directory
+	mov	dl,ss:[bx+MV_DRV]
+	call	get_bpb
+	jnc	mv0
+	jmp	mv9
+mv0:	mov	bl,ss:[bx].DIR_ATTR
+	call	add_dirent		; allocate a destination entry
+	jnc	mv1
+	jmp	mv9
+mv1:	push	ds
+	pop	es
+	mov	di,si
+	add	di,size FCB_NAME
+	mov	si,sp
+	add	si,size FCB_NAME
+	mov	cx,size DIRENT-size FCB_NAME
+	REPS	MOVS,ES,SS,BYTE		; retain all metadata and file clusters
+	mov	ds:[BUF_DIRTY],1
+	mov	bx,sp
+	mov	al,ss:[bx+MV_DRV]
+	call	flush_buffers
+	jc	mv9			; keep the source on write failure
+	mov	bx,sp
+	test	ss:[bx].DIR_ATTR,DIRATTR_SUBDIR
+	jz	mvf
+	mov	dl,ss:[bx+MV_DRV]
+	call	get_bpb
+	jc	mv9
+	mov	ax,ss:[bx].DIR_CLN
+	call	mv_par			; read the moved directory's ".."
+	jc	mv9
+	mov	bx,sp
+	mov	di,ss:[bx+MV_DST]
+	mov	ax,ss:[di]
+	mov	[si].DIR_CLN,ax		; install its new parent
+	mov	ds:[BUF_DIRTY],1
+	mov	al,ss:[bx+MV_DRV]
+	call	flush_buffers
+	jc	mv9
+mvf:
+	mov	bx,sp
+	mov	di,cs:[scb_active]
+	mov	ax,ss:[bx+MV_DIR]
+	mov	cs:[di].SCB_DIRCLN,ax
+	lea	di,[di].SCB_FILENAME
+	push	cs
+	pop	es
+	mov	al,ss:[bx+MV_DRV]
+	stosb				; restore source drive and name
+	mov	si,bx
+	mov	cx,size FCB_NAME
+	REPS	MOVS,ES,SS,BYTE
+	mov	dl,ss:[bx+MV_DRV]
+	call	get_bpb
+	jc	mv9
+	mov	ax,ss:[bx+MV_NUM]
+	mov	bl,0
+	call	get_dirent		; reacquire source after buffer reuse
+	jc	mv9
+	mov	byte ptr [si].DIR_NAME,DIRENT_DELETED
+	mov	ds:[BUF_DIRTY],1
+	mov	bx,sp
+	mov	al,ss:[bx+MV_DRV]
+	call	flush_buffers
+mv9:	mov	cx,MV_WORK SHR 1
+mv9a:	pop	dx			; release workspace, preserving carry
+	loop	mv9a
+	ret
+ENDPROC	mv_file
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; mv_par
+;
+; Read a subdirectory's parent entry without changing the SCB filename.
+;
+; Inputs:
+;	AX = subdirectory cluster, DI -> BPB
+;
+; Outputs:
+;	DS:SI -> ".." DIRENT, carry clear
+;	On failure, AX = error code, carry set
+;
+; Modifies:
+;	AX, CX, DX, SI, DS
+;
+DEFPROC	mv_par,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	cmp	ax,2
+	jb	mp8
+	sub	ax,2
+	cmp	ax,cs:[di].BPB_CLUSTERS
+	jae	mp8
+	mov	cl,cs:[di].BPB_CLUSLOG2
+	shl	ax,cl
+	add	ax,cs:[di].BPB_LBADATA
+	mov	dx,ax
+	mov	al,cs:[di].BPB_DRIVE
+	mov	si,offset DIR_BUFHDR
+	call	read_buffer
+	jc	mp9
+	add	si,size DIRENT
+	cmp	word ptr [si].DIR_NAME,'..'
+	jne	mp8
+	test	[si].DIR_ATTR,DIRATTR_SUBDIR
+	jz	mp8
+	clc
+	ret
+mp8:	mov	ax,ERR_ACCDENIED
+	stc
+mp9:	ret
+ENDPROC	mv_par
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

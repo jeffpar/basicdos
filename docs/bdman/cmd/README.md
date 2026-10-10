@@ -55,15 +55,18 @@ In the descriptions that follow, *italics* indicate values that you supply, brac
 | [IF](basic/if/) | BASIC | [WEND](basic/#while) | BASIC |
 | [KEY](device/keyboard/#key) | Keyboard | [WHILE](basic/#while) | BASIC |
 | [KEYS](system/#keys) | System | [WIDTH](device/screen/#width) | Screen |
-| [LET](basic/let/) | BASIC |  |  |
+| [LET](basic/let/) | BASIC | [MV](disk/#ren) | Disk |
+| [REN](disk/#ren) | Disk | [RENAME](disk/#ren) | Disk |
 
 See [BASIC Functions](basic/func/) for the list of functions and predefined constants.
+
+REN (RENAME) and MV share the same file and directory rename and move command; see [REN](disk/#ren).
 
 ### Not Yet Supported
 
 The following commands and statements from PC DOS and IBM PC BASIC aren't supported yet:
 
-- PC DOS commands: CHKDSK, DISKCOPY, FORMAT, PAUSE, REN, SYS, and directory commands (CHDIR, MKDIR, RMDIR)
+- PC DOS commands: CHKDSK, DISKCOPY, FORMAT, PAUSE, SYS, and directory commands (CHDIR, MKDIR, RMDIR)
 - BASIC statements: INPUT, LINE INPUT, the MID$ statement, and file I/O statements (eg, OPEN, CLOSE, PRINT #, and INPUT #)
 
 {% include footer.html prev="Contents:../" next="BASIC Commands:basic/" %}

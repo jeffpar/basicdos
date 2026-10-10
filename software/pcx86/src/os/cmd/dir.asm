@@ -238,6 +238,83 @@ ENDPROC	copyWild
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; cmdRen
+;
+; Rename or move one file or directory.  A directory target retains the
+; source name; an explicit name can change both its name and its parent.
+; Both paths are relative to the current directory, unless qualified.
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	DI -> TOKENBUF
+;	DS:SI -> source filename in LINEBUF, CX = length
+;
+; Outputs:
+;	Carry clear on success; otherwise the error is reported and carry set
+;
+; Modifies:
+;	Any
+;
+DEFPROC	cmdRen
+	push	di
+	call	scanSpec
+	pop	di
+	test	ah,ah
+	jnz	rn8			; wildcards are not supported
+	mov	dl,[bx].CMD_ARG
+	push	cx
+	call	getToken		; a source is required
+	pop	cx
+	jc	rn8
+	lea	si,[bx].LINEBUF
+	push	di
+	lea	di,[bx].LINEBUF+128
+	inc	cx
+	rep	movsb			; retain source while parsing target
+	pop	di
+	inc	dx
+	sub	cx,cx
+	call	getFileName		; destination in LINEBUF
+	jc	rn8
+	push	si
+	push	cx
+	inc	dx
+	call	getToken		; no extra arguments
+	pop	cx
+	pop	si
+	jnc	rn8
+	call	scanSpec
+	test	ah,ah
+	jnz	rn8
+	mov	di,si
+	add	di,cx
+	call	chkDir			; append the source name for a directory
+	jc	rn2
+	push	di
+	lea	si,[bx].LINEBUF+128
+	call	scanSpec
+	mov	si,di
+	pop	di
+rn1:	lodsb
+	stosb
+	test	al,al
+	jnz	rn1
+rn2:	lea	dx,[bx].LINEBUF+128
+	lea	di,[bx].LINEBUF
+	mov	ah,DOS_DSK_RENAME
+	int	21h
+	jc	rn7
+	ret
+rn7:	mov	si,dx
+	mov	dx,offset VERB_REN
+	jmp	fileError
+rn8:	PRINTF	<"Syntax error",13,10,13,10>
+	stc
+	ret
+ENDPROC	cmdRen
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; cmdDel
 ;
 ; Delete the specified file (also used by ERASE).  A filespec with wildcards
@@ -1852,6 +1929,7 @@ VERB_DEL	db	"delete",0
 VERB_FIND	db	"find",0
 VERB_MD		db	"create",0
 VERB_RD		db	"remove",0
+VERB_REN	db	"rename",0
 
 CODE	ENDS
 

@@ -95,7 +95,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] Every BASIC-DOS disk has the same layout: BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, AUTOEXEC.BAT (if any), and HELP.TXT in the root, BASIC samples in BASIC, utilities in TOOLS, and test and demo programs in TESTS; HELP finds HELP.TXT in the root of the boot drive from any directory
 - [ ] Input redirection (`<`)
 - [ ] Batch file features: replaceable parameters (`%1`-`%9`), environment variables (SET), `ECHO message`, IF EXIST, FOR ... IN ... DO, SHIFT, and PAUSE (see [Batch Files](docs/bdman/lang/#batch-files) for the BASIC-DOS equivalents)
-- [ ] REN/RENAME
+- [x] REN/RENAME/MV: rename files and directories and move them between directories on the same drive
 - [x] Loading tokenized (binary) BAS files saved by BASICA or GW-BASIC (eg, the samples on the PC DOS diskettes): they're converted back to text as they're loaded (as LIST would display them), including MBF floating-point constants (converted to IEEE doubles and formatted by FPU$); protected BAS files are still rejected with "Invalid file format"
 - [ ] LOAD inside a running BAS or BAT file (for now, it's an error, "Not allowed in a program", because it would replace the running file's own text)
 - [ ] Disk utilities (eg, FORMAT, CHKDSK, SYS)
@@ -189,7 +189,8 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] ARRAYS: BASIC array tests (including leak tests)
 - [x] FLOW: BASIC control flow tests
 - [x] FILEIO: BASIC sequential and random access file tests
-- [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUN, STRPOOL, ARRAYS, FLOW, CMDS, VARS, FILEIO, and PRINTF, and reports whether the tests passed)
+- [x] MOVES: file and directory moves, destination growth, sharing, and ancestry checks
+- [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUN, STRPOOL, ARRAYS, FLOW, CMDS, VARS, FILEIO, MOVES, and PRINTF, and reports whether the tests passed)
 - [x] CMDS: command tests (pipes, redirection, TYPE, DEL, TIME -D, HELP, SOUND, remarks, and hex constants)
 - [x] `tools/tests/chkdsk.sh` runs MS-DOS 3.20 CHKDSK on a diskette image saved by a test session (see `QUIT /S` in `pc.js`)
 - [ ] More tests (eg, BASIC language and CMD command tests)
@@ -202,7 +203,7 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 
 These are the next steps, roughly in priority order:
 
-1. Add the REN command and input redirection
+1. Add input redirection
 2. The read-only attribute, and file attribute/date/time functions
 3. Remaining string and input/output features (the MID$ statement, `&H` and `&O` prefixes in VAL, and comma print zones)
 4. The rest of runtime error handling (RESUME, RESUME NEXT, and ERL)

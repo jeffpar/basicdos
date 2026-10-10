@@ -51,7 +51,7 @@ The line editing keys that 0Ah supports are described in [Typing Commands](../..
 | 47h | DOS_DSK_GETCWD | DL = drive # (0 = default, 1 = A:), DS:SI -> 64-byte buffer | Buffer contains the current directory's path, without a drive or leading path character (an empty string for the root) |
 | 4Eh | DOS_DSK_FFIRST | CX = attributes, DS:DX -> filespec | DTA filled in (see [FFB](../data/#ffb)) |
 | 4Fh | DOS_DSK_FNEXT | DTA from the previous 4Eh or 4Fh | DTA filled in |
-| 56h | DOS_DSK_RENAME | DS:DX -> existing filename, ES:DI -> new filename | |
+| 56h | DOS_DSK_RENAME | DS:DX -> existing filename, ES:DI -> new filename | Same-drive file and directory moves supported; destination must not exist; open files rejected |
 
 #### File Handles {#handles}
 
@@ -167,7 +167,7 @@ Environment segments (EPB_ENVSEG) aren't supported yet, so the field is ignored.
 
 #### Files
 
-Any filename passed to a handle function (or to FFIRST, DELETE, RENAME, MKDIR, RMDIR, CHDIR, or EXEC) may include a path, whose directory names are separated by the session's path character (DOS_MSC_GETPCH), not by both `\` and `/` as in PC DOS.  FCB functions always use the drive's current directory.  A subdirectory grows by a cluster whenever a new entry doesn't fit.  Renaming a file into a different directory, enforcing the read-only attribute when a handle opens a file, getting and setting file attributes (43h) and file dates and times (57h), and INT 25h and INT 26h (use a volume handle for absolute disk reads and writes instead) aren't supported.  Critical errors (INT 24h) aren't reported to programs yet.
+Any filename passed to a handle function (or to FFIRST, DELETE, RENAME, MKDIR, RMDIR, CHDIR, or EXEC) may include a path, whose directory names are separated by the session's path character (DOS_MSC_GETPCH), not by both `\` and `/` as in PC DOS.  FCB functions always use the drive's current directory.  A subdirectory grows by a cluster whenever a new entry doesn't fit.  Same-drive renames can move files and directories without copying their data; existing destinations and open source files are rejected.  Directory moves update the ".." entry and reject destinations within the moved subtree.  Current directories and open child files remain valid because their directory cluster identities are unchanged.  Cross-drive moves are not supported.  Enforcing the read-only attribute when a handle opens a file, getting and setting file attributes (43h) and file dates and times (57h), and INT 25h and INT 26h (use a volume handle for absolute disk reads and writes instead) aren't supported.  Critical errors (INT 24h) aren't reported to programs yet.
 
 BASIC-DOS doesn't store the path of each current directory, only the directory's first cluster (in a table with one entry per drive for each session), so DOS_DSK_GETCWD rebuilds the path by following ".." entries up to the root.
 

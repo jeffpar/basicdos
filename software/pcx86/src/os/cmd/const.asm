@@ -431,6 +431,7 @@ CODE	ENDS
 	DEFTOK	MEM,     5, cmdMem
 	DEFTOK	MKDIR,  17, cmdMkdir
 	DEFTOK	MOUSE,  86, genMouse,PUB
+	DEFTOK	MV,     26, cmdRen
 	DEFTOK	NEW,     6, cmdNew
 	DEFTOK	NEXT,   60, genNext
 	DEFTOK	OFF,   202,,PUB
@@ -450,6 +451,8 @@ CODE	ENDS
 	DEFTOK	RD,     18, cmdRmdir
 	DEFTOK	READ,   84, genRead
 	DEFTOK	REM,    52
+	DEFTOK	REN,    26, cmdRen
+	DEFTOK	RENAME, 26, cmdRen
 	DEFTOK	RESET,  94, genClose
 	DEFTOK	RESTART, 7, cmdRestart
 	DEFTOK	RESTORE,85, genRestore
