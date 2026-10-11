@@ -332,8 +332,12 @@ dcw4:	mov	al,[si]
 	inc	si
 	loop	dcw4
 	pop	es
-
-dcw9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+;
+; DOS reports the number of bytes written as the original length minus
+; DDPRW_LENGTH (the number of bytes remaining), so we must zero it.
+;
+dcw9:	mov	es:[di].DDPRW_LENGTH,cx	; CX is zero
+	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	pop	cx
 	ret
 ENDPROC	ddcom_write

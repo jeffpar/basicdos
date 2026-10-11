@@ -62,13 +62,15 @@ Sets the segment that [PEEK](func/#peek) and [POKE](#poke) use.  Without a *segm
 
 > DEFDBL [*letter(s)*]
 
-Defines the first letter(s) of variables that will default to double-precision (64-bit) floating-point values (eg, `DEFDBL A-F,X`).  Variables default to double-precision unless DEFINT or DEFSTR is used (or floating-point support is disabled).  Every program starts with these defaults, as in Microsoft BASIC, so DEFDBL, DEFINT, and DEFSTR statements from another program (or typed at the prompt) don't carry over.
+Defines the first letter(s) of variables that will default to double-precision (64-bit) floating-point values (eg, `DEFDBL A-F,X`).  Variables default to double-precision unless DEFINT or DEFSTR is used (or floating-point support is disabled).  Every program starts with these defaults, as in Microsoft BASIC, so DEFDBL, DEFINT, and DEFSTR statements from another program (or typed at the prompt) don't carry over.  The exception is a BAT file, which starts with an implied `DEFINT A-Z` (see [DEFINT](#defint)).
 
 ### DEFINT
 
 > DEFINT [*letter(s)*]
 
 Defines the first letter(s) of variables that will default to integer (32-bit) values (eg, `DEFINT A-Z`).  Integer operations are much faster than floating-point operations, so programs that don't need fractions should use DEFINT.
+
+BAT files start with an implied `DEFINT A-Z`, since batch files rarely need fractions; a BAT file can still use suffixes (eg, `X#`) or `DEFDBL` for floating-point variables.  Note that assigning a fraction to an integer variable rounds it (eg, `A = 7/2` sets `A` to 4).
 
 ### DEFSNG
 

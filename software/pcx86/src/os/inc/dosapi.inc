@@ -79,7 +79,6 @@ DOS_MSC_CTRLC	equ	33h	; get/set CTRLC state
 DOS_MSC_GETVEC	equ	35h	; get vector (AL) addr (ES:BX)
 DOS_DSK_GETINFO	equ	36h	; get disk info; eg, available clusters (BX)
 DOS_MSC_GETSWC	equ   3700h	; get switch char (DL) (undocumented)
-DOS_MSC_SETSWC	equ   3701h	; set switch char (DL) (undocumented)
 DOS_MSC_GETPCH	equ   3704h	; get path char (DL) (BASIC-DOS only)
 DOS_DSK_MKDIR	equ	39h	; create directory (DS:DX)
 DOS_DSK_RMDIR	equ	3Ah	; remove directory (DS:DX)

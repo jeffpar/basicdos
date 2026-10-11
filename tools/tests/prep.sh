@@ -33,6 +33,7 @@ files_tests=(
     "$src"/tests/bin/*.COM
     "$src"/tests/bin/*.EXE
     "$src"/tests/misc/BD*.BAT
+    "$src"/tests/misc/HELLO.BAT
     "$src"/tests/misc/CMDS.BAT
     "$src"/tests/misc/*.BAS
     "$src"/tests/misc/SYMDEB.EXE

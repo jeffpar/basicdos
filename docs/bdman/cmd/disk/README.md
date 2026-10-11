@@ -21,7 +21,7 @@ BASIC-DOS disk commands include:
 
 File names follow PC DOS conventions: an optional drive letter and colon (eg, `B:`), a name of up to 8 characters, and an optional period followed by an extension of up to 3 characters (eg, `B:PRIMES.BAS`).  Drives A: and B: are diskette drives, and drives C: and D: are the first FAT12 partitions of up to two hard disks.
 
-A file name can also be preceded by a path of directory names, each followed by the path character (`/` by default, or `\` when [SWITCHAR](../../cfg/#switchar) is `/`).  A path that begins with the path character starts at the root directory (eg, `TYPE /SUBDIR/INSIDE.TXT`); otherwise, it starts at the drive's current directory (see [CD](#cd)), which the prompt displays (eg, `C:/SUBDIR>`).  A directory name of `.` refers to the same directory, and `..` refers to the parent directory (eg, `TYPE ../HELLO.TXT`).  Each session has its own current directory for every drive.
+A file name can also be preceded by a path of directory names, each followed by the path character (`/` by default, or `\` when [PATHCHAR](../../cfg/#pathchar) is `\`).  A path that begins with the path character starts at the root directory (eg, `TYPE /SUBDIR/INSIDE.TXT`); otherwise, it starts at the drive's current directory (see [CD](#cd)), which the prompt displays (eg, `C:/SUBDIR>`).  A directory name of `.` refers to the same directory, and `..` refers to the parent directory (eg, `TYPE ../HELLO.TXT`).  Each session has its own current directory for every drive.
 
 DOS commands and external programs can use paths at the prompt and in BAT or BAS files (eg, `DIR /TOOLS` or `/TOOLS/SLEEP 1`), including after a colon that separates commands.  In BASIC file statements such as OPEN, supply a path as a quoted string or string variable.
 
@@ -51,6 +51,8 @@ Changes the current directory of *drive* (or the current drive) to *path*.  If n
 
 Copies the contents of the input file or device to the output file or device.  The output file is created, or truncated if it already exists.  If the output is a drive or directory (or is omitted, which means the current directory), the input's filename (without any drive or path) is used.  With wildcards (? and *), every matching file is copied, and its name is displayed; the output must then be a drive or directory (or omitted).  A file cannot be copied onto itself, or onto a file that another session has open.  If the disk fills up, COPY reports "Insufficient disk space".  COPY stops at the first file it can't copy.
 
+Input files separated by `+` are combined (concatenated) into the output file, which must be specified (eg, `COPY A.BIN+B.BIN C.BIN`).  Files are always copied as binary data; to copy a text file only up to its first CTRL-Z, use [TYPE](#type) with redirection instead (eg, `TYPE A.TXT > B.TXT`).
+
 	COPY PRIMES.BAS B:
 	COPY B:/*.BAS
 
@@ -59,7 +61,7 @@ Copies the contents of the input file or device to the output file or device.  T
 > DEL *file*  
 > ERASE *file*
 
-Deletes the specified file.  With the wildcards `?` and `*` (as in [DIR](#dir)), every matching file is deleted (eg, `DEL *.TMP` or `DEL SUBDIR/T?.TXT`); hidden and system files and directories never match.  It's an error if no file matches.  ERASE is the same as DEL, unless it's erasing arrays (see [ERASE](../basic/#erase)), and KILL is the same as DEL.
+Deletes the specified file.  With the wildcards `?` and `*` (as in [DIR](#dir)), every matching file is deleted (eg, `DEL *.TMP` or `DEL SUBDIR/T?.TXT`); hidden and system files and directories never match.  It's an error if no file matches.  Like PC DOS, a file name of `*.*` (eg, `DEL *.*` or `DEL SUBDIR/*.*`) first asks `Are you sure (Y/N)?`, and asks again until **Y** or **N** is entered.  An empty string variable is the same as no file name, so `DEL E$` reports `Missing filename` when `E$` is empty.  ERASE is the same as DEL, unless it's erasing arrays (see [ERASE](../basic/#erase)), and KILL is the same as DEL.
 
 ### DIR
 
@@ -113,6 +115,6 @@ Saves the currently loaded program as a text file, which LOAD can load again.  I
 
 > TYPE *file*
 
-Displays the contents of the specified file, or with wildcards (? and *), the name and contents of every matching file.
+Displays the contents of the specified file, or with wildcards (? and *), the name and contents of every matching file.  A CTRL-Z ends the contents of each file.
 
 {% include footer.html prev="Sound Commands:../device/sound/" next="External Commands:../external/" %}

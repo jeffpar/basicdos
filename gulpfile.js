@@ -11,7 +11,7 @@ import fs from "fs";
 import path from "path";
 import gulp from "gulp";
 import { globSync } from "glob";
-import { spawn } from "child_process";
+import { spawn, execSync } from "child_process";
 
 /**
  * run(cmd)
@@ -63,6 +63,10 @@ function checkOutput(task, outputFile)
  * Each disk below lists its CONFIG.SYS, its AUTOEXEC.BAT (if any), and the files for its BASIC and TESTS folders;
  * every disk gets the same root files and TOOLS folder.  A hard disk image (a demo with no diskettes) is marked "hd",
  * and pc.js builds it (with --sys=bd:2, so it's bootable, and pc.js adds the system files and HELP.TXT itself).
+ *
+ * A disk can list its own "folders" instead (see BASICDOS-HD), where each folder is either a list of files, a
+ * directory (whose contents are copied, without any OBJ directories), or a function that returns a list of files
+ * from other disk images (see diskFiles()).
  */
 const SRC = "./software/pcx86/src";
 const sysFiles = [ SRC + "/os/dev/obj/BASDEV.COM", SRC + "/os/dos/obj/BASDOS.COM", SRC + "/os/cmd/obj/COMMAND.COM" ];
@@ -70,15 +74,34 @@ const helpFile = SRC + "/os/cmd/HELP.TXT";
 const toolFiles = [ SRC + "/os/util/obj/*.COM" ];
 const primesFiles = [ SRC + "/tests/primes/PRIMES.BAS", SRC + "/tests/primes/PRIMES.BAT" ];
 const sampleFiles = [ "./demos/basic/*.BAS", "./demos/mbrot/MBROT.BAS" ].concat(primesFiles);
-const bd4File = SRC + "/tests/misc/BD4.BAT";
+const helloFile = SRC + "/tests/misc/HELLO.BAT";
 const extraFiles = [ SRC + "/tests/misc/SYMDEB.EXE", SRC + "/msb/obj/*.EXE" ];
-const testFiles = [ SRC + "/tests/bin/*.EXE", SRC + "/tests/bin/*.COM", SRC + "/tests/misc/BD*.BAT" ].concat(extraFiles);
+const testFiles = [ SRC + "/tests/bin/*.EXE", SRC + "/tests/bin/*.COM", SRC + "/tests/misc/BD*.BAT", helloFile ].concat(extraFiles);
+/**
+ * diskFiles(diskName, fileSpecs)
+ *
+ * Returns the paths of the specified files (eg, "TOOLS/MASM4/*") from one of our disk images (eg, the MS-DOS 3.20
+ * build disk, MSDOS320-C400), whose files are extracted (with PCJS's diskimage.js) to tools/pc/disks/diskName
+ * the first time they're needed.
+ *
+ * @param {string} diskName
+ * @param {Array.<string>} fileSpecs
+ * @returns {Array.<string>}
+ */
+function diskFiles(diskName, fileSpecs)
+{
+    let diskDir = "./tools/pc/disks/" + diskName;
+    if (!fs.existsSync(diskDir)) {
+        execSync("node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" ./software/pcx86/disks/" + diskName + ".json --extract --dest=" + diskDir, { stdio: "ignore" });
+    }
+    return fileSpecs.map(fileSpec => diskDir + "/" + fileSpec);
+}
 
 let disks = {
     "BASICDOS": {
         config: "./demos/s80/CONFIG.SYS",
         BASIC: primesFiles,
-        TESTS: [ bd4File ].concat(extraFiles)
+        TESTS: [ helloFile ].concat(extraFiles)
     },
     "BASICDOS-DISK1": {
         config: "./demos/s80/CONFIG.SYS",
@@ -108,13 +131,24 @@ let disks = {
     "BASICDOS-DISK6": {
         config: "./demos/s80/CONFIG.SYS",
         BASIC: sampleFiles,             // DONKEY.BAS and the other PC DOS 1.00 BASIC samples
-        TESTS: [ SRC + "/tests/misc/BENCH.BAS", bd4File ].concat(extraFiles)
+        TESTS: [ SRC + "/tests/misc/BENCH.BAS", helloFile ].concat(extraFiles)
     },
     "BASICDOS-HD": {
         hd: true,
         config: "./demos/hd/CONFIG.SYS",
-        BASIC: sampleFiles,
-        TESTS: [ SRC + "/tests/misc/BENCH.BAS", bd4File ].concat(extraFiles)
+        folders: {
+            BIN: toolFiles,
+            SAMPLES: sampleFiles,
+            SRC: SRC + "/os",           // the BASIC-DOS source (with an MK.BAT that builds it on BASIC-DOS)
+            TESTS: [ helloFile, SRC + "/tests/misc/BENCH.BAS", SRC + "/msb/obj/MSBASIC.EXE" ],
+            //
+            // The build tools come from the MS-DOS 3.20 build disk (with MAKE 4.02 from C4BIN replacing MASM4's
+            // MAKE 4.00), except for EXE2BIN: MS-DOS 3.20's requires DOS 3.20, but PC DOS 2.00's requires only
+            // DOS 2.00 or later (and produces identical output).
+            //
+            TOOLS: () => diskFiles("MSDOS320-C400", [ "TOOLS/MASM4/*", "TOOLS/C4BIN/MAKE.EXE" ]).concat(
+                         diskFiles("PCDOS200-DISK2", [ "EXE2BIN.EXE" ]))
+        }
     },
     "BASICDOS-STRESS": {
         hd: true,
@@ -146,7 +180,7 @@ function stageDisk(diskName)
             let files = fileSpec.indexOf('*') >= 0? globSync(fileSpec).sort() : [fileSpec];
             for (let file of files) {
                 let target = path.join(dirTarget, name || path.basename(file));
-                fs.copyFileSync(file, target);
+                fs.cpSync(file, target, { preserveTimestamps: true });
                 if (dirTarget == dirStage) entries.push(target);
             }
         }
@@ -157,12 +191,27 @@ function stageDisk(diskName)
         /^SHELL=/i.test(line) && /\bAUTOEXEC(?:\.BAT)?\b/i.test(line));
     if (disk.autoexec && launchesAutoexec) copyFiles([disk.autoexec], dirStage, "AUTOEXEC.BAT");
     if (!disk.hd) copyFiles([helpFile], dirStage);
-    let folders = { BASIC: disk.BASIC || [], TOOLS: toolFiles, TESTS: disk.TESTS || [] };
+    let folders = disk.folders || { BASIC: disk.BASIC || [], TOOLS: toolFiles, TESTS: disk.TESTS || [] };
     for (let folder in folders) {
-        if (!folders[folder].length) continue;
+        let files = folders[folder];
+        if (typeof files == "function") files = files();
+        if (!files.length) continue;
         let dirTarget = path.join(dirStage, folder);
-        fs.mkdirSync(dirTarget);
-        copyFiles(folders[folder], dirTarget);
+        if (typeof files == "string") {
+            /*
+             * Copy the directory, except for OBJ directories, hidden files, and the mk.bat in each of its
+             * subdirectories (which chains to the next subdirectory in the host build); the mk.bat at the top
+             * builds everything.
+             */
+            fs.cpSync(files, dirTarget, { recursive: true, filter: (src) => {
+                let name = path.basename(src);
+                if (name.toUpperCase() == "OBJ" || name[0] == '.') return false;
+                return !(name.toUpperCase() == "MK.BAT" && path.resolve(path.dirname(src)) != path.resolve(files));
+            }, preserveTimestamps: true });
+        } else {
+            fs.mkdirSync(dirTarget);
+            copyFiles(files, dirTarget);
+        }
         entries.push(dirTarget);
     }
     return entries;

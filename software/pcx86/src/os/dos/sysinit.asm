@@ -182,18 +182,27 @@ si2b:	mov	al,0EAh			; DI -> INT_DOSCALL5 * 4
 	DBGINIT	STRUCT,[bx],SCB
 	mov	[scb_active],bx		; set temporary SCB
 ;
-; Let users override the default switch character '-' (eg, "SWITCHAR=/").
-; The path character is derived from SWITCHAR: '\' when it's '/', and '/'
-; otherwise.  There is no separate configuration option for the path character.
+; Let users override the default path character '/' (eg, "PATHCHAR=\") and
+; the default switch character '-' (eg, "SWITCHAR=/").  They're independent,
+; but the only valid path characters are '/' and '\', and the only valid switch
+; characters are '-' and '/', and a switch character of '/' is ignored if it's
+; also the path character.  Any other setting is ignored.
 ;
-	mov	si,offset CFG_SWITCHAR
+	mov	si,offset CFG_SWITCHAR + 10
+	call	find_cfg		; look for "PATHCHAR="
+	jc	si2c
+	cmp	byte ptr [di],'\'	; the only change from the default
+	jne	si2c
+	mov	[def_pathchar],'\'	; update the default for all SCBs
+si2c:	mov	si,offset CFG_SWITCHAR
 	call	find_cfg		; look for "SWITCHAR="
 	jc	si3
-	mov	al,[di]			; grab the character
-	mov	[def_switchar],al	; and update the default for all SCBs
-	cmp	al,'/'
+	mov	al,[di]
+	cmp	al,'/'			; the only change from the default
 	jne	si3
-	mov	[def_pathchar],'\'
+	cmp	al,[def_pathchar]	; unless it's also the path character
+	je	si3
+	mov	[def_switchar],al	; update the default for all SCBs
 ;
 ; Copy BOOT_KEY from the BIOS segment to key_boot in the DOS segment.
 ;
@@ -1158,6 +1167,7 @@ CFG_SESSIONS	db	9,"SESSIONS="
 		dw	4,1,32		; TODO: Decide if 32 session limit OK
 CFG_SHELL	db	6,"SHELL="
 CFG_SWITCHAR	db	9,"SWITCHAR="
+		db	9,"PATHCHAR="	; (CFG_SWITCHAR + 10)
 
 AUX_DEVICE	db	"AUX",0
 PRN_DEVICE	db	"PRN",0

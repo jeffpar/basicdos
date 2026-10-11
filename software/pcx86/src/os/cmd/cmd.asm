@@ -22,6 +22,7 @@ CODE    SEGMENT
 	EXTNEAR	<enterLine,editPrompt,chkProgram>
 	EXTNEAR	<writeStrCRLF,saveChains,restoreChains,compactStrs>
 	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resSum>
+	EXTNEAR	<initEnv,buildEnv>
 	EXTBYTE	<CMD_PATH,MSG_DRIVE>
 	EXTWORD	<CMD_REFS,TRANS_SUM>
 	EXTABS	<TOK_ERASE,TOK_DEL>
@@ -79,6 +80,10 @@ m0:	mov	bx,ds:[PSP_HEAP]
 	mov	ax,DOS_MSC_GETPCH
 	int	21h			; DL = path char (fixed at boot)
 	mov	[bx].PATH_CHAR,dl
+	mov	ax,DOS_MSC_GETSWC
+	int	21h			; DL = switch char (fixed at boot)
+	mov	[bx].SWITCH_CHAR,dl
+	call	initEnv			; set up the environment (and check /C)
 ;
 ; Install CTRLC handler.  DS = CS only for the first instance; additional
 ; instances of this processor will have their own DS but share a common CS.
@@ -111,7 +116,10 @@ m0:	mov	bx,ds:[PSP_HEAP]
 m0a:	pop	bx
 	pop	ds
 
+	test	[bx].CMD_FLAGS,CMD_SINGLE
+	jnz	m0b			; no banner for COMMAND /C
 	PRINTF	<"BASIC-DOS Command Processor",13,10,13,10>
+m0b:
 ;
 ; NOTE: The original plan was to use Microsoft's MBF (Microsoft Binary Format)
 ; floating-point code from GW-BASIC, but BASIC-DOS will instead implement its
@@ -139,7 +147,9 @@ m0a:	pop	bx
 ; including one run by a startup command, so an ECHO ON in one BAT file
 ; doesn't affect the next one.
 ;
-m1:	or	[bx].CMD_FLAGS,CMD_NOECHO
+m1:	test	[bx].CMD_FLAGS,CMD_SINGLE
+	jnz	m9			; COMMAND /C is done
+	or	[bx].CMD_FLAGS,CMD_NOECHO
 ;
 ; If there's a program line to edit (see cmdAuto and cmdEdit), editPrompt
 ; displays it for editing instead of prompting for a command.
@@ -182,6 +192,17 @@ m3:	call	enterLine		; is it a numbered program line?
 	jc	m1			; jump if no tokens
 
 	call	parseCmd
+	jmp	m1
+;
+; COMMAND /C has run its command, so return to the caller (eg, MAKE), using
+; ERRORLEVEL as the exit code (unlike PC DOS, which always returns zero).
+;
+m9:	mov	al,[bx].EXIT_CODE
+	dec	cs:[CMD_REFS]
+	mov	ah,DOS_PSP_RETURN
+	int	21h
+	inc	cs:[CMD_REFS]		; unless it can't (ie, no parent)
+	and	[bx].CMD_FLAGS,NOT CMD_SINGLE
 	jmp	m1
 ENDPROC	main
 
@@ -796,7 +817,20 @@ DEFPROC	cmdExec
 	mov	word ptr [bp].EXIT_CODE,ax
 	mov	dx,word ptr [bp].SFH_STDIN
 	mov	word ptr ds:[PSP_PFT][STDIN],dx	; report to the original STDOUT
+;
+; If the program didn't end its output with CR/LF, then we do it for them,
+; so that whatever comes next (eg, the prompt) starts on a new line.
+;
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETPOS
+	mov	bx,STDOUT
+	int	21h			; DL = col (if STDOUT supports it)
+	jc	ce8
+	test	dl,dl			; is the cursor at the start of a line?
+	jz	ce8			; yes
+	call	printCRLF
+ce8:
 	IFDEF	DEBUG
+	mov	ax,word ptr [bp].EXIT_CODE
 	mov	dl,ah			; AL = exit code, DL = exit type
 	PRINTF	<"Return code %bd (%bd)",13,10,13,10>,ax,dx
 	ENDIF
@@ -1012,8 +1046,8 @@ cf5x:	DOSUTIL	STRLEN			; AX = length of filename in LINEBUF
 	sub	cx,cx
 	cmp	[bp].CMD_ARG,cl		; is this the first command?
 	jne	cf6			; no, use DOS_UTL_LOAD instead
+	call	buildEnv		; update EPB_ENVSEG's environment
 	lea	bx,[bp].EXECDATA
-	mov	[bx].EPB_ENVSEG,cx	; set ENVSEG to zero for now
 	mov	di,dx			; we used to set DI to PSP_CMDTAIL
 	add	di,ax			; but the filename is now in LINEBUF
 	inc	di			; so use the remaining space in LINEBUF
@@ -1168,9 +1202,9 @@ gf0:	pop	si			; use the default filespec
 	jmp	short gf2
 gf1:	pop	ax			; discard the default filespec
 	pop	ax
-	mov	ax,64			; DS:SI -> token, CX = length
-	cmp	cx,ax
-	jbe	gf2
+	mov	ax,127			; DS:SI -> token, CX = length (up to
+	cmp	cx,ax			; 127, so that the copy and its null fit
+	jbe	gf2			; in half of LINEBUF; eg, "COPY A+B+C D")
 	xchg	cx,ax
 gf2:	push	di
 	lea	di,[bx].LINEBUF

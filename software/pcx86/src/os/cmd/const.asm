@@ -29,6 +29,7 @@ CODE    SEGMENT
 	EXTNEAR	<strArg,strAsc,strChr,strDate,strFre,strHex,strInkey,strInstr>
 	EXTNEAR	<strLCase,strLeft,strLen,strMid,strOct,strRight,strSpace>
 	EXTNEAR	<strStr,strString,strTime,strUCase,strVal,strCurDir,strPath>
+	EXTNEAR	<getExists>
 
 	DEFSTR	COM_EXT,<".COM",0>	; these 4 file extensions must be
 	DEFSTR	EXE_EXT,<".EXE",0>	; listed in the desired search order
@@ -227,6 +228,10 @@ CODE    SEGMENT
 	db	VAR_FUNC + 10,"ERRORLEVEL"
 	db	VAR_LONG,0		; returns VAR_LONG with 0 parameters
 	dw	offset getErrorLevel,0	; 0 implies our own CODE segment
+	db	VAR_FUNC + 6,"EXISTS"
+	db	VAR_LONG,1
+	db	VAR_STR,PARM_REQUIRED
+	dw	offset getExists,0
 	db	VAR_FUNC + 3,"FRE"
 	db	VAR_LONG,1
 	db	VAR_CHAR,PARM_OPT_ZERO

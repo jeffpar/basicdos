@@ -502,7 +502,14 @@ gp2:	mov	es:[bx].SCB_DIRCLN,ax
 	je	gp2			; yes
 	jmp	short gp8
 gp7:	mov	es:[bx].SCB_DIRCLN,ax
-gp8:	clc
+;
+; parse_name stops at the first invalid character, so if anything follows the
+; last name (eg, "A.TXT+B.TXT"), the path contains an invalid character.
+;
+gp8:	cmp	byte ptr [si],0		; did the path end here?
+	je	gp9			; yes (and carry is clear)
+	mov	ax,ERR_NOPATH		; no
+	stc
 gp9:	inc	sp			; discard parse flags
 	inc	sp			; without affecting carry
 	ret

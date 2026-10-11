@@ -33,6 +33,7 @@ The recognized keywords are:
 - [DEBUG](#debug)
 - [FILES](#files)
 - [MEMSIZE](#memsize)
+- [PATHCHAR](#pathchar)
 - [SESSIONS](#sessions)
 - [SHELL](#shell)
 - [SKIP](#skip)
@@ -125,11 +126,17 @@ Lists built-in device drivers that should not be loaded, using their exact devic
 
 For example, a configuration that uses a serial console doesn't need the CON driver, and skipping the FPU$ driver disables floating-point support (so variables default to integers, and `/` and `^` become integer operations).  Skipping the MOUSE$ driver avoids the time it takes to look for a serial mouse at boot.
 
+### PATHCHAR
+
+> PATHCHAR=*char*
+
+Changes the character that separates directory names in paths from `/` (the default) to `\` (eg, `PATHCHAR=\`, so that `CD \TOOLS` is used instead of `CD /TOOLS`, as in PC DOS).  Only `/` and `\` are allowed; any other character is ignored.  Only one path character is recognized, and it remains fixed after boot.
+
 ### SWITCHAR
 
 > SWITCHAR=*char*
 
-Changes the character that introduces command options (switches) from `-` (the default) to *char* (eg, `SWITCHAR=/`, so that `MEM /D` is used instead of `MEM -D`, as in PC DOS).  At boot, the system derives the path character from this setting: `\` when SWITCHAR is `/`, and `/` otherwise.  Only that path character is recognized, and it remains fixed after boot; there is no separate path character configuration option.
+Changes the character that introduces command options (switches) from `-` (the default) to `/` (eg, `SWITCHAR=/`, so that `MEM /D` is used instead of `MEM -D`, as in PC DOS).  Only `-` and `/` are allowed; any other character is ignored, and so is `/` if it's also the path character, so a PC DOS-style configuration needs both `PATHCHAR=\` and `SWITCHAR=/`.  The switch character remains fixed after boot, and it's independent of [PATHCHAR](#pathchar).
 
 A switch character other than `/` begins a switch only at the start of an argument, so that it can also appear inside arguments (eg, `TYPE MY-FILE.TXT`).
 

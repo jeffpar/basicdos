@@ -11,7 +11,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<chkString,getFileName,getToken,newStr>
+	EXTNEAR	<chkString,getFileName,getToken,chkStrVar,newStr>
 	EXTNEAR	<printEOL,printCRLF,findFile,addString,releaseStr>
 	EXTBYTE	<CMD_PATH>
 	EXTSTR	<DIR_DEF,PERIOD,PIPE_NAME,HELP_FILE,COM_EXT,BAS_EXT>
@@ -83,7 +83,12 @@ ENDPROC	cmdChdir
 ; directory (or omitted).  DOS keeps a file from being copied onto itself,
 ; since it can't be opened for writing while it's open for reading.
 ;
-; cmdType uses cmdCopy with STDOUT as the output (so wildcards work, too).
+; Input files separated by '+' (eg, "COPY A+B+C D") are concatenated into the
+; output file, which must be specified (see copyCat).  Any switches (eg, /B)
+; are ignored, since files are always copied as binary data.
+;
+; cmdType uses cmdCopy with STDOUT as the output (so wildcards work, too),
+; and like DOS, CTRLZ ends the output of every file (see copyData).
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -128,6 +133,13 @@ DEFPROC	cmdType
 	sub	di,di			; no, so the output is a file
 cp2:	mov	cx,di			; CX = output data for copyFile
 	pop	si
+	push	si
+cp2a:	lodsb				; is the input a list of files
+	cmp	al,'+'			; to concatenate?
+	je	cp4			; yes
+	test	al,al
+	jnz	cp2a
+	pop	si
 cp3:	call	scanSpec		; any wildcards in the input?
 	test	ah,ah
 	jz	copyFile		; no
@@ -138,6 +150,10 @@ cp3:	call	scanSpec		; any wildcards in the input?
 	test	ax,ax			; was the error already reported?
 	jz	cp8			; yes
 	jmp	openError		; no, so report it now
+cp4:	pop	si
+	test	cx,cx			; the output must be a file
+	jnz	cp6
+	jmp	copyCat
 cp5:	pop	si
 cp6:	PRINTF	<"Invalid output",13,10,13,10>
 	jmp	short cp8
@@ -190,14 +206,92 @@ cf2:	lea	si,[bx].LINEBUF		; SI -> output filename
 	jne	cf8			; no
 	PRINTF	<"File cannot be copied onto itself",13,10,13,10>
 	jmp	short cf9
+cf3:	call	copyData		; copy (and close) the input
+	jc	cf9
+	call	closeOutput		; close the output (if we opened it)
+	jnc	cf9a
 cf7a:	call	writeError		; report a failure to update the file
 	jmp	short cf9
 cf8:	call	openError		; report error (AX) opening file (SI)
 cf9:	sub	ax,ax			; AX = 0 (the error was reported)
 	stc
-	ret
+cf9a:	ret
+ENDPROC	copyWild
 
-cf3:	push	bx
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; copyCat
+;
+; Concatenate input files separated by '+' (eg, "A+B+C") into the output file
+; (in LINEBUF), which is created first (or truncated if it exists).
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	SS:SI -> input filenames
+;
+; Outputs:
+;	Carry clear if successful; otherwise, carry set (the error was reported)
+;
+; Modifies:
+;	AX, CX, DX, SI, DI
+;
+DEFPROC	copyCat
+	push	si
+	lea	si,[bx].LINEBUF		; SI -> output filename
+	call	openOutput		; open the output file
+	pop	si
+	jnc	cc1
+	lea	si,[bx].LINEBUF
+	jmp	short cc8
+cc1:	mov	di,si			; DI -> next input filename
+cc2:	lodsb
+	cmp	al,'+'			; end of this filename?
+	je	cc3			; yes
+	test	al,al			; end of all the filenames?
+	jnz	cc2			; no
+cc3:	mov	byte ptr [si-1],0	; null-terminate this filename
+	push	ax			; AL = '+' if more filenames follow
+	push	si			; SI -> next filename (if any)
+	mov	si,di
+	call	openInput		; open this input file
+	jc	cc7
+	call	copyData		; copy (and close) it
+	pop	si
+	pop	ax
+	jc	cc9
+	cmp	al,'+'			; more filenames?
+	je	cc1			; yes
+	call	closeOutput		; no, so close the output
+	jnc	cc9a
+	call	writeError		; report a failure to update the file
+	jmp	short cc9
+cc7:	pop	cx
+	pop	cx
+cc8:	call	openError		; report error (AX) opening file (SI)
+cc9:	stc
+cc9a:	ret
+ENDPROC	copyCat
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; copyData
+;
+; Copy the data from the input file (or device) to the output file (or
+; device), and then close the input.  Like DOS, CTRLZ ends the data from a
+; device, and for TYPE (ie, when the output is STDOUT), from a file, too.
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	HDL_INPUT and HDL_OUTPUT are open
+;
+; Outputs:
+;	Carry clear if successful; otherwise, carry set (the error was reported)
+;
+; Modifies:
+;	AX, CX, DX, SI, DI
+;
+DEFPROC	copyData
+	push	bx
 	mov	bx,[bx].HDL_INPUT
 	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETDATA
 	int	21h			; DX bit 7 set if input is a device
@@ -205,13 +299,16 @@ cf3:	push	bx
 	jnc	cf3a
 	sub	dx,dx
 cf3a:	and	dx,80h
-	mov	di,dx			; DI is non-zero if input is a device
+	cmp	[bx].HDL_OUTPUT,STDOUT	; is this TYPE?
+	jne	cf3b			; no
+	inc	dx			; yes, so CTRLZ ends a file, too
+cf3b:	mov	di,dx			; DI is non-zero if CTRLZ ends the data
 	mov	si,PSP_DTA		; SI -> DTA (used as a read buffer)
 cf4:	mov	cx,size PSP_DTA		; CX = number of bytes to read
 	call	readInput
-	jc	cf9
+	jc	cy9
 	test	ax,ax			; anything read?
-	jz	cf7			; no
+	jz	cy7			; no
 	xchg	cx,ax			; CX = number of bytes to write
 	test	di,di			; is input a device?
 	jz	cf6			; no
@@ -227,14 +324,13 @@ cf4:	mov	cx,size PSP_DTA		; CX = number of bytes to read
 	dec	cx
 	mov	di,-1			; and then stop
 cf6:	call	writeOutput
-	jc	cf9
+	jc	cy9
 	test	di,di			; did input end with CTRLZ?
 	jns	cf4			; no
-cf7:	call	closeInput		; close the input
-	call	closeOutput		; and the output (if we opened it)
-	jc	cf7a
-	ret
-ENDPROC	copyWild
+cy7:	call	closeInput		; close the input
+	clc
+cy9:	ret
+ENDPROC	copyData
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -318,7 +414,8 @@ ENDPROC	cmdRen
 ; cmdDel
 ;
 ; Delete the specified file (also used by ERASE).  A filespec with wildcards
-; deletes every matching file (see walkFiles).
+; deletes every matching file (see walkFiles); like PC DOS, a filename of
+; "*.*" asks "Are you sure (Y/N)?" first, until Y or N is entered.
 ;
 ; Inputs:
 ;	BX -> CMDHEAP
@@ -332,16 +429,41 @@ ENDPROC	cmdRen
 ;	Any
 ;
 DEFPROC	cmdDel
+	push	ds
 	push	si
 	mov	dl,[bx].CMD_ARG
 	call	getToken		; was a filename specified?
-	pop	si
-	jc	de7			; no
+	jc	de1			; no
+	call	chkStrVar		; yes, but is it empty (eg, "" or X$)?
+de1:	pop	si			; (if so, cmdDOS replaced it with *.*)
+	pop	ds
+	jc	de7			; no filename
 	call	scanSpec		; any wildcards?
 	mov	dx,offset delFile
 	test	ah,ah
 	jz	de6			; no
-	call	walkFiles		; yes, delete all matching files
+	cmp	word ptr [di],2E2Ah	; DI -> filename; is it "*.*"?
+	jne	de5			; no
+	cmp	word ptr [di+2],002Ah
+	jne	de5			; no
+de3:	PRINTF	<"Are you sure (Y/N)? ">
+	push	dx
+	push	si
+	lea	si,[bx].LINEBUF+128	; (past the filespec in LINEBUF)
+	mov	word ptr [si].INP_MAX,2	; 1 char (plus CR)
+	mov	dx,si
+	mov	ah,DOS_TTY_INPUT
+	int	21h
+	call	printCRLF
+	mov	al,[si].INP_DATA
+	pop	si
+	pop	dx
+	and	al,0DFh			; upper-case the response
+	cmp	al,'N'
+	je	de9			; no (and carry is clear)
+	cmp	al,'Y'
+	jne	de3			; neither, so ask again
+de5:	call	walkFiles		; yes, delete all matching files
 	jmp	short de6a
 de6:	call	dx
 de6a:	jnc	de9
@@ -761,6 +883,69 @@ ENDPROC	strCurDir
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; getExists (EXISTS)
+;
+; Returns -1 (true) if a file or directory matching the filespec (which may
+; contain wildcards) exists, or 0 (false) if not; eg:
+;
+;	IF NOT EXISTS("OBJ") THEN MD OBJ
+;
+; Inputs:
+;	32-bit return value
+;	string value (popped)
+;
+; Outputs:
+;	32-bit return value updated
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	getExists,FAR
+	RETVAR	retExists,dword
+	ARGVAR	pSpec,dword
+	LOCVAR	findBuf,byte,<size FFB + 1>
+	ENTER
+	push	ds
+	push	ss
+	pop	es
+	mov	di,ss:[PSP_HEAP]
+	lea	di,[di].LINEBUF
+	mov	dx,di			; ES:DX -> LINEBUF
+	lds	si,[pSpec]		; DS:SI -> filespec
+	sub	cx,cx
+	test	si,si			; empty string?
+	jz	ge1			; yes
+	lodsb
+	mov	cl,al
+	rep	movsb			; copy the filespec to LINEBUF
+ge1:	xchg	ax,cx
+	stosb				; and null-terminate it
+	les	di,[pSpec]
+	call	releaseStr
+	push	ss
+	pop	ds
+	push	dx
+	lea	dx,[findBuf]		; DS:DX -> temporary DTA
+	mov	ah,DOS_DSK_SETDTA
+	int	21h
+	pop	dx			; DS:DX -> filespec
+	mov	cx,16h			; hidden, system, and directory attrs
+	mov	ah,DOS_DSK_FFIRST
+	int	21h
+	cmc
+	sbb	ax,ax			; AX = -1 if found, 0 if not
+	mov	[retExists].LOW,ax
+	mov	[retExists].HIW,ax
+	mov	dx,PSP_DTA
+	mov	ah,DOS_DSK_SETDTA
+	int	21h			; restore the DTA
+	pop	ds
+	LEAVE
+	RETURN
+ENDPROC	getExists
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; strPath (PATH$)
 ;
 ; Returns the directories that COMMAND searches for programs (see setPath
@@ -835,6 +1020,150 @@ sp1:	mov	al,cl
 	LEAVE
 	RETURN
 ENDPROC	setPath
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; initEnv
+;
+; Sets up the environment that programs receive (see buildEnv), sets PATH$
+; from our own environment's PATH, if any (eg, when MAKE runs "COMMAND /C"),
+; and checks the command tail for /C, which runs the rest of the tail as a
+; command and then exits.
+;
+; The environment is kept in CMDHEAP (ENV_DATA), at a paragraph boundary,
+; rather than in a block of its own, which would otherwise be left after our
+; memory block and prevent its transient portion from being reused while it's
+; set aside (see runTransient).
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	DS = ES = SS
+;
+; Outputs:
+;	CMD_SINGLE set in CMD_FLAGS if /C was specified
+;
+; Modifies:
+;	AX, CX, DX, SI, DI
+;
+DEFPROC	initEnv
+	lea	ax,[bx].ENV_DATA + 15
+	mov	cl,4
+	shr	ax,cl
+	mov	dx,ds
+	add	ax,dx			; AX = environment segment
+	mov	[bx].EXECDATA.EPB_ENVSEG,ax
+	push	ds
+	mov	ds,ds:[PSP_ENVSEG]
+	mov	ax,ds
+	test	ax,ax			; do we have an environment?
+	jz	ie6			; no
+	sub	si,si			; DS:SI -> environment
+ie2:	cmp	byte ptr [si],0		; end of the environment?
+	je	ie6			; yes
+	cmp	word ptr [si],'AP'	; "PATH="?
+	jne	ie3
+	cmp	word ptr [si+2],'HT'
+	jne	ie3
+	cmp	byte ptr [si+4],'='
+	je	ie4			; yes
+ie3:	lodsb				; no, so skip to the next variable
+	test	al,al
+	jnz	ie3
+	jmp	ie2
+ie4:	add	si,5
+	lea	di,[bx].PATH_BUF+1	; ES:DI -> PATH_BUF characters
+	mov	dx,di
+	mov	cx,120
+ie5:	lodsb
+	test	al,al
+	jz	ie5a
+	stosb
+	loop	ie5
+ie5a:	mov	byte ptr es:[di],0
+	sub	di,dx
+	xchg	ax,di			; AL = length
+	mov	es:[bx].PATH_BUF,al
+ie6:	pop	ds
+	mov	si,PSP_CMDTAIL
+	lodsb
+	cbw
+	xchg	cx,ax			; CX = length of tail
+	jcxz	ie9
+ie7:	lodsb
+	cmp	al,CHR_SPACE		; skip leading whitespace
+	ja	ie8
+	loop	ie7
+	ret
+ie8:	cmp	al,'/'			; "/C" (as the C runtime uses)?
+	je	ie8a
+	cmp	al,[bx].SWITCH_CHAR	; or the SWITCHAR equivalent?
+	jne	ie9
+ie8a:	mov	al,[si]
+	or	al,20h
+	cmp	al,'c'
+	jne	ie9
+	cmp	byte ptr [si+1],CHR_SPACE
+	ja	ie9
+	mov	word ptr [si-1],(CHR_SPACE SHL 8) OR CHR_SPACE
+	or	[bx].CMD_FLAGS,CMD_SINGLE; blank the switch and set the flag
+ie9:	ret
+ENDPROC	initEnv
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; buildEnv
+;
+; Builds the environment that programs receive (EPB_ENVSEG), with COMSPEC
+; (for programs like MAKE that run commands with "COMMAND /C") and PATH (from
+; PATH$), so that it's up-to-date for the next program.
+;
+; Inputs:
+;	BP -> CMDHEAP
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None
+;
+DEFPROC	buildEnv
+	push	ax
+	push	si
+	push	di
+	push	es
+	mov	es,[bp].EXECDATA.EPB_ENVSEG
+	mov	ax,es
+	test	ax,ax			; is there an environment?
+	jz	be9			; no
+	sub	di,di			; ES:DI -> environment
+	mov	si,offset ENV_VARS
+	call	be2			; copy "COMSPEC="
+	push	si
+	mov	si,offset CMD_PATH
+	call	be2			; copy COMMAND's path
+	stosb				; and null-terminate it
+	pop	si
+	call	be2			; copy "PATH="
+	lea	si,[bp].PATH_BUF+1
+be1:	lods	byte ptr ss:[si]	; copy PATH$ (and its null)
+	stosb
+	test	al,al
+	jnz	be1
+	stosb				; end the environment
+be9:	pop	es
+	pop	di
+	pop	si
+	pop	ax
+	ret
+be2:	lods	byte ptr cs:[si]
+	test	al,al
+	jz	be3
+	stosb
+	jmp	be2
+be3:	ret
+ENDPROC	buildEnv
+
+ENV_VARS	db	"COMSPEC=",0,"PATH=",0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1287,6 +1616,8 @@ ENDPROC	addPipe
 ; Modifies:
 ;	Any
 ;
+HELP_TEXTLEN	equ	256
+
 DEFPROC	cmdHelp
 	mov	dl,[bx].CMD_ARG		; is there a non-switch argument?
 	call	getToken
@@ -1335,13 +1666,18 @@ hp1:	lods	byte ptr cs:[si]
 h1:	push	cx
 	sub	cx,cx
 	call	seekInput		; seek to 0:DX
-	pop	cx
-	mov	al,CHR_CTRLZ
-	push	ax
-	sub	sp,cx			; allocate CX bytes from the stack
+	pop	cx			; CX = # bytes left to read
+;
+; Entries can be larger than our stack, so we read them in pieces, into a
+; buffer on the stack (see fillHelp).  The byte before the text is the
+; previous character (initially a space), and the word after the text (and
+; its CHR_CTRLZ) is the end of the buffered text.
+;
+	sub	sp,HELP_TEXTLEN+4
 	mov	si,sp
-	call	readInput		; read CX bytes into DS:SI
-	jc	h2c
+	mov	byte ptr [si],' '
+	inc	si			; SI -> next char
+	mov	[si+HELP_TEXTLEN+1],si	; (nothing buffered yet)
 ;
 ; Keep track of the current line's available characters (DL) and maximum
 ; characters (DH), and print only whole words that will fit.
@@ -1349,7 +1685,9 @@ h1:	push	cx
 	mov	dl,[bx].CON_COLS	; DL = # available chars
 	dec	dx			; DL = # available chars - 1
 	mov	dh,dl
-h2:	call	getWord			; AX = next word length
+h2:	call	fillHelp		; buffer more text if needed
+	jc	h2c
+	call	getWord			; AX = next word length
 	test	al,al			; any more words?
 	jz	h2c			; no
 	cmp	al,dl			; will it fit on the line?
@@ -1363,8 +1701,7 @@ h2a:	call	printChars		; print # chars in AL
 h2b:	call	printEOL
 	jmp	h2
 
-h2c:	add	sp,cx			; deallocate the stack space
-	pop	ax
+h2c:	add	sp,HELP_TEXTLEN+4	; deallocate the buffer
 	call	closeInput
 	ret
 
@@ -1373,6 +1710,69 @@ h3:	PRINTF	<"No help available",13,10>
 	ret
 h9:	ret
 ENDPROC	cmdHelp
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fillHelp
+;
+; If less than half a buffer of HELP text remains and there's more to read,
+; move the remaining text (and the char before it) to the start of the
+; buffer and fill the rest of the buffer.
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	CX = # bytes left to read
+;	SI -> next char in buffer (which follows our return address)
+;
+; Outputs:
+;	If carry clear, CX and SI updated as appropriate
+;	If carry set, an error message was printed
+;
+; Modifies:
+;	AX, CX, SI, DI
+;
+DEFPROC	fillHelp
+	mov	di,sp
+	inc	di
+	inc	di			; DI -> buffer
+	mov	ax,[di+HELP_TEXTLEN+2]	; AX -> end of buffered text
+	sub	ax,si			; AX = # bytes still buffered
+	jcxz	fl9			; nothing left to read (carry clear)
+	cmp	ax,HELP_TEXTLEN/2
+	jae	fl9			; enough is buffered (carry clear)
+	push	cx
+	xchg	cx,ax
+	inc	cx			; include the previous char
+	dec	si
+	push	es
+	push	ds
+	pop	es
+	rep	movsb			; move it to the start of the buffer
+	pop	es
+	pop	cx
+	mov	si,sp
+	add	si,3			; SI -> next char (at buffer + 1)
+	lea	ax,[si+HELP_TEXTLEN]
+	sub	ax,di			; AX = free space in buffer
+	cmp	ax,cx
+	jbe	fl1
+	mov	ax,cx
+fl1:	sub	cx,ax			; CX = # bytes left after this read
+	push	cx
+	push	dx
+	push	si
+	xchg	cx,ax			; CX = # bytes to read
+	mov	si,di
+	call	readInput		; read CX bytes into DS:SI
+	pop	si
+	pop	dx
+	pop	cx
+	jc	fl9
+	add	di,ax
+	mov	byte ptr [di],CHR_CTRLZ	; mark the end of the text
+	mov	[si+HELP_TEXTLEN+1],di	; and record it
+fl9:	ret
+ENDPROC	fillHelp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1561,9 +1961,11 @@ ENDPROC	findHelp
 DEFPROC	getWord
 	push	si
 gw1:	lodsb
-	cmp	al,'\'			; we need to include any backslash
-	jne	gw2			; in the word length, but we're not
-	inc	dx			; printing it, so increase line length
+	cmp	al,'\'			; a backslash that ends a line must be
+	jne	gw2			; included in the word length, but we
+	cmp	byte ptr [si],' '	; don't print it, so increase the line
+	jae	gw1			; length (any other backslash is a path
+	inc	dx			; char, which we print; see printChars)
 	jmp	short gw3
 gw2:	cmp	al,' '
 	ja	gw1
@@ -1601,7 +2003,8 @@ ENDPROC	printChar
 ; printChars
 ;
 ; Inputs:
-;	CX = character count
+;	AL = character count
+;	BX -> CMDHEAP
 ;	DS:SI -> characters to print
 ;	DL = avail characters on line
 ;	DH = maximum characters on line
@@ -1618,14 +2021,45 @@ DEFPROC	printChars
 	cbw
 	xchg	cx,ax			; CX = count
 pr1:	lodsb
-	cmp	al,'*'			; just skip asterisks for now
-	je	pr8
 	cmp	al,'\'			; lines ending with backslash
-	jne	pr2			; trigger a single newline and
-	call	skipSpace		; skip remaining whitespace
+	jne	pr1b			; trigger a single newline and
+	cmp	byte ptr [si],' '	; skip remaining whitespace
+	jae	pr1a
+	call	skipSpace
 	pop	cx
 	pop	ax
 	ret
+;
+; HELP.TXT separates directory names with backslashes (which is correct when
+; PATHCHAR is '\'), so we print each one as the current PATH_CHAR.
+;
+pr1a:	mov	al,[bx].PATH_CHAR
+	jmp	short pr2
+;
+; HELP.TXT starts each switch with a tilde (eg, ~P), so we print each one as
+; the current SWITCHAR.
+;
+pr1b:	cmp	al,'~'
+	jne	pr1c
+	mov	al,[bx].SWITCH_CHAR
+	jmp	short pr2
+;
+; Asterisks around words (eg, *path*) are skipped, but an asterisk that isn't
+; followed by a letter and follows a space or backslash (eg, B:\*.BAS) is a
+; wildcard, so we print it.
+;
+pr1c:	cmp	al,'*'
+	jne	pr2
+	mov	ah,[si]
+	and	ah,0DFh			; AH = next char (upper-cased)
+	sub	ah,'A'
+	cmp	ah,26			; is it a letter?
+	jb	pr8			; yes
+	mov	ah,[si-2]		; AH = previous char
+	cmp	ah,' '
+	jbe	pr2
+	cmp	ah,'\'
+	jne	pr8
 pr2:	call	printChar
 pr8:	loop	pr1
 pr9:	pop	cx

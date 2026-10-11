@@ -14,20 +14,21 @@ EXE2BIN=EXE2BIN
 MAPSYM=MAPSYM
 CFLAGS=
 AFLAGS=/MX /R /D$(REL) /I..\OS\INC
+LST=OBJ\$*.LST
 
 #
 # Inference rules in the DOS MAKE utility apparently work only if the files
 # are in the same folder.  So for now, each dependency must copy these rules.
 #
 .ASM.COM:
-	$(ASM) $(AFLAGS) $**,$*.OBJ,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $**,$*.OBJ,$(LST);
 	$(LINK) $*.OBJ,$*.EXE;
 	$(EXE2BIN) $*.EXE $@
 	DEL $*.OBJ
 	DEL $*.EXE
 
 .ASM.EXE:
-	$(ASM) $(AFLAGS) $**,$*.OBJ,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $**,$*.OBJ,$(LST);
 	$(LINK) $*.OBJ,$*.EXE;
 	DEL $*.OBJ
 
@@ -36,53 +37,53 @@ AFLAGS=/MX /R /D$(REL) /I..\OS\INC
 	DEL $*.OBJ
 
 BIN\DISKREAD.COM: MISC\DISKREAD.ASM
-	$(ASM) $(AFLAGS) $**,BIN\$*.OBJ,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $**,BIN\$*.OBJ,$(LST);
 	$(LINK) BIN\$*.OBJ,BIN\$*.EXE;
 	$(EXE2BIN) BIN\$*.EXE $@
 	DEL BIN\$*.OBJ
 	DEL BIN\$*.EXE
 
 BIN\DISKWRIT.COM: MISC\DISKWRIT.ASM
-	$(ASM) $(AFLAGS) $**,BIN\$*.OBJ,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $**,BIN\$*.OBJ,$(LST);
 	$(LINK) BIN\$*.OBJ,BIN\$*.EXE;
 	$(EXE2BIN) BIN\$*.EXE $@
 	DEL BIN\$*.OBJ
 	DEL BIN\$*.EXE
 
 BIN\DOSTESTS.COM: MISC\DOSTESTS.ASM
-	$(ASM) $(AFLAGS) $**,BIN\$*.OBJ,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $**,BIN\$*.OBJ,$(LST);
 	$(LINK) BIN\$*.OBJ,BIN\$*.EXE;
 	$(EXE2BIN) BIN\$*.EXE $@
 	DEL BIN\$*.OBJ
 	DEL BIN\$*.EXE
 
 BIN\FCBTESTS.COM: MISC\FCBTESTS.ASM
-	$(ASM) $(AFLAGS) $**,BIN\$*.OBJ,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $**,BIN\$*.OBJ,$(LST);
 	$(LINK) BIN\$*.OBJ,BIN\$*.EXE;
 	$(EXE2BIN) BIN\$*.EXE $@
 	DEL BIN\$*.OBJ
 	DEL BIN\$*.EXE
 
 BIN\FPUTESTS.COM: MISC\FPUTESTS.ASM
-	$(ASM) $(AFLAGS) $**,BIN\$*.OBJ,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $**,BIN\$*.OBJ,$(LST);
 	$(LINK) BIN\$*.OBJ,BIN\$*.EXE;
 	$(EXE2BIN) BIN\$*.EXE $@
 	DEL BIN\$*.OBJ
 	DEL BIN\$*.EXE
 
 BIN\PRIMES.EXE: PRIMES\PRIMES.ASM
-	$(ASM) $(AFLAGS) $**,BIN\$*.OBJ,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $**,BIN\$*.OBJ,$(LST);
 	$(LINK) BIN\$*.OBJ,BIN\$*.EXE;
 	DEL BIN\$*.OBJ
 
 OBJ\BDLIB.OBJ: LIB\BDLIB.ASM
-	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ,$(LST);
 
 OBJ\SPRINTF.OBJ: ..\OS\DOS\SPRINTF.ASM
-	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ,$(LST);
 
 OBJ\PRINTF.OBJ: PRINTF\PRINTF.ASM
-	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $**,OBJ\$*.OBJ,$(LST);
 
 BIN\PRINTF.COM: OBJ\BDLIB.OBJ OBJ\SPRINTF.OBJ OBJ\PRINTF.OBJ
 	$(LINK) /MAP OBJ\BDLIB.OBJ+OBJ\SPRINTF.OBJ+OBJ\PRINTF.OBJ,OBJ\PRINTF.EXE,OBJ\PRINTF.MAP;

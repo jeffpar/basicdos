@@ -17,7 +17,7 @@ CASE
 Copies input to output, converting lower-case letters to upper-case (eg, DIR | CASE), until the input ends or a CTRL-Z is read.
 
 CD [*drive*:][*path*]
-Changes the current directory of *drive* (or the current drive) to *path*, where directory names are separated by the path character (/ by default, or \ if SWITCHAR is /).  A *path* that begins with the path character starts at the root directory, and .. refers to the parent directory.  If no *path* is specified, the current directory is displayed.  CHDIR is the same as CD.
+Changes the current directory of *drive* (or the current drive) to *path*, where directory names are separated by the path character (slash or backslash, depending on PATHCHAR in CONFIG.SYS).  A *path* that begins with the path character starts at the root directory, and .. refers to the parent directory.  If no *path* is specified, the current directory is displayed.  CHDIR is the same as CD.
 
 CDBL(*x*)
 Returns *x* as a double.  CSNG is the same, since all floating-point values are double-precision.
@@ -53,7 +53,7 @@ For blinking colors, use 16-31 for *foreground*, 8-15 for *background*, and 128-
 In SCREEN 1, the values are the background color (0-15) and palette (0 or 1) instead.
 
 COPY *input* [*output*]
-Copies the contents of the input file or device to the output file or device, or with wildcards (? and *), every matching file to the output drive or directory (eg, COPY B:/*.BAS).  If *output* is omitted, the current directory is used.
+Copies the contents of the input file or device to the output file or device, or with wildcards (? and *), every matching file to the output drive or directory (eg, COPY B:\*.BAS).  If *output* is omitted, the current directory is used.  Input files separated by + are combined into the output file (eg, COPY A.BIN+B.BIN C.BIN).
 
 COS(*x*)
 Returns the cosine of *x*, where *x* is in radians.
@@ -65,7 +65,7 @@ CSRLIN
 Returns the cursor's row, starting at 1.  See also POS.
 
 CURDIR$
-Returns the current drive and directory (eg, C:/BASIC), as CD displays them.
+Returns the current drive and directory (eg, C:\BASIC), as CD displays them.
 
 CVD(*string*)
 Returns the double stored in the first 8 bytes of *string* by MKD$.
@@ -79,8 +79,8 @@ Returns the integer stored in the first 4 bytes of *string* by MKL$.
 DATA *item*[,*item*]...
 Defines items for READ to assign to variables, in the order they appear in the program.  An item can be a number or a string; quoted strings can contain commas and colons.
 
-DATE [*date*] [-P]
-Sets the system date (or prompts for a date if -P) and then displays the date.
+DATE [*date*] [~P]
+Sets the system date (or prompts for a date if ~P) and then displays the date.
 The date must be entered as M-D-Y or M/D/Y, where M is 1-12, D is 1-31, and Y is 0-99 or 1980-2099.
 If D or Y are omitted, current values are assumed.
 
@@ -96,7 +96,7 @@ DEFDBL [*letter(s)*]
 Defines the first letter(s) of variables that will default to double-precision (64-bit) floating-point values.  Variables default to double-precision unless DEFINT or DEFSTR is used (or floating-point is disabled).
 
 DEFINT [*letter(s)*]
-Defines the first letter(s) of variables that will default to integer values.
+Defines the first letter(s) of variables that will default to integer values.  BAT files start with an implied DEFINT A-Z.
 
 DEFSNG [*letter(s)*]
 Same as DEFDBL, since all floating-point values are double-precision.
@@ -105,7 +105,7 @@ DEFSTR [*letter(s)*]
 Defines the first letter(s) of variables that will default to string values.  Unless DEFSTR is used, all string variables must be defined using the $ suffix.
 
 DEL *file*
-Deletes the specified file, or with wildcards (? and *), every matching file (eg, DEL *.TMP).  ERASE is the same as DEL, unless it's erasing arrays.
+Deletes the specified file, or with wildcards (? and *), every matching file (eg, DEL *.TMP).  DEL *.* asks "Are you sure (Y/N)?" first.  ERASE is the same as DEL, unless it's erasing arrays.
 
 DELETE *line*[-[*line*]] | -*line*
 Deletes the specified range of program lines.  Typing a line number by itself deletes just that line.
@@ -147,6 +147,9 @@ Simulates error *n* (1-255).
 ERRORLEVEL
 Constant equal to the return code from the last program executed, or for an internal command, 0 if it succeeded or 1 if it failed.
 
+EXISTS(*filespec*)
+Returns -1 (true) if a file or directory matching *filespec* exists, or 0 (false) if not; *filespec* may contain wildcards (eg, EXISTS("C:\SAMPLES\*.BAS")).  For example, a batch file can create a directory only if it doesn't exist with IF NOT EXISTS("OBJ") THEN MD OBJ.
+
 EXIT
 Exits the command processor if there is a previously loaded copy.
 
@@ -156,8 +159,8 @@ Returns e (2.71828...) raised to the power of *x*.
 FIELD [#]*n*,*width* AS *variable$*[,*width* AS *variable$*]...
 Divides each record of random access file *n* into fields (up to 16): GET # sets each variable to its field, and PUT # writes each variable to its field (see LSET and RSET).
 
-FIND [-C] [-I] [-N] [-V] "*string*" [*file*...]
-Displays the lines of input (or of each *file*) that contain *string* (eg, DIR | FIND "BAS").  -C displays only the number of lines, -I ignores case, -N adds line numbers, and -V displays the lines that do NOT contain *string*.
+FIND [~C] [~I] [~N] [~V] "*string*" [*file*...]
+Displays the lines of input (or of each *file*) that contain *string* (eg, DIR | FIND "BAS").  ~C displays only the number of lines, ~I ignores case, ~N adds line numbers, and ~V displays the lines that do NOT contain *string*.
 ERRORLEVEL is set to 0 if any lines were displayed (or counted), 1 if none, and 2 if a *file* couldn't be opened.
 
 FIX(*x*)
@@ -266,10 +269,10 @@ Constant equal to the largest positive integer.
 MD [*drive*:]*path*
 Creates a new directory.  MKDIR is the same as MD.
 
-MEM [-D]
+MEM [~D]
 Displays the total memory, the memory free for running programs (EXEC), and the memory free for BASIC programs, which excludes the part of the command processor that's set aside while running a program (when it can't be set aside, as when more than one session is running, a single "bytes free" value is displayed).
 After total memory, MEM displays the FPU$ driver size as bytes FPU emulation or bytes FPU library; the line is omitted if no driver was loaded.
--D also displays every memory block.  In DEBUG builds, -F displays open files, and -S displays active sessions.  Use MEM -D | MORE to page the listing.
+~D also displays every memory block.  In DEBUG builds, ~F displays open files, and ~S displays active sessions.  Use MEM ~D | MORE to page the listing.
 
 MID$(*string*,*start*[,*n*])
 Returns *n* characters of *string*, beginning at position *start* (or the rest of *string* if *n* is omitted).
@@ -323,7 +326,7 @@ PAINT (*x*,*y*)[,[*paint*][,*border*]]
 Fills the area around *x*,*y* with the *paint* color, up to the *border* color (which defaults to the *paint* color).
 
 PATH$ [= *string*]
-Returns (or sets) the directories, separated by semicolons, that are searched for a program that isn't in the current directory (eg, PATH$ = "A:/;A:/BASIC;A:/TOOLS").  A program name that includes a drive or directory isn't searched for.  PATH$ keeps its value when variables are cleared (eg, by NEW or CLEAR); CONFIG.SYS usually sets it on the SHELL line.
+Returns (or sets) the directories, separated by semicolons, that are searched for a program that isn't in the current directory (eg, PATH$ = "A:\;A:\BASIC;A:\TOOLS").  A program name that includes a drive or directory isn't searched for.  PATH$ keeps its value when variables are cleared (eg, by NEW or CLEAR); CONFIG.SYS usually sets it on the SHELL line.
 
 PEEK(*offset*)
 Returns the byte at *offset* in the segment set by DEF SEG.
@@ -420,8 +423,8 @@ Returns the sine of *x*, where *x* is in radians.
 SLEEP *seconds*
 Waits the specified number of *seconds*.  Press CTRL-C to stop waiting.
 
-SORT [-R] [-+*n*] [*file*]
-Displays the lines of input (or *file*) in sorted order, ignoring case (eg, DIR | SORT).  -R sorts in reverse order, and -+*n* sorts on the characters starting at column *n*.  Up to 64K of text can be sorted.
+SORT [~R] [~+*n*] [*file*]
+Displays the lines of input (or *file*) in sorted order, ignoring case (eg, DIR | SORT).  ~R sorts in reverse order, and ~+*n* sorts on the characters starting at column *n*.  Up to 64K of text can be sorted.
 
 SOUND *frequency*,*duration*
 Plays a tone of the specified *frequency* (37-32767 Hz) for *duration* clock ticks (18.2 per second).
@@ -457,8 +460,8 @@ Returns enough spaces to move the cursor to column *n* (1-254), for PRINT; if th
 TAN(*x*)
 Returns the tangent of *x*, where *x* is in radians.
 
-TIME [*time*] [-D] [-P]
-Sets the system time (or prompts for a time if -P) and then displays the time. -D displays elapsed time.
+TIME [*time*] [~D] [~P]
+Sets the system time (or prompts for a time if ~P) and then displays the time. ~D displays elapsed time.
 The time must be entered as H:M:S.D, where where H is 0-23, M is 0-59, S is 0-59, and D is 0-99.
 If M, S, or D are omitted, zeros are assumed.
 
@@ -466,7 +469,7 @@ TIME$
 Returns the current time as a string in the form HH:MM:SS.
 
 TYPE *file*
-Displays the contents of the specified file, or with wildcards (? and *), the name and contents of every matching file.
+Displays the contents of the specified file, or with wildcards (? and *), the name and contents of every matching file.  A CTRL-Z ends the contents of each file.
 
 UCASE$(*string*)
 Returns *string* with all lower-case letters converted to upper-case.

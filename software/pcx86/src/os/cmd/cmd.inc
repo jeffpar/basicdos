@@ -319,6 +319,7 @@ GENPUSHB macro	val
 ; ECHO is ON by default, a "NOECHO" bit must be set to turn it OFF.
 ;
 CMD_NOECHO	equ	01h		; set if ECHO turned off
+CMD_SINGLE	equ	02h		; set if /C (exit after the command)
 
 ;
 ; Define the heap as a structure.  The first few fields (ie, all the BLKDEF
@@ -383,10 +384,11 @@ CODE_CACHE	dw	?		; 4BCh: cached code (see keepCode)
 EDIT_STATE	dw    2 dup (?)		; 4BEh: line to edit (see edit.asm)
 DATA_STATE	dw    4 dup (?)		; 4C2h: next DATA item (see sys.asm)
 PATH_CHAR	db	?		; 4CCh: path char (fixed at boot)
-		db	?		; 4CDh: (unused)
+SWITCH_CHAR	db	?		; 4CDh: switch char (fixed at boot)
 FILE_DATA	db   44 dup (?)		; 4CEh: OPEN files (see fileio.asm)
 PIPE_SCB	dd	?		; 4FAh: pipeline sessions (see endPipes)
 PATH_BUF	db  128 dup (?)		; 4FEh: PATH$ (length, 0-120 chars, null)
+ENV_DATA	db  176 dup (?)		; 57Eh: environment (see initEnv)
 ;
 ; The BASIC-DOS loader always set the stack pointer for a COM file to the top
 ; of the segment, which means we must declare our stack at the end of CMDHEAP.
@@ -397,8 +399,8 @@ PATH_BUF	db  128 dup (?)		; 4FEh: PATH$ (length, 0-120 chars, null)
 ; COM file can request the stack be located elsewhere, since there's no way for
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
-STACK		dw  457 dup (?)		; 57Eh
-CMDHEAP		ends			; 910h
+STACK		dw  457 dup (?)		; 62Eh
+CMDHEAP		ends			; 9C0h
 SIG_CMD		equ	'H'
 
 ;
@@ -406,7 +408,7 @@ SIG_CMD		equ	'H'
 ; stack pointer at the end of the heap (a whole number of paragraphs), and the
 ; [heap] equate below assumes that's the end of STACK.
 ;
-	ASSERT	<SIZE CMDHEAP>,EQ,910h
+	ASSERT	<SIZE CMDHEAP>,EQ,9C0h
 
 ;
 ; The initial stack frame created by the main function can also be used to

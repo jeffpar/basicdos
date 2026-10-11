@@ -182,7 +182,9 @@ ENDPROC	psp_copy
 ;
 ; NOTE: If REG_BX = -1, then load_command is used instead of load_program.
 ;
-; TODO: Add support for EPB_ENVSEG.
+; Unlike PC DOS, the environment isn't copied; the new PSP simply refers to
+; the caller's environment (EPB_ENVSEG), or if that's zero, to the parent's
+; environment (see load_args).
 ;
 ; Inputs:
 ;	REG_AL = subfunction
@@ -531,6 +533,10 @@ ENDPROC	load_command
 ; doesn't bother, because it knows load_args will copy only the specified
 ; number of tail characters and then output CHR_RETURN.
 ;
+; The new PSP's environment is EPB_ENVSEG, or if that's zero, the parent's
+; environment (if any), which, since the parent outlives the new program,
+; can be shared instead of copied.
+;
 ; Inputs:
 ;	DS:BX -> EPB
 ;	ES:DI -> new stack
@@ -553,6 +559,16 @@ DEFPROC	load_args,DOS
 	mov	es,ax			; ES -> PSP
 
 	push	ds
+	mov	ax,[bx].EPB_ENVSEG
+	test	ax,ax			; environment specified?
+	jnz	la0			; yes
+	or	ax,es:[PSP_PARENT]	; no, so is there a parent?
+	jz	la0			; no
+	mov	ds,ax
+	mov	ax,ds:[PSP_ENVSEG]	; AX = parent's environment
+la0:	mov	es:[PSP_ENVSEG],ax
+	pop	ds
+	push	ds			; DS:BX -> EPB again
 	mov	di,PSP_FCB1		; ES:DI -> PSP_FCB1
 	lds	si,[bx].EPB_FCB1
 	cmp	si,-1
@@ -817,19 +833,15 @@ lp6f:	mov	bx,es:[di].OFF		; BX = offset
 	loop	lp6f
 ;
 ; DX - (AX - 10h) is the base # of paragraphs required for the EXE.  Add the
-; minimum specified in the EXEHDR.
-;
-; TODO: Decide what to do about the maximum.  The default setting seems to be
-; "give me all the memory" (eg, FFFFh), which we do not want to do.
+; minimum specified in the EXEHDR, plus whatever more the maximum asks for, up
+; to 64K (see below).
 ;
 lp6g:	push	es:[EXE_START_SEG]
 	push	es:[EXE_START_OFF]
 	push	es:[EXE_STACK_SEG]
 	push	es:[EXE_STACK_OFF]
 	mov	si,es:[EXE_PARASMIN]
-	IFDEF DEBUG
 	mov	di,es:[EXE_PARASMAX]
-	ENDIF
 	sub	ax,10h
 	mov	es,ax			; ES = PSP segment
 	sub	dx,ax			; DX = base # paras
@@ -865,7 +877,31 @@ lp6g:	push	es:[EXE_START_SEG]
 	cmp	si,40h			; is additional minimum at least 1Kb?
 	jae	lp6h			; yes
 	mov	si,40h			; no, set minimum to 1Kb (in paras)
-lp6h:	add	dx,si			; DX = base + minimum
+;
+; The maximum is usually FFFFh ("give me all the memory"), which we do not
+; want to do, since other sessions need memory, too.  But some programs size
+; their stack or heap from whatever memory they're given (eg, LINK.EXE 3.x
+; puts its stack at the top of its 64K data segment, and if the stack ends
+; up smaller than 25K, it fails with "Insufficient stack space").  So we
+; honor the maximum up to 64K (or the minimum, if larger), and up to what's
+; available.
+;
+lp6h:	mov	bx,1000h		; BX = 64K (in paras)
+	cmp	bx,si
+	jae	lp6i
+	mov	bx,si			; BX = larger of minimum and 64K
+lp6i:	cmp	bx,di
+	jbe	lp6j
+	mov	bx,di			; BX = smaller of that and maximum
+lp6j:	mov	cx,[bp].TMP_DX
+	sub	cx,dx			; CX = paras available beyond base
+	cmp	bx,cx
+	jbe	lp6k
+	mov	bx,cx			; BX = smaller of that and available
+lp6k:	cmp	bx,si
+	jae	lp6l
+	mov	bx,si			; but never less than the minimum
+lp6l:	add	dx,bx			; DX = base + additional
 
 	mov	ds,ax			; DS = PSP segment
 	add	ax,10h			; AX = EXE base segment (again)
@@ -1353,7 +1389,9 @@ DEFPROC	psp_calcsum
 	call	psp_addsum		; DX = checksum
 	pop	ax
 ;
-; Scan the arena for a PSP block with matching PSP_CODESIZE and PSP_CHECKSUM.
+; Scan the arena for a PSP block with matching PSP_CODESIZE and PSP_CHECKSUM,
+; whose memory still contains all of its code (eg, COMMAND discards the
+; transient portion of its code while running a program; see runTransient).
 ;
 crc1a:	push	es
 	mov	si,[mcb_head]
@@ -1368,6 +1406,15 @@ crc2:	mov	es,si
 	jne	crc5
 	cmp	es:[size MCB].PSP_CHECKSUM,dx
 	jne	crc5
+	push	ax
+	add	ax,15
+	rcr	ax,1			; (including any carry)
+	shr	ax,1
+	shr	ax,1
+	shr	ax,1			; AX = paras of code
+	cmp	es:[MCB_PARAS],ax	; does the block still contain it?
+	pop	ax
+	jb	crc5			; no
 	mov	cx,si			; CX = matching segment
 	jmp	short crc7		; done scanning
 crc5:	cmp	es:[MCB_SIG],MCBSIG_LAST

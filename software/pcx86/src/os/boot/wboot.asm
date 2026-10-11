@@ -215,8 +215,14 @@ skipdsk	db	0			; non-zero to skip boot disk update
 
 	even
 message	dw	offset nothing
-
+;
+; Unlike PC DOS, BASIC-DOS doesn't give a COM program all of its 64K segment,
+; so we must ask for enough heap (see COMHEAP) for the buffer (a boot sector,
+; up to 1024 more bytes, and a guard word), plus our stack, which lives at the
+; top of the heap.
+;
 buffer	label	byte
+	COMHEAP	<512 + 1024 + 2 + 256>	; COMHEAP must be the last item
 
 CODE	ENDS
 

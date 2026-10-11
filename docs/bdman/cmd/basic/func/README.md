@@ -10,7 +10,7 @@ Functions can be used in any expression, in BASIC programs or at the prompt (eg,
 
 - Numeric functions: [ABS](#abs), [ATN](#atn), [CDBL](#cdbl), [CINT](#cint), [COS](#cos), [CSNG](#cdbl), [EXP](#exp), [FIX](#fix), [INT](#int), [LOG](#log), [RND](#rnd), [RND%](#rnd-int), [SGN](#sgn), [SIN](#sin), [SQR](#sqr), [TAN](#tan)
 - String functions: [ASC](#asc), [CHR$](#chr), [HEX$](#hex), [INSTR](#instr), [LCASE$](#lcase), [LEFT$](#left), [LEN](#len), [MID$](#mid), [OCT$](#oct), [RIGHT$](#right), [SPACE$](#space), [SPC](#space), [STR$](#str), [STRING$](#string), [TAB](#tab), [UCASE$](#ucase), [VAL](#val)
-- File functions: [CVD](#cvi), [CVI](#cvi), [CVL](#cvi), [EOF](#eof), [LOC](#loc), [LOF](#lof), [MKD$](#mki), [MKI$](#mki), [MKL$](#mki)
+- File functions: [CVD](#cvi), [CVI](#cvi), [CVL](#cvi), [EOF](#eof), [EXISTS](#exists), [LOC](#loc), [LOF](#lof), [MKD$](#mki), [MKI$](#mki), [MKL$](#mki)
 - System functions: [ARG$](#arg), [CSRLIN](#csrlin), [CURDIR$](#curdir), [DATE$](#date), [ERL](#erl), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [MOUSE](#mouse), [PATH$](#path), [PEEK](#peek), [POS](#pos), [TIME$](#time)
 - Predefined constants: [ERRORLEVEL](#errorlevel), [MAXINT](#maxint)
 
@@ -227,6 +227,16 @@ Return the integer stored in the first 2 bytes of *string* by MKI$ (-32768 to 32
 > EOF(*n*)
 
 Returns -1 (true) if file *n*, which must be open for INPUT or RANDOM (see [OPEN](../#open)), is at its end (or at a CTRL-Z), or 0 (false) if not (eg, `WHILE NOT EOF(1)`).
+
+#### EXISTS {#exists}
+
+> EXISTS(*filespec*)
+
+Returns -1 (true) if a file or directory matching *filespec* exists, or 0 (false) if not; *filespec* may contain wildcards (eg, `EXISTS("C:/SAMPLES/*.BAS")`).  For example, a batch file can create a directory only if it doesn't already exist:
+
+    IF NOT EXISTS("OBJ") THEN MD OBJ
+
+PC DOS batch files use `IF EXIST` (and `IF NOT EXIST`) for the same purpose.
 
 #### LOC {#loc}
 

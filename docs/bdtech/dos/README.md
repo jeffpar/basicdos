@@ -134,10 +134,9 @@ An FCB opens a file read-only, so any number of FCBs (and handles opened for rea
 | 33h | DOS_MSC_CTRLC | AL = 0 to get, 1 to set (from DL) | DL = CTRL-C checking state |
 | 35h | DOS_MSC_GETVEC | AL = vector # | ES:BX = address |
 | 3700h | DOS_MSC_GETSWC | | DL = switch character |
-| 3701h | DOS_MSC_SETSWC | DL = switch character | |
 | 3704h | DOS_MSC_GETPCH | | DL = path character (BASIC-DOS only; fixed at boot, so programs need to get it only once) |
 
-The path character is derived at boot from CONFIG.SYS's SWITCHAR setting: `\` if the switch character is `/`, and `/` otherwise.  The default switch character is `-`.  DOS_MSC_SETSWC changes only the current session's switch character; it doesn't change the path character.
+The path character is set at boot by CONFIG.SYS's PATHCHAR setting (`/` by default, or `\`), and the switch character by its SWITCHAR setting (`-` by default, or `/`, which is ignored if it's also the path character); the two are independent.  Both are fixed at boot; unlike PC DOS, BASIC-DOS doesn't support AX = 3701h (set switch character), so CONFIG.SYS is the only way to change them.
 | 52h | DOS_MSC_GETVARS | | ES:BX -> [DOSVARS](../data/#dosvars) |
 
 ### Differences from PC DOS
@@ -163,7 +162,9 @@ DOS_PSP_EXEC1 (4B01h) is the undocumented PC DOS function that debuggers use to 
 
 BASIC-DOS also stores additional information in the PSP, in fields that PC DOS leaves unused (see [PSP](../data/#psp)): the session number (PSP_SCB), the program's initial stack and start address, its heap, its exit code and exit type, and command-line switches parsed by DOS_UTL_PARSESW.
 
-Environment segments (EPB_ENVSEG) aren't supported yet, so the field is ignored.
+Environments aren't copied: a new program's PSP_ENVSEG is simply EPB_ENVSEG, or if that's zero, its parent's environment (which is safe to share, since the parent outlives the program).  COMMAND.COM gives every program it runs an environment containing COMSPEC (the path of COMMAND.COM) and PATH (the current [PATH$](../../bdman/cmd/basic/func/#path)), mainly for older programs (eg, MAKE) that use them to find and run other programs; and when COMMAND.COM itself is given an environment containing PATH, it sets PATH$ from it.
+
+For the same reason, COMMAND.COM supports `COMMAND /C command`, which is how the C runtime's system() function runs a command: the command is run, and then COMMAND.COM exits, with ERRORLEVEL as its exit code.  Unlike PC DOS, whose COMMAND /C always returns 0, this lets a program like MAKE stop when a command fails.  Without /C, any commands following COMMAND are run as startup commands (see [COMMAND](../../bdman/cmd/external/command/)), and COMMAND.COM keeps running.
 
 #### Files
 

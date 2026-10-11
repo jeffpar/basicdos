@@ -715,14 +715,13 @@ DEFPROC	ddcon_write
 	ASSUME	DS:NOTHING
 	mov	dx,es:[di].DDP_CONTEXT
 	test	dx,dx
-	jnz	dcw1a
+	jnz	dcw2
 
 dcw1:	lodsb
 	call	write_char
 	loop	dcw1
 	jmp	short dcw8
 
-dcw1a:	push	cx			; save the original length
 dcw2:	push	es
 	mov	es,dx
 dcw3:	test	es:[CT_STATUS],CTSTAT_PAUSED
@@ -738,7 +737,6 @@ dcw3:	test	es:[CT_STATUS],CTSTAT_PAUSED
 	mov	es:[di].DDPRW_ADDR.OFF,si
 	call	add_packet
 	jnc	dcw2			; if return is OK, try writing again
-	pop	cx
 	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_WRFAULT
 	jmp	short dcw9
 
@@ -747,12 +745,11 @@ dcw4:	lodsb
 	loop	dcw3
 	pop	es
 ;
-; Since a pause (above) updates DDPRW_LENGTH with the remaining length, we
-; must restore the original length, which is what DOS reports was written.
+; DOS reports the number of bytes written as the original length minus
+; DDPRW_LENGTH (the number of bytes remaining), so we must zero it.
 ;
-	pop	es:[di].DDPRW_LENGTH
-
-dcw8:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+dcw8:	mov	es:[di].DDPRW_LENGTH,cx	; CX is zero
+	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 dcw9:	ret
 ENDPROC	ddcon_write
 

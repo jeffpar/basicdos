@@ -55,7 +55,7 @@ The Exec Parameter Block is passed to DOS_PSP_EXEC in ES:BX.
 
 | Offset | Field | Description |
 |--------|-------|-------------|
-| 00h | EPB_ENVSEG | Environment segment (0 to copy the parent's; currently ignored) |
+| 00h | EPB_ENVSEG | Environment segment (0 to use the parent's; environments are shared, not copied) |
 | 02h | EPB_CMDTAIL | Far pointer to the command tail |
 | 06h | EPB_FCB1 | Far pointer to the FCB for PSP_FCB1 |
 | 0Ah | EPB_FCB2 | Far pointer to the FCB for PSP_FCB2 |
@@ -75,7 +75,7 @@ Unlike PC DOS, BASIC-DOS doesn't give a COM program all available memory; it get
 
 Dynamically allocated heap space is zero-initialized, and the program's initial stack is at the top of the heap (or the top of its first 64K, whichever is lower).  PSP_HEAP contains the offset of the heap.
 
-CD_CODESIZE allows a COM program to share its code (starting at offset 100h) among all running copies: each copy has its own segment for DS, ES, and SS, but only the first copy contains the shared code, and the other copies contain only the code and data that follow it, plus their heaps.  COMMAND.COM uses this, so each additional session costs only its data and heap.
+CD_CODESIZE allows a COM program to share its code (starting at offset 100h) among all running copies: each copy has its own segment for DS, ES, and SS, but only the first copy contains the shared code, and the other copies contain only the code and data that follow it, plus their heaps.  COMMAND.COM uses this, so each additional session costs only its data and heap.  However, a copy whose memory no longer contains all of its shared code (eg, the first copy of COMMAND.COM, while it has set aside its transient portion to run a program) isn't shared; the next copy loads its own code instead.
 
 CD_HEAPOFF allows a COM program to keep its heap (and stack) inside its image, at the given offset, with CD_HEAPSIZE paragraphs; the program then gets no memory beyond its image, and its initial stack is at the top of that heap.  For a program with shared code, only the first copy uses the heap inside the image (the other copies get heaps after their data, as usual), and the checksum that identifies the shared code skips the heap, since its contents change.  COMMAND.COM's first copy uses this for its resident heap (RES_HEAP), which must remain when the transient portion is set aside.
 

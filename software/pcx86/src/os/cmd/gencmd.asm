@@ -105,13 +105,22 @@ gc1:	mov	[bx].GEN_FLAGS,al
 ;
 ; Like MSBASIC (see CLEARC), a program starts with the default types for all
 ; variables (ie, any DEFINT, DEFDBL, or DEFSTR from before is forgotten).
+; However, a BAT file starts with an implied DEFINT A-Z, since batch files
+; rarely need floating-point variables.
+;
+; TODO: Since DEFVARS isn't reset when a program ends, a BAT file's types
+; (implied or not) remain in effect at the prompt afterward; revisit whether
+; the prompt should start over with the default types.
 ;
 gc1a:	push	ds
 	pop	es
 	lea	di,[bx].DEFVARS
 	mov	cl,26
 	mov	al,ch
-	rep	stosb			; (and CX is zero again)
+	test	[bx].GEN_FLAGS,GEN_BATCH
+	jz	gc1b
+	mov	al,VAR_LONG		; implied DEFINT A-Z
+gc1b:	rep	stosb			; (and CX is zero again)
 	mov	si,size TBLK
 	mov	[bx].DATA_STATE[2],cx	; start READ at the first DATA item
 gc2:	mov	[bx].LINE_PTR.OFF,si

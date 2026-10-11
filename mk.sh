@@ -12,7 +12,8 @@
 # Drive D: is 30Mb (--target=30M), since the source directory (including the
 # test binaries that tools/tests/prep.sh copies into the configs folders) has
 # outgrown 10Mb, and MASM's listing (.LST) files need room, too (a 20Mb drive
-# ran out of space; MS-DOS 3.20 volumes can't exceed 32Mb).  The --fat option
+# ran out of space; MS-DOS 3.20 volumes can't exceed 32Mb).  Only DEBUG builds
+# create listings (FINAL builds pass LST=NUL to MAKE; see the mk.bat files).  The --fat option
 # (16-bit FAT, 2K clusters, 512 root entries) is also required, because by
 # default, pc.js gives a large volume 1024 root entries, which MS-DOS 3.20
 # apparently doesn't honor (it reads the volume as if the root directory had

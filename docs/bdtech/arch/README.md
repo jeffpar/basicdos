@@ -32,7 +32,7 @@ The boot sector runs in three parts:
 
 Sysinit then:
 
-- Processes SWITCHAR= and MEMSIZE=, and records the boot key (or BOOTKEY=)
+- Processes PATHCHAR=, SWITCHAR=, and MEMSIZE=, and records the boot key (or BOOTKEY=)
 - Allocates the Session Control Block table (SESSIONS=) and the System File Block table (FILES=), along with the BPBs, the current directory table, and any extra disk buffers (BUFFERS=)
 - Opens a CON context for each CONSOLE= line (or a single default context), and opens AUX and PRN
 - Opens the DEBUG= device, if any, and obtains the FPU$ function table (FPUTBL), if the FPU$ driver is present
@@ -58,7 +58,7 @@ All the disk buffers form a circular chain, ordered from most to least recently 
 
 The memory arena is a chain of Memory Control Blocks (see [MCB](../data/#mcb)), as in PC DOS.  [DOS_MEM_ALLOC](../dos/#memory) normally allocates from the bottom of the first free block that's big enough, but with MCBTYPE_HIGH (80h) set in AL, it allocates from the top of the last one.  COMMAND.COM allocates its code, text, variable, and string blocks from the top, so that the memory it frees before running a program stays contiguous.
 
-Unlike PC DOS, BASIC-DOS doesn't give a program all available memory: a COM program gets its file size plus a heap (at least MINHEAP, or 1K, or more if the program requests it; see [COMDATA](../data/#comdata)), and an EXE program gets its image size plus the minimum its header requests (EXE_PARASMIN), rather than the maximum (EXE_PARASMAX).  This leaves memory available for other sessions.
+Unlike PC DOS, BASIC-DOS doesn't give a program all available memory: a COM program gets its file size plus a heap (at least MINHEAP, or 1K, or more if the program requests it; see [COMDATA](../data/#comdata)), and an EXE program gets its image size plus the minimum its header requests (EXE_PARASMIN), plus as much of the maximum (EXE_PARASMAX) as is available, up to 64K (or the minimum, if larger).  This leaves memory available for other sessions, while still giving programs like LINK.EXE (which sizes its stack from the memory it's given) enough room to run.
 
 ### Sessions
 

@@ -11,73 +11,74 @@ ASM=MASM
 LINK=LINK
 EXE2BIN=EXE2BIN
 AFLAGS=/MX /R /D$(REL) /I..\INC
+LST=OBJ\$*.LST
 
 #
 # Inference rules in the DOS MAKE utility apparently work only if the files
 # are in the same folder.  So for now, each dependency must copy these rules.
 #
 .ASM.OBJ:
-	$(ASM) $(AFLAGS) $*.ASM,$@,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\DOSDATA.OBJ: DOSDATA.ASM ..\INC\DOS.INC
-	$(ASM) $(AFLAGS) $*.ASM,$@,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\DOSINTS.OBJ: DOSINTS.ASM ..\INC\DOS.INC
-	$(ASM) $(AFLAGS) $*.ASM,$@,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\CONIO.OBJ: CONIO.ASM ..\INC\DOS.INC
-	$(ASM) $(AFLAGS) $*.ASM,$@,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\BUFFER.OBJ: BUFFER.ASM ..\INC\DOS.INC
-	$(ASM) $(AFLAGS) $*.ASM,$@,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\DEVICE.OBJ: DEVICE.ASM ..\INC\DOS.INC
-	$(ASM) $(AFLAGS) $*.ASM,$@,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\DISK.OBJ: DISK.ASM ..\INC\DOS.INC
-	$(ASM) $(AFLAGS) $*.ASM,$@,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\FAT.OBJ: FAT.ASM ..\INC\DOS.INC
-	$(ASM) $(AFLAGS) $*.ASM,$@,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\FCBIO.OBJ: FCBIO.ASM ..\INC\DOS.INC
-	$(ASM) $(AFLAGS) $*.ASM,$@,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\FILE.OBJ: FILE.ASM ..\INC\DOS.INC
-	$(ASM) $(AFLAGS) $*.ASM,$@,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\PATH.OBJ: PATH.ASM ..\INC\DOS.INC
-	$(ASM) $(AFLAGS) $*.ASM,$@,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\HANDLE.OBJ: HANDLE.ASM ..\INC\DOS.INC
-	$(ASM) $(AFLAGS) $*.ASM,$@,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\MEMORY.OBJ: MEMORY.ASM ..\INC\DOS.INC
-	$(ASM) $(AFLAGS) $*.ASM,$@,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\MATH.OBJ: MATH.ASM ..\INC\DOS.INC
-	$(ASM) $(AFLAGS) $*.ASM,$@,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\MISC.OBJ: MISC.ASM ..\INC\DOS.INC ..\INC\VERSION.INC
-	$(ASM) $(AFLAGS) $*.ASM,$@,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\PROCESS.OBJ: PROCESS.ASM ..\INC\DOS.INC
-	$(ASM) $(AFLAGS) $*.ASM,$@,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\SESSION.OBJ: SESSION.ASM ..\INC\DOS.INC
-	$(ASM) $(AFLAGS) $*.ASM,$@,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\SPRINTF.OBJ: SPRINTF.ASM ..\INC\DOS.INC
-	$(ASM) $(AFLAGS) $*.ASM,$@,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\UTILITY.OBJ: UTILITY.ASM ..\INC\DOS.INC
-	$(ASM) $(AFLAGS) $*.ASM,$@,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\UTILSYS.OBJ: UTILSYS.ASM ..\INC\DOS.INC
-	$(ASM) $(AFLAGS) $*.ASM,$@,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\SYSINIT.OBJ: SYSINIT.ASM ..\INC\DOS.INC ..\INC\VERSION.INC
-	$(ASM) $(AFLAGS) $*.ASM,$@,OBJ\$*.LST;
+	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\BASDOS.COM: OBJ\DOSDATA.OBJ OBJ\DOSINTS.OBJ OBJ\CONIO.OBJ OBJ\DEVICE.OBJ \
 	OBJ\DISK.OBJ OBJ\BUFFER.OBJ OBJ\PATH.OBJ OBJ\FAT.OBJ OBJ\FCBIO.OBJ \

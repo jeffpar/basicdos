@@ -79,7 +79,7 @@ Variable names begin with a letter, followed by any letters and digits, and an o
 | Double | `#` or `!` | 64-bit IEEE 754 floating-point, with about 15 significant digits |
 | String | `$` | 0 to 255 characters |
 
-A variable without a suffix uses the default type for its first letter, which is double unless [DEFINT](../cmd/basic/#defint) or [DEFSTR](../cmd/basic/#defstr) changes it (eg, `DEFINT A-Z` makes all unsuffixed variables integers).  If floating-point support is disabled, the default type is integer.
+A variable without a suffix uses the default type for its first letter, which is double unless [DEFINT](../cmd/basic/#defint) or [DEFSTR](../cmd/basic/#defstr) changes it (eg, `DEFINT A-Z` makes all unsuffixed variables integers).  BAT files start with an implied `DEFINT A-Z`, so their default type is integer.  If floating-point support is disabled, the default type is integer.
 
 The type is part of a variable's identity, so `A%`, `A#`, and `A$` are three different variables.  Likewise, after `DEFINT A-Z` and then `DEFDBL A-Z`, `A` refers to a new variable, separate from the `A` used before (which is still `A%`).
 

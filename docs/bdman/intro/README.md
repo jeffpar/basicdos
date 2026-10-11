@@ -100,6 +100,8 @@ If the program isn't in the current directory, and its name doesn't include a dr
 
 and its CONFIG.SYS sets PATH$ to the root, BASIC, TOOLS, and TESTS (eg, `A:/;A:/BASIC;A:/TOOLS;A:/TESTS`), so you can type `PRIMES` or `DIR | SORT` from any directory.  Programs in TESTS can also be run by name (eg, `MSBASIC`).
 
+The [hard disk demo](/demos/hd/) uses a larger layout instead, with **BIN** (the utilities), **SAMPLES** (the BASIC samples), **SRC** (the BASIC-DOS source code), **TESTS**, and **TOOLS** (MASM and the other build tools) directories.
+
 Use `LIST VARS` to inspect the current session's variable values and array dimensions; see [LIST](../cmd/system/#list).
 
 When a BAS program that you ran from the prompt ends, it remains loaded, along with its variables, so you can [LIST](../cmd/system/#list) it, examine its variables (eg, `PRINT A`), or [RUN](../cmd/system/#run) it again.  RUN reuses the program's compiled code, so the program starts immediately, unless the program or its variables have changed since it was compiled.
