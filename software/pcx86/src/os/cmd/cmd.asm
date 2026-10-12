@@ -364,10 +364,25 @@ pc1a:	mov	al,GEN_IMM
 ; command handler.
 ;
 ;
-; However, if a word begins with a colon (eg, "DIR : PRINT 1"), then the line
-; contains more than one command, so we let genCode run them (see genDOS).
+; However, if a word begins with a colon (eg, "DIR : PRINT 1"), or the first
+; word contains a colon after its second character (eg, "DIR:PRINT 1"), then
+; the line contains more than one command, so we let genCode run them (see
+; genDOS).
 ;
-pc2:	push	cx
+pc2:	push	si
+	push	cx
+	cmp	cx,3			; room for a colon past "A:"?
+	jb	pc2b			; no (and ZF is clear)
+	dec	cx
+	dec	cx
+pc2a:	cmp	byte ptr [si+2],':'
+	je	pc2b
+	inc	si
+	loop	pc2a			; (ZF is still clear)
+pc2b:	pop	cx
+	pop	si
+	je	pc1a			; generate code for the line
+	push	cx
 	mov	cl,[di].TOK_CNT
 	mov	ch,0
 	push	bx

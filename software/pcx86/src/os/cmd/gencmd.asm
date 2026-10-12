@@ -469,11 +469,17 @@ DEFPROC	genDOS
 	sub	ax,cx			; AX = # bytes preceding command
 ;
 ; A colon that begins a word ends the command (eg, "TYPE X : PRINT 1"), so
-; that other commands can follow it, whereas any other colon is part of the
-; command (eg, "DIR A:").
+; that other commands can follow it, as does a colon that immediately follows
+; the command name (eg, "DIR:GOTO 10"), unless the name is a single letter (eg,
+; "A:"); any other colon is part of the command (eg, "DIR A:").
 ;
-	mov	cx,[si].LINE_LEN	; CX = end of command (end of line)
 	mov	dx,bx			; DX -> next TOKLET
+	mov	cl,[bx - size TOKLET].TOKLET_LEN
+	mov	ch,0
+	dec	cx			; single-letter name (eg, "A:")?
+	jz	gd1			; yes (CX = 0 matches no colon)
+	inc	cx
+	add	cx,[bx - size TOKLET].TOKLET_OFF
 gd1:	cmp	dx,[si].TOKLET_END	; any tokens left?
 	jae	gd2			; no
 	push	bx
@@ -482,9 +488,11 @@ gd1:	cmp	dx,[si].TOKLET_END	; any tokens left?
 	mov	bx,[bx].TOKLET_OFF	; BX -> token
 	cmp	byte ptr [bx],':'	; does it begin with a colon
 	jne	gd1a
-	cmp	byte ptr [bx-1],' '	; that follows whitespace?
-	ja	gd1a			; no
-	lea	cx,[si].LINEBUF
+	cmp	byte ptr [bx-1],' '	; that follows whitespace
+	jbe	gd1b			; yes
+	cmp	bx,cx			; or the command name?
+	jne	gd1a			; no
+gd1b:	lea	cx,[si].LINEBUF
 	sub	bx,cx
 	mov	cx,bx			; CX = end of command (the colon)
 	pop	bx
@@ -494,6 +502,7 @@ gd1:	cmp	dx,[si].TOKLET_END	; any tokens left?
 gd1a:	pop	bx
 	jmp	gd1
 gd2:	mov	[si].TOKLET_END,bx	; mark the tokens fully processed
+	mov	cx,[si].LINE_LEN	; CX = end of command (end of line)
 gd3:	sub	cx,ax			; CX = length of command
 	push	ax
 	GENPUSH	cx			; push length of command line
