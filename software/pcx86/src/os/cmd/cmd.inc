@@ -244,6 +244,7 @@ MOUSE_X		dw	?		; 08h: position of the last MOUSE(0) event
 MOUSE_Y		dw	?		; 0Ah
 MOUSE_STATE	db	?		; 0Ch: MS_* bits
 		db	?		; 0Dh: (unused)
+GFX_COLORS	dw	?		; 0Eh: colors saved with GFX_SAVED
 GFXDATA		ends
 
 MS_ON		equ	01h		; set by MOUSE ON
@@ -318,9 +319,9 @@ ERR_ADDR	dd	?		; 4A2h: ON ERROR handler (0 if none)
 ERR_LINE	dw	?		; line # of the last error (see ERL)
 PLAY_STATE	dw    4 dup (?)		; 4A6h: PLAY/SOUND state (see doPlay)
 GFX_DATA	db	size GFXDATA dup (?)	; 4AEh: graphics and mouse state
-CODE_CACHE	dw	?		; 4BCh: cached code (see keepCode)
-EDIT_STATE	dw    2 dup (?)		; 4BEh: line to edit (see edit.asm)
-DATA_STATE	db	size DATASTATE dup (?)	; 4C2h: next DATA item (see sys.asm)
+CODE_CACHE	dw	?		; 4BEh: cached code (see keepCode)
+EDIT_STATE	dw    2 dup (?)		; 4C0h: line to edit (see edit.asm)
+DATA_STATE	db	size DATASTATE dup (?)	; 4C4h: next DATA item (see sys.asm)
 PATH_CHAR	db	?		; 4CCh: path char (fixed at boot)
 SWITCH_CHAR	db	?		; 4CDh: switch char (fixed at boot)
 FILE_DATA	db   44 dup (?)		; 4CEh: OPEN files (see fileio.asm)
@@ -337,7 +338,7 @@ ENV_DATA	db  176 dup (?)		; 57Eh: environment (see initEnv)
 ; COM file can request the stack be located elsewhere, since there's no way for
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
-STACK		dw  457 dup (?)		; 62Eh
+STACK		dw  456 dup (?)		; 630h
 CMDHEAP		ends			; 9C0h
 SIG_CMD		equ	'H'
 

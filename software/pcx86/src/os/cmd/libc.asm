@@ -319,8 +319,8 @@ ENDPROC	getMode
 ;
 ; saveMode
 ;
-; Called before a BAS program runs, to save the video mode, so that it can be
-; restored when the program ends (see restoreMode).  Only the outermost BAS
+; Called before a BAS program runs, to save the video mode (and the colors),
+; so that they can be restored when the program ends (see restoreMode).  Only the outermost BAS
 ; program saves the mode (a BAS program run by another BAS program does not).
 ;
 ; The mode is saved in GFX_SAVED (as mode + 1, or 0 if none is saved).
@@ -340,7 +340,7 @@ DEFPROC	saveMode
 	mov	bx,ss:[PSP_HEAP]
 	sub	ax,ax
 	cmp	byte ptr ss:[bx].GFX_DATA.GFX_SAVED,al	; already saved?
-	jne	svm9				; yes
+	jne	svm9			; yes
 	mov	al,IOCTL_GETMODE
 	call	ioctlCon		; DL = video mode
 	mov	ax,0
@@ -348,7 +348,11 @@ DEFPROC	saveMode
 	inc	dx
 	mov	bx,ss:[PSP_HEAP]
 	mov	byte ptr ss:[bx].GFX_DATA.GFX_SAVED,dl
-	inc	ax
+	mov	al,IOCTL_GETCOLOR
+	call	ioctlCon		; DL = fill, DH = border attributes
+	mov	bx,ss:[PSP_HEAP]
+	mov	ss:[bx].GFX_DATA.GFX_COLORS,dx
+	mov	ax,1
 svm9:	pop	dx
 	pop	bx
 	ret
@@ -360,7 +364,9 @@ ENDPROC	saveMode
 ;
 ; Called when a BAS program ends (normally, or when it's aborted; see ctrlc),
 ; to restore the video mode saved by saveMode, if the program changed it
-; (eg, with SCREEN or WIDTH).  If the mouse was turned on (see mouseOn), it's
+; (eg, with SCREEN or WIDTH), along with the colors the session had then (so
+; that, for example, a program's COLOR 7,0,0 doesn't leave the session's
+; border black).  If the mouse was turned on (see mouseOn), it's
 ; turned off first.
 ;
 ; Inputs:
@@ -396,6 +402,9 @@ rsm1:	mov	cl,0
 	call	ioctlCon		; yes, so restore it
 	mov	bx,ss:[PSP_HEAP]
 	mov	byte ptr ss:[bx].GFX_DATA.GFX_MODE,0	; (see gfxInit)
+	mov	cx,ss:[bx].GFX_DATA.GFX_COLORS
+	mov	al,IOCTL_SETCOLOR
+	call	ioctlCon		; and the colors, too
 rsm9:	pop	dx
 	pop	cx
 	pop	bx
