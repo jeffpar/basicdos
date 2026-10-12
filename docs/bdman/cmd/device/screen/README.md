@@ -78,6 +78,8 @@ Sets the screen mode on a color adapter:
 
 A *burst* of 0 disables color in mode 0, and a *burst* of 1 disables color in mode 1.  Changing the mode clears the screen and removes the console's border, if any, so the console occupies the entire screen.  Text output (eg, PRINT) works in all modes.
 
+While a session is in any mode other than its original mode (eg, a graphics mode, or 40 columns in an 80-column session), it uses the entire screen, so other sessions on the same display are paused: any output they produce waits until that session returns to its original mode (eg, when its BAS program ends, which restores the mode), and then their borders are redrawn and their output continues.  Their earlier screen contents are not restored.
+
 ### WIDTH
 
 > WIDTH 40|80

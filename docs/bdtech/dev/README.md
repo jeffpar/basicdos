@@ -144,8 +144,11 @@ DOS_HDL_IOCTL (INT 21h, AH = 44h) sends IOCTL requests to drivers: AL is passed 
 | D9h | IOCTL_SETPOS | Sets the cursor position (CL = column, CH = row) and visibility (DL) |
 | DAh | IOCTL_GETMODE | Gets the video mode (DL) |
 | DBh | IOCTL_SETMODE | Sets the video mode (CL) |
+| DCh | IOCTL_GETCHAR | Gets the character (DL) and attributes (DH) at column CL, row CH (zero-based; see the SCREEN function) |
 
 Changing the video mode (with IOCTL_SETMODE, or with INT 10h directly) turns the context into a full-screen, borderless context that uses INT 10h for output, so text output and scrolling work in graphics modes.  When the context returns to its original mode, its original geometry is restored.
+
+While a context is in any mode other than its original mode (eg, a graphics mode, or 40-column text in an 80-column context), it occupies the entire screen, so every other context on the same adapter is blocked: its writes, and any IOCTL_SCROLL, IOCTL_SETCOLOR, or IOCTL_SETMODE request, wait (like a context paused with CTRL-S), and its border isn't drawn (eg, on a focus switch).  When that context returns to its original mode (or is closed, in which case its original mode is restored), the borders of the other contexts on the adapter are redrawn, and every blocked request continues.  Programs that call INT 10h directly from other sessions are not blocked.
 
 #### FPU$ {#fpu}
 

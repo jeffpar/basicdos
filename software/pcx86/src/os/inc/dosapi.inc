@@ -226,6 +226,38 @@ SEEK_CUR	equ	1	; or use DOS_HDL_SEEKCUR
 SEEK_END	equ	2	; or use DOS_HDL_SEEKEND
 
 ;
+; Memory Control Block (MCB), which precedes every memory block (see
+; DV_MCB_HEAD for the first one)
+;
+MCB		struc
+MCB_SIG		db	?	; 00h: either MCBSIG_NEXT or MCBSIG_LAST
+MCB_OWNER	dw	?	; 01h: owner (PSP segment if > 8)
+MCB_PARAS	dw	?	; 03h: size of block in paragraphs
+MCB_TYPE	db	?	; 05h: MCBTYPE_* (see below)
+MCB_RESERVED	dw	?	; 06h
+MCB_NAME	db	8 dup(?); 08h: name of process (zero if none)
+MCB		ends
+
+MCBSIG_NEXT	equ	4Dh	; 'M'
+MCBSIG_LAST	equ	5Ah	; 'Z'
+
+MCBOWNER_NONE	equ	0	; free memory block
+MCBOWNER_SYSTEM	equ	0008h	; owned by the system
+
+;
+; Memory block types for DOS_MEM_ALLOC (AL), which records the type in the
+; block's MCB (MCB_TYPE), so that MEM can describe the block
+;
+MCBTYPE_NONE	equ	0	; no specified block type
+MCBTYPE_ABLK	equ	'A'	; array block
+MCBTYPE_CBLK	equ	'C'	; code block
+MCBTYPE_FBLK	equ	'F'	; function block
+MCBTYPE_SBLK	equ	'S'	; string block
+MCBTYPE_TBLK	equ	'T'	; text block
+MCBTYPE_VBLK	equ	'V'	; variable block
+MCBTYPE_HIGH	equ	80h	; flag (OR with any type) to allocate from the top
+
+;
 ; Predefined Process File Table (PFT) numbers
 ;
 STDIN		equ	0
@@ -349,7 +381,8 @@ DV_MCB_LIMIT	dw	?	;  00h: first unavailable segment
 DV_BPB_TABLE	dd	?	;  02h: offset, limit of BPBs
 DV_SFB_TABLE	dd	?	;  06h: offset, limit of SFBs
 DV_SCB_TABLE	dd	?	;  0Ah: offset, limit of SCBs
-		dd	?	;  0Eh: offset, limit of current dirs
+DV_CDIR_TABLE	dd	?	;  0Eh: offset, limit of current dirs
+DV_DD_LIST	dd	?	;  12h: head of device driver list
 DOSVARS		ends
 
 ;
@@ -369,6 +402,7 @@ ERR_BADADDR	equ	9	; invalid memory segment
 ERR_BADDRIVE	equ	15	; invalid drive
 ERR_CURDIR	equ	16	; attempt to remove current directory
 ERR_NOTSAME	equ	17	; not same device
+ERR_NOTREADY	equ	21	; drive not ready (see dev_request)
 ERR_SHARE	equ	32	; sharing violation
 ERR_DISKFULL	equ	39	; disk full
 

@@ -16,13 +16,12 @@
 ; a REQUEST handler, which performs the functions of both the STRATEGY and
 ; INTERRUPT handlers (we currently have no use for the INTERRUPT handler).
 ;
-; I appreciate that the DOS driver model was designed to enable some form
-; of future multitasking, but the fact virtually no driver was ever really
-; written to support that made the whole exercise rather pointless.  Drivers
-; rarely implemented a "request packet queue" (they typically used a global
-; variable to store a single packet address), because they knew DOS would
-; simply call their INTERRUPT handler immediately after calling their STRATEGY
-; handler.
+; The DOS driver model seems to have envisioned a future where requests
+; would be queued by one handler and asynchronously dequeued by the other,
+; but that future never materialized.  Drivers never implemented a queue;
+; instead, they would use a global variable to store a single packet address,
+; because they knew DOS would simply call their INTERRUPT handler immediately
+; after calling their STRATEGY handler.
 ;
 DDH		struc
 DDH_NEXT_OFF	dw	?	; 00h: offset of next DDH (or FFFFh)
@@ -32,7 +31,6 @@ DDH_REQUEST	dw	?	; 06h: request ("strategy") entry offset
 DDH_INTERRUPT	dw	?	; 08h: unused ("interrupt") entry offset
 DDH_NAME	dq	?	; 0Ah: device name (8 characters)
 DDH		ends
-
 
 DDATTR_STDIN	equ	0001h
 DDATTR_STDOUT	equ	0002h
@@ -80,9 +78,16 @@ IOCTL_SETCOLOR	equ	0D8h	; CON: set fill (CL) and border (CH) colors
 IOCTL_SETPOS	equ	0D9h	; CON: set cursor pos (CL,CH), visibility (DL)
 IOCTL_GETMODE	equ	0DAh	; CON: get video mode (DL)
 IOCTL_SETMODE	equ	0DBh	; CON: set video mode (CL)
+IOCTL_GETCHAR	equ	0DCh	; CON: get char/attr (DL/DH) at col,row (CL,CH)
 
 IOCTL_FPU	equ	0E0h
 IOCTL_GETFPU	equ	0E1h	; FPU$: store FPUTBL far ptr at DS:SI (see fpu.inc)
+
+;
+; MOUSE$ services (installed by the MOUSE$ driver; see moudev.asm)
+;
+INT_MOUSE	equ	33h	; mouse services
+MOUSE_EVENT	equ	0BDh	; BASIC-DOS: get the next button event
 
 ;
 ; Character codes that we care about.

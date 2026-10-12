@@ -36,46 +36,6 @@ CTD_FUNC	dw	?	; extended token data: function
 CTOKDEF		ends
 
 ;
-; DEFTOK stores each token's string in CODE, where all the strings follow
-; TOK_STRS (see const.asm), so that a string's offset is TOK_STRS + tokPos,
-; rather than a label of its own (to conserve symbol space).
-;
-DEFTOK	macro	sym,val,func,pub
-	IFNB	<pub>			;; define TOK_sym only if requested
-	public	TOK_&sym		;; (to conserve symbol space)
-TOK_&sym equ val
-	ENDIF
-	IFNB <func>
-	EXTNEAR	<func>
-	ENDIF
-CODE	SEGMENT
-	db	"&sym&"
-	len = (offset $ - offset TOK_STRS) - tokPos
-CODE	ENDS
-DATA	SEGMENT
-	IFB <func>
-	CTOKDEF	<val,len,offset DGROUP:TOK_STRS+tokPos,0>
-	ELSE
-	CTOKDEF	<val,len,offset DGROUP:TOK_STRS+tokPos,offset func>
-	ENDIF
-DATA	ENDS
-	tokPos = tokPos + len
-	endm
-
-DEFTOKENS macro tbl,val
-DATA	SEGMENT
-	public	tbl
-tbl	TOKTBL	<val,size CTOKDEF>
-DATA	ENDS
-	endm
-
-NUMTOKENS macro tbl,val
-DATA	SEGMENT
-val = ((offset $ - offset tbl) - 2) / (size CTOKDEF)
-DATA	ENDS
-	endm
-
-;
 ; Keywords with IDs >= BASIC support code generation.
 ;
 ; Keywords are defined in the KEYWORD_TOKENS table in const.asm.
@@ -114,7 +74,7 @@ CBLK		ends
 CBLKLEN		equ	4096		; preferred code block size
 CODE_ROOM	equ	160		; room required at "safe points"
 CBLK_SIG	equ	BLK_SIG
-SIG_CBLK	equ	'C'		; must match MCBTYPE_CBLK
+SIG_CBLK	equ	MCBTYPE_CBLK
 
 ;
 ; Function Block (FBLK) definitions
@@ -125,7 +85,7 @@ FBLK_REFS	dw	?		; 08h: bottom of LBLREF stack, if any
 FBLK		ends
 FBLKLEN		equ	4096		; preferred function block size
 FBLK_SIG	equ	BLK_SIG
-SIG_FBLK	equ	'F'		; must match MCBTYPE_FBLK
+SIG_FBLK	equ	MCBTYPE_FBLK
 
 ;
 ; Parameter flags
@@ -165,7 +125,7 @@ VBLK_HDR	db size	BLKHDR dup (?)	; 00h
 VBLK		ends
 VBLKLEN		equ	4096		; preferred var block size
 VBLK_SIG	equ	BLK_SIG
-SIG_VBLK	equ	'V'		; must match MCBTYPE_VBLK
+SIG_VBLK	equ	MCBTYPE_VBLK
 
 ;
 ; String Block (SBLK) definitions
@@ -175,7 +135,7 @@ SBLK_HDR	db size	BLKHDR dup (?)	; 00h
 SBLK		ends
 SBLKLEN		equ	4096		; preferred string block size
 SBLK_SIG	equ	BLK_SIG
-SIG_SBLK	equ	'S'		; must match MCBTYPE_SBLK
+SIG_SBLK	equ	MCBTYPE_SBLK
 
 ;
 ; Text Block (TBLK) definitions
@@ -185,7 +145,12 @@ TBLK_HDR	db size	BLKHDR dup (?)	; 00h
 TBLK		ends
 TBLKLEN		equ	4096		; preferred text block size
 TBLK_SIG	equ	BLK_SIG
-SIG_TBLK	equ	'T'		; must match MCBTYPE_TBLK
+SIG_TBLK	equ	MCBTYPE_TBLK
+
+;
+; Array Block (ABLK) signature (see arr.inc for the ABLK definitions)
+;
+SIG_ABLK	equ	MCBTYPE_ABLK
 
 ;
 ; Operator definition structure
@@ -258,68 +223,41 @@ GEN_ECHO	equ	08h		; initially set if GEN_BATCH
 GEN_DEF		equ	10h		; DEF function in progress
 
 ;
-; Code generation helper macros
-;
-; GENCALL generates a call the specified function.
-;
-GENCALL	macro	seg,off
-	IFB	<off>			;; if there's no off parameter
-	 IFDIF	<seg>,<cx>
-	mov	cx,offset seg		;; then seg is really a function name
-	 ENDIF
-	call	genCallCS		;; inside the CS segment
-	ELSE
-	 IFDIF	<off>,<cx>
-	mov	cx,off
-	 ENDIF
-	 IFDIF	<seg>,<dx>
-	mov	dx,seg			;; otherwise DX:CX is the function addr
-	 ENDIF
-	call	genCallFar
-	ENDIF
-	endm
-;
-; GENPUSH generates code to push immediate 16-bit (via DX) or 32-bit
-; values (via DX:CX).
-;
-; Modifies: AX, DX (and CX if GENPUSH dx,cx)
-;
-GENPUSH	macro	val1,val2
-	IFDIF	<val1>,<dx>
-	mov	dx,val1
-	ENDIF
-	IFNB	<val2>
-	IFDIF	<val2>,<cx>
-	mov	cx,val2
-	ENDIF
-	call	genPushImmLong
-	ELSE
-	call	genPushImm
-	ENDIF
-	endm
-;
-; GENPUSHB generates code to push an immediate byte value (via AL, AH,
-; or a constant that will be loaded via AL).
-;
-GENPUSHB macro	val
-	IFIDN	<val>,<al>
-	call	genPushImmByteAL
-	ELSE
-	 IFIDN	<val>,<ah>
-	call	genPushImmByteAH
-	 ELSE
-	mov	ax,OP_MOV_AL OR (val SHL 8)
-	call	genPushImmByte
-	 ENDIF
-	ENDIF
-	endm
-;
 ; Global command flags.  We rely on the entire heap being zeroed
 ; on startup, so all defaults should be zero.  So, for example, since
 ; ECHO is ON by default, a "NOECHO" bit must be set to turn it OFF.
 ;
 CMD_NOECHO	equ	01h		; set if ECHO turned off
 CMD_SINGLE	equ	02h		; set if /C (exit after the command)
+
+;
+; Graphics and mouse state (see GFX_DATA in CMDHEAP)
+;
+GFXDATA		struc
+GFX_LPX		dw	?		; 00h: last point referenced (X)
+GFX_LPY		dw	?		; 02h: last point referenced (Y)
+GFX_SCALE	db	?		; 04h: DRAW scale XOR 4
+GFX_COLOR	db	?		; 05h: DRAW color + 1, or 0 for default
+GFX_MODE	db	?		; 06h: video mode + 1, or 0 if unknown
+GFX_SAVED	db	?		; 07h: saved video mode + 1 (see saveMode)
+MOUSE_X		dw	?		; 08h: position of the last MOUSE(0) event
+MOUSE_Y		dw	?		; 0Ah
+MOUSE_STATE	db	?		; 0Ch: MS_* bits
+		db	?		; 0Dh: (unused)
+GFXDATA		ends
+
+MS_ON		equ	01h		; set by MOUSE ON
+MS_GFX		equ	02h		; pointer hidden (see mouseGfx)
+
+;
+; The next DATA item for READ (see DATA_STATE in CMDHEAP, and readData)
+;
+DATASTATE	struc
+DATA_OFF	dw	?		; 00h: offset of the next character to scan
+DATA_SEG	dw	?		; 02h: its text block (0 to start over)
+DATA_END	dw	?		; 04h: end of its line (0 if at a line)
+DATA_ITEM	dw	?		; 06h: non-zero if in a DATA statement
+DATASTATE	ends
 
 ;
 ; Define the heap as a structure.  The first few fields (ie, all the BLKDEF
@@ -379,10 +317,10 @@ ERR_NUM		dw	?		; 4A0h: last error # (HI set if active)
 ERR_ADDR	dd	?		; 4A2h: ON ERROR handler (0 if none)
 ERR_LINE	dw	?		; line # of the last error (see ERL)
 PLAY_STATE	dw    4 dup (?)		; 4A6h: PLAY/SOUND state (see doPlay)
-GFX_DATA	dw    7 dup (?)		; 4AEh: graphics and mouse state
+GFX_DATA	db	size GFXDATA dup (?)	; 4AEh: graphics and mouse state
 CODE_CACHE	dw	?		; 4BCh: cached code (see keepCode)
 EDIT_STATE	dw    2 dup (?)		; 4BEh: line to edit (see edit.asm)
-DATA_STATE	dw    4 dup (?)		; 4C2h: next DATA item (see sys.asm)
+DATA_STATE	db	size DATASTATE dup (?)	; 4C2h: next DATA item (see sys.asm)
 PATH_CHAR	db	?		; 4CCh: path char (fixed at boot)
 SWITCH_CHAR	db	?		; 4CDh: switch char (fixed at boot)
 FILE_DATA	db   44 dup (?)		; 4CEh: OPEN files (see fileio.asm)

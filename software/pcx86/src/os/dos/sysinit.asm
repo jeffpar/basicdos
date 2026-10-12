@@ -16,18 +16,14 @@
 	include	dosapi.inc
 	include	version.inc
 
-;
-; We don't define BIOSEQU (to save symbol space), so define the few BIOS
-; equates we need here.
-;
-INT_TIME	equ	1Ah
-TIME_GETTICKS	equ	00h
-
 DOS	segment word public 'CODE'
 
 	EXTBYTE	<bpb_total,sfh_debug,def_drive,def_switchar,def_pathchar>
 	EXTWORD	<mcb_head,mcb_limit,buf_head,key_boot,scb_active,ivt_save>
 	EXTLONG	<bpb_table,scb_table,sfb_table,cdir_table,clk_ptr,fpu_table>
+	EXTLONG	<dev_head>
+	EXTNEAR	<find_cfg,init_table,set_bpbtime>
+	EXTERNS	<cache_int21>,far
 	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr,dos_opchk>
 	EXTNEAR	<dos_term,dos_func,dos_exit,dos_ctrlc,dos_error,dos_default>
 	EXTNEAR	<disk_read,disk_write,dos_tsr,dos_call5,dos_util,dos_leave>
@@ -42,11 +38,8 @@ DOS	segment word public 'CODE'
 	DEFWORD	cfg_size
 
 	DEFPTR	pCacheInt21
-	DEFPTR	pCacheFile
 	DEFPTR	pCacheData
 	DEFWORD	cbCacheData
-	DEFPTR	pCacheActive
-	DEFWORD	cbCacheActive
 
 	ASSUME	CS:DOS, DS:BIOS, ES:DOS, SS:NOTHING
 
@@ -188,7 +181,7 @@ si2b:	mov	al,0EAh			; DI -> INT_DOSCALL5 * 4
 ; characters are '-' and '/', and a switch character of '/' is ignored if it's
 ; also the path character.  Any other setting is ignored.
 ;
-	mov	si,offset CFG_SWITCHAR + 10
+	mov	si,offset CFG_PATHCHAR
 	call	find_cfg		; look for "PATHCHAR="
 	jc	si2c
 	cmp	byte ptr [di],'\'	; the only change from the default
@@ -204,9 +197,15 @@ si2c:	mov	si,offset CFG_SWITCHAR
 	je	si3
 	mov	[def_switchar],al	; update the default for all SCBs
 ;
-; Copy BOOT_KEY from the BIOS segment to key_boot in the DOS segment.
+; Copy DD_LIST from the BIOS segment to dev_head in the DOS segment, for
+; DOS_MSC_GETVARS (see DV_DD_LIST), since all the device drivers are linked
+; by now, and BOOT_KEY to key_boot.
 ;
-si3:	mov	ax,[BOOT_KEY]		; copy the boot key
+si3:	mov	ax,[DD_LIST].OFF	; copy the device driver list head
+	mov	[dev_head].OFF,ax
+	mov	ax,[DD_LIST].SEG
+	mov	[dev_head].SEG,ax
+	mov	ax,[BOOT_KEY]		; copy the boot key
 	cmp	al,CHR_RETURN		; unless it's just a RETURN
 	je	si3a
 	mov	[key_boot],ax
@@ -365,10 +364,7 @@ si5d:	mov	ah,size BPBEX
 	push	es
 	pop	ds
 	ASSUME	DS:DOS
-	mov	ah,TIME_GETTICKS
-	int	INT_TIME		; CX:DX is current tick count
-	mov	[di].BPB_TIMESTAMP.OFF,dx
-	mov	[di].BPB_TIMESTAMP.SEG,cx
+	call	set_bpbtime		; set BPB_TIMESTAMP to the tick count
 ;
 ; Calculate BPBEX values like BPB_CLUSLOG2 and BPB_CLUSBYTES for the "boot"
 ; BPB, and then initialize other BPBEX values (eg, BPB_DEVICE) for all BPBs.
@@ -873,223 +869,6 @@ ENDPROC	sysinit
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; find_cfg
-;
-; Search for length-prefixed string at CS:SI in CFG_FILE, and if found,
-; set DI to 1st character after match.
-;
-; Outputs:
-;	Carry clear on success (DI -> 1st character after match)
-;	Carry set on failure (AX = default value following string at SI)
-;
-; Modifies:
-;	AX, SI, DI
-;
-DEFPROC	find_cfg
-	ASSUME	DS:NOTHING, ES:NOTHING
-	push	bx
-	push	cx
-	push	dx
-	push	es
-	push	cs
-	pop	es
-	ASSUME	ES:DOS
-	mov	bx,si
-	mov	di,[cfg_data]		; DI points to CFG_FILE data
-	mov	dx,di
-	add	dx,[cfg_size]		; DX points to end of CFG_FILE data
-fc1:	lods	byte ptr cs:[si]	; 1st byte at CS:SI is length
-	cbw
-	xchg	cx,ax			; CX = length of string to find
-	cli				; avoid 8086 string interrupt errata
-	repe	cmps byte ptr cs:[si],es:[di]
-	sti
-	jne	fc2
-	mov	es:[di-1],cl		; zap the CFG match to prevent reuse
-	jmp	short fc9		; found it!
-fc2:	add	si,cx			; move SI forward to the minimum value
-	mov	al,0			; (CR and LF are now nulls)
-	mov	cx,dx
-	sub	cx,di			; CX = bytes left to search
-	jb	fc8			; ran out
-	repne	scasb
-	stc
-	jne	fc8			; couldn't find another line
-	repe	scasb			; skip any more nulls (eg, CR+LF)
-	stc
-	je	fc8			; ran out
-	dec	di			; DI -> 1st character of next line
-	mov	si,bx
-	jmp	fc1
-fc8:	mov	ax,cs:[si]		; return the minimum value at SI
-fc9:	pop	es
-	ASSUME	ES:NOTHING
-	pop	dx
-	pop	cx
-	pop	bx
-	ret
-ENDPROC	find_cfg
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; init_table
-;
-; Initializes table with AX entries of length DX at ES:0, stores DOS segment-
-; relative table offset at [BX], table limit at [BX+2], and finally adjusts ES.
-;
-; Outputs:
-;	Nothing
-;
-; Modifies: CX, DX, DI
-;
-DEFPROC	init_table
-	ASSUME	DS:NOTHING, ES:NOTHING
-	push	ax
-	mul	dx			; AX = length of table in bytes
-	xchg	cx,ax			; CX = length
-	sub	di,di
-	mov	ax,di
-	rep	stosb			; zero the table
-	push	ds
-	mov	ds,[dos_seg]
-	mov	ax,es
-	mov	dx,ds
-	sub	ax,dx			; AX = distance from DS:0 in paras
-	mov	dx,ax			; save for DS overflow check
-	mov	cl,4
-	shl	ax,cl			; AX = DS-relative offset
-	mov	[bx].OFF,ax		; save DS-relative offset
-	add	ax,di
-	mov	[bx].SEG,ax		; save DS-relative limit
-	pop	ds
-	add	di,15
-	mov	cl,4
-	shr	di,cl			; DI = length of table in paras
-	add	dx,di			; check for DS overflow
-	cmp	dx,1000h		; have we exceeded the DS 64K limit?
-	ja	sie2			; yes, sadly
-	mov	ax,es
-	add	ax,di
-	mov	es,ax			; ES = next available paragraph
-	pop	ax
-	ret
-ENDPROC	init_table
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; cache_int21
-;
-; The sole purpose of this function is to intercept OPEN and READ requests
-; that occur during our DOSUTIL LOAD operations, which we also know will be
-; completely sequential (and therefore our caching logic can be very simple).
-;
-; This allows us to preload multiple copies of COMMAND.COM into memory without
-; having to reread the file from disk every time.
-;
-; Inputs:
-;	AH = DOS function #
-;
-; Outputs:
-;	Varies (function-specific)
-;
-DEFPROC	cache_int21,FAR
-	cmp	ah,DOS_HDL_OPEN
-	jne	ci2
-
-	push	ax
-	push	cx
-	push	si
-	push	di
-	push	es
-	mov	si,dx
-	sub	ax,ax
-	mov	[pCacheActive].OFF,ax	; no active cache data yet
-	DOSUTIL	STRLEN			; AX = length of string at DS:SI
-	xchg	cx,ax			; CX = length
-	les	di,[pCacheFile]		; ES:DI -> previous filename, if any
-	test	di,di			; is there a previous filename?
-	jz	ci1			; no
-	repe	cmpsb			; does previous filename match current?
-	jne	ci1			; no
-	mov	ax,[pCacheData].OFF	; yes, init active cache data
-	mov	[pCacheActive].OFF,ax
-	mov	ax,[pCacheData].SEG
-	mov	[pCacheActive].SEG,ax
-	mov	ax,[cbCacheData]
-	mov	[cbCacheActive],ax
-ci1:	mov	[pCacheFile].OFF,dx	; in any case, remember this filename
-	mov	[pCacheFile].SEG,ds
-	pop	es
-	pop	di
-	pop	si
-	pop	cx
-	pop	ax
-	jmp	short ci9
-
-ci2:	cmp	ah,DOS_HDL_SEEK
-	jne	ci4
-	cmp	[pCacheActive].OFF,0	; is the cached file open?
-	je	ci9			; no
-;
-; Only SEEK_BEG and SEEK_END are supported (with offsets in DX), since those
-; are the only methods load_program uses.
-;
-	push	bx
-	mov	bx,dx			; BX = offset
-	sub	al,SEEK_END
-	cmp	al,1			; carry set if SEEK_END
-	sbb	ax,ax
-	and	ax,[cbCacheData]
-	add	bx,ax			; BX = new position
-	mov	ax,[pCacheData].OFF
-	add	ax,bx
-	mov	[pCacheActive].OFF,ax
-	mov	ax,[cbCacheData]
-	sub	ax,bx
-	mov	[cbCacheActive],ax
-	xchg	ax,bx			; DX:AX = new position
-	sub	dx,dx
-	pop	bx
-	jmp	short ci10		; (carry is clear)
-
-ci4:	cmp	ah,DOS_HDL_READ
-	jne	ci9
-
-	push	cx
-	push	si
-	push	di
-	push	ds
-	push	es
-	push	ds
-	pop	es
-	mov	di,dx			; ES:DI -> destination
-	lds	si,[pCacheActive]	; DS:SI -> source data
-	test	si,si			; does any source data exist?
-	stc
-	jz	ci8			; no
-	mov	ax,cx			; AX = # bytes to copy
-	cmp	ax,[cbCacheActive]	; do we have as much data as requested?
-	jbe	ci3			; yes
-	mov	ax,[cbCacheActive]	; no
-ci3:	mov	cx,ax
-	rep	movsb
-	sub	[cbCacheActive],ax
-	add	[pCacheActive].OFF,ax
-	ASSERT	NC
-ci8:	pop	es
-	pop	ds
-	pop	di
-	pop	si
-	pop	cx
-	jnc	ci10
-
-ci9:	pushf
-	call	[pCacheInt21]
-ci10:	ret	2
-ENDPROC	cache_int21
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; sysinit_error (print generic error message and halt)
 ;
 ; Inputs:
@@ -1167,7 +946,7 @@ CFG_SESSIONS	db	9,"SESSIONS="
 		dw	4,1,32		; TODO: Decide if 32 session limit OK
 CFG_SHELL	db	6,"SHELL="
 CFG_SWITCHAR	db	9,"SWITCHAR="
-		db	9,"PATHCHAR="	; (CFG_SWITCHAR + 10)
+CFG_PATHCHAR	db	9,"PATHCHAR="
 
 AUX_DEVICE	db	"AUX",0
 PRN_DEVICE	db	"PRN",0
@@ -1184,7 +963,6 @@ SYSERR		db	"System initialization error$"
 CONERR		db	"More CONSOLES than SESSIONS$"
 HALTED		db	"; halted$"
 
-	DEFLBL	sysinit_end
 
 DOS	ends
 

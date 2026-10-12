@@ -8,11 +8,10 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	include	cmd.inc
-	include	dos.inc		; (bios.inc omitted to save symbol space)
 
 CODE    SEGMENT
 
-	EXTNEAR	<printCRLF,transParas>
+	EXTNEAR	<printCRLF,transParas,memDebug>
 	EXTSTR	<SYS_MEM,DOS_MEM,FREE_MEM,BLK_NAMES>
 	EXTABS	<BLK_WORDS>
 
@@ -45,9 +44,9 @@ DEFPROC	cmdMem
 ; Before we get into memory blocks, show the amount of memory reserved
 ; for the BIOS and disk buffers.
 ;
-mem0:	sub	di,di
-	mov	es,di
-	les	di,es:[50Ah]		; ES:DI = DD_LIST (see bios.inc)
+mem0:	mov	ah,DOS_MSC_GETVARS
+	int	21h			; ES:BX -> DOSVARS + 2
+	les	di,es:[bx-2].DV_DD_LIST	; ES:DI -> first device driver
 
 	TESTSW	<'D'>
 	jz	mem1
@@ -133,42 +132,11 @@ mem9:	pop	es
 	jz	mem10
 	call	printCRLF
 ;
-; ES:BX should point to DOSVARS once again.  We'll start by dumping open SFBs.
+; ES:BX should point to DOSVARS once again, for the DEBUG-only displays of open
+; files and active sessions (see memDebug).
 ;
 mem10:	IFDEF	DEBUG
-	TESTSW	<'F'>		; files requested (/F)?
-	jz	mem20
-	sub	cx,cx
-	mov	di,es:[bx].DV_SFB_TABLE.OFF
-	PRINTF	"Address SFH Name       Refs\r\n"
-mem11:	mov	al,es:[di].SFB_REFS
-	test	al,al
-	jz	mem12
-	lea	si,[di].SFB_NAME
-	PRINTF	"%08lx %2bd %-11.11ls  %2bd\r\n",di,es,cx,si,es,ax
-mem12:	inc	cx
-	add	di,size SFB
-	cmp	di,es:[bx].DV_SFB_TABLE.SEG
-	jb	mem11
-	call	printCRLF
-
-mem20:	TESTSW	<'S'>		; sessions requested (/S)?
-	jnz	mem21		; yes
-	jmp	mem30
-mem21:	mov	di,es:[bx].DV_SCB_TABLE.OFF
-	PRINTF	"No Fl PSP  Ctx  WaitID   Stack\r\n"
-mem22:	mov	ax,word ptr es:[di].SCB_STATUS
-	test	al,SCSTAT_LOAD
-	jz	mem23
-	mov	cl,ah
-	push	ds
-	lds	si,es:[di].SCB_STACK
-	PRINTF	"%2d %02bx %04x %04x %08lx %08lx\r\n",cx,ax,es:[di].SCB_PSP,es:[di].SCB_CONTEXT,es:[di].SCB_WAITID,:2,si,ds
-	pop	ds
-mem23:	add	di,size SCB
-	cmp	di,es:[bx].DV_SCB_TABLE.SEG
-	jb	mem22
-	call	printCRLF
+	call	memDebug
 	ENDIF	; DEBUG
 ;
 ; Last but not least, dump the amount of free memory (ie, the sum of all the
@@ -255,7 +223,7 @@ DEFPROC	printKB
 	pop	bx
 	pop	ax
 
-	cmp	di,5		; DI = offset MCB_TYPE?
+	cmp	di,MCB_TYPE	; DI = offset MCB_TYPE?
 	jne	pkb8		; no
 	push	ax
 	push	cx

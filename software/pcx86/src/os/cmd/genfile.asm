@@ -25,6 +25,7 @@
 ; while generating code, with DS:BX -> TOKLETs and ES:DI -> code block.
 ;
 	include	cmd.inc
+	include	gen.inc
 	include	8086.inc
 
 CODE    SEGMENT
@@ -37,12 +38,8 @@ CODE    SEGMENT
 	EXTNEAR	<writeValue,printArgs,inputLine,fieldVar,setField>
 	EXTNEAR	<fileRecord,lsetStr,genVarRef>
 
-TOK_FOR		equ	58		; keyword IDs (see KEYWORD_TOKENS)
-TOK_INPUT	equ	89
-TOK_AS		equ	209
-TOK_OUTPUT	equ	210
-TOK_APPEND	equ	211
-TOK_RANDOM	equ	212
+	EXTABS	<TOK_FOR,TOK_INPUT,TOK_AS,TOK_OUTPUT,TOK_APPEND,TOK_RANDOM>
+
 FIELD_MAX	equ	16		; max fields per FIELD statement
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA

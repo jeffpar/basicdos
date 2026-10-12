@@ -11,6 +11,7 @@
 
 CODE    SEGMENT
 
+	EXTNEAR	<getTicks>
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1252,12 +1253,7 @@ DEFPROC	randomize,FAR
 	mov	bx,[wSeedTicks]
 	test	bl,bl			; use the BIOS tick count?
 	jz	rz1			; no
-	push	ds
-	sub	ax,ax
-	mov	ds,ax
-	mov	ax,ds:[46Ch]
-	mov	dx,ds:[46Eh]		; DX:AX = BIOS tick count
-	pop	ds
+	call	getTicks		; DX:AX = BIOS tick count
 rz1:	mov	bx,ss:[PSP_HEAP]
 	mov	ss:[bx].RND_SEED.LOW,ax
 	mov	ss:[bx].RND_SEED.HIW,dx

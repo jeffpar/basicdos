@@ -323,7 +323,7 @@ ENDPROC	getMode
 ; restored when the program ends (see restoreMode).  Only the outermost BAS
 ; program saves the mode (a BAS program run by another BAS program does not).
 ;
-; The mode is saved in GFX_DATA+7 (as mode + 1, or 0 if none is saved).
+; The mode is saved in GFX_SAVED (as mode + 1, or 0 if none is saved).
 ;
 ; Inputs:
 ;	None
@@ -339,7 +339,7 @@ DEFPROC	saveMode
 	push	dx
 	mov	bx,ss:[PSP_HEAP]
 	sub	ax,ax
-	cmp	byte ptr ss:[bx].GFX_DATA+7,al	; already saved?
+	cmp	byte ptr ss:[bx].GFX_DATA.GFX_SAVED,al	; already saved?
 	jne	svm9				; yes
 	mov	al,IOCTL_GETMODE
 	call	ioctlCon		; DL = video mode
@@ -347,7 +347,7 @@ DEFPROC	saveMode
 	jc	svm9			; STDOUT doesn't support video modes
 	inc	dx
 	mov	bx,ss:[PSP_HEAP]
-	mov	byte ptr ss:[bx].GFX_DATA+7,dl
+	mov	byte ptr ss:[bx].GFX_DATA.GFX_SAVED,dl
 	inc	ax
 svm9:	pop	dx
 	pop	bx
@@ -378,11 +378,11 @@ DEFPROC	restoreMode
 	push	cx
 	push	dx
 	mov	bx,ss:[PSP_HEAP]
-	cmp	byte ptr ss:[bx].GFX_DATA+12,0	; MOUSE_STATE (see sys.asm)
+	cmp	byte ptr ss:[bx].GFX_DATA.MOUSE_STATE,0
 	je	rsm1
 	call	mouseReset
 rsm1:	mov	cl,0
-	xchg	cl,byte ptr ss:[bx].GFX_DATA+7
+	xchg	cl,byte ptr ss:[bx].GFX_DATA.GFX_SAVED
 	dec	cl			; CL = saved mode
 	js	rsm9			; there isn't one
 	push	cx
@@ -395,7 +395,7 @@ rsm1:	mov	cl,0
 	mov	al,IOCTL_SETMODE
 	call	ioctlCon		; yes, so restore it
 	mov	bx,ss:[PSP_HEAP]
-	mov	byte ptr ss:[bx].GFX_DATA+6,0	; (see gfxInit)
+	mov	byte ptr ss:[bx].GFX_DATA.GFX_MODE,0	; (see gfxInit)
 rsm9:	pop	dx
 	pop	cx
 	pop	bx
@@ -842,7 +842,7 @@ ss4:	mov	cl,bh			; CL = current video mode
 	popf
 	jc	ss8			; the adapter doesn't support the mode
 	mov	bx,ss:[PSP_HEAP]
-	mov	byte ptr ss:[bx].GFX_DATA+6,0	; see gfxInit
+	mov	byte ptr ss:[bx].GFX_DATA.GFX_MODE,0	; see gfxInit
 ss9:	ret
 ss8:	jmp	strIllegal
 ENDPROC	setScreen
@@ -952,6 +952,56 @@ DEFPROC	getCsrlin,FAR
 	LEAVE
 	RETURN
 ENDPROC	getCsrlin
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getScreen (SCREEN)
+;
+; Used by "SCREEN(row,col[,z])" to return the character code at row and col
+; (starting at 1), or as in MSBASIC, its attributes if z is non-zero.  A
+; position outside the console (or a STDOUT that isn't a console) is an
+; illegal function call.
+;
+; Inputs:
+;	32-bit return value
+;	3 32-bit values (popped)
+;
+; Outputs:
+;	32-bit return value updated
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+DEFPROC	getScreen,FAR
+	RETVAR	retScreen,dword
+	ARGVAR	scrRow,dword
+	ARGVAR	scrCol,dword
+	ARGVAR	scrAttr,dword
+	ENTER
+	mov	cx,[scrCol].LOW
+	mov	dx,[scrRow].LOW
+	mov	ax,[scrCol].HIW
+	or	ax,[scrRow].HIW
+	or	al,ch
+	or	al,dh
+	or	al,ah			; are row and col both 0-255?
+	jnz	gsc8			; no
+	mov	ch,dl			; CL = col, CH = row
+	sub	cx,0101h		; make them zero-based (0 is illegal)
+	mov	al,IOCTL_GETCHAR
+	call	ioctlCon		; DL = character, DH = attributes
+	jc	gsc8
+	mov	ax,[scrAttr].LOW
+	or	ax,[scrAttr].HIW	; attributes requested?
+	jz	gsc1			; no
+	mov	dl,dh
+gsc1:	mov	dh,0
+	mov	[retScreen].LOW,dx
+	mov	[retScreen].HIW,0
+	LEAVE
+	RETURN
+gsc8:	jmp	strIllegal
+ENDPROC	getScreen
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

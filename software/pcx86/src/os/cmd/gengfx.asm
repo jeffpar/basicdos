@@ -25,6 +25,7 @@
 ; ES:DI -> code block.
 ;
 	include	cmd.inc
+	include	gen.inc
 
 CODE    SEGMENT
 
@@ -32,9 +33,7 @@ CODE    SEGMENT
 	EXTNEAR	<peekNextSymbol,genCallCS,genPushImmLong,genExpr,genCvtType>
 	EXTNEAR	<gfxDraw,gfxGet,gfxLastPt,gfxLine,gfxPaint,gfxPset,gfxPut>
 	EXTNEAR	<gfxCircle,peekNextToken,genLineInput,genGetFile,genPutFile>
-	EXTABS	<TOK_PSET,TOK_PRESET>
-
-TOK_INPUT	equ	89		; keyword ID (see KEYWORD_TOKENS)
+	EXTABS	<TOK_PSET,TOK_PRESET,TOK_INPUT>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -301,7 +300,7 @@ ENDPROC	genPset
 ; genPut
 ;
 ; Generate code for "PUT (x,y),array[,action]", where action is PSET,
-; PRESET, XOR (the default), OR, or AND (see PUT_* in gfx.asm).
+; PRESET, XOR (the default), OR, or AND (see PUT_* in gfximg.asm).
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs

@@ -12,7 +12,6 @@
 CODE    SEGMENT
 
 	EXTNEAR	<allocStrSpace,freeBlock,rtError>
-	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 

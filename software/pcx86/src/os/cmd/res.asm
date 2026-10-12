@@ -363,7 +363,7 @@ ENDPROC	resCtrlC
 	BLKDEF	<0,VBLKLEN,size VBLK,SIG_VBLK>
 	BLKDEF	<0,SBLKLEN,size SBLK,SIG_SBLK>
 	BLKDEF	<0,TBLKLEN,size TBLK,SIG_TBLK>
-	BLKDEF	<0,0,size BLKHDR,'A'>	; array blocks (sized by DIM)
+	BLKDEF	<0,0,size BLKHDR,SIG_ABLK>	; array blocks (sized by DIM)
 	db	size CMDHEAP - (offset $ - offset RES_HEAP) dup (0)
 	even
 	DEFLBL	RES_END,byte

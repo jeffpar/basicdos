@@ -8,38 +8,36 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 ; Generates code for expressions (genExpr, including operators and function
-; calls), along with the code generation helpers that push values and call
-; functions, all of which were split from gencmd.asm to keep GENCMD.ASM within
-; MASM's limits.
+; calls); the code-emitting helpers that push values and call functions (eg,
+; genPushImmLong and genCallCS) are in genemit.asm.
 ;
 ; See gencmd.asm for an overview of all the gen*.asm files.
 ;
 	include	cmd.inc
-	include	8086.inc
+	include	gen.inc
 	include	fpu.inc
 
 CODE    SEGMENT
 
+	EXTNEAR	<ensureRoom>
+	EXTNEAR	<addVar>
+	EXTNEAR	<genArrayRef>
 
-	EXTNEAR	<allocCode,ensureRoom,keepCode>
-	EXTNEAR	<addLabel>
-	EXTNEAR	<allocVars>
-	EXTNEAR	<addVar,getVar,setVarLong,setVarDouble>
-	EXTNEAR	<setStr,holdStr,swapArgs,compactStrs,genArrayRef,checkCtl>
-	EXTNEAR	<memError>
-	EXTNEAR	<callDOS,printLine>
-
-	EXTWORD	<KEYWORD_TOKENS,KEYOP_TOKENS>
-	EXTBYTE	<OPDEFS,RELOPS>
+	EXTBYTE	<OPDEFS>
 	EXTWORD	<EVAL_LONG,EVAL_STR>
 	EXTLONG	<FPU_TABLE>
 	EXTNEAR	<genCallFPU,genCallFPUDst,genCallFPUDst2>
-	EXTNEAR	<genConstDouble,genCvtType,genFnCall,genPushSlot>
-	EXTABS	<TOK_ABS,TOK_TAN,TOK_MOUSE>
-	EXTNEAR	<genPushVarLong,genPushVarPtr,getNextSymbol,getNextToken>
-	EXTNEAR	<peekNextSymbol,validateOp>
+	EXTNEAR	<genConstDouble,genFnCall>
+	EXTABS	<TOK_ABS,TOK_TAN,TOK_MOUSE,TOK_SCREEN>
+	EXTNEAR	<genPushVarLong,genPushVarPtr,getNextToken>
+	EXTNEAR	<validateOp>
+	EXTNEAR	<genCallCS,genCallFar,genPushImmLong>
+	EXTNEAR	<genPushStr>
 
-        ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
+        
+	EXTNEAR	<genFuncExpr,genFuncParm>
+
+ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -235,12 +233,15 @@ ge3f:	call	genConstDouble		; DS:SI -> numeric string
 ; Process numeric function keywords (TOK_ABS through TOK_TAN), which take
 ; one parenthesized argument and call the corresponding FPU$ function, so the
 ; argument is converted to a double if necessary, and so is the result.  Any
-; other keyword ends the expression (eg, THEN), except MOUSE, which is also a
-; predefined function (eg, MOUSE(0)), so it's processed like a variable.
+; other keyword ends the expression (eg, THEN), except MOUSE and SCREEN, which
+; are also predefined functions (eg, MOUSE(0) or SCREEN(1,1)), so they're
+; processed like variables.
 ;
 ge1k:	cmp	al,TOK_MOUSE
+	je	ge1k1
+	cmp	al,TOK_SCREEN
 	jne	ge1l
-	mov	si,[si].CTD_OFF		; DS:SI -> "MOUSE"
+ge1k1:	mov	si,[si].CTD_OFF		; DS:SI -> "MOUSE" or "SCREEN"
 	mov	ah,CLS_VAR_LONG
 	jmp	ge1c
 ge1l:	cmp	al,TOK_ABS
@@ -571,436 +572,6 @@ go9:	ret
 
 ENDPROC	genExpr
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genFuncExpr
-;
-; Generate code for "func(parm1,parm2,...)".  The func variable has already
-; been parsed and DX:SI has been set to the corresponding function data.
-;
-; NOTE: Function data for predefined functions is actually at CS:SI, but
-; since we must also support user-defined functions, we can't assume that.
-; This is why we must use the loadFuncData helper function, instead of simple
-; LODSW CS: instructions.
-;
-; Inputs:
-;	DS:BX -> TOKLETs
-;	ES:DI -> code block
-;	DX:SI -> function data
-;
-; Outputs:
-;	Carry clear if successful, AH = return type
-;
-; Modifies:
-;	Any
-;
-DEFPROC	genFuncExpr
-	LOCVAR	nFuncParms,byte
-	LOCVAR	nFuncType,byte
-	LOCVAR	pFuncData,dword
-	ENTER
-	sub	cx,cx			; CX = 0 if no parms supplied
-	mov	[pFuncData].OFF,si
-	mov	[pFuncData].SEG,dx
-	call	loadFuncData
-	mov	word ptr [nFuncType],ax	; nFuncType = AL, nFuncParms = AH
-;
-; NOTE: peekNextSymbol can "fail" for any number of reasons, including
-; the fact that not all operators that may follow an unparenthesized function
-; reference are symbols (eg, "MOD").  So we must be very forgiving here.
-;
-	call	peekNextSymbol		; check for parenthesis
-	jbe	gfe0
-	cmp	al,'('
-	jne	gfe0
-	inc	cx			; CX = 1 if one or more parms supplied
-	call	getNextSymbol		; consume the parenthesis
-;
-; For VAR_LONG functions, the generated stack frame needs to begin with room
-; for a VAR_LONG return value; we use genPushLong instead of genPushZeroLong
-; because it generates less code AND it doesn't matter what value gets pushed.
-; For VAR_DOUBLE functions, the return value is a pointer to a slot in our
-; code block, where the function will store its result.
-;
-gfe0:	cmp	[nFuncType],VAR_DOUBLE
-	jne	gfe0a
-	push	cx
-	call	genPushSlot
-	pop	cx
-	jmp	short gfe1
-gfe0a:	call	genPushLong
-
-gfe1:	dec	[nFuncParms]		; more parameters?
-	jl	gfe6			; no
-	jcxz	gfe3			; yes, but no (more) have been supplied
-
-	call	genExpr			; process parameter expression
-	jbe	gfe3			; no value supplied
-
-	push	ax			; save last symbol from genExpr
-	call	loadFuncData		; AL = parameter type
-	cmp	al,VAR_LSKIP		; optional VAR_LONG we can skip?
-	jne	gfe1b			; no
-	mov	al,VAR_LONG
-	cmp	dl,VAR_STR		; was a string supplied instead?
-	jne	gfe1b			; no
-	push	cx
-	push	dx
-	mov	al,ah
-	cbw
-	cwd
-	xchg	cx,ax			; DX:CX = default value
-	call	genPushImmLong		; push the default value
-	GENCALL	swapArgs		; and move it below the string
-	pop	dx
-	pop	cx
-	dec	[nFuncParms]		; the string is the next parameter
-	call	loadFuncData		; AL = its type
-;
-; A string passed to a user-defined function must be held (see holdStr),
-; since the function may use its parameter more than once.
-;
-gfe1b:	cmp	al,VAR_STR		; string parameter?
-	jne	gfe1c			; no
-	mov	si,cs
-	cmp	[pFuncData].SEG,si	; for a user-defined function?
-	je	gfe1c			; no
-	push	cx
-	push	dx
-	GENCALL	holdStr
-	pop	dx
-	pop	cx
-gfe1c:	push	cx
-	call	genCvtType		; convert to the parameter type
-	pop	cx
-	pop	ax			; restore last symbol
-	jc	gfe9			; error
-
-	cmp	ah,CLS_SYM		; was last token a symbol?
-	jne	gfe9			; no, error
-	cmp	al,')'			; yes, closing parenthesis?
-	jne	gfe2			; no
-	sub	cx,cx			; zero number of remaining parms
-	jmp	gfe1
-
-gfe2:	cmp	al,','			; comma?
-	jne	gfe9			; no, error
-	test	cl,cl			; are more parameters allowed?
-	jz	gfe9			; no
-	jmp	gfe1
-;
-; No parameter value was supplied, so if the parameter isn't optional,
-; that's an error.
-;
-gfe3:	call	loadFuncData
-	and	al,0FCh			; VAR_CHAR, VAR_LSKIP -> VAR_LONG
-	cmp	al,VAR_LONG		; TODO: currently supports default
-	stc				; parameter values for VAR_LONG only
-	jne	gfe9
-	mov	al,ah			; AL = default value
-	cmp	al,PARM_REQUIRED	; is the parameter optional?
-	stc
-	je	gfe9			; no
-	cbw
-	cwd				; DX:AX = default value
-	xchg	cx,ax			; DX:CX
-	call	genPushImmLong		; push it
-	sub	cx,cx
-	jmp	gfe1			; continue processing parameters
-
-gfe6:	jcxz	gfe7
-	cmp	al,')'
-	jne	gfe9			; something is malformed
-gfe7:	call	loadFuncData		; AX = function address offset
-	xchg	cx,ax
-	call	loadFuncData		; AX = function address segment
-	xchg	dx,ax
-	test	dx,dx
-	jnz	gfe8
-	mov	dx,cs
-gfe8:	GENCALL	dx,cx			; generate call to function DX:CX
-	mov	ah,[nFuncType]		; AH = return type
-	jmp	short gfe10		; GENCALL should have cleared carry
-gfe9:	stc
-gfe10:	LEAVE
-	ret
-
-	DEFLBL	loadFuncData,near
-	push	ds
-	lds	si,[pFuncData]
-	lodsw
-	mov	[pFuncData].OFF,si
-	pop	ds
-	ret
-ENDPROC	genFuncExpr
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genFuncParm
-;
-; Generate code for accessing parameter N (of CL parameters).
-;
-; For example, if CL is 3 and the parameter # is 2, calculate the
-; parameter offset ((count - parm #) * 4 + 6) and generate the code:
-;
-;	push	[bp+(offset+2)]
-;	push	[bp+(offset+0)]
-;
-; Inputs:
-;	CL = parm count
-;	DX:SI -> parm data
-;	ES:DI -> code block
-;
-; Outputs:
-;	If carry clear, AH = parm type (from parm data)
-;
-; Modifies:
-;	AX, DI
-;
-DEFPROC	genFuncParm
-	call	getVar			; AL = parm type, AH = parm #
-	sub	cl,ah
-	jc	gfp9			; parm # inconsistency
-	mov	ah,al
-	push	ax
-	mov	ch,0
-	add	cx,cx
-	add	cx,cx
-	add	cx,8			; adjust CX for high word first
-	call	genPushBPOffset
-	dec	cx
-	dec	cx			; then back down to the low word
-	call	genPushBPOffset
-	pop	ax
-	clc
-gfp9:	ret
-ENDPROC	genFuncParm
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genCallCS
-;
-; Inputs:
-;	CS:CX -> function to call (or DX:CX if using genCallFar)
-;
-; Outputs:
-;	Carry clear
-;
-; Modifies:
-;	CX, DX, DI
-;
-DEFPROC	genCallCS
-	mov	dx,cs
-	DEFLBL	genCallFar,near
-	push	ax
-	mov	al,OP_CALLF
-	stosb
-	xchg	ax,cx
-	stosw
-	xchg	ax,dx
-	stosw
-	pop	ax
-	clc
-	ret
-ENDPROC	genCallCS
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genPopBPOffset
-;
-; Inputs:
-;	CX = offset
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	AX, DI
-;
-DEFPROC	genPopBPOffset
-	cmp	cx,7Fh
-	ja	gpo1
-	mov	ax,OP_POP_BP8
-	stosw
-	mov	al,cl
-	stosb
-	ret
-gpo1:	mov	ax,OP_POP_BP16
-	stosw
-	mov	ax,cx
-	stosw
-	ret
-ENDPROC	genPopBPOffset
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genPushBPOffset
-;
-; Inputs:
-;	CX = offset
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	AX, DI
-;
-DEFPROC	genPushBPOffset
-	cmp	cx,7Fh
-	ja	gpu1
-	mov	ax,OP_PUSH_BP8
-	stosw
-	mov	al,cl
-	stosb
-	ret
-gpu1:	mov	ax,OP_PUSH_BP16
-	stosw
-	mov	ax,cx
-	stosw
-	ret
-ENDPROC	genPushBPOffset
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genPushImmByte
-;
-; Inputs:
-;	AL = OP_MOV_AL
-;	AH = value to push
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	AX, DI
-;
-DEFPROC	genPushImmByteAL
-	mov	ah,al
-	DEFLBL	genPushImmByteAH,near
-	mov	al,OP_MOV_AL
-	DEFLBL	genPushImmByte,near
-	stosw
-	mov	al,OP_PUSH_AX
-	stosb
-	ret
-ENDPROC	genPushImmByteAL
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genPushImmLong
-;
-; While the general case looks like this 8-byte sequence:
-;
-;	MOV	AX,yyyy
-;	PUSH	AX
-;	MOV	AX,xxxx
-;	PUSH	AX
-;
-; if we determine that DX (yyyy) is a sign-extension of CX (xxxx),
-; we can generate this 6-byte sequence instead:
-;
-;	MOV	AX,xxxx
-;	CWD
-;	PUSH	DX
-;	PUSH	AX
-;
-; and if CX (xxxx) is zero, it can be simplified to a 4-byte sequence
-; (ie, genPushZeroLong):
-;
-;	XOR	AX,AX
-;	PUSH	AX
-;	PUSH	AX
-;
-; Inputs:
-;	DX:CX = value to push
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	AX, CX, DX, DI
-;
-DEFPROC	genPushImmLong
-	IFDEF MAXDEBUG
-	DPRINTF	'o',<"num %ld\r\n">,cx,dx
-	ENDIF
-	xchg	ax,dx			; AX has original DX
-	xchg	ax,cx			; AX contains CX, CX has original DX
-	cwd				; DX is 0 or FFFFh
-	cmp	dx,cx			; same as original DX?
-	xchg	cx,ax			; AX contains original DX, CX restored
-	xchg	dx,ax			; DX restored
-	jne	gpi7			; no, DX is not the same
-	jcxz	genPushZeroLong		; jump if we can zero AX as well
-	mov	al,OP_MOV_AX
-	stosb
-	xchg	ax,cx
-	stosw
-	mov	ax,OP_CWD OR (OP_PUSH_DX SHL 8)
-	stosw
-	jmp	short gpi8
-gpi7:	mov	al,OP_MOV_AX
-	stosb
-	xchg	ax,dx
-	stosw
-	mov	ax,OP_PUSH_AX OR (OP_MOV_AX SHL 8)
-	stosw
-	xchg	ax,cx
-	stosw
-gpi8:	mov	al,OP_PUSH_AX
-	stosb
-	ret
-ENDPROC	genPushImmLong
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genPushStr
-;
-; Copies the string at DS:SI with length CX into the code segment,
-; pushing the far address of that string and then "leaping" over the string.
-;
-; Inputs:
-;	DS:SI -> string (with length CX)
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	AX, CX DI
-;
-DEFPROC	genPushStr
-	mov	ax,OP_PUSH_CS OR (OP_CALL SHL 8)
-	stosw
-	mov	ax,cx
-	inc	ax			; +1 for length byte
-	stosw
-	mov	al,cl
-	stosb				; store the length byte
-	rep	movsb			; followed by all the characters
-	ret
-ENDPROC	genPushStr
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genPushZeroLong
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	AX, DI
-;
-DEFPROC	genPushZeroLong
-	mov	ax,OP_ZERO_AX
-	stosw
-	DEFLBL	genPushLong,near
-	mov	ax,OP_PUSH_AX OR (OP_PUSH_AX SHL 8)
-	stosw
-	ret
-ENDPROC	genPushZeroLong
 
 
 CODE	ENDS

@@ -11,7 +11,7 @@ Functions can be used in any expression, in BASIC programs or at the prompt (eg,
 - Numeric functions: [ABS](#abs), [ATN](#atn), [CDBL](#cdbl), [CINT](#cint), [COS](#cos), [CSNG](#cdbl), [EXP](#exp), [FIX](#fix), [INT](#int), [LOG](#log), [RND](#rnd), [RND%](#rnd-int), [SGN](#sgn), [SIN](#sin), [SQR](#sqr), [TAN](#tan)
 - String functions: [ASC](#asc), [CHR$](#chr), [HEX$](#hex), [INSTR](#instr), [LCASE$](#lcase), [LEFT$](#left), [LEN](#len), [MID$](#mid), [OCT$](#oct), [RIGHT$](#right), [SPACE$](#space), [SPC](#space), [STR$](#str), [STRING$](#string), [TAB](#tab), [UCASE$](#ucase), [VAL](#val)
 - File functions: [CVD](#cvi), [CVI](#cvi), [CVL](#cvi), [EOF](#eof), [EXISTS](#exists), [LOC](#loc), [LOF](#lof), [MKD$](#mki), [MKI$](#mki), [MKL$](#mki)
-- System functions: [ARG$](#arg), [CSRLIN](#csrlin), [CURDIR$](#curdir), [DATE$](#date), [ERL](#erl), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [MOUSE](#mouse), [PATH$](#path), [PEEK](#peek), [POS](#pos), [TIME$](#time)
+- System functions: [ARG$](#arg), [CSRLIN](#csrlin), [CURDIR$](#curdir), [DATE$](#date), [ERL](#erl), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [MOUSE](#mouse), [PATH$](#path), [PEEK](#peek), [POS](#pos), [SCREEN](#screen), [TIME$](#time)
 - Predefined constants: [ERRORLEVEL](#errorlevel), [MAXINT](#maxint)
 
 You can also define your own functions with [DEF](../def/).
@@ -341,6 +341,12 @@ Returns the byte at *offset* in the segment set by [DEF SEG](../#def-seg).  For 
 > POS(*n*)
 
 Returns the cursor's column, starting at 1 (*n* is ignored).
+
+#### SCREEN {#screen}
+
+> SCREEN(*row*,*col*[,*z*])
+
+Returns the character code at *row* and *col* (starting at 1), or if *z* is non-zero, its attributes (eg, `SCREEN(1,1,1)` returns 7 for a white-on-black character).  A position outside the console is an illegal function call.  For the SCREEN statement, see [SCREEN](../../device/screen/#screen).
 
 #### TIME$ {#time}
 

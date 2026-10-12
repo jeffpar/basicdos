@@ -110,6 +110,7 @@ SCB_PATHCHAR	db	?	; 30h: path char (fixed at boot)
 SCB_DIRCLN	dw	?	; 32h: directory (1st cluster) for FILENAME
 SCB_FILENAME	db    12 dup (?); 34h: buffer for drive # and filename
 SCB		ends		; 40h bytes
+
 SIG_SCB		equ	'S'
 
 SCSTAT_INIT	equ	01h	; set if SCB initialized
@@ -124,33 +125,6 @@ LOCK_SCB macro
 UNLOCK_SCB macro
 	jmp	scb_release
 	endm
-;
-; Memory Control Block (MCB)
-;
-MCB		struc
-MCB_SIG		db	?	; 00h: either MCBSIG_NEXT or MCBSIG_LAST
-MCB_OWNER	dw	?	; 01h: owner (PSP segment if > 8)
-MCB_PARAS	dw	?	; 03h: size of block in paragraphs
-MCB_TYPE	db	?	; 05h: one of MCBTYPE values
-MCB_RESERVED	dw	?	; 06h
-MCB_NAME	db	8 dup(?); 08h: name of process (zero if none)
-MCB		ends
-
-MCBSIG_NEXT	equ	4Dh	; 'M'
-MCBSIG_LAST	equ	5Ah	; 'Z'
-
-MCBOWNER_NONE	equ	0	; free memory block
-MCBOWNER_SYSTEM	equ	0008h	; owned by the system
-
-MCBTYPE_NONE	equ	0	; no specified block type
-MCBTYPE_CBLK	equ	'C'	; code block
-MCBTYPE_FBLK	equ	'F'	; function block
-MCBTYPE_VBLK	equ	'V'	; variable block
-MCBTYPE_SBLK	equ	'S'	; string block
-MCBTYPE_TBLK	equ	'T'	; text block
-;	(and 'A' for array blocks, which aren't defined here, to save space)
-;	(and 80h, MCBTYPE_HIGH in memory.asm, to allocate from the top)
-
 ;
 ; System File Block (SFB)
 ;
@@ -182,6 +156,7 @@ SFB_FCB		dd	?	; 2Ah: FCB address, if SFBF_FCB set
 SFB_DIRNUM	dw	?	; 2Eh: DIRENT # (files only)
 SFB_DIRCLN	dw	?	; 30h: directory (1st cluster) of DIRENT
 SFB		ends
+
 SIG_SFB		equ	'F'
 
 SFBF_FCB	equ	01h	; SFB opened for FCB (see fcb_open)
@@ -216,4 +191,5 @@ EXE_START_SEG	dw	?	; 16h: initial CS value
 EXE_OFFRELOC	dw	?	; 18h: offset of first relocation entry
 EXE_OVERLAY	dw	?	; 1Ah: 0 for main program
 EXEHDR		ends
+
 SIG_EXE		equ	5A4Dh	; "MZ"

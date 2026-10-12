@@ -53,7 +53,6 @@ CODE    SEGMENT
 ;	AX, DI, ES
 ;
 MIN_BLKSIZE	equ	512
-MEM_HIGH	equ	80h		; MCBTYPE_HIGH (see memory.asm)
 
 DEFPROC	allocBlock
 	push	cx
@@ -100,7 +99,7 @@ ab1:	mov	bx,cx
 	xchg	cx,ax
 	mov	ah,DOS_MEM_ALLOC
 	mov	al,[si].BDEF_SIG
-	or	al,MEM_HIGH		; allocate from the top of memory, so
+	or	al,MCBTYPE_HIGH		; allocate from the top of memory, so
 	int	21h			; that freed memory below stays contiguous
 	jnc	ab2
 	shr	cx,1			; try half the size
@@ -611,7 +610,7 @@ ENDPROC	freeAllText
 ;
 DEFPROC	freeCache
 	mov	si,ds:[PSP_HEAP]
-	mov	word ptr [si].DATA_STATE[2],0
+	mov	word ptr [si].DATA_STATE.DATA_SEG,0
 	lea	si,[si].CODE_CACHE
 	jmp	freeAllBlocks
 ENDPROC	freeCache
@@ -698,11 +697,11 @@ DEFPROC	runCode
 	jne	rcd1			; yes
 	jmp	genCode
 rcd1:	mov	[bx].GEN_FLAGS,al
-	mov	byte ptr [bx].GFX_DATA+6,0	; see gfxInit
+	mov	byte ptr [bx].GFX_DATA.GFX_MODE,0	; see gfxInit
 	mov	ax,[bx].TBLKDEF.BLK_NEXT
 	mov	[bx].LINE_PTR.SEG,ax	; (see keepCode)
 	sub	ax,ax
-	mov	[bx].DATA_STATE[2],ax	; start READ at the first DATA item
+	mov	[bx].DATA_STATE.DATA_SEG,ax	; start READ at the first DATA item
 	xchg	ax,[bx].CODE_CACHE
 	mov	[bx].CBLKDEF.BDEF_NEXT,ax; the code is running again
 	push	ax
@@ -1226,7 +1225,7 @@ ENDPROC	findVar
 ;
 DEFPROC	listVars
 	push	bx
-	call	lstKeep
+	call	listKeep
 	mov	ax,[bx].VBLKDEF.BDEF_NEXT
 lv0:	test	ax,ax
 	jnz	lv0a
@@ -1303,7 +1302,7 @@ ENDPROC	listVars
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; lstKeep
+; listKeep
 ;
 ; List strings stored in CMDHEAP that survive loads and variable resets.
 ; Each keepStr entry contains a buffer offset and a null-terminated name;
@@ -1318,7 +1317,7 @@ ENDPROC	listVars
 ; Modifies:
 ;	AX, CX, DX, SI, DI
 ;
-DEFPROC	lstKeep
+DEFPROC	listKeep
 	mov	si,offset keepStr
 lk0:	mov	di,cs:[si]
 	test	di,di
@@ -1336,13 +1335,12 @@ lk1:	cmp	byte ptr cs:[si],0
 	jne	lk1
 	jmp	lk0
 lk9:	ret
-ENDPROC	lstKeep
+ENDPROC	listKeep
 
 keepStr	label	word
 	dw	PATH_BUF
 	db	'PATH$',0
 	dw	0
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

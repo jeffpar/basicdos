@@ -29,6 +29,7 @@ DOS	segment word public 'CODE'
 	DEFWORD	mcb_head,0		; 06h: 1st memory paragraph
 	DEFWORD	mcb_limit,0		; 08h: 1st unavailable paragraph
 	DEFTBL	<bpb_table,sfb_table,scb_table,cdir_table>
+	DEFPTR	dev_head		; 1Ah: head of device driver list
 	DEFWORD	scb_active,0		; offset of active SCB (zero if none)
 	DEFWORD	key_boot,0		; records key pressed at boot, if any
 	EXTNEAR	scb_return

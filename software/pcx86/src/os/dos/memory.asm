@@ -18,7 +18,6 @@ DOS	segment word public 'CODE'
 	EXTBYTE	<scb_locked>
 	EXTWORD	<mcb_head,scb_active>
 
-MCBTYPE_HIGH	equ	80h		; DOS_MEM_ALLOC flag (see mcb_alloc)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

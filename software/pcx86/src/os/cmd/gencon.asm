@@ -22,6 +22,7 @@
 ; ES:DI -> code block.
 ;
 	include	cmd.inc
+	include	gen.inc
 	include	8086.inc
 
 CODE    SEGMENT

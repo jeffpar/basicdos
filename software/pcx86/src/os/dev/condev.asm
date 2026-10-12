@@ -34,6 +34,7 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	dw	ddcon_none,   ddcon_getdim, ddcon_getpos, ddcon_getlen	; D0-D3
 	dw	ddcon_movcur, ddcon_setins, ddcon_scroll, ddcon_getclr	; D4-D7
 	dw	ddcon_setclr, ddcon_setpos, ddcon_getmode,ddcon_setmode	; D8-DB
+	dw	ddcon_getchar						; DC
 	DEFABS	IOCTBL_SIZE,<($ - IOCTBL) SHR 1>
 
 	DEFLBL	CON_PARMS,word
@@ -65,6 +66,7 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 
 	DEFWORD	ct_head,0	; head of context chain
 	DEFWORD	ct_focus,0	; segment of context with focus
+	DEFWORD	mode_ctx,0	; context not in its original mode
 	DEFWORD	frame_seg,0	; frame buffer segment of PRIMARY adapter
 	DEFBYTE	max_rows,25	; TODO: use this for something...
 	DEFBYTE	max_cols,80	; TODO: set to correct value in ddcon_init
@@ -190,7 +192,26 @@ dio1:	mov	dx,es:[di].DDP_CONTEXT
 	mov	ds,dx
 	ASSUME	DS:NOTHING
 	cmp	bl,IOCTBL_SIZE		; table entry exist?
-	jb	dio3			; yes
+	jae	dio2			; no
+;
+; IOCTLs that draw on the screen (eg, a CLS or COLOR from another session)
+; must wait while the context is blocked (see chk_blocked).
+;
+	cmp	bl,IOCTL_SCROLL - (IOCTL_CON - 8)
+	je	dio1a
+	cmp	bl,IOCTL_SETCOLOR - (IOCTL_CON - 8)
+	je	dio1a
+	cmp	bl,IOCTL_SETMODE - (IOCTL_CON - 8)
+	jne	dio3
+dio1a:	mov	ax,ds
+	call	chk_blocked		; is another context blocking us?
+	jnc	dio3			; no
+	push	bx
+	call	add_packet		; yes, so wait (as ddcon_write does)
+	pop	bx
+	jnc	dio1a			; check again
+	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_WRFAULT
+	ret
 dio2:	mov	bl,8			; no, use entry for C0h (ddcon_none)
 dio3:	mov	bh,0
 	add	bx,bx
@@ -277,6 +298,59 @@ DEFPROC	ddcon_getpos
 	sub	dx,ds:[CT_CURMIN]	; make both row and col zero-based
 	ret
 ENDPROC	ddcon_getpos
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_getchar (IOCTL_GETCHAR)
+;
+; Returns the character and attributes at a position in the context (for the
+; SCREEN function).  A context using INT 10h passthrough (which includes every
+; graphics mode) reads them with INT 10h, whose graphics mode support matches
+; the pixels against the ROM font, and then restores the cursor.
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;	CL = col, CH = row (zero-based)
+;	DS = CONSOLE context
+;
+; Outputs:
+;	If carry clear, DL = character, DH = attributes; carry set if the
+;	position is outside the context
+;
+; Modifies:
+;	AX, BX, DX, DI, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_getchar
+	mov	dx,ds:[CT_CURMAX]
+	sub	dx,ds:[CT_CURMIN]	; DL, DH = max col, row (zero-based)
+	cmp	cl,dl
+	ja	dgr8
+	cmp	ch,dh
+	ja	dgr8
+	mov	dx,cx
+	add	dx,ds:[CT_CURMIN]	; DL, DH = col, row in the context
+	test	ds:[CT_STATUS],CTSTAT_INT10
+	jnz	dgr5
+	les	di,ds:[CT_SCREEN]	; ES:DI -> screen location
+	call	get_curpos		; BX = screen offset for (DL,DH)
+	mov	dx,es:[di+bx]		; DL = character, DH = attributes
+	clc
+	ret
+dgr5:	add	dx,ds:[CT_CONPOS]	; DL = screen col, DH = screen row
+	mov	bh,0			; BH = display page
+	mov	ah,VIDEO_SETCPOS
+	int	INT_VIDEO
+	mov	ah,08h			; AL = character, AH = attributes
+	int	INT_VIDEO		; (read char and attributes)
+	push	ax
+	call	draw_cursor		; restore the cursor
+	pop	dx
+	clc
+	ret
+dgr8:	stc
+	ret
+ENDPROC	ddcon_getchar
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -725,14 +799,19 @@ dcw1:	lodsb
 dcw2:	push	es
 	mov	es,dx
 dcw3:	test	es:[CT_STATUS],CTSTAT_PAUSED
-	jz	dcw4
+	jnz	dcw3a
+	push	ax
+	mov	ax,es
+	call	chk_blocked		; is another context blocking us?
+	pop	ax
+	jnc	dcw4			; no
 ;
-; For WRITE requests that cannot be satisfied, we add this packet to an
-; internal chain of "writing" packets, and then tell DOS that we're waiting;
-; DOS will suspend the current SCB until we notify DOS that this packet's
-; conditions are satisfied.
+; For WRITE requests that cannot be satisfied (because the context is paused
+; or blocked), we add this packet to an internal chain of "writing" packets,
+; and then tell DOS that we're waiting; DOS will suspend the current SCB until
+; we notify DOS that this packet's conditions are satisfied.
 ;
-	pop	es			; ES:DI -> packet again
+dcw3a:	pop	es			; ES:DI -> packet again
 	mov	es:[di].DDPRW_LENGTH,cx
 	mov	es:[di].DDPRW_ADDR.OFF,si
 	call	add_packet
@@ -1024,6 +1103,31 @@ DEFPROC	ddcon_close
 	mov	es,cx
 	dec	es:[CT_REFS]
 	jnz	dcc7
+;
+; If the context isn't in its original mode, then the other contexts on the
+; same adapter are blocked (see chk_blocked), so restore the context's original
+; mode and unblock them.
+;
+	cmp	[mode_ctx],cx
+	jne	dcc1
+	push	cx
+	push	di
+	push	ds
+	push	es
+	inc	[bios_lock]
+	mov	al,es:[CTO_MODE]
+	mov	ah,VIDEO_SETMODE
+	push	bp			; some BIOS functions trash BP
+	pushf
+	call	[video_int]
+	pop	bp
+	mov	ds,cx
+	call	release_mode
+	call	unlock_bios
+	pop	es
+	pop	ds
+	pop	di
+	pop	cx
 
 dcc1:	cmp	[ct_focus],cx
 	jne	dcc2
@@ -1584,6 +1688,8 @@ DEFPROC	draw_border
 	test	ds:[CT_STATUS],CTSTAT_BORDER
 	jz	db9
 	mov	ax,ds
+	call	chk_blocked		; is another context blocking us?
+	jc	db9			; yes, so leave the screen alone
 	mov	si,offset DBL_BORDER
 	cmp	ax,[ct_focus]
 	je	db1
@@ -2175,6 +2281,112 @@ ENDPROC	chk_graphics
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; chk_blocked
+;
+; While a context is in any mode other than its original mode (see
+; update_mode), every other context on the same adapter is blocked: its
+; output waits (see ddcon_write and ddcon_ioctl) and its border isn't drawn,
+; until that context returns to its original mode (see release_mode).
+;
+; Inputs:
+;	AX = CONSOLE context
+;
+; Outputs:
+;	Carry set if the context is blocked
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	chk_blocked
+	push	bx
+	push	ds
+	mov	bx,[mode_ctx]
+	test	bx,bx			; is any context blocking the others?
+	jz	cb9			; no (and carry is clear)
+	cmp	bx,ax			; is it this context?
+	je	cb9			; yes (and carry is clear)
+	mov	ds,bx
+	mov	bx,ds:[CT_PORT]
+	mov	ds,ax
+	cmp	bx,ds:[CT_PORT]		; is this context on the same adapter?
+	clc
+	jne	cb9			; no
+	stc				; yes, so it's blocked
+cb9:	pop	ds
+	pop	bx
+	ret
+ENDPROC	chk_blocked
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; release_mode
+;
+; Called when the context blocking the others (mode_ctx) returns to its
+; original mode (or is closed): the borders of the other contexts on the same
+; adapter are redrawn, and every waiting write (or IOCTL) can try again.
+;
+; Inputs:
+;	DS = CONSOLE context (mode_ctx)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	release_mode
+	mov	[mode_ctx],0
+	push	ds
+	mov	ax,ds:[CT_PORT]		; AX = adapter port
+	mov	cx,[ct_head]
+rg1:	jcxz	rg3
+	mov	ds,cx
+	cmp	ds:[CT_PORT],ax		; context on the same adapter?
+	jne	rg2			; no
+	push	ax
+	call	draw_border		; yes, redraw its border (if any)
+	pop	ax
+rg2:	mov	cx,ds:[CT_NEXT]
+	jmp	rg1
+rg3:	pop	ds
+;
+; Now end the wait for every waiting packet that isn't a READ packet (ie,
+; every blocked write or IOCTL); each one checks again whether it's blocked
+; (or paused), and if so, simply waits again.  Each packet is removed from
+; the chain before its wait is ended, so that it can safely be added again.
+;
+	push	ds
+	push	cs
+	pop	ds
+	mov	bx,offset wait_ptr	; DS:BX -> link to the first packet
+	cli
+rg4:	les	di,dword ptr [bx]	; ES:DI -> next packet
+	cmp	di,-1			; end of chain?
+	je	rg9			; yes
+	cmp	es:[di].DDP_CMD,DDC_READ; READ packet?
+	je	rg5			; yes, leave it alone
+	mov	ax,es:[di].DDP_PTR.OFF	; no, so unlink it
+	mov	[bx].OFF,ax
+	mov	ax,es:[di].DDP_PTR.SEG
+	mov	[bx].SEG,ax
+	mov	dx,es			; DX:DI -> packet (aka "wait ID")
+	mov	ah,DOS_UTL_ENDWAIT
+	call	far ptr DDINT_UTIL	; end the wait on DX:DI (see int_util)
+	cli
+	jmp	rg4			; (DS:BX still -> the same link)
+rg5:	push	es
+	pop	ds
+	lea	bx,[di].DDP_PTR		; DS:BX -> this packet's link
+	jmp	rg4
+rg9:	sti
+	pop	ds
+	ret
+ENDPROC	release_mode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; chk_context
 ;
 ; Verify that a context (eg, the active session's context returned by
@@ -2318,7 +2530,23 @@ um1:	mov	al,ds:[CT_STATUS]
 ; BIOS default).  Text modes keep the current colors, unless we're leaving a
 ; graphics mode, in which case the default colors are restored.
 ;
-	mov	ax,1003h
+; A context in any mode other than its original mode occupies the entire
+; screen (and the BIOS cleared it), so it also blocks every other context on
+; the same adapter (see chk_blocked), until it returns to its original mode
+; (see release_mode).
+;
+	mov	al,ds:[CT_MODE]
+	cmp	al,ds:[CTO_MODE]	; back to the original mode?
+	je	um6			; yes
+	mov	[mode_ctx],ds		; no, so block the other contexts
+	jmp	short um7
+um6:	mov	ax,ds
+	cmp	ax,[mode_ctx]		; was this context blocking the others?
+	jne	um7			; no
+	push	bx
+	call	release_mode		; yes, so unblock them
+	pop	bx
+um7:	mov	ax,1003h
 	call	chk_graphics		; new mode graphics?
 	jc	um8			; yes
 	sub	bl,4

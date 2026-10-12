@@ -413,6 +413,9 @@ Sets the screen mode: 0 (text), 1 (320x200 graphics), or 2 (640x200 graphics).
 A *burst* of 0 disables color in mode 0, and a *burst* of 1 disables color in mode 1.
 Changing the mode clears the screen and removes the session's border, if any.
 
+SCREEN(*row*,*col*[,*z*])
+Returns the character code at *row* and *col*, or its attributes if *z* is non-zero.
+
 SGN(*x*)
 Returns -1 if *x* is negative, 0 if *x* is zero, or 1 if *x* is positive.
 

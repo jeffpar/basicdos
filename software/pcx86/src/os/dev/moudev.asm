@@ -36,8 +36,6 @@ CODE	segment para public 'CODE'
 	public	MOUSE
 MOUSE	DDH	<offset DEV:ddmou_end+16,,DDATTR_CHAR,offset ddmou_init,-1,2020244553554F4Dh>
 
-INT_MOUSE	equ	33h	; mouse services
-MOUSE_EVENT	equ	0BDh	; BASIC-DOS: get the next button event
 MOUSE_MAXFN	equ	08h	; highest standard function supported
 
 VT_NONE		equ	0	; unsupported video mode (no pointer)

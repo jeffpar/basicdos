@@ -8,7 +8,8 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 ; Generates code for these statements, whose runtime functions are in sys.asm
-; (except for raiseError, which is in flow.asm):
+; (except for PLAY and SOUND, which are in snd.asm, and raiseError, which is in
+; flow.asm):
 ;
 ;	CHAIN				(genChain)
 ;	DEF SEG				(genDef and genDefSeg)
@@ -25,6 +26,7 @@
 ; ES:DI -> code block.
 ;
 	include	cmd.inc
+	include	gen.inc
 	include	8086.inc
 
 CODE    SEGMENT
