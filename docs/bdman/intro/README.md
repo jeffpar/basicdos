@@ -22,7 +22,7 @@ Press any key to start BASIC-DOS, or press **Esc** to boot from the hard disk in
 
 	A:/>
 
-Use `MEM` to see memory usage and floating-point support.  If the FPU$ driver is loaded, a line after total memory shows its size in bytes and either **FPU emulation** (software) or **FPU library** (8087 hardware support).  If no driver is loaded, that line is omitted and numeric variables default to integers (see [SKIP=](../cfg/#skip)).
+Use `MEM` to see memory usage, and `MEM -D` to see every memory block, including the FPU$ driver (if it's loaded; without it, numeric variables default to integers; see [SKIP=](../cfg/#skip)).
 
 The `A:/>` is the BASIC-DOS prompt.  The prompt displays the default drive and its current directory (`/` is the root directory; see [CD](../cmd/disk/#cd)), and indicates that BASIC-DOS is ready to accept [commands](../cmd/) from the keyboard.
 
@@ -94,13 +94,13 @@ For example, if a disk contains both DONKEY.COM and DONKEY.BAS, typing `DONKEY` 
 If the program isn't in the current directory, and its name doesn't include a drive or directory, BASIC-DOS searches the directories listed in [PATH$](../cmd/basic/func/#path), in order.  Every BASIC-DOS disk has the same layout:
 
 - The root directory contains BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, AUTOEXEC.BAT (if any), and HELP.TXT
-- **BASIC** contains BASIC samples (eg, PRIMES.BAS)
-- **TOOLS** contains the BASIC-DOS utilities (eg, [FIND, MORE, and SORT](../cmd/external/#filters))
-- **TESTS** contains test programs and other programs for demonstration purposes (eg, MSBASIC.EXE and SYMDEB.EXE)
+- **BIN** contains the BASIC-DOS utilities (eg, [FIND, MORE, and SORT](../cmd/external/#filters))
+- **SAMPLES** contains the PC DOS BASIC samples (eg, DONKEY.BAS), on disks that include them
+- **TESTS** contains test programs and other programs for demonstration purposes (eg, PRIMES.BAS, MSBASIC.EXE, and SYMDEB.EXE)
 
-and its CONFIG.SYS sets PATH$ to the root, BASIC, TOOLS, and TESTS (eg, `A:/;A:/BASIC;A:/TOOLS;A:/TESTS`), so you can type `PRIMES` or `DIR | SORT` from any directory.  Programs in TESTS can also be run by name (eg, `MSBASIC`).
+and its CONFIG.SYS sets PATH$ to the root, BIN, SAMPLES, and TESTS (eg, `A:/;A:/BIN;A:/SAMPLES;A:/TESTS`), so you can type `PRIMES` or `DIR | SORT` from any directory.  Programs in TESTS can also be run by name (eg, `MSBASIC`).
 
-The [hard disk demo](/demos/hd/) uses a larger layout instead, with **BIN** (the utilities), **SAMPLES** (the BASIC samples), **SRC** (the BASIC-DOS source code), **TESTS**, and **TOOLS** (MASM and the other build tools) directories.
+The [hard disk demo](/demos/hd/) adds two more directories: **SRC** (the BASIC-DOS source code) and **TOOLS** (MASM and the other build tools).
 
 Use `LIST VARS` to inspect the current session's variable values and array dimensions; see [LIST](../cmd/system/#list).
 

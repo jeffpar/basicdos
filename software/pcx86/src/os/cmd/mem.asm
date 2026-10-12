@@ -13,8 +13,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<printCRLF,transParas>
-	EXTSTR	<SYS_MEM,DOS_MEM,FREE_MEM,BLK_NAMES,FPU_EMU,FPU_LIB>
-	EXTBYTE	<FPU_TYPE>
+	EXTSTR	<SYS_MEM,DOS_MEM,FREE_MEM,BLK_NAMES>
 	EXTABS	<BLK_WORDS>
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
@@ -26,9 +25,7 @@ CODE    SEGMENT
 ; Prints memory usage: the total memory, the free memory available for an
 ; EXEC (which includes COMMAND's transient portion, if it can be discarded;
 ; see transParas), and the free memory available for BASIC programs.  Use /D
-; to display memory blocks.  The summary also shows FPU$ driver memory
-; and whether it provides emulation or a hardware library.  In DEBUG builds,
-; /F also displays open files, /S
+; to display memory blocks; in DEBUG builds, /F also displays open files, /S
 ; active sessions, and /L repeats the display.
 ;
 ; Inputs:
@@ -43,14 +40,12 @@ CODE    SEGMENT
 DEFPROC	cmdMem
 	LOCVAR	memFree,word	; free paras
 	LOCVAR	memLimit,word	; max available paras
-	LOCVAR	fpuSize,word	; resident FPU$ driver paras
 	ENTER
 ;
 ; Before we get into memory blocks, show the amount of memory reserved
 ; for the BIOS and disk buffers.
 ;
-mem0:	mov	[fpuSize],0
-	sub	di,di
+mem0:	sub	di,di
 	mov	es,di
 	les	di,es:[50Ah]		; ES:DI = DD_LIST (see bios.inc)
 
@@ -77,12 +72,7 @@ mem2:	cmp	di,-1
 	mov	bx,es
 	mov	ax,es:[di].DDH_NEXT_SEG
 	sub	ax,bx		; AX = # paras
-	cmp	word ptr es:[di].DDH_NAME,'PF'
-	jne	mem2a
-	cmp	word ptr es:[di].DDH_NAME+2,'$U'
-	jne	mem2a
-	mov	[fpuSize],ax
-mem2a:	push	di
+	push	di
 	lea	di,[di].DDH_NAME
 	call	printKB		; BX = seg, AX = # paras, ES:DI -> name
 	pop	di
@@ -187,16 +177,7 @@ mem23:	add	di,size SCB
 mem30:	mov	ax,[memLimit]
 	call	toBytes		; DX:AX = total memory (in bytes)
 	PRINTF	<"%8ld bytes",13,10>,ax,dx
-	mov	ax,[fpuSize]
-	test	ax,ax
-	jz	mem30b		; no FPU$ driver loaded
-	call	toBytes
-	mov	si,offset FPU_EMU
-	cmp	cs:[FPU_TYPE],0	; FPUTYPE_NONE means emulation
-	je	mem30a
-	mov	si,offset FPU_LIB
-mem30a:	PRINTF	<"%8ld bytes FPU %ls",13,10>,ax,dx,si,cs
-mem30b:	call	transParas	; AX = paras of COMMAND's transient
+	call	transParas	; AX = paras of COMMAND's transient
 	test	ax,ax		; can it be discarded?
 	jz	mem31		; no, so EXEC and BASIC have the same amount
 	add	ax,[memFree]	; AX = free memory for EXEC (paras)

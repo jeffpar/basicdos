@@ -16,9 +16,9 @@ The machine below is an IBM PC XT with 640K of memory and no diskettes loaded; i
 The hard disk has the system files, CONFIG.SYS and HELP.TXT in the root directory, along with these subdirectories:
 
 - **BIN** contains the BASIC-DOS utilities (eg, FIND, MORE, and SORT)
-- **SAMPLES** contains DONKEY.BAS and the other BASIC samples (along with MBROT.BAS and PRIMES.BAS)
+- **SAMPLES** contains DONKEY.BAS and the other PC DOS BASIC samples
 - **SRC** contains the BASIC-DOS source code (type `CD \SRC` and then `MK` to build it)
-- **TESTS** contains HELLO.BAT, BENCH.BAS, STRESS.BAT, and MSBASIC.EXE
+- **TESTS** contains HELLO.BAT, BENCH.BAS, MBROT.BAS, PRIMES.BAS, PRIMES.BAT, STRESS.BAT, and MSBASIC.EXE
 - **TOOLS** contains MASM, LINK, MAKE, EXE2BIN, and the other build tools from the MS-DOS 3.20 hard disk used to build BASIC-DOS
 
 CONFIG.SYS sets PATH$ to `C:\;C:\BIN;C:\SAMPLES;C:\TESTS;C:\TOOLS`, so programs in those directories can be run from anywhere.  The first session's SHELL line runs `HELLO.BAT` to display the BASIC-DOS version and a colorful greeting.

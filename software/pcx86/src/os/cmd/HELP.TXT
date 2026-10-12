@@ -48,8 +48,8 @@ CLS
 Clears the session using the background color and moves the cursor to the top left corner.
 
 COLOR [*foreground*][,[*background*][,*border*]]
-Sets the foreground (0-15), background (0-15), and border (0-255) colors of the session.
-For blinking colors, use 16-31 for *foreground*, 8-15 for *background*, and 128-255 for *border*.
+Sets the foreground (0-15), background (0-7), and border (0-255) colors of the session.
+For blinking colors, use 16-31 for *foreground* and 128-255 for *border*; as in MSBASIC, a *background* of 8-15 is the same as 0-7.
 In SCREEN 1, the values are the background color (0-15) and palette (0 or 1) instead.
 
 COPY *input* [*output*]
@@ -271,7 +271,6 @@ Creates a new directory.  MKDIR is the same as MD.
 
 MEM [~D]
 Displays the total memory, the memory free for running programs (EXEC), and the memory free for BASIC programs, which excludes the part of the command processor that's set aside while running a program (when it can't be set aside, as when more than one session is running, a single "bytes free" value is displayed).
-After total memory, MEM displays the FPU$ driver size as bytes FPU emulation or bytes FPU library; the line is omitted if no driver was loaded.
 ~D also displays every memory block.  In DEBUG builds, ~F displays open files, and ~S displays active sessions.  Use MEM ~D | MORE to page the listing.
 
 MID$(*string*,*start*[,*n*])
@@ -326,7 +325,7 @@ PAINT (*x*,*y*)[,[*paint*][,*border*]]
 Fills the area around *x*,*y* with the *paint* color, up to the *border* color (which defaults to the *paint* color).
 
 PATH$ [= *string*]
-Returns (or sets) the directories, separated by semicolons, that are searched for a program that isn't in the current directory (eg, PATH$ = "A:\;A:\BASIC;A:\TOOLS").  A program name that includes a drive or directory isn't searched for.  PATH$ keeps its value when variables are cleared (eg, by NEW or CLEAR); CONFIG.SYS usually sets it on the SHELL line.
+Returns (or sets) the directories, separated by semicolons, that are searched for a program that isn't in the current directory (eg, PATH$ = "A:\;A:\BIN;A:\SAMPLES").  A program name that includes a drive or directory isn't searched for.  PATH$ keeps its value when variables are cleared (eg, by NEW or CLEAR); CONFIG.SYS usually sets it on the SHELL line.
 
 PEEK(*offset*)
 Returns the byte at *offset* in the segment set by DEF SEG.

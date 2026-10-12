@@ -668,9 +668,10 @@ ENDPROC	writeStrCRLF
 ;
 ; Used by "COLOR [fgnd][,[bgnd][,border]]"
 ;
-; As in MSBASIC, a foreground of 16-31 is a blinking foreground of 0-15.
-; In graphics modes, the CON driver treats fgnd as the background color and
-; bgnd as the palette.
+; As in MSBASIC, a foreground of 16-31 is a blinking foreground of 0-15,
+; and in text modes, a background of 8-15 is the same as 0-7 (it never makes
+; the foreground blink).  In graphics modes, the CON driver treats fgnd as
+; the background color and bgnd as the palette.
 ;
 ; Inputs:
 ;	N numeric expressions pushed on stack (only 1st 3 are processed)
@@ -697,14 +698,15 @@ sc1:	pop	ax			; AX = border
 sc2:	pop	ax			; AX = bgnd
 	test	ax,ax
 	js	sc3
-	mov	cl,4
+	and	al,07h			; as in MSBASIC, a bgnd of 8-15 is 0-7
+	mov	cl,4			; (only fgnd can set the blink bit)
 	shl	al,cl
-	and	dl,0Fh
+	and	dl,8Fh
 	or	dl,al
 sc3:	pop	ax			; AX = fgnd
 	test	ax,ax
 	js	sc5
-	and	dl,0F0h
+	and	dl,70h			; clear the old fgnd and blink bit
 	test	al,10h			; blinking foreground?
 	jz	sc4			; no
 	or	dl,80h			; yes

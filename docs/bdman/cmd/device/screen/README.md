@@ -30,7 +30,7 @@ Clears the console using the background color and moves the cursor to the top le
 
 > COLOR [*foreground*][,[*background*][,*border*]]
 
-Sets the foreground (0-15), background (0-15), and border (0-255) colors of the console.  For blinking colors, use 16-31 for *foreground*, 8-15 for *background*, and 128-255 for *border*.  Omitted values are unchanged (eg, `COLOR ,1`).
+Sets the foreground (0-15), background (0-7), and border (0-255) colors of the console.  For blinking colors, use 16-31 for *foreground* and 128-255 for *border*; as in MSBASIC, a *background* of 8-15 is the same as 0-7 (it doesn't make the foreground blink).  Omitted values are unchanged (eg, `COLOR ,1`).
 
 In SCREEN 1, the values are the background color (0-15) and palette (0 or 1) instead.
 

@@ -5,7 +5,7 @@ permalink: /preview/part5/
 machines:
   - id: ibm5150-4
     type: pcx86
-    config: /machines/pcx86/ibm/ibm-5150-dual-256kb.json
+    config: /machines/pcx86/ibm/ibm-5160-dual-640kb.json
     debugger: /demos/dual/debugger
     autoMount:
       A: "BASICDOS-DISK4"
@@ -14,11 +14,11 @@ machines:
 
 ### Part 5: Were Dual Monitors Ever This Cool?
 
-Foreground sessions are even more useful on Dual Monitor systems, like the one below, because each session has exclusive access to an entire screen.
-
-Use SHIFT-TAB to switch to the Color Display, press SPACE to start `DONKEY`, and appreciate how well an IBM PC could actually run two programs simultaneously.
+The machine below is an IBM PC XT with 640K of memory and two monitors: a Monochrome Display and a Color Display.  It boots the `BASICDOS-DISK4` diskette, but since the machine also has the BASIC-DOS hard disk (drive C:), the boot sector first displays `Press a key to start...` on the Monochrome Display; press any key to boot from the diskette.  BASIC-DOS then runs one session on each monitor: **PRIMES.BAT** on the Monochrome Display, and `DONKEY` on the Color Display.  Use SHIFT-TAB to switch to the Color Display, press SPACE to start `DONKEY`, and appreciate how well an IBM PC could actually run two programs simultaneously.
 
 {% include machine.html id="ibm5150-4" %}
+
+Foreground sessions are even more useful on Dual Monitor systems, like the one above, because each session has exclusive access to an entire screen.
 
 There's also a "[Dueling Monitors](../../demos/dual/multi/)" demo featuring FOUR active sessions (two per monitor).  This may be pushing the IBM PC a bit too far, but any session that's waiting for input has no impact on performance.
 

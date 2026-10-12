@@ -23,7 +23,7 @@ File names follow PC DOS conventions: an optional drive letter and colon (eg, `B
 
 A file name can also be preceded by a path of directory names, each followed by the path character (`/` by default, or `\` when [PATHCHAR](../../cfg/#pathchar) is `\`).  A path that begins with the path character starts at the root directory (eg, `TYPE /SUBDIR/INSIDE.TXT`); otherwise, it starts at the drive's current directory (see [CD](#cd)), which the prompt displays (eg, `C:/SUBDIR>`).  A directory name of `.` refers to the same directory, and `..` refers to the parent directory (eg, `TYPE ../HELLO.TXT`).  Each session has its own current directory for every drive.
 
-DOS commands and external programs can use paths at the prompt and in BAT or BAS files (eg, `DIR /TOOLS` or `/TOOLS/SLEEP 1`), including after a colon that separates commands.  In BASIC file statements such as OPEN, supply a path as a quoted string or string variable.
+DOS commands and external programs can use paths at the prompt and in BAT or BAS files (eg, `DIR /BIN` or `/BIN/SLEEP 1`), including after a colon that separates commands.  In BASIC file statements such as OPEN, supply a path as a quoted string or string variable.
 
 Device names (eg, CON, PRN, AUX, COM1, LPT1, and NUL) can be used in place of file names (eg, `COPY TEST.TXT NUL` or `DIR > NUL`).
 

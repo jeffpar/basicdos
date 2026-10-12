@@ -29,7 +29,6 @@ CODE    SEGMENT
 	EXTWORD	<KEYWORD_TOKENS>
 	EXTSTR	<COM_EXT,EXE_EXT,BAS_EXT,BAT_EXT,DIR_DEF>
 	EXTSTR	<VER_FINAL,VER_DEBUG,FPU_NAME>
-	EXTBYTE	<FPU_TYPE>
 	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -96,8 +95,7 @@ m0:	mov	bx,ds:[PSP_HEAP]
 	int	21h
 ;
 ; Get the address of the FPU$ driver's function table (FPUTBL), which the
-; code generator uses for all floating-point operations, along with the FPU
-; type, which MEM uses to report emulation or hardware library memory.
+; code generator uses for all floating-point operations.
 ; If there's no FPU$ driver, FPU_TABLE remains zero, which also disables
 ; doubles (see getNextToken and genExpr).
 ;
@@ -110,7 +108,6 @@ m0:	mov	bx,ds:[PSP_HEAP]
 	mov	si,offset FPU_TABLE	; DS:SI -> FPU_TABLE
 	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_GETFPU
 	int	21h			; DH = FPU type
-	mov	cs:[FPU_TYPE],dh
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
 m0a:	pop	bx

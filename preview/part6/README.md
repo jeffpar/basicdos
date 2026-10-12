@@ -12,6 +12,10 @@ machines:
 
 ### Part 6: Performance
 
+The machine below boots the `BASICDOS-DISK6` diskette, which includes BENCH.BAS, the benchmarks discussed on this page.  Type `BENCH` to run the benchmarks with BASIC-DOS, or `MSBASIC BENCH` to run them with GW-BASIC (type `SYSTEM` to return to BASIC-DOS afterward).  The full set of tests takes a few minutes, and each result is displayed as it completes.
+
+{% include machine.html id="ibm5150" %}
+
 How does BASIC-DOS compare with the BASIC interpreters that IBM PC users actually had?  To find out, we wrote a set of benchmarks, [BENCH.BAS]({{ site.github.repository_url }}/blob/master/software/pcx86/src/tests/misc/BENCH.BAS), that runs unchanged in all three environments:
 
   - **BASICA**: IBM Advanced BASIC A2.00 from PC DOS 2.00, running with the IBM PC's ROM BASIC
@@ -51,11 +55,5 @@ Each test was run on a 4.77Mhz IBM PC XT with a Color Graphics Adapter, both wit
 For programs that do most of their work with integers, which includes most games, utilities, and of course PRIMES, BASIC-DOS is typically 5 to 11 times faster than BASICA and GW-BASIC.
 
 BASICA and GW-BASIC are also unable to use an 8087, because internally, they use a floating-point format known as MBF (Microsoft Binary Format).  BASIC-DOS performs all floating-point operations using IEEE 64-bit precision, automatically using an 8087 when one is installed and software emulation otherwise.
-
-### Try It Yourself
-
-The machine below boots the `BASICDOS-DISK6` diskette, which includes BENCH.BAS. Type `BENCH` to run the benchmarks with BASIC-DOS, or `MSBASIC BENCH` to run them with GW-BASIC (type `SYSTEM` to return to BASIC-DOS afterward).  The full set of tests takes a few minutes, and each result is displayed as it completes.
-
-{% include machine.html id="ibm5150" %}
 
 That's the end of the current preview.  All the demos featured in the preview are also available in our set of [Demo Configurations](/demos/).

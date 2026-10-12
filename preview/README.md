@@ -10,6 +10,10 @@ machines:
     autoType: DATE\rTIME\rDIR\r
 ---
 
+The machine below is an IBM PC (Model 5150) with two floppy disk drives, a Color Graphics Adapter (CGA) connected to a Color Monitor, and 128K of RAM.  It boots the BASIC-DOS diskette in drive A: (`BASICDOS-DISK1`), and then runs the `DATE`, `TIME`, and `DIR` commands.
+
+{% include machine.html id="ibm5150" %}
+
 This is a preview of a perpetually unfinished product.
 
 BASIC-DOS development started in 2020 with the goal of an initial roll-out by August 12, 2021, just in time for the 40th anniversary of the IBM PC.  And a "preview release" of BASIC-DOS was completed by then, so in terms of demonstrating the potential of BASIC-DOS, that goal was more or less achieved.  However, it also demonstrated the limits of what a single person, building a product from scratch one assembly-language instruction at a time, could realistically hope to accomplish.
@@ -31,11 +35,7 @@ This means that many of the limitations discussed in these preview pages have no
 
 This is a "sneak peek" at BASIC-DOS, the first version of DOS that *could* have been created for the IBM PC, with the benefit of more time and [incredible foresight](/blog/).
 
-The machine shown below is an IBM PC (Model 5150) with two floppy disk drives and a Color Graphics Adapter (CGA) connected to a Color Monitor, with 128K of RAM.
-
-A BASIC-DOS boot diskette (`BASICDOS-DISK1`) has been loaded into drive A:.  The boot sector loads **IBMBIO.COM** into memory, which in turn loads **CONFIG.SYS** and **IBMDOS.COM**.  Like PC DOS, IBMBIO contains all the BASIC-DOS device drivers and IBMDOS contains all the Disk Operating System services. Finally, IBMDOS loads **COMMAND.COM** into memory, which provides the initial **A&gt;** command prompt.
-
-{% include machine.html id="ibm5150" %}
+The boot sector of the BASIC-DOS diskette loads **BASDEV.COM** into memory, which in turn loads **CONFIG.SYS** and **BASDOS.COM**.  Like IBMBIO.COM and IBMDOS.COM in PC DOS, BASDEV contains all the BASIC-DOS device drivers and BASDOS contains all the Disk Operating System services.  Finally, BASDOS loads **COMMAND.COM** into memory, which provides the initial command prompt.
 
 All files are original BASIC-DOS production and test files, with the exception of **SYMDEB** (Microsoft's Symbolic Debug Utility v4.00) and **MSBASIC.EXE**, which was built from Microsoft's [GW-BASIC](https://github.com/microsoft/GW-BASIC) open-source files, with a little help from [OS/2 Museum](http://www.os2museum.com/wp/well-hello/). These two files are used for early testing and debugging only, and they will not be distributed with the finished BASIC-DOS product.
 

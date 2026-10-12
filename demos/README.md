@@ -9,6 +9,10 @@ machines:
     debugger: available
 ---
 
+The machine below is the single-session demo: an IBM PC that boots the `BASICDOS-DISK1` diskette and runs one 80-column session.
+
+{% include machine.html id="ibm5150" %}
+
 There are currently eight BASIC-DOS demo configurations:
 
  1. [Single 25x80 session](s80/)
@@ -20,6 +24,4 @@ There are currently eight BASIC-DOS demo configurations:
  7. [BASIC-DOS on a Hard Disk](hd/)
  8. [BASIC-DOS drawing the Mandelbrot set](mbrot/)
 
-The machine below is the single-session demo.  In the demos with multiple sessions, use **SHIFT-TAB** to toggle keyboard focus between sessions.
-
-{% include machine.html id="ibm5150" %}
+In the demos with multiple sessions, use **SHIFT-TAB** to toggle keyboard focus between sessions.

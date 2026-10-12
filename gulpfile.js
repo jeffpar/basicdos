@@ -55,13 +55,13 @@ function checkOutput(task, outputFile)
 
 /*
  * Every BASIC-DOS disk has the same layout: the system files (BASDEV.COM, BASDOS.COM, and COMMAND.COM), CONFIG.SYS,
- * AUTOEXEC.BAT (when launched by a SHELL line), and HELP.TXT in the root, followed by a BASIC folder (BASIC
- * samples), a TOOLS folder (utilities in os/util), and a TESTS folder (other demo and test programs, eg, MSBASIC
- * and SYMDEB).
- * CONFIG.SYS sets PATH$ on each SHELL line (eg, SHELL=COMMAND.COM LET PATH$="A:/;A:/BASIC;A:/TOOLS;A:/TESTS").
+ * AUTOEXEC.BAT (when launched by a SHELL line), and HELP.TXT in the root, followed by a BIN folder (utilities in
+ * os/util), a SAMPLES folder (the PC DOS 1.00 BASIC samples, on disks that include them), and a TESTS folder (other
+ * demo and test programs, eg, PRIMES, MBROT, MSBASIC, and SYMDEB).
+ * CONFIG.SYS sets PATH$ on each SHELL line (eg, SHELL=COMMAND.COM LET PATH$="A:/;A:/BIN;A:/SAMPLES;A:/TESTS").
  *
- * Each disk below lists its CONFIG.SYS, its AUTOEXEC.BAT (if any), and the files for its BASIC and TESTS folders;
- * every disk gets the same root files and TOOLS folder.  A hard disk image (a demo with no diskettes) is marked "hd",
+ * Each disk below lists its CONFIG.SYS, its AUTOEXEC.BAT (if any), and the files for its SAMPLES (if any) and TESTS folders;
+ * every disk gets the same root files and BIN folder.  A hard disk image (a demo with no diskettes) is marked "hd",
  * and pc.js builds it (with --sys=bd:2, so it's bootable, and pc.js adds the system files and HELP.TXT itself).
  *
  * A disk can list its own "folders" instead (see BASICDOS-HD), where each folder is either a list of files, a
@@ -73,10 +73,11 @@ const sysFiles = [ SRC + "/os/dev/obj/BASDEV.COM", SRC + "/os/dos/obj/BASDOS.COM
 const helpFile = SRC + "/os/cmd/HELP.TXT";
 const toolFiles = [ SRC + "/os/util/obj/*.COM" ];
 const primesFiles = [ SRC + "/tests/primes/PRIMES.BAS", SRC + "/tests/primes/PRIMES.BAT" ];
-const sampleFiles = [ "./demos/basic/*.BAS", "./demos/mbrot/MBROT.BAS" ].concat(primesFiles);
+const sampleFiles = [ "./demos/basic/*.BAS" ];      // the PC DOS 1.00 BASIC samples (and nothing else)
+const mbrotFile = "./demos/mbrot/MBROT.BAS";
 const helloFile = SRC + "/tests/misc/HELLO.BAT";
 const extraFiles = [ SRC + "/tests/misc/SYMDEB.EXE", SRC + "/msb/obj/*.EXE" ];
-const testFiles = [ SRC + "/tests/bin/*.EXE", SRC + "/tests/bin/*.COM", SRC + "/tests/misc/BD*.BAT", helloFile ].concat(extraFiles);
+const testFiles = [ SRC + "/tests/bin/*.EXE", SRC + "/tests/bin/*.COM", SRC + "/tests/misc/BD*.BAT", helloFile ].concat(primesFiles, extraFiles);
 /**
  * diskFiles(diskName, fileSpecs)
  *
@@ -100,38 +101,32 @@ function diskFiles(diskName, fileSpecs)
 let disks = {
     "BASICDOS": {
         config: "./demos/s80/CONFIG.SYS",
-        BASIC: primesFiles,
-        TESTS: [ helloFile ].concat(extraFiles)
+        TESTS: [ helloFile ].concat(primesFiles, extraFiles)
     },
     "BASICDOS-DISK1": {
         config: "./demos/s80/CONFIG.SYS",
-        BASIC: primesFiles,
         TESTS: testFiles
     },
     "BASICDOS-DISK2": {
         config: "./demos/d40/CONFIG.SYS",
-        BASIC: primesFiles,
         TESTS: testFiles
     },
     "BASICDOS-DISK3": {
         config: "./demos/d80/CONFIG.SYS",
-        BASIC: primesFiles,
         TESTS: testFiles
     },
     "BASICDOS-DISK4": {
         config: "./demos/dual/CONFIG.SYS",
-        BASIC: primesFiles,
         TESTS: testFiles
     },
     "BASICDOS-DISK5": {
         config: "./demos/dual/multi/CONFIG.SYS",
-        BASIC: primesFiles,
         TESTS: testFiles
     },
     "BASICDOS-DISK6": {
         config: "./demos/s80/CONFIG.SYS",
-        BASIC: sampleFiles,             // DONKEY.BAS and the other PC DOS 1.00 BASIC samples
-        TESTS: [ SRC + "/tests/misc/BENCH.BAS", helloFile ].concat(extraFiles)
+        SAMPLES: sampleFiles,             // DONKEY.BAS and the other PC DOS 1.00 BASIC samples
+        TESTS: [ SRC + "/tests/misc/BENCH.BAS", helloFile, mbrotFile ].concat(primesFiles, extraFiles)
     },
     "BASICDOS-HD": {
         hd: true,
@@ -140,7 +135,7 @@ let disks = {
             BIN: toolFiles,
             SAMPLES: sampleFiles,
             SRC: SRC + "/os",           // the BASIC-DOS source (with an MK.BAT that builds it on BASIC-DOS)
-            TESTS: [ helloFile, SRC + "/tests/misc/BENCH.BAS", SRC + "/tests/misc/STRESS.BAT", SRC + "/msb/obj/MSBASIC.EXE" ],
+            TESTS: [ helloFile, SRC + "/tests/misc/BENCH.BAS", SRC + "/tests/misc/STRESS.BAT", mbrotFile ].concat(primesFiles, [ SRC + "/msb/obj/MSBASIC.EXE" ]),
             //
             // The build tools come from the MS-DOS 3.20 build disk (with MAKE 4.02 from C4BIN replacing MASM4's
             // MAKE 4.00), except for EXE2BIN: MS-DOS 3.20's requires DOS 3.20, but PC DOS 2.00's requires only
@@ -185,7 +180,7 @@ function stageDisk(diskName)
         /^SHELL=/i.test(line) && /\bAUTOEXEC(?:\.BAT)?\b/i.test(line));
     if (disk.autoexec && launchesAutoexec) copyFiles([disk.autoexec], dirStage, "AUTOEXEC.BAT");
     if (!disk.hd) copyFiles([helpFile], dirStage);
-    let folders = disk.folders || { BASIC: disk.BASIC || [], TOOLS: toolFiles, TESTS: disk.TESTS || [] };
+    let folders = disk.folders || { BIN: toolFiles, SAMPLES: disk.SAMPLES || [], TESTS: disk.TESTS || [] };
     for (let folder in folders) {
         let files = folders[folder];
         if (typeof files == "function") files = files();

@@ -35,7 +35,7 @@ In the root directory:
 - [COMMAND.COM](command/): the BASIC-DOS Command Processor
 - HELP.TXT: the text displayed by the [HELP](../system/#help) command
 
-In the **TOOLS** directory (see [Running Programs](../../intro/#running-programs) for the layout of a BASIC-DOS disk):
+In the **BIN** directory (see [Running Programs](../../intro/#running-programs) for the layout of a BASIC-DOS disk):
 
 - CASE.COM, FIND.COM, MORE.COM, and SORT.COM: filters (see below)
 - SLEEP.COM: waits the specified number of seconds (eg, `SLEEP 5`); CTRL-C stops it early

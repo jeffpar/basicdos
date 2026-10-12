@@ -114,7 +114,7 @@ Specifies the program to run in the next session, along with any startup command
 
 BASIC-DOS doesn't automatically run an AUTOEXEC.BAT file, so a session's startup commands must be specified on its SHELL line, separated by colons.  Every BASIC-DOS disk's CONFIG.SYS also sets [PATH$](../cmd/basic/func/#path) on each SHELL line, so that every session can find the programs in the BASIC, TOOLS, and TESTS directories:
 
-	SHELL=COMMAND.COM LET PATH$="A:/;A:/BASIC;A:/TOOLS;A:/TESTS":COLOR 7,1:AUTOEXEC.BAT
+	SHELL=COMMAND.COM LET PATH$="A:/;A:/BIN;A:/SAMPLES;A:/TESTS":COLOR 7,1:AUTOEXEC.BAT
 
 Use LET when setting PATH$ on a SHELL line (or at the prompt), since without it, `PATH$="..."` (with no spaces) is taken as the name of a program to run.
 
@@ -130,7 +130,7 @@ For example, a configuration that uses a serial console doesn't need the CON dri
 
 > PATHCHAR=*char*
 
-Changes the character that separates directory names in paths from `/` (the default) to `\` (eg, `PATHCHAR=\`, so that `CD \TOOLS` is used instead of `CD /TOOLS`, as in PC DOS).  Only `/` and `\` are allowed; any other character is ignored.  Only one path character is recognized, and it remains fixed after boot.
+Changes the character that separates directory names in paths from `/` (the default) to `\` (eg, `PATHCHAR=\`, so that `CD \BIN` is used instead of `CD /BIN`, as in PC DOS).  Only `/` and `\` are allowed; any other character is ignored.  Only one path character is recognized, and it remains fixed after boot.
 
 ### SWITCHAR
 

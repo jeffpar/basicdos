@@ -6,20 +6,18 @@ machines:
   - id: ibm5150
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
-    autoType: CD BASIC\rDIR\rMSBASIC PRIMES\r
+    autoType: CD TESTS\rDIR PRIMES.*\rMSBASIC PRIMES\r
 ---
 
 ### Part 2: BASIC Operations
 
-At the moment, the set of available BASIC commands is *very* basic: CLS, COLOR, DEF, GOTO, IF ... THEN, LET, and PRINT.  But those are enough to write some simple programs.  Numeric support is limited to integer constants, variables, and operators (no floating-point yet).  String variables can be created and printed, but no string operations are available yet either.
-
-**PRIMES.BAS** was the first BASIC program written to run in both BASIC-DOS and **MSBASIC**.  It computes all primes under 1000.
-
-Let's watch it run on a 4.77Mhz IBM PC with **MSBASIC** first.
+The machine below boots the `BASICDOS-DISK1` diskette, changes to its **TESTS** directory, lists the PRIMES files there, and then runs **PRIMES.BAS** with **MSBASIC**, which computes all the primes under 1000 on a 4.77Mhz IBM PC.
 
 {% include machine.html id="ibm5150" %}
 
-After it prints:
+At the moment, the set of available BASIC commands is *very* basic: CLS, COLOR, DEF, GOTO, IF ... THEN, LET, and PRINT.  But those are enough to write some simple programs.  Numeric support is limited to integer constants, variables, and operators (no floating-point yet).  String variables can be created and printed, but no string operations are available yet either.
+
+**PRIMES.BAS** was the first BASIC program written to run in both BASIC-DOS and **MSBASIC**, so the machine above runs it with **MSBASIC** first.  After it prints:
 
     TOTAL PRIMES < 1000:  168
 
