@@ -9,7 +9,6 @@ machines:
     debugger: true
     autoMount:
       A: "BASICDOS-DISK4"
-      B: "PC DOS 2.00 (Disk 2)"
 ---
 
 {% include machine.html id="ibm5160" %}
