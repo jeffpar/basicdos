@@ -63,7 +63,7 @@ A command line can contain more than one command, separated by colons (eg, `CLS:
 
 A DOS command (eg, DIR, TYPE, or the name of a program) ends at any colon outside quotes (eg, `DIR *.BAS:PRINT "done"`), except a colon that follows a drive letter (eg, `DIR A:`) or separates two digits (eg, `TIME 12:30`).
 
-Note that assignments typed at the prompt must begin with [LET](../cmd/basic/let/) (eg, `LET A = 1`), since BASIC-DOS would otherwise look for a program named `A`.
+As in IBM PC BASIC, [LET](../cmd/basic/let/) is optional for assignments, even at the prompt (eg, `A = 1`).
 
 ### Entering Programs
 

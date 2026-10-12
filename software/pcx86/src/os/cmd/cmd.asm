@@ -331,14 +331,15 @@ ENDPROC	ctrlc
 DEFPROC	parseCmd
 	mov	dl,0
 	call	getToken		; DS:SI -> 1st token, CX = length
-	jc	pc9
+	jnc	pc0
+	ret
 
-	mov	[bx].CMD_ARGPTR,si	; save original filename ptr and length
+pc0:	mov	[bx].CMD_ARGPTR,si	; save original filename ptr and length
 	mov	[bx].CMD_ARGLEN,cx
 
 	lea	dx,[KEYWORD_TOKENS]
 	DOSUTIL	TOKID			; CS:DX -> TOKTBL; identify the token
-	jc	pc2
+	jc	pc1b
 ;
 ; We arrive here if the token was recognized.  The token ID in AX determines
 ; the level of additional parsing required, if any.
@@ -356,6 +357,41 @@ pc1a:	mov	al,GEN_IMM
 	call	genCode
 	call	cleanUp
 	jmp	short pc9
+;
+; If the token isn't a keyword, but it's a name followed by "=" (eg, "X=5",
+; "A$ = 1", or "B(1)=2"), then it's an implicit LET, which genCode handles,
+; since a program name can't contain "=".
+;
+pc1b:	push	ax
+	push	si
+	lodsb
+	or	al,20h
+	sub	al,'a'
+	cmp	al,'z'-'a'		; does the name begin with a letter?
+	ja	pc1g			; no (ZF clear)
+pc1c:	lodsb				; skip the rest of the name
+	cmp	al,'='
+	je	pc1g			; (ZF set)
+	cmp	al,'('
+	je	pc1e
+	cmp	al,' '
+	ja	pc1c
+	jb	pc1g			; end of line (ZF clear)
+pc1d:	lodsb				; skip any spaces
+	cmp	al,' '
+	je	pc1d
+	cmp	al,'('			; subscript?
+	jne	pc1f			; no
+pc1e:	lodsb				; skip the subscript
+	cmp	al,' '
+	jb	pc1g			; end of line (ZF clear)
+	cmp	al,')'
+	jne	pc1e
+	jmp	pc1d
+pc1f:	cmp	al,'='
+pc1g:	pop	si
+	pop	ax
+	je	pc1a			; generate code for the line
 ;
 ; For non-BASIC commands, we have either a built-in command or an external
 ; program/command file.  For built-in commands, we check for switches, record

@@ -172,7 +172,6 @@ BASIC-DOS runs many IBM PC BASIC programs unchanged (eg, DONKEY.BAS, from the or
 
 - Programs are text files, which can be edited with a text editor, or typed at the prompt with line numbers (see [Entering Programs](../intro/#entering-programs)) and saved with [SAVE](../cmd/disk/#save); there's no RENUM command, and tokenized BAS files saved by BASICA and GW-BASIC can be loaded, but not saved
 - Line numbers are optional, and only needed on lines that are targets of GOTO, GOSUB, etc
-- LET is required for assignments typed at the prompt (but not in programs)
 - Single-precision values are double-precision (DEFSNG is the same as DEFDBL), and integers are 32-bit, not 16-bit
 - Function names don't need to begin with FN, and functions can have multiple lines
 - Since programs are compiled first, unsupported statements are reported before the program runs

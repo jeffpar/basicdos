@@ -92,7 +92,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] Pipelines with more than one filter (eg, `TYPE FILE | SORT | MORE`): when a session ends, its output pipe receives end-of-input
 - [x] When any command of a pipeline fails (eg, a program that can't be found, or no session available for it), the error is reported, the commands already running in other sessions are ended (DOS_UTL_END), and the first command never runs; and when a command stops reading a pipe early, the command writing to it gets a write error instead of waiting forever
 - [x] LIST VARS: list preserved strings (including PATH$), scalar values, and array dimensions in the current session
-- [x] PATH$: the directories searched for programs (eg, `LET PATH$="A:/;A:/BIN;A:/SAMPLES;A:/TESTS"` on a SHELL line in CONFIG.SYS); unlike other variables, it survives NEW and CLEAR
+- [x] PATH$: the directories searched for programs (eg, `PATH$="A:/;A:/BIN;A:/SAMPLES;A:/TESTS"` on a SHELL line in CONFIG.SYS); unlike other variables, it survives NEW and CLEAR
 - [x] Every BASIC-DOS disk has the same layout: BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, AUTOEXEC.BAT (if any), and HELP.TXT in the root, BASIC samples in BASIC, utilities in TOOLS, and test and demo programs in TESTS; HELP finds HELP.TXT in the root of the boot drive from any directory
 - [ ] Input redirection (`<`)
 - [x] REN/RENAME/MV: rename files and directories and move them between directories on the same drive
@@ -108,7 +108,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] String functions: ASC, CHR$, DATE$, FRE, HEX$, INKEY$, INSTR, LCASE$, LEFT$, LEN, MID$, OCT$, RIGHT$, SPACE$, STR$, STRING$, TIME$, UCASE$, and VAL
 - [x] String pool management: temporary strings are released as soon as they're consumed, strings are compacted (and empty string blocks freed) when space runs out, and runtime string errors (eg, "String too long") abort the program cleanly
 - [x] CLS, COLOR, DEF FN (including string functions and parameters), DEFDBL, DEFINT, DEFSNG, DEFSTR, ECHO, GOTO, IF/THEN/ELSE, LET, PRINT, REM (and `'` remarks), and RETURN
-- [x] Assignments without LET in BAS and BAT files (LET is still required on the command line)
+- [x] Assignments without LET, in BAS and BAT files and at the prompt
 - [x] LOAD, LIST, NEW, RUN, and SAVE
 - [x] Entering programs at the prompt: a line that begins with a line number is added to the loaded program (in line number order, replacing any line with the same number), and a line number by itself deletes that line; AUTO, DELETE, EDIT, and LIST with line ranges (eg, `LIST 100-200`) work with program lines, too
 - [x] Functions: ARG$ (command-line arguments of a BAS or BAT file), ERR, ERRORLEVEL, MAXINT, PEEK, RND, and RND%

@@ -58,7 +58,7 @@ function checkOutput(task, outputFile)
  * AUTOEXEC.BAT (when launched by a SHELL line), and HELP.TXT in the root, followed by a BIN folder (utilities in
  * os/util), a SAMPLES folder (the PC DOS 1.00 BASIC samples, on disks that include them), and a TESTS folder (other
  * demo and test programs, eg, PRIMES, MBROT, MSBASIC, and SYMDEB).
- * CONFIG.SYS sets PATH$ on each SHELL line (eg, SHELL=COMMAND.COM LET PATH$="A:/;A:/BIN;A:/SAMPLES;A:/TESTS").
+ * CONFIG.SYS sets PATH$ on each SHELL line (eg, SHELL=COMMAND.COM PATH$="A:/;A:/BIN;A:/SAMPLES;A:/TESTS").
  *
  * Each disk below lists its CONFIG.SYS, its AUTOEXEC.BAT (if any), and the files for its SAMPLES (if any) and TESTS folders;
  * every disk gets the same root files and BIN folder.  A hard disk image (a demo with no diskettes) is marked "hd",
@@ -67,6 +67,9 @@ function checkOutput(task, outputFile)
  * A disk can list its own "folders" instead (see BASICDOS-HD), where each folder is either a list of files, a
  * directory (whose contents are copied, without any OBJ directories), or a function that returns a list of files
  * from other disk images (see diskFiles()).
+ *
+ * A ZIP file in a list of files (eg, PUBLIC.zip) is extracted into the folder itself, preserving the original
+ * timestamps of its files.
  */
 const SRC = "./software/pcx86/src";
 const sysFiles = [ SRC + "/os/dev/obj/BASDEV.COM", SRC + "/os/dos/obj/BASDOS.COM", SRC + "/os/cmd/obj/COMMAND.COM" ];
@@ -139,7 +142,7 @@ let disks = {
             BIN: toolFiles,
             SAMPLES: sampleFiles,
             SRC: SRC + "/os",           // the BASIC-DOS source (with an MK.BAT that builds it on BASIC-DOS)
-            TESTS: [ helloFile, SRC + "/tests/misc/BENCH.BAS", SRC + "/tests/misc/STRESS.BAT", mbrotFile ].concat(primesFiles, [ SRC + "/msb/obj/MSBASIC.EXE" ]),
+            TESTS: [ helloFile, SRC + "/tests/misc/BENCH.BAS", SRC + "/tests/misc/STRESS.BAT", mbrotFile ].concat(primesFiles, [ SRC + "/msb/obj/MSBASIC.EXE", "./software/pcx86/tests/PUBLIC.zip" ]),
             //
             // The build tools come from the MS-DOS 3.20 build disk (with MAKE 4.02 from C4BIN replacing MASM4's
             // MAKE 4.00), except for EXE2BIN: MS-DOS 3.20's requires DOS 3.20, but PC DOS 2.00's requires only
@@ -173,7 +176,11 @@ function stageDisk(diskName)
             let files = fileSpec.indexOf('*') >= 0? globSync(fileSpec).sort() : [fileSpec];
             for (let file of files) {
                 let target = path.join(dirTarget, name || path.basename(file));
-                fs.cpSync(file, target, { preserveTimestamps: true });
+                if (!name && path.extname(file).toLowerCase() == ".zip") {
+                    execSync("unzip -q -o \"" + file + "\" -d \"" + dirTarget + "\"");
+                } else {
+                    fs.cpSync(file, target, { preserveTimestamps: true });
+                }
                 if (dirTarget == dirStage) entries.push(target);
             }
         }

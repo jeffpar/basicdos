@@ -12,7 +12,7 @@ The **LET** statement assigns the value of *expression* to *variable*:
 
 Values cannot be assigned to predefined variables (eg, ERRORLEVEL and MAXINT).
 
-Within BAS and BAT files, the LET keyword is optional (eg, `A = 1`).  At the prompt, however, LET is required, since a name typed at the prompt would otherwise be treated as the name of a program to run.
+As in IBM PC BASIC, the LET keyword is optional (eg, `A = 1`), in BAS and BAT files and at the prompt.  At the prompt, a name followed by `=` (or by a subscript and `=`, eg, `A(1) = 2`) is an assignment, rather than the name of a program to run.
 
 If the *expression* and *variable* are different numeric types, the value is converted to the variable's type; floating-point values assigned to integer variables are rounded (eg, `LET A% = 2.5` sets A% to 3).
 
