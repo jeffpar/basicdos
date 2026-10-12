@@ -411,8 +411,11 @@ si6b:	push	es
 
 	mov	di,[bpb_table].OFF	; DI -> first BPB
 si6c:	DBGINIT	STRUCT,[di],BPB
+	mov	[di].BPB_FREECLNS,-1
+	mov	[di].BPB_FIXED,0
 	cmp	ch,bl			; diskette drive?
 	jb	si6e			; yes
+	mov	[di].BPB_FIXED,1
 	sub	ax,ax			; no, so the device is the HDC driver
 	mov	dx,bp			; DX:AX -> HDC driver
 si6e:	mov	[di].BPB_DEVICE.OFF,ax

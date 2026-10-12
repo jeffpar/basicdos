@@ -48,6 +48,10 @@ DEFPROC	set_cln,DOS
 	push	si
 	push	bp
 	push	ds
+;
+; Invalidate before changing the FAT, including a partially failed update.
+;
+	mov	cs:[di].BPB_FREECLNS,-1
 	mov	bp,ax			; BP = new value
 	sub	ax,ax
 	mov	ds,ax

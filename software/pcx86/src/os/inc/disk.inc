@@ -68,6 +68,8 @@ BPB_SIG		db	?		; 30h: (holds SIG_BPB in DEBUG builds)
 BPB_CLUSLOG2	db	?		; 31h: shift count for CLUSSECS
 BPB_CLUSBYTES	dw	?		; 32h: BPB_CLUSSECS * BPB_SECBYTES
 BPB_CLUSTERS	dw	?		; 34h: total clusters on disk
+BPB_FREECLNS	dw	?		; 36h: cached free clusters (-1 if unknown)
+BPB_FIXED	dw	?		; 38h: non-zero for non-removable drives
 BPBEX		ends
 SIG_BPB		equ	'B'
 

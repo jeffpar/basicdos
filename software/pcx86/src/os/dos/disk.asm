@@ -183,6 +183,16 @@ gi1:	call	get_bpb			; DL = drive #
 	sub	si,si			; SI = cluster count
 	mov	cx,[di].BPB_CLUSTERS
 	mov	[bp].REG_DX,cx
+;
+; Only fixed drives may reuse a count from a previous request.
+; FAT changes and BPB rebuilds invalidate the cached count.
+;
+	cmp	[di].BPB_FIXED,0
+	je	gi1a
+	mov	si,[di].BPB_FREECLNS
+	cmp	si,-1
+	jne	gi4
+gi1a:	sub	si,si
 	mov	bx,2			; BX = starting cluster #
 gi2:	mov	dx,bx			; DX = cluster # for get_cln
 	call	get_cln			; get the CLN
@@ -192,6 +202,8 @@ gi2:	mov	dx,bx			; DX = cluster # for get_cln
 	inc	si			; increment free count
 gi3:	inc	bx			; advance cluster #
 	loop	gi2			; loop until all clusters checked
+	mov	[di].BPB_FREECLNS,si
+gi4:	clc				; cached-count comparisons may set carry
 	mov	[bp].REG_BX,si
 	mov	al,[di].BPB_CLUSSECS
 	cbw
@@ -454,7 +466,12 @@ gb0:	mov	al,dl			; AL = drive #
 	mov	al,cl			; AL = drive #
 	call	chk_buffers		; any modified buffers for the drive?
 	jnz	gb8			; yes (and carry is clear)
-gb7:	mov	al,cl			; AL = drive #
+gb7:	push	bx
+	mov	bx,sp
+	mov	bx,ss:[bx+4]		; saved BPB pointer (past BX and ES)
+	mov	cs:[bx].BPB_FREECLNS,-1
+	pop	bx
+	mov	al,cl			; AL = drive #
 	mov	ah,DDC_BUILDBPB		; ask the driver to rebuild our BPB
 	call	dev_request
 	jc	gb8
