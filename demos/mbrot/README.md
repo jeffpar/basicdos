@@ -5,7 +5,7 @@ permalink: /demos/mbrot/
 machines:
   - id: ibm5150
     type: pcx86
-    config: /machines/pcx86/ibm/ibm-5150-cga-256kb.json
+    config: /machines/pcx86/ibm/ibm-5150-cga-256kb-mouse.json
     autoMount:
       A: "BASICDOS-DISK6"
       B: "PC DOS 1.00"
@@ -22,7 +22,7 @@ draws the image in full detail, and `MBROT 4` draws a coarser image in well unde
 
 The original IBM PC had no floating-point hardware (unless you added an 8087), so MBROT.BAS does all its math with 32-bit integers instead, treating them as fixed-point numbers with 12 fraction bits (so 4096 represents 1.0), and it uses the BASIC-DOS `>>` operator to rescale each product.  It also skips the points inside the two largest regions of the set (the main cardioid and the circle to its left), which would otherwise take the most time, and since the image is symmetric, it draws each row and its mirror image at the same time.
 
-If the machine has a mouse (like the [hard disk demo](/demos/hd/)), MBROT.BAS turns it on with `MOUSE ON`, so you can move the mouse pointer around while the image is drawn, and whenever you click a mouse button, the pointer's X,Y position is displayed in the lower left corner.
+This machine also has a serial mouse on COM2, which the MOUSE$ driver finds at boot, and MBROT.BAS turns it on with `MOUSE ON`, so you can move the mouse pointer around while the image is drawn, and whenever you click a mouse button, the pointer's X,Y position is displayed in the lower left corner.  Click the screen to capture the mouse, and press **Esc** to release it.
 
 When the image is complete, press **ESC** to exit (you can also press ESC between rows to stop early), and BASIC-DOS will restore the original display mode.  Type `MBROT` to run it again (or `MBROT 1` or `MBROT 4`).
 

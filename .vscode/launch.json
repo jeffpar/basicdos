@@ -47,20 +47,6 @@
       "webRoot": "${workspaceFolder}"
     },
     {
-      "type": "chrome",
-      "request": "launch",
-      "name": "BASIC-DOS Multitasking Stress Tests",
-      "url": "http://localhost:4040/demos/stress/",
-      "webRoot": "${workspaceFolder}"
-    },
-    {
-      "type": "chrome",
-      "request": "launch",
-      "name": "BASIC-DOS Multitasking Stress Tests with Debugger",
-      "url": "http://localhost:4040/demos/stress/debugger/",
-      "webRoot": "${workspaceFolder}"
-    },
-    {
       "name": "gulp build",
       "type": "node",
       "request": "launch",

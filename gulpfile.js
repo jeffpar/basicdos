@@ -140,7 +140,7 @@ let disks = {
             BIN: toolFiles,
             SAMPLES: sampleFiles,
             SRC: SRC + "/os",           // the BASIC-DOS source (with an MK.BAT that builds it on BASIC-DOS)
-            TESTS: [ helloFile, SRC + "/tests/misc/BENCH.BAS", SRC + "/msb/obj/MSBASIC.EXE" ],
+            TESTS: [ helloFile, SRC + "/tests/misc/BENCH.BAS", SRC + "/tests/misc/STRESS.BAT", SRC + "/msb/obj/MSBASIC.EXE" ],
             //
             // The build tools come from the MS-DOS 3.20 build disk (with MAKE 4.02 from C4BIN replacing MASM4's
             // MAKE 4.00), except for EXE2BIN: MS-DOS 3.20's requires DOS 3.20, but PC DOS 2.00's requires only
@@ -149,12 +149,6 @@ let disks = {
             TOOLS: () => diskFiles("MSDOS320-C400", [ "TOOLS/MASM4/*", "TOOLS/C4BIN/MAKE.EXE" ]).concat(
                          diskFiles("PCDOS200-DISK2", [ "EXE2BIN.EXE" ]))
         }
-    },
-    "BASICDOS-STRESS": {
-        hd: true,
-        config: "./demos/stress/CONFIG.SYS",
-        BASIC: [ SRC + "/tests/primes/PRIMES.BAS" ],
-        TESTS: [ "./demos/stress/STRESS.BAT" ]
     },
     "PCDOS200-C400": "./software/pcx86/disks/PCDOS200-C400.json"
 };

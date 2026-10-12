@@ -1,4 +1,4 @@
-REM BASIC-DOS multitasking stress test (see demos/stress): creates folders
+REM BASIC-DOS multitasking stress test (see demos/hd): creates folders
 REM nested 4 deep, each with 4 small files of increasingly long names plus
 REM 128 empty files (enough to grow each folder beyond its first cluster),
 REM deletes them all, and runs PRIMES.BAS, forever; the argument (eg, 1 or 2)
@@ -46,7 +46,7 @@ REM are out of step)
 	IF ERRORLEVEL <> 0 THEN GOTO 90
 	L = L - 1
 	IF L > 0 THEN GOTO 30
-40	PRIMES 1000
+40	PRIMES.BAS 1000
 	GOTO 10
 90	PRINT "Session "; ARG$(1); " failed on pass"; N; ", level"; L
 	END

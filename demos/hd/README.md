@@ -5,34 +5,25 @@ permalink: /demos/hd/
 machines:
   - id: ibm5160
     type: pcx86
-    config: /machines/pcx86/ibm/ibm-5160-cga-256kb.json
-    sizeRAM: 640
+    config: /machines/pcx86/ibm/ibm-5160-cga-640kb.json
     debugger: available
 ---
 
-The machine below is an IBM PC XT with 640K of memory and no diskettes loaded; instead, it boots BASIC-DOS from its 10Mb hard disk (drive C:), which has the system files, CONFIG.SYS and HELP.TXT in the root directory, along with these subdirectories:
+The machine below is an IBM PC XT with 640K of memory and no diskettes loaded; instead, it boots BASIC-DOS from its 10Mb hard disk (drive C:) and runs two 80-column sessions, one above the other (use **SHIFT-TAB** to toggle keyboard focus between them).
+
+{% include machine.html id="ibm5160" %}
+
+The hard disk has the system files, CONFIG.SYS and HELP.TXT in the root directory, along with these subdirectories:
 
 - **BIN** contains the BASIC-DOS utilities (eg, FIND, MORE, and SORT)
 - **SAMPLES** contains DONKEY.BAS and the other BASIC samples (along with MBROT.BAS and PRIMES.BAS)
-- **SRC** contains the BASIC-DOS source code, along with an MK.BAT that builds it (type `CD \SRC` and then `MK`)
-- **TESTS** contains HELLO.BAT, BENCH.BAS, and MSBASIC.EXE
+- **SRC** contains the BASIC-DOS source code (type `CD \SRC` and then `MK` to build it)
+- **TESTS** contains HELLO.BAT, BENCH.BAS, STRESS.BAT, and MSBASIC.EXE
 - **TOOLS** contains MASM, LINK, MAKE, EXE2BIN, and the other build tools from the MS-DOS 3.20 hard disk used to build BASIC-DOS
 
-CONFIG.SYS sets PATH$ to `C:\;C:\BIN;C:\SAMPLES;C:\TESTS;C:\TOOLS`, so programs in those directories can be run from anywhere.  Its SHELL line runs `HELLO.BAT` to display the BASIC-DOS version and a colorful greeting.
-
-The prompt displays the current directory, so it starts as `C:\>`.  To go into the **SAMPLES** directory, list its files, and run a program, type:
-
-    CD SAMPLES
-    DIR
-    DONKEY
-
-Press the space bar to switch lanes in DONKEY, and ESC to exit.  To go back to the root directory, type `CD ..` (or `CD \`).  You can also create and remove your own directories with **MD** and **RD**, and use paths anywhere a file name is expected (eg, `TYPE \SAMPLES\PRIMES.BAS` or, from the **SAMPLES** directory, `DIR ..`).  Unlike the rest of the BASIC-DOS demos, this machine has set SWITCHAR to '/', so the `\` must be used to separate directory names.
-
-The machine also has a serial mouse on COM2, which the MOUSE$ driver finds at boot.  Click the screen to capture the mouse, and then run `MBROT` to see the mouse pointer while the Mandelbrot set is drawn (BASIC programs use the mouse with [MOUSE ON and the MOUSE function](/docs/bdman/cmd/device/mouse/)).
+CONFIG.SYS sets PATH$ to `C:\;C:\BIN;C:\SAMPLES;C:\TESTS;C:\TOOLS`, so programs in those directories can be run from anywhere.  The first session's SHELL line runs `HELLO.BAT` to display the BASIC-DOS version and a colorful greeting.
 
 Any changes you make to the hard disk are lost when you leave the page, unless you first click **Save HD** to download the hard disk as an IMG file.
-
-{% include machine.html id="ibm5160" %}
 
 ### **CONFIG.SYS** from the BASICDOS-HD Hard Disk
 
