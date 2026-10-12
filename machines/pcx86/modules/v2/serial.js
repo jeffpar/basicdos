@@ -33,6 +33,7 @@ import { APPCLASS, RS232 } from "./defines.js";
  * @property {number} nIRQ
  * @property {string|null} consoleBuffer
  * @property {HTMLTextAreaElement} controlBuffer (DOM element bound to the port for rudimentary output; see transmitByte())
+ * @property {number} maxBuffer (maximum number of characters in controlBuffer, or 0 for no limit)
  * @unrestricted (allows the class to define properties, both dot and named, outside of the constructor)
  */
 export default class SerialPort extends Component {
@@ -289,6 +290,13 @@ export default class SerialPort extends Component {
          */
         this.tabSize = +parms['tabSize'] || 0;
         this.charBOL = +parms['charBOL'] || 0;
+
+        /**
+         * If 'maxBuffer' is set, then controlBuffer is limited to that many characters; whenever output would
+         * exceed it, the oldest lines are discarded, so that a long-running terminal doesn't slow down as its
+         * text grows.
+         */
+        this.maxBuffer = +parms['maxBuffer'] || 0;
         this.charPrev = 0;
         this.iLogicalCol = 0;
 
@@ -1129,7 +1137,12 @@ export default class SerialPort extends Component {
                     if (this.charPrev != 0x0A) s = "\n" + s;
                     if (this.charBOL) s = String.fromCharCode(this.charBOL) + s;
                 }
-                this.controlBuffer.value += s;
+                let text = this.controlBuffer.value + s;
+                if (this.maxBuffer && text.length > this.maxBuffer) {
+                    let i = text.indexOf("\n", text.length - this.maxBuffer);
+                    text = text.slice(i < 0? text.length - this.maxBuffer : i + 1);
+                }
+                this.controlBuffer.value = text;
                 this.controlBuffer.scrollTop = this.controlBuffer.scrollHeight;
                 this.iLogicalCol += nChars;
             }

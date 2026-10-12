@@ -5,7 +5,7 @@
     "fpu": "None",
     "fdc": "2 diskette drives",
     "parallel": "LPT1",
-    "serial": "COM1",
+    "serial": "None",
     "hdc": "10Mb hard disk"
   },
   "machine": {
@@ -196,6 +196,16 @@
             "padding-bottom": "8px",
             "height": "22px"
           }
+        },
+        {
+          "id": "setSpeed",
+          "type": "button",
+          "label": "4.77Mhz",
+          "style": {
+            "padding-right": "8px",
+            "padding-bottom": "8px",
+            "height": "22px"
+          }
         }
       ]
     },
@@ -241,12 +251,6 @@
       "id": "lpt1",
       "class": "parallel",
       "adapter": 2,
-      "binding": "print"
-    },
-    {
-      "id": "com1",
-      "class": "serial",
-      "adapter": 1,
       "binding": "print"
     }
   ]

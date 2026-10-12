@@ -19,6 +19,9 @@ IF ERRORLEVEL <> 0 THEN PRINT "absolute command failed"
 IF ERRORLEVEL <> 0 THEN PRINT "leading path command failed"
 BIN/SLEEP.COM 0
 IF ERRORLEVEL <> 0 THEN PRINT "relative command failed"
+REM Drive prefix immediately after a statement separator (dual-session startup)
+P$ = "drive":A: :/BIN/SLEEP.COM 0
+IF ERRORLEVEL <> 0 THEN PRINT "compound drive command failed"
 A:/BIN/SLEEP.COM 0
 IF ERRORLEVEL <> 0 THEN PRINT "drive path command failed"
 SLEEP 0

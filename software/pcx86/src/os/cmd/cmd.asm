@@ -13,10 +13,9 @@ CODE    SEGMENT
 
 	EXTNEAR	<allocText,freeAllText,genCode,freeAllCode,freeAllVars>
 	IF DETOK
-	EXTNEAR	<loadTokens,chkExt,getCwd,cmdDel>
+	EXTNEAR	<loadTokens,chkExt,getCwd,cmdDel,chkColon,findProgram>
 	EXTNEAR	<openInput,openError,closeInput,readInput>
 	EXTNEAR	<openHandle,syncFiles,openPipe,addPipe,endPipes,doHelp>
-	EXTNEAR	<findProgram>
 	ENDIF
 	EXTNEAR	<freeIdleVars,resetVars,runCode,findVar>
 	EXTNEAR	<enterLine,editPrompt,chkProgram>
@@ -364,39 +363,38 @@ pc1a:	mov	al,GEN_IMM
 ; command handler.
 ;
 ;
-; However, if a word begins with a colon (eg, "DIR : PRINT 1"), or the first
-; word contains a colon after its second character (eg, "DIR:PRINT 1"), then
-; the line contains more than one command, so we let genCode run them (see
-; genDOS).
+; However, if the line contains a colon (outside quotes) that ends the
+; command (see chkColon), then it contains more than one command, so we let
+; genCode run them (see genDOS).
 ;
-pc2:	push	si
-	push	cx
-	cmp	cx,3			; room for a colon past "A:"?
-	jb	pc2b			; no (and ZF is clear)
-	dec	cx
-	dec	cx
-pc2a:	cmp	byte ptr [si+2],':'
-	je	pc2b
-	inc	si
-	loop	pc2a			; (ZF is still clear)
-pc2b:	pop	cx
-	pop	si
-	je	pc1a			; generate code for the line
-	push	cx
-	mov	cl,[di].TOK_CNT
-	mov	ch,0
+pc2:	push	ax
 	push	bx
-	lea	bx,[di].TOK_DATA
-pc3:	push	bx
-	mov	bx,[bx].TOKLET_OFF
-	cmp	byte ptr [bx],':'	; does this word begin with a colon?
-	pop	bx
-	je	pc4			; yes
-	add	bx,size TOKLET
-	loop	pc3
-pc4:	pop	bx
+	push	cx
+	push	dx
+	mov	bx,[bx].INPUT_BUF
+	mov	cl,[bx].INP_CNT		; CL = # chars in the line
+	mov	ch,0			; CH = quote flag
+	lea	bx,[bx].INP_DATA
+	mov	dx,bx			; DX -> start of command
+pc3:	mov	al,[bx]
+	cmp	al,'"'
+	jne	pc3a
+	not	ch
+pc3a:	cmp	al,':'
+	jne	pc3b
+	test	ch,ch			; inside quotes?
+	jnz	pc3b			; yes
+	call	chkColon		; does the colon end the command?
+	jnc	pc4			; yes
+pc3b:	inc	bx
+	dec	cl
+	jnz	pc3
+	stc
+pc4:	pop	dx
 	pop	cx
-	je	pc1a			; generate code for the line
+	pop	bx
+	pop	ax
+	jnc	pc1a			; generate code for the line
 	call	parseDOS		; DS:SI -> 1st token, CX = length
 
 pc9:	ret

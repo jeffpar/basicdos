@@ -72,6 +72,7 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFBYTE	max_cols,80	; TODO: set to correct value in ddcon_init
 	DEFBYTE	bios_lock,0	; non-zero if BIOS lock in effect
 	DEFBYTE	req_switch,0	; non-zero if a context switch is requested
+	DEFBYTE	adapters,0	; video adapters present (see ADAPTER_*)
 
 	DEFPTR	kbd_int,0	; original keyboard hardware interrupt handler
 	DEFPTR	video_int,0	; original video services interrupt handler
@@ -132,6 +133,9 @@ CTSTAT_ABORT	equ	08h	; ABORT condition detected
 CTSTAT_INT10	equ	10h	; context writes characters using INT 10h
 CTSTAT_INPUT	equ	40h	; context is waiting for input
 CTSTAT_PAUSED	equ	80h	; context is paused (triggered by CTRLS hotkey)
+
+ADAPTER_MDA	equ	01h	; MDA (port 3B4h) is present
+ADAPTER_CGA	equ	02h	; CGA (port 3D4h) is present
 
 ;
 ; CRT Controller Registers
@@ -929,6 +933,12 @@ dco1:	push	cs
 	or	bh,CTSTAT_INT10		; yes
 dco1z:	pop	ds
 	ASSUME	DS:CODE
+	test	bh,CTSTAT_ADAPTER	; alternate adapter requested?
+	jz	dco1w			; no
+	cmp	[adapters],ADAPTER_MDA OR ADAPTER_CGA
+	stc
+	jne	dco1x			; it isn't present
+dco1w:
 
 	push	bx
 	mov	bx,(size CONTEXT + 15) SHR 4
@@ -936,7 +946,7 @@ dco1z:	pop	ds
 	int	INT_DOSFUNC
 	pop	bx
 	jnc	dco1a
-	jmp	dco7
+dco1x:	jmp	dco7
 
 dco1a:	mov	ds,ax
 	ASSUME	DS:NOTHING
@@ -1072,7 +1082,7 @@ dco4a:	mov	ds:[CT_CURTYPE],ax
 	pop	ds
 dco6:	clc
 ;
-; At the moment, the only possible error is a failure to allocate memory.
+; An unavailable adapter or a failure to allocate memory is an open error.
 ;
 dco7:	pop	es
 	pop	di			; ES:DI -> DDP again
@@ -2955,6 +2965,33 @@ DEFPROC	ddcon_init,far
 	je	ddn1
 	mov	dx,0B800h
 ddn1:	mov	[frame_seg],dx
+;
+; Record which adapters are present (see ADAPTER_*), by writing a test value
+; to each adapter's cursor position (low) register, which is readable, and
+; reading it back; ddcon_open uses this to reject a context for an absent
+; alternate adapter.
+;
+	push	bx
+	mov	dx,3B4h			; start with the MDA
+	mov	bl,ADAPTER_MDA
+ddn2:	mov	al,0Fh			; cursor position (low)
+	out	dx,al
+	inc	dx
+	in	al,dx
+	mov	ah,al			; AH = original value
+	mov	al,55h
+	out	dx,al
+	in	al,dx
+	xchg	al,ah			; AH = value read back
+	out	dx,al			; restore the original value
+	cmp	ah,55h			; did the adapter respond?
+	jne	ddn3			; no
+	or	[adapters],bl
+ddn3:	mov	dx,3D4h			; then the CGA
+	shl	bl,1
+	cmp	bl,ADAPTER_CGA
+	je	ddn2
+	pop	bx
 ;
 ; Install an INT 09h hardware interrupt handler, which we'll use to detect
 ; keys added to the BIOS keyboard buffer.

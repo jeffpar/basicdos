@@ -47,7 +47,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<allocCode,ensureRoom,keepCode,genRedir,genRedirEnd>
-	EXTNEAR	<allocVars,addVar,setVarLong,setVarDouble>
+	EXTNEAR	<allocVars,addVar,chkColon,setVarLong,setVarDouble>
 	EXTNEAR	<setStr,compactStrs,genArrayRef,checkCtl>
 	EXTNEAR	<memError,strPath,setPath,callDOS>
 	EXTNEAR	<genExpr,genCvtType,genCallCS,genPushImmLong>
@@ -468,31 +468,27 @@ DEFPROC	genDOS
 	lea	cx,[si].LINEBUF
 	sub	ax,cx			; AX = # bytes preceding command
 ;
-; A colon that begins a word ends the command (eg, "TYPE X : PRINT 1"), so
-; that other commands can follow it, as does a colon that immediately follows
-; the command name (eg, "DIR:GOTO 10"), unless the name is a single letter (eg,
-; "A:"); any other colon is part of the command (eg, "DIR A:").
+; A colon ends the command, unless it's part of a drive or time (see
+; chkColon); quoted colons are inside string tokens, so they never get here.
 ;
 	mov	dx,bx			; DX -> next TOKLET
-	mov	cl,[bx - size TOKLET].TOKLET_LEN
-	mov	ch,0
-	dec	cx			; single-letter name (eg, "A:")?
-	jz	gd1			; yes (CX = 0 matches no colon)
-	inc	cx
-	add	cx,[bx - size TOKLET].TOKLET_OFF
 gd1:	cmp	dx,[si].TOKLET_END	; any tokens left?
 	jae	gd2			; no
 	push	bx
 	mov	bx,dx
 	add	dx,size TOKLET
 	mov	bx,[bx].TOKLET_OFF	; BX -> token
-	cmp	byte ptr [bx],':'	; does it begin with a colon
-	jne	gd1a
-	cmp	byte ptr [bx-1],' '	; that follows whitespace
-	jbe	gd1b			; yes
-	cmp	bx,cx			; or the command name?
+	cmp	byte ptr [bx],':'	; colon?
 	jne	gd1a			; no
-gd1b:	lea	cx,[si].LINEBUF
+	push	ax
+	push	dx
+	lea	dx,[si].LINEBUF
+	add	dx,ax			; DX -> start of command
+	call	chkColon
+	pop	dx
+	pop	ax
+	jc	gd1a			; the colon is part of the command
+	lea	cx,[si].LINEBUF
 	sub	bx,cx
 	mov	cx,bx			; CX = end of command (the colon)
 	pop	bx

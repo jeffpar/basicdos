@@ -409,6 +409,46 @@ vo9:	xchg	al,ah			; AL = operator, AH = precedence
 	ret
 ENDPROC	validateOp
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chkColon
+;
+; A colon (outside quotes) ends a DOS command, so that other commands can
+; follow it (eg, "DIR *.COM:PRINT 1"), unless it follows a letter at the start
+; of a word (eg, "DIR A:") or separates two digits (eg, "TIME 12:30").
+;
+; Inputs:
+;	DS:BX -> colon
+;	DX -> start of command
+;
+; Outputs:
+;	Carry set if the colon is part of the command, clear if it ends it
+;
+; Modifies:
+;	AX
+;
+DEFPROC	chkColon
+	mov	al,[bx-1]
+	sub	al,'0'
+	cmp	al,10			; does a digit precede the colon?
+	jae	cc1			; no
+	mov	al,[bx+1]
+	sub	al,'0'
+	cmp	al,10			; and follow it (carry set if so)?
+	ret
+cc1:	mov	al,[bx-1]
+	or	al,20h
+	sub	al,'a'
+	cmp	al,26			; does a letter precede the colon?
+	jae	cc9			; no (carry clear)
+	lea	ax,[bx-1]
+	cmp	ax,dx			; at the start of the command?
+	stc
+	je	cc9			; yes
+	cmp	byte ptr [bx-2],' '+1	; at the start of a word (carry set)?
+cc9:	ret
+ENDPROC	chkColon
+
 CODE	ENDS
 
 	end

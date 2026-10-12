@@ -128,6 +128,10 @@ let disks = {
         SAMPLES: sampleFiles,             // DONKEY.BAS and the other PC DOS 1.00 BASIC samples
         TESTS: [ SRC + "/tests/misc/BENCH.BAS", helloFile, mbrotFile ].concat(primesFiles, extraFiles)
     },
+    "BASICDOS-SERIAL": {
+        config: "./demos/serial/CONFIG.SYS",
+        TESTS: []
+    },
     "BASICDOS-HD": {
         hd: true,
         config: "./demos/hd/CONFIG.SYS",

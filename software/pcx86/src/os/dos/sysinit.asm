@@ -41,6 +41,11 @@ DOS	segment word public 'CODE'
 	DEFPTR	pCacheData
 	DEFWORD	cbCacheData
 
+	DEFLONG	con_bit,1		; bit for the current CONSOLE line
+	DEFLONG	con_fails,0		; bits for CONSOLE lines that failed
+	DEFBYTE	con_count,1		; number of consoles opened
+	DEFBYTE	boot_drive		; default drive for each SHELL
+
 	ASSUME	CS:DOS, DS:BIOS, ES:DOS, SS:NOTHING
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -555,42 +560,65 @@ sb3:
 	mov	dx,offset AUX_DEVICE
 	mov	ax,DOS_HDL_OPENRW
 	int	21h
-	jc	open_error
+	jnc	$+5
+	jmp	open_error
 	mov	bx,es:[scb_active]	; BX -> SCB
 	mov	es:[bx].SCB_SFHAUX,al
 	mov	cl,al			; CL = SFH for AUX
 ;
 ; Next, open CON, with optional context.  If there's a "CONSOLE=" setting in
-; CFG_FILE, use that; otherwise, use CON_DEVICE.
+; CFG_FILE, use that; otherwise, use CON_DEVICE.  If the setting can't be
+; opened (eg, its adapter or serial port doesn't exist), fall back to
+; CON_DEVICE, and report the failure once the console is open.
 ;
 si8:	mov	si,offset CFG_CONSOLE
 	mov	dx,offset CON_DEVICE
 	call	find_cfg		; look for "CONSOLE="
 	jc	si9			; not found
 	mov	dx,di
-si9:	mov	ax,DOS_HDL_OPENRW
+si9:	sub	si,si			; SI = 0 (no error yet)
+	mov	ax,DOS_HDL_OPENRW
 	int	21h
-	jc	open_error
-	mov	es:[bx].SCB_SFHIN,al	; AL = SFH (not PFH)
+	jnc	si9a
+	xchg	si,ax			; SI = error code
+	mov	di,dx			; DI -> failed setting
+	mov	dx,offset CON_DEVICE
+	mov	ax,DOS_HDL_OPENRW
+	int	21h
+	jnc	si9a
+	jmp	open_error
+si9a:	mov	es:[bx].SCB_SFHIN,al	; AL = SFH (not PFH)
 	mov	es:[bx].SCB_SFHOUT,al	; AL = SFH (not PFH)
 	mov	es:[bx].SCB_SFHERR,al	; AL = SFH (not PFH)
+	test	si,si			; did the setting fail?
+	jz	si9b			; no
+	xchg	ax,si			; AX = error code
+	mov	dx,di			; DX -> failed setting
+	call	console_warning
+si9b:
 ;
 ; Last but not least, open PRN.
 ;
 	mov	dx,offset PRN_DEVICE
 	mov	ax,DOS_HDL_OPENRW
 	int	21h
-	jc	open_error
+	jnc	$+5
+	jmp	open_error
 	mov	es:[bx].SCB_SFHPRN,al	; AL = SFH
 	mov	ch,al			; CH = SFH for PRN
 ;
 ; See if there are any more CONSOLE contexts defined; if so, then for each
 ; one, open an CON handle, and record it in the next available SCB.  If there
-; aren't enough SCBs or SFBs, then we've got a configuration error.
+; aren't enough SCBs or SFBs, then we've got a configuration error.  If one
+; can't be opened, we report it, reuse its SCB for the next one, and record
+; its bit in con_fails, so that its SHELL is skipped.
 ;
 si10:	mov	si,offset CFG_CONSOLE
 	call	find_cfg		; look for another "CONSOLE="
-	jc	si12			; no more
+	jnc	si10a
+	jmp	si12			; no more
+si10a:	shl	[con_bit].OFF,1
+	rcl	[con_bit].SEG,1
 	add	bx,size SCB
 	cmp	bx,es:[scb_table].SEG
 	jb	si11
@@ -600,13 +628,39 @@ si11:	mov	es:[scb_active],bx	; make the next SCB active
 	mov	dx,di
 	mov	ax,DOS_HDL_OPENRW
 	int	21h
-	jc	open_error
+	jnc	si11a
+	sub	bx,size SCB		; reuse this SCB
+	mov	es:[scb_active],bx
+	call	console_warning
+	mov	ax,[con_bit].OFF
+	or	[con_fails].OFF,ax
+	mov	ax,[con_bit].SEG
+	or	[con_fails].SEG,ax
+	jmp	si10
+si11a:	inc	[con_count]
 	mov	es:[bx].SCB_SFHIN,al
 	mov	es:[bx].SCB_SFHOUT,al
 	mov	es:[bx].SCB_SFHERR,al
 	mov	word ptr es:[bx].SCB_SFHAUX,cx
 	ASSERT	<SCB_SFHAUX + 1>,EQ,<SCB_SFHPRN>
 	jmp	si10
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; console_warning
+;
+; Inputs:
+;	AX = error code
+;	DX -> CONSOLE setting
+;
+; Modifies:
+;	AX
+;
+DEFPROC	console_warning
+	PRINTF	<"Warning: unable to open console %s (%d)",13,10>,dx,ax
+	ret
+ENDPROC	console_warning
+
 
 	DEFLBL	open_error,near
 	PRINTF	<"Error opening %s: %d">,dx,ax
@@ -674,6 +728,10 @@ si14:	mov	dx,offset SYS_MSG
 ;
 	sub	sp,size SPB		; alloc SPB from the stack
 
+	mov	es,[dos_seg]
+	ASSUME	ES:DOS
+	mov	al,es:[def_drive]
+	mov	[boot_drive],al
 	sub	dx,dx			; DX = SCB load count
 	mov	bx,offset SHELL_FILE	; BX = default shell
 si15:	mov	si,offset CFG_SHELL
@@ -681,8 +739,21 @@ si15:	mov	si,offset CFG_SHELL
 	jc	si16			; not found
 	mov	bx,di
 si16:	test	bx,bx			; do we still have a default?
-	jnz	$+5			; yes
+	jnz	si16b			; yes
 	jmp	si20			; no, done loading
+;
+; A SHELL whose file includes a drive (eg, "C:/COMMAND.COM") starts on that
+; drive; otherwise, it starts on the boot drive (see init_scb).
+;
+si16b:	mov	es,[dos_seg]
+	ASSUME	ES:DOS
+	mov	al,[boot_drive]
+	cmp	byte ptr [bx+1],':'	; does the SHELL specify a drive?
+	jne	si16c			; no
+	mov	al,[bx]
+	and	al,0DFh			; upper-case the drive letter
+	sub	al,'A'			; AL = drive #
+si16c:	mov	es:[def_drive],al
 ;
 ; Note that during the LOAD process, the SCB is locked and active, so that
 ; the program file can be opened and read using the SCB's PSP.  It's unlocked
@@ -705,6 +776,16 @@ si16:	test	bx,bx			; do we still have a default?
 	stosb				; SPB_SFHPRN <- SFH_NONE
 	mov	bx,sp			; ES:BX -> SPB on stack
 	mov	cl,-1			; CL = invalid SCB # (in case of error)
+;
+; Skip the SHELL of a CONSOLE that couldn't be opened (see si11), and reject
+; any SHELL beyond the last console, since its session would have none.
+;
+	shr	[con_fails].SEG,1
+	rcr	[con_fails].OFF,1
+	jc	si17			; its CONSOLE failed
+	mov	ax,ERR_NOSESSION
+	cmp	dl,[con_count]
+	jae	si18
 	DOSUTIL	LOAD			; load specified SHELL into an SCB
 	jc	si18
 	test	ax,ax

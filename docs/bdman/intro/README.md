@@ -61,7 +61,7 @@ A command line can contain more than one command, separated by colons (eg, `CLS:
 
 	FOR I = 1 TO 3:PRINT I;:NEXT
 
-A DOS command (eg, DIR, TYPE, or the name of a program) ends at a colon that begins a word or that immediately follows the command's name (eg, `DIR:PRINT "done"`), so put a space before the colon if another command follows the command's arguments (eg, `DIR *.BAS : PRINT "done"`).  Any other colon is part of the command, as in a drive letter (eg, `DIR A:`).
+A DOS command (eg, DIR, TYPE, or the name of a program) ends at any colon outside quotes (eg, `DIR *.BAS:PRINT "done"`), except a colon that follows a drive letter (eg, `DIR A:`) or separates two digits (eg, `TIME 12:30`).
 
 Note that assignments typed at the prompt must begin with [LET](../cmd/basic/let/) (eg, `LET A = 1`), since BASIC-DOS would otherwise look for a program named `A`.
 
