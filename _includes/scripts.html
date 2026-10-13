@@ -12,6 +12,8 @@ The following machine properties are supported in the 'machines' Front Matter of
     'debug' (default: false; true enables asserts and is much slower)
     'unbundled' (default: false; true to include unbundled source files)
     'uncompiled' (default: false; true to include the bundled but uncompiled sources)
+    'compiled' (default: false; true to include the compiled script even on a developer server, eg, for a machine
+    sharing a page with another type of machine, since their uncompiled sources define some of the same globals)
     'parms' (stringified object that collects additional machine properties listed below)
 
 Note that if you want BACKTRACK support enabled in a machine, 'uncompiled' must be true, because that isn't
@@ -196,7 +198,9 @@ template doesn't add them to the Computer component anymore, since we started su
   {%- endif -%}
   {%- capture machine_parms -%}{{ machine_autoMount }}{{ machine_autoScript }}{{ machine_autoStart }}{{ machine_autoType }}{{ machine_cdroms }}{{ machine_floppies }}{{ machine_drives }}{{ machine_resume }}{{ machine_sound }}{{ machine_state }}{{ machine_flicker }}{{ machine_sizeRAM }}{{ machine_testRAM }}{{ machine_commands }}{{ machine_messages }}{{ machine_connection }}{%- endcapture -%}
   {%- if machine_parms != "" -%}{%- capture machine_parms -%}{{ site.left_brace }}{{ machine_parms | prepend: "@" | replace: "@,","" }}{{ site.right_brace }}{%- endcapture -%}{%- endif -%}
-  {%- if site.developer -%}
+  {%- assign machine_dev = site.developer -%}
+  {%- if machine.compiled == true -%}{%- assign machine_dev = false -%}{%- endif -%}
+  {%- if machine_dev -%}
     {%- if machine.unbundled -%}
       {%- for script in machine_data.scripts -%}
         {%- capture page_script %}
@@ -234,9 +238,9 @@ template doesn't add them to the Computer component anymore, since we started su
   {%- endif -%}
   {%- if machine_factory contains "embed" %}
     <script>{{ machine_factory }}('{{ machine_id }}','{{ machine_config }}','{{ machine_template }}','{{ machine_parms }}'{{ machine_class }});</script>
-  {%- elsif site.developer and machine.unbundled %}
+  {%- elsif machine_dev and machine.unbundled %}
     <script type="module">PCjsMachine('{{ machine_id }}','{{ machine_config | strip_newlines }}','{{ machine_parms }}');</script>
-  {%- elsif site.developer or machine.uncompiled %}
+  {%- elsif machine_dev or machine.uncompiled %}
     <script>PCjsMachine('{{ machine_id }}','{{ machine_config | strip_newlines }}','{{ machine_parms }}');</script>
   {%- else %}
     <script>{{ machine_factory }}('{{ machine_id }}','{{ machine_config | strip_newlines }}','{{ machine_parms }}');</script>

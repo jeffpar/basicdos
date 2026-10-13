@@ -19,7 +19,8 @@ There are currently nine BASIC-DOS demo configurations:
  6. [BASIC-DOS running DONKEY.BAS](basic/)
  7. [BASIC-DOS on a Hard Disk](hd/)
  8. [BASIC-DOS with a Serial Terminal](serial/)
- 9. [BASIC-DOS drawing the Mandelbrot set](mbrot/)
+ 9. [BASIC-DOS with a VT100 Terminal](vt100/)
+10. [BASIC-DOS drawing the Mandelbrot set](mbrot/)
 
 In the demos with multiple sessions, use **SHIFT-TAB** to toggle keyboard focus between sessions.
 

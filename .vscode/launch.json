@@ -47,6 +47,20 @@
       "webRoot": "${workspaceFolder}"
     },
     {
+      "type": "chrome",
+      "request": "launch",
+      "name": "BASIC-DOS with a Serial Terminal",
+      "url": "http://localhost:4040/demos/serial/",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "BASIC-DOS with a VT100 Terminal",
+      "url": "http://localhost:4040/demos/vt100/",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
       "name": "gulp build",
       "type": "node",
       "request": "launch",

@@ -68,6 +68,8 @@ function checkOutput(task, outputFile)
  * directory (whose contents are copied, without any OBJ directories), or a function that returns a list of files
  * from other disk images (see diskFiles()).
  *
+ * A SAMPLES folder's files get the timestamps of the matching files on the PC DOS 1.00 diskette (PCDOS100).
+ *
  * A ZIP file in a list of files (eg, PUBLIC.zip) is extracted into the folder itself, preserving the original
  * timestamps of its files.
  */
@@ -133,6 +135,10 @@ let disks = {
     },
     "BASICDOS-SERIAL": {
         config: "./demos/serial/CONFIG.SYS",
+        TESTS: []
+    },
+    "BASICDOS-VT100": {
+        config: "./demos/vt100/CONFIG.SYS",
         TESTS: []
     },
     "BASICDOS-HD": {
@@ -211,6 +217,18 @@ function stageDisk(diskName)
         } else {
             fs.mkdirSync(dirTarget);
             copyFiles(files, dirTarget);
+            if (folder == "SAMPLES") {
+                /*
+                 * The samples are text copies of the tokenized originals on the PC DOS 1.00 diskette, so give
+                 * each one its original's timestamp.
+                 */
+                for (let file of fs.readdirSync(dirTarget)) {
+                    let original = diskFiles("PCDOS100", [ file ])[0];
+                    if (!fs.existsSync(original)) continue;
+                    let stat = fs.statSync(original);
+                    fs.utimesSync(path.join(dirTarget, file), stat.atime, stat.mtime);
+                }
+            }
         }
         entries.push(dirTarget);
     }
