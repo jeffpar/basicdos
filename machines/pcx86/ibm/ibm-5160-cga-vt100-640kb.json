@@ -104,18 +104,18 @@
           "type": "list",
           "options": {
             "": "None",
-            "/software/pcx86/disks/BASICDOS-DISK1.json": "BASICDOS-DISK1",
-            "/software/pcx86/disks/BASICDOS-DISK2.json": "BASICDOS-DISK2",
-            "/software/pcx86/disks/BASICDOS-DISK3.json": "BASICDOS-DISK3",
-            "/software/pcx86/disks/BASICDOS-DISK4.json": "BASICDOS-DISK4",
-            "/software/pcx86/disks/BASICDOS-DISK5.json": "BASICDOS-DISK5",
-            "/software/pcx86/disks/BASICDOS-DISK6.json": "BASICDOS-DISK6",
-            "/software/pcx86/disks/PCDOS100.json": "PC DOS 1.00",
-            "/software/pcx86/disks/PCDOS110.json": "PC DOS 1.10",
-            "/software/pcx86/disks/PCDOS200-DISK1.json": "PC DOS 2.00 (Disk 1)",
-            "/software/pcx86/disks/PCDOS200-DISK2.json": "PC DOS 2.00 (Disk 2)",
-            "/software/pcx86/disks/BASICDOS-SERIAL.json": "BASICDOS-SERIAL",
-            "/software/pcx86/disks/BASICDOS-VT100.json": "BASICDOS-VT100"
+            "/software/disks/BASICDOS-DISK1.json": "BASICDOS-DISK1",
+            "/software/disks/BASICDOS-DISK2.json": "BASICDOS-DISK2",
+            "/software/disks/BASICDOS-DISK3.json": "BASICDOS-DISK3",
+            "/software/disks/BASICDOS-DISK4.json": "BASICDOS-DISK4",
+            "/software/disks/BASICDOS-DISK5.json": "BASICDOS-DISK5",
+            "/software/disks/BASICDOS-DISK6.json": "BASICDOS-DISK6",
+            "/software/disks/PCDOS100.json": "PC DOS 1.00",
+            "/software/disks/PCDOS110.json": "PC DOS 1.10",
+            "/software/disks/PCDOS200-DISK1.json": "PC DOS 2.00 (Disk 1)",
+            "/software/disks/PCDOS200-DISK2.json": "PC DOS 2.00 (Disk 2)",
+            "/software/disks/BASICDOS-SERIAL.json": "BASICDOS-SERIAL",
+            "/software/disks/BASICDOS-VT100.json": "BASICDOS-VT100"
           }
         },
         {
@@ -224,7 +224,7 @@
         {
           "name": "BASICDOS-HD",
           "type": 3,
-          "path": "/software/pcx86/disks/BASICDOS-HD.json"
+          "path": "/software/disks/BASICDOS-HD.json"
         }
       ],
       "controls": [

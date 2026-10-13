@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Runs BENCH.BAS (software/pcx86/src/tests/misc) with BASIC-DOS, BASICA, and GW-BASIC (MSBASIC.EXE), each on
+# Runs BENCH.BAS (software/src/tests/misc) with BASIC-DOS, BASICA, and GW-BASIC (MSBASIC.EXE), each on
 # an IBM PC XT with a CGA (ibm5160-cga), both without and with an 8087 (ibm5160-cga-fpu), all six at once, and
 # then prints each test's time in seconds (BIOS ticks / 18.2), as shown on the preview/part6 page.
 #
@@ -17,7 +17,7 @@
 #
 cd "$(dirname "$0")/../.." || exit 1
 secs=${1:-420}
-src=software/pcx86/src
+src=software/src
 out=tools/pc/disks/bench
 for f in $src/tests/misc/BENCH.BAS $src/msb/OBJ/MSBASIC.EXE; do
     if [ ! -f "$f" ]; then echo "error: $f not found (has it been built?)" >&2; exit 1; fi
@@ -30,7 +30,7 @@ cp $src/tests/misc/BENCH.BAS $src/msb/OBJ/MSBASIC.EXE "$out/pc/"
 if [ ! -f "$out/pc/BASICA.COM" ]; then
     root=$(pwd)
     pcjs=$(cd "${PCJS:-../pcjs}" 2>/dev/null && pwd)
-    (cd "$out/pc" && node "$pcjs/tools/diskimage/diskimage.js" "$root/software/pcx86/disks/PCDOS200-DISK1.json" \
+    (cd "$out/pc" && node "$pcjs/tools/diskimage/diskimage.js" "$root/software/disks/PCDOS200-DISK1.json" \
         --extract=BASICA.COM > /dev/null 2>&1)
     if [ ! -f "$out/pc/BASICA.COM" ]; then echo "error: unable to extract BASICA.COM (set PCJS)" >&2; exit 1; fi
 fi

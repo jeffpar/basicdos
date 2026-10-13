@@ -249,7 +249,7 @@ Now you're ready to build BASIC-DOS, using the `mk.sh` script, which runs `pc.js
 
     D:\>QUIT
 
-Any files that the build modifies are written back to the `software/pcx86/src` directory.  A successful build runs QUIT automatically, after which `mk.sh` updates the demo disks (if `PCJS` is set); if a build fails and you don't want the demo disks updated, use `pc.js`'s "abort" command instead.
+Any files that the build modifies are written back to the `software/src` directory.  A successful build runs QUIT automatically, after which `mk.sh` updates the demo disks (if `PCJS` is set); if a build fails and you don't want the demo disks updated, use `pc.js`'s "abort" command instead.
 
 The `boot.sh` script then builds and boots a 360K floppy (the largest floppy supported by an IBM PC XT Model 5160) containing the BASIC-DOS boot sector and system files, along with the files in the `configs/console/serial/fpe` folder (including CONFIG.SYS and AUTOEXEC.BAT) and the test binaries that `tools/tests/prep.sh` copies there:
 

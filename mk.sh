@@ -2,7 +2,7 @@
 #
 # This command creates a drive [D:] containing the BASIC-DOS source code.
 # To build the source, at the "C:\>" prompt, type "D:", then "MK", then "QUIT".
-# Any modifications will be written back to the software/pcx86/src directory.
+# Any modifications will be written back to the software/src directory.
 #
 # NOTE: While early BASIC-DOS builds were performed in a browser using a PCjs
 # PC XT with PC DOS 2.00, our command-line build environment uses PC.js with a
@@ -39,7 +39,7 @@ case "$1" in
     debug|DEBUG) mode=DEBUG ;;
     *) echo "usage: $0 [debug]" >&2; exit 1 ;;
 esac
-src=software/pcx86/src
+src=software/src
 last=$(cat tools/pc/disks/mkmode 2>/dev/null)
 if [ "$last" != "$mode" ]; then
     find $src/os $src/tests -iname "*.asm" -exec touch {} +
@@ -51,7 +51,7 @@ if [ $mode = FINAL ]; then
     touch $src/MKFINAL
     trap 'rm -f '$src'/MKFINAL' EXIT
 fi
-tools/pc/pc.js --disk=software/pcx86/disks/MSDOS320-C400.json --dir=$src --normalize --speed=4 --target=30M --fat=16:2048:512
+tools/pc/pc.js --disk=software/disks/MSDOS320-C400.json --dir=$src --normalize --speed=4 --target=30M --fat=16:2048:512
 code=$?
 if [ $code -eq 0 ] && [ -n "$PCJS" ]; then
     if ! npx gulp demos --silent > /dev/null; then

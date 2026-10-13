@@ -37,6 +37,6 @@ Any changes you make to the hard disk are lost when you leave the page, unless y
 
 Use the following page parameter to add MSDOS320-C400 as drive D:
 
-    drives: '[{name:"BASICDOS-HD",type:3,path:"/software/pcx86/disks/BASICDOS-HD.json"},{name:"MSDOS320-C400",type:3,path:"/software/pcx86/disks/MSDOS320-C400.json"}]'
+    drives: '[{name:"BASICDOS-HD",type:3,path:"/software/disks/BASICDOS-HD.json"},{name:"MSDOS320-C400",type:3,path:"/software/disks/MSDOS320-C400.json"}]'
 
 {% endcomment %}

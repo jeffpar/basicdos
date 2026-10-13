@@ -198,7 +198,7 @@
         {
           "name": "BASICDOS-HD",
           "type": 3,
-          "path": "/software/pcx86/disks/BASICDOS-HD.json"
+          "path": "/software/disks/BASICDOS-HD.json"
         }
       ],
       "controls": [

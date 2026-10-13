@@ -15,7 +15,7 @@ The machine below boots the `BASICDOS-DISK1` diskette, loads the **BD1.BAT** bat
 
 {% include machine.html id="ibm5150" %}
 
-There are three versions of the **PRIMES** program on the `BASICDOS-DISK1` diskette: the **BAS** file previously demonstrated, a **BAT** version that uses line numbers only as needed (as labels), and an **EXE** version that was written in assembly language.  The source code for the assembly language version can be found in the BASIC-DOS [Repository]({{ site.github.repository_url }}/blob/master/software/pcx86/src/tests/primes/primes.asm), and on the [hard disk demo](/demos/hd/), whose **SRC** directory contains the rest of the BASIC-DOS source code.
+There are three versions of the **PRIMES** program on the `BASICDOS-DISK1` diskette: the **BAS** file previously demonstrated, a **BAT** version that uses line numbers only as needed (as labels), and an **EXE** version that was written in assembly language.  The source code for the assembly language version can be found in the BASIC-DOS [Repository]({{ site.github.repository_url }}/blob/master/software/src/tests/primes/primes.asm), and on the [hard disk demo](/demos/hd/), whose **SRC** directory contains the rest of the BASIC-DOS source code.
 
 When processing an external filename, BASIC-DOS searches for extensions in the same order as PC DOS: **COM**, **EXE**, and **BAT**.  And if none of those are found, it also searches for a **BAS** file.  And unlike PC DOS, you can override the search order with an *explicit* file extension.
 

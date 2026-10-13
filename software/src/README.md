@@ -52,11 +52,11 @@ The Microsoft BASIC files are included for reference and testing purposes only a
 
 ## The BASIC-DOS Build Process
 
-The command-line build uses the repository's `tools/pc/pc.js` utility to run MASM 4.0 and its associated tools under MS-DOS 3.20 on an emulated COMPAQ DeskPro 386.  Drive C: contains MS-DOS and the build tools; drive D: is a 30Mb disk built from `software/pcx86/src`, with room for the source code, binaries, and assembly listings.
+The command-line build uses the repository's `tools/pc/pc.js` utility to run MASM 4.0 and its associated tools under MS-DOS 3.20 on an emulated COMPAQ DeskPro 386.  Drive C: contains MS-DOS and the build tools; drive D: is a 30Mb disk built from `software/src`, with room for the source code, binaries, and assembly listings.
 
-From the repository root, run `./mk.sh` to build release (**FINAL**) binaries, or `./mk.sh debug` to build **DEBUG** binaries with assertions and debugging aids.  The script forces a rebuild when the mode changes.  The guest startup runs **MK** automatically; the **MK.BAT** batch files use the Microsoft **MAKE** utility to assemble and link the components.  A successful build runs **QUIT**, writing modified files back to `software/pcx86/src`.
+From the repository root, run `./mk.sh` to build release (**FINAL**) binaries, or `./mk.sh debug` to build **DEBUG** binaries with assertions and debugging aids.  The script forces a rebuild when the mode changes.  The guest startup runs **MK** automatically; the **MK.BAT** batch files use the Microsoft **MAKE** utility to assemble and link the components.  A successful build runs **QUIT**, writing modified files back to `software/src`.
 
-If `PCJS` points to a checkout of the PCjs repository, `mk.sh` also runs the Gulp demo tasks after a successful build to update the BASIC-DOS demo disk images.  See the root [README](../../../README.md) for setup details.  If a build fails, use PC.js's **abort** command to exit without updating the demo disks.
+If `PCJS` points to a checkout of the PCjs repository, `mk.sh` also runs the Gulp demo tasks after a successful build to update the BASIC-DOS demo disk images.  See the root [README](../../README.md) for setup details.  If a build fails, use PC.js's **abort** command to exit without updating the demo disks.
 
 When invoking the guest batch files directly, **MK DEBUG** and **MK FINAL** select the build mode; **MK** defaults to DEBUG unless the `MKFINAL` marker created by `mk.sh` is present.  Use **MKCLEAN DEBUG** or **MKCLEAN FINAL** when switching modes manually, since MAKE doesn't detect mode changes.  **MKCLEAN.BAT** deletes the build outputs before running **MK.BAT**.
 

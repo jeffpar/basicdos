@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Copies the BASIC-DOS test binaries and batch files into the specified configuration folder
-# (eg, software/pcx86/src/configs/console/serial/fpe) before boot.sh or another script in tools/tests boots it.
+# (eg, software/src/configs/console/serial/fpe) before boot.sh or another script in tools/tests boots it.
 #
 # The files follow the standard BASIC-DOS disk layout: HELP.TXT in the root (with CONFIG.SYS and AUTOEXEC.BAT,
 # and the system files that pc.js adds), utilities in BIN, and everything else (test programs, PRIMES, MSBASIC,
@@ -9,11 +9,11 @@
 # so the tests can be run by name.  There's no SAMPLES folder, since SAMPLES is reserved for the PC DOS BASIC
 # samples (see demos/basic), which don't fit on a 360K diskette with everything else.
 #
-# Only CONFIG.SYS and AUTOEXEC.BAT are tracked in those folders (see software/pcx86/src/configs/.gitignore);
+# Only CONFIG.SYS and AUTOEXEC.BAT are tracked in those folders (see software/src/configs/.gitignore);
 # everything else is copied here, so build the sources first (see mk.sh) to make sure the copies are current.
 #
 root=$(cd "$(dirname "$0")/../.." && pwd)
-src="$root/software/pcx86/src"
+src="$root/software/src"
 dir="$1"
 if [ ! -f "$dir/CONFIG.SYS" ]; then
     echo "usage: $0 [configuration folder containing CONFIG.SYS]" >&2

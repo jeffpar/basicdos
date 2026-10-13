@@ -73,7 +73,7 @@ function checkOutput(task, outputFile)
  * A ZIP file in a list of files (eg, PUBLIC.zip) is extracted into the folder itself, preserving the original
  * timestamps of its files.
  */
-const SRC = "./software/pcx86/src";
+const SRC = "./software/src";
 const sysFiles = [ SRC + "/os/dev/obj/BASDEV.COM", SRC + "/os/dos/obj/BASDOS.COM", SRC + "/os/cmd/obj/COMMAND.COM" ];
 const helpFile = SRC + "/os/cmd/HELP.TXT";
 const toolFiles = [ SRC + "/os/util/obj/*.COM" ];
@@ -98,7 +98,7 @@ function diskFiles(diskName, fileSpecs)
 {
     let diskDir = "./tools/pc/disks/" + diskName;
     if (!fs.existsSync(diskDir)) {
-        execSync("node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" ./software/pcx86/disks/" + diskName + ".json --extract --dest=" + diskDir, { stdio: "ignore" });
+        execSync("node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" ./software/disks/" + diskName + ".json --extract --dest=" + diskDir, { stdio: "ignore" });
     }
     return fileSpecs.map(fileSpec => diskDir + "/" + fileSpec);
 }
@@ -148,7 +148,7 @@ let disks = {
             BIN: toolFiles,
             SAMPLES: sampleFiles,
             SRC: SRC + "/os",           // the BASIC-DOS source (with an MK.BAT that builds it on BASIC-DOS)
-            TESTS: [ helloFile, SRC + "/tests/misc/BENCH.BAS", SRC + "/tests/misc/STRESS.BAT", mbrotFile ].concat(primesFiles, [ SRC + "/msb/obj/MSBASIC.EXE", "./software/pcx86/tests/PUBLIC.zip" ]),
+            TESTS: [ helloFile, SRC + "/tests/misc/BENCH.BAS", SRC + "/tests/misc/STRESS.BAT", mbrotFile ].concat(primesFiles, [ SRC + "/msb/obj/MSBASIC.EXE", "./software/tests/PUBLIC.zip" ]),
             //
             // The build tools come from the MS-DOS 3.20 build disk (with MAKE 4.02 from C4BIN replacing MASM4's
             // MAKE 4.00), except for EXE2BIN: MS-DOS 3.20's requires DOS 3.20, but PC DOS 2.00's requires only
@@ -158,7 +158,7 @@ let disks = {
                          diskFiles("PCDOS200-DISK2", [ "EXE2BIN.EXE" ]))
         }
     },
-    "PCDOS200-C400": "./software/pcx86/disks/PCDOS200-C400.json"
+    "PCDOS200-C400": "./software/disks/PCDOS200-C400.json"
 };
 
 /**
@@ -265,7 +265,7 @@ function buildDisk(diskName, diskImage)
 let buildTasks = [], demoTasks = [];
 for (let diskName in disks) {
     let buildTask = "BUILD-" + diskName;
-    let diskImage = "./software/pcx86/disks/" + diskName + ".json";
+    let diskImage = "./software/disks/" + diskName + ".json";
     if (typeof disks[diskName] == "string") {
         let archiveImage = diskImage.replace(diskName, "archive/" + diskName).replace(".json",".hdd");
         let cmd = "node \"${PCJS}/tools/diskimage/diskimage.js\" --disk " + disks[diskName] + " --output " + archiveImage + " --target=10000 --overwrite";

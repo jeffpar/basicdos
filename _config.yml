@@ -22,7 +22,7 @@ exclude:
   - gulpfile.js
   - package.json
   - package-lock.json
-  - /software/pcx86/src
+  - /software/src
   - /tools
   - "*.sh"
   - /.history

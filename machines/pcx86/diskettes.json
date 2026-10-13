@@ -2733,7 +2733,7 @@
 									"@photo": "jpg",
 									"@format": "PC360K",
 									"@kryoflux": true,
-									"@args": "--suppData=/software/pcx86/sys/ext/softlogic/carousel/2.0.3/README.md"
+									"@args": "--suppData=/software/sys/ext/softlogic/carousel/2.0.3/README.md"
 								}
 							]
 						},
@@ -2761,7 +2761,7 @@
 									"@diskette": "DOUBLEDOS.json",
 									"@format": "PC360K",
 									"@kryoflux": true,
-									"@args": "--suppData=/software/pcx86/sys/ext/softlogic/doubledos/2.1/README.md"
+									"@args": "--suppData=/software/sys/ext/softlogic/doubledos/2.1/README.md"
 								}
 							]
 						},
@@ -5389,7 +5389,7 @@
 							"@diskette": "BOP-PROG.json",
 							"@format": "PC360K",
 							"@kryoflux": true,
-							"@args": "--suppData=/software/pcx86/game/other/1985/balance_of_power/README.md"
+							"@args": "--suppData=/software/game/other/1985/balance_of_power/README.md"
 						},
 						{
 							"@title": "Balance of Power (Setup Disk)",
@@ -5786,7 +5786,7 @@
 							"@archive": ".img",
 							"@format": "PC360K",
 							"@kryoflux": true,
-							"@args": "--suppData=/software/pcx86/game/other/1990/life_and_death_ii/README.md"
+							"@args": "--suppData=/software/game/other/1990/life_and_death_ii/README.md"
 						},
 						{
 							"@title": "Life & Death II (Disk 2)",
@@ -5834,7 +5834,7 @@
 							"@archive": "folder",
 							"@format": "PC360K",
 							"@kryoflux": true,
-							"@args": "--suppData=/software/pcx86/game/other/1985/nine_princes/README.md"
+							"@args": "--suppData=/software/game/other/1985/nine_princes/README.md"
 						},
 						{
 							"@title": "Nine Princes in Amber (Disk B)",
@@ -6553,7 +6553,7 @@
 								"@diskette": "MSWORD-110.json",
 								"@format": "PC320K",
 								"@kryoflux": true,
-								"@args": "--suppData=/software/pcx86/app/microsoft/word/1.15/README.md"
+								"@args": "--suppData=/software/app/microsoft/word/1.15/README.md"
 							}
 						]
 					},
@@ -6565,7 +6565,7 @@
 								"@diskette": "MSWORD-115-PROGRAM-BACKUP.json",
 								"@format": "PC360K",
 								"@kryoflux": true,
-								"@args": "--suppData=/software/pcx86/app/microsoft/word/1.15/README.md"
+								"@args": "--suppData=/software/app/microsoft/word/1.15/README.md"
 							},
 							{
 								"@title": "MS Word 1.15 (Utilities)",
@@ -6587,7 +6587,7 @@
 								"@diskette": "WORD20-DISK1.json",
 								"@format": "PC360K",
 								"@kryoflux": true,
-								"@args": "--suppData=/software/pcx86/app/microsoft/word/2.00/README.md",
+								"@args": "--suppData=/software/app/microsoft/word/2.00/README.md",
 								"@photo": "jpg",
 								"@source": "https://winworldpc.com/product/microsoft-word/2x-dos"
 							},
@@ -6596,7 +6596,7 @@
 								"@diskette": "WORD20-DISK1-BACKUP.json",
 								"@format": "PC360K",
 								"@kryoflux": true,
-								"@args": "--suppData=/software/pcx86/app/microsoft/word/2.00/README.md",
+								"@args": "--suppData=/software/app/microsoft/word/2.00/README.md",
 								"@photo": "jpg",
 								"@source": "https://winworldpc.com/product/microsoft-word/2x-dos"
 							},
@@ -9362,7 +9362,7 @@
 						{
 							"@title": "Graphics for the IBM PC (1984)",
 							"@file": "Graphics_for_the_IBM_PC-1984.pdf",
-							"@link": "/software/pcx86/sw/books/graphics_for_the_ibm_pc/",
+							"@link": "/software/sw/books/graphics_for_the_ibm_pc/",
 							"@doclink": "https://archive.org/details/graphics-for-the-ibm-pc-1984",
 							"@cover": "/documents/books/programming/covers/Graphics_for_the_IBM_PC-1984.jpg",
 							"@source": "PCjs",
@@ -9392,7 +9392,7 @@
 						{
 							"@title": "Inside the IBM PC (1983)",
 							"@file": "Inside_the_IBM_PC-1983.pdf",
-							"@link": "/software/pcx86/sw/books/inside_the_ibm_pc/",
+							"@link": "/software/sw/books/inside_the_ibm_pc/",
 							"@doclink": "https://1drv.ms/b/s!ArcO_mFRe1Z9heNXH482S8MFYjo4LQ?e=URcAbM",
 							"@embed": "https://onedrive.live.com/embed?cid=7D567B5161FE0EB7&resid=7D567B5161FE0EB7%2194679&authkey=ABB7WIsESPdRXgY&em=2",
 							"@cover": "/documents/books/programming/covers/Inside_the_IBM_PC-1983.jpg",
@@ -9421,7 +9421,7 @@
 						{
 							"@title": "Unauthorized Windows 95 (1995)",
 							"@file": "Unauthorized_Windows_95.pdf",
-							"@link": "/software/pcx86/sw/books/unauthorized_windows_95/",
+							"@link": "/software/sw/books/unauthorized_windows_95/",
 							"@cover": "/documents/books/programming/covers/Unauthorized_Windows_95.jpg",
 							"@source": "",
 							"tags": "windows"
@@ -9458,7 +9458,7 @@
 						{
 							"@title": "Undocumented DOS (2nd Edition)",
 							"@file": "Undocumented_DOS--Second_Edition.pdf",
-							"@link": "/software/pcx86/sw/books/undocumented_dos/",
+							"@link": "/software/sw/books/undocumented_dos/",
 							"@cover": "/documents/books/programming/covers/Undocumented_DOS--Second_Edition.jpg",
 							"@source": "",
 							"tags": "dos"

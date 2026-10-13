@@ -33,7 +33,7 @@ disk=$(node -e 'console.log(require("path").relative(process.argv[1], process.ar
 mkdir -p tools/pc/disks/chkdsk || exit 1
 printf 'ECHO N| C:\\DOS\\CHKDSK A:\r\nQUIT\r\n' > tools/pc/disks/chkdsk/MK.BAT
 log=$(mktemp)
-tools/pc/pc.js --disk=software/pcx86/disks/MSDOS320-C400.json --dir=tools/pc/disks/chkdsk --diskette="$disk" --normalize --speed=4 --target=20M --fat=16:2048:512 --nosync | tee "$log"
+tools/pc/pc.js --disk=software/disks/MSDOS320-C400.json --dir=tools/pc/disks/chkdsk --diskette="$disk" --normalize --speed=4 --target=20M --fat=16:2048:512 --nosync | tee "$log"
 if ! grep -q "bytes total disk space" "$log" || grep -qiE "error|lost|cross-linked|invalid|allocation|probable|convert" "$log"; then
     echo "CHKDSK FAILED: $disk"; rm -f "$log"; exit 1
 fi

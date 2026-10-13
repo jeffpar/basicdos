@@ -28,7 +28,7 @@ The BASIC-DOS Technical Reference describes BASIC-DOS's internal architecture an
 5. [Floating-Point Interface](fpu/) (FPU$)
 6. [Data Structures](data/)
 
-The definitions referred to throughout are found in the BASIC-DOS source code, primarily in these include files (in `software/pcx86/src/os/inc`):
+The definitions referred to throughout are found in the BASIC-DOS source code, primarily in these include files (in `software/src/os/inc`):
 
 - **dosapi.inc**: DOS and utility function numbers, and the PSP, EPB, SPB, FFB, and FCB structures
 - **devapi.inc**: device driver headers, attributes, and IOCTL codes

@@ -21,7 +21,7 @@ Within BASIC language support alone, there's a lot of work left to do. Probably 
 - String functions
 - Floating-point support
 
-Floating-point opens another can of worms, which is why I've already decided to port most of that support from [Microsoft BASIC](https://github.com/microsoft/GW-BASIC), and why there's already a complete (built and working) copy of [GW-BASIC sources](https://github.com/jeffpar/basicdos/tree/master/software/pcx86/src/msb) checked into the project.
+Floating-point opens another can of worms, which is why I've already decided to port most of that support from [Microsoft BASIC](https://github.com/microsoft/GW-BASIC), and why there's already a complete (built and working) copy of [GW-BASIC sources](https://github.com/jeffpar/basicdos/tree/master/software/src/msb) checked into the project.
 
 To further reduce the scope of the work, I've decided to support only double-precision (64-bit) floating-point numbers.  Single-precision is obviously faster, but given the choice between greater speed and greater accuracy, the latter is more appealing.
 

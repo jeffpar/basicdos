@@ -6,7 +6,7 @@
 #   tools/tests/testhd.sh [hard disk directory] [config folder]
 #
 # The hard disk directory defaults to tools/pc/disks/hdsrc (created with a few sample files if it doesn't
-# exist), and the config folder defaults to software/pcx86/src/configs/console/bios.  The hard disk is
+# exist), and the config folder defaults to software/src/configs/console/bios.  The hard disk is
 # formatted by MS-DOS 3.20 (so it also contains MS-DOS system files, and a DOS subdirectory).
 #
 # When the "Press a key to start..." prompt appears, press any key other than ESC to boot BASIC-DOS from the
@@ -15,7 +15,7 @@
 #
 cd "$(dirname "$0")/../.." || exit 1
 hdir="${1:-tools/pc/disks/hdsrc}"
-cfg="${2:-software/pcx86/src/configs/console/bios}"
+cfg="${2:-software/src/configs/console/bios}"
 if [ ! -d "$cfg" ]; then
     echo "error: $cfg not found" >&2
     exit 1
@@ -24,7 +24,7 @@ if [ ! -d "$hdir" ]; then
     mkdir -p "$hdir/SUBDIR" || exit 1
     printf 'Hello from the hard disk\r\n' > "$hdir/HELLO.TXT"
     printf 'This file is in a subdirectory\r\n' > "$hdir/SUBDIR/INSIDE.TXT"
-    cp software/pcx86/src/tests/primes/PRIMES.BAS "$hdir/"
+    cp software/src/tests/primes/PRIMES.BAS "$hdir/"
 fi
 tools/tests/prep.sh "$cfg" || exit 1
 #
