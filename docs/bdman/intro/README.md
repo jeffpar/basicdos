@@ -50,7 +50,8 @@ Other special keys include:
 
 Other special key sequences that can be typed at any time include:
 
-- **Ctrl-Break** aborts the current operation (also: **Ctrl-C**)
+- **Ctrl-C** aborts the current operation, the next time the program uses DOS (eg, for input or output)
+- **Ctrl-Break** is currently the same as **Ctrl-Alt-Del**, which stops even a program that doesn't use DOS (eg, an endless loop); on a serial terminal, its **BREAK** key does the same
 - **Ctrl-S** pauses output (press any other key to continue)
 - **Shift-Tab** switches to the next [session](#sessions)
 - **Ctrl-Alt-Del** terminates the program running in the current session (it does *not* restart the machine; use the [RESTART](../cmd/system/#restart) command for that)
@@ -108,7 +109,7 @@ When a BAS program that you ran from the prompt ends, it remains loaded, along w
 
 If a name matches a BASIC keyword that can't be used by itself (eg, `CIRCLE`), BASIC-DOS runs the program with that name instead (eg, CIRCLE.BAS).
 
-To stop a program, press **Ctrl-C** (or **Ctrl-Break**).  If the program doesn't respond, press **Ctrl-Alt-Del**.
+To stop a program, press **Ctrl-C**.  If the program doesn't respond (eg, it's in a loop that doesn't do any input or output), press **Ctrl-Break** or **Ctrl-Alt-Del**.
 
 ### Pipes and Redirection
 

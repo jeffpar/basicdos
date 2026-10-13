@@ -764,8 +764,15 @@ dcr1:	mov	ds,dx
 	ASSERT	STRUCT,ds:[0],CT
 	or	ds:[CT_STATUS],CTSTAT_INPUT
 	call	add_packet
-	jnc	dcr8
-	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
+	jc	dcr2
+;
+; The wait can also end without the request being satisfied (eg, when an
+; ABORT ends it; see ddcon_int09), in which case it's a read fault too, since
+; whatever is in the caller's buffer was never read.
+;
+	cmp	es:[di].DDPRW_LENGTH,0	; was the request satisfied?
+	je	dcr8			; yes
+dcr2:	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
 	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_RDFAULT
 	jmp	short dcr9
 
@@ -1696,16 +1703,28 @@ ch0:	mov	ax,[BIOS_DATA][bx]	; AL = char code, AH = scan code
 	call	switch_focus
 	jmp	short ch8
 ;
-; CTRLC (and CTRL-BREAK, which the BIOS stores as zero, so we change it to
-; CTRLC in the buffer as well) is reported to DOS and left in the buffer, and
-; that's all; the driver doesn't discard any type-ahead or end any pause, since
-; DOS does that consistently for every console device (see DDC_INFLUSH and
-; DDC_OUTFLUSH).
+; CTRL-BREAK (which the BIOS stores as zero) is removed from the buffer and,
+; as an interim measure, treated like CTRL-ALT-DEL (see ddcon_int09): DOS only
+; notices CTRLC when a program calls DOS, whereas an ABORT also stops a program
+; that doesn't (eg, a BASIC loop with no I/O).
 ;
 ch1:	test	ax,ax			; CTRL-BREAK?
 	jnz	ch1a			; no
-	mov	al,CHR_CTRLC		; yes, map it to CTRLC
-	mov	[BIOS_DATA][bx],ax	; in the buffer as well
+	mov	[BUFFER_TAIL],bx	; yes, remove it from the buffer
+	mov	al,CHR_CTRLD		; and report an ABORT (carry clear)
+	jcxz	ch9
+	push	ds
+	mov	ds,cx
+	ASSUME	DS:NOTHING
+	or	ds:[CT_STATUS],CTSTAT_ABORT
+	pop	ds
+	ASSUME	DS:BIOS
+	jmp	short ch9
+;
+; CTRLC is reported to DOS and left in the buffer, and that's all; the driver
+; doesn't discard any type-ahead or end any pause, since DOS does that
+; consistently for every console device (see DDC_INFLUSH and DDC_OUTFLUSH).
+;
 ch1a:	cmp	al,CHR_CTRLC		; CTRLC?
 	je	ch9			; yes, return carry clear
 ;

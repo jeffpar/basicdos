@@ -4203,7 +4203,7 @@ class Input extends Device {
                                 }
                             }
                             input.onKeyCode(keyCode, down, autoRelease);
-                            input.setFocus();
+                            input.setFocus(false);
                         });
                     } else {
                         if (Input.DEBUG) input.printf("click map element '%s' not found\n", binding);
@@ -5199,8 +5199,9 @@ class Input extends Device {
      * after starting the machine.
      *
      * @this {Input}
+     * @param {boolean} [fScroll] (false to leave the page's scroll position alone, eg, after a soft-key click)
      */
-    setFocus()
+    setFocus(fScroll = true)
     {
         /**
          * In addition, we now check machine.isReady(), to avoid jerking the page's focus around when a machine is first
@@ -5210,8 +5211,18 @@ class Input extends Device {
         let focusElement = this.altFocus? this.altFocusElement : this.focusElement;
         if (focusElement && this.machine.isReady()) {
             this.printf(MESSAGE.INPUT, 'setFocus("%s")\n', focusElement.id || focusElement.nodeName);
-            focusElement.focus();
-            focusElement.scrollIntoView();      // one would have thought focus() would do this, but apparently not....
+            if (fScroll) {
+                focusElement.focus();
+                focusElement.scrollIntoView();  // one would have thought focus() would do this, but apparently not....
+            } else {
+                /**
+                 * Setting focus on an element can cause the browser to scroll it into view, so we use the same
+                 * scrollTo() work-around as onMouseDown().
+                 */
+                let x = window.scrollX, y = window.scrollY;
+                focusElement.focus();
+                window.scrollTo(x, y);
+            }
         }
     }
 
@@ -19089,7 +19100,7 @@ class VT100Serial extends Device {
          * No connection until initConnection() is called.
          */
         this.sDataReceived = "";
-        this.connection = this.sendData = this.updateStatus = null;
+        this.connection = this.sendData = this.updateStatus = this.sendBreak = null;
 
         /*
          * Export all functions required by initConnection().
@@ -19097,7 +19108,8 @@ class VT100Serial extends Device {
         this['exports'] = {
             'connect': this.initConnection,
             'receiveData': this.receiveData,
-            'receiveStatus': this.receiveStatus
+            'receiveStatus': this.receiveStatus,
+            'receiveBreak': this.receiveBreak
         };
         this.onReset();
     }
@@ -19144,6 +19156,7 @@ class VT100Serial extends Device {
                             if (this.sendData) {
                                 this.fNullModem = fNullModem;
                                 this.updateStatus = exports['receiveStatus'];
+                                this.sendBreak = exports['receiveBreak'] || null;
                                 this.printf("Connected %s.%s to %s\n", this.idMachine, sSourceID, sTargetID);
                                 return;
                             }
@@ -19328,6 +19341,20 @@ class VT100Serial extends Device {
     }
 
     /**
+     * receiveBreak(fBreak)
+     *
+     * Called when the connected machine starts (or stops) sending a BREAK, which the 8251 reports as BREAK_DETECT.
+     *
+     * @this {VT100Serial}
+     * @param {boolean} fBreak
+     */
+    receiveBreak(fBreak)
+    {
+        this.bStatus &= ~VT100Serial.UART8251.STATUS.BREAK_DETECT;
+        if (fBreak) this.bStatus |= VT100Serial.UART8251.STATUS.BREAK_DETECT;
+    }
+
+    /**
      * receiveStatus(pins)
      *
      * NOTE: Prior to the addition of this interface, the DSR bit was initialized set and remained set for the life
@@ -19486,6 +19513,12 @@ class VT100Serial extends Device {
                     }
                     this.updateStatus.call(this.connection, pins);
                 }
+            }
+            /*
+             * Whenever SEND_BREAK changes (eg, when the BREAK key is pressed), notify any connected machine, too.
+             */
+            if (this.sendBreak && ((value ^ this.bCommand) & VT100Serial.UART8251.COMMAND.SEND_BREAK)) {
+                this.sendBreak.call(this.connection, !!(value & VT100Serial.UART8251.COMMAND.SEND_BREAK));
             }
             this.updateLEDs(value, this.bCommand);
             this.bCommand = value;

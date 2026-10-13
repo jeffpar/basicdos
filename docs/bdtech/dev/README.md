@@ -114,6 +114,8 @@ On return, DDP_STATUS contains DDSTAT_DONE (0100h), plus DDSTAT_ERROR (8000h) an
 
 Console drivers (CON and COM) handle CTRL-C the same way, and only report it: they leave it in their input like any other character, and notify DOS with DOS_UTL_HOTKEY.  When DOS acts on a CTRL-C, it sends DDC_INFLUSH to the session's console, which discards its type-ahead (including the CTRL-C), and DDC_OUTFLUSH, which ends any CTRL-S pause (the COM driver also discards any output it has buffered, but an XOFF pause or a CTS hold still ends only when the terminal allows it).  DOS_TTY_FLUSH (INT 21h, AH = 0Ch) also sends DDC_INFLUSH, to STDIN.
 
+To stop a program that never calls DOS, console drivers report an ABORT instead (DOS_UTL_HOTKEY with CTRL-D): the CON driver does so for CTRL-ALT-DEL and CTRL-BREAK, and the COM driver does so when it receives a BREAK (a line status interrupt with LSR BI set).
+
 A request that must wait (eg, a keyboard read with no key available) calls DOS_UTL_WAIT with the packet address as the wait ID, which lets other sessions run; the driver's interrupt handler later calls DOS_UTL_ENDWAIT with the same ID.  Interrupt handlers should begin with a far call to DDINT_ENTER (0:530h) and end with a far jump to DDINT_LEAVE (0:535h), which lets DOS switch sessions when the interrupt ends.
 
 ### IOCTL Functions

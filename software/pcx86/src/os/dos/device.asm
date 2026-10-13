@@ -161,7 +161,8 @@ ENDPROC	chk_console
 ;	None
 ;
 ; Outputs:
-;	None
+;	Carry set if the session's input isn't its console (eg, a later
+;	command in a pipeline, whose input is a pipe)
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, DI, ES
@@ -172,25 +173,32 @@ DEFPROC	flush_console,DOS
 	ASSERT	STRUCT,cs:[bx],SCB
 	mov	ah,DDC_INFLUSH
 	mov	al,cs:[bx].SCB_SFHIN
-	call	fc1
+	call	fc1			; carry set if not the console
+	pushf
 	mov	bx,cs:[scb_active]
 	mov	ah,DDC_OUTFLUSH
 	mov	al,cs:[bx].SCB_SFHOUT
+	call	fc1
+	popf
+	ret
 fc1:	mov	dx,cs:[bx].SCB_CONTEXT
 	test	dx,dx			; does the session have a console?
-	jz	fc9			; no
+	jz	fc8			; no
 	cmp	al,SFH_NONE		; is the SFH valid?
-	je	fc9			; no
+	je	fc8			; no
 	push	ax
 	mov	bl,al
 	call	sfb_from_sfh		; BX -> SFB
 	pop	ax
 	jc	fc9
 	cmp	cs:[bx].SFB_CONTEXT,dx	; is it the session's console?
-	jne	fc9			; no
+	jne	fc8			; no
 	les	di,cs:[bx].SFB_DEVICE	; ES:DI -> driver
 	sub	cx,cx			; no data
 	call	dev_request
+	clc
+	ret
+fc8:	stc
 fc9:	ret
 ENDPROC	flush_console
 

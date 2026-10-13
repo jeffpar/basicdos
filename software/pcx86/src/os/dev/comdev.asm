@@ -52,10 +52,11 @@ COM1	DDH	<COM1_LEN,,DDATTR_OPEN+DDATTR_CHAR,COM1_INIT,ddcom_int1,20202020314D4F4
 ;
 TERM_ANSI	equ	0	; supports ANSI (VT100) cursor and erase sequences
 TERM_GENERIC	equ	1	; supports only CR, LF, BACKSPACE, and TAB
-TERM_COUNT	equ	2	; number of terminal types
+TERM_VT100	equ	2	; ANSI, plus DELETE/BACKSPACE swapped, and XON
+TERM_COUNT	equ	3	; number of terminal types
 
 	DEFLBL	OPT_NAMES,byte
-	db	"ANSI",0,"GENERIC",0,"XON",0,"RTS",0,0
+	db	"ANSI",0,"GENERIC",0,"VT100",0,"XON",0,"RTS",0,0
 
 	DEFLBL	ANSI_RIGHT,byte
 	db	CHR_ESCAPE,"[C",0	; cursor forward
@@ -96,7 +97,7 @@ CT_SIG		db	?	; 0Bh
 CT_COL		db	?	; 0Ch: current output column (see update_col)
 CT_TERM		db	?	; 0Dh: terminal type (TERM_*)
 CT_LLEN		db	?	; 0Eh: # of columns in CT_LINE
-CT_RSVD		db	?	; 0Fh
+CT_ESC		db	?	; 0Fh: VT100 escape state (see vt100_input)
 CT_COLOR	dw	?	; 10h: fill (LO) and border (HI) attributes
 CT_LINE		db	LINE_MAX dup (?); 12h: copy of the current output line
 CT_INPUT	db	size RINGBUF dup (?)
@@ -609,8 +610,8 @@ ENDPROC	clear_screen
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	set_color
 	mov	ds:[CT_COLOR],cx
-	cmp	ds:[CT_TERM],TERM_ANSI
-	jne	stc9			; nothing to send (carry clear)
+	cmp	ds:[CT_TERM],TERM_GENERIC
+	je	stc9			; nothing to send (carry clear)
 	mov	si,offset ANSI_RESET
 	call	ioctl_str		; ESC [ 0
 	jc	stc8
@@ -944,7 +945,7 @@ dco1a:	mov	es,ax
 	and	ah,NOT (CTSTAT_XON OR CTSTAT_RTS)	; AH = terminal type
 	stosw				; set CT_COL and CT_TERM
 	sub	ax,ax
-	stosw				; set CT_LLEN and CT_RSVD
+	stosw				; set CT_LLEN and CT_ESC
 	mov	ax,0707h
 	stosw				; set CT_COLOR (same default as CON)
 	add	di,LINE_MAX		; skip CT_LINE
@@ -1223,7 +1224,7 @@ ddi1a:	call	read_iir
 ;
 ddi2:	mov	al,20h			; EOI the interrupt to ensure
 	out	20h,al			; we don't block other interrupts
-	jmp	short ddi10
+	jmp	ddi10
 
 ddi3:	cmp	al,IIR_INT_THR		; transmitter ready?
 	jne	ddi3a			; no
@@ -1234,6 +1235,19 @@ ddi3a:	cmp	al,IIR_INT_MSR		; modem status changed?
 	call	check_cts
 	jmp	ddi1a
 ddi3b:	call	read_lsr		; line status (reading LSR clears it)
+	test	al,LSR_BI		; BREAK received?
+	jz	ddi1a			; no
+;
+; A BREAK (eg, from a VT100's BREAK key) is treated like the CON driver's
+; CTRL-BREAK and CTRL-ALT-DEL: it's reported to DOS as an ABORT, which (unlike
+; CTRLC) also stops a program that never calls DOS (eg, a BASIC loop).
+;
+	push	cx
+	mov	cx,ds			; CX = context
+	mov	dx,CHR_CTRLD		; DL = char code (CTRLD means ABORT)
+	mov	ah,DOS_UTL_HOTKEY
+	call	far ptr DDINT_UTIL	; notify DOS
+	pop	cx
 	jmp	ddi1a
 
 ddi4:	mov	al,20h			; EOI the interrupt now
@@ -1540,6 +1554,9 @@ go6:	pop	ax			; discard saved SI
 	cmp	bl,TERM_COUNT		; terminal type?
 	jae	go7			; no
 	mov	cl,bl			; CL = terminal type
+	cmp	bl,TERM_VT100		; a VT100 relies on XON/XOFF
+	jne	go7a
+	or	ch,CTSTAT_XON
 	jmp	short go7a
 go7:	mov	al,CTSTAT_XON
 	je	go7b			; XON (it follows the terminal types)
@@ -1758,7 +1775,11 @@ psi2:	test	ds:[CT_STATUS],CTSTAT_PAUSED
 	and	ds:[CT_STATUS],NOT CTSTAT_PAUSED
 	jmp	short psi5
 
-psi3:	mov	si,offset CT_INPUT
+psi3:	cmp	ds:[CT_TERM],TERM_VT100	; VT100 terminal?
+	jne	psi3b			; no
+	call	vt100_input		; yes, translate its input
+	jc	psi9			; nothing to buffer (yet)
+psi3b:	mov	si,offset CT_INPUT
 	call	push_buffer
 	jc	psi8
 	mov	[bx],al
@@ -1788,6 +1809,103 @@ psi5:	test	ds:[CT_STATUS],CTSTAT_PAUSED
 psi8:	or	ds:[CT_STATUS],CTSTAT_RCVOVFL
 psi9:	ret
 ENDPROC	push_input
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; vt100_input
+;
+; Translates a byte from a VT100 into what the PC's keyboard would produce:
+;
+; DELETE (7Fh) is the key that erases the previous character, while BACKSPACE
+; (08h) is a separate key, so we swap them, giving them the same meanings as
+; the PC's BACKSPACE and DEL keys.
+;
+; The cursor keys send ESC [ A-D (or ESC O A-D), which become the cursor key
+; aliases (CTRLE, CTRLX, CTRLD, and CTRLS) used by the PC's keyboard.  Since a
+; sequence can't be distinguished from an ESC key until the next byte arrives,
+; an ESC is held until then; ESC ESC produces a single ESC, an ESC followed by
+; any other byte produces both, and other ESC [ and ESC O sequences (eg, the
+; PF keys) are discarded.
+;
+; Inputs:
+;	AL = byte
+;	DS = context
+;
+; Outputs:
+;	If carry clear, AL = byte to buffer; carry set if nothing to buffer
+;
+; Modifies:
+;	AX, BX, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	vt100_input
+	ASSERT	STRUCT,ds:[0],CT
+	mov	ah,ds:[CT_ESC]		; AH = escape state
+	test	ah,ah			; in a sequence?
+	jnz	vi3			; yes
+	cmp	al,CHR_ESCAPE		; ESC?
+	jne	vi1			; no
+	inc	ds:[CT_ESC]		; yes, hold it (state 1)
+	stc
+	ret
+
+vi1:	cmp	al,CHR_DEL		; DELETE?
+	jne	vi2			; no
+	mov	al,CHR_BACKSPACE	; yes, it erases the previous character
+	ret				; (carry clear)
+vi2:	cmp	al,CHR_BACKSPACE	; BACKSPACE?
+	clc
+	jne	vi9			; no
+	mov	al,CHR_DEL		; yes, it deletes the cursor character
+	ret
+;
+; State 1 (ESC received): '[' or 'O' begins a sequence (state 2).
+;
+vi3:	mov	ds:[CT_ESC],0
+	dec	ah			; state 1?
+	jnz	vi5			; no, state 2
+	cmp	al,CHR_ESCAPE		; ESC ESC?
+	je	vi9			; yes, buffer one ESC (carry clear)
+	cmp	al,'['
+	je	vi4
+	cmp	al,'O'
+	je	vi4
+	push	ax			; not a sequence, so buffer the ESC
+	mov	al,CHR_ESCAPE		; and then process the byte normally
+	mov	si,offset CT_INPUT
+	call	push_buffer
+	jc	vi3a
+	mov	[bx],al
+vi3a:	pop	ax
+	jmp	vi1
+vi4:	mov	ds:[CT_ESC],2		; sequence begun (state 2)
+	stc
+	ret
+;
+; State 2 (ESC [ or ESC O received): digits and ';' are parameters, and the
+; next byte ends the sequence; A-D are the cursor keys.
+;
+vi5:	cmp	al,';'
+	je	vi5a
+	cmp	al,'0'
+	jb	vi6
+	cmp	al,'9'
+	ja	vi6
+vi5a:	mov	ds:[CT_ESC],2		; still in the sequence
+	stc
+	ret
+vi6:	sub	al,'A'
+	cmp	al,4			; cursor key?
+	cmc
+	jc	vi9			; no, discard the sequence
+	mov	bl,al
+	mov	bh,0
+	mov	al,cs:VT100_KEYS[bx]	; AL = cursor key alias
+vi9:	ret
+ENDPROC	vt100_input
+
+	DEFLBL	VT100_KEYS,byte
+	db	CHR_CTRLE,CHR_CTRLX,CHR_CTRLD,CHR_CTRLS	; up, down, right, left
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2041,7 +2159,7 @@ DEFPROC	write_ier
 	dec	dx
 	dec	dx			; DX -> IER
 	jmp	$+2
-	mov	al,IER_THR_EMPTY OR IER_RBR_AVAIL
+	mov	al,IER_THR_EMPTY OR IER_RBR_AVAIL OR IER_DELTA	; (see ddi3b)
 	test	ds:[CT_STATUS],CTSTAT_RTS
 	jz	wi1
 	or	al,IER_MSR_DELTA	; CTS changes interrupt, too

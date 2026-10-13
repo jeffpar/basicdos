@@ -340,6 +340,7 @@ DEFPROC	msc_sigctrlc,DOSFAR
 
 	DEFLBL	msc_readctrlc,near
 	ASSERT	STRUCT,[bx],SCB
+	sub	di,di			; DI = 0 (echo the CTRLC)
 	cmp	[bx].SCB_CTRLC_ACT,0
 	je	msg1
 msg0:	mov	[bx].SCB_CTRLC_ACT,0
@@ -347,9 +348,12 @@ msg0:	mov	[bx].SCB_CTRLC_ACT,0
 ; Have the session's console discard its type-ahead (including the CTRLC,
 ; which console drivers leave in the input) and end any pause (see
 ; flush_console), rather than reading the CTRLC from STDIN, which may be
-; redirected (eg, the second command in "DIR | CASE").
+; redirected (eg, the second command in "DIR | CASE").  Every session using
+; the console receives the CTRLC (eg, every command in a pipeline), but only
+; a session whose input is the console echoes it.
 ;
-	call	flush_console
+	call	flush_console		; carry set if input isn't the console
+	sbb	di,di			; DI = -1 if so (don't echo the CTRLC)
 ;
 ; Make sure that whatever function we're interrupting has not violated
 ; our BP convention; some functions prefer to use BP as an extra register,
@@ -364,10 +368,13 @@ msg1:	IF REG_CHECK
 ; Echo CTRLC to STDERR rather than STDOUT, since STDOUT may be redirected
 ; (eg, to a pipe that's full, in which case the write would never complete).
 ;
+	test	di,di			; echo the CTRLC?
+	jnz	msg2			; no
 	mov	cx,STR_CTRLC_LEN
 	mov	si,offset STR_CTRLC
 	mov	bx,STDERR
 	call	write_handle
+msg2:
 ;
 ; Use the REG_WS workspace on the stack to create two "call frames",
 ; allowing us to RETF to the CTRLC handler, and allowing the CTRLC handler

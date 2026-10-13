@@ -72,11 +72,13 @@ BIOS (or just B) following *rows* creates a full-screen console that writes char
 
 A COM console uses a serial port (eg, a terminal connected to COM1) for both input and output.  Its *options*, in any order, are:
 
-- ANSI (the default) for a terminal that supports ANSI (VT100) cursor and erase sequences, or GENERIC for a terminal that supports only CR, LF, BACKSPACE, and TAB
-- XON for XON/XOFF flow control: the terminal sends XOFF (CTRL-S) to stop output and XON (CTRL-Q) to resume it, and neither is ever treated as input (eg, `CONSOLE=COM1:9600,N,8,1,XON` for a VT100, which sends XOFF when it falls behind, such as while smooth scrolling)
+- ANSI (the default) for a terminal that supports ANSI (VT100) cursor and erase sequences, GENERIC for a terminal that supports only CR, LF, BACKSPACE, and TAB, or VT100, which is ANSI with XON (see below), plus some keyboard translation: the DELETE and BACKSPACE keys are swapped, since on a VT100, DELETE (7Fh) is the key that erases the previous character, like the PC's BACKSPACE key, while BACKSPACE (08h) then deletes the character at the cursor, like the PC's DEL key; and the cursor keys (which send ESC sequences) work like the PC's cursor keys, so an ESC on its own takes effect when the next key is pressed, and pressing ESC twice produces a single ESC (eg, `CONSOLE=COM1:9600,N,8,1,VT100`)
+- XON for XON/XOFF flow control: the terminal sends XOFF (CTRL-S) to stop output and XON (CTRL-Q) to resume it, and neither is ever treated as input (which a VT100 does when it falls behind, such as while smooth scrolling, so the VT100 type includes XON)
 - RTS for RTS/CTS (hardware) flow control: RTS is raised to tell the terminal that BASIC-DOS is ready, and output is held whenever the terminal drops CTS, resuming when CTS is raised again
 
 Without XON, CTRL-S pauses output and any other key resumes it, except while a program is waiting for input, when CTRL-S is passed to the program.
+
+On any COM console, a BREAK (eg, from a VT100's BREAK key) works like **Ctrl-Break** and **Ctrl-Alt-Del** on a CON console: it stops the current program, even one that never uses DOS (eg, an endless loop that CTRL-C can't stop).
 
 Two consoles side by side, each 40 columns wide with a border:
 
