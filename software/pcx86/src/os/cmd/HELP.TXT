@@ -239,9 +239,10 @@ LINE [(*x1*,*y1*)]-(*x2*,*y2*)[,[*color*][,B|BF]]
 Draws a line (or with B, a box; or with BF, a filled box) in a graphics mode.  If the first point is omitted, the last point is used.
 LINE INPUT [*prompt*;]*variable$* (or LINE INPUT #*n*,*variable$*) reads a whole line from the keyboard (or file *n*) into the string variable.
 
-LIST [*line*][-[*line*]] | VARS
+LIST [*line*][-[*line*]] | VARS | SESSIONS
 Lists all lines (or the specified range of lines) of the currently loaded BAS or BAT program.
 LIST VARS lists preserved strings (including PATH$), then ordinary variable values with type suffixes and quoted strings, and array bounds without their elements.  Function definitions are omitted.  Use LIST VARS | MORE to page the listing.
+LIST SESSIONS lists every session's number (see RESTART), console, and program, marking the current session with "*".
 To add a line to the program (or replace the line with the same number), type the line with its line number at the prompt.
 
 LOAD *file*
@@ -373,8 +374,8 @@ Same as REN.
 RESET
 Same as CLOSE without file numbers (ie, closes all files).
 
-RESTART
-Restarts the system.
+RESTART SYSTEM | *session*
+RESTART SYSTEM restarts the system.  RESTART *session* (a number from LIST SESSIONS) stops the program running in that session, as CTRL-ALT-DEL does on its console, even if the program is stuck in a loop; a session running only its command processor returns to its prompt.
 
 RESTORE [*line*]
 Makes the first DATA item (or the first DATA item at or after *line*) the next item for READ.

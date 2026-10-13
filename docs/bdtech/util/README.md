@@ -60,6 +60,7 @@ Device drivers can also call DOS_UTL_WAIT, DOS_UTL_ENDWAIT, DOS_UTL_HOTKEY, DOS_
 | 22h | [DOS_UTL_GETTIME](#date-and-time) | Returns the time, including a packed time |
 | 23h | [DOS_UTL_INCDATE](#date-and-time) | Advances a date by one day |
 | 24h | [DOS_UTL_EDITLN](#console) | Reads an edited line of console input |
+| 25h | [DOS_UTL_QRYSCB](#sessions) | Returns information about a session |
 
 ### Strings
 
@@ -128,9 +129,11 @@ Specifiers also support the `#` and `-` flags, a width, and a precision (eg, `%-
 
 **DOS_UTL_STOP (13h)**: CL = session number.  Not implemented yet.
 
-**DOS_UTL_END (14h)**: CL = session number.  Ends the current program in the session, by aborting it (as CTRL-ALT-DEL does); the program can't intercept the abort, which takes effect the next time the session leaves DOS (a session waiting on a pipe or device is interrupted first).  Use DOS_UTL_WAITEND to wait for the session to end.  COMMAND.COM uses this to end the other commands of a pipeline when one of them fails.
+**DOS_UTL_END (14h)**: CL = session number.  Ends the current program in the session, by aborting it (as CTRL-ALT-DEL does); the program can't intercept the abort, which takes effect the next time the session leaves DOS (a session waiting on a pipe or device is interrupted first).  Use DOS_UTL_WAITEND to wait for the session to end.  Carry is set (AX = ERR_BADSESSION) if the session number is invalid or the session isn't running a program.  COMMAND.COM uses this to end the other commands of a pipeline when one of them fails, and for RESTART *session*.
 
 **DOS_UTL_WAITEND (15h)**: CL = session number.  Waits for all programs in the session to end.
+
+**DOS_UTL_QRYSCB (25h)**: CL = session number.  Returns AX = the PSP of the session's program (zero if none), and ES:DI -> the name (11 characters) of the session's console device (its STDOUT), or carry set if the session number is invalid.  COMMAND.COM uses this for LIST SESSIONS, so that it doesn't depend on the kernel's internal session structures.
 
 ### Scheduling
 

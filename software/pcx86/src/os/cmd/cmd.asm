@@ -1684,24 +1684,6 @@ ENDPROC	cmdNew
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; cmdRestart
-;
-; Inputs:
-;	DI -> TOKENBUF
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	Any
-;
-DEFPROC	cmdRestart
-	DOSUTIL	RESTART			; this shouldn't return
-	ret				; but just in case...
-ENDPROC	cmdRestart
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; cmdRun
 ;
 ; For GEN_BATCH files, the PC DOS 2.00 convention would be to replace every

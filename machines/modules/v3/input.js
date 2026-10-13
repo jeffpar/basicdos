@@ -789,7 +789,8 @@ export default class Input extends Device {
                  */
                 let focusElement = input.altFocus? input.altFocusElement : input.focusElement;
                 if (focusElement) {
-                    let x = window.scrollX, y = window.scrollY;
+                    let x = window.scrollX;
+                    let y = window.scrollY;
                     focusElement.focus();
                     window.scrollTo(x, y);
                 }
@@ -1393,7 +1394,8 @@ export default class Input extends Device {
                  * Setting focus on an element can cause the browser to scroll it into view, so we use the same
                  * scrollTo() work-around as onMouseDown().
                  */
-                let x = window.scrollX, y = window.scrollY;
+                let x = window.scrollX;
+                let y = window.scrollY;
                 focusElement.focus();
                 window.scrollTo(x, y);
             }

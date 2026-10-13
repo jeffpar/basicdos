@@ -78,7 +78,7 @@ const MAXDEBUG = false;
  *
  * @define {string}
  */
-const VERSION = "3.00";
+const VERSION = "3.01";
 
 /**
  * REPOSITORY is the primary location (eg, URL) where all PCjs-related resources can be found; it is not
@@ -4615,7 +4615,8 @@ class Input extends Device {
                  */
                 let focusElement = input.altFocus? input.altFocusElement : input.focusElement;
                 if (focusElement) {
-                    let x = window.scrollX, y = window.scrollY;
+                    let x = window.scrollX;
+                    let y = window.scrollY;
                     focusElement.focus();
                     window.scrollTo(x, y);
                 }
@@ -5219,7 +5220,8 @@ class Input extends Device {
                  * Setting focus on an element can cause the browser to scroll it into view, so we use the same
                  * scrollTo() work-around as onMouseDown().
                  */
-                let x = window.scrollX, y = window.scrollY;
+                let x = window.scrollX;
+                let y = window.scrollY;
                 focusElement.focus();
                 window.scrollTo(x, y);
             }

@@ -26,6 +26,9 @@ CODE    SEGMENT
 	EXTNEAR	<allocText,freeCache,memError,writeStrCRLF,printCRLF>
 	EXTNEAR	<getToken,getFileName,chkExt,addString,openOutput>
 	EXTNEAR	<writeOutput,writeError,openError,noFile,listVars>
+	EXTNEAR	<listSessions>
+	EXTWORD	<OPTION_TOKENS>
+	EXTABS	<TOK_SESSIONS,TOK_VARS>
 	EXTSTR	<BAS_EXT>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -161,21 +164,24 @@ DEFPROC	cmdList
 	mov	dl,1
 	call	getToken		; option or line range?
 	jc	ls1			; no argument
-	cmp	cx,4
-	jne	ls1
-	mov	ax,[si]
-	or	ax,2020h		; compare without case
-	cmp	ax,'av'
-	jne	ls1
-	mov	ax,[si+2]
-	or	ax,2020h
-	cmp	ax,'sr'
-	jne	ls1
+	push	si
+	lea	dx,[OPTION_TOKENS]
+	DOSUTIL	TOKID			; AX = option ID, if any
+	pop	si
+	jc	ls1			; not an option, so maybe a range
+	push	ax
 	mov	dl,2
-	call	getToken		; VARS must be the last argument
+	call	getToken		; the option must be the last argument
+	pop	ax
 	jc	ls0
 	jmp	syntaxError
-ls0:	jmp	listVars
+ls0:	cmp	ax,TOK_VARS
+	jne	ls0a
+	jmp	listVars
+ls0a:	cmp	ax,TOK_SESSIONS
+	jne	ls0b
+	jmp	listSessions
+ls0b:	jmp	syntaxError		; (eg, LIST SYSTEM)
 ls1:	mov	al,'-'
 	call	getRange		; AX = 1st line #, DX = last line #
 	jnc	ls2

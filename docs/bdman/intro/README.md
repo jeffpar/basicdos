@@ -54,7 +54,7 @@ Other special key sequences that can be typed at any time include:
 - **Ctrl-Break** is currently the same as **Ctrl-Alt-Del**, which stops even a program that doesn't use DOS (eg, an endless loop); on a serial terminal, its **BREAK** key does the same
 - **Ctrl-S** pauses output (press any other key to continue)
 - **Shift-Tab** switches to the next [session](#sessions)
-- **Ctrl-Alt-Del** terminates the program running in the current session (it does *not* restart the machine; use the [RESTART](../cmd/system/#restart) command for that)
+- **Ctrl-Alt-Del** terminates the program running in the current session (it does *not* restart the machine; use [RESTART SYSTEM](../cmd/system/#restart) for that, or RESTART with a session number to stop another session's program)
 
 You can also use the [KEYS](../cmd/system/#keys) command to display a brief summary of special keys.
 

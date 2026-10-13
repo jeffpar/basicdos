@@ -18,7 +18,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<chk_devname,dev_request>
 	EXTNEAR	<scb_load,scb_start,scb_stop,scb_end,scb_waitend,scb_abort>
 	EXTNEAR	<scb_yield,scb_release,scb_wait,scb_endwait,scb_intwait>
-	EXTNEAR	<mem_query,msc_getdate,msc_gettime,psp_termcode>
+	EXTNEAR	<scb_query,mem_query,msc_getdate,msc_gettime,psp_termcode>
 	EXTNEAR	<add_date,read_line,flush_buffers>
 
 	EXTBYTE	<scb_locked>
@@ -391,6 +391,27 @@ DEFPROC	utl_qrymem,DOS
 	and	[bp].REG_FL,NOT FL_CARRY
 	jmp	mem_query
 ENDPROC	utl_qrymem
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; utl_qryscb (AH = 25h)
+;
+; Query info about a session (see scb_query).
+;
+; Inputs:
+;	REG_CL = session (SCB) #
+;
+; Outputs:
+;	On success, carry clear:
+;		REG_AX = PSP of the session's program (zero if none)
+;		REG_ES:REG_DI -> name of the session's console device
+;	On failure, carry set (ie, invalid session #)
+;
+DEFPROC	utl_qryscb,DOS
+	sti
+	and	[bp].REG_FL,NOT FL_CARRY
+	jmp	scb_query
+ENDPROC	utl_qryscb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -392,7 +392,7 @@ ENDPROC	end_io
 ;
 ; Outputs:
 ;	Carry clear on success
-;	Carry set on error (eg, invalid SCB #)
+;	Carry set on error (eg, invalid SCB #, or no program in the session)
 ;
 ; Modifies:
 ;	AX, BX
@@ -402,11 +402,54 @@ DEFPROC	scb_end,DOS
 	call	get_scb
 	jc	sc9
 	test	[bx].SCB_STATUS,SCSTAT_LOAD
-	jz	sc9			; no program loaded (carry clear)
+	jz	sc8			; no program loaded
 	call	scb_abort
 	clc
+	ret
+sc8:	mov	ax,ERR_BADSESSION
+	stc
 sc9:	ret
 ENDPROC	scb_end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; scb_query
+;
+; Returns info about a session (see utl_qryscb), such as its program's PSP
+; and its console's name, so that commands (eg, LIST SESSIONS) don't need the
+; kernel's internal structures.
+;
+; Inputs:
+;	CL = SCB #
+;
+; Outputs:
+;	On success, carry clear:
+;		REG_AX = PSP of the session's program (zero if none)
+;		REG_ES:REG_DI -> name of the session's console device
+;	On failure, carry set (ie, invalid SCB #)
+;
+; Modifies:
+;	AX, BX
+;
+DEFPROC	scb_query,DOS
+	ASSUMES	<DS,DOS>,<ES,DOS>
+	call	get_scb			; BX -> SCB
+	jc	sq9
+	sub	ax,ax
+	test	[bx].SCB_STATUS,SCSTAT_LOAD
+	jz	sq1			; no program loaded
+	mov	ax,[bx].SCB_PSP
+sq1:	mov	[bp].REG_AX,ax
+	mov	[bp].REG_ES,cs
+	mov	bl,[bx].SCB_SFHOUT
+	call	sfb_from_sfh		; BX -> SFB
+	jnc	sq2
+	sub	bx,bx			; no console
+sq2:	ASSERT	<SFB_NAME>,EQ,0
+	mov	[bp].REG_DI,bx		; REG_ES:REG_DI -> SFB_NAME
+	clc
+sq9:	ret
+ENDPROC	scb_query
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -66,11 +66,17 @@ Displays a summary of the special keys that can be used when typing commands (se
 
 ### LIST
 
-> LIST [*line*][-[*line*]] | VARS
+> LIST [*line*][-[*line*]] | VARS | SESSIONS
 
 Lists all lines of the currently loaded BAS or BAT program, or the specified range of lines (eg, `LIST 100`, `LIST 100-200`, `LIST 100-`, or `LIST -200`).  Lines without line numbers are listed with the numbered line that precedes them.
 
 `LIST VARS` lists preserved string variables such as `PATH$` first, followed by the current session's ordinary variables and their values in allocation order.  Names include `%`, `#`, or `$` to identify their types, and string values are quoted.  Arrays show each dimension's lower and upper bounds (eg, `A%(0 TO 2, 0 TO 3)`), without listing their elements.  Function definitions are omitted.  The listing can be redirected (eg, `LIST VARS > VARS.TXT` at the prompt) or paged with `LIST VARS | MORE`.
+
+`LIST SESSIONS` lists every session that's running a program: its number (for [RESTART](#restart)), its console, and its program, with `*` marking the current session:
+
+	C:\>LIST SESSIONS
+	* 1 CON      COMMAND
+	  2 COM1     COMMAND
 
 ### MEM
 
@@ -93,9 +99,13 @@ Erases the loaded program, functions, and variables.
 
 ### RESTART
 
-> RESTART
+> RESTART SYSTEM | *session*
 
-Restarts the system, after writing any modified disk data.
+`RESTART SYSTEM` restarts the system, after writing any modified disk data.
+
+`RESTART` *session* restarts the specified session (a number from [LIST SESSIONS](#list)), by stopping its program as **Ctrl-Alt-Del** does on its console, which works even if the program is stuck in a loop that never uses DOS; if the session is only running its command processor (eg, a BASIC loop typed at its prompt), it returns to its prompt instead.  For example, `RESTART 2` stops a looping program on a serial terminal from the PC's own console.
+
+`RESTART` without an argument is an error, so that a system restart always requires `SYSTEM`.
 
 ### RUN
 
