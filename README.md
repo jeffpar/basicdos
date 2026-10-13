@@ -21,7 +21,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 ### Boot and System Configuration
 
 - [x] Boot sector that loads the BASIC-DOS drivers, kernel, and interpreter
-- [x] Boot prompt when a hard disk is detected (press **Esc** to boot from it)
+- [x] Boot prompt when a hard disk is detected (press **Esc** within 5 seconds to boot from it)
 - [x] Booting BASIC-DOS from a hard disk partition (eg, a disk built with `pc.js --sys=bd:2`), which becomes the default drive
 - [x] CONFIG.SYS support for BOOTKEY, BUFFERS, CONSOLE, DEBUG, FILES, MEMSIZE, PATHCHAR, SESSIONS, SHELL, SKIP, and SWITCHAR
 - [x] SKIP= lists built-in drivers (by their exact device names, separated by commas) that should not be loaded (eg, `SKIP=CON,FPU$`); a skipped driver is never initialized, and its memory is reclaimed

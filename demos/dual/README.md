@@ -11,7 +11,7 @@ machines:
       A: "BASICDOS-DISK4"
 ---
 
-The machine below is an IBM PC XT with 640K of memory and two monitors (MDA and CGA), and BASIC-DOS runs one session on each monitor: PRIMES.BAT on the Monochrome Display, and a build of BASIC-DOS itself (from the hard disk's SRC directory) on the Color Display.  When `Press a key to start...` appears on the Monochrome Display, press any key to boot the BASICDOS-DISK4 diskette.
+The machine below is an IBM PC XT with 640K of memory and two monitors (MDA and CGA), and BASIC-DOS runs one session on each monitor: PRIMES.BAT on the Monochrome Display, and a build of BASIC-DOS itself (from the hard disk's SRC directory) on the Color Display.  When `Press a key to start...` appears on the Monochrome Display, press any key (or wait 5 seconds) to boot the BASICDOS-DISK4 diskette.
 
 {% include machine.html id="ibm5160" %}
 

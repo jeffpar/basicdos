@@ -13,7 +13,7 @@ Insert a BASIC-DOS diskette in drive A: of an IBM PC and turn the machine on.  I
 	BASIC-DOS 2.00
 	Press a key to start...
 
-Press any key to start BASIC-DOS, or press **Esc** to boot from the hard disk instead.  The following messages should then appear on your screen:
+Press any key (or wait 5 seconds) to start BASIC-DOS, or press **Esc** to boot from the hard disk instead.  The following messages should then appear on your screen:
 
 	BASIC-DOS 2.00 for the IBM PC
 	Copyright (c) PCJS.ORG 1981-2026

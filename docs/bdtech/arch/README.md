@@ -26,7 +26,7 @@ Unlike PC DOS, there is no separate BIOS-level file (IO.SYS or IBMBIO.COM); BASI
 
 The boot sector runs in three parts:
 
-1. Part 1 copies the BIOS diskette parameter table (DPT) to low memory (522h) so its values can be tuned, and moves the boot sector to low memory (550h).  If a hard disk is present, it displays "Press a key to start..." and waits; **Esc** boots from the hard disk instead.  The key pressed is saved in BOOT_KEY (52Dh).  It then finds BASDEV.COM, BASDOS.COM, and CONFIG.SYS in the root directory.
+1. Part 1 copies the BIOS diskette parameter table (DPT) to low memory (522h) so its values can be tuned, and moves the boot sector to low memory (550h).  If a hard disk is present, it displays "Press a key to start..." and waits for a key (or, in FINAL builds, at most 5 seconds); **Esc** boots from the hard disk instead.  The key pressed is saved in BOOT_KEY (52Dh).  It then finds BASDEV.COM, BASDOS.COM, and CONFIG.SYS in the root directory.
 2. Part 2 loads BASDEV.COM at BIOS_END (960h), hops over its driver headers to find the devinit code that follows them, and calls it.  Devinit reads CONFIG.SYS (to honor any SKIP= line), chains the driver headers together, and sends each driver a DDC_INIT request; each driver reports how much memory it needs, so the drivers end up packed together, and skipped drivers take no memory.
 3. Part 3 loads BASDOS.COM above the drivers and jumps to sysinit, passing it the CONFIG.SYS data.
 

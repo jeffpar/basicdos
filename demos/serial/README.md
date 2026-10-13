@@ -31,7 +31,7 @@ Click the **Serial Terminal** pane to the right of the machine and type a comman
 
 <script src="/assets/js/serial-terminal.js" defer></script>
 
-Press any key at the boot prompt to start the diskette.  Its CONFIG.SYS creates both consoles and launches `C:COMMAND.COM` for each.  Each session starts on the drive named in its SHELL line, so both sessions start on C:.  The [hard disk](../hd/) supplies programs and files.
+Press any key at the boot prompt (or wait 5 seconds) to start the diskette.  Its CONFIG.SYS creates both consoles and launches `C:COMMAND.COM` for each.  Each session starts on the drive named in its SHELL line, so both sessions start on C:.  The [hard disk](../hd/) supplies programs and files.
 
 ### CONFIG.SYS from the BASICDOS-SERIAL diskette
 

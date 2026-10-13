@@ -31,4 +31,8 @@
       <div class="pcjs-block-control"><button class="pcjs-block-button" id="keySetupVT100">SET-UP</button></div>
     </div>
   </div>
+  {%- assign vt100_data = site.data.machines.vt100 %}
+  <div class="pcjs-copyright">
+    <a href="{{ '/' | absolute_url }}" target="_blank">{{ vt100_data.name }}.js</a> v{{ vt100_data.version }} © 2012-2026 <a href="{{ site.github.owner_url }}" target="_blank">Jeff Parsons</a>
+  </div>
 </div>

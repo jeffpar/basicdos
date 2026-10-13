@@ -14,7 +14,9 @@
 	include	devapi.inc
 	include	version.inc
 
-	; TWAIT equ 16			; timed wait is now disabled
+	IFDEF	FINAL
+TWAIT	equ	1		; FINAL builds use a 5-second boot prompt
+	ENDIF
 
 BOOT	segment word public 'CODE'
 
@@ -241,9 +243,31 @@ DEFPROC	main,far			; now at BOOT_SECTOR_LO
 m0:	mov	si,offset product
 	call	print			; print the product name
 	call	print			; then the prompt
-	call	wait			; wait for a key
-	jcxz	hard			; jump if no key pressed
-	mov	[BOOT_KEY],cx		; save boot key
+;
+; Wait for a key; ESC boots from the hard disk, and any other key continues
+; booting from this disk.  If TWAIT is defined (as it is in FINAL builds), then
+; we wait at most TWAIT * 91 ticks (about 5 seconds each, and TWAIT must be 2
+; or less), and a timeout also continues booting from this disk.  In PCjs
+; machines running faster than normal, the ticks run faster too (so the ROM
+; POST tests don't fail), so the timeout will be shorter.
+;
+	IFDEF	TWAIT
+	mov	dl,91 * TWAIT
+	add	dl,byte ptr [TIMER_LOW]	; DL = target tick count (low byte)
+m8:	mov	ah,KBD_CHECK
+	int	INT_KBD
+	jnz	m9			; a key is available
+	cmp	dl,byte ptr [TIMER_LOW]	; target tick count reached?
+	jne	m8			; no
+	jmp	short m10		; yes, continue booting from this disk
+	ENDIF
+m9:	mov	ah,KBD_READ
+	int	INT_KBD			; AL = char code, AH = scan code
+	cmp	al,CHR_ESCAPE		; escape key?
+	je	hard			; yes, boot from the hard disk
+	mov	[BOOT_KEY],ax		; save boot key
+m10:	mov	si,offset crlf
+	call	print
 ;
 ; Find all the files in our file list, starting with DEV_FILE.
 ;
@@ -257,13 +281,12 @@ m2:	mov	cx,3			; CX = # files left to find
 	mov	bx,offset DEV_FILE	; first file to find
 m3:	cmp	byte ptr [bx],ch	; more files to find?
 	jl	m7			; no, see if we're done
-	jg	m6			; no, this file hasn't been found yet
+	jle	m4			; yes, but this file was already found
+	call	find_dirent		;
+	jnz	m5			; not found, try the next file
 m4:	dec	cx			; reduce the # files left
 m5:	add	bx,size DIR_NAME	; partly, skip to next filename
 	jmp	m3			; and check again
-m6:	call	find_dirent		;
-	jz	m4			; we found a file
-	jmp	m5			; no, try the next file
 m7:	jcxz	read			; all files found, go read
 	inc	dx			; DX = next dir LBA
 	cmp	dx,[si].BPB_LBADATA	; exhausted root directory?
@@ -290,7 +313,7 @@ hard:	mov	al,[CRT_MODE]
 	cbw				; AH = 00h (SET MODE)
 	int	INT_VIDEO
 	mov	ax,0201h		; AH = 02h (READ), AL = 1 sector
-	inc	cx			; CH = CYL 0, CL = SEC 1
+	mov	cx,1			; CH = CYL 0, CL = SEC 1
 	mov	dx,0080h		; DH = HEAD 0, DL = DRIVE 80h
 	mov	bx,BOOT_SECTOR		; ES:BX -> BOOT_SECTOR
 	int	INT_FDC			; read it
@@ -299,8 +322,7 @@ hard:	mov	al,[CRT_MODE]
 ;
 ; We found all the required files, so read the first sector of the first file.
 ;
-read:	mov	bx,offset DEV_FILE
-	mov	ax,[bx+2]		; AX = CLN
+read:	mov	ax,word ptr [DEV_FILE+2]; AX = CLN
 	call	get_lba
 	jc	boot_error
 	call	read_sector		; DI -> DIR_SECTOR
@@ -356,81 +378,15 @@ fd1:	cmp	byte ptr [di],ch
 	jb	fd1
 	jmp	short fd9
 fd8:	mov	[bx],cl		; zero the first byte of the filename
-	mov	ax,[di-11].DIR_CLN
-	mov	[bx+2],ax	; with cluster number and size,
-	mov	ax,[di-11].DIR_SIZE.OFF
-	mov	[bx+4],ax	; since we're done with the filename
-	mov	ax,[di-11].DIR_SIZE.SEG
-	mov	[bx+6],ax
+	lea	si,[di-11].DIR_CLN
+	lea	di,[bx+2]	; and follow it with cluster number and size,
+	mov	cl,3		; since we're done with the filename
+	rep	movsw
 fd9:	pop	di
 	pop	si
 	pop	cx
 	ret
 ENDPROC	find_dirent
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; wait (for a key)
-;
-; Waits some number of ticks, or until a key is pressed.
-;
-; NOTE: There are now two variations of this function: if TWAIT is defined,
-; then we perform the original timed wait (91 ticks or 5 seconds); otherwise,
-; we wait indefinitely for a key, and if the key is ESC, then we return 0,
-; indicating that our boot code should be bypassed.
-;
-; There are two main advantages to NOT using TWAIT: (1) faster-than-normal
-; PCJS machines generate ticks faster as well, so that the IBM ROM POST tests
-; won't fail, which means the delay may be too short; and (2) it makes the boot
-; code smaller.
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	CX = char code (lo), scan code (hi); 0 if no key pressed
-;
-; Modifies:
-;	AX, CX (and DX if TWAIT is defined)
-;
-DEFPROC	wait
-	IFDEF	TWAIT
-	mov	ah,TIME_GETTICKS
-	int	INT_TIME	; CX:DX is initial tick count
-	add	ax,91 * TWAIT
-	mov	dx,cx
-	adc	dx,0		; DX:AX is target tick count
-ws1:	push	dx
-	push	ax
-	mov	ah,KBD_CHECK
-	int	INT_KBD
-	jz	ws2
-	pop	ax
-	pop	dx
-	mov	ah,KBD_READ
-	int	INT_KBD
-	xchg	cx,ax		; CL = char code, CH = scan code
-	jmp	short ws9
-ws2:	mov	ah,TIME_GETTICKS
-	int	INT_TIME	; CX:DX is updated tick count
-	pop	ax		; subtract target value on the stack
-	sub	dx,ax
-	pop	dx
-	sbb	cx,dx		; as long as the target value is bigger
-	jc	ws1		; carry will be set
-	sub	cx,cx		; no key was pressed in time
-	ELSE
-	mov	ah,KBD_READ
-	int	INT_KBD
-	cmp	al,CHR_ESCAPE	; escape key?
-	xchg	cx,ax		; CL = char code, CH = scan code
-	jne	ws9
-	sub	cx,cx		; yes, zero CX
-	ENDIF
-ws9:	mov	si,offset crlf
-	call	print
-	ret
-ENDPROC	wait
 
 product		db	"BASIC-DOS "
 		VERSION_STR
