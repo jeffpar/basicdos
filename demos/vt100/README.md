@@ -60,7 +60,7 @@ This IBM PC XT boots BASIC-DOS from the BASICDOS-VT100 diskette and runs two ind
 
 Press any key on the Color Display at the boot prompt to start the diskette.  Then click the VT100 screen and type a command, such as `DIR` or `PRINT "Hello from the VT100"`; click the Color Display to use the local session.  Both sessions start on drive C:, the [hard disk](../hd/), and share its programs and files.
 
-The VT100 console uses the COM driver's default ANSI terminal type, so commands like `CLS` and `LOCATE` use VT100 escape sequences.
+The VT100 console uses the COM driver's default ANSI terminal type, so commands like `CLS` and `LOCATE` use VT100 escape sequences, and the XON option enables XON/XOFF flow control, which the VT100 relies on whenever it falls behind (eg, while smooth scrolling).
 
 ### CONFIG.SYS from the BASICDOS-VT100 diskette
 

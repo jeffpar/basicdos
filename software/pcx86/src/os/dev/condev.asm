@@ -23,8 +23,8 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 
 	DEFLBL	CMDTBL,word
 	dw	ddcon_none,   ddcon_none,   ddcon_none,   ddcon_ioctl	; 00-03
-	dw	ddcon_read,   ddcon_none,   ddcon_none,   ddcon_none	; 04-07
-	dw	ddcon_write,  ddcon_none,   ddcon_none,   ddcon_none	; 08-0B
+	dw	ddcon_read,   ddcon_none,   ddcon_none,   ddcon_inflush	; 04-07
+	dw	ddcon_write,  ddcon_none,   ddcon_none,   ddcon_outflush; 08-0B
 	dw	ddcon_none,   ddcon_open,   ddcon_close			; 0C-0E
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
@@ -1195,6 +1195,72 @@ ENDPROC	ddcon_none
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; ddcon_inflush
+;
+; Discards the context's keyboard type-ahead, which can only be in the BIOS
+; keyboard buffer if the context has focus.
+;
+; Inputs:
+;	ES:DI -> DDP
+;
+; Outputs:
+;	DDP updated
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_inflush
+	mov	ax,es:[di].DDP_CONTEXT
+	cmp	ax,[ct_focus]		; does the context have focus?
+	jne	dif9			; no
+	push	ds
+	sub	ax,ax
+	mov	ds,ax
+	ASSUME	DS:BIOS
+	cli
+	mov	ax,[BUFFER_TAIL]
+	mov	[BUFFER_HEAD],ax	; the buffer is now empty
+	sti
+	pop	ds
+	ASSUME	DS:CODE
+dif9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+	ret
+ENDPROC	ddcon_inflush
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_outflush
+;
+; Ends the context's pause (see check_hotkey), if any; CON output isn't
+; buffered, so there's nothing to discard.
+;
+; Inputs:
+;	ES:DI -> DDP
+;
+; Outputs:
+;	DDP updated
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_outflush
+	mov	ax,es:[di].DDP_CONTEXT
+	test	ax,ax			; is there a context?
+	jz	dof9			; no
+	push	ds
+	mov	ds,ax
+	ASSUME	DS:NOTHING
+	and	ds:[CT_STATUS],NOT CTSTAT_PAUSED
+	pop	ds
+	ASSUME	DS:CODE
+dof9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+	ret
+ENDPROC	ddcon_outflush
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; ddcon_int09 (keyboard hardware interrupt handler)
 ;
 ; When keys appear in the BIOS keyboard buffer, deliver them to whichever
@@ -1630,10 +1696,23 @@ ch0:	mov	ax,[BIOS_DATA][bx]	; AL = char code, AH = scan code
 	call	switch_focus
 	jmp	short ch8
 ;
+; CTRLC (and CTRL-BREAK, which the BIOS stores as zero, so we change it to
+; CTRLC in the buffer as well) is reported to DOS and left in the buffer, and
+; that's all; the driver doesn't discard any type-ahead or end any pause, since
+; DOS does that consistently for every console device (see DDC_INFLUSH and
+; DDC_OUTFLUSH).
+;
+ch1:	test	ax,ax			; CTRL-BREAK?
+	jnz	ch1a			; no
+	mov	al,CHR_CTRLC		; yes, map it to CTRLC
+	mov	[BIOS_DATA][bx],ax	; in the buffer as well
+ch1a:	cmp	al,CHR_CTRLC		; CTRLC?
+	je	ch9			; yes, return carry clear
+;
 ; Do PAUSE checks next, because only CTRLS toggles PAUSE, and everything else
 ; disables it.
 ;
-ch1:	jcxz	ch4
+	jcxz	ch6
 	push	ds
 	mov	ds,cx
 	ASSUME	DS:NOTHING
@@ -1656,20 +1735,9 @@ ch2:	test	ds:[CT_STATUS],CTSTAT_PAUSED
 	and	ds:[CT_STATUS],NOT CTSTAT_PAUSED
 ch3:	pop	ds
 	ASSUME	DS:BIOS
-	jc	ch4
-	cmp	al,CHR_CTRLC
-	je	ch5a
+	jc	ch6
 	mov	[BUFFER_TAIL],bx	; update tail, consuming the character
-
-ch4:	test	ax,ax			; CTRL_BREAK?
-	jnz	ch5
-	mov	al,CHR_CTRLC		; yes, map it to CTRLC
-	mov	[BIOS_DATA][bx],ax	; in the buffer as well
-
-ch5:	cmp	al,CHR_CTRLC		; CTRLC?
-	jne	ch6			; no
-ch5a:	mov	[BUFFER_HEAD],bx	; yes, advance the head toward the tail
-	jmp	short ch9		; and return carry clear
+	jmp	short ch8
 
 ch6:	cmp	al,CHR_CTRLP		; CTRLP?
 	je	ch9			; yes, return carry clear

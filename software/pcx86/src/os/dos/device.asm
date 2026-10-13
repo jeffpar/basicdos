@@ -149,6 +149,53 @@ ENDPROC	chk_console
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; flush_console
+;
+; Called when DOS acts on a CTRLC: sends DDC_INFLUSH to the active session's
+; console input (discarding type-ahead, including the CTRLC itself) and
+; DDC_OUTFLUSH to its console output (ending any pause), so that DOS, rather
+; than each console driver, decides what a CTRLC does.  Only devices whose
+; context is the session's console context are flushed (eg, not a pipe).
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, DI, ES
+;
+DEFPROC	flush_console,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	mov	bx,cs:[scb_active]
+	ASSERT	STRUCT,cs:[bx],SCB
+	mov	ah,DDC_INFLUSH
+	mov	al,cs:[bx].SCB_SFHIN
+	call	fc1
+	mov	bx,cs:[scb_active]
+	mov	ah,DDC_OUTFLUSH
+	mov	al,cs:[bx].SCB_SFHOUT
+fc1:	mov	dx,cs:[bx].SCB_CONTEXT
+	test	dx,dx			; does the session have a console?
+	jz	fc9			; no
+	cmp	al,SFH_NONE		; is the SFH valid?
+	je	fc9			; no
+	push	ax
+	mov	bl,al
+	call	sfb_from_sfh		; BX -> SFB
+	pop	ax
+	jc	fc9
+	cmp	cs:[bx].SFB_CONTEXT,dx	; is it the session's console?
+	jne	fc9			; no
+	les	di,cs:[bx].SFB_DEVICE	; ES:DI -> driver
+	sub	cx,cx			; no data
+	call	dev_request
+fc9:	ret
+ENDPROC	flush_console
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; dev_request
 ;
 ; Inputs:

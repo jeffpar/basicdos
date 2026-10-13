@@ -35,8 +35,8 @@ COM1	DDH	<COM1_LEN,,DDATTR_OPEN+DDATTR_CHAR,COM1_INIT,ddcom_int1,20202020314D4F4
 
 	DEFLBL	CMDTBL,word
 	dw	ddcom_none,   ddcom_none,   ddcom_none,   ddcom_ioctl	; 0-3
-	dw	ddcom_read,   ddcom_none,   ddcom_none,   ddcom_none	; 4-7
-	dw	ddcom_write,  ddcom_none,   ddcom_none,   ddcom_none	; 8-11
+	dw	ddcom_read,   ddcom_none,   ddcom_none,   ddcom_inflush	; 4-7
+	dw	ddcom_write,  ddcom_none,   ddcom_none,   ddcom_outflush; 8-11
 	dw	ddcom_none,   ddcom_open,   ddcom_close			; 12-14
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
@@ -44,15 +44,18 @@ COM1	DDH	<COM1_LEN,,DDATTR_OPEN+DDATTR_CHAR,COM1_INIT,ddcom_int1,20202020314D4F4
 	dw	9600,110,19200, 8,7,8, 1,1,2, 128,0,4096
 
 ;
-; Terminal types (aka "personalities"), which may be specified after the
-; stop bits (eg, "COM1:9600,N,8,1,GENERIC"); the default is ANSI.  The order
-; of TERM_NAMES must match the TERM_* values.
+; Options, which may be specified in any order after the stop bits (eg,
+; "COM1:9600,N,8,1,GENERIC,XON"): a terminal type (aka "personality"), where
+; the default is ANSI, XON, which enables XON/XOFF flow control, and RTS,
+; which enables RTS/CTS flow control.  The terminal types in OPT_NAMES must
+; come first, in the order of the TERM_* values, followed by XON and RTS.
 ;
 TERM_ANSI	equ	0	; supports ANSI (VT100) cursor and erase sequences
 TERM_GENERIC	equ	1	; supports only CR, LF, BACKSPACE, and TAB
+TERM_COUNT	equ	2	; number of terminal types
 
-	DEFLBL	TERM_NAMES,byte
-	db	"ANSI",0,"GENERIC",0,0
+	DEFLBL	OPT_NAMES,byte
+	db	"ANSI",0,"GENERIC",0,"XON",0,"RTS",0,0
 
 	DEFLBL	ANSI_RIGHT,byte
 	db	CHR_ESCAPE,"[C",0	; cursor forward
@@ -103,6 +106,9 @@ SIG_CT		equ	'O'
 
 CTSTAT_XMTFULL	equ	01h	; transmitter buffer full
 CTSTAT_RCVOVFL	equ	02h	; receiver buffer overflow
+CTSTAT_XON	equ	04h	; XON/XOFF flow control enabled (XON option)
+CTSTAT_RTS	equ	08h	; RTS/CTS flow control enabled (RTS option)
+CTSTAT_CTSOFF	equ	10h	; output held because CTS is low (RTS option)
 CTSTAT_INPUT	equ	40h	; context is waiting for input
 CTSTAT_PAUSED	equ	80h	; context is paused (triggered by CTRLS hotkey)
 
@@ -923,17 +929,19 @@ dco1a:	mov	es,ax
 	xchg	ax,dx
 	stosw				; set CT_DATABITS and CT_STOPBITS
 	pop	ax			; restore parity (BH) and terminal (BL)
-	mov	dl,al			; DL = terminal type
+	mov	dl,al			; DL = terminal type and options
 	mov	al,1
 	xchg	al,ah
 	stosw				; set CT_PARITY and CT_REFS
-	sub	ax,ax
+	mov	al,dl
+	and	ax,CTSTAT_XON OR CTSTAT_RTS	; AL = flow control options
 	IFDEF DEBUG
 	mov	ah,SIG_CT
 	ENDIF
 	stosw				; set CT_STATUS and CT_SIG
 	mov	al,0
 	mov	ah,dl
+	and	ah,NOT (CTSTAT_XON OR CTSTAT_RTS)	; AH = terminal type
 	stosw				; set CT_COL and CT_TERM
 	sub	ax,ax
 	stosw				; set CT_LLEN and CT_RSVD
@@ -1011,7 +1019,8 @@ dco5:	call	write_ier		; enable THR and RBR interrupts
 ;
 ; Step 2: Set the OUT2 bit in the Modem Control Register.
 ;
-	call	write_mcr		; set DTR and OUT2
+	call	write_mcr		; set DTR and OUT2 (and RTS)
+	call	check_cts		; record the initial CTS state
 ;
 ; Step 3: Unmask the IRQ.  We choose which IRQ based on port #.
 ;
@@ -1095,6 +1104,77 @@ ENDPROC	ddcom_none
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; ddcom_inflush
+;
+; Discards any buffered input.
+;
+; Inputs:
+;	CX = context, if any
+;	ES:DI -> DDP
+;
+; Outputs:
+;	DDP updated
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcom_inflush
+	jcxz	cif9
+	push	ds
+	mov	ds,cx
+	ASSUME	DS:NOTHING
+	cli
+	mov	ax,ds:[CT_INPUT].BUFTAIL
+	mov	ds:[CT_INPUT].BUFHEAD,ax
+	and	ds:[CT_STATUS],NOT CTSTAT_RCVOVFL
+	sti
+	pop	ds
+	ASSUME	DS:CODE
+cif9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+	ret
+ENDPROC	ddcom_inflush
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcom_outflush
+;
+; Discards any buffered output, and ends any CTRLS pause; however, an XOFF
+; pause (with XON/XOFF flow control) belongs to the terminal, so only XON can
+; end it, and a CTS hold (with RTS/CTS flow control) ends only when CTS rises.
+;
+; Inputs:
+;	CX = context, if any
+;	ES:DI -> DDP
+;
+; Outputs:
+;	DDP updated
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcom_outflush
+	jcxz	cof9
+	push	ds
+	mov	ds,cx
+	ASSUME	DS:NOTHING
+	cli
+	mov	ax,ds:[CT_OUTPUT].BUFTAIL
+	mov	ds:[CT_OUTPUT].BUFHEAD,ax
+	and	ds:[CT_STATUS],NOT CTSTAT_XMTFULL
+	test	ds:[CT_STATUS],CTSTAT_XON
+	jnz	cof8			; only XON can end the pause
+	and	ds:[CT_STATUS],NOT CTSTAT_PAUSED
+cof8:	sti
+	pop	ds
+	ASSUME	DS:CODE
+cof9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+	ret
+ENDPROC	ddcom_outflush
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; ddcom_int
 ;
 ; COM hardware interrupt handler.
@@ -1124,13 +1204,17 @@ ddi1:	push	bx
 	mov	ds,cx
 	sti
 ;
-; Check the IIR to see what's changed.
+; Check the IIR to see what's changed, until no more interrupts are pending
+; (another condition could arise while we're servicing one, eg, a CTS change
+; while the transmitter is empty, and the 8250 won't interrupt again).
 ;
-	call	read_iir
+ddi1a:	call	read_iir
+	test	al,IIR_NO_INT		; any (more) interrupts pending?
+	jnz	ddi4			; no
 	cmp	al,IIR_INT_RBR		; data received?
 	jne	ddi3			; no
 	call	push_input
-	jmp	short ddi4
+	jmp	ddi1a
 ;
 ; Unlike the CONSOLE and CLOCK$ drivers' hardware interrupt handlers,
 ; which simply piggy-back on existing BIOS hardware interrupt handlers,
@@ -1142,8 +1226,15 @@ ddi2:	mov	al,20h			; EOI the interrupt to ensure
 	jmp	short ddi10
 
 ddi3:	cmp	al,IIR_INT_THR		; transmitter ready?
-	jne	ddi4			; no
+	jne	ddi3a			; no
 	call	pull_output
+	jmp	ddi1a
+ddi3a:	cmp	al,IIR_INT_MSR		; modem status changed?
+	jne	ddi3b			; no
+	call	check_cts
+	jmp	ddi1a
+ddi3b:	call	read_lsr		; line status (reading LSR clears it)
+	jmp	ddi1a
 
 ddi4:	mov	al,20h			; EOI the interrupt now
 	out	20h,al
@@ -1323,21 +1414,21 @@ ENDPROC	remove_packet
 ;
 ; Inputs:
 ;	DS:SI -> parameter string:
-;	[baud],[parity],[databits],[stopbits],[terminal],[inbuflen],[outbuflen]
+;	[baud],[parity],[databits],[stopbits],[options],[inbuflen],[outbuflen]
 ;
-; where [terminal] is optional and must be a name from TERM_NAMES.  Parsing
+; where [options] are optional names from OPT_NAMES (see get_option).  Parsing
 ; stops at the end of the string, and any missing values use their defaults.
 ;
 ; Outputs:
 ;	If carry clear:
 ;	CX = baud rate
 ;	BH = parity indicator (unvalidated; should be one of 'N', 'O', or 'E')
-;	BL = terminal type (TERM_*)
+;	BL = terminal type (TERM_*), plus CTSTAT_XON and/or CTSTAT_RTS
 ;	DL = data bits
 ;	DH = stop bits
 ;	SI = input buffer length
 ;	AX = output buffer length
-;	If carry set, the terminal type was not recognized
+;	If carry set, an option was not recognized
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI
@@ -1362,12 +1453,14 @@ DEFPROC	get_parms
 ; ATOI16 advances SI past the delimiter following a number, so whenever that
 ; delimiter wasn't a comma, we've reached the end of the parameters.
 ;
-	mov	ax,TERM_ANSI		; AX = default terminal type
-	cmp	byte ptr [si-1],','	; any more parameters?
+	mov	ax,TERM_ANSI		; AL = default terminal type, AH = 0
+gp0:	cmp	byte ptr [si-1],','	; any more parameters?
 	jne	gp1			; no
-	call	get_term		; AX = terminal type, if any
-	jc	gp9			; unrecognized terminal type
-gp1:	push	ax			; save terminal type
+	call	get_option		; AL = terminal type, AH = options
+	jc	gp9			; unrecognized option
+	jnz	gp0			; found one, so check for another
+gp1:	or	al,ah			; AL = terminal type and options
+	push	ax			; save terminal type and options
 	mov	ax,es:[di]		; AX = default input buffer length
 	cmp	byte ptr [si-1],','	; any more parameters?
 	jne	gp2			; no
@@ -1391,75 +1484,89 @@ ENDPROC	get_parms
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; get_term
+; get_option
 ;
-; If the next parameter begins with a letter, it must be one of the terminal
-; type names in TERM_NAMES (in upper or lower case).
+; If the next parameter begins with a letter, it must be one of the names in
+; OPT_NAMES (in upper or lower case): a terminal type, XON, or RTS.
 ;
 ; Inputs:
+;	AL = terminal type
+;	AH = options (CTSTAT_XON, CTSTAT_RTS)
 ;	DS:SI -> next parameter
 ;
 ; Outputs:
-;	If carry clear, AX = terminal type (default if no name), and if there
-;	was a name, SI is advanced past it and its delimiter (like ATOI16);
-;	carry set if the name was not recognized
+;	If carry clear and ZF clear, a name was found, so AL or AH is updated,
+;	and SI is advanced past the name and its delimiter (like ATOI16);
+;	if carry clear and ZF set, there was no name; carry set if the name
+;	was not recognized
 ;
 ; Modifies:
 ;	AX, SI
 ;
-DEFPROC	get_term
-	mov	ax,TERM_ANSI
-	mov	ah,[si]
-	and	ah,0DFh			; convert to upper-case
-	cmp	ah,'A'			; does parameter begin with a letter?
-	jb	gt8			; no
-	cmp	ah,'Z'
-	ja	gt8			; no
+DEFPROC	get_option
 	push	bx
+	push	cx
 	push	di
-	mov	di,offset TERM_NAMES	; CS:DI -> terminal names
-	sub	bx,bx			; BX = terminal type
-gt1:	push	si
-gt2:	mov	al,[si]
+	xchg	cx,ax			; CX = terminal type and options
+	mov	al,[si]
+	and	al,0DFh			; convert to upper-case
+	cmp	al,'A'			; does parameter begin with a letter?
+	jb	go8			; no
+	cmp	al,'Z'
+	ja	go8			; no
+	mov	di,offset OPT_NAMES	; CS:DI -> option names
+	sub	bx,bx			; BX = option index
+go1:	push	si
+go2:	mov	al,[si]
 	cmp	al,'a'
-	jb	gt3
+	jb	go3
 	cmp	al,'z'
-	ja	gt3
+	ja	go3
 	sub	al,20h			; convert to upper-case
-gt3:	mov	ah,cs:[di]
+go3:	mov	ah,cs:[di]
 	inc	di
 	test	ah,ah			; end of name?
-	jz	gt4			; yes
+	jz	go4			; yes
 	cmp	al,ah
-	jne	gt5			; mismatch
+	jne	go5			; mismatch
 	inc	si
-	jmp	gt2
-gt4:	cmp	al,','			; name must be followed by a comma
-	je	gt6
+	jmp	go2
+go4:	cmp	al,','			; name must be followed by a comma
+	je	go6
 	cmp	al,CHR_SPACE		; or the end of the string (NUL, or any
-	jae	gt5			; other CONTROL char, eg, CR or LF)
-gt6:	pop	ax			; discard saved SI
+	jae	go5			; other CONTROL char, eg, CR or LF)
+go6:	pop	ax			; discard saved SI
 	inc	si			; advance SI past the delimiter
-	xchg	ax,bx			; AX = terminal type
-	pop	di
-	pop	bx
-gt8:	clc
-	ret
+	cmp	bl,TERM_COUNT		; terminal type?
+	jae	go7			; no
+	mov	cl,bl			; CL = terminal type
+	jmp	short go7a
+go7:	mov	al,CTSTAT_XON
+	je	go7b			; XON (it follows the terminal types)
+	mov	al,CTSTAT_RTS		; the only other option is RTS
+go7b:	or	ch,al
+go7a:	test	sp,sp			; ZF clear (and carry clear)
+	jmp	short go9
 
-gt5:	pop	si			; restore SI
-gt5a:	test	ah,ah			; skip remainder of the name
-	jz	gt5b
+go5:	pop	si			; restore SI
+go5a:	test	ah,ah			; skip remainder of the name
+	jz	go5b
 	mov	ah,cs:[di]
 	inc	di
-	jmp	gt5a
-gt5b:	inc	bx			; advance terminal type
-	cmp	byte ptr cs:[di],0	; end of TERM_NAMES?
-	jne	gt1			; no
+	jmp	go5a
+go5b:	inc	bx			; advance option index
+	cmp	byte ptr cs:[di],0	; end of OPT_NAMES?
+	jne	go1			; no
+	stc				; unrecognized name
+	jmp	short go9
+
+go8:	cmp	ax,ax			; no name (ZF set, carry clear)
+go9:	xchg	ax,cx			; AX = terminal type and options
 	pop	di
+	pop	cx
 	pop	bx
-	stc
 	ret
-ENDPROC	get_term
+ENDPROC	get_option
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1605,10 +1712,15 @@ ENDPROC	pull_input
 ; input code uses it for input control), and while paused, any other byte
 ; (eg, CTRLQ) ends the pause and is consumed.
 ;
-; CTRLC also ends any pause, discards any buffered input (as does the CON
-; driver), and is then delivered to DOS as a HOTKEY notification rather than
-; as data, since the DOS CTRLC processing only removes CTRLC from the input
-; stream of DDATTR_STDIN devices.
+; With XON/XOFF flow control (the XON option, eg, for a VT100 that sends XOFF
+; when its buffer fills), XOFF (CTRLS) always pauses, XON (CTRLQ) always ends
+; the pause (nothing else does, not even DDC_OUTFLUSH), both are always
+; consumed (even when the context is waiting for input), and any other byte is
+; data.
+;
+; CTRLC is buffered like any other byte, and is also reported to DOS as a
+; HOTKEY, which is all the CON driver does as well; it's up to DOS to discard
+; any type-ahead or end any pause (see DDC_INFLUSH and DDC_OUTFLUSH).
 ;
 ; Inputs:
 ;	DS = context
@@ -1625,7 +1737,17 @@ DEFPROC	push_input
 	ASSERT	STRUCT,ds:[0],CT
 	cmp	al,CHR_CTRLC		; CTRLC?
 	je	psi6			; yes
-	test	ds:[CT_STATUS],CTSTAT_INPUT
+	test	ds:[CT_STATUS],CTSTAT_XON
+	jz	psi1			; no XON/XOFF flow control
+	cmp	al,CHR_CTRLS		; XOFF?
+	jne	psi0			; no
+	or	ds:[CT_STATUS],CTSTAT_PAUSED
+	jmp	short psi9
+psi0:	cmp	al,CHR_CTRLQ		; XON?
+	jne	psi3			; no, so it's data
+	and	ds:[CT_STATUS],NOT CTSTAT_PAUSED
+	jmp	short psi5
+psi1:	test	ds:[CT_STATUS],CTSTAT_INPUT
 	jnz	psi3			; waiting for input, so no PAUSE checks
 	cmp	al,CHR_CTRLS		; CTRLS?
 	jne	psi2			; no (anything else unpauses)
@@ -1642,18 +1764,12 @@ psi3:	mov	si,offset CT_INPUT
 	mov	[bx],al
 	jmp	short psi9
 ;
-; CTRLC detected: discard buffered input, end any pause, and notify DOS.
+; CTRLC detected: buffer it, and notify DOS.
 ;
 psi6:	mov	si,offset CT_INPUT
-	cli
-	mov	bx,[si].BUFTAIL
-	mov	[si].BUFHEAD,bx
-	and	ds:[CT_STATUS],NOT CTSTAT_RCVOVFL
-	sti
-	test	ds:[CT_STATUS],CTSTAT_PAUSED
-	jz	psi7
-	and	ds:[CT_STATUS],NOT CTSTAT_PAUSED
-	call	resume_output
+	call	push_buffer
+	jc	psi7
+	mov	[bx],al
 psi7:	push	cx
 	mov	cx,ds			; CX = context
 	mov	dx,CHR_CTRLC		; DL = char code, DH = scan code (none)
@@ -1680,8 +1796,8 @@ ENDPROC	push_input
 ; Remove a byte from CT_OUTPUT and transmit it.  If there are no more bytes,
 ; then clear CTSTAT_XMTFULL.
 ;
-; If the context is paused, nothing is transmitted; resume_output restarts
-; transmission when the pause ends.
+; If the context is paused (or held because CTS is low), nothing is
+; transmitted; resume_output restarts transmission when that ends.
 ;
 ; Inputs:
 ;	DS = context
@@ -1695,9 +1811,9 @@ ENDPROC	push_input
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	pull_output
-	test	ds:[CT_STATUS],CTSTAT_PAUSED
+	test	ds:[CT_STATUS],CTSTAT_PAUSED OR CTSTAT_CTSOFF
 	stc
-	jnz	plo9			; paused, so transmit nothing
+	jnz	plo9			; paused or held, so transmit nothing
 	mov	si,offset CT_OUTPUT
 	call	pull_buffer
 	jc	plo8
@@ -1733,6 +1849,8 @@ ENDPROC	pull_output
 DEFPROC	push_output
 	cli
 	mov	si,offset CT_OUTPUT
+	test	ds:[CT_STATUS],CTSTAT_PAUSED OR CTSTAT_CTSOFF
+	jnz	pso7			; output is paused or held, so buffer
 	call	peek_buffer		; anything in the output buffer?
 	jnz	pso7			; yes, so continue to buffer
 	push	ax
@@ -1779,6 +1897,40 @@ DEFPROC	resume_output
 rso9:	sti
 	ret
 ENDPROC	resume_output
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; check_cts
+;
+; Reads the Modem Status Register (which also clears any MSR interrupt), and
+; for RTS/CTS flow control, holds output while CTS is low (CTSTAT_CTSOFF),
+; resuming it when CTS rises.
+;
+; Inputs:
+;	DS = context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, DX, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	check_cts
+	mov	dx,ds:[CT_PORT]
+	add	dx,REG_MSR		; DX -> MSR
+	in	al,dx
+	test	ds:[CT_STATUS],CTSTAT_RTS
+	jz	ck9			; no RTS/CTS flow control
+	test	al,MSR_CTS		; is CTS high?
+	jz	ck8			; no, so hold output
+	test	ds:[CT_STATUS],CTSTAT_CTSOFF
+	jz	ck9			; output wasn't held
+	and	ds:[CT_STATUS],NOT CTSTAT_CTSOFF
+	jmp	resume_output
+ck8:	or	ds:[CT_STATUS],CTSTAT_CTSOFF
+ck9:	ret
+ENDPROC	check_cts
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1853,11 +2005,15 @@ ENDPROC	read_rbr
 ;	AX, DX
 ;
 DEFPROC	write_mcr
-	mov	dx,ds:[CT_PORT]
+	mov	ah,MCR_DTR OR MCR_OUT2	; OUT2 enables interrupts
+	test	ds:[CT_STATUS],CTSTAT_RTS
+	jz	wm1
+	or	ah,MCR_RTS		; RTS tells the other end we're ready
+wm1:	mov	dx,ds:[CT_PORT]
 	add	dx,REG_MCR		; DX -> MCR
 	in	al,dx
 	jmp	$+2
-	or	al,MCR_DTR OR MCR_OUT2	; OUT2 enables interrupts
+	or	al,ah
 	out	dx,al
 	ret
 ENDPROC	write_mcr
@@ -1886,7 +2042,10 @@ DEFPROC	write_ier
 	dec	dx			; DX -> IER
 	jmp	$+2
 	mov	al,IER_THR_EMPTY OR IER_RBR_AVAIL
-	out	dx,al
+	test	ds:[CT_STATUS],CTSTAT_RTS
+	jz	wi1
+	or	al,IER_MSR_DELTA	; CTS changes interrupt, too
+wi1:	out	dx,al
 	ret
 ENDPROC	write_ier
 

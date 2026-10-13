@@ -112,6 +112,8 @@ Commands:
 
 On return, DDP_STATUS contains DDSTAT_DONE (0100h), plus DDSTAT_ERROR (8000h) and an error code in the low byte if the request failed.  Disk error codes are the BIOS (INT 13h) error codes (eg, 03h for write-protect, 80h for drive not ready), and the other codes use values the BIOS doesn't (eg, DDERR_UNKCMD, 06h, for an unknown command); see dev.inc for the complete list.
 
+Console drivers (CON and COM) handle CTRL-C the same way, and only report it: they leave it in their input like any other character, and notify DOS with DOS_UTL_HOTKEY.  When DOS acts on a CTRL-C, it sends DDC_INFLUSH to the session's console, which discards its type-ahead (including the CTRL-C), and DDC_OUTFLUSH, which ends any CTRL-S pause (the COM driver also discards any output it has buffered, but an XOFF pause or a CTS hold still ends only when the terminal allows it).  DOS_TTY_FLUSH (INT 21h, AH = 0Ch) also sends DDC_INFLUSH, to STDIN.
+
 A request that must wait (eg, a keyboard read with no key available) calls DOS_UTL_WAIT with the packet address as the wait ID, which lets other sessions run; the driver's interrupt handler later calls DOS_UTL_ENDWAIT with the same ID.  Interrupt handlers should begin with a far call to DDINT_ENTER (0:530h) and end with a far jump to DDINT_LEAVE (0:535h), which lets DOS switch sessions when the interrupt ends.
 
 ### IOCTL Functions

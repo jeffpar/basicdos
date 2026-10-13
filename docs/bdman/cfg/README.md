@@ -57,7 +57,7 @@ Sets the number of disk buffers, each of which holds one 512-byte sector of a FA
 
 > CONSOLE=CON:*cols*,*rows*[,*x*,*y*[,*border*[,*adapter*]]]  
 > CONSOLE=CON:*cols*,*rows*,BIOS  
-> CONSOLE=COM*n*:*baud*,*parity*,*databits*,*stopbits*
+> CONSOLE=COM*n*:*baud*,*parity*,*databits*,*stopbits*[,*options*]
 
 Defines a console for a session.  Each CONSOLE line defines a console for the next session, so a CONSOLE line is needed for every session that has its own console; the number of CONSOLE lines can't exceed [SESSIONS](#sessions).  If there are no CONSOLE lines, a single console is created, as if `CONSOLE=CON:80,25` had been specified.  If a CONSOLE line can't be opened (eg, its adapter or serial port doesn't exist), a warning is displayed; if it's the first CONSOLE line, `CON:80,25` is used instead, and otherwise, that console and its SHELL line are skipped.
 
@@ -70,7 +70,13 @@ For a CON console:
 
 BIOS (or just B) following *rows* creates a full-screen console that writes characters using the BIOS (INT 10h), rather than directly to video memory.
 
-A COM console uses a serial port (eg, a terminal connected to COM1) for both input and output.
+A COM console uses a serial port (eg, a terminal connected to COM1) for both input and output.  Its *options*, in any order, are:
+
+- ANSI (the default) for a terminal that supports ANSI (VT100) cursor and erase sequences, or GENERIC for a terminal that supports only CR, LF, BACKSPACE, and TAB
+- XON for XON/XOFF flow control: the terminal sends XOFF (CTRL-S) to stop output and XON (CTRL-Q) to resume it, and neither is ever treated as input (eg, `CONSOLE=COM1:9600,N,8,1,XON` for a VT100, which sends XOFF when it falls behind, such as while smooth scrolling)
+- RTS for RTS/CTS (hardware) flow control: RTS is raised to tell the terminal that BASIC-DOS is ready, and output is held whenever the terminal drops CTS, resuming when CTS is raised again
+
+Without XON, CTRL-S pauses output and any other key resumes it, except while a program is waiting for input, when CTRL-S is passed to the program.
 
 Two consoles side by side, each 40 columns wide with a border:
 

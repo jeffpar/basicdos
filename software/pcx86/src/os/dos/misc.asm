@@ -16,8 +16,8 @@
 
 DOS	segment word public 'CODE'
 
-	EXTNEAR	<dos_check,dos_restart,dev_request,tty_read,write_handle>
-	EXTNEAR	<sfb_get>
+	EXTNEAR	<dos_check,dos_restart,dev_request,write_handle>
+	EXTNEAR	<sfb_get,flush_console>
 	EXTSTR	<STR_CTRLC>
 
 	EXTWORD	<mcb_head>
@@ -342,25 +342,14 @@ DEFPROC	msc_sigctrlc,DOSFAR
 	ASSERT	STRUCT,[bx],SCB
 	cmp	[bx].SCB_CTRLC_ACT,0
 	je	msg1
-;
-; Remove the CTRLC from the input buffer, but only if STDIN is the console;
-; if STDIN is redirected (eg, the second command in "DIR | CASE"), reading it
-; would consume redirected data instead, and leave CTRLC in the input buffer.
-; In that case, it's up to a session whose STDIN is the console to remove it.
-;
-	push	bx
-	mov	bx,STDIN
-	call	sfb_get			; BX -> SFB
-	jc	msg0a
-	les	di,[bx].SFB_DEVICE
-	test	es:[di].DDH_ATTR,DDATTR_STDIN
-	stc
-	jz	msg0a
-	clc
-msg0a:	pop	bx
-	jc	msg0
-	call	tty_read		; remove CTRLC from the input buffer
 msg0:	mov	[bx].SCB_CTRLC_ACT,0
+;
+; Have the session's console discard its type-ahead (including the CTRLC,
+; which console drivers leave in the input) and end any pause (see
+; flush_console), rather than reading the CTRLC from STDIN, which may be
+; redirected (eg, the second command in "DIR | CASE").
+;
+	call	flush_console
 ;
 ; Make sure that whatever function we're interrupting has not violated
 ; our BP convention; some functions prefer to use BP as an extra register,
@@ -420,6 +409,45 @@ msg1:	IF REG_CHECK
 	pop	ax
 	ret
 ENDPROC	msc_sigctrlc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; flush_stdin
+;
+; Discards any type-ahead, by sending DDC_INFLUSH to STDIN, if it's a
+; character device (see tty_flush).
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	BX, ES (all other registers preserved)
+;
+DEFPROC	flush_stdin,DOS
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
+	push	ax
+	push	cx
+	push	dx
+	push	di
+	mov	bx,STDIN
+	call	sfb_get			; BX -> SFB
+	jc	fs9
+	les	di,[bx].SFB_DEVICE
+	test	es:[di].DDH_ATTR,DDATTR_CHAR
+	jz	fs9			; not a character device
+	mov	dx,[bx].SFB_CONTEXT
+	mov	ah,DDC_INFLUSH
+	sub	cx,cx			; no data
+	call	dev_request
+fs9:	pop	di
+	pop	dx
+	pop	cx
+	pop	ax
+	ret
+ENDPROC	flush_stdin
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

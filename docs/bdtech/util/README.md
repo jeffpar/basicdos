@@ -142,7 +142,7 @@ Specifiers also support the `#` and `-` flags, a width, and a precision (eg, `%-
 
 **DOS_UTL_ENDWAIT (1Ah)**: DX:DI = wait ID.  Makes any session waiting on the ID runnable again; carry is set if no session was waiting.
 
-**DOS_UTL_HOTKEY (1Bh)**: CX = console context, DL = character code, DH = scan code.  Used by the CON driver to notify DOS of CTRL-C, CTRL-P, and CTRL-ALT-DEL.
+**DOS_UTL_HOTKEY (1Bh)**: CX = console context, DL = character code, DH = scan code.  Used by the console drivers (CON and COM) to notify DOS of CTRL-C, CTRL-P, and CTRL-ALT-DEL; a CTRL-C is also left in the driver's input, for DOS to discard (see [Device Drivers](../dev/)).
 
 **DOS_UTL_LOCK (1Ch)**: Locks the current session, so that no session switch occurs until DOS_UTL_UNLOCK is called.  Returns AX = the console context of the current session (0 if none).
 

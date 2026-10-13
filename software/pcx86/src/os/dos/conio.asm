@@ -17,6 +17,8 @@
 DOS	segment word public 'CODE'
 
 	EXTNEAR	<strlen,sfb_get,sfb_read,sfb_write,dev_request>
+	EXTNEAR	<flush_stdin>
+	EXTWORD	<FUNCTBL>
 
 	ASSUME	CS:DOS, DS:DOS, ES:DOS, SS:NOTHING
 
@@ -925,8 +927,38 @@ DEFPROC	tty_status,DOS
 	ret
 ENDPROC	tty_status
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; tty_flush (REG_AH = 0Ch)
+;
+; Discards any type-ahead (see flush_stdin), and then performs input function
+; REG_AL (01h, 06h, 07h, 08h, or 0Ah), if any.
+;
+; Inputs:
+;	REG_AL = input function to perform, if any
+;	(plus any inputs required by that function)
+;
+; Outputs:
+;	Same as the input function, if any
+;
+; Modifies:
+;	Any
+;
 DEFPROC	tty_flush,DOS
-	ret
+	call	flush_stdin
+	cmp	al,1			; perform one of the allowed functions?
+	je	tf2			; yes
+	cmp	al,6
+	jb	tf9			; no
+	cmp	al,8
+	jbe	tf2			; yes
+	cmp	al,0Ah
+	jne	tf9			; no
+tf2:	mov	bl,al
+	mov	bh,0
+	add	bx,bx
+	jmp	FUNCTBL[bx]
+tf9:	ret
 ENDPROC	tty_flush
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
