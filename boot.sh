@@ -12,8 +12,8 @@
 #   m640    floppy, console on COM1, 640K, skipping the CON and FPU$ drivers (for evaluating memory usage)
 #   hd      10Mb hard disk (C:), console on COM1 (see tools/tests/testhd.sh for booting BASIC-DOS from
 #           a diskette with an MS-DOS-formatted hard disk instead)
-#   bios    floppy, CON driver (see configs/console/bios/CONFIG.SYS) on an MDA
-#   cga     floppy, CON driver on a CGA
+#   bios    floppy, CON driver (see configs/console/bios/CONFIG.SYS) on a CGA
+#   cga     alias for bios
 #
 cd "$(dirname "$0")" || exit 1
 name=${1:-fpe}
@@ -24,8 +24,7 @@ case "$name" in
     fpu)    cfg=serial/fpu;  opts="--floppy --serial --fpu" ;;
     m640)   cfg=serial/m640; opts="--floppy --serial --ram=640K" ;;
     hd)     cfg=serial/hd;   opts="--target=10M --serial" ;;
-    bios)   cfg=bios;        opts="--floppy" ;;
-    cga)    cfg=bios;        opts="--floppy"; machine=ibm5160-cga ;;
+    bios|cga) cfg=bios;      opts="--floppy" ;;
     *)      echo "usage: $0 [fpe|fpu|m640|hd|bios|cga] [pc.js arguments...]" >&2; exit 1 ;;
 esac
 cfg=software/src/configs/console/$cfg

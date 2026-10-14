@@ -265,7 +265,7 @@ That machine has no 8087, so BASIC-DOS emulates floating-point operations.  `boo
 - `fpu`: the same, but using the `configs/console/serial/fpu` folder, with pc.js's `--fpu` option (which gives the machine an 8087 coprocessor)
 - `m640`: a 640K machine (`--ram=640K`) that skips the CON and FPU$ drivers, for evaluating memory usage
 - `hd`: a 10Mb hard disk (C:) that `pc.js` builds from the `configs/console/serial/hd` folder, with the BASIC-DOS system files
-- `bios` and `cga`: the CON driver (from the `configs/console/bios` folder) on a Monochrome or Color Display, instead of a serial console
+- `bios` and `cga` (an alias): the CON driver (from the `configs/console/bios` folder) on a Color Display, instead of a serial console
 
 For example:
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Runs BENCH.BAS (software/src/tests/misc) with BASIC-DOS, BASICA, and GW-BASIC (MSBASIC.EXE), each on
-# an IBM PC XT with a CGA (ibm5160-cga), both without and with an 8087 (--fpu), all six at once, and
+# an IBM PC XT with a CGA (ibm5160), both without and with an 8087 (--fpu), all six at once, and
 # then prints each test's time in seconds (BIOS ticks / 18.2), as shown on the preview/part6 page.
 #
 # Build first (see mk.sh), so that COMMAND.COM and MSBASIC.EXE are current.  The BASICA runs use BASICA.COM from
@@ -47,12 +47,12 @@ run() {
     sleep 15
 }
 echo "running 6 configurations (about $((secs / 60 + 3)) minutes)..."
-run bd ibm5160-cga "$out/bd" "VER,TESTS/BENCH" --system=bd --version=2
-run bdf ibm5160-cga "$out/bd" "VER,TESTS/BENCH" --system=bd --version=2 --fpu
-run ba ibm5160-cga "$out/pc" "VER,BASICA BENCH" --system=pcdos --version=2.00
-run baf ibm5160-cga "$out/pc" "VER,BASICA BENCH" --system=pcdos --version=2.00 --fpu
-run gw ibm5160-cga "$out/pc" "VER,MSBASIC BENCH" --system=pcdos --version=2.00
-run gwf ibm5160-cga "$out/pc" "VER,MSBASIC BENCH" --system=pcdos --version=2.00 --fpu
+run bd ibm5160 "$out/bd" "VER,TESTS/BENCH" --system=bd --version=2
+run bdf ibm5160 "$out/bd" "VER,TESTS/BENCH" --system=bd --version=2 --fpu
+run ba ibm5160 "$out/pc" "VER,BASICA BENCH" --system=pcdos --version=2.00
+run baf ibm5160 "$out/pc" "VER,BASICA BENCH" --system=pcdos --version=2.00 --fpu
+run gw ibm5160 "$out/pc" "VER,MSBASIC BENCH" --system=pcdos --version=2.00
+run gwf ibm5160 "$out/pc" "VER,MSBASIC BENCH" --system=pcdos --version=2.00 --fpu
 wait
 python3 - "$out" <<'EOF'
 import re, sys
