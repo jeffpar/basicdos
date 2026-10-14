@@ -60,4 +60,4 @@ If `PCJS` points to a checkout of the PCjs repository, `mk.sh` also runs the Gul
 
 When invoking the guest batch files directly, **MK DEBUG** and **MK FINAL** select the build mode; **MK** defaults to DEBUG unless the `MKFINAL` marker created by `mk.sh` is present.  Use **MKCLEAN DEBUG** or **MKCLEAN FINAL** when switching modes manually, since MAKE doesn't detect mode changes.  **MKCLEAN.BAT** deletes the build outputs before running **MK.BAT**.
 
-After building, run `tools/tests/quick.sh` from the repository root for unattended confidence tests on machines with and without an 8087.  The `boot.sh`, `bootfpu.sh`, and `boothd.sh` scripts provide interactive BASIC-DOS sessions with software floating-point, an 8087, and a bootable hard disk, respectively.
+After building, run `tools/tests/quick.sh` from the repository root for unattended confidence tests on machines with and without an 8087.  The `boot.sh` script provides interactive BASIC-DOS sessions: `./boot.sh` alone uses software floating-point, and `./boot.sh fpu`, `./boot.sh hd`, etc. select other configurations (see the script for the list).

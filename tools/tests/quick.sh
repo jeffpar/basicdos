@@ -1,15 +1,15 @@
 #!/bin/bash
-# echo This command boots a BASIC-DOS test floppy (see conserial.sh), runs FPUTESTS, DOSTESTS, STRFUN, STRPOOL,
+# echo This command boots a BASIC-DOS test floppy (like ./boot.sh), runs FPUTESTS, DOSTESTS, STRFUN, STRPOOL,
 # ARRAYS, FLOW, CMDS (commands, pipes, redirection, and HELP), VARS (variable listings), FILEIO (sequential and random files),
 # MOVES (file and directory moves), FCBTESTS (FCB
 # functions), and PRINTF,
 # and then quits; it then boots a test floppy
-# on a machine with an 8087 (see bootfpu.sh), and runs FPUTESTS, VARS, and STRFUN.
+# on a machine with an 8087 (like ./boot.sh fpu), and runs FPUTESTS, VARS, and STRFUN.
 # It's a very quick (and dirty) set of confidence tests.
 # The exit code is non-zero if any test failed.
 #
-# NOTE: The ibm5160-test machines have no hard disk and no debugger, either of which would cause the
-# (DEBUG) BASIC-DOS boot sector to display a "Press a key to start..." prompt, so the tests run unattended.
+# NOTE: With --floppy, pc.js removes the machine's hard disk, which would otherwise make the BASIC-DOS
+# boot sector display a "Press a key to start..." prompt, so the tests run unattended.
 #
 # The first command must be an internal command (eg, VER), because pc.js converts only the first
 # command into a path (eg, "\DOSTESTS.COM"), which BASIC-DOS doesn't understand.  Also, since output
@@ -24,8 +24,8 @@ log=$(mktemp)
 # ERRORLEVEL after each test program instead.
 #
 ok='IF ERRORLEVEL = 0 THEN PRINT "EXITOK" ELSE PRINT "EXITBAD"'
-tools/pc/pc.js ibm5160-test software/src/configs/console/serial/fpe "VER,MEM,FPUTESTS,$ok,DOSTESTS,$ok,STRFUN,STRPOOL,ARRAYS,FLOW,CMDS,VARS,FILEIO,MOVES,FCBTESTS,$ok,PRINTF,$ok,SLEEP 1,QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync | tee "$log"
-tools/pc/pc.js ibm5160-test-fpu software/src/configs/console/serial/fpu "VER,MEM,FPUTESTS,$ok,VARS,STRFUN,SLEEP 1,QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync | tee -a "$log"
+tools/pc/pc.js ibm5160 software/src/configs/console/serial/fpe "VER,MEM,FPUTESTS,$ok,DOSTESTS,$ok,STRFUN,STRPOOL,ARRAYS,FLOW,CMDS,VARS,FILEIO,MOVES,FCBTESTS,$ok,PRINTF,$ok,SLEEP 1,QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync | tee "$log"
+tools/pc/pc.js ibm5160 software/src/configs/console/serial/fpu "VER,MEM,FPUTESTS,$ok,VARS,STRFUN,SLEEP 1,QUIT" --fpu --system=bd --version=2 --floppy --serial --normalize --nosync | tee -a "$log"
 if grep -q "Floating-point .*installed" "$log" || grep -q "failed" "$log" || grep -q "EXITBAD" "$log" || [ "$(grep -c "EXITOK" "$log")" -lt 5 ] ||
    [ "$(grep -c "STRFUN done" "$log")" -lt 2 ] || ! grep -q "STRPOOL done" "$log" ||
    ! grep -q "ARRAYS done" "$log" || ! grep -q "FLOW done" "$log" || ! grep -q "CMDS done" "$log" ||

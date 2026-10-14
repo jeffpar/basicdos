@@ -256,14 +256,20 @@ The `boot.sh` script then builds and boots a 360K floppy (the largest floppy sup
 
     $ ./boot.sh
     [Press CTRL-D to enter command mode]
-    BASIC-DOS 2.00
-    Press a key to start...
+    BASIC-DOS 2.00 for the IBM PC
+    Copyright (c) PCJS.ORG 1981-2026
+    BASIC-DOS Command Processor
 
-The `bootfpu.sh` script does the same thing, but on an `ibm5160-fpu` machine (which has an 8087 coprocessor), using the `configs/console/serial/fpu` folder; `boot.sh` uses a machine without an 8087, where BASIC-DOS must emulate floating-point operations.
+That machine has no 8087, so BASIC-DOS emulates floating-point operations.  `boot.sh` also accepts the name of another configuration, followed by any additional `pc.js` options (eg, `--halt`):
 
-The `boothd.sh` script boots BASIC-DOS from a 10Mb hard disk that `pc.js` builds from the `tools/pc/disks/hdsrc` directory (with `--sys=bd:2`, so the BASIC-DOS system files are copied to the disk), on an `ibm5160` machine.  Its CONFIG.SYS (from `configs/console/serial/fpe`) uses a serial console, so BASIC-DOS's input and output go through the terminal:
+- `fpu`: the same, but using the `configs/console/serial/fpu` folder, with pc.js's `--fpu` option (which gives the machine an 8087 coprocessor)
+- `m640`: a 640K machine (`--ram=640K`) that skips the CON and FPU$ drivers, for evaluating memory usage
+- `hd`: a 10Mb hard disk (C:) that `pc.js` builds from the `configs/console/serial/hd` folder, with the BASIC-DOS system files
+- `bios` and `cga`: the CON driver (from the `configs/console/bios` folder) on a Monochrome or Color Display, instead of a serial console
 
-    $ ./boothd.sh
+For example:
+
+    $ ./boot.sh hd
 
 The `tools/tests/testhd.sh` script instead builds a BASIC-DOS boot diskette (from the `configs/console/bios` folder, so it uses the keyboard and screen) and boots it on an `ibm5160` machine whose 10Mb hard disk is built from a directory (`tools/pc/disks/hdsrc` by default, which is created with a few sample files if it doesn't exist), so that BASIC-DOS can be tested with an MS-DOS-formatted drive C:.  Press a key (other than **Esc**) at the boot prompt to start BASIC-DOS:
 

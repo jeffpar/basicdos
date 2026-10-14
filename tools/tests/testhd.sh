@@ -37,7 +37,7 @@ mkdir -p $fdir || exit 1
 cp -R "$cfg"/. $fdir/ || exit 1
 cp $fdir/AUTOEXEC.BAT $fdir/AUTOEXEC.HD || exit 1
 echo "Building BASIC-DOS diskette..."
-tools/pc/pc.js ibm5160-test $fdir "VER;COPY AUTOEXEC.HD AUTOEXEC.BAT;DEL AUTOEXEC.HD;QUIT /S BDHD.IMG" \
+tools/pc/pc.js ibm5160 $fdir "VER;COPY AUTOEXEC.HD AUTOEXEC.BAT;DEL AUTOEXEC.HD;QUIT /S BDHD.IMG" \
     --system=bd --version=2 --floppy --normalize --nosync > /dev/null
 if [ ! -f tools/pc/disks/BDHD.IMG ]; then
     echo "error: unable to build tools/pc/disks/BDHD.IMG" >&2

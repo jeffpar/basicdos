@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Runs BENCH.BAS (software/src/tests/misc) with BASIC-DOS, BASICA, and GW-BASIC (MSBASIC.EXE), each on
-# an IBM PC XT with a CGA (ibm5160-cga), both without and with an 8087 (ibm5160-cga-fpu), all six at once, and
+# an IBM PC XT with a CGA (ibm5160-cga), both without and with an 8087 (--fpu), all six at once, and
 # then prints each test's time in seconds (BIOS ticks / 18.2), as shown on the preview/part6 page.
 #
 # Build first (see mk.sh), so that COMMAND.COM and MSBASIC.EXE are current.  The BASICA runs use BASICA.COM from
@@ -10,7 +10,7 @@
 #
 # Each machine is given SECS seconds (the first argument, default 420) to finish, after which its debugger dumps
 # the text screen.  Keystrokes are typed into the debugger one at a time, because pc.js ignores longer input chunks
-# in debug mode.  The BASIC-DOS boot sector waits for a key when there's a debugger, so those runs press one.
+# in debug mode.  (Since --floppy removes the hard disk, the BASIC-DOS boot sector no longer waits for a key.)
 #
 # NOTE: When a command list is passed to pc.js, it converts the first command into a path, so every list
 # starts with VER (eg, "VER,MSBASIC BENCH"); otherwise, PC DOS never runs the program.
@@ -35,27 +35,24 @@ if [ ! -f "$out/pc/BASICA.COM" ]; then
     if [ ! -f "$out/pc/BASICA.COM" ]; then echo "error: unable to extract BASICA.COM (set PCJS)" >&2; exit 1; fi
 fi
 rm -f "${out:?}"/*.out
-for key in 0 1; do
-    cat > "$out/drive$key.sh" <<EOF
+cat > "$out/drive.sh" <<EOF
 dbg() { local s="\$1"; for ((i=0;i<\${#s};i++)); do printf '%s' "\${s:\$i:1}"; sleep 0.05; done; printf '\r'; sleep 1; }
-[ $key = 1 ] && { sleep 12; printf " "; }
 sleep $secs; printf '\004'; sleep 1
 dbg "db b800:0 lfa0"; sleep 3; dbg "abort"; sleep 2
 EOF
-done
 run() {
-    local name=$1 key=$2 machine=$3 dir=$4 cmds=$5; shift 5
-    (bash "$out/drive$key.sh" | timeout $((secs + 120)) script -q /dev/null tools/pc/pc.js $machine "$dir" "$cmds" "$@" \
+    local name=$1 machine=$2 dir=$3 cmds=$4; shift 4
+    (bash "$out/drive.sh" | timeout $((secs + 120)) script -q /dev/null tools/pc/pc.js $machine "$dir" "$cmds" "$@" \
         --floppy --normalize --nosync > "$out/$name.out" 2>&1) &
     sleep 15
 }
 echo "running 6 configurations (about $((secs / 60 + 3)) minutes)..."
-run bd 1 ibm5160-cga "$out/bd" "VER,TESTS/BENCH" --system=bd --version=2
-run bdf 1 ibm5160-cga-fpu "$out/bd" "VER,TESTS/BENCH" --system=bd --version=2
-run ba 0 ibm5160-cga "$out/pc" "VER,BASICA BENCH" --system=pcdos --version=2.00
-run baf 0 ibm5160-cga-fpu "$out/pc" "VER,BASICA BENCH" --system=pcdos --version=2.00
-run gw 0 ibm5160-cga "$out/pc" "VER,MSBASIC BENCH" --system=pcdos --version=2.00
-run gwf 0 ibm5160-cga-fpu "$out/pc" "VER,MSBASIC BENCH" --system=pcdos --version=2.00
+run bd ibm5160-cga "$out/bd" "VER,TESTS/BENCH" --system=bd --version=2
+run bdf ibm5160-cga "$out/bd" "VER,TESTS/BENCH" --system=bd --version=2 --fpu
+run ba ibm5160-cga "$out/pc" "VER,BASICA BENCH" --system=pcdos --version=2.00
+run baf ibm5160-cga "$out/pc" "VER,BASICA BENCH" --system=pcdos --version=2.00 --fpu
+run gw ibm5160-cga "$out/pc" "VER,MSBASIC BENCH" --system=pcdos --version=2.00
+run gwf ibm5160-cga "$out/pc" "VER,MSBASIC BENCH" --system=pcdos --version=2.00 --fpu
 wait
 python3 - "$out" <<'EOF'
 import re, sys

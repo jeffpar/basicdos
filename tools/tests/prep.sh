@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Copies the BASIC-DOS test binaries and batch files into the specified configuration folder
-# (eg, software/src/configs/console/serial/fpe) before boot.sh or another script in tools/tests boots it.
+# (eg, software/src/configs/console/serial/fpe) before boot.sh (in the repository root) or another script in tools/tests boots it.
 #
 # The files follow the standard BASIC-DOS disk layout: HELP.TXT in the root (with CONFIG.SYS and AUTOEXEC.BAT,
 # and the system files that pc.js adds), utilities in BIN, and everything else (test programs, PRIMES, MSBASIC,
