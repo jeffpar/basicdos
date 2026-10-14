@@ -24,7 +24,7 @@ This means that many of the limitations discussed in these preview pages have no
 
 ### Contents
 
- 1. [Introducing BASIC-DOS for the IBM PC](#introducing-basic-dos-for-the-ibm-pc)
+ 1. [Introducing BASIC-DOS](#introducing-basic-dos-for-the-ibm-pc)
  2. [BASIC Operations](part2/)
  3. [BASIC Files vs. Batch Files](part3/)
  4. [Pipes and Sessions](part4/)

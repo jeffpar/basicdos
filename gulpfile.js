@@ -211,14 +211,13 @@ function stageDisk(diskName)
         let dirTarget = path.join(dirStage, folder);
         if (typeof files == "string") {
             /*
-             * Copy the directory, except for OBJ directories, hidden files, and the mk.bat in each of its
-             * subdirectories (which chains to the next subdirectory in the host build); the mk.bat at the top
-             * builds everything.
+             * Copy the directory, except for OBJ directories, hidden files, and the MS-DOS build's mkdos.bat
+             * files (which chain from one subdirectory to the next); the mk.bat at the top builds everything.
              */
             fs.cpSync(files, dirTarget, { recursive: true, filter: (src) => {
                 let name = path.basename(src);
                 if (name.toUpperCase() == "OBJ" || name[0] == '.') return false;
-                return !(name.toUpperCase() == "MK.BAT" && path.resolve(path.dirname(src)) != path.resolve(files));
+                return name.toUpperCase() != "MKDOS.BAT";
             }, preserveTimestamps: true });
         } else {
             fs.mkdirSync(dirTarget);
@@ -286,7 +285,7 @@ for (let diskName in disks) {
 }
 
 /*
- * There's no longer a "watch" task: mk.sh runs "demos" after every build (to update the BASIC-DOS demo diskettes
+ * There's no longer a "watch" task: mkdos.sh runs "demos" after every build (to update the BASIC-DOS demo diskettes
  * with the new binaries), while "gulp build" (or simply "gulp") regenerates everything on demand.
  */
 gulp.task("demos", gulp.series(demoTasks));

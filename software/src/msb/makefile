@@ -10,7 +10,10 @@
 ASM=MASM
 LINK=LINK
 AFLAGS=/D$(REL) /I.
-LST=OBJ\$*.LST
+#
+# Listings are off; to create them, set LST=OBJ\$*.LST
+#
+LST=NUL
 MAPSYM=MAPSYM
 
 #

@@ -11,7 +11,10 @@ ASM=MASM
 LINK=LINK
 EXE2BIN=EXE2BIN
 AFLAGS=/MX /R /D$(REL) /I. /I..\INC
-LST=OBJ\$*.LST
+#
+# Listings are off; to create them, set LST=OBJ\$*.LST
+#
+LST=NUL
 
 #
 # Inference rules in the DOS MAKE utility apparently work only if the files
@@ -104,7 +107,7 @@ OBJ\LONG.OBJ: LONG.ASM CMD.INC
 OBJ\MEM.OBJ: MEM.ASM CMD.INC
 	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
-OBJ\MEMDBG.OBJ: MEMDBG.ASM CMD.INC ..\INC\DOS.INC
+OBJ\MEMDBG.OBJ: MEMDBG.ASM ..\INC\MACROS.INC ..\INC\DOSAPI.INC ..\INC\PARSER.INC ..\INC\DOS.INC
 	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\SESSION.OBJ: SESSION.ASM CMD.INC

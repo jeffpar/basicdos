@@ -11,7 +11,10 @@ ASM=MASM
 LINK=LINK
 EXE2BIN=EXE2BIN
 AFLAGS=/MX /R /D$(REL) /I..\INC
-LST=OBJ\$*.LST
+#
+# Listings are off; to create them, set LST=OBJ\$*.LST
+#
+LST=NUL
 
 #
 # Inference rules in the DOS MAKE utility apparently work only if the files
@@ -38,7 +41,7 @@ OBJ\DEVICE.OBJ: DEVICE.ASM ..\INC\DOS.INC
 OBJ\DISK.OBJ: DISK.ASM ..\INC\DOS.INC
 	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
-OBJ\FAT.OBJ: FAT.ASM ..\INC\DOS.INC
+OBJ\FAT.OBJ: FAT.ASM ..\INC\DOS.INC ..\INC\DISK.INC
 	$(ASM) $(AFLAGS) $*.ASM,$@,$(LST);
 
 OBJ\FCBIO.OBJ: FCBIO.ASM ..\INC\DOS.INC

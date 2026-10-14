@@ -20,6 +20,61 @@ DOS	segment word public 'CODE'
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; fat_pos
+;
+; Locate a FAT entry for get_cln and set_cln.  FAT12 and FAT16 differ only
+; in their entry width and mask; all sector and bit-offset arithmetic is shared.
+; Start with CLN * 4 nibbles, then subtract CLN for FAT12's 3-nibble entries.
+; Keep the offset in DX:AX so FAT16 entries beyond 64K remain addressable.
+;
+; Inputs:
+;	DX = CLN
+;	DI -> BPB
+;
+; Outputs:
+;	DX = FAT LBA
+;	BX = byte offset within sector
+;	CL = shift within the first byte (0 or 4)
+;	BP = entry mask (0FFFh or FFFFh)
+;
+; Modifies:
+;	BX, CX, DX, BP (AX preserved for set_cln)
+;
+DEFPROC	fat_pos,DOS
+	push	ax
+	mov	ax,dx
+	mov	bx,dx
+	sub	dx,dx
+	shl	ax,1
+	rcl	dx,1
+	shl	ax,1
+	rcl	dx,1			; DX:AX = CLN * 4 nibbles (FAT16)
+	mov	bp,0FFFh
+	cmp	cs:[di].BPB_CLUSTERS,CLN_FAT12 ; fewer than 4085 clusters means FAT12
+	jb	fp1
+	mov	bp,0FFFFh
+	sub	bx,bx			; FAT16 keeps all 4 nibbles
+fp1:	sub	ax,bx
+	sbb	dx,0			; FAT12 subtracts CLN, leaving CLN * 3 nibbles
+	mov	bx,ax			; save low offset bits for byte and nibble offsets
+	mov	cl,10
+	shr	ax,cl			; 1024 nibbles per sector
+	mov	cl,6
+	shl	dx,cl			; include the offset bits above bit 15
+	or	dx,ax			; DX = FAT sector
+	add	dx,cs:[di].BPB_RESSECS
+	mov	cl,bl
+	and	cl,1
+	shl	cl,1
+	shl	cl,1			; CL = bit offset within first byte (0 or 4)
+	and	bx,03FFh		; nibble offset within sector
+	shr	bx,1			; BX = byte offset within sector
+	pop	ax
+	ret
+ENDPROC	fat_pos
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; set_cln (see also: get_cln)
 ;
 ; For the CLN in DX, set its FAT entry to the value in AX, using the BPB at DI.
@@ -29,7 +84,7 @@ DOS	segment word public 'CODE'
 ; when the buffer is reused or flushed (see write_buffer).
 ;
 ; Inputs:
-;	AX = new FAT entry value (12 bits)
+;	AX = new FAT entry value (set_cln masks to 12 bits on FAT12)
 ;	DX = CLN
 ;	DI -> BPB
 ;
@@ -52,53 +107,38 @@ DEFPROC	set_cln,DOS
 ; Invalidate before changing the FAT, including a partially failed update.
 ;
 	mov	cs:[di].BPB_FREECLNS,-1
-	mov	bp,ax			; BP = new value
+	call	fat_pos			; BX = byte offset, CL = shift, BP = entry mask
+	and	ax,bp			; mask the value to the FAT's entry width
+	shl	ax,cl			; position its bits within the two bytes
+	shl	bp,cl
+	not	bp			; bits belonging to adjacent entries
+	mov	cx,bp			; CX = bits to preserve in each byte
+	mov	bp,ax			; BP = shifted value
 	sub	ax,ax
 	mov	ds,ax
 	ASSUME	DS:BIOS
-;
-; As in get_cln, the FAT sector containing a 12-bit CLN is (CLN * 3) SHR 10,
-; and the nibble offset within that sector is (CLN * 3) AND 03FFh (again,
-; assuming 512-byte sectors).
-;
-	mov	bx,dx
-	add	dx,dx
-	add	dx,bx
-	mov	bx,dx
-	mov	cl,10
-	shr	dx,cl			; DX = FAT sector ((CLN * 3) SHR 10)
-	add	dx,cs:[di].BPB_RESSECS	; DX = FAT LBA
-	and	bx,03FFh		; nibble offset (assuming 1024 nibbles)
 	mov	al,cs:[di].BPB_DRIVE
 	mov	si,offset FAT_BUFHDR
 	call	read_buffer
 	jc	sc9
+	mov	ax,bp
 ;
-; If the nibble offset is even, the new value occupies the entire first byte
-; and the low nibble of the second byte; if odd, it occupies the high nibble of
-; the first byte and the entire second byte.  CX is a mask of the bits in each
-; byte to preserve, and AX is the value shifted into position.
+; Both FAT widths use the same byte updates.  Only FAT12 entries can cross
+; a sector boundary, in which case read_buffer also writes the first sector.
 ;
-	mov	ax,bp			; AX = new value
-	mov	cx,0F000h		; CX = mask for an even nibble offset
-	shr	bx,1			; BX -> byte, carry set if odd nibble
-	jnc	sc1
-	mov	cl,4
-	shl	ax,cl			; shift the value up one nibble
-	mov	cx,000Fh		; CX = mask for an odd nibble offset
-sc1:	and	[si+bx],cl
+	and	[si+bx],cl
 	or	[si+bx],al
 	mov	ds:[BUF_DIRTY],1
 	inc	bx
-	cmp	bx,512			; at the sector boundary?
-	jb	sc2			; no
+	cmp	bx,512			; does the second byte belong to the next sector?
+	jb	sc2
 	push	ax
-	inc	dx			; DX = next FAT LBA
+	inc	dx
 	mov	al,cs:[di].BPB_DRIVE
 	mov	si,offset FAT_BUFHDR
-	call	read_buffer		; (writes the previous FAT sector first)
+	call	read_buffer
 	pop	bx			; BX = shifted value (from AX)
-	jc	sc9
+	jc	sc9			; leave the buffer error in AX
 	mov	ax,bx
 	sub	bx,bx
 sc2:	and	[si+bx],ch
@@ -279,71 +319,37 @@ DEFPROC	get_cln,DOS
 	push	si
 	push	bp
 	push	ds
+	call	fat_pos			; BX = byte offset, CL = shift, BP = entry mask
 	sub	ax,ax
 	mov	ds,ax
 	ASSUME	DS:BIOS
-;
-; We observe that the FAT sector # containing a 12-bit CLN is:
-;
-;	(CLN * 12) / 4096
-;
-; assuming a 512-byte sector with 4096 or 2^12 bits.  The expression
-; can be simplified to (CLN * 12) SHR 12, or (CLN * 3) SHR 10, or simply
-; (CLN + CLN + CLN) SHR 10.
-;
-; TODO: If we're serious about being sector-size-agnostic, our BPB should
-; contain a (precalculated) LOG2 of BPB_SECBYTES, to avoid hard-coded shifts.
-; That'll be tough to do without wasting buffer memory though, since sectors
-; can be as large as 1K.
-;
-	mov	bx,dx
-	add	dx,dx
-	add	dx,bx
-	mov	bx,dx
-	mov	cl,10
-	shr	dx,cl			; DX = FAT sector ((CLN * 3) SHR 10)
-	add	dx,cs:[di].BPB_RESSECS	; DX = FAT LBA
-;
-; Next, we need the nibble offset within the sector, which is:
-;
-;	((CLN * 12) % 4096) / 4
-;
-	and	bx,03FFh		; nibble offset (assuming 1024 nibbles)
 	mov	al,cs:[di].BPB_DRIVE
 	mov	si,offset FAT_BUFHDR
 	call	read_buffer
-	jc	gc4
-
-	mov	bp,bx			; save nibble offset in BP
-	shr	bx,1			; BX -> byte, carry set if odd nibble
-	mov	cl,[si+bx]		; CL = 1st byte of the entry
+	jc	gc9
+;
+; Read both bytes, including the FAT12 sector-boundary case, then extract
+; the entry's bits using the shift and mask supplied by fat_pos.
+;
+	mov	ah,[si+bx]		; AH = first byte
 	inc	bx
-;
-; An entry that begins at nibble 3FEh or 3FFh continues in the next sector.
-; Note that DX must still contain the FAT LBA here, which is why the 1st byte
-; of the entry is in CL.
-;
-	cmp	bp,03FEh		; at the sector boundary?
-	jb	gc2			; no
-	inc	dx			; DX = next FAT LBA
+	cmp	bx,512			; does the second byte belong to the next sector?
+	jb	gc2
+	push	ax
+	inc	dx
 	mov	al,cs:[di].BPB_DRIVE
 	mov	si,offset FAT_BUFHDR
-	push	cx
 	call	read_buffer
-	pop	cx
-	jc	gc4
+	pop	bx			; BH = first byte (saved in AH)
+	jc	gc9			; leave the buffer error in AX
+	mov	ah,bh
 	sub	bx,bx
-gc2:	mov	dl,cl
+gc2:	mov	dl,ah
 	mov	dh,[si+bx]
-	shr	bp,1			; was that an odd nibble again?
-	jc	gc3			; yes
-	and	dx,0FFFh		; no, so make sure top 4 bits clear
-	jmp	short gc4		;
-gc3:	mov	cl,4			;
-	shr	dx,cl			; otherwise, shift all 12 bits down
-	clc
+	shr	dx,cl
+	and	dx,bp			; mask to 12 or 16 bits, and clear carry
 
-gc4:	pop	ds
+gc9:	pop	ds
 	pop	bp
 	pop	si
 	pop	cx

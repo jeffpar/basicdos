@@ -18,6 +18,12 @@
 TWAIT	equ	1		; FINAL builds use a 5-second boot prompt
 	ENDIF
 
+;
+; DISKSECS is non-zero on supported boot volumes, so LARGESECS is unused.
+; Its low word is scratch space for the boot loader's data-cluster count.
+;
+BOOT_CLUSTERS	equ	BPB_LARGESECS
+
 BOOT	segment word public 'CODE'
 
 ;
@@ -434,9 +440,9 @@ DEFPROC	part2,far
 ; uses to boot from a diskette (30h:100h).
 ;
 	cli
-	mov	cx,30h
-	mov	ss,cx
-	mov	sp,100h
+	push	cs
+	pop	ss
+	mov	sp,400h		; same physical stack top as 30h:100h
 	sti
 
 	push	di		; copy PART1 data to PART2
@@ -456,6 +462,12 @@ DEFPROC	part2,far
 	sbb	[bx+6],cx	; (CX is zero)
 
 	mov	si,offset PART2_COPY
+	mov	ax,[si].BPB_DISKSECS
+	sub	ax,[si].BPB_LBADATA
+	sub	dx,dx
+	mov	cl,[si].BPB_CLUSSECS	; CH is still zero
+	div	cx
+	mov	word ptr [si].BOOT_CLUSTERS,ax
 	call	read_data	; read the rest of DEV_FILE (see BX) into DI
 ;
 ; To find the entry point of DEV_FILE's init code, we must walk the
@@ -476,8 +488,6 @@ i2:	jmp	load_error
 ;
 i3:	mov	[DD_LIST].OFF,ax; initialize driver list head (to -1)
 	mov	ax,di
-	test	ax,0Fh		; paragraph boundary?
-	jnz	i2		; no
 	push	cs
 	mov	cx,offset part3
 	push	cx		; far return address -> part3
@@ -541,28 +551,41 @@ ENDPROC	part3
 ;	AX, CX, DX
 ;
 DEFPROC	read_data
-;
-; Sysinit will initialize the buffer chain, but it still assumes that any
-; buffer we used (ie, FAT_BUF) will contain valid BUF_DRIVE and BUF_LBA values,
-; so that we don't needlessly throw good disk data away.  This code was loaded
-; into DIR_BUF, so DIR_BUF is already toast, which is why we already zeroed
-; DIR_BUFHDR.
-;
-	mov	al,[si].BPB_DRIVE
-	mov	[FAT_BUFHDR].BUF_DRIVE,al
-
 	mov	dx,1		; DX = sectors already read
-rd1:	cmp	word ptr [bx+4],0
-	jne	rd2
-	cmp	word ptr [bx+6],0
+rd1:	mov	ax,[bx+4]
+	or	ax,[bx+6]
 	je	rd3		; file size is zero, carry clear
 rd2:	mov	ax,[bx+2]	; AX = CLN
-	cmp	ax,2		; too low?
-	jc	read_error	; yes
-	cmp	ax,CLN_END	; too high?
+	sub	ax,2
+	cmp	ax,word ptr [si].BOOT_CLUSTERS ; reject CLNs outside this volume
 	jae	read_error	; yes
-	call	read_cluster	; read cluster into DI
-	jc	read_error	; error
+	add	ax,2
+	push	dx		; DX = sectors already read
+	call	get_lba2	; AX = LBA, CX = sectors/cluster
+	pop	dx
+	jc	read_error
+	add	ax,dx		; adjust LBA by sectors already read
+	sub	cx,dx		; sectors remaining?
+	jbe	rc8		; no
+
+	push	cx
+	push	di
+rc1:	push	ax		; save LBA
+	call	read_sector2
+	pop	dx		; DX = previous LBA
+	jc	rc2
+	add	di,[si].BPB_SECBYTES
+	inc	dx		; advance LBA
+	xchg	ax,dx		; and move to AX
+	loop	rc1		; keep looping until cluster is fully read
+rc2:	pop	di
+	pop	cx
+	jc	read_error
+;
+; The ROM claims that, on success, AL will (normally) contain the number of
+; sectors actually read, but I'm not seeing that, so I'll just move CL to AL.
+;
+rc8:	xchg	ax,cx
 	mul	[si].BPB_SECBYTES; DX:AX = number of sectors read
 	add	di,ax		; adjust next read address
 	sub	[bx+4],ax	; reduce file size
@@ -607,37 +630,25 @@ ENDPROC	read_data
 DEFPROC	read_fat
 	push	bx
 	push	di
-;
-; We observe that the FAT sector # containing a 12-bit CLN is:
-;
-;	(CLN * 12) / 4096
-;
-; assuming a 512-byte sector with 4096 or 2^12 bits.  The expression
-; can be simplified to (CLN * 12) SHR 12, or (CLN * 3) SHR 10, or simply
-; (CLN + CLN + CLN) SHR 10.
-;
-; Next, we need the nibble offset within the sector, which is:
-;
-;	((CLN * 12) % 4096) / 4
-;
-; TODO: If we're serious about being sector-size-agnostic, our BPB should
-; contain a (precalculated) LOG2 of BPB_SECBYTES, to avoid hard-coded shifts.
-; That'll be tough to do without wasting buffer memory though, since sectors
-; can be as large as 1K.
-;
+	mov	bp,ax		; save cluster parity for FAT12 decoding
 	mov	bx,ax
-	add	ax,ax
-	add	ax,bx
-	mov	bx,ax
-	mov	cl,10
-	shr	ax,cl		; AX = FAT sector ((CLN * 3) SHR 10)
-	add	ax,[si].BPB_RESSECS
+	cmp	word ptr [si].BOOT_CLUSTERS,CLN_FAT12 ; fewer than 4085 clusters means FAT12
+	jae	rf16
 ;
-; Next, we need the nibble offset within the sector, which is:
+; FAT12 byte offset = CLN + CLN/2; FAT16 sector = CLN/256.
 ;
-;	((CLN * 12) % 4096) / 4
-;
-	and	bx,3FFh		; nibble offset (assuming 1024 nibbles)
+	shr	ax,1
+	add	bx,ax
+	mov	ax,bx
+	mov	cl,9
+	shr	ax,cl
+	and	bx,511
+	jmp	short rf0
+rf16:	mov	al,ah
+	mov	ah,0
+	mov	bh,0
+	shl	bx,1
+rf0:	add	ax,[si].BPB_RESSECS
 	mov	di,offset FAT_SECTOR
 	cmp	ax,[FAT_BUFHDR].BUF_LBA
 	je	rf1
@@ -645,11 +656,10 @@ DEFPROC	read_fat
 	call	read_sector2
 	jc	read_error
 
-rf1:	mov	bp,bx		; save nibble offset in BP
-	shr	bx,1		; BX -> byte, carry set if odd nibble
+rf1:
 	mov	dl,[di+bx]
 	inc	bx
-	cmp	bp,03FEh	; at the sector boundary?
+	cmp	bx,512		; at the sector boundary?
 	jb	rf2		; no
 	inc	[FAT_BUFHDR].BUF_LBA
 	mov	ax,[FAT_BUFHDR].BUF_LBA
@@ -657,66 +667,20 @@ rf1:	mov	bp,bx		; save nibble offset in BP
 	jc	read_error
 	sub	bx,bx
 rf2:	mov	dh,[di+bx]
+	cmp	word ptr [si].BOOT_CLUSTERS,CLN_FAT12 ; decode all 16 bits on FAT16
+	jae	rf9
 	shr	bp,1		; was that an odd nibble again?
-	jc	rf8		; yes
-	and	dx,0FFFh	; no, so make sure top 4 bits clear
-	jmp	short rf9
-rf8:	mov	cl,4
-	shr	dx,cl		; otherwise, shift all 12 bits down
+	jnc	rf8		; even entries need only masking
+	mov	cl,4
+	shr	dx,cl
+rf8:	and	dx,0FFFh
 
 rf9:	pop	di
 	pop	bx
 	ret
 ENDPROC	read_fat
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; read_cluster
-;
-; Read cluster AX into memory at ES:DI, using BPB at DS:SI.
-;
-; Inputs:
-;	AX = CLN
-;	DX = # sectors already read from cluster (usually 0)
-;	DS:SI -> BPB
-;	ES:DI -> buffer
-;
-; Output:
-;	If successful, carry clear, AX = # sectors read
-;	If unsuccessful, carry set, AH = BIOS error code
-;
-; Modifies:
-;	AX, CX, DX
-;
-DEFPROC	read_cluster
-	push	dx		; DX = sectors already read
-	call	get_lba2	; AX = LBA, CX = sectors/cluster
-	pop	dx
-	jc	rc9
-	add	ax,dx		; adjust LBA by sectors already read
-	sub	cx,dx		; sectors remaining?
-	jbe	rc8		; no
 
-	push	cx
-	push	di
-rc1:	push	ax		; save LBA
-	call	read_sector2
-	pop	dx		; DX = previous LBA
-	jc	rc2
-	add	di,[si].BPB_SECBYTES
-	inc	dx		; advance LBA
-	xchg	ax,dx		; and move to AX
-	loop	rc1		; keep looping until cluster is fully read
-rc2:	pop	di
-	pop	cx
-	jc	rc9
-;
-; The ROM claims that, on success, AL will (normally) contain the number of
-; sectors actually read, but I'm not seeing that, so I'll just move CL to AL.
-;
-rc8:	xchg	ax,cx
-rc9:	ret
-ENDPROC	read_cluster
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -734,7 +698,7 @@ DEFPROC	load_error
 	jmp	$		; "halt"
 ENDPROC	load_error
 
-errmsg3		db	"System load error, halted",0
+errmsg3		db	"Load error",0
 
 ;
 ; Code and data copied from PART1 (BPB, file data, and shared functions)

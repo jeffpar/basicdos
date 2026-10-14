@@ -1,9 +1,8 @@
 	REM Usage: MK [FINAL or DEBUG] [CLEAN] (FINAL is the default; CLEAN first
 	REM deletes everything in each OBJ folder, for a clean build).
 	REM Builds BASIC-DOS on BASIC-DOS (eg, in SRC on BASICDOS-HD).
-	REM DEBUG builds also create listing (.LST) files, which need about
-	REM 14Mb.  NOTE: MAKE can't tell when the mode changes, so use CLEAN
-	REM to rebuild everything in a new mode.
+	REM NOTE: MAKE can't tell when the mode changes, so use CLEAN to
+	REM rebuild everything in a new mode.
 	M$ = UCASE$(ARG$(1))
 	IF M$ = "" THEN M$ = "FINAL"
 	IF M$ <> "FINAL" AND M$ <> "DEBUG" THEN 200
@@ -25,7 +24,7 @@
 300	IF NOT EXISTS("OBJ") THEN MD OBJ
 	IF C$ = "CLEAN" THEN GOSUB 400
 	IF M$ = "DEBUG" THEN MAKE REL=DEBUG MAKEFILE : RETURN
-	MAKE REL=FINAL LST=NUL MAKEFILE
+	MAKE REL=FINAL MAKEFILE
 	RETURN
 400	T$ = ".OBJ.COM.EXE.SYS.MAP.SYM.LST.BIN"
 	FOR I = 1 TO LEN(T$) STEP 4

@@ -1,5 +1,5 @@
-REM Configuration for building BASIC-DOS on BASIC-DOS (see mktest.sh)
+REM Configuration for building BASIC-DOS on BASIC-DOS (see mk.sh)
 SKIP=CON
-BUFFERS=8
+BUFFERS=16
 CONSOLE=COM1:9600,N,8,1
 SHELL=COMMAND.COM PATH$="C:\;C:\TOOLS":AUTOEXEC.BAT

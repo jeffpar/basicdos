@@ -184,7 +184,8 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 
 ### Build, Tests, and Documentation
 
-- [x] Builds with MASM 4.0 using `mk.sh` (PC.js), which builds release binaries by default (`mk.sh debug` builds DEBUG binaries, with run-time assertions) and also updates the BASIC-DOS demo disks after a successful build
+- [x] Builds with MASM 4.0 using `mkdos.sh` (PC.js and MS-DOS 3.20), which builds release binaries by default (`mkdos.sh debug` builds DEBUG binaries, with run-time assertions) and also updates the BASIC-DOS demo disks after a successful build
+- [x] Builds itself: `mk.sh` runs the same build tools on BASIC-DOS, producing identical binaries
 - [x] DOSTESTS: CALL 5, memory allocation, file create/write/read-back, file sharing, path character, and file rename/delete tests
 - [x] STRFUN and STRPOOL: BASIC string function tests, and string pool stress and leak tests
 - [x] ARRAYS: BASIC array tests (including leak tests)
@@ -235,14 +236,14 @@ If you also want successful builds to update the BASIC-DOS demo disks, you'll ne
     git clone https://github.com/jeffpar/pcjs
     export PCJS="$HOME/pcjs"
 
-Now you're ready to build BASIC-DOS, using the `mk.sh` script, which runs `pc.js` with MS-DOS 3.20 and the build tools on drive C and a 30Mb disk containing the BASIC-DOS source code on drive D, and builds release binaries (use `mk.sh debug` to build DEBUG binaries instead).  The script forces a rebuild when switching between release and DEBUG modes:
+Now you're ready to build BASIC-DOS, using the `mkdos.sh` script, which runs `pc.js` with MS-DOS 3.20 and the build tools on drive C and a 30Mb disk containing the BASIC-DOS source code on drive D, and builds release binaries (use `mkdos.sh debug` to build DEBUG binaries instead).  The script forces a rebuild when switching between release and DEBUG modes:
 
-    $ ./mk.sh
+    $ ./mkdos.sh
     [Press CTRL-D to enter command mode]
 
     C:\>D:
 
-    D:\>MK
+    D:\>MKDOS
     Microsoft (R) Program Maintenance Utility  Version 4.02
     Copyright (C) Microsoft Corp 1984, 1985, 1986.  All rights reserved.
 
@@ -250,7 +251,9 @@ Now you're ready to build BASIC-DOS, using the `mk.sh` script, which runs `pc.js
 
     D:\>QUIT
 
-Any files that the build modifies are written back to the `software/src` directory.  A successful build runs QUIT automatically, after which `mk.sh` updates the demo disks (if `PCJS` is set); if a build fails and you don't want the demo disks updated, use `pc.js`'s "abort" command instead.
+Any files that the build modifies are written back to the `software/src` directory.  A successful build runs QUIT automatically, after which `mkdos.sh` updates the demo disks (if `PCJS` is set); if a build fails and you don't want the demo disks updated, use `pc.js`'s "abort" command instead.
+
+Once `mkdos.sh` has built the system files, `mk.sh` (or `mk.sh debug`) builds BASIC-DOS on BASIC-DOS itself, with the same build tools, but without demo disk updates (see [software/src](software/src/README.md) for details).
 
 The `boot.sh` script then builds and boots a 360K floppy (the largest floppy supported by an IBM PC XT Model 5160) containing the BASIC-DOS boot sector and system files, along with the files in the `configs/console/serial/fpe` folder (including CONFIG.SYS and AUTOEXEC.BAT) and the test binaries that `tools/tests/prep.sh` copies there:
 

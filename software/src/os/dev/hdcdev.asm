@@ -9,7 +9,7 @@
 ;
 ; This driver supports IBM PC XT (model 5160) hard disks, by way of the ROM
 ; BIOS (INT 13h with drive numbers 80h and up).  At initialization, it reads
-; the Master Boot Record (MBR) of every hard disk, and every FAT12 partition
+; the Master Boot Record (MBR) of every hard disk, and every FAT12/FAT16 partition
 ; becomes a "volume" (ie, a unit of this driver), which the kernel presents as
 ; drives C:, D:, etc (see sysinit).
 ;
@@ -60,7 +60,7 @@ PART_TABLE	equ	1BEh		; offset of partition table in MBR
 PART_TYPE	equ	4		; offset of partition type in entry
 PART_LBA	equ	8		; offset of partition LBA in entry
 PART_FAT12	equ	01h		; FAT12 partition type
-MAX_CLUS12	equ	4085		; max clusters in a FAT12 volume
+PART_FAT16	equ	04h		; FAT16 with fewer than 65536 sectors
 
 	DEFBYTE	hdc_base,2		; drive # of the first volume
 	DEFBYTE	hdc_vols,0		; # volumes
@@ -134,7 +134,7 @@ ENDPROC	ddhdc_mediachk
 ; and then fill in the rest of the BPB (and our BPB extensions), using the
 ; drive geometry and volume location that we found during initialization.
 ;
-; Since the kernel currently supports only FAT12 volumes with 16-bit sector
+; Since the kernel currently supports only FAT12/FAT16 volumes with 16-bit sector
 ; numbers, any other volume is reported as unknown media.
 ;
 ; Inputs:
@@ -237,15 +237,15 @@ bb6a:	jnz	bb7			; CLUSSECS isn't a power-of-two
 	mov	es:[di].BPB_LBADATA,ax
 ;
 ; Finally, calculate total clusters (total data sectors divided by sectors
-; per cluster, or just another shift using CLUSLOG2), which must be within
-; the FAT12 limit.
+; per cluster, or just another shift using CLUSLOG2).  The kernel selects
+; FAT12 or FAT16 from this count; FAT32 volumes are unsupported.
 ;
 	mov	dx,es:[di].BPB_DISKSECS
 	sub	dx,ax			; DX = total data sectors
 	shr	dx,cl			; DX = data clusters
 	mov	es:[di].BPB_CLUSTERS,dx
-	cmp	dx,MAX_CLUS12		; FAT12?
-	jae	bb7			; no
+	cmp	dx,CLN_FAT16		; fewer than 65525 clusters means FAT12/FAT16
+	jae	bb7			; FAT32 is not supported
 	mov	ax,512
 	mov	es:[di].BPB_SECBYTES,ax	; the BPB is valid now
 	clc
@@ -368,7 +368,7 @@ ENDPROC	get_vol
 ;
 ; For every hard disk, get the drive geometry, read the MBR (into the scratch
 ; buffer that devinit provides at DDPI_BUFPTR), and add a volume for every
-; FAT12 partition.  If there are no volumes, the driver isn't needed.
+; FAT12/FAT16 partition.  If there are no volumes, the driver isn't needed.
 ;
 ; Inputs:
 ;	ES:BX -> DDPI
@@ -488,8 +488,10 @@ DEFPROC	add_vols
 	lea	si,[bp+PART_TABLE]	; ES:SI -> first partition entry
 	mov	ah,4			; AH = # partition entries
 av1:	cmp	byte ptr es:[si+PART_TYPE],PART_FAT12
-	jne	av8
-	cmp	cs:[hdc_vols],MAX_VOLS
+	je	av2			; accept FAT12 primary partitions
+	cmp	byte ptr es:[si+PART_TYPE],PART_FAT16 ; FAT16 with 16-bit sector numbers?
+	jne	av8			; skip other partition types
+av2:	cmp	cs:[hdc_vols],MAX_VOLS
 	jae	av9
 	mov	cs:[di].VOL_DRIVE,dl
 	mov	cs:[di].VOL_HEADS,dh

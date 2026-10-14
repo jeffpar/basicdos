@@ -24,7 +24,7 @@ BOOT_BPB	equ	3		; BPB offset within boot sector
 ; can use the boot code's read_file function to load CFG_FILE early.
 ;
 BOOT_CFGFILE	equ	3Eh		; CFG_FILE offset in the BPB+file copy
-BOOT_RDFILE	equ	6Eh		; read_file offset relative to part3
+BOOT_RDFILE	equ	82h		; read_file offset relative to part3
 
 ;
 ; The venerable BIOS Parameter Block (BPB).
@@ -104,10 +104,12 @@ SIG_BPB		equ	'B'
 ; Ted Mirecki).
 ;
 
+CLN_FAT12	equ	4085		; fewer clusters means FAT12
+CLN_FAT16	equ	65525		; fewer clusters means FAT16 (otherwise FAT32)
 CLN_FREE	equ	0000h		; FAT entry for an available cluster
-CLN_BAD		equ	0FF7h
-CLN_END		equ	0FF8h		; FAT entries >= CLN_END indicate end of chain
-CLN_LAST	equ	0FFFh		; FAT entry we use to mark the end of a chain
+CLN_BAD		equ	0FF7h		; FAT12 bad cluster marker
+CLN_END		equ	0FF8h		; FAT12 end-of-chain threshold
+CLN_LAST	equ	0FFFFh		; set_cln masks this to 0FFFh for FAT12
 
 DIRENT		struc
 DIR_NAME	db	11 dup (?)	; 00h: filename (E5=free, 00=end)

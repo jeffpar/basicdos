@@ -12,7 +12,10 @@ LINK=LINK
 EXE2BIN=EXE2BIN
 MAPSYM=MAPSYM
 AFLAGS=/MX /R /D$(REL) /I..\OS\INC
-LST=OBJ\$*.LST
+#
+# Listings are off; to create them, set LST=OBJ\$*.LST
+#
+LST=NUL
 
 #
 # Inference rules in the DOS MAKE utility apparently work only if the files

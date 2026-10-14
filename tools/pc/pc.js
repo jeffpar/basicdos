@@ -2274,7 +2274,13 @@ export default class PC extends PCJSLib {
                      * I've deferred the minimum version check until now, because even if we can't (well, shouldn't)
                      * use the drive image, I'd still like to be able to inspect it.
                      */
-                    if (diskInfo.minDOSVersion && diskInfo.minDOSVersion > verDOS) {
+                    /**
+                     * BASIC-DOS 2.x supports FAT16 volumes (normally DOS 3.00 or later), but not 32-bit sector
+                     * counts (DOS 3.31 or later).
+                     */
+                    let verMin = diskInfo.minDOSVersion;
+                    if (pc.systemType == "bd" && verMin == 3.0) verMin = 0;
+                    if (verMin && verMin > verDOS) {
                         printf("error: %s drive type %d (%.2fMb) requires DOS %s or later\n", driveInfo.driveCtrl, driveInfo.driveType, driveInfo.driveSize, diskInfo.minDOSVersion.toFixed(2));
                         return;
                     }

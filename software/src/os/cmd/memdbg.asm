@@ -11,12 +11,17 @@
 ; builds of MEM add (see mem.asm), which are the only parts of MEM that need
 ; the kernel's internal structures (see dos.inc).
 ;
-	include	cmd.inc
+; Include only the definitions used here, to leave room in MASM's symbol table
+; for the kernel structures as well as the debugging displays.
+;
+	include	macros.inc
+	include	dosapi.inc
+	include	parser.inc
 	IFDEF	DEBUG
 	include	dos.inc		; (only the DEBUG displays need it)
 	ENDIF
 
-CODE    SEGMENT
+CODE    SEGMENT word public 'CODE'
 
 	EXTNEAR	<printCRLF>
 
@@ -57,8 +62,9 @@ md12:	inc	cx
 	call	printCRLF
 
 md20:	TESTSW	<'S'>		; sessions requested (/S)?
-	jz	md99		; no
-	mov	di,es:[bx].DV_SCB_TABLE.OFF
+	jnz	md21		; keep the conditional jump within short range
+	ret
+md21:	mov	di,es:[bx].DV_SCB_TABLE.OFF
 	PRINTF	"No Fl PSP  Ctx  WaitID   Stack\r\n"
 md22:	mov	ax,word ptr es:[di].SCB_STATUS
 	test	al,SCSTAT_LOAD

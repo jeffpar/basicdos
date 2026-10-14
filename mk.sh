@@ -1,42 +1,24 @@
 #!/bin/bash
 #
-# This command creates a drive [D:] containing the BASIC-DOS source code.
-# To build the source, at the "C:\>" prompt, type "D:", then "MK", then "QUIT".
-# Any modifications will be written back to the software/src directory.
+# Builds BASIC-DOS on BASIC-DOS (mkdos.sh builds it on MS-DOS 3.20 instead, which also updates the demo
+# disks).
 #
-# NOTE: While early BASIC-DOS builds were performed in a browser using a PCjs
-# PC XT with PC DOS 2.00, our command-line build environment uses PC.js with a
-# COMPAQ DeskPro 386 configuration running MS-DOS 3.20, in part because that
-# machine has a real-time clock that MS-DOS 3.20 knows how to use.
+# pc.js builds a bootable BASIC-DOS hard disk (C:) directly from software/src, using the system files from
+# the previous build (os/*/OBJ, so run mkdos.sh at least once first), software/src/CONFIG.SYS (a serial console,
+# with PATH$ set to C:\ and C:\TOOLS), and the build tools in software/src/tools.  BASIC-DOS runs os/mk.bat
+# (which builds BOOT, DD, DEV, DOS, CMD, and UTIL), then the TESTS and MSB makefiles, and then QUIT, after
+# which pc.js writes every new or modified file back to software/src.  If a build step fails, type QUIT to
+# keep what was built, or use pc.js's "abort" command to discard it.
 #
-# Drive D: is 30Mb (--target=30M), since the source directory (including the
-# test binaries that tools/tests/prep.sh copies into the configs folders) has
-# outgrown 10Mb, and MASM's listing (.LST) files need room, too (a 20Mb drive
-# ran out of space; MS-DOS 3.20 volumes can't exceed 32Mb).  Only DEBUG builds
-# create listings (FINAL builds pass LST=NUL to MAKE; see the mk.bat files).
+# The machine (COMPAQ DeskPro 386) and C: (30Mb, FAT16, 2K clusters, 512 root
+# entries) match mkdos.sh.  FINAL is the default; use "mk.sh debug" to generate
+# DEBUG binaries.  As in mkdos.sh, all assembly sources are touched when the
+# build mode changes.
 #
-# The --fat option (16-bit FAT, 2K clusters, 512 root entries) is also required
-# because by default, pc.js gives a large volume 1024 root entries, which
-# MS-DOS 3.20 apparently doesn't honor (it reads the volume as if the root
-# directory had 512 entries, so all files appear to be corrupted).
+# Use "mk.sh clean" for a clean build: BASIC-DOS deletes the build outputs before building (using
+# os/mk.bat's CLEAN option, and DEL commands for TESTS and MSB).
 #
-# After building, if pc.js exits normally (ie, via QUIT, which a successful
-# build runs automatically), update the BASIC-DOS demo disks with the new
-# binaries (which requires PCJS; see gulpfile.js).  If a build fails and you
-# don't want the demo disks updated, use pc.js's "abort" command.
-#
-# By default, we build non-debug ("FINAL") binaries; use "mk.sh debug" to build
-# the traditional DEBUG binaries.  The C: AUTOEXEC.BAT always runs MK without
-# arguments, so for a FINAL build, we create an MKFINAL file in the source
-# directory (D:\), which tells MK.BAT to build FINAL binaries instead, and we
-# remove it when pc.js exits.  And since MAKE can't tell that the mode has
-# changed, we touch all the assembly sources whenever it does, so that every
-# binary is rebuilt in the new mode (the last mode is recorded in
-# tools/pc/disks/mkmode, which git ignores).
-#
-# Use "mk.sh clean" (or "mk.sh debug clean") for a clean build: we create a CLEAN file in the source
-# directory, which tells MK.BAT to run MKCLEAN.BAT first (which deletes CLEAN and all the build outputs).
-#
+cd "$(dirname "$0")" || exit 1
 mode=FINAL
 clean=
 for arg in "$@"; do
@@ -47,26 +29,21 @@ for arg in "$@"; do
     esac
 done
 src=software/src
-last=$(cat tools/pc/disks/mkmode 2>/dev/null)
-if [ "$last" != "$mode" ]; then
+for f in os/boot/OBJ/BOOT.COM os/dev/OBJ/BASDEV.COM os/dos/OBJ/BASDOS.COM os/cmd/OBJ/COMMAND.COM; do
+    if [ ! -f "$src/$f" ]; then echo "error: $src/$f not found (run mkdos.sh first)" >&2; exit 1; fi
+done
+if [ "$(cat tools/pc/disks/mkmode 2>/dev/null)" != "$mode" ]; then
     find $src/os $src/tests $src/msb -iname "*.asm" -exec touch {} +
     mkdir -p tools/pc/disks
-    echo $mode > tools/pc/disks/mkmode
+    echo "$mode" > tools/pc/disks/mkmode
 fi
-rm -f $src/MKFINAL $src/CLEAN
-trap 'rm -f '$src'/MKFINAL '$src'/CLEAN' EXIT
-if [ $mode = FINAL ]; then
-    touch $src/MKFINAL
-fi
+make="MAKE REL=$mode MAKEFILE"
+mk="MK $mode" tests= msb=
 if [ -n "$clean" ]; then
-    touch $src/CLEAN
+    del() { for f in "$@"; do printf ';IF EXISTS("%s") THEN DEL %s' "$f" "$f"; done; }
+    mk="MK $mode CLEAN"
+    tests=$(del 'OBJ\*.OBJ' 'OBJ\*.MAP' 'OBJ\*.SYM' 'OBJ\*.LST' 'BIN\*.COM' 'BIN\*.EXE')
+    msb=$(del 'OBJ\*.OBJ' 'OBJ\*.EXE' 'OBJ\*.MAP' 'OBJ\*.SYM' 'OBJ\*.LST')
 fi
-tools/pc/pc.js --disk=software/disks/MSDOS320-C400.json --dir=$src --normalize --speed=4 --target=30M --fat=16:2048:512
-code=$?
-if [ $code -eq 0 ] && [ -n "$PCJS" ]; then
-    if ! npx gulp demos --silent > /dev/null; then
-        echo "error: unable to update the demo disks (run \"npx gulp demos\" for details)" >&2
-        exit 1
-    fi
-fi
-exit $code
+tools/pc/pc.js compaq386 $src "VER;CD OS;$mk;CD ..\TESTS$tests;$make;CD ..\MSB$msb;$make;QUIT" \
+    --sys=bd:2 --target=30M --fat=16:2048:512 --ram=640K --speed=128 --serial --normalize

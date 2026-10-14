@@ -1,6 +1,6 @@
 ECHO OFF
-REM Deletes all build outputs and then runs MK (eg, MKCLEAN FINAL); MK runs
-REM MKCLEAN instead if there's a CLEAN file (which mk.sh clean creates)
+REM Deletes all build outputs and then runs MKDOS (eg, MKCLEAN FINAL); MKDOS runs
+REM MKCLEAN instead if there's a CLEAN file (which mkdos.sh clean creates)
 IF EXIST CLEAN DEL CLEAN
 FOR %%E IN (OBJ COM EXE SYS MAP SYM LST BIN) DO IF EXIST OS\BOOT\OBJ\*.%%E DEL OS\BOOT\OBJ\*.%%E
 FOR %%E IN (OBJ COM EXE SYS MAP SYM LST BIN) DO IF EXIST OS\DD\DBG\OBJ\*.%%E DEL OS\DD\DBG\OBJ\*.%%E
@@ -11,4 +11,4 @@ FOR %%E IN (OBJ COM EXE SYS MAP SYM LST BIN) DO IF EXIST OS\UTIL\OBJ\*.%%E DEL O
 FOR %%E IN (OBJ COM EXE SYS MAP SYM LST BIN) DO IF EXIST TESTS\OBJ\*.%%E DEL TESTS\OBJ\*.%%E
 FOR %%E IN (OBJ COM EXE SYS MAP SYM LST BIN) DO IF EXIST TESTS\BIN\*.%%E DEL TESTS\BIN\*.%%E
 FOR %%E IN (OBJ COM EXE SYS MAP SYM LST BIN) DO IF EXIST MSB\OBJ\*.%%E DEL MSB\OBJ\*.%%E
-MK %1
+MKDOS %1

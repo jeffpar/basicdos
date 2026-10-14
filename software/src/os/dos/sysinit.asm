@@ -343,6 +343,8 @@ si5c:	mov	[FDC_UNITS],al		; (updated to include reserved drives)
 	mov	[FAT_BUFHDR].BUF_PREV,dx
 	mov	[FAT_BUFHDR].BUF_NEXT,dx
 	mov	[FAT_BUFHDR].BUF_SIZE,512
+	mov	dl,[si].BPB_DRIVE
+	mov	[FAT_BUFHDR].BUF_DRIVE,dl
 
 	DBGINIT	STRUCT,[DIR_BUFHDR],BUF
 	mov	[DIR_BUFHDR].BUF_PREV,ax
@@ -377,6 +379,7 @@ si5d:	mov	ah,size BPBEX
 	push	di
 	rep	movsw
 	pop	di
+	mov	es:[di].BPB_LARGESECS.LOW,0 ; discard boot loader's scratch cluster count
 	push	es
 	pop	ds
 	ASSUME	DS:DOS
