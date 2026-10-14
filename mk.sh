@@ -34,23 +34,32 @@
 # binary is rebuilt in the new mode (the last mode is recorded in
 # tools/pc/disks/mkmode, which git ignores).
 #
+# Use "mk.sh clean" (or "mk.sh debug clean") for a clean build: we create a CLEAN file in the source
+# directory, which tells MK.BAT to run MKCLEAN.BAT first (which deletes CLEAN and all the build outputs).
+#
 mode=FINAL
-case "$1" in
-    "") ;;
-    debug|DEBUG) mode=DEBUG ;;
-    *) echo "usage: $0 [debug]" >&2; exit 1 ;;
-esac
+clean=
+for arg in "$@"; do
+    case "$arg" in
+        debug|DEBUG) mode=DEBUG ;;
+        clean|CLEAN) clean=1 ;;
+        *) echo "usage: $0 [debug] [clean]" >&2; exit 1 ;;
+    esac
+done
 src=software/src
 last=$(cat tools/pc/disks/mkmode 2>/dev/null)
 if [ "$last" != "$mode" ]; then
-    find $src/os $src/tests -iname "*.asm" -exec touch {} +
+    find $src/os $src/tests $src/msb -iname "*.asm" -exec touch {} +
     mkdir -p tools/pc/disks
     echo $mode > tools/pc/disks/mkmode
 fi
-rm -f $src/MKFINAL
+rm -f $src/MKFINAL $src/CLEAN
+trap 'rm -f '$src'/MKFINAL '$src'/CLEAN' EXIT
 if [ $mode = FINAL ]; then
     touch $src/MKFINAL
-    trap 'rm -f '$src'/MKFINAL' EXIT
+fi
+if [ -n "$clean" ]; then
+    touch $src/CLEAN
 fi
 tools/pc/pc.js --disk=software/disks/MSDOS320-C400.json --dir=$src --normalize --speed=4 --target=30M --fat=16:2048:512
 code=$?

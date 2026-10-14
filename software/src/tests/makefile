@@ -8,11 +8,9 @@
 # This file is part of PCjs, a computer emulation software project at pcjs.org
 #
 ASM=MASM
-CL=CL
 LINK=LINK
 EXE2BIN=EXE2BIN
 MAPSYM=MAPSYM
-CFLAGS=
 AFLAGS=/MX /R /D$(REL) /I..\OS\INC
 LST=OBJ\$*.LST
 
@@ -30,10 +28,6 @@ LST=OBJ\$*.LST
 .ASM.EXE:
 	$(ASM) $(AFLAGS) $**,$*.OBJ,$(LST);
 	$(LINK) $*.OBJ,$*.EXE;
-	DEL $*.OBJ
-
-.C.EXE:
-	$(CL) $(CFLAGS) $** /FoOBJ\$*.OBJ /Fe$@;
 	DEL $*.OBJ
 
 BIN\DISKREAD.COM: MISC\DISKREAD.ASM
@@ -99,7 +93,3 @@ BIN\PRINTF.COM: OBJ\BDLIB.OBJ OBJ\SPRINTF.OBJ OBJ\PRINTF.OBJ
 	$(MAPSYM) PRINTF.MAP
 	DEL PRINTF.EXE
 	CD ..
-
-BIN\CPRINTF.EXE: PRINTF\CPRINTF.C
-	$(CL) $(CFLAGS) $** /Fe$@;
-	DEL $*.OBJ
