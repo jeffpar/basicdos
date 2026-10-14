@@ -17,7 +17,7 @@ The machine below boots the BASICDOS-DISK6 diskette, which contains text copies 
 
 When DONKEY ends, BASIC-DOS restores the original display mode.  Then try CIRCLE, or the name of any other sample (type `DIR SAMPLES` to list them; CONFIG.SYS sets PATH$ so that they can be run from any directory).  Not all of them run yet, but the list is growing.  See the DONKEY.BAS checklist in the [Project Status](/#donkeybas) for what was needed to run it.
 
-For comparison, **MSBASIC** (built from Microsoft's GW-BASIC sources) is also on the diskette, in its **TESTS** directory, so you can type `CD SAMPLES` and then `/TESTS/MSBASIC CIRCLE`, for example, to run the same program the conventional way, and then type `SYSTEM` to return to BASIC-DOS.
+For comparison, **MSBASIC** (built from Microsoft's GW-BASIC sources) is also on the diskette, in its **TESTS** directory, so you can type `CD SAMPLES` and then `\TESTS\MSBASIC CIRCLE`, for example, to run the same program the conventional way, and then type `SYSTEM` to return to BASIC-DOS.
 
 **DONKEY.BAS**, the game that Bill Gates and Neil Konzen wrote for the IBM PC in 1981, was the first BASIC sample from the PC DOS 1.00 diskette that BASIC-DOS was able to load and run to completion.  That was a major milestone: BASIC-DOS is no longer limited to small test programs, but can run real, full-featured BASIC programs, with graphics (SCREEN, LINE, PSET, GET, PUT, DRAW), sound (SOUND, PLAY), error handling (ON ERROR), and all the other statements and functions that DONKEY relies on.
 

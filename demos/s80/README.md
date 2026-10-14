@@ -16,7 +16,7 @@ The machine below boots the BASICDOS-DISK1 diskette, whose **CONFIG.SYS** doesn'
 
 {% include machine.html id="ibm5150" %}
 
-The machine is configured with 128K, and you can use the **MEM** command to display current memory usage (or **MEM -D** for details).  See the other [BASIC-DOS Demos](../) for configurations with multiple sessions.
+The machine is configured with 128K, and you can use the **MEM** command to display current memory usage (or **MEM /D** for details).  See the other [BASIC-DOS Demos](../) for configurations with multiple sessions.
 
 ### **CONFIG.SYS** from the BASICDOS-DISK1 Diskette
 

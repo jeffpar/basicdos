@@ -19,7 +19,7 @@ At first glance, it might appear there are two machines running, but it really i
 
 Like all the other [BASIC-DOS Demos](../), use **SHIFT-TAB** to toggle keyboard focus between sessions.  Since these sessions don't use borders, the presence of a blinking cursor indicates which session has focus.
 
-The machine is configured for 640K, and you can use the **MEM** command to display current memory usage and **MEM -D** for detailed memory usage.
+The machine is configured for 640K, and you can use the **MEM** command to display current memory usage and **MEM /D** for detailed memory usage.
 
 A **MEMSIZE** line in **CONFIG.SYS** (eg, **MEMSIZE=128**) can limit the total memory used by BASIC-DOS.  You might be tempted to think that **MEMSIZE** is a way to "partition" memory, so that each session has a dedicated amount, but no -- **MEMSIZE** is simply a means of testing BASIC-DOS with different memory sizes.  And in any case, partitioning memory would not be a good strategy.
 

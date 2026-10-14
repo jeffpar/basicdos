@@ -1,2 +1,2 @@
 @ECHO OFF
-MEM -D
+MEM /D

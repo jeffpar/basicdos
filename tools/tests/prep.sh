@@ -5,7 +5,7 @@
 #
 # The files follow the standard BASIC-DOS disk layout: HELP.TXT in the root (with CONFIG.SYS and AUTOEXEC.BAT,
 # and the system files that pc.js adds), utilities in BIN, and everything else (test programs, PRIMES, MSBASIC,
-# SYMDEB, etc) in TESTS.  A test configuration's CONFIG.SYS sets PATH$ to all three (eg, "A:/;A:/BIN;A:/TESTS"),
+# SYMDEB, etc) in TESTS.  A test configuration's CONFIG.SYS sets PATH$ to all three (eg, "A:\;A:\BIN;A:\TESTS"),
 # so the tests can be run by name.  There's no SAMPLES folder, since SAMPLES is reserved for the PC DOS BASIC
 # samples (see demos/basic), which don't fit on a 360K diskette with everything else.
 #

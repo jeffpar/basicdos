@@ -1170,7 +1170,7 @@ ENV_VARS	db	"COMSPEC=",0,"PATH=",0
 ;
 ; Find the program named at DS:SI, first as specified, and then (if the name
 ; contains no drive or path) in each directory listed in PATH$, separated by
-; semicolons (eg, "A:/;A:/BIN;A:/SAMPLES").  If the name has no extension,
+; semicolons (eg, "A:\;A:\BIN;A:\SAMPLES").  If the name has no extension,
 ; .COM, .EXE, .BAT, and .BAS are tried, in that order.
 ;
 ; Inputs:

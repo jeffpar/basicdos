@@ -32,6 +32,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 
 - [x] CON, with multiple console contexts (one per session)
 - [x] COM, AUX, LPT, PRN, NUL, CLOCK$, and PIPE$ devices
+- [x] Loadable character drivers via `DEVICE=` in CONFIG.SYS, including [DEBUG.SYS on a serial port](demos/debug/), with SYMDEB-style memory dumps and register displays and exclusive ownership of its COM port
 - [x] MOUSE$, a serial mouse driver (loaded only if a Microsoft-compatible mouse responds on a COM port at boot), with a minimal INT 33h interface (functions 00h-04h, 07h, 08h, and a BASIC-DOS function that returns queued button events), and a pointer drawn in MDA and CGA modes that preserves anything drawn over it
 - [x] Interrupt-driven, asynchronous I/O for CON and COM
 - [x] Floppy disk reads, including multi-track requests and requests that cross 64K boundaries
@@ -66,7 +67,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] FCB support: open, create, close, sequential, random, and random block reads and writes, find first/next, delete and rename (with wildcards), file size, set relative record, and filename parsing (functions 0Fh-17h, 21h-24h, and 27h-29h), including extended FCBs and device names
 - [x] Truncating/extending a file with a zero-length write (function 40h, and FCB function 28h)
 - [ ] Enforcing the read-only attribute on open, and getting/setting file attributes (function 43h) and date/time (function 57h)
-- [x] Subdirectories: paths (separated by `/`, or `\` when PATHCHAR is `\`) in all file functions, MKDIR and RMDIR (functions 39h and 3Ah), subdirectories that grow as needed, and per-session current directories for every drive (CHDIR and GETCWD, functions 3Bh and 47h)
+- [x] Subdirectories: paths (separated by `\`, or `/` when PATHCHAR is `/`) in all file functions, MKDIR and RMDIR (functions 39h and 3Ah), subdirectories that grow as needed, and per-session current directories for every drive (CHDIR and GETCWD, functions 3Bh and 47h)
 - [x] Same-drive file and directory moves (function 56h): preserve contents and metadata, update a moved directory's `..` entry, retain active current directories, and reject moves into itself or a descendant
 - [x] Absolute disk reads and writes: opening a volume (eg, `C:`) as a file gives read/write access to its sectors, in place of INT 25h and INT 26h
 - [x] Configurable disk buffer cache (BUFFERS=2-32, default 2), with least-recently-used replacement for FAT and directory sectors; file data is transferred directly by the disk drivers
@@ -75,7 +76,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 ### Command Interpreter: DOS Commands
 
 - [x] CD (CHDIR), COPY, DATE, DEL, DIR, EXIT, HELP, KEYS, MD (MKDIR), MEM, RD (RMDIR), RESTART, TIME, TYPE, and VER
-- [x] The prompt displays the current drive and directory (eg, `C:/SUBDIR>`), and switches use `-` by default (eg, `MEM -D`), since `/` is the default path character
+- [x] The prompt displays the current drive and directory (eg, `C:\SUBDIR>`), and switches use `/` (eg, `MEM /D`), as in PC DOS, unless PATHCHAR is `/`, in which case they use `-`
 - [x] Running COM, EXE, BAT, and BAS files, and loading programs into other sessions
 - [x] BAT and BAS files can run other BAT and BAS files and then continue (no CALL command required); a nested BAS file gets its own variables
 - [x] Pipes (`|`) and output redirection (`>` creates or truncates the output file, `>>` appends to it), including redirection at the end of a pipeline (eg, `DIR | CASE > TEST`)
@@ -88,11 +89,11 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] ECHO ON/OFF and the `@` prefix in BAT files: every BAT file starts with ECHO OFF (unlike PC DOS, so BAT files behave like BAS files unless ECHO ON is used), echoed lines are displayed with a `@` in front, and a leading `@` is ignored at the prompt, too
 - [x] A BAS file run from the command prompt remains loaded when it ends, along with its variables (like MSBASIC), so it can be LIST'ed or RUN again; RUN reuses the program's compiled code (unless the program or its variables have changed since), so it starts immediately
 - [x] Resident and transient portions: before running a COM or EXE file, COMMAND.COM frees idle variable blocks and discards its transient portion (about 23K), restoring it when the program ends (from a copy at the top of free memory, if the program didn't overwrite it, or else from COMMAND.COM); MEM includes the transient portion in its free memory total
-- [x] Filters: CASE, FIND (-C, -I, -N, -V), MORE, and SORT (-R, -+n); FIND, MORE, and SORT also accept file names, and every filter treats CTRL-Z as the end of input
+- [x] Filters: CASE, FIND (/C, /I, /N, /V), MORE, and SORT (/R, /+n); FIND, MORE, and SORT also accept file names, and every filter treats CTRL-Z as the end of input
 - [x] Pipelines with more than one filter (eg, `TYPE FILE | SORT | MORE`): when a session ends, its output pipe receives end-of-input
 - [x] When any command of a pipeline fails (eg, a program that can't be found, or no session available for it), the error is reported, the commands already running in other sessions are ended (DOS_UTL_END), and the first command never runs; and when a command stops reading a pipe early, the command writing to it gets a write error instead of waiting forever
 - [x] LIST VARS: list preserved strings (including PATH$), scalar values, and array dimensions in the current session
-- [x] PATH$: the directories searched for programs (eg, `PATH$="A:/;A:/BIN;A:/SAMPLES;A:/TESTS"` on a SHELL line in CONFIG.SYS); unlike other variables, it survives NEW and CLEAR
+- [x] PATH$: the directories searched for programs (eg, `PATH$="A:\;A:\BIN;A:\SAMPLES;A:\TESTS"` on a SHELL line in CONFIG.SYS); unlike other variables, it survives NEW and CLEAR
 - [x] Every BASIC-DOS disk has the same layout: BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, AUTOEXEC.BAT (if any), and HELP.TXT in the root, BASIC samples in BASIC, utilities in TOOLS, and test and demo programs in TESTS; HELP finds HELP.TXT in the root of the boot drive from any directory
 - [ ] Input redirection (`<`)
 - [x] REN/RENAME/MV: rename files and directories and move them between directories on the same drive
@@ -191,7 +192,7 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] FILEIO: BASIC sequential and random access file tests
 - [x] MOVES: file and directory moves, destination growth, sharing, and ancestry checks
 - [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUN, STRPOOL, ARRAYS, FLOW, CMDS, VARS, FILEIO, MOVES, and PRINTF, and reports whether the tests passed)
-- [x] CMDS: command tests (pipes, redirection, TYPE, DEL, TIME -D, HELP, SOUND, remarks, and hex constants)
+- [x] CMDS: command tests (pipes, redirection, TYPE, DEL, TIME /D, HELP, SOUND, remarks, and hex constants)
 - [x] `tools/tests/chkdsk.sh` runs MS-DOS 3.20 CHKDSK on a diskette image saved by a test session (see `QUIT /S` in `pc.js`)
 - [ ] More tests (eg, BASIC language and CMD command tests)
 - [x] BENCH.BAS and MICRO.BAS benchmarks, which run unchanged in BASIC-DOS, BASICA, and GW-BASIC (see the [results](preview/part6/)); `tools/tests/bench.sh` runs BENCH.BAS in all six configurations (each with and without an 8087) and prints the results in seconds

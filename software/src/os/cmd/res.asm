@@ -44,7 +44,7 @@ CODE    SEGMENT
 	DEFWORD	TRANS_SUM,0		; checksum of the transient portion
 	DEFWORD	TRANS_HI,0		; segment of its copy (see resSave)
 	DEFLBL	CMD_PATH,byte		; (main updates the drive and path char)
-	db	"A:/COMMAND.COM",0
+	db	"A:\COMMAND.COM",0
 MSG_RELOAD	db	13,10,"Insert disk with COMMAND.COM in drive "
 	DEFLBL	MSG_DRIVE,byte
 	db	"A and press any key",13,10,'$'

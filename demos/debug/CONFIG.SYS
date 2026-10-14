@@ -1,0 +1,5 @@
+REM Local console, with the serial debugger exclusively on COM2
+BUFFERS=8
+DEVICE=DEBUG.SYS COM2:9600,N,8,1,VT100
+CONSOLE=CON:80,25
+SHELL=COMMAND.COM PATH$="A:\;A:\BIN;A:\TESTS"

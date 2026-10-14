@@ -1,0 +1,19 @@
+#
+# BASIC-DOS Loadable Serial Debugger Makefile
+#
+# @author Jeff Parsons <Jeff@pcjs.org>
+# @copyright (c) 2026 Jeff Parsons
+# @license MIT <https://basicdos.com/LICENSE.txt>
+#
+ASM=MASM
+LINK=LINK
+EXE2BIN=EXE2BIN
+AFLAGS=/MX /R /D$(REL) /I..\..\INC
+LST=OBJ\DBGDEV.LST
+
+OBJ\DEBUG.SYS: DBGDEV.ASM ..\..\INC\DEV.INC ..\..\INC\UART.INC
+	$(ASM) $(AFLAGS) DBGDEV.ASM,OBJ\DBGDEV.OBJ,$(LST);
+	$(LINK) OBJ\DBGDEV.OBJ,OBJ\DBGDEV.EXE,OBJ\DBGDEV.MAP/MAP;
+	$(EXE2BIN) OBJ\DBGDEV.EXE $@
+	DEL OBJ\DBGDEV.OBJ
+	DEL OBJ\DBGDEV.EXE

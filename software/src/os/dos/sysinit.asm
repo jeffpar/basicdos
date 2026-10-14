@@ -22,7 +22,7 @@ DOS	segment word public 'CODE'
 	EXTWORD	<mcb_head,mcb_limit,buf_head,key_boot,scb_active,ivt_save>
 	EXTLONG	<bpb_table,scb_table,sfb_table,cdir_table,clk_ptr,fpu_table>
 	EXTLONG	<dev_head>
-	EXTNEAR	<find_cfg,init_table,set_bpbtime>
+	EXTNEAR	<find_cfg,init_table,set_bpbtime,load_devices>
 	EXTERNS	<cache_int21>,far
 	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr,dos_opchk>
 	EXTNEAR	<dos_term,dos_func,dos_exit,dos_ctrlc,dos_error,dos_default>
@@ -180,27 +180,38 @@ si2b:	mov	al,0EAh			; DI -> INT_DOSCALL5 * 4
 	DBGINIT	STRUCT,[bx],SCB
 	mov	[scb_active],bx		; set temporary SCB
 ;
-; Let users override the default path character '/' (eg, "PATHCHAR=\") and
-; the default switch character '-' (eg, "SWITCHAR=/").  They're independent,
-; but the only valid path characters are '/' and '\', and the only valid switch
-; characters are '-' and '/', and a switch character of '/' is ignored if it's
-; also the path character.  Any other setting is ignored.
+; Let users override the default switch character '/' (with '-' or '\') and
+; the default path character '\' (with '/'), but never make them the same:
+; SWITCHAR=\ implies PATHCHAR=/, and PATHCHAR always wins, so if it matches
+; the switch character, that becomes '-' (for PATHCHAR=/) or '/' (for \).
+; Any other setting is ignored.
 ;
-	mov	si,offset CFG_PATHCHAR
-	call	find_cfg		; look for "PATHCHAR="
-	jc	si2c
-	cmp	byte ptr [di],'\'	; the only change from the default
-	jne	si2c
-	mov	[def_pathchar],'\'	; update the default for all SCBs
-si2c:	mov	si,offset CFG_SWITCHAR
+	mov	si,offset CFG_SWITCHAR
 	call	find_cfg		; look for "SWITCHAR="
+	jc	si2e
+	mov	al,[di]
+	cmp	al,'-'
+	je	si2d
+	cmp	al,'/'
+	je	si2d
+	cmp	al,'\'
+	jne	si2e
+	mov	[def_pathchar],'/'	; SWITCHAR=\ implies PATHCHAR=/
+si2d:	mov	[def_switchar],al	; update the default for all SCBs
+si2e:	mov	si,offset CFG_PATHCHAR
+	call	find_cfg		; look for "PATHCHAR="
 	jc	si3
 	mov	al,[di]
-	cmp	al,'/'			; the only change from the default
+	mov	ah,'-'			; AH = new SWITCHAR if they conflict
+	cmp	al,'/'
+	je	si2f
+	mov	ah,'/'			; (or this one, for PATHCHAR=\)
+	cmp	al,'\'
 	jne	si3
-	cmp	al,[def_pathchar]	; unless it's also the path character
-	je	si3
-	mov	[def_switchar],al	; update the default for all SCBs
+si2f:	mov	[def_pathchar],al	; update the default for all SCBs
+	cmp	al,[def_switchar]	; do they conflict?
+	jne	si3			; no
+	mov	[def_switchar],ah
 ;
 ; Copy DD_LIST from the BIOS segment to dev_head in the DOS segment, for
 ; DOS_MSC_GETVARS (see DV_DD_LIST), since all the device drivers are linked
@@ -606,6 +617,17 @@ si9b:
 	jmp	open_error
 	mov	es:[bx].SCB_SFHPRN,al	; AL = SFH
 	mov	ch,al			; CH = SFH for PRN
+;
+; Now that a console is open (for reporting errors), load any DEVICE= drivers,
+; before opening any other consoles (which can't use devices they've reserved).
+; Since there's no PSP yet, the SCB needs these settings for parsing paths.
+;
+	mov	ax,word ptr es:[def_drive]
+	mov	word ptr es:[bx].SCB_CURDRV,ax
+	ASSERT	<SCB_CURDRV+1>,EQ,<SCB_SWITCHAR>
+	mov	al,es:[def_pathchar]
+	mov	es:[bx].SCB_PATHCHAR,al
+	call	load_devices
 ;
 ; See if there are any more CONSOLE contexts defined; if so, then for each
 ; one, open an CON handle, and record it in the next available SCB.  If there

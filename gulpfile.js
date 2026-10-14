@@ -141,6 +141,11 @@ let disks = {
         config: "./demos/vt100/CONFIG.SYS",
         TESTS: []
     },
+    "BASICDOS-DEBUG": {
+        config: "./demos/debug/CONFIG.SYS",
+        drivers: [ SRC + "/os/dd/dbg/obj/DEBUG.SYS" ],
+        TESTS: [ SRC + "/tests/bin/DBGTEST.COM" ]
+    },
     "BASICDOS-HD": {
         hd: true,
         config: "./demos/hd/CONFIG.SYS",
@@ -193,6 +198,7 @@ function stageDisk(diskName)
     };
     if (!disk.hd) copyFiles(sysFiles, dirStage);
     copyFiles([disk.config], dirStage, "CONFIG.SYS");
+    if (disk.drivers) copyFiles(disk.drivers, dirStage);
     let launchesAutoexec = fs.readFileSync(disk.config, "utf8").split(/\r?\n/).some(line =>
         /^SHELL=/i.test(line) && /\bAUTOEXEC(?:\.BAT)?\b/i.test(line));
     if (disk.autoexec && launchesAutoexec) copyFiles([disk.autoexec], dirStage, "AUTOEXEC.BAT");

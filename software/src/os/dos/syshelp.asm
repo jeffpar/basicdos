@@ -273,8 +273,6 @@ ci9:	pushf
 ci10:	ret	2
 ENDPROC	cache_int21
 
-	DEFLBL	sysinit_end
-
 DOS	ends
 
 	end

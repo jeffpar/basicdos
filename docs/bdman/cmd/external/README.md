@@ -42,7 +42,7 @@ In the **BIN** directory (see [Running Programs](../../intro/#running-programs) 
 
 ### Filters
 
-A filter reads lines of input, which normally come from a pipe (eg, `DIR | SORT`), and writes the results to its output.  FIND, MORE, and SORT also accept file names instead (since input redirection isn't supported yet).  Input ends when the pipe is closed, at the end of the file, or at a CTRL-Z.  Switches start with SWITCHAR (`-` by default).
+A filter reads lines of input, which normally come from a pipe (eg, `DIR | SORT`), and writes the results to its output.  FIND, MORE, and SORT also accept file names instead (since input redirection isn't supported yet).  Input ends when the pipe is closed, at the end of the file, or at a CTRL-Z.  Switches start with SWITCHAR (`/` by default).
 
 #### CASE
 
@@ -52,14 +52,14 @@ Copies input to output, converting lower-case letters to upper-case (eg, `DIR | 
 
 #### FIND
 
-	FIND [-C] [-I] [-N] [-V] "string" [file...]
+	FIND [/C] [/I] [/N] [/V] "string" [file...]
 
 Displays the lines of input (or of each *file*) that contain *string* (eg, `DIR | FIND "BAS"`).  When files are specified, the lines from each file follow a line containing its name.
 
-- `-C` displays only the number of lines
-- `-I` ignores case
-- `-N` puts each line's number in front of it (eg, `[3]`)
-- `-V` displays the lines that do *not* contain *string*
+- `/C` displays only the number of lines
+- `/I` ignores case
+- `/N` puts each line's number in front of it (eg, `[3]`)
+- `/V` displays the lines that do *not* contain *string*
 
 ERRORLEVEL is set to 0 if any lines were displayed (or counted), 1 if none, and 2 if a file couldn't be opened.
 
@@ -71,9 +71,9 @@ Displays input (or *file*) one screen at a time (eg, `TYPE README.TXT | MORE`). 
 
 #### SORT
 
-	SORT [-R] [-+n] [file]
+	SORT [/R] [/+n] [file]
 
-Displays the lines of input (or *file*) in sorted order, ignoring case (eg, `DIR | SORT`).  `-R` sorts in reverse order, and `-+n` sorts on the characters starting at column *n* (eg, `DIR | SORT -+10` sorts a directory listing by extension).  Up to 64K of text can be sorted.
+Displays the lines of input (or *file*) in sorted order, ignoring case (eg, `DIR | SORT`).  `/R` sorts in reverse order, and `/+n` sorts on the characters starting at column *n* (eg, `DIR | SORT /+10` sorts a directory listing by extension).  Up to 64K of text can be sorted.
 
 Filters can be chained (eg, `TYPE FILE | SORT | MORE`), but every command after the first needs its own session, so a pipeline can't have more commands than [SESSIONS=](../../cfg/#sessions) allows.  If any command of a pipeline fails (eg, it can't be found, or there's no session for it), the error is displayed, the commands already running are ended, and ERRORLEVEL is set to 1.  And if a command stops reading its input early (eg, FIND can't open its file), the command writing to it gets a write error instead of waiting forever; the filters stop when that happens.
 

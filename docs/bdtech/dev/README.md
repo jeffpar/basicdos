@@ -7,7 +7,7 @@ permalink: /docs/bdtech/dev/
 
 {% include header.html %}
 
-BASIC-DOS device drivers use PC DOS-style driver headers and request packets, with some simplifications and extensions.  All built-in drivers are in BASDEV.COM; installable drivers (DEVICE=) aren't supported yet.
+BASIC-DOS device drivers use PC DOS-style driver headers and request packets, with some simplifications and extensions.  All built-in drivers are in BASDEV.COM; installable drivers can also be loaded with DEVICE= (see [Installable Drivers](#installable-drivers)).
 
 ### Driver Headers
 
@@ -75,7 +75,7 @@ INIT requests use a DDPI packet:
 |--------|-------|-------------|
 | 0Dh | DDPI_UNITS | # of units (ie, drives) |
 | 0Eh | DDPI_END | End of the driver's resident code (returned by the driver) |
-| 12h | DDPI_BUFPTR | 512-byte scratch buffer |
+| 12h | DDPI_BUFPTR | 512-byte scratch buffer (built-in drivers), or the DEVICE= arguments (installable drivers) |
 
 All other requests use a DDPRW packet:
 
@@ -121,6 +121,12 @@ A request that must wait (eg, a keyboard read with no key available) calls DOS_U
 ### IOCTL Functions
 
 DOS_HDL_IOCTL (INT 21h, AH = 44h) sends IOCTL requests to drivers: AL is passed in DDP_CODE, CX in DDPRW_LENGTH, DX in DDPRW_LBA, and DS:SI in DDPRW_ADDR, and the result returned in DDP_CONTEXT is returned in DX.  In addition to the standard codes (00h-07h), BASIC-DOS defines these:
+
+#### COM {#com}
+
+| AL | Name | Description |
+|----|------|-------------|
+| B1h | IOCTL_COMDEBUG | Disables the port's UART interrupts, so that the caller can poll it, and returns the UART's base port in DX, OR'ed with COMDBG_XON (02h) and/or COMDBG_RTS (04h) if the port uses XON/XOFF or RTS/CTS flow control.  The handle must have been opened with MODE_DENY_RW (see [Device Sharing](#device-sharing)); otherwise, the error is ERR_ACCDENIED. |
 
 #### CLOCK$ {#clock}
 
@@ -200,5 +206,15 @@ Positions are virtual coordinates (640x200 in every mode), with one mickey per h
 | BDh | Get event (BASIC-DOS) | If BX = 0, removes the next button event from the queue (up to 8 are saved) and returns AX = event (1 = left pressed, 2 = left released, 3 = right pressed, 4 = right released), BX = buttons, and CX, DX = position at the time of the event; otherwise (or if there are no events), returns AX = 0 and the current buttons and position.  Positions are in screen units: pixels in graphics modes, or a column and row (starting at 1) in text modes |
 
 Other functions are ignored.  The [MOUSE](../../bdman/cmd/device/mouse/) statement and function use functions 00h-02h and BDh.
+
+### Device Sharing {#device-sharing}
+
+A device can be opened any number of times, unless an open (DOS_HDL_OPEN, INT 21h AH = 3Dh) includes the MODE_DENY_RW (10h) sharing mode in AL: that open fails with ERR_SHARE if the device is already open, and while that handle remains open, every other open of the device fails with ERR_SHARE.  Other sharing modes are ignored for devices.
+
+### Installable Drivers {#installable-drivers}
+
+Each DEVICE= line in CONFIG.SYS loads a character device driver from a .SYS file: a single driver with no relocations, whose DDH is at offset 0, with DDH_NEXT_OFF set to FFFFh and DDATTR_CHAR set.  DOS reads the entire file into memory, then calls DDH_REQUEST with a DDC_INIT request, where DDPI_BUFPTR points to the ASCIIZ arguments that follow the filename, and DDPI_END is preset to the end of the file.  INIT runs before any sessions exist, so the driver can open files and devices (it gets system file handles, since there's no PSP yet), but if it fails, it must close them and leave no interrupt vectors hooked.  If INIT succeeds, DOS releases any memory beyond DDPI_END.OFF and adds the driver to the head of the driver list; otherwise, DOS frees the driver and displays a warning with error 31 (general failure), and for any other failure, the warning includes the DOS error (eg, 2 if the file wasn't found, or 11 if it's not a valid driver).
+
+DEBUG.SYS (software/src/os/dd/dbg) is an example: it opens the COM port named in its arguments with MODE_DENY_RW, switches it to polling with IOCTL_COMDEBUG, and then hooks INT 01h, INT 03h, and INT 08h.  Its monitor never calls DOS, since it may have interrupted DOS.
 
 {% include footer.html prev="Utility Functions:../util/" next="Floating-Point Interface:../fpu/" %}

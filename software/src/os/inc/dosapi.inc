@@ -400,10 +400,12 @@ ERR_BADHANDLE	equ	6	; invalid handle
 ERR_BADMCB	equ	7	; invalid MCB
 ERR_NOMEMORY	equ	8	; out of memory
 ERR_BADADDR	equ	9	; invalid memory segment
+ERR_BADFORMAT	equ	11	; invalid format (eg, DEVICE= driver)
 ERR_BADDRIVE	equ	15	; invalid drive
 ERR_CURDIR	equ	16	; attempt to remove current directory
 ERR_NOTSAME	equ	17	; not same device
 ERR_NOTREADY	equ	21	; drive not ready (see dev_request)
+ERR_GENFAIL	equ	31	; general failure
 ERR_SHARE	equ	32	; sharing violation
 ERR_DISKFULL	equ	39	; disk full
 

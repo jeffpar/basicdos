@@ -12,7 +12,9 @@
 ; the kernel's internal structures (see dos.inc).
 ;
 	include	cmd.inc
-	include	dos.inc
+	IFDEF	DEBUG
+	include	dos.inc		; (only the DEBUG displays need it)
+	ENDIF
 
 CODE    SEGMENT
 

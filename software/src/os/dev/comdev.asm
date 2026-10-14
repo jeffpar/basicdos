@@ -7,11 +7,12 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-	BIOSEQU equ 1
+	BIOSVEC equ 1
 	include	macros.inc
 	include	bios.inc
 	include	dev.inc
 	include	devapi.inc
+	include	uart.inc
 	include	dosapi.inc
 
 DEV	group	CODE,CODE2,CODE3,CODE4,INIT,DATA
@@ -24,12 +25,31 @@ CODE	segment para public 'CODE'
 COM1	DDH	<COM1_LEN,,DDATTR_OPEN+DDATTR_CHAR,COM1_INIT,ddcom_int1,20202020314D4F43h>
 ;
 ; Every COM driver instance must define the next group of variables in
-; the same location/order as shown below.
+; the same location/order as shown below, followed by its request handler
+; (so that ddcom_init can use the same DDH_REQUEST offset for every port).
 ;
 	DEFPTR	ddcom_cmdp	; ddcom_cmd pointer
 	DEFPTR	ddcom_intp	; ddcom_int pointer
 	DEFWORD	ct_seg,0	; active context, if any
 	DEFWORD	card_num,0	; card number
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Driver request
+;
+; Inputs:
+;	ES:BX -> DDP
+;
+; Outputs:
+;
+        ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcom_req,far
+	mov	cx,[ct_seg]
+	mov	dx,[card_num]
+	call	[ddcom_cmdp]
+	mov	[ct_seg],cx
+	ret
+ENDPROC	ddcom_req
 
 	DEFPTR	wait_ptr,-1	; chain of waiting packets
 
@@ -112,85 +132,6 @@ CTSTAT_RTS	equ	08h	; RTS/CTS flow control enabled (RTS option)
 CTSTAT_CTSOFF	equ	10h	; output held because CTS is low (RTS option)
 CTSTAT_INPUT	equ	40h	; context is waiting for input
 CTSTAT_PAUSED	equ	80h	; context is paused (triggered by CTRLS hotkey)
-
-DEF_INLEN	equ	128
-DEF_OUTLEN	equ	128
-
-REG_DLL		equ	0	; Divisor Latch LSB (write when DLAB set)
-REG_THR		equ	0	; Transmitter Holding Register (write when DLAB clear)
-REG_RBR		equ	0	; Receiver Buffer Register (read-only)
-
-REG_IER		equ	1	; Interrupt Enable Register
-IER_RBR_AVAIL	equ	01h
-IER_THR_EMPTY	equ	02h
-IER_DELTA	equ	04h
-IER_MSR_DELTA	equ	08h
-IER_UNUSED	equ	0F0h	; always zero
-
-REG_IIR		equ	2	; Interrupt ID Register (read-only)
-IIR_NO_INT	equ	01h
-IIR_INT_LSR	equ	06h	; Line Status (highest priority: Overrun error, Parity error, Framing error, or Break Interrupt)
-IIR_INT_RBR	equ	04h	; Receiver Data Available
-IIR_INT_THR	equ	02h	; Transmitter Holding Register Empty
-IIR_INT_MSR	equ	00h	; Modem Status Register (lowest priority: Clear To Send, Data Set Ready, Ring Indicator, or Data Carrier Detect)
-IIR_INT_BITS	equ	06h
-IIR_UNUSED	equ	0F8h	; always zero (the ROM BIOS relies on these bits "floating to 1" when no SerialPort is present)
-
-REG_LCR		equ	3	; Line Control Register
-LCR_DATA5	equ	00h
-LCR_DATA6	equ	01h
-LCR_DATA7	equ	02h
-LCR_DATA8	equ	03h
-LCR_STOP	equ	04h	; clear: 1 stop bit; set: 1.5 stop bits for LCR_DATA_5BITS, 2 stop bits for all other data lengths
-LCR_PARITY	equ	08h	; if set, a parity bit is inserted/expected between the last data bit and the first stop bit; no parity bit if clear
-LCR_PARITY_EVEN	equ	10h	; if set, even parity is selected (ie, the parity bit insures an even number of set bits); if clear, odd parity
-LCR_PARITY_INV	equ	20h	; if set, parity bit is transmitted inverted; if clear, parity bit is transmitted normally
-LCR_BREAK	equ	40h	; if set, serial output (SOUT) signal is forced to logical 0 for the duration
-LCR_DLAB	equ	80h	; Divisor Latch Access Bit; if set, DLL.REG and DLM.REG can be read or written
-
-REG_MCR		equ	4	; Modem Control Register
-MCR_DTR		equ	01h	; when set, DTR goes high, indicating ready to establish link (looped back to DSR in loop-back mode)
-MCR_RTS		equ	02h	; when set, RTS goes high, indicating ready to exchange data (looped back to CTS in loop-back mode)
-MCR_OUT1	equ	04h	; when set, OUT1 goes high (looped back to RI in loop-back mode)
-MCR_OUT2	equ	08h	; when set, OUT2 goes high (looped back to RLSD in loop-back mode); must also be set for most UARTs to enable interrupts
-
-REG_LSR		equ	5	; Line Status Register
-LSR_DR		equ	01h	; Data Ready (set when new data in RBR; cleared when RBR read)
-LSR_OE		equ	02h	; Overrun Error (set when new data arrives in RBR before previous data read; cleared when LSR read)
-LSR_PE		equ	04h	; Parity Error (set when new data has incorrect parity; cleared when LSR read)
-LSR_FE		equ	08h	; Framing Error (set when new data has invalid stop bit; cleared when LSR read)
-LSR_BI		equ	10h	; Break Interrupt (set when new data exceeded normal transmission time; cleared LSR when read)
-LSR_THRE	equ	20h	; Transmitter Holding Register Empty (set when UART ready to accept new data; cleared when THR written)
-LSR_TSRE	equ	40h	; Transmitter Shift Register Empty (set when the TSR is empty; cleared when the THR is transferred to the TSR)
-LSR_UNUSED	equ	80h	; always zero
-
-REG_MSR		equ	6	; Modem Status Register
-MSR_DCTS	equ	01h	; when set, CTS (Clear To Send) has changed since last read
-MSR_DDSR	equ	02h	; when set, DSR (Data Set Ready) has changed since last read
-MSR_TERI	equ	04h	; when set, TERI (Trailing Edge Ring Indicator) indicates RI has changed from 1 to 0
-MSR_DRLSD	equ	08h	; when set, RLSD (Received Line Signal Detector) has changed
-MSR_CTS		equ	10h	; when set, the modem or data set is ready to exchange data (complement of the Clear To Send input signal)
-MSR_DSR		equ	20h	; when set, the modem or data set is ready to establish link (complement of the Data Set Ready input signal)
-MSR_RI		equ	40h	; complement of the RI (Ring Indicator) input
-MSR_RLSD	equ	80h	; complement of the RLSD (Received Line Signal Detect) input
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; Driver request
-;
-; Inputs:
-;	ES:BX -> DDP
-;
-; Outputs:
-;
-        ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
-DEFPROC	ddcom_req,far
-	mov	cx,[ct_seg]
-	mov	dx,[card_num]
-	call	[ddcom_cmdp]
-	mov	[ct_seg],cx
-	ret
-ENDPROC	ddcom_req
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -395,8 +336,28 @@ DEFPROC	ddcom_ioctl
 	je	dio0a
 	cmp	al,IOCTL_SETCOLOR
 	je	dio0b
+	cmp	al,IOCTL_COMDEBUG
+	je	dio0c
 	pop	cx
 dio8:	jmp	ddcom_none		; unsupported IOCTL
+;
+; IOCTL_COMDEBUG: the kernel has verified that the caller's handle has
+; exclusive access (MODE_DENY_RW), so it's the only reference to this context;
+; disable the UART's interrupts (for polling) and return the port plus any
+; COMDBG_* bits.
+;
+dio0c:	mov	dx,ds:[CT_PORT]
+	inc	dx			; DX -> REG_IER (DLAB is clear)
+	sub	al,al
+	out	dx,al
+	dec	dx
+	mov	al,ds:[CT_STATUS]
+	and	al,CTSTAT_XON OR CTSTAT_RTS
+	ASSERT	<COMDBG_XON SHL 1>,EQ,<CTSTAT_XON>
+	ASSERT	<COMDBG_RTS SHL 1>,EQ,<CTSTAT_RTS>
+	shr	al,1
+	or	dl,al
+	jmp	short dio7
 ;
 ; IOCTL_GETDIM: return the (assumed) terminal dimensions.
 ;
@@ -1068,7 +1029,7 @@ DEFPROC	ddcom_close
 	mov	es,cx
 	ASSERT	STRUCT,es:[0],CT
 	dec	es:[CT_REFS]
-	jg	dcc8
+	jg	dcc7			; context still in use
 ;
 ; Before freeing the context, mask the IRQ.
 ;
@@ -1079,8 +1040,8 @@ DEFPROC	ddcom_close
 ;
 	mov	ah,DOS_MEM_FREE
 	int	INT_DOSFUNC
-	pop	es
 	sub	cx,cx
+dcc7:	pop	es
 
 dcc8:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	ret

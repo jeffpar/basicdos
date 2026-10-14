@@ -21,9 +21,9 @@ BASIC-DOS disk commands include:
 
 File names follow PC DOS conventions: an optional drive letter and colon (eg, `B:`), a name of up to 8 characters, and an optional period followed by an extension of up to 3 characters (eg, `B:PRIMES.BAS`).  Drives A: and B: are diskette drives, and drives C: and D: are the first FAT12 partitions of up to two hard disks.
 
-A file name can also be preceded by a path of directory names, each followed by the path character (`/` by default, or `\` when [PATHCHAR](../../cfg/#pathchar) is `\`).  A path that begins with the path character starts at the root directory (eg, `TYPE /SUBDIR/INSIDE.TXT`); otherwise, it starts at the drive's current directory (see [CD](#cd)), which the prompt displays (eg, `C:/SUBDIR>`).  A directory name of `.` refers to the same directory, and `..` refers to the parent directory (eg, `TYPE ../HELLO.TXT`).  Each session has its own current directory for every drive.
+A file name can also be preceded by a path of directory names, each followed by the path character (`\` by default, or `/` when [PATHCHAR](../../cfg/#pathchar) is `/`).  A path that begins with the path character starts at the root directory (eg, `TYPE \SUBDIR\INSIDE.TXT`); otherwise, it starts at the drive's current directory (see [CD](#cd)), which the prompt displays (eg, `C:\SUBDIR>`).  A directory name of `.` refers to the same directory, and `..` refers to the parent directory (eg, `TYPE ..\HELLO.TXT`).  Each session has its own current directory for every drive.
 
-DOS commands and external programs can use paths at the prompt and in BAT or BAS files (eg, `DIR /BIN` or `/BIN/SLEEP 1`), including after a colon that separates commands.  In BASIC file statements such as OPEN, supply a path as a quoted string or string variable.
+DOS commands and external programs can use paths at the prompt and in BAT or BAS files (eg, `DIR \BIN` or `\BIN\SLEEP 1`), including after a colon that separates commands.  In BASIC file statements such as OPEN, supply a path as a quoted string or string variable.
 
 Device names (eg, CON, PRN, AUX, COM1, LPT1, and NUL) can be used in place of file names (eg, `COPY TEST.TXT NUL` or `DIR > NUL`).
 
@@ -38,12 +38,12 @@ REN (or RENAME or MV) renames or moves a file or directory on the same drive.
 
 Changes the current directory of *drive* (or the current drive) to *path*.  If no *path* is specified, the drive's current directory is displayed.
 
-	C:/>CD SUBDIR
-	C:/SUBDIR>CD
-	C:/SUBDIR
+	C:\>CD SUBDIR
+	C:\SUBDIR>CD
+	C:\SUBDIR
 
-	C:/SUBDIR>CD ..
-	C:/>
+	C:\SUBDIR>CD ..
+	C:\>
 
 ### COPY
 
@@ -54,7 +54,7 @@ Copies the contents of the input file or device to the output file or device.  T
 Input files separated by `+` are combined (concatenated) into the output file, which must be specified (eg, `COPY A.BIN+B.BIN C.BIN`).  Files are always copied as binary data; to copy a text file only up to its first CTRL-Z, use [TYPE](#type) with redirection instead (eg, `TYPE A.TXT > B.TXT`).
 
 	COPY PRIMES.BAS B:
-	COPY B:/*.BAS
+	COPY B:\*.BAS
 
 ### DEL
 

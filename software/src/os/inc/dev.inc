@@ -85,13 +85,28 @@ DDERR_NOTREADY	equ	80h	; Drive not ready (aka timeout)
 ;
 ; Device driver packet for the INIT command
 ;
+; For built-in drivers, DDPI_BUFPTR is a scratch buffer; for DEVICE= drivers
+; (single-header .SYS files with a DDH at offset 0), it points to the ASCIIZ
+; arguments, and DDPI_END must be returned in the driver's own segment.
+;
 DDPI		struc
 DDPI_HDR	db	size DDP dup(?)
 DDPI_UNITS	db	?	; 0Dh: # of units (ie, drives)
 DDPI_END	dd	?	; 0Eh: end of driver
-DDPI_BUFPTR	dd	?	; 12h: 512-byte scratch buffer (from devinit)
+DDPI_BUFPTR	dd	?	; 12h: scratch buffer or DEVICE= arguments
 DDPI_BLKDEV	db	?	; 16h: not used
 DDPI		ends
+
+;
+; IOCTL_COMDEBUG requires a handle opened with MODE_DENY_RW (see chk_devopen);
+; it disables the port's UART interrupts (for polling), and returns its base
+; port OR'ed with COMDBG_* bits (UART base ports are always multiples of 8).
+; These are kept here, rather than in devapi.inc with the other IOCTL_*
+; values, because COMMAND has no room for them.
+;
+IOCTL_COMDEBUG	equ	0B1h	; COM: polling mode (DX = port + COMDBG_*)
+COMDBG_XON	equ	02h	; XON/XOFF flow control enabled
+COMDBG_RTS	equ	04h	; RTS/CTS flow control enabled
 
 ;
 ; MEDIACHK values returned in the CONTEXT field

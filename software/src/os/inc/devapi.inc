@@ -56,7 +56,8 @@ IOCTL_RCVBDATA	equ	005h	; receive (CX) bytes of block ctl data (DS:DX)
 IOCTL_INSTATUS	equ	006h	; check input status (AL)
 IOCTL_OUTSTATUS	equ	007h	; check output status (AL)
 ;
-; BASIC-DOS specific IOCTL sub-functions start here.
+; BASIC-DOS specific IOCTL sub-functions start here (IOCTL_COMDEBUG is in
+; dev.inc, since only drivers and the kernel use it).
 ;
 IOCTL_CLOCK	equ	0C0h
 IOCTL_WAIT	equ	0C1h	; CLOCK$: wait # ms in packet's LENGTH:OFFSET

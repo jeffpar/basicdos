@@ -242,14 +242,25 @@ DEFPROC	hdl_ioctl,DOS
 hi0:	mov	[bp].REG_DX,ax
 	ret
 
-hi1:	les	di,[bx].SFB_DEVICE	; ES:DI -> driver
+hi1:	cmp	al,IOCTL_COMDEBUG	; requires an exclusive handle
+	jne	hi2
+	mov	ah,[bx].SFB_MODE
+	and	ah,MODE_DENY_RD OR MODE_DENY_NONE ; AH = sharing mode
+	cmp	ah,MODE_DENY_RW
+	je	hi2
+	mov	ax,ERR_ACCDENIED
+	stc
+hi8:	mov	[bp].REG_AX,ax		; return error in REG_AX
+	ret
+
+hi2:	les	di,[bx].SFB_DEVICE	; ES:DI -> driver
 	mov	bx,[bx].SFB_CONTEXT	; BX = context
 	xchg	bx,dx			; DX = context, BX = REG_DX
 	mov	ah,DDC_IOCTLIN
 	mov	ds,[bp].REG_DS		; in case DS:SI is required as well
 	ASSUME	DS:NOTHING
 	call	dev_request
-	jc	hs8			; return error in REG_AX
+	jc	hi8			; return error in REG_AX
 	mov	[bp].REG_DX,dx		; REG_DX = result
 ;
 ; TODO: PC DOS 2.00 apparently returns the result in REG_AX as well as REG_DX.
@@ -304,7 +315,9 @@ so9b:	stc
 ; descriptor), then share the session's console SFB, which may be for another
 ; device (eg, COM1).
 ;
-so0:	cmp	ah,10h			; FCB?
+so0:	call	chk_devopen		; can it be opened in this mode?
+	jc	so9b			; no (AX = error code)
+	cmp	ah,10h			; FCB?
 	jne	so0a			; no
 	mov	si,cs:[scb_active]
 	lea	si,[si].SCB_FILENAME + 1
@@ -579,6 +592,52 @@ sco9:	pop	si
 	pop	dx
 	ret
 ENDPROC	sfb_chkopen
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chk_devopen
+;
+; Devices can be opened any number of times, unless an open requests
+; MODE_DENY_RW, which succeeds only if the device isn't already open, and
+; makes every other open fail until that handle is closed.
+;
+; Inputs:
+;	BL = mode (see MODE_*)
+;	ES:DI -> driver
+;
+; Outputs:
+;	On success, carry clear
+;	On failure, AX = ERR_SHARE, carry set
+;
+DEFPROC	chk_devopen,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	si
+	push	ax
+	mov	si,cs:[sfb_table].OFF
+cdo1:	cmp	cs:[si].SFB_REFS,0	; is this SFB open?
+	je	cdo2			; no
+	cmp	cs:[si].SFB_DEVICE.OFF,di
+	jne	cdo2
+	mov	ax,es
+	cmp	cs:[si].SFB_DEVICE.SEG,ax
+	jne	cdo2			; not the same device
+	mov	ah,bl
+	mov	al,cs:[si].SFB_MODE
+	and	ax,(MODE_DENY_RD OR MODE_DENY_NONE) * 101h ; sharing modes
+	cmp	ah,MODE_DENY_RW		; do we want exclusive access?
+	je	cdo8			; yes, so deny it
+	cmp	al,MODE_DENY_RW		; does someone else have it?
+	je	cdo8			; yes
+cdo2:	add	si,size SFB
+	cmp	si,cs:[sfb_table].SEG
+	jb	cdo1			; keep checking (carry clear when done)
+	pop	ax
+	jmp	short cdo9
+cdo8:	pop	ax
+	mov	ax,ERR_SHARE
+	stc
+cdo9:	pop	si
+	ret
+ENDPROC	chk_devopen
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -625,9 +684,10 @@ sr0b:	call	lim_count		; limit CX to the current file size
 ; if there's a valid CURCLN (which must be in sync with CURPOS if present);
 ; otherwise, we'll have to walk the cluster chain to find the correct cluster #.
 ;
-sr1:	clc
-	jcxz	sr5			; nothing to read (eg, an empty file)
-	mov	dx,[bx].SFB_CURCLN
+sr1:	test	cx,cx			; anything to read (and carry clear)?
+	jnz	sr1b			; yes
+	jmp	sr5			; no (eg, an empty file)
+sr1b:	mov	dx,[bx].SFB_CURCLN
 	test	dx,dx
 	jnz	sr1a
 	call	find_cln		; find cluster # for CURPOS

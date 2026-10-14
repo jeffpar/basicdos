@@ -9,7 +9,7 @@ machines:
     debugger: available
 ---
 
-There are currently ten BASIC-DOS demo configurations:
+There are currently eleven BASIC-DOS demo configurations:
 
  1. [Single 25x80 session](s80/) (see below)
  2. [Two 40-column sessions](d40/)
@@ -21,6 +21,7 @@ There are currently ten BASIC-DOS demo configurations:
  8. [BASIC-DOS with a Serial Display](serial/)
  9. [BASIC-DOS with a VT100 Terminal](vt100/)
 10. [BASIC-DOS with a Mouse](mouse/)
+11. [BASIC-DOS with Debugger on Serial Port](debug/)
 
 In the demos with multiple sessions, use **SHIFT-TAB** to toggle keyboard focus between sessions.
 

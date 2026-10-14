@@ -67,7 +67,7 @@ The line editing keys that 0Ah supports are described in [Typing Commands](../..
 
 Handles 0-4 are the predefined handles STDIN, STDOUT, STDERR, STDAUX, and STDPRN.  Filenames can also be device names (eg, `CON`, `NUL`, or `COM1`), optionally followed by a colon and device-specific parameters (eg, `CON:40,25`).
 
-A file can be open more than once for reading, but a file opened for writing (MODE_ACC_WO or MODE_ACC_RW, which includes every file opened with 3Ch) can't be open anywhere else.  Opening a file in a way that would violate that rule fails with ERR_SHARE, as does deleting (41h) a file that's open.  Unlike PC DOS 3.x, BASIC-DOS doesn't need SHARE for this, and it ignores the MODE_DENY_* bits.  Devices are exempt, so `CON` can be open for both reading and writing.
+A file can be open more than once for reading, but a file opened for writing (MODE_ACC_WO or MODE_ACC_RW, which includes every file opened with 3Ch) can't be open anywhere else.  Opening a file in a way that would violate that rule fails with ERR_SHARE, as does deleting (41h) a file that's open.  Unlike PC DOS 3.x, BASIC-DOS doesn't need SHARE for this, and it ignores the MODE_DENY_* bits for files.  Devices are exempt from that rule, so `CON` can be open for both reading and writing, but a device opened with MODE_DENY_RW can't be open anywhere else (see [Device Sharing](../dev/#device-sharing)).
 
 A filename that is only a drive letter and colon (eg, `C:`) opens the entire volume, whose sectors can then be read (or written) at file offsets of LBA * bytes per sector; the size of the file is the size of the volume.  For sharing purposes, a volume counts as every file on it: it can be opened for reading only if no file on it is open for writing, and for writing only if no file on it is open at all, and while the volume is open, no file on it can be opened in a way that conflicts with that.  Creating, deleting, or renaming a file, and creating or removing a directory, also fail with ERR_SHARE while the volume is open.  Opening a volume writes any modified buffers for the drive, writing to it discards the drive's buffers, and closing a volume that was written rebuilds its BPB (eg, after it's been reformatted).
 
@@ -136,7 +136,7 @@ An FCB opens a file read-only, so any number of FCBs (and handles opened for rea
 | 3700h | DOS_MSC_GETSWC | | DL = switch character |
 | 3704h | DOS_MSC_GETPCH | | DL = path character (BASIC-DOS only; fixed at boot, so programs need to get it only once) |
 
-The path character is set at boot by CONFIG.SYS's PATHCHAR setting (`/` by default, or `\`), and the switch character by its SWITCHAR setting (`-` by default, or `/`, which is ignored if it's also the path character); the two are independent.  Both are fixed at boot; unlike PC DOS, BASIC-DOS doesn't support AX = 3701h (set switch character), so CONFIG.SYS is the only way to change them.
+The path character is set at boot by CONFIG.SYS's PATHCHAR setting (`\` by default, or `/`), and the switch character by its SWITCHAR setting (`/` by default, or `-` or `\`); the two are never the same (`PATHCHAR=/` changes a `/` switch character to `-`, and `SWITCHAR=\` changes the path character to `/`).  Both are fixed at boot; unlike PC DOS, BASIC-DOS doesn't support AX = 3701h (set switch character), so CONFIG.SYS is the only way to change them.
 | 52h | DOS_MSC_GETVARS | | ES:BX -> [DOSVARS](../data/#dosvars) |
 
 ### Differences from PC DOS

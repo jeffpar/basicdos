@@ -13,7 +13,14 @@
 ;
 ; Page numbers are from the first IBM 5150 Technical Reference Manual (1981)
 ;
+; Modules that need only these vectors (and not the rest of the BIOSEQU
+; definitions) can define BIOSVEC instead of BIOSEQU.
+;
 	IFDEF	BIOSEQU
+BIOSVEC	equ	1
+	ENDIF
+
+	IFDEF	BIOSVEC
 INT_PRTSC	equ	05h	; PRINT_SCREEN (p. A-79)
 INT_HW_TMR	equ	08h	;
 INT_HW_KBD	equ	09h	;
@@ -35,7 +42,9 @@ INT_TICK	equ	1Ch	; TIMER TICK
 INT_VPT		equ	1Dh	; VIDEO PARAMETER TABLE
 INT_DPT		equ	1Eh	; DISKETTE PARAMETER TABLE
 INT_VGCDATA	equ	1Fh	; VIDEO GRAPHICS CHARACTER DATA
+	ENDIF	; BIOSVEC
 
+	IFDEF	BIOSEQU
 ;
 ; INT_VIDEO functions
 ;

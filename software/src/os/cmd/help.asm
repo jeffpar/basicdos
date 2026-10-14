@@ -50,7 +50,7 @@ DEFPROC	cmdHelp
 	push	cx
 ;
 ; HELP.TXT is in the root of the drive that COMMAND.COM was loaded from (see
-; CMD_PATH), so build that filename (eg, "A:/HELP.TXT") on the stack.
+; CMD_PATH), so build that filename (eg, "A:\HELP.TXT") on the stack.
 ;
 	sub	sp,14
 	mov	di,sp

@@ -20,11 +20,11 @@ Press any key (or wait 5 seconds) to start BASIC-DOS, or press **Esc** to boot f
 
 	BASIC-DOS Command Processor
 
-	A:/>
+	A:\>
 
-Use `MEM` to see memory usage, and `MEM -D` to see every memory block, including the FPU$ driver (if it's loaded; without it, numeric variables default to integers; see [SKIP=](../cfg/#skip)).
+Use `MEM` to see memory usage, and `MEM /D` to see every memory block, including the FPU$ driver (if it's loaded; without it, numeric variables default to integers; see [SKIP=](../cfg/#skip)).
 
-The `A:/>` is the BASIC-DOS prompt.  The prompt displays the default drive and its current directory (`/` is the root directory; see [CD](../cmd/disk/#cd)), and indicates that BASIC-DOS is ready to accept [commands](../cmd/) from the keyboard.
+The `A:\>` is the BASIC-DOS prompt.  The prompt displays the default drive and its current directory (`\` is the root directory; see [CD](../cmd/disk/#cd)), and indicates that BASIC-DOS is ready to accept [commands](../cmd/) from the keyboard.
 
 Unlike PC DOS, BASIC-DOS doesn't automatically run an AUTOEXEC.BAT file.  Instead, each session's startup command (if any) is specified on a [SHELL=](../cfg/#shell) line in CONFIG.SYS.
 
@@ -99,7 +99,7 @@ If the program isn't in the current directory, and its name doesn't include a dr
 - **SAMPLES** contains the PC DOS BASIC samples (eg, DONKEY.BAS), on disks that include them
 - **TESTS** contains test programs and other programs for demonstration purposes (eg, PRIMES.BAS, MSBASIC.EXE, and SYMDEB.EXE)
 
-and its CONFIG.SYS sets PATH$ to the root, BIN, SAMPLES, and TESTS (eg, `A:/;A:/BIN;A:/SAMPLES;A:/TESTS`), so you can type `PRIMES` or `DIR | SORT` from any directory.  Programs in TESTS can also be run by name (eg, `MSBASIC`).
+and its CONFIG.SYS sets PATH$ to the root, BIN, SAMPLES, and TESTS (eg, `A:\;A:\BIN;A:\SAMPLES;A:\TESTS`), so you can type `PRIMES` or `DIR | SORT` from any directory.  Programs in TESTS can also be run by name (eg, `MSBASIC`).
 
 The [hard disk demo](/demos/hd/) adds two more directories: **SRC** (the BASIC-DOS source code) and **TOOLS** (MASM and the other build tools).
 

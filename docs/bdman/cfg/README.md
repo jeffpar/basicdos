@@ -31,6 +31,7 @@ The recognized keywords are:
 - [BUFFERS](#buffers)
 - [CONSOLE](#console)
 - [DEBUG](#debug)
+- [DEVICE](#device)
 - [FILES](#files)
 - [MEMSIZE](#memsize)
 - [PATHCHAR](#pathchar)
@@ -38,8 +39,6 @@ The recognized keywords are:
 - [SHELL](#shell)
 - [SKIP](#skip)
 - [SWITCHAR](#switchar)
-
-Installable device drivers (DEVICE=) aren't supported yet.
 
 ### BOOTKEY
 
@@ -94,6 +93,19 @@ Two consoles side by side, each 40 columns wide with a border:
 
 Sends diagnostic messages from DEBUG builds of BASIC-DOS to the specified device (eg, `DEBUG=COM1:9600,N,8,1,0`).
 
+### DEVICE
+
+> DEVICE=*filename* [*arguments*]
+
+Loads an installable device driver, passing it any *arguments*.  DEVICE lines are processed in order, after the first console has been opened (so that any errors can be reported) and before any other consoles are opened.  If a driver can't be loaded, a warning is displayed (eg, `Warning: unable to load device DEBUG.SYS (31)`) and startup continues.
+
+BASIC-DOS includes one installable driver, DEBUG.SYS, a simple debugger that runs on a terminal connected to a serial port; its argument is the port's settings, using the same format as a COM [CONSOLE](#console) (eg, `DEVICE=DEBUG.SYS COM2:9600,N,8,1,VT100`).  The debugger claims the port, so no other program or console can open it.  On the terminal, CTRL-C (or BREAK) stops the machine at the next timer tick, and INT 1 and INT 3 also stop it; then the commands are:
+
+- D [[*segment*:]*offset* [*end* | L *count*]] to display memory in hex (*segment* may also be DS, ES, SS, or CS)
+- R to display the registers
+- G to resume
+- ? for help
+
 ### FILES
 
 > FILES=*n*
@@ -122,7 +134,7 @@ Specifies the program to run in the next session, along with any startup command
 
 BASIC-DOS doesn't automatically run an AUTOEXEC.BAT file, so a session's startup commands must be specified on its SHELL line, separated by colons.  Every BASIC-DOS disk's CONFIG.SYS also sets [PATH$](../cmd/basic/func/#path) on each SHELL line, so that every session can find the programs in the BIN, SAMPLES, and TESTS directories:
 
-	SHELL=COMMAND.COM PATH$="A:/;A:/BIN;A:/SAMPLES;A:/TESTS":COLOR 7,1:AUTOEXEC.BAT
+	SHELL=COMMAND.COM PATH$="A:\;A:\BIN;A:\SAMPLES;A:\TESTS":COLOR 7,1:AUTOEXEC.BAT
 
 ### SKIP
 
@@ -136,13 +148,13 @@ For example, a configuration that uses a serial console doesn't need the CON dri
 
 > PATHCHAR=*char*
 
-Changes the character that separates directory names in paths from `/` (the default) to `\` (eg, `PATHCHAR=\`, so that `CD \BIN` is used instead of `CD /BIN`, as in PC DOS).  Only `/` and `\` are allowed; any other character is ignored.  Only one path character is recognized, and it remains fixed after boot.
+Changes the character that separates directory names in paths from `\` (the default, as in PC DOS) to `/` (eg, `PATHCHAR=/`, so that `CD /BIN` is used instead of `CD \BIN`).  Only `\` and `/` are allowed; any other character is ignored.  Since the path and switch characters can't be the same, `PATHCHAR=/` also changes the switch character to `-`, unless [SWITCHAR](#switchar) chose something else.  Only one path character is recognized, and it remains fixed after boot.
 
 ### SWITCHAR
 
 > SWITCHAR=*char*
 
-Changes the character that introduces command options (switches) from `-` (the default) to `/` (eg, `SWITCHAR=/`, so that `MEM /D` is used instead of `MEM -D`, as in PC DOS).  Only `-` and `/` are allowed; any other character is ignored, and so is `/` if it's also the path character, so a PC DOS-style configuration needs both `PATHCHAR=\` and `SWITCHAR=/`.  The switch character remains fixed after boot, and it's independent of [PATHCHAR](#pathchar).
+Changes the character that introduces command options (switches) from `/` (the default, as in PC DOS) to `-` or `\` (eg, `SWITCHAR=-`, so that `MEM -D` is used instead of `MEM /D`).  Any other character is ignored.  The path and switch characters can never be the same: `SWITCHAR=\` also changes the path character to `/`, and if [PATHCHAR](#pathchar) is also set to the switch character, PATHCHAR wins, and the switch character becomes `-` (for `PATHCHAR=/`) or `/` (for `PATHCHAR=\`).  The switch character remains fixed after boot.
 
 A switch character other than `/` begins a switch only at the start of an argument, so that it can also appear inside arguments (eg, `TYPE MY-FILE.TXT`).
 

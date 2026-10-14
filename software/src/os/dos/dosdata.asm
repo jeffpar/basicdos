@@ -47,8 +47,8 @@ DOS	segment word public 'CODE'
 ; SCB_CURDRV, SCB_SWITCHAR, and SCB_PATHCHAR (see init_scb).
 ;
 	DEFBYTE	def_drive,0
-	DEFBYTE	def_switchar,'-'
-	DEFBYTE	def_pathchar,'/'
+	DEFBYTE	def_switchar,'/'
+	DEFBYTE	def_pathchar,'\'
 ;
 ; Vectors 08h, 09h, 1Bh, and 1Ch as they were at the end of sysinit, so that
 ; psp_restvec can restore any that a terminated program left hooked.
