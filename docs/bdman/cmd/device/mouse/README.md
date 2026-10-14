@@ -22,7 +22,7 @@ MOUSE ON resets the mouse, discards any pending events, and displays the mouse p
 
 When a BAS program ends, the mouse is turned off if it was turned on.  SCREEN and WIDTH keep the pointer displayed (in the new mode).
 
-So that graphics statements (eg, GET and PAINT) never see the pointer, it's hidden whenever one runs, and it stays hidden until the next MOUSE function, so a program that draws in a loop should use the MOUSE function in that loop, too (as [MBROT.BAS](/demos/mbrot/) does).  Text that's printed or scrolled over the pointer is preserved when the pointer moves.
+So that graphics statements (eg, GET and PAINT) never see the pointer, it's hidden whenever one runs (except LINE and PSET, which hide it only if they draw near it), and it stays hidden (and doesn't move) until the next MOUSE function, so a program that draws in a loop should use the MOUSE function in that loop, too (as [PAINT.BAS](/demos/mouse/) does).  Text that's printed or scrolled over the pointer is preserved when the pointer moves.
 
 ### MOUSE Function {#mouse-function}
 

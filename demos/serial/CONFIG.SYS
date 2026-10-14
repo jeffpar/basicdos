@@ -1,4 +1,4 @@
-REM Local display and serial terminal, with shells on the hard disk
+REM Local and serial displays, using shells on the hard disk
 BUFFERS=8
 PATHCHAR=\
 SWITCHAR=/

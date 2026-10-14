@@ -305,6 +305,7 @@
     "CTRLY",
     "CTRLZ",
     "CTSTAT",
+    "CTTY",
     "CURBLK",
     "CURBOT",
     "CURCLN",

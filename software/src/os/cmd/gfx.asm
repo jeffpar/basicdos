@@ -23,7 +23,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<ioctlCon,strIllegal,rtError,playChar,playNum,releaseStr>
-	EXTNEAR	<mouseGfx>
+	EXTNEAR	<mouseGfx,mouseArea>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
@@ -327,7 +327,7 @@ DEFPROC	gfxLine,FAR
 	ARGVAR	lnColor,dword
 	ARGVAR	lnBox,dword
 	ENTER
-	call	gfxInit
+	call	gfxMode
 	mov	ax,[lnColor].LOW
 	mov	dx,[lnColor].HIW
 	call	getColor		; BL = color
@@ -342,6 +342,7 @@ DEFPROC	gfxLine,FAR
 	mov	di,dx			; DI:SI = 2nd point
 	pop	dx
 	pop	cx			; DX:CX = 1st point
+	call	mouseArea		; hide the mouse pointer, if necessary
 	mov	al,byte ptr [lnBox]
 	cmp	al,1
 	jae	ln1
@@ -853,13 +854,16 @@ DEFPROC	gfxPset,FAR
 	ARGVAR	psY,dword
 	ARGVAR	psColor,dword
 	ENTER
-	call	gfxInit
+	call	gfxMode
 	mov	ax,[psColor].LOW
 	mov	dx,[psColor].HIW
 	call	getColor
 	lea	si,[psX]
 	call	getPoint
 	call	setLastPt
+	mov	si,cx
+	mov	di,dx
+	call	mouseArea		; hide the mouse pointer, if necessary
 	call	setPixel
 	LEAVE
 	RETURN
@@ -1161,12 +1165,16 @@ ENDPROC	clampCoord
 ; The mode is cached in GFX_MODE, so that we ask the CON driver for it only
 ; once per program (or after a SCREEN or WIDTH; see setScreen).
 ;
+; gfxInit also hides the mouse pointer (see mouseGfx), whereas gfxMode (used
+; by statements that call mouseArea themselves) doesn't.
+;
 ; Modifies:
 ;	AX, BX, DX, ES
 ;
 DEFPROC	gfxInit
-	mov	bx,ss:[PSP_HEAP]
 	call	mouseGfx		; hide the mouse pointer, if necessary
+	DEFLBL	gfxMode,near		; (LINE and PSET use mouseArea instead)
+	mov	bx,ss:[PSP_HEAP]
 	mov	dl,byte ptr ss:[bx].GFX_DATA.GFX_MODE
 	dec	dl			; is the mode cached?
 	jns	gi0			; yes

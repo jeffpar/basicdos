@@ -8,7 +8,7 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 ; MOUSE$ supports a Microsoft-compatible serial mouse on any COM port, with
-; a minimal INT 33h interface (functions 00h-04h, 07h, and 08h), plus one
+; a minimal INT 33h interface (functions 00h-04h, 07h, 08h, and 10h), plus one
 ; BASIC-DOS function (MOUSE_EVENT) that returns queued button events.  The
 ; pointer is drawn only in MDA and CGA modes (an inverted character cell in
 ; text modes 0-3 and 7, and an arrow in graphics modes 4-6).  If no mouse
@@ -21,7 +21,8 @@
 ; pointer moves, because only the bits the pointer actually changed (and
 ; that still have the pointer's values) are restored; see ptr_update.  The
 ; pointer is also hidden around every INT 10h call that may change the screen
-; (eg, scrolls, graphics text output, and mode changes).
+; (eg, scrolls, graphics text output, and mode changes), except for graphics
+; text output that doesn't overlap the pointer (see chk_cell).
 ;
 	BIOSEQU equ 1
 	include	macros.inc
@@ -36,7 +37,7 @@ CODE	segment para public 'CODE'
 	public	MOUSE
 MOUSE	DDH	<offset DEV:ddmou_end+16,,DDATTR_CHAR,offset ddmou_init,-1,2020244553554F4Dh>
 
-MOUSE_MAXFN	equ	08h	; highest standard function supported
+MOUSE_MAXFN	equ	10h	; highest standard function supported
 
 VT_NONE		equ	0	; unsupported video mode (no pointer)
 VT_TEXT		equ	1	; text modes 0-3 and 7
@@ -50,6 +51,8 @@ ROW_BYTES	equ	3	; video bytes saved per pointer row
 	DEFLBL	MOU_TBL,word
 	dw	m_reset, m_show, m_hide, m_getpos			; 00-03
 	dw	m_setpos, m_none, m_none, m_setx, m_sety		; 04-08
+	dw	m_none, m_none, m_none, m_none, m_none, m_none		; 09-0E
+	dw	m_none, m_condoff					; 0F-10
 
 ;
 ; The pointer shape, 8 pixels wide, as pairs of bytes: the pixels the pointer
@@ -282,6 +285,101 @@ ENDPROC	m_hide
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; m_condoff (function 10h)
+;
+; Like Microsoft's "conditional off", this hides the pointer if it overlaps
+; the specified area, and like m_hide, it must be matched by an m_show.  If
+; the pointer doesn't overlap the area, it stays on the screen (and m_show
+; moves it, if necessary), but it's marked hidden in the meantime, so that it
+; can't move into the area.  Unlike Microsoft's driver, it doesn't hide the
+; pointer if it moves into the area later (it can't, until m_show).
+;
+; Inputs:
+;	CX, DX = upper left x, y
+;	SI, DI = lower right x, y (SI is on the stack; see ddmou_int33)
+;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	m_condoff
+	push	bp
+	mov	bp,sp
+	push	cx
+	push	dx
+	push	si
+	push	di
+	mov	si,[bp+4]		; SI = caller's SI
+	pushf
+	cli
+	call	chk_rect		; does the area overlap the pointer?
+	jc	mco2			; yes
+	cmp	[hidden],0		; no, so if the pointer is visible,
+	jne	mco1
+	dec	[hidden]		; mark it hidden (but leave it drawn)
+mco1:	popf
+	jmp	short mco9
+mco2:	popf
+	cmp	[hidden],0		; is the pointer visible?
+	jne	mco3			; no
+	call	ptr_hide		; yes, so hide it
+	jmp	short mco9
+mco3:	call	ptr_clear		; erase it, if it's still drawn
+mco9:	pop	di
+	pop	si
+	pop	dx
+	pop	cx
+	pop	bp
+	ret
+ENDPROC	m_condoff
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chk_rect
+;
+; Checks whether an area overlaps the drawn pointer, in a graphics mode.
+;
+; Inputs:
+;	CX, DX = upper left x, y (virtual)
+;	SI, DI = lower right x, y (virtual)
+;
+; Outputs:
+;	Carry clear if no overlap, set if overlap (or not a graphics mode)
+;
+; Modifies:
+;	CX, DX, SI, DI
+;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	chk_rect
+	cmp	[vid_type],VT_CGA2	; graphics mode?
+	jb	cr8			; no
+	cmp	[drawn],0		; is the pointer drawn?
+	je	cr9			; no (carry is clear)
+	push	ax
+	call	get_scr			; CX, DX = upper left (screen)
+	xchg	cx,si
+	xchg	dx,di
+	call	get_scr			; CX, DX = lower right (screen)
+	mov	ax,[old_x]
+	cmp	cx,ax			; is the area left of the pointer?
+	jl	cr7			; yes
+	add	ax,7
+	cmp	si,ax			; is it right of the pointer?
+	jg	cr7			; yes
+	mov	ax,[old_y]
+	cmp	dx,ax			; is it above the pointer?
+	jl	cr7			; yes
+	add	ax,SHAPE_ROWS - 1
+	cmp	di,ax			; is it below the pointer?
+	jg	cr7			; yes
+	stc
+	jmp	short cr7a
+cr7:	clc
+cr7a:	pop	ax
+	ret
+cr8:	stc
+cr9:	ret
+ENDPROC	chk_rect
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; m_getpos (function 03h)
 ;
 ; Outputs:
@@ -356,21 +454,34 @@ ENDPROC	m_sety
 ;
 ; ddmou_int10 (BIOS video services)
 ;
-; If the pointer is visible, hide it around any INT 10h function that may
-; change the screen; ie, anything other than 01h-03h (cursor functions) and
-; 0Fh (get mode).  After a mode change (function 00h), the mode is determined
-; again before the pointer is redrawn.
+; If the pointer is visible (or still drawn), hide it around any INT 10h
+; function that may change the screen; ie, anything other than 01h-03h
+; (cursor functions) and 0Fh (get mode).  After a mode change (function
+; 00h), the mode is determined again before the pointer is redrawn.
+;
+; Hiding and redrawing the pointer in a graphics mode is slow, so character
+; writes (functions 09h and 0Ah) that don't overlap the pointer leave it on
+; the screen; it's only marked hidden during the call (so that it can't move
+; onto the characters being written), and then it's moved, if necessary.
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	ddmou_int10,far
 	cmp	[hidden],0		; is the pointer visible?
-	jne	i10x			; no
-	cmp	ah,0Fh
+	je	i10v			; yes
+	cmp	[drawn],0		; is it still drawn (see m_condoff)?
+	je	i10x			; no
+i10v:	cmp	ah,0Fh
 	je	i10x
 	test	ah,ah
 	jz	i10a
 	cmp	ah,3
 	jbe	i10x
+	cmp	ah,9			; character write?
+	jb	i10a			; no
+	cmp	ah,0Ah
+	ja	i10a			; no
+	call	chk_cell		; does it overlap the pointer?
+	jnc	i10c			; no
 i10a:	push	ax			; save the function
 	push	ds
 	push	cs
@@ -394,8 +505,87 @@ i10a:	push	ax			; save the function
 	ASSUME	DS:NOTHING
 	add	sp,2
 	iret
+i10c:	dec	[hidden]		; leave the pointer alone
+	pushf
+	call	[int10_ptr]
+	inc	[hidden]
+	push	ds
+	push	cs
+	pop	ds
+	ASSUME	DS:CODE
+	call	ptr_move		; and then move it, if necessary
+	pop	ds
+	ASSUME	DS:NOTHING
+	iret
 i10x:	jmp	[int10_ptr]
 ENDPROC	ddmou_int10
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chk_cell
+;
+; Checks whether the characters that INT 10h function 09h or 0Ah will write
+; (CX of them, at the page 0 cursor position) overlap the drawn pointer, in a
+; graphics mode, where each character cell is 8x8 pixels.
+;
+; Inputs:
+;	CX = character count
+;
+; Outputs:
+;	Carry clear if no overlap, set if overlap (or not a graphics mode)
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	chk_cell
+	cmp	[vid_type],VT_CGA2	; graphics mode?
+	jb	cc8			; no
+	cmp	[drawn],0		; is the pointer drawn?
+	je	cc9			; no (carry is clear)
+	push	ax
+	push	dx
+	push	ds
+	sub	ax,ax
+	mov	ds,ax
+	ASSUME	DS:BIOS
+	mov	dx,[CURSOR_POSN]	; DL = column, DH = row
+	pop	ds
+	ASSUME	DS:NOTHING
+	mov	ax,[old_y]
+	call	cc_cell
+	cmp	dh,al			; above the pointer's top row?
+	jb	cc7			; yes
+	mov	ax,[old_y]
+	add	ax,SHAPE_ROWS - 1
+	call	cc_cell
+	cmp	dh,al			; below the pointer's bottom row?
+	ja	cc7			; yes
+	mov	ax,[old_x]
+	add	ax,7
+	call	cc_cell
+	cmp	dl,al			; right of the pointer's last column?
+	ja	cc7			; yes
+	mov	ax,[old_x]
+	call	cc_cell
+	mov	dh,0
+	add	dx,cx			; DX = column after the last character
+	cmp	dx,ax			; left of the pointer's first column?
+	jbe	cc7			; yes
+	stc
+	jmp	short cc7a
+cc7:	clc
+cc7a:	pop	dx
+	pop	ax
+	ret
+cc8:	stc
+cc9:	ret
+cc_cell:
+	shr	ax,1			; convert pixels to cells
+	shr	ax,1
+	shr	ax,1
+	ret
+ENDPROC	chk_cell
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -540,10 +730,11 @@ ENDPROC	add_event
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; ptr_hide, ptr_show, and ptr_move
+; ptr_hide, ptr_show, ptr_clear, and ptr_move
 ;
 ; These preserve all registers (and the interrupt flag), and call do_hide,
-; do_show, or do_move with interrupts disabled.
+; do_show, do_erase, or do_move with interrupts disabled; ptr_clear erases
+; the pointer (if it's drawn) without changing the hidden count.
 ;
 ; Inputs:
 ;	DS = CS
@@ -561,6 +752,12 @@ DEFPROC	ptr_show
 	mov	si,offset do_show
 	jmp	short ptr_call
 ENDPROC	ptr_show
+
+DEFPROC	ptr_clear
+	push	si
+	mov	si,offset do_erase
+	jmp	short ptr_call
+ENDPROC	ptr_clear
 
 DEFPROC	ptr_move
 	push	si
@@ -590,7 +787,7 @@ ENDPROC	ptr_move
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; do_hide, do_show, and do_move
+; do_hide, do_show, do_erase, and do_move
 ;
 ; Inputs:
 ;	DS = CS
@@ -603,6 +800,8 @@ ENDPROC	ptr_move
 DEFPROC	do_hide
 	cli
 	dec	[hidden]
+	DEFLBL	do_erase,near
+	cli
 	jmp	short ptr_erase
 ENDPROC	do_hide
 
@@ -615,7 +814,7 @@ ds1:	cli
 	cmp	[hidden],0		; already visible?
 	je	ds9			; yes
 	inc	[hidden]
-	jz	ptr_draw
+	jz	do_move			; draw it (or move it, if still drawn)
 ds9:	ret
 ENDPROC	do_show
 

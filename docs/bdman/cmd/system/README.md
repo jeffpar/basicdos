@@ -103,7 +103,7 @@ Erases the loaded program, functions, and variables.
 
 `RESTART SYSTEM` restarts the system, after writing any modified disk data.
 
-`RESTART` *session* restarts the specified session (a number from [LIST SESSIONS](#list)), by stopping its program as **Ctrl-Alt-Del** does on its console, which works even if the program is stuck in a loop that never uses DOS; if the session is only running its command processor (eg, a BASIC loop typed at its prompt), it returns to its prompt instead.  For example, `RESTART 2` stops a looping program on a serial terminal from the PC's own console.
+`RESTART` *session* restarts the specified session (a number from [LIST SESSIONS](#list)), by stopping its program as **Ctrl-Alt-Del** does on its console, which works even if the program is stuck in a loop that never uses DOS; if the session is only running its command processor (eg, a BASIC loop typed at its prompt), it returns to its prompt instead.  For example, `RESTART 2` stops a looping program on a serial display from the PC's own console display.
 
 `RESTART` without an argument is an error, so that a system restart always requires `SYSTEM`.
 

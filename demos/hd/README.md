@@ -18,12 +18,12 @@ The hard disk has the system files, CONFIG.SYS and HELP.TXT in the root director
 - **BIN** contains the BASIC-DOS utilities (eg, FIND, MORE, and SORT)
 - **SAMPLES** contains DONKEY.BAS and the other PC DOS BASIC samples
 - **SRC** contains the BASIC-DOS source code (type `CD \SRC` and then `MK` to build it)
-- **TESTS** contains HELLO.BAT, BENCH.BAS, MBROT.BAS, PRIMES.BAS, PRIMES.BAT, STRESS.BAT, and MSBASIC.EXE
+- **TESTS** contains HELLO.BAT, BENCH.BAS, PAINT.BAS, PRIMES.BAS, PRIMES.BAT, STRESS.BAT, and MSBASIC.EXE
 - **TOOLS** contains MASM, LINK, MAKE, EXE2BIN, and the other build tools from the MS-DOS 3.20 hard disk used to build BASIC-DOS
 
 CONFIG.SYS sets PATH$ to `C:\;C:\BIN;C:\SAMPLES;C:\TESTS;C:\TOOLS`, so programs in those directories can be run from anywhere.  The local session's SHELL line runs `HELLO.BAT` to display the BASIC-DOS version and a colorful greeting.
 
-Try [BASIC-DOS with a Serial Terminal](../serial/) for a separate boot diskette that creates both local and serial sessions.
+Try [BASIC-DOS with a Serial Display](../serial/) for a separate boot diskette that creates both local and serial sessions.
 
 Any changes you make to the hard disk are lost when you leave the page, unless you first click **Save HD** to download the hard disk as an IMG file.
 

@@ -185,17 +185,18 @@ FDC$ and HDC$ share one copy of the INT 13h read and write code (including the h
 
 At boot, MOUSE$ looks for a Microsoft-compatible serial mouse on each COM port listed in the BIOS data area: it sets the port to 1200 baud (7 data bits, no parity, 1 stop bit), turns DTR and RTS off for 2 timer ticks, turns them back on, and waits up to 3 ticks for the mouse to send an "M".  If no port responds, the port's settings are restored, and the driver isn't installed.  Otherwise, MOUSE$ takes over the port's hardware interrupt (IRQ4 for ports 3xxh, IRQ3 for ports 2xxh), so that port shouldn't also be used as a COM device, and hooks INT 33h and INT 10h.  On a machine with no mouse, probing adds a fraction of a second to the boot, which `SKIP=MOUSE$` avoids.
 
-Positions are virtual coordinates (640x200 in every mode), with one mickey per horizontal pixel and two per vertical pixel.  The pointer is drawn only in MDA and CGA modes: text modes 0-3 and 7 invert the attribute of a character cell, and graphics modes 4-6 draw an 8x12 arrow.  Erasing the pointer restores only the bits that the pointer changed and that still have the pointer's values, so anything drawn on top of the pointer is preserved.  The pointer is also hidden around INT 10h calls that may change the screen (anything other than functions 01h-03h and 0Fh), and after a mode change (function 00h), the mode is determined again (with function 0Fh, which the CON driver answers for the caller's session).
+Positions are virtual coordinates (640x200 in every mode), with one mickey per horizontal pixel and two per vertical pixel.  The pointer is drawn only in MDA and CGA modes: text modes 0-3 and 7 invert the attribute of a character cell, and graphics modes 4-6 draw an 8x12 arrow.  Erasing the pointer restores only the bits that the pointer changed and that still have the pointer's values, so anything drawn on top of the pointer is preserved.  The pointer is also hidden around INT 10h calls that may change the screen (anything other than functions 01h-03h and 0Fh), except for character writes (functions 09h and 0Ah) in graphics modes that don't overlap the pointer, since erasing and redrawing the pointer is slow; and after a mode change (function 00h), the mode is determined again (with function 0Fh, which the CON driver answers for the caller's session).
 
 | AX | Function | Description |
 |----|----------|-------------|
 | 00h | Reset | Hides the pointer, centers it, resets the limits, empties the event queue, and determines the video mode; returns AX = FFFFh and BX = 2 (buttons) |
-| 01h | Show pointer | Decrements the hide count; when it reaches zero, determines the video mode and draws the pointer |
+| 01h | Show pointer | Decrements the hide count; when it reaches zero, determines the video mode and draws the pointer (or moves it, if function 10h left it on the screen) |
 | 02h | Hide pointer | Increments the hide count and erases the pointer |
 | 03h | Get position | Returns BX = buttons (bit 0 = left, bit 1 = right), CX = x, DX = y |
 | 04h | Set position | CX = x, DX = y |
 | 07h | Set x limits | CX = minimum, DX = maximum |
 | 08h | Set y limits | CX = minimum, DX = maximum |
+| 10h | Conditional off | CX, DX = upper left, SI, DI = lower right; like function 02h, increments the hide count, but in graphics modes, the pointer is erased only if it overlaps the area (otherwise, it stays on the screen, and doesn't move until the next function 01h) |
 | BDh | Get event (BASIC-DOS) | If BX = 0, removes the next button event from the queue (up to 8 are saved) and returns AX = event (1 = left pressed, 2 = left released, 3 = right pressed, 4 = right released), BX = buttons, and CX, DX = position at the time of the event; otherwise (or if there are no events), returns AX = 0 and the current buttons and position.  Positions are in screen units: pixels in graphics modes, or a column and row (starting at 1) in text modes |
 
 Other functions are ignored.  The [MOUSE](../../bdman/cmd/device/mouse/) statement and function use functions 00h-02h and BDh.

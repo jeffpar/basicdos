@@ -783,31 +783,81 @@ ENDPROC	getMouse
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; mouseGfx
+; mouseGfx and mouseArea
 ;
-; Called by gfxInit, so that if MOUSE ON is in effect, graphics statements
-; (eg, GET and PAINT) never see the pointer; the pointer stays hidden until
-; the next MOUSE function (see getMouse).
+; Called by gfxInit (for the entire screen), and by LINE and PSET (for just
+; the area they draw), so that if MOUSE ON is in effect, graphics statements
+; (eg, GET and PAINT) never see the pointer.  The pointer is hidden with INT
+; 33h function 10h (conditional off), which leaves it on the screen if it's
+; not in the area, and either way, it's not shown again until the next MOUSE
+; function (see getMouse).
 ;
-; Inputs:
-;	BX -> CMDHEAP
+; Inputs (for mouseArea):
+;	CX, DX = one corner (pixels)
+;	SI, DI = the opposite corner (pixels)
+;	BH = mode (see gfxInit)
 ;
 ; Outputs:
 ;	None
 ;
 ; Modifies:
-;	AX
+;	None
 ;
 DEFPROC	mouseGfx
-	mov	al,byte ptr ss:[bx].GFX_DATA.MOUSE_STATE
-	and	al,MS_ON OR MS_GFX
-	cmp	al,MS_ON		; MOUSE ON, and not hidden yet?
-	jne	mg9			; no
-	or	byte ptr ss:[bx].GFX_DATA.MOUSE_STATE,MS_GFX
-	mov	ax,2			; hide the pointer
-	call	mouseCall
-mg9:	ret
+	push	cx
+	push	dx
+	push	si
+	push	di
+	sub	cx,cx
+	sub	dx,dx
+	mov	si,7FFFh
+	mov	di,si
+	jmp	short ma3
 ENDPROC	mouseGfx
+
+DEFPROC	mouseArea
+	push	cx
+	push	dx
+	push	si
+	push	di
+	cmp	cx,si
+	jle	ma1
+	xchg	cx,si
+ma1:	cmp	dx,di
+	jle	ma2
+	xchg	dx,di
+ma2:	test	bh,bh			; 320x200?
+	jnz	ma3			; no
+	shl	cx,1			; yes, so convert x to virtual units
+	shl	si,1
+ma3:	push	ax
+	push	bx
+	mov	bx,ss:[PSP_HEAP]
+	test	byte ptr ss:[bx].GFX_DATA.MOUSE_STATE,MS_ON
+	jz	ma9
+	or	byte ptr ss:[bx].GFX_DATA.MOUSE_STATE,MS_GFX
+	or	cx,cx			; clip negative coordinates to zero
+	jns	ma4
+	sub	cx,cx
+ma4:	or	dx,dx
+	jns	ma5
+	sub	dx,dx
+ma5:	or	si,si
+	jns	ma6
+	sub	si,si
+ma6:	or	di,di
+	jns	ma7
+	sub	di,di
+ma7:	mov	ax,10h			; hide the pointer if it's in the area
+	call	mouseCall
+ma9:	pop	bx
+	pop	ax
+	pop	di
+	pop	si
+	pop	dx
+	pop	cx
+	ret
+ENDPROC	mouseArea
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

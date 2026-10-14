@@ -1,5 +1,5 @@
 {
-  "name": "IBM PC XT, 640Kb RAM, Hard Disk and Serial Terminal",
+  "name": "IBM PC XT, 640Kb RAM, Hard Disk and Serial Display",
   "defaults": {
     "ram": "640K",
     "fpu": "None",
@@ -81,7 +81,7 @@
       "class": "serial",
       "adapter": 1,
       "maxBuffer": 4096,
-      "title": "Serial Terminal",
+      "title": "Serial Display",
       "controls": [
         {
           "id": "serialWindow",

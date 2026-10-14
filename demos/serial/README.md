@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS with a Serial Terminal
+title: BASIC-DOS with a Serial Display
 permalink: /demos/serial/
 machines:
   - id: ibm5160
@@ -12,7 +12,7 @@ machines:
 
 This IBM PC XT boots BASIC-DOS from the BASICDOS-SERIAL diskette and runs two independent sessions: an 80x25 console on the Color Display and a serial console on COM1 at 9600 baud, with no parity, eight data bits, and one stop bit.  The serial console uses the GENERIC terminal mode for this text pane.
 
-Click the **Serial Terminal** pane to the right of the machine and type a command, such as `DIR` or `PRINT "Hello from COM1"`.  Click the Color Display to use the local session.  Both sessions share the same hard disk.
+Click the **Serial Display** pane to the right of the machine and type a command, such as `DIR` or `PRINT "Hello from COM1"`.  Click the Color Display to use the local session.  Both sessions share the same hard disk.
 
 <style>
 #ibm5160 .pcjs-chassis { display: flow-root; }

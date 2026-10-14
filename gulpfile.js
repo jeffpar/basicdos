@@ -57,7 +57,7 @@ function checkOutput(task, outputFile)
  * Every BASIC-DOS disk has the same layout: the system files (BASDEV.COM, BASDOS.COM, and COMMAND.COM), CONFIG.SYS,
  * AUTOEXEC.BAT (when launched by a SHELL line), and HELP.TXT in the root, followed by a BIN folder (utilities in
  * os/util), a SAMPLES folder (the PC DOS 1.00 BASIC samples, on disks that include them), and a TESTS folder (other
- * demo and test programs, eg, PRIMES, MBROT, MSBASIC, and SYMDEB).
+ * demo and test programs, eg, PRIMES, PAINT, MSBASIC, and SYMDEB).
  * CONFIG.SYS sets PATH$ on each SHELL line (eg, SHELL=COMMAND.COM PATH$="A:/;A:/BIN;A:/SAMPLES;A:/TESTS").
  *
  * Each disk below lists its CONFIG.SYS, its AUTOEXEC.BAT (if any), and the files for its SAMPLES (if any) and TESTS folders;
@@ -79,7 +79,7 @@ const helpFile = SRC + "/os/cmd/HELP.TXT";
 const toolFiles = [ SRC + "/os/util/obj/*.COM" ];
 const primesFiles = [ SRC + "/tests/primes/PRIMES.BAS", SRC + "/tests/primes/PRIMES.BAT" ];
 const sampleFiles = [ "./demos/basic/*.BAS" ];      // the PC DOS 1.00 BASIC samples (and nothing else)
-const mbrotFile = "./demos/mbrot/MBROT.BAS";
+const paintFile = "./demos/mouse/PAINT.BAS";
 const helloFile = SRC + "/tests/misc/HELLO.BAT";
 const extraFiles = [ SRC + "/tests/misc/SYMDEB.EXE", SRC + "/msb/obj/*.EXE" ];
 const testFiles = [ SRC + "/tests/bin/*.EXE", SRC + "/tests/bin/*.COM", SRC + "/tests/misc/BD*.BAT", helloFile ].concat(primesFiles, extraFiles);
@@ -131,7 +131,7 @@ let disks = {
     "BASICDOS-DISK6": {
         config: "./demos/s80/CONFIG.SYS",
         SAMPLES: sampleFiles,             // DONKEY.BAS and the other PC DOS 1.00 BASIC samples
-        TESTS: [ SRC + "/tests/misc/BENCH.BAS", helloFile, mbrotFile ].concat(primesFiles, extraFiles)
+        TESTS: [ SRC + "/tests/misc/BENCH.BAS", helloFile, paintFile ].concat(primesFiles, extraFiles)
     },
     "BASICDOS-SERIAL": {
         config: "./demos/serial/CONFIG.SYS",
@@ -148,7 +148,7 @@ let disks = {
             BIN: toolFiles,
             SAMPLES: sampleFiles,
             SRC: SRC + "/os",           // the BASIC-DOS source (with an MK.BAT that builds it on BASIC-DOS)
-            TESTS: [ helloFile, SRC + "/tests/misc/BENCH.BAS", SRC + "/tests/misc/STRESS.BAT", mbrotFile ].concat(primesFiles, [ SRC + "/msb/obj/MSBASIC.EXE", "./software/tests/PUBLIC.zip" ]),
+            TESTS: [ helloFile, SRC + "/tests/misc/BENCH.BAS", SRC + "/tests/misc/STRESS.BAT", paintFile ].concat(primesFiles, [ SRC + "/msb/obj/MSBASIC.EXE", "./software/tests/PUBLIC.zip" ]),
             //
             // The build tools come from the MS-DOS 3.20 build disk (with MAKE 4.02 from C4BIN replacing MASM4's
             // MAKE 4.00), except for EXE2BIN: MS-DOS 3.20's requires DOS 3.20, but PC DOS 2.00's requires only
