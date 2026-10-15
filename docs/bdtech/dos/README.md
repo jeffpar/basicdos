@@ -168,13 +168,35 @@ For the same reason, COMMAND.COM supports `COMMAND /C command`, which is how the
 
 #### Files
 
-Any filename passed to a handle function (or to FFIRST, DELETE, RENAME, MKDIR, RMDIR, CHDIR, or EXEC) may include a path, whose directory names are separated by the session's path character (DOS_MSC_GETPCH), not by both `\` and `/` as in PC DOS.  FCB functions always use the drive's current directory.  A subdirectory grows by a cluster whenever a new entry doesn't fit.  Same-drive renames can move files and directories without copying their data; existing destinations and open source files are rejected.  Directory moves update the ".." entry and reject destinations within the moved subtree.  Current directories and open child files remain valid because their directory cluster identities are unchanged.  Cross-drive moves are not supported.  Enforcing the read-only attribute when a handle opens a file, getting and setting file attributes (43h) and file dates and times (57h), and INT 25h and INT 26h (use a volume handle for absolute disk reads and writes instead) aren't supported.  Critical errors (INT 24h) aren't reported to programs yet.
+Any filename passed to a handle function (or to FFIRST, DELETE, RENAME, MKDIR, RMDIR, CHDIR, or EXEC) may include a path, whose directory names are separated by the session's path character (DOS_MSC_GETPCH), not by both `\` and `/` as in PC DOS.  FCB functions always use the drive's current directory.  A subdirectory grows by a cluster whenever a new entry doesn't fit.  Same-drive renames can move files and directories without copying their data; existing destinations and open source files are rejected.  Directory moves update the ".." entry and reject destinations within the moved subtree.  Current directories and open child files remain valid because their directory cluster identities are unchanged.  Cross-drive moves are not supported.  Enforcing the read-only attribute when a handle opens a file, getting and setting file attributes (43h) and file dates and times (57h), and INT 25h and INT 26h (use a volume handle for absolute disk reads and writes instead) aren't supported.  Block device errors are reported to the session's critical error handler (see [Critical Errors](#critical-errors)).
 
 BASIC-DOS doesn't store the path of each current directory, only the directory's first cluster (in a table with one entry per drive for each session), so DOS_DSK_GETCWD rebuilds the path by following ".." entries up to the root.
 
 #### Sessions
 
 Each session has its own current drive, current directory for every drive, DTA, switch and path characters, CTRL-C state, and exit, CTRL-C, and critical error handlers, all of which are stored in its [SCB](../data/#scb).  For example, DOS_MSC_SETVEC with vector 23h changes only the current session's CTRL-C handler.
+
+### Critical Errors {#critical-errors}
+
+When a block device request fails (eg, a diskette drive isn't ready, or a diskette is write-protected), DOS calls the session's critical error handler (INT 24h) with the same inputs as PC DOS:
+
+| Register | Contents |
+|----------|----------|
+| AH | Bit 0 (CRERR_WRITE) set if the request was a write; bits 1-2 (CRERR_AREA) = disk area of the failing sector (0 = reserved, 1 = FAT, 2 = directory, 3 = data); bit 3 (CRERR_FAILOK), bit 4 (CRERR_RETRYOK), and bit 5 (CRERR_IGNOREOK) set for each allowed response (bit 7 is always clear, since character devices don't report critical errors) |
+| AL | Drive # (0 = A:) |
+| DI | Error code: 0 (write protect), 1 (unknown unit), 2 (not ready), 3 (unknown command), 4 (data/CRC), 6 (seek), 7 (unknown media), 8 (sector not found), 10 (write fault), 11 (read fault), or 12 (general failure); ie, the [error code](#error-codes) minus 19 |
+| BP:SI | Address of the device driver header |
+
+The handler returns its response in AL: 0 (CRERR_IGNORE) to treat the request as completed, 1 (CRERR_RETRY) to reissue it (the driver resumes at the failing sector), 2 (CRERR_ABORT) to terminate the program, or 3 (CRERR_FAIL) to fail the DOS function with the error code in [Error Codes](#error-codes) (19-31).  IGNORE is allowed only for read and write requests (eg, not when the drive's BPB can't be built); if the handler returns IGNORE when it isn't allowed, or any other unrecognized response, the request fails.  ABORT ends the program with exit type EXTYPE_ERROR and exit code 255 (0FFh) as soon as the DOS function returns, so DOS unwinds normally first; if the program is a session's shell, which can't be terminated, ABORT behaves like CTRL-C (without the echo).
+
+The handler is called on a DOS stack (ERR_STACK_SIZE, 512 bytes, in dos.inc), since the stack of the program that called DOS may have little room to spare, and with the session locked, so no other session runs until the handler returns; a critical error inside the handler itself fails immediately.  As in PC DOS, a handler should limit itself to console functions (01h-0Ch) and must not call functions that use the disk; a CTRL-C typed while the handler is running ends the handler with an ABORT response.
+
+The default handler displays the traditional message and prompt on the session's console and reads the response (A, R, I, or F; CTRL-C is ABORT); for example:
+
+	Not ready error reading drive B
+	Abort, Retry, Fail? 
+
+"Ignore, " appears only when IGNORE is allowed.  A session whose input isn't its console (eg, a command after the first in a pipeline) gets the message but no prompt, and its response is FAIL.  Programs install their own handler with DOS_MSC_SETVEC (vector 24h), which affects only the current session (see [Sessions](#sessions)); DOS restores the previous handler when the program ends.
 
 ### Exit Types
 

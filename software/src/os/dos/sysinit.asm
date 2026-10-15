@@ -20,6 +20,7 @@ DOS	segment word public 'CODE'
 
 	EXTBYTE	<bpb_total,sfh_debug,def_drive,def_switchar,def_pathchar>
 	EXTWORD	<mcb_head,mcb_limit,buf_head,key_boot,scb_active,ivt_save>
+	EXTWORD	<err_stack>
 	EXTLONG	<bpb_table,scb_table,sfb_table,cdir_table,clk_ptr,fpu_table>
 	EXTLONG	<dev_head>
 	EXTNEAR	<find_cfg,init_table,set_bpbtime,load_devices>
@@ -258,8 +259,16 @@ si4:	mov	ax,sp			;
 	inc	dx			; no, so skip to next paragraph
 si4a:	mov	ax,ds
 	add	ax,dx
+;
+; Reserve the hard error stack (see dev_error) ahead of the first table.
+;
+	add	ax,ERR_STACK_SIZE SHR 4
 	mov	es,ax			; ES = first free (low) paragraph
 	ASSUME	ES:NOTHING
+	mov	ax,offset sysinit_start + 15
+	and	al,0F0h			; AX = DS-relative offset of the stack
+	add	ax,ERR_STACK_SIZE
+	mov	[err_stack],ax		; record the top of the stack
 ;
 ; The first resident table (scb_table) contains our Session Control Blocks.
 ; Look for a "SESSIONS=" line in CFG_FILE.

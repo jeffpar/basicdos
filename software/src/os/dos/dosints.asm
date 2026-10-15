@@ -19,7 +19,7 @@ DOS	segment word public 'CODE'
 	EXTABS	<FUNCTBL_SIZE,UTILTBL_SIZE>
 	EXTWORD	<scb_active>
 	EXTBYTE	<scb_locked,int_level>
-	EXTNEAR	<msc_readctrlc,msc_sigerr,scb_wait,scb_endwait>
+	EXTNEAR	<msc_readctrlc,scb_wait,scb_endwait>
 	EXTNEAR	<scb_hotkey,scb_release>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -46,7 +46,6 @@ DEFPROC	dos_dverr,DOSFAR
 ;
 	PRINTF	<"Division error @%U%08lx",13,10>
 	ENDIF
-	call	msc_sigerr
 	pop	ax
 	IFDEF DEBUG
 	iret
@@ -82,8 +81,8 @@ ENDPROC	dos_brkpt
 ;
 ; dos_oferr (INT 04h)
 ;
-; If an "overflow exception" occurs, this default handler reports it and
-; signals the error.
+; If an "overflow exception" occurs, this default handler reports it and then
+; aborts the current program.
 ;
 DEFPROC	dos_oferr,DOSFAR
 	IFDEF MAXDEBUG
@@ -102,7 +101,6 @@ DEFPROC	dos_oferr,DOSFAR
 ;
 	PRINTF	<"Overflow error @%U%08lx",13,10>
 	ENDIF
-	call	msc_sigerr
 	pop	ax
 	IFDEF DEBUG
 	iret
@@ -303,7 +301,8 @@ dc3:	adc	[bp].REG_FL,0
 ;
 ; Whenever the session's INDOS count returns to zero, check for a pending
 ; SCSTAT_ABORT; if set AND we're not in the middle of a hardware interrupt,
-; clear the ABORT condition and simulate a DOSUTIL TERM session abort.
+; clear the ABORT condition and simulate a DOSUTIL TERM of the type in
+; SCB_ABTYPE (EXTYPE_ABORT, or EXTYPE_ERROR for a critical error ABORT).
 ;
 	mov	bx,[scb_active]
 	ASSERT	STRUCT,cs:[bx],SCB
@@ -321,7 +320,8 @@ dc3:	adc	[bp].REG_FL,0
 ; on REG_FRAME for their inputs, so while this is not completely kosher, we'll
 ; be fine.  The same is true for the termination code in int_leave.
 ;
-	mov	dx,(EXTYPE_ABORT SHL 8) OR 0FFh
+	mov	dh,cs:[bx].SCB_ABTYPE	; DH = exit type
+	mov	dl,0FFh			; DL = exit code
 	mov	ah,DOS_UTL_TERM + 80h
 	jmp	dc0
 
@@ -364,21 +364,6 @@ DEFPROC	dos_ctrlc,DOSFAR
 	stc				; set carry to indicate termination
 	ret
 ENDPROC	dos_ctrlc
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; dos_error (INT 24h handler)
-;
-; Outputs:
-;	AL = 0:	ignore error
-;	AL = 1:	retry operation
-;	AL = 2:	abort program via INT 23h
-;	AL = 3:	fail system call in progress
-;
-DEFPROC	dos_error,DOSFAR
-	mov	al,CRERR_ABORT		; default to 2 (abort via INT 23h)
-	iret
-ENDPROC	dos_error
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -511,7 +496,8 @@ DEFPROC	int_leave,DOSFAR
 	test	cs:[bx].SCB_STATUS,SCSTAT_ABORT
 	jz	ddl8
 	and	cs:[bx].SCB_STATUS,NOT SCSTAT_ABORT
-	mov	dx,(EXTYPE_ABORT SHL 8) OR 0FFh
+	mov	dh,cs:[bx].SCB_ABTYPE	; DH = exit type
+	mov	dl,0FFh			; DL = exit code
 	mov	ah,DOS_UTL_TERM + 80h
 ddl8:	jmp	dos_enter
 ddl9:	iret

@@ -282,6 +282,14 @@ CRERR_IGNORE	equ	0	; ignore the error
 CRERR_RETRY	equ	1	; retry the operation
 CRERR_ABORT	equ	2	; abort program via INT 23h
 CRERR_FAIL	equ	3	; fail the system call in progress
+;
+; Critical error (INT 24h) flags passed to the handler in AH
+;
+CRERR_WRITE	equ	01h	; set if the request was a write
+CRERR_AREA	equ	06h	; area: 0 reserved, 2 FAT, 4 directory, 6 data
+CRERR_FAILOK	equ	08h	; set if FAIL is allowed
+CRERR_RETRYOK	equ	10h	; set if RETRY is allowed
+CRERR_IGNOREOK	equ	20h	; set if IGNORE is allowed
 
 	IFNDEF	DOSDEV
 ;

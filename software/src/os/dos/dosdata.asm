@@ -39,6 +39,12 @@ DOS	segment word public 'CODE'
 ;
 	DEFBYTE	scb_locked,-1		; -1 if unlocked, >= 0 if locked
 	DEFBYTE	int_level,-1		; device driver interrupt level
+;
+; Hard error state (see dev_error): the top of the hard error stack, which
+; sysinit reserves, and a non-zero count while a hard error is being handled.
+;
+	DEFWORD	err_stack,0
+	DEFBYTE	err_active,0
 
 	DEFBYTE	bpb_total,0		; total number of BPBs
 	DEFBYTE	sfh_debug,-1		; system file handle for DEBUG device

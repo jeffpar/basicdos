@@ -80,7 +80,7 @@ Each session has its own console context (if it was given one by a CONSOLE= line
 | 21h | DOS functions (see [DOS Functions](../dos/)) |
 | 22h | Exit address |
 | 23h | CTRL-C handler address |
-| 24h | Critical error handler address (critical error handling isn't implemented yet) |
+| 24h | Critical error handler address (see [Critical Errors](../dos/#critical-errors)) |
 | 25h, 26h | Absolute disk read and write (not implemented yet) |
 | 27h | Terminate and stay resident (not implemented yet) |
 | 28h | Idle notification (default handler only) |

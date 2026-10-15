@@ -60,12 +60,17 @@ DEFPROC	psp_term,DOS
 	jne	pt1			; yes
 ;
 ; Since we can't terminate the program, an ABORT (CTRL-ALT-DEL) must be
-; converted into a CTRLC signal instead; otherwise, it would be ignored.
+; converted into a CTRLC signal instead; otherwise, it would be ignored.  The
+; same goes for a critical error ABORT (see dev_error), minus the echo.
 ;
 	cmp	ah,EXTYPE_ABORT		; ABORT request?
-	jne	pt7			; no
+	jne	pt0			; no
 	sti
 	jmp	msc_sigctrlc		; signal CTRLC (does not return)
+pt0:	cmp	ah,EXTYPE_ERROR		; critical error ABORT?
+	jne	pt7			; no
+	sti
+	jmp	msc_retctrlc		; signal CTRLC quietly (never returns)
 ;
 ; Close process file handles.
 ;

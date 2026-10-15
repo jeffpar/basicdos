@@ -13,11 +13,14 @@
 	include	dev.inc
 	include	devapi.inc
 	include	dos.inc
+	include	dosapi.inc
 
 DOS	segment word public 'CODE'
 
-	EXTNEAR	<copy_name,sfb_from_sfh>
-	EXTWORD	<scb_active>
+	EXTNEAR	<copy_name,sfb_from_sfh,sfb_read,sfb_write,strlen>
+	EXTNEAR	<scb_release>
+	EXTWORD	<scb_active,err_stack>
+	EXTBYTE	<err_active,scb_locked>
 	EXTLONG	<bpb_table>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -355,11 +358,11 @@ dr5:	push	es			; create far pointer to DDH_REQUEST
 	pop	es			; ES restored
 
 	mov	ax,[bp].DDP_STATUS
-	mov	bx,[bp].DDPRW_LENGTH	; BX = # bytes remaining
-	mov	dx,[bp].DDP_CONTEXT
-	add	sp,DDP_MAXSIZE
 	test	ax,DDSTAT_ERROR
 	jnz	dr8
+dr6:	mov	bx,[bp].DDPRW_LENGTH	; BX = # bytes remaining
+	mov	dx,[bp].DDP_CONTEXT
+	add	sp,DDP_MAXSIZE
 	mov	ax,cx			; AX = # bytes originally requested
 	sub	ax,bx			; AX = # bytes returned (if read/write)
 	clc
@@ -382,6 +385,28 @@ dr8a:	cmp	cs:[si],al		; does the driver error match?
 dr8b:	mov	al,cs:[si+1]
 	cbw				; AX = DOS error code
 	pop	si
+;
+; Block device errors are hard errors: report the error to the session's
+; ERROR handler (see dev_error) and act on its response.  RETRY reissues the
+; request (the packet is still on the stack, and the driver has advanced it
+; to the failing sector), IGNORE reports the request as complete, and FAIL
+; returns the error.
+;
+	test	es:[di].DDH_ATTR,DDATTR_CHAR
+	jnz	dr8f			; character device errors just fail
+	push	ax
+	call	dev_error		; AL = response
+	mov	dl,al			; DL = response
+	pop	ax			; AX = DOS error code again
+	cmp	dl,CRERR_RETRY
+	jne	dr8c
+	mov	[bp].DDP_STATUS,0
+	jmp	dr5			; reissue the request
+dr8c:	cmp	dl,CRERR_IGNORE
+	jne	dr8f
+	mov	[bp].DDPRW_LENGTH,0	; nothing remains (all "transferred")
+	jmp	short dr6
+dr8f:	add	sp,DDP_MAXSIZE
 	stc
 
 dr9:	pop	bp
@@ -393,6 +418,375 @@ dev_errs	db	DDERR_WP,19, DDERR_UNKUNIT,20, DDERR_NOTREADY,21
 		db	DDERR_UNKCMD,22, DDERR_CRC,23, DDERR_SEEK,25
 		db	DDERR_UNKMEDIA,26, DDERR_NOSECTOR,27, DDERR_WRFAULT,29
 		db	DDERR_RDFAULT,30, 0,31
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dev_error
+;
+; Hard (critical) error service, called by dev_request when a block device
+; request fails.  The session's ERROR handler (INT 24h; see SCB_ERROR) is
+; called with the PC DOS inputs:
+;
+;	AH = CRERR_WRITE if the request was a write; CRERR_AREA bits = disk
+;	     area of the failing sector (0 reserved, 2 FAT, 4 directory, 6
+;	     data); CRERR_FAILOK, CRERR_RETRYOK, and CRERR_IGNOREOK = allowed
+;	     responses (IGNORE is allowed only for READ and WRITE requests)
+;	AL = drive #
+;	DI = error code (0-12; ie, the DOS error code minus 19)
+;	BP:SI -> device driver header (DDH)
+;
+; and returns AL = response (CRERR_*), which we return to dev_request.
+;
+; The handler runs on the hard error stack (see err_stack), since the stack
+; of the program that made the DOS call may have little room to spare, with
+; the SCB locked, so that no other session can run (and no other hard error
+; can occur) until the handler returns.  A hard error inside the handler
+; itself (which PC DOS forbids as well) fails immediately (see err_active),
+; and a CTRLC signal inside the handler ends it with an ABORT response (see
+; msc_sigctrlc and err_jump).
+;
+; ABORT becomes a FAIL response, plus a pending session ABORT of type
+; EXTYPE_ERROR, so that every function on the way back out of DOS unwinds
+; (and unlocks) normally, and then dos_leave terminates the program (see
+; psp_termcode); any pending CTRLC (eg, typed at the prompt) is consumed.
+; IGNORE becomes FAIL if it wasn't allowed, as does any unknown response.
+;
+; Inputs:
+;	AX = DOS error code (19-31)
+;	BP -> request packet (DDP)
+;	ES:DI -> device driver header (DDH)
+;
+; Outputs:
+;	AL = response (CRERR_IGNORE, CRERR_RETRY, or CRERR_FAIL)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	dev_error,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	LOCK_SCB
+	push	bx
+	push	cx
+	push	dx
+	push	si
+	push	di
+	push	bp
+	push	ds
+	push	es
+	cmp	[err_active],0		; already handling a hard error?
+	je	he0			; no
+	jmp	he7			; yes, so fail this one, too
+he0:	mov	si,di			; SI = DDH offset (for BP:SI)
+	xchg	ax,di
+	sub	di,19			; DI = INT 24h error code (0-12)
+	mov	ax,word ptr [bp].DDP_UNIT; AL = drive #, AH = command
+	mov	cl,CRERR_FAILOK OR CRERR_RETRYOK
+	cmp	ah,DDC_READ		; READ request?
+	je	he1			; yes
+	cmp	ah,DDC_WRITE		; WRITE (or WRITEV) request?
+	jb	he2			; no (eg, MEDIACHK or BUILDBPB)
+	cmp	ah,DDC_WRITEV
+	ja	he2			; no
+	or	cl,CRERR_WRITE
+;
+; Only READ and WRITE requests allow IGNORE (eg, there's no ignoring a BPB
+; the driver couldn't build), and only they have a meaningful disk area.
+;
+he1:	or	cl,CRERR_IGNOREOK OR CRERR_AREA
+	mov	bx,[bp].DDPRW_BPB.OFF	; BX -> BPB (in the DOS segment)
+	mov	dx,[bp].DDPRW_LBA	; DX = LBA of the failing sector
+	cmp	dx,cs:[bx].BPB_LBADATA	; data area?
+	jae	he2			; yes
+	sub	cl,2			; no, directory?
+	cmp	dx,cs:[bx].BPB_LBAROOT
+	jae	he2			; yes
+	sub	cl,2			; no, FAT?
+	cmp	dx,cs:[bx].BPB_RESSECS
+	jae	he2			; yes
+	sub	cl,2			; no, reserved area
+he2:	mov	ah,cl			; AH = flags
+;
+; Switch to the hard error stack, saving the caller's stack, the flags, and
+; SCB_INDOS (in case a CTRLC inside the handler ends it early; see err_jump)
+; on it.
+;
+	mov	dx,ss
+	mov	cx,sp
+	cli
+	push	cs
+	pop	ss
+	mov	sp,[err_stack]
+	sti
+	push	cs
+	pop	ds			; DS = DOS (for the handler as well)
+	mov	bx,[scb_active]
+	push	dx
+	push	cx			; caller's SS:SP
+	push	ax			; AH = flags
+	push	word ptr [bx].SCB_INDOS
+	ASSERT	ERR_FRAME,EQ,8
+	inc	[err_active]
+	mov	bp,es			; BP:SI -> DDH
+	pushf
+	call	[bx].SCB_ERROR		; call the session's ERROR handler
+	DEFLBL	err_jump,near		; (AL = CRERR_ABORT via msc_sigctrlc)
+	push	cs
+	pop	ds
+	mov	bx,[scb_active]
+	mov	[err_active],0
+	pop	word ptr [bx].SCB_INDOS
+	pop	dx			; DH = flags
+	pop	cx
+	pop	bx			; BX:CX = caller's SS:SP
+	cli
+	mov	ss,bx
+	mov	sp,cx
+	sti
+	mov	bx,[scb_active]
+	cmp	al,CRERR_RETRY
+	je	he8
+	cmp	al,CRERR_IGNORE
+	jne	he3
+	test	dh,CRERR_IGNOREOK	; was IGNORE allowed?
+	jnz	he8			; yes
+	jmp	short he7		; no
+he3:	cmp	al,CRERR_ABORT
+	jne	he7
+	or	[bx].SCB_STATUS,SCSTAT_ABORT
+	mov	[bx].SCB_ABTYPE,EXTYPE_ERROR
+	mov	[bx].SCB_CTRLC_ACT,0
+he7:	mov	al,CRERR_FAIL
+he8:	pop	es
+	pop	ds
+	pop	bp
+	pop	di
+	pop	si
+	pop	dx
+	pop	cx
+	pop	bx
+	call	scb_release		; unlock the SCB
+	ret
+ENDPROC	dev_error
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dos_error (default INT 24h handler)
+;
+; Displays the traditional PC DOS message on the session's console (eg, "Not
+; ready error reading drive A"), followed by "Abort, Retry, Fail? " (or
+; "Abort, Retry, Ignore, Fail? " if IGNORE is allowed), and reads the
+; response, repeating the prompt until a valid one is typed.  CTRLC (or a
+; console read failure, eg, due to a pending ABORT) is treated as ABORT.
+; A session whose input isn't its console (eg, a command reading from a pipe)
+; can't be prompted, so after the message, its response is FAIL.
+;
+; Inputs:
+;	See dev_error
+;
+; Outputs:
+;	AL = response (CRERR_*)
+;
+DEFPROC	dos_error,DOSFAR
+	push	bx
+	push	cx
+	push	dx
+	push	si
+	push	di
+	push	ds
+	push	es
+	push	cs
+	pop	ds
+	ASSUME	DS:DOS
+	mov	dx,ax			; DH = flags, DL = drive #
+	mov	cx,di			; CX = error code
+	mov	si,offset ERR_CRLF
+	call	err_print
+	mov	si,offset ERR_MSGS
+	jcxz	ee1
+ee0:	call	err_skip		; skip CX messages
+	loop	ee0
+ee1:	call	err_print		; eg, "Not ready"
+	mov	si,offset ERR_ERROR
+	call	err_print		; " error "
+	test	dh,CRERR_WRITE		; was the request a write?
+	jz	ee2			; no
+	call	err_skip		; yes, skip "reading"
+ee2:	call	err_print		; "reading" or "writing"
+	mov	si,offset ERR_DRIVE
+	call	err_print		; " drive "
+	mov	al,dl
+	add	al,'A'
+	call	err_char		; drive letter
+	mov	bx,[scb_active]
+	mov	al,[bx].SCB_SFHIN
+	cmp	al,[bx].SCB_SFHERR	; is the session's input its console?
+	jne	ee8			; no, so FAIL
+ee4:	mov	si,offset ERR_PROMPT
+	call	err_print		; "Abort, Retry, "
+	test	dh,CRERR_IGNOREOK	; is IGNORE allowed?
+	jz	ee5			; no
+	mov	si,offset ERR_IGNORE
+	call	err_print		; "Ignore, "
+	mov	si,offset ERR_FAIL
+ee5:	call	err_print		; "Fail? "
+	mov	bx,[scb_active]
+	mov	bl,[bx].SCB_SFHIN
+	call	sfb_from_sfh		; BX -> SFB for the console
+	push	dx
+	push	ax			; make room for the response
+	mov	dx,sp
+	push	ss
+	pop	es			; ES:DX -> response
+	mov	cx,1
+	mov	al,IO_RAW
+	call	sfb_read		; read one character (no CTRLC checks)
+	pop	ax			; AL = response
+	pop	dx
+	jc	ee7			; read failure (eg, ABORT pending)
+	and	al,0DFh			; upper-case the response
+	cmp	al,CHR_CTRLC
+	je	ee7			; CTRLC means ABORT
+	mov	dl,al			; DL = response character
+	call	err_char		; echo it
+	mov	si,offset ERR_KEYS
+ee6:	lodsw				; AL = key, AH = response
+	test	al,al			; end of table?
+	jz	ee4			; yes, so repeat the prompt
+	cmp	al,dl			; match?
+	jne	ee6			; no
+	mov	dl,ah			; DL = response
+	jmp	short ee9
+
+ee7:	mov	dl,CRERR_ABORT
+	jmp	short ee9
+ee8:	mov	dl,CRERR_FAIL
+ee9:	mov	si,offset ERR_CRLF
+	call	err_print
+	mov	al,dl			; AL = response
+	pop	es
+	pop	ds
+	pop	di
+	pop	si
+	pop	dx
+	pop	cx
+	pop	bx
+	iret
+ENDPROC	dos_error
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; err_char
+;
+; Prints the character in AL on the session's console (see err_print).
+;
+; Inputs:
+;	AL = character
+;
+; Modifies:
+;	AX, BX, CX, DI, ES
+;
+DEFPROC	err_char,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	si
+	push	ds
+	mov	ah,0
+	push	ax			; AX = one-character string
+	mov	si,sp
+	push	ss
+	pop	ds			; DS:SI -> string
+	call	err_print
+	pop	ax
+	pop	ds
+	pop	si
+	ret
+ENDPROC	err_char
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; err_print
+;
+; Prints the null-terminated string at DS:SI on the session's console (via
+; its STDERR SFB, with a raw write, so there are no CTRLC checks), and
+; advances SI past the string, so that consecutive strings can be printed
+; with consecutive calls.
+;
+; Inputs:
+;	DS:SI -> string
+;
+; Outputs:
+;	SI -> byte after the string's terminator
+;
+; Modifies:
+;	AX, BX, CX, DI, ES
+;
+DEFPROC	err_print,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	dx
+	mov	al,0
+	call	strlen			; AX = length of string at DS:SI
+	xchg	cx,ax			; CX = length
+	mov	bx,[scb_active]
+	mov	bl,cs:[bx].SCB_SFHERR
+	call	sfb_from_sfh		; BX -> SFB for the console
+	mov	al,IO_RAW
+	call	sfb_write
+	add	si,cx
+	inc	si			; SI -> next string
+	pop	dx
+	ret
+ENDPROC	err_print
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; err_skip
+;
+; Advances SI past the null-terminated string at DS:SI.
+;
+; Inputs:
+;	DS:SI -> string
+;
+; Outputs:
+;	SI -> byte after the string's terminator
+;
+; Modifies:
+;	AL
+;
+DEFPROC	err_skip,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+sk1:	lodsb
+	test	al,al			; end of string?
+	jnz	sk1			; no
+	ret
+ENDPROC	err_skip
+
+;
+; Messages for INT 24h error codes 0-12 (codes 5 and 9 are never produced by
+; dev_request, so their messages are empty), followed by the other strings
+; that dos_error prints, in the order it prints them (see err_print).
+;
+ERR_MSGS	db	"Write protect",0
+		db	"Unknown unit",0
+		db	"Not ready",0
+		db	"Unknown command",0
+		db	"Data",0
+		db	0
+		db	"Seek",0
+		db	"Unknown media",0
+		db	"Sector not found",0
+		db	0
+		db	"Write fault",0
+		db	"Read fault",0
+		db	"General failure",0
+ERR_ERROR	db	" error ",0
+		db	"reading",0
+		db	"writing",0
+ERR_DRIVE	db	" drive ",0
+ERR_PROMPT	db	13,10,"Abort, Retry, ",0
+ERR_FAIL	db	"Fail? ",0
+ERR_IGNORE	db	"Ignore, ",0
+ERR_CRLF	db	13,10,0
+ERR_KEYS	db	'A',CRERR_ABORT,'R',CRERR_RETRY,'I',CRERR_IGNORE
+		db	'F',CRERR_FAIL,0,0
 
 DOS	ends
 

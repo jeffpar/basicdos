@@ -110,7 +110,7 @@ Commands:
 | 13 | DDC_OPEN | Open (devices with DDATTR_OPEN) |
 | 14 | DDC_CLOSE | Close (devices with DDATTR_OPEN) |
 
-On return, DDP_STATUS contains DDSTAT_DONE (0100h), plus DDSTAT_ERROR (8000h) and an error code in the low byte if the request failed.  Disk error codes are the BIOS (INT 13h) error codes (eg, 03h for write-protect, 80h for drive not ready), and the other codes use values the BIOS doesn't (eg, DDERR_UNKCMD, 06h, for an unknown command); see dev.inc for the complete list.
+On return, DDP_STATUS contains DDSTAT_DONE (0100h), plus DDSTAT_ERROR (8000h) and an error code in the low byte if the request failed.  Disk error codes are the BIOS (INT 13h) error codes (eg, 03h for write-protect, 80h for drive not ready), and the other codes use values the BIOS doesn't (eg, DDERR_UNKCMD, 06h, for an unknown command); see dev.inc for the complete list.  DOS reports a block device error to the session's critical error handler (see [Critical Errors](../dos/#critical-errors)), and if the response is RETRY, it reissues the same packet after clearing DDP_STATUS, so a driver that advances DDPRW_LBA, DDPRW_ADDR, and DDPRW_LENGTH as it goes (as FDC$ does) resumes at the failing sector.
 
 Console drivers (CON and COM) handle CTRL-C the same way, and only report it: they leave it in their input like any other character, and notify DOS with DOS_UTL_HOTKEY.  When DOS acts on a CTRL-C, it sends DDC_INFLUSH to the session's console, which discards its type-ahead (including the CTRL-C), and DDC_OUTFLUSH, which ends any CTRL-S pause (the COM driver also discards any output it has buffered, but an XOFF pause or a CTS hold still ends only when the terminal allows it).  DOS_TTY_FLUSH (INT 21h, AH = 0Ch) also sends DDC_INFLUSH, to STDIN.
 

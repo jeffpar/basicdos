@@ -26,7 +26,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] CONFIG.SYS support for BOOTKEY, BUFFERS, CONSOLE, DEBUG, DEVICE, FILES, MEMSIZE, PATHCHAR, SESSIONS, SHELL, SKIP, and SWITCHAR
 - [x] SKIP= lists built-in drivers (by their exact device names, separated by commas) that should not be loaded (eg, `SKIP=CON,FPU$`); a skipped driver is never initialized, and its memory is reclaimed
 - [x] Installable device drivers (DEVICE=)
-- [ ] Critical ("hard") error handling (eg, "Abort, Retry, Ignore")
+- [x] Critical ("hard") error handling: block device errors go to the session's INT 24h handler (called on a DOS stack, with PC DOS inputs and responses), and the default handler displays the traditional "Abort, Retry, Ignore, Fail?" prompt (see [Critical Errors](docs/bdtech/dos/#critical-errors))
 
 ### Device Drivers
 
@@ -54,7 +54,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] Session END: abort the current program in a specified session, interrupting any pending wait; WAITEND waits for the session to close
 - [ ] Session STOP (suspend a specified session; currently a TODO)
 - [ ] TSR support (INT 27h and INT 21h function 31h)
-- [ ] Environment segments for EXEC (EPB_ENVSEG)
+- [x] Environment segments for EXEC (EPB_ENVSEG; zero inherits the parent's), and COMMAND.COM gives every program an environment with COMSPEC and PATH
 
 ### Kernel: File System
 
@@ -193,7 +193,8 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] FLOW: BASIC control flow tests
 - [x] FILEIO: BASIC sequential and random access file tests
 - [x] MOVES: file and directory moves, destination growth, sharing, and ancestry checks
-- [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUN, STRPOOL, ARRAYS, FLOW, CMDS, VARS, FILEIO, MOVES, and PRINTF, and reports whether the tests passed)
+- [x] HARDERR: INT 24h compatibility tests (handler inputs, the stack switch, Retry, Fail, Ignore conversion, and Abort), using an empty drive B:
+- [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUN, STRPOOL, ARRAYS, FLOW, CMDS, VARS, FILEIO, MOVES, FCBTESTS, HARDERR, and PRINTF, and reports whether the tests passed)
 - [x] CMDS: command tests (pipes, redirection, TYPE, DEL, TIME /D, HELP, SOUND, remarks, and hex constants)
 - [x] `tools/tests/chkdsk.sh` runs MS-DOS 3.20 CHKDSK on a diskette image saved by a test session (see `QUIT /S` in `pc.js`)
 - [ ] More tests (eg, BASIC language and CMD command tests)
@@ -217,7 +218,6 @@ These are the next steps, roughly in priority order:
 2. The read-only attribute, and file attribute/date/time functions
 3. Remaining string and input/output features (the MID$ statement and comma print zones)
 4. The rest of runtime error handling (RESUME, RESUME NEXT, and ERL)
-5. Critical error handling
 
 ## License
 

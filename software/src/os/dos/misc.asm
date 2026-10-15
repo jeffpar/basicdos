@@ -17,7 +17,9 @@
 DOS	segment word public 'CODE'
 
 	EXTNEAR	<dos_check,dos_restart,dev_request,write_handle>
-	EXTNEAR	<sfb_get,flush_console>
+	EXTNEAR	<sfb_get,flush_console,err_jump>
+	EXTBYTE	<err_active>
+	EXTWORD	<err_stack>
 	EXTSTR	<STR_CTRLC>
 
 	EXTWORD	<mcb_head>
@@ -369,7 +371,21 @@ msg0:	mov	[bx].SCB_CTRLC_ACT,0
 ; and that's OK as long as 1) they're not an interruptable function and 2)
 ; they restore BP when they're done.
 ;
-msg1:	IF REG_CHECK
+msg1:	cmp	[err_active],0		; inside a hard error handler?
+	je	msg1a			; no
+;
+; A CTRLC inside the session's ERROR handler ends the handler with an ABORT
+; response: discard everything on the hard error stack above dev_error's
+; frame and resume there (see err_jump).
+;
+	push	cs
+	pop	ss
+	mov	sp,[err_stack]
+	sub	sp,ERR_FRAME
+	mov	al,CRERR_ABORT
+	jmp	err_jump
+
+msg1a:	IF REG_CHECK
 	ASSERT	Z,<cmp word ptr [bp-2],offset dos_check>
 	ENDIF
 
@@ -464,49 +480,6 @@ fs9:	pop	di
 	pop	ax
 	ret
 ENDPROC	flush_stdin
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; msc_sigerr
-;
-; Unlike msc_sigctrlc, this signals errors from a variety of sources, so
-; don't assume BP refers to a REG_FRAME.
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	AX
-;
-DEFPROC	msc_sigerr
-	ASSUME	DS:NOTHING, ES:NOTHING
-	push	bx
-	push	ds
-
-	push	cs
-	pop	ds
-	ASSUME	DS:DOS
-	mov	bx,[scb_active]
-	ASSERT	STRUCT,[bx],SCB
-	pushf
-	call	[bx].SCB_ERROR
-;
-; Check the handler's return code and decide what to do.
-;
-	cmp	al,CRERR_ABORT		; abort program via INT 23h?
-	jne	ms9			; no
-	pushf
-	call	[bx].SCB_CTRLC		; yes
-;
-; TODO: Add support for other responses.
-;
-ms9:	pop	ds
-	pop	bx
-	ret
-ENDPROC	msc_sigerr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

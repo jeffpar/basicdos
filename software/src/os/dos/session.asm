@@ -694,6 +694,7 @@ DEFPROC	scb_abort,DOS
 	pushf
 	cli
 	or	[bx].SCB_STATUS,SCSTAT_ABORT
+	mov	[bx].SCB_ABTYPE,EXTYPE_ABORT
 	call	scb_intwait
 	popf
 	ret

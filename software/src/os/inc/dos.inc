@@ -106,7 +106,7 @@ SCB_INDOS	db	?	; 2Dh: active DOS/DOSUTIL call count
 SCB_CURDRV	db	?	; 2Eh: current drive #
 SCB_SWITCHAR	db	?	; 2Fh: switch char (fixed at boot)
 SCB_PATHCHAR	db	?	; 30h: path char (fixed at boot)
-		db	?	; 31h: padding
+SCB_ABTYPE	db	?	; 31h: exit type of a pending ABORT (EXTYPE_*)
 SCB_DIRCLN	dw	?	; 32h: directory (1st cluster) for FILENAME
 SCB_FILENAME	db    12 dup (?); 34h: buffer for drive # and filename
 SCB		ends		; 40h bytes
@@ -117,6 +117,13 @@ SCSTAT_INIT	equ	01h	; set if SCB initialized
 SCSTAT_LOAD	equ	02h	; set if session has loaded a program
 SCSTAT_START	equ	04h	; set if session program can be started
 SCSTAT_ABORT	equ	08h	; set if session abort (CTRL-ALT-DEL) signalled
+;
+; The hard error stack (see dev_error) is reserved by sysinit, which records
+; the DS-relative offset of its top in err_stack; ERR_FRAME is the number of
+; bytes dev_error pushes on it before calling the session's ERROR handler.
+;
+ERR_STACK_SIZE	equ	512
+ERR_FRAME	equ	8
 
 LOCK_SCB macro
 	inc	[scb_locked]
