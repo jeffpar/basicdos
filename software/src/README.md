@@ -41,7 +41,7 @@ The line between public and private is not formal; for example, EXEHDR is arguab
 
 The [BOOT](os/boot/) directory contains the code for the BASIC-DOS boot sector (`BOOT.COM`) along with a small PC DOS (*not* BASIC-DOS) utility (`WBOOT.COM`) to write the BASIC-DOS boot sector to the diskette currently in drive A:.
 
-The [DD](os/dd/) directory contains installable device drivers, which are loaded with `DEVICE=` in CONFIG.SYS.  Each driver has its own subdirectory, with its own makefile and OBJ directory; currently, there's only [DBG](os/dd/dbg/), a simple serial debugger (`DEBUG.SYS`).
+The [DD](os/dd/) directory contains installable device drivers, which are loaded with `DEVICE=` in CONFIG.SYS.  Each driver has its own subdirectory, with its own makefile and OBJ directory; currently, there's only [DBG](os/dd/dbg/), a simple serial debugger (`DEBUG.COM`).
 
 The [DEV](os/dev/) directory contains all the built-in BASIC-DOS device drivers. The drivers are built as a separate .COM files, which are then concatenated into a single file (`BASDEV.COM`), along with a binary "header" that contains all the boot code that didn't fit in the boot sector (`BOOT2.COM`), and a binary "footer" (`DEVINIT.COM`) responsible for initializing each of the drivers and removing any unnecessary drivers from memory.
 

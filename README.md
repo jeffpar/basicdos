@@ -32,7 +32,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 
 - [x] CON, with multiple console contexts (one per session)
 - [x] COM, AUX, LPT, PRN, NUL, CLOCK$, and PIPE$ devices
-- [x] Loadable character drivers via `DEVICE=` in CONFIG.SYS, including [DEBUG.SYS on a serial port](demos/debug/), with SYMDEB-style memory dumps and register displays and exclusive ownership of its COM port
+- [x] Loadable character drivers via `DEVICE=` in CONFIG.SYS, including [DEBUG.COM on a serial port](demos/debug/), with SYMDEB-style memory dumps and register displays and exclusive ownership of its COM port
 - [x] MOUSE$, a serial mouse driver (loaded only if a Microsoft-compatible mouse responds on a COM port at boot), with a minimal INT 33h interface (functions 00h-04h, 07h, 08h, and a BASIC-DOS function that returns queued button events), and a pointer drawn in MDA and CGA modes that preserves anything drawn over it
 - [x] Interrupt-driven, asynchronous I/O for CON and COM
 - [x] Floppy disk reads, including multi-track requests and requests that cross 64K boundaries

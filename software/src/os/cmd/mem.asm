@@ -46,7 +46,18 @@ DEFPROC	cmdMem
 ;
 mem0:	mov	ah,DOS_MSC_GETVARS
 	int	21h			; ES:BX -> DOSVARS + 2
+	mov	cx,es			; CX = DOS segment
 	les	di,es:[bx-2].DV_DD_LIST	; ES:DI -> first device driver
+;
+; Skip any installed drivers (DEVICE= puts them at the head of the list);
+; they're above DOS, so they're listed with the memory blocks below.
+;
+mem0a:	mov	ax,es
+	cmp	ax,cx			; installed driver?
+	jb	mem0b			; no
+	les	di,es:[di]
+	jmp	mem0a
+mem0b:
 
 	TESTSW	<'D'>
 	jz	mem1

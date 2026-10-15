@@ -97,14 +97,16 @@ Sends diagnostic messages from DEBUG builds of BASIC-DOS to the specified device
 
 > DEVICE=*filename* [*arguments*]
 
-Loads an installable device driver, passing it any *arguments*.  DEVICE lines are processed in order, after the first console has been opened (so that any errors can be reported) and before any other consoles are opened.  If a driver can't be loaded, a warning is displayed (eg, `Warning: unable to load device DEBUG.SYS (31)`) and startup continues.
+Loads an installable device driver, passing it any *arguments*.  DEVICE lines are processed in order, after the first console has been opened (so that any errors can be reported) and before any other consoles are opened.  If a driver can't be loaded, a warning is displayed (eg, `Warning: unable to load device DEBUG.COM (31)`) and startup continues.
 
-BASIC-DOS includes one installable driver, DEBUG.SYS, a simple debugger that runs on a terminal connected to a serial port; its argument is the port's settings, using the same format as a COM [CONSOLE](#console) (eg, `DEVICE=DEBUG.SYS COM2:9600,N,8,1,VT100`).  The debugger claims the port, so no other program or console can open it.  On the terminal, CTRL-C (or BREAK) stops the machine at the next timer tick, and INT 1 and INT 3 also stop it; then the commands are:
+BASIC-DOS includes one installable driver, DEBUG.COM, a simple debugger that runs on a terminal connected to a serial port; its argument is the port's settings, using the same format as a COM [CONSOLE](#console) (eg, `DEVICE=DEBUG.COM COM2:9600,N,8,1,VT100`).  The debugger claims the port, so no other program or console can open it.  On the terminal, CTRL-C (or BREAK) stops the machine as soon as it arrives, and INT 1 and INT 3 also stop it; then the commands are:
 
 - D [[*segment*:]*offset* [*end* | L *count*]] to display memory in hex (*segment* may also be DS, ES, SS, or CS)
 - R to display the registers
 - G to resume
 - ? for help
+
+The driver's device name is DEBUG$.  DEBUG.COM can also be run from the prompt, without loading it as a driver: it displays the registers as of the program's start, and the same commands work on the console, along with Q to quit (G also exits).
 
 ### FILES
 

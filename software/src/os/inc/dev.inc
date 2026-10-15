@@ -99,8 +99,10 @@ DDPI		ends
 
 ;
 ; IOCTL_COMDEBUG requires a handle opened with MODE_DENY_RW (see chk_devopen);
-; it disables the port's UART interrupts (for polling), and returns its base
-; port OR'ed with COMDBG_* bits (UART base ports are always multiples of 8).
+; it disables the port's UART interrupts (for polling), frees the port's
+; context (the handle must never be used again, except to keep the port
+; reserved), and returns its base port OR'ed with COMDBG_* bits (UART base
+; ports are always multiples of 8).
 ; These are kept here, rather than in devapi.inc with the other IOCTL_*
 ; values, because COMMAND has no room for them.
 ;

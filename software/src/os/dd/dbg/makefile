@@ -1,5 +1,5 @@
 #
-# BASIC-DOS Serial Debugger (DEBUG.SYS) Makefile
+# BASIC-DOS Serial Debugger (DEBUG.COM) Makefile
 #
 # @author Jeff Parsons <Jeff@pcjs.org>
 # @copyright (c) 2026 Jeff Parsons
@@ -16,7 +16,7 @@ AFLAGS=/MX /R /D$(REL) /I..\..\INC
 #
 LST=NUL
 
-OBJ\DEBUG.SYS: DBGDEV.ASM ..\..\INC\DEV.INC ..\..\INC\UART.INC
+OBJ\DEBUG.COM: DBGDEV.ASM ..\..\INC\BIOS.INC ..\..\INC\DEV.INC ..\..\INC\UART.INC
 	$(ASM) $(AFLAGS) DBGDEV.ASM,OBJ\DBGDEV.OBJ,$(LST);
 	$(LINK) OBJ\DBGDEV.OBJ,OBJ\DBGDEV.EXE,OBJ\DBGDEV.MAP/MAP;
 	$(EXE2BIN) OBJ\DBGDEV.EXE $@

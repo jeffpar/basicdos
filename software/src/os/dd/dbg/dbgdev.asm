@@ -7,11 +7,14 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Usage (in CONFIG.SYS): DEVICE=DEBUG.SYS COM2:9600,N,8,1,VT100
+; Usage (in CONFIG.SYS): DEVICE=DEBUG.COM COM2:9600,N,8,1,VT100
 ;
-; Ctrl-C or a serial BREAK stops the machine at the next timer interrupt,
-; and INT 1 and INT 3 also enter the monitor.  D and R are read-only, and G
-; resumes.
+; DEBUG.COM can also be run as a program, with a monitor on the console that
+; displays the registers as of the program's start (PSP:0100h); G exits.
+;
+; Ctrl-C or a serial BREAK stops the machine as soon as it arrives (via the
+; port's hardware interrupt), and INT 1 and INT 3 also enter the monitor.
+; D and R are read-only, and G resumes.
 ;
 ; Only INIT calls DOS.  The monitor can interrupt DOS (or an IRQ handler),
 ; so it runs on a private stack with interrupts disabled, polling the UART
@@ -20,6 +23,8 @@
 ; interrupts and reenter the DOS dispatcher.
 ;
 	include	macros.inc
+BIOSVEC	equ	1
+	include	bios.inc
 	include	dev.inc
 	include	devapi.inc
 	include	dosapi.inc
@@ -27,16 +32,32 @@
 
 CODE	segment para public 'CODE'
 
-DBGDEV	DDH	<-1,-1,DDATTR_CHAR,dbgdev_req,0,2020564544474244h>
+;
+; When run as a program, execution begins at the DDH, so DDH_NEXT_OFF holds a
+; JMP SHORT to in_buf, which DOS accepts in place of FFFFh (see load_devices).
+;
+COM_JMP		equ	((size DDH - 2) SHL 8) OR 0EBh
 
-	DEFPTR	old_clock		; original INT 08h handler
+DBGDEV	DDH	<COM_JMP,-1,DDATTR_CHAR,dbgdev_req,0,2020244755424544h>
+;
+; in_buf must follow the DDH: its initial contents (which don't matter to the
+; driver) are a JMP to com_main, which (like everything that runs only as a
+; program) follows resident_end, so a driver doesn't keep it.
+;
+IN_MASK		equ	127	; in_buf is a ring buffer, with one slot unused
+	ASSUME	CS:CODE
+	DEFLBL	in_buf,byte
+	jmp	near ptr com_main
+	db	IN_MASK+1-3 dup (0)
+
+
+	DEFPTR	old_com			; original COM interrupt handler
 	DEFPTR	frame			; saved registers (see dbgdev_enter)
 	DEFWORD	com_port,0		; UART base port
 	DEFWORD	dump_seg,0		; segment of the next D command
 	DEFWORD	dump_off,0		; offset of the next D command
 	DEFBYTE	com_flow,0		; COMDBG_XON and/or COMDBG_RTS
 	DEFBYTE	paused,0		; set by XOFF, cleared by XON
-	DEFBYTE	from_clock,0		; set if entered from INT 08h
 	DEFBYTE	in_head,0		; next byte to read from in_buf
 	DEFBYTE	in_tail,0		; next byte to write in in_buf
 ;
@@ -62,8 +83,6 @@ FLAG_MASK	equ	0ED5h	; OF, DF, IF, SF, ZF, AF, PF, and CF
 	db	"D [[segment:]offset [end | L count]]  dump memory (hex)",13,10
 	db	"R  display registers    G  resume    ?  help",13,10,0
 
-IN_MASK		equ	127	; in_buf is a ring buffer, with one slot unused
-	DEFBYTE	in_buf,0,IN_MASK+1
 CMD_MAX		equ	79
 	DEFBYTE	command,0,CMD_MAX+1
 	DEFWORD	mon_stack,0,128
@@ -92,41 +111,46 @@ ENDPROC	dbgdev_req
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; dbgdev_clock (INT 08h)
+; dbgdev_com (COM hardware interrupt)
 ;
-; Enter the monitor if Ctrl-C (or BREAK) was received; otherwise, chain to
-; the original handler.  Bytes received while running are otherwise ignored.
+; Enter the monitor if Ctrl-C (or BREAK) was received; other input is
+; discarded.  If our UART isn't interrupting, chain to the original handler
+; (eg, for another port that shares the IRQ).
 ;
-DEFPROC	dbgdev_clock,far
+DEFPROC	dbgdev_com,far
 	push	ax
 	push	dx
 	push	ds
 	push	cs
 	pop	ds
 	ASSUME	DS:CODE
-	call	poll_rx
-	jz	dbc9
-	cmp	al,CHR_CTRLC
-	jne	dbc9
-	mov	[from_clock],al		; the monitor will chain on resume
+	mov	dx,[com_port]
+	add	dx,REG_IIR
+	in	al,dx
+	test	al,IIR_NO_INT		; is our UART interrupting?
+	jnz	dcm8			; no
+dcm1:	call	poll_rx
+	jz	dcm2
+	cmp	al,CHR_CTRLC		; Ctrl-C (or BREAK)?
+	je	dcm3			; yes (ZF set)
+dcm2:	mov	dx,[com_port]
+	add	dx,REG_IIR
+	in	al,dx
+	test	al,IIR_NO_INT		; anything else pending?
+	jz	dcm1			; yes (otherwise, ZF clear)
+dcm3:	mov	al,20h
+	out	20h,al			; EOI the interrupt
 	pop	ds
-	pop	dx
-	pop	ax
-	jmp	short dbgdev_enter
-dbc9:	pop	ds
 	ASSUME	DS:NOTHING
 	pop	dx
 	pop	ax
-	jmp	cs:[old_clock]
-ENDPROC	dbgdev_clock
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; dbgdev_trap (INT 01h and INT 03h)
-;
-DEFPROC	dbgdev_trap,far
-	mov	cs:[from_clock],0	; the monitor will IRET on resume
-ENDPROC	dbgdev_trap			; fall into dbgdev_enter
+	jz	dbgdev_enter		; enter the monitor on Ctrl-C
+	iret
+dcm8:	pop	ds
+	pop	dx
+	pop	ax
+	jmp	cs:[old_com]
+ENDPROC	dbgdev_com
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -161,6 +185,7 @@ DEFPROC	dbgdev_enter,far
 	ASSUME	DS:CODE
 	push	cs
 	pop	ss
+	DEFLBL	mon_sp			; (com_main changes this stack)
 	mov	sp,offset mon_stack_end
 	cld
 	mov	al,[in_tail]		; discard any buffered input
@@ -195,8 +220,7 @@ mon2:	cmp	al,'?'
 mon3:	cmp	al,'G'
 	jne	mon8
 ;
-; Restore the interrupted stack and registers, and then IRET (or chain to
-; the original INT 08h handler, which still owes the PIC its EOI).
+; Restore the interrupted stack and registers, and then IRET.
 ;
 	mov	ss,[frame].SEG
 	mov	sp,[frame].OFF
@@ -211,16 +235,17 @@ mon3:	cmp	al,'G'
 	pop	cx
 	pop	bx
 	pop	ax
-	cmp	cs:[from_clock],0
-	je	mon9
-	jmp	cs:[old_clock]
-mon9:	iret
+	iret
 
 	ASSUME	DS:CODE
 mon7:	jnc	mon0
+;
+; Program mode replaces the first 3 bytes here with a JMP to com_cmd (for Q),
+; which returns to mon9.
+;
 mon8:	mov	al,'?'
 	call	put_char
-	call	newline
+mon9:	call	newline
 	jmp	mon0
 ENDPROC	dbgdev_enter
 
@@ -798,22 +823,32 @@ DEFPROC	dbgdev_init,far
 	xor	dl,al
 	mov	[com_port],dx
 ;
-; Nothing else can fail, so install the hooks.
+; Nothing else can fail, so install the hooks: INT 01h, INT 03h, and the
+; port's hardware interrupt (chosen by port, as the COM driver does: IRQ4
+; for 3xxh, IRQ3 for 2xxh), and then have the UART interrupt us when data
+; (or a BREAK) arrives.
 ;
-	sub	ax,ax
+	mov	bx,INT_HW_COM1 * 4
+	cmp	dh,03h			; port 3xxh?
+	je	din1			; yes
+	mov	bx,INT_HW_COM2 * 4
+din1:	sub	ax,ax
 	mov	ds,ax
 	ASSUME	DS:NOTHING
 	cli
-	mov	ax,offset dbgdev_clock
-	xchg	ax,ds:[08h*4]
-	mov	cs:[old_clock].OFF,ax
+	mov	ax,offset dbgdev_com
+	xchg	ax,[bx]
+	mov	cs:[old_com].OFF,ax
 	mov	ax,cs
-	xchg	ax,ds:[08h*4+2]
-	mov	cs:[old_clock].SEG,ax
-	mov	word ptr ds:[01h*4],offset dbgdev_trap
+	xchg	ax,[bx+2]
+	mov	cs:[old_com].SEG,ax
+	mov	word ptr ds:[01h*4],offset dbgdev_enter
 	mov	ds:[01h*4+2],cs
-	mov	word ptr ds:[03h*4],offset dbgdev_trap
+	mov	word ptr ds:[03h*4],offset dbgdev_enter
 	mov	ds:[03h*4+2],cs
+	inc	dx			; DX -> REG_IER (DLAB is clear)
+	mov	al,IER_RBR_AVAIL OR IER_DELTA
+	out	dx,al
 	sti
 	push	cs
 	pop	ds
@@ -834,6 +869,91 @@ ENDPROC	dbgdev_init
 	DEFLBL	BANNER,byte
 	db	"BASIC-DOS serial debugger: "
 	db	"Ctrl-C or BREAK to stop; ? for help",13,10,0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; com_main
+;
+; Program entry (via the DDH and in_buf).  Rebase CS so that offset 0 is the
+; start of the file, as it is for the driver, then patch put_char and get_char
+; to use DOS console I/O, run the monitor on our own stack (just below the
+; frame) rather than its small one (DOS calls run on the caller's stack), and
+; enter the monitor as if PSP:0100h had been interrupted.  G resumes there,
+; which brings us back here, so we exit.
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	com_main,far
+	mov	ax,cs
+	add	ax,10h
+	push	ax
+	mov	ax,offset cm1
+	push	ax
+	ret				; (RETF, since this is a FAR proc)
+cm1:	cmp	cs:[com_runs],0		; resumed by G?
+	jne	cm9			; yes
+	inc	cs:[com_runs]
+	mov	byte ptr cs:[put_char],0E9h
+	mov	word ptr cs:[put_char+1],offset dos_put - offset put_char - 3
+	mov	byte ptr cs:[get_char],0E9h
+	mov	word ptr cs:[get_char+1],offset dos_get - offset get_char - 3
+	mov	byte ptr cs:[mon8],0E9h
+	mov	word ptr cs:[mon8+1],offset com_cmd - offset mon8 - 3
+	mov	ax,sp
+	sub	ax,130h			; leave room for the frame, and rebase
+	mov	word ptr cs:[mon_sp+1],ax
+	pushf
+	push	ds			; DS = PSP
+	mov	ax,100h
+	push	ax
+	sub	ax,ax			; (AX = 0 in the frame)
+	cli
+	jmp	near ptr dbgdev_enter
+cm9:	mov	ax,DOS_PSP_RETURN SHL 8
+	int	21h
+ENDPROC	com_main
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; com_cmd
+;
+; Program mode's replacement for mon8 (an unrecognized command), which adds
+; Q.  Only a valid one-letter command arrives with carry clear (from mon3).
+;
+	ASSUME	DS:CODE
+DEFPROC	com_cmd
+	jc	cc1			; not a one-letter command
+	cmp	al,'Q'			; Q?
+	je	cm9			; yes
+cc1:	mov	al,'?'
+	call	put_char
+	jmp	mon9
+ENDPROC	com_cmd
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dos_put, dos_get
+;
+; Program versions of put_char (which preserves all registers) and get_char
+; (which returns the next byte in AL and modifies AX and DX).
+;
+DEFPROC	dos_put
+	push	dx
+	push	ax
+	mov	dl,al
+	mov	ah,DOS_TTY_WRITE
+	int	21h
+	pop	ax
+	pop	dx
+	ret
+ENDPROC	dos_put
+
+DEFPROC	dos_get
+	mov	ah,DOS_TTY_READ
+	int	21h
+	ret
+ENDPROC	dos_get
+
+	DEFBYTE	com_runs,0		; nonzero after the first run
 
 CODE	ends
 

@@ -143,7 +143,7 @@ let disks = {
     },
     "BASICDOS-DEBUG": {
         config: "./demos/debug/CONFIG.SYS",
-        drivers: [ SRC + "/os/dd/dbg/obj/DEBUG.SYS" ],
+        drivers: [ SRC + "/os/dd/dbg/obj/DEBUG.COM" ],
         TESTS: [ SRC + "/tests/bin/DBGTEST.COM" ]
     },
     "BASICDOS-HD": {

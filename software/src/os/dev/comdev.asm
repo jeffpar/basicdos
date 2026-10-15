@@ -344,7 +344,9 @@ dio8:	jmp	ddcom_none		; unsupported IOCTL
 ; IOCTL_COMDEBUG: the kernel has verified that the caller's handle has
 ; exclusive access (MODE_DENY_RW), so it's the only reference to this context;
 ; disable the UART's interrupts (for polling) and return the port plus any
-; COMDBG_* bits.
+; COMDBG_* bits.  The caller does all its own I/O, so free the context, too;
+; the open handle still reserves the port (see chk_devopen), and with no
+; context, our interrupt handler won't touch the port.
 ;
 dio0c:	mov	dx,ds:[CT_PORT]
 	inc	dx			; DX -> REG_IER (DLAB is clear)
@@ -357,6 +359,15 @@ dio0c:	mov	dx,ds:[CT_PORT]
 	ASSERT	<COMDBG_RTS SHL 1>,EQ,<CTSTAT_RTS>
 	shr	al,1
 	or	dl,al
+	push	es
+	push	ds
+	pop	es			; ES = context
+	mov	ah,DOS_MEM_FREE
+	int	INT_DOSFUNC
+	pop	es
+	pop	ax			; replace the saved context (CX)
+	sub	ax,ax			; with zero (no context)
+	push	ax
 	jmp	short dio7
 ;
 ; IOCTL_GETDIM: return the (assumed) terminal dimensions.

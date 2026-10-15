@@ -26,11 +26,12 @@ DOS	segment word public 'CODE'
 ; load_devices
 ;
 ; Load the driver in every "DEVICE=" setting, in CONFIG.SYS order.  Unlike
-; the BASDEV drivers, these are single-header character device .SYS files
-; (with no relocations), starting with a DDH whose REQUEST handler also
-; handles DDC_INIT; DDPI_BUFPTR points to the ASCIIZ arguments after the
-; filename, and if INIT fails, it must leave no hooks behind.  Each driver
-; is added to the head of the driver list, and any failure is reported.
+; the BASDEV drivers, these are single-header character device files (with
+; no relocations), starting with a DDH whose REQUEST handler also handles
+; DDC_INIT; DDH_NEXT_OFF must be FFFFh, or a JMP SHORT in a dual-mode .COM
+; file.  DDPI_BUFPTR points to the ASCIIZ arguments after the filename, and
+; if INIT fails, it must leave no hooks behind.  Each driver is added to the
+; head of the driver list, and any failure is reported.
 ;
 ; Inputs:
 ;	None
@@ -87,8 +88,9 @@ ld3a:
 	mov	dx,di
 	mov	ax,DOS_HDL_OPENRO
 	int	21h
-	jc	ld8
-	xchg	bx,ax			; BX = handle
+	jnc	ld3b
+	jmp	ld8
+ld3b:	xchg	bx,ax			; BX = handle
 	sub	cx,cx
 	sub	dx,dx
 	mov	ax,DOS_HDL_SEEKEND
@@ -136,8 +138,10 @@ ld4:	pushf
 	cmp	ax,cx			; did we read the entire file?
 	jne	ld4a			; no
 	cmp	es:[DDH_NEXT_OFF],-1	; a single header?
+	je	ld4b			; yes
+	cmp	byte ptr es:[DDH_NEXT_OFF],0EBh	; or a .COM's JMP SHORT?
 	jne	ld4a			; no
-	test	es:[DDH_ATTR],DDATTR_CHAR
+ld4b:	test	es:[DDH_ATTR],DDATTR_CHAR
 	jz	ld4a			; not a character device
 	cmp	es:[DDH_REQUEST],cx	; request handler inside the file?
 	jb	ld10			; yes
@@ -198,7 +202,24 @@ ld10a:	cmp	bx,cx
 	shr	bx,cl
 	mov	ah,DOS_MEM_REALLOC
 	int	21h
+;
+; Name the driver's memory block after the device, and have the block own
+; itself (like a resident program), so that MEM lists it by name.
+;
 ld11:	push	ds
+	push	es
+	pop	ds
+	ASSUME	DS:NOTHING		; DS = driver segment
+	mov	ax,ds
+	dec	ax
+	mov	es,ax			; ES:0 -> MCB
+	mov	es:[MCB_OWNER],ds
+	mov	si,DDH_NAME
+	mov	di,MCB_NAME
+	mov	cx,size MCB_NAME
+	rep	movsb
+	push	ds
+	pop	es			; ES = driver segment again
 	sub	ax,ax
 	mov	ds,ax
 	ASSUME	DS:BIOS

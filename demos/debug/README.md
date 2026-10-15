@@ -18,7 +18,7 @@ machines:
       A: "BASICDOS-DEBUG"
 ---
 
-This IBM PC XT boots the BASICDOS-DEBUG diskette with a local console and a debugger on a DEC VT100 connected to COM2 at 9600 baud. `DEBUG.SYS` is loaded by `DEVICE=` in CONFIG.SYS, independently of BASDEV. It opens and exclusively claims COM2; subsequent attempts to open that port fail.
+This IBM PC XT boots the BASICDOS-DEBUG diskette with a local console and a debugger on a DEC VT100 connected to COM2 at 9600 baud. `DEBUG.COM` is loaded by `DEVICE=` in CONFIG.SYS, independently of BASDEV. It opens and exclusively claims COM2; subsequent attempts to open that port fail.
 
 <div class="vt100-demo">
 <div class="vt100-demo-pc">
