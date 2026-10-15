@@ -7,7 +7,7 @@
 # and the system files that pc.js adds), utilities in BIN, and everything else (test programs, PRIMES, MSBASIC,
 # SYMDEB, etc) in TESTS.  A test configuration's CONFIG.SYS sets PATH$ to all three (eg, "A:\;A:\BIN;A:\TESTS"),
 # so the tests can be run by name.  There's no SAMPLES folder, since SAMPLES is reserved for the PC DOS BASIC
-# samples (see demos/basic), which don't fit on a 360K diskette with everything else.
+# samples (see demos/samples), which only the demo disks (eg, BASICDOS-DISK1) include.
 #
 # Only CONFIG.SYS and AUTOEXEC.BAT are tracked in those folders (see software/src/configs/.gitignore);
 # everything else is copied here, so build the sources first (see mk.sh) to make sure the copies are current.

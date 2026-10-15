@@ -6,7 +6,7 @@ machines:
   - id: ibm5150-4
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5160-dual-640kb.json
-    debugger: /demos/dual/debugger
+    debugger: /demos/dual/xt/debugger
     autoMount:
       A: "BASICDOS-DISK4"
 ---
@@ -19,7 +19,7 @@ The machine below is an IBM PC XT with 640K of memory and two monitors: a Monoch
 
 Foreground sessions are even more useful on Dual Monitor systems, like the one above, because each session has exclusive access to an entire screen.
 
-There's also a "[Dueling Monitors](../../demos/dual/multi/)" demo featuring FOUR active sessions (two per monitor).  This may be pushing the IBM PC a bit too far, but any session that's waiting for input has no impact on performance.
+There's also a "[Dueling Monitors](../../demos/dual/multi/xt/)" demo featuring FOUR active sessions (two per monitor).  This may be pushing the IBM PC a bit too far, but any session that's waiting for input has no impact on performance.
 
 It's important to note that BASIC-DOS is *not* attempting to emulate a "virtual machine" within each session.  That would require swapping global memory (eg, ROM BIOS Data) on every context-switch, which would be error-prone and slow.  And it's completely unnecessary, as long as BASIC-DOS apps rely exclusively on BASIC-DOS APIs.  Realistically, ROM BIOS APIs and data should only be used by BASIC-DOS itself (ie, BASIC-DOS device drivers).
 

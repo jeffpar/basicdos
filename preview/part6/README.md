@@ -5,16 +5,17 @@ permalink: /preview/part6/
 machines:
   - id: ibm5150
     type: pcx86
-    config: /machines/pcx86/ibm/ibm-5150-cga-256kb.json
+    config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
+    sizeRAM: 256
     autoMount:
-      A: "BASICDOS-DISK6"
+      A: "BASICDOS-DISK1"
 ---
 
 ### Part 6: Performance
 
-The machine below boots the `BASICDOS-DISK6` diskette, which includes BENCH.BAS, the benchmarks discussed on this page.  Type `BENCH` to run the benchmarks with BASIC-DOS, or `MSBASIC BENCH` to run them with GW-BASIC (type `SYSTEM` to return to BASIC-DOS afterward).  The full set of tests takes a few minutes, and each result is displayed as it completes.
+The machine below boots the `BASICDOS-DISK1` diskette, which includes BENCH.BAS, the benchmarks discussed on this page.  Type `BENCH` to run the benchmarks with BASIC-DOS, or `MSBASIC BENCH` to run them with GW-BASIC (type `SYSTEM` to return to BASIC-DOS afterward).  The full set of tests takes a few minutes, and each result is displayed as it completes.
 
-{% include machine.html id="ibm5150" %}
+{% include machine.html id="ibm5150" name="IBM PC, 256Kb RAM, Dual Floppy Drives, CGA" %}
 
 How does BASIC-DOS compare with the BASIC interpreters that IBM PC users actually had?  To find out, we wrote a set of benchmarks, [BENCH.BAS]({{ site.github.repository_url }}/blob/master/software/src/tests/misc/BENCH.BAS), that runs unchanged in all three environments:
 

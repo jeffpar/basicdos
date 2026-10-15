@@ -101,7 +101,7 @@ If the program isn't in the current directory, and its name doesn't include a dr
 
 and its CONFIG.SYS sets PATH$ to the root, BIN, SAMPLES, and TESTS (eg, `A:\;A:\BIN;A:\SAMPLES;A:\TESTS`), so you can type `PRIMES` or `DIR | SORT` from any directory.  Programs in TESTS can also be run by name (eg, `MSBASIC`).
 
-The [hard disk demo](/demos/hd/) adds two more directories: **SRC** (the BASIC-DOS source code) and **TOOLS** (MASM and the other build tools).
+The [hard disk demo](/demos/hd/at/) adds two more directories: **SRC** (the BASIC-DOS source code) and **TOOLS** (MASM and the other build tools).
 
 Use `LIST VARS` to inspect the current session's variable values and array dimensions; see [LIST](../cmd/system/#list).
 

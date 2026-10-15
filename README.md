@@ -32,13 +32,14 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 
 - [x] CON, with multiple console contexts (one per session)
 - [x] COM, AUX, LPT, PRN, NUL, CLOCK$, and PIPE$ devices
-- [x] Loadable character drivers via `DEVICE=` in CONFIG.SYS, including [DEBUG.COM on a serial port](demos/debug/), with SYMDEB-style memory dumps and register displays and exclusive ownership of its COM port
+- [x] CLOCK$ starts with the BIOS time of day and, on a PC AT, the real-time clock's date
+- [x] Loadable character drivers via `DEVICE=` in CONFIG.SYS, including [DEBUG.COM on a serial port](demos/debug/at/), with SYMDEB-style memory dumps and register displays and exclusive ownership of its COM port
 - [x] MOUSE$, a serial mouse driver (loaded only if a Microsoft-compatible mouse responds on a COM port at boot), with a minimal INT 33h interface (functions 00h-04h, 07h, 08h, and a BASIC-DOS function that returns queued button events), and a pointer drawn in MDA and CGA modes that preserves anything drawn over it
 - [x] Interrupt-driven, asynchronous I/O for CON and COM
 - [x] Floppy disk reads, including multi-track requests and requests that cross 64K boundaries
 - [x] Floppy disk writes
 - [x] Media check and BPB rebuilds (reads PC DOS 1.x and 2.x diskettes)
-- [x] *partial*: Hard disk reads and writes (HDC$), for the FAT12 primary partitions of up to two PC XT hard disks, which become drives C:, D:, etc. (drives A: and B: are always reserved for diskettes)
+- [x] *partial*: Hard disk reads and writes (HDC$), for the FAT12 primary partitions of up to two PC XT or PC AT hard disks, which become drives C:, D:, etc. (drives A: and B: are always reserved for diskettes)
 - [ ] Write-with-verify (DDC_WRITEV), formatting, and FAT16 hard disks
 - [ ] "Popup" and background console contexts
 
@@ -94,7 +95,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] When any command of a pipeline fails (eg, a program that can't be found, or no session available for it), the error is reported, the commands already running in other sessions are ended (DOS_UTL_END), and the first command never runs; and when a command stops reading a pipe early, the command writing to it gets a write error instead of waiting forever
 - [x] LIST VARS: list preserved strings (including PATH$), scalar values, and array dimensions in the current session
 - [x] PATH$: the directories searched for programs (eg, `PATH$="A:\;A:\BIN;A:\SAMPLES;A:\TESTS"` on a SHELL line in CONFIG.SYS); unlike other variables, it survives NEW and CLEAR
-- [x] Every BASIC-DOS disk has the same layout: BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, AUTOEXEC.BAT (if any), and HELP.TXT in the root, BASIC samples in BASIC, utilities in TOOLS, and test and demo programs in TESTS; HELP finds HELP.TXT in the root of the boot drive from any directory
+- [x] Every BASIC-DOS disk has the same layout: BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, AUTOEXEC.BAT (if any), and HELP.TXT in the root, utilities in BIN, the PC DOS 1.00 BASIC samples in SAMPLES (on disks that include them), and test and demo programs in TESTS; HELP finds HELP.TXT in the root of the boot drive from any directory
 - [ ] Input redirection (`<`)
 - [x] REN/RENAME/MV: rename files and directories and move them between directories on the same drive
 - [x] Loading tokenized (binary) BAS files saved by BASICA or GW-BASIC (eg, the samples on the PC DOS diskettes): they're converted back to text as they're loaded (as LIST would display them), including MBF floating-point constants (converted to IEEE doubles and formatted by FPU$); protected BAS files are still rejected with "Invalid file format"
@@ -169,7 +170,7 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] PSET, PRESET, LINE (including `LINE -(x,y)`, B, BF, and an omitted color), PAINT, and DRAW (U, D, L, R, E, F, G, H, M, B, N, C, and S), drawing directly into CGA memory in modes 4-6
 - [x] GET and PUT (PSET, PRESET, XOR, OR, and AND), using integer arrays (passed by name) in BASICA's image format, with one 16-bit word per element, so programs that build images by hand (like DONKEY.BAS's `B%`) work
 - [x] Syntax errors report the program's line number (eg, "Syntax error in line 1160") instead of the line's position in the file
-- [x] DONKEY.BAS runs (see the [DONKEY.BAS demo](demos/basic/))
+- [x] DONKEY.BAS runs (see the [single-session demo](demos/s80/pc/), whose diskette has all the samples)
 - [x] Performance: PUT and GET copy whole bytes (shifting and masking each row in registers), horizontal lines, BF, and PAINT fill whole bytes, and the video mode is cached, so graphics statements make no driver or BIOS calls; SOUND returns immediately (as in MSBASIC, the next SOUND waits for it to finish, and the CLOCK$ driver turns it off), so DONKEY.BAS is paced at one loop per tick, like MSBASIC
 - [x] CIRCLE (for CIRCLE.BAS, one of the other PC DOS 1.00 samples on the demo disk), using MSBASIC's algorithm and integer math (angles and aspects are converted from doubles without FPU$), so it draws the same pixels as MSBASIC, about twice as fast
 - [x] CLEAR (resets variables and erases arrays; its sizes are ignored)
@@ -198,6 +199,7 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [ ] More tests (eg, BASIC language and CMD command tests)
 - [x] BENCH.BAS and MICRO.BAS benchmarks, which run unchanged in BASIC-DOS, BASICA, and GW-BASIC (see the [results](preview/part6/)); `tools/tests/bench.sh` runs BENCH.BAS in all six configurations (each with and without an 8087) and prints the results in seconds
 - [x] HELP for commands, functions, and constants (eg, `HELP MID$`), found by searching HELP.TXT, so new entries need no other changes
+- [x] [Demos](demos/) for the IBM PC, PC XT, and PC AT, with one page per demo and machine
 - [x] [BASIC-DOS Manual](docs/bdman/): using BASIC-DOS, all commands and functions, programming, and configuration
 - [x] [BASIC-DOS Technical Reference](docs/bdtech/): architecture, DOS functions, utility functions, device drivers, the FPU$ interface, and internal structures
 

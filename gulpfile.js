@@ -78,7 +78,7 @@ const sysFiles = [ SRC + "/os/dev/obj/BASDEV.COM", SRC + "/os/dos/obj/BASDOS.COM
 const helpFile = SRC + "/os/cmd/HELP.TXT";
 const toolFiles = [ SRC + "/os/util/obj/*.COM" ];
 const primesFiles = [ SRC + "/tests/primes/PRIMES.BAS", SRC + "/tests/primes/PRIMES.BAT" ];
-const sampleFiles = [ "./demos/basic/*.BAS" ];      // the PC DOS 1.00 BASIC samples (and nothing else)
+const sampleFiles = [ "./demos/samples/*.BAS" ];    // the PC DOS 1.00 BASIC samples (and nothing else)
 const paintFile = "./demos/mouse/PAINT.BAS";
 const helloFile = SRC + "/tests/misc/HELLO.BAT";
 const extraFiles = [ SRC + "/tests/misc/SYMDEB.EXE", SRC + "/msb/obj/*.EXE" ];
@@ -110,7 +110,8 @@ let disks = {
     },
     "BASICDOS-DISK1": {
         config: "./demos/s80/CONFIG.SYS",
-        TESTS: testFiles
+        SAMPLES: sampleFiles,             // DONKEY.BAS and the other PC DOS 1.00 BASIC samples
+        TESTS: testFiles.concat([ SRC + "/tests/misc/BENCH.BAS", paintFile ])
     },
     "BASICDOS-DISK2": {
         config: "./demos/d40/CONFIG.SYS",
@@ -127,11 +128,6 @@ let disks = {
     "BASICDOS-DISK5": {
         config: "./demos/dual/multi/CONFIG.SYS",
         TESTS: testFiles
-    },
-    "BASICDOS-DISK6": {
-        config: "./demos/s80/CONFIG.SYS",
-        SAMPLES: sampleFiles,             // DONKEY.BAS and the other PC DOS 1.00 BASIC samples
-        TESTS: [ SRC + "/tests/misc/BENCH.BAS", helloFile, paintFile ].concat(primesFiles, extraFiles)
     },
     "BASICDOS-SERIAL": {
         config: "./demos/serial/CONFIG.SYS",

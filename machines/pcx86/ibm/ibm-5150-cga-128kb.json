@@ -5,7 +5,7 @@
     "fpu": "None",
     "fdc": "2 diskette drives",
     "parallel": "LPT1",
-    "serial": "COM1"
+    "serial": "COM1, COM2"
   },
   "machine": {
     "type": "pcx86",
@@ -269,6 +269,11 @@
       "class": "serial",
       "adapter": 1,
       "binding": "print"
+    },
+    {
+      "id": "com2",
+      "class": "serial",
+      "adapter": 2
     }
   ]
 }

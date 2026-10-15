@@ -1,7 +1,6 @@
 {
   "id": "keyboard",
   "class": "keyboard",
-  "model": "us83",
   "controls": [
     {
       "type": "group",

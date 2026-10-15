@@ -1,0 +1,106 @@
+{
+  "machine": {
+    "id": "ibm5170",
+    "type": "pcx86"
+  },
+  "computer": {
+    "id": "at-cga-640k",
+    "name": "IBM PC AT",
+    "buswidth": 24
+  },
+  "ram": [
+    {
+      "id": "ramLow",
+      "name": "",
+      "addr": "0x00000",
+      "size": "0xa0000",
+      "test": false
+    }
+  ],
+  "rom": [
+    {
+      "id": "romBIOS",
+      "addr": "0xf0000",
+      "size": "0x10000",
+      "alias": "0xff0000",
+      "file": "/machines/pcx86/roms/ATBIOS-REV3.json5"
+    }
+  ],
+  "video": [
+    {
+      "id": "videoCGA",
+      "name": "Color Display",
+      "model": "",
+      "mode": 3,
+      "screenWidth": 640,
+      "screenHeight": 400,
+      "scale": true,
+      "charCols": 80,
+      "charRows": 25,
+      "fontROM": "/machines/pcx86/roms/IBM-CGA.json5",
+      "screenColor": "black",
+      "touchScreen": false
+    }
+  ],
+  "cpu": {
+    "id": "cpu286",
+    "name": "",
+    "model": 80286,
+    "clock": 0,
+    "multiplier": 1,
+    "autoStart": true,
+    "csStart": -1,
+    "csInterval": -1,
+    "csStop": -1
+  },
+  "keyboard": {
+    "id": "keyboard",
+    "name": "",
+    "model": ""
+  },
+  "fdc": {
+    "id": "fdcNEC",
+    "name": "",
+    "autoMount": {
+      "A": {
+        "name": "PC DOS 2.00 (Disk 1)",
+        "path": "/diskettes/pcx86/sys/dos/ibm/2.00/PCDOS200-DISK1.json"
+      },
+      "B": {
+        "name": "PC DOS 2.00 (Disk 2)",
+        "path": "/diskettes/pcx86/sys/dos/ibm/2.00/PCDOS200-DISK2.json"
+      }
+    },
+    "diskettes": "/machines/pcx86/diskettes.json,/disks/pcsigdisks/pcx86/diskettes.json"
+  },
+  "hdc": {
+    "id": "hdcAT",
+    "type": "AT",
+    "drives": [
+      {
+        "name": "10Mb Hard Disk",
+        "type": 1
+      }
+    ]
+  },
+  "chipset": {
+    "id": "chipset",
+    "name": "",
+    "model": 5170,
+    "floppies": [
+      360,
+      360
+    ],
+    "monitor": "color",
+    "sound": false
+  },
+  "serial": {
+    "id": "com1",
+    "adapter": 1
+  },
+  "debugger": {
+    "id": "debugger",
+    "name": "",
+    "messages": ""
+  }
+}
