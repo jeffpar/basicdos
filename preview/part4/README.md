@@ -7,18 +7,18 @@ machines:
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
     autoMount:
-      A: "BASICDOS-DISK2"
+      A: "BASICDOS-360K-D40"
   - id: ibm5150-3
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
     autoMount:
-      A: "BASICDOS-DISK3"
+      A: "BASICDOS-360K-D80"
     autoType: MEM -D\r
 ---
 
 ### Part 4: Pipes and Sessions
 
-The two machines below each run two *foreground* sessions on the same screen.  The first boots the `BASICDOS-DISK2` diskette, whose CONFIG.SYS defines two 40-column sessions side by side; use **SHIFT-TAB** to toggle keyboard focus between them, and notice how the border changes to indicate which session has focus (the second session runs `DIR | CASE` in a loop, which you can stop with CTRL-C).  The second boots the `BASICDOS-DISK3` diskette, whose CONFIG.SYS defines two 80-column sessions, one above the other, and runs `MEM -D` to display memory usage.
+The two machines below each run two *foreground* sessions on the same screen.  The first boots the `BASICDOS-360K-D40` diskette, whose CONFIG.SYS defines two 40-column sessions side by side; use **SHIFT-TAB** to toggle keyboard focus between them, and notice how the border changes to indicate which session has focus (the second session runs `DIR | CASE` in a loop, which you can stop with CTRL-C).  The second boots the `BASICDOS-360K-D80` diskette, whose CONFIG.SYS defines two 80-column sessions, one above the other, and runs `MEM -D` to display memory usage.
 
 {% include machine.html id="ibm5150-2" %}
 

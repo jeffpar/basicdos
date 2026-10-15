@@ -14,6 +14,6 @@ The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 640K of memory
 
 Any changes you make to the hard disk are lost when you leave the page, unless you first click **Save HD** to download the hard disk as an IMG file.
 
-This demo is also available on an [IBM PC XT](../xt/).
+This demo is also available on an [IBM PC XT](../xt/) and a [COMPAQ DeskPro 386](../386/).
 
 {% include_relative _overview.md hw="at" %}

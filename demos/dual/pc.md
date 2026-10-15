@@ -7,15 +7,15 @@ machines:
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-dual-128kb.json
     autoMount:
-      A: "BASICDOS-DISK4"
+      A: "BASICDOS-360K-DUAL"
 ---
 
-The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 128K of memory, two monitors (a Monochrome Display and a Color Display), and two diskette drives.  It boots the BASICDOS-DISK4 diskette and runs one session on each monitor: PRIMES.BAT on the Monochrome Display and, since there's no hard disk, BD3.BAT on the Color Display, which pipes the output of DIR through the CASE filter over and over.
+The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 128K of memory, two monitors (a Monochrome Display and a Color Display), and two diskette drives.  It boots the BASICDOS-360K-DUAL diskette and runs one session on each monitor: PRIMES.BAT on the Monochrome Display and, since there's no hard disk, PIPES.BAT on the Color Display, which pipes the output of DIR through the CASE filter over and over.
 
 {% include machine.html id="ibm5150" %}
 
-Use **SHIFT-TAB** to move keyboard focus from one session to the next.  For even more sessions, try the ["Dueling Monitors"](../multi/pc/) demo, which runs FOUR sessions, two on each monitor.
+Use **SHIFT-TAB** to move keyboard focus from one session to the next.  For even more sessions, try the [Dueling Monitors](../multi/pc/) demo, which runs FOUR sessions, two on each monitor.
 
-This demo is also available on an [IBM PC XT](../xt/) and an [IBM PC AT](../at/).
+This demo is also available on an [IBM PC XT](../xt/), an [IBM PC AT](../at/), and a [COMPAQ DeskPro 386](../386/).
 
 {% include_relative _overview.md hw="pc" %}

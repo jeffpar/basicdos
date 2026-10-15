@@ -1,0 +1,57 @@
+#
+# BASIC-DOS Distribution Manifest
+#
+# Each [section] lists the files (relative to the repository root, with optional
+# wildcards) that belong in the corresponding folder of a BASIC-DOS disk:
+#
+#   ROOT     the root directory, in order; "CONFIG.SYS" stands for each disk's own
+#            CONFIG.SYS (followed by AUTOEXEC.BAT, if its SHELL lines run one)
+#   BIN      BASIC-DOS utilities and drivers (distribution)
+#   SAMPLES  the PC DOS 1.00 BASIC samples (distribution)
+#   DEMOS    the programs that the demos run
+#   TESTS    test programs (and other programs used for testing)
+#
+# gulpfile.js builds every demo diskette with ROOT, BIN, SAMPLES, and DEMOS, the
+# BASICDOS-360K-TESTS diskette with TESTS, and the BASICDOS-10MB hard disk with all
+# of them (plus SRC and TOOLS).  tools/tests/prep.sh copies BIN into each test
+# configuration's BIN folder, and DEMOS and TESTS into its TESTS folder.
+#
+[ROOT]
+CONFIG.SYS
+software/src/os/dev/obj/BASDEV.COM
+software/src/os/dos/obj/BASDOS.COM
+software/src/os/cmd/obj/COMMAND.COM
+software/src/os/cmd/HELP.TXT
+
+[BIN]
+software/src/os/util/misc/obj/*.COM
+software/src/os/util/vi/obj/VI.COM
+software/src/os/dd/dbg/obj/DEBUG.COM
+
+[SAMPLES]
+demos/samples/*.BAS
+
+[DEMOS]
+software/src/tests/misc/BENCH.BAS
+software/src/tests/misc/FIBO.BAT
+software/src/tests/misc/HELLO.BAT
+software/src/tests/misc/PIPES.BAT
+demos/mouse/PAINT.BAS
+software/src/tests/primes/PRIMES.BAS
+software/src/tests/primes/PRIMES.BAT
+software/src/tests/bin/PRIMES.EXE
+
+[TESTS]
+software/src/tests/bin/*.COM
+software/src/tests/misc/ARRAYS.BAS
+software/src/tests/misc/CMDS.BAT
+software/src/tests/misc/FILEIO.BAS
+software/src/tests/misc/FLOW.BAS
+software/src/tests/misc/MICRO.BAS
+software/src/tests/misc/MOVES.BAS
+software/src/tests/misc/STRESS.BAT
+software/src/tests/misc/STRFUN.BAS
+software/src/tests/misc/STRPOOL.BAS
+software/src/tests/misc/VARS.BAS
+software/src/tests/misc/SYMDEB.EXE
+software/src/msb/OBJ/MSBASIC.EXE

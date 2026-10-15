@@ -263,10 +263,22 @@ hi2:	les	di,[bx].SFB_DEVICE	; ES:DI -> driver
 	jc	hi8			; return error in REG_AX
 	mov	[bp].REG_DX,dx		; REG_DX = result
 ;
+; Record whether the process has raw keys enabled, so that if it ends without
+; disabling them, psp_termcode can do it (see reset_keys).
+;
+	cmp	byte ptr [bp].REG_AL,IOCTL_SETKEYS
+	jne	hi9
+	call	get_psp
+	jz	hi9
+	mov	es,ax
+	mov	al,[bp].REG_CL
+	mov	es:[PSP_RAWKEYS],al
+;
 ; TODO: PC DOS 2.00 apparently returns the result in REG_AX as well as REG_DX.
 ; If we wish to do the same, then xchg ax,dx and jmp hs8.  However, there's no
 ; need if no one depended on that behavior.
 ;
+hi9:	clc
 	ret
 ENDPROC	hdl_ioctl
 

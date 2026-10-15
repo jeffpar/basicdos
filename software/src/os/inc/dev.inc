@@ -155,3 +155,21 @@ FDCX		struc
 FDCX_RW		dw	?	; read/write request at ES:DI (AL = BIOS drive)
 FDCX_RDBUF	dw	?	; read LBA DX into FDC buffer (see fdc_rdbuf)
 FDCX		ends
+
+;
+; The CLOCK$ driver's exports, which immediately follow its DDH, so that other
+; drivers (which find the CLOCK$ driver with CLOCK_DEVICE) can use its timers
+; (see ddclk_timer in clkdev.asm), instead of hooking the timer interrupt.
+; Only modules that define CLKTIMER get these definitions.
+;
+	IFDEF	CLKTIMER
+CLKX		struc
+CLKX_TIMER	dw	?	; start (or cancel) the timer at ES:DI for CX ms
+CLKX		ends
+
+TMR		struc
+TMR_NEXT	dd	?	; next timer (used by CLOCK$)
+TMR_TICKS	dw	?	; ticks remaining (used by CLOCK$)
+TMR_FUNC	dd	?	; far function to call when the timer expires
+TMR		ends
+	ENDIF	; CLKTIMER

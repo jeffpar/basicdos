@@ -14,10 +14,12 @@
 ; Page numbers are from the first IBM 5150 Technical Reference Manual (1981)
 ;
 ; Modules that need only these vectors (and not the rest of the BIOSEQU
-; definitions) can define BIOSVEC instead of BIOSEQU.
+; definitions) can define BIOSVEC instead of BIOSEQU, and modules that need
+; only the keyboard scan codes can define BIOSKEYS.
 ;
 	IFDEF	BIOSEQU
 BIOSVEC	equ	1
+BIOSKEYS equ	1
 	ENDIF
 
 	IFDEF	BIOSVEC
@@ -52,6 +54,7 @@ VIDEO_SETMODE	equ	00h	; AL=mode
 VIDEO_SETCTYPE	equ	01h	; CH=cursor top, CL=cursor bottom
 VIDEO_SETCPOS	equ	02h	; DH=row, DL=col, BH=display page
 VIDEO_SCROLL	equ	06h	; AL=# lines, BH=fill attribute, CX/DX=coords
+VIDEO_SCROLLDN	equ	07h	; scroll down (same inputs as VIDEO_SCROLL)
 VIDEO_WRITECA	equ	09h	; AL=char, BL=attribute, BH=display page, CX=count
 VIDEO_SETPAL	equ	0Bh	; BH=0: BL=background, BH=1: BL=palette
 VIDEO_TTYOUT	equ	0Eh	; AL=char, BH=display page
@@ -71,6 +74,7 @@ FDCERR_BADCMD	equ	01h	; bad (BIOS) command
 FDCERR_BADMARK	equ	02h	; bad address mark
 FDCERR_WP	equ	03h	; write-protect error
 FDCERR_NOSECTOR	equ	04h	; sector not found
+FDCERR_CHANGED	equ	06h	; media changed (PC AT only)
 FDCERR_DMAOVR	equ	08h	; DMA overrun error
 FDCERR_DMA64K	equ	09h	; DMA (64K) boundary error
 FDCERR_CRC	equ	10h	; CRC error
@@ -83,7 +87,9 @@ FDCERR_NOTREADY	equ	80h	; aka timeout
 ;
 KBD_READ	equ	00h	; returns char code in AL, scan code in AH
 KBD_CHECK	equ	01h	; returns ZF set if no key
+	ENDIF	; BIOSEQU
 
+	IFDEF	BIOSKEYS
 ;
 ; BIOS-generated keyboard char codes and scan codes that we care about.
 ;
@@ -114,7 +120,9 @@ SCAN_CTRL_END	equ	75h	; ctrl-end
 SCAN_CTRL_PGDN	equ	76h	; ctrl-page-down
 SCAN_CTRL_HOME	equ	77h	; ctrl-home
 SCAN_CTRL_PGUP	equ	84h	; ctrl-page-up
+	ENDIF	; BIOSKEYS
 
+	IFDEF	BIOSEQU
 ;
 ; INT_TIME functions
 ;
@@ -312,7 +320,8 @@ LOGICAL_DRIVE	db	?		; 504h: (00h for A: or 01h for B:)
 FDC_UNITS	db	?		; 505h: # floppy drives
 FDC_DEVICE	dd	?		; 506h: FDC driver header
 DD_LIST		dd	?		; 50Ah: head of device driver list
-		db	20 dup (?)	; 50Eh: reserved
+CLOCK_DEVICE	dd	?		; 50Eh: CLOCK$ driver header
+		db	16 dup (?)	; 512h: reserved
 DPT_ACTIVE	DPT	<>		; 522h: active DPT
 BOOT_KEY	dw	?		; 52Dh: set by boot sector
 		db	1 dup (?)	; 52Fh: paragraph padding

@@ -15,13 +15,14 @@ machines:
     config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
     connection: com2->vt100.serialPort
     autoMount:
-      A: "BASICDOS-DEBUG"
+      A: "BASICDOS-360K-DEBUG"
+      B: "BASICDOS-360K-TESTS"
 ---
 
-The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 128K of memory, a Color Display, and two diskette drives.  It boots the BASICDOS-DEBUG diskette with a local console and a debugger on a DEC VT100 connected to COM2 at 9600 baud.  Wait for the debugger's startup message on the VT100, then click its screen and press **Ctrl-C** to stop the machine; type `?` for help, or `G` to resume.
+The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 128K of memory, a Color Display, and two diskette drives.  It boots the BASICDOS-360K-DEBUG diskette with a local console and a debugger on a DEC VT100 connected to COM2 at 9600 baud.  Wait for the debugger's startup message on the VT100, then click its screen and press **Ctrl-C** to stop the machine; type `?` for help, or `G` to resume.
 
 {% include vt100-demo.html id="ibm5150" %}
 
-This demo is also available on an [IBM PC XT](../xt/) and an [IBM PC AT](../at/).
+This demo is also available on an [IBM PC XT](../xt/), an [IBM PC AT](../at/), and a [COMPAQ DeskPro 386](../386/).
 
 {% include_relative _overview.md hw="pc" %}

@@ -1,6 +1,6 @@
 	REM Usage: MK [FINAL or DEBUG] [CLEAN] (FINAL is the default; CLEAN first
 	REM deletes everything in each OBJ folder, for a clean build).
-	REM Builds BASIC-DOS on BASIC-DOS (eg, in SRC on BASICDOS-HD).
+	REM Builds BASIC-DOS on BASIC-DOS (eg, in SRC on BASICDOS-10MB).
 	REM NOTE: MAKE can't tell when the mode changes, so use CLEAN to
 	REM rebuild everything in a new mode.
 	M$ = UCASE$(ARG$(1))
@@ -15,7 +15,8 @@
 	IF ERRORLEVEL = 0 THEN CD ..\DEV : GOSUB 300
 	IF ERRORLEVEL = 0 THEN CD ..\DOS : GOSUB 300
 	IF ERRORLEVEL = 0 THEN CD ..\CMD : GOSUB 300
-	IF ERRORLEVEL = 0 THEN CD ..\UTIL : GOSUB 300
+	IF ERRORLEVEL = 0 THEN CD ..\UTIL\MISC : GOSUB 300 : CD ..
+	IF ERRORLEVEL = 0 THEN CD VI : GOSUB 300 : CD ..
 	IF ERRORLEVEL THEN PRINT "OS make failed"
 	CD ..
 	END

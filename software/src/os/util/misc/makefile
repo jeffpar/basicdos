@@ -10,7 +10,7 @@
 ASM=MASM
 LINK=LINK
 EXE2BIN=EXE2BIN
-AFLAGS=/MX /R /D$(REL) /I. /I..\INC
+AFLAGS=/MX /R /D$(REL) /I. /I..\..\INC
 #
 # Listings are off; to create them, set LST=OBJ\$*.LST
 #

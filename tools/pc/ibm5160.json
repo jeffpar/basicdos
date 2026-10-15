@@ -102,10 +102,16 @@
     "@note": "The above switch settings indicate '256K, No FPU, Color Monitor, 2 Floppy Drives'",
     "sound": false
   },
-  "serial": {
-    "id": "com1",
-    "adapter": 1
-  },
+  "serial": [
+    {
+      "id": "com1",
+      "adapter": 1
+    },
+    {
+      "id": "com2",
+      "adapter": 2
+    }
+  ],
   "debugger": {
     "id": "debugger",
     "name": "",

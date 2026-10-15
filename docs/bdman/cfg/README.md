@@ -99,14 +99,20 @@ Sends diagnostic messages from DEBUG builds of BASIC-DOS to the specified device
 
 Loads an installable device driver, passing it any *arguments*.  DEVICE lines are processed in order, after the first console has been opened (so that any errors can be reported) and before any other consoles are opened.  If a driver can't be loaded, a warning is displayed (eg, `Warning: unable to load device DEBUG.COM (31)`) and startup continues.
 
-BASIC-DOS includes one installable driver, DEBUG.COM, a simple debugger that runs on a terminal connected to a serial port; its argument is the port's settings, using the same format as a COM [CONSOLE](#console) (eg, `DEVICE=DEBUG.COM COM2:9600,N,8,1,VT100`).  The debugger claims the port, so no other program or console can open it.  On the terminal, CTRL-C (or BREAK) stops the machine as soon as it arrives, and INT 1 and INT 3 also stop it; then the commands are:
+BASIC-DOS includes one installable driver, DEBUG.COM (in the BIN directory), a simple debugger that runs on a terminal connected to a serial port; its argument is the port's settings, using the same format as a COM [CONSOLE](#console) (eg, `DEVICE=BIN\DEBUG.COM COM2:9600,N,8,1,VT100`).  The debugger claims the port, so no other program or console can open it.  On the terminal, CTRL-C (or BREAK) stops the machine as soon as it arrives, as do breakpoints, single-steps, and any other INT 1 or INT 3.  The debugger then displays the registers and the instruction at CS:IP, and accepts these commands (all numbers are hexadecimal; an *address* is [*segment*:]*offset*, where *segment* may also be a register name such as DS or CS, and a *range* is *address* [*end* | L *count*]):
 
-- D [[*segment*:]*offset* [*end* | L *count*]] to display memory in hex (*segment* may also be DS, ES, SS, or CS)
-- R to display the registers
-- G to resume
+- BP[*n*] *address* to set breakpoint *n* (1-9), or the first free one, at *address*
+- BC *n* [*n*...] to clear breakpoints (or BC \* to clear them all)
+- BL to list the breakpoints (with the instruction at each)
+- D [*range*] to display memory in hex (128 bytes by default, continuing from the last D)
+- E *address* [*list*] to store a list of bytes and quoted strings at *address*; without a list, E displays each byte and prompts for its replacement (an empty line ends)
+- G [*address*] to resume, after setting the breakpoints (and a temporary one at *address*)
+- R to display the registers; R *reg* [*value*] to change a register (it prompts if there's no *value*); R F to display the flags and prompt for new flag names (eg, `CY ZR`)
+- T [*count*] to execute *count* instructions (default 1), displaying the registers after each; like DEBUG, T steps into an INT by simulating it
+- U [*range*] to disassemble 8086 instructions (32 bytes by default, continuing from the last U, or from CS:IP)
 - ? for help
 
-The driver's device name is DEBUG$.  DEBUG.COM can also be run from the prompt, without loading it as a driver: it displays the registers as of the program's start, and the same commands work on the console, along with Q to quit (G also exits).
+The driver's device name is DEBUG$.  DEBUG.COM can also be run from the prompt, without loading it as a driver: it displays the registers as of the program's start, and the same commands work on the console, along with Q to quit (G also exits).  Since the console uses DOS, breakpoints in DOS itself should be set only with the driver.
 
 ### FILES
 
@@ -134,9 +140,9 @@ Sessions are used not only by consoles, but also by [pipes](../intro/#pipes-and-
 
 Specifies the program to run in the next session, along with any startup commands.  Each SHELL line starts a session, using the consoles defined by CONSOLE lines in order.  If there are no SHELL lines, COMMAND.COM is run in the first session.  A SHELL line without a console of its own is reported as an error (101) and skipped.  A session starts on the drive specified by its *program* (eg, `SHELL=C:/COMMAND.COM` starts on drive C:), or else on the boot drive.
 
-BASIC-DOS doesn't automatically run an AUTOEXEC.BAT file, so a session's startup commands must be specified on its SHELL line, separated by colons.  Every BASIC-DOS disk's CONFIG.SYS also sets [PATH$](../cmd/basic/func/#path) on each SHELL line, so that every session can find the programs in the BIN, SAMPLES, and TESTS directories:
+BASIC-DOS doesn't automatically run an AUTOEXEC.BAT file, so a session's startup commands must be specified on its SHELL line, separated by colons.  Every BASIC-DOS disk's CONFIG.SYS also sets [PATH$](../cmd/basic/func/#path) on each SHELL line, so that every session can find the programs in the BIN, SAMPLES, and DEMOS directories:
 
-	SHELL=COMMAND.COM PATH$="A:\;A:\BIN;A:\SAMPLES;A:\TESTS":COLOR 7,1:AUTOEXEC.BAT
+	SHELL=COMMAND.COM PATH$="A:\;A:\BIN;A:\SAMPLES;A:\DEMOS":COLOR 7,1:AUTOEXEC.BAT
 
 ### SKIP
 

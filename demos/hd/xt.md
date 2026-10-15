@@ -16,6 +16,6 @@ The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memo
 
 Any changes you make to the hard disk are lost when you leave the page, unless you first click **Save HD** to download the hard disk as an IMG file.
 
-This demo is also available on an [IBM PC AT](../at/).
+This demo is also available on an [IBM PC AT](../at/) and a [COMPAQ DeskPro 386](../386/).
 
 {% include_relative _overview.md hw="xt" %}

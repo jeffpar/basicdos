@@ -34,7 +34,7 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	dw	ddcon_none,   ddcon_getdim, ddcon_getpos, ddcon_getlen	; D0-D3
 	dw	ddcon_movcur, ddcon_setins, ddcon_scroll, ddcon_getclr	; D4-D7
 	dw	ddcon_setclr, ddcon_setpos, ddcon_getmode,ddcon_setmode	; D8-DB
-	dw	ddcon_getchar						; DC
+	dw	ddcon_getchar,ddcon_setkeys				; DC-DD
 	DEFABS	IOCTBL_SIZE,<($ - IOCTBL) SHR 1>
 
 	DEFLBL	CON_PARMS,word
@@ -123,6 +123,7 @@ CTO_MODE	db	?	; 36h: original video mode
 CTO_STATUS	db	?	; 37h: original CTSTAT_BORDER and CTSTAT_INT10
 CTO_DIM		dw	?	; 38h: original columns (LO) and rows (HI)
 CTO_POS		dw	?	; 3Ah: original position (X,Y) of top left
+CT_SCAN		db	?	; 3Ch: pending scan code (see pull_kbd)
 CONTEXT		ends
 SIG_CT		equ	'C'
 
@@ -131,6 +132,7 @@ CTSTAT_ADAPTER	equ	02h	; context is using alternate adapter
 CTSTAT_SKIPMODE	equ	04h	; set to skip the mode set for the adapter
 CTSTAT_ABORT	equ	08h	; ABORT condition detected
 CTSTAT_INT10	equ	10h	; context writes characters using INT 10h
+CTSTAT_RAWKEYS	equ	20h	; context returns raw keys (see IOCTL_SETKEYS)
 CTSTAT_INPUT	equ	40h	; context is waiting for input
 CTSTAT_PAUSED	equ	80h	; context is paused (triggered by CTRLS hotkey)
 
@@ -355,6 +357,34 @@ dgr5:	add	dx,ds:[CT_CONPOS]	; DL = screen col, DH = screen row
 dgr8:	stc
 	ret
 ENDPROC	ddcon_getchar
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ddcon_setkeys (IOCTL_SETKEYS)
+;
+; In raw keys mode, non-ASCII keys (eg, cursor keys) are returned as a zero
+; followed by the key's scan code, instead of being mapped to control keys.
+;
+; Inputs:
+;	ES:DI -> DDPRW
+;	CL = 1 for raw keys, 0 for normal keys
+;	DS = CONSOLE context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddcon_setkeys
+	mov	ds:[CT_SCAN],0
+	and	ds:[CT_STATUS],NOT CTSTAT_RAWKEYS
+	test	cl,cl			; raw keys requested?
+	jz	dsk9			; no (carry clear)
+	or	ds:[CT_STATUS],CTSTAT_RAWKEYS
+dsk9:	ret
+ENDPROC	ddcon_setkeys
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -971,6 +1001,7 @@ dco1a:	mov	ds,ax
 ;	mov	ds:[CT_NEXT],ax
 ;
 dco2:	mov	ds:[CT_NEXT],0
+	mov	ds:[CT_SCAN],0
 	mov	bl,1			; set CT_REFS to 1 and CT_STATUS to BH
 	mov	word ptr ds:[CT_REFS],bx
 	sub	si,si			; no CURTYPE yet
@@ -2089,8 +2120,17 @@ ENDPROC	move_cursor
 DEFPROC	pull_kbd
 	push	bx
 	push	ds
+;
+; In raw keys mode, a non-ASCII key is returned as a zero followed by its
+; scan code (as on PC DOS), so the scan code is held in CT_SCAN until then.
+;
+pl1:	mov	ds,es:[di].DDP_CONTEXT
+	sub	ax,ax
+	xchg	al,ds:[CT_SCAN]
+	test	al,al			; pending scan code?
+	jnz	pl7			; yes
 
-pl1:	sub	bx,bx
+	sub	bx,bx
 	mov	ds,bx
 	ASSUME	DS:BIOS
 	cli
@@ -2117,10 +2157,15 @@ pl3:	sti
 ; now, using the scan code in AH.  If there's no mapping, we end up returning
 ; a zero ASCII code.
 ;
-; TODO: Add support for reading "raw" keys.  For now, if a non-ASCII key has
-; no mapping, it can't be detected.
+; In raw keys mode, there's no mapping (see above).
 ;
-pl4:	push	si
+pl4:	mov	ds,es:[di].DDP_CONTEXT
+	test	ds:[CT_STATUS],CTSTAT_RAWKEYS
+	jz	pl4a
+	mov	ds:[CT_SCAN],ah		; return the scan code next
+	mov	al,0
+	jmp	short pl7
+pl4a:	push	si
 	mov	si,offset SCAN_MAP
 pl5:	lods	byte ptr cs:[si]
 	test	al,al			; end of SCAN_MAP?
@@ -2155,9 +2200,10 @@ ENDPROC	pull_kbd
 ;
 ; scroll
 ;
-; Set CL to +/- lines to scroll.  To clear the entire interior, set
-; CL >= # lines (eg, 100).  To clear the entire context, including any
-; border, set CL to zero (typically only done when destroying a context).
+; Set CL to +/- lines to scroll (negative scrolls down).  To clear the entire
+; interior, set CL >= # lines (eg, 100).  To clear the entire context,
+; including any border, set CL to zero (typically only done when destroying
+; a context).
 ;
 ; Inputs:
 ;	CL = # lines
@@ -2172,14 +2218,18 @@ DEFPROC	scroll
 	push	cx
 	push	dx
 	xchg	ax,cx			; AL = # lines now
+	mov	bl,VIDEO_SCROLL		; scroll up # lines in AL
 	mov	cx,ds:[CT_CONPOS]
 	mov	dx,cx
 	test	al,al			; zero?
 	jnz	scr0			; no
 	add	dx,ds:[CT_CONDIM]	; yes, clear entire context
 	jmp	short scr2		; (including border, if any)
-scr0:	cmp	al,ds:[CT_CONDIM].HIB
-	jl	scr1
+scr0:	jns	scr0a			; scroll down (negative)?
+	neg	al			; yes
+	mov	bl,VIDEO_SCROLLDN
+scr0a:	cmp	al,ds:[CT_CONDIM].HIB
+	jb	scr1
 	mov	al,0			; zero tells BIOS to clear all lines
 scr1:	add	cx,ds:[CT_CURMIN]	; CH = row, CL = col of upper left
 	add	dx,ds:[CT_CURMAX]	; DH = row, DL = col of lower right
@@ -2187,7 +2237,7 @@ scr2:	mov	bh,ds:[CT_COLOR].LOB	; BH = fill attributes
 	call	chk_graphics		; graphics mode?
 	jnc	scr3			; no
 	mov	bh,0			; yes, BH = fill pixels (background)
-scr3:	mov	ah,VIDEO_SCROLL		; scroll up # lines in AL
+scr3:	mov	ah,bl
 	int	INT_VIDEO
 	pop	dx
 	pop	cx

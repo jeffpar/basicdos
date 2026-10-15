@@ -3,11 +3,10 @@
 # Copies the BASIC-DOS test binaries and batch files into the specified configuration folder
 # (eg, software/src/configs/console/serial/fpe) before boot.sh (in the repository root) or another script in tools/tests boots it.
 #
-# The files follow the standard BASIC-DOS disk layout: HELP.TXT in the root (with CONFIG.SYS and AUTOEXEC.BAT,
-# and the system files that pc.js adds), utilities in BIN, and everything else (test programs, PRIMES, MSBASIC,
-# SYMDEB, etc) in TESTS.  A test configuration's CONFIG.SYS sets PATH$ to all three (eg, "A:\;A:\BIN;A:\TESTS"),
-# so the tests can be run by name.  There's no SAMPLES folder, since SAMPLES is reserved for the PC DOS BASIC
-# samples (see demos/samples), which only the demo disks (eg, BASICDOS-DISK1) include.
+# The files come from software/manifest.txt: HELP.TXT from ROOT (pc.js adds the system files, and each configuration
+# has its own CONFIG.SYS and AUTOEXEC.BAT), utilities from BIN in BIN, and the DEMOS and TESTS files together in TESTS.
+# A test configuration's CONFIG.SYS sets PATH$ to all three (eg, "A:\;A:\BIN;A:\TESTS"), so the tests can be run by
+# name.  There's no SAMPLES folder, since only the BASIC-DOS disks built by gulpfile.js include the PC DOS BASIC samples.
 #
 # Only CONFIG.SYS and AUTOEXEC.BAT are tracked in those folders (see software/src/configs/.gitignore);
 # everything else is copied here, so build the sources first (see mk.sh) to make sure the copies are current.
@@ -19,24 +18,20 @@ if [ ! -f "$dir/CONFIG.SYS" ]; then
     echo "usage: $0 [configuration folder containing CONFIG.SYS]" >&2
     exit 1
 fi
-files_root=(
-    "$src"/os/cmd/HELP.TXT
-)
-files_bin=(
-    "$src"/os/util/OBJ/*.COM
-)
-files_tests=(
-    "$src"/tests/primes/PRIMES.BAS
-    "$src"/tests/primes/PRIMES.BAT
-    "$src"/tests/bin/*.COM
-    "$src"/tests/bin/*.EXE
-    "$src"/tests/misc/BD*.BAT
-    "$src"/tests/misc/HELLO.BAT
-    "$src"/tests/misc/CMDS.BAT
-    "$src"/tests/misc/*.BAS
-    "$src"/tests/misc/SYMDEB.EXE
-    "$src"/msb/OBJ/MSBASIC.EXE
-)
+#
+# manifest [section]
+#
+# Prints the files in a section of software/manifest.txt, with wildcards expanded.
+#
+manifest() {
+    local f
+    for f in $(awk -v s="[$1]" '/^\[/ {on = ($1 == s); next} on && NF && $1 !~ /^#/ {print $1}' "$root/software/manifest.txt"); do
+        echo "$root"/$f
+    done
+}
+files_root=($(manifest ROOT | grep -v -e '/CONFIG\.SYS$' -e '\.COM$'))
+files_bin=($(manifest BIN))
+files_tests=($(manifest DEMOS) $(manifest TESTS))
 #
 # copy [subfolder] [files...]
 #

@@ -7,10 +7,10 @@ machines:
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5160-cga-serial-640kb.json
     autoMount:
-      A: "BASICDOS-SERIAL"
+      A: "BASICDOS-360K-SERIAL"
 ---
 
-This IBM PC XT boots BASIC-DOS from the BASICDOS-SERIAL diskette and runs two independent sessions: an 80x25 console on the Color Display and a serial console on COM1 at 9600 baud, with no parity, eight data bits, and one stop bit.  The serial console uses the GENERIC terminal mode for this text pane.
+This IBM PC XT boots BASIC-DOS from the BASICDOS-360K-SERIAL diskette and runs two independent sessions: an 80x25 console on the Color Display and a serial console on COM1 at 9600 baud, with no parity, eight data bits, and one stop bit.  The serial console uses the GENERIC terminal mode for this text pane.
 
 Click the **Serial Display** pane to the right of the machine and type a command, such as `DIR` or `PRINT "Hello from COM1"`.  Click the Color Display to use the local session.  Both sessions share the same hard disk.
 
@@ -33,7 +33,7 @@ Click the **Serial Display** pane to the right of the machine and type a command
 
 Press any key at the boot prompt (or wait 5 seconds) to start the diskette.  Its CONFIG.SYS creates both consoles and launches `C:COMMAND.COM` for each.  Each session starts on the drive named in its SHELL line, so both sessions start on C:.  The [hard disk](../hd/xt/) supplies programs and files.
 
-### CONFIG.SYS from the BASICDOS-SERIAL diskette
+### CONFIG.SYS from the BASICDOS-360K-SERIAL diskette
 
 ```
 {% include_relative CONFIG.SYS %}

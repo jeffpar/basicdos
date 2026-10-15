@@ -13,7 +13,7 @@
 #
 # The first command must be an internal command (eg, VER), because pc.js converts only the first
 # command into a path (eg, "\DOSTESTS.COM"), which BASIC-DOS doesn't understand.  Also, since output
-# at the end of a session may be truncated by QUIT, the last test is followed by SLEEP 1 (SLEEP.COM from os/util).
+# at the end of a session may be truncated by QUIT, the last test is followed by SLEEP 1 (SLEEP.COM from os/util/misc).
 #
 cd "$(dirname "$0")/../.." || exit 1
 tools/tests/prep.sh software/src/configs/console/serial/fpe || exit 1

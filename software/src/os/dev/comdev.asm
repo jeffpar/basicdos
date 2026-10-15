@@ -8,6 +8,9 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	BIOSVEC equ 1
+	BIOSKEYS equ 1
+	CLKTIMER equ 1
+	DOSDEV equ 1
 	include	macros.inc
 	include	bios.inc
 	include	dev.inc
@@ -84,10 +87,16 @@ TERM_COUNT	equ	3	; number of terminal types
 	db	CHR_ESCAPE,"[2J",CHR_ESCAPE,"[H",0
 	DEFLBL	GENERIC_CLEAR,byte
 	db	CHR_RETURN,CHR_LINEFEED,0
+	DEFLBL	ANSI_CSI,byte
+	db	CHR_ESCAPE,"[",0	; "control sequence introducer"
+	DEFLBL	ANSI_RINDEX,byte
+	db	CHR_ESCAPE,"M",0	; reverse index (scrolls down at the top)
 	DEFLBL	ANSI_RESET,byte
 	db	CHR_ESCAPE,"[0",0	; start of "select graphic rendition"
 	DEFLBL	ANSI_COLORS,byte	; PC color # to ANSI color #
 	db	0,4,2,6,1,5,3,7		; (ie, swap the red and blue bits)
+
+ESC_MS		equ	110	; how long to hold an ESC (raw keys)
 
 TERM_COLS	equ	80	; assumed terminal dimensions (for IOCTL_GETDIM)
 TERM_ROWS	equ	24
@@ -122,6 +131,8 @@ CT_COLOR	dw	?	; 10h: fill (LO) and border (HI) attributes
 CT_LINE		db	LINE_MAX dup (?); 12h: copy of the current output line
 CT_INPUT	db	size RINGBUF dup (?)
 CT_OUTPUT	db	size RINGBUF dup (?)
+CT_TIMER	db	size TMR dup (?); timer for a held ESC (raw keys)
+CT_ESCPARM	db	?	; escape sequence parameter (raw keys)
 CONTEXT		ends
 SIG_CT		equ	'O'
 
@@ -130,6 +141,7 @@ CTSTAT_RCVOVFL	equ	02h	; receiver buffer overflow
 CTSTAT_XON	equ	04h	; XON/XOFF flow control enabled (XON option)
 CTSTAT_RTS	equ	08h	; RTS/CTS flow control enabled (RTS option)
 CTSTAT_CTSOFF	equ	10h	; output held because CTS is low (RTS option)
+CTSTAT_RAWKEYS	equ	20h	; return raw keys (see IOCTL_SETKEYS)
 CTSTAT_INPUT	equ	40h	; context is waiting for input
 CTSTAT_PAUSED	equ	80h	; context is paused (triggered by CTRLS hotkey)
 
@@ -199,6 +211,14 @@ dcr1a:	mov	ds,ax
 	cli
 	call	pull_input
 	jnc	dcr9
+;
+; An IO_DIRECT request (eg, a DOS_TTY_IO input check) never waits.
+;
+	cmp	es:[di].DDP_UNIT,0
+	jge	dcr1b
+	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_NOTREADY
+	jmp	short dcr9a
+dcr1b:
 ;
 ; For READ requests that cannot be satisfied, we add this packet to an
 ; internal chain of "reading" packets, and then tell DOS that we're waiting;
@@ -336,10 +356,16 @@ DEFPROC	ddcom_ioctl
 	je	dio0a
 	cmp	al,IOCTL_SETCOLOR
 	je	dio0b
+	cmp	al,IOCTL_SETPOS
+	je	dio0d
+	cmp	al,IOCTL_SETKEYS
+	je	dio0e
 	cmp	al,IOCTL_COMDEBUG
 	je	dio0c
-	pop	cx
+dio8a:	pop	cx
 dio8:	jmp	ddcom_none		; unsupported IOCTL
+dio0d:	jmp	dio10
+dio0e:	jmp	dio11
 ;
 ; IOCTL_COMDEBUG: the kernel has verified that the caller's handle has
 ; exclusive access (MODE_DENY_RW), so it's the only reference to this context;
@@ -359,6 +385,7 @@ dio0c:	mov	dx,ds:[CT_PORT]
 	ASSERT	<COMDBG_RTS SHL 1>,EQ,<CTSTAT_RTS>
 	shr	al,1
 	or	dl,al
+	call	end_esc
 	push	es
 	push	ds
 	pop	es			; ES = context
@@ -410,10 +437,14 @@ dio3:	call	move_cur
 dio4:	sub	dx,dx
 	jmp	short dio7
 ;
-; IOCTL_SCROLL: CX = 0 clears the screen (eg, for CLS); scrolling by a number
-; of lines is not supported, so it's ignored.
+; IOCTL_SCROLL: CX = 0 clears the screen (eg, for CLS); ANSI terminals can also
+; scroll by CX lines (see scroll_lines), but GENERIC terminals ignore it.
 ;
 dio5:	jcxz	dio6
+	cmp	ds:[CT_TERM],TERM_GENERIC
+	je	dio4
+	call	scroll_lines
+	jc	dio9			; wait interrupted (DDP_STATUS set)
 	jmp	short dio4
 dio6:	call	clear_screen
 	jc	dio9			; wait interrupted (DDP_STATUS set)
@@ -423,6 +454,30 @@ dio7:	mov	es:[di].DDP_CONTEXT,dx	; return result in packet context
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 dio9:	pop	cx			; CX = context
 	ret
+;
+; IOCTL_SETPOS: ANSI terminals get the "cursor position" sequence (the cursor
+; visibility in DL is ignored); GENERIC terminals don't support it.
+;
+dio10:	cmp	ds:[CT_TERM],TERM_GENERIC
+	je	dio10a
+	cmp	cl,TERM_COLS		; is the position outside the terminal?
+	jae	dio10a			; yes
+	cmp	ch,TERM_ROWS
+	jae	dio10a
+	call	set_pos
+	jc	dio9			; wait interrupted (DDP_STATUS set)
+	jmp	dio4
+dio10a:	jmp	dio8a
+;
+; IOCTL_SETKEYS: in raw keys mode, non-ASCII keys are returned as a zero
+; followed by a scan code (see raw_input).
+;
+dio11:	and	ds:[CT_STATUS],NOT CTSTAT_RAWKEYS
+	call	end_esc			; discard any partial escape sequence
+	test	cl,cl			; raw keys requested?
+	jz	dio11a			; no
+	or	ds:[CT_STATUS],CTSTAT_RAWKEYS
+dio11a:	jmp	dio4
 ENDPROC	ddcom_ioctl
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -527,6 +582,123 @@ mc9:	clc
 mc8:	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_WRFAULT
 	ret
 ENDPROC	move_cur
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; scroll_lines
+;
+; Scrolls an ANSI terminal up (by sending LINEFEEDs at the bottom row) or down
+; (by sending "reverse index" sequences at the top row).  The cursor is left
+; on that row.
+;
+; Inputs:
+;	CX = +/- lines to scroll (non-zero)
+;	DS = context
+;	ES:DI -> DDPRW
+;
+; Outputs:
+;	Carry clear if successful, set if interrupted (DDP_STATUS updated)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	scroll_lines
+	push	cx
+	test	cx,cx			; scrolling up?
+	mov	cx,(TERM_ROWS-1) SHL 8	; yes, from the bottom row
+	jns	sl1
+	mov	ch,0			; no, from the top row
+sl1:	call	set_pos
+	pop	cx
+	jc	sl9
+sl2:	test	cx,cx
+	js	sl3
+	mov	al,CHR_LINEFEED
+	call	ioctl_out
+	dec	cx
+	jmp	short sl4
+sl3:	mov	si,offset ANSI_RINDEX
+	call	ioctl_str
+	inc	cx
+sl4:	jc	ioctl_fault
+	jnz	sl2
+sl9:	ret
+ENDPROC	scroll_lines
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; set_pos
+;
+; Sends the ANSI "cursor position" sequence (ESC [ row ; col H).
+;
+; Inputs:
+;	CL = col, CH = row (zero-based)
+;	DS = context
+;	ES:DI -> DDPRW
+;
+; Outputs:
+;	Carry clear if successful, set if interrupted (DDP_STATUS updated)
+;
+; Modifies:
+;	AX, BX, DX, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	set_pos
+	mov	ds:[CT_COL],cl
+	mov	si,offset ANSI_CSI
+	call	ioctl_str
+	jc	ioctl_fault
+	mov	al,ch
+	call	ioctl_num
+	jc	ioctl_fault
+	mov	al,';'
+	call	ioctl_out
+	jc	ioctl_fault
+	mov	al,cl
+	call	ioctl_num
+	jc	ioctl_fault
+	mov	al,'H'
+	call	ioctl_out
+	jnc	spo9
+	DEFLBL	ioctl_fault,near
+	mov	es:[di].DDP_STATUS,DDSTAT_ERROR + DDERR_WRFAULT
+spo9:	ret
+ENDPROC	set_pos
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ioctl_num
+;
+; Outputs a zero-based row or column as an ANSI (one-based) parameter.
+;
+; Inputs:
+;	AL = row or column (0-98)
+;	DS = context
+;	ES:DI -> DDPRW
+;
+; Outputs:
+;	Carry clear if successful, set if the wait was interrupted
+;
+; Modifies:
+;	AX, BX, DX, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ioctl_num
+	inc	ax
+	aam				; AH = tens digit, AL = ones digit
+	push	ax
+	test	ah,ah			; is there a tens digit?
+	jz	ion1			; no
+	mov	al,ah
+	add	al,'0'
+	call	ioctl_out
+ion1:	pop	ax
+	jc	ion9
+	add	al,'0'
+	call	ioctl_out
+ion9:	ret
+ENDPROC	ioctl_num
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1042,10 +1214,16 @@ DEFPROC	ddcom_close
 	dec	es:[CT_REFS]
 	jg	dcc7			; context still in use
 ;
-; Before freeing the context, mask the IRQ.
+; Before freeing the context, mask the IRQ, and make sure the timer tick
+; handler won't touch it.
 ;
 	mov	al,1
 	call	write_irq
+	push	ds
+	push	es
+	pop	ds
+	call	end_esc
+	pop	ds
 ;
 ; We are now free to free the context segment in ES.
 ;
@@ -1747,7 +1925,12 @@ psi2:	test	ds:[CT_STATUS],CTSTAT_PAUSED
 	and	ds:[CT_STATUS],NOT CTSTAT_PAUSED
 	jmp	short psi5
 
-psi3:	cmp	ds:[CT_TERM],TERM_VT100	; VT100 terminal?
+psi3:	test	ds:[CT_STATUS],CTSTAT_RAWKEYS
+	jz	psi3a
+	call	raw_input		; translate raw keys
+	jc	psi9			; nothing to buffer (yet)
+	jmp	short psi3b
+psi3a:	cmp	ds:[CT_TERM],TERM_VT100	; VT100 terminal?
 	jne	psi3b			; no
 	call	vt100_input		; yes, translate its input
 	jc	psi9			; nothing to buffer (yet)
@@ -1878,6 +2061,340 @@ ENDPROC	vt100_input
 
 	DEFLBL	VT100_KEYS,byte
 	db	CHR_CTRLE,CHR_CTRLX,CHR_CTRLD,CHR_CTRLS	; up, down, right, left
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; raw_input
+;
+; Translates a byte from an ANSI or VT100 terminal into what the CON driver
+; returns in raw keys mode (see IOCTL_SETKEYS): non-ASCII keys are a zero
+; followed by the PC scan code.  The cursor keys send ESC [ A-D (or ESC O A-D),
+; Home and End send ESC [ H and F (or ESC [ 1 ~ and 4 ~), Insert, Delete, PgUp,
+; and PgDn send ESC [ 2-3 ~ and 5-6 ~, and F1-F10 send ESC O P-S and ESC [ 15 ~
+; through 21 ~; other sequences are discarded.
+;
+; An ESC is held until the next byte arrives, or until ESC_MS pass without
+; one, in which case it's just an ESC (see esc_timeout).  For VT100 terminals,
+; DELETE (7Fh) erases the previous character, so it becomes BACKSPACE, and
+; BACKSPACE becomes the Delete key.
+;
+; Inputs:
+;	AL = byte
+;	DS = context
+;
+; Outputs:
+;	If carry clear, AL = byte to buffer; carry set if nothing to buffer
+;
+; Modifies:
+;	AX, BX, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	raw_input
+	pushf
+	cli
+	call	raw_byte
+	jc	rw8
+	popf
+	clc
+	ret
+rw8:	popf
+	stc
+	ret
+ENDPROC	raw_input
+
+DEFPROC	raw_byte
+	cmp	ds:[CT_TERM],TERM_GENERIC
+	je	rb0			; (carry clear)
+	mov	ah,ds:[CT_ESC]		; AH = escape state
+	test	ah,ah			; in a sequence?
+	jnz	rb3			; yes
+	cmp	al,CHR_ESCAPE		; ESC?
+	jne	rb1			; no
+	inc	ds:[CT_ESC]		; yes, hold it (state 1)
+	mov	ax,ESC_MS
+	call	esc_timer
+	stc
+	ret
+rb0:	clc
+	ret
+
+rb1:	cmp	ds:[CT_TERM],TERM_VT100	; VT100 terminal?
+	jne	rb0			; no
+	cmp	al,CHR_DEL		; DELETE?
+	jne	rb2			; no
+	mov	al,CHR_BACKSPACE	; yes, it erases the previous character
+	ret				; (carry clear)
+rb2:	cmp	al,CHR_BACKSPACE	; BACKSPACE?
+	clc
+	jne	rb9			; no
+	mov	al,SCAN_DEL		; yes, it's the Delete key
+	jmp	short rb7
+;
+; State 1 (ESC received): '[' begins a control sequence (state 2) and 'O'
+; begins a single-shift sequence (state 3); otherwise, buffer the ESC and
+; then process the byte normally.
+;
+rb3:	dec	ah			; state 1?
+	jnz	rb5			; no
+	call	end_esc
+	mov	ah,2
+	cmp	al,'['
+	je	rb4
+	inc	ah
+	cmp	al,'O'
+	je	rb4
+	push	ax
+	mov	al,CHR_ESCAPE
+	call	push_key
+	pop	ax
+	jmp	raw_byte
+rb4:	mov	ds:[CT_ESC],ah
+	mov	ds:[CT_ESCPARM],0
+	stc
+	ret
+;
+; States 2 and 3: digits are a parameter (anything after a ';', such as a
+; modifier, is ignored), and the first byte from 40h on ends the sequence.
+;
+rb5:	cmp	al,'@'			; final byte?
+	jae	rb6			; yes
+	mov	ah,ds:[CT_ESCPARM]
+	sub	al,'0'
+	cmp	al,9			; digit?
+	ja	rb5a			; no
+	test	ah,ah			; after a ';'?
+	js	rb8			; yes
+	mov	bh,al
+	mov	al,ah
+	mov	bl,10
+	mul	bl
+	add	al,bh			; AL = (parameter * 10) + digit
+	jmp	short rb5b
+rb5a:	cmp	al,';'-'0'		; ';'?
+	jne	rb8			; no, ignore it
+	or	ah,80h
+	xchg	al,ah
+rb5b:	mov	ds:[CT_ESCPARM],al
+rb8:	stc
+	ret
+
+rb6:	mov	ds:[CT_ESC],0		; the sequence is over
+	mov	si,offset ANSI_FINALS
+	cmp	al,'~'			; numbered key?
+	jne	rb6a			; no
+	mov	al,ds:[CT_ESCPARM]
+	and	al,7Fh			; AL = number
+	mov	si,offset ANSI_NUMS
+rb6a:	call	map_key			; AL = scan code
+	jc	rb9a			; discard unknown sequences
+;
+; Buffer a zero, and return the scan code in AL to be buffered next.
+;
+rb7:	push	ax
+	mov	al,0
+	call	push_key
+	pop	ax
+rb9:	clc
+rb9a:	ret
+ENDPROC	raw_byte
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; push_key
+;
+; Inputs:
+;	AL = byte to add to the context's input buffer
+;	DS = context
+;
+; Modifies:
+;	BX, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	push_key
+	mov	si,offset CT_INPUT
+	call	push_buffer
+	jc	pk9
+	mov	[bx],al
+pk9:	ret
+ENDPROC	push_key
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; map_key
+;
+; Inputs:
+;	AL = byte
+;	CS:SI -> table of (byte, scan code) pairs, ending with zero
+;
+; Outputs:
+;	If carry clear, AL = scan code
+;
+; Modifies:
+;	AL, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	map_key
+mk1:	cmp	byte ptr cs:[si],0	; end of the table?
+	stc
+	je	mk9			; yes
+	cmp	al,cs:[si]
+	lea	si,[si+2]
+	jne	mk1
+	mov	al,cs:[si-1]		; (carry clear)
+mk9:	ret
+ENDPROC	map_key
+
+	DEFLBL	ANSI_FINALS,byte
+	db	'A',SCAN_UP,'B',SCAN_DOWN,'C',SCAN_RIGHT,'D',SCAN_LEFT
+	db	'H',SCAN_HOME,'F',SCAN_END,'P',SCAN_F1,'Q',SCAN_F2
+	db	'R',SCAN_F3,'S',SCAN_F4,0
+	DEFLBL	ANSI_NUMS,byte
+	db	1,SCAN_HOME,2,SCAN_INS,3,SCAN_DEL,4,SCAN_END
+	db	5,SCAN_PGUP,6,SCAN_PGDN,15,SCAN_F5,17,SCAN_F6
+	db	18,SCAN_F7,19,SCAN_F8,20,SCAN_F9,21,SCAN_F10,0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; end_esc
+;
+; Ends any escape sequence (and cancels the timer for a held ESC).
+;
+; Inputs:
+;	DS = context
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	end_esc
+	mov	ds:[CT_ESC],0
+	push	ax
+	sub	ax,ax
+	call	esc_timer
+	pop	ax
+	ret
+ENDPROC	end_esc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; esc_timer
+;
+; Starts (or cancels) the context's timer for a held ESC, using the CLOCK$
+; driver's timer function (see CLKX); without CLOCK$, an ESC is held until
+; the next byte arrives.
+;
+; Inputs:
+;	AX = milliseconds (0 to cancel)
+;	DS = context
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	esc_timer
+	push	bx
+	push	cx
+	push	di
+	push	es
+	xchg	cx,ax			; CX = milliseconds
+	sub	ax,ax
+	mov	es,ax
+	ASSUME	ES:BIOS
+	les	bx,[CLOCK_DEVICE]		; ES:BX -> CLOCK$ driver header
+	ASSUME	ES:NOTHING
+	mov	ax,es
+	test	ax,ax			; is there a CLOCK$ driver?
+	jz	et9			; no
+	push	es
+	push	es:[bx + size DDH].CLKX_TIMER
+	mov	ds:[CT_TIMER].TMR_FUNC.OFF,offset esc_timeout
+	mov	ds:[CT_TIMER].TMR_FUNC.SEG,cs
+	push	ds
+	pop	es
+	mov	di,offset CT_TIMER	; ES:DI -> timer
+	mov	bx,sp
+	call	dword ptr ss:[bx]
+	add	sp,4
+et9:	xchg	ax,cx			; restore AX
+	pop	es
+	pop	di
+	pop	cx
+	pop	bx
+	ret
+ENDPROC	esc_timer
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; esc_timeout
+;
+; Called by the CLOCK$ driver when a held ESC's timer expires: no other byte
+; arrived, so it was just an ESC; buffer it, and end any read waiting for it.
+;
+; Inputs:
+;	ES:DI -> timer (ES = context)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	esc_timeout,far
+	push	ds
+	push	es
+	pop	ds			; DS = context
+	cmp	ds:[CT_ESC],1		; still holding an ESC?
+	jne	eto9			; no
+	mov	ds:[CT_ESC],0
+	mov	al,CHR_ESCAPE
+	call	push_key
+	call	wake_reader
+eto9:	pop	ds
+	ret
+ENDPROC	esc_timeout
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; wake_reader
+;
+; Ends the wait of any READ packet for the context that can now be satisfied.
+;
+; Inputs:
+;	DS = context
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	wake_reader
+	mov	cx,cs
+	mov	es,cx
+	mov	bx,offset wait_ptr	; CX:BX -> ptr
+	les	di,es:[bx]		; ES:DI -> packet, if any
+wk1:	cmp	di,-1			; end of chain?
+	je	wk9			; yes
+	cmp	es:[di].DDP_CMD,DDC_READ; READ packet?
+	jne	wk8			; no
+	mov	ax,ds
+	cmp	es:[di].DDP_CONTEXT,ax	; for this context?
+	jne	wk8			; no
+	call	pull_input
+	jc	wk8			; not enough data
+	and	ds:[CT_STATUS],NOT CTSTAT_INPUT
+	mov	dx,es			; DX:DI -> packet (aka "wait ID")
+	mov	ah,DOS_UTL_ENDWAIT
+	call	far ptr DDINT_UTIL	; end the wait on DX:DI (see int_util)
+	cli
+	mov	ax,es:[di].DDP_PTR.OFF
+	mov	dx,es:[di].DDP_PTR.SEG
+	mov	es,cx
+	mov	es:[bx].OFF,ax
+	mov	es:[bx].SEG,dx
+	sti
+	ret
+wk8:	lea	bx,[di].DDP_PTR		; update prev addr ptr in CX:BX
+	mov	cx,es
+	les	di,es:[di].DDP_PTR
+	jmp	wk1
+wk9:	ret
+ENDPROC	wake_reader
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

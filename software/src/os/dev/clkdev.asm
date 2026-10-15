@@ -8,6 +8,7 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	BIOSEQU equ 1
+	CLKTIMER equ 1
 	include	macros.inc
 	include	bios.inc
 	include	dev.inc
@@ -20,6 +21,7 @@ CODE	segment para public 'CODE'
 
 	public	CLOCK
 CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CLOCK+DDATTR_CHAR+DDATTR_IOCTL,offset ddclk_init,-1,2020244B434F4C43h>
+	dw	offset DEV:ddclk_timer	; CLKX (see dev.inc)
 
 	DEFLBL	CMDTBL,word
 	dw	ddclk_none,   ddclk_none,  ddclk_none,  ddclk_ctlin	; 0-3
@@ -30,6 +32,7 @@ CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CLOCK+DDATTR_CHAR+DDATTR_IOCTL,offset
 
 	DEFPTR	tmr_int,0		; timer hardware interrupt handler
 	DEFPTR	wait_ptr,-1		; chain of waiting packets
+	DEFPTR	tmr_list,-1		; chain of running timers
 	DEFBYTE	dateDay,10		; 1-31 (default for PC and XT)
 	DEFBYTE	dateMonth,12		; 1-12
 	DEFWORD	dateYear,2020		; 1980-
@@ -518,6 +521,138 @@ ENDPROC	ddclk_none
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; ddclk_timer (CLKX_TIMER)
+;
+; Starts (or cancels) a timer for another driver: after CX milliseconds
+; (rounded up to whole clock ticks, where the first tick may be partial), the
+; timer's TMR_FUNC is called from our timer interrupt handler, with ES:DI
+; pointing to the timer and interrupts disabled; it may modify any registers
+; except SS:SP and BP.  Starting a timer that's already running restarts it.
+; This is a far entry (see CLKX) that may be called from interrupt handlers.
+;
+; Inputs:
+;	ES:DI -> TMR (with TMR_FUNC set)
+;	CX = milliseconds (0 to cancel)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	ddclk_timer,far
+	push	ax
+	push	dx
+	pushf
+	cli
+	call	tmr_remove
+	jcxz	dt9
+	mov	ax,cx
+	add	ax,54
+	jnc	dt1
+	mov	ax,-1
+dt1:	sub	dx,dx
+	push	cx
+	mov	cx,55
+	div	cx			; AX = ticks
+	pop	cx
+	mov	es:[di].TMR_TICKS,ax
+	mov	ax,di
+	xchg	[tmr_list].OFF,ax
+	mov	es:[di].TMR_NEXT.OFF,ax
+	mov	ax,es
+	xchg	[tmr_list].SEG,ax
+	mov	es:[di].TMR_NEXT.SEG,ax
+dt9:	popf
+	pop	dx
+	pop	ax
+	ret
+ENDPROC	ddclk_timer
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; tmr_remove
+;
+; Removes a timer from the chain of running timers, if it's there.
+;
+; Inputs:
+;	ES:DI -> TMR
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	tmr_remove
+	push	bx
+	push	ds
+	push	cs
+	pop	ds
+	mov	bx,offset tmr_list	; DS:BX -> first link
+tr1:	mov	ax,[bx].OFF
+	cmp	ax,-1			; end of chain?
+	je	tr9			; yes
+	cmp	ax,di
+	jne	tr2
+	mov	ax,es
+	cmp	[bx].SEG,ax
+	je	tr3
+tr2:	lds	bx,dword ptr [bx]	; DS:BX -> next timer (and its link)
+	jmp	tr1
+tr3:	mov	ax,es:[di].TMR_NEXT.OFF	; unlink the timer
+	mov	[bx].OFF,ax
+	mov	ax,es:[di].TMR_NEXT.SEG
+	mov	[bx].SEG,ax
+tr9:	pop	ds
+	pop	bx
+	ret
+ENDPROC	tmr_remove
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; run_timers
+;
+; Counts down every running timer, and calls (and removes) any that expire.
+;
+; Inputs:
+;	DS = CODE
+;
+; Modifies:
+;	AX, BX, DX, DI, ES
+;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	run_timers
+	mov	bx,offset tmr_list	; DS:BX -> link
+rt1:	les	di,[bx]			; ES:DI -> timer, if any
+	cmp	di,-1			; end of chain?
+	je	rt9			; yes
+	dec	es:[di].TMR_TICKS	; has it expired?
+	jnz	rt2			; no
+	mov	ax,es:[di].TMR_NEXT.OFF	; yes, unlink it
+	mov	[bx].OFF,ax
+	mov	ax,es:[di].TMR_NEXT.SEG
+	mov	[bx].SEG,ax
+	push	bx
+	push	cx
+	push	si
+	push	ds
+	call	dword ptr es:[di].TMR_FUNC
+	pop	ds
+	pop	si
+	pop	cx
+	pop	bx
+	jmp	rt1			; the same link is next
+rt2:	mov	bx,di			; DS:BX -> this timer's link
+	push	es
+	pop	ds
+	jmp	rt1
+rt9:	push	cs
+	pop	ds
+	ret
+ENDPROC	run_timers
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; ddclk_interrupt (timer hardware interrupt handler)
 ;
 ; Inputs:
@@ -575,7 +710,8 @@ ddi0a:	cmp	[sndTicks],0		; is a sound playing?
 	in	al,61h
 	and	al,0FCh
 	out	61h,al			; yes, turn the speaker off
-ddi0b:	mov	bx,offset wait_ptr	; DS:BX -> ptr
+ddi0b:	call	run_timers
+	mov	bx,offset wait_ptr	; DS:BX -> ptr
 	les	di,[bx]			; ES:DI -> packet, if any
 	ASSUME	ES:NOTHING
 	sti

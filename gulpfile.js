@@ -54,19 +54,18 @@ function checkOutput(task, outputFile)
 }
 
 /*
- * Every BASIC-DOS disk has the same layout: the system files (BASDEV.COM, BASDOS.COM, and COMMAND.COM), CONFIG.SYS,
- * AUTOEXEC.BAT (when launched by a SHELL line), and HELP.TXT in the root, followed by a BIN folder (utilities in
- * os/util), a SAMPLES folder (the PC DOS 1.00 BASIC samples, on disks that include them), and a TESTS folder (other
- * demo and test programs, eg, PRIMES, PAINT, MSBASIC, and SYMDEB).
- * CONFIG.SYS sets PATH$ on each SHELL line (eg, SHELL=COMMAND.COM PATH$="A:/;A:/BIN;A:/SAMPLES;A:/TESTS").
+ * The files on every BASIC-DOS disk come from software/manifest.txt, which lists the files for each folder (ROOT, BIN,
+ * SAMPLES, DEMOS, and TESTS).  Every demo diskette gets ROOT (the system files, its own CONFIG.SYS and AUTOEXEC.BAT,
+ * if any, and HELP.TXT), followed by BIN, SAMPLES, and DEMOS, so each demo diskette differs only in its CONFIG.SYS,
+ * which sets PATH$ on each SHELL line (eg, SHELL=COMMAND.COM PATH$="A:/;A:/BIN;A:/SAMPLES;A:/DEMOS").
  *
- * Each disk below lists its CONFIG.SYS, its AUTOEXEC.BAT (if any), and the files for its SAMPLES (if any) and TESTS folders;
- * every disk gets the same root files and BIN folder.  A hard disk image (a demo with no diskettes) is marked "hd",
- * and pc.js builds it (with --sys=bd:2, so it's bootable, and pc.js adds the system files and HELP.TXT itself).
+ * The TESTS files are on a separate data diskette (marked "data"), BASICDOS-360K-TESTS; it isn't bootable, so it has
+ * no root files, and it can be loaded in drive B: of any demo.
  *
- * A disk can list its own "folders" instead (see BASICDOS-HD), where each folder is either a list of files, a
- * directory (whose contents are copied, including any OBJ directories), or a function that returns a list of files
- * from other disk images (see diskFiles()).
+ * A hard disk image (a demo with no diskettes) is marked "hd", and pc.js builds it (with --sys=bd:2, so it's bootable,
+ * and pc.js adds the system files and HELP.TXT itself).  A disk can list its own "folders" instead of the diskette
+ * folders (see BASICDOS-10MB), where each folder is either a list of files, a directory (whose contents are copied,
+ * including any OBJ directories), or a function that returns a list of files from other disk images (see diskFiles()).
  *
  * A SAMPLES folder's files get the timestamps of the matching files on the PC DOS 1.00 diskette (PCDOS100).
  *
@@ -74,15 +73,18 @@ function checkOutput(task, outputFile)
  * timestamps of its files.
  */
 const SRC = "./software/src";
-const sysFiles = [ SRC + "/os/dev/obj/BASDEV.COM", SRC + "/os/dos/obj/BASDOS.COM", SRC + "/os/cmd/obj/COMMAND.COM" ];
-const helpFile = SRC + "/os/cmd/HELP.TXT";
-const toolFiles = [ SRC + "/os/util/obj/*.COM" ];
-const primesFiles = [ SRC + "/tests/primes/PRIMES.BAS", SRC + "/tests/primes/PRIMES.BAT" ];
-const sampleFiles = [ "./demos/samples/*.BAS" ];    // the PC DOS 1.00 BASIC samples (and nothing else)
-const paintFile = "./demos/mouse/PAINT.BAS";
-const helloFile = SRC + "/tests/misc/HELLO.BAT";
-const extraFiles = [ SRC + "/tests/misc/SYMDEB.EXE", SRC + "/msb/obj/*.EXE" ];
-const testFiles = [ SRC + "/tests/bin/*.EXE", SRC + "/tests/bin/*.COM", SRC + "/tests/misc/BD*.BAT", helloFile ].concat(primesFiles, extraFiles);
+const manifest = {};
+let section;
+for (let line of fs.readFileSync("./software/manifest.txt", "utf8").split(/\r?\n/)) {
+    line = line.replace(/#.*/, "").trim();
+    let match = line.match(/^\[(\w+)\]$/);
+    if (match) {
+        manifest[section = match[1]] = [];
+    } else if (line && section) {
+        manifest[section].push(line);
+    }
+}
+const diskFolders = { BIN: manifest.BIN, SAMPLES: manifest.SAMPLES, DEMOS: manifest.DEMOS };
 /**
  * diskFiles(diskName, fileSpecs)
  *
@@ -104,52 +106,25 @@ function diskFiles(diskName, fileSpecs)
 }
 
 let disks = {
-    "BASICDOS": {
-        config: "./demos/s80/CONFIG.SYS",
-        TESTS: [ helloFile ].concat(primesFiles, extraFiles)
-    },
-    "BASICDOS-DISK1": {
-        config: "./demos/s80/CONFIG.SYS",
-        SAMPLES: sampleFiles,             // DONKEY.BAS and the other PC DOS 1.00 BASIC samples
-        TESTS: testFiles.concat([ SRC + "/tests/misc/BENCH.BAS", paintFile ])
-    },
-    "BASICDOS-DISK2": {
-        config: "./demos/d40/CONFIG.SYS",
-        TESTS: testFiles
-    },
-    "BASICDOS-DISK3": {
-        config: "./demos/d80/CONFIG.SYS",
-        TESTS: testFiles
-    },
-    "BASICDOS-DISK4": {
-        config: "./demos/dual/CONFIG.SYS",
-        TESTS: testFiles
-    },
-    "BASICDOS-DISK5": {
-        config: "./demos/dual/multi/CONFIG.SYS",
-        TESTS: testFiles
-    },
-    "BASICDOS-SERIAL": {
-        config: "./demos/serial/CONFIG.SYS",
-        TESTS: []
-    },
-    "BASICDOS-VT100": {
-        config: "./demos/vt100/CONFIG.SYS",
-        TESTS: []
-    },
-    "BASICDOS-DEBUG": {
-        config: "./demos/debug/CONFIG.SYS",
-        drivers: [ SRC + "/os/dd/dbg/obj/DEBUG.COM" ],
-        TESTS: [ SRC + "/tests/bin/DBGTEST.COM" ]
-    },
-    "BASICDOS-HD": {
+    "BASICDOS": { config: "./demos/s80/CONFIG.SYS" },
+    "BASICDOS-360K-S80": { config: "./demos/s80/CONFIG.SYS" },
+    "BASICDOS-360K-D40": { config: "./demos/d40/CONFIG.SYS" },
+    "BASICDOS-360K-D80": { config: "./demos/d80/CONFIG.SYS" },
+    "BASICDOS-360K-DUAL": { config: "./demos/dual/CONFIG.SYS" },
+    "BASICDOS-360K-MULTI": { config: "./demos/dual/multi/CONFIG.SYS" },
+    "BASICDOS-360K-SERIAL": { config: "./demos/serial/CONFIG.SYS" },
+    "BASICDOS-360K-VT100": { config: "./demos/vt100/CONFIG.SYS" },
+    "BASICDOS-360K-DEBUG": { config: "./demos/debug/CONFIG.SYS" },
+    "BASICDOS-360K-TESTS": { data: true, folders: { TESTS: manifest.TESTS } },
+    "BASICDOS-10MB": {
         hd: true,
         config: "./demos/hd/CONFIG.SYS",
         folders: {
-            BIN: toolFiles,
-            SAMPLES: sampleFiles,
+            BIN: manifest.BIN,
+            SAMPLES: manifest.SAMPLES,
+            DEMOS: manifest.DEMOS,
             SRC: SRC + "/os",           // the BASIC-DOS source (with an MK.BAT that builds it on BASIC-DOS)
-            TESTS: [ helloFile, SRC + "/tests/misc/BENCH.BAS", SRC + "/tests/misc/STRESS.BAT", paintFile ].concat(primesFiles, [ SRC + "/msb/obj/MSBASIC.EXE", "./software/tests/PUBLIC.zip" ]),
+            TESTS: manifest.TESTS.concat([ "./software/tests/PUBLIC.zip" ]),
             //
             // The MASM 4.00 files come from the MS-DOS 3.20 build disk, but the build tools in software/src/tools
             // (the same ones that mk.sh uses) replace their counterparts, adding MAKE 4.02 and the patched EXE2BIN
@@ -157,8 +132,7 @@ let disks = {
             //
             TOOLS: () => diskFiles("MSDOS320-C400", [ "TOOLS/MASM4/*" ]).concat([ SRC + "/tools/*" ])
         }
-    },
-    "PCDOS200-C400": "./software/disks/PCDOS200-C400.json"
+    }
 };
 
 /**
@@ -191,14 +165,17 @@ function stageDisk(diskName)
             }
         }
     };
-    if (!disk.hd) copyFiles(sysFiles, dirStage);
-    copyFiles([disk.config], dirStage, "CONFIG.SYS");
-    if (disk.drivers) copyFiles(disk.drivers, dirStage);
-    let launchesAutoexec = fs.readFileSync(disk.config, "utf8").split(/\r?\n/).some(line =>
-        /^SHELL=/i.test(line) && /\bAUTOEXEC(?:\.BAT)?\b/i.test(line));
-    if (disk.autoexec && launchesAutoexec) copyFiles([disk.autoexec], dirStage, "AUTOEXEC.BAT");
-    if (!disk.hd) copyFiles([helpFile], dirStage);
-    let folders = disk.folders || { BIN: toolFiles, SAMPLES: disk.SAMPLES || [], TESTS: disk.TESTS || [] };
+    for (let file of disk.data? [] : manifest.ROOT) {
+        if (file != "CONFIG.SYS") {
+            if (!disk.hd) copyFiles([file], dirStage);
+            continue;
+        }
+        copyFiles([disk.config], dirStage, "CONFIG.SYS");
+        let launchesAutoexec = fs.readFileSync(disk.config, "utf8").split(/\r?\n/).some(line =>
+            /^SHELL=/i.test(line) && /\bAUTOEXEC(?:\.BAT)?\b/i.test(line));
+        if (disk.autoexec && launchesAutoexec) copyFiles([disk.autoexec], dirStage, "AUTOEXEC.BAT");
+    }
+    let folders = disk.folders || diskFolders;
     for (let folder in folders) {
         let files = folders[folder];
         if (typeof files == "function") files = files();
@@ -253,29 +230,19 @@ function buildDisk(diskName, diskImage)
         if (disks[diskName].hd) {
             cmd = "node ./tools/pc/pc.js ibm5160 ./tools/pc/disks/" + diskName + " --sys=bd:2 --target=10M --normalize --bare --label=BASICDOS --save=" + diskImage;
         } else {
-            let archiveImage = diskImage.replace(diskName, "archive/" + diskName).replace(".json",".img");
             cmd = "node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" --files " + entries.join(",") +
-                  " --boot " + SRC + "/os/boot/obj/BOOT1.COM --output " + diskImage + " --normalize --output " + archiveImage +
-                  " --writable --target=360 --overwrite";
+                  (disks[diskName].data? "" : " --boot " + SRC + "/os/boot/obj/BOOT1.COM") + " --output " + diskImage +
+                  " --normalize --writable --target=360 --overwrite";
         }
         run(cmd)(done);
     };
 }
 
-let buildTasks = [], demoTasks = [];
+let demoTasks = [];
 for (let diskName in disks) {
     let buildTask = "BUILD-" + diskName;
     let diskImage = "./software/disks/" + diskName + ".json";
-    if (typeof disks[diskName] == "string") {
-        let archiveImage = diskImage.replace(diskName, "archive/" + diskName).replace(".json",".hdd");
-        let cmd = "node \"${PCJS}/tools/diskimage/diskimage.js\" --disk " + disks[diskName] + " --output " + archiveImage + " --target=10000 --overwrite";
-        cmd = cmd.replace(/\$\{([^}]+)\}/g, (_,n) => process.env[n]);
-        gulp.task(buildTask, checkOutput(run(cmd), archiveImage));
-        buildTasks.push(buildTask);
-        continue;
-    }
     gulp.task(buildTask, checkOutput(buildDisk(diskName, diskImage), diskImage));
-    buildTasks.push(buildTask);
     demoTasks.push(buildTask);
 }
 
@@ -284,5 +251,5 @@ for (let diskName in disks) {
  * with the new binaries), while "gulp build" (or simply "gulp") regenerates everything on demand.
  */
 gulp.task("demos", gulp.series(demoTasks));
-gulp.task("build", gulp.series(buildTasks));
+gulp.task("build", gulp.series(demoTasks));
 gulp.task("default", gulp.series("build"));

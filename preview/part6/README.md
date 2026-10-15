@@ -8,12 +8,13 @@ machines:
     config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
     sizeRAM: 256
     autoMount:
-      A: "BASICDOS-DISK1"
+      A: "BASICDOS-360K-S80"
+      B: "BASICDOS-360K-TESTS"
 ---
 
 ### Part 6: Performance
 
-The machine below boots the `BASICDOS-DISK1` diskette, which includes BENCH.BAS, the benchmarks discussed on this page.  Type `BENCH` to run the benchmarks with BASIC-DOS, or `MSBASIC BENCH` to run them with GW-BASIC (type `SYSTEM` to return to BASIC-DOS afterward).  The full set of tests takes a few minutes, and each result is displayed as it completes.
+The machine below boots the `BASICDOS-360K-S80` diskette, which includes BENCH.BAS, the benchmarks discussed on this page.  Type `BENCH` to run the benchmarks with BASIC-DOS, or `CD DEMOS` and then `B:\TESTS\MSBASIC BENCH` to run them with GW-BASIC, which is on the `BASICDOS-360K-TESTS` diskette in drive B: (type `SYSTEM` to return to BASIC-DOS afterward).  The full set of tests takes a few minutes, and each result is displayed as it completes.
 
 {% include machine.html id="ibm5150" name="IBM PC, 256Kb RAM, Dual Floppy Drives, CGA" %}
 

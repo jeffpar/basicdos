@@ -17,7 +17,7 @@ DOS	segment word public 'CODE'
 
 	EXTBYTE	<scb_locked>
 	EXTWORD	<mcb_head,mcb_limit,scb_active>
-	EXTNEAR	<sfh_add_ref,pfh_close,sfh_close>
+	EXTNEAR	<sfh_add_ref,pfh_close,sfh_close,reset_keys>
 	EXTNEAR	<mcb_getsize,mcb_free_all>
 	EXTNEAR	<dos_check,dos_leave,dos_leave2,dos_ctrlc,dos_error>
 	EXTNEAR	<mcb_setname,scb_getnum,scb_release,scb_close,scb_yield>
@@ -70,7 +70,10 @@ DEFPROC	psp_term,DOS
 ; Close process file handles.
 ;
 pt1:	push	ax			; save exit code/type on stack
-	call	psp_close		; close all the process file handles
+	cmp	es:[PSP_RAWKEYS],0	; did the program leave raw keys on?
+	je	pt1a			; no
+	call	reset_keys		; yes, so turn them off
+pt1a:	call	psp_close		; close all the process file handles
 	call	psp_restvec		; restore any vectors left hooked
 ;
 ; Restore the SCB's CTRLC and ERROR handlers from the values in the PSP.
@@ -173,6 +176,7 @@ pcp1:	call	psp_init		; returns ES:DI -> PSP_PARENT
 	mov	si,PSP_PARENT
 	mov	cx,(size PSP - PSP_PARENT) SHR 1
 	rep	movsw
+	mov	es:[PSP_RAWKEYS],0	; the copy hasn't enabled raw keys
 	ret
 ENDPROC	psp_copy
 

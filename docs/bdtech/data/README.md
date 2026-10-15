@@ -43,6 +43,7 @@ The Program Segment Prefix is compatible with PC DOS, but BASIC-DOS uses several
 | 4Eh | PSP_EXCODE | * Exit code |
 | 4Fh | PSP_EXTYPE | * Exit type (see [Exit Types](../dos/#exit-types)) |
 | 50h | PSP_DOSCALL | INT 21h / RETF |
+| 53h | PSP_RAWKEYS | * Non-zero if the program enabled raw keys (see [Raw Keys](../dev/#raw-keys)) |
 | 56h | PSP_DIGITS | * Digit switches (see DOS_UTL_PARSESW) |
 | 58h | PSP_LETTERS | * Letter switches (see DOS_UTL_PARSESW) |
 | 5Ch | PSP_FCB1 | First FCB |

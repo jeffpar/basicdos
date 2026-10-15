@@ -172,22 +172,26 @@ DEFPROC	flush_console,DOS
 	mov	bx,cs:[scb_active]
 	ASSERT	STRUCT,cs:[bx],SCB
 	mov	ah,DDC_INFLUSH
-	mov	al,cs:[bx].SCB_SFHIN
+	mov	cl,cs:[bx].SCB_SFHIN
 	call	fc1			; carry set if not the console
 	pushf
 	mov	bx,cs:[scb_active]
 	mov	ah,DDC_OUTFLUSH
-	mov	al,cs:[bx].SCB_SFHOUT
+	mov	cl,cs:[bx].SCB_SFHOUT
 	call	fc1
 	popf
 	ret
+;
+; Send request AX to the device for SFH CL, if its context is the session's
+; console (BX -> SCB).
+;
 fc1:	mov	dx,cs:[bx].SCB_CONTEXT
 	test	dx,dx			; does the session have a console?
 	jz	fc8			; no
-	cmp	al,SFH_NONE		; is the SFH valid?
+	cmp	cl,SFH_NONE		; is the SFH valid?
 	je	fc8			; no
 	push	ax
-	mov	bl,al
+	mov	bl,cl
 	call	sfb_from_sfh		; BX -> SFB
 	pop	ax
 	jc	fc9
@@ -201,6 +205,43 @@ fc1:	mov	dx,cs:[bx].SCB_CONTEXT
 fc8:	stc
 fc9:	ret
 ENDPROC	flush_console
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; reset_keys
+;
+; Called when a program that enabled raw keys (see PSP_RAWKEYS) ends without
+; disabling them (eg, after an ABORT): sends IOCTL_SETKEYS with CL = 0 to the
+; active session's console input, so the console doesn't stay in raw keys mode.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX
+;
+DEFPROC	reset_keys,DOS
+	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
+	push	bx
+	push	cx
+	push	dx
+	push	di
+	push	es
+	mov	bx,cs:[scb_active]
+	ASSERT	STRUCT,cs:[bx],SCB
+	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_SETKEYS
+	mov	cl,cs:[bx].SCB_SFHIN
+	call	fc1			; (CX is zeroed for the request)
+	pop	es
+	pop	di
+	pop	dx
+	pop	cx
+	pop	bx
+	ret
+ENDPROC	reset_keys
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

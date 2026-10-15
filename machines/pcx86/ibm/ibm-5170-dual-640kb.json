@@ -5,7 +5,7 @@
     "fpu": "None",
     "fdc": "2 diskette drives",
     "parallel": "LPT1",
-    "serial": "COM1",
+    "serial": "COM1, COM2",
     "hdc": "10Mb hard disk"
   },
   "machine": {
@@ -183,9 +183,9 @@
       "type": "AT",
       "drives": [
         {
-          "name": "BASICDOS-HD",
+          "name": "BASICDOS-10MB",
           "type": 1,
-          "path": "/software/disks/BASICDOS-HD.json"
+          "path": "/software/disks/BASICDOS-10MB.json"
         }
       ],
       "controls": [
@@ -224,6 +224,11 @@
       "class": "serial",
       "adapter": 1,
       "binding": "print"
+    },
+    {
+      "id": "com2",
+      "class": "serial",
+      "adapter": 2
     }
   ]
 }

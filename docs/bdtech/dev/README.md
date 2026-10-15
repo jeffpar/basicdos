@@ -148,17 +148,37 @@ DOS_HDL_IOCTL (INT 21h, AH = 44h) sends IOCTL requests to drivers: AL is passed 
 | D3h | IOCTL_GETLEN | Gets the displayed length of data (eg, with tabs expanded) |
 | D4h | IOCTL_MOVCUR | Moves the cursor by DDPRW_LENGTH positions |
 | D5h | IOCTL_SETINS | Sets INSERT mode on (CL = 1) or off (CL = 0) |
-| D6h | IOCTL_SCROLL | Scrolls (or clears) the interior of the context |
+| D6h | IOCTL_SCROLL | Scrolls the interior of the context up (CX > 0) or down (CX < 0) by CX lines, or clears it (CX = 0) |
 | D7h | IOCTL_GETCOLOR | Gets the fill (DL) and border (DH) colors |
 | D8h | IOCTL_SETCOLOR | Sets the fill (CL) and border (CH) colors |
 | D9h | IOCTL_SETPOS | Sets the cursor position (CL = column, CH = row) and visibility (DL) |
 | DAh | IOCTL_GETMODE | Gets the video mode (DL) |
 | DBh | IOCTL_SETMODE | Sets the video mode (CL) |
 | DCh | IOCTL_GETCHAR | Gets the character (DL) and attributes (DH) at column CL, row CH (zero-based; see the SCREEN function) |
+| DDh | IOCTL_SETKEYS | Sets raw keys mode on (CL = 1) or off (CL = 0); see [Raw Keys](#raw-keys) |
 
 Changing the video mode (with IOCTL_SETMODE, or with INT 10h directly) turns the context into a full-screen, borderless context that uses INT 10h for output, so text output and scrolling work in graphics modes.  When the context returns to its original mode, its original geometry is restored.
 
 While a context is in any mode other than its original mode (eg, a graphics mode, or 40-column text in an 80-column context), it occupies the entire screen, so every other context on the same adapter is blocked: its writes, and any IOCTL_SCROLL, IOCTL_SETCOLOR, or IOCTL_SETMODE request, wait (like a context paused with CTRL-S), and its border isn't drawn (eg, on a focus switch).  When that context returns to its original mode (or is closed, in which case its original mode is restored), the borders of the other contexts on the adapter are redrawn, and every blocked request continues.  Programs that call INT 10h directly from other sessions are not blocked.
+
+The COM driver also supports IOCTL_GETDIM (it assumes an 80x24 terminal), IOCTL_GETPOS and IOCTL_GETLEN (columns only), IOCTL_MOVCUR, IOCTL_SETINS, IOCTL_GETCOLOR, IOCTL_SETCOLOR, and IOCTL_SETKEYS, so that the same programs work on serial consoles.  For ANSI and VT100 terminals, it also supports IOCTL_SETPOS (by sending ESC [ *row* ; *col* H; the cursor's visibility is ignored) and scrolling with IOCTL_SCROLL (by sending LINEFEEDs at the bottom row, or ESC M at the top row); GENERIC terminals support neither, so IOCTL_SETPOS fails, and IOCTL_SCROLL only clears the screen.
+
+#### Raw Keys {#raw-keys}
+
+Normally, both console drivers return non-ASCII keys as the control characters that the DOS line editor uses (eg, CTRL-E for the up-arrow key, and CTRL-S for the left-arrow key), so a program can't tell those keys apart.  In raw keys mode (IOCTL_SETKEYS with CL = 1), both drivers return every non-ASCII key as a zero followed by the key's PC scan code (the SCAN_* values in bios.inc), as PC DOS does, so programs don't need to know which driver they're using:
+
+| Key | Scan code | ANSI/VT100 sequences |
+|-----|-----------|----------------------|
+| Up, Down, Right, Left | 48h, 50h, 4Dh, 4Bh | ESC [ A-D, or ESC O A-D |
+| Home, End | 47h, 4Fh | ESC [ H, ESC [ F (or ESC O H, ESC O F), or ESC [ 1 ~, ESC [ 4 ~ |
+| Insert, Delete | 52h, 53h | ESC [ 2 ~, ESC [ 3 ~ |
+| PgUp, PgDn | 49h, 51h | ESC [ 5 ~, ESC [ 6 ~ |
+| F1-F4 | 3Bh-3Eh | ESC O P-S (the VT100's PF1-PF4), or ESC [ P-S |
+| F5-F10 | 3Fh-44h | ESC [ 15 ~, ESC [ 17 ~ through ESC [ 21 ~ |
+
+The COM driver translates the escape sequences of ANSI and VT100 terminals: modifier parameters (eg, the 5 in ESC [ 1 ; 5 A) are ignored, and other sequences are discarded.  Since an ESC key can't be distinguished from the start of a sequence until the next byte arrives, the driver holds an ESC until then, or for about 110ms (using a [CLOCK$ timer](#clock-timers)), after which it's returned as an ESC.  For VT100 terminals, the key that erases the previous character (DELETE, 7Fh) returns BACKSPACE (08h), and BACKSPACE returns the Delete key (00h, 53h), like the PC's keys; for ANSI terminals, both are returned as they are.  GENERIC terminals return bytes as they are.
+
+All other keys are returned as their ASCII codes, including control characters (eg, CTRL-D and CTRL-S are no longer cursor keys).  CTRL-C is still reported to DOS as usual (see above), and the CON driver's internal hotkeys (SHIFT-TAB, and CTRL-S when the context isn't waiting for input) still work.  A program that sets raw keys mode should turn it off before it exits; if it doesn't (eg, if it's aborted), DOS turns it off for the session's console when the program ends (DOS records the last IOCTL_SETKEYS setting in the program's PSP, at PSP_RAWKEYS).
 
 #### FPU$ {#fpu}
 
@@ -184,6 +204,12 @@ While a context is in any mode other than its original mode (eg, a graphics mode
 | HDC$ | Block | Hard disks: FAT12 and FAT16 primary partitions of up to two BIOS hard disks (C:, D:, etc.); reads and writes are done by FDC$, so FDC$ must also be loaded |
 
 Drivers that aren't needed (eg, CON in a configuration that uses only serial consoles) can be omitted with [SKIP=](../../bdman/cfg/#skip).
+
+### CLOCK$ Timers {#clock-timers}
+
+Drivers that need to do something after a delay (eg, the COM driver, to decide that a held ESC is just an ESC) use CLOCK$ timers instead of hooking the timer interrupt.  CLOCK$ exports a far entry point immediately after its device header (CLKX in dev.inc), and DEVINIT records the CLOCK$ header in CLOCK_DEVICE (0:50Eh), so a driver can find it at any time after initialization (CLOCK_DEVICE.SEG is zero if CLOCK$ isn't loaded).
+
+CLKX_TIMER takes ES:DI pointing to a TMR structure (owned by the caller, with TMR_FUNC set to a far function) and CX = milliseconds, which are rounded up to whole clock ticks (the first of which may be partial); CX = 0 cancels the timer, and starting a timer that's already running restarts it.  It can be called from interrupt handlers.  When the timer expires, CLOCK$ removes it and calls TMR_FUNC from its timer interrupt handler (after DDINT_ENTER, so it can call DOS_UTL_ENDWAIT), with ES:DI pointing to the TMR and interrupts disabled; the function may modify any registers except SS:SP and BP.
 
 FDC$ and HDC$ share one copy of the INT 13h read and write code (including the handling of multi-track transfers and of transfers that would cross a 64K DMA boundary) and one sector buffer, all in FDC$.  FDC$ exports two far entry points immediately after its device header (FDCX in dev.inc): FDCX_RW performs a DDC_READ or DDC_WRITE request for the BIOS drive number in AL, and FDCX_RDBUF reads a sector into the shared buffer (eg, a volume's boot sector, when HDC$ builds its BPB).  HDC$ finds FDC$ through FDC_DEVICE (which DEVINIT records before initializing HDC$), and if FDC$ isn't loaded (eg, `SKIP=FDC$`), HDC$ doesn't load either.  The shared code takes the volume's geometry from its BPB, and for hard disks, adds BPB_HIDDENSECS (the volume's first sector) to every sector number.
 
@@ -219,6 +245,6 @@ A device can be opened any number of times, unless an open (DOS_HDL_OPEN, INT 21
 
 Each DEVICE= line in CONFIG.SYS loads a character device driver from a file: a single driver with no relocations, whose DDH is at offset 0, with DDH_NEXT_OFF set to FFFFh and DDATTR_CHAR set.  A dual-mode .COM file can instead put a JMP SHORT (EBh) in DDH_NEXT_OFF, which a program run from the prompt executes first.  DOS reads the entire file into memory, then calls DDH_REQUEST with a DDC_INIT request, where DDPI_BUFPTR points to the ASCIIZ arguments that follow the filename, and DDPI_END is preset to the end of the file.  INIT runs before any sessions exist, so the driver can open files and devices (it gets system file handles, since there's no PSP yet), but if it fails, it must close them and leave no interrupt vectors hooked.  If INIT succeeds, DOS releases any memory beyond DDPI_END.OFF and adds the driver to the head of the driver list; otherwise, DOS frees the driver and displays a warning with error 31 (general failure), and for any other failure, the warning includes the DOS error (eg, 2 if the file wasn't found, or 11 if it's not a valid driver).
 
-DEBUG.COM (software/src/os/dd/dbg/dbgdev.asm) is a dual-mode example.  As a program, its JMP SHORT lands on its input buffer, whose initial contents (unused by the driver) jump to code past DDPI_END, so loading it as a driver costs no extra memory.  DOS names each installed driver's memory block after its device (eg, DEBUG$), and the block owns itself, so MEM /D lists it in address order.  As a driver, it opens the COM port named in its arguments with MODE_DENY_RW, switches it to polling with IOCTL_COMDEBUG (which also frees the port's context, since the debugger does its own I/O; the exclusive handle still reserves the port), and then hooks INT 01h, INT 03h, and the port's hardware interrupt, enabling only the UART's receive and line status interrupts, so that a Ctrl-C or BREAK stops the machine as soon as it arrives (other input is discarded, and an interrupt from another port sharing the IRQ is passed on).  Its monitor never calls DOS, since it may have interrupted DOS, so it polls the UART instead.
+DEBUG.COM (software/src/os/dd/dbg/dbgdev.asm) is a dual-mode example.  As a program, its JMP SHORT lands on its input buffer, whose initial contents (unused by the driver) jump to code past DDPI_END, so loading it as a driver costs no extra memory.  DOS names each installed driver's memory block after its device (eg, DEBUG$), and the block owns itself, so MEM /D lists it in address order.  As a driver, it opens the COM port named in its arguments with MODE_DENY_RW, switches it to polling with IOCTL_COMDEBUG (which also frees the port's context, since the debugger does its own I/O; the exclusive handle still reserves the port), and then hooks INT 01h, INT 03h, and the port's hardware interrupt, enabling only the UART's receive and line status interrupts, so that a Ctrl-C or BREAK stops the machine as soon as it arrives (other input is discarded, and an interrupt from another port sharing the IRQ is passed on).  Its monitor never calls DOS, since it may have interrupted DOS, so it polls the UART instead.  On entry, it copies the interrupted registers from the interrupted stack, and when it resumes, it copies them back below the (possibly changed) SS:SP before the IRET.  Breakpoints are INT 3 instructions that are written only while running: the monitor restores the original bytes on entry (backing up IP if one was hit), and G single-steps past any breakpoint at CS:IP before writing them.  The disassembler decodes each instruction twice, first with output muted to find its length, so that the bytes can be displayed before the mnemonic.
 
 {% include footer.html prev="Utility Functions:../util/" next="Floating-Point Interface:../fpu/" %}

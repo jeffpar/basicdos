@@ -63,6 +63,7 @@ DEFPROC	devinit,far
 	mov	word ptr [DDINT_UTIL],(OP_RETF SHL 8) OR OP_STC
 	sub	ax,ax
 	mov	[FDC_DEVICE].SEG,ax	; no FDC driver yet
+	mov	[CLOCK_DEVICE].SEG,ax	; and no CLOCK$ driver yet
 	mov	[FDC_UNITS],al
 	mov	[HDC_UNITS],al		; and no HDC volumes yet
 ;
@@ -255,7 +256,11 @@ i6:	pop	ax
 ; In addition, I now store the next available segment in the SEG portion of
 ; the final driver pointer (-1 in the OFF portion still means end of list).
 ;
-i7:	push	di
+i7:	test	[si].DDH_ATTR,DDATTR_CLOCK
+	jz	i7c
+	mov	[CLOCK_DEVICE].OFF,cx	; record the CLOCK$ driver (see CLKX)
+	mov	[CLOCK_DEVICE].SEG,ax
+i7c:	push	di
 	lea	di,[DD_LIST]
 i7a:	cmp	es:[di].DDH_NEXT_OFF,-1
 	je	i7b

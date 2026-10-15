@@ -483,6 +483,9 @@ Returns the numeric value of *string*, ignoring any blanks.  If *string* does no
 VER
 Displays the BASIC-DOS version number and revision.
 
+VI [*file*]
+Edits *file* full-screen, using a subset of the commands of the UNIX *vi* editor (see the BASIC-DOS manual).  Press i to insert text and ESC to stop, then type :wq to save and exit, or :q! to exit without saving.
+
 WEND
 Ends a WHILE loop.
 

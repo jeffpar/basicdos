@@ -10,7 +10,7 @@ machines:
     autoType: DATE\rTIME\rDIR\r
 ---
 
-The machine below is an IBM PC (Model 5150) with two floppy disk drives, a Color Graphics Adapter (CGA) connected to a Color Monitor, and 128K of RAM.  It boots the BASIC-DOS diskette in drive A: (`BASICDOS-DISK1`), and then runs the `DATE`, `TIME`, and `DIR` commands.
+The machine below is an IBM PC (Model 5150) with two floppy disk drives, a Color Graphics Adapter (CGA) connected to a Color Monitor, and 128K of RAM.  It boots the BASIC-DOS diskette in drive A: (`BASICDOS-360K-S80`), and then runs the `DATE`, `TIME`, and `DIR` commands.
 
 {% include machine.html id="ibm5150" %}
 

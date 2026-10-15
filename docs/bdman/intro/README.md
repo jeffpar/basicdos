@@ -92,16 +92,18 @@ To run a program, type its name, optionally followed by any arguments the progra
 
 For example, if a disk contains both DONKEY.COM and DONKEY.BAS, typing `DONKEY` runs DONKEY.COM, and typing `DONKEY.BAS` runs DONKEY.BAS.
 
-If the program isn't in the current directory, and its name doesn't include a drive or directory, BASIC-DOS searches the directories listed in [PATH$](../cmd/basic/func/#path), in order.  Every BASIC-DOS disk has the same layout:
+If the program isn't in the current directory, and its name doesn't include a drive or directory, BASIC-DOS searches the directories listed in [PATH$](../cmd/basic/func/#path), in order.  Every bootable BASIC-DOS disk has the same layout:
 
 - The root directory contains BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, AUTOEXEC.BAT (if any), and HELP.TXT
-- **BIN** contains the BASIC-DOS utilities (eg, [FIND, MORE, and SORT](../cmd/external/#filters))
-- **SAMPLES** contains the PC DOS BASIC samples (eg, DONKEY.BAS), on disks that include them
-- **TESTS** contains test programs and other programs for demonstration purposes (eg, PRIMES.BAS, MSBASIC.EXE, and SYMDEB.EXE)
+- **BIN** contains the BASIC-DOS utilities (eg, [FIND, MORE, and SORT](../cmd/external/#filters)) and DEBUG.COM
+- **SAMPLES** contains the PC DOS BASIC samples (eg, DONKEY.BAS)
+- **DEMOS** contains the programs that the demos run (eg, HELLO.BAT, FIBO.BAT, and PRIMES.BAS)
 
-and its CONFIG.SYS sets PATH$ to the root, BIN, SAMPLES, and TESTS (eg, `A:\;A:\BIN;A:\SAMPLES;A:\TESTS`), so you can type `PRIMES` or `DIR | SORT` from any directory.  Programs in TESTS can also be run by name (eg, `MSBASIC`).
+and its CONFIG.SYS sets PATH$ to the root, BIN, SAMPLES, and DEMOS (eg, `A:\;A:\BIN;A:\SAMPLES;A:\DEMOS`), so you can type `PRIMES` or `DIR | SORT` from any directory.
 
-The [hard disk demo](/demos/hd/at/) adds two more directories: **SRC** (the BASIC-DOS source code) and **TOOLS** (MASM and the other build tools).
+Test programs (eg, DOSTESTS.COM), along with MSBASIC.EXE and SYMDEB.EXE, are on a separate diskette, BASICDOS-360K-TESTS, in its **TESTS** directory; load it in drive B: and type (for example) `B:\TESTS\MSBASIC`.
+
+The [hard disk demo](/demos/hd/at/) adds three more directories: **TESTS** (the same test programs as BASICDOS-360K-TESTS), **SRC** (the BASIC-DOS source code), and **TOOLS** (MASM and the other build tools).
 
 Use `LIST VARS` to inspect the current session's variable values and array dimensions; see [LIST](../cmd/system/#list).
 

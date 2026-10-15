@@ -7,7 +7,8 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Run on BASICDOS-DEBUG.  Resume both traps with G on the debugger terminal.
+; Run B:\TESTS\DBGTEST on BASICDOS-360K-DEBUG, with BASICDOS-360K-TESTS in
+; drive B:.  Resume both traps with G on the debugger terminal.
 ;
 	include	macros.inc
 	include	dosapi.inc

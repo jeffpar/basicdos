@@ -6,12 +6,15 @@ machines:
   - id: ibm5150
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
-    autoType: CD TESTS\rDIR PRIMES.*\rMSBASIC PRIMES\r
+    autoMount:
+      A: "BASICDOS-360K-S80"
+      B: "BASICDOS-360K-TESTS"
+    autoType: CD DEMOS\rDIR PRIMES.*\rB:/TESTS/MSBASIC PRIMES\r
 ---
 
 ### Part 2: BASIC Operations
 
-The machine below boots the `BASICDOS-DISK1` diskette, changes to its **TESTS** directory, lists the PRIMES files there, and then runs **PRIMES.BAS** with **MSBASIC**, which computes all the primes under 1000 on a 4.77Mhz IBM PC.
+The machine below boots the `BASICDOS-360K-S80` diskette, changes to its **DEMOS** directory, lists the PRIMES files there, and then runs **PRIMES.BAS** with **MSBASIC** (from the `BASICDOS-360K-TESTS` diskette in drive B:), which computes all the primes under 1000 on a 4.77Mhz IBM PC.
 
 {% include machine.html id="ibm5150" %}
 

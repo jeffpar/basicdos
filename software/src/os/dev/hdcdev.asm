@@ -7,19 +7,19 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; This driver supports IBM PC XT (model 5160) hard disks, by way of the ROM
-; BIOS (INT 13h with drive numbers 80h and up).  At initialization, it reads
-; the Master Boot Record (MBR) of every hard disk, and every FAT12/FAT16 partition
-; becomes a "volume" (ie, a unit of this driver), which the kernel presents as
-; drives C:, D:, etc (see sysinit).
+; This driver supports IBM PC XT (model 5160) and PC AT (model 5170) hard
+; disks, by way of the ROM BIOS (INT 13h with drive numbers 80h and up).  At
+; initialization, it reads the Master Boot Record (MBR) of every hard disk, and
+; every FAT12/FAT16 partition becomes a "volume" (ie, a unit of this driver),
+; which the kernel presents as drives C:, D:, etc (see sysinit).
 ;
 ; Compared to the FDC driver, this driver is simpler in some respects (eg, no
 ; media changes), and more complicated in others (eg, every LBA is relative
 ; to the start of its volume).  Since INT 13h works the same way for hard
-; disks as it does for diskettes (including DMA transfers that can't cross 64K
-; boundaries), all our reads and writes are done by the FDC driver (see FDCX
-; in dev.inc), using the geometry and volume start in our BPBs, so the FDC
-; driver must be loaded too.
+; disks as it does for diskettes (including, on an XT, DMA transfers that
+; can't cross 64K boundaries), all our reads and writes are done by the FDC
+; driver (see FDCX in dev.inc), using the geometry and volume start in our
+; BPBs, so the FDC driver must be loaded too.
 ;
 	BIOSEQU equ 1
 	include	macros.inc

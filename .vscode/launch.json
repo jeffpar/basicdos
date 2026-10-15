@@ -7,8 +7,8 @@
     {
       "type": "chrome",
       "request": "launch",
-      "name": "BASIC-DOS",
-      "url": "http://localhost:4040/demos/debugger/",
+      "name": "BASIC-DOS on an IBM PC",
+      "url": "http://localhost:4040/demos/s80/pc/",
       "webRoot": "${workspaceFolder}"
     },
     {
@@ -21,15 +21,8 @@
     {
       "type": "chrome",
       "request": "launch",
-      "name": "BASIC-DOS with Dual Monitors and Sessions",
+      "name": "BASIC-DOS with Dueling Monitors",
       "url": "http://localhost:4040/demos/dual/multi/xt/",
-      "webRoot": "${workspaceFolder}"
-    },
-    {
-      "type": "chrome",
-      "request": "launch",
-      "name": "BASIC-DOS with DONKEY.BAS",
-      "url": "http://localhost:4040/demos/s80/pc/",
       "webRoot": "${workspaceFolder}"
     },
     {
@@ -37,13 +30,6 @@
       "request": "launch",
       "name": "BASIC-DOS on a Hard Disk",
       "url": "http://localhost:4040/demos/hd/xt/",
-      "webRoot": "${workspaceFolder}"
-    },
-    {
-      "type": "chrome",
-      "request": "launch",
-      "name": "BASIC-DOS on a Hard Disk with Debugger",
-      "url": "http://localhost:4040/demos/hd/xt/debugger/",
       "webRoot": "${workspaceFolder}"
     },
     {
@@ -58,6 +44,13 @@
       "request": "launch",
       "name": "BASIC-DOS with a VT100 Terminal",
       "url": "http://localhost:4040/demos/vt100/xt/",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "BASIC-DOS with a Serial Debugger",
+      "url": "http://localhost:4040/demos/debug/pc/",
       "webRoot": "${workspaceFolder}"
     },
     {

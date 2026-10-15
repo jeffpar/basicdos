@@ -40,6 +40,7 @@ FDC 	DDH	<offset DEV:ddfdc_end+16,,DDATTR_BLOCK,offset ddfdc_init,-1,20202020244
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
 	DEFBYTE	rw_drive,0		; BIOS drive # for readwrite_sectors
+	DEFBYTE	rw_pio,0		; 80h if hard disks don't use DMA
 	DEFBYTE	ddbuf_drv,-1
 	DEFWORD	ddbuf_lba,-1
 	DEFPTR	ddbuf_ptr,<offset ddfdc_init>
@@ -660,6 +661,10 @@ ENDPROC	write_buffer
 ; boundary, then the next sector, if any, by way of our own buffer, and then
 ; any remaining sectors on the track.
 ;
+; PC AT hard disks are the exception: the AT fixed disk BIOS uses programmed
+; I/O rather than DMA, and it normalizes ES:BX, so a single-track request can
+; never cross a boundary it cares about (see rw_pio).
+;
 ; Inputs:
 ;	BH = BIOS cmd (FDC_READ or FDC_WRITE)
 ;	BL = # sectors
@@ -712,8 +717,11 @@ rw2:	inc	ah			; AH = sector ID
 	mov	dl,cs:[rw_drive]	; DL = BIOS drive #
 	mov	ah,bh			; AH = BIOS cmd, AL = # sectors
 ;
-; Reduce AL to the # sectors that precede the next 64K boundary.
+; Reduce AL to the # sectors that precede the next 64K boundary, unless
+; this is a PC AT hard disk (DL bit 7 set and rw_pio is 80h).
 ;
+	test	dl,cs:[rw_pio]		; hard disk without DMA?
+	jnz	rw2c			; yes, so no boundary to worry about
 	push	cx
 	mov	bx,es
 	mov	cl,4
@@ -729,9 +737,9 @@ rw2a:	add	bx,512
 rw2b:	pop	cx
 	test	al,al			; any sectors before the boundary?
 	jz	rw4			; no
-	push	ax
+rw2c:	push	ax
 	mov	bx,bp			; ES:BX -> buffer
-	int	INT_FDC			; AX and carry are from the ROM
+	call	bios_rw			; AX and carry are from the ROM
 rw3:	pop	cx
 	mov	ch,0			; CX = # sectors this iteration
 	pop	bx			; BL = total # sectors
@@ -768,7 +776,7 @@ rw4:	mov	al,1			; AL = 1 sector
 	rep	movsw			; no, so copy the sector to our buffer
 rw4a:	pop	cx			; CX = cylinder and sector ID again
 	mov	bx,cs:[ddbuf_ptr].OFF	; ES:BX -> our own buffer
-	int	INT_FDC			; AX and carry are from the ROM
+	call	bios_rw			; AX and carry are from the ROM
 	pop	es
 	pop	ds
 	pop	di
@@ -805,6 +813,37 @@ rw9:	pop	es
 	pop	bx
 	ret
 ENDPROC	readwrite_sectors
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Call BIOS to read/write sectors, retrying once on a media change
+;
+; On a PC AT, if a drive's change line is active, the BIOS resets the line
+; and fails the request with FDCERR_CHANGED, so the request must be retried.
+; We retry only once, because the line stays active if the drive is empty.
+;
+; Inputs:
+;	Same as INT_FDC
+;
+; Outputs:
+;	Same as INT_FDC
+;
+; Modifies:
+;	AX
+;
+DEFPROC	bios_rw
+	push	di
+	mov	di,ax			; DI = BIOS cmd and # sectors
+	int	INT_FDC			; AX and carry are from the ROM
+	jnc	if9
+	cmp	ah,FDCERR_CHANGED	; media changed?
+	stc
+	jne	if9			; no
+	xchg	ax,di
+	int	INT_FDC			; yes, so try again
+if9:	pop	di
+	ret
+ENDPROC	bios_rw
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -885,6 +924,18 @@ DEFPROC	ddfdc_init,far
 	mov	es:[bx].DDPI_END.OFF,offset ddfdc_init + 512
 	mov	cs:[0].DDH_REQUEST,offset DEV:ddfdc_req
 	mov	[ddbuf_ptr].SEG,cs
+;
+; PC AT-class machines (model byte FCh at F000:FFFEh) have a fixed disk
+; BIOS that uses programmed I/O, so hard disk transfers aren't subject to
+; 64K DMA boundaries (see readwrite_sectors).
+;
+	mov	dx,0F000h
+	mov	ds,dx
+	ASSUME	DS:NOTHING
+	cmp	byte ptr ds:[0FFFEh],0FCh	; PC AT model byte?
+	jne	ddin1				; no
+	mov	cs:[rw_pio],80h
+ddin1:
 ;
 ; Determine how many floppy disk drives are in the system.
 ;

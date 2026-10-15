@@ -6,22 +6,22 @@ machines:
   - id: ibm5150
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
-    autoType: LOAD /TESTS/BD1.BAT\rLIST\rRUN\r
+    autoType: LOAD /DEMOS/FIBO.BAT\rLIST\rRUN\r
 ---
 
 ### Part 3: BASIC Files vs. Batch Files
 
-The machine below boots the `BASICDOS-DISK1` diskette, loads the **BD1.BAT** batch file from its **TESTS** directory, lists it, and then runs it.
+The machine below boots the `BASICDOS-360K-S80` diskette, loads the **FIBO.BAT** batch file from its **DEMOS** directory, lists it, and then runs it.
 
 {% include machine.html id="ibm5150" %}
 
-There are three versions of the **PRIMES** program on the `BASICDOS-DISK1` diskette: the **BAS** file previously demonstrated, a **BAT** version that uses line numbers only as needed (as labels), and an **EXE** version that was written in assembly language.  The source code for the assembly language version can be found in the BASIC-DOS [Repository]({{ site.github.repository_url }}/blob/master/software/src/tests/primes/primes.asm), and on the [hard disk demo](/demos/hd/at/), whose **SRC** directory contains the rest of the BASIC-DOS source code.
+There are three versions of the **PRIMES** program on the `BASICDOS-360K-S80` diskette: the **BAS** file previously demonstrated, a **BAT** version that uses line numbers only as needed (as labels), and an **EXE** version that was written in assembly language.  The source code for the assembly language version can be found in the BASIC-DOS [Repository]({{ site.github.repository_url }}/blob/master/software/src/tests/primes/primes.asm), and on the [hard disk demo](/demos/hd/at/), whose **SRC** directory contains the rest of the BASIC-DOS source code.
 
 When processing an external filename, BASIC-DOS searches for extensions in the same order as PC DOS: **COM**, **EXE**, and **BAT**.  And if none of those are found, it also searches for a **BAS** file.  And unlike PC DOS, you can override the search order with an *explicit* file extension.
 
 As in PC DOS 2.00, an `ECHO` command has been added to control the echoing of lines in a batch file.  However, the only `ECHO` options are *ON* and *OFF*, because if you want to echo something else, well, BASIC already has a command for that: `PRINT`.
 
-Variables, including function definitions, remain in memory after a batch file (or BASIC program) has been run.  So the ADD function defined by **BD1.BAT** is still available, and can be used by any BASIC command or expression typed directly at the command prompt.  For example:
+Variables, including function definitions, remain in memory after a batch file (or BASIC program) has been run.  So the ADD function defined by **FIBO.BAT** is still available, and can be used by any BASIC command or expression typed directly at the command prompt.  For example:
 
     PRINT ADD(123456,654321)
 

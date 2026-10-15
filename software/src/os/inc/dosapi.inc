@@ -7,6 +7,9 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+; Drivers that don't need the program interfaces (FCB, PSP, EPB, SPB, FFB,
+; and COMHEAP) can define DOSDEV to skip them, saving MASM symbol space.
+;
 
 ;
 ; DOS interrupt vector table (IVT) usage
@@ -157,6 +160,7 @@ DOS_UTL_EDITLN	equ	24h	; edit line (DS:DX)
 DOS_UTL_QRYSCB	equ	25h	; query session (CL)
 DOS_UTL_HDLCTL	equ	(DOS_HDL_IOCTL + 80h)
 
+	IFNDEF	DOSDEV
 ;
 ; File Control Block (FCB)
 ;
@@ -205,6 +209,7 @@ FCBERR_OK	equ	00h	; read successful
 FCBERR_EOF	equ	01h	; EOF, empty record
 FCBERR_DTA	equ	02h	; DTA too small
 FCBERR_PARTIAL	equ	03h	; EOF, partial record
+	ENDIF	; DOSDEV
 
 ;
 ; Modes for DOS_HDL_OPEN
@@ -278,6 +283,7 @@ CRERR_RETRY	equ	1	; retry the operation
 CRERR_ABORT	equ	2	; abort program via INT 23h
 CRERR_FAIL	equ	3	; fail the system call in progress
 
+	IFNDEF	DOSDEV
 ;
 ; Program Segment Prefix (PSP)
 ;
@@ -308,7 +314,8 @@ PSP_HEAP	dw	?	; 4Ah: BASIC-DOS: heap offset (see COMHEAP)
 PSP_EXCODE	db	?	; 4Eh: BASIC-DOS: exit code, if any
 PSP_EXTYPE	db	?	; 4Fh: BASIC-DOS: exit type (see EXTYPE_*)
 PSP_DOSCALL	db	3 dup(?); 50h: INT 21h/RETF
-		db	3 dup(?); 53h: unused
+PSP_RAWKEYS	db	?	; 53h: BASIC-DOS: non-zero if raw keys enabled
+		db	2 dup(?); 54h: unused
 PSP_DIGITS	dw	?	; 56h: digit switches (see DOS_UTL_PARSESW)
 PSP_LETTERS	dd	?	; 58h: letters switches (see DOS_UTL_PARSESW)
 PSP_FCB1	db     16 dup(?); 5Ch
@@ -344,6 +351,7 @@ SPB_SFHAUX	db	?	; 09h: SFH for STDAUX (SFH_NONE for default)
 SPB_SFHPRN	db	?	; 0Ah: SFH for STDPRN (SFH_NONE for default)
 		db	?	; 0Bh: padding
 SPB		ends		; 0Ch
+	ENDIF	; DOSDEV
 
 ;
 ; Exit types (returned with exit code on DOS_PSP_RETCODE calls)
@@ -356,6 +364,7 @@ EXTYPE_DVERR	equ	4	; BASIC-DOS: divide error
 EXTYPE_OVERR	equ	5	; BASIC-DOS: overflow error
 EXTYPE_ABORT	equ	6	; BASIC-DOS: abort session (via CTRL-ALT-DEL)
 
+	IFNDEF	DOSDEV
 ;
 ; Find File Block (FFB)
 ;
@@ -372,6 +381,7 @@ FFB_DATE	dw	?	; 18h: file date
 FFB_SIZE	dd	?	; 1Ah: file size
 FFB_NAME	db    13 dup (?); 1Eh: file name (null-terminated)
 FFB		ends		; 2Bh
+	ENDIF	; DOSDEV
 
 ;
 ; DOS_MSC_GETVARS return structure
@@ -412,6 +422,7 @@ ERR_DISKFULL	equ	39	; disk full
 ERR_BADSESSION	equ	100	; invalid session
 ERR_NOSESSION	equ	101	; out of sessions
 
+	IFNDEF	DOSDEV
 ;
 ; MINHEAP is the minimum number of bytes we allocate for a COM binary, on
 ; top of the actual file size.  This is important, because unlike PC DOS,
@@ -470,3 +481,4 @@ heap_paras equ (heap_size + 15) SHR 4
 	COMDATA <offset DGROUP:heap_off,code_size,heap_paras,SIG_BASICDOS>
 	ENDIF
 	endm
+	ENDIF	; DOSDEV
