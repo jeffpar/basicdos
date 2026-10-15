@@ -1,4 +1,4 @@
-The BASICDOS-360K-S80 diskette's **CONFIG.SYS** doesn't define any consoles, so BASIC-DOS creates a single 80-column, 25-row session, running COMMAND.COM, which runs **HELLO.BAT** to display the BASIC-DOS version and a colorful greeting.  Type **HELP** for a list of commands, **DIR** to list the files on the diskette, and **PRIMES.BAS** to run the BASIC version of PRIMES.
+The BASICDOS-360K-S80 diskette's **CONFIG.SYS** doesn't define any consoles, so BASIC-DOS creates a single 80-column, 25-row session, running COMMAND.COM, which runs **HELLO.BAT** to display a colorful greeting.  Type **HELP** for a list of commands, **DIR** to list the files on the diskette, and **PRIMES.BAS** to run the BASIC version of PRIMES.
 
 ### BASIC Samples
 
