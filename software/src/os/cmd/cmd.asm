@@ -13,7 +13,7 @@ CODE    SEGMENT
 
 	EXTNEAR	<freeAllText,genCode,freeAllCode,freeAllVars,cmdLoad>
 	IF DETOK
-	EXTNEAR	<chkExt,getCwd,cmdDel,chkColon,findProgram>
+	EXTNEAR	<chkExt,getCwd,cmdDel,chkColon,splitCmd,findProgram>
 	EXTNEAR	<openInput,openError,closeInput>
 	EXTNEAR	<openHandle,syncFiles,openPipe,addPipe,endPipes,doHelp>
 	ENDIF
@@ -186,7 +186,7 @@ m3:	call	enterLine		; is it a numbered program line?
 	mov	[di].TOK_MAX,(size TOK_DATA) / (size TOKLET)
 	DOSUTIL	TOKEN1
 	jc	m1			; jump if no tokens
-
+	call	splitCmd		; split "CD\" into "CD" and "\" (etc)
 	call	parseCmd
 	jmp	m1
 ;

@@ -190,6 +190,8 @@ DOS_PSP_RETCODE returns one of these exit types in AH:
 | 5 | EXTYPE_OVERR | Terminated by an overflow error (BASIC-DOS only) |
 | 6 | EXTYPE_ABORT | Session aborted with CTRL-ALT-DEL (BASIC-DOS only) |
 
+When DOS_PSP_RETCODE reports EXTYPE_CTRLC, BASIC-DOS also signals CTRL-C to the caller (without echoing it again), so a CTRL-C ripples up through every parent whose CTRL-C handler terminates it (eg, from MASM to MAKE to COMMAND, which then abandons any BAT or BAS files that were running and returns to its prompt).  The exit type is reset to EXTYPE_NORMAL first, so if the caller's handler restarts the call, it returns the exit code with EXTYPE_NORMAL.
+
 However a program terminates, any of vectors 08h, 09h, 1Bh, and 1Ch that still points into its memory is restored to the value it had when BASIC-DOS started, since some programs (eg, MSBASIC) hook those vectors directly and restore them only when they exit normally.
 
 ### Error Codes

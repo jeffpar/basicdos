@@ -119,6 +119,7 @@ SCAN_CTRL_PGUP	equ	84h	; ctrl-page-up
 ; INT_TIME functions
 ;
 TIME_GETTICKS	equ	00h	; returns CX:DX, and AL != 0 if wrapped
+TIME_GETDATE	equ	04h	; returns CX = century/year, DX = month/day (BCD)
 	ENDIF	; BIOSEQU
 
 ;

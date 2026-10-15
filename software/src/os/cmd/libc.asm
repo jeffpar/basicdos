@@ -11,7 +11,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<parseDOS,releaseStr,strIllegal,ctrlc,openName>
+	EXTNEAR	<parseDOS,splitCmd,releaseStr,strIllegal,ctrlc,openName>
 	EXTNEAR	<chkStrVar,noFile,mouseCall,mouseReset,allocStr>
 	EXTSTR	<STR_ON,STR_OFF>
 
@@ -79,6 +79,7 @@ cd1:	push	cx
 	mov	[di].TOK_MAX,(size TOK_DATA) / (size TOKLET)
 	DOSUTIL	TOKEN1
 	ASSERT	NC
+	call	splitCmd		; split "CD\" into "CD" and "\" (etc)
 	pop	ax			; AX = keyword ID, if any
 	mov	cl,[di].TOK_DATA[0].TOKLET_LEN
 	call	parseDOS		; CX = length of first token only

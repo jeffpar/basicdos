@@ -337,6 +337,15 @@ DEFPROC	msc_sigctrlc,DOSFAR
 	mov	bx,[scb_active]
 	ASSERT	STRUCT,[bx],SCB
 	jmp	short msg0
+;
+; psp_retcode signals a child's CTRLC to its parent here, without echoing it
+; or flushing the console again.
+;
+	DEFLBL	msc_retctrlc,near
+	push	cs
+	pop	ds
+	mov	di,-1			; DI = -1 (don't echo the CTRLC)
+	jmp	short msg1
 
 	DEFLBL	msc_readctrlc,near
 	ASSERT	STRUCT,[bx],SCB

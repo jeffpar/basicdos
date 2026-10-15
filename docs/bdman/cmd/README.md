@@ -17,6 +17,8 @@ BASIC-DOS has a single command processor for both DOS commands (eg, DIR) and BAS
 
 In the descriptions that follow, *italics* indicate values that you supply, brackets (`[` `]`) indicate optional items, and a vertical bar (`|`) separates alternatives.
 
+As in MS-DOS, a DOS command typed as one word with a path (eg, `CD\`, `CD\BIN`, or `DIR\HELP.TXT`) doesn't need a space before the path.  Unlike MS-DOS, however, a command followed by a path that begins with `.` (eg, `CD..`) still needs a space (eg, `CD ..`).
+
 ### Commands A-Z
 
 | Command | Category | Command | Category |

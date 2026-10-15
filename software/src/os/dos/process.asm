@@ -21,7 +21,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<mcb_getsize,mcb_free_all>
 	EXTNEAR	<dos_check,dos_leave,dos_leave2,dos_ctrlc,dos_error>
 	EXTNEAR	<mcb_setname,scb_getnum,scb_release,scb_close,scb_yield>
-	EXTNEAR	<msc_sigctrlc>
+	EXTNEAR	<msc_sigctrlc,msc_retctrlc>
 	EXTWORD	<ivt_save>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -348,7 +348,17 @@ DEFPROC	psp_retcode,DOS
 	mov	ds,ax
 	mov	ax,word ptr ds:[PSP_EXCODE]
 	mov	[bp].REG_AX,ax
-	ret
+;
+; If the child was terminated by CTRLC, signal CTRLC to the caller, too, so
+; that it ripples up through every parent (eg, MAKE) until one (eg, COMMAND)
+; handles it.  Reset the exit type first, so that if the caller's handler
+; restarts this call, the call simply returns.
+;
+	xor	ah,EXTYPE_CTRLC		; terminated by CTRLC (XOR clears carry)?
+	jnz	pr9			; no
+	mov	ds:[PSP_EXTYPE],EXTYPE_NORMAL
+	jmp	msc_retctrlc		; signal CTRLC (does not return)
+pr9:	ret
 ENDPROC	psp_retcode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

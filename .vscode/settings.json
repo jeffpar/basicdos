@@ -1066,6 +1066,7 @@
     "RESSECS",
     "RETBYTES",
     "RETCODE",
+    "retctrlc",
     "RETF",
     "Retn",
     "RETVAR",

@@ -30,10 +30,10 @@ CLOCK	DDH	<offset DEV:ddclk_end+16,,DDATTR_CLOCK+DDATTR_CHAR+DDATTR_IOCTL,offset
 
 	DEFPTR	tmr_int,0		; timer hardware interrupt handler
 	DEFPTR	wait_ptr,-1		; chain of waiting packets
-	DEFBYTE	dateDay,10		; 1-31
+	DEFBYTE	dateDay,10		; 1-31 (default for PC and XT)
 	DEFBYTE	dateMonth,12		; 1-12
 	DEFWORD	dateYear,2020		; 1980-
-	DEFLONG	ticksToday,786520	; ticks since midnight (noon default)
+	DEFLONG	ticksToday,0		; ticks since midnight (from BIOS)
 	DEFWORD	sndTicks,0		; ticks until the speaker is turned off
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -657,6 +657,35 @@ DEFPROC	ddclk_init,far
 	mov	es:[bx].DDPI_END.OFF,offset ddclk_init
 	mov	cs:[0].DDH_REQUEST,offset DEV:ddclk_req
 ;
+; Start with the BIOS time of day (which an AT-class BIOS sets from its
+; real-time clock) and the real-time clock's date, if any.  A PC or XT BIOS
+; doesn't support TIME_GETDATE, so CX remains zero and our default date stands.
+;
+	mov	ah,TIME_GETTICKS
+	int	INT_TIME		; CX:DX is current tick count
+	mov	[ticksToday].LOW,dx
+	mov	[ticksToday].HIW,cx
+	mov	ah,TIME_GETDATE
+	sub	cx,cx
+	int	INT_TIME		; CX = century/year, DX = month/day
+	jcxz	ci1			; no real-time clock date
+	mov	al,cl
+	call	bcd_bin			; AX = year within century
+	xchg	ax,cx			; CX = that year, AH = century (BCD)
+	mov	al,ah
+	call	bcd_bin			; AX = century
+	mov	ah,100
+	mul	ah
+	add	cx,ax
+	mov	[dateYear],cx
+	mov	al,dh
+	call	bcd_bin
+	mov	[dateMonth],al
+	mov	al,dl
+	call	bcd_bin
+	mov	[dateDay],al
+ci1:
+;
 ; Install an INT 08h hardware interrupt handler, which we will use to service
 ; WAIT requests, and which will also drive the DOS scheduler as soon as DOS has
 ; initialized and revectored DDINT_ENTER/DDINT_LEAVE.
@@ -672,6 +701,27 @@ DEFPROC	ddclk_init,far
 
 	ret
 ENDPROC	ddclk_init
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; bcd_bin
+;
+; Inputs:
+;	AL = BCD value (0-99)
+;
+; Outputs:
+;	AX = binary value
+;
+DEFPROC	bcd_bin
+	push	cx
+	mov	cl,4
+	mov	ah,al
+	shr	ah,cl			; AH = tens digit
+	and	al,0Fh			; AL = ones digit
+	aad				; AX = AH * 10 + AL
+	pop	cx
+	ret
+ENDPROC	bcd_bin
 
 CODE	ends
 

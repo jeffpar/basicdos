@@ -449,6 +449,63 @@ cc1:	mov	al,[bx-1]
 cc9:	ret
 ENDPROC	chkColon
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; splitCmd
+;
+; Like MS-DOS, if a command is one word consisting of a DOS command followed by
+; PATHCHAR (eg, "CD\" or "DIR\BIN"), split it into two words (eg, "CD" and
+; "\").  A word that begins with PATHCHAR (eg, "\DOS\EDIT") or with something
+; other than a DOS command (eg, "TOOLS\MASM") is left alone.
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	DS:DI -> TOKBUF (with at least one token)
+;	ES = DS
+;
+; Outputs:
+;	TOKBUF updated
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	splitCmd
+	cmp	[di].TOK_CNT,1		; just one word?
+	jne	sp9			; no
+	push	si
+	push	di
+	mov	si,[di].TOK_DATA[0].TOKLET_OFF
+	mov	cl,[di].TOK_DATA[0].TOKLET_LEN
+	mov	ch,0
+	mov	al,[bx].PATH_CHAR
+	mov	di,si
+	repne	scasb			; look for PATHCHAR
+	mov	dx,di
+	pop	di
+	jne	sp8			; none
+	dec	dx			; DX -> PATHCHAR
+	mov	cx,dx
+	sub	cx,si			; CX = length before PATHCHAR
+	jcxz	sp8			; the word begins with PATHCHAR
+	push	dx
+	mov	dx,offset KEYWORD_TOKENS
+	DOSUTIL	TOKID			; AX = keyword ID, if any
+	pop	dx
+	jc	sp8			; not a keyword
+	cmp	ax,KEYWORD_BASIC	; DOS command (eg, CD or DIR)?
+	jae	sp8			; no
+	inc	[di].TOK_CNT
+	mov	[di].TOK_DATA[size TOKLET].TOKLET_OFF,dx
+	mov	al,cl
+	xchg	al,[di].TOK_DATA[0].TOKLET_LEN
+	sub	al,cl
+	mov	ah,al			; AH = length from PATHCHAR on
+	mov	al,CLS_STR
+	mov	word ptr [di].TOK_DATA[size TOKLET].TOKLET_CLS,ax
+sp8:	pop	si
+sp9:	ret
+ENDPROC	splitCmd
+
 CODE	ENDS
 
 	end
