@@ -11,12 +11,12 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<freeAllText,genCode,freeAllCode,freeAllVars,cmdLoad>
 	IF DETOK
 	EXTNEAR	<chkExt,getCwd,cmdDel,chkColon,splitCmd,findProgram>
 	EXTNEAR	<openInput,openError,closeInput>
 	EXTNEAR	<openHandle,syncFiles,openPipe,addPipe,endPipes,doHelp>
 	ENDIF
+	EXTNEAR	<freeAllText,genCode,freeAllCode,freeAllVars,cmdLoad>
 	EXTNEAR	<freeIdleVars,resetVars,runCode,findVar>
 	EXTNEAR	<enterLine,editPrompt>
 	EXTNEAR	<saveChains,restoreChains,compactStrs>
@@ -943,6 +943,7 @@ cf2x:	jmp	cf9
 ; of garbage that the new program could use.
 ;
 cf3:	call	compactStrs
+	mov	dx,offset COM_EXT
 	call	findProgram		; find the program (see PATH$)
 	jc	cf4a
 ;

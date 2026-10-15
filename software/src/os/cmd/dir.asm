@@ -1171,12 +1171,14 @@ ENV_VARS	db	"COMSPEC=",0,"PATH=",0
 ; Find the program named at DS:SI, first as specified, and then (if the name
 ; contains no drive or path) in each directory listed in PATH$, separated by
 ; semicolons (eg, "A:\;A:\BIN;A:\SAMPLES").  If the name has no extension,
-; .COM, .EXE, .BAT, and .BAS are tried, in that order.
+; .COM, .EXE, .BAT, and .BAS are tried, in that order, starting with DX (eg,
+; LOAD starts with .BAT).  A name longer than 64 characters isn't searched.
 ;
 ; Inputs:
 ;	SS:BX -> CMDHEAP
-;	DS:SI -> null-terminated name in LINEBUF (at most 64 characters)
+;	DS:SI -> null-terminated name in LINEBUF
 ;	CX = length of name
+;	DX -> first extension to try (COM_EXT or BAT_EXT)
 ;
 ; Outputs:
 ;	If carry clear, LINEBUF contains the name of the program found (with
@@ -1188,9 +1190,15 @@ ENV_VARS	db	"COMSPEC=",0,"PATH=",0
 ;	AX, CX, DX, DI
 ;
 DEFPROC	findProgram
+	push	bp
+	mov	bp,dx			; BP -> first extension
 	call	tryProgram		; try the name as specified
-	jnc	fp9
-	push	ax			; save the error
+	jc	fp0
+fp9:	pop	bp
+	ret
+fp0:	push	ax			; save the error
+	cmp	cx,64			; is the name too long to search
+	ja	fp8			; for (see the copy at LINEBUF+190)?
 	mov	dl,[bx].PATH_CHAR
 	mov	di,si
 fp1:	mov	al,[di]
@@ -1239,6 +1247,7 @@ fp5a:	lodsb				; append the name
 	sub	cx,si			; CX = length of the new name
 	DOSUTIL	STRUPR
 	push	dx
+	mov	dx,bp
 	call	tryProgram
 	pop	dx
 	jnc	fp10			; found it
@@ -1256,9 +1265,9 @@ fp7:	pop	ax
 	pop	cx
 fp8:	pop	ax			; restore the original error
 	stc
-fp9:	ret
+	jmp	fp9
 fp10:	add	sp,6			; discard AL, length, and error
-	ret				; (carry is clear)
+	jmp	fp9			; (carry is clear)
 ENDPROC	findProgram
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1269,6 +1278,7 @@ ENDPROC	findProgram
 ;	SS:BX -> CMDHEAP
 ;	DS:SI -> null-terminated name
 ;	CX = length of name
+;	DX -> first extension to try (if the name has none)
 ;
 ; Outputs:
 ;	If carry clear, the program exists (and any extension that was needed
@@ -1281,7 +1291,6 @@ ENDPROC	findProgram
 DEFPROC	tryProgram
 	call	chkExt			; any extension?
 	jnc	tp8			; yes
-	mov	dx,offset COM_EXT
 tp1:	mov	di,si
 	call	addString		; append the next extension
 	call	findFile

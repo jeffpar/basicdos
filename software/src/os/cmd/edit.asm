@@ -24,7 +24,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<allocText,freeCache,memError,writeStrCRLF,printCRLF>
-	EXTNEAR	<getToken,getFileName,chkExt,addString,openOutput>
+	EXTNEAR	<getToken,getFileName,chkExt,addString,openOutput,findProgram>
 	EXTNEAR	<writeOutput,writeError,openError,noFile,listVars>
 	EXTNEAR	<listSessions,freeAllText,openInput,readInput,closeInput>
 	IF DETOK
@@ -80,19 +80,12 @@ DEFPROC	cmdLoad
 	call	chkProgram		; is a program running?
 	jnc	lf0			; no
 	jmp	lf13
-lf0:	call	chkExt			; check the filename
-	jnc	lf1			; period exists, use filename as-is
-	mov	dx,offset BAS_EXT
-	call	addString
+lf0:	mov	dx,offset BAT_EXT	; try .BAT and then .BAS, if necessary,
+	call	findProgram		; as running does (see PATH$)
+	jc	lf1b
 
-lf1:	call	openInput		; open the specified file
+lf1a:	call	openInput		; open the specified file
 	jnc	lf1c
-	cmp	si,di			; was there an extension?
-	jne	lf1b			; yes, give up
-	mov	dx,offset BAT_EXT
-	call	addString
-lf1a:	sub	di,di			; zap DI so that we don't try again
-	jmp	lf1
 lf1b:	call	openError		; report error (AX) opening file (SI)
 	jmp	lf13
 

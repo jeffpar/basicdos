@@ -75,7 +75,7 @@ Displays a directory listing of all files matching the given *filespec* (or all 
 
 > LOAD *file*
 
-Loads the specified BAS or BAT file without running it, so that it can be [LIST](../system/#list)ed or [RUN](../system/#run).  If no extension is specified, BAS is tried first, and then BAT.  The file can be a text file or a tokenized BAS file saved by BASICA or GW-BASIC (but not a protected one).  LOAD can't be used inside a BAS or BAT file yet (it reports "Not allowed in a program"); to run another program from a BAS or BAT file, just use its name.
+Loads the specified BAS or BAT file without running it, so that it can be [LIST](../system/#list)ed or [RUN](../system/#run).  If no extension is specified, BAT is tried first, and then BAS (as when running a program).  If the file isn't in the current directory, and its name doesn't include a drive or directory, LOAD searches the directories listed in [PATH$](../basic/func/#path), as running a program does.  The file can be a text file or a tokenized BAS file saved by BASICA or GW-BASIC (but not a protected one).  LOAD can't be used inside a BAS or BAT file yet (it reports "Not allowed in a program"); to run another program from a BAS or BAT file, just use its name.
 
 ### MD
 

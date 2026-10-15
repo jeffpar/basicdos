@@ -246,7 +246,7 @@ LIST SESSIONS lists every session's number (see RESTART), console, and program, 
 To add a line to the program (or replace the line with the same number), type the line with its line number at the prompt.
 
 LOAD *file*
-Loads the specified BAS or BAT file, which can be a text file or a tokenized BAS file saved by BASICA or GW-BASIC.  LOAD can't be used inside a BAS or BAT file (yet).
+Loads the specified BAT or BAS file (searching PATH$ if necessary), which can be a text file or a tokenized BAS file saved by BASICA or GW-BASIC.  LOAD can't be used inside a BAS or BAT file (yet).
 
 LOC(*n*)
 Returns the last record number used by GET # or PUT # for file *n* (or for a sequential file, its position divided by 128).
