@@ -359,7 +359,7 @@ msg0:	mov	[bx].SCB_CTRLC_ACT,0
 ; flush_console), rather than reading the CTRLC from STDIN, which may be
 ; redirected (eg, the second command in "DIR | CASE").  Every session using
 ; the console receives the CTRLC (eg, every command in a pipeline), but only
-; a session whose input is the console echoes it.
+; a session whose input is the console flushes the console and echoes it.
 ;
 	call	flush_console		; carry set if input isn't the console
 	sbb	di,di			; DI = -1 if so (don't echo the CTRLC)

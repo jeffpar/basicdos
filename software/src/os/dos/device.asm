@@ -152,10 +152,11 @@ ENDPROC	chk_console
 ; flush_console
 ;
 ; Called when DOS acts on a CTRLC: sends DDC_INFLUSH to the active session's
-; console input (discarding type-ahead, including the CTRLC itself) and
-; DDC_OUTFLUSH to its console output (ending any pause), so that DOS, rather
-; than each console driver, decides what a CTRLC does.  Only devices whose
-; context is the session's console context are flushed (eg, not a pipe).
+; console input (discarding type-ahead, including the CTRLC itself) and, if
+; that succeeds, DDC_OUTFLUSH to its console output (ending any pause), so
+; that DOS, rather than each console driver, decides what a CTRLC does.  Only
+; devices whose context is the session's console context are flushed (eg, not
+; a pipe).
 ;
 ; Inputs:
 ;	None
@@ -174,12 +175,18 @@ DEFPROC	flush_console,DOS
 	mov	ah,DDC_INFLUSH
 	mov	cl,cs:[bx].SCB_SFHIN
 	call	fc1			; carry set if not the console
-	pushf
+	jc	fc9
+;
+; Only a session whose input is the console flushes its output; another
+; session in the same pipeline (eg, MORE in "TYPE FILE | MORE") may act on
+; the CTRLC later, and flushing then would discard the CTRLC echo (and even
+; the next prompt).
+;
 	mov	bx,cs:[scb_active]
 	mov	ah,DDC_OUTFLUSH
 	mov	cl,cs:[bx].SCB_SFHOUT
 	call	fc1
-	popf
+	clc
 	ret
 ;
 ; Send request AX to the device for SFH CL, if its context is the session's

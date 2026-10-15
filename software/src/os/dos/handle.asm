@@ -1000,8 +1000,19 @@ sw7:	mov	ah,DDC_WRITE
 	mov	bx,cs:[scb_active]
 	ASSERT	STRUCT,cs:[bx],SCB
 	cmp	cs:[bx].SCB_CTRLC_ACT,0
-	je	sw8
-	push	cs
+	jne	sw7b
+	call	dev_request		; issue the DDC_WRITE request
+	jnc	sw9
+;
+; If the write failed because its wait was interrupted by a CTRLC (eg, MORE
+; writing to a full COM console), then signal it now (as sfb_read does);
+; otherwise, a program that ends on the error (eg, MORE) leaves the CTRLC
+; pending in its SCB, where it stops the next program in that session.
+;
+	cmp	cs:[bx].SCB_CTRLC_ACT,0	; CTRLC pending (BX -> SCB)?
+	stc				; (carry set for the write error)
+	je	sw9			; no
+sw7b:	push	cs
 	pop	ds
 	jmp	msc_readctrlc
 

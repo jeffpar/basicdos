@@ -75,7 +75,7 @@ ENDPROC	ddcom_req
 ;
 TERM_ANSI	equ	0	; supports ANSI (VT100) cursor and erase sequences
 TERM_GENERIC	equ	1	; supports only CR, LF, BACKSPACE, and TAB
-TERM_VT100	equ	2	; ANSI, plus DELETE/BACKSPACE swapped, and XON
+TERM_VT100	equ	2	; ANSI, DELETE/BACKSPACE swapped, XON, wrap
 TERM_COUNT	equ	3	; number of terminal types
 
 	DEFLBL	OPT_NAMES,byte
@@ -93,6 +93,8 @@ TERM_COUNT	equ	3	; number of terminal types
 	db	CHR_ESCAPE,"M",0	; reverse index (scrolls down at the top)
 	DEFLBL	ANSI_RESET,byte
 	db	CHR_ESCAPE,"[0",0	; start of "select graphic rendition"
+	DEFLBL	VT100_WRAP,byte
+	db	CHR_ESCAPE,"[?7h",0	; enable auto-wrap (off by default)
 	DEFLBL	ANSI_COLORS,byte	; PC color # to ANSI color #
 	db	0,4,2,6,1,5,3,7		; (ie, swap the red and blue bits)
 
@@ -1172,9 +1174,23 @@ dco5:	call	write_ier		; enable THR and RBR interrupts
 	mov	al,0
 	call	write_irq
 ;
+; A VT100's auto-wrap is off by default, so long lines would be truncated at
+; the last column (and MORE would display fewer lines than will fit), so turn
+; it on.  The output buffer is empty, so there's no need to wait for room.
+;
+	cmp	ds:[CT_TERM],TERM_VT100	; VT100 terminal?
+	jne	dco5b			; no
+	mov	di,offset VT100_WRAP
+dco5a:	mov	al,cs:[di]
+	test	al,al			; end of string?
+	jz	dco5b			; yes
+	call	push_output
+	inc	di
+	jmp	dco5a
+;
 ; All done.  Be sure to return with the context segment in CX.
 ;
-	mov	cx,ds
+dco5b:	mov	cx,ds
 dco6:	pop	es
 	pop	di
 	jmp	short dco8
