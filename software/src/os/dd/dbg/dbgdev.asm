@@ -28,8 +28,10 @@ BIOSVEC	equ	1
 	include	bios.inc
 	include	dev.inc
 	include	devapi.inc
+DOSDEV	equ	1
 	include	dosapi.inc
 	include	uart.inc
+	include	version.inc
 
 CODE	segment para public 'CODE'
 
@@ -73,9 +75,11 @@ BP_SIZE		equ	6
 NUM_BPS		equ	10
 
 	DEFPTR	old_com			; original COM interrupt handler
+	DEFPTR	dos_vars		; DOSVARS + 2 (see hook_vecs)
 	DEFWORD	com_port,0		; UART base port
 	DEFWORD	dump_off,0		; offset of the next D command
 	DEFWORD	dump_seg,0		; segment of the next D command
+	DEFBYTE	dump_size,1		; 1 (DB) or 2 (DW), for the next D
 	DEFWORD	u_off,0			; offset of the next U command
 	DEFWORD	u_seg,0			; segment of the next U command
 	DEFWORD	trace_cnt,0		; T steps remaining
@@ -116,10 +120,17 @@ FLAG_MASK	equ	0ED5h	; OF, DF, IF, SF, ZF, AF, PF, and CF
 	DEFLBL	FLAG_END,byte
 
 	DEFLBL	HELP_MSG,byte
-	db	"BP[n] addr  BC n|*  BL    set/clear/list breakpoints",13,10
-	db	"D [range]   dump          E addr [list]  enter",13,10
-	db	"G [addr]    go            R [reg [value] | F]  regs",13,10
-	db	"T [count]   trace         U [range]  unassemble",13,10,0
+	db	"BC n|*",9,9,"clear breakpoint(s)",13,10
+	db	"BL",9,9,"list breakpoints",13,10
+	db	"BP [n] addr",9,"set breakpoint",13,10
+	db	"DB [range]",9,"dump bytes",13,10
+	db	"DW [range]",9,"dump words",13,10
+	db	"DM",9,9,"dump memory arena",13,10
+	db	"E addr [list]",9,"edit memory",13,10
+	db	"G [addr]",9,"go (to address)",13,10
+	db	"R [reg | F]",9,"display or edit registers",13,10
+	db	"T [count]",9,"trace",13,10
+	db	"U [range]",9,"unassemble",13,10,0
 
 ;
 ; Commands, and the procedures that perform them (with SI -> the text after
@@ -499,7 +510,6 @@ mon3:	mov	byte ptr bp_tab[5],0	; clear the temporary breakpoint
 	mov	[u_seg],ax
 	mov	ax,regs[R_DS]
 	mov	[dump_seg],ax		; D defaults to DS
-	call	newline
 	call	show_regs
 	cmp	[trace_cnt],0		; more T steps?
 	je	mon4			; no
@@ -939,6 +949,192 @@ cu1:	call	dis_line
 	mov	[u_seg],es
 cu9:	ret
 ENDPROC	cmd_u
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dump_arena
+;
+; DM displays memory in address order, as MEM /D once did: the system area
+; (from 0000 to the first built-in driver), each built-in driver, DOS, and
+; then every memory block in the arena.  Each row has the segment, owner, and
+; size (in paragraphs), and a name (or type).  The arena walk stops at an
+; invalid MCB, which is reported as an error.
+;
+DEFPROC	dump_arena
+	call	end_command
+	jnc	ma0
+	ret
+ma0:	mov	si,offset MA_HDR
+	call	put_string
+	les	bx,[dos_vars]
+	mov	cx,es			; CX = DOS segment
+	les	di,es:[bx-2].DV_DD_LIST	; ES:DI -> first driver
+;
+; Skip any installed drivers (DEVICE= puts them at the head of the list);
+; they're above DOS, in memory blocks of their own, so the arena walk lists
+; them.
+;
+mb1:	mov	bx,es
+	cmp	bx,cx			; installed driver?
+	jb	mb2			; no
+	les	di,es:[di]
+	jmp	mb1
+mb2:	sub	ax,ax			; AX = segment 0
+	cwd				; DX = owner (none)
+	call	ma_row			; BX = paras (up to the first driver)
+	mov	dl,MCBOWNER_SYSTEM
+	call	put_type
+;
+; Each built-in driver ends where the next one begins; the last one's next
+; pointer has an offset of -1 and the next available segment.
+;
+mb3:	mov	ax,es
+	mov	bx,es:[di].DDH_NEXT_SEG
+	sub	bx,ax			; BX = paras
+	sub	dx,dx			; DX = owner (none)
+	call	ma_row
+	lea	si,[di].DDH_NAME
+	call	put_name
+	cmp	es:[di].DDH_NEXT_OFF,-1	; last built-in driver?
+	les	di,es:[di]		; (flags unchanged)
+	jne	mb3			; no
+;
+; DOS resides between the built-in drivers and the first memory block.
+;
+	les	bx,[dos_vars]
+	mov	bp,es:[bx-2].DV_MCB_HEAD
+	mov	ax,es
+	mov	bx,bp
+	sub	bx,ax			; BX = paras
+	sub	dx,dx			; DX = owner (none)
+	call	ma_row
+	mov	dl,MA_DOS
+	call	put_type
+ma1:	mov	es,bp
+	mov	al,es:[MCB_SIG]
+	cmp	al,MCBSIG_NEXT		; valid MCB?
+	je	ma2			; yes
+	cmp	al,MCBSIG_LAST		; valid last MCB?
+	jne	ma8			; no
+ma2:	lea	ax,[bp+1]
+	mov	dx,es:[MCB_OWNER]
+	mov	bx,es:[MCB_PARAS]
+	call	ma_row
+	mov	si,MCB_NAME
+	cmp	dx,MCBOWNER_SYSTEM	; owned by a process (or driver)?
+	jbe	ma3			; no, so DL is the type
+	cmp	byte ptr es:[si],0	; named?
+	jne	ma5			; yes
+	mov	dl,es:[MCB_TYPE]
+ma3:	call	put_type
+	jmp	short ma6
+ma5:	call	put_name
+ma6:	mov	es,bp
+	cmp	byte ptr es:[MCB_SIG],MCBSIG_LAST
+	je	ma9			; (carry clear)
+	add	bp,es:[MCB_PARAS]
+	inc	bp
+	jmp	ma1
+ma8:	stc
+ma9:	ret
+ENDPROC	dump_arena
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; ma_row
+;
+; Inputs:
+;	AX = segment
+;	DX = owner
+;	BX = size (in paragraphs)
+;
+; Modifies:
+;	AX
+;
+DEFPROC	ma_row
+	call	hex_word
+	call	space
+	mov	ax,dx
+	call	hex_word
+	call	space
+	mov	ax,bx
+	call	hex_word
+	jmp	space
+ENDPROC	ma_row
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; put_type, put_name
+;
+; Display the name of block type DL (put_type), or the 8-character name at
+; ES:SI (put_name), followed by a newline; put_type displays nothing but the
+; newline for an unknown type.
+;
+; Modifies:
+;	AL, CX, SI
+;
+DEFPROC	put_type
+	push	es
+	push	cs
+	pop	es
+	mov	si,offset MA_TYPES
+pt1:	lodsb
+	cmp	al,dl			; matching type?
+	je	pt2			; yes
+	add	si,4
+	cmp	si,offset MA_END
+	jb	pt1
+	jmp	short pt3		; no name or type
+pt2:	mov	al,'<'
+	call	put_char
+	mov	cx,4
+	call	put_n
+	mov	al,'>'
+	call	put_char
+pt3:	pop	es
+	jmp	newline
+ENDPROC	put_type
+
+DEFPROC	put_name
+	mov	cx,8
+	call	put_n
+	jmp	newline
+ENDPROC	put_name
+
+	DEFLBL	MA_HDR,byte
+	db	"Seg  Own  Size Name",13,10,0
+;
+; Memory block types (as owner or MCB_TYPE), each followed by a 4-character
+; name (zero-padded).  MA_DOS is a pseudo-type for the DOS row, since no
+; owner or MCB_TYPE is 1.
+;
+MA_DOS	equ	1
+	DEFLBL	MA_TYPES,byte
+	db	MCBOWNER_NONE,"FREE",MCBOWNER_SYSTEM,"SYS",0
+	db	MA_DOS,"DOS",0
+	db	MCBTYPE_ABLK,"ARR",0,MCBTYPE_CBLK,"CODE"
+	db	MCBTYPE_FBLK,"FUNC",MCBTYPE_SBLK,"STR",0
+	db	MCBTYPE_TBLK,"TEXT",MCBTYPE_VBLK,"VAR",0
+	DEFLBL	MA_END,byte
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; put_n
+;
+; Inputs:
+;	ES:SI -> characters to display, up to CX (or a null)
+;
+; Modifies:
+;	AL, CX, SI
+;
+DEFPROC	put_n
+pn1:	lods	byte ptr es:[si]
+	test	al,al
+	jz	pn9
+	call	put_char
+	loop	pn1
+pn9:	ret
+ENDPROC	put_n
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -1624,9 +1820,11 @@ ENDPROC	parse_range
 ;
 ; dump_memory
 ;
-; Parse D [range] and dump memory (128 bytes by default, continuing from the
-; last D).  Rows are aligned on 16 bytes, with a dash after the 8th byte and
-; ASCII at the right.
+; Parse D[B|W] [range] and dump memory as bytes or words (128 bytes by
+; default, continuing from the last D, in the last format).  Rows are 16
+; bytes, with ASCII at the right; byte rows are aligned on 16 bytes, with a
+; dash after the 8th byte, and word rows are aligned on 16 bytes or 16 bytes
+; plus 1, so that each word is whole.
 ;
 ; Inputs:
 ;	SI -> command text after D
@@ -1638,17 +1836,36 @@ ENDPROC	parse_range
 ;	AX, BX, CX, DX, SI, DI, BP, ES
 ;
 DEFPROC	dump_memory
+	mov	ah,1
+	lodsb
+	cmp	al,'B'			; DB?
+	je	dm0			; yes
+	inc	ah
+	cmp	al,'W'			; DW?
+	je	dm0			; yes
+	cmp	al,'M'			; DM?
+	jne	dm0a			; no
+	jmp	dump_arena
+dm0a:	dec	si
+	mov	ah,[dump_size]		; no, so use the last format
+dm0:	push	ax
 	mov	bp,[dump_seg]
 	mov	di,[dump_off]
 	mov	bx,128
 	call	parse_range
+	pop	ax
 	jnc	dm1
 	ret
-dm1:	mov	[dump_seg],bp
+dm1:	mov	[dump_size],ah
+	mov	[dump_seg],bp
 	mov	es,bp
 	mov	cx,bx			; CX = bytes remaining
+	mov	al,10h
+	sub	al,ah
+	cbw				; AX = 0Fh (bytes) or 0Eh (words)
+	and	ax,di
 	mov	si,di
-	and	si,0FFF0h		; SI = start of the first row
+	sub	si,ax			; SI = start of the first row
 ;
 ; For each row, DL and DH are the first and last+1 columns to display.
 ;
@@ -1667,6 +1884,10 @@ dm6:	mov	ax,es
 	cmp	ax,cx
 	jbe	dm6a
 	mov	ax,cx
+	cmp	[dump_size],1		; bytes?
+	je	dm6a			; yes
+	inc	ax			; no, so include any odd byte's word
+	and	al,0FEh
 dm6a:	add	al,dl
 	mov	dh,al
 	sub	bx,bx
@@ -1674,17 +1895,25 @@ dm6b:	cmp	bl,dl
 	jb	dm6c
 	cmp	bl,dh
 	jae	dm6c
-	mov	al,es:[si+bx]
-	call	hex_byte
+	mov	ax,es:[si+bx]
+	cmp	[dump_size],1		; bytes?
+	je	dm6x			; yes
+	call	hex_word
+	jmp	short dm6d
+dm6x:	call	hex_byte
 	jmp	short dm6d
 dm6c:	call	space
 	call	space
+	cmp	[dump_size],1		; bytes?
+	je	dm6d			; yes
+	call	space
+	call	space
 dm6d:	mov	al,' '
-	cmp	bl,7
+	cmp	bl,7			; (never true for words)
 	jne	dm6e
 	mov	al,'-'
 dm6e:	call	put_char
-	inc	bx
+	add	bl,[dump_size]
 	cmp	bl,16
 	jb	dm6b
 	call	space
@@ -1710,10 +1939,11 @@ dm7b:	call	put_char
 	cbw				; AX = bytes displayed
 	add	di,ax			; (the offset wraps within the segment)
 	add	si,16
-	sub	cx,ax
-	jz	dm7c
+	sub	cx,ax			; (a word may overshoot the count)
+	jbe	dm7c
 	jmp	dm6
-dm7c:	mov	[dump_off],di		; (and carry is clear)
+dm7c:	mov	[dump_off],di
+	clc
 	ret
 ENDPROC	dump_memory
 
@@ -2218,15 +2448,16 @@ din9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE + DDSTAT_ERROR + DDERR_GENFAIL
 ENDPROC	dbgdev_init
 
 	DEFLBL	BANNER,byte
-	db	"BASIC-DOS serial debugger: "
-	db	"Ctrl-C or BREAK to stop; ? for help",13,10,0
+	db	"BASIC-DOS Debugger "
+	VERSION_STR
+	db	13,10,"CTRL-C or BREAK to stop, ? for help",13,10,0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; hook_vecs, swap_vecs
 ;
 ; Exchange the INT 01h and INT 03h vectors with vec_save, which hook_vecs
-; first points at our handlers.
+; first points at our handlers (after saving the DOSVARS pointer for DM).
 ;
 ; Inputs:
 ;	DS = CS
@@ -2238,6 +2469,12 @@ ENDPROC	dbgdev_init
 DEFPROC	hook_vecs
 	mov	[vec_save+2],cs
 	mov	[vec_save+6],cs
+	push	es
+	mov	ah,DOS_MSC_GETVARS
+	int	21h			; ES:BX -> DOSVARS + 2
+	mov	[dos_vars].OFF,bx
+	mov	[dos_vars].SEG,es
+	pop	es
 ENDPROC	hook_vecs			; fall into swap_vecs
 
 DEFPROC	swap_vecs

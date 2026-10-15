@@ -15,7 +15,7 @@ The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memo
 
 {% include machine.html id="ibm5160" %}
 
-Use the **MEM** command to display current memory usage (or **MEM /D** for details).
+Use the **MEM** command to display current memory usage.
 
 This demo is also available on an [IBM PC](../pc/), an [IBM PC AT](../at/), and a [COMPAQ DeskPro 386](../386/).
 

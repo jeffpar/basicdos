@@ -7,6 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	FATHINTS equ 1
 	include	macros.inc
 	include	bios.inc
 	include	disk.inc
@@ -19,7 +20,7 @@ DOS	segment word public 'CODE'
 
 	EXTNEAR	<dev_request,scb_release,resize_file>
 	EXTNEAR	<get_bpb,get_cln,get_dirent,read_buffer,flush_buffers>
-	EXTNEAR	<alloc_cln,free_clns,chk_volopen>
+	EXTNEAR	<alloc_cln,free_clns,chk_volopen,walk_cln,next_hint>
 	EXTNEAR	<vol_io,drv_flush>
 	EXTNEAR	<dir_lba,get_dircln>
 	EXTNEAR	<get_cdir,get_dirpath,new_buffer,write_buffer,zap_buffers>
@@ -264,13 +265,13 @@ wf5:	mov	ax,[di].BPB_CLUSBYTES
 	push	dx
 	sub	dx,dx
 	xchg	dx,[bx].SFB_CURCLN	; DX = current CLN (and zero SFB_CURCLN)
+	push	dx
 	call	get_cln			; DX = next CLN
+	xchg	ax,dx			; AX = next CLN
+	pop	dx			; DX = current CLN
 	jc	wf5a
-	mov	ax,dx
-	sub	ax,2
-	cmp	ax,[di].BPB_CLUSTERS	; is the next CLN valid?
-	jae	wf5a			; no
-	mov	[bx].SFB_CURCLN,dx	; yes
+	call	next_hint		; AX = next CLN (zero if none)
+	mov	[bx].SFB_CURCLN,ax
 wf5a:	pop	dx
 wf6:	sub	cx,dx			; reduce the write count
 	jmp	wf1			; and keep writing clusters
@@ -304,15 +305,11 @@ DEFPROC	get_wcln,DOS
 	clc
 	ret
 ;
-; We have to walk the cluster chain, so convert CURPOS to a cluster index.
+; We have to walk the cluster chain (see walk_cln), allocating the file's
+; first cluster beforehand if necessary, and then extending the chain if it
+; ends before CURPOS.
 ;
 gw1:	push	cx
-	mov	ax,[bx].SFB_CURPOS.LOW
-	mov	dx,[bx].SFB_CURPOS.HIW
-	cmp	dx,[di].BPB_CLUSBYTES	; would the division overflow?
-	jae	gw7			; yes (the position is far too large)
-	div	[di].BPB_CLUSBYTES	; AX = cluster index
-	xchg	cx,ax			; CX = cluster index
 	mov	dx,[bx].SFB_CLN		; DX = first CLN
 	test	dx,dx			; does the file have any clusters yet?
 	jnz	gw2			; yes
@@ -320,22 +317,18 @@ gw1:	push	cx
 	jc	gw8
 	mov	[bx].SFB_CLN,dx
 	mov	[bx].SFB_CONTEXT,dx
-gw2:	jcxz	gw8			; carry is clear
-gw3:	mov	si,dx			; SI = current CLN
-	call	get_cln			; DX = next CLN
+gw2:	call	walk_cln		; DX = last CLN reached
 	jc	gw8
-	mov	ax,dx
-	sub	ax,2
-	cmp	ax,[di].BPB_CLUSTERS	; is the next CLN valid?
-	jb	gw4			; yes
-	mov	dx,si			; no, so extend the chain
-	call	alloc_cln		; DX = new CLN (linked to SI)
-	jc	gw8
-gw4:	loop	gw3
-	clc
+	jcxz	gw8			; DX is CURPOS's CLN (carry clear)
+	push	cx			; CX = # CLNs to add
+gw3:	call	alloc_cln		; DX = new CLN (linked to DX)
+	jc	gw7
+	loop	gw3
+	pop	cx
+	add	[bx+SFB_HINTIDX],cx	; the new CLN is the new hint
+	mov	[bx+SFB_HINTCLN],dx	; (and carry is clear)
 	jmp	short gw8
-gw7:	mov	ax,ERR_DISKFULL
-	stc
+gw7:	pop	cx
 gw8:	pop	cx
 	ret
 ENDPROC	get_wcln

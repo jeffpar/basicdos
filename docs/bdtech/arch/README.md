@@ -16,7 +16,7 @@ BASIC-DOS consists of a boot sector and three files, which must be in the root d
 | (boot sector) | Loads the other files and starts the drivers |
 | BASDEV.COM | Built-in device drivers, followed by their initialization code (devinit) |
 | BASDOS.COM | The DOS kernel, followed by its initialization code (sysinit) |
-| COMMAND.COM | The BASIC-DOS Command Processor (the default SHELL) |
+| COMMAND.COM | The BASIC-DOS Command Shell (the default SHELL) |
 
 The startup diskette may also contain CONFIG.SYS (see [Configuring BASIC-DOS](../../bdman/cfg/)) and HELP.TXT (used by the HELP command).
 
@@ -68,7 +68,7 @@ Sessions are scheduled preemptively: hardware interrupt handlers (eg, the CLOCK$
 
 Code that must not be interrupted by a session switch can use DOS_UTL_LOCK and DOS_UTL_UNLOCK; a switch requested while the session is locked is deferred until it's unlocked.
 
-Each session has its own console context (if it was given one by a CONSOLE= line), and keyboard input goes to the context with focus (Shift-Tab switches the focus).  Sessions without a console of their own (eg, the sessions that run the commands of a pipeline) use the handles supplied in their Session Parameter Block (see [SPB](../data/#spb)).  A zero-length write to a pipe marks the end of its data (a reader then gets 0 bytes once the pipe is empty); the command processor does this after the first command of a pipeline, and when a session ends, DOS does the same to its output handle if it's a character device, so every command of a pipeline sees the end of its input.  Similarly, a zero-length read from a pipe means that its reader is done, and when a session ends, DOS does that to its input handle if it's a character device; from then on, writes to the pipe fail (with a write fault) instead of waiting for room.
+Each session has its own console context (if it was given one by a CONSOLE= line), and keyboard input goes to the context with focus (Shift-Tab switches the focus).  Sessions without a console of their own (eg, the sessions that run the commands of a pipeline) use the handles supplied in their Session Parameter Block (see [SPB](../data/#spb)).  A zero-length write to a pipe marks the end of its data (a reader then gets 0 bytes once the pipe is empty); the command shell does this after the first command of a pipeline, and when a session ends, DOS does the same to its output handle if it's a character device, so every command of a pipeline sees the end of its input.  Similarly, a zero-length read from a pipe means that its reader is done, and when a session ends, DOS does that to its input handle if it's a character device; from then on, writes to the pipe fail (with a write fault) instead of waiting for room.
 
 ### Interrupt Vectors
 

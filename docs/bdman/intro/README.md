@@ -15,14 +15,14 @@ Insert a BASIC-DOS diskette in drive A: of an IBM PC and turn the machine on.  I
 
 Press any key (or wait 5 seconds) to start BASIC-DOS, or press **Esc** to boot from the hard disk instead.  The following messages should then appear on your screen:
 
-	BASIC-DOS 2.00 for the IBM PC
+	BASIC-DOS 2.00
 	Copyright (c) PCJS.ORG 1981-2026
 
-	BASIC-DOS Command Processor
+	BASIC-DOS Command Shell
 
 	A:\>
 
-Use `MEM` to see memory usage, and `MEM /D` to see every memory block, including the FPU$ driver (if it's loaded; without it, numeric variables default to integers; see [SKIP=](../cfg/#skip)).
+Use `MEM` to see memory usage.  If the FPU$ driver isn't loaded, numeric variables default to integers (see [SKIP=](../cfg/#skip)).
 
 The `A:\>` is the BASIC-DOS prompt.  The prompt displays the default drive and its current directory (`\` is the root directory; see [CD](../cmd/disk/#cd)), and indicates that BASIC-DOS is ready to accept [commands](../cmd/) from the keyboard.
 

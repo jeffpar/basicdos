@@ -1350,27 +1350,58 @@ ENDPROC	psp_heaprange
 ; Modifies:
 ;	DX
 ;
+; Notes:
+;	Rather than checking every word against the heap, we sum (or skip)
+;	runs of words: those before the heap, those inside it, and the rest.
+;
 DEFPROC	psp_addsum
 	ASSUME	DS:NOTHING, ES:NOTHING
+	push	ax
 	push	bx
 	push	cx
 	push	si
 	mov	bx,ax			; BX = offset of next word in the image
-	shr	cx,1			; CX = # words
-	jcxz	pas9
-pas1:	cmp	bx,ds:[PSP_HEAP]	; inside the heap?
-	jb	pas2			; no
-	cmp	bx,ds:[PSP_HEAPSIZE]
-	jb	pas3			; yes, so skip it
-pas2:	add	dx,[si]
-pas3:	inc	si
-	inc	si
-	inc	bx
-	inc	bx
-	loop	pas1
+	add	cx,ax			; CX = offset of the end
+pas1:	cmp	bx,cx			; any words left?
+	jae	pas9			; no
+	mov	ax,ds:[PSP_HEAP]
+	cmp	bx,ax			; is the next word before the heap?
+	jb	pas2			; yes, so sum the words before it
+	mov	ax,ds:[PSP_HEAPSIZE]
+	cmp	bx,ax			; is it inside the heap?
+	jb	pas4			; yes, so skip the words inside it
+	mov	ax,cx			; no, so sum the rest
+pas2:	cmp	ax,cx			; does the run extend past the end?
+	jbe	pas3			; no
+	mov	ax,cx
+pas3:	push	cx
+	call	pas8			; CX = # words in the run
+pas3a:	lodsw
+	add	dx,ax
+	loop	pas3a
+	pop	cx
+	jmp	pas1
+pas4:	push	cx
+	call	pas8			; CX = # words in the run
+	add	si,cx
+	add	si,cx			; skip them
+	pop	cx
+	jmp	pas1
+;
+; Convert the run from BX to AX into a word count in CX, and advance BX
+; past the run (any word that begins before AX belongs to the run).
+;
+pas8:	sub	ax,bx
+	inc	ax
+	shr	ax,1
+	xchg	cx,ax			; CX = # words
+	add	bx,cx
+	add	bx,cx
+	ret
 pas9:	pop	si
 	pop	cx
 	pop	bx
+	pop	ax
 	ret
 ENDPROC	psp_addsum
 

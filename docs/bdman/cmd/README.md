@@ -6,7 +6,7 @@ permalink: /docs/bdman/cmd/
 
 {% include header.html %}
 
-BASIC-DOS has a single command processor for both DOS commands (eg, DIR) and BASIC statements (eg, PRINT), so any command can be typed at the prompt or used in a BASIC program.  Commands are organized as follows:
+BASIC-DOS has a single command shell for both DOS commands (eg, DIR) and BASIC statements (eg, PRINT), so any command can be typed at the prompt or used in a BASIC program.  Commands are organized as follows:
 
 - [BASIC Commands](basic/): statements for variables, control flow, error handling, and memory
 - [BASIC Functions](basic/func/): numeric, string, and system functions, and predefined constants

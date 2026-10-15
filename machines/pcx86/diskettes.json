@@ -1786,6 +1786,7 @@
 						"@media": [
 							{
 								"@diskette": "PCDOS100.json",
+								"@link": "/software/disks/PCDOS100.json",
 								"@format": "PC160K"
 							}
 						],
@@ -1805,6 +1806,7 @@
 						"@media": [
 							{
 								"@diskette": "PCDOS110.json",
+								"@link": "/software/disks/PCDOS110.json",
 								"@format": "PC160K"
 							}
 						],
@@ -1836,11 +1838,13 @@
 							{
 								"@title": "PC DOS 2.00 (Disk 1)",
 								"@diskette": "PCDOS200-DISK1.json",
+								"@link": "/software/disks/PCDOS200-DISK1.json",
 								"@format": "PC180K"
 							},
 							{
 								"@title": "PC DOS 2.00 (Disk 2)",
 								"@diskette": "PCDOS200-DISK2.json",
+								"@link": "/software/disks/PCDOS200-DISK2.json",
 								"@format": "PC180K"
 							}
 						],

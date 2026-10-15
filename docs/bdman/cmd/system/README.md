@@ -50,7 +50,7 @@ Displays the specified program line (with its line number) for editing, using th
 
 > EXIT
 
-Exits the command processor if there is a previously loaded copy (see [COMMAND.COM](../external/command/)).
+Exits the command shell if there is a previously loaded copy (see [COMMAND.COM](../external/command/)).
 
 ### HELP
 
@@ -80,14 +80,14 @@ Lists all lines of the currently loaded BAS or BAT program, or the specified ran
 
 ### MEM
 
-> MEM [/D]
+> MEM
 
 Displays the total memory, followed by the memory free for running external programs (EXEC) and the memory free for BASIC programs.  The difference between the two is the transient portion of COMMAND.COM, which is set aside while an external program runs, but which BASIC programs need (it compiles and runs them).  When more than one session is running, every session shares the same COMMAND.COM code, so the transient portion can't be set aside, and MEM displays a single "bytes free" value instead.
 
-/D also displays every memory block, with its segment, owner, size, and description (eg, a device driver, COMMAND, or one of COMMAND's VAR, STR, TEXT, or CODE blocks).  A driver loaded with DEVICE= (eg, DEBUG$) appears among the memory blocks, by its device name, in its own block.  In DEBUG builds of BASIC-DOS, /F also displays open files, and /S displays active sessions.  Use `MEM /D | MORE` to page the memory block listing.
+To see every device driver and memory block, use the DM command of [DEBUG.COM](../../cfg/#device).
 
 	MEM
-	  131072 bytes
+	  131072 bytes total
 	   93568 bytes free for EXEC
 	   66928 bytes free for BASIC
 
@@ -103,7 +103,7 @@ Erases the loaded program, functions, and variables.
 
 `RESTART SYSTEM` restarts the system, after writing any modified disk data.
 
-`RESTART` *session* restarts the specified session (a number from [LIST SESSIONS](#list)), by stopping its program as **Ctrl-Alt-Del** does on its console, which works even if the program is stuck in a loop that never uses DOS; if the session is only running its command processor (eg, a BASIC loop typed at its prompt), it returns to its prompt instead.  For example, `RESTART 2` stops a looping program on a serial display from the PC's own console display.
+`RESTART` *session* restarts the specified session (a number from [LIST SESSIONS](#list)), by stopping its program as **Ctrl-Alt-Del** does on its console, which works even if the program is stuck in a loop that never uses DOS; if the session is only running its shell (eg, a BASIC loop typed at its prompt), it returns to its prompt instead.  For example, `RESTART 2` stops a looping program on a serial display from the PC's own console display.
 
 `RESTART` without an argument is an error, so that a system restart always requires `SYSTEM`.
 
@@ -120,6 +120,6 @@ Runs the currently loaded BAS or BAT program.  If the program and its variables 
 Displays the BASIC-DOS version number and revision.
 
 	VER
-	BASIC-DOS Version 2.00
+	BASIC-DOS 2.00
 
 {% include footer.html prev="COMMAND.COM:../external/command/" next="BASIC-DOS Programming:../../lang/" %}

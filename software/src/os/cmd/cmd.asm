@@ -114,7 +114,7 @@ m0a:	pop	bx
 
 	test	[bx].CMD_FLAGS,CMD_SINGLE
 	jnz	m0b			; no banner for COMMAND /C
-	PRINTF	<"BASIC-DOS Command Processor",13,10,13,10>
+	PRINTF	<"BASIC-DOS Command Shell",13,10,13,10>
 m0b:
 ;
 ; NOTE: The original plan was to use Microsoft's MBF (Microsoft Binary Format)
@@ -1564,7 +1564,7 @@ ver1:	cmp	bl,'@'			; is revision a letter?
 	ja	ver2			; yes
 	mov	bl,' '			; no, change it to space
 	inc	cx			; and skip the leading DEBUG space
-ver2:	PRINTF	<13,10,"BASIC-DOS Version %bd.%02bd%c%ls",13,10,13,10>,ax,dx,bx,cx,cs
+ver2:	PRINTF	<13,10,"BASIC-DOS %bd.%02bd%c%ls",13,10,13,10>,ax,dx,bx,cx,cs
 	ret
 ENDPROC	cmdVer
 

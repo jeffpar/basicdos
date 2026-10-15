@@ -155,7 +155,17 @@ SFB_OWNER	dw	?	; 28h: PSP of owner (used if SFBF_FCB set)
 SFB_FCB		dd	?	; 2Ah: FCB address, if SFBF_FCB set
 SFB_DIRNUM	dw	?	; 2Eh: DIRENT # (files only)
 SFB_DIRCLN	dw	?	; 30h: directory (1st cluster) of DIRENT
+		dw	?	; 32h: SFB_HINTCLN (see below)
+		dw	?	; 34h: SFB_HINTIDX
 SFB		ends
+;
+; Only modules that define FATHINTS (disk, fat, file, and handle) name the
+; cluster hint fields, since every name costs MASM symbol space (eg, SYSINIT).
+;
+	IFDEF	FATHINTS
+SFB_HINTCLN	equ	SFB_DIRCLN + 2	; a known CLN in the file (0 if none)
+SFB_HINTIDX	equ	SFB_DIRCLN + 4	; cluster index of SFB_HINTCLN
+	ENDIF
 
 SIG_SFB		equ	'F'
 

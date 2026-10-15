@@ -7,6 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	FATHINTS equ 1
 	include	macros.inc
 	include	bios.inc
 	include	disk.inc
@@ -163,6 +164,11 @@ ENDPROC	set_cln
 ; Allocate a free cluster, mark it as the end of a chain, and if a previous
 ; CLN is specified, link the previous CLN to the new CLN.
 ;
+; The search starts at BPB_NEXTCLN (the cluster after the last one allocated),
+; wrapping around to the first cluster, so every cluster is still checked
+; before the disk is considered full; BPB_NEXTCLN is reset whenever the BPB
+; is rebuilt (eg, after a media change).
+;
 ; Inputs:
 ;	DX = previous CLN (0 if none)
 ;	DI -> BPB
@@ -180,8 +186,13 @@ DEFPROC	alloc_cln,DOS
 	push	cx
 	mov	bx,dx			; BX = previous CLN
 	mov	cx,cs:[di].BPB_CLUSTERS	; CX = # clusters to check
-	mov	dx,2			; DX = first CLN to check
-ac1:	push	dx
+	mov	dx,cs:[di+BPB_NEXTCLN]	; DX = first CLN to check
+ac1:	mov	ax,dx
+	sub	ax,2
+	cmp	ax,cs:[di].BPB_CLUSTERS	; is DX past the end (or unknown)?
+	jb	ac1a			; no
+	mov	dx,2			; yes, so wrap around to the first
+ac1a:	push	dx
 	call	get_cln			; DX = FAT entry for CLN
 	jc	ac7
 	test	dx,dx			; is the cluster free?
@@ -198,6 +209,9 @@ ac7:	pop	dx
 ac2:	mov	ax,CLN_LAST
 	call	set_cln			; mark new CLN as the end of a chain
 	jc	ac9
+	mov	ax,dx
+	inc	ax
+	mov	cs:[di+BPB_NEXTCLN],ax	; the next search starts after it
 	test	bx,bx			; was a previous CLN specified?
 	jz	ac9			; no (and carry is clear)
 	mov	ax,dx			; AX = new CLN
@@ -255,7 +269,7 @@ ENDPROC	free_clns
 ;
 ; find_cln
 ;
-; Find the CLN corresponding to CURPOS.
+; Find the CLN corresponding to CURPOS (see walk_cln).
 ;
 ; Inputs:
 ;	BX -> SFB
@@ -271,29 +285,166 @@ ENDPROC	free_clns
 DEFPROC	find_cln,DOS
 	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	push	cx
-	sub	si,si			; SI:CX = cluster position
-	sub	cx,cx			; (starting at zero)
-	mov	dx,[bx].SFB_CLN		; DX = corresponding cluster #
-;
-; Add CLUSBYTES - 1 to the cluster position in SI:CX to produce a cluster
-; limit, then subtract CURPOS.  As long as that subtraction produces a borrow,
-; we haven't reached the target cluster yet.
-;
-fn1:	mov	ax,[di].BPB_CLUSBYTES
-	dec	ax
-	add	cx,ax
-	adc	si,0			; SI:CX = cluster limit
-	mov	ax,cx
-	sub	ax,[bx].SFB_CURPOS.LOW
-	mov	ax,si
-	sbb	ax,[bx].SFB_CURPOS.HIW
-	jnc	fn9			; we've traversed enough clusters
-	call	get_cln			; DX = next CLN
-	jnc	fn1			; keep checking as long as no error
-
-fn9:	pop	cx
+	call	walk_cln		; DX = CLN
+	pop	cx
 	ret
 ENDPROC	find_cln
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; walk_cln (for find_cln and get_wcln)
+;
+; Walk the cluster chain toward the cluster containing CURPOS, starting from
+; the SFB's cluster hint, unless the hint is beyond that cluster, in which case
+; we start from the file's first cluster (which the caller must ensure exists).
+;
+; The hint (SFB_HINTCLN) is a CLN known to be at cluster index SFB_HINTIDX in
+; the file.  We update it here, and it follows sequential reads and writes (see
+; next_hint), so seeks rarely require walking the chain from the beginning.
+; Since it doesn't depend on CURPOS, seeks don't affect it, but like SFB_CLN,
+; it's only valid as long as the chain isn't shortened (see resize_file).
+;
+; Inputs:
+;	BX -> SFB
+;	DI -> BPB
+;
+; Outputs:
+;	On success, carry clear, DX = last CLN reached (which is also the new
+;	hint), and CX = # clusters past DX still needed to reach CURPOS (zero
+;	unless the chain ended first)
+;	On failure, carry set, AX = error code
+;
+; Modifies:
+;	AX, CX, DX, SI
+;
+DEFPROC	walk_cln,DOS
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
+	mov	ax,[bx].SFB_CURPOS.LOW
+	mov	dx,[bx].SFB_CURPOS.HIW
+	cmp	dx,[di].BPB_CLUSBYTES	; would the division overflow?
+	jae	wc8			; yes (the position is far too large)
+	div	[di].BPB_CLUSBYTES	; AX = cluster index of CURPOS
+	xchg	cx,ax			; CX = target index
+	mov	si,[bx+SFB_HINTIDX]	; SI = hint index
+	mov	dx,[bx+SFB_HINTCLN]	; DX = hint CLN
+	test	dx,dx			; is there a hint?
+	jz	wc1			; no
+	cmp	si,cx			; is the hint beyond the target?
+	jbe	wc2			; no
+wc1:	sub	si,si
+	mov	dx,[bx].SFB_CLN		; start with the first CLN (index 0)
+wc2:	push	cx			; save the target index
+	sub	cx,si			; CX = # clusters to advance
+	jcxz	wc6
+wc3:	mov	si,dx			; SI = current CLN
+	call	get_cln			; DX = next CLN
+	jc	wc7
+	mov	ax,dx
+	sub	ax,2
+	cmp	ax,[di].BPB_CLUSTERS	; is the next CLN valid?
+	jae	wc5			; no (the chain ended)
+	loop	wc3
+	jmp	short wc6
+wc5:	mov	dx,si			; DX = last CLN of the chain
+wc6:	pop	ax
+	sub	ax,cx			; AX = index of DX (and carry is clear)
+	mov	[bx+SFB_HINTIDX],ax
+	mov	[bx+SFB_HINTCLN],dx
+	ret
+wc7:	pop	cx
+	ret
+wc8:	mov	ax,ERR_DISKFULL
+	stc
+	ret
+ENDPROC	walk_cln
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; next_hint
+;
+; Called whenever a file's current CLN advances to the next CLN in its chain,
+; so that the SFB's cluster hint (see walk_cln) can follow it.
+;
+; Inputs:
+;	AX = next CLN (from get_cln)
+;	DX = current CLN
+;	BX -> SFB
+;	DI -> BPB
+;
+; Outputs:
+;	AX = next CLN, or zero if it's not a valid data cluster (eg, the end
+;	of the chain); carry clear
+;
+; Modifies:
+;	AX
+;
+DEFPROC	next_hint,DOS
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
+	push	ax
+	sub	ax,2
+	cmp	ax,[di].BPB_CLUSTERS	; is the next CLN valid?
+	pop	ax
+	jb	nh1			; yes
+	sub	ax,ax			; no (and carry is clear)
+	ret
+nh1:	cmp	[bx+SFB_HINTCLN],dx	; is the hint the current CLN?
+	jne	nh9			; no
+	mov	[bx+SFB_HINTCLN],ax	; yes, so advance it
+	inc	word ptr [bx+SFB_HINTIDX]
+nh9:	clc
+	ret
+ENDPROC	next_hint
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; merge_clns (for sfb_read)
+;
+; Limit a read beginning in SFB_CURCLN to the bytes available in that cluster
+; and in any clusters of the chain that immediately follow it on disk, so that
+; a single request can read them all.
+;
+; Inputs:
+;	BX -> SFB
+;	CX = # bytes requested
+;	DX = offset within SFB_CURCLN
+;	DI -> BPB
+;
+; Outputs:
+;	CX = # bytes to read
+;	SI = CLN containing the last byte to read
+;
+; Modifies:
+;	AX, CX, SI
+;
+DEFPROC	merge_clns,DOS
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
+	push	dx
+	mov	si,[bx].SFB_CURCLN	; SI = current CLN
+	mov	ax,[di].BPB_CLUSBYTES
+	sub	ax,dx			; AX = bytes available through SI
+mc1:	cmp	cx,ax			; are enough bytes available?
+	jbe	mc9			; yes
+	push	ax
+	mov	dx,si
+	call	get_cln			; DX = next CLN
+	xchg	ax,dx			; AX = next CLN
+	mov	dx,si			; DX = current CLN
+	inc	si			; SI = next cluster on disk
+	jc	mc6			; stop at a FAT error (reported later)
+	call	next_hint		; AX = next CLN (zero if none)
+	cmp	ax,si			; is the next CLN next on disk too?
+	jne	mc6			; no
+	pop	ax
+	add	ax,[di].BPB_CLUSBYTES	; AX = bytes available through SI
+	jnc	mc1			; (unless that's too many bytes)
+	sub	ax,[di].BPB_CLUSBYTES
+	push	ax
+mc6:	pop	ax
+	dec	si			; SI = last CLN that can be read
+	mov	cx,ax			; CX = bytes available
+mc9:	pop	dx
+	ret
+ENDPROC	merge_clns
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -439,6 +590,7 @@ rz8:	pop	cx
 	mov	[bx].SFB_CURPOS.LOW,cx	; restore CURPOS
 	mov	[bx].SFB_CURPOS.HIW,dx
 	mov	[bx].SFB_CURCLN,0
+	mov	word ptr [bx+SFB_HINTCLN],0	; the chain may be shorter now
 	jc	rz9
 	mov	[bx].SFB_SIZE.LOW,cx
 	mov	[bx].SFB_SIZE.HIW,dx

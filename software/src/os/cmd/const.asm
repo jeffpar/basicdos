@@ -79,13 +79,6 @@ CODE    SEGMENT
 	DEFSTR	STR_ON,<"ON",0>
 	DEFSTR	STR_OFF,<"OFF",0>
 
-	DEFSTR	SYS_MEM,<"<SYS>",0>
-	DEFSTR	DOS_MEM,<"<DOS>",0>
-	DEFSTR	BLK_NAMES,<"<CODE>",0,0,"<FUNC>",0,0,"<VAR>",0,"<STR>",0>
-	db	"<TEXT>",0,0,"<ARR>",0
-	DEFABS	BLK_WORDS,<(($ - BLK_NAMES) SHR 1)>
-	DEFSTR	BLK_UNKNOWN,<"<UNK>",0>
-	DEFSTR	FREE_MEM,<"<FREE>",0>
 ;
 ; Table of BASIC-DOS expression operators
 ;

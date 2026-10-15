@@ -32,7 +32,7 @@ A BAT or BAS file can run other BAT or BAS files (no CALL command is required) a
 
 In the root directory:
 
-- [COMMAND.COM](command/): the BASIC-DOS Command Processor
+- [COMMAND.COM](command/): the BASIC-DOS Command Shell
 - HELP.TXT: the text displayed by the [HELP](../system/#help) command
 
 In the **BIN** directory (see [Running Programs](../../intro/#running-programs) for the layout of a BASIC-DOS disk):

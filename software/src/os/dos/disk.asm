@@ -7,6 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	FATHINTS equ 1
 	include	macros.inc
 	include	bios.inc
 	include	disk.inc
@@ -470,6 +471,7 @@ gb7:	push	bx
 	mov	bx,sp
 	mov	bx,ss:[bx+4]		; saved BPB pointer (past BX and ES)
 	mov	cs:[bx].BPB_FREECLNS,-1
+	mov	word ptr cs:[bx+BPB_NEXTCLN],0	; (the media may have changed)
 	pop	bx
 	mov	al,cl			; AL = drive #
 	mov	ah,DDC_BUILDBPB		; ask the driver to rebuild our BPB

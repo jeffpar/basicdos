@@ -352,7 +352,7 @@ dcr2b:	pop	es
 ; transfer as many whole sectors as remain in the request.
 ;
 dcr4:	xchg	ax,cx		; convert length in AX to # sectors
-	cwd
+	sub	dx,dx		; (lengths can exceed 32K, so no CWD)
 	div	[si].BPB_SECBYTES
 	mov	cx,dx		; CX = final partial sector bytes, if any
 	test	al,al		; any whole sectors?

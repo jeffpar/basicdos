@@ -7,6 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	FATHINTS equ 1
 	include	macros.inc
 	include	disk.inc
 	include	dev.inc
@@ -19,6 +20,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<dev_request,scb_release>
 	EXTNEAR	<chk_devname,chk_console,chk_filename>
 	EXTNEAR	<get_bpb,get_psp,find_cln,get_cln,new_bpb>
+	EXTNEAR	<merge_clns,next_hint>
 	EXTNEAR	<flush_buffers>
 	EXTNEAR	<sfb_create,sfb_commit,write_file>
 	EXTNEAR	<msc_sigctrlc,msc_readctrlc,con_read>
@@ -438,6 +440,8 @@ so6:	push	cs
 	mov	[bx].SFB_CURPOS.LOW,ax	; zero the initial file position
 	mov	[bx].SFB_CURPOS.HIW,ax
 	mov	[bx].SFB_CURCLN,dx	; initial position cluster
+	mov	[bx+SFB_HINTCLN],dx	; which is also the initial hint
+	mov	[bx+SFB_HINTIDX],ax	; (at cluster index 0)
 	mov	[bx].SFB_FLAGS,al	; zero flags
 	cmp	[bx].SFB_DRIVE,al	; is it a device?
 	jl	so9			; yes, return new SFB (carry clear)
@@ -709,10 +713,17 @@ sr1a:	mov	dx,[bx].SFB_CURPOS.LOW
 	mov	ax,[di].BPB_CLUSBYTES
 	dec	ax
 	and	dx,ax			; DX = offset within current cluster
-
+;
+; Limit the byte count to whatever's in the current cluster, and in any
+; clusters that immediately follow it on disk, so that one request can read
+; them all (see merge_clns).
+;
+	push	cx			; save byte count
+	call	merge_clns		; CX = bytes to read, SI = last CLN
 	push	bx			; save SFB pointer
 	push	di			; save BPB pointer
 	push	es
+	push	si			; save last CLN
 
 	mov	bx,[bx].SFB_CURCLN
 
@@ -725,17 +736,7 @@ sr1a:	mov	dx,[bx].SFB_CURPOS.LOW
 	shl	bx,cl
 	xchg	ax,cx			; restore CX
 	add	bx,[di].BPB_LBADATA	; BX = LBA
-;
-; We're almost ready to read, except for the byte count in CX, which must be
-; limited to whatever's in the current cluster.
-;
-	push	cx			; save byte count
-	mov	ax,[di].BPB_CLUSBYTES
-	sub	ax,dx			; AX = bytes available in cluster
-	cmp	cx,ax			; if CX <= AX, we're fine
-	jbe	sr2
-	mov	cx,ax			; reduce CX
-sr2:	mov	ah,DDC_READ
+	mov	ah,DDC_READ
 	mov	al,[di].BPB_DRIVE
 	les	di,[di].BPB_DEVICE
 	ASSUME	ES:NOTHING
@@ -747,12 +748,14 @@ sr2:	mov	ah,DDC_READ
 	pop	ds
 	ASSUME	DS:DOS
 	mov	dx,cx			; DX = bytes read (assuming no error)
-	pop	cx			; restore byte count
 
-sr3:	pop	es
+sr3:	pop	si			; SI = last CLN read
+	pop	es
 	pop	di			; BPB pointer restored
 	pop	bx			; SFB pointer restored
+	pop	cx			; restore byte count
 	jc	sr6
+	mov	[bx].SFB_CURCLN,si
 ;
 ; Time for some bookkeeping: adjust the SFB's CURPOS by DX.
 ;
@@ -772,11 +775,15 @@ sr3:	pop	es
 	push	dx
 	sub	dx,dx
 	xchg	dx,[bx].SFB_CURCLN	; yes, get next cluster
+	push	dx
 	call	get_cln
-	xchg	ax,dx
-	pop	dx
-	jc	sr6
+	xchg	ax,dx			; AX = next CLN
+	pop	dx			; DX = current CLN
+	jc	sr3a
+	call	next_hint		; AX = next CLN (zero if none)
 	mov	[bx].SFB_CURCLN,ax
+sr3a:	pop	dx
+	jc	sr6
 sr4:	sub	cx,dx			; have we exhausted the read count yet?
 	jbe	sr5
 	jmp	sr1a			; no, keep reading clusters

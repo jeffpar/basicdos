@@ -90,10 +90,7 @@ ENDPROC	mem_realloc
 ;
 ; mem_query
 ;
-; This utility function simplifies implementation of the MEM /D command.
-;
-; TODO: While this is a useful function during development, consider dropping
-; it (and the MEM /D command) in the final release.
+; This utility function simplifies implementation of the MEM command.
 ;
 ; Inputs:
 ;	CX = memory block # (0-based)

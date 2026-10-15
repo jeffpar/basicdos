@@ -1,12 +1,12 @@
 ---
 layout: sheet
-title: BASIC-DOS Command Processor
+title: BASIC-DOS Command Shell
 permalink: /docs/bdman/cmd/external/command/
 ---
 
 {% include header.html %}
 
-**COMMAND.COM** is the BASIC-DOS Command Processor.  Unlike other operating systems, which have a *Command Interpreter* for running operating system commands and a *BASIC Interpreter* for running BASIC language programs, BASIC-DOS provides a unified command processor.
+**COMMAND.COM** is the BASIC-DOS Command Shell.  Unlike other operating systems, which have a *Command Interpreter* for running operating system commands and a *BASIC Interpreter* for running BASIC language programs, BASIC-DOS provides a unified command shell.
 
 Each session runs its own copy of COMMAND.COM, as specified by a [SHELL=](../../../cfg/#shell) line in CONFIG.SYS.  Copies share the same code, so each additional session needs only a small amount of additional memory.
 
@@ -16,7 +16,7 @@ Each session runs its own copy of COMMAND.COM, as specified by a [SHELL=](../../
 
 Any commands following COMMAND are run when it starts (eg, `SHELL=COMMAND.COM AUTOEXEC.BAT`).  There is no automatic AUTOEXEC.BAT; each session's startup commands must be given explicitly.
 
-Running COMMAND.COM from the prompt starts another copy of the command processor; type [EXIT](../../system/#exit) to return to the previous copy.
+Running COMMAND.COM from the prompt starts another copy of the shell; type [EXIT](../../system/#exit) to return to the previous copy.
 
 ### BASIC Compilation
 

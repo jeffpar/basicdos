@@ -168,6 +168,8 @@ The System File Block is internal to DOS; there's one for each open file or devi
 | 2Ah | SFB_FCB | FCB address (FCBs only) |
 | 2Eh | SFB_DIRNUM | Directory entry # (files only) |
 | 30h | SFB_DIRCLN | Directory (first cluster, or 0 for the root) of the directory entry (files only) |
+| 32h | SFB_HINTCLN | A cluster known to be in the file (0 if none), so that seeks rarely walk the cluster chain from the start (files only) |
+| 34h | SFB_HINTIDX | Cluster index of SFB_HINTCLN within the file (files only) |
 
 ### FCB
 

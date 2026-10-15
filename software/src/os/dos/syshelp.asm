@@ -20,7 +20,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTNEAR	<sysinit_error>
+	EXTNEAR	<sysinit_error,fatal_error>
 	EXTWORD	<dos_seg,cfg_data,cfg_size,cbCacheData>
 	EXTLONG	<pCacheInt21,pCacheData>
 
@@ -272,6 +272,28 @@ ci9:	pushf
 	call	[pCacheInt21]
 ci10:	ret	2
 ENDPROC	cache_int21
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; console_warning (and open_error, which halts; moved here from SYSINIT
+; to save symbol space there)
+;
+; Inputs:
+;	AX = error code
+;	DX -> CONSOLE setting
+;
+; Modifies:
+;	AX
+;
+DEFPROC	console_warning
+	PRINTF	<"Warning: unable to open console %s (%d)",13,10>,dx,ax
+	ret
+ENDPROC	console_warning
+
+
+	DEFLBL	open_error,near
+	PRINTF	<"Error opening %s: %d">,dx,ax
+	jmp	fatal_error
 
 DOS	ends
 

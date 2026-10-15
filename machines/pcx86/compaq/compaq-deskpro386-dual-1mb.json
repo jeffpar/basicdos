@@ -3,7 +3,7 @@
   "defaults": {
     "ram": "1Mb",
     "fpu": "None",
-    "fdc": "2 diskette drives",
+    "fdc": "1.2Mb and 1.44Mb diskette drives",
     "parallel": "LPT1",
     "serial": "COM1, COM2",
     "hdc": "10Mb hard disk"
@@ -216,7 +216,7 @@
       "model": "deskpro386",
       "scaleTimers": false,
       "sound": true,
-      "floppies": "",
+      "floppies": "[1200,1440]",
       "monitor": "mono",
       "dateRTC": ""
     },

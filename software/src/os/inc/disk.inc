@@ -70,8 +70,16 @@ BPB_CLUSBYTES	dw	?		; 32h: BPB_CLUSSECS * BPB_SECBYTES
 BPB_CLUSTERS	dw	?		; 34h: total clusters on disk
 BPB_FREECLNS	dw	?		; 36h: cached free clusters (-1 if unknown)
 BPB_FIXED	dw	?		; 38h: non-zero for non-removable drives
+		dw	?		; 3Ah: BPB_NEXTCLN (see below)
 BPBEX		ends
 SIG_BPB		equ	'B'
+;
+; Only modules that define FATHINTS (disk, fat, file, and handle) name the
+; cluster hint fields, since every name costs MASM symbol space (eg, SYSINIT).
+;
+	IFDEF	FATHINTS
+BPB_NEXTCLN	equ	BPB_FIXED + 2	; where alloc_cln starts (0 if unknown)
+	ENDIF
 
 ;
 ; Let's compare and contrast the BPB with the DPB, as it existed beginning

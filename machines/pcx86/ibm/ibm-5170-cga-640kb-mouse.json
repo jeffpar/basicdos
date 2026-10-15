@@ -3,7 +3,7 @@
   "defaults": {
     "ram": "640K",
     "fpu": "None",
-    "fdc": "2 diskette drives",
+    "fdc": "2 1.2Mb diskette drives",
     "parallel": "LPT1",
     "serial": "COM1, COM2 (serial mouse)",
     "hdc": "10Mb hard disk"
@@ -241,7 +241,7 @@
       "model": 5170,
       "scaleTimers": false,
       "sound": true,
-      "floppies": "",
+      "floppies": "[1200,1200]",
       "monitor": "color",
       "dateRTC": ""
     },

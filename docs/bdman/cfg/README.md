@@ -104,7 +104,8 @@ BASIC-DOS includes one installable driver, DEBUG.COM (in the BIN directory), a s
 - BP[*n*] *address* to set breakpoint *n* (1-9), or the first free one, at *address*
 - BC *n* [*n*...] to clear breakpoints (or BC \* to clear them all)
 - BL to list the breakpoints (with the instruction at each)
-- D [*range*] to display memory in hex (128 bytes by default, continuing from the last D)
+- DB [*range*] to display memory as hex bytes, and DW [*range*] as hex words (128 bytes by default, continuing from the last D); D [*range*] uses the last format (initially bytes)
+- DM to display memory in address order: the system area (SYS), each built-in device driver (eg, CON or FDC$), DOS, and then every memory block, with each one's segment, owner, and size (in paragraphs), and its name (eg, COMMAND or DEBUG$) or type (eg, FREE, SYS, or one of COMMAND's VAR, STR, TEXT, or CODE blocks)
 - E *address* [*list*] to store a list of bytes and quoted strings at *address*; without a list, E displays each byte and prompts for its replacement (an empty line ends)
 - G [*address*] to resume, after setting the breakpoints (and a temporary one at *address*)
 - R to display the registers; R *reg* [*value*] to change a register (it prompts if there's no *value*); R F to display the flags and prompt for new flag names (eg, `CY ZR`)
@@ -162,7 +163,7 @@ Changes the character that separates directory names in paths from `\` (the defa
 
 > SWITCHAR=*char*
 
-Changes the character that introduces command options (switches) from `/` (the default, as in PC DOS) to `-` or `\` (eg, `SWITCHAR=-`, so that `MEM -D` is used instead of `MEM /D`).  Any other character is ignored.  The path and switch characters can never be the same: `SWITCHAR=\` also changes the path character to `/`, and if [PATHCHAR](#pathchar) is also set to the switch character, PATHCHAR wins, and the switch character becomes `-` (for `PATHCHAR=/`) or `/` (for `PATHCHAR=\`).  The switch character remains fixed after boot.
+Changes the character that introduces command options (switches) from `/` (the default, as in PC DOS) to `-` or `\` (eg, `SWITCHAR=-`, so that `TIME -P` is used instead of `TIME /P`).  Any other character is ignored.  The path and switch characters can never be the same: `SWITCHAR=\` also changes the path character to `/`, and if [PATHCHAR](#pathchar) is also set to the switch character, PATHCHAR wins, and the switch character becomes `-` (for `PATHCHAR=/`) or `/` (for `PATHCHAR=\`).  The switch character remains fixed after boot.
 
 A switch character other than `/` begins a switch only at the start of an argument, so that it can also appear inside arguments (eg, `TYPE MY-FILE.TXT`).
 

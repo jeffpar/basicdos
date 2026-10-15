@@ -11,9 +11,7 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<printCRLF,transParas,memDebug>
-	EXTSTR	<SYS_MEM,DOS_MEM,FREE_MEM,BLK_NAMES>
-	EXTABS	<BLK_WORDS>
+	EXTNEAR	<transParas>
 
         ASSUME  CS:CODE, DS:CODE, ES:CODE, SS:CODE
 
@@ -23,9 +21,7 @@ CODE    SEGMENT
 ;
 ; Prints memory usage: the total memory, the free memory available for an
 ; EXEC (which includes COMMAND's transient portion, if it can be discarded;
-; see transParas), and the free memory available for BASIC programs.  Use /D
-; to display memory blocks; in DEBUG builds, /F also displays open files, /S
-; active sessions, and /L repeats the display.
+; see transParas), and the free memory available for BASIC programs.
 ;
 ; Inputs:
 ;	BX -> CMDHEAP (not used)
@@ -37,226 +33,39 @@ CODE    SEGMENT
 ;	Any
 ;
 DEFPROC	cmdMem
-	LOCVAR	memFree,word	; free paras
-	LOCVAR	memLimit,word	; max available paras
-	ENTER
-;
-; Before we get into memory blocks, show the amount of memory reserved
-; for the BIOS and disk buffers.
-;
-mem0:	mov	ah,DOS_MSC_GETVARS
+	mov	ah,DOS_MSC_GETVARS
 	int	21h			; ES:BX -> DOSVARS + 2
-	mov	cx,es			; CX = DOS segment
-	les	di,es:[bx-2].DV_DD_LIST	; ES:DI -> first device driver
-;
-; Skip any installed drivers (DEVICE= puts them at the head of the list);
-; they're above DOS, so they're listed with the memory blocks below.
-;
-mem0a:	mov	ax,es
-	cmp	ax,cx			; installed driver?
-	jb	mem0b			; no
-	les	di,es:[di]
-	jmp	mem0a
-mem0b:
-
-	TESTSW	<'D'>
-	jz	mem1
-	PRINTF	<"Seg   Owner Paras    KB  Desc",13,10>
-mem1:	sub	bx,bx
-	mov	ax,es
-	push	di
-	push	es
-	push	cs
-	pop	es
-	mov	di,offset SYS_MEM
-	sub	dx,dx		; DX = owner (none)
-	call	printKB		; BX = seg, AX = # paras, ES:DI -> name
-	pop	es
-	pop	di
-;
-; Next, dump the list of resident built-in device drivers.
-;
-mem2:	cmp	di,-1
-	je	mem3
-
-	mov	bx,es
-	mov	ax,es:[di].DDH_NEXT_SEG
-	sub	ax,bx		; AX = # paras
-	push	di
-	lea	di,[di].DDH_NAME
-	call	printKB		; BX = seg, AX = # paras, ES:DI -> name
-	pop	di
-
-	les	di,es:[di]
-	jmp	mem2
-;
-; Next, dump the size of the operating system, which resides between the
-; built-in device drivers and the first memory block.
-;
-mem3:	mov	ah,DOS_MSC_GETVARS
-	int	21h
-	sub	bx,2		; ES:BX -> DOSVARS
-	mov	di,es:[bx].DV_MCB_LIMIT
-	mov	[memLimit],di
-
-	push	bx
-	push	es
-
-	mov	ax,es:[bx].DV_MCB_HEAD
-	mov	bx,es		; BX = DOS data segment
-	sub	ax,bx
-	push	cs
-	pop	es
-	mov	di,offset DOS_MEM
-	call	printKB		; BX = seg, AX = # paras, ES:DI -> name
-;
-; Next, examine all the memory blocks and display those that are used.
-;
-	sub	cx,cx
-	mov	[memFree],cx
-
-mem4:	mov	dl,0		; DL = 0 (query all memory blocks)
-	push	cs
-	pop	es		; ES:DI -> default owner name
-	mov	di,offset SYS_MEM
-
+	mov	ax,es:[bx-2].DV_MCB_LIMIT
+	call	toBytes			; DX:AX = total memory (in bytes)
+	PRINTF	<"%8ld bytes total",13,10>,ax,dx
+	sub	cx,cx			; CX = memory block #
+	sub	si,si			; SI = free paragraphs
+mem1:	mov	dl,1			; DL = 1 (free blocks only)
 	DOSUTIL	QRYMEM
-	jc	mem9		; all done
-	test	ax,ax		; free block (is OWNER zero?)
-	jne	mem5		; no
-	add	[memFree],dx	; yes, add to total free paras
-;
-; Let's include free blocks in the report now, too.
-;
-	mov	di,offset FREE_MEM
-
-mem5:	xchg	ax,dx		; AX = # paras, DX = owner
-	call	printKB		; BX = seg, AX = # paras, ES:DI -> name
-
-mem8:	inc	cx
-	jmp	mem4
-
-mem9:	pop	es
-	pop	bx
-
-	TESTSW	<'D'>
-	jz	mem10
-	call	printCRLF
-;
-; ES:BX should point to DOSVARS once again, for the DEBUG-only displays of open
-; files and active sessions (see memDebug).
-;
-mem10:	IFDEF	DEBUG
-	call	memDebug
-	ENDIF	; DEBUG
-;
-; Last but not least, dump the amount of free memory (ie, the sum of all the
-; free blocks that we did NOT display above).
-;
-mem30:	mov	ax,[memLimit]
-	call	toBytes		; DX:AX = total memory (in bytes)
-	PRINTF	<"%8ld bytes",13,10>,ax,dx
-	call	transParas	; AX = paras of COMMAND's transient
-	test	ax,ax		; can it be discarded?
-	jz	mem31		; no, so EXEC and BASIC have the same amount
-	add	ax,[memFree]	; AX = free memory for EXEC (paras)
+	jc	mem2
+	add	si,dx
+	inc	cx
+	jmp	mem1
+mem2:	call	transParas		; AX = paras of COMMAND's transient
+	test	ax,ax			; can it be discarded?
+	jz	mem3			; no, so EXEC and BASIC have the same
+	add	ax,si			; AX = free memory for EXEC (paras)
 	call	toBytes
 	PRINTF	<"%8ld bytes free for EXEC",13,10>,ax,dx
-	mov	ax,[memFree]	; AX = free memory for BASIC (paras)
+	xchg	ax,si			; AX = free memory for BASIC (paras)
 	call	toBytes
 	PRINTF	<"%8ld bytes free for BASIC",13,10>,ax,dx
-	jmp	short mem32
-mem31:	mov	ax,[memFree]
+	jmp	short mem9
+mem3:	xchg	ax,si
 	call	toBytes
 	PRINTF	<"%8ld bytes free",13,10>,ax,dx
-mem32:
-
-	IFDEF	DEBUG
-	TESTSW	<'L'>
-	jz	mem99
-	call	printCRLF
-	jmp	mem0
-	ENDIF	; DEBUG
-
-mem99:	clc
-	LEAVE
+mem9:	clc
 	ret
 	DEFLBL	toBytes,near	; converts paras in AX to bytes in DX:AX
 	mov	cx,16
 	mul	cx
 	ret
 ENDPROC	cmdMem
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; printKB
-;
-; Converts the paragraph size in AX to Kb, by calculating AX/64 (or AX >> 6);
-; however, that's a bit too granular, so we include tenths of Kb as well.
-;
-; Using the paragraph remainder (R), we calculate tenths (N): R/64 = N/10, so
-; N = (R*10)/64.
-;
-; Inputs:
-;	AX = size in paragraphs
-;	DX = owner (zero if none)
-;	BX = segment of memory block
-;	ES:DI -> "owner" name for memory block
-;
-; Outputs:
-;	None
-;
-; Modifies:
-;	AX, DI, ES
-;
-DEFPROC	printKB
-	TESTSW	<'D'>		; detail requested (/D)?
-	jz	pkb9		; no
-	push	bp
-	push	cx
-
-	push	ax
-	push	bx
-	push	dx
-	mov	bx,64
-	sub	dx,dx		; DX:AX = paragraphs
-	div	bx		; AX = Kb
-	xchg	cx,ax		; save Kb in CX
-	xchg	ax,dx		; AX = paragraphs remainder
-	mov	bl,10
-	mul	bx		; DX:AX = remainder * 10
-	mov	bl,64
-	or	ax,31		; round up without adding
-	div	bx		; AX = tenths of Kb
-	ASSERT	NZ,<cmp ax,10>
-	xchg	bp,ax		; save tenths in BP
-	pop	dx
-	pop	bx
-	pop	ax
-
-	cmp	di,MCB_TYPE	; DI = offset MCB_TYPE?
-	jne	pkb8		; no
-	push	ax
-	push	cx
-	mov	al,'<'
-	mov	ah,es:[di]	; AH = MCB_TYPE
-	push	cs
-	pop	es
-	mov	di,offset BLK_NAMES
-	mov	cx,BLK_WORDS
-	repne	scasw		; did we find a matching block name?
-	jne	pkb7		; no (ES:DI -> BLK_UNKNOWN)
-	dec	di		; yes, rewind to start of name
-	dec	di
-pkb7:	pop	cx
-	pop	ax
-
-pkb8:	PRINTF	<"%04x  %04x  %04x %3d.%1dK  %.8ls",13,10>,bx,dx,ax,cx,bp,di,es
-
-	pop	cx
-	pop	bp
-pkb9:	ret
-ENDPROC	printKB
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

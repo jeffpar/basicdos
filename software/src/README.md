@@ -47,7 +47,7 @@ The [DEV](os/dev/) directory contains all the built-in BASIC-DOS device drivers.
 
 The [DOS](os/dos/) directory contains the BASIC-DOS "kernel" (`BASDOS.COM`), including the code that loads installable device drivers (`DRVINIT.ASM`).
 
-The [CMD](os/cmd/) directory contains the code for the BASIC-DOS Command Processor (`COMMAND.COM`) and help text (`HELP.TXT`).
+The [CMD](os/cmd/) directory contains the code for the BASIC-DOS Command Shell (`COMMAND.COM`) and help text (`HELP.TXT`).
 
 The [UTIL](os/util/) directory contains the external utilities: [MISC](os/util/misc/) contains the single-file utilities (the filters `CASE.COM`, `FIND.COM`, `MORE.COM`, and `SORT.COM`, along with `SLEEP.COM`), and each larger utility has its own directory, such as [VI](os/util/vi/) (the `VI.COM` text editor).
 

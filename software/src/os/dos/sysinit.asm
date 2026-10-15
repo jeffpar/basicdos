@@ -23,6 +23,7 @@ DOS	segment word public 'CODE'
 	EXTLONG	<bpb_table,scb_table,sfb_table,cdir_table,clk_ptr,fpu_table>
 	EXTLONG	<dev_head>
 	EXTNEAR	<find_cfg,init_table,set_bpbtime,load_devices>
+	EXTNEAR	<console_warning,open_error>
 	EXTERNS	<cache_int21>,far
 	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr,dos_opchk>
 	EXTNEAR	<dos_term,dos_func,dos_exit,dos_ctrlc,dos_error,dos_default>
@@ -670,27 +671,6 @@ si11a:	inc	[con_count]
 	ASSERT	<SCB_SFHAUX + 1>,EQ,<SCB_SFHPRN>
 	jmp	si10
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; console_warning
-;
-; Inputs:
-;	AX = error code
-;	DX -> CONSOLE setting
-;
-; Modifies:
-;	AX
-;
-DEFPROC	console_warning
-	PRINTF	<"Warning: unable to open console %s (%d)",13,10>,dx,ax
-	ret
-ENDPROC	console_warning
-
-
-	DEFLBL	open_error,near
-	PRINTF	<"Error opening %s: %d">,dx,ax
-	jmp	fatal_error
-
 ;
 ; Get the address of the FPU$ driver's function table (FPUTBL), if any, for
 ; sprintf's %f formatter.
@@ -1065,7 +1045,7 @@ SHELL_FILE	db	"COMMAND.COM",0	; default SHELL file
 
 SYS_MSG		db	"BASIC-DOS "
 		VERSION_STR
-		db	" for the IBM PC",13,10
+		db	13,10
 		db	"Copyright (c) PCJS.ORG 1981-2026",13,10,13,10,'$'
 
 SYSERR		db	"System initialization error$"

@@ -77,7 +77,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 ### Command Interpreter: DOS Commands
 
 - [x] CD (CHDIR), COPY, DATE, DEL, DIR, EXIT, HELP, KEYS, MD (MKDIR), MEM, RD (RMDIR), RESTART, TIME, TYPE, and VER
-- [x] The prompt displays the current drive and directory (eg, `C:\SUBDIR>`), and switches use `/` (eg, `MEM /D`), as in PC DOS, unless PATHCHAR is `/`, in which case they use `-`
+- [x] The prompt displays the current drive and directory (eg, `C:\SUBDIR>`), and switches use `/` (eg, `TIME /P`), as in PC DOS, unless PATHCHAR is `/`, in which case they use `-`
 - [x] Running COM, EXE, BAT, and BAS files, and loading programs into other sessions
 - [x] BAT and BAS files can run other BAT and BAS files and then continue (no CALL command required); a nested BAS file gets its own variables
 - [x] Pipes (`|`) and output redirection (`>` creates or truncates the output file, `>>` appends to it), including redirection at the end of a pipeline (eg, `DIR | CASE > TEST`)
@@ -261,9 +261,9 @@ The `boot.sh` script then builds and boots a 360K floppy (the largest floppy sup
 
     $ ./boot.sh
     [Press CTRL-D to enter command mode]
-    BASIC-DOS 2.00 for the IBM PC
+    BASIC-DOS 2.00
     Copyright (c) PCJS.ORG 1981-2026
-    BASIC-DOS Command Processor
+    BASIC-DOS Command Shell
 
 That machine has no 8087, so BASIC-DOS emulates floating-point operations.  `boot.sh` also accepts the name of another configuration, followed by any additional `pc.js` options (eg, `--halt`):
 

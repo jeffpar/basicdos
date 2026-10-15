@@ -151,7 +151,7 @@ EXISTS(*filespec*)
 Returns -1 (true) if a file or directory matching *filespec* exists, or 0 (false) if not; *filespec* may contain wildcards (eg, EXISTS("C:\SAMPLES\*.BAS")).  For example, a batch file can create a directory only if it doesn't exist with IF NOT EXISTS("OBJ") THEN MD OBJ.
 
 EXIT
-Exits the command processor if there is a previously loaded copy.
+Exits the command shell if there is a previously loaded copy.
 
 EXP(*x*)
 Returns e (2.71828...) raised to the power of *x*.
@@ -270,9 +270,8 @@ Constant equal to the largest positive integer.
 MD [*drive*:]*path*
 Creates a new directory.  MKDIR is the same as MD.
 
-MEM [~D]
-Displays the total memory, the memory free for running programs (EXEC), and the memory free for BASIC programs, which excludes the part of the command processor that's set aside while running a program (when it can't be set aside, as when more than one session is running, a single "bytes free" value is displayed).
-~D also displays every memory block.  In DEBUG builds, ~F displays open files, and ~S displays active sessions.  Use MEM ~D | MORE to page the listing.
+MEM
+Displays total memory, memory available for executables, and memory available for BASIC programs.
 
 MID$(*string*,*start*[,*n*])
 Returns *n* characters of *string*, beginning at position *start* (or the rest of *string* if *n* is omitted).
@@ -375,7 +374,7 @@ RESET
 Same as CLOSE without file numbers (ie, closes all files).
 
 RESTART SYSTEM | *session*
-RESTART SYSTEM restarts the system.  RESTART *session* (a number from LIST SESSIONS) stops the program running in that session, as CTRL-ALT-DEL does on its console, even if the program is stuck in a loop; a session running only its command processor returns to its prompt.
+RESTART SYSTEM restarts the system.  RESTART *session* (a number from LIST SESSIONS) stops the program running in that session, as CTRL-ALT-DEL does on its console, even if the program is stuck in a loop; a session running only its shell returns to its prompt.
 
 RESTORE [*line*]
 Makes the first DATA item (or the first DATA item at or after *line*) the next item for READ.
