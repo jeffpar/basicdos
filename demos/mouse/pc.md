@@ -6,6 +6,7 @@ machines:
   - id: ibm5150
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-cga-256kb-mouse.json
+    debugger: available
     autoMount:
       A: "BASICDOS-360K-S80"
     autoType: PAINT\r

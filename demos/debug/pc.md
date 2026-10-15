@@ -13,6 +13,7 @@ machines:
   - id: ibm5150
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
+    debugger: available
     connection: com2->vt100.serialPort
     autoMount:
       A: "BASICDOS-360K-DEBUG"

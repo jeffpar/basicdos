@@ -6,6 +6,7 @@ machines:
   - id: ibm5160
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5160-cga-serial-640kb.json
+    debugger: available
     autoMount:
       A: "BASICDOS-360K-SERIAL"
 ---

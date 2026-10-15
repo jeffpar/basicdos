@@ -15,7 +15,7 @@ If no extension is specified, BASIC-DOS looks for a COM, EXE, BAT, and BAS file,
 
 ### Binary Programs
 
-COM and EXE files are loaded and run as in PC DOS, and many programs written for PC DOS 1.x and 2.x work, as long as they don't rely on features that BASIC-DOS doesn't support yet (eg, subdirectories).  One difference is that BASIC-DOS gives a COM program only the memory it needs (its file size plus at least 1K of heap), rather than all available memory, so that other sessions can use the rest.
+COM and EXE files are loaded and run as in PC DOS, and many programs written for PC DOS 1.x and 2.x work, as long as they don't rely on features that BASIC-DOS doesn't support yet (eg, subdirectories).  One difference is that BASIC-DOS gives a COM program half of the available memory (or a BASIC-DOS COM program only the memory it needs), rather than all available memory, so that other sessions can use the rest.
 
 When a binary program runs, COMMAND.COM temporarily releases most of its own memory (see [COMMAND.COM](command/)).
 

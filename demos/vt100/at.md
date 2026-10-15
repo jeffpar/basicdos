@@ -13,6 +13,7 @@ machines:
   - id: ibm5170
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5170-cga-640kb.json
+    debugger: available
     connection: com1->vt100.serialPort
     autoMount:
       A: "BASICDOS-360K-VT100"

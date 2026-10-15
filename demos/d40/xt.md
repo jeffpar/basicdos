@@ -6,6 +6,7 @@ machines:
   - id: ibm5160
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5160-cga-640kb.json
+    debugger: available
     autoMount:
       A: "BASICDOS-360K-D40"
       B: "PC DOS 2.00 (Disk 1)"

@@ -427,7 +427,8 @@ ERR_NOSESSION	equ	101	; out of sessions
 ; MINHEAP is the minimum number of bytes we allocate for a COM binary, on
 ; top of the actual file size.  This is important, because unlike PC DOS,
 ; we don't allocate all available memory to a program when it's loaded and
-; hope the program will shrink its footprint later.
+; hope the program will shrink its footprint later.  However, a COM binary
+; without COMDATA (see below) gets at least half of the available memory.
 ;
 ; In addition, if a COM binary contains a COMDATA structure at the end of
 ; the image, it can specify its own minimum heap size.  Currently, any value

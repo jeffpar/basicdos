@@ -1047,7 +1047,20 @@ lp7e:	mov	bx,di			; BX = size of program image
 	mov	cl,4
 	shr	bx,cl			; BX = size of program (in paras)
 	add	bx,dx			; add additional space (in paras)
-	mov	ax,bx
+;
+; A COM file without COMDATA (ie, not a BASIC-DOS program) may size its
+; workspace from PSP_PARAS (eg, Turbo Pascal 2.00 fails with "File too big"
+; otherwise), so give it at least half of the available memory.  Only the
+; usual MINHEAP is zeroed, since PC DOS doesn't zero memory either.
+;
+	cmp	word ptr [di - 2],SIG_BASICDOS
+	je	lp7h			; BASIC-DOS program
+	mov	ax,[bp].TMP_DX
+	shr	ax,1			; AX = half of available paras
+	cmp	bx,ax			; is BX already at least that?
+	jae	lp7h			; yes
+	xchg	bx,ax			; no, so use AX instead
+lp7h:	mov	ax,bx
 	cmp	ax,1000h
 	jb	lp7f
 	mov	ax,1000h

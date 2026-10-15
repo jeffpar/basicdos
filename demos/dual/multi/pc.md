@@ -6,6 +6,7 @@ machines:
   - id: ibm5150
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5150-dual-128kb.json
+    debugger: available
     sizeRAM: 256
     autoMount:
       A: "BASICDOS-360K-MULTI"
