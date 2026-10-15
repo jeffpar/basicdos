@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# Builds BASIC-DOS on BASIC-DOS (mkdos.sh builds it on MS-DOS 3.20 instead, which also updates the demo
-# disks).
+# Builds BASIC-DOS on BASIC-DOS (mkdos.sh builds it on MS-DOS 3.20 instead).  As in mkdos.sh, if pc.js exits
+# normally (ie, via QUIT) and PCJS is set, the demo disks are then updated with the new binaries.
 #
 # pc.js builds a bootable BASIC-DOS hard disk (C:) directly from software/src, using the system files from
 # the previous build (os/*/OBJ, so run mkdos.sh at least once first), software/src/CONFIG.SYS (a serial console,
@@ -47,3 +47,11 @@ if [ -n "$clean" ]; then
 fi
 tools/pc/pc.js compaq386 $src "CD OS;$mk;CD ..\TESTS$tests;$make;CD ..\MSB$msb;$make;QUIT" \
     --sys=bd:2 --target=30M --fat=16:2048:512 --ram=640K --speed=128 --serial --normalize
+code=$?
+if [ $code -eq 0 ] && [ -n "$PCJS" ]; then
+    if ! npx gulp demos --silent > /dev/null; then
+        echo "error: unable to update the demo disks (run \"npx gulp demos\" for details)" >&2
+        exit 1
+    fi
+fi
+exit $code

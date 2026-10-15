@@ -67,7 +67,7 @@ The command-line build uses the repository's `tools/pc/pc.js` utility to run MAS
 
 From the repository root, run `./mkdos.sh` to build release (**FINAL**) binaries, or `./mkdos.sh debug` to build **DEBUG** binaries with assertions and debugging aids.  The script forces a rebuild when the mode changes.  The guest startup runs **MKDOS** automatically; the **MKDOS.BAT** batch files use the Microsoft **MAKE** utility to assemble and link the components.  A successful build runs **QUIT**, writing modified files back to `software/src`.
 
-If `PCJS` points to a checkout of the PCjs repository, `mkdos.sh` also runs the Gulp demo tasks after a successful build to update the BASIC-DOS demo disk images.  See the root [README](../../README.md) for setup details.  If a build fails, use PC.js's **abort** command to exit without updating the demo disks.
+If `PCJS` points to a checkout of the PCjs repository, `mkdos.sh` (and `mk.sh`) also runs the Gulp demo tasks after a successful build to update the BASIC-DOS demo disk images.  See the root [README](../../README.md) for setup details.  If a build fails, use PC.js's **abort** command to exit without updating the demo disks.
 
 When invoking the guest batch files directly, **MKDOS DEBUG** and **MKDOS FINAL** select the build mode; **MKDOS** defaults to DEBUG unless the `MKFINAL` marker created by `mkdos.sh` is present.  Use **MKCLEAN DEBUG** or **MKCLEAN FINAL** when switching modes manually, since MAKE doesn't detect mode changes.  **MKCLEAN.BAT** deletes the build outputs before running **MKDOS.BAT**, which `mkdos.sh clean` also does (by creating a `CLEAN` marker that tells **MKDOS.BAT** to run **MKCLEAN.BAT** first).
 
