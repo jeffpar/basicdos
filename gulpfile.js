@@ -65,7 +65,7 @@ function checkOutput(task, outputFile)
  * and pc.js builds it (with --sys=bd:2, so it's bootable, and pc.js adds the system files and HELP.TXT itself).
  *
  * A disk can list its own "folders" instead (see BASICDOS-HD), where each folder is either a list of files, a
- * directory (whose contents are copied, without any OBJ directories), or a function that returns a list of files
+ * directory (whose contents are copied, including any OBJ directories), or a function that returns a list of files
  * from other disk images (see diskFiles()).
  *
  * A SAMPLES folder's files get the timestamps of the matching files on the PC DOS 1.00 diskette (PCDOS100).
@@ -155,12 +155,11 @@ let disks = {
             SRC: SRC + "/os",           // the BASIC-DOS source (with an MK.BAT that builds it on BASIC-DOS)
             TESTS: [ helloFile, SRC + "/tests/misc/BENCH.BAS", SRC + "/tests/misc/STRESS.BAT", paintFile ].concat(primesFiles, [ SRC + "/msb/obj/MSBASIC.EXE", "./software/tests/PUBLIC.zip" ]),
             //
-            // The build tools come from the MS-DOS 3.20 build disk (with MAKE 4.02 from C4BIN replacing MASM4's
-            // MAKE 4.00), except for EXE2BIN: MS-DOS 3.20's requires DOS 3.20, but PC DOS 2.00's requires only
-            // DOS 2.00 or later (and produces identical output).
+            // The MASM 4.00 files come from the MS-DOS 3.20 build disk, but the build tools in software/src/tools
+            // (the same ones that mk.sh uses) replace their counterparts, adding MAKE 4.02 and the patched EXE2BIN
+            // (see software/src/README.md).
             //
-            TOOLS: () => diskFiles("MSDOS320-C400", [ "TOOLS/MASM4/*", "TOOLS/C4BIN/MAKE.EXE" ]).concat(
-                         diskFiles("PCDOS200-DISK2", [ "EXE2BIN.EXE" ]))
+            TOOLS: () => diskFiles("MSDOS320-C400", [ "TOOLS/MASM4/*" ]).concat([ SRC + "/tools/*" ])
         }
     },
     "PCDOS200-C400": "./software/disks/PCDOS200-C400.json"
@@ -211,13 +210,13 @@ function stageDisk(diskName)
         let dirTarget = path.join(dirStage, folder);
         if (typeof files == "string") {
             /*
-             * Copy the directory, except for OBJ directories, hidden files, and the MS-DOS build's mkdos.bat
-             * files (which chain from one subdirectory to the next); the mk.bat at the top builds everything.
+             * Copy the directory (including its OBJ directories, so that MK rebuilds only what changes), except
+             * for hidden files and the MS-DOS build's mkdos.bat files (which chain from one subdirectory to the
+             * next); the mk.bat at the top builds everything.
              */
             fs.cpSync(files, dirTarget, { recursive: true, filter: (src) => {
                 let name = path.basename(src);
-                if (name.toUpperCase() == "OBJ" || name[0] == '.') return false;
-                return name.toUpperCase() != "MKDOS.BAT";
+                return name[0] != '.' && name.toUpperCase() != "MKDOS.BAT";
             }, preserveTimestamps: true });
         } else {
             fs.mkdirSync(dirTarget);

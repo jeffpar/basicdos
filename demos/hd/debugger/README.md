@@ -7,6 +7,7 @@ machines:
     type: pcx86
     config: /machines/pcx86/ibm/ibm-5160-cga-640kb.json
     debugger: true
+    autoType: $date\r$time\r
 ---
 
 {% include machine.html id="ibm5160" %}

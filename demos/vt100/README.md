@@ -16,6 +16,7 @@ machines:
     connection: com1->vt100.serialPort
     autoMount:
       A: "BASICDOS-VT100"
+    autoType: $date\r$time\r
 ---
 
 This IBM PC XT boots BASIC-DOS from the BASICDOS-VT100 diskette and runs two independent sessions: an 80x25 console on the Color Display, and a console on a DEC VT100 terminal connected to COM1 at 9600 baud.
