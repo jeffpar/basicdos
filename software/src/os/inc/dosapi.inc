@@ -158,6 +158,7 @@ DOS_UTL_GETTIME	equ	22h	; get time (AX) in "packed" format
 DOS_UTL_INCDATE	equ	23h	; increment date (CX=year, DH=month, DL=day)
 DOS_UTL_EDITLN	equ	24h	; edit line (DS:DX)
 DOS_UTL_QRYSCB	equ	25h	; query session (CL)
+DOS_UTL_TPRINTF	equ	26h	; printf (DS:BX) to console, typed parameters
 DOS_UTL_HDLCTL	equ	(DOS_HDL_IOCTL + 80h)
 
 	IFNDEF	DOSDEV

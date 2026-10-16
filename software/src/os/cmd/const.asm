@@ -246,6 +246,7 @@ CODE	ENDS
 	DEFTOK	IF,     49  genIf
 	DEFTOK	INPUT,  89, genInput,PUB
 	DEFTOK	INT,   106
+	DEFTOK	IOCTL,  98, genIoctl,PUB
 	DEFTOK	KEY,    67, genKey
 	DEFTOK	KEYS,    3, cmdKeys
 	DEFTOK	KILL,   25, cmdDel
@@ -273,6 +274,7 @@ CODE	ENDS
 	DEFTOK	POKE,   68, genPoke
 	DEFTOK	PRESET, 78, genPreset,PUB
 	DEFTOK	PRINT,  51, genPrint
+	DEFTOK	PRINTF, 99, genPrintf
 	DEFTOK	PSET,   79, genPset,PUB
 	DEFTOK	PUT,    80, genPut
 	DEFTOK	RANDOM,212,,PUB
@@ -305,6 +307,7 @@ CODE	ENDS
 	DEFTOK	TIME,   11, cmdTime
 	DEFTOK	TO,    207,,PUB
 	DEFTOK	TYPE,   23, cmdType
+	DEFTOK	USING, 213,,PUB
 	DEFTOK	VER,     9, cmdVer
 	DEFTOK	WEND,   62, genWend
 	DEFTOK	WHILE,  63, genWhile

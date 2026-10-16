@@ -1150,8 +1150,8 @@ ENDPROC	rename_fcb
 ; sfb_create, sfb_create_fcb
 ;
 ; Creates a new file, or truncates an existing file, and then opens it for
-; reading and writing.  If the name is a device name, the device is simply
-; opened.
+; reading and writing.  If the name is a device or volume name, the device
+; or volume is simply opened (there's nothing to truncate).
 ;
 ; Inputs:
 ;	CL = attributes (see DIRATTR_*)
@@ -1177,8 +1177,10 @@ DEFPROC	sfb_create,DOS
 	and	cl,ATTR_CREATE
 	mov	bl,cl			; BL = attributes
 	call	chk_devname		; is it a device name?
-	jc	sc1			; no
-	jmp	sc6			; yes, so just open the device
+	jnc	sc0			; yes
+	cmp	word ptr [si+1],':'	; is it a volume name (see chk_volume)?
+	jne	sc1			; no
+sc0:	jmp	sc6			; yes, so just open it
 sc1:	pop	ax
 	push	ax			; AH = name type, AL = 0 (attributes)
 	call	chk_filename		; does the file already exist?

@@ -7,17 +7,19 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Generates code for these sequential file I/O statements:
+; Generates code for these file I/O statements:
 ;
 ;	CLOSE				(genClose)
 ;	FIELD				(genField)
 ;	GET #, PUT #			(genGetFile, genPutFile, via genGet
 ;					and genPut)
 ;	INPUT [#]			(genInput)
+;	IOCTL #				(genIoctl)
 ;	LINE INPUT [#]			(genLineInput, via genLine)
 ;	LSET, RSET			(genLset, genRset)
 ;	OPEN				(genOpen)
 ;	PRINT #				(genPrintFile, via genPrint)
+;	PRINTF #			(genPrintfFile, via genPrintf)
 ;	WRITE [#]			(genWrite)
 ;
 ; See gencmd.asm for an overview of all the gen*.asm files, and fileio.asm
@@ -33,10 +35,10 @@ CODE    SEGMENT
 	EXTNEAR	<genExpr,getNextToken,genCallCS,genPushImm,genPushImmLong>
 	EXTNEAR	<genPushImmByteAL,genPushImmByte,genCvtType,peekNextSymbol>
 	EXTNEAR	<peekNextToken>
-	EXTNEAR	<skipToken,genReadVars,genPrintArgs,genRedirEnd>
+	EXTNEAR	<skipToken,genReadVars,genPrintArgs,genPrintfArgs,genRedirEnd>
 	EXTNEAR	<openFile,closeFile,fileOut,selectInput,fileItem>
 	EXTNEAR	<writeValue,printArgs,inputLine,fieldVar,setField>
-	EXTNEAR	<fileRecord,lsetStr,genVarRef>
+	EXTNEAR	<fileRecord,lsetStr,genVarRef,fileIoctl>
 
 	EXTABS	<TOK_FOR,TOK_INPUT,TOK_AS,TOK_OUTPUT,TOK_APPEND,TOK_RANDOM>
 
@@ -189,6 +191,34 @@ DEFPROC	genPrintFile
 	jmp	short gw7
 gpf9:	ret
 ENDPROC	genPrintFile
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genPrintfFile
+;
+; Generate code for "PRINTF #n,USING ..." (genPrintf calls us when PRINTF is
+; followed by '#'), which prints the values like PRINTF, with the file as
+; STDOUT.
+;
+; Inputs:
+;	DS:BX -> TOKLETs (at the '#')
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genPrintfFile
+	call	genFileOut		; DX:CX -> redirection word
+	jc	gpff9
+	push	dx
+	push	cx
+	call	genPrintfArgs		; generate the rest of PRINTF
+	jmp	short gw7
+gpff9:	ret
+ENDPROC	genPrintfFile
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -548,6 +578,79 @@ grc8:	pop	dx
 	stc
 	ret
 ENDPROC	genGetFile
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genIoctl
+;
+; Generate code for "IOCTL [#]n,code[,value|string[,value]]", which sends an
+; IOCTL request to the device or volume open as file n: a numeric value is
+; passed in CX, a string's data is passed in DS:SI (with its length in CX),
+; and a second value is passed in DX (see fileIoctl).
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genIoctl
+	call	genFileNum		; push the file number
+	jc	gio9
+	cmp	al,','			; a comma must follow
+	jne	gio8
+	call	genExpr			; push the code
+	jbe	gio8
+	push	ax
+	mov	al,VAR_LONG
+	call	genCvtType
+	pop	ax
+	jc	gio9
+	mov	dl,VAR_NONE		; DL = type of the first value (none)
+	cmp	al,','			; is there a value?
+	jne	gio2			; no
+	call	genExpr			; push the value (or string)
+	jbe	gio8
+	cmp	dl,VAR_STR		; is it a string?
+	je	gio1			; yes
+	push	ax
+	mov	al,VAR_LONG
+	call	genCvtType		; no, so it must be a long
+	pop	ax
+	jc	gio9
+	mov	dl,VAR_LONG
+gio1:	cmp	al,','			; is there a second value?
+	jne	gio2			; no
+	push	dx
+	call	genExpr			; push the second value
+	jbe	gio7
+	mov	al,VAR_LONG
+	call	genCvtType
+	pop	dx
+	jc	gio9
+	jmp	short gio3
+gio7:	pop	dx
+	jmp	short gio8
+gio2:	push	dx
+	GENPUSH	0,0			; push a zero
+	pop	dx
+	cmp	dl,VAR_NONE		; was there a first value?
+	jne	gio3			; yes
+	push	dx
+	GENPUSH	0,0			; no, so push a zero for it, too
+	pop	dx
+gio3:	mov	al,dl
+	GENPUSHB al			; push the type of the first value
+	GENCALL	fileIoctl
+	clc
+	ret
+gio8:	stc
+gio9:	ret
+ENDPROC	genIoctl
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

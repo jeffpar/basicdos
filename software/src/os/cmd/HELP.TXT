@@ -204,6 +204,12 @@ Returns the position of *string2* within *string1*, searching from position *sta
 INT(*x*)
 Returns the largest integer less than or equal to *x* (eg, INT(-2.5) is -3).  See also FIX.
 
+IOCTL [#]*n*,*code*[,*value*|*string*[,*value*]]
+Sends an IOCTL request with the specified *code* to the device or volume open as file *n*: a numeric *value* is passed in CX (and a second *value* in DX), or a *string*'s data is passed with the request (with its length in CX).  The driver determines what each code does (eg, FORMAT uses the diskette driver's &HF1 and &HF2 requests to set a volume's parameters and format a track); a request the driver doesn't support is an "Illegal function call".
+
+IOCTL$(*n*,*code*[,*value*])
+Sends an IOCTL request with the specified *code* (and *value* in DX) to the device or volume open as file *n*, and returns the data (up to 255 bytes) that the driver stored in response (eg, a hard disk's partition table, with the diskette driver's &HF3 request); an empty string if the driver stored nothing.
+
 KEY ON|OFF
 Accepted for compatibility with MSBASIC, but does nothing, since BASIC-DOS doesn't display function keys.
 
@@ -344,6 +350,9 @@ Same as PSET, except that the default color is the background color.
 
 PRINT [#*n*,]
 Prints a comma or semi-colon separated series of values (or with #*n*, writes them to file *n*).  To send the output of a line to a file instead, end the line with :> *file* (or :>> *file* to append).
+
+PRINTF [#*n*,] USING *format*[;] [*value*[,*value*]...]
+Prints the values with the C-style *format* (a semi-colon after *format* is optional, for Microsoft BASIC compatibility) (or with #*n*, writes them to file *n*): %d prints a number (%x in hex), %f a double, %s a string, and %c a character, with an optional width and precision (eg, "%5d", "%-8.3s", "%.2f"); %% prints a percent sign.  A trailing ; or , suppresses the newline.
 
 PSET (*x*,*y*)[,*color*]
 Draws a point in a graphics mode, using the foreground color if no *color* is specified.

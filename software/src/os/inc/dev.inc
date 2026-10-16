@@ -154,6 +154,7 @@ symbol	=	symbol + add
 FDCX		struc
 FDCX_RW		dw	?	; read/write request at ES:DI (AL = BIOS drive)
 FDCX_RDBUF	dw	?	; read LBA DX into FDC buffer (see fdc_rdbuf)
+FDCX_MBR	dw	?	; read/write MBR via FDC buffer (see fdc_mbr)
 FDCX		ends
 
 ;

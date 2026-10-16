@@ -86,6 +86,31 @@ IOCTL_FPU	equ	0E0h
 IOCTL_GETFPU	equ	0E1h	; FPU$: store FPUTBL far ptr at DS:SI (see fpu.inc)
 
 ;
+; Disk IOCTLs (see fdcdev.asm), selected with DISKIOCTL, since only the FDC
+; driver uses them (and the kernel's modules are short of symbol space).
+;
+	IFDEF	DISKIOCTL
+IOCTL_DISK	equ	0F0h
+IOCTL_SETPARMS	equ	0F1h	; set volume's BPB from DS:SI (CX = length)
+IOCTL_FORMAT	equ	0F2h	; FDC: format/verify track (CX = cyl, DX = head)
+IOCTL_GETPART	equ	0F3h	; HDC: store PARTINFO at DS:SI (CX = length)
+IOCTL_SETPART	equ	0F4h	; HDC: write new MBR with table at DS:SI
+;
+; IOCTL_GETPART fills in a PARTINFO (the FDC driver returns nothing, as
+; diskettes have no partition table).
+;
+PARTINFO	struc
+PI_CYLS		dw	?	; 00h: cylinders
+PI_HEADS	db	?	; 02h: heads
+PI_TRACKSECS	db	?	; 03h: sectors per track
+PI_DRIVE	db	?	; 04h: BIOS drive # (eg, 80h)
+PI_VALID	db	?	; 05h: 1 if the MBR has a valid signature
+PI_LETTERS	db	4 dup(?); 06h: drive letter per partition (0 if none)
+PI_TABLE	db	64 dup(?); 0Ah: partition table
+PARTINFO	ends
+	ENDIF	; DISKIOCTL
+
+;
 ; MOUSE$ services (installed by the MOUSE$ driver; see moudev.asm)
 ;
 INT_MOUSE	equ	33h	; mouse services

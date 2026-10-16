@@ -16,7 +16,12 @@
 ; Requests are never concurrent (the kernel locks the session while it uses
 ; a driver), so one buffer suffices.
 ;
+; Two IOCTLs support formatting: IOCTL_SETPARMS gives a volume a BPB (so that
+; an unformatted diskette can be written), and IOCTL_FORMAT formats and
+; verifies a track (see ddfdc_ioctl).
+;
 	BIOSEQU equ 1
+	DISKIOCTL equ 1
 	include	macros.inc
 	include	bios.inc
 	include	disk.inc
@@ -28,15 +33,16 @@ DEV	group	CODE,DATA
 CODE	segment para public 'CODE'
 
 	public	FDC
-FDC 	DDH	<offset DEV:ddfdc_end+16,,DDATTR_BLOCK,offset ddfdc_init,-1,2020202024434446h>
+FDC 	DDH	<offset DEV:ddfdc_end+16,,DDATTR_BLOCK+DDATTR_IOCTL,offset ddfdc_init,-1,2020202024434446h>
 	dw	offset DEV:fdc_rw, offset DEV:fdc_rdbuf	; FDCX (see dev.inc)
+	dw	offset DEV:fdc_mbr
 
 	DEFLBL	CMDTBL,word
-	dw	ddfdc_none,  ddfdc_mediachk, ddfdc_buildbpb, ddfdc_none	; 0-3
-	dw	ddfdc_read,  ddfdc_none,     ddfdc_none,     ddfdc_none	; 4-7
-	dw	ddfdc_write, ddfdc_none,     ddfdc_none,     ddfdc_none	; 8-11
-	dw	ddfdc_none,  ddfdc_none,     ddfdc_none,     ddfdc_none	; 12-15
-	dw	ddfdc_none,  ddfdc_none,     ddfdc_none,     ddfdc_none	; 16-19
+	dw	ddfdc_none,  ddfdc_mediachk, ddfdc_buildbpb, ddfdc_ioctl
+	dw	ddfdc_read,  ddfdc_none,     ddfdc_none,     ddfdc_none
+	dw	ddfdc_write, ddfdc_none,     ddfdc_none,     ddfdc_none
+	dw	ddfdc_none,  ddfdc_none,     ddfdc_none,     ddfdc_none
+	dw	ddfdc_none,  ddfdc_none,     ddfdc_none,     ddfdc_none
 	DEFABS	CMDTBL_SIZE,<($ - CMDTBL) SHR 1>
 
 	DEFBYTE	rw_drive,0		; BIOS drive # for readwrite_sectors
@@ -155,18 +161,56 @@ DEFPROC	ddfdc_buildbpb
 	mov	bx,(FDC_READ SHL 8) OR 1
 	les	bp,[ddbuf_ptr]	; ES:BP -> our own buffer
 	call	readwrite_sectors
-	jnc	bb1
-	jmp	bb8
+	jc	bb8
 ;
-; Copy the BPB from the boot sector in our buffer to the BPB provided.
+; Initialize the BPB provided from the boot sector in our buffer, which now
+; holds LBA 0 of the drive.
 ;
-bb1:	push	ds
+	mov	al,[si].BPB_DRIVE
+	mov	cs:[ddbuf_drv],al
+	mov	cs:[ddbuf_lba],dx	; (DX is still LBA 0)
+	push	ds
 	pop	es
-	mov	di,si
+	mov	di,si		; ES:DI -> BPB
+	lds	si,cs:[ddbuf_ptr]
+	add	si,BOOT_BPB	; DS:SI -> BPB in the boot sector
+	call	init_bpb
+
+bb8:	pop	es
+	pop	di
+	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+	jnc	bb9
+	mov	ah,DDSTAT_ERROR SHR 8
+	mov	es:[di].DDP_STATUS,ax
+bb9:	ret
+ENDPROC	ddfdc_buildbpb
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; init_bpb
+;
+; Copies a BPB (from a boot sector, or from IOCTL_SETPARMS) to a volume's
+; BPB, timestamps it, and initializes the rest of the BPB extension data,
+; after making sure the BPB is usable (512-byte sectors, a power-of-two
+; number of sectors per cluster, and sensible geometry); otherwise (eg, a
+; diskette whose boot sector has no BPB, like PC DOS 1.0), the media is
+; unknown.
+;
+; Inputs:
+;	DS:SI -> BPB data (at least BPB_DRIVE bytes)
+;	ES:DI -> BPB to initialize (BPB_DRIVE is preserved)
+;
+; Outputs:
+;	Carry clear if successful; otherwise, carry set, AX = DDERR_UNKMEDIA,
+;	and BPB_SECBYTES is zero
+;
+; Modifies:
+;	AX, BX, CX, DX, SI
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	init_bpb
 	push	di
-	mov	bl,[si].BPB_DRIVE
-	lds	si,[ddbuf_ptr]	; BL = drive #
-	add	si,BOOT_BPB	; DS:SI -> our own buffer
+	mov	bl,es:[di].BPB_DRIVE
 	mov	cx,size BPB SHR 1
 	rep	movsw
 	mov	ah,TIME_GETTICKS
@@ -177,20 +221,11 @@ bb1:	push	ds
 	stosw			; update BPB_TIMESTAMP.SEG
 	sub	ax,ax
 	stosw			; update BPB_DEVICE.OFF
-	mov	[ddbuf_lba],ax	; (zero ddbuf_lba while AX is zero)
 	mov	ax,cs
 	stosw			; update BPB_DEVICE.SEG
 	pop	di
-	mov	[ddbuf_drv],bl
-;
-; Initialize the rest of the BPB extension data now
-;
 	mov	es:[di].BPB_DRIVE,bl
-;
-; Make sure the BPB is usable (512-byte sectors, a power-of-two number of
-; sectors per cluster, and sensible geometry); otherwise (eg, a diskette
-; whose boot sector has no BPB, like PC DOS 1.0), the media is unknown.
-;
+
 	cmp	es:[di].BPB_SECBYTES,512
 	je	bb4a
 bb4:	jmp	bb5
@@ -251,20 +286,13 @@ bb7:	ASSERT	Z		; assert CLUSSECS was a power-of-two
 	shr	ax,cl		; AX = data clusters
 	mov	es:[di].BPB_CLUSTERS,ax
 	clc
-	jmp	short bb8
+	ret
 
 bb5:	mov	es:[di].BPB_SECBYTES,0	; the BPB isn't valid
 	mov	ax,DDERR_UNKMEDIA
 	stc
-
-bb8:	pop	es
-	pop	di
-	mov	es:[di].DDP_STATUS,DDSTAT_DONE
-	jnc	bb9
-	mov	ah,DDSTAT_ERROR SHR 8
-	mov	es:[di].DDP_STATUS,ax
-bb9:	ret
-ENDPROC	ddfdc_buildbpb
+	ret
+ENDPROC	init_bpb
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -585,6 +613,200 @@ ENDPROC	ddfdc_none
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; ddfdc_ioctl
+;
+; IOCTL_SETPARMS copies a BPB (eg, the one that FORMAT puts in a new boot
+; sector) from DDPRW_ADDR to the volume's BPB (see init_bpb), so that the
+; volume of an unformatted diskette can be written, and IOCTL_FORMAT formats
+; and verifies the track at cylinder DDPRW_LENGTH, head DDPRW_LBA (see
+; format_track).  IOCTL_GETPART returns nothing (diskettes have no partition
+; table), so FORMAT can tell a diskette from a hard disk.  Errors are returned
+; to the caller (see dev_request).
+;
+; Inputs:
+;	ES:DI -> DDPRW (DDP_CODE = IOCTL code)
+;
+; Outputs:
+;	DDP_STATUS updated (and DDP_CONTEXT is zero)
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DS
+;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	ddfdc_ioctl
+	mov	es:[di].DDP_CONTEXT,0
+	mov	al,es:[di].DDP_CODE
+	cmp	al,IOCTL_SETPARMS
+	je	dio1
+	cmp	al,IOCTL_FORMAT
+	je	dio2
+	cmp	al,IOCTL_GETPART	; (carry clear if equal)
+	je	dio8
+	jmp	ddfdc_none
+dio1:	mov	ax,DDERR_BADREQ
+	cmp	es:[di].DDPRW_LENGTH,BPB_DRIVE	; enough data for a BPB?
+	jb	dio8				; no
+	push	di
+	push	es
+	lds	si,es:[di].DDPRW_ADDR	; DS:SI -> caller's BPB
+	les	di,es:[di].DDPRW_BPB	; ES:DI -> volume's BPB
+	call	init_bpb
+	jmp	short dio7
+dio2:	push	di
+	push	es
+	call	format_track
+dio7:	pop	es
+	pop	di
+dio8:	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+	jnc	dio9
+	mov	ah,DDSTAT_ERROR SHR 8
+	mov	es:[di].DDP_STATUS,ax
+dio9:	ret
+ENDPROC	ddfdc_ioctl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; format_track
+;
+; Formats and verifies one track, with the sectors per track in the volume's
+; BPB (which IOCTL_SETPARMS supplied, if the diskette was unformatted).  The
+; BIOS formats a track from a table of sector IDs (cylinder, head, sector,
+; and size code), which we build in ddbuf, and it takes the number of sectors
+; from the DPT (see set_dpt); on a PC AT, the media type must be set first
+; (FDC_SETDASD), since the BIOS can't determine it from unformatted media.
+; The BPB is timestamped afterward, so that the media check that follows
+; (eg, when FORMAT writes the boot sector) treats the media as unchanged.
+;
+; Inputs:
+;	ES:DI -> DDPRW (DDPRW_LENGTH = cylinder, DDPRW_LBA = head)
+;
+; Outputs:
+;	Carry clear if successful; otherwise, carry set, AX = error code
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, DS, ES
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	format_track
+	lds	si,es:[di].DDPRW_BPB	; DS:SI -> BPB
+	mov	ch,byte ptr es:[di].DDPRW_LENGTH; CH = cylinder
+	mov	dh,byte ptr es:[di].DDPRW_LBA	; DH = head
+	mov	bl,byte ptr [si].BPB_TRACKSECS	; BL = sectors per track
+	mov	dl,[si].BPB_DRIVE		; DL = drive #
+	mov	al,bl
+	call	set_dpt			; set the DPT's sectors per track
+	test	cs:[rw_pio],80h		; PC AT?
+	jz	ft2			; no
+;
+; Set the media type: 1 (360K in a 360K drive), 2 (360K in a 1.2M drive),
+; 3 (1.2M), or 4 (720K), from the drive type that HDC_GETPARMS returns in BL
+; (1 = 360K, 2 = 1.2M, 3 = 720K, 4 = 1.44M); that function also returns the
+; DPT address in ES:DI, so those registers are preserved.
+;
+	push	bx
+	push	cx
+	push	dx
+	push	es
+	push	di
+	mov	ah,HDC_GETPARMS
+	int	INT_FDC			; BL = drive type
+	mov	al,bl			; AL = drive type
+	pop	di
+	pop	es
+	pop	dx
+	pop	cx
+	pop	bx
+	jc	ft2			; no drive type, so leave it alone
+	cmp	al,3			; 3.5" drive?
+	jb	ft1			; no
+	mov	al,4			; yes, so the media type is 720K
+ft1:	cmp	bl,15			; 1.2M media?
+	jb	ft1a			; no
+	mov	al,3
+ft1a:	mov	ah,FDC_SETDASD
+	int	INT_FDC
+;
+; Build the table of sector IDs in ddbuf, which no longer holds a sector.
+;
+ft2:	mov	cs:[ddbuf_lba],-1
+	les	di,cs:[ddbuf_ptr]	; ES:DI -> ddbuf
+	push	di
+	mov	bh,1			; BH = sector ID
+ft3:	mov	al,ch
+	mov	ah,dh
+	stosw				; cylinder, head
+	mov	al,bh
+	mov	ah,2			; (the size code for 512-byte sectors)
+	stosw				; sector, size code
+	inc	bh
+	cmp	bh,bl
+	jbe	ft3
+	mov	al,bl			; AL = # sectors
+	pop	bx			; ES:BX -> sector IDs
+	mov	cl,1			; (CL bits 6-7 = cylinder bits 8-9)
+	mov	ah,FDC_FORMAT
+	push	ax
+	call	bios_rw			; format the track
+	pop	ax
+	jc	ft8
+	mov	ah,FDC_VERIFY
+	call	bios_rw			; verify the track
+	jc	ft8
+	mov	ah,TIME_GETTICKS
+	int	INT_TIME		; CX:DX is current tick count
+	mov	[si].BPB_TIMESTAMP.OFF,dx
+	mov	[si].BPB_TIMESTAMP.SEG,cx
+	clc
+	ret
+;
+; BIOS error codes (in AH) are also driver error codes (see DDERR in dev.inc).
+;
+ft8:	mov	al,ah
+	mov	ah,0			; AX = driver error code
+	stc
+	ret
+ENDPROC	format_track
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; set_dpt
+;
+; Sets the DPT's sectors per track (its "end of track" sector, which the
+; BIOS needs for every diskette transfer, as well as for formatting) and
+; its format gap length.  The boot code moved the DPT to RAM (see boot.asm),
+; so it can be changed.
+;
+; Inputs:
+;	AL = sectors per track
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AH
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	set_dpt
+	push	ds
+	push	bx
+	sub	bx,bx
+	mov	ds,bx
+	ASSUME	DS:BIOS
+	lds	bx,dword ptr ds:[INT_DPT*4]
+	ASSUME	DS:NOTHING		; DS:BX -> DPT
+	mov	[bx].DP_SPT,al
+	mov	ah,50h			; gap length for 8 or 9 sectors
+	cmp	al,9
+	jbe	sd1
+	mov	ah,54h			; gap length for 15 sectors
+sd1:	mov	[bx].DP_GAP3,ah
+	pop	bx
+	pop	ds
+	ret
+ENDPROC	set_dpt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; Read 1 sector into our internal buffer
 ;
 ; Inputs:
@@ -659,7 +881,9 @@ ENDPROC	write_buffer
 ; We break every request into one or more single-track requests, and within
 ; each single-track request, we transfer all sectors that precede a 64K
 ; boundary, then the next sector, if any, by way of our own buffer, and then
-; any remaining sectors on the track.
+; any remaining sectors on the track.  The DPT's sectors per track is set
+; from the BPB first, since the BIOS stops a transfer at that sector (and the
+; ROM's value may not match the media, eg, 8-sector diskettes).
 ;
 ; PC AT hard disks are the exception: the AT fixed disk BIOS uses programmed
 ; I/O rather than DMA, and it normalizes ES:BX, so a single-track request can
@@ -690,6 +914,10 @@ DEFPROC	readwrite_sectors
 	push	cx
 	push	dx
 	push	es
+	test	cs:[rw_drive],80h	; hard disk?
+	jnz	rw1			; yes (the DPT is only for diskettes)
+	mov	al,byte ptr [si].BPB_TRACKSECS
+	call	set_dpt			; set the DPT's sectors per track
 
 rw1:	push	dx			; save LBA
 	push	bx			; save BIOS cmd and # sectors
@@ -874,6 +1102,45 @@ DEFPROC	fdc_rw,far
 fw1:	call	ddfdc_write
 	ret
 ENDPROC	fdc_rw
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fdc_mbr (far entry for the HDC driver)
+;
+; Reads or writes a hard disk's MBR (cylinder 0, head 0, sector 1) using our
+; buffer, or with no command, simply returns the buffer (eg, for the HDC
+; driver to build an MBR in before writing it).
+;
+; Inputs:
+;	AL = BIOS drive #
+;	AH = FDC_READ, FDC_WRITE, or 0 (just return the buffer)
+;
+; Outputs:
+;	Carry clear if successful (AX = driver error code otherwise)
+;	ES:BP -> our buffer
+;
+; Modifies:
+;	AX, BX, CX, DX, BP, ES
+;
+DEFPROC	fdc_mbr,far
+	ASSUME	DS:NOTHING
+	mov	cs:[ddbuf_lba],-1	; ddbuf won't hold a volume sector
+	les	bp,cs:[ddbuf_ptr]	; ES:BP -> ddbuf
+	test	ah,ah			; any transfer?
+	jz	fm9			; no
+	mov	bx,bp			; ES:BX -> ddbuf
+	mov	dl,al			; DL = drive #
+	mov	al,1			; AL = 1 sector
+	mov	cx,1			; CH = cylinder 0, CL = sector 1
+	mov	dh,0			; DH = head 0
+	call	bios_rw			; AX and carry are from the ROM
+	jc	fm8
+fm9:	ret
+fm8:	mov	al,ah
+	mov	ah,0			; AX = driver error code
+	stc
+	ret
+ENDPROC	fdc_mbr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

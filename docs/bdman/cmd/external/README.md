@@ -40,6 +40,10 @@ In the **BIN** directory (see [Running Programs](../../intro/#running-programs) 
 - CASE.COM, FIND.COM, MORE.COM, and SORT.COM: filters (see below)
 - SLEEP.COM: waits the specified number of seconds (eg, `SLEEP 5`); CTRL-C stops it early
 - VI.COM: a full-screen text editor (see [VI](#vi) below)
+- FORMAT.BAS: formats a diskette (see [FORMAT](#format) below)
+- MODE.BAT: sets the display, a serial port, or a printer (see [MODE](#mode) below)
+
+Utilities that don't need the speed of assembly language are BASIC programs, written in the style BASIC-DOS lists them in: every line indented with a tab, after a line number only where one is needed as a label.  A utility that changes settings which must outlive it (eg, MODE's display settings) is a BAT file, since a BAS program's video mode is restored when it ends.
 
 ### Filters
 
@@ -77,6 +81,24 @@ Displays input (or *file*) one screen at a time (eg, `TYPE README.TXT | MORE`). 
 Displays the lines of input (or *file*) in sorted order, ignoring case (eg, `DIR | SORT`).  `/R` sorts in reverse order, and `/+n` sorts on the characters starting at column *n* (eg, `DIR | SORT /+10` sorts a directory listing by extension).  Up to 64K of text can be sorted.
 
 Filters can be chained (eg, `TYPE FILE | SORT | MORE`), but every command after the first needs its own session, so a pipeline can't have more commands than [SESSIONS=](../../cfg/#sessions) allows.  If any command of a pipeline fails (eg, it can't be found, or there's no session for it), the error is displayed, the commands already running are ended, and ERRORLEVEL is set to 1.  And if a command stops reading its input early (eg, FIND can't open its file), the command writing to it gets a write error instead of waiting forever; the filters stop when that happens.
+
+### FORMAT
+
+	FORMAT d: [/S] [/1] [/8]
+
+Formats the diskette in drive *d* (A: or B:) as a 360K diskette (40 cylinders, 2 sides, 9 sectors per track), or with `/1` as a single-sided diskette (180K), or with `/8` with 8 sectors per track (320K, or 160K with `/1`, for PC DOS 1.x).  `/S` then copies BASDEV.COM, BASDOS.COM, and COMMAND.COM from the root directory of the current drive, making the diskette bootable.  FORMAT prompts for the diskette, formats and verifies every track (with the diskette driver's [IOCTL](../basic/#ioctl) requests), writes the boot sector (a copy of the current drive's, with the new diskette's parameters), the two FATs, and the root directory, reports the space on the diskette, and asks whether to format another.  Cluster sizes and root directory sizes follow the PC DOS 2.x rules (eg, 1K clusters and 112 root entries for a 360K diskette), with 12-bit FATs.
+
+A write-protected diskette, an empty drive, or a track that can't be formatted ("Track *n* bad - disk unusable") ends the format.  FORMAT can't format the current drive (which also supplies the boot sector and system files).
+
+For a hard disk drive, FORMAT first displays the disk's geometry and partition table (each partition's type, starting sector, size, and drive letter, if it's a FAT volume).  If the disk has FAT volumes, FORMAT formats the drive named on the command line (or if that drive is the whole disk, asks which volume to format), after a warning that all data on the drive will be lost.  If the disk has no partition table (eg, a new hard disk, which BASIC-DOS gives a drive letter anyway, with "unknown media"), FORMAT offers to create one, with a single volume (starting at the second track and ending at a cylinder boundary) of the size you choose in Mb, up to 32Mb (65535 sectors) or the size of the disk; it then writes a master boot record (with the hard disk driver's boot code) and formats the new volume.  A volume of up to 32680 sectors (about 16Mb) gets the PC DOS 2.x layout for its size (eg, 4K clusters and 512 root entries for 10Mb) with a 12-bit FAT; a larger volume gets 2K clusters and a 16-bit FAT, as PC DOS 3.x did.  Hard disk volumes aren't verified, and extended partitions aren't supported.
+
+### MODE
+
+	MODE 40|80|BW40|BW80|CO40|CO80
+	MODE COMn:baud[,parity[,data[,stop]]]
+	MODE LPTn:[cols][,lines]
+
+Sets the display to 40 or 80 columns (BW turns color off, as `SCREEN 0,0` does, and CO turns it on), sets a serial port's baud rate (two digits abbreviate a rate, eg, 96 for 9600), parity (N, O, or E; the default is N), data bits (default 8), and stop bits (default 1), or sends an IBM/Epson printer its condensed (132 columns) or normal (80 columns) print codes and its 8 or 6 lines per inch codes.  A serial port is set by opening it with its parameters and an input buffer length of 0 (see [COM](../../cfg/#console)), which initializes the port and releases it again, so a port that's already open (eg, the console) isn't changed.  MODE is a BAT file (so its display settings persist), which means its variables remain in the session, like those of any batch file.
 
 ### VI
 

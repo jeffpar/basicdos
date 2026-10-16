@@ -172,6 +172,17 @@ Without #*n*, INPUT displays the *prompt* (if any), followed by "? " (unless a c
 
 	INPUT "Name and age"; N$, A
 
+### IOCTL # {#ioctl}
+
+> IOCTL [#]*n*,*code*[,*value*|*string*[,*value*]]
+
+Sends an IOCTL request (INT 21h function 44h) with the specified *code* to the device or volume open as file *n*: a numeric *value* is passed in CX (and a second *value* in DX), or a *string*'s data is passed with the request (with its length in CX).  What each code does is up to the driver (see [IOCTL Functions](../../../bdtech/dev/#ioctl-functions)); for example, FORMAT.BAS gives a volume its parameters with the diskette driver's IOCTL_SETPARMS (&HF1) request, and formats each track with IOCTL_FORMAT (&HF2).
+
+A failure is a runtime error that [ON ERROR](#on-error) can handle: "Illegal function call" (5) for a request the driver doesn't support, "Permission denied" (70) for a write-protected diskette, "Disk not ready" (71), "Disk media error" (72), or "Device I/O error" (57).  To receive data from a driver, use the [IOCTL$](func/#ioctl) function.
+
+	OPEN "A:" FOR OUTPUT AS #1
+	IOCTL #1, &HF2, 0, 0		' format cylinder 0, head 0
+
 ### LET
 
 > [LET] *variable*=*expression*
@@ -221,7 +232,7 @@ Error numbers are the same as Microsoft BASIC's (eg, 5 for "Illegal function cal
 
 Opens *file* as file number *n* (1-4): FOR INPUT reads an existing file, FOR OUTPUT creates the file (or truncates it if it exists), and FOR APPEND adds to the end of the file (creating it if necessary).  FOR RANDOM (or no FOR at all) opens the file for random access (creating it if necessary), with records of *reclen* bytes (1-255; the default is 128), using [FIELD](#field), [GET #](#get), and [PUT #](#put).  Files that a program leaves open are closed when it ends.  A file can be open for INPUT more than once, but a file open for OUTPUT or APPEND can't be opened again, in this session or any other ("File already open").
 
-A *file* that is only a drive letter and colon (eg, `"C:"`) opens the drive's entire volume, so that its sectors can be read (and written, FOR RANDOM) as records: with a record length of 128, for example, sector *n* begins at record *n* * 4 + 1.  A volume can be opened FOR INPUT only if no file on it is open for writing, and FOR RANDOM only if no file on it is open at all; while the volume is open, conflicting opens, as well as creating, deleting, or renaming files and directories on it, fail.  Since record numbers range from 1 to 65535, only the first 65535 records of a volume are accessible.
+A *file* that is only a drive letter and colon (eg, `"C:"`) opens the drive's entire volume, so that its sectors can be read (and written, FOR RANDOM) as records: with a record length of 128, for example, sector *n* begins at record *n* * 4 + 1.  FOR OUTPUT opens the volume for writing as a stream, starting with its first sector (nothing is truncated), which is how FORMAT.BAS writes a new diskette's boot sector, FATs, and root directory.  A volume can be opened FOR INPUT only if no file on it is open for writing, and for writing only if no file on it is open at all; while the volume is open, conflicting opens, as well as creating, deleting, or renaming files and directories on it, fail.  Since record numbers range from 1 to 65535, only the first 65535 records of a volume are accessible.  A volume whose media is unknown (eg, an unformatted diskette) can still be opened (without a critical error prompt), with a size of zero until the driver is given its parameters (see [IOCTL #](#ioctl)).
 
 Errors are runtime errors that [ON ERROR](#on-error) can handle: "FIELD overflow" (50), "Bad file number" (52) for a number other than 1-4 or a file that isn't open, "File not found" (53), "Bad file mode" (54) for using a file in a way its mode doesn't allow (eg, reading a file opened for output), "File already open" (55), "Input past end" (62), "Bad record number" (63), and "Path/File access error" (75).  An invalid record length is an "Illegal function call" (5).
 
@@ -252,6 +263,12 @@ Stores *value* (0-255) at *offset* in the segment set by [DEF SEG](#def-seg).
 > PRINT #*n*,[*expression*][;|,][*expression*]...
 
 Writes values to file *n* (which must be open for OUTPUT or APPEND) exactly as [PRINT](../device/screen/#print) would display them.
+
+### PRINTF # {#printf}
+
+> PRINTF #*n*,USING *format*[;] [*value*][,|;][*value*]...
+
+Writes values to file *n* (which must be open for OUTPUT or APPEND) exactly as [PRINTF](../device/screen/#printf) would display them.
 
 ### PUT # {#put}
 

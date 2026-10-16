@@ -68,6 +68,9 @@ MODE_MONO	equ	07h
 ;
 FDC_READ	equ	02h	;
 FDC_WRITE	equ	03h	;
+FDC_VERIFY	equ	04h	;
+FDC_FORMAT	equ	05h	; ES:BX -> sector IDs (see format_track)
+FDC_SETDASD	equ	17h	; PC AT: set media type (AL) for format
 HDC_GETPARMS	equ	08h	; DL=80h; DL:=# drives (if carry clear)
 
 FDCERR_BADCMD	equ	01h	; bad (BIOS) command

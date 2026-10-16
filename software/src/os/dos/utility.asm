@@ -186,13 +186,22 @@ ENDPROC	utl_strupr
 ; (eg, sysinit uses it to print to a specific session's console before any
 ; PSP exists, when STDOUT is always SFH 1).
 ;
+; utl_tprintf (AH = 26h) prints to STDOUT like utl_printf, but the format
+; string is at DS:BX and the parameters are typed (see sprintf.asm), which
+; is how COMMAND implements "PRINTF USING".
+;
 DEFPROC	utl_printf,DOS
 	ASSUME	DS:NOTHING,ES:NOTHING
-	mov	bl,0
+	mov	al,0			; AL = no flags (inline format)
+	jmp	short up1
+	DEFLBL	utl_tprintf,near
+	mov	al,SPF_TYPED		; AL = typed parameters (DS:BX format)
+up1:	mov	bl,0
 	jmp	short hprintf
 	DEFLBL	utl_hprintf,near
 	mov	bl,[bp].REG_BL
-	DEFLBL	hprintf,near		; BL = SFH (or 0 for STDOUT)
+	mov	al,0
+	DEFLBL	hprintf,near		; BL = SFH (0 for STDOUT), AL = flags
 	sti
 	push	ss
 	pop	es
@@ -202,10 +211,18 @@ DEFPROC	utl_printf,DOS
 	push	bx
 	mov	bx,[bp].REG_IP
 	mov	ds,[bp].REG_CS		; DS:BX -> format string
+	test	al,SPF_TYPED		; is the format at DS:BX instead?
+	jz	hp1			; no
+	mov	bx,[bp].REG_BX		; yes
+	mov	ds,[bp].REG_DS
+hp1:	push	ax			; save the flags
 	call	sprintf
 	mov	[bp].REG_AX,ax		; update REG_AX with count in AX
-	mov	[bp].REG_IP,bx		; update REG_IP with final address
-	pop	bx
+	pop	dx
+	test	dl,SPF_TYPED		; was the format inline?
+	jnz	hp2			; no
+	mov	[bp].REG_IP,bx		; yes, update REG_IP with final address
+hp2:	pop	bx
 	mov	si,sp
 	push	ss
 	pop	ds			; DS:SI -> buffer on stack
@@ -260,6 +277,7 @@ DEFPROC	utl_dprintf,DOS
 	jne	dp8			; no
 dp1:	push	ax
 	mov	bl,[sfh_debug]
+	mov	al,0
 	call	hprintf
 	pop	ax
 	mov	[bp].REG_AL,al		; update caller's AL to trip DBGBRK

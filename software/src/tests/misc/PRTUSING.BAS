@@ -1,0 +1,26 @@
+10 REM PRTUSING.BAS: BASIC-DOS PRINTF USING tests (prints "failed" on error)
+20 OPEN "FT3.DAT" FOR OUTPUT AS #1
+30 PRINTF #1, USING "%d|%5d|%-5d|%ld|%u" 42, -7, 3, 123456, 65535
+40 PRINTF #1, USING "%s|%-6s|%.2s|%c%c|%%" "abc", "de", "fgh", 65, "xyz"
+50 PRINTF #1, USING "%f|%.2f|%8.3f|%#d" 2.5, 3.14159, -1.5, 9
+60 PRINTF #1, USING "%x|%s|%d" 255, 12, "str"
+70 PRINTF #1, USING "no newline";
+80 PRINTF #1, USING "%s" " then more"
+90 PRINTF #1, USING "%d%%" 50
+100 CLOSE #1
+110 OPEN "FT3.DAT" FOR INPUT AS #1
+120 LINE INPUT #1, L$
+130 IF L$ <> "42|   -7|3    |123456|65535" THEN PRINT "numbers failed: "; L$
+140 LINE INPUT #1, L$
+150 IF L$ <> "abc|de    |fg|Ax|%" THEN PRINT "strings failed: "; L$
+160 LINE INPUT #1, L$
+170 IF L$ <> "2.5|3.14|  -1.500| 9" THEN PRINT "doubles failed: "; L$
+180 LINE INPUT #1, L$
+190 IF L$ <> "FF|%s|%d" THEN PRINT "mismatch failed: "; L$
+200 LINE INPUT #1, L$
+210 IF L$ <> "no newline then more" THEN PRINT "separator failed: "; L$
+220 LINE INPUT #1, L$
+230 IF L$ <> "50%" THEN PRINT "percent failed: "; L$
+240 CLOSE
+250 DEL FT3.DAT
+260 PRINTF USING "%s %d%%" "PRTUSING done", 100

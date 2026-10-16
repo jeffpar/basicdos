@@ -238,6 +238,12 @@ Returns -1 (true) if a file or directory matching *filespec* exists, or 0 (false
 
 PC DOS batch files use `IF EXIST` (and `IF NOT EXIST`) for the same purpose.
 
+#### IOCTL$ {#ioctl}
+
+> IOCTL$(*n*,*code*[,*value*])
+
+Sends an IOCTL request with the specified *code* (and *value* in DX) to the device or volume open as file *n* (see the [IOCTL #](../#ioctl) statement), and returns the data (up to 255 bytes) that the driver stored in response, or an empty string if it stored nothing.  For example, FORMAT.BAS gets a hard disk's geometry and partition table with the hard disk driver's IOCTL_GETPART (&HF3) request, which the diskette driver answers with an empty string.  Errors are the same as for IOCTL #.
+
 #### LOC {#loc}
 
 > LOC(*n*)

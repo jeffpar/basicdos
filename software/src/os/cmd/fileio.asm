@@ -7,9 +7,9 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Runtime functions for CLOSE, FIELD, GET #, INPUT [#], LINE INPUT [#], LSET,
-; OPEN, PRINT #, PUT #, RSET, and WRITE (see genfile.asm), and for the CVD,
-; CVI, CVL, EOF, LOC, LOF, MKD$, MKI$, and MKL$ functions.
+; Runtime functions for CLOSE, FIELD, GET #, INPUT [#], IOCTL #, LINE INPUT
+; [#], LSET, OPEN, PRINT #, PUT #, RSET, and WRITE (see genfile.asm), and for
+; the CVD, CVI, CVL, EOF, IOCTL$, LOC, LOF, MKD$, MKI$, and MKL$ functions.
 ;
 ; Each OPEN file (#1 to #FILE_MAX) has a FILE_SLOT-byte slot in FILE_DATA,
 ; with its handle (0 if the file isn't open), its mode (FM_*), and for random
@@ -944,6 +944,71 @@ ENDPROC	fileRecord
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; fileIoctl
+;
+; Used by "IOCTL [#]n,code[,value|string[,value]]" to send an IOCTL request
+; (DOS_HDL_IOCTL) to the device or volume open as file n (see genIoctl).
+; A failure is a runtime error: "Permission denied" (70) for a write-protect
+; error, "Disk not ready" (71), "Disk media error" (72) for unknown media or
+; a sector not found, "Illegal function call" (5) for a request the driver
+; doesn't support, and otherwise "Device I/O error" (57).
+;
+; Inputs:
+;	32-bit file number (popped)
+;	32-bit IOCTL code (popped)
+;	32-bit value or string pointer (popped)
+;	32-bit second value (popped)
+;	16-bit type (popped): VAR_STR (low byte) if the first value is a string
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	fileIoctl,FAR
+	ARGVAR	lIoNum,dword
+	ARGVAR	lIoCode,dword
+	ARGVAR	lIoCX,dword
+	ARGVAR	lIoDX,dword
+	ARGVAR	wIoType,word
+	ENTER
+	push	ds
+	mov	ax,[lIoNum].LOW
+	mov	dl,FM_INPUT OR FM_OUTPUT OR FM_APPEND OR FM_RANDOM
+	call	getFile			; AL = handle
+	mov	bl,al
+	mov	bh,0			; BX = handle
+	mov	cx,[lIoCX].LOW		; CX = first value
+	cmp	byte ptr [wIoType],VAR_STR ; is the first value a string?
+	jne	io1			; no
+	lds	si,[lIoCX]		; yes, DS:SI -> string
+	sub	cx,cx
+	test	si,si			; empty string?
+	jz	io1			; yes
+	lodsb
+	mov	cl,al			; CX = length, DS:SI -> data
+io1:	mov	dx,[lIoDX].LOW		; DX = second value
+	mov	ax,[lIoCode].LOW
+	mov	ah,DOS_HDL_IOCTL
+	int	21h
+	pushf
+	push	ax
+	cmp	byte ptr [wIoType],VAR_STR
+	jne	io2
+	les	di,[lIoCX]
+	call	releaseStr
+io2:	pop	ax
+	popf
+	jc	io8
+	pop	ds
+	LEAVE
+	RETURN
+io8:	jmp	ioctlErr
+ENDPROC	fileIoctl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; seekRecord
 ;
 ; Inputs:
@@ -979,6 +1044,86 @@ sr1:	mov	word ptr ss:[bx].FS_REC,ax
 	pop	cx
 	ret
 ENDPROC	seekRecord
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; fileIoctlStr (IOCTL$)
+;
+; Used by "IOCTL$(n,code[,value])" to send an IOCTL request to the device or
+; volume open as file n, with LINEBUF as the request's data (CX = 255 and DX =
+; value), and return the data the driver stored there as a string, using the
+; count it returned in DX (eg, a PARTINFO from IOCTL_GETPART); an empty string
+; means the driver returned nothing.  Errors are reported as for IOCTL #.
+;
+; Inputs:
+;	32-bit return value
+;	32-bit file number (popped)
+;	32-bit IOCTL code (popped)
+;	32-bit value (popped)
+;
+; Outputs:
+;	32-bit return value updated
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	fileIoctlStr,FAR
+	RETVAR	retIoctl,dword
+	ARGVAR	lIsNum,dword
+	ARGVAR	lIsCode,dword
+	ARGVAR	lIsVal,dword
+	ENTER
+	push	ds
+	mov	ax,[lIsNum].LOW
+	mov	dl,FM_INPUT OR FM_OUTPUT OR FM_APPEND OR FM_RANDOM
+	call	getFile			; AL = handle
+	mov	bl,al
+	mov	bh,0			; BX = handle
+	mov	si,ss:[PSP_HEAP]
+	lea	si,[si].LINEBUF
+	push	ss
+	pop	ds			; DS:SI -> LINEBUF
+	mov	cx,255			; CX = its length
+	mov	dx,[lIsVal].LOW
+	mov	ax,[lIsCode].LOW
+	mov	ah,DOS_HDL_IOCTL
+	int	21h			; DX = # bytes stored
+	jc	ioctlErr
+	sub	ax,ax
+	mov	[retIoctl].OFF,ax
+	mov	[retIoctl].SEG,ax	; return an empty string
+	cmp	dx,255
+	jbe	is1
+	mov	dx,255
+is1:	mov	cx,dx			; CX = # bytes (1-255)
+	jcxz	is9			; none
+	call	allocStr		; ES:DI -> new string
+	mov	[retIoctl].OFF,di
+	mov	[retIoctl].SEG,es
+	inc	di
+	rep	movsb			; copy the data from LINEBUF
+is9:	pop	ds
+	LEAVE
+	RETURN
+ENDPROC	fileIoctlStr
+
+;
+; ioctlErr converts the DOS error in AL to a BASIC error (see fileIoctl).
+;
+DEFPROC	ioctlErr
+	mov	si,offset IOCTL_ERRS
+ie1:	cmp	cs:[si],al		; does the DOS error match?
+	je	ie2			; yes
+	cmp	byte ptr cs:[si],0	; end of table?
+	je	ie2			; yes
+	inc	si
+	inc	si
+	jmp	ie1
+ie2:	mov	al,cs:[si+1]		; AL = BASIC error number
+	jmp	rtError
+ENDPROC	ioctlErr
+
+IOCTL_ERRS	db	19,70, ERR_NOTREADY,71, 22,5, 26,72, 27,72, 0,57
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

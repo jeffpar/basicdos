@@ -29,10 +29,10 @@ CODE    SEGMENT
 
 	EXTNEAR	<genExpr,getNextToken,genCallCS,genPushImm,genPushImmByte>
 	EXTNEAR	<genPushImmByteAL,genPushImmByteAH,genPushImmLong,genCvtType>
-	EXTNEAR	<peekNextSymbol,genPrintFile>
+	EXTNEAR	<peekNextSymbol,genPrintFile,genPrintfFile,printfArgs>
 	EXTNEAR	<clearScreen,printArgs,printEcho,setColor,setFlags>
 	EXTNEAR	<setPos,setScreen,setWidth,redirOut,redirEnd,ensureRoom>
-	EXTABS	<TOK_OFF,TOK_ON>
+	EXTABS	<TOK_OFF,TOK_ON,TOK_USING>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -255,6 +255,9 @@ DEFPROC	genPrint
 	jne	genPrintArgs		; no
 	jmp	genPrintFile		; yes (see genfile.asm)
 	DEFLBL	genPrintArgs,near
+	mov	si,offset printArgs	; SI = runtime function
+	DEFLBL	genPrintList,near
+	push	si
 	GENPUSHB VAR_NONE		; push end-of-args marker
 gp1:	call	genExpr
 	jnc	gp2
@@ -262,7 +265,7 @@ gp1:	call	genExpr
 	stc				; then ignore the error
 	jnz	gp9			; (PRINT without args is allowed)
 gp2:	jz	gp8
-	push	ax
+gp3:	push	ax
 	mov	al,dl			; AL = VAR_LONG, VAR_STR, or VAR_DOUBLE
 	GENPUSHB al
 	pop	ax
@@ -289,9 +292,64 @@ gp2:	jz	gp8
 
 gp6:	GENPUSHB ah			; "MOV AL,[VAR_SEMI or VAR_COMMA]"
 	jmp	gp1			; continue processing arguments
-gp8:	GENCALL	printArgs		; all done
-gp9:	ret
+gp8:	pop	cx
+	GENCALL	cx			; all done
+	ret
+gp9:	pop	cx
+	ret
 ENDPROC	genPrint
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genPrintf
+;
+; Generate code for "PRINTF [#n,] USING format[;] [value[,value]...]", which
+; prints the values using the format's specifiers (see sprintf.asm); since
+; the values are typed, a specifier's size modifiers are ignored.  As with
+; PRINT, a newline follows the output unless the list ends with a separator.
+;
+; The format is pushed like the first value, so the runtime function
+; (printfArgs) finds it just above the end-of-args marker.
+;
+; Inputs:
+;	BX = offset of next TOKLET
+;	ES:DI -> next unused location in code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genPrintf
+	call	peekNextSymbol
+	jbe	genPrintfArgs
+	cmp	al,'#'			; PRINTF #?
+	jne	genPrintfArgs		; no
+	jmp	genPrintfFile		; yes (see genfile.asm)
+	DEFLBL	genPrintfArgs,near
+	mov	al,CLS_KEYWORD
+	call	getNextToken		; USING must follow
+	jb	gpf9			; not a keyword
+	stc
+	jz	gpf9			; no more tokens
+	cmp	al,TOK_USING
+	stc
+	jne	gpf9			; not USING
+	mov	si,offset printfArgs	; SI = runtime function
+	push	si
+	GENPUSHB VAR_NONE		; push end-of-args marker
+	call	genExpr			; generate the format expression
+	jc	gpf8
+	stc
+	jz	gpf8			; no format
+	cmp	dl,VAR_STR		; is the format a string?
+	stc
+	jne	gpf8			; no
+	jmp	gp3			; yes, continue with the values
+gpf8:	pop	si
+gpf9:	ret
+ENDPROC	genPrintf
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

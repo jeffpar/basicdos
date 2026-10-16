@@ -162,6 +162,7 @@ ENDPROC	itoa
 ; lowest word; see CCALL for more details.
 ;
 ; Inputs:
+;	AL = SPF_TYPED if the parameters are typed (see below), else 0
 ;	DS:BX -> format string
 ;	ES:DI -> output buffer
 ;	CX = length of buffer
@@ -195,13 +196,14 @@ ENDPROC	itoa
 ; (eg, "-10.4s" prints 10 characters, left-justified, with max of 4 characters
 ; from the given string).
 ;
-; Standard formatters (in DEBUG-only builds, to save space):
 ;	%x:	unsigned 16-bit hex integer (%bx for 8-bit, %lx for 32-bit);
 ;		use precision of ".n" to display n digits
 ;
-; Non-standard formatters:
+; Non-standard formatters (in DEBUG-only builds, to save space):
 ;	%P:	caller's address (REG_CS:REG_IP-2)
 ;	%U:	skip one 16-bit parameter on the stack; nothing output
+;
+; Non-standard formatters:
 ;	%W:	day of week from a 16-bit DATE value, as string
 ;	%F:	month portion of a 16-bit DATE value, as string
 ;	%M:	month portion of a 16-bit DATE value, as number (1-12)
@@ -214,7 +216,18 @@ ENDPROC	itoa
 ;	%S:	second portion of a 16-bit TIME value, as number (0-59)
 ;	%A:	'a' if AM, 'p' if PM (from 16-bit TIME value)
 ;
-SPF_START	equ	TMP_AX		; buffer start address
+; "%%" outputs a single '%'.
+;
+; If AL is SPF_TYPED on entry, the parameters are "typed": each is a type
+; word (VAR_LONG, VAR_STR, or VAR_DOUBLE; see parser.inc) followed by a
+; 4-byte value, so that BASIC values can be passed without regard to a
+; specifier's size modifiers (eg, %d prints the entire 32-bit VAR_LONG).
+; Numeric and date/time specifiers take a VAR_LONG, %s takes a VAR_STR (a far
+; pointer to a length-prefixed string, or null if empty), %f takes a
+; VAR_DOUBLE (a far pointer), and %c takes a VAR_LONG or the first character
+; of a VAR_STR.  Any other type prints the specifier as-is (see pferr).
+;
+SPF_PARAM	equ	TMP_AX		; typed param offset (0 if untyped)
 SPF_LIMIT	equ	TMP_BX		; buffer limit address
 SPF_WIDTH	equ	TMP_CX		; formatter width, if any
 SPF_PRECIS	equ	TMP_DX		; formatter precision, if any
@@ -222,10 +235,15 @@ SPF_FPOS	equ	TMP_ES		; current formatter position
 
 DEFPROC	sprintf,DOS
 	ASSUME	DS:NOTHING, ES:NOTHING
-	mov	[bp].SPF_START,di	; DI is the buffer start
+	push	di			; save the buffer start
 	add	cx,di
 	mov	[bp].SPF_LIMIT,cx	; CX+DI is the buffer limit
 	mov	si,size REG_FRAME	; BP+SI -> parameters
+	sub	cx,cx
+	test	al,SPF_TYPED		; typed parameters?
+	jz	$+4			; no
+	mov	cx,si			; yes, start with the first one
+	mov	[bp].SPF_PARAM,cx
 
 pf1:	mov	al,[bx]			; AL = next format character
 	inc	bx
@@ -277,6 +295,8 @@ pf3:	mov	cx,10			; CH = print flags, CL = base
 
 pf4:	mov	al,[bx]
 	inc	bx
+	cmp	al,'%'			; "%%"?
+	je	pf1f			; yes, output a single '%'
 
 	cmp	al,'-'			; left-alignment indicator?
 	jne	pf5
@@ -338,6 +358,10 @@ pf15:	cmp	al,'.'			; precision indicator?
 
 pf16:	cmp	al,'*'			; asterisk?
 	jne	pf17
+	mov	al,VAR_LONG
+	call	pfarg			; SI -> parameter
+	jnc	$+5			; wrong type?
+	jmp	pferr			; yes
 	mov	ax,[bp+si]		; grab a stack parameter
 	add	si,2			; and use that as the PRECIS or WIDTH
 	jmp	short pf19
@@ -413,7 +437,14 @@ pf30:	cmp	al,'S'			; %S (second portion of TIME)?
 	jmp	short pfa
 
 pf31:	cmp	al,'A'			; %A (AM or PM portion of TIME)?
+	IFDEF DEBUG
 	jne	pf33			; no
+	ELSE
+	jne	pferr			; no
+	ENDIF
+	mov	al,VAR_LONG
+	call	pfarg			; SI -> TIME parameter
+	jc	pferr			; wrong type
 	mov	ax,[bp+si]		; get the TIME
 	push	cx
 	mov	cl,11
@@ -424,8 +455,11 @@ pf31:	cmp	al,'A'			; %A (AM or PM portion of TIME)?
 	jb	pf32			; yes, use 'a'
 	mov	al,'p'			; no, use 'p'
 pf32:	mov	[bp+si],ax
-	jmp	pfc
-
+	jmp	pfc1
+;
+; %U and %P exist only for DEBUG builds (see dosints.asm).
+;
+	IFDEF DEBUG
 pf33:	cmp	al,'U'			; %U (skip one 16-bit parameter)?
 	jne	pf35			; no
 	add	si,2			; yes, bump parameter index
@@ -440,6 +474,7 @@ pf35:	cmp	al,'P'			; %P (CS:IP)?
 	mov	cl,16			; set base
 pf36:	call	pfd4			; print as base-16 32-bit value
 	jnc	pf34
+	ENDIF	; DEBUG
 pferr:	mov	bx,[bp].SPF_FPOS	; error, didn't end with known letter
 	mov	al,'%'			; restore '%'
 	jmp	pf1f
@@ -456,7 +491,10 @@ pferr:	mov	bx,[bp].SPF_FPOS	; error, didn't end with known letter
 ; be converted to 12-hour format (FFh is an overbroad mask, but since there
 ; are no bits to the left of the hour, it's OK).
 ;
-pfa:	mov	ax,[bp+si]		; grab the next stack parameter
+pfa:	mov	al,VAR_LONG
+	call	pfarg			; SI -> DATE or TIME parameter
+	jc	pferr			; wrong type
+	mov	ax,[bp+si]		; grab the next stack parameter
 	push	cx
 	mov	cl,dl
 	test	dl,dl
@@ -489,7 +527,7 @@ pfa4:	cmp	ax,12			; and subtract 12 from anything > 12
 	jbe	pfa9
 	sub	ax,12
 pfa9:	mov	[bp+si],ax		; update the shifted/masked parameter
-	call	pfd
+	call	pfd0
 	jc	pferr
 	jmp	pf1
 ;
@@ -510,7 +548,14 @@ pfa9:	mov	[bp+si],ax		; update the shifted/masked parameter
 ; in CH; that would make it possible for itoa to perform bounds checking, too,
 ; but actually implementing that checking would be rather messy.
 ;
-pfd:	mov	ax,[bp].SPF_WIDTH
+pfd:	mov	al,VAR_LONG
+	call	pfarg			; SI -> parameter
+	jc	pfd9			; wrong type
+	cmp	word ptr [bp].SPF_PARAM,0; typed parameter?
+	je	pfd0			; no
+	and	ch,NOT PF_BYTE		; yes, so it's always a 32-bit value
+	or	ch,PF_LONG
+pfd0:	mov	ax,[bp].SPF_WIDTH
 	add	ax,di
 	cmp	ax,[bp].SPF_LIMIT
 	cmc
@@ -574,7 +619,10 @@ pfd9:	ret
 ; width, precision, flags, and remaining buffer length, to the FPU$ driver's
 ; FPU_DTOA function (see fpu_table).
 ;
-pff:	push	bx
+pff:	mov	al,VAR_DOUBLE
+	call	pfarg			; SI -> parameter
+	jc	pferr2			; wrong type
+	push	bx
 	push	si
 	push	ds
 	lds	bx,cs:[fpu_table]	; DS:BX -> FPUTBL
@@ -601,6 +649,7 @@ pff9:	pop	ds
 	pop	bx
 	add	si,4			; skip the pointer to the double
 	jmp	pf1
+pferr2:	jmp	pferr
 ;
 ; Process %F formatter, which we convert to a "fake" string parameter.
 ;
@@ -639,7 +688,15 @@ pfw:	push	ds
 ;
 ; Process %c formatter, which we treat as a 1-character string.
 ;
-pfc:	push	ds
+pfc:	mov	al,VAR_LONG
+	call	pfarg			; SI -> parameter
+	jnc	pfc1			; it's a number
+	cmp	ah,VAR_STR		; is it a string?
+	jne	pferr2			; no
+	push	ds
+	mov	word ptr [bp].SPF_PRECIS,1; yes, so print its first character
+	jmp	short pfs1
+pfc1:	push	ds
 	lea	ax,[bp+si]
 	add	si,2
 	push	si
@@ -651,7 +708,12 @@ pfc:	push	ds
 ;
 ; Process %s formatter.
 ;
-pfs:	push	ds
+pfs:	mov	al,VAR_STR
+	call	pfarg			; SI -> parameter
+	jc	pferr2			; wrong type
+	push	ds
+	cmp	word ptr [bp].SPF_PARAM,0; typed parameter?
+	jne	pfs1			; yes
 	mov	ax,[bp+si]		; %s implies DS-relative near pointer
 	add	si,2
 	mov	ds,[bp].REG_DS
@@ -663,6 +725,17 @@ pfs2:	push	si
 	xchg	si,ax			; DS:SI -> string
 	mov	al,0
 	call	strlen			; AX = length
+	jmp	short pfs2a
+;
+; A typed string is a far pointer to a length-prefixed string (null if empty).
+;
+pfs1:	push	si
+	lds	si,[bp+si]		; DS:SI -> length-prefixed string
+	mov	ax,ds
+	test	ax,ax			; null pointer?
+	jz	pfs2a			; yes (AX = 0 = length)
+	lodsb
+	mov	ah,0			; AX = length
 pfs2a:	mov	dx,[bp].SPF_PRECIS
 	test	dx,dx			; was a precision specified?
 	js	pfs3			; no (still set to negative FF00h)
@@ -702,9 +775,39 @@ pfs5:	xchg	cx,ax
 	pop	ds
 	jmp	pf1			; all done with %s
 
-pfx:	sub	di,[bp].SPF_START
+pfx:	pop	ax			; AX = buffer start
+	sub	di,ax
 	xchg	ax,di			; AX = # of characters
 	ret
+;
+; pfarg: fetch the next parameter.  Untyped parameters are read directly from
+; the stack (at BP+SI), so this does nothing unless the parameters are typed
+; (see SPF_TYPED), in which case SI is set to the value of the parameter at
+; SPF_PARAM (after its type word), and SPF_PARAM advances to the next one.
+;
+; Inputs:
+;	AL = expected type (VAR_LONG, VAR_STR, or VAR_DOUBLE)
+;
+; Outputs:
+;	SI = offset of the parameter value (relative to BP)
+;	AH = actual type (same as AL if untyped)
+;	Carry set if the type doesn't match (the parameter is still consumed)
+;
+; Modifies:
+;	AX, SI
+;
+pfarg:	mov	ah,al
+	cmp	word ptr [bp].SPF_PARAM,0; typed parameters?
+	je	pfarg9			; no (carry clear)
+	mov	si,[bp].SPF_PARAM
+	mov	ah,[bp+si]		; AH = actual type
+	add	si,6
+	mov	[bp].SPF_PARAM,si	; SPF_PARAM -> next parameter
+	sub	si,4			; SI -> value
+	cmp	ah,al			; does the type match?
+	je	pfarg9			; yes (carry clear)
+	stc				; no
+pfarg9:	ret
 ENDPROC	sprintf
 
 DOS	ends

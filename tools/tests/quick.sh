@@ -1,7 +1,7 @@
 #!/bin/bash
 # echo This command boots a BASIC-DOS test floppy (like ./boot.sh), runs FPUTESTS, DOSTESTS, STRFUN, STRPOOL,
 # ARRAYS, FLOW, CMDS (commands, pipes, redirection, and HELP), VARS (variable listings), FILEIO (sequential and random files),
-# MOVES (file and directory moves), FCBTESTS (FCB
+# PRTUSING (PRINTF USING), MOVES (file and directory moves), FCBTESTS (FCB
 # functions), HARDERR (INT 24h hard error handling, using the empty drive B:; its ABORT test ends it with exit code 255),
 # and PRINTF,
 # and then quits; it then boots a test floppy
@@ -26,7 +26,7 @@ log=$(mktemp)
 #
 ok='IF ERRORLEVEL = 0 THEN PRINT "EXITOK" ELSE PRINT "EXITBAD"'
 abort='IF ERRORLEVEL = 255 THEN PRINT "ABORTOK" ELSE PRINT "ABORTBAD"'
-tools/pc/pc.js ibm5160 software/src/configs/console/serial/fpe "VER,MEM,FPUTESTS,$ok,DOSTESTS,$ok,STRFUN,STRPOOL,ARRAYS,FLOW,CMDS,VARS,FILEIO,MOVES,FCBTESTS,$ok,HARDERR,$abort,PRINTF,$ok,SLEEP 1,QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync | tee "$log"
+tools/pc/pc.js ibm5160 software/src/configs/console/serial/fpe "VER,MEM,FPUTESTS,$ok,DOSTESTS,$ok,STRFUN,STRPOOL,ARRAYS,FLOW,CMDS,VARS,FILEIO,PRTUSING,MOVES,FCBTESTS,$ok,HARDERR,$abort,PRINTF,$ok,SLEEP 1,QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync | tee "$log"
 tools/pc/pc.js ibm5160 software/src/configs/console/serial/fpu "VER,MEM,FPUTESTS,$ok,VARS,STRFUN,SLEEP 1,QUIT" --fpu --system=bd --version=2 --floppy --serial --normalize --nosync | tee -a "$log"
 if grep -q "Floating-point .*installed" "$log" || grep -q "failed" "$log" || grep -q "EXITBAD" "$log" || [ "$(grep -c "EXITOK" "$log")" -lt 5 ] ||
    [ "$(grep -c "STRFUN done" "$log")" -lt 2 ] || ! grep -q "STRPOOL done" "$log" ||
@@ -35,7 +35,7 @@ if grep -q "Floating-point .*installed" "$log" || grep -q "failed" "$log" || gre
    ! grep -Fq 'I% = -2147483647' "$log" || ! grep -Fq 'I# = 1.25' "$log" ||
    ! grep -Fq 'S$ = "hello"' "$log" || ! grep -Fq 'E$ = ""' "$log" ||
    ! grep -Fq 'A%(0 TO 2, 0 TO 3)' "$log" || ! grep -Fq 'Q%(1 TO 3)' "$log" ||
-   ! grep -q "MOVES done" "$log" || ! grep -q "FILEIO done" "$log" || ! grep -q "FCBTESTS passed" "$log" ||
+   ! grep -q "MOVES done" "$log" || ! grep -q "FILEIO done" "$log" || ! grep -q "PRTUSING done" "$log" || ! grep -q "FCBTESTS passed" "$log" ||
    ! grep -q "HARDERR passed" "$log" || ! grep -q "ABORTOK" "$log" || grep -q "ABORTBAD" "$log" ||
    [ "$(grep -c "1 FILE(S)" "$log")" -lt 2 ] || ! grep -q "Elapsed time is" "$log" ||
    ! grep -q "Returns the square root" "$log" || ! grep -q "hello world!" "$log"; then

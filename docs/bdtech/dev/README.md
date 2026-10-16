@@ -120,7 +120,7 @@ A request that must wait (eg, a keyboard read with no key available) calls DOS_U
 
 ### IOCTL Functions
 
-DOS_HDL_IOCTL (INT 21h, AH = 44h) sends IOCTL requests to drivers: AL is passed in DDP_CODE, CX in DDPRW_LENGTH, DX in DDPRW_LBA, and DS:SI in DDPRW_ADDR, and the result returned in DDP_CONTEXT is returned in DX.  In addition to the standard codes (00h-07h), BASIC-DOS defines these:
+DOS_HDL_IOCTL (INT 21h, AH = 44h) sends IOCTL requests to drivers: AL is passed in DDP_CODE, CX in DDPRW_LENGTH, DX in DDPRW_LBA, and DS:SI in DDPRW_ADDR, and the result returned in DDP_CONTEXT is returned in DX.  For a volume handle (see [Files](../dos/#files)), the request goes to the drive's block driver, with the drive # in DDP_UNIT and the volume's BPB in DDPRW_BPB, and an error is returned to the caller rather than reported to the critical error handler (see [Critical Errors](../dos/#critical-errors)).  BASIC programs can send requests with the [IOCTL #](../../bdman/cmd/basic/#ioctl) statement.  In addition to the standard codes (00h-07h), BASIC-DOS defines these:
 
 #### COM {#com}
 
@@ -186,6 +186,24 @@ All other keys are returned as their ASCII codes, including control characters (
 |----|------|-------------|
 | E1h | IOCTL_GETFPU | Stores a far pointer to the FPU function table at DS:SI; returns DL = # of table entries and DH = FPU type (see [Floating-Point Interface](../fpu/)) |
 
+#### FDC$ {#fdc-ioctl}
+
+| AL | Name | Description |
+|----|------|-------------|
+| F1h | IOCTL_SETPARMS | Copies the BPB at DS:SI (CX = its length, at least 21h bytes, eg, the BPB of a new boot sector) to the volume's BPB and initializes the rest of the BPB (as building it from the boot sector would), so that the volume of an unformatted diskette can be written; an unusable BPB is DDERR_UNKMEDIA, and too little data is DDERR_BADREQ |
+| F2h | IOCTL_FORMAT | Formats and verifies the track at cylinder CX, head DX, with the sectors per track in the volume's BPB (the DPT's sectors per track and format gap are set accordingly, and on a PC AT, the media type is set with INT 13h function 17h), and then timestamps the BPB, so that the media check that follows treats the media as unchanged; errors are the BIOS error codes (eg, 03h for a write-protected diskette) |
+| F3h | IOCTL_GETPART | Stores nothing (DX = 0), since diskettes have no partition table; see HDC$ below |
+
+#### HDC$ {#hdc-ioctl}
+
+| AL | Name | Description |
+|----|------|-------------|
+| F1h | IOCTL_SETPARMS | As for FDC$, except that the BPB's geometry and location come from the volume table (as when the BPB is built from the boot sector) |
+| F3h | IOCTL_GETPART | Reads the MBR of the unit's disk and stores a PARTINFO (see devapi.inc) at DS:SI (CX = the buffer's length, at least 74 bytes): the disk's cylinders (word), heads, sectors per track, and BIOS drive #, a flag that's 1 if the MBR has a valid signature, the drive letter of each of the 4 partitions (0 if it isn't a volume), and the 64-byte partition table; returns DX = 74 |
+| F4h | IOCTL_SETPART | Writes a new MBR, consisting of the driver's MBR code, the 64-byte partition table at DS:SI, and the signature, to a disk that has no partitions (ie, the unit is the whole disk; otherwise, the error is DDERR_BADREQ), and then makes the unit the first FAT12 or FAT16 partition in the table, so that IOCTL_SETPARMS can initialize it |
+
+The MBR code (mbr_code in hdcdev.asm) is modeled on the pc.js MBR (tools/pc/mbr.asm in the PCjs repository) without its drive tables: it moves itself to 7E00h, finds the active partition (rejecting a table with more than one active entry, or with any other status), loads its boot sector at 7C00h, verifies the signature, and jumps to it with SI pointing to the partition entry.
+
 ### Built-in Drivers
 
 | Device | Type | Description |
@@ -201,7 +219,7 @@ All other keys are returned as their ASCII codes, including control characters (
 | FPU$ | Character | Floating-point functions, using an 8087 if present, or software emulation otherwise |
 | MOUSE$ | Character | Serial mouse, with an INT 33h interface (see [MOUSE$](#mouse)); loaded only if a mouse responds on a COM port |
 | FDC$ | Block | Diskette drives (A: and B:) |
-| HDC$ | Block | Hard disks: FAT12 and FAT16 primary partitions of up to two BIOS hard disks (C:, D:, etc.); reads and writes are done by FDC$, so FDC$ must also be loaded |
+| HDC$ | Block | Hard disks: FAT12 and FAT16 primary partitions of up to two BIOS hard disks (C:, D:, etc.), and a disk with no FAT partitions (eg, a new disk) as a single unit with unknown media, so that FORMAT can partition it; reads and writes are done by FDC$, so FDC$ must also be loaded |
 
 Drivers that aren't needed (eg, CON in a configuration that uses only serial consoles) can be omitted with [SKIP=](../../bdman/cfg/#skip).
 
@@ -211,7 +229,7 @@ Drivers that need to do something after a delay (eg, the COM driver, to decide t
 
 CLKX_TIMER takes ES:DI pointing to a TMR structure (owned by the caller, with TMR_FUNC set to a far function) and CX = milliseconds, which are rounded up to whole clock ticks (the first of which may be partial); CX = 0 cancels the timer, and starting a timer that's already running restarts it.  It can be called from interrupt handlers.  When the timer expires, CLOCK$ removes it and calls TMR_FUNC from its timer interrupt handler (after DDINT_ENTER, so it can call DOS_UTL_ENDWAIT), with ES:DI pointing to the TMR and interrupts disabled; the function may modify any registers except SS:SP and BP.
 
-FDC$ and HDC$ share one copy of the INT 13h read and write code (including the handling of multi-track transfers and of transfers that would cross a 64K DMA boundary) and one sector buffer, all in FDC$.  FDC$ exports two far entry points immediately after its device header (FDCX in dev.inc): FDCX_RW performs a DDC_READ or DDC_WRITE request for the BIOS drive number in AL, and FDCX_RDBUF reads a sector into the shared buffer (eg, a volume's boot sector, when HDC$ builds its BPB).  HDC$ finds FDC$ through FDC_DEVICE (which DEVINIT records before initializing HDC$), and if FDC$ isn't loaded (eg, `SKIP=FDC$`), HDC$ doesn't load either.  The shared code takes the volume's geometry from its BPB, and for hard disks, adds BPB_HIDDENSECS (the volume's first sector) to every sector number.
+FDC$ and HDC$ share one copy of the INT 13h read and write code (including the handling of multi-track transfers and of transfers that would cross a 64K DMA boundary) and one sector buffer, all in FDC$.  FDC$ exports three far entry points immediately after its device header (FDCX in dev.inc): FDCX_RW performs a DDC_READ or DDC_WRITE request for the BIOS drive number in AL, FDCX_RDBUF reads a sector into the shared buffer (eg, a volume's boot sector, when HDC$ builds its BPB), and FDCX_MBR reads or writes a hard disk's MBR using the shared buffer (or simply returns the buffer, for HDC$ to build an MBR in).  HDC$ finds FDC$ through FDC_DEVICE (which DEVINIT records before initializing HDC$), and if FDC$ isn't loaded (eg, `SKIP=FDC$`), HDC$ doesn't load either.  The shared code takes the volume's geometry from its BPB, and for hard disks, adds BPB_HIDDENSECS (the volume's first sector) to every sector number.  For diskettes, it also sets the Diskette Parameter Table's sectors per track from the BPB before every transfer (the boot code moves the DPT to RAM, at 0:522h), since the BIOS stops a transfer at that sector and the ROM's value may not match the media (eg, 8-sector diskettes).  FDC$ also supports two IOCTL requests for formatting (see [FDC$](#fdc-ioctl) above), which FORMAT.BAS uses.
 
 HDC$ recognizes partition types 01h (FAT12) and 04h (FAT16), with 512-byte sectors and fewer than 65,536 sectors per volume (just under 32MiB). The FAT entry width is determined from the data-cluster count, not the partition label. FAT16 booting, reading, and writing use the same sector buffers as FAT12; the entire FAT does not have to fit in memory. Larger volumes, FAT32, and extended partitions are not supported.
 

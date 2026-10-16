@@ -82,6 +82,8 @@ Device drivers can also call DOS_UTL_WAIT, DOS_UTL_ENDWAIT, DOS_UTL_HOTKEY, DOS_
 
 **DOS_UTL_SPRINTF (06h)**: DS:BX -> format string, ES:DI -> output buffer, CX = buffer length, and parameters pushed as above.  Returns AX = # of characters generated.
 
+**DOS_UTL_TPRINTF (26h)**: DS:BX -> format string, with "typed" parameters pushed right to left: each is a type word (VAR_LONG, VAR_STR, or VAR_DOUBLE; see parser.inc) followed by a 4-byte value, so a specifier's size modifiers are ignored.  Numeric and date/time specifiers take a VAR_LONG, `%s` takes a VAR_STR (a far pointer to a length-prefixed string, or null if empty), `%f` takes a VAR_DOUBLE (a far pointer), and `%c` takes a VAR_LONG or the first character of a VAR_STR; a value of any other type prints the specifier unchanged.  Prints to STDOUT and returns AX = # of characters printed.  COMMAND's PRINTF USING uses this.
+
 Supported format specifiers include:
 
 | Specifier | Parameter |
@@ -93,7 +95,9 @@ Supported format specifiers include:
 | `%s`, `%ls` | String (near DS-relative pointer, or far pointer) |
 | `%f` | Double, formatted by the FPU$ driver; the parameter is a far pointer to the double |
 | `%W`, `%F`, `%M`, `%D`, `%X`, `%Y` | Day of week, month name, month, day, 2-digit year, and 4-digit year of a packed date |
-| `%U` | Skips one 16-bit parameter |
+| `%G`, `%H`, `%N`, `%S`, `%A` | 12-hour hour, 24-hour hour, minute, second, and `a` or `p` of a packed time |
+| `%%` | A percent sign (no parameter) |
+| `%U` | Skips one 16-bit parameter (DEBUG builds only) |
 
 Specifiers also support the `#` and `-` flags, a width, and a precision (eg, `%-10.4s`).  32-bit values are passed as two 16-bit parameters, low word first (as in the PRINTF example above, where AX is the low word of `%ld`).
 

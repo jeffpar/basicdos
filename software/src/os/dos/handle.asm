@@ -25,9 +25,9 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<sfb_create,sfb_commit,write_file>
 	EXTNEAR	<msc_sigctrlc,msc_readctrlc,con_read>
 
-	EXTBYTE	<scb_locked>
+	EXTBYTE	<err_active,scb_locked>
 	EXTWORD	<scb_active>
-	EXTLONG	<sfb_table>
+	EXTLONG	<bpb_table,sfb_table>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -224,6 +224,11 @@ ENDPROC	hdl_seek
 ;	On success, carry clear, REG_DX = result
 ;	On failure, carry set, REG_AX = error code
 ;
+; For a volume handle (see chk_volume), the request goes to the drive's
+; block driver, with the drive # as the unit (and the IOCTL code in DH, which
+; dev_request moves to DDP_CODE); block driver IOCTL errors (eg, a FORMAT
+; failure) are returned to the caller instead of the critical error handler.
+;
 DEFPROC	hdl_ioctl,DOS
 	push	ax
 	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
@@ -256,9 +261,14 @@ hi8:	mov	[bp].REG_AX,ax		; return error in REG_AX
 	ret
 
 hi2:	les	di,[bx].SFB_DEVICE	; ES:DI -> driver
+	mov	ah,[bx].SFB_DRIVE	; AH = drive # (-1 if device)
 	mov	bx,[bx].SFB_CONTEXT	; BX = context
 	xchg	bx,dx			; DX = context, BX = REG_DX
-	mov	ah,DDC_IOCTLIN
+	test	ah,ah			; is the handle a volume?
+	js	hi3			; no
+	mov	dh,al			; yes, so pass the code in DH
+	mov	al,ah			; and the drive # as the unit (AL)
+hi3:	mov	ah,DDC_IOCTLIN
 	mov	ds,[bp].REG_DS		; in case DS:SI is required as well
 	ASSUME	DS:NOTHING
 	call	dev_request
@@ -469,13 +479,12 @@ so8a:	mov	ax,ERR_NOHANDLE
 ; the entire volume.
 ;
 so8b:	mov	[bx].SFB_ATTR,DIRATTR_VOLUME
-	mov	dl,[bx].SFB_DRIVE
-	call	get_bpb			; DI -> BPB
-	jc	so9
-	mov	ax,[di].BPB_DISKSECS
-	mul	[di].BPB_SECBYTES
-	mov	[bx].SFB_SIZE.LOW,ax
-	mov	[bx].SFB_SIZE.HIW,dx
+	mov	al,[bx].SFB_DRIVE
+	mov	ah,size BPBEX
+	mul	ah
+	add	ax,[bpb_table].OFF
+	xchg	di,ax			; DI -> BPB (chk_volume checked it)
+	call	vol_size
 	clc				; return new SFB
 
 so9:	pop	es
@@ -495,6 +504,12 @@ ENDPROC	sfb_open
 ; at offsets of LBA * BPB_SECBYTES.  Like any file, a volume can be opened by
 ; any number of readers (if no one has any file on the volume open for
 ; writing), or by a single writer (if no one has any file on it open at all).
+;
+; A volume whose media is unknown (eg, an unformatted diskette) can still be
+; opened (eg, by FORMAT), so the media check is done with hard errors treated
+; as FAIL (as if a handler were already active), and only an invalid drive
+; is an error; the volume's size is then zero (see vol_size) until the driver
+; is given valid parameters (eg, with IOCTL_SETPARMS).
 ;
 ; Inputs:
 ;	BL = mode (see MODE_*)
@@ -522,9 +537,14 @@ DEFPROC	chk_volume,DOS
 cv1:	mov	dl,[si]
 	and	dl,NOT 20h		; DL = upper-case drive letter
 	sub	dl,'A'			; DL = drive #
+	inc	[err_active]		; treat hard errors as FAIL
 	call	get_bpb			; DI -> BPB
-	jc	cv9
-	mov	al,dl			; AL = drive #
+	dec	[err_active]
+	jnc	cv2
+	cmp	ax,ERR_BADDRIVE		; is there a drive?
+	stc
+	je	cv9			; no
+cv2:	mov	al,dl			; AL = drive #
 	mov	cx,-1
 	call	sfb_chkopen		; can the volume be opened in this mode?
 	jc	cv9			; no
@@ -867,6 +887,7 @@ ENDPROC	sfb_read
 DEFPROC	vol_io,DOS
 	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	push	ax
+	call	vol_size		; (the BPB may have changed; eg, FORMAT)
 	call	lim_count		; limit CX to the volume size
 	pop	si			; SI = request (in high byte)
 	sub	ax,ax			; AX = 0 (and carry clear)
@@ -893,6 +914,19 @@ DEFPROC	vol_io,DOS
 	xchg	ax,cx			; AX = bytes transferred
 vi9:	ret
 ENDPROC	vol_io
+
+;
+; vol_size sets the size of a volume's SFB (BX) from its BPB (DI); the size
+; is zero if the media is unknown (BPB_SECBYTES is zero).
+;
+DEFPROC	vol_size,DOS
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
+	mov	ax,[di].BPB_DISKSECS
+	mul	[di].BPB_SECBYTES
+	mov	[bx].SFB_SIZE.LOW,ax
+	mov	[bx].SFB_SIZE.HIW,dx
+	ret
+ENDPROC	vol_size
 
 ;
 ; lim_count limits the byte count in CX to the bytes between CURPOS and SIZE.

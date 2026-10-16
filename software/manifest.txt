@@ -6,7 +6,7 @@
 #
 #   ROOT     the root directory, in order; "CONFIG.SYS" stands for each disk's own
 #            CONFIG.SYS (followed by AUTOEXEC.BAT, if its SHELL lines run one)
-#   BIN      BASIC-DOS utilities and drivers (distribution)
+#   BIN      BASIC-DOS utilities (including BASIC programs) and drivers (distribution)
 #   SAMPLES  the PC DOS 1.00 BASIC samples (distribution)
 #   DEMOS    the programs that the demos run
 #   TESTS    test programs (and other programs used for testing)
@@ -27,6 +27,8 @@ software/src/os/cmd/HELP.TXT
 software/src/os/util/misc/obj/*.COM
 software/src/os/util/vi/obj/VI.COM
 software/src/os/dd/dbg/obj/DEBUG.COM
+software/src/os/util/bas/FORMAT.BAS
+software/src/os/util/bas/MODE.BAT
 
 [SAMPLES]
 demos/samples/*.BAS
@@ -52,6 +54,7 @@ software/src/tests/misc/MOVES.BAS
 software/src/tests/misc/STRESS.BAT
 software/src/tests/misc/STRFUN.BAS
 software/src/tests/misc/STRPOOL.BAS
+software/src/tests/misc/PRTUSING.BAS
 software/src/tests/misc/VARS.BAS
 software/src/tests/misc/SYMDEB.EXE
 software/src/msb/OBJ/MSBASIC.EXE

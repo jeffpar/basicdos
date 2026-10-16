@@ -21,6 +21,7 @@ PF_PRECIS equ	40h		; precision encountered (after '.')
 PF_BYTE   equ	80h		; byte value (8 bits); default is 16
 
 BUFLEN	equ	120		; max stack space to use as printf buffer
+SPF_TYPED	equ	01h		; sprintf AL flag (typed parameters)
 
 ;
 ; DOS_TTY_INPUT buffer format

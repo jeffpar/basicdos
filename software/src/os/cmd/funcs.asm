@@ -15,7 +15,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<getErrorLevel,getRnd,getRndLong,getErr,peekByte,getMouse>
-	EXTNEAR	<fileEof,fileLoc,fileLof,fileMki,fileMkl,fileMkd>
+	EXTNEAR	<fileEof,fileLoc,fileLof,fileMki,fileMkl,fileMkd,fileIoctlStr>
 	EXTNEAR	<fileCvi,fileCvl,fileCvd,cvtDbl,cvtLong,getCsrlin,getErl>
 	EXTNEAR	<getPos,getScreen,getSgn,strTab>
 	EXTNEAR	<strArg,strAsc,strChr,strDate,strFre,strHex,strInkey,strInstr>
@@ -104,6 +104,12 @@ CODE    SEGMENT
 	db	VAR_FUNC + 5,"INKEY"
 	db	VAR_STR,0
 	dw	offset strInkey,0
+	db	VAR_FUNC + 5,"IOCTL"
+	db	VAR_STR,3
+	db	VAR_LONG,PARM_REQUIRED
+	db	VAR_LONG,PARM_REQUIRED
+	db	VAR_LONG,PARM_OPT_ZERO
+	dw	offset fileIoctlStr,0
 	db	VAR_FUNC + 5,"INSTR"
 	db	VAR_LONG,3
 	db	VAR_LSKIP,PARM_OPT_ONE

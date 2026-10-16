@@ -23,12 +23,12 @@ As in MS-DOS, a DOS command typed as one word with a path (eg, `CD\`, `CD\BIN`, 
 
 | Command | Category | Command | Category |
 |---------|----------|---------|----------|
-| [AUTO](system/#auto) | System | [LINE](device/graphics/#line) | Graphics |
-| [CHAIN](basic/#chain) | BASIC | [LIST](system/#list) | System |
-| [CIRCLE](device/graphics/#circle) | Graphics | [LOAD](disk/#load) | Disk |
-| [CLEAR](basic/#clear) | BASIC | [LOCATE](device/screen/#locate) | Screen |
-| [CLS](device/screen/#cls) | Screen | [MEM](system/#mem) | System |
-| [COLOR](device/screen/#color) | Screen | [MOUSE](device/mouse/#mouse) | Mouse |
+| [AUTO](system/#auto) | System | [LIST](system/#list) | System |
+| [CHAIN](basic/#chain) | BASIC | [LOAD](disk/#load) | Disk |
+| [CIRCLE](device/graphics/#circle) | Graphics | [LOCATE](device/screen/#locate) | Screen |
+| [CLEAR](basic/#clear) | BASIC | [MEM](system/#mem) | System |
+| [CLS](device/screen/#cls) | Screen | [MOUSE](device/mouse/#mouse) | Mouse |
+| [COLOR](device/screen/#color) | Screen | [MV](disk/#ren) | Disk |
 | [COPY](disk/#copy) | Disk | [NEW](system/#new) | System |
 | [DATA](basic/#data) | BASIC | [NEXT](basic/#for) | BASIC |
 | [DATE](device/clock/#date) | Clock | [ON](basic/#on) | BASIC |
@@ -42,24 +42,24 @@ As in MS-DOS, a DOS command typed as one word with a path (eg, `CD\`, `CD\BIN`, 
 | [DELETE](system/#delete) | System | [PUT](device/graphics/#put) | Graphics |
 | [DIM](basic/#dim) | BASIC | [READ](basic/#read) | BASIC |
 | [DIR](disk/#dir) | Disk | [REM](basic/#rem) | BASIC |
-| [DRAW](device/graphics/#draw) | Graphics | [RESTART](system/#restart) | System |
-| [ECHO](device/screen/#echo) | Screen | [RESTORE](basic/#restore) | BASIC |
-| [EDIT](system/#edit) | System | [RESUME](basic/#resume) | BASIC |
-| [END](basic/#end) | BASIC | [RETURN](basic/return/) | BASIC |
-| [ERASE](basic/#erase) | BASIC | [RUN](system/#run) | System |
-| [ERROR](basic/#error) | BASIC | [SAVE](disk/#save) | Disk |
-| [EXIT](system/#exit) | System | [SCREEN](device/screen/#screen) | Screen |
-| [FOR](basic/#for) | BASIC | [SOUND](device/sound/#sound) | Sound |
-| [GET](device/graphics/#get) | Graphics | [STOP](basic/#end) | BASIC |
-| [GOSUB](basic/#gosub) | BASIC | [TIME](device/clock/#time) | Clock |
-| [GOTO](basic/goto/) | BASIC | [TYPE](disk/#type) | Disk |
-| [HELP](system/#help) | System | [VER](system/#ver) | System |
-| [IF](basic/if/) | BASIC | [WEND](basic/#while) | BASIC |
-| [KEY](device/keyboard/#key) | Keyboard | [WHILE](basic/#while) | BASIC |
-| [KEYS](system/#keys) | System | [WIDTH](device/screen/#width) | Screen |
-| [LET](basic/let/) | BASIC | [MV](disk/#ren) | Disk |
-| [REN](disk/#ren) | Disk | [RENAME](disk/#ren) | Disk |
-
+| [DRAW](device/graphics/#draw) | Graphics | [REN](disk/#ren) | Disk |
+| [ECHO](device/screen/#echo) | Screen | [RENAME](disk/#ren) | Disk |
+| [EDIT](system/#edit) | System | [RESTART](system/#restart) | System |
+| [END](basic/#end) | BASIC | [RESTORE](basic/#restore) | BASIC |
+| [ERASE](basic/#erase) | BASIC | [RESUME](basic/#resume) | BASIC |
+| [ERROR](basic/#error) | BASIC | [RETURN](basic/return/) | BASIC |
+| [EXIT](system/#exit) | System | [RUN](system/#run) | System |
+| [FOR](basic/#for) | BASIC | [SAVE](disk/#save) | Disk |
+| [GET](device/graphics/#get) | Graphics | [SCREEN](device/screen/#screen) | Screen |
+| [GOSUB](basic/#gosub) | BASIC | [SOUND](device/sound/#sound) | Sound |
+| [GOTO](basic/goto/) | BASIC | [STOP](basic/#end) | BASIC |
+| [HELP](system/#help) | System | [TIME](device/clock/#time) | Clock |
+| [IF](basic/if/) | BASIC | [TYPE](disk/#type) | Disk |
+| [IOCTL](basic/#ioctl) | BASIC | [VER](system/#ver) | System |
+| [KEY](device/keyboard/#key) | Keyboard | [WEND](basic/#while) | BASIC |
+| [KEYS](system/#keys) | System | [WHILE](basic/#while) | BASIC |
+| [LET](basic/let/) | BASIC | [WIDTH](device/screen/#width) | Screen |
+| [LINE](device/graphics/#line) | Graphics |  |  |
 See [BASIC Functions](basic/func/) for the list of functions and predefined constants.
 
 REN (RENAME) and MV share the same file and directory rename and move command; see [REN](disk/#ren).
@@ -68,7 +68,7 @@ REN (RENAME) and MV share the same file and directory rename and move command; s
 
 The following commands and statements from PC DOS and IBM PC BASIC aren't supported yet:
 
-- PC DOS commands: CHKDSK, DISKCOPY, FORMAT, PAUSE, SYS, and directory commands (CHDIR, MKDIR, RMDIR)
-- BASIC statements: INPUT, LINE INPUT, the MID$ statement, and file I/O statements (eg, OPEN, CLOSE, PRINT #, and INPUT #)
+- PC DOS commands: CHKDSK, DISKCOPY, PAUSE, and SYS (FORMAT and MODE are BASIC programs in the BIN directory; see [External Commands](external/))
+- BASIC statements: the MID$ statement
 
 {% include footer.html prev="Contents:../" next="BASIC Commands:basic/" %}

@@ -269,6 +269,9 @@ ENDPROC	reset_keys
 ;	DX = offset within LBA (or other context data if not block device)
 ;	DS:SI -> read/write data buffer
 ;
+; For IOCTL requests, AL is the IOCTL code, except for block devices, where
+; AL is the unit # and DH is the IOCTL code (see hdl_ioctl).
+;
 ; Outputs:
 ;	If carry set, then AL contains error code
 ;	If carry clear, then DX contains context data, if any
@@ -322,7 +325,14 @@ dr2:	mov	[bp].DDP_LEN,size DDPRW
 ;
 	test	es:[di].DDH_ATTR,DDATTR_CHAR
 	jnz	dr5
-	mov	ah,size BPBEX		; AL still contains the unit #
+;
+; A block device IOCTL carries its code in DH (see hdl_ioctl), since AL is
+; the unit #.
+;
+	cmp	[bp].DDP_CMD,DDC_IOCTLIN
+	jne	dr4
+	mov	[bp].DDP_CODE,dh
+dr4:	mov	ah,size BPBEX		; AL still contains the unit #
 	mul	ah
 	add	ax,[bpb_table].OFF	; AX = BPB address
 	mov	[bp].DDPRW_BPB.OFF,ax	; save it in the request packet
@@ -390,10 +400,13 @@ dr8b:	mov	al,cs:[si+1]
 ; ERROR handler (see dev_error) and act on its response.  RETRY reissues the
 ; request (the packet is still on the stack, and the driver has advanced it
 ; to the failing sector), IGNORE reports the request as complete, and FAIL
-; returns the error.
+; returns the error.  IOCTL errors (eg, a FORMAT failure) are returned to
+; the caller, which is presumably prepared to deal with them.
 ;
 	test	es:[di].DDH_ATTR,DDATTR_CHAR
 	jnz	dr8f			; character device errors just fail
+	cmp	[bp].DDP_CMD,DDC_IOCTLIN
+	je	dr8f			; as do IOCTL errors
 	push	ax
 	call	dev_error		; AL = response
 	mov	dl,al			; DL = response
