@@ -1810,16 +1810,20 @@ export default class ChipSet extends Component {
      *
      * This should be called whenever the timings in STATUSA may have changed.
      *
-     * TODO: 1024 is a hard-coded number of periods per second based on the default interrupt rate of 976.562us
-     * (ie, 1000000 / 976.562).  Calculate the actual number based on the values programmed in the STATUSA register.
+     * The periodic interrupt rate is determined by the rate selection bits (RS3-RS0) in STATUSA: 0 disables
+     * the periodic interrupt, 1 and 2 select 3.90625ms (256Hz) and 7.8125ms (128Hz), and 3 through 15 select
+     * 122.070us (8192Hz) through 500ms (2Hz), each value halving the rate of the previous one.  The default
+     * (6) selects 976.562us (1024Hz), which is what the PC AT ROM BIOS uses, but OS/2 1.x reprograms the rate
+     * to 31.25ms (32Hz) for its system clock, and expects timeouts to be measured accordingly.
      *
      * @this {ChipSet}
      */
     calcRTCCyclePeriod()
     {
         this.nRTCCyclesLastUpdate = this.cpu.getCycles(this.fScaleTimers);
-        this.nRTCPeriodsPerSecond = 1024;
-        this.nRTCCyclesPerPeriod = Math.floor(this.cpu.getBaseCyclesPerSecond() / this.nRTCPeriodsPerSecond);
+        let rs = this.abCMOSData[ChipSet.CMOS.ADDR.STATUSA] & ChipSet.CMOS.STATUSA.RS;
+        this.nRTCPeriodsPerSecond = (!rs? 0 : (rs < 3? (256 >> (rs - 1)) : (32768 >> (rs - 1))));
+        this.nRTCCyclesPerPeriod = Math.floor(this.cpu.getBaseCyclesPerSecond() / (this.nRTCPeriodsPerSecond || 1));
         this.setRTCCycleLimit();
     }
 
@@ -1891,8 +1895,11 @@ export default class ChipSet extends Component {
          */
         if (nCyclesUpdate >= this.nRTCCyclesNextUpdate) {
             let bPrev = this.abCMOSData[ChipSet.CMOS.ADDR.STATUSC];
-            this.abCMOSData[ChipSet.CMOS.ADDR.STATUSC] |= ChipSet.CMOS.STATUSC.PF;
-            if (this.abCMOSData[ChipSet.CMOS.ADDR.STATUSB] & ChipSet.CMOS.STATUSB.PIE) {
+            /**
+             * A rate selection of zero in STATUSA disables the periodic interrupt (and the PF flag) altogether.
+             */
+            if (this.nRTCPeriodsPerSecond) this.abCMOSData[ChipSet.CMOS.ADDR.STATUSC] |= ChipSet.CMOS.STATUSC.PF;
+            if (this.nRTCPeriodsPerSecond && (this.abCMOSData[ChipSet.CMOS.ADDR.STATUSB] & ChipSet.CMOS.STATUSB.PIE)) {
                 /**
                  * When PIE is set, setBurstCycles() should be getting called as needed to ensure
                  * that updateRTCTime() is called more frequently, so let's assert that we don't have
@@ -3756,11 +3763,17 @@ export default class ChipSet extends Component {
         controller.bStatus = (controller.bStatus & ~(0x10 << channel.iChannel)) | (0x1 << channel.iChannel);
 
         /**
-         * EOP is supposed to automatically (re)mask the channel, unless it's set for auto-initialize.
+         * EOP is supposed to automatically (re)mask the channel, unless it's set for auto-initialize, in which
+         * case the current address and count are reloaded from the base registers instead.
          */
         if (!(channel.mode & ChipSet.DMA_MODE.AUTOINIT)) {
             channel.masked = true;
             channel.component = channel.obj = null;
+        } else {
+            channel.addrCurrent[0] = channel.addrInit[0];
+            channel.addrCurrent[1] = channel.addrInit[1];
+            channel.countCurrent[0] = channel.countInit[0];
+            channel.countCurrent[1] = channel.countInit[1];
         }
 
         if (DEBUG && channel.type == ChipSet.DMA_MODE.TYPE_WRITE && channel.sAddrDebug && this.messageEnabled(this.messageBitsDMA(iDMAChannel))) {
@@ -3778,6 +3791,82 @@ export default class ChipSet extends Component {
          * to chipset.checkDMA() and let the CPU update INTR.DMA on its own, based on the return value from checkDMA().
          */
         return true;
+    }
+
+    /**
+     * transferDMA(iDMAChannel, abData, nBytes, fWrite)
+     *
+     * This is an alternative to requestDMA()/advanceDMA() for devices that must pace their own transfers
+     * (eg, a sound card's DAC consuming samples at a fixed rate), as opposed to the disk controllers, which
+     * are happy to move an entire block in one shot.  The device calls this whenever it's ready to move a few
+     * more bytes, and we move as many as we can (up to nBytes), honoring the channel's current address, count,
+     * mode (increment/decrement, auto-initialize) and mask.  Terminal count is handled exactly as it is for
+     * "pushed" transfers: the TC status bit is set, and the channel is either re-masked or (if auto-initialize
+     * is enabled) reloaded from its base address and count registers.
+     *
+     * The device is responsible for its own notion of block completion (and interrupts); a Sound Blaster, for
+     * example, counts the bytes it has played and ignores the DMA controller's terminal count entirely.
+     *
+     * @this {ChipSet}
+     * @param {number} iDMAChannel
+     * @param {Uint8Array|Array.<number>} abData (bytes read from memory are stored here, or bytes to be written to memory are taken from here)
+     * @param {number} nBytes (maximum number of bytes to transfer)
+     * @param {boolean} [fWrite] (true to write abData to memory, false or undefined to read memory into abData)
+     * @returns {number} number of bytes transferred (zero if the channel is masked or has no bytes remaining)
+     */
+    transferDMA(iDMAChannel, abData, nBytes, fWrite)
+    {
+        let iDMAC = iDMAChannel >> 2;
+        let controller = this.aDMACs[iDMAC];
+        if (!controller) return 0;
+
+        let iChannel = iDMAChannel & 0x3;
+        let channel = controller.aChannels[iChannel];
+
+        let n = 0;
+        while (n < nBytes && !channel.masked) {
+            let addr = (channel.bPage << 16) | (channel.addrCurrent[1] << 8) | channel.addrCurrent[0];
+            if (fWrite) {
+                this.bus.setByte(addr, abData[n]);
+            } else {
+                abData[n] = this.bus.getByte(addr);
+            }
+            n++;
+            if (channel.mode & ChipSet.DMA_MODE.DECREMENT) {
+                if (--channel.addrCurrent[0] < 0) {
+                    channel.addrCurrent[0] = 0xff;
+                    if (--channel.addrCurrent[1] < 0) channel.addrCurrent[1] = 0xff;
+                }
+            } else {
+                if (++channel.addrCurrent[0] > 0xff) {
+                    channel.addrCurrent[0] = 0x00;
+                    if (++channel.addrCurrent[1] > 0xff) channel.addrCurrent[1] = 0x00;
+                }
+            }
+            let count = ((channel.countCurrent[1] << 8) | channel.countCurrent[0]) - 1;
+            if (count < 0) {
+                /**
+                 * Terminal count: set the channel's TC status bit, and then either reload the channel (auto-initialize)
+                 * or re-mask it; in both cases, the current count register wraps to 0xFFFF.
+                 */
+                controller.bStatus = (controller.bStatus & ~(0x10 << iChannel)) | (0x1 << iChannel);
+                if (channel.mode & ChipSet.DMA_MODE.AUTOINIT) {
+                    channel.addrCurrent[0] = channel.addrInit[0];
+                    channel.addrCurrent[1] = channel.addrInit[1];
+                    channel.countCurrent[0] = channel.countInit[0];
+                    channel.countCurrent[1] = channel.countInit[1];
+                    if (this.messageEnabled(MESSAGE.DMA + MESSAGE.PORT)) {
+                        this.printf(MESSAGE.DMA, "transferDMA(%d): auto-initialize reload\n", iDMAChannel);
+                    }
+                    continue;
+                }
+                channel.masked = true;
+                count = 0xffff;
+            }
+            channel.countCurrent[0] = count & 0xff;
+            channel.countCurrent[1] = count >> 8;
+        }
+        return n;
     }
 
     /**
@@ -5842,6 +5931,14 @@ export default class ChipSet extends Component {
         }
         let bDelta = bOut ^ this.abCMOSData[bAddr];
         this.abCMOSData[bAddr] = (bAddr <= ChipSet.CMOS.ADDR.STATUSD? this.setRTCByte(bAddr, bOut) : bOut);
+        if (bAddr == ChipSet.CMOS.ADDR.STATUSA && (bDelta & ChipSet.CMOS.STATUSA.RS) && this.nRTCCyclesPerPeriod != null) {
+            /**
+             * The periodic interrupt rate has changed (eg, OS/2 1.x selects a 32Hz rate for its system clock),
+             * so recalculate the cycle period; the next periodic interrupt is then one full (new) period away.
+             */
+            this.calcRTCCyclePeriod();
+            if (!COMPILED) this.printf(MESSAGE.RTC, "RTC periodic interrupt rate: %dHz\n", this.nRTCPeriodsPerSecond);
+        }
         if (bAddr == ChipSet.CMOS.ADDR.STATUSB && (bDelta & ChipSet.CMOS.STATUSB.PIE)) {
             if (bOut & ChipSet.CMOS.STATUSB.PIE) {
                 if (!COMPILED) this.printf(MESSAGE.RTC, "RTC periodic interrupts enabled\n");
