@@ -7,7 +7,6 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-	FATHINTS equ 1
 	include	macros.inc
 	include	bios.inc
 	include	disk.inc

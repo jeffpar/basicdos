@@ -113,7 +113,7 @@ BASIC-DOS includes one installable driver, DEBUG.COM (in the BIN directory), a s
 - U [*range*] to disassemble 8086 instructions (32 bytes by default, continuing from the last U, or from CS:IP)
 - ? for help
 
-The driver's device name is DEBUG$.  DEBUG.COM can also be run from the prompt, without loading it as a driver: it displays the registers as of the program's start, and the same commands work on the console, along with Q to quit (G also exits).  Since the console uses DOS, breakpoints in DOS itself should be set only with the driver.
+The driver's device name is DEBUG$.  DEBUG.COM can also be run from the prompt, without loading it as a driver, as `DEBUG [program [arguments]]` (eg, `DEBUG BIN\SLEEP.COM 5`): it loads the program (which must be a full filename; PATH$ isn't searched) with its arguments as the command tail, displays the registers as of the program's start, and accepts the same commands on the console, along with Q to quit; G runs the program, and when it terminates, DEBUG reports "Program terminated normally" and exits with the program's exit code.  Without a program, the registers are DEBUG's own, and G exits.  Since the console uses DOS, breakpoints in DOS itself should be set only with the driver.
 
 ### FILES
 

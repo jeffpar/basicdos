@@ -1,6 +1,7 @@
-REM 64K demonstration: one session, no FPU$ driver, and only the drivers
-REM that a full-screen session needs; COMMAND.COM loads in reduced form
-SKIP=FPU$,COM1,COM2,COM3,COM4,MOUSE$,HDC$,LPT2,LPT3,PIPE$
+REM 64K demonstration: one session with no FPU$ (floating-point) or PIPE$
+REM drivers; the drivers for hardware this machine lacks (serial and
+REM parallel ports, mouse, and hard disk) unload themselves
+SKIP=FPU$,PIPE$
 BUFFERS=2
 FILES=8
 SESSIONS=1

@@ -9,8 +9,11 @@
 ;
 ; Usage (in CONFIG.SYS): DEVICE=BIN\DEBUG.COM COM2:9600,N,8,1,VT100
 ;
-; DEBUG.COM can also be run as a program, with a monitor on the console that
-; displays the registers as of the program's start (PSP:0100h); G exits.
+; DEBUG.COM can also be run as a program (DEBUG [program [arguments]]), with
+; a monitor on the console.  It loads the program without starting it and
+; displays the registers as of the program's start; G runs it, and Q (or the
+; program's termination) exits.  Without a program, the registers are as of
+; DEBUG's own start (PSP:0100h), and G exits.
 ;
 ; Ctrl-C or a serial BREAK stops the machine as soon as it arrives (via the
 ; port's hardware interrupt), as do breakpoints, single-steps (T), and any
@@ -73,6 +76,7 @@ BP_SET		equ	01h	; breakpoint is set
 BP_ARMED	equ	02h	; breakpoint's INT 3 is in memory
 BP_SIZE		equ	6
 NUM_BPS		equ	10
+CMD_TAIL	equ	80h	; PSP_CMDTAIL (see com_main)
 
 	DEFPTR	old_com			; original COM interrupt handler
 	DEFPTR	dos_vars		; DOSVARS + 2 (see hook_vecs)
@@ -2507,9 +2511,21 @@ ENDPROC	swap_vecs
 ;
 ; Program entry (via the DDH and in_buf).  Rebase CS so that offset 0 is the
 ; start of the file, as it is for the driver, then patch put_char and get_char
-; to use DOS console I/O, enable Q, hook INT 01h and INT 03h, run the monitor
-; on our own stack (just below the frame) rather than its small one (DOS calls
-; run on the caller's stack), and enter the monitor as if PSP:0100h had been
+; to use DOS console I/O, enable Q, hook INT 01h and INT 03h, and run the
+; monitor on our own stack (just below the frame) rather than its small one
+; (DOS calls run on the caller's stack).
+;
+; If the command tail names a program, copy the name to command (as a string)
+; and load the program with DOS_PSP_EXEC1, which returns its initial SS:SP
+; (with AX on top) and CS:IP in the EPB, and leaves its PSP current; the rest
+; of the tail (from the space after the name) becomes the program's command
+; tail, with its length stored in the name's last byte.  We then enter the
+; monitor as if the program's first instruction had been interrupted.  When
+; the program terminates (or Q terminates it), DOS returns here as well, to
+; the instruction after the EXEC1 call (see PSP_EXIT), with our stack as it
+; was and the other registers unknown, so com_runs tells the two apart.
+;
+; Without a program, we enter the monitor as if PSP:0100h had been
 ; interrupted.  G resumes there, which brings us back here, so we exit.
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
@@ -2524,8 +2540,9 @@ cm1:	push	cs
 	pop	ds
 	ASSUME	DS:CODE
 	cmp	[com_runs],0		; resumed by G?
-	jne	cm9			; yes
-	inc	[com_runs]
+	je	cm1a			; no
+	jmp	cm9			; yes
+cm1a:	inc	[com_runs]
 	mov	byte ptr [put_raw],0E9h
 	mov	word ptr [put_raw+1],offset dos_put - offset put_raw - 3
 	mov	byte ptr [get_char],0E9h
@@ -2535,7 +2552,66 @@ cm1:	push	cs
 	mov	ax,sp
 	sub	ax,130h			; leave room for the frame, and rebase
 	mov	word ptr [mon_sp+1],ax
-	push	es			; ES = PSP
+	mov	si,CMD_TAIL+1		; ES:SI -> command tail (ES = PSP)
+	mov	di,offset command
+cm2:	mov	al,es:[si]
+	inc	si
+	cmp	al,' '			; skip leading spaces
+	je	cm2
+cm3:	cmp	al,' '			; space or CHR_RETURN ends the name
+	jbe	cm4
+	mov	[di],al
+	inc	di
+	mov	al,es:[si]
+	inc	si
+	jmp	cm3
+cm4:	mov	byte ptr [di],0
+	cmp	di,offset command	; was there a name?
+	je	cm5			; no
+	dec	si			; ES:SI -> the rest of the tail
+	mov	cx,si
+	mov	al,es:[CMD_TAIL]
+	add	al,CMD_TAIL+1
+	sub	al,cl			; AL = its length (tail length - name)
+	dec	si
+	mov	es:[si],al		; stored just before it
+	mov	[epb_tail].OFF,si
+	mov	[epb_tail].SEG,es
+	mov	[epb_fcb1].OFF,-1	; let DOS build the FCBs from the tail
+	push	ds
+	pop	es
+	mov	bx,offset epb		; ES:BX -> EPB
+	mov	dx,offset command	; DS:DX -> program name
+	mov	ax,DOS_PSP_EXEC1
+	int	21h			; load it (termination returns here)
+	push	cs
+	pop	ds
+	jc	cm7			; it couldn't be loaded
+	cmp	[com_runs],1		; did we just load it?
+	jne	cm8			; no, it terminated
+	inc	[com_runs]
+	mov	ah,DOS_PSP_GET
+	int	21h			; BX = the program's PSP
+	pushf
+	pop	cx			; CX = flags (with interrupts enabled)
+	cli
+	mov	ss,[epb_sp].SEG
+	mov	sp,[epb_sp].OFF
+	pop	ax			; AX = the program's initial AX
+	push	cx
+	push	[epb_ip].SEG
+	push	[epb_ip].OFF		; its CS:IP (as if interrupted there)
+	mov	ds,bx
+	mov	es,bx			; DS = ES = PSP, and the rest are zero
+	sub	bx,bx
+	mov	cx,bx
+	mov	dx,bx
+	mov	si,bx
+	mov	di,bx
+	mov	bp,bx
+	jmp	dbg_brk
+	ASSUME	DS:CODE
+cm5:	push	es			; ES = PSP
 	pop	ds
 	ASSUME	DS:NOTHING
 	pushf
@@ -2546,11 +2622,39 @@ cm1:	push	cs
 	cli
 	jmp	dbg_brk
 	ASSUME	DS:CODE
+cm7:	push	ax
+	mov	si,offset LOAD_MSG
+	call	put_string
+	pop	ax
+	call	hex_word		; display the error code
+	jmp	short cm9a
+cm8:	cmp	[com_runs],2		; did the program terminate itself?
+	jne	cm9b			; no, Q did
+	mov	si,offset TERM_MSG
+	call	put_string
+cm9a:	call	newline
+	jmp	short cm9b
+;
+; Exit (G without a program, or Q).  If a program is loaded, terminate it
+; first, which brings us back to cm8, and then exit with its exit code.
+;
 cm9:	call	disarm
-	call	swap_vecs
+	cmp	[com_runs],2		; is a program loaded?
+	jne	cm9b			; no
+	inc	[com_runs]		; yes (and Q is terminating it)
 	mov	ax,DOS_PSP_RETURN SHL 8
 	int	21h
+cm9b:	call	swap_vecs
+	mov	ah,DOS_PSP_RETCODE
+	int	21h			; AL = the program's exit code (or 0)
+	mov	ah,DOS_PSP_RETURN
+	int	21h
 ENDPROC	com_main
+
+	DEFLBL	LOAD_MSG,byte
+	db	"Unable to load program, error ",0
+	DEFLBL	TERM_MSG,byte
+	db	"Program terminated normally",0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2590,7 +2694,17 @@ DEFPROC	dos_get
 	ret
 ENDPROC	dos_get
 
-	DEFBYTE	com_runs,0		; nonzero after the first run
+	DEFBYTE	com_runs,0		; 1 running, 2 program loaded, 3 Q
+;
+; The EPB for DOS_PSP_EXEC1 (DOSDEV omits dosapi.inc's EPB and PSP, so this
+; is laid out by hand, and CMD_TAIL is PSP_CMDTAIL).
+;
+	DEFWORD	epb,0			; EPB_ENVSEG (0 = the parent's)
+	DEFPTR	epb_tail		; EPB_CMDTAIL
+	DEFPTR	epb_fcb1		; EPB_FCB1 (-1 to build from the tail)
+	DEFPTR	epb_fcb2		; EPB_FCB2
+	DEFPTR	epb_sp			; EPB_INIT_SP (returned)
+	DEFPTR	epb_ip			; EPB_INIT_IP (returned)
 
 CODE	ends
 

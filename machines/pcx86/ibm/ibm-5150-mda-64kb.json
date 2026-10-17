@@ -1,11 +1,9 @@
 {
-  "name": "IBM PC, 64Kb RAM, Dual Floppy Drives, MDA",
+  "name": "IBM PC, 64Kb RAM, Dual Floppy Drives, MDA, No Ports",
   "defaults": {
     "ram": "64K",
     "fpu": "None",
-    "fdc": "2 diskette drives",
-    "parallel": "LPT1",
-    "serial": "COM1, COM2"
+    "fdc": "2 diskette drives"
   },
   "machine": {
     "type": "pcx86",
@@ -257,23 +255,6 @@
           }
         }
       ]
-    },
-    {
-      "id": "lpt1",
-      "class": "parallel",
-      "adapter": 2,
-      "binding": "print"
-    },
-    {
-      "id": "com1",
-      "class": "serial",
-      "adapter": 1,
-      "binding": "print"
-    },
-    {
-      "id": "com2",
-      "class": "serial",
-      "adapter": 2
     }
   ]
 }
