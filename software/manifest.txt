@@ -28,7 +28,7 @@ software/src/os/util/misc/obj/*.COM
 software/src/os/util/vi/obj/VI.COM
 software/src/os/dd/dbg/obj/DEBUG.COM
 software/src/os/util/bas/FORMAT.BAS
-software/src/os/util/bas/MODE.BAT
+software/src/os/util/bas/MODE.BAS
 
 [SAMPLES]
 demos/samples/*.BAS

@@ -351,8 +351,8 @@ Same as PSET, except that the default color is the background color.
 PRINT [#*n*,]
 Prints a comma or semi-colon separated series of values (or with #*n*, writes them to file *n*).  To send the output of a line to a file instead, end the line with :> *file* (or :>> *file* to append).
 
-PRINTF [#*n*,] USING *format*[;] [*value*[,*value*]...]
-Prints the values with the C-style *format* (a semi-colon after *format* is optional, for Microsoft BASIC compatibility) (or with #*n*, writes them to file *n*): %d prints a number (%x in hex), %f a double, %s a string, and %c a character, with an optional width and precision (eg, "%5d", "%-8.3s", "%.2f"); %% prints a percent sign.  A trailing ; or , suppresses the newline.
+PRINTF [#*n*,] USING *format*;[*value*[,*value*]...]
+Prints the values with the C-style *format* (or with #*n*, writes them to file *n*): %d prints a number (%x in hex), %f a double, %s a string, and %c a character, with an optional width and precision (eg, "%5d", "%-8.3s", "%.2f"); %% prints a percent sign.  A trailing ; or , suppresses the newline.
 
 PSET (*x*,*y*)[,*color*]
 Draws a point in a graphics mode, using the foreground color if no *color* is specified.

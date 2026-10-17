@@ -41,9 +41,9 @@ In the **BIN** directory (see [Running Programs](../../intro/#running-programs) 
 - SLEEP.COM: waits the specified number of seconds (eg, `SLEEP 5`); CTRL-C stops it early
 - VI.COM: a full-screen text editor (see [VI](#vi) below)
 - FORMAT.BAS: formats a diskette (see [FORMAT](#format) below)
-- MODE.BAT: sets the display, a serial port, or a printer (see [MODE](#mode) below)
+- MODE.BAS: sets the display, a serial port, or a printer (see [MODE](#mode) below)
 
-Utilities that don't need the speed of assembly language are BASIC programs, written in the style BASIC-DOS lists them in: every line indented with a tab, after a line number only where one is needed as a label.  A utility that changes settings which must outlive it (eg, MODE's display settings) is a BAT file, since a BAS program's video mode is restored when it ends.
+Utilities that don't need the speed of assembly language are BASIC programs, written in the style BASIC-DOS lists them in: every line indented with a tab, after a line number only where one is needed as a label.
 
 ### Filters
 
@@ -98,7 +98,7 @@ For a hard disk drive, FORMAT first displays the disk's geometry and partition t
 	MODE COMn:baud[,parity[,data[,stop]]]
 	MODE LPTn:[cols][,lines]
 
-Sets the display to 40 or 80 columns (BW turns color off, as `SCREEN 0,0` does, and CO turns it on), sets a serial port's baud rate (two digits abbreviate a rate, eg, 96 for 9600), parity (N, O, or E; the default is N), data bits (default 8), and stop bits (default 1), or sends an IBM/Epson printer its condensed (132 columns) or normal (80 columns) print codes and its 8 or 6 lines per inch codes.  A serial port is set by opening it with its parameters and an input buffer length of 0 (see [COM](../../cfg/#console)), which initializes the port and releases it again, so a port that's already open (eg, the console) isn't changed.  MODE is a BAT file (so its display settings persist), which means its variables remain in the session, like those of any batch file.
+Sets the display to 40 or 80 columns (BW turns color off, as `SCREEN 0,0` does, and CO turns it on), sets a serial port's baud rate (two digits abbreviate a rate, eg, 96 for 9600), parity (N, O, or E; the default is N), data bits (default 8), and stop bits (default 1), or sends an IBM/Epson printer its condensed (132 columns) or normal (80 columns) print codes and its 8 or 6 lines per inch codes.  A serial port is set by opening it with its parameters and an input buffer length of 0 (see [COM](../../cfg/#console)), which initializes the port and releases it again, so a port that's already open (eg, the console) isn't changed.
 
 ### VI
 

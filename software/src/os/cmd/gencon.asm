@@ -303,7 +303,7 @@ ENDPROC	genPrint
 ;
 ; genPrintf
 ;
-; Generate code for "PRINTF [#n,] USING format[;] [value[,value]...]", which
+; Generate code for "PRINTF [#n,] USING format;[value[,value]...]", which
 ; prints the values using the format's specifiers (see sprintf.asm); since
 ; the values are typed, a specifier's size modifiers are ignored.  As with
 ; PRINT, a newline follows the output unless the list ends with a separator.

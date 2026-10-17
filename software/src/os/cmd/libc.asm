@@ -364,11 +364,12 @@ ENDPROC	saveMode
 ; restoreMode
 ;
 ; Called when a BAS program ends (normally, or when it's aborted; see ctrlc),
-; to restore the video mode saved by saveMode, if the program changed it
-; (eg, with SCREEN or WIDTH), along with the colors the session had then (so
-; that, for example, a program's COLOR 7,0,0 doesn't leave the session's
-; border black).  If the mouse was turned on (see mouseOn), it's
-; turned off first.
+; to restore the video mode saved by saveMode, if the program left the console
+; in a graphics mode (eg, with SCREEN 1), along with the colors the session
+; had then (so that, for example, a program's COLOR 7,0,0 doesn't leave the
+; session's border black).  Text-mode changes (eg, WIDTH 40 or SCREEN 0,0)
+; persist, as in MSBASIC, which is what MODE.BAS relies on.  If the mouse was
+; turned on (see mouseOn), it's turned off first.
 ;
 ; Inputs:
 ;	None
@@ -399,6 +400,10 @@ rsm1:	mov	cl,0
 	jc	rsm9
 	cmp	dl,cl			; did the mode change?
 	je	rsm9			; no
+	mov	al,dl
+	sub	al,4
+	cmp	al,3			; is it a graphics mode (4-6)?
+	jae	rsm9			; no, so leave it (like MSBASIC)
 	mov	al,IOCTL_SETMODE
 	call	ioctlCon		; yes, so restore it
 	mov	bx,ss:[PSP_HEAP]
@@ -560,7 +565,7 @@ ENDPROC	printArgs
 ;
 ; printfArgs
 ;
-; Used by "PRINTF [#n,] USING format[;] [value[,value]...]".  The values (with
+; Used by "PRINTF [#n,] USING format;[value[,value]...]".  The values (with
 ; their types and separators) are pushed as for printArgs, preceded by the
 ; format (a VAR_STR), so it's just above the end-of-args marker.
 ;

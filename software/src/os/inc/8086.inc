@@ -41,6 +41,7 @@ OP_PUSH_SS	equ	016h
 OP_PUSH_DS	equ	01Eh
 OP_POP_DS	equ	01Fh
 OP_SEG_ES	equ	026h
+OP_CMP_AX	equ	03Dh		; CMP AX,imm16
 OP_PUSH_AX	equ	050h
 OP_PUSH_DX	equ	052h
 OP_PUSH_BX	equ	053h

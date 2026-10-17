@@ -18,7 +18,7 @@ Screen commands include:
 
 Each session has its own console, which may occupy only part of the screen (see [Sessions](../../../intro/#sessions)).  Screen commands operate on the current session's console, and coordinates are relative to the console, not the screen.
 
-When a BAS program ends (or is aborted), the video mode it started with is restored, undoing any SCREEN or WIDTH changes, and the console's original size and border are restored as well.
+When a BAS program ends (or is aborted) in a graphics mode, the video mode it started with is restored, along with the console's original size and border; text-mode changes (eg, WIDTH 40 or SCREEN 0,0) persist, as in Microsoft BASIC.
 
 ### CLS
 
@@ -66,11 +66,11 @@ Prints a series of values, separated by semicolons or commas.  A semicolon print
 
 ### PRINTF
 
-> PRINTF USING *format*[;] [*value*][,|;][*value*]...
+> PRINTF USING *format*;[*value*][,|;][*value*]...
 
-Prints the values using the C-style specifiers in *format*, as a simpler alternative to the PRINT USING of other BASICs.  Each `%` specifier takes the next value: `%d` or `%u` prints a number (`%x` in hexadecimal, and `%#d` with a leading space for positive numbers, like PRINT), `%f` prints a double (BASIC-style unless a precision is given), `%s` prints a string, and `%c` prints a character (from a number or the first character of a string).  Specifiers accept the `-` flag (left-justify), a width, and a precision (eg, `%5d`, `%-8.3s`, `%.2f`), and `%%` prints a percent sign.  Since the values carry their own types, size modifiers like `l` are unnecessary, and a value of the wrong type prints its specifier unchanged.  A semicolon may follow *format*, as in the PRINT USING of IBM and Microsoft BASIC, but it isn't required.  As with PRINT, the cursor moves to the next line unless the list ends with a semicolon or comma.  [PRINTF #](../../basic/#printf) writes the same output to a file.
+Prints the values using the C-style specifiers in *format*, as a simpler alternative to the PRINT USING of other BASICs.  Each `%` specifier takes the next value: `%d` or `%u` prints a number (`%x` in hexadecimal, and `%#d` with a leading space for positive numbers, like PRINT), `%f` prints a double (BASIC-style unless a precision is given), `%s` prints a string, and `%c` prints a character (from a number or the first character of a string).  Specifiers accept the `-` flag (left-justify), a width, and a precision (eg, `%5d`, `%-8.3s`, `%.2f`), and `%%` prints a percent sign.  Since the values carry their own types, size modifiers like `l` are unnecessary, and a value of the wrong type prints its specifier unchanged.  As with PRINT, the cursor moves to the next line unless the list ends with a semicolon or comma.  [PRINTF #](../../basic/#printf) writes the same output to a file.
 
-	PRINTF USING "%-6s|%5d|%.2f" "abc", 42, 3.14159
+	PRINTF USING "%-6s|%5d|%.2f"; "abc", 42, 3.14159
 	abc   |   42|3.14
 
 Comma print zones aren't supported yet (commas currently print a tab), and neither is PRINT USING.

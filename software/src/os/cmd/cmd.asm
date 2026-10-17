@@ -1553,9 +1553,8 @@ ENDPROC	cmdRun
 ;
 DEFPROC	cmdVer
 	mov	ah,DOS_MSC_GETVER
-	int	21h
-	mov	al,ah			; AL = BASIC-DOS major version
-	mov	dl,bh			; DL = BASIC-DOS minor version
+	int	21h			; AL = BASIC-DOS major version
+	mov	dl,ah			; DL = BASIC-DOS minor version
 	add	bl,'@'			; BL = BASIC-DOS revision
 	test	cx,1			; CX bit 0 set if BASIC-DOS DEBUG ver
 	mov	cx,offset VER_FINAL

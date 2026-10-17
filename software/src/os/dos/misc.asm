@@ -8,6 +8,7 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	include	macros.inc
+	include	8086.inc
 	include	dev.inc
 	include	devapi.inc
 	include	dos.inc
@@ -254,30 +255,34 @@ ENDPROC	msc_settime
 ;
 ; msc_getver (REG_AH = 30h)
 ;
-; For now, this is hard-coded to return 02h in AL, so that we can experiment
-; with assorted PC DOS 2.00 binaries without hitting version-check roadblocks.
-;
-; However, we also set AH to our major version, BH to our minor version, BL
-; to our revision, and CX to indicate internal states (eg, bit 0 is set for
-; DEBUG builds).
-;
 ; Inputs:
 ;	None
 ;
 ; Outputs:
-;	REG_AL = major version # (BASIC-DOS: 02h)
-;	REG_AH = minor version # (BASIC-DOS: major version)
-;	REG_BH = OEM serial #    (BASIC-DOS: minor version)
-;	REG_BL = upper 8 bits of 24-bit S/N (BASIC-DOS: revision)
-;	REG_CX = lower 16 bits of 24-bit S/N (BASIC-DOS: internal states)
+;	REG_AL = major version #
+;	REG_AH = minor version #
+;	REG_BX = revision # (currently zero)
+;	REG_CX = 0 (1 if DEBUG build)
 ;
 ; Modifies:
-;	AX
+;	AX, SI, ES
 ;
 DEFPROC	msc_getver,DOS
-	mov	[bp].REG_AX,(VERSION_MAJOR SHL 8) OR 02h
-	mov	[bp].REG_BX,(VERSION_MINOR SHL 8) OR VERSION_REV
+	mov	ax,(VERSION_MINOR SHL 8) OR VERSION_MAJOR
+;
+; Some programs demand one exact version; EXE2BIN 3.20, for example, follows
+; its INT 21h with "XCHG AH,AL" and "CMP AX,0314h".  If the caller's code has
+; such a CMP (3Dh at CS:IP+2), return the version it's comparing against,
+; with the bytes swapped, since the caller will swap them back.
+;
+	les	si,dword ptr [bp].REG_IP
+	cmp	byte ptr es:[si+2],OP_CMP_AX	; CMP AX,imm16 at CS:IP+2?
+	jne	gvr1			; no
+	mov	ax,es:[si+3]		; yes, AX = the version it wants
+	xchg	al,ah
+gvr1:	mov	[bp].REG_AX,ax
 	sub	ax,ax
+	mov	[bp].REG_BX,ax
 	IFDEF DEBUG
 	inc	ax
 	ENDIF

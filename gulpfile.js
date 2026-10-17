@@ -127,8 +127,8 @@ let disks = {
             TESTS: manifest.TESTS.concat([ "./software/tests/PUBLIC.zip" ]),
             //
             // The MASM 4.00 files come from the MS-DOS 3.20 build disk, but the build tools in software/src/tools
-            // (the same ones that mk.sh uses) replace their counterparts, adding MAKE 4.02 and the patched EXE2BIN
-            // (see software/src/README.md).
+            // (the same ones that mk.sh uses) replace their counterparts, adding MAKE 4.02 and MS-DOS 3.20's EXE2BIN
+            // (see software/src/tools/README.TXT).
             //
             TOOLS: () => diskFiles("MSDOS320-C400", [ "TOOLS/MASM4/*" ]).concat([ SRC + "/tools/*" ])
         }

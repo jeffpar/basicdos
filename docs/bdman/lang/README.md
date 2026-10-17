@@ -164,7 +164,7 @@ When a command fails, it displays an error message, and as in PC DOS, the progra
 
 On a color adapter, [SCREEN](../cmd/device/screen/#screen) 1 or 2 selects a graphics mode, where the [graphics commands](../cmd/device/graphics/) (CIRCLE, DRAW, GET, LINE, PAINT, PRESET, PSET, and PUT) can be used.  [PLAY](../cmd/device/sound/#play) plays music, and [SOUND](../cmd/device/sound/#sound) plays tones.
 
-When a BAS program ends, BASIC-DOS restores the video mode it started with, if the program changed it, along with the colors the session had then (so a program's COLOR, like `COLOR 7,0,0`, can't leave the session's border black).
+When a BAS program ends in a graphics mode, BASIC-DOS restores the video mode it started with, along with the colors the session had then (so a program's COLOR, like `COLOR 7,0,0`, can't leave the session's border black); text-mode changes (eg, WIDTH 40) persist, as in Microsoft BASIC.
 
 ### Differences from Microsoft BASIC
 

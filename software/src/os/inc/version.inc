@@ -8,8 +8,8 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 
-VERSION_MAJOR	equ	2
-VERSION_MINOR	equ	0
+VERSION_MAJOR	equ	2	; eg, MS-DOS 3.20 return 3 (03h)
+VERSION_MINOR	equ	0	; eg, MS-DOS 3.20 returns 20 (14h)
 VERSION_REV	equ	0	; 0 for no rev, 1 for rev A, 2 for rev B, etc.
 
 VERSION_STR	macro

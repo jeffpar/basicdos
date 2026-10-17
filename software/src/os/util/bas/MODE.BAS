@@ -1,4 +1,4 @@
-	' MODE.BAT: sets the display, a serial port, or a printer
+	' MODE.BAS: sets the display, a serial port, or a printer
 	'
 	'   MODE 40|80|BW40|BW80|CO40|CO80          display columns (and color)
 	'   MODE COMn:baud[,parity[,data[,stop]]]   serial port (eg, COM1:9600,N,8,1)
@@ -7,10 +7,9 @@
 	'
 	' A serial port is set by opening it with its parameters and an input
 	' buffer length of 0, which initializes the port and releases it again (a
-	' port that's already open, eg, the console, isn't changed).  MODE is a
-	' batch file so that its display settings outlive it (a BAS program's
-	' video mode is restored when it ends).
+	' port that's already open, eg, the console, isn't changed).
 	'
+	DEFINT A-Z
 	M$ = UCASE$(ARG$(1))
 	IF LEFT$(M$, 3) = "COM" THEN GOTO 20
 	IF LEFT$(M$, 3) = "LPT" THEN GOTO 30

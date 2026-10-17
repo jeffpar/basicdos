@@ -266,7 +266,7 @@ Writes values to file *n* (which must be open for OUTPUT or APPEND) exactly as [
 
 ### PRINTF # {#printf}
 
-> PRINTF #*n*,USING *format*[;] [*value*][,|;][*value*]...
+> PRINTF #*n*,USING *format*;[*value*][,|;][*value*]...
 
 Writes values to file *n* (which must be open for OUTPUT or APPEND) exactly as [PRINTF](../device/screen/#printf) would display them.
 
