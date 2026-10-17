@@ -20,7 +20,7 @@ BASIC-DOS development started in 2020 with the goal of an initial roll-out by Au
 
 Fast forward a few years, and the introduction of AI agents like Claude Code has dramatically changed what is possible.  The BASIC-DOS operating system architecture hasn't changed, but AI has made it possible to fill in lots of missing functionality, quickly resolve bugs, test compatibility and performance issues, improve documentation, and more.
 
-This means that many of the limitations discussed in these preview pages have now been removed, but more remain. And there will always be more, because is any project ever truly finished?
+Most of the limitations originally discussed in these preview pages have since been removed, so the pages now focus on what BASIC-DOS does that PC DOS and MS-DOS never did.  Some limitations remain, and there will always be more, because is any project ever truly finished?
 
 ### Contents
 
@@ -37,9 +37,9 @@ This is a "sneak peek" at BASIC-DOS, the first version of DOS that *could* have 
 
 The boot sector of the BASIC-DOS diskette loads **BASDEV.COM** into memory, which in turn loads **CONFIG.SYS** and **BASDOS.COM**.  Like IBMBIO.COM and IBMDOS.COM in PC DOS, BASDEV contains all the BASIC-DOS device drivers and BASDOS contains all the Disk Operating System services.  Finally, BASDOS loads **COMMAND.COM** into memory, which provides the initial command prompt.
 
-All files are original BASIC-DOS production and test files, with the exception of **SYMDEB** (Microsoft's Symbolic Debug Utility v4.00) and **MSBASIC.EXE**, which was built from Microsoft's [GW-BASIC](https://github.com/microsoft/GW-BASIC) open-source files, with a little help from [OS/2 Museum](http://www.os2museum.com/wp/well-hello/). These two files are used for early testing and debugging only, and they will not be distributed with the finished BASIC-DOS product.
+All files are original BASIC-DOS production and test files, with the exception of **SYMDEB** (Microsoft's Symbolic Debug Utility v4.00) and **MSBASIC.EXE**, which was built from Microsoft's [GW-BASIC](https://github.com/microsoft/GW-BASIC) open-source files, with a little help from [OS/2 Museum](http://www.os2museum.com/wp/well-hello/). These two files are used for testing and comparison only, so they live on the `BASICDOS-360K-TESTS` diskette rather than the BASIC-DOS distribution.
 
-NOTE: All preview binaries shown here are release (non-DEBUG) versions.  DEBUG versions, which enable all run-time assertions, are also available by building BASIC-DOS with "mk.sh debug"; their file sizes and memory usage are larger, and their overall performance is slightly lower.  Either way, BASIC-DOS outperforms PC DOS in several respects.  More on that later.
+NOTE: All preview binaries shown here are release (non-DEBUG) versions.  DEBUG versions, which enable all run-time assertions, are also available by building BASIC-DOS with "mkdos.sh debug"; their file sizes and memory usage are larger, and their overall performance is slightly lower.  Either way, BASIC-DOS outperforms PC DOS in several respects.  More on that later.
 
 ### PC DOS Compatibility
 
@@ -47,10 +47,8 @@ Like PC DOS, BASIC-DOS supports a FAT file system, **COM** and **EXE** executabl
 
 However, compatibility is *not* the primary goal of BASIC-DOS.  The true goal is to demonstrate what *could* have been achieved as the first IBM PC operating system, not to create a "clone" of PC DOS and endlessly chase compatibility problems.  To whatever extent BASIC-DOS is compatible with PC DOS, that compatibility is born purely out of convenience, relying on existing designs whenever it makes sense to do so -- just as PC DOS and its predecessors relied on CP/M designs, CP/M relied on DEC designs, and so on.
 
-In some ways, BASIC-DOS is more primitive than PC DOS 1.00.  File system functions are read-only (files cannot be created, written, renamed, or deleted), and FCB functionality is limited.  However, those are temporary limitations that will be addressed in the coming months.
+BASIC-DOS leap-frogs PC DOS 1.00 (and in several respects PC DOS 2.00) by supporting subdirectories, handle-based I/O, installable device drivers, hard disks, critical error handling, pipe and redirection operations, and last but not least, preemptive multitasking of multiple DOS applications across multiple screens or portions of a single screen.
 
-In other ways, BASIC-DOS leap-frogs PC DOS 1.00, by adding the ability to read PC DOS 2.00-formatted diskettes, load PC DOS 2.00-style device drivers, perform handle-based I/O, support pipe and redirection operations, and last but not least, preemptive multitasking of multiple DOS applications across multiple screens or portions of a single screen.
-
-And, true to its name, BASIC-DOS has begun incorporating BASIC language functionality into the command interpreter.  COMMAND.COM is on its way to becoming a unified DOS *and* BASIC command interpreter.
+And, true to its name, BASIC-DOS has incorporated the BASIC language into the command interpreter.  COMMAND.COM is a unified DOS *and* BASIC command interpreter: batch files are BASIC programs, BASIC programs are compiled into 8086 code before they run, and even system utilities like FORMAT and MODE are written in BASIC.
 
 ### Next: [Part 2: BASIC Operations](part2/)

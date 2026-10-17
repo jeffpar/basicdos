@@ -18,8 +18,6 @@ The machine below boots the `BASICDOS-360K-S80` diskette, changes to its **DEMOS
 
 {% include machine.html id="ibm5150" %}
 
-At the moment, the set of available BASIC commands is *very* basic: CLS, COLOR, DEF, GOTO, IF ... THEN, LET, and PRINT.  But those are enough to write some simple programs.  Numeric support is limited to integer constants, variables, and operators (no floating-point yet).  String variables can be created and printed, but no string operations are available yet either.
-
 **PRIMES.BAS** was the first BASIC program written to run in both BASIC-DOS and **MSBASIC**, so the machine above runs it with **MSBASIC** first.  After it prints:
 
     TOTAL PRIMES < 1000:  168
@@ -28,6 +26,8 @@ type `SYSTEM` to return to the BASIC-DOS prompt.
 
 Next, type `PRIMES.BAS` to load and run the same program with BASIC-DOS.
 
-Notice how much *faster* BASIC-DOS execution is.  And BASIC-DOS is performing full 32-bit integer operations (MSBASIC integer operations are only 16-bit).
+Notice how much *faster* BASIC-DOS execution is, because BASIC-DOS compiles each program into 8086 code before running it.  And BASIC-DOS is performing full 32-bit integer operations (MSBASIC integer operations are only 16-bit).
+
+PRIMES.BAS needs only integers, but BASIC-DOS also supports IEEE double-precision floating-point (with or without an 8087), strings, arrays, file I/O, graphics, and sound; see the [BASIC-DOS Manual](/docs/bdman/) for the full list of commands and functions, and [Part 6](../part6/) for benchmarks.
 
 ### Next: [Part 3: BASIC Files vs. Batch Files](../part3/)
