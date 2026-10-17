@@ -359,3 +359,28 @@ SIG_CMD		equ	'H'
 ; of the STACK in CMDHEAP and then pushes exactly 2 words before setting BP.
 ;
 heap		equ	byte ptr [bp+4-(STACK + size STACK)]
+
+;
+; HEAPDEF defines the per-process heap template that ends both the core (see
+; const.asm) and the entire image (see heap.asm): the block chain definitions
+; (see BLKDEF), followed by the COMDATA that the loader reads from the end of
+; the file (see COMHEAP in dosapi.inc), which gives the shared code size (the
+; offset of lbl), the heap inside the image (RES_HEAP), and, for the entire
+; image, the end of the core (core_end), so that the core alone can be loaded
+; when memory is tight (see CD_CORESIZE).
+;
+; Only const.asm and heap.asm need HEAPDEF, and they define HEAPDEFS before
+; including this file; other modules skip it, since MASM's memory is tight.
+;
+	IFDEF	HEAPDEFS
+HEAPDEF	macro	lbl,core_end
+	DEFLBL	lbl,word
+	BLKDEF	<0,CBLKLEN,size CBLK,SIG_CBLK>
+	BLKDEF	<0,FBLKLEN,size FBLK,SIG_FBLK>
+	BLKDEF	<0,VBLKLEN,size VBLK,SIG_VBLK>
+	BLKDEF	<0,SBLKLEN,size SBLK,SIG_SBLK>
+	BLKDEF	<0,TBLKLEN,size TBLK,SIG_TBLK>
+	BLKDEF	<0,0,size BLKHDR,SIG_ABLK>	;; array blocks (sized by DIM)
+	COMHEAP	<size CMDHEAP>,lbl,RES_HEAP,<core_end>
+	endm
+	ENDIF	; HEAPDEFS

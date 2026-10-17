@@ -506,6 +506,27 @@ sp8:	pop	si
 sp9:	ret
 ENDPROC	splitCmd
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; skipToken
+;
+; Consumes the token that peekNextSymbol (or peekNextToken) just returned.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	BX = offset of next TOKLET
+;
+; Modifies:
+;	BX, SI
+;
+DEFPROC	skipToken
+	mov	si,ds:[PSP_HEAP]
+	mov	bx,[si].TOKLET_NEXT
+	ret
+ENDPROC	skipToken
+
 CODE	ENDS
 
 	end

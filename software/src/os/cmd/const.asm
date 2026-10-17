@@ -7,13 +7,25 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	HEAPDEFS equ 1			; (see HEAPDEF in cmd.inc)
 	include	cmd.inc
 
 ;
-; DEFTOK stores each token's string in CODE, where all the strings follow
-; TOK_STRS (see const.asm), so that a string's offset is TOK_STRS + tokPos,
-; rather than a label of its own (to conserve symbol space).
+; The token tables are built in two passes over the DEFTOK lists below (see
+; KEYWORDS, KEYOPS, and OPTIONS), entirely in CODE: the TOKSTR pass stores
+; every token's string, one after another following TOK_STRS, and then the
+; DEFTOK pass builds each table's CTOKDEF entries, using TOK_STRS + tokPos as
+; a string's offset (rather than a label of its own, to conserve symbol space)
+; and counting its length with IRPC.  Two passes keep the strings and the
+; entries from interleaving, which is what allowed the tables to live in CODE
+; rather than DATA (which LINK places after all the code); that matters now
+; that the modules linked after this one are not part of the core (see
+; CORE_END below, and HEAP.ASM).
 ;
+TOKSTR	macro	sym,val,func,pub
+	db	"&sym&"
+	endm
+
 DEFTOK	macro	sym,val,func,pub
 	IFNB	<pub>			;; define TOK_sym only if requested
 	public	TOK_&sym		;; (to conserve symbol space)
@@ -22,31 +34,25 @@ TOK_&sym equ val
 	IFNB <func>
 	EXTNEAR	<func>
 	ENDIF
-CODE	SEGMENT
-	db	"&sym&"
-	len = (offset $ - offset TOK_STRS) - tokPos
-CODE	ENDS
-DATA	SEGMENT
+	len = 0
+	IRPC	c,<sym>
+	len = len + 1
+	ENDM
 	IFB <func>
 	CTOKDEF	<val,len,offset DGROUP:TOK_STRS+tokPos,0>
 	ELSE
 	CTOKDEF	<val,len,offset DGROUP:TOK_STRS+tokPos,offset func>
 	ENDIF
-DATA	ENDS
 	tokPos = tokPos + len
 	endm
 
 DEFTOKENS macro tbl,val
-DATA	SEGMENT
 	public	tbl
 tbl	TOKTBL	<val,size CTOKDEF>
-DATA	ENDS
 	endm
 
 NUMTOKENS macro tbl,val
-DATA	SEGMENT
 val = ((offset $ - offset tbl) - 2) / (size CTOKDEF)
-DATA	ENDS
 	endm
 
 
@@ -194,159 +200,175 @@ CODE	ENDS
 ; that genExpr handles (by calling the corresponding FPU$ functions), so their
 ; IDs must remain consecutive and in the same order as genExpr's FN_FPUTBL.
 ;
-CODE	SEGMENT
-TOK_STRS label	byte			; the token strings (see DEFTOK)
-CODE	ENDS
-	tokPos = 0
+; Each list must be in alphabetical order, and each is processed twice, by
+; TOKSTR and then by DEFTOK (see above).
+;
+KEYWORDS	macro	PASS
+	PASS	ABS,   101,,PUB
+	PASS	APPEND,211,,PUB
+	PASS	AS,    209,,PUB
+	PASS	ATN,   102
+	PASS	AUTO,   12, cmdAuto
+	PASS	BASE,  205,,PUB
+	PASS	CD,     16, cmdChdir
+	PASS	CHAIN,  71, genChain
+	PASS	CHDIR,  16, cmdChdir
+	PASS	CIRCLE, 82, genCircle
+	PASS	CLEAR,  81, genClear
+	PASS	CLOSE,  88, genClose
+	PASS	CLS,    40, genCLS
+	PASS	COLOR,  41, genColor
+	PASS	COPY,   20, cmdCopy
+	PASS	COS,   103
+	PASS	DATA,   83, genData
+	PASS	DATE,   10, cmdDate
+	PASS	DEF,    42, genDef
+	PASS	DEFDBL, 43, genDefDbl
+	PASS	DEFINT, 44, genDefInt
+	PASS	DEFSNG, 45, genDefDbl
+	PASS	DEFSTR, 46, genDefStr
+	PASS	DEL,    24, cmdDel,PUB
+	PASS	DELETE, 13, cmdDelete
+	PASS	DIM,    54, genDim
+	PASS	DIR,    21, cmdDir
+	PASS	DRAW,   74, genDraw
+	PASS	ECHO,   47, genEcho
+	PASS	EDIT,   14, cmdEdit
+	PASS	ELSE,  201,,PUB
+	PASS	END,    57, genEnd
+	PASS	ERASE,  55, genErase,PUB
+	PASS	ERROR,  72, genError,PUB
+	PASS	EXIT,    1, cmdExit
+	PASS	EXP,   104
+	PASS	FIELD,  91, genField
+	PASS	FIX,   105
+	PASS	FOR,    58, genFor,PUB
+	PASS	GET,    75, genGet
+	PASS	GOSUB,  59, genGosub,PUB
+	PASS	GOTO,   48, genGoto,PUB
+	PASS	HELP,    2, cmdHelp
+	PASS	IF,     49  genIf
+	PASS	INPUT,  89, genInput,PUB
+	PASS	INT,   106
+	PASS	IOCTL,  98, genIoctl,PUB
+	PASS	KEY,    67, genKey
+	PASS	KEYS,    3, cmdKeys
+	PASS	KILL,   25, cmdDel
+	PASS	LET,    50, genLet
+	PASS	LINE,   76, genLine
+	PASS	LIST,    4, cmdList
+	PASS	LOAD,   22, cmdLoad
+	PASS	LOCATE, 64, genLocate
+	PASS	LOG,   107
+	PASS	LSET,   92, genLset
+	PASS	MD,     17, cmdMkdir
+	PASS	MEM,     5, cmdMem
+	PASS	MKDIR,  17, cmdMkdir
+	PASS	MOUSE,  86, genMouse,PUB
+	PASS	MV,     26, cmdRen
+	PASS	NEW,     6, cmdNew
+	PASS	NEXT,   60, genNext
+	PASS	OFF,   202,,PUB
+	PASS	ON,    203, genOn,PUB
+	PASS	OPEN,   87, genOpen
+	PASS	OPTION, 56, genOption
+	PASS	OUTPUT,210,,PUB
+	PASS	PAINT,  77, genPaint
+	PASS	PLAY,   70, genPlay
+	PASS	POKE,   68, genPoke
+	PASS	PRESET, 78, genPreset,PUB
+	PASS	PRINT,  51, genPrint
+	PASS	PRINTF, 99, genPrintf
+	PASS	PSET,   79, genPset,PUB
+	PASS	PUT,    80, genPut
+	PASS	RANDOM,212,,PUB
+	PASS	RANDOMIZE,96,genRandomize
+	PASS	RD,     18, cmdRmdir
+	PASS	READ,   84, genRead
+	PASS	REM,    52
+	PASS	REN,    26, cmdRen
+	PASS	RENAME, 26, cmdRen
+	PASS	RESET,  94, genClose
+	PASS	RESTART, 7, cmdRestart
+	PASS	RESTORE,85, genRestore
+	PASS	RESUME, 73, genResume
+	PASS	RETURN, 53, genReturn
+	PASS	RMDIR,  18, cmdRmdir
+	PASS	RSET,   93, genRset
+	PASS	RUN,     8, cmdRun
+	PASS	SAVE,   15, cmdSave
+	PASS	SCREEN, 65, genScreen,PUB
+	PASS	SEG,   208,,PUB
+	PASS	SIN,   108
+	PASS	SOUND,  69, genSound
+	PASS	SQR,   109
+	PASS	STEP,  206,,PUB
+	PASS	STOP,   61, genEnd
+	PASS	SWAP,   97, genSwap
+	PASS	SYSTEM, 95, genEnd
+	PASS	TAN,   110,,PUB
+	PASS	THEN,  204,,PUB
+	PASS	TIME,   11, cmdTime
+	PASS	TO,    207,,PUB
+	PASS	TYPE,   23, cmdType
+	PASS	USING, 213,,PUB
+	PASS	VER,     9, cmdVer
+	PASS	WEND,   62, genWend
+	PASS	WHILE,  63, genWhile
+	PASS	WIDTH,  66, genWidth
+	PASS	WRITE,  90, genWrite
+	endm
 
+KEYOPS	macro	PASS
+	PASS	AND,   'A'
+	PASS	EQV,   'E'
+	PASS	IMP,   'I'
+	PASS	MOD,   'M'
+	PASS	NOT,   '~'
+	PASS	OR,    '|'
+	PASS	XOR,   'X'
+	endm
+
+;
+; Options recognized by commands (eg, LIST SESSIONS, LIST VARS, and RESTART
+; SYSTEM).
+;
+OPTIONS	macro	PASS
+	PASS	SESSIONS, 1,,PUB
+	PASS	SYSTEM,   2,,PUB
+	PASS	VARS,     3,,PUB
+	endm
+
+CODE	SEGMENT
+
+TOK_STRS label	byte			; the token strings (see TOKSTR)
+	KEYWORDS TOKSTR
+	KEYOPS	TOKSTR
+	OPTIONS	TOKSTR
+
+	tokPos = 0
 	DEFTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
-	DEFTOK	ABS,   101,,PUB
-	DEFTOK	APPEND,211,,PUB
-	DEFTOK	AS,    209,,PUB
-	DEFTOK	ATN,   102
-	DEFTOK	AUTO,   12, cmdAuto
-	DEFTOK	BASE,  205,,PUB
-	DEFTOK	CD,     16, cmdChdir
-	DEFTOK	CHAIN,  71, genChain
-	DEFTOK	CHDIR,  16, cmdChdir
-	DEFTOK	CIRCLE, 82, genCircle
-	DEFTOK	CLEAR,  81, genClear
-	DEFTOK	CLOSE,  88, genClose
-	DEFTOK	CLS,    40, genCLS
-	DEFTOK	COLOR,  41, genColor
-	DEFTOK	COPY,   20, cmdCopy
-	DEFTOK	COS,   103
-	DEFTOK	DATA,   83, genData
-	DEFTOK	DATE,   10, cmdDate
-	DEFTOK	DEF,    42, genDef
-	DEFTOK	DEFDBL, 43, genDefDbl
-	DEFTOK	DEFINT, 44, genDefInt
-	DEFTOK	DEFSNG, 45, genDefDbl
-	DEFTOK	DEFSTR, 46, genDefStr
-	DEFTOK	DEL,    24, cmdDel,PUB
-	DEFTOK	DELETE, 13, cmdDelete
-	DEFTOK	DIM,    54, genDim
-	DEFTOK	DIR,    21, cmdDir
-	DEFTOK	DRAW,   74, genDraw
-	DEFTOK	ECHO,   47, genEcho
-	DEFTOK	EDIT,   14, cmdEdit
-	DEFTOK	ELSE,  201,,PUB
-	DEFTOK	END,    57, genEnd
-	DEFTOK	ERASE,  55, genErase,PUB
-	DEFTOK	ERROR,  72, genError,PUB
-	DEFTOK	EXIT,    1, cmdExit
-	DEFTOK	EXP,   104
-	DEFTOK	FIELD,  91, genField
-	DEFTOK	FIX,   105
-	DEFTOK	FOR,    58, genFor,PUB
-	DEFTOK	GET,    75, genGet
-	DEFTOK	GOSUB,  59, genGosub,PUB
-	DEFTOK	GOTO,   48, genGoto,PUB
-	DEFTOK	HELP,    2, cmdHelp
-	DEFTOK	IF,     49  genIf
-	DEFTOK	INPUT,  89, genInput,PUB
-	DEFTOK	INT,   106
-	DEFTOK	IOCTL,  98, genIoctl,PUB
-	DEFTOK	KEY,    67, genKey
-	DEFTOK	KEYS,    3, cmdKeys
-	DEFTOK	KILL,   25, cmdDel
-	DEFTOK	LET,    50, genLet
-	DEFTOK	LINE,   76, genLine
-	DEFTOK	LIST,    4, cmdList
-	DEFTOK	LOAD,   22, cmdLoad
-	DEFTOK	LOCATE, 64, genLocate
-	DEFTOK	LOG,   107
-	DEFTOK	LSET,   92, genLset
-	DEFTOK	MD,     17, cmdMkdir
-	DEFTOK	MEM,     5, cmdMem
-	DEFTOK	MKDIR,  17, cmdMkdir
-	DEFTOK	MOUSE,  86, genMouse,PUB
-	DEFTOK	MV,     26, cmdRen
-	DEFTOK	NEW,     6, cmdNew
-	DEFTOK	NEXT,   60, genNext
-	DEFTOK	OFF,   202,,PUB
-	DEFTOK	ON,    203, genOn,PUB
-	DEFTOK	OPEN,   87, genOpen
-	DEFTOK	OPTION, 56, genOption
-	DEFTOK	OUTPUT,210,,PUB
-	DEFTOK	PAINT,  77, genPaint
-	DEFTOK	PLAY,   70, genPlay
-	DEFTOK	POKE,   68, genPoke
-	DEFTOK	PRESET, 78, genPreset,PUB
-	DEFTOK	PRINT,  51, genPrint
-	DEFTOK	PRINTF, 99, genPrintf
-	DEFTOK	PSET,   79, genPset,PUB
-	DEFTOK	PUT,    80, genPut
-	DEFTOK	RANDOM,212,,PUB
-	DEFTOK	RANDOMIZE,96,genRandomize
-	DEFTOK	RD,     18, cmdRmdir
-	DEFTOK	READ,   84, genRead
-	DEFTOK	REM,    52
-	DEFTOK	REN,    26, cmdRen
-	DEFTOK	RENAME, 26, cmdRen
-	DEFTOK	RESET,  94, genClose
-	DEFTOK	RESTART, 7, cmdRestart
-	DEFTOK	RESTORE,85, genRestore
-	DEFTOK	RESUME, 73, genResume
-	DEFTOK	RETURN, 53, genReturn
-	DEFTOK	RMDIR,  18, cmdRmdir
-	DEFTOK	RSET,   93, genRset
-	DEFTOK	RUN,     8, cmdRun
-	DEFTOK	SAVE,   15, cmdSave
-	DEFTOK	SCREEN, 65, genScreen,PUB
-	DEFTOK	SEG,   208,,PUB
-	DEFTOK	SIN,   108
-	DEFTOK	SOUND,  69, genSound
-	DEFTOK	SQR,   109
-	DEFTOK	STEP,  206,,PUB
-	DEFTOK	STOP,   61, genEnd
-	DEFTOK	SWAP,   97, genSwap
-	DEFTOK	SYSTEM, 95, genEnd
-	DEFTOK	TAN,   110,,PUB
-	DEFTOK	THEN,  204,,PUB
-	DEFTOK	TIME,   11, cmdTime
-	DEFTOK	TO,    207,,PUB
-	DEFTOK	TYPE,   23, cmdType
-	DEFTOK	USING, 213,,PUB
-	DEFTOK	VER,     9, cmdVer
-	DEFTOK	WEND,   62, genWend
-	DEFTOK	WHILE,  63, genWhile
-	DEFTOK	WIDTH,  66, genWidth
-	DEFTOK	WRITE,  90, genWrite
+	KEYWORDS DEFTOK
 	NUMTOKENS KEYWORD_TOKENS,KEYWORD_TOTAL
 
 	DEFTOKENS KEYOP_TOKENS,KEYOP_TOTAL
-	DEFTOK	AND,   'A'
-	DEFTOK	EQV,   'E'
-	DEFTOK	IMP,   'I'
-	DEFTOK	MOD,   'M'
-	DEFTOK	NOT,   '~'
-	DEFTOK	OR,    '|'
-	DEFTOK	XOR,   'X'
+	KEYOPS	DEFTOK
 	NUMTOKENS KEYOP_TOKENS,KEYOP_TOTAL
-;
-; Options recognized by commands (eg, LIST SESSIONS, LIST VARS, and RESTART
-; SYSTEM); like the other tables, they must be in alphabetical order.
-;
+
 	DEFTOKENS OPTION_TOKENS,OPTION_TOTAL
-	DEFTOK	SESSIONS, 1,,PUB
-	DEFTOK	SYSTEM,   2,,PUB
-	DEFTOK	VARS,     3,,PUB
+	OPTIONS	DEFTOK
 	NUMTOKENS OPTION_TOKENS,OPTION_TOTAL
 
-DATA	SEGMENT
 ;
-; This is where per-process data begins; it must be at the end of the file.
+; This is the end of COMMAND's core.  The modules linked after this one (see
+; CMD.LRF) are omitted when there isn't enough memory for the entire image, so
+; the core ends with its own copy of the heap template (see HEAPDEF in cmd.inc
+; and HEAP.ASM), which is where the heap begins in that case, and CORE_END
+; tells the loader how much to load (see CD_CORESIZE in dosapi.inc).
 ;
-	DEFLBL	BEG_HEAP,word
-	BLKDEF	<0,CBLKLEN,size CBLK,SIG_CBLK>
-	BLKDEF	<0,FBLKLEN,size FBLK,SIG_FBLK>
-	BLKDEF	<0,VBLKLEN,size VBLK,SIG_VBLK>
-	BLKDEF	<0,SBLKLEN,size SBLK,SIG_SBLK>
-	BLKDEF	<0,TBLKLEN,size TBLK,SIG_TBLK>
-	BLKDEF	<0,0,size BLKHDR,SIG_ABLK>	; array blocks (sized by DIM)
-	COMHEAP	<size CMDHEAP>,BEG_HEAP,RES_HEAP ; this must be the last item
+	HEAPDEF	CORE_HEAP
+	DEFLBL	CORE_END,word
 
-DATA	ENDS
+CODE	ENDS
 
 	end

@@ -277,7 +277,7 @@ MD [*drive*:]*path*
 Creates a new directory.  MKDIR is the same as MD.
 
 MEM
-Displays total memory, memory available for executables, and memory available for BASIC programs.
+Displays total memory, memory available for executables, and memory available for BASIC programs, and notes anything unavailable (eg, graphics and sound when there wasn't enough memory for all of COMMAND.COM, or floating-point when the FPU$ driver isn't loaded).
 
 MID$(*string*,*start*[,*n*])
 Returns *n* characters of *string*, beginning at position *start* (or the rest of *string* if *n* is omitted).

@@ -5,7 +5,7 @@ permalink: /demos/s80/386/debugger/
 machines:
   - id: deskpro386
     type: pcx86
-    config: /machines/pcx86/compaq/compaq-deskpro386-vga-1mb.json
+    config: /machines/pcx86/compaq/compaq-deskpro386-vga-1mb-fpu.json
     debugger: true
     autoMount:
       A: "BASICDOS-360K-S80"

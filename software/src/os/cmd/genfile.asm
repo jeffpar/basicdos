@@ -20,6 +20,7 @@
 ;	OPEN				(genOpen)
 ;	PRINT #				(genPrintFile, via genPrint)
 ;	PRINTF #			(genPrintfFile, via genPrintf)
+;	GET, PUT, LINE			(file or graphics generators)
 ;	WRITE [#]			(genWrite)
 ;
 ; See gencmd.asm for an overview of all the gen*.asm files, and fileio.asm
@@ -39,6 +40,7 @@ CODE    SEGMENT
 	EXTNEAR	<openFile,closeFile,fileOut,selectInput,fileItem>
 	EXTNEAR	<writeValue,printArgs,inputLine,fieldVar,setField>
 	EXTNEAR	<fileRecord,lsetStr,genVarRef,fileIoctl>
+	EXTNEAR	<genGetGfx,genPutGfx,genLineGfx,genUpper>
 
 	EXTABS	<TOK_FOR,TOK_INPUT,TOK_AS,TOK_OUTPUT,TOK_APPEND,TOK_RANDOM>
 
@@ -778,6 +780,58 @@ DEFPROC	getKeyword
 gk8:	mov	al,0
 	ret
 ENDPROC	getKeyword
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genGet, genPut, genLine
+;
+; GET, PUT, and LINE are both file statements (GET #, PUT #, and LINE INPUT)
+; and graphics statements, and since the graphics generators (see gengfx.asm)
+; aren't part of COMMAND's core, these keywords come here, where we decide
+; which kind of statement it is and then jump to the file generator, or to
+; the graphics generator via genUpper (see gencmd.asm), which reports "Not
+; enough memory" if only the core was loaded.
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genGet
+	call	peekNextSymbol
+	jbe	gge0			; not a symbol, so GET #
+	cmp	al,'('			; graphics GET?
+	jne	gge0			; no
+	mov	dx,offset genGetGfx
+	jmp	genUpper
+gge0:	jmp	genGetFile
+ENDPROC	genGet
+
+DEFPROC	genPut
+	call	peekNextSymbol
+	jbe	gpe0			; not a symbol, so PUT #
+	cmp	al,'('			; graphics PUT?
+	jne	gpe0			; no
+	mov	dx,offset genPutGfx
+	jmp	genUpper
+gpe0:	jmp	genPutFile
+ENDPROC	genPut
+
+DEFPROC	genLine
+	mov	al,CLS_KEYWORD
+	call	peekNextToken		; LINE INPUT?
+	jbe	gli1			; no
+	cmp	al,TOK_INPUT
+	jne	gli1			; no
+	jmp	genLineInput		; yes
+gli1:	mov	dx,offset genLineGfx
+	jmp	genUpper
+ENDPROC	genLine
 
 CODE	ENDS
 

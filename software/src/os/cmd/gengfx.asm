@@ -24,6 +24,13 @@
 ; these functions are called while generating code, with DS:BX -> TOKLETs and
 ; ES:DI -> code block.
 ;
+;
+; These generators are not part of COMMAND's core (see CMD.LRF and HEAP.ASM):
+; when only the core is loaded, genCommands refuses their keywords with "Not
+; enough memory", and GET, PUT, and LINE, which are also file statements,
+; reach genGetGfx, genPutGfx, and genLineGfx from genfile.asm via genUpper
+; (see gencmd.asm).
+;
 	include	cmd.inc
 	include	gen.inc
 
@@ -32,8 +39,8 @@ CODE    SEGMENT
 	EXTNEAR	<genLong,genStr,genArrayVar,getNextToken,getNextSymbol>
 	EXTNEAR	<peekNextSymbol,genCallCS,genPushImmLong,genExpr,genCvtType>
 	EXTNEAR	<gfxDraw,gfxGet,gfxLastPt,gfxLine,gfxPaint,gfxPset,gfxPut>
-	EXTNEAR	<gfxCircle,peekNextToken,genLineInput,genGetFile,genPutFile>
-	EXTABS	<TOK_PSET,TOK_PRESET,TOK_INPUT>
+	EXTNEAR	<gfxCircle,skipToken>
+	EXTABS	<TOK_PSET,TOK_PRESET>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -103,9 +110,10 @@ ENDPROC	genDraw
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genGet
+; genGetGfx
 ;
-; Generate code for "GET (x1,y1)-(x2,y2),array"
+; Generate code for "GET (x1,y1)-(x2,y2),array"; genGet (see genfile.asm)
+; comes here, via genUpper, when GET is followed by '('.
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs
@@ -117,13 +125,8 @@ ENDPROC	genDraw
 ; Modifies:
 ;	Any
 ;
-DEFPROC	genGet
-	call	peekNextSymbol
-	jbe	gg0f			; not a symbol, so not graphics
-	cmp	al,'('			; graphics GET?
-	je	gg0			; yes
-gg0f:	jmp	genGetFile		; no, GET # (see genfile.asm)
-gg0:	call	genPoint
+DEFPROC	genGetGfx
+	call	genPoint
 	jc	gg9
 	mov	ah,'-'
 	call	genSymbol
@@ -137,13 +140,14 @@ gg0:	call	genPoint
 	jc	gg9
 	GENCALL	gfxGet
 gg9:	ret
-ENDPROC	genGet
+ENDPROC	genGetGfx
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genLine
+; genLineGfx
 ;
-; Generate code for "LINE [(x1,y1)]-(x2,y2)[,[color][,B[F]]]"
+; Generate code for "LINE [(x1,y1)]-(x2,y2)[,[color][,B[F]]]"; genLine (see
+; genfile.asm) comes here, via genUpper, unless INPUT follows LINE.
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs
@@ -155,14 +159,8 @@ ENDPROC	genGet
 ; Modifies:
 ;	Any
 ;
-DEFPROC	genLine
-	mov	al,CLS_KEYWORD
-	call	peekNextToken		; LINE INPUT?
-	jbe	gln0			; no
-	cmp	al,TOK_INPUT
-	jne	gln0
-	jmp	genLineInput		; yes (see genfile.asm)
-gln0:	call	peekNextSymbol
+DEFPROC	genLineGfx
+	call	peekNextSymbol
 	jbe	gln1
 	cmp	al,'-'			; is the first point omitted?
 	jne	gln1			; no
@@ -210,7 +208,7 @@ gln6:	mov	cx,dx
 	ret
 gln8:	stc
 gln9:	ret
-ENDPROC	genLine
+ENDPROC	genLineGfx
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -297,10 +295,11 @@ ENDPROC	genPset
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genPut
+; genPutGfx
 ;
 ; Generate code for "PUT (x,y),array[,action]", where action is PSET,
-; PRESET, XOR (the default), OR, or AND (see PUT_* in gfximg.asm).
+; PRESET, XOR (the default), OR, or AND (see PUT_* in gfximg.asm); genPut
+; (see genfile.asm) comes here, via genUpper, when PUT is followed by '('.
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs
@@ -312,13 +311,8 @@ ENDPROC	genPset
 ; Modifies:
 ;	Any
 ;
-DEFPROC	genPut
-	call	peekNextSymbol
-	jbe	gpu0f			; not a symbol, so not graphics
-	cmp	al,'('			; graphics PUT?
-	je	gpu0			; yes
-gpu0f:	jmp	genPutFile		; no, PUT # (see genfile.asm)
-gpu0:	call	genPoint
+DEFPROC	genPutGfx
+	call	genPoint
 	jc	gpu9
 	mov	ah,','
 	call	genSymbol
@@ -358,7 +352,7 @@ gpu7:	sub	dx,dx
 	ret
 gpu8:	stc
 gpu9:	ret
-ENDPROC	genPut
+ENDPROC	genPutGfx
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -501,27 +495,6 @@ DEFPROC	genSymbol
 gsy8:	stc
 gsy9:	ret
 ENDPROC	genSymbol
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; skipToken
-;
-; Consumes the token that peekNextSymbol (or peekNextToken) just returned.
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	BX = offset of next TOKLET
-;
-; Modifies:
-;	BX, SI
-;
-DEFPROC	skipToken
-	mov	si,ds:[PSP_HEAP]
-	mov	bx,[si].TOKLET_NEXT
-	ret
-ENDPROC	skipToken
 
 CODE	ENDS
 

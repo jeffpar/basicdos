@@ -11,7 +11,6 @@
 
 CODE    SEGMENT
 
-	EXTNEAR	<getTicks>
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1260,6 +1259,33 @@ rz1:	mov	bx,ss:[PSP_HEAP]
 	LEAVE
 	RETURN
 ENDPROC	randomize
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getTicks
+;
+; Moved here from snd.asm, which isn't part of COMMAND's core (see CMD.LRF).
+; The BIOS data area offsets are written out, since this module doesn't
+; include bios.inc (see TIMER_LOW and TIMER_HIGH there).
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	DX:AX = BIOS tick count
+;
+; Modifies:
+;	AX, DX
+;
+DEFPROC	getTicks
+	push	ds
+	sub	ax,ax
+	mov	ds,ax
+	mov	ax,ds:[46Ch]		; TIMER_LOW
+	mov	dx,ds:[46Eh]		; TIMER_HIGH
+	pop	ds
+	ret
+ENDPROC	getTicks
 
 CODE	ENDS
 

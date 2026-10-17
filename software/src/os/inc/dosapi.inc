@@ -463,6 +463,14 @@ ERR_NOSESSION	equ	101	; out of sessions
 ; BASIC-DOS COM programs can also obtain the offset of their heap via the
 ; PSP_HEAP field in the program's PSP.
 ;
+; Finally, a COM file can declare a "core": the part of its image, ending with
+; its own COMDATA, that the loader loads by itself when there isn't enough
+; memory for the entire image (see lpm in process.asm).  CD_CORESIZE in the
+; COMDATA at the end of the file holds the image offset of the end of the core
+; (core_end, which includes the 100h bytes of the PSP), and the program can
+; tell what was loaded from PSP_CODESIZE; see HEAPDEF in os/cmd/cmd.inc for
+; how COMMAND.COM uses this.
+;
 SIG_BASICDOS	equ	'DB'	; BASIC-DOS signature word ("BD")
 
 MINHEAP		equ	1024
@@ -471,10 +479,11 @@ COMDATA	struc
 CD_HEAPOFF	dw	?	; offset of heap inside image (0 if none)
 CD_CODESIZE	dw	?	; shared code size, in bytes
 CD_HEAPSIZE	dw	?	; additional heap space, in paras
+CD_CORESIZE	dw	?	; offset of the end of the core (0 if none)
 CD_SIG		dw	SIG_BASICDOS
 COMDATA	ends
 
-COMHEAP	macro	heap_size,code_limit,heap_off
+COMHEAP	macro	heap_size,code_limit,heap_off,core_end
 	IFB	<code_limit>
 	DEFLBL	HEAP,word
 code_size equ 0
@@ -484,11 +493,15 @@ code_size equ offset DGROUP:code_limit
 data_size equ $ - code_limit
 	ENDIF
 	IFB	<heap_off>
-heap_paras equ (heap_size - data_size + 15) SHR 4
-	COMDATA <0,code_size,heap_paras,SIG_BASICDOS>
+hparas equ (heap_size - data_size + 15) SHR 4
+	COMDATA <0,code_size,hparas,0,SIG_BASICDOS>
 	ELSE
-heap_paras equ (heap_size + 15) SHR 4
-	COMDATA <offset DGROUP:heap_off,code_size,heap_paras,SIG_BASICDOS>
+hparas equ (heap_size + 15) SHR 4
+	 IFB	<core_end>
+	COMDATA <offset DGROUP:heap_off,code_size,hparas,0,SIG_BASICDOS>
+	 ELSE
+	COMDATA <offset DGROUP:heap_off,code_size,hparas,core_end,SIG_BASICDOS>
+	 ENDIF
 	ENDIF
 	endm
 	ENDIF	; DOSDEV

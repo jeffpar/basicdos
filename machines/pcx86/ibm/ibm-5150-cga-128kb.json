@@ -205,7 +205,7 @@
               "id": "sw2-2",
               "title": "Expansion Memory (32K Increments)",
               "label": "2",
-              "value": 1
+              "value": 0
             },
             {
               "id": "sw2-3",
@@ -249,7 +249,7 @@
           "id": "swdesc",
           "type": "description",
           "debug": true,
-          "label": "64K, No FPU, Color Monitor, 2 Floppy Drives",
+          "label": "128K, No FPU, Color Monitor, 2 Floppy Drives",
           "style": {
             "position": "relative",
             "left": "0px",

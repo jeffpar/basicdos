@@ -115,6 +115,7 @@ let disks = {
     "BASICDOS-360K-SERIAL": { config: "./demos/serial/CONFIG.SYS" },
     "BASICDOS-360K-VT100": { config: "./demos/vt100/CONFIG.SYS" },
     "BASICDOS-360K-DEBUG": { config: "./demos/debug/CONFIG.SYS" },
+    "BASICDOS-360K-M64": { config: "./demos/m64/CONFIG.SYS" },
     "BASICDOS-360K-TESTS": { data: true, folders: { TESTS: manifest.TESTS } },
     "BASICDOS-10MB": {
         hd: true,

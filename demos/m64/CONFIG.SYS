@@ -1,0 +1,7 @@
+REM 64K demonstration: one session, no FPU$ driver, and only the drivers
+REM that a full-screen session needs; COMMAND.COM loads in reduced form
+SKIP=FPU$,COM1,COM2,COM3,COM4,MOUSE$,HDC$,LPT2,LPT3,PIPE$
+BUFFERS=2
+FILES=8
+SESSIONS=1
+SHELL=COMMAND.COM PATH$="A:\;A:\BIN;A:\SAMPLES;A:\DEMOS"

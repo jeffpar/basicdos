@@ -21,13 +21,17 @@
 ; from the file, it must not contain any data that changes; FPU_TABLE, for
 ; example, is kept here instead.
 ;
+;
+; The transient portion ends at PSP_CODESIZE: BEG_HEAP (see heap.asm) when
+; the entire image was loaded, or CORE_HEAP (see const.asm) when the loader
+; loaded only COMMAND's core (see CD_CORESIZE in dosapi.inc).
+;
 	include	cmd.inc
 
 CODE    SEGMENT
 	org	100h
 
 	EXTNEAR	<main,ctrlc>
-	EXTWORD	<BEG_HEAP>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -130,7 +134,7 @@ rt2a:	DOSUTIL	LOCK
 	push	cs
 	pop	es
 	mov	di,offset DGROUP:RES_END; ES:DI -> transient portion
-	mov	cx,offset DGROUP:BEG_HEAP
+	mov	cx,ss:[PSP_CODESIZE]
 	sub	cx,di
 	inc	cx
 	shr	cx,1			; CX = # words
@@ -150,7 +154,7 @@ rt3:	mov	dx,offset CMD_PATH
 	mov	ax,DOS_HDL_SEEKBEG
 	int	21h
 	mov	dx,offset DGROUP:RES_END
-	mov	cx,offset DGROUP:BEG_HEAP
+	mov	cx,ss:[PSP_CODESIZE]
 	sub	cx,dx			; CX = size of the transient portion
 	mov	ah,DOS_HDL_READ
 	int	21h			; read the transient portion
@@ -247,7 +251,7 @@ ENDPROC	transParas
 ;	BX, CX
 ;
 DEFPROC	resParas
-	mov	bx,offset DGROUP:BEG_HEAP
+	mov	bx,ss:[PSP_CODESIZE]
 	DEFLBL	toParas,near		; converts the offset in BX to paras
 	add	bx,15
 	mov	cl,4
@@ -278,7 +282,7 @@ DEFPROC	resSum
 	ret
 	DEFLBL	resSumHi,near		; ES:0 -> a copy (see resSave)
 	sub	si,si
-rsSum:	mov	cx,offset DGROUP:BEG_HEAP
+rsSum:	mov	cx,ss:[PSP_CODESIZE]
 	sub	cx,offset DGROUP:RES_END
 	shr	cx,1			; CX = # words in the transient portion
 	sub	ax,ax
@@ -313,7 +317,7 @@ DEFPROC	resSave
 	DOSUTIL	QRYMEM			; BX = segment, DX = size (paras)
 	jc	rsv9			; no free memory
 	push	bx
-	mov	bx,offset DGROUP:BEG_HEAP
+	mov	bx,ss:[PSP_CODESIZE]
 	sub	bx,offset DGROUP:RES_END
 	call	toParas			; BX = paras in the transient portion
 	pop	ax
@@ -325,7 +329,7 @@ DEFPROC	resSave
 	mov	es,ax
 	sub	di,di			; ES:DI -> copy
 	mov	si,offset DGROUP:RES_END; DS:SI -> transient portion
-	mov	cx,offset DGROUP:BEG_HEAP
+	mov	cx,ss:[PSP_CODESIZE]
 	sub	cx,si
 	inc	cx
 	shr	cx,1			; CX = # words

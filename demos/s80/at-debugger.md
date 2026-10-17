@@ -5,7 +5,7 @@ permalink: /demos/s80/at/debugger/
 machines:
   - id: ibm5170
     type: pcx86
-    config: /machines/pcx86/ibm/ibm-5170-cga-640kb.json
+    config: /machines/pcx86/ibm/ibm-5170-cga-640kb-fpu.json
     debugger: true
     autoMount:
       A: "BASICDOS-360K-S80"

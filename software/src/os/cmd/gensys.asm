@@ -32,7 +32,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<genExpr,getNextToken,peekNextSymbol,genCallCS,genCvtType>
-	EXTNEAR	<defSeg,defSegBasic,pokeByte,doSound,doPlay,doChain>
+	EXTNEAR	<defSeg,defSegBasic,pokeByte,doChain>
 	EXTNEAR	<raiseError,genEnd,genDefFn,peekNextToken,mouseOn,mouseOff>
 	EXTNEAR	<randomize,genPushImmLong,genPushImm>
 	EXTABS	<TOK_ON,TOK_OFF,TOK_SEG>
@@ -215,29 +215,6 @@ ENDPROC	genMouse
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genPlay
-;
-; Generate code for "PLAY string"
-;
-; Inputs:
-;	DS:BX -> TOKLETs
-;	ES:DI -> code block
-;
-; Outputs:
-;	Carry clear if successful, set if error
-;
-; Modifies:
-;	Any
-;
-DEFPROC	genPlay
-	call	genStr
-	jc	gpl9
-	GENCALL	doPlay
-gpl9:	ret
-ENDPROC	genPlay
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; genPoke
 ;
 ; Generate code for "POKE offset,value"
@@ -296,31 +273,10 @@ ENDPROC	genRandomize
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genSound
-;
-; Generate code for "SOUND frequency,duration"
-;
-; Inputs:
-;	DS:BX -> TOKLETs
-;	ES:DI -> code block
-;
-; Outputs:
-;	Carry clear if successful, set if error
-;
-; Modifies:
-;	Any
-;
-DEFPROC	genSound
-	mov	si,offset doSound
-	mov	cl,2			; fall into genLongs
-ENDPROC	genSound
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; genLongs
 ;
 ; Generate code to push CL comma-separated (long) expressions, all required,
-; followed by a call to the function in SI.
+; followed by a call to the function in SI (genSound, in snd.asm, uses this).
 ;
 ; Inputs:
 ;	CL = # of expressions

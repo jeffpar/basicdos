@@ -33,6 +33,7 @@
         "/software/disks/BASICDOS-360K-SERIAL.json": "BASICDOS-360K-SERIAL",
         "/software/disks/BASICDOS-360K-VT100.json": "BASICDOS-360K-VT100",
         "/software/disks/BASICDOS-360K-DEBUG.json": "BASICDOS-360K-DEBUG",
+        "/software/disks/BASICDOS-360K-M64.json": "BASICDOS-360K-M64",
         "/software/disks/BASICDOS-360K-TESTS.json": "BASICDOS-360K-TESTS",
         "/software/disks/PCDOS100.json": "PC DOS 1.00",
         "/software/disks/PCDOS110.json": "PC DOS 1.10",

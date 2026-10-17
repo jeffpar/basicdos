@@ -7,17 +7,69 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Runtime functions for PLAY and SOUND (see gensys.asm), along with the PLAY
-; parsing functions that DRAW shares (playChar and playNum; see gfx.asm).
+; Runtime functions for PLAY and SOUND, their generators (which live here
+; rather than in gensys.asm, because this module isn't part of COMMAND's core;
+; see genPlay), and the PLAY parsing functions that DRAW shares (playChar and
+; playNum; see gfx.asm).
 ;
 	include	cmd.inc
+	include	gen.inc
 	include	bios.inc
 
 CODE    SEGMENT
 
-	EXTNEAR	<releaseStr,strIllegal,getStrVar>
+	EXTNEAR	<releaseStr,strIllegal,getStrVar,genStr,genLongs,genCallCS>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genPlay
+;
+; Generate code for "PLAY string".  The PLAY and SOUND generators live here
+; rather than in gensys.asm because this module isn't part of COMMAND's core
+; (see CMD.LRF): when only the core is loaded, genCommands refuses PLAY and
+; SOUND with "Not enough memory" (see genUpper in gencmd.asm), which it can
+; only do if their generators are outside the core, too.
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genPlay
+	call	genStr
+	jc	gpl9
+	GENCALL	doPlay
+gpl9:	ret
+ENDPROC	genPlay
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genSound
+;
+; Generate code for "SOUND frequency,duration"
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genSound
+	mov	si,offset doSound
+	mov	cl,2			; CL = # of expressions
+	jmp	genLongs		; (see gensys.asm)
+ENDPROC	genSound
 
 SND_END		equ	PLAY_STATE+4	; BIOS tick count when the SOUND ends
 SND_BUSY	equ	PLAY_STATE+6	; non-zero if SND_END is valid (byte)
@@ -582,32 +634,6 @@ DEFPROC	sleepMs
 	pop	ax
 sm9:	ret
 ENDPROC	sleepMs
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; getTicks
-;
-; Returns the BIOS tick count, which SOUND uses for its timing, and RANDOMIZE
-; can use as a seed (see randomize in long.asm).
-;
-; Inputs:
-;	None
-;
-; Outputs:
-;	DX:AX = BIOS tick count
-;
-; Modifies:
-;	AX, DX
-;
-DEFPROC	getTicks
-	push	ds
-	sub	ax,ax
-	mov	ds,ax
-	mov	ax,ds:[TIMER_LOW]
-	mov	dx,ds:[TIMER_HIGH]
-	pop	ds
-	ret
-ENDPROC	getTicks
 
 CODE	ENDS
 

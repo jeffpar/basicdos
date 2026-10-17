@@ -172,6 +172,9 @@ lf5:	cmp	byte ptr [si],0FEh	; MSBASIC protected (FEh) files aren't
 	IF DETOK			; supported, but tokenized (FFh) files
 	jb	lf5a			; are (see loadTokens)
 	je	lf10
+	mov	ax,offset loadTokens
+	cmp	ax,ds:[PSP_CODESIZE]	; is the tokenized file loader loaded?
+	jae	lf10			; no (see genUpper): invalid file
 	call	loadTokens
 	jc	lf10
 	jmp	lf12

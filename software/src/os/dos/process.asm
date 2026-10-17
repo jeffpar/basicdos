@@ -714,6 +714,7 @@ lp2:	push	ax			; save original PSP
 	sub	cx,cx
 	sub	dx,dx
 	mov	[bp].TMP_CX,cx
+	mov	[bp].TMP_AX,cx		; end of a core, if any (see lpm)
 	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_END
 	int	21h			; returns new file position in DX:AX
 	jc	lpc1
@@ -959,14 +960,15 @@ lpc3:	jmp	lpc
 lp7:	add	dx,ax
 	cmp	ax,cx
 	jb	lp7a			; we must have already finished
-	sub	si,20h
-	mov	cl,4
-	shl	si,cl
-	mov	cx,si			; CX = maximum # bytes left to read
+	mov	cx,[bp].TMP_CX
+	sub	cx,200h			; CX = # bytes left to read
 	mov	ah,DOS_HDL_READ
 	int	21h
 	jc	lpc3
 	add	dx,ax			; DX -> end of program image
+	cmp	word ptr [bp].TMP_AX,0	; did we load only the core (see lpmc)?
+	je	lp7a			; no
+	mov	word ptr [bp].TMP_CX,0	; yes, so this image can't be cached
 lp7a:	mov	ah,DOS_HDL_CLOSE
 	int	21h			; close the file
 	jc	lpf2
@@ -1234,6 +1236,8 @@ lpm:	push	ds
 	mov	si,dx
 	cmp	[si].CD_SIG,SIG_BASICDOS
 	jne	lpm9
+	mov	ax,[si].CD_CORESIZE
+	mov	[bp].TMP_AX,ax		; TMP_AX = end of the core (see lpmc)
 	call	psp_heaprange		; (for psp_addsum)
 	mov	si,[si].CD_CODESIZE
 	sub	si,100h			; SI = # bytes of shared code
@@ -1278,7 +1282,7 @@ lpm4:	pop	ax
 	pop	ax
 	test	cx,cx			; any match?
 	jnz	$+5			; yes
-	jmp	lpm9			; no
+	jmp	lpmc			; no, but maybe the core fits
 	mov	ds:[PSP_START].OFF,100h
 	mov	ds:[PSP_START].SEG,cx
 	mov	ds:[PSP_CODESIZE],ax
@@ -1311,6 +1315,29 @@ lpm5c:	mov	dx,MINHEAP SHR 4	; DX = additional space (1Kb in paras)
 	xchg	dx,ax			; yes, set DX to the larger value
 lpm5a:	mov	ds:[PSP_HEAPSIZE],dx
 	jmp	lp7e
+;
+; There's no copy of the shared code, but if the program has a core (see
+; CD_CORESIZE in the COMDATA we read above, and COMHEAP in dosapi.inc) that
+; fits, load that instead, by going back to lp3 with the core's size as the
+; file size: the core ends with a COMDATA of its own, so the rest of the load
+; proceeds as usual, except that the image can't be cached (see lp7).  The
+; program can tell that only its core was loaded from PSP_CODESIZE.
+;
+lpmc:	mov	ax,[bp].TMP_AX		; AX = end of the core (0 if none)
+	sub	ax,100h			; AX = size of the core
+	jbe	lpmc9			; there isn't one
+	push	ax
+	add	ax,15
+	mov	cl,4
+	shr	ax,cl
+	add	ax,50h			; AX = paras the core needs (see lp3)
+	cmp	ax,[bp].TMP_DX		; does it fit?
+	pop	ax
+	ja	lpmc9			; no
+	mov	[bp].TMP_CX,ax		; TMP_CX = file size (now the core's)
+	sub	dx,dx			; DX:AX = size
+	jmp	lp3
+lpmc9:	jmp	lpm9
 ENDPROC	load_program
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

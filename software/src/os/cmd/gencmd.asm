@@ -328,12 +328,12 @@ DEFPROC	genCommands
 	mov	ax,CODE_ROOM
 	call	ensureRoom		; make sure there's room for a command
 	jnc	gcInit
-	ret
+gcr9:	ret
 gcInit:	mov	dx,bx			; DX -> TOKLETs (for implicit LET)
 	mov	al,CLS_KEYWORD
 	call	getNextToken
 	jb	gcs0
-	je	gcs9			; out of tokens
+	je	gcr9			; out of tokens
 	mov	cx,cs:[si].CTD_FUNC	;
 	cmp	al,KEYWORD_BASIC	; BASIC keyword?
 	jb	gcs2			; no
@@ -350,8 +350,11 @@ gcInit:	mov	dx,bx			; DX -> TOKLETs (for implicit LET)
 	jnz	gcs3			; yes
 	push	bx
 	push	di
+	cmp	cx,ds:[PSP_CODESIZE]	; generator loaded (see genUpper)?
+	cmc				; no, so treat it as a failure
+	jc	gcs3c
 	call	cx			; call the generator function
-	pop	si
+gcs3c:	pop	si
 	pop	dx
 	jnc	gcs4
 	mov	di,si			; it failed, so discard its code
@@ -405,7 +408,11 @@ gcs2:	cbw				; AX = keyword ID
 	mov	dx,cx			; DX = handler address
 	mov	cx,offset genDOS
 
-gcs3:	call	cx			; call dedicated generator function
+gcs3:	cmp	cx,ds:[PSP_CODESIZE]	; generator loaded (see genUpper)?
+	jb	gcs3a			; yes
+	call	memError		; no, so report "Not enough memory"
+	jmp	short gcs4		; (with carry set)
+gcs3a:	call	cx			; call dedicated generator function
 gcs4:	mov	es:[BLK_FREE],di
 	jnc	gcs10
 	ret
@@ -439,6 +446,40 @@ gcs12:	stc				; syntax error
 	ret
 gcs11:	jmp	genCommands
 ENDPROC	genCommands
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genUpper
+;
+; Jumps to a generator that isn't part of COMMAND's core (ie, one in a module
+; linked after CONST.ASM; see CMD.LRF and HEAP.ASM).  When there's too little
+; memory for the entire image, the loader loads only the core (see CD_CORESIZE
+; in dosapi.inc), and PSP_CODESIZE then ends at the core, so a generator at
+; or beyond it isn't there, and we report "Not enough memory" instead.
+;
+; genCommands makes the same check before calling any keyword's generator,
+; and LOAD makes it before calling loadTokens (see edit.asm), so this is only
+; for keywords whose generator chooses between a core function and an upper
+; one (eg, genGet; see genfile.asm).  To move more functionality out of the
+; core, link its modules after CONST.OBJ, and make sure nothing in the core
+; calls them except through one of these checks.
+;
+; Inputs:
+;	DX = address of the generator
+;	Everything else as the generator expects (eg, DS:BX -> TOKLETs)
+;
+; Outputs:
+;	Whatever the generator returns, or carry set if it isn't loaded
+;
+; Modifies:
+;	Whatever the generator modifies
+;
+DEFPROC	genUpper
+	cmp	dx,ds:[PSP_CODESIZE]	; is the generator loaded?
+	jb	gu9			; yes
+	jmp	memError		; no (which sets carry)
+gu9:	jmp	dx
+ENDPROC	genUpper
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
