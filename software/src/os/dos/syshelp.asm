@@ -11,12 +11,13 @@
 ; module is linked immediately after it, they are moved and recycled along
 ; with the rest of the system initialization code.
 ;
-	BIOSEQU equ 1
+	BIOSAPI equ 1
 	include	macros.inc
 	include	bios.inc
 	include	disk.inc
 	include	dos.inc
 	include	dosapi.inc
+	include	dosfunc.inc
 
 DOS	segment word public 'CODE'
 

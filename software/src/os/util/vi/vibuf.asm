@@ -12,6 +12,8 @@
 ; functions.
 ;
 	include	vi.inc
+	include	dosfunc.inc
+	include	dosfunc.inc
 
 CODE	SEGMENT word public 'CODE'
 

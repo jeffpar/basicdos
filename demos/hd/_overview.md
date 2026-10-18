@@ -4,7 +4,7 @@ The hard disk has the system files, CONFIG.SYS and HELP.TXT in the root director
 
 - **BIN** contains the BASIC-DOS utilities (eg, FIND, MORE, and SORT) and DEBUG.COM
 - **SAMPLES** contains DONKEY.BAS and the other PC DOS BASIC samples
-- **DEMOS** contains the programs that the demos run (eg, HELLO.BAT, BENCH.BAS, FIBO.BAT, PAINT.BAS, and PRIMES)
+- **DEMOS** contains the programs that the demos run (eg, HELLO.BAT, BENCH.BAS, FIBO.BAT, PAINT.BAS, and PRIMES), and its WOLF3D subdirectory contains the shareware version of Wolfenstein 3D (type `WOLF3D` to run it)
 - **SRC** contains the BASIC-DOS source code and its build outputs (type `CD \SRC` and then `MK` to rebuild whatever has changed, or `MK FINAL CLEAN` to rebuild everything)
 - **TESTS** contains the test programs (eg, DOSTESTS.COM and STRESS.BAT), MSBASIC.EXE, and SYMDEB.EXE
 - **TOOLS** contains MASM, LINK, MAKE, EXE2BIN, and the other MASM 4.00 tools used to build BASIC-DOS

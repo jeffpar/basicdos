@@ -27,6 +27,7 @@
 ; loaded only COMMAND's core (see CD_CORESIZE in dosapi.inc).
 ;
 	include	cmd.inc
+	include	dosfunc.inc
 
 CODE    SEGMENT
 	org	100h
@@ -87,6 +88,7 @@ DEFPROC	runTransient
 	int	21h			; discard the transient portion
 	pop	bx
 	pop	dx
+	mov	ch,0			; no commands follow (no pipes)
 	mov	ax,DOS_PSP_EXEC1
 	int	21h			; load the program at DS:DX
 	jc	rt1

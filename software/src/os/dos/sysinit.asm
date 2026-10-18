@@ -14,6 +14,7 @@
 	include	devapi.inc
 	include	dos.inc
 	include	dosapi.inc
+	include	dosfunc.inc
 	include	version.inc
 
 DOS	segment word public 'CODE'
@@ -157,6 +158,21 @@ si2b:	mov	al,0EAh			; DI -> INT_DOSCALL5 * 4
 	stosw
 	mov	ax,ds
 	stosw
+;
+; Unless a mouse driver has installed an INT 33h handler (ie, one in RAM;
+; see ddmou_init), point INT 33h at an IRET, because programs like WOLF3D.EXE
+; treat any other non-null vector (eg, a BIOS stub) as a mouse driver.
+;
+	mov	di,INT_MOUSE * 4
+	mov	ax,es:[di+2]
+	dec	ax
+	cmp	ax,0A000h-1		; is the vector in RAM (1h-9FFFh)?
+	jb	si2c			; yes, so leave it alone
+	mov	ax,offset dos_default
+	stosw
+	mov	ax,ds
+	stosw
+si2c:
 ;
 ; "Revector" DDINT_UTIL to int_util as soon as INT_DOSUTIL is available,
 ; since drivers use it in place of some DOSUTIL functions (eg, LOCK, which
@@ -789,7 +805,8 @@ si16c:	mov	es:[def_drive],al
 	stosb				; SPB_SFHAUX <- SFH_NONE
 	stosb				; SPB_SFHPRN <- SFH_NONE
 	mov	bx,sp			; ES:BX -> SPB on stack
-	mov	cl,-1			; CL = invalid SCB # (in case of error)
+	mov	cx,0FFh			; CL = invalid SCB # (in case of error),
+					; CH = no programs follow
 ;
 ; Skip the SHELL of a CONSOLE that couldn't be opened (see si11), and reject
 ; any SHELL beyond the last console, since its session would have none.

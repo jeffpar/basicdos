@@ -11,6 +11,7 @@
 ; and for READ and RESTORE (see gendef.asm); PLAY and SOUND are in snd.asm.
 ;
 	include	cmd.inc
+	include	dosfunc.inc
 	include	fpu.inc
 
 CODE    SEGMENT

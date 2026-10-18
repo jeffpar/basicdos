@@ -7,13 +7,14 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-	BIOSEQU equ 1
+	BIOSAPI equ 1
 	CLKTIMER equ 1
 	include	macros.inc
 	include	bios.inc
 	include	dev.inc
 	include	devapi.inc
 	include	dosapi.inc
+	include	dosfunc.inc
 
 DEV	group	CODE,DATA
 

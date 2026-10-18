@@ -12,11 +12,13 @@
 	include	devapi.inc
 	include	dos.inc
 	include	dosapi.inc
+	include	dosfunc.inc
 
 DOS	segment word public 'CODE'
 
 	EXTBYTE	<scb_locked>
-	EXTWORD	<mcb_head,mcb_limit,scb_active>
+	EXTWORD	<mcb_head,mcb_limit,scb_active,load_reserve>
+	EXTLONG	<scb_table>
 	EXTNEAR	<sfh_add_ref,pfh_close,sfh_close,reset_keys>
 	EXTNEAR	<mcb_getsize,mcb_free_all>
 	EXTNEAR	<dos_check,dos_leave,dos_leave2,dos_ctrlc,dos_error>
@@ -202,6 +204,8 @@ ENDPROC	psp_copy
 ;		2: start program
 ;	REG_ES:REG_BX -> Exec Parameter Block (EPB)
 ;	REG_DS:REG_DX -> program name or command line
+;	REG_CH = number of programs the caller will load next (eg, the rest
+;	of a pipeline), for subfunction 1 only (see load_program)
 ;
 ; Outputs:
 ;	If successful, carry clear
@@ -213,6 +217,12 @@ DEFPROC	psp_exec,DOS
 	cmc
 	mov	ax,ERR_INVALID
 	jc	pxx			; AX = error code if not
+
+	sub	cx,cx
+	cmp	al,1			; load w/o starting?
+	jne	px0			; no, so no programs will follow
+	mov	cl,[bp].REG_CH		; yes, CL = programs that will follow
+px0:	mov	[load_reserve],cx
 
 	mov	ds,[bp].REG_DS
 	ASSUME	DS:NOTHING
@@ -803,11 +813,22 @@ lp6b:	mov	ds,dx
 	shr	ax,cl			; AX = # paras read
 	mov	di,ds:[0].EXE_PARASHDR
 	sub	di,ax			; DI = # paras left to read
-	ASSERT	NC
+	jb	lp6b1			; header is smaller than what we read
 	shl	di,cl			; DI = # bytes left to read
 	mov	cx,di			; CX = # bytes
 	jcxz	lp6c
 	mov	ah,DOS_HDL_READ		; BX = file handle, CX = # bytes
+	int	21h
+	jc	lpc1
+	jmp	short lp6c
+;
+; The header is smaller than the 512 bytes we read (eg, LZEXE-compressed
+; programs have a 32-byte header), so seek to the start of the load image.
+;
+lp6b1:	mov	dx,ds:[0].EXE_PARASHDR
+	shl	dx,cl			; CX:DX = header size in bytes
+	sub	cx,cx
+	mov	ax,(DOS_HDL_SEEK SHL 8) OR SEEK_BEG
 	int	21h
 	jc	lpc1
 
@@ -898,26 +919,47 @@ lp6g:	push	es:[EXE_START_SEG]
 	jae	lp6h			; yes
 	mov	si,40h			; no, set minimum to 1Kb (in paras)
 ;
-; The maximum is usually FFFFh ("give me all the memory"), which we do not
-; want to do, since other sessions need memory, too.  But some programs size
-; their stack or heap from whatever memory they're given (eg, LINK.EXE 3.x
-; puts its stack at the top of its 64K data segment, and if the stack ends
-; up smaller than 25K, it fails with "Insufficient stack space").  So we
-; honor the maximum up to 64K (or the minimum, if larger), and up to what's
-; available.
+; The maximum is usually FFFFh ("give me all the memory"), so we honor it,
+; as DOS does, up to a fair share of what's available: 1/N, where N is one
+; plus the number of other sessions that have loaded a program, plus the
+; number of programs the caller will load next (load_reserve; eg, the rest
+; of a pipeline), so that they can all run something.  Some programs need all
+; they can get (eg, WOLF3D.EXE sizes its far heap from PSP_PARAS and requires
+; roughly 528K), while others merely size their stack or heap from it (eg,
+; LINK.EXE 3.x puts its stack at the top of its 64K data segment, and if the
+; stack ends up smaller than 25K, it fails with "Insufficient stack space").
 ;
-lp6h:	mov	bx,1000h		; BX = 64K (in paras)
+lp6h:	mov	bx,di			; BX = maximum
 	cmp	bx,si
 	jae	lp6i
-	mov	bx,si			; BX = larger of minimum and 64K
-lp6i:	cmp	bx,di
-	jbe	lp6j
-	mov	bx,di			; BX = smaller of that and maximum
-lp6j:	mov	cx,[bp].TMP_DX
+	mov	bx,si			; BX = larger of maximum and minimum
+lp6i:	mov	cx,[bp].TMP_DX
 	sub	cx,dx			; CX = paras available beyond base
+	push	si
+	push	dx
+	mov	dx,[load_reserve]
+	inc	dx			; DX = N (this session plus those to come)
+	mov	si,[scb_table].OFF
+lp6j:	cmp	si,[scb_active]		; is this the session we're loading?
+	je	lp6j2			; yes, it's already counted
+	test	cs:[si].SCB_STATUS,SCSTAT_LOAD
+	jz	lp6j2			; nothing loaded in this session
+	inc	dx			; count it
+lp6j2:	add	si,size SCB
+	cmp	si,[scb_table].SEG
+	jb	lp6j
+	push	ax
+	xchg	ax,cx			; AX = paras available
+	mov	cx,dx			; CX = N
+	sub	dx,dx
+	div	cx
+	xchg	cx,ax			; CX = our share (AX = N, discarded)
+	pop	ax
+	pop	dx
+	pop	si
 	cmp	bx,cx
 	jbe	lp6k
-	mov	bx,cx			; BX = smaller of that and available
+	mov	bx,cx			; BX = smaller of that and our share
 lp6k:	cmp	bx,si
 	jae	lp6l
 	mov	bx,si			; but never less than the minimum

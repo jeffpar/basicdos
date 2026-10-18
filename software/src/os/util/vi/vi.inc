@@ -9,7 +9,7 @@
 ;
 ; Included by every VI module (see vi.asm).
 ;
-BIOSKEYS equ	1
+BIOSKEY equ	1
 	include	macros.inc
 	include	bios.inc
 	include	devapi.inc

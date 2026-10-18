@@ -11,6 +11,7 @@
 	include	macros.inc
 	include	dos.inc
 	include	dosapi.inc
+	include	dosfunc.inc
 	include	parser.inc	; needed for BUFLEN, etc
 
 DOS	segment word public 'CODE'

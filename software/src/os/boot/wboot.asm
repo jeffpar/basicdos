@@ -11,6 +11,7 @@
 	include	bios.inc
 	include	devapi.inc
 	include	dosapi.inc
+	include	dosfunc.inc
 
 CODE    SEGMENT
 

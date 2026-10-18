@@ -15,6 +15,7 @@
 	include	macros.inc
 	include	devapi.inc
 	include	dosapi.inc
+	include	dosfunc.inc
 
 MAXFILES	equ	8	; maximum file names on the command line
 LINE_MAX	equ	256	; maximum line length (including CR/LF)

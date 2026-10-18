@@ -11,6 +11,7 @@
 ; gen*.asm files share (eg, getNextLine, getNextToken, and validateOp).
 ;
 	include	cmd.inc
+	include	dosfunc.inc
 	include	gen.inc
 
 CODE    SEGMENT

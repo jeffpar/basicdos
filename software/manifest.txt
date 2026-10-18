@@ -11,10 +11,14 @@
 #   DEMOS    the programs that the demos run
 #   TESTS    test programs (and other programs used for testing)
 #
+# A section named FOLDER/SUBFOLDER (eg, DEMOS/WOLF3D) is a subfolder of FOLDER,
+# and a file inside a disk image can be listed as the image's path (which PCJS's
+# diskimage.js resolves) followed by the file's path within the image.
+#
 # gulpfile.js builds every demo diskette with ROOT, BIN, SAMPLES, and DEMOS, the
 # BASICDOS-360K-TESTS diskette with TESTS, and the BASICDOS-10MB hard disk with all
-# of them (plus SRC and TOOLS).  tools/tests/prep.sh copies BIN into each test
-# configuration's BIN folder, and DEMOS and TESTS into its TESTS folder.
+# of them (plus DEMOS/WOLF3D, SRC, and TOOLS).  tools/tests/prep.sh copies BIN into
+# each test configuration's BIN folder, and DEMOS and TESTS into its TESTS folder.
 #
 [ROOT]
 CONFIG.SYS
@@ -42,6 +46,10 @@ demos/mouse/PAINT.BAS
 software/src/tests/primes/PRIMES.BAS
 software/src/tests/primes/PRIMES.BAT
 software/src/tests/bin/PRIMES.EXE
+demos/wolf3d/WOLF3D.BAT
+
+[DEMOS/WOLF3D]
+/harddisks/pcx86/10mb/COMPAQ331-WOLF3D.json/WOLF3D/*
 
 [TESTS]
 software/src/tests/bin/*.COM

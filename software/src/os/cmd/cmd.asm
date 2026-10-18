@@ -8,6 +8,7 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	include	cmd.inc
+	include	dosfunc.inc
 
 CODE    SEGMENT
 
@@ -15,6 +16,7 @@ CODE    SEGMENT
 	EXTNEAR	<chkExt,getCwd,cmdDel,chkColon,splitCmd,findProgram>
 	EXTNEAR	<openInput,openError,closeInput>
 	EXTNEAR	<openHandle,syncFiles,openPipe,addPipe,endPipes,doHelp>
+	EXTNEAR	<pipeStages>
 	ENDIF
 	EXTNEAR	<freeAllText,genCode,freeAllCode,freeAllVars,cmdLoad>
 	EXTNEAR	<freeIdleVars,resetVars,runCode,findVar>
@@ -1127,7 +1129,8 @@ cf5b:	mov	al,CHR_RETURN		; regardless how the command line ends,
 	jc	cf5e
 	call	cmdDone
 	jmp	short cf5d
-cf5f:	mov	ax,DOS_PSP_EXEC1
+cf5f:	call	pipeStages		; CH = commands that follow
+	mov	ax,DOS_PSP_EXEC1
 	int	21h			; load program at DS:DX
 	jc	cf5e
 ;
@@ -1194,6 +1197,7 @@ cf7b:	stosb				; SPB_SFHOUT
 	mov	al,ds:[PSP_PFT][STDPRN]
 	stosb				; SPB_SFHPRN
 	mov	bx,sp			; ES:BX -> SPB on stack
+	call	pipeStages		; CH = commands that follow
 	DOSUTIL	LOAD			; load CMDLINE into an SCB
 	lea	sp,[bx + size SPB]	; clean up the stack
 	jc	cf8

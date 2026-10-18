@@ -14,6 +14,7 @@
 ; this module reached MASM's symbol space limit.
 ;
 	include	cmd.inc
+	include	dosfunc.inc
 	include	fpu.inc
 
 CODE    SEGMENT

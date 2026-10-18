@@ -9,6 +9,7 @@
 ;
 	include	macros.inc
 	include	dosapi.inc
+	include	dosfunc.inc
 
 MEMSTEP	equ	67		; memory test increment, in paragraphs (a prime number,
 			; so that allocation sizes vary more than powers of two)

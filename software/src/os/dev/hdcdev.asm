@@ -29,7 +29,7 @@
 ; partition, and IOCTL_SETPARMS gives a volume a BPB, so that it can be
 ; written (see ddhdc_ioctl).
 ;
-	BIOSEQU equ 1
+	BIOSAPI equ 1
 	DISKIOCTL equ 1
 	include	macros.inc
 	include	bios.inc

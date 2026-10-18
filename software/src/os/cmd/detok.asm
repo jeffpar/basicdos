@@ -20,6 +20,7 @@
 ; are not tokens (except for FFh), so we track those states, too.
 ;
 	include	cmd.inc
+	include	dosfunc.inc
 
 CODE    SEGMENT
 

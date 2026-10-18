@@ -10,6 +10,7 @@
 ; LIST SESSIONS and RESTART.
 ;
 	include	cmd.inc
+	include	dosfunc.inc
 
 CODE    SEGMENT
 
@@ -23,9 +24,9 @@ CODE    SEGMENT
 ;
 ; listSessions
 ;
-; Lists every session with a loaded program: its number (from 1, as used by
-; RESTART), its console (the name of the device its output goes to), and its
-; program, marking the current session with "*".
+; Lists every session: its number (from 1, as used by RESTART), its console
+; (the name of the device its output goes to), and its program (or "Unused"
+; if it has none), marking the current session with "*".
 ;
 ; Inputs:
 ;	None
@@ -42,23 +43,32 @@ DEFPROC	listSessions
 	sub	cx,cx			; CL = session # (from 0)
 lss1:	DOSUTIL	QRYSCB			; AX = PSP, ES:DI -> console name
 	jc	lss9			; no more sessions
-	test	ax,ax			; does the session have a program?
-	jz	lss8			; no
-	dec	ax			; AX = program's MCB
 	mov	bl,' '
 	cmp	cl,dl			; is it the current session?
 	jne	lss2			; no
 	mov	bl,'*'			; BL = marker
-lss2:	mov	si,cx
+lss2:	test	di,di			; does the session have a console?
+	jnz	lss3			; yes
+	push	cs
+	pop	es
+	mov	di,offset NO_NAME	; ES:DI -> empty name
+lss3:	mov	si,cx
 	inc	si			; SI = session # (from 1)
 	push	dx
+	test	ax,ax			; does the session have a program?
+	jz	lss4			; no
+	dec	ax			; AX = program's MCB
 	mov	dx,offset MCB_NAME	; AX:DX -> program's name
 	PRINTF	<"%c%2d %-8.8ls %-8.8ls",13,10>,bx,si,di,es,dx,ax
-	pop	dx
-lss8:	inc	cx
+	jmp	short lss8
+lss4:	PRINTF	<"%c%2d %-8.8ls Unused",13,10>,bx,si,di,es
+lss8:	pop	dx
+	inc	cx
 	jmp	lss1
 lss9:	ret
 ENDPROC	listSessions
+
+NO_NAME	db	0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

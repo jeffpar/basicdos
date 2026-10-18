@@ -11,7 +11,7 @@ BASIC-DOS provides a subset of the PC DOS 2.x function interface, through INT 21
 
 Functions not listed below (including any function above 56h) aren't implemented, and return with carry set and AX = ERR_INVALID.
 
-The `DOS_*` names are defined in dosapi.inc.
+The `DOS_*` names are defined in dosfunc.inc.
 
 ### Function Summary
 
@@ -113,7 +113,7 @@ An FCB opens a file read-only, so any number of FCBs (and handles opened for rea
 | 00h | DOS_PSP_TERM | | Terminates the program (same as INT 20h) |
 | 26h | DOS_PSP_COPY | DX = segment | Creates a PSP by copying the current PSP |
 | 4B00h | DOS_PSP_EXEC | DS:DX -> program name, ES:BX -> [EPB](../data/#epb) | Loads and runs the program |
-| 4B01h | DOS_PSP_EXEC1 | DS:DX -> program name, ES:BX -> EPB | Loads the program without starting it; EPB_INIT_SP and EPB_INIT_IP are filled in |
+| 4B01h | DOS_PSP_EXEC1 | DS:DX -> program name, ES:BX -> EPB, CH = programs the caller will load next | Loads the program without starting it; EPB_INIT_SP and EPB_INIT_IP are filled in |
 | 4B02h | DOS_PSP_EXEC2 | ES:BX -> EPB from DOS_PSP_EXEC1 | Starts the program loaded by DOS_PSP_EXEC1 (BASIC-DOS only) |
 | 4Ch | DOS_PSP_RETURN | AL = exit code | Terminates the program |
 | 4Dh | DOS_PSP_RETCODE | | AL = exit code, AH = exit type (see [Exit Types](#exit-types)) |
@@ -160,7 +160,9 @@ Programs aren't given all available memory when they're loaded (see [Memory Layo
 
 #### Program Loading
 
-DOS_PSP_EXEC1 (4B01h) is the undocumented PC DOS function that debuggers use to load a program without starting it.  BASIC-DOS adds DOS_PSP_EXEC2 (4B02h), which starts a program loaded by DOS_PSP_EXEC1; the current PSP must still be the new program's PSP.
+DOS_PSP_EXEC1 (4B01h) is the undocumented PC DOS function that debuggers use to load a program without starting it.  BASIC-DOS adds DOS_PSP_EXEC2 (4B02h), which starts a program loaded by DOS_PSP_EXEC1; the current PSP must still be the new program's PSP.  BASIC-DOS also reads CH on DOS_PSP_EXEC1 calls: the number of programs the caller will load next (COMMAND.COM passes the number of commands that follow in a pipeline; everyone else passes zero).
+
+An EXE file's maximum allocation (usually FFFFh, "all the memory") is honored, as in PC DOS, but only up to a fair share of the free memory: 1/N, where N is one plus the number of other sessions that have loaded a program, plus the number of programs the caller said it will load next.  A program never gets less than its minimum allocation, if that much is available.  So a program that needs nearly all of memory (eg, WOLF3D.EXE) gets it when the other sessions are idle, two sessions each running a program split the memory, and the stages of a pipeline each get a share.
 
 BASIC-DOS also stores additional information in the PSP, in fields that PC DOS leaves unused (see [PSP](../data/#psp)): the session number (PSP_SCB), the program's initial stack and start address, its heap, its exit code and exit type, and command-line switches parsed by DOS_UTL_PARSESW.
 

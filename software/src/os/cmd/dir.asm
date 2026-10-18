@@ -8,6 +8,7 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	include	cmd.inc
+	include	dosfunc.inc
 
 CODE    SEGMENT
 
@@ -1542,6 +1543,62 @@ op1:	pop	ds
 	pop	dx
 	ret
 ENDPROC	openPipe
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; pipeStages
+;
+; Count the commands of the pipeline that follow the current command (ie,
+; the command fed by its output pipe, plus one for every '|' after that), so
+; that DOS can set aside memory for the sessions they will need (see
+; load_program).  The symbol following the current command has been
+; null-terminated (see parseDOS), which is why HDL_OUTPIPE accounts for it.
+;
+; Inputs:
+;	BP -> CMDHEAP
+;
+; Outputs:
+;	CH = number of commands that follow, CL = 0
+;
+; Modifies:
+;	CX
+;
+DEFPROC	pipeStages
+	push	ax
+	push	bx
+	push	si
+	push	di
+	sub	cx,cx
+	cmp	[bp].HDL_OUTPIPE,cx	; is our output a pipe?
+	je	pst1			; no
+	inc	ch			; yes, count the command it feeds
+pst1:	lea	di,[bp].TOKENBUF	; DI -> TOKENBUF
+	mov	al,[bp].CMD_ARG
+	mov	ah,0
+	add	ax,ax
+	add	ax,ax
+	ASSERT	<size TOKLET>,EQ,4	; AX = offset of our 1st TOKLET
+	xchg	bx,ax
+	mov	al,[di].TOK_CNT
+	mov	ah,0
+	add	ax,ax
+	add	ax,ax			; AX = end of TOKLETs
+pst2:	cmp	bx,ax
+	jae	pst9
+	cmp	[di].TOK_DATA[bx].TOKLET_CLS,CLS_SYM
+	jne	pst3
+	mov	si,[di].TOK_DATA[bx].TOKLET_OFF
+	cmp	byte ptr [si],'|'	; another pipe symbol?
+	jne	pst3			; no
+	inc	ch
+pst3:	add	bx,size TOKLET
+	jmp	pst2
+pst9:	pop	di
+	pop	si
+	pop	bx
+	pop	ax
+	ret
+ENDPROC	pipeStages
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

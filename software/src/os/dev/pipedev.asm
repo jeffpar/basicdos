@@ -11,6 +11,7 @@
 	include	dev.inc
 	include	devapi.inc
 	include	dosapi.inc
+	include	dosfunc.inc
 
 DEV	group	CODE,DATA
 

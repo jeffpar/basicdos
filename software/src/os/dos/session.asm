@@ -12,6 +12,7 @@
 	include	bios.inc
 	include	dos.inc
 	include	dosapi.inc
+	include	dosfunc.inc
 
 DOS	segment word public 'CODE'
 
@@ -29,7 +30,7 @@ DOS	segment word public 'CODE'
 ; That is, thus far, the extent of our extremely simple scheduler.
 ;
 	EXTBYTE	<scb_locked,def_drive,bpb_total>
-	EXTWORD	<scb_active,scb_stoked>
+	EXTWORD	<scb_active,scb_stoked,load_reserve>
 	EXTLONG	<scb_table>
 	EXTNEAR	<dos_check,dos_leave,load_command,psp_termcode>
 	EXTNEAR	<sfh_add_ref,sfh_context,sfh_close,get_cdir>
@@ -66,6 +67,8 @@ ENDPROC	scb_getnum
 ;
 ; Inputs:
 ;	REG_ES:REG_BX -> SPB (Session Parameter Block)
+;	REG_CH = number of programs the caller will load next (eg, the rest
+;	of a pipeline; see load_program)
 ;
 ; Outputs:
 ;	Carry clear if successful:
@@ -79,6 +82,9 @@ ENDPROC	scb_getnum
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	scb_load,DOS
+	mov	cl,[bp].REG_CH		; CL = programs the caller will load next
+	mov	ch,0
+	mov	[load_reserve],cx	; (see load_program)
 	mov	cl,-1
 	call	scb_lock		; lock a free SCB
 	jc	sl8
@@ -417,7 +423,8 @@ ENDPROC	scb_end
 ;
 ; Returns info about a session (see utl_qryscb), such as its program's PSP
 ; and its console's name, so that commands (eg, LIST SESSIONS) don't need the
-; kernel's internal structures.
+; kernel's internal structures.  Unlike get_scb, this accepts any SCB in the
+; table, so that unused sessions (no program, no console) can be listed, too.
 ;
 ; Inputs:
 ;	CL = SCB #
@@ -425,7 +432,7 @@ ENDPROC	scb_end
 ; Outputs:
 ;	On success, carry clear:
 ;		REG_AX = PSP of the session's program (zero if none)
-;		REG_ES:REG_DI -> name of the session's console device
+;		REG_ES:REG_DI -> name of the session's console device (zero if none)
 ;	On failure, carry set (ie, invalid SCB #)
 ;
 ; Modifies:
@@ -433,8 +440,14 @@ ENDPROC	scb_end
 ;
 DEFPROC	scb_query,DOS
 	ASSUMES	<DS,DOS>,<ES,DOS>
-	call	get_scb			; BX -> SCB
-	jc	sq9
+	mov	al,size SCB
+	mul	cl
+	add	ax,[scb_table].OFF
+	xchg	bx,ax			; BX -> SCB
+	mov	ax,ERR_BADSESSION
+	cmp	bx,[scb_table].SEG	; is the SCB # valid?
+	cmc
+	jc	sq9			; no (carry set, AX = error)
 	sub	ax,ax
 	test	[bx].SCB_STATUS,SCSTAT_LOAD
 	jz	sq1			; no program loaded

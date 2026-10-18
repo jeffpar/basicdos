@@ -8,6 +8,7 @@
 ;
 	include	macros.inc
 	include	dosapi.inc
+	include	dosfunc.inc
 
 CHECK	macro	op,left,right
 	local	ok

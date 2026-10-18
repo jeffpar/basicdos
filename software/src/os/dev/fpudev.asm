@@ -32,10 +32,8 @@
 ; the shared code relies on two FPU-dependent primitives, FPU_TODEC and
 ; FPU_FROMDEC, to do the actual conversions.
 ;
-	BIOSEQU equ 1
 	include	macros.inc
 	include	8086.inc
-	include	bios.inc
 	include	dev.inc
 	include	devapi.inc
 	include	parser.inc

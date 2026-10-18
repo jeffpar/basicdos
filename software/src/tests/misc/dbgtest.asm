@@ -12,6 +12,7 @@
 ;
 	include	macros.inc
 	include	dosapi.inc
+	include	dosfunc.inc
 
 CHECK	macro	left,right
 	local	ok
@@ -81,6 +82,12 @@ failed:	cld
 	int	21h
 ENDPROC	main
 
+;
+; check_port
+;
+; The debugger must have COM2 open exclusively; if we can open it, the driver
+; isn't loaded, so say so rather than just "failed".
+;
 DEFPROC	check_port
 	mov	ax,DOS_HDL_OPENRW
 	int	21h
@@ -88,7 +95,9 @@ DEFPROC	check_port
 	mov	bx,ax
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
-	jmp	failed
+	PRINTF	<"DBGTEST requires DEVICE=DEBUG.COM COM2:... in CONFIG.SYS",13,10>
+	mov	ax,(DOS_PSP_RETURN SHL 8) OR 1
+	int	21h
 cp1:	CHECK	ax,ERR_SHARE
 	ret
 ENDPROC	check_port

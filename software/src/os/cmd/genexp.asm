@@ -14,6 +14,7 @@
 ; See gencmd.asm for an overview of all the gen*.asm files.
 ;
 	include	cmd.inc
+	include	dosfunc.inc
 	include	gen.inc
 	include	fpu.inc
 

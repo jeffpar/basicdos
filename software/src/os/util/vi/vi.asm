@@ -33,6 +33,8 @@
 ; file I/O, the command loop, key input, and the message functions.
 ;
 	include	vi.inc
+	include	dosfunc.inc
+	include	dosfunc.inc
 
 CODE	SEGMENT word public 'CODE'
 

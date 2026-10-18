@@ -19,6 +19,7 @@
 ; values are the defaults.
 ;
 	include	cmd.inc
+	include	dosfunc.inc
 
 CODE    SEGMENT
 

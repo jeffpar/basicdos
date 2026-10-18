@@ -14,6 +14,7 @@
 ;
 	include	macros.inc
 	include	dosapi.inc
+	include	dosfunc.inc
 
 CODE    SEGMENT
 

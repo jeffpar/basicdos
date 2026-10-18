@@ -20,7 +20,7 @@
 ; an unformatted diskette can be written), and IOCTL_FORMAT formats and
 ; verifies a track (see ddfdc_ioctl).
 ;
-	BIOSEQU equ 1
+	BIOSAPI equ 1
 	DISKIOCTL equ 1
 	include	macros.inc
 	include	bios.inc

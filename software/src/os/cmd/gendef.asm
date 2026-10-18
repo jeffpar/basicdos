@@ -35,6 +35,7 @@
 ; call functions (eg, genPushVarPtr) that access genCode's local variables.
 ;
 	include	cmd.inc
+	include	dosfunc.inc
 	include	gen.inc
 	include	8086.inc
 

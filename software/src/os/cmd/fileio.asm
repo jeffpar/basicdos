@@ -25,6 +25,7 @@
 ; line into LINEBUF and take items from it, much like INPUT # (see inputLine).
 ;
 	include	cmd.inc
+	include	dosfunc.inc
 
 CODE    SEGMENT
 

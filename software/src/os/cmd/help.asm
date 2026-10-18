@@ -8,6 +8,7 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 	include	cmd.inc
+	include	dosfunc.inc
 
 CODE    SEGMENT
 

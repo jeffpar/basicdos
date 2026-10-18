@@ -9,6 +9,7 @@
 ;
 	include	macros.inc
 	include	dosapi.inc
+	include	dosfunc.inc
 	include	devapi.inc
 
 CODE    SEGMENT

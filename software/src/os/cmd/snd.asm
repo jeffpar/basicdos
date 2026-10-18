@@ -13,6 +13,7 @@
 ; playNum; see gfx.asm).
 ;
 	include	cmd.inc
+	include	dosfunc.inc
 	include	gen.inc
 	include	bios.inc
 

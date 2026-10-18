@@ -20,6 +20,7 @@
 ; line preceding it, so LIST and DELETE include it with that line.
 ;
 	include	cmd.inc
+	include	dosfunc.inc
 
 CODE    SEGMENT
 

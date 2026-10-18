@@ -66,6 +66,9 @@ function checkOutput(task, outputFile)
  * and pc.js adds the system files and HELP.TXT itself).  A disk can list its own "folders" instead of the diskette
  * folders (see BASICDOS-10MB), where each folder is either a list of files, a directory (whose contents are copied,
  * including any OBJ directories), or a function that returns a list of files from other disk images (see diskFiles()).
+ * A folder named FOLDER/SUBFOLDER is a subfolder (eg, DEMOS/WOLF3D), and a file spec of the form IMAGE.json/PATH
+ * names a file (or files) inside a disk image, which diskimage.js extracts first (eg, the WOLF3D files come from the
+ * COMPAQ331-WOLF3D hard disk in the pcjs-harddisks repository, via the same /harddisks/ path that pcjs.org uses).
  *
  * A SAMPLES folder's files get the timestamps of the matching files on the PC DOS 1.00 diskette (PCDOS100).
  *
@@ -77,7 +80,7 @@ const manifest = {};
 let section;
 for (let line of fs.readFileSync("./software/manifest.txt", "utf8").split(/\r?\n/)) {
     line = line.replace(/#.*/, "").trim();
-    let match = line.match(/^\[(\w+)\]$/);
+    let match = line.match(/^\[([\w\/]+)\]$/);
     if (match) {
         manifest[section = match[1]] = [];
     } else if (line && section) {
@@ -98,9 +101,10 @@ const diskFolders = { BIN: manifest.BIN, SAMPLES: manifest.SAMPLES, DEMOS: manif
  */
 function diskFiles(diskName, fileSpecs)
 {
-    let diskDir = "./tools/pc/disks/" + diskName;
+    let diskFile = diskName.endsWith(".json")? diskName : "./software/disks/" + diskName + ".json";
+    let diskDir = "./tools/pc/disks/" + path.basename(diskFile, ".json");
     if (!fs.existsSync(diskDir)) {
-        execSync("node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" ./software/disks/" + diskName + ".json --extract --dest=" + diskDir, { stdio: "ignore" });
+        execSync("node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" " + diskFile + " --extract --dest=" + diskDir, { stdio: "ignore" });
     }
     return fileSpecs.map(fileSpec => diskDir + "/" + fileSpec);
 }
@@ -124,6 +128,7 @@ let disks = {
             BIN: manifest.BIN,
             SAMPLES: manifest.SAMPLES,
             DEMOS: manifest.DEMOS,
+            "DEMOS/WOLF3D": manifest["DEMOS/WOLF3D"],
             SRC: SRC + "/os",           // the BASIC-DOS source (with an MK.BAT that builds it on BASIC-DOS)
             TESTS: manifest.TESTS.concat([ "./software/tests/PUBLIC.zip" ]),
             //
@@ -154,6 +159,8 @@ function stageDisk(diskName)
     let entries = [];
     let copyFiles = function(fileSpecs, dirTarget, name) {
         for (let fileSpec of fileSpecs) {
+            let disk = fileSpec.match(/^(.*\.json)\/(.*)$/);
+            if (disk) fileSpec = diskFiles(disk[1], [disk[2]])[0];
             let files = fileSpec.indexOf('*') >= 0? globSync(fileSpec).sort() : [fileSpec];
             for (let file of files) {
                 let target = path.join(dirTarget, name || path.basename(file));

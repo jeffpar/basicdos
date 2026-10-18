@@ -13,13 +13,14 @@
 ;
 ; Page numbers are from the first IBM 5150 Technical Reference Manual (1981)
 ;
-; Modules that need only these vectors (and not the rest of the BIOSEQU
-; definitions) can define BIOSVEC instead of BIOSEQU, and modules that need
-; only the keyboard scan codes can define BIOSKEYS.
+; The ROM BIOS data area (and our additions to it) is always defined.  Modules
+; that use the vector numbers can define BIOSVEC, modules that use keyboard
+; scan codes can define BIOSKEY, and modules that call ROM BIOS services (INT
+; 10h, 13h, 16h, or 1Ah) can define BIOSAPI, which includes the other two.
 ;
-	IFDEF	BIOSEQU
+	IFDEF	BIOSAPI
 BIOSVEC	equ	1
-BIOSKEYS equ	1
+BIOSKEY equ	1
 	ENDIF
 
 	IFDEF	BIOSVEC
@@ -46,7 +47,7 @@ INT_DPT		equ	1Eh	; DISKETTE PARAMETER TABLE
 INT_VGCDATA	equ	1Fh	; VIDEO GRAPHICS CHARACTER DATA
 	ENDIF	; BIOSVEC
 
-	IFDEF	BIOSEQU
+	IFDEF	BIOSAPI
 ;
 ; INT_VIDEO functions
 ;
@@ -90,9 +91,9 @@ FDCERR_NOTREADY	equ	80h	; aka timeout
 ;
 KBD_READ	equ	00h	; returns char code in AL, scan code in AH
 KBD_CHECK	equ	01h	; returns ZF set if no key
-	ENDIF	; BIOSEQU
+	ENDIF	; BIOSAPI
 
-	IFDEF	BIOSKEYS
+	IFDEF	BIOSKEY
 ;
 ; BIOS-generated keyboard char codes and scan codes that we care about.
 ;
@@ -123,15 +124,15 @@ SCAN_CTRL_END	equ	75h	; ctrl-end
 SCAN_CTRL_PGDN	equ	76h	; ctrl-page-down
 SCAN_CTRL_HOME	equ	77h	; ctrl-home
 SCAN_CTRL_PGUP	equ	84h	; ctrl-page-up
-	ENDIF	; BIOSKEYS
+	ENDIF	; BIOSKEY
 
-	IFDEF	BIOSEQU
+	IFDEF	BIOSAPI
 ;
 ; INT_TIME functions
 ;
 TIME_GETTICKS	equ	00h	; returns CX:DX, and AL != 0 if wrapped
 TIME_GETDATE	equ	04h	; returns CX = century/year, DX = month/day (BCD)
-	ENDIF	; BIOSEQU
+	ENDIF	; BIOSAPI
 
 ;
 ; Diskette Parameter Table (11 bytes pointed by INT_DSKPARMS (1Eh))
@@ -191,7 +192,7 @@ EQUIP_FLAG	dw	?	; 410h: INSTALLED HARDWARE
 ;
 ; EQUIP_FLAG bits
 ;
-	IFDEF	BIOSEQU
+	IFDEF	BIOSAPI
 EQ_NUM_PRINT	equ	0C000h	; NUMBER OF PRINTERS ATTACHED
 EQ_GAME_CTRL	equ	1000h	; GAME I/O ATTACHED
 EQ_NUM_RS232	equ	0E00h	; NUMBER OF RS232 CARDS ATTACHED
@@ -204,7 +205,7 @@ EQ_VIDEO_MONO	equ	0030h	;
 EQ_RAM_SIZE	equ	00C0h	; PLANAR RAM SIZE (00=16K,01=32K,10=48K,11=64K)
 EQ_IPL_DRIVE	equ	0001h	; IPL (Initial Program Load) FROM DISKETTE
 				; (ie, diskette drives exist)
-	ENDIF	; BIOSEQU
+	ENDIF	; BIOSAPI
 
 MFG_TEST	db	?	; 412h: INITIALIZATION FLAG
 MEMORY_SIZE	dw	?	; 413h: MEMORY SIZE IN K BYTES
@@ -213,7 +214,7 @@ KB_FLAG		db	?	; 417h: FIRST BYTE OF KEYBOARD STATUS
 ;
 ; KB_FLAG bits
 ;
-	IFDEF	BIOSEQU
+	IFDEF	BIOSAPI
 INS_STATE	equ	80h	; INSERT STATE IS ACTIVE
 CAPS_STATE	equ	40h	; CAPS LOCK STATE HAS BEEN TOGGLED
 NUM_STATE	equ	20h	; NUM LOCK STATE HAS BEEN TOGGLED
@@ -222,7 +223,7 @@ ALT_SHIFT	equ	08h	; ALTERNATE SHIFT KEY DEPRESSED
 CTL_SHIFT	equ	04h	; CONTROL SHIFT KEY DEPRESSED
 LEFT_SHIFT	equ	02h	; LEFT SHIFT KEY DEPRESSED
 RIGHT_SHIFT	equ	01h	; RIGHT SHIFT KEY DEPRESSED
-	ENDIF	; BIOSEQU
+	ENDIF	; BIOSAPI
 
 KB_FLAG_1	db	?	; 418h: SECOND BYTE OF KEYBOARD STATUS
 ALT_INPUT	db	?	; 419h: STORAGE FOR ALTERNATE KEYPAD ENTRY
@@ -243,7 +244,7 @@ DISKETTE_STATUS	db	?	; 441h: SINGLE BYTE OF RETURN CODE INFO FOR STATUS
 ;
 ; DISKETTE_STATUS bits
 ;
-	IFDEF	BIOSEQU
+	IFDEF	BIOSAPI
 TIME_OUT	equ	80h	; ATTACHMENT FAILED TO RESPOND
 BAD_SEEK	equ	40h	; SEEK OPERATION FAILED
 BAD_NEC		equ	20h	; NEC CONTROLLER HAS FAILED
@@ -254,7 +255,7 @@ RECORD_NOT_FND	equ	04h	; REQUESTED SECTOR NOT FOUND
 WRITE_PROTECT	equ	03h	; WRITE ATTEMPTED ON WRITE PROT DISK
 BAD_ADDR_MARK	equ	02h	; ADDRESS MARK NOT FOUND
 BAD_CMD		equ	01h	; BAD COMMAND PASSED TO DISKETTE I/O
-	ENDIF	; BIOSEQU
+	ENDIF	; BIOSAPI
 
 NEC_STATUS	db	7 DUP(?); 442h: STATUS BYTES FROM NEC
 ;

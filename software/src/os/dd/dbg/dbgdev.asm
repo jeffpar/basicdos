@@ -33,6 +33,7 @@ BIOSVEC	equ	1
 	include	devapi.inc
 DOSDEV	equ	1
 	include	dosapi.inc
+	include	dosfunc.inc
 	include	uart.inc
 	include	version.inc
 
@@ -2582,6 +2583,7 @@ cm4:	mov	byte ptr [di],0
 	pop	es
 	mov	bx,offset epb		; ES:BX -> EPB
 	mov	dx,offset command	; DS:DX -> program name
+	mov	ch,0			; no programs follow
 	mov	ax,DOS_PSP_EXEC1
 	int	21h			; load it (termination returns here)
 	push	cs

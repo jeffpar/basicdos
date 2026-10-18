@@ -13,6 +13,7 @@
 	include	devapi.inc
 	include	dos.inc
 	include	dosapi.inc
+	include	dosfunc.inc
 	include	version.inc
 
 DOS	segment word public 'CODE'

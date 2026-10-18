@@ -1,11 +1,12 @@
 {
-  "name": "COMPAQ DeskPro 386, 1Mb RAM, 10Mb Hard Disk, VGA",
+  "name": "COMPAQ DeskPro 386, 1Mb RAM, 10Mb Hard Disk, VGA, Sound Blaster",
   "defaults": {
     "ram": "1Mb",
     "fpu": "None",
     "fdc": "1.2Mb and 1.44Mb diskette drives",
     "parallel": "LPT1",
     "serial": "COM1, COM2",
+    "sound": "Sound Blaster 2.0",
     "hdc": "10Mb hard disk"
   },
   "machine": {
@@ -77,6 +78,14 @@
       "id": "com2",
       "class": "serial",
       "adapter": 2
+    },
+    {
+      "id": "sb",
+      "class": "soundblaster",
+      "model": "sb2",
+      "port": "0x220",
+      "irq": 7,
+      "dma": 1
     },
     {
       "id": "fdcNEC",

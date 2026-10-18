@@ -72,11 +72,13 @@ Lists all lines of the currently loaded BAS or BAT program, or the specified ran
 
 `LIST VARS` lists preserved string variables such as `PATH$` first, followed by the current session's ordinary variables and their values in allocation order.  Names include `%`, `#`, or `$` to identify their types, and string values are quoted.  Arrays show each dimension's lower and upper bounds (eg, `A%(0 TO 2, 0 TO 3)`), without listing their elements.  Function definitions are omitted.  The listing can be redirected (eg, `LIST VARS > VARS.TXT` at the prompt) or paged with `LIST VARS | MORE`.
 
-`LIST SESSIONS` lists every session that's running a program: its number (for [RESTART](#restart)), its console, and its program, with `*` marking the current session:
+`LIST SESSIONS` lists every session: its number (for [RESTART](#restart)), its console, and its program, or `Unused` if it has none (the number of sessions comes from `SESSIONS=` in CONFIG.SYS, which defaults to 4), with `*` marking the current session:
 
 	C:\>LIST SESSIONS
 	* 1 CON      COMMAND
 	  2 COM1     COMMAND
+	  3          Unused
+	  4          Unused
 
 ### MEM
 

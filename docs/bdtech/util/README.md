@@ -7,7 +7,7 @@ permalink: /docs/bdtech/util/
 
 {% include header.html %}
 
-BASIC-DOS provides a set of utility functions through INT 32h, with the function number in AH.  The `DOS_UTL_*` names are defined in dosapi.inc, and the DOSUTIL macro (in macros.inc) generates the calls:
+BASIC-DOS provides a set of utility functions through INT 32h, with the function number in AH.  The `DOS_UTL_*` names are defined in dosfunc.inc, and the DOSUTIL macro (in macros.inc) generates the calls:
 
 	DOSUTIL	STRLEN			; MOV AH,DOS_UTL_STRLEN / INT 32h
 
@@ -127,7 +127,7 @@ Specifiers also support the `#` and `-` flags, a width, and a precision (eg, `%-
 
 **DOS_UTL_GETCSN (10h)**: Returns CL = current session number.
 
-**DOS_UTL_LOAD (11h)**: ES:BX -> Session Parameter Block (see [SPB](../data/#spb)), which specifies the command line and the standard handles for the new session.  Loads the program into an available session; returns CL = session number, or carry set and AX = error code.
+**DOS_UTL_LOAD (11h)**: ES:BX -> Session Parameter Block (see [SPB](../data/#spb)), which specifies the command line and the standard handles for the new session, and CH = the number of programs the caller will load next (eg, the rest of a pipeline), which the loader sets aside memory for (see [DOS_PSP_EXEC1](../dos/#differences-from-pc-dos)).  Loads the program into an available session; returns CL = session number, or carry set and AX = error code.
 
 **DOS_UTL_START (12h)**: CL = session number.  Marks the session startable; it starts running at the next session switch.
 
@@ -137,7 +137,7 @@ Specifiers also support the `#` and `-` flags, a width, and a precision (eg, `%-
 
 **DOS_UTL_WAITEND (15h)**: CL = session number.  Waits for all programs in the session to end.
 
-**DOS_UTL_QRYSCB (25h)**: CL = session number.  Returns AX = the PSP of the session's program (zero if none), and ES:DI -> the name (11 characters) of the session's console device (its STDOUT), or carry set if the session number is invalid.  COMMAND.COM uses this for LIST SESSIONS, so that it doesn't depend on the kernel's internal session structures.
+**DOS_UTL_QRYSCB (25h)**: CL = session number.  Returns AX = the PSP of the session's program (zero if none), and ES:DI -> the name (11 characters) of the session's console device (its STDOUT), or DI = 0 if it has none (eg, a session that has never been used), or carry set if the session number is invalid.  COMMAND.COM uses this for LIST SESSIONS, so that it doesn't depend on the kernel's internal session structures.
 
 ### Scheduling
 

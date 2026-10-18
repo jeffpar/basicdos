@@ -12,6 +12,7 @@
 ; STRHELP.ASM when it reached MASM's symbol space limit.
 ;
 	include	cmd.inc
+	include	dosfunc.inc
 
 CODE    SEGMENT
 
