@@ -19,8 +19,8 @@ DOS	segment word public 'CODE'
 
 	EXTBYTE	<scb_locked>
 	EXTWORD	<mcb_head,mcb_limit,scb_active,load_reserve>
-	EXTLONG	<scb_table>
-	EXTNEAR	<sfh_add_ref,pfh_close,sfh_close,reset_keys>
+	EXTLONG	<scb_table,sfb_table>
+	EXTNEAR	<sfh_add_ref,pfh_close,sfh_close,sfb_close,reset_keys>
 	EXTNEAR	<mcb_getsize,mcb_free_all>
 	EXTNEAR	<dos_check,dos_leave,dos_leave2,dos_ctrlc,dos_error>
 	EXTNEAR	<mcb_setname,scb_getnum,scb_release,scb_close,scb_yield>
@@ -1248,8 +1248,7 @@ lpf:	push	ax
 	xchg	ax,dx			; AX = error code
 	stc
 
-lp9:	UNLOCK_SCB
-	ret
+lp9:	UNLOCK_SCB_RET
 
 lpm6:	mov	ax,ERR_NOMEMORY
 lpm7:	pop	si
@@ -1591,6 +1590,29 @@ DEFPROC	psp_close,DOS
 cp1:	call	pfh_close		; close process file handle
 	inc	bx
 	loop	cp1
+;
+; FCB associations are outside the PFT.  Retire only this PSP's associations
+; before its memory is released, preserving other processes' device refs.
+;
+	push	si
+	push	di
+	push	es
+	call	get_psp
+	mov	cx,ax
+	mov	bx,[sfb_table].OFF
+	mov	si,-1			; no PFT entry for an FCB
+cp2:	test	[bx].SFB_FLAGS,SFBF_FCB
+	jz	cp3
+	cmp	[bx].SFB_OWNER,cx	; owned by the process being closed?
+	jne	cp3
+	and	[bx].SFB_FLAGS,NOT SFBF_FCB
+	call	sfb_close
+cp3:	add	bx,size SFB
+	cmp	bx,[sfb_table].SEG	; checked every SFB?
+	jb	cp2
+	pop	es
+	pop	di
+	pop	si
 	pop	bx
 	ret
 ENDPROC	psp_close

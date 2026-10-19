@@ -214,8 +214,7 @@ gi4:	clc				; cached-count comparisons may set carry
 
 gi8:	sbb	ax,ax			; set AX to FFFFh on error
 gi9:	mov	[bp].REG_AX,ax
-	UNLOCK_SCB
-	ret
+	UNLOCK_SCB_RET
 ENDPROC	dsk_getinfo
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

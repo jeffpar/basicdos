@@ -59,7 +59,7 @@ DEFPROC	dsk_delete,DOS
 	call	flush_buffers		; write the modified DIRENT and FAT
 	jnc	dd9
 dd8:	mov	[bp].REG_AX,ax
-dd9:	UNLOCK_SCB
+dd9:	UNLOCK_SCB_RET
 ENDPROC	dsk_delete
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -159,8 +159,7 @@ DEFPROC	dsk_rename,DOS
 dr6:	mov	ax,ERR_ACCDENIED
 dr7:	stc
 dr8:	mov	[bp].REG_AX,ax
-dr9:	UNLOCK_SCB
-	ret
+dr9:	UNLOCK_SCB_RET
 
 dr0:	cmp	ax,ERR_NOFILE		; but was the new filename valid?
 	jne	dr7			; no
@@ -234,7 +233,7 @@ dr5a:	pop	dx			; discard the saved filename
 	loop	dr5a			; (without affecting carry)
 	jnc	dr5b
 	mov	[bp].REG_AX,ax
-dr5b:	UNLOCK_SCB
+dr5b:	UNLOCK_SCB_RET
 ENDPROC	dsk_rename
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -747,8 +746,7 @@ DEFPROC	dsk_chdir,DOS
 	mov	es:[bx],cx
 	jmp	short cd9
 cd8:	mov	[bp].REG_AX,ax
-cd9:	UNLOCK_SCB
-	ret
+cd9:	UNLOCK_SCB_RET
 ENDPROC	dsk_chdir
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -864,8 +862,7 @@ cw6a:	mov	di,[bp].REG_SI		; ES:DI -> start of buffer
 cw7:	mov	ax,ERR_NOPATH
 	stc
 cw8:	mov	[bp].REG_AX,ax
-cw9:	UNLOCK_SCB
-	ret
+cw9:	UNLOCK_SCB_RET
 ENDPROC	dsk_getcwd
 
 DOS	ends

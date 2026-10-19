@@ -226,6 +226,7 @@
     "CHDIR",
     "CHECKFAULT",
     "CHECKMAP",
+    "CHECKNC",
     "checkpage",
     "checksw",
     "chipset",

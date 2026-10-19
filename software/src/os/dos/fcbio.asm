@@ -20,11 +20,13 @@ DOS	segment word public 'CODE'
 
 	EXTBYTE	<bpb_total,scb_locked>
 	EXTWORD	<scb_active>
+	EXTLONG	<sfb_table>
 	EXTNEAR	<sfb_open_fcb,sfb_find_fcb,sfb_seek,sfb_read,sfb_write>
 	EXTNEAR	<sfb_close,sfb_chkopen,chk_filename,chk_devname,chk_volopen>
 	EXTNEAR	<chk_dirent,del_dirent,add_dirent,get_dirent,get_dtime>
 	EXTNEAR	<get_bpb,get_cdir,free_clns,flush_buffers,scb_release>
 	EXTNEAR	<div_32_16,mul_32_16>
+	EXTNEAR	<get_psp>
 
 	EXTSTR	<FILENAME_CHARS>
 
@@ -59,6 +61,7 @@ ATTR_CREATE	equ	ATTR_RHS OR DIRATTR_ARCHIVE
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	fcb_create,DOS
+	LOCK_SCB			; lock until the FCB is associated
 	call	fcb_ptr			; DS:SI -> FCB, AL = attributes
 	xchg	cx,ax			; CL = attributes
 	mov	ax,1000h		; AH = 10h (FCB), AL = 0
@@ -90,12 +93,13 @@ ENDPROC	fcb_create
 ;	AX, BX, CX, DX, SI, DI, DS, ES
 ;
 DEFPROC	fcb_open,DOS
+	LOCK_SCB			; lock until the FCB is associated
 	call	fcb_ptr			; DS:SI -> FCB, AL = attributes
 	mov	ah,10h			; AH = 10h (FCB)
 	mov	bl,MODE_ACC_RO		; BL = mode
 	call	sfb_open_fcb		; BX -> SFB
 fo0:	mov	byte ptr [bp].REG_AL,0FFh
-	jc	fo9			; failed
+	jc	fo1f			; failed
 	mov	di,si
 	push	ds
 	pop	es			; ES:DI -> FCB
@@ -103,6 +107,45 @@ fo0:	mov	byte ptr [bp].REG_AL,0FFh
 	push	cs
 	pop	ds			; DS:SI -> SFB
 	ASSUME	DS:DOS, ES:NOTHING
+	cmp	[bx].SFB_REFS,1		; did the open share a device SFB?
+	je	fo2			; no, this FCB can own the SFB directly
+;
+; A shared device needs a private association for this FCB.  Retain the
+; reference acquired by sfb_open as the alias's reference to its underlying
+; SFB, so closing an alias cannot close another FCB or the session console.
+;
+	push	es
+	push	di
+	cmp	[bx].SFB_REFS,0		; did the new device ref overflow?
+	je	fo1e			; yes, undo it
+	push	cs
+	pop	es
+	mov	di,[sfb_table].OFF
+fo1:	cmp	[di].SFB_REFS,0		; find a free SFB for the association
+	je	fo1a
+	add	di,size SFB
+	cmp	di,[sfb_table].SEG	; reached the end of the SFB table?
+	jb	fo1
+fo1e:	mov	si,-1			; release only the new reference
+	call	sfb_close
+	pop	di
+	pop	es
+fo1f:	jmp	short fo9		; REG_AL is still FFh
+fo1a:	mov	ax,bx
+	sub	ax,[sfb_table].OFF
+	mov	cl,size SFB
+	div	cl			; AL = underlying SFH
+	mov	bx,di
+	mov	cx,(size SFB)/2
+	rep	movsw			; copy the shared device's I/O context
+	mov	[bx].SFB_ALIAS,al
+	mov	[bx].SFB_REFS,1
+	or	[bx].SFB_FLAGS,SFBF_ALIAS
+	pop	di
+	pop	es
+fo2:	mov	si,bx
+	call	get_psp
+	mov	[si].SFB_OWNER,ax	; this process owns the association
 	mov	[si].SFB_FCB.OFF,di
 	mov	[si].SFB_FCB.SEG,es	; set SFB_FCB
 	or	[si].SFB_FLAGS,SFBF_FCB	; and mark the SFB as an FCB's
@@ -125,7 +168,7 @@ fo0:	mov	byte ptr [bp].REG_AL,0FFh
 	inc	di			; skip FCBF_DEVICE
 	add	si,SFB_CLN - (SFB_TIME + 2)
 	movsw				; set FCBF_CLN from SFB_CLN
-fo9:	ret
+fo9:	UNLOCK_SCB_RET
 ENDPROC	fcb_open
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -148,8 +191,8 @@ DEFPROC	fcb_close,DOS
 	call	get_fcb			; DS:BX -> SFB
 	jc	fc8
 ;
-; The SFB may outlive the FCB (eg, if the FCB shared the session's console
-; SFB), so it must no longer be found by sfb_find_fcb.
+; The underlying SFB may outlive the FCB, so retire this association before
+; releasing its reference.
 ;
 	and	[bx].SFB_FLAGS,NOT SFBF_FCB
 	mov	si,-1			; SI = PFH (none)
@@ -335,7 +378,7 @@ DEFPROC	fcb_size,DOS
 	adc	dx,0			; DX:AX = # records
 	call	set_relrec
 	mov	byte ptr [bp].REG_AL,0
-fsz9:	UNLOCK_SCB
+fsz9:	UNLOCK_SCB_RET
 ENDPROC	fcb_size
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -925,9 +968,9 @@ ff1:	mov	al,[bp].TMP_BL
 	mov	cx,size DIRENT
 	rep	movsb			; and the DIRENT follows
 	mov	byte ptr [bp].REG_AL,0
-	UNLOCK_SCB
+	UNLOCK_SCB_RET
 ff8:	mov	byte ptr [bp].REG_AL,0FFh
-	UNLOCK_SCB
+	UNLOCK_SCB_RET
 ENDPROC	fcb_fnext
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1072,7 +1115,7 @@ fchg6:	mov	si,[bp].TMP_DX
 	mov	al,[bp].TMP_AL		; AL = search attributes
 	jmp	fchg0
 fchg8:	mov	byte ptr [bp].REG_AL,0FFh
-fchg9:	UNLOCK_SCB
+fchg9:	UNLOCK_SCB_RET
 ENDPROC	fcb_delete
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1251,7 +1294,7 @@ sc8:	pop	dx			; discard the saved AX
 	pop	es
 	pop	ds
 	pop	si
-sc9:	UNLOCK_SCB
+sc9:	UNLOCK_SCB_RET
 ENDPROC	sfb_create
 
 DOS	ends

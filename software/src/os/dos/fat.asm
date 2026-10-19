@@ -596,7 +596,7 @@ rz8:	pop	cx
 	or	[bx].SFB_FLAGS,SFBF_DIRTY ; (and carry is clear)
 rz9:	pop	si
 	pop	cx
-	UNLOCK_SCB
+	UNLOCK_SCB_RET
 ENDPROC	resize_file
 
 DOS	ends

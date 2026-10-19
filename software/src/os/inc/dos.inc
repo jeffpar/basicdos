@@ -129,7 +129,7 @@ LOCK_SCB macro
 	inc	[scb_locked]
 	endm
 
-UNLOCK_SCB macro
+UNLOCK_SCB_RET macro
 	jmp	scb_release
 	endm
 ;
@@ -157,7 +157,7 @@ SFB_SIZE	dd	?	; 1Ch: file size
 SFB_CURPOS	dd	?	; 20h: current file position
 SFB_CURCLN	dw	?	; 24h: current cluster number
 SFB_FLAGS	db	?	; 26h: see SFBF_* (initially zero)
-		db	?	; 27h: padding
+SFB_ALIAS	db	?	; 27h: underlying SFH if SFBF_ALIAS set
 SFB_OWNER	dw	?	; 28h: PSP of owner (used if SFBF_FCB set)
 SFB_FCB		dd	?	; 2Ah: FCB address, if SFBF_FCB set
 SFB_DIRNUM	dw	?	; 2Eh: DIRENT # (files only)
@@ -170,6 +170,7 @@ SIG_SFB		equ	'F'
 
 SFBF_FCB	equ	01h	; SFB opened for FCB (see fcb_open)
 SFBF_DIRTY	equ	02h	; SFB modified (DIRENT must be updated on close)
+SFBF_ALIAS	equ	04h	; FCB alias holding a ref to another SFB
 
 SFH_NONE	equ	0FFh	; if this SFH is in a PFT entry, it's unused
 

@@ -375,6 +375,8 @@ so2:	push	cs
 	sub	bx,bx			; use BX to remember a free SFB
 so3:	test	al,al			; is this a file (ie, a drive #)?
 	jge	so4			; yes, files never share SFBs
+	test	[si].SFB_FLAGS,SFBF_ALIAS ; FCB aliases are never shared
+	jnz	so4
 	test	dx,dx			; any context?
 	jnz	so4			; yes, check next SFB
 	cmp	[si].SFB_DEVICE.SEG,cx
@@ -491,8 +493,7 @@ so9:	pop	es
 	pop	ds
 	pop	si
 	ASSUME	DS:NOTHING,ES:NOTHING
-	UNLOCK_SCB
-	ret
+	UNLOCK_SCB_RET
 ENDPROC	sfb_open
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -816,8 +817,7 @@ sr4:	sub	cx,dx			; have we exhausted the read count yet?
 sr5:	ASSERT	NC
 	mov	ax,[bp].TMP_AX
 
-sr6:	UNLOCK_SCB
-	jmp	short sr9
+sr6:	UNLOCK_SCB_RET
 sr7:	jmp	msc_sigctrlc
 
 sr8:	push	ds
@@ -866,7 +866,7 @@ sr8a:	pop	es
 	pop	ds
 	ASSUME	DS:DOS
 
-sr9:	ret
+	ret
 ENDPROC	sfb_read
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1083,14 +1083,21 @@ DEFPROC	sfb_close,DOS
 	sub	dx,dx			; DX = error code (zero if none)
 	dec	[bx].SFB_REFS
 	jnz	sc8
-	mov	al,[bx].SFB_DRIVE	; did we issue a DDC_OPEN?
+	test	[bx].SFB_FLAGS,SFBF_ALIAS ; is this an FCB alias?
+	jz	sc0			; no
+	push	bx
+	mov	bl,[bx].SFB_ALIAS	; yes, release its underlying SFB ref
+	call	sfh_close
+	pop	bx
+	jmp	short sc5
+sc0:	mov	al,[bx].SFB_DRIVE	; did we issue a DDC_OPEN?
 	test	al,al			; for this SFB?
 	jge	sc6			; no
 	les	di,[bx].SFB_DEVICE	; ES:DI -> driver
 	mov	dx,[bx].SFB_CONTEXT	; DX = context
 	mov	ax,DDC_CLOSE SHL 8	;
 	call	dev_request		; issue the DDC_CLOSE request
-	sub	dx,dx
+sc5:	sub	dx,dx
 	jmp	short sc7
 sc6:	test	[bx].SFB_FLAGS,SFBF_DIRTY
 	jz	sc7			; file was not modified
@@ -1120,8 +1127,7 @@ sc9:	xchg	ax,dx			; AX = error code (zero if none)
 	test	ax,ax			; any error?
 	jz	sc9a			; no (and carry is clear)
 	stc
-sc9a:	UNLOCK_SCB
-	ret
+sc9a:	UNLOCK_SCB_RET
 ENDPROC	sfb_close
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

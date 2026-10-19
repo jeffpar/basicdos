@@ -170,8 +170,7 @@ q7a:	mov	[bp].REG_DI,di
 q8:	inc	bx
 	mov	[bp].REG_BX,bx
 	clc
-q9:	UNLOCK_SCB
-	ret
+q9:	UNLOCK_SCB_RET
 ENDPROC	mem_query
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -370,8 +369,7 @@ a8b:	mov	ax,ERR_NOMEMORY
 a8a:	pop	dx			; throw away AX
 	stc
 
-a9:	UNLOCK_SCB
-	ret
+a9:	UNLOCK_SCB_RET
 ENDPROC	mcb_alloc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -425,8 +423,7 @@ r8:	mov	bx,cx			; BX = maximum # of paras available
 	mov	ax,ERR_NOMEMORY
 r8a:	stc
 
-r9:	UNLOCK_SCB
-	ret
+r9:	UNLOCK_SCB_RET
 ENDPROC	mcb_realloc
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -513,8 +510,7 @@ f7:	mov	ax,ERR_BADMCB
 f8:	mov	ax,ERR_BADADDR
 f8a:	stc
 
-f9:	UNLOCK_SCB
-	ret
+f9:	UNLOCK_SCB_RET
 ENDPROC	mcb_free
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -556,8 +552,7 @@ fa8:	cmp	es:[MCB_SIG],MCBSIG_LAST
 	inc	bx
 	jmp	fa1
 
-fa9:	UNLOCK_SCB
-	ret
+fa9:	UNLOCK_SCB_RET
 ENDPROC	mcb_free_all
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -603,8 +598,7 @@ gs8:	mov	ax,es:[MCB_PARAS]	; AX = size, in paragraphs
 gs9:	inc	dx			; restore DX
 	pop	es
 	pop	bx
-	UNLOCK_SCB
-	ret
+	UNLOCK_SCB_RET
 ENDPROC	mcb_getsize
 
 DOS	ends

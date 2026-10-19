@@ -83,8 +83,7 @@ DEFPROC	dsk_ffirst,DOS
 	stosb
 	jnc	ff9
 ff8:	mov	[bp].REG_AX,ax
-ff9:	UNLOCK_SCB
-	ret
+ff9:	UNLOCK_SCB_RET
 ENDPROC	dsk_ffirst
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -130,8 +129,7 @@ DEFPROC	dsk_fnext,DOS
 	mov	ax,dx			; AL = drive #, AH = search attributes
 	jmp	dsk_ffill
 fn8:	mov	[bp].REG_AX,ax
-	UNLOCK_SCB
-	ret
+	UNLOCK_SCB_RET
 ENDPROC	dsk_fnext
 
 

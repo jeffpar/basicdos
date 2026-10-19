@@ -172,8 +172,7 @@ wf9:	pop	ds
 	ASSUME	DS:NOTHING
 	pop	si
 	pop	cx
-	UNLOCK_SCB
-	ret
+	UNLOCK_SCB_RET
 
 	ASSUME	DS:DOS
 ;
@@ -628,8 +627,7 @@ md7:	pop	dx			; DX = new CLN
 md6:	mov	ax,ERR_ACCDENIED
 	stc
 md8:	mov	[bp].REG_AX,ax
-md9:	UNLOCK_SCB
-	ret
+md9:	UNLOCK_SCB_RET
 ENDPROC	dsk_mkdir
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -735,8 +733,7 @@ rd7:	pop	cx			; discard the saved values
 	pop	cx			; (without affecting carry)
 	pop	cx
 rd8:	mov	[bp].REG_AX,ax
-rd9:	UNLOCK_SCB
-	ret
+rd9:	UNLOCK_SCB_RET
 ENDPROC	dsk_rmdir
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

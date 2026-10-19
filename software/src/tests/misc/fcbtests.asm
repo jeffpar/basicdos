@@ -1,6 +1,6 @@
 ;
-; DOS 1.x-compatible FCB confidence tests (8086 only).
-; Uses no handle APIs or DOS 2.x termination services.
+; DOS FCB confidence tests (8086 only).
+; Additional handle, ownership, and lifetime checks run only on BASIC-DOS.
 ;
 ; @author Jeff Parsons <Jeff@pcjs.org>
 ; @copyright (c) 2020-2026 Jeff Parsons
@@ -10,6 +10,7 @@
 	DOSPSP equ 1
 	DOSFUNC equ 1
 	include	macros.inc
+	include	dos.inc
 	include	dosapi.inc
 
 CHECK	macro	op,left,right
@@ -17,6 +18,14 @@ CHECK	macro	op,left,right
 	mov	failat,offset ok
 	cmp	left,right
 	op	ok
+	jmp	failed
+ok:
+	endm
+
+CHECKNC macro
+	local	ok
+	mov	failat,offset ok
+	jnc	ok
 	jmp	failed
 ok:
 	endm
@@ -562,6 +571,88 @@ shareok:
 	CHECK	je,al,0
 	FCALL	DOS_FCB_FFIRST,fcbtwo
 	CHECK	je,al,0FFh
+	mov	ah,DOS_MSC_GETVER
+	int	21h
+	cmp	bx,SIG_BASICDOS		; BASIC-DOS-specific checks next?
+	je	fcbextra
+	jmp	fcbpass
+fcbextra:
+;
+; Two NUL FCBs must keep separate associations while a handle is open too.
+; Closing either FCB must leave the other FCB and the handle usable.
+;
+	mov	si,offset nulname
+	mov	di,offset fcbtest
+	mov	ax,2900h
+	int	21h
+	FCALL	DOS_FCB_OPEN
+	CHECK	je,al,0
+	FCALL	DOS_FCB_OPEN,fcbtwo
+	CHECK	je,al,0
+	mov	dx,offset nulname
+	mov	ax,DOS_HDL_OPENRW
+	int	21h
+	CHECKNC
+	mov	devhandle,ax
+	FCALL	DOS_FCB_SWRITE
+	CHECK	je,al,0
+	FCALL	DOS_FCB_CLOSE
+	CHECK	je,al,0
+	FCALL	DOS_FCB_SWRITE,fcbtwo
+	CHECK	je,al,0
+	FCALL	DOS_FCB_CLOSE,fcbtwo
+	CHECK	je,al,0
+	mov	bx,devhandle
+	xor	cx,cx
+	mov	dx,offset actual
+	mov	ah,DOS_HDL_WRITE
+	int	21h
+	CHECK	je,ax,0
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+;
+; CON FCBs must retain the session's existing console context independently.
+;
+	mov	dx,offset conname
+	mov	ax,DOS_HDL_OPENRO
+	int	21h
+	jnc	conexists
+	CHECK	je,ax,ERR_NOFILE	; serial configs may SKIP=CON
+	jmp	conskip
+conexists:
+	mov	byte ptr havecon,1
+	mov	bx,ax
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	mov	si,offset conname
+	mov	di,offset fcbtest
+	mov	ax,2900h
+	int	21h
+	mov	si,offset conname
+	mov	di,offset fcbtwo
+	mov	ax,2900h
+	int	21h
+	FCALL	DOS_FCB_OPEN
+	CHECK	je,al,0
+	FCALL	DOS_FCB_OPEN,fcbtwo
+	CHECK	je,al,0
+	xor	cx,cx
+	FCALL	DOS_FCB_RBWRITE
+	CHECK	je,al,0
+	FCALL	DOS_FCB_CLOSE,fcbtwo
+	CHECK	je,al,0
+	xor	cx,cx
+	FCALL	DOS_FCB_RBWRITE
+	CHECK	je,al,0
+	FCALL	DOS_FCB_CLOSE
+	CHECK	je,al,0
+conskip:
+;
+; BASIC-DOS owns FCB associations explicitly.  Check process isolation,
+; exit cleanup, and allocation failure without relying on PC DOS internals.
+;
+	call	ownership_tests
+fcbpass:
 	mov	dx,offset passed
 	call	print
 	int	20h
@@ -604,6 +695,208 @@ failhex:
 	call	print
 	int	20h
 ENDPROC	main
+
+;
+; ownership_tests
+;
+; Keep a parent FCB open while a child writes through it, creates and
+; writes its own file, and exits with file and device FCBs still open.
+; Repeat to check that references return to their original count and that
+; child file metadata is committed before the SFBs are released.
+;
+DEFPROC	ownership_tests
+	mov	si,offset fname
+	mov	di,offset fcbtest
+	mov	ax,2900h
+	int	21h
+	FCALL	DOS_FCB_CREATE
+	CHECK	je,al,0
+	mov	childparent,cs
+	mov	al,havecon
+	mov	childconok,al
+	mov	dx,offset childname
+	xor	cx,cx
+	mov	ah,DOS_HDL_CREATE
+	int	21h
+	CHECKNC
+	mov	bx,ax
+	mov	dx,offset ownerchild
+	mov	cx,offset childend-offset ownerchild
+	mov	ah,DOS_HDL_WRITE
+	int	21h
+	CHECK	je,ax,<offset childend-offset ownerchild>
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	mov	ownerepb.EPB_CMDTAIL.SEG,cs
+	mov	ownerepb.EPB_FCB1.SEG,cs
+	mov	ownerepb.EPB_FCB2.SEG,cs
+	call	refcount
+	mov	ownerrefs,ax
+	mov	si,4
+ot1:	mov	dx,offset childname
+	mov	bx,offset ownerepb
+	mov	ax,DOS_PSP_EXEC
+	int	21h
+	CHECKNC
+	mov	ah,DOS_PSP_RETCODE
+	int	21h
+	CHECK	je,ax,0
+	call	refcount
+	CHECK	je,ax,ownerrefs
+	FCALL	DOS_FCB_SWRITE		; is the parent's FCB still open?
+	CHECK	je,al,0
+	mov	dx,offset childfile
+	mov	ax,DOS_HDL_OPENRW
+	int	21h
+	CHECKNC
+	mov	bx,ax
+	xor	cx,cx
+	xor	dx,dx
+	mov	ax,DOS_HDL_SEEKEND
+	int	21h
+	CHECK	je,dx,0
+	CHECK	je,ax,128
+	xor	dx,dx
+	mov	ax,DOS_HDL_SEEKBEG
+	int	21h
+	mov	dx,offset actual
+	mov	cx,1
+	mov	ah,DOS_HDL_READ
+	int	21h
+	CHECK	je,ax,1
+	CHECK	je,<byte ptr actual>,5Ah
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	mov	dx,offset childfile
+	mov	ah,DOS_DSK_DELETE
+	int	21h
+	CHECKNC
+	dec	si
+	jz	ot1done
+	jmp	ot1
+ot1done:
+;
+; Fill the SFB table with device FCBs in scratch space.  A failing open must
+; undo its acquired device reference, and closing the successful opens
+; must return to the parent's original reference count.
+;
+	mov	si,offset expect
+	xor	bp,bp
+ot2:	call	refcount
+	mov	lastrefs,ax
+	mov	di,si
+	push	si
+	mov	si,offset nulname
+	cmp	byte ptr havecon,0	; prefer CON (to test its ref limit)
+	je	ot2a
+	mov	si,offset conname
+ot2a:
+	mov	ax,2900h
+	int	21h
+	pop	si
+	mov	dx,si
+	mov	ah,DOS_FCB_OPEN
+	int	21h
+	cmp	al,0FFh			; reached the SFB or ref limit?
+	je	ot3
+	CHECK	je,al,0
+	inc	bp
+	add	si,size FCBF
+	cmp	si,offset actual-size FCBF ; still inside the scratch buffer?
+	jb	ot2
+	jmp	failed
+ot3:	call	refcount
+	CHECK	je,ax,lastrefs
+ot4:	sub	si,size FCBF
+	mov	dx,si
+	mov	ah,DOS_FCB_CLOSE
+	int	21h
+	CHECK	je,al,0
+	dec	bp
+	jnz	ot4
+	call	refcount
+	CHECK	je,ax,ownerrefs
+	FCALL	DOS_FCB_CLOSE
+	CHECK	je,al,0
+	FCALL	DOS_FCB_DELETE
+	CHECK	je,al,0
+	mov	dx,offset childname
+	mov	ah,DOS_DSK_DELETE
+	int	21h
+	ret
+ENDPROC	ownership_tests
+
+;
+; refcount
+;
+; Return the sum of open SFB references in AX without changing SI or ES.
+;
+DEFPROC	refcount
+	push	es
+	mov	ah,DOS_MSC_GETVARS
+	int	21h
+	sub	bx,2
+	mov	cx,es:[bx].DV_SFB_TABLE.SEG
+	mov	bx,es:[bx].DV_SFB_TABLE.OFF
+	xor	ax,ax
+rc1:	mov	dl,es:[bx].SFB_REFS
+	xor	dh,dh
+	add	ax,dx
+	add	bx,size SFB
+	cmp	bx,cx			; sum every SFB in the table
+	jb	rc1
+	pop	es
+	ret
+ENDPROC	refcount
+
+;
+; ownerchild
+;
+; A small COM image written by ownership_tests.  Its offsets are relative
+; to 100h in the child's PSP, except for the parent's FCB address.
+;
+ownerchild label byte
+	mov	ax,cs:[childparent-ownerchild+100h]
+	mov	ds,ax
+	mov	dx,offset fcbtest
+	mov	ah,DOS_FCB_SWRITE
+	int	21h
+	test	al,al			; can the child use the parent's FCB?
+	jnz	oc8
+	push	cs
+	pop	ds
+	mov	dx,offset childfcb-offset ownerchild+100h
+	mov	ah,DOS_FCB_CREATE
+	int	21h
+	test	al,al			; was the child's file created?
+	jnz	oc8
+	mov	byte ptr ds:[80h],5Ah
+	mov	ah,DOS_FCB_SWRITE
+	int	21h
+	test	al,al			; was its initial record written?
+	jnz	oc8
+	mov	dx,offset childnul-offset ownerchild+100h
+	mov	ah,DOS_FCB_OPEN
+	int	21h
+	test	al,al			; leave a contextless device open too
+	jnz	oc8
+	cmp	byte ptr ds:[childconok-ownerchild+100h],0
+	je	oc7			; no CON (eg, SKIP=CON)
+	mov	dx,offset childcon-offset ownerchild+100h
+	mov	ah,DOS_FCB_OPEN
+	int	21h
+	test	al,al			; and an alias of the session console
+	jnz	oc8
+oc7:	mov	ax,DOS_PSP_RETURN SHL 8
+	int	21h
+oc8:	mov	ax,(DOS_PSP_RETURN SHL 8) OR 1
+	int	21h
+childparent dw 0
+childconok db 0
+childfcb db 0,"FCBOWN  DAT",(size FCBF)-12 dup(0)
+childnul db 0,"NUL        ",(size FCBF)-12 dup(0)
+childcon db 0,"CON        ",(size FCBF)-12 dup(0)
+childend label byte
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -687,6 +980,15 @@ renfile	db	'FCBTST2.DAT',0
 pattern	db	'FCBTST?.DAT',0
 newfile	db	'FCBTST2 DAT'
 nulname	db	'NUL',0
+conname	db	'CON',0
+childname db	'FCBOWN.COM',0
+childfile db	'FCBOWN.DAT',0
+devhandle dw	0
+havecon db	0
+ownerrefs dw	0
+lastrefs dw	0
+ownertail db	0,13
+ownerepb EPB	<0,offset ownertail,PSP_FCB1,PSP_FCB2>
 fcbtest	db	size FCBF dup(0)
 findfcb	db	size FCBF dup(0)
 fcbtwo	db	size FCBF dup(0)

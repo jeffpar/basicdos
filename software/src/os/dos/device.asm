@@ -578,8 +578,7 @@ he8:	pop	es
 	pop	dx
 	pop	cx
 	pop	bx
-	call	scb_release		; unlock the SCB
-	ret
+	UNLOCK_SCB_RET		; unlock the SCB and return
 ENDPROC	dev_error
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

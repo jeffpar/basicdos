@@ -361,8 +361,7 @@ ENDPROC	utl_lock
 ;	AX, BX, DX
 ;
 DEFPROC	utl_unlock,DOS
-	UNLOCK_SCB
-	ret
+	UNLOCK_SCB_RET
 ENDPROC	utl_unlock
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

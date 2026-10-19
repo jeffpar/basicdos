@@ -233,8 +233,8 @@ ENDPROC	scb_unlock
 ;
 ; scb_release
 ;
-; Handler invoked via UNLOCK_SCB to unlock the SCB and check for a deferred
-; yield request if we're completely unlocked.
+; Handler invoked via UNLOCK_SCB_RET to unlock the SCB and check for a
+; deferred yield request if we're completely unlocked.
 ;
 ; Inputs:
 ;	None
@@ -254,7 +254,7 @@ ENDPROC	scb_release
 ;
 ; scb_stoke
 ;
-; Handler invoked via UNLOCK_SCB to perform a deferred yield request.
+; Handler invoked via UNLOCK_SCB_RET to perform a deferred yield request.
 ;
 ; Inputs:
 ;	None
