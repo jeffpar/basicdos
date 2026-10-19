@@ -50,11 +50,11 @@ DOS	segment word public 'CODE'
 	DEFBYTE	bpb_total,0		; total number of BPBs
 	DEFBYTE	sfh_debug,-1		; system file handle for DEBUG device
 ;
-; def_drive, def_switchar, and def_pathchar must match the order of
-; SCB_CURDRV, SCB_SWITCHAR, and SCB_PATHCHAR (see init_scb).
+; def_drive, def_swchar, and def_pathchar must match the order of
+; SCB_CURDRV, SCB_SWCHAR, and SCB_PATHCHAR (see init_scb).
 ;
 	DEFBYTE	def_drive,0
-	DEFBYTE	def_switchar,'/'
+	DEFBYTE	def_swchar,'/'
 	DEFBYTE	def_pathchar,'\'
 ;
 ; Vectors 08h, 09h, 1Bh, and 1Ch as they were at the end of sysinit, so that

@@ -104,7 +104,7 @@ SCB_CTRLC_ACT	db	?	; 2Bh: 1 if CTRLC active
 SCB_CTRLP_ACT	db	?	; 2Ch: 1 if CTRLP active
 SCB_INDOS	db	?	; 2Dh: active DOS/DOSUTIL call count
 SCB_CURDRV	db	?	; 2Eh: current drive #
-SCB_SWITCHAR	db	?	; 2Fh: switch char (fixed at boot)
+SCB_SWCHAR	db	?	; 2Fh: switch char (fixed at boot)
 SCB_PATHCHAR	db	?	; 30h: path char (fixed at boot)
 SCB_ABTYPE	db	?	; 31h: exit type of a pending ABORT (EXTYPE_*)
 SCB_DIRCLN	dw	?	; 32h: directory (1st cluster) for FILENAME

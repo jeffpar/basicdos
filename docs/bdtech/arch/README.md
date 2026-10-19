@@ -32,7 +32,7 @@ The boot sector runs in three parts:
 
 Sysinit then:
 
-- Processes PATHCHAR=, SWITCHAR=, and MEMSIZE=, and records the boot key (or BOOTKEY=)
+- Processes PATHCHAR= and MEMSIZE=, and records the boot key (or BOOTKEY=)
 - Allocates the Session Control Block table (SESSIONS=) and the System File Block table (FILES=), along with the BPBs, the current directory table, and any extra disk buffers (BUFFERS=)
 - Opens a CON context for each CONSOLE= line (or a single default context), and opens AUX and PRN
 - Opens the DEBUG= device, if any, and obtains the FPU$ function table (FPUTBL), if the FPU$ driver is present

@@ -25,9 +25,9 @@ CODE    SEGMENT
 ; Prints memory usage: the total memory, the free memory available for an
 ; EXEC (which includes COMMAND's transient portion, if it can be discarded;
 ; see transParas), and the free memory available for BASIC programs, followed
-; by a line for anything that's unavailable: the statements outside COMMAND's
-; core, if only the core was loaded (see CORE_END and genUpper), and
-; floating-point, if the FPU$ driver isn't loaded (see FPU_TABLE).
+; by a line for anything that's unavailable: floating-point, if the FPU$
+; driver isn't loaded (see FPU_TABLE), and the functions outside COMMAND's
+; core, if only the core was loaded (see CORE_END and genUpper).
 ;
 ; Inputs:
 ;	BX -> CMDHEAP (not used)
@@ -65,13 +65,13 @@ mem2:	call	transParas		; AX = paras of COMMAND's transient
 mem3:	xchg	ax,si
 	call	toBytes
 	PRINTF	<"%8ld bytes free",13,10>,ax,dx
-mem9:	mov	ax,ss:[PSP_CODESIZE]	; was only COMMAND's core loaded?
+mem9:	cmp	word ptr cs:[FPU_TABLE].SEG,0; is the FPU$ driver loaded?
+	jne	mem10			; yes
+	PRINTF	<"Floating-point disabled",13,10>
+mem10:	mov	ax,ss:[PSP_CODESIZE]	; was only COMMAND's core loaded?
 	cmp	ax,offset DGROUP:CORE_END
-	ja	mem10			; no
-	PRINTF	<"Core BASIC functions only (see HELP CORE)",13,10>
-mem10:	cmp	word ptr cs:[FPU_TABLE].SEG,0; is the FPU$ driver loaded?
-	jne	mem11			; yes
-	PRINTF	<"No floating-point (FPU$ driver not loaded)",13,10>
+	ja	mem11			; no
+	PRINTF	<"Core functions only (see HELP CORE)",13,10>
 mem11:	clc
 	ret
 	DEFLBL	toBytes,near	; converts paras in AX to bytes in DX:AX

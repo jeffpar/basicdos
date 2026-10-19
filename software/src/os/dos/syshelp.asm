@@ -293,7 +293,7 @@ ENDPROC	console_warning
 
 
 	DEFLBL	open_error,near
-	PRINTF	<"Error opening %s: %d">,dx,ax
+	PRINTF	<"Error opening %s (%d)">,dx,ax
 	jmp	fatal_error
 
 DOS	ends

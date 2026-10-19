@@ -1361,25 +1361,26 @@ lpm5a:	mov	ds:[PSP_HEAPSIZE],dx
 ;
 ; There's no copy of the shared code, but if the program has a core (see
 ; CD_CORESIZE in the COMDATA we read above, and COMHEAP in dosapi.inc) that
-; fits, load that instead, by going back to lp3 with the core's size as the
+; fits, load that instead, by going back to lp3a with the core's size as the
 ; file size: the core ends with a COMDATA of its own, so the rest of the load
 ; proceeds as usual, except that the image can't be cached (see lp7).  The
 ; program can tell that only its core was loaded from PSP_CODESIZE.
 ;
+; Unlike lp3, we don't require MINHEAP beyond the PSP and the core, since a
+; core's heap is inside its image (eg, COMMAND.COM's RES_HEAP), so it needs
+; no memory beyond its image (see lp7g).
+;
 lpmc:	mov	ax,[bp].TMP_AX		; AX = end of the core (0 if none)
 	sub	ax,100h			; AX = size of the core
 	jbe	lpmc9			; there isn't one
-	push	ax
+	mov	[bp].TMP_CX,ax		; TMP_CX = file size (now the core's)
 	add	ax,15
 	mov	cl,4
 	shr	ax,cl
-	add	ax,50h			; AX = paras the core needs (see lp3)
+	add	ax,10h			; AX = paras the core needs (with PSP)
 	cmp	ax,[bp].TMP_DX		; does it fit?
-	pop	ax
 	ja	lpmc9			; no
-	mov	[bp].TMP_CX,ax		; TMP_CX = file size (now the core's)
-	sub	dx,dx			; DX:AX = size
-	jmp	lp3
+	jmp	lp3a
 lpmc9:	jmp	lpm9
 ENDPROC	load_program
 

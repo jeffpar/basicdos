@@ -171,7 +171,7 @@ On a machine with too little memory for all of COMMAND.COM (eg, 64K), the graphi
 
 ### Low Memory
 
-On a machine with too little memory for all of COMMAND.COM (eg, 64K), BASIC-DOS loads only its core, and [MEM](../cmd/system/#mem) displays `Core BASIC functions only (see HELP CORE)`.  The following are then unavailable, and using one of them displays "Not enough memory":
+On a machine with too little memory for all of COMMAND.COM (eg, 64K), BASIC-DOS loads only its core, and [MEM](../cmd/system/#mem) displays `Core functions only (see HELP CORE)`.  The following are then unavailable, and using one of them displays "Not enough memory":
 
 - The graphics commands: CIRCLE, DRAW, PAINT, PRESET, PSET, and the graphics forms of GET, LINE, and PUT
 - The MOUSE command and function

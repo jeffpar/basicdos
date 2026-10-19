@@ -1097,7 +1097,7 @@ ie7:	lodsb
 	ret
 ie8:	cmp	al,'/'			; "/C" (as the C runtime uses)?
 	je	ie8a
-	cmp	al,[bx].SWITCH_CHAR	; or the SWITCHAR equivalent?
+	cmp	al,[bx].SWITCH_CHAR	; or the switch char?
 	jne	ie9
 ie8a:	mov	al,[si]
 	or	al,20h

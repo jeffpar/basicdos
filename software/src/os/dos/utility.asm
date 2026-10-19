@@ -429,8 +429,8 @@ ENDPROC	utl_atoi32d
 ; utl_tokify (AH = 0Ch or 0Dh)
 ;
 ; DOS_UTL_TOKEN1 (0Ch) performs generic parsing, which means that only
-; tokens separated by whitespace (or SWITCHAR) will be returned, and they
-; will all be identified "generically" as CLS_STR.
+; tokens separated by whitespace (or the switch char) will be returned, and
+; they will all be identified "generically" as CLS_STR.
 ;
 ; DOS_UTL_TOKEN2 (0Dh) performs BASIC parsing, which returns all tokens,
 ; even whitespace sequences (CLS_WHITE).
@@ -458,8 +458,8 @@ DEFPROC	utl_tokify,DOS
 	mov	al,DOS_UTL_TOKEN2
 	sub	al,ah			; AL = TOKTYPE
 	mov	bx,[scb_active]
-	mov	bl,[bx].SCB_SWITCHAR
-	mov	[bp].TMP_BL,bl		; TMP_BL = SWITCHAR
+	mov	bl,[bx].SCB_SWCHAR
+	mov	[bp].TMP_BL,bl		; TMP_BL = switch char
 	mov	[bp].TMP_BH,al		; TMP_BH = TOKTYPE
 	mov	ds,[bp].REG_DS		; DS:SI -> string
 	ASSUME	DS:NOTHING
@@ -647,14 +647,14 @@ tc3:	test	byte ptr [bp].TMP_BH,TOKTYPE_GENERIC
 	cmp	byte ptr [si],'>'	; does '>' follow?
 	jne	tc3f			; no
 	ret				; yes (AH = CLS_WHITE)
-tc3f:	cmp	al,[bp].TMP_BL		; SWITCHAR?
+tc3f:	cmp	al,[bp].TMP_BL		; switch char?
 	jne	tc3c			; no
 	cmp	ah,CLS_WHITE		; any intervening whitespace?
 	je	tc3c			; yes
 ;
-; A SWITCHAR that follows other characters (eg, "TIME/P") starts a new token
-; only if it's '/', since other SWITCHARs (eg, '-') may appear in arguments
-; (eg, "MY-FILE.TXT" or "DATE 10-07-26").
+; A switch char that follows other characters (eg, "TIME/P") starts a new
+; token only if it's '/', since the other switch char ('-', with PATHCHAR=/)
+; may appear in arguments (eg, "MY-FILE.TXT" or "DATE 10-07-26").
 ;
 	cmp	al,'/'
 	jne	tc3c
@@ -901,7 +901,7 @@ ENDPROC	utl_tokid
 ;
 ; utl_parsesw (AH = 0Fh)
 ;
-; Switch tokens start with the system's SWITCHAR and may contain 1 or more
+; Switch tokens start with the system's switch char and may contain 1 or more
 ; alphanumeric characters, each of which is converted to a bit in either
 ; PSP_DIGITS or PSP_LETTERS.
 ;
@@ -924,7 +924,7 @@ DEFPROC	utl_parsesw,DOS
 	sti
 	mov	bx,[scb_active]
 	ASSERT	STRUCT,[bx],SCB
-	mov	ch,[bx].SCB_SWITCHAR	; CH = SWITCHAR
+	mov	ch,[bx].SCB_SWCHAR	; CH = switch char
 	mov	es,[bx].SCB_PSP
 	ASSUME	ES:NOTHING
 	sub	ax,ax
@@ -949,7 +949,7 @@ pw1:	cmp	bl,[di].TOK_CNT
 	pop	bx
 	lodsb
 	push	di
-	cmp	al,ch			; starts with SWITCHAR?
+	cmp	al,ch			; starts with switch char?
 	jne	pw7			; no
 pw2:	lodsb				; consume option chars
 	cmp	al,'a'			; until we reach non-alphanumeric char

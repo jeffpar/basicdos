@@ -866,7 +866,7 @@ si0:	rep	movsw			; (CX is zero if we just zeroed them)
 	pop	bx
 	xchg	si,ax
 	lea	di,[bx].SCB_CURDRV
-	ASSERT	<SCB_CURDRV+1>,EQ,<SCB_SWITCHAR>
+	ASSERT	<SCB_CURDRV+1>,EQ,<SCB_SWCHAR>
 	ASSERT	<SCB_CURDRV+2>,EQ,<SCB_PATHCHAR>
 	movsw
 	movsb

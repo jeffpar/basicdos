@@ -49,7 +49,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<allocCode,ensureRoom,keepCode,genRedir,genRedirEnd>
-	EXTNEAR	<allocVars,addVar,chkColon,setVarLong,setVarDouble>
+	EXTNEAR	<addVar,chkColon,setVarLong,setVarDouble>
 	EXTNEAR	<setStr,compactStrs,genArrayRef,checkCtl>
 	EXTNEAR	<memError,strPath,setPath,callDOS>
 	EXTNEAR	<genExpr,genCvtType,genCallCS,genPushImmLong>
@@ -74,7 +74,6 @@ CODE    SEGMENT
 ;
 DEFPROC	genCode
 	LOCVAR	codeSeg,word		; code segment
-	LOCVAR	defVarSeg,word		; default VBLK segment
 	LOCVAR	defType,byte		; used by genDefInt, etc.
 	LOCVAR	pCode,dword		; original start of generated code
 	ENTER
@@ -122,10 +121,6 @@ gc2:	mov	[bx].LINE_PTR.OFF,si
 	mov	[bx].LINE_PTR.SEG,dx
 	mov	[bx].LINE_LEN,cx	; CX = previous length (0)
 
-	call	allocVars
-	jc	gce
-	mov	ax,[bx].VBLKDEF.BLK_NEXT
-	mov	[defVarSeg],ax		; save the first (default) VBLK segment
 	call	allocCode
 	jc	gce
 	ASSUME	ES:NOTHING		; ES:DI -> code block
@@ -195,12 +190,18 @@ gc6:	push	ss
 	stosb
 ;
 ; The memory model for the generated code is simple: CS is the current
-; code block, SS is the heap, DS is the first var block, and ES is scratch.
+; code block, SS is the heap, DS is the first var block (if any; see addVar),
+; and ES is scratch.
 ;
 ; Since a BAS file can run another BAS file, we save the caller's ON ERROR
 ; state (see rtError), and then record the SP that the code will start with.
+; We also save LINE_PTR.SEG, which a BAT or BAS file run by the code changes,
+; so that keepCode can still tell whether this was the loaded program (if it
+; wasn't, eg, a startup command that runs AUTOEXEC.BAT, RUN must not find its
+; code in CODE_CACHE).
 ;
 	mov	si,ds:[PSP_HEAP]
+	push	[si].LINE_PTR.SEG
 	push	[si].ERR_SP
 	push	[si].ERR_NUM
 	push	[si].ERR_ADDR.OFF
@@ -213,7 +214,7 @@ gc6:	push	ss
 	mov	ax,sp
 	sub	ax,4			; (the CALL below pushes 4 bytes)
 	mov	[si].ERR_SP,ax
-	mov	ds,[defVarSeg]
+	mov	ds,[si].VBLKDEF.BDEF_NEXT
 	ASSUME	DS:NOTHING
 	call	[pCode]			; execute the code buffer
 	pop	ds
@@ -224,6 +225,7 @@ gc6:	push	ss
 	pop	[si].ERR_ADDR.OFF
 	pop	[si].ERR_NUM
 	pop	[si].ERR_SP
+	pop	[si].LINE_PTR.SEG
 	clc
 
 gc7:	pushf
@@ -786,7 +788,7 @@ ENDPROC	genLet
 ;	AX, DX, DI
 ;
 DEFPROC	genPushVarPtr
-	cmp	dx,[defVarSeg]
+	call	chkVarSeg
 	je	gpv1
 	call	genPushImm
 	jmp	short gpv2
@@ -810,9 +812,9 @@ ENDPROC	genPushVarPtr
 ; Generates code to push 4-byte variable data onto stack (eg, a VAR_LONG
 ; integer or a VAR_STR pointer).
 ;
-; DX:SI points to the variable data, and if DX == defVarSeg, then the
-; generated code can assume DS:SI; otherwise, we must generate code to load
-; the segment as well.
+; DX:SI points to the variable data, and if DX is the first var block (see
+; chkVarSeg), then the generated code can assume DS:SI; otherwise, we must
+; generate code to load the segment as well.
 ;
 ; The generated code will then use a pair of LODSW instructions to load the
 ; variable data into AX:DX and push it on the stack (yes, ordinarily we'd use
@@ -829,7 +831,7 @@ ENDPROC	genPushVarPtr
 ;
 DEFPROC	genPushVarLong
 	push	ax
-	cmp	dx,[defVarSeg]
+	call	chkVarSeg
 	je	gpl1
 	mov	al,OP_MOV_AX
 	stosb
@@ -856,6 +858,35 @@ gpl3:	mov	ax,OP_LODSW OR (OP_PUSH_AX SHL 8)
 	pop	ax
 	ret
 ENDPROC	genPushVarLong
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; chkVarSeg
+;
+; Checks whether DX is the first var block, which the generated code can
+; access through DS (see genCode and runCode).  The first block doesn't exist
+; until the first var is added (see addVar), so we check the chain itself.
+; While a DEF with parameters is being generated, the first block is a temp
+; block for the parameters (see allocTempVars), so globals don't match, and
+; the generated code loads their segment instead, which is slower but still
+; correct (and the parameters themselves are accessed through BP).
+;
+; Inputs:
+;	DX = segment of var data
+;
+; Outputs:
+;	ZF set if DX is the first var block
+;
+; Modifies:
+;	None
+;
+DEFPROC	chkVarSeg
+	push	si
+	mov	si,ds:[PSP_HEAP]
+	cmp	dx,[si].VBLKDEF.BDEF_NEXT
+	pop	si
+	ret
+ENDPROC	chkVarSeg
 
 
 

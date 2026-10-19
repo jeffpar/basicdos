@@ -22,7 +22,7 @@ CODE    SEGMENT
 	EXTNEAR	<freeIdleVars,resetVars,runCode,findVar>
 	EXTNEAR	<enterLine,editPrompt,genUpper>
 	EXTNEAR	<saveChains,restoreChains,compactStrs>
-	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resSum>
+	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resSum,resParas>
 	EXTNEAR	<initEnv,buildEnv>
 	EXTBYTE	<CMD_PATH,MSG_DRIVE>
 	EXTWORD	<CMD_REFS,TRANS_SUM>
@@ -39,12 +39,16 @@ DEFPROC	main
 ; If we're the copy that owns the shared code (ie, CS = DS), the loader has
 ; already put our heap and stack in RES_HEAP (see COMHEAP), so we just record
 ; what we need to reload the transient portion later (see runTransient in
-; res.asm).
+; res.asm).  We also release the heap template that follows our code (see
+; HEAPDEF), which only other copies use, as runTransient would after an EXEC.
 ;
 	mov	ax,cs
 	mov	dx,ds
 	cmp	ax,dx			; do we own the shared code?
 	jne	m0z			; no
+	call	resParas		; BX = paras through end of code
+	mov	ah,DOS_MEM_REALLOC
+	int	21h			; (ES = our PSP)
 	call	resSum
 	mov	[TRANS_SUM],ax		; record the checksum of the transient
 	mov	ah,DOS_DSK_GETDRV

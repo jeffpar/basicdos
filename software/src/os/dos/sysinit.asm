@@ -20,7 +20,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTBYTE	<bpb_total,sfh_debug,def_drive,def_switchar,def_pathchar>
+	EXTBYTE	<bpb_total,sfh_debug,def_drive,def_swchar,def_pathchar>
 	EXTWORD	<mcb_head,mcb_limit,buf_head,key_boot,scb_active,ivt_save>
 	EXTWORD	<err_stack>
 	EXTLONG	<bpb_table,scb_table,sfb_table,cdir_table,clk_ptr,fpu_table>
@@ -199,38 +199,17 @@ si2c:
 	DBGINIT	STRUCT,[bx],SCB
 	mov	[scb_active],bx		; set temporary SCB
 ;
-; Let users override the default switch character '/' (with '-' or '\') and
-; the default path character '\' (with '/'), but never make them the same:
-; SWITCHAR=\ implies PATHCHAR=/, and PATHCHAR always wins, so if it matches
-; the switch character, that becomes '-' (for PATHCHAR=/) or '/' (for \).
-; Any other setting is ignored.
+; The path character defaults to '\' and the switch character to '/', but
+; PATHCHAR=/ changes the path character to '/' and therefore the switch
+; character to '-', so that they never conflict.  Any other setting (which
+; should be PATHCHAR=\, the default) is ignored.
 ;
-	mov	si,offset CFG_SWITCHAR
-	call	find_cfg		; look for "SWITCHAR="
-	jc	si2e
-	mov	al,[di]
-	cmp	al,'-'
-	je	si2d
-	cmp	al,'/'
-	je	si2d
-	cmp	al,'\'
-	jne	si2e
-	mov	[def_pathchar],'/'	; SWITCHAR=\ implies PATHCHAR=/
-si2d:	mov	[def_switchar],al	; update the default for all SCBs
-si2e:	mov	si,offset CFG_PATHCHAR
+	mov	si,offset CFG_PATHCHAR
 	call	find_cfg		; look for "PATHCHAR="
 	jc	si3
-	mov	al,[di]
-	mov	ah,'-'			; AH = new SWITCHAR if they conflict
-	cmp	al,'/'
-	je	si2f
-	mov	ah,'/'			; (or this one, for PATHCHAR=\)
-	cmp	al,'\'
-	jne	si3
-si2f:	mov	[def_pathchar],al	; update the default for all SCBs
-	cmp	al,[def_switchar]	; do they conflict?
-	jne	si3			; no
-	mov	[def_switchar],ah
+	cmp	byte ptr [di],'/'	; PATHCHAR=/?
+	jne	si3			; no (def_pathchar follows def_swchar)
+	mov	word ptr [def_swchar],'-' OR ('/' SHL 8)
 ;
 ; Copy DD_LIST from the BIOS segment to dev_head in the DOS segment, for
 ; DOS_MSC_GETVARS (see DV_DD_LIST), since all the device drivers are linked
@@ -654,7 +633,7 @@ si9b:
 ;
 	mov	ax,word ptr es:[def_drive]
 	mov	word ptr es:[bx].SCB_CURDRV,ax
-	ASSERT	<SCB_CURDRV+1>,EQ,<SCB_SWITCHAR>
+	ASSERT	<SCB_CURDRV+1>,EQ,<SCB_SWCHAR>
 	mov	al,es:[def_pathchar]
 	mov	es:[bx].SCB_PATHCHAR,al
 	call	load_devices
@@ -854,7 +833,7 @@ si18:	mov	si,sp			; SS:SI -> SPB
 	ASSUME	ES:NOTHING
 	xchg	bx,ax			; BL = SFH
 	pop	ax			; AX = error code
-	CCALL	DOS_UTL_HPRINTF,<"Error loading %s: %d",13,10>,si,ax
+	CCALL	DOS_UTL_HPRINTF,<"Error loading %s (%d)",13,10>,si,ax
 	jmp	si17
 ;
 ; Although it may appear every SCB was started immediately after loading,
@@ -871,8 +850,10 @@ si20:	add	sp,size SPB		; free SPB on the stack
 	pop	ds
 
 	test	cx,cx			; if no SCBs loaded, that's not good
-	jnz	$+5
-	jmp	sie2
+	jnz	si20a
+	mov	dx,offset HALTED+2	; (the errors were reported; see si18)
+	jmp	fe1
+si20a:
 ;
 ; Utility functions like SLEEP need access to the clock device, so we save
 ; its address in clk_ptr.  While we could open the device normally and obtain
@@ -978,9 +959,6 @@ si21:	mov	es,ax			; find the last MCB
 	mov	ax,offset dos_leave
 	push	ax
 	ret				; we let dos_leave turn interrupts on
-
-sie2:	jmp	sysinit_error
-
 ENDPROC	sysinit
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1024,8 +1002,9 @@ ENDPROC	sysinit
 ;
 	DEFLBL	fatal_error,near
 	mov	dx,offset HALTED
-	mov	ah,DOS_TTY_PRINT
+fe1:	mov	ah,DOS_TTY_PRINT
 	int	21h
+	sti				; (so that a COM console can finish)
 	jmp	$			; "halt"
 ;
 ; Initialization data
@@ -1061,7 +1040,6 @@ CFG_MEMSIZE	db	8,"MEMSIZE="
 CFG_SESSIONS	db	9,"SESSIONS="
 		dw	4,1,32		; TODO: Decide if 32 session limit OK
 CFG_SHELL	db	6,"SHELL="
-CFG_SWITCHAR	db	9,"SWITCHAR="
 CFG_PATHCHAR	db	9,"PATHCHAR="
 
 AUX_DEVICE	db	"AUX",0
@@ -1077,7 +1055,7 @@ SYS_MSG		db	"BASIC-DOS "
 
 SYSERR		db	"System initialization error$"
 CONERR		db	"More CONSOLES than SESSIONS$"
-HALTED		db	"; halted$"
+HALTED		db	13,10,"System halted",13,10,'$'
 
 
 DOS	ends

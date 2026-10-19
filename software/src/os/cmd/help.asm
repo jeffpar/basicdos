@@ -457,7 +457,7 @@ pr1a:	mov	al,[bx].PATH_CHAR
 	jmp	short pr2
 ;
 ; HELP.TXT starts each switch with a tilde (eg, ~P), so we print each one as
-; the current SWITCHAR.
+; the current switch char.
 ;
 pr1b:	cmp	al,'~'
 	jne	pr1c

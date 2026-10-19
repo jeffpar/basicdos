@@ -38,7 +38,6 @@ The recognized keywords are:
 - [SESSIONS](#sessions)
 - [SHELL](#shell)
 - [SKIP](#skip)
-- [SWITCHAR](#switchar)
 
 ### BOOTKEY
 
@@ -157,15 +156,9 @@ For example, a configuration that uses a serial console doesn't need the CON dri
 
 > PATHCHAR=*char*
 
-Changes the character that separates directory names in paths from `\` (the default, as in PC DOS) to `/` (eg, `PATHCHAR=/`, so that `CD /BIN` is used instead of `CD \BIN`).  Only `\` and `/` are allowed; any other character is ignored.  Since the path and switch characters can't be the same, `PATHCHAR=/` also changes the switch character to `-`, unless [SWITCHAR](#switchar) chose something else.  Only one path character is recognized, and it remains fixed after boot.
+Changes the character that separates directory names in paths from `\` (the default, as in PC DOS) to `/` (eg, `PATHCHAR=/`, so that `CD /BIN` is used instead of `CD \BIN`).  Only `\` and `/` are allowed; any other character is ignored.
 
-### SWITCHAR
-
-> SWITCHAR=*char*
-
-Changes the character that introduces command options (switches) from `/` (the default, as in PC DOS) to `-` or `\` (eg, `SWITCHAR=-`, so that `TIME -P` is used instead of `TIME /P`).  Any other character is ignored.  The path and switch characters can never be the same: `SWITCHAR=\` also changes the path character to `/`, and if [PATHCHAR](#pathchar) is also set to the switch character, PATHCHAR wins, and the switch character becomes `-` (for `PATHCHAR=/`) or `/` (for `PATHCHAR=\`).  The switch character remains fixed after boot.
-
-A switch character other than `/` begins a switch only at the start of an argument, so that it can also appear inside arguments (eg, `TYPE MY-FILE.TXT`).
+Since the path character can't also be the switch character (which introduces command options), `PATHCHAR=/` also changes the switch character from `/` (the default, as in PC DOS) to `-` (eg, `TIME -P` instead of `TIME /P`).  A `-` begins a switch only at the start of an argument, so that it can also appear inside arguments (eg, `TYPE MY-FILE.TXT`).  Both characters remain fixed after boot.
 
 ### Sample Configuration
 

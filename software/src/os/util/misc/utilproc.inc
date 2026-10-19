@@ -15,7 +15,7 @@
 ; getArgs
 ;
 ; Parses the command tail: each switch letter (eg, the 'V' in "-V") sets an
-; entry in UV_SW, and "+n" (after the SWITCHAR) sets UV_COL; a quoted string
+; entry in UV_SW, and "+n" (after the switch char) sets UV_COL; a quoted string
 ; is recorded in UV_STR and UV_STRLEN; and every other argument is treated
 ; as a file name, which is null-terminated in place and recorded in UV_FILES.
 ;
@@ -31,14 +31,14 @@
 	ASSUME	CS:CODE, DS:CODE, ES:CODE, SS:CODE
 DEFPROC	getArgs
 	mov	ax,DOS_MSC_GETSWC
-	int	21h			; DL = SWITCHAR
+	int	21h			; DL = switch char
 	mov	si,PSP_CMDTAIL+1
 ga1:	lodsb
 	cmp	al,CHR_RETURN		; end of the tail?
 	je	ga9			; yes
 	cmp	al,CHR_SPACE		; whitespace (or other control char)?
 	jbe	ga1			; yes
-	cmp	al,dl			; SWITCHAR?
+	cmp	al,dl			; switch char?
 	je	ga3			; yes
 	cmp	al,CHR_DQUOTE		; quoted string?
 	je	ga5			; yes

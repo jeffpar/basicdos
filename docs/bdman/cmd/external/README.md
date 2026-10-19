@@ -47,7 +47,7 @@ Utilities that don't need the speed of assembly language are BASIC programs, wri
 
 ### Filters
 
-A filter reads lines of input, which normally come from a pipe (eg, `DIR | SORT`), and writes the results to its output.  FIND, MORE, SORT, and WC also accept file names instead (since input redirection isn't supported yet).  Input ends when the pipe is closed, at the end of the file, or at a CTRL-Z.  Switches start with SWITCHAR (`/` by default).
+A filter reads lines of input, which normally come from a pipe (eg, `DIR | SORT`), and writes the results to its output.  FIND, MORE, SORT, and WC also accept file names instead (since input redirection isn't supported yet).  Input ends when the pipe is closed, at the end of the file, or at a CTRL-Z.  Switches start with the switch character (`/`, or `-` if [PATHCHAR](../../cfg/#pathchar) is `/`).
 
 #### CASE
 

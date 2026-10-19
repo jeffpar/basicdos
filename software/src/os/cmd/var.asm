@@ -743,29 +743,6 @@ ENDPROC	runCode
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; allocVars
-;
-; Allocates a var block if one is not already allocated.
-;
-; Inputs:
-;	BX -> CMDHEAP
-;
-; Outputs:
-;	If successful, carry clear, ES:DI -> first available byte, CX = length
-;
-; Modifies:
-;	AX, CX, SI, DI, ES
-;
-DEFPROC	allocVars
-	lea	si,[bx].VBLKDEF
-	cmp	[si].BDEF_NEXT,0
-	jne	al9
-	jmp	allocBlock
-al9:	ret
-ENDPROC	allocVars
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
 ; allocTempVars
 ;
 ; Allocates a temp var block and makes it active, returning previous chain.
@@ -784,10 +761,18 @@ DEFPROC	allocTempVars
 	push	es
 	mov	si,ds:[PSP_HEAP]
 	lea	si,[si].VBLKDEF
-	sub	dx,dx
+;
+; If there's no var block yet (see addVar), allocate it first, so that globals
+; added while the temp block is active don't end up in the temp block.
+;
+	cmp	[si].BDEF_NEXT,0	; is there a var block yet?
+	jne	atv1			; yes
+	call	allocBlock
+	jc	atv9
+atv1:	sub	dx,dx
 	xchg	[si].BDEF_NEXT,dx
 	call	allocBlock
-	pop	es
+atv9:	pop	es
 	pop	di
 	ret
 ENDPROC	allocTempVars
@@ -991,10 +976,14 @@ DEFPROC	addVar
 ; New vars are added to the last var block (which is NOT the first block
 ; while a DEF with parameters is being generated, since the first block is
 ; then a temp block for the parameters), and if there's no room, another
-; var block is added to the chain.
+; var block is added to the chain.  There's no var block at all until the
+; first var is added, so that lines without vars (eg, PRINT 1) don't need one.
 ;
 	mov	di,ds:[PSP_HEAP]
-	mov	es,[di].VBLKDEF.BDEF_NEXT
+	mov	dx,[di].VBLKDEF.BDEF_NEXT
+	test	dx,dx			; is there a var block yet?
+	jz	av3n			; no, so allocate the first one
+	mov	es,dx
 av0:	ASSERT	STRUCT,es:[0],VBLK
 	mov	di,es:[BLK_NEXT]
 	test	di,di			; is this the last block?
@@ -1038,7 +1027,7 @@ av3:	add	di,dx
 	cmp	di,size VBLK		; no, but is this block empty?
 	stc
 	je	av9			; yes, so the var is too large
-	push	ax
+av3n:	push	ax
 	push	si
 	mov	si,ds:[PSP_HEAP]
 	lea	si,[si].VBLKDEF
@@ -1115,9 +1104,8 @@ DEFPROC	findVar
 
 fv0:	inc	bh
 	mov	di,ds:[PSP_HEAP]
-	mov	es,[di].VBLKDEF.BDEF_NEXT
-	ASSERT	STRUCT,es:[0],VBLK
-	mov	di,size VBLK		; ES:DI -> first var in block
+	mov	ax,[di].VBLKDEF.BDEF_NEXT
+	jmp	short fv1a		; (zero if no var block yet; see addVar)
 
 fv1:	mov	al,es:[di]
 	inc	di
@@ -1129,10 +1117,11 @@ fv1:	mov	al,es:[di]
 	cmp	ax,dx
 	je	fv0
 	mov	ax,es:[BLK_NEXT]	; is there another var block?
-	test	ax,ax
+fv1a:	test	ax,ax
 	stc
 	jz	fv9			; no
 	mov	es,ax
+	ASSERT	STRUCT,es:[0],VBLK
 	mov	di,size VBLK		; ES:DI -> first var in next block
 	jmp	fv1
 

@@ -521,9 +521,9 @@ ENDPROC	msc_getvec
 ;
 ; msc_getswc (REG_AH = 37h)
 ;
-; Get the switch character ("switchar") or the path character.  Both are
-; chosen at boot (by CONFIG.SYS's SWITCHAR and PATHCHAR settings; see sysinit)
-; and can't be changed, so programs need to get them only once.
+; Get the switch character or the path character.  Both are chosen at boot
+; (by CONFIG.SYS's PATHCHAR setting, which also determines the switch char;
+; see sysinit) and can't be changed, so programs need to get them only once.
 ;
 ; Inputs:
 ;	If REG_AL = 0, returns the switch character in REG_DL
@@ -544,12 +544,12 @@ DEFPROC	msc_getswc,DOS
 	cmp	al,4			; get path char subfunction?
 	jne	gsw0			; no
 	mov	al,0			; yes, so treat it like get switch char
-	ASSERT	<SCB_SWITCHAR + 1>,EQ,<SCB_PATHCHAR>
+	ASSERT	<SCB_SWCHAR + 1>,EQ,<SCB_PATHCHAR>
 	inc	bx			; (but for SCB_PATHCHAR)
 gsw0:	test	al,al
 	jnz	gsw2
-	mov	al,[bx].SCB_SWITCHAR
-	mov	[bp].REG_DL,al		; DL = "switchar"
+	mov	al,[bx].SCB_SWCHAR
+	mov	[bp].REG_DL,al		; DL = switch char
 	ret
 gsw2:	mov	byte ptr [bp].REG_AL,0FFh; (unsupported subfunction)
 	ret
