@@ -107,7 +107,7 @@ DEFPROC	scb_load,DOS
 	ASSUME	DS:DOS
 	pop	cx			; CX = ENVSEG
 	pop	bx			; BX -> current SCB again
-	jc	sl7			; exit on load error
+	jc	sl6			; release session references on load error
 ;
 ; If successful, load_command returns the initial program stack in DX:AX.
 ;
@@ -133,6 +133,20 @@ DEFPROC	scb_load,DOS
 	mov	[bp].REG_BX,ax
 	mov	ax,[bp].TMP_ES
 	mov	[bp].REG_ES,ax		; REG_ES:REG_BX -> program data
+	jmp	short sl7
+;
+; Undo init_scb's handle references, preserving the original load error.
+; Sysinit's handles already belonged to the session and were not incremented.
+;
+sl6:	push	ax
+	push	bx
+	inc	cx			; was ENVSEG -1 (from sysinit)?
+	jz	sl6a			; yes, leave its handles alone
+	mov	cl,[bx].SCB_NUM
+	call	scb_close
+sl6a:	pop	bx
+	pop	ax
+	stc
 
 sl7:	pop	cx			; recover previous SCB
 	call	scb_unlock		; unlock

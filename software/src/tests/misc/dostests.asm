@@ -10,6 +10,7 @@
 	DOSPSP equ 1
 	DOSFUNC equ 1
 	include	macros.inc
+	include	dos.inc
 	include	dosapi.inc
 
 MEMSTEP	equ	67	; memory test increment, in paragraphs (a prime number,
@@ -127,6 +128,18 @@ m6:	call	result
 	call	print
 	call	test_rename
 	call	result
+;
+; BASIC-DOS session loads must release their inherited handles on failure.
+;
+	mov	ah,DOS_MSC_GETVER
+	int	21h
+	cmp	bx,SIG_BASICDOS		; session utilities are BASIC-DOS-specific
+	jne	m7
+	mov	dx,offset loadtest
+	call	print
+	call	test_load
+	call	result
+m7:
 
 	mov	dx,offset execfile
 	mov	ax,DOS_HDL_OPENRO
@@ -315,6 +328,118 @@ cn9:	ret
 ENDPROC	chk_nofile
 
 ;
+; test_load
+;
+; Supply one writable file as all five session handles, then repeatedly
+; try to load that same file (which must fail with a sharing violation).
+; Its reference count must return to the caller's single reference each
+; time.  Finally load and run a tiny COM file to verify session reuse and
+; normal termination.  The DOS tables are read only, for checking counts.
+;
+DEFPROC	test_load
+	push	cs
+	pop	es
+	mov	dx,offset loadchild
+	xor	cx,cx
+	mov	ah,DOS_HDL_CREATE
+	int	21h
+	jnc	tl0
+	ret
+tl0:	mov	[loadhandle],ax
+	mov	bx,ax
+	mov	dx,offset loadimage
+	mov	cx,2
+	mov	ah,DOS_HDL_WRITE
+	int	21h
+	jnc	tl0b
+	jmp	tl8
+tl0b:	cmp	ax,2			; the child must contain its entire INT 20h
+	jne	tl7
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	jnc	tl0a
+	ret
+tl0a:	mov	[loadhandle],-1
+	mov	dx,offset testfile
+	mov	ax,DOS_HDL_OPENRW
+	int	21h
+	jc	tl8
+	mov	[loadhandle],ax
+	mov	bx,ax
+	mov	al,ds:[PSP_PFT+bx]
+	mov	di,offset loadspb.SPB_SFHIN
+	mov	cx,5
+	rep	stosb			; the same SFH must be balanced five times
+	mov	ah,size SFB
+	mul	ah
+	push	ax			; offset of this SFH within the SFB table
+	mov	ah,DOS_MSC_GETVARS
+	int	21h
+	sub	bx,2			; ES:BX -> DOSVARS, including DV_MCB_HEAD
+	pop	ax
+	add	ax,es:[bx].DV_SFB_TABLE.OFF
+	mov	[loadrefs].OFF,ax
+	mov	[loadrefs].SEG,es
+	mov	[loadspb].SPB_CMDLINE.SEG,cs
+	mov	[loadspb].SPB_CMDLINE.OFF,offset testfile
+	mov	bp,32
+tl1:
+	call	load_session
+	jnc	tl7
+	cmp	ax,ERR_SHARE		; cleanup must preserve the original load error
+	jne	tl7
+	call	load_refcheck
+	jc	tl7
+	dec	bp
+	jnz	tl1
+	mov	[loadspb].SPB_CMDLINE.OFF,offset loadchild
+	call	load_session
+	jc	tl7
+	DOSUTIL	START
+	jc	tl7
+	DOSUTIL	WAITEND
+	jc	tl7
+	call	load_refcheck		; successful termination must release them too
+	jmp	short tl8
+tl7:	stc
+tl8:	pushf
+	mov	bx,[loadhandle]
+	cmp	bx,-1			; did the caller's fixture handle open?
+	je	tl8a
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+tl8a:	mov	dx,offset loadchild
+	mov	ah,DOS_DSK_DELETE
+	int	21h
+	push	cs
+	pop	es
+	popf
+tl9:	ret
+ENDPROC	test_load
+
+;
+; load_session / load_refcheck
+;
+; Load through the session API, or check the fixture's reference count.
+;
+DEFPROC	load_session
+	push	cs
+	pop	es
+	mov	bx,offset loadspb
+	xor	cx,cx			; no subsequent pipeline stages
+	DOSUTIL	LOAD
+	ret
+ENDPROC	load_session
+
+DEFPROC	load_refcheck
+	les	di,[loadrefs]
+	cmp	es:[di].SFB_REFS,1	; only the caller's handle may remain
+	je	lr9
+	stc
+lr9:	ret
+ENDPROC	load_refcheck
+
+;
 ; result
 ;
 ; Prints "passed" if carry is clear, "failed" if carry is set.
@@ -344,6 +469,12 @@ filetest	db		"file test $"
 renametest	db		"rename/delete test $"
 sharetest	db		"sharing test $"
 pchtest		db		"path char test $"
+loadtest	db		"session load test $"
+loadhandle	dw		-1
+loadrefs	dd		0
+loadspb		SPB		<0,0,0FFh,0FFh,0FFh,0FFh,0FFh>
+loadchild	db		"LOADTEST.COM",0
+loadimage	db		0CDh,20h
 
 testfile	db		"HELLO.TXT",0
 tempfile1	db		"TEMP1.TXT",0
