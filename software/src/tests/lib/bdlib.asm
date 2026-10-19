@@ -332,6 +332,7 @@ DEFPROC	utl_printf,DOS
 	push	bx
 	mov	bx,[bp].REG_IP
 	mov	ds,[bp].REG_CS		; DS:BX -> format string
+	mov	al,0			; AL = no flags (untyped parameters)
 	call	sprintf
 	mov	[bp].REG_AX,ax		; update REG_AX with count in AX
 	mov	[bp].REG_IP,bx		; update REG_IP with final address

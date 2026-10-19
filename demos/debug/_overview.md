@@ -28,6 +28,6 @@ The resident driver uses local string and hex formatting with polling serial I/O
 {% include_relative CONFIG.SYS %}
 ```
 
-The BASICDOS-360K-TESTS diskette in drive B: has DBGTEST.  Run `B:\TESTS\DBGTEST` on the local console to check that COM2 is reserved and registers and flags survive INT 3; resume with `G` at each of its two stops.  The local console should report `DBGTEST passed`.
+The BASICDOS-360K-TESTS diskette in drive B: has DBGTEST.  Run `B:\TESTS\MISC\DBGTEST` on the local console to check that COM2 is reserved and registers and flags survive INT 3; resume with `G` at each of its two stops.  The local console should report `DBGTEST passed`.
 
 A successful build (`./mkdos.sh` or `./mk.sh`, with or without `debug`) updates this disk automatically (if PCJS is set; see gulpfile.js).  DEBUG kernel builds provide runtime assertions; the driver also works with release builds.  If the full DEBUG build reaches MASM's symbol-space limit in the command shell, the kernel and driver can still be built separately and used with the release shell.

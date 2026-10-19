@@ -4,9 +4,11 @@
 # (eg, software/src/configs/console/serial/fpe) before boot.sh (in the repository root) or another script in tools/tests boots it.
 #
 # The files come from software/manifest.txt: HELP.TXT from ROOT (pc.js adds the system files, and each configuration
-# has its own CONFIG.SYS and AUTOEXEC.BAT), utilities from BIN in BIN, and the DEMOS and TESTS files together in TESTS.
-# A test configuration's CONFIG.SYS sets PATH$ to all three (eg, "A:\;A:\BIN;A:\TESTS"), so the tests can be run by
-# name.  There's no SAMPLES folder, since only the BASIC-DOS disks built by gulpfile.js include the PC DOS BASIC samples.
+# has its own CONFIG.SYS and AUTOEXEC.BAT), utilities from BIN in BIN, the DEMOS and TESTS files together in TESTS,
+# the TESTS/MISC files (the test programs) in TESTS\MISC, and the TOOLS files (except MSBASIC) in TOOLS.
+# A test configuration's CONFIG.SYS sets PATH$ to all of them except TESTS\MISC (eg, "A:\;A:\BIN;A:\TESTS;A:\TOOLS");
+# the tests in TESTS\MISC are run by MISC.BAT (in TESTS), by path, or after CD \TESTS\MISC.  There's no SAMPLES
+# folder, since only the BASIC-DOS disks built by gulpfile.js include the PC DOS BASIC samples.
 #
 # Only CONFIG.SYS and AUTOEXEC.BAT are tracked in those folders (see software/src/configs/.gitignore);
 # everything else is copied here, so build the sources first (see mk.sh) to make sure the copies are current.
@@ -32,6 +34,12 @@ manifest() {
 files_root=($(manifest ROOT | grep -v -e '/CONFIG\.SYS$' -e '\.COM$'))
 files_bin=($(manifest BIN))
 files_tests=($(manifest DEMOS) $(manifest TESTS))
+files_misc=($(manifest TESTS/MISC))
+#
+# MSBASIC.EXE isn't needed in a test configuration (bench.sh copies its own), and leaving it out keeps enough free
+# space on a 360K test floppy for FCBTESTS, which writes a 16643-byte file.
+#
+files_tools=($(manifest TOOLS | grep -v '/MSBASIC\.EXE$'))
 #
 # copy [subfolder] [files...]
 #
@@ -53,12 +61,15 @@ copy() {
 }
 copy "" "${files_root[@]}"
 #
-# Older versions of this script also used BASIC, TOOLS, and SAMPLES folders, so remove those copies.
+# Older versions of this script also used BASIC and SAMPLES folders, so remove those copies; TESTS and TOOLS are
+# recreated, since older versions put the test programs (and the tools) directly in TESTS.
 #
-rm -rf "${dir:?}/BASIC" "${dir:?}/TOOLS" "${dir:?}/SAMPLES"
+rm -rf "${dir:?}/BASIC" "${dir:?}/SAMPLES" "${dir:?}/TESTS" "${dir:?}/TOOLS"
 copy BIN "${files_bin[@]}"
 copy TESTS "${files_tests[@]}"
-if [ ! -f "$dir/TESTS/DOSTESTS.COM" ]; then
-    echo "error: DOSTESTS.COM is missing from $dir/TESTS" >&2
+copy TESTS/MISC "${files_misc[@]}"
+copy TOOLS "${files_tools[@]}"
+if [ ! -f "$dir/TESTS/MISC/DOSTESTS.COM" ]; then
+    echo "error: DOSTESTS.COM is missing from $dir/TESTS/MISC" >&2
     exit 1
 fi

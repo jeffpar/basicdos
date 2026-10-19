@@ -37,7 +37,7 @@ In the root directory:
 
 In the **BIN** directory (see [Running Programs](../../intro/#running-programs) for the layout of a BASIC-DOS disk):
 
-- CASE.COM, FIND.COM, MORE.COM, and SORT.COM: filters (see below)
+- CASE.COM, FIND.COM, MORE.COM, SORT.COM, TEE.COM, and WC.COM: filters (see below)
 - SLEEP.COM: waits the specified number of seconds (eg, `SLEEP 5`); CTRL-C stops it early
 - VI.COM: a full-screen text editor (see [VI](#vi) below)
 - FORMAT.BAS: formats a diskette (see [FORMAT](#format) below)
@@ -47,7 +47,7 @@ Utilities that don't need the speed of assembly language are BASIC programs, wri
 
 ### Filters
 
-A filter reads lines of input, which normally come from a pipe (eg, `DIR | SORT`), and writes the results to its output.  FIND, MORE, and SORT also accept file names instead (since input redirection isn't supported yet).  Input ends when the pipe is closed, at the end of the file, or at a CTRL-Z.  Switches start with SWITCHAR (`/` by default).
+A filter reads lines of input, which normally come from a pipe (eg, `DIR | SORT`), and writes the results to its output.  FIND, MORE, SORT, and WC also accept file names instead (since input redirection isn't supported yet).  Input ends when the pipe is closed, at the end of the file, or at a CTRL-Z.  Switches start with SWITCHAR (`/` by default).
 
 #### CASE
 
@@ -79,6 +79,18 @@ Displays input (or *file*) one screen at a time (eg, `TYPE README.TXT | MORE`). 
 	SORT [/R] [/+n] [file]
 
 Displays the lines of input (or *file*) in sorted order, ignoring case (eg, `DIR | SORT`).  `/R` sorts in reverse order, and `/+n` sorts on the characters starting at column *n* (eg, `DIR | SORT /+10` sorts a directory listing by extension).  Up to 64K of text can be sorted.
+
+#### TEE
+
+	TEE [/A] file
+
+Copies input to its output and to *file* (eg, `DIR | TEE DIR.TXT | MORE`).  *file* is replaced, or with `/A`, appended to (and created if it doesn't exist).  ERRORLEVEL is set to 0, or 2 if *file* couldn't be opened or written.
+
+#### WC
+
+	WC [/L] [/W] [/C] [file...]
+
+Displays the number of lines, words, and bytes of input (or of each *file*, followed by their totals if there's more than one), along with each *file*'s name (eg, `DIR | WC /L`).  `/L`, `/W`, and `/C` display only the line, word, or byte counts, respectively (without any of them, all three are displayed).  Lines are counted by their line feeds, and words are separated by spaces and control characters (eg, tabs and line breaks).  ERRORLEVEL is set to 0, or 2 if a file couldn't be opened.
 
 Filters can be chained (eg, `TYPE FILE | SORT | MORE`), but every command after the first needs its own session, so a pipeline can't have more commands than [SESSIONS=](../../cfg/#sessions) allows.  If any command of a pipeline fails (eg, it can't be found, or there's no session for it), the error is displayed, the commands already running are ended, and ERRORLEVEL is set to 1.  And if a command stops reading its input early (eg, FIND can't open its file), the command writing to it gets a write error instead of waiting forever; the filters stop when that happens.
 

@@ -7,7 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Run B:\TESTS\DBGTEST on BASICDOS-360K-DEBUG, with BASICDOS-360K-TESTS in
+; Run B:\TESTS\MISC\DBGTEST on BASICDOS-360K-DEBUG, with BASICDOS-360K-TESTS in
 ; drive B:.  Resume both traps with G on the debugger terminal.
 ;
 	DOSPSP equ 1

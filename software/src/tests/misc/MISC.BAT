@@ -1,0 +1,36 @@
+REM MISC.BAT: runs the BASIC-DOS tests in \TESTS\MISC (run it from \TESTS)
+REM Each test prints "failed" (or "passed") messages, and the tests that
+REM return an exit code are checked here.  Not run: DBGTEST.COM (it needs
+REM DEBUG.SYS and a debugger terminal) and MICRO.BAS (a benchmark).
+IF NOT EXISTS("MISC\DOSTESTS.COM") THEN PRINT "Run MISC from \TESTS" : END
+D$ = LEFT$(CURDIR$, 1)
+CD MISC
+FPUTESTS
+IF ERRORLEVEL <> 0 THEN PRINT "FPUTESTS failed"
+DOSTESTS
+IF ERRORLEVEL <> 0 THEN PRINT "DOSTESTS failed"
+STRFUN
+STRPOOL
+ARRAYS
+FLOW
+VARS
+FILEIO
+PRTUSING
+REM CMDS and MOVES expect to run in the root of the boot drive (CMDS also
+REM runs A:\BIN\SLEEP.COM), so CMDS is skipped unless this is drive A:
+IF D$ <> "A" THEN PRINT "CMDS skipped (run it from A:\)" : GOTO 10
+CD \
+\TESTS\MISC\CMDS
+10	CD \
+\TESTS\MISC\MOVES
+CD \TESTS\MISC
+FCBTESTS
+IF ERRORLEVEL <> 0 THEN PRINT "FCBTESTS failed"
+REM HARDERR needs an empty drive B:, and its last test aborts it (exit 255)
+IF D$ = "B" THEN PRINT "HARDERR skipped (drive B: must be empty)" : GOTO 20
+HARDERR
+IF ERRORLEVEL <> 255 THEN PRINT "HARDERR abort failed"
+20	PRINTF
+IF ERRORLEVEL <> 0 THEN PRINT "PRINTF failed"
+CD \TESTS
+PRINT "MISC done"

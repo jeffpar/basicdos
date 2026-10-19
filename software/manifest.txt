@@ -9,16 +9,20 @@
 #   BIN      BASIC-DOS utilities (including BASIC programs) and drivers (distribution)
 #   SAMPLES  the PC DOS 1.00 BASIC samples (distribution)
 #   DEMOS    the programs that the demos run
-#   TESTS    test programs (and other programs used for testing)
+#   TESTS    STRESS.BAT, and MISC.BAT, which runs the tests in TESTS/MISC
+#   TESTS/MISC  the test programs
+#   TOOLS    tools used for testing (DISKREAD, DISKWRIT, SYMDEB, and MSBASIC)
 #
 # A section named FOLDER/SUBFOLDER (eg, DEMOS/WOLF3D) is a subfolder of FOLDER,
 # and a file inside a disk image can be listed as the image's path (which PCJS's
 # diskimage.js resolves) followed by the file's path within the image.
 #
 # gulpfile.js builds every demo diskette with ROOT, BIN, SAMPLES, and DEMOS, the
-# BASICDOS-360K-TESTS diskette with TESTS, and the BASICDOS-10MB hard disk with all
-# of them (plus DEMOS/WOLF3D, SRC, and TOOLS).  tools/tests/prep.sh copies BIN into
-# each test configuration's BIN folder, and DEMOS and TESTS into its TESTS folder.
+# BASICDOS-360K-TESTS diskette with TESTS, TESTS/MISC, and TOOLS, and the
+# BASICDOS-10MB hard disk with all of them (plus DEMOS/WOLF3D, SRC, and the build
+# tools in TOOLS).  tools/tests/prep.sh copies BIN into each test configuration's
+# BIN folder, DEMOS and TESTS into its TESTS folder, TESTS/MISC into TESTS\MISC,
+# and TOOLS into TOOLS.
 #
 [ROOT]
 CONFIG.SYS
@@ -52,17 +56,29 @@ demos/wolf3d/WOLF3D.BAT
 /harddisks/pcx86/10mb/COMPAQ331-WOLF3D.json/WOLF3D/*
 
 [TESTS]
-software/src/tests/bin/*.COM
+software/src/tests/misc/MISC.BAT
+software/src/tests/misc/STRESS.BAT
+
+[TESTS/MISC]
+software/src/tests/bin/DBGTEST.COM
+software/src/tests/bin/DOSTESTS.COM
+software/src/tests/bin/FCBTESTS.COM
+software/src/tests/bin/FPUTESTS.COM
+software/src/tests/bin/HARDERR.COM
+software/src/tests/bin/PRINTF.COM
 software/src/tests/misc/ARRAYS.BAS
 software/src/tests/misc/CMDS.BAT
 software/src/tests/misc/FILEIO.BAS
 software/src/tests/misc/FLOW.BAS
 software/src/tests/misc/MICRO.BAS
 software/src/tests/misc/MOVES.BAS
-software/src/tests/misc/STRESS.BAT
+software/src/tests/misc/PRTUSING.BAS
 software/src/tests/misc/STRFUN.BAS
 software/src/tests/misc/STRPOOL.BAS
-software/src/tests/misc/PRTUSING.BAS
 software/src/tests/misc/VARS.BAS
+
+[TOOLS]
+software/src/tests/bin/DISKREAD.COM
+software/src/tests/bin/DISKWRIT.COM
 software/src/tests/misc/SYMDEB.EXE
 software/src/msb/OBJ/MSBASIC.EXE

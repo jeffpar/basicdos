@@ -9,7 +9,7 @@ machines:
     autoMount:
       A: "BASICDOS-360K-S80"
       B: "BASICDOS-360K-TESTS"
-    autoType: CD DEMOS\rDIR PRIMES.*\rB:/TESTS/MSBASIC PRIMES\r
+    autoType: CD DEMOS\rDIR PRIMES.*\rB:/TOOLS/MSBASIC PRIMES\r
 ---
 
 ### Part 2: BASIC Operations

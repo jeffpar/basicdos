@@ -345,6 +345,7 @@
     "dbginit",
     "dbglib",
     "DBGOUT",
+    "DBGTEST",
     "DBUFF",
     "DCTS",
     "DDATTR",

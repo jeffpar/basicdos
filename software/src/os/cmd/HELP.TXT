@@ -471,6 +471,10 @@ Returns enough spaces to move the cursor to column *n* (1-254), for PRINT; if th
 TAN(*x*)
 Returns the tangent of *x*, where *x* is in radians.
 
+TEE [~A] *file*
+Copies input to output and to *file* (eg, DIR | TEE DIR.TXT | MORE), replacing *file*, or with ~A, appending to it.
+ERRORLEVEL is set to 0, or 2 if *file* couldn't be opened or written.
+
 TIME [*time*] [~D] [~P]
 Sets the system time (or prompts for a time if ~P) and then displays the time. ~D displays elapsed time.
 The time must be entered as H:M:S.D, where where H is 0-23, M is 0-59, S is 0-59, and D is 0-99.
@@ -493,6 +497,10 @@ Displays the BASIC-DOS version number and revision.
 
 VI [*file*]
 Edits *file* full-screen, using a subset of the commands of the UNIX *vi* editor (see the BASIC-DOS manual).  Press i to insert text and ESC to stop, then type :wq to save and exit, or :q! to exit without saving.
+
+WC [~L] [~W] [~C] [*file*...]
+Displays the number of lines, words, and bytes of input (or of each *file*, and their totals) (eg, DIR | WC ~L).  ~L, ~W, and ~C display only the selected counts.
+ERRORLEVEL is set to 0, or 2 if a *file* couldn't be opened.
 
 WEND
 Ends a WHILE loop.

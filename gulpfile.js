@@ -59,8 +59,9 @@ function checkOutput(task, outputFile)
  * if any, and HELP.TXT), followed by BIN, SAMPLES, and DEMOS, so each demo diskette differs only in its CONFIG.SYS,
  * which sets PATH$ on each SHELL line (eg, SHELL=COMMAND.COM PATH$="A:/;A:/BIN;A:/SAMPLES;A:/DEMOS").
  *
- * The TESTS files are on a separate data diskette (marked "data"), BASICDOS-360K-TESTS; it isn't bootable, so it has
- * no root files, and it can be loaded in drive B: of any demo.
+ * The TESTS files (with the test programs in TESTS/MISC) and the TOOLS files (eg, SYMDEB and MSBASIC) are on a separate
+ * data diskette (marked "data"), BASICDOS-360K-TESTS; it isn't bootable, so it has no root files, and it can be loaded
+ * in drive B: of any demo.
  *
  * A hard disk image (a demo with no diskettes) is marked "hd", and pc.js builds it (with --sys=bd:2, so it's bootable,
  * and pc.js adds the system files and HELP.TXT itself).  A disk can list its own "folders" instead of the diskette
@@ -120,23 +121,28 @@ let disks = {
     "BASICDOS-360K-VT100": { config: "./demos/vt100/CONFIG.SYS" },
     "BASICDOS-360K-DEBUG": { config: "./demos/debug/CONFIG.SYS" },
     "BASICDOS-360K-M64": { config: "./demos/m64/CONFIG.SYS" },
-    "BASICDOS-360K-TESTS": { data: true, folders: { TESTS: manifest.TESTS } },
+    "BASICDOS-360K-TESTS": {
+        data: true,
+        folders: { TESTS: manifest.TESTS, "TESTS/MISC": manifest["TESTS/MISC"], TOOLS: manifest.TOOLS }
+    },
     "BASICDOS-10MB": {
         hd: true,
         config: "./demos/hd/CONFIG.SYS",
         folders: {
             BIN: manifest.BIN,
             SAMPLES: manifest.SAMPLES,
-            DEMOS: manifest.DEMOS,
+            DEMOS: manifest.DEMOS.concat([ "./software/tests/PUBLIC.zip" ]),    // PUBLIC.zip has JIVE.EXE
             "DEMOS/WOLF3D": manifest["DEMOS/WOLF3D"],
             SRC: SRC + "/os",           // the BASIC-DOS source (with an MK.BAT that builds it on BASIC-DOS)
-            TESTS: manifest.TESTS.concat([ "./software/tests/PUBLIC.zip" ]),
+            TESTS: manifest.TESTS,
+            "TESTS/MISC": manifest["TESTS/MISC"],
             //
             // The MASM 4.00 files come from the MS-DOS 3.20 build disk, but the build tools in software/src/tools
             // (the same ones that mk.sh uses) replace their counterparts, adding MAKE 4.02 and MS-DOS 3.20's EXE2BIN
-            // (see software/src/tools/README.TXT).
+            // (see software/src/tools/README.TXT); the manifest's TOOLS (eg, SYMDEB, which MASM4 has too, and MSBASIC) are
+            // added last.
             //
-            TOOLS: () => diskFiles("MSDOS320-C400", [ "TOOLS/MASM4/*" ]).concat([ SRC + "/tools/*" ])
+            TOOLS: () => diskFiles("MSDOS320-C400", [ "TOOLS/MASM4/*" ]).concat([ SRC + "/tools/*" ], manifest.TOOLS)
         }
     }
 };
@@ -215,7 +221,7 @@ function stageDisk(diskName)
                 }
             }
         }
-        entries.push(dirTarget);
+        if (folder.indexOf('/') < 0) entries.push(dirTarget);      // a subfolder is part of its folder's entry
     }
     return entries;
 }

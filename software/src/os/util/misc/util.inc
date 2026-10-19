@@ -7,10 +7,10 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; The filter utilities (FIND, MORE, and SORT) include this file at the top,
-; and utilproc.inc (the shared procedures) after their own code.  Their
-; variables live in a UTILVARS structure at the start of the heap, which BP
-; always points to (PSP_HEAP).
+; The filter utilities (FIND, MORE, SORT, TEE, and WC) include this file at
+; the top, and utilproc.inc (the shared procedures) after their own code.
+; Their variables live in a UTILVARS structure at the start of the heap,
+; which BP always points to (PSP_HEAP).
 ;
 	DOSFUNC equ 1
 	DOSPSP equ 1
@@ -39,6 +39,7 @@ UV_GAP		dw	?	; SORT: Shell sort gap, in bytes
 UV_COUNT	dw	?	; FIND: # lines found; SORT: # lines * 2
 UV_LINENO	dw	?	; FIND: current line #
 UV_PREFIX	dw	?	; FIND: prefix for line count (": " or "")
+UV_CNTS		dd	6 dup (?); WC: line, word, and byte counts, and totals
 UV_STR		dw	?	; offset of quoted string (0 if none)
 UV_STRLEN	dw	?	; length of quoted string
 UV_NFILES	dw	?	; # file names * 2
