@@ -129,6 +129,13 @@ m6:	call	result
 	call	test_rename
 	call	result
 ;
+; Check date validation and readback, restoring the original date afterward.
+;
+	mov	dx,offset datetest
+	call	print
+	call	test_date
+	call	result
+;
 ; BASIC-DOS session loads must release their inherited handles on failure.
 ;
 	mov	ah,DOS_MSC_GETVER
@@ -328,6 +335,56 @@ cn9:	ret
 ENDPROC	chk_nofile
 
 ;
+; test_date
+;
+; Each case supplies a year, month/day, and expected SETDATE result.
+; Valid dates must read back correctly; invalid dates must leave the
+; previous date unchanged.  Restore the caller's date even on failure.
+;
+; Returns carry clear if successful, carry set if not.
+;
+DEFPROC	test_date
+	mov	ah,DOS_MSC_GETDATE
+	int	21h
+	push	cx
+	push	dx
+	mov	[dateyear],cx
+	mov	[datemonthday],dx
+	mov	si,offset datecases
+td1:	mov	cx,[si]
+	mov	dx,[si+2]
+	mov	ah,DOS_MSC_SETDATE
+	int	21h
+	cmp	al,byte ptr [si+4]	; was the date accepted or rejected as expected?
+	jne	td7
+	test	al,al
+	jnz	td2
+	mov	cx,[si]
+	mov	dx,[si+2]
+	mov	[dateyear],cx
+	mov	[datemonthday],dx
+td2:	mov	ah,DOS_MSC_GETDATE
+	int	21h
+	cmp	cx,[dateyear]		; valid year saved, or invalid input ignored?
+	jne	td7
+	cmp	dx,[datemonthday]	; check both month and day as well
+	jne	td7
+	add	si,6
+	cmp	word ptr [si],0		; zero year terminates the cases
+	jne	td1
+	clc
+	jmp	short td8
+td7:	stc
+td8:	pop	dx
+	pop	cx
+	pushf
+	mov	ah,DOS_MSC_SETDATE
+	int	21h
+	popf
+	ret
+ENDPROC	test_date
+
+;
 ; test_load
 ;
 ; Supply one writable file as all five session handles, then repeatedly
@@ -469,6 +526,29 @@ filetest	db		"file test $"
 renametest	db		"rename/delete test $"
 sharetest	db		"sharing test $"
 pchtest		db		"path char test $"
+datetest	db		"date test $"
+dateyear	dw		0
+datemonthday	dw		0
+;
+; Each case contains year, month/day (DH/DL), and expected result (AL).
+;
+datecases	dw		2023,0201h,0
+		dw		2023,021Ch,0
+		dw		2023,021Dh,0FFh
+		dw		2024,0201h,0
+		dw		2024,021Ch,0
+		dw		2024,021Dh,0
+		dw		2023,0200h,0FFh
+		dw		2023,021Eh,0FFh
+		dw		2024,0200h,0FFh
+		dw		2024,021Eh,0FFh
+		dw		1980,021Dh,0
+		dw		2000,021Dh,0
+		dw		2099,021Dh,0FFh
+		dw		2024,011Fh,0
+		dw		2024,041Eh,0
+		dw		2024,041Fh,0FFh
+		dw		0,0,0
 loadtest	db		"session load test $"
 loadhandle	dw		-1
 loadrefs	dd		0

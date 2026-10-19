@@ -143,19 +143,19 @@ DEFPROC	msc_setdate,DOS
 
 	cmp	dl,1
 	jb	msd9
-	cmp	dl,MONTH_DAYS[bx]
-	ja	msd9
+	cmp	dl,MONTH_DAYS[bx]	; day within the ordinary month's length?
+	jbe	msd1			; yes
 ;
 ; As in add_date, if the month index is 1 (Feb) and the year is a leap year,
-; then recheck the day.  As noted in day_of_week, the leap year check is
-; simplified by our limited year range (1980-2099).
+; then recheck the extra day.  As noted in day_of_week, the leap year check
+; is simplified by our limited year range (1980-2099).
 ;
 	cmp	bl,1			; Feb?
-	jne	msd1			; no
+	jne	msd9			; no
 	test	cl,3			; leap year?
-	jnz	msd1			; no
+	jnz	msd9			; no
 	cmp	dl,29			; day within the longer month?
-	jbe	msd9			; yes
+	ja	msd9			; no
 
 msd1:	mov	ax,(DDC_IOCTLIN SHL 8) OR IOCTL_SETDATE
 	les	di,[clk_ptr]
