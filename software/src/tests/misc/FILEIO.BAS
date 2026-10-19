@@ -8,15 +8,15 @@
 80 CLOSE #1
 90 OPEN "FT1.DAT" FOR INPUT AS #1
 100 LINE INPUT #1, L$
-110 IF L$ <> "Hello 42 " THEN PRINT "LINE INPUT # failed"
+110 IF L$ <> "Hello 42 " THEN PRINT "LINE INPUT # failed" : FAILS = FAILS + 1
 120 INPUT #1, A, B, C
-130 IF A <> 1 OR B <> -2 OR C <> 3.5 THEN PRINT "INPUT # numbers failed"
+130 IF A <> 1 OR B <> -2 OR C <> 3.5 THEN PRINT "INPUT # numbers failed" : FAILS = FAILS + 1
 140 INPUT #1, S$, X, Y, E$
-150 IF S$ <> "a,b" OR X <> 1.5 OR Y <> -7 OR E$ <> "" THEN PRINT "INPUT # WRITE items failed"
-160 IF EOF(1) THEN PRINT "EOF early failed"
+150 IF S$ <> "a,b" OR X <> 1.5 OR Y <> -7 OR E$ <> "" THEN PRINT "INPUT # WRITE items failed" : FAILS = FAILS + 1
+160 IF EOF(1) THEN PRINT "EOF early failed" : FAILS = FAILS + 1
 170 LINE INPUT #1, L$
-180 IF L$ <> "last line" THEN PRINT "LINE INPUT # last failed"
-190 IF NOT EOF(1) THEN PRINT "EOF failed"
+180 IF L$ <> "last line" THEN PRINT "LINE INPUT # last failed" : FAILS = FAILS + 1
+190 IF NOT EOF(1) THEN PRINT "EOF failed" : FAILS = FAILS + 1
 200 CLOSE
 210 OPEN "FT1.DAT" FOR APPEND AS 2
 220 PRINT #2, "more"
@@ -27,24 +27,24 @@
 270 LINE INPUT #1, L$
 280 N = N + 1 : S = S + LEN(L$) + 2
 290 WEND
-300 IF N <> 5 OR L$ <> "more" THEN PRINT "APPEND failed"
-310 IF LOF(1) <> S THEN PRINT "LOF failed"
+300 IF N <> 5 OR L$ <> "more" THEN PRINT "APPEND failed" : FAILS = FAILS + 1
+310 IF LOF(1) <> S THEN PRINT "LOF failed" : FAILS = FAILS + 1
 320 CLOSE 1
 400 REM Errors
 410 ON ERROR GOTO 1000
 420 OPEN "NOPE.DAT" FOR INPUT AS 1
-430 IF E <> 53 THEN PRINT "File not found failed"
+430 IF E <> 53 THEN PRINT "File not found failed" : FAILS = FAILS + 1
 440 ON ERROR GOTO 1010
 450 PRINT #3, "x"
-460 IF E <> 52 THEN PRINT "Bad file number failed"
+460 IF E <> 52 THEN PRINT "Bad file number failed" : FAILS = FAILS + 1
 470 OPEN "FT1.DAT" FOR INPUT AS 1
 480 ON ERROR GOTO 1020
 490 PRINT #1, "x"
-500 IF E <> 54 THEN PRINT "Bad file mode failed"
+500 IF E <> 54 THEN PRINT "Bad file mode failed" : FAILS = FAILS + 1
 510 ON ERROR GOTO 1030
 520 LINE INPUT #1, L$
 530 GOTO 520
-540 IF E <> 62 THEN PRINT "Input past end failed"
+540 IF E <> 62 THEN PRINT "Input past end failed" : FAILS = FAILS + 1
 550 ON ERROR GOTO 0
 560 CLOSE
 600 REM Random access files: FIELD, LSET, RSET, PUT #, GET #, LOC, LOF
@@ -57,33 +57,33 @@
 670 RSET K$ = "x"
 680 PUT #1, R
 690 NEXT R
-700 IF LOF(1) <> 60 THEN PRINT "PUT # failed"
+700 IF LOF(1) <> 60 THEN PRINT "PUT # failed" : FAILS = FAILS + 1
 710 GET #1, 2
-720 IF N$ <> "Name 2    " OR CVL(I$) <> 2000 OR CVI(J$) <> -2 OR K$ <> "   x" THEN PRINT "GET # failed"
-730 IF LOC(1) <> 2 THEN PRINT "LOC failed"
+720 IF N$ <> "Name 2    " OR CVL(I$) <> 2000 OR CVI(J$) <> -2 OR K$ <> "   x" THEN PRINT "GET # failed" : FAILS = FAILS + 1
+730 IF LOC(1) <> 2 THEN PRINT "LOC failed" : FAILS = FAILS + 1
 740 GET #1
-750 IF CVL(I$) <> 3000 OR LOC(1) <> 3 THEN PRINT "GET # next failed"
+750 IF CVL(I$) <> 3000 OR LOC(1) <> 3 THEN PRINT "GET # next failed" : FAILS = FAILS + 1
 760 LSET N$ = "Changed" : REM (I$ is still from record 3)
 770 PUT #1, 1
 780 GET #1, 1
-790 IF N$ <> "Changed   " OR CVL(I$) <> 3000 THEN PRINT "PUT # update failed"
+790 IF N$ <> "Changed   " OR CVL(I$) <> 3000 THEN PRINT "PUT # update failed" : FAILS = FAILS + 1
 800 CLOSE #1
 810 OPEN "FT2.DAT" AS #2 LEN = 20
 820 FIELD #2, 20 AS R$
 830 GET #2, 3
-840 IF LEN(R$) <> 20 OR LEFT$(R$, 6) <> "Name 3" THEN PRINT "OPEN AS failed"
+840 IF LEN(R$) <> 20 OR LEFT$(R$, 6) <> "Name 3" THEN PRINT "OPEN AS failed" : FAILS = FAILS + 1
 850 CLOSE
 860 D$ = MKD$(1.5)
-870 IF LEN(D$) <> 8 OR CVD(D$) <> 1.5 THEN PRINT "MKD$/CVD failed"
-880 IF CVI(MKI$(32767)) <> 32767 OR CVL(MKL$(-123456)) <> -123456 THEN PRINT "MKI$/MKL$ failed"
+870 IF LEN(D$) <> 8 OR CVD(D$) <> 1.5 THEN PRINT "MKD$/CVD failed" : FAILS = FAILS + 1
+880 IF CVI(MKI$(32767)) <> 32767 OR CVL(MKL$(-123456)) <> -123456 THEN PRINT "MKI$/MKL$ failed" : FAILS = FAILS + 1
 890 A$ = "abc"
 900 LSET A$ = "xy"
-910 IF A$ <> "xy " THEN PRINT "LSET failed"
+910 IF A$ <> "xy " THEN PRINT "LSET failed" : FAILS = FAILS + 1
 920 RSET A$ = "z"
-930 IF A$ <> "  z" THEN PRINT "RSET failed"
+930 IF A$ <> "  z" THEN PRINT "RSET failed" : FAILS = FAILS + 1
 940 DEL FT1.DAT
 950 DEL FT2.DAT
-960 PRINT "FILEIO done"
+960 IF FAILS THEN PRINT "FILEIO failed" ELSE PRINT "FILEIO passed"
 970 END
 1000 E = ERR : RESUME 430
 1010 E = ERR : RESUME 460

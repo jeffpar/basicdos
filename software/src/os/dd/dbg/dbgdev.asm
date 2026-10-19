@@ -27,6 +27,7 @@
 ; interrupts and reenter the DOS dispatcher.
 ;
 	DOSFUNC equ 1
+	DOSHEAP equ 1
 	include	macros.inc
 	include	bios.inc
 	include	dev.inc
@@ -2696,8 +2697,8 @@ ENDPROC	dos_get
 
 	DEFBYTE	com_runs,0		; 1 running, 2 program loaded, 3 Q
 ;
-; The EPB for DOS_PSP_EXEC1 (we don't define DOSPSP, so this
-; is laid out by hand, and CMD_TAIL is PSP_CMDTAIL).
+; The EPB for DOS_PSP_EXEC1 (we define DOSHEAP, not DOSPSP, so this is laid
+; out by hand, and CMD_TAIL is PSP_CMDTAIL).
 ;
 	DEFWORD	epb,0			; EPB_ENVSEG (0 = the parent's)
 	DEFPTR	epb_tail		; EPB_CMDTAIL
@@ -2705,6 +2706,12 @@ ENDPROC	dos_get
 	DEFPTR	epb_fcb2		; EPB_FCB2
 	DEFPTR	epb_sp			; EPB_INIT_SP (returned)
 	DEFPTR	epb_ip			; EPB_INIT_IP (returned)
+;
+; The COMDATA tells the loader that we need only a small heap (for the stack
+; in program mode); without it, we'd get half of the available memory.  As a
+; driver, everything past resident_end is discarded anyway.
+;
+	COMHEAP	2048
 
 CODE	ends
 

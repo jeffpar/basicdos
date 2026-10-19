@@ -1559,16 +1559,11 @@ DEFPROC	cmdVer
 	mov	ah,DOS_MSC_GETVER
 	int	21h			; AL = BASIC-DOS major version
 	mov	dl,ah			; DL = BASIC-DOS minor version
-	add	bl,'@'			; BL = BASIC-DOS revision
 	test	cx,1			; CX bit 0 set if BASIC-DOS DEBUG ver
 	mov	cx,offset VER_FINAL
 	jz	ver1
 	mov	cx,offset VER_DEBUG
-ver1:	cmp	bl,'@'			; is revision a letter?
-	ja	ver2			; yes
-	mov	bl,' '			; no, change it to space
-	inc	cx			; and skip the leading DEBUG space
-ver2:	PRINTF	<13,10,"BASIC-DOS %bd.%02bd%c%ls",13,10,13,10>,ax,dx,bx,cx,cs
+ver1:	PRINTF	<13,10,"BASIC-DOS %bd.%02bd%ls",13,10,13,10>,ax,dx,cx,cs
 	ret
 ENDPROC	cmdVer
 

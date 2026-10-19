@@ -40,11 +40,16 @@ DEFPROC	bd_init
 	shr	bx,cl
 	mov	ah,DOS_MEM_REALLOC
 	int	21h
+;
+; BASIC-DOS returns SIG_BASICDOS in BX from DOS_MSC_GETVER; on any other DOS,
+; we must provide our own DOS_UTL_PRINTF (see bd_util), which uses the BIOS
+; for output.
+;
 	mov	ah,DOS_MSC_GETVER
 	int	21h
-	mov	[bd_rev],bl	; save BASIC-DOS revision (should be non-zero)
-	test	bl,bl
-	jnz	bd1
+	cmp	bx,SIG_BASICDOS	; BASIC-DOS?
+	je	bd1		; yes, so its DOS_UTL_PRINTF is available
+	inc	[bd_hook]	; no, so remember to restore INT_DOSUTIL
 	mov	ax,(DOS_MSC_GETVEC SHL 8) + INT_DOSUTIL
 	int	21h
 	mov	[bd_vec].low,bx
@@ -53,8 +58,8 @@ DEFPROC	bd_init
 	mov	dx,offset bd_util
 	int	21h
 bd1:	call	main
-	cmp	[bd_rev].HIW,0
-	je	bd9
+	cmp	[bd_hook],0	; did we hook INT_DOSUTIL?
+	je	bd9		; no
 	lds	dx,[bd_vec]
 	mov	ax,(DOS_MSC_SETVEC SHL 8) + INT_DOSUTIL
 	int	21h
@@ -73,7 +78,7 @@ DEFPROC	bd_util
 	jmp	dword ptr cs:[bd_vec]
 ENDPROC	bd_util
 
-DEFBYTE bd_rev,0		; BASIC-DOS revision (should be non-zero)
+DEFBYTE bd_hook,0		; non-zero if we hooked INT_DOSUTIL
 DEFLONG bd_vec,0		; original DOSUTIL vector
 
 ;

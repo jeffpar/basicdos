@@ -1,44 +1,44 @@
 10 REM FLOW.BAS: BASIC-DOS control flow tests (prints "failed" on error)
 20 DEFINT A-Z
 30 T = 0 : FOR I = 1 TO 10 : T = T + I : NEXT I
-40 IF T <> 55 OR I <> 11 THEN PRINT "FOR failed:"; T; I
+40 IF T <> 55 OR I <> 11 THEN PRINT "FOR failed:"; T; I : FAILS = FAILS + 1
 50 T = 0 : FOR I = 10 TO 1 STEP -3 : T = T + I : NEXT
-60 IF T <> 22 OR I <> -2 THEN PRINT "FOR STEP failed:"; T; I
+60 IF T <> 22 OR I <> -2 THEN PRINT "FOR STEP failed:"; T; I : FAILS = FAILS + 1
 70 T = 0 : FOR I = 5 TO 4 : T = 1 : NEXT
-80 IF T <> 0 OR I <> 5 THEN PRINT "FOR skip failed"
+80 IF T <> 0 OR I <> 5 THEN PRINT "FOR skip failed" : FAILS = FAILS + 1
 90 N = 3 : T = 0 : FOR I = 1 TO N : N = 10 : T = T + 1 : NEXT
-100 IF T <> 3 THEN PRINT "FOR limit failed:"; T
+100 IF T <> 3 THEN PRINT "FOR limit failed:"; T : FAILS = FAILS + 1
 110 D# = 0 : FOR X# = 0 TO 1 STEP .25 : D# = D# + X# : NEXT X#
-120 IF D# <> 2.5 OR X# <> 1.25 THEN PRINT "FOR double failed"
+120 IF D# <> 2.5 OR X# <> 1.25 THEN PRINT "FOR double failed" : FAILS = FAILS + 1
 130 T = 0 : FOR I = 1 TO 3 : FOR J = 1 TO I : T = T + 1 : NEXT J, I
-140 IF T <> 6 THEN PRINT "nested FOR failed:"; T
+140 IF T <> 6 THEN PRINT "nested FOR failed:"; T : FAILS = FAILS + 1
 150 T = 0 : FOR I = 1 TO 4 : FOR J = 1 TO 4 : IF J > I THEN GOTO 170
 160 T = T + 1
 170 NEXT J, I : GOTO 190
 180 REM unreachable
-190 IF T <> 10 THEN PRINT "GOTO in FOR failed:"; T
+190 IF T <> 10 THEN PRINT "GOTO in FOR failed:"; T : FAILS = FAILS + 1
 200 N = 0 : WHILE N < 5 : N = N + 1 : WEND
-210 IF N <> 5 THEN PRINT "WHILE failed"
+210 IF N <> 5 THEN PRINT "WHILE failed" : FAILS = FAILS + 1
 220 N = 0 : T = 0 : WHILE N < 3 : M = 0 : WHILE M < 2 : M = M + 1 : T = T + 1 : WEND : N = N + 1 : WEND
-230 IF T <> 6 THEN PRINT "nested WHILE failed:"; T
+230 IF T <> 6 THEN PRINT "nested WHILE failed:"; T : FAILS = FAILS + 1
 240 S$ = "" : WHILE LEN(S$) < 4 : S$ = S$ + "X" : WEND
-250 IF S$ <> "XXXX" THEN PRINT "WHILE string failed"
+250 IF S$ <> "XXXX" THEN PRINT "WHILE string failed" : FAILS = FAILS + 1
 260 N = 0 : WHILE 0 : N = 1 : WEND
-270 IF N <> 0 THEN PRINT "WHILE skip failed"
+270 IF N <> 0 THEN PRINT "WHILE skip failed" : FAILS = FAILS + 1
 280 R = 0 : GOSUB 3460
-290 IF R <> 1 THEN PRINT "GOSUB failed"
+290 IF R <> 1 THEN PRINT "GOSUB failed" : FAILS = FAILS + 1
 300 F = 1 : K = 6 : GOSUB 3470
-310 IF F <> 720 THEN PRINT "recursive GOSUB failed:"; F
+310 IF F <> 720 THEN PRINT "recursive GOSUB failed:"; F : FAILS = FAILS + 1
 320 T = 0 : FOR I = 1 TO 5 : ON I GOSUB 3490, 3500 : NEXT
-330 IF T <> 11 THEN PRINT "ON GOSUB failed:"; T
+330 IF T <> 11 THEN PRINT "ON GOSUB failed:"; T : FAILS = FAILS + 1
 340 ON 2 GOTO 3510, 3520
-350 PRINT "ON GOTO failed"
+350 PRINT "ON GOTO failed" : FAILS = FAILS + 1
 360 X = 0 : ON 3 GOTO 3510, 3510 : X = 1
-370 IF X <> 1 THEN PRINT "ON range failed"
+370 IF X <> 1 THEN PRINT "ON range failed" : FAILS = FAILS + 1
 380 DEF SUMTO(N)
 390 S = 0 : FOR Q = 1 TO N : S = S + Q : NEXT
 400 RETURN S
-410 IF SUMTO(4) <> 10 THEN PRINT "FOR in DEF failed"
+410 IF SUMTO(4) <> 10 THEN PRINT "FOR in DEF failed" : FAILS = FAILS + 1
 420 P = P + 1
 430 P = P + 1
 440 P = P + 1
@@ -190,7 +190,7 @@
 1900 P = P + 1
 1910 P = P + 1
 1920 GOTO 1940
-1930 PRINT "far GOTO failed"
+1930 PRINT "far GOTO failed" : FAILS = FAILS + 1
 1940 P = P + 1
 1950 P = P + 1
 1960 P = P + 1
@@ -341,13 +341,13 @@
 3410 P = P + 1
 3420 P = P + 1
 3430 P = P + 1
-3440 IF P <> 300 THEN PRINT "padding failed"
-3441 IF SGN(-3) <> -1 OR SGN(0) <> 0 OR SGN(2) <> 1 THEN PRINT "SGN failed"
-3442 IF CINT(2.4) <> 2 OR CINT(-2.6) <> -3 THEN PRINT "CINT failed"
-3443 X = 5 : Y = 7 : SWAP X, Y : IF X <> 7 OR Y <> 5 THEN PRINT "SWAP failed"
-3444 RANDOMIZE 9 : A# = RND : RANDOMIZE 9 : IF RND <> A# THEN PRINT "RANDOMIZE failed"
+3440 IF P <> 300 THEN PRINT "padding failed" : FAILS = FAILS + 1
+3441 IF SGN(-3) <> -1 OR SGN(0) <> 0 OR SGN(2) <> 1 THEN PRINT "SGN failed" : FAILS = FAILS + 1
+3442 IF CINT(2.4) <> 2 OR CINT(-2.6) <> -3 THEN PRINT "CINT failed" : FAILS = FAILS + 1
+3443 X = 5 : Y = 7 : SWAP X, Y : IF X <> 7 OR Y <> 5 THEN PRINT "SWAP failed" : FAILS = FAILS + 1
+3444 RANDOMIZE 9 : A# = RND : RANDOMIZE 9 : IF RND <> A# THEN PRINT "RANDOMIZE failed" : FAILS = FAILS + 1
 3445 ON ERROR GOTO 3525 : ERROR 12
-3446 IF E <> 3445 THEN PRINT "ERL failed"
+3446 IF E <> 3445 THEN PRINT "ERL failed" : FAILS = FAILS + 1
 3447 ON ERROR GOTO 0
 3450 GOTO 3530
 3460 R = R + 1 : RETURN
@@ -355,7 +355,8 @@
 3480 F = F * K : K = K - 1 : GOSUB 3470 : RETURN
 3490 T = T + 1 : RETURN
 3500 T = T + 10 : RETURN
-3510 PRINT "ON GOTO wrong target" : GOTO 3530
+3510 PRINT "ON GOTO wrong target" : FAILS = FAILS + 1 : GOTO 3530
 3520 GOTO 360
 3525 E = ERL : RESUME 3446
-3530 PRINT "FLOW done" : END
+3530 IF FAILS THEN PRINT "FLOW failed" ELSE PRINT "FLOW passed"
+3535 END

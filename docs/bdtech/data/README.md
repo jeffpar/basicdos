@@ -65,7 +65,7 @@ The Exec Parameter Block is passed to DOS_PSP_EXEC in ES:BX.
 
 ### COMDATA
 
-Unlike PC DOS, BASIC-DOS doesn't give a COM program all available memory; it gets its file size plus MINHEAP (1024) bytes.  A COM program without COMDATA (ie, one written for PC DOS) gets at least half of the available memory, since such programs may size their workspace from PSP_PARAS (eg, Turbo Pascal 2.00).  A COM program can request more by ending its image with a COMDATA structure, which the COMHEAP macro (in dosapi.inc, with DOSPSP) creates:
+Unlike PC DOS, BASIC-DOS doesn't give a COM program all available memory; it gets its file size plus MINHEAP (1024) bytes.  A COM program without COMDATA (ie, one written for PC DOS) gets at least half of the available memory, since such programs may size their workspace from PSP_PARAS (eg, Turbo Pascal 2.00).  A COM program can request more by ending its image with a COMDATA structure, which the COMHEAP macro (in dosapi.inc, with DOSPSP or DOSHEAP) creates:
 
 | Offset | Field | Description |
 |--------|-------|-------------|

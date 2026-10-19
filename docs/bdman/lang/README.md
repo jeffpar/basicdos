@@ -18,6 +18,7 @@ The BASIC-DOS programming language is based on the BASIC language of the IBM PC 
 - [Control Flow](#control-flow)
 - [Error Handling](#error-handling)
 - [Graphics and Sound](#graphics-and-sound)
+- [Low Memory](#low-memory)
 - [Differences from Microsoft BASIC](#differences-from-microsoft-basic)
 
 ### Programs
@@ -166,7 +167,17 @@ On a color adapter, [SCREEN](../cmd/device/screen/#screen) 1 or 2 selects a grap
 
 When a BAS program ends in a graphics mode, BASIC-DOS restores the video mode it started with, along with the colors the session had then (so a program's COLOR, like `COLOR 7,0,0`, can't leave the session's border black); text-mode changes (eg, WIDTH 40) persist, as in Microsoft BASIC.
 
-On a machine with too little memory for all of COMMAND.COM (eg, 64K), BASIC-DOS loads only its core, which leaves out the graphics and sound statements (and LOAD's support for tokenized BAS files): using one of them reports "Not enough memory".
+On a machine with too little memory for all of COMMAND.COM (eg, 64K), the graphics and sound statements are not available (see [Low Memory](#low-memory)).
+
+### Low Memory
+
+On a machine with too little memory for all of COMMAND.COM (eg, 64K), BASIC-DOS loads only its core, and [MEM](../cmd/system/#mem) displays `Core BASIC functions only (see HELP CORE)`.  The following are then unavailable, and using one of them displays "Not enough memory":
+
+- The graphics commands: CIRCLE, DRAW, PAINT, PRESET, PSET, and the graphics forms of GET, LINE, and PUT
+- The sound commands: PLAY and SOUND
+- LOAD of tokenized BAS files (eg, those saved by BASICA or GW-BASIC)
+
+Everything else, including file I/O (GET, PUT, and LINE INPUT), is still available.  `HELP CORE` displays the same list.
 
 ### Differences from Microsoft BASIC
 

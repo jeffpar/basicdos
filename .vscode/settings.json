@@ -445,6 +445,7 @@
     "dosfcb",
     "DOSFFB",
     "DOSFUNC",
+    "DOSHEAP",
     "DOSIDLE",
     "DOSINTS",
     "DOSKEY",

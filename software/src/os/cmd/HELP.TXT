@@ -55,6 +55,9 @@ In SCREEN 1, the values are the background color (0-15) and palette (0 or 1) ins
 COPY *input* [*output*]
 Copies the contents of the input file or device to the output file or device, or with wildcards (? and *), every matching file to the output drive or directory (eg, COPY B:\*.BAS).  If *output* is omitted, the current directory is used.  Input files separated by + are combined into the output file (eg, COPY A.BIN+B.BIN C.BIN).
 
+CORE
+When there isn't enough memory for all of COMMAND.COM (eg, on a 64K machine), BASIC-DOS loads only its core, and MEM displays "Core BASIC functions only".  The following are then unavailable, and using one of them displays "Not enough memory": the graphics commands (CIRCLE, DRAW, PAINT, PRESET, PSET, and the graphics forms of GET, LINE, and PUT), the sound commands (PLAY and SOUND), and LOAD of tokenized BAS files (eg, those saved by BASICA or GW-BASIC).  Everything else, including file I/O (GET, PUT, and LINE INPUT), is still available.
+
 COS(*x*)
 Returns the cosine of *x*, where *x* is in radians.
 
@@ -277,7 +280,7 @@ MD [*drive*:]*path*
 Creates a new directory.  MKDIR is the same as MD.
 
 MEM
-Displays total memory, memory available for executables, and memory available for BASIC programs, and notes anything unavailable (eg, graphics and sound when there wasn't enough memory for all of COMMAND.COM, or floating-point when the FPU$ driver isn't loaded).
+Displays total memory, memory available for executables, and memory available for BASIC programs, and notes anything unavailable (eg, the functions outside COMMAND.COM's core when there wasn't enough memory for all of it, as HELP CORE explains, or floating-point when the FPU$ driver isn't loaded).
 
 MID$(*string*,*start*[,*n*])
 Returns *n* characters of *string*, beginning at position *start* (or the rest of *string* if *n* is omitted).
@@ -493,7 +496,7 @@ VAL(*string*)
 Returns the numeric value of *string*, ignoring any blanks.  If *string* does not begin with a number, the result is 0.  The &H (hex) and &O (octal) prefixes are allowed (eg, VAL("&HFF") is 255).
 
 VER
-Displays the BASIC-DOS version number and revision.
+Displays the BASIC-DOS version number.
 
 VI [*file*]
 Edits *file* full-screen, using a subset of the commands of the UNIX *vi* editor (see the BASIC-DOS manual).  Press i to insert text and ESC to stop, then type :wq to save and exit, or :q! to exit without saving.

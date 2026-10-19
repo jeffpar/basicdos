@@ -282,12 +282,12 @@ DEFPROC	msc_getver,DOS
 	mov	ax,es:[si+3]		; yes, AX = the version it wants
 	xchg	al,ah
 gvr1:	mov	[bp].REG_AX,ax
-	sub	ax,ax
-	mov	[bp].REG_BX,ax
-	IFDEF DEBUG
-	inc	ax
+	mov	[bp].REG_BX,SIG_BASICDOS	; BX = "BD" (identifies BASIC-DOS)
+	IFNDEF DEBUG
+	mov	[bp].REG_CX,0
+	ELSE
+	mov	[bp].REG_CX,1
 	ENDIF
-	mov	[bp].REG_CX,ax
 	ret
 ENDPROC	msc_getver
 

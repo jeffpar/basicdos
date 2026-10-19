@@ -68,7 +68,7 @@ mem3:	xchg	ax,si
 mem9:	mov	ax,ss:[PSP_CODESIZE]	; was only COMMAND's core loaded?
 	cmp	ax,offset DGROUP:CORE_END
 	ja	mem10			; no
-	PRINTF	<"Not enough memory for graphics and sound",13,10>
+	PRINTF	<"Core BASIC functions only (see HELP CORE)",13,10>
 mem10:	cmp	word ptr cs:[FPU_TABLE].SEG,0; is the FPU$ driver loaded?
 	jne	mem11			; yes
 	PRINTF	<"No floating-point (FPU$ driver not loaded)",13,10>

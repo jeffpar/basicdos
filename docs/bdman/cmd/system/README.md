@@ -86,7 +86,7 @@ Lists all lines of the currently loaded BAS or BAT program, or the specified ran
 
 Displays the total memory, followed by the memory free for running external programs (EXEC) and the memory free for BASIC programs.  The difference between the two is the transient portion of COMMAND.COM, which is set aside while an external program runs, but which BASIC programs need (it compiles and runs them).  When more than one session is running, every session shares the same COMMAND.COM code, so the transient portion can't be set aside, and MEM displays a single "bytes free" value instead.
 
-A line follows for anything that's unavailable: `Not enough memory for graphics and sound` when there wasn't enough memory for all of COMMAND.COM (so BASIC-DOS loaded only its core, which also leaves out the loading of tokenized BAS files), and `No floating-point (FPU$ driver not loaded)` when the FPU$ driver was skipped or couldn't be loaded.
+A line follows for anything that's unavailable: `Core BASIC functions only (see HELP CORE)` when there wasn't enough memory for all of COMMAND.COM (see [Low Memory](../../lang/#low-memory) for what's left out), and `No floating-point (FPU$ driver not loaded)` when the FPU$ driver was skipped or couldn't be loaded.
 
 To see every device driver and memory block, use the DM command of [DEBUG.COM](../../cfg/#device).
 
@@ -121,7 +121,7 @@ Runs the currently loaded BAS or BAT program.  If the program and its variables 
 
 > VER
 
-Displays the BASIC-DOS version number and revision.
+Displays the BASIC-DOS version number.
 
 	VER
 	BASIC-DOS 2.00

@@ -458,6 +458,24 @@ EXEHDR		ends
 
 SIG_EXE		equ	5A4Dh	; "MZ"
 
+	ENDIF	; DOSPSP
+
+;
+; SIG_BASICDOS identifies BASIC-DOS: DOS_MSC_GETVER returns it in BX, and it
+; ends every COMDATA structure (see below).
+;
+SIG_BASICDOS	equ	'DB'	; BASIC-DOS signature word ("BD")
+
+;
+; The COMDATA definitions are also available by themselves, to COM programs
+; that define DOSHEAP instead of DOSPSP (eg, DEBUG.COM, which can't afford
+; the PSP definitions).
+;
+	IFDEF	DOSPSP
+	DOSHEAP	equ 1
+	ENDIF
+
+	IFDEF	DOSHEAP
 ;
 ; MINHEAP is the minimum number of bytes we allocate for a COM binary, on
 ; top of the actual file size.  This is important, because unlike PC DOS,
@@ -497,8 +515,6 @@ SIG_EXE		equ	5A4Dh	; "MZ"
 ; tell what was loaded from PSP_CODESIZE; see HEAPDEF in os/cmd/cmd.inc for
 ; how COMMAND.COM uses this.
 ;
-SIG_BASICDOS	equ	'DB'	; BASIC-DOS signature word ("BD")
-
 MINHEAP		equ	1024
 
 COMDATA	struc
@@ -530,4 +546,5 @@ hparas equ (heap_size + 15) SHR 4
 	 ENDIF
 	ENDIF
 	endm
-	ENDIF	; DOSPSP
+
+	ENDIF	; DOSHEAP
