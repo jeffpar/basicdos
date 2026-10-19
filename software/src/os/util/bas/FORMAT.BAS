@@ -125,7 +125,7 @@
 	READ F$
 	F$ = V$ + MID$(CURDIR$, 3, 1) + F$
 	COPY F$ D$
-	IF ERRORLEVEL <> 0 THEN PRINT "Unable to copy "; F$ : GOTO 85
+	IF ERRORLEVEL THEN PRINT "Unable to copy "; F$ : GOTO 85
 	OPEN F$ FOR INPUT AS #2
 	L = LOF(2) + K * 512 - 1
 	U = U + L - L MOD (K * 512)

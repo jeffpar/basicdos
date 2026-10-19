@@ -364,7 +364,7 @@ Returns the current time as a string in the form HH:MM:SS.
 
 #### ERRORLEVEL {#errorlevel}
 
-Equal to the return code from the last program executed, or for an internal command (eg, COPY or DEL), 0 if it succeeded or 1 if it failed (eg, `IF ERRORLEVEL = 1 THEN PRINT "Failed"`).
+Equal to the return code from the last program executed, or for an internal command (eg, COPY or DEL), 0 if it succeeded or 1 if it failed (eg, `IF ERRORLEVEL THEN PRINT "Failed"`).
 
 #### MAXINT {#maxint}
 

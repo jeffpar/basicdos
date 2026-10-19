@@ -63,7 +63,7 @@ For example, this batch file runs a program up to three times, stopping if the p
 	REM Run SLEEP three times, stopping if it fails
 	N = 1
 	10 SLEEP 1
-	IF ERRORLEVEL <> 0 THEN PRINT "SLEEP failed" : END
+	IF ERRORLEVEL THEN PRINT "SLEEP failed" : END
 	N = N + 1
 	IF N <= 3 THEN GOTO 10
 	PRINT "SLEEP ran"; N - 1; "times"
@@ -159,7 +159,7 @@ Press **Ctrl-C** to stop a running program.
 
 When a runtime error occurs (eg, "Illegal function call" or "Subscript out of range"), the program ends with an error message, unless an [ON ERROR GOTO](../cmd/basic/#on-error) handler is active.  The handler can use [ERR](../cmd/basic/func/#err) to get the error number, and [RESUME](../cmd/basic/#resume) *label* to continue the program.  Error numbers are the same as Microsoft BASIC's, and [ERROR](../cmd/basic/#error) *n* simulates an error.
 
-When a command fails, it displays an error message, and as in PC DOS, the program (including a BAT file) continues with its next command.  A command fails if it can't do what was asked: for example, a program that can't be found or opened ("Unable to open"), a file that can't be found, copied, or deleted, a directory that can't be changed to, created, or removed, or an invalid date or time.  A failed command sets [ERRORLEVEL](../cmd/basic/func/#errorlevel) to 1, and a successful one sets it to 0, so a program can check whether a command worked (eg, `IF ERRORLEVEL <> 0 THEN END`).  A program that runs and then returns a non-zero exit code hasn't failed; ERRORLEVEL is its exit code.  ON ERROR doesn't apply to failed commands, and a failed CHAIN still ends the program.
+When a command fails, it displays an error message, and as in PC DOS, the program (including a BAT file) continues with its next command.  A command fails if it can't do what was asked: for example, a program that can't be found or opened ("Unable to open"), a file that can't be found, copied, or deleted, a directory that can't be changed to, created, or removed, or an invalid date or time.  A failed command sets [ERRORLEVEL](../cmd/basic/func/#errorlevel) to 1, and a successful one sets it to 0, so a program can check whether a command worked (eg, `IF ERRORLEVEL THEN END`).  A program that runs and then returns a non-zero exit code hasn't failed; ERRORLEVEL is its exit code.  ON ERROR doesn't apply to failed commands, and a failed CHAIN still ends the program.
 
 ### Graphics and Sound
 

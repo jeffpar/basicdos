@@ -20,17 +20,17 @@
 160 IF LOF(1) <> 2440 THEN PRINT "source length failed" : FAILS = FAILS + 1
 170 CLOSE #1
 180 MV MVA\F.DAT MVB
-190 IF ERRORLEVEL <> 0 THEN PRINT "move to directory failed" : FAILS = FAILS + 1
+190 IF ERRORLEVEL THEN PRINT "move to directory failed" : FAILS = FAILS + 1
 200 DIR MVA\F.DAT
 210 IF ERRORLEVEL = 0 THEN PRINT "source still exists failed" : FAILS = FAILS + 1
 220 REN MVB\F.DAT MVA\REN.DAT
-230 IF ERRORLEVEL <> 0 THEN PRINT "cross-directory rename failed" : FAILS = FAILS + 1
+230 IF ERRORLEVEL THEN PRINT "cross-directory rename failed" : FAILS = FAILS + 1
 240 RENAME MVA\REN.DAT MVA\DONE.DAT
-250 IF ERRORLEVEL <> 0 THEN PRINT "same-directory rename failed" : FAILS = FAILS + 1
+250 IF ERRORLEVEL THEN PRINT "same-directory rename failed" : FAILS = FAILS + 1
 260 MV MVA\DONE.DAT \FINAL.DAT
-270 IF ERRORLEVEL <> 0 THEN PRINT "move to root failed" : FAILS = FAILS + 1
+270 IF ERRORLEVEL THEN PRINT "move to root failed" : FAILS = FAILS + 1
 280 REN \FINAL.DAT MVB
-290 IF ERRORLEVEL <> 0 THEN PRINT "move from root failed" : FAILS = FAILS + 1
+290 IF ERRORLEVEL THEN PRINT "move from root failed" : FAILS = FAILS + 1
 300 OPEN "MVB\FINAL.DAT" FOR INPUT AS #1
 310 IF LOF(1) <> 2440 THEN PRINT "destination length failed" : FAILS = FAILS + 1
 320 FOR I = 1 TO 20
@@ -49,7 +49,7 @@
 450 OPEN "MVA\SUB\KID.DAT" FOR INPUT AS #1
 460 CD MVA\SUB
 470 MV \MVA\SUB \MVB\NEW
-480 IF ERRORLEVEL <> 0 THEN PRINT "directory move failed" : FAILS = FAILS + 1
+480 IF ERRORLEVEL THEN PRINT "directory move failed" : FAILS = FAILS + 1
 485 CD
 490 LINE INPUT #1, L$ : CLOSE #1
 500 IF L$ <> "child" THEN PRINT "open child contents failed" : FAILS = FAILS + 1
@@ -57,26 +57,26 @@
 520 IF L$ <> "child" THEN PRINT "current directory failed" : FAILS = FAILS + 1
 530 CD ..
 540 OPEN "NEW\KID.DAT" FOR INPUT AS #1 : CLOSE #1
-550 IF ERRORLEVEL <> 0 THEN PRINT "new parent failed" : FAILS = FAILS + 1
+550 IF ERRORLEVEL THEN PRINT "new parent failed" : FAILS = FAILS + 1
 555 CD NEW
 560 MV \MVB \TREE
-570 IF ERRORLEVEL <> 0 THEN PRINT "ancestor move failed" : FAILS = FAILS + 1
+570 IF ERRORLEVEL THEN PRINT "ancestor move failed" : FAILS = FAILS + 1
 575 CD
 580 OPEN "KID.DAT" FOR INPUT AS #1 : CLOSE #1
-590 IF ERRORLEVEL <> 0 THEN PRINT "ancestor current directory failed" : FAILS = FAILS + 1
+590 IF ERRORLEVEL THEN PRINT "ancestor current directory failed" : FAILS = FAILS + 1
 595 CD ..
 600 CD \
 610 MV TREE\NEW \ROOTDIR
-620 IF ERRORLEVEL <> 0 THEN PRINT "directory to root failed" : FAILS = FAILS + 1
+620 IF ERRORLEVEL THEN PRINT "directory to root failed" : FAILS = FAILS + 1
 630 CD ROOTDIR : CD ..
 640 OPEN "ROOTDIR\KID.DAT" FOR INPUT AS #1 : CLOSE #1
-650 IF ERRORLEVEL <> 0 THEN PRINT "root parent failed" : FAILS = FAILS + 1
+650 IF ERRORLEVEL THEN PRINT "root parent failed" : FAILS = FAILS + 1
 660 MV ROOTDIR MVA
-670 IF ERRORLEVEL <> 0 THEN PRINT "directory from root failed" : FAILS = FAILS + 1
+670 IF ERRORLEVEL THEN PRINT "directory from root failed" : FAILS = FAILS + 1
 680 REN MVA\ROOTDIR MVA\DONE
-690 IF ERRORLEVEL <> 0 THEN PRINT "directory rename failed" : FAILS = FAILS + 1
+690 IF ERRORLEVEL THEN PRINT "directory rename failed" : FAILS = FAILS + 1
 700 DEL MVA\DONE\KID.DAT : RD MVA\DONE
 710 DEL TREE\FINAL.DAT : DEL TREE\TAKEN.DAT : DEL TREE\*.TMP
 720 RD MVA : RD TREE
-730 IF ERRORLEVEL <> 0 THEN PRINT "move cleanup failed" : FAILS = FAILS + 1
+730 IF ERRORLEVEL THEN PRINT "move cleanup failed" : FAILS = FAILS + 1
 740 IF FAILS THEN PRINT "MOVES failed" ELSE PRINT "MOVES passed"

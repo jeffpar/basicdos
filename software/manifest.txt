@@ -19,10 +19,11 @@
 #
 # gulpfile.js builds every demo diskette with ROOT, BIN, SAMPLES, and DEMOS, the
 # BASICDOS-360K-TESTS diskette with TESTS, TESTS/MISC, and TOOLS, and the
-# BASICDOS-10MB hard disk with all of them (plus DEMOS/WOLF3D, SRC, and the build
-# tools in TOOLS).  tools/tests/prep.sh copies BIN into each test configuration's
-# BIN folder, DEMOS and TESTS into its TESTS folder, TESTS/MISC into TESTS\MISC,
-# and TOOLS into TOOLS.
+# BASICDOS-10MB hard disk with all of them (plus DEMOS/WOLF3D, the WOLF3D.BAT and
+# JIVE files that only it has in DEMOS, SRC, and the build tools in TOOLS).
+# tools/tests/prep.sh copies BIN into each test configuration's BIN folder, DEMOS
+# and TESTS into its TESTS folder, TESTS/MISC into TESTS\MISC, and TOOLS into
+# TOOLS.
 #
 [ROOT]
 CONFIG.SYS
@@ -50,7 +51,6 @@ demos/mouse/PAINT.BAS
 software/src/tests/primes/PRIMES.BAS
 software/src/tests/primes/PRIMES.BAT
 software/src/tests/bin/PRIMES.EXE
-demos/wolf3d/WOLF3D.BAT
 
 [DEMOS/WOLF3D]
 /harddisks/pcx86/10mb/COMPAQ331-WOLF3D.json/WOLF3D/*

@@ -131,7 +131,10 @@ let disks = {
         folders: {
             BIN: manifest.BIN,
             SAMPLES: manifest.SAMPLES,
-            DEMOS: manifest.DEMOS.concat([ "./software/tests/PUBLIC.zip" ]),    // PUBLIC.zip has JIVE.EXE
+            //
+            // WOLF3D.BAT runs the game in DEMOS/WOLF3D, so only this disk gets it, and PUBLIC.zip has JIVE.EXE
+            //
+            DEMOS: manifest.DEMOS.concat([ "./demos/wolf3d/WOLF3D.BAT", "./software/tests/PUBLIC.zip" ]),
             "DEMOS/WOLF3D": manifest["DEMOS/WOLF3D"],
             SRC: SRC + "/os",           // the BASIC-DOS source (with an MK.BAT that builds it on BASIC-DOS)
             TESTS: manifest.TESTS,
