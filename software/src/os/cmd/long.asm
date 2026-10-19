@@ -815,6 +815,7 @@ DEFPROC	evalShlLong,FAR
 	jae	shl8
 	mov	dx,[shlA].HIW
 	mov	ax,[shlA].LOW
+	jcxz	shl9			; a zero shift leaves the operand unchanged
 shl1:	shl	ax,1
 	rcl	dx,1
 	loop	shl1
@@ -852,6 +853,7 @@ DEFPROC	evalShrLong,FAR
 	jae	shl8
 	mov	dx,[shrA].HIW
 	mov	ax,[shrA].LOW
+	jcxz	shl9			; a zero shift leaves the operand unchanged
 shr1:	sar	dx,1
 	rcr	ax,1
 	loop	shr1
@@ -1021,7 +1023,8 @@ DEFPROC	nextRnd
 	mov	cx,ss:[bx].RND_SEED.HIW
 	mov	bx,ss:[bx].RND_SEED.LOW
 	jz	rnd9			; zero arg: return the last number
-	jge	rnd1
+	test	dx,dx			; only the high word determines the arg's sign
+	jns	rnd1
 	mov	bx,ax			; negative arg: use it as the seed
 	mov	cx,dx
 rnd1:	mov	ax,cx
@@ -1206,8 +1209,8 @@ DEFPROC	getSgn,FAR
 	ENTER
 	les	si,[pSgn]
 	mov	dx,es:[si+6]
+	and	dh,7Fh			; clear the sign in DX too, for signed zero
 	mov	ax,dx
-	and	ax,7FFFh		; AX = double without its sign
 	or	ax,es:[si+4]
 	or	ax,es:[si+2]
 	or	ax,es:[si]		; zero?

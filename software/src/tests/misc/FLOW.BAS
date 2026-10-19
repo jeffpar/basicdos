@@ -349,6 +349,7 @@
 3445 ON ERROR GOTO 3525 : ERROR 12
 3446 IF E <> 3445 THEN PRINT "ERL failed" : FAILS = FAILS + 1
 3447 ON ERROR GOTO 0
+3448 GOSUB 3540
 3450 GOTO 3530
 3460 R = R + 1 : RETURN
 3470 IF K <= 1 THEN RETURN
@@ -360,3 +361,23 @@
 3525 E = ERL : RESUME 3446
 3530 IF FAILS THEN PRINT "FLOW failed" ELSE PRINT "FLOW passed"
 3535 END
+3540 REM Arithmetic edge cases: zero shifts, RND argument signs, signed zero
+3550 X = 305419896
+3560 IF (X << 0) <> X OR (X >> 0) <> X THEN PRINT "positive zero shift failed" : FAILS = FAILS + 1
+3570 X = -305419896
+3580 IF (X << 0) <> X OR (X >> 0) <> X THEN PRINT "negative zero shift failed" : FAILS = FAILS + 1
+3590 IF (1 << 1) <> 2 OR (2 >> 1) <> 1 OR (-2 >> 1) <> -1 THEN PRINT "one bit shift failed" : FAILS = FAILS + 1
+3600 X = -2147483647 - 1 : IF (1 << 31) <> X OR (X >> 31) <> -1 THEN PRINT "31 bit shift failed" : FAILS = FAILS + 1
+3610 IF (1 << 32) <> 0 OR (-1 >> 32) <> 0 THEN PRINT "32 bit shift failed" : FAILS = FAILS + 1
+3620 RESTORE 3750 : FOR J = 1 TO 4 : READ N
+3630 RANDOMIZE 9 : A = RND%(1) : RANDOMIZE 9 : IF RND%(N) <> A THEN PRINT "RND% positive arg failed:"; N : FAILS = FAILS + 1
+3640 RANDOMIZE 9 : A# = RND(1) : RANDOMIZE 9 : IF RND(N) <> A# THEN PRINT "RND positive arg failed:"; N : FAILS = FAILS + 1
+3650 NEXT J
+3660 RANDOMIZE 9 : A = RND%(1) : IF RND%(0) <> A THEN PRINT "RND% zero arg failed" : FAILS = FAILS + 1
+3670 RANDOMIZE 9 : A# = RND(1) : IF RND(0) <> A# THEN PRINT "RND zero arg failed" : FAILS = FAILS + 1
+3680 A = RND%(-32768) : B = RND%(1) : IF RND%(-32768) <> A THEN PRINT "RND% negative arg failed" : FAILS = FAILS + 1
+3690 A# = RND(-65536) : B# = RND(1) : IF RND(-65536) <> A# THEN PRINT "RND negative arg failed" : FAILS = FAILS + 1
+3700 Z# = CVD(STRING$(7,0) + CHR$(128))
+3710 IF SGN(Z#) <> 0 OR SGN(-Z#) <> 0 THEN PRINT "SGN signed zero failed" : FAILS = FAILS + 1
+3720 RETURN
+3750 DATA 32768, 65535, 98304, 2147483647
