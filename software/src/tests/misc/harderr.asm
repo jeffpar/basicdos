@@ -58,6 +58,10 @@ CODE    SEGMENT
 ; must return the error without changing the destination or advancing the
 ; file position, and a later read must recover without another seek.
 ;
+; Large volume writes check unsigned byte counts around 32K and 64K.
+; The BIOS hook counts these writes and reports success without writing
+; the disk, so the volume's contents are preserved.
+;
 ; "HARDERR passed" is printed before the ABORT test, so a BAT file (or script)
 ; should check for both that message and ERRORLEVEL 255.
 ;
@@ -113,6 +117,8 @@ DEFPROC	main
 	cmp	[count],1
 	jne	m8
 	call	data_retries
+	jc	m8
+	call	volume_writes
 	jc	m8
 	mov	dx,offset passed
 	call	print
@@ -318,6 +324,98 @@ dr8b:
 	popf
 	ret
 ENDPROC	data_retries
+
+;
+; volume_writes
+;
+; Write from a separate 64K buffer through the current drive's volume
+; handle.  Check the returned byte count and the number of BIOS sectors
+; written, including partial sectors and a nonzero aligned offset.
+; Install the write-suppressing hook only after opening the volume, so
+; that pending metadata is flushed normally first.
+;
+; Outputs:
+;	Carry set if any boundary count failed
+;
+DEFPROC	volume_writes
+	mov	bx,1000h
+	mov	ah,DOS_MEM_ALLOC
+	int	21h
+	jnc	vw0
+	ret
+vw0:	mov	[volseg],ax
+	mov	es,ax
+	xor	di,di
+	mov	cx,8000h
+vw1:	stosw
+	inc	ax
+	loop	vw1
+	mov	al,[rwname]
+	mov	[volname],al
+	mov	dx,offset volname
+	mov	ax,DOS_HDL_OPENRW
+	int	21h
+	jc	vw8
+	mov	[rwhandle],ax
+	mov	ax,(DOS_MSC_GETVEC SHL 8) OR 13h
+	int	21h
+	mov	[old_disk].OFF,bx
+	mov	[old_disk].SEG,es
+	mov	dx,offset disk_handler
+	mov	ax,(DOS_MSC_SETVEC SHL 8) OR 13h
+	int	21h
+	mov	[rwlarge],1
+	mov	bp,offset volcases
+vw2:	mov	bx,[rwhandle]
+	xor	cx,cx
+	mov	dx,[bp]
+	mov	ax,DOS_HDL_SEEKBEG
+	int	21h
+	jc	vw6
+	mov	[volsectors],0
+	xor	dx,dx
+	mov	cx,[bp+2]
+	push	ds
+	mov	ds,[volseg]
+	mov	ah,DOS_HDL_WRITE
+	int	21h
+	pop	ds
+	jc	vw6
+	cmp	ax,[bp+2]		; the full unsigned byte count must be returned
+	jne	vw5
+	mov	ax,[volsectors]
+	cmp	ax,[bp+4]		; count every whole or merged partial sector
+	jne	vw5
+	add	bp,6
+	cmp	word ptr [bp+2],0	; zero length terminates the cases
+	jne	vw2
+	clc
+	jmp	short vw6
+vw5:	stc
+vw6:	pushf
+	mov	[rwlarge],0
+	push	ds
+	lds	dx,[old_disk]
+	mov	ax,(DOS_MSC_SETVEC SHL 8) OR 13h
+	int	21h
+	pop	ds
+	mov	bx,[rwhandle]
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	popf
+vw8:	pushf
+	mov	es,[volseg]
+	mov	ah,DOS_MEM_FREE
+	int	21h
+	push	cs
+	pop	es
+	popf
+	jc	vw9
+	mov	dx,offset volpassed
+	call	print
+	clc
+vw9:	ret
+ENDPROC	volume_writes
 
 ;
 ; metadata_retries
@@ -664,11 +762,27 @@ ENDPROC	seek_read
 ; Fail selected data operations on the test drive with BIOS error 80h
 ; (not ready).
 ; Skip successful operations when testing a failure after partial progress.
+; For large volume writes, count sectors and suppress the actual writes.
 ; All other operations go to the original BIOS handler.
 ;
 DEFPROC	disk_handler,far
 	cmp	dl,cs:[rwdrive]		; only the test file's BIOS drive
 	jne	dh9
+	cmp	cs:[rwlarge],0		; are large volume writes being counted?
+	je	dh0
+	cmp	ah,3			; leave reads to the real BIOS
+	jne	dh9
+	push	ax
+	xor	ah,ah
+	add	cs:[volsectors],ax
+	pop	ax
+	mov	ah,0			; simulate success without changing the disk
+	push	bp
+	mov	bp,sp
+	and	word ptr [bp+6],NOT FL_CARRY
+	pop	bp
+	iret
+dh0:
 	cmp	ah,cs:[rwcmd]		; only the selected read/write operation
 	jne	dh9
 	cmp	cs:[rwfaults],0		; stop injecting after two failures
@@ -745,6 +859,24 @@ rwcmd		db	0
 rwskip		db	0
 rwfaults	db	0
 rwdrive		db	0
+rwlarge		db	0
+volseg		dw	0
+volsectors	dw	0
+volname		db	"A:",0
+volpassed	db	"HARDERR large writes passed",13,10,'$'
+;
+; Each case contains the volume offset, unsigned byte count, and expected
+; BIOS write sector count (partial sectors require a merged sector write).
+;
+volcases	dw	0,7FFFh,64
+		dw	0,8000h,64
+		dw	0,8001h,65
+		dw	0,0FFFEh,128
+		dw	0,0FFFFh,128
+		dw	512,8000h,64
+		dw	1,8000h,65
+		dw	1,0FFFFh,128
+		dw	0,0,0
 rwresponses	db	CRERR_RETRY,CRERR_RETRY,CRERR_FAIL
 rwname		db	"A:\HERRDATA.TMP",0
 faultaddr	dd	0

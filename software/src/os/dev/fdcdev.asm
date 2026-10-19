@@ -532,7 +532,7 @@ dcw2b:	pop	es
 ;
 dcw4:	mov	es:[di].DDPRW_OFFSET,0
 	xchg	ax,cx		; convert length in AX to # sectors
-	cwd
+	sub	dx,dx		; (lengths can exceed 32K, so no CWD)
 	div	[si].BPB_SECBYTES
 	mov	cx,dx		; CX = final partial sector bytes, if any
 	test	al,al		; any whole sectors?
