@@ -708,7 +708,7 @@ sr0:	LOCK_SCB
 	mov	dl,ah			; DL = drive #
 	call	get_bpb			; DI -> BPB if no error
 	jnc	sr0a
-	jmp	sr6
+sr0e:	jmp	sr6
 
 sr0a:	test	[bx].SFB_ATTR,DIRATTR_VOLUME
 	jz	sr0b			; not a volume
@@ -728,6 +728,7 @@ sr1b:	mov	dx,[bx].SFB_CURCLN
 	test	dx,dx
 	jnz	sr1a
 	call	find_cln		; find cluster # for CURPOS
+	jc	sr0e			; return the lookup error before using DX
 	mov	[bx].SFB_CURCLN,dx
 
 sr1a:	mov	dx,[bx].SFB_CURPOS.LOW

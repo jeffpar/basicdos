@@ -46,6 +46,7 @@ if grep -q "Floating-point .*installed" "$log" || grep -q "failed" "$log" || gre
    ! grep -Fq 'A%(0 TO 2, 0 TO 3)' "$log" || ! grep -Fq 'Q%(1 TO 3)' "$log" ||
    ! grep -q "MOVES passed" "$log" || ! grep -q "FILEIO passed" "$log" || ! grep -q "PRTUSING passed" "$log" || ! grep -q "FCBTESTS passed" "$log" ||
    [ "$(grep -c "HARDERR passed" "$log")" -lt 2 ] || [ "$(grep -c "HARDERR metadata passed" "$log")" -lt 2 ] ||
+   [ "$(grep -c "HARDERR seek passed" "$log")" -lt 2 ] ||
    [ "$(grep -c "ABORTOK" "$log")" -lt 2 ] || grep -q "ABORTBAD" "$log" ||
    [ "$(grep -c "1 FILE(S)" "$log")" -lt 2 ] || ! grep -q "Elapsed time is" "$log" ||
    ! grep -q "Returns the square root" "$log" || ! grep -q "hello world!" "$log"; then

@@ -54,6 +54,10 @@ CODE    SEGMENT
 ; After a successful reset, BIOS reads verify the saved metadata on disk,
 ; and reopening the file verifies its size, cluster chain, and contents.
 ;
+; Finally, fail FAT reads while locating a cluster after a seek.  The read
+; must return the error without changing the destination or advancing the
+; file position, and a later read must recover without another seek.
+;
 ; "HARDERR passed" is printed before the ABORT test, so a BAT file (or script)
 ; should check for both that message and ERRORLEVEL 255.
 ;
@@ -287,6 +291,8 @@ dr5:
 	jmp	dr2
 dr6:
 	call	metadata_retries
+	jc	dr8
+	call	seek_failures
 	jmp	dr8
 dr7:
 	stc
@@ -540,6 +546,119 @@ mb9:
 ENDPROC	metadata_readback
 
 ;
+; seek_failures
+;
+; Seek into the third copy of the data, beyond the first cluster on both
+; test disks (1K floppy clusters and 4K hard disk clusters).  With a fresh
+; handle and empty disk buffers, locating that cluster requires a FAT read.
+; Fail two successive reads with INT 24h FAIL, then allow recovery.
+;
+; Outputs:
+;	Carry set if an error, buffer, position, or recovery check failed
+;
+DEFPROC	seek_failures
+	call	seek_setup
+	jc	sf8
+	mov	di,ds:[PSP_HEAP]
+	add	di,RW_SIZE
+	mov	cx,128
+	mov	al,0A5h
+	rep	stosb			; a failed lookup must not overwrite these bytes
+	mov	bp,2
+sf1:
+	mov	[rwcmd],2
+	mov	[rwskip],0
+	mov	[rwfaults],1
+	mov	[count],0
+	mov	[responses],offset metaresponses
+	mov	[metaarea],2		; expect a FAT read, not a data or BPB read
+	call	seek_read
+	jnc	sf8			; INT 24h FAIL must reach the caller
+	cmp	ax,ERR_NOTREADY		; preserve the original FAT read error
+	jne	sf8
+	call	check_metadata
+	jc	sf8
+	mov	di,ds:[PSP_HEAP]
+	add	di,RW_SIZE
+	mov	cx,128
+	mov	al,0A5h
+	repe	scasb
+	jne	sf8			; no file data may be returned after lookup failure
+	dec	bp
+	jnz	sf1			; retry without seeking or repairing the handle
+	jmp	short sf2
+sf8:
+	mov	dx,offset seekfailed
+	call	print
+	stc
+	ret
+sf2:
+	call	seek_read		; no injected failure remains
+	jc	sf8
+	cmp	ax,128			; recovery must return the complete request
+	jne	sf8
+	mov	si,ds:[PSP_HEAP]
+	inc	si			; expected bytes at offset 2*RW_SIZE+1
+	mov	di,dx
+	mov	cx,128
+	repe	cmpsb
+	jne	sf8			; recovery must read the requested cluster
+	xor	cx,cx
+	xor	dx,dx
+	mov	ax,DOS_HDL_SEEKCUR
+	int	21h
+	jc	sf8
+	cmp	dx,0			; file position must still fit in the low word
+	jne	sf8
+	cmp	ax,2*RW_SIZE+1+128	; only the successful read may advance it
+	jne	sf8
+	mov	dx,offset seekpassed
+	call	print
+	clc
+	ret
+ENDPROC	seek_failures
+
+;
+; seek_setup / seek_read
+;
+; Reopen the file to reset its cluster hint, seek beyond its first cluster,
+; and invalidate cached FAT sectors before fault injection.  seek_read then
+; issues the same read for each failing attempt and the recovery attempt.
+;
+DEFPROC	seek_setup
+	mov	bx,[rwhandle]
+	mov	[rwhandle],-1
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	jc	ss9
+	mov	dx,offset rwname
+	mov	ax,DOS_HDL_OPENRO
+	int	21h
+	jc	ss9
+	mov	[rwhandle],ax
+	mov	bx,ax
+	xor	cx,cx
+	mov	dx,2*RW_SIZE+1
+	mov	ax,DOS_HDL_SEEKBEG
+	int	21h
+	jc	ss9
+	mov	ah,DOS_DSK_RESET
+	int	21h
+ss9:
+	ret
+ENDPROC	seek_setup
+
+DEFPROC	seek_read
+	mov	bx,[rwhandle]
+	mov	dx,ds:[PSP_HEAP]
+	add	dx,RW_SIZE
+	mov	cx,128
+	mov	ah,DOS_HDL_READ
+	int	21h
+	ret
+ENDPROC	seek_read
+
+;
 ; disk_handler (INT 13h)
 ;
 ; Fail selected data operations on the test drive with BIOS error 80h
@@ -635,6 +754,8 @@ metaarea	db	0
 metaresponses	db	CRERR_FAIL,CRERR_FAIL
 metapassed	db	"HARDERR metadata passed",13,10,'$'
 metafailed	db	"HARDERR metadata failed",13,10,'$'
+seekpassed	db	"HARDERR seek passed",13,10,'$'
+seekfailed	db	"HARDERR seek failed",13,10,'$'
 ;
 ; Each case contains file offset, length, BIOS command, and successful
 ; BIOS operations to skip before injecting the first failure.
