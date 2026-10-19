@@ -95,6 +95,17 @@ m4:	call	result
 	call	test_file
 	call	result
 ;
+; Check full-word handle bounds and access modes on an existing file.
+;
+	mov	dx,offset handletest
+	call	print
+	call	test_handles
+	call	result
+	mov	dx,offset accesstest
+	call	print
+	call	test_access
+	call	result
+;
 ; Verify that an open file can be opened again for reading, but not created
 ; (truncated) or deleted.
 ;
@@ -226,6 +237,156 @@ tf8:	pushf
 	popf
 tf9:	ret
 ENDPROC	test_file
+
+;
+; test_handles
+;
+; Plant a valid SFH just beyond the PFT, at an already-executed code byte,
+; so handle 0100h deterministically exposes a byte-only bounds check.
+; Restore that byte and close the real handle on every exit.
+;
+; Returns carry clear if every API rejects every invalid handle.
+;
+DEFPROC	test_handles
+	mov	dx,offset testfile
+	mov	ax,DOS_HDL_OPENRO
+	int	21h
+	jnc	th0
+	ret
+th0:	push	ax
+	mov	bx,ax
+	mov	al,ds:[PSP_PFT+bx]
+	xchg	al,ds:[PSP_PFT+100h]
+	push	ax
+	mov	si,offset badhandles
+th1:	mov	di,offset handleapis
+th2:	mov	bx,[si]
+	mov	dx,offset readbuf
+	xor	cx,cx
+	mov	ax,[di]
+	int	21h
+	call	chk_badhandle
+	jc	th8
+	add	di,2
+	cmp	word ptr [di],0		; zero terminates the API list
+	jne	th2
+	add	si,2
+	cmp	word ptr [si],0		; zero terminates the invalid handles
+	jne	th1
+	clc
+th8:	pop	ax
+	mov	ds:[PSP_PFT+100h],al
+	pop	bx
+	pushf
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	popf
+	ret
+ENDPROC	test_handles
+
+;
+; test_access
+;
+; Check zero- and one-byte reads in all three access modes, including
+; sharing flags.  A rejected read must not change the buffer or position.
+; Write the file's original first byte to check write access as well.
+;
+; Returns carry clear if access restrictions and valid operations work.
+;
+DEFPROC	test_access
+	xor	si,si			; SI = access mode (RO, WO, RW)
+ta0:	mov	dx,offset testfile
+	mov	ax,DOS_HDL_OPENRO OR MODE_DENY_NONE
+	or	ax,si
+	int	21h
+	jnc	ta1
+	ret
+ta1:	mov	bx,ax
+	xor	bp,bp			; BP = requested read count (0, 1)
+ta2:	mov	byte ptr [readbuf],0A5h
+	mov	dx,offset readbuf
+	mov	cx,bp
+	mov	ah,DOS_HDL_READ
+	int	21h
+	pushf
+	cmp	si,MODE_ACC_WO		; write-only reads must fail, even with CX=0
+	jne	ta3
+	popf
+	call	chk_access
+	jc	ta8
+	cmp	byte ptr [readbuf],0A5h	; rejection must leave the buffer untouched
+	jne	ta7
+	jmp	short ta4
+ta3:	popf
+	jc	ta8
+	cmp	ax,bp			; allowed reads must return the requested count
+	jne	ta7
+ta4:	inc	bp
+	cmp	bp,2			; test both zero- and one-byte requests
+	jb	ta2
+	xor	cx,cx
+	xor	dx,dx
+	mov	ax,DOS_HDL_SEEKCUR
+	int	21h
+	jc	ta8
+	mov	di,1
+	cmp	si,MODE_ACC_WO		; only successful reads advance the position
+	jne	ta5
+	dec	di
+ta5:	cmp	ax,di			; expect position 0 for WO, 1 for RO/RW
+	jne	ta7
+	test	dx,dx			; the high word of the position must be zero
+	jnz	ta7
+	mov	ax,DOS_HDL_SEEKBEG
+	int	21h			; CX:DX is still zero
+	jc	ta8
+	mov	dx,offset teststr
+	mov	cx,1
+	mov	ah,DOS_HDL_WRITE
+	int	21h
+	pushf
+	cmp	si,MODE_ACC_RO		; only read-only writes must fail
+	jne	ta6
+	popf
+	call	chk_access
+	jmp	short ta8
+ta6:	popf
+	jc	ta8
+	cmp	ax,1			; WO and RW must permit the write
+	je	ta8
+ta7:	stc
+ta8:	pushf
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	popf
+	jc	ta9
+	inc	si
+	cmp	si,MODE_ACC_RW		; all three access modes checked?
+	ja	ta9
+	jmp	ta0
+ta9:	ret
+ENDPROC	test_access
+
+;
+; chk_badhandle / chk_access
+;
+; Return carry clear only if the preceding API failed with the expected error.
+;
+DEFPROC	chk_badhandle
+	mov	dx,ERR_BADHANDLE
+	jmp	short chk_handle_error
+ENDPROC	chk_badhandle
+
+DEFPROC	chk_access
+	mov	dx,ERR_ACCDENIED
+chk_handle_error:
+	cmc
+	jc	che9			; the API succeeded, which is a test failure
+	cmp	ax,dx			; the error code must match too
+	je	che9
+	stc
+che9:	ret
+ENDPROC	chk_access
 
 ;
 ; test_share
@@ -523,6 +684,11 @@ failed		db		"failed",13,10,'$'
 progress	db		".$"
 alloctest	db		"memory test$"
 filetest	db		"file test $"
+handletest	db		"handle bounds test $"
+accesstest	db		"handle access test $"
+badhandles	dw		20,0FFh,100h,113h,0FF00h,0FFFFh,0
+handleapis	dw		DOS_HDL_READ SHL 8,DOS_HDL_WRITE SHL 8
+		dw		DOS_HDL_SEEKBEG,DOS_HDL_CLOSE SHL 8,4400h,0
 renametest	db		"rename/delete test $"
 sharetest	db		"sharing test $"
 pchtest		db		"path char test $"

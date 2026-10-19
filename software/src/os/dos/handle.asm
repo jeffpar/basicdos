@@ -231,11 +231,10 @@ ENDPROC	hdl_seek
 ; failure) are returned to the caller instead of the critical error handler.
 ;
 DEFPROC	hdl_ioctl,DOS
-	push	ax
 	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
 	call	sfb_get
-	pop	ax
 	jc	hs8			; return error in REG_AX
+	mov	ax,[bp].REG_AX		; recover request only after validating the handle
 ;
 ; Like DOS, we handle IOCTL_GETDATA ourselves: REG_DX bit 7 is set for a
 ; device; otherwise, bits 0-5 contain the file's (0-based) drive #.
@@ -706,9 +705,13 @@ sr0:	LOCK_SCB
 	mov	[bp].TMP_ES,es
 	mov	[bp].TMP_DX,dx
 	mov	dl,ah			; DL = drive #
+	mov	ax,ERR_ACCDENIED
+	test	[bx].SFB_MODE,MODE_ACC_WO ; file or volume opened write-only?
+	jnz	sr0e			; yes, reject before reading or advancing CURPOS
 	call	get_bpb			; DI -> BPB if no error
 	jnc	sr0a
-sr0e:	jmp	sr6
+sr0e:	stc
+	jmp	sr6
 
 sr0a:	test	[bx].SFB_ATTR,DIRATTR_VOLUME
 	jz	sr0b			; not a volume
@@ -1139,7 +1142,7 @@ DEFPROC	sfb_get,DOS
 	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	call	get_psp			; if there's no PSP yet
 	jz	sg1			; then BX must an SFH, not a PFH
-	cmp	bl,size PSP_PFT		; is the PFH within PFT bounds?
+	cmp	bx,size PSP_PFT		; is the full PFH within PFT bounds?
 	jae	sg8			; no
 	push	ds
 	mov	ds,ax
