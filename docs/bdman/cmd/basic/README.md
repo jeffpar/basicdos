@@ -36,6 +36,8 @@ Resets all numeric variables to zero and all string variables to empty strings, 
 
 Closes the specified files, or all files if none are specified (see [OPEN](#open)).  Closing a file that isn't open does nothing.  RESET is the same as CLOSE without file numbers.
 
+A DOS close or metadata commit failure raises "Device I/O error" (57).  The affected file is closed even when this error occurs.
+
 ### DATA
 
 > DATA *item*[,*item*]...
@@ -136,6 +138,8 @@ NEXT without a *variable* ends the innermost FOR loop; otherwise, it ends the FO
 > GET [#]*n*[,*record*]
 
 Reads the specified record of random access file *n* (or the record after the last one used, if *record* is omitted) and sets each [FIELD](#field) variable to its part of the record.  Records are numbered from 1; any part of a record past the end of the file is zeros.  An invalid *record* is a "Bad record number" error (63).  `GET (x1,y1)-(x2,y2),array` is the [graphics GET](../device/graphics/#get).
+
+A DOS seek or read failure raises "Device I/O error" (57), preserving the FIELD variables and last completed record number.
 
 ### GOSUB
 
@@ -275,6 +279,8 @@ Writes values to file *n* (which must be open for OUTPUT or APPEND) exactly as [
 > PUT [#]*n*[,*record*]
 
 Writes each [FIELD](#field) variable to its part of the specified record of random access file *n* (or the record after the last one used, if *record* is omitted), padded with spaces.  `PUT (x,y),array` is the [graphics PUT](../device/graphics/#put).
+
+An incomplete write raises "Disk full" (61); a DOS seek or write failure raises "Device I/O error" (57).  A failed PUT does not advance the last completed record number returned by LOC.
 
 	OPEN "PHONES.DAT" AS #1 LEN=30
 	FIELD #1, 20 AS N$, 10 AS P$

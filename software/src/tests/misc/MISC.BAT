@@ -30,7 +30,9 @@ REM HARDERR needs an empty drive B:, and its last test aborts it (exit 255)
 IF D$ = "B" THEN PRINT "HARDERR skipped (drive B: must be empty)" : GOTO 20
 HARDERR
 IF ERRORLEVEL <> 255 THEN PRINT "HARDERR abort failed"
-20	PRINTF
+20	IOERR.COM
+IF ERRORLEVEL <> 0 THEN PRINT "IOERR failed"
+PRINTF
 IF ERRORLEVEL <> 0 THEN PRINT "PRINTF failed"
 CD \TESTS
 PRINT "MISC done"

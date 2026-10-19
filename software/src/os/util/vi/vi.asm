@@ -342,8 +342,10 @@ sf7:	pushf
 	mov	bx,[bp].V_HDL
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
-	popf
+	pop	ax			; saved flags from flushOut
 	pop	dx
+	jc	sf9			; closing/committing the file failed
+	shr	ax,1			; restore the earlier write carry
 	jc	sf9
 	call	infoMsg
 	clc

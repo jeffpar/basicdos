@@ -65,10 +65,12 @@ software/src/tests/bin/DOSTESTS.COM
 software/src/tests/bin/FCBTESTS.COM
 software/src/tests/bin/FPUTESTS.COM
 software/src/tests/bin/HARDERR.COM
+software/src/tests/bin/IOERR.COM
 software/src/tests/bin/PRINTF.COM
 software/src/tests/misc/ARRAYS.BAS
 software/src/tests/misc/CMDS.BAT
 software/src/tests/misc/FILEIO.BAS
+software/src/tests/misc/IOERR.BAS
 software/src/tests/misc/FLOW.BAS
 software/src/tests/misc/MICRO.BAS
 software/src/tests/misc/MOVES.BAS

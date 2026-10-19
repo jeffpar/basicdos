@@ -766,6 +766,7 @@
     "IOCTLIN",
     "IOCTLOUT",
     "IOCTLs",
+    "IOERR",
     "IOPL",
     "iopm",
     "IOPM",

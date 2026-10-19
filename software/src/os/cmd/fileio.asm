@@ -136,7 +136,9 @@ ENDPROC	openFile
 ; closeFile
 ;
 ; Used by "CLOSE [#n]", which closes file n, or all files if n is zero.
-; Closing a file that isn't open does nothing.
+; Closing a file that isn't open does nothing.  A failed close is a runtime
+; error; DOS closes the handle even when its metadata commit fails, so its
+; slot must still be marked closed.
 ;
 ; Inputs:
 ;	32-bit file number (popped)
@@ -186,6 +188,9 @@ DEFPROC	closeSlot
 	mov	bh,0			; BX = handle
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
+	jnc	cs9
+	mov	al,57			; "Device I/O error"
+	jmp	rtError
 cs9:	ret
 ENDPROC	closeSlot
 
@@ -874,6 +879,9 @@ ENDPROC	setField
 ; is zeros), and PUT # writes each FIELD variable to its part of the record
 ; (padded with spaces).
 ;
+; DOS failures raise "Device I/O error"; a short PUT raises "Disk full".
+; Failed operations preserve the last completed record number.
+;
 ; Inputs:
 ;	32-bit file number (popped)
 ;	32-bit record number (popped)
@@ -889,11 +897,14 @@ DEFPROC	fileRecord,FAR
 	ARGVAR	lRecNum,dword
 	ARGVAR	lRecRec,dword
 	ARGVAR	wRecPut,word
+	LOCVAR	frLast,word
 	ENTER
 	push	ds
 	mov	ax,[lRecNum].LOW
 	mov	dl,FM_RANDOM
 	call	getFile			; SS:BX -> slot
+	mov	dx,word ptr ss:[bx].FS_REC
+	mov	[frLast],dx		; retain the last completed record on error
 	mov	ax,[lRecRec].LOW
 	mov	cx,[lRecRec].HIW
 	inc	cx			; next record?
@@ -905,6 +916,7 @@ fr1:	dec	cx			; is the record # 1-65535?
 	test	ax,ax
 	jz	frX
 fr2:	call	seekRecord		; CX = record length
+	jc	frIO
 	push	ss
 	pop	ds
 	push	ss
@@ -931,15 +943,25 @@ fr3:	rep	stosb
 fr4:	mov	bl,ss:[bx].FILE_DATA
 	mov	bh,0			; BX = handle
 	int	21h			; read or write the record
-	pop	ax
+	pop	si			; SI = GET/PUT flag; AX is the DOS result
 	pop	bx
-	test	al,al			; GET?
-	jnz	fr9			; no
+	jc	frIO
+	test	si,si			; GET?
+	jz	fr5			; yes (short reads retain the zero padding)
+	cmp	ax,cx			; was the entire PUT record written?
+	je	fr9			; yes
+	mov	al,61			; "Disk full"
+	jmp	short frErr
+fr5:	sub	ax,ax			; AL = 0 for GET's doFields
 	call	doFields		; yes, so set the variables
 fr9:	pop	ds
 	LEAVE
 	RETURN
 frX:	mov	al,63			; "Bad record number"
+	jmp	rtError
+frIO:	mov	al,57			; "Device I/O error"
+frErr:	mov	dx,[frLast]
+	mov	word ptr ss:[bx].FS_REC,dx
 	jmp	rtError
 ENDPROC	fileRecord
 

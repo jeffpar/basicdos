@@ -368,6 +368,8 @@ ERR_MSGS	db	3,"RETURN without GOSUB",0
 		db	53,"File not found",0
 		db	54,"Bad file mode",0
 		db	55,"File already open",0
+		db	57,"Device I/O error",0
+		db	61,"Disk full",0
 		db	62,"Input past end",0
 		db	63,"Bad record number",0
 		db	75,"Path/File access error",0
