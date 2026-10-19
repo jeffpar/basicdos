@@ -33,20 +33,22 @@ DOS	segment word public 'CODE'
 ;	None (use drv_flush to flush drive # in AL only)
 ;
 ; Outputs:
-;	Flush all buffers containing data for the specified drive
+;	On success, buffers invalidated, carry clear
+;	On failure, buffers retained for another flush, carry set
 ;
 ; Modifies:
-;	AX (carry clear)
+;	AX
 ;
 ; Notes:
 ;	dsk_flush writes any modified buffers before invalidating them,
-;	whereas drv_flush (used when the media has changed) simply discards
-;	them.
+;	retaining all buffers if a write fails.  drv_flush (used when the
+;	media has changed) simply discards them.
 ;
 DEFPROC	dsk_flush,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	mov	al,-1			; by default, flush all drives
 	call	flush_buffers		; write any modified buffers first
+	jc	df9			; retain pending data if any write failed
 	mov	al,-1
 	DEFLBL	drv_flush,near		; otherwise, flush only drive # in AL
 	push	cx
@@ -56,6 +58,7 @@ DEFPROC	dsk_flush,DOS
 	call	zap_buffers
 	pop	dx
 	pop	cx
+df9:
 	ret
 ENDPROC	dsk_flush
 

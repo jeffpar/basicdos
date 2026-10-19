@@ -42,11 +42,17 @@ CODE    SEGMENT
 ;   3) ABORT terminates the program (with exit code 255); if it doesn't, the
 ;      program prints "HARDERR abort failed" and returns 1.
 ;
-; Before ABORT, data transfer tests use a temporary file on A:.  An INT 13h
-; hook fails two reads or writes in succession, and INT 24h returns RETRY
-; both times.  Verify the byte counts and data, including requests with an
-; aligned nonzero offset, a completed partial first sector, and a partial
-; sector only.  Writes must preserve all bytes outside the requested range.
+; Before ABORT, data transfer tests use a temporary file in the current
+; drive's root.  An INT 13h hook fails two reads or writes in succession,
+; and INT 24h returns RETRY both times.  Verify the byte counts and data,
+; including an aligned nonzero offset, a completed partial first sector,
+; and a partial sector only.  Writes must preserve all bytes outside the
+; requested range.
+;
+; Metadata tests then fail writes to each FAT copy and to the directory,
+; returning FAIL from INT 24h.  A second disk reset must try the write again.
+; After a successful reset, BIOS reads verify the saved metadata on disk,
+; and reopening the file verifies its size, cluster chain, and contents.
 ;
 ; "HARDERR passed" is printed before the ABORT test, so a BAT file (or script)
 ; should check for both that message and ERRORLEVEL 255.
@@ -151,6 +157,19 @@ ENDPROC	trigger
 ;	Carry set if any test failed
 ;
 DEFPROC	data_retries
+	mov	ah,DOS_DSK_GETDRV
+	int	21h
+	mov	[rwdrive],al
+	add	al,'A'
+	mov	[rwname],al
+;
+; DOS numbers A: and B: as 0 and 1, as does the BIOS.  Hard disks start
+; at DOS drive 2 (C:), whereas their BIOS drive numbers start at 80h.
+;
+	cmp	[rwdrive],2	; is the current drive a hard disk?
+	jb	dr0
+	add	[rwdrive],80h-2
+dr0:
 	mov	di,ds:[PSP_HEAP]
 	mov	cx,RW_SIZE/2
 	xor	ax,ax
@@ -267,7 +286,7 @@ dr5:
 	je	dr6
 	jmp	dr2
 dr6:
-	clc
+	call	metadata_retries
 	jmp	dr8
 dr7:
 	stc
@@ -282,8 +301,11 @@ dr8:
 	pop	ds
 dr8a:
 	mov	bx,[rwhandle]
+	cmp	bx,-1		; did the metadata tests already close the handle?
+	je	dr8b
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
+dr8b:
 	mov	dx,offset rwname
 	mov	ah,DOS_DSK_DELETE
 	int	21h
@@ -292,14 +314,241 @@ dr8a:
 ENDPROC	data_retries
 
 ;
+; metadata_retries
+;
+; Extend the file for each FAT test, then close it for the directory test.
+; BP selects the first FAT (0), second FAT (1), or directory (2).
+;
+; Outputs:
+;	Carry set if a failed metadata write could not be recovered
+;
+DEFPROC	metadata_retries
+	mov	ah,DOS_DSK_RESET
+	int	21h			; start with clean disk buffers
+	jc	mr8
+	xor	bp,bp
+mr1:
+	call	metadata_case
+	jc	mr8
+	inc	bp
+	cmp	bp,3			; all three metadata failures tested?
+	jb	mr1
+	call	metadata_readback
+	jc	mr8
+	mov	dx,offset metapassed
+	call	print
+	clc
+	ret
+mr8:
+	mov	dx,offset metafailed
+	call	print
+	stc
+	ret
+ENDPROC	metadata_retries
+
+;
+; metadata_case
+;
+; Fail the initial flush and a subsequent disk reset, then let the next
+; reset succeed.  Retain a snapshot of the failed sector for a BIOS read
+; that bypasses the DOS cache after recovery.
+;
+DEFPROC	metadata_case
+	cmp	bp,2			; the directory is updated on close
+	je	mc1
+	mov	bx,[rwhandle]
+	xor	cx,cx
+	xor	dx,dx
+	mov	ax,DOS_HDL_SEEKEND
+	int	21h
+	jc	mc9
+	mov	dx,ds:[PSP_HEAP]
+	mov	cx,RW_SIZE
+	mov	ah,DOS_HDL_WRITE
+	int	21h			; allocate more clusters, dirtying the FAT
+	jc	mc9
+	cmp	ax,RW_SIZE		; the extension must be written in full
+	jne	mc8
+mc1:
+	call	arm_metadata
+	cmp	bp,2			; close commits the file's directory entry
+	jne	mc2
+	mov	bx,[rwhandle]
+	mov	[rwhandle],-1		; DOS closes it even if committing fails
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	jmp	short mc3
+mc2:
+	mov	ah,DOS_DSK_RESET
+	int	21h
+mc3:
+	call	check_metadata
+	jc	mc9
+	push	ds
+	lds	si,[faultaddr]
+	mov	di,es:[PSP_HEAP]
+	add	di,RW_SIZE
+	mov	cx,256
+	rep	movsw			; save the metadata that failed to write
+	pop	ds
+	call	arm_metadata
+	mov	ah,DOS_DSK_RESET
+	int	21h			; the same pending write must be retried
+	call	check_metadata
+	jc	mc9
+	mov	[count],0
+	mov	ah,DOS_DSK_RESET
+	int	21h			; no injected error this time
+	jc	mc9
+	cmp	[count],0		; the recovery flush must not report an error
+	jne	mc8
+	call	metadata_sector
+	ret
+mc8:
+	stc
+mc9:
+	ret
+ENDPROC	metadata_case
+
+;
+; arm_metadata / check_metadata
+;
+; Arm one BIOS write failure and an INT 24h FAIL response, and verify that
+; the failure was reported for the expected disk area.
+;
+DEFPROC	arm_metadata
+	mov	[rwcmd],3
+	mov	[rwskip],0
+	cmp	bp,1			; skip the first FAT when testing its mirror
+	jne	am1
+	mov	[rwskip],1
+am1:
+	mov	[metaarea],CRERR_WRITE OR 2
+	cmp	bp,2			; distinguish directory writes from FAT writes
+	jne	am2
+	mov	[metaarea],CRERR_WRITE OR 4
+am2:
+	mov	[count],0
+	mov	[responses],offset metaresponses
+	mov	[rwfaults],1
+	ret
+ENDPROC	arm_metadata
+
+DEFPROC	check_metadata
+	cmp	[count],1		; each flush must report the injected failure
+	jne	cm8
+	cmp	[rwfaults],0		; ensure a pending write reached the BIOS
+	jne	cm8
+	mov	al,byte ptr [regAX+1]
+	and	al,CRERR_AREA OR CRERR_WRITE
+	cmp	al,[metaarea]		; was it the intended kind of metadata?
+	jne	cm8
+	clc
+	ret
+cm8:
+	stc
+	ret
+ENDPROC	check_metadata
+
+;
+; metadata_sector
+;
+; Read the failed sector through the BIOS and compare it with the snapshot.
+; Align the destination on a physical 512-byte boundary inside the second
+; heap buffer, so that this read cannot cross a DMA boundary.
+;
+DEFPROC	metadata_sector
+	mov	ax,cs
+	mov	dx,ds:[PSP_HEAP]
+	add	dx,RW_SIZE+512+15
+	mov	cl,4
+	shr	dx,cl
+	add	ax,dx
+	add	ax,31
+	and	ax,0FFE0h
+	mov	es,ax
+	xor	bx,bx
+	mov	cx,[faultcx]
+	mov	dx,[faultdx]
+	mov	ax,0201h
+	push	bp
+	int	13h
+	pop	bp
+	jc	ms9
+	mov	si,ds:[PSP_HEAP]
+	add	si,RW_SIZE
+	xor	di,di
+	mov	cx,512
+	repe	cmpsb
+	je	ms9			; the recovered sector must match every byte
+	stc
+ms9:
+	push	cs
+	pop	es
+	ret
+ENDPROC	metadata_sector
+
+;
+; metadata_readback
+;
+; Reopen the file after the directory flush and cache invalidation, and
+; verify the original data and both appended copies of it.
+;
+DEFPROC	metadata_readback
+	mov	dx,offset rwname
+	mov	ax,DOS_HDL_OPENRO
+	int	21h
+	jc	mb9
+	mov	[rwhandle],ax
+	mov	bx,ax
+	xor	cx,cx
+	xor	dx,dx
+	mov	ax,DOS_HDL_SEEKEND
+	int	21h
+	jc	mb9
+	cmp	dx,0			; the size must fit in the low word
+	jne	mb8
+	cmp	ax,3*RW_SIZE		; both FAT extensions and size must persist
+	jne	mb8
+	xor	dx,dx
+	mov	ax,DOS_HDL_SEEKBEG
+	int	21h
+	jc	mb9
+	mov	bp,3
+mb1:
+	mov	dx,ds:[PSP_HEAP]
+	add	dx,RW_SIZE
+	mov	cx,RW_SIZE
+	mov	ah,DOS_HDL_READ
+	int	21h
+	jc	mb9
+	cmp	ax,RW_SIZE		; all clusters in this copy must be readable
+	jne	mb8
+	mov	si,ds:[PSP_HEAP]
+	mov	di,dx
+	mov	cx,RW_SIZE
+	repe	cmpsb
+	jne	mb8			; verify the data reached through the FAT chain
+	dec	bp
+	jnz	mb1
+	clc
+	ret
+mb8:
+	stc
+mb9:
+	ret
+ENDPROC	metadata_readback
+
+;
 ; disk_handler (INT 13h)
 ;
-; Fail two selected data operations on A: with BIOS error 80h (not ready).
+; Fail selected data operations on the test drive with BIOS error 80h
+; (not ready).
 ; Skip successful operations when testing a failure after partial progress.
 ; All other operations go to the original BIOS handler.
 ;
 DEFPROC	disk_handler,far
-	cmp	dl,0			; only the test file's floppy drive
+	cmp	dl,cs:[rwdrive]		; only the test file's BIOS drive
 	jne	dh9
 	cmp	ah,cs:[rwcmd]		; only the selected read/write operation
 	jne	dh9
@@ -311,6 +560,10 @@ DEFPROC	disk_handler,far
 	jmp	dh9
 dh1:
 	dec	cs:[rwfaults]
+	mov	cs:[faultaddr].OFF,bx
+	mov	cs:[faultaddr].SEG,es
+	mov	cs:[faultcx],cx
+	mov	cs:[faultdx],dx
 	push	bp
 	mov	bp,sp
 	or	word ptr [bp+6],FL_CARRY ; return carry in the saved interrupt flags
@@ -372,8 +625,16 @@ hooked		db	0
 rwcmd		db	0
 rwskip		db	0
 rwfaults	db	0
+rwdrive		db	0
 rwresponses	db	CRERR_RETRY,CRERR_RETRY,CRERR_FAIL
-rwname		db	"A:HERRDATA.TMP",0
+rwname		db	"A:\HERRDATA.TMP",0
+faultaddr	dd	0
+faultcx		dw	0
+faultdx		dw	0
+metaarea	db	0
+metaresponses	db	CRERR_FAIL,CRERR_FAIL
+metapassed	db	"HARDERR metadata passed",13,10,'$'
+metafailed	db	"HARDERR metadata failed",13,10,'$'
 ;
 ; Each case contains file offset, length, BIOS command, and successful
 ; BIOS operations to skip before injecting the first failure.

@@ -197,13 +197,15 @@ ENDPROC	read_buffer
 ; Writes the buffer's data to disk if the buffer is dirty (ie, BUF_DIRTY is
 ; set).  If the buffer contains a sector from the first FAT, then the data is
 ; also written to the corresponding sector of every other FAT.
+; Leave the buffer dirty and its LBA intact until every copy is written, so
+; a failed flush or eviction can be retried with the same data.
 ;
 ; Inputs:
 ;	DS:SI -> BUFHDR
 ;
 ; Outputs:
 ;	On success, carry clear (AX preserved)
-;	On failure, carry set, AX = device error code (and buffer invalidated)
+;	On failure, carry set, AX = device error code (buffer remains dirty)
 ;
 ; Modifies:
 ;	AX
@@ -230,12 +232,11 @@ DEFPROC	write_buffer,DOS
 	mov	ax,bx
 	sub	ax,cs:[di].BPB_RESSECS
 	cmp	ax,cs:[di].BPB_FATSECS	; is the LBA within the first FAT?
-	jae	wb1			; no
+	jae	wb2			; no
 	mov	al,cs:[di].BPB_FATS	; yes, so write every copy of the FAT
 	cbw
 	xchg	bp,ax
 
-wb1:	mov	[si].BUF_DIRTY,0
 wb2:	mov	al,[si].BUF_DRIVE
 	mov	ah,DDC_WRITE
 	mov	cx,[si].BUF_SIZE	; CX = byte count
@@ -247,14 +248,11 @@ wb2:	mov	al,[si].BUF_DRIVE
 	call	dev_request
 	pop	di
 	pop	si
-	jc	wb8
+	jc	wb9
 	add	bx,cs:[di].BPB_FATSECS	; advance LBA to the next FAT copy
 	dec	bp			; any more copies?
 	jnz	wb2			; yes
-	jmp	short wb9		; no (and carry is clear)
-
-wb8:	mov	[si].BUF_LBA,0		; invalidate the buffer on error
-	stc
+	and	[si].BUF_DIRTY,0	; every copy was written (carry clear)
 
 wb9:	pop	es
 	pop	bp
