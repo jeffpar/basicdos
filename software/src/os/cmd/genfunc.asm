@@ -18,7 +18,7 @@ CODE    SEGMENT
 	EXTNEAR	<genExpr,genCvtType,genPushSlot,getVar,holdStr,swapArgs>
 	EXTNEAR	<genCallCS,genCallFar,genPushImmLong,genPushBPOffset>
 	EXTNEAR	<genPushLong,genPushZeroLong>
-	EXTNEAR	<getNextSymbol,peekNextSymbol>
+	EXTNEAR	<getNextSymbol,peekNextSymbol,memError>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -168,10 +168,17 @@ gfe7:	call	loadFuncData		; AX = function address offset
 	xchg	dx,ax
 	test	dx,dx
 	jnz	gfe8
+;
+; A predefined function outside COMMAND's core isn't there if only the core
+; was loaded (see genUpper).
+;
+	cmp	cx,ds:[PSP_CODESIZE]	; is the function loaded?
+	jae	gfeM			; no
 	mov	dx,cs
 gfe8:	GENCALL	dx,cx			; generate call to function DX:CX
 	mov	ah,[nFuncType]		; AH = return type
 	jmp	short gfe10		; GENCALL should have cleared carry
+gfeM:	call	memError		; report "Not enough memory"
 gfe9:	stc
 gfe10:	LEAVE
 	ret

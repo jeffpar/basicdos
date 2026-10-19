@@ -8,9 +8,11 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 ; Runtime functions for DRAW, LINE, PAINT, PRESET, and PSET (see gengfx.asm;
-; GET and PUT are in gfximg.asm), which draw directly into CGA video memory in video modes 4 and
-; 5 (320x200, 4 colors) and 6 (640x200, 2 colors); in any other mode, they
-; report an "Illegal function call" error.
+; GET and PUT are in gfximg.asm), which draw directly into CGA video memory
+; in video modes 4 and 5 (320x200, 4 colors) and 6 (640x200, 2 colors); in
+; any other mode, they report an "Illegal function call" error.  The MOUSE
+; statement and function are here, too (except for mouseReset and mouseCall,
+; which are in sys.asm).
 ;
 ; Coordinates are clamped to -8192 through 8191 (so that LINE's arithmetic
 ; can't overflow), and pixels outside the screen are simply not drawn.
@@ -24,7 +26,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<ioctlCon,strIllegal,rtError,playChar,playNum,releaseStr>
-	EXTNEAR	<mouseGfx,mouseArea>
+	EXTNEAR	<mouseCall,mouseReset>
 
         ASSUME  CS:CODE, DS:NOTHING, ES:NOTHING, SS:CODE
 
@@ -1497,6 +1499,203 @@ DEFPROC	maskByte
 	xor	es:[di],al
 	ret
 ENDPROC	maskByte
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; mouseOn
+;
+; Used by "MOUSE ON", which resets the mouse (emptying its event queue) and
+; shows the pointer.  Like MSBASIC's PEN ON, nothing happens if there's no
+; mouse (and the MOUSE function then returns only zeros).
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+DEFPROC	mouseOn,FAR
+	call	mouseReset		; AX = -1 if there's a mouse
+	inc	ax
+	jnz	mn9
+	inc	ax			; AX = 1 (show the pointer)
+	call	mouseCall
+	or	byte ptr ss:[bx].GFX_DATA.MOUSE_STATE,MS_ON
+mn9:	ret
+ENDPROC	mouseOn
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; mouseOff
+;
+; Used by "MOUSE OFF", which resets the mouse (hiding the pointer and emptying
+; its event queue).  Nothing happens if there's no mouse.
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX
+;
+DEFPROC	mouseOff,FAR
+	call	mouseReset
+	ret
+ENDPROC	mouseOff
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getMouse (MOUSE)
+;
+; Like MSBASIC's PEN function, MOUSE(n) returns:
+;
+;	0: the next button event (0 if none, 1 = left button pressed,
+;	   2 = left released, 3 = right pressed, 4 = right released)
+;	1: x of the event last returned by MOUSE(0)
+;	2: y of the event last returned by MOUSE(0)
+;	3: current x
+;	4: current y
+;	5: current buttons (1 = left, 2 = right, 3 = both)
+;
+; where positions are pixels in graphics modes, or a column and row (starting
+; at 1) in text modes.  Every value is zero if there's no mouse.  If gfxInit
+; hid the pointer, it's shown again.
+;
+; Inputs:
+;	32-bit return value
+;	32-bit n (popped)
+;
+; Outputs:
+;	32-bit return value updated
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+DEFPROC	getMouse,FAR
+	RETVAR	retMouse,dword
+	ARGVAR	mouseNum,dword
+	ENTER
+	mov	si,ss:[PSP_HEAP]
+	test	byte ptr ss:[si].GFX_DATA.MOUSE_STATE,MS_GFX
+	jz	gm1
+	and	byte ptr ss:[si].GFX_DATA.MOUSE_STATE,NOT MS_GFX
+	mov	ax,1			; show the pointer again
+	call	mouseCall
+gm1:	mov	di,[mouseNum].LOW
+	cmp	[mouseNum].HIW,0
+	jne	gmX
+	cmp	di,5
+	ja	gmX
+	mov	ax,ss:[si].GFX_DATA.MOUSE_X
+	cmp	di,1
+	je	gm8
+	mov	ax,ss:[si].GFX_DATA.MOUSE_Y
+	cmp	di,2
+	je	gm8
+	mov	bx,di			; BX = 0 for an event, else the state
+	mov	ax,MOUSE_EVENT
+	call	mouseCall		; AX = event, BX = buttons, CX,DX = pos
+	test	di,di
+	jnz	gm3
+	mov	ss:[si].GFX_DATA.MOUSE_X,cx
+	mov	ss:[si].GFX_DATA.MOUSE_Y,dx
+	jmp	short gm8
+gm3:	xchg	ax,cx			; AX = x
+	cmp	di,3
+	je	gm8
+	xchg	ax,dx			; AX = y
+	cmp	di,4
+	je	gm8
+	xchg	ax,bx			; AX = buttons
+gm8:	mov	[retMouse].LOW,ax
+	mov	[retMouse].HIW,0
+	LEAVE
+	RETURN
+gmX:	jmp	strIllegal
+ENDPROC	getMouse
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; mouseGfx and mouseArea
+;
+; Called by gfxInit (for the entire screen), and by LINE and PSET (for just
+; the area they draw), so that if MOUSE ON is in effect, graphics statements
+; (eg, GET and PAINT) never see the pointer.  The pointer is hidden with INT
+; 33h function 10h (conditional off), which leaves it on the screen if it's
+; not in the area, and either way, it's not shown again until the next MOUSE
+; function (see getMouse).
+;
+; Inputs (for mouseArea):
+;	CX, DX = one corner (pixels)
+;	SI, DI = the opposite corner (pixels)
+;	BH = mode (see gfxInit)
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	None
+;
+DEFPROC	mouseGfx
+	push	cx
+	push	dx
+	push	si
+	push	di
+	sub	cx,cx
+	sub	dx,dx
+	mov	si,7FFFh
+	mov	di,si
+	jmp	short ma3
+ENDPROC	mouseGfx
+
+DEFPROC	mouseArea
+	push	cx
+	push	dx
+	push	si
+	push	di
+	cmp	cx,si
+	jle	ma1
+	xchg	cx,si
+ma1:	cmp	dx,di
+	jle	ma2
+	xchg	dx,di
+ma2:	test	bh,bh			; 320x200?
+	jnz	ma3			; no
+	shl	cx,1			; yes, so convert x to virtual units
+	shl	si,1
+ma3:	push	ax
+	push	bx
+	mov	bx,ss:[PSP_HEAP]
+	test	byte ptr ss:[bx].GFX_DATA.MOUSE_STATE,MS_ON
+	jz	ma9
+	or	byte ptr ss:[bx].GFX_DATA.MOUSE_STATE,MS_GFX
+	or	cx,cx			; clip negative coordinates to zero
+	jns	ma4
+	sub	cx,cx
+ma4:	or	dx,dx
+	jns	ma5
+	sub	dx,dx
+ma5:	or	si,si
+	jns	ma6
+	sub	si,si
+ma6:	or	di,di
+	jns	ma7
+	sub	di,di
+ma7:	mov	ax,10h			; hide the pointer if it's in the area
+	call	mouseCall
+ma9:	pop	bx
+	pop	ax
+	pop	di
+	pop	si
+	pop	dx
+	pop	cx
+	ret
+ENDPROC	mouseArea
 
 CODE	ENDS
 

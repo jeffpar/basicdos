@@ -30,8 +30,9 @@
 ;	genflow.asm			control (END, FOR/NEXT, GOSUB, GOTO,
 ;					IF/THEN/ELSE, ON, RETURN, WHILE/WEND)
 ;	genfpu.asm			floating-point support
-;	gengfx.asm			graphics (DRAW, GET, LINE, PAINT,
-;					PRESET, PSET, PUT)
+;	gengfx.asm			graphics (CIRCLE, DRAW, GET, LINE,
+;					MOUSE, PAINT, PRESET, PSET, PUT)
+;	genprtf.asm			PRINTF (and its runtime function)
 ;	genexp.asm			expressions (genExpr)
 ;	gensys.asm			system (CHAIN, DEF SEG, ERROR, KEY,
 ;					PLAY, POKE, SOUND)
@@ -459,14 +460,16 @@ ENDPROC	genCommands
 ; or beyond it isn't there, and we report "Not enough memory" instead.
 ;
 ; genCommands makes the same check before calling any keyword's generator,
-; and LOAD makes it before calling loadTokens (see edit.asm), so this is only
-; for keywords whose generator chooses between a core function and an upper
-; one (eg, genGet; see genfile.asm).  To move more functionality out of the
+; genFuncExpr makes it before calling a predefined function, and LOAD makes
+; it before calling loadTokens (see edit.asm), so this is for keywords whose
+; generator chooses between a core function and an upper one (eg, genGet;
+; see genfile.asm), and for cmdDOS, which calls every built-in command's
+; handler through here (eg, cmdAuto).  To move more functionality out of the
 ; core, link its modules after CONST.OBJ, and make sure nothing in the core
 ; calls them except through one of these checks.
 ;
 ; Inputs:
-;	DX = address of the generator
+;	DX = address of the generator (or command handler)
 ;	Everything else as the generator expects (eg, DS:BX -> TOKLETs)
 ;
 ; Outputs:

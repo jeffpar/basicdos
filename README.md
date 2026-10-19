@@ -138,6 +138,8 @@ Utilities live in the BIN directory of every BASIC-DOS disk.  The filters, SLEEP
 - [ ] The MID$ statement (ie, `MID$(A$,N[,M]) = B$`)
 - [x] `&H` and `&O` prefixes in VAL (`&` alone also means octal)
 - [ ] Comma print zones in PRINT (commas currently print a tab)
+- [x] PRINTF [#*n*,] USING: formatted output with C-style `%` specifiers (eg, `PRINTF USING "%5.2f";X#`)
+- [ ] PRINT USING (MSBASIC's template formats, such as `###.##`, `$$`, `**`, `^^^^`, `!`, `&`, and `\ \`); since PRINTF USING covers most of the same needs, it may stay unimplemented
 - [x] Sequential file I/O: OPEN FOR INPUT, OUTPUT, and APPEND, CLOSE (and RESET), PRINT #, WRITE #, INPUT #, LINE INPUT #, EOF, LOC, and LOF
 - [x] Random access file I/O: OPEN FOR RANDOM with LEN, FIELD, LSET, RSET, GET #, PUT #, and binary conversion functions (CVI, CVL, CVD, MKI$, MKL$, and MKD$)
 - [x] IOCTL #: sends an IOCTL request (with a numeric value in CX and DX, or a string's data) to the device or volume open as a file, with driver errors reported as runtime errors (eg, "Permission denied" for a write-protected diskette); IOCTL$ returns the data (up to 255 bytes) a driver stores in response to a request

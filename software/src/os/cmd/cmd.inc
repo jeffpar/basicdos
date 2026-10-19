@@ -339,8 +339,8 @@ ENV_DATA	db  176 dup (?)		; 57Eh: environment (see initEnv)
 ; COM file can request the stack be located elsewhere, since there's no way for
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
-STACK		dw  456 dup (?)		; 630h
-CMDHEAP		ends			; 9C0h
+STACK		dw 1024 dup (?)		; 630h
+CMDHEAP		ends			; E30h
 SIG_CMD		equ	'H'
 
 ;
@@ -348,7 +348,7 @@ SIG_CMD		equ	'H'
 ; stack pointer at the end of the heap (a whole number of paragraphs), and the
 ; [heap] equate below assumes that's the end of STACK.
 ;
-	ASSERT	<SIZE CMDHEAP>,EQ,9C0h
+	ASSERT	<SIZE CMDHEAP>,EQ,0E30h
 
 ;
 ; The initial stack frame created by the main function can also be used to

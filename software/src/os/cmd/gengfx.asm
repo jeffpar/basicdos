@@ -14,6 +14,7 @@
 ;	DRAW				(genDraw)
 ;	GET				(genGet)
 ;	LINE				(genLine)
+;	MOUSE				(genMouse)
 ;	PAINT				(genPaint)
 ;	PSET and PRESET			(genPset and genPreset)
 ;	PUT				(genPut)
@@ -39,8 +40,8 @@ CODE    SEGMENT
 	EXTNEAR	<genLong,genStr,genArrayVar,getNextToken,getNextSymbol>
 	EXTNEAR	<peekNextSymbol,genCallCS,genPushImmLong,genExpr,genCvtType>
 	EXTNEAR	<gfxDraw,gfxGet,gfxLastPt,gfxLine,gfxPaint,gfxPset,gfxPut>
-	EXTNEAR	<gfxCircle,skipToken>
-	EXTABS	<TOK_PSET,TOK_PRESET>
+	EXTNEAR	<gfxCircle,skipToken,mouseOn,mouseOff>
+	EXTABS	<TOK_PSET,TOK_PRESET,TOK_ON,TOK_OFF>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -495,6 +496,39 @@ DEFPROC	genSymbol
 gsy8:	stc
 gsy9:	ret
 ENDPROC	genSymbol
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genMouse
+;
+; Generate code for "MOUSE ON" and "MOUSE OFF" (see the MOUSE function, too).
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genMouse
+	mov	al,CLS_KEYWORD
+	call	getNextToken
+	jbe	gmo9
+	cmp	al,TOK_ON
+	mov	cx,offset mouseOn
+	je	gmo8
+	cmp	al,TOK_OFF
+	mov	cx,offset mouseOff
+	jne	gmo9
+gmo8:	GENCALL	cx
+	clc
+	ret
+gmo9:	stc
+	ret
+ENDPROC	genMouse
 
 CODE	ENDS
 

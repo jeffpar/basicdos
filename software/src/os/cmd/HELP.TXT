@@ -56,7 +56,7 @@ COPY *input* [*output*]
 Copies the contents of the input file or device to the output file or device, or with wildcards (? and *), every matching file to the output drive or directory (eg, COPY B:\*.BAS).  If *output* is omitted, the current directory is used.  Input files separated by + are combined into the output file (eg, COPY A.BIN+B.BIN C.BIN).
 
 CORE
-When there isn't enough memory for all of COMMAND.COM (eg, on a 64K machine), BASIC-DOS loads only its core, and MEM displays "Core BASIC functions only".  The following are then unavailable, and using one of them displays "Not enough memory": the graphics commands (CIRCLE, DRAW, PAINT, PRESET, PSET, and the graphics forms of GET, LINE, and PUT), the sound commands (PLAY and SOUND), and LOAD of tokenized BAS files (eg, those saved by BASICA or GW-BASIC).  Everything else, including file I/O (GET, PUT, and LINE INPUT), is still available.
+On low memory systems, BASIC-DOS loads only core functions, so the following are unavailable: graphics commands (CIRCLE, DRAW, PAINT, PRESET, PSET, GET, LINE, and PUT), mouse commands, sound commands, program editing commands (AUTO, DELETE, and EDIT), and support for tokenized BAS files.  Unavailable commands will display a memory error.
 
 COS(*x*)
 Returns the cosine of *x*, where *x* is in radians.

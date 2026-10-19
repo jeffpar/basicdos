@@ -200,7 +200,8 @@ ENDPROC	genPrintFile
 ;
 ; Generate code for "PRINTF #n,USING ..." (genPrintf calls us when PRINTF is
 ; followed by '#'), which prints the values like PRINTF, with the file as
-; STDOUT.
+; STDOUT.  Since only genPrintf calls us, genPrintfArgs (which, like
+; genPrintf, is outside COMMAND's core) must be loaded.
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs (at the '#')

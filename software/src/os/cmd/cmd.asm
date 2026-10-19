@@ -20,7 +20,7 @@ CODE    SEGMENT
 	ENDIF
 	EXTNEAR	<freeAllText,genCode,freeAllCode,freeAllVars,cmdLoad>
 	EXTNEAR	<freeIdleVars,resetVars,runCode,findVar>
-	EXTNEAR	<enterLine,editPrompt>
+	EXTNEAR	<enterLine,editPrompt,genUpper>
 	EXTNEAR	<saveChains,restoreChains,compactStrs>
 	EXTNEAR	<saveMode,restoreMode,runTransient,transParas,resSum>
 	EXTNEAR	<initEnv,buildEnv>
@@ -150,7 +150,9 @@ m1:	test	[bx].CMD_FLAGS,CMD_SINGLE
 	or	[bx].CMD_FLAGS,CMD_NOECHO
 ;
 ; If there's a program line to edit (see cmdAuto and cmdEdit), editPrompt
-; displays it for editing instead of prompting for a command.
+; displays it for editing instead of prompting for a command.  editPrompt is
+; outside COMMAND's core, but so are AUTO and EDIT, so if only the core was
+; loaded, there's never a line to edit.
 ;
 	mov	ax,[bx].EDIT_STATE	; AX = line # to edit, if any
 	test	ax,ax
@@ -490,6 +492,7 @@ DEFPROC	parseDOS
 	sub	bx,bx			; BX = 0
 	mov	[bp].CMD_ARG,bl		; initialize CMD_ARG
 	mov	[bp].EXIT_CODE,bl	; and ERRORLEVEL (until a failure)
+	mov	[bp].ERR_CODE,bl	; and ERR_CODE (so memError reports)
 	mov	[bp].CMD_DEFER[0],bx	; no deferred command (yet)
 	mov	[bp].HDL_INPIPE,bx	; no input pipe (yet)
 	mov	[bp].HDL_OUTPIPE,bx	; and no output pipe (yet)
@@ -828,7 +831,7 @@ cd1:	push	dx
 cd8:	pop	dx			; DX = handler again
 	test	dx,dx
 	jz	cd9
-	call	dx			; call the token handler
+	call	genUpper		; call the handler, if it's loaded
 cd9:	ret				; (carry set if the command failed)
 ENDPROC	cmdDOS
 
