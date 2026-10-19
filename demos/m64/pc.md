@@ -12,12 +12,10 @@ machines:
       B: "PC DOS 1.00"
 ---
 
-With only 64K of memory, there isn't room for all of COMMAND.COM, so BASIC-DOS loads only its *core*: the graphics statements (CIRCLE, DRAW, GET, LINE, PAINT, PRESET, PSET, and PUT), the sound statements (PLAY and SOUND), and LOAD's support for tokenized BAS files (like the originals on the PC DOS 1.00 diskette in drive B:) are left out, and using one of them reports `Not enough memory`.  The FPU$ driver is skipped as well (see CONFIG.SYS below), so there is no floating-point: numbers are 32-bit integers, and numeric functions like SQR are unavailable.  The [Color (with FPU)](../../s80/pc/) demo has an 8087, graphics, and all of COMMAND.COM, in 128K.
+With only 64K of memory, there isn't room for all of COMMAND.COM, so BASIC-DOS loads only its *core*: the graphics statements (CIRCLE, DRAW, GET, LINE, PAINT, PRESET, PSET, and PUT), the sound statements (PLAY and SOUND), and LOAD's support for tokenized BAS files (like the originals on the PC DOS 1.00 diskette in drive B:) are left out, and using one of them reports `Not enough memory`.  The FPU$ driver is skipped as well (see CONFIG.SYS below), so there is no floating-point: numbers are 32-bit integers, and numeric functions like SQR are unavailable.
 
-The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 64K of memory, a Monochrome Display (appropriate for a configuration without graphics), and two diskette drives.  It boots the BASICDOS-360K-M64 diskette and runs a single 80-column session, with about 3K free for BASIC programs.
+The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 64K of memory, a Monochrome Display (appropriate for a configuration without graphics), and two diskette drives.  It boots the BASICDOS-360K-M64 diskette and runs a single 80-column session.  Use the **MEM** command to display current memory usage.
 
 {% include machine.html id="ibm5150" %}
-
-Use the **MEM** command to display current memory usage.
 
 {% include_relative _overview.md hw="pc" %}

@@ -21,11 +21,12 @@
 DOS	segment word public 'CODE'
 
 	EXTBYTE	<bpb_total,sfh_debug,def_drive,def_swchar,def_pathchar>
+	EXTBYTE	<scb_locked>
 	EXTWORD	<mcb_head,mcb_limit,buf_head,key_boot,scb_active,ivt_save>
 	EXTWORD	<err_stack>
 	EXTLONG	<bpb_table,scb_table,sfb_table,cdir_table,clk_ptr,fpu_table>
 	EXTLONG	<dev_head>
-	EXTNEAR	<find_cfg,init_table,set_bpbtime,load_devices>
+	EXTNEAR	<find_cfg,init_table,set_bpbtime,load_devices,sysinit_end>
 	EXTNEAR	<console_warning,open_error>
 	EXTERNS	<cache_int21>,far
 	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr,dos_opchk>
@@ -34,21 +35,6 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<int_enter,int_leave,int_util>
 
 	DEFLBL	sysinit_start
-
-	DEFWORD	bpb_off
-	DEFWORD	dos_seg
-	DEFWORD	top_seg
-	DEFWORD	cfg_data
-	DEFWORD	cfg_size
-
-	DEFPTR	pCacheInt21
-	DEFPTR	pCacheData
-	DEFWORD	cbCacheData
-
-	DEFLONG	con_bit,1		; bit for the current CONSOLE line
-	DEFLONG	con_fails,0		; bits for CONSOLE lines that failed
-	DEFBYTE	con_count,1		; number of consoles opened
-	DEFBYTE	boot_drive		; default drive for each SHELL
 
 	ASSUME	CS:DOS, DS:BIOS, ES:DOS, SS:NOTHING
 
@@ -60,30 +46,34 @@ DOS	segment word public 'CODE'
 ;
 ; Entry:
 ;	AX = offset of initial BPB
-;	DS:BX -> CFG_FILE data, if any
+;	ES:BX -> CFG_FILE data, if any
 ;	DX = size of CFG_FILE data, if any
 ;
 DEFPROC	sysinit,far
-	mov	[bpb_off],ax		; save boot BPB (BIOS offset)
+	mov	es:[bpb_off],ax		; save boot BPB (BIOS offset)
 	mov	ax,cs
-	mov	[dos_seg],ax		; save the resident DOS segment
-	mov	[cfg_data],bx		; offset of CFG data
-	mov	[cfg_size],dx		; size of CFG data
+	mov	es:[dos_seg],ax		; save the resident DOS segment
+	mov	es:[cfg_size],dx	; size of CFG data
+;
+; The CFG data follows our image rounded up to a whole cluster (see devinit),
+; so copy it down to sysinit_end, to avoid relocating the gap below with it.
 ;
 ; To simplify use of the CFG data, replace CRs and LFs with nulls (so that
 ; every value is null-terminated, even if lines end with only LFs); find_cfg
 ; uses the nulls to find the next line.  We use "$" jumps here to save symbols.
 ;
-	mov	di,bx
+	mov	si,bx
+	mov	di,offset sysinit_end
+	mov	es:[cfg_data],di	; offset of CFG data
 	mov	cx,dx
 	jcxz	si1
-si0:	mov	al,es:[di]
+si0:	lods	byte ptr es:[si]
 	cmp	al,0Dh
 	je	$+6			; replace CR
 	cmp	al,0Ah
-	jne	$+6			; leave everything else (except LF)
-	mov	byte ptr es:[di],0
-	inc	di
+	jne	$+4			; leave everything else (except LF)
+	mov	al,0
+	stosb
 	loop	si0
 ;
 ; Move all the init code/data out of the way, to top of available memory.
@@ -94,9 +84,9 @@ si0:	mov	al,es:[di]
 si1:	mov	ax,[MEMORY_SIZE]	; get available memory in Kb
 	mov	cl,6
 	shl	ax,cl			; available memory in paras
-	mov	[top_seg],ax		; segment of end of memory
+	mov	es:[top_seg],ax		; segment of end of memory
 	mov	[mcb_limit],ax
-	add	bx,dx			; add size of CFG data
+	mov	bx,di			; BX = end of CFG data
 	mov	si,offset sysinit_start	; SI = offset of init code
 	sub	bx,si			; BX = number of bytes to move
 	lea	dx,[bx+31]
@@ -323,14 +313,14 @@ si5c:	mov	[FDC_UNITS],al		; (updated to include reserved drives)
 	mov	dx,size BPBEX
 	mov	bx,offset bpb_table
 	call	init_table		; initialize table, update ES
-	mov	si,[bpb_off]		; get the BPB the boot sector used
+	mov	si,cs:[bpb_off]		; get the BPB the boot sector used
 ;
 ; Note that when we copy the "boot" BPB into the table of system BPBs, we
 ; don't assume that it came from drive 0 (that will always be true on the IBM
 ; PC, but on, um, future machines, perhaps not).
 ;
 	push	es
-	mov	es,[dos_seg]
+	mov	es,cs:[dos_seg]
 	ASSUME	ES:DOS
 	mov	es:[bpb_total],al	; record # BPBs
 	mov	ah,[FDC_UNITS]		; AH = # diskette drives
@@ -540,7 +530,8 @@ sb3:
 ; The chain must end below our own code and stack (allowing 512 bytes for the
 ; stack, which peaks at 256-384 bytes, in a BIOS diskette interrupt), since
 ; loading a SHELL can use all available memory (eg, on a 64K machine); we add
-; that memory to the chain after the last SHELL has been loaded.
+; the code below sysinit_tail to the chain before loading the first SHELL, and
+; the rest after the last SHELL has been loaded.
 ;
 	push	cs
 	pop	ds
@@ -736,10 +727,29 @@ si14:	mov	dx,offset SYS_MSG
 ; available SCB.  The first time through, CFG_SHELL is used as a fallback,
 ; so even if there are no SHELL definitions, at least one will be loaded.
 ;
+; None of our code before this point will run again, so first we move our
+; stack up to sysinit_tail and grow the last (free) MCB to end just below it,
+; giving the SHELLs that memory too.
+;
+	ASSERT	Z,<cmp sp,offset sysinit_start - 2>	; (after PUSHF)
+	mov	sp,offset sysinit_tail
+	DEFLBL	sysinit_tail,near
+	call	last_mcb
+	ASSERT	Z,<cmp es:[MCB_OWNER],MCBOWNER_NONE>
+	sub	dx,ax			; DX = paras to add
+	add	es:[MCB_PARAS],dx
+
 	sub	sp,size SPB		; alloc SPB from the stack
 
 	mov	es,[dos_seg]
 	ASSUME	ES:DOS
+;
+; Lock the SCB until we're done: once a SHELL has been started, a yield in
+; any DOS call we make (eg, a deferred yield on a full unlock) would switch to
+; it, saving our stack in the active SCB, which could later resume it after
+; we're gone.  Waits still end normally, since locked yields simply return.
+;
+	inc	es:[scb_locked]		; LOCK_SCB (see the end of sysinit)
 	mov	al,es:[def_drive]
 	mov	[boot_drive],al
 	sub	dx,dx			; DX = SCB load count
@@ -894,17 +904,7 @@ si20a:
 ; use DOS_MEM_FREE, since our relocated code can't call DOS functions directly.
 ; Interrupts are off, and nothing will allocate memory until we're gone.
 ;
-	mov	ax,offset sysinit_start - 200h
-	mov	cl,4
-	shr	ax,cl
-	mov	dx,cs
-	add	dx,ax			; DX = new MCB
-	mov	ax,[mcb_head]
-si21:	mov	es,ax			; find the last MCB
-	add	ax,es:[MCB_PARAS]
-	inc	ax
-	cmp	es:[MCB_SIG],MCBSIG_LAST
-	jne	si21
+	call	last_mcb		; DX = new MCB
 	ASSERT	Z,<cmp ax,dx>		; it must end where the new MCB begins
 	mov	es:[MCB_SIG],MCBSIG_NEXT
 	mov	es,dx
@@ -951,6 +951,10 @@ si21:	mov	es,ax			; find the last MCB
 ; zero scb_active and include "null SCB" tests in scb_yield and scb_switch;
 ; this approach eliminates the need for those special tests.
 ;
+; Interrupts are still off, so we can release our SCB lock (see si15) without
+; scb_release; any deferred yield will occur on the session's next unlock.
+;
+	dec	[scb_locked]
 	mov	bx,[scb_table].OFF	; BX -> the first SCB
 	mov	[scb_active],bx		; make it active (for consistency)
 	mov	ss,[bx].SCB_STACK.SEG
@@ -1006,6 +1010,54 @@ fe1:	mov	ah,DOS_TTY_PRINT
 	int	21h
 	sti				; (so that a COM console can finish)
 	jmp	$			; "halt"
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; last_mcb
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	ES = last MCB, AX = 1st para after it
+;	DX = 1st para of our stack (where the MCB chain must end)
+;
+; Modifies:
+;	AX, CX, DX, ES
+;
+DEFPROC	last_mcb
+	mov	ax,offset sysinit_tail - 200h
+	mov	cl,4
+	shr	ax,cl
+	mov	dx,cs
+	add	dx,ax			; DX = 1st para of our stack
+	mov	es,cs:[dos_seg]
+	mov	ax,es:[mcb_head]
+lm1:	mov	es,ax			; find the last MCB
+	add	ax,es:[MCB_PARAS]
+	inc	ax
+	cmp	es:[MCB_SIG],MCBSIG_LAST
+	jne	lm1
+	ret
+ENDPROC	last_mcb
+;
+; Initialization variables (these follow sysinit_tail, since they're used
+; until we're done).
+;
+	DEFWORD	bpb_off
+	DEFWORD	dos_seg
+	DEFWORD	top_seg
+	DEFWORD	cfg_data
+	DEFWORD	cfg_size
+
+	DEFPTR	pCacheInt21
+	DEFPTR	pCacheData
+	DEFWORD	cbCacheData
+
+	DEFLONG	con_bit,1		; bit for the current CONSOLE line
+	DEFLONG	con_fails,0		; bits for CONSOLE lines that failed
+	DEFBYTE	con_count,1		; number of consoles opened
+	DEFBYTE	boot_drive		; default drive for each SHELL
 ;
 ; Initialization data
 ;

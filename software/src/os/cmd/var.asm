@@ -992,8 +992,6 @@ av0:	ASSERT	STRUCT,es:[0],VBLK
 	jmp	av0
 av0a:	mov	di,es:[BLK_FREE]
 
-	DPRINTF	'b',<"adding variable %.*ls\r\n">,cx,si,ds
-
 av0b:	sub	dx,dx
 	cmp	cx,VAR_NAMELEN
 	jbe	av1
@@ -1011,7 +1009,12 @@ av1:	push	di
 	ja	av2
 	add	dx,dx
 	jmp	short av3
-av1x:	jmp	short av9
+av1x:
+	IFDEF	DEBUG
+	jmp	av9			; (DPRINTF at av3a is in the way)
+	ELSE
+	jmp	short av9
+	ENDIF
 
 av2:	cmp	al,VAR_ARRAY		; arrays are a 4-byte pointer
 	je	av3
@@ -1040,8 +1043,11 @@ av3a:
 ;
 ; Build the new variable at ES:DI, with combined length and type in the
 ; first byte, the variable name in the following bytes, and zero-initialized
-; data in the remaining bytes.
+; data in the remaining bytes.  (DPRINTF is here, rather than at av0a, to keep
+; the short jumps above in range in DEBUG builds.)
 ;
+	DPRINTF	'b',<"adding variable %.*ls\r\n">,cx,si,ds
+
 	or	al,cl
 	stosb
 av4:	lodsb				; rep movsb would be nice here
