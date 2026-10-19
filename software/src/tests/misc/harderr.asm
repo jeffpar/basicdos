@@ -12,6 +12,9 @@
 	include	macros.inc
 	include	dosapi.inc
 	include	devapi.inc
+	include	8086.inc
+
+RW_SIZE equ	4096
 
 CODE    SEGMENT
 
@@ -19,7 +22,7 @@ CODE    SEGMENT
 
 	org	100h
 ;
-; These tests use drive B:, which must be empty, so that every request fails
+; The BPB tests use drive B:, which must be empty, so that every request fails
 ; with "not ready" (BIOS error 80h); each failure takes a few seconds, since
 ; the BIOS retries the request before giving up.
 ;
@@ -39,11 +42,19 @@ CODE    SEGMENT
 ;   3) ABORT terminates the program (with exit code 255); if it doesn't, the
 ;      program prints "HARDERR abort failed" and returns 1.
 ;
+; Before ABORT, data transfer tests use a temporary file on A:.  An INT 13h
+; hook fails two reads or writes in succession, and INT 24h returns RETRY
+; both times.  Verify the byte counts and data, including requests with an
+; aligned nonzero offset, a completed partial first sector, and a partial
+; sector only.  Writes must preserve all bytes outside the requested range.
+;
 ; "HARDERR passed" is printed before the ABORT test, so a BAT file (or script)
 ; should check for both that message and ERRORLEVEL 255.
 ;
 DEFPROC	main
 	cld
+	mov	dx,offset starting
+	call	print
 	mov	dx,offset handler
 	mov	ax,(DOS_MSC_SETVEC SHL 8) OR INT_DOSERROR
 	int	21h
@@ -91,6 +102,8 @@ DEFPROC	main
 	jne	m8
 	cmp	[count],1
 	jne	m8
+	call	data_retries
+	jc	m8
 	mov	dx,offset passed
 	call	print
 ;
@@ -126,6 +139,187 @@ DEFPROC	trigger
 	int	21h
 	ret
 ENDPROC	trigger
+
+;
+; data_retries
+;
+; Create a patterned file before installing the BIOS fault hook, then run
+; each request with two injected errors.  The buffers live in our heap.
+; Always restore the BIOS vector and remove the temporary file on return.
+;
+; Outputs:
+;	Carry set if any test failed
+;
+DEFPROC	data_retries
+	mov	di,ds:[PSP_HEAP]
+	mov	cx,RW_SIZE/2
+	xor	ax,ax
+dr1:
+	stosw
+	inc	ax
+	loop	dr1
+	mov	dx,offset rwname
+	xor	cx,cx
+	mov	ah,DOS_HDL_CREATE
+	int	21h
+	jnc	dr1a
+	ret
+dr1a:
+	mov	[rwhandle],ax
+	mov	bx,ax
+	mov	dx,ds:[PSP_HEAP]
+	mov	cx,RW_SIZE
+	mov	ah,DOS_HDL_WRITE
+	int	21h
+	jc	dr1b
+	cmp	ax,RW_SIZE	; was the entire fixture written?
+	jne	dr1b
+	mov	ax,(DOS_MSC_GETVEC SHL 8) OR 13h
+	int	21h
+	mov	[old_disk].OFF,bx
+	mov	[old_disk].SEG,es
+	push	cs
+	pop	es
+	mov	dx,offset disk_handler
+	mov	ax,(DOS_MSC_SETVEC SHL 8) OR 13h
+	int	21h
+	mov	[hooked],1
+	mov	bp,offset rwcases
+	jmp	short dr2
+dr1b:
+	stc
+	jmp	dr8
+dr2:
+	mov	bx,[rwhandle]
+	xor	cx,cx
+	mov	dx,[bp]
+	mov	ax,DOS_HDL_SEEKBEG
+	int	21h
+	jc	dr1b
+	mov	dx,ds:[PSP_HEAP]
+	mov	cx,[bp+2]
+	mov	al,[bp+4]
+	mov	[rwcmd],al
+	mov	al,[bp+5]
+	mov	[rwskip],al
+	cmp	[rwcmd],3	; is this a BIOS write test?
+	jne	dr3
+;
+; Change the expected bytes so a skipped or misplaced write is observable.
+;
+	add	dx,[bp]
+	mov	si,dx
+dr2a:
+	not	byte ptr [si]
+	inc	si
+	loop	dr2a
+	jmp	dr4
+dr3:
+	add	dx,RW_SIZE
+	mov	di,dx
+	xor	ax,ax
+	rep	stosb			; erase the read destination
+dr4:
+	mov	[count],0
+	mov	[responses],offset rwresponses
+	mov	[rwfaults],2
+	mov	cx,[bp+2]
+	mov	ah,DOS_HDL_READ
+	cmp	[rwcmd],3	; select DOS read or write to match the fault
+	jne	dr4a
+	mov	ah,DOS_HDL_WRITE
+dr4a:
+	int	21h
+	jc	dr8
+	cmp	ax,[bp+2]	; RETRY must complete the original byte count
+	jne	dr7
+	cmp	[count],2	; both injected failures must reach INT 24h
+	jne	dr7
+	cmp	[rwfaults],0	; ensure the fault hook actually ran twice
+	jne	dr7
+	mov	si,ds:[PSP_HEAP]
+	add	si,[bp]
+	mov	cx,[bp+2]
+	cmp	[rwcmd],3	; writes require a whole-file comparison
+	jne	dr5
+	xor	cx,cx
+	xor	dx,dx
+	mov	ax,DOS_HDL_SEEKBEG
+	int	21h
+	jc	dr8
+	mov	dx,ds:[PSP_HEAP]
+	add	dx,RW_SIZE
+	mov	cx,RW_SIZE
+	mov	ah,DOS_HDL_READ
+	int	21h
+	jc	dr8
+	cmp	ax,RW_SIZE	; check the entire file, including untouched bytes
+	jne	dr7
+	mov	si,ds:[PSP_HEAP]
+	mov	cx,RW_SIZE
+dr5:
+	mov	di,ds:[PSP_HEAP]
+	add	di,RW_SIZE
+	repe	cmpsb
+	jne	dr7			; transferred data must match the fixture
+	add	bp,6
+	cmp	word ptr [bp+2],0 ; zero length marks the end of the cases
+	je	dr6
+	jmp	dr2
+dr6:
+	clc
+	jmp	dr8
+dr7:
+	stc
+dr8:
+	pushf
+	cmp	[hooked],0	; restore INT 13h only if we installed the hook
+	je	dr8a
+	push	ds
+	lds	dx,[old_disk]
+	mov	ax,(DOS_MSC_SETVEC SHL 8) OR 13h
+	int	21h
+	pop	ds
+dr8a:
+	mov	bx,[rwhandle]
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	mov	dx,offset rwname
+	mov	ah,DOS_DSK_DELETE
+	int	21h
+	popf
+	ret
+ENDPROC	data_retries
+
+;
+; disk_handler (INT 13h)
+;
+; Fail two selected data operations on A: with BIOS error 80h (not ready).
+; Skip successful operations when testing a failure after partial progress.
+; All other operations go to the original BIOS handler.
+;
+DEFPROC	disk_handler,far
+	cmp	dl,0			; only the test file's floppy drive
+	jne	dh9
+	cmp	ah,cs:[rwcmd]		; only the selected read/write operation
+	jne	dh9
+	cmp	cs:[rwfaults],0		; stop injecting after two failures
+	je	dh9
+	cmp	cs:[rwskip],0		; allow the partial first sector to finish
+	je	dh1
+	dec	cs:[rwskip]
+	jmp	dh9
+dh1:
+	dec	cs:[rwfaults]
+	push	bp
+	mov	bp,sp
+	or	word ptr [bp+6],FL_CARRY ; return carry in the saved interrupt flags
+	pop	bp
+	mov	ax,8000h
+	iret
+dh9:
+	jmp	cs:[old_disk]
+ENDPROC	disk_handler
 
 ;
 ; handler (INT 24h)
@@ -168,9 +362,37 @@ test1		db	CRERR_RETRY,CRERR_FAIL
 test2		db	CRERR_IGNORE,CRERR_FAIL
 test3		db	CRERR_ABORT,CRERR_FAIL
 filename	db	"B:HARDERR.TMP",0
+starting	db	"HARDERR starting",13,10,'$'
 passed		db	"HARDERR passed",13,10,'$'
 failed		db	"HARDERR failed",13,10,'$'
 abortfail	db	"HARDERR abort failed",13,10,'$'
+old_disk	dd	0
+rwhandle	dw	0
+hooked		db	0
+rwcmd		db	0
+rwskip		db	0
+rwfaults	db	0
+rwresponses	db	CRERR_RETRY,CRERR_RETRY,CRERR_FAIL
+rwname		db	"A:HERRDATA.TMP",0
+;
+; Each case contains file offset, length, BIOS command, and successful
+; BIOS operations to skip before injecting the first failure.
+;
+rwcases		dw	512,512
+		db	2,0
+		dw	1,1536
+		db	2,1
+		dw	0,128
+		db	2,0
+		dw	512,512
+		db	3,0
+		dw	1,1536
+		db	3,1
+		dw	0,128
+		db	3,0
+		dw	0,0
+
+	COMHEAP	<2*RW_SIZE+512>
 
 CODE	ENDS
 

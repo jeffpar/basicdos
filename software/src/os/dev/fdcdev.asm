@@ -369,7 +369,6 @@ dcr2b:	pop	es
 	pop	ds
 	pop	di
 	pop	si
-	mov	es:[di].DDPRW_OFFSET,cx
 	inc	es:[di].DDPRW_LBA
 	add	es:[di].DDPRW_ADDR.OFF,ax
 	sub	es:[di].DDPRW_LENGTH,ax
@@ -378,8 +377,11 @@ dcr2b:	pop	es
 ;
 ; At this point, we know that the transfer offset is now zero, so we're free to
 ; transfer as many whole sectors as remain in the request.
+; Save that offset in the packet so RETRY cannot advance the LBA again after
+; normalizing an offset that was an exact multiple of the sector size.
 ;
-dcr4:	xchg	ax,cx		; convert length in AX to # sectors
+dcr4:	mov	es:[di].DDPRW_OFFSET,0
+	xchg	ax,cx		; convert length in AX to # sectors
 	sub	dx,dx		; (lengths can exceed 32K, so no CWD)
 	div	[si].BPB_SECBYTES
 	mov	cx,dx		; CX = final partial sector bytes, if any
@@ -427,8 +429,9 @@ dcr7a:	pop	es
 dcr8:	pop	es
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	jnc	dcr9
-
-	mov	es:[di].DDPRW_LENGTH,0
+;
+; Preserve the remaining length so DOS can reissue the request on RETRY.
+;
 	mov	ah,DDSTAT_ERROR SHR 8
 	mov	es:[di].DDP_STATUS,ax
 dcr9:	ret
@@ -516,7 +519,6 @@ dcw2b:	pop	es
 	call	write_buffer	; write ddbuf to LBA (DX)
 	pop	cx		; CX = byte transfer count
 	jc	dcw4a
-	mov	es:[di].DDPRW_OFFSET,0
 	inc	es:[di].DDPRW_LBA
 	add	es:[di].DDPRW_ADDR.OFF,cx
 	sub	es:[di].DDPRW_LENGTH,cx
@@ -525,8 +527,11 @@ dcw2b:	pop	es
 ;
 ; At this point, we know that the transfer offset is now zero, so we're free to
 ; transfer as many whole sectors as remain in the request.
+; Save that offset in the packet so RETRY cannot advance the LBA again after
+; normalizing an offset that was an exact multiple of the sector size.
 ;
-dcw4:	xchg	ax,cx		; convert length in AX to # sectors
+dcw4:	mov	es:[di].DDPRW_OFFSET,0
+	xchg	ax,cx		; convert length in AX to # sectors
 	cwd
 	div	[si].BPB_SECBYTES
 	mov	cx,dx		; CX = final partial sector bytes, if any
@@ -589,8 +594,9 @@ dcw7a:	pop	es
 dcw8:	pop	es
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
 	jnc	dcw9
-
-	mov	es:[di].DDPRW_LENGTH,0
+;
+; Preserve the remaining length so DOS can reissue the request on RETRY.
+;
 	mov	ah,DDSTAT_ERROR SHR 8
 	mov	es:[di].DDP_STATUS,ax
 dcw9:	ret
