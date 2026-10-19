@@ -149,15 +149,15 @@ DOS	segment word public 'CODE'
 
 	DEFLBL	UTILTBL,word
 	dw	utl_strlen,  utl_strstr,  utl_strupr,  utl_printf	;00-03
-	dw	utl_hprintf, utl_dprintf, utl_sprintf, utl_itoa		;04-07
-	dw	utl_atoi16,  utl_atoi32,  utl_atoi32d, utl_tokify	;08-0B
-	dw	utl_tokify,  utl_tokid,   utl_parsesw, utl_getdev	;0C-0F
-	dw	utl_getcsn,  utl_load,    utl_start,   utl_stop		;10-13
-	dw	utl_end,     utl_waitend, utl_yield,   utl_sleep	;14-17
-	dw	utl_sound,   utl_wait,    utl_endwait, utl_hotkey	;18-1B
-	dw	utl_lock,    utl_unlock,  utl_qrymem,  utl_term		;1C-1F
-	dw	utl_restart, utl_getdate, utl_gettime, utl_incdate	;20-23
-	dw	utl_editln,  utl_qryscb,  utl_tprintf			;24-26
+	dw	utl_hprintf, utl_dprintf, utl_tprintf, utl_sprintf	;04-07
+	dw	utl_itoa,    utl_atoi16,  utl_atoi32,  utl_atoi32d	;08-0B
+	dw	utl_tokify,  utl_tokify,  utl_tokid,   utl_parsesw	;0C-0F
+	dw	utl_getdev,  utl_getcsn,  utl_qryscb,  utl_load		;10-13
+	dw	utl_start,   utl_stop,    utl_end,     utl_waitend	;14-17
+	dw	utl_yield,   utl_sleep,   utl_wait,    utl_endwait	;18-1B
+	dw	utl_hotkey,  utl_lock,    utl_unlock,  utl_qrymem	;1C-1F
+	dw	utl_term,    utl_restart, utl_getdate, utl_gettime	;20-23
+	dw	utl_incdate, utl_editln,  utl_sound			;24-26
 	DEFABS	UTILTBL_SIZE,<($ - UTILTBL) SHR 1>
 
 DOS	ends

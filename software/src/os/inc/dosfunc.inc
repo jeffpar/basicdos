@@ -106,37 +106,37 @@ DOS_UTL_STRUPR	equ	02h	; upper-case string (DS:SI)
 DOS_UTL_PRINTF	equ	03h	; printf to console
 DOS_UTL_HPRINTF	equ	04h	; printf to SFH (BL), like DOS_UTL_PRINTF
 DOS_UTL_DPRINTF	equ	05h	; printf to DEBUG context, if any
-DOS_UTL_SPRINTF	equ	06h	; sprintf to buffer (ES:DI)
-DOS_UTL_ITOA	equ	07h	; convert number (DX:SI) to string (ES:DI)
-DOS_UTL_ATOI16	equ	08h	; convert string (DS:SI) to 16-bit int (AX)
-DOS_UTL_ATOI32	equ	09h	; convert string (DS:SI) to 32-bit int (DX:AX)
-DOS_UTL_ATOI32D	equ	0Ah	; convert decimal string to 32-bit int (DX:AX)
-DOS_UTL_TOKEN1	equ	0Bh	; tokenize string (DS:SI) using generic syntax
-DOS_UTL_TOKEN2	equ	0Ch	; tokenize string (DS:SI) using BASIC syntax
-DOS_UTL_TOKID	equ	0Dh	; convert string (DS:SI) into token ID (AX)
-DOS_UTL_PARSESW	equ	0Eh	; parse TOKBUF (ES:DI) for switches
-DOS_UTL_GETDEV	equ	0Fh	; get DDH (ES:DI) for device (DS:DX)
-DOS_UTL_GETCSN	equ	10h	; get current session number (CL)
-DOS_UTL_LOAD	equ	11h	; load program (SPB at ES:BX) into a session
-DOS_UTL_START	equ	12h	; start session (CL)
-DOS_UTL_STOP	equ	13h	; stop session (CL)
-DOS_UTL_END	equ	14h	; end session (CL)
-DOS_UTL_WAITEND	equ	15h	; wait for session to end (CL)
-DOS_UTL_YIELD	equ	16h	; yield
-DOS_UTL_SLEEP	equ	17h	; sleep (CX:DX) milliseconds
-DOS_UTL_SOUND	equ	18h	; sound (DX = PIT divisor) for CX ticks
-DOS_UTL_WAIT	equ	19h	; wait on ID (DX:DI) until end wait
-DOS_UTL_ENDWAIT	equ	1Ah	; end wait on ID (DX:DI)
-DOS_UTL_HOTKEY	equ	1Bh	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
-DOS_UTL_LOCK	equ	1Ch	; lock current session
-DOS_UTL_UNLOCK	equ	1Dh	; unlock current session
-DOS_UTL_QRYMEM	equ	1Eh	; query memory block N (CX) of type (DL)
-DOS_UTL_TERM	equ	1Fh	; terminate with exit code (DL) and type (DH)
-DOS_UTL_RESTART	equ	20h	; restart ("reboot") the system
-DOS_UTL_GETDATE	equ	21h	; get date (AX) in "packed" format
-DOS_UTL_GETTIME	equ	22h	; get time (AX) in "packed" format
-DOS_UTL_INCDATE	equ	23h	; increment date (CX=year, DH=month, DL=day)
-DOS_UTL_EDITLN	equ	24h	; edit line (DS:DX)
-DOS_UTL_QRYSCB	equ	25h	; query session (CL)
-DOS_UTL_TPRINTF	equ	26h	; printf (DS:BX) to console, typed parameters
+DOS_UTL_TPRINTF	equ	06h	; printf (DS:BX) to console, typed parameters
+DOS_UTL_SPRINTF	equ	07h	; sprintf to buffer (ES:DI)
+DOS_UTL_ITOA	equ	08h	; convert number (DX:SI) to string (ES:DI)
+DOS_UTL_ATOI16	equ	09h	; convert string (DS:SI) to 16-bit int (AX)
+DOS_UTL_ATOI32	equ	0Ah	; convert string (DS:SI) to 32-bit int (DX:AX)
+DOS_UTL_ATOI32D	equ	0Bh	; convert decimal string to 32-bit int (DX:AX)
+DOS_UTL_TOKEN1	equ	0Ch	; tokenize string (DS:SI) using generic syntax
+DOS_UTL_TOKEN2	equ	0Dh	; tokenize string (DS:SI) using BASIC syntax
+DOS_UTL_TOKID	equ	0Eh	; convert string (DS:SI) into token ID (AX)
+DOS_UTL_PARSESW	equ	0Fh	; parse TOKBUF (ES:DI) for switches
+DOS_UTL_GETDEV	equ	10h	; get DDH (ES:DI) for device (DS:DX)
+DOS_UTL_GETCSN	equ	11h	; get current session number (CL)
+DOS_UTL_QRYSCB	equ	12h	; query session (CL)
+DOS_UTL_LOAD	equ	13h	; load program (SPB at ES:BX) into a session
+DOS_UTL_START	equ	14h	; start session (CL)
+DOS_UTL_STOP	equ	15h	; stop session (CL)
+DOS_UTL_END	equ	16h	; end session (CL)
+DOS_UTL_WAITEND	equ	17h	; wait for session to end (CL)
+DOS_UTL_YIELD	equ	18h	; yield
+DOS_UTL_SLEEP	equ	19h	; sleep (CX:DX) milliseconds
+DOS_UTL_WAIT	equ	1Ah	; wait on ID (DX:DI) until end wait
+DOS_UTL_ENDWAIT	equ	1Bh	; end wait on ID (DX:DI)
+DOS_UTL_HOTKEY	equ	1Ch	; CON detected hotkey (DL) (eg, CTRLC, CTRLP)
+DOS_UTL_LOCK	equ	1Dh	; lock current session
+DOS_UTL_UNLOCK	equ	1Eh	; unlock current session
+DOS_UTL_QRYMEM	equ	1Fh	; query memory block N (CX) of type (DL)
+DOS_UTL_TERM	equ	20h	; terminate with exit code (DL) and type (DH)
+DOS_UTL_RESTART	equ	21h	; restart ("reboot") the system
+DOS_UTL_GETDATE	equ	22h	; get date (AX) in "packed" format
+DOS_UTL_GETTIME	equ	23h	; get time (AX) in "packed" format
+DOS_UTL_INCDATE	equ	24h	; increment date (CX=year, DH=month, DL=day)
+DOS_UTL_EDITLN	equ	25h	; edit line (DS:DX)
+DOS_UTL_SOUND	equ	26h	; sound (DX = PIT divisor) for CX ticks
 DOS_UTL_HDLCTL	equ	(DOS_HDL_IOCTL + 80h)

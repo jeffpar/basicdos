@@ -550,19 +550,19 @@ DEFPROC	int_util,DOSFAR
 	pop	ds
 	ASSUME	DS:DOS
 	cld
-	cmp	ah,DOS_UTL_WAIT		; function 19h?
+	cmp	ah,DOS_UTL_WAIT		; function 1Ah?
 	jne	iu1			; no
 	call	scb_wait
 	jmp	short iu8
-iu1:	cmp	ah,DOS_UTL_ENDWAIT	; function 1Ah?
+iu1:	cmp	ah,DOS_UTL_ENDWAIT	; function 1Bh?
 	jne	iu2			; no
 	call	scb_endwait
 	jmp	short iu8
-iu2:	cmp	ah,DOS_UTL_HOTKEY	; function 1Bh?
+iu2:	cmp	ah,DOS_UTL_HOTKEY	; function 1Ch?
 	jne	iu3			; no
 	call	scb_hotkey
 	jmp	short iu8
-iu3:	cmp	ah,DOS_UTL_LOCK		; function 1Ch?
+iu3:	cmp	ah,DOS_UTL_LOCK		; function 1Dh?
 	jne	iu4			; no
 ;
 ; LOCK is the only function that returns a value (in AX), so it has its own
@@ -581,7 +581,7 @@ iu3:	cmp	ah,DOS_UTL_LOCK		; function 1Ch?
 iuc:	popf				; restore the caller's flags
 	clc				; and return carry clear
 	ret
-iu4:	cmp	ah,DOS_UTL_UNLOCK	; function 1Dh?
+iu4:	cmp	ah,DOS_UTL_UNLOCK	; function 1Eh?
 	stc
 	jne	iu8			; no, unsupported function
 	call	scb_release		; unlock the current session

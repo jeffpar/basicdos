@@ -29,38 +29,39 @@ Device drivers can also call DOS_UTL_WAIT, DOS_UTL_ENDWAIT, DOS_UTL_HOTKEY, DOS_
 | 03h | [DOS_UTL_PRINTF](#formatted-output) | printf to the console (STDOUT) |
 | 04h | [DOS_UTL_HPRINTF](#formatted-output) | printf to a system file handle |
 | 05h | [DOS_UTL_DPRINTF](#formatted-output) | printf to the DEBUG device, if any |
-| 06h | [DOS_UTL_SPRINTF](#formatted-output) | sprintf to a buffer |
-| 07h | [DOS_UTL_ITOA](#numbers) | Converts a 32-bit number to a string |
-| 08h | [DOS_UTL_ATOI16](#numbers) | Converts a string to a validated 16-bit number |
-| 09h | [DOS_UTL_ATOI32](#numbers) | Converts a string to a 32-bit number |
-| 0Ah | [DOS_UTL_ATOI32D](#numbers) | Converts a decimal string to a 32-bit number |
-| 0Bh | [DOS_UTL_TOKEN1](#parsing) | Splits a string into whitespace-separated tokens |
-| 0Ch | [DOS_UTL_TOKEN2](#parsing) | Splits a string into BASIC tokens |
-| 0Dh | [DOS_UTL_TOKID](#parsing) | Looks up a token in a sorted token table |
-| 0Eh | [DOS_UTL_PARSESW](#parsing) | Parses command-line switches |
-| 0Fh | [DOS_UTL_GETDEV](#devices) | Returns the driver header for a device name |
-| 10h | [DOS_UTL_GETCSN](#sessions) | Returns the current session number |
-| 11h | [DOS_UTL_LOAD](#sessions) | Loads a program into a new session |
-| 12h | [DOS_UTL_START](#sessions) | Starts a session |
-| 13h | [DOS_UTL_STOP](#sessions) | Stops a session (not implemented yet) |
-| 14h | [DOS_UTL_END](#sessions) | Ends the current program in a session |
-| 15h | [DOS_UTL_WAITEND](#sessions) | Waits for all programs in a session to end |
-| 16h | [DOS_UTL_YIELD](#scheduling) | Lets another session run |
-| 17h | [DOS_UTL_SLEEP](#scheduling) | Sleeps for a number of milliseconds |
-| 18h | [DOS_UTL_SOUND](#sound) | Plays a sound for a number of clock ticks |
-| 19h | [DOS_UTL_WAIT](#scheduling) | Waits on an ID |
-| 1Ah | [DOS_UTL_ENDWAIT](#scheduling) | Ends a wait on an ID |
-| 1Bh | [DOS_UTL_HOTKEY](#scheduling) | Notifies DOS of a hotkey (used by the CON driver) |
-| 1Ch | [DOS_UTL_LOCK](#scheduling) | Locks the current session (disables session switches) |
-| 1Dh | [DOS_UTL_UNLOCK](#scheduling) | Unlocks the current session |
-| 1Eh | [DOS_UTL_QRYMEM](#memory) | Returns information about a memory block |
-| 1Fh | [DOS_UTL_TERM](#programs) | Terminates the program with an exit code and type |
-| 20h | [DOS_UTL_RESTART](#programs) | Restarts the system |
-| 21h | [DOS_UTL_GETDATE](#date-and-time) | Returns the date, including a packed date |
-| 22h | [DOS_UTL_GETTIME](#date-and-time) | Returns the time, including a packed time |
-| 23h | [DOS_UTL_INCDATE](#date-and-time) | Advances a date by one day |
-| 24h | [DOS_UTL_EDITLN](#console) | Reads an edited line of console input |
-| 25h | [DOS_UTL_QRYSCB](#sessions) | Returns information about a session |
+| 06h | [DOS_UTL_TPRINTF](#formatted-output) | printf to the console with typed parameters (used by PRINTF USING) |
+| 07h | [DOS_UTL_SPRINTF](#formatted-output) | sprintf to a buffer |
+| 08h | [DOS_UTL_ITOA](#numbers) | Converts a 32-bit number to a string |
+| 09h | [DOS_UTL_ATOI16](#numbers) | Converts a string to a validated 16-bit number |
+| 0Ah | [DOS_UTL_ATOI32](#numbers) | Converts a string to a 32-bit number |
+| 0Bh | [DOS_UTL_ATOI32D](#numbers) | Converts a decimal string to a 32-bit number |
+| 0Ch | [DOS_UTL_TOKEN1](#parsing) | Splits a string into whitespace-separated tokens |
+| 0Dh | [DOS_UTL_TOKEN2](#parsing) | Splits a string into BASIC tokens |
+| 0Eh | [DOS_UTL_TOKID](#parsing) | Looks up a token in a sorted token table |
+| 0Fh | [DOS_UTL_PARSESW](#parsing) | Parses command-line switches |
+| 10h | [DOS_UTL_GETDEV](#devices) | Returns the driver header for a device name |
+| 11h | [DOS_UTL_GETCSN](#sessions) | Returns the current session number |
+| 12h | [DOS_UTL_QRYSCB](#sessions) | Returns information about a session |
+| 13h | [DOS_UTL_LOAD](#sessions) | Loads a program into a new session |
+| 14h | [DOS_UTL_START](#sessions) | Starts a session |
+| 15h | [DOS_UTL_STOP](#sessions) | Stops a session (not implemented yet) |
+| 16h | [DOS_UTL_END](#sessions) | Ends the current program in a session |
+| 17h | [DOS_UTL_WAITEND](#sessions) | Waits for all programs in a session to end |
+| 18h | [DOS_UTL_YIELD](#scheduling) | Lets another session run |
+| 19h | [DOS_UTL_SLEEP](#scheduling) | Sleeps for a number of milliseconds |
+| 1Ah | [DOS_UTL_WAIT](#scheduling) | Waits on an ID |
+| 1Bh | [DOS_UTL_ENDWAIT](#scheduling) | Ends a wait on an ID |
+| 1Ch | [DOS_UTL_HOTKEY](#scheduling) | Notifies DOS of a hotkey (used by the CON driver) |
+| 1Dh | [DOS_UTL_LOCK](#scheduling) | Locks the current session (disables session switches) |
+| 1Eh | [DOS_UTL_UNLOCK](#scheduling) | Unlocks the current session |
+| 1Fh | [DOS_UTL_QRYMEM](#memory) | Returns information about a memory block |
+| 20h | [DOS_UTL_TERM](#programs) | Terminates the program with an exit code and type |
+| 21h | [DOS_UTL_RESTART](#programs) | Restarts the system |
+| 22h | [DOS_UTL_GETDATE](#date-and-time) | Returns the date, including a packed date |
+| 23h | [DOS_UTL_GETTIME](#date-and-time) | Returns the time, including a packed time |
+| 24h | [DOS_UTL_INCDATE](#date-and-time) | Advances a date by one day |
+| 25h | [DOS_UTL_EDITLN](#console) | Reads an edited line of console input |
+| 26h | [DOS_UTL_SOUND](#sound) | Plays a sound for a number of clock ticks |
 
 ### Strings
 
@@ -80,9 +81,9 @@ Device drivers can also call DOS_UTL_WAIT, DOS_UTL_ENDWAIT, DOS_UTL_HOTKEY, DOS_
 
 **DOS_UTL_DPRINTF (05h)** is the same, but prints to the DEBUG device (see [DEBUG=](../../bdman/cfg/#debug)), and the format string is preceded by a one-byte option code; the message is printed only if the option code matches the boot key (eg, an upper-case boot key `T` enables messages with option code `t`), and only by a DEBUG build of BASDOS.COM.  The DPRINTF macro generates these calls, in DEBUG builds only.
 
-**DOS_UTL_SPRINTF (06h)**: DS:BX -> format string, ES:DI -> output buffer, CX = buffer length, and parameters pushed as above.  Returns AX = # of characters generated.
+**DOS_UTL_TPRINTF (06h)**: DS:BX -> format string, with "typed" parameters pushed right to left: each is a type word (VAR_LONG, VAR_STR, or VAR_DOUBLE; see parser.inc) followed by a 4-byte value, so a specifier's size modifiers are ignored.  Numeric and date/time specifiers take a VAR_LONG, `%s` takes a VAR_STR (a far pointer to a length-prefixed string, or null if empty), `%f` takes a VAR_DOUBLE (a far pointer), and `%c` takes a VAR_LONG or the first character of a VAR_STR; a value of any other type prints the specifier unchanged.  Prints to STDOUT and returns AX = # of characters printed.  COMMAND's PRINTF USING uses this.
 
-**DOS_UTL_TPRINTF (26h)**: DS:BX -> format string, with "typed" parameters pushed right to left: each is a type word (VAR_LONG, VAR_STR, or VAR_DOUBLE; see parser.inc) followed by a 4-byte value, so a specifier's size modifiers are ignored.  Numeric and date/time specifiers take a VAR_LONG, `%s` takes a VAR_STR (a far pointer to a length-prefixed string, or null if empty), `%f` takes a VAR_DOUBLE (a far pointer), and `%c` takes a VAR_LONG or the first character of a VAR_STR; a value of any other type prints the specifier unchanged.  Prints to STDOUT and returns AX = # of characters printed.  COMMAND's PRINTF USING uses this.
+**DOS_UTL_SPRINTF (07h)**: DS:BX -> format string, ES:DI -> output buffer, CX = buffer length, and parameters pushed as above.  Returns AX = # of characters generated.
 
 Supported format specifiers include:
 
@@ -103,61 +104,61 @@ Specifiers also support the `#` and `-` flags, a width, and a precision (eg, `%-
 
 ### Numbers
 
-**DOS_UTL_ITOA (07h)**: DX:SI = value, BL = base, BH = flags (PF_*, eg, PF_HASH to print a space instead of a minus sign for non-negative values), CX = minimum length (0 for none), ES:DI -> buffer.  Returns AL = # of digits, and DI advanced.
+**DOS_UTL_ITOA (08h)**: DX:SI = value, BL = base, BH = flags (PF_*, eg, PF_HASH to print a space instead of a minus sign for non-negative values), CX = minimum length (0 for none), ES:DI -> buffer.  Returns AL = # of digits, and DI advanced.
 
-**DOS_UTL_ATOI16 (08h)**: DS:SI -> string, BL = base, ES:DI -> validation triplet of 16-bit (default, minimum, maximum) values, or DI = -1 for no validation.  Returns AX = value, with SI advanced past the first non-digit and DI advanced to the next triplet, making it easy to parse a series of values; carry is set on a validation error (and AX is the default value).
+**DOS_UTL_ATOI16 (09h)**: DS:SI -> string, BL = base, ES:DI -> validation triplet of 16-bit (default, minimum, maximum) values, or DI = -1 for no validation.  Returns AX = value, with SI advanced past the first non-digit and DI advanced to the next triplet, making it easy to parse a series of values; carry is set on a validation error (and AX is the default value).
 
-**DOS_UTL_ATOI32 (09h)**: DS:SI -> string, CX = length (-1 if unknown), BL = base.  Returns DX:AX = value, with SI pointing to the first unprocessed character; carry is set if there were no digits.
+**DOS_UTL_ATOI32 (0Ah)**: DS:SI -> string, CX = length (-1 if unknown), BL = base.  Returns DX:AX = value, with SI pointing to the first unprocessed character; carry is set if there were no digits.
 
-**DOS_UTL_ATOI32D (0Ah)**: Same as DOS_UTL_ATOI32 with BL = 10 and CX = -1, without using BX or CX.
+**DOS_UTL_ATOI32D (0Bh)**: Same as DOS_UTL_ATOI32 with BL = 10 and CX = -1, without using BX or CX.
 
 ### Parsing
 
-**DOS_UTL_TOKEN1 (0Bh)** and **DOS_UTL_TOKEN2 (0Ch)**: CL = string length, DS:SI -> string, ES:DI -> token buffer (TOKBUF; see parser.inc).  TOKEN1 returns only tokens separated by whitespace (or the switch character), while TOKEN2 parses BASIC syntax and returns all tokens, including whitespace.  Returns carry clear and AX = # of tokens if any were found.
+**DOS_UTL_TOKEN1 (0Ch)** and **DOS_UTL_TOKEN2 (0Dh)**: CL = string length, DS:SI -> string, ES:DI -> token buffer (TOKBUF; see parser.inc).  TOKEN1 returns only tokens separated by whitespace (or the switch character), while TOKEN2 parses BASIC syntax and returns all tokens, including whitespace.  Returns carry clear and AX = # of tokens if any were found.
 
-**DOS_UTL_TOKID (0Dh)**: CX = token length, DS:SI -> token, CS:DX -> token table (TOKTBL, followed by TOKDEFs sorted by name).  Returns carry clear, AX = token ID, and SI -> the TOKDEF if found; otherwise, carry set and AX = 0.
+**DOS_UTL_TOKID (0Eh)**: CX = token length, DS:SI -> token, CS:DX -> token table (TOKTBL, followed by TOKDEFs sorted by name).  Returns carry clear, AX = token ID, and SI -> the TOKDEF if found; otherwise, carry set and AX = 0.
 
-**DOS_UTL_PARSESW (0Eh)**: DL = first token to parse, DH = # of non-switch tokens to ignore, ES:DI -> TOKBUF.  Sets a bit in PSP_DIGITS or PSP_LETTERS (see [PSP](../data/#psp)) for each switch character found (eg, `/P` sets the bit for P), and returns DL = first non-switch token.
+**DOS_UTL_PARSESW (0Fh)**: DL = first token to parse, DH = # of non-switch tokens to ignore, ES:DI -> TOKBUF.  Sets a bit in PSP_DIGITS or PSP_LETTERS (see [PSP](../data/#psp)) for each switch character found (eg, `/P` sets the bit for P), and returns DL = first non-switch token.
 
 ### Devices
 
-**DOS_UTL_GETDEV (0Fh)**: DS:DX -> device name.  Returns ES:DI -> device driver header, or carry set if not found.
+**DOS_UTL_GETDEV (10h)**: DS:DX -> device name.  Returns ES:DI -> device driver header, or carry set if not found.
 
 ### Sessions
 
-**DOS_UTL_GETCSN (10h)**: Returns CL = current session number.
+**DOS_UTL_GETCSN (11h)**: Returns CL = current session number.
 
-**DOS_UTL_LOAD (11h)**: ES:BX -> Session Parameter Block (see [SPB](../data/#spb)), which specifies the command line and the standard handles for the new session, and CH = the number of programs the caller will load next (eg, the rest of a pipeline), which the loader sets aside memory for (see [DOS_PSP_EXEC1](../dos/#differences-from-pc-dos)).  Loads the program into an available session; returns CL = session number, or carry set and AX = error code.
+**DOS_UTL_LOAD (13h)**: ES:BX -> Session Parameter Block (see [SPB](../data/#spb)), which specifies the command line and the standard handles for the new session, and CH = the number of programs the caller will load next (eg, the rest of a pipeline), which the loader sets aside memory for (see [DOS_PSP_EXEC1](../dos/#differences-from-pc-dos)).  Loads the program into an available session; returns CL = session number, or carry set and AX = error code.
 
-**DOS_UTL_START (12h)**: CL = session number.  Marks the session startable; it starts running at the next session switch.
+**DOS_UTL_START (14h)**: CL = session number.  Marks the session startable; it starts running at the next session switch.
 
-**DOS_UTL_STOP (13h)**: CL = session number.  Not implemented yet.
+**DOS_UTL_STOP (15h)**: CL = session number.  Not implemented yet.
 
-**DOS_UTL_END (14h)**: CL = session number.  Ends the current program in the session, by aborting it (as CTRL-ALT-DEL does); the program can't intercept the abort, which takes effect the next time the session leaves DOS (a session waiting on a pipe or device is interrupted first).  Use DOS_UTL_WAITEND to wait for the session to end.  Carry is set (AX = ERR_BADSESSION) if the session number is invalid or the session isn't running a program.  COMMAND.COM uses this to end the other commands of a pipeline when one of them fails, and for RESTART *session*.
+**DOS_UTL_END (16h)**: CL = session number.  Ends the current program in the session, by aborting it (as CTRL-ALT-DEL does); the program can't intercept the abort, which takes effect the next time the session leaves DOS (a session waiting on a pipe or device is interrupted first).  Use DOS_UTL_WAITEND to wait for the session to end.  Carry is set (AX = ERR_BADSESSION) if the session number is invalid or the session isn't running a program.  COMMAND.COM uses this to end the other commands of a pipeline when one of them fails, and for RESTART *session*.
 
-**DOS_UTL_WAITEND (15h)**: CL = session number.  Waits for all programs in the session to end.
+**DOS_UTL_WAITEND (17h)**: CL = session number.  Waits for all programs in the session to end.
 
-**DOS_UTL_QRYSCB (25h)**: CL = session number.  Returns AX = the PSP of the session's program (zero if none), and ES:DI -> the name (11 characters) of the session's console device (its STDOUT), or DI = 0 if it has none (eg, a session that has never been used), or carry set if the session number is invalid.  COMMAND.COM uses this for LIST SESSIONS, so that it doesn't depend on the kernel's internal session structures.
+**DOS_UTL_QRYSCB (12h)**: CL = session number.  Returns AX = the PSP of the session's program (zero if none), and ES:DI -> the name (11 characters) of the session's console device (its STDOUT), or DI = 0 if it has none (eg, a session that has never been used), or carry set if the session number is invalid.  COMMAND.COM uses this for LIST SESSIONS, so that it doesn't depend on the kernel's internal session structures.
 
 ### Scheduling
 
-**DOS_UTL_YIELD (16h)**: Lets another session run, if one is ready.
+**DOS_UTL_YIELD (18h)**: Lets another session run, if one is ready.
 
-**DOS_UTL_SLEEP (17h)**: CX:DX = # of milliseconds to sleep.
+**DOS_UTL_SLEEP (19h)**: CX:DX = # of milliseconds to sleep.
 
-**DOS_UTL_WAIT (19h)**: DX:DI = wait ID (typically the address of a request packet).  Marks the current session as waiting until another caller (typically a driver's interrupt handler) calls DOS_UTL_ENDWAIT with the same ID.  Carry is set if the wait was interrupted (eg, by CTRL-C or CTRL-ALT-DEL), in which case the caller must clean up whatever it was waiting on.
+**DOS_UTL_WAIT (1Ah)**: DX:DI = wait ID (typically the address of a request packet).  Marks the current session as waiting until another caller (typically a driver's interrupt handler) calls DOS_UTL_ENDWAIT with the same ID.  Carry is set if the wait was interrupted (eg, by CTRL-C or CTRL-ALT-DEL), in which case the caller must clean up whatever it was waiting on.
 
-**DOS_UTL_ENDWAIT (1Ah)**: DX:DI = wait ID.  Makes any session waiting on the ID runnable again; carry is set if no session was waiting.
+**DOS_UTL_ENDWAIT (1Bh)**: DX:DI = wait ID.  Makes any session waiting on the ID runnable again; carry is set if no session was waiting.
 
-**DOS_UTL_HOTKEY (1Bh)**: CX = console context, DL = character code, DH = scan code.  Used by the console drivers (CON and COM) to notify DOS of CTRL-C, CTRL-P, and CTRL-ALT-DEL; a CTRL-C is also left in the driver's input, for DOS to discard (see [Device Drivers](../dev/)).
+**DOS_UTL_HOTKEY (1Ch)**: CX = console context, DL = character code, DH = scan code.  Used by the console drivers (CON and COM) to notify DOS of CTRL-C, CTRL-P, and CTRL-ALT-DEL; a CTRL-C is also left in the driver's input, for DOS to discard (see [Device Drivers](../dev/)).
 
-**DOS_UTL_LOCK (1Ch)**: Locks the current session, so that no session switch occurs until DOS_UTL_UNLOCK is called.  Returns AX = the console context of the current session (0 if none).
+**DOS_UTL_LOCK (1Dh)**: Locks the current session, so that no session switch occurs until DOS_UTL_UNLOCK is called.  Returns AX = the console context of the current session (0 if none).
 
-**DOS_UTL_UNLOCK (1Dh)**: Unlocks the current session, performing any session switch that was deferred while it was locked.
+**DOS_UTL_UNLOCK (1Eh)**: Unlocks the current session, performing any session switch that was deferred while it was locked.
 
 ### Memory
 
-**DOS_UTL_QRYMEM (1Eh)**: Returns information about a memory block.
+**DOS_UTL_QRYMEM (1Fh)**: Returns information about a memory block.
 
 Inputs:
 
@@ -177,24 +178,24 @@ The MEM command uses this function to total the free memory blocks.
 
 ### Programs
 
-**DOS_UTL_TERM (1Fh)**: DL = exit code, DH = exit type (see [Exit Types](../dos/#exit-types)).  Terminates the current program.
+**DOS_UTL_TERM (20h)**: DL = exit code, DH = exit type (see [Exit Types](../dos/#exit-types)).  Terminates the current program.
 
-**DOS_UTL_RESTART (20h)**: Writes any modified disk buffers and restarts the system.
+**DOS_UTL_RESTART (21h)**: Writes any modified disk buffers and restarts the system.
 
 ### Date and Time
 
-**DOS_UTL_GETDATE (21h)**: Same outputs as DOS_MSC_GETDATE (CX = year, DH = month, DL = day, AL = day of week), plus AX = packed date: bits 15-9 = year - 1980, bits 8-5 = month, bits 4-0 = day.  Carry is unchanged.
+**DOS_UTL_GETDATE (22h)**: Same outputs as DOS_MSC_GETDATE (CX = year, DH = month, DL = day, AL = day of week), plus AX = packed date: bits 15-9 = year - 1980, bits 8-5 = month, bits 4-0 = day.  Carry is unchanged.
 
-**DOS_UTL_GETTIME (22h)**: Same outputs as DOS_MSC_GETTIME (CH = hours, CL = minutes, DH = seconds, DL = hundredths), plus AX = packed time: bits 15-11 = hours, bits 10-5 = minutes, bits 4-0 = seconds / 2.  Carry is unchanged.
+**DOS_UTL_GETTIME (23h)**: Same outputs as DOS_MSC_GETTIME (CH = hours, CL = minutes, DH = seconds, DL = hundredths), plus AX = packed time: bits 15-11 = hours, bits 10-5 = minutes, bits 4-0 = seconds / 2.  Carry is unchanged.
 
-**DOS_UTL_INCDATE (23h)**: CX = year, DH = month, DL = day.  Returns the date advanced by one day.
+**DOS_UTL_INCDATE (24h)**: CX = year, DH = month, DL = day.  Returns the date advanced by one day.
 
 ### Console
 
-**DOS_UTL_EDITLN (24h)**: DS:DX -> input buffer, as for DOS_TTY_INPUT, and AL = options: bit 0 returns AX = the last editing action, so that the caller can respond to keys like **Up** and **Down** (eg, for command history), and bit 1 displays the buffer's existing characters (INP_CNT) first, as if they had been recalled, so that they can be edited (COMMAND.COM uses this for AUTO and EDIT).  Otherwise, it's the same as DOS_TTY_INPUT.
+**DOS_UTL_EDITLN (25h)**: DS:DX -> input buffer, as for DOS_TTY_INPUT, and AL = options: bit 0 returns AX = the last editing action, so that the caller can respond to keys like **Up** and **Down** (eg, for command history), and bit 1 displays the buffer's existing characters (INP_CNT) first, as if they had been recalled, so that they can be edited (COMMAND.COM uses this for AUTO and EDIT).  Otherwise, it's the same as DOS_TTY_INPUT.
 
 ### Sound
 
-**DOS_UTL_SOUND (18h)**: CX = # of clock ticks, DX = PIT divisor for the frequency (1193182 / frequency), or 0 to turn the sound off.  Starts the sound and returns immediately; the CLOCK$ driver turns the sound off after the specified number of ticks.
+**DOS_UTL_SOUND (26h)**: CX = # of clock ticks, DX = PIT divisor for the frequency (1193182 / frequency), or 0 to turn the sound off.  Starts the sound and returns immediately; the CLOCK$ driver turns the sound off after the specified number of ticks.
 
 {% include footer.html prev="DOS Functions:../dos/" next="Device Drivers:../dev/" %}

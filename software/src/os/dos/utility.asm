@@ -187,7 +187,7 @@ ENDPROC	utl_strupr
 ; (eg, sysinit uses it to print to a specific session's console before any
 ; PSP exists, when STDOUT is always SFH 1).
 ;
-; utl_tprintf (AH = 26h) prints to STDOUT like utl_printf, but the format
+; utl_tprintf (AH = 06h) prints to STDOUT like utl_printf, but the format
 ; string is at DS:BX and the parameters are typed (see sprintf.asm), which
 ; is how COMMAND implements "PRINTF USING".
 ;
@@ -295,7 +295,7 @@ ENDPROC	utl_dprintf
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_sprintf (AH = 06h)
+; utl_sprintf (AH = 07h)
 ;
 ; A CDECL-style calling convention is assumed, where all parameters EXCEPT
 ; for the format string are pushed from right to left, so that the first
@@ -330,7 +330,7 @@ ENDPROC	utl_sprintf
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_itoa (AH = 07h)
+; utl_itoa (AH = 08h)
 ;
 ; Convert the value DX:SI to a string representation at ES:DI, using base BL,
 ; flags BH (see itoa for PF definitions), minimum length CX (0 for no minimum).
@@ -355,7 +355,7 @@ ENDPROC	utl_itoa
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_atoi16 (AH = 08h)
+; utl_atoi16 (AH = 09h)
 ;
 ; Convert string at DS:SI to number in AX using base BL, using validation
 ; values at ES:DI.  It will also advance SI past the first non-digit character
@@ -382,7 +382,7 @@ ENDPROC	utl_atoi16
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_atoi32 (AH = 09h)
+; utl_atoi32 (AH = 0Ah)
 ;
 ; Convert string at DS:SI (with length CX) to number in DX:AX using base BL.
 ;
@@ -407,7 +407,7 @@ ENDPROC	utl_atoi32
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_atoi32d (AH = 0Ah)
+; utl_atoi32d (AH = 0Bh)
 ;
 ; Convert decimal string at DS:SI to number in DX:AX.
 ;
@@ -425,18 +425,19 @@ ENDPROC	utl_atoi32d
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_tokify (AH = 0Bh or 0Ch)
+; utl_tokify (AH = 0Ch or 0Dh)
 ;
-; DOS_UTL_TOKEN1 (0Bh) performs generic parsing, which means that only
+; DOS_UTL_TOKEN1 (0Ch) performs generic parsing, which means that only
 ; tokens separated by whitespace (or SWITCHAR) will be returned, and they
 ; will all be identified "generically" as CLS_STR.
 ;
-; DOS_UTL_TOKEN2 (0Ch) performs BASIC parsing, which returns all tokens,
+; DOS_UTL_TOKEN2 (0Dh) performs BASIC parsing, which returns all tokens,
 ; even whitespace sequences (CLS_WHITE).
 ;
 ; Inputs:
-;	AH = 0Bh (DOS_UTL_TOKEN1) or 0Ch (DOS_UTL_TOKEN2); bit 0 of AH
-;	is TOKTYPE_GENERIC, so DOS_UTL_TOKEN1 must be odd and TOKEN2 even
+;	AH = DOS_UTL_TOKEN1 or DOS_UTL_TOKEN2 (which must follow TOKEN1, so
+;	that TOKEN2 minus AH is TOKTYPE_GENERIC for TOKEN1 and TOKTYPE_BASIC
+;	for TOKEN2)
 ;	REG_CL = length of string
 ;	REG_DS:REG_SI -> string to "tokify"
 ;	REG_ES:REG_DI -> TOKBUF (to be filled with token info)
@@ -448,12 +449,13 @@ ENDPROC	utl_atoi32d
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, TMP_AX, TMP_CX
 ;
-	ASSERT	<(DOS_UTL_TOKEN1 AND 1)>,EQ,TOKTYPE_GENERIC
-	ASSERT	<(DOS_UTL_TOKEN2 AND 1)>,EQ,TOKTYPE_BASIC
+	ASSERT	<(DOS_UTL_TOKEN2 - DOS_UTL_TOKEN1)>,EQ,TOKTYPE_GENERIC
+	ASSERT	TOKTYPE_BASIC,EQ,0
 DEFPROC	utl_tokify,DOS
 	sti
 	and	[bp].REG_FL,NOT FL_CARRY
-	mov	al,ah
+	mov	al,DOS_UTL_TOKEN2
+	sub	al,ah			; AL = TOKTYPE
 	mov	bx,[scb_active]
 	mov	bl,[bx].SCB_SWITCHAR
 	mov	[bp].TMP_BL,bl		; TMP_BL = SWITCHAR
@@ -797,7 +799,7 @@ ENDPROC	tok_classify
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_tokid (AH = 0Dh)
+; utl_tokid (AH = 0Eh)
 ;
 ; The main advantage of this function is that, by requiring the TOKTBL
 ; to be sorted, it can use a binary search to find the token faster.  For
@@ -896,7 +898,7 @@ ENDPROC	utl_tokid
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; utl_parsesw (AH = 0Eh)
+; utl_parsesw (AH = 0Fh)
 ;
 ; Switch tokens start with the system's SWITCHAR and may contain 1 or more
 ; alphanumeric characters, each of which is converted to a bit in either
