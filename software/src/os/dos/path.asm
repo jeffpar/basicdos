@@ -53,8 +53,9 @@ DEFPROC	dsk_delete,DOS
 	push	ax
 	xchg	dx,ax			; DL = drive #
 	call	del_dirent		; delete DIRENT and free its clusters
-	pop	ax			; AL = drive #
+	pop	dx			; saved drive #; leave AX intact on error
 	jc	dd8
+	xchg	ax,dx			; AL = drive # for the flush
 	call	flush_buffers		; write the modified DIRENT and FAT
 	jnc	dd9
 dd8:	mov	[bp].REG_AX,ax

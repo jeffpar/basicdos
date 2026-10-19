@@ -13,6 +13,7 @@
 	include	dosapi.inc
 	include	devapi.inc
 	include	8086.inc
+	include	bios.inc
 
 RW_SIZE equ	4096
 
@@ -57,6 +58,10 @@ CODE    SEGMENT
 ; Finally, fail FAT reads while locating a cluster after a seek.  The read
 ; must return the error without changing the destination or advancing the
 ; file position, and a later read must recover without another seek.
+;
+; A failed FAT read while deleting the file must preserve the original
+; error code.  Restore its cached name after that injected failure so the
+; normal cleanup can still delete the file and reclaim its clusters.
 ;
 ; Large volume writes check unsigned byte counts around 32K and 64K.
 ; The BIOS hook counts these writes and reports success without writing
@@ -299,6 +304,8 @@ dr6:
 	call	metadata_retries
 	jc	dr8
 	call	seek_failures
+	jc	dr8
+	call	delete_failure
 	jmp	dr8
 dr7:
 	stc
@@ -757,6 +764,101 @@ DEFPROC	seek_read
 ENDPROC	seek_read
 
 ;
+; delete_failure
+;
+; Empty the disk cache, then reopen and close the fixture to cache only its
+; directory entry.  Fail the first FAT read while freeing its chain: no
+; clusters have been freed yet, but del_dirent has marked the name deleted.
+; Restore that first character in the pinned directory buffer so cleanup
+; can reclaim the fixture, even when the wrapper returns the wrong error.
+;
+; Outputs:
+;	Carry set if the delete did not return the original FAT read error
+;
+DEFPROC	delete_failure
+	mov	bx,[rwhandle]
+	mov	[rwhandle],-1
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	jc	df0
+	mov	ah,DOS_DSK_RESET
+	int	21h
+	jc	df0
+	mov	dx,offset rwname
+	mov	ax,DOS_HDL_OPENRO
+	int	21h
+	jc	df0
+	mov	bx,ax
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	jnc	df0a
+df0:	jmp	df8
+;
+; The two original BIOS buffers remain in the circular buffer chain.
+; Find the fixture's entry in a cached directory sector before deleting it.
+;
+df0a:	mov	ax,offset FAT_BUFHDR
+	mov	cl,4
+	shr	ax,cl
+	mov	bp,ax			; BP = first buffer's paragraph
+df1:	mov	es,ax
+	cmp	es:[BUF_TYPE],((offset DIR_BUFHDR)-(offset FAT_BUFHDR)) AND 0FFh
+	jne	df4			; inspect only directory buffers
+	cmp	es:[BUF_LBA],0		; ignore invalidated buffer contents
+	je	df4
+	mov	al,[rwname]
+	sub	al,'A'
+	cmp	es:[BUF_DRIVE],al	; match the fixture's DOS drive, not its BIOS drive
+	jne	df4
+	mov	di,size BUFHDR
+	mov	bx,16			; sixteen directory entries per sector
+df2:	push	di
+	mov	si,offset rwentry
+	mov	cx,11
+	repe	cmpsb
+	pop	di
+	je	df5			; matching 8.3 name found
+	add	di,32
+	dec	bx
+	jnz	df2
+df4:	mov	ax,es:[BUF_NEXT]
+	cmp	ax,bp			; searched the entire buffer chain?
+	jne	df1
+	jmp	short df8
+df5:	mov	[rwcmd],2
+	mov	[rwskip],0
+	mov	[rwfaults],1
+	mov	[count],0
+	mov	[responses],offset metaresponses
+	mov	[metaarea],2		; the failure must be a FAT read
+	push	es
+	push	di
+	mov	dx,offset rwname
+	mov	ah,DOS_DSK_DELETE
+	int	21h
+	pop	di
+	pop	es
+	jnc	df8			; deletion must report the injected failure
+	push	ax
+	call	check_metadata
+	pop	ax
+	jc	df8			; restore the entry only for the intended fault
+	mov	byte ptr es:[di],'H'	; restore HERRDATA.TMP for normal cleanup
+	cmp	ax,ERR_NOTREADY		; preserve the FAT read error, not the drive #
+	jne	df8
+	mov	dx,offset deletepassed
+	call	print
+	clc
+	jmp	short df9
+df8:	mov	dx,offset deletefailed
+	call	print
+	stc
+df9:	push	cs
+	pop	es
+	ret
+ENDPROC	delete_failure
+
+;
 ; disk_handler (INT 13h)
 ;
 ; Fail selected data operations on the test drive with BIOS error 80h
@@ -879,6 +981,7 @@ volcases	dw	0,7FFFh,64
 		dw	0,0,0
 rwresponses	db	CRERR_RETRY,CRERR_RETRY,CRERR_FAIL
 rwname		db	"A:\HERRDATA.TMP",0
+rwentry		db	"HERRDATATMP"
 faultaddr	dd	0
 faultcx		dw	0
 faultdx		dw	0
@@ -888,6 +991,8 @@ metapassed	db	"HARDERR metadata passed",13,10,'$'
 metafailed	db	"HARDERR metadata failed",13,10,'$'
 seekpassed	db	"HARDERR seek passed",13,10,'$'
 seekfailed	db	"HARDERR seek failed",13,10,'$'
+deletepassed	db	"HARDERR delete passed",13,10,'$'
+deletefailed	db	"HARDERR delete failed",13,10,'$'
 ;
 ; Each case contains file offset, length, BIOS command, and successful
 ; BIOS operations to skip before injecting the first failure.
