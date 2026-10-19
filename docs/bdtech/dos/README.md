@@ -11,7 +11,7 @@ BASIC-DOS provides a subset of the PC DOS 2.x function interface, through INT 21
 
 Functions not listed below (including any function above 56h) aren't implemented, and return with carry set and AX = ERR_INVALID.
 
-The `DOS_*` names are defined in dosfunc.inc.
+The `DOS_*` names are defined in dosapi.inc (define DOSFUNC before including it).
 
 ### Function Summary
 

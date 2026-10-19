@@ -34,8 +34,8 @@
 ; NOTE: Unlike genExpr, these functions must NOT use ENTER, because they
 ; call functions (eg, genPushVarPtr) that access genCode's local variables.
 ;
+	DOSFUNC equ 1
 	include	cmd.inc
-	include	dosfunc.inc
 	include	gen.inc
 	include	8086.inc
 

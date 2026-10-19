@@ -7,12 +7,13 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	DOSPSP equ 1
+	DOSFUNC equ 1
 	include	macros.inc
 	include	8086.inc
 	include	bios.inc
 	include	dos.inc
 	include	dosapi.inc
-	include	dosfunc.inc
 
 DOS	segment word public 'CODE'
 
@@ -419,6 +420,35 @@ ENDPROC	scb_end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; scb_waitend
+;
+; Wait for all programs in the specified session to end.
+;
+; Inputs:
+;	CL = SCB #
+;
+; Outputs:
+;	Carry clear on success, set on error
+;
+; Modifies:
+;
+DEFPROC	scb_waitend,DOS
+	ASSUMES	<DS,DOS>,<ES,DOS>
+	call	get_scb
+	jc	sc9
+	test	[bx].SCB_STATUS,SCSTAT_LOAD
+	jz	sc9
+;
+; Turn this call into a standard scb_wait call, where the wait ID in DX:DI
+; is the target SCB address (instead of the usual driver packet address).
+;
+	mov	di,bx
+	mov	dx,ds
+	jmp	scb_wait
+ENDPROC	scb_waitend
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; scb_query
 ;
 ; Returns info about a session (see utl_qryscb), such as its program's PSP
@@ -463,35 +493,6 @@ sq2:	ASSERT	<SFB_NAME>,EQ,0
 	clc
 sq9:	ret
 ENDPROC	scb_query
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; scb_waitend
-;
-; Wait for all programs in the specified session to end.
-;
-; Inputs:
-;	CL = SCB #
-;
-; Outputs:
-;	Carry clear on success, set on error
-;
-; Modifies:
-;
-DEFPROC	scb_waitend,DOS
-	ASSUMES	<DS,DOS>,<ES,DOS>
-	call	get_scb
-	jc	sc9
-	test	[bx].SCB_STATUS,SCSTAT_LOAD
-	jz	sc9
-;
-; Turn this call into a standard scb_wait call, where the wait ID in DX:DI
-; is the target SCB address (instead of the usual driver packet address).
-;
-	mov	di,bx
-	mov	dx,ds
-	jmp	scb_wait
-ENDPROC	scb_waitend
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

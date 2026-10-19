@@ -10,8 +10,8 @@
 ; The line and token helpers that genCode (see gencmd.asm) and all the other
 ; gen*.asm files share (eg, getNextLine, getNextToken, and validateOp).
 ;
+	DOSFUNC equ 1
 	include	cmd.inc
-	include	dosfunc.inc
 	include	gen.inc
 
 CODE    SEGMENT

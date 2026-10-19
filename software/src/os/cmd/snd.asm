@@ -12,8 +12,8 @@
 ; see genPlay), and the PLAY parsing functions that DRAW shares (playChar and
 ; playNum; see gfx.asm).
 ;
+	DOSFUNC equ 1
 	include	cmd.inc
-	include	dosfunc.inc
 	include	gen.inc
 	include	bios.inc
 

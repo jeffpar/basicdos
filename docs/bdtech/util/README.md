@@ -7,7 +7,7 @@ permalink: /docs/bdtech/util/
 
 {% include header.html %}
 
-BASIC-DOS provides a set of utility functions through INT 32h, with the function number in AH.  The `DOS_UTL_*` names are defined in dosfunc.inc, and the DOSUTIL macro (in macros.inc) generates the calls:
+BASIC-DOS provides a set of utility functions through INT 32h, with the function number in AH.  The `DOS_UTL_*` names are defined in dosapi.inc (define DOSFUNC before including it), and the DOSUTIL macro (in macros.inc) generates the calls:
 
 	DOSUTIL	STRLEN			; MOV AH,DOS_UTL_STRLEN / INT 32h
 

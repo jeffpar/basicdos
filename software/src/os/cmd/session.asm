@@ -9,8 +9,8 @@
 ;
 ; LIST SESSIONS and RESTART.
 ;
+	DOSFUNC equ 1
 	include	cmd.inc
-	include	dosfunc.inc
 
 CODE    SEGMENT
 

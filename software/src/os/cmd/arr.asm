@@ -7,8 +7,8 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	DOSFUNC equ 1
 	include	cmd.inc
-	include	dosfunc.inc
 	include	arr.inc
 
 CODE    SEGMENT

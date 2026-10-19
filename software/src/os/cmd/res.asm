@@ -26,8 +26,8 @@
 ; the entire image was loaded, or CORE_HEAP (see const.asm) when the loader
 ; loaded only COMMAND's core (see CD_CORESIZE in dosapi.inc).
 ;
+	DOSFUNC equ 1
 	include	cmd.inc
-	include	dosfunc.inc
 
 CODE    SEGMENT
 	org	100h

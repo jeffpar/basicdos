@@ -17,9 +17,10 @@
 ; they don't depend on the last bit of precision, since PCjs's 8087 emulation
 ; uses 64-bit doubles internally (instead of 80-bit extended precision).
 ;
+	DOSPSP equ 1
+	DOSFUNC equ 1
 	include	macros.inc
 	include	dosapi.inc
-	include	dosfunc.inc
 	include	devapi.inc
 	include	fpu.inc
 

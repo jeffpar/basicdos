@@ -18,8 +18,8 @@
 ; The graphics state is kept in GFX_DATA (see GFX_*), whose zero-initialized
 ; values are the defaults.
 ;
+	DOSFUNC equ 1
 	include	cmd.inc
-	include	dosfunc.inc
 
 CODE    SEGMENT
 

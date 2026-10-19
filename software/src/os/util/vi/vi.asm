@@ -32,9 +32,8 @@
 ; vi.inc; this one, which must be linked first, contains the startup code,
 ; file I/O, the command loop, key input, and the message functions.
 ;
+	DOSFUNC equ 1
 	include	vi.inc
-	include	dosfunc.inc
-	include	dosfunc.inc
 
 CODE	SEGMENT word public 'CODE'
 

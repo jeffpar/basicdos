@@ -1,5 +1,5 @@
-	REM Usage: MK [FINAL or DEBUG] [CLEAN] (FINAL is the default; CLEAN first
-	REM deletes everything in each OBJ folder, for a clean build).
+	REM Usage: MK [FINAL or DEBUG] [CLEAN] (FINAL is the default;
+	REM CLEAN deletes everything in each OBJ folder for a clean build).
 	REM Builds BASIC-DOS on BASIC-DOS (eg, in SRC on BASICDOS-10MB).
 	REM NOTE: MAKE can't tell when the mode changes, so use CLEAN to
 	REM rebuild everything in a new mode.

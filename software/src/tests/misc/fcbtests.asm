@@ -6,9 +6,11 @@
 ; @copyright (c) 2020-2026 Jeff Parsons
 ; @license MIT <https://basicdos.com/LICENSE.txt>
 ;
+	DOSFCB equ 1
+	DOSPSP equ 1
+	DOSFUNC equ 1
 	include	macros.inc
 	include	dosapi.inc
-	include	dosfunc.inc
 
 CHECK	macro	op,left,right
 	local	ok

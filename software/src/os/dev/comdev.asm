@@ -7,17 +7,15 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-	BIOSVEC equ 1
 	BIOSKEY equ 1
 	CLKTIMER equ 1
-	DOSDEV equ 1
+	DOSFUNC equ 1
 	include	macros.inc
 	include	bios.inc
 	include	dev.inc
 	include	devapi.inc
 	include	uart.inc
 	include	dosapi.inc
-	include	dosfunc.inc
 
 DEV	group	CODE,CODE2,CODE3,CODE4,INIT,DATA
 

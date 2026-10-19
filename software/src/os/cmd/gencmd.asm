@@ -40,8 +40,8 @@
 ;	gentok.asm			line and token helpers (getNextToken,
 ;					peekNextToken, validateOp, etc)
 ;
+	DOSFUNC equ 1
 	include	cmd.inc
-	include	dosfunc.inc
 	include	gen.inc
 	include	8086.inc
 

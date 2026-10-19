@@ -17,7 +17,7 @@ Each BASIC-DOS demo runs on up to four generations of PC hardware: the original 
 | 7. Serial Debugger | [256K, CGA, VT100](debug/pc/) | [640K, CGA, VT100](debug/xt/) | [640K, CGA, VT100](debug/at/) | [1Mb, VGA, VT100](debug/386/) |
 | 8. 10Mb Hard Disk | | [640K, CGA](hd/xt/) | [640K, CGA](hd/at/) | [1Mb, VGA](hd/386/) |
 | 9. 10Mb Hard Disk with VT100 | | [640K, CGA, VT100](vt100/xt/) | [640K, CGA, VT100](vt100/at/) | [1Mb, VGA, VT100](vt100/386/) |
-| 10. Wolfenstein 3D | | | | [1Mb, VGA, Sound Blaster](wolf3d/386/) |
+| 10. Wolfenstein 3D | | | [640K, VGA, Sound Blaster](wolf3d/at/) | [1Mb, VGA, Sound Blaster](wolf3d/386/) |
 
 The PC XT, PC AT, and DeskPro 386 machines also have the 10Mb BASIC-DOS hard disk (drive C:), so when they boot a diskette, the boot sector first displays `Press a key to start...`; press any key (or wait 5 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.  There's also a [Serial Display](serial/) demo, which runs a second session on a simple text pane connected to COM1.
 

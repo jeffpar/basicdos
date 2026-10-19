@@ -7,6 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	DOSFFB equ 1
 	include	macros.inc
 	include	disk.inc
 	include	dev.inc

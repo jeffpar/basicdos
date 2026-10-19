@@ -7,11 +7,12 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	DOSPSP equ 1
+	DOSFUNC equ 1
 	include	macros.inc
 	include	dosapi.inc
-	include	dosfunc.inc
 
-MEMSTEP	equ	67		; memory test increment, in paragraphs (a prime number,
+MEMSTEP	equ	67	; memory test increment, in paragraphs (a prime number,
 			; so that allocation sizes vary more than powers of two)
 
 CODE    SEGMENT

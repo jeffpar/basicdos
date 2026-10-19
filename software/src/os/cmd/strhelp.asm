@@ -13,8 +13,8 @@
 ; UCASE$, LCASE$, INKEY$, DATE$, TIME$, and FRE) are in STRMISC.ASM, since
 ; this module reached MASM's symbol space limit.
 ;
+	DOSFUNC equ 1
 	include	cmd.inc
-	include	dosfunc.inc
 	include	fpu.inc
 
 CODE    SEGMENT

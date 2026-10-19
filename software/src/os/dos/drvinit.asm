@@ -7,12 +7,12 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	DOSFUNC equ 1
 	include	macros.inc
 	include	bios.inc
 	include	dev.inc
 	include	devapi.inc
 	include	dosapi.inc
-	include	dosfunc.inc
 
 DOS	segment word public 'CODE'
 

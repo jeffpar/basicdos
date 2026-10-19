@@ -10,9 +10,10 @@
 ; Run B:\TESTS\DBGTEST on BASICDOS-360K-DEBUG, with BASICDOS-360K-TESTS in
 ; drive B:.  Resume both traps with G on the debugger terminal.
 ;
+	DOSPSP equ 1
+	DOSFUNC equ 1
 	include	macros.inc
 	include	dosapi.inc
-	include	dosfunc.inc
 
 CHECK	macro	left,right
 	local	ok

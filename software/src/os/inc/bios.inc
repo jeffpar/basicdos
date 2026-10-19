@@ -13,17 +13,10 @@
 ;
 ; Page numbers are from the first IBM 5150 Technical Reference Manual (1981)
 ;
-; The ROM BIOS data area (and our additions to it) is always defined.  Modules
-; that use the vector numbers can define BIOSVEC, modules that use keyboard
-; scan codes can define BIOSKEY, and modules that call ROM BIOS services (INT
-; 10h, 13h, 16h, or 1Ah) can define BIOSAPI, which includes the other two.
+; The ROM BIOS data area (and our additions to it) is always defined.
+; Modules that use keyboard scan codes can define BIOSKEY, and modules that
+; call ROM BIOS services (INT 10h, 13h, 16h, or 1Ah) can define BIOSAPI.
 ;
-	IFDEF	BIOSAPI
-BIOSVEC	equ	1
-BIOSKEY equ	1
-	ENDIF
-
-	IFDEF	BIOSVEC
 INT_PRTSC	equ	05h	; PRINT_SCREEN (p. A-79)
 INT_HW_TMR	equ	08h	;
 INT_HW_KBD	equ	09h	;
@@ -45,7 +38,6 @@ INT_TICK	equ	1Ch	; TIMER TICK
 INT_VPT		equ	1Dh	; VIDEO PARAMETER TABLE
 INT_DPT		equ	1Eh	; DISKETTE PARAMETER TABLE
 INT_VGCDATA	equ	1Fh	; VIDEO GRAPHICS CHARACTER DATA
-	ENDIF	; BIOSVEC
 
 	IFDEF	BIOSAPI
 ;

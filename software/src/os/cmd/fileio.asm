@@ -24,8 +24,8 @@
 ; command or program runs.  INPUT and LINE INPUT (from the keyboard) read a
 ; line into LINEBUF and take items from it, much like INPUT # (see inputLine).
 ;
+	DOSFUNC equ 1
 	include	cmd.inc
-	include	dosfunc.inc
 
 CODE    SEGMENT
 

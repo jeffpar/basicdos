@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# This command creates a drive [D:] containing the BASIC-DOS source code.
-# To build the source, at the "C:\>" prompt, type "D:", then "MKDOS", then "QUIT".
+# This command creates a drive [D:] containing the BASIC-DOS source code.  To
+# build the source, at the "C:\>" prompt, type "D:", then "MKDOS", then "QUIT".
 # Any modifications will be written back to the software/src directory.
 #
 # NOTE: While early BASIC-DOS builds were performed in a browser using a PCjs
@@ -25,27 +25,30 @@
 # binaries (which requires PCJS; see gulpfile.js).  If a build fails and you
 # don't want the demo disks updated, use pc.js's "abort" command.
 #
-# By default, we build non-debug ("FINAL") binaries; use "mkdos.sh debug" to build
-# the traditional DEBUG binaries.  The C: AUTOEXEC.BAT always runs MKDOS without
-# arguments, so for a FINAL build, we create an MKFINAL file in the source
-# directory (D:\), which tells MKDOS.BAT to build FINAL binaries instead, and we
-# remove it when pc.js exits.  And since MAKE can't tell that the mode has
-# changed, we touch all the assembly sources whenever it does, so that every
-# binary is rebuilt in the new mode (the last mode is recorded in
-# tools/pc/disks/mkmode, which git ignores).
+# Usage: mkdos.sh [FINAL or DEBUG] [CLEAN] (the same arguments as mk.sh and
+# os/mk.bat, in either case).  By default, we build non-debug ("FINAL")
+# binaries; DEBUG builds the traditional DEBUG binaries.  The C: AUTOEXEC.BAT
+# always runs MKDOS without arguments, so for a FINAL build, we create an
+# MKFINAL file in the source directory (D:\), which tells MKDOS.BAT to build
+# FINAL binaries instead, and we remove it when pc.js exits.  And since MAKE
+# can't tell that the mode has changed, we touch all the assembly sources
+# whenever it does, so that every binary is rebuilt in the new mode (the last
+# mode is recorded in tools/pc/disks/mkmode, which git ignores).
 #
-# Use "mkdos.sh clean" (or "mkdos.sh debug clean") for a clean build: we create a CLEAN file in the source
-# directory, which tells MKDOS.BAT to run MKCLEAN.BAT first (which deletes CLEAN and all the build outputs).
+# Use "mkdos.sh final clean" (or "mkdos.sh debug clean") for a clean build:
+# we create a CLEAN file in the source directory, which tells MKDOS.BAT to run
+# MKCLEAN.BAT first (which deletes CLEAN and all the build outputs).
 #
-mode=FINAL
+usage() { echo "Usage: $0 [FINAL or DEBUG] [CLEAN]" >&2; exit 1; }
+[ $# -le 2 ] || usage
+mode=$(echo "${1:-FINAL}" | tr a-z A-Z)
+[ "$mode" = FINAL ] || [ "$mode" = DEBUG ] || usage
 clean=
-for arg in "$@"; do
-    case "$arg" in
-        debug|DEBUG) mode=DEBUG ;;
-        clean|CLEAN) clean=1 ;;
-        *) echo "usage: $0 [debug] [clean]" >&2; exit 1 ;;
-    esac
-done
+case "$(echo "$2" | tr a-z A-Z)" in
+    "") ;;
+    CLEAN) clean=1 ;;
+    *) usage ;;
+esac
 src=software/src
 last=$(cat tools/pc/disks/mkmode 2>/dev/null)
 if [ "$last" != "$mode" ]; then

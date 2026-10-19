@@ -180,25 +180,3 @@ SFH_NONE	equ	0FFh	; if this SFH is in a PFT entry, it's unused
 IO_RAW		equ	0
 IO_COOKED	equ	1
 IO_DIRECT	equ	-1
-
-;
-; EXE File Header
-;
-EXEHDR		struc
-EXE_SIG		dw	?	; 00h: SIG_EXE
-EXE_NBLAST	dw	?	; 02h: # bytes in last block (0 if full)
-EXE_NBLOCKS	dw	?	; 04h: # blocks of EXE file data
-EXE_NRELOCS	dw	?	; 06h: # relocation entries
-EXE_PARASHDR	dw	?	; 08h: # header paras (includes reloc entries)
-EXE_PARASMIN	dw	?	; 0Ah: # paras minimum additional
-EXE_PARASMAX	dw	?	; 0Ch: # paras maximum additional
-EXE_STACK_SEG	dw	?	; 0Eh: initial SS value
-EXE_STACK_OFF	dw	?	; 10h: initial SP value
-EXE_CHECKSUM	dw	?	; 12h: checksum of all words in file
-EXE_START_OFF	dw	?	; 14h: initial IP value
-EXE_START_SEG	dw	?	; 16h: initial CS value
-EXE_OFFRELOC	dw	?	; 18h: offset of first relocation entry
-EXE_OVERLAY	dw	?	; 1Ah: 0 for main program
-EXEHDR		ends
-
-SIG_EXE		equ	5A4Dh	; "MZ"

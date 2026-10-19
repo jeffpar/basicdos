@@ -10,8 +10,8 @@
 ; Runtime functions for CHAIN, DEF SEG, MOUSE, PEEK, and POKE (see gensys.asm),
 ; and for READ and RESTORE (see gendef.asm); PLAY and SOUND are in snd.asm.
 ;
+	DOSFUNC equ 1
 	include	cmd.inc
-	include	dosfunc.inc
 	include	fpu.inc
 
 CODE    SEGMENT

@@ -7,9 +7,10 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	DOSPSP equ 1
+	DOSFUNC equ 1
 	include	macros.inc
 	include	dosapi.inc
-	include	dosfunc.inc
 	include	devapi.inc
 
 CODE    SEGMENT

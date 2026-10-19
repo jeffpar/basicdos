@@ -1,33 +1,39 @@
 #!/bin/bash
 #
-# Builds BASIC-DOS on BASIC-DOS (mkdos.sh builds it on MS-DOS 3.20 instead).  As in mkdos.sh, if pc.js exits
-# normally (ie, via QUIT) and PCJS is set, the demo disks are then updated with the new binaries.
+# Builds BASIC-DOS on BASIC-DOS (mkdos.sh builds it on MS-DOS 3.20 instead).
+# As in mkdos.sh, if pc.js exits normally (ie, via QUIT) and PCJS is set,
+# the demo disks are then updated with the new binaries.
 #
-# pc.js builds a bootable BASIC-DOS hard disk (C:) directly from software/src, using the system files from
-# the previous build (os/*/OBJ, so run mkdos.sh at least once first), software/src/CONFIG.SYS (a serial console,
-# with PATH$ set to C:\ and C:\TOOLS), and the build tools in software/src/tools.  BASIC-DOS runs os/mk.bat
-# (which builds BOOT, DD, DEV, DOS, CMD, and UTIL), then the TESTS and MSB makefiles, and then QUIT, after
-# which pc.js writes every new or modified file back to software/src.  If a build step fails, type QUIT to
-# keep what was built, or use pc.js's "abort" command to discard it.
+# pc.js builds a bootable BASIC-DOS hard disk (C:) directly from software/src,
+# using the system files from the previous build (os/*/OBJ, so run mkdos.sh at
+# least once first), software/src/CONFIG.SYS (a serial console, with PATH$
+# set to C:\ and C:\TOOLS), and the build tools in software/src/tools.
+#
+# BASIC-DOS runs os/mk.bat (which builds BOOT, DD, DEV, DOS, CMD, and UTIL),
+# then the TESTS and MSB makefiles, and then QUIT, after which pc.js writes
+# every new or modified file back to software/src.  If a build step fails,
+# type QUIT to keep any changes or use pc.js's "abort" command to discard them.
 #
 # The machine (COMPAQ DeskPro 386) and C: (30Mb, FAT16, 2K clusters, 512 root
-# entries) match mkdos.sh.  FINAL is the default; use "mk.sh debug" to generate
-# DEBUG binaries.  As in mkdos.sh, all assembly sources are touched when the
-# build mode changes.
+# entries) match mkdos.sh.
 #
-# Use "mk.sh clean" for a clean build: BASIC-DOS deletes the build outputs before building (using
-# os/mk.bat's CLEAN option, and DEL commands for TESTS and MSB).
+# Usage: mk.sh [FINAL or DEBUG] [CLEAN] (the same arguments as os/mk.bat, in
+# either case).  FINAL is the default; DEBUG generates DEBUG binaries.  As in
+# mkdos.sh, all assembly sources are touched when the build mode changes.
+# CLEAN first deletes the build outputs (using os/mk.bat's CLEAN option, and
+# DEL commands for TESTS and MSB), for a clean build.
 #
 cd "$(dirname "$0")" || exit 1
-mode=FINAL
+usage() { echo "Usage: $0 [FINAL or DEBUG] [CLEAN]" >&2; exit 1; }
+[ $# -le 2 ] || usage
+mode=$(echo "${1:-FINAL}" | tr a-z A-Z)
+[ "$mode" = FINAL ] || [ "$mode" = DEBUG ] || usage
 clean=
-for arg in "$@"; do
-    case "$arg" in
-        debug|DEBUG) mode=DEBUG ;;
-        clean|CLEAN) clean=1 ;;
-        *) echo "usage: $0 [debug] [clean]" >&2; exit 1 ;;
-    esac
-done
+case "$(echo "$2" | tr a-z A-Z)" in
+    "") ;;
+    CLEAN) clean=1 ;;
+    *) usage ;;
+esac
 src=software/src
 for f in os/boot/OBJ/BOOT.COM os/dev/OBJ/BASDEV.COM os/dos/OBJ/BASDOS.COM os/cmd/OBJ/COMMAND.COM; do
     if [ ! -f "$src/$f" ]; then echo "error: $src/$f not found (run mkdos.sh first)" >&2; exit 1; fi

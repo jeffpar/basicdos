@@ -9,7 +9,8 @@
 ;
 ; Included by every VI module (see vi.asm).
 ;
-BIOSKEY equ	1
+	BIOSKEY	equ 1
+	DOSPSP	equ 1
 	include	macros.inc
 	include	bios.inc
 	include	devapi.inc

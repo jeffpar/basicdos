@@ -11,9 +11,8 @@
 ; The text (gap buffer) access and modification functions, and the screen
 ; functions.
 ;
+	DOSFUNC equ 1
 	include	vi.inc
-	include	dosfunc.inc
-	include	dosfunc.inc
 
 CODE	SEGMENT word public 'CODE'
 

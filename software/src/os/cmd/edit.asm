@@ -19,8 +19,8 @@
 ; lines that precede it.  An unlabeled line belongs to the nearest labeled
 ; line preceding it, so LIST and DELETE include it with that line.
 ;
+	DOSFUNC equ 1
 	include	cmd.inc
-	include	dosfunc.inc
 
 CODE    SEGMENT
 

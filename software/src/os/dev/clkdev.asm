@@ -9,12 +9,12 @@
 ;
 	BIOSAPI equ 1
 	CLKTIMER equ 1
+	DOSFUNC equ 1
 	include	macros.inc
 	include	bios.inc
 	include	dev.inc
 	include	devapi.inc
 	include	dosapi.inc
-	include	dosfunc.inc
 
 DEV	group	CODE,DATA
 

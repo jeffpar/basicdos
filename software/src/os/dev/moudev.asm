@@ -24,7 +24,6 @@
 ; (eg, scrolls, graphics text output, and mode changes), except for graphics
 ; text output that doesn't overlap the pointer (see chk_cell).
 ;
-	BIOSVEC equ 1
 	include	macros.inc
 	include	bios.inc
 	include	dev.inc

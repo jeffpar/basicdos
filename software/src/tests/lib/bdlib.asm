@@ -7,11 +7,12 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	DOSPSP equ 1
+	DOSFUNC equ 1
 	include	8086.inc	; needed for FL_CARRY, etc
 	include	macros.inc
 	include	dos.inc
 	include	dosapi.inc
-	include	dosfunc.inc
 	include	parser.inc	; needed for BUFLEN, etc
 
 DOS	segment word public 'CODE'

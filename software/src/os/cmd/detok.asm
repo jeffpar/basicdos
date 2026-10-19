@@ -19,8 +19,8 @@
 ; format with the FPU$ driver.  Tokens in strings, remarks, and DATA statements
 ; are not tokens (except for FFh), so we track those states, too.
 ;
+	DOSFUNC equ 1
 	include	cmd.inc
-	include	dosfunc.inc
 
 CODE    SEGMENT
 

@@ -11,8 +11,8 @@
 ; and genCallFar, used by GENCALL) and pushes of immediate values (eg,
 ; genPushImmLong, used by GENPUSH, and genPushImmByte, used by GENPUSHB).
 ;
+	DOSFUNC equ 1
 	include	cmd.inc
-	include	dosfunc.inc
 	include	8086.inc
 
 CODE    SEGMENT

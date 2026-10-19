@@ -11,8 +11,8 @@
 ; OCT$, UCASE$, LCASE$, INKEY$, DATE$, TIME$, and FRE) moved here from
 ; STRHELP.ASM when it reached MASM's symbol space limit.
 ;
+	DOSFUNC equ 1
 	include	cmd.inc
-	include	dosfunc.inc
 
 CODE    SEGMENT
 

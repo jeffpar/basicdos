@@ -12,10 +12,11 @@
 ; variables live in a UTILVARS structure at the start of the heap, which BP
 ; always points to (PSP_HEAP).
 ;
+	DOSFUNC equ 1
+	DOSPSP equ 1
 	include	macros.inc
 	include	devapi.inc
 	include	dosapi.inc
-	include	dosfunc.inc
 
 MAXFILES	equ	8	; maximum file names on the command line
 LINE_MAX	equ	256	; maximum line length (including CR/LF)

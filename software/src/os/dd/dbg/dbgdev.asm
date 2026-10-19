@@ -26,14 +26,12 @@
 ; can't use the DOS utility functions (eg, SPRINTF), which enable
 ; interrupts and reenter the DOS dispatcher.
 ;
+	DOSFUNC equ 1
 	include	macros.inc
-BIOSVEC	equ	1
 	include	bios.inc
 	include	dev.inc
 	include	devapi.inc
-DOSDEV	equ	1
 	include	dosapi.inc
-	include	dosfunc.inc
 	include	uart.inc
 	include	version.inc
 
@@ -2698,7 +2696,7 @@ ENDPROC	dos_get
 
 	DEFBYTE	com_runs,0		; 1 running, 2 program loaded, 3 Q
 ;
-; The EPB for DOS_PSP_EXEC1 (DOSDEV omits dosapi.inc's EPB and PSP, so this
+; The EPB for DOS_PSP_EXEC1 (we don't define DOSPSP, so this
 ; is laid out by hand, and CMD_TAIL is PSP_CMDTAIL).
 ;
 	DEFWORD	epb,0			; EPB_ENVSEG (0 = the parent's)

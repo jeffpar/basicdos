@@ -15,7 +15,7 @@
 	include	version.inc
 
 	IFDEF	FINAL
-TWAIT	equ	1		; FINAL builds use a 5-second boot prompt
+	TWAIT	equ 1		; FINAL builds use a 5-second prompt
 	ENDIF
 
 ;
@@ -50,7 +50,7 @@ BOOT	segment word public 'CODE'
 start:	cld
 	jmp	short start1
 
-	DEFLBL	PART1_COPY		; start of PART1 code/data
+	DEFLBL	PART1_COPY	; start of PART1 code/data
 
 mybpb:		BPB	<,512,1,1,2,64,320,MEDIA_160K,1,8,1,0,0,0,8,3,7>
 
@@ -63,7 +63,7 @@ CFG_FILE	db	"CONFIG  SYS",-1
 ; sectors, by using CLD (FCh) as the first opcode.  Will it confuse "future"
 ; Intel boot sector detection code?  Maybe.  Do I care?  No.
 ;
-start1:	jmp	short part1		; can't quite make it in one jump
+start1:	jmp	short part1	; can't quite make it in one jump
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

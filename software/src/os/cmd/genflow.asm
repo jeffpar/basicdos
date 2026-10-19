@@ -41,8 +41,8 @@
 ; these functions are called while generating code, with DS:BX -> TOKLETs and
 ; ES:DI -> code block.
 ;
+	DOSFUNC equ 1
 	include	cmd.inc
-	include	dosfunc.inc
 	include	gen.inc
 	include	8086.inc
 

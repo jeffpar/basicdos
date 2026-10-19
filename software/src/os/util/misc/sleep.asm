@@ -12,9 +12,10 @@
 ; Waits the specified number of seconds (CTRL-C stops it early).  If no
 ; number is specified, a usage message is displayed and the exit code is 1.
 ;
+	DOSPSP equ 1
+	DOSFUNC equ 1
 	include	macros.inc
 	include	dosapi.inc
-	include	dosfunc.inc
 
 CODE    SEGMENT
 

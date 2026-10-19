@@ -30,8 +30,7 @@ The BASIC-DOS Technical Reference describes BASIC-DOS's internal architecture an
 
 The definitions referred to throughout are found in the BASIC-DOS source code, primarily in these include files (in `software/src/os/inc`):
 
-- **dosfunc.inc**: DOS (INT 21h) and utility (INT 32h) function numbers
-- **dosapi.inc**: the PSP, EPB, SPB, FFB, and FCB structures, error codes, and the other DOS interfaces
+- **dosapi.inc**: interrupt vectors, the basic FCB, open modes, MCB, standard handles, error codes, and the other DOS interfaces; three optional sections are enabled by defining DOSFUNC (DOS and utility function numbers), DOSPSP (the PSP, EPB, SPB, and EXE header structures, and COMDATA/COMHEAP for COM files), DOSFCB (the full and extended FCB structures), or DOSFFB (the FFB) before including it
 - **devapi.inc**: device driver headers, attributes, and IOCTL codes
 - **dev.inc**: device driver commands, packets, and error codes
 - **dos.inc**: internal structures (SCB, MCB, SFB, and the register frame)
