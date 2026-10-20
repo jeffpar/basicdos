@@ -25,7 +25,7 @@ The BASIC-DOS boot code also loads **CONFIG.SYS** into memory, so that the syste
 Installable device drivers (using the **DEVICE** keyword) aren't supported yet, but support does exist for the following configuration options:
 
   - **BOOTKEY** (eg, BOOTKEY=D to simulate pressing 'D' at the boot prompt)
-  - **CONSOLE** (eg, CONSOLE=CON:40,25,0,0,1 to create a 40-column console)
+  - **CONSOLE** (eg, CONSOLE=CON:40,25,1 to create a 40-column console with a border)
   - **DEBUG** (eg, DEBUG=COM1:9600,N,8,1 to enable debug messages to COM1)
   - **FILES** (eg, FILES=20 to allocate memory for up to 20 files)
   - **MEMSIZE** (eg, MEMSIZE=32 to limit system memory usage to 32K)
@@ -56,14 +56,11 @@ In BASIC-DOS, support for asynchronous I/O is baked in.  Drivers have a unified 
 
 The Console ("CON") driver is a cornerstone of **SESSIONS**, one of the major features of BASIC-DOS.
 
-BASIC-DOS supports a default of 4 sessions (which you can change with the **SESSIONS** keyword in CONFIG.SYS), and each session can be configured to use a specific portion of the screen and a specific shell.  For example, the following pairs of lines in **CONFIG.SYS**:
+BASIC-DOS supports a default of 4 sessions (which you can change with the **SESSIONS** keyword in CONFIG.SYS), and each session can be configured to use a portion of the screen and a specific shell.  For example, the following lines in **CONFIG.SYS**:
 
-    CONSOLE=CON:40,25,0,0,1
+    CONSOLE=CON:40,25,1
     SHELL=COMMAND.COM
-
-and:
-
-    CONSOLE=CON:40,25,40,0,1
+    CONSOLE=CON:40,25,1
     SHELL=COMMAND.COM
 
 define two 40-column, 25-line sessions that are displayed side-by-side on an 80-column IBM PC monitor, each running their own copy of COMMAND.COM.
@@ -72,20 +69,18 @@ define two 40-column, 25-line sessions that are displayed side-by-side on an 80-
 
 Sessions define a *context* within which one or more DOS programs may run, and the system automatically multitasks between sessions, providing the benefits a multitasking operating system while also supporting the traditional DOS application model.
 
-At the moment, the Console driver is fairly dumb -- it will create contexts with any size and position, without regard for other contexts, so if you define two or more overlapping contexts, expect to see a mess on the screen.
+The Console driver positions contexts automatically, so they never overlap.  The first context starts in the top left corner of the screen, and each one after it starts below the previous one, or if the previous one reached the bottom of the screen, at the top of the screen, to its right.  A context that doesn't fit in the remaining space is made smaller to fit, and once the screen is full, the next context starts on another page of video memory (a CGA has 4 pages, but an MDA has only 1), which is displayed whenever one of its contexts has focus.
 
 Contexts are created by opening the "CON" device with a descriptor, which is a string following the device name and colon; eg:
 
-    CON:40,25,40,0,1,0
+    CON:40,25,1,0
 
-The 6 possible values in a Console descriptor are:
+The 4 possible values in a Console descriptor are:
 
   1. number of columns
   2. number of rows
-  3. starting column
-  4. starting row
-  5. border style (0 for none)
-  6. adapter number (0 for default)
+  3. border style (0 for none)
+  4. adapter number (0 for default)
 
 Context borders exist within the context, which reduces the effective number of rows and columns by 2.  Borders provide a visual delineation of the context, and the width of the border indicates which context has focus (ie, where keys will be delivered).  However, they obviously come at the expense of valuable screen real estate.
 
@@ -93,8 +88,8 @@ The adapter number specifies which monitor to use in a dual-monitor machine. Ada
 
 For example:
 
-    CONSOLE=CON:80,25,0,0,0,0
-    CONSOLE=CON:80,25,0,0,0,1
+    CONSOLE=CON:80,25,0,0
+    CONSOLE=CON:80,25,0,1
 
 defines two full-screen border-less contexts, each assigned to a different monitor.  In this case, the presence of a blinking cursor is your sole visual cue as to which context has focus.
 

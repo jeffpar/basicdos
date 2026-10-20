@@ -28,6 +28,7 @@
         "/software/disks/BASICDOS-360K-S80.json": "BASICDOS-360K-S80",
         "/software/disks/BASICDOS-360K-D40.json": "BASICDOS-360K-D40",
         "/software/disks/BASICDOS-360K-D80.json": "BASICDOS-360K-D80",
+        "/software/disks/BASICDOS-360K-P80.json": "BASICDOS-360K-P80",
         "/software/disks/BASICDOS-360K-DUAL.json": "BASICDOS-360K-DUAL",
         "/software/disks/BASICDOS-360K-MULTI.json": "BASICDOS-360K-MULTI",
         "/software/disks/BASICDOS-360K-SERIAL.json": "BASICDOS-360K-SERIAL",

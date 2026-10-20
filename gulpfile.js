@@ -115,6 +115,7 @@ let disks = {
     "BASICDOS-360K-S80": { config: "./demos/s80/CONFIG.SYS" },
     "BASICDOS-360K-D40": { config: "./demos/d40/CONFIG.SYS" },
     "BASICDOS-360K-D80": { config: "./demos/d80/CONFIG.SYS" },
+    "BASICDOS-360K-P80": { config: "./demos/p80/CONFIG.SYS" },
     "BASICDOS-360K-DUAL": { config: "./demos/dual/CONFIG.SYS" },
     "BASICDOS-360K-MULTI": { config: "./demos/dual/multi/CONFIG.SYS" },
     "BASICDOS-360K-SERIAL": { config: "./demos/serial/CONFIG.SYS" },

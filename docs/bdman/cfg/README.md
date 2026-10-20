@@ -53,7 +53,7 @@ Sets the number of disk buffers, each of which holds one 512-byte sector of a FA
 
 ### CONSOLE
 
-> CONSOLE=CON:*cols*,*rows*[,*x*,*y*[,*border*[,*adapter*]]]  
+> CONSOLE=CON:*cols*,*rows*[,*border*[,*adapter*]]  
 > CONSOLE=CON:*cols*,*rows*,BIOS  
 > CONSOLE=COM*n*:*baud*,*parity*,*databits*,*stopbits*[,*options*]
 
@@ -61,12 +61,13 @@ Defines a console for a session.  Each CONSOLE line defines a console for the ne
 
 For a CON console:
 
-- *cols* and *rows* are the size of the console (up to 80 columns and 25 rows)
-- *x* and *y* are the column and row of the console's top left corner on the screen (default 0,0)
+- *cols* and *rows* are the size of the console (16 to 80 columns and 4 to 25 rows)
 - *border* is 1 to draw a border around the console, or 0 for none; a border uses the outermost rows and columns of the console
 - *adapter* is 0 for the primary video adapter, or 1 for a second adapter (eg, a machine with both an MDA and a CGA)
 
-BIOS (or just B) following *rows* creates a full-screen console that writes characters using the BIOS (INT 10h), rather than directly to video memory.
+BIOS (or just B) following *rows* creates a console that writes characters using the BIOS (INT 10h), rather than directly to video memory.
+
+Consoles are positioned automatically, in the order of their CONSOLE lines.  Each adapter's first console starts at the top left corner of the screen, and each one after it starts below the previous one, or if the previous one reached the bottom of the screen, at the top of the screen, to its right.  A console that doesn't fit in the remaining space is made smaller to fit (but not below the minimum size, or the console isn't created).  Once a screen is full, the next console starts on another page of video memory (a CGA has 4, an MDA only 1), which is displayed whenever one of its consoles has the focus; once every page is full, no more consoles can be created on that adapter.
 
 A COM console uses a serial port (eg, a terminal connected to COM1) for both input and output.  Its *options*, in any order, are:
 
@@ -81,9 +82,16 @@ On any COM console, a BREAK (eg, from a VT100's BREAK key) works like **Ctrl-Bre
 Two consoles side by side, each 40 columns wide with a border:
 
 	SESSIONS=4
-	CONSOLE=CON:40,25,0,0,1
+	CONSOLE=CON:40,25,1
 	SHELL=COMMAND.COM
-	CONSOLE=CON:40,25,40,0,1
+	CONSOLE=CON:40,25,1
+	SHELL=COMMAND.COM
+
+Two full-screen consoles on a CGA, each on its own page:
+
+	CONSOLE=CON:80,25
+	SHELL=COMMAND.COM
+	CONSOLE=CON:80,25
 	SHELL=COMMAND.COM
 
 ### DEBUG

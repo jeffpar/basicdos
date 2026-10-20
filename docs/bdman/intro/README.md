@@ -136,7 +136,7 @@ BASIC-DOS can run several programs at once, each in its own *session*.  A sessio
 
 Press **Shift-Tab** to switch the focus to the next session.
 
-The number of sessions and the size and position of their consoles are defined in CONFIG.SYS (see [CONSOLE=](../cfg/#console) and [SESSIONS=](../cfg/#sessions)).
+The number of sessions and the size of their consoles are defined in CONFIG.SYS (see [CONSOLE=](../cfg/#console) and [SESSIONS=](../cfg/#sessions)).
 
 ### Getting Help
 

@@ -42,7 +42,7 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFLBL	CON_PARMS,word
 	dw	80,16,80, 25,4,25
 	DEFLBL	ZERO,word	; since we have all this constant data, use it
-	dw	0,0,79, 0,0,24, 0,0,1, 0,0,1
+	dw	0,0,1, 0,0,1
 
 	DEFLBL	DBL_BORDER,word
 	dw	0C9BBh,0BABAh,0C8BCh,0CDCDh
@@ -75,14 +75,22 @@ CON	DDH	<offset DEV:ddcon_end+16,,DDATTR_STDIN+DDATTR_STDOUT+DDATTR_OPEN+DDATTR_
 	DEFBYTE	bios_lock,0	; non-zero if BIOS lock in effect
 	DEFBYTE	req_switch,0	; non-zero if a context switch is requested
 	DEFBYTE	adapters,0	; video adapters present (see ADAPTER_*)
+	DEFWORD	bios_ctx,0	; context for our own INT 10h call (see scroll)
+;
+; Where the next context goes on each adapter (primary, then alternate; see
+; ddcon_open): the position (X,Y) of its top left, followed by its page (LO)
+; and the adapter's number of pages (HI), which ddcon_init sets to 1 for an
+; MDA (a CGA has 4 pages of 4K each).
+;
+	DEFWORD	con_place,<0,0400h,0,0400h>
 
 	DEFPTR	kbd_int,0	; original keyboard hardware interrupt handler
 	DEFPTR	video_int,0	; original video services interrupt handler
 	DEFPTR	wait_ptr,-1	; chain of waiting packets
 ;
-; A context of "80,25,0,0,1" requests a border, so logical cursor positions
-; are 1,1 to 78,23.  Physical character and cursor positions will be adjusted
-; by the offset address in CT_SCREEN.
+; A context of "80,25,1" requests a border, so logical cursor positions are
+; 1,1 to 78,23.  Physical character and cursor positions will be adjusted by
+; the offset address in CT_SCREEN.
 ;
 CONTEXT		struc
 CT_NEXT		dw	?	; 00h: segment of next context, 0 if end
@@ -126,6 +134,8 @@ CTO_STATUS	db	?	; 37h: original CTSTAT_BORDER and CTSTAT_INT10
 CTO_DIM		dw	?	; 38h: original columns (LO) and rows (HI)
 CTO_POS		dw	?	; 3Ah: original position (X,Y) of top left
 CT_SCAN		db	?	; 3Ch: pending scan code (see pull_kbd)
+CT_PAGE		db	?	; 3Dh: video page (see get_start)
+CTO_PAGE	db	?	; 3Eh: original video page
 CONTEXT		ends
 SIG_CT		equ	'C'
 
@@ -146,6 +156,7 @@ ADAPTER_CGA	equ	02h	; CGA (port 3D4h) is present
 ;
 CRTC_CURTOP	equ	0Ah	; cursor top (mirrored at CURSOR_MODE.HIB)
 CRTC_CURBOT	equ	0Bh	; cursor bottom (mirrored at CURSOR_MODE.LOB)
+CRTC_STARTHI	equ	0Ch	; display start address (high)
 CRTC_CURHI	equ	0Eh	; cursor start address (high)
 CRTC_CURLO	equ	0Fh	; cursor start address (low)
 
@@ -346,7 +357,7 @@ DEFPROC	ddcon_getchar
 	clc
 	ret
 dgr5:	add	dx,ds:[CT_CONPOS]	; DL = screen col, DH = screen row
-	mov	bh,0			; BH = display page
+	mov	bh,ds:[CT_PAGE]		; BH = display page
 	mov	ah,VIDEO_SETCPOS
 	int	INT_VIDEO
 	mov	ah,08h			; AL = character, AH = attributes
@@ -881,13 +892,16 @@ ENDPROC	ddcon_write
 ;
 ; The format of the optional context descriptor is:
 ;
-;	[device]:[cols],[rows],[x],[y],[border],[adapter]
+;	[device]:[cols],[rows],[border],[adapter]
 ;
 ; where [device] is "CON" (otherwise you wouldn't be here), [cols] is number
-; of columns (up to 80), [rows] is number of rows (up to 25), [x] and [y] are
-; the top-left row and col of the context, [border] is 1 for a border or 0 for
-; none, and [adapter] is the adapter #, in case there is more than one video
-; adapter (adapter 0 is the default).
+; of columns (up to 80), [rows] is number of rows (up to 25), [border] is 1 for
+; a border or 0 for none, and [adapter] is the adapter #, in case there is more
+; than one video adapter (adapter 0 is the default).
+;
+; Each adapter's contexts are placed automatically, starting at the top left
+; of its first page and filling the page downward, then rightward, and then
+; the next page, until the adapter has no pages left (see con_place).
 ;
 ; Alternatively, BIOS (or just B) can follow [rows] (eg, "CON:80,25,BIOS"),
 ; in which case the remaining values are defaulted, and characters are written
@@ -957,10 +971,6 @@ dco1:	push	cs
 	cmp	al,'b'			; BIOS option (eg, "CON:80,25,BIOS")?
 	pushf				; save the result (ZF) for later
 	DOSUTIL	ATOI16
-	mov	dl,al			; DL = starting col
-	DOSUTIL	ATOI16
-	mov	dh,al			; DH = starting row
-	DOSUTIL	ATOI16
 	mov	bh,al			; BH = border (0 for none)
 	ASSERT	CTSTAT_BORDER,EQ,01h
 	DOSUTIL	ATOI16
@@ -977,7 +987,35 @@ dco1z:	pop	ds
 	cmp	[adapters],ADAPTER_MDA OR ADAPTER_CGA
 	stc
 	jne	dco1x			; it isn't present
-dco1w:
+;
+; Place the context at the adapter's next position (see con_place), reducing
+; its size to fit the rest of the page, as long as it's still at least the
+; minimum size (see CON_PARMS).
+;
+dco1w:	mov	al,bh
+	and	ax,CTSTAT_ADAPTER	; AX = 0 or 2
+	shl	ax,1
+	xchg	si,ax			; SI = 0 (primary) or 4 (alternate)
+	mov	ax,con_place[si+2]	; AL = page, AH = # pages
+	cmp	al,ah			; does the adapter have a page left?
+	cmc
+	jc	dco1x			; no
+	mov	bl,al			; BL = page
+	mov	dx,con_place[si]	; DL = x, DH = y
+	mov	al,[max_cols]
+	sub	al,dl			; AL = columns left
+	cmp	cl,al			; are there enough?
+	jbe	dco1t			; yes
+	mov	cl,al			; no, so use what's left
+dco1t:	mov	al,[max_rows]
+	sub	al,dh			; AL = rows left
+	cmp	ch,al			; are there enough?
+	jbe	dco1u			; yes
+	mov	ch,al			; no, so use what's left
+dco1u:	cmp	cl,16			; still at least the minimum columns?
+	jb	dco1x			; no
+	cmp	ch,4			; still at least the minimum rows?
+	jb	dco1x			; no
 
 	push	bx
 	mov	bx,(size CONTEXT + 15) SHR 4
@@ -986,8 +1024,24 @@ dco1w:
 	pop	bx
 	jnc	dco1a
 dco1x:	jmp	dco7
-
-dco1a:	mov	ds,ax
+;
+; Advance the adapter's next position: downward, then rightward, and then to
+; the top left of the next page.
+;
+dco1a:	push	ax
+	mov	ax,dx
+	add	ah,ch			; AH = row below the context
+	cmp	ah,[max_rows]		; at the bottom of the page?
+	jb	dco1b			; no
+	mov	ah,0			; yes, so back to the top
+	add	al,cl			; AL = column right of the context
+	cmp	al,[max_cols]		; at the right edge of the page?
+	jb	dco1b			; no
+	mov	al,0			; yes, so the next page
+	inc	byte ptr con_place[si+2]
+dco1b:	mov	con_place[si],ax
+	pop	ax
+	mov	ds,ax
 	ASSUME	DS:NOTHING
 	DBGINIT	STRUCT,ds:[0],CT
 
@@ -1004,6 +1058,8 @@ dco1a:	mov	ds,ax
 ;
 dco2:	mov	ds:[CT_NEXT],0
 	mov	ds:[CT_SCAN],0
+	mov	ds:[CT_PAGE],bl
+	mov	ds:[CTO_PAGE],bl
 	mov	bl,1			; set CT_REFS to 1 and CT_STATUS to BH
 	mov	word ptr ds:[CT_REFS],bx
 	sub	si,si			; no CURTYPE yet
@@ -1507,7 +1563,11 @@ DEFPROC	ddcon_int10,far
 ;
 	mov	ah,DOS_UTL_LOCK
 	call	far ptr DDINT_UTIL	; ensure EQUIP_FLAG remains stable
-	call	chk_context		; zero AX if the context isn't ours
+	cmp	[bios_ctx],0		; is a specific context requested?
+	je	i10y			; no
+	mov	ax,[bios_ctx]		; yes (see scroll)
+	mov	[bios_ctx],0
+i10y:	call	chk_context		; zero AX if the context isn't ours
 	push	ax			; save the context segment
 	test	ax,ax			; is it valid?
 	jz	i10a			; no
@@ -1945,7 +2005,7 @@ DEFPROC	draw_cursor
 ; move back after a destructive backspace (see draw_char).
 ;
 dcs8:	add	dx,ds:[CT_CONPOS]	; DL = screen col, DH = screen row
-	mov	bh,0			; BH = display page
+	mov	bh,ds:[CT_PAGE]		; BH = display page
 	mov	ah,VIDEO_SETCPOS
 	int	INT_VIDEO
 	ret
@@ -2240,7 +2300,14 @@ scr2:	mov	bh,ds:[CT_COLOR].LOB	; BH = fill attributes
 	jnc	scr3			; no
 	mov	bh,0			; yes, BH = fill pixels (background)
 scr3:	mov	ah,bl
+;
+; This context may not be the session's (eg, a new context being cleared), so
+; tell ddcon_int10 which context to use, with interrupts off until it has.
+;
+	cli
+	mov	[bios_ctx],ds
 	int	INT_VIDEO
+	sti
 	pop	dx
 	pop	cx
 	pop	bx
@@ -2312,6 +2379,37 @@ ENDPROC	show_cursor
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; show_page
+;
+; Displays the context's page, if it has focus and isn't blocked by another
+; context (see chk_blocked).
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, DX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	show_page
+	mov	ax,ds
+	cmp	ax,[ct_focus]		; does the context have focus?
+	jne	sp9			; no
+	call	chk_blocked		; is another context blocking it?
+	jc	sp9			; yes
+	call	get_start		; AX = offset of the context's page
+	shr	ax,1
+	xchg	bx,ax			; BX = start address (in cells)
+	mov	ah,CRTC_STARTHI
+	call	write_crtc16
+sp9:	ret
+ENDPROC	show_page
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; switch_focus
 ;
 ; Switch focus to the next console context in our chain.
@@ -2359,8 +2457,9 @@ sf2:	xchg	cx,[ct_focus]
 	call	draw_border		; redraw the border and hide
 	call	hide_cursor		; the cursor of the outgoing context
 	mov	ds,[ct_focus]
-	call	draw_border		; redraw the border and show
-	call	show_cursor		; the cursor of the incoming context
+	call	show_page		; display the page, redraw the border,
+	call	draw_border		; and show the cursor of the incoming
+	call	show_cursor		; context
 sf8:	pop	es
 	mov	ah,DOS_UTL_UNLOCK
 	call	far ptr DDINT_UTIL	; unlock the current session
@@ -2496,6 +2595,7 @@ rg1:	jcxz	rg3
 	jne	rg2			; no
 	push	ax
 	call	draw_border		; yes, redraw its border (if any)
+	call	show_page		; and display its page (if it has focus)
 	pop	ax
 rg2:	mov	cx,ds:[CT_NEXT]
 	jmp	rg1
@@ -2611,10 +2711,26 @@ DEFPROC	update_biosdata
 	mov	ax,ds:[CT_CURTYPE]
 	xchg	[CURSOR_MODE],ax
 	mov	ds:[CTS_CURTYPE],ax
+;
+; To the BIOS, the context's page is the active page (eg, so that a BIOS
+; scroll affects that page), whether or not it's displayed (see show_page).
+;
+	mov	al,ds:[CT_PAGE]
+	xchg	[ACTIVE_PAGE],al
+	mov	ds:[CTS_PAGE],al
 
+	call	get_start
+	xchg	[CRT_START],ax
+	mov	ds:[CTS_START],ax
+
+	push	bx
+	mov	bl,ds:[CT_PAGE]
+	mov	bh,0
+	add	bx,bx			; BX = page's index in CURSOR_POSN
 	mov	ax,ds:[CT_CURPOS]	; AX = cursor pos within context
 	add	ax,ds:[CT_CONPOS]	; add context pos to get screen pos
-	mov	[CURSOR_POSN],ax
+	mov	CURSOR_POSN[bx],ax
+	pop	bx
 
 	mov	ax,ds:[CT_EQUIP]
 	xchg	[EQUIP_FLAG],ax
@@ -2661,13 +2777,16 @@ DEFPROC	update_mode
 	mov	ch,25			; CX = full screen
 	sub	dx,dx			; DX = top left
 	mov	bh,CTSTAT_INT10		; BH = no border, INT 10h passthrough
+	mov	ah,0			; AH = page 0
 	mov	al,ds:[CT_MODE]
 	cmp	al,ds:[CTO_MODE]	; back to the original mode?
 	jne	um1			; no
 	mov	cx,ds:[CTO_DIM]		; yes, so restore the original geometry
 	mov	dx,ds:[CTO_POS]
 	mov	bh,ds:[CTO_STATUS]
-um1:	mov	al,ds:[CT_STATUS]
+	mov	ah,ds:[CTO_PAGE]
+um1:	mov	ds:[CT_PAGE],ah
+	mov	al,ds:[CT_STATUS]
 	and	al,NOT (CTSTAT_BORDER OR CTSTAT_INT10)
 	or	al,bh
 	mov	ds:[CT_STATUS],al
@@ -2704,6 +2823,7 @@ um7:	mov	ax,1003h
 	mov	ax,0707h
 um8:	mov	ds:[CT_COLOR],ax
 um9:	call	draw_border		; redraw the border, if any
+	call	show_page		; (the BIOS displays page 0)
 	pop	es
 	pop	di
 	pop	si
@@ -2719,13 +2839,13 @@ ENDPROC	update_mode
 ;
 ; Sets the context's dimensions and position, and then determines the cursor
 ; minimums and maximums from the context size, and the offset of the context
-; on the screen.
+; on the screen (within its page).
 ;
 ; Inputs:
 ;	CL = columns, CH = rows
 ;	DL = x, DH = y (of the top left)
 ;	BH = CTSTAT_BORDER bit (set if the context has a border)
-;	DS = CONSOLE context
+;	DS = CONSOLE context (with CT_PAGE set)
 ;
 ; Outputs:
 ;	None
@@ -2750,15 +2870,39 @@ DEFPROC	set_geometry
 	sub	cx,ax
 	sub	cx,ax
 	mov	ds:[CT_CURDIM],cx	; set CT_CURDIM (width and height)
+	call	get_start
+	xchg	cx,ax			; CX = offset of the page
 	mov	al,dh
 	mul	[max_cols]
 	add	ax,ax
 	mov	dh,0
 	add	dx,dx
 	add	ax,dx
+	add	ax,cx
 	mov	ds:[CT_SCREEN].OFF,ax
 	ret
 ENDPROC	set_geometry
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; get_start
+;
+; Inputs:
+;	DS = CONSOLE context
+;
+; Outputs:
+;	AX = offset of the context's page (4K per page)
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	get_start
+	mov	al,16
+	mul	ds:[CT_PAGE]
+	xchg	al,ah			; AX = page * 1000h
+	ret
+ENDPROC	get_start
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -2794,10 +2938,21 @@ DEFPROC	update_context
 	mov	ax,ds:[CTS_PORT]
 	mov	[ADDR_6845],ax
 
+	mov	al,ds:[CTS_PAGE]
+	mov	[ACTIVE_PAGE],al
+
+	mov	ax,ds:[CTS_START]
+	mov	[CRT_START],ax
+
 	; mov	ax,[CURSOR_MODE]	; we don't trust CURSOR_MODE
 	; mov	ds:[CT_CURTYPE],ax	; update_curtype explains why
 
-	mov	ax,[CURSOR_POSN]
+	push	bx
+	mov	bl,ds:[CT_PAGE]
+	mov	bh,0
+	add	bx,bx			; BX = page's index in CURSOR_POSN
+	mov	ax,CURSOR_POSN[bx]
+	pop	bx
 	sub	ax,ds:[CT_CONPOS]
 	mov	ds:[CT_CURPOS],ax
 	pop	es
@@ -3008,7 +3163,7 @@ wcp8:	push	ax
 	push	dx
 	add	dx,ds:[CT_CONPOS]	; DL = screen col, DH = screen row
 	mov	bl,ah			; BL = attributes
-	mov	bh,0			; BH = display page
+	mov	bh,ds:[CT_PAGE]		; BH = display page
 	mov	ah,VIDEO_SETCPOS
 	int	INT_VIDEO
 	mov	al,cl			; AL = character
@@ -3099,11 +3254,14 @@ DEFPROC	ddcon_init,far
 ; and what the frame buffer segment is.
 ;
 	mov	dx,0B000h
+	mov	si,offset con_place+3	; SI -> # pages of the primary adapter
 	and	ax,EQ_VIDEO_MODE
 	cmp	ax,EQ_VIDEO_MONO
 	je	ddn1
 	mov	dx,0B800h
+	add	si,4			; SI -> # pages of the alternate adapter
 ddn1:	mov	[frame_seg],dx
+	mov	byte ptr cs:[si],1	; an MDA has only one page
 ;
 ; Record which adapters are present (see ADAPTER_*), by writing a test value
 ; to each adapter's cursor position (low) register, which is readable, and
