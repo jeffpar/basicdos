@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS on an IBM PC AT with Three Full-Screen Sessions and Debugger
+title: BASIC-DOS on an IBM PC AT with Multiple Video Pages and Debugger
 permalink: /demos/p80/at/debugger/
 machines:
   - id: ibm5170

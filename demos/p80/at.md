@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS on an IBM PC AT with Three Full-Screen Sessions
+title: BASIC-DOS on an IBM PC AT with Multiple Video Pages
 permalink: /demos/p80/at/
 machines:
   - id: ibm5170
@@ -12,7 +12,7 @@ machines:
       B: "PC DOS 2.00 (Disk 1)"
 ---
 
-The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 640K of memory, a Color Display, two 1.2Mb diskette drives, and a 10Mb hard disk.  It boots the BASICDOS-360K-P80 diskette and runs three full-screen sessions, each on its own page of video memory; use **SHIFT-TAB** to switch between them.  Since the machine has a hard disk, the boot sector first displays `Press a key to start...`; press any key (or wait 5 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.  Unlike the PC and PC XT, the PC AT has a battery-powered real-time clock, so BASIC-DOS starts with the current date and time (type `DATE` or `TIME` to see them).
+The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 640K of memory, a Color Display, two 1.2Mb diskette drives, and a 10Mb hard disk.  It boots the BASICDOS-360K-P80 diskette and runs Multiple Video Pages, each on its own page of video memory; use **SHIFT-TAB** to switch between them.  Since the machine has a hard disk, the boot sector first displays `Press a key to start...`; press any key (or wait 5 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.  Unlike the PC and PC XT, the PC AT has a battery-powered real-time clock, so BASIC-DOS starts with the current date and time (type `DATE` or `TIME` to see them).
 
 {% include machine.html id="ibm5170" %}
 

@@ -1,4 +1,4 @@
-REM Demonstration of three full-screen sessions, on video pages 0, 1, and 2
+REM Demonstration of Multiple Video Pages, on video pages 0, 1, and 2
 FILES=8
 BUFFERS=4
 CONSOLE=CON:80,25

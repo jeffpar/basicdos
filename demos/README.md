@@ -12,7 +12,7 @@ Each BASIC-DOS demo runs on up to four generations of PC hardware: the original 
 | 2. Color (with FPU) | [128K, CGA, 8087](s80/pc/) | [640K, CGA, 8087](s80/xt/) | [640K, CGA, 80287](s80/at/) | [1Mb, VGA, 80387](s80/386/) |
 | 3. 40-Column Split | [128K, CGA](d40/pc/) | [640K, CGA](d40/xt/) | [640K, CGA](d40/at/) | [1Mb, VGA](d40/386/) |
 | 4. 80-Column Split | [128K, CGA](d80/pc/) | [640K, CGA](d80/xt/) | [640K, CGA](d80/at/) | [1Mb, VGA](d80/386/) |
-| 5. 80-Column Pages | [128K, CGA](p80/pc/) | [640K, CGA](p80/xt/) | [640K, CGA](p80/at/) | [1Mb, VGA](p80/386/) |
+| 5. Multiple Video Pages | [128K, CGA](p80/pc/) | [640K, CGA](p80/xt/) | [640K, CGA](p80/at/) | [1Mb, VGA](p80/386/) |
 | 6. Dual Monitors | [128K, MDA, CGA](dual/pc/) | [640K, MDA, CGA](dual/xt/) | [640K, MDA, CGA](dual/at/) | [1Mb, MDA, CGA](dual/386/) |
 | 7. Serial Mouse | [256K, CGA, Mouse](mouse/pc/) | [640K, CGA, Mouse](mouse/xt/) | [640K, CGA, Mouse](mouse/at/) | [1Mb, VGA, Mouse](mouse/386/) |
 | 8. Serial Debugger | [256K, CGA, VT100](debug/pc/) | [640K, CGA, VT100](debug/xt/) | [640K, CGA, VT100](debug/at/) | [1Mb, VGA, VT100](debug/386/) |

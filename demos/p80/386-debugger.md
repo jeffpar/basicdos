@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS on a COMPAQ DeskPro 386 with Three Full-Screen Sessions and Debugger
+title: BASIC-DOS on a COMPAQ DeskPro 386 with Multiple Video Pages and Debugger
 permalink: /demos/p80/386/debugger/
 machines:
   - id: deskpro386

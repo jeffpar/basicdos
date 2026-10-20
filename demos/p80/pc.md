@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS on an IBM PC with Three Full-Screen Sessions
+title: BASIC-DOS on an IBM PC with Multiple Video Pages
 permalink: /demos/p80/pc/
 machines:
   - id: ibm5150
@@ -12,7 +12,7 @@ machines:
       B: "PC DOS 2.00 (Disk 1)"
 ---
 
-The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 128K of memory, a Color Display, and two diskette drives.  It boots the BASICDOS-360K-P80 diskette and runs three full-screen sessions, each on its own page of video memory; use **SHIFT-TAB** to switch between them.
+The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 128K of memory, a Color Display, and two diskette drives.  It boots the BASICDOS-360K-P80 diskette and runs Multiple Video Pages, each on its own page of video memory; use **SHIFT-TAB** to switch between them.
 
 {% include machine.html id="ibm5150" %}
 

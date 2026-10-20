@@ -1,6 +1,6 @@
 ---
 layout: page
-title: BASIC-DOS on an IBM PC XT with Three Full-Screen Sessions and Debugger
+title: BASIC-DOS on an IBM PC XT with Multiple Video Pages and Debugger
 permalink: /demos/p80/xt/debugger/
 machines:
   - id: ibm5160
