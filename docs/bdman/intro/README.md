@@ -99,7 +99,7 @@ If the program isn't in the current directory, and its name doesn't include a dr
 - **SAMPLES** contains the PC DOS BASIC samples (eg, DONKEY.BAS)
 - **DEMOS** contains the programs that the demos run (eg, HELLO.BAT, FIBO.BAT, and PRIMES.BAS)
 
-and its CONFIG.SYS sets PATH$ to the root, BIN, SAMPLES, and DEMOS (eg, `A:\;A:\BIN;A:\SAMPLES;A:\DEMOS`), so you can type `PRIMES` or `DIR | SORT` from any directory.
+and its CONFIG.SYS sets PATH$ to the root, BIN, DEMOS, and SAMPLES (eg, `A:\;A:\BIN;A:\DEMOS;A:\SAMPLES`), so you can type `PRIMES` or `DIR | SORT` from any directory.
 
 Test programs are on a separate diskette, BASICDOS-360K-TESTS, in its **TESTS\MISC** directory (eg, DOSTESTS.COM; MISC.BAT in **TESTS** runs them all), with MSBASIC.EXE and SYMDEB.EXE in its **TOOLS** directory; load it in drive B: and type (for example) `B:\TOOLS\MSBASIC`, or `B:`, `CD \TESTS`, and `MISC`.
 

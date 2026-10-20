@@ -140,9 +140,9 @@ Sessions are used not only by consoles, but also by [pipes](../intro/#pipes-and-
 
 Specifies the program to run in the next session, along with any startup commands.  Each SHELL line starts a session, using the consoles defined by CONSOLE lines in order.  If there are no SHELL lines, COMMAND.COM is run in the first session.  A SHELL line without a console of its own is reported as an error (101) and skipped.  A session starts on the drive specified by its *program* (eg, `SHELL=C:/COMMAND.COM` starts on drive C:), or else on the boot drive.
 
-BASIC-DOS doesn't automatically run an AUTOEXEC.BAT file, so a session's startup commands must be specified on its SHELL line, separated by colons.  Every BASIC-DOS disk's CONFIG.SYS also sets [PATH$](../cmd/basic/func/#path) on each SHELL line, so that every session can find the programs in the BIN, SAMPLES, and DEMOS directories:
+BASIC-DOS doesn't automatically run an AUTOEXEC.BAT file, so a session's startup commands must be specified on its SHELL line, separated by colons.  Every BASIC-DOS disk's CONFIG.SYS also sets [PATH$](../cmd/basic/func/#path) on each SHELL line, so that every session can find the programs in the BIN, DEMOS, and SAMPLES directories:
 
-	SHELL=COMMAND.COM PATH$="A:\;A:\BIN;A:\SAMPLES;A:\DEMOS":COLOR 7,1:AUTOEXEC.BAT
+	SHELL=COMMAND.COM PATH$="A:\;A:\BIN;A:\DEMOS;A:\SAMPLES":COLOR 7,1:AUTOEXEC.BAT
 
 ### SKIP
 
