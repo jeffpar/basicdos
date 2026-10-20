@@ -375,7 +375,16 @@ dio0e:	jmp	dio11
 ; the open handle still reserves the port (see chk_devopen), and with no
 ; context, our interrupt handler won't touch the port.
 ;
-dio0c:	mov	dx,ds:[CT_PORT]
+; First, wait for our interrupt handler to transmit anything still buffered
+; (eg, the VT100_WRAP sequence that ddcom_open queued); otherwise, the rest of
+; a partially sent sequence would be lost, and the caller's first output
+; would complete it.
+;
+dio0c:	sti
+	mov	si,offset CT_OUTPUT
+dio0f:	call	peek_buffer		; anything left to transmit?
+	jnz	dio0f			; yes
+	mov	dx,ds:[CT_PORT]
 	inc	dx			; DX -> REG_IER (DLAB is clear)
 	sub	al,al
 	out	dx,al
