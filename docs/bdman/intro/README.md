@@ -13,7 +13,7 @@ Insert a BASIC-DOS diskette in drive A: of an IBM PC and turn the machine on.  I
 	BASIC-DOS 2.00
 	Press a key to start...
 
-Press any key (or wait 5 seconds) to start BASIC-DOS, or press **Esc** to boot from the hard disk instead.  The following messages should then appear on your screen:
+Press any key (or wait 5 seconds) to start BASIC-DOS, or press **Esc** to boot from the hard disk instead.  Pressing `-` also makes `-` the switch character (see [SWITCHAR=](../cfg/#switchar)).  The following messages should then appear on your screen:
 
 	BASIC-DOS 2.00
 	Copyright (c) PCJS.ORG 1981-2026
@@ -101,7 +101,7 @@ If the program isn't in the current directory, and its name doesn't include a dr
 
 and its CONFIG.SYS sets PATH$ to the root, BIN, DEMOS, and SAMPLES (eg, `A:\;A:\BIN;A:\DEMOS;A:\SAMPLES`), so you can type `PRIMES` or `DIR | SORT` from any directory.
 
-Test programs are on a separate diskette, BASIC-DOS Tests, in its **TESTS\MISC** directory (eg, DOSTESTS.COM; MISC.BAT in **TESTS** runs them all), with MSBASIC.EXE and SYMDEB.EXE in its **TOOLS** directory; load it in drive B: and type (for example) `B:\TOOLS\MSBASIC`, or `B:`, `CD \TESTS`, and `MISC`.
+Test programs are on a separate diskette, BASIC-DOS Tests, in its **TESTS\MISC** directory (eg, DOSTESTS.COM; MISC.BAT in **TESTS** runs them all), with MSBASIC.EXE and SYMDEB.EXE in its **TOOLS** directory; load it in drive B: and type (for example) `B:\TOOLS\MSBASIC`, or `B:`, `CD \TESTS`, and `MISC`.  Most of the tests can run while other sessions are busy, but HARDERR skips its tests if any other session is running a program (its disk hook would affect them).
 
 The [hard disk demo](/demos/hd/at/) adds three more directories: **TESTS** (the same tests as the BASIC-DOS Tests diskette), **SRC** (the BASIC-DOS source code), and **TOOLS** (MASM and the other build tools, plus MSBASIC.EXE and SYMDEB.EXE).
 

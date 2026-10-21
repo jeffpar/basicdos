@@ -38,12 +38,13 @@ The recognized keywords are:
 - [SESSIONS](#sessions)
 - [SHELL](#shell)
 - [SKIP](#skip)
+- [SWITCHAR](#switchar)
 
 ### BOOTKEY
 
 > BOOTKEY=*key*
 
-Acts as if *key* had been pressed at the BASIC-DOS boot prompt.  This is a debugging aid: DEBUG builds of BASIC-DOS use the boot key to enable additional diagnostic messages.  It has no effect if a key other than **Enter** was actually pressed.
+Acts as if *key* had been pressed at the BASIC-DOS boot prompt.  This is a debugging aid: DEBUG builds of BASIC-DOS use the boot key to enable additional diagnostic messages (see [Boot Keys](../../bdtech/arch/#boot-keys)).  It has no effect if a key other than **Enter** was actually pressed.  A `-` pressed at the boot prompt acts like [SWITCHAR=-](#switchar), but `BOOTKEY=-` doesn't (use SWITCHAR instead).
 
 ### BUFFERS
 
@@ -166,7 +167,15 @@ For example, a configuration that uses a serial console doesn't need the CON dri
 
 Changes the character that separates directory names in paths from `\` (the default, as in PC DOS) to `/` (eg, `PATHCHAR=/`, so that `CD /BIN` is used instead of `CD \BIN`).  Only `\` and `/` are allowed; any other character is ignored.
 
-Since the path character can't also be the switch character (which introduces command options), `PATHCHAR=/` also changes the switch character from `/` (the default, as in PC DOS) to `-` (eg, `TIME -P` instead of `TIME /P`).  A `-` begins a switch only at the start of an argument, so that it can also appear inside arguments (eg, `TYPE MY-FILE.TXT`).  Both characters remain fixed after boot.
+Since the path character can't also be the switch character (which introduces command options), `PATHCHAR=/` also changes the switch character from `/` (the default, as in PC DOS) to `-` (eg, `TIME -P` instead of `TIME /P`).  Both characters remain fixed after boot.
+
+### SWITCHAR
+
+> SWITCHAR=*char*
+
+Changes the character that introduces command options (switches) from `/` (the default, as in PC DOS) to `-` (eg, `SWITCHAR=-`, so that `TIME -P` is used instead of `TIME /P`).  Only `-` and `/` are allowed; any other character is ignored.  The switch character can't also be the path character (see [PATHCHAR](#pathchar)), so if it is (eg, `SWITCHAR=/` with `PATHCHAR=/`), a warning is displayed at boot, and the switch character is left unchanged.  Pressing `-` at the boot prompt (which appears when booting from a diskette on a machine with a hard disk) has the same effect as `SWITCHAR=-`.  The switch character remains fixed after boot.
+
+A `-` begins a switch only at the start of an argument, so that it can also appear inside arguments (eg, `TYPE MY-FILE.TXT`).
 
 ### Sample Configuration
 

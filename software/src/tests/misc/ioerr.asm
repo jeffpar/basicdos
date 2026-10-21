@@ -37,6 +37,8 @@ DEFPROC	main
 	mov	al,es:[8]
 	mov	[command],al
 	mov	[vi_program],al
+	DOSUTIL	GETCSN			; CL = our session # (see dos_hook)
+	mov	[session],cl
 	mov	ax,(DOS_MSC_GETVEC SHL 8) OR 21h
 	int	21h
 	mov	[old_dos].OFF,bx
@@ -151,7 +153,20 @@ ENDPROC	run
 ; 5 = close error.  Close really closes the handle before returning the
 ; simulated commit error, as BASIC-DOS does for an actual commit failure.
 ;
+; INT 21h is shared by every session, so calls from other sessions (eg, one
+; running STRESS) go straight to DOS; otherwise, their handles and input could
+; trigger our faults and consume our keys.
+;
 DEFPROC	dos_hook,far
+	push	ax
+	push	cx
+	DOSUTIL	GETCSN			; CL = current session #
+	cmp	cl,cs:[session]		; is it our session?
+	pop	cx
+	pop	ax
+	je	h0
+	jmp	h_forward		; no
+h0:
 	cmp	ah,DOS_HDL_IOCTL		; test-only control requests?
 	jne	h1
 	cmp	al,0F0h			; arm a fault on the supplied file handle?
@@ -275,6 +290,7 @@ ENDPROC	print
 old_dos		dd	0
 fault_handle	dw	0
 fault_mode	db	0
+session		db	0
 basic_result	db	0FFh
 arms		db	0
 hits		db	0

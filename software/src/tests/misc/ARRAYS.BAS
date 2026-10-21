@@ -1,6 +1,6 @@
 10 REM ARRAYS.BAS: BASIC-DOS array tests (prints "failed" on error)
 20 DEFINT A-Z
-30 F0 = FRE(0)
+30 F0 = FRE(-1)
 40 DIM A(10), D#(5), S$(20), M(3,4), T(2,3,4)
 50 IF A(0) <> 0 OR A(10) <> 0 OR D#(5) <> 0 OR S$(20) <> "" THEN PRINT "default values failed" : FAILS = FAILS + 1
 60 I = 0
@@ -47,6 +47,6 @@
 470 OPTION BASE 1 : DIM Z(3) : Z(1) = 1 : Z(3) = 3
 480 IF Z(1) + Z(3) <> 4 THEN PRINT "OPTION BASE failed" : FAILS = FAILS + 1
 490 ERASE Z : OPTION BASE 0
-500 F1 = FRE(0)
-510 IF F1 <> F0 THEN PRINT "leak check failed:"; F0 - F1 : FAILS = FAILS + 1
+500 F1 = FRE(-1)
+510 IF F1 <> F0 THEN PRINT "leak check failed:"; F1 - F0 : FAILS = FAILS + 1
 520 IF FAILS THEN PRINT "ARRAYS failed" ELSE PRINT "ARRAYS passed"

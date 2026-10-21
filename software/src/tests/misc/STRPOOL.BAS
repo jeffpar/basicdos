@@ -1,6 +1,6 @@
 10 REM STRPOOL.BAS: BASIC-DOS string pool tests (prints "failed" on error)
 20 DEFINT A-Z
-30 F0 = FRE(0)
+30 F0 = FRE(-1)
 40 P$ = "" : I = 0
 50 P$ = P$ + CHR$(33 + (I * 7) MOD 90) : I = I + 1 : IF I < 255 THEN GOTO 50
 60 S0 = 1 : L0 = 0
@@ -54,6 +54,6 @@
 540 IF V9$ <> MID$(P$, S9, L9) THEN PRINT "final check failed"; 9 : FAILS = FAILS + 1
 550 V0$ = "" : V1$ = "" : V2$ = "" : V3$ = "" : V4$ = "" : V5$ = "" : V6$ = "" : V7$ = "" : V8$ = "" : V9$ = ""
 560 G$ = "" : X$ = "" : P$ = ""
-570 F1 = FRE(0)
-580 IF F1 <> F0 THEN PRINT "leak check failed:"; F0 - F1 : FAILS = FAILS + 1
+570 F1 = FRE(-1)
+580 IF F1 <> F0 THEN PRINT "leak check failed:"; F1 - F0 : FAILS = FAILS + 1
 590 IF FAILS THEN PRINT "STRPOOL failed" ELSE PRINT "STRPOOL passed"

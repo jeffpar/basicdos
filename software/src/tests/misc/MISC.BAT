@@ -27,9 +27,11 @@ CD \TESTS\MISC
 FCBTESTS
 IF ERRORLEVEL THEN PRINT "FCBTESTS failed"
 REM HARDERR needs an empty drive B:, and its last test aborts it (exit 255)
+REM (it exits with 0 instead if other sessions are running, since its disk
+REM hook would affect them)
 IF D$ = "B" THEN PRINT "HARDERR skipped (drive B: must be empty)" : GOTO 20
 HARDERR
-IF ERRORLEVEL <> 255 THEN PRINT "HARDERR abort failed"
+IF ERRORLEVEL AND ERRORLEVEL <> 255 THEN PRINT "HARDERR abort failed"
 20	IOERR.COM
 IF ERRORLEVEL THEN PRINT "IOERR failed"
 PRINTF

@@ -23,7 +23,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] Boot sector that loads the BASIC-DOS drivers, kernel, and interpreter
 - [x] Boot prompt when a hard disk is detected (press **Esc** within 5 seconds to boot from it)
 - [x] Booting BASIC-DOS from a hard disk partition (eg, a disk built with `pc.js --sys=bd:2`), which becomes the default drive
-- [x] CONFIG.SYS support for BOOTKEY, BUFFERS, CONSOLE, DEBUG, DEVICE, FILES, MEMSIZE, PATHCHAR, SESSIONS, SHELL, and SKIP
+- [x] CONFIG.SYS support for BOOTKEY, BUFFERS, CONSOLE, DEBUG, DEVICE, FILES, MEMSIZE, PATHCHAR, SESSIONS, SHELL, SKIP, and SWITCHAR
 - [x] SKIP= lists built-in drivers (by their exact device names, separated by commas) that should not be loaded (eg, `SKIP=CON,FPU$`); a skipped driver is never initialized, and its memory is reclaimed
 - [x] Installable device drivers (DEVICE=)
 - [x] Critical ("hard") error handling: block device errors go to the session's INT 24h handler (called on a DOS stack, with PC DOS inputs and responses), and the default handler displays the traditional "Abort, Retry, Ignore, Fail?" prompt (see [Critical Errors](docs/bdtech/dos/#critical-errors))
@@ -79,7 +79,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 
 - [x] CD (CHDIR), COPY, DATE, DEL, DIR, EXIT, HELP, KEYS, MD (MKDIR), MEM, RD (RMDIR), RESTART, TIME, TYPE, and VER
 - [x] DIR listings begin with the volume label and the directory's full path, as in DOS 2.x (FFIRST with attribute 08h finds only the volume label, and GETCWD with DL = FFh returns the path of the directory FFIRST searched)
-- [x] The prompt displays the current drive and directory (eg, `C:\SUBDIR>`), and switches use `/` (eg, `TIME /P`), as in PC DOS, unless PATHCHAR is `/`, in which case they use `-`
+- [x] The prompt displays the current drive and directory (eg, `C:\SUBDIR>`), and switches use `/` (eg, `TIME /P`), as in PC DOS, unless SWITCHAR is `-` or PATHCHAR is `/`, in which case they use `-`
 - [x] Running COM, EXE, BAT, and BAS files, and loading programs into other sessions
 - [x] BAT and BAS files can run other BAT and BAS files and then continue (no CALL command required); a nested BAS file gets its own variables
 - [x] Pipes (`|`) and output redirection (`>` creates or truncates the output file, `>>` appends to it), including redirection at the end of a pipeline (eg, `DIR | SORT > TEST`)

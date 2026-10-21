@@ -177,7 +177,7 @@ FORMAT *d*: [~S] [~1] [~8]
 Formats the diskette or hard disk volume in drive *d*.  ~S copies the system files from the current drive (making *d* bootable), ~1 formats one side of a diskette, and ~8 formats 8 sectors per track (for PC DOS 1.x).
 
 FRE(*x*)
-Compacts string memory and returns the number of bytes available.  The argument is ignored.
+Compacts string memory and returns the number of bytes available, or if *x* is negative (eg, FRE(-1)), the number of bytes owned by this session, which other sessions can't change.
 
 GET (*x1*,*y1*)-(*x2*,*y2*),*array* or GET [#]*n*[,*record*]
 Stores the pixels of the specified rectangle in an integer *array*, in the same format as MSBASIC (see PUT).

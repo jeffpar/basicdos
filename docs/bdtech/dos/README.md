@@ -137,7 +137,7 @@ An FCB opens a file read-only, so any number of FCBs (and handles opened for rea
 | 3700h | DOS_MSC_GETSWC | | DL = switch character |
 | 3704h | DOS_MSC_GETPCH | | DL = path character (BASIC-DOS only; fixed at boot, so programs need to get it only once) |
 
-The path character is set at boot by CONFIG.SYS's PATHCHAR setting (`\` by default, or `/`), which also determines the switch character: `/` by default, or `-` with `PATHCHAR=/`, so the two are never the same.  Both are fixed at boot; unlike PC DOS, BASIC-DOS doesn't support AX = 3701h (set switch character), so PATHCHAR is the only way to change them.
+The path character is set at boot by CONFIG.SYS's PATHCHAR setting (`\` by default, or `/`), which also determines the default switch character: `/`, or `-` with `PATHCHAR=/`.  CONFIG.SYS's SWITCHAR setting (`-` or `/`), or a `-` boot key, can also change the switch character, but never to the path character, so the two are never the same.  Both are fixed at boot; unlike PC DOS, BASIC-DOS doesn't support AX = 3701h (set switch character), so CONFIG.SYS (or the boot key) is the only way to change them.
 | 52h | DOS_MSC_GETVARS | | ES:BX -> [DOSVARS](../data/#dosvars) |
 
 ### Differences from PC DOS

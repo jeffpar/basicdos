@@ -192,7 +192,8 @@ si2c:
 ; The path character defaults to '\' and the switch character to '/', but
 ; PATHCHAR=/ changes the path character to '/' and therefore the switch
 ; character to '-', so that they never conflict.  Any other setting (which
-; should be PATHCHAR=\, the default) is ignored.
+; should be PATHCHAR=\, the default) is ignored.  SWITCHAR is checked later,
+; once a console is open for reporting a conflict.
 ;
 	mov	si,offset CFG_PATHCHAR
 	call	find_cfg		; look for "PATHCHAR="
@@ -617,6 +618,30 @@ si9b:
 	jmp	open_error
 	mov	es:[bx].SCB_SFHPRN,al	; AL = SFH
 	mov	ch,al			; CH = SFH for PRN
+;
+; SWITCHAR=- (or /) changes the switch character, unless it's the same as
+; the path character (eg, SWITCHAR=/ with PATHCHAR=/), in which case we
+; report the conflict and leave the switch character alone.  Any other
+; setting is ignored.  A '-' boot key acts like SWITCHAR=- (which never
+; conflicts), so that it can be chosen at the boot prompt.
+;
+	mov	al,'-'
+	cmp	byte ptr es:[key_boot],al; was the boot key '-'?
+	je	si9c			; yes
+	mov	si,offset CFG_SWITCHAR
+	call	find_cfg		; look for "SWITCHAR="
+	jc	si9e
+	mov	al,[di]
+	cmp	al,es:[def_pathchar]	; same as the path character?
+	je	si9d			; yes
+	cmp	al,'-'
+	je	si9c
+	cmp	al,'/'
+	jne	si9e
+si9c:	mov	es:[def_swchar],al	; update the default for all SCBs
+	jmp	short si9e
+si9d:	PRINTF	<"Warning: SWITCHAR conflicts with PATHCHAR",13,10>
+si9e:
 ;
 ; Now that a console is open (for reporting errors), load any DEVICE= drivers,
 ; before opening any other consoles (which can't use devices they've reserved).
@@ -1099,6 +1124,7 @@ CFG_SESSIONS	db	9,"SESSIONS="
 		dw	4,1,32		; TODO: Decide if 32 session limit OK
 CFG_SHELL	db	6,"SHELL="
 CFG_PATHCHAR	db	9,"PATHCHAR="
+CFG_SWITCHAR	db	9,"SWITCHAR="
 
 AUX_DEVICE	db	"AUX",0
 PRN_DEVICE	db	"PRN",0

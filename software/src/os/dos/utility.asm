@@ -678,8 +678,8 @@ tc3f:	cmp	al,[bp].TMP_BL		; switch char?
 	je	tc3c			; yes
 ;
 ; A switch char that follows other characters (eg, "TIME/P") starts a new
-; token only if it's '/', since the other switch char ('-', with PATHCHAR=/)
-; may appear in arguments (eg, "MY-FILE.TXT" or "DATE 10-07-26").
+; token only if it's '/', since the other switch char ('-'; see SWITCHAR
+; and PATHCHAR) may appear in arguments (eg, "MY-FILE.TXT" or "DATE 10-07-26").
 ;
 	cmp	al,'/'
 	jne	tc3c

@@ -310,7 +310,7 @@ Returns the number of the last error (see [ON ERROR](../#on-error)).
 
 > FRE(*x*)
 
-Compacts string memory and returns the number of bytes available.  The argument is ignored.
+Compacts string memory and returns the number of bytes available, or if *x* is negative (eg, `FRE(-1)`), the number of bytes of memory owned by the current session (its command processor's memory blocks, including its program, variables, and strings).  Other sessions can't change that amount, so it's useful for checking for memory leaks while other sessions are running.
 
 #### INKEY$ {#inkey}
 

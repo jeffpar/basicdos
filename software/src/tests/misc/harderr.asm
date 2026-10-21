@@ -70,9 +70,29 @@ CODE    SEGMENT
 ; "HARDERR passed" is printed before the ABORT test, so a BAT file (or script)
 ; should check for both that message and ERRORLEVEL 255.
 ;
+; The INT 13h hook can't tell our disk requests from those of other sessions,
+; and the disk buffers are shared, so if any other session has a program (eg,
+; one running STRESS), we print "HARDERR skipped" and exit with code 0 rather
+; than disturb its disk.
+;
 DEFPROC	main
 	cld
-	mov	dx,offset starting
+	DOSUTIL	GETCSN			; CL = our session #
+	mov	dl,cl
+	sub	cx,cx			; CL = session # (from 0)
+m0:	DOSUTIL	QRYSCB			; AX = session's PSP (zero if none)
+	jc	m1			; no more sessions
+	cmp	cl,dl			; is it our session?
+	je	m0a			; yes
+	test	ax,ax			; does it have a program?
+	jnz	m0b			; yes
+m0a:	inc	cx
+	jmp	m0
+m0b:	mov	dx,offset skipped
+	call	print
+	mov	ax,DOS_PSP_RETURN SHL 8
+	int	21h
+m1:	mov	dx,offset starting
 	call	print
 	mov	dx,offset handler
 	mov	ax,(DOS_MSC_SETVEC SHL 8) OR INT_DOSERROR
@@ -954,6 +974,7 @@ starting	db	"HARDERR starting",13,10,'$'
 passed		db	"HARDERR passed",13,10,'$'
 failed		db	"HARDERR failed",13,10,'$'
 abortfail	db	"HARDERR abort failed",13,10,'$'
+skipped		db	"HARDERR skipped (other sessions are running)",13,10,'$'
 old_disk	dd	0
 rwhandle	dw	0
 hooked		db	0

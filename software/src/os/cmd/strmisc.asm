@@ -263,7 +263,9 @@ ENDPROC	put2Digits
 ; strFre (FRE)
 ;
 ; Compacts the string pool and then returns the amount of free memory, in
-; bytes.  The argument is ignored.
+; bytes, or if the argument is negative (eg, FRE(-1)), the amount of memory
+; owned by this session (ie, by our PSP), which other sessions can't change
+; (eg, for leak checks while other sessions are running).
 ;
 ; Inputs:
 ;	32-bit return value
@@ -278,16 +280,26 @@ ENDPROC	put2Digits
 DEFPROC	strFre,FAR
 	RETVAR	retFre,dword
 	ARGVAR	freArg,dword
+	LOCVAR	freOwner,word
 	ENTER
 	push	ds
 	call	compactStrs
+	sub	ax,ax			; AX = owner of free blocks
+	cmp	[freArg].HIW,0		; negative argument?
+	jge	fr0			; no
+	mov	ah,DOS_PSP_GET
+	int	21h
+	xchg	ax,bx			; AX = owner of our blocks
+fr0:	mov	[freOwner],ax
 	sub	cx,cx			; CX = memory block #
-	sub	si,si			; SI = free paragraphs
-fr1:	mov	dl,1			; DL = 1 (free blocks only)
-	DOSUTIL	QRYMEM
+	sub	si,si			; SI = total paragraphs
+fr1:	mov	dl,0			; DL = 0 (any block)
+	DOSUTIL	QRYMEM			; AX = owner, DX = paragraphs
 	jc	fr8
+	cmp	ax,[freOwner]		; one of the blocks to total?
+	jne	fr2			; no
 	add	si,dx
-	inc	cx
+fr2:	inc	cx
 	jmp	fr1
 fr8:	xchg	ax,si
 	mov	cx,16

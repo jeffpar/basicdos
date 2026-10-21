@@ -522,8 +522,8 @@ ENDPROC	msc_getvec
 ; msc_getswc (REG_AH = 37h)
 ;
 ; Get the switch character or the path character.  Both are chosen at boot
-; (by CONFIG.SYS's PATHCHAR setting, which also determines the switch char;
-; see sysinit) and can't be changed, so programs need to get them only once.
+; (by CONFIG.SYS's PATHCHAR and SWITCHAR settings; see sysinit) and can't be
+; changed, so programs need to get them only once.
 ;
 ; Inputs:
 ;	If REG_AL = 0, returns the switch character in REG_DL

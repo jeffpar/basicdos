@@ -1241,6 +1241,7 @@
     "STRLEN",
     "strlib",
     "STRMISC",
+    "STRPOOL",
     "Strs",
     "STRSTR",
     "STRTESTS",
