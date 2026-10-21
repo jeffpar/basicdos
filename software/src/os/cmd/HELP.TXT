@@ -87,6 +87,9 @@ If D or Y are omitted, current values are assumed.
 DATE$
 Returns the current date as a string in the form MM-DD-YYYY.
 
+DEBUG [*program* [*arguments*]] or DEBUG ~*command*
+Loads *program* (a full filename) without starting it, displays its registers, and accepts debugger commands (type ? to list them, G to run, and Q to quit).  The DB, DW, and DM commands can also be switches, which DEBUG performs before exiting (eg, DEBUG ~DB 40:0 or DEBUG ~DM).
+
 DEF *function*(*parms*)[=expression]
 Defines a function expression or function block.  Function expressions must fit on a single line and can be defined at any time.
 Function blocks may contain multiple lines and must end with a RETURN command.  The function name does not need to begin with FN.
@@ -169,6 +172,9 @@ Returns *x* truncated to an integer (eg, FIX(-2.5) is -2).  See also INT.
 FOR *variable*=*start* TO *limit* [STEP *step*]
 Executes the lines up to the matching NEXT repeatedly, adding *step* (default 1) to the *variable* each time, until it passes the *limit*.
 If the *start* is already past the *limit*, the lines are skipped.
+
+FORMAT *d*: [~S] [~1] [~8]
+Formats the diskette or hard disk volume in drive *d*.  ~S copies the system files from the current drive (making *d* bootable), ~1 formats one side of a diskette, and ~8 formats 8 sectors per track (for PC DOS 1.x).
 
 FRE(*x*)
 Compacts string memory and returns the number of bytes available.  The argument is ignored.
@@ -293,6 +299,9 @@ Returns a 2-byte string containing the integer *n* (see CVI), for a random acces
 
 MKL$(*n*)
 Returns a 4-byte string containing the integer *n* (see CVL), for a random access file.
+
+MODE 40|80|BW40|BW80|CO40|CO80|COM*n*:*settings*|LPT*n*:[*cols*][,*lines*]
+Sets the display's columns (BW or CO also turns color off or on), a serial port's *settings* (*baud*[,*parity*[,*data*[,*stop*]]], eg, COM1:9600,N,8,1), or a printer's columns (80 or 132) and lines per inch (6 or 8).
 
 MORE [*file*]
 Displays input (or *file*) one screen at a time (eg, TYPE README.TXT | MORE), displaying "-- More --" and waiting for a key after each screen.  Press CTRL-C to stop.

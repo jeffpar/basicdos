@@ -2418,6 +2418,7 @@ DEFPROC	dbgdev_init,far
 ; for 3xxh, IRQ3 for 2xxh), and then have the UART interrupt us when data
 ; (or a BREAK) arrives.
 ;
+	call	get_vars
 	call	hook_vecs
 	mov	bx,INT_HW_COM1 * 4
 	cmp	dh,03h			; port 3xxh?
@@ -2460,10 +2461,33 @@ ENDPROC	dbgdev_init
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; get_vars
+;
+; Save the DOSVARS pointer for DM.
+;
+; Inputs:
+;	DS = CS
+;
+; Modifies:
+;	AX, BX
+;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	get_vars
+	push	es
+	mov	ah,DOS_MSC_GETVARS
+	int	21h			; ES:BX -> DOSVARS + 2
+	mov	[dos_vars].OFF,bx
+	mov	[dos_vars].SEG,es
+	pop	es
+	ret
+ENDPROC	get_vars
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; hook_vecs, swap_vecs
 ;
 ; Exchange the INT 01h and INT 03h vectors with vec_save, which hook_vecs
-; first points at our handlers (after saving the DOSVARS pointer for DM).
+; first points at our handlers.
 ;
 ; Inputs:
 ;	DS = CS
@@ -2471,16 +2495,9 @@ ENDPROC	dbgdev_init
 ; Modifies:
 ;	AX, BX, SI
 ;
-	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
 DEFPROC	hook_vecs
 	mov	[vec_save+2],cs
 	mov	[vec_save+6],cs
-	push	es
-	mov	ah,DOS_MSC_GETVARS
-	int	21h			; ES:BX -> DOSVARS + 2
-	mov	[dos_vars].OFF,bx
-	mov	[dos_vars].SEG,es
-	pop	es
 ENDPROC	hook_vecs			; fall into swap_vecs
 
 DEFPROC	swap_vecs
@@ -2513,9 +2530,9 @@ ENDPROC	swap_vecs
 ;
 ; Program entry (via the DDH and in_buf).  Rebase CS so that offset 0 is the
 ; start of the file, as it is for the driver, then patch put_char and get_char
-; to use DOS console I/O, enable Q, hook INT 01h and INT 03h, and run the
-; monitor on our own stack (just below the frame) rather than its small one
-; (DOS calls run on the caller's stack).
+; to use DOS console I/O, enable Q, hook INT 01h and INT 03h (unless there's
+; a switch), and run the monitor on our own stack (just below the frame)
+; rather than its small one (DOS calls run on the caller's stack).
 ;
 ; If the command tail names a program, copy the name to command (as a string)
 ; and load the program with DOS_PSP_EXEC1, which returns its initial SS:SP
@@ -2533,7 +2550,9 @@ ENDPROC	swap_vecs
 ; PSP:0000h (psp_restvec then restores INT 01h and INT 03h).
 ;
 ; A tail that starts with a switch (eg, /DB 40:0) is instead a command, which
-; the monitor performs in place of displaying the registers, and then exits.
+; the monitor performs in place of displaying the registers, and then exits;
+; INT 01h and INT 03h aren't hooked, so that a dump shows their vectors as
+; they are.
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	com_main,far
@@ -2552,17 +2571,19 @@ cm1:	push	cs
 	mov	byte ptr [get_char],0E9h
 	mov	word ptr [get_char+1],offset dos_get - offset get_char - 3
 	mov	[CMD_Q],'Q'
-	call	hook_vecs
+	call	get_vars
 	mov	ax,sp
 	sub	ax,130h			; leave room for the frame, and rebase
 	mov	word ptr [mon_sp+1],ax
+	mov	ax,DOS_MSC_GETSWC
+	int	21h			; DL = switch char
 	mov	si,CMD_TAIL+1		; ES:SI -> command tail (ES = PSP)
 	mov	di,offset command
 cm2:	mov	al,es:[si]
 	inc	si
 	cmp	al,' '			; skip leading spaces
 	je	cm2
-	cmp	al,'/'			; a switch?
+	cmp	al,dl			; a switch?
 	je	cm6			; yes
 cm3:	cmp	al,' '			; space or CHR_RETURN ends the name
 	jbe	cm4
@@ -2575,7 +2596,8 @@ cm3:	cmp	al,' '			; space or CHR_RETURN ends the name
 ; Copy the switch's command to command, in upper case (a long one spills
 ; into mon_stack, which program mode doesn't use), and change the monitor to
 ; perform it in place of displaying the registers (at mon3a), and to exit in
-; place of prompting for another command (at mon4).
+; place of prompting for another command (at mon4).  INT 01h and INT 03h are
+; never hooked, so the exit (at cm9c) skips swap_vecs.
 ;
 cm6:	mov	al,es:[si]
 	inc	si
@@ -2593,8 +2615,8 @@ cm6b:	mov	byte ptr [di],0
 	mov	byte ptr [mon3a],0E9h
 	mov	word ptr [mon3a+1],offset mon4a - offset mon3a - 3
 	mov	byte ptr [mon4],0E9h
-	mov	word ptr [mon4+1],offset cm9 - offset mon4 - 3
-	jmp	cm5
+	mov	word ptr [mon4+1],offset cm9c - offset mon4 - 3
+	jmp	short cm5a
 cm4:	mov	byte ptr [di],0
 	cmp	di,offset command	; was there a name?
 	je	cm5			; no
@@ -2608,6 +2630,7 @@ cm4:	mov	byte ptr [di],0
 	mov	[epb_tail].OFF,si
 	mov	[epb_tail].SEG,es
 	mov	[epb_fcb1].OFF,-1	; let DOS build the FCBs from the tail
+	call	hook_vecs
 	push	ds
 	pop	es
 	mov	bx,offset epb		; ES:BX -> EPB
@@ -2641,7 +2664,8 @@ cm4:	mov	byte ptr [di],0
 	mov	bp,bx
 	jmp	dbg_brk
 	ASSUME	DS:CODE
-cm5:	mov	byte ptr es:[100h],0C3h	; RET
+cm5:	call	hook_vecs
+cm5a:	mov	byte ptr es:[100h],0C3h	; RET
 	push	es			; ES = PSP
 	pop	ds
 	ASSUME	DS:NOTHING
@@ -2682,9 +2706,9 @@ cm8:	cmp	[com_runs],2		; did the program terminate itself?
 cm9a:	call	newline
 	jmp	short cm9b
 ;
-; Exit (Q, or the end of a switch's command).  If a program is loaded,
-; terminate it first, which brings us back to cm8, and then exit with its
-; exit code.
+; Exit (Q, or at cm9c, the end of a switch's command).  If a program is
+; loaded, terminate it first, which brings us back to cm8, and then exit with
+; its exit code.
 ;
 cm9:	call	disarm
 	cmp	[com_runs],2		; is a program loaded?
@@ -2693,7 +2717,7 @@ cm9:	call	disarm
 	mov	ax,DOS_PSP_RETURN SHL 8
 	int	21h
 cm9b:	call	swap_vecs
-	mov	ah,DOS_PSP_RETCODE
+cm9c:	mov	ah,DOS_PSP_RETCODE
 	int	21h			; AL = the program's exit code (or 0)
 	mov	ah,DOS_PSP_RETURN
 	int	21h
