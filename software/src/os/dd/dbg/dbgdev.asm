@@ -13,7 +13,9 @@
 ; a monitor on the console.  It loads the program without starting it and
 ; displays the registers as of the program's start; G runs it, and Q (or the
 ; program's termination) exits.  Without a program, the registers are as of
-; DEBUG's own start (PSP:0100h), and G exits.
+; DEBUG's own start (PSP:0100h, where a RET makes G exit).  A switch performs
+; one command and exits (eg, DEBUG /DB 40:0 or DEBUG /DM).  Any value may also
+; be a 16-bit register name (eg, DB DS:DX).
 ;
 ; Ctrl-C or a serial BREAK stops the machine as soon as it arrives (via the
 ; port's hardware interrupt), as do breakpoints, single-steps (T), and any
@@ -514,7 +516,7 @@ mon3:	mov	byte ptr bp_tab[5],0	; clear the temporary breakpoint
 	mov	[u_seg],ax
 	mov	ax,regs[R_DS]
 	mov	[dump_seg],ax		; D defaults to DS
-	call	show_regs
+mon3a:	call	show_regs		; (com_main changes this, and mon4)
 	cmp	[trace_cnt],0		; more T steps?
 	je	mon4			; no
 	call	do_trace		; (which never returns)
@@ -522,7 +524,7 @@ mon3:	mov	byte ptr bp_tab[5],0	; clear the temporary breakpoint
 mon4:	mov	al,'-'
 	call	put_char
 	call	get_line
-	mov	si,offset command
+mon4a:	mov	si,offset command
 	call	skip_space
 	lodsb
 	test	al,al			; empty line?
@@ -657,9 +659,7 @@ ENDPROC	cmd_b
 ;
 DEFPROC	set_bp
 	mov	bp,regs[R_CS]
-	push	bx
 	call	parse_addr
-	pop	bx
 	jc	sb9
 	call	end_command
 	jc	sb9
@@ -1696,6 +1696,9 @@ ENDPROC	find_reg
 ;
 ; parse_hex
 ;
+; Parse a hex value, or a 16-bit register name (for the register's value);
+; no register name is also a hex value.
+;
 ; Inputs:
 ;	SI -> command text
 ;
@@ -1708,6 +1711,16 @@ ENDPROC	find_reg
 ;
 DEFPROC	parse_hex
 	call	skip_space
+	push	bx
+	mov	ax,[si]
+	call	find_reg		; a register name?
+	jc	ph0			; no
+	inc	si
+	inc	si
+	mov	ax,regs[bx]		; (carry is clear)
+	pop	bx
+	ret
+ph0:	pop	bx
 	sub	ax,ax
 	mov	cx,si			; CX -> first digit
 ph1:	mov	dl,[si]
@@ -1739,7 +1752,7 @@ ENDPROC	parse_hex
 ;
 ; parse_addr
 ;
-; Parse [segment:]offset, where segment may also be a register name.
+; Parse [segment:]offset, where either may be a register name (see parse_hex).
 ;
 ; Inputs:
 ;	SI -> command text
@@ -1749,19 +1762,10 @@ ENDPROC	parse_hex
 ;	If carry clear, BP:AX = address, and SI -> next character
 ;
 ; Modifies:
-;	AX, BX, CX, DX, SI, BP
+;	AX, CX, DX, SI, BP
 ;
 DEFPROC	parse_addr
-	call	skip_space
-	cmp	byte ptr [si+2],':'
-	jne	pa1
-	mov	ax,[si]
-	call	find_reg
-	jc	pa1
-	mov	bp,regs[bx]
-	add	si,3
-	jmp	parse_hex
-pa1:	call	parse_hex
+	call	parse_hex
 	jc	pa9
 	cmp	byte ptr [si],':'
 	jne	pa8
@@ -1792,9 +1796,7 @@ ENDPROC	parse_addr
 DEFPROC	parse_range
 	call	end_command
 	jnc	prg9
-	push	bx
 	call	parse_addr
-	pop	bx
 	jc	prg9
 	xchg	di,ax			; DI = offset
 	call	skip_space
@@ -2526,7 +2528,12 @@ ENDPROC	swap_vecs
 ; was and the other registers unknown, so com_runs tells the two apart.
 ;
 ; Without a program, we enter the monitor as if PSP:0100h had been
-; interrupted.  G resumes there, which brings us back here, so we exit.
+; interrupted, after storing a RET there (over the DDH's JMP, which is done),
+; so G pops the zero that DOS pushed on our stack and runs the INT 20h at
+; PSP:0000h (psp_restvec then restores INT 01h and INT 03h).
+;
+; A tail that starts with a switch (eg, /DB 40:0) is instead a command, which
+; the monitor performs in place of displaying the registers, and then exits.
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	com_main,far
@@ -2539,10 +2546,7 @@ DEFPROC	com_main,far
 cm1:	push	cs
 	pop	ds
 	ASSUME	DS:CODE
-	cmp	[com_runs],0		; resumed by G?
-	je	cm1a			; no
-	jmp	cm9			; yes
-cm1a:	inc	[com_runs]
+	inc	[com_runs]
 	mov	byte ptr [put_raw],0E9h
 	mov	word ptr [put_raw+1],offset dos_put - offset put_raw - 3
 	mov	byte ptr [get_char],0E9h
@@ -2558,6 +2562,8 @@ cm2:	mov	al,es:[si]
 	inc	si
 	cmp	al,' '			; skip leading spaces
 	je	cm2
+	cmp	al,'/'			; a switch?
+	je	cm6			; yes
 cm3:	cmp	al,' '			; space or CHR_RETURN ends the name
 	jbe	cm4
 	mov	[di],al
@@ -2565,6 +2571,30 @@ cm3:	cmp	al,' '			; space or CHR_RETURN ends the name
 	mov	al,es:[si]
 	inc	si
 	jmp	cm3
+;
+; Copy the switch's command to command, in upper case (a long one spills
+; into mon_stack, which program mode doesn't use), and change the monitor to
+; perform it in place of displaying the registers (at mon3a), and to exit in
+; place of prompting for another command (at mon4).
+;
+cm6:	mov	al,es:[si]
+	inc	si
+	cmp	al,'a'
+	jb	cm6a
+	cmp	al,'z'
+	ja	cm6a
+	sub	al,'a'-'A'
+cm6a:	cmp	al,CHR_RETURN		; end of the tail?
+	je	cm6b			; yes
+	mov	[di],al
+	inc	di
+	jmp	cm6
+cm6b:	mov	byte ptr [di],0
+	mov	byte ptr [mon3a],0E9h
+	mov	word ptr [mon3a+1],offset mon4a - offset mon3a - 3
+	mov	byte ptr [mon4],0E9h
+	mov	word ptr [mon4+1],offset cm9 - offset mon4 - 3
+	jmp	cm5
 cm4:	mov	byte ptr [di],0
 	cmp	di,offset command	; was there a name?
 	je	cm5			; no
@@ -2611,7 +2641,8 @@ cm4:	mov	byte ptr [di],0
 	mov	bp,bx
 	jmp	dbg_brk
 	ASSUME	DS:CODE
-cm5:	push	es			; ES = PSP
+cm5:	mov	byte ptr es:[100h],0C3h	; RET
+	push	es			; ES = PSP
 	pop	ds
 	ASSUME	DS:NOTHING
 	pushf
@@ -2651,8 +2682,9 @@ cm8:	cmp	[com_runs],2		; did the program terminate itself?
 cm9a:	call	newline
 	jmp	short cm9b
 ;
-; Exit (G without a program, or Q).  If a program is loaded, terminate it
-; first, which brings us back to cm8, and then exit with its exit code.
+; Exit (Q, or the end of a switch's command).  If a program is loaded,
+; terminate it first, which brings us back to cm8, and then exit with its
+; exit code.
 ;
 cm9:	call	disarm
 	cmp	[com_runs],2		; is a program loaded?

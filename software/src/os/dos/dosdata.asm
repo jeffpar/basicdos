@@ -57,11 +57,12 @@ DOS	segment word public 'CODE'
 	DEFBYTE	def_swchar,'/'
 	DEFBYTE	def_pathchar,'\'
 ;
-; Vectors 08h, 09h, 1Bh, and 1Ch as they were at the end of sysinit, so that
-; psp_restvec can restore any that a terminated program left hooked.
+; Vectors 01h, 03h, 08h, 09h, 1Bh, and 1Ch as they were at the end of
+; sysinit, so that psp_restvec can restore any that a terminated program left
+; hooked.
 ;
 	DEFWORD	ivt_save,0
-	dw	7 dup (0)
+	dw	11 dup (0)
 ;
 ; Constants
 ;

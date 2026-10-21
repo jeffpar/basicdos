@@ -1659,9 +1659,10 @@ ENDPROC	psp_init
 ;
 ; psp_restvec
 ;
-; Some programs hook vectors 08h, 09h, 1Bh, or 1Ch directly (eg, MSBASIC
-; hooks 1Bh and 1Ch), and restore them only when they exit normally; if one is
-; terminated some other way (eg, CTRL-ALT-DEL), any vector it left pointing
+; Some programs hook vectors 01h, 03h, 08h, 09h, 1Bh, or 1Ch directly (eg,
+; DEBUG hooks 01h and 03h, and MSBASIC hooks 1Bh and 1Ch), and restore them
+; only when they exit normally; if one is terminated some other way (eg,
+; CTRL-ALT-DEL, or G in DEBUG without a program), any vector it left pointing
 ; into its memory is restored to the value that sysinit saved in ivt_save.
 ;
 ; Inputs:
@@ -1689,6 +1690,10 @@ DEFPROC	psp_restvec,DOS
 	sub	ax,ax
 	mov	es,ax			; ES:0 -> IVT
 	mov	si,offset ivt_save
+	mov	di,01h*4
+	call	prv2			; check vector 01h
+	mov	di,03h*4
+	call	prv2			; check vector 03h
 	mov	di,08h*4
 	call	prv1			; check vectors 08h and 09h
 	mov	di,1Bh*4

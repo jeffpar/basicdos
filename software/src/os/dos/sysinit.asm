@@ -925,14 +925,20 @@ si20a:
 	mov	ah,DOS_MEM_FREE
 	int	21h
 ;
-; Save the vectors that programs commonly hook directly (08h, 09h, 1Bh, and
-; 1Ch), now that the drivers have hooked theirs (see psp_restvec).
+; Save the vectors that programs commonly hook directly (01h, 03h, 08h, 09h,
+; 1Bh, and 1Ch), now that the drivers have hooked theirs (see psp_restvec).
 ;
 	push	ds
 	pop	es
 	mov	di,offset ivt_save	; ES:DI -> ivt_save
 	sub	ax,ax
 	mov	ds,ax
+	mov	si,01h*4		; DS:SI -> vector 01h
+	movsw
+	movsw
+	mov	si,03h*4		; DS:SI -> vector 03h
+	movsw
+	movsw
 	mov	si,08h*4		; DS:SI -> vectors 08h and 09h
 	mov	cx,4
 	rep	movsw
