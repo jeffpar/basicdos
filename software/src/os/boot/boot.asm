@@ -54,6 +54,10 @@ start:	cld
 
 mybpb:		BPB	<,512,1,1,2,64,320,MEDIA_160K,1,8,1,0,0,0,8,3,7>
 
+;
+; CFG_FILE must remain last, because it's the only optional file, and the
+; root directory scan ends as soon as any file search reaches the end marker.
+;
 DEV_FILE	db	"BASDEV  COM"
 DOS_FILE	db	"BASDOS  COM"
 CFG_FILE	db	"CONFIG  SYS",-1
@@ -71,8 +75,8 @@ start1:	jmp	short part1	; can't quite make it in one jump
 ;
 ; Get CHS from LBA in AX, using BPB at DS:SI.  The LBA is relative to the
 ; volume, so we add the BPB's hidden sectors (non-zero only for hard disk
-; partitions).  Like DOS 2.x, we use only the low word of BPB_HIDDENSECS,
-; since DOS 2.x stored other data (eg, the boot drive) in the high word.
+; partitions).  Include both words of BPB_HIDDENSECS and any carry from
+; adding the volume-relative sector number.
 ;
 ; Inputs:
 ;	AX = LBA
@@ -88,7 +92,7 @@ start1:	jmp	short part1	; can't quite make it in one jump
 DEFPROC	get_chs
 	sub	dx,dx
 	add	ax,[si].BPB_HIDDENSECS.LOW
-	adc	dx,dx		; DX:AX is LBA
+	adc	dx,[si].BPB_HIDDENSECS.HIW ; DX:AX is LBA
 	div	[si].BPB_CYLSECS; AX = cylinder, DX = remaining sectors
 	xchg	al,ah		; AH = cylinder, AL = cylinder bits 8-9
 	ror	al,1		; future-proofing: saving cylinder bits 8-9
@@ -288,7 +292,8 @@ m2:	mov	cx,3			; CX = # files left to find
 m3:	cmp	byte ptr [bx],ch	; more files to find?
 	jl	m7			; no, see if we're done
 	jle	m4			; yes, but this file was already found
-	call	find_dirent		;
+	call	find_dirent		; CF set at end of directory
+	jc	m6			; no more root sectors to read
 	jnz	m5			; not found, try the next file
 m4:	dec	cx			; reduce the # files left
 m5:	add	bx,size DIR_NAME	; partly, skip to next filename
@@ -297,8 +302,7 @@ m7:	jcxz	read			; all files found, go read
 	inc	dx			; DX = next dir LBA
 	cmp	dx,[si].BPB_LBADATA	; exhausted root directory?
 	jb	m1			; jump if not exhausted
-	dec	cx			; only 1 file missing?
-	jnz	file_error		; no
+m6:	loop	file_error		; only one file may remain
 	cmp	[CFG_FILE],ch		; was the missing file CFG_FILE?
 	jnz	read			; yes, that's OK
 
@@ -372,8 +376,8 @@ DEFPROC	find_dirent
 	mov	ax,[si].BPB_SECBYTES
 	add	ax,di		; AX -> end of sector data
 	dec	ax		; ensure DI will never equal AX
-fd1:	cmp	byte ptr [di],ch
-	je	file_error	; 0 indicates end of allocated entries
+fd1:	cmp	byte ptr [di],1	; 00h marks end; return NZ and carry set
+	jb	fd9
 	mov	si,bx
 	mov	cl,size DIR_NAME
 	repe	cmpsb
@@ -557,7 +561,7 @@ rd1:	mov	ax,[bx+4]
 	je	rd3		; file size is zero, carry clear
 rd2:	mov	ax,[bx+2]	; AX = CLN
 	sub	ax,2
-	cmp	ax,word ptr [si].BOOT_CLUSTERS ; reject CLNs outside this volume
+	cmp	ax,word ptr [si].BOOT_CLUSTERS ; CLN outside this volume?
 	jae	read_error	; yes
 	add	ax,2
 	push	dx		; DX = sectors already read
@@ -632,7 +636,7 @@ DEFPROC	read_fat
 	push	di
 	mov	bp,ax		; save cluster parity for FAT12 decoding
 	mov	bx,ax
-	cmp	word ptr [si].BOOT_CLUSTERS,CLN_FAT12 ; fewer than 4085 clusters means FAT12
+	cmp	word ptr [si].BOOT_CLUSTERS,CLN_FAT12 ; FAT16 (4085+ clusters)?
 	jae	rf16
 ;
 ; FAT12 byte offset = CLN + CLN/2; FAT16 sector = CLN/256.
@@ -667,7 +671,7 @@ rf1:
 	jc	read_error
 	sub	bx,bx
 rf2:	mov	dh,[di+bx]
-	cmp	word ptr [si].BOOT_CLUSTERS,CLN_FAT12 ; decode all 16 bits on FAT16
+	cmp	word ptr [si].BOOT_CLUSTERS,CLN_FAT12 ; FAT16 uses all 16 bits
 	jae	rf9
 	shr	bp,1		; was that an odd nibble again?
 	jnc	rf8		; even entries need only masking
