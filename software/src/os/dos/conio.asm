@@ -17,7 +17,7 @@
 
 DOS	segment word public 'CODE'
 
-	EXTNEAR	<strlen,sfb_get,sfb_read,sfb_write,dev_request>
+	EXTNEAR	<strlen,upper,sfb_get,sfb_read,sfb_write,dev_request>
 	EXTNEAR	<flush_stdin>
 	EXTWORD	<FUNCTBL>
 
@@ -443,12 +443,8 @@ DEFPROC	con_gettype
 	jb	cgt9
 	cmp	al,'9'
 	jbe	cgt2
-	cmp	al,'a'
-	jb	cgt1
-	cmp	al,'z'
-	ja	cgt9
-	sub	al,20h
-cgt1:	cmp	al,'A'
+	call	upper
+	cmp	al,'A'
 	jb	cgt9
 	cmp	al,'Z'
 	ja	cgt9

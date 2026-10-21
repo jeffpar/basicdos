@@ -256,7 +256,7 @@
       "model": 5170,
       "scaleTimers": false,
       "sound": true,
-      "floppies": "[1200,1200]",
+      "floppies": "[1200,1440]",
       "monitor": "color",
       "dateRTC": ""
     },

@@ -26,7 +26,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<chk_dirent,del_dirent,add_dirent,get_dirent,get_dtime>
 	EXTNEAR	<get_bpb,get_cdir,free_clns,flush_buffers,scb_release>
 	EXTNEAR	<div_32_16,mul_32_16>
-	EXTNEAR	<get_psp>
+	EXTNEAR	<get_psp,upper>
 
 	EXTSTR	<FILENAME_CHARS>
 
@@ -746,12 +746,8 @@ DEFPROC	copy_name,DOS
 ; cases and validates all characters against FILENAME_CHARS.
 ;
 cn2:	lodsb
-	cmp	al,'a'
-	jb	cn3
-	cmp	al,'z'
-	ja	cn3
-	sub	al,20h
-cn3:	stosb
+	call	upper
+	stosb
 	loop	cn2
 	ret
 ENDPROC	copy_name
@@ -833,12 +829,8 @@ pf2a:	cmp	al,' '			; check character validity
 	jb	pf4			; invalid character
 	cmp	al,'.'
 	je	pf4a
-	cmp	al,'a'
-	jb	pf2b
-	cmp	al,'z'
-	ja	pf2b
-	sub	al,20h
-pf2b:	test	ah,80h			; filespec?
+	call	upper
+	test	ah,80h			; filespec?
 	jz	pf2d			; no
 	cmp	al,'?'			; wildcard?
 	jne	pf2c

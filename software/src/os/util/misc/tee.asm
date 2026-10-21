@@ -13,7 +13,7 @@
 ; with -A, appended to (or created, if it doesn't exist).  The exit code is 0,
 ; or 2 if the file couldn't be opened or written.
 ;
-	include	util.inc
+	include	utilvars.inc
 
 CODE    SEGMENT
 

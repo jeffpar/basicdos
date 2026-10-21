@@ -10,12 +10,14 @@
 ; Usage: WC [-L] [-W] [-C] [files...]
 ;
 ; Displays the number of lines, words, and bytes of input (or of each of the
-; specified files, followed by their totals if there's more than one).  -L,
-; -W, and -C display only the selected counts.  Lines are counted by their
-; LFs, and words are separated by spaces and control characters (eg, TAB, CR,
-; and LF).  The exit code is 0, or 2 if a file couldn't be opened.
+; specified files, which may include wildcards, followed by their totals if
+; there's more than one).  -L, -W, and -C display only the selected counts.
+; Lines are counted by their LFs, and words are separated by spaces and control
+; characters (eg, TAB, CR, and LF).  The exit code is 0, or 2 if a file
+; couldn't be opened.
 ;
-	include	util.inc
+	UTILWALK equ 1
+	include	utilvars.inc
 
 CNT_LINES	equ	0	; offsets of the 32-bit counts in UV_CNTS
 CNT_WORDS	equ	4
@@ -46,27 +48,33 @@ m1:	sub	dx,dx			; DX = 0 (no name to display)
 	call	countFile		; no, so read STDIN
 	jmp	short m9
 
-m2:	sub	di,di
-m3:	push	di
-	mov	dx,[bp].UV_FILES[di]
-	call	openFile
-	jc	m4
-	call	countFile
-	mov	bx,[bp].UV_HIN
-	mov	ah,DOS_HDL_CLOSE
-	int	21h
-m4:	pop	di
-	inc	di
-	inc	di
-	cmp	di,[bp].UV_NFILES
-	jb	m3
-	cmp	di,2			; more than one file?
+m2:	mov	cx,offset wcFile
+	call	eachFile
+	cmp	[bp].UV_COUNT,1		; more than one file counted?
 	jbe	m9			; no
 	lea	bx,[bp].UV_CNTS+CNT_TOTALS
 	mov	dx,offset TOTAL
 	call	printCounts
 m9:	jmp	exit
 ENDPROC	main
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; wcFile
+;
+; Counts the files (for eachFile), so that main knows whether to display the
+; totals.
+;
+; Inputs:
+;	BP -> UTILVARS
+;	DX -> name to display
+;
+DEFPROC	wcFile
+	inc	[bp].UV_COUNT
+;
+; Fall into countFile.
+;
+ENDPROC	wcFile
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -20,8 +20,8 @@ DOS	segment word public 'CODE'
 
 	EXTNEAR	<dev_request,scb_release>
 	EXTNEAR	<chk_devname,chk_console,chk_filename>
-	EXTNEAR	<get_bpb,get_psp,find_cln,get_cln,new_bpb>
-	EXTNEAR	<merge_clns,next_hint>
+	EXTNEAR	<get_bpb,get_psp,find_cln,new_bpb>
+	EXTNEAR	<merge_clns,advance_cln,file_request>
 	EXTNEAR	<flush_buffers>
 	EXTNEAR	<sfb_create,sfb_commit,write_file>
 	EXTNEAR	<msc_sigctrlc,msc_readctrlc,con_read>
@@ -43,20 +43,8 @@ DOS	segment word public 'CODE'
 ;	On failure, carry set, REG_AX = error code
 ;
 DEFPROC	hdl_create,DOS
-	call	pfh_alloc		; ES:DI = free handle entry
-	ASSUME	ES:NOTHING
-	jc	hcr9
-	push	di			; save free handle entry
-	mov	cl,[bp].REG_CL		; CL = attributes
-	mov	si,[bp].REG_DX
-	mov	ds,[bp].REG_DS		; DS:SI = name of device/file
-	ASSUME	DS:NOTHING
-	call	sfb_create
-	pop	di			; restore handle entry
-	jc	hcr9
-	call	pfh_set			; update handle entry
-hcr9:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
-	ret
+	mov	dx,offset sfb_create
+	jmp	short ho0
 ENDPROC	hdl_create
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -72,15 +60,17 @@ ENDPROC	hdl_create
 ;	On failure, carry set, REG_AX = error code
 ;
 DEFPROC	hdl_open,DOS
-	call	pfh_alloc		; ES:DI = free handle entry
+	mov	dx,offset sfb_open
+ho0:	call	pfh_alloc		; ES:DI = free handle entry (DX preserved)
 	ASSUME	ES:NOTHING
 	jc	ho9
 	push	di			; save free handle entry
 	mov	bl,[bp].REG_AL		; BL = mode
+	mov	cl,[bp].REG_CL		; CL = attributes (create only)
 	mov	si,[bp].REG_DX
 	mov	ds,[bp].REG_DS		; DS:SI = name of device/file
 	ASSUME	DS:NOTHING
-	call	sfb_open
+	call	dx			; open or create
 	pop	di			; restore handle entry
 	jc	ho9
 	call	pfh_set			; update handle entry
@@ -124,9 +114,9 @@ DEFPROC	hdl_read,DOS
 	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
 	call	sfb_get			; BX -> SFB
 	jc	hr8
-	mov	cx,[bp].REG_CX		; CX = byte count
 	mov	es,[bp].REG_DS
-	mov	dx,[bp].REG_DX		; ES:DX -> data buffer
+;
+; sfb_get preserves the caller's CX (byte count) and DX (buffer offset).
 ;
 ; Like DOS, a read from the session's console (eg, "COPY CON TEST.TXT") is a
 ; line read: characters are echoed and can be edited until ENTER is pressed,
@@ -171,8 +161,7 @@ DEFPROC	hdl_write,DOS
 	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
 	call	sfb_get			; BX -> SFB
 	jc	hw8
-	mov	cx,[bp].REG_CX		; CX = byte count
-	mov	si,[bp].REG_DX
+	mov	si,dx			; sfb_get preserves CX and DX
 	mov	ds,[bp].REG_DS		; DS:SI = data to write
 	ASSUME	DS:NOTHING
 	mov	al,IO_COOKED
@@ -199,8 +188,9 @@ DEFPROC	hdl_seek,DOS
 	call	sfb_get
 	jc	hs8
 	mov	ax,[bp].REG_AX		; AL = method
-	mov	cx,[bp].REG_CX		; CX:DX = distance
-	mov	dx,[bp].REG_DX
+;
+; sfb_get preserves the caller's CX:DX distance.
+;
 	call	sfb_seek		; BX -> SFB
 	jc	hs8
 	mov	[bp].REG_AX,dx
@@ -763,16 +753,7 @@ sr1a:	mov	dx,[bx].SFB_CURPOS.LOW
 	xchg	ax,cx			; restore CX
 	add	bx,[di].BPB_LBADATA	; BX = LBA
 	mov	ah,DDC_READ
-	mov	al,[di].BPB_DRIVE
-	les	di,[di].BPB_DEVICE
-	ASSUME	ES:NOTHING
-	push	ds
-	mov	si,[bp].TMP_DX
-	mov	ds,[bp].TMP_ES		; DS:SI -> data buffer
-	ASSUME	DS:NOTHING
-	call	dev_request
-	pop	ds
-	ASSUME	DS:DOS
+	call	file_request
 	mov	dx,cx			; DX = bytes read (assuming no error)
 
 sr3:	pop	si			; SI = last CLN read
@@ -794,23 +775,9 @@ sr3:	pop	si			; SI = last CLN read
 ; We're now obliged to determine whether or not we've exhausted the current
 ; cluster, because if we have, then we MUST zero SFB_CURCLN.
 ;
-	mov	ax,[di].BPB_CLUSBYTES
-	dec	ax
-	test	[bx].SFB_CURPOS.LOW,ax	; is CURPOS at a cluster boundary?
-	jnz	sr4			; no
-	push	dx
-	sub	dx,dx
-	xchg	dx,[bx].SFB_CURCLN	; yes, get next cluster
-	push	dx
-	call	get_cln
-	xchg	ax,dx			; AX = next CLN
-	pop	dx			; DX = current CLN
-	jc	sr3a
-	call	next_hint		; AX = next CLN (zero if none)
-	mov	[bx].SFB_CURCLN,ax
-sr3a:	pop	dx
+	call	advance_cln
 	jc	sr6
-sr4:	sub	cx,dx			; have we exhausted the read count yet?
+	sub	cx,dx			; have we exhausted the read count yet?
 	jbe	sr5
 	jmp	sr1a			; no, keep reading clusters
 
@@ -903,15 +870,7 @@ DEFPROC	vol_io,DOS
 	push	bx
 	xchg	bx,ax			; BX = LBA
 	xchg	ax,si			; AH = request
-	mov	al,[di].BPB_DRIVE
-	les	di,[di].BPB_DEVICE
-	push	ds
-	mov	si,[bp].TMP_DX
-	mov	ds,[bp].TMP_ES		; DS:SI -> data buffer
-	ASSUME	DS:NOTHING
-	call	dev_request
-	pop	ds
-	ASSUME	DS:DOS
+	call	file_request
 	pop	bx
 	jc	vi9
 	add	[bx].SFB_CURPOS.LOW,cx
@@ -1288,15 +1247,7 @@ DEFPROC	pfh_close,DOS
 	push	si
 	mov	si,bx			; SI = PFH
 	call	sfb_get
-	jc	pc9
-	push	di
-	push	es
-	call	sfb_close		; BX -> SFB, SI = PFH
-	pop	es
-	pop	di
-pc9:	pop	si
-	pop	bx
-	ret
+	jmp	short close_sfb
 ENDPROC	pfh_close
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1344,11 +1295,12 @@ DEFPROC	sfh_close,DOS
 	ASSUMES	<DS,DOS>,<ES,NOTHING>
 	push	bx
 	push	si
+	mov	si,-1			; no PFH
 	call	sfb_from_sfh
+	DEFLBL	close_sfb,near
 	jc	shc9
 	push	di
 	push	es
-	mov	si,-1			; no PFH
 	call	sfb_close		; BX -> SFB
 	pop	es
 	pop	di

@@ -19,7 +19,7 @@ machines:
       A: "BASIC-DOS HD VT100 Demo"
 ---
 
-The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 640K of memory, a Color Display, two 1.2Mb diskette drives, and a 10Mb hard disk.  It boots the BASIC-DOS HD VT100 Demo diskette and runs two independent sessions: an 80x25 console on the Color Display, and a console on a DEC VT100 terminal connected to COM1.  Unlike the PC and PC XT, the PC AT has a battery-powered real-time clock, so BASIC-DOS starts with the current date and time (type `DATE` or `TIME` to see them).
+The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 640K of memory, a Color Display, a 1.2Mb and a 1.44Mb diskette drive, and a 10Mb hard disk.  It boots the BASIC-DOS HD VT100 Demo diskette and runs two independent sessions: an 80x25 console on the Color Display, and a console on a DEC VT100 terminal connected to COM1.  Unlike the PC and PC XT, the PC AT has a battery-powered real-time clock, so BASIC-DOS starts with the current date and time (type `DATE` or `TIME` to see them).
 
 {% include vt100-demo.html id="ibm5170" %}
 

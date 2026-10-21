@@ -13,7 +13,7 @@
 ; screen, "-- More --" is displayed, and a key is read from STDERR (since
 ; STDIN is usually a pipe); press any key to continue, or CTRL-C to stop.
 ;
-	include	util.inc
+	include	utilvars.inc
 
 CODE    SEGMENT
 

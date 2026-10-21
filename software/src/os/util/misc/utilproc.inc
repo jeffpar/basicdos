@@ -7,7 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Included by each filter utility after its own code (see util.inc).
+; Included by each filter utility after its own code (see utilvars.inc).
 ;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -99,9 +99,92 @@ ga1a:	dec	si			; no, so re-examine the last char
 	jmp	ga1
 ENDPROC	getArgs
 
+	IFDEF	UTILWALK
+UTIL_PCH equ byte ptr [bp].UV_PCH
+	include	util.inc
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; eachFile
+;
+; Calls a function for each file named on the command line, or for a name
+; with wildcards (? and *), for each matching file.  The file is open as the
+; input (UV_HIN) when the function is called, and it's closed afterward.
+;
+; Inputs:
+;	BP -> UTILVARS
+;	CX -> function (called with BP -> UTILVARS and DX -> file name)
+;
+; Modifies:
+;	Any
+;
+DEFPROC	eachFile
+	mov	ax,DOS_MSC_GETPCH
+	int	21h			; DL = path char (for scanSpec)
+	mov	[bp].UV_PCH,dl
+	sub	ax,ax
+ef1:	push	ax
+	push	cx
+	xchg	di,ax
+	mov	si,[bp].UV_FILES[di]
+	call	scanSpec		; DI -> filename portion of SI
+	mov	dx,offset doFile
+	test	ah,ah			; any wildcards?
+	jnz	ef2			; yes
+	call	dx
+	jmp	short ef3
+ef2:	call	walkFiles		; call doFile for each match
+	jnc	ef3
+	mov	dx,si
+	call	openErr			; report the error (eg, no matches)
+ef3:	pop	cx
+	pop	ax
+	inc	ax
+	inc	ax
+	cmp	ax,[bp].UV_NFILES
+	jb	ef1
+	ret
+ENDPROC	eachFile
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; doFile
+;
+; Opens a file for eachFile (directly, or through walkFiles), calls the
+; function, and closes the file.  Errors are reported by openFile, so carry is
+; always clear (to keep walking).  BX isn't preserved, since eachFile doesn't
+; need it.
+;
+; Inputs:
+;	SI -> file name
+;	CX -> function
+;
+; Modifies:
+;	Any but BP
+;
+DEFPROC	doFile
+	push	bp
+	mov	bp,ds:[PSP_HEAP]	; BP -> UTILVARS
+	mov	dx,si
+	push	cx
+	call	openFile
+	pop	cx
+	jc	df9
+	call	cx			; DX -> file name
+	mov	bx,[bp].UV_HIN
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+df9:	clc
+	pop	bp
+	ret
+ENDPROC	doFile
+	ENDIF	; UTILWALK
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; openFile
+;
+; openErr reports an error (AX) for a file (DX) the same way.
 ;
 ; Inputs:
 ;	BP -> UTILVARS
@@ -117,11 +200,12 @@ ENDPROC	getArgs
 DEFPROC	openFile
 	mov	ax,DOS_HDL_OPENRO
 	int	21h
-	jc	of8
+	jc	openErr
 	mov	[bp].UV_HIN,ax
 	mov	[bp].UV_INEND,0		; and the input buffer is empty
 	ret
-of8:	push	dx
+	DEFLBL	openErr,near
+	push	dx
 	mov	si,offset FIND_ERR
 	cmp	ax,ERR_NOFILE		; file not found?
 	je	of9			; yes

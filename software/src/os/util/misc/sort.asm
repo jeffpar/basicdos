@@ -17,7 +17,7 @@
 ; and an array of line offsets grows down from the top, and when the two
 ; meet, we're out of memory.  The offsets are then sorted with a Shell sort.
 ;
-	include	util.inc
+	include	utilvars.inc
 
 CODE    SEGMENT
 

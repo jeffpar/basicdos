@@ -19,7 +19,7 @@ DOS	segment word public 'CODE'
 
 	EXTNEAR	<dev_request,scb_release,resize_file>
 	EXTNEAR	<get_bpb,get_cln,get_dirent,read_buffer,flush_buffers>
-	EXTNEAR	<alloc_cln,free_clns,chk_volopen,walk_cln,next_hint>
+	EXTNEAR	<alloc_cln,free_clns,chk_volopen,walk_cln,advance_cln>
 	EXTNEAR	<vol_io,drv_flush>
 	EXTNEAR	<dir_lba,get_dircln>
 	EXTNEAR	<get_cdir,get_dirpath,new_buffer,write_buffer,zap_buffers>
@@ -218,16 +218,7 @@ wf2:	mov	[bx].SFB_CURCLN,dx
 	mov	cx,dx			; reduce CX
 wf3:	xchg	dx,ax			; DX = offset within cluster
 	mov	ah,DDC_WRITE
-	mov	al,[di].BPB_DRIVE
-	les	di,[di].BPB_DEVICE
-	ASSUME	ES:NOTHING
-	push	ds
-	mov	si,[bp].TMP_DX
-	mov	ds,[bp].TMP_ES		; DS:SI -> data buffer
-	ASSUME	DS:NOTHING
-	call	dev_request
-	pop	ds
-	ASSUME	DS:DOS
+	call	file_request
 	mov	dx,cx			; DX = bytes written (assuming no error)
 	pop	cx			; restore byte count
 	pop	di			; BPB pointer restored
@@ -256,24 +247,45 @@ wf4:	mov	[bx].SFB_SIZE.LOW,ax
 ; to the next cluster, or zero it if there is no next cluster (get_wcln will
 ; extend the chain if and when another write occurs).
 ;
-wf5:	mov	ax,[di].BPB_CLUSBYTES
-	dec	ax
-	test	[bx].SFB_CURPOS.LOW,ax	; is CURPOS at a cluster boundary?
-	jnz	wf6			; no
-	push	dx
-	sub	dx,dx
-	xchg	dx,[bx].SFB_CURCLN	; DX = current CLN (and zero SFB_CURCLN)
-	push	dx
-	call	get_cln			; DX = next CLN
-	xchg	ax,dx			; AX = next CLN
-	pop	dx			; DX = current CLN
-	jc	wf5a
-	call	next_hint		; AX = next CLN (zero if none)
-	mov	[bx].SFB_CURCLN,ax
-wf5a:	pop	dx
-wf6:	sub	cx,dx			; reduce the write count
+wf5:	call	advance_cln
+	sub	cx,dx			; reduce the write count
 	jmp	wf1			; and keep writing clusters
 ENDPROC	write_file
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; file_request
+;
+; Issue a file or volume read/write request using the drive and device from
+; the BPB and the data buffer saved in the caller's temporary workspace.
+;
+; Inputs:
+;	AH = DDC_READ or DDC_WRITE
+;	BX = LBA
+;	CX = byte count
+;	DX = offset within LBA
+;	DS:DI -> BPB
+;	TMP_ES:TMP_DX -> data buffer
+;
+; Outputs:
+;	On success, carry clear, AX = bytes transferred
+;	On failure, carry set, AX = error code
+;
+; Modifies:
+;	AX, DX, SI, DI, ES
+;
+DEFPROC	file_request,DOS
+	ASSUME	ES:NOTHING
+	mov	al,[di].BPB_DRIVE
+	les	di,[di].BPB_DEVICE
+	push	ds
+	mov	si,[bp].TMP_DX
+	mov	ds,[bp].TMP_ES		; DS:SI -> data buffer
+	ASSUME	DS:NOTHING
+	call	dev_request
+	pop	ds
+	ret
+ENDPROC	file_request
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

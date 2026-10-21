@@ -53,7 +53,7 @@ A filter reads lines of input, which normally come from a pipe (eg, `DIR | SORT`
 
 	FIND [/C] [/I] [/N] [/V] "string" [file...]
 
-Displays the lines of input (or of each *file*) that contain *string* (eg, `DIR | FIND "BAS"`).  When files are specified, the lines from each file follow a line containing its name.
+Displays the lines of input (or of each *file*, or with wildcards (`?` and `*`), every matching file) that contain *string* (eg, `DIR | FIND "BAS"`).  When files are specified, the lines from each file follow a line containing its name.
 
 - `/C` displays only the number of lines
 - `/I` ignores case
@@ -94,7 +94,7 @@ Copies input to output, replacing each character in *set1* with the matching cha
 
 	WC [/L] [/W] [/C] [file...]
 
-Displays the number of lines, words, and bytes of input (or of each *file*, followed by their totals if there's more than one), along with each *file*'s name (eg, `DIR | WC /L`).  `/L`, `/W`, and `/C` display only the line, word, or byte counts, respectively (without any of them, all three are displayed).  Lines are counted by their line feeds, and words are separated by spaces and control characters (eg, tabs and line breaks).  ERRORLEVEL is set to 0, or 2 if a file couldn't be opened.
+Displays the number of lines, words, and bytes of input (or of each *file*, or with wildcards (`?` and `*`), every matching file, followed by their totals if there's more than one), along with each file's name (eg, `DIR | WC /L` or `WC *.BAS`).  `/L`, `/W`, and `/C` display only the line, word, or byte counts, respectively (without any of them, all three are displayed).  Lines are counted by their line feeds, and words are separated by spaces and control characters (eg, tabs and line breaks).  ERRORLEVEL is set to 0, or 2 if a file couldn't be opened.
 
 Filters can be chained (eg, `TYPE FILE | SORT | MORE`), but every command after the first needs its own session, so a pipeline can't have more commands than [SESSIONS=](../../cfg/#sessions) allows.  If any command of a pipeline fails (eg, it can't be found, or there's no session for it), the error is displayed, the commands already running are ended, and ERRORLEVEL is set to 1.  And if a command stops reading its input early (eg, FIND can't open its file), the command writing to it gets a write error instead of waiting forever; the filters stop when that happens.
 

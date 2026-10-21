@@ -9,12 +9,14 @@
 ;
 ; Usage: FIND [-C] [-I] [-N] [-V] "string" [files...]
 ;
-; Displays every line of input (or of the specified files) that contains
-; "string".  -C displays only the number of lines, -I ignores case, -N adds
-; line numbers, and -V selects lines that do NOT contain "string".  The exit
-; code is 0 if any lines were selected, 1 if none, and 2 if an error occurred.
+; Displays every line of input (or of the specified files, which may include
+; wildcards) that contains "string".  -C displays only the number of lines, -I
+; ignores case, -N adds line numbers, and -V selects lines that do NOT contain
+; "string".  The exit code is 0 if any lines were selected, 1 if none, and 2 if
+; an error occurred.
 ;
-	include	util.inc
+	UTILWALK equ 1
+	include	utilvars.inc
 
 CODE    SEGMENT
 
@@ -34,31 +36,38 @@ DEFPROC	main
 	call	findLines		; no, so read STDIN
 	jmp	short m9
 
-m1:	sub	di,di
-	mov	[bp].UV_PREFIX,offset COLON
-m2:	push	di
-	mov	dx,[bp].UV_FILES[di]
-	call	openFile
-	jc	m3
-	PRINTF	<13,10,"---------- %s">,dx
-	CHKSW	'C'			; displaying only counts?
-	jnz	m2a			; yes, so the count completes the line
-	PRINTF	<13,10>
-m2a:	call	findLines
-	mov	bx,[bp].UV_HIN
-	mov	ah,DOS_HDL_CLOSE
-	int	21h
-m3:	pop	di
-	inc	di
-	inc	di
-	cmp	di,[bp].UV_NFILES
-	jb	m2
+m1:	mov	[bp].UV_PREFIX,offset COLON
+	mov	cx,offset findFile
+	call	eachFile
 	jmp	short m9
 
 m8:	call	writeErr
 	mov	[bp].UV_ERR,2
 m9:	jmp	exit
 ENDPROC	main
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; findFile
+;
+; Displays the name of a file (for eachFile), followed by its lines.
+;
+; Inputs:
+;	BP -> UTILVARS
+;	DX -> file name
+;
+; Modifies:
+;	Any
+;
+DEFPROC	findFile
+	PRINTF	<13,10,"---------- %s">,dx
+	CHKSW	'C'			; displaying only counts?
+	jnz	findLines		; yes, so the count completes the line
+	PRINTF	<13,10>
+;
+; Fall into findLines.
+;
+ENDPROC	findFile
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

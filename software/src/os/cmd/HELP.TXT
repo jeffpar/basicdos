@@ -163,7 +163,7 @@ FIELD [#]*n*,*width* AS *variable$*[,*width* AS *variable$*]...
 Divides each record of random access file *n* into fields (up to 16): GET # sets each variable to its field, and PUT # writes each variable to its field (see LSET and RSET).
 
 FIND [~C] [~I] [~N] [~V] "*string*" [*file*...]
-Displays the lines of input (or of each *file*) that contain *string* (eg, DIR | FIND "BAS").  ~C displays only the number of lines, ~I ignores case, ~N adds line numbers, and ~V displays the lines that do NOT contain *string*.
+Displays the lines of input (or of each *file*, or with wildcards (? and *), every matching file) that contain *string* (eg, DIR | FIND "BAS").  ~C displays only the number of lines, ~I ignores case, ~N adds line numbers, and ~V displays the lines that do NOT contain *string*.
 ERRORLEVEL is set to 0 if any lines were displayed (or counted), 1 if none, and 2 if a *file* couldn't be opened.
 
 FIX(*x*)
@@ -512,7 +512,7 @@ VI [*file*]
 Edits *file* full-screen, using a subset of the commands of the UNIX *vi* editor (see the BASIC-DOS manual).  Press i to insert text and ESC to stop, then type :wq to save and exit, or :q! to exit without saving.
 
 WC [~L] [~W] [~C] [*file*...]
-Displays the number of lines, words, and bytes of input (or of each *file*, and their totals) (eg, DIR | WC ~L).  ~L, ~W, and ~C display only the selected counts.
+Displays the number of lines, words, and bytes of input (or of each *file*, or with wildcards (? and *), every matching file, and their totals) (eg, DIR | WC ~L).  ~L, ~W, and ~C display only the selected counts.
 ERRORLEVEL is set to 0, or 2 if a *file* couldn't be opened.
 
 WEND

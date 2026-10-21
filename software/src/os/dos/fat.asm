@@ -396,6 +396,45 @@ ENDPROC	next_hint
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; advance_cln
+;
+; Advance SFB_CURCLN and its hint if CURPOS is at a cluster boundary.  Clear
+; CURCLN before the FAT lookup, leaving it invalid if the lookup fails.
+;
+; Inputs:
+;	DS:BX -> SFB
+;	DS:DI -> BPB
+;
+; Outputs:
+;	On success, carry clear, SFB_CURCLN and its hint updated if CURPOS
+;	is at a cluster boundary (SFB_CURCLN is zero at the end of the chain)
+;	On failure, carry set, AX = error code, SFB_CURCLN = 0
+;
+; Modifies:
+;	AX
+;
+DEFPROC	advance_cln,DOS
+	ASSUMES	<DS,DOS>,<ES,NOTHING>
+	mov	ax,[di].BPB_CLUSBYTES
+	dec	ax
+	test	[bx].SFB_CURPOS.LOW,ax	; is CURPOS at a cluster boundary?
+	jnz	anc9			; no (and carry is clear)
+	push	dx
+	sub	dx,dx
+	xchg	dx,[bx].SFB_CURCLN	; DX = current CLN (and zero CURCLN)
+	push	dx
+	call	get_cln
+	xchg	ax,dx			; AX = next CLN
+	pop	dx			; DX = current CLN
+	jc	anc8
+	call	next_hint		; AX = next CLN (zero if none)
+	mov	[bx].SFB_CURCLN,ax
+anc8:	pop	dx
+anc9:	ret
+ENDPROC	advance_cln
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; merge_clns (for sfb_read)
 ;
 ; Limit a read beginning in SFB_CURCLN to the bytes available in that cluster

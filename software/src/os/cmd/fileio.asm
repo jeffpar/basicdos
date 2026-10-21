@@ -448,6 +448,8 @@ fi7a:	cmp	si,di
 fi7b:	mov	bx,si			; BX -> end of line
 ;
 ; Consume the delimiter at SI (if any), and if it's a CR, a following LF.
+; At the read boundary, use the spare room after the data to read one more
+; byte; fi9 seeks it back unless it's the LF that completes the delimiter.
 ;
 fi8:	cmp	si,di
 	jae	fi9
@@ -455,8 +457,25 @@ fi8:	cmp	si,di
 	cmp	al,CHR_RETURN
 	jne	fi9
 fi8a:	cmp	si,di
-	jae	fi9
-	cmp	byte ptr [si],CHR_LINEFEED
+	jb	fi8b
+	cmp	si,[fiEnd]		; did CR consume all the bytes read?
+	jne	fi9
+	mov	ax,[fiFile]		; (keyboard data has no CR)
+	push	bx
+	push	cx
+	xchg	ax,bx
+	mov	bh,0			; BX = handle
+	mov	dx,si			; DS:DX -> byte after the buffered CR
+	mov	cx,1
+	mov	ah,DOS_HDL_READ
+	int	21h
+	pop	cx
+	pop	bx
+	jc	fi9
+	dec	ax			; was a byte actually read?
+	jnz	fi9
+	inc	word ptr [fiEnd]	; count it in the seek back
+fi8b:	cmp	byte ptr [si],CHR_LINEFEED
 	jne	fi9
 	inc	si
 ;

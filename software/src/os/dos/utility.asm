@@ -162,6 +162,31 @@ ENDPROC	utl_strupr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; upper
+;
+; Convert an ASCII lowercase letter to uppercase, leaving other characters
+; unchanged.
+;
+; Inputs:
+;	AL = character
+;
+; Outputs:
+;	AL = uppercase character (unchanged if not a lowercase letter)
+;
+; Modifies:
+;	AL, flags
+;
+DEFPROC	upper
+	cmp	al,'a'			; below the lowercase range?
+	jb	uc9
+	cmp	al,'z'			; above the lowercase range?
+	ja	uc9
+	sub	al,'a'-'A'
+uc9:	ret
+ENDPROC	upper
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; utl_printf (AH = 03h)
 ;
 ; A CDECL-style calling convention is assumed, where all parameters EXCEPT
@@ -693,12 +718,8 @@ tc4b:	cmp	ah,CLS_FLOAT OR CLS_SYM
 ;
 ; Check for letters next.
 ;
-tc5:	cmp	al,'a'
-	jb	tc5a			; may be a letter, but not lowercase
-	cmp	al,'z'
-	ja	tc7			; not a letter
-	sub	al,'a'-'A'
-tc5a:	cmp	al,'A'
+tc5:	call	upper
+	cmp	al,'A'
 	jb	tc7			; not a letter
 	cmp	al,'Z'
 	ja	tc7			; not a letter
@@ -851,12 +872,8 @@ td0:	mov	ax,-1
 	push	di
 	mov	di,es:[di+bx].TOKDEF_OFF; ES:DI -> current token
 td1:	lodsb
-	cmp	al,'a'
-	jb	td2
-	cmp	al,'z'
-	ja	td2
-	sub	al,20h
-td2:	scasb				; compare input to current
+	call	upper
+	scasb				; compare input to current
 	jne	td3
 	sub	cx,0101h
 	jz	td3			; match!
