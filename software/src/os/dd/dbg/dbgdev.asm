@@ -2582,7 +2582,6 @@ cm4:	mov	byte ptr [di],0
 	pop	es
 	mov	bx,offset epb		; ES:BX -> EPB
 	mov	dx,offset command	; DS:DX -> program name
-	mov	ch,0			; no programs follow
 	mov	ax,DOS_PSP_EXEC1
 	int	21h			; load it (termination returns here)
 	push	cs
@@ -2623,11 +2622,27 @@ cm5:	push	es			; ES = PSP
 	cli
 	jmp	dbg_brk
 	ASSUME	DS:CODE
-cm7:	push	ax
+cm7:	mov	si,offset FIND_MSG
+	cmp	al,ERR_NOFILE		; file not found?
+	je	cm7b			; yes
+	cmp	al,ERR_NOPATH		; path not found?
+	je	cm7b			; yes
 	mov	si,offset LOAD_MSG
+cm7b:
+	IFDEF DEBUG
+	push	ax			; save the error code
+	ENDIF
+	call	put_string
+	mov	si,offset command
+	call	put_string		; display the program name
+	IFDEF DEBUG
+	mov	si,offset ERRNUM_MSG
 	call	put_string
 	pop	ax
-	call	hex_word		; display the error code
+	call	put_dec			; display the error code
+	mov	al,')'
+	call	put_char
+	ENDIF
 	jmp	short cm9a
 cm8:	cmp	[com_runs],2		; did the program terminate itself?
 	jne	cm9b			; no, Q did
@@ -2653,7 +2668,13 @@ cm9b:	call	swap_vecs
 ENDPROC	com_main
 
 	DEFLBL	LOAD_MSG,byte
-	db	"Unable to load program, error ",0
+	db	"Unable to load ",0
+	DEFLBL	FIND_MSG,byte
+	db	"Unable to find ",0
+	IFDEF DEBUG
+	DEFLBL	ERRNUM_MSG,byte
+	db	" (",0
+	ENDIF
 	DEFLBL	TERM_MSG,byte
 	db	"Program terminated normally",0
 
@@ -2668,6 +2689,30 @@ DEFPROC	com_quit
 	jnc	cm9
 	ret
 ENDPROC	com_quit
+
+	IFDEF DEBUG
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; put_dec (DEBUG builds only)
+;
+; Inputs:
+;	AX = unsigned value (displayed in decimal)
+;
+; Modifies:
+;	AX, CX, DX
+;
+DEFPROC	put_dec
+	mov	cx,10
+	sub	dx,dx
+	div	cx			; AX = quotient, DX = remainder
+	push	dx
+	test	ax,ax			; any more digits?
+	jz	pdec1			; no
+	call	put_dec
+pdec1:	pop	ax
+	jmp	hex_digit		; display AL (0-9) as a digit
+ENDPROC	put_dec
+	ENDIF
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

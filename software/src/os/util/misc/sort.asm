@@ -231,7 +231,7 @@ ENDPROC	skipCol
 
 	include	utilproc.inc
 
-NO_MEMORY	db	"Insufficient memory",13,10,0
+NO_MEMORY	db	"Not enough memory",13,10,0
 
 	COMHEAP	<size UTILVARS + STACK_LEN>
 

@@ -886,8 +886,7 @@ DEFPROC	cmdExec
 ce8:
 	IFDEF	DEBUG
 	mov	ax,word ptr [bp].EXIT_CODE
-	mov	dl,ah			; AL = exit code, DL = exit type
-	PRINTF	<"Return code %bd (%bd)",13,10,13,10>,ax,dx
+	PRINTF	<"Return code %bd",13,10,13,10>,ax
 	ENDIF
 ce9:	ret
 ENDPROC	cmdExec
@@ -1137,7 +1136,7 @@ cf5b:	mov	al,CHR_RETURN		; regardless how the command line ends,
 	call	cmdDone
 	jmp	short cf5d
 cf5f:	call	pipeStages		; CH = commands that follow
-	mov	ax,DOS_PSP_EXEC1
+	mov	ax,DOS_PSP_EXEC6
 	int	21h			; load program at DS:DX
 	jc	cf5e
 ;

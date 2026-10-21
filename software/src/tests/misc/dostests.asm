@@ -157,6 +157,10 @@ m6:	call	result
 	call	print
 	call	test_load
 	call	result
+	mov	dx,offset reservetest
+	call	print
+	call	test_reserve
+	call	result
 m7:
 
 	mov	dx,offset execfile
@@ -658,6 +662,107 @@ lr9:	ret
 ENDPROC	load_refcheck
 
 ;
+; test_reserve
+;
+; EXEC and EXEC1 must ignore CH, while EXEC6 must reserve memory for the CH
+; programs to follow.  A tiny EXE requests all available memory and reports
+; its allocation into this process before exiting.  Compare EXEC with CH=0
+; and FFh, EXEC1 with CH=FFh, and EXEC6 with CH=0 and 1, starting each
+; loaded child with EXEC2.
+;
+DEFPROC	test_reserve
+	mov	[reserveparent],cs
+	mov	dx,offset reservefile
+	xor	cx,cx
+	mov	ah,DOS_HDL_CREATE
+	int	21h
+	jnc	rv0a
+	ret
+rv0a:	xchg	bx,ax
+	mov	dx,offset reserveimage
+	mov	cx,offset reserveend-offset reserveimage
+	mov	ah,DOS_HDL_WRITE
+	int	21h
+	jc	rv6
+	cmp	ax,cx			; the fixture must be written in full
+	je	rv0
+	stc
+rv6:	pushf
+	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	popf
+	jmp	short rv8
+rv0:	mov	ah,DOS_HDL_CLOSE
+	int	21h
+	jc	rv8
+	mov	[execparms].EPB_CMDTAIL.SEG,cs
+	mov	[execparms].EPB_FCB1.SEG,cs
+	mov	[execparms].EPB_FCB2.SEG,cs
+	xor	cx,cx
+	mov	ax,DOS_PSP_EXEC
+	call	reserve_exec
+	jc	rv8
+	mov	[reservebase],ax
+	mov	cx,0FF00h
+	mov	ax,DOS_PSP_EXEC
+	call	reserve_exec
+	jc	rv8
+	cmp	ax,[reservebase]	; ordinary EXEC must ignore nonzero CH
+	jne	rv7
+	mov	cx,0FF00h
+	mov	ax,DOS_PSP_EXEC1
+	call	reserve_exec
+	jc	rv8
+	cmp	ax,[reservebase]	; EXEC1 must ignore nonzero CH too
+	jne	rv7
+	xor	cx,cx
+	mov	ax,DOS_PSP_EXEC6
+	call	reserve_exec
+	jc	rv8
+	cmp	ax,[reservebase]	; EXEC6 with CH=0 must agree
+	jne	rv7
+	mov	cx,0100h
+	mov	ax,DOS_PSP_EXEC6
+	call	reserve_exec
+	jc	rv8
+	cmp	ax,[reservebase]	; smaller with a reservation?
+	cmc				; CF clear only if smaller
+	jmp	short rv8
+rv7:	stc
+rv8:	pushf
+	mov	dx,offset reservefile
+	mov	ah,DOS_DSK_DELETE
+	int	21h
+	popf
+	ret
+ENDPROC	test_reserve
+
+;
+; reserve_exec
+;
+; Run the fixture using AX's subfunction and CH's reservation count.
+; Return its allocation in AX, or carry set if it could not run.
+;
+DEFPROC	reserve_exec
+	push	ax
+	push	cs
+	pop	es
+	mov	bx,offset execparms
+	mov	dx,offset reservefile
+	int	21h
+	pop	dx
+	jc	re9
+	test	dl,dl			; loaded but not started?
+	jz	re8
+	mov	ax,DOS_PSP_EXEC2
+	int	21h
+	jc	re9
+re8:	mov	ax,[reserveparas]
+	clc
+re9:	ret
+ENDPROC	reserve_exec
+
+;
 ; result
 ;
 ; Prints "passed" if carry is clear, "failed" if carry is set.
@@ -721,6 +826,28 @@ loadrefs	dd		0
 loadspb		SPB		<0,0,0FFh,0FFh,0FFh,0FFh,0FFh>
 loadchild	db		"LOADTEST.COM",0
 loadimage	db		0CDh,20h
+
+reservetest	db		"EXEC reservation test $"
+reservefile	db		"EXECTEST.EXE",0
+reservebase	dw		0
+reserveparas	dw		0
+;
+; EXE image with a 32-byte header (its fields after SP are zero), no
+; relocations, and maximum allocation.  DS initially points to its PSP;
+; report BASIC-DOS's paragraph count to the parent using a segment patched
+; before the file is written.
+;
+reserveimage	EXEHDR	<SIG_EXE,reserveend-reserveimage,1,0,2,40h,-1,0,400h>
+		dw		0,0
+reservecode label byte
+	mov	ax,ds:[PSP_PARAS]
+	mov	dx,cs:[reserveparent-reservecode]
+	mov	ds,dx
+	mov	[reserveparas],ax
+	mov	ax,DOS_PSP_RETURN SHL 8
+	int	21h
+reserveparent	dw		0
+reserveend label byte
 
 testfile	db		"HELLO.TXT",0
 tempfile1	db		"TEMP1.TXT",0

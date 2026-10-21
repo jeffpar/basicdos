@@ -843,7 +843,7 @@ si18:	mov	si,sp			; SS:SI -> SPB
 	ASSUME	ES:NOTHING
 	xchg	bx,ax			; BL = SFH
 	pop	ax			; AX = error code
-	CCALL	DOS_UTL_HPRINTF,<"Error loading %s (%d)",13,10>,si,ax
+	ECCALL	DOS_UTL_HPRINTF,<"Unable to load %s">,<13,10>,ax,si
 	jmp	si17
 ;
 ; Although it may appear every SCB was started immediately after loading,

@@ -122,8 +122,13 @@ DEFPROC	openFile
 	mov	[bp].UV_INEND,0		; and the input buffer is empty
 	ret
 of8:	push	dx
+	mov	si,offset FIND_ERR
+	cmp	ax,ERR_NOFILE		; file not found?
+	je	of9			; yes
+	cmp	ax,ERR_NOPATH		; path not found?
+	je	of9			; yes
 	mov	si,offset OPEN_ERR
-	call	writeErr
+of9:	call	writeErr
 	pop	si
 	call	writeErr
 	mov	si,offset CRLF
@@ -300,4 +305,5 @@ DEFPROC	exit
 ENDPROC	exit
 
 OPEN_ERR	db	"Unable to open ",0
+FIND_ERR	db	"Unable to find ",0
 CRLF		db	13,10,0

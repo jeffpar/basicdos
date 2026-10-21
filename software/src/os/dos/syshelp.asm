@@ -287,13 +287,13 @@ ENDPROC	cache_int21
 ;	AX
 ;
 DEFPROC	console_warning
-	PRINTF	<"Warning: unable to open console %s (%d)",13,10>,dx,ax
+	EPRINTF	<"Warning: unable to open console %s">,<13,10>,ax,dx
 	ret
 ENDPROC	console_warning
 
 
 	DEFLBL	open_error,near
-	PRINTF	<"Error opening %s (%d)">,dx,ax
+	EPRINTF	<"Unable to open %s">,,ax,dx
 	jmp	fatal_error
 
 DOS	ends

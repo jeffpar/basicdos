@@ -560,6 +560,37 @@ PRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	endm
 
 ;
+; Use the EPRINTF macro to display an error message whose error number is
+; displayed in parentheses (eg, "Unable to open X.TXT (5)") in DEBUG builds
+; only.  The message (msg) and any trailing characters (tail; eg, 13,10) are
+; given separately, followed by the error number (err) and any arguments that
+; the message requires; eg:
+;
+;	EPRINTF	<"Unable to open %s">,<13,10>,ax,si
+;
+; ECCALL does the same for other CCALL functions (eg, DOS_UTL_HPRINTF).
+;
+EPRINTF	macro	msg,tail,err,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10
+	ECCALL	DOS_UTL_PRINTF,<msg>,<tail>,err,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10
+	endm
+
+ECCALL	macro	func,msg,tail,err,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10
+	IFDEF DEBUG
+	 IFNB <tail>
+	CCALL	func,<msg," (%d)",tail>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,err
+	 ELSE
+	CCALL	func,<msg," (%d)">,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,err
+	 ENDIF
+	ELSE
+	 IFNB <tail>
+	CCALL	func,<msg,tail>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10
+	 ELSE
+	CCALL	func,<msg>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10
+	 ENDIF
+	ENDIF
+	endm
+
+;
 ; Use the DPRINTF macro to simplify calls to the DOS_UTL_DPRINTF function
 ; (and to ensure they are generated only in DEBUG builds).
 ;

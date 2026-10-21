@@ -157,7 +157,13 @@ ld7:	push	ax
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
 	pop	ax
-ld8:	PRINTF	<"Warning: unable to load device %s (%d)",13,10>,di,ax
+ld8:	mov	dx,offset VERB_FIND
+	cmp	ax,ERR_NOFILE		; file not found?
+	je	ld8a			; yes
+	cmp	ax,ERR_NOPATH		; path not found?
+	je	ld8a			; yes
+	mov	dx,offset VERB_LOAD
+ld8a:	EPRINTF	<"Warning: unable to %ls device %s">,<13,10>,ax,dx,cs,di
 	jmp	ld1
 ;
 ; Initialize the driver, with a DDPI on the stack.  DDPI_END defaults to the
@@ -242,6 +248,8 @@ ld11:	push	ds
 ENDPROC	load_devices
 
 CFG_DEVICE	db	7,"DEVICE="
+VERB_FIND	db	"find",0
+VERB_LOAD	db	"load",0
 
 	DEFLBL	sysinit_end
 

@@ -104,7 +104,7 @@ Sends diagnostic messages from DEBUG builds of BASIC-DOS to the specified device
 
 > DEVICE=*filename* [*arguments*]
 
-Loads an installable device driver, passing it any *arguments*.  DEVICE lines are processed in order, after the first console has been opened (so that any errors can be reported) and before any other consoles are opened.  If a driver can't be loaded, a warning is displayed (eg, `Warning: unable to load device DEBUG.COM (31)`) and startup continues.
+Loads an installable device driver, passing it any *arguments*.  DEVICE lines are processed in order, after the first console has been opened (so that any errors can be reported) and before any other consoles are opened.  If a driver can't be loaded, a warning is displayed (eg, `Warning: unable to find device DEBUG.COM`) and startup continues.
 
 BASIC-DOS includes one installable driver, DEBUG.COM (in the BIN directory), a simple debugger that runs on a terminal connected to a serial port; its argument is the port's settings, using the same format as a COM [CONSOLE](#console) (eg, `DEVICE=BIN\DEBUG.COM COM2:9600,N,8,1,VT100`).  The debugger claims the port, so no other program or console can open it.  On the terminal, CTRL-C (or BREAK) stops the machine as soon as it arrives, as do breakpoints, single-steps, and any other INT 1 or INT 3.  The debugger then displays the registers and the instruction at CS:IP, and accepts these commands (all numbers are hexadecimal; an *address* is [*segment*:]*offset*, where *segment* may also be a register name such as DS or CS, and a *range* is *address* [*end* | L *count*]):
 

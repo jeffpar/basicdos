@@ -64,7 +64,7 @@ ch4:	call	getCwd			; DS:SI -> path
 	jc	ch8
 	PRINTF	<"%c:%c%s",13,10,13,10>,cx,dx,si
 	ret
-ch8:	PRINTF	<"Unable to find %c: (%d)",13,10,13,10>,cx,ax
+ch8:	EPRINTF	<"Unable to find %c:">,<13,10,13,10>,ax,cx
 	stc
 	ret
 ENDPROC	cmdChdir
@@ -1455,11 +1455,13 @@ ENDPROC	openOutput
 ; openError
 ;
 ; Report an error opening a file, or with fileError, any other file or
-; directory operation (eg, "Unable to delete X.TXT (2)").
+; directory operation (eg, "Unable to delete X.TXT"; DEBUG builds also
+; display the error #, as in "Unable to delete X.TXT (5)").
 ;
 ; Inputs:
-;	AX = error # (ERR_NOTREADY is reported as "Drive not ready", and
-;	ERR_NOSESSION as "No sessions available to run X")
+;	AX = error # (ERR_NOTREADY is reported as "Drive not ready",
+;	ERR_NOSESSION as "No sessions available to run X", ERR_NOMEMORY as
+;	"Unable to load X", and ERR_NOFILE or ERR_NOPATH as "Unable to find X")
 ;	DS:SI -> filename
 ;	CS:DX -> verb (fileError only; eg, "delete")
 ;
@@ -1477,10 +1479,11 @@ DEFPROC	openError
 	ret
 	DEFLBL	fileError,near
 	push	ax
+	push	dx
 	cmp	ax,ERR_NOTREADY		; drive not ready?
 	jne	fer1			; no
 	PRINTF	<"Drive not ready",13,10,13,10>
-	jmp	short fer2
+	jmp	fer2
 fer1:	cmp	ax,ERR_NOSESSION	; no session for a pipeline command?
 	jne	fer3			; no
 	push	bx
@@ -1502,8 +1505,17 @@ fer1c:	sub	di,si			; DI = length of name without extension
 	pop	di
 	pop	bx
 	jmp	short fer2
-fer3:	PRINTF	<"Unable to %ls %s (%d)",13,10,13,10>,dx,cs,si,ax
-fer2:	pop	ax
+fer3:	cmp	ax,ERR_NOMEMORY		; not enough memory?
+	jne	fer4			; no
+	mov	dx,offset VERB_LOAD	; yes, so report "Unable to load X"
+fer4:	cmp	ax,ERR_NOFILE		; file not found?
+	je	fer5			; yes
+	cmp	ax,ERR_NOPATH		; path not found?
+	jne	fer6			; no
+fer5:	mov	dx,offset VERB_FIND	; yes, so report "Unable to find X"
+fer6:	EPRINTF	<"Unable to %ls %s">,<13,10,13,10>,ax,dx,cs,si
+fer2:	pop	dx
+	pop	ax
 	stc
 	ret
 ENDPROC	openError
@@ -1917,6 +1929,7 @@ ENDPROC	openMode
 VERB_CD		db	"change to",0
 VERB_DEL	db	"delete",0
 VERB_FIND	db	"find",0
+VERB_LOAD	db	"load",0
 VERB_MD		db	"create",0
 VERB_RD		db	"remove",0
 VERB_REN	db	"rename",0

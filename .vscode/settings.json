@@ -509,6 +509,7 @@
     "ENVSEG",
     "EOIs",
     "eopen",
+    "EPRINTF",
     "eread",
     "ERRCODE",
     "errmsg",

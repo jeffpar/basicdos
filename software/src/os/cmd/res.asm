@@ -88,7 +88,6 @@ DEFPROC	runTransient
 	int	21h			; discard the transient portion
 	pop	bx
 	pop	dx
-	mov	ch,0			; no commands follow (no pipes)
 	mov	ax,DOS_PSP_EXEC1
 	int	21h			; load the program at DS:DX
 	jc	rt1

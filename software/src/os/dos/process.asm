@@ -203,27 +203,28 @@ ENDPROC	psp_copy
 ;		0: load program
 ;		1: load program w/o starting
 ;		2: start program
+;		6: load program w/o starting (BASIC-DOS only; see REG_CH)
 ;	REG_ES:REG_BX -> Exec Parameter Block (EPB)
 ;	REG_DS:REG_DX -> program name or command line
 ;	REG_CH = number of programs the caller will load next (eg, the rest
-;	of a pipeline), for subfunction 1 only (see load_program)
+;	of a pipeline), for subfunction 6 only (see load_program)
 ;
 ; Outputs:
 ;	If successful, carry clear
 ;	If error, carry set, AX = error code
 ;
 DEFPROC	psp_exec,DOS
+	sub	cx,cx
+	cmp	al,6			; will CH programs follow?
+	jne	px0			; no
+	mov	cl,[bp].REG_CH		; yes, CL = programs that will follow
+	mov	al,ch			; and AL = 0 (a valid subfunction)
+px0:	mov	[load_reserve],cx
 	cmp	al,2			; valid subfunction?
 	je	px5
 	cmc
 	mov	ax,ERR_INVALID
 	jc	pxx			; AX = error code if not
-
-	sub	cx,cx
-	cmp	al,1			; load w/o starting?
-	jne	px0			; no, so no programs will follow
-	mov	cl,[bp].REG_CH		; yes, CL = programs that will follow
-px0:	mov	[load_reserve],cx
 
 	mov	ds,[bp].REG_DS
 	ASSUME	DS:NOTHING
