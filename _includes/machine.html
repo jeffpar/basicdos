@@ -8,7 +8,9 @@
 Diskette libraries listed by every FDC whose "diskettes" setting is empty, in addition to its own "listDisks"
 options; the FDC lists only the diskettes its drives can read, and skips any whose path is already listed (which
 is how the pcjs.org library's copies of locally available diskettes are omitted; see "@link" in diskettes.json).
-Remove the PC-SIG library from this list to omit its 4000+ diskettes.
+Remove the PC-SIG library from this list to omit its 4000+ diskettes.  The BASIC-DOS diskettes, with their
+friendly titles, are added to every FDC's "listDisks" options from basicdos-diskettes.json, which "gulp demos" writes
+(Jekyll's data_dir is "machines"), so auto-mounting one by title never waits for these libraries.
 {%- endcomment -%}
 {%- assign fdc_diskettes = "/machines/pcx86/diskettes.json,/disks/pcsigdisks/pcx86/diskettes.json" -%}
 {%- assign machine_debugger = nil -%}
@@ -242,6 +244,11 @@ Debugger and its Panel); any other "debugger" value (eg, "available") is a link 
             <select class="{{ machine_type }}-binding" data-value="{type:'{{ control.type }}',binding:'{{ control.id }}'}">
               {%- if control.options -%}
                 {%- for option in control.options %}
+              <option value="{{ option[0] }}">{{ option[1] }}</option>
+                {%- endfor -%}
+              {%- endif %}
+              {%- if component.class == "fdc" and control.id == "listDisks" -%}
+                {%- for option in site.data.pcx86.basicdos-diskettes %}
               <option value="{{ option[0] }}">{{ option[1] }}</option>
                 {%- endfor -%}
               {%- endif %}

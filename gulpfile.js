@@ -73,6 +73,10 @@ function checkOutput(task, outputFile)
  *
  * A SAMPLES folder's files get the timestamps of the matching files on the PC DOS 1.00 diskette (PCDOS100).
  *
+ * Every disk gets a volume label, "BD-" plus the end of its name (eg, BD-D40 for BASICDOS-360K-D40), unless it sets
+ * its own "label".  A diskette with a "title" is listed under that title in the diskette list of every machine's FDC
+ * (see writeDiskettes()).
+ *
  * A ZIP file in a list of files (eg, PUBLIC.zip) is extracted into the folder itself, preserving the original
  * timestamps of its files.
  */
@@ -111,18 +115,19 @@ function diskFiles(diskName, fileSpecs)
 }
 
 let disks = {
-    "BASICDOS": { config: "./demos/s80/CONFIG.SYS" },
-    "BASICDOS-360K-S80": { config: "./demos/s80/CONFIG.SYS" },
-    "BASICDOS-360K-D40": { config: "./demos/d40/CONFIG.SYS" },
-    "BASICDOS-360K-D80": { config: "./demos/d80/CONFIG.SYS" },
-    "BASICDOS-360K-P80": { config: "./demos/p80/CONFIG.SYS" },
-    "BASICDOS-360K-DUAL": { config: "./demos/dual/CONFIG.SYS" },
-    "BASICDOS-360K-MULTI": { config: "./demos/dual/multi/CONFIG.SYS" },
-    "BASICDOS-360K-SERIAL": { config: "./demos/serial/CONFIG.SYS" },
-    "BASICDOS-360K-VT100": { config: "./demos/vt100/CONFIG.SYS" },
-    "BASICDOS-360K-DEBUG": { config: "./demos/debug/CONFIG.SYS" },
-    "BASICDOS-360K-M64": { config: "./demos/m64/CONFIG.SYS" },
+    "BASICDOS": { config: "./demos/s80/CONFIG.SYS", label: "BASIC-DOS" },
+    "BASICDOS-360K-S80": { config: "./demos/s80/CONFIG.SYS", title: "BASIC-DOS 80-Column Demo" },
+    "BASICDOS-360K-D40": { config: "./demos/d40/CONFIG.SYS", title: "BASIC-DOS 40-Column Demo" },
+    "BASICDOS-360K-D80": { config: "./demos/d80/CONFIG.SYS", title: "BASIC-DOS 80-Column Split Demo" },
+    "BASICDOS-360K-P80": { config: "./demos/p80/CONFIG.SYS", title: "BASIC-DOS Multi-Page Demo" },
+    "BASICDOS-360K-DUAL": { config: "./demos/dual/CONFIG.SYS", title: "BASIC-DOS Dual Monitor Demo" },
+    "BASICDOS-360K-MULTI": { config: "./demos/dual/multi/CONFIG.SYS", title: "BASIC-DOS Multi-Session Demo" },
+    "BASICDOS-360K-SERIAL": { config: "./demos/serial/CONFIG.SYS", title: "BASIC-DOS HD Serial Display Demo" },
+    "BASICDOS-360K-VT100": { config: "./demos/vt100/CONFIG.SYS", title: "BASIC-DOS HD VT100 Demo" },
+    "BASICDOS-360K-DEBUG": { config: "./demos/debug/CONFIG.SYS", title: "BASIC-DOS Serial Debugger Demo" },
+    "BASICDOS-360K-M64": { config: "./demos/m64/CONFIG.SYS", title: "BASIC-DOS Monochrome Demo" },
     "BASICDOS-360K-TESTS": {
+        title: "BASIC-DOS Tests",
         data: true,
         folders: { TESTS: manifest.TESTS, "TESTS/MISC": manifest["TESTS/MISC"], TOOLS: manifest.TOOLS }
     },
@@ -244,19 +249,41 @@ function buildDisk(diskName, diskImage)
 {
     return function(done) {
         let entries = stageDisk(diskName);
+        let label = disks[diskName].label || diskName.replace(/^BASICDOS-(360K-)?/, "BD-");
         let cmd;
         if (disks[diskName].hd) {
-            cmd = "node ./tools/pc/pc.js ibm5160 ./tools/pc/disks/" + diskName + " --sys=bd:2 --target=10M --normalize --bare --label=BASICDOS --save=" + diskImage;
+            cmd = "node ./tools/pc/pc.js ibm5160 ./tools/pc/disks/" + diskName + " --sys=bd:2 --target=10M --normalize --bare --label=" + label + " --save=" + diskImage;
         } else {
             cmd = "node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" --files " + entries.join(",") +
                   (disks[diskName].data? "" : " --boot " + SRC + "/os/boot/obj/BOOT1.COM") + " --output " + diskImage +
-                  " --normalize --writable --target=360 --overwrite";
+                  " --label=" + label + " --normalize --writable --target=360 --overwrite";
         }
         run(cmd)(done);
     };
 }
 
-let demoTasks = [];
+/**
+ * writeDiskettes(done)
+ *
+ * Writes the titled diskettes (see "disks" above) to machines/pcx86/basicdos-diskettes.json, which maps each diskette
+ * path to its title; since Jekyll's data_dir is "machines", _includes/machine.html adds them to every FDC's list.
+ *
+ * @param {function(Error=)} done
+ */
+function writeDiskettes(done)
+{
+    let diskettes = {};
+    for (let diskName in disks) {
+        if (disks[diskName].title) diskettes["/software/disks/" + diskName + ".json"] = disks[diskName].title;
+    }
+    let file = "./machines/pcx86/basicdos-diskettes.json";
+    let text = JSON.stringify(diskettes, null, 2) + "\n";
+    if (!fs.existsSync(file) || fs.readFileSync(file, "utf8") != text) fs.writeFileSync(file, text);
+    done();
+}
+gulp.task("diskettes", writeDiskettes);
+
+let demoTasks = ["diskettes"];
 for (let diskName in disks) {
     let buildTask = "BUILD-" + diskName;
     let diskImage = "./software/disks/" + diskName + ".json";

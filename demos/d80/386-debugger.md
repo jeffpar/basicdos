@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/compaq/compaq-deskpro386-vga-1mb.json
     debugger: true
     autoMount:
-      A: "BASICDOS-360K-D80"
+      A: "BASIC-DOS 80-Column Split Demo"
       B: "PC DOS 2.00 (Disk 1)"
 ---
 

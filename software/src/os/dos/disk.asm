@@ -385,8 +385,9 @@ ENDPROC	get_bpb
 ;	If BL includes DIRATTR_SEARCH, then the DOS rules for "find first" and
 ;	"find next" apply: an entry matches only if all its HIDDEN, SYSTEM,
 ;	VOLUME, and SUBDIR attributes are included in BL, so BL = DIRATTR_SEARCH
-;	alone matches only normal files (eg, not volume labels).  Otherwise,
-;	an entry matches if it has any of the attributes in BL.
+;	alone matches only normal files (eg, not volume labels), and as in DOS,
+;	BL = DIRATTR_SEARCH OR DIRATTR_VOLUME matches only volume labels.
+;	Otherwise, an entry matches if it has any of the attributes in BL.
 ;	DI -> BPB
 ;	SCB_DIRCLN contains the directory (1st cluster, or 0 for the root)
 ;	SCB_FILENAME contains the filename
@@ -447,8 +448,9 @@ gd2:	mov	dx,bp
 ; End of initialization code, beginning of main loop.
 ;
 gd3:	call	dir_lba			; AX = LBA of relative sector DX
-	jc	gd6a
-	push	dx
+	jnc	gd3a
+	jmp	gd6a
+gd3a:	push	dx
 	xchg	dx,ax			; DX = LBA
 	mov	al,es:[di].BPB_DRIVE
 	mov	si,offset DIR_BUFHDR
@@ -482,6 +484,10 @@ gd5f:	and	cl,DIRATTR_HIDDEN OR DIRATTR_SYSTEM OR DIRATTR_VOLUME OR DIRATTR_SUBDI
 	not	ch
 	test	cl,ch			; any attributes that weren't requested?
 	jnz	gd5e			; yes
+	cmp	bl,DIRATTR_SEARCH OR DIRATTR_VOLUME
+	jne	gd5a			; not a volume label search
+	test	cl,DIRATTR_VOLUME	; is this the volume label?
+	jz	gd5e			; no
 
 gd5a:	push	di
 	mov	cx,size FCB_NAME

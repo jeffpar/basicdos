@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/compaq/compaq-deskpro386-dual-1mb.json
     debugger: true
     autoMount:
-      A: "BASICDOS-360K-DUAL"
+      A: "BASIC-DOS Dual Monitor Demo"
 ---
 
 {% include machine.html id="deskpro386" %}

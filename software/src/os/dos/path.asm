@@ -7,6 +7,7 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
+	DOSFFB equ 1
 	include	macros.inc
 	include	bios.inc
 	include	disk.inc
@@ -686,7 +687,9 @@ ENDPROC	get_parent
 ;
 ; fmt_name
 ;
-; Format the name of a DIRENT as "NAME.EXT" (no null terminator).
+; Format the name of a DIRENT as "NAME.EXT" (no null terminator).  Only
+; trailing spaces are removed, so a volume label like "MY DISK" keeps its
+; embedded space.
 ;
 ; Inputs:
 ;	DS:SI -> DIRENT
@@ -701,22 +704,18 @@ ENDPROC	get_parent
 DEFPROC	fmt_name,DOS
 	ASSUMES	<DS,NOTHING>,<ES,NOTHING>
 	mov	cx,8
-fn1:	lodsb
-	cmp	al,' '
-	je	fn2
-	stosb
-fn2:	loop	fn1
-	mov	al,[si]
-	cmp	al,' '
-	je	fn9
+	rep	movsb
+	call	fn8			; remove the name's trailing spaces
+	cmp	byte ptr [si],' '	; is there an extension?
+	je	fn9			; no
 	mov	al,'.'
 	stosb
 	mov	cl,3
-fn3:	lodsb
-	cmp	al,' '
-	je	fn4
-	stosb
-fn4:	loop	fn3
+	rep	movsb
+fn8:	dec	di
+	cmp	byte ptr es:[di],' '
+	je	fn8
+	inc	di
 fn9:	ret
 ENDPROC	fmt_name
 
@@ -782,13 +781,15 @@ ENDPROC	get_dirpath
 ; dsk_getcwd (REG_AH = 47h)
 ;
 ; Inputs:
-;	REG_DL = drive # (0 for default, 1 for A:, and so on)
+;	REG_DL = drive # (0 for default, 1 for A:, and so on), or 0FFh for
+;	the directory searched by the DTA's last FFIRST or FNEXT (a BASIC-DOS
+;	extension, so that DIR can display a canonical path)
 ;	REG_DS:REG_SI -> 64-byte buffer
 ;
 ; Outputs:
 ;	On success, carry clear, and the buffer contains the path of the
-;	current directory, without a drive or leading SCB_PATHCHAR (so the
-;	root directory is an empty string)
+;	current (or searched) directory, without a drive or leading
+;	SCB_PATHCHAR (so the root directory is an empty string)
 ;	On failure, carry set, REG_AX = error code
 ;
 ; Modifies:
@@ -803,6 +804,8 @@ ENDPROC	get_dirpath
 DEFPROC	dsk_getcwd,DOS
 	LOCK_SCB
 	mov	bx,[scb_active]
+	cmp	dl,0FFh			; FFB directory requested?
+	je	cw0			; yes
 	dec	dl			; drive # specified?
 	jge	cw1			; yes
 	mov	dl,cs:[bx].SCB_CURDRV
@@ -813,7 +816,11 @@ cw1:	mov	ax,ERR_BADDRIVE
 	mov	al,dl
 	call	get_cdir		; BX -> drive's current directory
 	mov	cx,cs:[bx]		; CX = current directory
-	jcxz	cw1a			; the root doesn't require a fresh BPB
+	jmp	short cw0a
+cw0:	les	di,cs:[bx].SCB_DTA	; ES:DI -> DTA (FFB)
+	mov	dl,es:[di].FFB_DRIVE	; DL = drive #
+	mov	cx,es:[di].FFB_DIRCLN	; CX = directory searched
+cw0a:	jcxz	cw1a			; the root doesn't require a fresh BPB
 	call	get_bpb			; DI -> BPB
 	jc	cw8
 cw1a:	mov	dx,cx			; DX = current directory

@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/compaq/compaq-deskpro386-vga-1mb-mouse.json
     debugger: true
     autoMount:
-      A: "BASICDOS-360K-S80"
+      A: "BASIC-DOS 80-Column Demo"
     autoType: PAINT\r
 ---
 

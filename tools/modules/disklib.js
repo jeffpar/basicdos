@@ -909,7 +909,7 @@ export default class DiskLib {
          *
          * By default, I prefer a hard-coded date/time, because it avoids creating different disk images every time this is run.
          */
-        if (label && (!driveInfo || driveInfo.verDOS >= 2)) {
+        if (label && !(driveInfo && driveInfo.verDOS < 2)) {
             let sPath = '/' + node.path.basename(label);
             let file = {path: sPath, name: label, attr: DiskInfo.ATTR.VOLUME, date: dateLabel || new Date(), size: 0};
             aFiles.push(file);

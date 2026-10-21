@@ -101,9 +101,9 @@ If the program isn't in the current directory, and its name doesn't include a dr
 
 and its CONFIG.SYS sets PATH$ to the root, BIN, DEMOS, and SAMPLES (eg, `A:\;A:\BIN;A:\DEMOS;A:\SAMPLES`), so you can type `PRIMES` or `DIR | SORT` from any directory.
 
-Test programs are on a separate diskette, BASICDOS-360K-TESTS, in its **TESTS\MISC** directory (eg, DOSTESTS.COM; MISC.BAT in **TESTS** runs them all), with MSBASIC.EXE and SYMDEB.EXE in its **TOOLS** directory; load it in drive B: and type (for example) `B:\TOOLS\MSBASIC`, or `B:`, `CD \TESTS`, and `MISC`.
+Test programs are on a separate diskette, BASIC-DOS Tests, in its **TESTS\MISC** directory (eg, DOSTESTS.COM; MISC.BAT in **TESTS** runs them all), with MSBASIC.EXE and SYMDEB.EXE in its **TOOLS** directory; load it in drive B: and type (for example) `B:\TOOLS\MSBASIC`, or `B:`, `CD \TESTS`, and `MISC`.
 
-The [hard disk demo](/demos/hd/at/) adds three more directories: **TESTS** (the same tests as BASICDOS-360K-TESTS), **SRC** (the BASIC-DOS source code), and **TOOLS** (MASM and the other build tools, plus MSBASIC.EXE and SYMDEB.EXE).
+The [hard disk demo](/demos/hd/at/) adds three more directories: **TESTS** (the same tests as the BASIC-DOS Tests diskette), **SRC** (the BASIC-DOS source code), and **TOOLS** (MASM and the other build tools, plus MSBASIC.EXE and SYMDEB.EXE).
 
 Use `LIST VARS` to inspect the current session's variable values and array dimensions; see [LIST](../cmd/system/#list).
 

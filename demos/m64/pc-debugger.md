@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/ibm/ibm-5150-mda-64kb.json
     debugger: true
     autoMount:
-      A: "BASICDOS-360K-M64"
+      A: "BASIC-DOS Monochrome Demo"
       B: "PC DOS 1.00"
 ---
 

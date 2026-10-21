@@ -1,8 +1,8 @@
-The BASICDOS-360K-D80 diskette's **CONFIG.SYS** defines two 80-column consoles, one above the other (16 rows on top and 9 rows on the bottom), each running its own copy of COMMAND.COM.
+The BASIC-DOS 80-Column Split Demo diskette's **CONFIG.SYS** defines two 80-column consoles, one above the other (16 rows on top and 9 rows on the bottom), each running its own copy of COMMAND.COM.
 
 Both sessions are configured with borders, and a double-wide border indicates which session has keyboard focus.  Use **SHIFT-TAB** to toggle focus.
 
-### **CONFIG.SYS** from the BASICDOS-360K-D80 Diskette
+### **CONFIG.SYS** from the BASIC-DOS 80-Column Split Demo Diskette
 
 ```
 {% include_relative CONFIG.SYS %}

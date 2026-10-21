@@ -669,7 +669,7 @@ cd8:	inc	di			; keep the path char
 cd9:	ret
 ENDPROC	chkDir
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; cmdDir
 ;
@@ -697,25 +697,19 @@ DEFPROC	cmdDir
 	REPS	MOVS,ES,CS,BYTE		; yes, so append DIR_DEF
 	pop	si
 ;
-; Find the first match before getting the drive's info, so that an error
-; (eg, drive not ready) is reported as such.
+; Find the first match before printing the header, so that an error (eg,
+; drive not ready) is reported as such.
 ;
 di1:	mov	cx,10h			; CX = attributes (DIRATTR_SUBDIR)
 	mov	dx,si			; DX -> filespec
 	mov	ah,DOS_DSK_FFIRST
 	int	21h
 	jc	dix
-;
-; If filespec begins with a drive letter, get that drive's info.
-;
-	mov	dl,0			; DL = default drive #
-	cmp	byte ptr [si+1],':'
-	jne	di2
-	mov	al,[si]
-	sub	al,'A'-1
-	jb	dix
-	mov	dl,al			; DL = specific drive # (1-based)
-di2:	mov	ah,DOS_DSK_GETINFO
+	call	dirHeader
+	jc	dix
+	mov	dl,ds:[PSP_DTA].FFB_DRIVE
+	inc	dx			; DL = 1-based drive #
+	mov	ah,DOS_DSK_GETINFO
 	int	21h			; get disk info for drive
 	jnc	di3
 dix:	jmp	di8
@@ -733,30 +727,10 @@ di3:	mov	bp,bx			; BP = available clusters
 ;
 	sub	dx,dx
 	sub	cx,cx
-di4:	lea	si,ds:[PSP_DTA].FFB_NAME
-;
-; Beginning of "stupid" code to separate filename into name and extension.
-;
-	push	cx
+di4:	push	cx
 	push	dx
-	DOSUTIL	STRLEN
-	xchg	cx,ax			; CX = total length
-	cmp	byte ptr [si],'.'	; is it "." or ".."?
-	je	di5			; yes, so there's no extension
-	mov	dx,offset PERIOD
-	call	chkString		; does the filename contain a period?
-	jc	di5			; no
-	mov	ax,di
-	sub	ax,si			; AX = partial filename length
-	inc	di			; DI -> character after period
-	jmp	short di6
-di5:	mov	ax,cx			; AX = complete filename length
-	mov	di,si
-	add	di,ax
-;
-; End of "stupid" code (which I'm tempted to eliminate, but since it's done...)
-;
-di6:	mov	dx,ds:[PSP_DTA].FFB_DATE
+	call	splitName		; AX = name length, SI, DI
+	mov	dx,ds:[PSP_DTA].FFB_DATE
 	mov	cx,ds:[PSP_DTA].FFB_TIME
 	ASSERT	Z,<cmp ds:[PSP_DTA].FFB_SIZE.HIW,0>
 	PRINTF	<"%-8.*s %-3s ">,ax,si,di
@@ -799,6 +773,115 @@ di8:	mov	dx,offset VERB_FIND
 	pop	bp
 	ret
 ENDPROC	cmdDir
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dirHeader
+;
+; Print the DOS 2.x-style header of a directory listing: a blank line, the
+; drive's volume label, and the path of the directory being listed (which the
+; kernel derives from the FFB of the filespec's first match).  Searching for
+; the volume label replaces that FFB, so the first match is found again.
+;
+; Inputs:
+;	BX -> CMDHEAP
+;	DX -> filespec (whose first match is in the DTA)
+;
+; Outputs:
+;	If carry clear, the DTA contains the first match again; otherwise,
+;	AX = error code
+;
+; Modifies:
+;	AX, BP, CX, DX, SI, DI
+;
+DEFPROC	dirHeader
+	push	dx
+	lea	si,[bx].LINEBUF+192	; DS:SI -> 64-byte path buffer
+	mov	dl,0FFh			; DL = 0FFh (the FFB's directory)
+	mov	ah,DOS_DSK_GETCWD
+	int	21h
+	jc	dh9
+	mov	al,ds:[PSP_DTA].FFB_DRIVE
+	add	al,'A'
+	cbw
+	xchg	bp,ax			; BP = drive letter
+	lea	di,[bx].LINEBUF+176	; (past the filespec in LINEBUF)
+	mov	dx,di			; DX -> volume label filespec
+	mov	ax,bp
+	mov	ah,':'
+	stosw				; "d:"
+	mov	al,[bx].PATH_CHAR
+	stosb				; path char
+	mov	si,offset DIR_DEF
+	mov	cx,DIR_DEF_LEN
+	REPS	MOVS,ES,CS,BYTE		; and DIR_DEF
+	mov	cl,08h			; CX = attributes (DIRATTR_VOLUME)
+	mov	ah,DOS_DSK_FFIRST
+	int	21h
+	jnc	dh1
+	cmp	ax,ERR_NOFILE		; is there no volume label?
+	stc
+	je	dh1			; right (and carry is set)
+dh9:	pop	dx			; no, some other error
+	ret
+dh1:	pushf
+	PRINTF	<13,10," Volume in drive %c ">,bp
+	popf
+	jnc	dh2
+	PRINTF	<"has no label",13,10>
+	jmp	short dh3
+dh2:	call	splitName		; AX = name length, SI, DI
+	PRINTF	<"is %-8.*s%s",13,10>,ax,si,di
+dh3:	mov	dl,[bx].PATH_CHAR
+	lea	si,[bx].LINEBUF+192
+	PRINTF	<" Directory of %c:%c%s",13,10,13,10>,bp,dx,si
+	pop	dx
+	mov	cx,10h			; CX = attributes (DIRATTR_SUBDIR)
+	mov	ah,DOS_DSK_FFIRST
+	int	21h
+	ret
+ENDPROC	dirHeader
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; splitName
+;
+; Separate the name in the DTA's FFB into a name and an extension (eg, for
+; DIR's columns, or a volume label without its period).
+;
+; Inputs:
+;	DTA -> FFB
+;
+; Outputs:
+;	AX = name length, SI -> name, DI -> extension (null-terminated)
+;
+; Modifies:
+;	AX, CX, DX, SI, DI
+;
+DEFPROC	splitName
+	lea	si,ds:[PSP_DTA].FFB_NAME
+;
+; Beginning of "stupid" code to separate filename into name and extension.
+;
+	DOSUTIL	STRLEN
+	xchg	cx,ax			; CX = total length
+	cmp	byte ptr [si],'.'	; is it "." or ".."?
+	je	sn1			; yes, so there's no extension
+	mov	dx,offset PERIOD
+	call	chkString		; does the filename contain a period?
+	jc	sn1			; no
+	mov	ax,di
+	sub	ax,si			; AX = partial filename length
+	inc	di			; DI -> character after period
+	ret
+sn1:	mov	ax,cx			; AX = complete filename length
+	mov	di,si
+	add	di,ax
+;
+; End of "stupid" code (which I'm tempted to eliminate, but since it's done...)
+;
+	ret
+ENDPROC	splitName
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/ibm/ibm-5150-cga-256kb-mouse.json
     debugger: true
     autoMount:
-      A: "BASICDOS-360K-S80"
+      A: "BASIC-DOS 80-Column Demo"
     autoType: PAINT\r
 ---
 

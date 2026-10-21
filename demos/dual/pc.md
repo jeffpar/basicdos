@@ -8,10 +8,10 @@ machines:
     config: /machines/pcx86/ibm/ibm-5150-dual-128kb.json
     debugger: available
     autoMount:
-      A: "BASICDOS-360K-DUAL"
+      A: "BASIC-DOS Dual Monitor Demo"
 ---
 
-The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 128K of memory, two monitors (a Monochrome Display and a Color Display), and two diskette drives.  It boots the BASICDOS-360K-DUAL diskette and runs one session on each monitor: PRIMES.BAT on the Monochrome Display and, since there's no hard disk, PIPES.BAT on the Color Display, which pipes the output of DIR through the CASE filter over and over.
+The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 128K of memory, two monitors (a Monochrome Display and a Color Display), and two diskette drives.  It boots the BASIC-DOS Dual Monitor Demo diskette and runs one session on each monitor: PRIMES.BAT on the Monochrome Display and, since there's no hard disk, PIPES.BAT on the Color Display, which pipes the output of DIR through the CASE filter over and over.
 
 {% include machine.html id="ibm5150" %}
 

@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/ibm/ibm-5170-cga-640kb.json
     debugger: true
     autoMount:
-      A: "BASICDOS-360K-D80"
+      A: "BASIC-DOS 80-Column Split Demo"
       B: "PC DOS 2.00 (Disk 1)"
 ---
 

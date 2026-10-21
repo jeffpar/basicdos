@@ -8,7 +8,7 @@ machines:
     config: /machines/pcx86/ibm/ibm-5160-cga-serial-640kb.json
     debugger: true
     autoMount:
-      A: "BASICDOS-360K-SERIAL"
+      A: "BASIC-DOS HD Serial Display Demo"
 ---
 
 {% include machine.html id="ibm5160" %}

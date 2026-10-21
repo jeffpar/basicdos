@@ -48,8 +48,8 @@ The line editing keys that 0Ah supports are described in [Typing Commands](../..
 | 3Ah | DOS_DSK_RMDIR | DS:DX -> path | Removes the directory (which must be empty, and not any session's current directory) |
 | 3Bh | DOS_DSK_CHDIR | DS:DX -> path | Changes the current directory of the path's drive |
 | 41h | DOS_DSK_DELETE | DS:DX -> filename | |
-| 47h | DOS_DSK_GETCWD | DL = drive # (0 = default, 1 = A:), DS:SI -> 64-byte buffer | Buffer contains the current directory's path, without a drive or leading path character (an empty string for the root) |
-| 4Eh | DOS_DSK_FFIRST | CX = attributes, DS:DX -> filespec | DTA filled in (see [FFB](../data/#ffb)) |
+| 47h | DOS_DSK_GETCWD | DL = drive # (0 = default, 1 = A:), or FFh for the directory searched by the DTA's last 4Eh or 4Fh (a BASIC-DOS extension); DS:SI -> 64-byte buffer | Buffer contains the directory's path, without a drive or leading path character (an empty string for the root) |
+| 4Eh | DOS_DSK_FFIRST | CX = attributes (08h alone finds only the volume label), DS:DX -> filespec | DTA filled in (see [FFB](../data/#ffb)) |
 | 4Fh | DOS_DSK_FNEXT | DTA from the previous 4Eh or 4Fh | DTA filled in |
 | 56h | DOS_DSK_RENAME | DS:DX -> existing filename, ES:DI -> new filename | Same-drive file and directory moves supported; destination must not exist; open files rejected |
 

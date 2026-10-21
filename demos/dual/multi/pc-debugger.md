@@ -9,7 +9,7 @@ machines:
     debugger: true
     sizeRAM: 256
     autoMount:
-      A: "BASICDOS-360K-MULTI"
+      A: "BASIC-DOS Multi-Session Demo"
 ---
 
 {% include machine.html id="ibm5150" name="IBM PC, 256Kb RAM, Dual Floppy Drives, MDA and CGA" %}

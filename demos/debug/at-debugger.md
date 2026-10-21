@@ -16,8 +16,8 @@ machines:
     debugger: true
     connection: com2->vt100.serialPort
     autoMount:
-      A: "BASICDOS-360K-DEBUG"
-      B: "BASICDOS-360K-TESTS"
+      A: "BASIC-DOS Serial Debugger Demo"
+      B: "BASIC-DOS Tests"
 ---
 
 {% include vt100-demo.html id="ibm5170" %}

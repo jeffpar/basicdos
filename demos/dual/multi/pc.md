@@ -9,10 +9,10 @@ machines:
     debugger: available
     sizeRAM: 256
     autoMount:
-      A: "BASICDOS-360K-MULTI"
+      A: "BASIC-DOS Multi-Session Demo"
 ---
 
-The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 256K of memory, two monitors (a Monochrome Display and a Color Display), and two diskette drives.  It boots the BASICDOS-360K-MULTI diskette and runs FOUR sessions, two on each monitor.
+The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 256K of memory, two monitors (a Monochrome Display and a Color Display), and two diskette drives.  It boots the BASIC-DOS Multi-Session Demo diskette and runs FOUR sessions, two on each monitor.
 
 {% include machine.html id="ibm5150" name="IBM PC, 256Kb RAM, Dual Floppy Drives, MDA and CGA" %}
 

@@ -8,11 +8,11 @@ machines:
     config: /machines/pcx86/ibm/ibm-5150-cga-128kb.json
     debugger: available
     autoMount:
-      A: "BASICDOS-360K-D40"
+      A: "BASIC-DOS 40-Column Demo"
       B: "PC DOS 2.00 (Disk 1)"
 ---
 
-The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 128K of memory, a Color Display, and two diskette drives.  It boots the BASICDOS-360K-D40 diskette and runs two 40-column sessions side by side; use **SHIFT-TAB** to toggle focus.
+The machine below is an IBM PC (Model 5150) with a 4.77Mhz 8088, 128K of memory, a Color Display, and two diskette drives.  It boots the BASIC-DOS 40-Column Demo diskette and runs two 40-column sessions side by side; use **SHIFT-TAB** to toggle focus.
 
 {% include machine.html id="ibm5150" %}
 
