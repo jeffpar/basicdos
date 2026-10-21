@@ -167,7 +167,7 @@ There's also limited support for pipe (`|`) and redirection (`>`) operations. Fo
 
     TYPE PRIMES.BAS | CASE
 
-will "pipe" the output of the `TYPE` command to CASE.COM, a simple BASIC-DOS I/O filter program that upper-cases all input.  And in BASIC-DOS, these commands are running *simultaneously*, as separate sessions sharing the same console and file handles.
+will "pipe" the output of the `TYPE` command to CASE.COM[\*], a simple BASIC-DOS I/O filter program that upper-cases all input.  And in BASIC-DOS, these commands are running *simultaneously*, as separate sessions sharing the same console and file handles.
 
 PC DOS didn't support pipe operations version 2.00, and even then, pipes were simulated with temporary files, requiring a writable disk with enough free space to hold all the piped output, and the filters ran sequentially.
 
@@ -178,3 +178,7 @@ See the `HELP` command for a list of commands implemented so far.
 ### To Be Continued...
 
 In the meantime, check out the [Preview](/preview/), which highlights a few of our original [Demos](/demos/).
+
+[\*] CASE has since been superseded by TR, a more general filter that can translate, delete, or squeeze any characters.  To upper-case the output of a command, as CASE did, use:
+
+    TYPE PRIMES.BAS | TR a-z A-Z

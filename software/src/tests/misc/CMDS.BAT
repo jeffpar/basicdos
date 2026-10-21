@@ -6,11 +6,28 @@ IF X <> 1 THEN PRINT "remark failed" : FAILS = FAILS + 1
 IF &H1F<>31 THEN PRINT "hex constant failed" : FAILS = FAILS + 1
 A$ = "it's" : IF LEN(A$) <> 4 THEN PRINT "quote failed" : FAILS = FAILS + 1
 SOUND 440,1
-DIR \BIN\CASE.COM > T.TMP
-TYPE T.TMP | CASE
-DIR \BIN\CASE.COM | CASE
-DIR \BIN\CASE.COM | MORE
+DIR \BIN\TR.COM > T.TMP
+TYPE T.TMP | TR a-z A-Z
+DIR \BIN\TR.COM | TR a-z A-Z
+DIR \BIN\TR.COM | MORE
 DEL T.TMP
+PRINT "hello,  world" :> T.TMP
+TYPE T.TMP | TR a-z A-Z > T2.TMP
+OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
+IF L$ <> "HELLO,  WORLD" THEN PRINT "TR translate failed" : FAILS = FAILS + 1
+TYPE T.TMP | TR a-z X > T2.TMP
+OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
+IF L$ <> "XXXXX,  XXXXX" THEN PRINT "TR short set2 failed" : FAILS = FAILS + 1
+TYPE T.TMP | TR /D lo > T2.TMP
+OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
+IF L$ <> "he,  wrd" THEN PRINT "TR delete failed" : FAILS = FAILS + 1
+TYPE T.TMP | TR /S " " > T2.TMP
+OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
+IF L$ <> "hello, world" THEN PRINT "TR squeeze failed" : FAILS = FAILS + 1
+TYPE T.TMP | TR /C /D a-z\r\n > T2.TMP
+OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
+IF L$ <> "helloworld" THEN PRINT "TR complement failed" : FAILS = FAILS + 1
+DEL T?.TMP
 PRINT 1 :> T1.TMP
 PRINT 2 :> T2.TMP
 DEL T?.TMP

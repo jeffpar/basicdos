@@ -20,13 +20,6 @@ LST=NUL
 # Inference rules in the DOS MAKE utility apparently work only if the files
 # are in the same folder.  So for now, each dependency must copy these rules.
 #
-OBJ\CASE.COM: CASE.ASM
-	$(ASM) $(AFLAGS) $*.ASM,OBJ\$*.OBJ,$(LST);
-	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE;
-	$(EXE2BIN) OBJ\$*.EXE $@
-	DEL OBJ\$*.OBJ
-	DEL OBJ\$*.EXE
-
 OBJ\FIND.COM: FIND.ASM UTIL.INC UTILPROC.INC
 	$(ASM) $(AFLAGS) $*.ASM,OBJ\$*.OBJ,$(LST);
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE;
@@ -56,6 +49,13 @@ OBJ\SORT.COM: SORT.ASM UTIL.INC UTILPROC.INC
 	DEL OBJ\$*.EXE
 
 OBJ\TEE.COM: TEE.ASM UTIL.INC UTILPROC.INC
+	$(ASM) $(AFLAGS) $*.ASM,OBJ\$*.OBJ,$(LST);
+	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE;
+	$(EXE2BIN) OBJ\$*.EXE $@
+	DEL OBJ\$*.OBJ
+	DEL OBJ\$*.EXE
+
+OBJ\TR.COM: TR.ASM
 	$(ASM) $(AFLAGS) $*.ASM,OBJ\$*.OBJ,$(LST);
 	$(LINK) OBJ\$*.OBJ,OBJ\$*.EXE;
 	$(EXE2BIN) OBJ\$*.EXE $@

@@ -22,7 +22,7 @@ Because BASIC-DOS batch files are BASIC programs, there's no separate batch lang
 
 ### Sessions and Pipes
 
-Preemptive multitasking was the headline feature of the preview, and it still is.  Sessions can split a screen in half, or switch between video pages on a single screen, or take over two monitors, or run on a VT100 terminal attached to a serial port -- or all of the above.  New commands such as `LIST SESSIONS` and `RESTART` let you see and reset them.  Pipes still go through the PIPE$ driver instead of temporary files, so a pipeline's filters run *simultaneously* and the amount of piped data is unlimited.  BASIC-DOS now ships CASE, FIND, MORE, and SORT filters, pipelines can chain as many of them as you like, and `>` and `>>` redirect the output of any command or pipeline.
+Preemptive multitasking was the headline feature of the preview, and it still is.  Sessions can split a screen in half, or switch between video pages on a single screen, or take over two monitors, or run on a VT100 terminal attached to a serial port -- or all of the above.  New commands such as `LIST SESSIONS` and `RESTART` let you see and reset them.  Pipes still go through the PIPE$ driver instead of temporary files, so a pipeline's filters run *simultaneously* and the amount of piped data is unlimited.  BASIC-DOS now ships CASE[\*], FIND, MORE, and SORT filters, pipelines can chain as many of them as you like, and `>` and `>>` redirect the output of any command or pipeline.
 
 ### The File System
 
@@ -53,3 +53,7 @@ BASIC-DOS can now build itself.  The `mk.sh` script boots BASIC-DOS from a hard 
 There's an unattended test suite that boots BASIC-DOS with and without an 8087 and runs a dozen test programs.  There's a [BASIC-DOS Manual](/docs/bdman/) and a [Technical Reference](/docs/bdtech/), and HELP finds every command and function by searching HELP.TXT.  And the [Demos](/demos/) now run on an IBM PC, PC XT, PC AT, and COMPAQ DeskPro 386.
 
 What's left?  Input redirection, file attributes and dates, a few BASIC features (the MID$ statement, comma print zones, RESUME NEXT), popup sessions, TSRs, and more utilities in BASIC.  The [Project Status](/#project-status) on the home page has the complete list.  But the project has crossed the line from a demonstration of what *could* have been to a system that actually does those things, which is a milestone I honestly wasn't sure I'd reach.  The [Preview](/preview/) pages have been updated accordingly, so if you haven't looked at BASIC-DOS in a while, now would be a good time.
+
+[\*] CASE has since been superseded by TR, a more general filter that can translate, delete, or squeeze any characters.  To upper-case the output of a command, as CASE did, use:
+
+    TYPE PRIMES.BAS | TR a-z A-Z

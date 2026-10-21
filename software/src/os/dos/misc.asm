@@ -365,7 +365,7 @@ msg0:	mov	[bx].SCB_CTRLC_ACT,0
 ; Have the session's console discard its type-ahead (including the CTRLC,
 ; which console drivers leave in the input) and end any pause (see
 ; flush_console), rather than reading the CTRLC from STDIN, which may be
-; redirected (eg, the second command in "DIR | CASE").  Every session using
+; redirected (eg, the second command in "DIR | SORT").  Every session using
 ; the console receives the CTRLC (eg, every command in a pipeline), but only
 ; a session whose input is the console flushes the console and echoes it.
 ;

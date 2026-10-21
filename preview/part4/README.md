@@ -18,7 +18,7 @@ machines:
 
 ### Part 4: Pipes and Sessions
 
-The two machines below each run two *foreground* sessions on the same screen.  The first boots the `BASICDOS-360K-D40` diskette, whose CONFIG.SYS defines two 40-column sessions side by side; use **SHIFT-TAB** to toggle keyboard focus between them, and notice how the border changes to indicate which session has focus (the second session runs `DIR | CASE` in a loop, which you can stop with CTRL-C).  The second boots the `BASICDOS-360K-D80` diskette, whose CONFIG.SYS defines two 80-column sessions, one above the other, and runs `LIST SESSIONS` to list both sessions.
+The two machines below each run two *foreground* sessions on the same screen.  The first boots the `BASICDOS-360K-D40` diskette, whose CONFIG.SYS defines two 40-column sessions side by side; use **SHIFT-TAB** to toggle keyboard focus between them, and notice how the border changes to indicate which session has focus (the second session runs `DIR | TR a-z A-Z` in a loop, which you can stop with CTRL-C).  The second boots the `BASICDOS-360K-D80` diskette, whose CONFIG.SYS defines two 80-column sessions, one above the other, and runs `LIST SESSIONS` to list both sessions.
 
 {% include machine.html id="ibm5150-2" %}
 
@@ -31,9 +31,9 @@ In PC DOS, pipes require a writable disk with enough disk space to contain the e
 
 For a command such as:
 
-    TYPE PRIMES.BAS | CASE
+    TYPE PRIMES.BAS | TR a-z A-Z
 
-the interpreter opens a `PIPE$` handle to create a FIFO queue and passes the handle as STDIN for a new background session running CASE.COM, a simple BASIC-DOS I/O filter program that upper-cases letters.  Pipelines can have any number of filters (eg, `DIR | SORT | MORE`), the filters run *simultaneously*, and the amount of piped data is unlimited.  BASIC-DOS includes CASE, FIND, MORE, and SORT filters, and output can be redirected with `>` and `>>` at the end of any command or pipeline.
+the interpreter opens a `PIPE$` handle to create a FIFO queue and passes the handle as STDIN for a new background session running TR.COM, a BASIC-DOS I/O filter program that translates characters (here, from lower-case to upper-case).  Pipelines can have any number of filters (eg, `DIR | SORT | MORE`), the filters run *simultaneously*, and the amount of piped data is unlimited.  BASIC-DOS includes FIND, MORE, SORT, TEE, TR, and WC filters, and output can be redirected with `>` and `>>` at the end of any command or pipeline.
 
 ### What is a Session?
 

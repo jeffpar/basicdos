@@ -58,6 +58,30 @@
           }
         },
         {
+          "id": "caps-lock",
+          "type": "led",
+          "title": "Caps",
+          "style": {
+            "padding-left": "8px"
+          }
+        },
+        {
+          "id": "num-lock",
+          "type": "led",
+          "title": "Num",
+          "style": {
+            "padding-left": "8px"
+          }
+        },
+        {
+          "id": "scroll-lock",
+          "type": "led",
+          "title": "Scroll",
+          "style": {
+            "padding-left": "8px"
+          }
+        },
+        {
           "id": "fullScreen",
           "type": "button",
           "label": "Full Screen",

@@ -82,7 +82,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] The prompt displays the current drive and directory (eg, `C:\SUBDIR>`), and switches use `/` (eg, `TIME /P`), as in PC DOS, unless PATHCHAR is `/`, in which case they use `-`
 - [x] Running COM, EXE, BAT, and BAS files, and loading programs into other sessions
 - [x] BAT and BAS files can run other BAT and BAS files and then continue (no CALL command required); a nested BAS file gets its own variables
-- [x] Pipes (`|`) and output redirection (`>` creates or truncates the output file, `>>` appends to it), including redirection at the end of a pipeline (eg, `DIR | CASE > TEST`)
+- [x] Pipes (`|`) and output redirection (`>` creates or truncates the output file, `>>` appends to it), including redirection at the end of a pipeline (eg, `DIR | SORT > TEST`)
 - [x] `:>` and `:>>` redirect the output of an entire line, including BASIC statements, where `>` means "greater than" (eg, `PRINT "hello world" :> TEST`), at the prompt and in BAT and BAS files
 - [x] COPY creates (or truncates) the output file, and refuses to copy a file onto itself
 - [x] A DOS command (internal or external) ends at a colon that begins a word, so other commands can follow it on the same line (eg, `DIR *.BAS : PRINT "done"`), at the prompt and in BAT and BAS files
@@ -92,7 +92,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] ECHO ON/OFF and the `@` prefix in BAT files: every BAT file starts with ECHO OFF (unlike PC DOS, so BAT files behave like BAS files unless ECHO ON is used), echoed lines are displayed with a `@` in front, and a leading `@` is ignored at the prompt, too
 - [x] A BAS file run from the command prompt remains loaded when it ends, along with its variables (like MSBASIC), so it can be LIST'ed or RUN again; RUN reuses the program's compiled code (unless the program or its variables have changed since), so it starts immediately
 - [x] Resident and transient portions: before running a COM or EXE file, COMMAND.COM frees idle variable blocks and discards its transient portion (about 23K), restoring it when the program ends (from a copy at the top of free memory, if the program didn't overwrite it, or else from COMMAND.COM); MEM includes the transient portion in its free memory total
-- [x] Filters: CASE, FIND (/C, /I, /N, /V), MORE, SORT (/R, /+n), TEE (/A), and WC (/L, /W, /C); FIND, MORE, SORT, and WC also accept file names, and every filter treats CTRL-Z as the end of input
+- [x] Filters: FIND (/C, /I, /N, /V), MORE, SORT (/R, /+n), TEE (/A), TR (/C, /D, /S), and WC (/L, /W, /C); FIND, MORE, SORT, and WC also accept file names, and every filter treats CTRL-Z as the end of input
 - [x] Pipelines with more than one filter (eg, `TYPE FILE | SORT | MORE`): when a session ends, its output pipe receives end-of-input
 - [x] When any command of a pipeline fails (eg, a program that can't be found, or no session available for it), the error is reported, the commands already running in other sessions are ended (DOS_UTL_END), and the first command never runs; and when a command stops reading a pipe early, the command writing to it gets a write error instead of waiting forever
 - [x] LIST VARS: list preserved strings (including PATH$), scalar values, and array dimensions in the current session

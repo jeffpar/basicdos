@@ -312,7 +312,7 @@ ctc0:	mov	di,[bx].CMD_CHAINS
 ctc0a:	lea	sp,[bx].STACK + size STACK
 	call	compactStrs		; free any leftover temp strings
 ;
-; If a pipeline was running (eg, "DIR | CASE"), wait for its sessions to end
+; If a pipeline was running (eg, "DIR | SORT"), wait for its sessions to end
 ; (they will have received the same CTRLC), so that they can't write anything
 ; more to the console after we've displayed a new prompt.
 ;
@@ -512,8 +512,8 @@ DEFPROC	parseDOS
 ; ">>"), follows a command, and precedes another token; otherwise, it's a
 ; syntax error.  Since
 ; a redirection filename also ends a command, this rejects a pipe following
-; redirected output (eg, "DIR > TEST | CASE"), where nothing would ever write
-; to the pipe, leaving CASE waiting forever.
+; redirected output (eg, "DIR > TEST | SORT"), where nothing would ever write
+; to the pipe, leaving SORT waiting forever.
 ;
 	sub	cx,cx			; CX = 0 (no command yet)
 pd0:	cmp	bx,ax			; reached end of TOKLETs?
@@ -604,7 +604,7 @@ pd4f:	pop	si
 	jc	pd4d			; bail on error
 ;
 ; Output redirection applies to any command on the line, but if this isn't the
-; first command (eg, "DIR | CASE > TEST"), then it's either an external program
+; first command (eg, "DIR | SORT > TEST"), then it's either an external program
 ; that cmdFile must load with this handle as its STDOUT, or an internal command
 ; that we must run with this handle as our STDOUT (a deferred command will have
 ; its own STDOUT, so replacing ours now is harmless).
@@ -696,7 +696,7 @@ pd8:	add	bx,size TOKLET
 pd9:	jnc	pd9e
 ;
 ; A command failed, so end any commands of the pipeline already running in
-; other sessions (eg, CASE in "DIR | CASE | NOFILE"); the deferred command,
+; other sessions (eg, SORT in "DIR | SORT | NOFILE"); the deferred command,
 ; if any, never runs.
 ;
 	mov	al,1
@@ -726,7 +726,7 @@ pd9a:	call	cmdExec			; invoke deferred external command
 
 ;
 ; Use the deferred command's pipe handle, not HDL_INPIPE, which will have been
-; zeroed if another symbol followed the last command (eg, "DIR | CASE > TEST").
+; zeroed if another symbol followed the last command (eg, "DIR | SORT > TEST").
 ;
 pd9b:	sub	cx,cx			; CX = 0 for "truncating" write
 	mov	bx,[bp].CMD_DEFER[8]	; BX = deferred command's pipe handle

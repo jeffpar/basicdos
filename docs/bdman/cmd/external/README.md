@@ -37,7 +37,7 @@ In the root directory:
 
 In the **BIN** directory (see [Running Programs](../../intro/#running-programs) for the layout of a BASIC-DOS disk):
 
-- CASE.COM, FIND.COM, MORE.COM, SORT.COM, TEE.COM, and WC.COM: filters (see below)
+- FIND.COM, MORE.COM, SORT.COM, TEE.COM, TR.COM, and WC.COM: filters (see below)
 - SLEEP.COM: waits the specified number of seconds (eg, `SLEEP 5`); CTRL-C stops it early
 - VI.COM: a full-screen text editor (see [VI](#vi) below)
 - FORMAT.BAS: formats a diskette (see [FORMAT](#format) below)
@@ -48,12 +48,6 @@ Utilities that don't need the speed of assembly language are BASIC programs, wri
 ### Filters
 
 A filter reads lines of input, which normally come from a pipe (eg, `DIR | SORT`), and writes the results to its output.  FIND, MORE, SORT, and WC also accept file names instead (since input redirection isn't supported yet).  Input ends when the pipe is closed, at the end of the file, or at a CTRL-Z.  Switches start with the switch character (`/`, or `-` if [PATHCHAR](../../cfg/#pathchar) is `/`).
-
-#### CASE
-
-	CASE
-
-Copies input to output, converting lower-case letters to upper-case (eg, `DIR | CASE`).
 
 #### FIND
 
@@ -85,6 +79,16 @@ Displays the lines of input (or *file*) in sorted order, ignoring case (eg, `DIR
 	TEE [/A] file
 
 Copies input to its output and to *file* (eg, `DIR | TEE DIR.TXT | MORE`).  *file* is replaced, or with `/A`, appended to (and created if it doesn't exist).  ERRORLEVEL is set to 0, or 2 if *file* couldn't be opened or written.
+
+#### TR
+
+	TR [/C] [/D] [/S] set1 [set2]
+
+Copies input to output, replacing each character in *set1* with the matching character in *set2*; if *set2* is shorter, its last character repeats.  /D deletes the characters in *set1* instead, /C uses every character *not* in *set1* (in ascending order), and /S squeezes each run of a character in the last set given into a single character.  A set can contain ranges (eg, `a-z`) and the escapes `\t` (TAB), `\n` (LF), `\r` (CR), and `\` before any other character for that character (eg, `\-` or `\\`); a set that contains spaces must be quoted.  ERRORLEVEL is set to 0, or 2 if a set is missing (or only *set1* is given, without /D or /S).
+
+	DIR | TR a-z A-Z
+	TYPE README.TXT | TR /D \r
+	DIR | TR /S " "
 
 #### WC
 

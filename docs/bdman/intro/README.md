@@ -124,9 +124,9 @@ Since `>` is also BASIC's "greater than" operator, BASIC statements use `:>` (or
 
 The output of one command can also be sent to the input of another command, using a pipe (`|`):
 
-	DIR | CASE
+	DIR | TR a-z A-Z
 
-Each command after the first runs in its own background session, so all commands in a pipeline run at the same time.  The output of a pipeline can also be redirected (eg, `DIR | CASE > TEST`).  BASIC-DOS includes several filters for use with pipes: CASE, FIND, MORE, and SORT (see [Filters](../cmd/external/#filters)).
+Each command after the first runs in its own background session, so all commands in a pipeline run at the same time.  The output of a pipeline can also be redirected (eg, `DIR | SORT > TEST`).  BASIC-DOS includes several filters for use with pipes: FIND, MORE, SORT, TEE, TR, and WC (see [Filters](../cmd/external/#filters)).
 
 Input redirection (`<`) isn't supported yet.
 

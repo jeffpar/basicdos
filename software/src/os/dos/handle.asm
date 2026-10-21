@@ -1029,7 +1029,7 @@ sw7:	mov	ah,DDC_WRITE
 ; If the driver is a character device (eg, STDOUT or a pipe), and the I/O
 ; request was not "raw", then we need to check for a CTRLC signal.  Checking
 ; only STDOUT devices isn't enough, because a program writing to a pipe (eg,
-; the first command in "DIR | CASE") would never notice a CTRLC.
+; the first command in "DIR | SORT") would never notice a CTRLC.
 ;
 	test	es:[di].DDH_ATTR,DDATTR_CHAR
 	jz	sw8

@@ -4849,6 +4849,14 @@ class Input extends Device {
     {
         let keyCode, keyName;
         if (down != undefined) {
+            /**
+             * HACK for the Apple Magic Keyboard connected to an iPad: iPadOS inexplicably generates CTRL-ENTER
+             * whenever CTRL-C is pressed, so we undo that behavior (at the loss of a genuine CTRL-ENTER, sadly).
+             * PCx86 (v2) has the same hack.
+             */
+            if (code == Input.KEYCODE.CR && (this.keyMods & Input.KEYMOD.CTRLS) && this.isUserAgent("iOS")) {
+                code = Input.KEYCODE.C;
+            }
             keyCode = Input.FF_KEYCODE[code] || code;       // fix any Firefox-specific keyCodes
             keyName = Input.KEYNAME[code];
             let keyMod = Input.KEYCODEMOD[keyCode];
