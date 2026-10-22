@@ -1780,7 +1780,7 @@ DEFPROC	check_hotkey
 
 	mov	bx,[BUFFER_TAIL]
 	cmp	bx,[BUFFER_HEAD]
-	je	ch8			; BIOS buffer empty
+	je	ch0a			; BIOS buffer empty
 	sub	bx,2			; rewind the tail
 	cmp	bx,offset KB_BUFFER - offset BIOS_DATA
 	jae	ch0
@@ -1794,7 +1794,9 @@ ch0:	mov	ax,[BIOS_DATA][bx]	; AL = char code, AH = scan code
 	jne	ch1
 	mov	[BUFFER_TAIL],bx	; update tail, consuming the character
 	call	switch_focus
-	jmp	short ch8
+ch0a:	stc				; (no system hotkey)
+	pop	ds
+	ret
 ;
 ; CTRL-BREAK (which the BIOS stores as zero) is removed from the buffer and,
 ; as an interim measure, treated like CTRL-ALT-DEL (see ddcon_int09): DOS only
@@ -1814,11 +1816,23 @@ ch1:	test	ax,ax			; CTRL-BREAK?
 	ASSUME	DS:BIOS
 	jmp	short ch9
 ;
+; In raw keys mode, CTRLC, CTRLS, and CTRLP are just keys (eg, for VI's
+; WordStar keys).
+;
+ch1a:	jcxz	ch1b
+	push	ds
+	mov	ds,cx
+	ASSUME	DS:NOTHING
+	test	ds:[CT_STATUS],CTSTAT_RAWKEYS
+	pop	ds
+	ASSUME	DS:BIOS
+	jnz	ch0a			; raw keys mode
+;
 ; CTRLC is reported to DOS and left in the buffer, and that's all; the driver
 ; doesn't discard any type-ahead or end any pause, since DOS does that
 ; consistently for every console device (see DDC_INFLUSH and DDC_OUTFLUSH).
 ;
-ch1a:	cmp	al,CHR_CTRLC		; CTRLC?
+ch1b:	cmp	al,CHR_CTRLC		; CTRLC?
 	je	ch9			; yes, return carry clear
 ;
 ; Do PAUSE checks next, because only CTRLS toggles PAUSE, and everything else

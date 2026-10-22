@@ -1927,8 +1927,10 @@ DEFPROC	push_input
 	call	read_rbr		; AL = received byte
 	ASSERT	STRUCT,ds:[0],CT
 	cmp	al,CHR_CTRLC		; CTRLC?
-	je	psi6			; yes
-	test	ds:[CT_STATUS],CTSTAT_XON
+	jne	psi0a			; no
+	test	ds:[CT_STATUS],CTSTAT_RAWKEYS
+	jz	psi6			; yes (unless raw keys)
+psi0a:	test	ds:[CT_STATUS],CTSTAT_XON
 	jz	psi1			; no XON/XOFF flow control
 	cmp	al,CHR_CTRLS		; XOFF?
 	jne	psi0			; no
@@ -1938,8 +1940,8 @@ psi0:	cmp	al,CHR_CTRLQ		; XON?
 	jne	psi3			; no, so it's data
 	and	ds:[CT_STATUS],NOT CTSTAT_PAUSED
 	jmp	short psi5
-psi1:	test	ds:[CT_STATUS],CTSTAT_INPUT
-	jnz	psi3			; waiting for input, so no PAUSE checks
+psi1:	test	ds:[CT_STATUS],CTSTAT_INPUT OR CTSTAT_RAWKEYS
+	jnz	psi3			; input wait or raw keys: no PAUSE
 	cmp	al,CHR_CTRLS		; CTRLS?
 	jne	psi2			; no (anything else unpauses)
 	xor	ds:[CT_STATUS],CTSTAT_PAUSED
