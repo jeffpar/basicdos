@@ -69,6 +69,7 @@ software/src/tests/bin/IOERR.COM
 software/src/tests/bin/PRINTF.COM
 software/src/tests/misc/ARRAYS.BAS
 software/src/tests/misc/CMDS.BAT
+software/src/tests/misc/EXPRERR.BAS
 software/src/tests/misc/FILEIO.BAS
 software/src/tests/misc/IOERR.BAS
 software/src/tests/misc/FLOW.BAS

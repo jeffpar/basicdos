@@ -207,10 +207,11 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] STRFUN and STRPOOL: BASIC string function tests, and string pool stress and leak tests
 - [x] ARRAYS: BASIC array tests (including leak tests)
 - [x] FLOW: BASIC control flow tests
+- [x] EXPRERR: invalid expressions (eg, string operators and optional function parameters) that must be syntax errors
 - [x] FILEIO: BASIC sequential and random access file tests
 - [x] MOVES: file and directory moves, destination growth, sharing, and ancestry checks
 - [x] HARDERR: INT 24h compatibility tests (handler inputs, the stack switch, Retry, Fail, Ignore conversion, and Abort), using an empty drive B:
-- [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUN, STRPOOL, ARRAYS, FLOW, CMDS, VARS, FILEIO, MOVES, FCBTESTS, HARDERR, and PRINTF, and reports whether the tests passed)
+- [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUN, STRPOOL, ARRAYS, FLOW, EXPRERR, CMDS, VARS, FILEIO, MOVES, FCBTESTS, HARDERR, and PRINTF, and reports whether the tests passed)
 - [x] CMDS: command tests (pipes, redirection, TYPE, DEL, TIME /D, HELP, SOUND, remarks, and hex constants)
 - [x] `tools/tests/chkdsk.sh` runs MS-DOS 3.20 CHKDSK on a diskette image saved by a test session (see `QUIT /S` in `pc.js`)
 - [ ] More tests (eg, BASIC language and CMD command tests)

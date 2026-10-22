@@ -1239,6 +1239,7 @@
     "STOS",
     "stosb",
     "stosw",
+    "STRFUN",
     "STRHELP",
     "STRLEN",
     "strlib",

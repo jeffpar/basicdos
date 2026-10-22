@@ -86,7 +86,7 @@ gfe1:	dec	[nFuncParms]		; more parameters?
 	jcxz	gfe3			; yes, but no (more) have been supplied
 
 	call	genExpr			; process parameter expression
-	jbe	gfe3			; no value supplied
+	jbe	gfe2x			; no value supplied (or an error)
 
 	push	ax			; save last symbol from genExpr
 	call	loadFuncData		; AL = parameter type
@@ -130,15 +130,19 @@ gfe1c:	push	cx
 	cmp	ah,CLS_SYM		; was last token a symbol?
 	jne	gfe9			; no, error
 	cmp	al,')'			; yes, closing parenthesis?
-	jne	gfe2			; no
-	sub	cx,cx			; zero number of remaining parms
-	jmp	gfe1
+	je	gfe3a			; yes, so no parms remain
 
-gfe2:	cmp	al,','			; comma?
+	cmp	al,','			; comma?
 	jne	gfe9			; no, error
 	test	cl,cl			; are more parameters allowed?
 	jz	gfe9			; no
 	jmp	gfe1
+;
+; genExpr fails without a value, too, so it's an error unless the only token
+; was the one that ends the value (eg, the ')' in "MID$(S$,2,)").
+;
+gfe2x:	shr	dh,1			; more than one token?
+	jnz	gfe9			; yes, so the value is invalid
 ;
 ; No parameter value was supplied, so if the parameter isn't optional,
 ; that's an error.
@@ -146,17 +150,15 @@ gfe2:	cmp	al,','			; comma?
 gfe3:	call	loadFuncData
 	and	al,0FCh			; VAR_CHAR, VAR_LSKIP -> VAR_LONG
 	cmp	al,VAR_LONG		; TODO: currently supports default
-	stc				; parameter values for VAR_LONG only
-	jne	gfe9
+	jne	gfe9			; parameter values for VAR_LONG only
 	mov	al,ah			; AL = default value
 	cmp	al,PARM_REQUIRED	; is the parameter optional?
-	stc
-	je	gfe9			; no
+	je	gfe9			; no (gfe9 sets carry)
 	cbw
 	cwd				; DX:AX = default value
 	xchg	cx,ax			; DX:CX
 	call	genPushImmLong		; push it
-	sub	cx,cx
+gfe3a:	sub	cx,cx			; zero number of remaining parms
 	jmp	gfe1			; continue processing parameters
 
 gfe6:	jcxz	gfe7

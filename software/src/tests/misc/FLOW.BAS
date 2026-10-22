@@ -1,5 +1,7 @@
 10 REM FLOW.BAS: BASIC-DOS control flow tests (prints "failed" on error)
 20 DEFINT A-Z
+25 A = 1+(1+(1+(1+(1+(1+(1+(1+(1+(1+(1+(1+(1+(1+(1+(1+(1+(1+(1+(1+(1+(1+(1+(1+(1+(1+(1+(1+(1+(1+(2*3))))))))))))))))))))))))))))))
+26 IF A <> 36 THEN PRINT "type stack boundary failed" : FAILS = FAILS + 1
 30 T = 0 : FOR I = 1 TO 10 : T = T + I : NEXT I
 40 IF T <> 55 OR I <> 11 THEN PRINT "FOR failed:"; T; I : FAILS = FAILS + 1
 50 T = 0 : FOR I = 10 TO 1 STEP -3 : T = T + I : NEXT

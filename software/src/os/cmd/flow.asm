@@ -340,40 +340,54 @@ DEFPROC	rtError
 	jmp	dword ptr ss:[bx].ERR_ADDR
 
 re1:	call	restoreMode		; (so that the message is visible)
+	mov	dl,byte ptr ss:[bx].ERR_NUM
+	IFDEF	DEBUG
+	mov	dh,0			; DX = error number (for EPRINTF)
+	ENDIF
 	mov	si,offset ERR_MSGS
 re2:	lods	byte ptr cs:[si]
 	test	al,al			; end of the table?
-	jz	re4			; yes
-	cmp	al,byte ptr ss:[bx].ERR_NUM
+	jz	re5			; yes ("Unknown error")
+	cmp	al,dl
 	je	re4
 re3:	lods	byte ptr cs:[si]
 	test	al,al
 	jnz	re3
 	jmp	re2
-re4:	PRINTF	<"%ls",13,10>,si,cs
+re4:	EPRINTF	<"%ls">,<13,10>,dx,si,cs
+	jmp	ctrlc
+;
+; An error without a message of its own (eg, "ERROR 200") is displayed with
+; its error number, in every build.
+;
+re5:	PRINTF	<"%ls (%bu)",13,10>,si,cs,dx
 	jmp	ctrlc
 ENDPROC	rtError
 
-ERR_MSGS	db	3,"RETURN without GOSUB",0
-		db	4,"Out of DATA",0
-		db	5,"Illegal function call",0
-		db	7,"Out of memory",0
-		db	8,"Undefined line number",0
-		db	9,"Subscript out of range",0
-		db	10,"Duplicate definition",0
-		db	14,"Out of string space",0
-		db	15,"String too long",0
-		db	50,"FIELD overflow",0
-		db	52,"Bad file number",0
-		db	53,"File not found",0
-		db	54,"Bad file mode",0
-		db	55,"File already open",0
-		db	57,"Device I/O error",0
-		db	61,"Disk full",0
-		db	62,"Input past end",0
-		db	63,"Bad record number",0
-		db	75,"Path/File access error",0
-		db	0,"Unprintable error",0
+ERR_MSGS label byte
+	db	3,"RETURN without GOSUB",0
+	db	4,"Out of DATA",0
+	db	5,"Illegal function call",0
+	db	7,"Out of memory",0
+	db	8,"Undefined line number",0
+	db	9,"Subscript out of range",0
+	db	10,"Duplicate definition",0
+	db	14,"Out of string space",0
+	db	15,"String too long",0
+	db	50,"FIELD overflow",0
+	db	52,"Bad file number",0
+	db	53,"File not found",0
+	db	54,"Bad file mode",0
+	db	55,"File already open",0
+	db	57,"Device I/O error",0
+	db	61,"Disk full",0
+	db	62,"Input past end",0
+	db	63,"Bad record number",0
+	db	70,"Permission denied",0
+	db	71,"Disk not ready",0
+	db	72,"Disk media error",0
+	db	75,"Path/File access error",0
+	db	0,"Unknown error",0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -112,7 +112,7 @@ Erases the specified arrays, so that they can be dimensioned again.  If the firs
 
 > ERROR *n*
 
-Simulates error *n* (1-255).  If an [ON ERROR](#on-error) handler is active, it's called; otherwise, the program ends with an error message.
+Simulates error *n* (1-255).  If an [ON ERROR](#on-error) handler is active, it's called; otherwise, the program ends with an error message (eg, `ERROR 5` displays "Illegal function call"), or "Unknown error (*n*)" if the error has no message of its own.
 
 ### FIELD
 

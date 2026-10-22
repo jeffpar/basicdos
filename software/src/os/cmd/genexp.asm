@@ -96,18 +96,13 @@ DEFPROC	genExpr
 	mov	[exprPrevOp],dx		; zero previous operator (none)
 	mov	[typeTop],dx		; type stack initially empty
 	push	dx			; push end-of-operators marker (zero)
-	jmp	short ge1
-ge0x:	jmp	ge8
-ge0y:	lea	sp,[bp-_LOCBYTES-4]	; out of room (see ensureRoom), so
-	stc				; discard the operator stack
-	jmp	ge9a
 
 ge1:	mov	ax,CODE_ROOM
 	call	ensureRoom		; make sure there's room for a token
-	jc	ge0y
+	jc	ge1z
 	mov	al,CLS_ANY		; CLS_NUM, CLS_SYM, CLS_VAR, CLS_STR
 	call	getNextToken
-	jbe	ge0x
+	jbe	ge1y
 	inc	[exprToks]
 	cmp	ah,CLS_SYM		; symbol? (20h)
 	je	ge1b			; process CLS_SYM below
@@ -137,10 +132,12 @@ ge1c:
 	mov	ax,cx
 	add	ax,CODE_ROOM
 	call	ensureRoom		; make sure there's room for the string
-	jc	ge0y
+	jc	ge1z
 	inc	si			; DS:SI -> string contents
 	call	genPushStr
 	jmp	ge1
+ge1y:	jmp	ge8
+ge1z:	jmp	ge8x			; (see ge8x below)
 
 ge1a:	sub	cx,cx			; for empty strings, push null ptr
 	sub	dx,dx
@@ -347,6 +344,14 @@ ge8:	pop	cx
 	call	genOp
 	jmp	ge8
 ;
+; We ran out of code or type-stack room, or genOp found an error (eg, a type
+; mismatch), so discard the operator stack and any helper frames, and return
+; with carry set.
+;
+ge8x:	lea	sp,[bp-_LOCBYTES-4]
+	stc
+	jmp	short ge9a
+;
 ; Verify that a single type remains on typeStack, and no open parentheses.
 ;
 ge9:	cmp	[typeTop],1
@@ -370,6 +375,7 @@ ge9a:	mov	dh,[exprToks]		; DH = # tokens
 ;
 ; Outputs:
 ;	typeTop incremented
+;	If full, abort genExpr through its normal error cleanup.
 ;
 ; Modifies:
 ;	flags
@@ -377,7 +383,8 @@ ge9a:	mov	dh,[exprToks]		; DH = # tokens
 	DEFLBL	pushType,near
 	push	si
 	mov	si,[typeTop]
-	ASSERT	B,<cmp si,32>		; TODO: deal with possible overflow
+	cmp	si,32			; reject a push past the type stack's end
+	jae	ge8x
 	mov	[typeStack][si],dl
 	inc	si
 	mov	[typeTop],si
@@ -437,15 +444,12 @@ pt9:	pop	si
 ;	DH = operator precedence (from OPDEFS)
 ;
 ; Outputs:
-;	Carry clear if successful, set if error (ie, type mismatch)
+;	None (an error, such as a type mismatch, aborts genExpr; see ge8x)
 ;
 ; Modifies:
 ;	CX, DX, DI
 ;
 	DEFLBL	genOp,near
-	IFDEF MAXDEBUG
-	DPRINTF	'o',<"op %c, func @%08lx\r\n">,dx,cx,cs
-	ENDIF
 	jcxz	go2x			; jump if no operator index
 
 	push	si
@@ -453,9 +457,11 @@ pt9:	pop	si
 	mov	ax,CODE_ROOM
 	call	ensureRoom		; make sure there's room for an op
 	pop	ax
-	jnc	go0
-	jmp	go8x
-go0:	call	popType
+	jc	ge8x			; no room (see ge8x)
+	IFDEF MAXDEBUG
+	DPRINTF	'o',<"op %c, func @%08lx\r\n">,dx,cx,cs
+	ENDIF
+	call	popType
 	jz	go3x			; exit if error
 	test	dh,1
 	mov	dh,dl			; DH = type of 2nd arg pushed
@@ -498,7 +504,7 @@ go2a:	cmp	cl,OPEVAL_NOT
 	je	go3c
 	mov	cx,FPU_CVT2DL
 	jmp	short go3c
-go2x:	jmp	short go9
+go2x:	ret
 ;
 ; Deal with type mismatches here.
 ;
@@ -544,7 +550,6 @@ go8a:	cmp	dh,VAR_DOUBLE		; relational operators (OPEVAL_EQ and
 	jb	go8f
 	mov	dl,VAR_LONG
 go8f:	call	pushType		; DL = type to push
-	jcxz	go8x			; no evaluator implies an error
 	dec	cx
 	add	cx,cx			; CX = evaluator table offset
 	mov	si,offset EVAL_LONG
@@ -555,8 +560,9 @@ go8f:	call	pushType		; DL = type to push
 	mov	si,offset EVAL_STR
 go8b:	add	si,cx
 	mov	cx,cs:[si]
-	GENCALL	cx			; generate call to operator evaluator
-	jmp	short go8c		; (GENCALL also clears carry)
+	jcxz	go8x			; no evaluator implies an error
+	pop	si
+	jmp	genCallCS		; generate call to operator evaluator
 ;
 ; Since FPUTBL begins with entries for OPEVAL_NEG through OPEVAL_GE, CX is
 ; also the FPUTBL offset of the evaluator.  And since operators above
@@ -568,10 +574,10 @@ go8d:	cmp	cx,FPU_EQ		; does the operator produce a double?
 	call	genCallFPUDst
 	jmp	short go8c
 go8e:	call	genCallFPU
-	jmp	short go8c
-go8x:	stc
-go8c:	pop	si
-go9:	ret
+go8c:	jc	go8x			; no FPU$ driver
+	pop	si
+	ret
+go8x:	jmp	ge8x
 
 ENDPROC	genExpr
 

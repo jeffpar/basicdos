@@ -1,6 +1,6 @@
 #!/bin/bash
 # echo This command boots a BASIC-DOS test floppy (like ./boot.sh), runs FPUTESTS, DOSTESTS, STRFUN, STRPOOL,
-# ARRAYS, FLOW, CMDS (commands, pipes, redirection, and HELP), VARS (variable listings), FILEIO (sequential and random files),
+# ARRAYS, FLOW, EXPRERR (expression errors), CMDS (commands, pipes, redirection, and HELP), VARS (variable listings), FILEIO (sequential and random files),
 # PRTUSING (PRINTF USING), MOVES (file and directory moves), FCBTESTS (FCB
 # functions), HARDERR (INT 24h hard error handling, using the empty drive B:; its ABORT test ends it with exit code 255),
 # and PRINTF,
@@ -35,12 +35,12 @@ abort='IF ERRORLEVEL = 255 THEN PRINT "ABORTOK" ELSE PRINT "ABORTBAD"'
 # separated with semicolons).
 #
 m='\TESTS\MISC\'
-tools/pc/pc.js ibm5160 software/src/configs/console/serial/fpe "VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}CMDS;${m}VARS;${m}FILEIO;${m}PRTUSING;${m}MOVES;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;SLEEP 1;QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync | tee "$log"
+tools/pc/pc.js ibm5160 software/src/configs/console/serial/fpe "VER;MEM;${m}FPUTESTS;$ok;${m}DOSTESTS;$ok;${m}STRFUN;${m}STRPOOL;${m}ARRAYS;${m}FLOW;${m}EXPRERR;${m}CMDS;${m}VARS;${m}FILEIO;${m}PRTUSING;${m}MOVES;${m}FCBTESTS;$ok;${m}HARDERR;$abort;${m}IOERR.COM;$ok;${m}PRINTF;$ok;SLEEP 1;QUIT" --system=bd --version=2 --floppy --serial --normalize --nosync | tee "$log"
 tools/pc/pc.js ibm5160 software/src/configs/console/serial/fpu "VER;MEM;${m}FPUTESTS;$ok;${m}VARS;${m}STRFUN;SLEEP 1;QUIT" --fpu --system=bd --version=2 --floppy --serial --normalize --nosync | tee -a "$log"
 tools/pc/pc.js ibm5160 software/src/configs/console/serial/hd "VER;CD TESTS\MISC;HARDERR;$abort;IOERR.COM;$ok;SLEEP 1;QUIT" --system=bd --version=2 --target=10M --serial --normalize --nosync | tee -a "$log"
 if grep -q "Floating-point .*installed" "$log" || grep -q "failed" "$log" || grep -q "EXITBAD" "$log" || [ "$(grep -c "EXITOK" "$log")" -lt 7 ] ||
    [ "$(grep -c "STRFUN passed" "$log")" -lt 2 ] || ! grep -q "STRPOOL passed" "$log" ||
-   ! grep -q "ARRAYS passed" "$log" || ! grep -q "FLOW passed" "$log" || ! grep -q "CMDS passed" "$log" ||
+   ! grep -q "ARRAYS passed" "$log" || ! grep -q "FLOW passed" "$log" || ! grep -q "EXPRERR passed" "$log" || ! grep -q "CMDS passed" "$log" ||
    [ "$(grep -c "VARS passed" "$log")" -lt 2 ] ||
    ! grep -Fq 'I% = -2147483647' "$log" || ! grep -Fq 'I# = 1.25' "$log" ||
    ! grep -Fq 'S$ = "hello"' "$log" || ! grep -Fq 'E$ = ""' "$log" ||

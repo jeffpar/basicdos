@@ -1105,10 +1105,9 @@ cf4c:	call	saveChains		; SP -> CHAINS frame
 	cmp	dx,offset BAS_EXT
 	je	cf4d
 	mov	al,GEN_BATCH
-cf4d:	call	cmdRunFlags		; if cmdRun returns normally
-	mov	di,sp
+cf4d:	call	cmdRunFlags		; carry set if the file had a syntax
+	mov	di,sp			; error (so ERRORLEVEL becomes 1)
 	mov	al,2			; AL = 2 to keep a BAS file loaded
-	clc
 	jmp	short cf4f
 cf4e:	mov	di,sp			; free the file's blocks
 	mov	al,0			; (eg, all text blocks) and
