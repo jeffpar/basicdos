@@ -620,7 +620,6 @@ di4:	push	cx
 	call	splitName		; AX = name length, SI, DI
 	mov	dx,ds:[PSP_DTA].FFB_DATE
 	mov	cx,ds:[PSP_DTA].FFB_TIME
-	ASSERT	Z,<cmp ds:[PSP_DTA].FFB_SIZE.HIW,0>
 	PRINTF	<"%-8.*s %-3s ">,ax,si,di
 	test	ds:[PSP_DTA].FFB_ATTR,10h	; DIRATTR_SUBDIR?
 	jnz	di6a
