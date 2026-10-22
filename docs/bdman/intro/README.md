@@ -107,7 +107,7 @@ The [hard disk demo](/demos/hd/at/) adds three more directories: **TESTS** (the 
 
 Use `LIST VARS` to inspect the current session's variable values and array dimensions; see [LIST](../cmd/system/#list).
 
-When a BAS program that you ran from the prompt ends, it remains loaded, along with its variables, so you can [LIST](../cmd/system/#list) it, examine its variables (eg, `PRINT A`), or [RUN](../cmd/system/#run) it again.  RUN reuses the program's compiled code, so the program starts immediately, unless the program or its variables have changed since it was compiled.
+When a BAS program that you ran from the prompt ends, it remains loaded, along with its variables, so you can [LIST](../cmd/system/#list) it, examine its variables (eg, `PRINT A`), or [RUN](../cmd/system/#run) it again.  RUN reuses the program's compiled code (if the whole program was compiled), unless the program or its variables have changed since it was compiled.
 
 If a name matches a BASIC keyword that can't be used by itself (eg, `CIRCLE`), BASIC-DOS runs the program with that name instead (eg, CIRCLE.BAS).
 

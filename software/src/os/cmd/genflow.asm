@@ -27,10 +27,10 @@
 ; Every statement is compiled statically, so FOR, WHILE, and their matching
 ; NEXT and WEND statements are paired up as the code is generated: FOR and
 ; WHILE push a CTL_FOR or CTL_WHILE entry onto the code block's LBLREF table
-; (see pushCtl), whose LBL_IP is the offset following the JMP that skips the
-; loop, and NEXT and WEND mark the innermost one CTL_DONE (see findCtl).  Until
-; that 5-byte JMP is patched, it holds the address of the FORSLOT (for FOR) or
-; the top of the loop (for WHILE).
+; (see pushCtl), whose LBL_IP is the offset of the loop's body, and NEXT and
+; WEND mark the innermost one CTL_DONE (see findCtl).  The body follows the
+; 5-byte JMP that skips the loop (which NEXT or WEND patches) and the address
+; of the FORSLOT (for FOR) or the top of the loop (for WHILE).
 ;
 ; Code for a program may span several code blocks (see ensureRoom), so every
 ; JMP that may go to another code block (eg, GOTO, IF, and the JMPs for loops)
@@ -52,7 +52,7 @@ CODE    SEGMENT
 	EXTNEAR	<genCvtType,genTestDouble,genCallCS,genPushVarPtr>
 	EXTNEAR	<genPushImm,genPushImmLong,addVar,getNextSymbol>
 	EXTNEAR	<setVarLong,setVarDouble,forInit,forNext,doGosub,doReturn>
-	EXTNEAR	<ensureRoom,peekNextToken,onError,offError,resumeErr>
+	EXTNEAR	<ensureRoom,peekNextToken,onError,offError,resumeErr,genMore>
 	EXTABS	<TOK_ELSE,TOK_THEN,TOK_TO,TOK_STEP,TOK_GOTO,TOK_GOSUB>
 	EXTABS	<TOK_ERROR>
 
@@ -62,8 +62,12 @@ FS_SIZE		equ	22		; size of FORSLOT (see flow.asm)
 OP_JZ_3		equ	00374h		; JZ  $+5 (eg, around a near JMP)
 OP_JZ_5		equ	00574h		; JZ  $+7 (eg, around a far JMP)
 OP_JNZ_5	equ	00575h		; JNZ $+7 (eg, around a far JMP)
+OP_JNZ_9	equ	00975h		; JNZ $+11 (around a JMP and a dword)
 OP_OR_DX_DX	equ	0D20Bh		; OR  DX,DX
 OP_CMP_AX	equ	03Dh		; CMP AX,imm16
+
+LBL_MAX		equ	LBL_DATA	; highest label defined so far
+LBL_NEXT	equ	LBL_DATA+2	; lowest label a reference awaits
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -95,9 +99,9 @@ DEFPROC	genGoto
 ; automatically calls addLabel with LBL_RESOLVE set, so when the definition is
 ; finally found, this (and any other LBL_RESOLVE references) can be resolved.
 ;
-; In the interim, we generate a program termination sequence (reset the stack
-; pointer and return); once the label definition is encountered, it will be
-; overwritten with a JMP (see addLabel).
+; In the interim, we generate a placeholder that calls genMore (see genJmp5),
+; which generates more code until the label definition is encountered and the
+; placeholder has been overwritten with a JMP (see addLabel).
 ;
 ; Since the label may be in another code block, every GOTO occupies 5 bytes,
 ; which is enough for a far JMP (a near JMP is padded with NOPs).
@@ -109,13 +113,10 @@ DEFPROC	genGoto
 	sub	ax,di
 	cmp	ax,-3			; did we generate a near JMP?
 	jne	gg8			; no
-	jmp	short gg7a		; yes, so pad it
-gg7:	mov	ax,OP_MOV_SP_BP		; placeholder for endProgram
-	stosw
-	mov	al,OP_RETF
-	stosb
-gg7a:	mov	ax,(OP_NOP SHL 8) OR OP_NOP
-	stosw
+	mov	ax,(OP_NOP SHL 8) OR OP_NOP
+	stosw				; yes, so pad it
+	jmp	short gg8
+gg7:	call	genJmp5			; placeholder for the JMP
 gg8:	clc
 gg9:	ret
 ENDPROC	genGoto
@@ -382,6 +383,7 @@ ENDPROC	genEnd
 ;	or	ax,dx
 ;	jnz	body
 ;	jmp	next			; patched by genNext (5 bytes)
+;	dd	FORSLOT			; (for genNext)
 ;    body:
 ;
 ; Inputs:
@@ -482,13 +484,14 @@ gfo4:	pop	cx
 	GENCALL	forInit
 	mov	ax,OP_OR_AX_DX
 	stosw
-	mov	ax,OP_JNZ_5
+	mov	ax,OP_JNZ_9
 	stosw
-	call	genJmp5			; DX = offset of body
+	call	genJmp5			; JMP to NEXT (placeholder)
 	pop	ax
-	mov	es:[di-4],ax		; save FORSLOT address in JMP (for now)
+	stosw				; FORSLOT offset
 	pop	ax
-	mov	es:[di-2],ax
+	stosw				; FORSLOT segment
+	mov	dx,di			; DX = offset of body
 	mov	ax,CTL_FOR
 	jmp	pushCtl
 gfo7:	pop	cx
@@ -599,7 +602,7 @@ gnx4:	stosw
 	push	ax
 	call	emitJmp			; jump back to the body
 	pop	si
-	sub	si,5			; DX:SI -> the FOR's JMP
+	sub	si,9			; DX:SI -> the FOR's JMP
 	call	patchHere		; patch it to jump here
 	call	getNextSymbol		; another variable (eg, "NEXT I,J")?
 	jc	gnx9
@@ -630,6 +633,7 @@ ENDPROC	genNext
 ;	or	ax,dx
 ;	jnz	body
 ;	jmp	wend			; patched by genWend (5 bytes)
+;	dd	top			; (for genWend)
 ;    body:
 ;
 ; Inputs:
@@ -653,13 +657,14 @@ DEFPROC	genWhile
 	stosw
 	mov	ax,OP_OR_AX_DX
 	stosw
-	mov	ax,OP_JNZ_5
+	mov	ax,OP_JNZ_9
 	stosw
-	call	genJmp5			; DX = offset of body
+	call	genJmp5			; JMP to WEND (placeholder)
 	pop	ax
-	mov	es:[di-4],ax		; save address of top in JMP (for now)
+	stosw				; top offset
 	pop	ax
-	mov	es:[di-2],ax
+	stosw				; top segment
+	mov	dx,di			; DX = offset of body
 	mov	ax,CTL_WHILE
 	jmp	pushCtl
 gwh8:	pop	ax
@@ -702,7 +707,7 @@ DEFPROC	genWend
 	call	emitJmp			; jump back to the top
 	pop	si
 	pop	dx
-	sub	si,5			; DX:SI -> the WHILE's JMP
+	sub	si,9			; DX:SI -> the WHILE's JMP
 	call	patchHere		; patch it to jump here
 	clc
 gwe9:	ret
@@ -713,7 +718,10 @@ ENDPROC	genWend
 ; genJmp5
 ;
 ; Generates a 5-byte placeholder for a JMP (near or far) whose target will be
-; patched later (see patchHere).
+; patched later (see patchHere).  The placeholder is a call to genMore, which
+; generates more code until the placeholder has been patched, in case the
+; program reaches it first (eg, a FOR that skips its loop before the NEXT has
+; been generated).
 ;
 ; Inputs:
 ;	ES:DI -> code block
@@ -722,13 +730,10 @@ ENDPROC	genWend
 ;	DX = offset of the byte following the placeholder
 ;
 ; Modifies:
-;	AX, DX, DI
+;	CX, DX, DI
 ;
 DEFPROC	genJmp5
-	mov	al,OP_JMPF
-	stosb
-	stosw
-	stosw
+	GENCALL	genMore
 	mov	dx,di
 	ret
 ENDPROC	genJmp5
@@ -867,6 +872,19 @@ ENDPROC	nextBlock
 ; tables to ensure the definition is unique, and to resolve any references
 ; (by replacing their placeholders with JMPs; see genGoto).
 ;
+; Since every numbered line is a definition, scanning for every one would take
+; time proportional to the square of the number of lines, so we keep track of
+; the highest label defined so far (LBL_MAX) and the lowest label that a
+; reference may still be waiting for (LBL_NEXT).  A definition beyond the
+; highest can't be a duplicate, and one below the lowest reference can't
+; resolve anything, so we scan only if neither is true.  genCode resets only
+; LBL_MAX, since an old LBL_NEXT is lowered by every new reference below it,
+; and is at worst too low, which only causes an unnecessary scan.
+;
+; The scan of the code blocks updates LBL_NEXT; the scan of a function block
+; (during a DEF block, which has its own labels) does not, since it can't see
+; the references in the code blocks.
+;
 ; Inputs:
 ;	AX = label #
 ;	DI = code gen offset (+ LBL_RESOLVE for a reference)
@@ -879,20 +897,49 @@ ENDPROC	nextBlock
 ;	AX, CX, DX
 ;
 DEFPROC	addLabel
+	push	bx
 	push	si
 	mov	dx,ax			; DX = label #
 	mov	cx,es			; CX = current code block
+	mov	si,ss:[PSP_HEAP]
 	test	di,LBL_RESOLVE		; is this a reference?
-	jnz	al8			; yes, just add it
+	jz	al0			; no
+	cmp	dx,ss:[si+LBL_NEXT]	; the lowest one waiting?
+	jae	al8			; no
+	mov	ss:[si+LBL_NEXT],dx	; yes
+al8:	mov	si,es:[CBLK_REFS]
+	sub	si,size LBLREF
+	mov	es:[CBLK_REFS],si
+	mov	es:[si].LBL_NUM,dx
+	mov	es:[si].LBL_IP,di
+	clc
+al7:	mov	es,cx
+	pop	si
+	pop	bx
+	ret
+
+al0:	cmp	dx,ss:[si+LBL_MAX]	; beyond the highest label so far?
+	jbe	al0a			; no
+	mov	ss:[si+LBL_MAX],dx	; yes, so it's the new highest
+	cmp	dx,ss:[si+LBL_NEXT]	; and could it resolve a reference?
+	jb	al8			; no
+al0a:	mov	bx,-1			; BX = lowest reference left (none yet)
 	call	firstBlock		; AX = first block
 al1:	mov	es,ax
 	mov	si,es:[CBLK_REFS]
 al2:	cmp	si,es:[BLK_SIZE]	; end of this LBLREF table?
 	jae	al5			; yes
-	cmp	es:[si].LBL_NUM,dx	; label # match?
-	jne	al4			; no
 	mov	ax,es:[si].LBL_IP
-	test	ax,LBL_RESOLVE		; is this a reference?
+	cmp	es:[si].LBL_NUM,dx	; label # match?
+	je	al3			; yes
+	test	ax,LBL_RESOLVE		; another reference?
+	jz	al4			; no
+	mov	ax,es:[si].LBL_NUM
+	cmp	ax,bx			; the lowest so far?
+	jae	al4			; no
+	xchg	bx,ax			; yes
+	jmp	short al4
+al3:	test	ax,LBL_RESOLVE		; is this a reference?
 	stc
 	jz	al7			; no, it's a duplicate definition
 	mov	es:[si].LBL_NUM,CTL_DONE; mark the reference resolved
@@ -911,15 +958,11 @@ al5:	call	nextBlock
 	test	ax,ax
 	jnz	al1
 	mov	es,cx			; ES = current code block again
-al8:	mov	si,es:[CBLK_REFS]
-	sub	si,size LBLREF
-	mov	es:[CBLK_REFS],si
-	mov	es:[si].LBL_NUM,dx
-	mov	es:[si].LBL_IP,di
-	clc
-al7:	mov	es,cx
-	pop	si
-	ret
+	cmp	es:[BLK_SIG],SIG_CBLK	; did we scan the code blocks?
+	jne	al6			; no
+	mov	si,ss:[PSP_HEAP]
+	mov	ss:[si+LBL_NEXT],bx	; yes, so update the lowest reference
+al6:	jmp	al8
 ENDPROC	addLabel
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -980,7 +1023,7 @@ ENDPROC	findLabel
 ;
 ; Inputs:
 ;	AX = CTL_FOR or CTL_WHILE
-;	DX = offset (following the JMP that skips the loop)
+;	DX = offset of the loop's body
 ;	ES:DI -> code block
 ;
 ; Outputs:
@@ -1049,10 +1092,10 @@ ENDPROC	findCtl
 ;
 ; checkCtl
 ;
-; Called by genCode when it's done generating code, to make sure that every
-; FOR and WHILE has a matching NEXT or WEND, and that every label reference
-; (eg, GOTO 100) was resolved; an unresolved reference is still a placeholder
-; that ends the program (see genGoto), so we report it instead of running.
+; Called by genMore when there are no more lines to generate, to make sure
+; that every FOR and WHILE has a matching NEXT or WEND, and that every label
+; reference (eg, GOTO 100) was resolved; an unresolved reference is still a
+; placeholder (see genGoto), so we report it and end the program.
 ;
 ; Inputs:
 ;	ES -> code block

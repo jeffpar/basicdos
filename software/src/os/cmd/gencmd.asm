@@ -7,13 +7,13 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; This is the core of the code generator: genCode generates (and runs) the
-; code for a line or program, and genCommands dispatches each command to its
-; generator.  The token helpers that all the gen*.asm files share (eg,
-; getNextToken) are in gentok.asm; expressions (genExpr) and the code-emitting
-; helpers (eg, GENCALL's genCallCS) are in genemit.asm, except for genPushImm
-; (see genPushVarPtr); and the label helpers (addLabel, findLabel) are in
-; genflow.asm.
+; This is the core of the code generator: genCode runs the code for a line or
+; program, genMore generates it as it runs, and genCommands dispatches each
+; command to its generator.  The token helpers that all the gen*.asm files
+; share (eg, getNextToken) are in gentok.asm; expressions (genExpr) and the
+; code-emitting helpers (eg, GENCALL's genCallCS) are in genemit.asm, except
+; for genPushImm (see genPushVarPtr); and the label helpers (addLabel,
+; findLabel) are in genflow.asm.
 ;
 ; Generates code for these commands:
 ;
@@ -61,6 +61,11 @@ CODE    SEGMENT
 ;
 ; genCode
 ;
+; Rather than generating all the code for a program before running it, which
+; delays the start of a large program, we generate only a "cap" (a call to
+; genMore) and run that; genMore then generates the code for each line as the
+; program reaches it (see genMore).
+;
 ; Inputs:
 ;	AL = GEN flags (eg, GEN_BATCH)
 ;	DS:BX -> heap
@@ -73,12 +78,9 @@ CODE    SEGMENT
 ;	Any
 ;
 DEFPROC	genCode
-	LOCVAR	codeSeg,word		; code segment
-	LOCVAR	defType,byte		; used by genDefInt, etc.
 	LOCVAR	pCode,dword		; original start of generated code
 	ENTER
 
-	mov	[codeSeg],cs
 	test	al,GEN_BATCH
 	jz	gc1
 	or	al,GEN_ECHO
@@ -88,6 +90,7 @@ gc1:	mov	[bx].GEN_FLAGS,al
 	mov	[bx].ERR_CODE,cl
 	mov	[bx].LINE_NUM,cx
 	mov	[bx].LINE_LBL,cx
+	mov	[bx].LBL_DATA[0],cx	; (see addLabel)
 	mov	byte ptr [bx].GFX_DATA.GFX_MODE,cl	; see gfxInit
 	mov	dx,ds
 	test	si,si
@@ -96,6 +99,8 @@ gc1:	mov	[bx].GEN_FLAGS,al
 	test	dx,dx			; anything to run?
 	jnz	gc1a			; yes
 	jmp	gc9			; no (TODO: display a message?)
+gce:	call	memError
+	jmp	gc9
 ;
 ; Like MSBASIC (see CLEARC), a program starts with the default types for all
 ; variables (ie, any DEFINT, DEFDBL, or DEFSTR from before is forgotten).
@@ -129,79 +134,18 @@ gc2:	mov	[bx].LINE_PTR.OFF,si
 
 	mov	ax,OP_MOV_BP_SP		; make it easy for endProgram
 	stosw				; to reset the stack and return
-	jmp	short gc4
-
-gc4x:
-	IFDEF	MAXDEBUG
-	mov	al,0
-	call	genSpin			; erase the spinner
-	ENDIF
-	call	memError		; no room for code, so skip execution
-	jmp	gc7
-
-gce:	call	memError
-	jmp	gc9
-
-gc4:	mov	ax,CODE_ROOM
-	call	ensureRoom		; make sure there's room for a line
-	jc	gc4x
-	call	getNextLine
-	cmc
-	jnc	gc6
-	IFDEF	MAXDEBUG
-	mov	ax,ss:[PSP_HEAP]
-	xchg	ax,bx
-	mov	bx,ss:[bx].LINE_NUM
-	and	bx,3
-	mov	bl,cs:SPIN_CHARS[bx]	; BL = next spinner char
-	xchg	ax,bx
-	call	genSpin			; display the spinner
-	ENDIF
-	call	genRedir		; any ":>" redirection?
-	jc	gc6			; yes, but it's invalid
-	push	ax
-	push	dx
-	push	cx
-	call	genCommands		; generate code
-	pop	cx
-	pop	dx
-	pop	ax
-	jc	gc6
-	test	ax,ax			; was the line redirected?
-	jz	gc4			; no
-	mov	si,ds:[PSP_HEAP]
-	mov	[si].LINE_LEN,ax	; restore the line's length
-	call	genRedirEnd		; and end the redirection
-	jnc	gc4
-
-gc6:	push	ss
-	pop	ds
-	ASSUME	DS:DATA
-	IFDEF	MAXDEBUG
-	pushf
-	mov	al,0
-	call	genSpin			; erase the spinner
-	popf
-	ENDIF
-	jc	gc7
-	call	checkCtl		; any FOR without NEXT (etc)?
-	jc	gc7			; yes
-	mov	al,OP_RETF		; terminate the code in the buffer
-	stosb
+	GENCALL	genMore			; and cap the code
+	mov	es:[BLK_FREE],di
 ;
 ; The memory model for the generated code is simple: CS is the current
 ; code block, SS is the heap, DS is the first var block (if any; see addVar),
 ; and ES is scratch.
 ;
 ; Since a BAS file can run another BAS file, we save the caller's ON ERROR
-; state (see rtError), and then record the SP that the code will start with.
-; We also save LINE_PTR.SEG, which a BAT or BAS file run by the code changes,
-; so that keepCode can still tell whether this was the loaded program (if it
-; wasn't, eg, a startup command that runs AUTOEXEC.BAT, RUN must not find its
-; code in CODE_CACHE).
+; state (see rtError), and then record the SP that the code will start with
+; (which genMore also uses to end the program if it finds an error).
 ;
 	mov	si,ds:[PSP_HEAP]
-	push	[si].LINE_PTR.SEG
 	push	[si].ERR_SP
 	push	[si].ERR_NUM
 	push	[si].ERR_ADDR.OFF
@@ -217,7 +161,8 @@ gc6:	push	ss
 	mov	ds,[si].VBLKDEF.BDEF_NEXT
 	ASSUME	DS:NOTHING
 	call	[pCode]			; execute the code buffer
-	pop	ds
+	clc
+gc5:	pop	ds			; (genMore arrives here with carry set)
 	ASSUME	DS:DATA
 	pop	bp
 	mov	si,ds:[PSP_HEAP]
@@ -225,14 +170,20 @@ gc6:	push	ss
 	pop	[si].ERR_ADDR.OFF
 	pop	[si].ERR_NUM
 	pop	[si].ERR_SP
-	pop	[si].LINE_PTR.SEG
-	clc
-
-gc7:	pushf
-	call	keepCode		; free (or keep) the code
+;
+; If the program ended before all its code was generated (eg, END), then we
+; can't keep the code (see keepCode), since there's no more code to run if
+; it's run again.
+;
+	pushf
+	jc	gc7			; error, so free the code
+	test	[si].GEN_FLAGS,GEN_DONE	; was all the code generated?
+	jnz	gc7			; yes (and carry is clear)
+	stc				; no, so free the code
+gc7:	call	keepCode		; free (or keep) the code
 	call	compactStrs		; free any leftover temp strings
 	popf
-gc8:	jnc	gc9
+	jnc	gc9
 
 	mov	bx,ds:[PSP_HEAP]
 	cmp	[bx].ERR_CODE,0		; was an error already reported?
@@ -251,61 +202,112 @@ gc9:	mov	bx,ss:[PSP_HEAP]
 	ret
 ENDPROC	genCode
 
-	IFDEF	MAXDEBUG
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genSpin
+; genMore
 ;
-; Displays the progress "spinner" char in AL on STDERR while a BAS or BAT file
-; is being compiled (in MAXDEBUG builds only).  BASIC-DOS backspaces are
-; destructive, so after the first line, each char is preceded by a backspace
-; (to erase the previous char), and when AL is zero, only a backspace is
-; displayed (to erase the spinner).
+; The generated code calls genMore (with a far CALL) from a 5-byte placeholder,
+; which is either the cap at the end of the code generated so far (see
+; genCode), or a JMP that hasn't been patched yet (eg, a forward GOTO, or the
+; JMP that skips a FOR or WHILE loop whose NEXT or WEND hasn't been generated
+; yet; see genJmp5).  We generate lines, starting where the code ends, until
+; the placeholder has been overwritten (or patched), cap the code again, and
+; return to the placeholder.
+;
+; Since the lines are still generated in order, the generator's state (eg,
+; DEFVARS, and any FOR or WHILE in progress) is the same as if genCode had
+; generated them all first; however, an error (eg, a syntax error) isn't found
+; until the program reaches it, and then we end the program, returning to
+; genCode with carry set.
 ;
 ; Inputs:
-;	AL = char (or zero to erase)
+;	Return address -> byte following the placeholder
 ;
 ; Outputs:
-;	None (all registers preserved, but not flags)
+;	DS -> first var block (if any; see genCode)
 ;
-DEFPROC	genSpin
-	push	ax
-	push	bx
-	push	cx
-	push	dx
-	push	ds
-	mov	bx,ss
-	mov	ds,bx
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	genMore,FAR
+	push	bp
+	mov	bp,sp
+	sub	word ptr [bp+2],5	; return to the placeholder
+	push	ss
+	pop	ds
+	ASSUME	DS:DATA
 	mov	bx,ds:[PSP_HEAP]
-	test	[bx].GEN_FLAGS,GEN_BASIC OR GEN_BATCH
-	jz	gs9			; not compiling a file
-	mov	cx,[bx].LINE_NUM
-	jcxz	gs9			; nothing displayed yet
-	mov	ah,al
-	mov	al,CHR_BACKSPACE
-	push	ax
-	mov	dx,sp			; DS:DX -> backspace and char
-	test	ah,ah			; erasing?
-	jz	gs1			; yes, so display only the backspace
-	dec	cx			; first line?
-	mov	cx,2
-	jnz	gs2			; no
-	inc	dx			; yes, so display only the char
-gs1:	mov	cx,1
-gs2:	mov	bx,STDERR
-	mov	ah,DOS_HDL_WRITE
-	int	21h
-	pop	ax
-gs9:	pop	ds
-	pop	dx
-	pop	cx
-	pop	bx
-	pop	ax
-	ret
-ENDPROC	genSpin
+	mov	ax,[bx].CBLKDEF.BDEF_NEXT
+gm1:	mov	es,ax			; find the last code block
+	mov	ax,es:[BLK_NEXT]
+	test	ax,ax
+	jnz	gm1
+	mov	di,es:[BLK_FREE]
+	sub	di,5			; ES:DI -> cap
 
-SPIN_CHARS	db	"-\|/"			; (the first line uses '\')
-	ENDIF	; MAXDEBUG
+gm2:	mov	ax,CODE_ROOM
+	call	ensureRoom		; make sure there's room for a line
+	jc	gm8
+	call	getNextLine
+	jc	gm6			; no more lines
+	call	genRedir		; any ":>" redirection?
+	jc	gm8			; yes, but it's invalid
+	push	ax
+	push	dx
+	push	cx
+	call	genCommands		; generate code
+	pop	cx
+	pop	dx
+	pop	ax
+	jc	gm8
+	test	ax,ax			; was the line redirected?
+	jz	gm3			; no
+	mov	si,ds:[PSP_HEAP]
+	mov	[si].LINE_LEN,ax	; restore the line's length
+	call	genRedirEnd		; and end the redirection
+	jc	gm8
+;
+; A line may generate no code at all (eg, REM or DATA), in which case the cap
+; is still there, or it may generate another placeholder in the cap's place
+; (eg, "GOTO 100"), in which case we keep going, too.  If some other code
+; happens to begin with a far CALL to the same offset, we just generate more.
+;
+gm3:	lds	si,dword ptr [bp+2]	; DS:SI -> placeholder
+	cmp	byte ptr [si],OP_CALLF	; still a call to genMore?
+	jne	gm4			; no
+	cmp	word ptr [si+1],offset genMore
+gm4:	push	ss
+	pop	ds
+	je	gm2			; yes, so generate another line
+	GENCALL	genMore			; cap the code again
+	mov	bx,ds:[PSP_HEAP]
+gm5:	mov	es:[BLK_FREE],di
+	mov	ds,[bx].VBLKDEF.BDEF_NEXT
+	ASSUME	DS:NOTHING
+	pop	bp
+	ret
+
+gm6:	push	ss
+	pop	ds
+	ASSUME	DS:DATA
+	call	checkCtl		; any FOR without NEXT (etc)?
+	jc	gm8			; yes
+	mov	al,OP_RETF		; terminate the code
+	stosb
+	mov	bx,ds:[PSP_HEAP]
+	or	[bx].GEN_FLAGS,GEN_DONE
+	jmp	gm5
+;
+; To end the program, we reset SP the same way that END does (see genEnd),
+; discard genCode's return address, and finish up in genCode.
+;
+gm8:	mov	bx,ds:[PSP_HEAP]
+	mov	sp,[bx].ERR_SP
+	pop	ax
+	pop	ax
+	stc
+	jmp	gc5
+ENDPROC	genMore
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -582,10 +584,11 @@ ENDPROC	genDOS
 ;	Any
 ;
 DEFPROC	genDefInt
-	mov	[defType],VAR_LONG
+	mov	al,VAR_LONG
 
 	DEFLBL	genDefVar,near
-	call	getCharToken		; check for char
+	push	ax			; save the type (AL)
+gdi1:	call	getCharToken		; check for char
 	jbe	gdi8
 	mov	dl,al			; DL = 1st char of range
 	mov	dh,al			; DH = last char of range
@@ -604,14 +607,15 @@ gdi2:	call	getCharToken		; check for another char
 	cmp	dh,dl			; is the range in order?
 	jb	gdi8			; no, report error
 ;
-; For every letter from DL through DH, set DEFVARS[DL] to defType.
+; For every letter from DL through DH, set DEFVARS[DL] to the type.
 ;
-gdi3:	push	bx
+gdi3:	pop	ax
+	push	ax			; AL = new default for each letter
+	push	bx
 	mov	cl,dh
 	sub	cl,dl
 	mov	ch,0
 	inc	cx			; CX = # of letters to set
-	mov	al,[defType]		; AL = new default for each letter
 	mov	bx,ds:[PSP_HEAP]
 	lea	bx,[bx].DEFVARS
 	sub	dl,'A'
@@ -625,21 +629,24 @@ gdi3a:	mov	[bx],al
 	call	getNextSymbol		; check for comma
 	jbe	gdi7			; no more tokens (or a ':' or keyword)
 	cmp	al,','
-	je	genDefVar
+	je	gdi1
 	sub	bx,size TOKLET		; leave any other symbol for the caller
 gdi7:	clc
-	ret
+	jmp	short gdi9
 
 gdi8:	stc
-gdi9:	ret
+gdi9:	pop	cx			; discard the type
+	ret
 
 	DEFLBL	getCharToken,near
 	mov	al,CLS_VAR		; token must be CLS_VAR
 	call	getNextToken
-	jbe	gdi8
+	jbe	gct8
 	dec	cx
-	jnz	gdi8			; and it must have a length of 1
+	jnz	gct8			; and it must have a length of 1
 	inc	cx
+	ret
+gct8:	stc
 	ret
 ENDPROC	genDefInt
 
@@ -661,7 +668,7 @@ ENDPROC	genDefInt
 ;	Any
 ;
 DEFPROC	genDefDbl
-	mov	[defType],VAR_DOUBLE
+	mov	al,VAR_DOUBLE
 	jmp	genDefVar
 ENDPROC	genDefDbl
 
@@ -682,7 +689,7 @@ ENDPROC	genDefDbl
 ;	Any
 ;
 DEFPROC	genDefStr
-	mov	[defType],VAR_STR
+	mov	al,VAR_STR
 	jmp	genDefVar
 ENDPROC	genDefStr
 

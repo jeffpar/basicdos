@@ -1050,7 +1050,24 @@ cf4x:	jmp	cf5
 ; the program remains loaded, available for LIST'ing, RUN'ing, etc, and the
 ; ctrlc handler frees the blocks of any callers (see restoreChains).
 ;
-cf4b:	push	[bp].DATA_STATE.DATA_ITEM	; save the caller's READ position
+;
+; If a program is running, its code is still being generated (see genMore),
+; so we also save its code generator's state (from DEF_PARMS through DEFVARS),
+; which the file's genCode changes, and restore it when the file finishes.
+;
+GEN_WORDS	equ	(DEFVARS + 26 - DEF_PARMS) / 2
+
+cf4b:	sub	sp,GEN_WORDS * 2
+	push	cx
+	push	si
+	lea	si,[bp].DEF_PARMS
+	mov	di,sp
+	add	di,4			; ES:DI -> space for the state
+	mov	cx,GEN_WORDS
+	rep	movsw
+	pop	si
+	pop	cx
+	push	[bp].DATA_STATE.DATA_ITEM	; save the caller's READ position
 	push	[bp].DATA_STATE.DATA_END	; (see readData), which saveChains
 	push	[bp].DATA_STATE.DATA_SEG	; resets (see freeCache)
 	push	[bp].DATA_STATE.DATA_OFF
@@ -1123,6 +1140,25 @@ cf4g:	pop	ax			; remove the command line
 	pop	[bp].DATA_STATE.DATA_SEG
 	pop	[bp].DATA_STATE.DATA_END
 	pop	[bp].DATA_STATE.DATA_ITEM
+;
+; A file's types (DEFVARS) remain in effect at the prompt afterward (see
+; genCode), so we restore DEFVARS only if a program (other than an immediate
+; line, which has been generated already) is running.
+;
+	lahf				; AH = flags (carry set if error)
+	mov	si,sp			; SI -> saved state
+	push	ss
+	pop	es
+	lea	di,[bp].DEF_PARMS
+	mov	cx,(DEFVARS - DEF_PARMS) / 2
+	cmp	[bp].CBLKDEF.BDEF_NEXT,0; was a program running?
+	je	cf4h			; no
+	test	byte ptr [si+(GEN_FLAGS - DEF_PARMS)],GEN_IMM
+	jnz	cf4h			; yes, but only an immediate line
+	mov	cl,GEN_WORDS
+cf4h:	rep	movsw
+	add	sp,GEN_WORDS * 2
+	sahf
 	jmp	cf9a
 ;
 ; COM and EXE files must be loaded via either DOS_PSP_EXEC or DOS_UTL_LOAD.

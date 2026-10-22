@@ -115,7 +115,7 @@ Erases the loaded program, functions, and variables.
 
 > RUN
 
-Runs the currently loaded BAS or BAT program.  If the program and its variables haven't changed since it last ran, its compiled code is reused, so it starts immediately.  Programs can also be run without the RUN command, by typing their names.
+Runs the currently loaded BAS or BAT program.  If the whole program was compiled when it last ran, and neither the program nor its variables have changed since, its compiled code is reused instead of being compiled again.  Programs can also be run without the RUN command, by typing their names.
 
 ### VER
 

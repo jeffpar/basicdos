@@ -1,5 +1,8 @@
 10 REM ARRAYS.BAS: BASIC-DOS array tests (prints "failed" on error)
 20 DEFINT A-Z
+22 REM Code is generated as the program runs, so jump to the end (and back)
+24 REM first, so that F0 doesn't change when the rest of the code is generated
+26 GOTO 9000
 30 F0 = FRE(-1)
 40 DIM A(10), D#(5), S$(20), M(3,4), T(2,3,4)
 50 IF A(0) <> 0 OR A(10) <> 0 OR D#(5) <> 0 OR S$(20) <> "" THEN PRINT "default values failed" : FAILS = FAILS + 1
@@ -50,3 +53,5 @@
 500 F1 = FRE(-1)
 510 IF F1 <> F0 THEN PRINT "leak check failed:"; F1 - F0 : FAILS = FAILS + 1
 520 IF FAILS THEN PRINT "ARRAYS failed" ELSE PRINT "ARRAYS passed"
+530 END
+9000 GOTO 30

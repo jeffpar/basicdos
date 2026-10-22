@@ -1,5 +1,8 @@
 10 REM STRPOOL.BAS: BASIC-DOS string pool tests (prints "failed" on error)
 20 DEFINT A-Z
+22 REM Code is generated as the program runs, so jump to the end (and back)
+24 REM first, so that F0 doesn't change when the rest of the code is generated
+26 GOTO 9000
 30 F0 = FRE(-1)
 40 P$ = "" : I = 0
 50 P$ = P$ + CHR$(33 + (I * 7) MOD 90) : I = I + 1 : IF I < 255 THEN GOTO 50
@@ -57,3 +60,5 @@
 570 F1 = FRE(-1)
 580 IF F1 <> F0 THEN PRINT "leak check failed:"; F1 - F0 : FAILS = FAILS + 1
 590 IF FAILS THEN PRINT "STRPOOL failed" ELSE PRINT "STRPOOL passed"
+600 END
+9000 GOTO 30

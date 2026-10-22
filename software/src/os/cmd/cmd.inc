@@ -222,6 +222,7 @@ GEN_BASIC	equ	02h		; BAS file
 GEN_BATCH	equ	04h		; BAT file
 GEN_ECHO	equ	08h		; initially set if GEN_BATCH
 GEN_DEF		equ	10h		; DEF function in progress
+GEN_DONE	equ	20h		; all code generated (see genMore)
 
 ;
 ; Global command flags.  We rely on the entire heap being zeroed
@@ -280,55 +281,60 @@ HDL_INPUT	dw	?		; 328h: 0 if unused
 HDL_OUTPUT	dw	?		; 32Ah: 0 if unused
 HDL_INPIPE	dw	?		; 32Ch: 0 if unused
 HDL_OUTPIPE	dw	?		; 32Eh: 0 if unused
-		db	?		; 330h: (unused)
-SFH_STDIN	db	?		; 331h: original STDIN
-SFH_STDOUT	db	?		; 332h: original STDOUT
-CMD_SIG		db	?		; 333h: SIG_CMD
-CMD_ARG		db	?		; 334h: index of 1st arg
-ERR_CODE	db	?		; 335h
-CON_COLS	db	?		; 336h: # cols in console
-INPUT_SYM	dw	?		; 337h: offset of '<' (see parseDOS)
-CMD_FLAGS	db	?		; 339h: see CMD_* flags
-GEN_FLAGS	db	?		; 33Ah: see GEN_* flags
-DEF_PARMS	db	?		; 33Bh
-CMD_ARGPTR	dw	?		; 33Ch: offset of current arg
-CMD_ARGLEN	dw	?		; 33Eh: length of current arg
-CMD_DEFER	dw    5 dup (?)		; 340h: regs for deferred command
-EXIT_CODE	db	?		; 34Ah: exit code from last EXEC
-EXIT_TYPE	db	?		; 34Bh: exit type from last EXEC
-LINE_NUM	dw	?		; 34Ch
-LINE_LEN	dw	?		; 34Eh
-LINE_PTR	dd	?		; 350h
-PREV_TIME	dd	?		; 354h: last time displayed by cmdTime
-RND_SEED	dd	?		; 358h: pseudo-random number seed
-INPUT_BUF	dw	?		; 35Ch: input offset (default INPUTBUF)
-TOKLET_NEXT	dw	?		; 35Eh
-TOKLET_END	dw	?		; 360h
-LINEBUF		db  256 dup (?)		; 362h
-DEFVARS		db   26 dup (?)		; 462h: default types for 26 letters
-EXECDATA	db size EPB dup (?)	; 47Ch: Exec Parameter Block
-CMD_PROCESS	dw	?		; 492h: PSP of loaded process, if any
-HDL_OUTFILE	dw	?		; 494h: 0 if unused (see parseDOS)
-DEF_TYPE	db	?		; 496h: return type of DEF in progress
-OPT_BASE	db	?		; 497h: OPTION BASE (0 or 1)
-CMD_CHAINS	dw	?		; 498h: CHAINS frame (see saveChains)
-LINE_LBL	dw	?		; 49Ah: line # of LINE_NUM (0 if none)
-PEEK_SEG	dw	?		; 49Ch: DEF SEG segment XOR SS
-ERR_SP		dw	?		; 49Eh: program SP for ON ERROR
-ERR_NUM		dw	?		; 4A0h: last error # (HI set if active)
-ERR_ADDR	dd	?		; 4A2h: ON ERROR handler (0 if none)
-ERR_LINE	dw	?		; line # of the last error (see ERL)
-PLAY_STATE	dw    4 dup (?)		; 4A6h: PLAY/SOUND state (see doPlay)
-GFX_DATA	db	size GFXDATA dup (?)	; 4AEh: graphics and mouse state
-CODE_CACHE	dw	?		; 4BEh: cached code (see keepCode)
-EDIT_STATE	dw    2 dup (?)		; 4C0h: line to edit (see edit.asm)
-DATA_STATE	db	size DATASTATE dup (?)	; 4C4h: next DATA item (see sys.asm)
-PATH_CHAR	db	?		; 4CCh: path char (fixed at boot)
-SWITCH_CHAR	db	?		; 4CDh: switch char (fixed at boot)
-FILE_DATA	db   44 dup (?)		; 4CEh: OPEN files (see fileio.asm)
-PIPE_SCB	dd	?		; 4FAh: pipeline sessions (see endPipes)
-PATH_BUF	db  128 dup (?)		; 4FEh: PATH$ (length, 0-120 chars, null)
-ENV_DATA	db  176 dup (?)		; 57Eh: environment (see initEnv)
+SFH_STDIN	db	?		; 330h: original STDIN
+SFH_STDOUT	db	?		; 331h: original STDOUT
+CMD_SIG		db	?		; 332h: SIG_CMD
+CMD_ARG		db	?		; 333h: index of 1st arg
+ERR_CODE	db	?		; 334h
+CON_COLS	db	?		; 335h: # cols in console
+INPUT_SYM	dw	?		; 336h: offset of '<' (see parseDOS)
+CMD_FLAGS	db	?		; 338h: see CMD_* flags
+EXIT_CODE	db	?		; 339h: exit code from last EXEC
+CMD_ARGPTR	dw	?		; 33Ah: offset of current arg
+CMD_ARGLEN	dw	?		; 33Ch: length of current arg
+CMD_DEFER	dw    5 dup (?)		; 33Eh: regs for deferred command
+;
+; The code generator's state, from DEF_PARMS through DEFVARS.  Since a
+; program's code is generated as it runs (see genMore), and the program may run
+; a BAT or BAS file, cmdDOS saves this state before running the file and
+; restores it afterward.
+;
+DEF_PARMS	db	?		; 348h
+GEN_FLAGS	db	?		; 349h: see GEN_* flags
+LINE_NUM	dw	?		; 34Ah
+LINE_LEN	dw	?		; 34Ch
+LINE_PTR	dd	?		; 34Eh
+LINE_LBL	dw	?		; 352h: line # of LINE_NUM (0 if none)
+LBL_DATA	dw    2 dup (?)		; 354h: label state (see addLabel)
+DEFVARS		db   26 dup (?)		; 358h: default types for 26 letters
+PREV_TIME	dd	?		; 372h: last time displayed by cmdTime
+RND_SEED	dd	?		; 376h: pseudo-random number seed
+INPUT_BUF	dw	?		; 37Ah: input offset (default INPUTBUF)
+TOKLET_NEXT	dw	?		; 37Ch
+TOKLET_END	dw	?		; 37Eh
+LINEBUF		db  256 dup (?)		; 380h
+EXECDATA	db size EPB dup (?)	; 480h: Exec Parameter Block
+CMD_PROCESS	dw	?		; 496h: PSP of loaded process, if any
+HDL_OUTFILE	dw	?		; 498h: 0 if unused (see parseDOS)
+DEF_TYPE	db	?		; 49Ah: return type of DEF in progress
+OPT_BASE	db	?		; 49Bh: OPTION BASE (0 or 1)
+CMD_CHAINS	dw	?		; 49Ch: CHAINS frame (see saveChains)
+PEEK_SEG	dw	?		; 49Eh: DEF SEG segment XOR SS
+ERR_SP		dw	?		; 4A0h: program SP for ON ERROR
+ERR_NUM		dw	?		; 4A2h: last error # (HI set if active)
+ERR_ADDR	dd	?		; 4A4h: ON ERROR handler (0 if none)
+ERR_LINE	dw	?		; 4A8h: line # of last error (see ERL)
+PLAY_STATE	dw    4 dup (?)		; 4AAh: PLAY/SOUND state (see doPlay)
+GFX_DATA	db	size GFXDATA dup (?)	; 4B2h: graphics and mouse state
+CODE_CACHE	dw	?		; 4C2h: cached code (see keepCode)
+EDIT_STATE	dw    2 dup (?)		; 4C4h: line to edit (see edit.asm)
+DATA_STATE	db	size DATASTATE dup (?)	; 4C8h: next DATA item (see sys.asm)
+PATH_CHAR	db	?		; 4D0h: path char (fixed at boot)
+SWITCH_CHAR	db	?		; 4D1h: switch char (fixed at boot)
+FILE_DATA	db   44 dup (?)		; 4D2h: OPEN files (see fileio.asm)
+PIPE_SCB	dd	?		; 4FEh: pipeline sessions (see endPipes)
+PATH_BUF	db  128 dup (?)		; 502h: PATH$ (length, 0-120 chars, null)
+ENV_DATA	db  176 dup (?)		; 582h: environment (see initEnv)
 ;
 ; The BASIC-DOS loader always set the stack pointer for a COM file to the top
 ; of the segment, which means we must declare our stack at the end of CMDHEAP.
@@ -339,8 +345,8 @@ ENV_DATA	db  176 dup (?)		; 57Eh: environment (see initEnv)
 ; COM file can request the stack be located elsewhere, since there's no way for
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
-STACK		dw 1024 dup (?)		; 630h
-CMDHEAP		ends			; E30h
+STACK		dw 1023 dup (?)		; 632h
+CMDHEAP		ends			 ; E30h
 SIG_CMD		equ	'H'
 
 ;

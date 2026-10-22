@@ -34,7 +34,7 @@ A BASIC program is a text file with a BAS or BAT extension, which you can create
 
 Programs can use any BASIC-DOS command (eg, `DIR` or `COLOR`), and can run other programs (including other BAT and BAS files) by name.  Keywords and names can be typed in upper or lower case.  [REM](../cmd/basic/#rem), or an apostrophe outside of quotes, starts a remark that continues to the end of the line.
 
-To run a program, type its name (see [Running Programs](../intro/#running-programs)).  BASIC-DOS first compiles the entire program into 8086 machine code, and then runs it, which is why BASIC-DOS programs run much faster than Microsoft BASIC programs.  It also means that a statement BASIC-DOS doesn't support causes a syntax error before the program starts, even if the program would never reach it.
+To run a program, type its name (see [Running Programs](../intro/#running-programs)).  BASIC-DOS compiles the program into 8086 machine code as it runs (see [BASIC Compilation](../cmd/external/command/#basic-compilation)), which is why BASIC-DOS programs run much faster than Microsoft BASIC programs.  As in Microsoft BASIC, a statement BASIC-DOS doesn't support causes a syntax error when the program reaches it.
 
 When a BAS program that you ran from the prompt ends, it remains loaded, along with its functions and variables, so you can [LIST](../cmd/system/#list) it, examine its variables at the prompt (eg, `PRINT N`), or [RUN](../cmd/system/#run) it again.  [NEW](../cmd/system/#new) erases the program and its variables.
 
@@ -42,7 +42,7 @@ BAT files differ from BAS files in two ways: BAT files can [ECHO](../cmd/device/
 
 ### Batch Files
 
-A BAT file is a BASIC-DOS program too, so it can contain any BASIC-DOS command or BASIC statement, and it's compiled before it runs (so a syntax error anywhere in the file is reported before any of it runs).  This makes BASIC-DOS batch files more powerful than PC DOS batch files, but some PC DOS batch file features work differently:
+A BAT file is a BASIC-DOS program too, so it can contain any BASIC-DOS command or BASIC statement, and it's compiled the same way.  This makes BASIC-DOS batch files more powerful than PC DOS batch files, but some PC DOS batch file features work differently:
 
 | PC DOS | BASIC-DOS |
 |--------|-----------|
@@ -159,7 +159,7 @@ Press **Ctrl-C** to stop a running program.
 
 When a runtime error occurs (eg, "Illegal function call" or "Subscript out of range"), the program ends with an error message, unless an [ON ERROR GOTO](../cmd/basic/#on-error) handler is active.  The handler can use [ERR](../cmd/basic/func/#err) to get the error number, and [RESUME](../cmd/basic/#resume) *label* to continue the program.  Error numbers are the same as Microsoft BASIC's, and [ERROR](../cmd/basic/#error) *n* simulates an error.
 
-When a command fails, it displays an error message, and as in PC DOS, the program (including a BAT file) continues with its next command.  A command fails if it can't do what was asked: for example, a program that can't be found ("Unable to find") or opened ("Unable to open"), a file that can't be found, copied, or deleted, a directory that can't be changed to, created, or removed, an invalid date or time, or a BAS or BAT file with a syntax error (which never runs).  A failed command sets [ERRORLEVEL](../cmd/basic/func/#errorlevel) to 1, and a successful one sets it to 0, so a program can check whether a command worked (eg, `IF ERRORLEVEL THEN END`).  A program that runs and then returns a non-zero exit code hasn't failed; ERRORLEVEL is its exit code.  ON ERROR doesn't apply to failed commands, and a failed CHAIN still ends the program.
+When a command fails, it displays an error message, and as in PC DOS, the program (including a BAT file) continues with its next command.  A command fails if it can't do what was asked: for example, a program that can't be found ("Unable to find") or opened ("Unable to open"), a file that can't be found, copied, or deleted, a directory that can't be changed to, created, or removed, an invalid date or time, or a BAS or BAT file that ends with a syntax error.  A failed command sets [ERRORLEVEL](../cmd/basic/func/#errorlevel) to 1, and a successful one sets it to 0, so a program can check whether a command worked (eg, `IF ERRORLEVEL THEN END`).  A program that runs and then returns a non-zero exit code hasn't failed; ERRORLEVEL is its exit code.  ON ERROR doesn't apply to failed commands, and a failed CHAIN still ends the program.
 
 ### Graphics and Sound
 
@@ -190,7 +190,6 @@ BASIC-DOS runs many IBM PC BASIC programs unchanged (eg, DONKEY.BAS, from the or
 - Line numbers are optional, and only needed on lines that are targets of GOTO, GOSUB, etc
 - Single-precision values are double-precision (DEFSNG is the same as DEFDBL), and integers are 32-bit, not 16-bit
 - Function names don't need to begin with FN, and functions can have multiple lines
-- Since programs are compiled first, unsupported statements are reported before the program runs
 - PRINT commas print a tab instead of advancing to the next print zone
 - Up to 4 files can be open at once, random access records are limited to 255 bytes, MKD$ and CVD use IEEE doubles (not MBF), MKS$, CVS, and the OPEN "mode",#n,file form aren't supported, and file statements need a space before the # (eg, PRINT #1, not PRINT#1)
 - INPUT doesn't display "Redo from start"; missing items are empty (or zero), and extra items are ignored
