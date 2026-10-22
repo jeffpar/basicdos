@@ -41,8 +41,6 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] Media check and BPB rebuilds (reads PC DOS 1.x and 2.x diskettes)
 - [x] *partial*: Hard disk reads and writes (HDC$), for the FAT12 primary partitions of up to two PC XT or PC AT hard disks, which become drives C:, D:, etc. (drives A: and B: are always reserved for diskettes); a disk with no FAT partitions (eg, a new disk) is still given a drive letter (with "unknown media"), and IOCTLs return its geometry and partition table (IOCTL_GETPART) and write a new MBR with the driver's own boot code (IOCTL_SETPART), so that FORMAT can partition it
 - [x] Diskette formatting: IOCTL_SETPARMS gives a volume its BPB (so that an unformatted diskette can be written) and IOCTL_FORMAT formats and verifies a track, with the DPT's sectors per track set from the BPB (for every diskette transfer, so 8-sector diskettes read correctly, too); see FORMAT.BAS under [Utilities](#utilities)
-- [ ] Write-with-verify (DDC_WRITEV) and FAT16 hard disks
-- [ ] "Popup" and background console contexts
 
 ### Kernel: Processes, Memory, and Sessions
 
@@ -53,13 +51,12 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] Preemptive multitasking of multiple sessions
 - [x] CTRL-C/CTRL-Break handling, and CTRL-ALT-DEL session aborts (vectors 08h, 09h, 1Bh, and 1Ch that a terminated program left hooked, like MSBASIC's, are restored)
 - [x] Session END: abort the current program in a specified session, interrupting any pending wait; WAITEND waits for the session to close
-- [ ] Session STOP (suspend a specified session; currently a TODO)
-- [ ] TSR support (INT 27h and INT 21h function 31h)
 - [x] Environment segments for EXEC (EPB_ENVSEG; zero inherits the parent's), and COMMAND.COM gives every program an environment with COMSPEC and PATH
+- [ ] TSR support (INT 27h and INT 21h function 31h)
 
 ### Kernel: File System
 
-- [x] FAT12 file reading
+- [x] FAT12 and FAT16 file systems with read/write support
 - [x] Handle-based open, read, seek, IOCTL, and close
 - [x] Find first/next, disk info (free space), and current drive/DTA
 - [x] Handle-based file creation (function 3Ch) and writing (function 40h)
@@ -68,12 +65,12 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] Write-back of modified FAT and directory buffers (every FAT copy is updated), including when the buffer is reused, on file close, disk reset, and restart
 - [x] FCB support: open, create, close, sequential, random, and random block reads and writes, find first/next, delete and rename (with wildcards), file size, set relative record, and filename parsing (functions 0Fh-17h, 21h-24h, and 27h-29h), including extended FCBs and device names
 - [x] Truncating/extending a file with a zero-length write (function 40h, and FCB function 28h)
-- [ ] Enforcing the read-only attribute on open, and getting/setting file attributes (function 43h) and date/time (function 57h)
 - [x] Subdirectories: paths (separated by `\`, or `/` when PATHCHAR is `/`) in all file functions, MKDIR and RMDIR (functions 39h and 3Ah), subdirectories that grow as needed, and per-session current directories for every drive (CHDIR and GETCWD, functions 3Bh and 47h)
 - [x] Same-drive file and directory moves (function 56h): preserve contents and metadata, update a moved directory's `..` entry, retain active current directories, and reject moves into itself or a descendant
 - [x] Absolute disk reads and writes: opening a volume (eg, `C:`) as a file gives read/write access to its sectors, in place of INT 25h and INT 26h; a volume can also be created (ie, opened FOR OUTPUT) and opened when its media is unknown (eg, an unformatted diskette), with no critical error prompt, and IOCTLs on a volume handle go to the drive's driver (with their errors returned to the caller)
 - [x] Configurable disk buffer cache (BUFFERS=2-32, default 2), with least-recently-used replacement for FAT and directory sectors; file data is transferred directly by the disk drivers
-- [ ] FAT16 and extended partitions
+- [ ] Enforcing the read-only attribute on open, and getting/setting file attributes (function 43h) and date/time (function 57h)
+- [ ] Extended disk partitions
 
 ### Command Interpreter: DOS Commands
 
@@ -101,8 +98,8 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] Every bootable BASIC-DOS disk has the same layout: BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, AUTOEXEC.BAT (if any), and HELP.TXT in the root, utilities (including DEBUG.COM) in BIN, the PC DOS 1.00 BASIC samples in SAMPLES, and demo programs in DEMOS (test programs are on a separate diskette, in TESTS); every disk has a volume label (eg, BD-D40), and every machine's diskette list shows the BASIC-DOS diskettes by title (eg, "BASIC-DOS 40-Column Demo"); HELP finds HELP.TXT in the root of the boot drive from any directory
 - [x] REN/RENAME/MV: rename files and directories and move them between directories on the same drive
 - [x] Loading tokenized (binary) BAS files saved by BASICA or GW-BASIC (eg, the samples on the PC DOS diskettes): they're converted back to text as they're loaded (as LIST would display them), including MBF floating-point constants (converted to IEEE doubles and formatted by FPU$); protected BAS files are still rejected with "Invalid file format"
-- [ ] LOAD inside a running BAS or BAT file (for now, it's an error, "Not allowed in a program", because it would replace the running file's own text)
 - [x] Disk utilities are external programs; see [Utilities](#utilities)
+- [ ] LOAD inside a running BAS or BAT file (for now, it's an error, "Not allowed in a program", because it would replace the running file's own text)
 
 ### Utilities
 
@@ -110,10 +107,10 @@ Utilities live in the BIN directory of every BASIC-DOS disk.  The filters, SLEEP
 
 - [x] *partial*: FORMAT.BAS (360K diskettes by default, /1 for single-sided, /8 for 8 sectors per track, and /S to copy the system files from the current drive), which formats and verifies each track through the diskette driver, builds the boot sector, FATs, and root directory using the PC DOS 2.x rules for cluster and root directory sizes (with 12-bit FATs, which PC DOS 2.x used whenever it could), and reports the space available; it refuses the current drive
 - [x] *partial*: FORMAT for hard disks: it displays the disk's partition table first, formats one of its FAT volumes (asking which, when the drive given is the whole disk) after a warning, and when a disk has no partition table, offers to create one (with prompts, rather than a separate FDISK) with a single volume of the size requested in Mb (up to 32Mb), writing an MBR and formatting the volume (12-bit FAT up to 32680 sectors, as PC DOS 3.x did, and 16-bit FAT beyond)
-- [ ] FORMAT: adding volumes to a partitioned disk, extended partitions, verifying hard disk sectors, marking bad clusters, volume labels (/V), and 720K and 1.2M diskettes
 - [x] MODE.BAS: display columns and color (MODE 40, 80, BW40, BW80, CO40, CO80), serial ports (eg, MODE COM1:9600,N,8,1, which sets the port by opening it with those parameters and no input buffer), and printer columns and lines per inch (MODE LPT1:132,8)
-- [ ] Other PC DOS-inspired utilities worth writing in BASIC: CHKDSK, SYS, DISKCOPY, DISKCOMP, COMP, LABEL (and VOL), TREE, ATTRIB, and PRINT (background printing, using a session); not ASSIGN, SUBST, JOIN, BACKUP, RESTORE, or EDLIN (VI covers editing)
-- [ ] Handy third-party tools (eg, PKZIP and PKUNZIP) belong in the TOOLS directory, unchanged, rather than BIN
+- [ ] Additional FORMAT features: adding volumes to a partitioned disk, extended partitions, verifying hard disk sectors, marking bad clusters, volume labels (/V), and 720K and 1.2M diskettes
+- [ ] Other PC DOS-inspired utilities possibly written in BASIC: CHKDSK, SYS, DISKCOPY, DISKCOMP, COMP, LABEL (and VOL), TREE, ATTRIB, and PRINT (background printing, using a session); not ASSIGN, SUBST, JOIN, BACKUP, RESTORE, or EDLIN (VI covers editing)
+- [ ] Additional third-party tools (eg, PKZIP and PKUNZIP) added to the TOOLS directory
 
 ### Command Interpreter: BASIC Language
 
@@ -130,22 +127,22 @@ Utilities live in the BIN directory of every BASIC-DOS disk.  The filters, SLEEP
 - [x] Arrays of integers, doubles, and strings, with up to 255 dimensions: DIM, ERASE, OPTION BASE, automatic dimensioning (with a largest subscript of 10) of arrays used without DIM, and "Subscript out of range" and "Duplicate definition" errors
 - [x] Control flow: END, FOR/NEXT (with STEP, and integer or double loop variables), GOSUB/RETURN, ON ... GOTO/GOSUB, STOP, and WHILE/WEND
 - [x] Memory management that's forgiving of low or fragmented memory: code, text, variable, and string blocks are modest (4K) blocks that are chained together as needed (generated code continues in another code block via a far JMP), no block type takes more than a quarter of the largest free block, and smaller blocks (down to 512 bytes) are used when necessary
-- [ ] Limitations: a DEF function's code must fit in a single block, a function block ends at its first RETURN (so RETURN can't be conditional), and each array requires a single block (64K max)
-- [ ] Specific error messages for compile-time errors (eg, "NEXT without FOR" and "WHILE without WEND" are currently reported as syntax errors)
-- [ ] STOP's "Break" message (STOP is currently the same as END)
 - [x] DATA, READ, and RESTORE (DATA items are found in the program's text as READ needs them)
 - [x] MOUSE ON/OFF and the MOUSE(*n*) function (modeled on MSBASIC's PEN), which returns button events, their positions, and the current position and buttons, in pixels (graphics modes) or columns and rows (text modes); the pointer is hidden while graphics statements run (until the next MOUSE function), and the mouse is turned off when a BAS program ends
 - [x] INPUT and LINE INPUT, from the keyboard or an open file
-- [ ] The MID$ statement (ie, `MID$(A$,N[,M]) = B$`)
 - [x] `&H` and `&O` prefixes in VAL (`&` alone also means octal)
-- [ ] Comma print zones in PRINT (commas currently print a tab)
 - [x] PRINTF [#*n*,] USING: formatted output with C-style `%` specifiers (eg, `PRINTF USING "%5.2f";X#`)
-- [ ] PRINT USING (MSBASIC's template formats, such as `###.##`, `$$`, `**`, `^^^^`, `!`, `&`, and `\ \`); since PRINTF USING covers most of the same needs, it may stay unimplemented
 - [x] Sequential file I/O: OPEN FOR INPUT, OUTPUT, and APPEND, CLOSE (and RESET), PRINT #, WRITE #, INPUT #, LINE INPUT #, EOF, LOC, and LOF
 - [x] Random access file I/O: OPEN FOR RANDOM with LEN, FIELD, LSET, RSET, GET #, PUT #, and binary conversion functions (CVI, CVL, CVD, MKI$, MKL$, and MKD$)
 - [x] IOCTL #: sends an IOCTL request (with a numeric value in CX and DX, or a string's data) to the device or volume open as a file, with driver errors reported as runtime errors (eg, "Permission denied" for a write-protected diskette); IOCTL$ returns the data (up to 255 bytes) a driver stores in response to a request
 - [x] *partial*: Error handling (ON ERROR GOTO, RESUME *line*, ERROR, and ERR; see the DONKEY.BAS checklist)
 - [ ] Runtime error messages for numeric errors
+- [ ] Specific error messages for compile-time errors (eg, "NEXT without FOR" and "WHILE without WEND" are currently reported as syntax errors)
+- [ ] STOP's "Break" message (STOP is currently the same as END)
+- [ ] The MID$ statement (ie, `MID$(A$,N[,M]) = B$`)
+- [ ] Comma print zones in PRINT (commas currently print a tab)
+- [ ] PRINT USING (MSBASIC's template formats, such as `###.##`, `$$`, `**`, `^^^^`, `!`, `&`, and `\ \`); since PRINTF USING covers most of the same needs, this may remain unimplemented
+- [ ] Limitations: a DEF function's code must fit in a single block, a function block ends at its first RETURN (so RETURN can't be conditional), and each array requires a single block (64K max)
 
 ### Floating-Point
 
@@ -165,8 +162,8 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] FPUTESTS, run with and without an 8087 by `tools/tests/quick.sh`
 - [x] Fast software emulation: doubles are unpacked and packed in registers, division uses the 8086's DIV (16 bits at a time), multiplication sums its partial products a column at a time, and SIN, COS, TAN, ATN, LOG, and EXP use fdlibm's minimax polynomials; arithmetic results match the 8087 bit for bit, and math functions are within 1 ulp (see the [benchmarks](preview/part6/))
 - [x] STR$ formats integer values directly, without floating-point conversions
-- [ ] Saving and restoring 8087 state on session switches (FPU$ functions currently disable interrupts instead), and better error reporting for FPU exceptions
 - [x] Unused floating-point utility function stubs (DOS_UTL_ATOF64, DOS_UTL_I32F64, and DOS_UTL_OPF64) removed, since FPU$ supersedes them
+- [ ] Saving and restoring 8087 state on session switches (FPU$ functions currently disable interrupts instead), and better error reporting for FPU exceptions
 
 ### DONKEY.BAS
 
@@ -193,10 +190,10 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] PAINT fills through pixels that already have the paint color (like MSBASIC), so it draws the same pixels as MSBASIC; it scans rows a byte at a time (using tables of each byte's boundary and paint-colored pixels), and its seeds remember their direction and parent span, so it never rescans the row it came from, making it faster than MSBASIC's
 - [x] A BASIC keyword typed alone that isn't a valid statement (eg, CIRCLE) runs the program with that name (eg, CIRCLE.BAS)
 - [x] LINE (and DRAW and CIRCLE's lines to the center) use MSBASIC's line algorithm, so they draw the same pixels as MSBASIC, but lines whose endpoints are on the screen are drawn by stepping the video address and pixel mask directly (about 4 times faster than before)
+- [x] When a BAS program ends (or is aborted), its video mode is restored (undoing any SCREEN or WIDTH), and when a console returns to its original mode, its original geometry (eg, its border) is restored, too
 - [ ] More performance: text output in graphics modes goes through the CON driver and the BIOS
 - [ ] Graphics features that the samples don't use: STEP coordinates, POINT, DRAW's A, TA, X, and "=variable" commands, and GET/PUT with floating-point arrays
 - [ ] RESUME and RESUME NEXT (which need the location of the error), and ERL
-- [x] When a BAS program ends (or is aborted), its video mode is restored (undoing any SCREEN or WIDTH), and when a console returns to its original mode, its original geometry (eg, its border) is restored, too
 - [ ] Keeping other sessions on the same adapter from writing to the screen while it's in another mode; also, the CON driver restores the BIOS's video data after every INT 10h call, so programs that read the BIOS's video mode (0:449h) may see a stale value
 
 ### Build, Tests, and Documentation
@@ -214,12 +211,12 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 - [x] Unattended test runs using `tools/tests/quick.sh` (boots BASIC-DOS with and without an 8087, runs FPUTESTS, DOSTESTS, STRFUN, STRPOOL, ARRAYS, FLOW, EXPRERR, CMDS, VARS, FILEIO, MOVES, FCBTESTS, HARDERR, and PRINTF, and reports whether the tests passed)
 - [x] CMDS: command tests (pipes, redirection, TYPE, DEL, TIME /D, HELP, SOUND, remarks, and hex constants)
 - [x] `tools/tests/chkdsk.sh` runs MS-DOS 3.20 CHKDSK on a diskette image saved by a test session (see `QUIT /S` in `pc.js`)
-- [ ] More tests (eg, BASIC language and CMD command tests)
 - [x] BENCH.BAS and MICRO.BAS benchmarks, which run unchanged in BASIC-DOS, BASICA, and GW-BASIC (see the [results](preview/part6/)); `tools/tests/bench.sh` runs BENCH.BAS in all six configurations (each with and without an 8087) and prints the results in seconds
 - [x] HELP for commands, functions, and constants (eg, `HELP MID$`), found by searching HELP.TXT, so new entries need no other changes
 - [x] [Demos](demos/) for the IBM PC, PC XT, PC AT, and COMPAQ DeskPro 386, with one page per demo and machine
 - [x] [BASIC-DOS Manual](docs/bdman/): using BASIC-DOS, all commands and functions, programming, and configuration
 - [x] [BASIC-DOS Technical Reference](docs/bdtech/): architecture, DOS functions, utility functions, device drivers, the FPU$ interface, and internal structures
+- [ ] More tests (eg, BASIC language and CMD command tests)
 
 ## Non-features
 
