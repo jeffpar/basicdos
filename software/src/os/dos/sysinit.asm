@@ -29,7 +29,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<find_cfg,init_table,set_bpbtime,load_devices,sysinit_end>
 	EXTNEAR	<console_warning,open_error>
 	EXTERNS	<cache_int21>,far
-	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr,dos_opchk>
+	EXTNEAR	<dos_dverr,dos_sstep,dos_brkpt,dos_oferr>
 	EXTNEAR	<dos_term,dos_func,dos_exit,dos_ctrlc,dos_error,dos_default>
 	EXTNEAR	<disk_read,disk_write,dos_tsr,dos_call5,dos_util,dos_leave>
 	EXTNEAR	<int_enter,int_leave,int_util>
@@ -711,22 +711,15 @@ si12:	mov	dx,offset FPU_DEVICE
 	mov	ah,DOS_HDL_CLOSE
 	int	21h
 
-si12a:	mov	si,offset CFG_DEBUG
-	call	find_cfg		; look for "DEBUG="
-	jc	si13			; not found
-	mov	dx,di
+;
+; If the DEBUG.COM driver is installed, open its DEBUG$ device for DPRINTF
+; (see utl_dprintf).
+;
+si12a:	mov	dx,offset DBG_DEVICE
 	mov	ax,DOS_HDL_OPENRW
 	int	21h
-	jc	si13
-	mov	es:[sfh_debug],al	; save SFH for DEBUG device
-
-si13:	cmp	word ptr es:[key_boot],0
-	jne	si14			; skip if key_boot is already set
-	mov	si,offset CFG_BOOTKEY
-	call	find_cfg		; look for "BOOTKEY="
 	jc	si14
-	mov	al,[di]
-	mov	byte ptr es:[key_boot],al
+	mov	es:[sfh_debug],al	; save SFH for DEBUG$ device
 ;
 ; Good time to print a "System ready" message, or something to that effect.
 ;
@@ -1099,8 +1092,6 @@ ENDPROC	last_mcb
 	dw	dos_dverr,dos_sstep,0
 	dw	(INT_BP * 4)		; 03h: breakpoint and overflow vectors
 	dw	dos_brkpt,dos_oferr,0
-	dw	(INT_UD * 4)		; 06h: initialize the INT_UD vector
-	dw	dos_opchk,0		; in case the OPCHECK macro is enabled
 	dw	(INT_DOSTERM * 4)	; 20h: initialize all the DOS vectors
 	dw	dos_term,dos_func,dos_exit,dos_ctrlc
 	dw	dos_error,disk_read,disk_write,dos_tsr,dos_default,0
@@ -1110,10 +1101,8 @@ ENDPROC	last_mcb
 	dw	-1			; end of tables (should end at INT 30h)
 	DEFLBL	INT_TABLES_END
 
-CFG_BOOTKEY	db	8,"BOOTKEY="
 CFG_CONSOLE	db	8,"CONSOLE="
 CON_DEVICE	db	"CON:80,25",0	; default CONSOLE configuration
-CFG_DEBUG	db	6,"DEBUG="	; used to specify DEBUG device
 CFG_BUFFERS	db	8,"BUFFERS="
 		dw	2,2,32
 CFG_FILES	db	6,"FILES="
@@ -1130,6 +1119,7 @@ AUX_DEVICE	db	"AUX",0
 PRN_DEVICE	db	"PRN",0
 CLK_DEVICE	db	"CLOCK$",0
 FPU_DEVICE	db	"FPU$",0
+DBG_DEVICE	db	"DEBUG$",0
 SHELL_FILE	db	"COMMAND.COM",0	; default SHELL file
 
 SYS_MSG		db	"BASIC-DOS "

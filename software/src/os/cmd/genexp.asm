@@ -459,7 +459,7 @@ pt9:	pop	si
 	pop	ax
 	jc	ge8x			; no room (see ge8x)
 	IFDEF MAXDEBUG
-	DPRINTF	'o',<"op %c, func @%08lx\r\n">,dx,cx,cs
+	DPRINTF	<"op %c, func @%08lx\r\n">,dx,cx,cs
 	ENDIF
 	call	popType
 	jz	go3x			; exit if error

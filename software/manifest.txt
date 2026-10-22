@@ -9,7 +9,7 @@
 #   BIN      BASIC-DOS utilities (including BASIC programs) and drivers (distribution)
 #   SAMPLES  the PC DOS 1.00 BASIC samples (distribution)
 #   DEMOS    the programs that the demos run
-#   TESTS    STRESS.BAT, and MISC.BAT, which runs the tests in TESTS/MISC
+#   TESTS    DIR.BAS, STRESS.BAT, and MISC.BAT, which runs the tests in TESTS/MISC
 #   TESTS/MISC  the test programs
 #   TOOLS    tools used for testing (DISKREAD, DISKWRIT, SYMDEB, and MSBASIC)
 #
@@ -56,10 +56,12 @@ software/src/tests/bin/PRIMES.EXE
 /harddisks/pcx86/10mb/COMPAQ331-WOLF3D.json/WOLF3D/*
 
 [TESTS]
+software/src/tests/misc/DIR.BAS
 software/src/tests/misc/MISC.BAT
 software/src/tests/misc/STRESS.BAT
 
 [TESTS/MISC]
+software/src/tests/bin/ASSERT.COM
 software/src/tests/bin/DBGTEST.COM
 software/src/tests/bin/DOSTESTS.COM
 software/src/tests/bin/FCBTESTS.COM

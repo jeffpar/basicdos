@@ -211,8 +211,6 @@ gd3:	call	allocFunc
 
 	push	di
 	IFDEF	MAXDEBUG
-	mov	ax,OP_INT06
-	stosw
 	mov	al,OP_INT03
 	stosb
 	ENDIF

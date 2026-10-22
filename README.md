@@ -21,9 +21,9 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 ### Boot and System Configuration
 
 - [x] Boot sector that loads the BASIC-DOS drivers, kernel, and interpreter
-- [x] Boot prompt when a hard disk is detected (press **Esc** within 5 seconds to boot from it)
+- [x] Boot prompt when a hard disk is detected (press **Esc** within 2 seconds to boot from it)
 - [x] Booting BASIC-DOS from a hard disk partition (eg, a disk built with `pc.js --sys=bd:2`), which becomes the default drive
-- [x] CONFIG.SYS support for BOOTKEY, BUFFERS, CONSOLE, DEBUG, DEVICE, FILES, MEMSIZE, PATHCHAR, SESSIONS, SHELL, SKIP, and SWITCHAR
+- [x] CONFIG.SYS support for BUFFERS, CONSOLE, DEVICE, FILES, MEMSIZE, PATHCHAR, SESSIONS, SHELL, SKIP, and SWITCHAR
 - [x] SKIP= lists built-in drivers (by their exact device names, separated by commas) that should not be loaded (eg, `SKIP=CON,FPU$`); a skipped driver is never initialized, and its memory is reclaimed
 - [x] Installable device drivers (DEVICE=)
 - [x] Critical ("hard") error handling: block device errors go to the session's INT 24h handler (called on a DOS stack, with PC DOS inputs and responses), and the default handler displays the traditional "Abort, Retry, Ignore, Fail?" prompt (see [Critical Errors](docs/bdtech/dos/#critical-errors))
@@ -123,7 +123,7 @@ Utilities live in the BIN directory of every BASIC-DOS disk.  The filters, SLEEP
 - [x] Assignments without LET, in BAS and BAT files and at the prompt
 - [x] LOAD, LIST, NEW, RUN, and SAVE
 - [x] Entering programs at the prompt: a line that begins with a line number is added to the loaded program (in line number order, replacing any line with the same number), and a line number by itself deletes that line; AUTO, DELETE, EDIT, and LIST with line ranges (eg, `LIST 100-200`) work with program lines, too
-- [x] Functions: ARG$ (command-line arguments of a BAS or BAT file), ERR, ERRORLEVEL, MAXINT, PEEK, RND, and RND%
+- [x] Functions: ARG$ (command-line arguments of a BAS or BAT file), DIR$ (file searches, returning each match's attributes, time, date, size, and name), ERR, ERRORLEVEL, MAXINT, PEEK, RND, and RND%
 - [x] Arrays of integers, doubles, and strings, with up to 255 dimensions: DIM, ERASE, OPTION BASE, automatic dimensioning (with a largest subscript of 10) of arrays used without DIM, and "Subscript out of range" and "Duplicate definition" errors
 - [x] Control flow: END, FOR/NEXT (with STEP, and integer or double loop variables), GOSUB/RETURN, ON ... GOTO/GOSUB, STOP, and WHILE/WEND
 - [x] Memory management that's forgiving of low or fragmented memory: code, text, variable, and string blocks are modest (4K) blocks that are chained together as needed (generated code continues in another code block via a far JMP), no block type takes more than a quarter of the largest free block, and smaller blocks (down to 512 bytes) are used when necessary
@@ -198,7 +198,7 @@ BASIC-DOS will support only one floating-point type: IEEE 754 64-bit (double-pre
 
 ### Build, Tests, and Documentation
 
-- [x] Builds with MASM 4.0 using `mkdos.sh` (PC.js and MS-DOS 3.20), which builds release binaries by default (`mkdos.sh debug` builds DEBUG binaries, with run-time assertions) and also updates the BASIC-DOS demo disks after a successful build
+- [x] Builds with MASM 4.0 using `mkdos.sh` (PC.js and MS-DOS 3.20), which builds the binaries that package.json's `config.release` property selects by default (`final` for release binaries, or `debug` for DEBUG binaries, with run-time assertions; `mkdos.sh final` or `mkdos.sh debug` overrides it), using its `version` property's major and minor numbers as the BASIC-DOS version, and also updates the BASIC-DOS demo disks after a successful build
 - [x] Builds itself: `mk.sh` runs the same build tools on BASIC-DOS, producing identical binaries
 - [x] DOSTESTS: CALL 5, memory allocation, file create/write/read-back, file sharing, path character, and file rename/delete tests
 - [x] STRFUN and STRPOOL: BASIC string function tests, and string pool stress and leak tests
@@ -251,7 +251,7 @@ If you also want successful builds to update the BASIC-DOS demo disks, you'll ne
     git clone https://github.com/jeffpar/pcjs
     export PCJS="$HOME/pcjs"
 
-Now you're ready to build BASIC-DOS, using the `mkdos.sh` script, which runs `pc.js` with MS-DOS 3.20 and the build tools on drive C and a 30Mb disk containing the BASIC-DOS source code on drive D, and builds release binaries (use `mkdos.sh debug` to build DEBUG binaries instead).  The script forces a rebuild when switching between release and DEBUG modes:
+Now you're ready to build BASIC-DOS, using the `mkdos.sh` script, which runs `pc.js` with MS-DOS 3.20 and the build tools on drive C and a 30Mb disk containing the BASIC-DOS source code on drive D, and builds the binaries selected by the `config.release` property in package.json (`final` or `debug`, currently `debug`), unless you specify `mkdos.sh final` or `mkdos.sh debug`.  The major and minor numbers of package.json's `version` property (eg, 2.0 of "2.0.0") are the BASIC-DOS version, which the script copies to `software/src/os/inc/version.inc` when they change.  The script forces a rebuild when switching between release and DEBUG modes:
 
     $ ./mkdos.sh
     [Press CTRL-D to enter command mode]
@@ -268,7 +268,7 @@ Now you're ready to build BASIC-DOS, using the `mkdos.sh` script, which runs `pc
 
 Any files that the build modifies are written back to the `software/src` directory.  A successful build runs QUIT automatically, after which `mkdos.sh` updates the demo disks (if `PCJS` is set); if a build fails and you don't want the demo disks updated, use `pc.js`'s "abort" command instead.
 
-Once `mkdos.sh` has built the system files, `mk.sh` (or `mk.sh debug`; usage is `mk.sh [FINAL or DEBUG] [CLEAN]`, like MK.BAT) builds BASIC-DOS on BASIC-DOS itself, with the same build tools (see [software/src](software/src/README.md) for details).
+Once `mkdos.sh` has built the system files, `mk.sh` (usage is `mk.sh [FINAL or DEBUG] [CLEAN]`, like MK.BAT, with the same package.json defaults as `mkdos.sh`) builds BASIC-DOS on BASIC-DOS itself, with the same build tools (see [software/src](software/src/README.md) for details).
 
 The `boot.sh` script then builds and boots a 360K floppy (the largest floppy supported by an IBM PC XT Model 5160) containing the BASIC-DOS boot sector and system files, along with the files in the `configs/console/serial/fpe` folder (including CONFIG.SYS and AUTOEXEC.BAT) and the test binaries that `tools/tests/prep.sh` copies there:
 

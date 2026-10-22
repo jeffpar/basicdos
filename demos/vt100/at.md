@@ -23,7 +23,7 @@ The machine below is an IBM PC AT (Model 5170) with a 6Mhz 80286, 640K of memory
 
 {% include vt100-demo.html id="ibm5170" %}
 
-Press any key on the Color Display at the boot prompt (or wait 5 seconds) to start the diskette.  Then click the VT100 screen and type a command, such as `DIR` or `PRINT "Hello from the VT100"`; click the Color Display to use the local session.  Changes to the hard disk are lost when you leave the page.
+Press any key on the Color Display at the boot prompt (or wait 2 seconds) to start the diskette.  Then click the VT100 screen and type a command, such as `DIR` or `PRINT "Hello from the VT100"`; click the Color Display to use the local session.  Changes to the hard disk are lost when you leave the page.
 
 This demo is also available on an [IBM PC XT](../xt/) and a [COMPAQ DeskPro 386](../386/).
 

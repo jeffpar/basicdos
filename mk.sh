@@ -18,15 +18,18 @@
 # entries) match mkdos.sh.
 #
 # Usage: mk.sh [FINAL or DEBUG] [CLEAN] (the same arguments as os/mk.bat, in
-# either case).  FINAL is the default; DEBUG generates DEBUG binaries.  As in
-# mkdos.sh, all assembly sources are touched when the build mode changes.
+# either case).  DEBUG generates DEBUG binaries.  As in mkdos.sh, the default
+# is package.json's config.release property, its "version" sets the BASIC-DOS
+# version (see tools/release.sh), and all assembly sources are touched when
+# the build mode changes.
 # CLEAN first deletes the build outputs (using os/mk.bat's CLEAN option, and
 # DEL commands for TESTS and MSB), for a clean build.
 #
 cd "$(dirname "$0")" || exit 1
 usage() { echo "Usage: $0 [FINAL or DEBUG] [CLEAN]" >&2; exit 1; }
 [ $# -le 2 ] || usage
-mode=$(echo "${1:-FINAL}" | tr a-z A-Z)
+. tools/release.sh
+mode=$(echo "${1:-$release}" | tr a-z A-Z)
 [ "$mode" = FINAL ] || [ "$mode" = DEBUG ] || usage
 clean=
 case "$(echo "$2" | tr a-z A-Z)" in

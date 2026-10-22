@@ -10,7 +10,7 @@ Functions can be used in any expression, in BASIC programs or at the prompt (eg,
 
 - Numeric functions: [ABS](#abs), [ATN](#atn), [CDBL](#cdbl), [CINT](#cint), [COS](#cos), [CSNG](#cdbl), [EXP](#exp), [FIX](#fix), [INT](#int), [LOG](#log), [RND](#rnd), [RND%](#rnd-int), [SGN](#sgn), [SIN](#sin), [SQR](#sqr), [TAN](#tan)
 - String functions: [ASC](#asc), [CHR$](#chr), [HEX$](#hex), [INSTR](#instr), [LCASE$](#lcase), [LEFT$](#left), [LEN](#len), [MID$](#mid), [OCT$](#oct), [RIGHT$](#right), [SPACE$](#space), [SPC](#space), [STR$](#str), [STRING$](#string), [TAB](#tab), [UCASE$](#ucase), [VAL](#val)
-- File functions: [CVD](#cvi), [CVI](#cvi), [CVL](#cvi), [EOF](#eof), [EXISTS](#exists), [LOC](#loc), [LOF](#lof), [MKD$](#mki), [MKI$](#mki), [MKL$](#mki)
+- File functions: [CVD](#cvi), [CVI](#cvi), [CVL](#cvi), [DIR$](#dir), [EOF](#eof), [EXISTS](#exists), [LOC](#loc), [LOF](#lof), [MKD$](#mki), [MKI$](#mki), [MKL$](#mki)
 - System functions: [ARG$](#arg), [CSRLIN](#csrlin), [CURDIR$](#curdir), [DATE$](#date), [ERL](#erl), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [MOUSE](#mouse), [PATH$](#path), [PEEK](#peek), [POS](#pos), [SCREEN](#screen), [TIME$](#time)
 - Predefined constants: [ERRORLEVEL](#errorlevel), [MAXINT](#maxint)
 
@@ -119,7 +119,7 @@ Strings can contain up to 255 characters.  Character positions start at 1.
 
 > ASC(*string*)
 
-Returns the character code (0-255) of the first character of *string* (or 0 if *string* is empty).
+Returns the character code (0-255) of the first character of *string*.  As in MSBASIC, an empty *string* is an "Illegal function call" error.
 
 #### CHR$ {#chr}
 
@@ -221,6 +221,29 @@ Returns the numeric value of *string*, ignoring any blanks.  If *string* does no
 > CVD(*string*)
 
 Return the integer stored in the first 2 bytes of *string* by MKI$ (-32768 to 32767), the integer stored in the first 4 bytes by MKL$, or the double stored in the first 8 bytes by MKD$; a shorter string is an "Illegal function call" error.  Use them to read numbers from random access files (see [FIELD](../#field)).
+
+#### DIR$ {#dir}
+
+> DIR$[(*filespec*[,*attributes*])]
+
+Returns the first file or directory matching *filespec* (which may contain wildcards), or if *filespec* is omitted (or empty), the next match.  An empty string means there are no (more) matches.  The default *attributes* (&H16) include hidden, system, and directory entries; use &H10 to skip hidden and system files as [DIR](../../disk/#dir) does, or 8 to find the volume label.
+
+Each match is a string that contains the entry's directory information, followed by its name:
+
+| Position | Length | Contents | Example |
+|---|---|---|---|
+| 1 | 1 | attributes | `ASC(F$)` (&H10 = directory) |
+| 2 | 2 | time | `CVI(MID$(F$,2))` |
+| 4 | 2 | date | `CVI(MID$(F$,4))` |
+| 6 | 4 | size | `CVL(MID$(F$,6))` |
+| 10 | 1-12 | name | `MID$(F$,10)` |
+
+The time and date are in PC DOS directory format (add 65536 to a negative value first): the hour is time `\ 2048`, the minute is `(time \ 32) AND 63`, the year is date `\ 512 + 1980`, the month is `(date \ 32) AND 15`, and the day is date `AND 31`.  For example:
+
+    F$ = DIR$("*.BAS")
+    WHILE F$ <> "" : PRINT MID$(F$,10), CVL(MID$(F$,6)) : F$ = DIR$ : WEND
+
+Commands that search for files (eg, DIR, or COPY, DEL, and TYPE with wildcards) start searches of their own, so call DIR$ with a *filespec* again after using one.  The TESTS folder's DIR.BAS displays a listing like DIR's, using DIR$.
 
 #### EOF {#eof}
 

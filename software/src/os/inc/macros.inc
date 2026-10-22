@@ -402,20 +402,14 @@ DBGINIT	macro	type,ptr,str
 ;	ASSERT	Z,<test dx,dx>	; assert that DX is zero
 ;
 ; Run-time assertions are present only in DEBUG builds, and any optional
-; instruction is wrapped with PUSHF/POPF.
-;
-; A run-time assertion may also include a message ("msg"), which the INT_UD
-; handler displays when the assertion fails.
+; instruction is wrapped with PUSHF/POPF.  A failed assertion executes an
+; INT 3, which DEBUG.COM stops on (see DBGBRK); otherwise, the INT 03h
+; handler (dos_brkpt) reports it.
 ;
 ; NEVER and FALSE are conditions that always fail; use NEVER for code that
-; should never be reached, and FALSE for code that isn't finished yet; eg:
+; should never be reached, and FALSE for code that isn't finished yet.
 ;
-;	ASSERT	FALSE,,,<"FPE EXP not implemented">
-;
-; NOTE: Messages require the INT_UD handler that BASIC-DOS system init
-; installs, so don't use them in driver init code (see OP_ASSERTMSG).
-;
-ASSERT	macro	cond,op,value,msg
+ASSERT	macro	cond,op,value
 	IFNB	<value>
 	 IFIDN	<cond>,<STRUCT>	;; must use "STRUCT" instead of "STRUC" here
 	ASSERT	Z,<cmp op&.&value&_SIG,SIG_&value>
@@ -425,45 +419,34 @@ ASSERT	macro	cond,op,value,msg
 	  ENDIF
 	 ENDIF
 	ELSE
-	 IFDEF DEBUG		;; (ASSERTD is expanded only in DEBUG builds, so
-	ASSERTD	cond,<op>,<msg>	;; that non-DEBUG builds don't need its LOCAL)
-	 ENDIF
-	ENDIF
-	endm
-
-ASSERTD	macro	cond,op,msg
-	local	a1
-	IFNB	<op>
+	 IFDEF DEBUG
+	  IFNB	<op>
 	pushf
 	op
-	ENDIF
-	IFDIF	<cond>,<NEVER>
-	 IFDIF <cond>,<FALSE>
-	  IFB	<msg>
-	J&cond	$+5
-	  ELSE
-	J&cond	a1
+	  ENDIF
+	  IFDIF	<cond>,<NEVER>
+	   IFDIF <cond>,<FALSE>
+	J&cond	$+3		;; skip the INT 3
+	   ENDIF
+	  ENDIF
+	int	3		;; signal an assertion failure
+	  IFNB	<op>
+	popf
 	  ENDIF
 	 ENDIF
 	ENDIF
-	IFB	<msg>
-	OPCHECK	OP_ASSERT	;; use INT 06h to signal an assertion failure
-	ELSE
-	OPCHECK	OP_ASSERTMSG	;; use INT 06h to signal an assertion failure
-	db	msg,0		;; followed by a null-terminated message
-a1:
-	ENDIF
-	IFNB	<op>
-	popf
-	ENDIF
 	endm
 ;
-; DBGBRK generates an INT3 (OP_INT03) that's preceded by INT 06h, so if the
-; PCjs debugger isn't present, the built-in INT 06h handler will skip over it.
+; DBGBRK generates an INT 3 in DEBUG builds.  DEBUG.COM (as a driver, or as
+; a program while it's running) stops there; otherwise, the INT 03h handler
+; (dos_brkpt) ignores it, since it's preceded by a NOP (unlike an ASSERT's).
+; The PCjs debugger also stops on an INT 3 when its INT and HALT messages are
+; on ("m int on" and "m halt on").
 ;
 DBGBRK	macro
 	IFDEF DEBUG
-	OPCHECK	OP_DBGBRK	;; use INT 06h to signal a debugger breakpoint
+	nop			;; tells dos_brkpt this isn't an ASSERT
+	int	3
 	ENDIF
 	endm
 
@@ -592,27 +575,17 @@ ECCALL	macro	func,msg,tail,err,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10
 
 ;
 ; Use the DPRINTF macro to simplify calls to the DOS_UTL_DPRINTF function
-; (and to ensure they are generated only in DEBUG builds).
+; (and to ensure they are generated only in DEBUG builds), which prints to the
+; DEBUG$ device (ie, the DEBUG.COM driver's port), if it's installed.
 ;
-DPRINTF	macro	letter,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
+DPRINTF	macro	format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
 	IFDEF DEBUG		;; (see ASSERT)
-	DPRINTFD letter,<format>,<a1>,<a2>,<a3>,<a4>,<a5>,<a6>,<a7>,<a8>,<a9>,<a10>,<a11>,<a12>
-	ENDIF
-	endm
-
-DPRINTFD macro	letter,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
-	local	d1,d2
 	pushf			;; CCALL may alter flags
 	push	ax		;; DOS_UTL_DPRINTF alters AX
-	CCALL	DOS_UTL_DPRINTF,<letter,format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
-	test	al,al		;; if DOS_UTL_DPRINTF returns non-zero in AL
-	pop	ax		;; jump to the DBGBRK
-	jnz	d1
+	CCALL	DOS_UTL_DPRINTF,<format>,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12
+	pop	ax
 	popf
-	jmp	short d2
-d1:	popf
-	DBGBRK
-d2:
+	ENDIF
 	endm
 
 ;
@@ -668,37 +641,5 @@ CCALL	macro	func,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15
 	ENDIF
 	IF argc NE 0
 	add	sp,argc * 2
-	ENDIF
-	endm
-
-;
-; Operation checks are sprinkled throughout DEBUG BASIC-DOS binaries to
-; signal assertion failures and internal breakpoints, and also to perform
-; arithmetic validation tests in the PCjs emulator.  They invoke INT_UD
-; (INT 06h) to trigger the operation, since that interrupt had no defined
-; purpose on 8086/8088 processors (every opcode did something).  The concept
-; of invalid opcodes came later, with the introduction of the 80186.
-;
-; OP_ASSERTMSG is followed by a null-terminated message, which only the
-; BASIC-DOS INT_UD handler knows how to skip; the temporary handler installed
-; during driver init (and the IRET in non-DEBUG systems) will not.
-;
-; With the exception of OP_ASSERT, these operations should have no effect
-; in a non-PCjs environment (or on a real machine), since BASIC-DOS system
-; initialization installs an INT_UD handler to deal with them.  And if you
-; somehow run a DEBUG binary on a non-DEBUG system, INT_UD will still be set
-; to an IRET, so the binaries should still run, although the byte following
-; INT may cause side-effects.
-;
-OP_DBGBRK	equ	0CCh		; signal an internal breakpoint
-OP_ASSERT	equ	0F9h		; signal an assertion failure
-OP_ASSERTMSG	equ	0FAh		; signal an assertion failure (with message)
-OP_MUL32	equ	0FBh		; verify 32-bit multiplication result
-OP_DIV32	equ	0FCh		; verify 32-bit division result
-
-OPCHECK	macro	op
-	IFDEF DEBUG
-	int	06h			;; INT INT_UD
-	db	op			;; next byte indicates the operation
 	ENDIF
 	endm

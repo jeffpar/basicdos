@@ -19,10 +19,11 @@ CODE	SEGMENT word public 'CODE'
 	EXTNEAR	<beginChange,classAt,clearAll,colToOff,copyOut,countLines>
 	EXTNEAR	<cutText,decB,dispCol,downN,findRow,firstNonBlank,getc>
 	EXTNEAR	<getCount,getKey,gotoLine,incB,insChar,insText,lineEnd>
-	EXTNEAR	<lineStart,makeRoom,mapKey,markAll,markBelow,markLine>
+	EXTNEAR	<lineStart,lookup,makeRoom,mapKey,markAll,markBelow,markLine>
 	EXTNEAR	<markStatus,motionAt,moveGap,msgEnd,msgName,msgSpNum,msgStr>
-	EXTNEAR	<nextLine,quit,readCmd,refresh,saveFile,setMsg,setUndo,setYank>
-	EXTNEAR	<upN>
+	EXTNEAR	<nextLine,quit,readCmd,refresh,saveFile,setIns,setMsg,setUndo>
+	EXTNEAR	<setYank,upN>
+	EXTBYTE	<CMDTBL,MOTTBL>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -84,26 +85,47 @@ ENDPROC	cmdOpen
 ;
 ; startIns
 ;
-; Enters insert mode, and returns when it's over (ESC or CTRLC).
+; Enters insert mode, and returns when it's over (ESC, CTRLC, or a mapped
+; 'i', such as INS or the WordStar CTRLV).  Other mapped keys perform their
+; motions or commands, and if a command calls startIns (eg, the WordStar
+; CTRLN, which is 'O'), it simply returns to the insert mode in progress.
 ;
 ; Inputs:
 ;	AL = 1 to begin a new change, 0 to continue the current one
 ;	BX = offset to insert at
 ;
 DEFPROC	startIns
-	test	al,al
-	jz	sn1
-	call	beginChange
-sn1:	mov	[bp].V_CUR,bx
-	mov	[bp].V_ISTART,bx
+	mov	[bp].V_CUR,bx
+	test	[bp].V_MODE,MODE_INS	; insert mode already?
+	jz	sn0a			; no
+	ret
+sn0a:	push	ax
+	mov	cl,1
+	call	setIns			; insert mode uses a block cursor
 	or	[bp].V_MODE,MODE_INS
 	call	markStatus
+	pop	ax
+	mov	bx,[bp].V_CUR
+	test	al,al
+	jz	sn1
+;
+; A new change begins with the first inserted character, so that motions
+; and commands in insert mode don't discard the previous change's undo.
+;
+sn0:	or	[bp].V_MODE,MODE_CHG
+sn1:	mov	[bp].V_CUR,bx
+	mov	[bp].V_ISTART,bx
 sn2:	call	refresh
 	call	getKey
 	mov	bx,[bp].V_CUR
-	test	ah,ah			; non-ASCII key?
-	jnz	sn7			; yes
-	cmp	al,CHR_ESCAPE
+	test	ah,ah			; mapped key?
+	jz	sn2a			; no
+	cmp	al,'i'			; INS (or CTRLV)?
+	je	sn8			; yes
+	call	insMap
+	jc	sn2
+	jmp	sn0
+sn2a:	cmp	al,CHR_ESCAPE
 	je	sn9
 	cmp	al,CHR_CTRLC
 	je	sn9
@@ -118,7 +140,13 @@ sn2:	call	refresh
 	mov	al,CHR_LINEFEED
 sn3:	and	[bp].V_FLAGS,NOT F_KEEPW
 	push	ax
-	call	insChar
+	test	[bp].V_MODE,MODE_CHG	; begin a new change?
+	jz	sn3a			; no
+	and	[bp].V_MODE,NOT MODE_CHG
+	call	beginChange
+	pop	ax
+	push	ax
+sn3a:	call	insChar
 	pop	ax
 	jc	sn2
 	mov	[bp].V_CUR,bx
@@ -142,37 +170,72 @@ sn5:	cmp	bx,[bp].V_ISTART
 	dec	[bp].V_UINS
 	mov	al,es:[bx]		; AL = erased character
 	jmp	sn4
-;
-; Cursor keys move the cursor (and begin a new change).
-;
-sn7:	push	ax
-	test	[bp].V_FLAGS,F_KEEPW	; keep the desired column?
-	jnz	sn7a			; yes
-	call	dispCol
-	mov	[bp].V_WANT,ax
-sn7a:	pop	ax
-	and	[bp].V_FLAGS,NOT F_KEEPW
-	mov	cx,1
-	call	motionAt
-	jc	sn2
-	test	dl,M_VERT		; vertical motion?
-	jz	sn7b			; no
-	or	[bp].V_FLAGS,F_KEEPW
-sn7b:	mov	al,1
-	jmp	sn1
 
-sn9:	and	[bp].V_MODE,NOT MODE_INS
+sn8:	mov	al,0			; (INS doesn't move the cursor)
+sn9:	push	ax
+	and	[bp].V_MODE,NOT (MODE_INS OR MODE_CHG)
 	and	[bp].V_FLAGS,NOT F_KEEPW
 	call	markStatus
+	mov	cl,0
+	call	setIns
+	pop	ax
+	test	al,al
+	jz	sn9b
 	mov	bx,[bp].V_CUR		; ESC moves the cursor left
 	call	decB
-	jc	sn9a
+	jc	sn9b
 	call	getc
 	cmp	al,CHR_LINEFEED		; unless it's at the start of a line
-	je	sn9a
+	je	sn9b
 	mov	[bp].V_CUR,bx
-sn9a:	ret
+sn9b:	ret
 ENDPROC	startIns
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; insMap
+;
+; Performs the motion or command of a mapped key (eg, a cursor key) in
+; insert mode, with no count.
+;
+; Inputs:
+;	AL = key
+;	BX = cursor offset
+;
+; Outputs:
+;	If carry clear, BX = new cursor offset
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI
+;
+DEFPROC	insMap
+	push	ax
+	test	[bp].V_FLAGS,F_KEEPW	; keep the desired column?
+	jnz	im1			; yes
+	call	dispCol
+	mov	[bp].V_WANT,ax
+im1:	pop	ax
+	and	[bp].V_FLAGS,NOT F_KEEPW
+	sub	cx,cx
+	mov	[bp].V_COUNT,cx
+	inc	cx			; CX = 1
+	mov	si,offset CMDTBL
+	call	lookup
+	jc	im9
+	cmp	si,offset MOTTBL	; is it a motion?
+	jbe	im2			; no
+	mov	dl,0
+	call	word ptr [si-2]		; BX = new offset, DL = motion flags
+	jc	im9
+	test	dl,M_VERT		; vertical motion?
+	jz	im9			; no (carry clear)
+	or	[bp].V_FLAGS,F_KEEPW	; (carry clear)
+	ret
+im2:	call	word ptr [si-2]
+	mov	bx,[bp].V_CUR
+	clc
+im9:	ret
+ENDPROC	insMap
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -118,7 +118,7 @@ Sets the display to 40 or 80 columns (BW turns color off, as `SCREEN 0,0` does, 
 
 ### VI
 
-	VI [file]
+	VI [/WS] [file]
 
 A full-screen text editor with a subset of the commands of the UNIX *vi* editor.  It works on the CON console and on serial consoles with ANSI or VT100 terminals (but not GENERIC terminals), and it can edit files of up to 64K, using only as much memory as the file needs.  Files are saved with CR/LF at the end of every line.
 
@@ -151,7 +151,7 @@ VI starts in command mode, where keys are commands; most commands can be precede
 | CTRL-L | Redraw the screen |
 | `ZZ` | Save the file (if modified) and exit |
 
-In insert mode, typed characters are inserted, ENTER starts a new line, BACKSPACE erases what was just typed, and ESC (or CTRL-C) returns to command mode.
+In insert mode, typed characters are inserted, ENTER starts a new line, BACKSPACE erases what was just typed, and ESC (or CTRL-C or Insert) returns to command mode.  On the CON console, insert mode displays a block cursor.
 
 | Command | Description |
 |---------|-------------|
@@ -160,6 +160,24 @@ In insert mode, typed characters are inserted, ENTER starts a new line, BACKSPAC
 | `:q` | Exit, unless the file has been modified; `:q!` exits anyway |
 | `:`*n* or `:$` | Move to line *n*, or the last line |
 | `:s/`*old*`/`*new*`/` | Replace the first *old* on the current line with *new* (add `g` at the end to replace every *old* on the line, and use `:%s` for every line); the text is matched exactly |
+
+`/WS` adds these WordStar keys, which work in insert mode too (and replace the vi commands that use the same keys, such as CTRL-D and CTRL-E).  The key after CTRL-Q can be typed with or without CTRL (eg, CTRL-Q CTRL-R or CTRL-Q R).
+
+| WordStar Keys | Description |
+|---------------|-------------|
+| CTRL-S CTRL-D | Move left or right |
+| CTRL-E CTRL-X | Move up or down |
+| CTRL-Q S, CTRL-Q D | Move to the start or end of the line |
+| CTRL-Q E, CTRL-Q X | Move to the top or bottom line of the screen |
+| CTRL-Q R, CTRL-Q C | Move to the first or last line |
+| CTRL-Q F | Find text (like `/`) |
+| CTRL-R CTRL-C | Scroll backward or forward a screen |
+| CTRL-W CTRL-Z | Scroll up or down a line |
+| CTRL-G | Delete the character under the cursor |
+| CTRL-Y | Delete the line |
+| CTRL-Q Y | Delete to the end of the line |
+| CTRL-N | Insert a new line above the current line |
+| CTRL-V | Switch between insert mode and command mode |
 
 Every BASIC-DOS startup diskette also contains the system files BASDEV.COM (device drivers) and BASDOS.COM (the kernel).  These files must not be run.
 

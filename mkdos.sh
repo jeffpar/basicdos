@@ -26,8 +26,10 @@
 # don't want the demo disks updated, use pc.js's "abort" command.
 #
 # Usage: mkdos.sh [FINAL or DEBUG] [CLEAN] (the same arguments as mk.sh and
-# os/mk.bat, in either case).  By default, we build non-debug ("FINAL")
-# binaries; DEBUG builds the traditional DEBUG binaries.  The C: AUTOEXEC.BAT
+# os/mk.bat, in either case).  FINAL builds non-debug binaries, and DEBUG
+# builds the traditional DEBUG binaries; the default is package.json's
+# config.release property, and its "version" sets the BASIC-DOS version (see
+# tools/release.sh, which updates version.inc).  The C: AUTOEXEC.BAT
 # always runs MKDOS without arguments, so for a FINAL build, we create an
 # MKFINAL file in the source directory (D:\), which tells MKDOS.BAT to build
 # FINAL binaries instead, and we remove it when pc.js exits.  And since MAKE
@@ -39,9 +41,11 @@
 # we create a CLEAN file in the source directory, which tells MKDOS.BAT to run
 # MKCLEAN.BAT first (which deletes CLEAN and all the build outputs).
 #
+cd "$(dirname "$0")" || exit 1
 usage() { echo "Usage: $0 [FINAL or DEBUG] [CLEAN]" >&2; exit 1; }
 [ $# -le 2 ] || usage
-mode=$(echo "${1:-FINAL}" | tr a-z A-Z)
+. tools/release.sh
+mode=$(echo "${1:-$release}" | tr a-z A-Z)
 [ "$mode" = FINAL ] || [ "$mode" = DEBUG ] || usage
 clean=
 case "$(echo "$2" | tr a-z A-Z)" in

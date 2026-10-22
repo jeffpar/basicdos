@@ -76,7 +76,10 @@ gnl3:	lodsb				; AL = length byte
 ; code to print the line, unless it starts with a '@', in which case, skip
 ; over the '@'.
 ;
-gnl4:	DPRINTF	'b',<"%.*ls\r\n">,cx,si,ds
+gnl4:
+	IFDEF	MAXDEBUG
+	DPRINTF	<"%.*ls\r\n">,cx,si,ds
+	ENDIF
 	cmp	byte ptr [si],'@'
 	jne	gnl5
 	inc	si

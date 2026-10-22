@@ -2244,7 +2244,7 @@ pl7:	lds	bx,es:[di].DDPRW_ADDR	; DS:BX -> next read/write address
 	test	al,al
 	jnz	pl8
 	xchg	al,ah
-	DPRINTF	'k',<"null character, scan code %#04x\r\n">,ax
+	DPRINTF	<"null character, scan code %#04x\r\n">,ax
 	ENDIF
 pl8:	inc	bx
 	mov	es:[di].DDPRW_ADDR.OFF,bx

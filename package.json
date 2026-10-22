@@ -1,6 +1,9 @@
 {
   "name": "basicdos",
   "version": "2.0.0",
+  "config": {
+    "release": "debug"
+  },
   "description": "BASIC-DOS: PC DOS Reimagined",
   "type": "module",
   "main": "gulpfile.js",

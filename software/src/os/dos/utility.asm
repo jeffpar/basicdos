@@ -21,7 +21,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<sfb_from_sfh,sfb_write>
 	EXTNEAR	<atoi,atoi_len,atoi_base,itoa,sprintf,write_string>
 
-	EXTBYTE	<sfh_debug,key_boot>
+	EXTBYTE	<sfh_debug>
 	EXTWORD	<scb_active>
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -272,16 +272,16 @@ ENDPROC	utl_printf
 ; utl_dprintf (AH = 05h)
 ;
 ; This is used by DEBUG code (specifically, the DPRINTF macro) to print
-; to a "debug" device defined by a DEBUG= line in CONFIG.SYS.  However, this
-; code is always left in place, in case we end up with a mix of DEBUG and
-; FINAL binaries.  Without this function, those calls would crash, due to
-; how the format strings are stored after the INT XX.
+; to the DEBUG$ device (ie, the port of the DEBUG.COM driver), if sysinit
+; was able to open it.  However, this code is always left in place, in case
+; we end up with a mix of DEBUG and FINAL binaries.  Without this function,
+; those calls would crash, due to how the format strings are stored after the
+; INT XX.
 ;
 ; Use the DPRINTF macro to simplify calls to this function.
 ;
 ; Inputs:
-;	option code (following INT XX)
-;	format string (following the option code)
+;	format string (following the INT XX)
 ;	all other parameters must be pushed onto the stack, right to left
 ;
 ; Outputs:
@@ -294,25 +294,16 @@ ENDPROC	utl_printf
 ;
 DEFPROC	utl_dprintf,DOS
 	IFDEF	DEBUG
-	lds	si,dword ptr [bp].REG_IP
-	ASSUME	DS:NOTHING
-	lodsb				; AL = option code
-	mov	[bp].REG_IP,si
-	sub	al,[key_boot].LOB	; does option code match boot key?
-	jz	dp1			; yes
-	cmp	al,20h			; maybe boot key is upper case letter?
-	jne	dp8			; no
-dp1:	push	ax
 	mov	bl,[sfh_debug]
+	cmp	bl,-1			; is the DEBUG$ device open?
+	je	dp8			; no
 	mov	al,0
-	call	hprintf
-	pop	ax
-	mov	[bp].REG_AL,al		; update caller's AL to trip DBGBRK
-	ret
+	jmp	hprintf
 	ENDIF	; DEBUG
 
-dp8:	mov	al,0			; AL = null terminator
-	mov	[bp].REG_AL,al		; update caller's AL to skip DBGBRK
+dp8:	lds	si,dword ptr [bp].REG_IP
+	ASSUME	DS:NOTHING
+	mov	al,0			; AL = null terminator
 	call	strlen			; get length of string at CS:IP
 	inc	ax			; count null terminator
 	add	[bp].REG_IP,ax		; update REG_IP with length in AX
@@ -571,21 +562,15 @@ tf6a1:	cmp	al,CLS_DQUOTE		; unterminated string?
 	mov	al,CLS_STR		; yes
 	inc	cx
 
-tf6b:	IFDEF	DEBUG
+tf6b:	IFDEF	MAXDEBUG
 	cmp	byte ptr [bp].TMP_AL,-1
 	jne	tf6c
 	push	ax
-	mov	al,byte ptr cs:[key_boot]
-	or	al,20h			; (DPRINTF accepts either case)
-	cmp	al,'t'			; is token tracing enabled?
-	pop	ax			; (skipping the DPRINTF call if not,
-	jne	tf6c			; since it's called for every token)
-	push	ax
 	mov	ah,0
-	DPRINTF	't',<"token: '%.*ls' (%#04x)\r\n">,cx,dx,ds,ax
+	DPRINTF	<"token: '%.*ls' (%#04x)\r\n">,cx,dx,ds,ax
 	pop	ax
 tf6c:
-	ENDIF	; DEBUG
+	ENDIF	; MAXDEBUG
 ;
 ; Update the TOKLET in the TOK_DATA at ES:DI, token index BX.
 ;

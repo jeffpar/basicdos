@@ -26,17 +26,17 @@ Unlike PC DOS, there is no separate BIOS-level file (IO.SYS or IBMBIO.COM); BASI
 
 The boot sector runs in three parts:
 
-1. Part 1 copies the BIOS diskette parameter table (DPT) to low memory (522h) so its values can be tuned, and moves the boot sector to low memory (550h).  If a hard disk is present, it displays "Press a key to start..." and waits for a key (or, in FINAL builds, at most 5 seconds); **Esc** boots from the hard disk instead.  The key pressed is saved in BOOT_KEY (52Dh).  It then finds BASDEV.COM, BASDOS.COM, and CONFIG.SYS in the root directory.
+1. Part 1 copies the BIOS diskette parameter table (DPT) to low memory (522h) so its values can be tuned, and moves the boot sector to low memory (550h).  If a hard disk is present, it displays "Press a key to start..." and waits for a key (or at most 2 seconds); **Esc** boots from the hard disk instead.  The key pressed is saved in BOOT_KEY (52Dh).  It then finds BASDEV.COM, BASDOS.COM, and CONFIG.SYS in the root directory.
 2. Part 2 loads BASDEV.COM at BIOS_END (960h), hops over its driver headers to find the devinit code that follows them, and calls it.  Devinit reads CONFIG.SYS (to honor any SKIP= line), chains the driver headers together, and sends each driver a DDC_INIT request; each driver reports how much memory it needs, so the drivers end up packed together, and skipped drivers take no memory.
 3. Part 3 loads BASDOS.COM above the drivers and jumps to sysinit, passing it the CONFIG.SYS data.
 
 Sysinit then:
 
-- Processes PATHCHAR= and MEMSIZE=, and records the boot key (or BOOTKEY=)
+- Processes PATHCHAR= and MEMSIZE=, and records the boot key
 - Allocates the Session Control Block table (SESSIONS=) and the System File Block table (FILES=), along with the BPBs, the current directory table, and any extra disk buffers (BUFFERS=)
 - Opens a CON context for each CONSOLE= line (or a single default context), and opens AUX and PRN
 - Processes SWITCHAR= or a `-` boot key (after the first console is open, so that a conflict with PATHCHAR= can be reported)
-- Opens the DEBUG= device, if any, and obtains the FPU$ function table (FPUTBL), if the FPU$ driver is present
+- Opens the DEBUG$ device (the [DEBUG.COM](../dev/) driver), if installed, for DPRINTF messages, and obtains the FPU$ function table (FPUTBL), if the FPU$ driver is present
 - Revectors the DDINT_ENTER, DDINT_LEAVE, and DDINT_UTIL entry points (530h-53Fh) used by driver interrupt handlers
 - Prints the startup banner, and for each SHELL= line (or the default, COMMAND.COM), loads the program into the next session with DOS_UTL_LOAD and starts it with DOS_UTL_START
 
@@ -49,21 +49,11 @@ The key pressed at the boot prompt is saved in BOOT_KEY (52Dh), which sysinit co
 | Key | Effect |
 | --- | --- |
 | **Esc** | Boots from the hard disk instead |
-| **Enter** | Same as no key (or a timeout), so that a [BOOTKEY=](../../bdman/cfg/#bootkey) setting can supply one |
 | `-` | Makes `-` the switch character, like [SWITCHAR=-](../../bdman/cfg/#switchar) |
 
-In DEBUG builds, a letter (in either case) also enables the [DOS_UTL_DPRINTF](../util/#formatted-output) messages with that option code, which are printed on the [DEBUG=](../../bdman/cfg/#debug) device:
+### Debug Messages
 
-| Key | Messages |
-| --- | --- |
-| `b` | Each line of a BAS or BAT file as code is generated for it, and each variable added or removed |
-| `c` | CLOCK$ tick counts |
-| `d` | Unsupported DOS function calls |
-| `f` | Cluster reads |
-| `p` | New PSPs |
-| `t` | Each token parsed |
-
-MAXDEBUG builds (which aren't built by default) add `d` messages for every DOS function call, `k` messages for null characters (extended keys) read from CON, `o` messages for operators and numbers during code generation, and more `c` messages for tick calculations.
+In DEBUG builds, the [DOS_UTL_DPRINTF](../util/#formatted-output) messages are printed on the DEBUG$ device, if the DEBUG.COM driver is installed.  The tracing messages are generated only by MAXDEBUG builds (which aren't built by default): each line of a BAS or BAT file as code is generated for it, each variable added or removed, each token parsed, each operator and number during code generation, every DOS function call, cluster reads, new PSPs, CLOCK$ tick calculations, and null characters (extended keys) read from CON.  DEBUG builds print only unsupported DOS function calls.
 
 ### Memory Layout
 

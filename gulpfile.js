@@ -81,6 +81,7 @@ function checkOutput(task, outputFile)
  * timestamps of its files.
  */
 const SRC = "./software/src";
+const MKMODE = "./tools/pc/disks/mkmode";
 const manifest = {};
 let section;
 for (let line of fs.readFileSync("./software/manifest.txt", "utf8").split(/\r?\n/)) {
@@ -197,6 +198,14 @@ function stageDisk(diskName)
         let launchesAutoexec = fs.readFileSync(disk.config, "utf8").split(/\r?\n/).some(line =>
             /^SHELL=/i.test(line) && /\bAUTOEXEC(?:\.BAT)?\b/i.test(line));
         if (disk.autoexec && launchesAutoexec) copyFiles([disk.autoexec], dirStage, "AUTOEXEC.BAT");
+    }
+    /*
+     * MK.BAT (in SRC) builds DEBUG binaries unless there's an MKFINAL file in its parent directory (as MKDOS.BAT does
+     * on the build disk), so the hard disk gets one if its binaries are FINAL (the mode of the last mkdos.sh or mk.sh
+     * build, which tools/pc/disks/mkmode records).
+     */
+    if (disk.hd && fs.existsSync(MKMODE) && fs.readFileSync(MKMODE, "utf8").trim() == "FINAL") {
+        fs.writeFileSync(path.join(dirStage, "MKFINAL"), "");
     }
     let folders = disk.folders || diskFolders;
     for (let folder in folders) {

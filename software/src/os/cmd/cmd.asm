@@ -927,7 +927,7 @@ DEFPROC	cmdExec
 	jz	ce8			; yes
 	call	printCRLF
 ce8:
-	IFDEF	DEBUG
+	IFDEF	MAXDEBUG
 	mov	ax,word ptr [bp].EXIT_CODE
 	PRINTF	<"Return code %bd",13,10,13,10>,ax
 	ENDIF

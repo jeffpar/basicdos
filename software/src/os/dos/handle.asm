@@ -743,7 +743,9 @@ sr1a:	mov	dx,[bx].SFB_CURPOS.LOW
 
 	mov	bx,[bx].SFB_CURCLN
 
-	DPRINTF	'f',<"Reading cluster %#05x...\r\n">,bx
+	IFDEF	MAXDEBUG
+	DPRINTF	<"Reading cluster %#05x...\r\n">,bx
+	ENDIF
 
 	sub	bx,2
 	jb	sr3			; invalid cluster #

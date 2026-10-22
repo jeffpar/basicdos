@@ -21,7 +21,7 @@ CODE    SEGMENT
 	EXTNEAR	<strArg,strAsc,strChr,strDate,strFre,strHex,strInkey,strInstr>
 	EXTNEAR	<strLCase,strLeft,strLen,strMid,strOct,strRight,strSpace>
 	EXTNEAR	<strStr,strString,strTime,strUCase,strVal,strCurDir,strPath>
-	EXTNEAR	<getExists>
+	EXTNEAR	<getExists,strDir>
 
 	DEFLBL	PREDEF_VARS,byte
 ;
@@ -76,6 +76,11 @@ CODE    SEGMENT
 	db	VAR_FUNC + 4,"DATE"
 	db	VAR_STR,0
 	dw	offset strDate,0
+	db	VAR_FUNC + 3,"DIR"
+	db	VAR_STR,2
+	db	VAR_STR,PARM_OPT_ZERO	; (an empty filespec means the next match)
+	db	VAR_LONG,16h		; hidden, system, and directory attrs
+	dw	offset strDir,0
 	db	VAR_FUNC + 3,"EOF"
 	db	VAR_LONG,1
 	db	VAR_LONG,PARM_REQUIRED

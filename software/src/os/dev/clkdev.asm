@@ -230,8 +230,8 @@ dci3a:	push	dx			; save DX
 	div	bx			; AX is low quotient
 
 	IFDEF MAXDEBUG
-	DPRINTF	'c',<"initial number of ticks: %lu\r\n">,ax,cx
-	DPRINTF	'c',<"with remainder of %d after division by %u\r\n">,dx,bx
+	DPRINTF	<"initial number of ticks: %lu\r\n">,ax,cx
+	DPRINTF	<"with remainder of %d after division by %u\r\n">,dx,bx
 	ENDIF
 ;
 ; CX:AX = quotient (# ticks).  DX/540 is a fractional tick, which we convert
@@ -246,7 +246,7 @@ dci3a:	push	dx			; save DX
 	pop	cx			; DX:CX = tick count
 
 	IFDEF MAXDEBUG
-	DPRINTF	'c',<"hundredths for fractional tick: %bu\r\n">,bx
+	DPRINTF	<"hundredths for fractional tick: %bu\r\n">,bx
 	ENDIF
 
 	popf				; did seconds / 2 produce a remainder?
@@ -254,14 +254,14 @@ dci3a:	push	dx			; save DX
 	add	bl,100			; yes, add another 100 hundredths
 
 	IFDEF MAXDEBUG
-	DPRINTF	'c',<"hundredths for additional second: %u\r\n">,bx
+	DPRINTF	<"hundredths for additional second: %u\r\n">,bx
 	ENDIF
 
 dci3b:	pop	ax			; AL = hundredths (from original DX)
 	add	al,bl			; add any hundredths from above
 
 	IFDEF MAXDEBUG
-	DPRINTF	'c',<"total hundredths: %bu\r\n">,ax
+	DPRINTF	<"total hundredths: %bu\r\n">,ax
 	ENDIF
 
 	mov	ah,18
@@ -272,7 +272,9 @@ dci3b:	pop	ax			; AL = hundredths (from original DX)
 	add	cx,ax
 	adc	dx,0			; DX:CX += ticks for hundredths
 
-	DPRINTF	'c',<"%#010P: new tick count: %lu\r\n">,cx,dx
+	IFDEF	MAXDEBUG
+	DPRINTF	<"%#010P: new tick count: %lu\r\n">,cx,dx
+	ENDIF
 
 	cli
 	mov	[ticksToday].LOW,cx
@@ -322,7 +324,9 @@ dci5:	cmp	al,IOCTL_GETTIME
 	mov	dx,[ticksToday].HIW
 	sti
 
-	DPRINTF	'c',<"%#010P: current tick count: %lu\r\n">,ax,dx
+	IFDEF	MAXDEBUG
+	DPRINTF	<"%#010P: current tick count: %lu\r\n">,ax,dx
+	ENDIF
 ;
 ; TODO: the true divisor is 32771.66748046875, so the remainder may be too
 ; large; this appears to be good enough for now, but deal with it eventually.

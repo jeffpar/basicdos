@@ -165,7 +165,7 @@ ENDPROC	genPushImmByteAL
 ;
 DEFPROC	genPushImmLong
 	IFDEF MAXDEBUG
-	DPRINTF	'o',<"num %ld\r\n">,cx,dx
+	DPRINTF	<"num %ld\r\n">,cx,dx
 	ENDIF
 	xchg	ax,dx			; AX has original DX
 	xchg	ax,cx			; AX contains CX, CX has original DX

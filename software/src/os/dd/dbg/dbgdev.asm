@@ -7,7 +7,10 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Usage (in CONFIG.SYS): DEVICE=BIN\DEBUG.COM COM2:9600,N,8,1,VT100
+; Usage (in CONFIG.SYS): DEVICE=BIN\DEBUG.COM COM2:9600,N,8,1,VT100 [/cmd...]
+;
+; Each switch is a monitor command, performed once the driver is installed
+; (eg, /BP 70:100), and then booting continues, unless one of them is /H.
 ;
 ; DEBUG.COM can also be run as a program (DEBUG [program [arguments]]), with
 ; a monitor on the console.  It loads the program without starting it and
@@ -137,6 +140,9 @@ FLAG_MASK	equ	0ED5h	; OF, DF, IF, SF, ZF, AF, PF, and CF
 	db	"R [reg | F]",9,"display or edit registers",13,10
 	db	"T [count]",9,"trace",13,10
 	db	"U [range]",9,"unassemble",13,10,0
+
+	DEFLBL	ASSERT_MSG,byte
+	db	"Assertion failure",0
 
 ;
 ; Commands, and the procedures that perform them (with SI -> the text after
@@ -368,7 +374,8 @@ CMD_MAX		equ	79
 ;
 ; dbgdev_req
 ;
-; Only INIT is supported.
+; Besides INIT, OPEN and CLOSE (which do nothing) and WRITE are supported, so
+; that DOS can send DPRINTF output to the debugger's port (see sysinit).
 ;
 ; Inputs:
 ;	ES:BX -> DDP
@@ -378,10 +385,31 @@ CMD_MAX		equ	79
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	dbgdev_req,far
-	cmp	es:[bx].DDP_CMD,DDC_INIT
-	jne	drq8
+	mov	al,es:[bx].DDP_CMD
+	cmp	al,DDC_INIT
+	jne	drq1
 	jmp	near ptr dbgdev_init
-drq8:	mov	es:[bx].DDP_STATUS,DDSTAT_ERROR + DDERR_UNKCMD
+drq1:	mov	dx,DDSTAT_DONE
+	cmp	al,DDC_OPEN
+	je	drq9
+	cmp	al,DDC_CLOSE
+	je	drq9
+	cmp	al,DDC_WRITE
+	jne	drq8
+	mov	cx,es:[bx].DDPRW_LENGTH
+	jcxz	drq9
+	lds	si,es:[bx].DDPRW_ADDR	; DS:SI -> data
+drq2:	lodsb
+	push	ds
+	push	cs
+	pop	ds
+	call	put_char
+	pop	ds
+	loop	drq2
+	mov	es:[bx].DDPRW_LENGTH,cx	; zero bytes remaining
+	jmp	short drq9
+drq8:	mov	dx,DDSTAT_ERROR + DDERR_UNKCMD
+drq9:	mov	es:[bx].DDP_STATUS,dx
 	ret
 ENDPROC	dbgdev_req
 
@@ -509,6 +537,18 @@ mon2:	mov	[trace_cnt],0
 	mov	al,[in_tail]		; discard any buffered input
 	mov	[in_head],al
 	mov	[paused],0
+;
+; An INT 3 that isn't a breakpoint (disarm clears why for those) or a DBGBRK
+; (which follows a NOP) must be an ASSERT, so say so.
+;
+	cmp	[why],3			; INT 3 other than a breakpoint?
+	jne	mon3			; no
+	les	di,dword ptr regs[R_IP]	; ES:DI -> byte after the INT 3
+	cmp	byte ptr es:[di-2],90h	; NOP (OP_NOP in 8086.inc)?
+	je	mon3			; yes, it's a DBGBRK
+	mov	si,offset ASSERT_MSG
+	call	put_string
+	call	newline
 mon3:	mov	byte ptr bp_tab[5],0	; clear the temporary breakpoint
 	mov	ax,regs[R_IP]
 	mov	[u_off],ax		; U defaults to CS:IP
@@ -1583,7 +1623,7 @@ ENDPROC	show_flags
 DEFPROC	get_line
 	sub	bx,bx
 	mov	cl,bl			; CL = 1 inside quotes
-gl1:	call	get_char
+gl1:	call	get_char		; (dbgdev_init changes this)
 	cmp	al,CHR_RETURN
 	je	gl9
 	cmp	al,CHR_BACKSPACE
@@ -2387,16 +2427,43 @@ ENDPROC	put_opnd
 ; Open the COM port exclusively, and then install the interrupt hooks; a
 ; failure closes the port and leaves no hooks.
 ;
+; The arguments are the COM descriptor and then any switches (using the
+; current switch char), each of which is a monitor command (eg, /BP 70:100).
+; If there are any, our final RET becomes an INT 3, and get_line reads them
+; from sw_get, as if they had been typed, followed by a G, so that booting
+; continues with any breakpoints set; /H omits the G, so that the monitor
+; prompts instead.  /G is ignored, since it would resume us before the end
+; of the switches.
+;
 ; Inputs:
-;	ES:BX -> DDPI (DDPI_BUFPTR -> COM descriptor)
+;	ES:BX -> DDPI (DDPI_BUFPTR -> arguments)
 ;
 ; Outputs:
 ;	DDPI updated
 ;
 	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
 DEFPROC	dbgdev_init,far
+	mov	ax,DOS_MSC_GETSWC
+	int	21h			; DL = switch char
+	mov	cs:[sw_char],dl
 	mov	di,bx			; ES:DI -> DDPI
-	lds	dx,es:[di].DDPI_BUFPTR	; DS:DX -> COM descriptor
+	lds	si,es:[di].DDPI_BUFPTR	; DS:SI -> arguments
+	mov	bx,si			; BX -> COM descriptor
+din0:	lodsb
+	cmp	al,' '			; end of the descriptor?
+	ja	din0			; no
+	mov	byte ptr [si-1],0
+din0a:	test	al,al			; end of the arguments?
+	jz	din0b			; yes
+	lodsb
+	cmp	al,dl			; a switch?
+	jne	din0a			; no
+	call	skip_h
+	mov	cs:[sw_ptr].OFF,si
+	mov	cs:[sw_ptr].SEG,ds
+	mov	word ptr cs:[gl1+1],offset sw_get - offset gl1 - 3
+	mov	byte ptr cs:[din7],0CCh	; INT 3
+din0b:	mov	dx,bx			; DS:DX -> COM descriptor
 	mov	ax,DOS_HDL_OPENRW OR MODE_DENY_RW
 	int	21h			; open the port for exclusive access
 	jc	din9
@@ -2447,12 +2514,108 @@ din1:	sub	ax,ax
 	mov	es:[di].DDPI_END.OFF,offset resident_end
 	mov	es:[di].DDPI_END.SEG,cs
 	mov	es:[di].DDP_STATUS,DDSTAT_DONE
+din7:	ret				; (switches change this to INT 3)
 	ret
 din8:	mov	ah,DOS_HDL_CLOSE
 	int	21h
 din9:	mov	es:[di].DDP_STATUS,DDSTAT_DONE + DDSTAT_ERROR + DDERR_GENFAIL
 	ret
 ENDPROC	dbgdev_init
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; sw_get
+;
+; get_line's input (in place of get_char) while INIT performs its switches:
+; the text of each switch is a line, ended by the next switch char or the
+; end of the arguments.  Then we supply a G, or after a /H, read from the
+; port; either way, get_line's get_char call is restored at the end of the
+; last line (or immediately, if there were no lines), since we're not
+; resident.
+;
+; Outputs:
+;	AL = next byte
+;
+; Modifies:
+;	AX
+;
+	ASSUME	CS:CODE, DS:CODE, ES:NOTHING, SS:NOTHING
+DEFPROC	sw_get
+	push	si
+	push	ds
+sg1:	lds	si,cs:[sw_ptr]
+	ASSUME	DS:NOTHING
+	lodsb
+	cmp	al,cs:[sw_char]		; the next switch?
+	jne	sg2			; no
+	call	skip_h
+	jmp	short sg4
+sg2:	test	al,al			; end of the switches?
+	jnz	sg5			; no
+	dec	si			; (stay at the null)
+	cmp	cs:[sw_halt],al		; was there a /H (or is this our G)?
+	jne	sg3			; yes
+	cmp	cs:[sw_last],CHR_RETURN	; at the start of a line?
+	jne	sg4			; no, so end it
+	inc	cs:[sw_halt]		; (so that the G's end restores get_char)
+	mov	cs:[sw_ptr].OFF,offset G_CMD
+	mov	cs:[sw_ptr].SEG,cs
+	jmp	sg1
+sg3:	mov	word ptr cs:[gl1+1],offset get_char - offset gl1 - 3
+	cmp	cs:[sw_last],CHR_RETURN	; at the start of a line?
+	jne	sg4			; no, so end it
+	pop	ds
+	pop	si
+	jmp	get_char
+sg4:	mov	al,CHR_RETURN
+sg5:	mov	cs:[sw_ptr].OFF,si
+	mov	cs:[sw_last],al
+	pop	ds
+	pop	si
+	ret
+ENDPROC	sw_get
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; skip_h
+;
+; Skip any /H switches (setting sw_halt) and /G switches, each up to the
+; next switch char.
+;
+; Inputs:
+;	DS:SI -> switch text (after the switch char)
+;
+; Outputs:
+;	DS:SI -> switch text (or the null at the end of the arguments)
+;
+; Modifies:
+;	AL
+;
+	ASSUME	CS:CODE, DS:NOTHING, ES:NOTHING, SS:NOTHING
+DEFPROC	skip_h
+sh1:	mov	al,[si]
+	and	al,NOT 20h		; upper-case the switch letter
+	cmp	al,'G'			; /G?
+	je	sh2			; yes
+	cmp	al,'H'			; /H?
+	jne	sh9			; no
+	mov	cs:[sw_halt],al		; (nonzero)
+sh2:	lodsb
+	test	al,al			; end of the arguments?
+	jz	sh8			; yes
+	cmp	al,cs:[sw_char]		; the next switch?
+	jne	sh2			; no
+	jmp	sh1
+sh8:	dec	si
+sh9:	ret
+ENDPROC	skip_h
+
+	DEFPTR	sw_ptr			; next switch text (see sw_get)
+	DEFBYTE	sw_char,0		; switch char
+	DEFBYTE	sw_halt,0		; nonzero after /H (or for our G)
+	DEFBYTE	sw_last,CHR_RETURN	; last byte from sw_get
+	DEFLBL	G_CMD,byte
+	db	"G",0
 
 	DEFLBL	BANNER,byte
 	db	"BASIC-DOS Debugger "
@@ -2547,7 +2710,10 @@ ENDPROC	swap_vecs
 ; Without a program, we enter the monitor as if PSP:0100h had been
 ; interrupted, after storing a RET there (over the DDH's JMP, which is done),
 ; so G pops the zero that DOS pushed on our stack and runs the INT 20h at
-; PSP:0000h (psp_restvec then restores INT 01h and INT 03h).
+; PSP:0000h (psp_restvec then restores INT 01h and INT 03h).  That "program"
+; shares our stack, so the monitor's stack leaves it 200h bytes (beyond the
+; frame), enough for a stop inside a DOS call (and for resume's copy of the
+; registers below it).
 ;
 ; A tail that starts with a switch (eg, /DB 40:0) is instead a command, which
 ; the monitor performs in place of displaying the registers, and then exits;
@@ -2573,7 +2739,7 @@ cm1:	push	cs
 	mov	[CMD_Q],'Q'
 	call	get_vars
 	mov	ax,sp
-	sub	ax,130h			; leave room for the frame, and rebase
+	sub	ax,330h			; leave room for the program, and rebase
 	mov	word ptr [mon_sp+1],ax
 	mov	ax,DOS_MSC_GETSWC
 	int	21h			; DL = switch char

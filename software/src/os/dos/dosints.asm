@@ -73,9 +73,26 @@ ENDPROC	dos_sstep
 ; dos_brkpt (INT 03h)
 ;
 ; If a breakpoint interrupt occurs, and no debugger is currently running,
-; we catch it here and ignore it.
+; we catch it here and ignore it.  In DEBUG builds, we first report any INT 3
+; that isn't a DBGBRK (which is preceded by a NOP) as an assertion failure.
 ;
 DEFPROC	dos_brkpt,DOSFAR
+	IFDEF	DEBUG
+	push	bp
+	mov	bp,sp
+	push	ax
+	push	si
+	push	ds
+	lds	si,dword ptr [bp+2]	; DS:SI -> byte after the INT 3
+	dec	si			; DS:SI -> the INT 3
+	cmp	byte ptr [si-1],OP_NOP	; DBGBRK?
+	je	bk9			; yes
+	PRINTF	<"Assertion failure @%08lx",13,10>,si,ds
+bk9:	pop	ds
+	pop	si
+	pop	ax
+	pop	bp
+	ENDIF
 	iret
 ENDPROC	dos_brkpt
 
@@ -111,58 +128,6 @@ DEFPROC	dos_oferr,DOSFAR
 	jmp	dos_abort
 	ENDIF
 ENDPROC	dos_oferr
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; dos_opchk (INT 06h)
-;
-; This interrupt is used by DEBUG builds to perform "operation checks",
-; based on the byte that follows the INT 06h instruction; eg:
-;
-;	CCh: breakpoint
-;	F9h: assertion failure
-;	FBh: 32-bit multiply check
-;	FCh: 32-bit division check
-;
-; If the 8086 emulation environment isn't set up to intercept INT 06h and
-; perform these checks, this handler ensures the checks are harmless.
-;
-DEFPROC	dos_opchk,DOSFAR
-	IFDEF	DEBUG
-	push	bp
-	mov	bp,sp
-	push	ax
-	push	si
-	push	ds
-	lds	si,dword ptr [bp+2]	; DS:SI = CS:IP from stack
-	cld
-	lodsb
-	mov	[bp+2],si		; update CS:IP to skip OPCHECK byte
-	cmp	al,OP_ASSERTMSG		; OP_ASSERTMSG?
-	je	oc1			; yes
-	cmp	al,OP_ASSERT		; OP_ASSERT?
-	jnz	oc9			; no
-	sub	si,3			; display the address of the INT 06h
-	; PRINTF	<"Assertion failure @%08lx",13,10>,si,ds
-	jmp	short oc8
-oc1:	PRINTF	<"Assertion failure: %ls",13,10>,si,ds
-oc2:	lodsb				; skip the message
-	test	al,al
-	jnz	oc2
-	mov	[bp+2],si		; and update CS:IP again
-oc8:	DBGBRK
-oc9:	pop	ds
-	pop	si
-	pop	ax
-	pop	bp
-	ENDIF
-;
-; Even if you mistakenly run a DEBUG binary on a non-DEBUG system (which
-; means all that's here is this IRET), any operation check should still be
-; innocuous (but that's neither guaranteed nor recommended).
-;
-	iret
-ENDPROC	dos_opchk
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -271,7 +236,7 @@ dc1:	sti
 ; %P is a special formatter that prints the caller's REG_CS:REG_IP-2 in hex;
 ; "#010" ensures it's printed with "0x" and 8 digits with leading zeroes.
 ;
-	DPRINTF	'd',<"%#010P: DOS function %02bxh\r\n">,ax
+	DPRINTF	<"%#010P: DOS function %02bxh\r\n">,ax
 	pop	ax
 	ENDIF	; MAXDEBUG
 ;
@@ -615,7 +580,7 @@ DEFPROC	func_none,DOS
 ; %P is a special formatter that prints the caller's REG_CS:REG_IP-2 in hex;
 ; "#010" ensures it's printed with "0x" and 8 digits with leading zeroes.
 ;
-	DPRINTF	'd',<"%#010P: unsupported DOS function %02bxh\r\n">,ax
+	DPRINTF	<"%#010P: unsupported DOS function %02bxh\r\n">,ax
 	ENDIF	; DEBUG
 
 	mov	[bp].REG_AX,ERR_INVALID

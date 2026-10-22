@@ -145,12 +145,13 @@ gfe2x:	shr	dh,1			; more than one token?
 	jnz	gfe9			; yes, so the value is invalid
 ;
 ; No parameter value was supplied, so if the parameter isn't optional,
-; that's an error.
+; that's an error.  An optional VAR_STR parameter's default must be zero,
+; which pushes a null (empty) string.
 ;
 gfe3:	call	loadFuncData
-	and	al,0FCh			; VAR_CHAR, VAR_LSKIP -> VAR_LONG
-	cmp	al,VAR_LONG		; TODO: currently supports default
-	jne	gfe9			; parameter values for VAR_LONG only
+	and	al,0DCh			; VAR_CHAR, VAR_LSKIP, VAR_STR -> VAR_LONG
+	cmp	al,VAR_LONG		; TODO: currently supports default values
+	jne	gfe9			; for VAR_LONG and VAR_STR parameters only
 	mov	al,ah			; AL = default value
 	cmp	al,PARM_REQUIRED	; is the parameter optional?
 	je	gfe9			; no (gfe9 sets carry)

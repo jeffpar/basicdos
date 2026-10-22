@@ -25,6 +25,8 @@ OBUF_LEN	equ	256	; output buffer size (for writing files)
 STACK_LEN	equ	512	; stack space above VIVARS
 
 MODE_INS	equ	01h	; V_MODE: insert mode
+MODE_CHG	equ	02h	; V_MODE: begin a change before inserting
+MODE_WS		equ	04h	; V_MODE: WordStar keys (/WS)
 F_MOD		equ	01h	; V_FLAGS: text modified
 F_KEEPW		equ	02h	; V_FLAGS: keep V_WANT (after vertical motions)
 F_BIG		equ	04h	; V_FLAGS: big word motion (W, B, or E)

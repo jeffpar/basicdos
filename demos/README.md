@@ -20,6 +20,6 @@ Each BASIC-DOS demo runs on up to four generations of PC hardware: the original 
 | 10. 10Mb Hard Disk with VT100 | | [640K, CGA, VT100](vt100/xt/) | [640K, CGA, VT100](vt100/at/) | [1Mb, VGA, VT100](vt100/386/) |
 | 11. Wolfenstein 3D | | | [640K, VGA, Sound Blaster](wolf3d/at/) | [1Mb, VGA, Sound Blaster](wolf3d/386/) |
 
-The PC XT, PC AT, and DeskPro 386 machines also have the 10Mb BASIC-DOS hard disk (drive C:), so when they boot a diskette, the boot sector first displays `Press a key to start...`; press any key (or wait 5 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.  There's also a [Serial Display](serial/) demo, which runs a second session on a simple text pane connected to COM1.
+The PC XT, PC AT, and DeskPro 386 machines also have the 10Mb BASIC-DOS hard disk (drive C:), so when they boot a diskette, the boot sector first displays `Press a key to start...`; press any key (or wait 2 seconds) to boot from the diskette, or press **Esc** to boot from the hard disk instead.  There's also a [Serial Display](serial/) demo, which runs a second session on a simple text pane connected to COM1.
 
 In the demos with multiple sessions, use **SHIFT-TAB** to toggle keyboard focus between sessions.

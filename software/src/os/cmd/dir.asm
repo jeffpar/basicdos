@@ -862,6 +862,8 @@ ENDPROC	strCurDir
 ;
 ;	IF NOT EXISTS("OBJ") THEN MD OBJ
 ;
+; EXISTS uses a temporary DTA, so that it doesn't disturb a DIR$ search.
+;
 ; Inputs:
 ;	32-bit return value
 ;	string value (popped)
@@ -879,31 +881,13 @@ DEFPROC	getExists,FAR
 	ENTER
 	push	ds
 	push	ss
-	pop	es
-	mov	di,ss:[PSP_HEAP]
-	lea	di,[di].LINEBUF
-	mov	dx,di			; ES:DX -> LINEBUF
-	lds	si,[pSpec]		; DS:SI -> filespec
-	sub	cx,cx
-	test	si,si			; empty string?
-	jz	ge1			; yes
-	lodsb
-	mov	cl,al
-	rep	movsb			; copy the filespec to LINEBUF
-ge1:	xchg	ax,cx
-	stosb				; and null-terminate it
-	les	di,[pSpec]
-	call	releaseStr
-	push	ss
 	pop	ds
-	push	dx
 	lea	dx,[findBuf]		; DS:DX -> temporary DTA
 	mov	ah,DOS_DSK_SETDTA
 	int	21h
-	pop	dx			; DS:DX -> filespec
+	les	di,[pSpec]
 	mov	cx,16h			; hidden, system, and directory attrs
-	mov	ah,DOS_DSK_FFIRST
-	int	21h
+	call	findSpec
 	cmc
 	sbb	ax,ax			; AX = -1 if found, 0 if not
 	mov	[retExists].LOW,ax
@@ -915,6 +899,111 @@ ge1:	xchg	ax,cx
 	LEAVE
 	RETURN
 ENDPROC	getExists
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; strDir (DIR$)
+;
+; Returns the first file or directory matching the filespec (which may contain
+; wildcards), or if the filespec is omitted (or empty), the next match.  The
+; result contains the match's attributes (1 byte), time (2), date (2), and
+; size (4), followed by its name; it's empty if there are no (more) matches.
+; The default attributes (16h) include hidden, system, and directory entries;
+; 8 finds the volume label.  eg:
+;
+;	F$ = DIR$("*.BAS")
+;	WHILE F$ <> "" : PRINT MID$(F$, 10) : F$ = DIR$ : WEND
+;
+; Inputs:
+;	32-bit return value
+;	string value (popped)
+;	32-bit attributes (popped)
+;
+; Outputs:
+;	32-bit return value updated
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	strDir,FAR
+	RETVAR	retFind,dword
+	ARGVAR	pFindSpec,dword
+	ARGVAR	findAttr,dword
+	ENTER
+	push	ds
+	les	di,[pFindSpec]
+	mov	cx,[findAttr].LOW	; CX = attributes
+	test	di,di			; filespec omitted (or empty)?
+	jz	sd1			; yes
+	call	findSpec
+	jmp	short sd2
+sd1:	push	ss
+	pop	ds
+	mov	ah,DOS_DSK_FNEXT
+	int	21h
+sd2:	mov	cx,0			; CX = 0 (empty result) if no match
+	jc	sd3
+	mov	si,PSP_DTA + FFB_NAME
+	DOSUTIL	STRLEN			; AX = name length
+	add	ax,FFB_NAME - FFB_ATTR	; plus attributes, time, date, and size
+	xchg	cx,ax
+	mov	si,PSP_DTA + FFB_ATTR	; SS:SI -> result
+sd3:	call	newStr
+	mov	[retFind].OFF,ax
+	mov	[retFind].SEG,dx
+	pop	ds
+	LEAVE
+	RETURN
+ENDPROC	strDir
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; findSpec
+;
+; Copy a filespec string to LINEBUF (null-terminated), release the string,
+; and find the first match (for EXISTS and DIR$).
+;
+; Inputs:
+;	ES:DI = string value
+;	CX = attributes
+;
+; Outputs:
+;	DS = SS; if carry clear, the DTA contains the first match;
+;	otherwise, AX = error code
+;
+; Modifies:
+;	AX, CX, DX, SI, DI, DS, ES
+;
+DEFPROC	findSpec
+	push	cx
+	push	es
+	push	di
+	push	es
+	pop	ds
+	mov	si,di			; DS:SI -> filespec
+	push	ss
+	pop	es
+	mov	di,ss:[PSP_HEAP]
+	lea	di,[di].LINEBUF
+	mov	dx,di			; ES:DX -> LINEBUF
+	sub	cx,cx
+	test	si,si			; empty string?
+	jz	fs1			; yes
+	lodsb
+	mov	cl,al
+	rep	movsb			; copy the filespec to LINEBUF
+fs1:	xchg	ax,cx
+	stosb				; and null-terminate it
+	pop	di
+	pop	es
+	call	releaseStr
+	push	ss
+	pop	ds			; DS:DX -> filespec
+	pop	cx			; CX = attributes
+	mov	ah,DOS_DSK_FFIRST
+	int	21h
+	ret
+ENDPROC	findSpec
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

@@ -105,11 +105,6 @@ ENDPROC	evalSubLong
 ;		0027EDDE50824629
 ;		FFD81221AF7DB9D7 (negated)
 ;
-; In this example, the OPCHECK macro will trigger a warning, because our
-; JavaScript test environment comes up with AF7DB9D8 instead; it does all its
-; multiplication in floating-point, which is limited to 52 significant bits,
-; so some accuracy is lost in the low 32 bits.
-;
 ; Inputs:
 ;	2 32-bit args on stack (popped)
 ;
@@ -205,9 +200,7 @@ ml6:	test	di,di			; overflow indicator set?
 ; 	mul	[mulB].LOW		; DX:AX = mulB.LOW * mulA.LOW
 ; 	add	dx,cx			; add cross product to upper word
 
-ml7:	OPCHECK	OP_MUL32
-
-	mov	[mulA].LOW,ax
+ml7:	mov	[mulA].LOW,ax
 	mov	[mulA].HIW,dx
 	LEAVE
 	ret	4
@@ -316,9 +309,7 @@ dl6:	mov	cl,[divB].HIW.HIB	; negate quotient if signs opposite
 	neg	ax			; subtract DX:AX from 0 with carry
 	sbb	dx,0
 
-dl7:	OPCHECK	OP_DIV32
-
-	cmp	[resultType],0
+dl7:	cmp	[resultType],0
 	je	dl8
 	mov	[divA].LOW,di		; return remainder
 	mov	[divA].HIW,si

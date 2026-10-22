@@ -1,7 +1,8 @@
 REM MISC.BAT: runs the BASIC-DOS tests in \TESTS\MISC (run it from \TESTS)
 REM Each test prints "failed" (or "passed") messages, and the tests that
 REM return an exit code are checked here.  Not run: DBGTEST.COM (it needs
-REM DEBUG.SYS and a debugger terminal) and MICRO.BAS (a benchmark).
+REM DEBUG.SYS and a debugger terminal), ASSERT.COM (it fakes an assertion
+REM failure, for a debugger to stop on), and MICRO.BAS (a benchmark).
 IF NOT EXISTS("MISC\DOSTESTS.COM") THEN PRINT "Run MISC from \TESTS" : END
 D$ = LEFT$(CURDIR$, 1)
 CD MISC

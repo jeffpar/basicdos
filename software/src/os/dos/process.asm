@@ -976,7 +976,9 @@ lp6l:	add	dx,bx			; DX = base + additional
 	pop	ds:[PSP_START].SEG
 	add	ds:[PSP_START].SEG,ax
 
-	DPRINTF	'p',<"New PSP %04x, %04x paras, min,max=%04x,%04x\r\n">,ds,dx,si,di
+	IFDEF	MAXDEBUG
+	DPRINTF	<"New PSP %04x, %04x paras, min,max=%04x,%04x\r\n">,ds,dx,si,di
+	ENDIF
 
 	mov	bx,dx			; BX = realloc size (in paras)
 	sub	dx,dx			; no heap
@@ -1119,7 +1121,9 @@ lp7f:	shl	ax,cl			; DS:AX -> top of the segment
 	mov	ds:[PSP_STACK].OFF,ax
 	mov	ds:[PSP_STACK].SEG,ds
 
-	DPRINTF	'p',<"New PSP %04x, %04x paras, stack @%08lx\r\n">,ds,bx,ax,ds
+	IFDEF	MAXDEBUG
+	DPRINTF	<"New PSP %04x, %04x paras, stack @%08lx\r\n">,ds,bx,ax,ds
+	ENDIF
 
 lp8:	mov	ah,DOS_MEM_REALLOC	; resize ES memory block to BX paras
 	int	21h

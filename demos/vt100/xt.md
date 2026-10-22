@@ -24,7 +24,7 @@ The machine below is an IBM PC XT (Model 5160) with a 4.77Mhz 8088, 640K of memo
 
 {% include vt100-demo.html id="ibm5160" %}
 
-Press any key on the Color Display at the boot prompt (or wait 5 seconds) to start the diskette.  Then click the VT100 screen and type a command, such as `DIR` or `PRINT "Hello from the VT100"`; click the Color Display to use the local session.  Changes to the hard disk are lost when you leave the page.
+Press any key on the Color Display at the boot prompt (or wait 2 seconds) to start the diskette.  Then click the VT100 screen and type a command, such as `DIR` or `PRINT "Hello from the VT100"`; click the Color Display to use the local session.  Changes to the hard disk are lost when you leave the page.
 
 This demo is also available on an [IBM PC AT](../at/) and a [COMPAQ DeskPro 386](../386/).
 

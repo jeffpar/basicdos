@@ -28,7 +28,7 @@ Device drivers can also call DOS_UTL_WAIT, DOS_UTL_ENDWAIT, DOS_UTL_HOTKEY, DOS_
 | 02h | [DOS_UTL_STRUPR](#strings) | Converts a string to upper case |
 | 03h | [DOS_UTL_PRINTF](#formatted-output) | printf to the console (STDOUT) |
 | 04h | [DOS_UTL_HPRINTF](#formatted-output) | printf to a system file handle |
-| 05h | [DOS_UTL_DPRINTF](#formatted-output) | printf to the DEBUG device, if any |
+| 05h | [DOS_UTL_DPRINTF](#formatted-output) | printf to the DEBUG$ device, if any |
 | 06h | [DOS_UTL_TPRINTF](#formatted-output) | printf to the console with typed parameters (used by PRINTF USING) |
 | 07h | [DOS_UTL_SPRINTF](#formatted-output) | sprintf to a buffer |
 | 08h | [DOS_UTL_ITOA](#numbers) | Converts a 32-bit number to a string |
@@ -79,7 +79,7 @@ Device drivers can also call DOS_UTL_WAIT, DOS_UTL_ENDWAIT, DOS_UTL_HOTKEY, DOS_
 
 **DOS_UTL_HPRINTF (04h)** is the same, but prints to the system file handle (SFH) in BL.
 
-**DOS_UTL_DPRINTF (05h)** is the same, but prints to the DEBUG device (see [DEBUG=](../../bdman/cfg/#debug)), and the format string is preceded by a one-byte option code; the message is printed only if the option code matches the boot key (eg, an upper-case boot key `T` enables messages with option code `t`), and only by a DEBUG build of BASDOS.COM.  The DPRINTF macro generates these calls, in DEBUG builds only.
+**DOS_UTL_DPRINTF (05h)** is the same, but prints to the DEBUG$ device (the port of the [DEBUG.COM](../dev/) driver), if it's installed, and only in a DEBUG build of BASDOS.COM (otherwise, the format string is skipped).  The DPRINTF macro generates these calls, in DEBUG builds only.
 
 **DOS_UTL_TPRINTF (06h)**: DS:BX -> format string, with "typed" parameters pushed right to left: each is a type word (VAR_LONG, VAR_STR, or VAR_DOUBLE; see parser.inc) followed by a 4-byte value, so a specifier's size modifiers are ignored.  Numeric and date/time specifiers take a VAR_LONG, `%s` takes a VAR_STR (a far pointer to a length-prefixed string, or null if empty), `%f` takes a VAR_DOUBLE (a far pointer), and `%c` takes a VAR_LONG or the first character of a VAR_STR; a value of any other type prints the specifier unchanged.  Prints to STDOUT and returns AX = # of characters printed.  COMMAND's PRINTF USING uses this.
 

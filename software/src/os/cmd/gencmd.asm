@@ -132,7 +132,7 @@ gc2:	mov	[bx].LINE_PTR.OFF,si
 	jmp	short gc4
 
 gc4x:
-	IFDEF	DEBUG
+	IFDEF	MAXDEBUG
 	mov	al,0
 	call	genSpin			; erase the spinner
 	ENDIF
@@ -148,7 +148,7 @@ gc4:	mov	ax,CODE_ROOM
 	call	getNextLine
 	cmc
 	jnc	gc6
-	IFDEF	DEBUG
+	IFDEF	MAXDEBUG
 	mov	ax,ss:[PSP_HEAP]
 	xchg	ax,bx
 	mov	bx,ss:[bx].LINE_NUM
@@ -177,7 +177,7 @@ gc4:	mov	ax,CODE_ROOM
 gc6:	push	ss
 	pop	ds
 	ASSUME	DS:DATA
-	IFDEF	DEBUG
+	IFDEF	MAXDEBUG
 	pushf
 	mov	al,0
 	call	genSpin			; erase the spinner
@@ -251,15 +251,16 @@ gc9:	mov	bx,ss:[PSP_HEAP]
 	ret
 ENDPROC	genCode
 
-	IFDEF	DEBUG
+	IFDEF	MAXDEBUG
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
 ; genSpin
 ;
 ; Displays the progress "spinner" char in AL on STDERR while a BAS or BAT file
-; is being compiled (in DEBUG builds only).  BASIC-DOS backspaces are destructive, so after the first
-; line, each char is preceded by a backspace (to erase the previous char), and
-; when AL is zero, only a backspace is displayed (to erase the spinner).
+; is being compiled (in MAXDEBUG builds only).  BASIC-DOS backspaces are
+; destructive, so after the first line, each char is preceded by a backspace
+; (to erase the previous char), and when AL is zero, only a backspace is
+; displayed (to erase the spinner).
 ;
 ; Inputs:
 ;	AL = char (or zero to erase)
@@ -304,7 +305,7 @@ gs9:	pop	ds
 ENDPROC	genSpin
 
 SPIN_CHARS	db	"-\|/"			; (the first line uses '\')
-	ENDIF	; DEBUG
+	ENDIF	; MAXDEBUG
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

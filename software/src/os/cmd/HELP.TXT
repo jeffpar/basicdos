@@ -5,7 +5,7 @@ ARG$[(*n*)]
 Returns argument *n* from the command line that ran the current BAS or BAT file (0 is the file's name), or all the arguments if *n* is omitted.  Quoted arguments can contain spaces.
 
 ASC(*string*)
-Returns the character code (0-255) of the first character of *string* (or 0 if *string* is empty).
+Returns the character code (0-255) of the first character of *string*.  As in MSBASIC, an empty *string* is an "Illegal function call" error.
 
 ATN(*x*)
 Returns the arctangent of *x*, in radians.
@@ -119,6 +119,9 @@ Arrays that are used without DIM have a largest subscript of 10.
 
 DIR [*filespec*]
 Displays a directory listing of all files matching the given *filespec* (or all files if none is specified), after the drive's volume label and the directory's path.  Subdirectories are listed as <DIR>, and if *filespec* is a directory, its files are listed.  Use DIR | MORE to page the listing.
+
+DIR$[(*filespec*[,*attributes*])]
+Returns the first file or directory matching *filespec* (which may contain wildcards), or if *filespec* is omitted, the next match, or an empty string if there are no (more) matches.  For a match F$, ASC(F$) is its attributes, CVI(MID$(F$,2)) its time, CVI(MID$(F$,4)) its date, CVL(MID$(F$,6)) its size, and MID$(F$,10) its name.  The default *attributes* (&H16) include hidden, system, and directory entries; 8 finds the volume label.  See TESTS\DIR.BAS.
 
 DRAW *string*
 Draws lines from the last point, using these commands: U, D, L, R, E, F, G, and H [*n*] (move up, down, left, right, or diagonally), M *x*,*y* (move to *x*,*y*, or relative to the last point if *x* begins with + or -), B (prefix: move without drawing), N (prefix: draw without moving), C *n* (color), and S *n* (scale, in quarters).  Any number can be given as =*variable*; (eg, "M=X;,=Y;").
@@ -508,8 +511,8 @@ Returns the numeric value of *string*, ignoring any blanks.  If *string* does no
 VER
 Displays the BASIC-DOS version number.
 
-VI [*file*]
-Edits *file* full-screen, using a subset of the commands of the UNIX *vi* editor (see the BASIC-DOS manual).  Press i to insert text and ESC to stop, then type :wq to save and exit, or :q! to exit without saving.
+VI [~WS] [*file*]
+Edits *file* full-screen, using a subset of the commands of the UNIX *vi* editor (see the BASIC-DOS manual).  Press i to insert text and ESC to stop, then type :wq to save and exit, or :q! to exit without saving.  ~WS adds WordStar keys (eg, CTRL-E, CTRL-X, CTRL-S, and CTRL-D move the cursor, and CTRL-V switches insert mode on and off).
 
 WC [~L] [~W] [~C] [*file*...]
 Displays the number of lines, words, and bytes of input (or of each *file*, or with wildcards (? and *), every matching file, and their totals) (eg, DIR | WC ~L).  ~L, ~W, and ~C display only the selected counts.

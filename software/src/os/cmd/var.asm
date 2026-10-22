@@ -1044,9 +1044,11 @@ av3a:
 ; Build the new variable at ES:DI, with combined length and type in the
 ; first byte, the variable name in the following bytes, and zero-initialized
 ; data in the remaining bytes.  (DPRINTF is here, rather than at av0a, to keep
-; the short jumps above in range in DEBUG builds.)
+; the short jumps above in range in MAXDEBUG builds.)
 ;
-	DPRINTF	'b',<"adding variable %.*ls\r\n">,cx,si,ds
+	IFDEF	MAXDEBUG
+	DPRINTF	<"adding variable %.*ls\r\n">,cx,si,ds
+	ENDIF
 
 	or	al,cl
 	stosb
@@ -1416,7 +1418,9 @@ ENDPROC	getVarLen
 ;	AX, DX
 ;
 DEFPROC	removeVar
-	DPRINTF	'b',<"removing variable %.*ls\r\n">,cx,si,ds
+	IFDEF	MAXDEBUG
+	DPRINTF	<"removing variable %.*ls\r\n">,cx,si,ds
+	ENDIF
 	push	si
 	call	findVar			; does var exist?
 	cmc

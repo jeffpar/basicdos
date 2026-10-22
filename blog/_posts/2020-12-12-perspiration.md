@@ -24,9 +24,7 @@ The BASIC-DOS boot code also loads **CONFIG.SYS** into memory, so that the syste
 
 Installable device drivers (using the **DEVICE** keyword) aren't supported yet, but support does exist for the following configuration options:
 
-  - **BOOTKEY** (eg, BOOTKEY=D to simulate pressing 'D' at the boot prompt)
   - **CONSOLE** (eg, CONSOLE=CON:40,25,1 to create a 40-column console with a border)
-  - **DEBUG** (eg, DEBUG=COM1:9600,N,8,1 to enable debug messages to COM1)
   - **FILES** (eg, FILES=20 to allocate memory for up to 20 files)
   - **MEMSIZE** (eg, MEMSIZE=32 to limit system memory usage to 32K)
   - **REM** (for remarks -- although any unrecognized line will be ignored, too)

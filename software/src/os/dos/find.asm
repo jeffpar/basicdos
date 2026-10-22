@@ -64,7 +64,11 @@ DEFPROC	dsk_ffirst,DOS
 	pop	si
 	pop	cx
 	add	di,size FFB_RESERVED
-	ASSERT	Z,<cmp di,80h + offset FFB_DIRNUM>
+;
+; The DTA can be anywhere (eg, EXISTS uses one on the stack), so verify at
+; assembly time that the fields stored above leave DI at FFB_DIRNUM.
+;
+	ASSERT	<2 + size FCB_NAME + 2 + size FFB_RESERVED>,EQ,<FFB_DIRNUM>
 	xchg	ax,cx
 	ASSERT	Z,<test ah,ah>		; assert DIRENT # < 256 (for now)
 	stosw				; FFB_DIRNUM

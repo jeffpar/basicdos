@@ -27,10 +27,8 @@ then memory will be set aside for up to 30 simultaneous open files and up to 8 s
 
 The recognized keywords are:
 
-- [BOOTKEY](#bootkey)
 - [BUFFERS](#buffers)
 - [CONSOLE](#console)
-- [DEBUG](#debug)
 - [DEVICE](#device)
 - [FILES](#files)
 - [MEMSIZE](#memsize)
@@ -39,12 +37,6 @@ The recognized keywords are:
 - [SHELL](#shell)
 - [SKIP](#skip)
 - [SWITCHAR](#switchar)
-
-### BOOTKEY
-
-> BOOTKEY=*key*
-
-Acts as if *key* had been pressed at the BASIC-DOS boot prompt.  This is a debugging aid: DEBUG builds of BASIC-DOS use the boot key to enable additional diagnostic messages (see [Boot Keys](../../bdtech/arch/#boot-keys)).  It has no effect if a key other than **Enter** was actually pressed.  A `-` pressed at the boot prompt acts like [SWITCHAR=-](#switchar), but `BOOTKEY=-` doesn't (use SWITCHAR instead).
 
 ### BUFFERS
 
@@ -95,19 +87,13 @@ Two full-screen consoles on a CGA, each on its own page:
 	CONSOLE=CON:80,25
 	SHELL=COMMAND.COM
 
-### DEBUG
-
-> DEBUG=*device*
-
-Sends diagnostic messages from DEBUG builds of BASIC-DOS to the specified device (eg, `DEBUG=COM1:9600,N,8,1,0`).
-
 ### DEVICE
 
 > DEVICE=*filename* [*arguments*]
 
 Loads an installable device driver, passing it any *arguments*.  DEVICE lines are processed in order, after the first console has been opened (so that any errors can be reported) and before any other consoles are opened.  If a driver can't be loaded, a warning is displayed (eg, `Warning: unable to find device DEBUG.COM`) and startup continues.
 
-BASIC-DOS includes one installable driver, DEBUG.COM (in the BIN directory), a simple debugger that runs on a terminal connected to a serial port; its argument is the port's settings, using the same format as a COM [CONSOLE](#console) (eg, `DEVICE=BIN\DEBUG.COM COM2:9600,N,8,1,VT100`).  The debugger claims the port, so no other program or console can open it.  On the terminal, CTRL-C (or BREAK) stops the machine as soon as it arrives, as do breakpoints, single-steps, and any other INT 1 or INT 3.  The debugger then displays the registers and the instruction at CS:IP, and accepts these commands (all numbers are hexadecimal, and any number may also be a 16-bit register name, such as DS or DX; an *address* is [*segment*:]*offset* (eg, `DS:DX`), and a *range* is *address* [*end* | L *count*]):
+BASIC-DOS includes one installable driver, DEBUG.COM (in the BIN directory), a simple debugger that runs on a terminal connected to a serial port; its argument is the port's settings, using the same format as a COM [CONSOLE](#console) (eg, `DEVICE=BIN\DEBUG.COM COM2:9600,N,8,1,VT100`).  The debugger claims the port, so no other program or console can open it.  Any switches after the port's settings (using the current [SWITCHAR](#switchar)) are commands, which the debugger performs on the terminal as soon as it's installed, before startup continues; eg, `DEVICE=BIN\DEBUG.COM COM2:9600,N,8,1,VT100 /BP 70:100` sets a breakpoint.  /H stops the machine there instead, so that more commands can be typed (G resumes it); /G is ignored.  Breakpoints should be set only in code that's already loaded (eg, the BIOS or DOS), since loading a program over one replaces it.  On the terminal, CTRL-C (or BREAK) stops the machine as soon as it arrives, as do breakpoints, single-steps, and any other INT 1 or INT 3.  The debugger then displays the registers and the instruction at CS:IP (preceded by "Assertion failure" if the INT 3 was a failed assertion in a DEBUG build), and accepts these commands (all numbers are hexadecimal, and any number may also be a 16-bit register name, such as DS or DX; an *address* is [*segment*:]*offset* (eg, `DS:DX`), and a *range* is *address* [*end* | L *count*]):
 
 - BP[*n*] *address* to set breakpoint *n* (1-9), or the first free one, at *address*
 - BC *n* [*n*...] to clear breakpoints (or BC \* to clear them all)
@@ -121,7 +107,7 @@ BASIC-DOS includes one installable driver, DEBUG.COM (in the BIN directory), a s
 - U [*range*] to disassemble 8086 instructions (32 bytes by default, continuing from the last U, or from CS:IP)
 - ? for help
 
-The driver's device name is DEBUG$.  DEBUG.COM can also be run from the prompt, without loading it as a driver, as `DEBUG [program [arguments]]` (eg, `DEBUG BIN\SLEEP.COM 5`): it loads the program (which must be a full filename; PATH$ isn't searched) with its arguments as the command tail, displays the registers as of the program's start, and accepts the same commands on the console, along with Q to quit; G runs the program, and when it terminates, DEBUG reports "Program terminated normally" and exits with the program's exit code.  Without a program, the registers are DEBUG's own, and since CS:IP holds a RET, G exits.  A command can also be given as a switch, which DEBUG performs (without displaying the registers) before exiting; eg, `DEBUG /DB 40:0` dumps the BIOS data area, and `DEBUG /DM` displays the memory map.  Since the console uses DOS, breakpoints in DOS itself should be set only with the driver.
+The driver's device name is DEBUG$, and data written to it is sent to the terminal; DEBUG builds of BASIC-DOS send their diagnostic (DPRINTF) messages there.  DEBUG.COM can also be run from the prompt, without loading it as a driver, as `DEBUG [program [arguments]]` (eg, `DEBUG BIN\SLEEP.COM 5`): it loads the program (which must be a full filename; PATH$ isn't searched) with its arguments as the command tail, displays the registers as of the program's start, and accepts the same commands on the console, along with Q to quit; G runs the program, and when it terminates, DEBUG reports "Program terminated normally" and exits with the program's exit code.  Without a program, the registers are DEBUG's own, and since CS:IP holds a RET, G exits.  A command can also be given as a switch, which DEBUG performs (without displaying the registers) before exiting; eg, `DEBUG /DB 40:0` dumps the BIOS data area, and `DEBUG /DM` displays the memory map.  Since the console uses DOS, breakpoints in DOS itself should be set only with the driver.
 
 ### FILES
 

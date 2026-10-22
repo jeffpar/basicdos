@@ -14,9 +14,7 @@
 	include	devapi.inc
 	include	version.inc
 
-	IFDEF	FINAL
-	TWAIT	equ 1		; FINAL builds use a 5-second prompt
-	ENDIF
+	TWAIT	equ 2		; seconds to wait at the boot prompt (14 max)
 
 ;
 ; DISKSECS is non-zero on supported boot volumes, so LARGESECS is unused.
@@ -238,7 +236,7 @@ ENDPROC	printp
 ;
 DEFPROC	main,far			; now at BOOT_SECTOR_LO
 	mov	ds:[mybpb].BPB_DRIVE,dl	; save boot drive (DL) in BPB
-	IFDEF DEBUG
+	IFDEF	MAXDEBUG
 	cmp	ds:[BOOT_KEY].LOB,cl	; boot key zero?
 	jne	m0			; no, force a boot prompt
 	ENDIF
@@ -255,14 +253,13 @@ m0:	mov	si,offset product
 	call	print			; then the prompt
 ;
 ; Wait for a key; ESC boots from the hard disk, and any other key continues
-; booting from this disk.  If TWAIT is defined (as it is in FINAL builds), then
-; we wait at most TWAIT * 91 ticks (about 5 seconds each, and TWAIT must be 2
-; or less), and a timeout also continues booting from this disk.  In PCjs
-; machines running faster than normal, the ticks run faster too (so the ROM
-; POST tests don't fail), so the timeout will be shorter.
+; booting from this disk.  We wait at most TWAIT seconds (18.2 ticks each, so
+; TWAIT must be 14 or less to fit in a byte), and a timeout also continues
+; booting from this disk.  In PCjs machines running faster than normal, the
+; ticks run faster too (so the ROM POST tests don't fail), so the timeout will
+; be shorter.
 ;
-	IFDEF	TWAIT
-	mov	dl,91 * TWAIT
+	mov	dl,TWAIT * 182 / 10
 	add	dl,byte ptr [TIMER_LOW]	; DL = target tick count (low byte)
 m8:	mov	ah,KBD_CHECK
 	int	INT_KBD
@@ -270,7 +267,6 @@ m8:	mov	ah,KBD_CHECK
 	cmp	dl,byte ptr [TIMER_LOW]	; target tick count reached?
 	jne	m8			; no
 	jmp	short m10		; yes, continue booting from this disk
-	ENDIF
 m9:	mov	ah,KBD_READ
 	int	INT_KBD			; AL = char code, AH = scan code
 	cmp	al,CHR_ESCAPE		; escape key?

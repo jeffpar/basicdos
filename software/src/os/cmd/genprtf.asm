@@ -140,8 +140,13 @@ pfa2:	push	bx			; [bp-12] = offset of marker
 	lodsb
 	mov	cl,al
 	mov	ch,0			; CX = length
+;
+; Reserve room for the format and its null, keeping SP even (an odd length
+; would otherwise leave SP odd, which ENTER asserts against in DEBUG builds).
+;
 pfa3:	sub	sp,cx
-	sub	sp,2
+	dec	sp
+	and	sp,not 1
 	mov	di,sp
 	mov	bx,di			; SS:BX -> format copy on stack
 	push	ss

@@ -7,14 +7,15 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Usage: VI [file]
+; Usage: VI [/WS] [file]
 ;
 ; A full-screen editor with a subset of vi's commands (see the External
 ; Commands page of the BASIC-DOS manual).  It works on both CON and COM (ANSI
 ; or VT100) consoles, using IOCTL_SETPOS and IOCTL_SCROLL to update the
 ; screen, and IOCTL_SETKEYS to read raw keys, which both drivers return the
 ; same way: non-ASCII keys (eg, cursor keys) are a zero followed by the PC
-; scan code.
+; scan code.  /WS also maps WordStar's control keys to vi commands (see
+; getKey).
 ;
 ; Text (up to 64K) is kept in a separate segment as a "gap buffer": the text
 ; before the gap starts at offset 0, and the text after the gap ends at the
@@ -137,19 +138,33 @@ ENDPROC	ctrlC
 ;
 ; getName
 ;
-; Copies the first argument in the command tail to V_FNAME.
+; Copies the first argument in the command tail to V_FNAME, after setting
+; MODE_WS for any /WS switch that precedes it.
 ;
 ; Modifies:
-;	AX, CX, SI, DI
+;	AX, CX, DX, SI, DI
 ;
 DEFPROC	getName
+	mov	ax,DOS_MSC_GETSWC
+	int	21h			; DL = switch char
 	mov	si,PSP_CMDTAIL+1
 gn1:	lodsb
 	cmp	al,CHR_SPACE		; whitespace?
 	je	gn1			; yes
 	cmp	al,CHR_TAB
 	je	gn1
-	lea	di,[bp].V_FNAME
+	cmp	al,dl			; switch char?
+	jne	gn1a			; no
+	mov	cx,[si]
+	and	cx,NOT 2020h		; upper-case the next two characters
+	cmp	cx,'W' OR ('S' SHL 8)	; WS?
+	jne	gn1a			; no
+	cmp	byte ptr [si+2],CHR_SPACE; and nothing more?
+	ja	gn1a			; no
+	or	[bp].V_MODE,MODE_WS
+	lodsw
+	jmp	gn1
+gn1a:	lea	di,[bp].V_FNAME
 	mov	cx,MAXNAME-1
 gn2:	cmp	al,CHR_SPACE		; end of the name (or the tail)?
 	jbe	gn9			; yes
@@ -574,6 +589,11 @@ ENDPROC	lookup
 ; mapped to the equivalent command keys (eg, the up-arrow key returns 'k'),
 ; with AH set, so that insert mode knows they're not text.
 ;
+; In WordStar mode, control keys (and CTRLQ followed by a letter, with or
+; without CTRL) are mapped the same way; a mapping with bit 7 set stands for
+; the key twice (eg, CTRLY is "dd"), so the second one is made pending.
+; Other control keys are returned unchanged.
+;
 ; Outputs:
 ;	AL = key, AH = non-zero if the key was mapped (AX = 0 if the read
 ;	failed, eg, due to CTRLC)
@@ -588,16 +608,40 @@ DEFPROC	getKey
 	jnz	gk9			; yes
 gk1:	call	readKey
 	jc	gk8
-	mov	ah,0
+gk2:	mov	ah,0
 	test	al,al			; non-ASCII key?
-	jnz	gk9			; no
+	jnz	gk5			; no
 	call	readKey			; AL = scan code
 	jc	gk8
 	mov	si,offset SCAN_KEYS
-	call	mapKey
+gk3:	call	mapKey
 	jc	gk1			; ignore keys without a mapping
-	mov	ah,1
+gk4:	mov	ah,1
+	test	al,al			; is the key doubled?
+	jns	gk9			; no
+	and	al,7Fh
+	mov	[bp].V_PEND,ax		; yes, so the second one is pending
 gk9:	ret
+
+gk5:	test	[bp].V_MODE,MODE_WS	; WordStar keys?
+	jz	gk9			; no
+	cmp	al,CHR_SPACE		; control key?
+	jae	gk9			; no
+	cmp	al,CHR_CTRLQ		; CTRLQ prefix?
+	je	gk6			; yes
+	mov	si,offset WS_KEYS
+	call	mapKey
+	jnc	gk4
+	ret				; no mapping (and AH is still zero)
+gk6:	call	readKey
+	jc	gk8
+	test	al,al			; non-ASCII key?
+	jz	gk2			; yes, so ignore CTRLQ
+	cmp	al,'@'			; letter?
+	jb	gk7			; no
+	and	al,1Fh			; yes, so make it a control key
+gk7:	mov	si,offset WSQ_KEYS
+	jmp	gk3
 ;
 ; The read failed (eg, CTRLC), so make sure we redraw everything (the
 ; writes will also trigger the CTRLC, which our ctrlC handler ignores).
@@ -650,10 +694,11 @@ ENDPROC	readKey
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; setKeys
+; setKeys, setIns
 ;
 ; Inputs:
-;	CL = 1 for raw keys, 0 for normal keys
+;	CL = 1 for raw keys, 0 for normal keys (setKeys)
+;	CL = 1 for the insert cursor (a block), 0 for normal (setIns)
 ;
 ; Modifies:
 ;	AX, BX, CX, DX
@@ -661,7 +706,11 @@ ENDPROC	readKey
 DEFPROC	setKeys
 	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_SETKEYS
 	mov	bx,STDIN
-	int	21h
+	jmp	short sk9
+	DEFLBL	setIns,near
+	mov	ax,(DOS_HDL_IOCTL SHL 8) OR IOCTL_SETINS
+	mov	bx,STDOUT
+sk9:	int	21h
 	ret
 ENDPROC	setKeys
 
@@ -851,6 +900,17 @@ SCAN_KEYS	db	SCAN_UP,'k',SCAN_DOWN,'j',SCAN_LEFT,'h'
 		db	SCAN_RIGHT,'l',SCAN_HOME,'0',SCAN_END,'$'
 		db	SCAN_PGUP,CHR_CTRLB,SCAN_PGDN,CHR_CTRLF
 		db	SCAN_DEL,'x',SCAN_INS,'i',0
+;
+; WordStar keys and their equivalent commands (bit 7 doubles the key, and
+; 'N'-'@' is CTRLN), and the keys that follow CTRLQ.
+;
+WS_KEYS		db	CHR_CTRLS,'h',CHR_CTRLD,'l',CHR_CTRLE,'k'
+		db	CHR_CTRLX,'j',CHR_CTRLR,CHR_CTRLB,CHR_CTRLC,CHR_CTRLF
+		db	CHR_CTRLZ,CHR_CTRLE,CHR_CTRLW,CHR_CTRLY,CHR_CTRLG,'x'
+		db	CHR_CTRLY,'d' OR 80h,'N'-'@','O',CHR_CTRLV,'i',0
+WSQ_KEYS	db	CHR_CTRLS,'0',CHR_CTRLD,'$',CHR_CTRLE,'H'
+		db	CHR_CTRLX,'L',CHR_CTRLR,'g' OR 80h,CHR_CTRLC,'G'
+		db	CHR_CTRLY,'D',CHR_CTRLF,'/',0
 
 NEW_MSG		db	" [New File]",0
 LINES_MSG	db	" lines, ",0
