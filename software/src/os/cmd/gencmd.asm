@@ -23,7 +23,8 @@
 ;
 ; The other gen*.asm files include:
 ;
-;	gencon.asm			console I/O (CLS, COLOR, ECHO, PRINT)
+;	gencon.asm			console I/O (CLS, COLOR, ECHO, INPUT,
+;					LINE INPUT, PRINT, WRITE)
 ;	gendef.asm			definitions (DATA, DEF, DIM, ERASE,
 ;					OPTION BASE, READ, RESTORE) and array
 ;					element references
@@ -36,6 +37,8 @@
 ;	genexp.asm			expressions (genExpr)
 ;	gensys.asm			system (CHAIN, DEF SEG, ERROR, KEY,
 ;					PLAY, POKE, SOUND)
+;	genfile.asm			file I/O (CLOSE, FIELD, GET #, OPEN,
+;					PUT #, etc), outside the core
 ;	genemit.asm			code-emitting helpers (genCallCS,
 ;					genPushImmLong, etc)
 ;	gentok.asm			line and token helpers (getNextToken,
@@ -51,7 +54,7 @@ CODE    SEGMENT
 	EXTNEAR	<allocCode,ensureRoom,keepCode,genRedir,genRedirEnd>
 	EXTNEAR	<addVar,chkColon,setVarLong,setVarDouble>
 	EXTNEAR	<setStr,compactStrs,genArrayRef,checkCtl>
-	EXTNEAR	<memError,strPath,setPath,callDOS>
+	EXTNEAR	<memError,strPath,setPath,callDOS,rtError>
 	EXTNEAR	<genExpr,genCvtType,genCallCS,genPushImmLong>
 	EXTNEAR	<getNextLine,getNextSymbol,getNextToken,peekNextToken>
 
@@ -220,6 +223,12 @@ ENDPROC	genCode
 ; until the program reaches it, and then we end the program, returning to
 ; genCode with carry set.
 ;
+; Since we generate the code on the program's stack, which may be deep in
+; GOSUBs by now (GOSUB leaves only GOSUB_MIN bytes; see doGosub), we first
+; make sure that GEN_MIN bytes are left, which is more than enough for a
+; complex line (eg, nested IFs and function calls take about 330 bytes);
+; otherwise, it's an "Out of memory" error.
+;
 ; Inputs:
 ;	Return address -> byte following the placeholder
 ;
@@ -229,8 +238,16 @@ ENDPROC	genCode
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, ES
 ;
+GEN_MIN	equ	768			; min stack space for generating code
+
 DEFPROC	genMore,FAR
-	push	bp
+	mov	bx,ss:[PSP_HEAP]
+	lea	ax,[bx].STACK + GEN_MIN
+	cmp	sp,ax			; is there enough stack space?
+	jae	gm0			; yes
+	mov	al,7			; "Out of memory"
+	jmp	rtError
+gm0:	push	bp
 	mov	bp,sp
 	sub	word ptr [bp+2],5	; return to the placeholder
 	push	ss
@@ -467,8 +484,8 @@ ENDPROC	genCommands
 ; genCommands makes the same check before calling any keyword's generator,
 ; genFuncExpr makes it before calling a predefined function, and LOAD makes
 ; it before calling loadTokens (see edit.asm), so this is for keywords whose
-; generator chooses between a core function and an upper one (eg, genGet;
-; see genfile.asm), and for cmdDOS, which calls every built-in command's
+; generator chooses between a core function and an upper one (eg, genLine;
+; see gencon.asm), and for cmdDOS, which calls every built-in command's
 ; handler through here (eg, cmdAuto).  To move more functionality out of the
 ; core, link its modules after CONST.OBJ, and make sure nothing in the core
 ; calls them except through one of these checks.

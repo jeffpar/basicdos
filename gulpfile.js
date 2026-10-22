@@ -79,9 +79,13 @@ function checkOutput(task, outputFile)
  *
  * A ZIP file in a list of files (eg, PUBLIC.zip) is extracted into the folder itself, preserving the original
  * timestamps of its files.
+ *
+ * A disk marked "final" is updated only when the binaries are FINAL (the mode of the last mkdos.sh or mk.sh build,
+ * which tools/pc/disks/mkmode records), since its demo doesn't have room for DEBUG binaries (see BASICDOS-360K-M64).
  */
 const SRC = "./software/src";
 const MKMODE = "./tools/pc/disks/mkmode";
+const FINAL = fs.existsSync(MKMODE) && fs.readFileSync(MKMODE, "utf8").trim() == "FINAL";
 const manifest = {};
 let section;
 for (let line of fs.readFileSync("./software/manifest.txt", "utf8").split(/\r?\n/)) {
@@ -126,7 +130,7 @@ let disks = {
     "BASICDOS-360K-SERIAL": { config: "./demos/serial/CONFIG.SYS", title: "BASIC-DOS HD Serial Display Demo" },
     "BASICDOS-360K-VT100": { config: "./demos/vt100/CONFIG.SYS", title: "BASIC-DOS HD VT100 Demo" },
     "BASICDOS-360K-DEBUG": { config: "./demos/debug/CONFIG.SYS", title: "BASIC-DOS Serial Debugger Demo" },
-    "BASICDOS-360K-M64": { config: "./demos/m64/CONFIG.SYS", title: "BASIC-DOS Monochrome Demo" },
+    "BASICDOS-360K-M64": { config: "./demos/m64/CONFIG.SYS", title: "BASIC-DOS Monochrome Demo", final: true },
     "BASICDOS-360K-TESTS": {
         title: "BASIC-DOS Tests",
         data: true,
@@ -201,10 +205,9 @@ function stageDisk(diskName)
     }
     /*
      * MK.BAT (in SRC) builds DEBUG binaries unless there's an MKFINAL file in its parent directory (as MKDOS.BAT does
-     * on the build disk), so the hard disk gets one if its binaries are FINAL (the mode of the last mkdos.sh or mk.sh
-     * build, which tools/pc/disks/mkmode records).
+     * on the build disk), so the hard disk gets one if its binaries are FINAL (see FINAL).
      */
-    if (disk.hd && fs.existsSync(MKMODE) && fs.readFileSync(MKMODE, "utf8").trim() == "FINAL") {
+    if (disk.hd && FINAL) {
         fs.writeFileSync(path.join(dirStage, "MKFINAL"), "");
     }
     let folders = disk.folders || diskFolders;
@@ -294,6 +297,7 @@ gulp.task("diskettes", writeDiskettes);
 
 let demoTasks = ["diskettes"];
 for (let diskName in disks) {
+    if (disks[diskName].final && !FINAL) continue;
     let buildTask = "BUILD-" + diskName;
     let diskImage = "./software/disks/" + diskName + ".json";
     gulp.task(buildTask, checkOutput(buildDisk(diskName, diskImage), diskImage));

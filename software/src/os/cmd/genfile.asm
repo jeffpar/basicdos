@@ -13,15 +13,18 @@
 ;	FIELD				(genField)
 ;	GET #, PUT #			(genGetFile, genPutFile, via genGet
 ;					and genPut)
-;	INPUT [#]			(genInput)
+;	INPUT #, LINE INPUT #		(genInputFile, via genInput)
 ;	IOCTL #				(genIoctl)
-;	LINE INPUT [#]			(genLineInput, via genLine)
 ;	LSET, RSET			(genLset, genRset)
 ;	OPEN				(genOpen)
 ;	PRINT #				(genPrintFile, via genPrint)
 ;	PRINTF #			(genPrintfFile, via genPrintf)
-;	GET, PUT, LINE			(file or graphics generators)
-;	WRITE [#]			(genWrite)
+;	GET, PUT			(file or graphics generators)
+;	WRITE #				(genWriteFile, via genWrite)
+;
+; This module is outside COMMAND's core (see CMD.LRF), so the core reaches it
+; only through genCommands (eg, OPEN) or genUpper (eg, INPUT #; see gencon.asm
+; for INPUT, LINE INPUT, PRINT, and WRITE).
 ;
 ; See gencmd.asm for an overview of all the gen*.asm files, and fileio.asm
 ; for the runtime functions.  Like gencmd.asm, these functions are called
@@ -36,11 +39,10 @@ CODE    SEGMENT
 	EXTNEAR	<genExpr,getNextToken,genCallCS,genPushImm,genPushImmLong>
 	EXTNEAR	<genPushImmByteAL,genPushImmByte,genCvtType,peekNextSymbol>
 	EXTNEAR	<peekNextToken>
-	EXTNEAR	<skipToken,genReadVars,genPrintArgs,genPrintfArgs,genRedirEnd>
-	EXTNEAR	<openFile,closeFile,fileOut,selectInput,fileItem>
-	EXTNEAR	<writeValue,printArgs,inputLine,fieldVar,setField>
-	EXTNEAR	<fileRecord,lsetStr,genVarRef,fileIoctl>
-	EXTNEAR	<genGetGfx,genPutGfx,genLineGfx,genUpper>
+	EXTNEAR	<skipToken,genReadVars,genPrintArgs,genPrintfArgs,genWriteEnd>
+	EXTNEAR	<openFile,closeFile,fileOut,selectInput,fileItem,genWriteArgs>
+	EXTNEAR	<fieldVar,setField,fileRecord,lsetStr,genVarRef,fileIoctl>
+	EXTNEAR	<genGetGfx,genPutGfx>
 
 	EXTABS	<TOK_FOR,TOK_INPUT,TOK_AS,TOK_OUTPUT,TOK_APPEND,TOK_RANDOM>
 
@@ -190,7 +192,7 @@ DEFPROC	genPrintFile
 	push	dx
 	push	cx
 	call	genPrintArgs		; generate the rest of PRINT
-	jmp	short gw7
+	jmp	genWriteEnd
 gpf9:	ret
 ENDPROC	genPrintFile
 
@@ -219,19 +221,21 @@ DEFPROC	genPrintfFile
 	push	dx
 	push	cx
 	call	genPrintfArgs		; generate the rest of PRINTF
-	jmp	short gw7
+	jmp	genWriteEnd
 gpff9:	ret
 ENDPROC	genPrintfFile
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genWrite
+; genInputFile
 ;
-; Generate code for "WRITE [#n,][expr[,expr]...]", which writes the values
-; separated by commas, with strings in quotes (see writeValue).
+; Generate code for "INPUT #n,var[,var]..." or "LINE INPUT #n,var$" (genInput
+; calls us via genUpper, at the '#'), which selects the file (see selectInput)
+; and then reads the next item (or line) into each variable (see fileItem).
 ;
 ; Inputs:
-;	DS:BX -> TOKLETs
+;	CX = 0 for INPUT #, 1 for LINE INPUT #
+;	DS:BX -> TOKLETs (at the '#')
 ;	ES:DI -> code block
 ;
 ; Outputs:
@@ -240,144 +244,31 @@ ENDPROC	genPrintfFile
 ; Modifies:
 ;	Any
 ;
-DEFPROC	genWrite
-	sub	cx,cx
-	mov	dx,cx			; DX:CX = 0 (no file)
-	call	peekNextSymbol
-	jbe	gw1
-	cmp	al,'#'			; WRITE #?
-	jne	gw1			; no
-	call	genFileOut		; DX:CX -> redirection word
-	jc	gw9
-gw1:	push	dx
+DEFPROC	genInputFile
 	push	cx
-	sub	cx,cx			; CX = # values
-gw2:	push	cx
-	call	genExpr			; push the next value
-	pop	cx
-	jnc	gw3
-	test	dh,dh			; were there any tokens?
-	stc
-	jnz	gw7			; yes, so it's an error
-gw3:	jz	gw6			; no value
-	inc	cx
-	push	cx
-	push	ax
-	mov	al,dl
-	GENPUSHB al			; push its type
-	pop	ax
-	push	ax
-	sub	al,','			; AL = 0 if a comma follows
-	GENPUSHB al			; (ie, if it's not the last value)
-	GENCALL	writeValue
-	pop	ax
-	pop	cx
-	cmp	al,','			; another value?
-	je	gw2			; yes
-	jmp	short gw8
-;
-; If there are no values (or a comma ended the last one), end the line.
-;
-gw6:	GENPUSHB VAR_NONE
-	GENCALL	printArgs
-	clc
-gw7:	jc	gw8a
-;
-; genPrintFile also ends here, with the redirection word on the stack.
-;
-gw8:	pop	cx
-	pop	dx
-	push	ax
-	mov	ax,dx
-	or	ax,cx			; was there a redirection word?
-	pop	ax
-	jz	gw9			; no
-	jmp	genRedirEnd		; yes, so end the redirection
-gw8a:	pop	cx
-	pop	dx
-gw9:	ret
-ENDPROC	genWrite
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;
-; genInput
-;
-; Generate code for "INPUT #n,var[,var]...", which reads the next item
-; from the file into each variable (see fileItem), or "INPUT [prompt;|,]var
-; [,var]...", which reads a line from the keyboard (see inputLine) and then
-; takes each item from it the same way.  As in MSBASIC, a semicolon after the
-; prompt (or no prompt) displays "? ", but a comma doesn't.
-;
-; Inputs:
-;	DS:BX -> TOKLETs
-;	ES:DI -> code block
-;
-; Outputs:
-;	Carry clear if successful, set if error
-;
-; Modifies:
-;	Any
-;
-DEFPROC	genInput
-	sub	dx,dx			; DX = 0 (items)
-gi0:	call	peekNextSymbol
-	jbe	gi1
-	cmp	al,'#'			; INPUT #?
-	jne	gi1			; no
-	push	dx
 	call	genFileNum		; push the file number
 	pop	dx
-	jc	gi9
+	jc	gif9
 	cmp	al,','			; is a comma next?
-	jne	gi8			; no
-	GENPUSH	dx			; push the item flag
+	jne	gif8			; no
+	GENPUSH	dx			; push the LINE INPUT flag
 	GENCALL	selectInput
-	jmp	short gi6
-;
-; INPUT from the keyboard, with an optional prompt.
-;
-gi1:	push	dx
-	mov	al,CLS_STR
-	call	peekNextToken		; is there a prompt?
-	pop	dx
-	jbe	gi3			; no
-	push	dx
-	call	genExpr			; push the prompt
-	pop	dx
-	jbe	gi8
-	mov	cl,1			; CL = 1 to display "? "
-	cmp	al,';'
-	je	gi4
-	mov	cl,0
-	cmp	al,','
-	je	gi4
-	jmp	short gi8
-gi3:	push	dx
-	GENPUSH	0,0			; push an empty prompt
-	pop	dx
-	mov	cl,1
-gi4:	test	dx,dx			; LINE INPUT?
-	jz	gi5			; no
-	mov	cl,2			; yes (and no "? ")
-gi5:	mov	ch,0
-	GENPUSH	cx			; push the flags
-	GENCALL	inputLine
-gi6:	mov	cx,offset fileItem
+	mov	cx,offset fileItem
 	jmp	genReadVars		; read the variables
-gi8:	stc
-gi9:	ret
-ENDPROC	genInput
+gif8:	stc
+gif9:	ret
+ENDPROC	genInputFile
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genLineInput
+; genWriteFile
 ;
-; Generate code for "LINE INPUT #n,var$" or "LINE INPUT [prompt;]var$"
-; (genLine calls us when LINE is followed by INPUT), which reads the next line
-; from the file (or the keyboard) into var$.
+; Generate code for "WRITE #n,..." (genWrite calls us via genUpper, at the
+; '#'), which makes the file STDOUT (see genFileOut) and then generates the
+; rest of WRITE.
 ;
 ; Inputs:
-;	DS:BX -> TOKLETs (at INPUT)
+;	DS:BX -> TOKLETs (at the '#')
 ;	ES:DI -> code block
 ;
 ; Outputs:
@@ -386,11 +277,12 @@ ENDPROC	genInput
 ; Modifies:
 ;	Any
 ;
-DEFPROC	genLineInput
-	call	skipToken		; consume INPUT
-	mov	dx,1			; DX = 1 (lines)
-	jmp	gi0
-ENDPROC	genLineInput
+DEFPROC	genWriteFile
+	call	genFileOut		; DX:CX -> redirection word
+	jc	gwf9
+	jmp	genWriteArgs
+gwf9:	ret
+ENDPROC	genWriteFile
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -784,14 +676,11 @@ ENDPROC	getKeyword
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
-; genGet, genPut, genLine
+; genGet, genPut
 ;
-; GET, PUT, and LINE are both file statements (GET #, PUT #, and LINE INPUT)
-; and graphics statements, and since the graphics generators (see gengfx.asm)
-; aren't part of COMMAND's core, these keywords come here, where we decide
-; which kind of statement it is and then jump to the file generator, or to
-; the graphics generator via genUpper (see gencmd.asm), which reports "Not
-; enough memory" if only the core was loaded.
+; GET and PUT are both file statements (GET # and PUT #) and graphics
+; statements (see gengfx.asm), so these keywords come here, where we decide
+; which kind of statement it is and then jump to its generator.
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs
@@ -808,8 +697,7 @@ DEFPROC	genGet
 	jbe	gge0			; not a symbol, so GET #
 	cmp	al,'('			; graphics GET?
 	jne	gge0			; no
-	mov	dx,offset genGetGfx
-	jmp	genUpper
+	jmp	genGetGfx
 gge0:	jmp	genGetFile
 ENDPROC	genGet
 
@@ -818,21 +706,9 @@ DEFPROC	genPut
 	jbe	gpe0			; not a symbol, so PUT #
 	cmp	al,'('			; graphics PUT?
 	jne	gpe0			; no
-	mov	dx,offset genPutGfx
-	jmp	genUpper
+	jmp	genPutGfx
 gpe0:	jmp	genPutFile
 ENDPROC	genPut
-
-DEFPROC	genLine
-	mov	al,CLS_KEYWORD
-	call	peekNextToken		; LINE INPUT?
-	jbe	gli1			; no
-	cmp	al,TOK_INPUT
-	jne	gli1			; no
-	jmp	genLineInput		; yes
-gli1:	mov	dx,offset genLineGfx
-	jmp	genUpper
-ENDPROC	genLine
 
 CODE	ENDS
 

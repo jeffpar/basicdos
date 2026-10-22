@@ -210,7 +210,7 @@ Returns *string* with all lower-case letters converted to upper-case.
 
 > VAL(*string*)
 
-Returns the numeric value of *string*, ignoring any blanks.  If *string* does not begin with a number, the result is 0.  Like numeric constants, *string* can use the `&H` (hexadecimal) and `&O` (octal) prefixes; `&` alone also means octal (eg, `VAL("&HFF")` is 255, and `VAL("&17")` is 15).
+Returns the numeric value of *string*, ignoring any blanks.  If *string* does not begin with a number, the result is 0.  Like numeric constants, *string* can use the `&H` (hexadecimal) and `&O` (octal) prefixes; `&` alone also means octal (eg, `VAL("&HFF")` is 255, and `VAL("&17")` is 15).  Without floating-point (eg, when the FPU$ driver isn't loaded; see [MEM](../../system/#mem)), the result is an integer (eg, `VAL("3.9")` is 3).
 
 ### File Functions {#file-functions}
 

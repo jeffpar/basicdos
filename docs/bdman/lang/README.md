@@ -178,9 +178,10 @@ On a machine with too little memory for all of COMMAND.COM (eg, 64K), BASIC-DOS 
 - The sound commands: PLAY and SOUND
 - PRINTF
 - The program editing commands AUTO, DELETE, and EDIT (lines can still be entered and deleted by number)
+- The file statements (OPEN, CLOSE, FIELD, GET, PUT, LSET, RSET, IOCTL, and the # forms of INPUT, LINE INPUT, PRINT, and WRITE) and file functions (CVD, CVI, CVL, EOF, IOCTL$, LOC, LOF, MKD$, MKI$, and MKL$)
 - LOAD of tokenized BAS files (eg, those saved by BASICA or GW-BASIC)
 
-Everything else, including file I/O (GET, PUT, and LINE INPUT), is still available.  `HELP CORE` displays the same list.
+Everything else, including INPUT and LINE INPUT from the keyboard and WRITE to the screen, is still available.  `HELP CORE` displays the same list.
 
 ### Differences from Microsoft BASIC
 

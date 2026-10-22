@@ -754,8 +754,8 @@ ENDPROC	genData
 ; string, and for a numeric variable, we convert it with strVal (VAL), or with
 ; strToLong if there's no FPU$ driver (and therefore no doubles).
 ;
-; genReadVars does the same for "INPUT #" and "LINE INPUT #" (see genfile.asm),
-; whose item function (fileItem) also takes the variable's type, since numeric
+; genReadVars does the same for INPUT and LINE INPUT (see genInput), whose
+; item function (fileItem) also takes the variable's type, since numeric
 ; items end at a space, but string items don't.
 ;
 ; Inputs:

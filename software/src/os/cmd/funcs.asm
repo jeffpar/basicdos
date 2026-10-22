@@ -209,6 +209,7 @@ CODE    SEGMENT
 	db	VAR_LONG,PARM_REQUIRED
 	dw	offset strSpace,0
 	db	VAR_FUNC + 3,"STR"
+	DEFLBL	STR_DATA,byte		; (see genFuncExpr)
 	db	VAR_STR,1
 	db	VAR_DOUBLE,PARM_REQUIRED
 	dw	offset strStr,0
@@ -233,6 +234,7 @@ CODE    SEGMENT
 	db	VAR_STR,PARM_REQUIRED
 	dw	offset strUCase,0
 	db	VAR_FUNC + 3,"VAL"
+	DEFLBL	VAL_DATA,byte		; (see genFuncExpr)
 	db	VAR_DOUBLE,1
 	db	VAR_STR,PARM_REQUIRED
 	dw	offset strVal,0

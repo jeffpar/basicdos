@@ -28,9 +28,9 @@
 ;
 ; These generators are not part of COMMAND's core (see CMD.LRF and HEAP.ASM):
 ; when only the core is loaded, genCommands refuses their keywords with "Not
-; enough memory", and GET, PUT, and LINE, which are also file statements,
-; reach genGetGfx, genPutGfx, and genLineGfx from genfile.asm via genUpper
-; (see gencmd.asm).
+; enough memory".  GET and PUT, which are also file statements, reach
+; genGetGfx and genPutGfx from genfile.asm, and LINE, which is also LINE
+; INPUT, reaches genLineGfx from gencon.asm via genUpper (see gencmd.asm).
 ;
 	include	cmd.inc
 	include	gen.inc
@@ -114,7 +114,7 @@ ENDPROC	genDraw
 ; genGetGfx
 ;
 ; Generate code for "GET (x1,y1)-(x2,y2),array"; genGet (see genfile.asm)
-; comes here, via genUpper, when GET is followed by '('.
+; comes here when GET is followed by '('.
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs
@@ -148,7 +148,7 @@ ENDPROC	genGetGfx
 ; genLineGfx
 ;
 ; Generate code for "LINE [(x1,y1)]-(x2,y2)[,[color][,B[F]]]"; genLine (see
-; genfile.asm) comes here, via genUpper, unless INPUT follows LINE.
+; gencon.asm) comes here, via genUpper, unless INPUT follows LINE.
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs
@@ -300,7 +300,7 @@ ENDPROC	genPset
 ;
 ; Generate code for "PUT (x,y),array[,action]", where action is PSET,
 ; PRESET, XOR (the default), OR, or AND (see PUT_* in gfximg.asm); genPut
-; (see genfile.asm) comes here, via genUpper, when PUT is followed by '('.
+; (see genfile.asm) comes here when PUT is followed by '('.
 ;
 ; Inputs:
 ;	DS:BX -> TOKLETs

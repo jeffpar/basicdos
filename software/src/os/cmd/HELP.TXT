@@ -53,7 +53,7 @@ COPY *input* [*output*]
 Copies the contents of the input file or device to the output file or device, or with wildcards (? and *), every matching file to the output drive or directory (eg, COPY B:\*.BAS).  If *output* is omitted, the current directory is used.  Input files separated by + are combined into the output file (eg, COPY A.BIN+B.BIN C.BIN).
 
 CORE
-On low memory systems, BASIC-DOS loads only core functions, so the following are unavailable: graphics commands (CIRCLE, DRAW, PAINT, PRESET, PSET, GET, LINE, and PUT), mouse commands, sound commands, program editing commands (AUTO, DELETE, and EDIT), and support for tokenized BAS files.  Unavailable commands will display a memory error.
+On low memory systems, BASIC-DOS loads only core functions, so the following are unavailable: graphics commands (CIRCLE, DRAW, PAINT, PRESET, PSET, GET, LINE, and PUT), mouse commands, sound commands, program editing commands (AUTO, DELETE, and EDIT), file commands (OPEN, CLOSE, FIELD, GET, PUT, LSET, RSET, IOCTL, and the # forms of INPUT, LINE INPUT, PRINT, and WRITE) and functions (CVD, CVI, CVL, EOF, IOCTL$, LOC, LOF, MKD$, MKI$, and MKL$), and support for tokenized BAS files.  Unavailable commands will display a memory error.
 
 COS(*x*)
 Returns the cosine of *x*, where *x* is in radians.
@@ -506,7 +506,7 @@ UCASE$(*string*)
 Returns *string* with all lower-case letters converted to upper-case.
 
 VAL(*string*)
-Returns the numeric value of *string*, ignoring any blanks.  If *string* does not begin with a number, the result is 0.  The &H (hex) and &O (octal) prefixes are allowed (eg, VAL("&HFF") is 255).
+Returns the numeric value of *string*, ignoring any blanks.  If *string* does not begin with a number, the result is 0.  The &H (hex) and &O (octal) prefixes are allowed (eg, VAL("&HFF") is 255).  Without floating-point (see MEM), the result is an integer (eg, VAL("3.9") is 3).
 
 VER
 Displays the BASIC-DOS version number.

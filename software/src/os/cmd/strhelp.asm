@@ -503,9 +503,12 @@ ENDPROC	strInstr
 ;
 ; strStr (STR$)
 ;
+; Without the FPU$ driver, there are no doubles, so STR$ takes a long instead
+; (see genFuncExpr).
+;
 ; Inputs:
 ;	32-bit return value
-;	pointer to double (popped)
+;	pointer to double (popped), or a long if there's no FPU$ driver
 ;
 ; Outputs:
 ;	32-bit return value updated
@@ -521,6 +524,10 @@ DEFPROC	strStr,FAR
 	push	ds
 	push	ss
 	pop	es
+	mov	ax,[pStrNum].LOW
+	mov	bx,[pStrNum].HIW	; BX:AX = long (if no FPU$ driver)
+	cmp	word ptr cs:[FPU_TABLE].SEG,0
+	je	sst4			; no FPU$ driver
 ;
 ; If the double is an integer that fits in 32 bits (eg, STR$(I)), we format
 ; it with ITOA, which is much faster than FPU_DTOA.  Such a double is zero or
@@ -605,12 +612,16 @@ ENDPROC	strStr
 ; &O (octal) prefixes are supported too (as is & alone, for octal); such a
 ; value is converted to decimal digits for FPU_ATOD.
 ;
+; Without the FPU$ driver, there are no doubles, so VAL returns a long instead
+; (see genFuncExpr), converting only an integer (eg, "3.9" is 3).
+;
 ; Inputs:
-;	pointer to double result (in a slot)
+;	pointer to double result (in a slot), or 32-bit return value if there's
+;	no FPU$ driver
 ;	string value (popped)
 ;
 ; Outputs:
-;	double result updated
+;	double (or 32-bit) result updated
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, ES
@@ -646,6 +657,7 @@ sv3:	mov	al,0
 	push	ss
 	pop	ds
 	lea	si,[valBuf]		; DS:SI -> buffer
+	mov	bl,10			; BL = base 10 (if no prefix)
 	cmp	byte ptr [si],'&'	; hex or octal prefix?
 	jne	sv5			; no
 	inc	si
@@ -660,6 +672,8 @@ sv3:	mov	al,0
 	dec	si			; no letter, so it's octal
 sv4:	mov	cx,-1			; CX = length (buffer is null-terminated)
 	DOSUTIL	ATOI32			; DX:AX = value
+	cmp	word ptr cs:[FPU_TABLE].SEG,0
+	je	sv8			; no FPU$ driver, so it's the result
 	xchg	si,ax			; DX:SI = value
 	push	ss
 	pop	es
@@ -671,7 +685,9 @@ sv4:	mov	cx,-1			; CX = length (buffer is null-terminated)
 	add	di,ax
 	mov	byte ptr es:[di],0	; null-terminate the decimal digits
 	lea	si,[valBuf]		; DS:SI -> buffer
-sv5:	les	di,[pValNum]		; ES:DI -> result
+sv5:	cmp	word ptr cs:[FPU_TABLE].SEG,0
+	je	sv4			; no FPU$ driver, so convert a long
+	les	di,[pValNum]		; ES:DI -> result
 	mov	bx,FPU_ATOD
 	call	callFPUFunc
 	jnc	sv9
@@ -679,6 +695,9 @@ sv5:	les	di,[pValNum]		; ES:DI -> result
 	sub	ax,ax
 	mov	cx,4
 	rep	stosw
+	jmp	short sv9
+sv8:	mov	[pValNum].LOW,ax
+	mov	[pValNum].HIW,dx
 sv9:	pop	ds
 	LEAVE
 	RETURN

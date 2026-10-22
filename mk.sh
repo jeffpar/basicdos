@@ -2,7 +2,8 @@
 #
 # Builds BASIC-DOS on BASIC-DOS (mkdos.sh builds it on MS-DOS 3.20 instead).
 # As in mkdos.sh, if pc.js exits normally (ie, via QUIT) and PCJS is set,
-# the demo disks are then updated with the new binaries.
+# the demo disks are then updated with the new binaries (except the 64K demo
+# disk, after a DEBUG build).
 #
 # pc.js builds a bootable BASIC-DOS hard disk (C:) directly from software/src,
 # using the system files from the previous build (os/*/OBJ, so run mkdos.sh at
@@ -22,6 +23,7 @@
 # is package.json's config.release property, its "version" sets the BASIC-DOS
 # version (see tools/release.sh), and all assembly sources are touched when
 # the build mode changes.
+#
 # CLEAN first deletes the build outputs (using os/mk.bat's CLEAN option, and
 # DEL commands for TESTS and MSB), for a clean build.
 #

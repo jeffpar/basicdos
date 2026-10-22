@@ -13,7 +13,11 @@
 ;	COLOR				(genColor)
 ;	ECHO				(genEcho)
 ;	LOCATE				(genLocate)
+;	INPUT, LINE INPUT		(genInput, genLineInput, via genLine;
+;					see genfile.asm for INPUT # and
+;					LINE INPUT #)
 ;	PRINT				(genPrint; see genfile.asm for PRINT #)
+;	WRITE				(genWrite; see genfile.asm for WRITE #)
 ;	SCREEN				(genScreen)
 ;	WIDTH				(genWidth)
 ;
@@ -29,10 +33,12 @@ CODE    SEGMENT
 
 	EXTNEAR	<genExpr,getNextToken,genCallCS,genPushImm,genPushImmByte>
 	EXTNEAR	<genPushImmByteAL,genPushImmByteAH,genPushImmLong,genCvtType>
-	EXTNEAR	<peekNextSymbol,genPrintFile>
+	EXTNEAR	<peekNextSymbol,peekNextToken,skipToken,genUpper,genReadVars>
+	EXTNEAR	<genPrintFile,genWriteFile,genInputFile,genLineGfx>
+	EXTNEAR	<fileItem,inputLine,writeValue>
 	EXTNEAR	<clearScreen,printArgs,printEcho,setColor,setFlags>
 	EXTNEAR	<setPos,setScreen,setWidth,redirOut,redirEnd,ensureRoom>
-	EXTABS	<TOK_OFF,TOK_ON>
+	EXTABS	<TOK_OFF,TOK_ON,TOK_INPUT>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -253,7 +259,8 @@ DEFPROC	genPrint
 	jbe	genPrintArgs
 	cmp	al,'#'			; PRINT #?
 	jne	genPrintArgs		; no
-	jmp	genPrintFile		; yes (see genfile.asm)
+	mov	dx,offset genPrintFile	; yes (see genfile.asm)
+	jmp	genUpper
 	DEFLBL	genPrintArgs,near
 	mov	si,offset printArgs	; SI = runtime function
 	DEFLBL	genPrintList,near
@@ -426,6 +433,203 @@ DEFPROC	genRedirEnd
 	GENCALL	redirEnd
 gre9:	ret
 ENDPROC	genRedirEnd
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genInput
+;
+; Generate code for "INPUT #n,var[,var]...", which reads the next item
+; from the file into each variable (see fileItem), or "INPUT [prompt;|,]var
+; [,var]...", which reads a line from the keyboard (see inputLine) and then
+; takes each item from it the same way.  As in MSBASIC, a semicolon after the
+; prompt (or no prompt) displays "? ", but a comma doesn't.
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genInput
+	sub	dx,dx			; DX = 0 (items)
+gi0:	call	peekNextSymbol
+	jbe	gi1
+	cmp	al,'#'			; INPUT #?
+	jne	gi1			; no
+	mov	cx,dx			; CX = LINE INPUT flag
+	mov	dx,offset genInputFile	; (see genfile.asm)
+	jmp	genUpper
+;
+; INPUT from the keyboard, with an optional prompt.
+;
+gi1:	push	dx
+	mov	al,CLS_STR
+	call	peekNextToken		; is there a prompt?
+	pop	dx
+	jbe	gi3			; no
+	push	dx
+	call	genExpr			; push the prompt
+	pop	dx
+	jbe	gi8
+	mov	cl,1			; CL = 1 to display "? "
+	cmp	al,';'
+	je	gi4
+	mov	cl,0
+	cmp	al,','
+	je	gi4
+	jmp	short gi8
+gi3:	push	dx
+	GENPUSH	0,0			; push an empty prompt
+	pop	dx
+	mov	cl,1
+gi4:	test	dx,dx			; LINE INPUT?
+	jz	gi5			; no
+	mov	cl,2			; yes (and no "? ")
+gi5:	mov	ch,0
+	GENPUSH	cx			; push the flags
+	GENCALL	inputLine
+	mov	cx,offset fileItem
+	jmp	genReadVars		; read the variables
+gi8:	stc
+	ret
+ENDPROC	genInput
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genLineInput
+;
+; Generate code for "LINE INPUT #n,var$" or "LINE INPUT [prompt;]var$"
+; (genLine calls us when LINE is followed by INPUT), which reads the next line
+; from the file (or the keyboard) into var$.
+;
+; Inputs:
+;	DS:BX -> TOKLETs (at INPUT)
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genLineInput
+	call	skipToken		; consume INPUT
+	mov	dx,1			; DX = 1 (lines)
+	jmp	gi0
+ENDPROC	genLineInput
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genLine
+;
+; LINE is both LINE INPUT (from the keyboard or a file) and a graphics
+; statement, and since the graphics generators (see gengfx.asm) aren't part
+; of COMMAND's core, LINE comes here, where we decide which kind of statement
+; it is and then jump to genLineInput, or to the graphics generator via
+; genUpper (see gencmd.asm), which reports "Not enough memory" if only the
+; core was loaded.
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genLine
+	mov	al,CLS_KEYWORD
+	call	peekNextToken		; LINE INPUT?
+	jbe	gli1			; no
+	cmp	al,TOK_INPUT
+	jne	gli1			; no
+	jmp	genLineInput		; yes
+gli1:	mov	dx,offset genLineGfx
+	jmp	genUpper
+ENDPROC	genLine
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genWrite
+;
+; Generate code for "WRITE [#n,][expr[,expr]...]", which writes the values
+; separated by commas, with strings in quotes (see writeValue).
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genWrite
+	sub	cx,cx
+	mov	dx,cx			; DX:CX = 0 (no file)
+	call	peekNextSymbol
+	jbe	gw1
+	cmp	al,'#'			; WRITE #?
+	jne	gw1			; no
+	mov	dx,offset genWriteFile	; yes (see genfile.asm)
+	jmp	genUpper
+	DEFLBL	genWriteArgs,near	; (DX:CX -> redirection word)
+gw1:	push	dx
+	push	cx
+	sub	cx,cx			; CX = # values
+gw2:	push	cx
+	call	genExpr			; push the next value
+	pop	cx
+	jnc	gw3
+	test	dh,dh			; were there any tokens?
+	stc
+	jnz	gw7			; yes, so it's an error
+gw3:	jz	gw6			; no value
+	inc	cx
+	push	cx
+	push	ax
+	mov	al,dl
+	GENPUSHB al			; push its type
+	pop	ax
+	push	ax
+	sub	al,','			; AL = 0 if a comma follows
+	GENPUSHB al			; (ie, if it's not the last value)
+	GENCALL	writeValue
+	pop	ax
+	pop	cx
+	cmp	al,','			; another value?
+	je	gw2			; yes
+	jmp	short gw8
+;
+; If there are no values (or a comma ended the last one), end the line.
+;
+gw6:	GENPUSHB VAR_NONE
+	GENCALL	printArgs
+	clc
+gw7:	jc	gw8a
+;
+; genPrintFile also ends here, with the redirection word on the stack.
+;
+	DEFLBL	genWriteEnd,near
+gw8:	pop	cx
+	pop	dx
+	push	ax
+	mov	ax,dx
+	or	ax,cx			; was there a redirection word?
+	pop	ax
+	jz	gw9			; no
+	jmp	genRedirEnd		; yes, so end the redirection
+gw8a:	pop	cx
+	pop	dx
+gw9:	ret
+ENDPROC	genWrite
 
 CODE	ENDS
 

@@ -19,6 +19,8 @@ CODE    SEGMENT
 	EXTNEAR	<genCallCS,genCallFar,genPushImmLong,genPushBPOffset>
 	EXTNEAR	<genPushLong,genPushZeroLong>
 	EXTNEAR	<getNextSymbol,peekNextSymbol,memError>
+	EXTBYTE	<STR_DATA,VAL_DATA>
+	EXTLONG	<FPU_TABLE>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -49,11 +51,29 @@ DEFPROC	genFuncExpr
 	LOCVAR	nFuncParms,byte
 	LOCVAR	nFuncType,byte
 	LOCVAR	pFuncData,dword
+	LOCVAR	fLongs,word
 	ENTER
 	sub	cx,cx			; CX = 0 if no parms supplied
 	mov	[pFuncData].OFF,si
 	mov	[pFuncData].SEG,dx
-	call	loadFuncData
+;
+; Without the FPU$ driver, there are no doubles, but VAL and STR$ can still
+; convert between strings and longs (see strVal and strStr), so for them, a
+; VAR_DOUBLE return value or parameter is a VAR_LONG instead (see gfeLong).
+;
+	mov	[fLongs],cx
+	cmp	word ptr cs:[FPU_TABLE].SEG,cx
+	jne	gfeA			; FPU$ driver present
+	mov	ax,cs
+	cmp	dx,ax			; predefined function?
+	jne	gfeA			; no
+	cmp	si,offset VAL_DATA
+	je	gfeL
+	cmp	si,offset STR_DATA
+	jne	gfeA
+gfeL:	inc	[fLongs]
+gfeA:	call	loadFuncData
+	call	gfeLong
 	mov	word ptr [nFuncType],ax	; nFuncType = AL, nFuncParms = AH
 ;
 ; NOTE: peekNextSymbol can "fail" for any number of reasons, including
@@ -121,7 +141,8 @@ gfe1b:	cmp	al,VAR_STR		; string parameter?
 	GENCALL	holdStr
 	pop	dx
 	pop	cx
-gfe1c:	push	cx
+gfe1c:	call	gfeLong
+	push	cx
 	call	genCvtType		; convert to the parameter type
 	pop	cx
 	pop	ax			; restore last symbol
@@ -193,6 +214,16 @@ gfe10:	LEAVE
 	mov	[pFuncData].OFF,si
 	pop	ds
 	ret
+;
+; gfeLong changes a VAR_DOUBLE type in AL to VAR_LONG, if fLongs is set.
+;
+gfeLong:
+	cmp	al,VAR_DOUBLE
+	jne	gfl9
+	cmp	byte ptr [fLongs],0
+	je	gfl9
+	mov	al,VAR_LONG
+gfl9:	ret
 ENDPROC	genFuncExpr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

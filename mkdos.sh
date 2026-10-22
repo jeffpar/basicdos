@@ -22,8 +22,10 @@
 #
 # After building, if pc.js exits normally (ie, via QUIT, which a successful
 # build runs automatically), update the BASIC-DOS demo disks with the new
-# binaries (which requires PCJS; see gulpfile.js).  If a build fails and you
-# don't want the demo disks updated, use pc.js's "abort" command.
+# binaries (which requires PCJS; see gulpfile.js), except that a DEBUG build
+# never updates the 64K demo disk (BASICDOS-360K-M64), which has room only for
+# FINAL binaries.  If a build fails and you don't want the demo disks updated,
+# use pc.js's "abort" command.
 #
 # Usage: mkdos.sh [FINAL or DEBUG] [CLEAN] (the same arguments as mk.sh and
 # os/mk.bat, in either case).  FINAL builds non-debug binaries, and DEBUG
