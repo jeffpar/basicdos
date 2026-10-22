@@ -287,7 +287,7 @@ CMD_SIG		db	?		; 333h: SIG_CMD
 CMD_ARG		db	?		; 334h: index of 1st arg
 ERR_CODE	db	?		; 335h
 CON_COLS	db	?		; 336h: # cols in console
-		db  2 dup (?)		; 337h: (unused)
+INPUT_SYM	dw	?		; 337h: offset of '<' (see parseDOS)
 CMD_FLAGS	db	?		; 339h: see CMD_* flags
 GEN_FLAGS	db	?		; 33Ah: see GEN_* flags
 DEF_PARMS	db	?		; 33Bh

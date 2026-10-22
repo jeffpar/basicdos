@@ -27,6 +27,18 @@ IF L$ <> "hello, world" THEN PRINT "TR squeeze failed" : FAILS = FAILS + 1
 TYPE T.TMP | TR /C /D a-z\r\n > T2.TMP
 OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
 IF L$ <> "helloworld" THEN PRINT "TR complement failed" : FAILS = FAILS + 1
+TR a-z A-Z < T.TMP > T2.TMP
+OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
+IF L$ <> "HELLO,  WORLD" THEN PRINT "input redirection failed" : FAILS = FAILS + 1
+TR a-z A-Z < T.TMP | TR /D L > T2.TMP
+OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
+IF L$ <> "HEO,  WORD" THEN PRINT "input pipe failed" : FAILS = FAILS + 1
+TR a-z A-Z < T.TMP EXTRA > T2.TMP
+IF ERRORLEVEL = 0 THEN PRINT "input argument failed" : FAILS = FAILS + 1
+OPEN "T2.TMP" FOR INPUT AS #1 : LINE INPUT #1, L$ : CLOSE #1
+IF L$ <> "HEO,  WORD" THEN PRINT "input syntax output failed" : FAILS = FAILS + 1
+TR a-z A-Z < NOFILE.TMP
+IF ERRORLEVEL = 0 THEN PRINT "missing input failed" : FAILS = FAILS + 1
 DEL T?.TMP
 PRINT 1 :> T1.TMP
 PRINT 2 :> T2.TMP

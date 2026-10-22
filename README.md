@@ -83,6 +83,7 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] Running COM, EXE, BAT, and BAS files, and loading programs into other sessions
 - [x] BAT and BAS files can run other BAT and BAS files and then continue (no CALL command required); a nested BAS file gets its own variables
 - [x] Pipes (`|`) and output redirection (`>` creates or truncates the output file, `>>` appends to it), including redirection at the end of a pipeline (eg, `DIR | SORT > TEST`)
+- [x] Input redirection (`<`) for the first command on a line, after its arguments and before any `|` or `>` (eg, `SORT /R < NAMES.TXT > SORTED.TXT` or `SORT < NAMES.TXT | MORE`)
 - [x] `:>` and `:>>` redirect the output of an entire line, including BASIC statements, where `>` means "greater than" (eg, `PRINT "hello world" :> TEST`), at the prompt and in BAT and BAS files
 - [x] COPY creates (or truncates) the output file, and refuses to copy a file onto itself
 - [x] A DOS command (internal or external) ends at a colon that begins a word, so other commands can follow it on the same line (eg, `DIR *.BAS : PRINT "done"`), at the prompt and in BAT and BAS files
@@ -98,7 +99,6 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] LIST VARS: list preserved strings (including PATH$), scalar values, and array dimensions in the current session
 - [x] PATH$: the directories searched for programs (eg, `PATH$="A:\;A:\BIN;A:\DEMOS;A:\SAMPLES"` on a SHELL line in CONFIG.SYS); unlike other variables, it survives NEW and CLEAR
 - [x] Every bootable BASIC-DOS disk has the same layout: BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, AUTOEXEC.BAT (if any), and HELP.TXT in the root, utilities (including DEBUG.COM) in BIN, the PC DOS 1.00 BASIC samples in SAMPLES, and demo programs in DEMOS (test programs are on a separate diskette, in TESTS); every disk has a volume label (eg, BD-D40), and every machine's diskette list shows the BASIC-DOS diskettes by title (eg, "BASIC-DOS 40-Column Demo"); HELP finds HELP.TXT in the root of the boot drive from any directory
-- [ ] Input redirection (`<`)
 - [x] REN/RENAME/MV: rename files and directories and move them between directories on the same drive
 - [x] Loading tokenized (binary) BAS files saved by BASICA or GW-BASIC (eg, the samples on the PC DOS diskettes): they're converted back to text as they're loaded (as LIST would display them), including MBF floating-point constants (converted to IEEE doubles and formatted by FPU$); protected BAS files are still rejected with "Invalid file format"
 - [ ] LOAD inside a running BAS or BAT file (for now, it's an error, "Not allowed in a program", because it would replace the running file's own text)
@@ -230,10 +230,9 @@ BASIC-DOS uses BASIC for batch files, so reproducing PC DOS batch syntax is not 
 
 These are the next steps, roughly in priority order:
 
-1. Add input redirection
-2. The read-only attribute, and file attribute/date/time functions
-3. Remaining string and input/output features (the MID$ statement and comma print zones)
-4. The rest of runtime error handling (RESUME, RESUME NEXT, and ERL)
+1. The read-only attribute, and file attribute/date/time functions
+2. Remaining string and input/output features (the MID$ statement and comma print zones)
+3. The rest of runtime error handling (RESUME, RESUME NEXT, and ERL)
 
 ## License
 

@@ -256,7 +256,15 @@ cu2:	inc	bx
 	pop	ax
 	mov	word ptr ds:[PSP_PFT][STDIN],ax
 	mov	bx,ds:[PSP_HEAP]
-	call	syncFiles		; update OPEN files, too
+;
+; If parseDOS replaced a '<' with a null (see pd4g), restore it.
+;
+	sub	si,si
+	xchg	si,[bx].INPUT_SYM	; SI -> '<', if any
+	test	si,si
+	jz	cu3
+	mov	byte ptr [si],'<'
+cu3:	call	syncFiles		; update OPEN files, too
 ;
 ; If we successfully loaded another program but then ran into some error
 ; before we could start the program, we MUST clean it up, and the best way
@@ -508,28 +516,42 @@ DEFPROC	parseDOS
 	mov	[bp].HDL_OUTPUT,bx
 	inc	bx			; BX = 0 again (offset of 1st TOKLET)
 ;
-; Before running anything, verify that every symbol is valid ("|", ">", or
-; ">>"), follows a command, and precedes another token; otherwise, it's a
-; syntax error.  Since
-; a redirection filename also ends a command, this rejects a pipe following
-; redirected output (eg, "DIR > TEST | SORT"), where nothing would ever write
-; to the pipe, leaving SORT waiting forever.
+; Before running anything, verify that every symbol is valid ("<", "|", ">",
+; or ">>"), follows a command, and precedes another token; otherwise, it's a
+; syntax error.  Since a redirection filename also ends a command, this
+; rejects a pipe following redirected output (eg, "DIR > TEST | SORT"), where
+; nothing would ever write to the pipe, leaving SORT waiting forever.
+;
+; Input redirection must follow the command's arguments and precede any other
+; symbol, so that it applies only to the first command (eg, "SORT < A > B"
+; or "SORT < A | MORE"); CL counts the current command's tokens, and CH is
+; 0 before any symbol, 2 after '<', and 1 after other symbols.
 ;
 	sub	cx,cx			; CX = 0 (no command yet)
 pd0:	cmp	bx,ax			; reached end of TOKLETs?
 	jae	pd0c			; yes
 	cmp	[di].TOK_DATA[bx].TOKLET_CLS,CLS_SYM
 	je	pd0a
+	cmp	ch,2			; argument after the input filename?
+	je	pd0x			; yes
 	inc	cx			; command (or argument) exists
 	jmp	short pd0b
-pd0a:	jcxz	pd0x			; no command before the symbol
+pd0a:	test	cl,cl			; command before the symbol?
+	jz	pd0x			; no
 	cmp	[di].TOK_DATA[bx].TOKLET_LEN,1
 	jne	pd0x			; not a single-character symbol
 	lea	dx,[bx + size TOKLET]
 	cmp	dx,ax			; is there at least one more token?
 	jae	pd0x			; no
 	mov	si,[di].TOK_DATA[bx].TOKLET_OFF
-	sub	cx,cx			; the next symbol requires a new command
+	cmp	byte ptr [si],'<'	; input redirection symbol?
+	jne	pd0e			; no
+	test	ch,ch			; any symbol before this one?
+	jnz	pd0x			; yes
+	mov	ch,2			; no arguments after the input filename
+	mov	bx,dx			; BX -> redirection filename
+	jmp	short pd0d
+pd0e:	mov	cx,100h			; the next symbol needs a new command
 	cmp	byte ptr [si],'|'	; pipe symbol?
 	je	pd0b			; yes
 	cmp	byte ptr [si],'>'	; output redirection symbol?
@@ -553,6 +575,25 @@ pd0b:	add	bx,size TOKLET
 	jmp	pd0
 pd0x:	push	ax			; (pd9x expects end of TOKLETs on stack)
 	jmp	pd9x
+;
+; Input redirection always applies to the first command (see pd0), so replace
+; our STDIN now and continue with the next symbol, if any.  The '<' remains
+; null (ending the command's tail) until cleanUpTo restores it.
+;
+pd4g:	mov	[bp].INPUT_SYM,bx	; record the '<' for cleanUpTo
+	pop	bx
+	mov	al,0			; AL = 0 (input) for "<"
+	call	openHandle		; open handle
+	jc	pd3a			; bail on error
+	push	bx
+	xchg	bx,ax			; put file handle in BX
+	mov	al,ds:[PSP_PFT][bx]	; get its SFH
+	mov	ds:[PSP_PFT][STDIN],al	; and then replace the STDIN SFH
+	pop	bx
+	pop	ax			; restore end of TOKLETs
+	push	ax
+	jmp	pd3			; skip the filename
+
 pd0c:	sub	bx,bx			; BX = 0 again
 
 pd1:	push	ax			; save end of TOKLETs
@@ -578,6 +619,8 @@ pd4:	push	bx
 	mov	al,0
 	mov	bx,[di].TOK_DATA[bx].TOKLET_OFF
 	xchg	[bx],al			; null-terminated (AL = symbol)
+	cmp	al,'<'			; input redirection symbol?
+	je	pd4g			; yes
 	mov	dx,bx			; DX is offset of symbol
 	pop	bx
 	push	ax

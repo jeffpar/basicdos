@@ -128,7 +128,7 @@ The output of one command can also be sent to the input of another command, usin
 
 Each command after the first runs in its own background session, so all commands in a pipeline run at the same time.  The output of a pipeline can also be redirected (eg, `DIR | SORT > TEST`).  BASIC-DOS includes several filters for use with pipes: FIND, MORE, SORT, TEE, TR, and WC (see [Filters](../cmd/external/#filters)).
 
-Input redirection (`<`) isn't supported yet.
+The input of a command can also come from a file instead of the keyboard (eg, `SORT < NAMES.TXT`).  Input redirection applies to the first command on the line, so `<` must come after all of that command's arguments and before any `|` or `>` (eg, `SORT /R < NAMES.TXT > SORTED.TXT` or `SORT < NAMES.TXT | MORE`).  The input filename must be followed by the end of the line, a pipe, or output redirection.
 
 ### Sessions
 

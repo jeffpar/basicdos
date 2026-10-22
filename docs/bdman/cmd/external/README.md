@@ -47,7 +47,7 @@ Utilities that don't need the speed of assembly language are BASIC programs, wri
 
 ### Filters
 
-A filter reads lines of input, which normally come from a pipe (eg, `DIR | SORT`), and writes the results to its output.  FIND, MORE, SORT, and WC also accept file names instead (since input redirection isn't supported yet).  Input ends when the pipe is closed, at the end of the file, or at a CTRL-Z.  Switches start with the switch character (`/`, or `-` if [SWITCHAR](../../cfg/#switchar) is `-` or [PATHCHAR](../../cfg/#pathchar) is `/`).
+A filter reads lines of input, which normally come from a pipe (eg, `DIR | SORT`) or a file (eg, `SORT < NAMES.TXT`), and writes the results to its output.  FIND, MORE, SORT, and WC also accept file names instead.  Input ends when the pipe is closed, at the end of the file, or at a CTRL-Z.  Switches start with the switch character (`/`, or `-` if [SWITCHAR](../../cfg/#switchar) is `-` or [PATHCHAR](../../cfg/#pathchar) is `/`).
 
 #### FIND
 
@@ -66,7 +66,7 @@ ERRORLEVEL is set to 0 if any lines were displayed (or counted), 1 if none, and 
 
 	MORE [file]
 
-Displays input (or *file*) one screen at a time (eg, `TYPE README.TXT | MORE`).  After each screen, it displays `-- More --` and waits for a key (read from STDERR, since STDIN is the pipe); press CTRL-C to stop.
+Displays input (or *file*) one screen at a time (eg, `TYPE README.TXT | MORE`).  After each screen, it displays `-- More --` and waits for a key (read from STDERR, since STDIN is the pipe or file); press CTRL-C to stop.
 
 #### SORT
 
