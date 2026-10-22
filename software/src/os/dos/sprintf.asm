@@ -200,7 +200,6 @@ ENDPROC	itoa
 ;		use precision of ".n" to display n digits
 ;
 ; Non-standard formatters (in DEBUG-only builds, to save space):
-;	%P:	caller's address (REG_CS:REG_IP-2)
 ;	%U:	skip one 16-bit parameter on the stack; nothing output
 ;
 ; Non-standard formatters:
@@ -457,23 +456,13 @@ pf31:	cmp	al,'A'			; %A (AM or PM portion of TIME)?
 pf32:	mov	[bp+si],ax
 	jmp	pfc1
 ;
-; %U and %P exist only for DEBUG builds (see dosints.asm).
+; %U exists only for DEBUG builds (see dosints.asm).
 ;
 	IFDEF DEBUG
 pf33:	cmp	al,'U'			; %U (skip one 16-bit parameter)?
-	jne	pf35			; no
-	add	si,2			; yes, bump parameter index
-pf34:	jmp	pf1			; and return to top
-
-pf35:	cmp	al,'P'			; %P (CS:IP)?
 	jne	pferr			; no
-	mov	dx,[bp].REG_CS		; yes, load caller's CS:IP-2 into DX:AX
-	mov	ax,[bp].REG_IP
-	dec	ax
-	dec	ax
-	mov	cl,16			; set base
-pf36:	call	pfd4			; print as base-16 32-bit value
-	jnc	pf34
+	add	si,2			; yes, bump parameter index
+	jmp	pf1			; and return to top
 	ENDIF	; DEBUG
 pferr:	mov	bx,[bp].SPF_FPOS	; error, didn't end with known letter
 	mov	al,'%'			; restore '%'

@@ -216,27 +216,27 @@ dc0:	IF REG_CHECK			; in DEBUG builds, use CALL to push
 ;
 	cmp	ah,80h			; utility function?
 	jb	dc1			; no
+	cmp	ah,80h+UTILTBL_SIZE	; utility function within range?
+	jae	dc1			; no (so dc1 reports it as unsupported)
 	sub	ah,80h
-	cmp	ah,UTILTBL_SIZE		; utility function within range?
-	jae	dos_leave		; no
 	mov	bl,ah
 	add	bl,FUNCTBL_SIZE		; the utility function table
 	jmp	short dc2		; follows the DOS function table
 
 dc1:	sti
 	and	[bp].REG_FL,NOT FL_CARRY
-	cmp	ah,FUNCTBL_SIZE
-	cmc
-	jb	dc3
+	cmp	ah,FUNCTBL_SIZE		; DOS function within range?
+	jae	dc5			; no
 
 	IFDEF	MAXDEBUG
 	push	ax
+	push	dx
 	mov	al,ah
-;
-; %P is a special formatter that prints the caller's REG_CS:REG_IP-2 in hex;
-; "#010" ensures it's printed with "0x" and 8 digits with leading zeroes.
-;
-	DPRINTF	<"%#010P: DOS function %02bxh\r\n">,ax
+	mov	dx,[bp].REG_IP
+	dec	dx
+	dec	dx			; DX -> the caller's INT
+	DPRINTF	<"%04x:%04x: DOS function %02bxh\r\n">,[bp].REG_CS,dx,ax
+	pop	dx
 	pop	ax
 	ENDIF	; MAXDEBUG
 ;
@@ -293,6 +293,9 @@ dc3:	adc	[bp].REG_FL,0
 	jmp	dc0
 
 dc4:	jmp	msc_readctrlc
+
+dc5:	call	func_none		; report an unsupported function
+	jmp	dc3
 
 	DEFLBL	dos_leave2,near
 	pop	bp
@@ -576,13 +579,11 @@ ENDPROC	int_util
 DEFPROC	func_none,DOS
 	IFDEF	DEBUG
 	mov	al,ah
-;
-; %P is a special formatter that prints the caller's REG_CS:REG_IP-2 in hex;
-; "#010" ensures it's printed with "0x" and 8 digits with leading zeroes.
-;
-	DPRINTF	<"%#010P: unsupported DOS function %02bxh\r\n">,ax
+	les	dx,dword ptr [bp].REG_IP
+	dec	dx
+	dec	dx			; ES:DX -> the caller's INT
+	DPRINTF	<"%04x:%04x unsupported DOS function %02bxh\r\n">,es,dx,ax
 	ENDIF	; DEBUG
-
 	mov	[bp].REG_AX,ERR_INVALID
 	stc
 	ret
