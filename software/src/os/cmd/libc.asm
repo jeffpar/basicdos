@@ -325,7 +325,8 @@ ENDPROC	getMode
 ; so that they can be restored when the program ends (see restoreMode).  Only the outermost BAS
 ; program saves the mode (a BAS program run by another BAS program does not).
 ;
-; The mode is saved in GFX_SAVED (as mode + 1, or 0 if none is saved).
+; The mode is saved in GFX_SAVED (as mode + 1, or 0 if none is saved), and
+; setScreen sets bit 7 if the program then selects a graphics mode.
 ;
 ; Inputs:
 ;	None
@@ -365,12 +366,13 @@ ENDPROC	saveMode
 ; restoreMode
 ;
 ; Called when a BAS program ends (normally, or when it's aborted; see ctrlc),
-; to restore the video mode saved by saveMode, if the program left the console
-; in a graphics mode (eg, with SCREEN 1), along with the colors the session
-; had then (so that, for example, a program's COLOR 7,0,0 doesn't leave the
-; session's border black).  Text-mode changes (eg, WIDTH 40 or SCREEN 0,0)
-; persist, as in MSBASIC, which is what MODE.BAS relies on.  If the mouse was
-; turned on (see mouseOn), it's turned off first.
+; to restore the video mode saved by saveMode, if the program used a graphics
+; mode (eg, with SCREEN 1; see setScreen), even if it then returned to a text
+; mode (as DONKEY.BAS does, with SCREEN 0 leaving 40 columns), along with the
+; colors the session had then (so that, for example, a program's COLOR 7,0,0
+; doesn't leave the session's border black).  Otherwise, text-mode changes
+; (eg, WIDTH 40 or SCREEN 0,0) persist, as in MSBASIC, which is what MODE.BAS
+; relies on.  If the mouse was turned on (see mouseOn), it's turned off first.
 ;
 ; Inputs:
 ;	None
@@ -392,6 +394,8 @@ DEFPROC	restoreMode
 	call	mouseReset
 rsm1:	mov	cl,0
 	xchg	cl,byte ptr ss:[bx].GFX_DATA.GFX_SAVED
+	mov	ch,cl			; CH bit 7 set if graphics were used
+	and	cl,7Fh
 	dec	cl			; CL = saved mode
 	js	rsm9			; there isn't one
 	push	cx
@@ -401,11 +405,13 @@ rsm1:	mov	cl,0
 	jc	rsm9
 	cmp	dl,cl			; did the mode change?
 	je	rsm9			; no
+	test	ch,ch			; did the program use a graphics mode?
+	js	rsm2			; yes, so restore the saved mode
 	mov	al,dl
 	sub	al,4
 	cmp	al,3			; is it a graphics mode (4-6)?
 	jae	rsm9			; no, so leave it (like MSBASIC)
-	mov	al,IOCTL_SETMODE
+rsm2:	mov	al,IOCTL_SETMODE
 	call	ioctlCon		; yes, so restore it
 	mov	bx,ss:[PSP_HEAP]
 	mov	byte ptr ss:[bx].GFX_DATA.GFX_MODE,0	; (see gfxInit)
@@ -846,7 +852,19 @@ ss4:	mov	cl,bh			; CL = current video mode
 	cmp	al,cl			; any change?
 	je	ss9			; no
 	xchg	cx,ax			; CL = new video mode
-	push	cx
+;
+; If a program whose mode was saved selects a graphics mode (4-6), mark the
+; saved mode, so that restoreMode restores it when the program ends.
+;
+	mov	bx,ss:[PSP_HEAP]
+	mov	al,cl
+	sub	al,4
+	cmp	al,3			; is it a graphics mode?
+	jae	ss5			; no
+	cmp	byte ptr ss:[bx].GFX_DATA.GFX_SAVED,0	; is a mode saved?
+	je	ss5			; no
+	or	byte ptr ss:[bx].GFX_DATA.GFX_SAVED,80h
+ss5:	push	cx
 	mov	ax,2
 	call	mouseCall		; hide the mouse pointer, if any
 	pop	cx

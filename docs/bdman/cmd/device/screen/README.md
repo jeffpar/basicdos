@@ -18,7 +18,7 @@ Screen commands include:
 
 Each session has its own console, which may occupy only part of the screen (see [Sessions](../../../intro/#sessions)).  Screen commands operate on the current session's console, and coordinates are relative to the console, not the screen.
 
-When a BAS program ends (or is aborted) in a graphics mode, the video mode it started with is restored, along with the console's original size and border; text-mode changes (eg, WIDTH 40 or SCREEN 0,0) persist, as in Microsoft BASIC.
+When a BAS program that used a graphics mode ends (or is aborted), the video mode it started with is restored, along with the console's original size and border, even if the program returned to a text mode first (eg, DONKEY.BAS, whose SCREEN 0 leaves 40 columns); otherwise, text-mode changes (eg, WIDTH 40 or SCREEN 0,0) persist, as in Microsoft BASIC.
 
 ### CLS
 
