@@ -139,6 +139,8 @@ BASIC-DOS doesn't automatically run an AUTOEXEC.BAT file, so a session's startup
 
 	SHELL=COMMAND.COM PATH$="A:\;A:\BIN;A:\DEMOS;A:\SAMPLES":COLOR 7,1:AUTOEXEC.BAT
 
+Everything after the *program* name becomes the program's command tail, which can't exceed 126 characters; a longer SHELL line isn't run (its session reports "SHELL line too long", followed by the start of the line), so put longer startup sequences in a batch file.
+
 ### SKIP
 
 > SKIP=*device*[,*device*]...

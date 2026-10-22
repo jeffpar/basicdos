@@ -492,7 +492,8 @@ ENDPROC	psp_create
 ;
 ; Outputs:
 ;	If successful, carry clear, DX:AX -> new stack (from load_args)
-;	If error, carry set, AX = error code
+;	If error, carry set, AX = error code (ERR_BADFORMAT if the tail is
+;	longer than the 126 characters that PSP_CMDTAIL can hold)
 ;
 ; Modifies:
 ;	AX, BX, CX, DX, SI, DI, DS, ES
@@ -505,9 +506,13 @@ lc1:	lodsb
 	cmp	al,CHR_SPACE
 	ja	lc1
 	dec	si
-	mov	byte ptr [si],0
-	mov	bx,si			; AL = separator, BX -> separator
+	mov	bx,si			; BX -> separator
+	DOSUTIL	STRLEN			; AX = length of the tail at DS:SI
 	pop	si
+	cmp	ax,127			; does the tail fit in PSP_CMDTAIL?
+	jae	lc8			; no
+	mov	ah,[bx]			; AL = length, AH = separator
+	mov	byte ptr [bx],0
 
 	push	ax
 	push	bx
@@ -520,20 +525,16 @@ lc1:	lodsb
 	pop	cx
 	jc	lc9			; if carry set, AX is error code
 ;
-; DS:SI -> command line, CL = separator, BX = separator address, and
-; ES:DI -> new program's stack.
+; DS:SI -> command line, CL = tail length, CH = separator, BX = separator
+; address, and ES:DI -> new program's stack.
 ;
 	push	ds
 	push	bp
 	sub	sp,size EPB
 	mov	bp,sp			; BP -> EPB followed by two FCBs
 	mov	[bp].EPB_ENVSEG,0
-	mov	[bx],cl			; restore separator
-	mov	si,bx
-	DOSUTIL	STRLEN			; AX = # chars at DS:SI
-	ASSERT	BE,<cmp ax,126>
+	mov	[bx],ch			; restore separator
 	dec	bx
-	xchg	cx,ax			; CX = length
 	xchg	[bx],cl			; set length
 	mov	[bp].EPB_CMDTAIL.OFF,bx
 	mov	[bp].EPB_CMDTAIL.SEG,ds
@@ -549,7 +550,10 @@ lc1:	lodsb
 	pop	ds
 	mov	[bx],cl			; restore byte overwritten by length
 	ASSERT	NC
+	ret
 
+lc8:	mov	ax,ERR_BADFORMAT
+	stc
 lc9:	ret
 ENDPROC	load_command
 

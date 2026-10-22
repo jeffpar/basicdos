@@ -861,7 +861,16 @@ si18:	mov	si,sp			; SS:SI -> SPB
 	ASSUME	ES:NOTHING
 	xchg	bx,ax			; BL = SFH
 	pop	ax			; AX = error code
-	ECCALL	DOS_UTL_HPRINTF,<"Unable to load %s">,<13,10>,ax,si
+;
+; The only ERR_BADFORMAT that loading a SHELL returns is load_command's
+; "tail too long" error, which leaves the whole SHELL line intact, so show
+; the start of it.
+;
+	cmp	ax,ERR_BADFORMAT	; SHELL line too long?
+	jne	si19			; no
+	ECCALL	DOS_UTL_HPRINTF,<"SHELL line too long: %.40s...">,<13,10>,ax,si
+	jmp	si17
+si19:	ECCALL	DOS_UTL_HPRINTF,<"Unable to load %s">,<13,10>,ax,si
 	jmp	si17
 ;
 ; Although it may appear every SCB was started immediately after loading,
