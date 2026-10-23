@@ -28,9 +28,11 @@
 ; NEXT and WEND statements are paired up as the code is generated: FOR and
 ; WHILE push a CTL_FOR or CTL_WHILE entry onto the code block's LBLREF table
 ; (see pushCtl), whose LBL_IP is the offset of the loop's body, and NEXT and
-; WEND mark the innermost one CTL_DONE (see findCtl).  The body follows the
-; 5-byte JMP that skips the loop (which NEXT or WEND patches) and the address
-; of the FORSLOT (for FOR) or the top of the loop (for WHILE).
+; WEND mark the innermost one CTL_DONE (see findCtl), or if it's the other kind
+; of loop, report "NEXT without FOR" or "WEND without WHILE".  The body follows
+; the 5-byte JMP that skips the loop (which NEXT or WEND patches), the address
+; of the FORSLOT (for FOR) or the top of the loop (for WHILE), and the line #
+; of the FOR or WHILE (for errors; see checkCtl).
 ;
 ; Code for a program may span several code blocks (see ensureRoom), so every
 ; JMP that may go to another code block (eg, GOTO, IF, and the JMPs for loops)
@@ -53,6 +55,7 @@ CODE    SEGMENT
 	EXTNEAR	<genPushImm,genPushImmLong,addVar,getNextSymbol>
 	EXTNEAR	<setVarLong,setVarDouble,forInit,forNext,doGosub,doReturn>
 	EXTNEAR	<ensureRoom,peekNextToken,onError,offError,resumeErr,genMore>
+	EXTNEAR	<compError,compErrLine,getLineNum>
 	EXTABS	<TOK_ELSE,TOK_THEN,TOK_TO,TOK_STEP,TOK_GOTO,TOK_GOSUB>
 	EXTABS	<TOK_ERROR>
 
@@ -62,7 +65,7 @@ FS_SIZE		equ	22		; size of FORSLOT (see flow.asm)
 OP_JZ_3		equ	00374h		; JZ  $+5 (eg, around a near JMP)
 OP_JZ_5		equ	00574h		; JZ  $+7 (eg, around a far JMP)
 OP_JNZ_5	equ	00575h		; JNZ $+7 (eg, around a far JMP)
-OP_JNZ_9	equ	00975h		; JNZ $+11 (around a JMP and a dword)
+OP_JNZ_11	equ	00B75h		; JNZ $+13 (around JMP, dword, line #)
 OP_OR_DX_DX	equ	0D20Bh		; OR  DX,DX
 OP_CMP_AX	equ	03Dh		; CMP AX,imm16
 
@@ -384,6 +387,7 @@ ENDPROC	genEnd
 ;	jnz	body
 ;	jmp	next			; patched by genNext (5 bytes)
 ;	dd	FORSLOT			; (for genNext)
+;	dw	line #			; (for checkCtl)
 ;    body:
 ;
 ; Inputs:
@@ -484,14 +488,13 @@ gfo4:	pop	cx
 	GENCALL	forInit
 	mov	ax,OP_OR_AX_DX
 	stosw
-	mov	ax,OP_JNZ_9
+	mov	ax,OP_JNZ_11
 	stosw
 	call	genJmp5			; JMP to NEXT (placeholder)
 	pop	ax
 	stosw				; FORSLOT offset
 	pop	ax
 	stosw				; FORSLOT segment
-	mov	dx,di			; DX = offset of body
 	mov	ax,CTL_FOR
 	jmp	pushCtl
 gfo7:	pop	cx
@@ -539,18 +542,17 @@ ENDPROC	genFor
 ;
 DEFPROC	genNext
 gnx1:	call	findCtl			; DX:SI -> innermost FOR or WHILE
-	jc	gnx0
 	cmp	ax,CTL_FOR		; is it a FOR?
 	je	gnx1a			; yes
-	stc
-gnx0:	ret
+gnxE:	mov	al,1			; "NEXT without FOR"
+	jmp	compError
 gnx1a:	push	dx			; [sp+6] = block containing the FOR
 	push	si			; [sp+4] = LBLREF offset
 	push	ds
 	mov	ds,dx
 	mov	si,[si].LBL_IP		; SI = offset of body
-	mov	ax,[si-2]		; AX = FORSLOT segment
-	mov	cx,[si-4]		; CX = FORSLOT offset
+	mov	ax,[si-4]		; AX = FORSLOT segment
+	mov	cx,[si-6]		; CX = FORSLOT offset
 	pop	ds
 	push	ax			; [sp+2] = FORSLOT segment
 	push	cx			; [sp] = FORSLOT offset
@@ -602,7 +604,7 @@ gnx4:	stosw
 	push	ax
 	call	emitJmp			; jump back to the body
 	pop	si
-	sub	si,9			; DX:SI -> the FOR's JMP
+	sub	si,11			; DX:SI -> the FOR's JMP
 	call	patchHere		; patch it to jump here
 	call	getNextSymbol		; another variable (eg, "NEXT I,J")?
 	jc	gnx9
@@ -611,13 +613,15 @@ gnx4:	stosw
 	jne	gnx8
 	jmp	gnx1
 gnx8:	stc
-	ret
+gnx9:	ret
+;
+; A NEXT whose variable isn't the innermost FOR's is also "NEXT without FOR".
+;
 gnx7:	pop	si
 	pop	si
 	pop	si
 	pop	si
-	stc
-gnx9:	ret
+	jmp	gnxE
 ENDPROC	genNext
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -634,6 +638,7 @@ ENDPROC	genNext
 ;	jnz	body
 ;	jmp	wend			; patched by genWend (5 bytes)
 ;	dd	top			; (for genWend)
+;	dw	line #			; (for checkCtl)
 ;    body:
 ;
 ; Inputs:
@@ -657,14 +662,13 @@ DEFPROC	genWhile
 	stosw
 	mov	ax,OP_OR_AX_DX
 	stosw
-	mov	ax,OP_JNZ_9
+	mov	ax,OP_JNZ_11
 	stosw
 	call	genJmp5			; JMP to WEND (placeholder)
 	pop	ax
 	stosw				; top offset
 	pop	ax
 	stosw				; top segment
-	mov	dx,di			; DX = offset of body
 	mov	ax,CTL_WHILE
 	jmp	pushCtl
 gwh8:	pop	ax
@@ -690,16 +694,16 @@ ENDPROC	genWhile
 ;
 DEFPROC	genWend
 	call	findCtl			; DX:SI -> innermost FOR or WHILE
-	jc	gwe9
 	cmp	ax,CTL_WHILE		; is it a WHILE?
-	stc
-	jne	gwe9			; no
-	push	ds
+	je	gwe1			; yes
+	mov	al,30			; "WEND without WHILE"
+	jmp	compError
+gwe1:	push	ds
 	mov	ds,dx
 	mov	[si].LBL_NUM,CTL_DONE
 	mov	si,[si].LBL_IP		; SI = offset of body
-	mov	ax,[si-4]
-	mov	cx,[si-2]		; CX:AX -> top
+	mov	ax,[si-6]
+	mov	cx,[si-4]		; CX:AX -> top
 	pop	ds
 	push	dx
 	push	si
@@ -707,10 +711,10 @@ DEFPROC	genWend
 	call	emitJmp			; jump back to the top
 	pop	si
 	pop	dx
-	sub	si,9			; DX:SI -> the WHILE's JMP
+	sub	si,11			; DX:SI -> the WHILE's JMP
 	call	patchHere		; patch it to jump here
 	clc
-gwe9:	ret
+	ret
 ENDPROC	genWend
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1019,20 +1023,26 @@ ENDPROC	findLabel
 ;
 ; pushCtl
 ;
-; Pushes a CTL_FOR or CTL_WHILE entry onto the code block's LBLREF table.
+; Stores the line # of the FOR or WHILE (for checkCtl), and then pushes a
+; CTL_FOR or CTL_WHILE entry for the loop's body (which follows the line #)
+; onto the code block's LBLREF table.
 ;
 ; Inputs:
 ;	AX = CTL_FOR or CTL_WHILE
-;	DX = offset of the loop's body
 ;	ES:DI -> code block
 ;
 ; Outputs:
 ;	Carry clear
 ;
 ; Modifies:
-;	AX, DX
+;	AX, CX, DX, SI, DI
 ;
 DEFPROC	pushCtl
+	call	getLineNum		; CX = line #
+	xchg	ax,cx
+	stosw				; store the line #
+	xchg	ax,cx
+	mov	dx,di			; DX = offset of the loop's body
 	push	di
 	mov	di,es:[CBLK_REFS]	; (FBLK_REFS is the same)
 	sub	di,size LBLREF
@@ -1055,7 +1065,8 @@ ENDPROC	pushCtl
 ;	ES -> code block
 ;
 ; Outputs:
-;	If carry clear, DX:SI -> LBLREF, AX = CTL_FOR or CTL_WHILE
+;	If carry clear, DX:SI -> LBLREF, AX = CTL_FOR or CTL_WHILE;
+;	otherwise, AX = 0
 ;
 ; Modifies:
 ;	AX, CX, DX, SI
@@ -1095,7 +1106,8 @@ ENDPROC	findCtl
 ; Called by genMore when there are no more lines to generate, to make sure
 ; that every FOR and WHILE has a matching NEXT or WEND, and that every label
 ; reference (eg, GOTO 100) was resolved; an unresolved reference is still a
-; placeholder (see genGoto), so we report it and end the program.
+; placeholder (see genGoto), so we report it and end the program.  An open
+; FOR or WHILE is reported with its own line # (see pushCtl).
 ;
 ; Inputs:
 ;	ES -> code block
@@ -1107,11 +1119,19 @@ ENDPROC	findCtl
 ;	AX, CX, DX, SI
 ;
 DEFPROC	checkCtl
-	call	findCtl
-	cmc
-	jc	cct9
 	push	es
-	mov	si,ss:[PSP_HEAP]
+	call	findCtl			; DX:SI -> innermost FOR or WHILE
+	jc	cct1			; there isn't one
+	mov	es,dx
+	mov	si,es:[si].LBL_IP	; SI = offset of the loop's body
+	mov	cx,es:[si-2]		; CX = line # of the FOR or WHILE
+	inc	ax			; CTL_FOR (0FFFFh)?
+	mov	al,26			; "FOR without NEXT"
+	je	cct0			; yes
+	mov	al,29			; "WHILE without WEND"
+cct0:	call	compErrLine
+	jmp	short cct8
+cct1:	mov	si,ss:[PSP_HEAP]
 	mov	ax,ss:[si].CBLKDEF.BDEF_NEXT
 	call	checkRefs		; check the code blocks
 	jc	cct8
@@ -1119,7 +1139,7 @@ DEFPROC	checkCtl
 	mov	ax,ss:[si].FBLKDEF.BDEF_NEXT
 	call	checkRefs		; and the function blocks
 cct8:	pop	es
-cct9:	ret
+	ret
 ENDPROC	checkCtl
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

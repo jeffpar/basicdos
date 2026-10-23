@@ -33,7 +33,7 @@ CODE    SEGMENT
 	EXTNEAR	<genPushVarLong,genPushVarPtr,getNextToken>
 	EXTNEAR	<validateOp>
 	EXTNEAR	<genCallCS,genCallFar,genPushImmLong>
-	EXTNEAR	<genPushStr>
+	EXTNEAR	<genPushStr,compError>
 
         
 	EXTNEAR	<genFuncExpr,genFuncParm>
@@ -423,10 +423,10 @@ pt9:	pop	si
 ; from the type stack, push the operator's new type, and generate code for the
 ; operator's evaluator.
 ;
-; Some type mismatches are automatic errors (eg, whenever one type is VAR_STR,
-; as strings can only operate with other strings).  All other mismatches are
-; necessarily between VAR_LONG and VAR_DOUBLE, and whether the int should be
-; converted to a float or vice versa depends on the operator.
+; Some type mismatches are automatic "Type mismatch" errors (eg, whenever one
+; type is VAR_STR, as strings can only operate with other strings).  All other
+; mismatches are necessarily between VAR_LONG and VAR_DOUBLE, and whether the
+; int should be converted to a float or vice versa depends on the operator.
 ;
 ; For example, all arithmetic and relational operators must "promote" ints
 ; to floats, with the exception of '\' (integer division) and MOD, which must
@@ -436,7 +436,8 @@ pt9:	pop	si
 ;
 ; Some type matches are also automatic errors (eg, when the types are VAR_STR
 ; and the operator is neither "+" nor relational).  However, there's no special
-; logic for that; the error is indicated by a zero evaluator (see EVAL_STR).
+; logic for that; the "Type mismatch" is indicated by a zero evaluator (see
+; EVAL_STR).
 ;
 ; Inputs:
 ;	CX = operator index (OPEVAL_*)
@@ -462,7 +463,7 @@ pt9:	pop	si
 	DPRINTF	<"op %c, func @%08lx\r\n">,dx,cx,cs
 	ENDIF
 	call	popType
-	jz	go3x			; exit if error
+	jz	go3x			; exit if error (eg, a missing operand)
 	test	dh,1
 	mov	dh,dl			; DH = type of 2nd arg pushed
 	jnz	go1
@@ -505,13 +506,14 @@ go2a:	cmp	cl,OPEVAL_NOT
 	mov	cx,FPU_CVT2DL
 	jmp	short go3c
 go2x:	ret
+go3x:	jmp	ge8x
 ;
 ; Deal with type mismatches here.
 ;
 go3:	cmp	dl,VAR_STR		; if the 1st arg...
-	je	go8x
+	je	goTM
 	cmp	dh,VAR_STR		; or the 2nd arg are strings
-go3x:	je	go8x			; then it's a guaranteed type mismatch
+	je	goTM			; then it's a guaranteed type mismatch
 ;
 ; A float and an int walk into a bar.  If the bar is "NOT" or above,
 ; the float must be demoted to int.  Otherwise, the int must be promoted.
@@ -560,7 +562,7 @@ go8f:	call	pushType		; DL = type to push
 	mov	si,offset EVAL_STR
 go8b:	add	si,cx
 	mov	cx,cs:[si]
-	jcxz	go8x			; no evaluator implies an error
+	jcxz	goTM			; no evaluator implies a type mismatch
 	pop	si
 	jmp	genCallCS		; generate call to operator evaluator
 ;
@@ -577,6 +579,8 @@ go8e:	call	genCallFPU
 go8c:	jc	go8x			; no FPU$ driver
 	pop	si
 	ret
+goTM:	mov	al,13			; "Type mismatch"
+	call	compError
 go8x:	jmp	ge8x
 
 ENDPROC	genExpr

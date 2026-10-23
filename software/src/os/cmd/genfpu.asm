@@ -38,7 +38,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<genExpr,getNextSymbol,genCallFar,genPushImm>
-	EXTNEAR	<genCallCS,strToChar>
+	EXTNEAR	<genCallCS,strToChar,compError>
 	EXTLONG	<FPU_TABLE>
 	EXTABS	<TOK_ABS>
 
@@ -85,7 +85,7 @@ ENDPROC	genConstDouble
 ;
 ; Generate code to convert the value on the stack from one type to another
 ; (like MSBASIC, converting a long to a double or a double to a long, with
-; rounding); any other mismatch is an error.
+; rounding); any other mismatch is a "Type mismatch" error.
 ;
 ; VAR_CHAR (used only for parameters) requires a VAR_LONG, but it also
 ; accepts a VAR_STR, which is converted to the code of its first character.
@@ -99,7 +99,7 @@ ENDPROC	genConstDouble
 ;	Carry clear if successful, set if the types are incompatible
 ;
 ; Modifies:
-;	CX, DX, DI
+;	CX, DX, DI (and AX and SI if the types are incompatible)
 ;
 DEFPROC	genCvtType
 	cmp	al,VAR_CHAR		; character code required?
@@ -125,8 +125,8 @@ gct1:	mov	cx,FPU_CVT1DL
 	jmp	genCallFPU
 gct8:	clc
 	ret
-gct9:	stc
-	ret
+gct9:	mov	al,13			; "Type mismatch"
+	jmp	compError
 ENDPROC	genCvtType
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -214,14 +214,9 @@ DEFPROC	genFnCall
 	jc	gfc8
 	cmp	ax,(CLS_SYM SHL 8) OR ')'
 	jne	gfc8			; the argument must end with ')'
-	cmp	dl,VAR_LONG
-	jne	gfc1
-	mov	cx,FPU_CVT1LD
-	call	genCallFPUDst
+	mov	al,VAR_DOUBLE
+	call	genCvtType		; convert the argument to a double
 	jc	gfc8
-	mov	dl,VAR_DOUBLE
-gfc1:	cmp	dl,VAR_DOUBLE
-	jne	gfc8
 	pop	si
 	mov	cl,cs:[FN_FPUTBL+si]
 	mov	ch,0			; CX = FPUTBL offset of the function

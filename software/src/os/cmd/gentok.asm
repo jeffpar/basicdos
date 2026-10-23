@@ -144,6 +144,32 @@ ENDPROC	getNextLine
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; getLineNum
+;
+; Returns the line # that errors in the current line report (see compError):
+; the line's label #, if any, otherwise its position in the file (or zero for
+; a command typed at the prompt).
+;
+; Inputs:
+;	None
+;
+; Outputs:
+;	CX = line #
+;
+; Modifies:
+;	CX, SI
+;
+DEFPROC	getLineNum
+	mov	si,ss:[PSP_HEAP]
+	mov	cx,ss:[si].LINE_LBL	; CX = the line's label #, if any
+	jcxz	gln1
+	ret
+gln1:	mov	cx,ss:[si].LINE_NUM	; otherwise, its position in the file
+	ret
+ENDPROC	getLineNum
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; getNextSymbol
 ;
 ; Call getNextToken with AL = CLS_SYM, updating BX and preserving CX, DX, SI.

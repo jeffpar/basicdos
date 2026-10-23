@@ -136,8 +136,8 @@ Utilities live in the BIN directory of every BASIC-DOS disk.  The filters, SLEEP
 - [x] Random access file I/O: OPEN FOR RANDOM with LEN, FIELD, LSET, RSET, GET #, PUT #, and binary conversion functions (CVI, CVL, CVD, MKI$, MKL$, and MKD$)
 - [x] IOCTL #: sends an IOCTL request (with a numeric value in CX and DX, or a string's data) to the device or volume open as a file, with driver errors reported as runtime errors (eg, "Permission denied" for a write-protected diskette); IOCTL$ returns the data (up to 255 bytes) a driver stores in response to a request
 - [x] *partial*: Error handling (ON ERROR GOTO, RESUME *line*, ERROR, and ERR; see the DONKEY.BAS checklist)
+- [x] Specific error messages for compile-time errors: "NEXT without FOR", "FOR without NEXT", "WHILE without WEND", "WEND without WHILE", and "Type mismatch" (formerly all reported as syntax errors), with the line of the FOR or WHILE for an unclosed loop, and no "in line 0" for commands typed at the prompt
 - [ ] Runtime error messages for numeric errors
-- [ ] Specific error messages for compile-time errors (eg, "NEXT without FOR" and "WHILE without WEND" are currently reported as syntax errors)
 - [ ] STOP's "Break" message (STOP is currently the same as END)
 - [ ] The MID$ statement (ie, `MID$(A$,N[,M]) = B$`)
 - [ ] Comma print zones in PRINT (commas currently print a tab)

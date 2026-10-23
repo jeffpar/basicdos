@@ -26,7 +26,7 @@
 CODE    SEGMENT
 
 	EXTNEAR	<genExpr,getNextToken,peekNextSymbol,genPushImmByte>
-	EXTNEAR	<genPrintVal,genPrintfFile,releaseStr>
+	EXTNEAR	<genPrintVal,genPrintfFile,releaseStr,genCvtType>
 	EXTABS	<TOK_USING>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
@@ -75,10 +75,12 @@ DEFPROC	genPrintf
 	jc	gpf8
 	stc
 	jz	gpf8			; no format
-	cmp	dl,VAR_STR		; is the format a string?
-	stc
-	jne	gpf8			; no
-	jmp	genPrintVal		; yes, continue with the values
+	push	ax
+	mov	al,VAR_STR
+	call	genCvtType		; the format must be a string
+	pop	ax
+	jc	gpf8
+	jmp	genPrintVal		; continue with the values
 gpf8:	pop	si
 gpf9:	ret
 ENDPROC	genPrintf

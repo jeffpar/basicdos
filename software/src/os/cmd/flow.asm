@@ -344,17 +344,9 @@ re1:	call	restoreMode		; (so that the message is visible)
 	IFDEF	DEBUG
 	mov	dh,0			; DX = error number (for EPRINTF)
 	ENDIF
-	mov	si,offset ERR_MSGS
-re2:	lods	byte ptr cs:[si]
-	test	al,al			; end of the table?
-	jz	re5			; yes ("Unknown error")
-	cmp	al,dl
-	je	re4
-re3:	lods	byte ptr cs:[si]
-	test	al,al
-	jnz	re3
-	jmp	re2
-re4:	EPRINTF	<"%ls">,<13,10>,dx,si,cs
+	call	findMsg			; CS:SI -> message
+	jc	re5			; unknown error
+	EPRINTF	<"%ls">,<13,10>,dx,si,cs
 	jmp	ctrlc
 ;
 ; An error without a message of its own (eg, "ERROR 200") is displayed with
@@ -364,7 +356,40 @@ re5:	PRINTF	<"%ls (%bu)",13,10>,si,cs,dx
 	jmp	ctrlc
 ENDPROC	rtError
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; findMsg
+;
+; Finds the message for an error number, for runtime errors (see rtError)
+; and compile-time errors (see compError).
+;
+; Inputs:
+;	DL = error number
+;
+; Outputs:
+;	CS:SI -> message (carry set if unknown, with "Unknown error")
+;
+; Modifies:
+;	AL, SI
+;
+DEFPROC	findMsg
+	mov	si,offset ERR_MSGS
+fm1:	lods	byte ptr cs:[si]
+	test	al,al			; end of the table?
+	stc
+	jz	fm9			; yes ("Unknown error")
+	cmp	al,dl
+	je	fm9			; (carry is clear)
+fm2:	lods	byte ptr cs:[si]
+	test	al,al
+	jnz	fm2
+	jmp	fm1
+fm9:	ret
+ENDPROC	findMsg
+
 ERR_MSGS label byte
+	db	1,"NEXT without FOR",0
+	db	2,"Syntax error",0
 	db	3,"RETURN without GOSUB",0
 	db	4,"Out of DATA",0
 	db	5,"Illegal function call",0
@@ -372,8 +397,12 @@ ERR_MSGS label byte
 	db	8,"Undefined line number",0
 	db	9,"Subscript out of range",0
 	db	10,"Duplicate definition",0
+	db	13,"Type mismatch",0
 	db	14,"Out of string space",0
 	db	15,"String too long",0
+	db	26,"FOR without NEXT",0
+	db	29,"WHILE without WEND",0
+	db	30,"WEND without WHILE",0
 	db	50,"FIELD overflow",0
 	db	52,"Bad file number",0
 	db	53,"File not found",0

@@ -1,7 +1,7 @@
 10 REM EXPRERR.BAS: expression error tests (prints "failed" on error)
 20 REM Each invalid expression is written to ET.BAS, followed by a line that
 30 REM creates ET.TMP (which must never run), and ET.BAS is run; it should
-40 REM report a syntax error and set ERRORLEVEL, without creating ET.TMP.
+40 REM report an error and set ERRORLEVEL, without creating ET.TMP.
 50 Q$ = CHR$(34) : FAILS = 0
 60 E$ = "-" + Q$ + "a" + Q$ : GOSUB 1000
 70 E$ = Q$ + "a" + Q$ + "*" + Q$ + "b" + Q$ : GOSUB 1000

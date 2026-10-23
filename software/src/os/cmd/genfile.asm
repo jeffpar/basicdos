@@ -42,7 +42,7 @@ CODE    SEGMENT
 	EXTNEAR	<skipToken,genReadVars,genPrintArgs,genPrintfArgs,genWriteEnd>
 	EXTNEAR	<openFile,closeFile,fileOut,selectInput,fileItem,genWriteArgs>
 	EXTNEAR	<fieldVar,setField,fileRecord,lsetStr,genVarRef,fileIoctl>
-	EXTNEAR	<genGetGfx,genPutGfx>
+	EXTNEAR	<genGetGfx,genPutGfx,compError>
 
 	EXTABS	<TOK_FOR,TOK_INPUT,TOK_AS,TOK_OUTPUT,TOK_APPEND,TOK_RANDOM>
 
@@ -74,8 +74,9 @@ go8:	stc
 go9:	ret
 go0:	call	genExpr			; push the filename
 	jbe	go8
-	cmp	dl,VAR_STR		; is it a string?
-	jne	go8			; no
+	mov	al,VAR_STR
+	call	genCvtType		; it must be a string
+	jc	go9
 	call	getKeyword		; FOR or AS?
 	mov	dx,3			; DX = 3 for RANDOM
 	cmp	al,TOK_AS		; AS (ie, no FOR)?
@@ -418,8 +419,9 @@ gls1:	push	dx
 	jne	gls8
 	call	genExpr			; push the string
 	jbe	gls8
-	cmp	dl,VAR_STR
-	jne	gls8
+	mov	al,VAR_STR
+	call	genCvtType
+	jc	gls8
 	pop	ax
 	GENPUSHB al			; push the flag
 	GENCALL	lsetStr
@@ -569,7 +571,8 @@ DEFPROC	genStrVar
 	jc	gsv9
 	cmp	ah,VAR_STR		; string variable?
 	je	gsv9			; yes (and carry is clear)
-	stc
+	mov	al,13			; "Type mismatch"
+	jmp	compError
 gsv9:	ret
 ENDPROC	genStrVar
 

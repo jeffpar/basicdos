@@ -8,12 +8,13 @@
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
 ; This is the core of the code generator: genCode runs the code for a line or
-; program, genMore generates it as it runs, and genCommands dispatches each
-; command to its generator.  The token helpers that all the gen*.asm files
-; share (eg, getNextToken) are in gentok.asm; expressions (genExpr) and the
-; code-emitting helpers (eg, GENCALL's genCallCS) are in genemit.asm, except
-; for genPushImm (see genPushVarPtr); and the label helpers (addLabel,
-; findLabel) are in genflow.asm.
+; program, genMore generates it as it runs, genCommands dispatches each command
+; to its generator, and compError reports compile-time errors.  The token and
+; line helpers that all the gen*.asm files share (eg, getNextToken) are in
+; gentok.asm; expressions (genExpr) and the code-emitting helpers (eg,
+; GENCALL's genCallCS) are in genemit.asm, except for genPushImm (see
+; genPushVarPtr); and the label helpers (addLabel, findLabel) are in
+; genflow.asm.
 ;
 ; Generates code for these commands:
 ;
@@ -54,9 +55,10 @@ CODE    SEGMENT
 	EXTNEAR	<allocCode,ensureRoom,keepCode,genRedir,genRedirEnd>
 	EXTNEAR	<addVar,chkColon,setVarLong,setVarDouble>
 	EXTNEAR	<setStr,compactStrs,genArrayRef,checkCtl>
-	EXTNEAR	<memError,strPath,setPath,callDOS,rtError>
+	EXTNEAR	<memError,strPath,setPath,callDOS,rtError,findMsg>
 	EXTNEAR	<genExpr,genCvtType,genCallCS,genPushImmLong>
 	EXTNEAR	<getNextLine,getNextSymbol,getNextToken,peekNextToken>
+	EXTNEAR	<getLineNum>
 
         ASSUME  CS:CODE, DS:DATA, ES:DATA, SS:DATA
 
@@ -187,23 +189,54 @@ gc7:	call	keepCode		; free (or keep) the code
 	call	compactStrs		; free any leftover temp strings
 	popf
 	jnc	gc9
-
-	mov	bx,ds:[PSP_HEAP]
-	cmp	[bx].ERR_CODE,0		; was an error already reported?
-	stc
-	jne	gc9			; yes (see memError)
-	mov	ax,[bx].LINE_LBL	; report the line's label #, if any
-	test	ax,ax
-	jnz	gc8a
-	mov	ax,[bx].LINE_NUM	; otherwise, its position in the file
-gc8a:	PRINTF	<"Syntax error in line %d",13,10>,ax
-	stc
+	mov	al,2			; "Syntax error" (unless an error was
+	call	compError		; already reported)
 
 gc9:	mov	bx,ss:[PSP_HEAP]
 	mov	ss:[bx].ERR_CODE,0	; (preserves carry)
 	LEAVE
 	ret
 ENDPROC	genCode
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; compError
+;
+; Reports a compile-time error (eg, "NEXT without FOR"), with the same error
+; numbers and messages as runtime errors (see rtError), unless an error was
+; already reported (eg, by memError).  Either way, ERR_CODE is set, so genCode
+; reports nothing more when the failure ends the program.
+;
+; The message includes the current line # (see getLineNum), or the line # in
+; CX for compErrLine (eg, the line of a FOR without a NEXT; see checkCtl),
+; unless the line # is zero (eg, for a command typed at the prompt).
+;
+; Inputs:
+;	AL = error number (eg, 1 for "NEXT without FOR")
+;	CX = line # (compErrLine only)
+;
+; Outputs:
+;	Carry set
+;
+; Modifies:
+;	AX, CX, DX, SI
+;
+DEFPROC	compError
+	call	getLineNum		; CX = line #
+	DEFLBL	compErrLine,near
+	mov	si,ss:[PSP_HEAP]
+	mov	dl,al			; DL = error number
+	xchg	ss:[si].ERR_CODE,al
+	test	al,al			; was an error already reported?
+	jnz	ce9			; yes
+	call	findMsg			; CS:SI -> message
+	PRINTF	<"%ls">,si,cs
+	jcxz	ce8			; no line # (eg, at the prompt)
+	PRINTF	<" in line %u">,cx
+ce8:	PRINTF	<13,10>
+ce9:	stc
+	ret
+ENDPROC	compError
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
@@ -352,7 +385,14 @@ DEFPROC	genCommands
 	mov	ax,CODE_ROOM
 	call	ensureRoom		; make sure there's room for a command
 	jnc	gcInit
+	ret
+;
+; A keyword with no generator (eg, ELSE) ends the commands, and we leave it
+; for the caller (eg, genIf), returning AX = CLS_KEYWORD and the keyword ID.
+;
+gcs8:	sub	bx,size TOKLET		; (this clears carry, too)
 gcr9:	ret
+
 gcInit:	mov	dx,bx			; DX -> TOKLETs (for implicit LET)
 	mov	al,CLS_KEYWORD
 	call	getNextToken
@@ -365,7 +405,8 @@ gcInit:	mov	dx,bx			; DX -> TOKLETs (for implicit LET)
 ;
 ; If the keyword is alone (eg, "CIRCLE") and its generator fails, then it's
 ; presumably the name of a program to run (eg, CIRCLE.BAS), so we discard any
-; code the generator produced and treat it as a DOS command instead.
+; code the generator produced and treat it as a DOS command instead, unless
+; the generator reported an error of its own (eg, "NEXT without FOR").
 ;
 	push	cx
 	mov	al,CLS_ANY
@@ -383,7 +424,11 @@ gcs3c:	pop	si
 	jnc	gcs4
 	mov	di,si			; it failed, so discard its code
 	mov	bx,dx
-	jmp	short gcs1d		; and treat the keyword as a command
+	mov	si,ds:[PSP_HEAP]
+	cmp	[si].ERR_CODE,0		; did it report an error?
+	stc
+	jne	gcs4			; yes
+	jmp	short gcs1d		; no, so treat the keyword as a command
 ;
 ; If the next token is a colon that a previous command didn't consume (eg,
 ; "CLS:PRINT"), skip it; otherwise, it must be a DOS command.
@@ -440,12 +485,6 @@ gcs3a:	call	cx			; call dedicated generator function
 gcs4:	mov	es:[BLK_FREE],di
 	jnc	gcs10
 	ret
-;
-; A keyword with no generator (eg, ELSE) ends the commands, and we leave it
-; for the caller (eg, genIf), returning AX = CLS_KEYWORD and the keyword ID.
-;
-gcs8:	sub	bx,size TOKLET		; (this clears carry, too)
-gcs9:	ret
 ;
 ; A command must be followed by a colon or the end of the line (or by a
 ; keyword with no generator, like ELSE, which ends the commands for the
@@ -765,7 +804,7 @@ gl1:	push	ax
 ;
 	push	cx
 	mov	al,ch
-	call	genCvtType		; TODO: generate "type mismatch" error
+	call	genCvtType		; (or a "Type mismatch" error)
 	pop	cx
 	jc	gl9
 	mov	dx,offset setVarDouble

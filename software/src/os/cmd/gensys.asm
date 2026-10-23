@@ -324,10 +324,13 @@ ENDPROC	genLong
 DEFPROC	genStr
 	call	genExpr
 	jbe	gst9			; error or no expression
-	cmp	dl,VAR_STR		; string?
-	je	gst8			; yes (and carry is clear)
+	push	ax
+	mov	al,VAR_STR
+	call	genCvtType
+	pop	ax
+	ret
 gst9:	stc
-gst8:	ret
+	ret
 ENDPROC	genStr
 
 CODE	ENDS
