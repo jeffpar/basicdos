@@ -7,9 +7,10 @@
 ;
 ; This file is part of PCjs, a computer emulation software project at pcjs.org
 ;
-; Runtime functions for CLOSE, FIELD, GET #, INPUT #, IOCTL #, LINE INPUT #,
-; LSET, OPEN, PRINT #, PUT #, RSET, and WRITE # (see genfile.asm), and for
-; the CVD, CVI, CVL, EOF, IOCTL$, LOC, LOF, MKD$, MKI$, and MKL$ functions.
+; Runtime functions for CLOSE, DOS, FIELD, GET #, INPUT #, IOCTL #, LINE
+; INPUT #, LSET, OPEN, PRINT #, PUT #, RSET, and WRITE # (see genfile.asm),
+; and for the CVD, CVI, CVL, DOS, EOF, IOCTL$, LOC, LOF, MKD$, MKI$, and MKL$
+; functions.
 ; Like genfile.asm, this is outside COMMAND's core (see CMD.LRF), unlike the
 ; INPUT, LINE INPUT, and WRITE functions that files share with the keyboard
 ; and screen (see input.asm).
@@ -766,7 +767,8 @@ is9:	pop	ds
 ENDPROC	fileIoctlStr
 
 ;
-; ioctlErr converts the DOS error in AL to a BASIC error (see fileIoctl).
+; ioctlErr converts the DOS error in AL to a BASIC error (see fileIoctl and
+; dosCall).
 ;
 DEFPROC	ioctlErr
 	mov	si,offset IOCTL_ERRS
@@ -781,7 +783,123 @@ ie2:	mov	al,cs:[si+1]		; AL = BASIC error number
 	jmp	rtError
 ENDPROC	ioctlErr
 
+;
+; DOS_ERRS maps the other DOS errors that dosCall may encounter, and then
+; continues with IOCTL_ERRS.
+;
+DOS_ERRS	db	ERR_INVALID,5, ERR_NOFILE,53, ERR_NOPATH,75
+		db	ERR_ACCDENIED,70, ERR_BADHANDLE,52, ERR_SHARE,70
 IOCTL_ERRS	db	19,70, ERR_NOTREADY,71, 22,5, 26,72, 27,72, 0,57
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; dosCall (DOS)
+;
+; Used by "DOS ax[,bx[,cx[,dx|string]]]" to call DOS (INT 21h) with those
+; values in AX, BX, CX, and DX, or with DS:DX -> a null-terminated copy of the
+; string (in LINEBUF).  The registers that DOS returns are saved in DOS_REGS
+; for the DOS function (see getDos), and a failure (carry set) is a runtime
+; error: "File not found" (53), "Path/File access error" (75), "Permission
+; denied" (70), "Bad file number" (52), and "Illegal function call" (5) for
+; the corresponding DOS errors, and otherwise the same errors as IOCTL #.
+;
+; Inputs:
+;	32-bit AX value (popped)
+;	32-bit BX value (popped)
+;	32-bit CX value (popped)
+;	32-bit DX value or string pointer (popped)
+;	16-bit type (popped): VAR_STR (low byte) if DX is a string
+;
+; Outputs:
+;	None
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, ES
+;
+DEFPROC	dosCall,FAR
+	ARGVAR	lDosAX,dword
+	ARGVAR	lDosBX,dword
+	ARGVAR	lDosCX,dword
+	ARGVAR	lDosDX,dword
+	ARGVAR	wDosType,word
+	ENTER
+	push	ds
+	mov	dx,[lDosDX].LOW		; DX = value
+	cmp	byte ptr [wDosType],VAR_STR ; is it a string?
+	jne	dc2			; no
+	push	ss
+	pop	es
+	mov	di,ss:[PSP_HEAP]
+	lea	di,[di].LINEBUF
+	mov	dx,di			; ES:DX -> LINEBUF
+	lds	si,[lDosDX]		; DS:SI -> string
+	sub	cx,cx
+	test	si,si			; empty string?
+	jz	dc1			; yes
+	lodsb
+	mov	cl,al
+	rep	movsb			; copy the string to LINEBUF
+dc1:	xchg	ax,cx
+	stosb				; and null-terminate it
+	les	di,[lDosDX]
+	call	releaseStr
+	push	ss
+	pop	ds			; DS:DX -> string
+dc2:	mov	ax,[lDosAX].LOW
+	mov	bx,[lDosBX].LOW
+	mov	cx,[lDosCX].LOW
+	int	21h
+	push	bx
+	mov	bx,ss:[PSP_HEAP]
+	mov	ss:[bx].DOS_REGS[0],ax
+	pop	ss:[bx].DOS_REGS[2]
+	mov	ss:[bx].DOS_REGS[4],cx
+	mov	ss:[bx].DOS_REGS[6],dx	; (carry is unchanged)
+	jc	dc8
+	pop	ds
+	LEAVE
+	RETURN
+dc8:	mov	si,offset DOS_ERRS
+	jmp	ie1
+ENDPROC	dosCall
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; getDos (DOS)
+;
+; Returns register n (0 for AX, 1 for BX, 2 for CX, or 3 for DX) as DOS
+; returned it to the last DOS statement (see dosCall), from 0 to 65535;
+; any other n is an "Illegal function call".
+;
+; Inputs:
+;	32-bit return value
+;	32-bit register number (popped)
+;
+; Outputs:
+;	32-bit return value updated
+;
+; Modifies:
+;	AX, BX, SI
+;
+DEFPROC	getDos,FAR
+	RETVAR	retDos,dword
+	ARGVAR	lDosReg,dword
+	ENTER
+	mov	bx,[lDosReg].LOW
+	cmp	[lDosReg].HIW,0		; is the register number 0-3?
+	jne	gdo8			; no
+	cmp	bx,3
+	ja	gdo8			; no
+	add	bx,bx
+	mov	si,ss:[PSP_HEAP]
+	mov	ax,ss:[si+bx].DOS_REGS
+	mov	[retDos].LOW,ax
+	mov	[retDos].HIW,0
+	LEAVE
+	RETURN
+gdo8:	mov	al,5			; "Illegal function call"
+	jmp	rtError
+ENDPROC	getDos
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

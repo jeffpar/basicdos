@@ -40,6 +40,7 @@ In the **BIN** directory (see [Running Programs](../../intro/#running-programs) 
 - FIND.COM, MORE.COM, SORT.COM, TEE.COM, TR.COM, and WC.COM: filters (see below)
 - SLEEP.COM: waits the specified number of seconds (eg, `SLEEP 5`); CTRL-C stops it early
 - VI.COM: a full-screen text editor (see [VI](#vi) below)
+- ATTRIB.BAS: displays or changes the attributes of files (see [ATTRIB](#attrib) below)
 - FORMAT.BAS: formats a diskette (see [FORMAT](#format) below)
 - MODE.BAS: sets the display, a serial port, or a printer (see [MODE](#mode) below)
 
@@ -98,11 +99,25 @@ Displays the number of lines, words, and bytes of input (or of each *file*, or w
 
 Filters can be chained (eg, `TYPE FILE | SORT | MORE`), but every command after the first needs its own session, so a pipeline can't have more commands than [SESSIONS=](../../cfg/#sessions) allows.  If any command of a pipeline fails (eg, it can't be found, or there's no session for it), the error is displayed, the commands already running are ended, and ERRORLEVEL is set to 1.  And if a command stops reading its input early (eg, FIND can't open its file), the command writing to it gets a write error instead of waiting forever; the filters stop when that happens.
 
+### ATTRIB
+
+	ATTRIB [+R|-R] [+H|-H] [+S|-S] [+A|-A] [filespec]
+
+Displays the attributes of each file matching *filespec* (or every file in the current directory), including hidden and system files, with an `A` (archive), `S` (system), `H` (hidden), or `R` (read-only) in its column for each attribute it has, followed by the file's name.  Attributes given with `+` are set first, and those given with `-` are cleared, and one `+` or `-` can be followed by several attributes (eg, `ATTRIB +RS *.COM`).  A read-only file can't be opened for writing, replaced, or deleted, and only a hidden file is left out of DIR listings (unless [DIR /A](../disk/#dir) is used).  ATTRIB sets attributes with DOS function 4301h (see [DOS](../basic/#dos)), so a file whose attributes can't be changed (eg, while its volume is open) is a "Permission denied" error.
+
+	ATTRIB
+	  A          CONFIG.SYS
+	     SHR     BASDEV.COM
+	     SHR     BASDOS.COM
+	     S R     COMMAND.COM
+	  A          HELP.TXT
+	ATTRIB -R COMMAND.COM
+
 ### FORMAT
 
 	FORMAT d: [/S] [/1] [/8]
 
-Formats the diskette in drive *d* (A: or B:) as a 360K diskette (40 cylinders, 2 sides, 9 sectors per track), or with `/1` as a single-sided diskette (180K), or with `/8` with 8 sectors per track (320K, or 160K with `/1`, for PC DOS 1.x).  `/S` then copies BASDEV.COM, BASDOS.COM, and COMMAND.COM from the root directory of the current drive, making the diskette bootable.  FORMAT prompts for the diskette, formats and verifies every track (with the diskette driver's [IOCTL](../basic/#ioctl) requests), writes the boot sector (a copy of the current drive's, with the new diskette's parameters), the two FATs, and the root directory, reports the space on the diskette, and asks whether to format another.  Cluster sizes and root directory sizes follow the PC DOS 2.x rules (eg, 1K clusters and 112 root entries for a 360K diskette), with 12-bit FATs.
+Formats the diskette in drive *d* (A: or B:) as a 360K diskette (40 cylinders, 2 sides, 9 sectors per track), or with `/1` as a single-sided diskette (180K), or with `/8` with 8 sectors per track (320K, or 160K with `/1`, for PC DOS 1.x).  `/S` then copies BASDEV.COM, BASDOS.COM, and COMMAND.COM from the root directory of the current drive, making the diskette bootable, and makes BASDEV.COM and BASDOS.COM read-only hidden system files and COMMAND.COM a read-only system file.  FORMAT prompts for the diskette, formats and verifies every track (with the diskette driver's [IOCTL](../basic/#ioctl) requests), writes the boot sector (a copy of the current drive's, with the new diskette's parameters), the two FATs, and the root directory, reports the space on the diskette, and asks whether to format another.  Cluster sizes and root directory sizes follow the PC DOS 2.x rules (eg, 1K clusters and 112 root entries for a 360K diskette), with 12-bit FATs.
 
 A write-protected diskette, an empty drive, or a track that can't be formatted ("Track *n* bad - disk unusable") ends the format.  FORMAT can't format the current drive (which also supplies the boot sector and system files).
 
@@ -179,6 +194,6 @@ In insert mode, typed characters are inserted, ENTER starts a new line, BACKSPAC
 | CTRL-N | Insert a new line above the current line |
 | CTRL-V | Switch between insert mode and command mode |
 
-Every BASIC-DOS startup diskette also contains the system files BASDEV.COM (device drivers) and BASDOS.COM (the kernel).  These files must not be run.
+Every BASIC-DOS startup diskette also contains the system files BASDEV.COM (device drivers) and BASDOS.COM (the kernel), which are read-only hidden system files.  These files must not be run.
 
 {% include footer.html prev="Disk Commands:../disk/" next="COMMAND.COM:command/" %}

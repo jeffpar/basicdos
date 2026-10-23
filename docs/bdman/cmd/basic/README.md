@@ -15,7 +15,7 @@ BASIC programs can use any BASIC-DOS [command](../) in combination with the BASI
 - Input: [INPUT](#input), [LINE INPUT](#line-input)
 - Files: [OPEN](#open), [CLOSE](#close) (or RESET), [INPUT #](#input), [LINE INPUT #](#line-input), [PRINT #](#print), [WRITE](#write), and the [file functions](func/#file-functions)
 - Random access files: [FIELD](#field), [GET #](#get), [PUT #](#put), [LSET](#lset), [RSET](#lset)
-- Memory: [DEF SEG](#def-seg), [POKE](#poke)
+- Memory and DOS: [DEF SEG](#def-seg), [POKE](#poke), [DOS](#dos)
 - Remarks: [REM](#rem)
 
 ### CHAIN
@@ -93,6 +93,17 @@ Defines the first letter(s) of variables that will default to string values.  Un
 Dimensions one or more arrays, with up to 255 dimensions each (eg, `DIM A(10), B$(5,5)`).  Each bound is the largest subscript for that dimension.  Arrays that are used without DIM have a largest subscript of 10.
 
 Using a subscript outside an array's bounds causes a "Subscript out of range" error, and dimensioning an array that's already dimensioned causes a "Duplicate definition" error (use [ERASE](#erase) first).
+
+### DOS {#dos}
+
+> DOS *ax*[,*bx*[,*cx*[,*dx*|*string*]]]
+
+Calls DOS (INT 21h) with the values in registers AX, BX, CX, and DX (omitted values are zero), so that a program can use [DOS functions](../../../bdtech/dos/) that BASIC-DOS has no statement for (eg, 43h, to get or set a file's attributes).  The last value can be a *string* instead, which DOS gets a null-terminated copy of in DS:DX (eg, a filename).  The [DOS](func/#dos) function returns the registers that DOS returned.
+
+A failure (ie, DOS returned with carry set) is a runtime error that [ON ERROR](#on-error) can handle: "File not found" (53), "Path/File access error" (75), "Permission denied" (70), "Bad file number" (52), "Illegal function call" (5) for an invalid function, or one of the errors that [IOCTL #](#ioctl) reports.
+
+	DOS &H4300, 0, 0, F$		' get the attributes of F$
+	DOS &H4301, 0, DOS(2) OR 1, F$	' and make it read-only
 
 ### END
 

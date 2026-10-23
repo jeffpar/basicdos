@@ -65,7 +65,8 @@ ho0:	call	pfh_alloc		; ES:DI = free handle entry (DX preserved)
 	ASSUME	ES:NOTHING
 	jc	ho9
 	push	di			; save free handle entry
-	mov	bl,[bp].REG_AL		; BL = mode
+	mov	bl,[bp].REG_AL
+	and	bl,NOT MODE_CREATE	; BL = mode
 	mov	cl,[bp].REG_CL		; CL = attributes (create only)
 	mov	si,[bp].REG_DX
 	mov	ds,[bp].REG_DS		; DS:SI = name of device/file
@@ -202,6 +203,52 @@ ENDPROC	hdl_seek
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; hdl_time (REG_AH = 57h)
+;
+; Gets or sets the time and date of the file open with the handle.  A time
+; and date that are set are written to the file's DIRENT when it's closed,
+; in place of the time of its last write (see sfb_commit).  Setting the time
+; and date of a device or volume does nothing.
+;
+; Inputs:
+;	REG_AL = 0 to get the time and date, or 1 to set them
+;	REG_BX = handle
+;	REG_CX = time, REG_DX = date (see DIRENT; when REG_AL = 1)
+;
+; Outputs:
+;	On success, carry clear (and if REG_AL = 0, REG_CX = time and
+;	REG_DX = date)
+;	On failure, carry set, REG_AX = error code
+;
+DEFPROC	hdl_time,DOS
+	mov	bx,[bp].REG_BX		; BX = PFH ("handle")
+	call	sfb_get			; BX -> SFB (CX and DX preserved)
+	jc	ht8
+	mov	al,[bp].REG_AL
+	dec	al			; REG_AL = 1 (set)?
+	jz	ht2			; yes
+	jns	ht7			; no, and it's not 0 (get) either
+	mov	ax,[bx].SFB_TIME
+	mov	[bp].REG_CX,ax
+	mov	ax,[bx].SFB_DATE
+	mov	[bp].REG_DX,ax		; (carry is clear)
+	ret
+ht2:	cmp	[bx].SFB_DRIVE,0	; is it a device?
+	jl	ht9			; yes (carry clear)
+	test	[bx].SFB_ATTR,DIRATTR_VOLUME
+	jnz	ht9			; it's a volume (carry clear)
+	mov	[bx].SFB_TIME,cx
+	mov	[bx].SFB_DATE,dx
+	or	[bx].SFB_FLAGS,SFBF_DIRTY OR SFBF_DTSET
+	ret
+ht7:	mov	ax,ERR_INVALID
+	stc
+ht8:	mov	[bp].REG_AX,ax		; update REG_AX and return CARRY
+ht9:	ret
+ENDPROC	hdl_time
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; hdl_ioctl (REG_AH = 44h)
 ;
 ; Inputs:
@@ -318,9 +365,21 @@ DEFPROC	sfb_open,DOS
 	ASSUME	DS:NOTHING		; DS:SI -> DIRENT
 	test	[si].DIR_ATTR,DIRATTR_SUBDIR OR DIRATTR_VOLUME
 	jnz	so9a			; it's not a file (eg, a subdirectory)
-	call	sfb_chkopen		; can the file be opened in this mode?
+;
+; A read-only file can't be opened for writing, unless we're opening the file
+; that sfb_create just created (or truncated).
+;
+	test	[si].DIR_ATTR,DIRATTR_RDONLY
+	jz	so0r			; the file isn't read-only
+	test	bl,MODE_CREATE		; was it just created?
+	jnz	so0r			; yes
+	test	bl,MODE_ACC_WO OR MODE_ACC_RW
+	jnz	so9r			; it's being opened for writing
+so0r:	call	sfb_chkopen		; can the file be opened in this mode?
 	jnc	so1a			; yes
 	jmp	short so9b		; no (AX = error code)
+so9r:	mov	ax,ERR_ACCDENIED
+	jmp	short so9b
 so9a:	mov	ax,ERR_NOFILE
 so9b:	stc
 	jmp	so9

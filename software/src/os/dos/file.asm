@@ -33,7 +33,9 @@ DOS	segment word public 'CODE'
 ; sfb_commit
 ;
 ; Update the DIRENT for a modified file (ie, its time, date, first cluster,
-; and size), and then write all modified buffers for the file's drive.
+; and size), and then write all modified buffers for the file's drive.  The
+; time and date are the current time and date, unless they were set (see
+; hdl_time).
 ;
 ; Inputs:
 ;	BX -> SFB
@@ -81,7 +83,11 @@ DEFPROC	sfb_commit,DOS
 	jc	scm9
 	ASSUME	DS:BIOS
 	call	get_dtime		; AX = time, DX = date
-	mov	cs:[bx].SFB_TIME,ax
+	test	cs:[bx].SFB_FLAGS,SFBF_DTSET
+	jz	scm1			; they weren't set
+	mov	ax,cs:[bx].SFB_TIME
+	mov	dx,cs:[bx].SFB_DATE
+scm1:	mov	cs:[bx].SFB_TIME,ax
 	mov	cs:[bx].SFB_DATE,dx
 	mov	[si].DIR_TIME,ax
 	mov	[si].DIR_DATE,dx

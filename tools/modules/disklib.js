@@ -989,6 +989,13 @@ export default class DiskLib {
                         file.attr |= DiskInfo.ATTR.READONLY;
                     }
                 }
+                /**
+                 * Attributes given for a file in the root (eg, with diskimage.js --attr) replace its attributes.
+                 */
+                if (!iLevel && driveInfo && driveInfo.attrs) {
+                    let attr = driveInfo.attrs[sName.toUpperCase()];
+                    if (attr !== undefined) file.attr = attr;
+                }
                 file.size = data.length;
                 file.data = data;
             }

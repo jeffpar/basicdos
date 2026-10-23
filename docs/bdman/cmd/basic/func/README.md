@@ -11,7 +11,7 @@ Functions can be used in any expression, in BASIC programs or at the prompt (eg,
 - Numeric functions: [ABS](#abs), [ATN](#atn), [CDBL](#cdbl), [CINT](#cint), [COS](#cos), [CSNG](#cdbl), [EXP](#exp), [FIX](#fix), [INT](#int), [LOG](#log), [RND](#rnd), [RND%](#rnd-int), [SGN](#sgn), [SIN](#sin), [SQR](#sqr), [TAN](#tan)
 - String functions: [ASC](#asc), [CHR$](#chr), [HEX$](#hex), [INSTR](#instr), [LCASE$](#lcase), [LEFT$](#left), [LEN](#len), [MID$](#mid), [OCT$](#oct), [RIGHT$](#right), [SPACE$](#space), [SPC](#space), [STR$](#str), [STRING$](#string), [TAB](#tab), [UCASE$](#ucase), [VAL](#val)
 - File functions: [CVD](#cvi), [CVI](#cvi), [CVL](#cvi), [DIR$](#dir), [EOF](#eof), [EXISTS](#exists), [LOC](#loc), [LOF](#lof), [MKD$](#mki), [MKI$](#mki), [MKL$](#mki)
-- System functions: [ARG$](#arg), [CSRLIN](#csrlin), [CURDIR$](#curdir), [DATE$](#date), [ERL](#erl), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [MOUSE](#mouse), [PATH$](#path), [PEEK](#peek), [POS](#pos), [SCREEN](#screen), [TIME$](#time)
+- System functions: [ARG$](#arg), [CSRLIN](#csrlin), [CURDIR$](#curdir), [DATE$](#date), [DOS](#dos), [ERL](#erl), [ERR](#err), [FRE](#fre), [INKEY$](#inkey), [MOUSE](#mouse), [PATH$](#path), [PEEK](#peek), [POS](#pos), [SCREEN](#screen), [TIME$](#time)
 - Predefined constants: [ERRORLEVEL](#errorlevel), [MAXINT](#maxint)
 
 You can also define your own functions with [DEF](../def/).
@@ -316,6 +316,12 @@ Returns the current drive and directory as a string, in the same form that [CD](
 > DATE$
 
 Returns the current date as a string in the form MM-DD-YYYY.
+
+#### DOS {#dos}
+
+> DOS(*n*)
+
+Returns register AX (*n* = 0), BX (1), CX (2), or DX (3), as DOS returned it to the last [DOS](../#dos) statement, as a value from 0 to 65535.  Any other *n* is an "Illegal function call".  For example, after `DOS &H3600, 0, 0, 0` (get disk info for the current drive), `DOS(0) * DOS(1) * DOS(2)` is the number of bytes free.
 
 #### ERL {#erl}
 

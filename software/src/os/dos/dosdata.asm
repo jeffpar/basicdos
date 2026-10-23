@@ -98,7 +98,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<tty_in,tty_read,tty_print,tty_input,tty_status,tty_flush>
 	EXTNEAR	<dsk_flush,dsk_getdrv,dsk_setdrv,dsk_setdta,dsk_getdta>
 	EXTNEAR	<dsk_getinfo,dsk_ffirst,dsk_fnext,dsk_delete,dsk_rename>
-	EXTNEAR	<dsk_chdir,dsk_getcwd,dsk_mkdir,dsk_rmdir>
+	EXTNEAR	<dsk_chdir,dsk_getcwd,dsk_mkdir,dsk_rmdir,dsk_attr>
 	EXTNEAR	<fcb_open,fcb_close,fcb_sread,fcb_rread,fcb_setrel>
 	EXTNEAR	<fcb_rbread,fcb_parse,fcb_create,fcb_swrite,fcb_rwrite>
 	EXTNEAR	<fcb_rbwrite,fcb_size,fcb_ffirst,fcb_fnext>
@@ -108,7 +108,7 @@ DOS	segment word public 'CODE'
 	EXTNEAR	<msc_getvars,psp_exec,psp_return,psp_retcode>
 	EXTNEAR	<psp_copy,psp_set,psp_get,psp_create>
 	EXTNEAR	<hdl_create,hdl_open,hdl_close,hdl_read,hdl_write,hdl_seek>
-	EXTNEAR	<hdl_ioctl>
+	EXTNEAR	<hdl_ioctl,hdl_time>
 	EXTNEAR	<mem_alloc,mem_free,mem_realloc>
 	EXTNEAR	<utl_strlen,utl_strstr,utl_strupr>
 	EXTNEAR	<utl_atoi16,utl_atoi32,utl_atoi32d>
@@ -140,12 +140,12 @@ DOS	segment word public 'CODE'
 	dw	func_none,   msc_getvec,  dsk_getinfo, msc_getswc	;34-37
 	dw	func_none,   dsk_mkdir,   dsk_rmdir,   dsk_chdir	;38-3B
 	dw	hdl_create,  hdl_open,    hdl_close,   hdl_read		;3C-3F
-	dw	hdl_write,   dsk_delete,  hdl_seek,    func_none	;40-43
+	dw	hdl_write,   dsk_delete,  hdl_seek,    dsk_attr		;40-43
 	dw	hdl_ioctl,   func_none,   func_none,   dsk_getcwd	;44-47
 	dw	mem_alloc,   mem_free,    mem_realloc, psp_exec		;48-4B
 	dw	psp_return,  psp_retcode, dsk_ffirst,  dsk_fnext	;4C-4F
 	dw	psp_set,     psp_get,     msc_getvars, func_none	;50-53
-	dw	func_none,   psp_create,  dsk_rename			;54-56
+	dw	func_none,   psp_create,  dsk_rename,  hdl_time		;54-57
 	DEFABS	FUNCTBL_SIZE,<($ - FUNCTBL) SHR 1>
 
 	DEFLBL	UTILTBL,word

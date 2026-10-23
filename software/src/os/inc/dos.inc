@@ -171,6 +171,13 @@ SIG_SFB		equ	'F'
 SFBF_FCB	equ	01h	; SFB opened for FCB (see fcb_open)
 SFBF_DIRTY	equ	02h	; SFB modified (DIRENT must be updated on close)
 SFBF_ALIAS	equ	04h	; FCB alias holding a ref to another SFB
+SFBF_DTSET	equ	08h	; time and date set (see hdl_time)
+;
+; sfb_create opens the file it creates with MODE_CREATE (a reserved MODE_*
+; bit) added, since a new file is writable even if it was created with
+; DIRATTR_RDONLY (see sfb_open).
+;
+MODE_CREATE	equ	08h
 
 SFH_NONE	equ	0FFh	; if this SFH is in a PFT entry, it's unused
 

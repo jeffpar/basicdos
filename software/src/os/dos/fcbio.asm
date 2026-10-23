@@ -1187,8 +1187,9 @@ ENDPROC	rename_fcb
 ; sfb_create, sfb_create_fcb
 ;
 ; Creates a new file, or truncates an existing file, and then opens it for
-; reading and writing.  If the name is a device or volume name, the device
-; or volume is simply opened (there's nothing to truncate).
+; reading and writing (even if it was created read-only; see MODE_CREATE).
+; If the name is a device or volume name, the device or volume is simply
+; opened (there's nothing to truncate).
 ;
 ; Inputs:
 ;	CL = attributes (see DIRATTR_*)
@@ -1278,8 +1279,8 @@ sc6:	pop	ax
 	pop	ds
 	pop	si
 	ASSUME	DS:NOTHING, ES:NOTHING
-	mov	bl,MODE_ACC_RW		; BL = mode
-	call	sfb_open_fcb
+	mov	bl,MODE_ACC_RW OR MODE_CREATE
+	call	sfb_open_fcb		; open it (BL = mode)
 	jmp	short sc9
 sc7:	stc
 sc8:	pop	dx			; discard the saved AX

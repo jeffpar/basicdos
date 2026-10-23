@@ -2,9 +2,10 @@
 	'
 	'   FORMAT d: [/S] [/1] [/8]
 	'
-	' /S copies the system files (from the root of the current drive), /1
-	' formats one side of a diskette, and /8 formats 8 sectors per track
-	' (for PC DOS 1.x).
+	' /S copies the system files (from the root of the current drive), and
+	' makes them read-only system files (and BASDEV.COM and BASDOS.COM hidden
+	' files, too), /1 formats one side of a diskette, and /8 formats 8 sectors
+	' per track (for PC DOS 1.x).
 	'
 	' The drive's volume is opened for writing (an unformatted diskette or
 	' a new hard disk has "unknown media", but can still be opened), and the
@@ -61,7 +62,7 @@
 	CLOSE
 	OPEN D$ FOR OUTPUT AS #1
 	GOTO 10
-	DATA "BASDEV.COM", "BASDOS.COM", "COMMAND.COM"
+	DATA "BASDEV.COM", 7, "BASDOS.COM", 7, "COMMAND.COM", 5
 50	' Choose the cluster size (K sectors), root directory entries (E), and
 	' FAT size (F sectors) for N sectors: PC DOS 2.x used 1-sector clusters
 	' and 64 entries up to 256K, 2 and 112 up to 1Mb, 4 and 256 up to 4Mb,
@@ -116,16 +117,18 @@
 	WHILE L > 255 : PRINT #1, Z$; : L = L - 255 : WEND
 	IF L > 0 THEN PRINT #1, LEFT$(Z$, L);
 	RETURN
-80	' Copy the system files (/S), adding their sizes (rounded up to clusters)
-	' to U, and report the space on the volume
+80	' Copy the system files (/S), setting their attributes (DOS function
+	' &H4301: 1 = read-only, 2 = hidden, 4 = system) and adding their sizes
+	' (rounded up to clusters) to U, and report the space on the volume
 	ON ERROR GOTO 0
 	IF S = 0 THEN GOTO 85
 	RESTORE
 	FOR I = 1 TO 3
-	READ F$
-	F$ = V$ + MID$(CURDIR$, 3, 1) + F$
+	READ N$, A
+	F$ = V$ + MID$(CURDIR$, 3, 1) + N$
 	COPY F$ D$
 	IF ERRORLEVEL THEN PRINT "Unable to copy "; F$ : GOTO 85
+	DOS &H4301, 0, A, D$ + N$
 	OPEN F$ FOR INPUT AS #2
 	L = LOF(2) + K * 512 - 1
 	U = U + L - L MOD (K * 512)

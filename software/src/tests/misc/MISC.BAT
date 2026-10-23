@@ -18,6 +18,7 @@ EXPRERR
 VARS
 FILEIO
 PRTUSING
+ATTRS
 REM CMDS and MOVES expect to run in the root of the boot drive (CMDS also
 REM runs A:\BIN\SLEEP.COM), so CMDS is skipped unless this is drive A:
 IF D$ <> "A" THEN PRINT "CMDS skipped (run it from A:\)" : GOTO 10

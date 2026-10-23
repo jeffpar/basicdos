@@ -1,6 +1,5 @@
-REM 64K demonstration: one session with no FPU$ (floating-point) or PIPE$
-REM drivers; the drivers for hardware this machine lacks (serial and
-REM parallel ports, mouse, and hard disk) unload themselves
+REM 64K demonstration with one session and no FPU$ or PIPE$ drivers
+REM Drivers for missing hardware (eg, COM ports) are automatically skipped
 SKIP=FPU$,PIPE$
 BUFFERS=2
 FILES=8

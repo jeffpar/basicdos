@@ -335,6 +335,7 @@ FILE_DATA	db   44 dup (?)		; 4D2h: OPEN files (see fileio.inc)
 PIPE_SCB	dd	?		; 4FEh: pipeline sessions (see endPipes)
 PATH_BUF	db  128 dup (?)		; 502h: PATH$ (length, 0-120 chars, null)
 ENV_DATA	db  176 dup (?)		; 582h: environment (see initEnv)
+DOS_REGS	dw    4 dup (?)		; 632h: AX-DX from DOS (see dosCall)
 ;
 ; The BASIC-DOS loader always set the stack pointer for a COM file to the top
 ; of the segment, which means we must declare our stack at the end of CMDHEAP.
@@ -345,7 +346,7 @@ ENV_DATA	db  176 dup (?)		; 582h: environment (see initEnv)
 ; COM file can request the stack be located elsewhere, since there's no way for
 ; us to prevent a hardware interrupt from arriving before switching stacks.
 ;
-STACK		dw 1023 dup (?)		; 632h
+STACK		dw 1019 dup (?)		; 63Ah
 CMDHEAP		ends			 ; E30h
 SIG_CMD		equ	'H'
 

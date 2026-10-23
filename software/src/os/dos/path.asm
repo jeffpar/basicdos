@@ -65,6 +65,65 @@ ENDPROC	dsk_delete
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;
+; dsk_attr (REG_AH = 43h)
+;
+; Gets or sets the attributes of a file or directory.  Only the read-only,
+; hidden, system, and archive attributes can be set; the directory and volume
+; attributes (and the unused bits) in REG_CX are ignored.  As with deleting
+; and renaming, attributes can't be set while the volume is open.
+;
+; Inputs:
+;	REG_AL = 0 to get attributes, or 1 to set them
+;	REG_CX = attributes (see DIRATTR_*; when REG_AL = 1)
+;	REG_DS:REG_DX -> name of file or directory
+;
+; Outputs:
+;	On success, carry clear (and if REG_AL = 0, REG_CX = attributes)
+;	On failure, carry set, REG_AX = error code
+;
+; Modifies:
+;	AX, BX, CX, DX, SI, DI, DS, ES
+;
+ATTR_RHS	equ	DIRATTR_RDONLY OR DIRATTR_HIDDEN OR DIRATTR_SYSTEM
+ATTR_SET	equ	ATTR_RHS OR DIRATTR_ARCHIVE
+
+DEFPROC	dsk_attr,DOS
+	LOCK_SCB
+	mov	si,dx
+	mov	ds,[bp].REG_DS		; DS:SI -> filename
+	ASSUME	DS:NOTHING
+	sub	ax,ax			; AH = 0 (filename), AL = 0 (attributes)
+	call	chk_filename		; DS:SI -> DIRENT, AL = drive #
+	jc	da8
+	ASSUME	DS:BIOS
+	mov	ah,[bp].REG_AL
+	dec	ah			; REG_AL = 1 (set)?
+	jz	da3			; yes
+	jns	da7			; no, and it's not 0 (get) either
+	mov	al,[si].DIR_ATTR
+	mov	ah,0
+	mov	[bp].REG_CX,ax		; REG_CX = attributes (carry is clear)
+	jmp	short da9
+da7:	mov	ax,ERR_INVALID
+	stc
+	jmp	short da8
+da3:	call	chk_volopen		; is the volume open?
+	jc	da8			; yes
+	mov	ah,[bp].REG_CL
+	and	ah,ATTR_SET		; AH = new settable attributes
+	mov	cl,[si].DIR_ATTR
+	and	cl,DIRATTR_SUBDIR OR DIRATTR_VOLUME
+	or	ah,cl			; plus the DIRENT's other attributes
+	mov	[si].DIR_ATTR,ah
+	mov	ds:[BUF_DIRTY],1
+	call	flush_buffers		; write the modified DIRENT
+	jnc	da9
+da8:	mov	[bp].REG_AX,ax
+da9:	UNLOCK_SCB_RET
+ENDPROC	dsk_attr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
 ; chk_dirent
 ;
 ; Checks that the file whose DIRENT is at DS:SI can be deleted, renamed (by

@@ -69,13 +69,14 @@ This section tracks what's been completed (**[x]**) and what remains (**[ ]**). 
 - [x] Same-drive file and directory moves (function 56h): preserve contents and metadata, update a moved directory's `..` entry, retain active current directories, and reject moves into itself or a descendant
 - [x] Absolute disk reads and writes: opening a volume (eg, `C:`) as a file gives read/write access to its sectors, in place of INT 25h and INT 26h; a volume can also be created (ie, opened FOR OUTPUT) and opened when its media is unknown (eg, an unformatted diskette), with no critical error prompt, and IOCTLs on a volume handle go to the drive's driver (with their errors returned to the caller)
 - [x] Configurable disk buffer cache (BUFFERS=2-32, default 2), with least-recently-used replacement for FAT and directory sectors; file data is transferred directly by the disk drivers
-- [ ] Enforcing the read-only attribute on open, and getting/setting file attributes (function 43h) and date/time (function 57h)
+- [x] File attributes: a read-only file can't be opened for writing, replaced, or deleted; getting and setting a file's attributes (function 43h) and a handle's time and date (function 57h, kept when the file is closed); and on every BASIC-DOS disk, BASDEV.COM and BASDOS.COM are read-only hidden system files and COMMAND.COM is a read-only system file
 - [ ] Extended disk partitions
 
 ### Command Interpreter: DOS Commands
 
 - [x] CD (CHDIR), COPY, DATE, DEL, DIR, EXIT, HELP, KEYS, MD (MKDIR), MEM, RD (RMDIR), RESTART, TIME, TYPE, and VER
 - [x] DIR listings begin with the volume label and the directory's full path, as in DOS 2.x (FFIRST with attribute 08h finds only the volume label, and GETCWD with DL = FFh returns the path of the directory FFIRST searched)
+- [x] DIR /A lists hidden files (only the hidden attribute keeps a file out of DIR, so system files like COMMAND.COM are listed), and DIR /S lists the matching files in every subdirectory, with a header and totals for each directory
 - [x] The prompt displays the current drive and directory (eg, `C:\SUBDIR>`), and switches use `/` (eg, `TIME /P`), as in PC DOS, unless SWITCHAR is `-` or PATHCHAR is `/`, in which case they use `-`
 - [x] Running COM, EXE, BAT, and BAS files, and loading programs into other sessions
 - [x] BAT and BAS files can run other BAT and BAS files and then continue (no CALL command required); a nested BAS file gets its own variables
@@ -107,9 +108,10 @@ Utilities live in the BIN directory of every BASIC-DOS disk.  The filters, SLEEP
 
 - [x] *partial*: FORMAT.BAS (360K diskettes by default, /1 for single-sided, /8 for 8 sectors per track, and /S to copy the system files from the current drive), which formats and verifies each track through the diskette driver, builds the boot sector, FATs, and root directory using the PC DOS 2.x rules for cluster and root directory sizes (with 12-bit FATs, which PC DOS 2.x used whenever it could), and reports the space available; it refuses the current drive
 - [x] *partial*: FORMAT for hard disks: it displays the disk's partition table first, formats one of its FAT volumes (asking which, when the drive given is the whole disk) after a warning, and when a disk has no partition table, offers to create one (with prompts, rather than a separate FDISK) with a single volume of the size requested in Mb (up to 32Mb), writing an MBR and formatting the volume (12-bit FAT up to 32680 sectors, as PC DOS 3.x did, and 16-bit FAT beyond)
+- [x] ATTRIB.BAS: displays the attributes (R, H, S, and A) of the matching files, including hidden and system files, after setting (+) or clearing (-) any that are given (eg, ATTRIB +R *.BAS), using the DOS statement
 - [x] MODE.BAS: display columns and color (MODE 40, 80, BW40, BW80, CO40, CO80), serial ports (eg, MODE COM1:9600,N,8,1, which sets the port by opening it with those parameters and no input buffer), and printer columns and lines per inch (MODE LPT1:132,8)
 - [ ] Additional FORMAT features: adding volumes to a partitioned disk, extended partitions, verifying hard disk sectors, marking bad clusters, volume labels (/V), and 720K and 1.2M diskettes
-- [ ] Other PC DOS-inspired utilities possibly written in BASIC: CHKDSK, SYS, DISKCOPY, DISKCOMP, COMP, LABEL (and VOL), TREE, ATTRIB, and PRINT (background printing, using a session); not ASSIGN, SUBST, JOIN, BACKUP, RESTORE, or EDLIN (VI covers editing)
+- [ ] Other PC DOS-inspired utilities possibly written in BASIC: CHKDSK, SYS, DISKCOPY, DISKCOMP, COMP, LABEL (and VOL), TREE, and PRINT (background printing, using a session); not ASSIGN, SUBST, JOIN, BACKUP, RESTORE, or EDLIN (VI covers editing)
 - [ ] Additional third-party tools (eg, PKZIP and PKUNZIP) added to the TOOLS directory
 
 ### Command Interpreter: BASIC Language
@@ -135,6 +137,7 @@ Utilities live in the BIN directory of every BASIC-DOS disk.  The filters, SLEEP
 - [x] Sequential file I/O: OPEN FOR INPUT, OUTPUT, and APPEND, CLOSE (and RESET), PRINT #, WRITE #, INPUT #, LINE INPUT #, EOF, LOC, and LOF
 - [x] Random access file I/O: OPEN FOR RANDOM with LEN, FIELD, LSET, RSET, GET #, PUT #, and binary conversion functions (CVI, CVL, CVD, MKI$, MKL$, and MKD$)
 - [x] IOCTL #: sends an IOCTL request (with a numeric value in CX and DX, or a string's data) to the device or volume open as a file, with driver errors reported as runtime errors (eg, "Permission denied" for a write-protected diskette); IOCTL$ returns the data (up to 255 bytes) a driver stores in response to a request
+- [x] DOS *ax*[,*bx*[,*cx*[,*dx*|*string*]]]: calls DOS (INT 21h) with those registers (a string is passed as DS:DX, null-terminated), with DOS errors reported as runtime errors (eg, "File not found"); DOS(*n*) returns the registers that DOS returned (eg, attributes from function 43h); used by ATTRIB.BAS and FORMAT.BAS
 - [x] *partial*: Error handling (ON ERROR GOTO, RESUME *line*, ERROR, and ERR; see the DONKEY.BAS checklist)
 - [x] Specific error messages for compile-time errors: "NEXT without FOR", "FOR without NEXT", "WHILE without WEND", "WEND without WHILE", and "Type mismatch" (formerly all reported as syntax errors), with the line of the FOR or WHILE for an unclosed loop, and no "in line 0" for commands typed at the prompt
 - [ ] Runtime error messages for numeric errors
@@ -228,9 +231,8 @@ BASIC-DOS uses BASIC for batch files, so reproducing PC DOS batch syntax is not 
 
 These are the next steps, roughly in priority order:
 
-1. The read-only attribute, and file attribute/date/time functions
-2. Remaining string and input/output features (the MID$ statement and comma print zones)
-3. The rest of runtime error handling (RESUME, RESUME NEXT, and ERL)
+1. Remaining string and input/output features (the MID$ statement and comma print zones)
+2. The rest of runtime error handling (RESUME, RESUME NEXT, and ERL)
 
 ## License
 

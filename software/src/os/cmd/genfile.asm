@@ -42,6 +42,7 @@ CODE    SEGMENT
 	EXTNEAR	<skipToken,genReadVars,genPrintArgs,genPrintfArgs,genWriteEnd>
 	EXTNEAR	<openFile,closeFile,fileOut,selectInput,fileItem,genWriteArgs>
 	EXTNEAR	<fieldVar,setField,fileRecord,lsetStr,genVarRef,fileIoctl>
+	EXTNEAR	<dosCall>
 	EXTNEAR	<genGetGfx,genPutGfx,compError>
 
 	EXTABS	<TOK_FOR,TOK_INPUT,TOK_AS,TOK_OUTPUT,TOK_APPEND,TOK_RANDOM>
@@ -548,6 +549,65 @@ gio3:	mov	al,dl
 gio8:	stc
 gio9:	ret
 ENDPROC	genIoctl
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; genDosCall
+;
+; Generate code for "DOS ax[,bx[,cx[,dx|string]]]", which calls DOS (INT 21h)
+; with the values in AX, BX, CX, and DX (omitted values are zero), or with
+; DS:DX -> a string, which must be the last value (see dosCall).
+;
+; Inputs:
+;	DS:BX -> TOKLETs
+;	ES:DI -> code block
+;
+; Outputs:
+;	Carry clear if successful, set if error
+;
+; Modifies:
+;	Any
+;
+DEFPROC	genDosCall
+	mov	cx,4			; CX = # of values left
+gds1:	push	cx
+	call	genExpr			; push the next value
+	pop	cx
+	jbe	gds8
+	cmp	dl,VAR_STR		; is it a string?
+	jne	gds2			; no
+	cmp	cl,1			; yes, so is it the last value (DX)?
+	jne	gds2			; no (and genCvtType will refuse it)
+	cmp	al,','			; is another value following it?
+	jne	gds5			; no (DL = VAR_STR)
+	jmp	short gds8
+gds2:	push	cx
+	push	ax
+	mov	al,VAR_LONG
+	call	genCvtType		; a numeric value must be a long
+	pop	ax
+	pop	cx
+	jc	gds9
+	mov	dl,VAR_LONG
+	cmp	al,','			; is there another value?
+	jne	gds3			; no
+	loop	gds1			; yes, if there can be another
+gds8:	stc
+gds9:	ret
+gds3:	dec	cx			; CX = # of values omitted
+	jcxz	gds5
+gds4:	push	cx
+	push	dx
+	GENPUSH	0,0			; push a zero for each one
+	pop	dx
+	pop	cx
+	loop	gds4
+gds5:	mov	al,dl
+	GENPUSHB al			; push the type of the last value
+	GENCALL	dosCall
+	clc
+	ret
+ENDPROC	genDosCall
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;

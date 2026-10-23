@@ -104,6 +104,8 @@ DOS_HDL_SEEK	equ	42h	; seek to (CX:DX) w/method (AL) and handle (BX)
 DOS_HDL_SEEKBEG	equ   4200h	; seek from beginning
 DOS_HDL_SEEKCUR	equ   4201h	; seek from current position
 DOS_HDL_SEEKEND	equ   4202h	; seek from end
+DOS_DSK_GETATTR	equ   4300h	; get attributes (CX) of file (DS:DX)
+DOS_DSK_SETATTR	equ   4301h	; set attributes (CX) of file (DS:DX)
 DOS_HDL_IOCTL	equ   	44h	; send device request (AL) for handle (BX)
 DOS_DSK_GETCWD	equ	47h	; get current dir of drive (DL) at (DS:SI)
 DOS_MEM_ALLOC	equ	48h	; allocate (BX) paras (returns segment AX)
@@ -122,6 +124,8 @@ DOS_PSP_GET	equ	51h	; get current PSP (BX) (undocumented)
 DOS_MSC_GETVARS	equ	52h	; get variables pointer (ES:BX) (undocumented)
 DOS_PSP_CREATE	equ	55h	; create PSP in segment (DX) (undocumented)
 DOS_DSK_RENAME	equ	56h	; rename file (DS:DX) to (ES:DI)
+DOS_HDL_GETTIME	equ   5700h	; get time (CX) and date (DX) of handle (BX)
+DOS_HDL_SETTIME	equ   5701h	; set time (CX) and date (DX) of handle (BX)
 
 ;
 ; INT_DOSUTIL functions

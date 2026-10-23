@@ -231,6 +231,7 @@ KEYWORDS	macro	PASS
 	PASS	DELETE, 13, cmdDelete
 	PASS	DIM,    54, genDim
 	PASS	DIR,    21, cmdDir
+	PASS	DOS,   100, genDosCall,PUB
 	PASS	DRAW,   74, genDraw
 	PASS	ECHO,   47, genEcho
 	PASS	EDIT,   14, cmdEdit

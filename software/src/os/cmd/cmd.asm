@@ -1030,12 +1030,12 @@ cf4x:	jmp	cf5
 ; GEN_BASIC or GEN_BATCH as appropriate.
 ;
 ; When a BAS file is run from the command prompt, it remains loaded after it
-; finishes running (replacing any program that was previously loaded), and
-; so do its variables, just like MSBASIC, so that it can be LIST'ed, RUN again,
-; etc.  Otherwise (eg, a BAT file, or a BAS file run by another BAT or BAS
-; file), we free the file's blocks (eg, all text blocks) when it finishes
-; running, but any variables set (ie, all var blocks) are allowed to remain in
-; memory.
+; finishes running (replacing any program that was previously loaded, which
+; is freed first, along with its variables, as NEW does), and so do its
+; variables, just like MSBASIC, so that it can be LIST'ed, RUN again, etc.
+; Otherwise (eg, a BAT file, or a BAS file run by another BAT or BAS file), we
+; free the file's blocks (eg, all text blocks) when it finishes running, but
+; any variables set (ie, all var blocks) are allowed to remain in memory.
 ;
 ; Since a BAT or BAS file may be run by another BAT or BAS file, we save (and
 ; empty) the code and text chains first, so that the new file can't free the
@@ -1109,11 +1109,22 @@ cf4u:	mov	ax,cx
 	mov	ax,11h			; save the code and text chains
 	cmp	dx,offset BAS_EXT
 	jne	cf4c
-	mov	ah,1			; AH = 1 to keep a BAS file loaded
-					; (see restoreChains)
 	cmp	[bp].CBLKDEF.BDEF_NEXT,0; is a program running?
-	je	cf4c			; no
-	mov	ax,3Fh			; yes, so save its var chains, too
+	mov	al,3Fh			; (if so, save its var chains, too)
+	jne	cf4c			; yes
+;
+; A BAS file run from the prompt replaces the loaded program, so we free that
+; program and its variables now, as NEW does, rather than after the file runs,
+; so that the file runs with the same memory every time (eg, running it again
+; can't run out of memory where the first run didn't).
+;
+	push	cx
+	push	si
+	call	cmdNew
+	pop	si
+	pop	cx
+	mov	ax,111h			; AH = 1 to keep a BAS file loaded
+					; (see restoreChains)
 cf4c:	call	saveChains		; SP -> CHAINS frame
 	mov	bx,bp			; BX -> CMDHEAP again
 	call	cmdLoad			; DS:SI -> filespec (with length CX)

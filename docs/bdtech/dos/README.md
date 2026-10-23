@@ -9,7 +9,7 @@ permalink: /docs/bdtech/dos/
 
 BASIC-DOS provides a subset of the PC DOS 2.x function interface, through INT 21h, with the function number in AH.  Unless noted otherwise, functions that can fail return with carry set and an [error code](#error-codes) in AX, and with carry clear on success.  Programs can also use the CP/M-style CALL 5 interface.
 
-Functions not listed below (including any function above 56h) aren't implemented, and return with carry set and AX = ERR_INVALID.
+Functions not listed below (including any function above 57h) aren't implemented, and return with carry set and AX = ERR_INVALID.
 
 The `DOS_*` names are defined in dosapi.inc (define DOSFUNC before including it).
 
@@ -47,7 +47,8 @@ The line editing keys that 0Ah supports are described in [Typing Commands](../..
 | 39h | DOS_DSK_MKDIR | DS:DX -> path | Creates the directory |
 | 3Ah | DOS_DSK_RMDIR | DS:DX -> path | Removes the directory (which must be empty, and not any session's current directory) |
 | 3Bh | DOS_DSK_CHDIR | DS:DX -> path | Changes the current directory of the path's drive |
-| 41h | DOS_DSK_DELETE | DS:DX -> filename | |
+| 41h | DOS_DSK_DELETE | DS:DX -> filename | Fails with ERR_ACCDENIED if the file is read-only |
+| 43h | DOS_DSK_GETATTR, DOS_DSK_SETATTR | AL = 0 (get) or 1 (set), CX = attributes (set only), DS:DX -> file or directory name | CX = attributes (get only); only the read-only (01h), hidden (02h), system (04h), and archive (20h) attributes can be set (the directory and volume attributes in CX are ignored), and not while the volume is open |
 | 47h | DOS_DSK_GETCWD | DL = drive # (0 = default, 1 = A:), or FFh for the directory searched by the DTA's last 4Eh or 4Fh (a BASIC-DOS extension); DS:SI -> 64-byte buffer | Buffer contains the directory's path, without a drive or leading path character (an empty string for the root) |
 | 4Eh | DOS_DSK_FFIRST | CX = attributes (08h alone finds only the volume label), DS:DX -> filespec | DTA filled in (see [FFB](../data/#ffb)) |
 | 4Fh | DOS_DSK_FNEXT | DTA from the previous 4Eh or 4Fh | DTA filled in |
@@ -64,6 +65,7 @@ The line editing keys that 0Ah supports are described in [Typing Commands](../..
 | 40h | DOS_HDL_WRITE | BX = handle, CX = byte count, DS:DX -> buffer | AX = bytes written; CX = 0 sets the file size to the current position |
 | 42h | DOS_HDL_SEEK | AL = method (0 = beginning, 1 = current, 2 = end), BX = handle, CX:DX = distance | DX:AX = new position |
 | 44h | DOS_HDL_IOCTL | AL = IOCTL code, BX = handle, CX and DX = IOCTL data, DS:SI -> optional IOCTL data | DX = result |
+| 57h | DOS_HDL_GETTIME, DOS_HDL_SETTIME | AL = 0 (get) or 1 (set), BX = handle, CX = time (`hour*2048 + minute*32 + second/2`) and DX = date (`(year-1980)*512 + month*32 + day`) (set only) | CX = time and DX = date (get only); a time and date that are set are kept when the file is closed, instead of the time of its last write (setting them for a device or volume does nothing) |
 
 Handles 0-4 are the predefined handles STDIN, STDOUT, STDERR, STDAUX, and STDPRN.  Filenames can also be device names (eg, `CON`, `NUL`, or `COM1`), optionally followed by a colon and device-specific parameters (eg, `CON:40,25`).
 
@@ -173,7 +175,7 @@ For the same reason, COMMAND.COM supports `COMMAND /C command`, which is how the
 
 #### Files
 
-Any filename passed to a handle function (or to FFIRST, DELETE, RENAME, MKDIR, RMDIR, CHDIR, or EXEC) may include a path, whose directory names are separated by the session's path character (DOS_MSC_GETPCH), not by both `\` and `/` as in PC DOS.  FCB functions always use the drive's current directory.  A subdirectory grows by a cluster whenever a new entry doesn't fit.  Same-drive renames can move files and directories without copying their data; existing destinations and open source files are rejected.  Directory moves update the ".." entry and reject destinations within the moved subtree.  Current directories and open child files remain valid because their directory cluster identities are unchanged.  Cross-drive moves are not supported.  Enforcing the read-only attribute when a handle opens a file, getting and setting file attributes (43h) and file dates and times (57h), and INT 25h and INT 26h (use a volume handle for absolute disk reads and writes instead) aren't supported.  Block device errors are reported to the session's critical error handler (see [Critical Errors](#critical-errors)).
+Any filename passed to a handle function (or to FFIRST, DELETE, RENAME, MKDIR, RMDIR, CHDIR, or EXEC) may include a path, whose directory names are separated by the session's path character (DOS_MSC_GETPCH), not by both `\` and `/` as in PC DOS.  FCB functions always use the drive's current directory.  A subdirectory grows by a cluster whenever a new entry doesn't fit.  Same-drive renames can move files and directories without copying their data; existing destinations and open source files are rejected.  Directory moves update the ".." entry and reject destinations within the moved subtree.  Current directories and open child files remain valid because their directory cluster identities are unchanged.  Cross-drive moves are not supported.  A read-only file can't be opened for writing (3Dh with MODE_ACC_WO or MODE_ACC_RW), replaced (3Ch), or deleted (41h); each fails with ERR_ACCDENIED, as does writing to a read-only file through an FCB.  As in PC DOS, a file that 3Ch creates with the read-only attribute is writable through the handle that 3Ch returns.  INT 25h and INT 26h aren't supported (use a volume handle for absolute disk reads and writes instead).  Block device errors are reported to the session's critical error handler (see [Critical Errors](#critical-errors)).
 
 BASIC-DOS doesn't store the path of each current directory, only the directory's first cluster (in a table with one entry per drive for each session), so DOS_DSK_GETCWD rebuilds the path by following ".." entries up to the root.
 

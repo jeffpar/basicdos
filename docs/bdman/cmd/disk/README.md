@@ -65,11 +65,14 @@ Deletes the specified file.  With the wildcards `?` and `*` (as in [DIR](#dir)),
 
 ### DIR
 
-> DIR [*filespec*]
+> DIR [*filespec*] [/A] [/S]
 
 Displays a directory listing of all files matching the given *filespec* (or all files if none is specified).  As in DOS 2.x, the listing begins with a blank line, the drive's volume label (eg, ` Volume in drive A is BD-S80`, or ` Volume in drive A has no label`), the full path of the directory (eg, ` Directory of A:\SAMPLES`), and another blank line.  The *filespec* can contain the wildcards `?` (any character) and `*` (any characters to the end of the name or extension).  Subdirectories are listed with `<DIR>` in place of a size, and if *filespec* is a directory (eg, `DIR SUBDIR` or `DIR /`), the files in that directory are listed.  Use `DIR | MORE` to pause after each screenful of output.
 
+Files with the hidden attribute (eg, BASDEV.COM and BASDOS.COM) are listed only with `/A`.  Unlike PC DOS, DIR lists system files that aren't hidden (eg, COMMAND.COM); see [ATTRIB](../external/#attrib).  `/S` lists the matching files in every subdirectory, too (in hidden subdirectories only with `/A`): each directory with matches gets its own ` Directory of` line and totals, and the bytes free are displayed at the end.
+
 	DIR *.BAS
+	DIR /S *.BAS
 
 ### LOAD
 

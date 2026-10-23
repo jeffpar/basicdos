@@ -86,6 +86,12 @@ function checkOutput(task, outputFile)
 const SRC = "./software/src";
 const MKMODE = "./tools/pc/disks/mkmode";
 const FINAL = fs.existsSync(MKMODE) && fs.readFileSync(MKMODE, "utf8").trim() == "FINAL";
+/*
+ * On every bootable disk, BASDEV.COM and BASDOS.COM are read-only hidden system files, and COMMAND.COM is a
+ * read-only system file (which DIR lists, since in BASIC-DOS, only the hidden attribute keeps a file out of DIR);
+ * diskimage.js sets them with --attr, and pc.js (for hard disks) uses the "attrs" in tools/pc/pc.json5.
+ */
+const SYSATTRS = "BASDEV.COM:RHS,BASDOS.COM:RHS,COMMAND.COM:RS";
 const manifest = {};
 let section;
 for (let line of fs.readFileSync("./software/manifest.txt", "utf8").split(/\r?\n/)) {
@@ -267,7 +273,8 @@ function buildDisk(diskName, diskImage)
             cmd = "node ./tools/pc/pc.js ibm5160 ./tools/pc/disks/" + diskName + " --sys=bd:2 --target=10M --normalize --bare --label=" + label + " --save=" + diskImage;
         } else {
             cmd = "node \"" + process.env["PCJS"] + "/tools/diskimage/diskimage.js\" --files " + entries.join(",") +
-                  (disks[diskName].data? "" : " --boot " + SRC + "/os/boot/obj/BOOT1.COM") + " --output " + diskImage +
+                  (disks[diskName].data? "" : " --boot " + SRC + "/os/boot/obj/BOOT1.COM --attr=" + SYSATTRS) +
+                  " --output " + diskImage +
                   " --label=" + label + " --normalize --writable --target=360 --overwrite";
         }
         run(cmd)(done);

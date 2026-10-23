@@ -94,7 +94,7 @@ For example, if a disk contains both DONKEY.COM and DONKEY.BAS, typing `DONKEY` 
 
 If the program isn't in the current directory, and its name doesn't include a drive or directory, BASIC-DOS searches the directories listed in [PATH$](../cmd/basic/func/#path), in order.  Every bootable BASIC-DOS disk has the same layout:
 
-- The root directory contains BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, AUTOEXEC.BAT (if any), and HELP.TXT
+- The root directory contains BASDEV.COM, BASDOS.COM, COMMAND.COM, CONFIG.SYS, AUTOEXEC.BAT (if any), and HELP.TXT; BASDEV.COM and BASDOS.COM are read-only hidden system files (so only `DIR /A` lists them), and COMMAND.COM is a read-only system file (see [ATTRIB](../cmd/external/#attrib))
 - **BIN** contains the BASIC-DOS utilities (eg, [FIND, MORE, and SORT](../cmd/external/#filters)) and DEBUG.COM
 - **SAMPLES** contains the PC DOS BASIC samples (eg, DONKEY.BAS)
 - **DEMOS** contains the programs that the demos run (eg, HELLO.BAT, FIBO.BAT, and PRIMES.BAS)
